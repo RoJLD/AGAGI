@@ -1,0 +1,23 @@
+# Règles Internes AGIseed
+
+En complément des 12 Commandements AGIseed, le développeur ou l'agent IA (Gemini/Claude/etc) DOIT impérativement suivre cette règle lors de toute interaction :
+
+## 13. Traçabilité Architecturale et Synchronisation (EDR & Roadmap)
+* **Règle :** L'intelligence du projet AGIseed réside autant dans son code que dans l'historique de son évolution. Les décisions ne doivent pas se perdre dans les logs de discussion.
+* **Action (EDR) :** À chaque nouvelle phase franchie ou à chaque modification structurelle de l'IA (ex: ajout d'une mémoire, nouveau capteur, modification du graphe), l'agent DOIT générer un nouveau fichier Markdown dans le dossier `docs/EDR/` détaillant le Contexte, la Décision et les Conséquences.
+* **Action (Roadmap) :** L'agent DOIT mettre à jour le fichier `roadmap.md` au fur et à mesure de l'avancement, en y ajoutant les idées brainstormées (ex: Routeur d'Attention, HGT, Mitose) pour que le futur du projet soit toujours clair et consigné.
+
+## 14. Validation par Simulation Avant Complexification
+* **Règle :** Ne jamais construire une "cathédrale de code" sans valider les fondations. Avant d'ajouter une nouvelle mécanique complexe (physique, interaction, nouveaux neurones), l'agent DOIT s'assurer que la mécanique précédente fonctionne et que la population s'est améliorée.
+* **Action :** Implémenter des métriques de persistance, faire tourner une simulation, et analyser les résultats (ex: vérifier que des agents survivent plus longtemps ou apprennent des choses) avant d'autoriser le passage à la phase suivante.
+
+## 15. Protocole d'Innovation Unitaire (PIU) — "La Loi du Sociologue"
+* **Règle :** Chaque innovation provoque une régression temporaire. L'agent NE DOIT JAMAIS introduire plus d'UNE variable expérimentale entre deux versions de la simulation. Ajouter simultanément le langage ET la curiosité ET plus de proies dilue la pression évolutive et empêche d'identifier quelle innovation a un impact réel.
+* **Action (Protocole Scientifique) :**
+  1. **Baseline** : Avant toute modification, faire tourner la version actuelle pendant 30 Ères minimum et enregistrer les métriques dans KuzuDB (Max Score, Mean Score, Ticks de survie).
+  2. **Intervention** : Introduire UNE SEULE modification (ex: ajout des vers de terre OU signal de surprise OU langage).
+  3. **Observation** : Faire tourner la nouvelle version pendant 30 Ères minimum avec la même Soupe Primordiale.
+  4. **Analyse** : Invoquer le Sous-Agent Sociologue (tools/sociologist.py) pour comparer les métriques Avant/Après.
+  5. **Décision** : Si l'innovation est bénéfique (score moyen supérieur ou égal après convergence), elle est VALIDÉE et devient la nouvelle baseline. Sinon, elle est REVERTÉE ou AJUSTÉE.
+* **Exception :** Les corrections de bugs (ex: augmenter le nombre de proies pour corriger une famine structurelle) ne comptent PAS comme des innovations et peuvent être appliquées sans protocole.
+

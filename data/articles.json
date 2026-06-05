@@ -1,0 +1,8 @@
+[
+  {
+    "id": "art_001",
+    "title": "Bienvenue dans les articles de recherche AGIseed",
+    "content": "Ce module permet de consigner chaque découverte expérimentale sous forme d'article pour l'apprentissage de la Seed AI. Conformément au Commandement 16, toute découverte, observation ou conclusion majeure issue des expérimentations doit être impérativement consignée ici.\n\nChaque article est stocké dans KuzuDB (nœud Article) et synchronisé dans ce fichier JSON pour être lu par le Dashboard en temps réel.",
+    "date": "2026-06-04 21:11:16"
+  }
+]

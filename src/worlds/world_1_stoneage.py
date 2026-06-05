@@ -1,0 +1,1088 @@
+from typing import List, Dict, Any, Tuple
+import numpy as np
+import uuid
+
+from src.worlds.base_world import BaseWorld
+from src.environments.projectiles import ProjectilePhysics
+try:
+    from src.environments.crafting import ITEM_REGISTRY, attempt_combine
+except ImportError:
+    ITEM_REGISTRY = {}
+    def attempt_combine(ingredients): return None
+
+from src.seed_ai.mutation import apply_mutations, MutationConfig
+from src.environments.config import WorldConfig
+from src.graph_rag.async_logger import logger
+from src.agents.mamba_agent import MambaBatchModel
+from src.graph_rag.memory_retriever import AsyncMemoryRetriever
+from src.swarm.consensus import WeightedConsensus, ConsensusConfig
+from src.swarm.hgt import HorizontalGeneTransfer, HGTConfig
+
+class Biosphere3D(BaseWorld):
+    """
+    V14 TensorWorld (Refactored)
+    - Utilise Configuration centralisée (WorldConfig).
+    - Exécute les modèles via MambaBatchModel (Vectorisation).
+    - Logs asynchrones vers KuzuDB.
+    - Code modulaire (physique, biologie, social).
+    - Supporte 2D et 3D via config.use_3d
+    """
+    def __init__(self, config: WorldConfig = None):
+        self.config = config or WorldConfig()
+        self.size = self.config.size
+        self.num_altars = self.config.num_altars
+        self.prey_mode = self.config.prey_mode
+        self.use_3d = getattr(self.config, 'use_3d', False)
+        self.dim_z = self.size if self.use_3d else 1
+        
+        self.pheromone_map = np.zeros((self.dim_z, self.size, self.size), dtype=np.float32)
+        self.geometry = np.zeros((self.dim_z, self.size, self.size), dtype=int)
+        
+        # Biomes (2D only for now, but can be extended)
+        self.terrain_type = np.zeros((self.size, self.size), dtype=int)
+        for y in range(self.size):
+            for x in range(self.size):
+                if np.random.rand() < 0.3:
+                    self.terrain_type[y, x] = np.random.choice([0, 1, 2, 3])
+                else:
+                    if y >= self.size // 2 and x >= self.size // 2:
+                        self.terrain_type[y, x] = 2
+                    elif y < self.size // 2 and x < self.size // 2:
+                        self.terrain_type[y, x] = 1
+                    else:
+                        self.terrain_type[y, x] = 0
+
+        self.items = []
+        self._generate_geometry()
+        self._generate_trees()
+        
+        self.agents = []
+        
+        self.preys = []
+        self._spawn_preys()
+        self.worms = []
+        self._spawn_worms()
+        self._spawn_treasure()
+        
+        self.altars = []
+        for _ in range(self.num_altars):
+            self.altars.append({
+                "x": np.random.randint(0, self.size),
+                "y": np.random.randint(0, self.size),
+                "bit_a": np.random.choice([-1.0, 1.0]),
+                "bit_b": np.random.choice([-1.0, 1.0])
+            })
+            
+        for _ in range(5):
+            self._spawn_rocks()
+            
+        self.ticks = 0
+        self.dead_agents = []
+        self.consensus = WeightedConsensus(ConsensusConfig())
+        self.hgt = HorizontalGeneTransfer(HGTConfig())
+        
+        logger.start()
+        self.memory_retriever = AsyncMemoryRetriever(logger)
+        self.memory_retriever.start()
+
+    def reset(self):
+        """Réinitialise l'environnement (pas les agents)."""
+        self.ticks = 0
+        self.items = []
+        self._generate_trees()
+        for _ in range(5):
+            self._spawn_rocks()
+        self.preys = []
+        self._spawn_preys()
+        self.worms = []
+        self._spawn_worms()
+        self.pheromone_map.fill(0.0)
+        self.is_night = False
+        
+    def get_agent_observation(self, agent: dict) -> np.ndarray:
+        # Dummy implementation to satisfy BaseWorld ABC.
+        # TensorWorld uses get_batch_observations instead.
+        return np.zeros(self.config.agent.num_inputs, dtype=np.float32)
+
+    def _generate_geometry(self):
+        for _ in range(10):
+            x, y, z = np.random.randint(0, self.size, 3) if self.use_3d else (*np.random.randint(0, self.size, 2), 0)
+            z = min(z, self.dim_z - 1)
+            if np.random.rand() > 0.3:
+                self.geometry[z, y, x] = 1
+        for _ in range(5):
+            x, y, z = np.random.randint(0, self.size, 3) if self.use_3d else (*np.random.randint(0, self.size, 2), 0)
+            z = min(z, self.dim_z - 1)
+            self.geometry[z, y, x] = 2
+
+    def _generate_trees(self):
+        self.trees = []
+        self.tree_data = []
+        num_trees = max(1, self.size // 3)
+        for _ in range(num_trees):
+            tx, ty, tz = np.random.randint(1, self.size - 1, 3) if self.use_3d else (*np.random.randint(1, self.size - 1, 2), 0)
+            tz = min(tz, self.dim_z - 1)
+            self.trees.append((tx, ty, tz))
+            self.geometry[tz, ty, tx] = 4
+            is_fruit = np.random.rand() < self.config.fruit_tree_ratio
+            cooldown = np.random.randint(50, 150) if is_fruit else 0
+            self.tree_data.append({"is_fruit": is_fruit, "cooldown": cooldown})
+            for fz in range(max(0, tz-1), min(self.dim_z, tz+2)):
+                for fy in range(max(0, ty-1), min(self.size, ty+2)):
+                    for fx in range(max(0, tx-1), min(self.size, tx+2)):
+                        if self.geometry[fz, fy, fx] == 0:
+                            self.geometry[fz, fy, fx] = 5
+            for _ in range(np.random.randint(1, 4)):
+                stick_type = np.random.choice(["stick", "stick_short", "stick_long", "Wood"])
+                sx = np.clip(tx + np.random.choice([-1, 1]), 0, self.size-1)
+                sy = np.clip(ty + np.random.choice([-1, 1]), 0, self.size-1)
+                sz = tz
+                self.items.append({"x": sx, "y": sy, "z": sz, "type": stick_type, "weight": 1.0})
+
+    def _spawn_rocks(self):
+        while True:
+            bx, by, bz = np.random.randint(0, self.size, 3) if self.use_3d else (*np.random.randint(0, self.size, 2), 0)
+            bz = min(bz, self.dim_z - 1)
+            if self.geometry[bz, by, bx] == 0:
+                self.items.append({"x": bx, "y": by, "z": bz, "type": "rock", "weight": np.random.uniform(1.0, 10.0)})
+                break
+
+    def _spawn_prey_instance(self, p_type):
+        while True:
+            x, y, z = np.random.randint(0, self.size, 3) if self.use_3d else (*np.random.randint(0, self.size, 2), 0)
+            z = min(z, self.dim_z - 1)
+            if self.geometry[0, y, x] == 0:
+                cfg = self.config.preys.get(p_type, None)
+                hp = cfg.hp if cfg else 1.0
+                self.preys.append({"x": x, "y": y, "type": p_type, "stunned": 0, "hp": hp})
+                break
+
+    def _spawn_worms(self):
+        for _ in range(5):
+            wx, wy, wz = np.random.randint(0, self.size, 3) if self.use_3d else (*np.random.randint(0, self.size, 2), 0)
+            wz = min(wz, self.dim_z - 1)
+            self.worms.append({"x": wx, "y": wy, "z": wz})
+
+    def _spawn_preys(self):
+        for t in ["Lapin"]*3 + ["Cerf"]*2 + ["Sanglier"]*2 + ["Mammouth"]:
+            self._spawn_prey_instance(t)
+
+    def _spawn_treasure(self):
+        while True:
+            tx, ty, tz = np.random.randint(0, self.size, 3) if self.use_3d else (*np.random.randint(0, self.size, 2), 0)
+            tz = min(tz, self.dim_z - 1)
+            if self.geometry[tz, ty, tx] == 0:
+                self.treasure_x, self.treasure_y, self.treasure_z = tx, ty, tz
+                break
+
+    def add_agent(self, agent_model, x=None, y=None, z=None, energy=None):
+        if x is None: x = np.random.randint(0, self.size)
+        if y is None: y = np.random.randint(0, self.size)
+        if z is None: z = np.random.randint(0, self.dim_z) if self.use_3d else 0
+        if energy is None: energy = self.config.agent.energy_start
+        agent_id = str(uuid.uuid4())[:8]
+        
+        agent = {
+            "id": agent_id,
+            "model": agent_model,
+            "x": x, "y": y, "z": z,
+            "energy": energy,
+            "hp": 100.0 + agent_model.phenotype_hp_bonus,
+            "confort": 50.0,
+            "age": 0,
+            "preys_eaten": 0,
+            "altars_solved": 0,
+            "last_action": -1,
+            "inventory": [],
+            "inv_capacity": agent_model.phenotype_inv_capacity,
+            "throw_feedback": 0.0,
+            "throw_feedback_ttl": 0,
+            "last_spoken": [0.0]*4,
+            "status": {"jumping": False, "ducking": False},
+            "visited_positions": set()
+        }
+        
+        # Injection de la révélation mémorielle (LangGraph Librarian)
+        if hasattr(agent_model, "memory_recall"):
+            agent["memory_recall"] = list(agent_model.memory_recall)
+            
+        self.agents.append(agent)
+        logger.emit("AGENT_BIRTH", {"id": agent_id, "x": x, "y": y})
+
+    def item_physics(self, item_type):
+        if isinstance(item_type, dict):
+            item_type = item_type.get("type", "unknown")
+        if not isinstance(item_type, str):
+            item_type = str(item_type)
+        return self.config.item_physics.get(item_type, (0.0, 0.0, 0.0, 0.0, 0.0))
+
+    def get_batch_observations(self) -> np.ndarray:
+        if not self.agents:
+            return np.array([])
+            
+        N = len(self.agents)
+        ax = np.array([a["x"] for a in self.agents])
+        ay = np.array([a["y"] for a in self.agents])
+        
+        # To get direction to closest prey
+        dn = np.zeros(N, dtype=np.float32)
+        ds = np.zeros(N, dtype=np.float32)
+        de = np.zeros(N, dtype=np.float32)
+        dw = np.zeros(N, dtype=np.float32)
+        is_flying = np.zeros(N, dtype=np.float32)
+        is_stunned = np.zeros(N, dtype=np.float32)
+        
+        if self.preys:
+            px = np.array([p["x"] for p in self.preys])
+            py = np.array([p["y"] for p in self.preys])
+            for i in range(N):
+                dists = np.abs(px - ax[i]) + np.abs(py - ay[i])
+                closest_idx = np.argmin(dists)
+                p = self.preys[closest_idx]
+                dn[i] = max(0, ay[i] - p["y"]) / self.size
+                ds[i] = max(0, p["y"] - ay[i]) / self.size
+                de[i] = max(0, p["x"] - ax[i]) / self.size
+                dw[i] = max(0, ax[i] - p["x"]) / self.size
+                is_flying[i] = 1.0 if p["type"] in ["Lapin", "Cerf"] else 0.0
+                is_stunned[i] = 1.0 if p.get("stunned", 0) > 0 else 0.0
+
+        # Lidar using advanced indexing (with padding to handle borders safely)
+        padded_geom = np.pad(self.geometry[0], 1, mode='constant', constant_values=1)
+        # Shift coords because of padding (+1)
+        lidar_n = padded_geom[ay, ax + 1] / 3.0
+        lidar_s = padded_geom[ay + 2, ax + 1] / 3.0
+        lidar_e = padded_geom[ay + 1, ax + 2] / 3.0
+        lidar_w = padded_geom[ay + 1, ax] / 3.0
+        
+        # Grid variables extraction
+        pheromone = np.clip(self.pheromone_map[0, ay, ax], 0.0, 1.0)
+        
+        altar_active = np.zeros(N, dtype=np.float32)
+        bit_a = np.zeros(N, dtype=np.float32)
+        bit_b = np.zeros(N, dtype=np.float32)
+        for altar in self.altars:
+            mask = (ax == altar["x"]) & (ay == altar["y"])
+            altar_active[mask] = 1.0
+            bit_a[mask] = altar["bit_a"]
+            bit_b[mask] = altar["bit_b"]
+            
+        # Vectorized adj_energy and in_hear (Tensor Lidar)
+        dx = ax[:, None] == ax[None, :]
+        dy = ay[:, None] == ay[None, :]
+        same_cell = dx & dy  # Shape (N, N)
+        np.fill_diagonal(same_cell, False)
+        
+        agent_energies = np.array([a["energy"] / 100.0 for a in self.agents], dtype=np.float32)
+        energy_matrix = np.where(same_cell, agent_energies[None, :], 0.0)
+        adj_energy = np.max(energy_matrix, axis=1)
+        
+        spoken_arr = np.array([a.get("last_spoken", [0.0]*4) for a in self.agents], dtype=np.float32)
+        spoken_matrix = np.where(same_cell[:, :, None], spoken_arr[None, :, :], 0.0)
+        in_hear = np.max(spoken_matrix, axis=1)
+                    
+        worm_nearby = np.zeros(N, dtype=np.float32)
+        for w in self.worms:
+            worm_nearby[(ax == w["x"]) & (ay == w["y"])] = 1.0
+            
+        # Inventory & State
+        in_throw = np.array([a.get("throw_feedback", 0.0) for a in self.agents], dtype=np.float32)
+        in_surprise = np.array([a["model"].surprise for a in self.agents], dtype=np.float32)
+        in_hp = np.array([a["hp"] / 100.0 for a in self.agents], dtype=np.float32)
+        in_confort = np.array([a.get("confort", 50.0) / 100.0 for a in self.agents], dtype=np.float32)
+        is_night_arr = np.ones(N, dtype=np.float32) if getattr(self, 'is_night', False) else np.zeros(N, dtype=np.float32)
+        
+        fire_nearby = np.zeros(N, dtype=np.float32)
+        for f in self.items:
+            if f.get("type") == "Fire":
+                mask = (np.abs(ax - f["x"]) <= 1) & (np.abs(ay - f["y"]) <= 1)
+                fire_nearby[mask] = 1.0
+        
+        in_slot1_type = np.zeros(N, dtype=np.float32)
+        in_slot2_type = np.zeros(N, dtype=np.float32)
+        in_slot1_weight = np.zeros(N, dtype=np.float32)
+        
+        for i, a in enumerate(self.agents):
+            if len(a["inventory"]) > 0:
+                in_slot1_type[i] = 1.0
+                item = a["inventory"][0]
+                w, _, _, _, _ = self.item_physics(item)
+                in_slot1_weight[i] = w
+            if len(a["inventory"]) > 1:
+                in_slot2_type[i] = 1.0
+                
+        # Items grid
+        grid_item_count = np.zeros((self.size, self.size), dtype=np.float32)
+        for it in self.items:
+            grid_item_count[it["y"], it["x"]] += 1.0
+            
+        in_nearby_item_count = np.zeros(N, dtype=np.float32)
+        in_nearby_item_type = np.zeros(N, dtype=np.float32)
+        padded_items = np.pad(grid_item_count, 1, mode='constant', constant_values=0)
+        
+        for i in range(N):
+            # 3x3 window around agent (padded space)
+            window = padded_items[ay[i]:ay[i]+3, ax[i]:ax[i]+3]
+            count = np.sum(window)
+            in_nearby_item_count[i] = min(count, 10.0) / 10.0
+            in_nearby_item_type[i] = 1.0 if count > 0 else 0.0
+
+        terrain_1 = np.zeros(N, dtype=np.float32)
+        terrain_2 = np.zeros(N, dtype=np.float32)
+        terrain_3 = np.zeros(N, dtype=np.float32)
+        terrain_4 = np.zeros(N, dtype=np.float32)
+        for i, a in enumerate(self.agents):
+            terrain_type = self.terrain_type[a["y"], a["x"]]
+            if terrain_type == 0: terrain_1[i] = 1.0
+            elif terrain_type == 1: terrain_2[i] = 1.0
+            elif terrain_type == 2: terrain_3[i] = 1.0
+            elif terrain_type == 3: terrain_4[i] = 1.0
+            
+        dist_treasure = np.array([(abs(a["x"] - self.treasure_x) + abs(a["y"] - self.treasure_y))/(self.size * 2) for a in self.agents], dtype=np.float32)
+        num_preys = np.ones(N, dtype=np.float32) * min(len(self.preys), 20) / 20.0
+        agent_age = np.array([min(a["age"], 1000)/1000.0 for a in self.agents], dtype=np.float32)
+        inv_size = np.array([min(len(a["inventory"]), 10)/10.0 for a in self.agents], dtype=np.float32)
+            
+        # Compile batch_obs [N, 45] (or whatever original size was, looks like ~45 inputs)
+        # Original inputs were: dn, ds, de, dw, dup, ddown, 1.0, pheromone, abs_x, abs_y, abs_z, altar_active, bit_a, bit_b, adj_energy
+        # + in_hear(4) + lidar(6) + is_flying, is_stunned, in_surprise, worm_nearby, in_throw, in_doubt
+        # + in_slot1_type, in_slot2_type, in_slot1_weight, in_nearby_item_type, in_nearby_item_count, in_hp
+        # + terrain(4) + energy + dist_treasure + num_preys + agent_age + inv_size
+        
+        # EXP-10 : Graph-RAG Memory Recall
+        if getattr(self.config, "active_exp_variable", "NONE") == "RAG":
+            in_mem = np.array([self.memory_retriever.get_rag_memory(str(a["id"]), getattr(a["model"], "explicit_memory", [0]*5)) for a in self.agents], dtype=np.float32)
+        else:
+            in_mem = np.array([self.memory_retriever.get_memory_vector(str(a["id"])) for a in self.agents], dtype=np.float32)
+        
+        # NTM Memory (Explicit Differential Memory)
+        ntm_mem = np.array([a["model"].explicit_memory for a in self.agents], dtype=np.float32)
+        if ntm_mem.shape[1] != 5:
+            ntm_mem = np.zeros((N, 5), dtype=np.float32) # Fallback if agent is not updated yet
+            
+        # Manager Goal (Hierarchical)
+        manager_goal = np.array([getattr(a["model"], "goal_vector", np.zeros(5)) for a in self.agents], dtype=np.float32)
+        if len(manager_goal.shape) < 2 or manager_goal.shape[1] != 5:
+            manager_goal = np.zeros((N, 5), dtype=np.float32)
+            
+        obs = np.column_stack([
+            dn, ds, de, dw, np.zeros(N), np.zeros(N), np.ones(N), pheromone, 
+            ax/self.size, ay/self.size, np.zeros(N), altar_active, bit_a, bit_b, adj_energy,
+            in_hear[:,0], in_hear[:,1], in_hear[:,2], in_hear[:,3],
+            lidar_n, lidar_s, lidar_e, lidar_w, np.zeros(N), np.zeros(N),
+            is_flying, is_stunned, in_surprise, worm_nearby, in_throw, np.zeros(N),
+            in_slot1_type, in_slot2_type, in_slot1_weight, in_nearby_item_type, in_nearby_item_count, in_hp,
+            terrain_1, terrain_2, terrain_3, terrain_4,
+            in_hp, dist_treasure, num_preys, agent_age, inv_size,
+            in_mem[:,0], in_mem[:,1], in_mem[:,2], in_mem[:,3], in_mem[:,4],
+            in_confort, is_night_arr, fire_nearby,
+            ntm_mem[:,0], ntm_mem[:,1], ntm_mem[:,2], ntm_mem[:,3], ntm_mem[:,4],
+            manager_goal[:,0], manager_goal[:,1], manager_goal[:,2], manager_goal[:,3], manager_goal[:,4]
+        ])
+        
+        # Ensure exact shape for backward compatibility
+        expected_size = self.config.agent.num_inputs
+        if obs.shape[1] < expected_size:
+            padding = np.zeros((N, expected_size - obs.shape[1]))
+            obs = np.concatenate([obs, padding], axis=1)
+        elif obs.shape[1] > expected_size:
+            obs = obs[:, :expected_size]
+            
+        return obs
+
+    def _move_preys(self):
+        fire_pos = [(f["x"], f["y"]) for f in self.items if f.get("type") == "Fire"]
+        for p in self.preys:
+            if p.get("stunned", 0) > 0:
+                p["stunned"] -= 1
+                continue
+                
+            fled = False
+            for fx, fy in fire_pos:
+                if abs(p["x"] - fx) <= 2 and abs(p["y"] - fy) <= 2:
+                    p["x"] += 1 if p["x"] > fx else -1
+                    p["y"] += 1 if p["y"] > fy else -1
+                    p["x"] = np.clip(p["x"], 0, self.size - 1)
+                    p["y"] = np.clip(p["y"], 0, self.size - 1)
+                    fled = True
+                    break
+            if fled: continue
+                
+            cfg = self.config.preys.get(p["type"], None)
+            moves_per_tick = cfg.moves_per_tick if cfg else 0
+            
+            # Handle fractional moves (e.g. 0.2 means 20% chance to move)
+            moves = int(moves_per_tick)
+            if np.random.rand() < (moves_per_tick - moves):
+                moves += 1
+            
+            if self.agents:
+                closest = min(self.agents, key=lambda a: abs(a["x"]-p["x"]) + abs(a["y"]-p["y"]))
+                dx, dy = closest["x"] - p["x"], closest["y"] - p["y"]
+                
+                # Combat / Attack
+                if cfg and cfg.damage > 0 and abs(dx) <= 1 and abs(dy) <= 1:
+                    # Attack the closest agent
+                    closest["hp"] -= cfg.damage
+                    continue
+                    
+                for _ in range(moves):
+                    action = -1
+                    if p["type"] in ["Lapin", "Cerf"]:
+                        action = 2 if dx > 0 else 3 if abs(dx) > abs(dy) else 1 if dy > 0 else 0
+                    else:
+                        action = 3 if dx > 0 else 2 if abs(dx) > abs(dy) else 0 if dy > 0 else 1
+                        
+                    nx, ny = p["x"], p["y"]
+                    if action == 0 and ny > 0: ny -= 1
+                    elif action == 1 and ny < self.size - 1: ny += 1
+                    elif action == 2 and nx > 0: nx -= 1
+                    elif action == 3 and nx < self.size - 1: nx += 1
+                    if self.geometry[0, ny, nx] == 0:
+                        p["x"], p["y"] = nx, ny
+
+    def _resolve_biology(self, agent, action, logits):
+        # Base drain
+        drain = 1.0 * agent["model"].phenotype_energy_drain
+        
+        # EXP-9 : Thermodynamique & Nuit
+        is_near_fire = any(f.get("type") == "Fire" and abs(agent["x"] - f["x"]) <= 2 and abs(agent["y"] - f["y"]) <= 2 for f in self.items)
+        if getattr(self, "is_night", False):
+            if is_near_fire:
+                drain = drain * 0.5 # Le feu tient chaud
+                agent["confort"] = min(100.0, agent.get("confort", 50.0) + 0.1)
+                # Récompense douce pour le regroupement
+                agent["energy"] += 0.5
+            else:
+                drain = drain * 2.5 # Froid glacial nocturne
+                agent["confort"] = max(0.0, agent.get("confort", 50.0) - 0.5)
+
+        agent["energy"] -= drain
+        
+        terrain = self.terrain_type[agent["y"], agent["x"]]
+        agent["energy"] -= [self.config.biome.plains_drain, self.config.biome.forest_drain, self.config.biome.water_drain, self.config.biome.desert_drain][terrain]
+        
+        carry_weight = sum(i.get("weight", 1.0) if isinstance(i, dict) else 1.0 for i in agent["inventory"])
+        agent["energy"] -= carry_weight * 0.5
+        
+        if len(agent["inventory"]) > 0:
+            first_item = agent["inventory"][0]
+            item_type = first_item.get("type", "") if isinstance(first_item, dict) else str(first_item)
+            if item_type == "Fruit" and agent["energy"] < 80:
+                agent["energy"] = min(100.0, agent["energy"] + 20.0)
+                agent["inventory"].pop(0)
+                new_seed = {"x": agent["x"], "y": agent["y"], "z": 0, "type": "Seed", "weight": 0.1, "ttl": 100}
+                if len(agent["inventory"]) < agent["inv_capacity"]:
+                    agent["inventory"].append(new_seed)
+                else:
+                    self.items.append(new_seed)
+        
+        do_jump = float(logits[9]) > 0
+        do_duck = float(logits[10]) > 0
+        agent["status"]["jumping"] = do_jump
+        agent["status"]["ducking"] = do_duck
+        if do_jump or do_duck: agent["energy"] -= 1.0
+        
+        if action == 6 and agent["energy"] > 50.0 and agent["hp"] < 100.0:
+            agent["energy"] -= 10.0
+            agent["hp"] = min(100.0, agent["hp"] + 10.0)
+
+        # Hunt / Attack (Asymmetrical combat)
+        attacked_prey = next((p for p in self.preys if agent["x"] == p["x"] and agent["y"] == p["y"]), None)
+        if attacked_prey:
+            # Agent deals 10 base damage
+            damage_dealt = 10.0
+            attacked_prey["hp"] -= damage_dealt
+            logger.emit("PREY_ATTACKED", {"agent_id": agent["id"], "prey_type": attacked_prey["type"], "damage": damage_dealt})
+            
+            if attacked_prey["hp"] <= 0:
+                agent["energy"] = min(self.config.agent.energy_max, agent["energy"] + 50.0)
+                agent["preys_eaten"] += 1
+                self.preys.remove(attacked_prey)
+                self._spawn_prey_instance(attacked_prey["type"])
+                logger.emit("PREY_KILLED", {"agent_id": agent["id"], "prey_type": attacked_prey["type"]})
+            
+        if do_duck:
+            eaten_worm = next((w for w in self.worms if w["x"] == agent["x"] and w["y"] == agent["y"] and w.get("z", 0) == agent.get("z", 0)), None)
+            if eaten_worm:
+                agent["energy"] += 10.0
+                self.worms.remove(eaten_worm)
+                self._spawn_worms() # spawn 1 worm actually
+                
+        if agent["x"] == self.treasure_x and agent["y"] == self.treasure_y and agent.get("z", 0) == self.treasure_z and float(logits[14]) > 0:
+            agent["energy"] += self.config.treasure_reward
+            logger.emit("TREASURE_FOUND", {"agent_id": agent["id"]})
+            self._spawn_treasure()
+
+    def _resolve_social(self):
+        new_agents = []
+        for i, a in enumerate(self.agents):
+            for j, b in enumerate(self.agents):
+                if i >= j: continue
+                if a["x"] == b["x"] and a["y"] == b["y"] and a.get("z", 0) == b.get("z", 0):
+                    # Remove explicit language alignment reward
+                    # We just log if they are talking nearby
+                    if a["last_spoken"] != [0.0]*4 or b["last_spoken"] != [0.0]*4:
+                        logger.emit("SOCIAL_ENCOUNTER", {"a": a["id"], "b": b["id"], "spoken_a": a["last_spoken"], "spoken_b": b["last_spoken"]})
+                        nearby_items = [it for it in self.items if it["x"] == a["x"] and it["y"] == a["y"] and it.get("z", 0) == a.get("z", 0)]
+                        if nearby_items and a["last_spoken"] != [0.0]*4 and b["last_spoken"] != [0.0]*4:
+                            t1 = nearby_items[0].get("type", "unknown")
+                            if getattr(self.config, "active_exp_variable", "NONE") == "LANGUAGE":
+                                token_a = np.argmax(a["last_spoken"])
+                                token_b = np.argmax(b["last_spoken"])
+                                if token_a == token_b:
+                                    a["energy"] = min(100.0, a["energy"] + 0.5)
+                                    b["energy"] = min(100.0, b["energy"] + 0.5)
+                                    logger.emit("LANGUAGE_ALIGNMENT", {"a": a["id"], "b": b["id"], "item": t1, "token": int(token_a)})
+                            else:
+                                vec_a = np.array(a["last_spoken"])
+                                vec_b = np.array(b["last_spoken"])
+                                norm_a = np.linalg.norm(vec_a)
+                                norm_b = np.linalg.norm(vec_b)
+                                if norm_a > 0 and norm_b > 0:
+                                    sim = np.dot(vec_a, vec_b) / (norm_a * norm_b)
+                                    if sim > 0.8:
+                                        a["energy"] = min(100.0, a["energy"] + 0.5)
+                                        b["energy"] = min(100.0, b["energy"] + 0.5)
+                                        avg_vec = (vec_a + vec_b) / 2.0
+                                        logger.emit("LANGUAGE_ALIGNMENT", {"a": a["id"], "b": b["id"], "item": t1, "vector": avg_vec.tolist()})
+
+                    if getattr(self.config, "active_exp_variable", "NONE") in ["INTRINSIC", "TOM"]:
+                        pred_a = np.argmax(a["model"].predictor_head)
+                        pred_b = np.argmax(b["model"].predictor_head)
+                        # Recompense Theory of Mind si A prédit l'action de B et vice versa
+                        if pred_a == b.get("last_action", -1):
+                            a["energy"] = min(100.0, a["energy"] + 2.0)
+                            logger.emit("THEORY_OF_MIND_SUCCESS", {"predictor": a["id"], "target": b["id"], "action": pred_a})
+                        if pred_b == a.get("last_action", -1):
+                            b["energy"] = min(100.0, b["energy"] + 2.0)
+                            logger.emit("THEORY_OF_MIND_SUCCESS", {"predictor": b["id"], "target": a["id"], "action": pred_b})
+
+                    if a["last_spoken"] == [99.0]*4:
+                        b["model"].absorb_knowledge(a["model"].genome, learning_rate=0.5)
+                        b["energy"] += 5.0
+                        logger.emit("KNOWLEDGE_TRANSFER", {"teacher": a["id"], "student": b["id"]})
+                        
+                    if a["out_mate"] > 0 and b["out_mate"] > 0 and a["energy"] > 30.0 and b["energy"] > 30.0:
+                        a["energy"] -= 15.0
+                        b["energy"] -= 15.0
+                        child_model = a["model"].clone()
+                        child_model.mutate()
+                        new_agents.append((child_model, a["x"], a["y"], 30.0))
+                        logger.emit("MATE", {"parent1": a["id"], "parent2": b["id"]})
+        return new_agents
+
+    def _apply_social_consensus(self, batch_logits: np.ndarray) -> np.ndarray:
+        if batch_logits.size == 0:
+            return batch_logits
+
+        positions = {}
+        for idx, agent in enumerate(self.agents):
+            pos = (agent["x"], agent["y"])
+            positions.setdefault(pos, []).append(idx)
+
+        for pos, indices in positions.items():
+            if len(indices) < 2:
+                continue
+
+            predictions = []
+            for idx in indices:
+                logits = batch_logits[idx]
+                out_share = float(logits[13]) if len(logits) > 13 else 0.0
+                out_accept = float(logits[14]) if len(logits) > 14 else 0.0
+                if out_share > 0.5 and out_accept > 0.0:
+                    agent = self.agents[idx]
+                    fitness = float((agent["energy"] + agent["hp"]) / 200.0)
+                    predictions.append((agent["id"], logits, fitness))
+
+            if len(predictions) > 1:
+                consensus_logits = self.consensus.vote(predictions)
+                for idx in indices:
+                    batch_logits[idx] = consensus_logits
+                logger.emit("SOCIAL_CONSENSUS", {"position": pos, "group_size": len(indices)})
+
+        return batch_logits
+
+    def _apply_hgt_breeding(self) -> list[tuple]:
+        new_agents = []
+        for i, a in enumerate(self.agents):
+            for j, b in enumerate(self.agents):
+                if i >= j:
+                    continue
+                if a["x"] == b["x"] and a["y"] == b["y"] and a.get("z", 0) == b.get("z", 0):
+                    if a["out_share"] > 0.8 and b["out_accept"] > 0.8 and a["energy"] > 60 and b["energy"] > 60:
+                        try:
+                            offspring_w = self.hgt.transfer_layer(a["model"].genome.W, b["model"].genome.W)
+                            child_model = a["model"].clone()
+                            child_model.genome.W = offspring_w
+                            child_model.update_phenotype()
+                            child_model.reset_state()
+                            new_agents.append((child_model, a["x"], a["y"], 40.0))
+                            a["energy"] -= 15.0
+                            b["energy"] -= 15.0
+                            logger.emit("HGT_BREEDING", {"parent1": a["id"], "parent2": b["id"], "position": (a["x"], a["y"])})
+                        except Exception as e:
+                            logger.emit("HGT_FAILED", {"error": str(e), "parents": [a["id"], b["id"]]})
+        return new_agents
+
+    def step(self):
+        self.ticks += 1
+        was_night = getattr(self, "is_night", False)
+        self.is_night = (self.ticks % 100) >= 50
+        
+        # EXP-9: Bonus d'aube (Transition Nuit -> Jour)
+        if was_night and not self.is_night:
+            for a in self.agents:
+                if a["energy"] > 30.0:
+                    a["energy"] = min(100.0, a["energy"] + 15.0)
+                    logger.emit("DAWN_SURVIVAL", {"agent_id": a["id"], "energy": a["energy"]})
+        
+        self.pheromone_map *= 0.90
+        
+        for idx, (tx, ty, *tz_info) in enumerate(self.trees):
+            tz = tz_info[0] if tz_info else 0
+            if idx < len(self.tree_data) and self.tree_data[idx]["is_fruit"]:
+                self.tree_data[idx]["cooldown"] -= 1
+                if self.tree_data[idx]["cooldown"] <= 0:
+                    spawned = False
+                    for dz in [0] if not self.use_3d else [-1, 0, 1]:
+                        for dy in [-1, 0, 1]:
+                            for dx in [-1, 0, 1]:
+                                if dx == 0 and dy == 0 and dz == 0: continue
+                                sx, sy, sz = tx + dx, ty + dy, tz + dz
+                                if (0 <= sx < self.size and 0 <= sy < self.size and 
+                                    0 <= sz < self.dim_z and self.geometry[sz, sy, sx] == 0):
+                                    self.items.append({"x": sx, "y": sy, "z": sz, "type": "Fruit", "weight": 0.5})
+                                    spawned = True
+                                    break
+                            if spawned: break
+                        if spawned: break
+                    self.tree_data[idx]["cooldown"] = np.random.randint(50, 150)
+                    
+        self._move_preys()
+        
+        while len(self.preys) < self.config.target_prey_count:
+            self._spawn_prey_instance(np.random.choice(["Lapin", "Cerf", "Sanglier", "Mammouth"], p=[0.4, 0.3, 0.2, 0.1]))
+            
+        if not self.agents:
+            return
+            
+        # VECTORIZED OBSERVATION & BATCHING
+        batch_obs = self.get_batch_observations()
+        models = [a["model"] for a in self.agents]
+        batch_model = MambaBatchModel(models)
+
+        env_surprise_batch = np.array([a.get("last_env_surprise", 0.0) for a in self.agents])
+        
+        # RL: Track energy before actions
+        old_energies = np.array([a["energy"] for a in self.agents], dtype=np.float32)
+        
+        batch_logits, compute_spent = batch_model.forward(batch_obs, env_surprise_batch=env_surprise_batch)
+        batch_logits = self._apply_social_consensus(batch_logits)
+
+        # EXP-10 : Coût calorique logarithmique du Test-Time Compute
+        # brain_cost[i] = base * (1 + log2(1 + K_i)) — sub-linéaire, biologiquement réaliste
+        BASE_TTC_COST = 0.01
+        brain_cost = BASE_TTC_COST * (1.0 + np.log2(1.0 + compute_spent))  # (B,)
+
+        for i, agent in enumerate(self.agents):
+            agent["energy"] = max(0.0, agent["energy"] - float(brain_cost[i]))
+            
+            if getattr(self.config, "active_exp_variable", "NONE") == "INTRINSIC":
+                # Recompense Intrinsèque : La surprise génère de la dopamine (énergie)
+                dopamine = float(agent["model"].surprise_momentum) * 5.0
+                agent["energy"] = min(self.config.agent.energy_max, agent["energy"] + dopamine)
+                
+            k = int(compute_spent[i])
+            if k > 0:
+                agent["total_dreams"] = agent.get("total_dreams", 0) + k
+            else:
+                agent["total_reflexes"] = agent.get("total_reflexes", 0) + 1
+
+        new_agents = []
+        survivors = []
+
+        for idx, agent in enumerate(self.agents):
+            agent["age"] += 1
+            logits = batch_logits[idx]
+
+            # 1. Alignement de la Value (DreamerV3/J-EPA)
+            # Récompenser l'agent si son 'value_pred' du tour précédent a bien prédit son gain d'énergie réel.
+            current_energy = agent["energy"]
+            if "last_energy" in agent and "last_value_pred" in agent:
+                # delta_e normalisé approximativement
+                delta_e = np.clip((current_energy - agent["last_energy"]) / 10.0, -1.0, 1.0)
+                error = abs(delta_e - agent["last_value_pred"])
+                # Bénédiction épistémique : +0.5 si la prédiction est parfaite
+                alignment_reward = max(0.0, 0.5 - error)
+                agent["energy"] = min(100.0, agent["energy"] + alignment_reward)
+            
+            agent["last_energy"] = agent["energy"]
+            
+            # Reset env_surprise
+            agent["last_env_surprise"] = 0.0
+            
+            # Metacognition: record surprise and doubt
+            agent["last_surprise"] = agent["model"].surprise
+            probs = np.exp(logits[:6]) / (np.sum(np.exp(logits[:6])) + 1e-9)
+            entropy = -np.sum(probs * np.log(probs + 1e-9))
+            agent["last_entropy"] = min(entropy / 1.79, 1.0)
+            
+            if agent["last_action"] != -1:
+                logits[agent["last_action"]] -= 0.1
+                
+            action = int(np.argmax(logits[:8]))
+            agent["last_action"] = action
+            
+            do_throw = float(logits[8]) > 0
+            aim_vec = np.array([float(logits[11]), float(logits[12])])
+            if getattr(self.config, "active_exp_variable", "NONE") == "LANGUAGE":
+                raw_spoken = logits[19:23]
+                gumbel_noise = -np.log(-np.log(np.random.uniform(0, 1, size=4) + 1e-10) + 1e-10)
+                temp = 0.1
+                y = np.exp((raw_spoken + gumbel_noise) / temp)
+                y_out = y / np.sum(y)
+                token_idx = np.argmax(y_out)
+                one_hot = np.zeros(4)
+                one_hot[token_idx] = 1.0
+                agent["last_spoken"] = [float(l) for l in one_hot]
+            else:
+                agent["last_spoken"] = [float(l) for l in logits[19:23]]
+            
+            agent["out_share"] = float(logits[13]) if len(logits) > 13 else 0.0
+            agent["out_accept"] = float(logits[14]) if len(logits) > 14 else 0.0
+            agent["out_mate"] = float(logits[15]) if len(logits) > 15 else 0.0
+
+            # EXP-10: Nouveaux logits Métacognitifs (après 25 = rub)
+            do_rub = float(logits[25]) if len(logits) > 25 else 0.0
+            do_dream = float(logits[26]) if len(logits) > 26 else 0.0
+            do_memorize = float(logits[27]) if len(logits) > 27 else 0.0
+            value_pred = float(logits[28]) if len(logits) > 28 else 0.0
+            
+            # Maintien de la mémoire à court terme (fade out)
+            if "memory_recall" in agent:
+                agent["memory_recall"][4] *= 0.95
+            else:
+                agent["memory_recall"] = [0.0]*5
+                
+            if do_memorize > 0.5:
+                # Émergence de la mémoire : Sauvegarde de la pensée dans KuzuDB
+                agent["energy"] += 0.1 # Récompense épistémique
+                thought = {
+                    "agent_id": str(agent["id"]),
+                    "action": int(action),
+                    "value_pred": float(value_pred),
+                    "surprise": float(agent["last_surprise"]),
+                    "inventory_size": int(len(agent["inventory"]))
+                }
+                logger.emit("AGENT_THOUGHT", thought)
+                
+                # Injection dans la mémoire de travail (Explicit Memory)
+                agent["memory_recall"] = [
+                    float(action) / 8.0, 
+                    float(value_pred), 
+                    float(agent["last_surprise"]), 
+                    float(len(agent["inventory"])) / 10.0, 
+                    1.0  # Freshness
+                ]
+
+            # Adrénaline: Override du Doute en cas d'urgence
+            is_in_danger = agent.get("last_surprise", 0.0) > 0.8 or agent["hp"] < 30.0
+            
+            # NOTE: Le rêve/MCTS est maintenant géré intégralement dans MambaBatchModel.forward().
+            # compute_spent[idx] nous dit si l'agent a rêvé (> 0) ou non.
+            # On reset simplement le compteur de rêve continu.
+            agent["is_dreaming"] = 0
+            agent["last_value_pred"] = value_pred
+            
+            # 4. Throw (Ballistic Physics V14)
+            if do_throw and len(agent["inventory"]) > 0:
+                thrown_item = agent["inventory"].pop(0)
+                if isinstance(thrown_item, str):
+                    thrown_item = {"type": thrown_item, "weight": 1.0}
+                weight = thrown_item.get("weight", 1.0)
+                
+                norm = np.linalg.norm(aim_vec)
+                if norm > 0: aim_vec = aim_vec / norm
+                else: aim_vec = np.array([0,1])
+                    
+                energy_spent = 10.0 if agent["energy"] > 50.0 else 5.0
+                agent["energy"] -= energy_spent
+                
+                t = 0.0
+                dt = 0.1
+                az = agent.get("z", 0)
+                curr_x, curr_y = float(agent["x"]), float(agent["y"])
+                end_pos = (agent["x"], agent["y"], az)
+                hit_entity = None
+                
+                v_x = energy_spent * aim_vec[0]
+                v_y = energy_spent * aim_vec[1]
+                
+                entity_map = {}
+                for p in self.preys:
+                    entity_map[(p["x"], p["y"], p.get("z", 0))] = p
+                for a in self.agents:
+                    if a is not agent:
+                        entity_map[(a["x"], a["y"], a.get("z", 0))] = a
+                
+                while t < 2.0:
+                    t += dt
+                    nx = curr_x + v_x * t
+                    ny = curr_y + v_y * t
+                    
+                    int_x, int_y = int(round(nx)), int(round(ny))
+                    
+                    if int_x < 0 or int_x >= self.size or int_y < 0 or int_y >= self.size:
+                        break
+                        
+                    if self.geometry[0, int_y, int_x] != 0:
+                        end_pos = (int_x, int_y, az)
+                        break
+                        
+                    if (int_x, int_y, az) in entity_map:
+                        hit_entity = entity_map[(int_x, int_y, az)]
+                        end_pos = (int_x, int_y, az)
+                        break
+                    
+                    end_pos = (int_x, int_y, az)
+
+                thrown_item["x"], thrown_item["y"], thrown_item["z"] = end_pos[0], end_pos[1], end_pos[2]
+                
+                # EXP-9 : Fueling Fire
+                is_fueled = False
+                if thrown_item.get("type") == "Wood":
+                    for f in self.items:
+                        if f.get("type") == "Fire" and f["x"] == end_pos[0] and f["y"] == end_pos[1]:
+                            f["ttl"] = min(2000, f.get("ttl", 0) + 500)
+                            is_fueled = True
+                            logger.emit("FIRE_FUELED", {"agent_id": agent["id"], "fire_id": f.get("id", "unknown"), "new_ttl": f["ttl"]})
+                            break
+                
+                if not is_fueled:
+                    self.items.append(thrown_item)
+                
+                if hit_entity:
+                    damage = energy_spent * weight
+                    if "energy" in hit_entity:
+                        hit_entity["energy"] -= damage
+                    else:
+                        hit_entity["stunned"] = int(damage * 2)
+                    agent["throw_feedback"] = 1.0
+                    agent["throw_feedback_ttl"] = 5
+                else:
+                    agent["throw_feedback"] = -1.0
+                    agent["throw_feedback_ttl"] = 5
+                    
+            # 5. Rub (Crafting by Friction)
+            if do_rub and len(agent["inventory"]) >= 2:
+                item1 = agent["inventory"][0]
+                item2 = agent["inventory"][1]
+                
+                _, _, _, f1, _ = self.item_physics(item1)
+                _, _, _, f2, _ = self.item_physics(item2)
+                
+                if f1 * f2 > 0.5:
+                    agent["energy"] -= 2.0
+                    self.items.append({"x": agent["x"], "y": agent["y"], "z": 0, "type": "Spark", "ttl": 3})
+                    agent["last_spoken"] = [99.0, 99.0, 99.0, 99.0] 
+
+            do_grab = float(logits[24]) if len(logits) > 24 else 0.0
+            
+            # 6. Grab (Inventory mechanics)
+            if do_grab > 0:
+                nearby_items = [i for i in self.items if i["x"] == agent["x"] and i["y"] == agent["y"]]
+                if nearby_items:
+                    item = nearby_items[0]
+                    if len(agent["inventory"]) < agent["inv_capacity"]:
+                        agent["inventory"].append(item)
+                        self.items.remove(item)
+                        agent["energy"] -= 1.0
+                    else:
+                        # LIFO Drop Policy : The last item added is dropped at the agent's feet
+                        dropped_item = agent["inventory"].pop(-1)
+                        dropped_item["x"] = agent["x"]
+                        dropped_item["y"] = agent["y"]
+                        dropped_item["z"] = agent.get("z", 0)
+                        self.items.append(dropped_item)
+                        
+                        agent["inventory"].append(item)
+                        self.items.remove(item)
+                        
+                        agent["energy"] -= 2.0  # Moins pénalisant qu'un blocage, mais coûteux en énergie
+                        logger.emit("INVENTORY_DROP", {"agent_id": agent["id"], "policy": "LIFO"}) 
+                        agent["last_env_surprise"] = 0.5
+
+            # Biology
+            self._resolve_biology(agent, action, logits)
+            
+            # Movement (2D: actions 0-3 = N,S,E,W; 3D: actions 4-5 = Up,Down)
+            ax, ay, az = int(agent["x"]), int(agent["y"]), int(agent.get("z", 0))
+            nx, ny, nz = ax, ay, az
+            if action == 0: ny -= 1
+            elif action == 1: ny += 1
+            elif action == 2: nx += 1
+            elif action == 3: nx -= 1
+            elif action == 4 and self.use_3d: nz += 1  # Up
+            elif action == 5 and self.use_3d: nz -= 1  # Down
+            
+            # Check bounds and geometry for target position
+            nx, ny, nz = int(nx), int(ny), int(nz)
+            in_bounds = (0 <= nx < self.size and 0 <= ny < self.size and 0 <= nz < self.dim_z)
+            z_layer = int(nz)
+            if action < 6 and in_bounds and self.geometry[z_layer, ny, nx] == 0:
+                agent["x"], agent["y"], agent["z"] = nx, ny, nz
+            elif action < 6:
+                agent["energy"] -= 2.0
+                
+            self.pheromone_map[z_layer, int(agent["y"]), int(agent["x"])] += 1.0
+            
+            # Survive / Reproduce
+            if getattr(self, 'is_night', False):
+                agent["confort"] = max(0.0, agent.get("confort", 50.0) - 1.0)
+            else:
+                agent["confort"] = min(100.0, agent.get("confort", 50.0) + 0.5)
+                
+            if agent["energy"] > 80.0 and agent.get("confort", 50.0) > 80.0:
+                agent["hp"] = min(100.0 + agent["model"].phenotype_hp_bonus, agent["hp"] + 1.0)
+            elif agent["energy"] < 20.0 or agent.get("confort", 50.0) < 20.0:
+                agent["hp"] -= 1.0
+
+            if agent["energy"] > 0 and agent["hp"] > 0:
+                if agent["energy"] >= self.config.agent.energy_max:
+                    agent["energy"] = 50.0
+                    child_model = agent["model"].clone()
+                    child_model.mutate()
+                    new_agents.append((child_model, agent["x"], agent["y"], 50.0))
+                survivors.append(agent)
+            else:
+                logger.emit("AGENT_DEATH", {
+                    "id": agent["id"], 
+                    "age": agent["age"], 
+                    "energy": agent["energy"],
+                    "total_dreams": agent.get("total_dreams", 0),
+                    "total_reflexes": agent.get("total_reflexes", 0),
+                    "preys_eaten": agent.get("preys_eaten", 0)
+                })
+                # Emit structuré pour KuzuDB
+                logger.emit("AGENT_LIFESPAN", {
+                    "id": agent["id"],
+                    "era": getattr(self, "current_era", 0),
+                    "score": float(agent["energy"] + agent.get("preys_eaten", 0) * 10.0),
+                    "energy": float(agent["energy"]),
+                    "total_dreams": int(agent.get("total_dreams", 0)),
+                    "total_reflexes": int(agent.get("total_reflexes", 0))
+                })
+                self.dead_agents.append(agent)
+                
+        # RL: Compute policy gradient
+        new_energies = np.array([a["energy"] for a in self.agents], dtype=np.float32)
+        rewards = new_energies - old_energies
+        batch_model.compute_policy_gradient(rewards)
+                
+        self.agents = survivors
+        
+        seeds_to_remove = []
+        for item in self.items:
+            if item.get("type") == "Seed":
+                ttl = item.get("ttl", 100) - 1
+                if ttl <= 0:
+                    seeds_to_remove.append(item)
+                    sx, sy = item["x"], item["y"]
+                    if self.geometry[0, sy, sx] not in [1, 2, 3]: # not wall
+                        self.geometry[0, sy, sx] = 4
+                        self.trees.append((sx, sy))
+                        self.tree_data.append({"is_fruit": True, "cooldown": np.random.randint(50, 150)})
+                        for fy in range(max(0, sy-1), min(self.size, sy+2)):
+                            for fx in range(max(0, sx-1), min(self.size, sx+2)):
+                                if self.geometry[0, fy, fx] == 0:
+                                    self.geometry[0, fy, fx] = 5
+                        logger.emit("TREE_SPROUTED", {"x": sx, "y": sy})
+                else:
+                    item["ttl"] = ttl
+
+        # Fire mechanics
+        sparks_to_remove = []
+        flammable_to_remove = []
+        fires_to_add = []
+        
+        for item in self.items:
+            if item.get("type") == "Spark":
+                ignited = False
+                for other in self.items:
+                    if other is not item and other["x"] == item["x"] and other["y"] == item["y"]:
+                        _, _, _, _, flam = self.item_physics(other)
+                        if flam > 0.5:
+                            sparks_to_remove.append(item)
+                            if other not in flammable_to_remove:
+                                flammable_to_remove.append(other)
+                                ttl = 500 if other.get("type") == "Wood" else 50
+                                fire_id = f"fire_{self.ticks}_{item['x']}_{item['y']}"
+                                fires_to_add.append({"id": fire_id, "x": item["x"], "y": item["y"], "z": 0, "type": "Fire", "ttl": ttl})
+                                
+                                # Bonus for crafting fire intelligently
+                                if other.get("type") == "Wood":
+                                    for a in self.agents:
+                                        if a["x"] == item["x"] and a["y"] == item["y"]:
+                                            a["energy"] += 10.0 # Reward for advanced crafting!
+                            ignited = True
+                            break
+                
+                if not ignited:
+                    ttl = item.get("ttl", 3) - 1
+                    if ttl <= 0:
+                        if item not in sparks_to_remove:
+                            sparks_to_remove.append(item)
+                    else:
+                        item["ttl"] = ttl
+        
+        # Update Fires TTL
+        fires_to_remove = []
+        for item in self.items:
+            if item.get("type") == "Fire":
+                ttl = item.get("ttl", 50) - 1
+                if ttl <= 0:
+                    fires_to_remove.append(item)
+                else:
+                    item["ttl"] = ttl
+                    # Fire gives heat / energy / confort to nearby agents!
+                    gathered_agents = []
+                    for a in self.agents:
+                        if abs(a["x"] - item["x"]) <= 1 and abs(a["y"] - item["y"]) <= 1:
+                            # Day or Night, Fire gives some energy (cooking/warmth)
+                            a["energy"] = min(100.0, a["energy"] + 0.5)
+                            
+                            # Confort and gathering effects only apply at night!
+                            if getattr(self, 'is_night', False):
+                                a["confort"] = min(100.0, a.get("confort", 50.0) + 5.0)
+                                gathered_agents.append(a)
+                                if "id" in item and "id" in a:
+                                    logger.emit("NEAR_FIRE", {"agent_id": a["id"], "fire_id": item["id"]})
+                    
+                    # EXP-9 : Social Gathering around fire at night
+                    if getattr(self, 'is_night', False) and len(gathered_agents) >= 2:
+                        agent_ids = [a["id"] for a in gathered_agents]
+                        logger.emit("SOCIAL_GATHERING", {"fire_id": item.get("id", "unknown"), "agent_ids": agent_ids})
+                        for a in gathered_agents:
+                            a["energy"] = min(100.0, a["energy"] + 1.0) # Tribe cohesion bonus
+
+        for s in sparks_to_remove + fires_to_remove + flammable_to_remove + seeds_to_remove:
+            if s in self.items:
+                self.items.remove(s)
+        for f in fires_to_add:
+            self.items.append(f)
+
+        
+        # Social Resolution
+        social_new_agents = self._resolve_social()
+        hgt_new_agents = self._apply_hgt_breeding()
+        
+        for (g, x, y, e) in new_agents + social_new_agents + hgt_new_agents:
+            self.add_agent(g, x=x, y=y, energy=e)
+
+    def render(self):
+        print(f"--- BIOSPHERE V14 TensorWorld | {len(self.agents)} AGENTS EN VIE | TICK: {self.ticks} ---")
+        if not self.agents:
+            print("EXTINCTION.")
+            return
+        # Simplified rendering
+        print(f"Entities: {len(self.agents)} Agents, {len(self.preys)} Preys, {len(self.items)} Items")

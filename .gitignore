@@ -1,0 +1,35 @@
+# Caches and temporary directories
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.venv/
+venv/
+
+# Large dumps/logs
+dump.txt
+dump2.txt
+results/
+
+# Data directory: ignore DB files, states, pickes
+data/*.db
+data/*.db.wal
+data/*.wal
+data/*.pkl
+data/kuzu_db/
+data/kuzudb/
+data/test_kuzudb/
+data/agent_states/
+
+# Frontend-specific
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.env*
+
+# Editor/OS settings
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
