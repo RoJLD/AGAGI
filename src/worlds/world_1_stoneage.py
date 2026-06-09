@@ -14,6 +14,7 @@ from src.seed_ai.mutation import apply_mutations, MutationConfig
 from src.environments.config import WorldConfig
 from src.graph_rag.async_logger import logger
 from src.agents.mamba_agent import MambaBatchModel
+from src.agents.world_model import WorldModel
 from src.graph_rag.memory_retriever import AsyncMemoryRetriever
 from src.swarm.consensus import WeightedConsensus, ConsensusConfig
 from src.swarm.hgt import HorizontalGeneTransfer, HGTConfig
@@ -31,6 +32,9 @@ class Biosphere3D(BaseWorld):
     def __init__(self, config: WorldConfig = None):
         self.config = config or WorldConfig()
         self.size = self.config.size
+        # World Model partagé par la population (Vague 0, levier 1) : alimente la
+        # vraie surprise / curiosité. Possédé par le monde -> persiste sur toute l'ère.
+        self.world_model = WorldModel(self.config.agent.num_inputs)
         self.physics_registry = DynamicPhysicsRegistry(self.config.item_physics)
         self.num_altars = self.config.num_altars
         self.prey_mode = self.config.prey_mode
@@ -704,7 +708,7 @@ class Biosphere3D(BaseWorld):
         # VECTORIZED OBSERVATION & BATCHING
         batch_obs = self.get_batch_observations()
         models = [a["model"] for a in self.agents]
-        batch_model = MambaBatchModel(models)
+        batch_model = MambaBatchModel(models, world_model=self.world_model)
 
         env_surprise_batch = np.array([a.get("last_env_surprise", 0.0) for a in self.agents])
         

@@ -4,6 +4,7 @@ from src.agents.base_agent import BaseAgent
 from src.seed_ai.mutation import Genome, apply_mutations, MutationConfig
 from src.seed_ai.rl_evolution import recurrent_forward
 from src.metaprog.ntm_compiler import NTMProgramCompiler
+from src.agents.world_model import WorldModel
 
 class MambaAgent(BaseAgent):
     """
@@ -60,6 +61,7 @@ class MambaAgent(BaseAgent):
         self.goal_vector = np.zeros(5, dtype=np.float32)
         self.predictor_head = np.zeros(8, dtype=np.float32)
         self.ntm_memory = np.zeros((10, 5), dtype=np.float32)
+        self.last_obs = None  # World Model : observation du tick précédent (Vague 0)
         
     def forward(self, obs: np.ndarray) -> np.ndarray:
         # Obs doit être un vecteur (1, I)
@@ -248,9 +250,12 @@ class MambaBatchModel:
     Gestionnaire de population pour vectoriser l'inférence de N agents simultanément (TensorWorld).
     Supporte le Connectome Élastique avec dynamic padding et alignement des nœuds sensoriels, cachés et moteurs.
     """
-    def __init__(self, agents: list[MambaAgent]):
+    def __init__(self, agents: list[MambaAgent], world_model=None):
         self.agents = agents
         self.B = len(agents)
+        # World Model (Vague 0) : possédé par le monde, partagé par la population.
+        # None -> surprise neutre (rétro-compat : world_0 legacy, tests isolés).
+        self.world_model = world_model
         if self.B == 0:
             return
             
@@ -321,7 +326,18 @@ class MambaBatchModel:
         self.NTM_K = 10 # Nombre de slots mémoire
         self.NTM_M = 5  # Dimension d'un slot
         self.NTM_Memory = np.stack([getattr(a, 'ntm_memory', np.zeros((self.NTM_K, self.NTM_M), dtype=np.float32)) for a in agents], axis=0)
-        
+
+        # World Model : observation précédente par agent (round-trip comme surprise_momentum).
+        self.last_obs_batch = np.zeros((self.B, self.max_I), dtype=np.float32)
+        self.has_last_batch = np.zeros(self.B, dtype=bool)
+        for i, a in enumerate(agents):
+            lo = getattr(a, 'last_obs', None)
+            if lo is not None:
+                L = min(len(lo), self.max_I)
+                self.last_obs_batch[i, :L] = lo[:L]
+                self.has_last_batch[i] = True
+        self.curiosity_batch = np.zeros(self.B, dtype=np.float32)
+
         self.tick_count = 0
 
     def forward(self, batch_obs: np.ndarray, env_surprise_batch: np.ndarray = None) -> tuple:
@@ -350,9 +366,17 @@ class MambaBatchModel:
 
         H = self.H_prev_batch.copy()
 
-        # 2. Calcul de la surprise (delta entre états latents consécutifs)
-        surprise = np.mean((H - self.H_prev_batch) ** 2, axis=1)  # (B,)
+        # 2. Surprise = erreur du World Model : prédiction de obs(t+1) depuis obs(t)
+        #    (Vague 0, levier 1). Remplace l'ancien calcul (delta d'états latents) qui
+        #    valait TOUJOURS 0 — H venait d'être copié de H_prev_batch. Cf. EDR 010.
+        #    Effet de bord réparé : le déclencheur du dreaming (surprise_momentum) et la
+        #    récompense intrinsèque du monde (a.surprise) redeviennent vivants.
+        surprise = np.zeros(self.B, dtype=np.float32)
+        if self.world_model is not None and self.has_last_batch.any():
+            m = self.has_last_batch
+            surprise[m] = self.world_model.observe(self.last_obs_batch[m], x_obs[m], train=True)
         surprise = np.clip(surprise, 0.0, 1.0)
+        self.curiosity_batch = surprise.copy()
 
         # Momentum exponentiel pour lisser le signal de surprise
         decay = 0.8
@@ -561,6 +585,7 @@ class MambaBatchModel:
             a.surprise = float(surprise[i])
             a.surprise_momentum = float(self.surprise_momentum_batch[i])
             a.ntm_memory = self.NTM_Memory[i].copy()
+            a.last_obs = x_obs[i].copy()  # World Model : mémoriser obs(t) pour prédire t+1
             a.genome.W = self.W_batch[i][map_idx[:, None], map_idx[None, :]].copy()
 
         return preds, compute_spent

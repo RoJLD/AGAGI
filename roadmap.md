@@ -253,4 +253,46 @@ L'axe 4.1 (récompenses pur intrinsèques, *« pas dit mais trouvé »*) reste l
 
 ### Principe directeur (V18.0)
 
-**Soustraction et profondeur > addition.** Le repo a déjà *plus de mécanismes que de fonction*. On cesse d'empiler (Arcs 5-7, NAS Macro) ; on fait **exprimer** les vrais mécanismes, dans un monde qui les **exige**, mesuré **honnêtement**. Le **curriculum développemental** (section ci-dessus) est le véhicule de livraison : chaque levier est staté comme un monde à porte de maîtrise, validé par transfert/rétention.
+**Soustraction et profondeur > addition.** Le repo a déjà *plus de mécanismes que de fonction*. On cesse d'empiler (Arcs 5-7, NAS Macro) ; on fait **exprimer** les vrais mécanismes, dans un monde qui les **exige**, mesuré **honnêtement**. Le **curriculum développemental** (section ci-dessus) est le véhicule de livraison : chaque levier est séquencé comme un monde à porte de maîtrise, validé par transfert/rétention.
+
+---
+
+## 🥇 Ordre de Priorité d'Exécution
+
+> Dérivé de l'audit (`docs/EDR/010`). Principe : **soustraction > addition** — on fait *exprimer* les mécanismes réels avant d'en ajouter. Chaque vague est livrée **et mesurée** via le curriculum (transfert/rétention) avant la suivante.
+
+### 🔴 Vague 0 — Fondations (débloquent tout le reste) — PRIORITÉ ABSOLUE
+
+Le **couple racine**, co-dépendant, à instaurer *ensemble* :
+
+1. **World Model** — tête prédictive (levier 1, § 4.1). Keystone : convertit dreaming→imagination, surprise→**curiosité réelle**, value head→vrai critic. *Coût faible, scaffolding déjà présent (`predictor_head` existe, juste copié).*
+2. **Monde qui exige la cognition** — rareté dure, crafting branché, proies intuables sans outil, coopération nécessaire (levier 2). *Sans lui, le World Model est inutile.*
+
+Véhicule : le `CurriculumRunner` (déjà livré) stage ces deux-là comme mondes à porte de maîtrise.
+
+### 🟠 Vague 1 — Honnêteté & hygiène (cheap, restaure la mesure)
+
+Prérequis pour **faire confiance** à tout résultat ultérieur :
+
+3. **Tuer ou câbler les gènes fantômes** (levier 3) — router/bytecode/thresholds mutés mais jamais lus.
+4. **Ablation** (levier 5) — retourner le Ratio de Transfert sur les mécanismes du projet eux-mêmes (Commandement 15).
+5. **Unifier sur 1 monde canonique** — supprimer le doublon V13 (world_0) et le stub world_3.
+6. **Fix bug de chemin metaprog** + peupler l'ontologie Hypothesis/Fact (déclarée, vide).
+
+### 🟡 Vague 2 — Le pivot « graine d'AGI » (sécurité d'abord)
+
+7. **Sandbox isolée** — dette bloquante (faille RCE) AVANT toute génération de code réelle.
+8. **Vraie RSI** (levier 4, § 2.1.A / § 4.3) — LLM réel dans la boucle metaprog, code validé **réellement réinjecté**.
+9. **Supervisor réflexif** — remplacer l'`analyze_metrics` en if/else par un vrai nœud LLM lisant la tendance multi-ères dans KuzuDB.
+
+### 🟢 Vague 3 — Émergence avancée (seulement quand V0-V2 s'expriment)
+
+10. **Theory of Mind & langage émergent** (non scripté, pas payé +0.5) — Arc 5 (Tribu).
+11. **Représentations symboliques / protoconcepts** — § 4.4.
+12. **Économie cognitive** (allocation de ressources apprise) — § 4.5.
+
+### ⚪ Vague 4 — Différé / aspirationnel (gelé par principe)
+
+NAS Macro/Meta (catalogue de ~80 blocs), Arcs 6-7 (Penseur, Conscience, Qualia). **À ne pas toucher** tant que V0-V2 ne livrent pas.
+
+> **Règle d'avancement** : on ne passe à la vague N+1 que lorsque la vague N est *livrée ET mesurée* (Commandement 15 : valide ou revert). Aucun saut vers le « Graal » avant que les fondations s'expriment.
