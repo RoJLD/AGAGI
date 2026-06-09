@@ -296,3 +296,7 @@ Prérequis pour **faire confiance** à tout résultat ultérieur :
 NAS Macro/Meta (catalogue de ~80 blocs), Arcs 6-7 (Penseur, Conscience, Qualia). **À ne pas toucher** tant que V0-V2 ne livrent pas.
 
 > **Règle d'avancement** : on ne passe à la vague N+1 que lorsque la vague N est *livrée ET mesurée* (Commandement 15 : valide ou revert). Aucun saut vers le « Graal » avant que les fondations s'expriment.
+
+### Backlog (idées différées)
+
+- **Table de craft spatiale (façon Minecraft)** : remplacer la recette unique actuelle (`rub` → lance, Step 2) par une **grille de craft 3×3** où la *disposition* des ingrédients définit la recette (*shaped crafting*). Approfondit la chaîne moyens→fins : ouvre un arbre technologique profond et **compositionnel**, qui pressure directement la planification spatiale. Progression naturelle : **3×3 → n×n** (grilles arbitraires) **→ n×n×n** (craft volumétrique 3D, cohérent avec le monde 3D optionnel). À introduire après que la boucle moyens→fins minimale soit validée par l'évolution.

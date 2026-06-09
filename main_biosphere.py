@@ -184,6 +184,8 @@ def main():
     config = WorldConfig()
     generation_auto = 1
     MAX_ERAS = 30
+    MAX_TICKS_PER_ERA = 1200  # garde-temps : evite un hang si une population se stabilise
+    headless = os.getenv("HEADLESS", "0") == "1"  # run sans rendu (arriere-plan)
     
     while generation_auto <= MAX_ERAS:
         # Ingrédients adaptatifs recommandés par le Supervisor
@@ -218,9 +220,10 @@ def main():
         time.sleep(1)
         
         env.current_era = generation_auto
-        while len(env.agents) > 0:
-            clear_screen()
-            env.render()
+        while len(env.agents) > 0 and env.ticks < MAX_TICKS_PER_ERA:
+            if not headless:
+                clear_screen()
+                env.render()
             
             max_energy = max([a["energy"] for a in env.agents])
             mean_energy = np.mean([a["energy"] for a in env.agents])

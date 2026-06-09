@@ -15,6 +15,7 @@ from src.environments.config import WorldConfig
 from src.graph_rag.async_logger import logger
 from src.agents.mamba_agent import MambaBatchModel
 from src.agents.world_model import WorldModel
+from src.environments.stone_economy import prey_reward, weapon_damage, has_spear, can_craft_spear
 from src.graph_rag.memory_retriever import AsyncMemoryRetriever
 from src.swarm.consensus import WeightedConsensus, ConsensusConfig
 from src.swarm.hgt import HorizontalGeneTransfer, HGTConfig
@@ -35,6 +36,9 @@ class Biosphere3D(BaseWorld):
         # World Model partagé par la population (Vague 0, levier 1) : alimente la
         # vraie surprise / curiosité. Possédé par le monde -> persiste sur toute l'ère.
         self.world_model = WorldModel(self.config.agent.num_inputs)
+        # Rareté (Vague 0, Step 2) : taux de régénération LENTE des proies (proba/step).
+        # Variable d'expérience : règle la capacité de charge écologique du monde.
+        self.prey_regen_rate = 0.30
         self.physics_registry = DynamicPhysicsRegistry(self.config.item_physics)
         self.num_altars = self.config.num_altars
         self.prey_mode = self.config.prey_mode
@@ -498,17 +502,20 @@ class Biosphere3D(BaseWorld):
         # Hunt / Attack (Asymmetrical combat)
         attacked_prey = next((p for p in self.preys if agent["x"] == p["x"] and agent["y"] == p["y"]), None)
         if attacked_prey:
-            # Agent deals 10 base damage
-            damage_dealt = 10.0
+            # Dégâts dépendant de l'outil (Step 2) : 10 à mains nues, 50 avec une lance.
+            damage_dealt = weapon_damage(has_spear(agent["inventory"]))
             attacked_prey["hp"] -= damage_dealt
             logger.emit("PREY_ATTACKED", {"agent_id": agent["id"], "prey_type": attacked_prey["type"], "damage": damage_dealt})
-            
+
             if attacked_prey["hp"] <= 0:
-                agent["energy"] = min(self.config.agent.energy_max, agent["energy"] + 50.0)
+                # Récompense ∝ difficulté (Step 2) : le Lapin sustente, le Mammouth enrichit.
+                cfg_prey = self.config.preys.get(attacked_prey["type"], None)
+                reward = prey_reward(cfg_prey.hp if cfg_prey else 1.0)
+                agent["energy"] = min(self.config.agent.energy_max, agent["energy"] + reward)
                 agent["preys_eaten"] += 1
                 self.preys.remove(attacked_prey)
-                self._spawn_prey_instance(attacked_prey["type"])
-                logger.emit("PREY_KILLED", {"agent_id": agent["id"], "prey_type": attacked_prey["type"]})
+                # RARETÉ (Step 2) : plus de respawn instantané — régénération lente ailleurs.
+                logger.emit("PREY_KILLED", {"agent_id": agent["id"], "prey_type": attacked_prey["type"], "reward": float(reward)})
             
         if do_duck:
             eaten_worm = next((w for w in self.worms if w["x"] == agent["x"] and w["y"] == agent["y"] and w.get("z", 0) == agent.get("z", 0)), None)
@@ -699,7 +706,9 @@ class Biosphere3D(BaseWorld):
                     
         self._move_preys()
         
-        while len(self.preys) < self.config.target_prey_count:
+        # RARETÉ (Step 2) : régénération LENTE — au plus 1 proie/step sous le plafond.
+        # Remplace le refill instantané qui rendait la nourriture infinie.
+        if len(self.preys) < self.config.target_prey_count and np.random.rand() < self.prey_regen_rate:
             self._spawn_prey_instance(np.random.choice(["Lapin", "Cerf", "Sanglier", "Mammouth"], p=[0.4, 0.3, 0.2, 0.1]))
             
         if not self.agents:
@@ -915,18 +924,28 @@ class Biosphere3D(BaseWorld):
                     agent["throw_feedback"] = -1.0
                     agent["throw_feedback_ttl"] = 5
                     
-            # 5. Rub (Crafting by Friction)
+            # 5. Rub (Crafting) — Lance (outil, Step 2) OU Spark (feu)
             if do_rub and len(agent["inventory"]) >= 2:
                 item1 = agent["inventory"][0]
                 item2 = agent["inventory"][1]
-                
-                _, _, _, f1, _ = self.item_physics(item1)
-                _, _, _, f2, _ = self.item_physics(item2)
-                
-                if f1 * f2 > 0.5:
+                phys1 = self.item_physics(item1)
+                phys2 = self.item_physics(item2)
+
+                if can_craft_spear(phys1, phys2):
+                    # Tranchant + manche -> Lance. Consomme les 2 ingrédients.
+                    agent["energy"] -= 2.0
+                    agent["inventory"] = agent["inventory"][2:]
+                    spear = {"type": "Spear", "weight": 2.0}
+                    if len(agent["inventory"]) < agent["inv_capacity"]:
+                        agent["inventory"].append(spear)
+                    else:
+                        spear["x"], spear["y"], spear["z"] = agent["x"], agent["y"], 0
+                        self.items.append(spear)
+                    logger.emit("SPEAR_CRAFTED", {"agent_id": agent["id"]})
+                elif phys1[3] * phys2[3] > 0.5:
                     agent["energy"] -= 2.0
                     self.items.append({"x": agent["x"], "y": agent["y"], "z": 0, "type": "Spark", "ttl": 3})
-                    agent["last_spoken"] = [99.0, 99.0, 99.0, 99.0] 
+                    agent["last_spoken"] = [99.0, 99.0, 99.0, 99.0]
 
             do_grab = float(logits[24]) if len(logits) > 24 else 0.0
             
