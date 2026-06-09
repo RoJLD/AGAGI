@@ -1,5 +1,6 @@
 import numpy as np
 from src.seed_ai.mutation import apply_mutations, MutationConfig
+from src.environments.physics import DynamicPhysicsRegistry
 
 # V13: Imports matériels et physiques
 try:
@@ -28,6 +29,7 @@ class Biosphere3D:
         self.size = size
         self.num_altars = num_altars
         self.prey_mode = prey_mode
+        self.physics_registry = DynamicPhysicsRegistry()
         self.pheromone_map = np.zeros((size, size, size), dtype=np.float32)
         self.geometry = np.zeros((size, size, size), dtype=int)
         
@@ -181,6 +183,13 @@ class Biosphere3D:
             "inventory": [],  # V13: Liste d'IDs d'objets en chaîne de caractères
             "visited_positions": set()
         })
+
+    def item_physics(self, item_type):
+        if isinstance(item_type, dict):
+            item_type = item_type.get("type", "unknown")
+        if not isinstance(item_type, str):
+            item_type = str(item_type)
+        return self.physics_registry.get_properties(item_type)
 
     def _get_agent_observation(self, agent) -> np.ndarray:
         min_dist = 999999

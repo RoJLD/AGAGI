@@ -5,7 +5,7 @@ Commandement 1: Flexible (Hyper-Configurabilité)
 Commandement 2: Modulaire (Memory retrieval + orchestration)
 Commandement 5: Transparent (audit trail in KuzuDB)
 """
-from typing import TypedDict, Optional, Dict, Any
+from typing import TypedDict, Optional, Dict, Any, List
 import json
 import logging
 import os
@@ -22,7 +22,9 @@ logging.basicConfig(level=logging.INFO)
 # 1. Typed State (Commandement 2 & 5)
 class SupervisorState(TypedDict):
     db_path: str
+    db: Optional[Any]
     latest_score: Optional[float]
+    score_history: Optional[List[float]]
     latest_metrics: Optional[Dict[str, float]]
     analysis_insight: Optional[str]
     tweaked_parameters: Optional[Dict[str, Any]]
@@ -33,25 +35,35 @@ class SupervisorState(TypedDict):
 def read_kuzu_db(state: SupervisorState) -> Dict[str, Any]:
     """Reads the latest CognitiveState or experiment scores from KuzuDB."""
     logger.info("Node: ReadKuzuDB")
-    db_path = state.get("db_path", "data/experiment_graph.db")
     latest_score = 0.5  # default score
+    score_history = [0.5]
     
     try:
         # Commandement 5: Transparent & Auditable (using KuzuDB)
-        db = kuzu.Database(db_path, read_only=True)
-        conn = kuzu.Connection(db)
+        db = state.get("db")
+        if db is not None:
+            conn = kuzu.Connection(db)
+        else:
+            db_path = state.get("db_path", "data/kuzu_graph.db")
+            db = kuzu.Database(db_path, read_only=True)
+            conn = kuzu.Connection(db)
+            
         try:
             # Commandement 2: Modulaire (Memory retrieval)
-            results = conn.execute("MATCH (c:CognitiveState) RETURN c.score ORDER BY c.timestamp DESC LIMIT 1")
-            if results.has_next():
-                latest_score = results.get_next()[0]
-                logger.info(f"Read latest score from KuzuDB: {latest_score}")
+            results = conn.execute("MATCH (c:CognitiveState) RETURN c.score ORDER BY c.timestamp DESC LIMIT 5")
+            scores = []
+            while results.has_next():
+                scores.append(results.get_next()[0])
+            if scores:
+                latest_score = scores[0]
+                score_history = scores
+                logger.info(f"Read score history from KuzuDB: {score_history}")
         except RuntimeError as e:
             logger.warning(f"Could not query CognitiveState, using default score: {e}")
     except Exception as e:
-        logger.error(f"Failed to connect to KuzuDB at {db_path}: {e}")
+        logger.error(f"Failed to connect to KuzuDB: {e}")
         
-    return {"latest_score": latest_score}
+    return {"latest_score": latest_score, "score_history": score_history}
 
 def analyze_metrics(state: SupervisorState) -> Dict[str, Any]:
     """Analyzes metrics using evaluator and generates parameter tweaks."""
@@ -59,6 +71,7 @@ def analyze_metrics(state: SupervisorState) -> Dict[str, Any]:
     
     metrics = state.get("latest_metrics", {})
     score = state.get("latest_score", 0.0)
+    score_history = state.get("score_history", [score])
     
     evaluator = FitnessEvaluator(EvaluatorConfig())
     robustness = evaluator.score_robustness(metrics)
@@ -69,6 +82,29 @@ def analyze_metrics(state: SupervisorState) -> Dict[str, Any]:
     # Mock LLM Call / Decision Logic
     insight = f"Score={score:.2f}, Robustness={robustness:.2f}, Emergence={emergence:.2f}."
     
+    # 1. Cognitive Famine Detection (Commandement 10 & sprint active coding)
+    cognitive_famine = False
+    if len(score_history) >= 3:
+        std = float(np.std(score_history))
+        mean = float(np.mean(score_history))
+        if std < 0.02 and mean < 0.95:
+            cognitive_famine = True
+            insight += " [FAMINE] Famine cognitive détectée (stagnation des scores) !"
+            
+    # 2. Trigger active metaprogramming codegen if famine is detected
+    codegen_success = False
+    if cognitive_famine:
+        try:
+            from src.metaprog.supervisor_coder import generate_and_test_new_activation
+            codegen_success = generate_and_test_new_activation()
+            if codegen_success:
+                insight += " Métaprogrammation réussie : nouvelle activation 'Swish' installée."
+            else:
+                insight += " Métaprogrammation échouée : rejetée par la sandbox de sécurité."
+        except Exception as e:
+            logger.error(f"Failed to run active metaprogramming: {e}")
+            insight += f" Métaprogrammation erreur : {e}."
+            
     # Generate parameter tweak based on scores
     tweaked_params = {}
     
@@ -114,7 +150,7 @@ def tweak_environment(state: SupervisorState) -> Dict[str, Any]:
         json.dump(params, f, indent=4)
         
     logger.info(f"Tweaked parameters saved to {config_path}: {params}")
-    print(f"✓ Tweaked Parameters: {params}")
+    print(f"[TUNER] Tweaked Parameters: {params}")
     
     return {"tweaked_parameters": params}
 
@@ -225,8 +261,11 @@ class SupervisorLoop:
         self._iteration += 1
         logger.info(f"[Supervisor Iteration #{self._iteration}]")
         
+        db = self.adaptive_tuner.db_conn if self.adaptive_tuner else None
+        
         initial_state = SupervisorState(
-            db_path="data/experiment_graph.db",
+            db_path="data/kuzu_graph.db",
+            db=db,
             latest_metrics=latest_metrics or {},
         )
         

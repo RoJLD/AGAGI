@@ -143,7 +143,7 @@ class AsyncLogger:
         log.info(f"KuzuDB connection released in worker. Processed {self._events_processed} events.")
                 
     def _check_pending_article(self, conn):
-        import os, json
+        import os, json, uuid, datetime
         pending_path = "data/pending_article.json"
         if os.path.exists(pending_path):
             try:
@@ -151,13 +151,28 @@ class AsyncLogger:
                     data = json.load(f)
                 
                 try:
-                    conn.execute("CREATE NODE TABLE Article (title STRING, content STRING, timestamp INT64, PRIMARY KEY (title))")
+                    conn.execute("CREATE NODE TABLE Article (id STRING, title STRING, content STRING, date STRING, PRIMARY KEY (id))")
                 except RuntimeError:
                     pass
                 
-                conn.execute("CREATE (a:Article {title: $title, content: $content, timestamp: $ts})", 
-                            parameters={"title": data["title"], "content": data["content"], "ts": data["timestamp"]})
+                art_id = f"art_{uuid.uuid4().hex[:8]}"
+                ts = data.get("timestamp", time.time())
+                date_str = datetime.datetime.fromtimestamp(ts).strftime("%Y-%m-%d %H:%M:%S")
+                
+                safe_title = data["title"].replace("'", "\\'")
+                safe_content = data["content"].replace("'", "\\'")
+                
+                conn.execute(f"CREATE (a:Article {{id: '{art_id}', title: '{safe_title}', content: '{safe_content}', date: '{date_str}'}})")
                 log.info(f"Article inséré dans KuzuDB par AsyncLogger: {data['title']}")
+                
+                # Sync with the JSON sidecar for Dashboard accessibility
+                try:
+                    from src.graph_rag.experiment_tracker import ExperimentGraph
+                    tracker = ExperimentGraph(db=self.get_db(), read_only=True)
+                    tracker._sync_articles_to_json()
+                except Exception as sync_e:
+                    log.warning(f"Impossible de synchroniser l'article vers le JSON sidecar: {sync_e}")
+                
                 os.remove(pending_path)
             except Exception as e:
                 log.error(f"Erreur lors de l'insertion de l'article en attente: {e}")

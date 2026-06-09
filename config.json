@@ -1,3 +1,4 @@
 {
-    "mutation_rate": 0.05
+    "mutation_rate": 0.01,
+    "social_bonus_scale": 1.0
 }

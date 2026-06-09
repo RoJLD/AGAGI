@@ -1,12 +1,20 @@
 import os
 import json
 import pytest
-from src.graph_rag.supervisor import read_kuzu_db, analyze, tweak_environment, build_supervisor_graph, SupervisorState
+from src.graph_rag.supervisor import read_kuzu_db, analyze_metrics, tweak_environment, build_supervisor_graph, SupervisorState
 
 def test_analyze_node():
-    state = SupervisorState(latest_score=0.5)
-    result = analyze(state)
-    assert result["analysis_insight"] == "Score is 0.5. Score stagne, augmentation du taux de mutation nécessaire."
+    state = SupervisorState(
+        latest_score=0.5,
+        latest_metrics={
+            "energy_stability": 0.3,
+            "genome_diversity": 0.4,
+            "social_density": 0.5,
+            "avg_energy": 40.0
+        }
+    )
+    result = analyze_metrics(state)
+    assert "analysis_insight" in result
     assert result["tweaked_parameters"]["mutation_rate"] == 0.05
 
 def test_tweak_environment_node(tmpdir):

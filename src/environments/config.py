@@ -47,6 +47,16 @@ class WorldConfig:
     fruit_tree_ratio: float = 0.2
     use_3d: bool = False
     active_exp_variable: str = "LANGUAGE"  # "LANGUAGE", "RAG", "METAPROG", "NONE"
+    
+    # Thermodynamique & MCTS / TTC
+    ttc_base_cost: float = 0.01
+    ttc_night_penalty: float = 2.5
+    ttc_surprise_scale: float = 1.0
+    
+    # Surprise-Triggered HGT
+    hgt_surprise_threshold: float = 0.75
+    hgt_surprise_power: float = 0.2
+    
     agent: AgentConfig = field(default_factory=AgentConfig)
     biome: BiomeConfig = field(default_factory=BiomeConfig)
     preys: Dict[str, PreyConfig] = field(default_factory=lambda: {

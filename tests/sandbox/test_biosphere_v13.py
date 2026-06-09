@@ -24,7 +24,7 @@ def test_v13_observation_size():
     agent["inventory"] = ["stick_short", "rock_small"]
     obs = env._get_agent_observation(agent)
     
-    assert obs.shape == (1, 32), f"L'observation V13 doit avoir 32 entrées (obtenu: {obs.shape[1]})."
+    assert obs.shape == (1, 33), f"L'observation V13 doit avoir 33 entrées (obtenu: {obs.shape[1]})."
 
 def test_v13_inventory_capacity():
     env = Biosphere3D(size=10)

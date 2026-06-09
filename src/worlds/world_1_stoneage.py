@@ -17,6 +17,7 @@ from src.agents.mamba_agent import MambaBatchModel
 from src.graph_rag.memory_retriever import AsyncMemoryRetriever
 from src.swarm.consensus import WeightedConsensus, ConsensusConfig
 from src.swarm.hgt import HorizontalGeneTransfer, HGTConfig
+from src.environments.physics import DynamicPhysicsRegistry
 
 class Biosphere3D(BaseWorld):
     """
@@ -30,6 +31,7 @@ class Biosphere3D(BaseWorld):
     def __init__(self, config: WorldConfig = None):
         self.config = config or WorldConfig()
         self.size = self.config.size
+        self.physics_registry = DynamicPhysicsRegistry(self.config.item_physics)
         self.num_altars = self.config.num_altars
         self.prey_mode = self.config.prey_mode
         self.use_3d = getattr(self.config, 'use_3d', False)
@@ -214,7 +216,7 @@ class Biosphere3D(BaseWorld):
             item_type = item_type.get("type", "unknown")
         if not isinstance(item_type, str):
             item_type = str(item_type)
-        return self.config.item_physics.get(item_type, (0.0, 0.0, 0.0, 0.0, 0.0))
+        return self.physics_registry.get_properties(item_type)
 
     def get_batch_observations(self) -> np.ndarray:
         if not self.agents:
@@ -348,9 +350,12 @@ class Biosphere3D(BaseWorld):
         # + in_slot1_type, in_slot2_type, in_slot1_weight, in_nearby_item_type, in_nearby_item_count, in_hp
         # + terrain(4) + energy + dist_treasure + num_preys + agent_age + inv_size
         
-        # EXP-10 : Graph-RAG Memory Recall
+        # EXP-10 : Graph-RAG Memory Recall (Active Epistemics: wired to sensory observations)
         if getattr(self.config, "active_exp_variable", "NONE") == "RAG":
-            in_mem = np.array([self.memory_retriever.get_rag_memory(str(a["id"]), getattr(a["model"], "explicit_memory", [0]*5)) for a in self.agents], dtype=np.float32)
+            in_mem = np.zeros((N, 5), dtype=np.float32)
+            for i in range(N):
+                q = [float(dn[i]), float(ds[i]), float(de[i]), float(dw[i]), float(pheromone[i])]
+                in_mem[i] = self.memory_retriever.get_rag_memory(str(self.agents[i]["id"]), q)
         else:
             in_mem = np.array([self.memory_retriever.get_memory_vector(str(a["id"])) for a in self.agents], dtype=np.float32)
         
@@ -624,6 +629,36 @@ class Biosphere3D(BaseWorld):
                             logger.emit("HGT_FAILED", {"error": str(e), "parents": [a["id"], b["id"]]})
         return new_agents
 
+    def _apply_surprise_hgt(self):
+        threshold = getattr(self.config, "hgt_surprise_threshold", 0.75)
+        hgt_power = getattr(self.config, "hgt_surprise_power", 0.2)
+        
+        for agent in self.agents:
+            surprise = float(agent["model"].surprise_momentum)
+            if surprise > threshold:
+                best_neighbor = None
+                best_energy = agent["energy"] * 1.2
+                
+                for other in self.agents:
+                    if other is not agent:
+                        dist = abs(other["x"] - agent["x"]) + abs(other["y"] - agent["y"])
+                        if dist <= 2 and other["energy"] > best_energy:
+                            best_energy = other["energy"]
+                            best_neighbor = other
+                
+                if best_neighbor:
+                    try:
+                        agent["model"].absorb_knowledge(best_neighbor["model"].genome, learning_rate=hgt_power)
+                        agent["energy"] = max(5.0, agent["energy"] - 5.0)
+                        logger.emit("SURPRISE_HGT", {
+                            "student": agent["id"],
+                            "teacher": best_neighbor["id"],
+                            "surprise": surprise,
+                            "position": (agent["x"], agent["y"])
+                        })
+                    except Exception as e:
+                        logger.emit("HGT_FAILED", {"error": str(e), "parents": [agent["id"], best_neighbor["id"]]})
+
     def step(self):
         self.ticks += 1
         was_night = getattr(self, "is_night", False)
@@ -679,13 +714,16 @@ class Biosphere3D(BaseWorld):
         batch_logits, compute_spent = batch_model.forward(batch_obs, env_surprise_batch=env_surprise_batch)
         batch_logits = self._apply_social_consensus(batch_logits)
 
-        # EXP-10 : Coût calorique logarithmique du Test-Time Compute
-        # brain_cost[i] = base * (1 + log2(1 + K_i)) — sub-linéaire, biologiquement réaliste
-        BASE_TTC_COST = 0.01
-        brain_cost = BASE_TTC_COST * (1.0 + np.log2(1.0 + compute_spent))  # (B,)
+        # Differentiable / Configurable TTC Caloric Cost
+        base_cost = getattr(self.config, "ttc_base_cost", 0.01)
+        night_mult = getattr(self.config, "ttc_night_penalty", 2.5) if getattr(self, "is_night", False) else 1.0
 
         for i, agent in enumerate(self.agents):
-            agent["energy"] = max(0.0, agent["energy"] - float(brain_cost[i]))
+            surprise_val = float(agent["model"].surprise_momentum)
+            surprise_scale = 1.0 + surprise_val * getattr(self.config, "ttc_surprise_scale", 1.0)
+            
+            brain_cost = base_cost * (1.0 + np.log2(1.0 + compute_spent[i])) * night_mult * surprise_scale
+            agent["energy"] = max(0.0, agent["energy"] - float(brain_cost))
             
             if getattr(self.config, "active_exp_variable", "NONE") == "INTRINSIC":
                 # Recompense Intrinsèque : La surprise génère de la dopamine (énergie)
@@ -1075,6 +1113,7 @@ class Biosphere3D(BaseWorld):
         # Social Resolution
         social_new_agents = self._resolve_social()
         hgt_new_agents = self._apply_hgt_breeding()
+        self._apply_surprise_hgt()
         
         for (g, x, y, e) in new_agents + social_new_agents + hgt_new_agents:
             self.add_agent(g, x=x, y=y, energy=e)

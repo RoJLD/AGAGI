@@ -32,31 +32,33 @@ class ExperimentGraph:
         if not read_only:
             self._init_schema()
 
+    def _safe_execute(self, query: str):
+        import time
+        max_retries = 20
+        for i in range(max_retries):
+            try:
+                self.conn.execute(query)
+                return
+            except RuntimeError as e:
+                err_msg = str(e).lower()
+                # If transaction lock or conflict, wait and retry
+                if "write transaction" in err_msg or "locked" in err_msg or "conflict" in err_msg:
+                    time.sleep(0.5)
+                elif "already exists" in err_msg:
+                    # Ignore table/property already exists errors
+                    return
+                else:
+                    raise
+
     def _init_schema(self):
         # Create Node Tables
-        try:
-            self.conn.execute("CREATE NODE TABLE Experiment(name STRING, description STRING, PRIMARY KEY (name))")
-        except RuntimeError:
-            pass
-            
-        try:
-            self.conn.execute("CREATE NODE TABLE Capability(name STRING, type STRING, PRIMARY KEY (name))")
-        except RuntimeError:
-            pass
-
-        try:
-            self.conn.execute("CREATE NODE TABLE Result(id STRING, max_score DOUBLE, mean_score DOUBLE, ticks INT64, PRIMARY KEY (id))")
-        except RuntimeError:
-            pass
-
-        try:
-            self.conn.execute("CREATE NODE TABLE Interpretation(id STRING, text STRING, PRIMARY KEY (id))")
-        except RuntimeError:
-            pass
+        self._safe_execute("CREATE NODE TABLE Experiment(name STRING, description STRING, PRIMARY KEY (name))")
+        self._safe_execute("CREATE NODE TABLE Capability(name STRING, type STRING, PRIMARY KEY (name))")
+        self._safe_execute("CREATE NODE TABLE Result(id STRING, max_score DOUBLE, mean_score DOUBLE, ticks INT64, PRIMARY KEY (id))")
+        self._safe_execute("CREATE NODE TABLE Interpretation(id STRING, text STRING, PRIMARY KEY (id))")
 
         # V12: Systeme Scientifique
         for table in [
-            "CREATE NODE TABLE Experiment(id STRING, title STRING, start_time TIMESTAMP, parameters STRING, PRIMARY KEY (id))",
             "CREATE NODE TABLE Agent(id STRING, generation INT64, fitness DOUBLE, survival_time INT64, genome STRING, PRIMARY KEY (id))",
             "CREATE NODE TABLE Action(type STRING, count INT64, avg_reward DOUBLE, PRIMARY KEY (type))",
             "CREATE NODE TABLE Fact(id STRING, content STRING, confidence DOUBLE, PRIMARY KEY (id))",
@@ -70,10 +72,7 @@ class ExperimentGraph:
             "CREATE NODE TABLE WorldVersion (name STRING, type STRING, complexity INT64, PRIMARY KEY (name))",
             "CREATE NODE TABLE CognitiveSnapshot (id STRING, agent_id STRING, tick INT64, ntm_memory STRING, attention_mask STRING, w_connectome STRING, PRIMARY KEY (id))"
         ]:
-            try:
-                self.conn.execute(table)
-            except RuntimeError:
-                pass
+            self._safe_execute(table)
         
         for rel in [
             "CREATE REL TABLE EXHIBITS (FROM Agent TO CognitiveState, frequency DOUBLE)",
@@ -90,33 +89,16 @@ class ExperimentGraph:
             "CREATE REL TABLE BELONGS_TO_SPECIES (FROM Agent TO Species)",
             "CREATE REL TABLE RAN_IN_WORLD (FROM Experiment TO WorldVersion)",
             "CREATE REL TABLE TOOK_SNAPSHOT (FROM Agent TO CognitiveSnapshot)",
-            "CREATE REL TABLE TIMELINE_NEXT (FROM Species TO Species)"
+            "CREATE REL TABLE TIMELINE_NEXT (FROM Species TO Species)",
+            "CREATE REL TABLE CREATED_SPECIES (FROM Experiment TO Species)"
         ]:
-            try:
-                self.conn.execute(rel)
-            except RuntimeError:
-                pass
+            self._safe_execute(rel)
 
         # Create Rel Tables
-        try:
-            self.conn.execute("CREATE REL TABLE DERIVED_FROM(FROM Experiment TO Experiment)")
-        except RuntimeError:
-            pass
-
-        try:
-            self.conn.execute("CREATE REL TABLE HAS_CAPABILITY(FROM Experiment TO Capability)")
-        except RuntimeError:
-            pass
-
-        try:
-            self.conn.execute("CREATE REL TABLE YIELDED_RESULT(FROM Experiment TO Result)")
-        except RuntimeError:
-            pass
-
-        try:
-            self.conn.execute("CREATE REL TABLE HAS_INTERPRETATION(FROM Experiment TO Interpretation)")
-        except RuntimeError:
-            pass
+        self._safe_execute("CREATE REL TABLE DERIVED_FROM(FROM Experiment TO Experiment)")
+        self._safe_execute("CREATE REL TABLE HAS_CAPABILITY(FROM Experiment TO Capability)")
+        self._safe_execute("CREATE REL TABLE YIELDED_RESULT(FROM Experiment TO Result)")
+        self._safe_execute("CREATE REL TABLE HAS_INTERPRETATION(FROM Experiment TO Interpretation)")
 
         # V12: Relations scientifiques
         for rel in [
@@ -127,10 +109,7 @@ class ExperimentGraph:
             "CREATE REL TABLE SUPPORTS(FROM Fact TO Hypothesis)",
             "CREATE REL TABLE REFUTES(FROM Fact TO Hypothesis)",
         ]:
-            try:
-                self.conn.execute(rel)
-            except RuntimeError:
-                pass
+            self._safe_execute(rel)
 
     def log_experiment(self, version: str, parent_version: str, capabilities: list, description: str=""):
         # Upsert Experiment

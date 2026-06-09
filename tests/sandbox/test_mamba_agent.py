@@ -13,11 +13,10 @@ def test_mamba_agent_v17_dimensions():
     
     # Test internal state shapes
     assert agent.attention_mask.shape == (45,)
-    assert agent.explicit_memory.shape == (2,)
+    assert agent.explicit_memory.shape == (5,)
     
     # Test forward pass with dummy observation
-    # observation size must be 43 since explicit memory is 2 and total inputs is 45
-    obs = np.random.randn(43).astype(np.float32)
+    obs = np.random.randn(45).astype(np.float32)
     
     try:
         logits = agent.forward(obs)
@@ -29,8 +28,8 @@ def test_mamba_agent_v17_dimensions():
     # Check that attention mask and explicit memory are correctly extracted
     # attention mask should be updated to size 45
     assert agent.attention_mask.shape == (45,)
-    # explicit memory should be updated to size 2
-    assert agent.explicit_memory.shape == (2,)
+    # explicit memory should be updated to size 5
+    assert agent.explicit_memory.shape == (5,)
 
 def test_mamba_agent_from_genome():
     # Test the upgrade functionality from old genome
@@ -43,8 +42,8 @@ def test_mamba_agent_from_genome():
     agent = MambaAgent(num_inputs=45, num_outputs=65, num_nodes=96)
     agent.from_genome(old_genome)
     
-    # Should be upgraded to 45
-    assert agent.genome.num_inputs == 45
-    assert agent.genome.num_outputs == 65
-    assert agent.attention_mask.shape == (45,)
-    assert agent.explicit_memory.shape == (2,)
+    # Should be upgraded to 64 (expected_inputs of V18)
+    assert agent.genome.num_inputs == 64
+    assert agent.genome.num_outputs == 126
+    assert agent.attention_mask.shape == (64,)
+    assert agent.explicit_memory.shape == (5,)

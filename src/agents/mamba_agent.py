@@ -3,6 +3,7 @@ import numpy as np
 from src.agents.base_agent import BaseAgent
 from src.seed_ai.mutation import Genome, apply_mutations, MutationConfig
 from src.seed_ai.rl_evolution import recurrent_forward
+from src.metaprog.ntm_compiler import NTMProgramCompiler
 
 class MambaAgent(BaseAgent):
     """
@@ -213,12 +214,39 @@ class MambaAgent(BaseAgent):
         self.ntm_memory = state_dict.get('ntm_memory', np.zeros((10, 5), dtype=np.float32))
         if 'genome' in state_dict:
             self.genome = state_dict['genome']
-            self.update_phenotype()
 
+_cached_activation = np.tanh
+_cached_mtime = 0.0
+
+def _get_activation_function():
+    global _cached_activation, _cached_mtime
+    import importlib.util
+    import os
+    
+    sandbox_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "metaprog", "sandbox")
+    ops_file = os.path.join(sandbox_dir, "generated_ops.py")
+    
+    if os.path.exists(ops_file):
+        try:
+            mtime = os.path.getmtime(ops_file)
+            if mtime > _cached_mtime:
+                spec = importlib.util.spec_from_file_location("generated_ops", ops_file)
+                generated_ops = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(generated_ops)
+                if hasattr(generated_ops, "custom_activation"):
+                    _cached_activation = generated_ops.custom_activation
+                    _cached_mtime = mtime
+                    import logging
+                    logging.getLogger("AGIseed.Mamba").info(f"[METAPROG] Loaded custom activation function from {ops_file}")
+        except Exception:
+            pass
+            
+    return _cached_activation
 
 class MambaBatchModel:
     """
     Gestionnaire de population pour vectoriser l'inférence de N agents simultanément (TensorWorld).
+    Supporte le Connectome Élastique avec dynamic padding et alignement des nœuds sensoriels, cachés et moteurs.
     """
     def __init__(self, agents: list[MambaAgent]):
         self.agents = agents
@@ -226,26 +254,69 @@ class MambaBatchModel:
         if self.B == 0:
             return
             
-        self.max_N = max([a.genome.num_nodes for a in agents])
-        self.I = agents[0].genome.num_inputs
-        self.O = agents[0].genome.num_outputs
+        # Piliers Connectome Élastique: Dimensions maximales
+        self.max_I = max([a.genome.num_inputs for a in agents])
+        self.max_O = max([a.genome.num_outputs for a in agents])
+        self.max_H = max([a.genome.num_nodes - a.genome.num_inputs - a.genome.num_outputs for a in agents])
+        self.max_N = self.max_I + self.max_H + self.max_O
+        
+        # Limite de sécurité connectique (Commandement 9: Stabilité)
+        LIMIT_N = 256
+        if self.max_N > LIMIT_N:
+            import logging
+            logger = logging.getLogger("AGIseed.MambaBatch")
+            logger.warning(
+                f"🚨 ALERTE CONNECTOME : La taille maximale des agents ({self.max_N}) dépasse la limite de sécurité fixée ({LIMIT_N}). "
+                f"Il faudrait peut-être augmenter ce paramètre pour éviter des dysfonctionnements !"
+            )
+            self.max_N = LIMIT_N
+        
+        self.I = self.max_I
+        self.O = self.max_O
         
         self.W_batch = np.zeros((self.B, self.max_N, self.max_N), dtype=np.float32)
         self.H_prev_batch = np.zeros((self.B, self.max_N), dtype=np.float32)
         
+        # Construction des index-mappings pour le alignement élastique
+        self.mappings = []
         for i, a in enumerate(agents):
+            I_i = a.genome.num_inputs
+            O_i = a.genome.num_outputs
             N_i = a.genome.num_nodes
-            self.W_batch[i, :N_i, :N_i] = a.genome.W
-            self.H_prev_batch[i, :N_i] = a.H_prev[0]
             
-        self.surprise_momentum_batch = np.array([a.surprise_momentum for a in agents], dtype=np.float32) # (B,)
+            map_idx = np.zeros(N_i, dtype=int)
+            # 1. Capteurs (Inputs) : 0 -> I_i - 1
+            for s in range(I_i):
+                map_idx[s] = s
+            # 2. Cachés (Hidden) : I_i -> N_i - O_i - 1
+            for s in range(I_i, N_i - O_i):
+                map_idx[s] = self.max_I + (s - I_i)
+            # 3. Moteurs (Outputs) : N_i - O_i -> N_i - 1
+            for s in range(N_i - O_i, N_i):
+                map_idx[s] = (self.max_I + self.max_H) + (s - (N_i - O_i))
+                
+            # Caper les index pour la sécurité
+            map_idx = np.clip(map_idx, 0, self.max_N - 1)
+            self.mappings.append(map_idx)
+            
+            # Application de la projection élastique
+            self.W_batch[i][map_idx[:, None], map_idx[None, :]] = a.genome.W
+            self.H_prev_batch[i][map_idx] = a.H_prev[0]
+            
+        self.surprise_momentum_batch = np.array([a.surprise_momentum for a in agents], dtype=np.float32)
         
-        # Attentions et mémoires (B, I) et (B, 5)
-        self.attention_mask_batch = np.stack([a.attention_mask for a in agents], axis=0) # (B, I)
-        self.explicit_memory_batch = np.stack([a.explicit_memory for a in agents], axis=0) # (B, 5)
-        self.goal_vector_batch = np.stack([a.goal_vector for a in agents], axis=0) # (B, 5)
-        self.predictor_head_batch = np.stack([a.predictor_head for a in agents], axis=0) # (B, 8)
+        # Extraction élastique des attributs de population
+        self.attention_mask_batch = np.zeros((self.B, self.max_I), dtype=np.float32)
+        self.explicit_memory_batch = np.zeros((self.B, 5), dtype=np.float32)
+        self.goal_vector_batch = np.zeros((self.B, 5), dtype=np.float32)
+        self.predictor_head_batch = np.zeros((self.B, 8), dtype=np.float32)
         
+        for i, a in enumerate(agents):
+            self.attention_mask_batch[i, :a.genome.num_inputs] = a.attention_mask
+            self.explicit_memory_batch[i] = a.explicit_memory
+            self.goal_vector_batch[i] = a.goal_vector
+            self.predictor_head_batch[i] = a.predictor_head
+            
         # NTM Buffer
         self.NTM_K = 10 # Nombre de slots mémoire
         self.NTM_M = 5  # Dimension d'un slot
@@ -256,13 +327,18 @@ class MambaBatchModel:
     def forward(self, batch_obs: np.ndarray, env_surprise_batch: np.ndarray = None) -> tuple:
         """
         - batch_obs : (B, I)
-        Retourne : (batch_logits (B, O), compute_spent (B,))
-        compute_spent[i] = nombre de passes de Beam Search utilisées par l'agent i.
         """
         if self.B == 0:
             return np.array([]), np.array([])
 
-        x = batch_obs * self.attention_mask_batch[:, :batch_obs.shape[1]]
+        # Self-wiring neuronal: compile memory slots to W_batch
+        self.W_batch = NTMProgramCompiler.compile_and_apply(self.NTM_Memory, self.W_batch, self.agents)
+
+        # Padding/slicing de batch_obs s'il ne correspond pas à max_I
+        x_obs = np.zeros((self.B, self.max_I), dtype=np.float32)
+        x_obs[:, :batch_obs.shape[1]] = batch_obs
+        
+        x = x_obs * self.attention_mask_batch
 
         # 1. Extrait delta_t depuis la diagonale de W (Liquid Time-Constant)
         diag_w = np.clip(np.diagonal(self.W_batch, axis1=1, axis2=2), -10, 10)  # (B, N)
@@ -284,10 +360,10 @@ class MambaBatchModel:
             decay * self.surprise_momentum_batch + (1.0 - decay) * surprise
         )
 
-        # 3. Passe de base (réflexe) — toujours exécutée pour tous les agents
-        H[:, :x.shape[1]] = x
+        # 3. Passe de base (réflexe)
+        H[:, :self.max_I] = x
         excitation = np.einsum('bi,bij->bj', H, W_no_diag)
-        H = (1.0 - delta_t) * H + delta_t * np.tanh(excitation)
+        H = (1.0 - delta_t) * H + delta_t * _get_activation_function()(excitation)
 
         # --- MESO-NAS (Pilier 2): Organe d'Attention QKV (Self-Attention) ---
         has_attention_batch = np.array([
@@ -298,8 +374,8 @@ class MambaBatchModel:
         if has_attention_batch.any():
             T_tok, D_tok = 4, 8
             block_size = T_tok * D_tok  # 32
-            start_idx = self.I
-            end_idx = start_idx + 3 * block_size  # ex: 59 + 96 = 155
+            start_idx = self.max_I
+            end_idx = start_idx + 3 * block_size
             
             if self.max_N >= end_idx:
                 Q_flat = H[:, start_idx : start_idx + block_size]
@@ -310,7 +386,6 @@ class MambaBatchModel:
                 K = K_flat.reshape(self.B, T_tok, D_tok)
                 V = V_flat.reshape(self.B, T_tok, D_tok)
                 
-                # Scaled Dot-Product Attention: Softmax(Q @ K^T / sqrt(D)) @ V
                 scores = np.einsum('btd,bsd->bts', Q, K) / np.sqrt(D_tok)
                 scores_max = np.max(scores, axis=-1, keepdims=True)
                 exp_scores = np.exp(scores - scores_max)
@@ -319,7 +394,6 @@ class MambaBatchModel:
                 context = np.einsum('bts,bsd->btd', attn_weights, V)
                 context_flat = context.reshape(self.B, block_size)
                 
-                # Residual connection back to Q nodes for agents with the organ
                 mask = has_attention_batch[:, None]
                 H[:, start_idx : start_idx + block_size] = np.where(
                     mask, 
@@ -327,19 +401,18 @@ class MambaBatchModel:
                     H[:, start_idx : start_idx + block_size]
                 )
 
-        # 4. Lecture des logits intermédiaires pour décider qui va rêver
-        preds_mid = np.zeros((self.B, self.O), dtype=np.float32)
+        # 4. Lecture des logits intermédiaires
+        preds_mid = np.zeros((self.B, self.max_O), dtype=np.float32)
         for i in range(self.B):
             N_i = self.agents[i].genome.num_nodes
-            preds_mid[i] = H[i, N_i - self.O: N_i]
+            O_i = self.agents[i].genome.num_outputs
+            map_idx = self.mappings[i]
+            preds_mid[i, :O_i] = H[i, map_idx[N_i - O_i : N_i]]
 
-        # do_dream[i] > 0.5 ET surprise_momentum élevé → double condition
         do_dream_batch = preds_mid[:, 26]  # logit 26
         DREAM_THRESHOLD = 0.1
         SURPRISE_THRESHOLD = 0.05
         
-        # --- MACRO-NAS (Pilier 1): L'agent n'a le droit de rêver QUE s'il possède l'organe MCTS
-        # On lit le premier booléen du tableau organ_genes. S'il n'existe pas, False par défaut.
         has_mcts_batch = np.array([
             (a.genome.organ_genes[0] if getattr(a.genome, 'organ_genes', None) is not None else False) 
             for a in self.agents
@@ -349,80 +422,105 @@ class MambaBatchModel:
             has_mcts_batch
             & (do_dream_batch > DREAM_THRESHOLD)
             & (self.surprise_momentum_batch > SURPRISE_THRESHOLD)
-        )  # shape (B,) booléen
+        )
 
-        # Nombre de passes de beam individuel : K_i = 1..8 selon do_dream
         K_individual = np.where(
             is_dreaming,
             np.clip((do_dream_batch * 8).astype(int), 1, 8),
             0
-        )  # (B,) int — 0 pour les non-rêveurs
+        )
 
         T_max = int(K_individual.max()) if is_dreaming.any() else 0
-        compute_spent = np.zeros(self.B, dtype=np.float32)  # Tracking par agent
+        compute_spent = np.zeros(self.B, dtype=np.float32)
 
-        # 5. Beam Search adaptatif par masque
         best_H = H.copy()
         best_value = np.full(self.B, -np.inf)
 
         for k in range(T_max):
-            # Seuls les agents dont K_i > k participent encore au beam
-            active_mask = K_individual > k  # (B,) bool
+            active_mask = K_individual > k
 
             if not active_mask.any():
                 break
 
             H_branch = H.copy()
-            # Bruit d'exploration dans l'espace latent (petit std pour stabilité)
             noise = np.random.randn(*H_branch.shape).astype(np.float32) * 0.05
             H_branch[active_mask] += noise[active_mask]
 
             excitation = np.einsum('bi,bij->bj', H_branch, W_no_diag)
-            H_branch = (1.0 - delta_t) * H_branch + delta_t * np.tanh(excitation)
+            H_branch = (1.0 - delta_t) * H_branch + delta_t * _get_activation_function()(excitation)
 
-            # Évaluation : logit 28 = value_pred
             for i in np.where(active_mask)[0]:
                 N_i = self.agents[i].genome.num_nodes
-                # Guard : value_pred doit être dans les bornes des outputs
-                val_idx = N_i - self.O + 28
-                if 0 <= val_idx < N_i:
-                    val = float(H_branch[i, val_idx])
-                    if np.isfinite(val) and val > best_value[i]:
-                        best_value[i] = val
-                        best_H[i] = H_branch[i]
+                O_i = self.agents[i].genome.num_outputs
+                map_idx = self.mappings[i]
+                
+                # Le logit 28 est au décalage N_i - O_i + 28
+                val_idx = map_idx[N_i - O_i + 28]
+                val = float(H_branch[i, val_idx])
+                if np.isfinite(val) and val > best_value[i]:
+                    best_value[i] = val
+                    best_H[i] = H_branch[i]
                 compute_spent[i] += 1.0
 
             H[active_mask] = H_branch[active_mask]
 
-        # Les rêveurs prennent leur meilleur état trouvé
         dreaming_idx = np.where(is_dreaming)[0]
         if len(dreaming_idx) > 0:
             H[dreaming_idx] = best_H[dreaming_idx]
 
         # 6. Extraction des logits finals
-        preds = np.zeros((self.B, self.O), dtype=np.float32)
+        preds = np.zeros((self.B, self.max_O), dtype=np.float32)
         for i in range(self.B):
             N_i = self.agents[i].genome.num_nodes
-            preds[i] = H[i, N_i - self.O: N_i]
+            O_i = self.agents[i].genome.num_outputs
+            map_idx = self.mappings[i]
+            preds[i, :O_i] = H[i, map_idx[N_i - O_i : N_i]]
 
         # 7. Mise à jour de l'état interne du batch
         self.H_prev_batch = H
-        attention_logits = preds[:, -self.I:]
-        self.attention_mask_batch = 1.0 / (1.0 + np.exp(-attention_logits))
         
+        # Construction individuelle des sous-sorties avec gestion sécurisée des indices négatifs
+        attention_logits = np.zeros((self.B, self.max_I), dtype=np.float32)
+        ntm_heads = np.zeros((self.B, 20), dtype=np.float32)
+        goal_logits = np.zeros((self.B, 5), dtype=np.float32)
+        pred_logits = np.zeros((self.B, 8), dtype=np.float32)
+        
+        for i in range(self.B):
+            O_i = self.agents[i].genome.num_outputs
+            I_i = self.agents[i].genome.num_inputs
+            
+            # Slicing attention_logits
+            start_a, end_a = O_i - I_i, O_i
+            if end_a > 0:
+                a_slice = preds[i, max(0, start_a) : end_a]
+                attention_logits[i, :len(a_slice)] = a_slice
+                
+            # Slicing ntm_heads
+            start_n, end_n = O_i - I_i - 20, O_i - I_i
+            if end_n > 0:
+                n_slice = preds[i, max(0, start_n) : end_n]
+                ntm_heads[i, -len(n_slice):] = n_slice
+                
+            # Slicing goal_logits
+            start_g, end_g = O_i - I_i - 25, O_i - I_i - 20
+            if end_g > 0:
+                g_slice = preds[i, max(0, start_g) : end_g]
+                goal_logits[i, -len(g_slice):] = g_slice
+                
+            # Slicing pred_logits
+            start_p, end_p = O_i - I_i - 33, O_i - I_i - 25
+            if end_p > 0:
+                p_slice = preds[i, max(0, start_p) : end_p]
+                pred_logits[i, -len(p_slice):] = p_slice
+            
+        self.attention_mask_batch = 1.0 / (1.0 + np.exp(-attention_logits))
         self.tick_count += 1
         
         # --- NTM Memory Operations ---
-        # Extractions des têtes NTM (20 params)
-        ntm_heads = preds[:, -(self.I + 20):-self.I]
         r_key = ntm_heads[:, 0:5]
         w_key = ntm_heads[:, 5:10]
         w_val = ntm_heads[:, 10:15]
-        e_gate = 1.0 / (1.0 + np.exp(-ntm_heads[:, 15:20])) # Sigmoid for erase gate
-        
-        # --- Hierarchical Goal & Predictor ---
-        goal_logits = preds[:, -(self.I + 25):-(self.I + 20)]
-        pred_logits = preds[:, -(self.I + 33):-(self.I + 25)]
+        e_gate = 1.0 / (1.0 + np.exp(-ntm_heads[:, 15:20]))
         
         if self.tick_count % 8 == 0:
             self.goal_vector_batch = np.tanh(goal_logits)
@@ -430,8 +528,6 @@ class MambaBatchModel:
         self.predictor_head_batch = pred_logits
         
         def cosine_similarity(keys, memory):
-            # keys: (B, M), memory: (B, K, M)
-            # return: (B, K)
             dot = np.einsum('bm,bkm->bk', keys, memory)
             norm_k = np.linalg.norm(keys, axis=1, keepdims=True) + 1e-8
             norm_m = np.linalg.norm(memory, axis=2) + 1e-8
@@ -443,63 +539,60 @@ class MambaBatchModel:
             
         # NTM Read
         sim_r = cosine_similarity(r_key, self.NTM_Memory)
-        w_read = softmax(sim_r) # (B, K)
+        w_read = softmax(sim_r)
         self.explicit_memory_batch = np.einsum('bk,bkm->bm', w_read, self.NTM_Memory)
         
         # NTM Write
         sim_w = cosine_similarity(w_key, self.NTM_Memory)
-        w_write = softmax(sim_w) # (B, K)
+        w_write = softmax(sim_w)
         
-        # Erase and Add
         erase = np.einsum('bk,bm->bkm', w_write, e_gate)
         add = np.einsum('bk,bm->bkm', w_write, w_val)
         self.NTM_Memory = self.NTM_Memory * (1.0 - erase) + add
 
         for i, a in enumerate(self.agents):
             N_i = a.genome.num_nodes
-            a.H_prev[0] = self.H_prev_batch[i, :N_i]
+            map_idx = self.mappings[i]
+            a.H_prev[0] = self.H_prev_batch[i, map_idx]
             a.explicit_memory = self.explicit_memory_batch[i]
             a.goal_vector = self.goal_vector_batch[i]
             a.predictor_head = self.predictor_head_batch[i]
-            a.attention_mask = self.attention_mask_batch[i]
+            a.attention_mask = self.attention_mask_batch[i, :a.genome.num_inputs]
             a.surprise = float(surprise[i])
             a.surprise_momentum = float(self.surprise_momentum_batch[i])
             a.ntm_memory = self.NTM_Memory[i].copy()
+            a.genome.W = self.W_batch[i][map_idx[:, None], map_idx[None, :]].copy()
 
         return preds, compute_spent
 
     def compute_policy_gradient(self, rewards_batch: np.ndarray):
         """
-        Apprentissage Intra-Vie (Actor-Critic Hebbian Update).
-        Modifie les poids de la matrice W_batch en fonction de l'Avantage (Reward - Critic_Value).
-        Évolution Darwinienne : Les poids modifiés ne remplacent PAS le génome de l'agent.
+        Apprentissage Intra-Vie (Actor-Critic Hebbian Update) avec support élastique.
         """
         if self.B == 0: return
         
         values = np.zeros(self.B, dtype=np.float32)
         for i in range(self.B):
             N_i = self.agents[i].genome.num_nodes
-            val_idx = N_i - self.O + 28
-            if 0 <= val_idx < N_i:
-                values[i] = self.H_prev_batch[i, val_idx]
+            O_i = self.agents[i].genome.num_outputs
+            map_idx = self.mappings[i]
+            val_idx = map_idx[N_i - O_i + 28]
+            values[i] = self.H_prev_batch[i, val_idx]
                 
         advantages = rewards_batch - values
-        lr = 0.005 # Learning rate intra-vie
+        lr = 0.005
         
         for i in range(self.B):
             if abs(advantages[i]) > 0.01:
                 N_i = self.agents[i].genome.num_nodes
-                h_i = self.H_prev_batch[i, :N_i].reshape(-1, 1)
+                map_idx = self.mappings[i]
+                h_i = self.H_prev_batch[i, map_idx].reshape(-1, 1)
                 
-                # Trace Hebbienne: les neurones qui s'activent ensemble se lient
                 hebbian_trace = np.dot(h_i, h_i.T)
-                
-                # Mise à jour modulée par l'avantage
                 dW = lr * advantages[i] * hebbian_trace
                 
-                # On applique la mise à jour à W_batch (utilisé pour la vie de l'agent)
-                self.W_batch[i, :N_i, :N_i] = np.clip(self.W_batch[i, :N_i, :N_i] + dW, -5.0, 5.0)
+                self.W_batch[i][map_idx[:, None], map_idx[None, :]] = np.clip(
+                    self.W_batch[i][map_idx[:, None], map_idx[None, :]] + dW, -5.0, 5.0
+                )
                 
-                # Pilier 3 (RL Intra-Vie): On sauvegarde cet apprentissage dans le génome de l'agent (Lamarckien)
-                # Cela permet au HGT (Meta-NAS) de transférer les connaissances acquises pendant l'ère !
-                self.agents[i].genome.W = self.W_batch[i, :N_i, :N_i].copy()
+                self.agents[i].genome.W = self.W_batch[i][map_idx[:, None], map_idx[None, :]].copy()

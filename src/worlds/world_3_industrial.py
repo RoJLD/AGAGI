@@ -6,8 +6,8 @@ class IndustrialWorld(Biosphere3D):
     Introduit des ressources statiques nécessitant de la coopération et des usines.
     (Clone de Biosphere3D pour l'instant avec quelques paramètres ajustés).
     """
-    def __init__(self, size=50, num_agents=50, use_3d=True):
-        super().__init__(size, num_agents, use_3d)
+    def __init__(self, config=None):
+        super().__init__(config)
         self.pollution = 0.0
         
     def step(self):

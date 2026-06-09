@@ -13,9 +13,9 @@ from src.agents.mamba_agent import MambaAgent
 class FlatlandServer:
     def __init__(self):
         self.world = Biosphere3D(WorldConfig(size=32, num_altars=5, prey_mode="semi"))
-        self.queue = asyncio.Queue(maxsize=1)
+        self.queue = None
         self.running = False
-        self.loop = asyncio.get_event_loop()
+        self.loop = None
         
         # Spawn 10 agents
         for _ in range(10):
@@ -26,22 +26,22 @@ class FlatlandServer:
         agents = []
         for a in self.world.agents:
             agents.append({
-                "x": a["x"],
-                "y": a["y"],
-                "hp": a["hp"],
-                "energy": a["energy"],
+                "x": int(a["x"]),
+                "y": int(a["y"]),
+                "hp": float(a["hp"]),
+                "energy": float(a["energy"]),
                 "inventory_size": len(a.get("inventory", [])),
-                "last_action": a.get("last_action", -1)
+                "last_action": int(a.get("last_action", -1))
             })
             
         preys = []
         for p in self.world.preys:
             preys.append({
-                "x": p["x"],
-                "y": p["y"],
+                "x": int(p["x"]),
+                "y": int(p["y"]),
                 "type": p["type"],
-                "hp": p.get("hp", 1.0),
-                "stunned": p.get("stunned", 0)
+                "hp": float(p.get("hp", 1.0)),
+                "stunned": int(p.get("stunned", 0))
             })
             
         items = []
@@ -50,23 +50,23 @@ class FlatlandServer:
             if isinstance(t, dict):
                 t = t.get("type", "unknown")
             items.append({
-                "x": i["x"],
-                "y": i["y"],
+                "x": int(i["x"]),
+                "y": int(i["y"]),
                 "type": t
             })
             
         worms = []
         for w in self.world.worms:
             worms.append({
-                "x": w["x"],
-                "y": w["y"]
+                "x": int(w["x"]),
+                "y": int(w["y"])
             })
             
         altars = []
         for alt in self.world.altars:
             altars.append({
-                "x": alt["x"],
-                "y": alt["y"]
+                "x": int(alt["x"]),
+                "y": int(alt["y"])
             })
 
         agent_count = len(agents)
@@ -157,8 +157,20 @@ class FlatlandServer:
                 self.loop.call_soon_threadsafe(_push_to_queue, frame)
                 last_frame_time = now
 
-    def start(self):
+    def start(self, loop=None):
         if not self.running:
+            if loop is not None:
+                self.loop = loop
+            else:
+                try:
+                    self.loop = asyncio.get_running_loop()
+                except RuntimeError:
+                    try:
+                        self.loop = asyncio.get_event_loop()
+                    except RuntimeError:
+                        self.loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(self.loop)
+            self.queue = asyncio.Queue(maxsize=1)
             self.running = True
             self.thread = threading.Thread(target=self._simulation_loop, daemon=True)
             self.thread.start()

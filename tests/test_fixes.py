@@ -52,15 +52,15 @@ def test_standardized_inputs():
     """Test Task 2: Standardized 45 inputs / 75 outputs"""
     from src.worlds.world_0_soup import Biosphere3D as World0
     from src.worlds.world_1_stoneage import Biosphere3D as World1
-    from src.environments.config import WorldConfig
+    from src.environments.config import WorldConfig, AgentConfig
     from src.agents.mamba_agent import MambaAgent
     
     print("Testing Task 2: Standardized 45 inputs / 75 outputs...")
     
     # Creer les deux worlds
     world0 = World0()
-    world1_2d = World1(WorldConfig(use_3d=False))
-    world1_3d = World1(WorldConfig(use_3d=True))
+    world1_2d = World1(WorldConfig(use_3d=False, agent=AgentConfig(num_inputs=45, num_outputs=75)))
+    world1_3d = World1(WorldConfig(use_3d=True, agent=AgentConfig(num_inputs=45, num_outputs=75)))
     
     # Creer un genome pour world_0_soup (qui utilise genome directement)
     from src.seed_ai.mutation import Genome

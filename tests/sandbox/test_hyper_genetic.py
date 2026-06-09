@@ -5,7 +5,7 @@ from src.seed_ai.evolution import crossover
 def test_genome_mutation_genes():
     g = Genome(np.zeros((2, 2)), 1, 1)
     assert g.mutation_genes is not None
-    assert len(g.mutation_genes) == 5
+    assert len(g.mutation_genes) == 6
     assert g.mutation_genes[0] == 0.8
     
     g2 = g.clone()
@@ -15,10 +15,10 @@ def test_genome_mutation_genes():
 
 def test_crossover_mutation_genes():
     g1 = Genome(np.zeros((2, 2)), 1, 1)
-    g1.mutation_genes = np.array([1.0, 1.0, 1.0, 1.0, 1.0])
+    g1.mutation_genes = np.array([1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
     
     g2 = Genome(np.zeros((2, 2)), 1, 1)
-    g2.mutation_genes = np.array([0.0, 0.0, 0.0, 0.0, 0.0])
+    g2.mutation_genes = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
     
     child = crossover(g1, g2, 10.0, 5.0)
     

@@ -13,6 +13,7 @@ from src.seed_ai.persistence import load_hall_of_fame
 from src.graph_rag.experiment_tracker import ExperimentGraph
 from src.agents.mamba_agent import MambaAgent
 from src.graph_rag.async_logger import logger as async_logger
+from src.graph_rag.adaptive_tuner import AdaptiveTuner
 import json
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -21,9 +22,10 @@ logger = logging.getLogger("AGIseed.Biosphere")
 def clear_screen():
     os.system('cls' if os.name == 'nt' else 'clear')
 
-def init_primordial_soup(num_agents=50, import_agent_id=None, keep_memory=False, shared_db=None):
+def init_primordial_soup(num_agents=50, import_agent_id=None, keep_memory=False, shared_db=None, config=None):
     mut_config = MutationConfig(weight_init_std=2.0)
-    config = WorldConfig()
+    if config is None:
+        config = WorldConfig()
     num_inputs = config.agent.num_inputs
     num_outputs = config.agent.num_outputs
     
@@ -134,6 +136,9 @@ def main():
         logger.error("Impossible de récupérer la base KuzuDB depuis async_logger.")
         return
         
+    # Initialiser le tuner adaptatif avec la base de données partagée
+    tuner = AdaptiveTuner(shared_db)
+        
     # Log initial
     tracker = ExperimentGraph(db=shared_db)
     experiment_version = os.getenv("EXPERIMENT_VERSION", "V16_Language_Guided")
@@ -181,19 +186,25 @@ def main():
     MAX_ERAS = 30
     
     while generation_auto <= MAX_ERAS:
+        # Ingrédients adaptatifs recommandés par le Supervisor
+        injection_cfg = tuner.get_world_injection_config()
+        # Appliquer le taux de mutation adapté
+        config.agent.mutation.weight_mutate_rate = injection_cfg.get("mutation_rate", config.agent.mutation.weight_mutate_rate)
+        
         # Instantiate the requested World
         if world_type == "agricultural":
-            env = AgriculturalWorld(size=config.world.grid_size, num_agents=config.world.num_agents)
+            env = AgriculturalWorld(config)
         elif world_type == "industrial":
-            env = IndustrialWorld(size=config.world.grid_size, num_agents=config.world.num_agents)
+            env = IndustrialWorld(config)
         else:
-            env = Biosphere3D(size=config.world.grid_size, num_agents=config.world.num_agents)
+            env = Biosphere3D(config)
 
         primordial_genomes, imported_ntm = init_primordial_soup(
             num_agents=100,
             import_agent_id=import_agent_id if generation_auto == 1 else None, # Only import on first era
             keep_memory=keep_memory,
-            shared_db=shared_db
+            shared_db=shared_db,
+            config=config
         )
         
         for g in primordial_genomes:
@@ -237,9 +248,9 @@ def main():
                     async_logger.emit("COGNITIVE_SNAPSHOT", {
                         "agent_id": best_agent["id"][:8],
                         "tick": env.ticks,
-                        "ntm_memory": json.dumps(best_agent["brain"].ntm_memory.tolist() if hasattr(best_agent["brain"], "ntm_memory") else []),
-                        "attention_mask": json.dumps(best_agent["brain"].attention_mask.tolist() if hasattr(best_agent["brain"], "attention_mask") else []),
-                        "w_connectome": json.dumps(best_agent["brain"].genome.W.tolist())
+                        "ntm_memory": json.dumps(best_agent["model"].ntm_memory.tolist() if hasattr(best_agent["model"], "ntm_memory") else []),
+                        "attention_mask": json.dumps(best_agent["model"].attention_mask.tolist() if hasattr(best_agent["model"], "attention_mask") else []),
+                        "w_connectome": json.dumps(best_agent["model"].genome.W.tolist())
                     })
                 except Exception as e:
                     pass
@@ -282,49 +293,25 @@ def main():
 
             env.step()
             
-            # --- Meta-NAS: Horizontal Gene Transfer (HGT) ---
-            if env.ticks % 5 == 0 and len(env.agents) > 1:
-                # Tous les 5 ticks, on vérifie si des agents performants peuvent transférer des gènes
-                for i in range(len(env.agents)):
-                    for j in range(i + 1, len(env.agents)):
-                        a1 = env.agents[i]
-                        a2 = env.agents[j]
-                        # Proximité spatiale (distance de Manhattan)
-                        dist = abs(a1["x"] - a2["x"]) + abs(a1["y"] - a2["y"])
-                        if dist <= 2:
-                            # Contact social : on regarde qui est le "professeur" (fort delta d'énergie)
-                            if a1["energy"] > a2["energy"] * 1.5:
-                                prof, eleve = a1, a2
-                            elif a2["energy"] > a1["energy"] * 1.5:
-                                prof, eleve = a2, a1
-                            else:
-                                continue
-                            
-                            # Probabilité de transfert de gène HGT
-                            if np.random.rand() < 0.1: # 10% chance
-                                # Meta-NAS: l'élève copie un sous-ensemble des poids ou des organes du professeur
-                                if np.random.rand() < 0.5 and getattr(prof["brain"].genome, 'organ_genes', None) is not None:
-                                    # Transfert d'organes (Macro)
-                                    eleve["brain"].genome.organ_genes = prof["brain"].genome.organ_genes.copy()
-                                    logger.info(f"[META-NAS HGT] Agent {prof['id'][:4]} a transféré ses Organes à l'Agent {eleve['id'][:4]}")
-                                else:
-                                    # Transfert d'un motif de poids (Meso/Micro)
-                                    # On copie la matrice de poids sur les couches profondes (les concepts)
-                                    N = prof["brain"].genome.num_nodes
-                                    half_N = N // 2
-                                    eleve["brain"].genome.W[half_N:, half_N:] = prof["brain"].genome.W[half_N:, half_N:].copy()
-                                    logger.info(f"[META-NAS HGT] Agent {prof['id'][:4]} a transféré son Cerveau Profond à l'Agent {eleve['id'][:4]}")
-                                    
+            # Ingestion des métriques pour le tuner adaptatif
+            if len(env.agents) > 0:
+                tuner.ingest_frame_metrics({
+                    "avg_energy": float(mean_energy),
+                    "avg_hp": float(np.mean([a["hp"] for a in env.agents])),
+                    "social_density": float(len(env.agents)) / env.size,
+                    "genome_diversity": float(np.std([a["model"].genome.W.mean() for a in env.agents])),
+                })
+            
             # --- State Sync for Canvas UI ---
             if env.ticks % 2 == 0:
                 try:
                     state_data = {
-                        "size": env.size,
-                        "is_night": getattr(env, "is_night", False),
-                        "agents": [{"x": a["x"], "y": a["y"], "energy": a["energy"], "id": str(a["id"])} for a in env.agents],
-                        "items": [{"x": it["x"], "y": it["y"], "type": it.get("type", "unknown")} for it in env.items],
-                        "preys": [{"x": p["x"], "y": p["y"], "type": p["type"]} for p in env.preys],
-                        "trees": [{"x": t[0], "y": t[1]} for t in env.trees]
+                        "size": int(env.size),
+                        "is_night": bool(getattr(env, "is_night", False)),
+                        "agents": [{"x": int(a["x"]), "y": int(a["y"]), "energy": float(a["energy"]), "id": str(a["id"])} for a in env.agents],
+                        "items": [{"x": int(it["x"]), "y": int(it["y"]), "type": str(it.get("type", "unknown"))} for it in env.items],
+                        "preys": [{"x": int(p["x"]), "y": int(p["y"]), "type": str(p["type"])} for p in env.preys],
+                        "trees": [{"x": int(t[0]), "y": int(t[1])} for t in env.trees]
                     }
                     os.makedirs("data", exist_ok=True)
                     with open("data/state.json", "w") as f:
@@ -347,6 +334,24 @@ def main():
             "ticks": int(env.ticks),
             "best_agent_id": best_agent_ever_id
         }, timeout=15.0)
+
+        # Cognitive Skinner Box Audit of the Champion
+        try:
+            from tools import skinner_box
+            logger.info("🔬 Lancement de l'audit automatique Skinner Box sur le Champion de l'Ère...")
+            skinner_box.main(db=shared_db)
+        except Exception as e:
+            logger.error(f"⚠️ Échec de l'audit Skinner Box : {e}")
+            
+        # Lancement de la boucle d'adaptation adaptative du Supervisor LangGraph
+        try:
+            from src.graph_rag.supervisor import SupervisorLoop
+            logger.info("🤖 Lancement de la boucle d'adaptation du Supervisor LangGraph...")
+            latest_metrics = tuner.compute_aggregated_score()
+            supervisor_runner = SupervisorLoop(tuner)
+            supervisor_runner.run_once(latest_metrics)
+        except Exception as e:
+            logger.error(f"⚠️ Échec de l'adaptation du Supervisor : {e}")
         
         if hasattr(env, 'memory_retriever'):
             env.memory_retriever.start()

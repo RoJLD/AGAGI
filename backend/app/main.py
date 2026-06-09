@@ -48,6 +48,8 @@ def startup_event():
 @app.websocket("/ws/flatland")
 async def websocket_flatland(websocket: WebSocket):
     await websocket.accept()
+    if not flatland_server.running:
+        flatland_server.start(loop=asyncio.get_running_loop())
     try:
         while True:
             # Wait for a frame from the queue

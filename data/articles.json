@@ -1,8 +1,74 @@
 [
   {
-    "id": "art_001",
-    "title": "Bienvenue dans les articles de recherche AGIseed",
-    "content": "Ce module permet de consigner chaque découverte expérimentale sous forme d'article pour l'apprentissage de la Seed AI. Conformément au Commandement 16, toute découverte, observation ou conclusion majeure issue des expérimentations doit être impérativement consignée ici.\n\nChaque article est stocké dans KuzuDB (nœud Article) et synchronisé dans ce fichier JSON pour être lu par le Dashboard en temps réel.",
-    "date": "2026-06-04 21:11:16"
+    "id": "art_4c734e39",
+    "title": "Rapport d'Observation #1781026873",
+    "content": "Impossible de générer l'article (Ollama non joignable).",
+    "date": "2026-06-09 19:41:13"
+  },
+  {
+    "id": "art_f808fe19",
+    "title": "Rapport d'Observation #1780736633",
+    "content": "Impossible de générer l'article (Ollama non joignable).",
+    "date": "2026-06-06 11:03:53"
+  },
+  {
+    "id": "art_6faeab92",
+    "title": "Rapport d'Observation #1780736591",
+    "content": "Impossible de générer l'article (Ollama non joignable).",
+    "date": "2026-06-06 11:03:11"
+  },
+  {
+    "id": "art_e1269479",
+    "title": "Rapport d'Observation #1780736112",
+    "content": "Impossible de générer l'article (Ollama non joignable).",
+    "date": "2026-06-06 10:55:12"
+  },
+  {
+    "id": "art_7b39f780",
+    "title": "Rapport d'Observation #1780736071",
+    "content": "Impossible de générer l'article (Ollama non joignable).",
+    "date": "2026-06-06 10:54:31"
+  },
+  {
+    "id": "art_a8f16ea6",
+    "title": "Rapport d'Observation #1780735943",
+    "content": "Impossible de générer l'article (Ollama non joignable).",
+    "date": "2026-06-06 10:52:23"
+  },
+  {
+    "id": "art_38865dd7",
+    "title": "Rapport d'Observation #1780735712",
+    "content": "Impossible de générer l'article (Ollama non joignable).",
+    "date": "2026-06-06 10:48:32"
+  },
+  {
+    "id": "art_dc1dbabe",
+    "title": "Rapport d'Observation #1780735648",
+    "content": "Impossible de générer l'article (Ollama non joignable).",
+    "date": "2026-06-06 10:47:28"
+  },
+  {
+    "id": "art_e2e579af",
+    "title": "Rapport d'Observation #1780735540",
+    "content": "Impossible de générer l'article (Ollama non joignable).",
+    "date": "2026-06-06 10:45:40"
+  },
+  {
+    "id": "art_1d99217d",
+    "title": "Rapport d'Observation #1780735452",
+    "content": "Impossible de générer l'article (Ollama non joignable).",
+    "date": "2026-06-06 10:44:12"
+  },
+  {
+    "id": "art_d0df0bee",
+    "title": "Rapport d'Observation #1780735419",
+    "content": "Impossible de générer l'article (Ollama non joignable).",
+    "date": "2026-06-06 10:43:39"
+  },
+  {
+    "id": "art_672f1b7b",
+    "title": "Rapport d'Observation #1780734616",
+    "content": "Impossible de générer l'article (Ollama non joignable).",
+    "date": "2026-06-06 10:30:16"
   }
 ]
