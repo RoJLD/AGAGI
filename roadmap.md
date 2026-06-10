@@ -273,16 +273,30 @@ L'axe 4.1 (récompenses pur intrinsèques, *« pas dit mais trouvé »*) reste l
 
 ## 🥇 Ordre de Priorité d'Exécution
 
-> Dérivé de l'audit (`docs/EDR/010`). Principe : **soustraction > addition** — on fait *exprimer* les mécanismes réels avant d'en ajouter. Chaque vague est livrée **et mesurée** via le curriculum (transfert/rétention) avant la suivante.
+> Dérivé de l'audit (`docs/EDR/010`). Principe : **soustraction > addition** — on fait *exprimer* les mécanismes réels avant d'en ajouter. Chaque vague est livrée **et mesurée** avant la suivante.
 
-### 🔴 Vague 0 — Fondations (débloquent tout le reste) — PRIORITÉ ABSOLUE
+> **✅ État au 2026-06-10 — Fondations réparées & boucle d'émergence PROUVÉE.** En instaurant la Vague 0, on a déterré et réparé les **deux bugs structurels** qui bloquaient tout : le **moteur évolutif** (le Hall of Fame n'était *jamais sauvé* → zéro évolution inter-ère, `EDR 016`) et l'**apprentissage** (Hebbien sans crédit d'action → aucun geste encodable → remplacé par un vrai **Actor-Critic**, `EDR 020`). Résultat : le **premier comportement composé** du projet — collecter→crafter — appris, encodé, transféré au monde dur ET en évolution (`EDR 021`). Les 12 EDR (010→021) tracent l'investigation complète. Le programme ci-dessous est désormais *exécutable* sur des fondations saines.
 
-Le **couple racine**, co-dépendant, à instaurer *ensemble* :
+### ✅ Vague 0 — Fondations (LIVRÉE)
 
-1. **World Model** — tête prédictive (levier 1, § 4.1). Keystone : convertit dreaming→imagination, surprise→**curiosité réelle**, value head→vrai critic. *Coût faible, scaffolding déjà présent (`predictor_head` existe, juste copié).*
-2. **Monde qui exige la cognition** — rareté dure, crafting branché, proies intuables sans outil, coopération nécessaire (levier 2). *Sans lui, le World Model est inutile.*
+- **World Model** (tête prédictive RND, surprise réparée) — `EDR 011`.
+- **Monde exigeant** (reward∝difficulté, rareté, lance, riposte juste) — `EDR 012`.
+- **Découvertes & réparations structurelles** : moteur évolutif (`EDR 016`), **vrai Actor-Critic à crédit d'action** (`EDR 020`), affordance matérielle + **boucle d'émergence complète** (`EDR 021`), axe Craft / auto-craft L0 (`EDR 018`), scaffold/curiosité/nouveauté/ε-greedy (`EDR 013-019`).
 
-Véhicule : le `CurriculumRunner` (déjà livré) stage ces deux-là comme mondes à porte de maîtrise.
+### 🔴 Vague 0bis — Consolider l'émergence (PRIORITÉ ACTUELLE)
+
+La boucle tourne sur le craft **L0** (~21 lances/run en monde dur, croissant) ; la solidifier et la rendre *signifiante* :
+
+1. **Vérifier le payoff moyens→fins** — le craft mène-t-il vraiment à tuer le Mammouth → surplus d'énergie → fitness ? Sinon ce n'est qu'un réflexe payé par le scaffold. Valide que l'émergence a un *sens*.
+2. **Critic TD (crédit temporel)** — le critic actuel est Monte-Carlo sur le reward immédiat ; les chaînes à récompense **différée** (crafter maintenant → chasser plus tard) exigent un bootstrap TD. Le n°1 pour les comportements longs (suite de `EDR 020`).
+3. **Progrès au niveau population** — la moyenne reste plate (régénération trop mutation-lourde) : tuner pour que *toute* la population monte, pas seulement l'élite.
+
+### 🟣 Vague 0ter — Rejouer la boucle sur les axes développementaux
+
+4. **Ramper `craft_level`** (axe Craft : L0→L1→L2…) via mastery gates — chaque palier maîtrisé puis durci.
+5. **Ramper la difficulté du monde** (axe Monde) en parallèle — le `CurriculumRunner` (déjà livré) orchestre.
+
+*(Les vagues ci-dessous — hygiène, RSI, émergence avancée — restent valables et viennent ensuite.)*
 
 ### 🟠 Vague 1 — Honnêteté & hygiène (cheap, restaure la mesure)
 
