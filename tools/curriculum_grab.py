@@ -26,24 +26,27 @@ from main_biosphere import init_primordial_soup
 from src.graph_rag.async_logger import logger as async_logger
 
 
-def _setup_grab_training(env, eps=0.3):
-    """Monde sûr et riche en ingrédients : isole l'apprentissage de la collecte."""
+def _setup_grab_training(env, eps=0.3, n_items=50, keep_prey=False):
+    """Monde d'entraînement. n_items décroît au fil du ramp (généralisation à la rareté,
+    EDR 021) ; keep_prey rapproche les observations du monde dur en fin de ramp."""
     env.training_mode = "grab"
     env.explore_eps = eps        # ε-greedy annelé : explorer le geste grab (EDR 019)
     env.scaffold_grab = 8.0      # forte prime de collecte d'ingrédient
     env.novelty_scale = 6.0      # forte prime de nouveauté (rock+stick = rare)
-    env.preys = []               # pas de proie -> pas de chasse ni de riposte
-    for _ in range(50):
+    if not keep_prey:
+        env.preys = []           # tôt : pas de proie (collecte pure, sûr)
+    for _ in range(n_items):
         env._spawn_rocks()       # rochers (tranchant)
-    for _ in range(50):          # sticks (manche)
+    for _ in range(n_items):     # sticks (manche)
         x, y = np.random.randint(0, env.size), np.random.randint(0, env.size)
         env.items.append({"x": int(x), "y": int(y), "z": 0, "type": "stick", "weight": 1.0})
 
 
-def run_one_era(config, db, training, eps=0.3, num_agents=30, max_ticks=200, energy=80.0):
+def run_one_era(config, db, training, eps=0.3, n_items=50, keep_prey=False,
+                num_agents=30, max_ticks=200, energy=80.0):
     env = Biosphere3D(config)
     if training:
-        _setup_grab_training(env, eps)
+        _setup_grab_training(env, eps, n_items, keep_prey)
     genomes, ntm = init_primordial_soup(num_agents=num_agents, shared_db=db, config=config)
     for g in genomes:
         a = MambaAgent()
@@ -67,7 +70,7 @@ def run_one_era(config, db, training, eps=0.3, num_agents=30, max_ticks=200, ene
     return crafts, t, survivors
 
 
-def main(grab_eras=15, normal_eras=8, eps0=0.35):
+def main(grab_eras=30, normal_eras=12, eps0=0.35):
     # HoF vierge pour un transfert propre (backup).
     if os.path.exists("data/hall_of_fame.pkl"):
         shutil.copy("data/hall_of_fame.pkl", "data/hall_of_fame.pkl.bak_pre_curriculum")
@@ -89,8 +92,10 @@ def main(grab_eras=15, normal_eras=8, eps0=0.35):
     print("=== PHASE 1 : GRAB-TRAINING (monde sûr, riche en rock+stick) ===")
     grab_crafts = 0
     for e in range(grab_eras):
-        eps = eps0 * (1.0 - e / grab_eras)  # ε annelé : 0.35 -> ~0
-        c, t, s = run_one_era(config, db, training=True, eps=eps)
+        eps = eps0 * (1.0 - e / grab_eras)     # ε annelé : 0.35 -> ~0
+        # Entraînement item-riche (encodage fort) ; le monde NORMAL (phase 2) fournit
+        # désormais assez de matériaux (régén EDR 021) pour que le geste appris paie.
+        c, t, s = run_one_era(config, db, training=True, eps=eps, n_items=50)
         grab_crafts += c
         print(f"  grab ere {e+1:2d}: eps={eps:.2f} crafts={c:3d} ticks={t:3d}")
     print(f"  --> total lances craftees en entrainement : {grab_crafts}")

@@ -107,7 +107,7 @@ class Biosphere3D(BaseWorld):
                 "bit_b": np.random.choice([-1.0, 1.0])
             })
             
-        for _ in range(5):
+        for _ in range(18):
             self._spawn_rocks()
             
         self.ticks = 0
@@ -124,7 +124,7 @@ class Biosphere3D(BaseWorld):
         self.ticks = 0
         self.items = []
         self._generate_trees()
-        for _ in range(5):
+        for _ in range(18):
             self._spawn_rocks()
         self.preys = []
         self._spawn_preys()
@@ -754,7 +754,20 @@ class Biosphere3D(BaseWorld):
         while (not self.training_mode) and len(self.preys) < self.config.target_prey_count and spawned < self.prey_regen_burst:
             self._spawn_prey_instance(np.random.choice(["Lapin", "Cerf", "Sanglier", "Mammouth"], p=[0.4, 0.3, 0.2, 0.1]))
             spawned += 1
-            
+
+        # Régénération de MATÉRIAUX (EDR 021) : assez de rock+stick pour que le craft soit
+        # une stratégie VIABLE dans le monde dur (sinon physiquement marginal). Off en
+        # entraînement (le driver gère l'abondance).
+        if not self.training_mode:
+            _mat_types = ("rock", "stick", "stick_long", "stick_short", "Wood")
+            n_mat = sum(1 for it in self.items if it.get("type") in _mat_types)
+            if n_mat < 24 and np.random.rand() < 0.5:
+                if np.random.rand() < 0.5:
+                    self._spawn_rocks()
+                else:
+                    mx, my = np.random.randint(0, self.size), np.random.randint(0, self.size)
+                    self.items.append({"x": int(mx), "y": int(my), "z": 0, "type": "stick", "weight": 1.0})
+
         if not self.agents:
             return
             
