@@ -556,6 +556,7 @@ class Biosphere3D(BaseWorld):
             # Dégâts dépendant de l'outil (Step 2) : 10 à mains nues, 50 avec une lance ; ×crit_mult sur crit.
             damage_dealt = attack_damage(weapon_damage(holds_spear), is_crit, self.crit_mult)
             attacked_prey["hp"] -= damage_dealt
+            attacked_prey.setdefault("attackers", set()).add(agent["id"])  # récompense de groupe (EDR 028)
             logger.emit("PREY_ATTACKED", {"agent_id": agent["id"], "prey_type": attacked_prey["type"], "damage": damage_dealt, "crit": bool(is_crit)})
 
             # A) Scaffold : prime de courage à frapper un gros gibier (cfg.damage>0), annelé.
@@ -566,10 +567,21 @@ class Biosphere3D(BaseWorld):
                 # Récompense ∝ difficulté (Step 2) : le Lapin sustente, le Mammouth enrichit.
                 cfg_prey = self.config.preys.get(attacked_prey["type"], None)
                 reward = prey_reward(cfg_prey.hp if cfg_prey else 1.0)
-                agent["energy"] = min(self.config.agent.energy_max, agent["energy"] + reward)
-                agent["preys_eaten"] += 1
-                if cfg_prey and cfg_prey.hp >= 50:   # APEX (Mammouth) : exige une lance (chaîne moyens->fins, EDR 027)
+                if cfg_prey and cfg_prey.hp >= 50:
+                    # APEX (Mammouth) : récompense de GROUPE (EDR 028) — la prise nourrit TOUT
+                    # le pack qui l'a attaqué -> incite à rejoindre les chasses coopératives
+                    # (riposte partagée + dégâts cumulés one-shotent) -> la coordination émerge
+                    # par sélection, sans dépendre du crit chanceux. C'est la chaîne moyens->fins
+                    # qui exige aussi une lance (EDR 027).
+                    attackers = attacked_prey.get("attackers", {agent["id"]})
+                    for other in self.agents:
+                        if other["id"] in attackers:
+                            other["energy"] = min(self.config.agent.energy_max, other["energy"] + reward)
+                            other["preys_eaten"] += 1
                     self.big_kills = getattr(self, "big_kills", 0) + 1
+                else:
+                    agent["energy"] = min(self.config.agent.energy_max, agent["energy"] + reward)
+                    agent["preys_eaten"] += 1
                 self.preys.remove(attacked_prey)
                 # RARETÉ (Step 2) : plus de respawn instantané — régénération lente ailleurs.
                 logger.emit("PREY_KILLED", {"agent_id": agent["id"], "prey_type": attacked_prey["type"], "reward": float(reward)})
