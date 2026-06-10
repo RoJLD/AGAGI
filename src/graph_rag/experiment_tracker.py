@@ -175,6 +175,26 @@ class ExperimentGraph:
             f"MATCH (f:Fact {{id: '{fid}'}}), (h:Hypothesis {{id: '{hypothesis_id}'}}) "
             f"MERGE (f)-[:{rel}]->(h)")
 
+    def ensure_project_schema(self):
+        """Schéma du graphe-projet (EDR 034) : Dimension (les axes d'expérimentation) +
+        EDR (décisions) + EDR-[:TOUCHES]->Dimension. Rend la carte de la roadmap requêtable."""
+        self._safe_execute("CREATE NODE TABLE Dimension(id STRING, name STRING, family STRING, status STRING, PRIMARY KEY (id))")
+        self._safe_execute("CREATE NODE TABLE EDR(id STRING, title STRING, verdict STRING, PRIMARY KEY (id))")
+        self._safe_execute("CREATE REL TABLE TOUCHES(FROM EDR TO Dimension)")
+
+    def log_dimension(self, did: str, name: str, family: str, status: str = "active"):
+        n, f = name.replace("'", " "), family.replace("'", " ")
+        self._safe_execute(
+            f"MERGE (d:Dimension {{id: '{did}'}}) SET d.name = '{n}', d.family = '{f}', d.status = '{status}'")
+
+    def log_edr(self, eid: str, title: str, verdict: str = ""):
+        t, v = title.replace("'", " "), verdict.replace("'", " ")
+        self._safe_execute(f"MERGE (e:EDR {{id: '{eid}'}}) SET e.title = '{t}', e.verdict = '{v}'")
+
+    def link_edr_dimension(self, eid: str, did: str):
+        self._safe_execute(
+            f"MATCH (e:EDR {{id: '{eid}'}}), (d:Dimension {{id: '{did}'}}) MERGE (e)-[:TOUCHES]->(d)")
+
     def log_results(self, version: str, max_score: float, mean_score: float, ticks: int):
         result_id = f"{version}_res_{ticks}"
         self.conn.execute(f"MERGE (r:Result {{id: '{result_id}'}}) SET r.max_score = {max_score}, r.mean_score = {mean_score}, r.ticks = {ticks}")
