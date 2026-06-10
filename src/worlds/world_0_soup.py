@@ -17,7 +17,26 @@ except ImportError:
         def simulate(start_pos, aim_vec, force, weight, geometry, size, preys):
             return start_pos, None
 
-class Biosphere3D:
+# === Stade 0 de l'axe Monde (EDR 033) : hérite du MOTEUR CANONIQUE (plus de doublon) ===
+from src.worlds.world_1_stoneage import Biosphere3D as _CanonicalEngine
+
+
+class SoupWorld(_CanonicalEngine):
+    """World 0 — Soupe primordiale (axe Monde, stade sensorimoteur : homéostasie,
+    approche/évitement). Le plus simple des mondes ; hérite du moteur canonique
+    `Biosphere3D` (world_1) au lieu de le dupliquer. Le craft et le gros gibier
+    n'existent pas encore : pure survie. EDR 033."""
+    def __init__(self, config=None):
+        super().__init__(config)
+        self.craft_level = 0
+        # Sensorimoteur pur : retirer matériaux de craft + gibier qui riposte.
+        self.items = [it for it in self.items if it.get("type") not in ("rock", "stick", "Wood")]
+        self.preys = [p for p in self.preys
+                      if not (self.config.preys.get(p["type"]) and self.config.preys.get(p["type"]).damage > 0)]
+
+
+# === LEGACY V13 — moteur historique, conservé pour tests/référence. NE PLUS UTILISER. ===
+class SoupWorldLegacyV13:
     """
     V13: Mise à jour Matérielle.
     - Arbres, roches, branches (crafting items).

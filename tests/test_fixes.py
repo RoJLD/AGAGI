@@ -50,7 +50,7 @@ def test_attention_mask_fix():
 
 def test_standardized_inputs():
     """Test Task 2: Standardized 45 inputs / 75 outputs"""
-    from src.worlds.world_0_soup import Biosphere3D as World0
+    from src.worlds.world_0_soup import SoupWorldLegacyV13 as World0  # legacy (EDR 033 : renommé)
     from src.worlds.world_1_stoneage import Biosphere3D as World1
     from src.environments.config import WorldConfig, AgentConfig
     from src.agents.mamba_agent import MambaAgent

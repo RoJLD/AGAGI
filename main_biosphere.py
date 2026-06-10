@@ -7,6 +7,7 @@ import copy
 from src.seed_ai.evolution import EvolutionConfig
 from src.seed_ai.mutation import MutationConfig, Genome, apply_mutations
 from src.worlds.world_1_stoneage import Biosphere3D
+from src.worlds.world_0_soup import SoupWorld
 from src.worlds.world_2_agricultural import AgriculturalWorld
 from src.worlds.world_3_industrial import IndustrialWorld
 from src.environments.config import WorldConfig
@@ -196,8 +197,10 @@ def main():
         # Appliquer le taux de mutation adapté
         config.agent.mutation.weight_mutate_rate = injection_cfg.get("mutation_rate", config.agent.mutation.weight_mutate_rate)
         
-        # Instantiate the requested World
-        if world_type == "agricultural":
+        # Instantiate the requested World (axe Monde : tous héritent du moteur canonique)
+        if world_type == "soup":
+            env = SoupWorld(config)
+        elif world_type == "agricultural":
             env = AgriculturalWorld(config)
         elif world_type == "industrial":
             env = IndustrialWorld(config)
