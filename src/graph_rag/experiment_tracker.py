@@ -156,6 +156,25 @@ class ExperimentGraph:
         self.conn.execute(f"MERGE (h:Hyperparameters {{id: '{hp_id}'}}) ON MATCH SET h.params = '{params_str}' ON CREATE SET h.params = '{params_str}'")
         self.conn.execute(f"MATCH (e:Experiment {{name: '{version}'}}), (h:Hyperparameters {{id: '{hp_id}'}}) MERGE (e)-[:HAS_HYPERPARAMETERS]->(h)")
 
+    def log_hypothesis(self, hid: str, text: str, status: str = "open", priority: int = 1):
+        """Ontologie scientifique (EDR 032) : une Hypothesis testable (ex. un EDR, ou
+        « le mécanisme X contribue à Y »). Peuple le schéma déclaré mais resté vide."""
+        safe = text.replace("'", " ")
+        self._safe_execute(
+            f"MERGE (h:Hypothesis {{id: '{hid}'}}) SET h.text = '{safe}', "
+            f"h.status = '{status}', h.priority = {int(priority)}")
+
+    def log_fact(self, fid: str, content: str, hypothesis_id: str,
+                 relation: str = "SUPPORTS", confidence: float = 1.0):
+        """Un Fact mesuré, relié à une Hypothesis par SUPPORTS / REFUTES / CONTRADICTS."""
+        safe = content.replace("'", " ")
+        rel = relation if relation in ("SUPPORTS", "REFUTES", "CONTRADICTS") else "SUPPORTS"
+        self._safe_execute(
+            f"MERGE (f:Fact {{id: '{fid}'}}) SET f.content = '{safe}', f.confidence = {float(confidence)}")
+        self._safe_execute(
+            f"MATCH (f:Fact {{id: '{fid}'}}), (h:Hypothesis {{id: '{hypothesis_id}'}}) "
+            f"MERGE (f)-[:{rel}]->(h)")
+
     def log_results(self, version: str, max_score: float, mean_score: float, ticks: int):
         result_id = f"{version}_res_{ticks}"
         self.conn.execute(f"MERGE (r:Result {{id: '{result_id}'}}) SET r.max_score = {max_score}, r.mean_score = {mean_score}, r.ticks = {ticks}")

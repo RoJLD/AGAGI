@@ -253,6 +253,10 @@ class MambaBatchModel:
     Gestionnaire de population pour vectoriser l'inférence de N agents simultanément (TensorWorld).
     Supporte le Connectome Élastique avec dynamic padding et alignement des nœuds sensoriels, cachés et moteurs.
     """
+    # Flags d'ablation (EDR 032) : neutralisent un gène câblé pour mesurer son apport réel.
+    ABLATE_THRESHOLDS = False   # ignore les seuils d'excitabilité
+    ABLATE_ROUTER = False       # gain neuromodulateur neutre (=1)
+
     def __init__(self, agents: list[MambaAgent], world_model=None):
         self.agents = agents
         self.B = len(agents)
@@ -416,10 +420,14 @@ class MambaBatchModel:
         # 3. Passe de base (réflexe)
         H[:, :self.max_I] = x
         # Neuromodulation (EDR 031) : gain global dépendant du contexte (W_router câblé).
-        mod = np.tanh(np.einsum('bi,bij->bj', x, self.router_batch))        # (B, 3)
-        gain = 1.0 + 0.3 * mod.mean(axis=1, keepdims=True)                  # (B, 1) dans [0.7, 1.3]
+        if MambaBatchModel.ABLATE_ROUTER:
+            gain = 1.0
+        else:
+            mod = np.tanh(np.einsum('bi,bij->bj', x, self.router_batch))    # (B, 3)
+            gain = 1.0 + 0.3 * mod.mean(axis=1, keepdims=True)             # (B, 1) dans [0.7, 1.3]
         excitation = np.einsum('bi,bij->bj', H, W_no_diag) * gain
-        H = (1.0 - delta_t) * H + delta_t * _get_activation_function()(excitation - self.thresholds_batch)
+        thr = 0.0 if MambaBatchModel.ABLATE_THRESHOLDS else self.thresholds_batch
+        H = (1.0 - delta_t) * H + delta_t * _get_activation_function()(excitation - thr)
 
         # --- MESO-NAS (Pilier 2): Organe d'Attention QKV (Self-Attention) ---
         has_attention_batch = np.array([
