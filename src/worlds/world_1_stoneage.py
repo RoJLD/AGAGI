@@ -46,6 +46,11 @@ class Biosphere3D(BaseWorld):
         self.scaffold_craft = 5.0     # craft d'une lance (jalon)
         self.scaffold_bighit = 2.0    # coup porté à un gros gibier
         self.scaffold_eras = 30
+        # Curiosité (réparation moteur évolutif, EDR 014) : récompense intrinsèque
+        # = erreur de prédiction du World Model -> drive l'exploration d'actions/états
+        # nouveaux (grab, rub...). S'auto-annèle (la surprise chute quand le monde est
+        # appris, propriété RND). Variable d'expérience.
+        self.curiosity_scale = 2.0
         self.physics_registry = DynamicPhysicsRegistry(self.config.item_physics)
         self.num_altars = self.config.num_altars
         self.prey_mode = self.config.prey_mode
@@ -1066,7 +1071,11 @@ class Biosphere3D(BaseWorld):
                 
         # RL: Compute policy gradient
         new_energies = np.array([a["energy"] for a in self.agents], dtype=np.float32)
-        rewards = new_energies - old_energies
+        # Récompense = gain d'énergie (extrinsèque) + curiosité (intrinsèque, World Model).
+        # La curiosité pousse à explorer les états surprenants (ex. tenir un nouvel objet
+        # après un grab) -> sortie du plateau "manger 5 proies" (EDR 014).
+        curiosity = np.array([a["model"].surprise for a in self.agents], dtype=np.float32)
+        rewards = (new_energies - old_energies) + self.curiosity_scale * curiosity
         batch_model.compute_policy_gradient(rewards)
                 
         self.agents = survivors
