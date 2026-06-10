@@ -26,9 +26,10 @@ from main_biosphere import init_primordial_soup
 from src.graph_rag.async_logger import logger as async_logger
 
 
-def _setup_grab_training(env):
+def _setup_grab_training(env, eps=0.3):
     """Monde sûr et riche en ingrédients : isole l'apprentissage de la collecte."""
     env.training_mode = "grab"
+    env.explore_eps = eps        # ε-greedy annelé : explorer le geste grab (EDR 019)
     env.scaffold_grab = 8.0      # forte prime de collecte d'ingrédient
     env.novelty_scale = 6.0      # forte prime de nouveauté (rock+stick = rare)
     env.preys = []               # pas de proie -> pas de chasse ni de riposte
@@ -39,10 +40,10 @@ def _setup_grab_training(env):
         env.items.append({"x": int(x), "y": int(y), "z": 0, "type": "stick", "weight": 1.0})
 
 
-def run_one_era(config, db, training, num_agents=30, max_ticks=200, energy=80.0):
+def run_one_era(config, db, training, eps=0.3, num_agents=30, max_ticks=200, energy=80.0):
     env = Biosphere3D(config)
     if training:
-        _setup_grab_training(env)
+        _setup_grab_training(env, eps)
     genomes, ntm = init_primordial_soup(num_agents=num_agents, shared_db=db, config=config)
     for g in genomes:
         a = MambaAgent()
@@ -66,7 +67,7 @@ def run_one_era(config, db, training, num_agents=30, max_ticks=200, energy=80.0)
     return crafts, t, survivors
 
 
-def main(grab_eras=8, normal_eras=8):
+def main(grab_eras=15, normal_eras=8, eps0=0.35):
     # HoF vierge pour un transfert propre (backup).
     if os.path.exists("data/hall_of_fame.pkl"):
         shutil.copy("data/hall_of_fame.pkl", "data/hall_of_fame.pkl.bak_pre_curriculum")
@@ -88,9 +89,10 @@ def main(grab_eras=8, normal_eras=8):
     print("=== PHASE 1 : GRAB-TRAINING (monde sûr, riche en rock+stick) ===")
     grab_crafts = 0
     for e in range(grab_eras):
-        c, t, s = run_one_era(config, db, training=True)
+        eps = eps0 * (1.0 - e / grab_eras)  # ε annelé : 0.35 -> ~0
+        c, t, s = run_one_era(config, db, training=True, eps=eps)
         grab_crafts += c
-        print(f"  grab ere {e+1:2d}: crafts={c:3d} ticks={t:3d}")
+        print(f"  grab ere {e+1:2d}: eps={eps:.2f} crafts={c:3d} ticks={t:3d}")
     print(f"  --> total lances craftees en entrainement : {grab_crafts}")
 
     print(f"=== PHASE 2 : MONDE NORMAL (HoF grab-entraine) ===")

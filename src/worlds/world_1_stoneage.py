@@ -41,6 +41,9 @@ class Biosphere3D(BaseWorld):
         # AXE CRAFT (EDR 018) : complexité de la mécanique de craft. 0 = auto-craft (tenir
         # tranchant+manche -> lance, sans action). Le curriculum rampe 0->1->2... par maîtrise.
         self.craft_level = 0
+        # ε-greedy (EDR 019) : en entraînement, proba d'action aléatoire (mouvement + grab)
+        # -> explorer le geste pour qu'il se déclenche, soit récompensé, et évolue.
+        self.explore_eps = 0.0
         # Rareté recalibrée (C) : nb max de proies régénérées par step vers le plafond.
         # Variable d'expérience : règle la capacité de charge écologique du monde.
         self.prey_regen_burst = 3
@@ -823,6 +826,12 @@ class Biosphere3D(BaseWorld):
                 logits[agent["last_action"]] -= 0.1
                 
             action = int(np.argmax(logits[:8]))
+            # ε-greedy (EDR 019) : en entraînement, explorer l'espace d'action — mouvement
+            # aléatoire (traverser la carte) + forcer le geste grab (jamais tiré sinon).
+            force_grab = False
+            if self.training_mode and np.random.rand() < self.explore_eps:
+                action = np.random.randint(0, 8)
+                force_grab = (np.random.rand() < 0.5)
             agent["last_action"] = action
             
             do_throw = float(logits[8]) > 0
@@ -990,6 +999,8 @@ class Biosphere3D(BaseWorld):
                 agent["last_spoken"] = [99.0, 99.0, 99.0, 99.0]
 
             do_grab = float(logits[24]) if len(logits) > 24 else 0.0
+            if force_grab:  # ε-greedy : force le geste de collecte (EDR 019)
+                do_grab = 1.0
             
             # 6. Grab (Inventory mechanics)
             if do_grab > 0:
