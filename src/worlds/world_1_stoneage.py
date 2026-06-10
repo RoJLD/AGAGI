@@ -15,7 +15,7 @@ from src.environments.config import WorldConfig
 from src.graph_rag.async_logger import logger
 from src.agents.mamba_agent import MambaBatchModel
 from src.agents.world_model import WorldModel
-from src.environments.stone_economy import prey_reward, weapon_damage, has_spear, can_craft_spear, anneal, approach_reward, is_craft_ingredient
+from src.environments.stone_economy import prey_reward, weapon_damage, has_spear, can_craft_spear, anneal, approach_reward, is_craft_ingredient, state_signature, novelty_bonus
 from src.graph_rag.memory_retriever import AsyncMemoryRetriever
 from src.swarm.consensus import WeightedConsensus, ConsensusConfig
 from src.swarm.hgt import HorizontalGeneTransfer, HGTConfig
@@ -51,6 +51,10 @@ class Biosphere3D(BaseWorld):
         # nouveaux (grab, rub...). S'auto-annèle (la surprise chute quand le monde est
         # appris, propriété RND). Variable d'expérience.
         self.curiosity_scale = 2.0
+        # Nouveauté count-based (EDR 014) : récompense les configs d'inventaire rares
+        # -> tire vers les précurseurs du craft (tenir rock+stick). Ne sature pas.
+        self.novelty_counts = {}
+        self.novelty_scale = 3.0
         self.physics_registry = DynamicPhysicsRegistry(self.config.item_physics)
         self.num_altars = self.config.num_altars
         self.prey_mode = self.config.prey_mode
@@ -1075,7 +1079,13 @@ class Biosphere3D(BaseWorld):
         # La curiosité pousse à explorer les états surprenants (ex. tenir un nouvel objet
         # après un grab) -> sortie du plateau "manger 5 proies" (EDR 014).
         curiosity = np.array([a["model"].surprise for a in self.agents], dtype=np.float32)
-        rewards = (new_energies - old_energies) + self.curiosity_scale * curiosity
+        # Nouveauté count-based : configs d'inventaire rares -> précurseurs du craft.
+        novelty = np.zeros(len(self.agents), dtype=np.float32)
+        for i, a in enumerate(self.agents):
+            sig = state_signature(a["inventory"])
+            self.novelty_counts[sig] = self.novelty_counts.get(sig, 0) + 1
+            novelty[i] = novelty_bonus(self.novelty_counts[sig], self.novelty_scale)
+        rewards = (new_energies - old_energies) + self.curiosity_scale * curiosity + novelty
         batch_model.compute_policy_gradient(rewards)
                 
         self.agents = survivors

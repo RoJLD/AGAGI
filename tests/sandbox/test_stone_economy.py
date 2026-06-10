@@ -5,7 +5,7 @@ import pytest
 
 from src.environments.stone_economy import (
     prey_reward, weapon_damage, has_spear, can_craft_spear, anneal, approach_reward,
-    is_craft_ingredient,
+    is_craft_ingredient, state_signature, novelty_bonus,
 )
 
 # Physique réelle (config.py) : (weight, sharp, edible, friction, flammable)
@@ -49,6 +49,23 @@ def test_can_craft_spear_requires_edge_and_haft():
     assert can_craft_spear(ROCK, WOOD)      # bois aussi flammable
     assert not can_craft_spear(ROCK, ROCK)  # deux rochers : pas de manche (flammable 0)
     assert not can_craft_spear(STICK, STICK)  # deux sticks : pas assez tranchant (0.2)
+
+
+def test_state_signature_is_sorted_inventory():
+    assert state_signature([]) == ()
+    assert state_signature([{"type": "rock"}]) == ("rock",)
+    # ordre indifferent -> meme signature (trie)
+    assert state_signature([{"type": "stick"}, {"type": "rock"}]) == ("rock", "stick")
+    assert state_signature([{"type": "rock"}, {"type": "stick"}]) == ("rock", "stick")
+    assert state_signature(["Spear"]) == ("Spear",)
+
+
+def test_novelty_bonus_decreases_with_frequency():
+    # le precurseur du craft (vu 1 fois) recompense plus que l'inventaire vide (vu 1000 fois)
+    assert novelty_bonus(1, 3.0) == pytest.approx(3.0)
+    assert novelty_bonus(4, 3.0) == pytest.approx(1.5)
+    assert novelty_bonus(1000, 3.0) < novelty_bonus(10, 3.0)
+    assert novelty_bonus(0, 3.0) == 3.0  # garde-fou count=0
 
 
 def test_is_craft_ingredient():

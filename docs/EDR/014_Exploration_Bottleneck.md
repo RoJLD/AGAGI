@@ -49,6 +49,24 @@ Le **vrai mur restant** : découvrir une **chaîne d'actions profonde** (grab→
 - **(III) Curriculum de sous-compétences** : enseigner grab, puis rub, séparément (CurriculumRunner sur sous-tâches).
 - **(IV) Tuer les gènes fantômes + activer le dreaming** : libérer le budget de mutation et donner un organe d'exploration latente (Vague 1).
 
+## Addendum — Nouveauté count-based (levier I) : premier franchissement, mais faible
+
+Implémentation : récompense intrinsèque `novelty_bonus(count) = scale/√count` sur la
+**signature d'inventaire** (`state_signature`), ajoutée au policy gradient. Cible les
+précurseurs du craft : `()` ultra-fréquent → ε ; `('rock','stick')` quasi jamais vu → fort.
+
+Run V18_V0_novelty (30 ères) : **SPEAR_CRAFTED 1 → 2** — la **première lance issue de
+l'exploration** (aucune approche précédente n'y était parvenue). Survie moy 69→74.
+
+> Le mécanisme **fonctionne en principe** (il a fait émerger un craft par exploration
+> dirigée) mais reste **trop faible** : 1 lance / 969 naissances. Récompenser les états
+> précurseurs aide, mais l'agent doit toujours *exécuter* la chaîne de 3 actions, et le
+> signal (~3/tick) reste dilué par l'exploitation. **Le mur est fissuré, pas abattu.**
+
+Suites : amplifier (novelty_scale plus fort + World Model **par-agent** pour une curiosité
+non saturée — levier I complet) **ou** réduire la profondeur de chaîne (auto-craft, levier II
+— rend le craft commun immédiatement, au prix d'un peu d'émergence).
+
 ## Variables d'expérience
 
-`curiosity_scale`, portée du World Model (partagé vs par-agent), profondeur de la chaîne de craft, état de l'organe MCTS (`organ_genes[0]`).
+`curiosity_scale`, `novelty_scale`, portée du World Model (partagé vs par-agent), profondeur de la chaîne de craft, état de l'organe MCTS (`organ_genes[0]`).

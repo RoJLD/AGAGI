@@ -41,6 +41,19 @@ def weapon_damage(holds_spear: bool, base: float = BASE_DAMAGE, spear: float = S
     return spear if holds_spear else base
 
 
+def state_signature(inventory) -> tuple:
+    """Signature discrete d'un etat pour la nouveaute count-based : la composition
+    d'inventaire (triee). () = vide (ultra-frequent) ; ('rock','stick') = precurseur
+    du craft (quasi jamais vu) -> forte nouveaute. Cf. EDR 014 (mur d'exploration)."""
+    return tuple(sorted(_item_type(i) for i in inventory))
+
+
+def novelty_bonus(count: int, scale: float) -> float:
+    """Recompense de nouveaute count-based : scale / sqrt(count). Decroit avec la
+    frequence -> ne sature pas (contrairement a la surprise du World Model)."""
+    return scale / (count ** 0.5) if count > 0 else scale
+
+
 def anneal(era: int, n_eras: int) -> float:
     """Facteur d'annelage developpemental : 1 au depart, 0 a la fin (clamp >=0).
     Rend le scaffold (cheatcode) fort tot puis l'efface, pour que le comportement
