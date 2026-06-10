@@ -48,6 +48,25 @@ class WorldModel:
     def target(self, next_obs: np.ndarray) -> np.ndarray:
         return self._fit_width(next_obs) @ self.P
 
+    def observe_batch(self, Wp_batch: np.ndarray, prev_obs: np.ndarray,
+                      next_obs: np.ndarray, train: bool = True):
+        """World Model PAR AGENT (EDR 015) : un Wp distinct par agent (B, input_dim, out),
+        cible P PARTAGÉE. Chaque agent apprend son prédicteur depuis sa propre trajectoire
+        -> surprise par-agent qui ne sature pas comme le modèle partagé.
+
+        Renvoie (erreurs (B,), Wp_batch mis à jour).
+        """
+        prev = self._fit_width(prev_obs)                 # (B, input_dim)
+        nxt = self._fit_width(next_obs)
+        pred = np.einsum('bi,bio->bo', prev, Wp_batch)   # (B, out)
+        tgt = nxt @ self.P                               # (B, out)
+        diff = pred - tgt
+        err = np.mean(diff ** 2, axis=1)                 # (B,)
+        if train and prev.shape[0] > 0:
+            grad = np.einsum('bi,bo->bio', prev, diff)   # (B, input_dim, out)
+            Wp_batch = Wp_batch - self.lr * grad
+        return err, Wp_batch
+
     def observe(self, prev_obs: np.ndarray, next_obs: np.ndarray, train: bool = True) -> np.ndarray:
         """Erreur de prédiction (B,) entre pred(prev_obs) et target(next_obs).
 

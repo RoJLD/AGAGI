@@ -68,6 +68,33 @@ def test_learns_a_linear_world():
     assert e1 < e0 * 0.5   # le world model a appris la dynamique
 
 
+def test_observe_batch_per_agent_learns():
+    # World Model par-agent : chaque Wp apprend sa transition -> erreur chute.
+    wm = WorldModel(8, lr=0.05, seed=1)
+    B = 3
+    Wp = np.zeros((B, wm.input_dim, wm.out_dim), dtype=np.float32)
+    prev = np.ones((B, 8), dtype=np.float32)
+    nxt = np.tile(np.arange(8, dtype=np.float32), (B, 1))
+    e0, _ = wm.observe_batch(Wp, prev, nxt, train=False)
+    assert e0.shape == (B,)
+    for _ in range(300):
+        _, Wp = wm.observe_batch(Wp, prev, nxt, train=True)
+    e1, _ = wm.observe_batch(Wp, prev, nxt, train=False)
+    assert e1.mean() < e0.mean() * 0.2
+
+
+def test_observe_batch_independent_agents():
+    # Deux agents avec des transitions differentes apprennent independamment.
+    wm = WorldModel(4, lr=0.1, seed=2)
+    Wp = np.zeros((2, wm.input_dim, wm.out_dim), dtype=np.float32)
+    prev = np.array([[1, 0, 0, 0], [0, 1, 0, 0]], dtype=np.float32)
+    nxt = np.array([[1, 1, 1, 1], [2, 2, 2, 2]], dtype=np.float32)
+    for _ in range(400):
+        _, Wp = wm.observe_batch(Wp, prev, nxt, train=True)
+    err, _ = wm.observe_batch(Wp, prev, nxt, train=False)
+    assert err.max() < 0.05   # les deux ont appris leur cible respective
+
+
 def test_fit_width_pads_and_truncates_without_crash():
     wm = WorldModel(5)
     # plus large -> tronqué ; plus court -> padé ; ne doit pas lever

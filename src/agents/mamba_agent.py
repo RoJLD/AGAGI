@@ -62,6 +62,7 @@ class MambaAgent(BaseAgent):
         self.predictor_head = np.zeros(8, dtype=np.float32)
         self.ntm_memory = np.zeros((10, 5), dtype=np.float32)
         self.last_obs = None  # World Model : observation du tick précédent (Vague 0)
+        self.world_model_Wp = None  # World Model PAR AGENT : prédicteur appris (EDR 015)
         
     def forward(self, obs: np.ndarray) -> np.ndarray:
         # Obs doit être un vecteur (1, I)
@@ -338,6 +339,17 @@ class MambaBatchModel:
                 self.has_last_batch[i] = True
         self.curiosity_batch = np.zeros(self.B, dtype=np.float32)
 
+        # World Model PAR AGENT (EDR 015) : un prédicteur Wp (input_dim, out) par agent,
+        # round-trip via les agents. P reste partagé (porté par self.world_model).
+        self.Wp_batch = None
+        if self.world_model is not None:
+            dim, od = self.world_model.input_dim, self.world_model.out_dim
+            self.Wp_batch = np.zeros((self.B, dim, od), dtype=np.float32)
+            for i, a in enumerate(agents):
+                w = getattr(a, 'world_model_Wp', None)
+                if w is not None and getattr(w, 'shape', None) == (dim, od):
+                    self.Wp_batch[i] = w
+
         self.tick_count = 0
 
     def forward(self, batch_obs: np.ndarray, env_surprise_batch: np.ndarray = None) -> tuple:
@@ -372,9 +384,11 @@ class MambaBatchModel:
         #    Effet de bord réparé : le déclencheur du dreaming (surprise_momentum) et la
         #    récompense intrinsèque du monde (a.surprise) redeviennent vivants.
         surprise = np.zeros(self.B, dtype=np.float32)
-        if self.world_model is not None and self.has_last_batch.any():
+        if self.world_model is not None and self.Wp_batch is not None and self.has_last_batch.any():
             m = self.has_last_batch
-            surprise[m] = self.world_model.observe(self.last_obs_batch[m], x_obs[m], train=True)
+            err, self.Wp_batch[m] = self.world_model.observe_batch(
+                self.Wp_batch[m], self.last_obs_batch[m], x_obs[m], train=True)
+            surprise[m] = err
         surprise = np.clip(surprise, 0.0, 1.0)
         self.curiosity_batch = surprise.copy()
 
@@ -586,6 +600,8 @@ class MambaBatchModel:
             a.surprise_momentum = float(self.surprise_momentum_batch[i])
             a.ntm_memory = self.NTM_Memory[i].copy()
             a.last_obs = x_obs[i].copy()  # World Model : mémoriser obs(t) pour prédire t+1
+            if self.Wp_batch is not None:
+                a.world_model_Wp = self.Wp_batch[i].copy()  # World Model par-agent (EDR 015)
             a.genome.W = self.W_batch[i][map_idx[:, None], map_idx[None, :]].copy()
 
         return preds, compute_spent
