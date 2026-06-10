@@ -62,7 +62,10 @@ WORLD_ABLATIONS = {
     "scaffold_grab":   lambda e: setattr(e, "scaffold_grab", 0.0),
     "scaffold_craft":  lambda e: setattr(e, "scaffold_craft", 0.0),
     "scaffold_bighit": lambda e: setattr(e, "scaffold_bighit", 0.0),
+    "scaffold_approche": lambda e: setattr(e, "scaffold_eps", 0.0),   # ajout EDR 039
     "crit":            lambda e: setattr(e, "crit_base", 0.0),
+    "cooperation":     lambda e: setattr(e, "coop_reward", False),    # ajout EDR 039 (clé !)
+    "world_model":     lambda e: setattr(e, "world_model", None),     # ajout EDR 039
 }
 MODULE_ABLATIONS = ["seuils", "router"]   # gènes câblés (EDR 031)
 
