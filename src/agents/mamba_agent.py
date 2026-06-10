@@ -5,6 +5,7 @@ from src.seed_ai.mutation import Genome, apply_mutations, MutationConfig
 from src.seed_ai.rl_evolution import recurrent_forward
 from src.metaprog.ntm_compiler import NTMProgramCompiler
 from src.agents.world_model import WorldModel
+from src.seed_ai.policy_gradient import reinforce_action_update
 
 class MambaAgent(BaseAgent):
     """
@@ -606,34 +607,63 @@ class MambaBatchModel:
 
         return preds, compute_spent
 
-    def compute_policy_gradient(self, rewards_batch: np.ndarray):
+    def compute_policy_gradient(self, rewards_batch: np.ndarray, actions_batch=None):
         """
-        Apprentissage Intra-Vie (Actor-Critic Hebbian Update) avec support élastique.
+        Apprentissage Intra-Vie. Si actions_batch est fourni : vrai ACTOR-CRITIC avec
+        crédit d'action (EDR 020) — l'action choisie est renforcée spécifiquement, le
+        critic (value head, sortie 28) est entraîné vers le reward. Sinon : ancien
+        Hebbien rustre (rétro-compat pour les appelants sans actions).
+
+        actions_batch : liste alignée sur self.agents, chaque entrée = dict
+            {"move": int 0..7, "grab": 0/1, "rub": 0/1}.
         """
-        if self.B == 0: return
-        
+        if self.B == 0:
+            return
+
         values = np.zeros(self.B, dtype=np.float32)
         for i in range(self.B):
             N_i = self.agents[i].genome.num_nodes
             O_i = self.agents[i].genome.num_outputs
             map_idx = self.mappings[i]
-            val_idx = map_idx[N_i - O_i + 28]
-            values[i] = self.H_prev_batch[i, val_idx]
-                
+            values[i] = self.H_prev_batch[i, map_idx[N_i - O_i + 28]]
         advantages = rewards_batch - values
-        lr = 0.005
-        
+
+        # --- Rétro-compat : ancien Hebbien si pas d'actions ---
+        if actions_batch is None:
+            lr = 0.005
+            for i in range(self.B):
+                if abs(advantages[i]) > 0.01:
+                    N_i = self.agents[i].genome.num_nodes
+                    map_idx = self.mappings[i]
+                    h_i = self.H_prev_batch[i, map_idx].reshape(-1, 1)
+                    dW = lr * advantages[i] * np.dot(h_i, h_i.T)
+                    self.W_batch[i][map_idx[:, None], map_idx[None, :]] = np.clip(
+                        self.W_batch[i][map_idx[:, None], map_idx[None, :]] + dW, -5.0, 5.0)
+                    self.agents[i].genome.W = self.W_batch[i][map_idx[:, None], map_idx[None, :]].copy()
+            return
+
+        # --- Vrai Actor-Critic avec crédit d'action (EDR 020) ---
+        lr_actor, lr_critic = 0.02, 0.05
         for i in range(self.B):
-            if abs(advantages[i]) > 0.01:
-                N_i = self.agents[i].genome.num_nodes
-                map_idx = self.mappings[i]
-                h_i = self.H_prev_batch[i, map_idx].reshape(-1, 1)
-                
-                hebbian_trace = np.dot(h_i, h_i.T)
-                dW = lr * advantages[i] * hebbian_trace
-                
-                self.W_batch[i][map_idx[:, None], map_idx[None, :]] = np.clip(
-                    self.W_batch[i][map_idx[:, None], map_idx[None, :]] + dW, -5.0, 5.0
-                )
-                
-                self.agents[i].genome.W = self.W_batch[i][map_idx[:, None], map_idx[None, :]].copy()
+            act = actions_batch[i] if i < len(actions_batch) else None
+            if act is None:
+                continue
+            N_i = self.agents[i].genome.num_nodes
+            O_i = self.agents[i].genome.num_outputs
+            map_idx = self.mappings[i]
+            h = self.H_prev_batch[i, map_idx]                          # (N_i,)
+            out_logits = self.H_prev_batch[i, map_idx[N_i - O_i:N_i]]  # (O_i,)
+            adv = float(advantages[i])
+
+            # ACTOR : crédit de l'action choisie (mouvement + binaires grab/rub).
+            binaries = {24: int(act.get("grab", 0)), 25: int(act.get("rub", 0))}
+            dW = reinforce_action_update(h, out_logits, int(act.get("move", -1)),
+                                         binaries, adv, lr_actor)
+            # CRITIC : value head (sortie 28) entraînée vers le reward.
+            v_node = N_i - O_i + 28
+            if 0 <= v_node < N_i:
+                dW[:, v_node] += lr_critic * (float(rewards_batch[i]) - values[i]) * h
+
+            W_block = np.clip(self.W_batch[i][map_idx[:, None], map_idx[None, :]] + dW, -5.0, 5.0)
+            self.W_batch[i][map_idx[:, None], map_idx[None, :]] = W_block
+            self.agents[i].genome.W = W_block.copy()

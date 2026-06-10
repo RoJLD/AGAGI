@@ -1001,7 +1001,11 @@ class Biosphere3D(BaseWorld):
             do_grab = float(logits[24]) if len(logits) > 24 else 0.0
             if force_grab:  # ε-greedy : force le geste de collecte (EDR 019)
                 do_grab = 1.0
-            
+
+            # Enregistrer l'action prise pour le crédit d'action du policy gradient (EDR 020).
+            agent["_pg"] = {"move": int(action), "grab": 1 if do_grab > 0 else 0,
+                            "rub": 1 if do_rub > 0 else 0}
+
             # 6. Grab (Inventory mechanics)
             if do_grab > 0:
                 nearby_items = [i for i in self.items if i["x"] == agent["x"] and i["y"] == agent["y"]]
@@ -1104,7 +1108,9 @@ class Biosphere3D(BaseWorld):
             self.novelty_counts[sig] = self.novelty_counts.get(sig, 0) + 1
             novelty[i] = novelty_bonus(self.novelty_counts[sig], self.novelty_scale)
         rewards = (new_energies - old_energies) + self.curiosity_scale * curiosity + novelty
-        batch_model.compute_policy_gradient(rewards)
+        # Actions prises ce tick (crédit d'action, EDR 020), alignées sur self.agents.
+        actions_batch = [a.get("_pg", {"move": -1, "grab": 0, "rub": 0}) for a in self.agents]
+        batch_model.compute_policy_gradient(rewards, actions_batch)
                 
         self.agents = survivors
         
