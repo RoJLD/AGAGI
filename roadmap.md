@@ -285,16 +285,20 @@ L'axe 4.1 (récompenses pur intrinsèques, *« pas dit mais trouvé »*) reste l
 
 ### 🔴 Vague 0bis — Consolider l'émergence (PRIORITÉ ACTUELLE)
 
-La boucle tourne sur le craft **L0** (~21 lances/run en monde dur, croissant) ; la solidifier et la rendre *signifiante* :
+> **✅ Vague 0bis + 0ter LIVRÉES.** Consolidation faite, les deux axes développementaux démontrés.
 
-1. **Vérifier le payoff moyens→fins** — le craft mène-t-il vraiment à tuer le Mammouth → surplus d'énergie → fitness ? Sinon ce n'est qu'un réflexe payé par le scaffold. Valide que l'émergence a un *sens*.
-2. **Critic TD (crédit temporel)** — le critic actuel est Monte-Carlo sur le reward immédiat ; les chaînes à récompense **différée** (crafter maintenant → chasser plus tard) exigent un bootstrap TD. Le n°1 pour les comportements longs (suite de `EDR 020`).
-3. **Progrès au niveau population** — la moyenne reste plate (régénération trop mutation-lourde) : tuner pour que *toute* la population monte, pas seulement l'élite.
+1. ✅ **Payoff moyens→fins** — était **cassé** (la lance tue le Mammouth mais l'agent meurt = suicide) ; réparé par le **coup critique annealé** (`EDR 022`, idée « forcer le destin ») : 57 % de victoires tôt, sevré ensuite. Persistance (crit→0) assurée par stun (jet) + coopération, *déjà codés*, à cadencer.
+2. ✅ **Critic TD** — `δ = r + γ·V(s') − V(s)` (`EDR 023`) : les chaînes à récompense différée (crafter→chasser) deviennent apprenables. +transfert 21→28.
+3. ✅ **Progrès population** — la régén remplissait **67 % d'agents inertes** (W=0) → moyenne plate ; `build_population` (élite + enfants mutés, 0 inerte, `EDR 024`).
+4. ✅ **Axe Craft** rampé L0→L1→L2, tous maîtrisés via mastery gates (`EDR 025`).
+5. ✅ **Axe Monde** rampé (rareté alimentaire) : 3 paliers maîtrisés, **mur à la rareté extrême** (`EDR 026`).
 
-### 🟣 Vague 0ter — Rejouer la boucle sur les axes développementaux
+### 🟣 Vague 0quater — Intégration 2D (Monde × Craft) — PRIORITÉ ACTUELLE
 
-4. **Ramper `craft_level`** (axe Craft : L0→L1→L2…) via mastery gates — chaque palier maîtrisé puis durci.
-5. **Ramper la difficulté du monde** (axe Monde) en parallèle — le `CurriculumRunner` (déjà livré) orchestre.
+Découverte clé (`EDR 026`) : **les deux axes s'imbriquent.** La rareté extrême du Monde (petit gibier épuisé) *force* le Craft (gros gibier → lance nécessaire). Le mur de l'axe Monde seul EST le point d'entrée du Craft.
+
+6. **Curriculum 2D conjoint** : monter la rareté ET ouvrir `craft_level` + le crit, pour que la population bascule de la chasse au petit gibier vers le **gros gibier outillé** (la chaîne moyens→fins complète). Le `CurriculumRunner` orchestre les deux axes.
+7. **Cadencer le crit** (`crit_eras`) pour chevaucher l'émergence du stun/coopération (persistance, pont vers l'Arc 5 Tribu).
 
 *(Les vagues ci-dessous — hygiène, RSI, émergence avancée — restent valables et viennent ensuite.)*
 
