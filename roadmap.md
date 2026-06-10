@@ -300,17 +300,16 @@ Découverte clé (`EDR 026`) : **les deux axes s'imbriquent.** La rareté extrê
 6. ✅ **Chaîne moyens→fins émerge bout à bout** (`EDR 027`) : sous la rareté, `crafts` + `mammouth` montent ensemble (un Mammouth est intuable sans lance → chaque kill prouve la chaîne complète). Monde hybride découplé (nuit/ε indépendants de training_mode).
 7. ✅ **Persistance résolue — coopération robuste** (`EDR 028`) : la chasse à l'apex était crit-dépendante (0.70→0.20 au sevrage) ; la **récompense de groupe** (l'apex nourrit tout le pack) fait émerger la coopération → l'apex-hunting **persiste sans crit** (0.70→0.67). Premier comportement *social* du projet → pont vers l'Arc 5 (Tribu).
 
-### 🔴 Vague 0quinquies — Rendre la chaîne DOMINANTE — PRIORITÉ ACTUELLE
+### ✅ Vague 0quinquies — Chaîne DOMINANTE & AUTO-SUFFISANTE — LIVRÉE
 
-La chaîne est robuste mais pas encore *dominante* (à rareté extrême, `proies_moy ≈ 0.6` : elle tient mais ne nourrit pas toute la population).
+8. ✅ **Sélection pour la chaîne** (`EDR 029`) : `mammoth_kills` tracé + pesé fort dans le `life_score` → la chaîne **dominante** quand le monde peut la nourrir (rareté 15 sevrée : proies_moy 1.55, 1.4 Mammouths). Le plateau à rareté extrême = capacité de charge, pas échec de stratégie.
+9. ✅ **Prime de groupe annealée** + **curriculum développemental unifié** (`EDR 030`) : un seul driver de référence (`tools/curriculum_developmental.py`) durcit le monde ET sèvre les deux scaffolds (crit + prime) via l'ère globale → la chaîne **persiste sans aucune béquille** (sevré : 0.70 Mammouth/ère).
 
-8. **Sélectionner pour la chaîne** : récompenser l'apex-kill dans le `life_score` (et tracer `mammoth_kills`) pour que le génome chasseur-coopératif domine le HoF.
-9. **Vies/sélection plus longues** : laisser la chaîne s'exécuter et le comportement se fixer.
-10. **Anneler la prime de groupe** (comme le crit) pour qu'elle n'entretienne pas un acquis.
+> **Bilan Vague 0 (010→030) :** la chaîne moyens→fins est **émergente + robuste + dominante + auto-suffisante**, sur une stratégie *sociale*. Fondations (moteur évolutif + apprentissage Actor-Critic TD) réparées. Programme développemental complet et rejouable.
 
-*(Les vagues ci-dessous — hygiène, RSI, émergence avancée — restent valables et viennent ensuite.)*
+### 🟠 Vague 1 — Honnêteté & hygiène (PRIORITÉ ACTUELLE — cheap, restaure la confiance)
 
-### 🟠 Vague 1 — Honnêteté & hygiène (cheap, restaure la mesure)
+*(Maintenant que les fondations s'expriment, restaurer la mesure avant d'aller plus loin.)*
 
 Prérequis pour **faire confiance** à tout résultat ultérieur :
 

@@ -48,6 +48,9 @@ class Biosphere3D(BaseWorld):
         # training_mode (monde hybride : proies+matériaux régénérés MAIS nuit off + ε on).
         self.night_enabled = True
         self.big_kills = 0  # gros gibier tué (bout de la chaîne moyens->fins, EDR 027)
+        # Sevrage de la prime de groupe (EDR 030) : la prise d'apex passe de « pleine
+        # récompense à chacun » (scaffold) à « partagée entre le pack » (économie réaliste).
+        self.group_reward_eras = 20
         # Coup CRITIQUE annealé (EDR 022, « forcer le destin ») : la lance seule ne tue pas
         # le Mammouth (riposte mortelle) ; un crit décisif (proba décroissante par monde) le
         # terrasse -> amorce le lien lance->apex, puis se sèvre. Persistance (feu/retraite) : à venir.
@@ -575,11 +578,16 @@ class Biosphere3D(BaseWorld):
                     # par sélection, sans dépendre du crit chanceux. C'est la chaîne moyens->fins
                     # qui exige aussi une lance (EDR 027).
                     attackers = attacked_prey.get("attackers", {agent["id"]})
-                    for other in self.agents:
-                        if other["id"] in attackers:
-                            other["energy"] = min(self.config.agent.energy_max, other["energy"] + reward)
-                            other["preys_eaten"] += 1
-                            other["mammoth_kills"] = other.get("mammoth_kills", 0) + 1  # sélection chaîne (EDR 028)
+                    pack = [o for o in self.agents if o["id"] in attackers]
+                    n = max(1, len(pack))
+                    # Prime de groupe annealée (EDR 030) : part = 1.0 (pleine à chacun, scaffold)
+                    # -> 1/n (partage réaliste du festin) à mesure que la coopération se fixe.
+                    scaffold = anneal(getattr(self, "current_era", 1), self.group_reward_eras)
+                    share = scaffold + (1.0 - scaffold) / n
+                    for other in pack:
+                        other["energy"] = min(self.config.agent.energy_max, other["energy"] + reward * share)
+                        other["preys_eaten"] += 1
+                        other["mammoth_kills"] = other.get("mammoth_kills", 0) + 1  # sélection chaîne (EDR 028)
                     self.big_kills = getattr(self, "big_kills", 0) + 1
                 else:
                     agent["energy"] = min(self.config.agent.energy_max, agent["energy"] + reward)
