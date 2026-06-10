@@ -79,17 +79,22 @@ def analyze_metrics(state: SupervisorState) -> Dict[str, Any]:
     
     logger.info(f"Robustness Score: {robustness:.3f} | Emergence Score: {emergence:.3f}")
     
-    # Mock LLM Call / Decision Logic
     insight = f"Score={score:.2f}, Robustness={robustness:.2f}, Emergence={emergence:.2f}."
-    
-    # 1. Cognitive Famine Detection (Commandement 10 & sprint active coding)
-    cognitive_famine = False
-    if len(score_history) >= 3:
-        std = float(np.std(score_history))
-        mean = float(np.mean(score_history))
-        if std < 0.02 and mean < 0.95:
-            cognitive_famine = True
-            insight += " [FAMINE] Famine cognitive détectée (stagnation des scores) !"
+
+    # 1. Détection réflexive (EDR 036, #9) : décision sur la TENDANCE multi-ères (KuzuDB si
+    #    dispo, sinon historique mémoire), pas sur un snapshot. SEAM LLM en place pour le #8.
+    from src.graph_rag.reflexive_supervisor import read_recent_scores, compute_trend, reflexive_decision
+    db_conn = state.get("db_conn")
+    scores = read_recent_scores(db_conn)
+    if len(scores) < 3:
+        scores = score_history                       # fallback : historique en mémoire
+    trend = compute_trend(scores)
+    decision = reflexive_decision(trend)
+    cognitive_famine = decision["famine"]
+    if cognitive_famine:
+        insight += f" [FAMINE] {decision['reason']}"
+    elif decision["mutation_boost"]:
+        insight += f" [DECLIN] {decision['reason']}"
             
     # 2. Trigger active metaprogramming codegen if famine is detected
     codegen_success = False

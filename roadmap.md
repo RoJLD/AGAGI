@@ -360,9 +360,9 @@ Découverte clé (`EDR 026`) : **les deux axes s'imbriquent.** La rareté extrê
 
 ### 🟡 Vague 2 — Le pivot « graine d'AGI » (sécurité d'abord)
 
-7. **Sandbox isolée** — dette bloquante (faille RCE) AVANT toute génération de code réelle.
-8. **Vraie RSI** (levier 4, § 2.1.A / § 4.3) — LLM réel dans la boucle metaprog, code validé **réellement réinjecté**.
-9. **Supervisor réflexif** — remplacer l'`analyze_metrics` en if/else par un vrai nœud LLM lisant la tendance multi-ères dans KuzuDB.
+7. ✅ **Sandbox isolée** (`EDR 035`) — faille RCE colmatée : gate AST (deny-by-default) + exécution isolée (dossier temp hors-repo, `python -I`, timeout). Le code généré ne s'exécute plus sans passer la sécurité.
+9. ✅ **Supervisor réflexif** (`EDR 036`) — `analyze_metrics` décide désormais sur la **tendance multi-ères** lue dans KuzuDB (plateau/déclin/amélioration), plus sur un snapshot. **Seam LLM en place** pour le #8.
+8. ⏳ **Vraie RSI** (levier 4) — LLM réel dans la boucle metaprog, code **réellement réinjecté** (en sécurité maintenant). **Différé** jusqu'à une impasse/bottleneck (décision utilisateur) ; à armer dans un conteneur jetable. Le seam est prêt (#7 + #9).
 
 ### 🟢 Vague 3 — Émergence avancée (seulement quand V0-V2 s'expriment)
 
@@ -375,6 +375,16 @@ Découverte clé (`EDR 026`) : **les deux axes s'imbriquent.** La rareté extrê
 NAS Macro/Meta (catalogue de ~80 blocs), Arcs 6-7 (Penseur, Conscience, Qualia). **À ne pas toucher** tant que V0-V2 ne livrent pas.
 
 > **Règle d'avancement** : on ne passe à la vague N+1 que lorsque la vague N est *livrée ET mesurée* (Commandement 15 : valide ou revert). Aucun saut vers le « Graal » avant que les fondations s'expriment.
+
+### 🔭 Référence lointaine — MiroFish (synthèse possible, Arc 5+)
+
+[MiroFish](https://github.com/666ghj/MiroFish) (`C:\Users\robla\VScode_Project\MiroFish`) : moteur d'**intelligence d'essaim** LLM — extrait des « graines » du réel, construit un monde parallèle haute-fidélité, des milliers d'agents à personnalités/mémoire/évolution sociale interagissent → **émergence collective & prédiction**. C'est l'**inverse paradigmatique d'AGIseed** : agents-LLM *top-down* (intelligence donnée) vs connectomes évolués *bottom-up* (intelligence trouvée).
+
+**Positionnement (lointain, à étudier) :** point de **synthèse** quand AGIseed atteindra l'Arc 5 (Tribu, social) — deux pistes :
+- *Réutiliser* l'infra MiroFish (monde parallèle, orchestration multi-agents, UI/prédiction) comme **substrat d'application** pour des agents AGIseed cognitivement matures.
+- *S'inspirer* de son modèle social (personnalités, mémoire longue, injection « vue divine ») pour l'émergence sociale d'AGIseed.
+
+> ⚠️ À ne pas toucher avant que la coopération émergée (EDR 028) mûrisse en vraie dynamique sociale. Noté ici pour mémoire — étude différée.
 
 ### Backlog (idées différées)
 
