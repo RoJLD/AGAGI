@@ -44,6 +44,10 @@ class Biosphere3D(BaseWorld):
         # ε-greedy (EDR 019) : en entraînement, proba d'action aléatoire (mouvement + grab)
         # -> explorer le geste pour qu'il se déclenche, soit récompensé, et évolue.
         self.explore_eps = 0.0
+        # Découplage pour le curriculum 2D (EDR 027) : contrôler la nuit indépendamment du
+        # training_mode (monde hybride : proies+matériaux régénérés MAIS nuit off + ε on).
+        self.night_enabled = True
+        self.big_kills = 0  # gros gibier tué (bout de la chaîne moyens->fins, EDR 027)
         # Coup CRITIQUE annealé (EDR 022, « forcer le destin ») : la lance seule ne tue pas
         # le Mammouth (riposte mortelle) ; un crit décisif (proba décroissante par monde) le
         # terrasse -> amorce le lien lance->apex, puis se sèvre. Persistance (feu/retraite) : à venir.
@@ -564,6 +568,8 @@ class Biosphere3D(BaseWorld):
                 reward = prey_reward(cfg_prey.hp if cfg_prey else 1.0)
                 agent["energy"] = min(self.config.agent.energy_max, agent["energy"] + reward)
                 agent["preys_eaten"] += 1
+                if cfg_prey and cfg_prey.hp >= 50:   # APEX (Mammouth) : exige une lance (chaîne moyens->fins, EDR 027)
+                    self.big_kills = getattr(self, "big_kills", 0) + 1
                 self.preys.remove(attacked_prey)
                 # RARETÉ (Step 2) : plus de respawn instantané — régénération lente ailleurs.
                 logger.emit("PREY_KILLED", {"agent_id": agent["id"], "prey_type": attacked_prey["type"], "reward": float(reward)})
@@ -726,7 +732,7 @@ class Biosphere3D(BaseWorld):
         was_night = getattr(self, "is_night", False)
         # Curriculum : pas de nuit (mortelle) en mode entraînement -> les agents survivent
         # assez pour apprendre la collecte.
-        self.is_night = ((self.ticks % 100) >= 50) and not self.training_mode
+        self.is_night = ((self.ticks % 100) >= 50) and self.night_enabled and not self.training_mode
         
         # EXP-9: Bonus d'aube (Transition Nuit -> Jour)
         if was_night and not self.is_night:
@@ -855,7 +861,7 @@ class Biosphere3D(BaseWorld):
             # aléatoire + forcer les gestes jamais tirés (grab ; rub pour craft_level>=1).
             force_grab = False
             force_rub = False
-            if self.training_mode and np.random.rand() < self.explore_eps:
+            if self.explore_eps > 0 and np.random.rand() < self.explore_eps:
                 action = np.random.randint(0, 8)
                 force_grab = (np.random.rand() < 0.5)
                 force_rub = (self.craft_level >= 1 and np.random.rand() < 0.5)
