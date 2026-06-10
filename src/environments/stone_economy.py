@@ -63,6 +63,23 @@ def anneal(era: int, n_eras: int) -> float:
     return max(0.0, 1.0 - float(era) / float(n_eras))
 
 
+def crit_chance(base: float, era: int, n_eras: int) -> float:
+    """Proba de coup CRITIQUE, scaffold annelé (EDR 022, idée « forcer le destin »).
+
+    Élevée tôt -> l'agent armé terrasse *parfois* l'apex (Mammouth) malgré la riposte
+    mortelle -> un signal de récompense apparaît pour que l'évolution s'empare du lien
+    lance->gros gibier. Décroît vers 0 par monde (via anneal) : la béquille se retire, et
+    le comportement doit ensuite tenir sur une vraie stratégie (feu, retraite, coopération).
+    Amorcer la découverte par le hasard, puis sevrer — sans *entretenir* un acquis."""
+    return base * anneal(era, n_eras)
+
+
+def attack_damage(weapon_dmg: float, is_crit: bool, crit_mult: float = 3.0) -> float:
+    """Dégâts d'une attaque ; un coup critique les multiplie (lance 50 -> 150 = one-shot
+    du Mammouth hp100, avant qu'une 2e riposte ne soit létale). Pur et testable (EDR 022)."""
+    return weapon_dmg * (crit_mult if is_crit else 1.0)
+
+
 def approach_reward(d_before: float, d_after: float, eps: float, lam: float) -> float:
     """Recompense de shaping : +eps*lam si l'agent s'est RAPPROCHE du gibier le plus
     proche (distance reduite). Enseigne 'va vers la nourriture' — fix du goulot de

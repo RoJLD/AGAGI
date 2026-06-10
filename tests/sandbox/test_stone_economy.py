@@ -6,7 +6,23 @@ import pytest
 from src.environments.stone_economy import (
     prey_reward, weapon_damage, has_spear, can_craft_spear, anneal, approach_reward,
     is_craft_ingredient, state_signature, novelty_bonus, try_craft_spear,
+    crit_chance, attack_damage,
 )
+
+
+def test_crit_chance_anneals():
+    # Scaffold annealé (EDR 022) : plein tôt, sevré (0) par monde, clampé.
+    assert crit_chance(0.6, 0, 20) == pytest.approx(0.6)
+    assert crit_chance(0.6, 20, 20) == 0.0
+    assert 0.0 < crit_chance(0.6, 10, 20) < 0.6
+    assert crit_chance(0.6, 30, 20) == 0.0   # clamp >= 0
+
+
+def test_attack_damage_crit_multiplies():
+    # Un crit one-shot le Mammouth (hp100) avec une lance ; à mains nues, insuffisant.
+    assert attack_damage(50.0, False) == 50.0
+    assert attack_damage(50.0, True, 3.0) == 150.0
+    assert attack_damage(weapon_damage(False), True, 3.0) == 30.0   # 10*3 < 100
 
 # Physique réelle (config.py) : (weight, sharp, edible, friction, flammable)
 ROCK = (1.0, 0.5, 0.0, 0.8, 0.0)

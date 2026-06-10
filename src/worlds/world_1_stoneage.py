@@ -15,7 +15,7 @@ from src.environments.config import WorldConfig
 from src.graph_rag.async_logger import logger
 from src.agents.mamba_agent import MambaBatchModel
 from src.agents.world_model import WorldModel
-from src.environments.stone_economy import prey_reward, weapon_damage, has_spear, can_craft_spear, anneal, approach_reward, is_craft_ingredient, state_signature, novelty_bonus, try_craft_spear
+from src.environments.stone_economy import prey_reward, weapon_damage, has_spear, can_craft_spear, anneal, approach_reward, is_craft_ingredient, state_signature, novelty_bonus, try_craft_spear, crit_chance, attack_damage
 from src.graph_rag.memory_retriever import AsyncMemoryRetriever
 from src.swarm.consensus import WeightedConsensus, ConsensusConfig
 from src.swarm.hgt import HorizontalGeneTransfer, HGTConfig
@@ -44,6 +44,12 @@ class Biosphere3D(BaseWorld):
         # ε-greedy (EDR 019) : en entraînement, proba d'action aléatoire (mouvement + grab)
         # -> explorer le geste pour qu'il se déclenche, soit récompensé, et évolue.
         self.explore_eps = 0.0
+        # Coup CRITIQUE annealé (EDR 022, « forcer le destin ») : la lance seule ne tue pas
+        # le Mammouth (riposte mortelle) ; un crit décisif (proba décroissante par monde) le
+        # terrasse -> amorce le lien lance->apex, puis se sèvre. Persistance (feu/retraite) : à venir.
+        self.crit_base = 0.6
+        self.crit_eras = 20
+        self.crit_mult = 3.0
         # Rareté recalibrée (C) : nb max de proies régénérées par step vers le plafond.
         # Variable d'expérience : règle la capacité de charge écologique du monde.
         self.prey_regen_burst = 3
@@ -536,13 +542,19 @@ class Biosphere3D(BaseWorld):
         # Hunt / Attack (Asymmetrical combat)
         attacked_prey = next((p for p in self.preys if agent["x"] == p["x"] and agent["y"] == p["y"]), None)
         if attacked_prey:
-            # Dégâts dépendant de l'outil (Step 2) : 10 à mains nues, 50 avec une lance.
-            damage_dealt = weapon_damage(has_spear(agent["inventory"]))
+            cfg_atk = self.config.preys.get(attacked_prey["type"], None)
+            holds_spear = has_spear(agent["inventory"])
+            # Coup CRITIQUE annealé (EDR 022) : décisif uniquement avec une lance contre un
+            # gros gibier qui riposte (cfg.damage>0) -> « force le destin » tôt, se sèvre par monde.
+            era = getattr(self, "current_era", 1)
+            is_crit = (holds_spear and cfg_atk and cfg_atk.damage > 0
+                       and np.random.rand() < crit_chance(self.crit_base, era, self.crit_eras))
+            # Dégâts dépendant de l'outil (Step 2) : 10 à mains nues, 50 avec une lance ; ×crit_mult sur crit.
+            damage_dealt = attack_damage(weapon_damage(holds_spear), is_crit, self.crit_mult)
             attacked_prey["hp"] -= damage_dealt
-            logger.emit("PREY_ATTACKED", {"agent_id": agent["id"], "prey_type": attacked_prey["type"], "damage": damage_dealt})
+            logger.emit("PREY_ATTACKED", {"agent_id": agent["id"], "prey_type": attacked_prey["type"], "damage": damage_dealt, "crit": bool(is_crit)})
 
             # A) Scaffold : prime de courage à frapper un gros gibier (cfg.damage>0), annelé.
-            cfg_atk = self.config.preys.get(attacked_prey["type"], None)
             if cfg_atk and cfg_atk.damage > 0:
                 agent["energy"] += self.scaffold_bighit * anneal(getattr(self, "current_era", 1), self.scaffold_eras)
 
