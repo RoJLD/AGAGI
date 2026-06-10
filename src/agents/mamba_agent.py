@@ -5,7 +5,7 @@ from src.seed_ai.mutation import Genome, apply_mutations, MutationConfig
 from src.seed_ai.rl_evolution import recurrent_forward
 from src.metaprog.ntm_compiler import NTMProgramCompiler
 from src.agents.world_model import WorldModel
-from src.seed_ai.policy_gradient import reinforce_action_update
+from src.seed_ai.policy_gradient import reinforce_action_update, td_error
 
 class MambaAgent(BaseAgent):
     """
@@ -64,7 +64,8 @@ class MambaAgent(BaseAgent):
         self.ntm_memory = np.zeros((10, 5), dtype=np.float32)
         self.last_obs = None  # World Model : observation du tick précédent (Vague 0)
         self.world_model_Wp = None  # World Model PAR AGENT : prédicteur appris (EDR 015)
-        
+        self._td = None  # Actor-Critic TD : transition (s,a,r,V) différée d'un tick (EDR 023)
+
     def forward(self, obs: np.ndarray) -> np.ndarray:
         # Obs doit être un vecteur (1, I)
         if len(obs.shape) == 1:
@@ -609,10 +610,11 @@ class MambaBatchModel:
 
     def compute_policy_gradient(self, rewards_batch: np.ndarray, actions_batch=None):
         """
-        Apprentissage Intra-Vie. Si actions_batch est fourni : vrai ACTOR-CRITIC avec
-        crédit d'action (EDR 020) — l'action choisie est renforcée spécifiquement, le
-        critic (value head, sortie 28) est entraîné vers le reward. Sinon : ancien
-        Hebbien rustre (rétro-compat pour les appelants sans actions).
+        Apprentissage Intra-Vie. Si actions_batch est fourni : vrai ACTOR-CRITIC TD(0)
+        avec crédit d'action (EDR 020) ET crédit temporel (EDR 023) — l'action choisie est
+        renforcée par l'erreur TD δ = r + γ·V(s') − V(s) (transition différée d'un tick),
+        le critic (value head, sortie 28) apprend vers r + γ·V(s'). Sinon : ancien Hebbien
+        rustre (rétro-compat pour les appelants sans actions).
 
         actions_batch : liste alignée sur self.agents, chaque entrée = dict
             {"move": int 0..7, "grab": 0/1, "rub": 0/1}.
@@ -642,28 +644,36 @@ class MambaBatchModel:
                     self.agents[i].genome.W = self.W_batch[i][map_idx[:, None], map_idx[None, :]].copy()
             return
 
-        # --- Vrai Actor-Critic avec crédit d'action (EDR 020) ---
-        lr_actor, lr_critic = 0.02, 0.05
+        # --- Actor-Critic TD(0) : crédit d'action + crédit TEMPOREL (EDR 020/023) ---
+        # La transition (s,a,r) est mise à jour au tick SUIVANT, quand V(s') est connu :
+        #   δ = r + γ·V(s') − V(s)  sert d'avantage (actor) ET d'erreur du critic.
+        # -> une action coûteuse mais qui mène à un bon état (crafter -> pouvoir chasser)
+        #    reçoit un avantage positif. _td est stocké sur le modèle (robuste au re-batch).
+        lr_actor, lr_critic, gamma = 0.04, 0.05, 0.9
         for i in range(self.B):
-            act = actions_batch[i] if i < len(actions_batch) else None
-            if act is None:
-                continue
             N_i = self.agents[i].genome.num_nodes
             O_i = self.agents[i].genome.num_outputs
             map_idx = self.mappings[i]
-            h = self.H_prev_batch[i, map_idx]                          # (N_i,)
-            out_logits = self.H_prev_batch[i, map_idx[N_i - O_i:N_i]]  # (O_i,)
-            adv = float(advantages[i])
+            h_t = self.H_prev_batch[i, map_idx]                          # (N_i,)
+            out_t = self.H_prev_batch[i, map_idx[N_i - O_i:N_i]]         # (O_i,)
+            v_t = float(values[i])
+            act = actions_batch[i] if i < len(actions_batch) else None
 
-            # ACTOR : crédit de l'action choisie (mouvement + binaires grab/rub).
-            binaries = {24: int(act.get("grab", 0)), 25: int(act.get("rub", 0))}
-            dW = reinforce_action_update(h, out_logits, int(act.get("move", -1)),
-                                         binaries, adv, lr_actor)
-            # CRITIC : value head (sortie 28) entraînée vers le reward.
-            v_node = N_i - O_i + 28
-            if 0 <= v_node < N_i:
-                dW[:, v_node] += lr_critic * (float(rewards_batch[i]) - values[i]) * h
+            prev = getattr(self.agents[i], "_td", None)
+            if prev is not None and prev["act"] is not None:
+                delta = td_error(prev["reward"], prev["value"], v_t, gamma)   # δ = r + γV(s') − V(s)
+                pa = prev["act"]
+                binaries = {24: int(pa.get("grab", 0)), 25: int(pa.get("rub", 0))}
+                dW = reinforce_action_update(prev["h"], prev["out"], int(pa.get("move", -1)),
+                                             binaries, delta, lr_actor)        # ACTOR (avantage = δ)
+                vn = prev["v_node"]
+                if 0 <= vn < prev["h"].shape[0]:
+                    dW[:, vn] += lr_critic * delta * prev["h"]                 # CRITIC (vers r + γV')
+                W_block = np.clip(self.W_batch[i][map_idx[:, None], map_idx[None, :]] + dW, -5.0, 5.0)
+                self.W_batch[i][map_idx[:, None], map_idx[None, :]] = W_block
+                self.agents[i].genome.W = W_block.copy()
 
-            W_block = np.clip(self.W_batch[i][map_idx[:, None], map_idx[None, :]] + dW, -5.0, 5.0)
-            self.W_batch[i][map_idx[:, None], map_idx[None, :]] = W_block
-            self.agents[i].genome.W = W_block.copy()
+            # Mémoriser la transition courante pour l'update différé du prochain tick.
+            self.agents[i]._td = {"h": h_t.copy(), "out": out_t.copy(), "value": v_t,
+                                  "reward": float(rewards_batch[i]), "act": act,
+                                  "v_node": N_i - O_i + 28}

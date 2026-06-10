@@ -21,6 +21,18 @@ def _softmax(x):
     return e / (e.sum() + 1e-8)
 
 
+def td_error(reward, value, next_value, gamma=0.9):
+    """Erreur TD(0) : δ = r + γ·V(s') − V(s) (EDR 023).
+
+    Sert à la fois d'**avantage** pour l'actor ET d'erreur de correction du **critic**.
+    Capture le crédit TEMPOREL : une action à récompense immédiate nulle/négative mais qui
+    mène à un état de forte valeur (ex. *crafter* — coûte 2.0 maintenant — pour pouvoir
+    *chasser l'apex* plus tard) reçoit un avantage **positif** via γ·V(s'). C'est ce que le
+    critic Monte-Carlo (vers le reward immédiat) ne pouvait pas faire — sans quoi aucune
+    chaîne moyens→fins n'est apprenable. γ règle l'horizon (myope ↔ prévoyant)."""
+    return reward + gamma * next_value - value
+
+
 def reinforce_action_update(h, out_logits, chosen_move, binary_actions,
                             advantage, lr, n_move=8):
     """dW (N, N) créditant les actions CHOISIES (vrai policy gradient).

@@ -1,7 +1,19 @@
 """Tests du vrai policy gradient — crédit d'action (EDR 020)."""
 import numpy as np
+import pytest
 
-from src.seed_ai.policy_gradient import reinforce_action_update, _softmax
+from src.seed_ai.policy_gradient import reinforce_action_update, _softmax, td_error
+
+
+def test_td_error_temporal_credit():
+    # Crédit temporel : récompense immédiate NÉGATIVE (coût du craft) mais état suivant de
+    # forte valeur -> avantage POSITIF (ce que le critic MC immédiat ne voyait pas).
+    delta = td_error(reward=-2.0, value=1.0, next_value=10.0, gamma=0.9)
+    assert delta > 0.0                        # -2 + 0.9*10 - 1 = 6.0
+    # Sans futur (état terminal nul) -> se réduit à l'avantage immédiat r - V.
+    assert td_error(5.0, 2.0, 0.0, gamma=0.9) == pytest.approx(3.0)
+    # γ règle l'horizon : myope (γ=0) ignore le futur.
+    assert td_error(-2.0, 1.0, 10.0, gamma=0.0) == pytest.approx(-3.0)
 
 
 def _move_logit(W, h, N, O, m):
