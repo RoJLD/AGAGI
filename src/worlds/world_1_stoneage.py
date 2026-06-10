@@ -48,6 +48,12 @@ class Biosphere3D(BaseWorld):
         # training_mode (monde hybride : proies+matériaux régénérés MAIS nuit off + ε on).
         self.night_enabled = True
         self.big_kills = 0  # gros gibier tué (bout de la chaîne moyens->fins, EDR 027)
+        # Portée du signal (EDR 038) : 0 = same-cell (legacy) ; >0 = on entend les agents
+        # proches (Manhattan <= radius), atténué -> le signal peut RECRUTER le pack (Arc 5).
+        self.hear_radius = 0
+        # Coopération (EDR 028) : True = l'apex nourrit tout le pack ; False (ablation EDR 039) =
+        # tueur seul (permet de mesurer l'apport réel de la coopération).
+        self.coop_reward = True
         # Sevrage de la prime de groupe (EDR 030) : la prise d'apex passe de « pleine
         # récompense à chacun » (scaffold) à « partagée entre le pack » (économie réaliste).
         self.group_reward_eras = 20
@@ -326,8 +332,17 @@ class Biosphere3D(BaseWorld):
         adj_energy = np.max(energy_matrix, axis=1)
         
         spoken_arr = np.array([a.get("last_spoken", [0.0]*4) for a in self.agents], dtype=np.float32)
-        spoken_matrix = np.where(same_cell[:, :, None], spoken_arr[None, :, :], 0.0)
-        in_hear = np.max(spoken_matrix, axis=1)
+        radius = getattr(self, "hear_radius", 0)
+        if radius > 0:
+            # Portée du signal (EDR 038) : entendre les agents proches, atténué par la distance
+            # -> capacité physique de RECRUTEMENT (le sens reste à émerger, non scripté).
+            dist = np.abs(ax[:, None] - ax[None, :]) + np.abs(ay[:, None] - ay[None, :])  # Manhattan
+            atten = np.maximum(0.0, 1.0 - dist / (radius + 1.0))
+            np.fill_diagonal(atten, 0.0)
+            in_hear = np.max(spoken_arr[None, :, :] * atten[:, :, None], axis=1)
+        else:
+            spoken_matrix = np.where(same_cell[:, :, None], spoken_arr[None, :, :], 0.0)
+            in_hear = np.max(spoken_matrix, axis=1)
                     
         worm_nearby = np.zeros(N, dtype=np.float32)
         for w in self.worms:
@@ -575,19 +590,23 @@ class Biosphere3D(BaseWorld):
                     # APEX (Mammouth) : récompense de GROUPE (EDR 028) — la prise nourrit TOUT
                     # le pack qui l'a attaqué -> incite à rejoindre les chasses coopératives
                     # (riposte partagée + dégâts cumulés one-shotent) -> la coordination émerge
-                    # par sélection, sans dépendre du crit chanceux. C'est la chaîne moyens->fins
-                    # qui exige aussi une lance (EDR 027).
-                    attackers = attacked_prey.get("attackers", {agent["id"]})
-                    pack = [o for o in self.agents if o["id"] in attackers]
-                    n = max(1, len(pack))
-                    # Prime de groupe annealée (EDR 030) : part = 1.0 (pleine à chacun, scaffold)
-                    # -> 1/n (partage réaliste du festin) à mesure que la coopération se fixe.
-                    scaffold = anneal(getattr(self, "current_era", 1), self.group_reward_eras)
-                    share = scaffold + (1.0 - scaffold) / n
-                    for other in pack:
-                        other["energy"] = min(self.config.agent.energy_max, other["energy"] + reward * share)
-                        other["preys_eaten"] += 1
-                        other["mammoth_kills"] = other.get("mammoth_kills", 0) + 1  # sélection chaîne (EDR 028)
+                    # par sélection, sans dépendre du crit chanceux.
+                    if getattr(self, "coop_reward", True):
+                        attackers = attacked_prey.get("attackers", {agent["id"]})
+                        pack = [o for o in self.agents if o["id"] in attackers]
+                        n = max(1, len(pack))
+                        # Prime annealée (EDR 030) : 1.0 (pleine à chacun) -> 1/n (festin partagé).
+                        scaffold = anneal(getattr(self, "current_era", 1), self.group_reward_eras)
+                        share = scaffold + (1.0 - scaffold) / n
+                        for other in pack:
+                            other["energy"] = min(self.config.agent.energy_max, other["energy"] + reward * share)
+                            other["preys_eaten"] += 1
+                            other["mammoth_kills"] = other.get("mammoth_kills", 0) + 1
+                    else:
+                        # Ablation coopération (EDR 039) : tueur seul.
+                        agent["energy"] = min(self.config.agent.energy_max, agent["energy"] + reward)
+                        agent["preys_eaten"] += 1
+                        agent["mammoth_kills"] = agent.get("mammoth_kills", 0) + 1
                     self.big_kills = getattr(self, "big_kills", 0) + 1
                 else:
                     agent["energy"] = min(self.config.agent.energy_max, agent["energy"] + reward)
