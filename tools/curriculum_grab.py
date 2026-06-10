@@ -43,10 +43,11 @@ def _setup_grab_training(env, eps=0.3, n_items=50, keep_prey=False):
 
 
 def run_one_era(config, db, training, eps=0.3, n_items=50, keep_prey=False,
-                num_agents=30, max_ticks=200, energy=80.0):
+                craft_level=0, num_agents=30, max_ticks=200, energy=80.0):
     env = Biosphere3D(config)
     if training:
         _setup_grab_training(env, eps, n_items, keep_prey)
+    env.craft_level = craft_level   # axe Craft (EDR 018/025) : L0 auto -> L1 rub -> L2 position
     genomes, ntm = init_primordial_soup(num_agents=num_agents, shared_db=db, config=config)
     for g in genomes:
         a = MambaAgent()

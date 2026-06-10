@@ -851,12 +851,14 @@ class Biosphere3D(BaseWorld):
                 logits[agent["last_action"]] -= 0.1
                 
             action = int(np.argmax(logits[:8]))
-            # ε-greedy (EDR 019) : en entraînement, explorer l'espace d'action — mouvement
-            # aléatoire (traverser la carte) + forcer le geste grab (jamais tiré sinon).
+            # ε-greedy (EDR 019/025) : en entraînement, explorer l'espace d'action — mouvement
+            # aléatoire + forcer les gestes jamais tirés (grab ; rub pour craft_level>=1).
             force_grab = False
+            force_rub = False
             if self.training_mode and np.random.rand() < self.explore_eps:
                 action = np.random.randint(0, 8)
                 force_grab = (np.random.rand() < 0.5)
+                force_rub = (self.craft_level >= 1 and np.random.rand() < 0.5)
             agent["last_action"] = action
             
             do_throw = float(logits[8]) > 0
@@ -880,6 +882,8 @@ class Biosphere3D(BaseWorld):
 
             # EXP-10: Nouveaux logits Métacognitifs (après 25 = rub)
             do_rub = float(logits[25]) if len(logits) > 25 else 0.0
+            if force_rub:  # ε-greedy : force le geste rub (craft L1+, EDR 025)
+                do_rub = 1.0
             do_dream = float(logits[26]) if len(logits) > 26 else 0.0
             do_memorize = float(logits[27]) if len(logits) > 27 else 0.0
             value_pred = float(logits[28]) if len(logits) > 28 else 0.0
