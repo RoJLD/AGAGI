@@ -2,6 +2,7 @@ import numpy as np
 import logging
 import time
 import os
+import copy
 
 from src.seed_ai.evolution import EvolutionConfig
 from src.seed_ai.mutation import MutationConfig, Genome, apply_mutations
@@ -10,6 +11,7 @@ from src.worlds.world_2_agricultural import AgriculturalWorld
 from src.worlds.world_3_industrial import IndustrialWorld
 from src.environments.config import WorldConfig
 from src.seed_ai.persistence import load_hall_of_fame
+from src.seed_ai.repopulation import build_population
 from src.graph_rag.experiment_tracker import ExperimentGraph
 from src.agents.mamba_agent import MambaAgent
 from src.graph_rag.async_logger import logger as async_logger
@@ -86,13 +88,14 @@ def init_primordial_soup(num_agents=50, import_agent_id=None, keep_memory=False,
             
     if len(valid_hof) > 0:
         logger.info(f"🧬 Chargement de {len(valid_hof)} ancêtres depuis le Hall of Fame...")
-        for score, genome, stats in valid_hof:
-            genomes.append(genome)
-            # Remplir le reste avec des mutations des champions
-            while len(genomes) < num_agents and np.random.rand() < 0.2:
-                import copy
-                child = apply_mutations(copy.deepcopy(genome), mut_config)
-                genomes.append(child)
+        # EDR 024 : TOUTE la population descend des champions (élite + enfants mutés),
+        # plus de remplissage par W=zéros inertes (qui plombait la moyenne, 67% de la pop).
+        champions = [g for (_score, g, _stats) in valid_hof]
+        heavy_config = copy.deepcopy(mut_config)   # mutation FORTE (fraction exploratrice)
+        heavy_config.weight_mutate_rate = min(1.0, mut_config.weight_mutate_rate * 2.0)
+        heavy_config.weight_mutate_power = mut_config.weight_mutate_power * 1.5
+        genomes = build_population(champions, num_agents, mut_config, apply_mutations,
+                                   heavy_config=heavy_config, heavy_frac=0.3)
     else:
         logger.info("⚠️ Aucun ancêtre trouvé. Tabula Rasa !")
                 
