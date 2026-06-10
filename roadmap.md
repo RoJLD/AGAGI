@@ -60,6 +60,20 @@ Le cerveau ne repart pas *tabula rasa* à chaque monde : il est porté en avant,
 | **3 — Industrial** | Abstraction / composition | Division du travail, composition d'outils | Coopération, chaînes de production |
 | **Gym cognitif** | Opérations formelles | Logique, calcul, jeux (cf. § 4) | Taux de résolution de puzzle |
 
+### 1bis. Deuxième axe développemental : la complexité du craft (orthogonal)
+
+Le développement ne se fait pas que le long des **mondes** (écologie) mais aussi le long de la **mécanique** des compétences. Leçon de l'EDR 017 : la chaîne de craft empile trop de gates *d'un coup* → inémergeable. D'où un **2ᵉ axe orthogonal** : on complexifie la mécanique **par paliers**, un gate à la fois, chacun maîtrisé avant le suivant.
+
+| Niveau craft | Mécanique | Gate ajouté |
+|---|---|---|
+| **L0** | auto-craft (tenir tranchant+manche → lance, sans action) | collecter 2 ingrédients |
+| **L1** | + action de craft (`rub`) | le geste |
+| **L2** | + recette positionnelle (inventaire 0,1) | l'ordre |
+| **L3+** | recettes multi-étapes (rock→sharp_rock→spear) | la composition |
+| **LN** *(très loin)* | craft **3D** : forces, orientation, sens | la physique de l'outil |
+
+L'agent vit donc dans un **espace développemental 2D** : `Monde × Craft`. Le curriculum rampe `craft_level` par maîtrise (taux de craft), via les mêmes mastery gates (§2). Détail : `docs/EDR/018` ; rendu possible par le fix du moteur évolutif (`docs/EDR/016`).
+
 ### 2. Mécanisme de Graduation (Mastery Gates)
 
 *   **Métriques de compétence** : au-delà de l'énergie (seule récompense actuelle, `fitness = energy*0.5 + age*0.1`), un *bulletin de notes* par monde — KPI spécifiques au skill, ingérés par l'`AdaptiveTuner`.

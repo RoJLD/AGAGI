@@ -70,6 +70,36 @@ def approach_reward(d_before: float, d_after: float, eps: float, lam: float) -> 
     return eps * lam if d_after < d_before else 0.0
 
 
+def try_craft_spear(phys_list, do_rub, craft_level, sharp_min: float = 0.4, haft_min: float = 0.5):
+    """Indices (i, j) des 2 items d'inventaire a consommer pour former une lance, ou None.
+
+    AXE CRAFT (EDR 018) : la mecanique se complexifie par paliers, chacun ajoutant UN
+    gate (apprenable), au lieu de tous d'un coup (inemergeable, EDR 017) :
+      L0 (auto)    : tenir un tranchant + un manche n'importe ou -> lance (AUCUNE action).
+      L1 (action)  : idem, mais exige l'action do_rub (le geste).
+      L2 (position): exige do_rub ET les ingredients en positions 0 et 1 (recette positionnelle).
+
+    phys = (weight, sharp, edible, friction, flammable).
+    """
+    if len(phys_list) < 2:
+        return None
+    if craft_level >= 1 and not do_rub:
+        return None
+    if craft_level >= 2:
+        a, b = phys_list[0], phys_list[1]
+        if (a[1] >= sharp_min and b[4] >= haft_min) or (b[1] >= sharp_min and a[4] >= haft_min):
+            return (0, 1)
+        return None
+    # L0 / L1 : un tranchant et un manche, n'importe ou dans l'inventaire.
+    sharp_i = next((i for i, p in enumerate(phys_list) if p[1] >= sharp_min), None)
+    if sharp_i is None:
+        return None
+    haft_i = next((j for j, p in enumerate(phys_list) if p[4] >= haft_min and j != sharp_i), None)
+    if haft_i is None:
+        return None
+    return (sharp_i, haft_i)
+
+
 def is_craft_ingredient(phys, sharp_min: float = 0.4, haft_min: float = 0.5) -> bool:
     """Item utile a une lance : un tranchant (rock) OU un manche (stick/wood).
     Sert au scaffold de collecte (A) — phys = (weight, sharp, edible, friction, flammable)."""

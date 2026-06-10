@@ -5,7 +5,7 @@ import pytest
 
 from src.environments.stone_economy import (
     prey_reward, weapon_damage, has_spear, can_craft_spear, anneal, approach_reward,
-    is_craft_ingredient, state_signature, novelty_bonus,
+    is_craft_ingredient, state_signature, novelty_bonus, try_craft_spear,
 )
 
 # Physique réelle (config.py) : (weight, sharp, edible, friction, flammable)
@@ -49,6 +49,30 @@ def test_can_craft_spear_requires_edge_and_haft():
     assert can_craft_spear(ROCK, WOOD)      # bois aussi flammable
     assert not can_craft_spear(ROCK, ROCK)  # deux rochers : pas de manche (flammable 0)
     assert not can_craft_spear(STICK, STICK)  # deux sticks : pas assez tranchant (0.2)
+
+
+def test_try_craft_L0_auto_no_action_no_position():
+    # L0 : tenir rock+stick n'importe ou, SANS action -> craft.
+    assert try_craft_spear([ROCK, STICK], do_rub=False, craft_level=0) == (0, 1)
+    # rock en pos 2 : L0 le trouve quand meme (pas de contrainte de position)
+    assert try_craft_spear([STICK, STICK, ROCK], do_rub=False, craft_level=0) is not None
+    # un seul ingredient -> rien
+    assert try_craft_spear([ROCK], do_rub=False, craft_level=0) is None
+    assert try_craft_spear([STICK, STICK], do_rub=False, craft_level=0) is None  # pas de tranchant
+
+
+def test_try_craft_L1_requires_action():
+    assert try_craft_spear([ROCK, STICK], do_rub=False, craft_level=1) is None   # pas de geste
+    assert try_craft_spear([ROCK, STICK], do_rub=True, craft_level=1) == (0, 1)  # geste -> craft
+
+
+def test_try_craft_L2_requires_position():
+    # L2 : il faut les ingredients en positions 0 et 1 (+ action).
+    assert try_craft_spear([ROCK, STICK], do_rub=True, craft_level=2) == (0, 1)
+    assert try_craft_spear([STICK, ROCK], do_rub=True, craft_level=2) == (0, 1)
+    # bon couple mais mal place -> L2 echoue la ou L0 reussit (gradient de difficulte)
+    assert try_craft_spear([ROCK, ROCK, STICK], do_rub=True, craft_level=2) is None
+    assert try_craft_spear([ROCK, ROCK, STICK], do_rub=True, craft_level=0) is not None
 
 
 def test_state_signature_is_sorted_inventory():

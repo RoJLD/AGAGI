@@ -15,7 +15,7 @@ from src.environments.config import WorldConfig
 from src.graph_rag.async_logger import logger
 from src.agents.mamba_agent import MambaBatchModel
 from src.agents.world_model import WorldModel
-from src.environments.stone_economy import prey_reward, weapon_damage, has_spear, can_craft_spear, anneal, approach_reward, is_craft_ingredient, state_signature, novelty_bonus
+from src.environments.stone_economy import prey_reward, weapon_damage, has_spear, can_craft_spear, anneal, approach_reward, is_craft_ingredient, state_signature, novelty_bonus, try_craft_spear
 from src.graph_rag.memory_retriever import AsyncMemoryRetriever
 from src.swarm.consensus import WeightedConsensus, ConsensusConfig
 from src.swarm.hgt import HorizontalGeneTransfer, HGTConfig
@@ -38,6 +38,9 @@ class Biosphere3D(BaseWorld):
         self.world_model = WorldModel(self.config.agent.num_inputs)
         # Curriculum (EDR 017) : "grab" = entraînement de la collecte (monde sûr, nuit off).
         self.training_mode = None
+        # AXE CRAFT (EDR 018) : complexité de la mécanique de craft. 0 = auto-craft (tenir
+        # tranchant+manche -> lance, sans action). Le curriculum rampe 0->1->2... par maîtrise.
+        self.craft_level = 0
         # Rareté recalibrée (C) : nb max de proies régénérées par step vers le plafond.
         # Variable d'expérience : règle la capacité de charge écologique du monde.
         self.prey_regen_burst = 3
@@ -962,31 +965,29 @@ class Biosphere3D(BaseWorld):
                     agent["throw_feedback"] = -1.0
                     agent["throw_feedback_ttl"] = 5
                     
-            # 5. Rub (Crafting) — Lance (outil, Step 2) OU Spark (feu)
-            if do_rub and len(agent["inventory"]) >= 2:
-                item1 = agent["inventory"][0]
-                item2 = agent["inventory"][1]
-                phys1 = self.item_physics(item1)
-                phys2 = self.item_physics(item2)
-
-                if can_craft_spear(phys1, phys2):
-                    # Tranchant + manche -> Lance. Consomme les 2 ingrédients.
-                    agent["energy"] -= 2.0
-                    agent["inventory"] = agent["inventory"][2:]
-                    spear = {"type": "Spear", "weight": 2.0}
-                    if len(agent["inventory"]) < agent["inv_capacity"]:
-                        agent["inventory"].append(spear)
-                    else:
-                        spear["x"], spear["y"], spear["z"] = agent["x"], agent["y"], 0
-                        self.items.append(spear)
-                    logger.emit("SPEAR_CRAFTED", {"agent_id": agent["id"]})
-                    agent["spears_crafted"] = agent.get("spears_crafted", 0) + 1  # fitness (EDR 016)
-                    # A) Scaffold : jalon de craft (annelé) — la récompense la plus forte.
-                    agent["energy"] += self.scaffold_craft * anneal(getattr(self, "current_era", 1), self.scaffold_eras)
-                elif phys1[3] * phys2[3] > 0.5:
-                    agent["energy"] -= 2.0
-                    self.items.append({"x": agent["x"], "y": agent["y"], "z": 0, "type": "Spark", "ttl": 3})
-                    agent["last_spoken"] = [99.0, 99.0, 99.0, 99.0]
+            # 5. Craft — Lance (AXE CRAFT, EDR 018, paramétré par craft_level) + Spark (feu).
+            inv = agent["inventory"]
+            phys_list = [self.item_physics(it) for it in inv]
+            craft_idx = try_craft_spear(phys_list, do_rub, self.craft_level)
+            if craft_idx is not None:
+                # Tranchant + manche -> Lance. Consomme les 2 ingrédients (par index).
+                agent["energy"] -= 2.0
+                agent["inventory"] = [it for k, it in enumerate(inv) if k not in craft_idx]
+                spear = {"type": "Spear", "weight": 2.0}
+                if len(agent["inventory"]) < agent["inv_capacity"]:
+                    agent["inventory"].append(spear)
+                else:
+                    spear["x"], spear["y"], spear["z"] = agent["x"], agent["y"], 0
+                    self.items.append(spear)
+                logger.emit("SPEAR_CRAFTED", {"agent_id": agent["id"]})
+                agent["spears_crafted"] = agent.get("spears_crafted", 0) + 1  # fitness (EDR 016)
+                # Scaffold : jalon de craft (annelé).
+                agent["energy"] += self.scaffold_craft * anneal(getattr(self, "current_era", 1), self.scaffold_eras)
+            elif do_rub and len(inv) >= 2 and phys_list[0][3] * phys_list[1][3] > 0.5:
+                # Spark (feu) — friction, rub-gated, inchangé.
+                agent["energy"] -= 2.0
+                self.items.append({"x": agent["x"], "y": agent["y"], "z": 0, "type": "Spark", "ttl": 3})
+                agent["last_spoken"] = [99.0, 99.0, 99.0, 99.0]
 
             do_grab = float(logits[24]) if len(logits) > 24 else 0.0
             
