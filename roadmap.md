@@ -293,12 +293,20 @@ L'axe 4.1 (récompenses pur intrinsèques, *« pas dit mais trouvé »*) reste l
 4. ✅ **Axe Craft** rampé L0→L1→L2, tous maîtrisés via mastery gates (`EDR 025`).
 5. ✅ **Axe Monde** rampé (rareté alimentaire) : 3 paliers maîtrisés, **mur à la rareté extrême** (`EDR 026`).
 
-### 🟣 Vague 0quater — Intégration 2D (Monde × Craft) — PRIORITÉ ACTUELLE
+### ✅ Vague 0quater — Intégration 2D (Monde × Craft) — LIVRÉE
 
-Découverte clé (`EDR 026`) : **les deux axes s'imbriquent.** La rareté extrême du Monde (petit gibier épuisé) *force* le Craft (gros gibier → lance nécessaire). Le mur de l'axe Monde seul EST le point d'entrée du Craft.
+Découverte clé (`EDR 026`) : **les deux axes s'imbriquent.** La rareté extrême du Monde force le Craft. Résultats :
 
-6. **Curriculum 2D conjoint** : monter la rareté ET ouvrir `craft_level` + le crit, pour que la population bascule de la chasse au petit gibier vers le **gros gibier outillé** (la chaîne moyens→fins complète). Le `CurriculumRunner` orchestre les deux axes.
-7. **Cadencer le crit** (`crit_eras`) pour chevaucher l'émergence du stun/coopération (persistance, pont vers l'Arc 5 Tribu).
+6. ✅ **Chaîne moyens→fins émerge bout à bout** (`EDR 027`) : sous la rareté, `crafts` + `mammouth` montent ensemble (un Mammouth est intuable sans lance → chaque kill prouve la chaîne complète). Monde hybride découplé (nuit/ε indépendants de training_mode).
+7. ✅ **Persistance résolue — coopération robuste** (`EDR 028`) : la chasse à l'apex était crit-dépendante (0.70→0.20 au sevrage) ; la **récompense de groupe** (l'apex nourrit tout le pack) fait émerger la coopération → l'apex-hunting **persiste sans crit** (0.70→0.67). Premier comportement *social* du projet → pont vers l'Arc 5 (Tribu).
+
+### 🔴 Vague 0quinquies — Rendre la chaîne DOMINANTE — PRIORITÉ ACTUELLE
+
+La chaîne est robuste mais pas encore *dominante* (à rareté extrême, `proies_moy ≈ 0.6` : elle tient mais ne nourrit pas toute la population).
+
+8. **Sélectionner pour la chaîne** : récompenser l'apex-kill dans le `life_score` (et tracer `mammoth_kills`) pour que le génome chasseur-coopératif domine le HoF.
+9. **Vies/sélection plus longues** : laisser la chaîne s'exécuter et le comportement se fixer.
+10. **Anneler la prime de groupe** (comme le crit) pour qu'elle n'entretienne pas un acquis.
 
 *(Les vagues ci-dessous — hygiène, RSI, émergence avancée — restent valables et viennent ensuite.)*
 

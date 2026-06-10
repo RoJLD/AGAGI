@@ -18,8 +18,11 @@ class AgentSnapshot:
 def calculate_life_score(agent) -> float:
     # EDR 016/017 : le craft entre dans la fitness (poids fort) pour que la selection
     # saisisse les crafteurs maintenant que le HoF est persiste -> le craft peut evoluer.
+    # EDR 028 : l'apex-kill (chasse coopérative au Mammouth, bout de la chaîne) pèse fort
+    # -> la sélection saisit le chasseur-coopératif pour que la chaîne devienne DOMINANTE.
     return ((agent["age"] * 0.1) + (agent["preys_eaten"] * 50.0)
-            + (agent["altars_solved"] * 20.0) + (agent.get("spears_crafted", 0) * 300.0))
+            + (agent["altars_solved"] * 20.0) + (agent.get("spears_crafted", 0) * 300.0)
+            + (agent.get("mammoth_kills", 0) * 400.0))
 
 def save_agent_state(agent, path: str) -> str:
     """Sauvegarde état complet d'un MambaAgent en .npz."""
@@ -64,7 +67,7 @@ def save_to_hall_of_fame(agent) -> Optional[str]:
 
     version, hof = load_hall_of_fame()
     import copy
-    stats = {"age": agent["age"], "preys_eaten": agent["preys_eaten"], "altars_solved": agent["altars_solved"], "spears_crafted": agent.get("spears_crafted", 0), "score": score}
+    stats = {"age": agent["age"], "preys_eaten": agent["preys_eaten"], "altars_solved": agent["altars_solved"], "spears_crafted": agent.get("spears_crafted", 0), "mammoth_kills": agent.get("mammoth_kills", 0), "score": score}
     genome = agent["model"].genome if "model" in agent else agent["genome"]
     agent_id = f"{score}_{agent['age']}_{len(hof)}"
 

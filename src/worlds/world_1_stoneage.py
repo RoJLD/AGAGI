@@ -235,6 +235,7 @@ class Biosphere3D(BaseWorld):
             "confort": 50.0,
             "age": 0,
             "preys_eaten": 0,
+            "mammoth_kills": 0,
             "altars_solved": 0,
             "spears_crafted": 0,
             "last_action": -1,
@@ -578,6 +579,7 @@ class Biosphere3D(BaseWorld):
                         if other["id"] in attackers:
                             other["energy"] = min(self.config.agent.energy_max, other["energy"] + reward)
                             other["preys_eaten"] += 1
+                            other["mammoth_kills"] = other.get("mammoth_kills", 0) + 1  # sélection chaîne (EDR 028)
                     self.big_kills = getattr(self, "big_kills", 0) + 1
                 else:
                     agent["energy"] = min(self.config.agent.energy_max, agent["energy"] + reward)
