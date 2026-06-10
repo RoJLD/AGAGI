@@ -36,13 +36,13 @@ class MambaAgent(BaseAgent):
         self.reset_state()
         
         self.phenotype_hp_bonus = float(np.sum(np.abs(self.genome.W[0:5])) * 10.0)
-        self.phenotype_inv_capacity = max(1, int(np.sum(np.abs(self.genome.W[5:10]))))
+        self.phenotype_inv_capacity = max(3, int(np.sum(np.abs(self.genome.W[5:10]))))  # min 3 : pouvoir tenir rock+stick (gate craft, EDR 017)
         mcts_drain = 0.5 if (self.genome.organ_genes is not None and self.genome.organ_genes[0]) else 0.0
         self.phenotype_energy_drain = 1.0 + (self.phenotype_hp_bonus / 100.0) + (self.phenotype_inv_capacity * 0.1) + mcts_drain
         
     def update_phenotype(self):
         self.phenotype_hp_bonus = float(np.sum(np.abs(self.genome.W[0:5])) * 10.0)
-        self.phenotype_inv_capacity = max(1, int(np.sum(np.abs(self.genome.W[5:10]))))
+        self.phenotype_inv_capacity = max(3, int(np.sum(np.abs(self.genome.W[5:10]))))  # min 3 : pouvoir tenir rock+stick (gate craft, EDR 017)
         
         # Macro-NAS penalité: Avoir un organe "Cortex" coûte très cher en énergie
         mcts_drain = 0.5 if (self.genome.organ_genes is not None and self.genome.organ_genes[0]) else 0.0

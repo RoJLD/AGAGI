@@ -36,6 +36,8 @@ class Biosphere3D(BaseWorld):
         # World Model partagé par la population (Vague 0, levier 1) : alimente la
         # vraie surprise / curiosité. Possédé par le monde -> persiste sur toute l'ère.
         self.world_model = WorldModel(self.config.agent.num_inputs)
+        # Curriculum (EDR 017) : "grab" = entraînement de la collecte (monde sûr, nuit off).
+        self.training_mode = None
         # Rareté recalibrée (C) : nb max de proies régénérées par step vers le plafond.
         # Variable d'expérience : règle la capacité de charge écologique du monde.
         self.prey_regen_burst = 3
@@ -704,7 +706,9 @@ class Biosphere3D(BaseWorld):
     def step(self):
         self.ticks += 1
         was_night = getattr(self, "is_night", False)
-        self.is_night = (self.ticks % 100) >= 50
+        # Curriculum : pas de nuit (mortelle) en mode entraînement -> les agents survivent
+        # assez pour apprendre la collecte.
+        self.is_night = ((self.ticks % 100) >= 50) and not self.training_mode
         
         # EXP-9: Bonus d'aube (Transition Nuit -> Jour)
         if was_night and not self.is_night:
@@ -741,7 +745,7 @@ class Biosphere3D(BaseWorld):
         # prey_regen_burst proies/step vers le plafond. Assez de flux pour qu'une
         # population persiste (capacité de charge), sans refill instantané.
         spawned = 0
-        while len(self.preys) < self.config.target_prey_count and spawned < self.prey_regen_burst:
+        while (not self.training_mode) and len(self.preys) < self.config.target_prey_count and spawned < self.prey_regen_burst:
             self._spawn_prey_instance(np.random.choice(["Lapin", "Cerf", "Sanglier", "Mammouth"], p=[0.4, 0.3, 0.2, 0.1]))
             spawned += 1
             
