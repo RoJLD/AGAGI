@@ -202,7 +202,7 @@ def main():
             env = Biosphere3D(config)
 
         primordial_genomes, imported_ntm = init_primordial_soup(
-            num_agents=100,
+            num_agents=30,  # recalibrage C : démarrer près de la capacité de charge
             import_agent_id=import_agent_id if generation_auto == 1 else None, # Only import on first era
             keep_memory=keep_memory,
             shared_db=shared_db,
@@ -326,7 +326,19 @@ def main():
             
         if hasattr(env, 'memory_retriever'):
             env.memory_retriever.stop()
-        
+
+        # --- SAUVEGARDE HoF (EDR 016) : le moteur evolutif etait CASSE ---
+        # main_biosphere chargeait le HoF mais ne l'ecrivait JAMAIS : chaque ere
+        # repartait du meme HoF statique -> zero evolution inter-ere. Sans ce save,
+        # ni scaffold, ni curiosite, ni curriculum ne peuvent s'accumuler.
+        try:
+            from src.seed_ai.persistence import save_to_hall_of_fame, calculate_life_score
+            pool = env.agents + env.dead_agents
+            for cand in sorted(pool, key=calculate_life_score, reverse=True)[:5]:
+                save_to_hall_of_fame(cand)
+        except Exception as e:
+            logger.error(f"Echec sauvegarde HoF: {e}")
+
         best_agent_ever_id = best_agent["id"][:8] if "best_agent" in locals() else None
         # Route le log des résultats d'ère via l'AsyncLogger (single writer thread)
         # Cela évite l'erreur "Only one write transaction at a time"
