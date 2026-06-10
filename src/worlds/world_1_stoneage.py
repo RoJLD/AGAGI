@@ -54,6 +54,11 @@ class Biosphere3D(BaseWorld):
         # Coopération (EDR 028) : True = l'apex nourrit tout le pack ; False (ablation EDR 039) =
         # tueur seul (permet de mesurer l'apport réel de la coopération).
         self.coop_reward = True
+        # Coût & porte du signal (EDR 042) : signaler n'est possible que si les logits de langage
+        # dépassent speak_threshold, et coûte signal_cost d'énergie -> signal SÉLECTIF (informatif)
+        # au lieu de constant (bruit, EDR 037). Défaut 0/0 = legacy (tout le monde parle).
+        self.speak_threshold = 0.0
+        self.signal_cost = 0.0
         # Sevrage de la prime de groupe (EDR 030) : la prise d'apex passe de « pleine
         # récompense à chacun » (scaffold) à « partagée entre le pack » (économie réaliste).
         self.group_reward_eras = 20
@@ -912,14 +917,19 @@ class Biosphere3D(BaseWorld):
             aim_vec = np.array([float(logits[11]), float(logits[12])])
             if getattr(self.config, "active_exp_variable", "NONE") == "LANGUAGE":
                 raw_spoken = logits[19:23]
-                gumbel_noise = -np.log(-np.log(np.random.uniform(0, 1, size=4) + 1e-10) + 1e-10)
-                temp = 0.1
-                y = np.exp((raw_spoken + gumbel_noise) / temp)
-                y_out = y / np.sum(y)
-                token_idx = np.argmax(y_out)
-                one_hot = np.zeros(4)
-                one_hot[token_idx] = 1.0
-                agent["last_spoken"] = [float(l) for l in one_hot]
+                # Porte « parler/se taire » + coût (EDR 042) : on ne signale que si l'intention
+                # de langage dépasse le seuil ; signaler coûte de l'énergie -> signal SÉLECTIF.
+                if np.max(np.abs(raw_spoken)) > self.speak_threshold:
+                    gumbel_noise = -np.log(-np.log(np.random.uniform(0, 1, size=4) + 1e-10) + 1e-10)
+                    temp = 0.1
+                    y = np.exp((raw_spoken + gumbel_noise) / temp)
+                    token_idx = np.argmax(y / np.sum(y))
+                    one_hot = np.zeros(4)
+                    one_hot[token_idx] = 1.0
+                    agent["last_spoken"] = [float(l) for l in one_hot]
+                    agent["energy"] -= self.signal_cost
+                else:
+                    agent["last_spoken"] = [0.0] * 4      # silence
             else:
                 agent["last_spoken"] = [float(l) for l in logits[19:23]]
             
