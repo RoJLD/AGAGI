@@ -59,6 +59,10 @@ class Biosphere3D(BaseWorld):
         # au lieu de constant (bruit, EDR 037). Défaut 0/0 = legacy (tout le monde parle).
         self.speak_threshold = 0.0
         self.signal_cost = 0.0
+        # Brouillage du signal (EDR 043) : True = remplace le token par un token ALÉATOIRE
+        # (présence préservée, SENS détruit). Si la portée aide encore -> c'est la présence,
+        # pas le contenu, qui porte le bénéfice (arbitre de l'EDR 042).
+        self.scramble_signal = False
         # Sevrage de la prime de groupe (EDR 030) : la prise d'apex passe de « pleine
         # récompense à chacun » (scaffold) à « partagée entre le pack » (économie réaliste).
         self.group_reward_eras = 20
@@ -924,6 +928,8 @@ class Biosphere3D(BaseWorld):
                     temp = 0.1
                     y = np.exp((raw_spoken + gumbel_noise) / temp)
                     token_idx = np.argmax(y / np.sum(y))
+                    if getattr(self, "scramble_signal", False):
+                        token_idx = np.random.randint(4)   # contenu ALÉATOIRE, présence préservée
                     one_hot = np.zeros(4)
                     one_hot[token_idx] = 1.0
                     agent["last_spoken"] = [float(l) for l in one_hot]
