@@ -1,40 +1,41 @@
-import subprocess
 import os
+
+from src.metaprog.secure_sandbox import validate_code, run_sandboxed, first_def_name
+
 
 def validate_and_install_mutation(code_str: str) -> bool:
     """
-    Sandboxing et Validation (Commandements 6 & 7).
-    Prend du code généré par l'IA, l'écrit dans la sandbox et lance pytest.
+    Sandboxing et Validation (Commandements 6 & 7 ; durci EDR 035).
+    Gate AST + test ISOLÉ (hors-repo) AVANT d'écrire le fichier live `generated_ops.py`.
+    Le code n'atteint le chemin chargé en live que s'il a passé la sécurité.
     """
+    # 1. Gate statique : rejet immédiat du code dangereux (sans rien écrire/exécuter).
+    ok, reason = validate_code(code_str)
+    if not ok:
+        print(f"[META-PROG] Code REJETE par le gate AST : {reason}")
+        return False
+
+    # 2. Test isolé (dossier temporaire hors-repo, subprocess -I, timeout) sur le code généré.
+    fn = first_def_name(code_str) or "new_activation"   # nom détecté (Swish, custom_activation…)
+    test_code = (
+        "import numpy as np\n"
+        f"_r = {fn}(np.array([-1.0, 0.0, 1.0]))\n"
+        "assert _r.shape == (3,)\n"
+        "assert not np.isnan(_r).any() and not np.isinf(_r).any()\n"
+        "print('ok')\n"
+    )
+    ok2, reason2 = run_sandboxed(code_str, test_code)
+    if not ok2:
+        print(f"[META-PROG] Validation isolee echouee : {reason2}")
+        return False
+
+    # 3. Seulement maintenant : écrire le fichier live (chargé par l'agent après re-validation).
     sandbox_dir = os.path.join(os.path.dirname(__file__), "sandbox")
     os.makedirs(sandbox_dir, exist_ok=True)
-    
-    ops_file = os.path.join(sandbox_dir, "generated_ops.py")
-    with open(ops_file, "w", encoding="utf-8") as f:
+    with open(os.path.join(sandbox_dir, "generated_ops.py"), "w", encoding="utf-8") as f:
         f.write(code_str)
-        
-    # Run pytest on the sandbox
-    test_file = os.path.join(sandbox_dir, "test_metaprog.py")
-    try:
-        # Timeout de 5.0 secondes (Commandement 6) pour éviter les boucles infinies
-        result = subprocess.run(
-            ["pytest", test_file, "-q"],
-            capture_output=True,
-            text=True,
-            timeout=5.0
-        )
-        if result.returncode == 0:
-            print("[META-PROG] Code validation passed!")
-            # Si succès, le fichier generated_ops.py est prêt à l'emploi.
-            # Dans l'avenir, on l'injectera dans le dictionnaire de MutationConfig.
-            return True
-        else:
-            print(f"[META-PROG] Validation failed:\n{result.stdout}\n{result.stderr}")
-            return False
-        return False
-    except subprocess.TimeoutExpired:
-        print("[META-PROG] Validation timed out (Infinite loop ?)")
-        return False
+    print("[META-PROG] Code validation passed (secure) !")
+    return True
 
 def compile_bytecode_to_python(bytecode) -> str:
     """

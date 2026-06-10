@@ -235,6 +235,17 @@ def _get_activation_function():
         try:
             mtime = os.path.getmtime(ops_file)
             if mtime > _cached_mtime:
+                # Défense en profondeur (EDR 035) : re-valider (gate AST) AVANT d'exécuter
+                # ce code en LIVE dans le process. Refus -> on garde l'activation courante.
+                from src.metaprog.secure_sandbox import validate_code
+                with open(ops_file, "r", encoding="utf-8") as _f:
+                    _ok, _reason = validate_code(_f.read())
+                if not _ok:
+                    import logging
+                    logging.getLogger("AGIseed.Mamba").error(
+                        f"[METAPROG] generated_ops REJETE par la securite ({_reason}) — non charge.")
+                    _cached_mtime = mtime   # ne pas re-tenter ce fichier
+                    return _cached_activation
                 spec = importlib.util.spec_from_file_location("generated_ops", ops_file)
                 generated_ops = importlib.util.module_from_spec(spec)
                 spec.loader.exec_module(generated_ops)

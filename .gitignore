@@ -33,3 +33,8 @@ frontend/.env*
 Thumbs.db
 .vscode/
 .idea/
+
+# Artefacts metaprog generes (EDR 035) — ne jamais committer/exécuter dans le repo
+tests/sandbox/generated_op.py
+tests/sandbox/test_generated_op.py
+src/metaprog/sandbox/generated_ops.py
