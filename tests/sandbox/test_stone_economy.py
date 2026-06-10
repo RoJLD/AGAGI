@@ -5,6 +5,7 @@ import pytest
 
 from src.environments.stone_economy import (
     prey_reward, weapon_damage, has_spear, can_craft_spear, anneal, approach_reward,
+    is_craft_ingredient,
 )
 
 # Physique réelle (config.py) : (weight, sharp, edible, friction, flammable)
@@ -48,6 +49,13 @@ def test_can_craft_spear_requires_edge_and_haft():
     assert can_craft_spear(ROCK, WOOD)      # bois aussi flammable
     assert not can_craft_spear(ROCK, ROCK)  # deux rochers : pas de manche (flammable 0)
     assert not can_craft_spear(STICK, STICK)  # deux sticks : pas assez tranchant (0.2)
+
+
+def test_is_craft_ingredient():
+    assert is_craft_ingredient(ROCK)    # tranchant (sharp 0.5)
+    assert is_craft_ingredient(STICK)   # manche (flammable 1.0)
+    assert is_craft_ingredient(WOOD)
+    assert not is_craft_ingredient((0.5, 0.0, 1.0, 0.1, 0.0))  # Fruit : ni l'un ni l'autre
 
 
 def test_anneal_fades_over_eras():

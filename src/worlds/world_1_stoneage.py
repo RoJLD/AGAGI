@@ -15,7 +15,7 @@ from src.environments.config import WorldConfig
 from src.graph_rag.async_logger import logger
 from src.agents.mamba_agent import MambaBatchModel
 from src.agents.world_model import WorldModel
-from src.environments.stone_economy import prey_reward, weapon_damage, has_spear, can_craft_spear, anneal, approach_reward
+from src.environments.stone_economy import prey_reward, weapon_damage, has_spear, can_craft_spear, anneal, approach_reward, is_craft_ingredient
 from src.graph_rag.memory_retriever import AsyncMemoryRetriever
 from src.swarm.consensus import WeightedConsensus, ConsensusConfig
 from src.swarm.hgt import HorizontalGeneTransfer, HGTConfig
@@ -39,9 +39,12 @@ class Biosphere3D(BaseWorld):
         # Rareté recalibrée (C) : nb max de proies régénérées par step vers le plafond.
         # Variable d'expérience : règle la capacité de charge écologique du monde.
         self.prey_regen_burst = 3
-        # Scaffold d'approche (A) : bonus annelé qui enseigne à se rapprocher du gibier
-        # (fix du goulot de compétence de chasse, EDR 012). Variables d'expérience.
-        self.scaffold_eps = 0.5
+        # Scaffold (A) : bonus annelés enseignant l'échelle de compétence (EDR 012/013).
+        # Variables d'expérience.
+        self.scaffold_eps = 0.5       # approche du gibier
+        self.scaffold_grab = 1.0      # collecte d'un ingrédient de craft
+        self.scaffold_craft = 5.0     # craft d'une lance (jalon)
+        self.scaffold_bighit = 2.0    # coup porté à un gros gibier
         self.scaffold_eras = 30
         self.physics_registry = DynamicPhysicsRegistry(self.config.item_physics)
         self.num_altars = self.config.num_altars
@@ -520,6 +523,11 @@ class Biosphere3D(BaseWorld):
             attacked_prey["hp"] -= damage_dealt
             logger.emit("PREY_ATTACKED", {"agent_id": agent["id"], "prey_type": attacked_prey["type"], "damage": damage_dealt})
 
+            # A) Scaffold : prime de courage à frapper un gros gibier (cfg.damage>0), annelé.
+            cfg_atk = self.config.preys.get(attacked_prey["type"], None)
+            if cfg_atk and cfg_atk.damage > 0:
+                agent["energy"] += self.scaffold_bighit * anneal(getattr(self, "current_era", 1), self.scaffold_eras)
+
             if attacked_prey["hp"] <= 0:
                 # Récompense ∝ difficulté (Step 2) : le Lapin sustente, le Mammouth enrichit.
                 cfg_prey = self.config.preys.get(attacked_prey["type"], None)
@@ -958,6 +966,8 @@ class Biosphere3D(BaseWorld):
                         spear["x"], spear["y"], spear["z"] = agent["x"], agent["y"], 0
                         self.items.append(spear)
                     logger.emit("SPEAR_CRAFTED", {"agent_id": agent["id"]})
+                    # A) Scaffold : jalon de craft (annelé) — la récompense la plus forte.
+                    agent["energy"] += self.scaffold_craft * anneal(getattr(self, "current_era", 1), self.scaffold_eras)
                 elif phys1[3] * phys2[3] > 0.5:
                     agent["energy"] -= 2.0
                     self.items.append({"x": agent["x"], "y": agent["y"], "z": 0, "type": "Spark", "ttl": 3})
@@ -974,6 +984,9 @@ class Biosphere3D(BaseWorld):
                         agent["inventory"].append(item)
                         self.items.remove(item)
                         agent["energy"] -= 1.0
+                        # A) Scaffold : prime de collecte d'un ingrédient de craft (annelé).
+                        if is_craft_ingredient(self.item_physics(item)):
+                            agent["energy"] += self.scaffold_grab * anneal(getattr(self, "current_era", 1), self.scaffold_eras)
                     else:
                         # LIFO Drop Policy : The last item added is dropped at the agent's feet
                         dropped_item = agent["inventory"].pop(-1)

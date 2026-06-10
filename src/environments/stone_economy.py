@@ -57,6 +57,12 @@ def approach_reward(d_before: float, d_after: float, eps: float, lam: float) -> 
     return eps * lam if d_after < d_before else 0.0
 
 
+def is_craft_ingredient(phys, sharp_min: float = 0.4, haft_min: float = 0.5) -> bool:
+    """Item utile a une lance : un tranchant (rock) OU un manche (stick/wood).
+    Sert au scaffold de collecte (A) — phys = (weight, sharp, edible, friction, flammable)."""
+    return phys[1] >= sharp_min or phys[4] >= haft_min
+
+
 def can_craft_spear(phys_a, phys_b, sharp_min: float = 0.4, haft_min: float = 0.5) -> bool:
     """Deux items forment-ils une lance ? Il faut un tranchant (sharp) ET un manche
     (flammable : stick/wood). Piloté par la physique, pas par des types codés en dur.
