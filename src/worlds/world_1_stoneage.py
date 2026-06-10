@@ -315,9 +315,11 @@ class Biosphere3D(BaseWorld):
                 de[i] = max(0, p["x"] - ax[i]) / self.size
                 dw[i] = max(0, ax[i] - p["x"]) / self.size
                 is_flying[i] = 1.0 if p["type"] in ["Lapin", "Cerf"] else 0.0
-                if dists[closest_idx] <= 1:                       # adjacent -> on perçoit le type (EDR 047)
+                if dists[closest_idx] <= 1:                       # adjacent -> on perçoit le type (EDR 047/048)
                     if p["type"] == "Mammouth":
                         on_apex_type[i] = 1.0
+                    elif p["type"] == "Ours":
+                        on_apex_type[i] = 0.5                      # 3e référent récompensé (EDR 048)
                     elif p["type"] == "Leurre":
                         on_apex_type[i] = -1.0
                 is_stunned[i] = 1.0 if p.get("stunned", 0) > 0 else 0.0
