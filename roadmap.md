@@ -112,6 +112,48 @@ L'axe 4.1 (récompenses pur intrinsèques, *« pas dit mais trouvé »*) reste l
 
 ---
 
+## 🗺️ Dimensions d'Expérimentation (carte de référence)
+
+Toute expérience du projet se situe dans **4 familles** de dimensions orthogonales. On *maîtrise* aujourd'hui B et D ; on a *réparé* A ; C reste la frontière.
+
+```mermaid
+graph TD
+    ROOT[AGIseed — espace d'expérimentation]
+
+    ROOT --> A["A. TEMPS — 2 horloges"]
+    A --> A1["1. Ontogénèse · intra-vie · Actor-Critic TD<br/>EDR 020/023"]
+    A --> A2["2. Phylogénèse · inter-ère · Sélection+HoF+HGT<br/>EDR 016/024"]
+
+    ROOT --> B["B. DÉVELOPPEMENTAL — 3 axes de complexité"]
+    B --> B3["3. Monde · Soup→Stoneage→Agri→Industrial<br/>(axe à étoffer)"]
+    B --> B4["4. Craft · L0→L1→L2…<br/>EDR 018/025"]
+    B --> B5["5. Difficulté · rareté/danger/nuit<br/>EDR 026"]
+
+    ROOT --> C["C. MÉTA-ÉVOLUTION — le système grandit"]
+    C --> C6["6. Les 7 Arcs · versions V7→V16+"]
+    C --> C7["7. Architecture agent · NAS Micro/Meso/Macro<br/>(gelé, Vague 4)"]
+
+    ROOT --> D["D. MÉCANISMES — leviers réglés/ablatés"]
+    D --> D8["8. Récompenses intrinsèques · curiosité/nouveauté<br/>EDR 014"]
+    D --> D9["9. Scaffolds annealés · approche/grab/craft/bighit/crit/prime<br/>+ schedule de sevrage · EDR 013/022/028/030"]
+    D --> D10["10. Gènes du connectome · W/seuils/router/bytecode<br/>EDR 031"]
+
+    A2 -.sélectionne.-> B
+    B -.séquence.-> D
+    D -.mesuré par.-> ABL["Ablation + Ontologie KuzuDB · EDR 032"]
+```
+
+| Famille | Axes | Instrument | Statut |
+|---|---|---|---|
+| **A. Temps** | Ontogénèse, Phylogénèse | apprentissage TD / sélection HoF | ✅ réparé (`016/020/023/024`) |
+| **B. Développemental** | Monde, Craft, Difficulté | `CurriculumRunner`, drivers 2D | ✅ Craft+Difficulté ; Monde à étoffer (`025/026/027`) |
+| **C. Méta-évolution** | Arcs, NAS architecture | metaprog / sandbox (RSI) | ⏳ frontière (gelé Vague 4) |
+| **D. Mécanismes** | intrinsèques, scaffolds, gènes | **ablation + ontologie** | ✅ instrument livré (`031/032`) |
+
+> **Lecture clé :** l'ablation (D) mesure *« utile à l'expert ? »* ; le curriculum (B) répond *« utile à l'émergence ? »* — deux questions distinctes (`EDR 032`). La frontière est **C** : on n'a pas encore d'instrument pour faire *grandir l'architecture* (NAS) ni exploiter la *phylogénèse longue*.
+
+---
+
 ## Commandement 15 — Loi du Sociologue
 
 > Chaque innovation = 1 variable. 30 Eres minimum. Analyse Sociologue. Valide ou Revert.
