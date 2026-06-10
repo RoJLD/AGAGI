@@ -42,7 +42,7 @@ class WorldConfig:
     size: int = 10
     num_altars: int = 3
     prey_mode: str = "semi"
-    target_prey_count: int = 9
+    target_prey_count: int = 15  # recalibrage C : plafond de proies (modéré)
     treasure_reward: float = 30.0
     fruit_tree_ratio: float = 0.2
     use_3d: bool = False

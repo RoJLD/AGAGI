@@ -1,8 +1,10 @@
 """Tests de l'économie de l'Âge de Pierre — monde exigeant (Step 2)."""
 import math
 
+import pytest
+
 from src.environments.stone_economy import (
-    prey_reward, weapon_damage, has_spear, can_craft_spear,
+    prey_reward, weapon_damage, has_spear, can_craft_spear, anneal, approach_reward,
 )
 
 # Physique réelle (config.py) : (weight, sharp, edible, friction, flammable)
@@ -13,13 +15,15 @@ WOOD = (1.0, 0.5, 0.0, 0.6, 1.0)
 
 def test_prey_reward_scales_with_difficulty():
     assert prey_reward(1.0) < prey_reward(3.0) < prey_reward(100.0)
-    # Le Mammouth (hp 100) doit valoir bien plus qu'un Lapin (hp 1).
-    assert prey_reward(100.0) > 8 * prey_reward(1.0)
+    # Le Mammouth (hp 100) reste bien plus rentable qu'un petit gibier : gradient préservé.
+    assert prey_reward(100.0) > 3 * prey_reward(1.0)
 
 
-def test_small_prey_only_subsists():
-    # Un Lapin (~7) couvre quelques ticks de drain (~1-2/tick), pas l'abondance.
-    assert 5.0 < prey_reward(1.0) < 12.0
+def test_small_prey_is_a_viable_meal():
+    # Recalibrage C : un Lapin est un vrai repas (camp de base survivable),
+    # mais loin du Mammouth -> on garde une raison de viser gros.
+    assert 15.0 < prey_reward(1.0) < 40.0
+    assert prey_reward(100.0) > 2.5 * prey_reward(1.0)
 
 
 def test_weapon_damage_makes_mammoth_winnable_only_with_spear():
@@ -44,6 +48,26 @@ def test_can_craft_spear_requires_edge_and_haft():
     assert can_craft_spear(ROCK, WOOD)      # bois aussi flammable
     assert not can_craft_spear(ROCK, ROCK)  # deux rochers : pas de manche (flammable 0)
     assert not can_craft_spear(STICK, STICK)  # deux sticks : pas assez tranchant (0.2)
+
+
+def test_anneal_fades_over_eras():
+    assert anneal(0, 30) == 1.0
+    assert 0.9 < anneal(1, 30) < 1.0
+    assert anneal(15, 30) == pytest.approx(0.5)
+    assert anneal(30, 30) == 0.0
+    assert anneal(40, 30) == 0.0          # clampe a 0, jamais negatif
+    assert anneal(5, 0) == 0.0            # garde-fou n_eras=0
+
+
+def test_approach_reward_only_when_closer_and_annealed():
+    # se rapprocher (5 -> 3) tot dans le dev -> bonus ; lam=anneal(1,30)
+    lam = anneal(1, 30)
+    assert approach_reward(5.0, 3.0, eps=0.5, lam=lam) == pytest.approx(0.5 * lam)
+    # s'eloigner ou stagner -> rien
+    assert approach_reward(3.0, 5.0, eps=0.5, lam=lam) == 0.0
+    assert approach_reward(4.0, 4.0, eps=0.5, lam=lam) == 0.0
+    # une fois annele (lam=0), le scaffold a disparu meme en se rapprochant
+    assert approach_reward(5.0, 3.0, eps=0.5, lam=0.0) == 0.0
 
 
 def test_spear_recipe_does_not_collide_with_spark():

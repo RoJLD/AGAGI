@@ -18,8 +18,8 @@ Convention du tuple de physique d'un item : (weight, sharp, edible, friction, fl
 # Constantes = variables d'expérience (Commandement 15) : à calibrer/mesurer.
 BASE_DAMAGE = 10.0
 SPEAR_DAMAGE = 50.0
-PREY_REWARD_BASE = 9.0    # subsistance d'un petit gibier (Lapin ~9.8)
-PREY_REWARD_SCALE = 0.8   # prime de difficulté (Mammouth hp100 -> ~89)
+PREY_REWARD_BASE = 25.0   # recalibrage C : camp de base survivable (Lapin ~25.8)
+PREY_REWARD_SCALE = 0.8   # prime de difficulté (Mammouth hp100 -> ~105) : gradient préservé
 
 
 def prey_reward(max_hp: float, base: float = PREY_REWARD_BASE, scale: float = PREY_REWARD_SCALE) -> float:
@@ -39,6 +39,22 @@ def has_spear(inventory) -> bool:
 def weapon_damage(holds_spear: bool, base: float = BASE_DAMAGE, spear: float = SPEAR_DAMAGE) -> float:
     """Dégâts d'une attaque : faibles à mains nues, élevés avec une lance."""
     return spear if holds_spear else base
+
+
+def anneal(era: int, n_eras: int) -> float:
+    """Facteur d'annelage developpemental : 1 au depart, 0 a la fin (clamp >=0).
+    Rend le scaffold (cheatcode) fort tot puis l'efface, pour que le comportement
+    devienne auto-suffisant via la recompense reelle. Cf. roadmap Vague 0 / Step A."""
+    if n_eras <= 0:
+        return 0.0
+    return max(0.0, 1.0 - float(era) / float(n_eras))
+
+
+def approach_reward(d_before: float, d_after: float, eps: float, lam: float) -> float:
+    """Recompense de shaping : +eps*lam si l'agent s'est RAPPROCHE du gibier le plus
+    proche (distance reduite). Enseigne 'va vers la nourriture' — fix du goulot de
+    competence de chasse (EDR 012, constat C). lam = facteur d'annelage (anneal())."""
+    return eps * lam if d_after < d_before else 0.0
 
 
 def can_craft_spear(phys_a, phys_b, sharp_min: float = 0.4, haft_min: float = 0.5) -> bool:

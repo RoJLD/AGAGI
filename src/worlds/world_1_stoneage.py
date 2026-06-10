@@ -15,7 +15,7 @@ from src.environments.config import WorldConfig
 from src.graph_rag.async_logger import logger
 from src.agents.mamba_agent import MambaBatchModel
 from src.agents.world_model import WorldModel
-from src.environments.stone_economy import prey_reward, weapon_damage, has_spear, can_craft_spear
+from src.environments.stone_economy import prey_reward, weapon_damage, has_spear, can_craft_spear, anneal, approach_reward
 from src.graph_rag.memory_retriever import AsyncMemoryRetriever
 from src.swarm.consensus import WeightedConsensus, ConsensusConfig
 from src.swarm.hgt import HorizontalGeneTransfer, HGTConfig
@@ -36,9 +36,13 @@ class Biosphere3D(BaseWorld):
         # World Model partagé par la population (Vague 0, levier 1) : alimente la
         # vraie surprise / curiosité. Possédé par le monde -> persiste sur toute l'ère.
         self.world_model = WorldModel(self.config.agent.num_inputs)
-        # Rareté (Vague 0, Step 2) : taux de régénération LENTE des proies (proba/step).
+        # Rareté recalibrée (C) : nb max de proies régénérées par step vers le plafond.
         # Variable d'expérience : règle la capacité de charge écologique du monde.
-        self.prey_regen_rate = 0.30
+        self.prey_regen_burst = 3
+        # Scaffold d'approche (A) : bonus annelé qui enseigne à se rapprocher du gibier
+        # (fix du goulot de compétence de chasse, EDR 012). Variables d'expérience.
+        self.scaffold_eps = 0.5
+        self.scaffold_eras = 30
         self.physics_registry = DynamicPhysicsRegistry(self.config.item_physics)
         self.num_altars = self.config.num_altars
         self.prey_mode = self.config.prey_mode
@@ -432,9 +436,10 @@ class Biosphere3D(BaseWorld):
                 closest = min(self.agents, key=lambda a: abs(a["x"]-p["x"]) + abs(a["y"]-p["y"]))
                 dx, dy = closest["x"] - p["x"], closest["y"] - p["y"]
                 
-                # Combat / Attack
-                if cfg and cfg.damage > 0 and abs(dx) <= 1 and abs(dy) <= 1:
-                    # Attack the closest agent
+                # Riposte (C, fairness) : le gibier ne blesse que l'agent qui l'ATTAQUE
+                # (même case), pas par simple proximité. Un agent prudent survit ;
+                # tuer un Mammouth exige de l'attaquer -> prendre 50 -> donc une lance.
+                if cfg and cfg.damage > 0 and dx == 0 and dy == 0:
                     closest["hp"] -= cfg.damage
                     continue
                     
@@ -473,7 +478,15 @@ class Biosphere3D(BaseWorld):
         
         terrain = self.terrain_type[agent["y"], agent["x"]]
         agent["energy"] -= [self.config.biome.plains_drain, self.config.biome.forest_drain, self.config.biome.water_drain, self.config.biome.desert_drain][terrain]
-        
+
+        # A) Scaffold d'approche (annelé) : récompense la réduction de distance au
+        # gibier le plus proche -> enseigne la chasse (fix du goulot, EDR 012).
+        if self.preys:
+            d = min(abs(agent["x"] - p["x"]) + abs(agent["y"] - p["y"]) for p in self.preys)
+            lam = anneal(getattr(self, "current_era", 1), self.scaffold_eras)
+            agent["energy"] += approach_reward(agent.get("last_prey_dist", d), d, self.scaffold_eps, lam)
+            agent["last_prey_dist"] = d
+
         carry_weight = sum(i.get("weight", 1.0) if isinstance(i, dict) else 1.0 for i in agent["inventory"])
         agent["energy"] -= carry_weight * 0.5
         
@@ -706,10 +719,13 @@ class Biosphere3D(BaseWorld):
                     
         self._move_preys()
         
-        # RARETÉ (Step 2) : régénération LENTE — au plus 1 proie/step sous le plafond.
-        # Remplace le refill instantané qui rendait la nourriture infinie.
-        if len(self.preys) < self.config.target_prey_count and np.random.rand() < self.prey_regen_rate:
+        # RARETÉ recalibrée (C) : régénération en rafale plafonnée — jusqu'à
+        # prey_regen_burst proies/step vers le plafond. Assez de flux pour qu'une
+        # population persiste (capacité de charge), sans refill instantané.
+        spawned = 0
+        while len(self.preys) < self.config.target_prey_count and spawned < self.prey_regen_burst:
             self._spawn_prey_instance(np.random.choice(["Lapin", "Cerf", "Sanglier", "Mammouth"], p=[0.4, 0.3, 0.2, 0.1]))
+            spawned += 1
             
         if not self.agents:
             return
