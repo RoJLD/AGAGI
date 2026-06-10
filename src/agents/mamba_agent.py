@@ -284,6 +284,13 @@ class MambaBatchModel:
         
         self.W_batch = np.zeros((self.B, self.max_N, self.max_N), dtype=np.float32)
         self.H_prev_batch = np.zeros((self.B, self.max_N), dtype=np.float32)
+        # Gène CÂBLÉ (EDR 031) : seuil d'excitabilité par neurone -> tanh(excitation - seuil).
+        # Auparavant muté mais jamais lu (fantôme) ; désormais substrat évolutif réel.
+        self.thresholds_batch = np.zeros((self.B, self.max_N), dtype=np.float32)
+        # Gène CÂBLÉ (EDR 031) : W_router (I,3) = neuromodulation. L'obs produit 3 modulateurs
+        # qui ajustent le GAIN global du réseau (traitement dépendant du contexte). Choix de
+        # design (sémantique laissée vide à l'origine) ; conservateur (gain ~1), évolvable.
+        self.router_batch = np.zeros((self.B, self.max_I, 3), dtype=np.float32)
         
         # Construction des index-mappings pour le alignement élastique
         self.mappings = []
@@ -310,6 +317,12 @@ class MambaBatchModel:
             # Application de la projection élastique
             self.W_batch[i][map_idx[:, None], map_idx[None, :]] = a.genome.W
             self.H_prev_batch[i][map_idx] = a.H_prev[0]
+            thr = getattr(a.genome, "thresholds", None)
+            if thr is not None and len(thr) >= N_i:
+                self.thresholds_batch[i][map_idx] = np.asarray(thr[:N_i], dtype=np.float32)
+            wr = getattr(a.genome, "W_router", None)
+            if wr is not None and wr.shape[0] >= I_i:
+                self.router_batch[i, :I_i, :] = np.asarray(wr[:I_i, :], dtype=np.float32)
             
         self.surprise_momentum_batch = np.array([a.surprise_momentum for a in agents], dtype=np.float32)
         
@@ -402,8 +415,11 @@ class MambaBatchModel:
 
         # 3. Passe de base (réflexe)
         H[:, :self.max_I] = x
-        excitation = np.einsum('bi,bij->bj', H, W_no_diag)
-        H = (1.0 - delta_t) * H + delta_t * _get_activation_function()(excitation)
+        # Neuromodulation (EDR 031) : gain global dépendant du contexte (W_router câblé).
+        mod = np.tanh(np.einsum('bi,bij->bj', x, self.router_batch))        # (B, 3)
+        gain = 1.0 + 0.3 * mod.mean(axis=1, keepdims=True)                  # (B, 1) dans [0.7, 1.3]
+        excitation = np.einsum('bi,bij->bj', H, W_no_diag) * gain
+        H = (1.0 - delta_t) * H + delta_t * _get_activation_function()(excitation - self.thresholds_batch)
 
         # --- MESO-NAS (Pilier 2): Organe d'Attention QKV (Self-Attention) ---
         has_attention_batch = np.array([
@@ -487,7 +503,7 @@ class MambaBatchModel:
             H_branch[active_mask] += noise[active_mask]
 
             excitation = np.einsum('bi,bij->bj', H_branch, W_no_diag)
-            H_branch = (1.0 - delta_t) * H_branch + delta_t * _get_activation_function()(excitation)
+            H_branch = (1.0 - delta_t) * H_branch + delta_t * _get_activation_function()(excitation - self.thresholds_batch)
 
             for i in np.where(active_mask)[0]:
                 N_i = self.agents[i].genome.num_nodes

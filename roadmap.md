@@ -309,14 +309,12 @@ Découverte clé (`EDR 026`) : **les deux axes s'imbriquent.** La rareté extrê
 
 ### 🟠 Vague 1 — Honnêteté & hygiène (PRIORITÉ ACTUELLE — cheap, restaure la confiance)
 
-*(Maintenant que les fondations s'expriment, restaurer la mesure avant d'aller plus loin.)*
+*(Hygiène **connective**, pas soustractive : rendre les mécanismes honnêtes en les rendant fonctionnels — ce qui sert l'émergence au lieu de la contredire.)*
 
-Prérequis pour **faire confiance** à tout résultat ultérieur :
-
-3. **Tuer ou câbler les gènes fantômes** (levier 3) — router/bytecode/thresholds mutés mais jamais lus.
-4. **Ablation** (levier 5) — retourner le Ratio de Transfert sur les mécanismes du projet eux-mêmes (Commandement 15).
-5. **Unifier sur 1 monde canonique** — supprimer le doublon V13 (world_0) et le stub world_3.
-6. **Fix bug de chemin metaprog** + peupler l'ontologie Hypothesis/Fact (déclarée, vide).
+3. ✅ **Câbler les gènes fantômes** (`EDR 031`) — `thresholds` (excitabilité par neurone) + `W_router` (neuromodulation) sont désormais **lus** → substrat évolutif réel (déconnecté ≠ latent : on connecte plutôt que tuer). `bytecode` → différé à la RSI (Vague 2).
+4. **Ablation** (levier 5) — maintenant que les mécanismes sont vivants, retourner le Ratio de Transfert sur eux (curiosité/nouveauté/scaffold/World Model/crit/prime/seuils/router) pour mesurer leur *apport réel* (Commandement 15).
+5. **Unifier sur 1 *moteur* canonique** — ⚠️ *recadré* : les mondes Soup→Stoneage→Agri→Industrial **sont l'axe Monde** (ontogénèse), pas des doublons. `world_0_soup` (680 l.) *duplique le moteur* (devrait hériter de `Biosphere3D` comme `world_3`) ; `world_2/3` sont des **stades inachevés à étoffer**. Garder l'axe, unifier le moteur.
+6. **Brancher l'ontologie Hypothesis/Fact** (schéma déclaré, vide) — chaque EDR = une `Hypothesis`, chaque mesure un `Fact` (SUPPORTS/REFUTES) : notre méthode rendue machine-lisible.
 
 ### 🟡 Vague 2 — Le pivot « graine d'AGI » (sécurité d'abord)
 
