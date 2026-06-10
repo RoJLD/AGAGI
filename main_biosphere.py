@@ -25,8 +25,10 @@ logger = logging.getLogger("AGIseed.Biosphere")
 def clear_screen():
     os.system('cls' if os.name == 'nt' else 'clear')
 
-def init_primordial_soup(num_agents=50, import_agent_id=None, keep_memory=False, shared_db=None, config=None):
+def init_primordial_soup(num_agents=50, import_agent_id=None, keep_memory=False, shared_db=None, config=None, add_node_rate=None):
     mut_config = MutationConfig(weight_init_std=2.0)
+    if add_node_rate is not None:
+        mut_config.add_node_rate = float(add_node_rate)   # arming NAS (EDR 046) : croissance architecturale
     if config is None:
         config = WorldConfig()
     num_inputs = config.agent.num_inputs
