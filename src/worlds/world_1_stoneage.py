@@ -63,6 +63,10 @@ class Biosphere3D(BaseWorld):
         # (présence préservée, SENS détruit). Si la portée aide encore -> c'est la présence,
         # pas le contenu, qui porte le bénéfice (arbitre de l'EDR 042).
         self.scramble_signal = False
+        # Pression RÉFÉRENTIELLE (EDR 045, arming #8 dirigé sur le langage) : récompense la
+        # CONVERGENCE sur un token partagé près de l'apex -> rend le CONTENU du signal payant
+        # (vs présence seule, EDR 043). Le token DEVIENT « Mammouth ici ». 0 = off (legacy).
+        self.referential_scale = 0.0
         # Sevrage de la prime de groupe (EDR 030) : la prise d'apex passe de « pleine
         # récompense à chacun » (scaffold) à « partagée entre le pack » (économie réaliste).
         self.group_reward_eras = 20
@@ -1187,6 +1191,26 @@ class Biosphere3D(BaseWorld):
                 })
                 self.dead_agents.append(agent)
                 
+        # Pression RÉFÉRENTIELLE (EDR 045) : bonus si un agent proche de l'apex émet un token
+        # PARTAGÉ par ses voisins proches -> sélectionne une convention « token = Mammouth ».
+        if self.referential_scale > 0 and getattr(self.config, "active_exp_variable", "NONE") == "LANGUAGE":
+            r = max(1, self.hear_radius)
+            mammoth_pos = [(p["x"], p["y"]) for p in self.preys
+                           if (self.config.preys.get(p["type"]) and self.config.preys.get(p["type"]).hp >= 50)]
+            if mammoth_pos:
+                for a in self.agents:
+                    ls = a.get("last_spoken", [0.0] * 4)
+                    if not any(abs(v) > 0.01 for v in ls):
+                        continue
+                    if not any(abs(a["x"] - mx) + abs(a["y"] - my) <= r for mx, my in mammoth_pos):
+                        continue
+                    tok = int(np.argmax(ls))
+                    agree = sum(1 for b in self.agents if b is not a
+                                and abs(a["x"] - b["x"]) + abs(a["y"] - b["y"]) <= r
+                                and any(abs(v) > 0.01 for v in b.get("last_spoken", [0.0] * 4))
+                                and int(np.argmax(b["last_spoken"])) == tok)
+                    a["energy"] += self.referential_scale * agree
+
         # RL: Compute policy gradient
         new_energies = np.array([a["energy"] for a in self.agents], dtype=np.float32)
         # Récompense = gain d'énergie (extrinsèque) + curiosité (intrinsèque, World Model).
