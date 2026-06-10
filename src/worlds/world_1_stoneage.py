@@ -299,7 +299,10 @@ class Biosphere3D(BaseWorld):
         dw = np.zeros(N, dtype=np.float32)
         is_flying = np.zeros(N, dtype=np.float32)
         is_stunned = np.zeros(N, dtype=np.float32)
-        
+        # Perception de PROXIMITÉ du type d'apex (EDR 047, jeu de Lewis) : +1 Mammouth (bon),
+        # -1 Leurre (piège), 0 sinon — perçu SEULEMENT si adjacent. À distance, indistinguable
+        # -> crée la demande référentielle (il faut le signal pour savoir lequel).
+        on_apex_type = np.zeros(N, dtype=np.float32)
         if self.preys:
             px = np.array([p["x"] for p in self.preys])
             py = np.array([p["y"] for p in self.preys])
@@ -312,6 +315,11 @@ class Biosphere3D(BaseWorld):
                 de[i] = max(0, p["x"] - ax[i]) / self.size
                 dw[i] = max(0, ax[i] - p["x"]) / self.size
                 is_flying[i] = 1.0 if p["type"] in ["Lapin", "Cerf"] else 0.0
+                if dists[closest_idx] <= 1:                       # adjacent -> on perçoit le type (EDR 047)
+                    if p["type"] == "Mammouth":
+                        on_apex_type[i] = 1.0
+                    elif p["type"] == "Leurre":
+                        on_apex_type[i] = -1.0
                 is_stunned[i] = 1.0 if p.get("stunned", 0) > 0 else 0.0
 
         # Lidar using advanced indexing (with padding to handle borders safely)
@@ -445,7 +453,7 @@ class Biosphere3D(BaseWorld):
             manager_goal = np.zeros((N, 5), dtype=np.float32)
             
         obs = np.column_stack([
-            dn, ds, de, dw, np.zeros(N), np.zeros(N), np.ones(N), pheromone, 
+            dn, ds, de, dw, on_apex_type, np.zeros(N), np.ones(N), pheromone,
             ax/self.size, ay/self.size, np.zeros(N), altar_active, bit_a, bit_b, adj_energy,
             in_hear[:,0], in_hear[:,1], in_hear[:,2], in_hear[:,3],
             lidar_n, lidar_s, lidar_e, lidar_w, np.zeros(N), np.zeros(N),
@@ -599,7 +607,11 @@ class Biosphere3D(BaseWorld):
                 # Récompense ∝ difficulté (Step 2) : le Lapin sustente, le Mammouth enrichit.
                 cfg_prey = self.config.preys.get(attacked_prey["type"], None)
                 reward = prey_reward(cfg_prey.hp if cfg_prey else 1.0)
-                if cfg_prey and cfg_prey.hp >= 50:
+                if attacked_prey["type"] == "Leurre":
+                    # PIÈGE (EDR 047, jeu de Lewis) : aucune récompense — la riposte a déjà puni.
+                    # Approcher un Leurre est une PERTE -> il faut le signal pour l'éviter.
+                    pass
+                elif cfg_prey and cfg_prey.hp >= 50:
                     # APEX (Mammouth) : récompense de GROUPE (EDR 028) — la prise nourrit TOUT
                     # le pack qui l'a attaqué -> incite à rejoindre les chasses coopératives
                     # (riposte partagée + dégâts cumulés one-shotent) -> la coordination émerge
