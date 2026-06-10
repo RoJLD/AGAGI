@@ -218,6 +218,7 @@ class Biosphere3D(BaseWorld):
             "age": 0,
             "preys_eaten": 0,
             "altars_solved": 0,
+            "spears_crafted": 0,
             "last_action": -1,
             "inventory": [],
             "inv_capacity": agent_model.phenotype_inv_capacity,
@@ -975,6 +976,7 @@ class Biosphere3D(BaseWorld):
                         spear["x"], spear["y"], spear["z"] = agent["x"], agent["y"], 0
                         self.items.append(spear)
                     logger.emit("SPEAR_CRAFTED", {"agent_id": agent["id"]})
+                    agent["spears_crafted"] = agent.get("spears_crafted", 0) + 1  # fitness (EDR 016)
                     # A) Scaffold : jalon de craft (annelé) — la récompense la plus forte.
                     agent["energy"] += self.scaffold_craft * anneal(getattr(self, "current_era", 1), self.scaffold_eras)
                 elif phys1[3] * phys2[3] > 0.5:

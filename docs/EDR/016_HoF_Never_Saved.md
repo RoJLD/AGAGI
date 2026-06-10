@@ -64,7 +64,22 @@ Run V18_HoF_save_fix (30 ères, HoF **vierge** au départ, monde dur) :
   mesurés dans un système sans mémoire).
 - Ajouter le craft (ou un proxy) au `life_score` pour que la sélection puisse le saisir.
 
+## Addendum — Test « craft dans la fitness » (null result instructif)
+
+`calculate_life_score` intègre désormais `spears_crafted * 300` (craft tracké sur l'agent),
+pour que la sélection saisisse les crafteurs maintenant que le HoF persiste.
+
+Run V18_craft_fitness (30 ères, sur le HoF évolué) : **SPEAR 14 → 14** (0 nouvelle),
+**0 crafteur** dans le HoF — mais le meilleur chasseur grimpe **preys 12 → 15** (score 766).
+
+> Mettre le craft dans la fitness ne sert à rien **s'il n'y a aucun crafteur à sélectionner**,
+> et ce run en a produit zéro. Pire : parti du HoF évolué, la population se spécialise encore
+> en chasse (preys 12→15) et explore *moins*. **On ne peut pas sélectionner ce qui n'est
+> jamais produit.** Seul un curriculum (enseigner la collecte → atteindre l'état craftable)
+> attaque la *production* du comportement. Le poids craft reste en place : il agira dès que
+> des crafteurs seront produits.
+
 ## Variables d'expérience
 
 Nombre de champions sauvés par ère (top-K), taux de mutation à la régénération, composition
-du `life_score` (intégrer craft / exploration ?).
+du `life_score` (poids du craft), part d'élite clonée vs mutée.
