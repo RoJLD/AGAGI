@@ -71,6 +71,11 @@ class Biosphere3D(BaseWorld):
         # Mammouth EFFECTIVEMENT tué par le pack touche une prime. Vainc l'altruisme du signal
         # (EDR 048 : le silence gagne car parler ne profite qu'à l'auditeur). 0 = off.
         self.speaker_reward = 0.0
+        # Sélection ALIGNÉE sur la convention (EDR 055) : prime la DISTINCTION référentielle —
+        # un agent qui emploie des tokens DIFFÉRENTS près du Mammouth vs du Leurre. Comble l'angle
+        # mort de life_score (EDR 054 : sélection aveugle au langage). Anti-piège 045 : un token
+        # constant -> distinction nulle -> zéro prime (non gameable). 0 = off.
+        self.align_selection = 0.0
         # Sevrage de la prime de groupe (EDR 030) : la prise d'apex passe de « pleine
         # récompense à chacun » (scaffold) à « partagée entre le pack » (économie réaliste).
         self.group_reward_eras = 20
@@ -1250,6 +1255,27 @@ class Biosphere3D(BaseWorld):
                     ls = a.get("last_spoken", [0.0] * 4)
                     if any(abs(v) > 0.01 for v in ls) and abs(a["x"] - p["x"]) + abs(a["y"] - p["y"]) <= 1:
                         sig.add(a["id"])
+
+        # Sélection ALIGNÉE (EDR 055) : prime la DISTINCTION référentielle par agent. On accumule
+        # par agent l'histogramme des tokens près du Mammouth vs près du Leurre, et on récompense
+        # la distance de variation totale entre les deux (tokens distincts par référent). Token
+        # constant -> distinction 0 -> 0 prime (anti-piège 045). Comble l'angle mort de life_score.
+        if self.align_selection > 0:
+            mam = [p for p in self.preys if p["type"] == "Mammouth"]
+            leu = [p for p in self.preys if p["type"] == "Leurre"]
+            for a in self.agents:
+                ls = a.get("last_spoken", [0.0] * 4)
+                if any(abs(v) > 0.01 for v in ls):
+                    tok = int(np.argmax(ls))
+                    if any(abs(a["x"] - p["x"]) + abs(a["y"] - p["y"]) <= 1 for p in mam):
+                        a.setdefault("_ref_m", [0, 0, 0, 0])[tok] += 1
+                    elif any(abs(a["x"] - p["x"]) + abs(a["y"] - p["y"]) <= 1 for p in leu):
+                        a.setdefault("_ref_l", [0, 0, 0, 0])[tok] += 1
+                m = np.array(a.get("_ref_m", [0, 0, 0, 0]), dtype=np.float32)
+                l = np.array(a.get("_ref_l", [0, 0, 0, 0]), dtype=np.float32)
+                if m.sum() >= 1 and l.sum() >= 1:
+                    distinction = 0.5 * np.abs(m / m.sum() - l / l.sum()).sum()   # TV distance [0,1]
+                    a["energy"] += self.align_selection * distinction
 
         # RL: Compute policy gradient
         new_energies = np.array([a["energy"] for a in self.agents], dtype=np.float32)
