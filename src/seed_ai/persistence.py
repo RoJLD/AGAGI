@@ -19,6 +19,11 @@ class AgentSnapshot:
 # fitness a backfiré : métrique bruitée à faible compte). Conservé comme seam (cf. EDR 056).
 REF_FITNESS_WEIGHT = 0.0
 
+# EDR 060 : SPÉCIATION du HoF par taille d'architecture (protège l'innovation immature, mur EDR 058).
+# False = top-N global classique (défaut, inchangé). HOF_MAX = taille du HoF.
+SPECIATE = False
+HOF_MAX = 10
+
 def calculate_life_score(agent) -> float:
     # EDR 016/017 : le craft entre dans la fitness (poids fort) pour que la selection
     # saisisse les crafteurs maintenant que le HoF est persiste -> le craft peut evoluer.
@@ -88,7 +93,21 @@ def save_to_hall_of_fame(agent) -> Optional[str]:
 
     hof.append(AgentSnapshot(score=score, genome=copy.deepcopy(genome), stats=stats, state_path=state_path))
     hof.sort(key=lambda x: getattr(x, 'score', x[0] if isinstance(x, tuple) else 0), reverse=True)
-    hof = hof[:10]
+    if SPECIATE:
+        # Spéciation par TAILLE d'architecture (EDR 060) : réserver une niche au meilleur de chaque
+        # taille -> protège l'innovation immature (un 173-nœuds n'est plus écrasé par les 172 rodés ;
+        # il garde un siège et peut MÛRIR). Puis compléter par le top global. (Mur EDR 058.)
+        seen, reserved_idx = set(), []
+        for idx, e in enumerate(hof):
+            n = getattr(getattr(e, "genome", None), "num_nodes", 0)
+            if n not in seen:
+                seen.add(n)
+                reserved_idx.append(idx)
+        reserved = [hof[i] for i in reserved_idx]
+        rest = [hof[i] for i in range(len(hof)) if i not in set(reserved_idx)]
+        hof = (reserved + rest)[:HOF_MAX]
+    else:
+        hof = hof[:HOF_MAX]
 
     with open(HALL_OF_FAME_PATH, "wb") as f:
         pickle.dump({'version': HOF_VERSION, 'entries': hof}, f)

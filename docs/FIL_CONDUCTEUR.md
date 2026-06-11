@@ -118,14 +118,27 @@ seeds**. La discipline de mesure (039/041) devient une **contrainte d'architectu
 - 🔓 #8 (059) : `LLMProposer` rendu **armable** (LLM injecté comme `llm_fn`, gardé, testé au mock).
   Armable en 1 ligne ; reste **désarmé** (besoin conteneur + harnais en `measure_fn`).
 
-## ⚡ L'unification (le mur commun des deux frontières — EDR 054 ⊕ 058)
+## ⚡ L'unification (le mur commun des deux frontières — EDR 054 ⊕ 058 ⊕ 060)
 
 > **Une sélection élitiste stricte par une fitness établie TUE la nouveauté avant maturité.** Langage
-> (054 : convention faible, sélection aveugle à elle) et architecture (058 : nœud immature, battu par
-> les rodés) échouent pour la **même** raison : *rien ne protège l'immature*. Ce n'est pas un défaut
-> de demande — c'est un défaut de **dynamique de sélection**. Lever commun : **protéger la nouveauté**
-> (spéciation NEAT / niches / pool d'innovation), une approche *structurelle* (vs par récompense, qui
-> a échoué sur une mesure par-agent bruitée, 055-057).
+> (054 : convention faible, sélection aveugle) et architecture (058 : nœud immature, battu par les
+> rodés) échouent pour la **même** raison : *rien ne protège l'immature*. Défaut de **dynamique de
+> sélection**, pas de demande. Lever : **protéger la nouveauté** (spéciation NEAT).
+>
+> **Testé (060)** : la spéciation-par-taille **protège bien** (des archis 173-174 *persistent* enfin,
+> vs 172 verrouillé) — mais **ne suffit pas** : les archis protégées ne prolifèrent ni n'aident à 20
+> ères (demande de mémoire trop petite / maturation trop courte). **Protection nécessaire, pas
+> suffisante.** Le lever est *conceptuel* ; l'implémentation est frontière-spécifique (par taille pour
+> le NAS ✅-protection ; par comportement pour le langage, *non testé*). Reste : demande suffisante +
+> temps de maturation.
+
+## Le #8 — entièrement développé, armable en 1 ligne (EDR 059+061)
+
+Cage (035) · yeux (036) · ontologie (032/034) · catalogue `world_demand` (051) · **proposer LLM
+injectable (059)** · **mesure PUISSANTE branchée (harnais en `measure_fn`, 061)** · boucle complète
+propose→mesure→enregistre→itère. **Armer = remplacer `WorldDemandProposer()` par `LLMProposer(llm_fn=
+<appel LLM en conteneur jetable>)`.** Seul reste : le **conteneur jetable** (décision outillage/
+sécurité). Reste *délibérément désarmé*.
 
 ## Les prochaines cibles (nettes, fondées sur la mesure)
 

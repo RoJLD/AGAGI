@@ -170,6 +170,23 @@ def rsi_demand_step(context: dict, measure_fn, proposer: Proposer = None, graph=
     return proposal, score, detail
 
 
+def make_powered_measure(run_seed_fn, seeds=(0, 1, 2)):
+    """Fabrique un `measure_fn` PUISSANT pour `rsi_demand_step` — le 2ᵉ prérequis d'armement du #8
+    (EDR 059/061). Évalue chaque demande en MULTI-SEED via le harnais (EDR 052) au lieu d'un run
+    unique : sans ça, la boucle CLASSE LE BRUIT (EDR 051, démontré). World-agnostique : `run_seed_fn`
+    (params, seed) -> float (le gain mesuré d'UN réplicat) est injecté par le caller.
+
+    Renvoie measure(proposal) -> (score=moyenne sur seeds, detail='moy±σ (n)')."""
+    from src.seed_ai.eval_harness import powered_eval
+
+    def measure(proposal):
+        res = powered_eval({proposal.name: proposal.params}, run_seed_fn, seeds=seeds)
+        d = res[proposal.name]
+        return d["mean"], f"gain={d['mean']:.4f}+/-{d['std']:.4f} (n={d['n']})"
+
+    return measure
+
+
 def evaluate_proposal(proposal: Proposal):
     """VALIDE une proposition (périmètre + gate AST + test isolé). N'INSTALLE PAS. -> (ok, raison)."""
     if proposal.kind not in ALLOWED_KINDS:

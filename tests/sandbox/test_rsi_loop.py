@@ -4,7 +4,7 @@ import pytest
 from src.metaprog.rsi_loop import (
     Proposal, TemplateProposer, LLMProposer, WorldDemandProposer,
     evaluate_proposal, rsi_step, rsi_demand_step, ALLOWED_KINDS,
-    build_demand_prompt, parse_demand_response,
+    build_demand_prompt, parse_demand_response, make_powered_measure,
 )
 
 
@@ -75,6 +75,19 @@ def test_world_demand_proposer_cycles_validated_demands():
     assert names == {"lewis_2ref", "referential_pressure", "speaker_reciprocity"}
     prop = WorldDemandProposer().propose({})
     assert prop.kind == "world_demand" and isinstance(prop.params, dict) and prop.params
+
+
+def test_make_powered_measure_aggregates_multiseed():
+    # measure_fn PUISSANT : moyenne le gain sur plusieurs seeds (vs 1 run -> bruit, EDR 051).
+    gains = {0: 0.02, 1: 0.04, 2: 0.00}
+
+    def fake_run_seed(params, seed):
+        assert params == {"lewis": True}     # reçoit bien les params de la demande
+        return gains[seed]
+
+    measure = make_powered_measure(fake_run_seed, seeds=(0, 1, 2))
+    score, detail = measure(Proposal("world_demand", "d", params={"lewis": True}))
+    assert abs(score - 0.02) < 1e-9 and "n=3" in detail
 
 
 def test_rsi_demand_step_measures_and_returns_best():
