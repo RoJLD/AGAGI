@@ -1,8 +1,9 @@
-"""Boucle RSI (#8) câblée mais NON armée (EDR 044)."""
+"""Boucle RSI (#8) câblée mais NON armée (EDR 044/051)."""
 import pytest
 
 from src.metaprog.rsi_loop import (
-    Proposal, TemplateProposer, LLMProposer, evaluate_proposal, rsi_step, ALLOWED_KINDS,
+    Proposal, TemplateProposer, LLMProposer, WorldDemandProposer,
+    evaluate_proposal, rsi_step, rsi_demand_step, ALLOWED_KINDS,
 )
 
 
@@ -29,10 +30,33 @@ def test_rsi_step_falls_back_when_llm_unarmed():
 
 
 def test_perimeter_rejects_out_of_scope():
-    # Une proposition hors périmètre (pas une activation) est refusée.
+    # Une proposition hors périmètre (ni activation ni world_demand) est refusée.
     bad = Proposal(kind="world_rule", name="x", code="import numpy as np\ndef f(x):\n    return x\n")
     ok, reason = evaluate_proposal(bad)
     assert not ok and "perimetre" in reason
+
+
+def test_world_demand_proposer_cycles_validated_demands():
+    # Le générateur dirigé de DEMANDES propose les demandes du catalogue (047/045/050).
+    p = WorldDemandProposer()
+    names = {p.propose({}).name for _ in range(3)}
+    assert names == {"lewis_2ref", "referential_pressure", "speaker_reciprocity"}
+    prop = WorldDemandProposer().propose({})
+    assert prop.kind == "world_demand" and isinstance(prop.params, dict) and prop.params
+
+
+def test_rsi_demand_step_measures_and_returns_best():
+    # La boucle de demandes MESURE via le callback injecté et renvoie le score (seam world-agnostique).
+    seen = []
+
+    def fake_measure(proposal):
+        score = {"lewis_2ref": 0.033}.get(proposal.name, 0.0)   # re-decouvre 047 comme gagnant
+        seen.append(proposal.name)
+        return score, f"MI={score}"
+
+    proposal, score, detail = rsi_demand_step({}, fake_measure)
+    assert proposal.kind == "world_demand"
+    assert seen and isinstance(score, float)
 
 
 def test_perimeter_rejects_unsafe_code():
@@ -43,5 +67,6 @@ def test_perimeter_rejects_unsafe_code():
     assert not ok
 
 
-def test_activation_is_the_minimal_perimeter():
-    assert ALLOWED_KINDS == {"activation"}   # on commence borné (le pouce, pas la main)
+def test_perimeter_is_activation_and_world_demand():
+    # Périmètre élargi (EDR 051) : activation (sandbox) + world_demand (le vrai levier).
+    assert ALLOWED_KINDS == {"activation", "world_demand"}

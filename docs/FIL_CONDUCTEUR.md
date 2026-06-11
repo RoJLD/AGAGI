@@ -65,6 +65,7 @@ indistinguables à distance → il *faut* le signal). **La thèse est prouvée a
 | 046 | forcer la croissance NAS (monde de base) | architecture **figée à 172** — le monde n'exige pas plus de cerveau |
 | 048 | renforcer le langage (3 référents) | **pas de lexique** — silence (altruisme du signal) |
 | 049 | NAS dans le monde exigeant (Lewis-3) | architecture **toujours figée** (mauvaise demande + collapse) |
+| 050 | incitation du locuteur (réciprocité) | **pire** — crédit temporel (prime au kill, pas au signal) |
 
 **Leçon IV (la recette)** : « la demande crée la capacité » est **vraie mais exigeante**. La demande
 doit :
@@ -73,25 +74,44 @@ doit :
 Un « monde plus dur » générique ne suffit pas. **Concevoir la bonne demande est *le* travail** — et
 c'est le rôle recadré du **#8** (proposer+itérer des demandes ciblées).
 
+## Acte V — Armer l'itérateur (#8), et son vrai goulot (EDR 050→051)
+
+Les designs manuels ratent (045/048/049/050 : **4 tentatives, 3+ échecs**, chacune par un défaut
+subtil *trouvé par la mesure*). Ce pattern *est* l'argument du #8 : un générateur qui itère sur des
+centaines de designs en mesurant chacun battrait la conception à la main.
+
+| EDR | Pas | Acquis |
+|---|---|---|
+| 051 | étendre le #8 au périmètre **`world_demand`** + boucle propose→mesure→classe | **construite, testée** (rsi_loop) ; la démo classe les demandes |
+
+**Leçon V (le goulot)** : la boucle marche mécaniquement, mais la démo (12 ères/demande) a **classé
+par le bruit** (tous MI < 047). **Un itérateur ne vaut QUE ce que vaut sa mesure** — proposer 1000
+demandes est inutile si chaque évaluation est trop faible pour les classer (la boucle *optimiserait
+le bruit*). Le goulot du #8 n'est pas le générateur mais **le coût + la puissance de chaque
+évaluation**. La discipline de mesure (039/041) devient une **contrainte d'architecture**.
+
 ---
 
 ## Où on en est (au 2026-06-11)
 
 - ✅ Chaîne moyens→fins émergente, robuste, dominante, auto-suffisante.
 - ✅ Infrastructure RSI (#8) **câblée mais NON armée** : cage (035), yeux (036), mémoire (032/034),
-  juge (041), boucle (044). Le seam LLM attend un conteneur jetable.
-- ✅ Langage : **émergence prouvée sous demande** (047), mais **naissante/fragile** (048) — bloquée
-  par l'**altruisme du signal**.
+  juge (041), boucle (044), **périmètre `world_demand` + boucle propose→mesure→classe (051)**. Le
+  seam LLM attend (a) un harnais d'évaluation puissant, (b) un conteneur jetable.
+- ✅ Langage : **émergence prouvée sous demande** (047), mais **naissante/fragile** (048) ; la
+  réciprocité naïve échoue par crédit temporel (050).
 - ⏳ NAS : croissance jamais sélectionnée (046/049) — il manque une **tâche-mémoire survivable**.
 
-## Les 3 prochaines cibles (nettes, fondées sur la mesure)
+## Les prochaines cibles (nettes, fondées sur la mesure)
 
-1. **NAS** — une **tâche-mémoire survivable** (se souvenir du type d'apex après s'en éloigner) →
+1. **Harnais d'évaluation PUISSANT** (le goulot démontré en 051) : multi-ères + multi-seeds +
+   dénoising. *Prérequis de tout le reste* — sans lui, le #8 optimise le bruit.
+2. **NAS** — une **tâche-mémoire survivable** (se souvenir du type d'apex après s'en éloigner) →
    saturer le connectome récurrent (la *bonne* demande pour l'architecture).
-2. **Langage** — **aligner l'incitation du locuteur** (que parler *paie* pour le parleur : réciprocité)
-   + **affordances distinctes** (3 réponses, pas 3 types) → vaincre le silence (048).
-3. **#8** — l'**armer pour itérer ces demandes** (Proposer `kind="world_demand"`) : proposer une
-   demande ciblée, mesurer, raffiner — des centaines de fois là où on en a fait quelques-unes à la main.
+3. **Langage** — incitation du locuteur **au tick du signal** (trace d'éligibilité, pas prime au
+   kill — EDR 050) + **affordances distinctes**.
+4. **#8** — une fois (1) en place : LLM dans un conteneur, qui propose des demandes au catalogue
+   `world_demand`, lit les échecs via l'ontologie, et **itère** sous évaluation puissante.
 
 ## Comment lire les preuves
 

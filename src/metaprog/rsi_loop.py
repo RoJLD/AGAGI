@@ -17,21 +17,23 @@ Périmètre minimal (volontaire) : fonctions d'**activation** pures numpy `f(x)-
 prudemment (termes de récompense, règles de monde, architecture/NAS) une fois la boucle éprouvée.
 """
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from src.metaprog.secure_sandbox import run_sandboxed, first_def_name
 
-# Périmètre du #8 — on commence par le plus borné/sûr. Élargir un cran à la fois.
-ALLOWED_KINDS = {"activation"}
+# Périmètre du #8. EDR 044 : "activation" (sûr, sandbox). EDR 046/051 : "world_demand" — proposer
+# une DEMANDE de monde (le vrai levier d'émergence : langage, architecture). On élargit un cran.
+ALLOWED_KINDS = {"activation", "world_demand"}
 
 
 @dataclass
 class Proposal:
     """Le contrat de sortie du générateur. Format stable que le LLM devra respecter (#8)."""
-    kind: str            # "activation" (périmètre minimal actuel)
-    name: str            # ex. "swish"
-    code: str            # code Python pur (numpy), une fonction f(x)->x
+    kind: str            # "activation" | "world_demand"
+    name: str            # ex. "swish" | "lewis_2ref"
+    code: str = ""       # (activation) code Python pur (numpy), une fonction f(x)->x
     rationale: str = ""  # pourquoi (lisible ; va dans l'ontologie)
+    params: dict = field(default_factory=dict)  # (world_demand) attrs à poser sur le monde
 
 
 class Proposer(ABC):
@@ -79,6 +81,48 @@ class LLMProposer(Proposer):
         raise NotImplementedError(
             "ARMER LE #8 : brancher l'appel LLM ici (conteneur jetable, perimetre borne, "
             "falsification systematique). Voir docs/EDR/044.")
+
+
+class WorldDemandProposer(Proposer):
+    """Générateur DIRIGÉ (non-LLM) de DEMANDES de monde — le périmètre le plus puissant (EDR 051).
+
+    Catalogue des demandes qu'on a conçues/mesurées à la main (047 succès, 045/050 échecs). La
+    boucle les ré-essaie et les CLASSE par la mesure — exactement la recherche que la conception
+    manuelle rate (cf. EDR 050 : 4 designs, 3+ échecs). Le LLMProposer s'y substituerait pour en
+    INVENTER de nouvelles, en lisant les échecs passés via l'ontologie.
+
+    Chaque demande = des `params` à poser sur le monde + une métrique cible. L'évaluation (évoluer
+    sous la demande + mesurer) est injectée par le caller (rsi_loop reste agnostique du monde)."""
+    CATALOG = [
+        ("lewis_2ref", {"lewis": True}, "demande referentielle reelle (Lewis 2 ref, EDR 047 succes)"),
+        ("referential_pressure", {"lewis": True, "referential_scale": 0.5}, "pression scriptee (EDR 045 echec)"),
+        ("speaker_reciprocity", {"lewis": True, "speaker_reward": 5.0}, "reciprocite du locuteur (EDR 050 echec)"),
+    ]
+
+    def __init__(self):
+        self._i = 0
+
+    def propose(self, context: dict) -> Proposal:
+        name, params, rationale = self.CATALOG[self._i % len(self.CATALOG)]
+        self._i += 1
+        return Proposal("world_demand", name, rationale=rationale, params=dict(params))
+
+
+def rsi_demand_step(context: dict, measure_fn, proposer: Proposer = None, graph=None):
+    """UN pas de la boucle #8 sur les DEMANDES de monde : PROPOSER -> MESURER (via `measure_fn`,
+    injecté : il applique la demande, évolue, et renvoie un score) -> ENREGISTRER (ontologie).
+    `measure_fn(proposal) -> (score: float, detail: str)`. Renvoie (proposal, score, detail)."""
+    if proposer is None:
+        proposer = WorldDemandProposer()
+    proposal = proposer.propose(context)
+    score, detail = measure_fn(proposal)
+    if graph is not None:
+        hid = f"rsi_demand_{proposal.name}"
+        graph.log_hypothesis(hid, f"La demande {proposal.name} fait emerger la capacite cible",
+                             status="proposed")
+        graph.log_fact(f"rsi_demand_eval_{proposal.name}", f"score mesure={score:.4f} ({detail})",
+                       hid, relation="SUPPORTS" if score > 0 else "REFUTES")
+    return proposal, score, detail
 
 
 def evaluate_proposal(proposal: Proposal):
