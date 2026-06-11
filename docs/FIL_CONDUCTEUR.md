@@ -21,8 +21,15 @@ en plus dure, de cette thèse — jusqu'à la prouver (047) puis la raffiner (04
 >   loterie ~25 % de la mutation).
 >
 > **Le vrai levier n'était ni le monde ni l'architecture, mais COMMENT L'AGENT APPREND.** La graine
-> APPREND, ÉVOLUE ce qui s'apprend, se RÉ-AMÉLIORE, et COMMUNIQUE — sous une seule clé. Grand chantier
-> restant : **intégrer le gradient dans la biosphère vivante** (RL multi-agent).
+> APPREND, ÉVOLUE ce qui s'apprend, se RÉ-AMÉLIORE, et COMMUNIQUE — sous une seule clé.
+>
+> **Suite (071-072) — vers la biosphère :** essayer d'intégrer a *corrigé le diagnostic* (071) : la
+> biosphère a DÉJÀ du gradient (l'Actor-Critic) ; l'écart 067 était un artefact du banc (mutation pure).
+> Les murs venaient de l'**évolution** des architectures/conventions, pas de l'absence de gradient
+> intra-vie. Et (072) le **jeu référentiel de POPULATION par gradient** fait converger une convention
+> partagée **fiablement à 100 %** (vs 25 % loterie mutation) — la population *régularise* la brisure de
+> symétrie. **Mécanisme validé à câbler dans Biosphere3D** pour un langage fiable. Grand chantier
+> restant : ce câblage (perte référentielle gradient + foraging dans l'agent vivant).
 
 ---
 
