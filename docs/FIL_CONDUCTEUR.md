@@ -162,9 +162,17 @@ Ollama).
 > *bornés* (aucun code exécuté) + LLM *local* (aucun appel externe) + *sanitizer* strict ; le conteneur
 > (EDR 044) ne reste requis que pour le kind `activation`/code.
 >
-> **Limite honnête** : le régime cible (langage) est *barren* (EDR 057) → le #8 itère bien mais n'a
-> pas de demande forte à trouver. Sa valeur dépend de l'**espace d'action** qu'on lui donne (plus de
-> mécanismes, ou `activation`/architecture *avec* conteneur) et d'une frontière aux effets plus francs.
+> **Espace d'action élargi (066)** : le #8 est aussi armé sur le kind **`activation`** (le LLM propose
+> des fonctions d'activation = CODE, validé par la sandbox EDR 035, exécuté). Il améliore donc l'**agent**,
+> pas que le monde. qwen-coder a proposé 6 activations, toutes sandbox-validées ; **aucune ne bat tanh**
+> (0.799) — et c'est la *bonne* réponse (tanh est quasi-optimal pour la mémoire récurrente). Le #8 ne se
+> ment pas.
+>
+> **Limite honnête (065+066)** : le #8 *fonctionne et est sûr* (monde + agent), mais n'a pas trouvé de
+> *breakthrough* — non par défaut de mécanisme, mais parce que ses frontières cibles sont **barren**
+> (langage, 057) ou **déjà optimales** (tanh, 066). Il lui faut un espace où l'amélioration EXISTE.
+> **Cette frontière, c'est le GRADIENT (BPTT)** : il donnerait un substrat où l'architecture/l'activation
+> *paient* (débloquant le NAS, 064) — le gros morceau de fond restant.
 
 ## Les prochaines cibles (nettes, fondées sur la mesure)
 
