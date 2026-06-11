@@ -15,14 +15,22 @@ class AgentSnapshot:
     stats: Dict[str, Any]
     state_path: Optional[str] = None
 
+# EDR 056 : poids de la distinction référentielle dans la fitness. 0 = OFF (la propagation par
+# fitness a backfiré : métrique bruitée à faible compte). Conservé comme seam (cf. EDR 056).
+REF_FITNESS_WEIGHT = 0.0
+
 def calculate_life_score(agent) -> float:
     # EDR 016/017 : le craft entre dans la fitness (poids fort) pour que la selection
     # saisisse les crafteurs maintenant que le HoF est persiste -> le craft peut evoluer.
     # EDR 028 : l'apex-kill (chasse coopérative au Mammouth, bout de la chaîne) pèse fort
     # -> la sélection saisit le chasseur-coopératif pour que la chaîne devienne DOMINANTE.
+    # EDR 056 : fitness alignée sur le langage — TENTÉE puis DÉSACTIVÉE. Mettre la distinction
+    # référentielle dans la fitness a BACKFIRÉ (métrique bruitée à faible compte -> propage des
+    # agents à distinction FORTUITE, dégrade la population). Poids 0 = off (réversion propre).
     return ((agent["age"] * 0.1) + (agent["preys_eaten"] * 50.0)
             + (agent["altars_solved"] * 20.0) + (agent.get("spears_crafted", 0) * 300.0)
-            + (agent.get("mammoth_kills", 0) * 400.0))
+            + (agent.get("mammoth_kills", 0) * 400.0)
+            + (agent.get("_ref_distinction", 0.0) * REF_FITNESS_WEIGHT))
 
 def save_agent_state(agent, path: str) -> str:
     """Sauvegarde état complet d'un MambaAgent en .npz."""

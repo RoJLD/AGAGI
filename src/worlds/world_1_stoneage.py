@@ -1276,6 +1276,7 @@ class Biosphere3D(BaseWorld):
                 if m.sum() >= 1 and l.sum() >= 1:
                     distinction = 0.5 * np.abs(m / m.sum() - l / l.sum()).sum()   # TV distance [0,1]
                     a["energy"] += self.align_selection * distinction
+                    a["_ref_distinction"] = float(distinction)   # EDR 056 : entre dans la fitness (HoF)
 
         # RL: Compute policy gradient
         new_energies = np.array([a["energy"] for a in self.agents], dtype=np.float32)

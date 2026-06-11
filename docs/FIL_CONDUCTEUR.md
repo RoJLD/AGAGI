@@ -106,11 +106,12 @@ seeds**. La discipline de mesure (039/041) devient une **contrainte d'architectu
   se cristallise dans ~25 % des runs (2/8 forts à MI 0.03-0.05, 6/8 au bruit). La thèse tient
   *probabilistiquement* ; 047 (0.033) était un tirage chanceux mais pas un artefact. **Brisure de
   symétrie** (coordonner une convention).
-- 🔧 Fiabiliser (054-055) : obstacle de fond trouvé — **la sélection (`life_score`) est aveugle au
-  langage**. Remède implémenté (055) : primer la **distinction référentielle** par agent
-  (anti-gameable). Effet **prometteur mais non confirmé** : taux 33→50 % + moyenne ↑ (bon sens sur
-  les 2 axes), mais n=6 trop faible (départager 0.33/0.50 demande ~40 seeds). **Régime faible/
-  stochastique : confirmer coûte ≫ 10 seeds** (mur EDR 052).
+- 🔧 Fiabiliser (054-056) : obstacle de fond — **la sélection (`life_score`) est aveugle au langage**.
+  Align en *énergie* (055) : prometteur-mais-faible (33→50 %, sous-puissant). Align en *fitness* (056,
+  lever fort) : **backfire** — métrique de distinction bruitée à faible n → propage des agents
+  *fortuits*. **5 mécanismes de langage à la main, ~4 défauts subtils — chacun révélé par la mesure.**
+  Frontière **caractérisée** ; pousser un 6ᵉ mécanisme manuel = rendements décroissants. → *pivot
+  recommandé vers NAS/#8.*
 - ✅ Harnais d'évaluation puissant **construit + utilisé** (052/053) — verdicts *avec confiance*.
 - ⏳ NAS : croissance jamais sélectionnée (046/049) — il manque une **tâche-mémoire survivable**.
 
