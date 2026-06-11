@@ -83,12 +83,16 @@ centaines de designs en mesurant chacun battrait la conception à la main.
 | EDR | Pas | Acquis |
 |---|---|---|
 | 051 | étendre le #8 au périmètre **`world_demand`** + boucle propose→mesure→classe | **construite, testée** (rsi_loop) ; la démo classe les demandes |
+| 052 | **harnais d'évaluation puissant** (multi-seeds + signification) | construit, testé ; **recalibre nos verdicts à 1 run** |
 
-**Leçon V (le goulot)** : la boucle marche mécaniquement, mais la démo (12 ères/demande) a **classé
-par le bruit** (tous MI < 047). **Un itérateur ne vaut QUE ce que vaut sa mesure** — proposer 1000
-demandes est inutile si chaque évaluation est trop faible pour les classer (la boucle *optimiserait
-le bruit*). Le goulot du #8 n'est pas le générateur mais **le coût + la puissance de chaque
-évaluation**. La discipline de mesure (039/041) devient une **contrainte d'architecture**.
+**Leçon V (le goulot, puis la recalibration)** : la boucle #8 marche mécaniquement, mais la démo
+(12 ères) a **classé par le bruit**. Le harnais (052, 3 seeds × 18 ères) tranche enfin… en refusant de
+conclure : **les 3 demandes ne se séparent pas** (t=0.24). Pire — il révèle que **nos verdicts à 1 run
+étaient non fiables** : `lewis_2ref` (047) fait 0.019 / **0.002** / 0.017 selon le seed (les 0.033 de
+047 étaient un *tirage favorable* ; vraie moyenne ~0.013 ± 0.009), et `referential_pressure` (045
+« échec ») a un seed à 0.039. **Le succès 047 ET l'échec 045 étaient en partie du bruit.** Un itérateur
+ne vaut QUE ce que vaut sa mesure — et une mesure fiable, à cet effet (~0.01 MI, σ≈0.01), coûte **≫ 3
+seeds**. La discipline de mesure (039/041) devient une **contrainte d'architecture chiffrée**.
 
 ---
 
@@ -98,20 +102,23 @@ le bruit*). Le goulot du #8 n'est pas le générateur mais **le coût + la puiss
 - ✅ Infrastructure RSI (#8) **câblée mais NON armée** : cage (035), yeux (036), mémoire (032/034),
   juge (041), boucle (044), **périmètre `world_demand` + boucle propose→mesure→classe (051)**. Le
   seam LLM attend (a) un harnais d'évaluation puissant, (b) un conteneur jetable.
-- ✅ Langage : **émergence prouvée sous demande** (047), mais **naissante/fragile** (048) ; la
-  réciprocité naïve échoue par crédit temporel (050).
+- ⚠️ Langage : émergence sous demande **réelle en moyenne mais faible et bruitée** (047 recalibré
+  par 052 : ~0.013 ± 0.009 MI, un seed à 0.002) — *à re-confirmer sous puissance, pas une pierre
+  angulaire acquise*.
+- ✅ Harnais d'évaluation puissant **construit** (052) — la mesure rend désormais des verdicts *avec
+  confiance*.
 - ⏳ NAS : croissance jamais sélectionnée (046/049) — il manque une **tâche-mémoire survivable**.
 
 ## Les prochaines cibles (nettes, fondées sur la mesure)
 
-1. **Harnais d'évaluation PUISSANT** (le goulot démontré en 051) : multi-ères + multi-seeds +
-   dénoising. *Prérequis de tout le reste* — sans lui, le #8 optimise le bruit.
-2. **NAS** — une **tâche-mémoire survivable** (se souvenir du type d'apex après s'en éloigner) →
-   saturer le connectome récurrent (la *bonne* demande pour l'architecture).
-3. **Langage** — incitation du locuteur **au tick du signal** (trace d'éligibilité, pas prime au
-   kill — EDR 050) + **affordances distinctes**.
-4. **#8** — une fois (1) en place : LLM dans un conteneur, qui propose des demandes au catalogue
-   `world_demand`, lit les échecs via l'ontologie, et **itère** sous évaluation puissante.
+1. ✅ **Harnais d'évaluation PUISSANT** (052) — *fait*. Désormais utilisé par défaut.
+2. **Re-confirmer 047 sous puissance** (≥ 8 seeds) avant d'en faire une fondation — la priorité
+   honnête révélée par 052.
+3. **NAS** — une **tâche-mémoire survivable**, évaluée *via le harnais* (sinon bruit).
+4. **Langage** — incitation du locuteur **au tick du signal** (trace d'éligibilité, pas prime au
+   kill — EDR 050) + **affordances distinctes**, évalué *via le harnais*.
+5. **#8** — une fois la mesure fiable + budgétée : LLM en conteneur, propose des demandes
+   `world_demand`, lit les échecs via l'ontologie, **itère** sous évaluation puissante.
 
 ## Comment lire les preuves
 
