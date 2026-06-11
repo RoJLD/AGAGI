@@ -139,8 +139,15 @@ seeds**. La discipline de mesure (039/041) devient une **contrainte d'architectu
 >   la **pression de convergence / sélection de groupe**).
 >
 > **Bilan** : l'unification d'EDR 058 tient au *diagnostic* (la sélection stricte tue la nouveauté)
-> mais les *remèdes* sont frontière-spécifiques. Reste, pour chaque : NAS → tâche dédiée ; langage →
-> mécanisme de convergence (que le **#8** doit itérer, EDR 061).
+> mais les *remèdes* sont frontière-spécifiques.
+>
+> **NAS — CLOS (064)** : sur un banc cognitif dédié (rappel de K bits, hors foraging), la croissance
+> *marche* (après correction d'un bug de driver) mais est du **BLOAT NEUTRE** : le trivial (K1, acc
+> 1.00) gonfle *plus* (35 nœuds) que le dur (K6, 26 nœuds) — la croissance suit le *mou*, pas la
+> demande ; et plus de capacité **n'aide pas** (K6 acc 0.78 à 19 ou 26 nœuds). **La croissance UTILE
+> d'architecture n'a pas lieu** dans AGIseed — goulot mécanique : `add_node` neutre/disruptif +
+> recherche par *mutation seule* incapable d'exploiter la capacité. Vrai NAS = opérateur de croissance
+> *utile* + apprentissage par *gradient* (changement fondamental ; candidat #8).
 
 ## Le #8 — entièrement développé, armable en 1 ligne (EDR 059+061)
 
