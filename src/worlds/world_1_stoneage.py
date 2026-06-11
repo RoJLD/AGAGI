@@ -76,6 +76,10 @@ class Biosphere3D(BaseWorld):
         # mort de life_score (EDR 054 : sélection aveugle au langage). Anti-piège 045 : un token
         # constant -> distinction nulle -> zéro prime (non gameable). 0 = off.
         self.align_selection = 0.0
+        # Demande de MÉMOIRE (EDR 058, NAS) : si True, le type d'apex (Mammouth/Leurre) n'est révélé
+        # qu'au PREMIER contact, puis caché. L'agent doit le RETENIR (état récurrent H) pour décider
+        # rester/fuir -> sature la mémoire -> devrait sélectionner la croissance architecturale.
+        self.transient_apex = False
         # Sevrage de la prime de groupe (EDR 030) : la prise d'apex passe de « pleine
         # récompense à chacun » (scaffold) à « partagée entre le pack » (économie réaliste).
         self.group_reward_eras = 20
@@ -324,13 +328,16 @@ class Biosphere3D(BaseWorld):
                 de[i] = max(0, p["x"] - ax[i]) / self.size
                 dw[i] = max(0, ax[i] - p["x"]) / self.size
                 is_flying[i] = 1.0 if p["type"] in ["Lapin", "Cerf"] else 0.0
-                if dists[closest_idx] <= 1:                       # adjacent -> on perçoit le type (EDR 047/048)
-                    if p["type"] == "Mammouth":
-                        on_apex_type[i] = 1.0
-                    elif p["type"] == "Ours":
-                        on_apex_type[i] = 0.5                      # 3e référent récompensé (EDR 048)
-                    elif p["type"] == "Leurre":
-                        on_apex_type[i] = -1.0
+                is_apex = p["type"] in ("Mammouth", "Ours", "Leurre")
+                if dists[closest_idx] <= 1 and is_apex:           # adjacent à un apex -> on perçoit le type
+                    # Mémoire (EDR 058) : si transient_apex, révélé SEULEMENT au premier contact
+                    # (puis caché) -> l'agent doit le RETENIR pour rester/fuir. Sature la mémoire.
+                    reveal = (not self.transient_apex) or (not self.agents[i].get("_adj_apex_prev", False))
+                    if reveal:
+                        on_apex_type[i] = {"Mammouth": 1.0, "Ours": 0.5, "Leurre": -1.0}[p["type"]]
+                    self.agents[i]["_adj_apex_prev"] = True
+                else:
+                    self.agents[i]["_adj_apex_prev"] = False
                 is_stunned[i] = 1.0 if p.get("stunned", 0) > 0 else 0.0
 
         # Lidar using advanced indexing (with padding to handle borders safely)

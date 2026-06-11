@@ -4,6 +4,7 @@ import pytest
 from src.metaprog.rsi_loop import (
     Proposal, TemplateProposer, LLMProposer, WorldDemandProposer,
     evaluate_proposal, rsi_step, rsi_demand_step, ALLOWED_KINDS,
+    build_demand_prompt, parse_demand_response,
 )
 
 
@@ -16,10 +17,41 @@ def test_template_proposer_proposals_are_valid():
         assert ok, f"{proposal.name}: {reason}"
 
 
-def test_llm_proposer_is_not_armed():
-    # Le SEAM du #8 lève NotImplementedError tant qu'il n'est pas armé.
+def test_llm_proposer_is_not_armed_by_default():
+    # Sans llm_fn injectée, le SEAM du #8 reste verrouillé (NotImplementedError -> repli).
     with pytest.raises(NotImplementedError):
         LLMProposer().propose({})
+
+
+def test_llm_proposer_armed_with_injected_fn():
+    # Avec une llm_fn injectée (mock), le #8 construit le prompt, appelle, et parse en Proposal.
+    seen = {}
+
+    def mock_llm(prompt):
+        seen["prompt"] = prompt
+        return 'Voici ma proposition : {"name": "lewis_strong", "params": {"lewis": true, "referential_scale": 0.8}, "rationale": "demande ciblee"}'
+
+    p = LLMProposer(llm_fn=mock_llm)
+    proposal = p.propose({"trend": {"direction": "plateau"},
+                          "recent": [{"name": "lewis_2ref", "params": {"lewis": True}, "score": 0.013}]})
+    assert proposal.kind == "world_demand" and proposal.name == "lewis_strong"
+    assert proposal.params == {"lewis": True, "referential_scale": 0.8}
+    assert "lewis_2ref" in seen["prompt"] and "0.013" in seen["prompt"]   # lit les echecs passes
+
+
+def test_parse_demand_response_handles_prose_around_json():
+    proposal = parse_demand_response('bla bla {"name": "x", "params": {"transient_apex": true}} fin')
+    assert proposal.params == {"transient_apex": True}
+
+
+def test_parse_demand_response_rejects_garbage():
+    with pytest.raises(ValueError):
+        parse_demand_response("aucun json ici")
+
+
+def test_build_demand_prompt_lists_past_attempts():
+    prompt = build_demand_prompt({"recent": [{"name": "speaker_reciprocity", "params": {}, "score": -0.01}]})
+    assert "speaker_reciprocity" in prompt and "JSON" in prompt
 
 
 def test_rsi_step_falls_back_when_llm_unarmed():

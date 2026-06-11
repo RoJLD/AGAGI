@@ -66,21 +66,66 @@ class TemplateProposer(Proposer):
         return Proposal("activation", name, code, rationale=f"catalogue (tendance={direction})")
 
 
+def build_demand_prompt(context: dict) -> str:
+    """Construit le prompt du #8 à partir du contexte : tendance + demandes déjà essayées et leurs
+    scores MESURÉS (via l'ontologie). Le LLM lit les échecs passés pour ne pas se répéter (EDR 059)."""
+    trend = (context or {}).get("trend", {})
+    past = (context or {}).get("recent", [])
+    lines = [
+        "Tu es le générateur d'un système d'auto-amélioration (RSI). Propose UNE *demande de monde*",
+        "qui fasse ÉMERGER une capacité (langage référentiel, ou capacité mémoire/architecture).",
+        "Principe (prouvé empiriquement) : on ne fabrique pas une capacité en l'ajoutant — il faut que",
+        "le monde l'EXIGE, de façon CIBLÉE et SURVIVABLE.",
+        f"Tendance actuelle : {trend}.",
+        "Demandes déjà essayées et leur score MESURÉ (multi-seed) — n'en répète pas une ratée :",
+    ]
+    for p in past:
+        lines.append(f"  - {p.get('name')}: params={p.get('params')} -> score={p.get('score')}")
+    lines += [
+        "Paramètres de monde disponibles : lewis(bool), referential_scale(float), speaker_reward(float),",
+        "align_selection(float), transient_apex(bool).",
+        'Réponds UNIQUEMENT en JSON : {"name": "...", "params": {...}, "rationale": "..."}',
+    ]
+    return "\n".join(lines)
+
+
+def parse_demand_response(text: str) -> Proposal:
+    """Parse la réponse LLM (JSON) en Proposal `world_demand`. Lève ValueError si pas de JSON valide."""
+    import json
+    import re
+    m = re.search(r"\{.*\}", text or "", re.DOTALL)
+    if not m:
+        raise ValueError("reponse LLM sans JSON")
+    d = json.loads(m.group(0))
+    params = d.get("params", {})
+    if not isinstance(params, dict):
+        raise ValueError("params n'est pas un objet")
+    return Proposal("world_demand", str(d.get("name", "llm_demand")),
+                    rationale=str(d.get("rationale", "")), params=params)
+
+
 class LLMProposer(Proposer):
-    """>>> SEAM DU #8 — NON ARMÉ <<<
+    """>>> SEAM DU #8 <<< — ARMABLE par injection, NON ARMÉ par défaut.
 
-    Brancher ICI un vrai LLM (dans un CONTENEUR JETABLE) : il reçoit `context` (la tendance
-    multi-ères + les propositions déjà tentées/réfutées via l'ontologie), et renvoie une `Proposal`
-    respectant le format ci-dessus. Tant que non armé, lève NotImplementedError -> la boucle
-    retombe automatiquement sur le `TemplateProposer` (aucun risque).
+    Le LLM est injecté comme une **fonction** `llm_fn(prompt:str) -> str` :
+      - défaut `llm_fn=None` -> `propose` lève NotImplementedError (la boucle retombe sur le
+        TemplateProposer ; aucun risque, verrou EDR 044 préservé) ;
+      - en prod : injecter une `llm_fn` qui appelle un vrai LLM **dans un conteneur jetable**
+        (prérequis EDR 035/044) ; `propose` construit le prompt (contexte+échecs passés), appelle,
+        et parse la réponse en `Proposal` world_demand.
 
-    Prérequis pour armer (cf. EDR 035/044) : conteneur jetable, périmètre borné (ALLOWED_KINDS),
-    et FALSIFICATION systématique (le code doit *mesurablement* améliorer, pas seulement compiler).
+    Armer le #8 = (1) fournir `llm_fn` (conteneur+clé) + (2) évaluer chaque proposition via le
+    HARNAIS PUISSANT (multi-seed, EDR 052) — sinon la boucle optimise le bruit (EDR 051). Voir EDR 059.
     """
+    def __init__(self, llm_fn=None):
+        self.llm_fn = llm_fn
+
     def propose(self, context: dict) -> Proposal:
-        raise NotImplementedError(
-            "ARMER LE #8 : brancher l'appel LLM ici (conteneur jetable, perimetre borne, "
-            "falsification systematique). Voir docs/EDR/044.")
+        if self.llm_fn is None:
+            raise NotImplementedError(
+                "ARMER LE #8 : injecter llm_fn (conteneur jetable + cle) + mesure puissante "
+                "(harnais EDR 052). Voir docs/EDR/059.")
+        return parse_demand_response(self.llm_fn(build_demand_prompt(context)))
 
 
 class WorldDemandProposer(Proposer):

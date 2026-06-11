@@ -112,7 +112,20 @@ seeds**. La discipline de mesure (039/041) devient une **contrainte d'architectu
   harnais **vindiqué** (il a refusé de nous laisser croire à 055). → l'approche manuelle du langage est
   *exhaustée* ; pivot **forcé** vers NAS/#8 ; l'argument du #8 devient un *résultat empirique*.
 - ✅ Harnais d'évaluation puissant **construit + utilisé** (052/053) — verdicts *avec confiance*.
-- ⏳ NAS : croissance jamais sélectionnée (046/049) — il manque une **tâche-mémoire survivable**.
+- 🧠 NAS (058) : même une **demande de mémoire** (apex transitoire) ne grandit pas l'archi (172/172,
+  comme 046/049). Vrai obstacle découvert : `add_node` est *neutre* (split NEAT), mais le HoF
+  élitiste strict **bat l'innovation immature** avant qu'elle mûrisse → croissance jamais retenue.
+- 🔓 #8 (059) : `LLMProposer` rendu **armable** (LLM injecté comme `llm_fn`, gardé, testé au mock).
+  Armable en 1 ligne ; reste **désarmé** (besoin conteneur + harnais en `measure_fn`).
+
+## ⚡ L'unification (le mur commun des deux frontières — EDR 054 ⊕ 058)
+
+> **Une sélection élitiste stricte par une fitness établie TUE la nouveauté avant maturité.** Langage
+> (054 : convention faible, sélection aveugle à elle) et architecture (058 : nœud immature, battu par
+> les rodés) échouent pour la **même** raison : *rien ne protège l'immature*. Ce n'est pas un défaut
+> de demande — c'est un défaut de **dynamique de sélection**. Lever commun : **protéger la nouveauté**
+> (spéciation NEAT / niches / pool d'innovation), une approche *structurelle* (vs par récompense, qui
+> a échoué sur une mesure par-agent bruitée, 055-057).
 
 ## Les prochaines cibles (nettes, fondées sur la mesure)
 
