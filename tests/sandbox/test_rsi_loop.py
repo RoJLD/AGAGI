@@ -44,6 +44,18 @@ def test_parse_demand_response_handles_prose_around_json():
     assert proposal.params == {"transient_apex": True}
 
 
+def test_sanitize_demand_params_is_the_safety_boundary():
+    from src.metaprog.rsi_loop import sanitize_demand_params
+    # Rejette les params HORS allow-list (ex. tentative d'attribut arbitraire) ; clampe les bornes.
+    out = sanitize_demand_params({
+        "lewis": True, "referential_scale": 99.0,        # clampé à 2.0
+        "os_system": "rm -rf /", "energy_max": 1e9,      # rejetés (hors allow-list)
+        "transient_apex": "false",
+    })
+    assert out == {"lewis": True, "referential_scale": 2.0, "transient_apex": False}
+    assert "os_system" not in out and "energy_max" not in out
+
+
 def test_parse_demand_response_rejects_garbage():
     with pytest.raises(ValueError):
         parse_demand_response("aucun json ici")
@@ -102,6 +114,27 @@ def test_rsi_demand_step_measures_and_returns_best():
     proposal, score, detail = rsi_demand_step({}, fake_measure)
     assert proposal.kind == "world_demand"
     assert seen and isinstance(score, float)
+
+
+def test_anthropic_llm_fn_is_gated_without_key(monkeypatch):
+    # Le branchement LLM réel REFUSE d'appeler sans clé (jamais d'appel externe silencieux, EDR 044).
+    from src.metaprog.llm_proposer_fn import anthropic_llm_fn
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    fn = anthropic_llm_fn()
+    with pytest.raises(RuntimeError):
+        fn("propose une demande")
+
+
+def test_llm_proposer_with_scripted_fn_produces_valid_demands():
+    # La boucle armée (LLMProposer + llm_fn scripté) produit des Proposals world_demand valides.
+    from src.metaprog.llm_proposer_fn import scripted_llm_fn
+    p = LLMProposer(llm_fn=scripted_llm_fn)
+    ctx = {"trend": {}, "recent": []}
+    prop = p.propose(ctx)
+    assert prop.kind == "world_demand" and isinstance(prop.params, dict) and prop.params.get("lewis")
+    # varie avec le contexte (demandes deja essayees)
+    ctx2 = {"trend": {}, "recent": [{"name": "a", "params": {}, "score": 0.0}]}
+    assert LLMProposer(llm_fn=scripted_llm_fn).propose(ctx2).name != prop.name
 
 
 def test_perimeter_rejects_unsafe_code():

@@ -149,13 +149,22 @@ seeds**. La discipline de mesure (039/041) devient une **contrainte d'architectu
 > recherche par *mutation seule* incapable d'exploiter la capacité. Vrai NAS = opérateur de croissance
 > *utile* + apprentissage par *gradient* (changement fondamental ; candidat #8).
 
-## Le #8 — entièrement développé, armable en 1 ligne (EDR 059+061)
+## Le #8 — ARMÉ, LIVE, SÛR (EDR 059+061+065)
 
-Cage (035) · yeux (036) · ontologie (032/034) · catalogue `world_demand` (051) · **proposer LLM
-injectable (059)** · **mesure PUISSANTE branchée (harnais en `measure_fn`, 061)** · boucle complète
-propose→mesure→enregistre→itère. **Armer = remplacer `WorldDemandProposer()` par `LLMProposer(llm_fn=
-<appel LLM en conteneur jetable>)`.** Seul reste : le **conteneur jetable** (décision outillage/
-sécurité). Reste *délibérément désarmé*.
+Cage (035) · yeux (036) · ontologie (032/034) · catalogue `world_demand` (051) · proposer LLM
+injectable (059) · mesure PUISSANTE (harnais en `measure_fn`, 061) · **frontière de sûreté**
+(`sanitize_demand_params`, allow-list bornée) · **connecteur LLM local** (`local_llm_fn`, LM Studio/
+Ollama).
+
+> **ARMÉ POUR DE VRAI (065)** : Gemma-12B local dans la boucle — il lit les résultats mesurés,
+> *raisonne* sur les échecs, propose des demandes NEUVES, le harnais les mesure (multi-seed), ça
+> itère. **La boucle d'auto-amélioration est vivante.** SÛR sans conteneur car `world_demand` = params
+> *bornés* (aucun code exécuté) + LLM *local* (aucun appel externe) + *sanitizer* strict ; le conteneur
+> (EDR 044) ne reste requis que pour le kind `activation`/code.
+>
+> **Limite honnête** : le régime cible (langage) est *barren* (EDR 057) → le #8 itère bien mais n'a
+> pas de demande forte à trouver. Sa valeur dépend de l'**espace d'action** qu'on lui donne (plus de
+> mécanismes, ou `activation`/architecture *avec* conteneur) et d'une frontière aux effets plus francs.
 
 ## Les prochaines cibles (nettes, fondées sur la mesure)
 

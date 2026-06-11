@@ -29,10 +29,12 @@ from tools.confirm_b import _backup, _restore, BAK_PKL, BAK_DIR
 
 def _apply_demand(env, params):
     _setup_lewis(env)                                   # toutes les demandes partent du monde de Lewis
-    if "referential_scale" in params:
-        env.referential_scale = params["referential_scale"]
-    if "speaker_reward" in params:
-        env.speaker_reward = params["speaker_reward"]
+    # Jeu complet de params SÛRS (allow-list rsi_loop.ALLOWED_DEMAND_PARAMS, déjà sanitisés).
+    for attr in ("referential_scale", "speaker_reward", "align_selection"):
+        if attr in params:
+            setattr(env, attr, float(params[attr]))
+    if "transient_apex" in params:
+        env.transient_apex = bool(params["transient_apex"])
 
 
 def _world(config, db, params):

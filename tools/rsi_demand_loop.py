@@ -66,7 +66,7 @@ def make_run_seed(config, db, eras=16, max_ticks=200):
     return run_seed
 
 
-def main(seeds=(0, 1, 2)):
+def main(seeds=(0, 1, 2), proposer=None, n_iters=None):
     async_logger.start()
     db = None
     for _ in range(50):
@@ -82,12 +82,16 @@ def main(seeds=(0, 1, 2)):
     _backup()
     run_seed = make_run_seed(config, db)
     powered = make_powered_measure(run_seed, seeds=seeds)        # <-- mesure PUISSANTE (harnais)
-    proposer = WorldDemandProposer()                            # <-- ARMER : LLMProposer(llm_fn=...)
-    context = {"trend": {"direction": "?"}, "recent": []}        # accumulé pour le LLM
+    if proposer is None:
+        proposer = WorldDemandProposer()                        # défaut : catalogue dirigé
+    if n_iters is None:
+        n_iters = len(WorldDemandProposer.CATALOG)
+    label = type(proposer).__name__
+    context = {"trend": {"direction": "?"}, "recent": []}        # accumulé pour le générateur (LLM)
 
-    print(f"BOUCLE #8 COMPLETE (mesure puissante, {len(seeds)} seeds/demande).")
+    print(f"BOUCLE #8 COMPLETE ({label}, mesure puissante, {len(seeds)} seeds/demande, {n_iters} iters).")
     results = []
-    for _ in range(len(WorldDemandProposer.CATALOG)):
+    for _ in range(n_iters):
         proposal, score, detail = rsi_demand_step(context, powered, proposer=proposer)
         print(f"  '{proposal.name:20s}' -> {detail}")
         context["recent"].append({"name": proposal.name, "params": proposal.params, "score": round(score, 4)})
@@ -98,7 +102,10 @@ def main(seeds=(0, 1, 2)):
     for name, score in results:
         print(f"  {name:20s} : {score:+.4f}")
     print(f"\n  -> meilleure demande : '{results[0][0]}'. Mesure PUISSANTE -> plus de classement du bruit (EDR 051).")
-    print("  -> ARMER : remplacer WorldDemandProposer par LLMProposer(llm_fn=...) en conteneur. Tout est branche.")
+    if "LLM" in label:
+        print(f"  -> #8 ARME ({label}) : le generateur a propose+mesure+itere. Live.")
+    else:
+        print("  -> ARMER : passer LLMProposer(llm_fn=local_llm_fn()) en argument. Tout est branche.")
 
     _restore()
     for p in (BAK_PKL,):

@@ -89,8 +89,42 @@ def build_demand_prompt(context: dict) -> str:
     return "\n".join(lines)
 
 
+# >>> FRONTIÈRE DE SÛRETÉ du #8 `world_demand` (EDR 065) <<<
+# Le LLM ne peut proposer QUE ces paramètres de monde, typés et bornés. Tout le reste est REJETÉ.
+# C'est ce qui rend l'armement SÛR SANS conteneur : aucun code généré/exécuté, surface d'attaque nulle
+# (au pire un réglage inutile). Le conteneur (EDR 044) ne reste requis que pour le kind `activation`.
+ALLOWED_DEMAND_PARAMS = {
+    "lewis": ("bool", None),
+    "referential_scale": ("float", (0.0, 2.0)),
+    "speaker_reward": ("float", (0.0, 20.0)),
+    "align_selection": ("float", (0.0, 20.0)),
+    "transient_apex": ("bool", None),
+}
+
+
+def sanitize_demand_params(params: dict) -> dict:
+    """Ne garde QUE les params de l'allow-list, typés et clampés. Rejette tout le reste (sûreté)."""
+    clean = {}
+    for k, v in (params or {}).items():
+        if k not in ALLOWED_DEMAND_PARAMS:
+            continue
+        typ, rng = ALLOWED_DEMAND_PARAMS[k]
+        try:
+            if typ == "bool":
+                v = v.strip().lower() in ("true", "1", "yes") if isinstance(v, str) else bool(v)
+            else:
+                v = float(v)
+        except (TypeError, ValueError):
+            continue
+        if rng:
+            v = max(rng[0], min(rng[1], v))
+        clean[k] = v
+    return clean
+
+
 def parse_demand_response(text: str) -> Proposal:
-    """Parse la réponse LLM (JSON) en Proposal `world_demand`. Lève ValueError si pas de JSON valide."""
+    """Parse la réponse LLM (JSON) en Proposal `world_demand`, params SANITISÉS (allow-list bornée).
+    Lève ValueError si pas de JSON valide."""
     import json
     import re
     m = re.search(r"\{.*\}", text or "", re.DOTALL)
@@ -101,7 +135,7 @@ def parse_demand_response(text: str) -> Proposal:
     if not isinstance(params, dict):
         raise ValueError("params n'est pas un objet")
     return Proposal("world_demand", str(d.get("name", "llm_demand")),
-                    rationale=str(d.get("rationale", "")), params=params)
+                    rationale=str(d.get("rationale", "")), params=sanitize_demand_params(params))
 
 
 class LLMProposer(Proposer):
