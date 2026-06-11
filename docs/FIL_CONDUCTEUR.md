@@ -106,12 +106,11 @@ seeds**. La discipline de mesure (039/041) devient une **contrainte d'architectu
   se cristallise dans ~25 % des runs (2/8 forts à MI 0.03-0.05, 6/8 au bruit). La thèse tient
   *probabilistiquement* ; 047 (0.033) était un tirage chanceux mais pas un artefact. **Brisure de
   symétrie** (coordonner une convention).
-- 🔧 Fiabiliser (054-056) : obstacle de fond — **la sélection (`life_score`) est aveugle au langage**.
-  Align en *énergie* (055) : prometteur-mais-faible (33→50 %, sous-puissant). Align en *fitness* (056,
-  lever fort) : **backfire** — métrique de distinction bruitée à faible n → propage des agents
-  *fortuits*. **5 mécanismes de langage à la main, ~4 défauts subtils — chacun révélé par la mesure.**
-  Frontière **caractérisée** ; pousser un 6ᵉ mécanisme manuel = rendements décroissants. → *pivot
-  recommandé vers NAS/#8.*
+- ⛔ Fiabiliser (054-057) : **CLOS sur un négatif propre.** Align-énergie (055) semblait prometteur
+  (33→50 %) mais à **40 seeds (057) = NUL** (28 % vs 32 %, le n=6 était du bruit) ; align-fitness (056)
+  backfire. **6 mécanismes à la main (045-057), zéro qui fiabilise.** La loterie ~25-32 % tient. Le
+  harnais **vindiqué** (il a refusé de nous laisser croire à 055). → l'approche manuelle du langage est
+  *exhaustée* ; pivot **forcé** vers NAS/#8 ; l'argument du #8 devient un *résultat empirique*.
 - ✅ Harnais d'évaluation puissant **construit + utilisé** (052/053) — verdicts *avec confiance*.
 - ⏳ NAS : croissance jamais sélectionnée (046/049) — il manque une **tâche-mémoire survivable**.
 
