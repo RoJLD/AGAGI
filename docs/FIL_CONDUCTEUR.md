@@ -11,12 +11,18 @@ Tout le projet teste cette idée (EDR 010/012). On n'*ajoute* pas l'intelligence
 monde dont la **demande** sélectionne l'intelligence. Chaque vague est une mise à l'épreuve, de plus
 en plus dure, de cette thèse — jusqu'à la prouver (047) puis la raffiner (048/049).
 
-> **⚡ TOURNANT (EDR 067)** : après 60 EDR à durcir la *demande* et protéger l'*innovation*, on a
-> trouvé la cause profonde commune des deux murs (langage, NAS) : **la faiblesse de la RECHERCHE
-> (mutation seule).** Le **gradient (BPTT)** débloque — K=6 mémoire : 0.78 (mutation) → **1.00**
-> (gradient), même architecture ; et la capacité devient non-bindante (le NAS était un faux problème).
-> **Le vrai levier n'était pas le monde ni l'architecture, mais COMMENT L'AGENT APPREND.** C'est la
-> découverte mécaniste centrale.
+> **⚡ TOURNANT (EDR 067→070) — UNE clé déverrouille tout :** après 60 EDR à durcir la *demande* et
+> protéger l'*innovation*, on a trouvé la cause profonde commune des deux murs (langage, NAS) : **la
+> faiblesse de la RECHERCHE par mutation seule.** Le **gradient** est la clé unique :
+> - **067** : résout la mémoire (0.78→1.00) ; le NAS était un faux problème (capacité non-bindante).
+> - **068** : devient l'apprentissage de l'agent + **Baldwin** (l'évolution façonne des inits apprenables).
+> - **069** : crée une frontière *fertile* → le **#8 trouve ELU > tanh** (auto-amélioration réelle de l'agent).
+> - **070** : fait **converger le langage** (jeu référentiel par gradient : decode 0.82-0.94, fiable, vs
+>   loterie ~25 % de la mutation).
+>
+> **Le vrai levier n'était ni le monde ni l'architecture, mais COMMENT L'AGENT APPREND.** La graine
+> APPREND, ÉVOLUE ce qui s'apprend, se RÉ-AMÉLIORE, et COMMUNIQUE — sous une seule clé. Grand chantier
+> restant : **intégrer le gradient dans la biosphère vivante** (RL multi-agent).
 
 ---
 
