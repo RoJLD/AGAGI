@@ -47,6 +47,27 @@ en plus dure, de cette thèse — jusqu'à la prouver (047) puis la raffiner (04
 > ligne. Le langage fiable est désormais une propriété *portée par l'agent vivant*, pas un résultat de
 > banc.
 
+## 🔜 REPRISE DE SESSION — 3 options (au 2026-06-11, après EDR 074)
+
+Le langage référentiel fiable est **câblé dans l'agent vivant** (074). Il ne reste que du *raffinement
+honnête* — pas un nouveau mur. Trois pistes, toutes fondées sur la mesure :
+
+1. **Enrichir l'EXPRESSION** (le plus direct) — augmenter la fréquence des actes de communication près
+   des apex (plus d'apex, meilleure survie, abaisser la porte de parole `speak_threshold`) pour que la
+   MI(token; apex) *live* devienne **nette et fiable** (la limite actuelle 50-67 % est l'échantillonnage
+   `n=4-37`, pas le mécanisme). Outil : `tools/wire_ref_head.py`.
+2. **Co-évoluer les têtes EN LIGNE** — entraîner `ref_head` *dans* la boucle RL vivante (pas en offline
+   pré-entraînement), pour que la convention émerge *pendant* la vie de la biosphère. L'intégration
+   ultime. Point d'injection : `compute_policy_gradient` (un terme de gradient référentiel) ou un
+   co-training entre ères.
+3. **Le BÉNÉFICE FONCTIONNEL** — vérifier que les *auditeurs* chassent mieux grâce au code fiable
+   (le token référentiel doit améliorer la chasse coopérative : approcher le Mammouth, fuir le Leurre).
+   Mesurer mammouth_kills / survie avec `use_ref_head` ON vs OFF.
+
+> Acquis à ne pas perdre : `referential_head.py` (tête + co-évolution 072, decode croisé 100 %),
+> câblage `use_ref_head`/`_apex_idx`/injection token (gated, 141 tests verts). Le mécanisme du langage
+> fiable est **dans l'agent** ; ces 3 pistes le font *s'exprimer*, *émerger en ligne*, et *payer*.
+
 ---
 
 ## Acte I — Faire émerger une chaîne moyens→fins (EDR 010→030)
