@@ -19,10 +19,19 @@ class AgentSnapshot:
 # fitness a backfiré : métrique bruitée à faible compte). Conservé comme seam (cf. EDR 056).
 REF_FITNESS_WEIGHT = 0.0
 
-# EDR 060 : SPÉCIATION du HoF par taille d'architecture (protège l'innovation immature, mur EDR 058).
-# False = top-N global classique (défaut, inchangé). HOF_MAX = taille du HoF.
+# EDR 060/063 : SPÉCIATION du HoF (protège l'innovation immature, mur EDR 058). False = top-N global
+# classique (défaut, inchangé). MODE : "size" (par taille d'archi, NAS) | "token" (par token d'apex
+# dominant, langage). HOF_MAX = taille du HoF.
 SPECIATE = False
+SPECIATE_MODE = "size"
 HOF_MAX = 10
+
+
+def _speciation_key(snapshot):
+    """Clé de niche d'un AgentSnapshot selon SPECIATE_MODE."""
+    if SPECIATE_MODE == "token":
+        return snapshot.stats.get("apex_token", -1) if getattr(snapshot, "stats", None) else -1
+    return getattr(getattr(snapshot, "genome", None), "num_nodes", 0)
 
 def calculate_life_score(agent) -> float:
     # EDR 016/017 : le craft entre dans la fitness (poids fort) pour que la selection
@@ -80,7 +89,7 @@ def save_to_hall_of_fame(agent) -> Optional[str]:
 
     version, hof = load_hall_of_fame()
     import copy
-    stats = {"age": agent["age"], "preys_eaten": agent["preys_eaten"], "altars_solved": agent["altars_solved"], "spears_crafted": agent.get("spears_crafted", 0), "mammoth_kills": agent.get("mammoth_kills", 0), "score": score}
+    stats = {"age": agent["age"], "preys_eaten": agent["preys_eaten"], "altars_solved": agent["altars_solved"], "spears_crafted": agent.get("spears_crafted", 0), "mammoth_kills": agent.get("mammoth_kills", 0), "score": score, "apex_token": agent.get("_apex_token", -1)}
     genome = agent["model"].genome if "model" in agent else agent["genome"]
     agent_id = f"{score}_{agent['age']}_{len(hof)}"
 
@@ -99,7 +108,7 @@ def save_to_hall_of_fame(agent) -> Optional[str]:
         # il garde un siège et peut MÛRIR). Puis compléter par le top global. (Mur EDR 058.)
         seen, reserved_idx = set(), []
         for idx, e in enumerate(hof):
-            n = getattr(getattr(e, "genome", None), "num_nodes", 0)
+            n = _speciation_key(e)                  # niche par taille (NAS) ou token (langage)
             if n not in seen:
                 seen.add(n)
                 reserved_idx.append(idx)

@@ -126,11 +126,21 @@ seeds**. La discipline de mesure (039/041) devient une **contrainte d'architectu
 > sélection**, pas de demande. Lever : **protéger la nouveauté** (spéciation NEAT).
 >
 > **Testé (060)** : la spéciation-par-taille **protège bien** (des archis 173-174 *persistent* enfin,
-> vs 172 verrouillé) — mais **ne suffit pas** : les archis protégées ne prolifèrent ni n'aident à 20
-> ères (demande de mémoire trop petite / maturation trop courte). **Protection nécessaire, pas
-> suffisante.** Le lever est *conceptuel* ; l'implémentation est frontière-spécifique (par taille pour
-> le NAS ✅-protection ; par comportement pour le langage, *non testé*). Reste : demande suffisante +
-> temps de maturation.
+> vs 172 verrouillé) — mais **ne suffit pas** seule.
+>
+> **Le grand raffinement (062-063) — les remèdes DIVERGENT :**
+> - **NAS (062)** : même avec 3 bits + 36 ères + spéciation, l'archi ne prolifère pas. **Le
+>   foraging ne sature fondamentalement pas 172 nœuds** (tâche réactive, mémoire peu profonde).
+>   Protection *résolue* (spéciation) ; demande *non réparable dans ce substrat* → il faut une
+>   **tâche-mémoire dédiée** (hors foraging).
+> - **Langage (063)** : porter la spéciation par token **BAISSE** l'émergence (33→17 %, d=−0.48).
+>   **NAS doit EXPLORER (diversité protégée = bien) ; langage doit CONVERGER (diversité protégée =
+>   mal).** Dynamiques **OPPOSÉES**. La spéciation est l'outil du NAS, *pas* du langage (qui relève de
+>   la **pression de convergence / sélection de groupe**).
+>
+> **Bilan** : l'unification d'EDR 058 tient au *diagnostic* (la sélection stricte tue la nouveauté)
+> mais les *remèdes* sont frontière-spécifiques. Reste, pour chaque : NAS → tâche dédiée ; langage →
+> mécanisme de convergence (que le **#8** doit itérer, EDR 061).
 
 ## Le #8 — entièrement développé, armable en 1 ligne (EDR 059+061)
 

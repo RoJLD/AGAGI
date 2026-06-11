@@ -80,6 +80,9 @@ class Biosphere3D(BaseWorld):
         # qu'au PREMIER contact, puis caché. L'agent doit le RETENIR (état récurrent H) pour décider
         # rester/fuir -> sature la mémoire -> devrait sélectionner la croissance architecturale.
         self.transient_apex = False
+        # Suivi du token d'apex (EDR 063) : accumule par agent l'histogramme des tokens émis près du
+        # Mammouth -> `_apex_token` (dominant). Sert à la spéciation PAR COMPORTEMENT pour le langage.
+        self.track_apex_token = False
         # Sevrage de la prime de groupe (EDR 030) : la prise d'apex passe de « pleine
         # récompense à chacun » (scaffold) à « partagée entre le pack » (économie réaliste).
         self.group_reward_eras = 20
@@ -1284,6 +1287,17 @@ class Biosphere3D(BaseWorld):
                     distinction = 0.5 * np.abs(m / m.sum() - l / l.sum()).sum()   # TV distance [0,1]
                     a["energy"] += self.align_selection * distinction
                     a["_ref_distinction"] = float(distinction)   # EDR 056 : entre dans la fitness (HoF)
+
+        # Suivi du token d'apex (EDR 063) : histogramme des tokens émis adjacent à un Mammouth ->
+        # token dominant `_apex_token` (4 = silence). Clé de la spéciation par comportement (langage).
+        if self.track_apex_token:
+            mam = [p for p in self.preys if p["type"] == "Mammouth"]
+            for a in self.agents:
+                ls = a.get("last_spoken", [0.0] * 4)
+                if any(abs(v) > 0.01 for v in ls) and any(abs(a["x"] - p["x"]) + abs(a["y"] - p["y"]) <= 1 for p in mam):
+                    a.setdefault("_apex_hist", [0, 0, 0, 0])[int(np.argmax(ls))] += 1
+                h = a.get("_apex_hist")
+                a["_apex_token"] = int(np.argmax(h)) if h and sum(h) > 0 else 4
 
         # RL: Compute policy gradient
         new_energies = np.array([a["energy"] for a in self.agents], dtype=np.float32)
