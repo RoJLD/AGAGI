@@ -102,23 +102,24 @@ seeds**. La discipline de mesure (039/041) devient une **contrainte d'architectu
 - ✅ Infrastructure RSI (#8) **câblée mais NON armée** : cage (035), yeux (036), mémoire (032/034),
   juge (041), boucle (044), **périmètre `world_demand` + boucle propose→mesure→classe (051)**. Le
   seam LLM attend (a) un harnais d'évaluation puissant, (b) un conteneur jetable.
-- ⚠️ Langage : émergence sous demande **réelle en moyenne mais faible et bruitée** (047 recalibré
-  par 052 : ~0.013 ± 0.009 MI, un seed à 0.002) — *à re-confirmer sous puissance, pas une pierre
-  angulaire acquise*.
-- ✅ Harnais d'évaluation puissant **construit** (052) — la mesure rend désormais des verdicts *avec
-  confiance*.
+- 🎲 Langage : émergence sous demande **réelle mais STOCHASTIQUE** (053, 8 seeds) — une *loterie* qui
+  se cristallise dans ~25 % des runs (2/8 forts à MI 0.03-0.05, 6/8 au bruit). La thèse tient
+  *probabilistiquement* ; 047 (0.033) était un tirage chanceux mais pas un artefact. **Brisure de
+  symétrie** (coordonner une convention).
+- ✅ Harnais d'évaluation puissant **construit + utilisé** (052/053) — verdicts *avec confiance*.
 - ⏳ NAS : croissance jamais sélectionnée (046/049) — il manque une **tâche-mémoire survivable**.
 
 ## Les prochaines cibles (nettes, fondées sur la mesure)
 
-1. ✅ **Harnais d'évaluation PUISSANT** (052) — *fait*. Désormais utilisé par défaut.
-2. **Re-confirmer 047 sous puissance** (≥ 8 seeds) avant d'en faire une fondation — la priorité
-   honnête révélée par 052.
+1. ✅ **Harnais d'évaluation PUISSANT** (052) + **047 re-confirmé sous puissance** (053) — *faits*.
+2. **Fiabiliser l'émergence** (la nouvelle cible, issue de 053) : agir sur la **brisure de symétrie**
+   — demande plus forte, *nudge* de coordination, ou **propager les lignées chanceuses** (les 2/8).
+   Métrique = **taux d'émergence**, pas la moyenne.
 3. **NAS** — une **tâche-mémoire survivable**, évaluée *via le harnais* (sinon bruit).
-4. **Langage** — incitation du locuteur **au tick du signal** (trace d'éligibilité, pas prime au
-   kill — EDR 050) + **affordances distinctes**, évalué *via le harnais*.
+4. **Langage** — incitation du locuteur **au tick du signal** (trace d'éligibilité — EDR 050) +
+   **affordances distinctes**, évalué *via le harnais*.
 5. **#8** — une fois la mesure fiable + budgétée : LLM en conteneur, propose des demandes
-   `world_demand`, lit les échecs via l'ontologie, **itère** sous évaluation puissante.
+   `world_demand`, lit les échecs via l'ontologie, **itère** sous évaluation puissante (≫ 3 seeds).
 
 ## Comment lire les preuves
 
