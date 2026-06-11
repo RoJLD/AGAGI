@@ -106,15 +106,19 @@ seeds**. La discipline de mesure (039/041) devient une **contrainte d'architectu
   se cristallise dans ~25 % des runs (2/8 forts à MI 0.03-0.05, 6/8 au bruit). La thèse tient
   *probabilistiquement* ; 047 (0.033) était un tirage chanceux mais pas un artefact. **Brisure de
   symétrie** (coordonner une convention).
+- 🔧 Fiabiliser (054) : l'obstacle de fond est trouvé — **la sélection (`life_score`) est aveugle au
+  langage**, donc rien ne maintient la convention (attracteur faible, érode partiellement). Levier :
+  **aligner la sélection sur la convention**. (Une 1ʳᵉ expérience confondue — seeds identiques — a été
+  *attrapée* avant de conclure : discipline.)
 - ✅ Harnais d'évaluation puissant **construit + utilisé** (052/053) — verdicts *avec confiance*.
 - ⏳ NAS : croissance jamais sélectionnée (046/049) — il manque une **tâche-mémoire survivable**.
 
 ## Les prochaines cibles (nettes, fondées sur la mesure)
 
 1. ✅ **Harnais d'évaluation PUISSANT** (052) + **047 re-confirmé sous puissance** (053) — *faits*.
-2. **Fiabiliser l'émergence** (la nouvelle cible, issue de 053) : agir sur la **brisure de symétrie**
-   — demande plus forte, *nudge* de coordination, ou **propager les lignées chanceuses** (les 2/8).
-   Métrique = **taux d'émergence**, pas la moyenne.
+2. **Fiabiliser l'émergence** (054) : **aligner la sélection sur la convention** — un terme de fitness
+   référentiel (faible, annealé), car `life_score` est aveugle au langage. Métrique = **taux
+   d'émergence** *via le harnais* (multi-seed), pas la moyenne d'un run.
 3. **NAS** — une **tâche-mémoire survivable**, évaluée *via le harnais* (sinon bruit).
 4. **Langage** — incitation du locuteur **au tick du signal** (trace d'éligibilité — EDR 050) +
    **affordances distinctes**, évalué *via le harnais*.
