@@ -67,6 +67,10 @@ class Biosphere3D(BaseWorld):
         # CONVERGENCE sur un token partagé près de l'apex -> rend le CONTENU du signal payant
         # (vs présence seule, EDR 043). Le token DEVIENT « Mammouth ici ». 0 = off (legacy).
         self.referential_scale = 0.0
+        # Incitation du LOCUTEUR (EDR 050) : réciprocité — un agent qui a signalé près d'un
+        # Mammouth EFFECTIVEMENT tué par le pack touche une prime. Vainc l'altruisme du signal
+        # (EDR 048 : le silence gagne car parler ne profite qu'à l'auditeur). 0 = off.
+        self.speaker_reward = 0.0
         # Sevrage de la prime de groupe (EDR 030) : la prise d'apex passe de « pleine
         # récompense à chacun » (scaffold) à « partagée entre le pack » (économie réaliste).
         self.group_reward_eras = 20
@@ -635,6 +639,15 @@ class Biosphere3D(BaseWorld):
                         agent["preys_eaten"] += 1
                         agent["mammoth_kills"] = agent.get("mammoth_kills", 0) + 1
                     self.big_kills = getattr(self, "big_kills", 0) + 1
+                    # Réciprocité du LOCUTEUR (EDR 050) : les agents qui ont annoncé ce Mammouth
+                    # touchent une prime -> parler PAIE pour le parleur (vainc le silence, EDR 048).
+                    if self.speaker_reward > 0:
+                        signalers = attacked_prey.get("signalers", set())
+                        by_id = {o["id"]: o for o in self.agents}
+                        for sid in signalers:
+                            sp = by_id.get(sid)
+                            if sp is not None:
+                                sp["energy"] = min(self.config.agent.energy_max, sp["energy"] + self.speaker_reward)
                 else:
                     agent["energy"] = min(self.config.agent.energy_max, agent["energy"] + reward)
                     agent["preys_eaten"] += 1
@@ -1224,6 +1237,19 @@ class Biosphere3D(BaseWorld):
                                 and any(abs(v) > 0.01 for v in b.get("last_spoken", [0.0] * 4))
                                 and int(np.argmax(b["last_spoken"])) == tok)
                     a["energy"] += self.referential_scale * agree
+
+        # Incitation du LOCUTEUR (EDR 050) : mémoriser qui a signalé (adjacent) près de chaque
+        # Mammouth -> prime à la mise à mort (réciprocité). Annoncer une vraie opportunité paie.
+        if self.speaker_reward > 0:
+            for p in self.preys:
+                cfg = self.config.preys.get(p["type"])
+                if not (cfg and p["type"] == "Mammouth"):
+                    continue
+                sig = p.setdefault("signalers", set())
+                for a in self.agents:
+                    ls = a.get("last_spoken", [0.0] * 4)
+                    if any(abs(v) > 0.01 for v in ls) and abs(a["x"] - p["x"]) + abs(a["y"] - p["y"]) <= 1:
+                        sig.add(a["id"])
 
         # RL: Compute policy gradient
         new_energies = np.array([a["energy"] for a in self.agents], dtype=np.float32)
