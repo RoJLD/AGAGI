@@ -11,6 +11,13 @@ Tout le projet teste cette idée (EDR 010/012). On n'*ajoute* pas l'intelligence
 monde dont la **demande** sélectionne l'intelligence. Chaque vague est une mise à l'épreuve, de plus
 en plus dure, de cette thèse — jusqu'à la prouver (047) puis la raffiner (048/049).
 
+> **⚡ TOURNANT (EDR 067)** : après 60 EDR à durcir la *demande* et protéger l'*innovation*, on a
+> trouvé la cause profonde commune des deux murs (langage, NAS) : **la faiblesse de la RECHERCHE
+> (mutation seule).** Le **gradient (BPTT)** débloque — K=6 mémoire : 0.78 (mutation) → **1.00**
+> (gradient), même architecture ; et la capacité devient non-bindante (le NAS était un faux problème).
+> **Le vrai levier n'était pas le monde ni l'architecture, mais COMMENT L'AGENT APPREND.** C'est la
+> découverte mécaniste centrale.
+
 ---
 
 ## Acte I — Faire émerger une chaîne moyens→fins (EDR 010→030)
