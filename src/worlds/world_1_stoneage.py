@@ -83,6 +83,10 @@ class Biosphere3D(BaseWorld):
         # Suivi du token d'apex (EDR 063) : accumule par agent l'histogramme des tokens émis près du
         # Mammouth -> `_apex_token` (dominant). Sert à la spéciation PAR COMPORTEMENT pour le langage.
         self.track_apex_token = False
+        # Tête référentielle DÉDIÉE (EDR 074) : si True, quand un agent perçoit un apex, son token vient
+        # de sa `ref_head` co-entraînée (apex->token, code partagé fiable) au lieu du connectome 1-tick
+        # faible (EDR 073). -> langage FIABLE dans l'agent vivant (vs 25% loterie mutation).
+        self.use_ref_head = False
         # Sevrage de la prime de groupe (EDR 030) : la prise d'apex passe de « pleine
         # récompense à chacun » (scaffold) à « partagée entre le pack » (économie réaliste).
         self.group_reward_eras = 20
@@ -228,6 +232,14 @@ class Biosphere3D(BaseWorld):
             if self.geometry[bz, by, bx] == 0:
                 self.items.append({"x": bx, "y": by, "z": bz, "type": "rock", "weight": np.random.uniform(1.0, 10.0)})
                 break
+
+    def _apex_idx(self, agent):
+        """0 Mammouth / 1 Ours / 2 Leurre si l'agent est adjacent à un apex, sinon None (EDR 074)."""
+        idx = {"Mammouth": 0, "Ours": 1, "Leurre": 2}
+        for p in self.preys:
+            if p["type"] in idx and abs(agent["x"] - p["x"]) + abs(agent["y"] - p["y"]) <= 1:
+                return idx[p["type"]]
+        return None
 
     def _spawn_prey_instance(self, p_type):
         while True:
@@ -976,6 +988,13 @@ class Biosphere3D(BaseWorld):
                     token_idx = np.argmax(y / np.sum(y))
                     if getattr(self, "scramble_signal", False):
                         token_idx = np.random.randint(4)   # contenu ALÉATOIRE, présence préservée
+                    if self.use_ref_head:                  # EDR 074 : tête référentielle dédiée
+                        model = agent.get("model")
+                        rh = getattr(model, "ref_head", None) if model is not None else None
+                        ai = self._apex_idx(agent) if rh is not None else None
+                        if ai is not None:
+                            from src.seed_ai.referential_head import speak_token
+                            token_idx = speak_token(rh, ai)   # token <- code partagé fiable (apex->token)
                     one_hot = np.zeros(4)
                     one_hot[token_idx] = 1.0
                     agent["last_spoken"] = [float(l) for l in one_hot]

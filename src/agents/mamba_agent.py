@@ -32,6 +32,7 @@ class MambaAgent(BaseAgent):
         self.attention_mask = None
         self.explicit_memory = None
         self.goal_vector = None
+        self.ref_head = None        # EDR 074 : tête référentielle dédiée (apex->token), co-entraînée par gradient
         self.predictor_head = None
         
         self.reset_state()

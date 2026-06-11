@@ -36,7 +36,16 @@ en plus dure, de cette thèse — jusqu'à la prouver (047) puis la raffiner (04
 > **1-tick (réflexe)**, *sans couche cachée* entre apex et token. **Prescription** (déjà validée par
 > 072) : une **tête référentielle DÉDIÉE** (MLP avec capacité cachée) branchée sur apex-perception +
 > token, entraînée par le jeu de population. Le câblage = *ajouter cette tête* à l'agent vivant, pas
-> copier 072. Chantier d'ingénierie focalisé restant.
+> copier 072.
+>
+> **CÂBLÉ (074) :** la tête référentielle dédiée est branchée dans le VRAI Biosphere3D (`use_ref_head`,
+> injection à l'émission de token). Co-évolution des têtes = 100 % (code partagé). MI(token; apex)
+> **LIVE = +0.22** (vs connectome −0.03, ≈ bruit) → **le langage référentiel fiable est passé du banc
+> à l'agent vivant.** Fiabilité de la *mesure* live 50-67 % (pas la tête, mais la **rareté des actes de
+> communication** : mort des agents, positionnement, porte de parole → peu d'échantillons). Le
+> *mécanisme* est dans l'agent ; reste à enrichir l'**expression** (dynamique sociale) + co-évoluer en
+> ligne. Le langage fiable est désormais une propriété *portée par l'agent vivant*, pas un résultat de
+> banc.
 
 ---
 
