@@ -28,8 +28,15 @@ en plus dure, de cette thèse — jusqu'à la prouver (047) puis la raffiner (04
 > Les murs venaient de l'**évolution** des architectures/conventions, pas de l'absence de gradient
 > intra-vie. Et (072) le **jeu référentiel de POPULATION par gradient** fait converger une convention
 > partagée **fiablement à 100 %** (vs 25 % loterie mutation) — la population *régularise* la brisure de
-> symétrie. **Mécanisme validé à câbler dans Biosphere3D** pour un langage fiable. Grand chantier
-> restant : ce câblage (perte référentielle gradient + foraging dans l'agent vivant).
+> symétrie. **Mécanisme validé** pour un langage fiable.
+>
+> **Câblage tenté (073) — l'écart banc→biosphère est ARCHITECTURAL :** porté sur le *vrai* connectome
+> (apex@entrée 4, token@sorties 19:23), le jeu référentiel ne converge que partiellement (~0.5, vs 1.00
+> MLP) — *pas* à cause de l'encodage (scalaire ≈ one-hot) mais parce que le connectome est un map
+> **1-tick (réflexe)**, *sans couche cachée* entre apex et token. **Prescription** (déjà validée par
+> 072) : une **tête référentielle DÉDIÉE** (MLP avec capacité cachée) branchée sur apex-perception +
+> token, entraînée par le jeu de population. Le câblage = *ajouter cette tête* à l'agent vivant, pas
+> copier 072. Chantier d'ingénierie focalisé restant.
 
 ---
 
