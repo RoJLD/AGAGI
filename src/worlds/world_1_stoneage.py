@@ -87,6 +87,12 @@ class Biosphere3D(BaseWorld):
         # de sa `ref_head` co-entraînée (apex->token, code partagé fiable) au lieu du connectome 1-tick
         # faible (EDR 073). -> langage FIABLE dans l'agent vivant (vs 25% loterie mutation).
         self.use_ref_head = False
+        # Décode-et-agis (EDR 075) : si True, un auditeur décode le token du locuteur le plus proche
+        # (via le Wd de sa tête) et APPROCHE si prédit Mammouth/Ours, FUIT si Leurre. Teste le BÉNÉFICE
+        # FONCTIONNEL du langage fiable (à distance, Mammouth et Leurre sont indistinguables -> le
+        # signal seul permet de chasser le bon et d'éviter le piège).
+        self.decode_act = False
+        self.leurre_hits = 0        # compteur : attaques de Leurre (piège) -> à minimiser
         # Sevrage de la prime de groupe (EDR 030) : la prise d'apex passe de « pleine
         # récompense à chacun » (scaffold) à « partagée entre le pack » (économie réaliste).
         self.group_reward_eras = 20
@@ -232,6 +238,41 @@ class Biosphere3D(BaseWorld):
             if self.geometry[bz, by, bx] == 0:
                 self.items.append({"x": bx, "y": by, "z": bz, "type": "rock", "weight": np.random.uniform(1.0, 10.0)})
                 break
+
+    def _decode_act_override(self, agent, action):
+        """Décode-et-agis (EDR 075) : l'auditeur décode le token du locuteur le plus proche (via le Wd
+        de sa tête) et oriente son mouvement — APPROCHER si Mammouth/Ours prédit, FUIR si Leurre. Teste
+        le bénéfice fonctionnel du langage fiable. Renvoie l'action (0-3) éventuellement réorientée."""
+        model = agent.get("model")
+        rh = getattr(model, "ref_head", None) if model is not None else None
+        if rh is None:
+            return action
+        R = max(getattr(self, "hear_radius", 0), 1)
+        best, bestd = None, 1e9
+        for o in self.agents:
+            if o is agent:
+                continue
+            ls = o.get("last_spoken", [0.0] * 4)
+            if all(abs(v) < 0.01 for v in ls) or ls == [99.0] * 4:   # silence ou marqueur spark
+                continue
+            if self._apex_idx(o) is None:   # ne réagir qu'aux locuteurs RÉELLEMENT près d'un apex
+                continue                    # (sinon bruit de bavardage) -> isole la qualité du TOKEN
+            d = abs(o["x"] - agent["x"]) + abs(o["y"] - agent["y"])
+            if d <= R and d < bestd:
+                bestd, best = d, o
+        if best is None:
+            return action
+        tok = np.array(best["last_spoken"], dtype=float)
+        pred = int(np.argmax(tok @ rh["Wd"]))            # token -> apex (0 Mam, 1 Ours, 2 Leurre)
+        dx, dy = best["x"] - agent["x"], best["y"] - agent["y"]
+        if pred == 2:                                    # Leurre -> fuir (inverser la direction)
+            dx, dy = -dx, -dy
+        if dx == 0 and dy == 0:
+            return action
+        self.decode_act_fires = getattr(self, "decode_act_fires", 0) + 1   # diagnostic : le mécanisme s'active-t-il ?
+        if abs(dx) >= abs(dy):                           # action : 2=E(nx+1) 3=W(nx-1) 1=S(ny+1) 0=N(ny-1)
+            return 2 if dx > 0 else 3
+        return 1 if dy > 0 else 0
 
     def _apex_idx(self, agent):
         """0 Mammouth / 1 Ours / 2 Leurre si l'agent est adjacent à un apex, sinon None (EDR 074)."""
@@ -643,7 +684,7 @@ class Biosphere3D(BaseWorld):
                 if attacked_prey["type"] == "Leurre":
                     # PIÈGE (EDR 047, jeu de Lewis) : aucune récompense — la riposte a déjà puni.
                     # Approcher un Leurre est une PERTE -> il faut le signal pour l'éviter.
-                    pass
+                    self.leurre_hits += 1   # EDR 075 : à minimiser (le signal fiable doit l'éviter)
                 elif cfg_prey and cfg_prey.hp >= 50:
                     # APEX (Mammouth) : récompense de GROUPE (EDR 028) — la prise nourrit TOUT
                     # le pack qui l'a attaqué -> incite à rejoindre les chasses coopératives
@@ -965,6 +1006,8 @@ class Biosphere3D(BaseWorld):
                 logits[agent["last_action"]] -= 0.1
                 
             action = int(np.argmax(logits[:8]))
+            if getattr(self, "decode_act", False):     # EDR 075 : décoder un signal entendu -> approcher prey / fuir Leurre
+                action = self._decode_act_override(agent, action)
             # ε-greedy (EDR 019/025) : en entraînement, explorer l'espace d'action — mouvement
             # aléatoire + forcer les gestes jamais tirés (grab ; rub pour craft_level>=1).
             force_grab = False

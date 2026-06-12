@@ -68,6 +68,21 @@ honnête* — pas un nouveau mur. Trois pistes, toutes fondées sur la mesure :
 > câblage `use_ref_head`/`_apex_idx`/injection token (gated, 141 tests verts). Le mécanisme du langage
 > fiable est **dans l'agent** ; ces 3 pistes le font *s'exprimer*, *émerger en ligne*, et *payer*.
 
+## 🧱 EDR 075 — le bénéfice fonctionnel est GATÉ par la COMPÉTENCE (négatif honnête)
+
+On a testé l'option 3 (« le langage paye-t-il ? ») : décode-et-agis (approche Mammouth / fuit Leurre),
+FIABLE vs BRUITÉ vs SOLO. **Résultat : aucun bénéfice.** Le mécanisme se déclenche (~80×) mais ne change
+rien (FIABLE ≈ BRUITÉ ≈ SOLO ≈ 2 Leurres) ; **survivants=0, Mammouths=0 partout** (les agents frais ne
+savent ni survivre ni chasser). Un signal prometteur à 3 seeds a *évaporé* à 8 (comme EDR 057).
+
+> **Enseignement (capacités STRATIFIÉES) :** un code fiable est *nécessaire mais pas suffisant*. On ne
+> récolte pas le bénéfice d'une capacité HAUTE (langage) sans la compétence BASSE (survie, chasse
+> coordonnée) pour l'exploiter. **Le goulot n'est pas le code — c'est la COMPÉTENCE du substrat**, et
+> c'est *prouvé* (mécanisme qui tire à vide). Prochain levier : **compétence de foraging d'abord**
+> (faire évoluer des agents qui survivent + chassent le Mammouth), *puis* le langage la démultiplie.
+> Ordre correct : compétence → langage. Infra prête (`decode_act`, gated) pour re-tester sur substrat
+> compétent.
+
 ---
 
 ## Acte I — Faire émerger une chaîne moyens→fins (EDR 010→030)
