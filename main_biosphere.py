@@ -342,8 +342,17 @@ def main():
         try:
             from src.seed_ai.persistence import save_to_hall_of_fame, calculate_life_score
             pool = env.agents + env.dead_agents
-            for cand in sorted(pool, key=calculate_life_score, reverse=True)[:5]:
-                save_to_hall_of_fame(cand)
+            top = sorted(pool, key=calculate_life_score, reverse=True)[:5]
+            robust_K = getattr(config, "robust_hof_K", 0)
+            if robust_K and robust_K > 1:
+                # EDR 079 : ré-évaluer les candidats sur K ères et committer le score ROBUSTE (de-bruite
+                # la sélection -> +27% de compétence vraie). Gated ; défaut = comportement historique.
+                from src.seed_ai.robust_hof import robust_rank
+                for rscore, cand in robust_rank(config, top, robust_K):
+                    save_to_hall_of_fame(cand, score=rscore)
+            else:
+                for cand in top:
+                    save_to_hall_of_fame(cand)
         except Exception as e:
             logger.error(f"Echec sauvegarde HoF: {e}")
 

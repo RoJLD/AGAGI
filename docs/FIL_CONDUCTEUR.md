@@ -126,6 +126,20 @@ pour évaluer un génome). **Relation monotone parfaite : compétence 2.0 (eval_
 > K eres/épisodes par génome avant sélection HoF. L'arc compétence se résout : 075 (goulot) → 076
 > (plateau) → 077 (pas le BPTT) → **078 (c'était le bruit ; nettoyer la mesure)**.
 
+## 🏭 EDR 080 — le remède EN PRODUCTION + validé avec PUISSANCE
+
+(1) **Production (gated)** : `config.robust_hof_K` (défaut 0), `src/seed_ai/robust_hof.py`
+(`robust_evaluate`/`robust_rank`), `save_to_hall_of_fame(score=)`, injection gated dans `main_biosphere`
+(ré-évalue les candidats HoF sur K ères → score robuste). Non-régression : **146 tests verts** ; smoke
+réel OK. (2) **Validation puissante (R=4 runs/K)** : compétence vraie **31 (K=1) → 44 (K=4) → 46.5
+(K=8), +50 %**, MONOTONE — le K=4 qui avait chuté en run unique (079) était du bruit. Et l'écart-type
+**diminue** avec K (13.5→8.5) : de-bruiter forge *plus* ET *plus fiable*.
+
+> **Arc compétence CLOS : 075 (goulot) → 076 (plateau) → 077 (pas le BPTT, auto-réfutation) → 078 (bruit
+> de fitness, banc ×3) → 079 (vivant +27 %) → 080 (PRODUCTION gated + puissance +50 %).** Du diagnostic
+> au correctif livré, prouvé, testé. Recommandation : `robust_hof_K=4` pour les runs sérieux (laissé à 0
+> par défaut — choix coût/compétence de l'utilisateur).
+
 ---
 
 ## Acte I — Faire émerger une chaîne moyens→fins (EDR 010→030)

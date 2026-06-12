@@ -80,10 +80,12 @@ def load_agent_state(agent, path: str) -> bool:
         print(f"[ERROR] Failed to load agent state: {e}")
         return False
 
-def save_to_hall_of_fame(agent) -> Optional[str]:
-    """Sauvegarde agent + état dans HoF."""
+def save_to_hall_of_fame(agent, score=None) -> Optional[str]:
+    """Sauvegarde agent + état dans HoF. `score` optionnel : si fourni (ex. score ROBUSTE moyenné sur
+    K ères, EDR 079), il remplace le life_score d'une seule ère (bruité) pour la sélection/le cliquet."""
     os.makedirs(os.path.dirname(HALL_OF_FAME_PATH), exist_ok=True)
-    score = calculate_life_score(agent)
+    if score is None:
+        score = calculate_life_score(agent)
     if score < 1.0:
         return None
 

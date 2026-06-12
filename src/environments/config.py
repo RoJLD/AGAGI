@@ -56,7 +56,11 @@ class WorldConfig:
     # Surprise-Triggered HGT
     hgt_surprise_threshold: float = 0.75
     hgt_surprise_power: float = 0.2
-    
+
+    # Évaluation ROBUSTE du HoF (EDR 078/079) : K>1 -> ré-évaluer les candidats sur K ères et moyenner
+    # avant de committer au HoF (de-bruite la sélection ; lève le plateau de compétence). 0/1 = off.
+    robust_hof_K: int = 0
+
     agent: AgentConfig = field(default_factory=AgentConfig)
     biome: BiomeConfig = field(default_factory=BiomeConfig)
     preys: Dict[str, PreyConfig] = field(default_factory=lambda: {
