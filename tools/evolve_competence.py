@@ -21,6 +21,7 @@ from src.seed_ai.mutation import apply_mutations, MutationConfig
 from src.seed_ai.repopulation import build_population
 from src.seed_ai.persistence import calculate_life_score, load_hall_of_fame
 from src.graph_rag.async_logger import logger as async_logger
+from tools.progress import Progress
 
 
 def _reproduce(champions, num_agents, mc):
@@ -87,6 +88,7 @@ def main(eras=30, num_agents=30):
 
     best_ever = [(0.0, g) for g in champions]            # CLIQUET : meilleurs de tous les temps (comme le HoF réel)
     hist = []
+    prog = Progress(eras, label="eres")                  # barre de progression + ETA (demande user)
     for era in range(1, eras + 1):
         champ_genomes = [g for (_s, g) in best_ever]
         genomes = _reproduce(champ_genomes, num_agents, mc)   # reproduit depuis les MEILLEURS DE TOUS LES TEMPS
@@ -95,6 +97,7 @@ def main(eras=30, num_agents=30):
         merged = best_ever + scored
         best_ever = sorted(merged, key=lambda sg: sg[0], reverse=True)[:5]
         hist.append(m)
+        prog.update()
         if era % 3 == 0 or era <= 3:
             print(f"  ere {era:2d}: survie_ticks={m['ticks']:3d}  proies={m['eaten']:3d}  mammouths={m['mam']}  best_score={m['score']:.1f}")
 
