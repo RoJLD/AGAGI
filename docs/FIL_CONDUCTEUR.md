@@ -113,6 +113,19 @@ le sauve pas — c'est la variance).
 > curriculum / réduction de dimension. Le banc a réfuté ma propre prescription *avant* un gros chantier
 > voué à empirer la compétence — la discipline du projet (tester, pas extrapoler).
 
+## ✅ EDR 078 — RÉSOLU : le plateau est du BRUIT DE MESURE (évaluer robustement)
+
+EDR 077 désignait « meilleur signal de fitness ». Test sur banc : on fait varier `eval_B` (nb d'épisodes
+pour évaluer un génome). **Relation monotone parfaite : compétence 2.0 (eval_B=1) → 5.8 (eval_B=64)**,
+≈ ×3, *uniquement* en nettoyant le signal.
+
+> **Le plateau de compétence est un problème de MESURE, pas de moteur.** `eval_B=1` (1 ère bruitée,
+> comme la biosphère) = **2.03** — *exactement* le plateau de 076 ET le BPTT (2.10). En évaluant chaque
+> génome sur UNE ère bruitée, la biosphère se condamne au pire score. Signal propre → la mutation forge
+> **5.8** (bat one-step 4.96, écrase BPTT 2.10). **Levier (actionnable) : ÉVALUER ROBUSTEMENT** —
+> K eres/épisodes par génome avant sélection HoF. L'arc compétence se résout : 075 (goulot) → 076
+> (plateau) → 077 (pas le BPTT) → **078 (c'était le bruit ; nettoyer la mesure)**.
+
 ---
 
 ## Acte I — Faire émerger une chaîne moyens→fins (EDR 010→030)

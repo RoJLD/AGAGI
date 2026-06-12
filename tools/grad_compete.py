@@ -118,15 +118,18 @@ def train_gradient(through_time, seed, I=2, O=3, hidden=16, L=12, T=40, iters=60
     return float(rollout(W, I, O, N, 512, L, T, np.random.RandomState(seed + 7)).mean())
 
 
-def train_mutation(seed, I=2, O=3, hidden=16, L=12, T=40, gens=600, pop=64, elite=8, sigma=0.15, label=None):
-    """Moteur de la biosphère (EDR 076) : population, élite + cliquet best-ever, mutation gaussienne."""
+def train_mutation(seed, I=2, O=3, hidden=16, L=12, T=40, gens=600, pop=64, elite=8, sigma=0.15,
+                   eval_B=64, label=None):
+    """Moteur de la biosphère (EDR 076) : population, élite + cliquet best-ever, mutation gaussienne.
+    eval_B = nb d'épisodes pour évaluer un génome (PROPRETÉ du signal de fitness, EDR 078). eval_B=1
+    ~ la biosphère (1 ère bruitée) ; eval_B grand ~ fitness propre."""
     rng = np.random.RandomState(seed)
     N = I + O + hidden
     Ws = [rng.randn(N, N) * 0.3 for _ in range(pop)]
     best_W, best_fit = None, -1.0
     prog = Progress(gens, label=label) if label else None
     for g in range(gens):
-        fits = np.array([rollout(W, I, O, N, 64, L, T, rng).mean() for W in Ws])
+        fits = np.array([rollout(W, I, O, N, eval_B, L, T, rng).mean() for W in Ws])
         order = np.argsort(fits)[::-1]
         if fits[order[0]] > best_fit:                     # cliquet best-ever (anti-perte, EDR 076)
             best_fit, best_W = fits[order[0]], Ws[order[0]].copy()
