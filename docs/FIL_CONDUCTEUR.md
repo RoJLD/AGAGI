@@ -140,6 +140,23 @@ réel OK. (2) **Validation puissante (R=4 runs/K)** : compétence vraie **31 (K=
 > au correctif livré, prouvé, testé. Recommandation : `robust_hof_K=4` pour les runs sérieux (laissé à 0
 > par défaut — choix coût/compétence de l'utilisateur).
 
+## 📈 EDR 081 — le remède COMPOSE : la compétence GRIMPE sur les générations
+
+Test le plus exigeant (la vraie promesse d'un moteur évolutif) : la compétence s'accumule-t-elle au fil
+des générations ? Compétence vraie aux checkpoints (24 générations) :
+
+| gen | 6 | 12 | 18 | 24 | pente |
+|---|---|---|---|---|---|
+| BRUITÉE (K=1) | 32.8 | 30.4 | 28.6 | 29.8 | **−3.0** (stagne) |
+| ROBUSTE (K=4) | 42.8 | 54.1 | 52.2 | 55.2 | **+12.4** (grimpe) |
+
+> **Sous sélection bruitée, la compétence STAGNE/décline (l'échec de 076) ; sous robuste, elle GRIMPE
+> (43→55).** Le fix COMPOSE : la biosphère ne se contente plus de *maintenir*, elle *progresse*. Reco
+> appliquée : `main_biosphere` tourne en `robust_hof_K=4`. **Arc compétence (075→081) CLOS** — du goulot
+> diagnostiqué (075) au moteur qui progresse enfin (081), via une seule cause comprise (bruit de fitness,
+> 078). Prochaine frontière : re-tester le bénéfice du langage (075) sur ce substrat désormais COMPÉTENT
+> et croissant.
+
 ---
 
 ## Acte I — Faire émerger une chaîne moyens→fins (EDR 010→030)

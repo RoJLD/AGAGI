@@ -160,8 +160,10 @@ def main():
     keep_memory = os.getenv("KEEP_MEMORY", "0") == "1"
     
     config = WorldConfig()
+    config.robust_hof_K = 4   # EDR 080 (reco) : sélection HoF ROBUSTE pour les vraies runs (+~45% compétence,
+                              # résultat + fiable). Défaut WorldConfig reste 0 (tests/outils inchangés).
     os.environ["ACTIVE_EXP_VARIABLE"] = config.active_exp_variable
-    
+
     logger.info(f"🌍 Monde sélectionné : {world_type.upper()}")
     
     # Define species traits based on version capabilities
