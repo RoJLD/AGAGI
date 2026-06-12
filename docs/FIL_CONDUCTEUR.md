@@ -83,6 +83,21 @@ savent ni survivre ni chasser). Un signal prometteur à 3 seeds a *évaporé* à
 > Ordre correct : compétence → langage. Infra prête (`decode_act`, gated) pour re-tester sur substrat
 > compétent.
 
+## 🔑 EDR 076 — la compétence PLAFONNE : la mutation est un forgeron faible (LA BOUCLE SE REFERME)
+
+On a sondé le moteur : la compétence évolue-t-elle sous mutation + extinction + cliquet HoF ? (Harnais
+isolé, validé contre la référence après avoir débusqué 2 bugs — élitisme, chargement HoF.) **Sans
+cliquet : effondrement** (59→5 ticks). **Avec cliquet (HoF réel) : PLATEAU** (survie ~30, life_score
+plat 402→442, Mammouths sporadiques) — *maintenue, pas forgée* — **malgré l'Actor-Critic intra-vie**.
+
+> **LA BOUCLE DU PROJET SE REFERME.** Trois fois la même vérité, maintenant sur le levier le plus
+> fondamental : **mémoire (067)** mutation 0.78 → gradient 1.00 ; **langage (072)** mutation 25 % →
+> gradient 100 % ; **compétence (076)** mutation *maintient* (cliquet) mais ne *forge* pas. **La
+> mutation est un forgeron FAIBLE partout ; le levier universel est le GRADIENT FORT** (classe BPTT,
+> 067), à horizon long, DANS l'agent. Le cliquet empêche la perte — il ne crée pas la compétence.
+> Grand chantier cohérent : **le gradient fort dans la vie de l'agent** (mémoire, langage, ET
+> compétence), là où la mutation a montré ses limites.
+
 ---
 
 ## Acte I — Faire émerger une chaîne moyens→fins (EDR 010→030)
