@@ -157,6 +157,20 @@ des générations ? Compétence vraie aux checkpoints (24 générations) :
 > 078). Prochaine frontière : re-tester le bénéfice du langage (075) sur ce substrat désormais COMPÉTENT
 > et croissant.
 
+## 🔁 EDR 082 — la grande boucle : compétence NÉCESSAIRE mais PAS suffisante
+
+On a re-testé le bénéfice du langage (075) sur le substrat compétent (évolution robuste dans Lewis) :
+FIABLE (tête + décode-et-agis) vs SOLO, **apparié**. n=4 suggérait FIABLE>SOLO (Mammouths 5.0/3.25) ;
+**à n=12, ça s'ÉVAPORE** : diff appariée −0.67 ± 0.86 SE, FIABLE>SOLO dans 33 % des seeds. (4ᵉ fois de
+la session qu'un signal à peu de seeds disparaît sous puissance — 057, 075, 077, 082.)
+
+> **Le langage ne paye PAS, même compétent. Vérité affinée : la compétence est NÉCESSAIRE mais PAS
+> SUFFISANTE.** Les agents sont sélectionnés pour SURVIVRE, pas pour UTILISER les signaux ; le
+> décode-et-agis est *imposé*, pas *sélectionné*. Le bénéfice d'une communication n'émerge que quand son
+> USAGE est sous pression de sélection (reboucle sur la loterie de 053). On a le code fiable (072-074) +
+> le substrat compétent (076-081) ; il manque la **co-évolution de l'USAGE du langage avec la survie**.
+> C'est le prochain levier, et la vraie réponse à « pourquoi le langage utile n'émerge pas tout seul ».
+
 ---
 
 ## Acte I — Faire émerger une chaîne moyens→fins (EDR 010→030)
