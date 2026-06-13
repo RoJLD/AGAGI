@@ -12,15 +12,43 @@ from src.agents.mamba_agent import MambaAgent
 
 class FlatlandServer:
     def __init__(self):
-        self.world = Biosphere3D(WorldConfig(size=32, num_altars=5, prey_mode="semi"))
+        self.cfg = WorldConfig(size=32, num_altars=5, prey_mode="semi")
+        self.world = Biosphere3D(self.cfg)
         self.queue = None
         self.running = False
         self.loop = None
-        
-        # Spawn 10 agents
-        for _ in range(10):
-            agent = MambaAgent()
-            self.world.add_agent(agent)
+        self.era = 1                 # run ÉVOLUTIVE live : la pop descend du HoF, qui s'améliore par ère
+        self.pop_size = 10
+        self._seed_from_hof()
+
+    def _seed_from_hof(self):
+        """Peuple depuis le Hall of Fame (ancêtres évolués) ; fallback agents frais si indisponible."""
+        try:
+            from main_biosphere import init_primordial_soup
+            genomes, _ = init_primordial_soup(num_agents=self.pop_size, config=self.cfg)
+            for g in genomes:
+                a = MambaAgent()
+                a.from_genome(g)
+                self.world.add_agent(a)
+        except Exception:
+            for _ in range(self.pop_size):
+                self.world.add_agent(MambaAgent())
+
+    def _save_and_advance(self):
+        """À l'extinction : sauve les meilleurs au HoF (sélection → ère suivante), puis re-seed."""
+        try:
+            from src.seed_ai.persistence import save_to_hall_of_fame, calculate_life_score
+            pool = list(getattr(self.world, "dead_agents", []))
+            for cand in sorted(pool, key=calculate_life_score, reverse=True)[:5]:
+                save_to_hall_of_fame(cand)
+        except Exception:
+            pass
+        try:
+            self.world.dead_agents = []
+        except Exception:
+            pass
+        self.era += 1
+        self._seed_from_hof()
 
     def extract_frame(self) -> Dict[str, Any]:
         agents = []
@@ -116,6 +144,7 @@ class FlatlandServer:
             "terrain_type": self.world.terrain_type.tolist(),
             "geometry": self.world.geometry[0].tolist(),
             "summary": {
+                "era": self.era,
                 "agent_count": agent_count,
                 "avg_energy": total_energy / agent_count if agent_count else 0.0,
                 "avg_hp": total_hp / agent_count if agent_count else 0.0,
@@ -136,10 +165,9 @@ class FlatlandServer:
         while self.running:
             self.world.step()
             
-            # Restart if everyone dies
+            # Extinction -> nouvelle ère évolutive (sauve les meilleurs, re-seed depuis le HoF)
             if len(self.world.agents) == 0:
-                for _ in range(10):
-                    self.world.add_agent(MambaAgent())
+                self._save_and_advance()
 
             now = time.time()
             if now - last_frame_time > frame_interval:
