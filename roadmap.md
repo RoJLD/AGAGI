@@ -28,7 +28,7 @@ V7 → V8 → V9_Mamba → V10_Language → V11_OpenEnded → V12_Metacognition
 | 1 | **L'Animal** (Survie) | EXP 1-4 | TERMINÉ |
 | 2 | **Le Primate** (Outils) | EXP 5-8 | TERMINÉ (V14) |
 | 3 | **L'Homo Habilis** (Crafting) | EXP 9-12 | EN COURS (V15) |
-| 4 | **L'Homo Sapiens** (Langage) | EXP 13-16 | EN DÉMARRAGE (V16) |
+| 4 | **L'Homo Sapiens** (Langage) | EXP 13-16 | EN COURS — code référentiel fiable câblé (`072-074`) ; bénéfice fonctionnel pas clos (`082`, manque la *sélection de l'usage*) |
 | 5 | **La Tribu** (Culture) | EXP 17-20 | A VENIR |
 | 6 | **Le Penseur** (Raisonnement) | EXP 21-24 | A VENIR |
 | 7 | **La Conscience** (Graal) | EXP 25-30 | A VENIR |
@@ -318,6 +318,15 @@ graph TD
 > Dérivé de l'audit (`docs/EDR/010`). Principe : **soustraction > addition** — on fait *exprimer* les mécanismes réels avant d'en ajouter. Chaque vague est livrée **et mesurée** avant la suivante.
 
 > **✅ État au 2026-06-10 — Fondations réparées & boucle d'émergence PROUVÉE.** En instaurant la Vague 0, on a déterré et réparé les **deux bugs structurels** qui bloquaient tout : le **moteur évolutif** (le Hall of Fame n'était *jamais sauvé* → zéro évolution inter-ère, `EDR 016`) et l'**apprentissage** (Hebbien sans crédit d'action → aucun geste encodable → remplacé par un vrai **Actor-Critic**, `EDR 020`). Résultat : le **premier comportement composé** du projet — collecter→crafter — appris, encodé, transféré au monde dur ET en évolution (`EDR 021`). Les 12 EDR (010→021) tracent l'investigation complète. Le programme ci-dessous est désormais *exécutable* sur des fondations saines.
+
+> **✅ État au 2026-06-13 — Le grand détour fondateur (EDR 037→083).** Au-delà du plan ci-dessous, le journal a creusé trois arcs majeurs *non prévus par la roadmap*, et y a fait une **3ᵉ découverte cause-racine** (au-delà des 2 de l'audit EDR 010). Synthèse navigable : `docs/FIL_CONDUCTEUR.md`.
+>
+> - **Arc du LANGAGE (037→074, Arc 4)** — de « bruit » à un **code référentiel fiable câblé dans l'agent**. Mur de l'émergence stochastique (25 % loterie, `047/053`) → le **gradient** fiabilise (`070`) → la **population régularise, convergence 100 %** (`072`) → écart architectural diagnostiqué (`073`) → **tête référentielle dédiée câblée dans Biosphere3D**, MI live +0.22 (`074`, gated).
+> - **Découverte LE GRADIENT (067→071)** — *hors roadmap.* La mutation est un **chercheur faible** : sur mémoire (`067`, 0.78→1.00) et langage (`072`), le **gradient (BPTT)** débloque ce que la mutation plafonne. Baldwin (`068`), #8 armé sur frontière fertile (`069`). **Nuance corrigée (`077`)** : le gradient gagne en *supervisé*, mais **nuit en RL** (le BPTT empire la compétence — auto-réfutation honnête).
+> - **3ᵉ CAUSE-RACINE & arc COMPÉTENCE (075→083)** — *la trouvaille majeure.* L'audit `010` voyait 2 causes (A: pas de world model ; B: monde non exigeant). On en découvre une **3ᵉ** : **le moteur de SÉLECTION était limité par le BRUIT de fitness.** La compétence plafonnait (`076`) non par faiblesse du moteur ni manque de gradient, mais parce que la biosphère évaluait chaque génome sur **une seule ère bruitée** → sélection sur la chance. Banc : nettoyer le signal forge ×3 (`078`). **Remède EN PRODUCTION** (`080`, `config.robust_hof_K`, gated, 146 tests) : éval. robuste → +50 % de compétence, et qui **COMPOSE** sur les générations (+12.4 vs −3.0, `081`). La biosphère **progresse** enfin au lieu de *maintenir*.
+> - **Boucle bouclée, vérité affinée (082→083)** — re-test du bénéfice du langage sur substrat compétent : **compétence NÉCESSAIRE mais PAS suffisante** (`082`) — il faut *sélectionner l'usage* du signal, pas l'imposer. Co-évolution de l'usage : tendance positive préliminaire (`083`, en cours de puissance).
+>
+> **Discipline saillante** : 4 fois un signal à peu de seeds s'est évaporé sous puissance (`057/075/077/082`) — *powerer avant de conclure* est la loi de fer du journal. **Bilan** : on est en plein **Arc 4 (Langage)**, profond mais pas clos (le bénéfice fonctionnel manque la sélection de l'usage). La frontière C (méta-évolution) reste ouverte ; le #8 a été **armé** (`065-069`), au-delà de la Vague 2.
 
 ### ✅ Vague 0 — Fondations (LIVRÉE)
 
