@@ -101,6 +101,18 @@
       "insight": "Le connectome réflexe est un substrat trop faible (≈bruit, −0.03) ; une tête dédiée co-entraînée porte un code référentiel fiable dans l'agent vivant (MI +0.22). Gated, 146 tests verts."
     },
     {
+      "edr": 84,
+      "title": "Le dernier verrou : la survie plafonne (économie d'énergie)",
+      "subtitle": "survie (ticks) selon la densité de nourriture — 79 % meurent de faim",
+      "type": "multiline",
+      "x": [15, 40, 80, 150],
+      "xlabel": "densité de proies (target_prey_count)",
+      "series": [
+        {"name": "survie (ticks)", "values": [54, 68, 71, 73], "color": "#0f766e"}
+      ],
+      "insight": "La survie plafonne ~45-73 ticks (cap=400), plate sur 40 générations : verrou STRUCTUREL, pas évolutif. 79 % meurent de FAIM (énergie→0, hp intacts). Plus de nourriture aide (+35 %) mais SATURE. Le dernier verrou du langage fonctionnel est l'économie d'énergie à re-designer (sweet spot dureté↔soutenabilité)."
+    },
+    {
       "edr": 82,
       "title": "Compétence nécessaire mais PAS suffisante (langage imposé)",
       "subtitle": "Mammouths tués, langage décode-et-agis vs ignoré (12 seeds, apparié)",
