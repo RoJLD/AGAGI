@@ -339,3 +339,27 @@ body {
   font-size: 0.9rem;
   margin: 0.6rem 0 0;
 }
+.live-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin: 0 0 1.25rem;
+}
+.live-stat {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0.7rem 1.1rem;
+  min-width: 120px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.live-stat span {
+  color: #64748b;
+  font-size: 0.78rem;
+}
+.live-stat strong {
+  color: #0f172a;
+  font-size: 1.5rem;
+}

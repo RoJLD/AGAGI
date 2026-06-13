@@ -8,9 +8,10 @@ import { LaboratoryView } from "./components/LaboratoryView";
 import { TimelineViewer } from "./components/TimelineViewer";
 import { SandboxView } from "./components/SandboxView";
 import { EDRDashboard } from "./components/EDRDashboard";
+import { LiveMetrics } from "./components/LiveMetrics";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8001";
-const tabs = ["edr", "evolution", "comparison", "topology", "academy", "laboratoire", "timeline", "sandbox"] as const;
+const tabs = ["edr", "live", "evolution", "comparison", "topology", "academy", "laboratoire", "timeline", "sandbox"] as const;
 
 type TabKey = (typeof tabs)[number];
 
@@ -215,6 +216,7 @@ export default function App() {
 
         <section className="panel">
           {tab === "edr" && <EDRDashboard />}
+          {tab === "live" && <LiveMetrics />}
 
           {tab === "evolution" && (
             <>

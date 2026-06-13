@@ -65,6 +65,42 @@
       "insight": "Le jeu référentiel de population sous gradient converge à 100 % (8 seeds /8, decode croisé) — vs ~25 % de loterie sous mutation. L'appariement aléatoire régularise la brisure de symétrie."
     },
     {
+      "edr": 67,
+      "title": "Le gradient (BPTT) débloque la mémoire que la mutation plafonne",
+      "subtitle": "précision de rappel mémoire (tâche K=6) selon le moteur",
+      "type": "bar",
+      "xlabel": "moteur",
+      "series": [
+        {"name": "mutation", "value": 0.78, "color": "#be123c"},
+        {"name": "gradient (BPTT)", "value": 1.00, "color": "#0f766e"}
+      ],
+      "insight": "Sur une tâche de mémoire supervisée, la mutation plafonne à 0.78 ; le gradient (BPTT) atteint 1.00. Première preuve que la mutation est un chercheur FAIBLE — le NAS était un faux problème."
+    },
+    {
+      "edr": 68,
+      "title": "Effet Baldwin : évoluer ce qui s'apprend",
+      "subtitle": "précision après 10 pas d'apprentissage intra-vie",
+      "type": "bar",
+      "xlabel": "initialisation",
+      "series": [
+        {"name": "init aléatoire", "value": 0.645, "color": "#be123c"},
+        {"name": "init Baldwin (évoluée)", "value": 0.847, "color": "#0f766e"}
+      ],
+      "insight": "Évoluer des INITIALISATIONS apprenables (fitness = précision post-apprentissage) : +0.20 vs aléatoire. La graine évolue ce qui s'apprend, pas seulement ce qui est."
+    },
+    {
+      "edr": 74,
+      "title": "Langage référentiel fiable câblé DANS l'agent vivant",
+      "subtitle": "MI(token; apex) mesurée en direct dans Biosphere3D",
+      "type": "bar",
+      "xlabel": "voie d'émission du token",
+      "series": [
+        {"name": "connectome 1-tick", "value": -0.03, "color": "#be123c"},
+        {"name": "tête référentielle dédiée", "value": 0.22, "color": "#0f766e"}
+      ],
+      "insight": "Le connectome réflexe est un substrat trop faible (≈bruit, −0.03) ; une tête dédiée co-entraînée porte un code référentiel fiable dans l'agent vivant (MI +0.22). Gated, 146 tests verts."
+    },
+    {
       "edr": 82,
       "title": "Compétence nécessaire mais PAS suffisante (langage imposé)",
       "subtitle": "Mammouths tués, langage décode-et-agis vs ignoré (12 seeds, apparié)",
