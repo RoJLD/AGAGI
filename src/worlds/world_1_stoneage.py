@@ -604,8 +604,9 @@ class Biosphere3D(BaseWorld):
                         p["x"], p["y"] = nx, ny
 
     def _resolve_biology(self, agent, action, logits):
-        # Base drain
-        drain = 1.0 * agent["model"].phenotype_energy_drain
+        # Base drain (métabolisme). EDR 084 : la survie plafonne car 79% starvent ; `base_metabolism`
+        # (config, défaut 1.0) règle le drain pour viser le sweet spot dureté↔soutenabilité.
+        drain = getattr(self.config, "base_metabolism", 1.0) * agent["model"].phenotype_energy_drain
         
         # EXP-9 : Thermodynamique & Nuit
         is_near_fire = any(f.get("type") == "Fire" and abs(agent["x"] - f["x"]) <= 2 and abs(agent["y"] - f["y"]) <= 2 for f in self.items)
@@ -680,7 +681,7 @@ class Biosphere3D(BaseWorld):
             if attacked_prey["hp"] <= 0:
                 # Récompense ∝ difficulté (Step 2) : le Lapin sustente, le Mammouth enrichit.
                 cfg_prey = self.config.preys.get(attacked_prey["type"], None)
-                reward = prey_reward(cfg_prey.hp if cfg_prey else 1.0)
+                reward = prey_reward(cfg_prey.hp if cfg_prey else 1.0) * getattr(self.config, "forage_payoff", 1.0)
                 if attacked_prey["type"] == "Leurre":
                     # PIÈGE (EDR 047, jeu de Lewis) : aucune récompense — la riposte a déjà puni.
                     # Approcher un Leurre est une PERTE -> il faut le signal pour l'éviter.
