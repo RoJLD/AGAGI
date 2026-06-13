@@ -49,25 +49,38 @@
 
 ---
 
+> **Backlog enrichi par le scan global** (`docs/SCAN_GLOBAL.md`, juin 2026). ⚠️ Le scan est un
+> *générateur d'hypothèses* : 2 « criticals » vérifiés et **réfutés** (World Model est bien actif,
+> surprise=0.25 ; le dé-bruitage HoF tient). *Vérifier avant d'agir.*
+
 ## 🔬 Frontière scientifique — prochains leviers
 
-1. **Clore le bénéfice fonctionnel du langage (Arc 4)** — le re-test `087` (FIABLE vs BROUILLÉ, isole le *contenu* du téléguidage) : à survie longue, le contenu référentiel paye-t-il ? Si oui → Arc 4 clos. Si non → sélectionner l'usage du signal + survie encore plus longue.
-2. **Régler le sweet spot d'énergie** (`085`) comme variable d'expérience (métab/payoff/densité) — activer par défaut si robuste.
-3. **Co-évoluer l'usage du langage** (`083`, tendance +0.29 sous 2 SE) — pression de sélection explicite sur l'écoute du signal.
-4. **Vraie RSI** (le #8 est armé `065-069`, sandbox sûre `035`) — différée jusqu'à un bottleneck, à armer en conteneur.
-5. **Arc 5 (Tribu)** — *seulement* après clôture de l'Arc 4.
+1. **Clore le bénéfice fonctionnel du langage (Arc 4)** — re-test `087` (FIABLE vs BROUILLÉ, isole le *contenu* du téléguidage) + **power (R≥4)** : à survie longue, le contenu référentiel paye-t-il ? Si oui → Arc 4 clos.
+2. **Prouver que chaque monde EXIGE l'intelligence** *(hygiène fondatrice, scan S2)* — benchmark **agent dummy vs champion HoF** (ratio de survie par monde). Si ratio≈1 → le monde est factice et toute mesure de « compétence » y est du bruit. Conditionne la validité du curriculum.
+3. **Vrai planning** *(scan S6)* — le « dreaming/MCTS » est du **random-shooting latent** (perturbe `H`, n'exploite PAS le World Model). Le brancher sur `world_model.predict()` pour simuler des trajectoires (obs→action→reward) → imagination instrumentale.
+4. **Co-évoluer l'usage du langage** (`083`, +0.29 sous 2 SE) — pression de sélection explicite sur l'écoute ; + **récompenses intrinsèques** (curiosité comme fitness — le World Model EST actif).
+5. **Régler le sweet spot d'énergie** (`085`) comme variable d'expérience ; **étoffer les mondes 2&3** (Agri=anticipation, Industrial=coopération) — substrat de l'Arc 5 *(design détaillé → `BACKLOG.md`)*.
+6. **Vraie RSI** (#8 armé `065-069`) — **après** durcir la sandbox (cf. garde-fous) ; Arc 5 **après** clôture Arc 4.
 
 ## 🛠️ Outillage / Dev
 
-**Livré (session)** :
-- **Dashboard EDR** (`frontend`, onglet `edr`) : visualise les vraies expériences (compétence, bruit de fitness, langage…) via `/api/edr`. **Biosphère live** (onglet `live`) : run évolutive réelle depuis le HoF, sparklines temps-réel.
-- **HoF robuste en production** (`config.robust_hof_K`, gated) ; **knobs d'économie d'énergie** (`base_metabolism`, `forage_payoff`, gated) ; **stabilité du connectome** sur longs épisodes (`086`).
+**Livré (session)** : **Dashboard EDR** + **Biosphère live** (onglets `edr`/`live`, `/api/edr`) ; **HoF robuste** en prod (`robust_hof_K`, gated) ; **knobs d'énergie** (`base_metabolism`/`forage_payoff`, gated) ; **stabilité connectome** longs épisodes (`086`).
 
-**Reste** :
-- Stubs frontend à brancher : `sandbox_service` (backend manquant), academy/strategy en mock.
-- **Unifier le moteur** : `world_0_soup` duplique `Biosphere3D` (devrait en hériter) ; `world_2/3` inachevés.
-- **Ontologie Hypothesis/Fact** (schéma déclaré, vide) : chaque EDR = `Hypothesis`, chaque mesure = `Fact`.
-- **Ablation** (levier 5) : Ratio de Transfert sur les mécanismes (curiosité/scaffold/World Model/seuils/router).
+**Reste** *(priorisé par le scan)* :
+1. **RNG seedé pour l'APPARIEMENT** *(scan D1, le plus critique)* + **`BaseHarness` unifié** (seed/logging/power/éval robuste) — socle de validité ; `tools/` cesse de réinventer la roue.
+2. **Brancher le `supervisor_coder` sur un vrai LLM** (mock Swish hardcodé) + **boucle RSI itérative à mémoire** en prod — *après* durcir la sandbox.
+3. **Brancher le `CurriculumRunner`** (existe, testé, **dormant**) dans `main_biosphere` — la 2ᵉ échelle de temps (inter-mondes).
+4. **Tests du cœur cognitif** (policy-gradient end-to-end, langage) — sous-testés (~2 sur `mamba_agent`).
+5. **Frontend** : contrôle A/B live (comparer 2 lignées), tests Vitest+RTL, CI ; nettoyer stubs (`sandbox_service`, academy/strategy mock).
+6. **Unifier le moteur** (`world_0_soup` duplique `Biosphere3D`) ; **ontologie Hypothesis/Fact** (vide → chaque EDR=`Hypothesis`) ; **ablation** (Ratio de Transfert sur les mécanismes).
+7. **Versioning des données** (hash config/commit ↔ KPI, checkpoint reproductible) ; **drain KuzuDB instrumenté** (queue/latence, dégradation gracieuse).
+
+## 🧭 Garde-fous méthodo *(angles morts du scan — à poser avant les benchmarks)*
+
+- **Budget compute** : la rigueur multi-seed × K-éval × R-runs *explose* sur mono-machine → profiling / parallélisme / early-stopping **avant** S2/S4.
+- **Stats au-delà du RNG** : correction multi-comparaisons (Bonferroni/Holm) + **power analysis a priori** (quel K ?) + **taille d'effet** (pas que p<.05).
+- **Sécurité** : durcir la sandbox (conteneur / limites mémoire-réseau) **AVANT** d'armer la RSI en prod (`run_sandboxed` = subprocess sans limites).
+- **« 1 variable »** : tout changement cognitif **gèle l'aval** d'abord (sinon confound — rallumer 3 systèmes = 3 variables).
 
 ---
 
