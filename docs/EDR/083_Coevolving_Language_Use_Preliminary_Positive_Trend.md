@@ -27,12 +27,27 @@ sélectionné, la chasse doit mieux évoluer avec des locuteurs fiables. `tools/
 - Sous 2 SE → **à powerer** (R répétitions de la co-évolution complète) avant toute conclusion. La
   discipline du projet : un signal sous le seuil n'est pas un résultat (cf. 057/077/082).
 
-## Suite
+## Résolution (POWERED, R=4) — la tendance rétrécit, non robuste
 
-- **Powering** : R runs indépendants de la co-évolution → écart FIABLE−BRUITÉ moyen ± SE. Si > 2 SE,
-  c'est la première démonstration de langage FONCTIONNEL ÉMERGENT sous sélection (la vraie réponse à
-  053/082). Sinon, négatif honnête → le levier suivant (fitness récompensant explicitement l'usage du
-  signal, ou survie soutenue plus longue).
+| | préliminaire (1 run) | **powered (R=4)** |
+|---|---|---|
+| écart FIABLE−BRUITÉ (Mammouths) | +1.62 | **+0.29 ± 0.65 (SE)** |
+| par run | — | [+0.2, +0.2, −1.2, +2.0] |
+| FIABLE>BRUITÉ | — | 75 % des runs |
+
+> Le +1.62 préliminaire était **gonflé par un run chanceux (+2.0)**. Powered, l'écart tombe à **+0.29,
+> sous 2 SE** : tendance *directionnelle* (75 % des runs positifs, et l'OPPOSÉ de l'imposition négative
+> de 082) mais **NON robuste**. Co-évoluer l'usage va dans le bon sens, mais l'effet est **faible à cette
+> échelle** (12 gens, survie courte, survivants=0). 5ᵉ fois qu'un signal rétrécit sous puissance — la
+> discipline tient.
+
+> **Implication** : rendre le langage fonctionnel demande **plus** que ce qu'on a appliqué — vraisem-
+> blablement une **survie soutenue bien plus longue** (les agents meurent avant que la coordination paye)
+> + une **pression de sélection explicite sur l'usage du signal** + beaucoup plus de générations. Le
+> goulot n'est plus le code ni la compétence brute, mais la *durée de vie* + l'*intensité de sélection
+> de l'usage*.
+
+## Suite
 
 ## Statut
 

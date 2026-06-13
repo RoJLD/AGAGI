@@ -7,9 +7,10 @@ import { RadarChart } from "./components/RadarChart";
 import { LaboratoryView } from "./components/LaboratoryView";
 import { TimelineViewer } from "./components/TimelineViewer";
 import { SandboxView } from "./components/SandboxView";
+import { EDRDashboard } from "./components/EDRDashboard";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8001";
-const tabs = ["evolution", "comparison", "topology", "academy", "laboratoire", "timeline", "sandbox"] as const;
+const tabs = ["edr", "evolution", "comparison", "topology", "academy", "laboratoire", "timeline", "sandbox"] as const;
 
 type TabKey = (typeof tabs)[number];
 
@@ -44,7 +45,7 @@ function ChartLine({ values, color }: { values: number[]; color: string }) {
 }
 
 export default function App() {
-  const [tab, setTab] = useState<TabKey>("evolution");
+  const [tab, setTab] = useState<TabKey>("edr");
   const [experiments, setExperiments] = useState<ExperimentSummary[]>([]);
   const [selectedGate, setSelectedGate] = useState<string>("");
   const [detail, setDetail] = useState<ExperimentDetail | null>(null);
@@ -213,6 +214,8 @@ export default function App() {
         </aside>
 
         <section className="panel">
+          {tab === "edr" && <EDRDashboard />}
+
           {tab === "evolution" && (
             <>
               <h2>Évolution dynamique</h2>

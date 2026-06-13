@@ -13,6 +13,7 @@ from .routes.sandbox import router as sandbox_router
 from .routes.introspection import router as introspection_router
 from .routes.strategy import router as strategy_router
 from .routes.sociologist import router as sociologist_router
+from .routes.edr import router as edr_router
 from .services.data_service import ExperimentDataService
 from .flatland_server import flatland_server
 
@@ -35,6 +36,7 @@ app.include_router(sandbox_router, prefix="/api/sandbox", tags=["Sandbox"])
 app.include_router(introspection_router, prefix="/api", tags=["introspection"])
 app.include_router(strategy_router, prefix="/api/strategy", tags=["Strategy"])
 app.include_router(sociologist_router, prefix="/api/sociologist", tags=["Sociologist"])
+app.include_router(edr_router, prefix="/api", tags=["EDR"])
 
 
 @app.get("/health")
