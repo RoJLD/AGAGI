@@ -1030,8 +1030,6 @@ class Biosphere3D(BaseWorld):
                     temp = 0.1
                     y = np.exp((raw_spoken + gumbel_noise) / temp)
                     token_idx = np.argmax(y / np.sum(y))
-                    if getattr(self, "scramble_signal", False):
-                        token_idx = np.random.randint(4)   # contenu ALÉATOIRE, présence préservée
                     if self.use_ref_head:                  # EDR 074 : tête référentielle dédiée
                         model = agent.get("model")
                         rh = getattr(model, "ref_head", None) if model is not None else None
@@ -1039,6 +1037,11 @@ class Biosphere3D(BaseWorld):
                         if ai is not None:
                             from src.seed_ai.referential_head import speak_token
                             token_idx = speak_token(rh, ai)   # token <- code partagé fiable (apex->token)
+                    if getattr(self, "scramble_signal", False):
+                        # EDR 087 : BROUILLE le contenu (override la tête) -> bras de contrôle : même
+                        # présence + même mécanisme décode-et-agis, mais contenu ALÉATOIRE. Isole le
+                        # CONTENU linguistique du téléguidage spatial (audit adversarial).
+                        token_idx = np.random.randint(4)
                     one_hot = np.zeros(4)
                     one_hot[token_idx] = 1.0
                     agent["last_spoken"] = [float(l) for l in one_hot]
