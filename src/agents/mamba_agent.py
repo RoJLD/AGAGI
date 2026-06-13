@@ -37,14 +37,14 @@ class MambaAgent(BaseAgent):
         
         self.reset_state()
         
-        self.phenotype_hp_bonus = float(np.sum(np.abs(self.genome.W[0:5])) * 10.0)
-        self.phenotype_inv_capacity = max(3, int(np.sum(np.abs(self.genome.W[5:10]))))  # min 3 : pouvoir tenir rock+stick (gate craft, EDR 017)
+        self.phenotype_hp_bonus = float(np.sum(np.abs(np.nan_to_num(self.genome.W[0:5]))) * 10.0)
+        self.phenotype_inv_capacity = max(3, int(np.sum(np.abs(np.nan_to_num(self.genome.W[5:10])))))  # min 3 : pouvoir tenir rock+stick (gate craft, EDR 017) ; nan_to_num : robustesse longs épisodes (EDR 086)
         mcts_drain = 0.5 if (self.genome.organ_genes is not None and self.genome.organ_genes[0]) else 0.0
         self.phenotype_energy_drain = 1.0 + (self.phenotype_hp_bonus / 100.0) + (self.phenotype_inv_capacity * 0.1) + mcts_drain
         
     def update_phenotype(self):
-        self.phenotype_hp_bonus = float(np.sum(np.abs(self.genome.W[0:5])) * 10.0)
-        self.phenotype_inv_capacity = max(3, int(np.sum(np.abs(self.genome.W[5:10]))))  # min 3 : pouvoir tenir rock+stick (gate craft, EDR 017)
+        self.phenotype_hp_bonus = float(np.sum(np.abs(np.nan_to_num(self.genome.W[0:5]))) * 10.0)
+        self.phenotype_inv_capacity = max(3, int(np.sum(np.abs(np.nan_to_num(self.genome.W[5:10])))))  # min 3 : pouvoir tenir rock+stick (gate craft, EDR 017) ; nan_to_num : robustesse longs épisodes (EDR 086)
         
         # Macro-NAS penalité: Avoir un organe "Cortex" coûte très cher en énergie
         mcts_drain = 0.5 if (self.genome.organ_genes is not None and self.genome.organ_genes[0]) else 0.0
@@ -439,7 +439,11 @@ class MambaBatchModel:
             gain = 1.0 + 0.3 * mod.mean(axis=1, keepdims=True)             # (B, 1) dans [0.7, 1.3]
         excitation = np.einsum('bi,bij->bj', H, W_no_diag) * gain
         thr = 0.0 if MambaBatchModel.ABLATE_THRESHOLDS else self.thresholds_batch
-        H = (1.0 - delta_t) * H + delta_t * _get_activation_function()(excitation - thr)
+        # EDR 086 : borner l'ENTRÉE de l'activation. Sur les longs épisodes (survie longue, 085),
+        # excitation = H@W sommée sur ~172 nœuds atteint des centaines -> une activation générée par le
+        # #8 à base d'exp (EDR 069) overflow -> H=inf -> W=NaN -> crash. tanh(±30)≈tanh(±800)≈±1 :
+        # non-régressif pour tanh, stable pour TOUTE activation.
+        H = (1.0 - delta_t) * H + delta_t * _get_activation_function()(np.clip(excitation - thr, -30.0, 30.0))
 
         # --- MESO-NAS (Pilier 2): Organe d'Attention QKV (Self-Attention) ---
         has_attention_batch = np.array([
@@ -523,7 +527,7 @@ class MambaBatchModel:
             H_branch[active_mask] += noise[active_mask]
 
             excitation = np.einsum('bi,bij->bj', H_branch, W_no_diag)
-            H_branch = (1.0 - delta_t) * H_branch + delta_t * _get_activation_function()(excitation - self.thresholds_batch)
+            H_branch = (1.0 - delta_t) * H_branch + delta_t * _get_activation_function()(np.clip(excitation - self.thresholds_batch, -30.0, 30.0))
 
             for i in np.where(active_mask)[0]:
                 N_i = self.agents[i].genome.num_nodes
