@@ -1,0 +1,80 @@
+{
+  "title": "Découvertes EDR — l'arc langage→gradient→compétence (037→083)",
+  "findings": [
+    {
+      "edr": 81,
+      "title": "La compétence COMPOSE sous sélection robuste",
+      "subtitle": "compétence vraie (survie, ticks) par génération",
+      "type": "multiline",
+      "x": [6, 12, 18, 24],
+      "xlabel": "génération",
+      "series": [
+        {"name": "bruitée (K=1)", "values": [32.8, 30.4, 28.6, 29.8], "color": "#be123c"},
+        {"name": "robuste (K=4)", "values": [42.8, 54.1, 52.2, 55.2], "color": "#0f766e"}
+      ],
+      "insight": "Sous sélection bruitée la compétence stagne/décline (pente −3.0) ; sous robuste elle GRIMPE (+12.4). Le moteur évolutif progresse enfin au lieu de seulement maintenir."
+    },
+    {
+      "edr": 78,
+      "title": "Le plateau de compétence était du BRUIT de mesure",
+      "subtitle": "compétence forgée par la mutation selon la propreté du signal de fitness",
+      "type": "multiline",
+      "x": [1, 2, 4, 8, 16, 64],
+      "xlabel": "eval_B (épisodes d'évaluation par génome)",
+      "series": [
+        {"name": "compétence (nourriture/40 pas)", "values": [2.03, 2.79, 3.51, 4.32, 4.74, 5.79], "color": "#0f766e"}
+      ],
+      "insight": "Relation monotone : nettoyer le signal de fitness (eval_B 1→64) fait passer la compétence de 2.0 à 5.8 (×3). eval_B=1 ≈ la biosphère (1 ère bruitée) ≈ le BPTT (2.10) : le pire des cas."
+    },
+    {
+      "edr": 77,
+      "title": "Le gradient n'est PAS universel — le BPTT nuit en RL",
+      "subtitle": "compétence de foraging-mémoire forgée par 3 moteurs (même architecture)",
+      "type": "bar",
+      "xlabel": "moteur",
+      "series": [
+        {"name": "MUTATION", "value": 5.58, "color": "#0f766e"},
+        {"name": "one-step", "value": 4.96, "color": "#f59e0b"},
+        {"name": "BPTT (gradient fort)", "value": 2.10, "color": "#be123c"}
+      ],
+      "insight": "Ordre INVERSE de l'hypothèse : mutation > one-step > BPTT. Le gradient gagne en SUPERVISÉ (mémoire 067, langage 072) mais NUIT en RL (variance à travers le temps). Auto-réfutation honnête."
+    },
+    {
+      "edr": 80,
+      "title": "HoF robuste en production — validation avec puissance",
+      "subtitle": "compétence vraie selon K (R=4 runs), écart-type en bandes",
+      "type": "bar_err",
+      "xlabel": "K (robustesse de l'évaluation)",
+      "series": [
+        {"name": "K=1", "value": 31.0, "err": 13.5, "color": "#be123c"},
+        {"name": "K=4", "value": 44.2, "err": 14.2, "color": "#f59e0b"},
+        {"name": "K=8", "value": 46.5, "err": 8.5, "color": "#0f766e"}
+      ],
+      "insight": "Sous puissance : +50 % à K=8, monotone. Et l'écart-type DIMINUE avec K (13.5→8.5) : de-bruiter forge plus ET plus fiable. Le K=4 qui avait chuté en run unique était du bruit."
+    },
+    {
+      "edr": 72,
+      "title": "Le langage converge à 100 % sous gradient (vs loterie)",
+      "subtitle": "convention référentielle partagée par la population",
+      "type": "bar",
+      "xlabel": "mécanisme",
+      "series": [
+        {"name": "mutation (loterie, 053)", "value": 25.0, "color": "#be123c"},
+        {"name": "gradient population (072)", "value": 100.0, "color": "#0f766e"}
+      ],
+      "insight": "Le jeu référentiel de population sous gradient converge à 100 % (8 seeds /8, decode croisé) — vs ~25 % de loterie sous mutation. L'appariement aléatoire régularise la brisure de symétrie."
+    },
+    {
+      "edr": 82,
+      "title": "Compétence nécessaire mais PAS suffisante (langage imposé)",
+      "subtitle": "Mammouths tués, langage décode-et-agis vs ignoré (12 seeds, apparié)",
+      "type": "bar_err",
+      "xlabel": "condition",
+      "series": [
+        {"name": "FIABLE (imposé)", "value": 1.67, "err": 1.43, "color": "#be123c"},
+        {"name": "SOLO (ignore)", "value": 2.33, "err": 2.72, "color": "#64748b"}
+      ],
+      "insight": "Le +54 % de n=4 s'évapore à n=12 (diff appariée −0.67). Imposer le langage ne paye pas : il faut SÉLECTIONNER son usage. 4ᵉ fois qu'un signal à peu de seeds disparaît sous puissance."
+    }
+  ]
+}

@@ -12,8 +12,12 @@ router = APIRouter()
 
 
 def _findings_path() -> Path | None:
+    # 1) emplacement VERSIONNÉ (backend/app/edr_findings.json) ; 2) results/ (dev local, gitignoré).
+    committed = Path(__file__).resolve().parent.parent / "edr_findings.json"
+    if committed.exists():
+        return committed
     here = Path(__file__).resolve()
-    for parent in here.parents:                       # robuste à la profondeur backend/app/routes
+    for parent in here.parents:
         cand = parent / "results" / "edr_findings.json"
         if cand.exists():
             return cand
