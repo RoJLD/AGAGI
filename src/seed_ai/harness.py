@@ -7,6 +7,10 @@ Garantit l'APPARIEMENT (deux conditions au même seed partent du même monde ini
 les 168 sites np.random.X. Expose aussi un Generator default_rng pour le code NEUF qui veut
 l'isolation par tirage. Détail : docs/superpowers/specs/2026-06-13-D1-RNG-Harness-design.md.
 """
+import os
+import json
+import time
+import logging
 import numpy as np
 
 
@@ -30,3 +34,60 @@ class SeedManager:
         if seed is not None:
             return int(seed)
         return int(np.random.SeedSequence().generate_state(1)[0]) % (2 ** 31)
+
+
+log = logging.getLogger("AGIseed.Harness")
+
+
+def _git_short_commit():
+    try:
+        import subprocess
+        return subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"], stderr=subprocess.DEVNULL
+        ).decode().strip()
+    except Exception:
+        return "unknown"
+
+
+class Harness:
+    """Objet de composition (context manager) : seed + cycle async_logger + Progress + éval robuste
+    appariée + I/O résultats. Absorbe le boilerplate des tools/ ; ne porte pas leur logique métier.
+
+        with Harness(seed=0, name="robust_eval") as h:
+            score = h.eval_robust(cfg, genome, run_era_fn=run_era, K=4)
+            h.save({"score": score})
+    """
+    def __init__(self, seed=None, name="exp", robust_K=3, num_agents=20, with_db=True, db_wait=5.0):
+        self.seed = SeedManager.resolve(seed)
+        self.seeds = SeedManager(self.seed)
+        self.name = name
+        self.robust_K = int(robust_K)
+        self.num_agents = int(num_agents)
+        self.with_db = with_db
+        self.db_wait = float(db_wait)
+        self.db = None
+        self._logger_started = False
+
+    def __enter__(self):
+        self.seeds.seed_boundary(0)
+        log.info(f"[HARNESS] {self.name} seed={self.seed}  (rejouer : seed={self.seed})")
+        if self.with_db:
+            from src.graph_rag.async_logger import logger as async_logger
+            async_logger.start()
+            self._logger_started = True
+            deadline = time.time() + self.db_wait
+            while time.time() < deadline:
+                self.db = async_logger.get_db()
+                if self.db is not None:
+                    break
+                time.sleep(0.1)
+            if self.db is None:
+                log.warning(f"[HARNESS] {self.name}: KuzuDB indisponible -> degradation gracieuse")
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        if self._logger_started:
+            from src.graph_rag.async_logger import logger as async_logger
+            async_logger.stop()
+            self._logger_started = False
+        return False  # ne masque jamais une exception

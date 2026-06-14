@@ -49,3 +49,25 @@ def test_seed_boundary_no_overflow_near_max():
     # base proche de 2**32 + i>0 ne doit PAS lever ValueError (modulo 2**32).
     s = SeedManager(2 ** 32 - 1).seed_boundary(3)
     assert 0 <= s < 2 ** 32
+
+
+from src.seed_ai.harness import Harness
+
+
+def test_harness_resolves_and_exposes_seed():
+    with Harness(seed=1, name="t", with_db=False) as h:
+        assert h.seed == 1
+        assert h.db is None            # with_db=False -> pas de DB, pas de crash
+
+
+def test_harness_seeds_boot_deterministically():
+    with Harness(seed=99, name="t", with_db=False):
+        a = np.random.rand()
+    with Harness(seed=99, name="t", with_db=False):
+        b = np.random.rand()
+    assert a == b
+
+
+def test_harness_none_seed_is_logged_int():
+    with Harness(seed=None, name="t", with_db=False) as h:
+        assert isinstance(h.seed, int) and 0 <= h.seed < 2 ** 32
