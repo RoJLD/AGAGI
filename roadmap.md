@@ -64,10 +64,12 @@
 
 ## 🛠️ Outillage / Dev
 
-**Livré (session)** : **Dashboard EDR** + **Biosphère live** (onglets `edr`/`live`, `/api/edr`) ; **HoF robuste** en prod (`robust_hof_K`, gated) ; **knobs d'énergie** (`base_metabolism`/`forage_payoff`, gated) ; **stabilité connectome** longs épisodes (`086`).
+**Livré (session)** : **Dashboard EDR** + **Biosphère live** (onglets `edr`/`live`, `/api/edr`) ; **HoF robuste** en prod (`robust_hof_K`, gated) ; **knobs d'énergie** (`base_metabolism`/`forage_payoff`, gated) ; **stabilité connectome** longs épisodes (`086`) ; **D1 — socle de validité (RNG/Harness)** : `SeedManager` + `Harness` (composition : seed aux frontières, cycle async_logger, éval robuste **appariée**, provenance), seed boot **loggé** dans `main_biosphere` (run rejouable via `EXPERIMENT_SEED`), `robust_evaluate(seed=)`, pilote `robust_eval` migré (repro exacte prouvée sur la vraie biosphère). **+21 tests.** *(spec/plan : `docs/superpowers/{specs,plans}/2026-06-13-D1-RNG-Harness*`)*.
+
+> ⚠️ **Trouvaille D1 (corrige EDR 081)** : `main_biosphere` **écrasait** `robust_hof_K=4` (2ᵉ `WorldConfig()` réinstancié) → la prod tournait en sélection **bruitée K=0**, pas robuste. **Corrigé** (le K=4 d'EDR 080/081 prend enfin effet). C'est un *changement de comportement de sélection en prod* — à garder en tête pour interpréter les prochains runs.
 
 **Reste** *(priorisé par le scan)* :
-1. **RNG seedé pour l'APPARIEMENT** *(scan D1, le plus critique)* + **`BaseHarness` unifié** (seed/logging/power/éval robuste) — socle de validité ; `tools/` cesse de réinventer la roue.
+1. **Finir D1** : (a) **apparier le HoF en prod** — `robust_rank`→`robust_evaluate` ne passe pas encore le seed (le ranking de prod reste non apparié ; le run global *est* reproductible via le seed boot) ; (b) **migrer les ~55 tools** sur `Harness`/`seed_boundary` (vague comparative `coevolve_language`/`func_benefit`/… puis le reste, mécanique) ; (c) DRY : factoriser les 4 sites inline `(base+i)%2³²` sur `seed_boundary`. *(PR de suivi)*.
 2. **Brancher le `supervisor_coder` sur un vrai LLM** (mock Swish hardcodé) + **boucle RSI itérative à mémoire** en prod — *après* durcir la sandbox.
 3. **Brancher le `CurriculumRunner`** (existe, testé, **dormant**) dans `main_biosphere` — la 2ᵉ échelle de temps (inter-mondes).
 4. **Tests du cœur cognitif** (policy-gradient end-to-end, langage) — sous-testés (~2 sur `mamba_agent`).
