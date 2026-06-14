@@ -162,3 +162,40 @@ def test_robust_evaluate_reproducible_with_seed():
 def test_config_has_experiment_seed_default_none():
     from src.environments.config import WorldConfig
     assert WorldConfig().experiment_seed is None
+
+
+def test_seed_at_matches_inline_formula():
+    from src.seed_ai.harness import seed_at
+    seed_at(100, 5)
+    a = np.random.rand()
+    np.random.seed((100 + 5) % (2 ** 32))
+    b = np.random.rand()
+    assert a == b
+
+
+def test_seed_at_returns_effective_seed():
+    from src.seed_ai.harness import seed_at
+    assert seed_at(2 ** 32 - 1, 3) == ((2 ** 32 - 1) + 3) % (2 ** 32)
+
+
+def test_robust_rank_passes_same_seed_to_all_candidates(monkeypatch):
+    import src.seed_ai.robust_hof as rh
+    seen = []
+    def fake_eval(config, genome, K=3, num_agents=20, max_ticks=400, seed=None):
+        seen.append(seed)
+        return 1.0
+    monkeypatch.setattr(rh, "robust_evaluate", fake_eval)
+    cands = [{"genome": "g1"}, {"genome": "g2"}, {"genome": "g3"}]
+    rh.robust_rank(None, cands, K=2, num_agents=2, seed=42)
+    assert seen == [42, 42, 42]   # tous les candidats reçoivent le MÊME seed -> mondes appariés
+
+
+def test_robust_rank_seed_none_preserves_unpaired(monkeypatch):
+    import src.seed_ai.robust_hof as rh
+    seen = []
+    def fake_eval(config, genome, K=3, num_agents=20, max_ticks=400, seed=None):
+        seen.append(seed)
+        return 1.0
+    monkeypatch.setattr(rh, "robust_evaluate", fake_eval)
+    rh.robust_rank(None, [{"genome": "g1"}, {"genome": "g2"}], K=2, num_agents=2)
+    assert seen == [None, None]   # défaut inchangé : pas de seed -> comportement historique

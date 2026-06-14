@@ -14,17 +14,22 @@ import logging
 import numpy as np
 
 
+def seed_at(base, i=0):
+    """Point unique de la convention de seed aux frontières (D1) : np.random.seed((base+i) mod 2**32).
+    Déterministe, anti-overflow. Renvoie la graine effective. Utilisé par SeedManager + robust_hof + tools."""
+    s = (int(base) + int(i)) % (2 ** 32)
+    np.random.seed(s)
+    return s
+
+
 class SeedManager:
     def __init__(self, base_seed):
         self.base_seed = int(base_seed)
         self.rng = np.random.default_rng(self.base_seed)
 
     def seed_boundary(self, i=0):
-        """Pose np.random.seed((base_seed + i) mod 2**32) — déterministe, jamais de débordement
-        (np.random.seed rejette >= 2**32). Renvoie la graine effective."""
-        s = (self.base_seed + int(i)) % (2 ** 32)
-        np.random.seed(s)
-        return s
+        """Pose le seed à la frontière i (délègue à seed_at). Renvoie la graine effective."""
+        return seed_at(self.base_seed, i)
 
     @staticmethod
     def resolve(seed=None):
@@ -124,7 +129,7 @@ class Harness:
         base = self.seed
 
         def seeded_fn(cfg, s):
-            np.random.seed((base + int(s)) % (2 ** 32))
+            seed_at(base, s)
             return run_seed_fn(cfg, s)
 
         return powered_eval(conditions, seeded_fn, seeds=seeds)
