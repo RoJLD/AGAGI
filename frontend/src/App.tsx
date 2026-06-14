@@ -9,6 +9,8 @@ import { TimelineViewer } from "./components/TimelineViewer";
 import { SandboxView } from "./components/SandboxView";
 import { EDRDashboard } from "./components/EDRDashboard";
 import { LiveMetrics } from "./components/LiveMetrics";
+import { useTheme } from "./hooks/useTheme";
+import { Sun, Moon } from "lucide-react";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8001";
 const tabs = ["edr", "live", "evolution", "comparison", "topology", "academy", "laboratoire", "timeline", "sandbox"] as const;
@@ -46,6 +48,7 @@ function ChartLine({ values, color }: { values: number[]; color: string }) {
 }
 
 export default function App() {
+  const { theme, toggle } = useTheme();
   const [tab, setTab] = useState<TabKey>("edr");
   const [experiments, setExperiments] = useState<ExperimentSummary[]>([]);
   const [selectedGate, setSelectedGate] = useState<string>("");
@@ -146,13 +149,19 @@ export default function App() {
           <h1>AGIseed Dashboard</h1>
           <p>Phase 0 à 3 : API FastAPI + React + D3 + WebSocket</p>
         </div>
-        <nav className="tabs">
-          {tabs.map((value) => (
-            <button key={value} className={value === tab ? "active" : ""} onClick={() => setTab(value)}>
-              {value}
-            </button>
-          ))}
-        </nav>
+        <div className="topbar-right">
+          <button className="theme-toggle" onClick={toggle} aria-label="Basculer le thème">
+            {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+            {theme === "dark" ? "Clair" : "Sombre"}
+          </button>
+          <nav className="tabs">
+            {tabs.map((value) => (
+              <button key={value} className={value === tab ? "active" : ""} onClick={() => setTab(value)}>
+                {value}
+              </button>
+            ))}
+          </nav>
+        </div>
       </header>
 
       <main className="content">

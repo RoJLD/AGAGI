@@ -10,7 +10,13 @@ venv/
 # Large dumps/logs
 dump.txt
 dump2.txt
+dump*.txt
 results/
+
+# Artefacts de récupération (à ne jamais réintroduire à la racine)
+*_full.tsx
+*_recovered.*
+data/*.bak_*
 
 # Data directory: ignore DB files, states, pickes
 data/*.db
