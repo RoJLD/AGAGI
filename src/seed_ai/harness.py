@@ -7,6 +7,8 @@ Garantit l'APPARIEMENT (deux conditions au même seed partent du même monde ini
 les 168 sites np.random.X. Expose aussi un Generator default_rng pour le code NEUF qui veut
 l'isolation par tirage. Détail : docs/superpowers/specs/2026-06-13-D1-RNG-Harness-design.md.
 """
+import os
+import json
 import time
 import logging
 import numpy as np
@@ -89,3 +91,40 @@ class Harness:
             async_logger.stop()
             self._logger_started = False
         return False  # ne masque jamais une exception
+
+    def eval_robust(self, config, genome, run_era_fn, K=None, num_agents=None):
+        """Compétence robuste APPARIÉE : moyenne du metrics['score'] sur K ères seedées base+i.
+        run_era_fn(config, genomes) -> (scored, metrics). Deux conditions au même seed Harness
+        voient les mêmes mondes initiaux (block-pairing) -> variance entre-conditions effondrée."""
+        K = self.robust_K if K is None else int(K)
+        n = self.num_agents if num_agents is None else int(num_agents)
+        scores = []
+        for i in range(max(1, K)):
+            self.seeds.seed_boundary(i)
+            _scored, metrics = run_era_fn(config, [genome] * n)
+            scores.append(float(metrics["score"]))
+        return float(np.mean(scores)) if scores else 0.0
+
+    def powered(self, conditions, run_seed_fn, seeds=(0, 1, 2)):
+        """Wrap eval_harness.powered_eval en injectant le seed Harness comme base (base+s)."""
+        from src.seed_ai.eval_harness import powered_eval
+        base = self.seed
+
+        def seeded_fn(cfg, s):
+            np.random.seed((base + int(s)) % (2 ** 32))
+            return run_seed_fn(cfg, s)
+
+        return powered_eval(conditions, seeded_fn, seeds=seeds)
+
+    def progress(self, total, label=""):
+        from tools.progress import Progress
+        return Progress(total, label=label or self.name)
+
+    def save(self, data):
+        """Écrit results/<name>_<seed>.json (seed + commit court + données) -> provenance."""
+        os.makedirs("results", exist_ok=True)
+        out = {"name": self.name, "seed": self.seed, "commit": _git_short_commit(), "data": data}
+        path = os.path.join("results", f"{self.name}_{self.seed}.json")
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(out, f, indent=2, default=float)
+        return path
