@@ -160,8 +160,6 @@ def main():
     keep_memory = os.getenv("KEEP_MEMORY", "0") == "1"
     
     config = WorldConfig()
-    config.robust_hof_K = 4   # EDR 080 (reco) : sélection HoF ROBUSTE pour les vraies runs (+~45% compétence,
-                              # résultat + fiable). Défaut WorldConfig reste 0 (tests/outils inchangés).
 
     os.environ["ACTIVE_EXP_VARIABLE"] = config.active_exp_variable
 
@@ -191,6 +189,9 @@ def main():
     del tracker
     
     config = WorldConfig()
+    config.robust_hof_K = 4   # EDR 080/081 : sélection HoF ROBUSTE en prod (+~50% compétence qui compose).
+                              # FIX : posé ICI (config vivant) — l'ancienne pose était écrasée par cette
+                              # ré-instanciation de config. Défaut WorldConfig reste 0 (tests/outils inchangés).
 
     # D1 — provenance : seed le RNG global au boot et LOGGE la graine (rejouable via EXPERIMENT_SEED).
     # Placé ICI (après la 2e instanciation de config) pour que experiment_seed survive sur le config
