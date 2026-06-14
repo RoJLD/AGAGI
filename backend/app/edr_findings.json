@@ -101,6 +101,19 @@
       "insight": "Le connectome réflexe est un substrat trop faible (≈bruit, −0.03) ; une tête dédiée co-entraînée porte un code référentiel fiable dans l'agent vivant (MI +0.22). Gated, 146 tests verts."
     },
     {
+      "edr": 87,
+      "title": "Le CONTENU du langage ne paye pas — c'est du téléguidage",
+      "subtitle": "Mammouths tués, 3 bras appariés (design post-audit adversarial)",
+      "type": "bar_err",
+      "xlabel": "bras",
+      "series": [
+        {"name": "FIABLE (contenu vrai)", "value": 25.3, "err": 13.7, "color": "#0f766e"},
+        {"name": "BROUILLÉ (aléatoire, même mvt)", "value": 23.3, "err": 10.8, "color": "#f59e0b"},
+        {"name": "SOLO (n'agit pas)", "value": 14.2, "err": 8.5, "color": "#be123c"}
+      ],
+      "insight": "Le bras BROUILLÉ (même mouvement, contenu aléatoire) isole le CONTENU du téléguidage. FIABLE−SOLO=+11.2 (grand) mais c'est le GUIDAGE spatial ; FIABLE−BROUILLÉ=+2.0 (sous 2 SE) : le CONTENU ne paye pas. Sans ce bras de contrôle, faux positif. Le contenu ne paye que si la distinction qu'il porte est décisionnellement critique — pas ici (Mammouth+Ours positifs, Leurre rare)."
+    },
+    {
       "edr": 84,
       "title": "Le dernier verrou : la survie plafonne (économie d'énergie)",
       "subtitle": "survie (ticks) selon la densité de nourriture — 79 % meurent de faim",
