@@ -31,3 +31,21 @@ def test_seed_boundary_independent_across_eras():
 
 def test_rng_generator_is_seeded():
     assert SeedManager(7).rng.random() == SeedManager(7).rng.random()
+
+
+def test_rng_generator_isolated_from_global_seed():
+    # Le Generator .rng doit être isolé du RNG global : perturber np.random ne change rien.
+    a = SeedManager(7).rng.random()
+    np.random.seed(0)
+    b = SeedManager(7).rng.random()
+    assert a == b
+
+
+def test_seed_boundary_returns_effective_seed():
+    assert SeedManager(100).seed_boundary(5) == 105
+
+
+def test_seed_boundary_no_overflow_near_max():
+    # base proche de 2**32 + i>0 ne doit PAS lever ValueError (modulo 2**32).
+    s = SeedManager(2 ** 32 - 1).seed_boundary(3)
+    assert 0 <= s < 2 ** 32
