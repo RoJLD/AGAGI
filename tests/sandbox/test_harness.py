@@ -157,3 +157,8 @@ def test_robust_evaluate_reproducible_with_seed():
     a = robust_evaluate(cfg, g, K=2, num_agents=2, max_ticks=3, seed=2026)
     b = robust_evaluate(cfg, g, K=2, num_agents=2, max_ticks=3, seed=2026)
     assert a == b
+
+
+def test_config_has_experiment_seed_default_none():
+    from src.environments.config import WorldConfig
+    assert WorldConfig().experiment_seed is None

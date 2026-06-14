@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 import json
 import os
 
@@ -60,6 +60,10 @@ class WorldConfig:
     # Évaluation ROBUSTE du HoF (EDR 078/079) : K>1 -> ré-évaluer les candidats sur K ères et moyenner
     # avant de committer au HoF (de-bruite la sélection ; lève le plateau de compétence). 0/1 = off.
     robust_hof_K: int = 0
+
+    # Reproductibilité / provenance (D1) : None -> graine tirée et LOGGÉE au boot (run rejouable
+    # a posteriori) ; int fixe -> run pleinement reproductible. Défaut None = comportement historique.
+    experiment_seed: Optional[int] = None
 
     # Économie d'énergie (EDR 084) : la survie plafonne (~70 ticks) car 79% starvent. Ces deux leviers
     # règlent le sweet spot dureté↔soutenabilité. Défauts = comportement historique (non-régression).
