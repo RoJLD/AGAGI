@@ -71,3 +71,13 @@ def test_harness_seeds_boot_deterministically():
 def test_harness_none_seed_is_logged_int():
     with Harness(seed=None, name="t", with_db=False) as h:
         assert isinstance(h.seed, int) and 0 <= h.seed < 2 ** 32
+
+
+def test_harness_with_db_false_never_starts_logger():
+    with Harness(seed=1, name="t", with_db=False) as h:
+        assert h._logger_started is False
+
+
+def test_harness_exit_without_enter_is_safe():
+    h = Harness(seed=1, name="t", with_db=False)
+    h.__exit__(None, None, None)  # ne doit pas crasher

@@ -7,8 +7,6 @@ Garantit l'APPARIEMENT (deux conditions au même seed partent du même monde ini
 les 168 sites np.random.X. Expose aussi un Generator default_rng pour le code NEUF qui veut
 l'isolation par tirage. Détail : docs/superpowers/specs/2026-06-13-D1-RNG-Harness-design.md.
 """
-import os
-import json
 import time
 import logging
 import numpy as np
@@ -70,7 +68,7 @@ class Harness:
 
     def __enter__(self):
         self.seeds.seed_boundary(0)
-        log.info(f"[HARNESS] {self.name} seed={self.seed}  (rejouer : seed={self.seed})")
+        log.info(f"[HARNESS] {self.name} seed={self.seed} commit={_git_short_commit()}  (rejouer : seed={self.seed})")
         if self.with_db:
             from src.graph_rag.async_logger import logger as async_logger
             async_logger.start()
