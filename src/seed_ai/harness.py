@@ -49,6 +49,17 @@ def _git_short_commit():
         return "unknown"
 
 
+def _json_default(v):
+    """Sérialiseur JSON des scalaires/tableaux numpy (eval_robust renvoie des np.float)."""
+    if isinstance(v, np.integer):
+        return int(v)
+    if isinstance(v, np.floating):
+        return float(v)
+    if isinstance(v, np.ndarray):
+        return v.tolist()
+    raise TypeError(f"Non serialisable en JSON : {type(v)}")
+
+
 class Harness:
     """Objet de composition (context manager) : seed + cycle async_logger + Progress + éval robuste
     appariée + I/O résultats. Absorbe le boilerplate des tools/ ; ne porte pas leur logique métier.
@@ -106,7 +117,9 @@ class Harness:
         return float(np.mean(scores)) if scores else 0.0
 
     def powered(self, conditions, run_seed_fn, seeds=(0, 1, 2)):
-        """Wrap eval_harness.powered_eval en injectant le seed Harness comme base (base+s)."""
+        """Wrap eval_harness.powered_eval en injectant le seed Harness comme base (base+s mod 2**32).
+        Le Harness POSE la graine avant chaque réplicat -> run_seed_fn ne DOIT PAS seeder elle-même
+        (sinon elle écrase la graine Harness et l'appariement n'est plus garanti)."""
         from src.seed_ai.eval_harness import powered_eval
         base = self.seed
 
@@ -126,5 +139,5 @@ class Harness:
         out = {"name": self.name, "seed": self.seed, "commit": _git_short_commit(), "data": data}
         path = os.path.join("results", f"{self.name}_{self.seed}.json")
         with open(path, "w", encoding="utf-8") as f:
-            json.dump(out, f, indent=2, default=float)
+            json.dump(out, f, indent=2, default=_json_default)
         return path

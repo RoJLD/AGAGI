@@ -120,3 +120,28 @@ def test_save_writes_seed_and_commit(tmp_path, monkeypatch):
         out = _json.load(f)
     assert out["seed"] == 5 and out["name"] == "demo" and "commit" in out
     assert out["data"]["metric"] == 1.0
+
+
+def test_powered_seeds_replicates_without_caller_seeding():
+    # run_seed_fn NE seede PAS : c'est le Harness qui pose la graine -> reproductible.
+    def run_seed_fn(cfg, s):
+        return float(np.random.rand())
+    r1 = Harness(seed=3, with_db=False).powered({"c": None}, run_seed_fn, seeds=(0, 1, 2))
+    r2 = Harness(seed=3, with_db=False).powered({"c": None}, run_seed_fn, seeds=(0, 1, 2))
+    assert r1["c"]["vals"] == r2["c"]["vals"]
+
+
+def test_save_serializes_numpy(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    h = Harness(seed=5, name="np", with_db=False)
+    path = h.save({"f": np.float64(1.5), "i": np.int64(3), "arr": np.array([1.0, 2.0])})
+    import json as _json
+    with open(path, encoding="utf-8") as f:
+        out = _json.load(f)
+    assert out["data"]["f"] == 1.5 and out["data"]["i"] == 3 and out["data"]["arr"] == [1.0, 2.0]
+
+
+def test_progress_returns_progress():
+    from tools.progress import Progress
+    p = Harness(seed=1, with_db=False).progress(10, label="x")
+    assert isinstance(p, Progress)
