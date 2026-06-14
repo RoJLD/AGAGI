@@ -9,6 +9,7 @@ indépendantes (clones) et moyenner le life_score avant de committer. Gated par 
 Imports paresseux (Biosphere3D/MambaAgent) pour éviter toute circularité avec le monde.
 """
 import numpy as np
+from src.seed_ai.harness import seed_at
 
 
 def robust_evaluate(config, genome, K=3, num_agents=20, max_ticks=400, seed=None):
@@ -22,7 +23,7 @@ def robust_evaluate(config, genome, K=3, num_agents=20, max_ticks=400, seed=None
     scores = []
     for i in range(max(1, int(K))):
         if seed is not None:
-            np.random.seed((int(seed) + i) % (2 ** 32))
+            seed_at(seed, i)
         env = Biosphere3D(config)
         for _ in range(num_agents):
             a = MambaAgent()

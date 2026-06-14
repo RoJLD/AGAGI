@@ -162,3 +162,17 @@ def test_robust_evaluate_reproducible_with_seed():
 def test_config_has_experiment_seed_default_none():
     from src.environments.config import WorldConfig
     assert WorldConfig().experiment_seed is None
+
+
+def test_seed_at_matches_inline_formula():
+    from src.seed_ai.harness import seed_at
+    seed_at(100, 5)
+    a = np.random.rand()
+    np.random.seed((100 + 5) % (2 ** 32))
+    b = np.random.rand()
+    assert a == b
+
+
+def test_seed_at_returns_effective_seed():
+    from src.seed_ai.harness import seed_at
+    assert seed_at(2 ** 32 - 1, 3) == ((2 ** 32 - 1) + 3) % (2 ** 32)
