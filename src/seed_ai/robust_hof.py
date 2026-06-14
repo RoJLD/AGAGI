@@ -42,14 +42,16 @@ def robust_evaluate(config, genome, K=3, num_agents=20, max_ticks=400, seed=None
     return float(np.mean(scores)) if scores else 0.0
 
 
-def robust_rank(config, candidates, K, num_agents=20):
+def robust_rank(config, candidates, K, num_agents=20, seed=None):
     """Trie des candidats (dicts agent avec 'model'.genome ou 'genome') par compétence ROBUSTE.
+    seed fourni -> TOUS les candidats sont évalués sur les MÊMES K mondes (appariement) -> ranking
+    de-bruité et reproductible. seed=None -> comportement historique (mondes non appariés).
     Renvoie [(robust_score, candidate)] décroissant. Utilisé avant save_to_hall_of_fame."""
     out = []
     for c in candidates:
         g = c["model"].genome if "model" in c else c.get("genome")
         if g is None:
             continue
-        out.append((robust_evaluate(config, g, K, num_agents), c))
+        out.append((robust_evaluate(config, g, K, num_agents, seed=seed), c))
     out.sort(key=lambda x: x[0], reverse=True)
     return out
