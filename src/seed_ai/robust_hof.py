@@ -11,15 +11,18 @@ Imports paresseux (Biosphere3D/MambaAgent) pour éviter toute circularité avec 
 import numpy as np
 
 
-def robust_evaluate(config, genome, K=3, num_agents=20, max_ticks=400):
+def robust_evaluate(config, genome, K=3, num_agents=20, max_ticks=400, seed=None):
     """Compétence robuste d'un génome : moyenne du meilleur life_score sur K ères de clones.
-    De-bruite la sélection HoF. Renvoie 0.0 si aucune ère scorable."""
+    De-bruite la sélection HoF. seed fourni -> ères seedées base+i (reproductible + apparié).
+    Renvoie 0.0 si aucune ère scorable."""
     from src.worlds.world_1_stoneage import Biosphere3D
     from src.agents.mamba_agent import MambaAgent
     from src.seed_ai.persistence import calculate_life_score
 
     scores = []
-    for _ in range(max(1, int(K))):
+    for i in range(max(1, int(K))):
+        if seed is not None:
+            np.random.seed((int(seed) + i) % (2 ** 32))
         env = Biosphere3D(config)
         for _ in range(num_agents):
             a = MambaAgent()

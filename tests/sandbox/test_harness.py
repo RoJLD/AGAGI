@@ -145,3 +145,15 @@ def test_progress_returns_progress():
     from tools.progress import Progress
     p = Harness(seed=1, with_db=False).progress(10, label="x")
     assert isinstance(p, Progress)
+
+
+def test_robust_evaluate_reproducible_with_seed():
+    from src.environments.config import WorldConfig
+    from src.seed_ai.robust_hof import robust_evaluate
+    from src.agents.mamba_agent import MambaAgent
+    cfg = WorldConfig()
+    cfg.size = 6
+    g = MambaAgent().genome
+    a = robust_evaluate(cfg, g, K=2, num_agents=2, max_ticks=3, seed=2026)
+    b = robust_evaluate(cfg, g, K=2, num_agents=2, max_ticks=3, seed=2026)
+    assert a == b
