@@ -26,6 +26,9 @@ jobs:
       - name: Run Python tests
         run: python -m pytest tests/test_backend.py tests/sandbox/test_visualization.py -q
 
+      - name: Parity gate (narration EDR -> frontend)
+        run: python tools/parity_check.py --strict
+
       - name: Set up Node.js
         uses: actions/setup-node@v5
         with:
