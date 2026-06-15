@@ -146,3 +146,26 @@ Le projet revendique une méthode forte ; **l'outil ne la soutient pas encore.**
 ### Frontend-only vs besoin backend
 - **Frontend-only** : tout A et B, presets/validation/file (UI), rendu bandes IC + verdict.
 - **Backend requis** : endpoints `/api/runs*` (scan `results/`, calcul welch/Cohen), `POST /analyze` par `run_id`, extension `Harness.save()`.
+
+---
+
+## Automatisation — auto-injection au frontend (idées à faire, 2026-06-15)
+
+> Cadre : **détecter → scaffolder → curer**. On automatise les **données** et les **types**, pas l'UX
+> (générer des composants génériques tuerait la valeur design). La gate *détecte* le drift ; ces idées
+> le *suppriment par construction* ou le *réparent*.
+
+**Déjà automatique (vues data-driven livrées)** : nouveaux runs/résultats → onglet *Historique des runs* + conditions/métriques *A/B* ; nouveaux EDR → *Academy* (`get_academy_data` dérive de `docs/EDR`+`edr_findings.json`) ; articles Sociologue → *Laboratoire*.
+
+**À faire (par ROI décroissant) :**
+1. **Codegen OpenAPI → TS** *(meilleur ROI)* — `openapi-typescript` sur le `/openapi.json` de FastAPI → `api-types.ts` régénéré en pre-commit/CI ; la gate vérifie qu'il est à jour. Supprime le drift *schéma↔types* par **génération** (> détection). Remplace l'idée gate « schéma↔types » différée.
+2. **Scaffolder de carte EDR** — `parity_check --fix` (ou `make edr-card NNN`) : sur un nouveau `docs/EDR/NNN`, appose un **stub** de finding dans `edr_findings.json` (titre+insight depuis le doc, tag « à curer »). Ferme la boucle de la gate narration (gendarme → assistant).
+3. **Onglet EDR « 100 % couverture »** *(frontend pur)* — `EDRDashboard` liste aussi les EDR docs **non curés** (titre+lien) ; la curation enrichit (graphiques) mais ne conditionne plus l'apparition.
+4. **Vue « Santé / parité »** — un onglet rendant le rapport `parity_check` (endpoints non consommés, EDR orphelins) → WARN de la gate transformés en tableau de bord actionnable.
+5. *(plus loin, YAGNI)* **Manifest-driven tabs** — onglets déclarés dans un manifeste `{clé→endpoint→composant}` ; nouvel item = onglet auto-monté. À ne faire que si les vues cessent d'être sur-mesure.
+
+---
+
+## État d'avancement (2026-06-15)
+- **F0** ✅ · **F1** (routing/onglets/toasts/ErrorBoundary ✅ ; **F1.5 responsive/topbar/sidebar ✅**) · **F2** (lanceur+presets+file ✅, A/B IC/Cohen/verdict ✅, **Historique runs + deep-link A/B ✅**) · **F3.10 tests ✅**.
+- **Reste** : F2.9 lien *finding ↔ run ↔ EDR* (backend) ; F3.11/12 durcissement+sécurité (backend) ; tokenisation d3 dark-mode `RadarChart`/`TopologyViewer` ; automatisations ci-dessus.
