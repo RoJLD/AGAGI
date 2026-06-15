@@ -6,9 +6,14 @@ Pré-enregistrement : docs/superpowers/specs/2026-06-14-S2-World-Demands-Intelli
 """
 import math
 import numpy as np
-from src.seed_ai.harness import seed_at
+from src.seed_ai.harness import seed_at, Harness, _git_short_commit
 from src.seed_ai.persistence import calculate_life_score, load_hall_of_fame
 from src.agents.baseline_models import RandomActionBatchModel, ReflexBatchModel
+from src.seed_ai.s2_stats import s2_verdict, holm
+from src.worlds.world_1_stoneage import Biosphere3D
+from src.worlds.world_0_soup import SoupWorld
+from src.worlds.world_2_agricultural import AgriculturalWorld
+from src.worlds.world_3_industrial import IndustrialWorld
 
 
 def run_condition(world_cls, batch_model_cls, genome, seed, num_agents=20, max_ticks=400, n_eras=1):
@@ -93,3 +98,80 @@ def pilot_required_k(world_cls, champion_genome, seed, k_pilot=5):
     m = min(len(champ), len(refl))
     diff = np.array(champ[:m], dtype=float) - np.array(refl[:m], dtype=float)
     return required_k(float(np.mean(diff)), float(np.std(diff) + 1e-9))
+
+
+WORLDS = {"soup": SoupWorld, "stoneage": Biosphere3D,
+          "agricultural": AgriculturalWorld, "industrial": IndustrialWorld}
+BASELINE_KEYS = ("random_action", "random_genome", "reflex_naive", "reflex_prudent")
+
+
+def _run_all_conditions(world_cls, champion_genome, seed, K, num_agents, max_ticks):
+    """Toutes les conditions d'UN monde -> {cond: {survival, life_score, censored_frac}}."""
+    out = {}
+    for name, spec in CONDITIONS.items():
+        genome = None if spec["fresh_genome"] else champion_genome
+        out[name] = run_condition(world_cls, spec["batch_model_cls"], genome,
+                                  seed, num_agents=num_agents, max_ticks=max_ticks, n_eras=K)
+    return out
+
+
+def run_s2(worlds=None, seed=2026, K=None, num_agents=20, max_ticks=400, with_db=False):
+    """Grille S2 complète. K=None -> pilote par monde (power analysis). Renvoie le rapport + le sauve."""
+    worlds = worlds or list(WORLDS)
+    champion = load_champion_genome()
+    report = {"seed": seed, "commit": _git_short_commit(), "K": {}, "worlds": {}}
+
+    with Harness(seed=seed, name="s2_demand", with_db=with_db) as h:
+        for w in worlds:
+            wcls = WORLDS[w]
+            k_w = K if K is not None else pilot_required_k(wcls, champion, seed)
+            report["K"][w] = k_w
+            conds = _run_all_conditions(wcls, champion, seed, k_w, num_agents, max_ticks)
+
+            # survie : réflexe = la variante à plus haute survie médiane (borne haute du réflexe, spec §5)
+            refl = max((conds["reflex_naive"], conds["reflex_prudent"]),
+                       key=lambda c: np.median(c["survival"]) if c["survival"] else 0.0)
+            surv_base = {"random_action": conds["random_action"]["survival"],
+                         "random_genome": conds["random_genome"]["survival"],
+                         "reflex": refl["survival"]}
+            life_base = {"random_action": conds["random_action"]["life_score"],
+                         "random_genome": conds["random_genome"]["life_score"],
+                         "reflex": refl["life_score"]}
+            # appariement : tronquer à la longueur commune (même K, même num_agents -> aligné)
+            n = min(len(conds["champion"]["survival"]), *(len(v) for v in surv_base.values()))
+            v = s2_verdict(conds["champion"]["survival"][:n],
+                           {k: surv_base[k][:n] for k in surv_base},
+                           conds["champion"]["life_score"][:n],
+                           {k: life_base[k][:n] for k in life_base})
+            v["censored_frac_champion"] = conds["champion"]["censored_frac"]
+            report["worlds"][w] = v
+
+        # FWER global : Holm sur les p_monde des mondes au verdict non-VOID
+        decided = [w for w in worlds if report["worlds"][w].get("p_monde") is not None]
+        if decided:
+            adj = holm([report["worlds"][w]["p_monde"] for w in decided])
+            for w, pa in zip(decided, adj):
+                report["worlds"][w]["p_monde_holm"] = float(pa)
+
+        h.save(report)
+
+    _print_table(report)
+    return report
+
+
+def _print_table(report):
+    print(f"\n=== S2 — Le monde exige-t-il l'intelligence ? (seed={report['seed']}, commit={report['commit']}) ===")
+    for w, v in report["worlds"].items():
+        if v["verdict"] == "VOID":
+            print(f"  {w:12s} : VOID (cohérence life_score échouée, life_p={v['life_p']:.3f})")
+            continue
+        s = v["survival"][v["strongest_baseline"]]
+        print(f"  {w:12s} : {v['verdict']:12s} | p_monde={v.get('p_monde_holm', v['p_monde']):.3f} "
+              f"| vs {v['strongest_baseline']}: Cliff δ={s['cliff']:+.2f}, ratio[{s['ratio_lo']:.2f},{s['ratio_hi']:.2f}] "
+              f"| censuré={v['censored_frac_champion']*100:.0f}%")
+    print("  -> Rédiger EDR 088 à partir de ce verdict. Si censuré>5% quelque part : augmenter max_ticks.")
+
+
+if __name__ == "__main__":
+    import os
+    run_s2(seed=int(os.getenv("EXPERIMENT_SEED", "2026")), with_db=False)

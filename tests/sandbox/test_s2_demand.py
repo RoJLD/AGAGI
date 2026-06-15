@@ -53,3 +53,18 @@ def test_required_k_grows_with_noise():
     k_low = required_k(mean_diff=10.0, std_diff=5.0)
     k_high = required_k(mean_diff=10.0, std_diff=40.0)
     assert k_high > k_low >= 12
+
+
+from tools.s2_demand import run_s2
+
+
+def test_run_s2_smoke_one_world(monkeypatch):
+    # Smoke : 1 monde, K=2, peu d'agents/ticks -> structure du rapport correcte, sans crash.
+    import tools.s2_demand as s2
+    monkeypatch.setattr(s2, "load_champion_genome", lambda: __import__(
+        "src.agents.mamba_agent", fromlist=["MambaAgent"]).MambaAgent().genome)
+    rep = run_s2(worlds=["stoneage"], seed=2026, K=2, num_agents=3, max_ticks=6, with_db=False)
+    assert "stoneage" in rep["worlds"]
+    w = rep["worlds"]["stoneage"]
+    assert "verdict" in w and "survival" in w
+    assert rep["seed"] == 2026 and "commit" in rep
