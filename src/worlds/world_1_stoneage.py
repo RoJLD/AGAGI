@@ -36,6 +36,10 @@ class Biosphere3D(BaseWorld):
         # World Model partagé par la population (Vague 0, levier 1) : alimente la
         # vraie surprise / curiosité. Possédé par le monde -> persiste sur toute l'ère.
         self.world_model = WorldModel(self.config.agent.num_inputs)
+        # Seam d'injection (S2) : classe du batch model lue à l'inférence. Défaut = MambaBatchModel
+        # (inchangé). Le runner S2 le remplace par un BaselineBatchModel (RandomAction/Reflex) APRÈS
+        # construction du monde -> baselines sans connectome, zéro fork. Spec §11.
+        self.batch_model_cls = MambaBatchModel
         # Curriculum (EDR 017) : "grab" = entraînement de la collecte (monde sûr, nuit off).
         self.training_mode = None
         # AXE CRAFT (EDR 018) : complexité de la mécanique de craft. 0 = auto-craft (tenir
@@ -942,7 +946,7 @@ class Biosphere3D(BaseWorld):
         # VECTORIZED OBSERVATION & BATCHING
         batch_obs = self.get_batch_observations()
         models = [a["model"] for a in self.agents]
-        batch_model = MambaBatchModel(models, world_model=self.world_model)
+        batch_model = self.batch_model_cls(models, world_model=self.world_model)
 
         env_surprise_batch = np.array([a.get("last_env_surprise", 0.0) for a in self.agents])
         
