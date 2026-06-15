@@ -2,20 +2,31 @@ import { useEffect, useState } from "react";
 
 interface ParsedHash {
   path: string;
-  gate: string;
+  query: Record<string, string>;
 }
 
 function parseHash(): ParsedHash {
   const raw = window.location.hash.replace(/^#\/?/, "");
-  const [path, query] = raw.split("?");
-  const params = new URLSearchParams(query || "");
-  return { path: path || "", gate: params.get("gate") || "" };
+  const [path, queryStr] = raw.split("?");
+  const params = new URLSearchParams(queryStr || "");
+  const query: Record<string, string> = {};
+  params.forEach((value, key) => {
+    query[key] = value;
+  });
+  return { path: path || "", query };
+}
+
+function buildHash(tab: string, query: Record<string, string>): string {
+  const params = new URLSearchParams(Object.entries(query).filter(([, v]) => Boolean(v)));
+  const qs = params.toString();
+  return `#/${tab}${qs ? `?${qs}` : ""}`;
 }
 
 /**
- * Routing minimal par hash : `#/onglet?gate=XXX`.
+ * Routing minimal par hash : `#/onglet?gate=XXX&ab=YYY`.
  * - URL partageable/bookmarkable, sans dépendance ni réécriture serveur.
- * - `gate` est porté comme query transverse (sidebar partagée entre onglets).
+ * - `gate` : query transverse (sidebar). `query` expose tous les paramètres (ex: `ab` pour le deep-link A/B).
+ * - `navigate(tab, query)` : navigation avec paramètres arbitraires.
  */
 export function useHashRoute<T extends string>(validTabs: readonly T[], defaultTab: T) {
   const [parsed, setParsed] = useState<ParsedHash>(parseHash);
@@ -27,20 +38,19 @@ export function useHashRoute<T extends string>(validTabs: readonly T[], defaultT
   }, []);
 
   const tab = (validTabs as readonly string[]).includes(parsed.path) ? (parsed.path as T) : defaultTab;
-  const gate = parsed.gate;
+  const gate = parsed.query.gate || "";
 
-  const writeHash = (nextTab: T, nextGate: string) => {
-    const q = nextGate ? `?gate=${encodeURIComponent(nextGate)}` : "";
-    const next = `#/${nextTab}${q}`;
-    if (window.location.hash !== next) {
-      window.location.hash = next;
-    }
+  const write = (nextTab: T, query: Record<string, string>) => {
+    const next = buildHash(nextTab, query);
+    if (window.location.hash !== next) window.location.hash = next;
   };
 
   return {
     tab,
     gate,
-    setTab: (t: T) => writeHash(t, gate),
-    setGate: (g: string) => writeHash(tab, g),
+    query: parsed.query,
+    setTab: (t: T) => write(t, gate ? { gate } : {}),
+    setGate: (g: string) => write(tab, g ? { gate: g } : {}),
+    navigate: (t: T, query: Record<string, string> = {}) => write(t, query),
   };
 }

@@ -10,7 +10,7 @@ import { Field } from "./ui/Field";
 import { Button } from "./ui/Button";
 import { Panel } from "./ui/Panel";
 
-export function RunsHistoryView() {
+export function RunsHistoryView({ onCompare }: { onCompare?: (condition: string) => void }) {
   const runsQuery = useQuery({
     queryKey: queryKeys.runs.list,
     queryFn: () => apiFetch<RunSummary[]>("/api/runs"),
@@ -77,6 +77,11 @@ export function RunsHistoryView() {
                   <Button variant="ghost" size="sm" onClick={() => setSelected(r.run_id)}>
                     Détail
                   </Button>
+                  {onCompare && (
+                    <Button variant="ghost" size="sm" onClick={() => onCompare(r.name)}>
+                      Comparer
+                    </Button>
+                  )}
                 </td>
               </tr>
             ))}

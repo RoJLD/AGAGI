@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../api/client";
 import { queryKeys } from "../api/queryKeys";
@@ -60,7 +60,7 @@ function VerdictCard({ r }: { r: ABCompareResult }) {
   );
 }
 
-export function ABComparisonView() {
+export function ABComparisonView({ preselectA }: { preselectA?: string }) {
   const conditionsQuery = useQuery({
     queryKey: queryKeys.runs.conditions,
     queryFn: () => apiFetch<ConditionSummary[]>("/api/runs/conditions"),
@@ -71,13 +71,22 @@ export function ABComparisonView() {
   const [a, setA] = useState("");
   const [b, setB] = useState("");
   const [metric, setMetric] = useState("");
+  const appliedPreselect = useRef<string | null>(null);
 
   useEffect(() => {
+    if (!conditions.length) return;
+    // Deep-link depuis l'Historique des runs : préselectionne la condition A (une seule fois par valeur).
+    if (preselectA && conditions.some((c) => c.name === preselectA) && appliedPreselect.current !== preselectA) {
+      appliedPreselect.current = preselectA;
+      setA(preselectA);
+      setB((prev) => (prev && prev !== preselectA ? prev : conditions.find((c) => c.name !== preselectA)?.name ?? ""));
+      return;
+    }
     if (conditions.length >= 2 && !a && !b) {
       setA(conditions[0].name);
       setB(conditions[1].name);
     }
-  }, [conditions, a, b]);
+  }, [conditions, preselectA, a, b]);
 
   const condA = conditions.find((c) => c.name === a);
   const condB = conditions.find((c) => c.name === b);

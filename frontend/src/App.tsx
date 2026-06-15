@@ -56,7 +56,7 @@ function ChartLine({ values, color }: { values: number[]; color: string }) {
 
 export default function App() {
   const { theme, toggle } = useTheme();
-  const { tab, gate: selectedGate, setTab, setGate } = useHashRoute(TAB_KEYS, "edr");
+  const { tab, gate: selectedGate, query, setTab, setGate, navigate } = useHashRoute(TAB_KEYS, "edr");
   const { data: experiments = [] } = useQuery({
     queryKey: queryKeys.experiments.list,
     queryFn: () => apiFetch<ExperimentSummary[]>("/api/experiments"),
@@ -129,6 +129,11 @@ export default function App() {
       setGate(experiments[0].gate);
     }
   }, [experiments, selectedGate]);
+
+  // Deep-link depuis l'Historique des runs : `?ab=<condition>` ouvre l'onglet Comparaison en mode A/B.
+  useEffect(() => {
+    if (query.ab) setCompareMode("ab");
+  }, [query.ab]);
 
   useWebSocket<{ gate?: string; generation?: number; fitness?: number }>("/ws/evolution", (event) => {
     const fitness = typeof event.fitness === "number" ? event.fitness.toFixed(4) : event.fitness;
@@ -282,7 +287,7 @@ export default function App() {
               {compareMode === "ab" ? (
                 <>
                   <h2>A/B rigoureux (runs multi-seed)</h2>
-                  <ABComparisonView />
+                  <ABComparisonView preselectA={query.ab} />
                 </>
               ) : (
                 <>
@@ -377,7 +382,7 @@ export default function App() {
               <SandboxView />
             </>
           )}
-          {tab === "runs" && <RunsHistoryView />}
+          {tab === "runs" && <RunsHistoryView onCompare={(cond) => navigate("comparison", { ab: cond })} />}
           </ErrorBoundary>
         </section>
       </main>
