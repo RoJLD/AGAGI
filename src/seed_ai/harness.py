@@ -138,9 +138,22 @@ class Harness:
                 time.sleep(0.1)
             if self.db is None:
                 log.warning(f"[HARNESS] {self.name}: KuzuDB indisponible -> degradation gracieuse")
+        # Provenance : annonce le run au logger (best-effort) -> noeud Run + current_run.
+        try:
+            from src.graph_rag.async_logger import logger as _alog
+            _alog.emit("RUN_START", {"name": self.name, "seed": self.seed,
+                                     "commit": _git_short_commit(), "git_dirty": _git_dirty(),
+                                     "config_hash": _config_hash(self._config) if self._config is not None else ""})
+        except Exception:
+            pass
         return self
 
     def __exit__(self, exc_type, exc, tb):
+        try:
+            from src.graph_rag.async_logger import logger as _alog
+            _alog.emit("RUN_END", {"name": self.name, "seed": self.seed})
+        except Exception:
+            pass
         if self._logger_started:
             from src.graph_rag.async_logger import logger as async_logger
             async_logger.stop()

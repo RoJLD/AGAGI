@@ -230,3 +230,22 @@ def test_config_hash_deterministic_and_sensitive(tmp_path, monkeypatch):
         def __init__(self, s): self.size = s
     assert _config_hash(Cfg(32)) == _config_hash(Cfg(32))     # déterministe
     assert _config_hash(Cfg(32)) != _config_hash(Cfg(64))     # sensible
+
+
+def test_harness_emits_run_start_to_logger(monkeypatch):
+    # capture les emit sans DB : on remplace l'AsyncLogger global par un espion
+    import src.graph_rag.async_logger as al
+    events = []
+    class Spy:
+        _running = True
+        def start(self): pass
+        def stop(self): pass
+        def get_db(self): return None
+        def emit(self, t, p): events.append((t, p))
+    monkeypatch.setattr(al, "logger", Spy())
+    with Harness(seed=3, name="run", with_db=True, db_wait=0.0):
+        pass
+    types = [t for t, _ in events]
+    assert "RUN_START" in types and "RUN_END" in types
+    start_payload = next(p for t, p in events if t == "RUN_START")
+    assert start_payload["seed"] == 3 and "commit" in start_payload and "git_dirty" in start_payload
