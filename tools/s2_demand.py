@@ -23,6 +23,7 @@ def run_condition(world_cls, batch_model_cls, genome, seed, num_agents=20, max_t
     INDIVIDUELLE (âge de chaque agent, mort OU survivant-censuré) + life_score, agrégée sur les ères."""
     from src.agents.mamba_agent import MambaAgent
     survival, life, censored = [], [], 0
+    era_survival, era_life = [], []        # médiane PAR ère -> unité d'appariement par seed (spec §8)
     for i in range(max(1, int(n_eras))):
         seed_at(seed, i)
         env = world_cls()
@@ -42,14 +43,19 @@ def run_condition(world_cls, batch_model_cls, genome, seed, num_agents=20, max_t
             t += 1
         survivors = list(env.agents)           # encore vivants à max_ticks -> CENSURÉS
         dead = list(getattr(env, "dead_agents", []))
+        era_ages, era_lifes = [], []
         for a in survivors + dead:
-            survival.append(int(a["age"]))
-            life.append(float(calculate_life_score(a)))
+            age = int(a["age"]); ls = float(calculate_life_score(a))
+            survival.append(age); life.append(ls)
+            era_ages.append(age); era_lifes.append(ls)
         censored += len(survivors)
+        era_survival.append(float(np.median(era_ages)) if era_ages else 0.0)
+        era_life.append(float(np.median(era_lifes)) if era_lifes else 0.0)
         if hasattr(env, "memory_retriever"):
             env.memory_retriever.stop()
     n = max(1, len(survival))
-    return {"survival": survival, "life_score": life, "censored_frac": censored / n}
+    return {"survival": survival, "life_score": life,
+            "era_survival": era_survival, "era_life": era_life, "censored_frac": censored / n}
 
 
 def load_champion_genome():
@@ -131,18 +137,10 @@ def run_s2(worlds=None, seed=2026, K=None, num_agents=20, max_ticks=400, with_db
             # survie : réflexe = la variante à plus haute survie médiane (borne haute du réflexe, spec §5)
             refl = max((conds["reflex_naive"], conds["reflex_prudent"]),
                        key=lambda c: np.median(c["survival"]) if c["survival"] else 0.0)
-            surv_base = {"random_action": conds["random_action"]["survival"],
-                         "random_genome": conds["random_genome"]["survival"],
-                         "reflex": refl["survival"]}
-            life_base = {"random_action": conds["random_action"]["life_score"],
-                         "random_genome": conds["random_genome"]["life_score"],
-                         "reflex": refl["life_score"]}
-            # appariement : tronquer à la longueur commune (même K, même num_agents -> aligné)
-            n = min(len(conds["champion"]["survival"]), *(len(v) for v in surv_base.values()))
-            v = s2_verdict(conds["champion"]["survival"][:n],
-                           {k: surv_base[k][:n] for k in surv_base},
-                           conds["champion"]["life_score"][:n],
-                           {k: life_base[k][:n] for k in life_base})
+            # s2_verdict reçoit les dicts de condition (pooled pour l'effet + par-ère pour l'appariement)
+            baselines = {"random_action": conds["random_action"],
+                         "random_genome": conds["random_genome"], "reflex": refl}
+            v = s2_verdict(conds["champion"], baselines)
             v["censored_frac_champion"] = conds["champion"]["censored_frac"]
             report["worlds"][w] = v
 

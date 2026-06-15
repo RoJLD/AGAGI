@@ -89,33 +89,36 @@ def _rng_arr(seed, lo, hi, n=14):
     return list(np.random.default_rng(seed).uniform(lo, hi, n))
 
 
+def _cond(surv, life):
+    """Condition de test : chaque valeur = un agent (poolé) ET une ère (par seed) -> les deux
+    granularités coïncident, ce qui exerce Cliff (poolé) ET le Wilcoxon apparié PAR SEED (par ère)."""
+    return {"survival": surv, "life_score": life, "era_survival": surv, "era_life": life}
+
+
 def test_verdict_exige_when_champion_dominates():
-    surv_champ = _rng_arr(1, 200, 260)
-    surv_base = {"random": _rng_arr(2, 10, 30), "newborn": _rng_arr(3, 20, 40), "reflex": _rng_arr(4, 40, 70)}
-    life_champ = _rng_arr(5, 2000, 3000)
-    life_base = {"random": _rng_arr(6, 0, 50), "newborn": _rng_arr(7, 0, 80), "reflex": _rng_arr(8, 50, 200)}
-    v = s2_verdict(surv_champ, surv_base, life_champ, life_base)
+    champ = _cond(_rng_arr(1, 200, 260), _rng_arr(5, 2000, 3000))
+    baselines = {"random": _cond(_rng_arr(2, 10, 30), _rng_arr(6, 0, 50)),
+                 "newborn": _cond(_rng_arr(3, 20, 40), _rng_arr(7, 0, 80)),
+                 "reflex": _cond(_rng_arr(4, 40, 70), _rng_arr(8, 50, 200))}
+    v = s2_verdict(champ, baselines)
     assert v["verdict"] == "EXIGE"
     assert v["coherence_ok"] is True
 
 
 def test_verdict_void_when_champion_fails_coherence():
     # champion ne bat PAS les baselines sur sa propre fitness (life_score) -> VOID
-    surv_champ = _rng_arr(1, 200, 260)
-    surv_base = {"reflex": _rng_arr(4, 40, 70)}
-    life_champ = _rng_arr(9, 0, 10)              # life_score champion FAIBLE
-    life_base = {"reflex": _rng_arr(10, 100, 300)}
-    v = s2_verdict(surv_champ, surv_base, life_champ, life_base)
+    champ = _cond(_rng_arr(1, 200, 260), _rng_arr(9, 0, 10))      # life_score champion FAIBLE
+    baselines = {"reflex": _cond(_rng_arr(4, 40, 70), _rng_arr(10, 100, 300))}
+    v = s2_verdict(champ, baselines)
     assert v["verdict"] == "VOID"
 
 
 def test_verdict_nexige_pas_when_champion_equiv_reflex():
-    # seed 21 : champion GENUINEMENT equivalent au reflex (|Cliff|=0.01 < EQUIV_MARGIN=0.147,
-    # seuil pre-enregistre Romano). Le seed 1 donnait |Cliff|=0.163 (bruit d'echantillonnage) =
-    # AMBIGU, pas une vraie equivalence.
-    surv_champ = _rng_arr(21, 40, 70)
-    surv_base = {"random": _rng_arr(2, 10, 30), "reflex": _rng_arr(4, 40, 70)}
-    life_champ = _rng_arr(5, 500, 800)
-    life_base = {"random": _rng_arr(6, 0, 50), "reflex": _rng_arr(8, 50, 200)}
-    v = s2_verdict(surv_champ, surv_base, life_champ, life_base)
+    # seed 21 : champion GENUINEMENT equivalent au reflex (|Cliff|=0.01 < EQUIV_MARGIN=0.147) ET
+    # difference par seed non significative (p >= alpha) -> equivalence (pas AMBIGU). Le seed 1
+    # donnait |Cliff|=0.163 (bruit d'echantillonnage) = AMBIGU, pas une vraie equivalence.
+    champ = _cond(_rng_arr(21, 40, 70), _rng_arr(5, 500, 800))
+    baselines = {"random": _cond(_rng_arr(2, 10, 30), _rng_arr(6, 0, 50)),
+                 "reflex": _cond(_rng_arr(4, 40, 70), _rng_arr(8, 50, 200))}
+    v = s2_verdict(champ, baselines)
     assert v["verdict"] == "N'EXIGE PAS"

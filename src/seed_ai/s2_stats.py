@@ -114,54 +114,80 @@ def iut_pvalue(pvals):
 
 # Seuils PRÉ-ENREGISTRÉS (spec §8). Modifiables UNIQUEMENT via l'addendum post-pilote daté.
 ALPHA = 0.05
-CLIFF_THRESH = 0.33        # "large" (Romano) — effet principal
-RATIO_LO_THRESH = 1.3      # borne_inf de l'IC bootstrap du ratio de médianes (corroborant)
+CLIFF_THRESH = 0.33        # "large" (Romano) — effet PRINCIPAL qui tranche le verdict (spec §8)
+RATIO_LO_THRESH = 1.3      # borne_inf IC du ratio de médianes — CORROBORANT (rapporté, NON bloquant, §8)
 EQUIV_MARGIN = 0.147       # |Cliff| < 0.147 = "negligible" (Romano) -> équivalence (placeholder pilote)
 
 
-def _compare(champ, base):
-    """Une comparaison appariée champion-vs-baseline -> dict de stats."""
-    champ = np.asarray(champ, dtype=float)
-    base = np.asarray(base, dtype=float)
-    d = champ - base
-    _w, p = wilcoxon_signed_rank(d)
-    delta = cliffs_delta(champ, base)
-    ratio = median_ratio(champ, base)
-    ratio_lo, ratio_hi = bootstrap_ci(median_ratio, champ, base, n_boot=2000, alpha=ALPHA, seed=0)
-    return {"p": p, "cliff": delta, "ratio": ratio, "ratio_lo": ratio_lo, "ratio_hi": ratio_hi}
+def _bootstrap_cliff(a, b, n_boot=2000, alpha=ALPHA, seed=0):
+    """IC bootstrap de Cliff's delta (ré-échantillonne chaque pool d'individus indépendamment)."""
+    a = np.asarray(a, dtype=float)
+    b = np.asarray(b, dtype=float)
+    if a.size == 0 or b.size == 0:
+        return -1.0, 1.0
+    rng = np.random.default_rng(seed)
+    vals = np.empty(n_boot, dtype=float)
+    for k in range(n_boot):
+        vals[k] = cliffs_delta(a[rng.integers(0, a.size, a.size)], b[rng.integers(0, b.size, b.size)])
+    return float(np.percentile(vals, 100 * alpha / 2)), float(np.percentile(vals, 100 * (1 - alpha / 2)))
 
 
-def s2_verdict(surv_champ, surv_baselines, life_champ, life_baselines,
-               alpha=ALPHA, cliff_thresh=CLIFF_THRESH, ratio_lo_thresh=RATIO_LO_THRESH,
-               equiv_margin=EQUIV_MARGIN):
-    """Verdict S2 d'UN monde (table de décision §10). surv_baselines / life_baselines : dict
-    {nom: liste de survies/life appariées par seed}. Renvoie un dict complet (verdict + stats).
+def _compare(champ, base, key):
+    """Comparaison champion-vs-baseline sur `key` ('survival' ou 'life_score'). `champ`/`base` =
+    dicts de run_condition (clés poolées + 'era_*' par seed).
+
+    - EFFET (Cliff δ + IC, ratio de médianes) sur les INDIVIDUS poolés -> robuste, distribution riche (§6).
+    - SIGNIFICATIVITÉ : test APPARIÉ PAR SEED (Wilcoxon signé) sur les différences des médianes PAR ÈRE
+      (champ_era_i − base_era_i), + IC du ratio par ré-échantillonnage des SEEDS (§8). C'est l'appariement
+      correct : par ère/seed, PAS index-par-index sur des individus poolés non alignés (fix B1)."""
+    era_key = "era_survival" if key == "survival" else "era_life"
+    cp = np.asarray(champ[key], dtype=float)              # pooled (individus)
+    bp = np.asarray(base[key], dtype=float)
+    ce = np.asarray(champ[era_key], dtype=float)          # par seed (médiane d'ère)
+    be = np.asarray(base[era_key], dtype=float)
+    m = min(ce.size, be.size)                             # appariement seed-à-seed
+    _w, p = wilcoxon_signed_rank(ce[:m] - be[:m])
+    delta = cliffs_delta(cp, bp)
+    cliff_lo, cliff_hi = _bootstrap_cliff(cp, bp)
+    ratio = median_ratio(cp, bp)
+    ratio_lo, ratio_hi = bootstrap_ci(median_ratio, ce[:m], be[:m], n_boot=2000, alpha=ALPHA, seed=0)
+    return {"p": p, "cliff": delta, "cliff_lo": cliff_lo, "cliff_hi": cliff_hi,
+            "ratio": ratio, "ratio_lo": ratio_lo, "ratio_hi": ratio_hi}
+
+
+def s2_verdict(champ, baselines, alpha=ALPHA, cliff_thresh=CLIFF_THRESH, equiv_margin=EQUIV_MARGIN):
+    """Verdict S2 d'UN monde (table de décision §10). `champ` et `baselines[nom]` = dicts de
+    run_condition (clés 'survival'/'life_score' poolées + 'era_survival'/'era_life' par seed).
 
     - Cohérence (§6) : le champion doit battre le MEILLEUR baseline sur le life_score (sa fitness
       d'entraînement) -> sinon VOID (le champion ne se comporte pas en champion dans ce régime).
-    - Survie : IUT min-test (p_monde = max des p) ; effet sur le baseline le plus FORT (réflexe).
-    - Issues : EXIGE / N'EXIGE PAS (équivalence) / ANTI-CORRÉLÉ / AMBIGU."""
+    - Survie : IUT min-test (p_monde = max des p APPARIÉS par seed) ; effet sur le baseline le plus FORT.
+    - Décision (§8 : Cliff TRANCHE, le ratio CORROBORE — rapporté mais non bloquant) :
+        EXIGE        : p<α ET Cliff δ ≥ cliff_thresh
+        ANTI-CORRÉLÉ : p<α ET Cliff δ ≤ -cliff_thresh
+        N'EXIGE PAS  : |Cliff δ| < equiv_margin ET p ≥ α (équivalence : aucune différence détectable)
+        AMBIGU       : sinon (effet réel sous-seuil, ou significatif mais négligeable -> inconclusif)."""
     # --- Test de cohérence sur life_score (IUT) ---
-    life_cmps = {k: _compare(life_champ, life_baselines[k]) for k in life_baselines}
+    life_cmps = {k: _compare(champ, baselines[k], "life_score") for k in baselines}
     life_p = iut_pvalue([c["p"] for c in life_cmps.values()])
     life_best_cliff = min(c["cliff"] for c in life_cmps.values())   # pire baseline sur la cohérence
     coherence_ok = (life_p < alpha) and (life_best_cliff > 0.0)
     if not coherence_ok:
         return {"verdict": "VOID", "coherence_ok": False, "life_p": life_p,
-                "survival": {k: _compare(surv_champ, surv_baselines[k]) for k in surv_baselines}}
+                "survival": {k: _compare(champ, baselines[k], "survival") for k in baselines}}
 
     # --- Survie ---
-    cmps = {k: _compare(surv_champ, surv_baselines[k]) for k in surv_baselines}
+    cmps = {k: _compare(champ, baselines[k], "survival") for k in baselines}
     p_monde = iut_pvalue([c["p"] for c in cmps.values()])
     # baseline le plus FORT = plus haute survie médiane (le plus dur à battre, attendu = réflexe)
-    strongest = max(surv_baselines, key=lambda k: np.median(surv_baselines[k]))
+    strongest = max(baselines, key=lambda k: np.median(baselines[k]["survival"]))
     s = cmps[strongest]
 
-    if p_monde < alpha and s["cliff"] >= cliff_thresh and s["ratio_lo"] >= ratio_lo_thresh:
+    if p_monde < alpha and s["cliff"] >= cliff_thresh:
         verdict = "EXIGE"
-    elif s["cliff"] < -cliff_thresh and p_monde < alpha:
+    elif p_monde < alpha and s["cliff"] <= -cliff_thresh:
         verdict = "ANTI-CORRELE"
-    elif abs(s["cliff"]) < equiv_margin:
+    elif abs(s["cliff"]) < equiv_margin and p_monde >= alpha:
         verdict = "N'EXIGE PAS"
     else:
         verdict = "AMBIGU"

@@ -240,3 +240,26 @@ c'est *précisément* la cause-racine B. Verdict binaire insuffisant. Trois issu
 | Réflexe mal spécifié | §5 |
 | RandomGenome apprend | §4/§5 (interprétation pré-enregistrée) |
 | Seam d'injection / `surprise=0` | §11 |
+
+## 19. Addendum post-revue (2026-06-15) — corrections de la revue adversariale finale
+
+> Une revue indépendante de l'implémentation a trouvé un **bloquant statistique** et deux raffinements.
+> Corrigés avant tout run. Ces déviations du contrat §8/§10 sont **tracées ici** (intégrité du
+> pré-enregistrement). Aucune donnée n'avait encore été produite.
+
+- **B1 — appariement par seed (corrigé).** Le test de signification était calculé sur les **individus
+  poolés** (tous les âges, toutes ères) index-par-index, alors que §8 fige l'appariement **par seed**.
+  Correctif : `run_condition` expose `era_survival`/`era_life` (médiane de survie/life **par ère**) ;
+  `s2_verdict` apparie ces K médianes par ère pour le **Wilcoxon signé** et l'**IC bootstrap du ratio**
+  (ré-échantillonnage des seeds). **Cliff's δ + son IC** restent calculés sur les **individus poolés**
+  (effet de dominance robuste, §6). Effet et significativité sont ainsi mesurés à la bonne granularité.
+- **I1 — le ratio est corroborant, non bloquant (corrigé).** §8 dit « Cliff tranche, le ratio
+  corrobore » mais §10 le listait en gate conjonctif de `EXIGE`. Aligné sur §8 : **`EXIGE` = `p<α` ET
+  `Cliff δ ≥ 0.33`** ; `ratio_lo`/`ratio_hi` sont rapportés mais ne bloquent plus le verdict.
+- **I2 — équivalence bornée (corrigé).** `N'EXIGE PAS` exige désormais `|Cliff δ| < marge` **ET**
+  `p ≥ α` (pas de différence détectable), au lieu d'un point-estimate nu. L'IC de Cliff
+  (`cliff_lo`/`cliff_hi`) est calculé et rapporté pour un TOST complet à calibrer au pilote.
+- **4e issue `AMBIGU` (pré-enregistrée ici).** Complète les 3 issues du §10 : effet réel **sous-seuil**,
+  ou **significatif mais négligeable** → inconclusif (ni EXIGE, ni équivalence, ni anti-corrélé).
+- **Placeholders pilote inchangés** : `CLIFF_THRESH=0.33` et `EQUIV_MARGIN=0.147` restent à confirmer
+  dans l'addendum **post-pilote** (§9), avec la marge d'équivalence définitive du TOST.
