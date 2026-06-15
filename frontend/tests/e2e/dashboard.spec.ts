@@ -12,7 +12,7 @@ test('loads dashboard and academy content', async ({ page }) => {
   await expect(page.locator('text=Total portes')).toBeVisible();
 
   // Open Academy tab
-  await page.locator('button', { hasText: 'academy' }).click();
+  await page.getByTestId('tab-academy').click();
   await expect(page.locator('h2')).toHaveText(/Academy/i);
 
   // Ensure academy content loads from API
@@ -20,13 +20,13 @@ test('loads dashboard and academy content', async ({ page }) => {
   await expect(versionList.first()).toBeVisible();
 
   // Check comparison chart is rendered
-  await page.locator('button', { hasText: 'comparison' }).click();
+  await page.getByTestId('tab-comparison').click();
   await expect(page.locator('text=Fitness finale')).toBeVisible();
   await expect(page.locator('text=Précision finale')).toBeVisible();
   await expect(page.locator('text=Radar des performances')).toBeVisible();
 
   // Check topology tab shows placeholder or actual topology
-  await page.locator('button', { hasText: 'topology' }).click();
+  await page.getByTestId('tab-topology').click();
   await expect(page.locator('h2')).toHaveText(/Topologie du meilleur modèle/i);
 });
 
