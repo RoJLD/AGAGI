@@ -26,6 +26,9 @@ jobs:
       - name: Run Python tests
         run: python -m pytest tests/test_backend.py tests/sandbox/test_visualization.py -q
 
+      - name: Parity gate (narration EDR -> frontend)
+        run: python tools/parity_check.py --strict
+
       - name: Set up Node.js
         uses: actions/setup-node@v5
         with:
@@ -33,6 +36,10 @@ jobs:
 
       - name: Install frontend dependencies
         run: npm install
+        working-directory: frontend
+
+      - name: Run frontend unit tests
+        run: npm run test
         working-directory: frontend
 
       - name: Run frontend build
@@ -56,6 +63,6 @@ jobs:
           curl --fail http://localhost:4173
           # Install Playwright browsers and run E2E tests against the running services
           npm --prefix frontend install
-          npx playwright install --with-deps
+          npm --prefix frontend exec -- playwright install --with-deps chromium
           npm --prefix frontend run test:e2e
           docker compose down

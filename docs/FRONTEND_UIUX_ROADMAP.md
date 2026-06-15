@@ -1,0 +1,148 @@
+# Roadmap Frontend / UI-UX — AGIseed Dashboard
+
+> **But** : faire passer le dashboard de *visualiseur* à **instrument de méthode expérimentale**,
+> au service du chercheur qui lance, compare et valide des expériences (Commandement 15 :
+> *1 variable, multi-seed, powerer avant de conclure*).
+>
+> **Périmètre** : `frontend/` (React 18 + Vite 5 + TS + D3 + recharts) et les points
+> `backend/app/` qui le conditionnent directement. La roadmap **scientifique** reste `roadmap.md`.
+>
+> Source : audit du 2026-06-14 (cette session).
+
+---
+
+## Architecture actuelle
+
+```
+React SPA (App.tsx) ──fetch/WS──> FastAPI (backend/app/main.py) ──┬─> results/*.{csv,json}  (data_service)
+ 9 onglets, état 100% local        8 routers                      ├─> KuzuDB              (articles, timeline)
+ pas de routeur ni de store                                       └─> subprocess python  (sandbox_service)
+```
+
+- **Onglets** : `edr`, `live`, `evolution`, `comparison`, `topology`, `academy`, `laboratoire`, `timeline`, `sandbox`.
+- **Viz** : D3 force-graph (topology, timeline), SVG fait main (evolution, EDR, sparklines), canvas 2D (sandbox LiveWorld, FlatlandViewer), recharts (télémétrie uniquement).
+
+### Acquis à préserver
+- `SandboxView` = pupitre de contrôle (script, `seed`, `mutation_rate`, monde, modules post-mortem, live world + console + télémétrie + god-mode).
+- Biosphère live via WebSocket `/ws/flatland` (`LiveMetrics`).
+- Dashboard EDR narratif (`EDRDashboard`).
+
+---
+
+## Problèmes recensés (par sévérité)
+
+### P0 — Bugs / incohérences visuelles
+| # | Problème | Localisation |
+|---|---|---|
+| P0-1 | **Tokens CSS fantômes** : `--color-bg/-accent/-text/-text-dim/-border` référencés 11× mais **jamais définis** → fallback navigateur, contrastes cassés | `LaboratoryView.tsx`, `SandboxView.tsx` vs `styles.css` |
+| P0-2 | **Deux thèmes télescopés** : App/dashboard = clair (`#f8fafc`) ; panneaux live = sombre catppuccin codé en dur (`#1e1e2e`, `#cba6f7`) | `styles.css` vs `SandboxView.tsx`/`LiveMetrics.tsx` |
+| P0-3 | **Styles inline massifs** (~50 dans SandboxView) → non thémable, dupliqué | `SandboxView.tsx`, `LaboratoryView.tsx` |
+| P0-4 | **Onglets = clés techniques brutes** (`edr`, `laboratoire`…) sans libellés humains ni icônes | `App.tsx` |
+
+### P1 — Architecture frontend
+| # | Problème |
+|---|---|
+| P1-1 | **Aucun data-layer** : `fetch` brut par composant, pas de cache → **polling massif** (`setInterval` 500 ms / 1 s / 2 s / 3 s / 5 s), boucles concurrentes, sans backoff ni annulation |
+| P1-2 | **Pas d'états loading/error/empty unifiés** ni de toasts ; gestion d'erreur en `string` ad hoc |
+| P1-3 | **Pas de routing** : onglet en `useState` → URL non partageable/bookmarkable |
+| P1-4 | **Composant mort** : `FlatlandViewer.tsx` (pan/zoom, terrain, HP bars) défini mais jamais monté ; doublonné par le `LiveWorld` minimal de Sandbox |
+
+### P2 — Dette repo / qualité
+| # | Problème |
+|---|---|
+| P2-1 | **Artefacts à la racine** : `dump.txt`, `dump2.txt`, `SandboxView_full.tsx`, `SandboxView_recovered.json`, `recover.py`, `extract.py` |
+| P2-2 | **Tests quasi nuls** : 1 e2e Playwright, pas de Vitest/RTL |
+| P2-3 | **`recharts` sous-utilisé** (télémétrie seule) vs SVG fait main partout → stack viz incohérente |
+
+### P3 — Backend en rapport direct
+| # | Problème |
+|---|---|
+| P3-1 | **CORS `*` + aucune auth** ; sandbox lance des scripts Python **arbitraires** sans limites (cf. garde-fous roadmap avant RSI) |
+| P3-2 | **API « fichier » fragile** : télémétrie en *tail* CSV, monde via `state.json`, god-mode via `interventions.json` ; pas de schéma versionné |
+| P3-3 | **`/ws/evolution` rejoue tout l'historique** en boucle au lieu d'un vrai flux |
+| P3-4 | **Stubs** : `academy` en dur dans `data_service` ; strategy/sociologist partiellement mockés |
+
+---
+
+## Le gap central : l'UX scientifique
+
+Le projet revendique une méthode forte ; **l'outil ne la soutient pas encore.**
+
+| Besoin chercheur | Aujourd'hui | Manque |
+|---|---|---|
+| Lancer une expé reproductible | Sandbox OK, config inline | presets, validation, **file d'attente de runs**, provenance (commit+config ↔ KPI) |
+| Comparer 2 lignées **rigoureusement** | onglet `comparison` = barres descriptives | **IC, taille d'effet, multi-seed, A/B live** (déjà demandé roadmap #5 Dev) |
+| Savoir si un résultat *tient* | rien | overlay multi-seed, bandes de variance |
+| Capitaliser les findings | Sociologue (LLM) OK | lien finding ↔ run ↔ EDR |
+
+---
+
+## Roadmap priorisée (vagues)
+
+### Vague F0 — Fondations (débloque tout le reste)
+1. **Design system réel** : définir les tokens CSS manquants (P0-1), thème clair **+ sombre** unifié (P0-2), primitives (Button, Card, Select, Field, Badge, Stat, Tabs) pour tuer les styles inline (P0-3).
+2. **Couche données** : `react-query` (ou store + hook WS unique) → supprime le polling redondant (P1-1), centralise loading/error/empty (P1-2), prépare le cache nécessaire au A/B.
+3. **Nettoyage repo** : supprimer les artefacts (P2-1), monter ou retirer `FlatlandViewer` (P1-4).
+
+### Vague F1 — Coquille & navigation
+4. **Routing** (URL par onglet + état sélectionné) (P1-3) ; libellés/icônes d'onglets humains (P0-4).
+5. **Layout responsive** propre, topbar + sidebar repensées.
+6. **Toasts + error boundary** globaux.
+
+### Vague F2 — Instrument scientifique (cœur de valeur)
+7. **Lanceur d'expériences** : presets, validation de config, **file de runs**, provenance (hash config + commit ↔ KPI).
+8. **A/B rigoureux** : comparaison multi-seed avec **IC / taille d'effet / bandes de variance** ; overlay de lignées.
+9. **Vue run-en-cours ↔ historique** unifiée ; lien finding (Sociologue) ↔ run ↔ EDR.
+
+### Vague F3 — Durcissement
+10. **Tests** : Vitest + RTL (unitaire/intégration) + e2e Playwright élargi (P2-2) ; CI.
+11. **Backend** : schémas versionnés pour state/telemetry (P3-2), vrai flux `/ws/evolution` (P3-3), retirer les stubs (P3-4).
+12. **Sécurité** : auth + CORS restreint + sandbox bornée **avant** toute exposition réseau (P3-1).
+
+---
+
+## Definition of Done (transverse)
+- Zéro style inline pour la couleur/espacement (tout via tokens/primitives).
+- Zéro `setInterval` de polling brut hors couche données.
+- Thème clair/sombre cohérent sur tous les onglets.
+- Chaque vue a des états loading/error/empty explicites.
+- URL partageable pour onglet + sélection.
+
+---
+
+## Plan d'implémentation consolidé (specs sous-agents, 2026-06-14)
+
+> Issu de 4 agents de conception en lecture seule. Détails complets : voir les specs ci-dessous.
+> **Principe d'exécution** : on ne parallélise que des fichiers disjoints. Tout ce qui touche
+> `App.tsx`/`styles.css` est séquencé.
+
+### Décisions d'architecture retenues
+| Sujet | Décision |
+|---|---|
+| **Tokens / thème** | Tokens CSS réels dans `styles.css` ; thème **clair (défaut) + sombre** via `[data-theme]` ; hook `useTheme` (localStorage + `prefers-color-scheme`). Palette data-viz dédiée (`--viz-1..6`) lisible clair ET sombre. Module `theme.ts` pour recharts/canvas (où `var()` ne passe pas). |
+| **Primitives UI** | `frontend/src/components/ui/` : `Button`, `Panel`, `Field`, `Badge`, `Stat` → tuent les styles inline. |
+| **Couche données** | `@tanstack/react-query` v5 + hook WS unique `useWebSocket` (reconnexion/backoff). Module `api/client.ts` (`BASE_URL`, `apiFetch`, `wsUrl`, `ApiError`) + `queryKeys`. Supprime les **5 `setInterval`** et la double requête `/api/experiments`. Polling déclaratif `enabled: sandboxRunning`. |
+| **États transverses** | `ui/Loading`, `ui/ErrorState`, `ui/Empty`, `ErrorBoundary` (par onglet), `ToastContext`. |
+| **Navigation** | Routing **maison par hash** (`#/sandbox?gate=...`), pas de `react-router` (SPA plate, pas de rewrite serveur). Onglets = objets `{key,label,icon,family}` ; libellés FR + icônes `lucide-react` ; 4 familles (Observation / Analyse / Expérimentation / Connaissance). |
+| **FlatlandViewer** | **Monter** (supérieur à `LiveWorld`) dans l'onglet Sandbox **après** vérif que `/ws/flatland` est alimenté ; sinon le passer en source-en-prop. Retirer `LiveWorld` une fois la parité prouvée. |
+| **UX scientifique** | Objet **Run** = extension du JSON `Harness.save()` (`results/<run_id>.json`) + `results/runs_index.json`. Backend `runs_service` + endpoints `/api/runs*` réutilisant `src/seed_ai/eval_harness.welch/verdict` (zéro nouvelle dép Python). Lanceur (presets localStorage, validation, **file multi-seed séquentielle**), vue **A/B** (bandes IC 95 %, Cohen's d, verdict aligné sur les seuils `t≥2.5, d≥0.8`), liaison **finding ↔ run ↔ EDR**. |
+| **Tests** | `vitest` + RTL (unitaire/intégration) ; e2e Playwright élargi (nav par `data-testid`, hash bookmarkable) ; corriger le bug CI port `8000`→`8001`. |
+
+### Dépendances nouvelles proposées
+- `@tanstack/react-query@^5` (dep) — cache/dédup/backoff, supprime le polling manuel.
+- `lucide-react` (dep) — icônes d'onglets (tree-shakable ; repli emoji = 0 dép possible).
+- `vitest` + `jsdom` + `@testing-library/{react,jest-dom,user-event}` (dev) — tests.
+- Aucune dép de routing (hash maison).
+
+### Vagues d'exécution (anti-conflit)
+- **Vague A — Fondations (frontend-only, parallélisable : fichiers disjoints)**
+  - A1 Design system : `styles.css` (tokens) + `useTheme` + `ui/{Button,Panel,Field,Badge,Stat}` + `theme.ts`.
+  - A2 Infra données : `api/client.ts`, `queryKeys`, `useWebSocket`, `ui/{Loading,ErrorState,Empty}`, `ErrorBoundary`, `ToastContext`, `QueryClientProvider` dans `main.tsx`, ajout deps.
+  - A3 Nettoyage : supprimer `dump.txt`, `dump2.txt`, `SandboxView_full.tsx`, `SandboxView_recovered.json`, `recover.py`, `extract.py` + `.gitignore`.
+- **Vague B — Migration des vues (séquencé sur `App.tsx`, parallèle par composant)** : brancher chaque composant sur react-query + tokens + primitives ; routing hash + onglets FR/icônes + toggle thème + `ErrorBoundary` dans `App.tsx` (1 seul propriétaire) ; monter FlatlandViewer.
+- **Vague C — Instrument scientifique** : backend `runs_service`/endpoints, puis `RunnerPanel`+`RunQueuePanel`, `ABComparisonView`/`ABVerdictCard`, liaison findings.
+- **Vague D — Durcissement** : tests Vitest/RTL + e2e élargi + CI ; (sécurité backend = `roadmap.md`, hors front).
+
+### Frontend-only vs besoin backend
+- **Frontend-only** : tout A et B, presets/validation/file (UI), rendu bandes IC + verdict.
+- **Backend requis** : endpoints `/api/runs*` (scan `results/`, calcul welch/Cohen), `POST /analyze` par `run_id`, extension `Harness.save()`.

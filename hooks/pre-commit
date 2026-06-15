@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Gate de parité narration EDR -> frontend (WARN-only, NON bloquant).
+# Activation : `make hooks` (configure core.hooksPath=hooks).
+# Classe le commit stagé ; si EXPERIENCE, rapporte le drift (cartes/récit manquants).
+# Ne bloque jamais le commit : pour forcer malgré tout, `git commit --no-verify`.
+if [ -f tools/parity_check.py ]; then
+  python tools/parity_check.py --staged --warn || true
+fi
+exit 0

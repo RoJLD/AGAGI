@@ -1,6 +1,10 @@
-import { useEffect, useState } from "react";
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8001";
+import { useQuery } from "@tanstack/react-query";
+import { apiFetch } from "../api/client";
+import { queryKeys } from "../api/queryKeys";
+import { Loading } from "./ui/Loading";
+import { ErrorState } from "./ui/ErrorState";
+import { Empty } from "./ui/Empty";
+import { Badge } from "./ui/Badge";
 
 type Serie = { name: string; values?: number[]; value?: number; err?: number; color: string };
 type Finding = {
@@ -76,18 +80,15 @@ function BarChart({ f }: { f: Finding }) {
 }
 
 export function EDRDashboard() {
-  const [data, setData] = useState<Payload | null>(null);
-  const [err, setErr] = useState<string>("");
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: queryKeys.edr,
+    queryFn: () => apiFetch<Payload>("/api/edr"),
+    staleTime: Infinity,
+  });
 
-  useEffect(() => {
-    fetch(`${API_BASE}/api/edr`)
-      .then((r) => r.json())
-      .then(setData)
-      .catch((e) => setErr(String(e)));
-  }, []);
-
-  if (err) return <p>Erreur de chargement EDR : {err}</p>;
-  if (!data) return <p>Chargement des découvertes EDR…</p>;
+  if (isLoading) return <Loading label="Chargement des découvertes EDR…" />;
+  if (error) return <ErrorState error={error} onRetry={() => refetch()} />;
+  if (!data || !data.findings?.length) return <Empty message="Aucun finding EDR." />;
 
   return (
     <div className="edr-dashboard">
@@ -100,7 +101,7 @@ export function EDRDashboard() {
         {data.findings.map((f) => (
           <article key={f.edr} className="edr-card">
             <header className="edr-card-head">
-              <span className="edr-badge">EDR {f.edr}</span>
+              <Badge variant="teal">EDR {f.edr}</Badge>
               <h3>{f.title}</h3>
             </header>
             <p className="edr-sub">{f.subtitle}</p>

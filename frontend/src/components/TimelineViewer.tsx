@@ -1,18 +1,19 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import * as d3 from "d3";
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8001";
+import { useQuery } from "@tanstack/react-query";
+import { apiFetch } from "../api/client";
+import { queryKeys } from "../api/queryKeys";
+import { Loading } from "./ui/Loading";
+import { ErrorState } from "./ui/ErrorState";
+import { Empty } from "./ui/Empty";
 
 export function TimelineViewer() {
-  const [data, setData] = useState<{ nodes: any[]; links: any[] } | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
-
-  useEffect(() => {
-    fetch(`${API_BASE}/api/timeline`)
-      .then((res) => res.json())
-      .then(setData)
-      .catch(console.error);
-  }, []);
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: queryKeys.timeline,
+    queryFn: () => apiFetch<{ nodes: any[]; links: any[] }>("/api/timeline"),
+    staleTime: Infinity,
+  });
 
   useEffect(() => {
     if (!data || !svgRef.current) return;
@@ -81,15 +82,15 @@ export function TimelineViewer() {
     };
   }, [data]);
 
+  if (isLoading) return <Loading label="Chargement du graphe KuzuDB…" />;
+  if (error) return <ErrorState error={error} onRetry={() => refetch()} />;
+  if (!data || !data.nodes?.length) return <Empty message="Aucun nœud dans le graphe KuzuDB." />;
+
   return (
     <div className="timeline-viewer">
       <h2>Timeline KuzuDB</h2>
       <p>Visualisation de l'arbre généalogique des agents et de leurs lignées.</p>
-      {data ? (
-        <svg ref={svgRef} width="100%" height={400} style={{ border: "1px solid #ccc", background: "#f8f9fa" }} />
-      ) : (
-        <p>Chargement des données du graphe...</p>
-      )}
+      <svg ref={svgRef} width="100%" height={400} className="topology-svg" />
     </div>
   );
 }
