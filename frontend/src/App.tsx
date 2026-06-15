@@ -9,6 +9,7 @@ import { TimelineViewer } from "./components/TimelineViewer";
 import { SandboxView } from "./components/SandboxView";
 import { EDRDashboard } from "./components/EDRDashboard";
 import { LiveMetrics } from "./components/LiveMetrics";
+import { FlatlandViewer } from "./components/FlatlandViewer";
 import { useTheme } from "./hooks/useTheme";
 import { useHashRoute } from "./hooks/useHashRoute";
 import { TAB_KEYS, TAB_FAMILIES } from "./tabs";
@@ -228,7 +229,12 @@ export default function App() {
         <section className="panel">
           <ErrorBoundary key={tab}>
           {tab === "edr" && <EDRDashboard />}
-          {tab === "live" && <LiveMetrics />}
+          {tab === "live" && (
+            <>
+              <LiveMetrics />
+              <FlatlandViewer />
+            </>
+          )}
 
           {tab === "evolution" && (
             <>

@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8001";
+import { useWebSocket } from "../hooks/useWebSocket";
 
 interface Entity {
   x: number;
@@ -62,14 +61,7 @@ export function FlatlandViewer() {
   const isDragging = useRef(false);
   const lastMouse = useRef({ x: 0, y: 0 });
 
-  useEffect(() => {
-    const wsUrl = API_BASE.replace(/^http/, window.location.protocol === "https:" ? "wss" : "ws");
-    const ws = new WebSocket(`${wsUrl}/ws/flatland`);
-    ws.onmessage = (event) => {
-      setFrame(JSON.parse(event.data));
-    };
-    return () => ws.close();
-  }, []);
+  useWebSocket<FlatlandFrame>("/ws/flatland", (f) => setFrame(f));
 
   useEffect(() => {
     const canvas = canvasRef.current;
