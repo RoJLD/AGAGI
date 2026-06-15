@@ -10,12 +10,12 @@ import { SandboxView } from "./components/SandboxView";
 import { EDRDashboard } from "./components/EDRDashboard";
 import { LiveMetrics } from "./components/LiveMetrics";
 import { useTheme } from "./hooks/useTheme";
+import { useHashRoute } from "./hooks/useHashRoute";
+import { TAB_KEYS, TAB_FAMILIES } from "./tabs";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Sun, Moon } from "lucide-react";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8001";
-const tabs = ["edr", "live", "evolution", "comparison", "topology", "academy", "laboratoire", "timeline", "sandbox"] as const;
-
-type TabKey = (typeof tabs)[number];
 
 function formatPercentage(value: number) {
   return `${(value * 100).toFixed(1)}%`;
@@ -49,9 +49,8 @@ function ChartLine({ values, color }: { values: number[]; color: string }) {
 
 export default function App() {
   const { theme, toggle } = useTheme();
-  const [tab, setTab] = useState<TabKey>("edr");
+  const { tab, gate: selectedGate, setTab, setGate } = useHashRoute(TAB_KEYS, "edr");
   const [experiments, setExperiments] = useState<ExperimentSummary[]>([]);
-  const [selectedGate, setSelectedGate] = useState<string>("");
   const [detail, setDetail] = useState<ExperimentDetail | null>(null);
   const [academy, setAcademy] = useState<AcademyPayload | null>(null);
   const [wsLog, setWsLog] = useState<string[]>([]);
@@ -110,7 +109,7 @@ export default function App() {
       .then((data) => {
         setExperiments(data);
         if (data.length && !selectedGate) {
-          setSelectedGate(data[0].gate);
+          setGate(data[0].gate);
         }
       });
 
@@ -155,10 +154,20 @@ export default function App() {
             {theme === "dark" ? "Clair" : "Sombre"}
           </button>
           <nav className="tabs">
-            {tabs.map((value) => (
-              <button key={value} className={value === tab ? "active" : ""} onClick={() => setTab(value)}>
-                {value}
-              </button>
+            {TAB_FAMILIES.map((group) => (
+              <div key={group.family} className="tab-family" title={group.family}>
+                {group.tabs.map(({ key, label, icon: Icon }) => (
+                  <button
+                    key={key}
+                    data-testid={`tab-${key}`}
+                    className={key === tab ? "active" : ""}
+                    onClick={() => setTab(key)}
+                  >
+                    <Icon size={16} />
+                    {label}
+                  </button>
+                ))}
+              </div>
             ))}
           </nav>
         </div>
@@ -167,7 +176,7 @@ export default function App() {
       <main className="content">
         <aside className="sidebar">
           <label htmlFor="gate-select">Sélectionner une porte</label>
-          <select id="gate-select" value={selectedGate} onChange={(event) => setSelectedGate(event.target.value)}>
+          <select id="gate-select" value={selectedGate} onChange={(event) => setGate(event.target.value)}>
             {experiments.map((experiment) => (
               <option key={experiment.gate} value={experiment.gate}>
                 {experiment.gate}
@@ -224,6 +233,7 @@ export default function App() {
         </aside>
 
         <section className="panel">
+          <ErrorBoundary key={tab}>
           {tab === "edr" && <EDRDashboard />}
           {tab === "live" && <LiveMetrics />}
 
@@ -337,6 +347,7 @@ export default function App() {
           {tab === "laboratoire" && <LaboratoryView />}
           {tab === "timeline" && <TimelineViewer />}
           {tab === "sandbox" && <SandboxView />}
+          </ErrorBoundary>
         </section>
       </main>
     </div>
