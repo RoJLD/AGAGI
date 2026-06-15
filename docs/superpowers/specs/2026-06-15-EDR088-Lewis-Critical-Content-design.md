@@ -156,3 +156,29 @@ Module stats versionné **et testé unitairement avant tout run** (l'infra n'exi
 - Co-évolution de l'USAGE du langage (pression de sélection sur l'écoute) — c'est le levier EDR 083,
   **distinct** ; à rouvrir si issue #2 (négatif profond).
 - Toute modification de `world_1`/du seam `batch_model_cls` (réservé à la session S2).
+
+---
+
+## Addendum post-pilote (2026-06-15) — K figé + surprise de direction
+
+Pilote `K=5` (seed 88, `results/lewis_critical_88.json`). **Gates OK** : `decode_act_fires` = 70-88 par
+niveau (≥5 partout, mécanisme actif). `std(d_s)` par niveau :
+
+| niveau | 0.33 | 0.50 | 0.67 | 0.83 |
+|---|---|---|---|---|
+| sd(d_s) | 5.13 | 2.39 | 3.39 | 1.58 |
+| FIABLE−BROUILLÉ (net) | **+6.4** | −0.2 | −2.0 | +1.0 |
+
+> ⚠️ **Le pilote inverse la direction de l'hypothèse §1.** Le contenu paye surtout à **basse** criticalité
+> (0.33 : +6.4, win 80 %, p=0.106) et s'annule/inverse quand les pièges dominent ; tendance Jonckheere
+> z=−1.38, pente OLS −10.9. Lecture mécaniste (composantes) : à 0.33, discriminer permet d'**exploiter**
+> les Mammouths abondants ; à 0.83, le jeu devient « n'approche rien » (SOLO s'effondre, FIABLE≈BROUILLÉ)
+> → savoir *lequel* importe peu (l'évitement a un repli non-linguistique gratuit).
+
+**Décision de protocole (figée)** : on lance néanmoins la grille **sur l'hypothèse pré-enregistrée**
+(intégrité). Le verdict lira la règle §6 (probablement *hypothèse réfutée* : pas de tendance positive).
+L'**inversion** est traitée comme **observation post-hoc** dans EDR 088 → motive un **nouveau
+pré-enregistrement** (H : le contenu paye quand les *positifs* sont abondants), test distinct.
+
+**K final figé = 16 seeds** (plancher pré-enreg 12 + marge pour la forte variance à 0.33, sd≈5.1).
+Grille : `main(num_agents=24, seeds=range(16), seed=2026)`.
