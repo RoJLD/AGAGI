@@ -6,7 +6,9 @@ COPY backend/requirements.txt ./requirements.txt
 RUN python -m pip install --no-cache-dir -r requirements.txt
 
 COPY backend/app ./backend/app
-COPY results ./results
+# results/ est de la donnée runtime (gitignorée, absente en CI) -> créer un dossier vide au lieu de
+# COPY (qui échouait quand results/ n'existe pas). L'app gère gracieusement un results/ vide.
+RUN mkdir -p ./results
 COPY *.py ./
 
 EXPOSE 8000
