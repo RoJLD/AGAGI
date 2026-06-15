@@ -50,7 +50,7 @@ function createStabilitySeries(values: number[]) {
 }
 
 function ChartLine({ values, color }: { values: number[]; color: string }) {
-  return <path d={createLinePath(values, 700, 260)} fill="none" stroke={color} strokeWidth={3} />;
+  return <path d={createLinePath(values, 700, 260)} fill="none" style={{ stroke: color }} strokeWidth={3} />;
 }
 
 export default function App() {
@@ -138,6 +138,8 @@ export default function App() {
   const chartData = detail?.history;
   const sizeSeries = chartData?.size ?? [];
   const stabilitySeries = chartData ? createStabilitySeries(chartData.accuracy) : [];
+  // La barre latérale (sélection de porte) ne sert que pour les vues centrées sur une porte.
+  const showSidebar = tab === "evolution" || tab === "comparison" || tab === "topology";
 
   return (
     <div className="page-shell">
@@ -171,7 +173,8 @@ export default function App() {
         </div>
       </header>
 
-      <main className="content">
+      <main className={showSidebar ? "content" : "content content--full"}>
+        {showSidebar && (
         <aside className="sidebar">
           <label htmlFor="gate-select">Sélectionner une porte</label>
           <select id="gate-select" value={selectedGate} onChange={(event) => setGate(event.target.value)}>
@@ -229,6 +232,7 @@ export default function App() {
             </div>
           </div>
         </aside>
+        )}
 
         <section className="panel">
           <ErrorBoundary key={tab}>
@@ -246,16 +250,16 @@ export default function App() {
               {chartData ? (
                 <>
                   <svg viewBox="0 0 720 300" className="chart-svg" aria-label="Evolution chart">
-                    <ChartLine values={chartData.fitness} color="#0f766e" />
-                    <ChartLine values={chartData.accuracy} color="#be123c" />
-                    {sizeSeries.length ? <ChartLine values={sizeSeries.map((value: number) => value / Math.max(...sizeSeries, 1))} color="#334155" /> : null}
-                    {stabilitySeries.length ? <ChartLine values={stabilitySeries} color="#f59e0b" /> : null}
+                    <ChartLine values={chartData.fitness} color="var(--viz-1)" />
+                    <ChartLine values={chartData.accuracy} color="var(--viz-2)" />
+                    {sizeSeries.length ? <ChartLine values={sizeSeries.map((value: number) => value / Math.max(...sizeSeries, 1))} color="var(--color-text-dim)" /> : null}
+                    {stabilitySeries.length ? <ChartLine values={stabilitySeries} color="var(--viz-4)" /> : null}
                   </svg>
                   <div className="legend-row">
-                    <span className="legend-dot" style={{ background: "#0f766e" }} /> Fitness
-                    <span className="legend-dot" style={{ background: "#be123c" }} /> Précision
-                    <span className="legend-dot" style={{ background: "#334155" }} /> Taille normalisée
-                    <span className="legend-dot" style={{ background: "#f59e0b" }} /> Stabilité
+                    <span className="legend-dot" style={{ background: "var(--viz-1)" }} /> Fitness
+                    <span className="legend-dot" style={{ background: "var(--viz-2)" }} /> Précision
+                    <span className="legend-dot" style={{ background: "var(--color-text-dim)" }} /> Taille normalisée
+                    <span className="legend-dot" style={{ background: "var(--viz-4)" }} /> Stabilité
                   </div>
                 </>
               ) : (
