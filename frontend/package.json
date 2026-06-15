@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "gen:api": "npx --yes openapi-typescript@7.13.0 ./openapi.json -o src/api/schema.ts",
     "e2e:install": "npx playwright install --with-deps",
     "test:e2e": "playwright test"
   },
