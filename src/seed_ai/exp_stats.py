@@ -91,3 +91,23 @@ def paired_summary(d):
         "wilcoxon_p": wilcoxon_signed_rank(a)["p"],
         "n": int(len(a)),
     }
+
+
+def bootstrap_ci(data, statistic_fn, n_boot=2000, alpha=0.05, seed=0):
+    """IC percentile bootstrap (ré-échantillonnage avec remise). Seedé -> reproductible."""
+    data = np.asarray(data, dtype=float)
+    n = len(data)
+    rng = np.random.default_rng(int(seed))
+    stats = np.empty(n_boot, dtype=float)
+    for b in range(n_boot):
+        stats[b] = statistic_fn(data[rng.integers(0, n, n)])
+    lo = float(np.percentile(stats, 100 * alpha / 2.0))
+    hi = float(np.percentile(stats, 100 * (1.0 - alpha / 2.0)))
+    return lo, hi
+
+
+def ols_slope(x, y):
+    """Pente OLS (moindres carrés) de y sur x."""
+    x = np.asarray(x, dtype=float)
+    y = np.asarray(y, dtype=float)
+    return float(np.polyfit(x, y, 1)[0])

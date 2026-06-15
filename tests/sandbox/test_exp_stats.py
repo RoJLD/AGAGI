@@ -53,3 +53,24 @@ def test_jt_decreasing_negative_z():
     groups = [[7, 8], [5, 6], [3, 4], [1, 2]]
     r = st.jonckheere_terpstra(groups)
     assert r["z"] < 0
+
+
+def test_bootstrap_ci_brackets_mean():
+    data = list(range(1, 21))  # 1..20, moyenne 10.5
+    lo, hi = st.bootstrap_ci(data, np.mean, n_boot=2000, alpha=0.05, seed=0)
+    assert lo < 10.5 < hi
+    assert hi - lo < 6.0
+
+
+def test_bootstrap_ci_reproducible():
+    data = [3.0, 1.0, 4.0, 1.0, 5.0, 9.0, 2.0, 6.0]
+    a = st.bootstrap_ci(data, np.mean, n_boot=1000, alpha=0.05, seed=42)
+    b = st.bootstrap_ci(data, np.mean, n_boot=1000, alpha=0.05, seed=42)
+    assert a == b
+
+
+def test_ols_slope_positive():
+    x = [0.33, 0.50, 0.67, 0.83]
+    y = [0.1, 1.0, 2.1, 3.0]   # croissant
+    s = st.ols_slope(x, y)
+    assert s > 0
