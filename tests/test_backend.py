@@ -105,3 +105,24 @@ def test_flatland_websocket_streams_frames() -> None:
         assert "hp_std" in summary
         assert "social_density" in summary
         assert "genome_diversity" in summary
+
+
+def test_flatland_runs_crud() -> None:
+    r = client.post("/api/flatland/runs", json={"config_overrides": {"size": 16}, "pop_size": 2, "label": "e2e"})
+    assert r.status_code == 200
+    rid = r.json()["run_id"]
+    try:
+        lst = client.get("/api/flatland/runs").json()
+        assert any(x["run_id"] == rid and x["label"] == "e2e" for x in lst)
+    finally:
+        d = client.delete(f"/api/flatland/runs/{rid}")
+        assert d.status_code == 200 and d.json()["stopped"] is True
+
+
+def test_flatland_delete_unknown_returns_404() -> None:
+    assert client.delete("/api/flatland/runs/__nope__").status_code == 404
+
+
+def test_flatland_bad_override_returns_400() -> None:
+    r = client.post("/api/flatland/runs", json={"config_overrides": {"evil_key": 1}, "pop_size": 2})
+    assert r.status_code == 400
