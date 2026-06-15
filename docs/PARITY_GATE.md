@@ -39,7 +39,7 @@
 - [x] **Étape 2** — hook `pre-commit` (WARN-only) dans `hooks/` + cible `make hooks` (active `core.hooksPath`). *(livrée, non activée par défaut)*
 - [x] **Étape 3** — check **parité dev** route↔fetch (heuristique, **WARN only**) : reconstruit les chemins backend (prefix `include_router` + décorateurs + WS), les compare aux appels `apiFetch`/`wsUrl`/`useWebSocket`/`fetch` du frontend, signale les endpoints non consommés. *(livrée ; `schemas.py`↔`types.ts` et orphelins restent en idées futures — plus bruités)*
 - [x] **Étape 4** — CI `--strict` sur les invariants durs (étape ajoutée à `.github/workflows/ci.yml`). *(livrée ; sur l'état actuel `--strict` sort 0, ne casse pas la CI)*
-- [ ] **Étape 5** *(cause racine)* — brancher l'onglet **Academy** sur les EDR → réduit les 3 silos manuels.
+- [x] **Étape 5** *(cause racine)* — `get_academy_data` dérive désormais des EDR (derniers EDR documentés = jalons ; findings curés = timeline narrée ; objectifs méthodo) au lieu des portes logiques figées. *(livrée)*
 
 ## Usage
 ```bash
