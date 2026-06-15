@@ -14,6 +14,20 @@ def test_server_rejects_unknown_override():
         FlatlandServer(config_overrides={"evil_key": 1}, pop_size=2)
 
 
+def test_mutation_rate_override_drives_real_nested_knob():
+    """Régression: mutation_rate doit piloter le VRAI levier imbriqué
+    (cfg.agent.mutation.weight_mutate_rate), pas créer un attribut plat mort.
+    Sans ce mapping l'A/B exécuterait une évolution identique entre baseline et
+    traitement (intervention sans effet, échec silencieux)."""
+    s = FlatlandServer(config_overrides={"mutation_rate": 0.99}, pop_size=2)
+    assert s.cfg.agent.mutation.weight_mutate_rate == 0.99
+    # pas d'attribut plat fantôme
+    assert not hasattr(s.cfg, "mutation_rate")
+    # baseline inchangée (non-régression)
+    base = FlatlandServer(pop_size=2)
+    assert base.cfg.agent.mutation.weight_mutate_rate == 0.8
+
+
 def test_server_default_config_unchanged():
     s = FlatlandServer(pop_size=2)
     assert s.cfg.size == 32 and s.cfg.num_altars == 5 and s.cfg.prey_mode == "semi"
