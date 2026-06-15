@@ -47,6 +47,16 @@ bras (l'usage **émerge**, n'est pas imposé — la distinction clé vs 082).
 > **Nuit OFF** : impératif (087/086) — sinon drain nocturne ×2.5 → régime létal qui re-courcirait la
 > survie et invaliderait le test (le verrou qu'on lève).
 
+> **Clarification substrat (découverte à l'implémentation, AVANT toute donnée)** : la biosphère démarre
+> un thread `AsyncMemoryRetriever` qui lit le **KuzuDB ambiant** (`data/kuzu_graph.db`, *non filtré par
+> run* → agrège les pensées de toute session) et l'injecte (`in_mem`, obs cols 48-52) → trajectoires
+> **non reproductibles** sous écritures DB parallèles. 089 tourne donc avec la **mémoire ambiante OFF**
+> (retriever arrêté avant la boucle — **idiome établi**, cf. `tools/lexicon.py:70-71,89-90`). Conséquences
+> figées : (1) `in_hear` (signal langage, cols 16-19) est *indépendant* d'`in_mem` → couper la mémoire
+> n'affecte PAS le contraste FIABLE−BRUITÉ (zéroté **également** pour les 2 bras) ; (2) 089 est un test
+> **plus propre** qu'083 (qui tournait mémoire ON + confond ambiant), **pas** un re-run bit-identique —
+> à lire comme « le contraste sur substrat long *et déparasité* ». Le verdict reste apparié et valide.
+
 ## 3. Métrique & appariement
 
 - **Primaire** : **Mammouths tués** par les champions évolués (moyenne sur `n_eval` ères propres) —
