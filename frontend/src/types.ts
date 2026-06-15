@@ -104,3 +104,27 @@ export interface ABCompareResult {
   t_thresh: number;
   d_thresh: number;
 }
+
+export interface RunConfig {
+  script_name: string;
+  world_type: string;
+  base_seed: number;
+  n_seeds: number;
+  mutation_rate: number | null;
+  variable_tested: string;
+  tags: string[];
+}
+
+export interface RunPreset {
+  id: string;
+  label: string;
+  config: RunConfig;
+}
+
+export type QueueStatus = "pending" | "running" | "done" | "error";
+
+export interface QueuedRun {
+  id: string;
+  seed: number;
+  status: QueueStatus;
+}

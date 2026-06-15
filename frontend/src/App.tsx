@@ -11,6 +11,7 @@ import { EDRDashboard } from "./components/EDRDashboard";
 import { LiveMetrics } from "./components/LiveMetrics";
 import { FlatlandViewer } from "./components/FlatlandViewer";
 import { ABComparisonView } from "./components/ABComparisonView";
+import { RunLauncher } from "./components/RunLauncher";
 import { Button } from "./components/ui/Button";
 import { useTheme } from "./hooks/useTheme";
 import { useHashRoute } from "./hooks/useHashRoute";
@@ -365,7 +366,12 @@ export default function App() {
 
           {tab === "laboratoire" && <LaboratoryView />}
           {tab === "timeline" && <TimelineViewer />}
-          {tab === "sandbox" && <SandboxView />}
+          {tab === "sandbox" && (
+            <>
+              <RunLauncher />
+              <SandboxView />
+            </>
+          )}
           </ErrorBoundary>
         </section>
       </main>
