@@ -70,3 +70,22 @@ def wilcoxon_signed_rank(d):
     z = (w_plus - mean - cc) / math.sqrt(var)
     p = 2.0 * (1.0 - _phi(abs(z)))
     return w_plus, float(min(1.0, max(0.0, p)))
+
+
+def bootstrap_ci(stat_fn, *arrays, n_boot=2000, alpha=0.05, seed=0):
+    """IC percentile bootstrap d'une statistique. APPARIÉ : tous les arrays sont rééchantillonnés
+    avec les MÊMES indices (préserve l'appariement seed-à-seed champion/baseline). stat_fn reçoit
+    les arrays rééchantillonnés. Déterministe au seed."""
+    arrays = [np.asarray(x, dtype=float) for x in arrays]
+    n = len(arrays[0])
+    rng = np.random.default_rng(seed)
+    stats = np.empty(n_boot, dtype=float)
+    for k in range(n_boot):
+        idx = rng.integers(0, n, n)
+        stats[k] = stat_fn(*[x[idx] for x in arrays])
+    finite = stats[np.isfinite(stats)]
+    if finite.size == 0:
+        return float("nan"), float("nan")
+    lo = float(np.percentile(finite, 100.0 * alpha / 2.0))
+    hi = float(np.percentile(finite, 100.0 * (1.0 - alpha / 2.0)))
+    return lo, hi

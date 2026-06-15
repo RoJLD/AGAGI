@@ -42,3 +42,21 @@ def test_wilcoxon_symmetric_not_significant():
 
 def test_wilcoxon_drops_zeros_and_handles_empty():
     assert wilcoxon_signed_rank([0.0, 0.0])[1] == 1.0
+
+
+from src.seed_ai.s2_stats import bootstrap_ci, median_ratio as _mr
+
+
+def test_bootstrap_ci_brackets_point_estimate():
+    # NB : espacement NON uniforme (et non proportionnel à b) -> le bootstrap apparié a une vraie
+    # variance. med(a)=32, med(b)=15.5 -> ratio vrai ~2. (Des données a==2*b donneraient lo==hi.)
+    a = [18, 21, 23, 26, 28, 31, 33, 35, 38, 41, 43, 46]
+    b = [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21]
+    lo, hi = bootstrap_ci(_mr, a, b, n_boot=500, alpha=0.05, seed=1)
+    assert lo <= 2.0 <= hi          # ratio vrai ~2
+    assert lo < hi
+
+
+def test_bootstrap_ci_is_deterministic_with_seed():
+    a, b = [3, 4, 5, 6], [1, 2, 3, 4]
+    assert bootstrap_ci(_mr, a, b, n_boot=200, seed=7) == bootstrap_ci(_mr, a, b, n_boot=200, seed=7)
