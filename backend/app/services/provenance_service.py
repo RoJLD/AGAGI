@@ -6,11 +6,16 @@ KuzuDB (lecture seule, via la connexion PARTAGÉE de l'AsyncLogger -> pas de loc
 métriques du logger. Tout dégrade gracieusement sans KuzuDB (jamais de 500). Spec §4-§6.
 """
 import json
+import re
 from pathlib import Path
 from typing import Optional
 
 
 class ProvenanceService:
+    # Provenance file stems = noms de runs Harness.save (<name>_<seed>) : lettres/chiffres/_/- seulement.
+    # Refuse tout ce qui pourrait s'évader de results/ (path traversal) : '/', '\\', '.', '..'.
+    _SAFE_STEM = re.compile(r"[A-Za-z0-9_\-]+")
+
     def __init__(self, results_dir: Path):
         self.results_dir = Path(results_dir)
 
@@ -36,8 +41,17 @@ class ProvenanceService:
         return runs
 
     def get_run(self, file_stem: str) -> Optional[dict]:
-        """Détail d'un run (provenance + KPIs) + cross-link KuzuDB best-effort. None si introuvable."""
-        p = self.results_dir / f"{file_stem}.json"
+        """Détail d'un run (provenance + KPIs) + cross-link KuzuDB best-effort. None si introuvable.
+        Anti path-traversal : refuse les stems hors [A-Za-z0-9_-] et vérifie que le chemin résolu
+        reste DANS results_dir (defense in depth)."""
+        if not file_stem or not self._SAFE_STEM.fullmatch(file_stem):
+            return None
+        base = self.results_dir.resolve()
+        p = (self.results_dir / f"{file_stem}.json").resolve()
+        try:
+            p.relative_to(base)             # lève ValueError si p s'évade de results_dir
+        except ValueError:
+            return None
         if not p.exists():
             return None
         try:

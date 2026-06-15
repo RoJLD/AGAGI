@@ -28,6 +28,19 @@ def test_get_run_returns_detail_and_unknown_is_none(tmp_path):
     assert svc.get_run("does_not_exist") is None
 
 
+def test_get_run_rejects_path_traversal(tmp_path):
+    # un secret hors de results/ ne doit JAMAIS être lisible via file_stem (path traversal).
+    (tmp_path.parent / "secret.json").write_text('{"seed": 0, "data": "TOPSECRET"}', encoding="utf-8")
+    _write_run(tmp_path, "ok", 1, 0.5)
+    svc = ProvenanceService(tmp_path)
+    assert svc.get_run("../secret") is None
+    assert svc.get_run("..\\secret") is None
+    assert svc.get_run("../../etc/passwd") is None
+    assert svc.get_run("a/b") is None
+    assert svc.get_run("") is None
+    assert svc.get_run("ok_1") is not None        # stem légitime toujours servi
+
+
 def test_list_runs_skips_corrupt_json(tmp_path):
     tmp_path.mkdir(parents=True, exist_ok=True)
     (tmp_path / "broken_1.json").write_text("{not json", encoding="utf-8")
