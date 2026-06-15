@@ -241,12 +241,15 @@ class AsyncLogger:
             elif e_type == "RUN_START":
                 try:
                     conn.execute("CREATE NODE TABLE IF NOT EXISTS Run (id STRING, name STRING, seed INT64, commit STRING, config_hash STRING, git_dirty BOOLEAN, timestamp DOUBLE, PRIMARY KEY (id))")
-                    rid = self._current_run
+                    safe_rid = str(self._current_run).replace("'", "\\'")
+                    safe_name = str(payload.get('name', '')).replace("'", "\\'")
+                    safe_commit = str(payload.get('commit', '')).replace("'", "\\'")
+                    safe_config_hash = str(payload.get('config_hash', '')).replace("'", "\\'")
                     gd = "true" if payload.get("git_dirty") else "false"
                     conn.execute(
-                        f"MERGE (r:Run {{id: '{rid}'}}) SET r.name = '{payload.get('name','')}', "
-                        f"r.seed = {int(payload.get('seed', 0))}, r.commit = '{payload.get('commit','')}', "
-                        f"r.config_hash = '{payload.get('config_hash','')}', r.git_dirty = {gd}, r.timestamp = {timestamp}")
+                        f"MERGE (r:Run {{id: '{safe_rid}'}}) SET r.name = '{safe_name}', "
+                        f"r.seed = {int(payload.get('seed', 0))}, r.commit = '{safe_commit}', "
+                        f"r.config_hash = '{safe_config_hash}', r.git_dirty = {gd}, r.timestamp = {timestamp}")
                 except Exception as ex:
                     log.warning(f"RUN_START node write failed: {ex}")
 
@@ -332,7 +335,8 @@ class AsyncLogger:
                     if self._current_run:
                         try:
                             conn.execute("CREATE REL TABLE IF NOT EXISTS BELONGS_TO_RUN (FROM Result TO Run)")
-                            conn.execute(f"MATCH (r:Result {{id: '{result_id}'}}), (run:Run {{id: '{self._current_run}'}}) MERGE (r)-[:BELONGS_TO_RUN]->(run)")
+                            safe_run_id = str(self._current_run).replace("'", "\\'")
+                            conn.execute(f"MATCH (r:Result {{id: '{result_id}'}}), (run:Run {{id: '{safe_run_id}'}}) MERGE (r)-[:BELONGS_TO_RUN]->(run)")
                         except Exception as ex:
                             log.warning(f"BELONGS_TO_RUN link failed: {ex}")
                 except Exception as inner_e:
