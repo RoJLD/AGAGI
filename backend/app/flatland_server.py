@@ -1,6 +1,7 @@
 import asyncio
 import time
 import threading
+import uuid
 from dataclasses import fields
 from typing import Dict, Any
 
@@ -257,4 +258,43 @@ class FlatlandServer:
     def stop(self):
         self.running = False
 
+
+class RunCapExceeded(Exception):
+    """Levée quand le nombre de runs concurrents atteint MAX_RUNS."""
+
+
+class FlatlandManager:
+    """Cycle de vie de N runs flatland concurrents (dict run_id -> FlatlandServer). Spec §4."""
+    MAX_RUNS = 4
+
+    def __init__(self, default_server):
+        self.runs = {"default": default_server}
+
+    def create_run(self, config_overrides=None, pop_size=10, label=None):
+        if len(self.runs) >= self.MAX_RUNS:
+            raise RunCapExceeded(f"cap atteint ({self.MAX_RUNS} runs)")
+        # FlatlandServer valide les overrides (ValueError si hors whitelist) AVANT d'occuper un slot.
+        server = FlatlandServer(config_overrides=config_overrides, pop_size=pop_size, label=label)
+        run_id = uuid.uuid4().hex[:8]
+        self.runs[run_id] = server
+        return run_id
+
+    def get_run(self, run_id):
+        return self.runs.get(run_id)
+
+    def stop_run(self, run_id) -> bool:
+        if run_id == "default" or run_id not in self.runs:
+            return False
+        self.runs[run_id].stop()
+        del self.runs[run_id]
+        return True
+
+    def list_runs(self) -> list:
+        return [{"run_id": rid, "label": s.label,
+                 "status": "running" if s.running else "idle",
+                 "era": s.era, "agent_count": len(s.world.agents)}
+                for rid, s in self.runs.items()]
+
+
 flatland_server = FlatlandServer(label="default")
+flatland_manager = FlatlandManager(flatland_server)
