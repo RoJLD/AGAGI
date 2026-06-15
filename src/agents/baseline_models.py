@@ -43,3 +43,27 @@ class RandomActionBatchModel(BaselineBatchModel):
 
     def _logits(self, batch_obs):
         return np.random.randn(self.B, self.O).astype(np.float32)
+
+
+# Indices d'observation (world_1.get_batch_observations, l.505) et d'action (world_1 step, l.1246-1249).
+OBS_DIR = slice(0, 4)        # [dn, ds, de, dw] -> proie au Nord/Sud/Est/Ouest
+MOVE_SLOT = [0, 1, 2, 3]     # action 0=N(ny-1) 1=S(ny+1) 2=E(nx+1) 3=W(nx-1)
+GRAB_LOGIT = 24              # do_grab = logits[24]
+
+
+class ReflexBatchModel(BaselineBatchModel):
+    """Poursuite : va vers la proie la plus proche (direction lue dans l'obs), tente de grab chaque
+    tick. Heuristique non-cognitive = borne basse "réflexe". prudent=True -> variante (Task 10)."""
+
+    def __init__(self, agents, world_model=None, prudent=False):
+        super().__init__(agents, world_model)
+        self.prudent = prudent
+
+    def _logits(self, batch_obs):
+        logits = np.zeros((self.B, self.O), dtype=np.float32)
+        dirs = batch_obs[:, OBS_DIR]                     # (B, 4) = dn,ds,de,dw
+        best = np.argmax(dirs, axis=1)                   # 0..3 -> N,S,E,W
+        for i in range(self.B):
+            logits[i, MOVE_SLOT[best[i]]] = 1.0          # argmax(logits[:8]) = direction vers la proie
+            logits[i, GRAB_LOGIT] = 1.0                  # toujours tenter de ramasser
+        return logits
