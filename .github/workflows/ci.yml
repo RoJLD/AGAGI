@@ -63,6 +63,6 @@ jobs:
           curl --fail http://localhost:4173
           # Install Playwright browsers and run E2E tests against the running services
           npm --prefix frontend install
-          npx playwright install --with-deps
+          npm --prefix frontend exec -- playwright install --with-deps chromium
           npm --prefix frontend run test:e2e
           docker compose down
