@@ -180,6 +180,72 @@ def build_report(repo: Path, recent_window: int):
 
 
 # --------------------------------------------------------------------------- #
+# Parité DEV : endpoint backend <-> consommateur frontend (étape 3, heuristique, WARN)
+# --------------------------------------------------------------------------- #
+_HTTP_DECO = re.compile(r'@router\.(?:get|post|put|delete|patch)\(\s*["\']([^"\']+)["\']')
+_WS_DECO = re.compile(r'@app\.websocket\(\s*["\']([^"\']+)["\']')
+_INCLUDE = re.compile(r'include_router\(\s*(\w+)\s*,\s*prefix\s*=\s*["\']([^"\']+)["\']')
+_IMPORT_ROUTER = re.compile(r'from\s+\.routes\.(\w+)\s+import\s+router\s+as\s+(\w+)')
+_FE_CALL = re.compile(r'(?:apiFetch|wsUrl|useWebSocket|fetch)\s*(?:<[^>]*>)?\s*\(\s*[`"\']([^`"\']+)')
+
+
+def _norm_path(path: str) -> str:
+    path = path.split("?")[0]
+    path = re.sub(r"\$\{[^}]*\}", "*", path)  # template literal frontend
+    path = re.sub(r"\{[^}]*\}", "*", path)  # path param backend
+    return path.rstrip("/") or "/"
+
+
+def scan_backend_routes(repo: Path) -> list[str]:
+    """Reconstruit les chemins complets (prefix d'include_router + route du décorateur) + WS."""
+    backend = repo / "backend" / "app"
+    if not backend.is_dir():
+        return []
+    main_text = (backend / "main.py").read_text(encoding="utf-8") if (backend / "main.py").exists() else ""
+    alias_mod = {alias: mod for mod, alias in _IMPORT_ROUTER.findall(main_text)}
+    alias_prefix = dict(_INCLUDE.findall(main_text))
+    mod_prefix = {mod: alias_prefix.get(alias, "") for alias, mod in alias_mod.items()}
+    paths: list[str] = []
+    routes_dir = backend / "routes"
+    if routes_dir.is_dir():
+        for p in routes_dir.glob("*.py"):
+            prefix = mod_prefix.get(p.stem, "")
+            for route in _HTTP_DECO.findall(p.read_text(encoding="utf-8")):
+                paths.append(prefix + route if route != "/" else (prefix or "/"))
+    paths.extend(_WS_DECO.findall(main_text))
+    return sorted(set(paths))
+
+
+def scan_frontend_consumers(repo: Path) -> set[str]:
+    """Chemins passés à apiFetch/wsUrl/useWebSocket/fetch dans frontend/src (hors tests)."""
+    src = repo / "frontend" / "src"
+    out: set[str] = set()
+    if not src.is_dir():
+        return out
+    for p in src.rglob("*.ts*"):
+        if p.name.endswith((".test.ts", ".test.tsx", ".d.ts")):
+            continue
+        for m in _FE_CALL.findall(p.read_text(encoding="utf-8")):
+            if m.startswith("/"):
+                out.add(_norm_path(m))
+    return out
+
+
+def dev_parity_report(repo: Path):
+    """Heuristique : signale les endpoints backend sans consommateur frontend. WARN only."""
+    backend = scan_backend_routes(repo)
+    frontend = scan_frontend_consumers(repo)
+    lines = [f"endpoints backend : {len(backend)} ; chemins consommés (frontend) : {len(frontend)}"]
+    issues: list[tuple[str, str]] = []
+    uncovered = [b for b in backend if _norm_path(b) not in frontend]
+    if uncovered:
+        issues.append((WARN, f"endpoints backend sans consommateur frontend (heuristique) : {uncovered}"))
+    else:
+        lines.append("tous les endpoints backend ont un consommateur frontend (heuristique).")
+    return lines, issues
+
+
+# --------------------------------------------------------------------------- #
 # Classification du commit (taxonomie de la cartographie)
 # --------------------------------------------------------------------------- #
 def changed_files(repo: Path, staged: bool) -> list[tuple[str, str]]:
@@ -222,35 +288,48 @@ def main(argv=None) -> int:
     repo = find_repo_root(args.repo)
     print(f"[repo] {repo}")
 
+    NARRATION = "Parité narration (docs/EDR -> edr_findings.json -> FIL_CONDUCTEUR)"
+    DEVPAR = "Parité dev (route backend <-> fetch frontend, heuristique)"
+    reports: list[tuple[str, list[str], list[tuple[str, str]]]] = []
+
     if args.staged:
         cls = classify(changed_files(repo, staged=True))
         print(f"[classe] diff stagé = {cls}")
-        if cls != "EXPERIENCE":
-            print("[parity] non-EXPERIENCE -> checks narration ignorés (OK).")
+        if cls == "EXPERIENCE":
+            reports.append((NARRATION, *build_report(repo, args.recent)))
+        elif cls == "DEV":
+            reports.append((DEVPAR, *dev_parity_report(repo)))
+        else:
+            print("[parity] commit DOC -> rien à vérifier (OK).")
             return 0
+    else:
+        reports.append((NARRATION, *build_report(repo, args.recent)))
+        reports.append((DEVPAR, *dev_parity_report(repo)))
 
-    lines, issues = build_report(repo, args.recent)
-    print("=== Parité narration (docs/EDR -> edr_findings.json -> FIL_CONDUCTEUR) ===")
-    for ln in lines:
-        print("  " + ln)
+    all_fails: list[str] = []
+    all_warns: list[str] = []
+    for title, lines, issues in reports:
+        print(f"=== {title} ===")
+        for ln in lines:
+            print("  " + ln)
+        fails = [m for lvl, m in issues if lvl == FAIL]
+        warns = [m for lvl, m in issues if lvl == WARN]
+        if fails:
+            print("  INVARIANTS DURS (FAIL) :")
+            for m in fails:
+                print("    [FAIL] " + m)
+        if warns:
+            print("  DRIFT (WARN) :")
+            for m in warns:
+                print("    [WARN] " + m)
+        if not fails and not warns:
+            print("  [OK] aucune désynchronisation détectée.")
+        all_fails += fails
+        all_warns += warns
+        print()
 
-    fails = [m for lvl, m in issues if lvl == FAIL]
-    warns = [m for lvl, m in issues if lvl == WARN]
-    print()
-    if fails:
-        print("INVARIANTS DURS (FAIL) :")
-        for m in fails:
-            print("  [FAIL] " + m)
-    if warns:
-        print("DRIFT (WARN) :")
-        for m in warns:
-            print("  [WARN] " + m)
-    if not fails and not warns:
-        print("  [OK] aucune désynchronisation détectée.")
-
-    print()
-    if args.strict and fails:
-        print(f"[strict] {len(fails)} invariant(s) dur(s) violé(s) -> exit 1")
+    if args.strict and all_fails:
+        print(f"[strict] {len(all_fails)} invariant(s) dur(s) violé(s) -> exit 1")
         return 1
     print("[ok] rapport terminé (non bloquant)" if not args.strict else "[ok] aucun invariant dur violé")
     return 0

@@ -37,7 +37,7 @@
 
 - [x] **Étape 1** — `parity_check.py` checks narration + `--report`/`--staged`/`--strict`. *(livrée, validée sur le drift réel)*
 - [x] **Étape 2** — hook `pre-commit` (WARN-only) dans `hooks/` + cible `make hooks` (active `core.hooksPath`). *(livrée, non activée par défaut)*
-- [ ] **Étape 3** — checks **parité dev** : route backend ↔ `fetch` frontend ; champ `schemas.py` ↔ `types.ts` ; composants orphelins. *(différée : heuristiques à concevoir à froid pour limiter les faux positifs)*
+- [x] **Étape 3** — check **parité dev** route↔fetch (heuristique, **WARN only**) : reconstruit les chemins backend (prefix `include_router` + décorateurs + WS), les compare aux appels `apiFetch`/`wsUrl`/`useWebSocket`/`fetch` du frontend, signale les endpoints non consommés. *(livrée ; `schemas.py`↔`types.ts` et orphelins restent en idées futures — plus bruités)*
 - [x] **Étape 4** — CI `--strict` sur les invariants durs (étape ajoutée à `.github/workflows/ci.yml`). *(livrée ; sur l'état actuel `--strict` sort 0, ne casse pas la CI)*
 - [ ] **Étape 5** *(cause racine)* — brancher l'onglet **Academy** sur les EDR → réduit les 3 silos manuels.
 
