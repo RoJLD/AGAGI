@@ -14,8 +14,10 @@ import { useHashRoute } from "./hooks/useHashRoute";
 import { TAB_KEYS, TAB_FAMILIES } from "./tabs";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Sun, Moon } from "lucide-react";
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8001";
+import { useQuery } from "@tanstack/react-query";
+import { apiFetch } from "./api/client";
+import { queryKeys } from "./api/queryKeys";
+import { useWebSocket } from "./hooks/useWebSocket";
 
 function formatPercentage(value: number) {
   return `${(value * 100).toFixed(1)}%`;
@@ -50,9 +52,21 @@ function ChartLine({ values, color }: { values: number[]; color: string }) {
 export default function App() {
   const { theme, toggle } = useTheme();
   const { tab, gate: selectedGate, setTab, setGate } = useHashRoute(TAB_KEYS, "edr");
-  const [experiments, setExperiments] = useState<ExperimentSummary[]>([]);
-  const [detail, setDetail] = useState<ExperimentDetail | null>(null);
-  const [academy, setAcademy] = useState<AcademyPayload | null>(null);
+  const { data: experiments = [] } = useQuery({
+    queryKey: queryKeys.experiments.list,
+    queryFn: () => apiFetch<ExperimentSummary[]>("/api/experiments"),
+    staleTime: 30_000,
+  });
+  const { data: detail = null } = useQuery({
+    queryKey: queryKeys.experiments.detail(selectedGate),
+    queryFn: () => apiFetch<ExperimentDetail>(`/api/experiments/${selectedGate}`),
+    enabled: !!selectedGate,
+  });
+  const { data: academy = null } = useQuery({
+    queryKey: queryKeys.academy,
+    queryFn: () => apiFetch<AcademyPayload>("/api/academy"),
+    staleTime: Infinity,
+  });
   const [wsLog, setWsLog] = useState<string[]>([]);
 
   const selectedExperiment = useMemo(() => experiments.find((item) => item.gate === selectedGate), [experiments, selectedGate]);
@@ -103,39 +117,18 @@ export default function App() {
     };
   }, [experiments]);
 
+  // Sélection par défaut : première porte si l'URL n'en précise pas.
   useEffect(() => {
-    fetch(`${API_BASE}/api/experiments`)
-      .then((response) => response.json())
-      .then((data) => {
-        setExperiments(data);
-        if (data.length && !selectedGate) {
-          setGate(data[0].gate);
-        }
-      });
+    if (experiments.length && !selectedGate) {
+      setGate(experiments[0].gate);
+    }
+  }, [experiments, selectedGate]);
 
-    fetch(`${API_BASE}/api/academy`)
-      .then((response) => response.json())
-      .then(setAcademy);
-  }, []);
-
-  useEffect(() => {
-    if (!selectedGate) return;
-    fetch(`${API_BASE}/api/experiments/${selectedGate}`)
-      .then((response) => response.json())
-      .then(setDetail);
-  }, [selectedGate]);
-
-  useEffect(() => {
-    const wsUrl = API_BASE.replace(/^http/, window.location.protocol === "https:" ? "wss" : "ws");
-    const ws = new WebSocket(`${wsUrl}/ws/evolution`);
-    ws.addEventListener("message", (event) => {
-      setWsLog((previous) => [event.data, ...previous].slice(0, 12));
-    });
-    ws.addEventListener("error", () => {
-      setWsLog((previous) => ["WebSocket failed à la connexion", ...previous].slice(0, 12));
-    });
-    return () => ws.close();
-  }, []);
+  useWebSocket<{ gate?: string; generation?: number; fitness?: number }>("/ws/evolution", (event) => {
+    const fitness = typeof event.fitness === "number" ? event.fitness.toFixed(4) : event.fitness;
+    const line = `${event.gate ?? "?"} · gén ${event.generation ?? "?"} · fitness ${fitness}`;
+    setWsLog((previous) => [line, ...previous].slice(0, 12));
+  });
 
   const chartData = detail?.history;
   const sizeSeries = chartData?.size ?? [];
