@@ -128,3 +128,19 @@ export interface QueuedRun {
   seed: number;
   status: QueueStatus;
 }
+
+export interface RunSummary {
+  run_id: string;
+  name: string;
+  seed: number;
+  commit?: string | null;
+  metrics: string[];
+}
+
+export interface RunDetail {
+  run_id: string;
+  name: string;
+  seed: number;
+  commit?: string | null;
+  data: Record<string, number | string>;
+}

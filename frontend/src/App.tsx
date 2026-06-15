@@ -12,6 +12,7 @@ import { LiveMetrics } from "./components/LiveMetrics";
 import { FlatlandViewer } from "./components/FlatlandViewer";
 import { ABComparisonView } from "./components/ABComparisonView";
 import { RunLauncher } from "./components/RunLauncher";
+import { RunsHistoryView } from "./components/RunsHistoryView";
 import { Button } from "./components/ui/Button";
 import { useTheme } from "./hooks/useTheme";
 import { useHashRoute } from "./hooks/useHashRoute";
@@ -376,6 +377,7 @@ export default function App() {
               <SandboxView />
             </>
           )}
+          {tab === "runs" && <RunsHistoryView />}
           </ErrorBoundary>
         </section>
       </main>

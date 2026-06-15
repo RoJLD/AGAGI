@@ -409,3 +409,11 @@ body {
 .text-right { text-align: right; }
 .text-danger { color: var(--color-danger); }
 .text-dim { color: var(--color-text-dim); }
+
+/* ============================ Table des runs ============================ */
+.runs-table { width: 100%; border-collapse: collapse; font-size: var(--font-size-sm); }
+.runs-table th, .runs-table td { text-align: left; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--color-border); }
+.runs-table th { color: var(--color-text-dim); font-weight: 600; }
+.runs-table tbody tr:hover { background: var(--color-bg-subtle); }
+.runs-table tr.is-selected { background: var(--color-bg-subtle); }
+.runs-table code { font-size: var(--font-size-xs); color: var(--color-text-secondary); }
