@@ -22,3 +22,23 @@ def test_median_ratio_basic():
 
 def test_median_ratio_zero_denominator_returns_inf():
     assert median_ratio([5, 5, 5], [0, 0, 0]) == float("inf")
+
+
+from src.seed_ai.s2_stats import wilcoxon_signed_rank
+
+
+def test_wilcoxon_all_positive_is_significant():
+    # 15 différences toutes positives -> p très petit
+    d = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0]
+    w, p = wilcoxon_signed_rank(d)
+    assert p < 0.01
+
+
+def test_wilcoxon_symmetric_not_significant():
+    d = [1.0, -1.0, 2.0, -2.0, 3.0, -3.0, 4.0, -4.0]
+    w, p = wilcoxon_signed_rank(d)
+    assert p > 0.5
+
+
+def test_wilcoxon_drops_zeros_and_handles_empty():
+    assert wilcoxon_signed_rank([0.0, 0.0])[1] == 1.0

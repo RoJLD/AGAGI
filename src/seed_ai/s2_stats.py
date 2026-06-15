@@ -27,3 +27,46 @@ def median_ratio(a, b):
     if mb == 0.0:
         return float("inf") if ma > 0.0 else 1.0
     return ma / mb
+
+
+def _phi(z):
+    """CDF de la loi normale centrée réduite (sans scipy)."""
+    return 0.5 * (1.0 + math.erf(z / math.sqrt(2.0)))
+
+
+def _average_ranks(values):
+    """Rangs moyens (gère les ex aequo) — valeurs >= 0 (abs des différences)."""
+    values = np.asarray(values, dtype=float)
+    order = np.argsort(values, kind="mergesort")
+    ranks = np.empty(len(values), dtype=float)
+    i = 0
+    while i < len(values):
+        j = i
+        while j + 1 < len(values) and values[order[j + 1]] == values[order[i]]:
+            j += 1
+        avg = (i + j) / 2.0 + 1.0  # rangs 1-indexés, moyenne sur les ex aequo
+        for k in range(i, j + 1):
+            ranks[order[k]] = avg
+        i = j + 1
+    return ranks
+
+
+def wilcoxon_signed_rank(d):
+    """Test de Wilcoxon signé sur les différences appariées d (champion - baseline).
+    Approximation normale avec correction de continuité (valide à n>=12, plancher S2).
+    Renvoie (W_plus, p_bilatéral). Les zéros sont retirés (convention). p=1.0 si n=0."""
+    d = np.asarray(d, dtype=float)
+    d = d[d != 0.0]
+    n = d.size
+    if n == 0:
+        return 0.0, 1.0
+    ranks = _average_ranks(np.abs(d))
+    w_plus = float(np.sum(ranks[d > 0]))
+    mean = n * (n + 1) / 4.0
+    var = n * (n + 1) * (2 * n + 1) / 24.0
+    if var == 0.0:
+        return w_plus, 1.0
+    cc = 0.5 * np.sign(w_plus - mean)            # correction de continuité
+    z = (w_plus - mean - cc) / math.sqrt(var)
+    p = 2.0 * (1.0 - _phi(abs(z)))
+    return w_plus, float(min(1.0, max(0.0, p)))
