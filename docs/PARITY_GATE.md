@@ -36,7 +36,7 @@
 ## Roadmap d'implémentation
 
 - [x] **Étape 1** — `parity_check.py` checks narration + `--report`/`--staged`/`--strict`. *(livrée, validée sur le drift réel)*
-- [ ] **Étape 2** — hook `pre-commit` (WARN-only) + cible `make hooks` (le repo n'a ni husky ni pre-commit).
+- [x] **Étape 2** — hook `pre-commit` (WARN-only) dans `hooks/` + cible `make hooks` (active `core.hooksPath`). *(livrée, non activée par défaut)*
 - [ ] **Étape 3** — checks **parité dev** : route backend ↔ `fetch` frontend ; champ `schemas.py` ↔ `types.ts` ; composants orphelins.
 - [ ] **Étape 4** — CI `--strict` sur les invariants durs (étendre `.github/workflows/ci.yml`).
 - [ ] **Étape 5** *(cause racine)* — brancher l'onglet **Academy** sur les EDR → réduit les 3 silos manuels.
