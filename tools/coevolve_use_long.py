@@ -117,6 +117,7 @@ def main(R=8, gens=20, num_agents=24, K=4, n_eval=8, seed=None, _return=False):
             prog.update()
 
         summ = st.paired_summary(d_kills)
+        med = float(np.median(d_kills))          # §5 figé : USAGE SÉLECTIONNÉ exige médiane(d)>0 (pas la moyenne)
         lo, hi = st.bootstrap_ci(d_kills, np.mean, seed=base)
         surv_med = float(np.median(survs))
         print(f"\n=== Mammouths : FIABLE {np.mean(fia_k):.2f} vs BRUITE {np.mean(bru_k):.2f} ({R} reps appariees) ===")
@@ -127,11 +128,11 @@ def main(R=8, gens=20, num_agents=24, K=4, n_eval=8, seed=None, _return=False):
         if surv_med <= 120:
             verdict = "VOID"
             print(f"  -> VOID : substrat pas assez long (survie {surv_med:.0f} <= 120). Re-regler l'energie.")
-        elif summ["wilcoxon_p"] < 0.05 and summ["mean"] > 0 and lo > 0:
+        elif summ["wilcoxon_p"] < 0.05 and med > 0 and lo > 0:
             verdict = "USAGE SELECTIONNE"
             print(f"  -> USAGE SELECTIONNE : ecouter un signal FIABLE est selectionne a survie longue "
-                  f"(+{summ['mean']:.1f} kills, p={summ['wilcoxon_p']:.3f}, IC_inf={lo:+.2f}). Langage fonctionnel EMERGE.")
-        elif summ["mean"] > 0:
+                  f"(median +{med:.1f} kills, p={summ['wilcoxon_p']:.3f}, IC_inf={lo:+.2f}). Langage fonctionnel EMERGE.")
+        elif med > 0:
             verdict = "TENDANCE SOUS-SEUIL"
             print(f"  -> TENDANCE sous 2 SE (+{summ['mean']:.1f}, comme 083) : la survie longue ne suffit pas. "
                   f"Goulot = selection EXPLICITE de l'usage (levier #2).")
@@ -139,7 +140,7 @@ def main(R=8, gens=20, num_agents=24, K=4, n_eval=8, seed=None, _return=False):
             verdict = "NEGATIF ROBUSTE"
             print(f"  -> NEGATIF : meme a survie longue, le signal fiable n'est pas exploite ({summ['mean']:+.1f}).")
         h.save({"R": R, "gens": gens, "d_kills": d_kills, "d_nets": d_nets, "fia_k": fia_k, "bru_k": bru_k,
-                "summary": summ, "ci": [lo, hi], "surv_med": surv_med, "verdict": verdict})
+                "summary": summ, "median": med, "ci": [lo, hi], "surv_med": surv_med, "verdict": verdict})
         if _return:
             return {"d_kills": d_kills, "summary": summ, "ci": [lo, hi], "surv_med": surv_med, "verdict": verdict}
 
