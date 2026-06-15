@@ -20,8 +20,12 @@ class AsyncLogger:
         self._running = False
         self._thread = None
         self._events_processed = 0
+        self._events_by_type: Dict[str, int] = {}
+        self._error_count = 0
+        self._last_latency_ms = 0.0
+        self._current_run = None       # provenance : id du Run courant (RUN_START/RUN_END)
         self._shared_db = None
-        
+
     def set_database(self, db):
         self._shared_db = db
         
@@ -30,7 +34,19 @@ class AsyncLogger:
         if self._shared_db is not None:
             return self._shared_db
         return getattr(self, 'db', None)
-        
+
+    def metrics(self) -> Dict[str, Any]:
+        """Snapshot d'observabilité (best-effort, lecture de compteurs in-process, non bloquant)."""
+        return {
+            "events_processed": self._events_processed,
+            "events_by_type": dict(self._events_by_type),
+            "error_count": self._error_count,
+            "last_latency_ms": round(self._last_latency_ms, 3),
+            "queue_size": self.queue.qsize(),
+            "running": self._running,
+            "db_connected": self.get_db() is not None,
+        }
+
     def start(self):
         if self._running:
             return
@@ -124,9 +140,13 @@ class AsyncLogger:
         while self._running or not self.queue.empty():
             try:
                 event = self.queue.get(timeout=0.1)
+                _t0 = time.time()
                 self._process_event(event, db_conn)
+                self._last_latency_ms = (time.time() - _t0) * 1000.0
                 self.queue.task_done()
                 self._events_processed += 1
+                et = event.get("type", "?")
+                self._events_by_type[et] = self._events_by_type.get(et, 0) + 1
             except queue.Empty:
                 self._check_pending_article(db_conn)
                 continue
@@ -319,6 +339,7 @@ class AsyncLogger:
                 log.debug(f"Event {e_type}: {payload}")
                 
         except Exception as e:
+            self._error_count += 1
             log.error(f"KuzuDB insert error for {e_type}: {e}")
         finally:
             # Signal completion si emit_sync() attend
