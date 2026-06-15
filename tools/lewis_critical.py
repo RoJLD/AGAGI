@@ -119,15 +119,19 @@ def main(num_agents=24, seeds=range(12), levels=LEURRE_FRACS, max_ticks=300, see
         print(f"\n=== TENDANCE (le contenu paye-t-il PLUS quand la distinction devient critique ?) ===")
         print(f"  Jonckheere-Terpstra z={jt['z']:.2f}, p(croissance)={jt['p_one_sided']:.3f} ; pente OLS={slope:+.3f}")
         hi = table[levels[-1]]["summary"]
+        hi_lo, hi_hi = st.bootstrap_ci(table[levels[-1]]["dc"], np.mean, seed=base)  # IC95 apparié, niveau haut
+        print(f"  niveau haut {levels[-1]:.2f} : FIABLE-BROUILLE IC95 bootstrap = [{hi_lo:+.2f}, {hi_hi:+.2f}]")
         print("=== VERDICT (pre-enregistre) ===")
-        if jt["p_one_sided"] < 0.05 and hi["mean"] > 0 and hi["wilcoxon_p"] < 0.05:
+        if jt["p_one_sided"] < 0.05 and hi["mean"] > 0 and hi["wilcoxon_p"] < 0.05 and hi_lo > 0:
             print(f"  -> ARC 4 CLOS : le CONTENU paye quand la distinction est decisive (tendance +, "
-                  f"FIABLE-BROUILLE={hi['mean']:+.1f} a {levels[-1]:.2f} pieges, p={hi['wilcoxon_p']:.3f}).")
+                  f"FIABLE-BROUILLE={hi['mean']:+.1f} a {levels[-1]:.2f} pieges, p={hi['wilcoxon_p']:.3f}, "
+                  f"IC_inf={hi_lo:+.2f}).")
         elif jt["p_one_sided"] >= 0.05 and abs(hi["mean"]) < hi["se"]:
             print(f"  -> NEGATIF PROFOND : pas de tendance, FIABLE~BROUILLE meme a {levels[-1]:.2f} pieges.")
         else:
             print(f"  -> PARTIEL/GATE : tendance/effet sous-puissant ou niveaux VOID. Reporter + re-regler.")
         h.save({"levels": list(levels), "seeds": seeds, "jt": jt, "slope": slope,
+                "high_level_ci": [hi_lo, hi_hi],
                 "table": {f"{lf:.2f}": table[lf] for lf in levels}})
 
 
