@@ -34,3 +34,22 @@ def test_paired_summary_fields():
     assert set(s) >= {"mean", "se", "win_rate", "wilcoxon_p", "n"}
     assert s["n"] == 4
     assert 0.0 <= s["win_rate"] <= 1.0
+
+
+def test_jt_increasing_trend_significant():
+    groups = [[1, 2, 1.5], [3, 4, 3.5], [5, 6, 5.5], [7, 8, 7.5]]  # médianes croissantes
+    r = st.jonckheere_terpstra(groups)
+    assert r["z"] > 0
+    assert r["p_one_sided"] < 0.01
+
+
+def test_jt_flat_not_significant():
+    groups = [[2, 3, 4], [2, 3, 4], [2, 3, 4], [2, 3, 4]]
+    r = st.jonckheere_terpstra(groups)
+    assert r["p_one_sided"] > 0.3
+
+
+def test_jt_decreasing_negative_z():
+    groups = [[7, 8], [5, 6], [3, 4], [1, 2]]
+    r = st.jonckheere_terpstra(groups)
+    assert r["z"] < 0
