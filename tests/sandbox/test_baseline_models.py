@@ -87,3 +87,15 @@ def test_reflex_pursues_in_real_world():
             moved = True
             break
     assert moved
+
+
+def test_prudent_reflex_flees_hostile_apex():
+    # apex hostile adjacent (on_apex_type < 0) ET proie au Nord (dn) -> le prudent NE fonce PAS au Nord.
+    APEX_IDX = 4   # confirmé : obs col 4 = on_apex_type (world_1:538)
+    agents = [MambaAgent() for _ in range(1)]
+    bm = ReflexBatchModel(agents, prudent=True)
+    obs = np.zeros((1, agents[0].genome.num_inputs), dtype=np.float32)
+    obs[0, 0] = 0.9            # dn : proie au Nord (action 0)
+    obs[0, APEX_IDX] = -1.0    # apex hostile adjacent
+    logits, _ = bm.forward(obs)
+    assert int(np.argmax(logits[0, :8])) != 0     # ne fonce pas vers l'apex/la proie

@@ -49,6 +49,7 @@ class RandomActionBatchModel(BaselineBatchModel):
 OBS_DIR = slice(0, 4)        # [dn, ds, de, dw] -> proie au Nord/Sud/Est/Ouest
 MOVE_SLOT = [0, 1, 2, 3]     # action 0=N(ny-1) 1=S(ny+1) 2=E(nx+1) 3=W(nx-1)
 GRAB_LOGIT = 24              # do_grab = logits[24]
+APEX_IDX = 4                 # on_apex_type dans l'obs (col 4 : column_stack([dn,ds,de,dw,on_apex_type,...]), world_1:538)
 
 
 class ReflexBatchModel(BaselineBatchModel):
@@ -63,7 +64,11 @@ class ReflexBatchModel(BaselineBatchModel):
         logits = np.zeros((self.B, self.O), dtype=np.float32)
         dirs = batch_obs[:, OBS_DIR]                     # (B, 4) = dn,ds,de,dw
         best = np.argmax(dirs, axis=1)                   # 0..3 -> N,S,E,W
+        hostile = (batch_obs[:, APEX_IDX] < 0.0) if batch_obs.shape[1] > APEX_IDX else np.zeros(self.B, bool)
         for i in range(self.B):
-            logits[i, MOVE_SLOT[best[i]]] = 1.0          # argmax(logits[:8]) = direction vers la proie
-            logits[i, GRAB_LOGIT] = 1.0                  # toujours tenter de ramasser
+            move = MOVE_SLOT[best[i]]
+            if self.prudent and hostile[i]:
+                move = MOVE_SLOT[(int(best[i]) + 1) % 4]     # tourne -> s'éloigne de l'apex hostile
+            logits[i, move] = 1.0                            # argmax(logits[:8]) = direction choisie
+            logits[i, GRAB_LOGIT] = 1.0                      # toujours tenter de ramasser
         return logits
