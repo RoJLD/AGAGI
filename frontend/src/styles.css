@@ -239,6 +239,7 @@ body {
 .metrics-panel,
 .ws-panel,
 .academy-box,
+.summary-panel,
 .panel {
   background: var(--color-surface);
   border-radius: var(--radius-lg);
@@ -302,7 +303,21 @@ body {
 .radar-legend-item { display: inline-flex; align-items: center; gap: var(--space-2); color: var(--color-text-secondary); font-size: 0.95rem; }
 .radar-legend-color { width: 14px; height: 14px; border-radius: var(--radius-full); display: inline-block; }
 
-@media (max-width: 960px) { .content { grid-template-columns: 1fr; } }
+@media (max-width: 960px) {
+  .content { grid-template-columns: 1fr; }
+}
+@media (max-width: 720px) {
+  .content { padding: var(--space-4); }
+  .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  .edr-grid { grid-template-columns: 1fr; }
+  .topology-grid { grid-template-columns: 1fr; }
+  .topbar { padding: var(--space-4); }
+  .topbar h1 { font-size: 1.4rem; }
+  .tabs { gap: var(--space-1); }
+  .tab-family { padding-right: var(--space-2); }
+  .tab-family + .tab-family { padding-left: var(--space-2); }
+  .tabs button { padding: var(--space-2) var(--space-3); font-size: var(--font-size-xs); }
+}
 
 /* ============================ Dashboard EDR ============================ */
 .edr-intro { color: var(--color-text-dim); margin: 0 0 var(--space-5); max-width: 70ch; }
