@@ -16,7 +16,7 @@ test('charge le shell et navigue entre les onglets', async ({ page }) => {
   await page.getByTestId('tab-comparison').click();
   await expect(page).toHaveURL(/#\/comparison/);
   await expect(page.locator('#gate-select')).toBeVisible();
-  await expect(page.getByText('A/B rigoureux')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'A/B rigoureux' })).toBeVisible();
 
   // Academy : le titre est rendu avant tout fetch.
   await page.getByTestId('tab-academy').click();
@@ -30,6 +30,6 @@ test('charge le shell et navigue entre les onglets', async ({ page }) => {
 
 test('le hash est bookmarkable (deep-link direct sur un onglet)', async ({ page }) => {
   await page.goto(`${FRONTEND}/#/comparison`);
-  await expect(page.getByText('A/B rigoureux')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'A/B rigoureux' })).toBeVisible();
   await expect(page.locator('#gate-select')).toBeVisible();
 });
