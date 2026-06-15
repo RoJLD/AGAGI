@@ -75,7 +75,7 @@
 4. **Tests du cœur cognitif** (policy-gradient end-to-end, langage) — sous-testés (~2 sur `mamba_agent`).
 5. **Frontend** : contrôle A/B live (comparer 2 lignées), tests Vitest+RTL, CI ; nettoyer stubs (`sandbox_service`, academy/strategy mock).
 6. **Unifier le moteur** (`world_0_soup` duplique `Biosphere3D`) ; **ontologie Hypothesis/Fact** (vide → chaque EDR=`Hypothesis`) ; **ablation** (Ratio de Transfert sur les mécanismes).
-7. **Versioning des données** (hash config/commit ↔ KPI, checkpoint reproductible) ; **drain KuzuDB instrumenté** (queue/latence, dégradation gracieuse).
+7. **Versioning des données / Observabilité** : 🔵 **C1 livré (roadmap backend, chantier 1)** — **ledger de provenance** (`/api/provenance` : seed+commit+config_hash+git_dirty ↔ KPIs ; nœud `Run` KuzuDB, `ERA_RESULT`→`Run`), **santé KuzuDB** (`/api/health/kuzu` : reachable/writable/schema/counts → tue les *données fantômes*), **drain KuzuDB instrumenté** (`/api/observability/logger` : queue/latence/events/erreurs). Le **verdict S2** apparaît au dashboard *via le ledger* (ses `results/s2_demand_*.json` sont déjà au format `Harness.save`). *(spec/plan : `docs/superpowers/{specs,plans}/2026-06-15-C1-Observability-Provenance*`)*. **Reste** : checkpoint reproductible binaire (HoF+RNG+WM). **Roadmap backend** : C2 A/B live multi-run · C3 brancher stubs + dette/CI · C4 sécurité & sandbox.
 
 ## 🧭 Garde-fous méthodo *(angles morts du scan — à poser avant les benchmarks)*
 
