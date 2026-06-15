@@ -116,7 +116,7 @@ def iut_pvalue(pvals):
 ALPHA = 0.05
 CLIFF_THRESH = 0.33        # "large" (Romano) — effet principal
 RATIO_LO_THRESH = 1.3      # borne_inf de l'IC bootstrap du ratio de médianes (corroborant)
-EQUIV_MARGIN = 0.21        # |Cliff| < 0.21 = effet "negligible/petit" (Vargha-Delaney) -> équivalence (placeholder pilote)
+EQUIV_MARGIN = 0.147       # |Cliff| < 0.147 = "negligible" (Romano) -> équivalence (placeholder pilote)
 
 
 def _compare(champ, base):

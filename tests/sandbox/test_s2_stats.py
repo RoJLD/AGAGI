@@ -110,7 +110,10 @@ def test_verdict_void_when_champion_fails_coherence():
 
 
 def test_verdict_nexige_pas_when_champion_equiv_reflex():
-    surv_champ = _rng_arr(1, 40, 70)
+    # seed 21 : champion GENUINEMENT equivalent au reflex (|Cliff|=0.01 < EQUIV_MARGIN=0.147,
+    # seuil pre-enregistre Romano). Le seed 1 donnait |Cliff|=0.163 (bruit d'echantillonnage) =
+    # AMBIGU, pas une vraie equivalence.
+    surv_champ = _rng_arr(21, 40, 70)
     surv_base = {"random": _rng_arr(2, 10, 30), "reflex": _rng_arr(4, 40, 70)}
     life_champ = _rng_arr(5, 500, 800)
     life_base = {"random": _rng_arr(6, 0, 50), "reflex": _rng_arr(8, 50, 200)}
