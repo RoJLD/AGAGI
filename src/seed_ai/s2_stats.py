@@ -89,3 +89,24 @@ def bootstrap_ci(stat_fn, *arrays, n_boot=2000, alpha=0.05, seed=0):
     lo = float(np.percentile(finite, 100.0 * alpha / 2.0))
     hi = float(np.percentile(finite, 100.0 * (1.0 - alpha / 2.0)))
     return lo, hi
+
+
+def holm(pvals):
+    """Correction Holm-Bonferroni (step-down) du FWER. Renvoie les p-values ajustées (monotones,
+    bornées à 1). Famille S2 = les 4 verdicts-monde (m=4), PAS les 12 comparaisons baseline."""
+    pvals = np.asarray(pvals, dtype=float)
+    m = pvals.size
+    order = np.argsort(pvals)
+    adj = np.empty(m, dtype=float)
+    running = 0.0
+    for rank, i in enumerate(order):
+        running = max(running, (m - rank) * pvals[i])   # monotonie step-down
+        adj[i] = min(1.0, running)
+    return adj
+
+
+def iut_pvalue(pvals):
+    """Intersection-Union Test : pour conclure que le champion bat les 3 baselines (critère
+    CONJONCTIF), la p-value du monde = MAX des p-values. Contrôle déjà le type-I à alpha, SANS
+    correction (propriété IUT). C'est le bon outil pour un min-test, pas Holm."""
+    return float(np.max(np.asarray(pvals, dtype=float)))

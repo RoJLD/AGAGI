@@ -60,3 +60,22 @@ def test_bootstrap_ci_brackets_point_estimate():
 def test_bootstrap_ci_is_deterministic_with_seed():
     a, b = [3, 4, 5, 6], [1, 2, 3, 4]
     assert bootstrap_ci(_mr, a, b, n_boot=200, seed=7) == bootstrap_ci(_mr, a, b, n_boot=200, seed=7)
+
+
+from src.seed_ai.s2_stats import holm, iut_pvalue
+
+
+def test_holm_known_values():
+    # Holm step-down : p triés [.01,.02,.04] * [3,2,1] = [.03,.04,.04] (monotone)
+    adj = holm([0.04, 0.01, 0.02])
+    assert abs(adj[1] - 0.03) < 1e-9     # le .01 -> .03
+    assert adj[0] >= adj[2]              # monotonie après tri
+
+
+def test_holm_caps_at_one():
+    assert all(p <= 1.0 for p in holm([0.9, 0.8, 0.7]))
+
+
+def test_iut_pvalue_is_max():
+    # Intersection-Union : on ne rejette que si TOUTES rejettent -> p = max
+    assert iut_pvalue([0.01, 0.2, 0.03]) == 0.2
