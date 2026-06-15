@@ -11,6 +11,7 @@ Usage : HEADLESS=1 python -m tools.robust_eval
 """
 import numpy as np
 
+from src.seed_ai.harness import seed_at
 from src.environments.config import WorldConfig
 from src.seed_ai.mutation import MutationConfig
 from src.seed_ai.persistence import load_hall_of_fame
@@ -38,7 +39,7 @@ def _robust_score(cfg, g, K, num_agents, seed=None):
     vals = []
     for i in range(K):
         if seed is not None:
-            np.random.seed((int(seed) + i) % (2 ** 32))
+            seed_at(seed, i)
         _, m = run_era(cfg, [g] * num_agents)
         vals.append(m["score"])
     return float(np.mean(vals))
@@ -49,7 +50,7 @@ def _true_competence(cfg, g, n, num_agents, seed=None):
     vals = []
     for i in range(n):
         if seed is not None:
-            np.random.seed((int(seed) + 1000 + i) % (2 ** 32))   # plage disjointe de _robust_score
+            seed_at(seed, 1000 + i)   # plage disjointe de _robust_score
         vals.append(run_era(cfg, [g] * num_agents)[1]["ticks"])
     return float(np.mean(vals))
 
@@ -60,7 +61,7 @@ def evolve(cfg, robust_K, eras, num_agents, mc, prog, seed=None):
     for e in range(eras):
         genomes = _reproduce([g for _s, g in best_ever], num_agents, mc)
         if seed is not None:
-            np.random.seed((int(seed) + e) % (2 ** 32))            # ère seedée -> appariement entre régimes
+            seed_at(seed, e)            # ère seedée -> appariement entre régimes
         scored, _ = run_era(cfg, genomes)
         if scored:
             if robust_K > 1:

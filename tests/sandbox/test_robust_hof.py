@@ -28,7 +28,7 @@ def test_robust_rank_skips_genomeless_and_sorts(monkeypatch):
     # robust_rank trie par score robuste décroissant et ignore les candidats sans génome.
     scores = {"A": 5.0, "B": 9.0, "C": 2.0}
     monkeypatch.setattr(robust_hof, "robust_evaluate",
-                        lambda cfg, g, K, num_agents=20: scores[g])
+                        lambda cfg, g, K, num_agents=20, seed=None: scores[g])
     cands = [{"genome": "A"}, {"genome": "B"}, {"no_genome": True}, {"genome": "C"}]
     ranked = robust_hof.robust_rank(WorldConfig(), cands, K=3)
     assert [g for _s, c in ranked for g in [c["genome"]]] == ["B", "A", "C"]   # 9 > 5 > 2

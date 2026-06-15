@@ -13,6 +13,7 @@ import numpy as np
 
 from src.environments.config import WorldConfig
 from src.seed_ai.mutation import Genome
+from src.seed_ai.harness import seed_at, Harness
 
 APEX_IN = 4              # on_apex_type : entrée 4 (world_1_stoneage ligne 477)
 TOK_LO, TOK_HI = 19, 23  # token : logits[19:23] (world_1_stoneage ligne 969)
@@ -91,25 +92,36 @@ def train_pop(seeds_pop, I, O, N, M=3, steps=4000, lr=0.01, seed=0):
     return float(np.mean(accs))
 
 
-def main(seeds=range(6), pop=6):
-    cfg = WorldConfig()
-    I, O = cfg.agent.num_inputs, cfg.agent.num_outputs
-    N = max(I + O + 5, 172)
-    print(f"JEU REFERENTIEL sur le VRAI connectome (I={I} O={O} N={N}) : apex@in{APEX_IN} -> token@out{TOK_LO}:{TOK_HI}")
-    print(f"  referents = {REFNAMES} (valeurs {APEX_VALUES})")
-    accs = []
-    for s in seeds:
-        a = train_pop(pop, I, O, N, seed=s)
-        accs.append(a)
-        print(f"  seed {s}: decode_croise = {a:.2f}")
-    rate = np.mean([a > 0.9 for a in accs])
-    print("\n=== VERDICT ===")
-    print(f"  decode croise moyen = {np.mean(accs):.3f} ; convergence(>0.9) = {rate*100:.0f}% (biosphere mutation ~25%)")
-    if np.mean(accs) > 0.9 and rate >= 0.8:
-        print("  -> le VRAI connectome apprend un code referentiel apex PARTAGE et FIABLE par gradient.")
-        print("     Architecture reelle validee -> pret pour le cablage dans la boucle vivante (decode head + pairing).")
-    else:
-        print("  -> convergence partielle sur le vrai connectome (l'entree scalaire unique complique).")
+def main(seeds=range(6), pop=6, seed=None):
+    with Harness(seed=seed, name="refgame_bio", with_db=False) as h:
+        base = h.seed
+        cfg = WorldConfig()
+        I, O = cfg.agent.num_inputs, cfg.agent.num_outputs
+        N = max(I + O + 5, 172)
+        print(f"JEU REFERENTIEL sur le VRAI connectome (I={I} O={O} N={N}) : apex@in{APEX_IN} -> token@out{TOK_LO}:{TOK_HI} seed={base}.")
+        print(f"  referents = {REFNAMES} (valeurs {APEX_VALUES})")
+        accs = []
+        for i, s in enumerate(seeds):
+            seed_at(base, i)              # APPARIEMENT (D1) : même i -> même monde entre runs
+            a = train_pop(pop, I, O, N, seed=base + i)
+            accs.append(a)
+            print(f"  seed {s}: decode_croise = {a:.2f}")
+        rate = np.mean([a > 0.9 for a in accs])
+        print("\n=== VERDICT ===")
+        print(f"  decode croise moyen = {np.mean(accs):.3f} ; convergence(>0.9) = {rate*100:.0f}% (biosphere mutation ~25%)")
+        if np.mean(accs) > 0.9 and rate >= 0.8:
+            print("  -> le VRAI connectome apprend un code referentiel apex PARTAGE et FIABLE par gradient.")
+            print("     Architecture reelle validee -> pret pour le cablage dans la boucle vivante (decode head + pairing).")
+        else:
+            print("  -> convergence partielle sur le vrai connectome (l'entree scalaire unique complique).")
+        h.save({
+            "accs": [float(a) for a in accs],
+            "mean_acc": float(np.mean(accs)),
+            "convergence_rate": float(rate),
+            "N": N,
+            "I": I,
+            "O": O,
+        })
 
 
 if __name__ == "__main__":

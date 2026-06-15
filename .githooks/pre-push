@@ -1,0 +1,24 @@
+#!/bin/sh
+# Garde-fou anti-dette CI (AGIseed).
+# Lance EXACTEMENT les tests Python du pipeline CI (.github/workflows/ci.yml, étape "Run Python tests")
+# AVANT chaque push. Bloque le push s'ils échouent -> on ne peut plus pousser du rouge sur ces tests.
+#
+# Activation (une fois par clone) :   git config core.hooksPath .githooks
+# Bypass ponctuel (dernier recours) : git push --no-verify
+#
+# Note : ne couvre que l'étape tests Python (rapide, déterministe). Les étapes lourdes du CI
+# (build frontend, docker, e2e Playwright) restent vérifiées côté CI/PR.
+
+echo "[pre-push] Tests CI (python) avant push..."
+python -m pytest tests/test_backend.py tests/sandbox/test_visualization.py -q
+status=$?
+
+if [ "$status" -ne 0 ]; then
+  echo ""
+  echo "[pre-push] ECHEC : les tests CI python echouent -> push BLOQUE."
+  echo "           Corrige les tests, ou en dernier recours : git push --no-verify"
+  exit 1
+fi
+
+echo "[pre-push] OK -> push autorise."
+exit 0
