@@ -214,6 +214,7 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="Parity check narration EDR <-> frontend (étape 1)")
     ap.add_argument("--repo", default=None, help="racine du repo (défaut : auto)")
     ap.add_argument("--staged", action="store_true", help="classer le diff stagé et n'agir que si EXPERIENCE")
+    ap.add_argument("--warn", action="store_true", help="mode non bloquant (défaut) — explicite pour le hook")
     ap.add_argument("--strict", action="store_true", help="exit 1 si invariant dur violé (CI)")
     ap.add_argument("--recent", type=int, default=10, help="fenêtre des EDR récents à couvrir")
     args = ap.parse_args(argv)
