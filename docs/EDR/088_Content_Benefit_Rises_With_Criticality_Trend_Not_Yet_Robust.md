@@ -95,3 +95,43 @@ clore. Deux leviers, **dans cet ordre** :
 Fraction de pièges (criticalité), **K/puissance** (12→16→24+), point de criticalité extrême (0.95),
 métrique nette vs kills-seuls, hétérogénéité des positifs (Mammouth vs Mammouth+Ours), substrat HoF vs
 ré-évolué dans le monde critique. Provenance : `results/lewis_critical_2026.json` (seed 2026, repro D1).
+
+---
+
+## Addendum (2027) — la réplication tue la tendance : **Arc 4 ne se clôt pas** (négatif durci)
+
+Suite du « vrai prochain levier » : on pousse à **criticalité extrême** (niveaux 0.67/0.83/**0.95**) avec
+**K=24** (seed 2027, `results/lewis_critical_2027.json`). Si l'effet-contenu y devenait robuste, Arc 4
+se clôturait. **Il ne l'est pas — et la tendance de la grille principale ne réplique pas.**
+
+| Leurre | FIABLE−BROUILLÉ (net) | win | Wilcoxon p | net FIA / BROU / SOLO |
+|---|---|---|---|---|
+| 0.67 | +0.92 ± 0.75 | 54 % | 0.352 | 2.8 / 1.9 / 0.9 |
+| 0.83 | **−0.33 ± 0.56** | 46 % | 0.712 | 0.3 / 0.6 / −0.4 |
+| 0.95 | +0.29 ± 0.27 | 42 % | 0.295 | −1.2 / −1.5 / −1.2 |
+| **tendance** | JT z=**−0.66**, p=**0.746** ; pente −2.53 | — | — | — |
+
+- **À 0.95 (1 Mammouth, 11 Leurres)** : contenu = +0.29, **non robuste** (IC95=[−0.25, +0.83] inclut 0,
+  p=0.295). **Pas de clôture.** Le `net` est négatif pour *tous* les bras (le monde est si hostile que
+  même bien discriminer ne sauve pas).
+- **La tendance ne réplique pas** : la grille principale (2026) donnait JT **p=0.013** (positive) ; ici
+  (2027, autre jeu de seeds, K plus grand) **p=0.746** (rien), et **0.83 change de signe** (+0.75 → −0.33).
+
+> **Une p<0.05 sur UNE grille n'a pas tenu sur DEUX.** C'est la leçon la plus forte de 088 : au-delà de
+> *powerer*, il faut **répliquer**. Le « +0.75 / tendance p=0.013 » de 2026 était un tirage non-réplicable.
+
+### Verdict consolidé (2026 ⊕ 2027)
+
+**Arc 4 NE se clôt PAS. Le contenu du langage ne paye pas robustement — même dans un monde engineeré pour
+rendre la distinction décisionnellement critique jusqu'à l'extrême (0.95).** Cela **confirme et durcit
+EDR 087** (le bénéfice est du téléguidage, pas du contenu) : rendre la discrimination *décisive* ne
+suffit pas ; les agents **n'exploitent pas le contenu même quand il est critique**.
+
+### Le vrai verrou (re-pointé)
+
+C'est l'**issue #2** anticipée par le pré-enregistrement (« négatif profond → ré-ouvre *pourquoi pas* »).
+La réponse pointe vers **EDR 083** : ce n'est pas la *disponibilité* ni la *criticalité* du contenu qui
+manque, c'est que l'**USAGE** du signal n'est pas sous **pression de sélection**. Le décode-et-agis est
+*imposé* (gated), pas *sélectionné* — comme en 082. Prochain levier : **co-évoluer l'écoute/l'usage du
+langage** avec la survie (sélectionner les agents qui *agissent* mieux sur le signal), pas engineerer le
+monde davantage. Le monde de Lewis fournit la *demande* ; il manque la *sélection de la réponse*.
