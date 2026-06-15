@@ -1,6 +1,7 @@
 import {
   Activity,
   BarChart3,
+  Database,
   FlaskConical,
   Gamepad2,
   GraduationCap,
@@ -21,6 +22,7 @@ export const TAB_KEYS = [
   "laboratoire",
   "timeline",
   "sandbox",
+  "runs",
 ] as const;
 
 export type TabKey = (typeof TAB_KEYS)[number];
@@ -58,6 +60,7 @@ export const TAB_FAMILIES: TabFamily[] = [
     tabs: [
       { key: "laboratoire", label: "Laboratoire", icon: FlaskConical },
       { key: "sandbox", label: "Bac à sable", icon: Gamepad2 },
+      { key: "runs", label: "Historique runs", icon: Database },
     ],
   },
   {

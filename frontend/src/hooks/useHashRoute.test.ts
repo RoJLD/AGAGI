@@ -27,4 +27,18 @@ describe("useHashRoute", () => {
     const { result } = renderHook(() => useHashRoute(TABS, "edr"));
     expect(result.current.tab).toBe("edr");
   });
+
+  it("expose les paramètres de query (ex: ab pour le deep-link A/B)", () => {
+    window.location.hash = "#/comparison?ab=robust_eval";
+    const { result } = renderHook(() => useHashRoute(TABS, "edr"));
+    expect(result.current.tab).toBe("comparison");
+    expect(result.current.query.ab).toBe("robust_eval");
+  });
+
+  it("navigate écrit un hash avec onglet + paramètres", () => {
+    const { result } = renderHook(() => useHashRoute(TABS, "edr"));
+    result.current.navigate("comparison", { ab: "baseline" });
+    expect(window.location.hash).toContain("/comparison");
+    expect(window.location.hash).toContain("ab=baseline");
+  });
 });
