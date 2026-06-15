@@ -65,6 +65,24 @@ async def websocket_flatland(websocket: WebSocket):
         pass
 
 
+@app.websocket("/ws/flatland/{run_id}")
+async def websocket_flatland_run(websocket: WebSocket, run_id: str):
+    await websocket.accept()
+    from .flatland_server import flatland_manager
+    server = flatland_manager.get_run(run_id)
+    if server is None:
+        await websocket.close(code=1008)        # run inconnu
+        return
+    if not server.running:
+        server.start(loop=asyncio.get_running_loop())
+    try:
+        while True:
+            frame = await server.queue.get()
+            await websocket.send_json(frame)
+    except WebSocketDisconnect:
+        pass
+
+
 @app.websocket("/ws/evolution")
 async def websocket_evolution(websocket: WebSocket) -> None:
     await websocket.accept()

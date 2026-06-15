@@ -126,3 +126,21 @@ def test_flatland_delete_unknown_returns_404() -> None:
 def test_flatland_bad_override_returns_400() -> None:
     r = client.post("/api/flatland/runs", json={"config_overrides": {"evil_key": 1}, "pop_size": 2})
     assert r.status_code == 400
+
+
+def test_ws_flatland_run_id_streams_frames() -> None:
+    rid = client.post("/api/flatland/runs", json={"pop_size": 2, "label": "wt"}).json()["run_id"]
+    try:
+        with client.websocket_connect(f"/ws/flatland/{rid}") as ws:
+            frame = ws.receive_json()
+            assert "agents" in frame and "summary" in frame
+    finally:
+        client.delete(f"/api/flatland/runs/{rid}")
+
+
+def test_ws_flatland_unknown_run_closes() -> None:
+    from starlette.websockets import WebSocketDisconnect
+    import pytest
+    with pytest.raises(WebSocketDisconnect):
+        with client.websocket_connect("/ws/flatland/__nope__") as ws:
+            ws.receive_json()
