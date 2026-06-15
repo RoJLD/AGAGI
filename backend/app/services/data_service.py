@@ -287,6 +287,9 @@ class ExperimentDataService:
             histories[gate] = self.get_history(gate)
             graph_data[gate] = self._load_graph_data(gate)
 
+        if not histories:  # aucune donnée (results/ vide, ex. CI) -> liste vide au lieu de crasher
+            return []
+
         max_fitness = max((history.fitness[-1] for history in histories.values()), default=1.0)
         max_size = max(
             (
