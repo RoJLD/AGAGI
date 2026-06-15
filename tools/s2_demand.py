@@ -4,6 +4,7 @@ Champion HoF + 3 baselines (RandomAction, RandomGenome, Reflex) x 4 mondes, surv
 censurée + life_score (cohérence), appariement seedé (Harness D1), verdict IUT+Holm 3 issues.
 Pré-enregistrement : docs/superpowers/specs/2026-06-14-S2-World-Demands-Intelligence-design.md.
 """
+import math
 import numpy as np
 from src.seed_ai.harness import seed_at
 from src.seed_ai.persistence import calculate_life_score, load_hall_of_fame
@@ -68,3 +69,27 @@ CONDITIONS = {
     "reflex_naive":    {"batch_model_cls": ReflexBatchModel,        "fresh_genome": True},
     "reflex_prudent":  {"batch_model_cls": _reflex_prudent,         "fresh_genome": True},
 }
+
+
+K_FLOOR = 12                 # plancher pré-enregistré (réf EDR 087), spec §9
+Z_ALPHA = 1.96               # alpha=0.05 bilatéral
+Z_POWER = 0.84               # puissance 0.80
+
+
+def required_k(mean_diff, std_diff, floor=K_FLOOR):
+    """K requis pour détecter un effet apparié (t apparié) à puissance 0.80, alpha 0.05.
+    K = ((z_alpha + z_power) / d)^2, d = |mean_diff|/std_diff. Planché à K_FLOOR."""
+    if mean_diff == 0.0 or std_diff <= 0.0:
+        return floor
+    d = abs(mean_diff) / std_diff
+    k = math.ceil(((Z_ALPHA + Z_POWER) / d) ** 2)
+    return max(floor, int(k))
+
+
+def pilot_required_k(world_cls, champion_genome, seed, k_pilot=5):
+    """Pilote : survie champion vs réflexe naïf sur k_pilot ères, -> K requis (par monde)."""
+    champ = run_condition(world_cls, None, champion_genome, seed, n_eras=k_pilot)["survival"]
+    refl = run_condition(world_cls, ReflexBatchModel, None, seed, n_eras=k_pilot)["survival"]
+    m = min(len(champ), len(refl))
+    diff = np.array(champ[:m], dtype=float) - np.array(refl[:m], dtype=float)
+    return required_k(float(np.mean(diff)), float(np.std(diff) + 1e-9))

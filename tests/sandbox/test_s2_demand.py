@@ -39,3 +39,17 @@ def test_load_champion_raises_on_empty_hof(monkeypatch):
         assert False, "doit lever si HoF vide"
     except RuntimeError:
         pass
+
+
+from tools.s2_demand import required_k
+
+
+def test_required_k_floor_is_12():
+    # effet énorme, variance faible -> K calculé petit, mais plancher = 12 (réf EDR 087)
+    assert required_k(mean_diff=100.0, std_diff=5.0) == 12
+
+
+def test_required_k_grows_with_noise():
+    k_low = required_k(mean_diff=10.0, std_diff=5.0)
+    k_high = required_k(mean_diff=10.0, std_diff=40.0)
+    assert k_high > k_low >= 12
