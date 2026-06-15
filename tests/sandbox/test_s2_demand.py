@@ -21,3 +21,21 @@ def test_run_condition_is_reproducible():
     a = run_condition(Biosphere3D, RandomActionBatchModel, None, seed=7, num_agents=3, max_ticks=6, n_eras=2)
     b = run_condition(Biosphere3D, RandomActionBatchModel, None, seed=7, num_agents=3, max_ticks=6, n_eras=2)
     assert a["survival"] == b["survival"]
+
+
+from tools.s2_demand import load_champion_genome, CONDITIONS
+
+
+def test_conditions_cover_the_ladder():
+    keys = set(CONDITIONS)
+    assert {"champion", "random_action", "random_genome", "reflex_naive", "reflex_prudent"} <= keys
+
+
+def test_load_champion_raises_on_empty_hof(monkeypatch):
+    import tools.s2_demand as s2
+    monkeypatch.setattr(s2, "load_hall_of_fame", lambda: (2, []))
+    try:
+        load_champion_genome()
+        assert False, "doit lever si HoF vide"
+    except RuntimeError:
+        pass

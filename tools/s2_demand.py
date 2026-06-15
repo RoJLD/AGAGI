@@ -6,7 +6,8 @@ Pré-enregistrement : docs/superpowers/specs/2026-06-14-S2-World-Demands-Intelli
 """
 import numpy as np
 from src.seed_ai.harness import seed_at
-from src.seed_ai.persistence import calculate_life_score
+from src.seed_ai.persistence import calculate_life_score, load_hall_of_fame
+from src.agents.baseline_models import RandomActionBatchModel, ReflexBatchModel
 
 
 def run_condition(world_cls, batch_model_cls, genome, seed, num_agents=20, max_ticks=400, n_eras=1):
@@ -43,3 +44,27 @@ def run_condition(world_cls, batch_model_cls, genome, seed, num_agents=20, max_t
             env.memory_retriever.stop()
     n = max(1, len(survival))
     return {"survival": survival, "life_score": life, "censored_frac": censored / n}
+
+
+def load_champion_genome():
+    """Génome du #1 du HoF. Lève si le HoF est vide (pas de `except: pass` silencieux, blocker panel)."""
+    _version, entries = load_hall_of_fame()
+    if not entries:
+        raise RuntimeError("HoF vide : impossible de lancer S2 sans champion. Évoluer d'abord (main_biosphere).")
+    return entries[0].genome
+
+
+# Les 5 conditions par monde. (batch_model_cls, fresh_genome) :
+#  - champion / random_genome -> moteur normal (None) ; genome fourni ou frais.
+#  - random_action / reflex -> baseline injecté.
+def _reflex_prudent(agents, world_model=None):
+    return ReflexBatchModel(agents, world_model, prudent=True)
+
+
+CONDITIONS = {
+    "champion":        {"batch_model_cls": None,                    "fresh_genome": False},
+    "random_genome":   {"batch_model_cls": None,                    "fresh_genome": True},
+    "random_action":   {"batch_model_cls": RandomActionBatchModel,  "fresh_genome": True},
+    "reflex_naive":    {"batch_model_cls": ReflexBatchModel,        "fresh_genome": True},
+    "reflex_prudent":  {"batch_model_cls": _reflex_prudent,         "fresh_genome": True},
+}
