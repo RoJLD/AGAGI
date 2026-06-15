@@ -20,3 +20,13 @@ def test_metrics_queue_size_reflects_pending():
     lg._running = True                 # autorise emit() sans démarrer le worker
     lg.emit("PING", {"x": 1})
     assert lg.metrics()["queue_size"] == 1
+
+
+def test_run_start_sets_current_run_without_db():
+    lg = AsyncLogger(db_path="data/nonexistent_test.db")
+    # _process_event avec conn=None ne doit pas crasher ET doit poser l'état run (en mémoire)
+    lg._process_event({"type": "RUN_START", "timestamp": 1,
+                       "payload": {"name": "exp", "seed": 7, "commit": "abc", "config_hash": "h"}}, None)
+    assert lg._current_run == "run_7_abc"
+    lg._process_event({"type": "RUN_END", "timestamp": 2, "payload": {}}, None)
+    assert lg._current_run is None

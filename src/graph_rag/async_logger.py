@@ -201,8 +201,13 @@ class AsyncLogger:
         e_type = event["type"]
         payload = event["payload"]
         timestamp = event["timestamp"]
-        
-        
+
+        # Provenance : état du Run courant, suivi en mémoire (même sans DB).
+        if e_type == "RUN_START":
+            self._current_run = f"run_{payload.get('seed')}_{payload.get('commit')}"
+        elif e_type == "RUN_END":
+            self._current_run = None
+
         if conn is None:
             # Mode fallback si pas de kuzu — log seulement
             log.debug(f"Event (no KuzuDB): {e_type} @ {timestamp}: {payload}")
@@ -232,7 +237,19 @@ class AsyncLogger:
                 except Exception:
                     pass
                 conn.execute(f"CREATE (l:LanguageAlignment {{id: '{event_id}', agent_a: '{payload.get('a')}', agent_b: '{payload.get('b')}', item_type: '{item_type}', v0: {vec[0]}, v1: {vec[1]}, v2: {vec[2]}, v3: {vec[3]}}})")
-                
+
+            elif e_type == "RUN_START":
+                try:
+                    conn.execute("CREATE NODE TABLE IF NOT EXISTS Run (id STRING, name STRING, seed INT64, commit STRING, config_hash STRING, git_dirty BOOLEAN, timestamp DOUBLE, PRIMARY KEY (id))")
+                    rid = self._current_run
+                    gd = "true" if payload.get("git_dirty") else "false"
+                    conn.execute(
+                        f"MERGE (r:Run {{id: '{rid}'}}) SET r.name = '{payload.get('name','')}', "
+                        f"r.seed = {int(payload.get('seed', 0))}, r.commit = '{payload.get('commit','')}', "
+                        f"r.config_hash = '{payload.get('config_hash','')}', r.git_dirty = {gd}, r.timestamp = {timestamp}")
+                except Exception as ex:
+                    log.warning(f"RUN_START node write failed: {ex}")
+
             elif e_type == "TREASURE_FOUND":
                 log.info(f"TREASURE_FOUND: {payload.get('agent_id')}")
                 
@@ -311,6 +328,13 @@ class AsyncLogger:
                         conn.execute(f"MATCH (r:Result {{id: '{result_id}'}}), (a:Agent {{id: '{best_agent_id}'}}) MERGE (r)-[:YIELDED_BEST_AGENT]->(a)")
                         
                     log.info(f"ERA_RESULT logged: era={version}, max={max_score:.1f}, mean={mean_score:.1f}")
+
+                    if self._current_run:
+                        try:
+                            conn.execute("CREATE REL TABLE IF NOT EXISTS BELONGS_TO_RUN (FROM Result TO Run)")
+                            conn.execute(f"MATCH (r:Result {{id: '{result_id}'}}), (run:Run {{id: '{self._current_run}'}}) MERGE (r)-[:BELONGS_TO_RUN]->(run)")
+                        except Exception as ex:
+                            log.warning(f"BELONGS_TO_RUN link failed: {ex}")
                 except Exception as inner_e:
                     log.warning(f"ERA_RESULT partial write: {inner_e}")
                     
