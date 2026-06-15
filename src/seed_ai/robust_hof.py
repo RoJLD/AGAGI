@@ -9,17 +9,21 @@ indépendantes (clones) et moyenner le life_score avant de committer. Gated par 
 Imports paresseux (Biosphere3D/MambaAgent) pour éviter toute circularité avec le monde.
 """
 import numpy as np
+from src.seed_ai.harness import seed_at
 
 
-def robust_evaluate(config, genome, K=3, num_agents=20, max_ticks=400):
+def robust_evaluate(config, genome, K=3, num_agents=20, max_ticks=400, seed=None):
     """Compétence robuste d'un génome : moyenne du meilleur life_score sur K ères de clones.
-    De-bruite la sélection HoF. Renvoie 0.0 si aucune ère scorable."""
+    De-bruite la sélection HoF. seed fourni -> ères seedées base+i (reproductible + apparié).
+    Renvoie 0.0 si aucune ère scorable."""
     from src.worlds.world_1_stoneage import Biosphere3D
     from src.agents.mamba_agent import MambaAgent
     from src.seed_ai.persistence import calculate_life_score
 
     scores = []
-    for _ in range(max(1, int(K))):
+    for i in range(max(1, int(K))):
+        if seed is not None:
+            seed_at(seed, i)
         env = Biosphere3D(config)
         for _ in range(num_agents):
             a = MambaAgent()
@@ -38,14 +42,16 @@ def robust_evaluate(config, genome, K=3, num_agents=20, max_ticks=400):
     return float(np.mean(scores)) if scores else 0.0
 
 
-def robust_rank(config, candidates, K, num_agents=20):
+def robust_rank(config, candidates, K, num_agents=20, seed=None):
     """Trie des candidats (dicts agent avec 'model'.genome ou 'genome') par compétence ROBUSTE.
+    seed fourni -> TOUS les candidats sont évalués sur les MÊMES K mondes (appariement) -> ranking
+    de-bruité et reproductible. seed=None -> comportement historique (mondes non appariés).
     Renvoie [(robust_score, candidate)] décroissant. Utilisé avant save_to_hall_of_fame."""
     out = []
     for c in candidates:
         g = c["model"].genome if "model" in c else c.get("genome")
         if g is None:
             continue
-        out.append((robust_evaluate(config, g, K, num_agents), c))
+        out.append((robust_evaluate(config, g, K, num_agents, seed=seed), c))
     out.sort(key=lambda x: x[0], reverse=True)
     return out

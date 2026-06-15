@@ -160,8 +160,7 @@ def main():
     keep_memory = os.getenv("KEEP_MEMORY", "0") == "1"
     
     config = WorldConfig()
-    config.robust_hof_K = 4   # EDR 080 (reco) : sélection HoF ROBUSTE pour les vraies runs (+~45% compétence,
-                              # résultat + fiable). Défaut WorldConfig reste 0 (tests/outils inchangés).
+
     os.environ["ACTIVE_EXP_VARIABLE"] = config.active_exp_variable
 
     logger.info(f"🌍 Monde sélectionné : {world_type.upper()}")
@@ -190,6 +189,26 @@ def main():
     del tracker
     
     config = WorldConfig()
+    config.robust_hof_K = 4   # EDR 080/081 : sélection HoF ROBUSTE en prod (+~50% compétence qui compose).
+                              # FIX : posé ICI (config vivant) — l'ancienne pose était écrasée par cette
+                              # ré-instanciation de config. Défaut WorldConfig reste 0 (tests/outils inchangés).
+
+    # D1 — provenance : seed le RNG global au boot et LOGGE la graine (rejouable via EXPERIMENT_SEED).
+    # Placé ICI (après la 2e instanciation de config) pour que experiment_seed survive sur le config
+    # réellement utilisé par la boucle.
+    from src.seed_ai.harness import SeedManager
+    _env_seed = os.getenv("EXPERIMENT_SEED")
+    if _env_seed:
+        try:
+            _parsed_seed = int(_env_seed)
+        except ValueError:
+            raise ValueError(f"EXPERIMENT_SEED doit etre un entier, recu : {_env_seed!r}")
+    else:
+        _parsed_seed = None
+    config.experiment_seed = SeedManager.resolve(_parsed_seed)
+    SeedManager(config.experiment_seed).seed_boundary(0)
+    logger.info(f"[SEED] experiment_seed={config.experiment_seed}  (rejouer : EXPERIMENT_SEED={config.experiment_seed})")
+
     generation_auto = 1
     MAX_ERAS = 30
     MAX_TICKS_PER_ERA = 1200  # garde-temps : evite un hang si une population se stabilise
@@ -350,7 +369,11 @@ def main():
                 # EDR 079 : ré-évaluer les candidats sur K ères et committer le score ROBUSTE (de-bruite
                 # la sélection -> +27% de compétence vraie). Gated ; défaut = comportement historique.
                 from src.seed_ai.robust_hof import robust_rank
-                for rscore, cand in robust_rank(config, top, robust_K):
+                # D1 — appariement : tous les candidats d'une ère sont classés sur les MÊMES K mondes
+                # (seed par ère, dérivé de experiment_seed) -> ranking de-bruité ; varié entre ères.
+                _es = getattr(config, "experiment_seed", None)
+                rank_seed = (_es + generation_auto * 1_000_000) if _es is not None else None
+                for rscore, cand in robust_rank(config, top, robust_K, seed=rank_seed):
                     save_to_hall_of_fame(cand, score=rscore)
             else:
                 for cand in top:
