@@ -10,15 +10,25 @@ from src.swarm.hgt import HorizontalGeneTransfer, HGTConfig
 from src.worlds.world_1_stoneage import Biosphere3D
 from src.agents.mamba_agent import MambaAgent
 
+# Overrides de config autorisés pour un run (la "variable d'intervention" de l'A/B). Spec §5.
+WHITELIST = {"active_exp_variable", "robust_hof_K", "mutation_rate", "base_metabolism",
+             "forage_payoff", "size", "num_altars", "prey_mode"}
+
 class FlatlandServer:
-    def __init__(self):
-        self.cfg = WorldConfig(size=32, num_altars=5, prey_mode="semi")
+    def __init__(self, config_overrides=None, pop_size=10, label=None):
+        cfg = WorldConfig(size=32, num_altars=5, prey_mode="semi")
+        for k, v in (config_overrides or {}).items():
+            if k not in WHITELIST:
+                raise ValueError(f"override de config non autorise: {k} (autorises: {sorted(WHITELIST)})")
+            setattr(cfg, k, v)
+        self.cfg = cfg
+        self.label = label
         self.world = Biosphere3D(self.cfg)
         self.queue = None
         self.running = False
         self.loop = None
         self.era = 1                 # run ÉVOLUTIVE live : la pop descend du HoF, qui s'améliore par ère
-        self.pop_size = 10
+        self.pop_size = pop_size
         self._seed_from_hof()
 
     def _seed_from_hof(self):
@@ -206,4 +216,4 @@ class FlatlandServer:
     def stop(self):
         self.running = False
 
-flatland_server = FlatlandServer()
+flatland_server = FlatlandServer(label="default")
