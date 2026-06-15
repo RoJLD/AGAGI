@@ -18,3 +18,11 @@ def test_measure_full_components_reproducible():
     assert set(a) == {"kills", "nets", "survs"}
     assert len(a["kills"]) == 2 and len(a["nets"]) == 2 and len(a["survs"]) == 2
     assert a == b                                  # seedé -> reproductible (apparié)
+
+
+def test_main_runs_and_is_reproducible(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    a = cul.main(R=2, gens=2, num_agents=6, K=1, n_eval=2, seed=3, _return=True)
+    b = cul.main(R=2, gens=2, num_agents=6, K=1, n_eval=2, seed=3, _return=True)
+    assert a["d_kills"] == b["d_kills"]            # apparié/seedé + runner clean -> identique
+    assert len(a["d_kills"]) == 2 and "verdict" in a and "surv_med" in a
