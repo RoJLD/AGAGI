@@ -22,4 +22,9 @@ export const queryKeys = {
     article: ["sandbox", "article"] as const,
     state: ["sandbox", "state"] as const,
   },
+  runs: {
+    list: ["runs"] as const,
+    conditions: ["runs", "conditions"] as const,
+    compare: (a: string, b: string, metric: string) => ["runs", "compare", a, b, metric] as const,
+  },
 } as const;

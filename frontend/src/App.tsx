@@ -10,6 +10,8 @@ import { SandboxView } from "./components/SandboxView";
 import { EDRDashboard } from "./components/EDRDashboard";
 import { LiveMetrics } from "./components/LiveMetrics";
 import { FlatlandViewer } from "./components/FlatlandViewer";
+import { ABComparisonView } from "./components/ABComparisonView";
+import { Button } from "./components/ui/Button";
 import { useTheme } from "./hooks/useTheme";
 import { useHashRoute } from "./hooks/useHashRoute";
 import { TAB_KEYS, TAB_FAMILIES } from "./tabs";
@@ -69,6 +71,7 @@ export default function App() {
     staleTime: Infinity,
   });
   const [wsLog, setWsLog] = useState<string[]>([]);
+  const [compareMode, setCompareMode] = useState<"global" | "ab">("global");
 
   const selectedExperiment = useMemo(() => experiments.find((item) => item.gate === selectedGate), [experiments, selectedGate]);
 
@@ -262,20 +265,37 @@ export default function App() {
 
           {tab === "comparison" && (
             <>
-              <h2>Comparaison des portes</h2>
-              <ComparisonChart experiments={experiments} />
-              <RadarChart experiments={experiments} />
-              <div className="comparison-list">
-                {experiments.map((item) => (
-                  <div key={item.gate} className="comparison-card">
-                    <strong>{item.gate}</strong>
-                    <span>Fitness: {item.latest_fitness.toFixed(3)}</span>
-                    <span>Précision: {formatPercentage(item.latest_accuracy)}</span>
-                    {item.robustness_score !== undefined && <span>Robustesse: {item.robustness_score.toFixed(3)}</span>}
-                    {item.performance_stability !== undefined && <span>Stabilité: {item.performance_stability.toFixed(3)}</span>}
-                  </div>
-                ))}
+              <div className="row mb-4">
+                <Button variant={compareMode === "global" ? "primary" : "ghost"} size="sm" onClick={() => setCompareMode("global")}>
+                  Vue globale
+                </Button>
+                <Button variant={compareMode === "ab" ? "primary" : "ghost"} size="sm" onClick={() => setCompareMode("ab")}>
+                  A/B rigoureux
+                </Button>
               </div>
+              {compareMode === "ab" ? (
+                <>
+                  <h2>A/B rigoureux (runs multi-seed)</h2>
+                  <ABComparisonView />
+                </>
+              ) : (
+                <>
+                  <h2>Comparaison des portes</h2>
+                  <ComparisonChart experiments={experiments} />
+                  <RadarChart experiments={experiments} />
+                  <div className="comparison-list">
+                    {experiments.map((item) => (
+                      <div key={item.gate} className="comparison-card">
+                        <strong>{item.gate}</strong>
+                        <span>Fitness: {item.latest_fitness.toFixed(3)}</span>
+                        <span>Précision: {formatPercentage(item.latest_accuracy)}</span>
+                        {item.robustness_score !== undefined && <span>Robustesse: {item.robustness_score.toFixed(3)}</span>}
+                        {item.performance_stability !== undefined && <span>Stabilité: {item.performance_stability.toFixed(3)}</span>}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </>
           )}
 

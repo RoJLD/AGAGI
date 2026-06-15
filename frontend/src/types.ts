@@ -74,3 +74,33 @@ export interface Article {
   content: string;
   timestamp: string;
 }
+
+export interface ConditionSummary {
+  name: string;
+  n_seeds: number;
+  seeds: number[];
+  metrics: string[];
+}
+
+export interface ABGroup {
+  name: string;
+  mean: number;
+  std: number;
+  vals: number[];
+  n: number;
+}
+
+export interface ABCompareResult {
+  metric: string;
+  a: ABGroup;
+  b: ABGroup;
+  t: number;
+  d: number;
+  significant: boolean;
+  winner: string | null;
+  underpowered: boolean;
+  verdict_label: string;
+  verdict_detail: string;
+  t_thresh: number;
+  d_thresh: number;
+}
