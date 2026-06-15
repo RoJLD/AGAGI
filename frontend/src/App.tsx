@@ -152,7 +152,7 @@ export default function App() {
       <header className="topbar">
         <div>
           <h1>AGIseed Dashboard</h1>
-          <p>Phase 0 à 3 : API FastAPI + React + D3 + WebSocket</p>
+          <p>Instrument d'expérimentation — biosphère évolutive, runs multi-seed &amp; A/B rigoureux</p>
         </div>
         <div className="topbar-right">
           <button className="theme-toggle" onClick={toggle} aria-label="Basculer le thème">
