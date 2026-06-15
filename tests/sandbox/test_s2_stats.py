@@ -79,3 +79,40 @@ def test_holm_caps_at_one():
 def test_iut_pvalue_is_max():
     # Intersection-Union : on ne rejette que si TOUTES rejettent -> p = max
     assert iut_pvalue([0.01, 0.2, 0.03]) == 0.2
+
+
+import numpy as np
+from src.seed_ai.s2_stats import s2_verdict
+
+
+def _rng_arr(seed, lo, hi, n=14):
+    return list(np.random.default_rng(seed).uniform(lo, hi, n))
+
+
+def test_verdict_exige_when_champion_dominates():
+    surv_champ = _rng_arr(1, 200, 260)
+    surv_base = {"random": _rng_arr(2, 10, 30), "newborn": _rng_arr(3, 20, 40), "reflex": _rng_arr(4, 40, 70)}
+    life_champ = _rng_arr(5, 2000, 3000)
+    life_base = {"random": _rng_arr(6, 0, 50), "newborn": _rng_arr(7, 0, 80), "reflex": _rng_arr(8, 50, 200)}
+    v = s2_verdict(surv_champ, surv_base, life_champ, life_base)
+    assert v["verdict"] == "EXIGE"
+    assert v["coherence_ok"] is True
+
+
+def test_verdict_void_when_champion_fails_coherence():
+    # champion ne bat PAS les baselines sur sa propre fitness (life_score) -> VOID
+    surv_champ = _rng_arr(1, 200, 260)
+    surv_base = {"reflex": _rng_arr(4, 40, 70)}
+    life_champ = _rng_arr(9, 0, 10)              # life_score champion FAIBLE
+    life_base = {"reflex": _rng_arr(10, 100, 300)}
+    v = s2_verdict(surv_champ, surv_base, life_champ, life_base)
+    assert v["verdict"] == "VOID"
+
+
+def test_verdict_nexige_pas_when_champion_equiv_reflex():
+    surv_champ = _rng_arr(1, 40, 70)
+    surv_base = {"random": _rng_arr(2, 10, 30), "reflex": _rng_arr(4, 40, 70)}
+    life_champ = _rng_arr(5, 500, 800)
+    life_base = {"random": _rng_arr(6, 0, 50), "reflex": _rng_arr(8, 50, 200)}
+    v = s2_verdict(surv_champ, surv_base, life_champ, life_base)
+    assert v["verdict"] == "N'EXIGE PAS"

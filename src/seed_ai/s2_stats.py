@@ -110,3 +110,62 @@ def iut_pvalue(pvals):
     CONJONCTIF), la p-value du monde = MAX des p-values. Contrôle déjà le type-I à alpha, SANS
     correction (propriété IUT). C'est le bon outil pour un min-test, pas Holm."""
     return float(np.max(np.asarray(pvals, dtype=float)))
+
+
+# Seuils PRÉ-ENREGISTRÉS (spec §8). Modifiables UNIQUEMENT via l'addendum post-pilote daté.
+ALPHA = 0.05
+CLIFF_THRESH = 0.33        # "large" (Romano) — effet principal
+RATIO_LO_THRESH = 1.3      # borne_inf de l'IC bootstrap du ratio de médianes (corroborant)
+EQUIV_MARGIN = 0.21        # |Cliff| < 0.21 = effet "negligible/petit" (Vargha-Delaney) -> équivalence (placeholder pilote)
+
+
+def _compare(champ, base):
+    """Une comparaison appariée champion-vs-baseline -> dict de stats."""
+    champ = np.asarray(champ, dtype=float)
+    base = np.asarray(base, dtype=float)
+    d = champ - base
+    _w, p = wilcoxon_signed_rank(d)
+    delta = cliffs_delta(champ, base)
+    ratio = median_ratio(champ, base)
+    ratio_lo, ratio_hi = bootstrap_ci(median_ratio, champ, base, n_boot=2000, alpha=ALPHA, seed=0)
+    return {"p": p, "cliff": delta, "ratio": ratio, "ratio_lo": ratio_lo, "ratio_hi": ratio_hi}
+
+
+def s2_verdict(surv_champ, surv_baselines, life_champ, life_baselines,
+               alpha=ALPHA, cliff_thresh=CLIFF_THRESH, ratio_lo_thresh=RATIO_LO_THRESH,
+               equiv_margin=EQUIV_MARGIN):
+    """Verdict S2 d'UN monde (table de décision §10). surv_baselines / life_baselines : dict
+    {nom: liste de survies/life appariées par seed}. Renvoie un dict complet (verdict + stats).
+
+    - Cohérence (§6) : le champion doit battre le MEILLEUR baseline sur le life_score (sa fitness
+      d'entraînement) -> sinon VOID (le champion ne se comporte pas en champion dans ce régime).
+    - Survie : IUT min-test (p_monde = max des p) ; effet sur le baseline le plus FORT (réflexe).
+    - Issues : EXIGE / N'EXIGE PAS (équivalence) / ANTI-CORRÉLÉ / AMBIGU."""
+    # --- Test de cohérence sur life_score (IUT) ---
+    life_cmps = {k: _compare(life_champ, life_baselines[k]) for k in life_baselines}
+    life_p = iut_pvalue([c["p"] for c in life_cmps.values()])
+    life_best_cliff = min(c["cliff"] for c in life_cmps.values())   # pire baseline sur la cohérence
+    coherence_ok = (life_p < alpha) and (life_best_cliff > 0.0)
+    if not coherence_ok:
+        return {"verdict": "VOID", "coherence_ok": False, "life_p": life_p,
+                "survival": {k: _compare(surv_champ, surv_baselines[k]) for k in surv_baselines}}
+
+    # --- Survie ---
+    cmps = {k: _compare(surv_champ, surv_baselines[k]) for k in surv_baselines}
+    p_monde = iut_pvalue([c["p"] for c in cmps.values()])
+    # baseline le plus FORT = plus haute survie médiane (le plus dur à battre, attendu = réflexe)
+    strongest = max(surv_baselines, key=lambda k: np.median(surv_baselines[k]))
+    s = cmps[strongest]
+
+    if p_monde < alpha and s["cliff"] >= cliff_thresh and s["ratio_lo"] >= ratio_lo_thresh:
+        verdict = "EXIGE"
+    elif s["cliff"] < -cliff_thresh and p_monde < alpha:
+        verdict = "ANTI-CORRELE"
+    elif abs(s["cliff"]) < equiv_margin:
+        verdict = "N'EXIGE PAS"
+    else:
+        verdict = "AMBIGU"
+
+    return {"verdict": verdict, "coherence_ok": True, "life_p": life_p,
+            "p_monde": p_monde, "strongest_baseline": strongest,
+            "survival": cmps}
