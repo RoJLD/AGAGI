@@ -49,3 +49,32 @@ def test_logger_metrics_shape(tmp_path):
     svc = ProvenanceService(tmp_path)
     m = svc.logger_metrics()
     assert "queue_size" in m and "events_processed" in m
+
+
+from fastapi.testclient import TestClient
+from backend.app.main import app
+
+client = TestClient(app)
+
+
+def test_health_kuzu_endpoint():
+    r = client.get("/api/health/kuzu")
+    assert r.status_code == 200
+    assert "reachable" in r.json()
+
+
+def test_observability_logger_endpoint():
+    r = client.get("/api/observability/logger")
+    assert r.status_code == 200
+    assert "queue_size" in r.json()
+
+
+def test_provenance_list_endpoint():
+    r = client.get("/api/provenance")
+    assert r.status_code == 200
+    assert isinstance(r.json(), list)
+
+
+def test_provenance_detail_unknown_returns_404():
+    r = client.get("/api/provenance/__nope__")
+    assert r.status_code == 404
