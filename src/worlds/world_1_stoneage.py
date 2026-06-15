@@ -40,6 +40,10 @@ class Biosphere3D(BaseWorld):
         # (inchangé). Le runner S2 le remplace par un BaselineBatchModel (RandomAction/Reflex) APRÈS
         # construction du monde -> baselines sans connectome, zéro fork. Spec §11.
         self.batch_model_cls = MambaBatchModel
+        # Mode benchmark (S2) : cohorte FIXE -> désactive reproduction/mutation/HGT pendant la
+        # mesure (sinon la lignée est immortelle et la survie sature au cap, blocker panel). Défaut
+        # False = comportement historique. L'apprentissage intra-vie reste actif. Spec §4.
+        self.benchmark_mode = False
         # Curriculum (EDR 017) : "grab" = entraînement de la collecte (monde sûr, nuit off).
         self.training_mode = None
         # AXE CRAFT (EDR 018) : complexité de la mécanique de craft. 0 = auto-craft (tenir
@@ -1277,7 +1281,7 @@ class Biosphere3D(BaseWorld):
                 agent["hp"] -= 1.0
 
             if agent["energy"] > 0 and agent["hp"] > 0:
-                if agent["energy"] >= self.config.agent.energy_max:
+                if agent["energy"] >= self.config.agent.energy_max and not self.benchmark_mode:
                     agent["energy"] = 50.0
                     child_model = agent["model"].clone()
                     child_model.mutate()
@@ -1480,9 +1484,12 @@ class Biosphere3D(BaseWorld):
 
         
         # Social Resolution
-        social_new_agents = self._resolve_social()
-        hgt_new_agents = self._apply_hgt_breeding()
-        self._apply_surprise_hgt()
+        if self.benchmark_mode:
+            social_new_agents, hgt_new_agents = [], []      # cohorte FIXE (S2 spec §4) : pas de repro sociale/HGT
+        else:
+            social_new_agents = self._resolve_social()
+            hgt_new_agents = self._apply_hgt_breeding()
+            self._apply_surprise_hgt()
         
         for (g, x, y, e) in new_agents + social_new_agents + hgt_new_agents:
             self.add_agent(g, x=x, y=y, energy=e)
