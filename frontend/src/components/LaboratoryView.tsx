@@ -1,176 +1,152 @@
 import { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Article } from "../types";
+import { apiFetch } from "../api/client";
+import { queryKeys } from "../api/queryKeys";
+import { Loading } from "./ui/Loading";
+import { ErrorState } from "./ui/ErrorState";
+import { Empty } from "./ui/Empty";
+import { Button } from "./ui/Button";
+import { Field } from "./ui/Field";
+import { Panel } from "./ui/Panel";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8001";
-
-interface ExperimentSummary {
+interface GateOption {
   gate: string;
-  status: string;
-  nodes_count: number;
 }
 
 export function LaboratoryView() {
-  const [articles, setArticles] = useState<Article[]>([]);
-  const [experiments, setExperiments] = useState<ExperimentSummary[]>([]);
-  const [loading, setLoading] = useState(true);
-  
+  const queryClient = useQueryClient();
   const [baseline, setBaseline] = useState("");
   const [intervention, setIntervention] = useState("");
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
+  const [validationError, setValidationError] = useState("");
 
-  const fetchArticles = () => {
-    fetch(`${API_BASE}/api/sociologist/articles`)
-      .then((res) => res.json())
-      .then((data) => {
-        setArticles(data);
-      })
-      .catch((err) => {
-        console.error("Failed to fetch sociologist articles:", err);
-      })
-      .finally(() => setLoading(false));
-  };
+  const articlesQuery = useQuery({
+    queryKey: queryKeys.sociologist.articles,
+    queryFn: () => apiFetch<Article[]>("/api/sociologist/articles"),
+    staleTime: 60_000,
+  });
 
+  const experimentsQuery = useQuery({
+    queryKey: queryKeys.experiments.list,
+    queryFn: () => apiFetch<GateOption[]>("/api/experiments"),
+    staleTime: 30_000,
+  });
+  const experiments = experimentsQuery.data ?? [];
+
+  // Valeurs par défaut une fois les expériences chargées.
   useEffect(() => {
-    fetchArticles();
-    // Fetch experiments for dropdowns
-    fetch(`${API_BASE}/api/experiments`)
-      .then((res) => res.json())
-      .then((data: ExperimentSummary[]) => {
-        setExperiments(data);
-        if (data.length >= 2) {
-            setBaseline(data[0].gate);
-            setIntervention(data[1].gate);
-        }
-      })
-      .catch((err) => console.error("Failed to fetch experiments:", err));
-  }, []);
+    if (experiments.length >= 2 && !baseline && !intervention) {
+      setBaseline(experiments[0].gate);
+      setIntervention(experiments[1].gate);
+    }
+  }, [experiments, baseline, intervention]);
 
-  const handleAnalyze = async () => {
+  const analyze = useMutation({
+    mutationFn: (body: { baseline: string; intervention: string }) =>
+      apiFetch<{ status: string; message?: string }>("/api/sociologist/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        timeoutMs: 120_000, // le LLM peut être lent
+      }),
+    onSuccess: (result) => {
+      if (result.status === "success") {
+        queryClient.invalidateQueries({ queryKey: queryKeys.sociologist.articles });
+      }
+    },
+  });
+
+  const handleAnalyze = () => {
     if (!baseline || !intervention) {
-        setErrorMsg("Veuillez sélectionner une Baseline et une Intervention.");
-        return;
+      setValidationError("Veuillez sélectionner une Baseline et une Intervention.");
+      return;
     }
     if (baseline === intervention) {
-        setErrorMsg("La Baseline et l'Intervention doivent être différentes.");
-        return;
+      setValidationError("La Baseline et l'Intervention doivent être différentes.");
+      return;
     }
-    
-    setIsAnalyzing(true);
-    setErrorMsg("");
-    
-    try {
-        const res = await fetch(`${API_BASE}/api/sociologist/analyze`, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({ baseline, intervention })
-        });
-        
-        const result = await res.json();
-        if (result.status === "success") {
-            // Re-fetch articles to show the new one
-            fetchArticles();
-        } else {
-            setErrorMsg(result.message || "Erreur lors de l'analyse.");
-        }
-    } catch (err) {
-        console.error(err);
-        setErrorMsg("Erreur réseau ou timeout du LLM.");
-    } finally {
-        setIsAnalyzing(false);
-    }
+    setValidationError("");
+    analyze.mutate({ baseline, intervention });
   };
+
+  const analyzeMessage = analyze.isError
+    ? "Erreur réseau ou timeout du LLM."
+    : analyze.data && analyze.data.status !== "success"
+      ? analyze.data.message || "Erreur lors de l'analyse."
+      : "";
 
   return (
     <div className="laboratory-view">
       <h2>Laboratoire & Publications (IA Sociologue)</h2>
       <p>
-        Cette page consigne les découvertes scientifiques extraites automatiquement de KuzuDB par l'Agent Sociologue
-        après chaque comparaison d'évolution.
+        Cette page consigne les découvertes scientifiques extraites automatiquement de KuzuDB par
+        l'Agent Sociologue après chaque comparaison d'évolution.
       </p>
 
-      <div className="academy-box" style={{ marginBottom: "20px" }}>
+      <Panel className="mb-5">
         <h3>Lancer une nouvelle étude</h3>
-        <p style={{ marginBottom: "15px" }}>Sélectionnez deux expériences à comparer par le LLM Sociologue :</p>
-        
-        <div style={{ display: "flex", gap: "15px", alignItems: "center", marginBottom: "15px" }}>
-            <div>
-                <label style={{ display: "block", marginBottom: "5px", color: "var(--color-text-dim)" }}>Baseline</label>
-                <select 
-                    value={baseline} 
-                    onChange={e => setBaseline(e.target.value)}
-                    style={{ padding: "8px", background: "var(--color-bg)", color: "var(--color-text)", border: "1px solid var(--color-border)", borderRadius: "4px" }}
-                >
-                    <option value="">Sélectionner...</option>
-                    {experiments.map(exp => (
-                        <option key={`base-${exp.gate}`} value={exp.gate}>{exp.gate}</option>
-                    ))}
-                </select>
-            </div>
-            
-            <div style={{ fontSize: "20px", color: "var(--color-text-dim)" }}>VS</div>
-            
-            <div>
-                <label style={{ display: "block", marginBottom: "5px", color: "var(--color-text-dim)" }}>Intervention</label>
-                <select 
-                    value={intervention} 
-                    onChange={e => setIntervention(e.target.value)}
-                    style={{ padding: "8px", background: "var(--color-bg)", color: "var(--color-text)", border: "1px solid var(--color-border)", borderRadius: "4px" }}
-                >
-                    <option value="">Sélectionner...</option>
-                    {experiments.map(exp => (
-                        <option key={`int-${exp.gate}`} value={exp.gate}>{exp.gate}</option>
-                    ))}
-                </select>
-            </div>
-            
-            <button 
-                onClick={handleAnalyze} 
-                disabled={isAnalyzing}
-                style={{ 
-                    padding: "10px 20px", 
-                    background: "var(--color-accent)", 
-                    color: "var(--color-bg)", 
-                    border: "none", 
-                    borderRadius: "6px",
-                    cursor: isAnalyzing ? "wait" : "pointer",
-                    fontWeight: "bold",
-                    marginTop: "22px",
-                    opacity: isAnalyzing ? 0.7 : 1
-                }}
-            >
-                {isAnalyzing ? "Analyse en cours (LLM)..." : "Générer l'Article"}
-            </button>
-        </div>
-        
-        {errorMsg && <p style={{ color: "red" }}>{errorMsg}</p>}
-      </div>
+        <p className="mb-4 text-dim">Sélectionnez deux expériences à comparer par le LLM Sociologue :</p>
 
-      {loading ? (
-        <p>Chargement des publications...</p>
-      ) : articles.length > 0 ? (
+        <div className="row">
+          <Field label="Baseline">
+            <select value={baseline} onChange={(e) => setBaseline(e.target.value)}>
+              <option value="">Sélectionner...</option>
+              {experiments.map((exp) => (
+                <option key={`base-${exp.gate}`} value={exp.gate}>
+                  {exp.gate}
+                </option>
+              ))}
+            </select>
+          </Field>
+
+          <span className="text-dim">VS</span>
+
+          <Field label="Intervention">
+            <select value={intervention} onChange={(e) => setIntervention(e.target.value)}>
+              <option value="">Sélectionner...</option>
+              {experiments.map((exp) => (
+                <option key={`int-${exp.gate}`} value={exp.gate}>
+                  {exp.gate}
+                </option>
+              ))}
+            </select>
+          </Field>
+
+          <Button onClick={handleAnalyze} disabled={analyze.isPending}>
+            {analyze.isPending ? "Analyse en cours (LLM)..." : "Générer l'Article"}
+          </Button>
+        </div>
+
+        {(validationError || analyzeMessage) && (
+          <p className="text-danger">{validationError || analyzeMessage}</p>
+        )}
+      </Panel>
+
+      {articlesQuery.isLoading ? (
+        <Loading label="Chargement des publications…" />
+      ) : articlesQuery.error ? (
+        <ErrorState error={articlesQuery.error} onRetry={() => articlesQuery.refetch()} />
+      ) : (articlesQuery.data?.length ?? 0) > 0 ? (
         <div className="articles-list">
-          {articles.map((article) => {
+          {articlesQuery.data!.map((article) => {
             const dateStr = new Date(article.timestamp).toLocaleString();
             return (
-              <div key={article.id} className="academy-box article-card">
+              <Panel as="article" key={article.id} className="article-card mt-4">
                 <h3>{article.title}</h3>
                 <p className="article-meta">
-                  <small style={{ color: "var(--color-text-dim)" }}>Publié le {dateStr} | ID: {article.id}</small>
+                  <small className="text-dim">
+                    Publié le {dateStr} | ID: {article.id}
+                  </small>
                 </p>
-                <div style={{ whiteSpace: "pre-wrap", marginTop: "15px", lineHeight: "1.5" }}>
+                <div style={{ whiteSpace: "pre-wrap", marginTop: "var(--space-4)", lineHeight: 1.5 }}>
                   {article.content}
                 </div>
-              </div>
+              </Panel>
             );
           })}
         </div>
       ) : (
-        <div className="academy-box">
-          <p>Aucun article publié pour le moment.</p>
-        </div>
+        <Empty message="Aucun article publié pour le moment." />
       )}
     </div>
   );
