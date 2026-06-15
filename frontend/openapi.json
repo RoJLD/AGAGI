@@ -1,0 +1,1432 @@
+{
+  "components": {
+    "schemas": {
+      "ActionRequest": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          }
+        },
+        "required": [
+          "action"
+        ],
+        "title": "ActionRequest",
+        "type": "object"
+      },
+      "AnalyzeRequest": {
+        "properties": {
+          "baseline": {
+            "title": "Baseline",
+            "type": "string"
+          },
+          "intervention": {
+            "title": "Intervention",
+            "type": "string"
+          }
+        },
+        "required": [
+          "baseline",
+          "intervention"
+        ],
+        "title": "AnalyzeRequest",
+        "type": "object"
+      },
+      "Article": {
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "date": {
+            "title": "Date",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "content",
+          "date"
+        ],
+        "title": "Article",
+        "type": "object"
+      },
+      "ArticleResponse": {
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "timestamp": {
+            "title": "Timestamp",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "content",
+          "timestamp"
+        ],
+        "title": "ArticleResponse",
+        "type": "object"
+      },
+      "ExperimentDetail": {
+        "properties": {
+          "gate": {
+            "title": "Gate",
+            "type": "string"
+          },
+          "graph": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GraphData"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "history": {
+            "$ref": "#/components/schemas/ExperimentHistory"
+          },
+          "metrics": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ExperimentMetrics"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "gate",
+          "history"
+        ],
+        "title": "ExperimentDetail",
+        "type": "object"
+      },
+      "ExperimentHistory": {
+        "properties": {
+          "accuracy": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Accuracy",
+            "type": "array"
+          },
+          "fitness": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Fitness",
+            "type": "array"
+          },
+          "generation": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Generation",
+            "type": "array"
+          },
+          "size": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size"
+          }
+        },
+        "required": [
+          "generation",
+          "fitness",
+          "accuracy"
+        ],
+        "title": "ExperimentHistory",
+        "type": "object"
+      },
+      "ExperimentMetrics": {
+        "properties": {
+          "compactness": {
+            "title": "Compactness",
+            "type": "number"
+          },
+          "density": {
+            "title": "Density",
+            "type": "number"
+          },
+          "emergent_score": {
+            "title": "Emergent Score",
+            "type": "number"
+          },
+          "hidden_nodes": {
+            "title": "Hidden Nodes",
+            "type": "integer"
+          },
+          "hidden_ratio": {
+            "title": "Hidden Ratio",
+            "type": "number"
+          },
+          "input_nodes": {
+            "title": "Input Nodes",
+            "type": "integer"
+          },
+          "modularity": {
+            "title": "Modularity",
+            "type": "number"
+          },
+          "motif_density": {
+            "title": "Motif Density",
+            "type": "number"
+          },
+          "num_edges": {
+            "title": "Num Edges",
+            "type": "integer"
+          },
+          "num_nodes": {
+            "title": "Num Nodes",
+            "type": "integer"
+          },
+          "output_nodes": {
+            "title": "Output Nodes",
+            "type": "integer"
+          },
+          "performance_stability": {
+            "title": "Performance Stability",
+            "type": "number"
+          },
+          "robustness_score": {
+            "title": "Robustness Score",
+            "type": "number"
+          },
+          "sparsity": {
+            "title": "Sparsity",
+            "type": "number"
+          }
+        },
+        "required": [
+          "num_nodes",
+          "num_edges",
+          "input_nodes",
+          "hidden_nodes",
+          "output_nodes",
+          "density",
+          "sparsity",
+          "hidden_ratio",
+          "compactness",
+          "modularity",
+          "motif_density",
+          "performance_stability",
+          "emergent_score",
+          "robustness_score"
+        ],
+        "title": "ExperimentMetrics",
+        "type": "object"
+      },
+      "ExperimentSummary": {
+        "properties": {
+          "emergent_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Emergent Score"
+          },
+          "gate": {
+            "title": "Gate",
+            "type": "string"
+          },
+          "hidden_ratio": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hidden Ratio"
+          },
+          "latest_accuracy": {
+            "title": "Latest Accuracy",
+            "type": "number"
+          },
+          "latest_fitness": {
+            "title": "Latest Fitness",
+            "type": "number"
+          },
+          "latest_size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Size"
+          },
+          "modularity": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modularity"
+          },
+          "motif_density": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motif Density"
+          },
+          "num_edges": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Num Edges"
+          },
+          "num_nodes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Num Nodes"
+          },
+          "performance_stability": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Performance Stability"
+          },
+          "robustness_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Robustness Score"
+          },
+          "sparsity": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sparsity"
+          }
+        },
+        "required": [
+          "gate",
+          "latest_fitness",
+          "latest_accuracy"
+        ],
+        "title": "ExperimentSummary",
+        "type": "object"
+      },
+      "GraphData": {
+        "properties": {
+          "links": {
+            "items": {
+              "$ref": "#/components/schemas/GraphEdge"
+            },
+            "title": "Links",
+            "type": "array"
+          },
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/GraphNode"
+            },
+            "title": "Nodes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "nodes",
+          "links"
+        ],
+        "title": "GraphData",
+        "type": "object"
+      },
+      "GraphEdge": {
+        "properties": {
+          "source": {
+            "title": "Source",
+            "type": "integer"
+          },
+          "target": {
+            "title": "Target",
+            "type": "integer"
+          },
+          "weight": {
+            "title": "Weight",
+            "type": "number"
+          }
+        },
+        "required": [
+          "source",
+          "target",
+          "weight"
+        ],
+        "title": "GraphEdge",
+        "type": "object"
+      },
+      "GraphNode": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "type": {
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "type"
+        ],
+        "title": "GraphNode",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "StartRequest": {
+        "properties": {
+          "batch_size": {
+            "default": 0,
+            "title": "Batch Size",
+            "type": "integer"
+          },
+          "enable_supervisor": {
+            "default": false,
+            "title": "Enable Supervisor",
+            "type": "boolean"
+          },
+          "import_agent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Import Agent Id"
+          },
+          "keep_memory": {
+            "default": false,
+            "title": "Keep Memory",
+            "type": "boolean"
+          },
+          "mutation_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mutation Rate"
+          },
+          "resource_limit": {
+            "default": 4,
+            "title": "Resource Limit",
+            "type": "integer"
+          },
+          "run_dream_analyzer": {
+            "default": false,
+            "title": "Run Dream Analyzer",
+            "type": "boolean"
+          },
+          "run_linguist": {
+            "default": false,
+            "title": "Run Linguist",
+            "type": "boolean"
+          },
+          "run_metacognition": {
+            "default": false,
+            "title": "Run Metacognition",
+            "type": "boolean"
+          },
+          "run_migration": {
+            "default": false,
+            "title": "Run Migration",
+            "type": "boolean"
+          },
+          "run_sociologist": {
+            "default": false,
+            "title": "Run Sociologist",
+            "type": "boolean"
+          },
+          "script_name": {
+            "title": "Script Name",
+            "type": "string"
+          },
+          "seed": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seed"
+          },
+          "world_type": {
+            "default": "stoneage",
+            "title": "World Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "script_name"
+        ],
+        "title": "StartRequest",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "AGIseed Dashboard API",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/academy": {
+      "get": {
+        "operationId": "get_academy_api_academy_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Academy Api Academy Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Academy",
+        "tags": [
+          "academy"
+        ]
+      }
+    },
+    "/api/articles": {
+      "get": {
+        "operationId": "get_articles_api_articles_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Article"
+                  },
+                  "title": "Response Get Articles Api Articles Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Articles",
+        "tags": [
+          "articles"
+        ]
+      }
+    },
+    "/api/edr": {
+      "get": {
+        "operationId": "get_edr_findings_api_edr_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Edr Findings Api Edr Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Edr Findings",
+        "tags": [
+          "EDR"
+        ]
+      }
+    },
+    "/api/experiments": {
+      "get": {
+        "operationId": "list_experiments_api_experiments_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ExperimentSummary"
+                  },
+                  "title": "Response List Experiments Api Experiments Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Experiments",
+        "tags": [
+          "experiments"
+        ]
+      }
+    },
+    "/api/experiments/{gate}": {
+      "get": {
+        "operationId": "get_experiment_detail_api_experiments__gate__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "gate",
+            "required": true,
+            "schema": {
+              "title": "Gate",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExperimentDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Experiment Detail",
+        "tags": [
+          "experiments"
+        ]
+      }
+    },
+    "/api/experiments/{gate}/graph": {
+      "get": {
+        "operationId": "get_experiment_graph_api_experiments__gate__graph_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "gate",
+            "required": true,
+            "schema": {
+              "title": "Gate",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Experiment Graph Api Experiments  Gate  Graph Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Experiment Graph",
+        "tags": [
+          "experiments"
+        ]
+      }
+    },
+    "/api/experiments/{gate}/graphviz": {
+      "get": {
+        "operationId": "get_experiment_graphviz_api_experiments__gate__graphviz_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "gate",
+            "required": true,
+            "schema": {
+              "title": "Gate",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Get Experiment Graphviz Api Experiments  Gate  Graphviz Get",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Experiment Graphviz",
+        "tags": [
+          "experiments"
+        ]
+      }
+    },
+    "/api/experiments/{gate}/history": {
+      "get": {
+        "operationId": "get_experiment_history_api_experiments__gate__history_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "gate",
+            "required": true,
+            "schema": {
+              "title": "Gate",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Experiment History",
+        "tags": [
+          "experiments"
+        ]
+      }
+    },
+    "/api/introspection/{agent_id}": {
+      "get": {
+        "description": "Retrieve cognitive state timeline for a specific agent",
+        "operationId": "get_cognitive_snapshots_api_introspection__agent_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agent_id",
+            "required": true,
+            "schema": {
+              "title": "Agent Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response Get Cognitive Snapshots Api Introspection  Agent Id  Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Cognitive Snapshots",
+        "tags": [
+          "introspection"
+        ]
+      }
+    },
+    "/api/runs": {
+      "get": {
+        "operationId": "list_runs_api_runs_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response List Runs Api Runs Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Runs",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/runs/compare": {
+      "get": {
+        "operationId": "compare_api_runs_compare_get",
+        "parameters": [
+          {
+            "description": "condition A (name)",
+            "in": "query",
+            "name": "a",
+            "required": true,
+            "schema": {
+              "description": "condition A (name)",
+              "title": "A",
+              "type": "string"
+            }
+          },
+          {
+            "description": "condition B (name)",
+            "in": "query",
+            "name": "b",
+            "required": true,
+            "schema": {
+              "description": "condition B (name)",
+              "title": "B",
+              "type": "string"
+            }
+          },
+          {
+            "description": "métrique numérique à comparer",
+            "in": "query",
+            "name": "metric",
+            "required": true,
+            "schema": {
+              "description": "métrique numérique à comparer",
+              "title": "Metric",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Compare Api Runs Compare Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Compare",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/runs/conditions": {
+      "get": {
+        "description": "Conditions = noms d'expériences (groupes de seeds), avec métriques disponibles.",
+        "operationId": "list_conditions_api_runs_conditions_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response List Conditions Api Runs Conditions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Conditions",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/runs/{run_id}": {
+      "get": {
+        "operationId": "get_run_api_runs__run_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Run Api Runs  Run Id  Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Run",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/sandbox/action": {
+      "post": {
+        "operationId": "post_action_api_sandbox_action_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Action",
+        "tags": [
+          "Sandbox"
+        ]
+      }
+    },
+    "/api/sandbox/article": {
+      "get": {
+        "operationId": "get_latest_article_api_sandbox_article_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Latest Article",
+        "tags": [
+          "Sandbox"
+        ]
+      }
+    },
+    "/api/sandbox/curriculum_state": {
+      "delete": {
+        "operationId": "reset_curriculum_state_api_sandbox_curriculum_state_delete",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Reset Curriculum State",
+        "tags": [
+          "Sandbox"
+        ]
+      }
+    },
+    "/api/sandbox/logs": {
+      "get": {
+        "operationId": "get_logs_api_sandbox_logs_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Logs",
+        "tags": [
+          "Sandbox"
+        ]
+      }
+    },
+    "/api/sandbox/start": {
+      "post": {
+        "operationId": "start_sandbox_api_sandbox_start_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Start Sandbox",
+        "tags": [
+          "Sandbox"
+        ]
+      }
+    },
+    "/api/sandbox/state": {
+      "get": {
+        "operationId": "get_state_api_sandbox_state_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get State",
+        "tags": [
+          "Sandbox"
+        ]
+      }
+    },
+    "/api/sandbox/status": {
+      "get": {
+        "operationId": "get_status_api_sandbox_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Status",
+        "tags": [
+          "Sandbox"
+        ]
+      }
+    },
+    "/api/sandbox/stop": {
+      "post": {
+        "operationId": "stop_sandbox_api_sandbox_stop_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Stop Sandbox",
+        "tags": [
+          "Sandbox"
+        ]
+      }
+    },
+    "/api/sandbox/telemetry": {
+      "get": {
+        "operationId": "get_telemetry_api_sandbox_telemetry_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Telemetry",
+        "tags": [
+          "Sandbox"
+        ]
+      }
+    },
+    "/api/sociologist/analyze": {
+      "post": {
+        "operationId": "trigger_analysis_api_sociologist_analyze_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnalyzeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Trigger Analysis",
+        "tags": [
+          "Sociologist"
+        ]
+      }
+    },
+    "/api/sociologist/articles": {
+      "get": {
+        "operationId": "get_articles_api_sociologist_articles_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ArticleResponse"
+                  },
+                  "title": "Response Get Articles Api Sociologist Articles Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Articles",
+        "tags": [
+          "Sociologist"
+        ]
+      }
+    },
+    "/api/strategy/strategy_tree": {
+      "get": {
+        "description": "Returns data formatted for a Dendrogram (Tree) and a Sankey Diagram.\nIt queries KuzuDB to find correlations between Worlds, Species Traits, and Results.",
+        "operationId": "get_strategy_tree_api_strategy_strategy_tree_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Strategy Tree",
+        "tags": [
+          "Strategy"
+        ]
+      }
+    },
+    "/api/timeline": {
+      "get": {
+        "description": "Retrieve the evolutionary tree from KuzuDB",
+        "operationId": "get_timeline_api_timeline_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Timeline Api Timeline Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Timeline",
+        "tags": [
+          "introspection"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Health Health Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health"
+      }
+    }
+  }
+}

@@ -1,4 +1,4 @@
-.PHONY: e2e hooks
+.PHONY: e2e hooks api-types
 
 # Run E2E suite locally: starts docker compose, installs frontend deps, runs Playwright, tears down
 e2e:
@@ -19,3 +19,10 @@ e2e:
 hooks:
 	git config core.hooksPath hooks
 	@echo "Hooks actifs. pre-commit lance 'parity_check --staged --warn' (non bloquant ; --no-verify pour forcer)."
+
+# Régénère les types TS depuis le schéma OpenAPI de FastAPI (dump -> openapi-typescript).
+# La CI vérifie que le résultat est commité (git diff --exit-code) -> drift schéma↔types supprimé.
+api-types:
+	PYTHONPATH=. python tools/dump_openapi.py
+	npm --prefix frontend run gen:api
+	@echo "Types API régénérés : frontend/openapi.json + frontend/src/api/schema.ts"

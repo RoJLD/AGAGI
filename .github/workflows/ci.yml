@@ -38,6 +38,12 @@ jobs:
         run: npm install
         working-directory: frontend
 
+      - name: API types à jour (codegen OpenAPI -> TS)
+        run: |
+          PYTHONPATH=. python tools/dump_openapi.py
+          npm --prefix frontend run gen:api
+          git diff --exit-code -- frontend/openapi.json frontend/src/api/schema.ts
+
       - name: Run frontend unit tests
         run: npm run test
         working-directory: frontend
