@@ -10,7 +10,7 @@ class ArticleResponse(BaseModel):
     id: str
     title: str
     content: str
-    timestamp: int
+    date: str
 
 class AnalyzeRequest(BaseModel):
     baseline: str
@@ -41,9 +41,9 @@ def get_articles():
     tracker = None
     try:
         tracker = ExperimentGraph(kuzu_service.db_path, read_only=True)
-        query = "MATCH (a:Article) RETURN a.id, a.title, a.content, a.timestamp ORDER BY a.timestamp DESC"
+        query = "MATCH (a:Article) RETURN a.id, a.title, a.content, a.date ORDER BY a.date DESC"
         res = tracker.conn.execute(query)
-        
+
         articles = []
         while res.has_next():
             row = res.get_next()
@@ -51,9 +51,9 @@ def get_articles():
                 "id": row[0],
                 "title": row[1],
                 "content": row[2],
-                "timestamp": row[3]
+                "date": row[3]
             })
-            
+
         return articles
     except Exception as e:
         print(f"Error fetching articles: {e}")
