@@ -680,6 +680,33 @@
         ]
       }
     },
+    "/api/edr/docs": {
+      "get": {
+        "description": "Tous les EDR documentés (docs/EDR/NNN_*.md) — couverture 100% au frontend.\nLe frontend croise avec les findings curés pour signaler les EDR pas encore mis en carte.",
+        "operationId": "list_edr_docs_api_edr_docs_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response List Edr Docs Api Edr Docs Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Edr Docs",
+        "tags": [
+          "EDR"
+        ]
+      }
+    },
     "/api/experiments": {
       "get": {
         "operationId": "list_experiments_api_experiments_get",

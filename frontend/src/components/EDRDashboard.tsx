@@ -18,6 +18,7 @@ type Finding = {
   insight: string;
 };
 type Payload = { title: string; findings: Finding[] };
+type EdrDoc = { edr: number; title: string; file: string };
 
 const W = 640;
 const H = 240;
@@ -85,10 +86,18 @@ export function EDRDashboard() {
     queryFn: () => apiFetch<Payload>("/api/edr"),
     staleTime: Infinity,
   });
+  const docsQuery = useQuery({
+    queryKey: ["edr", "docs"] as const,
+    queryFn: () => apiFetch<EdrDoc[]>("/api/edr/docs"),
+    staleTime: Infinity,
+  });
 
   if (isLoading) return <Loading label="Chargement des découvertes EDR…" />;
   if (error) return <ErrorState error={error} onRetry={() => refetch()} />;
   if (!data || !data.findings?.length) return <Empty message="Aucun finding EDR." />;
+
+  const curated = new Set(data.findings.map((f) => f.edr));
+  const uncurated = (docsQuery.data ?? []).filter((d) => !curated.has(d.edr));
 
   return (
     <div className="edr-dashboard">
@@ -117,6 +126,24 @@ export function EDRDashboard() {
           </article>
         ))}
       </div>
+
+      {uncurated.length > 0 && (
+        <section className="mt-5">
+          <h3>EDR documentés non encore mis en carte ({uncurated.length})</h3>
+          <p className="text-dim">
+            Couverture automatique : tout EDR de <code>docs/EDR/</code> apparaît ici dès son ajout ; la
+            mise en carte (graphique curé dans <code>edr_findings.json</code>) l'enrichit ensuite.
+          </p>
+          <div className="row" style={{ flexWrap: "wrap" }}>
+            {uncurated.map((d) => (
+              <span key={d.edr} className="row" style={{ gap: "var(--space-2)" }}>
+                <Badge variant="warning">EDR {d.edr}</Badge>
+                <span className="text-dim">{d.title}</span>
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
