@@ -15,6 +15,7 @@ from .routes.strategy import router as strategy_router
 from .routes.sociologist import router as sociologist_router
 from .routes.edr import router as edr_router
 from .routes.runs import router as runs_router
+from .routes.health import router as health_router
 from .services.data_service import ExperimentDataService
 from .flatland_server import flatland_server
 
@@ -39,6 +40,7 @@ app.include_router(strategy_router, prefix="/api/strategy", tags=["Strategy"])
 app.include_router(sociologist_router, prefix="/api/sociologist", tags=["Sociologist"])
 app.include_router(edr_router, prefix="/api", tags=["EDR"])
 app.include_router(runs_router, prefix="/api", tags=["runs"])
+app.include_router(health_router, prefix="/api", tags=["health"])
 
 
 @app.get("/health")
