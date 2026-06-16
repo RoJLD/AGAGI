@@ -18,7 +18,7 @@ class Sociologist:
         
     def _init_schema(self):
         try:
-            self.conn.execute("CREATE NODE TABLE IF NOT EXISTS Article (id STRING, title STRING, content STRING, timestamp INT64, PRIMARY KEY (id))")
+            self.conn.execute("CREATE NODE TABLE IF NOT EXISTS Article (id STRING, title STRING, content STRING, date STRING, PRIMARY KEY (id))")
         except Exception:
             pass
             
