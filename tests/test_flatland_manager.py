@@ -14,6 +14,22 @@ def test_server_rejects_unknown_override():
         FlatlandServer(config_overrides={"evil_key": 1}, pop_size=2)
 
 
+def test_server_rejects_out_of_bounds_resource_overrides():
+    """Anti-DoS: le cap MAX_RUNS borne le NOMBRE de runs, pas la TAILLE d'un run.
+    Sans borne, {"size": 100000} alloue une grille 100000² -> OOM."""
+    with pytest.raises(ValueError):
+        FlatlandServer(config_overrides={"size": 100000}, pop_size=2)
+    with pytest.raises(ValueError):
+        FlatlandServer(config_overrides={"num_altars": 9999}, pop_size=2)
+    with pytest.raises(ValueError):
+        FlatlandServer(config_overrides={"size": True}, pop_size=2)   # bool != int valide
+    with pytest.raises(ValueError):
+        FlatlandServer(config_overrides={"size": 16}, pop_size=100000)
+    # bornes légitimes acceptées
+    ok = FlatlandServer(config_overrides={"size": 64, "num_altars": 10}, pop_size=20)
+    assert ok.cfg.size == 64 and ok.pop_size == 20
+
+
 def test_mutation_rate_override_drives_real_nested_knob():
     """Régression: mutation_rate doit piloter le VRAI levier imbriqué
     (cfg.agent.mutation.weight_mutate_rate), pas créer un attribut plat mort.

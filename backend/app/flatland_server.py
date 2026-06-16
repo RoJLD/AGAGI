@@ -25,6 +25,10 @@ _NESTED_OVERRIDES = {
 # sinon setattr créerait un attribut fantôme silencieux.
 _WORLDCONFIG_FIELDS = {f.name for f in fields(WorldConfig)}
 
+# Bornes anti-DoS sur les knobs de RESSOURCE : le cap MAX_RUNS limite le NOMBRE de runs, pas la
+# TAILLE d'un run -> sans borne, {"size": 100000} alloue une grille 100000² -> OOM. Hors bornes -> 400.
+_BOUNDS = {"size": (8, 128), "num_altars": (0, 50)}
+
 # Overrides de config autorisés pour un run (la "variable d'intervention" de l'A/B). Spec §5.
 WHITELIST = ({"active_exp_variable", "robust_hof_K", "base_metabolism",
               "forage_payoff", "size", "num_altars", "prey_mode"}
@@ -53,11 +57,18 @@ def _apply_override(cfg, key, value):
         raise ValueError(
             f"override whiteliste mais absent de WorldConfig: {key} "
             f"(setattr plat creerait un attribut mort)")
+    lo_hi = _BOUNDS.get(key)
+    if lo_hi is not None:
+        lo, hi = lo_hi
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not (lo <= value <= hi):
+            raise ValueError(f"override {key}={value!r} hors bornes [{lo}, {hi}] (anti-DoS ressource)")
     setattr(cfg, key, value)
 
 
 class FlatlandServer:
     def __init__(self, config_overrides=None, pop_size=10, label=None):
+        if isinstance(pop_size, bool) or not isinstance(pop_size, int) or not (1 <= pop_size <= 100):
+            raise ValueError(f"pop_size={pop_size!r} hors bornes [1, 100] (anti-DoS ressource)")
         cfg = WorldConfig(size=32, num_altars=5, prey_mode="semi")
         for k, v in (config_overrides or {}).items():
             if k not in WHITELIST:
