@@ -157,11 +157,11 @@ Le projet revendique une méthode forte ; **l'outil ne la soutient pas encore.**
 
 **Déjà automatique (vues data-driven livrées)** : nouveaux runs/résultats → onglet *Historique des runs* + conditions/métriques *A/B* ; nouveaux EDR → *Academy* (`get_academy_data` dérive de `docs/EDR`+`edr_findings.json`) ; articles Sociologue → *Laboratoire*.
 
-**À faire (par ROI décroissant) :**
-1. **Codegen OpenAPI → TS** *(meilleur ROI)* — `openapi-typescript` sur le `/openapi.json` de FastAPI → `api-types.ts` régénéré en pre-commit/CI ; la gate vérifie qu'il est à jour. Supprime le drift *schéma↔types* par **génération** (> détection). Remplace l'idée gate « schéma↔types » différée.
-2. **Scaffolder de carte EDR** — `parity_check --fix` (ou `make edr-card NNN`) : sur un nouveau `docs/EDR/NNN`, appose un **stub** de finding dans `edr_findings.json` (titre+insight depuis le doc, tag « à curer »). Ferme la boucle de la gate narration (gendarme → assistant).
-3. **Onglet EDR « 100 % couverture »** *(frontend pur)* — `EDRDashboard` liste aussi les EDR docs **non curés** (titre+lien) ; la curation enrichit (graphiques) mais ne conditionne plus l'apparition.
-4. **Vue « Santé / parité »** — un onglet rendant le rapport `parity_check` (endpoints non consommés, EDR orphelins) → WARN de la gate transformés en tableau de bord actionnable.
+**État (par ROI décroissant) :**
+1. ✅ **Codegen OpenAPI → TS** — `npm run gen:api` / `make api-types` (npx `openapi-typescript` sur `/openapi.json`) + **drift-gate CI** (`git diff --exit-code`). Drift *schéma↔types* supprimé par génération. *(livré)*
+2. ✅ **Scaffolder de carte EDR** — `parity_check --fix` / `make edr-stubs` : appose un stub (`stub:true`, séries vides) pour chaque EDR documenté non curé ; `EDRDashboard` les garde en section « non curés ». Gendarme → assistant. *(livré)*
+3. ✅ **Onglet EDR « 100 % couverture »** — `GET /api/edr/docs` + section « non curés » dans `EDRDashboard`. *(livré)*
+4. ✅ **Vue « Santé / parité »** — onglet Santé rendant `GET /api/health/parity` (rapport `parity_check`). *(livré)*
 5. *(plus loin, YAGNI)* **Manifest-driven tabs** — onglets déclarés dans un manifeste `{clé→endpoint→composant}` ; nouvel item = onglet auto-monté. À ne faire que si les vues cessent d'être sur-mesure.
 
 ---

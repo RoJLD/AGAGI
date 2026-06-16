@@ -16,6 +16,7 @@ type Finding = {
   xlabel?: string;
   series: Serie[];
   insight: string;
+  stub?: boolean;
 };
 type Payload = { title: string; findings: Finding[] };
 type EdrDoc = { edr: number; title: string; file: string };
@@ -96,7 +97,7 @@ export function EDRDashboard() {
   if (error) return <ErrorState error={error} onRetry={() => refetch()} />;
   if (!data || !data.findings?.length) return <Empty message="Aucun finding EDR." />;
 
-  const curated = new Set(data.findings.map((f) => f.edr));
+  const curated = new Set(data.findings.filter((f) => !f.stub).map((f) => f.edr));
   const uncurated = (docsQuery.data ?? []).filter((d) => !curated.has(d.edr));
 
   return (
@@ -107,7 +108,7 @@ export function EDRDashboard() {
         décision (EDR) qui a déplacé la compréhension du projet.
       </p>
       <div className="edr-grid">
-        {data.findings.map((f) => (
+        {data.findings.filter((f) => !f.stub).map((f) => (
           <article key={f.edr} className="edr-card">
             <header className="edr-card-head">
               <Badge variant="teal">EDR {f.edr}</Badge>
