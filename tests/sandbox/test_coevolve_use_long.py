@@ -26,3 +26,11 @@ def test_main_runs_and_is_reproducible(tmp_path, monkeypatch):
     b = cul.main(R=2, gens=2, num_agents=6, K=1, n_eval=2, seed=3, _return=True)
     assert a["d_kills"] == b["d_kills"]            # apparié/seedé + runner clean -> identique
     assert len(a["d_kills"]) == 2 and "verdict" in a and "surv_med" in a
+
+
+def test_main_mp_matches_sequential(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    seq = cul.main(R=2, gens=2, num_agents=6, K=1, n_eval=2, seed=3, _return=True)
+    a = cul.main_mp(R=2, gens=2, num_agents=6, K=1, n_eval=2, seed=3, n_procs=2, _return=True)
+    assert a["d_kills"] == seq["d_kills"]   # IDENTIQUE au main séquentiel (seed=3) -> mp == seq déterministe
+    assert "verdict" in a and len(a["d_kills"]) == 2 and "surv_med" in a

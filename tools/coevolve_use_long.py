@@ -93,6 +93,36 @@ def _coevolve(cfg, mc, use_head, heads, gens, num_agents, K, base):
     return [g for _s, g in best]
 
 
+def _report(h, d_kills, d_nets, fia_k, bru_k, survs, R, gens, _return):
+    summ = st.paired_summary(d_kills)
+    med = float(np.median(d_kills))
+    lo, hi = st.bootstrap_ci(d_kills, np.mean, seed=h.seed)
+    surv_med = float(np.median(survs))
+    print(f"\n=== Mammouths : FIABLE {np.mean(fia_k):.2f} vs BRUITE {np.mean(bru_k):.2f} ({R} reps appariees) ===")
+    print(f"  d (FIABLE-BRUITE kills) = {summ['mean']:+.2f} +/- {summ['se']:.2f} SE ; win {summ['win_rate']*100:.0f}% ; "
+          f"Wilcoxon p={summ['wilcoxon_p']:.3f} ; IC95=[{lo:+.2f},{hi:+.2f}]")
+    print(f"  net (diagnostic) d = {np.mean(d_nets):+.2f} ; survie mediane = {surv_med:.0f} ticks (gate >120)")
+    print("=== VERDICT (pre-enregistre) ===")
+    if surv_med <= 120:
+        verdict = "VOID"
+        print(f"  -> VOID : substrat pas assez long (survie {surv_med:.0f} <= 120). Re-regler l'energie.")
+    elif summ["wilcoxon_p"] < 0.05 and med > 0 and lo > 0:
+        verdict = "USAGE SELECTIONNE"
+        print(f"  -> USAGE SELECTIONNE : ecouter un signal FIABLE est selectionne a survie longue "
+              f"(median +{med:.1f} kills, p={summ['wilcoxon_p']:.3f}, IC_inf={lo:+.2f}). Langage fonctionnel EMERGE.")
+    elif med > 0:
+        verdict = "TENDANCE SOUS-SEUIL"
+        print(f"  -> TENDANCE sous 2 SE (+{med:.1f}, comme 083) : la survie longue ne suffit pas. "
+              f"Goulot = selection EXPLICITE de l'usage (levier #2).")
+    else:
+        verdict = "NEGATIF ROBUSTE"
+        print(f"  -> NEGATIF : meme a survie longue, le signal fiable n'est pas exploite ({med:+.1f}).")
+    h.save({"R": R, "gens": gens, "d_kills": d_kills, "d_nets": d_nets, "fia_k": fia_k, "bru_k": bru_k,
+            "summary": summ, "median": med, "ci": [lo, hi], "surv_med": surv_med, "verdict": verdict})
+    if _return:
+        return {"d_kills": d_kills, "summary": summ, "median": med, "ci": [lo, hi], "surv_med": surv_med, "verdict": verdict}
+
+
 def main(R=8, gens=20, num_agents=24, K=4, n_eval=8, seed=None, _return=False):
     with Harness(seed=seed, name="coevolve_use_long", with_db=False) as h:
         base = h.seed
@@ -103,6 +133,7 @@ def main(R=8, gens=20, num_agents=24, K=4, n_eval=8, seed=None, _return=False):
         prog = h.progress(R, label="repetitions FIABLE vs BRUITE")
         for r in range(R):
             rb = base + r * 100000          # base disjointe par répétition (>> gens + 1000+n_eval)
+            np.random.seed(rb)              # état global identique entre séquentiel et mp (isolement par rep)
             rng = np.random.RandomState(rb)
             heads = [new_head(M=3, V=4, H=12, rng=rng) for _ in range(num_agents)]
             train_population(heads, steps=5000, seed=rb)        # locuteurs fiables (par répétition)
@@ -115,34 +146,49 @@ def main(R=8, gens=20, num_agents=24, K=4, n_eval=8, seed=None, _return=False):
             fia_k.append(float(np.mean(mf["kills"]))); bru_k.append(float(np.mean(mb["kills"])))
             survs.extend(mf["survs"] + mb["survs"])
             prog.update()
+        return _report(h, d_kills, d_nets, fia_k, bru_k, survs, R, gens, _return)
 
-        summ = st.paired_summary(d_kills)
-        med = float(np.median(d_kills))          # §5 figé : USAGE SÉLECTIONNÉ exige médiane(d)>0 (pas la moyenne)
-        lo, hi = st.bootstrap_ci(d_kills, np.mean, seed=base)
-        surv_med = float(np.median(survs))
-        print(f"\n=== Mammouths : FIABLE {np.mean(fia_k):.2f} vs BRUITE {np.mean(bru_k):.2f} ({R} reps appariees) ===")
-        print(f"  d (FIABLE-BRUITE kills) = {summ['mean']:+.2f} +/- {summ['se']:.2f} SE ; win {summ['win_rate']*100:.0f}% ; "
-              f"Wilcoxon p={summ['wilcoxon_p']:.3f} ; IC95=[{lo:+.2f},{hi:+.2f}]")
-        print(f"  net (diagnostic) d = {np.mean(d_nets):+.2f} ; survie mediane = {surv_med:.0f} ticks (gate >120)")
-        print("=== VERDICT (pre-enregistre) ===")
-        if surv_med <= 120:
-            verdict = "VOID"
-            print(f"  -> VOID : substrat pas assez long (survie {surv_med:.0f} <= 120). Re-regler l'energie.")
-        elif summ["wilcoxon_p"] < 0.05 and med > 0 and lo > 0:
-            verdict = "USAGE SELECTIONNE"
-            print(f"  -> USAGE SELECTIONNE : ecouter un signal FIABLE est selectionne a survie longue "
-                  f"(median +{med:.1f} kills, p={summ['wilcoxon_p']:.3f}, IC_inf={lo:+.2f}). Langage fonctionnel EMERGE.")
-        elif med > 0:
-            verdict = "TENDANCE SOUS-SEUIL"
-            print(f"  -> TENDANCE sous 2 SE (+{summ['mean']:.1f}, comme 083) : la survie longue ne suffit pas. "
-                  f"Goulot = selection EXPLICITE de l'usage (levier #2).")
-        else:
-            verdict = "NEGATIF ROBUSTE"
-            print(f"  -> NEGATIF : meme a survie longue, le signal fiable n'est pas exploite ({summ['mean']:+.1f}).")
-        h.save({"R": R, "gens": gens, "d_kills": d_kills, "d_nets": d_nets, "fia_k": fia_k, "bru_k": bru_k,
-                "summary": summ, "median": med, "ci": [lo, hi], "surv_med": surv_med, "verdict": verdict})
-        if _return:
-            return {"d_kills": d_kills, "summary": summ, "ci": [lo, hi], "surv_med": surv_med, "verdict": verdict}
+
+def _one_rep(args):
+    """Une répétition (process isolé) : entraîne les têtes, co-évolue FIABLE & BRUITÉ (appariés au même
+    rb), mesure les deux. Déterministe par rb -> identique au séquentiel. Silence le bruit par process."""
+    import logging, warnings, os
+    logging.disable(logging.CRITICAL)
+    warnings.filterwarnings("ignore")
+    rb, gens, num_agents, K, n_eval, work_dir = args
+    os.chdir(work_dir)   # synchronise le cwd du worker sur celui du parent -> hall_of_fame.pkl identique
+    np.random.seed(rb)   # état global identique au séquentiel (Harness seed_at(base,0) avant rep 0)
+    rng = np.random.RandomState(rb)
+    heads = [new_head(M=3, V=4, H=12, rng=rng) for _ in range(num_agents)]
+    train_population(heads, steps=5000, seed=rb)
+    cfg = _sweet_cfg()
+    mc = MutationConfig(weight_init_std=2.0)
+    cf = _coevolve(cfg, mc, True, heads, gens, num_agents, K, base=rb)
+    cb = _coevolve(cfg, mc, False, None, gens, num_agents, K, base=rb)
+    mf = _measure_full(cfg, cf, mc, True, heads, num_agents, n_eval, base=rb)
+    mb = _measure_full(cfg, cb, mc, False, None, num_agents, n_eval, base=rb)
+    return {"d_kills": float(np.mean(mf["kills"]) - np.mean(mb["kills"])),
+            "d_nets": float(np.mean(mf["nets"]) - np.mean(mb["nets"])),
+            "fia_k": float(np.mean(mf["kills"])), "bru_k": float(np.mean(mb["kills"])),
+            "survs": list(mf["survs"]) + list(mb["survs"])}
+
+
+def main_mp(R=8, gens=20, num_agents=24, K=4, n_eval=8, seed=None, n_procs=4, _return=False):
+    from concurrent.futures import ProcessPoolExecutor
+    with Harness(seed=seed, name="coevolve_use_long", with_db=False) as h:
+        base = h.seed
+        print(f"EDR089 MULTIPROCESS : R={R}, gens={gens}, n_procs={n_procs}, seed={base}.")
+        import os as _os
+        cwd = _os.getcwd()
+        args = [(base + r * 100000, gens, num_agents, K, n_eval, cwd) for r in range(R)]
+        with ProcessPoolExecutor(max_workers=n_procs) as ex:
+            results = list(ex.map(_one_rep, args))   # ordre préservé -> déterministe
+        d_kills = [r["d_kills"] for r in results]
+        d_nets = [r["d_nets"] for r in results]
+        fia_k = [r["fia_k"] for r in results]
+        bru_k = [r["bru_k"] for r in results]
+        survs = [s for r in results for s in r["survs"]]
+        return _report(h, d_kills, d_nets, fia_k, bru_k, survs, R, gens, _return)
 
 
 if __name__ == "__main__":
