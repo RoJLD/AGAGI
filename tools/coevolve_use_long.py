@@ -19,6 +19,9 @@ from tools.robust_eval import _load_champions
 from tools.lexicon import _setup as _setup3
 
 METAB, PAYOFF = 0.25, 3.0          # sweet spot survie longue (EDR 085)
+PREY_COUNT = 15                    # EDR089 addendum : _setup3 met 4 (food-scarce -> survie ~20, VOID) ;
+                                   # on remonte au defaut WorldConfig (celui d'087 qui passait le gate >120).
+                                   # Neutre au contraste FIABLE/BRUITE (la nourriture n'est pas le signal).
 
 
 def _sweet_cfg():
@@ -34,6 +37,7 @@ def _run_era_clean(cfg, genomes, use_head=False, decode_act=False, heads=None, m
     -> {ticks,mammoth,leurre,survivors} ; measure=False -> {scored} (génomes triés par life_score)."""
     env = Biosphere3D(cfg)
     _setup3(env)
+    env.config.target_prey_count = PREY_COUNT   # EDR089 addendum : substrat NON food-scarce -> survie LONGUE (gate)
     if hasattr(env, "memory_retriever"):
         env.memory_retriever.stop()
     env.use_ref_head = use_head
