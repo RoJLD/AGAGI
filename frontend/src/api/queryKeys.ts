@@ -28,4 +28,7 @@ export const queryKeys = {
     detail: (runId: string) => ["runs", "detail", runId] as const,
     compare: (a: string, b: string, metric: string) => ["runs", "compare", a, b, metric] as const,
   },
+  health: {
+    parity: ["health", "parity"] as const,
+  },
 } as const;

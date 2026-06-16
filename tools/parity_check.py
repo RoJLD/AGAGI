@@ -245,6 +245,35 @@ def dev_parity_report(repo: Path):
     return lines, issues
 
 
+def report_dict(repo: Path, recent_window: int = 10) -> dict:
+    """Rapport de parité structuré (JSON) — consommé par l'onglet Santé du frontend."""
+    narr_lines, narr_issues = build_report(repo, recent_window)
+    dev_lines, dev_issues = dev_parity_report(repo)
+
+    def split(issues: list[tuple[str, str]]) -> dict:
+        return {
+            "fail": [m for lvl, m in issues if lvl == FAIL],
+            "warn": [m for lvl, m in issues if lvl == WARN],
+        }
+
+    docs = scan_edr_docs(repo)
+    data, _ferr, _ = load_findings(repo)
+    f_nums = findings_edrs(data) if isinstance(data, dict) else []
+    all_issues = narr_issues + dev_issues
+    return {
+        "narration": {"lines": narr_lines, **split(narr_issues)},
+        "dev_parity": {"lines": dev_lines, **split(dev_issues)},
+        "edr_coverage": {
+            "docs_total": len(docs),
+            "curated": len(f_nums),
+            "max_doc": max(docs) if docs else None,
+            "max_finding": max(f_nums) if f_nums else None,
+        },
+        "ok": not any(lvl == FAIL for lvl, _ in all_issues),
+        "warn_count": sum(1 for lvl, _ in all_issues if lvl == WARN),
+    }
+
+
 # --------------------------------------------------------------------------- #
 # Classification du commit (taxonomie de la cartographie)
 # --------------------------------------------------------------------------- #

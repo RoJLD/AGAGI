@@ -4,6 +4,7 @@ import {
   Database,
   FlaskConical,
   Gamepad2,
+  Gauge,
   GraduationCap,
   History,
   Network,
@@ -23,6 +24,7 @@ export const TAB_KEYS = [
   "timeline",
   "sandbox",
   "runs",
+  "sante",
 ] as const;
 
 export type TabKey = (typeof TAB_KEYS)[number];
@@ -45,6 +47,7 @@ export const TAB_FAMILIES: TabFamily[] = [
     tabs: [
       { key: "edr", label: "EDR", icon: ShieldAlert },
       { key: "live", label: "Temps réel", icon: Activity },
+      { key: "sante", label: "Santé", icon: Gauge },
     ],
   },
   {

@@ -901,6 +901,29 @@
         ]
       }
     },
+    "/api/health/parity": {
+      "get": {
+        "operationId": "parity_report_api_health_parity_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Parity Report Api Health Parity Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Parity Report",
+        "tags": [
+          "health"
+        ]
+      }
+    },
     "/api/introspection/{agent_id}": {
       "get": {
         "description": "Retrieve cognitive state timeline for a specific agent",
