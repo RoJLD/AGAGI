@@ -70,7 +70,8 @@ class ExperimentGraph:
             "CREATE NODE TABLE Article (id STRING, title STRING, content STRING, date STRING, PRIMARY KEY (id))",
             "CREATE NODE TABLE Species (name STRING, base_inputs INT64, base_outputs INT64, base_nodes INT64, traits STRING, PRIMARY KEY (name))",
             "CREATE NODE TABLE WorldVersion (name STRING, type STRING, complexity INT64, PRIMARY KEY (name))",
-            "CREATE NODE TABLE CognitiveSnapshot (id STRING, agent_id STRING, tick INT64, ntm_memory STRING, attention_mask STRING, w_connectome STRING, PRIMARY KEY (id))"
+            "CREATE NODE TABLE CognitiveSnapshot (id STRING, agent_id STRING, tick INT64, ntm_memory STRING, attention_mask STRING, w_connectome STRING, PRIMARY KEY (id))",
+            "CREATE NODE TABLE Hyperparameters(id STRING, params STRING, PRIMARY KEY (id))"
         ]:
             self._safe_execute(table)
         
@@ -90,7 +91,8 @@ class ExperimentGraph:
             "CREATE REL TABLE RAN_IN_WORLD (FROM Experiment TO WorldVersion)",
             "CREATE REL TABLE TOOK_SNAPSHOT (FROM Agent TO CognitiveSnapshot)",
             "CREATE REL TABLE TIMELINE_NEXT (FROM Species TO Species)",
-            "CREATE REL TABLE CREATED_SPECIES (FROM Experiment TO Species)"
+            "CREATE REL TABLE CREATED_SPECIES (FROM Experiment TO Species)",
+            "CREATE REL TABLE HAS_HYPERPARAMETERS(FROM Experiment TO Hyperparameters)"
         ]:
             self._safe_execute(rel)
 
@@ -146,13 +148,10 @@ class ExperimentGraph:
         import json
         hp_id = f"hp_{version}"
         params_str = json.dumps(params).replace("'", "\\'")
-        
-        try:
-            self.conn.execute("CREATE NODE TABLE Hyperparameters(id STRING, params STRING, PRIMARY KEY (id))")
-            self.conn.execute("CREATE REL TABLE HAS_HYPERPARAMETERS(FROM Experiment TO Hyperparameters)")
-        except RuntimeError:
-            pass
-            
+
+        # Hyperparameters / HAS_HYPERPARAMETERS sont desormais crees dans _init_schema()
+        # (plus de creation paresseuse ici, sinon la table manque sur une DB schema-only
+        # lue en read-only et la strategy /strategy_tree tombe en source='error').
         self.conn.execute(f"MERGE (h:Hyperparameters {{id: '{hp_id}'}}) ON MATCH SET h.params = '{params_str}' ON CREATE SET h.params = '{params_str}'")
         self.conn.execute(f"MATCH (e:Experiment {{name: '{version}'}}), (h:Hyperparameters {{id: '{hp_id}'}}) MERGE (e)-[:HAS_HYPERPARAMETERS]->(h)")
 

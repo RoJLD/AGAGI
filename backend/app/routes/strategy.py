@@ -102,6 +102,13 @@ def get_strategy_tree():
         # distingue "pas encore de run" (empty) de vrai (live) via `source`.
         return {"tree": {}, "sankey": {"nodes": [], "links": []}, "source": "empty"}
     except Exception as e:
+        # Une DB sans run n'a parfois pas encore la table optionnelle (ex. ancienne DB
+        # schema-only ouverte en read-only, ou une table jamais peuplee) : "table does
+        # not exist" => pas une vraie erreur, c'est un etat vide HONNETE (empty), pas error.
+        msg = str(e).lower()
+        if "does not exist" in msg and ("table" in msg or "node" in msg or "rel" in msg):
+            log.info(f"Strategy Tree: schema incomplet (DB sans run) -> empty: {e}")
+            return {"tree": {}, "sankey": {"nodes": [], "links": []}, "source": "empty"}
         log.error(f"Strategy Tree Error: {e}")
         return {"tree": {}, "sankey": {"nodes": [], "links": []}, "source": "error"}
     finally:
