@@ -303,6 +303,58 @@ def classify(files: list[tuple[str, str]], commit_msg: str = "") -> str:
 
 
 # --------------------------------------------------------------------------- #
+# Scaffolder (--fix) : pose un stub de carte pour chaque EDR documenté non curé
+# --------------------------------------------------------------------------- #
+def _doc_summary(path: Path) -> str:
+    """Première ligne de contenu significative d'un doc EDR (pour l'insight du stub)."""
+    try:
+        for line in path.read_text(encoding="utf-8").splitlines():
+            s = line.strip()
+            if s and not s.startswith("#") and not s.startswith("---") and not s.startswith(">"):
+                return (s[:197] + "...") if len(s) > 200 else s
+    except Exception:  # noqa: BLE001
+        pass
+    return "Résumé à curer."
+
+
+def scaffold_edr_stubs(repo: Path) -> list[int]:
+    """Ajoute un stub de finding pour chaque EDR documenté absent de edr_findings.json. -> EDR ajoutés.
+
+    Le stub (`stub: true`, `series: []`) est valide au schéma et apparaît en section « non curés »
+    du frontend (pas comme carte vide) ; le chercheur n'a plus qu'à remplir les séries du graphique.
+    """
+    data, ferr, fpath = load_findings(repo)
+    if ferr or not isinstance(data, dict):
+        data = {"title": "Découvertes EDR", "findings": []}
+        fpath = repo / "backend" / "app" / "edr_findings.json"
+    findings = list(data.get("findings") or [])
+    existing = set(findings_edrs(data))
+    docs_dir = repo / "docs" / "EDR"
+    added: list[int] = []
+    if docs_dir.is_dir():
+        for p in sorted(docs_dir.glob("[0-9][0-9][0-9]_*.md")):
+            m = re.match(r"^(\d{3})_(.+)\.md$", p.name)
+            if not m or int(m.group(1)) in existing:
+                continue
+            num = int(m.group(1))
+            findings.append({
+                "edr": num,
+                "title": m.group(2).replace("_", " "),
+                "subtitle": "Carte à curer (stub auto-généré)",
+                "type": "bar",
+                "series": [],
+                "insight": _doc_summary(p),
+                "stub": True,
+            })
+            added.append(num)
+    if added:
+        data["findings"] = sorted(findings, key=lambda f: f.get("edr", 0))
+        fpath.parent.mkdir(parents=True, exist_ok=True)
+        fpath.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    return added
+
+
+# --------------------------------------------------------------------------- #
 # CLI
 # --------------------------------------------------------------------------- #
 def main(argv=None) -> int:
@@ -312,10 +364,20 @@ def main(argv=None) -> int:
     ap.add_argument("--warn", action="store_true", help="mode non bloquant (défaut) — explicite pour le hook")
     ap.add_argument("--strict", action="store_true", help="exit 1 si invariant dur violé (CI)")
     ap.add_argument("--recent", type=int, default=10, help="fenêtre des EDR récents à couvrir")
+    ap.add_argument("--fix", action="store_true", help="scaffolde un stub de carte EDR pour chaque EDR documenté non curé (écrit edr_findings.json)")
     args = ap.parse_args(argv)
 
     repo = find_repo_root(args.repo)
     print(f"[repo] {repo}")
+
+    if args.fix:
+        added = scaffold_edr_stubs(repo)
+        if added:
+            print(f"[fix] {len(added)} stub(s) de carte EDR ajouté(s) : {added}")
+            print("[fix] -> curez les `series` dans edr_findings.json (les stubs s'affichent en section « non curés »).")
+        else:
+            print("[fix] aucun EDR non curé — rien à scaffolder.")
+        return 0
 
     NARRATION = "Parité narration (docs/EDR -> edr_findings.json -> FIL_CONDUCTEUR)"
     DEVPAR = "Parité dev (route backend <-> fetch frontend, heuristique)"

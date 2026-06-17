@@ -1,4 +1,4 @@
-.PHONY: e2e hooks api-types
+.PHONY: e2e hooks api-types edr-stubs
 
 # Run E2E suite locally: starts docker compose, installs frontend deps, runs Playwright, tears down
 e2e:
@@ -26,3 +26,8 @@ api-types:
 	PYTHONPATH=. python tools/dump_openapi.py
 	npm --prefix frontend run gen:api
 	@echo "Types API régénérés : frontend/openapi.json + frontend/src/api/schema.ts"
+
+# Scaffolde un stub de carte EDR pour chaque EDR documenté non curé (écrit edr_findings.json).
+# Les stubs apparaissent en section « non curés » du frontend ; reste à curer les `series`.
+edr-stubs:
+	PYTHONPATH=. python tools/parity_check.py --fix
