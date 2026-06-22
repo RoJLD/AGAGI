@@ -146,3 +146,17 @@ def _run_flat_arm(cfg, mc, terminal_frac, budget_eras, base, num_agents, max_tic
         r = _run_era_clean(cfg, genomes, terminal_frac, max_ticks=max_ticks)
         best = sorted(best + r["scored"], key=lambda sg: sg[0], reverse=True)[:5]
     return [g for _s, g in best]
+
+
+def _measure_terminal(cfg, mc, genomes, leurre_frac, base, num_agents, n_eval, max_ticks=MAX_TICKS):
+    """Mesure n_eval ères propres au palier terminal sur la population évoluée. base = rb + 30000,
+    IDENTIQUE entre curriculum et flat -> mesure appariée (mêmes mondes). net = kills − leurre_hits
+    (qualité de discrimination) ; surv = ticks (survie de l'ère, gate >120 comme 089)."""
+    nets, survs = [], []
+    for i in range(n_eval):
+        seed_at(base, i)
+        gen = _reproduce(genomes, num_agents, mc)
+        r = _run_era_clean(cfg, gen, leurre_frac, max_ticks=max_ticks)
+        nets.append(int(r["kills"]) - int(r["leurre_hits"]))
+        survs.append(int(r["ticks"]))
+    return {"nets": nets, "survs": survs}

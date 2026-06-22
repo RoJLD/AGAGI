@@ -86,3 +86,14 @@ def test_flat_arm_budget_and_reproducible():
     seed_at(42, 0); ra = lc._run_era_clean(cfg, a, 0.83, max_ticks=20)
     seed_at(42, 0); rb = lc._run_era_clean(cfg, b, 0.83, max_ticks=20)
     assert ra["kills"] == rb["kills"] and ra["ticks"] == rb["ticks"]
+
+
+def test_measure_terminal_keys_and_reproducible():
+    cfg = lc._lethal_cfg()
+    mc = lc.MutationConfig(weight_init_std=2.0)
+    genomes = lc._load_champions()
+    a = lc._measure_terminal(cfg, mc, genomes, leurre_frac=0.83, base=321, num_agents=4, n_eval=3, max_ticks=20)
+    b = lc._measure_terminal(cfg, mc, genomes, leurre_frac=0.83, base=321, num_agents=4, n_eval=3, max_ticks=20)
+    assert set(a) == {"nets", "survs"}
+    assert len(a["nets"]) == 3 and len(a["survs"]) == 3
+    assert a == b                               # seedé (base+30000-style) -> apparié/reproductible
