@@ -38,10 +38,27 @@ class SandboxService:
             pass
         return scripts
 
+    def _is_allowed_script(self, name: str) -> bool:
+        """Autorise un script SEULEMENT s'il est decouvert (racine/tools) ET confine dans PROJECT_ROOT.
+        Tue le path-traversal (../../) et l'execution de fichiers arbitraires."""
+        if not name or not name.endswith(".py"):
+            return False
+        resolved = os.path.realpath(os.path.join(PROJECT_ROOT, name))
+        root = os.path.realpath(PROJECT_ROOT)
+        try:
+            if os.path.commonpath([resolved, root]) != root:
+                return False
+        except ValueError:
+            return False
+        return name.replace("\\", "/") in set(self.get_available_scripts())
+
     def start(self, config: dict) -> dict:
         main_script = config.get("script_name")
         if not main_script:
             return {"status": "error", "message": "Aucun script principal spécifié"}
+
+        if not self._is_allowed_script(main_script):
+            return {"status": "error", "message": f"Script non autorisé : {main_script}"}
 
         if "main" in self._processes and self._processes["main"].poll() is None:
             return {"status": "error", "message": f"Une expérimentation est déjà en cours : {self._current_config.get('script_name')}"}

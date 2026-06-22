@@ -23,8 +23,9 @@ def test_start_without_script_errors():
 
 def test_start_missing_script_errors():
     svc = SandboxService()
+    # Un script inexistant n'est pas dans la whitelist -> rejete avant la garde isfile (durcissement C4)
     res = svc.start({"script_name": "__does_not_exist__.py"})
-    assert res["status"] == "error" and "introuvable" in res["message"]
+    assert res["status"] == "error" and "autoris" in res["message"].lower()
 
 
 def test_logs_deque_roundtrip():
@@ -38,3 +39,19 @@ def test_available_scripts_lists_python_files():
     svc = SandboxService()
     scripts = svc.get_available_scripts()
     assert isinstance(scripts, list) and any(s.endswith(".py") for s in scripts)
+
+
+def test_is_allowed_script_accepts_known_rejects_traversal():
+    svc = SandboxService()
+    assert svc._is_allowed_script("main_biosphere.py") is True
+    assert svc._is_allowed_script("../../evil.py") is False
+    assert svc._is_allowed_script("__inconnu__.py") is False
+    assert svc._is_allowed_script("main_biosphere.txt") is False
+    assert svc._is_allowed_script("") is False
+
+
+def test_start_rejects_unauthorized_script_without_launching():
+    svc = SandboxService()
+    res = svc.start({"script_name": "../../x.py"})
+    assert res["status"] == "error" and "autoris" in res["message"].lower()
+    assert svc.get_status()["running"] is False
