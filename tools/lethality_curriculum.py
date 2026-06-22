@@ -160,3 +160,67 @@ def _measure_terminal(cfg, mc, genomes, leurre_frac, base, num_agents, n_eval, m
         nets.append(int(r["kills"]) - int(r["leurre_hits"]))
         survs.append(int(r["ticks"]))
     return {"nets": nets, "survs": survs}
+
+
+def _one_rep_core(cfg, mc, levels, grad_cfg, num_agents, n_eval, max_ticks, rb):
+    """Une répétition COMPLÈTE (curriculum + flat appariés au même rb) : co-évolue les deux bras,
+    mesure les deux au terminal (mondes de mesure identiques) -> diff appariée d_net + survies."""
+    cur_genomes, total_eras, transcript = _run_curriculum_arm(
+        cfg, mc, levels, grad_cfg, rb + 10000, num_agents, max_ticks)
+    flat_genomes = _run_flat_arm(
+        cfg, mc, levels[-1], total_eras, rb + 20000, num_agents, max_ticks)
+    mc_meas = _measure_terminal(cfg, mc, cur_genomes, levels[-1], rb + 30000, num_agents, n_eval, max_ticks)
+    mf_meas = _measure_terminal(cfg, mc, flat_genomes, levels[-1], rb + 30000, num_agents, n_eval, max_ticks)
+    return {
+        "d_net": float(np.mean(mc_meas["nets"]) - np.mean(mf_meas["nets"])),
+        "net_curr": float(np.mean(mc_meas["nets"])),
+        "net_flat": float(np.mean(mf_meas["nets"])),
+        "surv_curr": list(mc_meas["survs"]),
+        "surv_flat": list(mf_meas["survs"]),
+        "transcript": transcript,
+        "total_eras": total_eras,
+    }
+
+
+def _report(h, reps, R, levels, _return):
+    """Stats appariées + verdict pré-enregistré + provenance. reps = liste de dicts _one_rep_core."""
+    d_nets = [r["d_net"] for r in reps]
+    surv_curr = [s for r in reps for s in r["surv_curr"]]
+    net_curr = [r["net_curr"] for r in reps]
+    net_flat = [r["net_flat"] for r in reps]
+    transcripts = [r["transcript"] for r in reps]
+    summ = st.paired_summary(d_nets)
+    med = float(np.median(d_nets))
+    lo, hi = st.bootstrap_ci(d_nets, np.mean, seed=h.seed)
+    sc_med = float(np.median(surv_curr)) if surv_curr else 0.0
+    verdict = _verdict(sc_med, summ["wilcoxon_p"], med, lo)
+    print(f"\n=== net (kills−leurre_hits) au terminal {levels[-1]:.2f} : "
+          f"CURRICULUM {np.mean(net_curr):.2f} vs FLAT {np.mean(net_flat):.2f} ({R} reps appariées) ===")
+    print(f"  d (CURR−FLAT net) = {summ['mean']:+.2f} +/- {summ['se']:.2f} SE ; win {summ['win_rate']*100:.0f}% ; "
+          f"Wilcoxon p={summ['wilcoxon_p']:.3f} ; médiane={med:+.2f} ; IC95=[{lo:+.2f},{hi:+.2f}]")
+    print(f"  survie médiane curriculum = {sc_med:.0f} ticks (gate >{GATE:.0f})")
+    print("=== VERDICT (pré-enregistré) ===")
+    print(f"  -> {verdict}")
+    h.save({"R": R, "levels": list(levels), "d_nets": d_nets, "net_curr": net_curr, "net_flat": net_flat,
+            "summary": summ, "median": med, "ci": [lo, hi], "surv_med": sc_med,
+            "transcripts": transcripts, "verdict": verdict})
+    if _return:
+        return {"d_nets": d_nets, "summary": summ, "median": med, "ci": [lo, hi],
+                "surv_med": sc_med, "verdict": verdict, "transcripts": transcripts}
+
+
+def main(R=8, levels=LEVELS, num_agents=24, n_eval=8, grad_cfg=None, seed=None, max_ticks=MAX_TICKS, _return=False):
+    grad_cfg = grad_cfg or _grad_cfg()
+    with Harness(seed=seed, name="lethality_curriculum", with_db=False) as h:
+        base = h.seed
+        cfg = _lethal_cfg()
+        mc = MutationConfig(weight_init_std=2.0)
+        print(f"EDR090 : curriculum de létalité vs flat. R={R}, levels={levels}, seed={base}.")
+        reps = []
+        prog = h.progress(R, label="répétitions curriculum vs flat")
+        for r in range(R):
+            rb = base + r * 100000
+            np.random.seed(rb)
+            reps.append(_one_rep_core(cfg, mc, levels, grad_cfg, num_agents, n_eval, max_ticks, rb))
+            prog.update()
+        return _report(h, reps, R, levels, _return)

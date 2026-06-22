@@ -97,3 +97,17 @@ def test_measure_terminal_keys_and_reproducible():
     assert set(a) == {"nets", "survs"}
     assert len(a["nets"]) == 3 and len(a["survs"]) == 3
     assert a == b                               # seedé (base+30000-style) -> apparié/reproductible
+
+
+def test_main_runs_and_reproducible(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    gcfg = lc.GraduationConfig(window=2, eps_plateau=0.02, c_floor=0.0, patience=1, max_eras=2)
+    a = lc.main(R=2, levels=(0.33, 0.83), num_agents=4, n_eval=2, grad_cfg=gcfg,
+                seed=3, max_ticks=20, _return=True)
+    b = lc.main(R=2, levels=(0.33, 0.83), num_agents=4, n_eval=2, grad_cfg=gcfg,
+                seed=3, max_ticks=20, _return=True)
+    assert a["d_nets"] == b["d_nets"]                              # apparié/seedé -> identique
+    assert len(a["d_nets"]) == 2
+    assert "verdict" in a and "surv_med" in a
+    assert len(a["transcripts"]) == 2 and len(a["transcripts"][0]) == 2   # R reps × len(levels)
+    assert a["verdict"] in {"NEGATIF PROFOND", "CASSE LE BOOTSTRAP", "PAS LE GOULOT"}
