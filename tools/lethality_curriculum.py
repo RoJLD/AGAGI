@@ -89,3 +89,26 @@ def _run_era_clean(cfg, genomes, leurre_frac, max_ticks=MAX_TICKS):
         "survivors": len(env.agents),
         "scored": scored,
     }
+
+
+def _coevolve_at(cfg, mc, leurre_frac, start_genomes, grad_cfg, base, num_agents, max_ticks=MAX_TICKS):
+    """Co-évolue UN palier de létalité jusqu'à graduation (has_graduated + patience K) ou max_eras
+    (garde-temps). seed_at(base, era) -> reproductible. Compétence par ère = survie normalisée.
+    Renvoie (best_genomes_top5, eras_held, history, graduated)."""
+    best = [(0.0, g) for g in start_genomes]
+    history, streak, graduated, era = [], 0, False, 0
+    while era < grad_cfg.max_eras:
+        era += 1
+        seed_at(base, era)
+        genomes = _reproduce([g for _s, g in best], num_agents, mc)
+        r = _run_era_clean(cfg, genomes, leurre_frac, max_ticks=max_ticks)
+        history.append(_survival_competence([r["ticks"]], max_ticks))
+        best = sorted(best + r["scored"], key=lambda sg: sg[0], reverse=True)[:5]
+        if has_graduated(history, grad_cfg):
+            streak += 1
+            if streak >= grad_cfg.patience:
+                graduated = True
+                break
+        else:
+            streak = 0
+    return [g for _s, g in best], era, history, graduated

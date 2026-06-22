@@ -40,3 +40,21 @@ def test_run_era_clean_keys_and_reproducible():
     assert a["ticks"] == b["ticks"] and a["kills"] == b["kills"]      # seedé -> reproductible
     assert a["leurre_hits"] == b["leurre_hits"]
     assert len(a["scored"]) <= 5 and a["ticks"] <= 20
+
+
+def test_coevolve_at_shape_and_caps():
+    cfg = lc._lethal_cfg()
+    mc = lc.MutationConfig(weight_init_std=2.0)
+    gcfg = lc.GraduationConfig(window=2, eps_plateau=0.02, c_floor=0.0, patience=1, max_eras=3)
+    start = lc._load_champions()
+    genomes, eras, history, graduated = lc._coevolve_at(
+        cfg, mc, leurre_frac=0.5, start_genomes=start, grad_cfg=gcfg,
+        base=1234, num_agents=4, max_ticks=20,
+    )
+    assert 1 <= eras <= 3                       # borné par max_eras
+    assert len(history) == eras                 # une compétence par ère tenue
+    assert len(genomes) == 5                    # top-5 portés
+    assert all(0.0 <= c <= 1.0 for c in history)
+    # reproductible
+    g2, e2, h2, _ = lc._coevolve_at(cfg, mc, 0.5, start, gcfg, 1234, 4, 20)
+    assert e2 == eras and h2 == history
