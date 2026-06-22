@@ -1,5 +1,9 @@
 export const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8001";
 
+/** Token API optionnel (opt-in) : si défini, envoyé en `Authorization: Bearer` sur chaque appel.
+ *  Absent → aucun header (le backend n'exige rien tant que AGAGI_API_TOKEN n'est pas posé côté serveur). */
+const API_TOKEN = import.meta.env.VITE_API_TOKEN;
+
 /** Erreur réseau/HTTP typée (status, endpoint, message) — remplace les `string` ad hoc. */
 export class ApiError extends Error {
   constructor(
@@ -19,8 +23,10 @@ export async function apiFetch<T>(path: string, init: FetchInit = {}): Promise<T
   const { timeoutMs = 10_000, signal, ...rest } = init;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const headers = new Headers(rest.headers);
+  if (API_TOKEN) headers.set("Authorization", `Bearer ${API_TOKEN}`);
   try {
-    const response = await fetch(`${BASE_URL}${path}`, { ...rest, signal: signal ?? controller.signal });
+    const response = await fetch(`${BASE_URL}${path}`, { ...rest, headers, signal: signal ?? controller.signal });
     if (!response.ok) {
       const detail = await response.text().catch(() => "");
       throw new ApiError(response.status, path, detail || response.statusText);
