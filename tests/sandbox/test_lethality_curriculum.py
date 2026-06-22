@@ -111,3 +111,14 @@ def test_main_runs_and_reproducible(tmp_path, monkeypatch):
     assert "verdict" in a and "surv_med" in a
     assert len(a["transcripts"]) == 2 and len(a["transcripts"][0]) == 2   # R reps × len(levels)
     assert a["verdict"] in {"NEGATIF PROFOND", "CASSE LE BOOTSTRAP", "PAS LE GOULOT"}
+
+
+def test_main_mp_matches_sequential(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    gcfg = lc.GraduationConfig(window=2, eps_plateau=0.02, c_floor=0.0, patience=1, max_eras=2)
+    seq = lc.main(R=2, levels=(0.33, 0.83), num_agents=4, n_eval=2, grad_cfg=gcfg,
+                  seed=3, max_ticks=20, _return=True)
+    mp = lc.main_mp(R=2, levels=(0.33, 0.83), num_agents=4, n_eval=2, grad_cfg=gcfg,
+                    seed=3, max_ticks=20, n_procs=2, _return=True)
+    assert mp["d_nets"] == seq["d_nets"]          # IDENTIQUE -> mp == seq déterministe
+    assert mp["verdict"] == seq["verdict"] and mp["surv_med"] == seq["surv_med"]

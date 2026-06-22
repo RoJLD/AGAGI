@@ -224,3 +224,36 @@ def main(R=8, levels=LEVELS, num_agents=24, n_eval=8, grad_cfg=None, seed=None, 
             reps.append(_one_rep_core(cfg, mc, levels, grad_cfg, num_agents, n_eval, max_ticks, rb))
             prog.update()
         return _report(h, reps, R, levels, _return)
+
+
+def _one_rep(args):
+    """Une répétition dans un process isolé. os.chdir(work_dir) -> hall_of_fame.pkl / results/
+    identiques au parent ; np.random.seed(rb) -> état global identique au séquentiel. Silence le bruit."""
+    import logging, warnings, os
+    logging.disable(logging.CRITICAL)
+    warnings.filterwarnings("ignore")
+    rb, levels, num_agents, n_eval, grad_cfg, max_ticks, work_dir = args
+    os.chdir(work_dir)
+    np.random.seed(rb)
+    cfg = _lethal_cfg()
+    mc = MutationConfig(weight_init_std=2.0)
+    return _one_rep_core(cfg, mc, levels, grad_cfg, num_agents, n_eval, max_ticks, rb)
+
+
+def main_mp(R=8, levels=LEVELS, num_agents=24, n_eval=8, grad_cfg=None, seed=None,
+            n_procs=4, max_ticks=MAX_TICKS, _return=False):
+    from concurrent.futures import ProcessPoolExecutor
+    grad_cfg = grad_cfg or _grad_cfg()
+    with Harness(seed=seed, name="lethality_curriculum", with_db=False) as h:
+        base = h.seed
+        print(f"EDR090 MULTIPROCESS : R={R}, levels={levels}, n_procs={n_procs}, seed={base}.")
+        import os as _os
+        cwd = _os.getcwd()
+        args = [(base + r * 100000, levels, num_agents, n_eval, grad_cfg, max_ticks, cwd) for r in range(R)]
+        with ProcessPoolExecutor(max_workers=n_procs) as ex:
+            reps = list(ex.map(_one_rep, args))      # ordre préservé -> déterministe
+        return _report(h, reps, R, levels, _return)
+
+
+if __name__ == "__main__":
+    main()
