@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../api/client";
 import { queryKeys } from "../api/queryKeys";
 import type { RunDetail, RunSummary } from "../types";
@@ -9,6 +9,7 @@ import { Empty } from "./ui/Empty";
 import { Field } from "./ui/Field";
 import { Button } from "./ui/Button";
 import { Panel } from "./ui/Panel";
+import { useToast } from "../contexts/ToastContext";
 
 export function RunsHistoryView({ onCompare }: { onCompare?: (condition: string) => void }) {
   const runsQuery = useQuery({
@@ -25,6 +26,30 @@ export function RunsHistoryView({ onCompare }: { onCompare?: (condition: string)
     queryFn: () => apiFetch<RunDetail>(`/api/runs/${encodeURIComponent(selected ?? "")}`),
     enabled: !!selected,
   });
+
+  const queryClient = useQueryClient();
+  const { notify } = useToast();
+  const [edrInput, setEdrInput] = useState("");
+  const linkMutation = useMutation({
+    mutationFn: (edr: number[]) =>
+      apiFetch(`/api/runs/${encodeURIComponent(selected ?? "")}/links`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ edr }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.runs.detail(selected ?? "") });
+      queryClient.invalidateQueries({ queryKey: queryKeys.runs.edrLinks });
+      notify("Liens EDR mis à jour.", "success");
+    },
+  });
+  const submitLinks = () => {
+    const edr = edrInput
+      .split(",")
+      .map((s) => parseInt(s.trim(), 10))
+      .filter((n) => Number.isInteger(n));
+    linkMutation.mutate(edr);
+  };
 
   const runs = runsQuery.data ?? [];
   const filtered = useMemo(
@@ -120,6 +145,28 @@ export function RunsHistoryView({ onCompare }: { onCompare?: (condition: string)
                     <strong>{k}</strong> : {typeof v === "number" ? v : String(v)}
                   </p>
                 ))}
+              </div>
+              <div className="mt-4">
+                <p className="text-dim">
+                  EDR liés :{" "}
+                  {detailQuery.data.links?.edr.length
+                    ? detailQuery.data.links.edr.map((e) => `EDR ${e}`).join(", ")
+                    : "aucun"}
+                </p>
+                <div className="row">
+                  <input
+                    value={edrInput}
+                    onChange={(e) => setEdrInput(e.target.value)}
+                    placeholder="ex: 81, 87"
+                    style={{ padding: "var(--space-2)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-sm)", background: "var(--color-surface)", color: "var(--color-text)" }}
+                  />
+                  <Button variant="ghost" size="sm" disabled={linkMutation.isPending} onClick={submitLinks}>
+                    Lier EDR
+                  </Button>
+                </div>
+                <p className="text-dim" style={{ fontSize: "var(--font-size-xs)" }}>
+                  Remplace la liste d'EDR liés à ce run (numéros séparés par des virgules).
+                </p>
               </div>
             </>
           ) : null}

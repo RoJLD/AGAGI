@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, Query
+from pydantic import BaseModel
 
 from ..services.runs_service import runs_service
 
@@ -26,6 +27,22 @@ def compare(
     if result is None:
         raise HTTPException(status_code=404, detail=f"Aucune valeur pour metric={metric} sur {a}/{b}")
     return result
+
+
+class EdrLinks(BaseModel):
+    edr: list[int]
+
+
+@router.get("/runs/edr-links")
+def edr_links() -> dict:
+    """{edr: [run_id, ...]} — alimente les badges « runs liés » du dashboard EDR."""
+    return runs_service.edr_links()
+
+
+@router.patch("/runs/{run_id}/links")
+def set_run_links(run_id: str, body: EdrLinks) -> dict:
+    """Associe une liste d'EDR à un run (store results/run_links.json, n'altère pas le run)."""
+    return runs_service.set_run_edr_links(run_id, body.edr)
 
 
 @router.get("/runs/{run_id}")

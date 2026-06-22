@@ -5,6 +5,7 @@ import { Loading } from "./ui/Loading";
 import { ErrorState } from "./ui/ErrorState";
 import { Empty } from "./ui/Empty";
 import { Badge } from "./ui/Badge";
+import type { EdrLinks } from "../types";
 
 type Serie = { name: string; values?: number[]; value?: number; err?: number; color: string };
 type Finding = {
@@ -92,6 +93,11 @@ export function EDRDashboard() {
     queryFn: () => apiFetch<EdrDoc[]>("/api/edr/docs"),
     staleTime: Infinity,
   });
+  const linksQuery = useQuery({
+    queryKey: queryKeys.runs.edrLinks,
+    queryFn: () => apiFetch<EdrLinks>("/api/runs/edr-links"),
+    staleTime: 30_000,
+  });
 
   if (isLoading) return <Loading label="Chargement des découvertes EDR…" />;
   if (error) return <ErrorState error={error} onRetry={() => refetch()} />;
@@ -99,6 +105,7 @@ export function EDRDashboard() {
 
   const curated = new Set(data.findings.filter((f) => !f.stub).map((f) => f.edr));
   const uncurated = (docsQuery.data ?? []).filter((d) => !curated.has(d.edr));
+  const links = linksQuery.data ?? {};
 
   return (
     <div className="edr-dashboard">
@@ -112,6 +119,9 @@ export function EDRDashboard() {
           <article key={f.edr} className="edr-card">
             <header className="edr-card-head">
               <Badge variant="teal">EDR {f.edr}</Badge>
+              {links[String(f.edr)]?.length ? (
+                <Badge variant="purple">{links[String(f.edr)].length} run(s) liés</Badge>
+              ) : null}
               <h3>{f.title}</h3>
             </header>
             <p className="edr-sub">{f.subtitle}</p>

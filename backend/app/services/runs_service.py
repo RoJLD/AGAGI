@@ -74,8 +74,45 @@ class RunsService:
     def get_run(self, run_id: str) -> dict | None:
         for r in self._scan():
             if r["_run_id"] == run_id:
-                return {"run_id": run_id, "name": r["name"], "seed": r["seed"], "commit": r.get("commit"), "data": r["data"]}
+                return {
+                    "run_id": run_id,
+                    "name": r["name"],
+                    "seed": r["seed"],
+                    "commit": r.get("commit"),
+                    "data": r["data"],
+                    "links": {"edr": self._load_links().get(run_id, {}).get("edr", [])},
+                }
         return None
+
+    # --- Liens run <-> EDR (store séparé results/run_links.json ; n'altère pas les fichiers de run) ---
+    def _links_path(self) -> Path:
+        return RESULTS_DIR / "run_links.json"
+
+    def _load_links(self) -> dict:
+        p = self._links_path()
+        if p.exists():
+            try:
+                d = json.loads(p.read_text(encoding="utf-8"))
+                return d if isinstance(d, dict) else {}
+            except Exception:  # noqa: BLE001
+                return {}
+        return {}
+
+    def set_run_edr_links(self, run_id: str, edr: list[int]) -> dict:
+        links = self._load_links()
+        entry = links.setdefault(run_id, {})
+        entry["edr"] = sorted({int(e) for e in edr})
+        RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+        self._links_path().write_text(json.dumps(links, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        return {"run_id": run_id, "edr": entry["edr"]}
+
+    def edr_links(self) -> dict:
+        """Inverse : {edr: [run_id, ...]} pour les badges « runs liés » du dashboard EDR."""
+        out: dict[int, list[str]] = {}
+        for run_id, entry in self._load_links().items():
+            for e in entry.get("edr", []):
+                out.setdefault(int(e), []).append(run_id)
+        return {str(k): sorted(v) for k, v in sorted(out.items())}
 
     def list_conditions(self) -> list[dict]:
         groups: dict[str, dict] = {}

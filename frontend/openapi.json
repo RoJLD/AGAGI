@@ -88,6 +88,22 @@
         "title": "ArticleResponse",
         "type": "object"
       },
+      "EdrLinks": {
+        "properties": {
+          "edr": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Edr",
+            "type": "array"
+          }
+        },
+        "required": [
+          "edr"
+        ],
+        "title": "EdrLinks",
+        "type": "object"
+      },
       "ExperimentDetail": {
         "properties": {
           "gate": {
@@ -1093,6 +1109,30 @@
         ]
       }
     },
+    "/api/runs/edr-links": {
+      "get": {
+        "description": "{edr: [run_id, ...]} — alimente les badges « runs liés » du dashboard EDR.",
+        "operationId": "edr_links_api_runs_edr_links_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Edr Links Api Runs Edr Links Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Edr Links",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
     "/api/runs/{run_id}": {
       "get": {
         "operationId": "get_run_api_runs__run_id__get",
@@ -1132,6 +1172,61 @@
           }
         },
         "summary": "Get Run",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/runs/{run_id}/links": {
+      "patch": {
+        "description": "Associe une liste d'EDR à un run (store results/run_links.json, n'altère pas le run).",
+        "operationId": "set_run_links_api_runs__run_id__links_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EdrLinks"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Set Run Links Api Runs  Run Id  Links Patch",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Run Links",
         "tags": [
           "runs"
         ]

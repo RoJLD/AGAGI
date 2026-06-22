@@ -143,4 +143,8 @@ export interface RunDetail {
   seed: number;
   commit?: string | null;
   data: Record<string, number | string>;
+  links?: { edr: number[] };
 }
+
+/** {edr: [run_id, ...]} — runs liés à chaque EDR (badges du dashboard EDR). */
+export type EdrLinks = Record<string, string[]>;

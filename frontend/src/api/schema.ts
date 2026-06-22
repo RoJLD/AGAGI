@@ -252,6 +252,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/runs/edr-links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Edr Links
+         * @description {edr: [run_id, ...]} — alimente les badges « runs liés » du dashboard EDR.
+         */
+        get: operations["edr_links_api_runs_edr_links_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/runs/{run_id}": {
         parameters: {
             query?: never;
@@ -267,6 +287,26 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/runs/{run_id}/links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Set Run Links
+         * @description Associe une liste d'EDR à un run (store results/run_links.json, n'altère pas le run).
+         */
+        patch: operations["set_run_links_api_runs__run_id__links_patch"];
         trace?: never;
     };
     "/api/sandbox/action": {
@@ -551,6 +591,11 @@ export interface components {
             timestamp: number;
             /** Title */
             title: string;
+        };
+        /** EdrLinks */
+        EdrLinks: {
+            /** Edr */
+            edr: number[];
         };
         /** ExperimentDetail */
         ExperimentDetail: {
@@ -1113,6 +1158,28 @@ export interface operations {
             };
         };
     };
+    edr_links_api_runs_edr_links_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
     get_run_api_runs__run_id__get: {
         parameters: {
             query?: never;
@@ -1123,6 +1190,43 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_run_links_api_runs__run_id__links_patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EdrLinks"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
