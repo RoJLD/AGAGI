@@ -88,12 +88,14 @@ Le design a donc **trois branches informatives** : le succès fabrique le substr
 | `GraduationConfig.max_eras` | 10 | garde-temps par palier (promotion forcée) |
 | `max_ticks` | 300 | comme 089 |
 | `num_agents` | 24 | comme 089 |
-| `K_robust` | 4 | robust eval du champion (comme 089) |
+| `K_robust` | 1 (désactivé v1) | la sélection agrège déjà sur 24 agents/ère ; K×(1+4) le coût pour un gain marginal sur un contraste apparié. Réactivable si le pilote montre une sélection instable. |
 | `R` | 8 | répétitions appariées |
 | `n_eval` | 8 | ères de mesure terminale par bras |
 | `METAB, PAYOFF` | 0.25, 3.0 | sweet spot énergie (085) |
 
-**Sweet-spot énergie + nourriture** : `target_prey_count = 15` (substrat non food-scarce, comme l'addendum 089 — neutre au contraste, isole la létalité comme seule cause de mortalité).
+**Sweet-spot énergie + nourriture** : `target_prey_count = 15` (= défaut `WorldConfig` ; substrat non food-scarce, comme l'addendum 089 — neutre au contraste, isole la létalité comme seule cause de mortalité).
+
+> **Validité — pas de confound starvation/létalité :** le respawn du monde (`world_1_stoneage.py` ~ligne 922) ne réinjecte **que** de la nourriture de forage (`Lapin/Cerf/Sanglier/Mammouth`), **jamais** de `Leurre`/`Ours`. Donc `target_prey_count=15` nourrit la population **sans corrompre le ratio `leurre_frac`** (la létalité reste le seul bouton). De plus, la mesure terminale se fait au **même** `leurre_frac=0.83` pour les deux bras → la rareté de nourriture éventuelle est **common-mode** et s'annule dans la diff appariée `net_curr − net_flat`.
 
 ## 6. Outillage & architecture
 
