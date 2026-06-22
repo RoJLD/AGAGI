@@ -166,6 +166,9 @@ Le projet revendique une méthode forte ; **l'outil ne la soutient pas encore.**
 
 ---
 
-## État d'avancement (2026-06-15)
+## État d'avancement (2026-06-22)
 - **F0** ✅ · **F1** (routing/onglets/toasts/ErrorBoundary ✅ ; **F1.5 responsive/topbar/sidebar ✅**) · **F2** (lanceur+presets+file ✅, A/B IC/Cohen/verdict ✅, **Historique runs + deep-link A/B ✅**) · **F3.10 tests ✅**.
-- **Reste** : F2.9 lien *finding ↔ run ↔ EDR* (backend) ; F3.11/12 durcissement+sécurité (backend) ; tokenisation d3 dark-mode `RadarChart`/`TopologyViewer` ; automatisations ci-dessus.
+- **F2.9** ✅ lien *finding ↔ run ↔ EDR* (PATCH `/api/runs/{id}/links`, badges « runs liés », store `results/run_links.json`).
+- **F3.11** ✅ `response_models` Pydantic sur `/api/runs` (durcit le typage + précise le codegen TS).
+- **F3.12** ✅ sécurité **opt-in / env-gated / non-breaking** : sandbox bornée (liste blanche, anti-traversal, *actif*), CORS via `AGAGI_CORS_ORIGINS`, auth Bearer via `AGAGI_API_TOKEN` (mutations `/api`), front `VITE_API_TOKEN`. Gate : 8 tests dans `tests/test_backend.py` (CI) ; `.env.example` backend+front.
+- **Reste** : tokenisation d3 dark-mode `RadarChart`/`TopologyViewer` ; WS `/ws/evolution` temps-réel (producteur live, à coordonner) ; articles Sociologue ↔ runs (`/analyze` par `run_id`).
