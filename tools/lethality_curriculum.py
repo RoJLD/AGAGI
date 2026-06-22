@@ -194,12 +194,12 @@ def _report(h, reps, R, levels, _return):
     lo, hi = st.bootstrap_ci(d_nets, np.mean, seed=h.seed)
     sc_med = float(np.median(surv_curr)) if surv_curr else 0.0
     verdict = _verdict(sc_med, summ["wilcoxon_p"], med, lo)
-    print(f"\n=== net (kills−leurre_hits) au terminal {levels[-1]:.2f} : "
-          f"CURRICULUM {np.mean(net_curr):.2f} vs FLAT {np.mean(net_flat):.2f} ({R} reps appariées) ===")
-    print(f"  d (CURR−FLAT net) = {summ['mean']:+.2f} +/- {summ['se']:.2f} SE ; win {summ['win_rate']*100:.0f}% ; "
-          f"Wilcoxon p={summ['wilcoxon_p']:.3f} ; médiane={med:+.2f} ; IC95=[{lo:+.2f},{hi:+.2f}]")
-    print(f"  survie médiane curriculum = {sc_med:.0f} ticks (gate >{GATE:.0f})")
-    print("=== VERDICT (pré-enregistré) ===")
+    print(f"\n=== net (kills-leurre_hits) au terminal {levels[-1]:.2f} : "
+          f"CURRICULUM {np.mean(net_curr):.2f} vs FLAT {np.mean(net_flat):.2f} ({R} reps appariees) ===")
+    print(f"  d (CURR-FLAT net) = {summ['mean']:+.2f} +/- {summ['se']:.2f} SE ; win {summ['win_rate']*100:.0f}% ; "
+          f"Wilcoxon p={summ['wilcoxon_p']:.3f} ; mediane={med:+.2f} ; IC95=[{lo:+.2f},{hi:+.2f}]")
+    print(f"  survie mediane curriculum = {sc_med:.0f} ticks (gate >{GATE:.0f})")
+    print("=== VERDICT (pre-enregistre) ===")
     print(f"  -> {verdict}")
     h.save({"R": R, "levels": list(levels), "d_nets": d_nets, "net_curr": net_curr, "net_flat": net_flat,
             "summary": summ, "median": med, "ci": [lo, hi], "surv_med": sc_med,
@@ -215,7 +215,7 @@ def main(R=8, levels=LEVELS, num_agents=24, n_eval=8, grad_cfg=None, seed=None, 
         base = h.seed
         cfg = _lethal_cfg()
         mc = MutationConfig(weight_init_std=2.0)
-        print(f"EDR090 : curriculum de létalité vs flat. R={R}, levels={levels}, seed={base}.")
+        print(f"EDR090 : curriculum de letalite vs flat. R={R}, levels={levels}, seed={base}.")
         reps = []
         prog = h.progress(R, label="répétitions curriculum vs flat")
         for r in range(R):
