@@ -115,7 +115,16 @@ class SandboxService:
             
             self._log_reader_thread = threading.Thread(target=read_logs, args=(self._processes["main"],), daemon=True)
             self._log_reader_thread.start()
-            
+
+            _timeout = os.environ.get("AGISEED_SANDBOX_TIMEOUT")
+            if _timeout:
+                try:
+                    _t = float(_timeout)
+                    if _t > 0:
+                        self._start_watchdog(self._processes["main"], _t)
+                except ValueError:
+                    pass
+
             self._current_config = config
             self._stop_event.clear()
         except Exception as e:
@@ -167,6 +176,26 @@ class SandboxService:
                 if os.path.isfile(os.path.join(PROJECT_ROOT, tool_script)):
                     print(f"Running post-run analyst: {tool_script}")
                     subprocess.run([sys.executable, tool_script], cwd=PROJECT_ROOT, env=env)
+
+    def _start_watchdog(self, proc, timeout_s: float):
+        """Tue proc apres timeout_s s'il tourne encore (thread daemon). Best-effort."""
+        def _kill_after():
+            end = time.time() + timeout_s
+            while time.time() < end:
+                if proc.poll() is not None:
+                    return
+                time.sleep(1.0)
+            if proc.poll() is None:
+                self._logs.append(f"⏱️ Timeout {timeout_s}s atteint -> arrêt du process")
+                try:
+                    proc.terminate()
+                    proc.wait(timeout=5)
+                except Exception:
+                    try:
+                        proc.kill()
+                    except Exception:
+                        pass
+        threading.Thread(target=_kill_after, daemon=True).start()
 
     def stop(self) -> dict:
         self._stop_event.set() # Stop the supervisor thread

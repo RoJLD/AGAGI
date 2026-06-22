@@ -55,3 +55,14 @@ def test_start_rejects_unauthorized_script_without_launching():
     res = svc.start({"script_name": "../../x.py"})
     assert res["status"] == "error" and "autoris" in res["message"].lower()
     assert svc.get_status()["running"] is False
+
+
+def test_watchdog_kills_process_after_timeout():
+    import subprocess
+    import sys
+    import time
+    svc = SandboxService()
+    proc = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
+    svc._start_watchdog(proc, 1.0)
+    time.sleep(4)
+    assert proc.poll() is not None   # tué par le watchdog
