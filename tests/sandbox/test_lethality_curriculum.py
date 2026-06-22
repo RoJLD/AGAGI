@@ -122,3 +122,4 @@ def test_main_mp_matches_sequential(tmp_path, monkeypatch):
                     seed=3, max_ticks=20, n_procs=2, _return=True)
     assert mp["d_nets"] == seq["d_nets"]          # IDENTIQUE -> mp == seq déterministe
     assert mp["verdict"] == seq["verdict"] and mp["surv_med"] == seq["surv_med"]
+    assert mp["transcripts"] == seq["transcripts"]   # transcripts (eras/competence par palier) aussi déterministes
