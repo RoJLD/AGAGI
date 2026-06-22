@@ -54,3 +54,38 @@ def _verdict(sc_med, wilcoxon_p, med, lo):
     if wilcoxon_p < 0.05 and med > 0 and lo > 0:
         return "CASSE LE BOOTSTRAP"
     return "PAS LE GOULOT"
+
+
+def _run_era_clean(cfg, genomes, leurre_frac, max_ticks=MAX_TICKS):
+    """Une ère DÉTERMINISTE à létalité leurre_frac. _setup_critical pose les apex (Leurre dmg=50) ;
+    memory_retriever stoppé AVANT la boucle (hazard mémoire ambiante KuzuDB, dette core d'089) ;
+    forage food = PREY_COUNT. PAS de langage (use_ref_head/decode_act = False). Renvoie toujours
+    {ticks,kills,leurre_hits,survivors,scored} (scored = top-5 (life_score, genome) pour la sélection)."""
+    env = Biosphere3D(cfg)
+    _setup_critical(env, leurre_frac, n_apex=N_APEX)
+    env.config.target_prey_count = PREY_COUNT
+    if hasattr(env, "memory_retriever"):
+        env.memory_retriever.stop()
+    env.use_ref_head = False
+    env.decode_act = False
+    for g in genomes:
+        a = MambaAgent()
+        a.from_genome(g)
+        env.add_agent(a, energy=80.0)
+    env.current_era = 1
+    t = 0
+    while env.agents and t < max_ticks:
+        env.step()
+        t += 1
+    pool = list(env.agents) + list(getattr(env, "dead_agents", []))
+    scored = sorted(
+        [(calculate_life_score(a), a["model"].genome if "model" in a else a.get("genome")) for a in pool],
+        key=lambda sg: sg[0], reverse=True,
+    )[:5]
+    return {
+        "ticks": t,
+        "kills": int(sum(ag.get("mammoth_kills", 0) for ag in pool)),
+        "leurre_hits": int(getattr(env, "leurre_hits", 0)),
+        "survivors": len(env.agents),
+        "scored": scored,
+    }
