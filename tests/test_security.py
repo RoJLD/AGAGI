@@ -35,3 +35,12 @@ def test_get_endpoints_stay_open(monkeypatch):
     from backend.app.main import app
     client = TestClient(app)
     assert client.get("/api/sandbox/status").status_code == 200   # GET non protege
+
+
+def test_cors_is_not_wildcard():
+    from backend.app.main import app
+    client = TestClient(app)
+    r_evil = client.get("/health", headers={"Origin": "http://evil.example"})
+    assert r_evil.headers.get("access-control-allow-origin") not in ("http://evil.example", "*")
+    r_ok = client.get("/health", headers={"Origin": "http://localhost:5173"})
+    assert r_ok.headers.get("access-control-allow-origin") == "http://localhost:5173"

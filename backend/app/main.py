@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import os
 from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -20,9 +21,11 @@ from .services.data_service import ExperimentDataService
 from .flatland_server import flatland_server
 
 app = FastAPI(title="AGIseed Dashboard API", version="0.1.0")
+_origins = os.environ.get("AGISEED_CORS_ORIGINS", "http://localhost:5173,http://localhost:4173")
+ALLOWED_ORIGINS = [o.strip() for o in _origins.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
