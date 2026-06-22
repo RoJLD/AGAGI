@@ -1,9 +1,10 @@
 import os
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from typing import Optional
 
 from ..services.sandbox_service import sandbox_service
+from ..security import require_token
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../"))
 
@@ -38,7 +39,7 @@ def get_status():
         "available_scripts": scripts
     }
 
-@router.post("/start")
+@router.post("/start", dependencies=[Depends(require_token)])
 def start_sandbox(req: StartRequest):
     return sandbox_service.start({
         "script_name": req.script_name,
@@ -55,11 +56,11 @@ def start_sandbox(req: StartRequest):
         "run_dream_analyzer": req.run_dream_analyzer
     })
 
-@router.post("/stop")
+@router.post("/stop", dependencies=[Depends(require_token)])
 def stop_sandbox():
     return sandbox_service.stop()
 
-@router.delete("/curriculum_state")
+@router.delete("/curriculum_state", dependencies=[Depends(require_token)])
 def reset_curriculum_state():
     import os
     import time
@@ -106,7 +107,7 @@ def get_telemetry():
 class ActionRequest(BaseModel):
     action: str
 
-@router.post("/action")
+@router.post("/action", dependencies=[Depends(require_token)])
 def post_action(req: ActionRequest):
     import json
     import os

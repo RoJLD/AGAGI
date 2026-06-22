@@ -1,8 +1,10 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from typing import List
 import kuzu
 import os
+
+from ..security import require_token
 
 router = APIRouter()
 
@@ -16,7 +18,7 @@ class AnalyzeRequest(BaseModel):
     baseline: str
     intervention: str
 
-@router.post("/analyze")
+@router.post("/analyze", dependencies=[Depends(require_token)])
 def trigger_analysis(request: AnalyzeRequest):
     from backend.app.services.kuzu_service import kuzu_service
     from src.graph_rag.sociologist import Sociologist
