@@ -558,6 +558,44 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** ABCompareResult */
+        ABCompareResult: {
+            a: components["schemas"]["ABGroup"];
+            b: components["schemas"]["ABGroup"];
+            /** D */
+            d: number;
+            /** D Thresh */
+            d_thresh: number;
+            /** Metric */
+            metric: string;
+            /** Significant */
+            significant: boolean;
+            /** T */
+            t: number;
+            /** T Thresh */
+            t_thresh: number;
+            /** Underpowered */
+            underpowered: boolean;
+            /** Verdict Detail */
+            verdict_detail: string;
+            /** Verdict Label */
+            verdict_label: string;
+            /** Winner */
+            winner?: string | null;
+        };
+        /** ABGroup */
+        ABGroup: {
+            /** Mean */
+            mean: number;
+            /** N */
+            n: number;
+            /** Name */
+            name: string;
+            /** Std */
+            std: number;
+            /** Vals */
+            vals: number[];
+        };
         /** ActionRequest */
         ActionRequest: {
             /** Action */
@@ -591,6 +629,17 @@ export interface components {
             timestamp: number;
             /** Title */
             title: string;
+        };
+        /** ConditionSummary */
+        ConditionSummary: {
+            /** Metrics */
+            metrics: string[];
+            /** N Seeds */
+            n_seeds: number;
+            /** Name */
+            name: string;
+            /** Seeds */
+            seeds: number[];
         };
         /** EdrLinks */
         EdrLinks: {
@@ -705,6 +754,43 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** RunDetail */
+        RunDetail: {
+            /** Commit */
+            commit?: string | null;
+            /** Data */
+            data: {
+                [key: string]: unknown;
+            };
+            links: components["schemas"]["RunLinks"];
+            /** Name */
+            name: string;
+            /** Run Id */
+            run_id: string;
+            /** Seed */
+            seed: number;
+        };
+        /** RunLinks */
+        RunLinks: {
+            /**
+             * Edr
+             * @default []
+             */
+            edr: number[];
+        };
+        /** RunSummary */
+        RunSummary: {
+            /** Commit */
+            commit?: string | null;
+            /** Metrics */
+            metrics: string[];
+            /** Name */
+            name: string;
+            /** Run Id */
+            run_id: string;
+            /** Seed */
+            seed: number;
         };
         /** StartRequest */
         StartRequest: {
@@ -1091,9 +1177,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    }[];
+                    "application/json": components["schemas"]["RunSummary"][];
                 };
             };
         };
@@ -1120,9 +1204,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ABCompareResult"];
                 };
             };
             /** @description Validation Error */
@@ -1151,9 +1233,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    }[];
+                    "application/json": components["schemas"]["ConditionSummary"][];
                 };
             };
         };
@@ -1174,7 +1254,7 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        [key: string]: unknown;
+                        [key: string]: string[];
                     };
                 };
             };
@@ -1197,9 +1277,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["RunDetail"];
                 };
             };
             /** @description Validation Error */
