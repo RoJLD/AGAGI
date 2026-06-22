@@ -112,3 +112,23 @@ def _coevolve_at(cfg, mc, leurre_frac, start_genomes, grad_cfg, base, num_agents
         else:
             streak = 0
     return [g for _s, g in best], era, history, graduated
+
+
+def _run_curriculum_arm(cfg, mc, levels, grad_cfg, base, num_agents, max_ticks=MAX_TICKS):
+    """Enchaîne les paliers de létalité (ordre croissant) en PORTANT les génomes d'un palier au
+    suivant. base = rb + 10000 ; palier idx seedé sur base + idx*1000 (plages disjointes). Renvoie
+    (final_genomes, total_eras, transcript) ; transcript = diagnostic 'où ça bloque' (une entrée/palier)."""
+    genomes = _load_champions()
+    transcript, total_eras = [], 0
+    for idx, lf in enumerate(levels):
+        genomes, eras, history, graduated = _coevolve_at(
+            cfg, mc, lf, genomes, grad_cfg, base + idx * 1000, num_agents, max_ticks,
+        )
+        total_eras += eras
+        transcript.append({
+            "level": lf,
+            "eras": eras,
+            "competence": history[-1] if history else 0.0,
+            "graduated": graduated,
+        })
+    return genomes, total_eras, transcript
