@@ -1,6 +1,114 @@
 {
   "components": {
     "schemas": {
+      "ABCompareResult": {
+        "properties": {
+          "a": {
+            "$ref": "#/components/schemas/ABGroup"
+          },
+          "b": {
+            "$ref": "#/components/schemas/ABGroup"
+          },
+          "d": {
+            "title": "D",
+            "type": "number"
+          },
+          "d_thresh": {
+            "title": "D Thresh",
+            "type": "number"
+          },
+          "metric": {
+            "title": "Metric",
+            "type": "string"
+          },
+          "significant": {
+            "title": "Significant",
+            "type": "boolean"
+          },
+          "t": {
+            "title": "T",
+            "type": "number"
+          },
+          "t_thresh": {
+            "title": "T Thresh",
+            "type": "number"
+          },
+          "underpowered": {
+            "title": "Underpowered",
+            "type": "boolean"
+          },
+          "verdict_detail": {
+            "title": "Verdict Detail",
+            "type": "string"
+          },
+          "verdict_label": {
+            "title": "Verdict Label",
+            "type": "string"
+          },
+          "winner": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Winner"
+          }
+        },
+        "required": [
+          "metric",
+          "a",
+          "b",
+          "t",
+          "d",
+          "significant",
+          "underpowered",
+          "verdict_label",
+          "verdict_detail",
+          "t_thresh",
+          "d_thresh"
+        ],
+        "title": "ABCompareResult",
+        "type": "object"
+      },
+      "ABGroup": {
+        "properties": {
+          "mean": {
+            "title": "Mean",
+            "type": "number"
+          },
+          "n": {
+            "title": "N",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "std": {
+            "title": "Std",
+            "type": "number"
+          },
+          "vals": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Vals",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "mean",
+          "std",
+          "vals",
+          "n"
+        ],
+        "title": "ABGroup",
+        "type": "object"
+      },
       "ActionRequest": {
         "properties": {
           "action": {
@@ -86,6 +194,40 @@
           "timestamp"
         ],
         "title": "ArticleResponse",
+        "type": "object"
+      },
+      "ConditionSummary": {
+        "properties": {
+          "metrics": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Metrics",
+            "type": "array"
+          },
+          "n_seeds": {
+            "title": "N Seeds",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "seeds": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Seeds",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "n_seeds",
+          "seeds",
+          "metrics"
+        ],
+        "title": "ConditionSummary",
         "type": "object"
       },
       "EdrLinks": {
@@ -479,6 +621,106 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "RunDetail": {
+        "properties": {
+          "commit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commit"
+          },
+          "data": {
+            "additionalProperties": true,
+            "title": "Data",
+            "type": "object"
+          },
+          "links": {
+            "$ref": "#/components/schemas/RunLinks"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "seed": {
+            "title": "Seed",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "run_id",
+          "name",
+          "seed",
+          "data",
+          "links"
+        ],
+        "title": "RunDetail",
+        "type": "object"
+      },
+      "RunLinks": {
+        "properties": {
+          "edr": {
+            "default": [],
+            "items": {
+              "type": "integer"
+            },
+            "title": "Edr",
+            "type": "array"
+          }
+        },
+        "title": "RunLinks",
+        "type": "object"
+      },
+      "RunSummary": {
+        "properties": {
+          "commit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commit"
+          },
+          "metrics": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Metrics",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "seed": {
+            "title": "Seed",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "run_id",
+          "name",
+          "seed",
+          "metrics"
+        ],
+        "title": "RunSummary",
         "type": "object"
       },
       "StartRequest": {
@@ -997,8 +1239,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "additionalProperties": true,
-                    "type": "object"
+                    "$ref": "#/components/schemas/RunSummary"
                   },
                   "title": "Response List Runs Api Runs Get",
                   "type": "array"
@@ -1057,9 +1298,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Compare Api Runs Compare Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/ABCompareResult"
                 }
               }
             },
@@ -1092,8 +1331,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "additionalProperties": true,
-                    "type": "object"
+                    "$ref": "#/components/schemas/ConditionSummary"
                   },
                   "title": "Response List Conditions Api Runs Conditions Get",
                   "type": "array"
@@ -1118,7 +1356,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
+                  "additionalProperties": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
                   "title": "Response Edr Links Api Runs Edr Links Get",
                   "type": "object"
                 }
@@ -1152,9 +1395,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Get Run Api Runs  Run Id  Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/RunDetail"
                 }
               }
             },

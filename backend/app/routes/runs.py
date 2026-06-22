@@ -1,23 +1,24 @@
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
+from ..schemas import ABCompareResult, ConditionSummary, RunDetail, RunSummary
 from ..services.runs_service import runs_service
 
 router = APIRouter()
 
 
-@router.get("/runs")
+@router.get("/runs", response_model=list[RunSummary])
 def list_runs() -> list[dict]:
     return runs_service.list_runs()
 
 
-@router.get("/runs/conditions")
+@router.get("/runs/conditions", response_model=list[ConditionSummary])
 def list_conditions() -> list[dict]:
     """Conditions = noms d'expériences (groupes de seeds), avec métriques disponibles."""
     return runs_service.list_conditions()
 
 
-@router.get("/runs/compare")
+@router.get("/runs/compare", response_model=ABCompareResult)
 def compare(
     a: str = Query(..., description="condition A (name)"),
     b: str = Query(..., description="condition B (name)"),
@@ -33,7 +34,7 @@ class EdrLinks(BaseModel):
     edr: list[int]
 
 
-@router.get("/runs/edr-links")
+@router.get("/runs/edr-links", response_model=dict[str, list[str]])
 def edr_links() -> dict:
     """{edr: [run_id, ...]} — alimente les badges « runs liés » du dashboard EDR."""
     return runs_service.edr_links()
@@ -45,7 +46,7 @@ def set_run_links(run_id: str, body: EdrLinks) -> dict:
     return runs_service.set_run_edr_links(run_id, body.edr)
 
 
-@router.get("/runs/{run_id}")
+@router.get("/runs/{run_id}", response_model=RunDetail)
 def get_run(run_id: str) -> dict:
     run = runs_service.get_run(run_id)
     if run is None:
