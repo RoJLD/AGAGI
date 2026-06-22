@@ -73,3 +73,16 @@ def test_curriculum_arm_transcript():
     assert all(set(row) == {"level", "eras", "competence", "graduated"} for row in transcript)
     assert total_eras == sum(row["eras"] for row in transcript)   # budget = somme des paliers
     assert len(genomes) == 5
+
+
+def test_flat_arm_budget_and_reproducible():
+    cfg = lc._lethal_cfg()
+    mc = lc.MutationConfig(weight_init_std=2.0)
+    a = lc._run_flat_arm(cfg, mc, terminal_frac=0.83, budget_eras=3, base=555, num_agents=4, max_ticks=20)
+    b = lc._run_flat_arm(cfg, mc, terminal_frac=0.83, budget_eras=3, base=555, num_agents=4, max_ticks=20)
+    assert len(a) == 5                          # top-5 portés
+    # reproductible : mêmes génomes (comparaison via life_score sur ère seedée identique)
+    seed_at = lc.seed_at
+    seed_at(42, 0); ra = lc._run_era_clean(cfg, a, 0.83, max_ticks=20)
+    seed_at(42, 0); rb = lc._run_era_clean(cfg, b, 0.83, max_ticks=20)
+    assert ra["kills"] == rb["kills"] and ra["ticks"] == rb["ticks"]

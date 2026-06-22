@@ -132,3 +132,17 @@ def _run_curriculum_arm(cfg, mc, levels, grad_cfg, base, num_agents, max_ticks=M
             "graduated": graduated,
         })
     return genomes, total_eras, transcript
+
+
+def _run_flat_arm(cfg, mc, terminal_frac, budget_eras, base, num_agents, max_ticks=MAX_TICKS):
+    """CONTRÔLE : cold start directement au palier terminal pour EXACTEMENT budget_eras ères
+    (= total curriculum de la même répétition -> budget égal). base = rb + 20000 ; seed_at(base, era).
+    Pas de porte de maîtrise : on tourne tout le budget au terminal."""
+    seed_at(base, 0)          # seed_at avant _load_champions pour que le fallback MambaAgent() soit reproductible
+    best = [(0.0, g) for g in _load_champions()]
+    for era in range(1, budget_eras + 1):
+        seed_at(base, era)
+        genomes = _reproduce([g for _s, g in best], num_agents, mc)
+        r = _run_era_clean(cfg, genomes, terminal_frac, max_ticks=max_ticks)
+        best = sorted(best + r["scored"], key=lambda sg: sg[0], reverse=True)[:5]
+    return [g for _s, g in best]
