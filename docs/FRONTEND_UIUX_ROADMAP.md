@@ -174,4 +174,33 @@ Le projet revendique une méthode forte ; **l'outil ne la soutient pas encore.**
 - **Tokenisation d3 dark-mode** ✅ : `TopologyViewer` (label nœuds → `--color-on-accent`), `EDRDashboard` (chrome graphiques → `--color-text-*`/`--color-border-subtle`), `TimelineViewer` (liens/nœuds/labels → tokens + `--viz-*`). `RadarChart` était déjà tokenisé. Canvas *monde/jeu* (`FlatlandViewer`, `SandboxView`) laissés en couleurs sémantiques (indépendantes du thème, par design).
 - **Articles Sociologue ↔ runs** ✅ : `/sociologist/analyze` lie l'article aux conditions comparées (sidecar `results/article_links.json`, pattern F2.9) ; `GET /api/runs/article-links` (inverse `{run_id: [article_id]}`) + `RunLinks.articles` ; badges « N article(s) » et deep-link Laboratoire dans `RunsHistoryView`. Boucle finding↔run↔EDR↔article bouclée.
 - **WS `/ws/evolution` temps-réel** ✅ : suivi live d'un run lancé. Producteur `emit_progress` (opt-in env `AGISEED_LIVE_PROGRESS`, no-op par défaut) instrumenté dans `CurriculumRunner` ; sandbox arme/vide le puits ; `/ws/evolution` tail -f ; vue « Évolution en direct » (sparkline) dans l'onglet Évolution.
-- **Roadmap frontend : terminée.**
+- **Roadmap frontend (features F0→F3) : terminée.** → ouverture de la **Vague G (dette & qualité)** ci-dessous.
+
+---
+
+## Vague G — Dette & qualité (audit 2026-06-23)
+
+Audit complet du frontend (architecture, UX/a11y, design system, perf/bundle, tests). Base saine et cohérente ; tokenisation dark quasi complète ; `strict: true`. Les pistes ci-dessous sont **indépendantes** (chacune = son cycle spec → plan → impl) et **priorisées par ROI** (impact / effort / risque).
+
+### G1 — Perf : lazy-load + découpage bundle  ⭐ priorité 1 (quick win)
+*Impact élevé · effort faible · risque quasi nul.*
+- `recharts` (**438 kB / 132 kB gzip**, le plus gros chunk) n'est importé que par `SandboxView` ([SandboxView.tsx:11](frontend/src/components/SandboxView.tsx#L11)) mais chargé au démarrage ; `d3` (~107 kB) via Topology/Timeline ; **aucun `React.lazy`/`Suspense`** ([App.tsx:1-26](frontend/src/App.tsx#L1-L26)).
+- Action : `React.lazy` + `Suspense` (fallback `Loading`) sur les vues lourdes (`SandboxView`+recharts, `TopologyViewer`/`TimelineViewer`+d3, `FlatlandViewer`). Mesurer la chute du chunk initial.
+
+### G2 — Architecture : dégonfler le god-component App.tsx  · priorité 2
+*Impact moyen (maintenabilité/testabilité) · effort moyen · risque faible.*
+- App.tsx = **381 lignes** ; extraction incohérente : 7 onglets sont des composants, mais `evolution`/`comparison`/`topology`/`academy` sont rendus **inline** avec helpers chart (`createLinePath`, `ChartLine`, `createStabilitySeries`) et `summaryMetrics` ([App.tsx:32-124](frontend/src/App.tsx#L32-L124), [241-364](frontend/src/App.tsx#L241-L364)).
+- Action : extraire `EvolutionView` / `ComparisonView` / `TopologyView` / `AcademyView` (+ helpers chart dans `lib/`), App ne garde que le shell + routing. Synergie avec G1 (vues extraites = lazy-load propre) et G4 (vues isolées = testables).
+
+### G3 — UX : parcours chercheur guidé  · priorité 3 (plus de valeur perçue, design-lourd)
+*Impact produit élevé · effort élevé (design d'interaction) · risque moyen.*
+- Aujourd'hui lancer (Sandbox) → suivre (Évolution/Temps réel) → comparer (Comparaison) → historique (Runs) = 4 onglets disjoints, sans fil conducteur ; le live est même séparé du lanceur.
+- Action : concevoir un flux d'expérimentation cohérent (lancer→suivre live au même endroit→comparer→conclure). Le plus aligné avec l'intention produit initiale (« le scientifique qui visualise ET lance »). À brainstormer à part.
+
+### G4 — Accessibilité + cohérence des états  · priorité 4 (transverse, interleavable)
+*Impact moyen (qualité/inclusivité) · effort faible-moyen · risque faible.*
+- a11y faible (12 `aria-`/`role`, surtout `role="img"` SVG) ; nav onglets en `<button>` bruts sans `role="tablist"`/`aria-selected` ([App.tsx:156-172](frontend/src/App.tsx#L156-L172)) ; états « Chargement... » ad hoc inline au lieu des primitives `Loading`/`Empty` ([App.tsx:261](frontend/src/App.tsx#L261), [321](frontend/src/App.tsx#L321), [361](frontend/src/App.tsx#L361)).
+- Typage d3 : `TopologyViewer`/`TimelineViewer` truffés de `(d: any)` ; tests exclus du tsconfig ; couverture basse (~15 tests / ~17 composants).
+- Action : sémantique tablist + `aria-selected`/focus, labels de formulaires, uniformiser loading/error/empty ; typer les callbacks d3.
+
+**Ordre recommandé** : G1 (gain immédiat, débloque rien) → G2 (assainit, prépare G1bis + G4) → G3 (flagship UX) → G4 (interleavable en continu). Réordonnançable selon priorité produit.
