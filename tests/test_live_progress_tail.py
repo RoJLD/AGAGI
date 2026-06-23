@@ -28,3 +28,11 @@ def test_read_new_skips_invalid_and_partial(tmp_path):
     tail = LiveProgressTail(sink)
     # 'not json' ignorée ; gen 5 ok ; '{partial' (pas de \n) pas encore consommée
     assert tail.read_new() == [{"generation": 5}]
+
+
+def test_read_new_skips_valid_non_dict_scalars(tmp_path):
+    sink = tmp_path / "live.jsonl"
+    # lignes JSON valides mais non-objets : doivent être ignorées (contrat list[dict])
+    sink.write_text('42\n"hello"\ntrue\n{"generation": 7}\n', encoding="utf-8")
+    tail = LiveProgressTail(sink)
+    assert tail.read_new() == [{"generation": 7}]

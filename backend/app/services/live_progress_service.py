@@ -43,7 +43,9 @@ class LiveProgressTail:
             if not line:
                 continue
             try:
-                events.append(json.loads(line))
+                obj = json.loads(line)
             except Exception:
                 continue
+            if isinstance(obj, dict):  # ignore les scalaires JSON valides (42, "x", true)
+                events.append(obj)
         return events

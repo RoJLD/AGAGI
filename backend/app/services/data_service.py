@@ -474,22 +474,6 @@ class ExperimentDataService:
         ]
         return AcademyPayload(version_history=version_history, timeline=timeline, learning_goals=learning_goals)
 
-    def stream_experiment_updates(self) -> list[dict[str, Any]]:
-        events: list[dict[str, Any]] = []
-        for gate in self.available_gates():
-            history = self.get_history(gate)
-            for i, generation in enumerate(history.generation):
-                events.append(
-                    {
-                        "gate": gate,
-                        "generation": generation,
-                        "fitness": history.fitness[i],
-                        "accuracy": history.accuracy[i],
-                        "size": history.size[i] if history.size else None,
-                    }
-                )
-        return events
-
     def get_articles(self) -> list[Article]:
         """Read articles directly from KuzuDB.
         Utilise l'instance partagée de l'AsyncLogger si disponible (puisque le backend tourne flatland_server dans le même processus).
