@@ -64,3 +64,24 @@ def test_experiment_handles_zero_tabula_competence():
                                   grad_cfg=GraduationConfig(max_eras=1), run_era_fn=fake,
                                   manage_logger=False)
     assert res["per_seed"][0]["ratio"] < 1e9   # borné (max(C_tabula, 1e-6))
+
+
+import json
+import glob
+
+
+def test_main_writes_provenance(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import tools.curriculum_transfer as ct
+    monkeypatch.setattr(ct, "run_transfer_experiment", lambda *a, **k: {
+        "n": 1, "median_ratio": 2.0, "n_favorable": 1, "sign_p": 1.0, "verdict": "TRANSFERE",
+        "per_seed": [{"seed": 0, "C_curr": 0.8, "C_tabula": 0.4, "total_eras": 2, "ratio": 2.0}],
+        "config": {"ladder": ["a", "b"], "target": "b"}})
+    monkeypatch.setenv("CT_SEEDS", "0")
+    ct.main()
+    files = glob.glob(str(tmp_path / "results" / "curriculum_transfer_*.json"))
+    assert files, "fichier de provenance non écrit"
+    data = json.loads(open(files[0], encoding="utf-8").read())
+    assert data["data"]["verdict"] == "TRANSFERE"          # le résultat est sous data["data"]
+    assert "commit" in data and "git_dirty" in data        # provenance ledger (Harness.save)
+    assert data["seed"] == 0

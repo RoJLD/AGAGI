@@ -9,7 +9,7 @@ from typing import List, Dict, Optional, Callable
 
 from src.curriculum.runner import CurriculumRunner, WorldStage, GraduationConfig
 from src.environments.config import WorldConfig
-from src.seed_ai.harness import SeedManager
+from src.seed_ai.harness import SeedManager, Harness
 from src.graph_rag.async_logger import logger as async_logger
 from main_curriculum import make_run_era_fn, _acquire_shared_db, DEFAULT_LADDER
 
@@ -92,3 +92,28 @@ def run_transfer_experiment(seeds, ladder: Optional[List[str]] = None, target: O
     finally:
         if owns_engine and manage_logger:
             async_logger.stop()
+
+
+def main():
+    seeds = [int(s) for s in os.environ.get("CT_SEEDS", "0,1,2,3,4").split(",") if s.strip()]
+    ladder = [w for w in os.environ.get("CT_LADDER", ",".join(DEFAULT_LADDER)).split(",") if w.strip()]
+    target = os.environ.get("CT_TARGET") or (ladder[-1] if ladder else None)
+    num_agents = int(os.environ.get("CT_NUM_AGENTS", "40"))
+    max_ticks = int(os.environ.get("CT_MAX_TICKS", "300"))
+    grad_cfg = GraduationConfig(max_eras=int(os.environ.get("CT_MAX_ERAS", "12")))
+
+    result = run_transfer_experiment(seeds, ladder=ladder, target=target,
+                                     num_agents=num_agents, max_ticks=max_ticks, grad_cfg=grad_cfg)
+
+    meta_seed = min(seeds) if seeds else 0
+    h = Harness(seed=meta_seed, name="curriculum_transfer", with_db=False, config=WorldConfig())
+    path = h.save(result, config=WorldConfig())
+    log.info("VERDICT=%s median_ratio=%.3f (n_fav=%d/%d, sign_p=%.3f) -> %s",
+             result["verdict"], result["median_ratio"], result["n_favorable"], result["n"],
+             result["sign_p"], path)
+    return path
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    main()
