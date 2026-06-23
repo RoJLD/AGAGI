@@ -1,7 +1,39 @@
 # tests/sandbox/test_async_logger.py
 import pytest
 
-from src.graph_rag.async_logger import AsyncLogger
+from src.graph_rag.async_logger import AsyncLogger, _safe_kuzu_str, _QUIET_EVENTS
+
+
+def test_safe_kuzu_str_neutralises_non_utf8_and_escapes_quote():
+    """Anti-segfault : un jeton de langage à octet/surrogate non-UTF8 (0x92) doit être neutralisé
+    AVANT KuzuDB (sinon decode error natif -> segfault), et l'apostrophe échappée pour Cypher."""
+    bad = "mot\udc92cassé"                      # surrogate (octet 0x92 décodé en surrogateescape)
+    out = _safe_kuzu_str(bad)
+    assert out.encode("utf-8")                  # encodable sans lever (UTF-8 valide garanti)
+    assert "\udc92" not in out
+    assert _safe_kuzu_str("l'agent") == "l\\'agent"
+
+
+def test_quiet_mode_drops_bulky_events_keeps_essentials(monkeypatch):
+    """AGISEED_QUIET_LOG=1 : les événements volumineux sont jetés à emit() ; l'essentiel passe."""
+    monkeypatch.setenv("AGISEED_QUIET_LOG", "1")
+    lg = AsyncLogger(db_path="data/nonexistent_test.db")
+    assert lg._quiet is True
+    lg._running = True
+    for ev in _QUIET_EVENTS:                    # SOCIAL_ENCOUNTER, AGENT_THOUGHT, ... -> ignorés
+        lg.emit(ev, {"x": 1})
+    assert lg.metrics()["queue_size"] == 0
+    lg.emit("COGNITIVE_SNAPSHOT", {"agent_id": "a"})   # promotion champion -> conservé
+    assert lg.metrics()["queue_size"] == 1
+
+
+def test_quiet_mode_off_by_default():
+    """Défaut (pas d'env) : rien n'est filtré (prod inchangée)."""
+    lg = AsyncLogger(db_path="data/nonexistent_test.db")
+    assert lg._quiet is False
+    lg._running = True
+    lg.emit("SOCIAL_ENCOUNTER", {"x": 1})
+    assert lg.metrics()["queue_size"] == 1
 
 
 def test_metrics_has_expected_keys():

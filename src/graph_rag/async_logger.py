@@ -1,3 +1,4 @@
+import os
 import threading
 import queue
 import time
@@ -6,6 +7,22 @@ import logging as log_module
 
 log = log_module.getLogger(__name__)
 log_module.basicConfig(level=log_module.INFO)
+
+# Mode "quiet" (AGISEED_QUIET_LOG=1) : ne logge PAS les événements volumineux non-essentiels.
+# Utile pour les expériences headless (transfert, sweeps) : supprime la surface d'un crash KuzuDB
+# natif sur jeton de langage non-UTF8 (SOCIAL_ENCOUNTER porte `last_spoken`) ET accélère ~10×.
+# COGNITIVE_SNAPSHOT (promotion champion), RUN_*, ERA_RESULT, LANGUAGE_ALIGNMENT restent loggés.
+_QUIET_EVENTS = frozenset({
+    "AGENT_THOUGHT", "AGENT_LIFESPAN", "SOCIAL_ENCOUNTER", "SOCIAL_GATHERING",
+    "NEAR_FIRE", "FIRE_FUELED", "TREASURE_FOUND",
+})
+
+
+def _safe_kuzu_str(s: Any) -> str:
+    """Neutralise octets/surrogates non-UTF8 AVANT insert KuzuDB : un octet 0x92 (Windows-1252,
+    issu d'un jeton de langage agent) qui atteint la couche native provoque un decode error puis
+    un SEGFAULT sous charge. encode('replace')->decode garantit de l'UTF-8 valide. Échappe aussi le '."""
+    return str(s).encode("utf-8", "replace").decode("utf-8").replace("'", "\\'")
 
 class AsyncLogger:
     """
@@ -25,6 +42,7 @@ class AsyncLogger:
         self._last_latency_ms = 0.0
         self._current_run = None       # provenance : id du Run courant (RUN_START/RUN_END)
         self._shared_db = None
+        self._quiet = os.getenv("AGISEED_QUIET_LOG", "0") == "1"  # drop events volumineux (headless)
 
     def set_database(self, db):
         self._shared_db = db
@@ -69,7 +87,9 @@ class AsyncLogger:
         """Émet un événement vers le logger asynchrone (non-bloquant)."""
         if not self._running:
             return
-            
+        if self._quiet and event_type in _QUIET_EVENTS:
+            return                       # headless : on saute les événements volumineux/risqués
+
         self.queue.put({
             "type": event_type,
             "payload": payload,
@@ -218,7 +238,7 @@ class AsyncLogger:
             import json
             import uuid
             event_id = str(uuid.uuid4())
-            payload_str = json.dumps(payload).replace("'", "\\'")
+            payload_str = _safe_kuzu_str(json.dumps(payload))   # anti-segfault : UTF-8 valide garanti
             
             # Initialize LogEvent schema if it doesn't exist
             try:
