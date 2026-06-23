@@ -23,7 +23,7 @@ import { Sun, Moon } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "./api/client";
 import { queryKeys } from "./api/queryKeys";
-import { useWebSocket } from "./hooks/useWebSocket";
+import { LiveEvolution } from "./components/LiveEvolution";
 
 function formatPercentage(value: number) {
   return `${(value * 100).toFixed(1)}%`;
@@ -73,7 +73,6 @@ export default function App() {
     queryFn: () => apiFetch<AcademyPayload>("/api/academy"),
     staleTime: Infinity,
   });
-  const [wsLog, setWsLog] = useState<string[]>([]);
   const [compareMode, setCompareMode] = useState<"global" | "ab">("global");
 
   const selectedExperiment = useMemo(() => experiments.find((item) => item.gate === selectedGate), [experiments, selectedGate]);
@@ -135,12 +134,6 @@ export default function App() {
   useEffect(() => {
     if (query.ab) setCompareMode("ab");
   }, [query.ab]);
-
-  useWebSocket<{ gate?: string; generation?: number; fitness?: number }>("/ws/evolution", (event) => {
-    const fitness = typeof event.fitness === "number" ? event.fitness.toFixed(4) : event.fitness;
-    const line = `${event.gate ?? "?"} · gén ${event.generation ?? "?"} · fitness ${fitness}`;
-    setWsLog((previous) => [line, ...previous].slice(0, 12));
-  });
 
   const chartData = detail?.history;
   const sizeSeries = chartData?.size ?? [];
@@ -232,12 +225,6 @@ export default function App() {
             </div>
           ) : null}
 
-          <div className="ws-panel">
-            <h3>Flux évolution</h3>
-            <div className="ws-log">
-              {wsLog.length ? wsLog.map((line, index) => <div key={index}>{line}</div>) : <div>En attente de données...</div>}
-            </div>
-          </div>
         </aside>
         )}
 
@@ -253,6 +240,7 @@ export default function App() {
 
           {tab === "evolution" && (
             <>
+              <LiveEvolution />
               <h2>Évolution dynamique</h2>
               {chartData ? (
                 <>

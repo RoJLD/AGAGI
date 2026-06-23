@@ -20,6 +20,7 @@ from .routes.edr import router as edr_router
 from .routes.runs import router as runs_router
 from .routes.health import router as health_router
 from .services.data_service import ExperimentDataService
+from .services.live_progress_service import LiveProgressTail
 from .flatland_server import flatland_server
 
 def _resolve_cors_origins(raw: str | None) -> list[str]:
@@ -59,6 +60,7 @@ app.add_middleware(
 )
 
 RESULTS_DIR = Path(__file__).resolve().parents[3] / "results"
+LIVE_PROGRESS_PATH = RESULTS_DIR / "live_progress.jsonl"
 service = ExperimentDataService(RESULTS_DIR)
 
 app.include_router(experiments_router, prefix="/api", tags=["experiments"])
@@ -98,10 +100,11 @@ async def websocket_flatland(websocket: WebSocket):
 @app.websocket("/ws/evolution")
 async def websocket_evolution(websocket: WebSocket) -> None:
     await websocket.accept()
+    tail = LiveProgressTail(LIVE_PROGRESS_PATH)
     try:
-        events = service.stream_experiment_updates()
-        for event in events:
-            await websocket.send_json(event)
-            await asyncio.sleep(0.05)
+        while True:
+            for event in tail.read_new():
+                await websocket.send_json(event)
+            await asyncio.sleep(0.25)
     except WebSocketDisconnect:
         pass
