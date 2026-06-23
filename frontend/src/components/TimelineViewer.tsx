@@ -37,7 +37,7 @@ export function TimelineViewer() {
       .selectAll("line")
       .data(data.links)
       .join("line")
-      .attr("stroke", "#999")
+      .style("stroke", "var(--color-border)")
       .attr("stroke-opacity", 0.6)
       .attr("stroke-width", 2);
 
@@ -47,7 +47,8 @@ export function TimelineViewer() {
       .data(data.nodes)
       .join("circle")
       .attr("r", 10)
-      .attr("fill", (d: any) => d.label === "Agent" ? "#be123c" : "#0f766e");
+      // Séries data-viz -> tokens theme-aware (rouge = Agent, teal = autre).
+      .style("fill", (d: any) => (d.label === "Agent" ? "var(--viz-2)" : "var(--viz-1)"));
 
     const label = svg
       .append("g")
@@ -57,7 +58,8 @@ export function TimelineViewer() {
       .text((d: any) => d.id)
       .attr("font-size", 10)
       .attr("dx", 12)
-      .attr("dy", 4);
+      .attr("dy", 4)
+      .style("fill", "var(--color-text)"); // sinon noir par défaut -> invisible en dark
 
     node.append("title").text((d: any) => `${d.label}: ${d.id}`);
 

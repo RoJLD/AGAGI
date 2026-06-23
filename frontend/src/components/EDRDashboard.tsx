@@ -35,12 +35,12 @@ function LineChart({ f }: { f: Finding }) {
   const sy = (v: number) => H - PAD - ((v - minV) / (maxV - minV || 1)) * (H - 2 * PAD);
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="chart-svg" role="img" aria-label={f.title}>
-      <line x1={PAD} y1={H - PAD} x2={W - PAD} y2={H - PAD} stroke="#cbd5e1" />
-      <line x1={PAD} y1={PAD} x2={PAD} y2={H - PAD} stroke="#cbd5e1" />
+      <line x1={PAD} y1={H - PAD} x2={W - PAD} y2={H - PAD} style={{ stroke: "var(--color-border-subtle)" }} />
+      <line x1={PAD} y1={PAD} x2={PAD} y2={H - PAD} style={{ stroke: "var(--color-border-subtle)" }} />
       {xs.map((xv, i) => (
-        <text key={i} x={sx(i)} y={H - PAD + 16} fontSize={11} fill="#64748b" textAnchor="middle">{xv}</text>
+        <text key={i} x={sx(i)} y={H - PAD + 16} fontSize={11} style={{ fill: "var(--color-text-dim)" }} textAnchor="middle">{xv}</text>
       ))}
-      <text x={W / 2} y={H - 4} fontSize={11} fill="#94a3b8" textAnchor="middle">{f.xlabel}</text>
+      <text x={W / 2} y={H - 4} fontSize={11} style={{ fill: "var(--color-text-muted)" }} textAnchor="middle">{f.xlabel}</text>
       {f.series.map((s) => (
         <g key={s.name}>
           <path d={(s.values ?? []).map((v, i) => `${i === 0 ? "M" : "L"} ${sx(i)} ${sy(v)}`).join(" ")}
@@ -61,7 +61,7 @@ function BarChart({ f }: { f: Finding }) {
   const by = (v: number) => H - PAD - (v / maxV) * (H - 2 * PAD);
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="chart-svg" role="img" aria-label={f.title}>
-      <line x1={PAD} y1={H - PAD} x2={W - PAD} y2={H - PAD} stroke="#cbd5e1" />
+      <line x1={PAD} y1={H - PAD} x2={W - PAD} y2={H - PAD} style={{ stroke: "var(--color-border-subtle)" }} />
       {f.series.map((s, i) => {
         const v = s.value ?? 0;
         return (
@@ -69,12 +69,12 @@ function BarChart({ f }: { f: Finding }) {
             <rect x={bx(i)} y={by(v)} width={bw} height={H - PAD - by(v)} fill={s.color} rx={3} />
             {s.err !== undefined && (
               <line x1={bx(i) + bw / 2} y1={by(v + s.err)} x2={bx(i) + bw / 2} y2={by(Math.max(0, v - s.err))}
-                    stroke="#1e293b" strokeWidth={2} />
+                    style={{ stroke: "var(--color-text)" }} strokeWidth={2} />
             )}
-            <text x={bx(i) + bw / 2} y={by(v) - 6} fontSize={12} fill="#1e293b" textAnchor="middle" fontWeight={600}>
+            <text x={bx(i) + bw / 2} y={by(v) - 6} fontSize={12} style={{ fill: "var(--color-text)" }} textAnchor="middle" fontWeight={600}>
               {v.toFixed(v < 10 ? 2 : 1)}
             </text>
-            <text x={bx(i) + bw / 2} y={H - PAD + 16} fontSize={10.5} fill="#64748b" textAnchor="middle">{s.name}</text>
+            <text x={bx(i) + bw / 2} y={H - PAD + 16} fontSize={10.5} style={{ fill: "var(--color-text-dim)" }} textAnchor="middle">{s.name}</text>
           </g>
         );
       })}

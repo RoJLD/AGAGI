@@ -81,7 +81,10 @@ export function TopologyViewer({ graph }: TopologyViewerProps) {
       .attr("text-anchor", "middle")
       .attr("dy", 4)
       .attr("font-size", 11)
-      .attr("fill", "white")
+      // Token « texte sur surface colorée » : bascule white (clair) -> sombre (dark) pour
+      // rester contrasté sur les cercles --viz-* qui s'éclaircissent en thème sombre.
+      // `.style` (et non `.attr`) car var() n'est pas résolu dans un attribut SVG.
+      .style("fill", "var(--color-on-accent)")
       .text((d: NodeDatum) => d.label);
 
     simulation.on("tick", () => {
