@@ -85,3 +85,45 @@ def test_main_writes_provenance(tmp_path, monkeypatch):
     assert data["data"]["verdict"] == "TRANSFERE"          # le résultat est sous data["data"]
     assert "commit" in data and "git_dirty" in data        # provenance ledger (Harness.save)
     assert data["seed"] == 0
+
+
+# --- Verrou repro : déterminisme opt-in (memory_retriever stoppé + vidé avant la boucle) ---
+
+def test_memory_retriever_clear_returns_zeros():
+    """clear() vide les caches -> get_memory_vector/get_rag_memory renvoient des zéros déterministes."""
+    from src.graph_rag.memory_retriever import AsyncMemoryRetriever
+    r = AsyncMemoryRetriever(async_logger=None)
+    r._memory_cache = {"a": [1.0, 2.0, 3.0, 4.0, 5.0]}
+    r._agent_matrix_cache = {"a": object()}
+    r.clear()
+    assert r.get_memory_vector("a") == [0.0] * 5
+    assert r.get_rag_memory("a", [1.0] * 5) == [0.0] * 5
+
+
+def test_prepare_world_deterministic_stops_and_clears_retriever(monkeypatch):
+    """deterministic=True -> stop() PUIS clear() AVANT la boucle ; False -> ne touche pas le retriever."""
+    import main_curriculum as mc
+    events = []
+
+    class _SpyRetr:
+        def __init__(self):
+            self._memory_cache = {"x": [1.0]}
+        def stop(self):
+            events.append("stop")
+        def clear(self):
+            events.append("clear")
+            self._memory_cache = {}
+
+    class _SpyWorld:
+        def __init__(self, config):
+            self.memory_retriever = _SpyRetr()
+
+    monkeypatch.setitem(mc.WORLD_FACTORY, "spytest", _SpyWorld)
+
+    env = mc._prepare_world("spytest", object(), deterministic=True)
+    assert events == ["stop", "clear"]                 # stop d'abord (tue le worker), puis clear
+    assert env.memory_retriever._memory_cache == {}
+
+    events.clear()
+    mc._prepare_world("spytest", object(), deterministic=False)
+    assert events == []                                # défaut : mémoire ambiante préservée (feature prod)

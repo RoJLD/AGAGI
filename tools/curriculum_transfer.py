@@ -70,7 +70,10 @@ def run_transfer_experiment(seeds, ladder: Optional[List[str]] = None, target: O
     try:
         if owns_engine:
             shared_db = _acquire_shared_db()
-            run_era_fn = make_run_era_fn(shared_db, WorldConfig(), num_agents=num_agents, max_ticks=max_ticks)
+            # deterministic=True : memory_retriever neutralise avant la boucle -> bras appaires
+            # exactement reproductibles (verrou repro Dev #3 ; sans ca, mesure non publiable).
+            run_era_fn = make_run_era_fn(shared_db, WorldConfig(), num_agents=num_agents,
+                                         max_ticks=max_ticks, deterministic=True)
 
         per_seed = []
         for seed in seeds:

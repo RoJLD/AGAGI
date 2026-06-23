@@ -32,6 +32,14 @@ class AsyncMemoryRetriever:
         if self._thread is not None:
             self._thread.join(timeout=2.0)
         log.info("AsyncMemoryRetriever stopped")
+
+    def clear(self):
+        """Vide les caches -> get_memory_vector/get_rag_memory renvoient des zéros DÉTERMINISTES.
+        À appeler APRÈS stop() : sans ça, un cache peuplé en async pendant l'init du monde reste
+        gelé à un contenu timing-dépendant -> runs non reproductibles (verrou repro Dev #3)."""
+        self._memory_cache = {}
+        self._agent_matrix_cache = {}
+        self._agent_thoughts_cache = {}
         
     def get_memory_vector(self, agent_id: str) -> List[float]:
         """Returns the memory tensor of size 5 for a given agent. O(1) read."""
