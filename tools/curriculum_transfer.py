@@ -2,10 +2,17 @@
 que tabula-rasa ? Expérience appariée multi-seed à BUDGET COMPUTE ÉGAL, verdict + provenance ledger.
 Spec : docs/superpowers/specs/2026-06-23-Curriculum-Transfer-design.md"""
 import os
+import sys
 import math
 import logging
 import statistics
 from typing import List, Dict, Optional, Callable
+
+# Lançable directement (`python tools/curriculum_transfer.py`) : met la racine projet sur le path
+# (sinon sys.path[0]=tools/ et `src` est introuvable). No-op quand importé (racine déjà sur le path).
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
 
 from src.curriculum.runner import CurriculumRunner, WorldStage, GraduationConfig
 from src.environments.config import WorldConfig
