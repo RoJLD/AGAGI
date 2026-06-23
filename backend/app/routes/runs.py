@@ -40,6 +40,12 @@ def edr_links() -> dict:
     return runs_service.edr_links()
 
 
+@router.get("/runs/article-links", response_model=dict[str, list[str]])
+def article_links() -> dict:
+    """{run_id: [article_id, ...]} — articles Sociologue liés à chaque run (via condition comparée)."""
+    return runs_service.article_links()
+
+
 @router.patch("/runs/{run_id}/links")
 def set_run_links(run_id: str, body: EdrLinks) -> dict:
     """Associe une liste d'EDR à un run (store results/run_links.json, n'altère pas le run)."""

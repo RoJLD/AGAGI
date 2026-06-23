@@ -2,12 +2,13 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../api/client";
 import { queryKeys } from "../api/queryKeys";
-import type { RunDetail, RunSummary } from "../types";
+import type { ArticleLinks, RunDetail, RunSummary } from "../types";
 import { Loading } from "./ui/Loading";
 import { ErrorState } from "./ui/ErrorState";
 import { Empty } from "./ui/Empty";
 import { Field } from "./ui/Field";
 import { Button } from "./ui/Button";
+import { Badge } from "./ui/Badge";
 import { Panel } from "./ui/Panel";
 import { useToast } from "../contexts/ToastContext";
 
@@ -17,6 +18,13 @@ export function RunsHistoryView({ onCompare }: { onCompare?: (condition: string)
     queryFn: () => apiFetch<RunSummary[]>("/api/runs"),
     staleTime: 30_000,
   });
+
+  const articleLinksQuery = useQuery({
+    queryKey: queryKeys.runs.articleLinks,
+    queryFn: () => apiFetch<ArticleLinks>("/api/runs/article-links"),
+    staleTime: 30_000,
+  });
+  const articleLinks = articleLinksQuery.data ?? {};
 
   const [filter, setFilter] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
@@ -92,7 +100,15 @@ export function RunsHistoryView({ onCompare }: { onCompare?: (condition: string)
           <tbody>
             {filtered.map((r) => (
               <tr key={r.run_id} className={selected === r.run_id ? "is-selected" : undefined}>
-                <td>{r.name}</td>
+                <td>
+                  {r.name}
+                  {articleLinks[r.run_id]?.length ? (
+                    <>
+                      {" "}
+                      <Badge variant="purple">{articleLinks[r.run_id].length} article(s)</Badge>
+                    </>
+                  ) : null}
+                </td>
                 <td>{r.seed}</td>
                 <td>
                   <code>{r.commit ?? "—"}</code>
@@ -166,6 +182,22 @@ export function RunsHistoryView({ onCompare }: { onCompare?: (condition: string)
                 </div>
                 <p className="text-dim" style={{ fontSize: "var(--font-size-xs)" }}>
                   Remplace la liste d'EDR liés à ce run (numéros séparés par des virgules).
+                </p>
+              </div>
+              <div className="mt-4">
+                <p className="text-dim">
+                  Articles Sociologue liés :{" "}
+                  {detailQuery.data.links?.articles?.length ? (
+                    <>
+                      {detailQuery.data.links.articles.join(", ")}{" "}
+                      <a href="#/laboratoire">→ Laboratoire</a>
+                    </>
+                  ) : (
+                    "aucun"
+                  )}
+                </p>
+                <p className="text-dim" style={{ fontSize: "var(--font-size-xs)" }}>
+                  Lien automatique : un article généré par le Sociologue sur cette condition apparaît ici.
                 </p>
               </div>
             </>

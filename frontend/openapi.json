@@ -669,6 +669,14 @@
       },
       "RunLinks": {
         "properties": {
+          "articles": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "title": "Articles",
+            "type": "array"
+          },
           "edr": {
             "default": [],
             "items": {
@@ -1250,6 +1258,35 @@
           }
         },
         "summary": "List Runs",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/runs/article-links": {
+      "get": {
+        "description": "{run_id: [article_id, ...]} — articles Sociologue liés à chaque run (via condition comparée).",
+        "operationId": "article_links_api_runs_article_links_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  },
+                  "title": "Response Article Links Api Runs Article Links Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Article Links",
         "tags": [
           "runs"
         ]

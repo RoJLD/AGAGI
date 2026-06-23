@@ -143,8 +143,11 @@ export interface RunDetail {
   seed: number;
   commit?: string | null;
   data: Record<string, number | string>;
-  links?: { edr: number[] };
+  links?: { edr: number[]; articles?: string[] };
 }
 
 /** {edr: [run_id, ...]} — runs liés à chaque EDR (badges du dashboard EDR). */
 export type EdrLinks = Record<string, string[]>;
+
+/** {run_id: [article_id, ...]} — articles Sociologue liés à chaque run. */
+export type ArticleLinks = Record<string, string[]>;

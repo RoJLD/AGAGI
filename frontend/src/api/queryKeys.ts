@@ -27,6 +27,7 @@ export const queryKeys = {
     conditions: ["runs", "conditions"] as const,
     detail: (runId: string) => ["runs", "detail", runId] as const,
     edrLinks: ["runs", "edr-links"] as const,
+    articleLinks: ["runs", "article-links"] as const,
     compare: (a: string, b: string, metric: string) => ["runs", "compare", a, b, metric] as const,
   },
   health: {
