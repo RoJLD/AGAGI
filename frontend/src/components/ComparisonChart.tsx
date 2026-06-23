@@ -8,25 +8,25 @@ const metricDefinitions = [
   {
     key: "latest_fitness" as const,
     label: "Fitness finale",
-    color: "#0f766e",
+    color: "var(--viz-1)",
     format: (value: number) => value.toFixed(3),
   },
   {
     key: "latest_accuracy" as const,
     label: "Précision finale",
-    color: "#be123c",
+    color: "var(--viz-2)",
     format: (value: number) => `${(value * 100).toFixed(1)}%`,
   },
   {
     key: "emergent_score" as const,
     label: "Score d'intelligence",
-    color: "#7c3aed",
+    color: "var(--viz-3)",
     format: (value: number) => value.toFixed(3),
   },
   {
     key: "robustness_score" as const,
     label: "Robustesse",
-    color: "#f59e0b",
+    color: "var(--viz-4)",
     format: (value: number) => value.toFixed(3),
   },
 ];

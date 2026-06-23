@@ -74,3 +74,80 @@ export interface Article {
   content: string;
   timestamp: string;
 }
+
+export interface ConditionSummary {
+  name: string;
+  n_seeds: number;
+  seeds: number[];
+  metrics: string[];
+}
+
+export interface ABGroup {
+  name: string;
+  mean: number;
+  std: number;
+  vals: number[];
+  n: number;
+}
+
+export interface ABCompareResult {
+  metric: string;
+  a: ABGroup;
+  b: ABGroup;
+  t: number;
+  d: number;
+  significant: boolean;
+  winner: string | null;
+  underpowered: boolean;
+  verdict_label: string;
+  verdict_detail: string;
+  t_thresh: number;
+  d_thresh: number;
+}
+
+export interface RunConfig {
+  script_name: string;
+  world_type: string;
+  base_seed: number;
+  n_seeds: number;
+  mutation_rate: number | null;
+  variable_tested: string;
+  tags: string[];
+}
+
+export interface RunPreset {
+  id: string;
+  label: string;
+  config: RunConfig;
+}
+
+export type QueueStatus = "pending" | "running" | "done" | "error";
+
+export interface QueuedRun {
+  id: string;
+  seed: number;
+  status: QueueStatus;
+}
+
+export interface RunSummary {
+  run_id: string;
+  name: string;
+  seed: number;
+  commit?: string | null;
+  metrics: string[];
+}
+
+export interface RunDetail {
+  run_id: string;
+  name: string;
+  seed: number;
+  commit?: string | null;
+  data: Record<string, number | string>;
+  links?: { edr: number[]; articles?: string[] };
+}
+
+/** {edr: [run_id, ...]} — runs liés à chaque EDR (badges du dashboard EDR). */
+export type EdrLinks = Record<string, string[]>;
+
+/** {run_id: [article_id, ...]} — articles Sociologue liés à chaque run. */
+export type ArticleLinks = Record<string, string[]>;

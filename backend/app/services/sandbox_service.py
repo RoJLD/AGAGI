@@ -52,13 +52,29 @@ class SandboxService:
             return False
         return name.replace("\\", "/") in set(self.get_available_scripts())
 
+    def _arm_live_progress(self, env: dict, progress_path: str | None = None) -> str:
+        """Arme le puits de progression live pour CE run : vide le fichier puis pose l'env.
+        Si le vidage échoue, l'env n'est PAS posé (emit_progress restera no-op -> pas de données stale)."""
+        if progress_path is None:
+            progress_path = os.path.join(PROJECT_ROOT, "results", "live_progress.jsonl")
+        os.makedirs(os.path.dirname(progress_path), exist_ok=True)
+        try:
+            open(progress_path, "w", encoding="utf-8").close()  # vide / crée
+        except Exception:
+            return progress_path  # échec -> on n'arme pas l'env
+        env["AGISEED_LIVE_PROGRESS"] = progress_path
+        return progress_path
+
     def start(self, config: dict) -> dict:
         main_script = config.get("script_name")
         if not main_script:
             return {"status": "error", "message": "Aucun script principal spécifié"}
 
+        # Sandbox bornée : n'exécuter QUE des scripts de la liste blanche (racine + tools/),
+        # ET confinés dans PROJECT_ROOT. Bloque l'exécution arbitraire et le path-traversal
+        # (ex. "../x.py") avant tout Popen — cf. _is_allowed_script (realpath + commonpath).
         if not self._is_allowed_script(main_script):
-            return {"status": "error", "message": f"Script non autorisé : {main_script}"}
+            return {"status": "error", "message": f"Script non autorisé (hors liste blanche) : {main_script}"}
 
         if "main" in self._processes and self._processes["main"].poll() is None:
             return {"status": "error", "message": f"Une expérimentation est déjà en cours : {self._current_config.get('script_name')}"}
@@ -70,7 +86,8 @@ class SandboxService:
         env = os.environ.copy()
         env["PYTHONIOENCODING"] = "utf-8"
         env["PYTHONPATH"] = PROJECT_ROOT  # Ensure it can import src.*
-        
+        self._arm_live_progress(env)
+
         # Pass new world parameters
         if config.get("world_type"):
             env["WORLD_TYPE"] = str(config.get("world_type"))

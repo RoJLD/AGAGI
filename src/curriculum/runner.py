@@ -17,6 +17,8 @@ import logging
 
 import numpy as np
 
+from src.seed_ai.live_progress import emit_progress
+
 logger = logging.getLogger("AGIseed.Curriculum")
 
 
@@ -117,6 +119,13 @@ class CurriculumRunner:
                     1 if self.keep_memory else 0,
                 )
                 history.append(result.competence)
+                emit_progress({
+                    "run": stage.name,
+                    "generation": era,
+                    "fitness": result.competence,
+                    "accuracy": None,
+                    "size": None,
+                })
                 if result.champion_agent_id:
                     champion = result.champion_agent_id
 

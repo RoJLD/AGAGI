@@ -1,6 +1,7 @@
 import type { ExperimentSummary } from "../types";
+import { VIZ } from "../theme";
 
-const palette = ["#0f766e", "#be123c", "#7c3aed", "#c2410c", "#2563eb", "#0d9488"];
+const palette = VIZ;
 
 const metrics = [
   { key: "latest_fitness" as const, label: "Fitness", maxScale: 1.0 },
@@ -73,8 +74,8 @@ export function RadarChart({ experiments }: RadarChartProps) {
               key={`grid-${index}`}
               points={points.join(" ")}
               fill="none"
-              stroke="#cbd5e1"
               strokeWidth={1}
+              style={{ stroke: "var(--color-border-subtle)" }}
             />
           );
         })}
@@ -86,10 +87,10 @@ export function RadarChart({ experiments }: RadarChartProps) {
               y1={center}
               x2={axis.x}
               y2={axis.y}
-              stroke="#e2e8f0"
               strokeWidth={1}
+              style={{ stroke: "var(--color-border)" }}
             />
-            <text x={axis.x} y={axis.y} dy={axis.y < center ? -10 : 18} textAnchor="middle" fontSize={11} fill="#0f172a">
+            <text x={axis.x} y={axis.y} dy={axis.y < center ? -10 : 18} textAnchor="middle" fontSize={11} style={{ fill: "var(--color-text)" }}>
               {axis.label}
             </text>
           </g>
@@ -101,10 +102,12 @@ export function RadarChart({ experiments }: RadarChartProps) {
             <polygon
               key={experiment.gate}
               points={polygonPoints(values, radius, center)}
-              fill={palette[experimentIndex % palette.length]}
               fillOpacity={0.2}
-              stroke={palette[experimentIndex % palette.length]}
               strokeWidth={2}
+              style={{
+                fill: palette[experimentIndex % palette.length],
+                stroke: palette[experimentIndex % palette.length],
+              }}
             />
           );
         })}
@@ -119,7 +122,7 @@ export function RadarChart({ experiments }: RadarChartProps) {
                 cx={center + Math.cos(angle) * value * radius}
                 cy={center + Math.sin(angle) * value * radius}
                 r={4}
-                fill={palette[experimentIndex % palette.length]}
+                style={{ fill: palette[experimentIndex % palette.length] }}
               />
             );
           });

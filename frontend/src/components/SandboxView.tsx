@@ -1,19 +1,29 @@
-import React, { useEffect, useState, useRef } from "react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from "recharts";
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8001";
+import { useEffect, useRef, useState } from "react";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+  Legend,
+} from "recharts";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiFetch } from "../api/client";
+import { queryKeys } from "../api/queryKeys";
+import { cssVar, vizColors } from "../theme";
+import { Loading } from "./ui/Loading";
+import { ErrorState } from "./ui/ErrorState";
+import { Button } from "./ui/Button";
+import { Field } from "./ui/Field";
+import { Panel } from "./ui/Panel";
+import { Badge } from "./ui/Badge";
 
 interface SandboxConfig {
   script_name: string;
   enable_supervisor: boolean;
-  run_migration: boolean;
-  run_sociologist: boolean;
   world_type?: string;
-  run_linguist?: boolean;
-  run_metacognition?: boolean;
-  run_dream_analyzer?: boolean;
-  mutation_rate?: number;
-  seed?: number;
 }
 
 interface SandboxStatus {
@@ -25,14 +35,12 @@ interface SandboxStatus {
 }
 
 export function SandboxView() {
-  const [status, setStatus] = useState<SandboxStatus | null>(null);
-  
+  const queryClient = useQueryClient();
+
   const [selectedScript, setSelectedScript] = useState<string>("");
   const [enableSupervisor, setEnableSupervisor] = useState<boolean>(false);
   const [runMigration, setRunMigration] = useState<boolean>(false);
   const [runSociologist, setRunSociologist] = useState<boolean>(false);
-  
-  // Nouveaux champs restaurés
   const [worldType, setWorldType] = useState<string>("stoneage");
   const [importAgentId, setImportAgentId] = useState<string>("");
   const [keepMemory, setKeepMemory] = useState<boolean>(false);
@@ -40,37 +48,29 @@ export function SandboxView() {
   const [batchSize, setBatchSize] = useState<number>(0);
   const [mutationRate, setMutationRate] = useState<number | "">("");
   const [seed, setSeed] = useState<number | "">("");
-  
   const [runLinguist, setRunLinguist] = useState<boolean>(false);
   const [runMetacognition, setRunMetacognition] = useState<boolean>(false);
   const [runDreamAnalyzer, setRunDreamAnalyzer] = useState<boolean>(false);
-  
-  const [loading, setLoading] = useState<boolean>(false);
   const [message, setMessage] = useState<string | null>(null);
 
-  const fetchStatus = () => {
-    fetch(`${API_BASE}/api/sandbox/status`)
-      .then((res) => res.json())
-      .then((data: SandboxStatus) => {
-        setStatus(data);
-        if (data.available_scripts.length > 0 && !selectedScript) {
-          setSelectedScript(data.available_scripts[0]);
-        }
-      })
-      .catch((err) => console.error("Erreur status:", err));
-  };
+  const statusQuery = useQuery({
+    queryKey: queryKeys.sandbox.status,
+    queryFn: () => apiFetch<SandboxStatus>("/api/sandbox/status"),
+    refetchInterval: 3000,
+    staleTime: 0,
+  });
+  const status = statusQuery.data;
+  const running = status?.running ?? false;
 
   useEffect(() => {
-    fetchStatus();
-    const interval = setInterval(fetchStatus, 3000);
-    return () => clearInterval(interval);
-  }, []);
+    if (status && status.available_scripts.length > 0 && !selectedScript) {
+      setSelectedScript(status.available_scripts[0]);
+    }
+  }, [status, selectedScript]);
 
-  const handleStart = async () => {
-    setLoading(true);
-    setMessage(null);
-    try {
-      const payload: any = {
+  const startMutation = useMutation({
+    mutationFn: () => {
+      const payload: Record<string, unknown> = {
         script_name: selectedScript,
         enable_supervisor: enableSupervisor,
         run_migration: runMigration,
@@ -83,166 +83,188 @@ export function SandboxView() {
         run_metacognition: runMetacognition,
         run_dream_analyzer: runDreamAnalyzer,
       };
-      
       if (importAgentId.trim() !== "") payload.import_agent_id = importAgentId.trim();
       if (mutationRate !== "") payload.mutation_rate = Number(mutationRate);
       if (seed !== "") payload.seed = Number(seed);
-
-      const res = await fetch(`${API_BASE}/api/sandbox/start`, {
+      return apiFetch<{ status: string; message?: string }>("/api/sandbox/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const data = await res.json();
+    },
+    onSuccess: (data) => {
       setMessage(data.message || (data.status === "success" ? "Démarré" : "Erreur"));
-      fetchStatus();
-    } catch (err: any) {
-      setMessage(`Erreur: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
+      queryClient.invalidateQueries({ queryKey: queryKeys.sandbox.status });
+    },
+    onError: (err) => setMessage(`Erreur: ${err instanceof Error ? err.message : String(err)}`),
+  });
 
-  const handleStop = async () => {
-    setLoading(true);
-    setMessage(null);
-    try {
-      const res = await fetch(`${API_BASE}/api/sandbox/stop`, {
-        method: "POST",
-      });
-      const data = await res.json();
+  const stopMutation = useMutation({
+    mutationFn: () => apiFetch<{ status: string; message?: string }>("/api/sandbox/stop", { method: "POST" }),
+    onSuccess: (data) => {
       setMessage(data.message || (data.status === "success" ? "Arrêté" : "Erreur"));
-      fetchStatus();
-    } catch (err: any) {
-      setMessage(`Erreur: ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
-  };
+      queryClient.invalidateQueries({ queryKey: queryKeys.sandbox.status });
+    },
+    onError: (err) => setMessage(`Erreur: ${err instanceof Error ? err.message : String(err)}`),
+  });
 
-  if (!status) return <p>Chargement du statut Sandbox...</p>;
+  const busy = startMutation.isPending || stopMutation.isPending;
+
+  if (statusQuery.isLoading) return <Loading label="Chargement du statut Sandbox…" />;
+  if (statusQuery.error) return <ErrorState error={statusQuery.error} onRetry={() => statusQuery.refetch()} />;
+  if (!status) return <Loading label="Chargement du statut Sandbox…" />;
 
   return (
     <div className="sandbox-view">
       <h2>Contrôle Sandbox / Simulation</h2>
-      <div className="academy-box" style={{ marginBottom: "20px" }}>
-        <p><strong>Statut :</strong> {status.running ? <span style={{ color: "green" }}>EN COURS</span> : <span style={{ color: "red" }}>ARRÊTÉ</span>}</p>
-        {status.running && status.config && (
+
+      <Panel className="mb-5">
+        <p>
+          <strong>Statut :</strong>{" "}
+          {running ? <Badge variant="success">EN COURS</Badge> : <Badge variant="danger">ARRÊTÉ</Badge>}
+        </p>
+        {running && status.config && (
           <p>
             Script : {status.config.script_name} (PID: {status.pid})<br />
-            Superviseur : {status.config.enable_supervisor ? "Oui" : "Non"} | Monde : {status.config.world_type || "stoneage"}
+            Superviseur : {status.config.enable_supervisor ? "Oui" : "Non"} | Monde :{" "}
+            {status.config.world_type || "stoneage"}
           </p>
         )}
-      </div>
+      </Panel>
 
-      <div className="academy-box">
+      <Panel>
         <h3>Lancer une simulation (Configuration)</h3>
-        
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px" }}>
-            
-            {/* Colonne de Gauche : Configurations Générales */}
-            <div>
-                <h4>Paramètres Généraux</h4>
-                <div style={{ marginBottom: "1rem" }}>
-                  <label style={{ display: "block", marginBottom: "5px" }}>Script principal</label>
-                  <select 
-                    value={selectedScript} 
-                    onChange={(e) => setSelectedScript(e.target.value)} 
-                    disabled={status.running} 
-                    style={{ width: "100%", padding: "5px" }}
-                  >
-                    {status.available_scripts.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </div>
-                
-                <div style={{ marginBottom: "1rem" }}>
-                  <label style={{ display: "block", marginBottom: "5px" }}>Type de Monde</label>
-                  <select 
-                    value={worldType} 
-                    onChange={(e) => setWorldType(e.target.value)} 
-                    disabled={status.running}
-                    style={{ width: "100%", padding: "5px" }}
-                  >
-                    <option value="stoneage">Stone Age (Défaut)</option>
-                    <option value="waterworld">Waterworld</option>
-                    <option value="3d_world">Monde 3D</option>
-                  </select>
-                </div>
-                
-                <div style={{ marginBottom: "1rem", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                    <div>
-                        <label style={{ display: "block", fontSize: "0.9em" }}>Taux Mutation (ex: 0.1)</label>
-                        <input type="number" step="0.01" value={mutationRate} onChange={e => setMutationRate(e.target.value === "" ? "" : Number(e.target.value))} disabled={status.running} style={{ width: "100%", padding: "4px" }} placeholder="Auto" />
-                    </div>
-                    <div>
-                        <label style={{ display: "block", fontSize: "0.9em" }}>Graine (Seed)</label>
-                        <input type="number" value={seed} onChange={e => setSeed(e.target.value === "" ? "" : Number(e.target.value))} disabled={status.running} style={{ width: "100%", padding: "4px" }} placeholder="Auto" />
-                    </div>
-                </div>
 
-                <div style={{ marginBottom: "1rem" }}>
-                    <label style={{ display: "block", fontSize: "0.9em" }}>ID Agent à Importer (Optionnel)</label>
-                    <input type="text" value={importAgentId} onChange={e => setImportAgentId(e.target.value)} disabled={status.running} style={{ width: "100%", padding: "4px" }} placeholder="Ex: e6f2b4a..." />
-                </div>
-                
-                <div style={{ marginBottom: "1rem" }}>
-                  <label><input type="checkbox" checked={keepMemory} onChange={(e) => setKeepMemory(e.target.checked)} disabled={status.running} /> Conserver la Mémoire KuzuDB</label>
-                </div>
-                
-                <div style={{ marginBottom: "1rem" }}>
-                  <label><input type="checkbox" checked={runMigration} onChange={(e) => setRunMigration(e.target.checked)} disabled={status.running} /> Forcer la migration</label>
-                </div>
+        <div className="grid-2 mb-5">
+          <div>
+            <h4>Paramètres Généraux</h4>
+            <Field label="Script principal">
+              <select value={selectedScript} onChange={(e) => setSelectedScript(e.target.value)} disabled={running}>
+                {status.available_scripts.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            <Field label="Type de Monde">
+              <select value={worldType} onChange={(e) => setWorldType(e.target.value)} disabled={running}>
+                <option value="stoneage">Stone Age (Défaut)</option>
+                <option value="waterworld">Waterworld</option>
+                <option value="3d_world">Monde 3D</option>
+              </select>
+            </Field>
+
+            <div className="grid-2">
+              <Field label="Taux Mutation (ex: 0.1)">
+                <input
+                  type="number"
+                  step="0.01"
+                  value={mutationRate}
+                  onChange={(e) => setMutationRate(e.target.value === "" ? "" : Number(e.target.value))}
+                  disabled={running}
+                  placeholder="Auto"
+                />
+              </Field>
+              <Field label="Graine (Seed)">
+                <input
+                  type="number"
+                  value={seed}
+                  onChange={(e) => setSeed(e.target.value === "" ? "" : Number(e.target.value))}
+                  disabled={running}
+                  placeholder="Auto"
+                />
+              </Field>
             </div>
 
-            {/* Colonne de Droite : Modules & Analyses */}
-            <div>
-                <h4>Modules & Analyses Post-Mortem</h4>
-                
-                <div style={{ marginBottom: "0.8rem" }}>
-                  <label><input type="checkbox" checked={enableSupervisor} onChange={(e) => setEnableSupervisor(e.target.checked)} disabled={status.running} /> Activer le Superviseur IA (LangGraph)</label>
-                </div>
-                <div style={{ marginBottom: "0.8rem" }}>
-                  <label><input type="checkbox" checked={runSociologist} onChange={(e) => setRunSociologist(e.target.checked)} disabled={status.running} /> Lancer le Sociologue en fin de run</label>
-                </div>
-                <div style={{ marginBottom: "0.8rem" }}>
-                  <label><input type="checkbox" checked={runLinguist} onChange={(e) => setRunLinguist(e.target.checked)} disabled={status.running} /> Lancer le Linguiste (Analyse Vocale)</label>
-                </div>
-                <div style={{ marginBottom: "0.8rem" }}>
-                  <label><input type="checkbox" checked={runMetacognition} onChange={(e) => setRunMetacognition(e.target.checked)} disabled={status.running} /> Analyser la Métacognition</label>
-                </div>
-                <div style={{ marginBottom: "0.8rem" }}>
-                  <label><input type="checkbox" checked={runDreamAnalyzer} onChange={(e) => setRunDreamAnalyzer(e.target.checked)} disabled={status.running} /> Analyser les Rêves (Test-Time Compute)</label>
-                </div>
-                
-                <hr style={{ margin: "15px 0", borderTop: "1px solid var(--color-border)" }} />
-                
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                    <div>
-                        <label style={{ display: "block", fontSize: "0.9em" }}>Limite Ressources (Go)</label>
-                        <input type="number" value={resourceLimit} onChange={e => setResourceLimit(Number(e.target.value))} disabled={status.running} style={{ width: "100%", padding: "4px" }} />
-                    </div>
-                    <div>
-                        <label style={{ display: "block", fontSize: "0.9em" }}>Taille Batch (0=Auto)</label>
-                        <input type="number" value={batchSize} onChange={e => setBatchSize(Number(e.target.value))} disabled={status.running} style={{ width: "100%", padding: "4px" }} />
-                    </div>
-                </div>
+            <Field label="ID Agent à Importer (Optionnel)">
+              <input
+                type="text"
+                value={importAgentId}
+                onChange={(e) => setImportAgentId(e.target.value)}
+                disabled={running}
+                placeholder="Ex: e6f2b4a..."
+              />
+            </Field>
+
+            <div className="mb-4">
+              <label>
+                <input type="checkbox" checked={keepMemory} onChange={(e) => setKeepMemory(e.target.checked)} disabled={running} />{" "}
+                Conserver la Mémoire KuzuDB
+              </label>
             </div>
-            
+            <div className="mb-4">
+              <label>
+                <input type="checkbox" checked={runMigration} onChange={(e) => setRunMigration(e.target.checked)} disabled={running} />{" "}
+                Forcer la migration
+              </label>
+            </div>
+          </div>
+
+          <div>
+            <h4>Modules &amp; Analyses Post-Mortem</h4>
+            <div className="mb-4">
+              <label>
+                <input type="checkbox" checked={enableSupervisor} onChange={(e) => setEnableSupervisor(e.target.checked)} disabled={running} />{" "}
+                Activer le Superviseur IA (LangGraph)
+              </label>
+            </div>
+            <div className="mb-4">
+              <label>
+                <input type="checkbox" checked={runSociologist} onChange={(e) => setRunSociologist(e.target.checked)} disabled={running} />{" "}
+                Lancer le Sociologue en fin de run
+              </label>
+            </div>
+            <div className="mb-4">
+              <label>
+                <input type="checkbox" checked={runLinguist} onChange={(e) => setRunLinguist(e.target.checked)} disabled={running} />{" "}
+                Lancer le Linguiste (Analyse Vocale)
+              </label>
+            </div>
+            <div className="mb-4">
+              <label>
+                <input type="checkbox" checked={runMetacognition} onChange={(e) => setRunMetacognition(e.target.checked)} disabled={running} />{" "}
+                Analyser la Métacognition
+              </label>
+            </div>
+            <div className="mb-4">
+              <label>
+                <input type="checkbox" checked={runDreamAnalyzer} onChange={(e) => setRunDreamAnalyzer(e.target.checked)} disabled={running} />{" "}
+                Analyser les Rêves (Test-Time Compute)
+              </label>
+            </div>
+
+            <hr style={{ margin: "var(--space-4) 0", border: "none", borderTop: "1px solid var(--color-border)" }} />
+
+            <div className="grid-2">
+              <Field label="Limite Ressources (Go)">
+                <input type="number" value={resourceLimit} onChange={(e) => setResourceLimit(Number(e.target.value))} disabled={running} />
+              </Field>
+              <Field label="Taille Batch (0=Auto)">
+                <input type="number" value={batchSize} onChange={(e) => setBatchSize(Number(e.target.value))} disabled={running} />
+              </Field>
+            </div>
+          </div>
         </div>
 
-        <div style={{ marginTop: "20px", textAlign: "right" }}>
-          {status.running ? (
-            <button onClick={handleStop} disabled={loading} style={{ background: "red", color: "white", padding: "12px 24px", borderRadius: "5px", border: "none", cursor: "pointer", fontWeight: "bold" }}>Arrêter la Sandbox</button>
+        <div className="text-right mt-4">
+          {running ? (
+            <Button variant="danger" onClick={() => stopMutation.mutate()} disabled={busy}>
+              Arrêter la Sandbox
+            </Button>
           ) : (
-            <button onClick={handleStart} disabled={loading || !selectedScript} style={{ background: "green", color: "white", padding: "12px 24px", borderRadius: "5px", border: "none", cursor: "pointer", fontWeight: "bold" }}>Démarrer la Sandbox</button>
+            <Button variant="primary" onClick={() => startMutation.mutate()} disabled={busy || !selectedScript}>
+              Démarrer la Sandbox
+            </Button>
           )}
         </div>
-        {message && <p style={{ marginTop: "1rem", fontWeight: "bold", textAlign: "right", color: "var(--color-accent)" }}>{message}</p>}
-      </div>
+        {message && <p className="text-right mt-4" style={{ fontWeight: "bold", color: "var(--color-accent)" }}>{message}</p>}
+      </Panel>
 
-      {status.running && (
+      {running && (
         <div className="live-dashboard">
-          <div className="live-row" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "20px", marginTop: "20px" }}>
+          <div className="grid-3 mt-5">
             <LiveWorld />
             <LiveConsole />
             <LiveTelemetry />
@@ -255,140 +277,136 @@ export function SandboxView() {
   );
 }
 
-// --- Live Components ---
+// --- Composants live (montés uniquement quand la sandbox tourne) ---
 
 const LiveWorld = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [worldSize, setWorldSize] = useState(30);
+  const { data: state } = useQuery({
+    queryKey: queryKeys.sandbox.state,
+    queryFn: () => apiFetch<any>("/api/sandbox/state"),
+    refetchInterval: 500,
+    staleTime: 0,
+  });
 
   useEffect(() => {
-    const fetchState = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/api/sandbox/state`);
-        const state = await res.json();
-        
-        if (state.size > 0) {
-          setWorldSize(state.size);
-          const canvas = canvasRef.current;
-          if (!canvas) return;
-          const ctx = canvas.getContext("2d");
-          if (!ctx) return;
-          
-          const size = state.size;
-          const cellSize = canvas.width / size;
-          
-          ctx.fillStyle = state.is_night ? "#11111b" : "#1e1e2e";
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-          
-          ctx.strokeStyle = "#313244";
-          ctx.lineWidth = 0.5;
-          for(let i=0; i<=size; i++) {
-            ctx.beginPath(); ctx.moveTo(i*cellSize, 0); ctx.lineTo(i*cellSize, canvas.height); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(0, i*cellSize); ctx.lineTo(canvas.width, i*cellSize); ctx.stroke();
-          }
+    if (!state || !(state.size > 0)) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
-          ctx.fillStyle = "#a6e3a1";
-          state.trees?.forEach((t: any) => {
-             ctx.fillRect(t.x * cellSize, t.y * cellSize, cellSize, cellSize);
-          });
-
-          state.items?.forEach((it: any) => {
-             ctx.fillStyle = it.type === "Fire" ? "#f38ba8" : "#f9e2af";
-             ctx.fillRect(it.x * cellSize + 2, it.y * cellSize + 2, cellSize - 4, cellSize - 4);
-             if (it.type === "Fire") {
-                ctx.fillStyle = "rgba(243, 139, 168, 0.2)";
-                ctx.beginPath(); ctx.arc(it.x * cellSize + cellSize/2, it.y * cellSize + cellSize/2, cellSize * 2.5, 0, Math.PI*2); ctx.fill();
-             }
-          });
-
-          ctx.fillStyle = "#cba6f7";
-          state.preys?.forEach((p: any) => {
-             ctx.beginPath(); ctx.arc(p.x * cellSize + cellSize/2, p.y * cellSize + cellSize/2, cellSize/2.5, 0, Math.PI*2); ctx.fill();
-          });
-
-          state.agents?.forEach((a: any) => {
-             ctx.fillStyle = a.energy > 50 ? "#89b4fa" : "#89dceb";
-             ctx.beginPath(); ctx.arc(a.x * cellSize + cellSize/2, a.y * cellSize + cellSize/2, cellSize/2, 0, Math.PI*2); ctx.fill();
-             ctx.fillStyle = "white";
-             ctx.font = "8px Arial";
-             ctx.fillText(a.energy?.toFixed(0), a.x * cellSize, a.y * cellSize + cellSize);
-          });
-        }
-      } catch (e) { }
+    const size = state.size;
+    const cellSize = canvas.width / size;
+    const c = {
+      bgNight: cssVar("--world-bg-night"),
+      bgDay: cssVar("--world-bg-day"),
+      grid: cssVar("--world-grid"),
+      tree: cssVar("--world-tree"),
+      fire: cssVar("--world-fire"),
+      item: cssVar("--world-item"),
+      prey: cssVar("--world-prey"),
+      agentHi: cssVar("--world-agent-hi"),
+      agentLo: cssVar("--world-agent-lo"),
     };
-    
-    const interval = setInterval(fetchState, 500);
-    return () => clearInterval(interval);
-  }, []);
+
+    ctx.fillStyle = state.is_night ? c.bgNight : c.bgDay;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.strokeStyle = c.grid;
+    ctx.lineWidth = 0.5;
+    for (let i = 0; i <= size; i++) {
+      ctx.beginPath(); ctx.moveTo(i * cellSize, 0); ctx.lineTo(i * cellSize, canvas.height); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, i * cellSize); ctx.lineTo(canvas.width, i * cellSize); ctx.stroke();
+    }
+
+    ctx.fillStyle = c.tree;
+    state.trees?.forEach((t: any) => ctx.fillRect(t.x * cellSize, t.y * cellSize, cellSize, cellSize));
+
+    state.items?.forEach((it: any) => {
+      ctx.fillStyle = it.type === "Fire" ? c.fire : c.item;
+      ctx.fillRect(it.x * cellSize + 2, it.y * cellSize + 2, cellSize - 4, cellSize - 4);
+      if (it.type === "Fire") {
+        ctx.fillStyle = "rgba(243, 139, 168, 0.2)";
+        ctx.beginPath(); ctx.arc(it.x * cellSize + cellSize / 2, it.y * cellSize + cellSize / 2, cellSize * 2.5, 0, Math.PI * 2); ctx.fill();
+      }
+    });
+
+    ctx.fillStyle = c.prey;
+    state.preys?.forEach((p: any) => {
+      ctx.beginPath(); ctx.arc(p.x * cellSize + cellSize / 2, p.y * cellSize + cellSize / 2, cellSize / 2.5, 0, Math.PI * 2); ctx.fill();
+    });
+
+    state.agents?.forEach((a: any) => {
+      ctx.fillStyle = a.energy > 50 ? c.agentHi : c.agentLo;
+      ctx.beginPath(); ctx.arc(a.x * cellSize + cellSize / 2, a.y * cellSize + cellSize / 2, cellSize / 2, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "white";
+      ctx.font = "8px Arial";
+      ctx.fillText(a.energy?.toFixed(0), a.x * cellSize, a.y * cellSize + cellSize);
+    });
+  }, [state]);
 
   return (
-    <div className="live-world academy-box" style={{ padding: "10px" }}>
+    <Panel className="live-world">
       <h4>🌍 Visualisation 2D</h4>
-      <canvas ref={canvasRef} width={400} height={400} style={{ border: "1px solid var(--color-border)", borderRadius: "4px", background: "var(--color-bg)", width: "100%", height: "auto" }} />
-    </div>
+      <canvas
+        ref={canvasRef}
+        width={400}
+        height={400}
+        style={{ border: "1px solid var(--color-border)", borderRadius: "var(--radius-sm)", background: "var(--color-bg)", width: "100%", height: "auto" }}
+      />
+    </Panel>
   );
 };
 
 const LiveConsole = () => {
-  const [logs, setLogs] = useState<string[]>([]);
   const consoleRef = useRef<HTMLPreElement>(null);
+  const { data } = useQuery({
+    queryKey: queryKeys.sandbox.logs,
+    queryFn: () => apiFetch<{ logs: string[] }>("/api/sandbox/logs"),
+    refetchInterval: 1000,
+    staleTime: 0,
+  });
+  const logs = data?.logs ?? [];
 
   useEffect(() => {
-    const fetchLogs = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/api/sandbox/logs`);
-        const data = await res.json();
-        setLogs(data.logs || []);
-      } catch (e) { }
-    };
-    const interval = setInterval(fetchLogs, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    if (consoleRef.current) {
-      consoleRef.current.scrollTop = consoleRef.current.scrollHeight;
-    }
+    if (consoleRef.current) consoleRef.current.scrollTop = consoleRef.current.scrollHeight;
   }, [logs]);
 
   return (
-    <div className="live-console academy-box" style={{ padding: "10px" }}>
+    <Panel className="live-console">
       <h4>🖥️ Terminal Biosphère (Live)</h4>
-      <pre ref={consoleRef} style={{ background: "#11111b", color: "#a6adc8", padding: "10px", height: "400px", overflowY: "auto", fontSize: "0.8em", borderRadius: "4px", margin: 0 }}>
-        {logs.map((log, i) => <div key={i}>{log}</div>)}
+      <pre ref={consoleRef} className="console-block">
+        {logs.map((log, i) => (
+          <div key={i}>{log}</div>
+        ))}
       </pre>
-    </div>
+    </Panel>
   );
 };
 
 const LiveTelemetry = () => {
-  const [data, setData] = useState<any[]>([]);
-
-  useEffect(() => {
-    const fetchTelemetry = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/api/sandbox/telemetry`);
-        const json = await res.json();
-        setData(json.data || []);
-      } catch (e) { }
-    };
-    const interval = setInterval(fetchTelemetry, 2000);
-    return () => clearInterval(interval);
-  }, []);
+  const { data } = useQuery({
+    queryKey: queryKeys.sandbox.telemetry,
+    queryFn: () => apiFetch<{ data: any[] }>("/api/sandbox/telemetry"),
+    refetchInterval: 2000,
+    staleTime: 0,
+  });
+  const rows = data?.data ?? [];
+  const viz = vizColors();
 
   return (
-    <div className="live-telemetry academy-box" style={{ padding: "10px", height: "400px", overflow: "hidden" }}>
+    <div className="panel-base live-telemetry" style={{ height: "400px", overflow: "hidden" }}>
       <h4>📊 Télémétrie Cognitive</h4>
       <ResponsiveContainer width="100%" height={350}>
-        <LineChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#313244" />
-          <XAxis dataKey="tick" stroke="#a6adc8" fontSize={10} />
-          <YAxis stroke="#a6adc8" fontSize={10} />
-          <RechartsTooltip contentStyle={{ backgroundColor: "#1e1e2e", border: "1px solid #313244" }} />
+        <LineChart data={rows}>
+          <CartesianGrid strokeDasharray="3 3" stroke={cssVar("--color-border")} />
+          <XAxis dataKey="tick" stroke={cssVar("--color-text-dim")} fontSize={10} />
+          <YAxis stroke={cssVar("--color-text-dim")} fontSize={10} />
+          <RechartsTooltip contentStyle={{ backgroundColor: cssVar("--color-surface"), border: `1px solid ${cssVar("--color-border")}` }} />
           <Legend />
-          <Line type="monotone" dataKey="mean_energy" stroke="#a6e3a1" dot={false} name="Énergie" />
-          <Line type="monotone" dataKey="mean_surprise" stroke="#f38ba8" dot={false} name="Surprise" />
-          <Line type="monotone" dataKey="mean_doubt" stroke="#89b4fa" dot={false} name="Doute" />
+          <Line type="monotone" dataKey="mean_energy" stroke={viz[0]} dot={false} name="Énergie" />
+          <Line type="monotone" dataKey="mean_surprise" stroke={viz[1]} dot={false} name="Surprise" />
+          <Line type="monotone" dataKey="mean_doubt" stroke={viz[4]} dot={false} name="Doute" />
         </LineChart>
       </ResponsiveContainer>
     </div>
@@ -396,31 +414,23 @@ const LiveTelemetry = () => {
 };
 
 const LiveSupervisor = () => {
-  const [article, setArticle] = useState<{title: string, content: string, timestamp: number} | null>(null);
-
-  useEffect(() => {
-    const fetchArticle = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/api/sandbox/article`);
-        const json = await res.json();
-        setArticle(json);
-      } catch (e) { }
-    };
-    const interval = setInterval(fetchArticle, 5000);
-    fetchArticle();
-    return () => clearInterval(interval);
-  }, []);
+  const { data: article } = useQuery({
+    queryKey: queryKeys.sandbox.article,
+    queryFn: () => apiFetch<{ title: string; content: string; timestamp: number }>("/api/sandbox/article"),
+    refetchInterval: 5000,
+    staleTime: 0,
+  });
 
   return (
-    <div className="live-supervisor" style={{ background: "#11111b", padding: "15px", borderRadius: "6px", border: "1px solid #cba6f7", marginTop: "15px" }}>
-      <h4 style={{ margin: 0, color: "#cba6f7", marginBottom: "10px" }}>🤖 Journal du Superviseur (Ollama LLM)</h4>
+    <div className="supervisor-block">
+      <h4>🤖 Journal du Superviseur (Ollama LLM)</h4>
       {article ? (
         <div>
-          <strong style={{ color: "#89b4fa" }}>{article.title}</strong>
-          <p style={{ color: "#cdd6f4", fontSize: "0.9em", whiteSpace: "pre-wrap", marginTop: "5px" }}>{article.content}</p>
+          <strong>{article.title}</strong>
+          <p>{article.content}</p>
         </div>
       ) : (
-        <p style={{ color: "#a6adc8", fontSize: "0.9em" }}>Chargement du journal...</p>
+        <p className="dim">Chargement du journal...</p>
       )}
     </div>
   );
@@ -428,34 +438,31 @@ const LiveSupervisor = () => {
 
 const GodModePanel = () => {
   const [action, setAction] = useState("");
-  
-  const handleGodAction = async () => {
-    if (!action) return;
-    try {
-      await fetch(`${API_BASE}/api/sandbox/action`, {
+  const godAction = useMutation({
+    mutationFn: (a: string) =>
+      apiFetch("/api/sandbox/action", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action })
-      });
-      setAction("");
-    } catch (e) { console.error(e); }
-  };
+        body: JSON.stringify({ action: a }),
+      }),
+    onSuccess: () => setAction(""),
+  });
 
   return (
-    <div className="academy-box" style={{ marginTop: "20px" }}>
+    <Panel className="mt-5">
       <h4>⚡ Interventions God-Mode</h4>
-      <div style={{ display: "flex", gap: "10px" }}>
-        <input 
-          type="text" 
-          placeholder="Ex: Apparition d'un incendie (Fire)" 
-          value={action} 
+      <div className="row">
+        <input
+          type="text"
+          placeholder="Ex: Apparition d'un incendie (Fire)"
+          value={action}
           onChange={(e) => setAction(e.target.value)}
-          style={{ flex: 1, padding: "8px" }}
+          style={{ flex: 1, padding: "var(--space-2)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-sm)", background: "var(--color-surface)", color: "var(--color-text)" }}
         />
-        <button onClick={handleGodAction} style={{ padding: "8px 16px", background: "#f38ba8", color: "black", fontWeight: "bold", border: "none", borderRadius: "4px", cursor: "pointer" }}>
+        <Button variant="danger" size="sm" onClick={() => action && godAction.mutate(action)} disabled={godAction.isPending}>
           Lancer
-        </button>
+        </Button>
       </div>
-    </div>
+    </Panel>
   );
 };

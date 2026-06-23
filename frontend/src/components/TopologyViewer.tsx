@@ -24,9 +24,9 @@ export function TopologyViewer({ graph }: TopologyViewerProps) {
     const height = ref.current.clientHeight;
 
     const color = (type: string) => {
-      if (type === "input") return "#0f766e";
-      if (type === "output") return "#be123c";
-      return "#64748b";
+      if (type === "input") return "var(--viz-1)";
+      if (type === "output") return "var(--viz-2)";
+      return "var(--color-text-dim)";
     };
 
     const simulation = d3
@@ -41,7 +41,7 @@ export function TopologyViewer({ graph }: TopologyViewerProps) {
 
     const link = svg
       .append("g")
-      .attr("stroke", "#94a3b8")
+      .style("stroke", "var(--color-border-subtle)")
       .selectAll<SVGLineElement, LinkDatum>("line")
       .data(graph.links as LinkDatum[])
       .join("line")
@@ -74,14 +74,17 @@ export function TopologyViewer({ graph }: TopologyViewerProps) {
     node
       .append("circle")
       .attr("r", 18)
-      .attr("fill", (d: NodeDatum) => color(d.type));
+      .style("fill", (d: NodeDatum) => color(d.type));
 
     node
       .append("text")
       .attr("text-anchor", "middle")
       .attr("dy", 4)
       .attr("font-size", 11)
-      .attr("fill", "white")
+      // Token « texte sur surface colorée » : bascule white (clair) -> sombre (dark) pour
+      // rester contrasté sur les cercles --viz-* qui s'éclaircissent en thème sombre.
+      // `.style` (et non `.attr`) car var() n'est pas résolu dans un attribut SVG.
+      .style("fill", "var(--color-on-accent)")
       .text((d: NodeDatum) => d.label);
 
     simulation.on("tick", () => {

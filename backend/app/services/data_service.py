@@ -287,6 +287,9 @@ class ExperimentDataService:
             histories[gate] = self.get_history(gate)
             graph_data[gate] = self._load_graph_data(gate)
 
+        if not histories:  # aucune donnée (results/ vide, ex. CI) -> liste vide au lieu de crasher
+            return []
+
         max_fitness = max((history.fitness[-1] for history in histories.values()), default=1.0)
         max_size = max(
             (
@@ -417,46 +420,59 @@ class ExperimentDataService:
 
         return ExperimentDetail(gate=gate, history=history, graph=graph, metrics=metrics)
 
+    def _repo_root(self) -> Path:
+        return self.results_path.parent
+
+    def _load_edr_findings(self) -> list[dict]:
+        for p in (
+            self._repo_root() / "backend" / "app" / "edr_findings.json",
+            self.results_path / "edr_findings.json",
+        ):
+            if p.exists():
+                try:
+                    return json.loads(p.read_text(encoding="utf-8")).get("findings", []) or []
+                except Exception:  # noqa: BLE001
+                    return []
+        return []
+
+    def _recent_edr_docs(self, limit: int = 6) -> list[tuple[int, str]]:
+        d = self._repo_root() / "docs" / "EDR"
+        out: list[tuple[int, str]] = []
+        if d.is_dir():
+            for p in d.glob("[0-9][0-9][0-9]_*.md"):
+                m = re.match(r"^(\d{3})_(.+)\.md$", p.name)
+                if m:
+                    out.append((int(m.group(1)), m.group(2).replace("_", " ")))
+        out.sort(key=lambda x: x[0], reverse=True)
+        return out[:limit]
+
     def get_academy_data(self) -> AcademyPayload:
+        """Academy dérivée des EDR (et non plus des portes logiques figées) :
+        derniers EDR documentés = jalons ; findings curés = timeline narrée."""
+        findings = self._load_edr_findings()
+        recent = self._recent_edr_docs()
+
         version_history = [
-            AcademyItem(title="V1.0", description="Mise en place du runner d'évolution et sauvegarde CSV/JSON."),
-            AcademyItem(title="V1.1", description="Exports Graphviz et topologie textuelle ajoutés."),
-            AcademyItem(title="V1.2", description="Page D3 interactive pour inspecter les graphes."),
-            AcademyItem(title="V1.3", description="Tableau de bord global multi-porte ajouté."),
-            AcademyItem(title="V1.4", description="Onglet Academy avec timeline et documentation pédagogique."),
-        ]
+            AcademyItem(title=f"EDR {num:03d}", description=title) for num, title in recent
+        ] or [AcademyItem(title="AGIseed", description="Journal des décisions expérimentales (EDR).")]
 
         timeline: list[str] = []
-        for gate in self.available_gates():
-            history = self.get_history(gate)
-            best_gen = max(range(1, len(history.fitness) + 1), key=lambda index: history.fitness[index - 1])
-            final_accuracy = history.accuracy[-1]
-            timeline.append(f"{gate} : meilleure fitness à la génération {best_gen}, précision finale {final_accuracy:.3f}.")
+        for f in sorted(findings, key=lambda x: x.get("edr", 0)):
+            title = f.get("title", "")
+            insight = (f.get("insight") or "").strip()
+            if len(insight) > 180:
+                insight = insight[:177] + "..."
+            timeline.append(f"EDR {f.get('edr', '?')} — {title}" + (f" : {insight}" if insight else ""))
+        if not timeline:
+            timeline = ["Aucune découverte curée dans edr_findings.json."]
 
         learning_goals = [
-            "Suivre l'émergence du réseau à travers les mutations et la sélection.",
-            "Comparer les portes logiques sur fitness, précision et taille.",
-            "Maintenir l'équilibre entre expressivité et simplicité de topologie.",
-            "Rédiger des articles pour consigner et apprendre de chaque découverte lors des expérimentations.",
+            "Lire l'histoire du projet par ses décisions (EDR), pas par des versions figées.",
+            "Distinguer un signal réel d'un bruit : multi-seed, puissance, taille d'effet (Commandement 15).",
+            "Powerer avant de conclure ; valider ou revert, une variable à la fois.",
+            "Relier chaque découverte du Sociologue à l'expérience (run) qui l'a produite.",
         ]
-
         return AcademyPayload(version_history=version_history, timeline=timeline, learning_goals=learning_goals)
-
-    def stream_experiment_updates(self) -> list[dict[str, Any]]:
-        events: list[dict[str, Any]] = []
-        for gate in self.available_gates():
-            history = self.get_history(gate)
-            for i, generation in enumerate(history.generation):
-                events.append(
-                    {
-                        "gate": gate,
-                        "generation": generation,
-                        "fitness": history.fitness[i],
-                        "accuracy": history.accuracy[i],
-                        "size": history.size[i] if history.size else None,
-                    }
-                )
-        return events
 
     def get_articles(self) -> list[Article]:
         """Read articles directly from KuzuDB.

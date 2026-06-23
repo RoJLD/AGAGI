@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel
 
 
@@ -83,3 +85,56 @@ class AcademyPayload(BaseModel):
     version_history: list[AcademyItem]
     timeline: list[str]
     learning_goals: list[str]
+
+
+# --- Runs (instrument scientifique) — response_models : durcit le typage + précise le codegen TS ---
+class RunSummary(BaseModel):
+    run_id: str
+    name: str
+    seed: int
+    commit: str | None = None
+    metrics: list[str]
+
+
+class RunLinks(BaseModel):
+    edr: list[int] = []
+    articles: list[str] = []
+
+
+class RunDetail(BaseModel):
+    run_id: str
+    name: str
+    seed: int
+    commit: str | None = None
+    data: dict[str, Any]
+    links: RunLinks
+
+
+class ConditionSummary(BaseModel):
+    name: str
+    n_seeds: int
+    seeds: list[int]
+    metrics: list[str]
+
+
+class ABGroup(BaseModel):
+    name: str
+    mean: float
+    std: float
+    vals: list[float]
+    n: int
+
+
+class ABCompareResult(BaseModel):
+    metric: str
+    a: ABGroup
+    b: ABGroup
+    t: float
+    d: float
+    significant: bool
+    winner: str | None = None
+    underpowered: bool
+    verdict_label: str
+    verdict_detail: str
+    t_thresh: float
+    d_thresh: float

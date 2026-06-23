@@ -1,18 +1,19 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import * as d3 from "d3";
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8001";
+import { useQuery } from "@tanstack/react-query";
+import { apiFetch } from "../api/client";
+import { queryKeys } from "../api/queryKeys";
+import { Loading } from "./ui/Loading";
+import { ErrorState } from "./ui/ErrorState";
+import { Empty } from "./ui/Empty";
 
 export function TimelineViewer() {
-  const [data, setData] = useState<{ nodes: any[]; links: any[] } | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
-
-  useEffect(() => {
-    fetch(`${API_BASE}/api/timeline`)
-      .then((res) => res.json())
-      .then(setData)
-      .catch(console.error);
-  }, []);
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: queryKeys.timeline,
+    queryFn: () => apiFetch<{ nodes: any[]; links: any[] }>("/api/timeline"),
+    staleTime: Infinity,
+  });
 
   useEffect(() => {
     if (!data || !svgRef.current) return;
@@ -36,7 +37,7 @@ export function TimelineViewer() {
       .selectAll("line")
       .data(data.links)
       .join("line")
-      .attr("stroke", "#999")
+      .style("stroke", "var(--color-border)")
       .attr("stroke-opacity", 0.6)
       .attr("stroke-width", 2);
 
@@ -46,7 +47,8 @@ export function TimelineViewer() {
       .data(data.nodes)
       .join("circle")
       .attr("r", 10)
-      .attr("fill", (d: any) => d.label === "Agent" ? "#be123c" : "#0f766e");
+      // Séries data-viz -> tokens theme-aware (rouge = Agent, teal = autre).
+      .style("fill", (d: any) => (d.label === "Agent" ? "var(--viz-2)" : "var(--viz-1)"));
 
     const label = svg
       .append("g")
@@ -56,7 +58,8 @@ export function TimelineViewer() {
       .text((d: any) => d.id)
       .attr("font-size", 10)
       .attr("dx", 12)
-      .attr("dy", 4);
+      .attr("dy", 4)
+      .style("fill", "var(--color-text)"); // sinon noir par défaut -> invisible en dark
 
     node.append("title").text((d: any) => `${d.label}: ${d.id}`);
 
@@ -81,15 +84,15 @@ export function TimelineViewer() {
     };
   }, [data]);
 
+  if (isLoading) return <Loading label="Chargement du graphe KuzuDB…" />;
+  if (error) return <ErrorState error={error} onRetry={() => refetch()} />;
+  if (!data || !data.nodes?.length) return <Empty message="Aucun nœud dans le graphe KuzuDB." />;
+
   return (
     <div className="timeline-viewer">
       <h2>Timeline KuzuDB</h2>
       <p>Visualisation de l'arbre généalogique des agents et de leurs lignées.</p>
-      {data ? (
-        <svg ref={svgRef} width="100%" height={400} style={{ border: "1px solid #ccc", background: "#f8f9fa" }} />
-      ) : (
-        <p>Chargement des données du graphe...</p>
-      )}
+      <svg ref={svgRef} width="100%" height={400} className="topology-svg" />
     </div>
   );
 }

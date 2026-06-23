@@ -10,7 +10,13 @@ venv/
 # Large dumps/logs
 dump.txt
 dump2.txt
+dump*.txt
 results/
+
+# Artefacts de récupération (à ne jamais réintroduire à la racine)
+*_full.tsx
+*_recovered.*
+data/*.bak_*
 
 # Data directory: ignore DB files, states, pickes
 data/*.db
@@ -26,7 +32,13 @@ data/agent_states/
 frontend/node_modules/
 frontend/dist/
 frontend/build/
+
+# Secrets / env (F3.12) — ignorer les vrais .env, garder les .example versionnés
+.env
+.env.*
 frontend/.env*
+!.env.example
+!**/.env.example
 
 # Editor/OS settings
 .DS_Store

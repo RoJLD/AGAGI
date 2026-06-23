@@ -1,6 +1,11 @@
-import { useEffect, useState } from "react";
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8001";
+import { useQuery } from "@tanstack/react-query";
+import { apiFetch } from "../api/client";
+import { queryKeys } from "../api/queryKeys";
+import { Loading } from "./ui/Loading";
+import { ErrorState } from "./ui/ErrorState";
+import { Empty } from "./ui/Empty";
+import { Badge } from "./ui/Badge";
+import type { EdrLinks } from "../types";
 
 type Serie = { name: string; values?: number[]; value?: number; err?: number; color: string };
 type Finding = {
@@ -12,8 +17,10 @@ type Finding = {
   xlabel?: string;
   series: Serie[];
   insight: string;
+  stub?: boolean;
 };
 type Payload = { title: string; findings: Finding[] };
+type EdrDoc = { edr: number; title: string; file: string };
 
 const W = 640;
 const H = 240;
@@ -28,12 +35,12 @@ function LineChart({ f }: { f: Finding }) {
   const sy = (v: number) => H - PAD - ((v - minV) / (maxV - minV || 1)) * (H - 2 * PAD);
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="chart-svg" role="img" aria-label={f.title}>
-      <line x1={PAD} y1={H - PAD} x2={W - PAD} y2={H - PAD} stroke="#cbd5e1" />
-      <line x1={PAD} y1={PAD} x2={PAD} y2={H - PAD} stroke="#cbd5e1" />
+      <line x1={PAD} y1={H - PAD} x2={W - PAD} y2={H - PAD} style={{ stroke: "var(--color-border-subtle)" }} />
+      <line x1={PAD} y1={PAD} x2={PAD} y2={H - PAD} style={{ stroke: "var(--color-border-subtle)" }} />
       {xs.map((xv, i) => (
-        <text key={i} x={sx(i)} y={H - PAD + 16} fontSize={11} fill="#64748b" textAnchor="middle">{xv}</text>
+        <text key={i} x={sx(i)} y={H - PAD + 16} fontSize={11} style={{ fill: "var(--color-text-dim)" }} textAnchor="middle">{xv}</text>
       ))}
-      <text x={W / 2} y={H - 4} fontSize={11} fill="#94a3b8" textAnchor="middle">{f.xlabel}</text>
+      <text x={W / 2} y={H - 4} fontSize={11} style={{ fill: "var(--color-text-muted)" }} textAnchor="middle">{f.xlabel}</text>
       {f.series.map((s) => (
         <g key={s.name}>
           <path d={(s.values ?? []).map((v, i) => `${i === 0 ? "M" : "L"} ${sx(i)} ${sy(v)}`).join(" ")}
@@ -54,7 +61,7 @@ function BarChart({ f }: { f: Finding }) {
   const by = (v: number) => H - PAD - (v / maxV) * (H - 2 * PAD);
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="chart-svg" role="img" aria-label={f.title}>
-      <line x1={PAD} y1={H - PAD} x2={W - PAD} y2={H - PAD} stroke="#cbd5e1" />
+      <line x1={PAD} y1={H - PAD} x2={W - PAD} y2={H - PAD} style={{ stroke: "var(--color-border-subtle)" }} />
       {f.series.map((s, i) => {
         const v = s.value ?? 0;
         return (
@@ -62,12 +69,12 @@ function BarChart({ f }: { f: Finding }) {
             <rect x={bx(i)} y={by(v)} width={bw} height={H - PAD - by(v)} fill={s.color} rx={3} />
             {s.err !== undefined && (
               <line x1={bx(i) + bw / 2} y1={by(v + s.err)} x2={bx(i) + bw / 2} y2={by(Math.max(0, v - s.err))}
-                    stroke="#1e293b" strokeWidth={2} />
+                    style={{ stroke: "var(--color-text)" }} strokeWidth={2} />
             )}
-            <text x={bx(i) + bw / 2} y={by(v) - 6} fontSize={12} fill="#1e293b" textAnchor="middle" fontWeight={600}>
+            <text x={bx(i) + bw / 2} y={by(v) - 6} fontSize={12} style={{ fill: "var(--color-text)" }} textAnchor="middle" fontWeight={600}>
               {v.toFixed(v < 10 ? 2 : 1)}
             </text>
-            <text x={bx(i) + bw / 2} y={H - PAD + 16} fontSize={10.5} fill="#64748b" textAnchor="middle">{s.name}</text>
+            <text x={bx(i) + bw / 2} y={H - PAD + 16} fontSize={10.5} style={{ fill: "var(--color-text-dim)" }} textAnchor="middle">{s.name}</text>
           </g>
         );
       })}
@@ -76,18 +83,29 @@ function BarChart({ f }: { f: Finding }) {
 }
 
 export function EDRDashboard() {
-  const [data, setData] = useState<Payload | null>(null);
-  const [err, setErr] = useState<string>("");
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: queryKeys.edr,
+    queryFn: () => apiFetch<Payload>("/api/edr"),
+    staleTime: Infinity,
+  });
+  const docsQuery = useQuery({
+    queryKey: ["edr", "docs"] as const,
+    queryFn: () => apiFetch<EdrDoc[]>("/api/edr/docs"),
+    staleTime: Infinity,
+  });
+  const linksQuery = useQuery({
+    queryKey: queryKeys.runs.edrLinks,
+    queryFn: () => apiFetch<EdrLinks>("/api/runs/edr-links"),
+    staleTime: 30_000,
+  });
 
-  useEffect(() => {
-    fetch(`${API_BASE}/api/edr`)
-      .then((r) => r.json())
-      .then(setData)
-      .catch((e) => setErr(String(e)));
-  }, []);
+  if (isLoading) return <Loading label="Chargement des découvertes EDR…" />;
+  if (error) return <ErrorState error={error} onRetry={() => refetch()} />;
+  if (!data || !data.findings?.length) return <Empty message="Aucun finding EDR." />;
 
-  if (err) return <p>Erreur de chargement EDR : {err}</p>;
-  if (!data) return <p>Chargement des découvertes EDR…</p>;
+  const curated = new Set(data.findings.filter((f) => !f.stub).map((f) => f.edr));
+  const uncurated = (docsQuery.data ?? []).filter((d) => !curated.has(d.edr));
+  const links = linksQuery.data ?? {};
 
   return (
     <div className="edr-dashboard">
@@ -97,10 +115,13 @@ export function EDRDashboard() {
         décision (EDR) qui a déplacé la compréhension du projet.
       </p>
       <div className="edr-grid">
-        {data.findings.map((f) => (
+        {data.findings.filter((f) => !f.stub).map((f) => (
           <article key={f.edr} className="edr-card">
             <header className="edr-card-head">
-              <span className="edr-badge">EDR {f.edr}</span>
+              <Badge variant="teal">EDR {f.edr}</Badge>
+              {links[String(f.edr)]?.length ? (
+                <Badge variant="purple">{links[String(f.edr)].length} run(s) liés</Badge>
+              ) : null}
               <h3>{f.title}</h3>
             </header>
             <p className="edr-sub">{f.subtitle}</p>
@@ -116,6 +137,24 @@ export function EDRDashboard() {
           </article>
         ))}
       </div>
+
+      {uncurated.length > 0 && (
+        <section className="mt-5">
+          <h3>EDR documentés non encore mis en carte ({uncurated.length})</h3>
+          <p className="text-dim">
+            Couverture automatique : tout EDR de <code>docs/EDR/</code> apparaît ici dès son ajout ; la
+            mise en carte (graphique curé dans <code>edr_findings.json</code>) l'enrichit ensuite.
+          </p>
+          <div className="row" style={{ flexWrap: "wrap" }}>
+            {uncurated.map((d) => (
+              <span key={d.edr} className="row" style={{ gap: "var(--space-2)" }}>
+                <Badge variant="warning">EDR {d.edr}</Badge>
+                <span className="text-dim">{d.title}</span>
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
