@@ -173,6 +173,16 @@ def test_ws_evolution_streams_appended_events(tmp_path, monkeypatch) -> None:
         assert event["run"] == "demo"
 
 
+def test_arm_live_progress_sets_env_and_clears_file() -> None:
+    import os as _os
+    env: dict = {}
+    path = sandbox_service._arm_live_progress(env)
+    assert env["AGISEED_LIVE_PROGRESS"] == path
+    assert _os.path.exists(path)
+    with open(path, encoding="utf-8") as f:
+        assert f.read() == ""  # vidé au démarrage
+
+
 def test_flatland_websocket_streams_frames() -> None:
     with client.websocket_connect("/ws/flatland") as websocket:
         frame = websocket.receive_json()
