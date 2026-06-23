@@ -32,6 +32,21 @@ def _grad_cfg():
     return GraduationConfig(window=4, eps_plateau=0.02, c_floor=0.5, patience=2, max_eras=10)
 
 
+def _disable_kuzu():
+    """Neutralise l'async_logger (KuzuDB) AVANT toute création de Biosphere3D. À appeler une fois par
+    process. Effets : (1) `logger.start()` devient no-op -> le worker KuzuDB ne démarre jamais, donc
+    PAS de contention multi-process (KuzuDB n'autorise qu'un writer sur le fichier `data/`) ; (2) emit/
+    emit_sync no-op -> la queue ne se remplit jamais d'événements non consommés (fuite mémoire 5 GB
+    observée sinon) et emit_sync ne bloque pas sur timeout ; (3) substrat 100 % reproductible : aucune
+    mémoire ambiante injectée (in_mem = zéros partout), exactement le runner clean d'EDR 089 mais sans
+    même ouvrir KuzuDB. Idempotent. NB : dette core-engine -- le monde ouvre KuzuDB inconditionnellement."""
+    from src.graph_rag.async_logger import logger as _al
+    _al._running = False
+    _al.start = lambda *a, **k: None
+    _al.emit = lambda *a, **k: None
+    _al.emit_sync = lambda *a, **k: False
+
+
 def _lethal_cfg():
     cfg = WorldConfig()
     cfg.base_metabolism = METAB
@@ -211,6 +226,7 @@ def _report(h, reps, R, levels, _return):
 
 def main(R=8, levels=LEVELS, num_agents=24, n_eval=8, grad_cfg=None, seed=None, max_ticks=MAX_TICKS, _return=False):
     grad_cfg = grad_cfg or _grad_cfg()
+    _disable_kuzu()
     with Harness(seed=seed, name="lethality_curriculum", with_db=False) as h:
         base = h.seed
         cfg = _lethal_cfg()
@@ -234,6 +250,7 @@ def _one_rep(args):
     warnings.filterwarnings("ignore")
     rb, levels, num_agents, n_eval, grad_cfg, max_ticks, work_dir = args
     os.chdir(work_dir)
+    _disable_kuzu()
     np.random.seed(rb)
     cfg = _lethal_cfg()
     mc = MutationConfig(weight_init_std=2.0)

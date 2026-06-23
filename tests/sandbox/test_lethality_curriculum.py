@@ -26,6 +26,15 @@ def test_verdict_three_branches():
     assert lc._verdict(150.0, wilcoxon_p=0.01, med=-1.0, lo=-3.0) == "PAS LE GOULOT"
 
 
+def test_disable_kuzu_neutralizes_logger():
+    lc._disable_kuzu()
+    from src.graph_rag.async_logger import logger as al
+    assert al._running is False
+    assert al.emit("X", {}) is None              # no-op : ne remplit plus la queue
+    assert al.emit_sync("X", {}) is False        # no-op : ne bloque pas sur timeout
+    assert al.start() is None                     # no-op : le worker KuzuDB ne démarre pas
+
+
 def test_run_era_clean_keys_and_reproducible():
     cfg = lc._lethal_cfg()
     seed_from = __import__("src.seed_ai.harness", fromlist=["seed_at"]).seed_at
