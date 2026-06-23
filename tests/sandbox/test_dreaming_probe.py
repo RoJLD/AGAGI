@@ -1,6 +1,7 @@
 import numpy as np
 from types import SimpleNamespace
-from tools.dreaming_probe import organ_prevalence, _has_organ
+from tools.dreaming_probe import organ_prevalence, _has_organ, q2_split
+from src.curriculum.competence import AGE_REF
 
 
 def _agent(organ_on):
@@ -19,3 +20,22 @@ def test_has_organ_robust_to_missing():
     assert _has_organ({"model": SimpleNamespace(genome=SimpleNamespace(organ_genes=None))}) is False
     assert _has_organ({"model": None}) is False
     assert _has_organ(_agent(True)) is True
+
+
+def test_q2_split_separates_dreamers():
+    stats = [
+        {"age": int(AGE_REF), "total_dreams": 3},      # rêveur, compétence haute
+        {"age": int(AGE_REF), "total_dreams": 1},      # rêveur
+        {"age": 10, "total_dreams": 0},                # non-rêveur, basse
+        {"age": 10, "total_dreams": 0},                # non-rêveur
+    ]
+    out = q2_split(stats)
+    assert out["n_dreamers"] == 2 and out["n_nondreamers"] == 2
+    assert out["dreamers_competence"] == 1.0           # médiane âge = AGE_REF
+    assert out["delta"] > 0                             # rêveurs > non-rêveurs
+
+
+def test_q2_split_handles_zero_dreamers():
+    out = q2_split([{"age": 10, "total_dreams": 0}])
+    assert out["n_dreamers"] == 0
+    assert out["dreamers_competence"] == 0.0            # groupe vide -> 0.0
