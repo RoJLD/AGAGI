@@ -98,6 +98,7 @@ class RunSummary(BaseModel):
 
 class RunLinks(BaseModel):
     edr: list[int] = []
+    articles: list[str] = []
 
 
 class RunDetail(BaseModel):

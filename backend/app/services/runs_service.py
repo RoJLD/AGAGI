@@ -80,7 +80,10 @@ class RunsService:
                     "seed": r["seed"],
                     "commit": r.get("commit"),
                     "data": r["data"],
-                    "links": {"edr": self._load_links().get(run_id, {}).get("edr", [])},
+                    "links": {
+                        "edr": self._load_links().get(run_id, {}).get("edr", []),
+                        "articles": self._articles_for_condition(r["name"]),
+                    },
                 }
         return None
 
@@ -113,6 +116,50 @@ class RunsService:
             for e in entry.get("edr", []):
                 out.setdefault(int(e), []).append(run_id)
         return {str(k): sorted(v) for k, v in sorted(out.items())}
+
+    # --- Liens article Sociologue <-> runs (store séparé results/article_links.json) ---
+    # Un article compare 2 conditions (baseline/intervention) ; on lie l'article à ces
+    # conditions au moment de la publication. Un run est « lié » si son `name` (= condition)
+    # fait partie des conditions comparées. N'altère ni les runs ni KuzuDB.
+    def _article_links_path(self) -> Path:
+        return RESULTS_DIR / "article_links.json"
+
+    def _load_article_links(self) -> dict:
+        p = self._article_links_path()
+        if p.exists():
+            try:
+                d = json.loads(p.read_text(encoding="utf-8"))
+                return d if isinstance(d, dict) else {}
+            except Exception:  # noqa: BLE001
+                return {}
+        return {}
+
+    def set_article_link(self, article_id: str, conditions: list[str]) -> dict:
+        """Associe un article aux conditions comparées (appelé par /sociologist/analyze)."""
+        links = self._load_article_links()
+        links[article_id] = sorted({c for c in conditions if c})
+        RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+        self._article_links_path().write_text(
+            json.dumps(links, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
+        return {"article_id": article_id, "conditions": links[article_id]}
+
+    def _articles_for_condition(self, name: str) -> list[str]:
+        return sorted(aid for aid, conds in self._load_article_links().items() if name in conds)
+
+    def article_links(self) -> dict:
+        """Inverse : {run_id: [article_id, ...]} pour afficher les articles liés à chaque run."""
+        article_conditions = self._load_article_links()
+        cond_articles: dict[str, list[str]] = {}
+        for aid, conds in article_conditions.items():
+            for c in conds:
+                cond_articles.setdefault(c, []).append(aid)
+        out: dict[str, list[str]] = {}
+        for r in self._scan():
+            arts = cond_articles.get(r["name"], [])
+            if arts:
+                out[r["_run_id"]] = sorted(set(arts))
+        return out
 
     def list_conditions(self) -> list[dict]:
         groups: dict[str, dict] = {}

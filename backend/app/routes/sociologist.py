@@ -27,7 +27,14 @@ def trigger_analysis(request: AnalyzeRequest):
     try:
         res = soc.publish_article(request.baseline, request.intervention)
         if res:
-            return {"status": "success", "article_id": res[0]}
+            article_id = res[0]
+            # Lie l'article aux conditions comparées (traçabilité article <-> runs).
+            try:
+                from backend.app.services.runs_service import runs_service
+                runs_service.set_article_link(article_id, [request.baseline, request.intervention])
+            except Exception:  # noqa: BLE001 — le lien ne doit jamais faire échouer la publication
+                pass
+            return {"status": "success", "article_id": article_id}
         return {"status": "error", "message": "Données insuffisantes ou erreur"}
     finally:
         if hasattr(soc, 'conn'): del soc.conn

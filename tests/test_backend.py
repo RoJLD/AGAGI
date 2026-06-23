@@ -2,6 +2,7 @@ from fastapi.testclient import TestClient
 
 from backend.app.main import app, _resolve_cors_origins
 from backend.app.services.sandbox_service import sandbox_service
+from backend.app.services.runs_service import runs_service
 
 client = TestClient(app)
 
@@ -142,6 +143,23 @@ def test_api_token_leaves_get_free(monkeypatch) -> None:
     monkeypatch.setenv("AGAGI_API_TOKEN", "secret-test-token")
     response = client.get("/api/sandbox/status")
     assert response.status_code == 200
+
+
+# --- Articles Sociologue <-> runs (lien par condition, store sidecar) ---
+def test_article_link_roundtrip(tmp_path, monkeypatch) -> None:
+    """set_article_link trie + filtre les vides ; _articles_for_condition lit l'inverse."""
+    store = tmp_path / "article_links.json"
+    monkeypatch.setattr(runs_service, "_article_links_path", lambda: store)
+    out = runs_service.set_article_link("art_1", ["condB", "condA", ""])
+    assert out == {"article_id": "art_1", "conditions": ["condA", "condB"]}
+    assert runs_service._articles_for_condition("condA") == ["art_1"]
+    assert runs_service._articles_for_condition("condX") == []
+
+
+def test_article_links_endpoint_returns_mapping() -> None:
+    response = client.get("/api/runs/article-links")
+    assert response.status_code == 200
+    assert isinstance(response.json(), dict)
 
 
 def test_flatland_websocket_streams_frames() -> None:
