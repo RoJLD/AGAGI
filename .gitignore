@@ -32,7 +32,13 @@ data/agent_states/
 frontend/node_modules/
 frontend/dist/
 frontend/build/
+
+# Secrets / env (F3.12) — ignorer les vrais .env, garder les .example versionnés
+.env
+.env.*
 frontend/.env*
+!.env.example
+!**/.env.example
 
 # Editor/OS settings
 .DS_Store

@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import asyncio
+import os
+import secrets
 from pathlib import Path
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from .routes.academy import router as academy_router
 from .routes.articles import router as articles_router
@@ -19,10 +22,37 @@ from .routes.health import router as health_router
 from .services.data_service import ExperimentDataService
 from .flatland_server import flatland_server
 
+def _resolve_cors_origins(raw: str | None) -> list[str]:
+    """Origines CORS depuis AGAGI_CORS_ORIGINS (CSV). Vide/absent -> ['*'] (comportement historique)."""
+    if not raw or not raw.strip():
+        return ["*"]
+    return [o.strip() for o in raw.split(",") if o.strip()]
+
+
+ALLOW_ORIGINS = _resolve_cors_origins(os.getenv("AGAGI_CORS_ORIGINS"))
+_MUTATING_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+
 app = FastAPI(title="AGIseed Dashboard API", version="0.1.0")
+
+
+# Auth opt-in : défini AVANT le CORS pour que celui-ci reste le middleware externe
+# (les headers CORS sont ainsi posés même sur une réponse 401).
+@app.middleware("http")
+async def require_api_token(request: Request, call_next):
+    """Si AGAGI_API_TOKEN est défini, exige `Authorization: Bearer <token>` sur les mutations
+    /api (POST/PUT/PATCH/DELETE). Lectures (GET) toujours libres. Token absent -> aucune auth."""
+    token = os.getenv("AGAGI_API_TOKEN", "").strip()
+    if token and request.method in _MUTATING_METHODS and request.url.path.startswith("/api"):
+        provided = request.headers.get("authorization", "")
+        expected = f"Bearer {token}"
+        if not secrets.compare_digest(provided.encode("utf-8"), expected.encode("utf-8")):
+            return JSONResponse(status_code=401, content={"detail": "Token API requis ou invalide"})
+    return await call_next(request)
+
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOW_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

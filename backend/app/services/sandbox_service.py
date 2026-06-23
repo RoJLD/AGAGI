@@ -43,6 +43,11 @@ class SandboxService:
         if not main_script:
             return {"status": "error", "message": "Aucun script principal spécifié"}
 
+        # Sandbox bornée : n'exécuter QUE des scripts de la liste blanche (racine + tools/).
+        # Bloque l'exécution arbitraire et le path-traversal (ex. "../x.py") avant tout Popen.
+        if main_script not in self.get_available_scripts():
+            return {"status": "error", "message": f"Script non autorisé (hors liste blanche) : {main_script}"}
+
         if "main" in self._processes and self._processes["main"].poll() is None:
             return {"status": "error", "message": f"Une expérimentation est déjà en cours : {self._current_config.get('script_name')}"}
 
