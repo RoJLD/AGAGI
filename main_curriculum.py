@@ -14,7 +14,7 @@ import os
 import json
 import time
 import logging
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Callable
 
 from src.curriculum.runner import (
     CurriculumRunner, WorldStage, GraduationConfig, EraResult,
@@ -69,7 +69,7 @@ def _prepare_world(world_type: str, config, deterministic: bool = False):
 
 
 def make_run_era_fn(shared_db, config: WorldConfig, num_agents: int = 60, max_ticks: int = 400,
-                    deterministic: bool = False):
+                    deterministic: bool = False, competence_fn: Optional[Callable] = None):
     """Fabrique le callback run_era_fn injecté dans le CurriculumRunner.
 
     Une "ère" = une vie→extinction (ou max_ticks) dans un monde, avec :
@@ -77,6 +77,8 @@ def make_run_era_fn(shared_db, config: WorldConfig, num_agents: int = 60, max_ti
       - calcul de la compétence du monde (competence.py),
       - snapshot du champion pour la promotion vers le monde suivant.
     deterministic=True -> memory_retriever neutralisé avant la boucle (repro, verrou Dev #3).
+    competence_fn injecté -> remplace competence_for(world_type) (ex. survival_competence pour le
+    transfert re-métricisé, EDR 085) ; défaut None -> métrique par-monde (prod curriculum intacte).
     """
     def run_era_fn(world_type: str, import_agent_id: Optional[str], keep_mem: int) -> EraResult:
         env = _prepare_world(world_type, config, deterministic)
@@ -111,7 +113,8 @@ def make_run_era_fn(shared_db, config: WorldConfig, num_agents: int = 60, max_ti
             "total_dreams": a.get("total_dreams", 0),
         } for a in all_agents]
 
-        competence = competence_for(world_type)(agent_stats)
+        comp_fn = competence_fn or competence_for(world_type)
+        competence = comp_fn(agent_stats)
 
         champion_id = None
         if all_agents:

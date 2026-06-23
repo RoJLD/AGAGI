@@ -1,4 +1,5 @@
 # tests/sandbox/test_curriculum_transfer.py
+import pytest
 from tools.curriculum_transfer import compute_transfer_verdict, _sign_test_p
 from src.curriculum.runner import EraResult, GraduationConfig
 from tools.curriculum_transfer import run_transfer_experiment
@@ -88,6 +89,16 @@ def test_main_writes_provenance(tmp_path, monkeypatch):
 
 
 # --- Verrou repro : déterminisme opt-in (memory_retriever stoppé + vidé avant la boucle) ---
+
+def test_survival_competence_median_age_normalised():
+    """Métrique de transfert re-métricisée : médiane d'âge / AGE_REF, clampée [0,1]."""
+    from src.curriculum.competence import survival_competence, AGE_REF
+    assert survival_competence([]) == 0.0
+    assert survival_competence([{"age": int(AGE_REF)}]) == 1.0          # médiane = réf -> 1.0
+    assert survival_competence([{"age": int(AGE_REF * 3)}]) == 1.0      # clampé
+    mid = survival_competence([{"age": 10}, {"age": int(AGE_REF / 2)}, {"age": int(AGE_REF)}])
+    assert mid == pytest.approx(0.5)                                    # médiane = AGE_REF/2
+
 
 def test_memory_retriever_clear_returns_zeros():
     """clear() vide les caches -> get_memory_vector/get_rag_memory renvoient des zéros déterministes."""

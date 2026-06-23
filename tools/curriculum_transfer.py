@@ -15,10 +15,16 @@ if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
 from src.curriculum.runner import CurriculumRunner, WorldStage, GraduationConfig
+from src.curriculum.competence import survival_competence, competence_for
 from src.environments.config import WorldConfig
 from src.seed_ai.harness import SeedManager, Harness
 from src.graph_rag.async_logger import logger as async_logger
 from main_curriculum import make_run_era_fn, _acquire_shared_db, DEFAULT_LADDER
+
+# Économie d'énergie (EDR 085) : sweet spot = survie ×4, gradient champion/frais ~5×. SANS ça,
+# survie au plancher létal (~50 ticks) -> métrique survie aussi au plancher. Défaut = sweet spot.
+SWEET_METAB = 0.25
+SWEET_PAYOFF = 3.0
 
 log = logging.getLogger("AGIseed.CurriculumTransfer")
 
@@ -57,12 +63,18 @@ def _competence_on_target(transcript) -> float:
 def run_transfer_experiment(seeds, ladder: Optional[List[str]] = None, target: Optional[str] = None,
                             num_agents: int = 40, max_ticks: int = 300,
                             grad_cfg: Optional[GraduationConfig] = None,
-                            run_era_fn: Optional[Callable] = None, manage_logger: bool = True) -> Dict:
+                            run_era_fn: Optional[Callable] = None, manage_logger: bool = True,
+                            metric: str = "survival", base_metabolism: float = SWEET_METAB,
+                            forage_payoff: float = SWEET_PAYOFF) -> Dict:
     """Deux bras par seed (curriculum vs cible seule à BUDGET ÉGAL), apparié, -> verdict.
-    run_era_fn injecté -> orchestration testable sans biosphère (sinon construit via make_run_era_fn)."""
+    run_era_fn injecté -> orchestration testable sans biosphère (sinon construit via make_run_era_fn).
+    metric='survival' (défaut) : compétence = survie (gradient réel au sweet spot, EDR 085) ; le
+    signal d'autel/outil étant nul tant que le goulot d'exploration (EDR 014) tient. metric='world' :
+    métrique par-monde historique (restera au plancher jusqu'à ce que les autels émergent)."""
     ladder = list(ladder) if ladder else list(DEFAULT_LADDER)
     target = target or ladder[-1]
     grad_cfg = grad_cfg or GraduationConfig(max_eras=12)
+    competence_fn = survival_competence if metric == "survival" else None
 
     owns_engine = run_era_fn is None
     if owns_engine and manage_logger:
@@ -70,10 +82,13 @@ def run_transfer_experiment(seeds, ladder: Optional[List[str]] = None, target: O
     try:
         if owns_engine:
             shared_db = _acquire_shared_db()
+            cfg = WorldConfig()
+            cfg.base_metabolism = base_metabolism      # sweet spot énergie (EDR 085) -> survie ×4
+            cfg.forage_payoff = forage_payoff
             # deterministic=True : memory_retriever neutralise avant la boucle -> bras appaires
             # exactement reproductibles (verrou repro Dev #3 ; sans ca, mesure non publiable).
-            run_era_fn = make_run_era_fn(shared_db, WorldConfig(), num_agents=num_agents,
-                                         max_ticks=max_ticks, deterministic=True)
+            run_era_fn = make_run_era_fn(shared_db, cfg, num_agents=num_agents, max_ticks=max_ticks,
+                                         deterministic=True, competence_fn=competence_fn)
 
         per_seed = []
         for seed in seeds:
@@ -98,7 +113,9 @@ def run_transfer_experiment(seeds, ladder: Optional[List[str]] = None, target: O
         verdict = compute_transfer_verdict([p["ratio"] for p in per_seed])
         return {**verdict, "per_seed": per_seed,
                 "config": {"ladder": ladder, "target": target, "seeds": [int(s) for s in seeds],
-                           "num_agents": num_agents, "max_ticks": max_ticks, "max_eras": grad_cfg.max_eras}}
+                           "num_agents": num_agents, "max_ticks": max_ticks, "max_eras": grad_cfg.max_eras,
+                           "metric": metric, "base_metabolism": base_metabolism,
+                           "forage_payoff": forage_payoff}}
     finally:
         if owns_engine and manage_logger:
             async_logger.stop()
@@ -111,9 +128,14 @@ def main():
     num_agents = int(os.environ.get("CT_NUM_AGENTS", "40"))
     max_ticks = int(os.environ.get("CT_MAX_TICKS", "300"))
     grad_cfg = GraduationConfig(max_eras=int(os.environ.get("CT_MAX_ERAS", "12")))
+    metric = os.environ.get("CT_METRIC", "survival")
+    base_metabolism = float(os.environ.get("CT_METAB", str(SWEET_METAB)))
+    forage_payoff = float(os.environ.get("CT_PAYOFF", str(SWEET_PAYOFF)))
 
     result = run_transfer_experiment(seeds, ladder=ladder, target=target,
-                                     num_agents=num_agents, max_ticks=max_ticks, grad_cfg=grad_cfg)
+                                     num_agents=num_agents, max_ticks=max_ticks, grad_cfg=grad_cfg,
+                                     metric=metric, base_metabolism=base_metabolism,
+                                     forage_payoff=forage_payoff)
 
     meta_seed = min(seeds) if seeds else 0
     h = Harness(seed=meta_seed, name="curriculum_transfer", with_db=False, config=WorldConfig())

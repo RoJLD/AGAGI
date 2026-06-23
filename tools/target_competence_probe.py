@@ -58,6 +58,10 @@ def run_probe(target, k, num_agents, max_ticks, shared_db, mode="tabula"):
     champion HoF (plafond : le contraste tabula<champion EST le signal de transfert mesurable)."""
     comp_fn = competence_for(target)
     config = WorldConfig()
+    # Économie d'énergie (EDR 085) : défaut 1.0/1.0 = régime LÉTAL (~50 ticks). Sweet spot
+    # connu = 0.25/3 -> survie ~227 ticks (champions) vs 44 (frais). Knobs pour re-sonder.
+    config.base_metabolism = float(os.environ.get("CT_METAB", "1.0"))
+    config.forage_payoff = float(os.environ.get("CT_PAYOFF", "1.0"))
     champ_g = _champion_genome() if mode == "champion" else None
     per_era = []
 
@@ -125,8 +129,9 @@ def main():
     async_logger.start()
     try:
         shared_db = _acquire_shared_db()
-        log.info("=== Sonde plancher : cible=%s mode=%s K=%d agents=%d ticks=%d ===",
-                 target, mode, k, num_agents, max_ticks)
+        log.info("=== Sonde plancher : cible=%s mode=%s K=%d agents=%d ticks=%d metab=%s payoff=%s ===",
+                 target, mode, k, num_agents, max_ticks,
+                 os.environ.get("CT_METAB", "1.0"), os.environ.get("CT_PAYOFF", "1.0"))
         result = run_probe(target, k, num_agents, max_ticks, shared_db, mode=mode)
     finally:
         async_logger.stop()
