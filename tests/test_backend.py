@@ -173,14 +173,15 @@ def test_ws_evolution_streams_appended_events(tmp_path, monkeypatch) -> None:
         assert event["run"] == "demo"
 
 
-def test_arm_live_progress_sets_env_and_clears_file() -> None:
+def test_arm_live_progress_sets_env_and_clears_file(tmp_path) -> None:
     import os as _os
+    sink = tmp_path / "live_progress.jsonl"
     env: dict = {}
-    path = sandbox_service._arm_live_progress(env)
-    assert env["AGISEED_LIVE_PROGRESS"] == path
+    path = sandbox_service._arm_live_progress(env, str(sink))
+    assert env["AGISEED_LIVE_PROGRESS"] == str(sink)
     assert _os.path.exists(path)
     with open(path, encoding="utf-8") as f:
-        assert f.read() == ""  # vidé au démarrage
+        assert f.read() == ""
 
 
 def test_flatland_websocket_streams_frames() -> None:

@@ -29,11 +29,15 @@ export function LiveEvolution() {
   const [points, setPoints] = useState<Point[]>([]);
   const [run, setRun] = useState<string>("");
   const bufRef = useRef<Point[]>([]);
+  const runRef = useRef<string>("");
 
   const { status } = useWebSocket<EvoEvent>("/ws/evolution", (e) => {
     if (typeof e.fitness !== "number" || typeof e.generation !== "number") return;
-    setRun(e.run ?? e.gate ?? "");
-    const next = [...bufRef.current, { generation: e.generation, fitness: e.fitness }].slice(-MAX);
+    const incomingRun = e.run ?? e.gate ?? "";
+    const base = incomingRun !== runRef.current ? [] : bufRef.current;
+    runRef.current = incomingRun;
+    setRun(incomingRun);
+    const next = [...base, { generation: e.generation, fitness: e.fitness }].slice(-MAX);
     bufRef.current = next;
     setPoints(next);
   });
