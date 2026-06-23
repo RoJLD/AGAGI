@@ -162,6 +162,17 @@ def test_article_links_endpoint_returns_mapping() -> None:
     assert isinstance(response.json(), dict)
 
 
+def test_ws_evolution_streams_appended_events(tmp_path, monkeypatch) -> None:
+    sink = tmp_path / "live_progress.jsonl"
+    import backend.app.main as main_mod
+    monkeypatch.setattr(main_mod, "LIVE_PROGRESS_PATH", sink)
+    sink.write_text('{"run":"demo","generation":1,"fitness":0.4}\n', encoding="utf-8")
+    with client.websocket_connect("/ws/evolution") as ws:
+        event = ws.receive_json()
+        assert event["generation"] == 1
+        assert event["run"] == "demo"
+
+
 def test_flatland_websocket_streams_frames() -> None:
     with client.websocket_connect("/ws/flatland") as websocket:
         frame = websocket.receive_json()
