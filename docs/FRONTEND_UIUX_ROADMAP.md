@@ -171,4 +171,5 @@ Le projet revendique une méthode forte ; **l'outil ne la soutient pas encore.**
 - **F2.9** ✅ lien *finding ↔ run ↔ EDR* (PATCH `/api/runs/{id}/links`, badges « runs liés », store `results/run_links.json`).
 - **F3.11** ✅ `response_models` Pydantic sur `/api/runs` (durcit le typage + précise le codegen TS).
 - **F3.12** ✅ sécurité **opt-in / env-gated / non-breaking** : sandbox bornée (liste blanche, anti-traversal, *actif*), CORS via `AGAGI_CORS_ORIGINS`, auth Bearer via `AGAGI_API_TOKEN` (mutations `/api`), front `VITE_API_TOKEN`. Gate : 8 tests dans `tests/test_backend.py` (CI) ; `.env.example` backend+front.
-- **Reste** : tokenisation d3 dark-mode `RadarChart`/`TopologyViewer` ; WS `/ws/evolution` temps-réel (producteur live, à coordonner) ; articles Sociologue ↔ runs (`/analyze` par `run_id`).
+- **Tokenisation d3 dark-mode** ✅ : `TopologyViewer` (label nœuds → `--color-on-accent`), `EDRDashboard` (chrome graphiques → `--color-text-*`/`--color-border-subtle`), `TimelineViewer` (liens/nœuds/labels → tokens + `--viz-*`). `RadarChart` était déjà tokenisé. Canvas *monde/jeu* (`FlatlandViewer`, `SandboxView`) laissés en couleurs sémantiques (indépendantes du thème, par design).
+- **Reste** : WS `/ws/evolution` temps-réel (producteur live, à coordonner) ; articles Sociologue ↔ runs (`/analyze` par `run_id`).
