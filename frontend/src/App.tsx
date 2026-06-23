@@ -1,29 +1,30 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import type { AcademyPayload, ExperimentDetail, ExperimentHistory, ExperimentSummary, GraphData } from "./types";
-import { TopologyViewer } from "./components/TopologyViewer";
+import { EDRDashboard } from "./components/EDRDashboard";
 import { ComparisonChart } from "./components/ComparisonChart";
 import { RadarChart } from "./components/RadarChart";
-
-import { LaboratoryView } from "./components/LaboratoryView";
-import { TimelineViewer } from "./components/TimelineViewer";
-import { SandboxView } from "./components/SandboxView";
-import { EDRDashboard } from "./components/EDRDashboard";
-import { LiveMetrics } from "./components/LiveMetrics";
-import { FlatlandViewer } from "./components/FlatlandViewer";
-import { ABComparisonView } from "./components/ABComparisonView";
-import { RunLauncher } from "./components/RunLauncher";
-import { RunsHistoryView } from "./components/RunsHistoryView";
-import { HealthView } from "./components/HealthView";
+import { LiveEvolution } from "./components/LiveEvolution";
 import { Button } from "./components/ui/Button";
+import { ErrorBoundary } from "./components/ErrorBoundary";
+import { Loading } from "./components/ui/Loading";
 import { useTheme } from "./hooks/useTheme";
 import { useHashRoute } from "./hooks/useHashRoute";
 import { TAB_KEYS, TAB_FAMILIES } from "./tabs";
-import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Sun, Moon } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "./api/client";
 import { queryKeys } from "./api/queryKeys";
-import { LiveEvolution } from "./components/LiveEvolution";
+
+const TopologyViewer = lazy(() => import("./components/TopologyViewer").then((m) => ({ default: m.TopologyViewer })));
+const LaboratoryView = lazy(() => import("./components/LaboratoryView").then((m) => ({ default: m.LaboratoryView })));
+const TimelineViewer = lazy(() => import("./components/TimelineViewer").then((m) => ({ default: m.TimelineViewer })));
+const SandboxView = lazy(() => import("./components/SandboxView").then((m) => ({ default: m.SandboxView })));
+const LiveMetrics = lazy(() => import("./components/LiveMetrics").then((m) => ({ default: m.LiveMetrics })));
+const FlatlandViewer = lazy(() => import("./components/FlatlandViewer").then((m) => ({ default: m.FlatlandViewer })));
+const ABComparisonView = lazy(() => import("./components/ABComparisonView").then((m) => ({ default: m.ABComparisonView })));
+const RunLauncher = lazy(() => import("./components/RunLauncher").then((m) => ({ default: m.RunLauncher })));
+const RunsHistoryView = lazy(() => import("./components/RunsHistoryView").then((m) => ({ default: m.RunsHistoryView })));
+const HealthView = lazy(() => import("./components/HealthView").then((m) => ({ default: m.HealthView })));
 
 function formatPercentage(value: number) {
   return `${(value * 100).toFixed(1)}%`;
@@ -230,6 +231,7 @@ export default function App() {
 
         <section className="panel">
           <ErrorBoundary key={tab}>
+          <Suspense fallback={<Loading label="Chargement de la vue…" />}>
           {tab === "edr" && <EDRDashboard />}
           {tab === "live" && (
             <>
@@ -373,6 +375,7 @@ export default function App() {
           )}
           {tab === "runs" && <RunsHistoryView onCompare={(cond) => navigate("comparison", { ab: cond })} />}
           {tab === "sante" && <HealthView />}
+          </Suspense>
           </ErrorBoundary>
         </section>
       </main>
