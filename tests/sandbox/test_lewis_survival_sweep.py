@@ -200,3 +200,21 @@ def test_main_decompose_has_bio_verdict(tmp_path, monkeypatch):
     assert a["bio_verdict"] in {"TARIF=METABOLISME", "TARIF=TERRAIN", "TARIF=CARRY", "DRAIN BIO DIFFUS"}
     for k in ("bio_metab", "bio_terrain", "bio_carry", "bio_autres"):
         assert k in a["phases"]
+
+
+def test_cfg_sets_base_metabolism():
+    assert lss._cfg(3, base_metabolism=0.05).base_metabolism == 0.05
+    assert lss._cfg(3, base_metabolism=0.0).base_metabolism == 0.0
+    assert lss._cfg(3).base_metabolism == lss.METAB          # defaut 0.25 (retro-compat)
+
+
+def test_verdict_metab_three_branches():
+    levels = (0.25, 0.1, 0.05, 0.025, 0.0)
+    # un base_metabolism > 0 franchit (ici 0.05) -> rescale suffit
+    assert lss._verdict_metab(levels, [10, 50, 130, 200, 260]) == "RESCALE SUFFIT"
+    # franchit SEULEMENT a base_metabolism = 0 -> rescale extreme
+    assert lss._verdict_metab(levels, [10, 20, 40, 90, 150]) == "RESCALE EXTREME"
+    # aucun ne franchit -> pas le metabolisme seul
+    assert lss._verdict_metab(levels, [5, 8, 10, 30, 60]) == "PAS LE METABOLISME SEUL"
+    # frontiere : exactement au gate ne franchit pas (m > gate strict)
+    assert lss._verdict_metab(levels, [5, 8, 10, 30, 120]) == "PAS LE METABOLISME SEUL"
