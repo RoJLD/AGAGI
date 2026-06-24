@@ -1,6 +1,7 @@
 import {
   Activity,
   BarChart3,
+  Compass,
   Database,
   FlaskConical,
   Gamepad2,
@@ -14,6 +15,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 
 export const TAB_KEYS = [
+  "parcours",
   "edr",
   "live",
   "evolution",
@@ -61,6 +63,7 @@ export const TAB_FAMILIES: TabFamily[] = [
   {
     family: "Expérimentation",
     tabs: [
+      { key: "parcours", label: "Parcours", icon: Compass },
       { key: "laboratoire", label: "Laboratoire", icon: FlaskConical },
       { key: "sandbox", label: "Bac à sable", icon: Gamepad2 },
       { key: "runs", label: "Historique runs", icon: Database },

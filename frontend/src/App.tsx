@@ -20,10 +20,11 @@ const SandboxView = lazy(() => import("./components/SandboxView").then((m) => ({
 const RunLauncher = lazy(() => import("./components/RunLauncher").then((m) => ({ default: m.RunLauncher })));
 const RunsHistoryView = lazy(() => import("./components/RunsHistoryView").then((m) => ({ default: m.RunsHistoryView })));
 const HealthView = lazy(() => import("./components/HealthView").then((m) => ({ default: m.HealthView })));
+const ParcoursView = lazy(() => import("./components/parcours/ParcoursView").then((m) => ({ default: m.ParcoursView })));
 
 export default function App() {
   const { theme, toggle } = useTheme();
-  const { tab, setTab, navigate } = useHashRoute(TAB_KEYS, "edr");
+  const { tab, setTab, navigate } = useHashRoute(TAB_KEYS, "parcours");
   const showSidebar = tab === "evolution" || tab === "comparison" || tab === "topology";
 
   return (
@@ -64,6 +65,7 @@ export default function App() {
         <section className="panel">
           <ErrorBoundary key={tab}>
           <Suspense fallback={<Loading label="Chargement de la vue…" />}>
+          {tab === "parcours" && <ParcoursView />}
           {tab === "edr" && <EDRDashboard />}
           {tab === "live" && (
             <>
