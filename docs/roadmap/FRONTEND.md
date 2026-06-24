@@ -213,3 +213,39 @@ Audit complet du frontend (architecture, UX/a11y, design system, perf/bundle, te
 - Action : sémantique tablist + `aria-selected`/focus, labels de formulaires, uniformiser loading/error/empty ; typer les callbacks d3.
 
 **Ordre recommandé** : G1 (gain immédiat, débloque rien) → G2 (assainit, prépare G1bis + G4) → G3 (flagship UX) → G4 (interleavable en continu). Réordonnançable selon priorité produit.
+
+---
+
+## Vague H — pistes net-new (audit 2026-06-24)
+
+Vague G + suites + vue **Sweep** (paysage de paramètres, PR #45/#47) livrées → roadmap features
+épuisée. Pistes net-new identifiées pour prolonger l'instrument scientifique, priorisées par ROI
+(valeur / effort / dépendance backend) :
+
+### H1 — Graphe de provenance EDR↔run↔condition↔article  ⭐ priorité 1 (frontend-only)
+*Valeur élevée · effort moyen · risque faible · zéro dépendance backend.*
+- Les liens finding↔run↔EDR↔article existent (F2.9 : `/api/runs/edr-links`, `/api/runs/article-links`,
+  `RunDetail.links`) mais ne sont affichés que sous forme de **badges/listes plats** dans
+  `RunsHistoryView`. Aucune vue ne rend la **toile** navigable.
+- Action : vue graphe interactif (D3 force, pattern `TopologyViewer`/`TimelineViewer` déjà maîtrisé)
+  reliant EDR, runs, conditions et articles Sociologue. Toutes les données via endpoints existants.
+- **Choisie comme prochaine feature (brainstorm 2026-06-24).**
+
+### H2 — Vue cohorte / distributions par condition  · priorité 2
+*Valeur moyenne-élevée · effort moyen · dépendance backend possible.*
+- L'A/B est **pairwise** ; pas de vue de la **dispersion multi-seed** par condition (box/violin) pour
+  juger si un résultat « tient ». Données via `/api/runs/conditions` + valeurs de runs (agrégat backend
+  léger ou calcul client).
+
+### H3 — Sweep v2 : superposition multi-knob  · priorité 3 (frontend-only)
+*Valeur moyenne · effort faible-moyen · dépend de la propagation `/api/sweeps` → main.*
+- Enhancement différé de la vue Sweep v1 (un sweep à la fois) : superposer plusieurs sweeps/séries
+  pour comparer des knobs. Frontend-only une fois l'endpoint sur main.
+
+### H4 — Carnet de labo / annotations  · priorité 4 (backend requis)
+*Valeur moyenne · effort moyen · dépendance backend (store).*
+- Annoter runs/findings inline (capitalisation). Nécessite un nouvel endpoint de store côté backend
+  (session parallèle) — pattern patch-and-handoff comme `/api/sweeps`.
+
+**Ordre recommandé** : H1 (prêt, frontend-only, fort ROI) → H2 → H3 (après propagation sweep) → H4
+(quand le backend store est arbitré). Réordonnançable selon priorité produit.
