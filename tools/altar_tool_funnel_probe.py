@@ -91,3 +91,36 @@ def run_era_funnel(seed, metab, payoff, num_agents, max_ticks, shared_db) -> Lis
     if hasattr(env, "memory_retriever"):
         env.memory_retriever.stop()
     return out
+
+
+def main() -> Dict:
+    os.environ["AGISEED_QUIET_LOG"] = "1"     # anti-segfault + vitesse, AVANT start()
+    seeds = [int(s) for s in os.environ.get("AF_SEEDS", "0,1,2").split(",") if s.strip()]
+    num_agents = int(os.environ.get("AF_NUM_AGENTS", "40"))
+    max_ticks = int(os.environ.get("AF_MAX_TICKS", "300"))
+
+    async_logger.start()
+    try:
+        shared_db = _acquire_shared_db()
+        log.info("=== Sonde funnel autel/outil : seeds=%s agents=%d ticks=%d (sweet 0.25/3.0) ===",
+                 seeds, num_agents, max_ticks)
+        per_seed = {seed: run_era_funnel(seed, 0.25, 3.0, num_agents, max_ticks, shared_db)
+                    for seed in seeds}
+        result = funnel_verdict(per_seed)
+    finally:
+        async_logger.stop()
+
+    result["config"] = {"seeds": [int(s) for s in seeds], "num_agents": num_agents,
+                        "max_ticks": max_ticks, "metab": 0.25, "payoff": 3.0}
+    h = Harness(seed=min(seeds) if seeds else 0, name="altar_tool_funnel", with_db=False, config=WorldConfig())
+    path = h.save(result, config=WorldConfig())
+    log.info("VERDICT autel=%s funnel=%s | hunt=%.3f craft=%.3f apex=%.3f | spears=%d mammoth=%d altar_max=%d -> %s",
+             result["verdict_autel"], result["verdict_funnel"], result["frac_hunt"],
+             result["frac_craft"], result["frac_apex"], result["total_spears"],
+             result["total_mammoth_kills"], result["altars_solved_max"], path)
+    return result
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    main()

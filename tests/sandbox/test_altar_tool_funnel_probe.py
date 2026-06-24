@@ -52,7 +52,34 @@ def test_par_seed_carries_decomposition():
     assert v["par_seed"]["1"]["frac_apex"] == 1.0 and v["par_seed"]["0"]["frac_apex"] == 0.0
 
 
+import json
+import glob
 import pytest
+
+
+def test_main_writes_provenance(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import tools.altar_tool_funnel_probe as af
+    monkeypatch.setattr(af, "run_era_funnel",
+                        lambda *a, **k: [{"age": 12, "preys_eaten": 2, "spears_crafted": 1,
+                                          "mammoth_kills": 0, "altars_solved": 0}])
+    monkeypatch.setattr(af.async_logger, "start", lambda: None)
+    monkeypatch.setattr(af.async_logger, "stop", lambda: None)
+    monkeypatch.setattr(af, "_acquire_shared_db", lambda: None)
+    monkeypatch.setenv("AF_SEEDS", "0")
+    # main() pose AGISEED_QUIET_LOG=1 en dur -> monkeypatch POSSEDE la cle (restauree au teardown,
+    # sinon fuite vers les autres tests, cf. EDR 093).
+    monkeypatch.setenv("AGISEED_QUIET_LOG", "0")
+
+    result = af.main()
+    assert result["verdict_funnel"] == "GAP_USAGE"      # craft=1.0, apex=0.0
+    assert result["verdict_autel"] == "AUTEL_MORT"
+    files = glob.glob(str(tmp_path / "results" / "altar_tool_funnel_*.json"))
+    assert files, "provenance non écrite"
+    with open(files[0], encoding="utf-8") as f:
+        data = json.loads(f.read())
+    assert data["data"]["verdict_funnel"] == "GAP_USAGE"
+    assert "commit" in data and "git_dirty" in data
 
 
 @pytest.mark.slow
