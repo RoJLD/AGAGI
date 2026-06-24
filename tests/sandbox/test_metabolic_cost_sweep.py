@@ -1,5 +1,6 @@
 # tests/sandbox/test_metabolic_cost_sweep.py
 import sys, os
+import pytest
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 from tools.metabolic_cost_sweep import _sign_test_p, compute_sweep_verdict
@@ -82,3 +83,21 @@ def test_run_sweep_structure_and_verdict():
     assert "per_coef" in out and "per_lineage" in out
     coef_entry = [c for c in out["per_coef"] if abs(c["coef"] - 0.01) < 1e-9][0]
     assert coef_entry["verdict"] == "EFFICACE"        # efficacité ↑, survie constante
+
+
+@pytest.mark.skipif(os.environ.get("MCS_SMOKE") != "1",
+                    reason="smoke lourd (vraie biosphère) — set MCS_SMOKE=1 pour lancer")
+def test_run_era_metab_smoke():
+    from tools.metabolic_cost_sweep import run_era_metab, _make_cfg
+    from src.agents.mamba_agent import MambaAgent
+    from src.graph_rag.async_logger import logger as async_logger
+    async_logger.start()
+    try:
+        cfg = _make_cfg(0.0)
+        genomes = [MambaAgent().genome for _ in range(6)]
+        scored, m = run_era_metab(cfg, genomes, max_ticks=30)
+        assert m["mean_active"] >= 0.0
+        assert m["ticks"] >= 1
+        assert isinstance(scored, list)
+    finally:
+        async_logger.stop()

@@ -16,6 +16,11 @@ import numpy as np
 
 from src.environments.config import WorldConfig
 from src.seed_ai.harness import SeedManager
+from src.worlds.world_1_stoneage import Biosphere3D
+from src.agents.mamba_agent import MambaAgent
+from src.seed_ai.persistence import calculate_life_score
+from src.seed_ai.harness import Harness
+from src.graph_rag.async_logger import logger as async_logger
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
@@ -153,3 +158,62 @@ def run_sweep(seeds, coefs, eras: int = 15, num_agents: int = 30, max_ticks: int
     return {**verdict, "per_lineage": per_lineage,
             "config": {"seeds": [int(s) for s in seeds], "coefs": coefs, "eras": eras,
                        "num_agents": num_agents, "max_ticks": max_ticks}}
+
+
+def run_era_metab(cfg, genomes, max_ticks: int = 400):
+    """Mirror de evolve_competence.run_era + accumulation de mean_active (tool-local, 0 changement cœur)."""
+    env = Biosphere3D(cfg)
+    for g in genomes:
+        a = MambaAgent()
+        a.from_genome(g)
+        env.add_agent(a, energy=80.0)
+    env.current_era = 1
+    t = 0
+    active_sum = 0.0
+    agent_ticks = 0
+    while env.agents and t < max_ticks:
+        env.step()
+        t += 1
+        active_sum += sum(float(getattr(a["model"], "last_activation_cost", 0)) for a in env.agents)
+        agent_ticks += len(env.agents)
+    mean_active = active_sum / max(agent_ticks, 1)
+    pool = env.agents + list(getattr(env, "dead_agents", []))
+    ranked = sorted(pool, key=calculate_life_score, reverse=True)
+    best_score = float(calculate_life_score(ranked[0])) if ranked else 0.0
+    scored = []
+    for ag in ranked[:5]:
+        g = ag["model"].genome if "model" in ag else ag.get("genome")
+        if g is not None:
+            scored.append((float(calculate_life_score(ag)), g))
+    if hasattr(env, "memory_retriever"):
+        env.memory_retriever.stop()
+    return scored, {"ticks": float(t), "score": best_score, "mean_active": mean_active}
+
+
+def main():
+    seeds = [int(s) for s in os.environ.get("MCS_SEEDS", "0,1,2").split(",") if s.strip()]
+    coefs = [float(c) for c in os.environ.get("MCS_SWEEP", "0,0.001,0.003,0.01").split(",") if c.strip()]
+    eras = int(os.environ.get("MCS_ERAS", "15"))
+    num_agents = int(os.environ.get("MCS_NUM_AGENTS", "30"))
+    max_ticks = int(os.environ.get("MCS_TICKS", "400"))
+    log.info("MetabolicCostSweep : seeds=%s coefs=%s eras=%d (cout estime ~%d lignees)",
+             seeds, coefs, eras, len(seeds) * len(set([0.0] + coefs)))
+    async_logger.start()
+    try:
+        result = run_sweep(seeds, coefs, eras=eras, num_agents=num_agents, max_ticks=max_ticks)
+    finally:
+        async_logger.stop()
+    h = Harness(seed=min(seeds) if seeds else 0, name="metabolic_cost_sweep",
+                with_db=False, config=WorldConfig())
+    path = h.save(result, config=WorldConfig())
+    for c in result["per_coef"]:
+        log.info("coef=%.4g -> %s (median_eff=%.3f, n_fav=%d/%d, sign_p=%.3f, collapsed=%s)",
+                 c["coef"], c["verdict"], c["median_eff"], c["n_favorable"], c["n"],
+                 c["sign_p"], c["collapsed"])
+    log.info("saved -> %s", path)
+    return path
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    main()
