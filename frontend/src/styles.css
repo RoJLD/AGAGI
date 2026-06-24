@@ -437,18 +437,6 @@ body {
   border-bottom: 1px solid var(--color-border);
   padding-bottom: var(--space-3);
 }
-.step-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  color: var(--color-text-dim);
-  cursor: pointer;
-  font: inherit;
-}
 .step-pill__index {
   display: inline-flex;
   align-items: center;
@@ -460,14 +448,15 @@ body {
   color: var(--color-text);
   font-size: var(--font-size-xs);
 }
-.step-pill--active {
-  border-color: var(--color-accent);
+
+/* StepBar bâti sur .tab (TabList) : styles pastille portés sur .step-bar .tab */
+.step-bar .tab {
+  gap: var(--space-2);
+}
+.step-bar .tab.is-done {
   color: var(--color-text);
 }
-.step-pill--active .step-pill__index {
+.step-bar .tab.is-active .step-pill__index {
   background: var(--color-accent);
   color: var(--color-bg);
-}
-.step-pill--done {
-  color: var(--color-text);
 }

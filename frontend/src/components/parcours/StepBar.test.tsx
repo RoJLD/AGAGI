@@ -20,3 +20,19 @@ test("clic sur une étape appelle onSelect avec sa clé", () => {
   fireEvent.click(screen.getByTestId("step-comparer"));
   expect(onSelect).toHaveBeenCalledWith("comparer");
 });
+
+test("roving tabindex : l'étape courante est focusable, les autres non", () => {
+  render(<StepBar current="suivre" reached={{ lancer: true, suivre: true, comparer: false, conclure: false }} onSelect={() => {}} />);
+  expect(screen.getByTestId("step-suivre").getAttribute("tabindex")).toBe("0");
+  expect(screen.getByTestId("step-lancer").getAttribute("tabindex")).toBe("-1");
+});
+
+test("flèche droite déplace le focus sans activer (activation manuelle)", () => {
+  const onSelect = vi.fn();
+  render(<StepBar current="lancer" reached={{ lancer: true, suivre: false, comparer: false, conclure: false }} onSelect={onSelect} />);
+  const first = screen.getByTestId("step-lancer");
+  first.focus();
+  fireEvent.keyDown(first, { key: "ArrowRight" });
+  expect(document.activeElement).toBe(screen.getByTestId("step-suivre"));
+  expect(onSelect).not.toHaveBeenCalled();
+});
