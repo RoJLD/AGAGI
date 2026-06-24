@@ -51,3 +51,58 @@ def distress_verdict(deltas: List[float], delta_eps: float = 0.0) -> Dict:
     else:
         verdict = "NEUTRE"
     return {"median_delta": med, "n_favorable": n_fav, "sign_p": sign_p, "verdict": verdict}
+
+
+from src.environments.config import WorldConfig
+from src.seed_ai.harness import Harness
+from src.graph_rag.async_logger import logger as async_logger
+from main_curriculum import _acquire_shared_db
+from tools.dreaming_probe import run_era_organ
+
+log = logging.getLogger("AGIseed.DreamDistress")
+
+
+def run_distress(seeds, target, num_agents, max_ticks, shared_db) -> Dict:
+    """Par seed : une ère organe-ON (organ_fraction=1.0) au sweet spot -> distress_split -> delta.
+    Agrège en verdict. Le signal : les court-vivants rêvent-ils plus (détresse) ?"""
+    per_seed = []
+    for seed in seeds:
+        stats = run_era_organ(target, seed, 1.0, 0.25, 3.0, num_agents, max_ticks, shared_db)
+        split = distress_split(stats)
+        per_seed.append({"seed": int(seed), **split})
+        log.info("  seed=%s rate_short=%.3f rate_long=%.3f delta=%.3f (n_short=%d n_long=%d)",
+                 seed, split["rate_short"], split["rate_long"], split["delta"],
+                 split["n_short"], split["n_long"])
+    verdict = distress_verdict([p["delta"] for p in per_seed])
+    return {**verdict, "per_seed": per_seed,
+            "config": {"target": target, "seeds": [int(s) for s in seeds],
+                       "num_agents": num_agents, "max_ticks": max_ticks}}
+
+
+def main() -> Dict:
+    os.environ["AGISEED_QUIET_LOG"] = "1"     # anti-segfault + vitesse (EDR 091/092), AVANT start()
+    target = os.environ.get("DD_TARGET", "stoneage")
+    seeds = [int(s) for s in os.environ.get("DD_SEEDS", "0,1,2").split(",") if s.strip()]
+    num_agents = int(os.environ.get("DD_NUM_AGENTS", "40"))
+    max_ticks = int(os.environ.get("DD_MAX_TICKS", "400"))
+
+    async_logger.start()
+    try:
+        shared_db = _acquire_shared_db()
+        log.info("=== Sonde detresse : cible=%s seeds=%s agents=%d ticks=%d ===",
+                 target, seeds, num_agents, max_ticks)
+        result = run_distress(seeds, target, num_agents, max_ticks, shared_db)
+    finally:
+        async_logger.stop()
+
+    h = Harness(seed=min(seeds) if seeds else 0, name="dream_distress", with_db=False, config=WorldConfig())
+    path = h.save(result, config=WorldConfig())
+    log.info("VERDICT=%s median_delta=%.3f (n_fav=%d/%d, sign_p=%.3f) -> %s",
+             result["verdict"], result["median_delta"], result["n_favorable"],
+             len(result["per_seed"]), result["sign_p"], path)
+    return result
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    main()

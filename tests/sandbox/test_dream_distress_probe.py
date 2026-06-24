@@ -55,3 +55,32 @@ def test_distress_verdict_three_cases():
 def test_distress_verdict_reports_fields():
     v = distress_verdict([0.3, 0.4, 0.35, 0.3, 0.32])
     assert v["n_favorable"] == 5 and "sign_p" in v and v["median_delta"] > 0
+
+
+import json
+import glob
+
+
+def test_main_writes_provenance(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import tools.dream_distress_probe as dd
+    monkeypatch.setattr(dd, "run_distress", lambda *a, **k: {
+        "median_delta": 0.3, "n_favorable": 3, "sign_p": 0.05, "verdict": "DETRESSE",
+        "per_seed": [{"seed": 0, "rate_short": 0.5, "rate_long": 0.2, "delta": 0.3,
+                      "n_short": 5, "n_long": 5}],
+        "config": {"target": "stoneage", "seeds": [0]}})
+    monkeypatch.setattr(dd.async_logger, "start", lambda: None)
+    monkeypatch.setattr(dd.async_logger, "stop", lambda: None)
+    monkeypatch.setattr(dd, "_acquire_shared_db", lambda: None)
+    monkeypatch.setenv("DD_SEEDS", "0")
+    # main() pose AGISEED_QUIET_LOG=1 en dur -> monkeypatch POSSEDE la cle (restauree au teardown,
+    # sinon fuite vers les autres tests de la session, cf. EDR 093).
+    monkeypatch.setenv("AGISEED_QUIET_LOG", "0")
+
+    result = dd.main()
+    assert result["verdict"] == "DETRESSE"
+    files = glob.glob(str(tmp_path / "results" / "dream_distress_*.json"))
+    assert files, "provenance non écrite"
+    data = json.loads(open(files[0], encoding="utf-8").read())
+    assert data["data"]["verdict"] == "DETRESSE"
+    assert "commit" in data and "git_dirty" in data
