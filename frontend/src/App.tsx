@@ -22,6 +22,7 @@ const RunLauncher = lazy(() => import("./components/RunLauncher").then((m) => ({
 const RunsHistoryView = lazy(() => import("./components/RunsHistoryView").then((m) => ({ default: m.RunsHistoryView })));
 const HealthView = lazy(() => import("./components/HealthView").then((m) => ({ default: m.HealthView })));
 const ParcoursView = lazy(() => import("./components/parcours/ParcoursView").then((m) => ({ default: m.ParcoursView })));
+const SweepView = lazy(() => import("./components/SweepView").then((m) => ({ default: m.SweepView })));
 
 export default function App() {
   const { theme, toggle } = useTheme();
@@ -75,6 +76,7 @@ export default function App() {
           {tab === "evolution" && <EvolutionView />}
           {tab === "comparison" && <ComparisonView />}
           {tab === "topology" && <TopologyView />}
+          {tab === "sweeps" && <SweepView />}
           {tab === "academy" && <AcademyView />}
           {tab === "laboratoire" && <LaboratoryView />}
           {tab === "timeline" && <TimelineViewer />}
