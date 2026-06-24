@@ -46,8 +46,12 @@ vs dépense ».
 - **Métrique primaire :** survie médiane (ticks) des champions par niveau de `forage_payoff`, sur R×n_eval
   ères seedées (appariées par seed entre niveaux : même monde initial à seed donné).
 - **Tendance :** Jonckheere-Terpstra (la survie croît-elle avec le payoff ?), one-sided.
-- **Sous-produit diagnostique (gratuit) :** décomposition cause de mort par niveau (famine `energy≤0` vs
-  combat `hp≤0`, lue dans `env.dead_agents`) — confirme que la famine recule quand le revenu monte.
+- **Sous-produits diagnostiques (gratuits), par niveau :**
+  - décomposition cause de mort (famine `energy≤0` vs combat `hp≤0`, lue dans `env.dead_agents`) — confirme
+    que la famine recule quand le revenu monte ;
+  - **taux de kills** (`mammoth_kills` moyen / agent) — désambiguïse un négatif : survie plate **+ kills≈0**
+    → ils meurent avant de manger (mur de dépense/comportement, pas de revenu) ; kills qui montent **sans**
+    gain de survie → la nourriture n'est pas le goulot.
 
 | Condition | Verdict |
 |---|---|
@@ -85,8 +89,8 @@ Les trois branches sont informatives : succès = substrat fabriqué ; chaque éc
 - **Structure (esquisse, détail au plan) :**
   - `_cfg(forage_payoff)` → `WorldConfig` (métab 0.25, `forage_payoff=X`, `max_population=150`).
   - `_measure_survival(cfg, n_eval, base, leurre_frac=0, num_agents=24, max_ticks=300)` → lance n_eval ères
-    propres (champions répliqués), renvoie `{ticks: [...], famine: k, combat: k}` (survies + décomposition
-    cause de mort via `env.dead_agents`).
+    propres (champions répliqués), renvoie `{ticks: [...], famine: k, combat: k, kills: [...]}` (survies +
+    décomposition cause de mort via `env.dead_agents` + kills moyens/agent par ère).
   - `_verdict(level_survivals)` → mappe (médianes par niveau, gate, seuils ×8/×16) vers les 3 branches.
   - `_report(h, table, levels, _return)` → médianes par niveau + JT + seuil franchi + verdict + `h.save`.
   - `main(levels, n_eval, R, seed, _return)` → boucle niveaux × répétitions seedées ; séquentiel (ères
