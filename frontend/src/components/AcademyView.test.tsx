@@ -25,3 +25,10 @@ test("rend les 3 boîtes Academy", async () => {
   expect(screen.getByText("Timeline")).toBeTruthy();
   expect(screen.getByText("Objectifs pédagogiques")).toBeTruthy();
 });
+
+test("affiche l'état Loading pendant le chargement", () => {
+  (apiFetch as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {})); // jamais résolu
+  renderWithClient(<AcademyView />);
+  expect(screen.getByText(/Chargement des contenus Academy/)).toBeTruthy();
+  expect(screen.getByRole("status")).toBeTruthy(); // primitive Loading
+});

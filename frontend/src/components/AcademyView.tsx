@@ -2,9 +2,11 @@ import { useQuery } from "@tanstack/react-query";
 import type { AcademyPayload } from "../types";
 import { apiFetch } from "../api/client";
 import { queryKeys } from "../api/queryKeys";
+import { Loading } from "./ui/Loading";
+import { ErrorState } from "./ui/ErrorState";
 
 export function AcademyView() {
-  const { data: academy = null } = useQuery({
+  const { data: academy = null, isLoading, error, refetch } = useQuery({
     queryKey: queryKeys.academy,
     queryFn: () => apiFetch<AcademyPayload>("/api/academy"),
     staleTime: Infinity,
@@ -42,8 +44,12 @@ export function AcademyView() {
             </ul>
           </div>
         </div>
+      ) : isLoading ? (
+        <Loading label="Chargement des contenus Academy…" />
+      ) : error ? (
+        <ErrorState error={error} onRetry={() => refetch()} />
       ) : (
-        <p>Chargement des contenus Academy...</p>
+        <Loading label="Chargement des contenus Academy…" />
       )}
     </>
   );

@@ -6,10 +6,13 @@ import { queryKeys } from "../api/queryKeys";
 import { useHashRoute } from "../hooks/useHashRoute";
 import { TAB_KEYS } from "../tabs";
 import { TopologyViewer } from "./TopologyViewer";
+import { Loading } from "./ui/Loading";
+import { ErrorState } from "./ui/ErrorState";
+import { Empty } from "./ui/Empty";
 
 export function TopologyView() {
   const { gate } = useHashRoute(TAB_KEYS, "edr");
-  const { data: detail = null } = useQuery({
+  const { data: detail = null, isLoading, error, refetch } = useQuery({
     queryKey: queryKeys.experiments.detail(gate),
     queryFn: () => apiFetch<ExperimentDetail>(`/api/experiments/${gate}`),
     enabled: !!gate,
@@ -33,8 +36,14 @@ export function TopologyView() {
               <p>Sparsité : {detail.metrics.sparsity.toFixed(3)}</p>
               <p>Ratio caché : {detail.metrics.hidden_ratio.toFixed(3)}</p>
             </div>
+          ) : !gate ? (
+            <Empty message="Sélectionne une porte pour voir l'analyse des motifs." />
+          ) : isLoading ? (
+            <Loading label="Chargement de l'analyse…" />
+          ) : error ? (
+            <ErrorState error={error} onRetry={() => refetch()} />
           ) : (
-            <p>Chargement de l'analyse...</p>
+            <Empty message="Aucune métrique de topologie pour cette porte." />
           )}
         </div>
       </div>
