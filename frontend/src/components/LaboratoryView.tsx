@@ -14,10 +14,13 @@ interface GateOption {
   gate: string;
 }
 
-export function LaboratoryView() {
+export function LaboratoryView({
+  initialBaseline = "",
+  initialIntervention = "",
+}: { initialBaseline?: string; initialIntervention?: string } = {}) {
   const queryClient = useQueryClient();
-  const [baseline, setBaseline] = useState("");
-  const [intervention, setIntervention] = useState("");
+  const [baseline, setBaseline] = useState(initialBaseline);
+  const [intervention, setIntervention] = useState(initialIntervention);
   const [validationError, setValidationError] = useState("");
 
   const articlesQuery = useQuery({
