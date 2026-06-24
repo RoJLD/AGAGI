@@ -163,13 +163,16 @@ substrat évolué. **Fix gaté `preserve_dims` livré (PR #49)** → re-mesures 
 
 | Axe | Avant fix (confondu) | **Après fix (powered 8 seeds, vrai substrat 200n)** |
 |---|---|---|
-| **D2** KWTA sparsité | no-op | ✅ **EFFICACE** : sparsifier le hidden AMÉLIORE la compétence (+47 %, keep=0.3, sign_p=0.070). Régularisation. |
-| **A2** MAP-Elites | NEUTRE (cov 3.6/32) | NEUTRE (cov **4/32**) — les descripteurs ne s'étalent pas (taille seedée à 1 bin + add_node lent ; palier effondré, EDR 096) |
+| **D2** KWTA sparsité (imposée) | no-op | ✅ **EFFICACE** : sparsifier le hidden AMÉLIORE la compétence (+47 %, keep=0.3, sign_p=0.070). Régularisation. |
+| **D1** coût métab. (sparsité sélectionnée) | réfuté | ❌ **TOUJOURS RÉFUTÉ** : `mean_active` PLAT (176–180) à tous les coefs → la taxe ne crée aucune pression de sparsité. +13 % compétence à coef 0.001 NON significatif (sign_p 0.727) ; coef 0.01 effondre la survie. |
+| **A2** MAP-Elites (graines 1 taille) | NEUTRE (cov 3.6/32) | NEUTRE (cov **4/32**) — descripteurs plats (taille à 1 bin) |
+| **A2 v2** MAP-Elites (graines étalées) | — | **coverage RÉSOLUE 4→~24/32** ; mais QD ne bat pas HoF (median_ratio 0.853, sign_p 0.727). Limiteur résiduel = répertoire comportemental (axe palier, EDR 096), pas la recherche. |
 
-**Leçon affinée** : le fix débloque l'**architecture** (D2 gagne) mais A2 (diversité comportementale) a
-besoin de **descripteurs qui varient** (seeder des tailles diverses OU réparer le répertoire moyens→ends).
-**Reste** : (a) merger/itérer ; (b) basculer `preserve_dims=True` en défaut (coordination // + comparatif
-powered) ; (c) re-mesurer A2 avec seeds de tailles variées ; (d) D1 (sélection sparsité) re-testable.
+**Leçon affinée (mise à jour 2026-06-24, post-followups)** :
+- **Sparsité = imposer, jamais sélectionner** : D2 (masque KWTA) gagne +47 %, D1 (taxe de fitness) est INERTE même sur vrai substrat. Une taxe d'activation ne sparsifie pas — elle entre seulement en conflit avec la survie. Le bon levier est structurel (D2), pas sélectif (D1). **Axe D clos : D2 retenu, D1 abandonné.**
+- **A2 = la coverage était un artefact de seeding, pas une limite de la méthode** : étaler les tailles de graine (`MEC_SEED_SPREAD`) restaure la coverage (4→24/32). La vraie question (QD bat-il HoF ?) est désormais mesurée proprement : **non** (0.853, NS). Le verrou n'est plus les descripteurs mais le **répertoire comportemental peu profond** du monde (axe palier effondré, EDR 096). A2 restera neutre tant que le monde n'offre pas de stratégies distinctes utiles → renvoie à la couche 2 du monde au plancher (REFRAME métrique), pas à la recherche NAS.
+**Non-régression `preserve_dims` (powered 8 seeds, graine par défaut 172, coef 0)** : compétence OFF vs ON **statistiquement indistinguable** (moy. 409.8 vs 407.3, median_ratio 1.069, n_fav 5/8, sign_p 0.727). → Basculer le défaut ne régresse PAS la compétence de base. **Décision (2026-06-24) : garder GATÉ (défaut OFF) pour l'instant** ; la bascule deviendra une PR dédiée après coordination des sessions parallèles (le geste active la croissance topologique : add_node persiste, réseaux grossissent, cap soft 256, compute↑ — c'est le changement *voulu*, pas une régression).
+**Reste** : (a) merger/itérer ; (b) **bascule `preserve_dims=True` par défaut** — mesure verte, en attente de coordination // (PR dédiée).
 
 ### Séquençage recommandé (révisé)
 - **Phase 0 — Re-audit + hygiène** : §1 livré.
