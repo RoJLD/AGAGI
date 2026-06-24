@@ -38,9 +38,18 @@ def _qd_label(v: str) -> str:
 PRESERVE_DIMS = os.environ.get("MEC_PRESERVE_DIMS", "") == "1"
 _snn = os.environ.get("MEC_SEED_NODES", "").strip()
 SEED_NODES = int(_snn) if _snn else None
+# A2 v2 : graines de tailles VARIÉES pour étaler l'axe taille des descripteurs MAP-Elites.
+# Sans ça, toutes les graines tombent dans le même size_bin ((num_nodes-150)//15) -> coverage plafonnée
+# (4/32 mesuré). Liste de num_nodes parcourue cycliquement par index de graine. Prioritaire sur SEED_NODES.
+_spread = os.environ.get("MEC_SEED_SPREAD", "").strip()
+SEED_SPREAD = [int(x) for x in _spread.split(",") if x.strip()] if _spread else None
 
 
-def _seed_genome():
+def _seed_genome(idx: int = 0):
+    """Génome de graine. MEC_SEED_SPREAD (liste) -> taille cyclée par idx pour étaler l'axe taille ;
+    sinon MEC_SEED_NODES (taille fixe) ; sinon défaut bare MambaAgent."""
+    if SEED_SPREAD:
+        return MambaAgent(num_nodes=SEED_SPREAD[idx % len(SEED_SPREAD)]).genome
     if SEED_NODES is None:
         return MambaAgent().genome
     return MambaAgent(num_nodes=SEED_NODES).genome
@@ -115,7 +124,7 @@ def run_lineage_hof(seed, eras=15, num_agents=30, max_ticks=400, run_era_fn=None
         run_era_fn = run_era_pool
     SeedManager(seed).seed_boundary(0)
     cfg = _make_cfg()
-    best_ever = [(0.0, g) for g in [_seed_genome() for _ in range(5)]]
+    best_ever = [(0.0, g) for g in [_seed_genome(i) for i in range(5)]]
     window = []
     for _ in range(eras):
         genomes = _reproduce([g for _s, g in best_ever], num_agents)
@@ -133,7 +142,7 @@ def run_lineage_qd(seed, eras=15, num_agents=30, max_ticks=400, run_era_fn=None)
     SeedManager(seed).seed_boundary(0)
     cfg = _make_cfg()
     archive = MapElitesArchive()
-    genomes = [_seed_genome() for _ in range(num_agents)]
+    genomes = [_seed_genome(i) for i in range(num_agents)]
     window = []
     for _ in range(eras):
         pool, m = run_era_fn(cfg, genomes, max_ticks)
