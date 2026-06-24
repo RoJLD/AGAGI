@@ -34,3 +34,14 @@ def test_measure_survival_keys_and_reproducible():
     assert all(0 <= t <= 30 for t in a["ticks"])       # ages bornes par max_ticks
     assert a == b                                      # seede -> reproductible
     assert a["famine"] + a["combat"] <= len(a["ticks"])
+
+
+def test_main_runs_and_reproducible(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    a = lss.main(levels=(3, 48), n_eval=2, R=1, seed=5, _return=True)
+    b = lss.main(levels=(3, 48), n_eval=2, R=1, seed=5, _return=True)
+    assert a["medians"] == b["medians"]                       # seede -> reproductible
+    assert list(a["table"].keys()) == [3, 48]
+    assert set(a["table"][3]) == {"median", "famine", "combat", "mean_kills", "n"}
+    assert "p_one_sided" in a["jt"]
+    assert a["verdict"] in {"BARREAU TROUVE", "BARREAU TROP CHER", "PAS DE RUNG"}
