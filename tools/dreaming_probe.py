@@ -107,3 +107,83 @@ def run_era_organ(target: str, seed: int, organ_fraction: float, metab: float, p
     if hasattr(env, "memory_retriever"):
         env.memory_retriever.stop()
     return out
+
+
+from tools.curriculum_transfer import _sign_test_p
+
+
+def _prevalence_from_stats(stats: List[Dict]) -> float:
+    """Prévalence d'organe à partir des stats run_era_organ (clé has_organ)."""
+    if not stats:
+        return 0.0
+    return sum(1 for s in stats if s["has_organ"]) / len(stats)
+
+
+def run_q1(seeds, target, num_agents, max_ticks, shared_db) -> Dict:
+    """Q1 : organe semé à 50%, prévalence des survivants sweet vs létal -> pression de sélection."""
+    sweet, lethal = [], []
+    for seed in seeds:
+        s = run_era_organ(target, seed, 0.5, 0.25, 3.0, num_agents, max_ticks, shared_db)
+        l = run_era_organ(target, seed, 0.5, 1.0, 1.0, num_agents, max_ticks, shared_db)
+        sweet.append(_prevalence_from_stats(s) - 0.5)
+        lethal.append(_prevalence_from_stats(l) - 0.5)
+    dps = float(statistics.median(sweet)) if sweet else 0.0
+    dpl = float(statistics.median(lethal)) if lethal else 0.0
+    return {"delta_prev_sweet": dps, "delta_prev_lethal": dpl, "pressure": dps - dpl,
+            "per_seed_sweet": sweet, "per_seed_lethal": lethal}
+
+
+def run_q2(seeds, target, num_agents, max_ticks, shared_db) -> Dict:
+    """Q2 : forcé-ON au sweet spot. (a) rêveurs vs non-rêveurs ; (b) apparié ON vs OFF (ratio survie)."""
+    deltas, ratios, dreams_seen = [], [], 0
+    for seed in seeds:
+        on = run_era_organ(target, seed, 1.0, 0.25, 3.0, num_agents, max_ticks, shared_db)
+        off = run_era_organ(target, seed, 0.0, 0.25, 3.0, num_agents, max_ticks, shared_db)
+        split = q2_split(on)
+        deltas.append(split["delta"])
+        dreams_seen += sum(s["total_dreams"] for s in on)
+        c_on, c_off = survival_competence(on), survival_competence(off)
+        ratios.append(c_on / max(c_off, 1e-6))
+    q2a_delta = float(statistics.median(deltas)) if deltas else 0.0
+    q2b_ratio = float(statistics.median(ratios)) if ratios else 1.0
+    n_fav = sum(1 for r in ratios if r > 1.0)
+    sign_p = _sign_test_p(n_fav, len([r for r in ratios if r != 1.0]))
+    return {"q2a_delta": q2a_delta, "q2b_ratio": q2b_ratio, "n_favorable": n_fav,
+            "n": len(ratios), "sign_p": sign_p, "total_dreams_seen": dreams_seen,
+            "per_seed_delta": deltas, "per_seed_ratio": ratios}
+
+
+def main() -> Dict:
+    os.environ["AGISEED_QUIET_LOG"] = "1"     # anti-segfault + vitesse (EDR 091), AVANT start()
+    target = os.environ.get("DP_TARGET", "stoneage")
+    seeds = [int(s) for s in os.environ.get("DP_SEEDS", "0,1,2").split(",") if s.strip()]
+    num_agents = int(os.environ.get("DP_NUM_AGENTS", "40"))
+    max_ticks = int(os.environ.get("DP_MAX_TICKS", "400"))
+    mode = os.environ.get("DP_MODE", "both")
+
+    async_logger.start()
+    try:
+        shared_db = _acquire_shared_db()
+        q1 = run_q1(seeds, target, num_agents, max_ticks, shared_db) if mode in ("q1", "both") else {}
+        q2 = run_q2(seeds, target, num_agents, max_ticks, shared_db) if mode in ("q2", "both") else {}
+    finally:
+        async_logger.stop()
+
+    verdict = dreaming_verdict(q1.get("delta_prev_sweet", -1.0), q1.get("delta_prev_lethal", -1.0),
+                               q2.get("q2a_delta", 0.0), q2.get("q2b_ratio", 1.0)) if mode == "both" \
+        else "PARTIEL"
+    result = {"verdict": verdict, "q1": q1, "q2": q2,
+              "config": {"target": target, "seeds": seeds, "num_agents": num_agents,
+                         "max_ticks": max_ticks, "mode": mode}}
+    h = Harness(seed=min(seeds) if seeds else 0, name="dreaming_probe", with_db=False, config=WorldConfig())
+    path = h.save(result, config=WorldConfig())
+    log.info("VERDICT=%s | Q1 pressure=%.3f (sweet=%.3f letal=%.3f) | Q2 q2a=%.3f q2b=%.3f dreams=%d -> %s",
+             verdict, q1.get("pressure", 0.0), q1.get("delta_prev_sweet", 0.0),
+             q1.get("delta_prev_lethal", 0.0), q2.get("q2a_delta", 0.0), q2.get("q2b_ratio", 1.0),
+             q2.get("total_dreams_seen", 0), path)
+    return result
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    main()

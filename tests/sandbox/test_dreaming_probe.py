@@ -56,6 +56,34 @@ def test_verdict_four_cases():
 import pytest
 
 
+import json
+import glob
+
+
+def test_main_writes_provenance(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import tools.dreaming_probe as dp
+    monkeypatch.setattr(dp, "run_q1", lambda *a, **k: {
+        "delta_prev_sweet": 0.0, "delta_prev_lethal": -0.3, "pressure": 0.3,
+        "per_seed_sweet": [0.0], "per_seed_lethal": [-0.3]})
+    monkeypatch.setattr(dp, "run_q2", lambda *a, **k: {
+        "q2a_delta": 0.10, "q2b_ratio": 1.20, "n_favorable": 1, "n": 1, "sign_p": 1.0,
+        "total_dreams_seen": 12, "per_seed_delta": [0.10], "per_seed_ratio": [1.20]})
+    monkeypatch.setattr(dp.async_logger, "start", lambda: None)
+    monkeypatch.setattr(dp.async_logger, "stop", lambda: None)
+    monkeypatch.setattr(dp, "_acquire_shared_db", lambda: None)
+    monkeypatch.setenv("DP_SEEDS", "0")
+    monkeypatch.setenv("DP_MODE", "both")
+
+    result = dp.main()
+    assert result["verdict"] == "SURVIT_ET_PAYE"
+    files = glob.glob(str(tmp_path / "results" / "dreaming_probe_*.json"))
+    assert files, "provenance non écrite"
+    data = json.loads(open(files[0], encoding="utf-8").read())
+    assert data["data"]["verdict"] == "SURVIT_ET_PAYE"
+    assert "commit" in data and "git_dirty" in data
+
+
 @pytest.mark.slow
 def test_run_era_organ_smoke_seeds_organ(monkeypatch):
     """Smoke biosphère : une ère courte, ~50% organe semé -> renvoie des stats avec has_organ booléen."""
