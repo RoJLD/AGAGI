@@ -22,7 +22,6 @@ def test_dose_response_neutre_when_flat():
     assert dose_response_verdict({})["verdict"] == "NEUTRE"
 
 
-import os
 import pytest
 
 

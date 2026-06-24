@@ -13,6 +13,15 @@ if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
 from tools.curriculum_transfer import _sign_test_p
+from tools.dreaming_probe import run_era_organ
+from src.curriculum.competence import survival_competence
+from src.agents.mamba_agent import MambaBatchModel
+from src.environments.config import WorldConfig
+from src.seed_ai.harness import Harness
+from src.graph_rag.async_logger import logger as async_logger
+from main_curriculum import _acquire_shared_db
+
+log = logging.getLogger("AGIseed.DreamCausal")
 
 
 def _paired_ratios(arm: List[float], off: List[float]) -> List[float]:
@@ -47,13 +56,6 @@ def dose_response_verdict(per_arm: Dict, eps: float = 0.02) -> Dict:
             "verdict": verdict, "ratios_par_K": ratios_par_K}
 
 
-from src.curriculum.competence import survival_competence
-from src.agents.mamba_agent import MambaBatchModel
-from tools.dreaming_probe import run_era_organ
-
-log = logging.getLogger("AGIseed.DreamCausal")
-
-
 def run_causal(seeds, target, num_agents, max_ticks, shared_db, ks=(1, 4, 8)) -> Dict:
     """Par seed, balaye les bras ["off", *ks] à organe ON (100%) + sweet spot. Pose FORCE_DREAM
     AVANT l'ère, le REMET à None en finally (anti-pollution). Survie appariée par seed -> verdict."""
@@ -73,12 +75,6 @@ def run_causal(seeds, target, num_agents, max_ticks, shared_db, ks=(1, 4, 8)) ->
     return {**verdict, "per_arm": {str(a): v for a, v in per_arm.items()},
             "config": {"target": target, "seeds": [int(s) for s in seeds], "ks": list(ks),
                        "num_agents": num_agents, "max_ticks": max_ticks}}
-
-
-from src.environments.config import WorldConfig
-from src.seed_ai.harness import Harness
-from src.graph_rag.async_logger import logger as async_logger
-from main_curriculum import _acquire_shared_db
 
 
 def main() -> Dict:
