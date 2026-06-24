@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import * as d3 from "d3";
 import type { ProvNode, ProvEdge, ProvNodeType } from "../lib/provenance";
-import { cssVar, vizColors } from "../theme";
+import { vizColors } from "../theme";
 
 type NodeDatum = ProvNode & d3.SimulationNodeDatum & { fx?: number | null; fy?: number | null };
 type LinkDatum = d3.SimulationLinkDatum<NodeDatum>;
