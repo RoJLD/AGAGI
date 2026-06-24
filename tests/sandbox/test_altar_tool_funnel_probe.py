@@ -50,3 +50,26 @@ def test_par_seed_carries_decomposition():
     v = funnel_verdict(per_seed)
     assert set(v["par_seed"]) == {"0", "1"}
     assert v["par_seed"]["1"]["frac_apex"] == 1.0 and v["par_seed"]["0"]["frac_apex"] == 0.0
+
+
+import pytest
+
+
+@pytest.mark.slow
+def test_run_era_funnel_smoke_all_agents_altar_dead(monkeypatch):
+    """Smoke biosphère : 1 seed, ticks courts. Vérifie les 5 champs, la couverture vivants+morts,
+    ET que l'autel est mort en conditions réelles (altars_solved jamais >0)."""
+    monkeypatch.setenv("AGISEED_QUIET_LOG", "1")
+    from src.graph_rag.async_logger import logger as async_logger
+    from tools.altar_tool_funnel_probe import run_era_funnel
+    from main_curriculum import _acquire_shared_db
+    async_logger.start()
+    try:
+        db = _acquire_shared_db()
+        agents = run_era_funnel(0, 0.25, 3.0, num_agents=20, max_ticks=40, shared_db=db)
+    finally:
+        async_logger.stop()
+    assert len(agents) >= 1
+    a0 = agents[0]
+    assert set(a0) == {"age", "preys_eaten", "spears_crafted", "mammoth_kills", "altars_solved"}
+    assert max(a["altars_solved"] for a in agents) == 0   # autel mort, confirmé empiriquement

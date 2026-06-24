@@ -59,3 +59,35 @@ def funnel_verdict(per_seed_agents: Dict, eps: float = 0.02) -> Dict:
             "total_mammoth_kills": sum(a.get("mammoth_kills", 0) for a in all_agents),
             "altars_solved_max": altars_solved_max, "n_agents": len(all_agents),
             "par_seed": {str(s): _seed_summary(agents) for s, agents in per_seed_agents.items()}}
+
+
+def run_era_funnel(seed, metab, payoff, num_agents, max_ticks, shared_db) -> List[Dict]:
+    """UNE ère stoneage (sweet spot). Renvoie par agent TOUS (vivants + morts, env.agents +
+    env.dead_agents, EDR 092) : {age, preys_eaten, spears_crafted, mammoth_kills, altars_solved}.
+    Modelé sur run_era_organ (tools/dreaming_probe.py) mais SANS semis d'organe. Déterministe."""
+    SeedManager(seed).seed_boundary(0)
+    config = WorldConfig()
+    config.base_metabolism = metab
+    config.forage_payoff = payoff
+    env = _prepare_world("stoneage", config, deterministic=True)
+
+    genomes, _ntm = init_primordial_soup(num_agents=num_agents, import_agent_id=None,
+                                         keep_memory=False, shared_db=shared_db, config=config)
+    for g in genomes:
+        a = MambaAgent()
+        a.from_genome(g)
+        env.add_agent(a, energy=50.0)
+
+    env.current_era = 1
+    t = 0
+    while len(env.agents) > 0 and t < max_ticks:
+        env.step()
+        t += 1
+
+    all_agents = list(env.agents) + list(getattr(env, "dead_agents", []))
+    out = [{"age": a.get("age", 0), "preys_eaten": a.get("preys_eaten", 0),
+            "spears_crafted": a.get("spears_crafted", 0), "mammoth_kills": a.get("mammoth_kills", 0),
+            "altars_solved": a.get("altars_solved", 0)} for a in all_agents]
+    if hasattr(env, "memory_retriever"):
+        env.memory_retriever.stop()
+    return out
