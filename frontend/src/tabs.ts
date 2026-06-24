@@ -13,20 +13,21 @@ import {
   TrendingUp,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import type { TabItem } from "./components/ui/Tabs";
 
 export const TAB_KEYS = [
-  "parcours",
   "edr",
   "live",
+  "sante",
   "evolution",
   "comparison",
   "topology",
-  "academy",
+  "parcours",
   "laboratoire",
-  "timeline",
   "sandbox",
   "runs",
-  "sante",
+  "academy",
+  "timeline",
 ] as const;
 
 export type TabKey = (typeof TAB_KEYS)[number];
@@ -40,6 +41,13 @@ export interface TabDef {
 export interface TabFamily {
   family: string;
   tabs: TabDef[];
+}
+
+/** Aplatit les familles d'onglets en items pour la primitive TabList (group = nom de famille). */
+export function buildNavItems(families: TabFamily[]): TabItem[] {
+  return families.flatMap((fam) =>
+    fam.tabs.map((t) => ({ id: t.key, label: t.label, icon: t.icon, group: fam.family })),
+  );
 }
 
 /** Onglets regroupés par famille — libellés humains FR + icônes. La clé reste technique. */

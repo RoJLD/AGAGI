@@ -1,7 +1,8 @@
 import { lazy, Suspense } from "react";
 import { useTheme } from "./hooks/useTheme";
 import { useHashRoute } from "./hooks/useHashRoute";
-import { TAB_KEYS, TAB_FAMILIES } from "./tabs";
+import { TabList, tabId, panelId } from "./components/ui/Tabs";
+import { TAB_KEYS, TAB_FAMILIES, buildNavItems } from "./tabs";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { GateSidebar } from "./components/GateSidebar";
 import { EDRDashboard } from "./components/EDRDashboard";
@@ -39,30 +40,26 @@ export default function App() {
             {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
             {theme === "dark" ? "Clair" : "Sombre"}
           </button>
-          <nav className="tabs">
-            {TAB_FAMILIES.map((group) => (
-              <div key={group.family} className="tab-family" title={group.family}>
-                {group.tabs.map(({ key, label, icon: Icon }) => (
-                  <button
-                    key={key}
-                    data-testid={`tab-${key}`}
-                    className={key === tab ? "active" : ""}
-                    onClick={() => setTab(key)}
-                  >
-                    <Icon size={16} />
-                    {label}
-                  </button>
-                ))}
-              </div>
-            ))}
-          </nav>
+          <TabList
+            items={buildNavItems(TAB_FAMILIES)}
+            activeId={tab}
+            onSelect={(id) => setTab(id as (typeof TAB_KEYS)[number])}
+            ariaLabel="Sections du dashboard"
+            className="tabs"
+          />
         </div>
       </header>
 
       <main className={showSidebar ? "content" : "content content--full"}>
         {showSidebar && <GateSidebar />}
 
-        <section className="panel">
+        <section
+          className="panel"
+          role="tabpanel"
+          id={panelId(tab)}
+          aria-labelledby={tabId(tab)}
+          tabIndex={0}
+        >
           <ErrorBoundary key={tab}>
           <Suspense fallback={<Loading label="Chargement de la vue…" />}>
           {tab === "parcours" && <ParcoursView />}
