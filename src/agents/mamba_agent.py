@@ -17,7 +17,7 @@ class MambaAgent(BaseAgent):
     Implémentation de l'Agent utilisant le moteur Liquid Mamba (Genome V13).
     """
     
-    def __init__(self, num_inputs=64, num_outputs=126, num_nodes=172):
+    def __init__(self, num_inputs=59, num_outputs=108, num_nodes=172):
         # Initialiser le génome sous-jacent
         W = np.random.randn(num_nodes, num_nodes).astype(np.float32) * 0.1
         self.genome = Genome(W, num_inputs, num_outputs)
@@ -293,6 +293,7 @@ class MambaBatchModel:
     ABLATE_THRESHOLDS = False   # ignore les seuils d'excitabilité
     ABLATE_ROUTER = False       # gain neuromodulateur neutre (=1)
     METABOLIC_ACTIVE_EPS = 0.1  # NAS Axe D-1 : seuil |H_i|>eps pour compter un nœud "actif"
+    KWTA_KEEP_FRAC = 1.0        # NAS Axe D-2 : fraction de cachés gardés actifs (1.0 = off)
     FORCE_DREAM = None          # intervention causale (EDR 094) : None|"off"|int K (profondeur forcée)
 
     def __init__(self, agents: list[MambaAgent], world_model=None):
@@ -566,6 +567,28 @@ class MambaBatchModel:
         dreaming_idx = np.where(is_dreaming)[0]
         if len(dreaming_idx) > 0:
             H[dreaming_idx] = best_H[dreaming_idx]
+
+        # NAS Axe D-2 : KWTA modéré sur les CACHÉS (sparsité imposée). Entrées/sorties intactes.
+        # Gated (1.0 = off). Appliqué avant l'extraction des sorties ET avant H_prev_batch -> le
+        # compteur D1 (activation_cost_batch) et l'état récurrent reflètent la sparsité.
+        keep = MambaBatchModel.KWTA_KEEP_FRAC
+        if keep < 1.0:
+            for i in range(self.B):
+                N_i = self.agents[i].genome.num_nodes
+                I_i = self.agents[i].genome.num_inputs
+                O_i = self.agents[i].genome.num_outputs
+                hidden_pos = self.mappings[i][I_i:N_i - O_i]
+                n_hidden = len(hidden_pos)
+                if n_hidden == 0:
+                    continue
+                n_keep = max(1, int(np.ceil(keep * n_hidden)))
+                if n_keep >= n_hidden:
+                    continue
+                h_vals = H[i, hidden_pos]
+                top = np.argsort(-np.abs(h_vals))[:n_keep]
+                masked = np.zeros(n_hidden, dtype=h_vals.dtype)
+                masked[top] = h_vals[top]
+                H[i, hidden_pos] = masked
 
         # 6. Extraction des logits finals
         preds = np.zeros((self.B, self.max_O), dtype=np.float32)

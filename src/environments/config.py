@@ -69,6 +69,9 @@ class WorldConfig:
     # règlent le sweet spot dureté↔soutenabilité. Défauts = comportement historique (non-régression).
     base_metabolism: float = 1.0   # multiplicateur du drain de base par tick (↓ = survie plus longue)
     forage_payoff: float = 1.0     # multiplicateur de la nutrition d'une proie (↑ = foraging plus payant)
+    # NAS Axe D-2 : KWTA sur les nœuds cachés. 1.0 = off (non-régression). <1.0 = fraction de cachés
+    # gardés actifs (sparsité IMPOSÉE, pas sélectionnée). Sweep modéré 0.3-0.7.
+    kwta_keep_frac: float = 1.0
 
     # NAS Axe D-1 (coût métabolique d'activation) : énergie drainée par nœud actif/tick.
     # 0.0 = off (non-régression bit-exacte). Seule variable d'expérience ; sweep typique 0 -> 0.01.
