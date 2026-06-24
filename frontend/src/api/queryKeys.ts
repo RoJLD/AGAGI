@@ -29,6 +29,7 @@ export const queryKeys = {
     edrLinks: ["runs", "edr-links"] as const,
     articleLinks: ["runs", "article-links"] as const,
     compare: (a: string, b: string, metric: string) => ["runs", "compare", a, b, metric] as const,
+    distributions: (metric: string) => ["runs", "distributions", metric] as const,
   },
   health: {
     parity: ["health", "parity"] as const,
