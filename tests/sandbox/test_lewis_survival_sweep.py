@@ -157,3 +157,12 @@ def test_measure_drain_keys_and_reproducible():
     assert a["n_agents"] >= 1
     assert abs(a["net"] - (a["brain"] + a["action"] + a["biologie"])) < 1e-6   # net = somme (telescopage)
     assert a == b                                                              # seede -> reproductible
+
+
+def test_main_decompose_runs_and_reproducible(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    a = lss.main_decompose(n_eval=2, R=1, seed=5, _return=True)
+    b = lss.main_decompose(n_eval=2, R=1, seed=5, _return=True)
+    assert a["phases"] == b["phases"]                         # seede -> reproductible
+    assert set(a["phases"]) == {"brain", "action", "biologie", "net", "n_agents"}
+    assert a["verdict"] in {"TARIF=THROW", "TARIF=BIOLOGIE", "TARIF=BRAIN", "DRAIN DIFFUS"}

@@ -277,5 +277,32 @@ def main_surprise(levels=SURPRISE_LEVELS, n_eval=8, R=4, seed=None, _return=Fals
                        verdict_fn=_verdict_surprise)
 
 
+def _report_drain(h, agg, R, n_eval, _return):
+    """Table des 3 phases (energie/tick + part %) + verdict + provenance. Tout ASCII (cp1252)."""
+    verdict = _verdict_drain(agg)
+    net = agg["net"]
+    print(f"\n=== EDR099 decomposition drain a N_APEX=0 (energie/tick/agent) ===")
+    for ph in ("brain", "action", "biologie"):
+        pct = (100.0 * agg[ph] / net) if net else 0.0
+        print(f"  {ph:<9} | {agg[ph]:7.2f}/tick | {pct:6.1f}% du net")
+    print(f"  {'NET':<9} | {net:7.2f}/tick | n_agents={agg['n_agents']}")
+    print("=== VERDICT (pre-enregistre, phase >50%) ===")
+    print(f"  -> {verdict}")
+    h.save({"phases": agg, "verdict": verdict, "R": R, "n_eval": n_eval})
+    if _return:
+        return {"phases": agg, "verdict": verdict, "R": R, "n_eval": n_eval}
+
+
+def main_decompose(n_eval=8, R=4, seed=None, _return=False):
+    """EDR 099 : decompose le drain intrinseque a N_APEX=0 (monde vide), forage_payoff=3, en 3 phases."""
+    with Harness(seed=seed, name="lewis_drain_decompose", with_db=False) as h:
+        base = h.seed
+        _disable_kuzu()
+        print(f"EDR099 : decomposition drain N_APEX=0, R={R}, n_eval={n_eval}, seed={base}.")
+        seeds = [base + r * 1000 + i for r in range(R) for i in range(n_eval)]
+        agg = _measure_drain(_cfg(3, trace_energy_sinks=True), seeds, n_apex=0)
+        return _report_drain(h, agg, R, n_eval, _return)
+
+
 if __name__ == "__main__":
     main()
