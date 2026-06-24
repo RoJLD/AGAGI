@@ -189,13 +189,11 @@ body {
 /* ----- Onglets (groupés par famille) ----- */
 .tabs { display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: center; }
 
-.tab-family {
-  display: flex;
-  gap: var(--space-2);
-  align-items: center;
-  padding-right: var(--space-3);
+.tabs .tab[data-group-start] {
+  border-left: 1px solid var(--color-border);
+  margin-left: var(--space-2);
+  padding-left: var(--space-3);
 }
-.tab-family + .tab-family { border-left: 1px solid rgba(255, 255, 255, 0.15); padding-left: var(--space-3); }
 
 .tabs button {
   display: inline-flex;
@@ -314,8 +312,6 @@ body {
   .topbar { padding: var(--space-4); }
   .topbar h1 { font-size: 1.4rem; }
   .tabs { gap: var(--space-1); }
-  .tab-family { padding-right: var(--space-2); }
-  .tab-family + .tab-family { padding-left: var(--space-2); }
   .tabs button { padding: var(--space-2) var(--space-3); font-size: var(--font-size-xs); }
 }
 
@@ -441,18 +437,6 @@ body {
   border-bottom: 1px solid var(--color-border);
   padding-bottom: var(--space-3);
 }
-.step-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
-  background: var(--color-surface);
-  color: var(--color-text-dim);
-  cursor: pointer;
-  font: inherit;
-}
 .step-pill__index {
   display: inline-flex;
   align-items: center;
@@ -464,14 +448,20 @@ body {
   color: var(--color-text);
   font-size: var(--font-size-xs);
 }
-.step-pill--active {
-  border-color: var(--color-accent);
-  color: var(--color-text);
+
+/* StepBar bâti sur .tab (TabList) : styles pastille portés sur .step-bar .tab */
+.step-bar .tab {
+  gap: var(--space-2);
 }
-.step-pill--active .step-pill__index {
+.step-bar .tab.is-done {
+  color: var(--color-text);
+  border-color: var(--color-accent);
+}
+.step-bar .tab.is-done .step-pill__index {
   background: var(--color-accent);
   color: var(--color-bg);
 }
-.step-pill--done {
-  color: var(--color-text);
+.step-bar .tab.is-active .step-pill__index {
+  background: var(--color-accent);
+  color: var(--color-bg);
 }

@@ -1,3 +1,4 @@
+import { TabList, type TabItem } from "../ui/Tabs";
 import { STEP_ORDER, type ParcoursStep } from "./steps";
 
 const LABELS: Record<ParcoursStep, string> = {
@@ -7,7 +8,9 @@ const LABELS: Record<ParcoursStep, string> = {
   conclure: "Conclure",
 };
 
-/** Barre d'étapes du parcours — souple : toutes cliquables. role=tablist + aria-selected. */
+/** Barre d'étapes du parcours — souple : toutes cliquables. Construite sur la
+ *  primitive TabList (roles tablist/tab, roving tabindex, flèches, activation
+ *  manuelle). Conserve les data-testid `step-<id>` et le visuel pastille. */
 export function StepBar({
   current,
   reached,
@@ -17,25 +20,26 @@ export function StepBar({
   reached: Record<ParcoursStep, boolean>;
   onSelect: (s: ParcoursStep) => void;
 }) {
+  const items: TabItem[] = STEP_ORDER.map((s) => ({
+    id: s,
+    label: LABELS[s],
+    state: s === current ? "active" : reached[s] ? "done" : "todo",
+  }));
+
   return (
-    <div className="step-bar" role="tablist" aria-label="Étapes du parcours">
-      {STEP_ORDER.map((s, i) => {
-        const state = s === current ? "active" : reached[s] ? "done" : "todo";
-        return (
-          <button
-            key={s}
-            role="tab"
-            aria-selected={s === current}
-            aria-current={s === current ? "step" : undefined}
-            data-testid={`step-${s}`}
-            className={`step-pill step-pill--${state}`}
-            onClick={() => onSelect(s)}
-          >
-            <span className="step-pill__index">{i + 1}</span>
-            {LABELS[s]}
-          </button>
-        );
-      })}
-    </div>
+    <TabList
+      items={items}
+      activeId={current}
+      onSelect={(id) => onSelect(id as ParcoursStep)}
+      ariaLabel="Étapes du parcours"
+      className="step-bar"
+      testIdPrefix="step"
+      renderLabel={(item, index) => (
+        <>
+          <span className="step-pill__index">{index + 1}</span>
+          {item.label}
+        </>
+      )}
+    />
   );
 }

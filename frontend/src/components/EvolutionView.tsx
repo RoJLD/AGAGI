@@ -7,6 +7,9 @@ import { useHashRoute } from "../hooks/useHashRoute";
 import { TAB_KEYS } from "../tabs";
 import { LiveEvolution } from "./LiveEvolution";
 import { createLinePath, createStabilitySeries } from "../lib/charts";
+import { Loading } from "./ui/Loading";
+import { ErrorState } from "./ui/ErrorState";
+import { Empty } from "./ui/Empty";
 
 function ChartLine({ values, color }: { values: number[]; color: string }) {
   return <path d={createLinePath(values, 700, 260)} fill="none" style={{ stroke: color }} strokeWidth={3} />;
@@ -14,7 +17,7 @@ function ChartLine({ values, color }: { values: number[]; color: string }) {
 
 export function EvolutionView() {
   const { gate } = useHashRoute(TAB_KEYS, "edr");
-  const { data: detail = null } = useQuery({
+  const { data: detail = null, isLoading, error, refetch } = useQuery({
     queryKey: queryKeys.experiments.detail(gate),
     queryFn: () => apiFetch<ExperimentDetail>(`/api/experiments/${gate}`),
     enabled: !!gate,
@@ -43,8 +46,14 @@ export function EvolutionView() {
             <span className="legend-dot" style={{ background: "var(--viz-4)" }} /> Stabilité
           </div>
         </>
+      ) : !gate ? (
+        <Empty message="Sélectionne une porte dans la barre latérale pour voir son évolution." />
+      ) : isLoading ? (
+        <Loading label="Chargement des données d'évolution…" />
+      ) : error ? (
+        <ErrorState error={error} onRetry={() => refetch()} />
       ) : (
-        <p>Chargement des données...</p>
+        <Empty message="Aucune donnée d'évolution pour cette porte." />
       )}
     </>
   );
