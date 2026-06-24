@@ -22,7 +22,17 @@ const STORAGE_KEY = "agiseed.activeExperiment";
 function readStored(): ActiveExperiment | null {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as ActiveExperiment) : null;
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as unknown;
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      typeof (parsed as ActiveExperiment).condition === "string" &&
+      typeof (parsed as ActiveExperiment).launchedAt === "number"
+    ) {
+      return parsed as ActiveExperiment;
+    }
+    return null;
   } catch {
     return null;
   }

@@ -59,3 +59,17 @@ test("lecture défensive sur storage corrompu", () => {
   renderProbe();
   expect(screen.getByText("none")).toBeTruthy();
 });
+
+test("lecture défensive sur JSON valide mais forme invalide", () => {
+  window.localStorage.setItem("agiseed.activeExperiment", JSON.stringify({ foo: "bar" }));
+  renderProbe();
+  expect(screen.getByText("none")).toBeTruthy();
+});
+
+test("updateActiveExperiment est un no-op sans expérience active", () => {
+  renderProbe();
+  expect(screen.getByText("none")).toBeTruthy();
+  act(() => api.updateActiveExperiment({ baseline: "AND" }));
+  expect(screen.getByText("none")).toBeTruthy();
+  expect(window.localStorage.getItem("agiseed.activeExperiment")).toBeNull();
+});

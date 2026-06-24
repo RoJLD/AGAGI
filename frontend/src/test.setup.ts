@@ -1,3 +1,5 @@
+import { beforeEach } from "vitest";
+
 // Ensure localStorage is properly available in jsdom
 if (!window.localStorage || typeof window.localStorage.clear !== "function") {
   const store: Record<string, string> = {};
@@ -27,3 +29,11 @@ if (!window.localStorage || typeof window.localStorage.clear !== "function") {
     configurable: true,
   });
 }
+
+beforeEach(() => {
+  try {
+    window.localStorage.clear();
+  } catch {
+    /* noop */
+  }
+});
