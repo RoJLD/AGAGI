@@ -612,6 +612,8 @@ class Biosphere3D(BaseWorld):
                         p["x"], p["y"] = nx, ny
 
     def _resolve_biology(self, agent, action, logits):
+        if getattr(self.config, "trace_energy_sinks", False):
+            agent["_s0_bio"] = agent["energy"]               # EDR100 : entree biologie
         # Base drain (métabolisme). EDR 084 : la survie plafonne car 79% starvent ; `base_metabolism`
         # (config, défaut 1.0) règle le drain pour viser le sweet spot dureté↔soutenabilité.
         drain = getattr(self.config, "base_metabolism", 1.0) * agent["model"].phenotype_energy_drain
@@ -635,9 +637,12 @@ class Biosphere3D(BaseWorld):
                 agent["confort"] = max(0.0, agent.get("confort", 50.0) - 0.5)
 
         agent["energy"] -= drain
-        
+        if getattr(self.config, "trace_energy_sinks", False):
+            agent["_s1_bio"] = agent["energy"]               # EDR100 : apres metabolisme
         terrain = self.terrain_type[agent["y"], agent["x"]]
         agent["energy"] -= [self.config.biome.plains_drain, self.config.biome.forest_drain, self.config.biome.water_drain, self.config.biome.desert_drain][terrain]
+        if getattr(self.config, "trace_energy_sinks", False):
+            agent["_s2_bio"] = agent["energy"]               # EDR100 : apres terrain
 
         # A) Scaffold d'approche (annelé) : récompense la réduction de distance au
         # gibier le plus proche -> enseigne la chasse (fix du goulot, EDR 012).
@@ -647,8 +652,12 @@ class Biosphere3D(BaseWorld):
             agent["energy"] += approach_reward(agent.get("last_prey_dist", d), d, self.scaffold_eps, lam)
             agent["last_prey_dist"] = d
 
+        if getattr(self.config, "trace_energy_sinks", False):
+            agent["_s3_bio"] = agent["energy"]               # EDR100 : avant carry
         carry_weight = sum(i.get("weight", 1.0) if isinstance(i, dict) else 1.0 for i in agent["inventory"])
         agent["energy"] -= carry_weight * 0.5
+        if getattr(self.config, "trace_energy_sinks", False):
+            agent["_s4_bio"] = agent["energy"]               # EDR100 : apres carry
         
         if len(agent["inventory"]) > 0:
             first_item = agent["inventory"][0]
@@ -749,6 +758,17 @@ class Biosphere3D(BaseWorld):
             agent["energy"] += self.config.treasure_reward
             logger.emit("TREASURE_FOUND", {"agent_id": agent["id"]})
             self._spawn_treasure()
+        if getattr(self.config, "trace_energy_sinks", False):
+            _s0 = agent.get("_s0_bio", agent["energy"])
+            _s1 = agent.get("_s1_bio", _s0)
+            _s2 = agent.get("_s2_bio", _s1)
+            _s3 = agent.get("_s3_bio", _s2)
+            _s4 = agent.get("_s4_bio", _s3)
+            bio = agent.setdefault("_e_bio", {"metab": 0.0, "terrain": 0.0, "carry": 0.0, "autres": 0.0})
+            bio["metab"] += _s0 - _s1
+            bio["terrain"] += _s1 - _s2
+            bio["carry"] += _s3 - _s4
+            bio["autres"] += (_s2 - _s3) + (_s4 - agent["energy"])   # gains approach/forage + jump/heal/hunt
 
     def _resolve_social(self):
         new_agents = []

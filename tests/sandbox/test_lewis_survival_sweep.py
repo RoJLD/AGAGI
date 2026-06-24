@@ -155,7 +155,7 @@ def test_measure_drain_keys_and_reproducible():
     cfg = lss._cfg(3, trace_energy_sinks=True)
     a = lss._measure_drain(cfg, seeds=[7, 8], n_apex=0, num_agents=4, max_ticks=30)
     b = lss._measure_drain(cfg, seeds=[7, 8], n_apex=0, num_agents=4, max_ticks=30)
-    assert set(a) == {"brain", "action", "biologie", "mouvement", "net", "n_agents"}
+    assert {"brain", "action", "biologie", "mouvement", "net", "n_agents"} <= set(a)  # EDR100: bio_* additive
     assert a["n_agents"] >= 1
     assert abs(a["net"] - (a["brain"] + a["action"] + a["biologie"] + a["mouvement"])) < 1e-6   # net = somme (telescopage)
     assert a == b                                                              # seede -> reproductible
@@ -166,5 +166,37 @@ def test_main_decompose_runs_and_reproducible(tmp_path, monkeypatch):
     a = lss.main_decompose(n_eval=2, R=1, seed=5, _return=True)
     b = lss.main_decompose(n_eval=2, R=1, seed=5, _return=True)
     assert a["phases"] == b["phases"]                         # seede -> reproductible
-    assert set(a["phases"]) == {"brain", "action", "biologie", "mouvement", "net", "n_agents"}
+    assert {"brain", "action", "biologie", "mouvement", "net", "n_agents"} <= set(a["phases"])  # EDR100: bio_* additive
     assert a["verdict"] in {"TARIF=THROW", "TARIF=BIOLOGIE", "TARIF=BRAIN", "TARIF=MOUVEMENT", "DRAIN DIFFUS"}
+
+
+def test_verdict_bio_four_branches():
+    base = {"bio_metab": 0, "bio_terrain": 0, "bio_carry": 0, "bio_autres": 0}
+    assert lss._verdict_bio({**base, "bio_metab": 9, "bio_terrain": 1, "bio_carry": 1}) == "TARIF=METABOLISME"
+    assert lss._verdict_bio({**base, "bio_terrain": 9, "bio_metab": 1, "bio_carry": 1}) == "TARIF=TERRAIN"
+    assert lss._verdict_bio({**base, "bio_carry": 9, "bio_metab": 1, "bio_terrain": 1}) == "TARIF=CARRY"
+    assert lss._verdict_bio({**base, "bio_metab": 4, "bio_terrain": 4, "bio_carry": 3}) == "DRAIN BIO DIFFUS"
+    assert lss._verdict_bio(base) == "DRAIN BIO DIFFUS"        # bio_net <= 0 -> diffus
+
+
+def test_measure_drain_has_bio_keys():
+    lss._disable_kuzu()
+    cfg = lss._cfg(3, trace_energy_sinks=True)
+    a = lss._measure_drain(cfg, seeds=[7, 8], n_apex=0, num_agents=4, max_ticks=30)
+    a2 = lss._measure_drain(cfg, seeds=[7, 8], n_apex=0, num_agents=4, max_ticks=30)
+    for k in ("bio_metab", "bio_terrain", "bio_carry", "bio_autres"):
+        assert k in a
+    # coherence agregat : somme des sous-postes ~ phase biologie
+    assert abs((a["bio_metab"] + a["bio_terrain"] + a["bio_carry"] + a["bio_autres"]) - a["biologie"]) < 1e-6
+    assert a == a2                                            # reproductible
+
+
+def test_main_decompose_has_bio_verdict(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    a = lss.main_decompose(n_eval=2, R=1, seed=5, _return=True)
+    b = lss.main_decompose(n_eval=2, R=1, seed=5, _return=True)
+    assert a["phases"] == b["phases"]                         # reproductible
+    assert "bio_verdict" in a
+    assert a["bio_verdict"] in {"TARIF=METABOLISME", "TARIF=TERRAIN", "TARIF=CARRY", "DRAIN BIO DIFFUS"}
+    for k in ("bio_metab", "bio_terrain", "bio_carry", "bio_autres"):
+        assert k in a["phases"]
