@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
-from ..schemas import ABCompareResult, ConditionSummary, RunDetail, RunSummary
+from ..schemas import ABCompareResult, ConditionSummary, RunDetail, RunSummary, SweepResult
 from ..services.runs_service import runs_service
 
 router = APIRouter()
@@ -16,6 +16,12 @@ def list_runs() -> list[dict]:
 def list_conditions() -> list[dict]:
     """Conditions = noms d'expériences (groupes de seeds), avec métriques disponibles."""
     return runs_service.list_conditions()
+
+
+@router.get("/sweeps", response_model=list[SweepResult])
+def list_sweeps() -> list[dict]:
+    """Sweeps = runs balayant un paramètre (knob+levels+séries) ; paysage métrique-vs-paramètre."""
+    return runs_service.list_sweeps()
 
 
 @router.get("/runs/compare", response_model=ABCompareResult)

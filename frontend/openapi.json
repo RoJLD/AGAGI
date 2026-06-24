@@ -861,6 +861,82 @@
         "title": "StartRequest",
         "type": "object"
       },
+      "SweepResult": {
+        "description": "Un sweep : une métrique tracée le long d'un paramètre balayé (knob).\nx = valeurs du paramètre ; series[<metric>] = série Y de même longueur ;\ny_std[<metric>] = écart-type optionnel (bande de variance).",
+        "properties": {
+          "commit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commit"
+          },
+          "knob": {
+            "title": "Knob",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "seed": {
+            "title": "Seed",
+            "type": "integer"
+          },
+          "series": {
+            "additionalProperties": {
+              "items": {
+                "type": "number"
+              },
+              "type": "array"
+            },
+            "title": "Series",
+            "type": "object"
+          },
+          "x": {
+            "items": {
+              "type": "number"
+            },
+            "title": "X",
+            "type": "array"
+          },
+          "y_std": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "items": {
+                    "type": "number"
+                  },
+                  "type": "array"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Y Std"
+          }
+        },
+        "required": [
+          "run_id",
+          "name",
+          "knob",
+          "x",
+          "series",
+          "seed"
+        ],
+        "title": "SweepResult",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -2313,6 +2389,32 @@
         "summary": "Get Strategy Tree",
         "tags": [
           "Strategy"
+        ]
+      }
+    },
+    "/api/sweeps": {
+      "get": {
+        "description": "Sweeps = runs balayant un paramètre (knob+levels+séries) ; paysage métrique-vs-paramètre.",
+        "operationId": "list_sweeps_api_sweeps_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SweepResult"
+                  },
+                  "title": "Response List Sweeps Api Sweeps Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Sweeps",
+        "tags": [
+          "runs"
         ]
       }
     },
