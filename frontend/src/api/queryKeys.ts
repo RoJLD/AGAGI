@@ -33,4 +33,5 @@ export const queryKeys = {
   health: {
     parity: ["health", "parity"] as const,
   },
+  sweeps: ["sweeps"] as const,
 } as const;

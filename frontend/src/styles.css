@@ -187,15 +187,15 @@ body {
 .theme-toggle:hover { background: rgba(255, 255, 255, 0.12); }
 
 /* ----- Onglets (groupés par famille) ----- */
+/* Landmark de navigation sans box : le <nav> reste exposé aux AT, le flex porte sur .tabs. */
+.topbar-nav { display: contents; }
 .tabs { display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: center; }
 
-.tab-family {
-  display: flex;
-  gap: var(--space-2);
-  align-items: center;
-  padding-right: var(--space-3);
+.tabs .tab[data-group-start] {
+  border-left: 1px solid var(--color-border);
+  margin-left: var(--space-2);
+  padding-left: var(--space-3);
 }
-.tab-family + .tab-family { border-left: 1px solid rgba(255, 255, 255, 0.15); padding-left: var(--space-3); }
 
 .tabs button {
   display: inline-flex;
@@ -314,8 +314,6 @@ body {
   .topbar { padding: var(--space-4); }
   .topbar h1 { font-size: 1.4rem; }
   .tabs { gap: var(--space-1); }
-  .tab-family { padding-right: var(--space-2); }
-  .tab-family + .tab-family { padding-left: var(--space-2); }
   .tabs button { padding: var(--space-2) var(--space-3); font-size: var(--font-size-xs); }
 }
 
@@ -432,3 +430,37 @@ body {
 .runs-table tbody tr:hover { background: var(--color-bg-subtle); }
 .runs-table tr.is-selected { background: var(--color-bg-subtle); }
 .runs-table code { font-size: var(--font-size-xs); color: var(--color-text-secondary); }
+
+/* --- Parcours chercheur (G3) --- */
+.step-bar {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: var(--space-3);
+}
+.step-pill__index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.4em;
+  height: 1.4em;
+  border-radius: 50%;
+  background: var(--color-border);
+  color: var(--color-text);
+  font-size: var(--font-size-xs);
+}
+
+/* StepBar bâti sur .tab (TabList) : styles pastille portés sur .step-bar .tab */
+.step-bar .tab {
+  gap: var(--space-2);
+}
+.step-bar .tab.is-done {
+  color: var(--color-text);
+  border-color: var(--color-accent);
+}
+.step-bar .tab.is-done .step-pill__index,
+.step-bar .tab.is-active .step-pill__index {
+  background: var(--color-accent);
+  color: var(--color-bg);
+}

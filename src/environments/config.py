@@ -43,6 +43,9 @@ class WorldConfig:
     num_altars: int = 3
     prey_mode: str = "semi"
     target_prey_count: int = 15  # recalibrage C : plafond de proies (modéré)
+    max_population: int | None = None  # capacité de charge des AGENTS. None = pas de cap (historique).
+                                       # Set (ex. 150) -> borne la reproduction intra-épisode et le coût
+                                       # O(N²) d'HGT breeding (anti-runaway survie-longue, post-EDR090).
     treasure_reward: float = 30.0
     fruit_tree_ratio: float = 0.2
     use_3d: bool = False
@@ -52,7 +55,8 @@ class WorldConfig:
     ttc_base_cost: float = 0.01
     ttc_night_penalty: float = 2.5
     ttc_surprise_scale: float = 1.0
-    
+    trace_energy_sinks: bool = False   # EDR099 : decompose le drain par phase (opt-in, defaut OFF)
+
     # Surprise-Triggered HGT
     hgt_surprise_threshold: float = 0.75
     hgt_surprise_power: float = 0.2

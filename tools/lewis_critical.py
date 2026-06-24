@@ -31,14 +31,16 @@ def _sweet_cfg():
 
 
 def _setup_critical(env, leurre_frac, n_apex=N_APEX):
-    """Monde de Lewis à criticalité réglable : n_apex apex au total, dont round(leurre_frac*n_apex)
-    Leurres-pièges ; le reste réparti Mammouth/Ours (positifs). Nuit OFF (correctif audit 086)."""
+    """Monde de Lewis a criticalite reglable : n_apex apex au total, dont round(leurre_frac*n_apex)
+    Leurres-pieges ; le reste reparti Mammouth/Ours (positifs). Nuit OFF (correctif audit 086).
+    Quand n_apex=0, retire aussi Mammouth/Ours de config.preys : le respawn aleatoire du monde
+    ne peut plus produire d'apex (hp<50) -> mammoth_kills reste nul (cablage n_apex=0)."""
     env.config.active_exp_variable = "LANGUAGE"
     env.hear_radius = 3
     env.night_enabled = False
     env.config.preys["Leurre"] = PreyConfig(hp=100.0, damage=50.0, moves_per_tick=0.2)
     env.config.preys["Ours"] = PreyConfig(hp=60.0, damage=30.0, moves_per_tick=0.3)
-    # Purger les apex spawned by __init__ pour avoir un contrôle exact du ratio
+    # Purger les apex spawned by __init__ pour avoir un controle exact du ratio
     env.preys = [p for p in env.preys if p.get("type") not in ("Mammouth", "Ours", "Leurre")]
     n_leurre = int(round(leurre_frac * n_apex))
     n_pos = n_apex - n_leurre
@@ -47,6 +49,11 @@ def _setup_critical(env, leurre_frac, n_apex=N_APEX):
         env._spawn_prey_instance(ref)
     for _ in range(n_leurre):
         env._spawn_prey_instance("Leurre")
+    if n_apex == 0:
+        # Retire Mammouth/Ours de config.preys -> respawn aleatoire ne produira que des
+        # petites proies (hp=1.0 < 50) -> chemin mammoth_kills inaccessible -> kills=0.
+        env.config.preys.pop("Mammouth", None)
+        env.config.preys.pop("Ours", None)
 
 
 def _run_arm(cfg, genomes, leurre_frac, use_head, decode_act, scramble, heads,

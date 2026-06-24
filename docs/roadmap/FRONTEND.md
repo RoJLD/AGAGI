@@ -176,9 +176,18 @@ Le projet revendique une méthode forte ; **l'outil ne la soutient pas encore.**
 - **WS `/ws/evolution` temps-réel** ✅ : suivi live d'un run lancé. Producteur `emit_progress` (opt-in env `AGISEED_LIVE_PROGRESS`, no-op par défaut) instrumenté dans `CurriculumRunner` ; sandbox arme/vide le puits ; `/ws/evolution` tail -f ; vue « Évolution en direct » (sparkline) dans l'onglet Évolution.
 - **Roadmap frontend (features F0→F3) : terminée.** → ouverture de la **Vague G (dette & qualité)** ci-dessous.
 
+### Avancement 2026-06-24 — Vague G livrée + suites
+- **G1** ✅ lazy-load + découpage bundle (PR #23) — chunk initial −33 %, recharts/d3 async.
+- **G2** ✅ dégonfler App.tsx (PR #25) — 381→94 lignes, vues extraites (`EvolutionView`/`ComparisonView`/`TopologyView`/`AcademyView` + `lib/charts`).
+- **G3** ✅ parcours chercheur guidé (PR #30) — onglet **Parcours** (accueil par défaut), stepper souple Lancer→Suivre→Comparer→Conclure sur état partagé `ActiveExperimentContext` (persisté localStorage) ; `LiveDashboard` extrait de `SandboxView`.
+- **G3-suite** ✅ courbe d'évolution live (`LiveEvolution`) en tête de l'étape Suivre (PR #41).
+- **G4** ✅ a11y + états + typage d3 (PR #34) — primitive `TabList` accessible partagée (nav globale **et** StepBar : roving tabindex, flèches, activation manuelle, `role=tablist`/`tabpanel`) ; `Field` associe label↔contrôle (`useId`) ; états Loading/Error/Empty uniformisés ; **zéro `any`** dans `TimelineViewer`/`TopologyViewer`.
+- **Suivi minors** ✅ (PR #37) — landmark `<nav>` restauré, commentaires casts d3, factorisation CSS, test orientation verticale `TabList`.
+- **État** : suite frontend **56 tests / 21 fichiers**, build `tsc + vite` vert, TS strict. **Roadmap frontend (F0→F3 + Vague G + suites) : entièrement livrée — aucun backlog en attente.**
+
 ---
 
-## Vague G — Dette & qualité (audit 2026-06-23)
+## Vague G — Dette & qualité (audit 2026-06-23) — ✅ LIVRÉE (voir avancement 2026-06-24)
 
 Audit complet du frontend (architecture, UX/a11y, design system, perf/bundle, tests). Base saine et cohérente ; tokenisation dark quasi complète ; `strict: true`. Les pistes ci-dessous sont **indépendantes** (chacune = son cycle spec → plan → impl) et **priorisées par ROI** (impact / effort / risque).
 
@@ -204,3 +213,39 @@ Audit complet du frontend (architecture, UX/a11y, design system, perf/bundle, te
 - Action : sémantique tablist + `aria-selected`/focus, labels de formulaires, uniformiser loading/error/empty ; typer les callbacks d3.
 
 **Ordre recommandé** : G1 (gain immédiat, débloque rien) → G2 (assainit, prépare G1bis + G4) → G3 (flagship UX) → G4 (interleavable en continu). Réordonnançable selon priorité produit.
+
+---
+
+## Vague H — pistes net-new (audit 2026-06-24)
+
+Vague G + suites + vue **Sweep** (paysage de paramètres, PR #45/#47) livrées → roadmap features
+épuisée. Pistes net-new identifiées pour prolonger l'instrument scientifique, priorisées par ROI
+(valeur / effort / dépendance backend) :
+
+### H1 — Graphe de provenance EDR↔run↔condition↔article  ⭐ priorité 1 (frontend-only)
+*Valeur élevée · effort moyen · risque faible · zéro dépendance backend.*
+- Les liens finding↔run↔EDR↔article existent (F2.9 : `/api/runs/edr-links`, `/api/runs/article-links`,
+  `RunDetail.links`) mais ne sont affichés que sous forme de **badges/listes plats** dans
+  `RunsHistoryView`. Aucune vue ne rend la **toile** navigable.
+- Action : vue graphe interactif (D3 force, pattern `TopologyViewer`/`TimelineViewer` déjà maîtrisé)
+  reliant EDR, runs, conditions et articles Sociologue. Toutes les données via endpoints existants.
+- **Choisie comme prochaine feature (brainstorm 2026-06-24).**
+
+### H2 — Vue cohorte / distributions par condition  · priorité 2
+*Valeur moyenne-élevée · effort moyen · dépendance backend possible.*
+- L'A/B est **pairwise** ; pas de vue de la **dispersion multi-seed** par condition (box/violin) pour
+  juger si un résultat « tient ». Données via `/api/runs/conditions` + valeurs de runs (agrégat backend
+  léger ou calcul client).
+
+### H3 — Sweep v2 : superposition multi-knob  · priorité 3 (frontend-only)
+*Valeur moyenne · effort faible-moyen · dépend de la propagation `/api/sweeps` → main.*
+- Enhancement différé de la vue Sweep v1 (un sweep à la fois) : superposer plusieurs sweeps/séries
+  pour comparer des knobs. Frontend-only une fois l'endpoint sur main.
+
+### H4 — Carnet de labo / annotations  · priorité 4 (backend requis)
+*Valeur moyenne · effort moyen · dépendance backend (store).*
+- Annoter runs/findings inline (capitalisation). Nécessite un nouvel endpoint de store côté backend
+  (session parallèle) — pattern patch-and-handoff comme `/api/sweeps`.
+
+**Ordre recommandé** : H1 (prêt, frontend-only, fort ROI) → H2 → H3 (après propagation sweep) → H4
+(quand le backend store est arbitré). Réordonnançable selon priorité produit.

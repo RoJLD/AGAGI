@@ -7,11 +7,14 @@ import { Loading } from "./ui/Loading";
 import { ErrorState } from "./ui/ErrorState";
 import { Empty } from "./ui/Empty";
 
+type TimelineNode = { id: string; label: string } & d3.SimulationNodeDatum;
+type TimelineLink = d3.SimulationLinkDatum<TimelineNode>;
+
 export function TimelineViewer() {
   const svgRef = useRef<SVGSVGElement>(null);
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: queryKeys.timeline,
-    queryFn: () => apiFetch<{ nodes: any[]; links: any[] }>("/api/timeline"),
+    queryFn: () => apiFetch<{ nodes: TimelineNode[]; links: TimelineLink[] }>("/api/timeline"),
     staleTime: Infinity,
   });
 
@@ -24,17 +27,17 @@ export function TimelineViewer() {
     const height = 400;
 
     const simulation = d3
-      .forceSimulation(data.nodes)
+      .forceSimulation<TimelineNode>(data.nodes)
       .force(
         "link",
-        d3.forceLink(data.links).id((d: any) => d.id).distance(100)
+        d3.forceLink<TimelineNode, TimelineLink>(data.links).id((d) => d.id).distance(100),
       )
       .force("charge", d3.forceManyBody().strength(-300))
       .force("center", d3.forceCenter(width / 2, height / 2));
 
     const link = svg
       .append("g")
-      .selectAll("line")
+      .selectAll<SVGLineElement, TimelineLink>("line")
       .data(data.links)
       .join("line")
       .style("stroke", "var(--color-border)")
@@ -43,40 +46,38 @@ export function TimelineViewer() {
 
     const node = svg
       .append("g")
-      .selectAll("circle")
+      .selectAll<SVGCircleElement, TimelineNode>("circle")
       .data(data.nodes)
       .join("circle")
       .attr("r", 10)
       // Séries data-viz -> tokens theme-aware (rouge = Agent, teal = autre).
-      .style("fill", (d: any) => (d.label === "Agent" ? "var(--viz-2)" : "var(--viz-1)"));
+      .style("fill", (d) => (d.label === "Agent" ? "var(--viz-2)" : "var(--viz-1)"));
 
     const label = svg
       .append("g")
-      .selectAll("text")
+      .selectAll<SVGTextElement, TimelineNode>("text")
       .data(data.nodes)
       .join("text")
-      .text((d: any) => d.id)
+      .text((d) => d.id)
       .attr("font-size", 10)
       .attr("dx", 12)
       .attr("dy", 4)
       .style("fill", "var(--color-text)"); // sinon noir par défaut -> invisible en dark
 
-    node.append("title").text((d: any) => `${d.label}: ${d.id}`);
+    // `append("title")` ne propage pas le datum générique : on re-cast vers TimelineNode.
+    node.append("title").text((d) => `${(d as TimelineNode).label}: ${(d as TimelineNode).id}`);
 
     simulation.on("tick", () => {
+      // d3.SimulationLinkDatum.source/target est typé `string | number | TimelineNode` ;
+      // après initialisation de la simulation, d3 les résout en nœuds -> cast vers TimelineNode.
       link
-        .attr("x1", (d: any) => d.source.x)
-        .attr("y1", (d: any) => d.source.y)
-        .attr("x2", (d: any) => d.target.x)
-        .attr("y2", (d: any) => d.target.y);
+        .attr("x1", (d) => (d.source as TimelineNode).x ?? 0)
+        .attr("y1", (d) => (d.source as TimelineNode).y ?? 0)
+        .attr("x2", (d) => (d.target as TimelineNode).x ?? 0)
+        .attr("y2", (d) => (d.target as TimelineNode).y ?? 0);
 
-      node
-        .attr("cx", (d: any) => d.x)
-        .attr("cy", (d: any) => d.y);
-
-      label
-        .attr("x", (d: any) => d.x)
-        .attr("y", (d: any) => d.y);
+      node.attr("cx", (d) => d.x ?? 0).attr("cy", (d) => d.y ?? 0);
+      label.attr("x", (d) => d.x ?? 0).attr("y", (d) => d.y ?? 0);
     });
 
     return () => {

@@ -33,7 +33,7 @@ export function TopologyViewer({ graph }: TopologyViewerProps) {
       .forceSimulation<NodeDatum>(graph.nodes as NodeDatum[])
       .force(
         "link",
-        d3.forceLink<NodeDatum, LinkDatum>(graph.links).id((d) => d.id as any).distance(120).strength(1)
+        d3.forceLink<NodeDatum, LinkDatum>(graph.links).id((d) => String(d.id)).distance(120).strength(1)
       )
       .force("charge", d3.forceManyBody().strength(-280))
       .force("center", d3.forceCenter(width / 2, height / 2))
@@ -47,7 +47,7 @@ export function TopologyViewer({ graph }: TopologyViewerProps) {
       .join("line")
       .attr("stroke-width", (d) => Math.max(1.2, Math.abs(d.weight) * 1.8));
 
-    const dragBehavior = d3
+    const dragBehavior: d3.DragBehavior<SVGGElement, NodeDatum, NodeDatum | d3.SubjectPosition> = d3
       .drag<SVGGElement, NodeDatum>()
       .on("start", (event, d) => {
         if (!event.active) simulation.alphaTarget(0.3).restart();
@@ -62,7 +62,7 @@ export function TopologyViewer({ graph }: TopologyViewerProps) {
         if (!event.active) simulation.alphaTarget(0);
         d.fx = null;
         d.fy = null;
-      }) as any;
+      });
 
     const node = svg
       .append("g")
@@ -103,5 +103,5 @@ export function TopologyViewer({ graph }: TopologyViewerProps) {
     };
   }, [graph]);
 
-  return <svg ref={ref} className="topology-svg" aria-label="Topology graph"></svg>;
+  return <svg ref={ref} className="topology-svg" aria-label="Graphe de topologie"></svg>;
 }

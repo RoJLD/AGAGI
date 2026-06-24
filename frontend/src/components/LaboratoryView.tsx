@@ -14,10 +14,13 @@ interface GateOption {
   gate: string;
 }
 
-export function LaboratoryView() {
+export function LaboratoryView({
+  initialBaseline = "",
+  initialIntervention = "",
+}: { initialBaseline?: string; initialIntervention?: string } = {}) {
   const queryClient = useQueryClient();
-  const [baseline, setBaseline] = useState("");
-  const [intervention, setIntervention] = useState("");
+  const [baseline, setBaseline] = useState(initialBaseline);
+  const [intervention, setIntervention] = useState(initialIntervention);
   const [validationError, setValidationError] = useState("");
 
   const articlesQuery = useQuery({
@@ -35,8 +38,12 @@ export function LaboratoryView() {
 
   // Valeurs par défaut une fois les expériences chargées.
   useEffect(() => {
-    if (experiments.length >= 2 && !baseline && !intervention) {
-      setBaseline(experiments[0].gate);
+    if (experiments.length < 2) return;
+    if (!baseline) {
+      const fallback = experiments.find((e) => e.gate !== intervention)?.gate ?? experiments[0].gate;
+      setBaseline(fallback);
+    }
+    if (!intervention && !baseline) {
       setIntervention(experiments[1].gate);
     }
   }, [experiments, baseline, intervention]);

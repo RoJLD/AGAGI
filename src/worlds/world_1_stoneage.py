@@ -612,6 +612,8 @@ class Biosphere3D(BaseWorld):
                         p["x"], p["y"] = nx, ny
 
     def _resolve_biology(self, agent, action, logits):
+        if getattr(self.config, "trace_energy_sinks", False):
+            agent["_s0_bio"] = agent["energy"]               # EDR100 : entree biologie
         # Base drain (métabolisme). EDR 084 : la survie plafonne car 79% starvent ; `base_metabolism`
         # (config, défaut 1.0) règle le drain pour viser le sweet spot dureté↔soutenabilité.
         drain = getattr(self.config, "base_metabolism", 1.0) * agent["model"].phenotype_energy_drain
@@ -635,9 +637,12 @@ class Biosphere3D(BaseWorld):
                 agent["confort"] = max(0.0, agent.get("confort", 50.0) - 0.5)
 
         agent["energy"] -= drain
-        
+        if getattr(self.config, "trace_energy_sinks", False):
+            agent["_s1_bio"] = agent["energy"]               # EDR100 : apres metabolisme
         terrain = self.terrain_type[agent["y"], agent["x"]]
         agent["energy"] -= [self.config.biome.plains_drain, self.config.biome.forest_drain, self.config.biome.water_drain, self.config.biome.desert_drain][terrain]
+        if getattr(self.config, "trace_energy_sinks", False):
+            agent["_s2_bio"] = agent["energy"]               # EDR100 : apres terrain
 
         # A) Scaffold d'approche (annelé) : récompense la réduction de distance au
         # gibier le plus proche -> enseigne la chasse (fix du goulot, EDR 012).
@@ -647,8 +652,12 @@ class Biosphere3D(BaseWorld):
             agent["energy"] += approach_reward(agent.get("last_prey_dist", d), d, self.scaffold_eps, lam)
             agent["last_prey_dist"] = d
 
+        if getattr(self.config, "trace_energy_sinks", False):
+            agent["_s3_bio"] = agent["energy"]               # EDR100 : avant carry
         carry_weight = sum(i.get("weight", 1.0) if isinstance(i, dict) else 1.0 for i in agent["inventory"])
         agent["energy"] -= carry_weight * 0.5
+        if getattr(self.config, "trace_energy_sinks", False):
+            agent["_s4_bio"] = agent["energy"]               # EDR100 : apres carry
         
         if len(agent["inventory"]) > 0:
             first_item = agent["inventory"][0]
@@ -749,6 +758,17 @@ class Biosphere3D(BaseWorld):
             agent["energy"] += self.config.treasure_reward
             logger.emit("TREASURE_FOUND", {"agent_id": agent["id"]})
             self._spawn_treasure()
+        if getattr(self.config, "trace_energy_sinks", False):
+            _s0 = agent.get("_s0_bio", agent["energy"])
+            _s1 = agent.get("_s1_bio", _s0)
+            _s2 = agent.get("_s2_bio", _s1)
+            _s3 = agent.get("_s3_bio", _s2)
+            _s4 = agent.get("_s4_bio", _s3)
+            bio = agent.setdefault("_e_bio", {"metab": 0.0, "terrain": 0.0, "carry": 0.0, "autres": 0.0})
+            bio["metab"] += _s0 - _s1
+            bio["terrain"] += _s1 - _s2
+            bio["carry"] += _s3 - _s4
+            bio["autres"] += (_s2 - _s3) + (_s4 - agent["energy"])   # gains approach/forage + jump/heal/hunt
 
     def _resolve_social(self):
         new_agents = []
@@ -972,11 +992,15 @@ class Biosphere3D(BaseWorld):
         night_mult = getattr(self.config, "ttc_night_penalty", 2.5) if getattr(self, "is_night", False) else 1.0
 
         for i, agent in enumerate(self.agents):
+            if getattr(self.config, "trace_energy_sinks", False):
+                agent["_e0"] = agent["energy"]                 # EDR099 : energie debut tick
             surprise_val = float(agent["model"].surprise_momentum)
             surprise_scale = 1.0 + surprise_val * getattr(self.config, "ttc_surprise_scale", 1.0)
-            
+
             brain_cost = base_cost * (1.0 + np.log2(1.0 + compute_spent[i])) * night_mult * surprise_scale
             agent["energy"] = max(0.0, agent["energy"] - float(brain_cost))
+            if getattr(self.config, "trace_energy_sinks", False):
+                agent["_e_brain"] = agent["energy"]            # EDR099 : apres brain_cost
             
             if getattr(self.config, "active_exp_variable", "NONE") == "INTRINSIC":
                 # Recompense Intrinsèque : La surprise génère de la dopamine (énergie)
@@ -1253,7 +1277,11 @@ class Biosphere3D(BaseWorld):
                         agent["last_env_surprise"] = 0.5
 
             # Biology
+            if getattr(self.config, "trace_energy_sinks", False):
+                agent["_e_prebio"] = agent["energy"]           # EDR099 : avant biologie
             self._resolve_biology(agent, action, logits)
+            if getattr(self.config, "trace_energy_sinks", False):
+                agent["_e_postbio"] = agent["energy"]          # EDR099 : apres biologie, avant mouvement
             
             # Movement (2D: actions 0-3 = N,S,E,W; 3D: actions 4-5 = Up,Down)
             ax, ay, az = int(agent["x"]), int(agent["y"]), int(agent.get("z", 0))
@@ -1275,7 +1303,17 @@ class Biosphere3D(BaseWorld):
                 agent["energy"] -= 2.0
                 
             self.pheromone_map[z_layer, int(agent["y"]), int(agent["x"])] += 1.0
-            
+            if getattr(self.config, "trace_energy_sinks", False):
+                _e0 = agent.get("_e0", agent["energy"])
+                _eb = agent.get("_e_brain", _e0)
+                _ep = agent.get("_e_prebio", _eb)
+                _epb = agent.get("_e_postbio", _ep)
+                ph = agent.setdefault("_e_phases", {"brain": 0.0, "action": 0.0, "biologie": 0.0, "mouvement": 0.0})
+                ph["brain"] += _e0 - _eb                       # cout brain_cost
+                ph["action"] += _eb - _ep                      # throw + signal + divers (loop2 avant biologie)
+                ph["biologie"] += _ep - _epb                   # metab+terrain+carry (peut etre <0 si forage)
+                ph["mouvement"] += _epb - agent["energy"]      # penalite mouvement bloque (elif action < 6)
+
             # Survive / Reproduce
             if getattr(self, 'is_night', False):
                 agent["confort"] = max(0.0, agent.get("confort", 50.0) - 1.0)
@@ -1498,7 +1536,17 @@ class Biosphere3D(BaseWorld):
             hgt_new_agents = self._apply_hgt_breeding()
             self._apply_surprise_hgt()
         
-        for (g, x, y, e) in new_agents + social_new_agents + hgt_new_agents:
+        self._add_offspring(new_agents + social_new_agents + hgt_new_agents)
+
+    def _add_offspring(self, offspring):
+        """Ajoute la descendance d'un tick en respectant la capacité de charge des agents
+        (config.max_population). None = pas de cap (comportement historique). Le cap borne la
+        population intra-épisode -> borne le coût O(N²) d'_apply_hgt_breeding (anti-runaway
+        survie-longue, post-EDR090)."""
+        cap = getattr(self.config, "max_population", None)
+        for (g, x, y, e) in offspring:
+            if cap is not None and len(self.agents) >= cap:
+                break
             self.add_agent(g, x=x, y=y, energy=e)
 
     def render(self):

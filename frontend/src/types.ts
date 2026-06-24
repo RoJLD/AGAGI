@@ -151,3 +151,15 @@ export type EdrLinks = Record<string, string[]>;
 
 /** {run_id: [article_id, ...]} — articles Sociologue liés à chaque run. */
 export type ArticleLinks = Record<string, string[]>;
+
+/** Résultat d'un sweep : une métrique tracée le long d'un paramètre balayé (knob). */
+export interface SweepResult {
+  run_id: string;
+  name: string;
+  knob: string;
+  x: number[];
+  series: Record<string, number[]>;
+  y_std?: Record<string, number[]>;
+  seed: number;
+  commit?: string | null;
+}

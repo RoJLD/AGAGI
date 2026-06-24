@@ -1,145 +1,33 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
-import type { AcademyPayload, ExperimentDetail, ExperimentHistory, ExperimentSummary, GraphData } from "./types";
-import { EDRDashboard } from "./components/EDRDashboard";
-import { ComparisonChart } from "./components/ComparisonChart";
-import { RadarChart } from "./components/RadarChart";
-import { LiveEvolution } from "./components/LiveEvolution";
-import { Button } from "./components/ui/Button";
-import { ErrorBoundary } from "./components/ErrorBoundary";
-import { Loading } from "./components/ui/Loading";
+import { lazy, Suspense } from "react";
 import { useTheme } from "./hooks/useTheme";
 import { useHashRoute } from "./hooks/useHashRoute";
-import { TAB_KEYS, TAB_FAMILIES } from "./tabs";
+import { TabList, tabId, panelId } from "./components/ui/Tabs";
+import { TAB_KEYS, TAB_FAMILIES, buildNavItems } from "./tabs";
+import { ErrorBoundary } from "./components/ErrorBoundary";
+import { GateSidebar } from "./components/GateSidebar";
+import { EDRDashboard } from "./components/EDRDashboard";
+import { Loading } from "./components/ui/Loading";
 import { Sun, Moon } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { apiFetch } from "./api/client";
-import { queryKeys } from "./api/queryKeys";
 
-const TopologyViewer = lazy(() => import("./components/TopologyViewer").then((m) => ({ default: m.TopologyViewer })));
-const LaboratoryView = lazy(() => import("./components/LaboratoryView").then((m) => ({ default: m.LaboratoryView })));
-const TimelineViewer = lazy(() => import("./components/TimelineViewer").then((m) => ({ default: m.TimelineViewer })));
-const SandboxView = lazy(() => import("./components/SandboxView").then((m) => ({ default: m.SandboxView })));
 const LiveMetrics = lazy(() => import("./components/LiveMetrics").then((m) => ({ default: m.LiveMetrics })));
 const FlatlandViewer = lazy(() => import("./components/FlatlandViewer").then((m) => ({ default: m.FlatlandViewer })));
-const ABComparisonView = lazy(() => import("./components/ABComparisonView").then((m) => ({ default: m.ABComparisonView })));
+const EvolutionView = lazy(() => import("./components/EvolutionView").then((m) => ({ default: m.EvolutionView })));
+const ComparisonView = lazy(() => import("./components/ComparisonView").then((m) => ({ default: m.ComparisonView })));
+const TopologyView = lazy(() => import("./components/TopologyView").then((m) => ({ default: m.TopologyView })));
+const AcademyView = lazy(() => import("./components/AcademyView").then((m) => ({ default: m.AcademyView })));
+const LaboratoryView = lazy(() => import("./components/LaboratoryView").then((m) => ({ default: m.LaboratoryView })));
+const TimelineViewer = lazy(() => import("./components/TimelineViewer").then((m) => ({ default: m.TimelineViewer })));
+const ProvenanceView = lazy(() => import("./components/ProvenanceView").then((m) => ({ default: m.ProvenanceView })));
+const SandboxView = lazy(() => import("./components/SandboxView").then((m) => ({ default: m.SandboxView })));
 const RunLauncher = lazy(() => import("./components/RunLauncher").then((m) => ({ default: m.RunLauncher })));
 const RunsHistoryView = lazy(() => import("./components/RunsHistoryView").then((m) => ({ default: m.RunsHistoryView })));
 const HealthView = lazy(() => import("./components/HealthView").then((m) => ({ default: m.HealthView })));
-
-function formatPercentage(value: number) {
-  return `${(value * 100).toFixed(1)}%`;
-}
-
-function createLinePath(values: number[], width: number, height: number) {
-  const count = values.length;
-  if (!count) return "";
-  const maxValue = Math.max(...values, 1);
-  const minValue = Math.min(...values, 0);
-  const scaleY = (v: number) => height - ((v - minValue) / (maxValue - minValue || 1)) * height;
-  const step = width / Math.max(count - 1, 1);
-  return values
-    .map((value, index) => `${index === 0 ? "M" : "L"} ${index * step} ${scaleY(value)}`)
-    .join(" ");
-}
-
-function createStabilitySeries(values: number[]) {
-  if (values.length <= 1) {
-    return values.map(() => 1);
-  }
-
-  const deltas = values.map((value, index) => (index === 0 ? 0 : Math.abs(value - values[index - 1])));
-  const maxDelta = Math.max(...deltas.slice(1), 0.01);
-  return deltas.map((delta) => 1 - Math.min(1, delta / maxDelta));
-}
-
-function ChartLine({ values, color }: { values: number[]; color: string }) {
-  return <path d={createLinePath(values, 700, 260)} fill="none" style={{ stroke: color }} strokeWidth={3} />;
-}
+const ParcoursView = lazy(() => import("./components/parcours/ParcoursView").then((m) => ({ default: m.ParcoursView })));
+const SweepView = lazy(() => import("./components/SweepView").then((m) => ({ default: m.SweepView })));
 
 export default function App() {
   const { theme, toggle } = useTheme();
-  const { tab, gate: selectedGate, query, setTab, setGate, navigate } = useHashRoute(TAB_KEYS, "edr");
-  const { data: experiments = [] } = useQuery({
-    queryKey: queryKeys.experiments.list,
-    queryFn: () => apiFetch<ExperimentSummary[]>("/api/experiments"),
-    staleTime: 30_000,
-  });
-  const { data: detail = null } = useQuery({
-    queryKey: queryKeys.experiments.detail(selectedGate),
-    queryFn: () => apiFetch<ExperimentDetail>(`/api/experiments/${selectedGate}`),
-    enabled: !!selectedGate,
-  });
-  const { data: academy = null } = useQuery({
-    queryKey: queryKeys.academy,
-    queryFn: () => apiFetch<AcademyPayload>("/api/academy"),
-    staleTime: Infinity,
-  });
-  const [compareMode, setCompareMode] = useState<"global" | "ab">("global");
-
-  const selectedExperiment = useMemo(() => experiments.find((item) => item.gate === selectedGate), [experiments, selectedGate]);
-
-  const summaryMetrics = useMemo(() => {
-    if (!experiments.length) return null;
-
-    const fitnessValues = experiments.map((item) => item.latest_fitness);
-    const accuracyValues = experiments.map((item) => item.latest_accuracy);
-    const sizes = experiments.flatMap((item) => (item.latest_size !== undefined ? [item.latest_size] : []));
-
-    const bestFitness = experiments.reduce((best, current) => (current.latest_fitness > best.latest_fitness ? current : best), experiments[0]);
-    const bestAccuracy = experiments.reduce((best, current) => (current.latest_accuracy > best.latest_accuracy ? current : best), experiments[0]);
-
-    const emergentScores = experiments.flatMap((item) => (item.emergent_score !== undefined ? [item.emergent_score] : []));
-    const robustnessScores = experiments.flatMap((item) => (item.robustness_score !== undefined ? [item.robustness_score] : []));
-    const stabilityScores = experiments.flatMap((item) => (item.performance_stability !== undefined ? [item.performance_stability] : []));
-    return {
-      count: experiments.length,
-      averageFitness: fitnessValues.reduce((sum, value) => sum + value, 0) / fitnessValues.length,
-      averageAccuracy: accuracyValues.reduce((sum, value) => sum + value, 0) / accuracyValues.length,
-      averageEmergentScore: emergentScores.length
-        ? emergentScores.reduce((sum, value) => sum + value, 0) / emergentScores.length
-        : 0,
-      averageRobustness: robustnessScores.length
-        ? robustnessScores.reduce((sum, value) => sum + value, 0) / robustnessScores.length
-        : 0,
-      averageStability: stabilityScores.length
-        ? stabilityScores.reduce((sum, value) => sum + value, 0) / stabilityScores.length
-        : 0,
-      bestFitnessGate: bestFitness.gate,
-      bestAccuracyGate: bestAccuracy.gate,
-      bestEmergentGate: experiments.reduce(
-        (best, current) =>
-          current.emergent_score !== undefined && current.emergent_score > (best.emergent_score ?? -Infinity)
-            ? current
-            : best,
-        experiments[0],
-      ).gate,
-      bestRobustGate: experiments.reduce(
-        (best, current) =>
-          current.robustness_score !== undefined && current.robustness_score > (best.robustness_score ?? -Infinity)
-            ? current
-            : best,
-        experiments[0],
-      ).gate,
-      smallestSize: sizes.length ? Math.min(...sizes) : undefined,
-    };
-  }, [experiments]);
-
-  // Sélection par défaut : première porte si l'URL n'en précise pas.
-  useEffect(() => {
-    if (experiments.length && !selectedGate) {
-      setGate(experiments[0].gate);
-    }
-  }, [experiments, selectedGate]);
-
-  // Deep-link depuis l'Historique des runs : `?ab=<condition>` ouvre l'onglet Comparaison en mode A/B.
-  useEffect(() => {
-    if (query.ab) setCompareMode("ab");
-  }, [query.ab]);
-
-  const chartData = detail?.history;
-  const sizeSeries = chartData?.size ?? [];
-  const stabilitySeries = chartData ? createStabilitySeries(chartData.accuracy) : [];
-  // La barre latérale (sélection de porte) ne sert que pour les vues centrées sur une porte.
+  const { tab, setTab, navigate } = useHashRoute(TAB_KEYS, "parcours");
   const showSidebar = tab === "evolution" || tab === "comparison" || tab === "topology";
 
   return (
@@ -154,84 +42,31 @@ export default function App() {
             {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
             {theme === "dark" ? "Clair" : "Sombre"}
           </button>
-          <nav className="tabs">
-            {TAB_FAMILIES.map((group) => (
-              <div key={group.family} className="tab-family" title={group.family}>
-                {group.tabs.map(({ key, label, icon: Icon }) => (
-                  <button
-                    key={key}
-                    data-testid={`tab-${key}`}
-                    className={key === tab ? "active" : ""}
-                    onClick={() => setTab(key)}
-                  >
-                    <Icon size={16} />
-                    {label}
-                  </button>
-                ))}
-              </div>
-            ))}
+          <nav className="topbar-nav">
+            <TabList
+              items={buildNavItems(TAB_FAMILIES)}
+              activeId={tab}
+              onSelect={(id) => setTab(id as (typeof TAB_KEYS)[number])}
+              ariaLabel="Sections du dashboard"
+              className="tabs"
+            />
           </nav>
         </div>
       </header>
 
       <main className={showSidebar ? "content" : "content content--full"}>
-        {showSidebar && (
-        <aside className="sidebar">
-          <label htmlFor="gate-select">Sélectionner une porte</label>
-          <select id="gate-select" value={selectedGate} onChange={(event) => setGate(event.target.value)}>
-            {experiments.map((experiment) => (
-              <option key={experiment.gate} value={experiment.gate}>
-                {experiment.gate}
-              </option>
-            ))}
-          </select>
+        {showSidebar && <GateSidebar />}
 
-          {summaryMetrics ? (
-            <div className="summary-panel">
-              <h2>Vue globale</h2>
-              <p>Total portes : {summaryMetrics.count}</p>
-              <p>Meilleure fitness : {summaryMetrics.bestFitnessGate}</p>
-              <p>Meilleure précision : {summaryMetrics.bestAccuracyGate}</p>
-              <p>Meilleur score d'intelligence : {summaryMetrics.bestEmergentGate}</p>
-              <p>Fitness moyenne : {summaryMetrics.averageFitness.toFixed(4)}</p>
-              <p>Précision moyenne : {formatPercentage(summaryMetrics.averageAccuracy)}</p>
-              <p>Score d'intelligence moyen : {summaryMetrics.averageEmergentScore.toFixed(3)}</p>
-              <p>Robustesse moyenne : {summaryMetrics.averageRobustness.toFixed(3)}</p>
-              <p>Stabilité moyenne : {summaryMetrics.averageStability.toFixed(3)}</p>
-              {summaryMetrics.smallestSize !== undefined && <p>Plus petite topologie : {summaryMetrics.smallestSize}</p>}
-            </div>
-          ) : null}
-
-          {selectedExperiment ? (
-            <div className="metrics-panel">
-              <h2>{selectedExperiment.gate}</h2>
-              <p>Fitness finale : {selectedExperiment.latest_fitness.toFixed(4)}</p>
-              <p>Précision finale : {formatPercentage(selectedExperiment.latest_accuracy)}</p>
-              {selectedExperiment.emergent_score !== undefined && (
-                <p>Score d'intelligence : {selectedExperiment.emergent_score.toFixed(3)}</p>
-              )}
-              {selectedExperiment.robustness_score !== undefined && (
-                <p>Robustesse : {selectedExperiment.robustness_score.toFixed(3)}</p>
-              )}
-              {selectedExperiment.performance_stability !== undefined && (
-                <p>Stabilité : {selectedExperiment.performance_stability.toFixed(3)}</p>
-              )}
-              {selectedExperiment.modularity !== undefined && (
-                <p>Modularité : {selectedExperiment.modularity.toFixed(3)}</p>
-              )}
-              {selectedExperiment.motif_density !== undefined && (
-                <p>Densité de motifs : {selectedExperiment.motif_density.toFixed(3)}</p>
-              )}
-              {selectedExperiment.latest_size !== undefined && <p>Taille finale : {selectedExperiment.latest_size}</p>}
-            </div>
-          ) : null}
-
-        </aside>
-        )}
-
-        <section className="panel">
+        <section
+          className="panel"
+          role="tabpanel"
+          id={panelId(tab)}
+          aria-labelledby={tabId(tab)}
+          tabIndex={0}
+        >
           <ErrorBoundary key={tab}>
           <Suspense fallback={<Loading label="Chargement de la vue…" />}>
+          {tab === "parcours" && <ParcoursView />}
           {tab === "edr" && <EDRDashboard />}
           {tab === "live" && (
             <>
@@ -239,134 +74,14 @@ export default function App() {
               <FlatlandViewer />
             </>
           )}
-
-          {tab === "evolution" && (
-            <>
-              <LiveEvolution />
-              <h2>Évolution dynamique</h2>
-              {chartData ? (
-                <>
-                  <svg viewBox="0 0 720 300" className="chart-svg" aria-label="Evolution chart">
-                    <ChartLine values={chartData.fitness} color="var(--viz-1)" />
-                    <ChartLine values={chartData.accuracy} color="var(--viz-2)" />
-                    {sizeSeries.length ? <ChartLine values={sizeSeries.map((value: number) => value / Math.max(...sizeSeries, 1))} color="var(--color-text-dim)" /> : null}
-                    {stabilitySeries.length ? <ChartLine values={stabilitySeries} color="var(--viz-4)" /> : null}
-                  </svg>
-                  <div className="legend-row">
-                    <span className="legend-dot" style={{ background: "var(--viz-1)" }} /> Fitness
-                    <span className="legend-dot" style={{ background: "var(--viz-2)" }} /> Précision
-                    <span className="legend-dot" style={{ background: "var(--color-text-dim)" }} /> Taille normalisée
-                    <span className="legend-dot" style={{ background: "var(--viz-4)" }} /> Stabilité
-                  </div>
-                </>
-              ) : (
-                <p>Chargement des données...</p>
-              )}
-            </>
-          )}
-
-          {tab === "comparison" && (
-            <>
-              <div className="row mb-4">
-                <Button variant={compareMode === "global" ? "primary" : "ghost"} size="sm" onClick={() => setCompareMode("global")}>
-                  Vue globale
-                </Button>
-                <Button variant={compareMode === "ab" ? "primary" : "ghost"} size="sm" onClick={() => setCompareMode("ab")}>
-                  A/B rigoureux
-                </Button>
-              </div>
-              {compareMode === "ab" ? (
-                <>
-                  <h2>A/B rigoureux (runs multi-seed)</h2>
-                  <ABComparisonView preselectA={query.ab} />
-                </>
-              ) : (
-                <>
-                  <h2>Comparaison des portes</h2>
-                  <ComparisonChart experiments={experiments} />
-                  <RadarChart experiments={experiments} />
-                  <div className="comparison-list">
-                    {experiments.map((item) => (
-                      <div key={item.gate} className="comparison-card">
-                        <strong>{item.gate}</strong>
-                        <span>Fitness: {item.latest_fitness.toFixed(3)}</span>
-                        <span>Précision: {formatPercentage(item.latest_accuracy)}</span>
-                        {item.robustness_score !== undefined && <span>Robustesse: {item.robustness_score.toFixed(3)}</span>}
-                        {item.performance_stability !== undefined && <span>Stabilité: {item.performance_stability.toFixed(3)}</span>}
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-            </>
-          )}
-
-          {tab === "topology" && (
-            <>
-              <h2>Topologie du meilleur modèle</h2>
-              <div className="topology-grid">
-                <div className="topology-visual">
-                  {detail?.graph ? <TopologyViewer graph={detail.graph} /> : <p>Topologie indisponible.</p>}
-                </div>
-                <div className="topology-analysis">
-                  <h3>Analyse des motifs</h3>
-                  {detail?.metrics ? (
-                    <div className="motif-summary">
-                      <p>Modularité : {detail.metrics.modularity.toFixed(3)}</p>
-                      <p>Densité de motifs : {detail.metrics.motif_density.toFixed(3)}</p>
-                      <p>Stabilité : {detail.metrics.performance_stability.toFixed(3)}</p>
-                      <p>Robustesse : {detail.metrics.robustness_score.toFixed(3)}</p>
-                      <p>Sparsité : {detail.metrics.sparsity.toFixed(3)}</p>
-                      <p>Ratio caché : {detail.metrics.hidden_ratio.toFixed(3)}</p>
-                    </div>
-                  ) : (
-                    <p>Chargement de l’analyse...</p>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
-
-          {tab === "academy" && (
-            <>
-              <h2>Academy</h2>
-              {academy ? (
-                <div>
-                  <div className="academy-box">
-                    <h3>Historique des versions</h3>
-                    <ol>
-                      {academy.version_history.map((item) => (
-                        <li key={item.title}>
-                          <strong>{item.title}</strong> — {item.description}
-                        </li>
-                      ))}
-                    </ol>
-                  </div>
-                  <div className="academy-box">
-                    <h3>Timeline</h3>
-                    <ol>
-                      {academy.timeline.map((event, index) => (
-                        <li key={index}>{event}</li>
-                      ))}
-                    </ol>
-                  </div>
-                  <div className="academy-box">
-                    <h3>Objectifs pédagogiques</h3>
-                    <ul>
-                      {academy.learning_goals.map((goal, index) => (
-                        <li key={index}>{goal}</li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              ) : (
-                <p>Chargement des contenus Academy...</p>
-              )}
-            </>
-          )}
-
+          {tab === "evolution" && <EvolutionView />}
+          {tab === "comparison" && <ComparisonView />}
+          {tab === "topology" && <TopologyView />}
+          {tab === "sweeps" && <SweepView />}
+          {tab === "academy" && <AcademyView />}
           {tab === "laboratoire" && <LaboratoryView />}
           {tab === "timeline" && <TimelineViewer />}
+          {tab === "provenance" && <ProvenanceView />}
           {tab === "sandbox" && (
             <>
               <RunLauncher />

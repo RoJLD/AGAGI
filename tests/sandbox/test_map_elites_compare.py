@@ -35,6 +35,21 @@ def test_compare_structure_and_verdict():
     assert all("ratio" in p and "C_hof" in p and "C_qd" in p for p in out["per_seed"])
 
 
+def test_seed_spread_cycles_sizes(monkeypatch):
+    # A2 v2 : MEC_SEED_SPREAD étale l'axe taille -> _seed_genome(idx) cycle les num_nodes.
+    import tools.map_elites_compare as mec
+    monkeypatch.setattr(mec, "SEED_SPREAD", [160, 200, 240])
+    sizes = [mec._seed_genome(i).num_nodes for i in range(7)]
+    assert sizes == [160, 200, 240, 160, 200, 240, 160]   # cyclage par index
+
+
+def test_seed_spread_none_falls_back_to_fixed(monkeypatch):
+    import tools.map_elites_compare as mec
+    monkeypatch.setattr(mec, "SEED_SPREAD", None)
+    monkeypatch.setattr(mec, "SEED_NODES", 210)
+    assert mec._seed_genome(3).num_nodes == 210   # sans spread, taille fixe
+
+
 import pytest
 @pytest.mark.skipif(os.environ.get("MEC_SMOKE") != "1", reason="smoke lourd — set MEC_SMOKE=1")
 def test_compare_smoke_real():

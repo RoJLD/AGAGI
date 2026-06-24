@@ -60,7 +60,13 @@ function VerdictCard({ r }: { r: ABCompareResult }) {
   );
 }
 
-export function ABComparisonView({ preselectA }: { preselectA?: string }) {
+export function ABComparisonView({
+  preselectA,
+  onBaselineChange,
+}: {
+  preselectA?: string;
+  onBaselineChange?: (name: string) => void;
+}) {
   const conditionsQuery = useQuery({
     queryKey: queryKeys.runs.conditions,
     queryFn: () => apiFetch<ConditionSummary[]>("/api/runs/conditions"),
@@ -134,7 +140,13 @@ export function ABComparisonView({ preselectA }: { preselectA?: string }) {
         </Field>
         <span className="text-dim">vs</span>
         <Field label="Condition B">
-          <select value={b} onChange={(e) => setB(e.target.value)}>
+          <select
+            value={b}
+            onChange={(e) => {
+              setB(e.target.value);
+              onBaselineChange?.(e.target.value);
+            }}
+          >
             {conditions.map((c) => (
               <option key={c.name} value={c.name}>
                 {c.name} ({c.n_seeds} seeds)
