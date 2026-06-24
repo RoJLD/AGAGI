@@ -101,3 +101,18 @@ def test_verdict_surprise_three_branches():
     assert lss._verdict_surprise(levels, [5, 5, 5, 5], ff0) == "PAS LE BRAIN_COST"
     # frontiere : exactement au gate ne franchit pas (m > gate strict)
     assert lss._verdict_surprise(levels, [5, 5, 5, 120], ff0) == "PAS LE BRAIN_COST"
+
+
+def test_measure_survival_collect_surprise():
+    lss._disable_kuzu()
+    cfg = lss._cfg(3, ttc_surprise_scale=1.0)
+    a = lss._measure_survival(cfg, seeds=[7, 8], n_apex=0, num_agents=4, max_ticks=30, collect_surprise=True)
+    a2 = lss._measure_survival(cfg, seeds=[7, 8], n_apex=0, num_agents=4, max_ticks=30, collect_surprise=True)
+    assert set(a) == {"ticks", "famine", "combat", "kills", "surprise"}
+    assert len(a["surprise"]) == 2                          # une entree par ere (2 seeds)
+    assert set(a["surprise"][0]) == {"mean_abs_finite", "max_finite", "frac_nonfinite"}
+    assert all(0.0 <= s["frac_nonfinite"] <= 1.0 for s in a["surprise"])
+    assert a == a2                                          # seede -> reproductible
+    # defaut (sans collect) -> contrat 093/094 preserve
+    b = lss._measure_survival(cfg, seeds=[7, 8], n_apex=0, num_agents=4, max_ticks=30)
+    assert set(b) == {"ticks", "famine", "combat", "kills"}

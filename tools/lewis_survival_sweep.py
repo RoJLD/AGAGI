@@ -40,14 +40,17 @@ def _cfg(forage_payoff, ttc_surprise_scale=None):
     return cfg
 
 
-def _measure_survival(cfg, seeds, leurre_frac=0.0, n_apex=N_APEX, num_agents=NUM_AGENTS, max_ticks=MAX_TICKS):
+def _measure_survival(cfg, seeds, leurre_frac=0.0, n_apex=N_APEX, num_agents=NUM_AGENTS,
+                      max_ticks=MAX_TICKS, collect_surprise=False):
     """Mesure la survie des CHAMPIONS (repliques, pas d'evolution) en Lewis a letalite leurre_frac.
     Une ere par seed (appariement entre niveaux : meme seed -> meme monde initial). memory_retriever
-    stoppe avant la boucle. Renvoie ages (pool), causes de mort (famine/combat), kills moyens/ere."""
+    stoppe avant la boucle. Renvoie ages (pool), causes de mort (famine/combat), kills moyens/ere.
+    Si collect_surprise : ajoute 'surprise' = stats de agent['model'].surprise_momentum par ere
+    (mean_abs_finite, max_finite, frac_nonfinite) -> diagnostic du brain_cost (EDR098)."""
     mc = MutationConfig(weight_init_std=2.0)
     seed_at(0, 0)                  # graine fixe pour _load_champions (HoF vide -> fallback random)
     champs = _load_champions()
-    ticks, famine, combat, kills = [], 0, 0, []
+    ticks, famine, combat, kills, surprise = [], 0, 0, [], []
     for s in seeds:
         seed_at(s, 0)
         genomes = _reproduce(champs, num_agents, mc)
@@ -73,7 +76,29 @@ def _measure_survival(cfg, seeds, leurre_frac=0.0, n_apex=N_APEX, num_agents=NUM
         famine += sum(1 for ag in pool if ag.get("energy", 1.0) <= 0)
         combat += sum(1 for ag in pool if ag.get("hp", 1.0) <= 0 and ag.get("energy", 1.0) > 0)
         kills.append(float(np.mean([ag.get("mammoth_kills", 0) for ag in pool])) if pool else 0.0)
-    return {"ticks": ticks, "famine": famine, "combat": combat, "kills": kills}
+        if collect_surprise:
+            surprise.append(_surprise_stats(pool))
+    result = {"ticks": ticks, "famine": famine, "combat": combat, "kills": kills}
+    if collect_surprise:
+        result["surprise"] = surprise
+    return result
+
+
+def _surprise_stats(pool):
+    """Stats de surprise_momentum sur le pool (read-only) : moyenne des |finies|, max fini, fraction
+    non-finie (inf/nan -> detecte l'overflow brain_cost)."""
+    vals = []
+    for ag in pool:
+        m = ag.get("model")
+        try:
+            vals.append(float(getattr(m, "surprise_momentum", np.nan)))
+        except (TypeError, ValueError):
+            vals.append(np.nan)
+    arr = np.array(vals, dtype=float)
+    finite = arr[np.isfinite(arr)]
+    return {"mean_abs_finite": float(np.mean(np.abs(finite))) if finite.size else 0.0,
+            "max_finite": float(np.max(np.abs(finite))) if finite.size else 0.0,
+            "frac_nonfinite": float(np.mean(~np.isfinite(arr))) if arr.size else 0.0}
 
 
 def _verdict(levels, medians, gate=GATE):
