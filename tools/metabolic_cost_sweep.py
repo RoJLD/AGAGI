@@ -70,6 +70,9 @@ def compute_sweep_verdict(per_coef: List[Dict], eff_band: float = 0.05,
 
 SWEET_METAB = 0.25      # sweet-spot EDR 085 (survie ×4)
 SWEET_PAYOFF = 3.0
+# NAS substrat : si "1", charge les génomes en PRÉSERVANT leur architecture (from_genome preserve_dims)
+# au lieu de l'aplatir à 64/126/172. Indispensable pour mesurer les axes NAS sur un vrai substrat.
+PRESERVE_DIMS = os.environ.get("MCS_PRESERVE_DIMS", "") == "1"
 
 
 def _make_cfg(value, param="metabolic_cost_coef") -> WorldConfig:
@@ -179,7 +182,7 @@ def run_era_metab(cfg, genomes, max_ticks: int = 400):
     env = Biosphere3D(cfg)
     for g in genomes:
         a = MambaAgent()
-        a.from_genome(g)
+        a.from_genome(g, preserve_dims=PRESERVE_DIMS)
         env.add_agent(a, energy=80.0)
     env.current_era = 1
     t = 0
