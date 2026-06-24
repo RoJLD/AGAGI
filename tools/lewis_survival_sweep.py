@@ -26,6 +26,7 @@ MAX_TICKS = 300
 NUM_AGENTS = 24
 GATE = 120.0                       # survie mediane minimale d'un barreau survivable (089/090)
 CHEAP_MAX = 24                     # forage_payoff <= 24 (x8) = barreau "acceptable" ; 48 (x16) = trop cher
+APEX_LEVELS = (12, 9, 6, 3, 0)     # N_APEX balaye : de la densite 093 (12) au Lewis vide (0)
 
 
 def _cfg(forage_payoff):
@@ -80,6 +81,17 @@ def _verdict(levels, medians, gate=GATE):
     if not crossed:
         return "PAS DE RUNG"
     return "BARREAU TROUVE" if min(crossed) <= CHEAP_MAX else "BARREAU TROP CHER"
+
+
+def _verdict_apex(levels, medians, gate=GATE):
+    """Mappe (medianes de survie par niveau de densite d'apex) -> 3 branches pre-enregistrees.
+    Un N_APEX > 0 franchit le gate -> barreau trouve (densite reduite survivable) ; seul N_APEX=0
+    franchit -> rung degenere (survie uniquement dans un Lewis vide) ; aucun -> mur intrinseque
+    (le drain n'est pas l'environnement)."""
+    crossed = [lv for lv, m in zip(levels, medians) if m > gate]
+    if not crossed:
+        return "MUR INTRINSEQUE"
+    return "BARREAU TROUVE" if max(crossed) > 0 else "RUNG DEGENERE"
 
 
 def _report(h, levels, groups, R, n_eval, _return):

@@ -45,3 +45,15 @@ def test_main_runs_and_reproducible(tmp_path, monkeypatch):
     assert set(a["table"][3]) == {"median", "famine", "combat", "mean_kills", "n"}
     assert "p_one_sided" in a["jt"]
     assert a["verdict"] in {"BARREAU TROUVE", "BARREAU TROP CHER", "PAS DE RUNG"}
+
+
+def test_verdict_apex_three_branches():
+    levels = (12, 9, 6, 3, 0)
+    # survie franchie a un N_APEX > 0 (ici 6 et 3) -> barreau trouve
+    assert lss._verdict_apex(levels, [10, 20, 130, 200, 260]) == "BARREAU TROUVE"
+    # survie franchie SEULEMENT a N_APEX = 0 -> rung degenere
+    assert lss._verdict_apex(levels, [10, 20, 40, 90, 150]) == "RUNG DEGENERE"
+    # aucun niveau ne franchit (meme 0) -> mur intrinseque
+    assert lss._verdict_apex(levels, [5, 8, 10, 30, 60]) == "MUR INTRINSEQUE"
+    # frontiere : exactement au gate ne franchit pas (m > gate strict)
+    assert lss._verdict_apex(levels, [5, 8, 10, 30, 120]) == "MUR INTRINSEQUE"
