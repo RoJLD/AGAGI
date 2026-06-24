@@ -40,13 +40,15 @@ export default function App() {
             {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
             {theme === "dark" ? "Clair" : "Sombre"}
           </button>
-          <TabList
-            items={buildNavItems(TAB_FAMILIES)}
-            activeId={tab}
-            onSelect={(id) => setTab(id as (typeof TAB_KEYS)[number])}
-            ariaLabel="Sections du dashboard"
-            className="tabs"
-          />
+          <nav className="topbar-nav">
+            <TabList
+              items={buildNavItems(TAB_FAMILIES)}
+              activeId={tab}
+              onSelect={(id) => setTab(id as (typeof TAB_KEYS)[number])}
+              ariaLabel="Sections du dashboard"
+              className="tabs"
+            />
+          </nav>
         </div>
       </header>
 
