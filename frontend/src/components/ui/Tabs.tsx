@@ -39,6 +39,8 @@ export function TabList({
 }: TabListProps) {
   const btnRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
+  btnRefs.current.length = items.length;
+
   const focusAt = (i: number) => {
     const n = items.length;
     if (!n) return;
