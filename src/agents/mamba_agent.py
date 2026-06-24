@@ -133,10 +133,18 @@ class MambaAgent(BaseAgent):
         new_agent.predictor_head = self.predictor_head.copy() if self.predictor_head is not None else None
         return new_agent
 
-    def from_genome(self, genome: Genome):
-        """Utile pour charger un génome depuis le Hall of Fame"""
+    def from_genome(self, genome: Genome, preserve_dims: bool = False):
+        """Utile pour charger un génome depuis le Hall of Fame.
+        preserve_dims=True : garde l'architecture réelle du génome (num_nodes/I/O) au lieu de l'aplatir
+        à 64/126/172. Défaut False = comportement historique (NON-RÉGRESSION production). NAS substrat :
+        le défaut écrase la topologie évoluée (add_node) et force hidden=-18 (cf. mémoire keystone)."""
         self.genome = copy.deepcopy(genome)
-        
+
+        if preserve_dims:
+            self.update_phenotype()
+            self.reset_state()
+            return
+
         # Dimensions de la V18 (TensorWorld + NTM + Actor-Critic + Hierarchical + ToM)
         expected_inputs = 64  # 54 + 5 (NTM_Read_Result) + 5 (Manager Goal)
         expected_outputs = 126 # 29 actions + 8 (ToM) + 5 (Goal) + 20 NTM Heads + 64 Attention Mask = 126
