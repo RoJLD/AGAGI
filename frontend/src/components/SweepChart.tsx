@@ -46,8 +46,8 @@ export function SweepChart({ x, knob, metric, y, yStd }: SweepChartProps) {
         <RechartsTooltip
           contentStyle={{ backgroundColor: cssVar("--color-surface"), border: `1px solid ${cssVar("--color-border")}` }}
         />
-        {hasBand ? <Area dataKey="band" stroke="none" fill={viz[0]} fillOpacity={0.15} name="±écart-type" /> : null}
-        <Line type="monotone" dataKey="y" stroke={viz[0]} strokeWidth={2.5} name={metric} />
+        {hasBand ? <Area dataKey="band" stroke="none" fill={viz[0]} fillOpacity={0.15} name="±écart-type" isAnimationActive={false} /> : null}
+        <Line type="monotone" dataKey="y" stroke={viz[0]} strokeWidth={2.5} name={metric} isAnimationActive={false} />
       </ComposedChart>
     </ResponsiveContainer>
   );
