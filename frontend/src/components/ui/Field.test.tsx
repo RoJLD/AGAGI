@@ -1,6 +1,5 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, cleanup } from "@testing-library/react";
 import { afterEach, test, expect } from "vitest";
-import { cleanup } from "@testing-library/react";
 import { Field } from "./Field";
 
 afterEach(() => cleanup());
@@ -26,4 +25,14 @@ test("respecte un id fourni par l'appelant", () => {
   );
   const select = screen.getByLabelText("Script");
   expect(select.getAttribute("id")).toBe("my-id");
+});
+
+test("respecte l'id de l'enfant même sans htmlFor", () => {
+  render(
+    <Field label="Seed">
+      <input id="explicit-id" type="number" />
+    </Field>,
+  );
+  const input = screen.getByLabelText("Seed");
+  expect(input.getAttribute("id")).toBe("explicit-id");
 });
