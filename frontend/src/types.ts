@@ -82,6 +82,12 @@ export interface ConditionSummary {
   metrics: string[];
 }
 
+export interface DistributionSummary {
+  name: string;
+  vals: number[];
+  n: number;
+}
+
 export interface ABGroup {
   name: string;
   mean: number;
