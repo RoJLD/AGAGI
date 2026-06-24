@@ -174,13 +174,13 @@
             "title": "Content",
             "type": "string"
           },
+          "date": {
+            "title": "Date",
+            "type": "string"
+          },
           "id": {
             "title": "Id",
             "type": "string"
-          },
-          "timestamp": {
-            "title": "Timestamp",
-            "type": "integer"
           },
           "title": {
             "title": "Title",
@@ -191,7 +191,7 @@
           "id",
           "title",
           "content",
-          "timestamp"
+          "date"
         ],
         "title": "ArticleResponse",
         "type": "object"
@@ -228,6 +228,40 @@
           "metrics"
         ],
         "title": "ConditionSummary",
+        "type": "object"
+      },
+      "CreateRunBody": {
+        "properties": {
+          "config_overrides": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Config Overrides"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "pop_size": {
+            "default": 10,
+            "title": "Pop Size",
+            "type": "integer"
+          }
+        },
+        "title": "CreateRunBody",
         "type": "object"
       },
       "EdrLinks": {
@@ -1167,6 +1201,203 @@
         ]
       }
     },
+    "/api/flatland/runs": {
+      "get": {
+        "operationId": "list_runs_api_flatland_runs_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {},
+                  "title": "Response List Runs Api Flatland Runs Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Runs",
+        "tags": [
+          "Flatland"
+        ]
+      },
+      "post": {
+        "operationId": "create_run_api_flatland_runs_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-api-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRunBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Create Run Api Flatland Runs Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Run",
+        "tags": [
+          "Flatland"
+        ]
+      }
+    },
+    "/api/flatland/runs/{run_id}": {
+      "delete": {
+        "operationId": "delete_run_api_flatland_runs__run_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-api-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Delete Run Api Flatland Runs  Run Id  Delete",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Run",
+        "tags": [
+          "Flatland"
+        ]
+      }
+    },
+    "/api/health/kuzu": {
+      "get": {
+        "operationId": "health_kuzu_api_health_kuzu_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Health Kuzu Api Health Kuzu Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health Kuzu",
+        "tags": [
+          "Observability"
+        ]
+      }
+    },
     "/api/health/parity": {
       "get": {
         "operationId": "parity_report_api_health_parity_get",
@@ -1235,6 +1466,96 @@
         "summary": "Get Cognitive Snapshots",
         "tags": [
           "introspection"
+        ]
+      }
+    },
+    "/api/observability/logger": {
+      "get": {
+        "operationId": "observability_logger_api_observability_logger_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Observability Logger Api Observability Logger Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Observability Logger",
+        "tags": [
+          "Observability"
+        ]
+      }
+    },
+    "/api/provenance": {
+      "get": {
+        "operationId": "provenance_list_api_provenance_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {},
+                  "title": "Response Provenance List Api Provenance Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Provenance List",
+        "tags": [
+          "Observability"
+        ]
+      }
+    },
+    "/api/provenance/{file_stem}": {
+      "get": {
+        "operationId": "provenance_detail_api_provenance__file_stem__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "file_stem",
+            "required": true,
+            "schema": {
+              "title": "File Stem",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Provenance Detail Api Provenance  File Stem  Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Provenance Detail",
+        "tags": [
+          "Observability"
         ]
       }
     },
@@ -1513,6 +1834,40 @@
     "/api/sandbox/action": {
       "post": {
         "operationId": "post_action_api_sandbox_action_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-api-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -1571,6 +1926,40 @@
     "/api/sandbox/curriculum_state": {
       "delete": {
         "operationId": "reset_curriculum_state_api_sandbox_curriculum_state_delete",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-api-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -1579,6 +1968,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Reset Curriculum State",
@@ -1609,6 +2008,40 @@
     "/api/sandbox/start": {
       "post": {
         "operationId": "start_sandbox_api_sandbox_start_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-api-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -1686,6 +2119,40 @@
     "/api/sandbox/stop": {
       "post": {
         "operationId": "stop_sandbox_api_sandbox_stop_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-api-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -1694,6 +2161,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Stop Sandbox",
@@ -1724,6 +2201,40 @@
     "/api/sociologist/analyze": {
       "post": {
         "operationId": "trigger_analysis_api_sociologist_analyze_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-api-token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Api-Token"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
