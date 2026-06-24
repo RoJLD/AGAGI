@@ -218,3 +218,14 @@ def test_verdict_metab_three_branches():
     assert lss._verdict_metab(levels, [5, 8, 10, 30, 60]) == "PAS LE METABOLISME SEUL"
     # frontiere : exactement au gate ne franchit pas (m > gate strict)
     assert lss._verdict_metab(levels, [5, 8, 10, 30, 120]) == "PAS LE METABOLISME SEUL"
+
+
+def test_main_metab_runs_and_reproducible(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    a = lss.main_metab(levels=(0.25, 0.0), n_eval=2, R=1, seed=5, _return=True)
+    b = lss.main_metab(levels=(0.25, 0.0), n_eval=2, R=1, seed=5, _return=True)
+    assert a["medians"] == b["medians"]                       # seede -> reproductible
+    assert list(a["table"].keys()) == [0.25, 0.0]
+    assert set(a["table"][0.25]) == {"median", "famine", "combat", "mean_kills", "n"}
+    assert "p_one_sided" in a["jt"]
+    assert a["verdict"] in {"RESCALE SUFFIT", "RESCALE EXTREME", "PAS LE METABOLISME SEUL"}

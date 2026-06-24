@@ -299,6 +299,22 @@ def main_apex(levels=APEX_LEVELS, n_eval=8, R=4, seed=None, _return=False):
         return _report(h, levels, groups, R, n_eval, _return, knob="N_APEX", verdict_fn=_verdict_apex)
 
 
+def main_metab(levels=METAB_LEVELS, n_eval=8, R=4, seed=None, _return=False):
+    """EDR 101 : sweep base_metabolism a N_APEX=0 (monde vide), forage_payoff=3 fixe, Lewis letalite 0.
+    1ere intervention : teste si reduire le multiplicateur de metabolisme debloque la survie."""
+    with Harness(seed=seed, name="lewis_metab_sweep", with_db=False) as h:
+        base = h.seed
+        _disable_kuzu()
+        print(f"EDR101 : sweep base_metabolism={levels}, R={R}, n_eval={n_eval}, seed={base}.")
+        seeds = [base + r * 1000 + i for r in range(R) for i in range(n_eval)]  # memes seeds/niveau
+        prog = h.progress(len(levels), label="niveaux base_metabolism")
+        groups = []
+        for lv in levels:
+            groups.append(_measure_survival(_cfg(3, base_metabolism=lv), seeds, n_apex=0))
+            prog.update()
+        return _report(h, levels, groups, R, n_eval, _return, knob="base_metab", verdict_fn=_verdict_metab)
+
+
 def main_surprise(levels=SURPRISE_LEVELS, n_eval=8, R=4, seed=None, _return=False):
     """EDR 098 : sweep ttc_surprise_scale a N_APEX=0 (monde vide), forage_payoff=3 fixe, Lewis letalite 0.
     Instrumente surprise_momentum -> teste si le brain_cost surprise-amplifie est le mur intrinseque."""
