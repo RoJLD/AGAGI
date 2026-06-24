@@ -1,4 +1,9 @@
 # tests/sandbox/test_altar_tool_funnel_probe.py
+import glob
+import json
+
+import pytest
+
 from tools.altar_tool_funnel_probe import funnel_verdict
 
 
@@ -50,11 +55,6 @@ def test_par_seed_carries_decomposition():
     v = funnel_verdict(per_seed)
     assert set(v["par_seed"]) == {"0", "1"}
     assert v["par_seed"]["1"]["frac_apex"] == 1.0 and v["par_seed"]["0"]["frac_apex"] == 0.0
-
-
-import json
-import glob
-import pytest
 
 
 def test_main_writes_provenance(tmp_path, monkeypatch):

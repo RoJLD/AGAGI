@@ -40,7 +40,12 @@ def _seed_summary(agents: List[Dict]) -> Dict:
 
 def funnel_verdict(per_seed_agents: Dict, eps: float = 0.02) -> Dict:
     """Verdicts décomposés (autel + funnel outil) sur TOUS les agents poolés, fractions (pas médianes).
-    Le verdict funnel localise le 1er étage qui s'effondre sous eps. par_seed = courbe complète."""
+    Le verdict funnel localise le 1er étage qui s'effondre sous eps. par_seed = courbe complète.
+
+    CAVEAT (EDR 096) : `verdict_funnel` n'est PAS fiable comme proxy d'usage d'OUTIL. `mammoth_kills`
+    est crédité au GROUPE (chasse coopérative à mains nues, EDR 028, world_1_stoneage.py:715-718) →
+    `frac_apex` peut dépasser `frac_craft` (apex atteint SANS lance). Lire la décomposition brute
+    (`frac_craft` vs `frac_apex`, par_seed), jamais le label nu."""
     all_agents = [a for agents in per_seed_agents.values() for a in agents]
     frac_hunt = _frac(all_agents, "preys_eaten")
     frac_craft = _frac(all_agents, "spears_crafted")
