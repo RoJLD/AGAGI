@@ -615,7 +615,13 @@ class Biosphere3D(BaseWorld):
         # Base drain (métabolisme). EDR 084 : la survie plafonne car 79% starvent ; `base_metabolism`
         # (config, défaut 1.0) règle le drain pour viser le sweet spot dureté↔soutenabilité.
         drain = getattr(self.config, "base_metabolism", 1.0) * agent["model"].phenotype_energy_drain
-        
+
+        # NAS Axe D-1 : coût métabolique d'activation (gated). Placé avant la modulation nuit/feu
+        # pour que "penser" coûte aussi plus cher la nuit (cohérence thermodynamique).
+        coef = getattr(self.config, "metabolic_cost_coef", 0.0)
+        if coef > 0.0:
+            drain += coef * getattr(agent["model"], "last_activation_cost", 0)
+
         # EXP-9 : Thermodynamique & Nuit
         is_near_fire = any(f.get("type") == "Fire" and abs(agent["x"] - f["x"]) <= 2 and abs(agent["y"] - f["y"]) <= 2 for f in self.items)
         if getattr(self, "is_night", False):
