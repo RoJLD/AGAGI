@@ -74,6 +74,9 @@ def test_main_writes_provenance(tmp_path, monkeypatch):
     monkeypatch.setattr(dp, "_acquire_shared_db", lambda: None)
     monkeypatch.setenv("DP_SEEDS", "0")
     monkeypatch.setenv("DP_MODE", "both")
+    # main() pose AGISEED_QUIET_LOG=1 en dur -> faire en sorte que monkeypatch POSSEDE la cle pour
+    # la restaurer au teardown (sinon fuite vers les autres tests de la session, ex. test_async_logger).
+    monkeypatch.setenv("AGISEED_QUIET_LOG", "0")
 
     result = dp.main()
     assert result["verdict"] == "SURVIT_ET_PAYE"
