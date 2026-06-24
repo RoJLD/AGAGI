@@ -189,3 +189,14 @@ def test_measure_drain_has_bio_keys():
     # coherence agregat : somme des sous-postes ~ phase biologie
     assert abs((a["bio_metab"] + a["bio_terrain"] + a["bio_carry"] + a["bio_autres"]) - a["biologie"]) < 1e-6
     assert a == a2                                            # reproductible
+
+
+def test_main_decompose_has_bio_verdict(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    a = lss.main_decompose(n_eval=2, R=1, seed=5, _return=True)
+    b = lss.main_decompose(n_eval=2, R=1, seed=5, _return=True)
+    assert a["phases"] == b["phases"]                         # reproductible
+    assert "bio_verdict" in a
+    assert a["bio_verdict"] in {"TARIF=METABOLISME", "TARIF=TERRAIN", "TARIF=CARRY", "DRAIN BIO DIFFUS"}
+    for k in ("bio_metab", "bio_terrain", "bio_carry", "bio_autres"):
+        assert k in a["phases"]

@@ -307,19 +307,26 @@ def main_surprise(levels=SURPRISE_LEVELS, n_eval=8, R=4, seed=None, _return=Fals
 
 
 def _report_drain(h, agg, R, n_eval, _return):
-    """Table des 4 phases (energie/tick + part %) + verdict + provenance. Tout ASCII (cp1252)."""
+    """Table des 4 phases + sous-table biologie (EDR100) + verdicts + provenance. Tout ASCII (cp1252)."""
     verdict = _verdict_drain(agg)
+    bio_verdict = _verdict_bio(agg)
     net = agg["net"]
     print(f"\n=== EDR099 decomposition drain a N_APEX=0 (energie/tick/agent) ===")
     for ph in ("brain", "action", "biologie", "mouvement"):
         pct = (100.0 * agg[ph] / net) if net else 0.0
         print(f"  {ph:<9} | {agg[ph]:7.2f}/tick | {pct:6.1f}% du net")
     print(f"  {'NET':<9} | {net:7.2f}/tick | n_agents={agg['n_agents']}")
-    print("=== VERDICT (pre-enregistre, phase >50%) ===")
-    print(f"  -> {verdict}")
-    h.save({"phases": agg, "verdict": verdict, "R": R, "n_eval": n_eval})
+    bio_net = agg["bio_metab"] + agg["bio_terrain"] + agg["bio_carry"] + agg["bio_autres"]
+    print("=== EDR100 sous-decomposition de la phase biologie ===")
+    for sp in ("bio_metab", "bio_terrain", "bio_carry", "bio_autres"):
+        pct = (100.0 * agg[sp] / bio_net) if bio_net else 0.0
+        print(f"  {sp:<11} | {agg[sp]:7.2f}/tick | {pct:6.1f}% du drain bio")
+    print("=== VERDICT (pre-enregistre, >50%) ===")
+    print(f"  -> phases : {verdict}")
+    print(f"  -> biologie : {bio_verdict}")
+    h.save({"phases": agg, "verdict": verdict, "bio_verdict": bio_verdict, "R": R, "n_eval": n_eval})
     if _return:
-        return {"phases": agg, "verdict": verdict, "R": R, "n_eval": n_eval}
+        return {"phases": agg, "verdict": verdict, "bio_verdict": bio_verdict, "R": R, "n_eval": n_eval}
 
 
 def main_decompose(n_eval=8, R=4, seed=None, _return=False):
