@@ -111,11 +111,12 @@ branche route l'action suivante.
 - `WorldConfig.trace_energy_sinks` défaut `False` ; `_cfg(3, trace_energy_sinks=True)` le pose.
 - **Inertie (non-régression) :** une ère avec `trace=False` ne pose pas `_e_phases` et donne la **même** survie
   qu'avant (les 11 tests 093/094/098 restent verts).
-- **Traçage :** avec `trace=True`, les agents du pool portent `_e_phases` avec les 3 clés ; les 3 deltas somment
-  au drain net (à epsilon près) ; valeurs ≥ 0.
-- `_verdict_drain` (pur) : 4 branches exactes (action>50 / biologie>50 / brain>50 / diffus).
-- `_measure_drain` : forme `{brain, action, biologie, net, n_agents}`, reproductible (seedé).
-- `main_decompose` : forme de sortie (3 phases + verdict ∈ 4 valeurs), reproductible.
+- **Traçage :** avec `trace=True`, les agents du pool portent `_e_phases` avec les **4 clés** (`brain, action,
+  biologie, mouvement`) ; les 4 deltas somment au drain net (télescopage, à epsilon près). `biologie`/`mouvement`
+  peuvent être négatifs (forage = source) → pas d'assertion de non-négativité.
+- `_verdict_drain` (pur) : **5 branches** exactes (action / biologie / mouvement / brain >50 / diffus).
+- `_measure_drain` : forme `{brain, action, biologie, mouvement, net, n_agents}`, reproductible (seedé).
+- `main_decompose` : forme de sortie (4 phases + verdict ∈ 5 valeurs), reproductible.
 
 ## 7. Plan d'exécution
 
