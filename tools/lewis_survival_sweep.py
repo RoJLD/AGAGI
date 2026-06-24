@@ -93,6 +93,7 @@ def _measure_drain(cfg, seeds, n_apex=0, num_agents=NUM_AGENTS, max_ticks=MAX_TI
     seed_at(0, 0)
     champs = _load_champions()
     brain, action, biologie, mouvement = [], [], [], []
+    bmetab, bterrain, bcarry, bautres = [], [], [], []
     for s in seeds:
         seed_at(s, 0)
         genomes = _reproduce(champs, num_agents, mc)
@@ -123,10 +124,18 @@ def _measure_drain(cfg, seeds, n_apex=0, num_agents=NUM_AGENTS, max_ticks=MAX_TI
             action.append(ph["action"] / age)
             biologie.append(ph["biologie"] / age)
             mouvement.append(ph["mouvement"] / age)
+            bio = ag.get("_e_bio")
+            if bio:
+                bmetab.append(bio["metab"] / age)
+                bterrain.append(bio["terrain"] / age)
+                bcarry.append(bio["carry"] / age)
+                bautres.append(bio["autres"] / age)
     mean = lambda xs: float(np.mean(xs)) if xs else 0.0
     b, a_, bio, mv = mean(brain), mean(action), mean(biologie), mean(mouvement)
     return {"brain": b, "action": a_, "biologie": bio, "mouvement": mv,
-            "net": b + a_ + bio + mv, "n_agents": len(brain)}
+            "net": b + a_ + bio + mv, "n_agents": len(brain),
+            "bio_metab": mean(bmetab), "bio_terrain": mean(bterrain),
+            "bio_carry": mean(bcarry), "bio_autres": mean(bautres)}
 
 
 def _surprise_stats(pool):
@@ -193,6 +202,22 @@ def _verdict_drain(phases):
         return "DRAIN DIFFUS"
     return {"action": "TARIF=THROW", "biologie": "TARIF=BIOLOGIE",
             "brain": "TARIF=BRAIN", "mouvement": "TARIF=MOUVEMENT"}[top]
+
+
+def _verdict_bio(agg):
+    """Mappe les sous-postes biologie (bio_metab/terrain/carry/autres) -> 4 branches. Le sous-poste (parmi
+    metab/terrain/carry) qui porte > 50% du drain biologie nomme le coupable ; aucun (ou bio_net<=0) ->
+    drain bio diffus. 'autres' (gains) n'est pas une cible de tarif."""
+    bio_net = agg["bio_metab"] + agg["bio_terrain"] + agg["bio_carry"] + agg["bio_autres"]
+    if bio_net <= 0:
+        return "DRAIN BIO DIFFUS"
+    keys = ("bio_metab", "bio_terrain", "bio_carry")
+    shares = {k: agg[k] / bio_net for k in keys}
+    top = max(shares, key=shares.get)
+    if shares[top] <= 0.5:
+        return "DRAIN BIO DIFFUS"
+    return {"bio_metab": "TARIF=METABOLISME", "bio_terrain": "TARIF=TERRAIN",
+            "bio_carry": "TARIF=CARRY"}[top]
 
 
 def _report(h, levels, groups, R, n_eval, _return, knob="forage_payoff", verdict_fn=_verdict):
