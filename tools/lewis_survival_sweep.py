@@ -36,6 +36,42 @@ def _cfg(forage_payoff):
     return cfg
 
 
+def _measure_survival(cfg, seeds, leurre_frac=0.0, num_agents=NUM_AGENTS, max_ticks=MAX_TICKS):
+    """Mesure la survie des CHAMPIONS (repliques, pas d'evolution) en Lewis a letalite leurre_frac.
+    Une ere par seed (appariement entre niveaux : meme seed -> meme monde initial). memory_retriever
+    stoppe avant la boucle. Renvoie ages (pool), causes de mort (famine/combat), kills moyens/ere."""
+    mc = MutationConfig(weight_init_std=2.0)
+    seed_at(0, 0)                  # graine fixe pour _load_champions (HoF vide -> fallback random)
+    champs = _load_champions()
+    ticks, famine, combat, kills = [], 0, 0, []
+    for s in seeds:
+        seed_at(s, 0)
+        genomes = _reproduce(champs, num_agents, mc)
+        env = Biosphere3D(cfg)
+        _setup_critical(env, leurre_frac, n_apex=N_APEX)
+        env.config.target_prey_count = PREY_COUNT
+        if hasattr(env, "memory_retriever"):
+            env.memory_retriever.stop()
+            env.memory_retriever.clear()   # vide le cache timing-dependant -> reproductible
+        env.use_ref_head = False
+        env.decode_act = False
+        for g in genomes:
+            a = MambaAgent()
+            a.from_genome(g)
+            env.add_agent(a, energy=80.0)
+        env.current_era = 1
+        t = 0
+        while env.agents and t < max_ticks:
+            env.step()
+            t += 1
+        pool = list(env.agents) + list(getattr(env, "dead_agents", []))
+        ticks.extend(int(ag.get("age", 0)) for ag in pool)
+        famine += sum(1 for ag in pool if ag.get("energy", 1.0) <= 0)
+        combat += sum(1 for ag in pool if ag.get("hp", 1.0) <= 0 and ag.get("energy", 1.0) > 0)
+        kills.append(float(np.mean([ag.get("mammoth_kills", 0) for ag in pool])) if pool else 0.0)
+    return {"ticks": ticks, "famine": famine, "combat": combat, "kills": kills}
+
+
 def _verdict(levels, medians, gate=GATE):
     """Mappe (medianes de survie par niveau) -> 3 branches pre-enregistrees. Le 1er niveau qui franchit
     le gate determine le verdict : <=CHEAP_MAX -> barreau trouve ; sinon (seulement 48) -> trop cher ;

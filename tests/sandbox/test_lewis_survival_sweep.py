@@ -21,3 +21,16 @@ def test_verdict_three_branches():
     assert lss._verdict(levels, [5, 8, 10, 30, 60]) == "PAS DE RUNG"
     # franchit des le 1er niveau accessible (24) -> trouve
     assert lss._verdict(levels, [10, 20, 100, 121, 130]) == "BARREAU TROUVE"
+
+
+def test_measure_survival_keys_and_reproducible():
+    lss._disable_kuzu()
+    cfg = lss._cfg(3)
+    a = lss._measure_survival(cfg, seeds=[7, 8], num_agents=4, max_ticks=30)
+    b = lss._measure_survival(cfg, seeds=[7, 8], num_agents=4, max_ticks=30)
+    assert set(a) == {"ticks", "famine", "combat", "kills"}
+    assert len(a["kills"]) == 2                       # un kills moyen par ere (2 seeds)
+    assert len(a["ticks"]) >= 8                        # >= num_agents par ere, pool inclut les morts
+    assert all(0 <= t <= 30 for t in a["ticks"])       # ages bornes par max_ticks
+    assert a == b                                      # seede -> reproductible
+    assert a["famine"] + a["combat"] <= len(a["ticks"])
