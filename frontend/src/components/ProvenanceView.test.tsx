@@ -9,10 +9,18 @@ import { ProvenanceView } from "./ProvenanceView";
 
 afterEach(() => cleanup());
 
-function mockEndpoints(map: Record<string, unknown>) {
+function mockEndpoints(opts: {
+  edrLinks?: Record<string, string[]>;
+  articleLinks?: Record<string, string[]>;
+  runs?: unknown[];
+  articles?: unknown[];
+}) {
   (apiFetch as ReturnType<typeof vi.fn>).mockImplementation((url: string) => {
-    const key = Object.keys(map).find((k) => url.includes(k));
-    return Promise.resolve(key ? map[key] : []);
+    if (url.endsWith("/edr-links")) return Promise.resolve(opts.edrLinks ?? {});
+    if (url.endsWith("/article-links")) return Promise.resolve(opts.articleLinks ?? {});
+    if (url.includes("sociologist/articles")) return Promise.resolve(opts.articles ?? []);
+    if (url.endsWith("/runs")) return Promise.resolve(opts.runs ?? []);
+    return Promise.resolve([]);
   });
 }
 
@@ -24,10 +32,10 @@ function renderWithClient(ui: React.ReactNode) {
 beforeEach(() => {
   window.location.hash = "#/provenance";
   mockEndpoints({
-    "edr-links": { "81": ["condA_0"] },
-    "article-links": { condA_0: ["art1"] },
-    "runs": [{ run_id: "condA_0", name: "condA", seed: 0, metrics: [] }],
-    "sociologist/articles": [{ id: "art1", title: "Découverte X", content: "", timestamp: "" }],
+    edrLinks: { "81": ["condA_0"] },
+    articleLinks: { condA_0: ["art1"] },
+    runs: [{ run_id: "condA_0", name: "condA", seed: 0, metrics: [] }],
+    articles: [{ id: "art1", title: "Découverte X", content: "", timestamp: "" }],
   });
 });
 
@@ -40,7 +48,12 @@ test("rend le graphe (svg) et la légende avec des données liées", async () =>
 });
 
 test("état vide quand aucun lien", async () => {
-  mockEndpoints({ "runs": [{ run_id: "condA_0", name: "condA", seed: 0, metrics: [] }] }); // pas de liens
+  mockEndpoints({
+    edrLinks: {},
+    articleLinks: {},
+    runs: [{ run_id: "condA_0", name: "condA", seed: 0, metrics: [] }],
+    articles: [],
+  });
   renderWithClient(<ProvenanceView />);
   expect(await screen.findByText(/Aucun lien/)).toBeTruthy();
 });

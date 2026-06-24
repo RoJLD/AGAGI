@@ -14,6 +14,7 @@ import { ProvenanceGraph } from "./ProvenanceGraph";
 type LinkMap = Record<string, string[]>;
 
 export function ProvenanceView() {
+  // TODO(Task-4): defaultTab "edr" → "provenance" une fois "provenance" dans TAB_KEYS.
   const { navigate } = useHashRoute(TAB_KEYS, "edr");
 
   const edrQ = useQuery({
@@ -51,16 +52,11 @@ export function ProvenanceView() {
     return <ErrorState error={error} onRetry={refetchAll} />;
   }
 
-  const toMap = (v: LinkMap | undefined | null): LinkMap =>
-    v && !Array.isArray(v) ? v : {};
-  const toList = <T,>(v: T[] | undefined | null): T[] =>
-    v && Array.isArray(v) ? v : [];
-
   const { nodes, edges } = buildProvenanceGraph(
-    toMap(edrQ.data),
-    toMap(artQ.data),
-    toList(runsQ.data),
-    toList(artListQ.data),
+    edrQ.data ?? {},
+    artQ.data ?? {},
+    runsQ.data ?? [],
+    artListQ.data ?? [],
   );
 
   if (!nodes.length) {
