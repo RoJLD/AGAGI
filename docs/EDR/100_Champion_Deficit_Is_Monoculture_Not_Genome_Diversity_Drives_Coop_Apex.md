@@ -48,6 +48,17 @@ Anti-théâtre : sans le bras de contrôle `mono_fresh`, EDR 097 serait resté a
 monoculture). Le contrôle a tranché net (sign_p 1.0 mono_fresh≈champion). La décomposition apex par ère
 (jamais le scalaire nu) a porté le verdict.
 
+## Caveat — portée limitée par le bug `from_genome` (finding parallèle)
+
+Un bug keystone parallèle (`MambaAgent.from_genome` aplatit l'architecture : hardcode 64/126/172 et
+JETTE la topologie du génome) signifie que les 3 bras passent par la MÊME architecture aplatie — seuls
+les **poids** diffèrent. Conséquence : (1) le bug est CONSTANT sur les 3 bras → il ne confond PAS la
+comparaison inter-bras, le verdict MONOCULTURE (diversité des POIDS > poids homogènes) tient ; (2) MAIS
+« le génome champion est innocent » se restreint à ses **poids** — son architecture évoluée n'est jamais
+déployée, donc une éventuelle compétence apex ARCHITECTURALE du champion reste **non testée**. Si le bug
+`from_genome` est corrigé (préservation des dims), re-faire le 3-way pourrait révéler un effet-génome
+architectural aujourd'hui masqué. Le verdict « diversité porte l'apex coop » est, lui, robuste.
+
 ## Statut
 
 - Confond EDR 097 RÉSOLU : MONOCULTURE (sign_p 1.0). Le champion-génome est innocent ; le déploiement
