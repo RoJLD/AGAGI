@@ -111,6 +111,8 @@ def make_run_era_fn(shared_db, config: WorldConfig, num_agents: int = 60, max_ti
             "preys_eaten": a.get("preys_eaten", 0),
             "altars_solved": a.get("altars_solved", 0),
             "total_dreams": a.get("total_dreams", 0),
+            "mammoth_kills": a.get("mammoth_kills", 0),    # signal vivant (stoneage_competence réparée, EDR 096)
+            "spears_crafted": a.get("spears_crafted", 0),
         } for a in all_agents]
 
         comp_fn = competence_fn or competence_for(world_type)
