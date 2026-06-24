@@ -11,6 +11,8 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
+from tools.curriculum_transfer import _sign_test_p
+
 
 def dream_rate(agent: Dict) -> float:
     """Taux de rêve ajusté à l'exposition : total_dreams / max(age, 1) (age 0 -> dénominateur 1)."""
@@ -30,3 +32,22 @@ def distress_split(stats: List[Dict], age_floor: int = 10) -> Dict:
     r_long = float(statistics.median([dream_rate(s) for s in long])) if long else 0.0
     return {"rate_short": r_short, "rate_long": r_long, "delta": r_short - r_long,
             "n_short": len(short), "n_long": len(long)}
+
+
+def distress_verdict(deltas: List[float], delta_eps: float = 0.0) -> Dict:
+    """Agrège les delta par seed. DETRESSE = court-vivants rêvent plus (median > eps ET sign_p<0.15) ;
+    BENEFIQUE = long-vivants rêvent plus (median < -eps ET sign_p<0.15) ; NEUTRE sinon. sign_p calculé
+    sur les deltas EFFECTIFS (≠0) -> évite k>n (pattern compute_transfer_verdict)."""
+    if not deltas:
+        return {"median_delta": 0.0, "n_favorable": 0, "sign_p": 1.0, "verdict": "NEUTRE"}
+    med = float(statistics.median(deltas))
+    n_fav = sum(1 for d in deltas if d > 0.0)
+    effective = [d for d in deltas if d != 0.0]
+    sign_p = _sign_test_p(sum(1 for d in effective if d > 0.0), len(effective))
+    if med > delta_eps and sign_p < 0.15:
+        verdict = "DETRESSE"
+    elif med < -delta_eps and sign_p < 0.15:
+        verdict = "BENEFIQUE"
+    else:
+        verdict = "NEUTRE"
+    return {"median_delta": med, "n_favorable": n_fav, "sign_p": sign_p, "verdict": verdict}

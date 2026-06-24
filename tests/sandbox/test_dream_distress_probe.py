@@ -37,3 +37,21 @@ def test_distress_split_empty_no_crash():
     out = distress_split([], age_floor=10)
     assert out["rate_short"] == 0.0 and out["rate_long"] == 0.0 and out["delta"] == 0.0
     assert out["n_short"] == 0 and out["n_long"] == 0
+
+
+from tools.dream_distress_probe import distress_verdict
+
+
+def test_distress_verdict_three_cases():
+    # court-vivants revent nettement plus, tous du meme cote -> DETRESSE (sign_p bas)
+    assert distress_verdict([0.3, 0.4, 0.35, 0.3])["verdict"] == "DETRESSE"
+    # long-vivants revent plus -> BENEFIQUE
+    assert distress_verdict([-0.3, -0.4, -0.35, -0.3])["verdict"] == "BENEFIQUE"
+    # mixte / centre sur 0 -> NEUTRE
+    assert distress_verdict([0.1, -0.1, 0.05, -0.05])["verdict"] == "NEUTRE"
+    assert distress_verdict([])["verdict"] == "NEUTRE"
+
+
+def test_distress_verdict_reports_fields():
+    v = distress_verdict([0.3, 0.4, 0.35, 0.3])
+    assert v["n_favorable"] == 4 and "sign_p" in v and v["median_delta"] > 0
