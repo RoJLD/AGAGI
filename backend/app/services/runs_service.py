@@ -59,6 +59,40 @@ class RunsService:
     def _numeric_metrics(data: dict) -> list[str]:
         return sorted(k for k, v in data.items() if isinstance(v, (int, float)) and not isinstance(v, bool))
 
+    @staticmethod
+    def _is_num_list(v: object) -> bool:
+        return isinstance(v, list) and len(v) > 0 and all(
+            isinstance(x, (int, float)) and not isinstance(x, bool) for x in v
+        )
+
+    def list_sweeps(self) -> list[dict]:
+        """Runs *sweep* : data.knob (str) + data.levels (liste num) = axe X ;
+        chaque autre liste num de même longueur = série Y ; <metric>_std|_spread = y_std."""
+        out: list[dict] = []
+        for r in self._scan():
+            data = r["data"]
+            knob, levels = data.get("knob"), data.get("levels")
+            if not isinstance(knob, str) or not self._is_num_list(levels):
+                continue
+            n = len(levels)
+            series: dict[str, list[float]] = {}
+            y_std: dict[str, list[float]] = {}
+            for k, v in data.items():
+                if k in ("knob", "levels") or not self._is_num_list(v) or len(v) != n:
+                    continue
+                if k.endswith("_std") or k.endswith("_spread"):
+                    y_std[k.rsplit("_", 1)[0]] = [float(x) for x in v]
+                else:
+                    series[k] = [float(x) for x in v]
+            if not series:
+                continue
+            out.append({
+                "run_id": r["_run_id"], "name": r["name"], "knob": knob,
+                "x": [float(x) for x in levels], "series": series,
+                "y_std": y_std or None, "seed": r["seed"], "commit": r.get("commit"),
+            })
+        return out
+
     def list_runs(self) -> list[dict]:
         return [
             {

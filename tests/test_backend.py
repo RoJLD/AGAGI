@@ -1,3 +1,5 @@
+import json
+
 from fastapi.testclient import TestClient
 
 from backend.app.main import app, _resolve_cors_origins
@@ -244,3 +246,25 @@ def test_ws_flatland_unknown_run_closes() -> None:
     with pytest.raises(WebSocketDisconnect):
         with client.websocket_connect("/ws/flatland/__nope__") as ws:
             ws.receive_json()
+
+
+def test_list_sweeps_extracts_knob_levels_series(tmp_path, monkeypatch) -> None:
+    """Un run sweep (knob+levels+series) -> 1 SweepResult ; un run scalaire -> ignoré."""
+    import backend.app.services.runs_service as rs_mod
+    monkeypatch.setattr(rs_mod, "RESULTS_DIR", tmp_path)
+    (tmp_path / "lewis_survival_sweep_42.json").write_text(json.dumps({
+        "name": "lewis_survival_sweep", "seed": 42, "commit": "abc1234",
+        "data": {"knob": "forage_payoff", "levels": [0.1, 0.2, 0.3],
+                 "median_survival": [0.2, 0.5, 0.8], "median_survival_std": [0.05, 0.05, 0.05],
+                 "R": 4, "n_eval": 8},
+    }), encoding="utf-8")
+    (tmp_path / "AND_0.json").write_text(json.dumps({
+        "name": "AND", "seed": 0, "data": {"fitness": 0.9},
+    }), encoding="utf-8")
+    sweeps = rs_mod.runs_service.list_sweeps()
+    assert len(sweeps) == 1
+    s = sweeps[0]
+    assert s["knob"] == "forage_payoff"
+    assert s["x"] == [0.1, 0.2, 0.3]
+    assert s["series"]["median_survival"] == [0.2, 0.5, 0.8]
+    assert s["y_std"]["median_survival"] == [0.05, 0.05, 0.05]
