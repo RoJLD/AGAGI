@@ -57,6 +57,15 @@ def test_distress_verdict_reports_fields():
     assert v["n_favorable"] == 5 and "sign_p" in v and v["median_delta"] > 0
 
 
+def test_distress_verdict_zero_delta_removes_power():
+    """Un delta nul est retiré du test de signe : k=4/n=4 -> sign_p=0.125 > 0.1 -> NEUTRE
+    malgre une mediane positive (verrouille la frontiere 0.1 qui declenche la Phase 2)."""
+    v = distress_verdict([0.3, 0.4, 0.35, 0.32, 0.0])
+    assert v["median_delta"] > 0
+    assert v["sign_p"] > 0.1
+    assert v["verdict"] == "NEUTRE"
+
+
 import json
 import glob
 
@@ -81,6 +90,7 @@ def test_main_writes_provenance(tmp_path, monkeypatch):
     assert result["verdict"] == "DETRESSE"
     files = glob.glob(str(tmp_path / "results" / "dream_distress_*.json"))
     assert files, "provenance non écrite"
-    data = json.loads(open(files[0], encoding="utf-8").read())
+    with open(files[0], encoding="utf-8") as f:
+        data = json.loads(f.read())
     assert data["data"]["verdict"] == "DETRESSE"
     assert "commit" in data and "git_dirty" in data
