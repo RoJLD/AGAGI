@@ -73,6 +73,10 @@ class WorldConfig:
     # gardés actifs (sparsité IMPOSÉE, pas sélectionnée). Sweep modéré 0.3-0.7.
     kwta_keep_frac: float = 1.0
 
+    # NAS Axe A-2 : sélection MAP-Elites (archive QD) au lieu du HoF top-10. False = HoF legacy
+    # (non-régression). Câblage prod différé jusqu'au verdict de la mesure (tools/map_elites_compare.py).
+    use_map_elites: bool = False
+
     # NAS Axe D-1 (coût métabolique d'activation) : énergie drainée par nœud actif/tick.
     # 0.0 = off (non-régression bit-exacte). Seule variable d'expérience ; sweep typique 0 -> 0.01.
     metabolic_cost_coef: float = 0.0
