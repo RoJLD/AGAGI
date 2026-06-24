@@ -41,7 +41,6 @@ export function GateSidebar() {
       bestFitnessGate: bestFitness.gate,
       bestAccuracyGate: bestAccuracy.gate,
       bestEmergentGate: experiments.reduce((best, current) => (current.emergent_score !== undefined && current.emergent_score > (best.emergent_score ?? -Infinity) ? current : best), experiments[0]).gate,
-      bestRobustGate: experiments.reduce((best, current) => (current.robustness_score !== undefined && current.robustness_score > (best.robustness_score ?? -Infinity) ? current : best), experiments[0]).gate,
       smallestSize: sizes.length ? Math.min(...sizes) : undefined,
     };
   }, [experiments]);

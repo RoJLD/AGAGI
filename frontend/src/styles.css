@@ -455,6 +455,11 @@ body {
 }
 .step-bar .tab.is-done {
   color: var(--color-text);
+  border-color: var(--color-accent);
+}
+.step-bar .tab.is-done .step-pill__index {
+  background: var(--color-accent);
+  color: var(--color-bg);
 }
 .step-bar .tab.is-active .step-pill__index {
   background: var(--color-accent);
