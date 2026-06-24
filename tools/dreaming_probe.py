@@ -78,8 +78,9 @@ def _set_organ(genome, on: bool) -> None:
 def run_era_organ(target: str, seed: int, organ_fraction: float, metab: float, payoff: float,
                   num_agents: int, max_ticks: int, shared_db) -> List[Dict]:
     """UNE ère sur `target`, avec une fraction `organ_fraction` de la population portant l'organe
-    MCTS (les `int(round(organ_fraction*len(genomes)))` premiers). Renvoie par agent vivant à la fin :
-    {age, total_dreams, has_organ}. Déterministe (memory_retriever neutralisé)."""
+    MCTS (les `int(round(organ_fraction*len(genomes)))` premiers). Renvoie par agent (TOUS :
+    vivants + morts, cf. EDR 092 — la population s'éteint à 100 %) : {age, total_dreams, has_organ}.
+    Déterministe (memory_retriever neutralisé)."""
     SeedManager(seed).seed_boundary(0)
     config = WorldConfig()
     config.base_metabolism = metab
@@ -90,10 +91,10 @@ def run_era_organ(target: str, seed: int, organ_fraction: float, metab: float, p
                                          keep_memory=False, shared_db=shared_db, config=config)
     n_on = int(round(organ_fraction * len(genomes)))
     for i, g in enumerate(genomes):
-        _set_organ(g, i < n_on)
         a = MambaAgent()
         a.from_genome(g)
-        env.add_agent(a, energy=50.0)
+        _set_organ(a.genome, i < n_on)  # FIX B (EDR 092) : semer sur le génome PROPRE de l'agent
+        env.add_agent(a, energy=50.0)   # (after_genome deepcopy) -> évite l'aliasing d'init_primordial_soup
 
     env.current_era = 1
     t = 0
@@ -101,9 +102,12 @@ def run_era_organ(target: str, seed: int, organ_fraction: float, metab: float, p
         env.step()
         t += 1
 
-    survivors = list(env.agents)        # vivants à la fin -> signal de mortalité différentielle (Q1)
+    # FIX A (EDR 092) : la population s'éteint à 100 % (0 survivant) -> mesurer TOUS les agents
+    # (vivants + morts). Le signal de sélection est la prévalence de l'organe parmi tous (reproduction
+    # différentielle) + l'âge-à-la-mort ; PAS la prévalence des survivants (vide sous extinction).
+    all_agents = list(env.agents) + list(getattr(env, "dead_agents", []))
     out = [{"age": a.get("age", 0), "total_dreams": a.get("total_dreams", 0),
-            "has_organ": _has_organ(a)} for a in survivors]
+            "has_organ": _has_organ(a)} for a in all_agents]
     if hasattr(env, "memory_retriever"):
         env.memory_retriever.stop()
     return out
@@ -122,7 +126,8 @@ def _prevalence_from_stats(stats: List[Dict]) -> float:
 
 
 def run_q1(seeds, target, num_agents, max_ticks, shared_db) -> Dict:
-    """Q1 : organe semé à 50%, prévalence des survivants sweet vs létal -> pression de sélection."""
+    """Q1 : organe semé à 50%, prévalence de l'organe parmi TOUS les agents (reproduction
+    différentielle = sélection) sweet vs létal -> pression énergétique nette sur l'organe (EDR 092)."""
     sweet, lethal = [], []
     for seed in seeds:
         s = run_era_organ(target, seed, 0.5, 0.25, 3.0, num_agents, max_ticks, shared_db)
