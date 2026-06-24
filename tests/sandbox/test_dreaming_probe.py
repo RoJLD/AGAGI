@@ -51,3 +51,26 @@ def test_verdict_four_cases():
     # ne survit pas (sweet purgé) mais paye
     assert dreaming_verdict(-0.4, -0.45, 0.10, 1.20) == "PAYE_PAS_SURVIT"
     assert dreaming_verdict(-0.4, -0.45, 0.00, 1.00) == "MORT"
+
+
+import os
+import pytest
+
+
+@pytest.mark.slow
+def test_run_era_organ_smoke_seeds_organ():
+    """Smoke biosphère : une ère courte, ~50% organe semé -> renvoie des stats avec has_organ booléen."""
+    os.environ["AGISEED_QUIET_LOG"] = "1"
+    from src.graph_rag.async_logger import logger as async_logger
+    from tools.dreaming_probe import run_era_organ, _acquire_shared_db
+    async_logger.start()
+    try:
+        db = _acquire_shared_db()
+        stats = run_era_organ("stoneage", seed=0, organ_fraction=0.5, metab=0.25, payoff=3.0,
+                              num_agents=20, max_ticks=40, shared_db=db)
+    finally:
+        async_logger.stop()
+    assert isinstance(stats, list)
+    for s in stats:
+        assert set(s) == {"age", "total_dreams", "has_organ"}
+        assert isinstance(s["has_organ"], bool)
