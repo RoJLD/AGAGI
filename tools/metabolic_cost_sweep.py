@@ -14,6 +14,12 @@ from typing import List, Dict, Optional, Callable
 
 import numpy as np
 
+# Lançable directement (`python tools/metabolic_cost_sweep.py`) : racine projet sur le path AVANT
+# les imports `src` (sinon ModuleNotFoundError quand sys.path[0]=tools/). Cf. curriculum_transfer.py.
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
+
 from src.environments.config import WorldConfig
 from src.seed_ai.harness import SeedManager
 from src.worlds.world_1_stoneage import Biosphere3D
@@ -21,10 +27,6 @@ from src.agents.mamba_agent import MambaAgent
 from src.seed_ai.persistence import calculate_life_score
 from src.seed_ai.harness import Harness
 from src.graph_rag.async_logger import logger as async_logger
-
-_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if _ROOT not in sys.path:
-    sys.path.insert(0, _ROOT)
 
 log = logging.getLogger("AGIseed.MetabolicCostSweep")
 
