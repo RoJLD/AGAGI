@@ -35,8 +35,8 @@ def distress_split(stats: List[Dict], age_floor: int = 10) -> Dict:
 
 
 def distress_verdict(deltas: List[float], delta_eps: float = 0.0) -> Dict:
-    """Agrège les delta par seed. DETRESSE = court-vivants rêvent plus (median > eps ET sign_p<0.15) ;
-    BENEFIQUE = long-vivants rêvent plus (median < -eps ET sign_p<0.15) ; NEUTRE sinon. sign_p calculé
+    """Agrège les delta par seed. DETRESSE = court-vivants rêvent plus (median > eps ET sign_p<0.1) ;
+    BENEFIQUE = long-vivants rêvent plus (median < -eps ET sign_p<0.1) ; NEUTRE sinon. sign_p calculé
     sur les deltas EFFECTIFS (≠0) -> évite k>n (pattern compute_transfer_verdict)."""
     if not deltas:
         return {"median_delta": 0.0, "n_favorable": 0, "sign_p": 1.0, "verdict": "NEUTRE"}
@@ -44,9 +44,9 @@ def distress_verdict(deltas: List[float], delta_eps: float = 0.0) -> Dict:
     n_fav = sum(1 for d in deltas if d > 0.0)
     effective = [d for d in deltas if d != 0.0]
     sign_p = _sign_test_p(sum(1 for d in effective if d > 0.0), len(effective))
-    if med > delta_eps and sign_p < 0.15:
+    if med > delta_eps and sign_p < 0.1:
         verdict = "DETRESSE"
-    elif med < -delta_eps and sign_p < 0.15:
+    elif med < -delta_eps and sign_p < 0.1:
         verdict = "BENEFIQUE"
     else:
         verdict = "NEUTRE"

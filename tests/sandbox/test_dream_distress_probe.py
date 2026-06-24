@@ -44,14 +44,14 @@ from tools.dream_distress_probe import distress_verdict
 
 def test_distress_verdict_three_cases():
     # court-vivants revent nettement plus, tous du meme cote -> DETRESSE (sign_p bas)
-    assert distress_verdict([0.3, 0.4, 0.35, 0.3])["verdict"] == "DETRESSE"
+    assert distress_verdict([0.3, 0.4, 0.35, 0.3, 0.32])["verdict"] == "DETRESSE"
     # long-vivants revent plus -> BENEFIQUE
-    assert distress_verdict([-0.3, -0.4, -0.35, -0.3])["verdict"] == "BENEFIQUE"
+    assert distress_verdict([-0.3, -0.4, -0.35, -0.3, -0.32])["verdict"] == "BENEFIQUE"
     # mixte / centre sur 0 -> NEUTRE
     assert distress_verdict([0.1, -0.1, 0.05, -0.05])["verdict"] == "NEUTRE"
     assert distress_verdict([])["verdict"] == "NEUTRE"
 
 
 def test_distress_verdict_reports_fields():
-    v = distress_verdict([0.3, 0.4, 0.35, 0.3])
-    assert v["n_favorable"] == 4 and "sign_p" in v and v["median_delta"] > 0
+    v = distress_verdict([0.3, 0.4, 0.35, 0.3, 0.32])
+    assert v["n_favorable"] == 5 and "sign_p" in v and v["median_delta"] > 0
