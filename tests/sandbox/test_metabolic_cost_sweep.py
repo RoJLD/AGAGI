@@ -112,6 +112,23 @@ def test_run_sweep_backward_compat_d1():
     assert any(abs(c["coef"] - 0.01) < 1e-9 for c in out["per_coef"])
 
 
+def test_seed_num_nodes_enriches_hidden_layer():
+    # NAS substrat : seed_num_nodes contrôle la taille du connectome de graine -> vraie couche cachée.
+    captured = {}
+
+    def _cap_runner(cfg, genomes, max_ticks):
+        captured["mean_nodes"] = float(np.mean([g.num_nodes for g in genomes]))
+        return [(50.0, genomes[0])], {"ticks": 100.0, "score": 50.0, "mean_active": 10.0}
+
+    run_lineage(0, 0.0, eras=1, num_agents=6, max_ticks=10, run_era_fn=_cap_runner, seed_num_nodes=240)
+    big = captured["mean_nodes"]
+    run_lineage(0, 0.0, eras=1, num_agents=6, max_ticks=10, run_era_fn=_cap_runner)
+    default = captured["mean_nodes"]
+    assert big >= 235        # ~240 noeuds (petite croissance add_node tolérée)
+    assert default <= 180    # défaut bare ~172
+    assert big > default
+
+
 @pytest.mark.skipif(os.environ.get("MCS_SMOKE") != "1",
                     reason="smoke lourd (vraie biosphère) — set MCS_SMOKE=1 pour lancer")
 def test_run_era_metab_smoke():
