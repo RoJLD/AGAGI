@@ -39,3 +39,15 @@ def test_q2_split_handles_zero_dreamers():
     out = q2_split([{"age": 10, "total_dreams": 0}])
     assert out["n_dreamers"] == 0
     assert out["dreamers_competence"] == 0.0            # groupe vide -> 0.0
+
+
+from tools.dreaming_probe import dreaming_verdict
+
+
+def test_verdict_four_cases():
+    # survit (sweet toléré ET pression>0) ET paye (q2a delta>pay_eps OU q2b ratio>1+pay_eps)
+    assert dreaming_verdict(0.0, -0.3, 0.10, 1.20) == "SURVIT_ET_PAYE"
+    assert dreaming_verdict(0.0, -0.3, 0.00, 1.00) == "SURVIT_PAS_PAYE"
+    # ne survit pas (sweet purgé) mais paye
+    assert dreaming_verdict(-0.4, -0.45, 0.10, 1.20) == "PAYE_PAS_SURVIT"
+    assert dreaming_verdict(-0.4, -0.45, 0.00, 1.00) == "MORT"

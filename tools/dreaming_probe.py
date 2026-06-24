@@ -39,3 +39,20 @@ def q2_split(stats: List[Dict]) -> Dict:
     c_n = survival_competence(nondreamers)
     return {"dreamers_competence": c_d, "nondreamers_competence": c_n,
             "delta": c_d - c_n, "n_dreamers": len(dreamers), "n_nondreamers": len(nondreamers)}
+
+
+def dreaming_verdict(delta_prev_sweet: float, delta_prev_lethal: float,
+                     q2a_delta: float, q2b_ratio: float,
+                     surv_eps: float = 0.05, pay_eps: float = 0.02) -> str:
+    """Gate 4-cas. SURVIT = organe toléré au sweet spot (Δprev > -eps) ET moins purgé qu'au létal
+    (pression nette > 0). PAYE = bénéfice intra-pop (q2a_delta > pay_eps) OU population on>off
+    (q2b_ratio > 1+pay_eps)."""
+    survives = (delta_prev_sweet > -surv_eps) and ((delta_prev_sweet - delta_prev_lethal) > 0)
+    pays = (q2a_delta > pay_eps) or (q2b_ratio > 1.0 + pay_eps)
+    if survives and pays:
+        return "SURVIT_ET_PAYE"
+    if survives and not pays:
+        return "SURVIT_PAS_PAYE"
+    if (not survives) and pays:
+        return "PAYE_PAS_SURVIT"
+    return "MORT"
