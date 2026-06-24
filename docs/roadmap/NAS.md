@@ -1,0 +1,176 @@
+# Roadmap NAS — Neural Architecture Search (axe Scientifique)
+
+> **Domaine** : le moteur évolutif lui-même (génotype → phénotype → sélection). C'est l'axe science
+> qui cherche *la structure* de l'AGIseed, par opposition aux capacités cognitives (langage, planning).
+> **Vision** : `0_Taxonomy_Evolution.md` + `1..4_*_NAS.md` (Micro/Meso/Macro/Meta) à la racine.
+> **Horizon court-terme** ci-dessous ; **someday** → `docs/BACKLOG.md` (§NAS).
+>
+> Métrique-reine (X2) : une innovation NAS est *bonne* si elle **transfère mieux**
+> (`tools/curriculum_transfer.py`, verdict TRANSFÈRE/NEUTRE/NUIT) — *validité avant éclat*.
+
+---
+
+## 0. Vision vs réalité (l'écart)
+
+La vision déclare un NAS **fractal à 4 échelles** où un algo génétique génère/mute/détruit à chaque
+échelle. Le moteur **réel** (`src/seed_ai/`, `src/agents/mamba_agent.py`) est, en pratique, un
+**Micro-NAS** : on évolue un connectome plat (matrice d'adjacence `W`, topologie variable) avec
+2 toggles Macro (`organ_genes`) et 2 motifs Meso bolt-on (skip, gate). Le **Meta-NAS (essaim,
+économie de compute, HGT, consensus) est quasi absent** — c'est l'écart le plus large.
+
+---
+
+## 1. Re-audit génotype → phénotype (2026-06-24) — TABLE DE VÉRITÉ
+
+> ⚠️ **Ce re-audit REMPLACE les claims périmés de `docs/SCAN_GLOBAL.md`** sur les « gènes morts ».
+> Le SCAN n'avait audité que `rl_evolution.recurrent_forward` (chemin legacy) ; la **production**
+> tourne sur `MambaBatchModel.forward`. Trois claims du SCAN tombent, une nouvelle dette apparaît.
+
+| Gène | Forward **prod** (`MambaBatchModel`) | Forward legacy (`rl_evolution`) | Lu par la mutation | Verdict |
+|---|---|---|---|---|
+| `W` (+ topologie) | ✓ `mamba_agent.py:440` | ✓ | substrat | **ACTIF** |
+| `thresholds` | ✓ `:446` | ✗ | étendu `add_node` `mutation.py:267` | **ACTIF** (EDR 031) |
+| `W_router` | ✓ `:438` | ✗ | ✓ `mutation.py:121` | **ACTIF** (EDR 031) |
+| `organ_genes[0]` MCTS | ✓ `:497` | ✓ `rl_evolution.py:41` | toggle `mutation.py:273` | **ACTIF** |
+| `organ_genes[1]` attention QKV | ✓ `:450` | ✗ | toggle | **ACTIF** (prod uniquement) |
+| `mutation_genes[0]` weight-rate | — | — | ✓ `mutation.py:110` | **ACTIF** |
+| `mutation_genes[1]` weight-power | — | — | ✓ `mutation.py:111` | **ACTIF** |
+| `mutation_genes[4]` prune-rate | — | — | ✓ `mutation.py:134` | **ACTIF** |
+| `mutation_genes[5]` T_micro_ticks | ✓ MCTS | ✓ `rl_evolution.py:45` | clip `:249` | **ACTIF** |
+| `mutation_genes[2]` add_node-rate | — | — | ✗ (`config` `mutation.py:263`) | **MORT** — auto-tuné, jamais lu |
+| `mutation_genes[3]` add_conn-rate | — | — | ✗ (`config` `:268`) + write gated `:294` | **MORT** — auto-tuné, jamais lu |
+| `bytecode` | ✗ | ✗ | compile-boost **gated off** `:280` | **MORT en prod** (vivant: banc `evolution.py:57`) |
+| `memory_cache` | ✗ | ✗ | `clone()` force `None` `:52` | **INERTE** — jamais écrit |
+
+### Findings structurants
+1. **Deux forwards divergents** : `MambaBatchModel.forward` (prod : thresholds + router + attention +
+   world_model) ≠ `rl_evolution.recurrent_forward[_batch]` (legacy : ignore thresholds/router/attention).
+   Tout outil/banc qui évolue via `recurrent_forward` sélectionne un **phénotype différent de la prod**.
+2. **Auto-tuning partiellement illusoire** : `mutation_genes[2]/[3]` (taux de croissance topologique)
+   sont mutés et hérités mais **jamais consultés** — `apply_mutations` gate `add_node`/`add_connection`
+   sur le `MutationConfig` global. Seuls `[0],[1],[4],[5]` sont réellement auto-tunés.
+3. **`bytecode` mort en prod** : son unique canal (compile-boost de `add_connection_rate`) est gated
+   derrière `ACTIVE_EXP_VARIABLE=="METAPROG"` (off par défaut). En run normal : pur bruit de copie.
+4. **`memory_cache` vestigial** : `clone()` le remet à `None` à chaque reproduction.
+5. **`world_model=None` par défaut** dans `MambaBatchModel.__init__` ; doit être injecté par le monde
+   (câblé dans `world_1_stoneage` selon SCAN ; **à re-vérifier par monde de prod**).
+
+### Décision (suite du re-audit) : par gène, élaguer / câbler / laisser
+- `mutation_genes[2],[3]` → **trancher** : soit les *câbler* (faire lire `genome.mutation_genes[2]/[3]`
+  par `apply_mutations` au lieu du config → vraie auto-adaptation des taux de croissance, façon EDR 031),
+  soit les *retirer* de l'auto-mutation (réduire la dérive). 🔬 Tester par X2.
+- `bytecode` → **trancher** : *câbler* dans le forward batch (le décodeur per-node existe
+  `evolution.py:57-66`, à porter) = finir la Vague 1 ; ou *élaguer* du génome de prod.
+- `memory_cache` → **élaguer** (inerte sans ambiguïté) — non-régression attendue.
+- **Réconcilier les deux forwards** (dette transverse) : `recurrent_forward` devrait refléter les
+  câblages EDR 031, sinon les bancs mentent sur le phénotype.
+
+---
+
+## 2. Backlog NAS — propositions (brainstorm 2026-06-24)
+
+Scoré **Impact / Effort / Risque**. ⭐ = trajectoire recommandée vers le fractal sans big-bang.
+
+### Axe A — Optimiser le moteur existant (encodage direct `W`)
+- **A1. Hygiène génotype-phénotype** *(M / F / F)* — sur la base de la table §1 : élaguer l'inerte
+  (`memory_cache`), trancher `bytecode`/`mutation_genes[2,3]` (câbler vs retirer), réconcilier les
+  deux forwards. *(= Phase 0, cf. §3.)*
+- **A2. Quality-Diversity / MAP-Elites** ⭐ *(Fort / M / M)* — remplacer le HoF top-10 mono-objectif
+  par une **archive d'élites** indexée par descripteurs comportementaux (taille_réseau × style
+  {forageur/chasseur/crafteur} × usage_langage). Dé-bruitage local par niche via `robust_evaluate(K)`.
+  Attaque le plateau de bruit de fitness (EDR 075-081) en maintenant la diversité.
+- **A3. Fitness intrinsèque (curiosité)** *(Fort / F / dépend WM)* — fitness = surprise résolue
+  (erreur WM qui baisse) au lieu du `life_score` injecté. Open-endedness. Pré-requis : WM branché.
+- **A4. Parcimonie réelle dans la boucle vivante** *(M / F)* — le `life_score` live n'a **aucune**
+  pénalité de coût structurel (parcimonie seulement dans `evolution.py`, hors biosphère). Pénaliser
+  le coût FLOP/énergie du connectome → pression NAS vers l'efficacité. → **variante bio-inspirée plus
+  naturelle : D1 (coût métabolique d'activation)** ci-dessous.
+
+### Axe B — Encodage compositionnel (réaliser la vision fractale)
+- **B3. Bibliothèque de motifs évolués (KuzuDB)** ⭐ *(Fort / M / M)* — pont incrémental A→B. KuzuDB
+  stocke les sous-graphes performants (motifs Meso / organes Macro) ; un nouvel opérateur de mutation
+  **insère un motif de la bibliothèque** au lieu d'un seul nœud. Compositionnalité **sans** réécrire
+  le décodeur. Exploite l'infra graphe déjà là.
+- **B1. Encodage développemental** *(Très fort / Élevé / Élevé)* — le génome devient une séquence d'ops
+  Meso/Macro (« insère bottleneck », « réplique ce module ×3 ») au lieu d'une matrice plate.
+  Réutilisation, régularité, scaling sous-quadratique. Aligne le code sur les docs Meso/Macro.
+- **B2. Encodage indirect CPPN/HyperNEAT** *(Fort / Élevé / Élevé)* — `W` généré par une petite
+  fonction sur les coordonnées des neurones. Génome compact, exploite symétrie. Moins auditable que B1.
+
+### Axe C — Meta-NAS (l'essaim, l'écart le plus large)
+- **C1. Économie de compute (enchères)** ⭐ *(Fort / M)* — déjà amorcé (le MCTS coûte
+  `+0.5 energy_drain`, `mamba_agent.py:42`). Généraliser → marché où les organismes paient en énergie
+  pour TTC/dreaming. Sélectionne l'allocation efficiente du calcul (répond à l'angle-mort budget compute).
+- **C2. HGT — transfert horizontal de gènes** *(M / M)* — échange de sous-graphes entre champions
+  **en cours de vie** via `SwarmTransceiver`/KuzuDB. Le crossover topologique existe déjà.
+- **C3. Co-évolution symbiotique** *(M / Élevé)* — fusion permanente de deux organismes qui s'appellent
+  souvent. Substrat de l'Arc 5 (Tribu/Culture).
+
+### Axe D — Bio-inspiration insecte (efficacité énergétique & hétérogénéité)
+> Source : fiche « Bio-inspiration pour le NAS » (système nerveux des insectes). **Isomorphisme clé** :
+> la contrainte énergétique stricte de l'insecte ≡ l'**économie métabolique** de la biosphère AGIseed
+> (les organismes meurent de famine — cf. mémoire *mur Lewis*). La fitness « précision / nb d'activations »
+> de la fiche n'est donc pas une pénalité à injecter mais une **sélection naturelle** si le coût de calcul
+> devient métabolique : l'efficacité *trouvée, pas donnée*.
+
+- **D1. Coût métabolique d'activation** ⭐ *(Fort / Faible)* — **keystone**. Rendre `energy_drain`
+  (`mamba_agent.py:42`) dépendant du **nombre de nœuds actifs par tick**, pas seulement des traits
+  structurels (`hp_bonus`/`inv_capacity`/MCTS). Unifie A4 (parcimonie) + C1 (économie de compute) +
+  attaque le **mur énergétique Lewis**. = contrainte énergétique de l'insecte. *(Bio : §3 fitness.)*
+- **D2. Codage clairsemé / KWTA** *(Fort / Faible)* — k-winners-take-all : ne garder que le top 1-2 %
+  des activations de `H`, zéro ailleurs. Réduit le coût métabolique (synergie D1), évite le chevauchement
+  mémoire. Micro, peu coûteux. = sparse coding des corps pédonculés (mushroom bodies). *(Bio : §2.C.)*
+- **D3. Nœuds typés (hétérogénéité)** ⭐ *(Fort / Moyen)* — gène de **TYPE par nœud** pilotant fan-in/out,
+  activation, **portée d'axone** (global vs local) et coût : *unipolaire* (calcul local rapide, edge),
+  *bipolaire* (feedforward linéaire), *multipolaire/pyramidal* (hub intégratif, attention globale),
+  *anaxonique* (modulation locale, pas de propagation longue). Rompt l'homogénéité actuelle (tous tanh
+  dans `W`). Inclut les **neurones géants/hubs** (multipolaire = hub critique au milieu de couches
+  légères). Enrichit l'espace Micro/Meso — la contribution signature de la fiche. *(Bio : §1 + §2.B.)*
+- **D4. Ganglions décentralisés (modularité asynchrone)** *(Fort / Élevé)* — sous-graphes périphériques
+  autonomes (réflexe, haute fréquence) + graphe central stratégique (basse fréquence). **Généralise** le
+  réflexe/penseur existant (`organ_genes[0]` MCTS, `rl_evolution.py:41`) à la modularité **spatiale**.
+  Macro+Meta. *(Bio : §2.A.)*
+- **D5. SNN + STDP (plasticité locale, pivot)** *(Fort / Élevé)* — exploiter le substrat spiking **déjà
+  là** (`thresholds`, câblé EDR 031, cf. §1) : activation à impulsions + apprentissage local STDP
+  (spike-timing) → élimine la rétropropagation. Gène de **règle d'apprentissage** Micro. Aligné sur le
+  finding « thresholds vivants » du re-audit. *(Bio : §2.D.)*
+
+**Séquence Axe D** : D1 + D2 d'abord (cheap, synergie immédiate, attaque le mur énergétique) → D3
+(expressivité, nœuds typés) → D4 / D5 (pivots architecturaux). D1/D2 **remplacent/aiguisent** A4.
+
+### Transversal — méthode & RSI
+- **X1. Le NAS comme cible de la RSI** — la boucle LLM (`src/metaprog/rsi_loop.py`, débranchée) propose
+  de nouveaux **opérateurs de mutation / motifs Meso**, en s'inspirant des docs Micro/Meso. Recherche
+  d'*architecture de la recherche*. Après durcissement sandbox OS (cf. roadmap BACKEND, garde-fous).
+- **X2. Transfer-ratio = métrique-reine** *(à poser tôt)* — `tools/curriculum_transfer.py` +
+  `tools/transfer_ratio.py` deviennent le **critère d'acceptation** de toute innovation NAS.
+
+### Séquençage recommandé (à trancher)
+- **Phase 0 — Re-audit + hygiène** *(retenu « bientôt »)* : §1 livré ; reste les tranches A1 + poser X2.
+- **Phase 1 — Recherche + efficacité bio** : A2 (MAP-Elites) + **D1/D2 (coût métabolique + KWTA)**
+  — parcimonie bio-inspirée qui attaque le mur énergétique Lewis (remplace A4).
+- **Phase 2 — Compositionnalité & hétérogénéité** : B3 (bibliothèque de motifs) + **D3 (nœuds typés)**.
+- **Phase 3 — Essaim/saut** : C1 (économie de compute) + **D4 (ganglions)** → B1 (développemental) /
+  **D5 (SNN+STDP)** / X1 (RSI propose motifs).
+
+---
+
+## 3. Phase 0 — Re-audit d'abord (EN COURS)
+
+**Décision (2026-06-24)** : le prémisse initial « 2 gènes morts à élaguer » était **réfuté** par la
+vérification (thresholds/router vivants). On re-audite proprement AVANT d'élaguer/câbler. + poser X2.
+
+**Livré** : table de vérité §1 (génotype→phénotype, evidence file:line, prod vs legacy vs mutation).
+
+**Reste de Phase 0** :
+1. **Poser X2** : documenter `curriculum_transfer`/`transfer_ratio` comme gate d'acceptation NAS ;
+   l'invoquer comme baseline avant toute tranche A1.
+2. **Trancher les 4 gènes inertes/morts** (par X2, 1 variable à la fois, multi-seed apparié) :
+   - `memory_cache` → élaguer (non-régression attendue : prouve l'inertie).
+   - `bytecode` → câbler (porter le décodeur per-node dans le forward batch) **ou** élaguer du génome prod.
+   - `mutation_genes[2],[3]` → câbler (vraie auto-adaptation des taux de croissance) **ou** retirer.
+3. **Réconcilier les deux forwards** (`recurrent_forward` ↔ `MambaBatchModel`) — dette transverse qui
+   fausse tout banc évoluant sur le chemin legacy.
+
+> **Discipline** (Commandement 15) : 1 variable par expérience, ≥ ce que la puissance exige,
+> verdict par X2 (transfer-ratio appariée), valide ou revert. Élaguer/câbler un gène = **1 variable**.

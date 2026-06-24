@@ -14,6 +14,10 @@ import pathlib
 
 import pytest
 
+
+def pytest_configure(config):
+    config.addinivalue_line("markers", "slow: test lent (lance la biosphere), deselectionne par defaut en CI rapide")
+
 _FIXTURES = pathlib.Path(__file__).parent / "fixtures" / "experiments"
 
 

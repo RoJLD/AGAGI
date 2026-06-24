@@ -1,9 +1,11 @@
 # BACKLOG AGIseed — idées futures, aspirationnel, références
 
-> Le « someday » du projet : visions, axes futurs, détails de design non encore planifiés. La
-> **roadmap** (`roadmap.md`) ne garde que *ce qui reste à court terme* + le statut ; l'**historique**
-> scientifique est dans `docs/FIL_CONDUCTEUR.md` + `docs/EDR/*`. Ce fichier n'est ouvert que pour
-> planifier loin.
+> Le « someday » du projet : visions, axes futurs, détails de design non encore planifiés. Les
+> **roadmaps** court-terme sont scindées par domaine dans [`roadmap/`](roadmap/) (SCIENCE · NAS ·
+> BACKEND · FRONTEND) ; l'**historique** scientifique est dans [`FIL_CONDUCTEUR.md`](FIL_CONDUCTEUR.md)
+> + [`EDR/`](EDR/). Carte : [`README.md`](README.md). Ce fichier n'est ouvert que pour planifier loin.
+>
+> Le backlog **NAS** (moteur évolutif) vit dans [`roadmap/NAS.md`](roadmap/NAS.md) §2.
 
 ---
 

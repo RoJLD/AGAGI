@@ -1,0 +1,113 @@
+# Roadmap SCIENCE — AGIseed (axe 🔬 Scientifique)
+
+> **Domaine** : la frontière scientifique (capacités cognitives à faire émerger/mesurer). Sœurs :
+> [`NAS.md`](NAS.md) (moteur évolutif) · [`BACKEND.md`](BACKEND.md) · [`FRONTEND.md`](FRONTEND.md).
+> Carte complète : [`../README.md`](../README.md).
+>
+> **Vision** : un *« algorithme de la vie »* où la bonne chose à faire n'est **pas dite mais trouvée** —
+> l'intelligence *trouvée* (connectomes évolués, bottom-up), pas *donnée*.
+>
+> **Cette page = ce qui reste à faire + où on en est.** L'**historique** scientifique :
+> [`../FIL_CONDUCTEUR.md`](../FIL_CONDUCTEUR.md) (récit) + [`../EDR/`](../EDR/) (détail, 93 décisions).
+> Les **idées futures / aspirationnel** : [`../BACKLOG.md`](../BACKLOG.md). Méthode : **Commandement 15**
+> (1 variable, ≥... mesures, valide ou revert — *powerer avant de conclure*).
+
+---
+
+## Architecture (V15/V16)
+- **59 entrées / 108 sorties** ; moteur **Liquid Mamba BatchModel** vectorisé + TTC adaptatif ; écologie 9 proies + apex + feu + crafting ; **World Model** (RND), **Actor-Critic TD** intra-vie, **HoF robuste** inter-ère.
+
+## Les 7 Arcs (phylogénèse)
+
+| Arc | Thème | Statut |
+|---|---|---|
+| 1 | L'Animal (Survie) | ✅ TERMINÉ |
+| 2 | Le Primate (Outils) | ✅ TERMINÉ (V14) |
+| 3 | L'Homo Habilis (Crafting) | ✅ chaîne moyens→fins émergente+robuste (`027-030`) |
+| **4** | **L'Homo Sapiens (Langage)** | 🔵 **EN COURS** — code référentiel fiable câblé (`072-074`) ; bénéfice fonctionnel en cours de test rigoureux (`087`) |
+| 5 | La Tribu (Culture) | ⚪ après clôture Arc 4 |
+| 6-7 | Penseur, Conscience | ⚪ gelé (`docs/BACKLOG.md`) |
+
+## Diagnostic — 3 causes-racines (orientation)
+
+> De l'audit `EDR 010` (causes A, B) + la trouvaille de session (cause C).
+
+| # | Cause | État |
+|---|---|---|
+| **A** | Le cerveau ne prédit pas | ✅ World Model RND (`011`) |
+| **B** | Le monde n'exige pas l'intelligence | ✅/🔵 monde exigeant (`012`) **+ sweet spot d'énergie** (`085` : il était *trop dur* pour la survie soutenue → réglé : ×5 compétents/frais) |
+| **C** | *(nouveau)* Le moteur de SÉLECTION limité par le bruit de fitness | ✅ **HoF robuste en prod** (`078-081`, gated) → +50 % compétence qui *compose* |
+
+---
+
+## Où on en est (037→087)
+
+> Grand arc de session : **langage → gradient → compétence → survie**. Récit complet : `FIL_CONDUCTEUR.md`.
+
+- **Langage (037-074)** : de « bruit » à un **code référentiel fiable câblé dans l'agent** (gradient → convergence 100 % `072` → tête dédiée `074`, MI live +0.22, gated).
+- **Gradient (067-071)** *(hors plan)* : la mutation est un **chercheur faible** en supervisé (mémoire `067`, langage `072`) ; mais le **BPTT NUIT en RL** (`077`, auto-réfutation).
+- **Compétence (075-081)** : plateau = **bruit de fitness** (`078`) → remède robuste en prod, qui **compose** (`081`).
+- **Survie (082-087)** : le langage ne payait pas car les agents mouraient ~45 ticks (`082`). Cause = **économie d'énergie** (`084` : 79 % starvent) → **sweet spot** (`085`, survie ×4) → débloquer la survie a *révélé et corrigé* une **instabilité du connectome** sur les longs épisodes (`086`) → **re-test rigoureux du bénéfice du langage en cours** (`087`, design audité contre 12 confounds).
+
+> **Discipline** : 5 fois un signal à peu de seeds s'est évaporé sous puissance (`057/075/077/082/083`). *Powerer + auditer le design avant de conclure.*
+
+---
+
+> **Backlog enrichi par le scan global** (`docs/SCAN_GLOBAL.md`, juin 2026). ⚠️ Le scan est un
+> *générateur d'hypothèses* : 2 « criticals » vérifiés et **réfutés** (World Model est bien actif,
+> surprise=0.25 ; le dé-bruitage HoF tient). *Vérifier avant d'agir.*
+
+## 🔬 Frontière scientifique — prochains leviers
+
+1. **Clore le bénéfice fonctionnel du langage (Arc 4)** — re-test `087` (FIABLE vs BROUILLÉ, isole le *contenu* du téléguidage) + **power (R≥4)** : à survie longue, le contenu référentiel paye-t-il ? Si oui → Arc 4 clos.
+2. **Prouver que chaque monde EXIGE l'intelligence** *(hygiène fondatrice, scan S2)* — benchmark **agent dummy vs champion HoF** (ratio de survie par monde). Si ratio≈1 → le monde est factice et toute mesure de « compétence » y est du bruit. Conditionne la validité du curriculum.
+3. **Vrai planning** *(scan S6)* — le « dreaming/MCTS » est du **random-shooting latent** (perturbe `H`, n'exploite PAS le World Model). Le brancher sur `world_model.predict()` pour simuler des trajectoires (obs→action→reward) → imagination instrumentale.
+4. **Co-évoluer l'usage du langage** (`083`, +0.29 sous 2 SE) — pression de sélection explicite sur l'écoute ; + **récompenses intrinsèques** (curiosité comme fitness — le World Model EST actif).
+5. **Régler le sweet spot d'énergie** (`085`) comme variable d'expérience ; **étoffer les mondes 2&3** (Agri=anticipation, Industrial=coopération) — substrat de l'Arc 5 *(design détaillé → `../BACKLOG.md`)*.
+6. **Vraie RSI** (#8 armé `065-069`) — **après** durcir la sandbox (cf. garde-fous) ; Arc 5 **après** clôture Arc 4.
+
+## 🛠️ Outillage / Dev
+
+**Livré (session)** : **Dashboard EDR** + **Biosphère live** (onglets `edr`/`live`, `/api/edr`) ; **HoF robuste** en prod (`robust_hof_K`, gated) ; **knobs d'énergie** (`base_metabolism`/`forage_payoff`, gated) ; **stabilité connectome** longs épisodes (`086`) ; **D1 — socle de validité (RNG/Harness)** : `SeedManager` + `Harness` (composition : seed aux frontières, cycle async_logger, éval robuste **appariée**, provenance), seed boot **loggé** dans `main_biosphere` (run rejouable via `EXPERIMENT_SEED`), `robust_evaluate(seed=)`, pilote `robust_eval` migré (repro exacte prouvée sur la vraie biosphère). **+21 tests.** *(spec/plan : `../superpowers/{specs,plans}/2026-06-13-D1-RNG-Harness*`)*.
+
+> ⚠️ **Trouvaille D1 (corrige EDR 081)** : `main_biosphere` **écrasait** `robust_hof_K=4` (2ᵉ `WorldConfig()` réinstancié) → la prod tournait en sélection **bruitée K=0**, pas robuste. **Corrigé** (le K=4 d'EDR 080/081 prend enfin effet). C'est un *changement de comportement de sélection en prod* — à garder en tête pour interpréter les prochains runs.
+
+**Reste** *(priorisé par le scan)* :
+1. **Finir D1** : (a) **apparier le HoF en prod** — `robust_rank`→`robust_evaluate` ne passe pas encore le seed (le ranking de prod reste non apparié ; le run global *est* reproductible via le seed boot) ; (b) **migrer les ~55 tools** sur `Harness`/`seed_boundary` (vague comparative `coevolve_language`/`func_benefit`/… puis le reste, mécanique) ; (c) DRY : factoriser les 4 sites inline `(base+i)%2³²` sur `seed_boundary`. *(PR de suivi)*.
+2. **RSI — brancher le LLM + boucle itérative à mémoire** *(audit 2026-06-23 : machine complète, débranchée)*. La machinerie existe et est testée (`src/metaprog/rsi_loop.py`, 20 tests) : `rsi_step`/`rsi_demand_step`, `LLMProposer` (câblé mais **verrouillé** sans `llm_fn`), `make_powered_measure` (multi-seed). Clients LLM **déjà là** (`llm_proposer_fn.py` : `anthropic_llm_fn`/`local_llm_fn`/`scripted_llm_fn`). Mock actuel : `supervisor.py:103` appelle `supervisor_coder.generate_and_test_new_activation()` (Swish hardcodé). **Deux voies de risque** : (a) `world_demand` = JSON de params sanitisés (allow-list), **pas de code-exec → sans blocage sandbox**, mais *optimise un KPI non encore validé → risque Goodhart* (cf. S2) ; (b) `activation` = code généré → exige le durcissement sandbox OS. Manque pour la voie (a) : `graph.read_recent_proposals()` (injection du contexte). **Priorité : 2ᵉ** (après que la mesure de transfert du #3 valide le KPI).
+3. **CurriculumRunner — 2ᵉ échelle de temps (inter-mondes)** *(audit 2026-06-23 : prêt, testé, dormant ; PRIORITÉ #1 moteur)*. `src/curriculum/runner.py` traverse une séquence de mondes par portes de maîtrise (plateau de compétence), transfère le champion via `import_agent_id`. Découplé (callback `run_era_fn`), 10 tests. Utilisé par `main_curriculum.py` mais **absent de `main_biosphere`** (boucle plate mono-monde). Branchement = **opt-in `USE_CURRICULUM`**, extraire la boucle intra-monde en `run_era_fn` (~2-3 j). **Cœur scientifique = la mesure de transfert manquante** (curriculum vs tabula-rasa, multi-seed apparié — `transfer_ratio` n'existe pas) : sans elle, le brancher serait du théâtre ; *avec* elle, c'est une expérience falsifiable (curriculum bat-il tabula-rasa ?) qui **bâtit l'instrument de validité dont la RSI #2 dépend**. Risques : seed apparié par monde (`seed_boundary` à chaque promo), non-régression du chemin legacy (opt-in off par défaut). 🟢 **Mesure de transfert LIVRÉE** (`tools/curriculum_transfer.py`) : verdict {TRANSFERE/NEUTRE/NUIT} apparié multi-seed à **budget compute égal** (tabula-rasa = `CurriculumRunner` single-stage `c_floor=1.1` tournant exactement T ères), test de signe binomial exact, provenance via ledger C1 (`Harness.save`). `run_era_fn` injectable → orchestration testée sans biosphère. **Reste** : *lancer* l'expérience à l'échelle (compute), puis l'opt-in `main_biosphere` (optionnel). *(spec/plan : `../superpowers/{specs,plans}/2026-06-23-Curriculum-Transfer*`)*.
+
+   > **Priorité moteur (audit 2026-06-23)** : **#3 CurriculumRunner + mesure de transfert** d'abord (falsifiable, fondé, validité-natif, dé-risque la RSI) → **#2 RSI `world_demand`** ensuite (une fois le KPI validé) → durcir la sandbox OS (gate, = TODO C4) → **RSI `activation`** (code-exec, levier étroit). Rationale : *fondations de validité avant éclat*, comme C1 avant le reste du backend.
+4. **Tests du cœur cognitif** (policy-gradient end-to-end, langage) — sous-testés (~2 sur `mamba_agent`).
+5. **Unifier le moteur** (`world_0_soup` duplique `Biosphere3D`) ; **ontologie Hypothesis/Fact** (vide → chaque EDR=`Hypothesis`) ; **ablation** (Ratio de Transfert sur les mécanismes — cf. [`NAS.md`](NAS.md) §X2). **Réconcilier les deux forwards** (legacy `recurrent_forward` ↔ prod `MambaBatchModel`) → [`NAS.md`](NAS.md) §1.
+6. **Hygiène du moteur évolutif (NAS)** → déplacé vers [`NAS.md`](NAS.md) : table de vérité génotype→phénotype, gènes morts (`bytecode`, `mutation_genes[2,3]`, `memory_cache`), Phase 0.
+
+> **Chantiers d'infra déplacés** *(split du 2026-06-24)* :
+> - **Backend** (Observabilité/Provenance C1, A/B multi-run C2, Stubs/dette/CI C3, Sécurité/sandbox C4 —
+>   ✅ C1-C4 complète) → [`BACKEND.md`](BACKEND.md).
+> - **Frontend** (A/B live, tests Vitest+RTL, CI, nettoyage stubs) → [`FRONTEND.md`](FRONTEND.md).
+
+## 🧭 Garde-fous méthodo *(angles morts du scan — à poser avant les benchmarks)*
+
+- **Budget compute** : la rigueur multi-seed × K-éval × R-runs *explose* sur mono-machine → profiling / parallélisme / early-stopping **avant** S2/S4.
+- **Stats au-delà du RNG** : correction multi-comparaisons (Bonferroni/Holm) + **power analysis a priori** (quel K ?) + **taille d'effet** (pas que p<.05).
+- **Sécurité** : RCE *applicatif* fermé (✅ **C4** : whitelist + confinement + CORS + auth/timeout opt-in). **Reste** avant d'armer la RSI en prod : durcir l'**isolation OS** de la sandbox (conteneur / limites mémoire-réseau) — `run_sandboxed` reste un subprocess local.
+- **« 1 variable »** : tout changement cognitif **gèle l'aval** d'abord (sinon confound — rallumer 3 systèmes = 3 variables).
+
+---
+
+## Statut des Vagues (pointeurs)
+
+| Vague | Statut |
+|---|---|
+| **0 — Fondations** | ✅ LIVRÉE (`010-030`) : moteur évolutif réparé (`016`), Actor-Critic (`020`), chaîne moyens→fins auto-suffisante (`030`) |
+| **1 — Honnêteté/hygiène** | 🟠 gènes câblés ✅ (`031`) ; ablation + unify-engine + ontologie ⏳ (cf. Dev) |
+| **2 — RSI (graine d'AGI)** | ✅ sandbox isolée (`035`) + supervisor réflexif (`036`) + **#8 armé** (`065-069`) ; vraie RSI ⏳ (différée) |
+| **3 — Émergence avancée** | 🔵 **langage émergent EN COURS** (`037-087`, Arc 4) ; protoconcepts/économie cognitive → `../BACKLOG.md` |
+| **4 — Différé/gelé** | ⚪ NAS Macro, Arcs 6-7 → `../BACKLOG.md`. À ne pas toucher tant que V0-V3 ne livrent pas. |
+
+> **Règle** : on ne passe à la vague N+1 que si N est *livrée ET mesurée*.
+
+## Méthode & Outils
+- **Commandement 15** : 1 variable, mesures suffisantes (≥ ce que la puissance exige), Sociologue, valide ou revert.
+- Outils : `tools/sociologist.py` (rapport KuzuDB), `tools/skinner_box.py` (audit neuronal), `tools/progress.py` (barres+ETA), `migrate_v10.py` (chirurgie génétique).
