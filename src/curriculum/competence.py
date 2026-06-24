@@ -19,6 +19,15 @@ def _median_norm(values: List[float], ref: float) -> float:
     return float(np.clip(np.median(values) / ref, 0.0, 1.0))
 
 
+def _frac_reaching(agent_stats: List[Dict], key: str, threshold: float = 1.0) -> float:
+    """Fraction des agents dont le champ `key` atteint `threshold` (>=). Rare-event-aware
+    (≠ médiane, EDR 094) ; binaire par agent -> robuste à l'inflation de crédit-groupe
+    (EDR 028/096 : un agent crédité 1 ou 5 fois compte une seule fois). Liste vide -> 0.0."""
+    if not agent_stats:
+        return 0.0
+    return sum(1 for a in agent_stats if a.get(key, 0) >= threshold) / len(agent_stats)
+
+
 # --- Monde 0 : Soup (exemple de référence, déjà implémenté) -----------------
 
 AGE_REF = 200.0  # une ère = 200 ticks par défaut (base_world.run_era)
