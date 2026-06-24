@@ -113,13 +113,20 @@ Scoré **Impact / Effort / Risque**. ⭐ = trajectoire recommandée vers le frac
 > de la fiche n'est donc pas une pénalité à injecter mais une **sélection naturelle** si le coût de calcul
 > devient métabolique : l'efficacité *trouvée, pas donnée*.
 
-- **D1. Coût métabolique d'activation** ⭐ *(Fort / Faible)* — **keystone**. Rendre `energy_drain`
-  (`mamba_agent.py:42`) dépendant du **nombre de nœuds actifs par tick**, pas seulement des traits
-  structurels (`hp_bonus`/`inv_capacity`/MCTS). Unifie A4 (parcimonie) + C1 (économie de compute) +
-  attaque le **mur énergétique Lewis**. = contrainte énergétique de l'insecte. *(Bio : §3 fitness.)*
-- **D2. Codage clairsemé / KWTA** *(Fort / Faible)* — k-winners-take-all : ne garder que le top 1-2 %
-  des activations de `H`, zéro ailleurs. Réduit le coût métabolique (synergie D1), évite le chevauchement
-  mémoire. Micro, peu coûteux. = sparse coding des corps pédonculés (mushroom bodies). *(Bio : §2.C.)*
+- **D1. Coût métabolique d'activation** — ❌ **RÉFUTÉ (mesure powered, 2026-06-24)**. Implémenté
+  (PR #35) + mesuré (`tools/metabolic_cost_sweep.py`, 8 seeds × coefs {0,0.01,0.03,0.1} × 15 ères,
+  banc stoneage sweet-spot). **Fait robuste : `mean_active` reste PLAT (~152/172 nœuds) à tous les
+  coefs**, même 0.1 (drain ~15/tick qui coupe la survie 26→8). Le coût métabolique **ne sparsifie
+  pas** les connectomes — il ne fait que **starver** (coef 0.1 → NUIT, sign_p=0.008). La sélection ne
+  peut pas réduire le nombre de nœuds actifs → `brain_cost` n'est PAS un levier sélectionnable
+  (corrobore le mur Lewis intrinsèque + EDR 098). **Garder `metabolic_cost_coef=0.0` (off).**
+  *(Idée d'origine : rendre `energy_drain` dépendant des nœuds actifs ; bio §3 fitness.)*
+- **D2. Codage clairsemé / KWTA** ⭐ *(Fort / Faible)* — **le pivot après l'échec de D1**. D1 a montré
+  que la sélection **ne produit PAS** de sparsité (mean_active plat). Réponse : **l'IMPOSER
+  structurellement** — k-winners-take-all : ne garder que le top 1-2 % des activations de `H`, zéro
+  ailleurs (force `mean_active` ↓ par construction, pas par sélection). Évite le chevauchement mémoire.
+  Micro, peu coûteux. = sparse coding des corps pédonculés (mushroom bodies). Question : la sparsité
+  imposée **dégrade-t-elle** la compétence, ou est-elle neutre/bénéfique (≥ efficience) ? *(Bio : §2.C.)*
 - **D3. Nœuds typés (hétérogénéité)** ⭐ *(Fort / Moyen)* — gène de **TYPE par nœud** pilotant fan-in/out,
   activation, **portée d'axone** (global vs local) et coût : *unipolaire* (calcul local rapide, edge),
   *bipolaire* (feedforward linéaire), *multipolaire/pyramidal* (hub intégratif, attention globale),
@@ -135,8 +142,10 @@ Scoré **Impact / Effort / Risque**. ⭐ = trajectoire recommandée vers le frac
   (spike-timing) → élimine la rétropropagation. Gène de **règle d'apprentissage** Micro. Aligné sur le
   finding « thresholds vivants » du re-audit. *(Bio : §2.D.)*
 
-**Séquence Axe D** : D1 + D2 d'abord (cheap, synergie immédiate, attaque le mur énergétique) → D3
-(expressivité, nœuds typés) → D4 / D5 (pivots architecturaux). D1/D2 **remplacent/aiguisent** A4.
+**Séquence Axe D** *(révisée après réfutation de D1)* : ~~D1~~ ❌ → **D2 (KWTA, imposer la sparsité)**
+= prochain candidat → D3 (expressivité, nœuds typés) → D4 / D5 (pivots architecturaux).
+**Leçon D1** : ne pas espérer que la *sélection* produise une propriété structurelle (sparsité) — la
+mesurer d'abord, et si elle n'émerge pas, l'**imposer** (D2) plutôt que la *récompenser* (D1).
 
 ### Transversal — méthode & RSI
 - **X1. Le NAS comme cible de la RSI** — la boucle LLM (`src/metaprog/rsi_loop.py`, débranchée) propose
