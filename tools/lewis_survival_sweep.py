@@ -30,13 +30,14 @@ APEX_LEVELS = (12, 9, 6, 3, 0)     # N_APEX balaye : de la densite 093 (12) au L
 SURPRISE_LEVELS = (1.0, 0.5, 0.25, 0.0)   # ttc_surprise_scale : baseline 094 (1.0) -> brain_cost decouple (0.0)
 
 
-def _cfg(forage_payoff, ttc_surprise_scale=None):
+def _cfg(forage_payoff, ttc_surprise_scale=None, trace_energy_sinks=False):
     cfg = WorldConfig()
     cfg.base_metabolism = METAB
     cfg.forage_payoff = float(forage_payoff)
     cfg.max_population = 150        # defensif (PR #29) ; jamais atteint ici
     if ttc_surprise_scale is not None:
-        cfg.ttc_surprise_scale = float(ttc_surprise_scale)   # EDR098 ; sinon defaut config (1.0)
+        cfg.ttc_surprise_scale = float(ttc_surprise_scale)   # EDR098
+    cfg.trace_energy_sinks = bool(trace_energy_sinks)         # EDR099
     return cfg
 
 
@@ -82,6 +83,50 @@ def _measure_survival(cfg, seeds, leurre_frac=0.0, n_apex=N_APEX, num_agents=NUM
     if collect_surprise:
         result["surprise"] = surprise
     return result
+
+
+def _measure_drain(cfg, seeds, n_apex=0, num_agents=NUM_AGENTS, max_ticks=MAX_TICKS):
+    """Decompose le drain energetique par phase (brain/action/biologie/mouvement) a N_APEX=0. Lit
+    agent['_e_phases'] (pose par les hooks trace_energy_sinks) sur le pool, normalise par l'age
+    (energie/tick), moyenne sur les agents. cfg DOIT avoir trace_energy_sinks=True."""
+    mc = MutationConfig(weight_init_std=2.0)
+    seed_at(0, 0)
+    champs = _load_champions()
+    brain, action, biologie, mouvement = [], [], [], []
+    for s in seeds:
+        seed_at(s, 0)
+        genomes = _reproduce(champs, num_agents, mc)
+        env = Biosphere3D(cfg)
+        _setup_critical(env, 0.0, n_apex=n_apex)
+        env.config.target_prey_count = PREY_COUNT
+        if hasattr(env, "memory_retriever"):
+            env.memory_retriever.stop()
+            env.memory_retriever.clear()
+        env.use_ref_head = False
+        env.decode_act = False
+        for g in genomes:
+            a = MambaAgent()
+            a.from_genome(g)
+            env.add_agent(a, energy=80.0)
+        env.current_era = 1
+        t = 0
+        while env.agents and t < max_ticks:
+            env.step()
+            t += 1
+        pool = list(env.agents) + list(getattr(env, "dead_agents", []))
+        for ag in pool:
+            ph = ag.get("_e_phases")
+            if not ph:
+                continue
+            age = max(1, int(ag.get("age", 1)))
+            brain.append(ph["brain"] / age)
+            action.append(ph["action"] / age)
+            biologie.append(ph["biologie"] / age)
+            mouvement.append(ph["mouvement"] / age)
+    mean = lambda xs: float(np.mean(xs)) if xs else 0.0
+    b, a_, bio, mv = mean(brain), mean(action), mean(biologie), mean(mouvement)
+    return {"brain": b, "action": a_, "biologie": bio, "mouvement": mv,
+            "net": b + a_ + bio + mv, "n_agents": len(brain)}
 
 
 def _surprise_stats(pool):
@@ -133,6 +178,21 @@ def _verdict_surprise(levels, medians, frac_nonfinite, gate=GATE):
     if any(f > 0 for f in frac_nonfinite):
         return "OVERFLOW=RACINE"
     return "PAS LE BRAIN_COST"
+
+
+def _verdict_drain(phases):
+    """Mappe la decomposition (brain/action/biologie/mouvement + net) -> 5 branches. La phase qui porte
+    > 50% du drain net nomme le coupable ; aucune > 50% (ou net <= 0) -> drain diffus."""
+    net = phases["net"]
+    if net <= 0:
+        return "DRAIN DIFFUS"
+    keys = ("brain", "action", "biologie", "mouvement")
+    shares = {k: phases[k] / net for k in keys}
+    top = max(shares, key=shares.get)
+    if shares[top] <= 0.5:
+        return "DRAIN DIFFUS"
+    return {"action": "TARIF=THROW", "biologie": "TARIF=BIOLOGIE",
+            "brain": "TARIF=BRAIN", "mouvement": "TARIF=MOUVEMENT"}[top]
 
 
 def _report(h, levels, groups, R, n_eval, _return, knob="forage_payoff", verdict_fn=_verdict):
@@ -219,6 +279,33 @@ def main_surprise(levels=SURPRISE_LEVELS, n_eval=8, R=4, seed=None, _return=Fals
             prog.update()
         return _report(h, levels, groups, R, n_eval, _return, knob="surprise_scale",
                        verdict_fn=_verdict_surprise)
+
+
+def _report_drain(h, agg, R, n_eval, _return):
+    """Table des 4 phases (energie/tick + part %) + verdict + provenance. Tout ASCII (cp1252)."""
+    verdict = _verdict_drain(agg)
+    net = agg["net"]
+    print(f"\n=== EDR099 decomposition drain a N_APEX=0 (energie/tick/agent) ===")
+    for ph in ("brain", "action", "biologie", "mouvement"):
+        pct = (100.0 * agg[ph] / net) if net else 0.0
+        print(f"  {ph:<9} | {agg[ph]:7.2f}/tick | {pct:6.1f}% du net")
+    print(f"  {'NET':<9} | {net:7.2f}/tick | n_agents={agg['n_agents']}")
+    print("=== VERDICT (pre-enregistre, phase >50%) ===")
+    print(f"  -> {verdict}")
+    h.save({"phases": agg, "verdict": verdict, "R": R, "n_eval": n_eval})
+    if _return:
+        return {"phases": agg, "verdict": verdict, "R": R, "n_eval": n_eval}
+
+
+def main_decompose(n_eval=8, R=4, seed=None, _return=False):
+    """EDR 099 : decompose le drain intrinseque a N_APEX=0 (monde vide), forage_payoff=3, en 3 phases."""
+    with Harness(seed=seed, name="lewis_drain_decompose", with_db=False) as h:
+        base = h.seed
+        _disable_kuzu()
+        print(f"EDR099 : decomposition drain N_APEX=0, R={R}, n_eval={n_eval}, seed={base}.")
+        seeds = [base + r * 1000 + i for r in range(R) for i in range(n_eval)]
+        agg = _measure_drain(_cfg(3, trace_energy_sinks=True), seeds, n_apex=0)
+        return _report_drain(h, agg, R, n_eval, _return)
 
 
 if __name__ == "__main__":

@@ -972,11 +972,15 @@ class Biosphere3D(BaseWorld):
         night_mult = getattr(self.config, "ttc_night_penalty", 2.5) if getattr(self, "is_night", False) else 1.0
 
         for i, agent in enumerate(self.agents):
+            if getattr(self.config, "trace_energy_sinks", False):
+                agent["_e0"] = agent["energy"]                 # EDR099 : energie debut tick
             surprise_val = float(agent["model"].surprise_momentum)
             surprise_scale = 1.0 + surprise_val * getattr(self.config, "ttc_surprise_scale", 1.0)
-            
+
             brain_cost = base_cost * (1.0 + np.log2(1.0 + compute_spent[i])) * night_mult * surprise_scale
             agent["energy"] = max(0.0, agent["energy"] - float(brain_cost))
+            if getattr(self.config, "trace_energy_sinks", False):
+                agent["_e_brain"] = agent["energy"]            # EDR099 : apres brain_cost
             
             if getattr(self.config, "active_exp_variable", "NONE") == "INTRINSIC":
                 # Recompense Intrinsèque : La surprise génère de la dopamine (énergie)
@@ -1253,7 +1257,11 @@ class Biosphere3D(BaseWorld):
                         agent["last_env_surprise"] = 0.5
 
             # Biology
+            if getattr(self.config, "trace_energy_sinks", False):
+                agent["_e_prebio"] = agent["energy"]           # EDR099 : avant biologie
             self._resolve_biology(agent, action, logits)
+            if getattr(self.config, "trace_energy_sinks", False):
+                agent["_e_postbio"] = agent["energy"]          # EDR099 : apres biologie, avant mouvement
             
             # Movement (2D: actions 0-3 = N,S,E,W; 3D: actions 4-5 = Up,Down)
             ax, ay, az = int(agent["x"]), int(agent["y"]), int(agent.get("z", 0))
@@ -1275,7 +1283,17 @@ class Biosphere3D(BaseWorld):
                 agent["energy"] -= 2.0
                 
             self.pheromone_map[z_layer, int(agent["y"]), int(agent["x"])] += 1.0
-            
+            if getattr(self.config, "trace_energy_sinks", False):
+                _e0 = agent.get("_e0", agent["energy"])
+                _eb = agent.get("_e_brain", _e0)
+                _ep = agent.get("_e_prebio", _eb)
+                _epb = agent.get("_e_postbio", _ep)
+                ph = agent.setdefault("_e_phases", {"brain": 0.0, "action": 0.0, "biologie": 0.0, "mouvement": 0.0})
+                ph["brain"] += _e0 - _eb                       # cout brain_cost
+                ph["action"] += _eb - _ep                      # throw + signal + divers (loop2 avant biologie)
+                ph["biologie"] += _ep - _epb                   # metab+terrain+carry (peut etre <0 si forage)
+                ph["mouvement"] += _epb - agent["energy"]      # penalite mouvement bloque (elif action < 6)
+
             # Survive / Reproduce
             if getattr(self, 'is_night', False):
                 agent["confort"] = max(0.0, agent.get("confort", 50.0) - 1.0)
