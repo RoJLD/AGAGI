@@ -72,11 +72,11 @@ SWEET_METAB = 0.25      # sweet-spot EDR 085 (survie ×4)
 SWEET_PAYOFF = 3.0
 
 
-def _make_cfg(coef: float) -> WorldConfig:
+def _make_cfg(value, param="metabolic_cost_coef") -> WorldConfig:
     cfg = WorldConfig()
     cfg.base_metabolism = SWEET_METAB
     cfg.forage_payoff = SWEET_PAYOFF
-    cfg.metabolic_cost_coef = coef
+    setattr(cfg, param, value)
     return cfg
 
 
@@ -105,13 +105,14 @@ def _reproduce(champ_genomes, num_agents):
 
 
 def run_lineage(seed: int, coef: float, eras: int = 15, num_agents: int = 30,
-                max_ticks: int = 400, run_era_fn: Optional[Callable] = None) -> Dict:
+                max_ticks: int = 400, run_era_fn: Optional[Callable] = None,
+                param: str = "metabolic_cost_coef") -> Dict:
     """Une trajectoire évolutive (E ères + cliquet) à coef fixe, seed apparié.
     KPIs sur 5 dernières ères."""
     if run_era_fn is None:
         run_era_fn = run_era_metab  # défini en Task 3 dans ce même module
     SeedManager(seed).seed_boundary(0)
-    cfg = _make_cfg(coef)
+    cfg = _make_cfg(coef, param)
     from src.agents.mamba_agent import MambaAgent
     champions = [MambaAgent().genome for _ in range(5)]
     best_ever = [(0.0, g) for g in champions]
@@ -132,34 +133,35 @@ def run_lineage(seed: int, coef: float, eras: int = 15, num_agents: int = 30,
 
 
 def run_sweep(seeds, coefs, eras: int = 15, num_agents: int = 30, max_ticks: int = 400,
-              run_era_fn: Optional[Callable] = None) -> Dict:
-    """Sweep apparié : pour chaque seed, chaque coef -> run_lineage.
-    Ratios vs coef=0 -> verdict."""
+              run_era_fn: Optional[Callable] = None, param: str = "metabolic_cost_coef",
+              baseline: float = 0.0) -> Dict:
+    """Sweep apparié d'un knob de config arbitraire : par seed, chaque valeur -> run_lineage. Ratios vs baseline -> verdict."""
     coefs = list(coefs)
-    if 0.0 not in coefs:
-        coefs = [0.0] + coefs
+    if baseline not in coefs:
+        coefs = [baseline] + coefs
     per_lineage = []
     by_seed: Dict[int, Dict[float, Dict]] = {}
     for seed in seeds:
         by_seed[seed] = {}
         for coef in coefs:
-            r = run_lineage(seed, coef, eras, num_agents, max_ticks, run_era_fn)
+            r = run_lineage(seed, coef, eras, num_agents, max_ticks, run_era_fn, param=param)
             by_seed[seed][coef] = r
             per_lineage.append(r)
     per_coef = []
     for coef in coefs:
-        if coef == 0.0:
+        if coef == baseline:
             continue
         eff_ratios, surv_ratios = [], []
         for seed in seeds:
-            base, cur = by_seed[seed][0.0], by_seed[seed][coef]
+            base, cur = by_seed[seed][baseline], by_seed[seed][coef]
             eff_ratios.append(cur["efficiency"] / max(base["efficiency"], 1e-6))
             surv_ratios.append(cur["survival"] / max(base["survival"], 1e-6))
         per_coef.append({"coef": coef, "eff_ratios": eff_ratios, "surv_ratios": surv_ratios})
     verdict = compute_sweep_verdict(per_coef)
     return {**verdict, "per_lineage": per_lineage,
             "config": {"seeds": [int(s) for s in seeds], "coefs": coefs, "eras": eras,
-                       "num_agents": num_agents, "max_ticks": max_ticks}}
+                       "num_agents": num_agents, "max_ticks": max_ticks,
+                       "param": param, "baseline": baseline}}
 
 
 def run_era_metab(cfg, genomes, max_ticks: int = 400):
@@ -198,11 +200,14 @@ def main():
     eras = int(os.environ.get("MCS_ERAS", "15"))
     num_agents = int(os.environ.get("MCS_NUM_AGENTS", "30"))
     max_ticks = int(os.environ.get("MCS_TICKS", "400"))
-    log.info("MetabolicCostSweep : seeds=%s coefs=%s eras=%d (cout estime ~%d lignees)",
-             seeds, coefs, eras, len(seeds) * len(set([0.0] + coefs)))
+    param = os.environ.get("MCS_PARAM", "metabolic_cost_coef")
+    baseline = float(os.environ.get("MCS_BASELINE", "0.0"))
+    log.info("MetabolicCostSweep : seeds=%s coefs=%s param=%s eras=%d (cout estime ~%d lignees)",
+             seeds, coefs, param, eras, len(seeds) * len(set([baseline] + coefs)))
     async_logger.start()
     try:
-        result = run_sweep(seeds, coefs, eras=eras, num_agents=num_agents, max_ticks=max_ticks)
+        result = run_sweep(seeds, coefs, eras=eras, num_agents=num_agents, max_ticks=max_ticks,
+                           param=param, baseline=baseline)
     finally:
         async_logger.stop()
     h = Harness(seed=min(seeds) if seeds else 0, name="metabolic_cost_sweep",

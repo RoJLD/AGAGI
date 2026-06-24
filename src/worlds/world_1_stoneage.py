@@ -956,6 +956,7 @@ class Biosphere3D(BaseWorld):
         # VECTORIZED OBSERVATION & BATCHING
         batch_obs = self.get_batch_observations()
         models = [a["model"] for a in self.agents]
+        MambaBatchModel.KWTA_KEEP_FRAC = getattr(self.config, "kwta_keep_frac", 1.0)
         batch_model = self.batch_model_cls(models, world_model=self.world_model)
 
         env_surprise_batch = np.array([a.get("last_env_surprise", 0.0) for a in self.agents])
