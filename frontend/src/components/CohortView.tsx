@@ -39,6 +39,8 @@ export function CohortView() {
   const {
     data: dists = [],
     isLoading: isLoadingDists,
+    error: distError,
+    refetch: refetchDists,
   } = useQuery({
     queryKey: queryKeys.runs.distributions(metric),
     queryFn: () =>
@@ -63,6 +65,7 @@ export function CohortView() {
       <Empty message="Aucune métrique numérique disponible. Lance des expériences (runs) pour peupler les conditions." />
     );
   }
+  if (distError) return <ErrorState error={distError} onRetry={() => refetchDists()} />;
 
   return (
     <div className="cohort-view">

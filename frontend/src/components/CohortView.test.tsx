@@ -2,7 +2,10 @@ import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { vi, test, expect, afterEach, beforeEach } from "vitest";
 
-vi.mock("../api/client", () => ({ apiFetch: vi.fn() }));
+vi.mock("../api/client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../api/client")>();
+  return { ...actual, apiFetch: vi.fn() };
+});
 import { apiFetch } from "../api/client";
 import { CohortView } from "./CohortView";
 
@@ -52,4 +55,15 @@ test("changer de métrique met à jour l'en-tête", async () => {
   expect(
     screen.getByText((_, el) => el?.tagName === "STRONG" && el.textContent === "survie"),
   ).toBeTruthy();
+});
+
+test("affiche un ErrorState si distributions échoue", async () => {
+  (apiFetch as ReturnType<typeof vi.fn>).mockImplementation((path: string) => {
+    if (path.endsWith("/api/runs/conditions")) return Promise.resolve(CONDITIONS);
+    if (path.includes("/api/runs/distributions")) return Promise.reject(new Error("boom"));
+    return Promise.resolve([]);
+  });
+  renderWithClient(<CohortView />);
+  expect(await screen.findByRole("alert")).toBeTruthy();
+  expect(await screen.findByText(/Réessayer/)).toBeTruthy();
 });
