@@ -260,6 +260,24 @@ def _get_activation_function():
             
     return _cached_activation
 
+def _resolve_dreaming(force_dream, has_mcts, do_dream, surprise, dream_thr, surprise_thr):
+    """Résout (is_dreaming, K_individual) selon FORCE_DREAM (intervention causale, EDR 094).
+    None -> auto-sélection normale ; "off" -> personne ne rêve ; int K (>=1) -> tous les porteurs
+    d'organe rêvent à profondeur FIXE K. Pur (numpy), testable sans batch model.
+    NB: bool est sous-classe d'int -> on exclut True/False du cas int K."""
+    if force_dream == "off":
+        is_dreaming = np.zeros(len(has_mcts), dtype=bool)
+    elif isinstance(force_dream, int) and not isinstance(force_dream, bool):
+        is_dreaming = has_mcts.copy()
+    else:  # None (ou valeur non reconnue) -> comportement historique
+        is_dreaming = has_mcts & (do_dream > dream_thr) & (surprise > surprise_thr)
+
+    if isinstance(force_dream, int) and not isinstance(force_dream, bool):
+        K_individual = np.where(is_dreaming, force_dream, 0)
+    else:
+        K_individual = np.where(is_dreaming, np.clip((do_dream * 8).astype(int), 1, 8), 0)
+    return is_dreaming, K_individual
+
 class MambaBatchModel:
     """
     Gestionnaire de population pour vectoriser l'inférence de N agents simultanément (TensorWorld).
@@ -268,6 +286,7 @@ class MambaBatchModel:
     # Flags d'ablation (EDR 032) : neutralisent un gène câblé pour mesurer son apport réel.
     ABLATE_THRESHOLDS = False   # ignore les seuils d'excitabilité
     ABLATE_ROUTER = False       # gain neuromodulateur neutre (=1)
+    FORCE_DREAM = None          # intervention causale (EDR 094) : None|"off"|int K (profondeur forcée)
 
     def __init__(self, agents: list[MambaAgent], world_model=None):
         self.agents = agents
@@ -498,16 +517,9 @@ class MambaBatchModel:
             for a in self.agents
         ], dtype=bool)
         
-        is_dreaming = (
-            has_mcts_batch
-            & (do_dream_batch > DREAM_THRESHOLD)
-            & (self.surprise_momentum_batch > SURPRISE_THRESHOLD)
-        )
-
-        K_individual = np.where(
-            is_dreaming,
-            np.clip((do_dream_batch * 8).astype(int), 1, 8),
-            0
+        is_dreaming, K_individual = _resolve_dreaming(
+            MambaBatchModel.FORCE_DREAM, has_mcts_batch, do_dream_batch,
+            self.surprise_momentum_batch, DREAM_THRESHOLD, SURPRISE_THRESHOLD,
         )
 
         T_max = int(K_individual.max()) if is_dreaming.any() else 0
