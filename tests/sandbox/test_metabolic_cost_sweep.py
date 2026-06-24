@@ -85,6 +85,33 @@ def test_run_sweep_structure_and_verdict():
     assert coef_entry["verdict"] == "EFFICACE"        # efficacité ↑, survie constante
 
 
+def _fake_kwta_runner(cfg, genomes, max_ticks):
+    # plus on sparsifie (keep bas), plus mean_active baisse ; competence/survie constants.
+    keep = getattr(cfg, "kwta_keep_frac", 1.0)
+    metrics = {"ticks": 200.0, "score": 50.0, "mean_active": max(1.0, 150.0 * keep)}
+    scored = [(50.0, _FakeGenome()) for _ in range(5)]
+    return scored, metrics
+
+
+def test_run_sweep_generalized_param_and_baseline():
+    out = run_sweep(seeds=[0, 1], coefs=[1.0, 0.5], eras=2, num_agents=6, max_ticks=50,
+                    run_era_fn=_fake_kwta_runner, param="kwta_keep_frac", baseline=1.0)
+    assert out["config"]["param"] == "kwta_keep_frac"
+    assert out["config"]["baseline"] == 1.0
+    entry = [c for c in out["per_coef"] if abs(c["coef"] - 0.5) < 1e-9][0]
+    # keep=0.5 -> mean_active moitie -> efficiency (competence/mean_active) ~ x2 -> EFFICACE
+    assert entry["verdict"] == "EFFICACE"
+
+
+def test_run_sweep_backward_compat_d1():
+    # sans param/baseline : comportement D1 inchange (param=metabolic_cost_coef, baseline=0.0)
+    out = run_sweep(seeds=[0], coefs=[0.01], eras=2, num_agents=6, max_ticks=50,
+                    run_era_fn=_fake_run_era_fn)
+    assert out["config"]["param"] == "metabolic_cost_coef"
+    assert out["config"]["baseline"] == 0.0
+    assert any(abs(c["coef"] - 0.01) < 1e-9 for c in out["per_coef"])
+
+
 @pytest.mark.skipif(os.environ.get("MCS_SMOKE") != "1",
                     reason="smoke lourd (vraie biosphère) — set MCS_SMOKE=1 pour lancer")
 def test_run_era_metab_smoke():

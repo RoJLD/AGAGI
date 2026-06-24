@@ -75,10 +75,12 @@ Scoré **Impact / Effort / Risque**. ⭐ = trajectoire recommandée vers le frac
 - **A1. Hygiène génotype-phénotype** *(M / F / F)* — sur la base de la table §1 : élaguer l'inerte
   (`memory_cache`), trancher `bytecode`/`mutation_genes[2,3]` (câbler vs retirer), réconcilier les
   deux forwards. *(= Phase 0, cf. §3.)*
-- **A2. Quality-Diversity / MAP-Elites** ⭐ *(Fort / M / M)* — remplacer le HoF top-10 mono-objectif
-  par une **archive d'élites** indexée par descripteurs comportementaux (taille_réseau × style
-  {forageur/chasseur/crafteur} × usage_langage). Dé-bruitage local par niche via `robust_evaluate(K)`.
-  Attaque le plateau de bruit de fitness (EDR 075-081) en maintenant la diversité.
+- **A2. Quality-Diversity / MAP-Elites** — ⚠️ **MESURÉ, NON VALIDÉ (2026-06-24, PR #44)**. Archive
+  taille_réseau × palier comportemental, comparée au HoF top-5 (8 seeds, budget égal, apparié,
+  `tools/map_elites_compare.py`). **QD ≈ HoF** : median_ratio 0.946, n_fav 3/8, **sign_p=0.727 (non
+  significatif)**. Diagnostic-clé : **`coverage = 3.6 cellules / 32`** → l'espace comportemental est
+  quasi vide (palier collapse sur survie/forage, taille statique) → **rien à diversifier**. Câblage
+  prod NON effectué. *(Idée : dé-bruitage par niche + diversité anti-plateau EDR 075-081.)*
 - **A3. Fitness intrinsèque (curiosité)** *(Fort / F / dépend WM)* — fitness = surprise résolue
   (erreur WM qui baisse) au lieu du `life_score` injecté. Open-endedness. Pré-requis : WM branché.
 - **A4. Parcimonie réelle dans la boucle vivante** *(M / F)* — le `life_score` live n'a **aucune**
@@ -113,13 +115,20 @@ Scoré **Impact / Effort / Risque**. ⭐ = trajectoire recommandée vers le frac
 > de la fiche n'est donc pas une pénalité à injecter mais une **sélection naturelle** si le coût de calcul
 > devient métabolique : l'efficacité *trouvée, pas donnée*.
 
-- **D1. Coût métabolique d'activation** ⭐ *(Fort / Faible)* — **keystone**. Rendre `energy_drain`
-  (`mamba_agent.py:42`) dépendant du **nombre de nœuds actifs par tick**, pas seulement des traits
-  structurels (`hp_bonus`/`inv_capacity`/MCTS). Unifie A4 (parcimonie) + C1 (économie de compute) +
-  attaque le **mur énergétique Lewis**. = contrainte énergétique de l'insecte. *(Bio : §3 fitness.)*
-- **D2. Codage clairsemé / KWTA** *(Fort / Faible)* — k-winners-take-all : ne garder que le top 1-2 %
-  des activations de `H`, zéro ailleurs. Réduit le coût métabolique (synergie D1), évite le chevauchement
-  mémoire. Micro, peu coûteux. = sparse coding des corps pédonculés (mushroom bodies). *(Bio : §2.C.)*
+- **D1. Coût métabolique d'activation** — ❌ **RÉFUTÉ (mesure powered, 2026-06-24)**. Implémenté
+  (PR #35) + mesuré (`tools/metabolic_cost_sweep.py`, 8 seeds × coefs {0,0.01,0.03,0.1} × 15 ères,
+  banc stoneage sweet-spot). **Fait robuste : `mean_active` reste PLAT (~152/172 nœuds) à tous les
+  coefs**, même 0.1 (drain ~15/tick qui coupe la survie 26→8). Le coût métabolique **ne sparsifie
+  pas** les connectomes — il ne fait que **starver** (coef 0.1 → NUIT, sign_p=0.008). La sélection ne
+  peut pas réduire le nombre de nœuds actifs → `brain_cost` n'est PAS un levier sélectionnable
+  (corrobore le mur Lewis intrinsèque + EDR 098). **Garder `metabolic_cost_coef=0.0` (off).**
+  *(Idée d'origine : rendre `energy_drain` dépendant des nœuds actifs ; bio §3 fitness.)*
+- **D2. Codage clairsemé / KWTA** ⭐ *(Fort / Faible)* — **le pivot après l'échec de D1**. D1 a montré
+  que la sélection **ne produit PAS** de sparsité (mean_active plat). Réponse : **l'IMPOSER
+  structurellement** — k-winners-take-all : ne garder que le top 1-2 % des activations de `H`, zéro
+  ailleurs (force `mean_active` ↓ par construction, pas par sélection). Évite le chevauchement mémoire.
+  Micro, peu coûteux. = sparse coding des corps pédonculés (mushroom bodies). Question : la sparsité
+  imposée **dégrade-t-elle** la compétence, ou est-elle neutre/bénéfique (≥ efficience) ? *(Bio : §2.C.)*
 - **D3. Nœuds typés (hétérogénéité)** ⭐ *(Fort / Moyen)* — gène de **TYPE par nœud** pilotant fan-in/out,
   activation, **portée d'axone** (global vs local) et coût : *unipolaire* (calcul local rapide, edge),
   *bipolaire* (feedforward linéaire), *multipolaire/pyramidal* (hub intégratif, attention globale),
@@ -135,8 +144,10 @@ Scoré **Impact / Effort / Risque**. ⭐ = trajectoire recommandée vers le frac
   (spike-timing) → élimine la rétropropagation. Gène de **règle d'apprentissage** Micro. Aligné sur le
   finding « thresholds vivants » du re-audit. *(Bio : §2.D.)*
 
-**Séquence Axe D** : D1 + D2 d'abord (cheap, synergie immédiate, attaque le mur énergétique) → D3
-(expressivité, nœuds typés) → D4 / D5 (pivots architecturaux). D1/D2 **remplacent/aiguisent** A4.
+**Séquence Axe D** *(révisée après réfutation de D1)* : ~~D1~~ ❌ → **D2 (KWTA, imposer la sparsité)**
+= prochain candidat → D3 (expressivité, nœuds typés) → D4 / D5 (pivots architecturaux).
+**Leçon D1** : ne pas espérer que la *sélection* produise une propriété structurelle (sparsité) — la
+mesurer d'abord, et si elle n'émerge pas, l'**imposer** (D2) plutôt que la *récompenser* (D1).
 
 ### Transversal — méthode & RSI
 - **X1. Le NAS comme cible de la RSI** — la boucle LLM (`src/metaprog/rsi_loop.py`, débranchée) propose
@@ -145,8 +156,19 @@ Scoré **Impact / Effort / Risque**. ⭐ = trajectoire recommandée vers le frac
 - **X2. Transfer-ratio = métrique-reine** *(à poser tôt)* — `tools/curriculum_transfer.py` +
   `tools/transfer_ratio.py` deviennent le **critère d'acceptation** de toute innovation NAS.
 
-### Séquençage recommandé (à trancher)
-- **Phase 0 — Re-audit + hygiène** *(retenu « bientôt »)* : §1 livré ; reste les tranches A1 + poser X2.
+### ⚠️ MÉTA-LEÇON (2026-06-24) — le goulot est le SUBSTRAT, pas la recherche
+Trois mécanismes mesurés échouent pour la **même cause-racine, la pauvreté du substrat** :
+**D1/D2** (sparsité) — `hidden=5/172`, rien à sparsifier ; **A2** (diversité) — `coverage 3.6/32`, rien
+à diversifier. Les méta-mécanismes de sélection/recherche supposent une richesse structurelle absente.
+**Le levier est EN AMONT** : (1) **vraie couche cachée** (`num_nodes ≫ I+O`, pas 5) ; (2) **répertoire
+moyens→ends vivant** (craft/outils réellement utiles + métrique sur signal vivant, cf. EDR 096 couche
+morte). Tant que le substrat est pauvre, A2/D3/B/C resteront vides. → **Prochaine priorité = enrichir le
+substrat AVANT tout nouveau mécanisme de sélection.**
+
+### Séquençage recommandé (révisé)
+- **Phase 0 — Re-audit + hygiène** : §1 livré.
+- ~~Phase 1 efficacité/diversité~~ : D1 réfuté, D2 no-op, A2 non validé — **bloqués par le substrat** (voir méta-leçon).
+- **Phase SUBSTRAT (nouvelle priorité)** : vraie couche cachée + répertoire comportemental vivant. PUIS re-mesurer A2 (coverage devrait monter) et D-axes.
 - **Phase 1 — Recherche + efficacité bio** : A2 (MAP-Elites) + **D1/D2 (coût métabolique + KWTA)**
   — parcimonie bio-inspirée qui attaque le mur énergétique Lewis (remplace A4).
 - **Phase 2 — Compositionnalité & hétérogénéité** : B3 (bibliothèque de motifs) + **D3 (nœuds typés)**.
