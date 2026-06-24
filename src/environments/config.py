@@ -70,6 +70,10 @@ class WorldConfig:
     base_metabolism: float = 1.0   # multiplicateur du drain de base par tick (↓ = survie plus longue)
     forage_payoff: float = 1.0     # multiplicateur de la nutrition d'une proie (↑ = foraging plus payant)
 
+    # NAS Axe D-1 (coût métabolique d'activation) : énergie drainée par nœud actif/tick.
+    # 0.0 = off (non-régression bit-exacte). Seule variable d'expérience ; sweep typique 0 -> 0.01.
+    metabolic_cost_coef: float = 0.0
+
     agent: AgentConfig = field(default_factory=AgentConfig)
     biome: BiomeConfig = field(default_factory=BiomeConfig)
     preys: Dict[str, PreyConfig] = field(default_factory=lambda: {
