@@ -82,3 +82,22 @@ def test_main_apex_runs_and_reproducible(tmp_path, monkeypatch):
     assert a["verdict"] in {"BARREAU TROUVE", "RUNG DEGENERE", "MUR INTRINSEQUE"}
     # le niveau N_APEX=0 ne peut produire aucun kill (aucun apex)
     assert a["table"][0]["mean_kills"] == 0
+
+
+def test_cfg_sets_surprise_scale():
+    assert lss._cfg(3, ttc_surprise_scale=0.0).ttc_surprise_scale == 0.0
+    assert lss._cfg(3, ttc_surprise_scale=0.5).ttc_surprise_scale == 0.5
+    assert lss._cfg(3).ttc_surprise_scale == 1.0          # defaut config preserve (retro-compat)
+
+
+def test_verdict_surprise_three_branches():
+    levels = (1.0, 0.5, 0.25, 0.0)
+    ff0 = [0.0, 0.0, 0.0, 0.0]
+    # un scale<1 franchit (0.25 et 0.0) -> tarif = surprise
+    assert lss._verdict_surprise(levels, [10, 50, 130, 200], ff0) == "TARIF=SURPRISE"
+    # aucun ne franchit + une surprise non-finie -> overflow racine
+    assert lss._verdict_surprise(levels, [5, 5, 5, 5], [0.0, 0.0, 0.0, 0.3]) == "OVERFLOW=RACINE"
+    # aucun ne franchit + surprises finies -> pas le brain_cost
+    assert lss._verdict_surprise(levels, [5, 5, 5, 5], ff0) == "PAS LE BRAIN_COST"
+    # frontiere : exactement au gate ne franchit pas (m > gate strict)
+    assert lss._verdict_surprise(levels, [5, 5, 5, 120], ff0) == "PAS LE BRAIN_COST"

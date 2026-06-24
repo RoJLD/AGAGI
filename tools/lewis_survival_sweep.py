@@ -27,13 +27,16 @@ NUM_AGENTS = 24
 GATE = 120.0                       # survie mediane minimale d'un barreau survivable (089/090)
 CHEAP_MAX = 24                     # forage_payoff <= 24 (x8) = barreau "acceptable" ; 48 (x16) = trop cher
 APEX_LEVELS = (12, 9, 6, 3, 0)     # N_APEX balaye : de la densite 093 (12) au Lewis vide (0)
+SURPRISE_LEVELS = (1.0, 0.5, 0.25, 0.0)   # ttc_surprise_scale : baseline 094 (1.0) -> brain_cost decouple (0.0)
 
 
-def _cfg(forage_payoff):
+def _cfg(forage_payoff, ttc_surprise_scale=None):
     cfg = WorldConfig()
     cfg.base_metabolism = METAB
     cfg.forage_payoff = float(forage_payoff)
     cfg.max_population = 150        # defensif (PR #29) ; jamais atteint ici
+    if ttc_surprise_scale is not None:
+        cfg.ttc_surprise_scale = float(ttc_surprise_scale)   # EDR098 ; sinon defaut config (1.0)
     return cfg
 
 
@@ -92,6 +95,19 @@ def _verdict_apex(levels, medians, gate=GATE):
     if not crossed:
         return "MUR INTRINSEQUE"
     return "BARREAU TROUVE" if max(crossed) > 0 else "RUNG DEGENERE"
+
+
+def _verdict_surprise(levels, medians, frac_nonfinite, gate=GATE):
+    """Mappe (medianes, fractions non-finies de surprise par niveau) -> 3 branches pre-enregistrees.
+    Un ttc_surprise_scale franchit le gate -> TARIF=SURPRISE (le brain_cost surprise-amplifie est le mur) ;
+    aucun ne franchit + une surprise non-finie (overflow) -> OVERFLOW=RACINE ; aucun + surprises finies ->
+    PAS LE BRAIN_COST (le drain est ailleurs, ex. throw)."""
+    crossed = [lv for lv, m in zip(levels, medians) if m > gate]
+    if crossed:
+        return "TARIF=SURPRISE"
+    if any(f > 0 for f in frac_nonfinite):
+        return "OVERFLOW=RACINE"
+    return "PAS LE BRAIN_COST"
 
 
 def _report(h, levels, groups, R, n_eval, _return, knob="forage_payoff", verdict_fn=_verdict):
