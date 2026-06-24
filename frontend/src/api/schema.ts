@@ -640,6 +640,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sweeps": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Sweeps
+         * @description Sweeps = runs balayant un paramètre (knob+levels+séries) ; paysage métrique-vs-paramètre.
+         */
+        get: operations["list_sweeps_api_sweeps_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/timeline": {
         parameters: {
             query?: never;
@@ -994,6 +1014,34 @@ export interface components {
              * @default stoneage
              */
             world_type: string;
+        };
+        /**
+         * SweepResult
+         * @description Un sweep : une métrique tracée le long d'un paramètre balayé (knob).
+         *     x = valeurs du paramètre ; series[<metric>] = série Y de même longueur ;
+         *     y_std[<metric>] = écart-type optionnel (bande de variance).
+         */
+        SweepResult: {
+            /** Commit */
+            commit?: string | null;
+            /** Knob */
+            knob: string;
+            /** Name */
+            name: string;
+            /** Run Id */
+            run_id: string;
+            /** Seed */
+            seed: number;
+            /** Series */
+            series: {
+                [key: string]: number[];
+            };
+            /** X */
+            x: number[];
+            /** Y Std */
+            y_std?: {
+                [key: string]: number[];
+            } | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -1991,6 +2039,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+        };
+    };
+    list_sweeps_api_sweeps_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SweepResult"][];
                 };
             };
         };

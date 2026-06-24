@@ -138,3 +138,17 @@ class ABCompareResult(BaseModel):
     verdict_detail: str
     t_thresh: float
     d_thresh: float
+
+
+class SweepResult(BaseModel):
+    """Un sweep : une métrique tracée le long d'un paramètre balayé (knob).
+    x = valeurs du paramètre ; series[<metric>] = série Y de même longueur ;
+    y_std[<metric>] = écart-type optionnel (bande de variance)."""
+    run_id: str
+    name: str
+    knob: str
+    x: list[float]
+    series: dict[str, list[float]]
+    y_std: dict[str, list[float]] | None = None
+    seed: int
+    commit: str | None = None
