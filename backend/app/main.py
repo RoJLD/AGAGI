@@ -25,10 +25,14 @@ from .services.data_service import ExperimentDataService
 from .services.live_progress_service import LiveProgressTail
 from .flatland_server import flatland_server
 
+# Allowlist dev par défaut (jamais "*" : wildcard + credentials reflète n'importe quelle origine — cf. test_security).
+_DEFAULT_CORS_ORIGINS = ["http://localhost:5173", "http://127.0.0.1:5173"]
+
+
 def _resolve_cors_origins(raw: str | None) -> list[str]:
-    """Origines CORS depuis AGAGI_CORS_ORIGINS (CSV). Vide/absent -> ['*'] (comportement historique)."""
+    """Origines CORS depuis AGAGI_CORS_ORIGINS (CSV). Vide/absent -> allowlist dev locale (jamais '*')."""
     if not raw or not raw.strip():
-        return ["*"]
+        return list(_DEFAULT_CORS_ORIGINS)
     return [o.strip() for o in raw.split(",") if o.strip()]
 
 
