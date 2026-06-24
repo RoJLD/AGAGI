@@ -10,6 +10,7 @@ import {
   History,
   Network,
   ShieldAlert,
+  Spline,
   TrendingUp,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -22,6 +23,7 @@ export const TAB_KEYS = [
   "evolution",
   "comparison",
   "topology",
+  "sweeps",
   "parcours",
   "laboratoire",
   "sandbox",
@@ -66,6 +68,7 @@ export const TAB_FAMILIES: TabFamily[] = [
       { key: "evolution", label: "Évolution", icon: TrendingUp },
       { key: "comparison", label: "Comparaison", icon: BarChart3 },
       { key: "topology", label: "Topologie", icon: Network },
+      { key: "sweeps", label: "Sweeps", icon: Spline },
     ],
   },
   {
