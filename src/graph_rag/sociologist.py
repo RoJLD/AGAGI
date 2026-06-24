@@ -3,6 +3,7 @@ import kuzu
 import json
 import time
 import uuid
+import datetime
 
 class Sociologist:
     def __init__(self, db_path=None):
@@ -17,7 +18,7 @@ class Sociologist:
         
     def _init_schema(self):
         try:
-            self.conn.execute("CREATE NODE TABLE IF NOT EXISTS Article (id STRING, title STRING, content STRING, timestamp INT64, PRIMARY KEY (id))")
+            self.conn.execute("CREATE NODE TABLE IF NOT EXISTS Article (id STRING, title STRING, content STRING, date STRING, PRIMARY KEY (id))")
         except Exception:
             pass
             
@@ -101,12 +102,12 @@ class Sociologist:
         
         article_id = str(uuid.uuid4())[:8]
         title = f"Étude de l'évolution : {intervention}"
-        timestamp = int(time.time() * 1000)
-        
-        # Save to KuzuDB
+        date_str = datetime.datetime.fromtimestamp(time.time()).strftime("%Y-%m-%d %H:%M:%S")
+
+        # Save to KuzuDB (schéma Article unifié sur `date`, cohérent avec async_logger/experiment_tracker)
         safe_content = content.replace("'", "\\'")
         query = f"""
-        CREATE (a:Article {{id: '{article_id}', title: '{title}', content: '{safe_content}', timestamp: {timestamp}}})
+        CREATE (a:Article {{id: '{article_id}', title: '{title}', content: '{safe_content}', date: '{date_str}'}})
         """
         self.conn.execute(query)
         

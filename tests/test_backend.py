@@ -88,11 +88,12 @@ def test_unknown_gate_returns_404() -> None:
 
 
 # --- F3.12 sécurité (opt-in / env-gated / non-breaking par défaut) ---
-def test_cors_origins_default_wildcard() -> None:
-    """Sans AGAGI_CORS_ORIGINS : on garde ['*'] (comportement historique préservé)."""
-    assert _resolve_cors_origins(None) == ["*"]
-    assert _resolve_cors_origins("") == ["*"]
-    assert _resolve_cors_origins("   ") == ["*"]
+def test_cors_origins_default_locked() -> None:
+    """Sans AGAGI_CORS_ORIGINS : allowlist dev locale (jamais '*' — cf. test_security)."""
+    expected = ["http://localhost:5173", "http://127.0.0.1:5173"]
+    assert _resolve_cors_origins(None) == expected
+    assert _resolve_cors_origins("") == expected
+    assert _resolve_cors_origins("   ") == expected
 
 
 def test_cors_origins_csv_parsed() -> None:
@@ -204,3 +205,42 @@ def test_flatland_websocket_streams_frames() -> None:
         assert "hp_std" in summary
         assert "social_density" in summary
         assert "genome_diversity" in summary
+
+
+def test_flatland_runs_crud() -> None:
+    r = client.post("/api/flatland/runs", json={"config_overrides": {"size": 16}, "pop_size": 2, "label": "e2e"})
+    assert r.status_code == 200
+    rid = r.json()["run_id"]
+    try:
+        lst = client.get("/api/flatland/runs").json()
+        assert any(x["run_id"] == rid and x["label"] == "e2e" for x in lst)
+    finally:
+        d = client.delete(f"/api/flatland/runs/{rid}")
+        assert d.status_code == 200 and d.json()["stopped"] is True
+
+
+def test_flatland_delete_unknown_returns_404() -> None:
+    assert client.delete("/api/flatland/runs/__nope__").status_code == 404
+
+
+def test_flatland_bad_override_returns_400() -> None:
+    r = client.post("/api/flatland/runs", json={"config_overrides": {"evil_key": 1}, "pop_size": 2})
+    assert r.status_code == 400
+
+
+def test_ws_flatland_run_id_streams_frames() -> None:
+    rid = client.post("/api/flatland/runs", json={"pop_size": 2, "label": "wt"}).json()["run_id"]
+    try:
+        with client.websocket_connect(f"/ws/flatland/{rid}") as ws:
+            frame = ws.receive_json()
+            assert "agents" in frame and "summary" in frame
+    finally:
+        client.delete(f"/api/flatland/runs/{rid}")
+
+
+def test_ws_flatland_unknown_run_closes() -> None:
+    from starlette.websockets import WebSocketDisconnect
+    import pytest
+    with pytest.raises(WebSocketDisconnect):
+        with client.websocket_connect("/ws/flatland/__nope__") as ws:
+            ws.receive_json()

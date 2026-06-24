@@ -24,7 +24,17 @@ jobs:
           python -m pip install -r backend/requirements.txt
 
       - name: Run Python tests
-        run: python -m pytest tests/test_backend.py tests/sandbox/test_visualization.py -q
+        run: >-
+          python -m pytest
+          tests/test_backend.py
+          tests/sandbox/test_visualization.py
+          tests/test_observability.py
+          tests/test_flatland_manager.py
+          tests/test_strategy.py
+          tests/test_sociologist.py
+          tests/test_sandbox.py
+          tests/test_security.py
+          -q
 
       - name: Parity gate (narration EDR -> frontend)
         run: python tools/parity_check.py --strict

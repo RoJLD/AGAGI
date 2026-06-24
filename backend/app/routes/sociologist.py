@@ -1,8 +1,10 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from typing import List
 import kuzu
 import os
+
+from ..security import require_token
 
 router = APIRouter()
 
@@ -10,13 +12,13 @@ class ArticleResponse(BaseModel):
     id: str
     title: str
     content: str
-    timestamp: int
+    date: str
 
 class AnalyzeRequest(BaseModel):
     baseline: str
     intervention: str
 
-@router.post("/analyze")
+@router.post("/analyze", dependencies=[Depends(require_token)])
 def trigger_analysis(request: AnalyzeRequest):
     from backend.app.services.kuzu_service import kuzu_service
     from src.graph_rag.sociologist import Sociologist
@@ -48,9 +50,9 @@ def get_articles():
     tracker = None
     try:
         tracker = ExperimentGraph(kuzu_service.db_path, read_only=True)
-        query = "MATCH (a:Article) RETURN a.id, a.title, a.content, a.timestamp ORDER BY a.timestamp DESC"
+        query = "MATCH (a:Article) RETURN a.id, a.title, a.content, a.date ORDER BY a.date DESC"
         res = tracker.conn.execute(query)
-        
+
         articles = []
         while res.has_next():
             row = res.get_next()
@@ -58,9 +60,9 @@ def get_articles():
                 "id": row[0],
                 "title": row[1],
                 "content": row[2],
-                "timestamp": row[3]
+                "date": row[3]
             })
-            
+
         return articles
     except Exception as e:
         print(f"Error fetching articles: {e}")

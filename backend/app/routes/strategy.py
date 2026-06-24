@@ -92,50 +92,25 @@ def get_strategy_tree():
                     {"name": w, "children": children} for w, children in world_dict.items()
                 ]
             }
-            
             sankey_data = {
                 "nodes": [{"id": name, "group": grp} for name, grp in sankey_nodes_set],
                 "links": sankey_links
             }
-        else:
-            # Fallback mock data if DB is empty
-            tree_data = {
-                "name": "AGIseed Base",
-                "children": [
-                    {
-                        "name": "StoneAge (Mock)",
-                        "children": [
-                            {"name": "Tabula_Rasa", "fitness": 45, "runs": 10},
-                            {"name": "NTM_Memory", "fitness": 85, "runs": 5}
-                        ]
-                    }
-                ]
-            }
-            sankey_data = {
-                "nodes": [
-                    {"id": "StoneAge (Mock)", "group": "World"},
-                    {"id": "Tabula_Rasa", "group": "Trait"},
-                    {"id": "NTM_Memory", "group": "Trait"},
-                    {"id": "High Survival", "group": "Outcome"},
-                    {"id": "Low Survival", "group": "Outcome"}
-                ],
-                "links": [
-                    {"source": "StoneAge (Mock)", "target": "Tabula_Rasa", "value": 10},
-                    {"source": "StoneAge (Mock)", "target": "NTM_Memory", "value": 5},
-                    {"source": "Tabula_Rasa", "target": "Low Survival", "value": 8},
-                    {"source": "Tabula_Rasa", "target": "High Survival", "value": 2},
-                    {"source": "NTM_Memory", "target": "High Survival", "value": 4},
-                    {"source": "NTM_Memory", "target": "Low Survival", "value": 1}
-                ]
-            }
-            
-        return {
-            "tree": tree_data,
-            "sankey": sankey_data
-        }
+            return {"tree": tree_data, "sankey": sankey_data, "source": "live"}
+
+        # DB sans donnée de stratégie : état vide HONNÊTE (plus de mock fantôme). Le frontend
+        # distingue "pas encore de run" (empty) de vrai (live) via `source`.
+        return {"tree": {}, "sankey": {"nodes": [], "links": []}, "source": "empty"}
     except Exception as e:
+        # Une DB sans run n'a parfois pas encore la table optionnelle (ex. ancienne DB
+        # schema-only ouverte en read-only, ou une table jamais peuplee) : "table does
+        # not exist" => pas une vraie erreur, c'est un etat vide HONNETE (empty), pas error.
+        msg = str(e).lower()
+        if "does not exist" in msg and ("table" in msg or "node" in msg or "rel" in msg):
+            log.info(f"Strategy Tree: schema incomplet (DB sans run) -> empty: {e}")
+            return {"tree": {}, "sankey": {"nodes": [], "links": []}, "source": "empty"}
         log.error(f"Strategy Tree Error: {e}")
-        return {"tree": {}, "sankey": {"nodes": [], "links": []}}
+        return {"tree": {}, "sankey": {"nodes": [], "links": []}, "source": "error"}
     finally:
         if tracker:
             if hasattr(tracker, 'conn'): del tracker.conn

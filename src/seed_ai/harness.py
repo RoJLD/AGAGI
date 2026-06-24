@@ -54,6 +54,44 @@ def _git_short_commit():
         return "unknown"
 
 
+def _git_dirty():
+    """True si l'arbre de travail a des modifications non commitées (run non reproductible du commit seul)."""
+    try:
+        import subprocess
+        out = subprocess.check_output(["git", "status", "--porcelain"], stderr=subprocess.DEVNULL).decode().strip()
+        return bool(out)
+    except Exception:
+        return False
+
+
+def _config_view(config):
+    """Vue sérialisable d'une config : pydantic (model_dump/dict) -> dataclass (asdict) -> __dict__."""
+    for attr in ("model_dump", "dict"):
+        fn = getattr(config, attr, None)
+        if callable(fn):
+            try:
+                return fn()
+            except Exception:
+                pass
+    try:
+        import dataclasses
+        if dataclasses.is_dataclass(config):
+            return dataclasses.asdict(config)
+    except Exception:
+        pass
+    return getattr(config, "__dict__", None) or {"repr": repr(config)}
+
+
+def _config_hash(config):
+    """Hash stable et déterministe d'une config (sha1 tronqué). 'unknown' si non sérialisable."""
+    try:
+        import hashlib
+        blob = json.dumps(_config_view(config), sort_keys=True, default=str)
+        return hashlib.sha1(blob.encode("utf-8")).hexdigest()[:12]
+    except Exception:
+        return "unknown"
+
+
 def _json_default(v):
     """Sérialiseur JSON des scalaires/tableaux numpy (eval_robust renvoie des np.float)."""
     if isinstance(v, np.integer):
@@ -73,7 +111,7 @@ class Harness:
             score = h.eval_robust(cfg, genome, run_era_fn=run_era, K=4)
             h.save({"score": score})
     """
-    def __init__(self, seed=None, name="exp", robust_K=3, num_agents=20, with_db=True, db_wait=5.0):
+    def __init__(self, seed=None, name="exp", robust_K=3, num_agents=20, with_db=True, db_wait=5.0, config=None):
         self.seed = SeedManager.resolve(seed)
         self.seeds = SeedManager(self.seed)
         self.name = name
@@ -83,6 +121,7 @@ class Harness:
         self.db_wait = float(db_wait)
         self.db = None
         self._logger_started = False
+        self._config = config          # provenance : config du run (hashée dans save / RUN_START)
 
     def __enter__(self):
         self.seeds.seed_boundary(0)
@@ -99,9 +138,22 @@ class Harness:
                 time.sleep(0.1)
             if self.db is None:
                 log.warning(f"[HARNESS] {self.name}: KuzuDB indisponible -> degradation gracieuse")
+        # Provenance : annonce le run au logger (best-effort) -> noeud Run + current_run.
+        try:
+            from src.graph_rag.async_logger import logger as _alog
+            _alog.emit("RUN_START", {"name": self.name, "seed": self.seed,
+                                     "commit": _git_short_commit(), "git_dirty": _git_dirty(),
+                                     "config_hash": _config_hash(self._config) if self._config is not None else ""})
+        except Exception:
+            pass
         return self
 
     def __exit__(self, exc_type, exc, tb):
+        try:
+            from src.graph_rag.async_logger import logger as _alog
+            _alog.emit("RUN_END", {"name": self.name, "seed": self.seed})
+        except Exception:
+            pass
         if self._logger_started:
             from src.graph_rag.async_logger import logger as async_logger
             async_logger.stop()
@@ -138,10 +190,15 @@ class Harness:
         from tools.progress import Progress
         return Progress(total, label=label or self.name)
 
-    def save(self, data):
-        """Écrit results/<name>_<seed>.json (seed + commit court + données) -> provenance."""
+    def save(self, data, config=None):
+        """Écrit results/<name>_<seed>.json avec provenance (seed + commit + git_dirty [+ config_hash]).
+        config explicite > self._config ; sans config -> config_hash omis (run sans config inchangé)."""
         os.makedirs("results", exist_ok=True)
-        out = {"name": self.name, "seed": self.seed, "commit": _git_short_commit(), "data": data}
+        cfg = config if config is not None else self._config
+        out = {"name": self.name, "seed": self.seed, "commit": _git_short_commit(),
+               "git_dirty": _git_dirty(), "data": data}
+        if cfg is not None:
+            out["config_hash"] = _config_hash(cfg)
         path = os.path.join("results", f"{self.name}_{self.seed}.json")
         with open(path, "w", encoding="utf-8") as f:
             json.dump(out, f, indent=2, default=_json_default)

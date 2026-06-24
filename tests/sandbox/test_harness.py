@@ -199,3 +199,53 @@ def test_robust_rank_seed_none_preserves_unpaired(monkeypatch):
     monkeypatch.setattr(rh, "robust_evaluate", fake_eval)
     rh.robust_rank(None, [{"genome": "g1"}, {"genome": "g2"}], K=2, num_agents=2)
     assert seen == [None, None]   # défaut inchangé : pas de seed -> comportement historique
+
+
+import os, json as _json
+from src.seed_ai.harness import Harness
+
+
+def test_save_writes_provenance_with_config(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    class Cfg:                          # objet config minimal
+        def __init__(self): self.size = 32; self.seed = 1
+    h = Harness(seed=5, name="prov", with_db=False, config=Cfg())
+    path = h.save({"kpi": 1.0})
+    out = _json.loads(open(path, encoding="utf-8").read())
+    assert out["seed"] == 5 and "commit" in out and "git_dirty" in out
+    assert "config_hash" in out and len(out["config_hash"]) >= 8
+
+
+def test_save_without_config_omits_hash_and_does_not_crash(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    h = Harness(seed=5, name="prov2", with_db=False)
+    out = _json.loads(open(h.save({"kpi": 2.0}), encoding="utf-8").read())
+    assert "config_hash" not in out and "git_dirty" in out
+
+
+def test_config_hash_deterministic_and_sensitive(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    from src.seed_ai.harness import _config_hash
+    class Cfg:
+        def __init__(self, s): self.size = s
+    assert _config_hash(Cfg(32)) == _config_hash(Cfg(32))     # déterministe
+    assert _config_hash(Cfg(32)) != _config_hash(Cfg(64))     # sensible
+
+
+def test_harness_emits_run_start_to_logger(monkeypatch):
+    # capture les emit sans DB : on remplace l'AsyncLogger global par un espion
+    import src.graph_rag.async_logger as al
+    events = []
+    class Spy:
+        _running = True
+        def start(self): pass
+        def stop(self): pass
+        def get_db(self): return None
+        def emit(self, t, p): events.append((t, p))
+    monkeypatch.setattr(al, "logger", Spy())
+    with Harness(seed=3, name="run", with_db=True, db_wait=0.0):
+        pass
+    types = [t for t, _ in events]
+    assert "RUN_START" in types and "RUN_END" in types
+    start_payload = next(p for t, p in events if t == "RUN_START")
+    assert start_payload["seed"] == 3 and "commit" in start_payload and "git_dirty" in start_payload

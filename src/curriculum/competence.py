@@ -89,6 +89,18 @@ def gym_competence(agent_stats: List[Dict]) -> float:
     return _median_norm([a.get("altars_solved", 0) for a in agent_stats], GYM_ALTAR_REF)
 
 
+# --- Métrique de SURVIE (transfert re-métricisé, EDR 085/090) ----------------
+# Le signal d'autel/outil est nul tant que le goulot d'exploration (EDR 014) tient ->
+# `*_competence` (pondérées altars 0.6) restent au plancher. Pour mesurer le TRANSFERT sur une
+# dimension où le monde discrimine RÉELLEMENT la compétence, on agrège la SURVIE (âge), qui a un
+# gradient au sweet spot énergie (champion 163-227 vs frais 44, EDR 085). Indépendant du monde.
+
+def survival_competence(agent_stats: List[Dict]) -> float:
+    """Compétence = survie : médiane des âges / AGE_REF, clampée (cf. soup_competence). Robuste
+    aux génies isolés (convention médiane). À utiliser AU SWEET SPOT énergie (sinon plancher létal)."""
+    return _median_norm([a.get("age", 0) for a in agent_stats], AGE_REF)
+
+
 # --- Registre : world_type -> competence_fn ---------------------------------
 
 COMPETENCE_REGISTRY: Dict[str, Callable[[List[Dict]], float]] = {

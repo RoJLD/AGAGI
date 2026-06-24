@@ -38,6 +38,20 @@ class SandboxService:
             pass
         return scripts
 
+    def _is_allowed_script(self, name: str) -> bool:
+        """Autorise un script SEULEMENT s'il est decouvert (racine/tools) ET confine dans PROJECT_ROOT.
+        Tue le path-traversal (../../) et l'execution de fichiers arbitraires."""
+        if not name or not name.endswith(".py"):
+            return False
+        resolved = os.path.realpath(os.path.join(PROJECT_ROOT, name))
+        root = os.path.realpath(PROJECT_ROOT)
+        try:
+            if os.path.commonpath([resolved, root]) != root:
+                return False
+        except ValueError:
+            return False
+        return name.replace("\\", "/") in set(self.get_available_scripts())
+
     def _arm_live_progress(self, env: dict, progress_path: str | None = None) -> str:
         """Arme le puits de progression live pour CE run : vide le fichier puis pose l'env.
         Si le vidage échoue, l'env n'est PAS posé (emit_progress restera no-op -> pas de données stale)."""
@@ -56,9 +70,10 @@ class SandboxService:
         if not main_script:
             return {"status": "error", "message": "Aucun script principal spécifié"}
 
-        # Sandbox bornée : n'exécuter QUE des scripts de la liste blanche (racine + tools/).
-        # Bloque l'exécution arbitraire et le path-traversal (ex. "../x.py") avant tout Popen.
-        if main_script not in self.get_available_scripts():
+        # Sandbox bornée : n'exécuter QUE des scripts de la liste blanche (racine + tools/),
+        # ET confinés dans PROJECT_ROOT. Bloque l'exécution arbitraire et le path-traversal
+        # (ex. "../x.py") avant tout Popen — cf. _is_allowed_script (realpath + commonpath).
+        if not self._is_allowed_script(main_script):
             return {"status": "error", "message": f"Script non autorisé (hors liste blanche) : {main_script}"}
 
         if "main" in self._processes and self._processes["main"].poll() is None:
@@ -117,7 +132,16 @@ class SandboxService:
             
             self._log_reader_thread = threading.Thread(target=read_logs, args=(self._processes["main"],), daemon=True)
             self._log_reader_thread.start()
-            
+
+            _timeout = os.environ.get("AGISEED_SANDBOX_TIMEOUT")
+            if _timeout:
+                try:
+                    _t = float(_timeout)
+                    if _t > 0:
+                        self._start_watchdog(self._processes["main"], _t)
+                except ValueError:
+                    pass
+
             self._current_config = config
             self._stop_event.clear()
         except Exception as e:
@@ -169,6 +193,26 @@ class SandboxService:
                 if os.path.isfile(os.path.join(PROJECT_ROOT, tool_script)):
                     print(f"Running post-run analyst: {tool_script}")
                     subprocess.run([sys.executable, tool_script], cwd=PROJECT_ROOT, env=env)
+
+    def _start_watchdog(self, proc, timeout_s: float):
+        """Tue proc apres timeout_s s'il tourne encore (thread daemon). Best-effort."""
+        def _kill_after():
+            end = time.time() + timeout_s
+            while time.time() < end:
+                if proc.poll() is not None:
+                    return
+                time.sleep(1.0)
+            if proc.poll() is None:
+                self._logs.append(f"⏱️ Timeout {timeout_s}s atteint -> arrêt du process")
+                try:
+                    proc.terminate()
+                    proc.wait(timeout=5)
+                except Exception:
+                    try:
+                        proc.kill()
+                    except Exception:
+                        pass
+        threading.Thread(target=_kill_after, daemon=True).start()
 
     def stop(self) -> dict:
         self._stop_event.set() # Stop the supervisor thread

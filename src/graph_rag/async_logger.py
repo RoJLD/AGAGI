@@ -1,3 +1,4 @@
+import os
 import threading
 import queue
 import time
@@ -6,6 +7,22 @@ import logging as log_module
 
 log = log_module.getLogger(__name__)
 log_module.basicConfig(level=log_module.INFO)
+
+# Mode "quiet" (AGISEED_QUIET_LOG=1) : ne logge PAS les événements volumineux non-essentiels.
+# Utile pour les expériences headless (transfert, sweeps) : supprime la surface d'un crash KuzuDB
+# natif sur jeton de langage non-UTF8 (SOCIAL_ENCOUNTER porte `last_spoken`) ET accélère ~10×.
+# COGNITIVE_SNAPSHOT (promotion champion), RUN_*, ERA_RESULT, LANGUAGE_ALIGNMENT restent loggés.
+_QUIET_EVENTS = frozenset({
+    "AGENT_THOUGHT", "AGENT_LIFESPAN", "SOCIAL_ENCOUNTER", "SOCIAL_GATHERING",
+    "NEAR_FIRE", "FIRE_FUELED", "TREASURE_FOUND",
+})
+
+
+def _safe_kuzu_str(s: Any) -> str:
+    """Neutralise octets/surrogates non-UTF8 AVANT insert KuzuDB : un octet 0x92 (Windows-1252,
+    issu d'un jeton de langage agent) qui atteint la couche native provoque un decode error puis
+    un SEGFAULT sous charge. encode('replace')->decode garantit de l'UTF-8 valide. Échappe aussi le '."""
+    return str(s).encode("utf-8", "replace").decode("utf-8").replace("'", "\\'")
 
 class AsyncLogger:
     """
@@ -20,8 +37,13 @@ class AsyncLogger:
         self._running = False
         self._thread = None
         self._events_processed = 0
+        self._events_by_type: Dict[str, int] = {}
+        self._error_count = 0
+        self._last_latency_ms = 0.0
+        self._current_run = None       # provenance : id du Run courant (RUN_START/RUN_END)
         self._shared_db = None
-        
+        self._quiet = os.getenv("AGISEED_QUIET_LOG", "0") == "1"  # drop events volumineux (headless)
+
     def set_database(self, db):
         self._shared_db = db
         
@@ -30,7 +52,19 @@ class AsyncLogger:
         if self._shared_db is not None:
             return self._shared_db
         return getattr(self, 'db', None)
-        
+
+    def metrics(self) -> Dict[str, Any]:
+        """Snapshot d'observabilité (best-effort, lecture de compteurs in-process, non bloquant)."""
+        return {
+            "events_processed": self._events_processed,
+            "events_by_type": dict(self._events_by_type),
+            "error_count": self._error_count,
+            "last_latency_ms": round(self._last_latency_ms, 3),
+            "queue_size": self.queue.qsize(),
+            "running": self._running,
+            "db_connected": self.get_db() is not None,
+        }
+
     def start(self):
         if self._running:
             return
@@ -53,7 +87,9 @@ class AsyncLogger:
         """Émet un événement vers le logger asynchrone (non-bloquant)."""
         if not self._running:
             return
-            
+        if self._quiet and event_type in _QUIET_EVENTS:
+            return                       # headless : on saute les événements volumineux/risqués
+
         self.queue.put({
             "type": event_type,
             "payload": payload,
@@ -124,9 +160,13 @@ class AsyncLogger:
         while self._running or not self.queue.empty():
             try:
                 event = self.queue.get(timeout=0.1)
+                _t0 = time.time()
                 self._process_event(event, db_conn)
+                self._last_latency_ms = (time.time() - _t0) * 1000.0
                 self.queue.task_done()
                 self._events_processed += 1
+                et = event.get("type", "?")
+                self._events_by_type[et] = self._events_by_type.get(et, 0) + 1
             except queue.Empty:
                 self._check_pending_article(db_conn)
                 continue
@@ -181,8 +221,13 @@ class AsyncLogger:
         e_type = event["type"]
         payload = event["payload"]
         timestamp = event["timestamp"]
-        
-        
+
+        # Provenance : état du Run courant, suivi en mémoire (même sans DB).
+        if e_type == "RUN_START":
+            self._current_run = f"run_{payload.get('seed')}_{payload.get('commit')}"
+        elif e_type == "RUN_END":
+            self._current_run = None
+
         if conn is None:
             # Mode fallback si pas de kuzu — log seulement
             log.debug(f"Event (no KuzuDB): {e_type} @ {timestamp}: {payload}")
@@ -193,7 +238,7 @@ class AsyncLogger:
             import json
             import uuid
             event_id = str(uuid.uuid4())
-            payload_str = json.dumps(payload).replace("'", "\\'")
+            payload_str = _safe_kuzu_str(json.dumps(payload))   # anti-segfault : UTF-8 valide garanti
             
             # Initialize LogEvent schema if it doesn't exist
             try:
@@ -212,7 +257,22 @@ class AsyncLogger:
                 except Exception:
                     pass
                 conn.execute(f"CREATE (l:LanguageAlignment {{id: '{event_id}', agent_a: '{payload.get('a')}', agent_b: '{payload.get('b')}', item_type: '{item_type}', v0: {vec[0]}, v1: {vec[1]}, v2: {vec[2]}, v3: {vec[3]}}})")
-                
+
+            elif e_type == "RUN_START":
+                try:
+                    conn.execute("CREATE NODE TABLE IF NOT EXISTS Run (id STRING, name STRING, seed INT64, commit STRING, config_hash STRING, git_dirty BOOLEAN, timestamp DOUBLE, PRIMARY KEY (id))")
+                    safe_rid = str(self._current_run).replace("'", "\\'")
+                    safe_name = str(payload.get('name', '')).replace("'", "\\'")
+                    safe_commit = str(payload.get('commit', '')).replace("'", "\\'")
+                    safe_config_hash = str(payload.get('config_hash', '')).replace("'", "\\'")
+                    gd = "true" if payload.get("git_dirty") else "false"
+                    conn.execute(
+                        f"MERGE (r:Run {{id: '{safe_rid}'}}) SET r.name = '{safe_name}', "
+                        f"r.seed = {int(payload.get('seed', 0))}, r.commit = '{safe_commit}', "
+                        f"r.config_hash = '{safe_config_hash}', r.git_dirty = {gd}, r.timestamp = {timestamp}")
+                except Exception as ex:
+                    log.warning(f"RUN_START node write failed: {ex}")
+
             elif e_type == "TREASURE_FOUND":
                 log.info(f"TREASURE_FOUND: {payload.get('agent_id')}")
                 
@@ -291,6 +351,14 @@ class AsyncLogger:
                         conn.execute(f"MATCH (r:Result {{id: '{result_id}'}}), (a:Agent {{id: '{best_agent_id}'}}) MERGE (r)-[:YIELDED_BEST_AGENT]->(a)")
                         
                     log.info(f"ERA_RESULT logged: era={version}, max={max_score:.1f}, mean={mean_score:.1f}")
+
+                    if self._current_run:
+                        try:
+                            conn.execute("CREATE REL TABLE IF NOT EXISTS BELONGS_TO_RUN (FROM Result TO Run)")
+                            safe_run_id = str(self._current_run).replace("'", "\\'")
+                            conn.execute(f"MATCH (r:Result {{id: '{result_id}'}}), (run:Run {{id: '{safe_run_id}'}}) MERGE (r)-[:BELONGS_TO_RUN]->(run)")
+                        except Exception as ex:
+                            log.warning(f"BELONGS_TO_RUN link failed: {ex}")
                 except Exception as inner_e:
                     log.warning(f"ERA_RESULT partial write: {inner_e}")
                     
@@ -319,6 +387,7 @@ class AsyncLogger:
                 log.debug(f"Event {e_type}: {payload}")
                 
         except Exception as e:
+            self._error_count += 1
             log.error(f"KuzuDB insert error for {e_type}: {e}")
         finally:
             # Signal completion si emit_sync() attend

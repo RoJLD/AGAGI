@@ -161,6 +161,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/flatland/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Runs */
+        get: operations["list_runs_api_flatland_runs_get"];
+        put?: never;
+        /** Create Run */
+        post: operations["create_run_api_flatland_runs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/flatland/runs/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Run */
+        delete: operations["delete_run_api_flatland_runs__run_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/health/kuzu": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Health Kuzu */
+        get: operations["health_kuzu_api_health_kuzu_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health/parity": {
         parameters: {
             query?: never;
@@ -190,6 +242,57 @@ export interface paths {
          * @description Retrieve cognitive state timeline for a specific agent
          */
         get: operations["get_cognitive_snapshots_api_introspection__agent_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/observability/logger": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Observability Logger */
+        get: operations["observability_logger_api_observability_logger_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/provenance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Provenance List */
+        get: operations["provenance_list_api_provenance_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/provenance/{file_stem}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Provenance Detail */
+        get: operations["provenance_detail_api_provenance__file_stem__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -643,10 +746,10 @@ export interface components {
         ArticleResponse: {
             /** Content */
             content: string;
+            /** Date */
+            date: string;
             /** Id */
             id: string;
-            /** Timestamp */
-            timestamp: number;
             /** Title */
             title: string;
         };
@@ -660,6 +763,20 @@ export interface components {
             name: string;
             /** Seeds */
             seeds: number[];
+        };
+        /** CreateRunBody */
+        CreateRunBody: {
+            /** Config Overrides */
+            config_overrides?: {
+                [key: string]: unknown;
+            } | null;
+            /** Label */
+            label?: string | null;
+            /**
+             * Pop Size
+             * @default 10
+             */
+            pop_size: number;
         };
         /** EdrLinks */
         EdrLinks: {
@@ -1132,6 +1249,122 @@ export interface operations {
             };
         };
     };
+    list_runs_api_flatland_runs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown[];
+                };
+            };
+        };
+    };
+    create_run_api_flatland_runs_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-token"?: string | null;
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateRunBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_run_api_flatland_runs__run_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-api-token"?: string | null;
+                authorization?: string | null;
+            };
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    health_kuzu_api_health_kuzu_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
     parity_report_api_health_parity_get: {
         parameters: {
             query?: never;
@@ -1174,6 +1407,81 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    observability_logger_api_observability_logger_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
+    provenance_list_api_provenance_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown[];
+                };
+            };
+        };
+    };
+    provenance_detail_api_provenance__file_stem__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                file_stem: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
             /** @description Validation Error */
@@ -1378,7 +1686,10 @@ export interface operations {
     post_action_api_sandbox_action_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "x-api-token"?: string | null;
+                authorization?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -1431,7 +1742,10 @@ export interface operations {
     reset_curriculum_state_api_sandbox_curriculum_state_delete: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "x-api-token"?: string | null;
+                authorization?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -1444,6 +1758,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -1471,7 +1794,10 @@ export interface operations {
     start_sandbox_api_sandbox_start_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "x-api-token"?: string | null;
+                authorization?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -1544,7 +1870,10 @@ export interface operations {
     stop_sandbox_api_sandbox_stop_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "x-api-token"?: string | null;
+                authorization?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -1557,6 +1886,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -1584,7 +1922,10 @@ export interface operations {
     trigger_analysis_api_sociologist_analyze_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                "x-api-token"?: string | null;
+                authorization?: string | null;
+            };
             path?: never;
             cookie?: never;
         };

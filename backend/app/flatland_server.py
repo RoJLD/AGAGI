@@ -1,6 +1,8 @@
 import asyncio
 import time
 import threading
+import uuid
+from dataclasses import fields
 from typing import Dict, Any
 
 import numpy as np
@@ -10,15 +12,76 @@ from src.swarm.hgt import HorizontalGeneTransfer, HGTConfig
 from src.worlds.world_1_stoneage import Biosphere3D
 from src.agents.mamba_agent import MambaAgent
 
+# Clés whitelistées qui visent un champ IMBRIQUÉ de WorldConfig (et non un champ plat).
+# La valeur est le chemin dotté à écrire. Ex. "mutation_rate" pilote le VRAI levier de mutation,
+# imbriqué dans cfg.agent.mutation.weight_mutate_rate (cf. main_biosphere.py:221 qui fait
+# exactement ce mapping). Un setattr plat attacherait un attribut MORT cfg.mutation_rate que rien
+# ne lit -> piège à échec silencieux pour un framework A/B (intervention sans effet).
+_NESTED_OVERRIDES = {
+    "mutation_rate": "agent.mutation.weight_mutate_rate",
+}
+
+# Champs plats réels de WorldConfig (dataclass) : on n'autorise un setattr plat que sur eux,
+# sinon setattr créerait un attribut fantôme silencieux.
+_WORLDCONFIG_FIELDS = {f.name for f in fields(WorldConfig)}
+
+# Bornes anti-DoS sur les knobs de RESSOURCE : le cap MAX_RUNS limite le NOMBRE de runs, pas la
+# TAILLE d'un run -> sans borne, {"size": 100000} alloue une grille 100000² -> OOM. Hors bornes -> 400.
+_BOUNDS = {"size": (8, 128), "num_altars": (0, 50)}
+
+# Overrides de config autorisés pour un run (la "variable d'intervention" de l'A/B). Spec §5.
+WHITELIST = ({"active_exp_variable", "robust_hof_K", "base_metabolism",
+              "forage_payoff", "size", "num_altars", "prey_mode"}
+             | set(_NESTED_OVERRIDES))
+
+
+def _apply_override(cfg, key, value):
+    """Applique un override whitelisté sur la WorldConfig.
+
+    - clé imbriquée (_NESTED_OVERRIDES) -> écrit le vrai champ imbriqué (ex. mutation_rate ->
+      cfg.agent.mutation.weight_mutate_rate), pas un attribut plat mort.
+    - clé plate -> doit être un champ RÉEL de WorldConfig (dataclasses.fields), sinon le setattr
+      créerait un attribut fantôme que rien ne lit (échec silencieux).
+    """
+    path = _NESTED_OVERRIDES.get(key)
+    if path is not None:
+        target = cfg
+        *parents, leaf = path.split(".")
+        for attr in parents:
+            target = getattr(target, attr)
+        if not hasattr(target, leaf):
+            raise ValueError(f"override imbrique invalide: {key} -> {path} (champ inexistant)")
+        setattr(target, leaf, value)
+        return
+    if key not in _WORLDCONFIG_FIELDS:
+        raise ValueError(
+            f"override whiteliste mais absent de WorldConfig: {key} "
+            f"(setattr plat creerait un attribut mort)")
+    lo_hi = _BOUNDS.get(key)
+    if lo_hi is not None:
+        lo, hi = lo_hi
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not (lo <= value <= hi):
+            raise ValueError(f"override {key}={value!r} hors bornes [{lo}, {hi}] (anti-DoS ressource)")
+    setattr(cfg, key, value)
+
+
 class FlatlandServer:
-    def __init__(self):
-        self.cfg = WorldConfig(size=32, num_altars=5, prey_mode="semi")
+    def __init__(self, config_overrides=None, pop_size=10, label=None):
+        if isinstance(pop_size, bool) or not isinstance(pop_size, int) or not (1 <= pop_size <= 100):
+            raise ValueError(f"pop_size={pop_size!r} hors bornes [1, 100] (anti-DoS ressource)")
+        cfg = WorldConfig(size=32, num_altars=5, prey_mode="semi")
+        for k, v in (config_overrides or {}).items():
+            if k not in WHITELIST:
+                raise ValueError(f"override de config non autorise: {k} (autorises: {sorted(WHITELIST)})")
+            _apply_override(cfg, k, v)
+        self.cfg = cfg
+        self.label = label
         self.world = Biosphere3D(self.cfg)
         self.queue = None
         self.running = False
         self.loop = None
         self.era = 1                 # run ÉVOLUTIVE live : la pop descend du HoF, qui s'améliore par ère
-        self.pop_size = 10
+        self.pop_size = pop_size
         self._seed_from_hof()
 
     def _seed_from_hof(self):
@@ -206,4 +269,43 @@ class FlatlandServer:
     def stop(self):
         self.running = False
 
-flatland_server = FlatlandServer()
+
+class RunCapExceeded(Exception):
+    """Levée quand le nombre de runs concurrents atteint MAX_RUNS."""
+
+
+class FlatlandManager:
+    """Cycle de vie de N runs flatland concurrents (dict run_id -> FlatlandServer). Spec §4."""
+    MAX_RUNS = 4
+
+    def __init__(self, default_server):
+        self.runs = {"default": default_server}
+
+    def create_run(self, config_overrides=None, pop_size=10, label=None):
+        if len(self.runs) >= self.MAX_RUNS:
+            raise RunCapExceeded(f"cap atteint ({self.MAX_RUNS} runs)")
+        # FlatlandServer valide les overrides (ValueError si hors whitelist) AVANT d'occuper un slot.
+        server = FlatlandServer(config_overrides=config_overrides, pop_size=pop_size, label=label)
+        run_id = uuid.uuid4().hex[:8]
+        self.runs[run_id] = server
+        return run_id
+
+    def get_run(self, run_id):
+        return self.runs.get(run_id)
+
+    def stop_run(self, run_id) -> bool:
+        if run_id == "default" or run_id not in self.runs:
+            return False
+        self.runs[run_id].stop()
+        del self.runs[run_id]
+        return True
+
+    def list_runs(self) -> list:
+        return [{"run_id": rid, "label": s.label,
+                 "status": "running" if s.running else "idle",
+                 "era": s.era, "agent_count": len(s.world.agents)}
+                for rid, s in self.runs.items()]
+
+
+flatland_server = FlatlandServer(label="default")
+flatland_manager = FlatlandManager(flatland_server)
