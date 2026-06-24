@@ -53,19 +53,19 @@ def test_verdict_four_cases():
     assert dreaming_verdict(-0.4, -0.45, 0.00, 1.00) == "MORT"
 
 
-import os
 import pytest
 
 
 @pytest.mark.slow
-def test_run_era_organ_smoke_seeds_organ():
+def test_run_era_organ_smoke_seeds_organ(monkeypatch):
     """Smoke biosphère : une ère courte, ~50% organe semé -> renvoie des stats avec has_organ booléen."""
-    os.environ["AGISEED_QUIET_LOG"] = "1"
+    monkeypatch.setenv("AGISEED_QUIET_LOG", "1")
     from src.graph_rag.async_logger import logger as async_logger
     from tools.dreaming_probe import run_era_organ, _acquire_shared_db
     async_logger.start()
     try:
         db = _acquire_shared_db()
+        # db appartient au worker async_logger -> libere par stop()
         stats = run_era_organ("stoneage", seed=0, organ_fraction=0.5, metab=0.25, payoff=3.0,
                               num_agents=20, max_ticks=40, shared_db=db)
     finally:
