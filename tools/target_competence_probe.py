@@ -74,6 +74,16 @@ def run_probe(target, k, num_agents, max_ticks, shared_db, mode="tabula"):
                 a = MambaAgent()
                 a.from_genome(champ_g)
                 env.add_agent(a, energy=50.0)
+        elif mode == "mono_fresh":
+            # CONTRÔLE (EDR 097) : monoculture d'UN génome frais -> isole l'effet monoculture du
+            # génome champion. init_primordial_soup puis cloner genomes[0] x num_agents.
+            genomes, _ntm = init_primordial_soup(num_agents=num_agents, import_agent_id=None,
+                                                 keep_memory=False, shared_db=shared_db, config=config)
+            mono_g = genomes[0]
+            for _ in range(num_agents):
+                a = MambaAgent()
+                a.from_genome(mono_g)
+                env.add_agent(a, energy=50.0)
         else:
             genomes, _ntm = init_primordial_soup(num_agents=num_agents, import_agent_id=None,
                                                  keep_memory=False, shared_db=shared_db, config=config)
