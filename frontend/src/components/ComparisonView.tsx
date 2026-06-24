@@ -12,7 +12,7 @@ import { RadarChart } from "./RadarChart";
 import { ABComparisonView } from "./ABComparisonView";
 import { formatPercentage } from "../lib/charts";
 
-export function ComparisonView() {
+export function ComparisonView({ onBaselineChange }: { onBaselineChange?: (name: string) => void } = {}) {
   const { query } = useHashRoute(TAB_KEYS, "edr");
   const { data: experiments = [] } = useQuery({
     queryKey: queryKeys.experiments.list,
@@ -38,7 +38,7 @@ export function ComparisonView() {
       {compareMode === "ab" ? (
         <>
           <h2>A/B rigoureux (runs multi-seed)</h2>
-          <ABComparisonView preselectA={query.ab} />
+          <ABComparisonView preselectA={query.ab} onBaselineChange={onBaselineChange} />
         </>
       ) : (
         <>

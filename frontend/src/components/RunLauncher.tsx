@@ -23,7 +23,7 @@ const STATUS_VARIANT: Record<QueueStatus, "teal" | "warning" | "success" | "dang
   error: "danger",
 };
 
-export function RunLauncher() {
+export function RunLauncher({ onLaunch }: { onLaunch?: (config: RunConfig) => void } = {}) {
   const { notify } = useToast();
   const { presets, savePreset, deletePreset } = useRunPresets();
 
@@ -233,7 +233,10 @@ export function RunLauncher() {
           <Button
             variant="primary"
             disabled={!queue.some((it) => it.status === "pending")}
-            onClick={() => setQueueRunning(true)}
+            onClick={() => {
+              setQueueRunning(true);
+              onLaunch?.(config);
+            }}
           >
             Lancer la file
           </Button>

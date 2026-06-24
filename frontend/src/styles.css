@@ -432,3 +432,46 @@ body {
 .runs-table tbody tr:hover { background: var(--color-bg-subtle); }
 .runs-table tr.is-selected { background: var(--color-bg-subtle); }
 .runs-table code { font-size: var(--font-size-xs); color: var(--color-text-secondary); }
+
+/* --- Parcours chercheur (G3) --- */
+.step-bar {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: var(--space-3);
+}
+.step-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-dim);
+  cursor: pointer;
+  font: inherit;
+}
+.step-pill__index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.4em;
+  height: 1.4em;
+  border-radius: 50%;
+  background: var(--color-border);
+  color: var(--color-text);
+  font-size: var(--font-size-xs);
+}
+.step-pill--active {
+  border-color: var(--color-accent);
+  color: var(--color-text);
+}
+.step-pill--active .step-pill__index {
+  background: var(--color-accent);
+  color: var(--color-bg);
+}
+.step-pill--done {
+  color: var(--color-text);
+}
