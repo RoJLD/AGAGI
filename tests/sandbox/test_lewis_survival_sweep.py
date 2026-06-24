@@ -69,3 +69,16 @@ def test_measure_survival_n_apex_wired_and_reproducible():
     # n_apex=0 -> AUCUN apex instancie -> impossible de tuer un Mammouth -> kills tous nuls.
     # Assertion science-independante (ne depend PAS de l'issue de survie) : prouve le cablage de n_apex.
     assert sum(a["kills"]) == 0
+
+
+def test_main_apex_runs_and_reproducible(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    a = lss.main_apex(levels=(12, 0), n_eval=2, R=1, seed=5, _return=True)
+    b = lss.main_apex(levels=(12, 0), n_eval=2, R=1, seed=5, _return=True)
+    assert a["medians"] == b["medians"]                       # seede -> reproductible
+    assert list(a["table"].keys()) == [12, 0]
+    assert set(a["table"][12]) == {"median", "famine", "combat", "mean_kills", "n"}
+    assert "p_one_sided" in a["jt"]
+    assert a["verdict"] in {"BARREAU TROUVE", "RUNG DEGENERE", "MUR INTRINSEQUE"}
+    # le niveau N_APEX=0 ne peut produire aucun kill (aucun apex)
+    assert a["table"][0]["mean_kills"] == 0
