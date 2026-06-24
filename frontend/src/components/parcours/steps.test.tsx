@@ -4,6 +4,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { vi, test, expect, beforeEach, afterEach } from "vitest";
 
 vi.mock("../../api/client", () => ({ apiFetch: vi.fn() }));
+// LiveEvolution (monté par StepSuivre) ouvre un WebSocket réel — stubbé en jsdom.
+vi.mock("../../hooks/useWebSocket", () => ({
+  useWebSocket: () => ({ status: "closed" }),
+}));
 import { apiFetch } from "../../api/client";
 import { ToastProvider } from "../../contexts/ToastContext";
 import { RunLauncher } from "../RunLauncher";
@@ -48,6 +52,16 @@ test("StepSuivre montre un indice quand aucune expérience active et rien ne tou
     </ActiveExperimentProvider>,
   );
   expect(screen.getByText(/Aucune expérience active/)).toBeTruthy();
+});
+
+test("StepSuivre rend la courbe d'évolution ET le dashboard quand un run tourne", () => {
+  renderWithProviders(
+    <ActiveExperimentProvider>
+      <StepSuivre running={true} hasActive={false} onNext={() => {}} />
+    </ActiveExperimentProvider>,
+  );
+  expect(screen.getByText("Évolution en direct")).toBeTruthy(); // LiveEvolution en tête
+  expect(screen.getByText(/Visualisation 2D/)).toBeTruthy(); // LiveDashboard dessous
 });
 
 test("StepLancer enregistre l'expérience active au lancement", async () => {
