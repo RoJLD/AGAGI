@@ -26,6 +26,7 @@ MAX_TICKS = 300
 NUM_AGENTS = 24
 GATE = 120.0                       # survie mediane minimale d'un barreau survivable (089/090)
 CHEAP_MAX = 24                     # forage_payoff <= 24 (x8) = barreau "acceptable" ; 48 (x16) = trop cher
+APEX_LEVELS = (12, 9, 6, 3, 0)     # N_APEX balaye : de la densite 093 (12) au Lewis vide (0)
 
 
 def _cfg(forage_payoff):
@@ -36,7 +37,7 @@ def _cfg(forage_payoff):
     return cfg
 
 
-def _measure_survival(cfg, seeds, leurre_frac=0.0, num_agents=NUM_AGENTS, max_ticks=MAX_TICKS):
+def _measure_survival(cfg, seeds, leurre_frac=0.0, n_apex=N_APEX, num_agents=NUM_AGENTS, max_ticks=MAX_TICKS):
     """Mesure la survie des CHAMPIONS (repliques, pas d'evolution) en Lewis a letalite leurre_frac.
     Une ere par seed (appariement entre niveaux : meme seed -> meme monde initial). memory_retriever
     stoppe avant la boucle. Renvoie ages (pool), causes de mort (famine/combat), kills moyens/ere."""
@@ -48,7 +49,7 @@ def _measure_survival(cfg, seeds, leurre_frac=0.0, num_agents=NUM_AGENTS, max_ti
         seed_at(s, 0)
         genomes = _reproduce(champs, num_agents, mc)
         env = Biosphere3D(cfg)
-        _setup_critical(env, leurre_frac, n_apex=N_APEX)
+        _setup_critical(env, leurre_frac, n_apex=n_apex)
         env.config.target_prey_count = PREY_COUNT
         if hasattr(env, "memory_retriever"):
             env.memory_retriever.stop()
@@ -82,24 +83,36 @@ def _verdict(levels, medians, gate=GATE):
     return "BARREAU TROUVE" if min(crossed) <= CHEAP_MAX else "BARREAU TROP CHER"
 
 
-def _report(h, levels, groups, R, n_eval, _return):
-    """Medianes par niveau + Jonckheere-Terpstra (tendance) + verdict + provenance."""
+def _verdict_apex(levels, medians, gate=GATE):
+    """Mappe (medianes de survie par niveau de densite d'apex) -> 3 branches pre-enregistrees.
+    Un N_APEX > 0 franchit le gate -> barreau trouve (densite reduite survivable) ; seul N_APEX=0
+    franchit -> rung degenere (survie uniquement dans un Lewis vide) ; aucun -> mur intrinseque
+    (le drain n'est pas l'environnement)."""
+    crossed = [lv for lv, m in zip(levels, medians) if m > gate]
+    if not crossed:
+        return "MUR INTRINSEQUE"
+    return "BARREAU TROUVE" if max(crossed) > 0 else "RUNG DEGENERE"
+
+
+def _report(h, levels, groups, R, n_eval, _return, knob="forage_payoff", verdict_fn=_verdict):
+    """Medianes par niveau + Jonckheere-Terpstra (tendance) + verdict + provenance.
+    knob = nom du parametre balaye (impression/provenance) ; verdict_fn = mapping medianes->verdict."""
     medians = [float(np.median(g["ticks"])) if g["ticks"] else 0.0 for g in groups]
     jt = st.jonckheere_terpstra([g["ticks"] for g in groups])
-    verdict = _verdict(levels, medians)
+    verdict = verdict_fn(levels, medians)
     table = {}
-    print(f"\n=== EDR093 sweep forage_payoff : survie mediane (gate >{GATE:.0f}) ===")
+    print(f"\n=== EDR sweep {knob} : survie mediane (gate >{GATE:.0f}) ===")
     for lv, g, med in zip(levels, groups, medians):
         mk = float(np.mean(g["kills"])) if g["kills"] else 0.0
         n = len(g["ticks"])
         table[lv] = {"median": med, "famine": g["famine"], "combat": g["combat"],
                      "mean_kills": mk, "n": n}
-        print(f"  payoff={lv:<3} | survie mediane={med:6.1f} | famine={g['famine']:<4} "
+        print(f"  {knob}={lv:<3} | survie mediane={med:6.1f} | famine={g['famine']:<4} "
               f"combat={g['combat']:<4} | kills/agent~{mk:.2f} | n={n}")
     print(f"  Jonckheere-Terpstra z={jt['z']:.2f}, p(croissance)={jt['p_one_sided']:.3f}")
     print("=== VERDICT (pre-enregistre) ===")
     print(f"  -> {verdict}")
-    h.save({"levels": list(levels), "R": R, "n_eval": n_eval, "medians": medians,
+    h.save({"knob": knob, "levels": list(levels), "R": R, "n_eval": n_eval, "medians": medians,
             "jt": jt, "verdict": verdict, "table": {str(k): v for k, v in table.items()}})
     if _return:
         return {"levels": list(levels), "medians": medians, "jt": jt,
@@ -118,6 +131,21 @@ def main(levels=LEVELS, n_eval=8, R=4, seed=None, _return=False):
             groups.append(_measure_survival(_cfg(lv), seeds))
             prog.update()
         return _report(h, levels, groups, R, n_eval, _return)
+
+
+def main_apex(levels=APEX_LEVELS, n_eval=8, R=4, seed=None, _return=False):
+    """EDR 094 : sweep N_APEX (densite d'apex) a forage_payoff=3 fixe, Lewis letalite 0."""
+    with Harness(seed=seed, name="lewis_apex_sweep", with_db=False) as h:
+        base = h.seed
+        _disable_kuzu()
+        print(f"EDR094 : sweep N_APEX={levels}, R={R}, n_eval={n_eval}, seed={base}.")
+        seeds = [base + r * 1000 + i for r in range(R) for i in range(n_eval)]  # memes seeds/niveau
+        prog = h.progress(len(levels), label="niveaux N_APEX")
+        groups = []
+        for lv in levels:
+            groups.append(_measure_survival(_cfg(3), seeds, n_apex=lv))
+            prog.update()
+        return _report(h, levels, groups, R, n_eval, _return, knob="N_APEX", verdict_fn=_verdict_apex)
 
 
 if __name__ == "__main__":
