@@ -88,11 +88,12 @@ def test_unknown_gate_returns_404() -> None:
 
 
 # --- F3.12 sécurité (opt-in / env-gated / non-breaking par défaut) ---
-def test_cors_origins_default_wildcard() -> None:
-    """Sans AGAGI_CORS_ORIGINS : on garde ['*'] (comportement historique préservé)."""
-    assert _resolve_cors_origins(None) == ["*"]
-    assert _resolve_cors_origins("") == ["*"]
-    assert _resolve_cors_origins("   ") == ["*"]
+def test_cors_origins_default_locked() -> None:
+    """Sans AGAGI_CORS_ORIGINS : allowlist dev locale (jamais '*' — cf. test_security)."""
+    expected = ["http://localhost:5173", "http://127.0.0.1:5173"]
+    assert _resolve_cors_origins(None) == expected
+    assert _resolve_cors_origins("") == expected
+    assert _resolve_cors_origins("   ") == expected
 
 
 def test_cors_origins_csv_parsed() -> None:
