@@ -137,15 +137,17 @@ def test_cfg_sets_trace_flag():
 
 def test_verdict_drain_four_branches():
     # action > 50% du net -> throw
-    assert lss._verdict_drain({"brain": 1, "action": 12, "biologie": 2, "net": 15}) == "TARIF=THROW"
+    assert lss._verdict_drain({"brain": 1, "action": 12, "biologie": 2, "mouvement": 0, "net": 15}) == "TARIF=THROW"
     # biologie > 50% -> biologie
-    assert lss._verdict_drain({"brain": 1, "action": 2, "biologie": 12, "net": 15}) == "TARIF=BIOLOGIE"
+    assert lss._verdict_drain({"brain": 1, "action": 2, "biologie": 12, "mouvement": 0, "net": 15}) == "TARIF=BIOLOGIE"
     # brain > 50% -> brain
-    assert lss._verdict_drain({"brain": 12, "action": 2, "biologie": 1, "net": 15}) == "TARIF=BRAIN"
+    assert lss._verdict_drain({"brain": 12, "action": 2, "biologie": 1, "mouvement": 0, "net": 15}) == "TARIF=BRAIN"
+    # mouvement > 50% -> mouvement
+    assert lss._verdict_drain({"brain": 1, "action": 2, "biologie": 1, "mouvement": 11, "net": 15}) == "TARIF=MOUVEMENT"
     # aucune > 50% -> diffus
-    assert lss._verdict_drain({"brain": 5, "action": 6, "biologie": 4, "net": 15}) == "DRAIN DIFFUS"
+    assert lss._verdict_drain({"brain": 5, "action": 6, "biologie": 4, "mouvement": 0, "net": 15}) == "DRAIN DIFFUS"
     # net <= 0 -> diffus (garde)
-    assert lss._verdict_drain({"brain": 0, "action": 0, "biologie": 0, "net": 0}) == "DRAIN DIFFUS"
+    assert lss._verdict_drain({"brain": 0, "action": 0, "biologie": 0, "mouvement": 0, "net": 0}) == "DRAIN DIFFUS"
 
 
 def test_measure_drain_keys_and_reproducible():
@@ -153,9 +155,9 @@ def test_measure_drain_keys_and_reproducible():
     cfg = lss._cfg(3, trace_energy_sinks=True)
     a = lss._measure_drain(cfg, seeds=[7, 8], n_apex=0, num_agents=4, max_ticks=30)
     b = lss._measure_drain(cfg, seeds=[7, 8], n_apex=0, num_agents=4, max_ticks=30)
-    assert set(a) == {"brain", "action", "biologie", "net", "n_agents"}
+    assert set(a) == {"brain", "action", "biologie", "mouvement", "net", "n_agents"}
     assert a["n_agents"] >= 1
-    assert abs(a["net"] - (a["brain"] + a["action"] + a["biologie"])) < 1e-6   # net = somme (telescopage)
+    assert abs(a["net"] - (a["brain"] + a["action"] + a["biologie"] + a["mouvement"])) < 1e-6   # net = somme (telescopage)
     assert a == b                                                              # seede -> reproductible
 
 
@@ -164,5 +166,5 @@ def test_main_decompose_runs_and_reproducible(tmp_path, monkeypatch):
     a = lss.main_decompose(n_eval=2, R=1, seed=5, _return=True)
     b = lss.main_decompose(n_eval=2, R=1, seed=5, _return=True)
     assert a["phases"] == b["phases"]                         # seede -> reproductible
-    assert set(a["phases"]) == {"brain", "action", "biologie", "net", "n_agents"}
-    assert a["verdict"] in {"TARIF=THROW", "TARIF=BIOLOGIE", "TARIF=BRAIN", "DRAIN DIFFUS"}
+    assert set(a["phases"]) == {"brain", "action", "biologie", "mouvement", "net", "n_agents"}
+    assert a["verdict"] in {"TARIF=THROW", "TARIF=BIOLOGIE", "TARIF=BRAIN", "TARIF=MOUVEMENT", "DRAIN DIFFUS"}

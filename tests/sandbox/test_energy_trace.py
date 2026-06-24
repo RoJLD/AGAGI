@@ -27,7 +27,7 @@ def test_trace_off_is_inert():
     assert all("_e_phases" not in ag for ag in pool)   # trace OFF -> aucun _e_phases
 
 
-def test_trace_on_records_three_phases():
+def test_trace_on_records_four_phases():
     env = _mk_env(trace=True)
     for _ in range(3):
         env.step()
@@ -36,7 +36,7 @@ def test_trace_on_records_three_phases():
     assert traced, "des agents doivent porter _e_phases"
     for ag in traced:
         ph = ag["_e_phases"]
-        assert set(ph) == {"brain", "action", "biologie"}
+        assert set(ph) == {"brain", "action", "biologie", "mouvement"}
         assert all(np.isfinite(v) for v in ph.values())
 
 

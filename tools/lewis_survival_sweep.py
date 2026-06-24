@@ -86,13 +86,13 @@ def _measure_survival(cfg, seeds, leurre_frac=0.0, n_apex=N_APEX, num_agents=NUM
 
 
 def _measure_drain(cfg, seeds, n_apex=0, num_agents=NUM_AGENTS, max_ticks=MAX_TICKS):
-    """Decompose le drain energetique par phase (brain/action/biologie) a N_APEX=0. Lit agent['_e_phases']
-    (pose par les hooks trace_energy_sinks) sur le pool, normalise par l'age (energie/tick), moyenne sur
-    les agents. cfg DOIT avoir trace_energy_sinks=True."""
+    """Decompose le drain energetique par phase (brain/action/biologie/mouvement) a N_APEX=0. Lit
+    agent['_e_phases'] (pose par les hooks trace_energy_sinks) sur le pool, normalise par l'age
+    (energie/tick), moyenne sur les agents. cfg DOIT avoir trace_energy_sinks=True."""
     mc = MutationConfig(weight_init_std=2.0)
     seed_at(0, 0)
     champs = _load_champions()
-    brain, action, biologie = [], [], []
+    brain, action, biologie, mouvement = [], [], [], []
     for s in seeds:
         seed_at(s, 0)
         genomes = _reproduce(champs, num_agents, mc)
@@ -122,9 +122,11 @@ def _measure_drain(cfg, seeds, n_apex=0, num_agents=NUM_AGENTS, max_ticks=MAX_TI
             brain.append(ph["brain"] / age)
             action.append(ph["action"] / age)
             biologie.append(ph["biologie"] / age)
+            mouvement.append(ph["mouvement"] / age)
     mean = lambda xs: float(np.mean(xs)) if xs else 0.0
-    b, a_, bio = mean(brain), mean(action), mean(biologie)
-    return {"brain": b, "action": a_, "biologie": bio, "net": b + a_ + bio, "n_agents": len(brain)}
+    b, a_, bio, mv = mean(brain), mean(action), mean(biologie), mean(mouvement)
+    return {"brain": b, "action": a_, "biologie": bio, "mouvement": mv,
+            "net": b + a_ + bio + mv, "n_agents": len(brain)}
 
 
 def _surprise_stats(pool):
@@ -179,16 +181,18 @@ def _verdict_surprise(levels, medians, frac_nonfinite, gate=GATE):
 
 
 def _verdict_drain(phases):
-    """Mappe la decomposition (brain/action/biologie + net) -> 4 branches. La phase qui porte > 50% du
-    drain net nomme le coupable ; aucune > 50% (ou net <= 0) -> drain diffus."""
+    """Mappe la decomposition (brain/action/biologie/mouvement + net) -> 5 branches. La phase qui porte
+    > 50% du drain net nomme le coupable ; aucune > 50% (ou net <= 0) -> drain diffus."""
     net = phases["net"]
     if net <= 0:
         return "DRAIN DIFFUS"
-    shares = {k: phases[k] / net for k in ("brain", "action", "biologie")}
+    keys = ("brain", "action", "biologie", "mouvement")
+    shares = {k: phases[k] / net for k in keys}
     top = max(shares, key=shares.get)
     if shares[top] <= 0.5:
         return "DRAIN DIFFUS"
-    return {"action": "TARIF=THROW", "biologie": "TARIF=BIOLOGIE", "brain": "TARIF=BRAIN"}[top]
+    return {"action": "TARIF=THROW", "biologie": "TARIF=BIOLOGIE",
+            "brain": "TARIF=BRAIN", "mouvement": "TARIF=MOUVEMENT"}[top]
 
 
 def _report(h, levels, groups, R, n_eval, _return, knob="forage_payoff", verdict_fn=_verdict):
@@ -278,11 +282,11 @@ def main_surprise(levels=SURPRISE_LEVELS, n_eval=8, R=4, seed=None, _return=Fals
 
 
 def _report_drain(h, agg, R, n_eval, _return):
-    """Table des 3 phases (energie/tick + part %) + verdict + provenance. Tout ASCII (cp1252)."""
+    """Table des 4 phases (energie/tick + part %) + verdict + provenance. Tout ASCII (cp1252)."""
     verdict = _verdict_drain(agg)
     net = agg["net"]
     print(f"\n=== EDR099 decomposition drain a N_APEX=0 (energie/tick/agent) ===")
-    for ph in ("brain", "action", "biologie"):
+    for ph in ("brain", "action", "biologie", "mouvement"):
         pct = (100.0 * agg[ph] / net) if net else 0.0
         print(f"  {ph:<9} | {agg[ph]:7.2f}/tick | {pct:6.1f}% du net")
     print(f"  {'NET':<9} | {net:7.2f}/tick | n_agents={agg['n_agents']}")
