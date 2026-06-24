@@ -45,3 +45,31 @@ def dose_response_verdict(per_arm: Dict, eps: float = 0.02) -> Dict:
         verdict = "NEUTRE"
     return {"ratio": ratio, "sign_p": sign_p, "n_favorable": n_fav, "n": len(pr),
             "verdict": verdict, "ratios_par_K": ratios_par_K}
+
+
+from src.curriculum.competence import survival_competence
+from src.agents.mamba_agent import MambaBatchModel
+from tools.dreaming_probe import run_era_organ
+
+log = logging.getLogger("AGIseed.DreamCausal")
+
+
+def run_causal(seeds, target, num_agents, max_ticks, shared_db, ks=(1, 4, 8)) -> Dict:
+    """Par seed, balaye les bras ["off", *ks] à organe ON (100%) + sweet spot. Pose FORCE_DREAM
+    AVANT l'ère, le REMET à None en finally (anti-pollution). Survie appariée par seed -> verdict."""
+    arms = ["off", *[int(k) for k in ks]]
+    per_arm = {arm: [] for arm in arms}
+    for seed in seeds:
+        for arm in arms:
+            MambaBatchModel.FORCE_DREAM = arm if arm == "off" else int(arm)
+            try:
+                stats = run_era_organ(target, seed, 1.0, 0.25, 3.0, num_agents, max_ticks, shared_db)
+            finally:
+                MambaBatchModel.FORCE_DREAM = None      # OBLIGATOIRE : etat global de classe
+            per_arm[arm].append(survival_competence(stats))
+        log.info("  seed=%s survie %s", seed,
+                 {str(a): round(per_arm[a][-1], 3) for a in arms})
+    verdict = dose_response_verdict(per_arm)
+    return {**verdict, "per_arm": {str(a): v for a, v in per_arm.items()},
+            "config": {"target": target, "seeds": [int(s) for s in seeds], "ks": list(ks),
+                       "num_agents": num_agents, "max_ticks": max_ticks}}
