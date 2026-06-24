@@ -73,3 +73,38 @@ def run_causal(seeds, target, num_agents, max_ticks, shared_db, ks=(1, 4, 8)) ->
     return {**verdict, "per_arm": {str(a): v for a, v in per_arm.items()},
             "config": {"target": target, "seeds": [int(s) for s in seeds], "ks": list(ks),
                        "num_agents": num_agents, "max_ticks": max_ticks}}
+
+
+from src.environments.config import WorldConfig
+from src.seed_ai.harness import Harness
+from src.graph_rag.async_logger import logger as async_logger
+from main_curriculum import _acquire_shared_db
+
+
+def main() -> Dict:
+    os.environ["AGISEED_QUIET_LOG"] = "1"     # anti-segfault + vitesse, AVANT start()
+    target = os.environ.get("DC_TARGET", "stoneage")
+    seeds = [int(s) for s in os.environ.get("DC_SEEDS", "0,1,2").split(",") if s.strip()]
+    ks = tuple(int(k) for k in os.environ.get("DC_KS", "1,4,8").split(",") if k.strip())
+    num_agents = int(os.environ.get("DC_NUM_AGENTS", "40"))
+    max_ticks = int(os.environ.get("DC_MAX_TICKS", "400"))
+
+    async_logger.start()
+    try:
+        shared_db = _acquire_shared_db()
+        log.info("=== Sonde causale : cible=%s seeds=%s ks=%s agents=%d ticks=%d ===",
+                 target, seeds, ks, num_agents, max_ticks)
+        result = run_causal(seeds, target, num_agents, max_ticks, shared_db, ks=ks)
+    finally:
+        async_logger.stop()
+
+    h = Harness(seed=min(seeds) if seeds else 0, name="dream_causal", with_db=False, config=WorldConfig())
+    path = h.save(result, config=WorldConfig())
+    log.info("VERDICT=%s ratio(Kmax/off)=%.3f sign_p=%.3f | courbe=%s -> %s",
+             result["verdict"], result["ratio"], result["sign_p"], result["ratios_par_K"], path)
+    return result
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+    main()

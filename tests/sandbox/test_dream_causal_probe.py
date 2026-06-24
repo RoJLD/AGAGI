@@ -42,3 +42,33 @@ def test_run_causal_smoke_resets_flag(monkeypatch):
         async_logger.stop()
     assert MambaBatchModel.FORCE_DREAM is None          # reset garanti (try/finally)
     assert "verdict" in res and set(res["per_arm"]) == {"off", "1"}
+
+
+import json
+import glob
+
+
+def test_main_writes_provenance(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    import tools.dream_causal_probe as dc
+    monkeypatch.setattr(dc, "run_causal", lambda *a, **k: {
+        "ratio": 1.5, "sign_p": 0.05, "n_favorable": 5, "n": 5, "verdict": "CAUSE_BENEFIQUE",
+        "ratios_par_K": {"1": 1.1, "4": 1.3, "8": 1.5},
+        "per_arm": {"off": [0.1], "1": [0.11], "4": [0.13], "8": [0.15]},
+        "config": {"target": "stoneage", "seeds": [0], "ks": [1, 4, 8]}})
+    monkeypatch.setattr(dc.async_logger, "start", lambda: None)
+    monkeypatch.setattr(dc.async_logger, "stop", lambda: None)
+    monkeypatch.setattr(dc, "_acquire_shared_db", lambda: None)
+    monkeypatch.setenv("DC_SEEDS", "0")
+    # main() pose AGISEED_QUIET_LOG=1 en dur -> monkeypatch POSSEDE la cle (restauree au teardown,
+    # sinon fuite vers les autres tests, cf. EDR 093).
+    monkeypatch.setenv("AGISEED_QUIET_LOG", "0")
+
+    result = dc.main()
+    assert result["verdict"] == "CAUSE_BENEFIQUE"
+    files = glob.glob(str(tmp_path / "results" / "dream_causal_*.json"))
+    assert files, "provenance non écrite"
+    with open(files[0], encoding="utf-8") as f:
+        data = json.loads(f.read())
+    assert data["data"]["verdict"] == "CAUSE_BENEFIQUE"
+    assert "commit" in data and "git_dirty" in data
