@@ -1,4 +1,5 @@
 import type { Article, RunSummary } from "../types";
+import type { TabKey } from "../tabs";
 
 export type ProvNodeType = "condition" | "edr" | "article";
 export interface ProvNode {
@@ -67,7 +68,7 @@ export function buildProvenanceGraph(
 }
 
 /** Cible de navigation au clic d'un nœud (deep-link via useHashRoute.navigate). Pur. */
-export function provenanceTarget(node: ProvNode): { tab: string; query: Record<string, string> } {
+export function provenanceTarget(node: ProvNode): { tab: TabKey; query: Record<string, string> } {
   if (node.type === "condition") return { tab: "comparison", query: { ab: node.label } };
   if (node.type === "edr") return { tab: "edr", query: {} };
   return { tab: "laboratoire", query: {} };

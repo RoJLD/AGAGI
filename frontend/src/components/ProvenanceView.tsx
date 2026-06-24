@@ -1,4 +1,5 @@
 // frontend/src/components/ProvenanceView.tsx
+import { useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { Article, RunSummary } from "../types";
 import { apiFetch } from "../api/client";
@@ -14,8 +15,7 @@ import { ProvenanceGraph } from "./ProvenanceGraph";
 type LinkMap = Record<string, string[]>;
 
 export function ProvenanceView() {
-  // TODO(Task-4): defaultTab "edr" → "provenance" une fois "provenance" dans TAB_KEYS.
-  const { navigate } = useHashRoute(TAB_KEYS, "edr");
+  const { navigate } = useHashRoute(TAB_KEYS, "provenance");
 
   const edrQ = useQuery({
     queryKey: queryKeys.runs.edrLinks,
@@ -37,6 +37,11 @@ export function ProvenanceView() {
     queryFn: () => apiFetch<Article[]>("/api/sociologist/articles"),
     staleTime: 60_000,
   });
+
+  const onSelect = useCallback((node: ProvNode) => {
+    const target = provenanceTarget(node);
+    navigate(target.tab, target.query);
+  }, [navigate]);
 
   const isLoading = edrQ.isLoading || artQ.isLoading || runsQ.isLoading || artListQ.isLoading;
   const error = edrQ.error || artQ.error || runsQ.error || artListQ.error;
@@ -62,11 +67,6 @@ export function ProvenanceView() {
   if (!nodes.length) {
     return <Empty message="Aucun lien finding↔run↔EDR↔article à afficher. Lie des runs à des EDR (Historique) ou publie un article (Laboratoire)." />;
   }
-
-  const onSelect = (node: ProvNode) => {
-    const target = provenanceTarget(node);
-    navigate(target.tab as (typeof TAB_KEYS)[number], target.query);
-  };
 
   return (
     <div className="provenance-view">
