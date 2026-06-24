@@ -47,5 +47,5 @@ test("changer de métrique met à jour l'en-tête", async () => {
   renderWithClient(<SweepView />);
   await screen.findAllByText(/forage_payoff/);
   fireEvent.change(screen.getByLabelText(/Métrique/), { target: { value: "median_competence" } });
-  expect(screen.getAllByText(/median_competence/)).toBeTruthy();
+  expect(screen.getByText((_, el) => el?.tagName === 'STRONG' && el.textContent === 'median_competence')).toBeTruthy();
 });

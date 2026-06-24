@@ -24,9 +24,6 @@ export function SweepView() {
   const metrics = current ? Object.keys(current.series) : [];
 
   useEffect(() => {
-    if (current && !selId) setSelId(current.run_id);
-  }, [current, selId]);
-  useEffect(() => {
     if (metrics.length && !metrics.includes(metric)) setMetric(metrics[0]);
   }, [metrics, metric]);
 
@@ -37,7 +34,6 @@ export function SweepView() {
       <Empty message="Aucun sweep disponible. Lance un balayage de paramètre (ex. lewis_survival_sweep) côté backend." />
     );
   }
-  if (!current) return <Empty message="Aucun sweep sélectionné." />;
 
   return (
     <div className="sweep-view">
