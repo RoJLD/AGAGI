@@ -6,7 +6,7 @@ import os
 import sys
 import logging
 import statistics
-from typing import List, Dict, Optional
+from typing import List, Dict
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
@@ -78,7 +78,7 @@ def _set_organ(genome, on: bool) -> None:
 def run_era_organ(target: str, seed: int, organ_fraction: float, metab: float, payoff: float,
                   num_agents: int, max_ticks: int, shared_db) -> List[Dict]:
     """UNE ère sur `target`, avec une fraction `organ_fraction` de la population portant l'organe
-    MCTS (les `int(organ_fraction*num_agents)` premiers). Renvoie par agent vivant à la fin :
+    MCTS (les `int(round(organ_fraction*len(genomes)))` premiers). Renvoie par agent vivant à la fin :
     {age, total_dreams, has_organ}. Déterministe (memory_retriever neutralisé)."""
     SeedManager(seed).seed_boundary(0)
     config = WorldConfig()
@@ -110,6 +110,8 @@ def run_era_organ(target: str, seed: int, organ_fraction: float, metab: float, p
 
 
 from tools.curriculum_transfer import _sign_test_p
+
+RATIO_CAP = 5.0
 
 
 def _prevalence_from_stats(stats: List[Dict]) -> float:
@@ -143,11 +145,16 @@ def run_q2(seeds, target, num_agents, max_ticks, shared_db) -> Dict:
         deltas.append(split["delta"])
         dreams_seen += sum(s["total_dreams"] for s in on)
         c_on, c_off = survival_competence(on), survival_competence(off)
-        ratios.append(c_on / max(c_off, 1e-6))
+        if c_on <= 1e-6 and c_off <= 1e-6:
+            ratio = 1.0
+        else:
+            ratio = min(c_on / max(c_off, 1e-6), RATIO_CAP)
+        ratios.append(ratio)
     q2a_delta = float(statistics.median(deltas)) if deltas else 0.0
     q2b_ratio = float(statistics.median(ratios)) if ratios else 1.0
+    effective = [r for r in ratios if r != 1.0]
+    sign_p = _sign_test_p(sum(1 for r in effective if r > 1.0), len(effective))
     n_fav = sum(1 for r in ratios if r > 1.0)
-    sign_p = _sign_test_p(n_fav, len([r for r in ratios if r != 1.0]))
     return {"q2a_delta": q2a_delta, "q2b_ratio": q2b_ratio, "n_favorable": n_fav,
             "n": len(ratios), "sign_p": sign_p, "total_dreams_seen": dreams_seen,
             "per_seed_delta": deltas, "per_seed_ratio": ratios}
