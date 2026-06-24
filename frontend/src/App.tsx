@@ -17,6 +17,7 @@ const TopologyView = lazy(() => import("./components/TopologyView").then((m) => 
 const AcademyView = lazy(() => import("./components/AcademyView").then((m) => ({ default: m.AcademyView })));
 const LaboratoryView = lazy(() => import("./components/LaboratoryView").then((m) => ({ default: m.LaboratoryView })));
 const TimelineViewer = lazy(() => import("./components/TimelineViewer").then((m) => ({ default: m.TimelineViewer })));
+const ProvenanceView = lazy(() => import("./components/ProvenanceView").then((m) => ({ default: m.ProvenanceView })));
 const SandboxView = lazy(() => import("./components/SandboxView").then((m) => ({ default: m.SandboxView })));
 const RunLauncher = lazy(() => import("./components/RunLauncher").then((m) => ({ default: m.RunLauncher })));
 const RunsHistoryView = lazy(() => import("./components/RunsHistoryView").then((m) => ({ default: m.RunsHistoryView })));
@@ -80,6 +81,7 @@ export default function App() {
           {tab === "academy" && <AcademyView />}
           {tab === "laboratoire" && <LaboratoryView />}
           {tab === "timeline" && <TimelineViewer />}
+          {tab === "provenance" && <ProvenanceView />}
           {tab === "sandbox" && (
             <>
               <RunLauncher />

@@ -12,6 +12,7 @@ import {
   ShieldAlert,
   Spline,
   TrendingUp,
+  Workflow,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { TabItem } from "./components/ui/Tabs";
@@ -30,6 +31,7 @@ export const TAB_KEYS = [
   "runs",
   "academy",
   "timeline",
+  "provenance",
 ] as const;
 
 export type TabKey = (typeof TAB_KEYS)[number];
@@ -85,6 +87,7 @@ export const TAB_FAMILIES: TabFamily[] = [
     tabs: [
       { key: "academy", label: "Academy", icon: GraduationCap },
       { key: "timeline", label: "Chronologie", icon: History },
+      { key: "provenance", label: "Provenance", icon: Workflow },
     ],
   },
 ];
