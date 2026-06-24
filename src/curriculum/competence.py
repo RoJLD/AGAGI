@@ -47,24 +47,28 @@ def soup_competence(agent_stats: List[Dict]) -> float:
 
 # Refs/poids à choisir par toi. Stats dispo par agent : age, energy,
 # preys_eaten, altars_solved, total_dreams, total_reflexes.
-PREY_REF = 5.0    # suggestion de point de départ — ajuste selon tes runs
-ALTAR_REF = 3.0
+PREY_REF = 5.0    # conservé pour rétro-compat ; stoneage_competence n'en dépend plus (EDR 096)
+ALTAR_REF = 3.0   # lu par industrial/gym (PROVISOIRE) ; MORT en stoneage (altars_solved jamais incrémenté)
+
+# Échelle moyens->ends de la compétence stoneage (EDR 096) : poids des barreaux VIVANTS.
+W_HUNT = 0.4    # chasse triviale (plancher)
+W_APEX = 0.45   # apex-prédation coopérative (mammouth) — barreau dur VIVANT
+W_TOOL = 0.15   # craft de lance — pathway outil (froid mais récompensé pour le nudge)
 
 
 def stoneage_competence(agent_stats: List[Dict]) -> float:
-    """
-    Monde 1 (Stoneage) — stade causalité/outil. Maîtrise = chasse + usage
-    d'outils/puzzles.
+    """Monde 1 (Stoneage) — échelle moyens->ends de comportements VIVANTS (EDR 096).
 
-    Choix retenus (à ajuster librement) :
-      - Normalisation : médiane / réf, clampée — robuste aux génies isolés.
-      - Pondération : l'outil/puzzle (`altars_solved`), plus "cognitif", pèse 0.6
-        contre 0.4 pour la chasse (`preys_eaten`) — on récompense davantage le
-        signe d'intelligence que le signe de survie brute.
-    """
-    hunt = _median_norm([a.get("preys_eaten", 0) for a in agent_stats], PREY_REF)
-    tools = _median_norm([a.get("altars_solved", 0) for a in agent_stats], ALTAR_REF)
-    return float(np.clip(0.4 * hunt + 0.6 * tools, 0.0, 1.0))
+    L'ancien terme d'autel (`altars_solved`, pondéré 0.6) était du CODE MORT sur stoneage
+    (aucune résolution, jamais incrémenté) -> RETIRÉ. Remplacé par la fraction d'agents atteignant
+    chaque barreau vivant — chasse < apex-prédation coop < lance — agrégée par PARTICIPATION
+    (`_frac_reaching`, pas la médiane : les conduites de minorité apex 21.7% / lance 1.6% sont lavées
+    par la médiane, EDR 094 ; la fraction binaire est aussi robuste à l'inflation de crédit-groupe
+    d'EDR 028)."""
+    frac_hunt = _frac_reaching(agent_stats, "preys_eaten")
+    frac_apex = _frac_reaching(agent_stats, "mammoth_kills")
+    frac_tool = _frac_reaching(agent_stats, "spears_crafted")
+    return float(np.clip(W_HUNT * frac_hunt + W_APEX * frac_apex + W_TOOL * frac_tool, 0.0, 1.0))
 
 
 # --- Mondes 2/3/Gym : implémentations PROVISOIRES -----------------------------
