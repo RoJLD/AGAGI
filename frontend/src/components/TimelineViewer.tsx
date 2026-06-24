@@ -64,9 +64,12 @@ export function TimelineViewer() {
       .attr("dy", 4)
       .style("fill", "var(--color-text)"); // sinon noir par défaut -> invisible en dark
 
+    // `append("title")` ne propage pas le datum générique : on re-cast vers TimelineNode.
     node.append("title").text((d) => `${(d as TimelineNode).label}: ${(d as TimelineNode).id}`);
 
     simulation.on("tick", () => {
+      // d3.SimulationLinkDatum.source/target est typé `string | number | TimelineNode` ;
+      // après initialisation de la simulation, d3 les résout en nœuds -> cast vers TimelineNode.
       link
         .attr("x1", (d) => (d.source as TimelineNode).x ?? 0)
         .attr("y1", (d) => (d.source as TimelineNode).y ?? 0)

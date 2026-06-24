@@ -60,3 +60,19 @@ test("testIdPrefix personnalise les data-testid", () => {
   expect(screen.getByTestId("step-a")).toBeTruthy();
   expect(tabId("a")).toBe("tab-a");
 });
+
+test("orientation verticale : ↓/↑ déplacent le focus (wrap) sans activer", () => {
+  const onSelect = vi.fn();
+  render(<TabList items={ITEMS} activeId="a" onSelect={onSelect} ariaLabel="Sections" orientation="vertical" />);
+  expect(screen.getByRole("tablist").getAttribute("aria-orientation")).toBe("vertical");
+  const first = screen.getByTestId("tab-a");
+  first.focus();
+  fireEvent.keyDown(first, { key: "ArrowDown" });
+  expect(document.activeElement).toBe(screen.getByTestId("tab-b"));
+  // wrap : ↑ depuis le premier va au dernier
+  screen.getByTestId("tab-a").focus();
+  fireEvent.keyDown(screen.getByTestId("tab-a"), { key: "ArrowUp" });
+  expect(document.activeElement).toBe(screen.getByTestId("tab-c"));
+  // activation manuelle : naviguer ne sélectionne pas
+  expect(onSelect).not.toHaveBeenCalled();
+});
