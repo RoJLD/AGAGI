@@ -1491,7 +1491,17 @@ class Biosphere3D(BaseWorld):
             hgt_new_agents = self._apply_hgt_breeding()
             self._apply_surprise_hgt()
         
-        for (g, x, y, e) in new_agents + social_new_agents + hgt_new_agents:
+        self._add_offspring(new_agents + social_new_agents + hgt_new_agents)
+
+    def _add_offspring(self, offspring):
+        """Ajoute la descendance d'un tick en respectant la capacité de charge des agents
+        (config.max_population). None = pas de cap (comportement historique). Le cap borne la
+        population intra-épisode -> borne le coût O(N²) d'_apply_hgt_breeding (anti-runaway
+        survie-longue, post-EDR090)."""
+        cap = getattr(self.config, "max_population", None)
+        for (g, x, y, e) in offspring:
+            if cap is not None and len(self.agents) >= cap:
+                break
             self.add_agent(g, x=x, y=y, energy=e)
 
     def render(self):
