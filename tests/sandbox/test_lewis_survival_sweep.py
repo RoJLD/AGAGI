@@ -57,3 +57,15 @@ def test_verdict_apex_three_branches():
     assert lss._verdict_apex(levels, [5, 8, 10, 30, 60]) == "MUR INTRINSEQUE"
     # frontiere : exactement au gate ne franchit pas (m > gate strict)
     assert lss._verdict_apex(levels, [5, 8, 10, 30, 120]) == "MUR INTRINSEQUE"
+
+
+def test_measure_survival_n_apex_wired_and_reproducible():
+    lss._disable_kuzu()
+    cfg = lss._cfg(3)
+    a = lss._measure_survival(cfg, seeds=[7, 8], n_apex=0, num_agents=4, max_ticks=30)
+    a2 = lss._measure_survival(cfg, seeds=[7, 8], n_apex=0, num_agents=4, max_ticks=30)
+    assert set(a) == {"ticks", "famine", "combat", "kills"}
+    assert a == a2                              # seede -> reproductible
+    # n_apex=0 -> AUCUN apex instancie -> impossible de tuer un Mammouth -> kills tous nuls.
+    # Assertion science-independante (ne depend PAS de l'issue de survie) : prouve le cablage de n_apex.
+    assert sum(a["kills"]) == 0

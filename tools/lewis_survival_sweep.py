@@ -37,7 +37,7 @@ def _cfg(forage_payoff):
     return cfg
 
 
-def _measure_survival(cfg, seeds, leurre_frac=0.0, num_agents=NUM_AGENTS, max_ticks=MAX_TICKS):
+def _measure_survival(cfg, seeds, leurre_frac=0.0, n_apex=N_APEX, num_agents=NUM_AGENTS, max_ticks=MAX_TICKS):
     """Mesure la survie des CHAMPIONS (repliques, pas d'evolution) en Lewis a letalite leurre_frac.
     Une ere par seed (appariement entre niveaux : meme seed -> meme monde initial). memory_retriever
     stoppe avant la boucle. Renvoie ages (pool), causes de mort (famine/combat), kills moyens/ere."""
@@ -49,7 +49,7 @@ def _measure_survival(cfg, seeds, leurre_frac=0.0, num_agents=NUM_AGENTS, max_ti
         seed_at(s, 0)
         genomes = _reproduce(champs, num_agents, mc)
         env = Biosphere3D(cfg)
-        _setup_critical(env, leurre_frac, n_apex=N_APEX)
+        _setup_critical(env, leurre_frac, n_apex=n_apex)
         env.config.target_prey_count = PREY_COUNT
         if hasattr(env, "memory_retriever"):
             env.memory_retriever.stop()
