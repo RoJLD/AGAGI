@@ -31,7 +31,7 @@ export function ParcoursView() {
     lancer: true,
     suivre: !!activeExperiment || running,
     comparer: !!activeExperiment,
-    conclure: !!activeExperiment?.baseline,
+    conclure: !!activeExperiment,
   };
 
   const go = (s: ParcoursStep) => {

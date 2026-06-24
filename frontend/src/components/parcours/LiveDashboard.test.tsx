@@ -21,4 +21,5 @@ test("rend les panneaux live (monde, terminal, télémétrie)", () => {
   expect(screen.getByText(/Terminal Biosphère/)).toBeTruthy();
   expect(screen.getByText(/Télémétrie Cognitive/)).toBeTruthy();
   expect(screen.getByText(/Interventions God-Mode/)).toBeTruthy();
+  expect(screen.getByText(/Journal du Superviseur/)).toBeTruthy();
 });
