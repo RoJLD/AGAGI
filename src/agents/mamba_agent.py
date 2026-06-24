@@ -1,6 +1,11 @@
 import copy
 import numpy as np
 from src.agents.base_agent import BaseAgent
+
+def count_active_nodes(H, eps):
+    """Nb de nœuds dont l'activation dépasse eps, par ligne du batch. H (B,N) -> (B,) int.
+    Le padding du batch (zéros) est < eps donc non compté. NAS Axe D-1."""
+    return np.sum(np.abs(H) > eps, axis=1).astype(int)
 from src.seed_ai.mutation import Genome, apply_mutations, MutationConfig
 from src.seed_ai.rl_evolution import recurrent_forward
 from src.metaprog.ntm_compiler import NTMProgramCompiler
@@ -34,7 +39,8 @@ class MambaAgent(BaseAgent):
         self.goal_vector = None
         self.ref_head = None        # EDR 074 : tête référentielle dédiée (apex->token), co-entraînée par gradient
         self.predictor_head = None
-        
+        self.last_activation_cost = 0  # NAS Axe D-1 : nb de nœuds actifs au dernier forward
+
         self.reset_state()
         
         self.phenotype_hp_bonus = float(np.sum(np.abs(np.nan_to_num(self.genome.W[0:5]))) * 10.0)
@@ -286,6 +292,7 @@ class MambaBatchModel:
     # Flags d'ablation (EDR 032) : neutralisent un gène câblé pour mesurer son apport réel.
     ABLATE_THRESHOLDS = False   # ignore les seuils d'excitabilité
     ABLATE_ROUTER = False       # gain neuromodulateur neutre (=1)
+    METABOLIC_ACTIVE_EPS = 0.1  # NAS Axe D-1 : seuil |H_i|>eps pour compter un nœud "actif"
     FORCE_DREAM = None          # intervention causale (EDR 094) : None|"off"|int K (profondeur forcée)
 
     def __init__(self, agents: list[MambaAgent], world_model=None):
@@ -570,7 +577,9 @@ class MambaBatchModel:
 
         # 7. Mise à jour de l'état interne du batch
         self.H_prev_batch = H
-        
+        # NAS Axe D-1 : coût d'activation = nb de nœuds actifs ce tick (lu par _resolve_biology).
+        self.activation_cost_batch = count_active_nodes(self.H_prev_batch, MambaBatchModel.METABOLIC_ACTIVE_EPS)
+
         # Construction individuelle des sous-sorties avec gestion sécurisée des indices négatifs
         attention_logits = np.zeros((self.B, self.max_I), dtype=np.float32)
         ntm_heads = np.zeros((self.B, 20), dtype=np.float32)
@@ -646,6 +655,7 @@ class MambaBatchModel:
             N_i = a.genome.num_nodes
             map_idx = self.mappings[i]
             a.H_prev[0] = self.H_prev_batch[i, map_idx]
+            a.last_activation_cost = int(self.activation_cost_batch[i])
             a.explicit_memory = self.explicit_memory_batch[i]
             a.goal_vector = self.goal_vector_batch[i]
             a.predictor_head = self.predictor_head_batch[i]
