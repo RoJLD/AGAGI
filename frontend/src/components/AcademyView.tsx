@@ -4,6 +4,7 @@ import { apiFetch } from "../api/client";
 import { queryKeys } from "../api/queryKeys";
 import { Loading } from "./ui/Loading";
 import { ErrorState } from "./ui/ErrorState";
+import { Empty } from "./ui/Empty";
 
 export function AcademyView() {
   const { data: academy = null, isLoading, error, refetch } = useQuery({
@@ -49,7 +50,7 @@ export function AcademyView() {
       ) : error ? (
         <ErrorState error={error} onRetry={() => refetch()} />
       ) : (
-        <Loading label="Chargement des contenus Academy…" />
+        <Empty message="Aucun contenu Academy disponible." />
       )}
     </>
   );

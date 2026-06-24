@@ -27,7 +27,7 @@ test("rend les 3 boîtes Academy", async () => {
 });
 
 test("affiche l'état Loading pendant le chargement", () => {
-  (apiFetch as ReturnType<typeof vi.fn>).mockReturnValue(new Promise(() => {})); // jamais résolu
+  (apiFetch as ReturnType<typeof vi.fn>).mockReturnValueOnce(new Promise(() => {})); // jamais résolu
   renderWithClient(<AcademyView />);
   expect(screen.getByText(/Chargement des contenus Academy/)).toBeTruthy();
   expect(screen.getByRole("status")).toBeTruthy(); // primitive Loading
