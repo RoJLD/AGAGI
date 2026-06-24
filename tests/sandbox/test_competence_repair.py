@@ -1,4 +1,4 @@
-from src.curriculum.competence import _frac_reaching
+from src.curriculum.competence import _frac_reaching, stoneage_competence
 
 
 def test_frac_reaching_basic():
@@ -22,9 +22,6 @@ def test_frac_reaching_empty_and_missing():
 def test_frac_reaching_threshold_default_one():
     assert _frac_reaching([{"x": 1}], "x") == 1.0
     assert _frac_reaching([{"x": 0}], "x") == 0.0
-
-
-from src.curriculum.competence import stoneage_competence
 
 
 def _pop(frac_hunt, frac_apex, frac_tool, n=1000):
