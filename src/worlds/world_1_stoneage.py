@@ -971,11 +971,15 @@ class Biosphere3D(BaseWorld):
         night_mult = getattr(self.config, "ttc_night_penalty", 2.5) if getattr(self, "is_night", False) else 1.0
 
         for i, agent in enumerate(self.agents):
+            if getattr(self.config, "trace_energy_sinks", False):
+                agent["_e0"] = agent["energy"]                 # EDR099 : energie debut tick
             surprise_val = float(agent["model"].surprise_momentum)
             surprise_scale = 1.0 + surprise_val * getattr(self.config, "ttc_surprise_scale", 1.0)
-            
+
             brain_cost = base_cost * (1.0 + np.log2(1.0 + compute_spent[i])) * night_mult * surprise_scale
             agent["energy"] = max(0.0, agent["energy"] - float(brain_cost))
+            if getattr(self.config, "trace_energy_sinks", False):
+                agent["_e_brain"] = agent["energy"]            # EDR099 : apres brain_cost
             
             if getattr(self.config, "active_exp_variable", "NONE") == "INTRINSIC":
                 # Recompense Intrinsèque : La surprise génère de la dopamine (énergie)
@@ -1252,7 +1256,17 @@ class Biosphere3D(BaseWorld):
                         agent["last_env_surprise"] = 0.5
 
             # Biology
+            if getattr(self.config, "trace_energy_sinks", False):
+                agent["_e_prebio"] = agent["energy"]           # EDR099 : avant biologie
             self._resolve_biology(agent, action, logits)
+            if getattr(self.config, "trace_energy_sinks", False):
+                _e0 = agent.get("_e0", agent["energy"])
+                _eb = agent.get("_e_brain", _e0)
+                _ep = agent.get("_e_prebio", _eb)
+                ph = agent.setdefault("_e_phases", {"brain": 0.0, "action": 0.0, "biologie": 0.0})
+                ph["brain"] += _e0 - _eb                       # cout brain_cost
+                ph["action"] += _eb - _ep                      # throw + signal + divers (loop2 avant biologie)
+                ph["biologie"] += _ep - agent["energy"]        # metab+terrain+carry (peut etre <0 si forage)
             
             # Movement (2D: actions 0-3 = N,S,E,W; 3D: actions 4-5 = Up,Down)
             ax, ay, az = int(agent["x"]), int(agent["y"]), int(agent.get("z", 0))
