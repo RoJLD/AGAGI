@@ -1,4 +1,5 @@
 // frontend/src/components/parcours/StepSuivre.tsx
+import { LiveEvolution } from "../LiveEvolution";
 import { LiveDashboard } from "./LiveDashboard";
 import { Empty } from "../ui/Empty";
 import { NextStepButton } from "./NextStepButton";
@@ -19,6 +20,8 @@ export function StepSuivre({
   }
   return (
     <>
+      {/* Santé évolutive de l'expérience d'abord (fitness×génération), puis le détail du monde. */}
+      <LiveEvolution />
       <LiveDashboard />
       <NextStepButton label="Comparer les résultats" onClick={onNext} />
     </>
