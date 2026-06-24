@@ -82,3 +82,49 @@ def test_main_apex_runs_and_reproducible(tmp_path, monkeypatch):
     assert a["verdict"] in {"BARREAU TROUVE", "RUNG DEGENERE", "MUR INTRINSEQUE"}
     # le niveau N_APEX=0 ne peut produire aucun kill (aucun apex)
     assert a["table"][0]["mean_kills"] == 0
+
+
+def test_cfg_sets_surprise_scale():
+    assert lss._cfg(3, ttc_surprise_scale=0.0).ttc_surprise_scale == 0.0
+    assert lss._cfg(3, ttc_surprise_scale=0.5).ttc_surprise_scale == 0.5
+    assert lss._cfg(3).ttc_surprise_scale == 1.0          # defaut config preserve (retro-compat)
+
+
+def test_verdict_surprise_three_branches():
+    levels = (1.0, 0.5, 0.25, 0.0)
+    ff0 = [0.0, 0.0, 0.0, 0.0]
+    # un scale<1 franchit (0.25 et 0.0) -> tarif = surprise
+    assert lss._verdict_surprise(levels, [10, 50, 130, 200], ff0) == "TARIF=SURPRISE"
+    # aucun ne franchit + une surprise non-finie -> overflow racine
+    assert lss._verdict_surprise(levels, [5, 5, 5, 5], [0.0, 0.0, 0.0, 0.3]) == "OVERFLOW=RACINE"
+    # aucun ne franchit + surprises finies -> pas le brain_cost
+    assert lss._verdict_surprise(levels, [5, 5, 5, 5], ff0) == "PAS LE BRAIN_COST"
+    # frontiere : exactement au gate ne franchit pas (m > gate strict)
+    assert lss._verdict_surprise(levels, [5, 5, 5, 120], ff0) == "PAS LE BRAIN_COST"
+
+
+def test_measure_survival_collect_surprise():
+    lss._disable_kuzu()
+    cfg = lss._cfg(3, ttc_surprise_scale=1.0)
+    a = lss._measure_survival(cfg, seeds=[7, 8], n_apex=0, num_agents=4, max_ticks=30, collect_surprise=True)
+    a2 = lss._measure_survival(cfg, seeds=[7, 8], n_apex=0, num_agents=4, max_ticks=30, collect_surprise=True)
+    assert set(a) == {"ticks", "famine", "combat", "kills", "surprise"}
+    assert len(a["surprise"]) == 2                          # une entree par ere (2 seeds)
+    assert set(a["surprise"][0]) == {"mean_abs_finite", "max_finite", "frac_nonfinite"}
+    assert all(0.0 <= s["frac_nonfinite"] <= 1.0 for s in a["surprise"])
+    assert a == a2                                          # seede -> reproductible
+    # defaut (sans collect) -> contrat 093/094 preserve
+    b = lss._measure_survival(cfg, seeds=[7, 8], n_apex=0, num_agents=4, max_ticks=30)
+    assert set(b) == {"ticks", "famine", "combat", "kills"}
+
+
+def test_main_surprise_runs_and_reproducible(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    a = lss.main_surprise(levels=(1.0, 0.0), n_eval=2, R=1, seed=5, _return=True)
+    b = lss.main_surprise(levels=(1.0, 0.0), n_eval=2, R=1, seed=5, _return=True)
+    assert a["medians"] == b["medians"]                       # seede -> reproductible
+    assert list(a["table"].keys()) == [1.0, 0.0]
+    assert {"median", "famine", "combat", "mean_kills", "n",
+            "mean_surprise", "frac_nonfinite"} <= set(a["table"][1.0])
+    assert "p_one_sided" in a["jt"]
+    assert a["verdict"] in {"TARIF=SURPRISE", "OVERFLOW=RACINE", "PAS LE BRAIN_COST"}

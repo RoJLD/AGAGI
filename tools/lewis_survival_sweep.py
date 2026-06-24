@@ -27,24 +27,30 @@ NUM_AGENTS = 24
 GATE = 120.0                       # survie mediane minimale d'un barreau survivable (089/090)
 CHEAP_MAX = 24                     # forage_payoff <= 24 (x8) = barreau "acceptable" ; 48 (x16) = trop cher
 APEX_LEVELS = (12, 9, 6, 3, 0)     # N_APEX balaye : de la densite 093 (12) au Lewis vide (0)
+SURPRISE_LEVELS = (1.0, 0.5, 0.25, 0.0)   # ttc_surprise_scale : baseline 094 (1.0) -> brain_cost decouple (0.0)
 
 
-def _cfg(forage_payoff):
+def _cfg(forage_payoff, ttc_surprise_scale=None):
     cfg = WorldConfig()
     cfg.base_metabolism = METAB
     cfg.forage_payoff = float(forage_payoff)
     cfg.max_population = 150        # defensif (PR #29) ; jamais atteint ici
+    if ttc_surprise_scale is not None:
+        cfg.ttc_surprise_scale = float(ttc_surprise_scale)   # EDR098 ; sinon defaut config (1.0)
     return cfg
 
 
-def _measure_survival(cfg, seeds, leurre_frac=0.0, n_apex=N_APEX, num_agents=NUM_AGENTS, max_ticks=MAX_TICKS):
+def _measure_survival(cfg, seeds, leurre_frac=0.0, n_apex=N_APEX, num_agents=NUM_AGENTS,
+                      max_ticks=MAX_TICKS, collect_surprise=False):
     """Mesure la survie des CHAMPIONS (repliques, pas d'evolution) en Lewis a letalite leurre_frac.
     Une ere par seed (appariement entre niveaux : meme seed -> meme monde initial). memory_retriever
-    stoppe avant la boucle. Renvoie ages (pool), causes de mort (famine/combat), kills moyens/ere."""
+    stoppe avant la boucle. Renvoie ages (pool), causes de mort (famine/combat), kills moyens/ere.
+    Si collect_surprise : ajoute 'surprise' = stats de agent['model'].surprise_momentum par ere
+    (mean_abs_finite, max_finite, frac_nonfinite) -> diagnostic du brain_cost (EDR098)."""
     mc = MutationConfig(weight_init_std=2.0)
     seed_at(0, 0)                  # graine fixe pour _load_champions (HoF vide -> fallback random)
     champs = _load_champions()
-    ticks, famine, combat, kills = [], 0, 0, []
+    ticks, famine, combat, kills, surprise = [], 0, 0, [], []
     for s in seeds:
         seed_at(s, 0)
         genomes = _reproduce(champs, num_agents, mc)
@@ -70,7 +76,29 @@ def _measure_survival(cfg, seeds, leurre_frac=0.0, n_apex=N_APEX, num_agents=NUM
         famine += sum(1 for ag in pool if ag.get("energy", 1.0) <= 0)
         combat += sum(1 for ag in pool if ag.get("hp", 1.0) <= 0 and ag.get("energy", 1.0) > 0)
         kills.append(float(np.mean([ag.get("mammoth_kills", 0) for ag in pool])) if pool else 0.0)
-    return {"ticks": ticks, "famine": famine, "combat": combat, "kills": kills}
+        if collect_surprise:
+            surprise.append(_surprise_stats(pool))
+    result = {"ticks": ticks, "famine": famine, "combat": combat, "kills": kills}
+    if collect_surprise:
+        result["surprise"] = surprise
+    return result
+
+
+def _surprise_stats(pool):
+    """Stats de surprise_momentum sur le pool (read-only) : moyenne des |finies|, max fini, fraction
+    non-finie (inf/nan -> detecte l'overflow brain_cost)."""
+    vals = []
+    for ag in pool:
+        m = ag.get("model")
+        try:
+            vals.append(float(getattr(m, "surprise_momentum", np.nan)))
+        except (TypeError, ValueError):
+            vals.append(np.nan)
+    arr = np.array(vals, dtype=float)
+    finite = arr[np.isfinite(arr)]
+    return {"mean_abs_finite": float(np.mean(np.abs(finite))) if finite.size else 0.0,
+            "max_finite": float(np.max(np.abs(finite))) if finite.size else 0.0,
+            "frac_nonfinite": float(np.mean(~np.isfinite(arr))) if arr.size else 0.0}
 
 
 def _verdict(levels, medians, gate=GATE):
@@ -94,21 +122,48 @@ def _verdict_apex(levels, medians, gate=GATE):
     return "BARREAU TROUVE" if max(crossed) > 0 else "RUNG DEGENERE"
 
 
+def _verdict_surprise(levels, medians, frac_nonfinite, gate=GATE):
+    """Mappe (medianes, fractions non-finies de surprise par niveau) -> 3 branches pre-enregistrees.
+    Un ttc_surprise_scale franchit le gate -> TARIF=SURPRISE (le brain_cost surprise-amplifie est le mur) ;
+    aucun ne franchit + une surprise non-finie (overflow) -> OVERFLOW=RACINE ; aucun + surprises finies ->
+    PAS LE BRAIN_COST (le drain est ailleurs, ex. throw)."""
+    crossed = [lv for lv, m in zip(levels, medians) if m > gate]
+    if crossed:
+        return "TARIF=SURPRISE"
+    if any(f > 0 for f in frac_nonfinite):
+        return "OVERFLOW=RACINE"
+    return "PAS LE BRAIN_COST"
+
+
 def _report(h, levels, groups, R, n_eval, _return, knob="forage_payoff", verdict_fn=_verdict):
     """Medianes par niveau + Jonckheere-Terpstra (tendance) + verdict + provenance.
-    knob = nom du parametre balaye (impression/provenance) ; verdict_fn = mapping medianes->verdict."""
+    knob = nom du parametre balaye ; verdict_fn = mapping medianes->verdict. Si les groupes portent une
+    cle 'surprise' (EDR098), ajoute une colonne surprise et appelle verdict_fn(levels, medians, frac_nf)."""
     medians = [float(np.median(g["ticks"])) if g["ticks"] else 0.0 for g in groups]
     jt = st.jonckheere_terpstra([g["ticks"] for g in groups])
-    verdict = verdict_fn(levels, medians)
+    has_surprise = all("surprise" in g for g in groups)
+    if has_surprise:
+        frac_nf = [float(np.mean([s["frac_nonfinite"] for s in g["surprise"]])) if g["surprise"] else 0.0
+                   for g in groups]
+        verdict = verdict_fn(levels, medians, frac_nf)
+    else:
+        verdict = verdict_fn(levels, medians)
     table = {}
     print(f"\n=== EDR sweep {knob} : survie mediane (gate >{GATE:.0f}) ===")
     for lv, g, med in zip(levels, groups, medians):
         mk = float(np.mean(g["kills"])) if g["kills"] else 0.0
         n = len(g["ticks"])
-        table[lv] = {"median": med, "famine": g["famine"], "combat": g["combat"],
-                     "mean_kills": mk, "n": n}
-        print(f"  {knob}={lv:<3} | survie mediane={med:6.1f} | famine={g['famine']:<4} "
-              f"combat={g['combat']:<4} | kills/agent~{mk:.2f} | n={n}")
+        row = {"median": med, "famine": g["famine"], "combat": g["combat"], "mean_kills": mk, "n": n}
+        line = (f"  {knob}={lv:<4} | survie mediane={med:6.1f} | famine={g['famine']:<4} "
+                f"combat={g['combat']:<4} | kills/agent~{mk:.2f} | n={n}")
+        if has_surprise:
+            ms = float(np.mean([s["mean_abs_finite"] for s in g["surprise"]])) if g["surprise"] else 0.0
+            fnf = float(np.mean([s["frac_nonfinite"] for s in g["surprise"]])) if g["surprise"] else 0.0
+            row["mean_surprise"] = ms
+            row["frac_nonfinite"] = fnf
+            line += f" | surprise~{ms:.1f} nonfini={fnf:.2f}"
+        table[lv] = row
+        print(line)
     print(f"  Jonckheere-Terpstra z={jt['z']:.2f}, p(croissance)={jt['p_one_sided']:.3f}")
     print("=== VERDICT (pre-enregistre) ===")
     print(f"  -> {verdict}")
@@ -146,6 +201,24 @@ def main_apex(levels=APEX_LEVELS, n_eval=8, R=4, seed=None, _return=False):
             groups.append(_measure_survival(_cfg(3), seeds, n_apex=lv))
             prog.update()
         return _report(h, levels, groups, R, n_eval, _return, knob="N_APEX", verdict_fn=_verdict_apex)
+
+
+def main_surprise(levels=SURPRISE_LEVELS, n_eval=8, R=4, seed=None, _return=False):
+    """EDR 098 : sweep ttc_surprise_scale a N_APEX=0 (monde vide), forage_payoff=3 fixe, Lewis letalite 0.
+    Instrumente surprise_momentum -> teste si le brain_cost surprise-amplifie est le mur intrinseque."""
+    with Harness(seed=seed, name="lewis_surprise_sweep", with_db=False) as h:
+        base = h.seed
+        _disable_kuzu()
+        print(f"EDR098 : sweep ttc_surprise_scale={levels}, R={R}, n_eval={n_eval}, seed={base}.")
+        seeds = [base + r * 1000 + i for r in range(R) for i in range(n_eval)]  # memes seeds/niveau
+        prog = h.progress(len(levels), label="niveaux ttc_surprise_scale")
+        groups = []
+        for lv in levels:
+            groups.append(_measure_survival(_cfg(3, ttc_surprise_scale=lv), seeds, n_apex=0,
+                                            collect_surprise=True))
+            prog.update()
+        return _report(h, levels, groups, R, n_eval, _return, knob="surprise_scale",
+                       verdict_fn=_verdict_surprise)
 
 
 if __name__ == "__main__":
