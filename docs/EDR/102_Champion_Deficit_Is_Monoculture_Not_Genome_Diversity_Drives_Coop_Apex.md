@@ -1,4 +1,8 @@
-# EDR 100 : Le déficit du champion est la MONOCULTURE, pas le génome — la diversité porte l'apex coopératif
+# EDR 102 : Le déficit du champion est la MONOCULTURE, pas le génome — la diversité porte l'apex coopératif
+
+> NB numérotation : EDR 098-101 sont pris par l'arc Lewis/métabolisme (sessions parallèles). Ce
+> résultat champion/monoculture est renuméroté 102 pour éviter la collision avec l'EDR 100 « biology
+> drain » de Lewis.
 
 ## Contexte
 
