@@ -116,3 +116,15 @@ def test_measure_survival_collect_surprise():
     # defaut (sans collect) -> contrat 093/094 preserve
     b = lss._measure_survival(cfg, seeds=[7, 8], n_apex=0, num_agents=4, max_ticks=30)
     assert set(b) == {"ticks", "famine", "combat", "kills"}
+
+
+def test_main_surprise_runs_and_reproducible(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    a = lss.main_surprise(levels=(1.0, 0.0), n_eval=2, R=1, seed=5, _return=True)
+    b = lss.main_surprise(levels=(1.0, 0.0), n_eval=2, R=1, seed=5, _return=True)
+    assert a["medians"] == b["medians"]                       # seede -> reproductible
+    assert list(a["table"].keys()) == [1.0, 0.0]
+    assert {"median", "famine", "combat", "mean_kills", "n",
+            "mean_surprise", "frac_nonfinite"} <= set(a["table"][1.0])
+    assert "p_one_sided" in a["jt"]
+    assert a["verdict"] in {"TARIF=SURPRISE", "OVERFLOW=RACINE", "PAS LE BRAIN_COST"}
