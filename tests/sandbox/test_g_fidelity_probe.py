@@ -1,7 +1,12 @@
 import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 import numpy as np
-from tools.g_fidelity_probe import transition_error, fidelity_verdict
+from tools.g_fidelity_probe import (
+    transition_error, fidelity_verdict,
+    collect_ratios, run_probe,
+    collect_ratios_env, run_probe_env,
+    _GRID_L, _N_MOVES, _OBS_DIM, _obs_bench,
+)
 
 
 def test_transition_error_perfect_g_beats_baseline():
@@ -39,9 +44,6 @@ def test_fidelity_verdict_neutral_and_no_nan():
     assert np.isfinite(out["sign_p"])
 
 
-from tools.g_fidelity_probe import collect_ratios, run_probe
-
-
 def test_collect_ratios_returns_finite_positive():
     ratios, action_abs = collect_ratios(seed=0, warmup=20, measure=20)
     assert len(ratios) > 0
@@ -69,3 +71,54 @@ def test_collect_ratios_nontrivial_transitions():
     ratios, _ = collect_ratios(seed=1, warmup=10, measure=50)
     # Au moins quelques transitions doivent être mesurées (base_err > 0.01)
     assert len(ratios) > 0, "Aucune transition non-triviale mesurée avec obs variables"
+
+
+# ===== Tests env-based (collect_ratios_env / run_probe_env) =====
+
+def test_obs_bench_shape_and_onehot():
+    """_obs_bench produit un vecteur de dimension correcte et valide."""
+    o = _obs_bench(3, 5)
+    assert o.shape == (_OBS_DIM,)
+    assert o[3] == 1.0               # one-hot position
+    assert o[_GRID_L + 5] == 1.0    # one-hot danger
+    assert o.sum() == 2.0
+    o2 = _obs_bench(0, None)
+    assert o2.sum() == 1.0           # pas de danger
+
+
+def test_collect_ratios_env_returns_finite_positive():
+    """collect_ratios_env retourne des ratios finis et positifs (env réel)."""
+    ratios, action_abs = collect_ratios_env(seed=0, warmup=20, measure=30)
+    assert len(ratios) > 0, "Aucune transition mesurée dans l'env réel"
+    assert all(np.isfinite(r) and r >= 0.0 for r in ratios), "Ratios non-finis ou négatifs"
+    for a_idx in range(_N_MOVES):
+        assert len(action_abs[a_idx]) > 0, f"Action {a_idx} non exercée dans l'env"
+
+
+def test_collect_ratios_env_all_moves_covered():
+    """Les 3 moves sont tous exercés (round-robin) et ont des mean|G[a]| finis."""
+    ratios, action_abs = collect_ratios_env(seed=2, warmup=10, measure=_N_MOVES * 5)
+    for a_idx in range(_N_MOVES):
+        assert len(action_abs[a_idx]) > 0, f"Move {a_idx} jamais joué"
+        assert all(np.isfinite(v) for v in action_abs[a_idx]), f"mean|G[{a_idx}]| non fini"
+
+
+def test_collect_ratios_env_obs_vary_with_position():
+    """Sanity check : la grille produit des obs différentes selon la position (couplage réel)."""
+    o_left = _obs_bench(0, None)
+    o_mid = _obs_bench(_GRID_L // 2, None)
+    o_right = _obs_bench(_GRID_L - 1, None)
+    assert not np.allclose(o_left, o_mid), "Obs identiques pour positions différentes"
+    assert not np.allclose(o_mid, o_right), "Obs identiques pour positions différentes"
+
+
+def test_run_probe_env_structure():
+    """run_probe_env retourne un dict avec les clés de fidelity_verdict + mean_G_abs_by_action."""
+    out = run_probe_env(seeds=[0, 1], warmup=20, measure=20)
+    required = {"median_ratio", "n_favorable", "n", "sign_p", "verdict", "mean_G_abs_by_action"}
+    assert required.issubset(out), f"Clés manquantes : {required - set(out)}"
+    assert out["verdict"] in ("G_FIDELE", "G_INUTILE", "NEUTRE")
+    g_abs = out["mean_G_abs_by_action"]
+    for a_idx in range(_N_MOVES):
+        assert a_idx in g_abs, f"Action {a_idx} absente de mean_G_abs_by_action"
+        assert np.isfinite(g_abs[a_idx])
