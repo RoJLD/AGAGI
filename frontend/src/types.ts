@@ -152,6 +152,19 @@ export interface RunDetail {
   links?: { edr: number[]; articles?: string[] };
 }
 
+/** Note de carnet attachée à un run (append-only, horodatée backend). */
+export interface RunNote {
+  id: string;
+  text: string;
+  ts: string;
+}
+
+/** Item du flux agrégé du Carnet : une note + son run d'origine. */
+export interface NoteFeedItem extends RunNote {
+  run_id: string;
+  run_name: string;
+}
+
 /** {edr: [run_id, ...]} — runs liés à chaque EDR (badges du dashboard EDR). */
 export type EdrLinks = Record<string, string[]>;
 

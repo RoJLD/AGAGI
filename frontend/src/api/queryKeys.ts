@@ -30,9 +30,11 @@ export const queryKeys = {
     articleLinks: ["runs", "article-links"] as const,
     compare: (a: string, b: string, metric: string) => ["runs", "compare", a, b, metric] as const,
     distributions: (metric: string) => ["runs", "distributions", metric] as const,
+    notes: (runId: string) => ["runs", "notes", runId] as const,
   },
   health: {
     parity: ["health", "parity"] as const,
   },
   sweeps: ["sweeps"] as const,
+  notes: ["notes"] as const,
 } as const;
