@@ -8,6 +8,7 @@ export const queryKeys = {
   },
   academy: ["academy"] as const,
   edr: ["edr"] as const,
+  edrDocs: ["edr", "docs"] as const,
   timeline: ["timeline"] as const,
   sociologist: {
     articles: ["sociologist", "articles"] as const,
