@@ -24,7 +24,7 @@ if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
 from src.environments.config import WorldConfig
-from src.curriculum.competence import competence_for
+from src.curriculum.competence import competence_for, _frac_reaching
 from src.seed_ai.harness import SeedManager, Harness
 from src.seed_ai.persistence import calculate_life_score, load_hall_of_fame
 from src.graph_rag.async_logger import logger as async_logger
@@ -74,6 +74,16 @@ def run_probe(target, k, num_agents, max_ticks, shared_db, mode="tabula"):
                 a = MambaAgent()
                 a.from_genome(champ_g)
                 env.add_agent(a, energy=50.0)
+        elif mode == "mono_fresh":
+            # CONTRÔLE (EDR 097) : monoculture d'UN génome frais -> isole l'effet monoculture du
+            # génome champion. init_primordial_soup puis cloner genomes[0] x num_agents.
+            genomes, _ntm = init_primordial_soup(num_agents=num_agents, import_agent_id=None,
+                                                 keep_memory=False, shared_db=shared_db, config=config)
+            mono_g = genomes[0]
+            for _ in range(num_agents):
+                a = MambaAgent()
+                a.from_genome(mono_g)
+                env.add_agent(a, energy=50.0)
         else:
             genomes, _ntm = init_primordial_soup(num_agents=num_agents, import_agent_id=None,
                                                  keep_memory=False, shared_db=shared_db, config=config)
@@ -91,7 +101,9 @@ def run_probe(target, k, num_agents, max_ticks, shared_db, mode="tabula"):
         all_agents = env.agents + env.dead_agents
         stats = [{"age": a.get("age", 0), "energy": a.get("energy", 0.0),
                   "preys_eaten": a.get("preys_eaten", 0), "altars_solved": a.get("altars_solved", 0),
-                  "total_dreams": a.get("total_dreams", 0)} for a in all_agents]
+                  "total_dreams": a.get("total_dreams", 0),
+                  "mammoth_kills": a.get("mammoth_kills", 0),
+                  "spears_crafted": a.get("spears_crafted", 0)} for a in all_agents]
         competence = comp_fn(stats)
 
         row = {
@@ -102,6 +114,11 @@ def run_probe(target, k, num_agents, max_ticks, shared_db, mode="tabula"):
             "med_dreams": _median([s["total_dreams"] for s in stats]),
             "max_altars": max((s["altars_solved"] for s in stats), default=0),
             "max_age": max((s["age"] for s in stats), default=0),
+            # Décompo des signaux VIVANTS (EDR 096) — fraction de participation (≠ médiane qui lave) + total.
+            "frac_apex": round(_frac_reaching(stats, "mammoth_kills"), 4),
+            "frac_tool": round(_frac_reaching(stats, "spears_crafted"), 4),
+            "total_mammoth": sum(s["mammoth_kills"] for s in stats),
+            "total_spears": sum(s["spears_crafted"] for s in stats),
         }
         per_era.append(row)
         log.info("  era=%d C=%.3f | med(age=%.0f altars=%.1f preys=%.1f dreams=%.1f) | "
