@@ -35,6 +35,7 @@ export function RunNotes({ runId }: { runId: string }) {
       invalidate();
       notify("Note ajoutée.", "success");
     },
+    onError: () => notify("Échec de l'ajout de la note.", "error"),
   });
 
   const deleteMutation = useMutation({
@@ -46,6 +47,7 @@ export function RunNotes({ runId }: { runId: string }) {
       invalidate();
       notify("Note supprimée.", "success");
     },
+    onError: () => notify("Échec de la suppression.", "error"),
   });
 
   const submit = () => {
