@@ -27,6 +27,7 @@ const SweepView = lazy(() => import("./components/SweepView").then((m) => ({ def
 const CohortView = lazy(() => import("./components/CohortView").then((m) => ({ default: m.CohortView })));
 const EnergyView = lazy(() => import("./components/EnergyView").then((m) => ({ default: m.EnergyView })));
 const CarnetView = lazy(() => import("./components/CarnetView").then((m) => ({ default: m.CarnetView })));
+const EdrIndexView = lazy(() => import("./components/EdrIndexView").then((m) => ({ default: m.EdrIndexView })));
 
 export default function App() {
   const { theme, toggle } = useTheme();
@@ -88,6 +89,7 @@ export default function App() {
           {tab === "timeline" && <TimelineViewer />}
           {tab === "provenance" && <ProvenanceView />}
           {tab === "carnet" && <CarnetView />}
+          {tab === "synthese" && <EdrIndexView />}
           {tab === "sandbox" && (
             <>
               <RunLauncher />

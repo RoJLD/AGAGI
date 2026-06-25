@@ -9,6 +9,7 @@ import {
   Gauge,
   GraduationCap,
   History,
+  ListChecks,
   Network,
   NotebookPen,
   ShieldAlert,
@@ -38,6 +39,7 @@ export const TAB_KEYS = [
   "timeline",
   "provenance",
   "carnet",
+  "synthese",
 ] as const;
 
 export type TabKey = (typeof TAB_KEYS)[number];
@@ -97,6 +99,7 @@ export const TAB_FAMILIES: TabFamily[] = [
       { key: "timeline", label: "Chronologie", icon: History },
       { key: "provenance", label: "Provenance", icon: Workflow },
       { key: "carnet", label: "Carnet", icon: NotebookPen },
+      { key: "synthese", label: "Fil EDR", icon: ListChecks },
     ],
   },
 ];
