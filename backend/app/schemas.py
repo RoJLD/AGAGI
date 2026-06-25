@@ -146,6 +146,29 @@ class DistributionSummary(BaseModel):
     n: int
 
 
+class EnergyPhases(BaseModel):
+    brain: float
+    action: float
+    biologie: float
+    mouvement: float
+    net: float
+    n_agents: float
+    bio_metab: float
+    bio_terrain: float
+    bio_carry: float
+    bio_autres: float
+
+
+class Decomposition(BaseModel):
+    run_id: str
+    name: str
+    seed: int
+    commit: str | None = None
+    phases: EnergyPhases
+    verdict: str
+    bio_verdict: str
+
+
 class RunNote(BaseModel):
     id: str
     text: str

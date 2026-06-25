@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
-from ..schemas import ABCompareResult, ConditionSummary, DistributionSummary, NoteCreate, NoteFeedItem, RunDetail, RunNote, RunSummary, SweepResult
+from ..schemas import ABCompareResult, ConditionSummary, Decomposition, DistributionSummary, NoteCreate, NoteFeedItem, RunDetail, RunNote, RunSummary, SweepResult
 from ..services.runs_service import runs_service
 
 router = APIRouter()
@@ -91,6 +91,12 @@ def delete_note(run_id: str, note_id: str) -> dict:
 def all_notes() -> list[dict]:
     """Flux agrégé de toutes les notes (carnet de labo), trié par horodatage décroissant."""
     return runs_service.all_notes()
+
+
+@router.get("/runs/decompositions", response_model=list[Decomposition])
+def list_decompositions() -> list[dict]:
+    """Decompositions energetiques (budget par phase + sous-decompo biologie) pour la vue Energie."""
+    return runs_service.list_decompositions()
 
 
 @router.get("/runs/{run_id}", response_model=RunDetail)

@@ -264,6 +264,54 @@
         "title": "CreateRunBody",
         "type": "object"
       },
+      "Decomposition": {
+        "properties": {
+          "bio_verdict": {
+            "title": "Bio Verdict",
+            "type": "string"
+          },
+          "commit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commit"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "phases": {
+            "$ref": "#/components/schemas/EnergyPhases"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "seed": {
+            "title": "Seed",
+            "type": "integer"
+          },
+          "verdict": {
+            "title": "Verdict",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "name",
+          "seed",
+          "phases",
+          "verdict",
+          "bio_verdict"
+        ],
+        "title": "Decomposition",
+        "type": "object"
+      },
       "DistributionSummary": {
         "properties": {
           "n": {
@@ -304,6 +352,64 @@
           "edr"
         ],
         "title": "EdrLinks",
+        "type": "object"
+      },
+      "EnergyPhases": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "number"
+          },
+          "bio_autres": {
+            "title": "Bio Autres",
+            "type": "number"
+          },
+          "bio_carry": {
+            "title": "Bio Carry",
+            "type": "number"
+          },
+          "bio_metab": {
+            "title": "Bio Metab",
+            "type": "number"
+          },
+          "bio_terrain": {
+            "title": "Bio Terrain",
+            "type": "number"
+          },
+          "biologie": {
+            "title": "Biologie",
+            "type": "number"
+          },
+          "brain": {
+            "title": "Brain",
+            "type": "number"
+          },
+          "mouvement": {
+            "title": "Mouvement",
+            "type": "number"
+          },
+          "n_agents": {
+            "title": "N Agents",
+            "type": "number"
+          },
+          "net": {
+            "title": "Net",
+            "type": "number"
+          }
+        },
+        "required": [
+          "brain",
+          "action",
+          "biologie",
+          "mouvement",
+          "net",
+          "n_agents",
+          "bio_metab",
+          "bio_terrain",
+          "bio_carry",
+          "bio_autres"
+        ],
+        "title": "EnergyPhases",
         "type": "object"
       },
       "ExperimentDetail": {
@@ -1897,6 +2003,32 @@
           }
         },
         "summary": "List Conditions",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/runs/decompositions": {
+      "get": {
+        "description": "Decompositions energetiques (budget par phase + sous-decompo biologie) pour la vue Energie.",
+        "operationId": "list_decompositions_api_runs_decompositions_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Decomposition"
+                  },
+                  "title": "Response List Decompositions Api Runs Decompositions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Decompositions",
         "tags": [
           "runs"
         ]
