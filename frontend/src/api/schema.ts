@@ -250,6 +250,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * All Notes
+         * @description Flux agrégé de toutes les notes (carnet de labo), trié par horodatage décroissant.
+         */
+        get: operations["all_notes_api_notes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/observability/logger": {
         parameters: {
             query?: never;
@@ -450,6 +470,50 @@ export interface paths {
          * @description Associe une liste d'EDR à un run (store results/run_links.json, n'altère pas le run).
          */
         patch: operations["set_run_links_api_runs__run_id__links_patch"];
+        trace?: never;
+    };
+    "/api/runs/{run_id}/notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Notes
+         * @description Notes du carnet pour un run (triées par horodatage croissant).
+         */
+        get: operations["list_notes_api_runs__run_id__notes_get"];
+        put?: never;
+        /**
+         * Add Note
+         * @description Ajoute une note horodatée au run.
+         */
+        post: operations["add_note_api_runs__run_id__notes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/runs/{run_id}/notes/{note_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Note
+         * @description Supprime une note du run.
+         */
+        delete: operations["delete_note_api_runs__run_id__notes__note_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/sandbox/action": {
@@ -941,6 +1005,24 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** NoteCreate */
+        NoteCreate: {
+            /** Text */
+            text: string;
+        };
+        /** NoteFeedItem */
+        NoteFeedItem: {
+            /** Id */
+            id: string;
+            /** Run Id */
+            run_id: string;
+            /** Run Name */
+            run_name: string;
+            /** Text */
+            text: string;
+            /** Ts */
+            ts: string;
+        };
         /** RunDetail */
         RunDetail: {
             /** Commit */
@@ -969,6 +1051,15 @@ export interface components {
              * @default []
              */
             edr: number[];
+        };
+        /** RunNote */
+        RunNote: {
+            /** Id */
+            id: string;
+            /** Text */
+            text: string;
+            /** Ts */
+            ts: string;
         };
         /** RunSummary */
         RunSummary: {
@@ -1497,6 +1588,26 @@ export interface operations {
             };
         };
     };
+    all_notes_api_notes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NoteFeedItem"][];
+                };
+            };
+        };
+    };
     observability_logger_api_observability_logger_get: {
         parameters: {
             query?: never;
@@ -1769,6 +1880,106 @@ export interface operations {
                 "application/json": components["schemas"]["EdrLinks"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_notes_api_runs__run_id__notes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunNote"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_note_api_runs__run_id__notes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NoteCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunNote"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_note_api_runs__run_id__notes__note_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+                note_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {

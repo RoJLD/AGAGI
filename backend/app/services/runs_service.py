@@ -10,8 +10,10 @@ Aucune écriture, aucune dépendance au moteur d'expérience (n'utilise pas harn
 from __future__ import annotations
 
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 from statistics import mean, stdev
+from uuid import uuid4
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 RESULTS_DIR = PROJECT_ROOT / "results"
@@ -194,6 +196,69 @@ class RunsService:
             if arts:
                 out[r["_run_id"]] = sorted(set(arts))
         return out
+
+    # --- Notes de run (carnet de labo ; store results/run_notes.json) ---
+    def _notes_path(self) -> Path:
+        return RESULTS_DIR / "run_notes.json"
+
+    def _load_notes(self) -> dict:
+        p = self._notes_path()
+        if p.exists():
+            try:
+                d = json.loads(p.read_text(encoding="utf-8"))
+                return d if isinstance(d, dict) else {}
+            except Exception:  # noqa: BLE001
+                return {}
+        return {}
+
+    def _save_notes(self, notes: dict) -> None:
+        RESULTS_DIR.mkdir(parents=True, exist_ok=True)
+        self._notes_path().write_text(
+            json.dumps(notes, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
+
+    def list_notes(self, run_id: str) -> list[dict]:
+        """Notes d'un run, triées par horodatage croissant."""
+        return sorted(self._load_notes().get(run_id, []), key=lambda n: n.get("ts", ""))
+
+    def add_note(self, run_id: str, text: str) -> dict | None:
+        """Ajoute une note horodatée ; renvoie None si le texte est vide."""
+        clean = text.strip()
+        if not clean:
+            return None
+        notes = self._load_notes()
+        note = {"id": uuid4().hex[:8], "text": clean, "ts": datetime.now(timezone.utc).isoformat()}
+        notes.setdefault(run_id, []).append(note)
+        self._save_notes(notes)
+        return note
+
+    def delete_note(self, run_id: str, note_id: str) -> bool:
+        """Retire une note ; renvoie True si une note a été retirée."""
+        notes = self._load_notes()
+        items = notes.get(run_id, [])
+        kept = [n for n in items if n.get("id") != note_id]
+        if len(kept) == len(items):
+            return False
+        notes[run_id] = kept
+        self._save_notes(notes)
+        return True
+
+    def all_notes(self) -> list[dict]:
+        """Flux agrégé de toutes les notes, run_name résolu, trié par horodatage décroissant."""
+        name_by_id = {r["_run_id"]: r["name"] for r in self._scan()}
+        out: list[dict] = []
+        for run_id, items in self._load_notes().items():
+            for n in items:
+                out.append(
+                    {
+                        "run_id": run_id,
+                        "run_name": name_by_id.get(run_id, run_id),
+                        "id": n.get("id", ""),
+                        "text": n.get("text", ""),
+                        "ts": n.get("ts", ""),
+                    }
+                )
+        return sorted(out, key=lambda n: n["ts"], reverse=True)
 
     def list_conditions(self) -> list[dict]:
         groups: dict[str, dict] = {}

@@ -266,6 +266,33 @@ def test_list_distributions_returns_per_seed_vals(tmp_path, monkeypatch) -> None
     assert resp.json()[0]["name"] == "A"
 
 
+def test_run_notes_roundtrip_and_feed(tmp_path, monkeypatch) -> None:
+    """Carnet : add -> list -> feed agrégé (run_name) -> delete ; texte vide rejeté ; delete absent 404."""
+    import backend.app.services.runs_service as rs_mod
+    monkeypatch.setattr(rs_mod, "RESULTS_DIR", tmp_path)
+    (tmp_path / "lewis_42.json").write_text(
+        json.dumps({"name": "lewis", "seed": 42, "data": {"x": 1.0}}), encoding="utf-8"
+    )
+
+    r = client.post("/api/runs/lewis_42/notes", json={"text": "  seed 3 diverge  "})
+    assert r.status_code == 200
+    note = r.json()
+    assert note["text"] == "seed 3 diverge"
+    assert note["id"] and note["ts"]
+
+    assert client.post("/api/runs/lewis_42/notes", json={"text": "   "}).status_code == 400
+
+    lst = client.get("/api/runs/lewis_42/notes").json()
+    assert len(lst) == 1 and lst[0]["text"] == "seed 3 diverge"
+
+    feed = client.get("/api/notes").json()
+    assert feed[0]["run_id"] == "lewis_42" and feed[0]["run_name"] == "lewis"
+
+    assert client.delete(f"/api/runs/lewis_42/notes/{note['id']}").status_code == 200
+    assert client.get("/api/runs/lewis_42/notes").json() == []
+    assert client.delete("/api/runs/lewis_42/notes/nope").status_code == 404
+
+
 def test_list_sweeps_extracts_knob_levels_series(tmp_path, monkeypatch) -> None:
     """Un run sweep (knob+levels+series) -> 1 SweepResult ; un run scalaire -> ignoré."""
     import backend.app.services.runs_service as rs_mod
