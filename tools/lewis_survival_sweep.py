@@ -31,7 +31,8 @@ METAB_LEVELS = (0.25, 0.1, 0.05, 0.025, 0.0)   # base_metabolism balaye : de 085
 SURPRISE_LEVELS = (1.0, 0.5, 0.25, 0.0)   # ttc_surprise_scale : baseline 094 (1.0) -> brain_cost decouple (0.0)
 
 
-def _cfg(forage_payoff, ttc_surprise_scale=None, trace_energy_sinks=False, base_metabolism=METAB):
+def _cfg(forage_payoff, ttc_surprise_scale=None, trace_energy_sinks=False, base_metabolism=METAB,
+         trace_forage=False):
     cfg = WorldConfig()
     cfg.base_metabolism = float(base_metabolism)             # EDR101 : sweepable (defaut METAB=0.25)
     cfg.forage_payoff = float(forage_payoff)
@@ -39,6 +40,7 @@ def _cfg(forage_payoff, ttc_surprise_scale=None, trace_energy_sinks=False, base_
     if ttc_surprise_scale is not None:
         cfg.ttc_surprise_scale = float(ttc_surprise_scale)   # EDR098
     cfg.trace_energy_sinks = bool(trace_energy_sinks)         # EDR099
+    cfg.trace_forage = bool(trace_forage)                     # EDR105
     return cfg
 
 
@@ -137,6 +139,69 @@ def _measure_drain(cfg, seeds, n_apex=0, num_agents=NUM_AGENTS, max_ticks=MAX_TI
             "net": b + a_ + bio + mv, "n_agents": len(brain),
             "bio_metab": mean(bmetab), "bio_terrain": mean(bterrain),
             "bio_carry": mean(bcarry), "bio_autres": mean(bautres)}
+
+
+def _measure_forage(cfg, seeds, n_apex=0, num_agents=NUM_AGENTS, max_ticks=150):
+    """EDR105 : decompose l'entonnoir de forage a N_APEX=0. Lit les compteurs _forage_* (poses par
+    trace_forage) + preys_eaten + les buckets de pure depense _e_phases/_e_bio (trace_energy_sinks
+    co-active) sur le pool, agrege par agent. cfg DOIT avoir trace_forage=True ET trace_energy_sinks=True.
+    drain_t = cout structurel FORAGE-INDEPENDANT/tick (le revenu vit dans _e_bio['autres'], jamais somme
+    ici) -> la comparaison income_t<drain_t est non circulaire (cf. spec EDR105)."""
+    mc = MutationConfig(weight_init_std=2.0)
+    seed_at(0, 0)
+    champs = _load_champions()
+    reached, captured_if_reached = [], []
+    income_t, drain_t, captures, contacts, min_dists = [], [], [], [], []
+    for s in seeds:
+        seed_at(s, 0)
+        genomes = _reproduce(champs, num_agents, mc)
+        env = Biosphere3D(cfg)
+        _setup_critical(env, 0.0, n_apex=n_apex)
+        env.config.target_prey_count = PREY_COUNT
+        if hasattr(env, "memory_retriever"):
+            env.memory_retriever.stop()
+            env.memory_retriever.clear()
+        env.use_ref_head = False
+        env.decode_act = False
+        for g in genomes:
+            a = MambaAgent()
+            a.from_genome(g)
+            env.add_agent(a, energy=80.0)
+        env.current_era = 1
+        t = 0
+        while env.agents and t < max_ticks:
+            env.step()
+            t += 1
+        pool = list(env.agents) + list(getattr(env, "dead_agents", []))
+        for ag in pool:
+            ph = ag.get("_e_phases")
+            bio = ag.get("_e_bio")
+            if not ph or not bio:
+                continue
+            age = max(1, int(ag.get("age", 1)))
+            md = float(ag.get("_forage_min_dist", 9999.0))
+            inc = float(ag.get("_forage_income", 0.0))
+            structural = (bio["metab"] + bio["terrain"] + bio["carry"]
+                          + ph["brain"] + ph["action"] + ph["mouvement"])
+            is_reached = md <= 0
+            reached.append(1.0 if is_reached else 0.0)
+            if is_reached:
+                captured_if_reached.append(1.0 if int(ag.get("preys_eaten", 0)) >= 1 else 0.0)
+            income_t.append(inc / age)
+            drain_t.append(structural / age)
+            captures.append(float(ag.get("preys_eaten", 0)))
+            contacts.append(float(ag.get("_forage_contacts", 0)))
+            min_dists.append(md)
+    med = lambda xs: float(np.median(xs)) if xs else 0.0
+    mean = lambda xs: float(np.mean(xs)) if xs else 0.0
+    return {"p_reach": mean(reached),
+            "p_cap": mean(captured_if_reached),
+            "income_t": med(income_t),
+            "drain_t": med(drain_t),
+            "mean_captures": mean(captures),
+            "mean_contacts": mean(contacts),
+            "mean_min_dist": mean(min_dists),
+            "n_agents": len(income_t)}
 
 
 def _surprise_stats(pool):

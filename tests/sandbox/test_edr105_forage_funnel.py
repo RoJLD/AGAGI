@@ -2,6 +2,7 @@ import numpy as np
 from src.environments.config import WorldConfig
 from src.worlds.world_1_stoneage import Biosphere3D
 from src.agents.mamba_agent import MambaAgent
+from tools.lewis_survival_sweep import _cfg, _measure_forage
 
 
 def _mk_env(trace_forage):
@@ -44,3 +45,21 @@ def test_trace_forage_on_records_min_dist():
     for ag in traced:
         assert np.isfinite(ag["_forage_min_dist"])
         assert ag["_forage_min_dist"] >= 0
+
+
+def test_cfg_trace_forage_param():
+    cfg = _cfg(3, base_metabolism=0.0, trace_energy_sinks=True, trace_forage=True)
+    assert cfg.trace_forage is True
+    assert cfg.trace_energy_sinks is True
+    assert cfg.base_metabolism == 0.0
+
+
+def test_measure_forage_smoke():
+    cfg = _cfg(3, base_metabolism=0.0, trace_energy_sinks=True, trace_forage=True)
+    agg = _measure_forage(cfg, [105, 106], n_apex=0, max_ticks=20)
+    assert agg["n_agents"] > 0
+    assert 0.0 <= agg["p_reach"] <= 1.0
+    assert 0.0 <= agg["p_cap"] <= 1.0
+    assert agg["income_t"] >= 0.0
+    assert agg["drain_t"] >= 0.0
+    assert np.isfinite(agg["mean_min_dist"])
