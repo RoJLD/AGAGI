@@ -215,6 +215,15 @@ class RunsService:
                     out.append(float(v))
         return out
 
+    def list_distributions(self, metric: str) -> list[dict]:
+        """Valeurs par seed de chaque condition portant `metric` (conditions sans la métrique exclues)."""
+        out: list[dict] = []
+        for name in sorted({r["name"] for r in self._scan()}):
+            vals = self._values(name, metric)
+            if vals:
+                out.append({"name": name, "vals": vals, "n": len(vals)})
+        return out
+
     @staticmethod
     def _agg(name: str, vals: list[float]) -> dict:
         return {

@@ -62,6 +62,7 @@ def run_probe(target, k, num_agents, max_ticks, shared_db, mode="tabula"):
     # connu = 0.25/3 -> survie ~227 ticks (champions) vs 44 (frais). Knobs pour re-sonder.
     config.base_metabolism = float(os.environ.get("CT_METAB", "1.0"))
     config.forage_payoff = float(os.environ.get("CT_PAYOFF", "1.0"))
+    preserve_dims = os.environ.get("CT_PRESERVE_DIMS", "") == "1"   # NAS substrat : garde l'archi du genome (EDR 102 caveat)
     champ_g = _champion_genome() if mode == "champion" else None
     per_era = []
 
@@ -72,7 +73,17 @@ def run_probe(target, k, num_agents, max_ticks, shared_db, mode="tabula"):
         if mode == "champion":
             for _ in range(num_agents):
                 a = MambaAgent()
-                a.from_genome(champ_g)
+                a.from_genome(champ_g, preserve_dims=preserve_dims)
+                env.add_agent(a, energy=50.0)
+        elif mode == "mono_fresh":
+            # CONTRÔLE (EDR 097) : monoculture d'UN génome frais -> isole l'effet monoculture du
+            # génome champion. init_primordial_soup puis cloner genomes[0] x num_agents.
+            genomes, _ntm = init_primordial_soup(num_agents=num_agents, import_agent_id=None,
+                                                 keep_memory=False, shared_db=shared_db, config=config)
+            mono_g = genomes[0]
+            for _ in range(num_agents):
+                a = MambaAgent()
+                a.from_genome(mono_g, preserve_dims=preserve_dims)
                 env.add_agent(a, energy=50.0)
         elif mode == "mono_fresh":
             # CONTRÔLE (EDR 097) : monoculture d'UN génome frais -> isole l'effet monoculture du
@@ -89,7 +100,7 @@ def run_probe(target, k, num_agents, max_ticks, shared_db, mode="tabula"):
                                                  keep_memory=False, shared_db=shared_db, config=config)
             for g in genomes:
                 a = MambaAgent()
-                a.from_genome(g)
+                a.from_genome(g, preserve_dims=preserve_dims)
                 env.add_agent(a, energy=50.0)
 
         env.current_era = 1
