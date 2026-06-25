@@ -11,6 +11,7 @@ from src.seed_ai.rl_evolution import recurrent_forward
 from src.metaprog.ntm_compiler import NTMProgramCompiler
 from src.agents.world_model import WorldModel
 from src.seed_ai.policy_gradient import reinforce_action_update, td_error
+from src.agents.planner import plan_rollout, normalize_q
 
 class MambaAgent(BaseAgent):
     """
@@ -540,57 +541,62 @@ class MambaBatchModel:
             map_idx = self.mappings[i]
             preds_mid[i, :O_i] = H[i, map_idx[N_i - O_i : N_i]]
 
+        self.H_rec_batch = H.copy()                  # latent post-attention, avant rêve (pour planificateur)
+        PLANNER_ON = MambaBatchModel.PLAN_BIAS > 0.0
+
         do_dream_batch = preds_mid[:, 26]  # logit 26
         DREAM_THRESHOLD = 0.1
         SURPRISE_THRESHOLD = 0.05
-        
+
         has_mcts_batch = np.array([
-            (a.genome.organ_genes[0] if getattr(a.genome, 'organ_genes', None) is not None else False) 
+            (a.genome.organ_genes[0] if getattr(a.genome, 'organ_genes', None) is not None else False)
             for a in self.agents
         ], dtype=bool)
-        
+
         is_dreaming, K_individual = _resolve_dreaming(
             MambaBatchModel.FORCE_DREAM, has_mcts_batch, do_dream_batch,
             self.surprise_momentum_batch, DREAM_THRESHOLD, SURPRISE_THRESHOLD,
         )
 
-        T_max = int(K_individual.max()) if is_dreaming.any() else 0
         compute_spent = np.zeros(self.B, dtype=np.float32)
 
-        best_H = H.copy()
-        best_value = np.full(self.B, -np.inf)
+        if not PLANNER_ON:
+            T_max = int(K_individual.max()) if is_dreaming.any() else 0
 
-        for k in range(T_max):
-            active_mask = K_individual > k
+            best_H = H.copy()
+            best_value = np.full(self.B, -np.inf)
 
-            if not active_mask.any():
-                break
+            for k in range(T_max):
+                active_mask = K_individual > k
 
-            H_branch = H.copy()
-            noise = np.random.randn(*H_branch.shape).astype(np.float32) * 0.05
-            H_branch[active_mask] += noise[active_mask]
+                if not active_mask.any():
+                    break
 
-            excitation = np.einsum('bi,bij->bj', H_branch, W_no_diag)
-            H_branch = (1.0 - delta_t) * H_branch + delta_t * _get_activation_function()(np.clip(excitation - self.thresholds_batch, -30.0, 30.0))
+                H_branch = H.copy()
+                noise = np.random.randn(*H_branch.shape).astype(np.float32) * 0.05
+                H_branch[active_mask] += noise[active_mask]
 
-            for i in np.where(active_mask)[0]:
-                N_i = self.agents[i].genome.num_nodes
-                O_i = self.agents[i].genome.num_outputs
-                map_idx = self.mappings[i]
-                
-                # Le logit 28 est au décalage N_i - O_i + 28
-                val_idx = map_idx[N_i - O_i + 28]
-                val = float(H_branch[i, val_idx])
-                if np.isfinite(val) and val > best_value[i]:
-                    best_value[i] = val
-                    best_H[i] = H_branch[i]
-                compute_spent[i] += 1.0
+                excitation = np.einsum('bi,bij->bj', H_branch, W_no_diag)
+                H_branch = (1.0 - delta_t) * H_branch + delta_t * _get_activation_function()(np.clip(excitation - self.thresholds_batch, -30.0, 30.0))
 
-            H[active_mask] = H_branch[active_mask]
+                for i in np.where(active_mask)[0]:
+                    N_i = self.agents[i].genome.num_nodes
+                    O_i = self.agents[i].genome.num_outputs
+                    map_idx = self.mappings[i]
 
-        dreaming_idx = np.where(is_dreaming)[0]
-        if len(dreaming_idx) > 0:
-            H[dreaming_idx] = best_H[dreaming_idx]
+                    # Le logit 28 est au décalage N_i - O_i + 28
+                    val_idx = map_idx[N_i - O_i + 28]
+                    val = float(H_branch[i, val_idx])
+                    if np.isfinite(val) and val > best_value[i]:
+                        best_value[i] = val
+                        best_H[i] = H_branch[i]
+                    compute_spent[i] += 1.0
+
+                H[active_mask] = H_branch[active_mask]
+
+            dreaming_idx = np.where(is_dreaming)[0]
+            if len(dreaming_idx) > 0:
+                H[dreaming_idx] = best_H[dreaming_idx]
 
         # NAS Axe D-2 : KWTA modéré sur les CACHÉS (sparsité imposée). Entrées/sorties intactes.
         # Gated (1.0 = off). Appliqué avant l'extraction des sorties ET avant H_prev_batch -> le
@@ -621,6 +627,21 @@ class MambaBatchModel:
             O_i = self.agents[i].genome.num_outputs
             map_idx = self.mappings[i]
             preds[i, :O_i] = H[i, map_idx[N_i - O_i : N_i]]
+
+        # Biais du planificateur sur les logits d'action (mutuellement exclusif avec le rêve aléatoire)
+        if PLANNER_ON:
+            value_pos = np.array([
+                self.mappings[i][self.agents[i].genome.num_nodes
+                                 - self.agents[i].genome.num_outputs + 28]
+                for i in range(self.B)
+            ])
+            Q_plan = plan_rollout(self.H_rec_batch, self.G_batch, value_pos)   # (B, A)
+            bias = MambaBatchModel.PLAN_BIAS * normalize_q(Q_plan)             # (B, A)
+            A = MambaBatchModel.PLAN_A
+            for i in range(self.B):
+                og = getattr(self.agents[i].genome, 'organ_genes', None)
+                if og is not None and len(og) > 0 and og[0]:
+                    preds[i, :A] += bias[i]
 
         # 7. Mise à jour de l'état interne du batch
         self.H_prev_batch = H
