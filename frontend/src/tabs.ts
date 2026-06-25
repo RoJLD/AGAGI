@@ -15,6 +15,7 @@ import {
   Spline,
   TrendingUp,
   Workflow,
+  Zap,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { TabItem } from "./components/ui/Tabs";
@@ -28,6 +29,7 @@ export const TAB_KEYS = [
   "topology",
   "sweeps",
   "cohorte",
+  "energie",
   "parcours",
   "laboratoire",
   "sandbox",
@@ -76,6 +78,7 @@ export const TAB_FAMILIES: TabFamily[] = [
       { key: "topology", label: "Topologie", icon: Network },
       { key: "sweeps", label: "Sweeps", icon: Spline },
       { key: "cohorte", label: "Cohorte", icon: CandlestickChart },
+      { key: "energie", label: "Énergie", icon: Zap },
     ],
   },
   {

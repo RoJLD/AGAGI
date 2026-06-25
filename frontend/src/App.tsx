@@ -25,6 +25,7 @@ const HealthView = lazy(() => import("./components/HealthView").then((m) => ({ d
 const ParcoursView = lazy(() => import("./components/parcours/ParcoursView").then((m) => ({ default: m.ParcoursView })));
 const SweepView = lazy(() => import("./components/SweepView").then((m) => ({ default: m.SweepView })));
 const CohortView = lazy(() => import("./components/CohortView").then((m) => ({ default: m.CohortView })));
+const EnergyView = lazy(() => import("./components/EnergyView").then((m) => ({ default: m.EnergyView })));
 const CarnetView = lazy(() => import("./components/CarnetView").then((m) => ({ default: m.CarnetView })));
 
 export default function App() {
@@ -81,6 +82,7 @@ export default function App() {
           {tab === "topology" && <TopologyView />}
           {tab === "sweeps" && <SweepView />}
           {tab === "cohorte" && <CohortView />}
+          {tab === "energie" && <EnergyView />}
           {tab === "academy" && <AcademyView />}
           {tab === "laboratoire" && <LaboratoryView />}
           {tab === "timeline" && <TimelineViewer />}
