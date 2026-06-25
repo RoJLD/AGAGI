@@ -43,7 +43,7 @@ from tools.g_fidelity_probe import collect_ratios, run_probe
 
 
 def test_collect_ratios_returns_finite_positive():
-    ratios = collect_ratios(seed=0, warmup=20, measure=20)
+    ratios, action_abs = collect_ratios(seed=0, warmup=20, measure=20)
     assert len(ratios) > 0
     assert all(np.isfinite(r) and r >= 0.0 for r in ratios)
 
@@ -52,3 +52,20 @@ def test_run_probe_structure():
     out = run_probe(seeds=[0, 1], warmup=20, measure=20)
     assert set(["median_ratio", "n_favorable", "n", "sign_p", "verdict"]).issubset(out)
     assert out["verdict"] in ("G_FIDELE", "G_INUTILE", "NEUTRE")
+
+
+def test_collect_ratios_all_actions_exercised():
+    """Vérifie que les 8 actions sont toutes exercées : chaque G[a] doit avoir des mesures."""
+    from src.agents.mamba_agent import MambaBatchModel
+    n_actions = MambaBatchModel.PLAN_A
+    _, action_abs = collect_ratios(seed=0, warmup=20, measure=n_actions * 4)
+    for a_idx in range(n_actions):
+        assert len(action_abs[a_idx]) > 0, f"Action {a_idx} non exercée"
+        assert all(np.isfinite(v) for v in action_abs[a_idx]), f"mean|G[{a_idx}]| non fini"
+
+
+def test_collect_ratios_nontrivial_transitions():
+    """Avec obs variables σ=0.3, les transitions latentes doivent dépasser le seuil base_err>0.01."""
+    ratios, _ = collect_ratios(seed=1, warmup=10, measure=50)
+    # Au moins quelques transitions doivent être mesurées (base_err > 0.01)
+    assert len(ratios) > 0, "Aucune transition non-triviale mesurée avec obs variables"
