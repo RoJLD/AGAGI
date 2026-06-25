@@ -231,13 +231,19 @@ câblés au comportement ni sélectionnés). Cf. EDR 010 (« le monde n'exige pa
 
 ### Axe 3 — Plasticité / modulation / organes
 - 🟢 Vivants : Actor-Critic TD(0) + crédit d'action (apprentissage intra-vie prouvé, craft 18 vs 0, EDR 020), masque d'attention appris, tête référentielle (langage, EDR 074), `W_router`, `thresholds`.
-- 🟡 **À activer (backlog)** : **dreaming → planificateur** (escalade aléatoire latente actuelle, nuisible EDR 095 ; à remplacer par anticipation model-based — **sous-projet ACTIF**, spec ci-dessous) ; self-attention QKV (organe quasi jamais sélectionné) ; `goal_vector`/`predictor_head`/`value_head` hors-dreaming (extraits, pas de boucle de feedback).
+- 🟡 **À activer (backlog)** : ~~dreaming → planificateur~~ → **TESTÉ : depth-1 RÉFUTÉ** (banc équitable, PLAN_PERD ; voir sous-projet ci-dessous) — reste depth-k/g bilinéaire ; self-attention QKV (organe quasi jamais sélectionné) ; `goal_vector`/`predictor_head`/`value_head` hors-dreaming (extraits, pas de boucle de feedback).
 - ⚪ **À ajouter** : plasticité locale Hebbian/STDP (complément du TD) ; neuromodulation fonctionnelle (gating par canal, modulation du learning-rate) ; méta-apprentissage (lr appris) ; contrôle hiérarchique réel (manager→worker, options ; `goal_vector` est orphelin) ; imagination dirigée (= le planificateur ci-dessous).
 
-### Sous-projet ACTIF — Dreaming → Planificateur (latent Dreamer-lite)
-**Statut : design validé (brainstorm 2026-06-25) → spec** `docs/superpowers/specs/2026-06-25-dreaming-planner-design.md`.
-Remplace le tir aléatoire latent par une **anticipation conditionnée par l'action** : `g(H,a)→H'`
-(appris en ligne par agent, init 0), rollout profondeur-1 sur les 8 actions, scoré par la `value_head`,
-intégré en **biais** sur les logits de politique (β évolvable, gate défaut OFF non-régressif). Validation =
-**banc d'anticipation dédié** (danger télégraphié) puis **ablation gatée** powered en stoneage. Backlog v2 :
-profondeur k, `g` bilinéaire state-dépendante.
+### Sous-projet Dreaming → Planificateur (latent Dreamer-lite) — depth-1 RÉFUTÉ (2026-06-25)
+**Statut : LIVRÉ (gaté OFF) + depth-1 réfuté par banc équitable → depth-k différé.**
+Spec `docs/superpowers/specs/2026-06-25-dreaming-planner-design.md`, plan `docs/superpowers/plans/2026-06-25-dreaming-planner.md`.
+Implémenté (SDD, Tasks 1-6, tout gaté `MambaBatchModel.PLAN_BIAS=0.0` défaut → **non-régressif**) :
+anticipation conditionnée par l'action `g(H,a)→H'` (apprise en ligne par agent), rollout profondeur-1
+sur les actions, scoré par la `value_head`, **biais** sur les logits de politique ; + banc d'anticipation
+équitable réutilisable (`tools/anticipation_bench.py` : danger télégraphié, gap temporel, respawn,
+danger-avoidance rate).
+**VERDICT (banc équitable, g convergé mean|G|>0) : `PLAN_PERD`** (median_ratio 0.714@1000 / 0.391@1500
+steps, n_fav 3/8) — le lookahead depth-1 + `g` linéaire **NUIT** (perturbe la politique réactive), cohérent
+avec le dreaming nuisible (EDR 095). La méthode a évité un run powered stoneage sur un mécanisme réfuté.
+**Backlog (futur cycle)** : depth-k (déroulé multi-pas), `g` bilinéaire state-dépendante — seules pistes
+restantes pour rendre l'anticipation utile ; à brainstormer séparément.
