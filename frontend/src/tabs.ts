@@ -10,6 +10,7 @@ import {
   GraduationCap,
   History,
   Network,
+  NotebookPen,
   ShieldAlert,
   Spline,
   TrendingUp,
@@ -34,6 +35,7 @@ export const TAB_KEYS = [
   "academy",
   "timeline",
   "provenance",
+  "carnet",
 ] as const;
 
 export type TabKey = (typeof TAB_KEYS)[number];
@@ -91,6 +93,7 @@ export const TAB_FAMILIES: TabFamily[] = [
       { key: "academy", label: "Academy", icon: GraduationCap },
       { key: "timeline", label: "Chronologie", icon: History },
       { key: "provenance", label: "Provenance", icon: Workflow },
+      { key: "carnet", label: "Carnet", icon: NotebookPen },
     ],
   },
 ];

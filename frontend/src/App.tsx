@@ -25,6 +25,7 @@ const HealthView = lazy(() => import("./components/HealthView").then((m) => ({ d
 const ParcoursView = lazy(() => import("./components/parcours/ParcoursView").then((m) => ({ default: m.ParcoursView })));
 const SweepView = lazy(() => import("./components/SweepView").then((m) => ({ default: m.SweepView })));
 const CohortView = lazy(() => import("./components/CohortView").then((m) => ({ default: m.CohortView })));
+const CarnetView = lazy(() => import("./components/CarnetView").then((m) => ({ default: m.CarnetView })));
 
 export default function App() {
   const { theme, toggle } = useTheme();
@@ -84,6 +85,7 @@ export default function App() {
           {tab === "laboratoire" && <LaboratoryView />}
           {tab === "timeline" && <TimelineViewer />}
           {tab === "provenance" && <ProvenanceView />}
+          {tab === "carnet" && <CarnetView />}
           {tab === "sandbox" && (
             <>
               <RunLauncher />
