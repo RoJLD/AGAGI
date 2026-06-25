@@ -375,6 +375,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/runs/distributions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Distributions
+         * @description Distributions par seed des conditions portant `metric` (vue cohorte).
+         */
+        get: operations["list_distributions_api_runs_distributions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/runs/edr-links": {
         parameters: {
             query?: never;
@@ -797,6 +817,15 @@ export interface components {
              * @default 10
              */
             pop_size: number;
+        };
+        /** DistributionSummary */
+        DistributionSummary: {
+            /** N */
+            n: number;
+            /** Name */
+            name: string;
+            /** Vals */
+            vals: number[];
         };
         /** EdrLinks */
         EdrLinks: {
@@ -1637,6 +1666,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ConditionSummary"][];
+                };
+            };
+        };
+    };
+    list_distributions_api_runs_distributions_get: {
+        parameters: {
+            query: {
+                /** @description métrique numérique à distribuer */
+                metric: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DistributionSummary"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

@@ -248,6 +248,24 @@ def test_ws_flatland_unknown_run_closes() -> None:
             ws.receive_json()
 
 
+def test_list_distributions_returns_per_seed_vals(tmp_path, monkeypatch) -> None:
+    """Distributions : vals par seed pour chaque condition portant la métrique ; autres exclues."""
+    import backend.app.services.runs_service as rs_mod
+    monkeypatch.setattr(rs_mod, "RESULTS_DIR", tmp_path)
+    (tmp_path / "A_0.json").write_text(json.dumps({"name": "A", "seed": 0, "data": {"fitness": 0.2}}), encoding="utf-8")
+    (tmp_path / "A_1.json").write_text(json.dumps({"name": "A", "seed": 1, "data": {"fitness": 0.4}}), encoding="utf-8")
+    (tmp_path / "B_0.json").write_text(json.dumps({"name": "B", "seed": 0, "data": {"autre": 9.0}}), encoding="utf-8")
+    dists = rs_mod.runs_service.list_distributions("fitness")
+    assert len(dists) == 1
+    assert dists[0]["name"] == "A"
+    assert sorted(dists[0]["vals"]) == [0.2, 0.4]
+    assert dists[0]["n"] == 2
+
+    resp = client.get("/api/runs/distributions", params={"metric": "fitness"})
+    assert resp.status_code == 200
+    assert resp.json()[0]["name"] == "A"
+
+
 def test_list_sweeps_extracts_knob_levels_series(tmp_path, monkeypatch) -> None:
     """Un run sweep (knob+levels+series) -> 1 SweepResult ; un run scalaire -> ignoré."""
     import backend.app.services.runs_service as rs_mod

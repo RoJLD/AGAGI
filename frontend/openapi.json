@@ -264,6 +264,32 @@
         "title": "CreateRunBody",
         "type": "object"
       },
+      "DistributionSummary": {
+        "properties": {
+          "n": {
+            "title": "N",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "vals": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Vals",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "vals",
+          "n"
+        ],
+        "title": "DistributionSummary",
+        "type": "object"
+      },
       "EdrLinks": {
         "properties": {
           "edr": {
@@ -1776,6 +1802,55 @@
           }
         },
         "summary": "List Conditions",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/runs/distributions": {
+      "get": {
+        "description": "Distributions par seed des conditions portant `metric` (vue cohorte).",
+        "operationId": "list_distributions_api_runs_distributions_get",
+        "parameters": [
+          {
+            "description": "métrique numérique à distribuer",
+            "in": "query",
+            "name": "metric",
+            "required": true,
+            "schema": {
+              "description": "métrique numérique à distribuer",
+              "title": "Metric",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DistributionSummary"
+                  },
+                  "title": "Response List Distributions Api Runs Distributions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Distributions",
         "tags": [
           "runs"
         ]
