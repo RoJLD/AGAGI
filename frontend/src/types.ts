@@ -168,6 +168,13 @@ export interface NoteFeedItem extends RunNote {
 /** {edr: [run_id, ...]} — runs liés à chaque EDR (badges du dashboard EDR). */
 export type EdrLinks = Record<string, string[]>;
 
+/** Un EDR documenté (docs/EDR/NNN_*.md), exposé par /api/edr/docs. */
+export interface EdrDoc {
+  edr: number;
+  title: string;
+  file: string;
+}
+
 /** {run_id: [article_id, ...]} — articles Sociologue liés à chaque run. */
 export type ArticleLinks = Record<string, string[]>;
 
