@@ -27,12 +27,13 @@ NUM_AGENTS = 24
 GATE = 120.0                       # survie mediane minimale d'un barreau survivable (089/090)
 CHEAP_MAX = 24                     # forage_payoff <= 24 (x8) = barreau "acceptable" ; 48 (x16) = trop cher
 APEX_LEVELS = (12, 9, 6, 3, 0)     # N_APEX balaye : de la densite 093 (12) au Lewis vide (0)
+METAB_LEVELS = (0.25, 0.1, 0.05, 0.025, 0.0)   # base_metabolism balaye : de 085 (0.25) vers 0
 SURPRISE_LEVELS = (1.0, 0.5, 0.25, 0.0)   # ttc_surprise_scale : baseline 094 (1.0) -> brain_cost decouple (0.0)
 
 
-def _cfg(forage_payoff, ttc_surprise_scale=None, trace_energy_sinks=False):
+def _cfg(forage_payoff, ttc_surprise_scale=None, trace_energy_sinks=False, base_metabolism=METAB):
     cfg = WorldConfig()
-    cfg.base_metabolism = METAB
+    cfg.base_metabolism = float(base_metabolism)             # EDR101 : sweepable (defaut METAB=0.25)
     cfg.forage_payoff = float(forage_payoff)
     cfg.max_population = 150        # defensif (PR #29) ; jamais atteint ici
     if ttc_surprise_scale is not None:
@@ -176,6 +177,16 @@ def _verdict_apex(levels, medians, gate=GATE):
     return "BARREAU TROUVE" if max(crossed) > 0 else "RUNG DEGENERE"
 
 
+def _verdict_metab(levels, medians, gate=GATE):
+    """Mappe (medianes de survie par niveau de base_metabolism) -> 3 branches pre-enregistrees. Un
+    base_metabolism > 0 franchit le gate -> rescale suffit (mur supprimable par config) ; seul 0 franchit ->
+    rescale extreme (metabolisme nul requis) ; aucun -> pas le metabolisme seul (la suppression ne sauve pas)."""
+    crossed = [lv for lv, m in zip(levels, medians) if m > gate]
+    if not crossed:
+        return "PAS LE METABOLISME SEUL"
+    return "RESCALE SUFFIT" if max(crossed) > 0 else "RESCALE EXTREME"
+
+
 def _verdict_surprise(levels, medians, frac_nonfinite, gate=GATE):
     """Mappe (medianes, fractions non-finies de surprise par niveau) -> 3 branches pre-enregistrees.
     Un ttc_surprise_scale franchit le gate -> TARIF=SURPRISE (le brain_cost surprise-amplifie est le mur) ;
@@ -286,6 +297,22 @@ def main_apex(levels=APEX_LEVELS, n_eval=8, R=4, seed=None, _return=False):
             groups.append(_measure_survival(_cfg(3), seeds, n_apex=lv))
             prog.update()
         return _report(h, levels, groups, R, n_eval, _return, knob="N_APEX", verdict_fn=_verdict_apex)
+
+
+def main_metab(levels=METAB_LEVELS, n_eval=8, R=4, seed=None, _return=False):
+    """EDR 101 : sweep base_metabolism a N_APEX=0 (monde vide), forage_payoff=3 fixe, Lewis letalite 0.
+    1ere intervention : teste si reduire le multiplicateur de metabolisme debloque la survie."""
+    with Harness(seed=seed, name="lewis_metab_sweep", with_db=False) as h:
+        base = h.seed
+        _disable_kuzu()
+        print(f"EDR101 : sweep base_metabolism={levels}, R={R}, n_eval={n_eval}, seed={base}.")
+        seeds = [base + r * 1000 + i for r in range(R) for i in range(n_eval)]  # memes seeds/niveau
+        prog = h.progress(len(levels), label="niveaux base_metabolism")
+        groups = []
+        for lv in levels:
+            groups.append(_measure_survival(_cfg(3, base_metabolism=lv), seeds, n_apex=0))
+            prog.update()
+        return _report(h, levels, groups, R, n_eval, _return, knob="base_metab", verdict_fn=_verdict_metab)
 
 
 def main_surprise(levels=SURPRISE_LEVELS, n_eval=8, R=4, seed=None, _return=False):
