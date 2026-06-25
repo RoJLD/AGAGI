@@ -214,3 +214,26 @@ export interface Decomposition {
   verdict: string;
   bio_verdict: string;
 }
+
+/** Un niveau de métab d'un entonnoir de forage (sortie de main_forage, EDR 105). */
+export interface ForageLevel {
+  metab: number;
+  p_reach: number;
+  p_cap: number;
+  income_t: number;
+  drain_t: number;
+  mean_captures: number;
+  mean_contacts: number;
+  mean_min_dist: number;
+  n_agents: number;
+}
+
+/** Un run d'entonnoir de forage persisté (lewis_forage_funnel_<seed>.json). */
+export interface ForageFunnel {
+  run_id: string;
+  name: string;
+  seed: number;
+  commit?: string | null;
+  verdict: string;
+  levels: ForageLevel[];
+}
