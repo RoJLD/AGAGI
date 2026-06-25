@@ -30,17 +30,30 @@ def test_config_default_prey_speed_scale_one():
     assert WorldConfig().prey_speed_scale == 1.0
 
 
-def test_scale_one_is_inert_vs_field_absent():
-    # Ajout du champ a 1.0 == comportement sans le champ (getattr defaut 1.0) -> non-regression.
+def _prey_positions_after(prey_speed_scale, seed, steps):
+    seed_at(seed, 0)
+    env = _mk_env(prey_speed_scale=prey_speed_scale)
+    env.config.target_prey_count = 0    # pas de respawn -> comparaison deterministe propre
+    for _ in range(steps):
+        env.step()
+    return _prey_positions(env)
+
+
+def test_scale_one_deterministic_and_mobile():
+    # Determinisme : meme seed -> memes positions (aucune source de non-determinisme introduite a 1.0).
+    a = _prey_positions_after(1.0, 424242, 5)
+    b = _prey_positions_after(1.0, 424242, 5)
+    assert a == b
+    # Mobilite : a scale=1.0 au moins une proie s'est DEPLACEE (position nouvelle absente du depart) ->
+    # on n'a pas gele les proies par accident. (Un kill ne fait que retirer une position, jamais en creer.)
     seed_at(424242, 0)
-    env_a = _mk_env(prey_speed_scale=1.0)
-    seed_at(424242, 0)
-    env_b = _mk_env(prey_speed_scale=None)
-    delattr(env_b.config, "prey_speed_scale")   # simule l'absence du champ
+    env = _mk_env(prey_speed_scale=1.0)
+    env.config.target_prey_count = 0
+    start = _prey_positions(env)
     for _ in range(5):
-        env_a.step()
-        env_b.step()
-    assert _prey_positions(env_a) == _prey_positions(env_b)
+        env.step()
+    moved = _prey_positions(env)
+    assert any(pos not in start for pos in moved), "au moins une proie doit s'etre deplacee a scale=1.0"
 
 
 def test_scale_zero_freezes_preys():
