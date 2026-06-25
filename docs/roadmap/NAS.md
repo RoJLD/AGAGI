@@ -205,3 +205,39 @@ vérification (thresholds/router vivants). On re-audite proprement AVANT d'élag
 
 > **Discipline** (Commandement 15) : 1 variable par expérience, ≥ ce que la puissance exige,
 > verdict par X2 (transfer-ratio appariée), valide ou revert. Élaguer/câbler un gène = **1 variable**.
+
+---
+
+## 4. Audit substrat (2026-06-25) — espace de conception & backlog par axe
+
+Audit *grounded* (3 explorations, evidence file:line). **Constat dominant** : le piège récurrent du
+projet n'est PAS « il manque des types » mais **« l'infrastructure existe sans être fonctionnelle/
+sélectionnée »** (NTM, RAG, dreaming, self-attention, goal/predictor heads : bâtis, presque jamais
+câblés au comportement ni sélectionnés). Cf. EDR 010 (« le monde n'exige pas l'intelligence »).
+
+**Légende** : 🟢 vivant & câblé · 🟡 infra présente mais stubbée/non sélectionnée · 🔴 mort (muté/déclaré, jamais lu) · ⚪ absent.
+
+**Stratégie retenue (robla, 2026-06-25)** : **activer l'existant stubbé → ajouter les primitives manquantes → diagnostiquer**, avec **diagnostic APRÈS CHAQUE activation** (pas en bloc — leçon du confond `from_genome` sur D1/D2/A2). Chaque item = activation/ajout + son **test de sélection**.
+
+### Axe 1 — Types d'unités / neurones
+- 🟢 Vivants : unité Liquid-Mamba rate-based (tanh, constante de temps/nœud via `sigmoid(diag W)`), seuils par nœud, neuromodulation par gain (`W_router`), sparsité imposée KWTA (D2, +47%).
+- ⚪ **À ajouter (backlog)** : inhibition explicite / types E-I (Dale) → recoupe **D3 (nœuds typés)** ; spiking (reset/réfractaire/ISI) + STDP → recoupe **D5 (SNN+STDP)** ; calcul dendritique/compartiments ; plasticité homéostatique ; gap junctions.
+
+### Axe 2 — Mémoires
+- 🟢 Vivants : mémoire de travail (`H` récurrent), world-model prédictif par agent (`Wp`→surprise, RND).
+- 🟡 **À activer (backlog, priorité)** : **mémoire NTM** (têtes read/write câblées mais `explicit_memory` jamais utilisée en entrée / jamais apprise → toujours `[0,0,0,0,0]`) ; **lecture épisodique RAG** (KuzuDB écrit mais lu seulement si `active_exp_variable=="RAG"`, jamais en prod ; ⚠️ risque non-repro mémoire ambiante).
+- 🔴 **À trancher** : `memory_cache`, `H_history`, `bytecode` (procédurale) — déclarés, jamais relus (cf. §3 Phase 0).
+- ⚪ **À ajouter** : mémoire sémantique (faits/concepts), associative (Hopfield), consolidation/replay hors-ligne *utile*, oubli actif (decay/reset).
+
+### Axe 3 — Plasticité / modulation / organes
+- 🟢 Vivants : Actor-Critic TD(0) + crédit d'action (apprentissage intra-vie prouvé, craft 18 vs 0, EDR 020), masque d'attention appris, tête référentielle (langage, EDR 074), `W_router`, `thresholds`.
+- 🟡 **À activer (backlog)** : **dreaming → planificateur** (escalade aléatoire latente actuelle, nuisible EDR 095 ; à remplacer par anticipation model-based — **sous-projet ACTIF**, spec ci-dessous) ; self-attention QKV (organe quasi jamais sélectionné) ; `goal_vector`/`predictor_head`/`value_head` hors-dreaming (extraits, pas de boucle de feedback).
+- ⚪ **À ajouter** : plasticité locale Hebbian/STDP (complément du TD) ; neuromodulation fonctionnelle (gating par canal, modulation du learning-rate) ; méta-apprentissage (lr appris) ; contrôle hiérarchique réel (manager→worker, options ; `goal_vector` est orphelin) ; imagination dirigée (= le planificateur ci-dessous).
+
+### Sous-projet ACTIF — Dreaming → Planificateur (latent Dreamer-lite)
+**Statut : design validé (brainstorm 2026-06-25) → spec** `docs/superpowers/specs/2026-06-25-dreaming-planner-design.md`.
+Remplace le tir aléatoire latent par une **anticipation conditionnée par l'action** : `g(H,a)→H'`
+(appris en ligne par agent, init 0), rollout profondeur-1 sur les 8 actions, scoré par la `value_head`,
+intégré en **biais** sur les logits de politique (β évolvable, gate défaut OFF non-régressif). Validation =
+**banc d'anticipation dédié** (danger télégraphié) puis **ablation gatée** powered en stoneage. Backlog v2 :
+profondeur k, `g` bilinéaire state-dépendante.
