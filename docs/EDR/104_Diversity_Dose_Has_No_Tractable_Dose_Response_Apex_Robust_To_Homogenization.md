@@ -37,7 +37,7 @@ Contrastes appariés par ère (frac_apex, sign-test exact, n=8) :
 **Aucun contraste n'atteint la significativité** (meilleur sign_p 0.289 ; le minimum atteignable à n=8
 est 0.008 pour un split 8/0). La courbe corrigée (vrai bout = tabula propre) **0.211 → 0.174 → 0.214 →
 0.167 → 0.158** est non-monotone : f=0.5 (0.214) est AUSSI HAUT que le bout diversifié, les points
-intermédiaires scatter dans le bruit inter-ère (σ ≈ 0.065 par fraction, ex. f=0 va de 0.058 à 0.255).
+intermédiaires scatter dans le bruit inter-ère (σ inter-ère typique ≈ 0.065 ; amplitude brute encore plus large, ex. f=0 va de 0.058 à 0.255).
 
 ## Reproductibilité — le harnais est solide, le bruit est dans le phénomène
 
