@@ -122,3 +122,10 @@ def test_run_probe_env_structure():
     for a_idx in range(_N_MOVES):
         assert a_idx in g_abs, f"Action {a_idx} absente de mean_G_abs_by_action"
         assert np.isfinite(g_abs[a_idx])
+
+
+def test_run_probe_stoneage_returns_verdict():
+    from tools.g_fidelity_probe import run_probe_stoneage
+    result = run_probe_stoneage([0], warmup=5, measure=5, num_agents=4)
+    assert "verdict" in result
+    assert result["n"] >= 0

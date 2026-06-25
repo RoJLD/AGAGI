@@ -255,13 +255,185 @@ def run_probe_env(seeds, warmup: int = 300, measure: int = 300) -> dict:
     return result
 
 
+
+def collect_ratios_stoneage(seed, num_agents=30, warmup=150, measure=150):
+    """Collecte les ratios g_err/base_err sur observations REELLES du monde stoneage.
+
+    Approche : num_agents agents libres dans Biosphere3D. Apres warmup ticks, on mesure
+    pour chaque agent vivant la fidelite de g(H(t-1), action(t-1)) vers H(t).
+
+    Attributs requis sur ag["model"] apres step() :
+      - H_prev     : (1, N) latent mis a jour
+      - planner_G  : (PLAN_A, N_i) colonnes g par action
+      - _td        : dict avec "act" -> {"move": int, ...}
+
+    Si ces attributs sont absents, log un warning et retourne liste vide + note NEEDS_CONTEXT.
+
+    Restaure PLAN_BIAS/PLAN_LR en finally. AUCUN changement du code de production.
+    """
+    import logging
+    log = logging.getLogger("AGIseed.GFP.stoneage")
+
+    # Sauvegarder et regler les flags
+    prev_bias = MambaBatchModel.PLAN_BIAS
+    prev_lr = MambaBatchModel.PLAN_LR
+    # PLAN_A non modifie : on garde la valeur par defaut (8)
+    MambaBatchModel.PLAN_BIAS = 0.5
+    MambaBatchModel.PLAN_LR = 0.1
+
+    ratios = []
+    n_transitions = 0
+    action_abs_by_action = {a_idx: [] for a_idx in range(MambaBatchModel.PLAN_A)}
+    needs_context = False
+    context_note = ""
+
+    try:
+        from src.environments.config import WorldConfig
+        from src.seed_ai.harness import SeedManager
+        from src.worlds.world_1_stoneage import Biosphere3D
+        from src.graph_rag.async_logger import logger as async_logger
+
+        cfg = WorldConfig()
+        cfg.base_metabolism = 0.25
+        cfg.forage_payoff = 3.0
+
+        # Agents avec planificateur actif
+        agents_list = []
+        for _ in range(num_agents):
+            a = MambaAgent()
+            a.genome.organ_genes = np.array([True, False])
+            agents_list.append(a)
+
+        # Determinisme
+        SeedManager(seed).seed_boundary(0)
+
+        env = Biosphere3D(cfg)
+        for a in agents_list:
+            env.add_agent(a, energy=80.0)
+
+        async_logger.start()
+
+        # prev_H par agent_id : H(t-1) et action(t-1)
+        prev_state = {}  # agent_id -> {"H": np.ndarray (N,), "move": int, "G_col": np.ndarray}
+
+        for t in range(warmup + measure):
+            env.step()
+
+            for ag in env.agents:
+                model = ag["model"]
+                agent_id = ag.get("id", id(model))
+
+                # Verifier H_prev
+                if not hasattr(model, "H_prev") or model.H_prev is None:
+                    if not needs_context:
+                        log.warning("H_prev absent sur ag %s - NEEDS_CONTEXT", agent_id)
+                        needs_context = True
+                        context_note = "H_prev absent"
+                    continue
+
+                cur_H = np.asarray(model.H_prev[0], dtype=np.float32)
+
+                # Verifier _td et action
+                td = getattr(model, "_td", None)
+                move = -1
+                if td is not None and td.get("act") is not None:
+                    move = int(td["act"].get("move", -1))
+
+                # Verifier planner_G
+                G = getattr(model, "planner_G", None)
+                g_col = None
+                if G is not None and move >= 0 and move < G.shape[0]:
+                    g_col = G[move]
+                    action_abs_by_action.setdefault(move, []).append(float(np.mean(np.abs(g_col))))
+                elif G is None and not needs_context:
+                    log.warning("planner_G absent sur ag %s (PLAN_BIAS=%.1f) - NEEDS_CONTEXT",
+                                agent_id, MambaBatchModel.PLAN_BIAS)
+                    needs_context = True
+                    context_note = "planner_G absent"
+
+                # Mesure de fidelite : seulement apres warmup et si prev disponible
+                if t >= warmup and agent_id in prev_state and g_col is not None:
+                    ps = prev_state[agent_id]
+                    if ps.get("G_col") is not None:
+                        g_err, base_err = transition_error(ps["H"], ps["G_col"], cur_H)
+                        if base_err > 0.01:
+                            ratios.append(g_err / base_err)
+                            n_transitions += 1
+
+                # Memoriser l'etat courant pour le tick suivant
+                prev_state[agent_id] = {
+                    "H": cur_H.copy(),
+                    "move": move,
+                    "G_col": g_col.copy() if g_col is not None else None,
+                }
+
+            # Nettoyer les agents morts de prev_state pour eviter les faux positifs
+            alive_ids = {ag.get("id", id(ag["model"])) for ag in env.agents}
+            for dead_id in list(prev_state.keys()):
+                if dead_id not in alive_ids:
+                    del prev_state[dead_id]
+
+        if hasattr(env, "memory_retriever"):
+            env.memory_retriever.stop()
+
+    finally:
+        MambaBatchModel.PLAN_BIAS = prev_bias
+        MambaBatchModel.PLAN_LR = prev_lr
+        try:
+            from src.graph_rag.async_logger import logger as async_logger
+            async_logger.stop()
+        except Exception:
+            pass
+
+    result = {
+        "ratios": ratios,
+        "n_transitions": n_transitions,
+        "action_abs_by_action": action_abs_by_action,
+    }
+    if needs_context:
+        result["needs_context"] = context_note
+    return result
+
+
+def run_probe_stoneage(seeds, warmup=150, measure=150, num_agents=30) -> dict:
+    """Agrege collect_ratios_stoneage sur plusieurs seeds. Retourne le verdict + diagnostics."""
+    all_ratios = []
+    action_abs_accum = {a_idx: [] for a_idx in range(MambaBatchModel.PLAN_A)}
+    total_transitions = 0
+    notes = []
+
+    for s in seeds:
+        res = collect_ratios_stoneage(int(s), num_agents=num_agents, warmup=warmup, measure=measure)
+        all_ratios.extend(res["ratios"])
+        total_transitions += res["n_transitions"]
+        for a_idx, vals in res["action_abs_by_action"].items():
+            action_abs_accum.setdefault(a_idx, []).extend(vals)
+        if "needs_context" in res:
+            notes.append(res["needs_context"])
+
+    result = fidelity_verdict(all_ratios)
+    result["mean_G_abs_by_action"] = {
+        a_idx: float(np.mean(vals)) if vals else 0.0
+        for a_idx, vals in action_abs_accum.items()
+    }
+    result["n_transitions"] = total_transitions
+    if notes:
+        result["needs_context"] = notes[0]
+    return result
+
+
 def main():
     seeds = [int(s) for s in os.environ.get("GFP_SEEDS", "0,1,2,3,4,5,6,7").split(",") if s.strip()]
     warmup = int(os.environ.get("GFP_WARMUP", "300"))
     measure = int(os.environ.get("GFP_MEASURE", "300"))
+    mode = os.environ.get("GFP_MODE", "").strip().lower()
     use_env = os.environ.get("GFP_ENV", "1").strip() not in ("0", "false", "False")
 
-    if use_env:
+    if mode == "stoneage":
+        num_agents = int(os.environ.get("GFP_NUM_AGENTS", "30"))
+        print(f"=== g-fidelity probe STONEAGE (Biosphere3D, obs reelles) seeds={seeds} ===")
+        out = run_probe_stoneage(seeds, warmup=warmup, measure=measure, num_agents=num_agents)
+    elif use_env:
         print(f"=== g-fidelity probe ENV (grille 1-D, action->obs couple) seeds={seeds} ===")
         out = run_probe_env(seeds, warmup, measure)
     else:

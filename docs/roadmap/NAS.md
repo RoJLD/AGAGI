@@ -267,9 +267,19 @@ sign_p 0, 3 colonnes `G` entraînées). **Leçon** : `g` linéaire EST exploitab
 réellement l'obs suivante. ⚠️ **CAVEAT (revue opus) : la grille 1-D éparse est le cas le PLUS FAVORABLE
 à un `g` linéaire état-indépendant** (bouger = décalage one-hot déterministe) → ne prouve PAS la fidélité
 sur obs riches stoneage (même geste → ΔH différents selon contexte = besoin `g` bilinéaire). Et c'est
-l'env où `g` a échoué comme biais (depth-1). **PROCHAIN PAS avant de bâtir Dyna : mesurer la fidélité de
-`g` sur obs riches/stoneage** ; si ça tient → GO Dyna ; sinon → escalader **`g` bilinéaire** (`H'=H_rec+W_a·H`)
-d'abord (branche la moins chère où se tromper, cf. Risk 1 du spec).
+l'env où `g` a échoué comme biais (depth-1).
+
+**ÉTAT Phase A bis (g-fidelity sur obs RICHES stoneage) — BLOQUÉ → ARC EN PAUSE (2026-06-25) :**
+La sonde stoneage (`collect_ratios_stoneage`, `tools/g_fidelity_probe.py`) retourne **n=0 transitions** :
+les agents meurent (~8-15 ticks) bien avant que `g` ne puisse apprendre → fidélité rich-obs **non
+mesurable** tant que le substrat n'est pas survivable. **MÉTA-LEÇON (3× confirmée : depth-1, Dyna-offline,
+g-fidelity-stoneage)** : le facteur limitant de TOUTE cognition model-based est la **survivabilité du
+substrat**, pas la machinerie cognitive — `g` ne peut apprendre en ~10 ticks. C'est le MÊME mur que l'arc
+Lewis/EDR (105/106 : goulot = navigation/approche). **DÉCISION robla : PAUSE de l'arc rêve-offline/Dyna**
+(tout gaté OFF, rien perdu) → **porter l'effort sur le goulot réel = survie/Lewis**. La cognition
+model-based (Dyna, `g` bilinéaire, depth-k) reprendra QUAND le substrat survivra assez longtemps pour que
+`g` apprenne. Sonde `g_fidelity_probe` conservée comme diagnostic réutilisable (3 modes : synthétique,
+banc-grille, stoneage).
 
 ### Backlog différé (NAS Axe 3, futurs cycles brainstorm)
 - **Dreamer complet** : actor-critic en imagination (entraîner aussi la politique) — après fiabilisation de `g`.
