@@ -289,6 +289,29 @@ class RunsService:
                 out.append({"name": name, "vals": vals, "n": len(vals)})
         return out
 
+    _PHASE_KEYS = (
+        "brain", "action", "biologie", "mouvement", "net", "n_agents",
+        "bio_metab", "bio_terrain", "bio_carry", "bio_autres",
+    )
+
+    def list_decompositions(self) -> list[dict]:
+        """Runs de decomposition energetique (data.phases avec les 10 cles) — vue Energie."""
+        out: list[dict] = []
+        for r in self._scan():
+            phases = r["data"].get("phases")
+            if not isinstance(phases, dict) or any(k not in phases for k in self._PHASE_KEYS):
+                continue
+            out.append({
+                "run_id": r["_run_id"],
+                "name": r["name"],
+                "seed": r["seed"],
+                "commit": r.get("commit"),
+                "phases": {k: phases[k] for k in self._PHASE_KEYS},
+                "verdict": r["data"].get("verdict", ""),
+                "bio_verdict": r["data"].get("bio_verdict", ""),
+            })
+        return sorted(out, key=lambda d: d["run_id"])
+
     @staticmethod
     def _agg(name: str, vals: list[float]) -> dict:
         return {

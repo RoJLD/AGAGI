@@ -395,6 +395,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/runs/decompositions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Decompositions
+         * @description Decompositions energetiques (budget par phase + sous-decompo biologie) pour la vue Energie.
+         */
+        get: operations["list_decompositions_api_runs_decompositions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/runs/distributions": {
         parameters: {
             query?: never;
@@ -882,6 +902,22 @@ export interface components {
              */
             pop_size: number;
         };
+        /** Decomposition */
+        Decomposition: {
+            /** Bio Verdict */
+            bio_verdict: string;
+            /** Commit */
+            commit?: string | null;
+            /** Name */
+            name: string;
+            phases: components["schemas"]["EnergyPhases"];
+            /** Run Id */
+            run_id: string;
+            /** Seed */
+            seed: number;
+            /** Verdict */
+            verdict: string;
+        };
         /** DistributionSummary */
         DistributionSummary: {
             /** N */
@@ -895,6 +931,29 @@ export interface components {
         EdrLinks: {
             /** Edr */
             edr: number[];
+        };
+        /** EnergyPhases */
+        EnergyPhases: {
+            /** Action */
+            action: number;
+            /** Bio Autres */
+            bio_autres: number;
+            /** Bio Carry */
+            bio_carry: number;
+            /** Bio Metab */
+            bio_metab: number;
+            /** Bio Terrain */
+            bio_terrain: number;
+            /** Biologie */
+            biologie: number;
+            /** Brain */
+            brain: number;
+            /** Mouvement */
+            mouvement: number;
+            /** N Agents */
+            n_agents: number;
+            /** Net */
+            net: number;
         };
         /** ExperimentDetail */
         ExperimentDetail: {
@@ -1777,6 +1836,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ConditionSummary"][];
+                };
+            };
+        };
+    };
+    list_decompositions_api_runs_decompositions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Decomposition"][];
                 };
             };
         };

@@ -313,3 +313,32 @@ def test_list_sweeps_extracts_knob_levels_series(tmp_path, monkeypatch) -> None:
     assert s["x"] == [0.1, 0.2, 0.3]
     assert s["series"]["median_survival"] == [0.2, 0.5, 0.8]
     assert s["y_std"]["median_survival"] == [0.05, 0.05, 0.05]
+
+
+def test_list_decompositions_extracts_phases(tmp_path, monkeypatch) -> None:
+    """Un run avec data.phases -> 1 Decomposition ; un run scalaire -> ignore."""
+    import backend.app.services.runs_service as rs_mod
+    monkeypatch.setattr(rs_mod, "RESULTS_DIR", tmp_path)
+    phases = {
+        "brain": 1.0, "action": 2.0, "biologie": 9.0, "mouvement": 0.0,
+        "net": 12.0, "n_agents": 40.0,
+        "bio_metab": 13.47, "bio_terrain": 0.27, "bio_carry": 0.13, "bio_autres": 0.13,
+    }
+    (tmp_path / "lewis_drain_decompose_7.json").write_text(json.dumps({
+        "name": "lewis_drain_decompose", "seed": 7, "commit": "abc1234",
+        "data": {"phases": phases, "verdict": "biologie domine", "bio_verdict": "metab domine",
+                 "R": 4, "n_eval": 8},
+    }), encoding="utf-8")
+    (tmp_path / "AND_0.json").write_text(json.dumps({
+        "name": "AND", "seed": 0, "data": {"fitness": 0.9},
+    }), encoding="utf-8")
+    decomps = rs_mod.runs_service.list_decompositions()
+    assert len(decomps) == 1
+    d = decomps[0]
+    assert d["run_id"] == "lewis_drain_decompose_7"
+    assert d["phases"]["bio_metab"] == 13.47
+    assert d["verdict"] == "biologie domine"
+
+    resp = client.get("/api/runs/decompositions")
+    assert resp.status_code == 200
+    assert resp.json()[0]["name"] == "lewis_drain_decompose"
