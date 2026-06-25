@@ -464,3 +464,22 @@ body {
   background: var(--color-accent);
   color: var(--color-bg);
 }
+
+/* ============================ SweepView ============================ */
+
+.sweep-series {
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+.sweep-series legend {
+  padding: 0 6px;
+  color: var(--color-text-dim);
+  font-size: 0.85rem;
+}
+.checkbox-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 16px;
+}
