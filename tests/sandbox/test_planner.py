@@ -1,7 +1,7 @@
 import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 import numpy as np
-from src.agents.planner import plan_rollout, normalize_q
+from src.agents.planner import plan_rollout, normalize_q, update_transition
 
 
 def test_plan_rollout_reads_value_after_action_delta():
@@ -36,3 +36,33 @@ def test_normalize_q_constant_row_no_nan():
     Q = np.zeros((1, 4), dtype=np.float32)
     Z = normalize_q(Q)
     assert np.all(np.isfinite(Z))          # std+eps évite la division par 0
+
+
+def test_update_transition_moves_toward_observed_delta():
+    G = np.zeros((1, 3, 2), dtype=np.float32)
+    prev = np.array([[0.0, 0.0]], dtype=np.float32)
+    nxt = np.array([[2.0, 0.0]], dtype=np.float32)    # delta observé = [2,0]
+    move = np.array([1])                              # action 1 exécutée
+    G2 = update_transition(G, prev, nxt, move, lr=0.5)
+    assert np.allclose(G2[0, 1], [1.0, 0.0])          # 0 + 0.5*([2,0]-0) = [1,0]
+    assert np.allclose(G2[0, 0], [0.0, 0.0])          # actions non jouées inchangées
+    assert np.allclose(G2[0, 2], [0.0, 0.0])
+
+
+def test_update_transition_reduces_prediction_error_over_steps():
+    # Répéter la même transition pour l'action 0 -> G[0] converge vers le delta.
+    G = np.zeros((1, 2, 2), dtype=np.float32)
+    prev = np.array([[0.0, 0.0]], dtype=np.float32)
+    nxt = np.array([[1.0, -1.0]], dtype=np.float32)
+    move = np.array([0])
+    for _ in range(50):
+        G = update_transition(G, prev, nxt, move, lr=0.2)
+    assert np.allclose(G[0, 0], [1.0, -1.0], atol=1e-2)
+
+
+def test_update_transition_skips_invalid_move():
+    G = np.zeros((1, 2, 2), dtype=np.float32)
+    prev = np.zeros((1, 2), dtype=np.float32)
+    nxt = np.ones((1, 2), dtype=np.float32)
+    G2 = update_transition(G, prev, nxt, np.array([-1]), lr=1.0)
+    assert np.allclose(G2, 0.0)                        # move=-1 -> aucune MAJ
