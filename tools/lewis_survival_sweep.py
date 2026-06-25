@@ -494,5 +494,56 @@ def main_forage(metab_levels=(0.0, 0.25), n_eval=8, R=4, seed=None, _return=Fals
         return _report_forage(h, aggs, R, n_eval, _return)
 
 
+def _verdict_approach(aggs):
+    """EDR106 : verdict porte par le niveau FIGE (prey_speed_scale=0.0). p_reach>=0.5 -> KINEMATIQUE
+    (proies immobiles atteintes -> le mur etait la fuite, vitesse relative) ; sinon POLITIQUE (la
+    navigation est le mur, meme sans fuite). aggs = liste (prey_speed_scale, agg)."""
+    frozen = next((a for s, a in aggs if s == 0.0), None)
+    if frozen is None:
+        return "INDETERMINE"
+    return "KINEMATIQUE" if frozen["p_reach"] >= 0.5 else "POLITIQUE"
+
+
+def _report_approach(h, aggs, R, n_eval, _return):
+    """Table APPROCHE (1 ligne/vitesse : p_reach, p_cap, captures totales + par espece) + Jonckheere-
+    Terpstra (tendance p_reach quand la vitesse baisse) + verdict (porte par le niveau fige) + provenance.
+    Tout ASCII (cp1252). aggs = liste de (prey_speed_scale, agg). reached_raw est retire avant sauvegarde."""
+    verdict = _verdict_approach(aggs)
+    jt = st.jonckheere_terpstra([a["reached_raw"] for _, a in aggs])
+    print("\n=== EDR106 decomposition APPROCHE a N_APEX=0 (verdict sur prey_speed_scale=0) ===")
+    print("  speed | p_reach p_cap | cap_tot cap_lapin cap_cerf cap_sanglier | min_dist | n")
+    for s, a in aggs:
+        print(f"  {s:<5.3g} | {a['p_reach']:7.2f} {a['p_cap']:5.2f} | "
+              f"{a['mean_captures']:7.2f} {a['cap_lapin']:9.2f} {a['cap_cerf']:8.2f} "
+              f"{a['cap_sanglier']:12.2f} | {a['mean_min_dist']:8.2f} | {a['n_agents']}")
+    print(f"  Jonckheere-Terpstra z={jt['z']:.2f}, p(p_reach croit qd vitesse baisse)={jt['p_one_sided']:.3f}")
+    print("=== VERDICT (pre-enregistre, porte par le niveau fige) ===")
+    print(f"  -> {verdict}")
+    slim = {str(s): {k: v for k, v in a.items() if k != "reached_raw"} for s, a in aggs}
+    h.save({"knob": "prey_speed_scale", "speed_levels": [s for s, _ in aggs], "R": R, "n_eval": n_eval,
+            "jt": jt, "verdict": verdict, "table": slim})
+    if _return:
+        return {"verdict": verdict, "jt": jt, "table": slim, "R": R, "n_eval": n_eval}
+
+
+def main_approach(speed_levels=(1.0, 0.5, 0.25, 0.0), n_eval=8, R=4, seed=None, _return=False):
+    """EDR 106 : decompose l'APPROCHE en balayant prey_speed_scale a N_APEX=0/metab=0, forage_payoff=3.
+    Verdict KINEMATIQUE (p_reach>=0.5 au niveau fige) vs POLITIQUE. Reutilise l'entonnoir trace_forage
+    (EDR105). Co-active trace_forage ET trace_energy_sinks (instruments inertes)."""
+    with Harness(seed=seed, name="lewis_approach_kinematics", with_db=False) as h:
+        base = h.seed
+        _disable_kuzu()
+        print(f"EDR106 : approche prey_speed_scale={speed_levels}, R={R}, n_eval={n_eval}, seed={base}.")
+        seeds = [base + r * 1000 + i for r in range(R) for i in range(n_eval)]  # memes seeds/niveau
+        prog = h.progress(len(speed_levels), label="niveaux prey_speed_scale")
+        aggs = []
+        for s in speed_levels:
+            cfg = _cfg(3, base_metabolism=0.0, trace_energy_sinks=True, trace_forage=True,
+                       prey_speed_scale=s)
+            aggs.append((s, _measure_forage(cfg, seeds, n_apex=0, max_ticks=150)))
+            prog.update()
+        return _report_approach(h, aggs, R, n_eval, _return)
+
+
 if __name__ == "__main__":
     main()

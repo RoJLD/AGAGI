@@ -94,7 +94,7 @@ def test_species_counter_inert_when_trace_off():
     assert all("_forage_species" not in a for a in pool)
 
 
-from tools.lewis_survival_sweep import _cfg, _measure_forage
+from tools.lewis_survival_sweep import _cfg, _measure_forage, _verdict_approach
 
 
 def test_cfg_prey_speed_scale_param():
@@ -112,3 +112,16 @@ def test_measure_forage_has_species_and_reached_raw():
     assert isinstance(agg["reached_raw"], list)
     assert len(agg["reached_raw"]) == agg["n_agents"]
     assert all(v in (0.0, 1.0) for v in agg["reached_raw"])
+
+
+def _approach_aggs(p_reach_frozen):
+    return [(1.0, {"p_reach": 0.10, "reached_raw": [0.0]}),
+            (0.0, {"p_reach": p_reach_frozen, "reached_raw": [1.0]})]
+
+
+def test_verdict_approach_kinematique():
+    assert _verdict_approach(_approach_aggs(0.80)) == "KINEMATIQUE"
+
+
+def test_verdict_approach_politique():
+    assert _verdict_approach(_approach_aggs(0.30)) == "POLITIQUE"
