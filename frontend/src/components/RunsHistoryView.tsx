@@ -11,8 +11,12 @@ import { Button } from "./ui/Button";
 import { Badge } from "./ui/Badge";
 import { Panel } from "./ui/Panel";
 import { useToast } from "../contexts/ToastContext";
+import { useHashRoute } from "../hooks/useHashRoute";
+import { TAB_KEYS } from "../tabs";
+import { RunNotes } from "./RunNotes";
 
 export function RunsHistoryView({ onCompare }: { onCompare?: (condition: string) => void }) {
+  const { query } = useHashRoute(TAB_KEYS, "runs");
   const runsQuery = useQuery({
     queryKey: queryKeys.runs.list,
     queryFn: () => apiFetch<RunSummary[]>("/api/runs"),
@@ -27,7 +31,7 @@ export function RunsHistoryView({ onCompare }: { onCompare?: (condition: string)
   const articleLinks = articleLinksQuery.data ?? {};
 
   const [filter, setFilter] = useState("");
-  const [selected, setSelected] = useState<string | null>(null);
+  const [selected, setSelected] = useState<string | null>(query.run || null);
 
   const detailQuery = useQuery({
     queryKey: queryKeys.runs.detail(selected ?? ""),
@@ -200,6 +204,7 @@ export function RunsHistoryView({ onCompare }: { onCompare?: (condition: string)
                   Lien automatique : un article généré par le Sociologue sur cette condition apparaît ici.
                 </p>
               </div>
+              <RunNotes runId={selected} />
             </>
           ) : null}
         </Panel>

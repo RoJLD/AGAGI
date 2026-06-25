@@ -8,6 +8,7 @@ export const queryKeys = {
   },
   academy: ["academy"] as const,
   edr: ["edr"] as const,
+  edrDocs: ["edr", "docs"] as const,
   timeline: ["timeline"] as const,
   sociologist: {
     articles: ["sociologist", "articles"] as const,
@@ -29,9 +30,13 @@ export const queryKeys = {
     edrLinks: ["runs", "edr-links"] as const,
     articleLinks: ["runs", "article-links"] as const,
     compare: (a: string, b: string, metric: string) => ["runs", "compare", a, b, metric] as const,
+    distributions: (metric: string) => ["runs", "distributions", metric] as const,
+    decompositions: ["runs", "decompositions"] as const,
+    notes: (runId: string) => ["runs", "notes", runId] as const,
   },
   health: {
     parity: ["health", "parity"] as const,
   },
   sweeps: ["sweeps"] as const,
+  notes: ["notes"] as const,
 } as const;

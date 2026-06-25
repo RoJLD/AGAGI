@@ -82,6 +82,12 @@ export interface ConditionSummary {
   metrics: string[];
 }
 
+export interface DistributionSummary {
+  name: string;
+  vals: number[];
+  n: number;
+}
+
 export interface ABGroup {
   name: string;
   mean: number;
@@ -146,8 +152,28 @@ export interface RunDetail {
   links?: { edr: number[]; articles?: string[] };
 }
 
+/** Note de carnet attachée à un run (append-only, horodatée backend). */
+export interface RunNote {
+  id: string;
+  text: string;
+  ts: string;
+}
+
+/** Item du flux agrégé du Carnet : une note + son run d'origine. */
+export interface NoteFeedItem extends RunNote {
+  run_id: string;
+  run_name: string;
+}
+
 /** {edr: [run_id, ...]} — runs liés à chaque EDR (badges du dashboard EDR). */
 export type EdrLinks = Record<string, string[]>;
+
+/** Un EDR documenté (docs/EDR/NNN_*.md), exposé par /api/edr/docs. */
+export interface EdrDoc {
+  edr: number;
+  title: string;
+  file: string;
+}
 
 /** {run_id: [article_id, ...]} — articles Sociologue liés à chaque run. */
 export type ArticleLinks = Record<string, string[]>;
@@ -162,4 +188,29 @@ export interface SweepResult {
   y_std?: Record<string, number[]>;
   seed: number;
   commit?: string | null;
+}
+
+/** Budget énergétique décomposé (par tick/agent) — sortie de main_decompose (EDR 099/100). */
+export interface EnergyPhases {
+  brain: number;
+  action: number;
+  biologie: number;
+  mouvement: number;
+  net: number;
+  n_agents: number;
+  bio_metab: number;
+  bio_terrain: number;
+  bio_carry: number;
+  bio_autres: number;
+}
+
+/** Un run de décomposition énergétique persisté (lewis_drain_decompose_<seed>.json). */
+export interface Decomposition {
+  run_id: string;
+  name: string;
+  seed: number;
+  commit?: string | null;
+  phases: EnergyPhases;
+  verdict: string;
+  bio_verdict: string;
 }

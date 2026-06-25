@@ -11,6 +11,7 @@ from src.seed_ai.rl_evolution import recurrent_forward
 from src.metaprog.ntm_compiler import NTMProgramCompiler
 from src.agents.world_model import WorldModel
 from src.seed_ai.policy_gradient import reinforce_action_update, td_error
+from src.agents.planner import plan_rollout, normalize_q, update_transition
 
 class MambaAgent(BaseAgent):
     """
@@ -133,11 +134,13 @@ class MambaAgent(BaseAgent):
         new_agent.predictor_head = self.predictor_head.copy() if self.predictor_head is not None else None
         return new_agent
 
-    def from_genome(self, genome: Genome, preserve_dims: bool = False):
+    def from_genome(self, genome: Genome, preserve_dims: bool = True):
         """Utile pour charger un génome depuis le Hall of Fame.
-        preserve_dims=True : garde l'architecture réelle du génome (num_nodes/I/O) au lieu de l'aplatir
-        à 64/126/172. Défaut False = comportement historique (NON-RÉGRESSION production). NAS substrat :
-        le défaut écrase la topologie évoluée (add_node) et force hidden=-18 (cf. mémoire keystone)."""
+        preserve_dims=True (DÉFAUT depuis la bascule) : garde l'architecture réelle du génome
+        (num_nodes/I/O) — l'évolution topologique (add_node) est préservée. Non-régression mesurée verte
+        (compétence OFF/ON indistinguable, sign_p 0.727). preserve_dims=False = ancien comportement
+        historique : aplatit à 64/126/172 (hidden=-18, écrase la topologie ; cf. mémoire keystone)
+        — encore atteignable explicitement pour comparer à l'ancien substrat."""
         self.genome = copy.deepcopy(genome)
 
         if preserve_dims:
@@ -304,6 +307,11 @@ class MambaBatchModel:
     KWTA_KEEP_FRAC = 1.0        # NAS Axe D-2 : fraction de cachés gardés actifs (1.0 = off)
     FORCE_DREAM = None          # intervention causale (EDR 094) : None|"off"|int K (profondeur forcée)
 
+    # NAS Axe 3 — Planificateur latent (activation du dreaming). Défaut OFF (non-régressif).
+    PLAN_BIAS = 0.0   # poids du biais des logits d'action par le plan (0 = planificateur désactivé)
+    PLAN_LR = 0.05    # taux d'apprentissage en ligne de g
+    PLAN_A = 8        # nombre d'actions planifiées (= logits de déplacement 0..7)
+
     def __init__(self, agents: list[MambaAgent], world_model=None):
         self.agents = agents
         self.B = len(agents)
@@ -416,6 +424,15 @@ class MambaBatchModel:
                 if w is not None and getattr(w, 'shape', None) == (dim, od):
                     self.Wp_batch[i] = w
 
+        # NAS Axe 3 — modèle de transition action-conditionné g, par agent (round-trip ordre nœud).
+        A = MambaBatchModel.PLAN_A
+        self.G_batch = np.zeros((self.B, A, self.max_N), dtype=np.float32)
+        for i, a in enumerate(agents):
+            g = getattr(a, 'planner_G', None)
+            N_i = a.genome.num_nodes
+            if g is not None and getattr(g, 'shape', None) == (A, N_i):
+                self.G_batch[i][:, self.mappings[i]] = g     # projette (A,N_i) -> (A,max_N)
+
         self.tick_count = 0
 
     def forward(self, batch_obs: np.ndarray, env_surprise_batch: np.ndarray = None) -> tuple:
@@ -524,57 +541,62 @@ class MambaBatchModel:
             map_idx = self.mappings[i]
             preds_mid[i, :O_i] = H[i, map_idx[N_i - O_i : N_i]]
 
+        self.H_rec_batch = H.copy()                  # latent post-attention, avant rêve (pour planificateur)
+        PLANNER_ON = MambaBatchModel.PLAN_BIAS > 0.0
+
         do_dream_batch = preds_mid[:, 26]  # logit 26
         DREAM_THRESHOLD = 0.1
         SURPRISE_THRESHOLD = 0.05
-        
+
         has_mcts_batch = np.array([
-            (a.genome.organ_genes[0] if getattr(a.genome, 'organ_genes', None) is not None else False) 
+            (a.genome.organ_genes[0] if getattr(a.genome, 'organ_genes', None) is not None else False)
             for a in self.agents
         ], dtype=bool)
-        
+
         is_dreaming, K_individual = _resolve_dreaming(
             MambaBatchModel.FORCE_DREAM, has_mcts_batch, do_dream_batch,
             self.surprise_momentum_batch, DREAM_THRESHOLD, SURPRISE_THRESHOLD,
         )
 
-        T_max = int(K_individual.max()) if is_dreaming.any() else 0
         compute_spent = np.zeros(self.B, dtype=np.float32)
 
-        best_H = H.copy()
-        best_value = np.full(self.B, -np.inf)
+        if not PLANNER_ON:
+            T_max = int(K_individual.max()) if is_dreaming.any() else 0
 
-        for k in range(T_max):
-            active_mask = K_individual > k
+            best_H = H.copy()
+            best_value = np.full(self.B, -np.inf)
 
-            if not active_mask.any():
-                break
+            for k in range(T_max):
+                active_mask = K_individual > k
 
-            H_branch = H.copy()
-            noise = np.random.randn(*H_branch.shape).astype(np.float32) * 0.05
-            H_branch[active_mask] += noise[active_mask]
+                if not active_mask.any():
+                    break
 
-            excitation = np.einsum('bi,bij->bj', H_branch, W_no_diag)
-            H_branch = (1.0 - delta_t) * H_branch + delta_t * _get_activation_function()(np.clip(excitation - self.thresholds_batch, -30.0, 30.0))
+                H_branch = H.copy()
+                noise = np.random.randn(*H_branch.shape).astype(np.float32) * 0.05
+                H_branch[active_mask] += noise[active_mask]
 
-            for i in np.where(active_mask)[0]:
-                N_i = self.agents[i].genome.num_nodes
-                O_i = self.agents[i].genome.num_outputs
-                map_idx = self.mappings[i]
-                
-                # Le logit 28 est au décalage N_i - O_i + 28
-                val_idx = map_idx[N_i - O_i + 28]
-                val = float(H_branch[i, val_idx])
-                if np.isfinite(val) and val > best_value[i]:
-                    best_value[i] = val
-                    best_H[i] = H_branch[i]
-                compute_spent[i] += 1.0
+                excitation = np.einsum('bi,bij->bj', H_branch, W_no_diag)
+                H_branch = (1.0 - delta_t) * H_branch + delta_t * _get_activation_function()(np.clip(excitation - self.thresholds_batch, -30.0, 30.0))
 
-            H[active_mask] = H_branch[active_mask]
+                for i in np.where(active_mask)[0]:
+                    N_i = self.agents[i].genome.num_nodes
+                    O_i = self.agents[i].genome.num_outputs
+                    map_idx = self.mappings[i]
 
-        dreaming_idx = np.where(is_dreaming)[0]
-        if len(dreaming_idx) > 0:
-            H[dreaming_idx] = best_H[dreaming_idx]
+                    # Le logit 28 est au décalage N_i - O_i + 28
+                    val_idx = map_idx[N_i - O_i + 28]
+                    val = float(H_branch[i, val_idx])
+                    if np.isfinite(val) and val > best_value[i]:
+                        best_value[i] = val
+                        best_H[i] = H_branch[i]
+                    compute_spent[i] += 1.0
+
+                H[active_mask] = H_branch[active_mask]
+
+            dreaming_idx = np.where(is_dreaming)[0]
+            if len(dreaming_idx) > 0:
+                H[dreaming_idx] = best_H[dreaming_idx]
 
         # NAS Axe D-2 : KWTA modéré sur les CACHÉS (sparsité imposée). Entrées/sorties intactes.
         # Gated (1.0 = off). Appliqué avant l'extraction des sorties ET avant H_prev_batch -> le
@@ -605,6 +627,21 @@ class MambaBatchModel:
             O_i = self.agents[i].genome.num_outputs
             map_idx = self.mappings[i]
             preds[i, :O_i] = H[i, map_idx[N_i - O_i : N_i]]
+
+        # Biais du planificateur sur les logits d'action (mutuellement exclusif avec le rêve aléatoire)
+        if PLANNER_ON:
+            value_pos = np.array([
+                self.mappings[i][self.agents[i].genome.num_nodes
+                                 - self.agents[i].genome.num_outputs + 28]
+                for i in range(self.B)
+            ])
+            Q_plan = plan_rollout(self.H_rec_batch, self.G_batch, value_pos)   # (B, A)
+            bias = MambaBatchModel.PLAN_BIAS * normalize_q(Q_plan)             # (B, A)
+            A = MambaBatchModel.PLAN_A
+            for i in range(self.B):
+                og = getattr(self.agents[i].genome, 'organ_genes', None)
+                if og is not None and len(og) > 0 and og[0]:
+                    preds[i, :A] += bias[i]
 
         # 7. Mise à jour de l'état interne du batch
         self.H_prev_batch = H
@@ -697,6 +734,7 @@ class MambaBatchModel:
             a.last_obs = x_obs[i].copy()  # World Model : mémoriser obs(t) pour prédire t+1
             if self.Wp_batch is not None:
                 a.world_model_Wp = self.Wp_batch[i].copy()  # World Model par-agent (EDR 015)
+            a.planner_G = self.G_batch[i][:, map_idx].copy()   # extrait (A,N_i) en ordre nœud
             a.genome.W = self.W_batch[i][map_idx[:, None], map_idx[None, :]].copy()
 
         return preds, compute_spent
@@ -766,7 +804,18 @@ class MambaBatchModel:
                 self.W_batch[i][map_idx[:, None], map_idx[None, :]] = W_block
                 self.agents[i].genome.W = W_block.copy()
 
+                if MambaBatchModel.PLAN_BIAS > 0.0 and prev.get("h_rec") is not None \
+                        and getattr(self, "H_rec_batch", None) is not None:
+                    cur_hrec = self.H_rec_batch[i, map_idx]                 # (N_i,) ordre nœud
+                    pm = int(prev["act"].get("move", -1))
+                    self.G_batch[i][:, map_idx] = update_transition(
+                        self.G_batch[i][:, map_idx][None, ...],            # (1,A,N_i)
+                        prev["h_rec"][None, :], cur_hrec[None, :],
+                        np.array([pm]), MambaBatchModel.PLAN_LR)[0]
+
             # Mémoriser la transition courante pour l'update différé du prochain tick.
+            hrec_t = (self.H_rec_batch[i, self.mappings[i]].copy()
+                      if getattr(self, "H_rec_batch", None) is not None else None)
             self.agents[i]._td = {"h": h_t.copy(), "out": out_t.copy(), "value": v_t,
                                   "reward": float(rewards_batch[i]), "act": act,
-                                  "v_node": N_i - O_i + 28}
+                                  "v_node": N_i - O_i + 28, "h_rec": hrec_t}

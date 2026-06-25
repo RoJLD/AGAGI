@@ -27,17 +27,20 @@ NUM_AGENTS = 24
 GATE = 120.0                       # survie mediane minimale d'un barreau survivable (089/090)
 CHEAP_MAX = 24                     # forage_payoff <= 24 (x8) = barreau "acceptable" ; 48 (x16) = trop cher
 APEX_LEVELS = (12, 9, 6, 3, 0)     # N_APEX balaye : de la densite 093 (12) au Lewis vide (0)
+METAB_LEVELS = (0.25, 0.1, 0.05, 0.025, 0.0)   # base_metabolism balaye : de 085 (0.25) vers 0
 SURPRISE_LEVELS = (1.0, 0.5, 0.25, 0.0)   # ttc_surprise_scale : baseline 094 (1.0) -> brain_cost decouple (0.0)
 
 
-def _cfg(forage_payoff, ttc_surprise_scale=None, trace_energy_sinks=False):
+def _cfg(forage_payoff, ttc_surprise_scale=None, trace_energy_sinks=False, base_metabolism=METAB,
+         trace_forage=False):
     cfg = WorldConfig()
-    cfg.base_metabolism = METAB
+    cfg.base_metabolism = float(base_metabolism)             # EDR101 : sweepable (defaut METAB=0.25)
     cfg.forage_payoff = float(forage_payoff)
     cfg.max_population = 150        # defensif (PR #29) ; jamais atteint ici
     if ttc_surprise_scale is not None:
         cfg.ttc_surprise_scale = float(ttc_surprise_scale)   # EDR098
     cfg.trace_energy_sinks = bool(trace_energy_sinks)         # EDR099
+    cfg.trace_forage = bool(trace_forage)                     # EDR105
     return cfg
 
 
@@ -138,6 +141,69 @@ def _measure_drain(cfg, seeds, n_apex=0, num_agents=NUM_AGENTS, max_ticks=MAX_TI
             "bio_carry": mean(bcarry), "bio_autres": mean(bautres)}
 
 
+def _measure_forage(cfg, seeds, n_apex=0, num_agents=NUM_AGENTS, max_ticks=150):
+    """EDR105 : decompose l'entonnoir de forage a N_APEX=0. Lit les compteurs _forage_* (poses par
+    trace_forage) + preys_eaten + les buckets de pure depense _e_phases/_e_bio (trace_energy_sinks
+    co-active) sur le pool, agrege par agent. cfg DOIT avoir trace_forage=True ET trace_energy_sinks=True.
+    drain_t = cout structurel FORAGE-INDEPENDANT/tick (le revenu vit dans _e_bio['autres'], jamais somme
+    ici) -> la comparaison income_t<drain_t est non circulaire (cf. spec EDR105)."""
+    mc = MutationConfig(weight_init_std=2.0)
+    seed_at(0, 0)
+    champs = _load_champions()
+    reached, captured_if_reached = [], []
+    income_t, drain_t, captures, contacts, min_dists = [], [], [], [], []
+    for s in seeds:
+        seed_at(s, 0)
+        genomes = _reproduce(champs, num_agents, mc)
+        env = Biosphere3D(cfg)
+        _setup_critical(env, 0.0, n_apex=n_apex)
+        env.config.target_prey_count = PREY_COUNT
+        if hasattr(env, "memory_retriever"):
+            env.memory_retriever.stop()
+            env.memory_retriever.clear()
+        env.use_ref_head = False
+        env.decode_act = False
+        for g in genomes:
+            a = MambaAgent()
+            a.from_genome(g)
+            env.add_agent(a, energy=80.0)
+        env.current_era = 1
+        t = 0
+        while env.agents and t < max_ticks:
+            env.step()
+            t += 1
+        pool = list(env.agents) + list(getattr(env, "dead_agents", []))
+        for ag in pool:
+            ph = ag.get("_e_phases")
+            bio = ag.get("_e_bio")
+            if not ph or not bio:
+                continue
+            age = max(1, int(ag.get("age", 1)))
+            md = float(ag.get("_forage_min_dist", 9999.0))
+            inc = float(ag.get("_forage_income", 0.0))
+            structural = (bio["metab"] + bio["terrain"] + bio["carry"]
+                          + ph["brain"] + ph["action"] + ph["mouvement"])
+            is_reached = md <= 0
+            reached.append(1.0 if is_reached else 0.0)
+            if is_reached:
+                captured_if_reached.append(1.0 if int(ag.get("preys_eaten", 0)) >= 1 else 0.0)
+            income_t.append(inc / age)
+            drain_t.append(structural / age)
+            captures.append(float(ag.get("preys_eaten", 0)))
+            contacts.append(float(ag.get("_forage_contacts", 0)))
+            min_dists.append(md)
+    med = lambda xs: float(np.median(xs)) if xs else 0.0
+    mean = lambda xs: float(np.mean(xs)) if xs else 0.0
+    return {"p_reach": mean(reached),
+            "p_cap": mean(captured_if_reached),
+            "income_t": med(income_t),
+            "drain_t": med(drain_t),
+            "mean_captures": mean(captures),
+            "mean_contacts": mean(contacts),
+            "mean_min_dist": mean(min_dists),
+            "n_agents": len(income_t)}
+
+
 def _surprise_stats(pool):
     """Stats de surprise_momentum sur le pool (read-only) : moyenne des |finies|, max fini, fraction
     non-finie (inf/nan -> detecte l'overflow brain_cost)."""
@@ -174,6 +240,16 @@ def _verdict_apex(levels, medians, gate=GATE):
     if not crossed:
         return "MUR INTRINSEQUE"
     return "BARREAU TROUVE" if max(crossed) > 0 else "RUNG DEGENERE"
+
+
+def _verdict_metab(levels, medians, gate=GATE):
+    """Mappe (medianes de survie par niveau de base_metabolism) -> 3 branches pre-enregistrees. Un
+    base_metabolism > 0 franchit le gate -> rescale suffit (mur supprimable par config) ; seul 0 franchit ->
+    rescale extreme (metabolisme nul requis) ; aucun -> pas le metabolisme seul (la suppression ne sauve pas)."""
+    crossed = [lv for lv, m in zip(levels, medians) if m > gate]
+    if not crossed:
+        return "PAS LE METABOLISME SEUL"
+    return "RESCALE SUFFIT" if max(crossed) > 0 else "RESCALE EXTREME"
 
 
 def _verdict_surprise(levels, medians, frac_nonfinite, gate=GATE):
@@ -218,6 +294,20 @@ def _verdict_bio(agg):
         return "DRAIN BIO DIFFUS"
     return {"bio_metab": "TARIF=METABOLISME", "bio_terrain": "TARIF=TERRAIN",
             "bio_carry": "TARIF=CARRY"}[top]
+
+
+def _verdict_forage(agg):
+    """Cascade 'premier etage casse' de l'entonnoir de forage (seuils geles, cf. spec EDR105). Evalue
+    sur l'agg de metab=0. p_reach<0.5 -> APPROCHE (navigation) ; sinon p_cap<0.5 -> CAPTURE (atteint
+    mais ne tue pas) ; sinon income_t<drain_t -> REVENU (tue mais ne couvre pas le cout structurel) ;
+    sinon FORAGE SUFFISANT (l'entonnoir tient, le mur est ailleurs)."""
+    if agg["p_reach"] < 0.5:
+        return "GOULOT=APPROCHE"
+    if agg["p_cap"] < 0.5:
+        return "GOULOT=CAPTURE"
+    if agg["income_t"] < agg["drain_t"]:
+        return "GOULOT=REVENU"
+    return "FORAGE SUFFISANT"
 
 
 def _report(h, levels, groups, R, n_eval, _return, knob="forage_payoff", verdict_fn=_verdict):
@@ -288,6 +378,22 @@ def main_apex(levels=APEX_LEVELS, n_eval=8, R=4, seed=None, _return=False):
         return _report(h, levels, groups, R, n_eval, _return, knob="N_APEX", verdict_fn=_verdict_apex)
 
 
+def main_metab(levels=METAB_LEVELS, n_eval=8, R=4, seed=None, _return=False):
+    """EDR 101 : sweep base_metabolism a N_APEX=0 (monde vide), forage_payoff=3 fixe, Lewis letalite 0.
+    1ere intervention : teste si reduire le multiplicateur de metabolisme debloque la survie."""
+    with Harness(seed=seed, name="lewis_metab_sweep", with_db=False) as h:
+        base = h.seed
+        _disable_kuzu()
+        print(f"EDR101 : sweep base_metabolism={levels}, R={R}, n_eval={n_eval}, seed={base}.")
+        seeds = [base + r * 1000 + i for r in range(R) for i in range(n_eval)]  # memes seeds/niveau
+        prog = h.progress(len(levels), label="niveaux base_metabolism")
+        groups = []
+        for lv in levels:
+            groups.append(_measure_survival(_cfg(3, base_metabolism=lv), seeds, n_apex=0))
+            prog.update()
+        return _report(h, levels, groups, R, n_eval, _return, knob="base_metab", verdict_fn=_verdict_metab)
+
+
 def main_surprise(levels=SURPRISE_LEVELS, n_eval=8, R=4, seed=None, _return=False):
     """EDR 098 : sweep ttc_surprise_scale a N_APEX=0 (monde vide), forage_payoff=3 fixe, Lewis letalite 0.
     Instrumente surprise_momentum -> teste si le brain_cost surprise-amplifie est le mur intrinseque."""
@@ -338,6 +444,44 @@ def main_decompose(n_eval=8, R=4, seed=None, _return=False):
         seeds = [base + r * 1000 + i for r in range(R) for i in range(n_eval)]
         agg = _measure_drain(_cfg(3, trace_energy_sinks=True), seeds, n_apex=0)
         return _report_drain(h, agg, R, n_eval, _return)
+
+
+def _report_forage(h, aggs, R, n_eval, _return):
+    """Table entonnoir (1 ligne/niveau de metab) + verdict (porte par metab=0) + provenance.
+    Tout ASCII (cp1252). aggs = liste de (metab_level, agg)."""
+    agg0 = next((a for lv, a in aggs if lv == 0.0), aggs[0][1])
+    verdict = _verdict_forage(agg0)
+    print("\n=== EDR105 entonnoir de forage a N_APEX=0 (verdict sur metab=0) ===")
+    print("  metab | p_reach p_cap | income/t drain/t | captures contacts min_dist | n")
+    for lv, a in aggs:
+        print(f"  {lv:<5.3g} | {a['p_reach']:7.2f} {a['p_cap']:5.2f} | "
+              f"{a['income_t']:8.3f} {a['drain_t']:7.3f} | "
+              f"{a['mean_captures']:8.2f} {a['mean_contacts']:8.2f} {a['mean_min_dist']:8.2f} | "
+              f"{a['n_agents']}")
+    print("=== VERDICT (pre-enregistre, cascade premier etage casse) ===")
+    print(f"  -> {verdict}")
+    h.save({"knob": "base_metab", "metab_levels": [lv for lv, _ in aggs], "R": R, "n_eval": n_eval,
+            "verdict": verdict, "table": {str(lv): a for lv, a in aggs}})
+    if _return:
+        return {"verdict": verdict, "table": {lv: a for lv, a in aggs}, "R": R, "n_eval": n_eval}
+
+
+def main_forage(metab_levels=(0.0, 0.25), n_eval=8, R=4, seed=None, _return=False):
+    """EDR 105 : decompose l'entonnoir de forage (APPROCHE/CAPTURE/REVENU) a N_APEX=0, forage_payoff=3.
+    Variable = base_metabolism ; metab=0 porte le verdict (acquisition isolee), 0.25 en contraste.
+    Co-active trace_forage ET trace_energy_sinks (instruments inertes, pas des variables)."""
+    with Harness(seed=seed, name="lewis_forage_funnel", with_db=False) as h:
+        base = h.seed
+        _disable_kuzu()
+        print(f"EDR105 : entonnoir forage metab={metab_levels}, R={R}, n_eval={n_eval}, seed={base}.")
+        seeds = [base + r * 1000 + i for r in range(R) for i in range(n_eval)]  # memes seeds/niveau
+        prog = h.progress(len(metab_levels), label="niveaux base_metab")
+        aggs = []
+        for lv in metab_levels:
+            cfg = _cfg(3, base_metabolism=lv, trace_energy_sinks=True, trace_forage=True)
+            aggs.append((lv, _measure_forage(cfg, seeds, n_apex=0, max_ticks=150)))
+            prog.update()
+        return _report_forage(h, aggs, R, n_eval, _return)
 
 
 if __name__ == "__main__":

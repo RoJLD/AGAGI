@@ -24,6 +24,10 @@ const RunsHistoryView = lazy(() => import("./components/RunsHistoryView").then((
 const HealthView = lazy(() => import("./components/HealthView").then((m) => ({ default: m.HealthView })));
 const ParcoursView = lazy(() => import("./components/parcours/ParcoursView").then((m) => ({ default: m.ParcoursView })));
 const SweepView = lazy(() => import("./components/SweepView").then((m) => ({ default: m.SweepView })));
+const CohortView = lazy(() => import("./components/CohortView").then((m) => ({ default: m.CohortView })));
+const EnergyView = lazy(() => import("./components/EnergyView").then((m) => ({ default: m.EnergyView })));
+const CarnetView = lazy(() => import("./components/CarnetView").then((m) => ({ default: m.CarnetView })));
+const EdrIndexView = lazy(() => import("./components/EdrIndexView").then((m) => ({ default: m.EdrIndexView })));
 
 export default function App() {
   const { theme, toggle } = useTheme();
@@ -78,10 +82,14 @@ export default function App() {
           {tab === "comparison" && <ComparisonView />}
           {tab === "topology" && <TopologyView />}
           {tab === "sweeps" && <SweepView />}
+          {tab === "cohorte" && <CohortView />}
+          {tab === "energie" && <EnergyView />}
           {tab === "academy" && <AcademyView />}
           {tab === "laboratoire" && <LaboratoryView />}
           {tab === "timeline" && <TimelineViewer />}
           {tab === "provenance" && <ProvenanceView />}
+          {tab === "carnet" && <CarnetView />}
+          {tab === "synthese" && <EdrIndexView />}
           {tab === "sandbox" && (
             <>
               <RunLauncher />

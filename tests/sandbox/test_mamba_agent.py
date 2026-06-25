@@ -40,8 +40,8 @@ def test_mamba_agent_from_genome():
     )
     
     agent = MambaAgent(num_inputs=45, num_outputs=65, num_nodes=96)
-    agent.from_genome(old_genome)
-    
+    agent.from_genome(old_genome, preserve_dims=False)   # chemin d'aplatissement V18 (opt-in depuis la bascule)
+
     # Should be upgraded to 64 (expected_inputs of V18)
     assert agent.genome.num_inputs == 64
     assert agent.genome.num_outputs == 126

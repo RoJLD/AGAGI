@@ -205,3 +205,88 @@ vérification (thresholds/router vivants). On re-audite proprement AVANT d'élag
 
 > **Discipline** (Commandement 15) : 1 variable par expérience, ≥ ce que la puissance exige,
 > verdict par X2 (transfer-ratio appariée), valide ou revert. Élaguer/câbler un gène = **1 variable**.
+
+---
+
+## 4. Audit substrat (2026-06-25) — espace de conception & backlog par axe
+
+Audit *grounded* (3 explorations, evidence file:line). **Constat dominant** : le piège récurrent du
+projet n'est PAS « il manque des types » mais **« l'infrastructure existe sans être fonctionnelle/
+sélectionnée »** (NTM, RAG, dreaming, self-attention, goal/predictor heads : bâtis, presque jamais
+câblés au comportement ni sélectionnés). Cf. EDR 010 (« le monde n'exige pas l'intelligence »).
+
+**Légende** : 🟢 vivant & câblé · 🟡 infra présente mais stubbée/non sélectionnée · 🔴 mort (muté/déclaré, jamais lu) · ⚪ absent.
+
+**Stratégie retenue (robla, 2026-06-25)** : **activer l'existant stubbé → ajouter les primitives manquantes → diagnostiquer**, avec **diagnostic APRÈS CHAQUE activation** (pas en bloc — leçon du confond `from_genome` sur D1/D2/A2). Chaque item = activation/ajout + son **test de sélection**.
+
+### Axe 1 — Types d'unités / neurones
+- 🟢 Vivants : unité Liquid-Mamba rate-based (tanh, constante de temps/nœud via `sigmoid(diag W)`), seuils par nœud, neuromodulation par gain (`W_router`), sparsité imposée KWTA (D2, +47%).
+- ⚪ **À ajouter (backlog)** : inhibition explicite / types E-I (Dale) → recoupe **D3 (nœuds typés)** ; spiking (reset/réfractaire/ISI) + STDP → recoupe **D5 (SNN+STDP)** ; calcul dendritique/compartiments ; plasticité homéostatique ; gap junctions.
+
+### Axe 2 — Mémoires
+- 🟢 Vivants : mémoire de travail (`H` récurrent), world-model prédictif par agent (`Wp`→surprise, RND).
+- 🟡 **À activer (backlog, priorité)** : **mémoire NTM** (têtes read/write câblées mais `explicit_memory` jamais utilisée en entrée / jamais apprise → toujours `[0,0,0,0,0]`) ; **lecture épisodique RAG** (KuzuDB écrit mais lu seulement si `active_exp_variable=="RAG"`, jamais en prod ; ⚠️ risque non-repro mémoire ambiante).
+- 🔴 **À trancher** : `memory_cache`, `H_history`, `bytecode` (procédurale) — déclarés, jamais relus (cf. §3 Phase 0).
+- ⚪ **À ajouter** : mémoire sémantique (faits/concepts), associative (Hopfield), consolidation/replay hors-ligne *utile*, oubli actif (decay/reset).
+
+### Axe 3 — Plasticité / modulation / organes
+- 🟢 Vivants : Actor-Critic TD(0) + crédit d'action (apprentissage intra-vie prouvé, craft 18 vs 0, EDR 020), masque d'attention appris, tête référentielle (langage, EDR 074), `W_router`, `thresholds`.
+- 🟡 **À activer (backlog)** : ~~dreaming → planificateur~~ → **TESTÉ : depth-1 RÉFUTÉ** (banc équitable, PLAN_PERD ; voir sous-projet ci-dessous) — reste depth-k/g bilinéaire ; self-attention QKV (organe quasi jamais sélectionné) ; `goal_vector`/`predictor_head`/`value_head` hors-dreaming (extraits, pas de boucle de feedback).
+- ⚪ **À ajouter** : plasticité locale Hebbian/STDP (complément du TD) ; neuromodulation fonctionnelle (gating par canal, modulation du learning-rate) ; méta-apprentissage (lr appris) ; contrôle hiérarchique réel (manager→worker, options ; `goal_vector` est orphelin) ; imagination dirigée (= le planificateur ci-dessous).
+
+### Sous-projet Dreaming → Planificateur (latent Dreamer-lite) — depth-1 RÉFUTÉ (2026-06-25)
+**Statut : LIVRÉ (gaté OFF) + depth-1 réfuté par banc équitable → depth-k différé.**
+Spec `docs/superpowers/specs/2026-06-25-dreaming-planner-design.md`, plan `docs/superpowers/plans/2026-06-25-dreaming-planner.md`.
+Implémenté (SDD, Tasks 1-6, tout gaté `MambaBatchModel.PLAN_BIAS=0.0` défaut → **non-régressif**) :
+anticipation conditionnée par l'action `g(H,a)→H'` (apprise en ligne par agent), rollout profondeur-1
+sur les actions, scoré par la `value_head`, **biais** sur les logits de politique ; + banc d'anticipation
+équitable réutilisable (`tools/anticipation_bench.py` : danger télégraphié, gap temporel, respawn,
+danger-avoidance rate).
+**VERDICT (banc équitable, g convergé mean|G|>0) : `PLAN_PERD`** (median_ratio 0.714@1000 / 0.391@1500
+steps, n_fav 3/8) — le lookahead depth-1 + `g` linéaire **NUIT** (perturbe la politique réactive), cohérent
+avec le dreaming nuisible (EDR 095). La méthode a évité un run powered stoneage sur un mécanisme réfuté.
+**Backlog (futur cycle)** : depth-k (déroulé multi-pas), `g` bilinéaire state-dépendante — seules pistes
+restantes pour rendre l'anticipation utile ; à brainstormer séparément.
+
+### Sous-projet ACTIF — Rêve = entraînement offline (Dyna value-augmentation) (2026-06-25)
+**Recadrage post-réfutation** : le depth-1 a échoué en MÉLANGEANT rêve et pensée (biais d'imagination
+sur l'action en direct). Principe corrigé (Dreamer) : **modes séparés** — la pensée agit en ligne
+(inchangée), le rêve entraîne la value head HORS-LIGNE via `g`. Spec
+`docs/superpowers/specs/2026-06-25-dream-offline-training-design.md`.
+**De-risqué** : une **sonde de fidélité de `g`** (étape A, go/no-go) mesure si `g` bat la baseline
+naïve en prédiction 1-pas AVANT de bâtir Dyna ; sinon → escalader `g` bilinéaire d'abord.
+Composants (gatés `PLAN_DYNA=0.0` défaut, non-régressif) : sonde A · reward head `r̂` (réutilise
+`predictor_head` inutilisé) · replay buffer per-agent · boucle Dyna offline (value head SEULE, aucun
+biais d'action). Validation : sonde A → bench Dyna → ablation stoneage.
+
+**ÉTAT Phase A (sonde de fidélité de `g`) — LIVRÉE (`tools/g_fidelity_probe.py`), GO CONDITIONNEL :**
+Trois mesures : zéro-obs → G_FIDELE (artefact trivial) ; random-obs → G_INUTILE (artefact : obs
+synthétiques **sévèrent** le lien action→obs-suivante, `g` ne peut prédire par construction) ;
+**env à conséquences réelles (grille banc) → G_FIDELE FIABLE** (median_ratio 0.357 = 2.8×, 82 % fav,
+sign_p 0, 3 colonnes `G` entraînées). **Leçon** : `g` linéaire EST exploitable QUAND l'action influence
+réellement l'obs suivante. ⚠️ **CAVEAT (revue opus) : la grille 1-D éparse est le cas le PLUS FAVORABLE
+à un `g` linéaire état-indépendant** (bouger = décalage one-hot déterministe) → ne prouve PAS la fidélité
+sur obs riches stoneage (même geste → ΔH différents selon contexte = besoin `g` bilinéaire). Et c'est
+l'env où `g` a échoué comme biais (depth-1).
+
+**ÉTAT Phase A bis (g-fidelity sur obs RICHES stoneage) — BLOQUÉ → ARC EN PAUSE (2026-06-25) :**
+La sonde stoneage (`collect_ratios_stoneage`, `tools/g_fidelity_probe.py`) retourne **n=0 transitions** :
+les agents meurent (~8-15 ticks) bien avant que `g` ne puisse apprendre → fidélité rich-obs **non
+mesurable** tant que le substrat n'est pas survivable. **MÉTA-LEÇON (3× confirmée : depth-1, Dyna-offline,
+g-fidelity-stoneage)** : le facteur limitant de TOUTE cognition model-based est la **survivabilité du
+substrat**, pas la machinerie cognitive — `g` ne peut apprendre en ~10 ticks. C'est le MÊME mur que l'arc
+Lewis/EDR (105/106 : goulot = navigation/approche). **DÉCISION robla : PAUSE de l'arc rêve-offline/Dyna**
+(tout gaté OFF, rien perdu) → **porter l'effort sur le goulot réel = survie/Lewis**. La cognition
+model-based (Dyna, `g` bilinéaire, depth-k) reprendra QUAND le substrat survivra assez longtemps pour que
+`g` apprenne. Sonde `g_fidelity_probe` conservée comme diagnostic réutilisable (3 modes : synthétique,
+banc-grille, stoneage).
+
+### Backlog différé (NAS Axe 3, futurs cycles brainstorm)
+- **Dreamer complet** : actor-critic en imagination (entraîner aussi la politique) — après fiabilisation de `g`.
+- **Dyna+ / organe MÉDITATION-consolidation** : mixer le replay du vécu RÉEL (consolidation, mode cognitif
+  absent) avec l'imagination — fusionne deux directions. *Mode « méditation » = découplé + activité réduite,
+  distinct du rêve ; recoupe consolidation/replay (Axe 2) + homéostasie (Axe 1).*
+- **depth-k** planificateur + **`g` bilinéaire** state-dépendante (aussi cible d'escalade si sonde A échoue).
+- **Outil EDR multi-lentilles** : à la clôture d'un run EDR, générer des interprétations
+  anthropologue/éthologue/biologiste/neuroscientifique du comportement (sous-agents à lentilles) pour
+  « chercher plus loin ». Cycle d'OUTILLAGE d'analyse, orthogonal au substrat — brainstorm séparé.

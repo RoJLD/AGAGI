@@ -1,6 +1,7 @@
 import {
   Activity,
   BarChart3,
+  CandlestickChart,
   Compass,
   Database,
   FlaskConical,
@@ -8,11 +9,14 @@ import {
   Gauge,
   GraduationCap,
   History,
+  ListChecks,
   Network,
+  NotebookPen,
   ShieldAlert,
   Spline,
   TrendingUp,
   Workflow,
+  Zap,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { TabItem } from "./components/ui/Tabs";
@@ -25,6 +29,8 @@ export const TAB_KEYS = [
   "comparison",
   "topology",
   "sweeps",
+  "cohorte",
+  "energie",
   "parcours",
   "laboratoire",
   "sandbox",
@@ -32,6 +38,8 @@ export const TAB_KEYS = [
   "academy",
   "timeline",
   "provenance",
+  "carnet",
+  "synthese",
 ] as const;
 
 export type TabKey = (typeof TAB_KEYS)[number];
@@ -71,6 +79,8 @@ export const TAB_FAMILIES: TabFamily[] = [
       { key: "comparison", label: "Comparaison", icon: BarChart3 },
       { key: "topology", label: "Topologie", icon: Network },
       { key: "sweeps", label: "Sweeps", icon: Spline },
+      { key: "cohorte", label: "Cohorte", icon: CandlestickChart },
+      { key: "energie", label: "Énergie", icon: Zap },
     ],
   },
   {
@@ -88,6 +98,8 @@ export const TAB_FAMILIES: TabFamily[] = [
       { key: "academy", label: "Academy", icon: GraduationCap },
       { key: "timeline", label: "Chronologie", icon: History },
       { key: "provenance", label: "Provenance", icon: Workflow },
+      { key: "carnet", label: "Carnet", icon: NotebookPen },
+      { key: "synthese", label: "Fil EDR", icon: ListChecks },
     ],
   },
 ];

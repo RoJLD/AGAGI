@@ -464,3 +464,64 @@ body {
   background: var(--color-accent);
   color: var(--color-bg);
 }
+
+/* ============================ SweepView ============================ */
+
+.sweep-series {
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+.sweep-series legend {
+  padding: 0 6px;
+  color: var(--color-text-dim);
+  font-size: 0.85rem;
+}
+.checkbox-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 16px;
+}
+
+/* ============================ RunNotes ============================ */
+
+.run-notes__list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.run-notes__item {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+.run-notes__ts {
+  font-size: var(--font-size-xs);
+  white-space: nowrap;
+}
+.run-notes__text {
+  flex: 1;
+}
+
+.carnet-feed {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.carnet-feed__item {
+  border-left: 2px solid var(--color-border);
+  padding-left: var(--space-3);
+}
+.carnet-feed__meta {
+  font-size: var(--font-size-xs);
+}
+.carnet-feed__text {
+  margin: var(--space-1) 0 0;
+}
