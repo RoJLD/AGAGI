@@ -133,11 +133,13 @@ class MambaAgent(BaseAgent):
         new_agent.predictor_head = self.predictor_head.copy() if self.predictor_head is not None else None
         return new_agent
 
-    def from_genome(self, genome: Genome, preserve_dims: bool = False):
+    def from_genome(self, genome: Genome, preserve_dims: bool = True):
         """Utile pour charger un génome depuis le Hall of Fame.
-        preserve_dims=True : garde l'architecture réelle du génome (num_nodes/I/O) au lieu de l'aplatir
-        à 64/126/172. Défaut False = comportement historique (NON-RÉGRESSION production). NAS substrat :
-        le défaut écrase la topologie évoluée (add_node) et force hidden=-18 (cf. mémoire keystone)."""
+        preserve_dims=True (DÉFAUT depuis la bascule) : garde l'architecture réelle du génome
+        (num_nodes/I/O) — l'évolution topologique (add_node) est préservée. Non-régression mesurée verte
+        (compétence OFF/ON indistinguable, sign_p 0.727). preserve_dims=False = ancien comportement
+        historique : aplatit à 64/126/172 (hidden=-18, écrase la topologie ; cf. mémoire keystone)
+        — encore atteignable explicitement pour comparer à l'ancien substrat."""
         self.genome = copy.deepcopy(genome)
 
         if preserve_dims:
