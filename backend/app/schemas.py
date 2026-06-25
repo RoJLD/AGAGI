@@ -140,6 +140,12 @@ class ABCompareResult(BaseModel):
     d_thresh: float
 
 
+class DistributionSummary(BaseModel):
+    name: str
+    vals: list[float]
+    n: int
+
+
 class SweepResult(BaseModel):
     """Un sweep : une métrique tracée le long d'un paramètre balayé (knob).
     x = valeurs du paramètre ; series[<metric>] = série Y de même longueur ;
