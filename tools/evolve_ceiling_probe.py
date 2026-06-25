@@ -28,6 +28,7 @@ from src.seed_ai.harness import SeedManager, Harness
 from src.seed_ai.persistence import calculate_life_score
 from src.seed_ai.mutation import MutationConfig, apply_mutations
 from src.seed_ai.repopulation import build_population
+from src.seed_ai.evolution import tournament_selection
 from src.agents.mamba_agent import MambaAgent
 from main_biosphere import init_primordial_soup
 from main_curriculum import _prepare_world, _acquire_shared_db
@@ -45,13 +46,16 @@ def _agent_stats(all_agents):
 
 
 def run_evolution(target, k_eras, num_agents, max_ticks, shared_db,
-                  preserve_dims, node_cap, experiment_seed=0):
-    """K ères en `target`, carry des top-3 champions EN MÉMOIRE entre ères. preserve_dims appliqué
-    au ré-import inter-ère. Retourne la trajectoire par ère (apex + taille réseau)."""
+                  preserve_dims, node_cap, experiment_seed=0,
+                  select="elitist", n_carry=12, tournament_size=3, pop_cap=None):
+    """K ères en `target`, carry des champions EN MÉMOIRE entre ères. preserve_dims appliqué au
+    ré-import inter-ère. select='elitist' (top-3) | 'diverse' (tournoi sur toute la population, EDR 105
+    corollaire). pop_cap borne la repro intra-ère (config.max_population). Retourne la trajectoire."""
     comp_fn = competence_for(target)
     config = WorldConfig()
     config.base_metabolism = float(os.environ.get("CT_METAB", "0.25"))
     config.forage_payoff = float(os.environ.get("CT_PAYOFF", "3.0"))
+    config.max_population = pop_cap     # None = pas de cap (historique) ; sinon borne le runaway (EDR 105)
 
     mut_config = MutationConfig(weight_init_std=2.0)
     heavy = copy.deepcopy(mut_config)            # fraction exploratrice (comme init_primordial_soup)
@@ -89,6 +93,8 @@ def run_evolution(target, k_eras, num_agents, max_ticks, shared_db,
         all_agents = env.agents + env.dead_agents
         stats = _agent_stats(all_agents)
         nodes = [a["model"].genome.num_nodes for a in all_agents if a.get("model") is not None]
+        w_means = [a["model"].genome.W.mean() for a in all_agents if a.get("model") is not None]
+        genome_diversity = round(float(statistics.pstdev(w_means)), 4) if len(w_means) > 1 else 0.0
         row = {
             "era": era,
             "frac_apex": round(_frac_reaching(stats, "mammoth_kills"), 4),
@@ -99,21 +105,30 @@ def run_evolution(target, k_eras, num_agents, max_ticks, shared_db,
             "n": len(all_agents),
             "ticks": t,
             "cap_hits": cap_hits,
+            "genome_diversity": genome_diversity,
         }
         per_era.append(row)
         log.info("  era=%d apex=%.3f C=%.3f mean_nodes=%.1f max_nodes=%d n=%d t=%d cap_hits=%d",
                  era, row["frac_apex"], row["median_competence"], row["mean_nodes"],
                  row["max_nodes"], row["n"], t, cap_hits)
 
-        # Sélection -> carry (proxy fidèle de la sélection générationnelle, top-3 par life_score).
-        top = sorted(all_agents, key=calculate_life_score, reverse=True)[:3]
-        carried = [copy.deepcopy(a["model"].genome) for a in top if a.get("model") is not None]
+        # Sélection -> carry. elitist=top-3 (EDR 105 baseline) ; diverse=tournoi sur TOUTE la pop.
+        pool = [a for a in all_agents if a.get("model") is not None]
+        if select == "diverse" and pool:
+            fits = [calculate_life_score(a) for a in pool]
+            genomes_pool = [a["model"].genome for a in pool]
+            idxs = [tournament_selection(genomes_pool, fits, tournament_size) for _ in range(n_carry)]
+            carried = [copy.deepcopy(genomes_pool[i]) for i in idxs]
+        else:
+            top = sorted(all_agents, key=calculate_life_score, reverse=True)[:3]
+            carried = [copy.deepcopy(a["model"].genome) for a in top if a.get("model") is not None]
 
         if hasattr(env, "memory_retriever"):
             env.memory_retriever.stop()
 
     return {"target": target, "preserve_dims": preserve_dims, "k_eras": k_eras,
-            "node_cap": node_cap, "per_era": per_era}
+            "node_cap": node_cap, "select": select, "n_carry": n_carry, "pop_cap": pop_cap,
+            "per_era": per_era}
 
 
 def main():
@@ -124,17 +139,24 @@ def main():
     node_cap = int(os.environ.get("EVP_NODE_CAP", "512"))
     preserve_dims = os.environ.get("EVP_PRESERVE_DIMS", "") == "1"
     experiment_seed = int(os.environ.get("EXPERIMENT_SEED", "0"))
+    select = os.environ.get("EVP_SELECT", "elitist")
+    n_carry = int(os.environ.get("EVP_N_CARRY", "12"))
+    tournament_size = int(os.environ.get("EVP_TOURNAMENT", "3"))
+    _cap_env = os.environ.get("EVP_POP_CAP", "")
+    pop_cap = int(_cap_env) if _cap_env else None
 
     from src.graph_rag.async_logger import logger as async_logger
     async_logger.start()
     try:
         shared_db = _acquire_shared_db()
         log.info("=== Evolve ceiling : cible=%s preserve=%s K=%d agents=%d ticks=%d cap=%d seed=%d "
-                 "metab=%s payoff=%s ===", target, preserve_dims, k, num_agents, max_ticks, node_cap,
-                 experiment_seed, os.environ.get("CT_METAB", "0.25"), os.environ.get("CT_PAYOFF", "3.0"))
+                 "select=%s n_carry=%d pop_cap=%s metab=%s payoff=%s ===", target, preserve_dims, k,
+                 num_agents, max_ticks, node_cap, experiment_seed, select, n_carry, pop_cap,
+                 os.environ.get("CT_METAB", "0.25"), os.environ.get("CT_PAYOFF", "3.0"))
         result = run_evolution(target, k, num_agents, max_ticks, shared_db,
                                preserve_dims=preserve_dims, node_cap=node_cap,
-                               experiment_seed=experiment_seed)
+                               experiment_seed=experiment_seed, select=select,
+                               n_carry=n_carry, tournament_size=tournament_size, pop_cap=pop_cap)
     finally:
         async_logger.stop()
 
