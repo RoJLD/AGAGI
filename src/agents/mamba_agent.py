@@ -306,6 +306,11 @@ class MambaBatchModel:
     KWTA_KEEP_FRAC = 1.0        # NAS Axe D-2 : fraction de cachés gardés actifs (1.0 = off)
     FORCE_DREAM = None          # intervention causale (EDR 094) : None|"off"|int K (profondeur forcée)
 
+    # NAS Axe 3 — Planificateur latent (activation du dreaming). Défaut OFF (non-régressif).
+    PLAN_BIAS = 0.0   # poids du biais des logits d'action par le plan (0 = planificateur désactivé)
+    PLAN_LR = 0.05    # taux d'apprentissage en ligne de g
+    PLAN_A = 8        # nombre d'actions planifiées (= logits de déplacement 0..7)
+
     def __init__(self, agents: list[MambaAgent], world_model=None):
         self.agents = agents
         self.B = len(agents)
@@ -417,6 +422,15 @@ class MambaBatchModel:
                 w = getattr(a, 'world_model_Wp', None)
                 if w is not None and getattr(w, 'shape', None) == (dim, od):
                     self.Wp_batch[i] = w
+
+        # NAS Axe 3 — modèle de transition action-conditionné g, par agent (round-trip ordre nœud).
+        A = MambaBatchModel.PLAN_A
+        self.G_batch = np.zeros((self.B, A, self.max_N), dtype=np.float32)
+        for i, a in enumerate(agents):
+            g = getattr(a, 'planner_G', None)
+            N_i = a.genome.num_nodes
+            if g is not None and getattr(g, 'shape', None) == (A, N_i):
+                self.G_batch[i][:, self.mappings[i]] = g     # projette (A,N_i) -> (A,max_N)
 
         self.tick_count = 0
 
@@ -699,6 +713,7 @@ class MambaBatchModel:
             a.last_obs = x_obs[i].copy()  # World Model : mémoriser obs(t) pour prédire t+1
             if self.Wp_batch is not None:
                 a.world_model_Wp = self.Wp_batch[i].copy()  # World Model par-agent (EDR 015)
+            a.planner_G = self.G_batch[i][:, map_idx].copy()   # extrait (A,N_i) en ordre nœud
             a.genome.W = self.W_batch[i][map_idx[:, None], map_idx[None, :]].copy()
 
         return preds, compute_spent
