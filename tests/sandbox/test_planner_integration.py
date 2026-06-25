@@ -47,3 +47,22 @@ def test_plan_bias_on_shifts_action_logits():
         assert int(np.argmax(preds[0, :8])) == 3     # le plan pousse l'action 3
     finally:
         MambaBatchModel.PLAN_BIAS = 0.0              # restaurer le défaut global
+
+
+def test_g_learns_from_executed_transition():
+    a = MambaAgent(); a.genome.organ_genes = np.array([True, False])
+    obs = np.zeros((1, a.genome.num_inputs), dtype=np.float32)
+    MambaBatchModel.PLAN_BIAS = 1.0
+    try:
+        m = MambaBatchModel([a])
+        actions = [{"move": 2, "grab": 0, "rub": 0}]
+        # tick t : forward + enregistrer la transition (pas encore de MAJ, pas de tick précédent)
+        m.forward(obs); m.compute_policy_gradient(np.array([0.0]), actions)
+        G_before = m.G_batch.copy()
+        # tick t+1 : nouvelle obs -> H_rec change -> MAJ différée de G[move=2]
+        obs2 = np.ones((1, a.genome.num_inputs), dtype=np.float32)
+        m.forward(obs2); m.compute_policy_gradient(np.array([0.0]), actions)
+        assert not np.allclose(m.G_batch[0, 2], G_before[0, 2])   # G[2] a appris
+        assert np.allclose(m.G_batch[0, 5], G_before[0, 5])       # actions non jouées inchangées
+    finally:
+        MambaBatchModel.PLAN_BIAS = 0.0

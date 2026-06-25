@@ -11,7 +11,7 @@ from src.seed_ai.rl_evolution import recurrent_forward
 from src.metaprog.ntm_compiler import NTMProgramCompiler
 from src.agents.world_model import WorldModel
 from src.seed_ai.policy_gradient import reinforce_action_update, td_error
-from src.agents.planner import plan_rollout, normalize_q
+from src.agents.planner import plan_rollout, normalize_q, update_transition
 
 class MambaAgent(BaseAgent):
     """
@@ -804,7 +804,18 @@ class MambaBatchModel:
                 self.W_batch[i][map_idx[:, None], map_idx[None, :]] = W_block
                 self.agents[i].genome.W = W_block.copy()
 
+                if MambaBatchModel.PLAN_BIAS > 0.0 and prev.get("h_rec") is not None \
+                        and getattr(self, "H_rec_batch", None) is not None:
+                    cur_hrec = self.H_rec_batch[i, map_idx]                 # (N_i,) ordre nœud
+                    pm = int(prev["act"].get("move", -1))
+                    self.G_batch[i][:, map_idx] = update_transition(
+                        self.G_batch[i][:, map_idx][None, ...],            # (1,A,N_i)
+                        prev["h_rec"][None, :], cur_hrec[None, :],
+                        np.array([pm]), MambaBatchModel.PLAN_LR)[0]
+
             # Mémoriser la transition courante pour l'update différé du prochain tick.
+            hrec_t = (self.H_rec_batch[i, self.mappings[i]].copy()
+                      if getattr(self, "H_rec_batch", None) is not None else None)
             self.agents[i]._td = {"h": h_t.copy(), "out": out_t.copy(), "value": v_t,
                                   "reward": float(rewards_batch[i]), "act": act,
-                                  "v_node": N_i - O_i + 28}
+                                  "v_node": N_i - O_i + 28, "h_rec": hrec_t}
