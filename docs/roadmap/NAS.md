@@ -259,6 +259,18 @@ Composants (gatés `PLAN_DYNA=0.0` défaut, non-régressif) : sonde A · reward 
 `predictor_head` inutilisé) · replay buffer per-agent · boucle Dyna offline (value head SEULE, aucun
 biais d'action). Validation : sonde A → bench Dyna → ablation stoneage.
 
+**ÉTAT Phase A (sonde de fidélité de `g`) — LIVRÉE (`tools/g_fidelity_probe.py`), GO CONDITIONNEL :**
+Trois mesures : zéro-obs → G_FIDELE (artefact trivial) ; random-obs → G_INUTILE (artefact : obs
+synthétiques **sévèrent** le lien action→obs-suivante, `g` ne peut prédire par construction) ;
+**env à conséquences réelles (grille banc) → G_FIDELE FIABLE** (median_ratio 0.357 = 2.8×, 82 % fav,
+sign_p 0, 3 colonnes `G` entraînées). **Leçon** : `g` linéaire EST exploitable QUAND l'action influence
+réellement l'obs suivante. ⚠️ **CAVEAT (revue opus) : la grille 1-D éparse est le cas le PLUS FAVORABLE
+à un `g` linéaire état-indépendant** (bouger = décalage one-hot déterministe) → ne prouve PAS la fidélité
+sur obs riches stoneage (même geste → ΔH différents selon contexte = besoin `g` bilinéaire). Et c'est
+l'env où `g` a échoué comme biais (depth-1). **PROCHAIN PAS avant de bâtir Dyna : mesurer la fidélité de
+`g` sur obs riches/stoneage** ; si ça tient → GO Dyna ; sinon → escalader **`g` bilinéaire** (`H'=H_rec+W_a·H`)
+d'abord (branche la moins chère où se tromper, cf. Risk 1 du spec).
+
 ### Backlog différé (NAS Axe 3, futurs cycles brainstorm)
 - **Dreamer complet** : actor-critic en imagination (entraîner aussi la politique) — après fiabilisation de `g`.
 - **Dyna+ / organe MÉDITATION-consolidation** : mixer le replay du vécu RÉEL (consolidation, mode cognitif
