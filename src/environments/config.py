@@ -56,6 +56,7 @@ class WorldConfig:
     ttc_night_penalty: float = 2.5
     ttc_surprise_scale: float = 1.0
     trace_energy_sinks: bool = False   # EDR099 : decompose le drain par phase (opt-in, defaut OFF)
+    trace_forage: bool = False         # EDR105 : decompose l'entonnoir de forage (opt-in, defaut OFF)
 
     # Surprise-Triggered HGT
     hgt_surprise_threshold: float = 0.75

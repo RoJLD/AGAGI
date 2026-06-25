@@ -651,6 +651,8 @@ class Biosphere3D(BaseWorld):
             lam = anneal(getattr(self, "current_era", 1), self.scaffold_eras)
             agent["energy"] += approach_reward(agent.get("last_prey_dist", d), d, self.scaffold_eps, lam)
             agent["last_prey_dist"] = d
+            if getattr(self.config, "trace_forage", False):
+                agent["_forage_min_dist"] = min(agent.get("_forage_min_dist", d), d)
 
         if getattr(self.config, "trace_energy_sinks", False):
             agent["_s3_bio"] = agent["energy"]               # EDR100 : avant carry
@@ -684,6 +686,8 @@ class Biosphere3D(BaseWorld):
         # Hunt / Attack (Asymmetrical combat)
         attacked_prey = next((p for p in self.preys if agent["x"] == p["x"] and agent["y"] == p["y"]), None)
         if attacked_prey:
+            if getattr(self.config, "trace_forage", False):
+                agent["_forage_contacts"] = agent.get("_forage_contacts", 0) + 1
             cfg_atk = self.config.preys.get(attacked_prey["type"], None)
             holds_spear = has_spear(agent["inventory"])
             # Coup CRITIQUE annealé (EDR 022) : décisif uniquement avec une lance contre un
@@ -743,6 +747,8 @@ class Biosphere3D(BaseWorld):
                 else:
                     agent["energy"] = min(self.config.agent.energy_max, agent["energy"] + reward)
                     agent["preys_eaten"] += 1
+                    if getattr(self.config, "trace_forage", False):
+                        agent["_forage_income"] = agent.get("_forage_income", 0.0) + reward
                 self.preys.remove(attacked_prey)
                 # RARETÉ (Step 2) : plus de respawn instantané — régénération lente ailleurs.
                 logger.emit("PREY_KILLED", {"agent_id": agent["id"], "prey_type": attacked_prey["type"], "reward": float(reward)})
