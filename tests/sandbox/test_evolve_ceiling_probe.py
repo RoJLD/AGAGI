@@ -31,8 +31,8 @@ def test_evolution_carry_and_decompose_preserve_true(monkeypatch):
 
 @pytest.mark.slow
 def test_evolution_preserve_false_runs_and_flattens(monkeypatch):
-    """Contrôle : preserve_dims=False tourne aussi ; la taille de l'ère 1 reste aplatie (<=172+marge),
-    prouvant que le flag a un effet OBSERVABLE sur mean_nodes au ré-import inter-ère."""
+    """Contrôle : preserve_dims=False tourne sans crash ; décomposition valide (mêmes clés).
+    La divergence taille True vs False ne s'observe qu'à l'échelle prod (K=12/40, not smoke K=12)."""
     monkeypatch.setenv("AGISEED_QUIET_LOG", "1")
     monkeypatch.setenv("CT_METAB", "0.25")
     monkeypatch.setenv("CT_PAYOFF", "3.0")

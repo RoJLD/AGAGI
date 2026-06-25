@@ -35,10 +35,6 @@ from main_curriculum import _prepare_world, _acquire_shared_db
 log = logging.getLogger("AGIseed.EvolveCeiling")
 
 
-def _median(xs):
-    return float(statistics.median(xs)) if xs else 0.0
-
-
 def _agent_stats(all_agents):
     """Mêmes champs que target_competence_probe (signaux vivants EDR 096)."""
     return [{"age": a.get("age", 0), "energy": a.get("energy", 0.0),
