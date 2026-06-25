@@ -566,19 +566,21 @@ class Biosphere3D(BaseWorld):
                 p["stunned"] -= 1
                 continue
                 
+            scale = getattr(self.config, "prey_speed_scale", 1.0)   # EDR106 : 0 = proies figees
             fled = False
-            for fx, fy in fire_pos:
-                if abs(p["x"] - fx) <= 2 and abs(p["y"] - fy) <= 2:
-                    p["x"] += 1 if p["x"] > fx else -1
-                    p["y"] += 1 if p["y"] > fy else -1
-                    p["x"] = np.clip(p["x"], 0, self.size - 1)
-                    p["y"] = np.clip(p["y"], 0, self.size - 1)
-                    fled = True
-                    break
+            if scale > 0:                                            # EDR106 : figees -> ne fuient pas le feu
+                for fx, fy in fire_pos:
+                    if abs(p["x"] - fx) <= 2 and abs(p["y"] - fy) <= 2:
+                        p["x"] += 1 if p["x"] > fx else -1
+                        p["y"] += 1 if p["y"] > fy else -1
+                        p["x"] = np.clip(p["x"], 0, self.size - 1)
+                        p["y"] = np.clip(p["y"], 0, self.size - 1)
+                        fled = True
+                        break
             if fled: continue
-                
+
             cfg = self.config.preys.get(p["type"], None)
-            moves_per_tick = cfg.moves_per_tick if cfg else 0
+            moves_per_tick = (cfg.moves_per_tick if cfg else 0) * scale   # EDR106 : vitesse echelonnee
             
             # Handle fractional moves (e.g. 0.2 means 20% chance to move)
             moves = int(moves_per_tick)
@@ -749,6 +751,8 @@ class Biosphere3D(BaseWorld):
                     agent["preys_eaten"] += 1
                     if getattr(self.config, "trace_forage", False):
                         agent["_forage_income"] = agent.get("_forage_income", 0.0) + reward
+                        sp = agent.setdefault("_forage_species", {})   # EDR106 : captures par espece
+                        sp[attacked_prey["type"]] = sp.get(attacked_prey["type"], 0) + 1
                 self.preys.remove(attacked_prey)
                 # RARETÉ (Step 2) : plus de respawn instantané — régénération lente ailleurs.
                 logger.emit("PREY_KILLED", {"agent_id": agent["id"], "prey_type": attacked_prey["type"], "reward": float(reward)})
