@@ -1,6 +1,7 @@
 import {
   Activity,
   BarChart3,
+  CandlestickChart,
   Compass,
   Database,
   FlaskConical,
@@ -25,6 +26,7 @@ export const TAB_KEYS = [
   "comparison",
   "topology",
   "sweeps",
+  "cohorte",
   "parcours",
   "laboratoire",
   "sandbox",
@@ -71,6 +73,7 @@ export const TAB_FAMILIES: TabFamily[] = [
       { key: "comparison", label: "Comparaison", icon: BarChart3 },
       { key: "topology", label: "Topologie", icon: Network },
       { key: "sweeps", label: "Sweeps", icon: Spline },
+      { key: "cohorte", label: "Cohorte", icon: CandlestickChart },
     ],
   },
   {

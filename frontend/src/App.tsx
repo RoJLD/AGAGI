@@ -24,6 +24,7 @@ const RunsHistoryView = lazy(() => import("./components/RunsHistoryView").then((
 const HealthView = lazy(() => import("./components/HealthView").then((m) => ({ default: m.HealthView })));
 const ParcoursView = lazy(() => import("./components/parcours/ParcoursView").then((m) => ({ default: m.ParcoursView })));
 const SweepView = lazy(() => import("./components/SweepView").then((m) => ({ default: m.SweepView })));
+const CohortView = lazy(() => import("./components/CohortView").then((m) => ({ default: m.CohortView })));
 
 export default function App() {
   const { theme, toggle } = useTheme();
@@ -78,6 +79,7 @@ export default function App() {
           {tab === "comparison" && <ComparisonView />}
           {tab === "topology" && <TopologyView />}
           {tab === "sweeps" && <SweepView />}
+          {tab === "cohorte" && <CohortView />}
           {tab === "academy" && <AcademyView />}
           {tab === "laboratoire" && <LaboratoryView />}
           {tab === "timeline" && <TimelineViewer />}
