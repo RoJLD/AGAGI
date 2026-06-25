@@ -12,6 +12,7 @@ if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
 import numpy as np
+from src.agents.mamba_agent import MambaAgent, MambaBatchModel
 
 
 def transition_error(H_prev, g_delta, H_next):
@@ -50,3 +51,63 @@ def fidelity_verdict(ratios) -> dict:
         verdict = "NEUTRE"
     return {"median_ratio": float(med), "n_favorable": int(n_fav), "n": int(n),
             "sign_p": float(sign_p), "verdict": verdict}
+
+
+def collect_ratios(seed: int, warmup: int = 300, measure: int = 300):
+    """Boucle pilotée minimale : obs zéro (isole l'effet action), g apprend en ligne (PLAN_BIAS>0),
+    puis on enregistre g_err/base_err par transition (ordre nœud). Restaure les flags en finally."""
+    np.random.seed(seed)
+    a = MambaAgent()
+    a.genome.organ_genes = np.array([True, False])          # organe planificateur actif (g se met à jour)
+    prev_bias, prev_a, prev_lr = (MambaBatchModel.PLAN_BIAS, MambaBatchModel.PLAN_A, MambaBatchModel.PLAN_LR)
+    MambaBatchModel.PLAN_BIAS = 0.5
+    MambaBatchModel.PLAN_LR = 0.1
+    ratios = []
+    try:
+        m = MambaBatchModel([a])
+        # Initialiser l'état latent avec du bruit : obs=zéro → H resterait nul sans perturbation initiale.
+        # Le bruit (0.1) amorce la récurrence sans briser l'isolement de l'effet action (obs fixes).
+        m.H_prev_batch += np.random.randn(*m.H_prev_batch.shape).astype(np.float32) * 0.1
+        n_in = a.genome.num_inputs
+        obs = np.zeros((1, n_in), dtype=np.float32)         # obs constante -> seule l'action change le latent
+        map_idx = m.mappings[0]
+        prev_hrec = None
+        prev_move = None
+        for t in range(warmup + measure):
+            preds, _ = m.forward(obs)
+            move = int(np.argmax(preds[0, :MambaBatchModel.PLAN_A]))
+            # H_rec courant en ordre nœud (capturé par forward, avant le rêve)
+            cur_hrec = m.H_rec_batch[0, map_idx].copy()
+            if t >= warmup and prev_hrec is not None and prev_move is not None:
+                g_delta = m.G_batch[0][:, map_idx][prev_move]    # (N_i,) effet appris de l'action jouée
+                g_err, base_err = transition_error(prev_hrec, g_delta, cur_hrec)
+                if base_err > 1e-9:                              # ignorer les transitions nulles
+                    ratios.append(g_err / base_err)
+            # apprentissage en ligne de g (transition différée) : nécessite compute_policy_gradient
+            m.compute_policy_gradient(np.array([0.1], dtype=np.float32),
+                                      [{"move": move, "grab": 0, "rub": 0}])
+            prev_hrec, prev_move = cur_hrec, move
+    finally:
+        MambaBatchModel.PLAN_BIAS, MambaBatchModel.PLAN_A, MambaBatchModel.PLAN_LR = prev_bias, prev_a, prev_lr
+    return ratios
+
+
+def run_probe(seeds, warmup: int = 300, measure: int = 300) -> dict:
+    all_ratios = []
+    for s in seeds:
+        all_ratios.extend(collect_ratios(int(s), warmup, measure))
+    return fidelity_verdict(all_ratios)
+
+
+def main():
+    seeds = [int(s) for s in os.environ.get("GFP_SEEDS", "0,1,2,3,4,5,6,7").split(",") if s.strip()]
+    warmup = int(os.environ.get("GFP_WARMUP", "300"))
+    measure = int(os.environ.get("GFP_MEASURE", "300"))
+    out = run_probe(seeds, warmup, measure)
+    print(f"VERDICT={out['verdict']} median_ratio={out['median_ratio']:.3f} "
+          f"n_fav={out['n_favorable']}/{out['n']} sign_p={out['sign_p']:.3f}")
+    return out
+
+
+if __name__ == "__main__":
+    main()

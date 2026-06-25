@@ -37,3 +37,18 @@ def test_fidelity_verdict_neutral_and_no_nan():
     out = fidelity_verdict([1.0, 1.0])                        # égalités -> NEUTRE, pas de NaN
     assert out["verdict"] == "NEUTRE"
     assert np.isfinite(out["sign_p"])
+
+
+from tools.g_fidelity_probe import collect_ratios, run_probe
+
+
+def test_collect_ratios_returns_finite_positive():
+    ratios = collect_ratios(seed=0, warmup=20, measure=20)
+    assert len(ratios) > 0
+    assert all(np.isfinite(r) and r >= 0.0 for r in ratios)
+
+
+def test_run_probe_structure():
+    out = run_probe(seeds=[0, 1], warmup=20, measure=20)
+    assert set(["median_ratio", "n_favorable", "n", "sign_p", "verdict"]).issubset(out)
+    assert out["verdict"] in ("G_FIDELE", "G_INUTILE", "NEUTRE")
