@@ -683,6 +683,52 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "NoteCreate": {
+        "properties": {
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "NoteCreate",
+        "type": "object"
+      },
+      "NoteFeedItem": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "run_name": {
+            "title": "Run Name",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "ts": {
+            "title": "Ts",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "run_name",
+          "id",
+          "text",
+          "ts"
+        ],
+        "title": "NoteFeedItem",
+        "type": "object"
+      },
       "RunDetail": {
         "properties": {
           "commit": {
@@ -747,6 +793,29 @@
           }
         },
         "title": "RunLinks",
+        "type": "object"
+      },
+      "RunNote": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "ts": {
+            "title": "Ts",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "text",
+          "ts"
+        ],
+        "title": "RunNote",
         "type": "object"
       },
       "RunSummary": {
@@ -1571,6 +1640,32 @@
         ]
       }
     },
+    "/api/notes": {
+      "get": {
+        "description": "Flux agrégé de toutes les notes (carnet de labo), trié par horodatage décroissant.",
+        "operationId": "all_notes_api_notes_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/NoteFeedItem"
+                  },
+                  "title": "Response All Notes Api Notes Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "All Notes",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
     "/api/observability/logger": {
       "get": {
         "operationId": "observability_logger_api_observability_logger_get",
@@ -1977,6 +2072,158 @@
           }
         },
         "summary": "Set Run Links",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/runs/{run_id}/notes": {
+      "get": {
+        "description": "Notes du carnet pour un run (triées par horodatage croissant).",
+        "operationId": "list_notes_api_runs__run_id__notes_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RunNote"
+                  },
+                  "title": "Response List Notes Api Runs  Run Id  Notes Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Notes",
+        "tags": [
+          "runs"
+        ]
+      },
+      "post": {
+        "description": "Ajoute une note horodatée au run.",
+        "operationId": "add_note_api_runs__run_id__notes_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NoteCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunNote"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Note",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/runs/{run_id}/notes/{note_id}": {
+      "delete": {
+        "description": "Supprime une note du run.",
+        "operationId": "delete_note_api_runs__run_id__notes__note_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "note_id",
+            "required": true,
+            "schema": {
+              "title": "Note Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Delete Note Api Runs  Run Id  Notes  Note Id  Delete",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Note",
         "tags": [
           "runs"
         ]
