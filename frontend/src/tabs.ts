@@ -3,6 +3,7 @@ import {
   BarChart3,
   CandlestickChart,
   Compass,
+  Crosshair,
   Database,
   FlaskConical,
   Gamepad2,
@@ -31,6 +32,7 @@ export const TAB_KEYS = [
   "sweeps",
   "cohorte",
   "energie",
+  "forage",
   "parcours",
   "laboratoire",
   "sandbox",
@@ -81,6 +83,7 @@ export const TAB_FAMILIES: TabFamily[] = [
       { key: "sweeps", label: "Sweeps", icon: Spline },
       { key: "cohorte", label: "Cohorte", icon: CandlestickChart },
       { key: "energie", label: "Énergie", icon: Zap },
+      { key: "forage", label: "Forage", icon: Crosshair },
     ],
   },
   {
