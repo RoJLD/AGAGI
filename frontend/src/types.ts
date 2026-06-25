@@ -182,3 +182,28 @@ export interface SweepResult {
   seed: number;
   commit?: string | null;
 }
+
+/** Budget énergétique décomposé (par tick/agent) — sortie de main_decompose (EDR 099/100). */
+export interface EnergyPhases {
+  brain: number;
+  action: number;
+  biologie: number;
+  mouvement: number;
+  net: number;
+  n_agents: number;
+  bio_metab: number;
+  bio_terrain: number;
+  bio_carry: number;
+  bio_autres: number;
+}
+
+/** Un run de décomposition énergétique persisté (lewis_drain_decompose_<seed>.json). */
+export interface Decomposition {
+  run_id: string;
+  name: string;
+  seed: number;
+  commit?: string | null;
+  phases: EnergyPhases;
+  verdict: string;
+  bio_verdict: string;
+}
