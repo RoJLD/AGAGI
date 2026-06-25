@@ -146,6 +146,47 @@ class DistributionSummary(BaseModel):
     n: int
 
 
+class EnergyPhases(BaseModel):
+    brain: float
+    action: float
+    biologie: float
+    mouvement: float
+    net: float
+    n_agents: float
+    bio_metab: float
+    bio_terrain: float
+    bio_carry: float
+    bio_autres: float
+
+
+class Decomposition(BaseModel):
+    run_id: str
+    name: str
+    seed: int
+    commit: str | None = None
+    phases: EnergyPhases
+    verdict: str
+    bio_verdict: str
+
+
+class RunNote(BaseModel):
+    id: str
+    text: str
+    ts: str
+
+
+class NoteCreate(BaseModel):
+    text: str
+
+
+class NoteFeedItem(BaseModel):
+    run_id: str
+    run_name: str
+    id: str
+    text: str
+    ts: str
+
+
 class SweepResult(BaseModel):
     """Un sweep : une métrique tracée le long d'un paramètre balayé (knob).
     x = valeurs du paramètre ; series[<metric>] = série Y de même longueur ;

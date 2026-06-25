@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
-from ..schemas import ABCompareResult, ConditionSummary, DistributionSummary, RunDetail, RunSummary, SweepResult
+from ..schemas import ABCompareResult, ConditionSummary, Decomposition, DistributionSummary, NoteCreate, NoteFeedItem, RunDetail, RunNote, RunSummary, SweepResult
 from ..services.runs_service import runs_service
 
 router = APIRouter()
@@ -62,6 +62,41 @@ def article_links() -> dict:
 def set_run_links(run_id: str, body: EdrLinks) -> dict:
     """Associe une liste d'EDR à un run (store results/run_links.json, n'altère pas le run)."""
     return runs_service.set_run_edr_links(run_id, body.edr)
+
+
+@router.get("/runs/{run_id}/notes", response_model=list[RunNote])
+def list_notes(run_id: str) -> list[dict]:
+    """Notes du carnet pour un run (triées par horodatage croissant)."""
+    return runs_service.list_notes(run_id)
+
+
+@router.post("/runs/{run_id}/notes", response_model=RunNote)
+def add_note(run_id: str, body: NoteCreate) -> dict:
+    """Ajoute une note horodatée au run."""
+    note = runs_service.add_note(run_id, body.text)
+    if note is None:
+        raise HTTPException(status_code=400, detail="Le texte de la note ne peut pas être vide.")
+    return note
+
+
+@router.delete("/runs/{run_id}/notes/{note_id}")
+def delete_note(run_id: str, note_id: str) -> dict:
+    """Supprime une note du run."""
+    if not runs_service.delete_note(run_id, note_id):
+        raise HTTPException(status_code=404, detail="Note introuvable.")
+    return {"deleted": True}
+
+
+@router.get("/notes", response_model=list[NoteFeedItem])
+def all_notes() -> list[dict]:
+    """Flux agrégé de toutes les notes (carnet de labo), trié par horodatage décroissant."""
+    return runs_service.all_notes()
+
+
+@router.get("/runs/decompositions", response_model=list[Decomposition])
+def list_decompositions() -> list[dict]:
+    """Decompositions energetiques (budget par phase + sous-decompo biologie) pour la vue Energie."""
+    return runs_service.list_decompositions()
 
 
 @router.get("/runs/{run_id}", response_model=RunDetail)
