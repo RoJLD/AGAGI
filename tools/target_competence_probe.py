@@ -63,6 +63,7 @@ def run_probe(target, k, num_agents, max_ticks, shared_db, mode="tabula"):
     config.base_metabolism = float(os.environ.get("CT_METAB", "1.0"))
     config.forage_payoff = float(os.environ.get("CT_PAYOFF", "1.0"))
     preserve_dims = os.environ.get("CT_PRESERVE_DIMS", "") == "1"   # NAS substrat : garde l'archi du genome (EDR 102 caveat)
+    clone_frac = float(os.environ.get("CT_CLONE_FRAC", "0.0"))  # dose diversité : 0=diverse, 1=monoculture
     champ_g = _champion_genome() if mode == "champion" else None
     per_era = []
 
@@ -84,6 +85,24 @@ def run_probe(target, k, num_agents, max_ticks, shared_db, mode="tabula"):
             for _ in range(num_agents):
                 a = MambaAgent()
                 a.from_genome(mono_g, preserve_dims=preserve_dims)
+                env.add_agent(a, energy=50.0)
+        elif mode == "mixture":
+            # SWEEP dose de diversité : n_clones clones d'UN génome frais + reste diversifié.
+            # f=0 -> N frais diversifiés (≈ tabula) ; f=1 -> N clones (≡ mono_fresh).
+            genomes, _ntm = init_primordial_soup(num_agents=num_agents, import_agent_id=None,
+                                                 keep_memory=False, shared_db=shared_db, config=config)
+            n_clones = round(clone_frac * num_agents)
+            clone_g = genomes[0]
+            n_diverse = num_agents - n_clones
+            diverse_pool = genomes[1:] if len(genomes) > 1 else genomes
+            for _ in range(n_clones):
+                a = MambaAgent()
+                a.from_genome(clone_g, preserve_dims=preserve_dims)
+                env.add_agent(a, energy=50.0)
+            for j in range(n_diverse):
+                g = diverse_pool[j % len(diverse_pool)]
+                a = MambaAgent()
+                a.from_genome(g, preserve_dims=preserve_dims)
                 env.add_agent(a, energy=50.0)
         else:
             genomes, _ntm = init_primordial_soup(num_agents=num_agents, import_agent_id=None,
