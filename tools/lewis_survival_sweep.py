@@ -32,7 +32,7 @@ SURPRISE_LEVELS = (1.0, 0.5, 0.25, 0.0)   # ttc_surprise_scale : baseline 094 (1
 
 
 def _cfg(forage_payoff, ttc_surprise_scale=None, trace_energy_sinks=False, base_metabolism=METAB,
-         trace_forage=False):
+         trace_forage=False, prey_speed_scale=1.0):
     cfg = WorldConfig()
     cfg.base_metabolism = float(base_metabolism)             # EDR101 : sweepable (defaut METAB=0.25)
     cfg.forage_payoff = float(forage_payoff)
@@ -41,6 +41,7 @@ def _cfg(forage_payoff, ttc_surprise_scale=None, trace_energy_sinks=False, base_
         cfg.ttc_surprise_scale = float(ttc_surprise_scale)   # EDR098
     cfg.trace_energy_sinks = bool(trace_energy_sinks)         # EDR099
     cfg.trace_forage = bool(trace_forage)                     # EDR105
+    cfg.prey_speed_scale = float(prey_speed_scale)            # EDR106
     return cfg
 
 
@@ -152,6 +153,7 @@ def _measure_forage(cfg, seeds, n_apex=0, num_agents=NUM_AGENTS, max_ticks=150):
     champs = _load_champions()
     reached, captured_if_reached = [], []
     income_t, drain_t, captures, contacts, min_dists = [], [], [], [], []
+    cap_lapin, cap_cerf, cap_sanglier = [], [], []
     for s in seeds:
         seed_at(s, 0)
         genomes = _reproduce(champs, num_agents, mc)
@@ -192,6 +194,10 @@ def _measure_forage(cfg, seeds, n_apex=0, num_agents=NUM_AGENTS, max_ticks=150):
             captures.append(float(ag.get("preys_eaten", 0)))
             contacts.append(float(ag.get("_forage_contacts", 0)))
             min_dists.append(md)
+            sp = ag.get("_forage_species", {})
+            cap_lapin.append(float(sp.get("Lapin", 0)))
+            cap_cerf.append(float(sp.get("Cerf", 0)))
+            cap_sanglier.append(float(sp.get("Sanglier", 0)))
     med = lambda xs: float(np.median(xs)) if xs else 0.0
     mean = lambda xs: float(np.mean(xs)) if xs else 0.0
     return {"p_reach": mean(reached),
@@ -201,6 +207,10 @@ def _measure_forage(cfg, seeds, n_apex=0, num_agents=NUM_AGENTS, max_ticks=150):
             "mean_captures": mean(captures),
             "mean_contacts": mean(contacts),
             "mean_min_dist": mean(min_dists),
+            "cap_lapin": mean(cap_lapin),
+            "cap_cerf": mean(cap_cerf),
+            "cap_sanglier": mean(cap_sanglier),
+            "reached_raw": reached,
             "n_agents": len(income_t)}
 
 

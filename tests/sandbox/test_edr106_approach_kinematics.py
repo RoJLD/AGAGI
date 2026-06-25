@@ -92,3 +92,23 @@ def test_species_counter_inert_when_trace_off():
     env.step()
     pool = list(env.agents) + list(getattr(env, "dead_agents", []))
     assert all("_forage_species" not in a for a in pool)
+
+
+from tools.lewis_survival_sweep import _cfg, _measure_forage
+
+
+def test_cfg_prey_speed_scale_param():
+    cfg = _cfg(3, base_metabolism=0.0, trace_energy_sinks=True, trace_forage=True, prey_speed_scale=0.0)
+    assert cfg.prey_speed_scale == 0.0
+    assert cfg.trace_forage is True
+
+
+def test_measure_forage_has_species_and_reached_raw():
+    cfg = _cfg(3, base_metabolism=0.0, trace_energy_sinks=True, trace_forage=True, prey_speed_scale=0.0)
+    agg = _measure_forage(cfg, [106, 107], n_apex=0, max_ticks=20)
+    for k in ("cap_lapin", "cap_cerf", "cap_sanglier", "reached_raw"):
+        assert k in agg
+    assert 0.0 <= agg["p_reach"] <= 1.0
+    assert isinstance(agg["reached_raw"], list)
+    assert len(agg["reached_raw"]) == agg["n_agents"]
+    assert all(v in (0.0, 1.0) for v in agg["reached_raw"])
