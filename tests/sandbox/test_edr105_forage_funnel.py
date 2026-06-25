@@ -2,7 +2,27 @@ import numpy as np
 from src.environments.config import WorldConfig
 from src.worlds.world_1_stoneage import Biosphere3D
 from src.agents.mamba_agent import MambaAgent
-from tools.lewis_survival_sweep import _cfg, _measure_forage
+from tools.lewis_survival_sweep import _cfg, _measure_forage, _verdict_forage
+
+
+def _agg(p_reach, p_cap, income_t, drain_t):
+    return {"p_reach": p_reach, "p_cap": p_cap, "income_t": income_t, "drain_t": drain_t}
+
+
+def test_verdict_forage_approche():
+    assert _verdict_forage(_agg(0.3, 1.0, 5.0, 1.0)) == "GOULOT=APPROCHE"
+
+
+def test_verdict_forage_capture():
+    assert _verdict_forage(_agg(0.9, 0.3, 5.0, 1.0)) == "GOULOT=CAPTURE"
+
+
+def test_verdict_forage_revenu():
+    assert _verdict_forage(_agg(0.9, 0.9, 0.5, 1.0)) == "GOULOT=REVENU"
+
+
+def test_verdict_forage_suffisant():
+    assert _verdict_forage(_agg(0.9, 0.9, 2.0, 1.0)) == "FORAGE SUFFISANT"
 
 
 def _mk_env(trace_forage):

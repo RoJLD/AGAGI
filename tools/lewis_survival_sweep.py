@@ -296,6 +296,20 @@ def _verdict_bio(agg):
             "bio_carry": "TARIF=CARRY"}[top]
 
 
+def _verdict_forage(agg):
+    """Cascade 'premier etage casse' de l'entonnoir de forage (seuils geles, cf. spec EDR105). Evalue
+    sur l'agg de metab=0. p_reach<0.5 -> APPROCHE (navigation) ; sinon p_cap<0.5 -> CAPTURE (atteint
+    mais ne tue pas) ; sinon income_t<drain_t -> REVENU (tue mais ne couvre pas le cout structurel) ;
+    sinon FORAGE SUFFISANT (l'entonnoir tient, le mur est ailleurs)."""
+    if agg["p_reach"] < 0.5:
+        return "GOULOT=APPROCHE"
+    if agg["p_cap"] < 0.5:
+        return "GOULOT=CAPTURE"
+    if agg["income_t"] < agg["drain_t"]:
+        return "GOULOT=REVENU"
+    return "FORAGE SUFFISANT"
+
+
 def _report(h, levels, groups, R, n_eval, _return, knob="forage_payoff", verdict_fn=_verdict):
     """Medianes par niveau + Jonckheere-Terpstra (tendance) + verdict + provenance.
     knob = nom du parametre balaye ; verdict_fn = mapping medianes->verdict. Si les groupes portent une
@@ -430,6 +444,44 @@ def main_decompose(n_eval=8, R=4, seed=None, _return=False):
         seeds = [base + r * 1000 + i for r in range(R) for i in range(n_eval)]
         agg = _measure_drain(_cfg(3, trace_energy_sinks=True), seeds, n_apex=0)
         return _report_drain(h, agg, R, n_eval, _return)
+
+
+def _report_forage(h, aggs, R, n_eval, _return):
+    """Table entonnoir (1 ligne/niveau de metab) + verdict (porte par metab=0) + provenance.
+    Tout ASCII (cp1252). aggs = liste de (metab_level, agg)."""
+    agg0 = next((a for lv, a in aggs if lv == 0.0), aggs[0][1])
+    verdict = _verdict_forage(agg0)
+    print("\n=== EDR105 entonnoir de forage a N_APEX=0 (verdict sur metab=0) ===")
+    print("  metab | p_reach p_cap | income/t drain/t | captures contacts min_dist | n")
+    for lv, a in aggs:
+        print(f"  {lv:<5.3g} | {a['p_reach']:7.2f} {a['p_cap']:5.2f} | "
+              f"{a['income_t']:8.3f} {a['drain_t']:7.3f} | "
+              f"{a['mean_captures']:8.2f} {a['mean_contacts']:8.2f} {a['mean_min_dist']:8.2f} | "
+              f"{a['n_agents']}")
+    print("=== VERDICT (pre-enregistre, cascade premier etage casse) ===")
+    print(f"  -> {verdict}")
+    h.save({"knob": "base_metab", "metab_levels": [lv for lv, _ in aggs], "R": R, "n_eval": n_eval,
+            "verdict": verdict, "table": {str(lv): a for lv, a in aggs}})
+    if _return:
+        return {"verdict": verdict, "table": {lv: a for lv, a in aggs}, "R": R, "n_eval": n_eval}
+
+
+def main_forage(metab_levels=(0.0, 0.25), n_eval=8, R=4, seed=None, _return=False):
+    """EDR 105 : decompose l'entonnoir de forage (APPROCHE/CAPTURE/REVENU) a N_APEX=0, forage_payoff=3.
+    Variable = base_metabolism ; metab=0 porte le verdict (acquisition isolee), 0.25 en contraste.
+    Co-active trace_forage ET trace_energy_sinks (instruments inertes, pas des variables)."""
+    with Harness(seed=seed, name="lewis_forage_funnel", with_db=False) as h:
+        base = h.seed
+        _disable_kuzu()
+        print(f"EDR105 : entonnoir forage metab={metab_levels}, R={R}, n_eval={n_eval}, seed={base}.")
+        seeds = [base + r * 1000 + i for r in range(R) for i in range(n_eval)]  # memes seeds/niveau
+        prog = h.progress(len(metab_levels), label="niveaux base_metab")
+        aggs = []
+        for lv in metab_levels:
+            cfg = _cfg(3, base_metabolism=lv, trace_energy_sinks=True, trace_forage=True)
+            aggs.append((lv, _measure_forage(cfg, seeds, n_apex=0, max_ticks=150)))
+            prog.update()
+        return _report_forage(h, aggs, R, n_eval, _return)
 
 
 if __name__ == "__main__":
