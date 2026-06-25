@@ -108,16 +108,17 @@ def run_evolution(target, k_eras, num_agents, max_ticks, shared_db,
             "genome_diversity": genome_diversity,
         }
         per_era.append(row)
-        log.info("  era=%d apex=%.3f C=%.3f mean_nodes=%.1f max_nodes=%d n=%d t=%d cap_hits=%d",
+        log.info("  era=%d apex=%.3f C=%.3f mean_nodes=%.1f max_nodes=%d n=%d t=%d cap_hits=%d div=%.4f",
                  era, row["frac_apex"], row["median_competence"], row["mean_nodes"],
-                 row["max_nodes"], row["n"], t, cap_hits)
+                 row["max_nodes"], row["n"], t, cap_hits, row["genome_diversity"])
 
         # Sélection -> carry. elitist=top-3 (EDR 105 baseline) ; diverse=tournoi sur TOUTE la pop.
         pool = [a for a in all_agents if a.get("model") is not None]
         if select == "diverse" and pool:
             fits = [calculate_life_score(a) for a in pool]
             genomes_pool = [a["model"].genome for a in pool]
-            idxs = [tournament_selection(genomes_pool, fits, tournament_size) for _ in range(n_carry)]
+            ts = min(tournament_size, len(genomes_pool))
+            idxs = [tournament_selection(genomes_pool, fits, ts) for _ in range(n_carry)]
             carried = [copy.deepcopy(genomes_pool[i]) for i in idxs]
         else:
             top = sorted(all_agents, key=calculate_life_score, reverse=True)[:3]

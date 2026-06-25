@@ -48,4 +48,5 @@ def test_elitist_default_unchanged_with_diversity_metric(monkeypatch):
         async_logger.stop()
     assert res["select"] == "elitist"        # défaut non-régressif
     assert res["pop_cap"] is None
+    assert res["n_carry"] == 12
     assert "genome_diversity" in res["per_era"][0]
