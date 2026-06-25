@@ -247,3 +247,24 @@ steps, n_fav 3/8) — le lookahead depth-1 + `g` linéaire **NUIT** (perturbe la
 avec le dreaming nuisible (EDR 095). La méthode a évité un run powered stoneage sur un mécanisme réfuté.
 **Backlog (futur cycle)** : depth-k (déroulé multi-pas), `g` bilinéaire state-dépendante — seules pistes
 restantes pour rendre l'anticipation utile ; à brainstormer séparément.
+
+### Sous-projet ACTIF — Rêve = entraînement offline (Dyna value-augmentation) (2026-06-25)
+**Recadrage post-réfutation** : le depth-1 a échoué en MÉLANGEANT rêve et pensée (biais d'imagination
+sur l'action en direct). Principe corrigé (Dreamer) : **modes séparés** — la pensée agit en ligne
+(inchangée), le rêve entraîne la value head HORS-LIGNE via `g`. Spec
+`docs/superpowers/specs/2026-06-25-dream-offline-training-design.md`.
+**De-risqué** : une **sonde de fidélité de `g`** (étape A, go/no-go) mesure si `g` bat la baseline
+naïve en prédiction 1-pas AVANT de bâtir Dyna ; sinon → escalader `g` bilinéaire d'abord.
+Composants (gatés `PLAN_DYNA=0.0` défaut, non-régressif) : sonde A · reward head `r̂` (réutilise
+`predictor_head` inutilisé) · replay buffer per-agent · boucle Dyna offline (value head SEULE, aucun
+biais d'action). Validation : sonde A → bench Dyna → ablation stoneage.
+
+### Backlog différé (NAS Axe 3, futurs cycles brainstorm)
+- **Dreamer complet** : actor-critic en imagination (entraîner aussi la politique) — après fiabilisation de `g`.
+- **Dyna+ / organe MÉDITATION-consolidation** : mixer le replay du vécu RÉEL (consolidation, mode cognitif
+  absent) avec l'imagination — fusionne deux directions. *Mode « méditation » = découplé + activité réduite,
+  distinct du rêve ; recoupe consolidation/replay (Axe 2) + homéostasie (Axe 1).*
+- **depth-k** planificateur + **`g` bilinéaire** state-dépendante (aussi cible d'escalade si sonde A échoue).
+- **Outil EDR multi-lentilles** : à la clôture d'un run EDR, générer des interprétations
+  anthropologue/éthologue/biologiste/neuroscientifique du comportement (sous-agents à lentilles) pour
+  « chercher plus loin ». Cycle d'OUTILLAGE d'analyse, orthogonal au substrat — brainstorm séparé.
