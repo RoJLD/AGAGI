@@ -4,7 +4,7 @@ import pytest
 
 @pytest.mark.slow
 def test_mixture_mode_runs_population_exact_and_decomposes(monkeypatch):
-    """Le mode mixture (f=0.5) peuple EXACTEMENT N agents, tourne, sort la décompo apex/lance."""
+    """Le mode mixture (f=0.5) construit N agents, tourne (reproduction stoneage→row[n]≥N), sort la décompo apex/lance."""
     monkeypatch.setenv("AGISEED_QUIET_LOG", "1")
     monkeypatch.setenv("CT_METAB", "0.25")
     monkeypatch.setenv("CT_PAYOFF", "3.0")
