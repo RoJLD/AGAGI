@@ -54,15 +54,15 @@ class LegacyPopulationModel(PopulationModel):
         return self.agents
 
 
-_BACKENDS = {"legacy": LegacyPopulationModel}
-
-
 def make_population(agents, backend="legacy", world_model=None):
     """Matérialise une population sous le backend choisi. Défaut `legacy` (non-régressif).
-    `backend` inconnu -> NotImplementedError (le seam est prêt, l'impl viendra : ADR-003)."""
-    impl = _BACKENDS.get(backend)
-    if impl is None:
-        raise NotImplementedError(
-            f"backend '{backend}' non disponible (ADR-003) ; disponibles: {sorted(_BACKENDS)}"
-        )
-    return impl(agents, world_model=world_model)
+    `torch` chargé paresseusement (dépendance optionnelle, requirements-torch.txt).
+    `backend` inconnu -> NotImplementedError (le seam est prêt : ADR-003)."""
+    if backend == "legacy":
+        return LegacyPopulationModel(agents, world_model=world_model)
+    if backend == "torch":
+        from src.agents.backend_torch import TorchPopulationModel
+        return TorchPopulationModel(agents, world_model=world_model)
+    raise NotImplementedError(
+        f"backend '{backend}' non disponible (ADR-003) ; disponibles: ['legacy', 'torch']"
+    )

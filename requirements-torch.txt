@@ -1,0 +1,7 @@
+# Dépendances OPTIONNELLES du backend torch (ADR-003, Axe 1).
+# Le cœur du projet reste numpy pur (requirements.txt) ; ce fichier n'est requis
+# que pour `make_population(..., backend="torch")`. Install : pip install -r requirements-torch.txt
+#
+# CPU suffit pour le substrat LTC actuel. GPU : installer la roue torch CUDA adéquate.
+# ncps (LTC/CfC officiels, REF-LTC-2021) = incrément ultérieur (swap de cellule, variable séparée).
+torch>=2.0

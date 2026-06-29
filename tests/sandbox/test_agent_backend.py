@@ -27,7 +27,7 @@ def test_make_population_legacy_returns_population_model():
 
 def test_unknown_backend_raises():
     with pytest.raises(NotImplementedError):
-        make_population(_agents(2), backend="torch")
+        make_population(_agents(2), backend="jax")  # non encore implémenté (seam ADR-003)
 
 
 def test_forward_returns_preds_and_compute_spent():
