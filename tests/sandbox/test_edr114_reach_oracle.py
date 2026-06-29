@@ -2,6 +2,7 @@ from src.environments.config import WorldConfig
 from src.worlds.world_1_stoneage import Biosphere3D
 from src.seed_ai.harness import seed_at
 from src.agents.mamba_agent import MambaAgent
+from tools.lewis_survival_sweep import _cfg, _verdict_reach, main_reach_oracle
 
 
 def _cfg_oracle(reach_oracle=False, prey_speed_scale=0.0):
@@ -94,3 +95,32 @@ def test_oracle_reaches_frozen_prey():
             break
     pool = list(env.agents) + list(getattr(env, "dead_agents", []))
     assert any(p.get("_forage_min_dist", 9999) <= 0 for p in pool), "l'oracle doit atteindre la proie figee"
+
+
+def test_cfg_reach_oracle_param():
+    assert _cfg(3).reach_oracle is False
+    assert _cfg(3, reach_oracle=True).reach_oracle is True
+
+
+def _agg(oracle, speed, p_reach):
+    return (oracle, speed, {"p_reach": p_reach, "p_cap": 1.0, "mean_captures": 0.0,
+                            "cap_lapin": 0.0, "cap_cerf": 0.0, "cap_sanglier": 0.0,
+                            "mean_min_dist": 0.0, "n_agents": 100, "reached_raw": [1, 0]})
+
+
+def test_verdict_reach_branches():
+    # cellule decisive = (oracle=True, speed=0.0)
+    ferme = [_agg(False, 1.0, 0.36), _agg(False, 0.0, 0.21), _agg(True, 1.0, 0.40), _agg(True, 0.0, 0.95)]
+    assert _verdict_reach(ferme) == "PRIMITIVE FERME"
+    bloc = [_agg(False, 1.0, 0.36), _agg(False, 0.0, 0.21), _agg(True, 1.0, 0.30), _agg(True, 0.0, 0.30)]
+    assert _verdict_reach(bloc) == "PRIMITIVE NE FERME PAS"
+    part = [_agg(False, 1.0, 0.36), _agg(False, 0.0, 0.21), _agg(True, 1.0, 0.60), _agg(True, 0.0, 0.70)]
+    assert _verdict_reach(part) == "PRIMITIVE PARTIELLE"
+
+
+def test_main_reach_oracle_smoke_and_determinism():
+    r1 = main_reach_oracle(speeds=(1.0, 0.0), n_eval=2, R=1, seed=88114, _return=True)
+    assert r1["verdict"] in ("PRIMITIVE FERME", "PRIMITIVE NE FERME PAS", "PRIMITIVE PARTIELLE", "INDETERMINE")
+    assert len(r1["table"]) == 4
+    r2 = main_reach_oracle(speeds=(1.0, 0.0), n_eval=2, R=1, seed=88114, _return=True)
+    assert r1["table"] == r2["table"]

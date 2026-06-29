@@ -33,7 +33,7 @@ SURPRISE_LEVELS = (1.0, 0.5, 0.25, 0.0)   # ttc_surprise_scale : baseline 094 (1
 
 
 def _cfg(forage_payoff, ttc_surprise_scale=None, trace_energy_sinks=False, base_metabolism=METAB,
-         trace_forage=False, prey_speed_scale=1.0, scaffold_land=0.0):
+         trace_forage=False, prey_speed_scale=1.0, scaffold_land=0.0, reach_oracle=False):
     cfg = WorldConfig()
     cfg.base_metabolism = float(base_metabolism)             # EDR101 : sweepable (defaut METAB=0.25)
     cfg.forage_payoff = float(forage_payoff)
@@ -44,6 +44,7 @@ def _cfg(forage_payoff, ttc_surprise_scale=None, trace_energy_sinks=False, base_
     cfg.trace_forage = bool(trace_forage)                     # EDR105
     cfg.prey_speed_scale = float(prey_speed_scale)            # EDR106
     cfg.scaffold_land = float(scaffold_land)                  # EDR113
+    cfg.reach_oracle = bool(reach_oracle)                     # EDR114
     return cfg
 
 
@@ -823,6 +824,66 @@ def main_approach(speed_levels=(1.0, 0.5, 0.25, 0.0), n_eval=8, R=4, seed=None, 
             aggs.append((s, _measure_forage(cfg, seeds, n_apex=0, max_ticks=150)))
             prog.update()
         return _report_approach(h, aggs, R, n_eval, _return)
+
+
+def _verdict_reach(aggs):
+    """EDR114 : verdict pre-enregistre porte par la cellule (oracle=True, speed=0.0). FERME si son
+    p_reach>=0.90 (le monde permet d'atteindre une cible immobile -> mur = POLITIQUE/substrat) ;
+    NE FERME PAS si <0.50 (mecanique-monde cassee) ; PARTIELLE sinon. aggs = liste (oracle, speed, agg)."""
+    cell = next((a for o, s, a in aggs if o is True and s == 0.0), None)
+    if cell is None:
+        return "INDETERMINE"
+    pr = cell["p_reach"]
+    if pr >= 0.90:
+        return "PRIMITIVE FERME"
+    if pr < 0.50:
+        return "PRIMITIVE NE FERME PAS"
+    return "PRIMITIVE PARTIELLE"
+
+
+def _report_reach(h, aggs, R, n_eval, _return):
+    """Table 2x2 (1 ligne/cellule : oracle, speed, p_reach, p_cap, min_dist, n) + lecture cinematique
+    (oracle figees vs mobiles) + verdict pre-enregistre + provenance. reached_raw retire avant save.
+    Tout ASCII (cp1252). aggs = liste (oracle, speed, agg)."""
+    verdict = _verdict_reach(aggs)
+    print("\n=== EDR114 borne-sup primitive d'atteinte (verdict sur oracle=True, figees) ===")
+    print("  oracle | speed | p_reach p_cap | min_dist | n")
+    for o, s, a in aggs:
+        print(f"  {str(bool(o)):<6} | {s:<5.3g} | {a['p_reach']:7.2f} {a['p_cap']:5.2f} | "
+              f"{a['mean_min_dist']:8.2f} | {a['n_agents']}")
+    orc_frozen = next((a['p_reach'] for o, s, a in aggs if o is True and s == 0.0), None)
+    orc_moving = next((a['p_reach'] for o, s, a in aggs if o is True and s == 1.0), None)
+    if orc_frozen is not None and orc_moving is not None:
+        print(f"  cinematique (oracle) : figees={orc_frozen:.2f} vs mobiles={orc_moving:.2f} "
+              f"(delta={orc_frozen - orc_moving:+.2f})")
+    print("=== VERDICT (pre-enregistre, porte par oracle+figees) ===")
+    print(f"  -> {verdict}")
+    table = [{"oracle": bool(o), "speed": s, **{k: v for k, v in a.items() if k != "reached_raw"}}
+             for o, s, a in aggs]
+    h.save({"knob": "reach_oracle x prey_speed_scale", "R": R, "n_eval": n_eval,
+            "verdict": verdict, "table": table})
+    if _return:
+        return {"verdict": verdict, "table": table, "R": R, "n_eval": n_eval}
+
+
+def main_reach_oracle(speeds=(1.0, 0.0), n_eval=8, R=1, seed=114, _return=False):
+    """EDR 114 : sonde borne-sup. Mesure p_reach sous l'oracle d'atteinte (override action) vs politique
+    apprise, x {proies mobiles, figees}, a N_APEX=0/metab=0/forage_payoff=3, SANS evolution (replicas
+    via _measure_forage). Verdict PRIMITIVE FERME/NE FERME PAS/PARTIELLE (porte par oracle+figees)."""
+    with Harness(seed=seed, name="lewis_reach_oracle", with_db=False) as h:
+        base = h.seed
+        _disable_kuzu()
+        print(f"EDR114 : borne-sup oracle, speeds={speeds}, R={R}, n_eval={n_eval}, seed={base}.")
+        seeds = [base + r * 1000 + i for r in range(R) for i in range(n_eval)]   # memes seeds/cellule
+        prog = h.progress(2 * len(speeds), label="cellules (oracle x speed)")
+        aggs = []
+        for oracle in (False, True):
+            for s in speeds:
+                cfg = _cfg(3, base_metabolism=0.0, trace_energy_sinks=True, trace_forage=True,
+                           prey_speed_scale=s, reach_oracle=oracle)
+                aggs.append((oracle, s, _measure_forage(cfg, seeds, n_apex=0, max_ticks=150)))
+                prog.update()
+        return _report_reach(h, aggs, R, n_eval, _return)
 
 
 def _report_evolve_nav(h, traj, stats_hist, generations, num_agents, max_ticks, _return):
