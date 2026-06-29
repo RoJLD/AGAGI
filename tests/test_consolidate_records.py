@@ -134,3 +134,9 @@ def test_main_exits_nonzero_on_broken_link(tmp_path, monkeypatch, capsys):
     assert rc == 1
     out = json.loads((tmp_path / "results" / "records_graph.json").read_text(encoding="utf-8"))
     assert out["problems"]
+
+
+def test_main_exits_zero_on_clean_repo():
+    """Consolidation sur le vrai repo : problemes=0, rc=0."""
+    rc = main([])
+    assert rc == 0
