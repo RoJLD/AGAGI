@@ -58,6 +58,7 @@ class WorldConfig:
     trace_energy_sinks: bool = False   # EDR099 : decompose le drain par phase (opt-in, defaut OFF)
     trace_forage: bool = False         # EDR105 : decompose l'entonnoir de forage (opt-in, defaut OFF)
     prey_speed_scale: float = 1.0      # EDR106 : multiplicateur global vitesse des proies (0 = fige ; defaut 1.0 = inerte)
+    scaffold_land: float = 0.0         # EDR113 : recompense le PAS FINAL (atterrir sur une cellule-proie) ; defaut 0.0 = inerte/non-regressif
 
     # Surprise-Triggered HGT
     hgt_surprise_threshold: float = 0.75
