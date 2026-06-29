@@ -116,6 +116,7 @@ def test_verdict_reach_branches():
     assert _verdict_reach(bloc) == "PRIMITIVE NE FERME PAS"
     part = [_agg(False, 1.0, 0.36), _agg(False, 0.0, 0.21), _agg(True, 1.0, 0.60), _agg(True, 0.0, 0.70)]
     assert _verdict_reach(part) == "PRIMITIVE PARTIELLE"
+    assert _verdict_reach([]) == "INDETERMINE"
 
 
 def test_main_reach_oracle_smoke_and_determinism():
