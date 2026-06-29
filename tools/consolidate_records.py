@@ -29,6 +29,7 @@ def _empty_record(file: str) -> dict:
             "motivates": [], "triggers": [], "tests": [],
             "rediscovered_by": [], "supersedes": [], "adopt_for": [], "grounds": [],
             "url": None, "method": None, "lib": None, "maturity": None,
+            "requires_ref": False,
             "verdict": None, "file": file, "linked": False}
 
 
@@ -84,6 +85,8 @@ def scan_records(root: str = _ROOT) -> list[dict]:
 _REL = {"motivates": "MOTIVE", "triggers": "DECLENCHE", "tests": "TESTE",
         "rediscovered_by": "REDECOUVERT_PAR", "supersedes": "DEPASSE",
         "adopt_for": "A_ADOPTER_POUR", "grounds": "FONDE"}
+# Clés-pont émanant des nœuds REF (cibles = records ancrés au SOTA).
+_BRIDGE_KEYS = ("rediscovered_by", "supersedes", "adopt_for", "grounds")
 _NODE_KEYS = ("id", "type", "title", "status", "gate", "verdict", "linked",
               "url", "method", "lib", "maturity")
 
@@ -109,14 +112,23 @@ def validate_graph(records: list[dict]) -> list[dict]:
     - record: id du record concerné
     - detail: description textuelle du problème
 
-    Deux types de problèmes :
+    Trois types de problèmes :
     1. broken_link : un id cité dans motivates/triggers/tests n'existe pas
     2. unsupported_gate : une SDR validée sans EDR validé qui la teste
+    3. missing_ref : un record requires_ref=True qu'aucun nœud REF ne couvre
+       (procédure anti-réinvention : un nouvel organe doit citer le SOTA)
 
     Liste vide = graphe cohérent.
     """
     by_id = {r["id"]: r for r in records}
     problems: list[dict] = []
+
+    # Records ancrés au SOTA = cibles d'au moins une arête-pont d'un nœud REF
+    ref_anchored: set = set()
+    for r in records:
+        if r["type"] == "REF":
+            for key in _BRIDGE_KEYS:
+                ref_anchored.update(r.get(key) or [])
 
     # Vérifier les liens cassés
     for r in records:
@@ -135,6 +147,12 @@ def validate_graph(records: list[dict]) -> list[dict]:
             if not supporters:
                 problems.append({"kind": "unsupported_gate", "record": r["id"],
                                  "detail": f"{r['id']} validee sans EDR valide qui la teste"})
+
+    # Vérifier l'ancrage SOTA des records qui l'exigent (requires_ref)
+    for r in records:
+        if r.get("requires_ref") and r["id"] not in ref_anchored:
+            problems.append({"kind": "missing_ref", "record": r["id"],
+                             "detail": f"{r['id']} requires_ref mais aucun noeud REF ne le couvre"})
     return problems
 
 

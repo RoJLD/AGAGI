@@ -13,7 +13,8 @@ graphe records via des nœuds REF.
 - [x] Arêtes-pont `rediscovered_by`/`supersedes`/`adopt_for`/`grounds`
 - [x] 4 tests RED→GREEN + 11 historiques verts (15 total)
 - [x] 11 nœuds REF + README de convention ; consolidation 0 problème
-- [ ] (Futur) Enforcement : SDR « nouvel organe » sans REF lié → problème dur
+- [x] Enforcement : champ `requires_ref` → `validate_graph` lève `missing_ref` si aucun
+  nœud REF ne couvre le record ; `main` sort ≠0 (gate démontré sur SDR-G1/G4, ancrés)
 
 ## Axe 1 — Substrat LTC + apprentissage (PRIORITÉ, casse le verrou prouvé)
 

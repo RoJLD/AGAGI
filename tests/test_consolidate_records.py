@@ -194,6 +194,35 @@ def test_scan_includes_ref_dir(tmp_path):
     assert ids == ["EDR-060", "REF-NEAT-2002"]
 
 
+def test_parse_record_reads_requires_ref(tmp_path):
+    f = _write(tmp_path / "G7_new_organ.md", (
+        "---\nid: SDR-G7\ntype: SDR\ntitle: t\nstatus: open\ngate: G7\n"
+        "requires_ref: true\n---\n"
+    ))
+    rec = parse_record(f)
+    assert rec["requires_ref"] is True
+
+
+def test_validate_flags_missing_ref_for_required_record():
+    recs = [_rec("SDR-G7", "SDR", gate="G7", requires_ref=True)]
+    probs = validate_graph(recs)
+    assert any(p["kind"] == "missing_ref" and p["record"] == "SDR-G7" for p in probs)
+
+
+def test_validate_missing_ref_satisfied_by_ref_bridge():
+    recs = [
+        _rec("SDR-G7", "SDR", gate="G7", requires_ref=True),
+        _rec("REF-X", "REF", grounds=["SDR-G7"]),
+    ]
+    probs = validate_graph(recs)
+    assert not any(p["kind"] == "missing_ref" for p in probs)
+
+
+def test_validate_no_missing_ref_when_not_required():
+    recs = [_rec("SDR-G7", "SDR", gate="G7")]
+    assert not any(p["kind"] == "missing_ref" for p in validate_graph(recs))
+
+
 def test_main_exits_zero_on_clean_repo():
     """Consolidation sur le vrai repo : problemes=0, rc=0."""
     rc = main([])
