@@ -89,6 +89,13 @@ def _capacity_arm(cfg, mc, n_hidden, generations, num_agents, max_ticks, base_se
         assert all(g.num_nodes == expected_nodes for g in genomes), (
             f"capacity drift: n_hidden={n_hidden} attendu {expected_nodes} noeuds")
         scored, p_reach, stats = _evolve_nav_gen(cfg, genomes, max_ticks=max_ticks)
+        # In-world reproduction (energy/MATE/HGT, world_1_stoneage) spawns offspring via
+        # MambaAgent.mutate() (meso_*_rate left at 0.05 -> add_meso_gated_unit inserts 2 nodes) or
+        # HGT crossover -> their num_nodes can drift off the seeded capacity. Exclude any off-capacity
+        # genome from the best-ever ratchet so the seeded N stays the only variable across arms
+        # (Phase 1 holds capacity FIXED; in-world-grown offspring are evaluated for p_reach but never
+        # selected). This is what keeps the per-generation guard-rail assert from ever firing.
+        scored = [(s, g) for (s, g) in scored if g.num_nodes == expected_nodes]
         best_ever = sorted(best_ever + scored, key=lambda sg: sg[0], reverse=True)[:5]
         traj.append(p_reach)
         stats_hist.append(stats)
