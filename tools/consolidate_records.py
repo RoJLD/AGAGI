@@ -91,9 +91,41 @@ def build_graph(records: list[dict]) -> dict:
     return {"nodes": nodes, "edges": edges}
 
 
-def validate_graph(graph: dict) -> bool:
-    """Stub pour validate_graph."""
-    pass
+def validate_graph(records: list[dict]) -> list[dict]:
+    """Valide la cohérence du graphe de décision.
+
+    Retourne une liste de problèmes. Chaque problème est un dict avec :
+    - kind: "broken_link" ou "unsupported_gate"
+    - record: id du record concerné
+    - detail: description textuelle du problème
+
+    Deux types de problèmes :
+    1. broken_link : un id cité dans motivates/triggers/tests n'existe pas
+    2. unsupported_gate : une SDR validée sans EDR validé qui la teste
+
+    Liste vide = graphe cohérent.
+    """
+    by_id = {r["id"]: r for r in records}
+    problems: list[dict] = []
+
+    # Vérifier les liens cassés
+    for r in records:
+        for key in _LIST_KEYS:
+            for target in r[key]:
+                if target not in by_id:
+                    problems.append({"kind": "broken_link", "record": r["id"],
+                                     "detail": f"{r['id']}.{key} -> {target} inexistant"})
+
+    # Vérifier les portes validées sans EDR validé qui les teste
+    for r in records:
+        if r["type"] == "SDR" and r["status"] == "validated":
+            supporters = [s for s in records
+                          if s["type"] == "EDR" and s["status"] == "validated"
+                          and r["id"] in s["tests"]]
+            if not supporters:
+                problems.append({"kind": "unsupported_gate", "record": r["id"],
+                                 "detail": f"{r['id']} validee sans EDR valide qui la teste"})
+    return problems
 
 
 def roadmap_state(graph: dict) -> dict:
