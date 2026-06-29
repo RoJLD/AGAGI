@@ -120,6 +120,7 @@ class Biosphere3D(BaseWorld):
         self.scaffold_craft = 5.0     # craft d'une lance (jalon)
         self.scaffold_bighit = 2.0    # coup porté à un gros gibier
         self.scaffold_eras = 30
+        self.scaffold_land = getattr(self.config, "scaffold_land", 0.0)   # EDR113 : scaffold du pas final (atterrissage sur proie)
         # Curiosité (réparation moteur évolutif, EDR 014) : récompense intrinsèque
         # = erreur de prédiction du World Model -> drive l'exploration d'actions/états
         # nouveaux (grab, rub...). S'auto-annèle (la surprise chute quand le monde est
@@ -690,6 +691,9 @@ class Biosphere3D(BaseWorld):
         # Hunt / Attack (Asymmetrical combat)
         attacked_prey = next((p for p in self.preys if agent["x"] == p["x"] and agent["y"] == p["y"]), None)
         if attacked_prey:
+            # EDR113 : scaffold du PAS FINAL — recompense l'atterrissage sur une cellule-proie
+            # (tous gibiers, contrairement a scaffold_bighit gate sur damage>0). Annelé. Defaut 0.0 -> inerte.
+            agent["energy"] += self.scaffold_land * anneal(getattr(self, "current_era", 1), self.scaffold_eras)
             if getattr(self.config, "trace_forage", False):
                 agent["_forage_contacts"] = agent.get("_forage_contacts", 0) + 1
             cfg_atk = self.config.preys.get(attacked_prey["type"], None)
