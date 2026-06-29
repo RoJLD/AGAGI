@@ -118,3 +118,17 @@ def test_run_diagnostic_main_smoke(tmp_path, monkeypatch):
     for regime in ("defaut", "sweet"):
         assert "beats" in report["per_regime"][regime]
     assert (tmp_path / "results" / "s2_regime_diagnostic_1.json").exists()
+
+
+def test_print_table_is_cp1252_safe(capsys):
+    # La CLI imprime sur console Windows (cp1252) : aucun glyphe hors cp1252 (pas de delta/em-dash/inf).
+    from tools.s2_regime_diagnostic import _print_table
+    base = {"strongest_baseline": "reflex_naive", "p": 0.01, "cliff": 0.9,
+            "beats": True, "survivable": False, "champ_median": 22.0, "censored_frac": 0.0}
+    for lift in (1.68, None):                          # branche finie ET branche plancher (None)
+        _print_table({"seed": 1, "commit": "abc", "K": 8, "verdict": "SOUS_PUISSANCE",
+                      "regime_recommande": "defaut", "lift": lift,
+                      "per_regime": {"defaut": base, "sweet": base}})
+        out = capsys.readouterr().out
+        out.encode("cp1252")                           # ne doit pas lever
+        assert "Cliff d=" in out                       # delta remplace par d
