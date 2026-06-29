@@ -30,3 +30,16 @@ test("mode AB si ?ab= présent dans le hash", async () => {
   renderWithClient(<ComparisonView />);
   expect(await screen.findByText("ab-stub")).toBeTruthy();
 });
+
+test("la carte affiche Ratio caché et Nœuds quand présents, les masque sinon", async () => {
+  window.location.hash = "#/comparison";
+  (apiFetch as ReturnType<typeof vi.fn>).mockResolvedValue([
+    { gate: "AND", latest_fitness: 0.8, latest_accuracy: 0.9, hidden_ratio: 0.12, num_nodes: 172 },
+    { gate: "OR", latest_fitness: 0.7, latest_accuracy: 0.85 },
+  ]);
+  renderWithClient(<ComparisonView />);
+  expect(await screen.findByText(/Ratio caché: 0\.120/)).toBeTruthy();
+  expect(screen.getByText(/Nœuds: 172/)).toBeTruthy();
+  expect(screen.getAllByText(/Ratio caché:/).length).toBe(1);
+  expect(screen.getAllByText(/Nœuds:/).length).toBe(1);
+});
