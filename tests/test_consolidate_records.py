@@ -78,3 +78,34 @@ def test_build_graph_emits_typed_edges():
         ("SDR-G1", "EDR-105", "MOTIVE"),
     ]
     assert {n["id"] for n in g["nodes"]} == {"SDR-G1", "EDR-105"}
+
+
+def _rec(id, type, **kw):
+    base = {"id": id, "type": type, "title": "t", "status": "open", "gate": None,
+            "motivates": [], "triggers": [], "tests": [], "verdict": None,
+            "file": "f", "linked": True}
+    base.update(kw)
+    return base
+
+
+def test_validate_flags_broken_link():
+    recs = [_rec("SDR-G1", "SDR", gate="G1", motivates=["EDR-999"])]
+    probs = validate_graph(recs)
+    assert any(p["kind"] == "broken_link" and "EDR-999" in p["detail"] for p in probs)
+
+
+def test_validate_flags_validated_gate_without_validated_edr():
+    recs = [
+        _rec("SDR-G1", "SDR", gate="G1", status="validated"),
+        _rec("EDR-105", "EDR", gate="G1", status="refuted", tests=["SDR-G1"]),
+    ]
+    probs = validate_graph(recs)
+    assert any(p["kind"] == "unsupported_gate" and p["record"] == "SDR-G1" for p in probs)
+
+
+def test_validate_clean_graph_has_no_problems():
+    recs = [
+        _rec("SDR-G1", "SDR", gate="G1", status="validated", motivates=["EDR-105"]),
+        _rec("EDR-105", "EDR", gate="G1", status="validated", tests=["SDR-G1"]),
+    ]
+    assert validate_graph(recs) == []
