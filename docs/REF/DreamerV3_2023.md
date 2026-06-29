@@ -8,6 +8,7 @@ lib: danijar/dreamerv3
 maturity: production
 supersedes: [EDR-095]
 grounds: [SDR-G4]
+adopt_for: [ADR-003]
 ---
 # REF-DreamerV3-2023 — Hafner et al. (2023)
 
