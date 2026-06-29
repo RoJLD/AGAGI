@@ -5,6 +5,12 @@ from src.agents.mamba_agent import MambaAgent
 from tools.lewis_survival_sweep import _fresh_genome
 from src.seed_ai.mutation import apply_mutations
 from tools.lewis_survival_sweep import _capacity_mc, _capacity_arm, _cfg
+from tools.lewis_survival_sweep import _verdict_capacity, main_capacity_nav
+
+
+def _arm(n, plateau):
+    return {"n_hidden": n, "num_nodes": 167 + n, "plateau": plateau,
+            "gen0": plateau, "first": plateau, "traj": [plateau], "stats": []}
 
 
 def test_fresh_genome_dims():
@@ -61,3 +67,29 @@ def test_capacity_materializes_in_phenotype():
     logits = a.forward(obs)
     assert logits.shape[-1] == 108
     assert np.all(np.isfinite(logits))
+
+
+def test_verdict_leve_on_rising_plateaus():
+    arms = [_arm(5, 0.20), _arm(20, 0.30), _arm(40, 0.42), _arm(80, 0.55)]
+    assert _verdict_capacity(arms) == "CAPACITE LEVE"
+
+
+def test_verdict_inerte_on_flat_plateaus():
+    arms = [_arm(5, 0.36), _arm(20, 0.37), _arm(40, 0.35), _arm(80, 0.36)]
+    assert _verdict_capacity(arms) == "CAPACITE INERTE"
+
+
+def test_verdict_ambigue_on_descending_plateaus():
+    arms = [_arm(5, 0.55), _arm(20, 0.40), _arm(40, 0.30), _arm(80, 0.20)]
+    assert _verdict_capacity(arms) == "CAPACITE AMBIGUE"
+
+
+def test_main_capacity_nav_smoke_and_determinism():
+    # Seed DISTINCT de 110 (le run reel) pour ne pas ecraser la provenance.
+    r1 = main_capacity_nav(hidden_levels=(5, 20), generations=2, num_agents=6,
+                           max_ticks=40, seed=12345, _return=True)
+    assert r1["verdict"] in ("CAPACITE LEVE", "CAPACITE INERTE", "CAPACITE AMBIGUE")
+    assert len(r1["arms"]) == 2
+    r2 = main_capacity_nav(hidden_levels=(5, 20), generations=2, num_agents=6,
+                           max_ticks=40, seed=12345, _return=True)
+    assert [a["traj"] for a in r1["arms"]] == [a["traj"] for a in r2["arms"]]

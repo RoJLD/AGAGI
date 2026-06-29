@@ -94,6 +94,71 @@ def _capacity_arm(cfg, mc, n_hidden, generations, num_agents, max_ticks, base_se
     }
 
 
+def _verdict_capacity(arms):
+    """EDR110 : verdict pre-enregistre sur l'effet de la capacite cachee sur le plateau de navigation.
+    delta = plateau(N_max) - plateau(N_min) ; slope = pente du plateau vs log2(N) (lisse l'echelle
+    geometrique 5->80). CAPACITE LEVE si delta>=0.10 ET slope>0. CAPACITE INERTE si abs(delta)<0.10
+    ET abs(slope)<0.05. CAPACITE AMBIGUE sinon (signal partiel/non-monotone)."""
+    arms = sorted(arms, key=lambda a: a["n_hidden"])
+    plateaus = [a["plateau"] for a in arms]
+    delta = plateaus[-1] - plateaus[0]
+    x = [float(np.log2(a["n_hidden"])) for a in arms]
+    slope = float(np.polyfit(x, plateaus, 1)[0]) if len(arms) >= 2 else 0.0
+    if delta >= 0.10 and slope > 0:
+        return "CAPACITE LEVE"
+    if abs(delta) < 0.10 and abs(slope) < 0.05:
+        return "CAPACITE INERTE"
+    return "CAPACITE AMBIGUE"
+
+
+def _report_capacity_nav(h, arms, generations, num_agents, max_ticks, _return):
+    """Table ASCII (1 ligne/bras : n_hidden, num_nodes, gen0, first, plateau, delta_vs_base) +
+    pente plateau vs log2(N) + delta(max-min) + verdict pre-enregistre. Sauvegarde JSON. Tout ASCII."""
+    verdict = _verdict_capacity(arms)
+    arms_sorted = sorted(arms, key=lambda a: a["n_hidden"])
+    base_plateau = arms_sorted[0]["plateau"]
+    plateaus = [a["plateau"] for a in arms_sorted]
+    x = [float(np.log2(a["n_hidden"])) for a in arms_sorted]
+    slope = float(np.polyfit(x, plateaus, 1)[0]) if len(arms_sorted) >= 2 else 0.0
+    print("\n=== EDR110 capacite cachee -> plafond navigation Lewis ===")
+    print("  n_hidden | num_nodes | gen0  first plateau | delta_vs_base")
+    for a in arms_sorted:
+        print(f"  {a['n_hidden']:8d} | {a['num_nodes']:9d} | {a['gen0']:.3f} {a['first']:.3f} "
+              f"{a['plateau']:.3f} | {a['plateau'] - base_plateau:+.3f}")
+    print(f"  pente plateau vs log2(N) = {slope:+.4f}  delta(max-min) = "
+          f"{plateaus[-1] - plateaus[0]:+.3f} (gate +0.10)")
+    print("=== VERDICT (pre-enregistre) ===")
+    print(f"  -> {verdict}")
+    h.save({"knob": "n_hidden", "hidden_levels": [a["n_hidden"] for a in arms_sorted],
+            "generations": generations, "num_agents": num_agents, "max_ticks": max_ticks,
+            "slope_vs_log2N": slope, "delta": plateaus[-1] - plateaus[0], "verdict": verdict,
+            "arms": arms_sorted})
+    if _return:
+        return {"verdict": verdict, "arms": arms_sorted, "slope": slope,
+                "delta": plateaus[-1] - plateaus[0]}
+
+
+def main_capacity_nav(hidden_levels=(5, 20, 40, 80), generations=20, num_agents=24,
+                      max_ticks=80, seed=110, _return=False):
+    """EDR 110 : seme une echelle de capacite cachee (n_hidden) figee et evolue la navigation a
+    chaque palier (boucle evolve_nav EDR107, metab=0, Lewis vide d'apex, forage_payoff=3). Lit
+    gen0 (capacite brute) + plateau evolue. Verdict CAPACITE LEVE / INERTE / AMBIGUE."""
+    with Harness(seed=seed, name="lewis_capacity_nav", with_db=False) as h:
+        base = h.seed
+        _disable_kuzu()
+        print(f"EDR110 : capacite cachee nav, hidden={hidden_levels}, gen={generations}, "
+              f"pop={num_agents}, max_ticks={max_ticks}, seed={base}.")
+        mc = _capacity_mc()
+        cfg = _cfg(3, base_metabolism=0.0, trace_forage=True)
+        prog = h.progress(len(hidden_levels), label="paliers de capacite")
+        arms = []
+        for n_hidden in hidden_levels:
+            arms.append(_capacity_arm(cfg, mc, n_hidden, generations, num_agents,
+                                      max_ticks, base + n_hidden))
+            prog.update()
+        return _report_capacity_nav(h, arms, generations, num_agents, max_ticks, _return)
+
+
 def _measure_survival(cfg, seeds, leurre_frac=0.0, n_apex=N_APEX, num_agents=NUM_AGENTS,
                       max_ticks=MAX_TICKS, collect_surprise=False):
     """Mesure la survie des CHAMPIONS (repliques, pas d'evolution) en Lewis a letalite leurre_frac.
