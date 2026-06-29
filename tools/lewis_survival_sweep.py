@@ -17,6 +17,7 @@ from tools.evolve_competence import _reproduce
 from tools.robust_eval import _load_champions
 from tools.lewis_critical import _setup_critical
 from tools.lethality_curriculum import _disable_kuzu
+from src.seed_ai.persistence import calculate_life_score
 
 METAB = 0.25                       # sweet-spot energie 085 (fixe)
 LEVELS = (3, 6, 12, 24, 48)        # forage_payoff balaye : de 085 vers x16
@@ -492,6 +493,28 @@ def main_forage(metab_levels=(0.0, 0.25), n_eval=8, R=4, seed=None, _return=Fals
             aggs.append((lv, _measure_forage(cfg, seeds, n_apex=0, max_ticks=150)))
             prog.update()
         return _report_forage(h, aggs, R, n_eval, _return)
+
+
+def _p_reach_of_pool(pool):
+    """EDR107 : fraction des agents du pool ayant atteint une cellule-proie (_forage_min_dist<=0).
+    Pool vide -> 0.0. Necessite trace_forage=True (sinon cle absente -> defaut 9999 -> non atteint)."""
+    if not pool:
+        return 0.0
+    reached = sum(1 for ag in pool if float(ag.get("_forage_min_dist", 9999.0)) <= 0)
+    return reached / len(pool)
+
+
+def _verdict_evolve_nav(traj):
+    """EDR107 : verdict sur la trajectoire p_reach par generation. NAVIGATION EVOLUE si la mediane des
+    k dernieres generations depasse celle des k premieres de >= 0.15 (ancre sur l'effet +0.05 d'EDR106) ;
+    sinon SUBSTRAT BLOQUE. k=5 si >=10 generations, sinon max(1, n//2). traj vide -> SUBSTRAT BLOQUE."""
+    if not traj:
+        return "SUBSTRAT BLOQUE"
+    n = len(traj)
+    k = 5 if n >= 10 else max(1, n // 2)
+    first = float(np.median(traj[:k]))
+    last = float(np.median(traj[-k:]))
+    return "NAVIGATION EVOLUE" if last >= first + 0.15 else "SUBSTRAT BLOQUE"
 
 
 def _verdict_approach(aggs):
