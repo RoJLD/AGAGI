@@ -2,7 +2,7 @@
 id: SDR-G0
 type: SDR
 title: Le monde EXIGE-t-il l'intelligence
-status: open
+status: validated
 gate: G0
 motivates: [EDR-112, EDR-118]
 ---
