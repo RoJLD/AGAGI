@@ -147,3 +147,23 @@ Toute expérience se situe dans **4 familles** de dimensions orthogonales.
 ## Backlog (idées différées)
 
 - **Table de craft spatiale (façon Minecraft)** : remplacer la recette unique (`rub` → lance) par une **grille 3×3** où la *disposition* définit la recette (*shaped crafting*) → arbre technologique compositionnel, pressure la planification spatiale. Progression : **3×3 → n×n → n×n×n** (craft volumétrique 3D). Après validation de la boucle moyens→fins par l'évolution.
+
+---
+
+## Solidification G0 (porte FRANCHIE par EDR 112, raffinements différés)
+
+> G0 est **validée** (`SDR-G0`, stoneage/soup EXIGE). Ces items renforcent la *carte de validité* mais
+> ne bloquent pas G1. Design : `superpowers/specs/2026-06-29-G0-World-Demand-Benchmark-design.md`.
+
+- **Monde Lewis dans le benchmark de validité** : porter `tools/s2_demand.py` sur la config létale Lewis
+  (`_setup_critical`, cf. `tools/lewis_critical.py`) — le régime DUR (EDR 110). Mesurer si Lewis EXIGE ou
+  est au plancher pour les deux bras.
+- **Garde-fou INCONCLUSIF au plancher létal** : ajouter à `s2_verdict` un verdict INCONCLUSIF quand
+  champion ET baseline sont sous un `FLOOR_AGE` (régime létal → pas de discrimination), distinct de
+  FACTICE. Crucial pour Lewis (EDR 110).
+- **Trancher industrial vs stoneage** : EDR 112 montre des chiffres *byte-identiques* → `IndustrialWorld`
+  délègue probablement à `Biosphere3D`. Confirmer (le verdict EXIGE d'industrial n'est pas indépendant).
+- **Re-régler agricultural (VOID)** : la cohérence life_score a échoué (life_p=0.092) → instrument
+  indécis ; comprendre pourquoi (monde immature ? métrique inadaptée ?).
+- **`s2_demand._print_table` Windows-safe** : plante sur stdout cp1252 à l'impression de « Cliff δ »
+  (U+03B4). Contourné par `PYTHONIOENCODING=utf-8` ; corriger le print (ASCII ou encodage explicite).
