@@ -1,9 +1,26 @@
 # Design — G0 : le monde EXIGE-t-il l'intelligence ? (benchmark champion vs aléatoire)
 
-> **Date** : 2026-06-29 · **Statut** : design validé (brainstorming), avant plan d'implémentation.
+> **Date** : 2026-06-29 · **Statut** : RÉFRAMÉ 2026-06-29 — l'instrument existe déjà.
 > **Porte** : G0 du [`FIL_DIRECTEUR_AGI`](../../roadmap/FIL_DIRECTEUR_AGI.md) (record `SDR-G0`).
 > **Dépend de** : rien (porte de validité, fondation). **Débloque** : G1 (transfert north-star) —
 > sans G0, `transfer_ratio` mesure du bruit.
+>
+> ## ⚠️ RÉFRAME (2026-06-29) — l'instrument G0 EXISTE DÉJÀ (« S2 »)
+> Découvert après rédaction : `tools/s2_demand.py` + `src/agents/baseline_models.py`
+> (`RandomActionBatchModel`, `ReflexBatchModel`) + `src/seed_ai/s2_stats.py` (pré-enregistrés
+> `docs/superpowers/specs/2026-06-14-S2-World-Demands-Intelligence-design.md`) implémentent G0 — **plus
+> rigoureusement** que ce design (5 conditions champion/random_genome/random_action/reflex_naïf/
+> reflex_prudent ; power analysis pilote→K ; IUT + Holm FWER ; Cliff δ ; censure ; verdict VOID).
+> Construit, revu, **testé** (`tests/sandbox/test_s2_demand.py`+`test_baseline_models.py`+`test_s2_stats.py`),
+> mais **JAMAIS lancé jusqu'à un EDR** (le code dit « rédiger EDR 088 », détourné depuis vers le langage).
+>
+> **G0 réel = RUN + CONSIGN**, pas build : (1) garantir un champion (HoF ou évoluer), (2) lancer
+> `s2_demand.py` → verdict, (3) consigner l'EDR avec frontmatter `tests: [SDR-G0]`.
+>
+> **Valeur additive de CE design (→ plan-suivi, backlog)** : (a) couverture **Lewis** (S2 fait
+> soup/stoneage/agri/indus, pas Lewis — or EDR 110 en fait le régime critique) ; (b) garde-fou
+> **INCONCLUSIF au plancher létal** (section 5) ; (c) champion **inline** (S2 dépend du HoF). Les
+> sections 3-10 ci-dessous décrivent ces extensions, à porter SUR `s2_demand.py`, pas à reconstruire.
 
 ---
 
