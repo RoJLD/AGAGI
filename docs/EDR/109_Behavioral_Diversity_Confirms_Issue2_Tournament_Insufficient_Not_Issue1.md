@@ -120,10 +120,14 @@ intra-run, pas un effet causal de la selection.
 
 ## Verdict
 
-### Issue 1 (refutee) : diverse plus divers comportementalement, apex plat -> repertoire-monde CLOS
+### Issue 1 (non etablie) : diverse plus divers comportementalement, apex plat -> repertoire-monde CLOS
 
 Non retenu. Le bras diverse n'est PAS significativement plus divers que l'elitiste :
-- D_bdiv_late = 0.1773 vs E_bdiv_late = 0.1702, delta = +0.007, sign_p = 0.250 (NS)
+
+- D_bdiv_late = 0.1773 vs E_bdiv_late = 0.1702, delta = +0.007 (+4% relatif dans le regime
+  ~0.17 ; ~1.4% de la plage theorique [0, 0.5]), sign_p = 0.250 (NS)
+- L'ecart minuscule (+4% relatif, <1.5% de plage) est coherent avec sign_p 0.250 NS et
+  renforce issue 2 : le tournoi k=3 ne cree pas de separation comportementale discernable.
 - 2/3 seeds seulement positifs, seed 0 inverse
 - La trajectoire ere-par-ere montre des alternances sans tendance stable
 
@@ -150,6 +154,20 @@ seulement issue 2 confirmee).
 **Verdict synthetique :** issue 2 CONFIRMEE, issue 1 NON ETABLIE (distincts : issue 1 aurait
 requis que diverse soit significativement plus divers ET apex plat ; ici diverse n'est pas
 plus divers, donc issue 1 ne peut pas etre tranchee par ce run).
+
+---
+
+## Anti-theatre & limites
+
+**Tracabilite des seeds (dette pre-existante) :** les 6 JSON de run (`bdiv_E_s0.json` ..
+`bdiv_D_s2.json`) rapportent tous `"seed": 0` dans leurs metadonnees. Ce champ est celui
+du `Harness(seed=0, ...)` dans `tools/evolve_ceiling_probe.py` (hardcode a 0), PAS
+`EXPERIMENT_SEED`. Le dict `result` retourne par `run_evolution` n'embarque pas
+`experiment_seed`. Les donnees elles-memes sont distinctes par seed (era0 frac_apex
+0.2906/0.175/0.218), donc la validite des resultats n'est pas en cause ; la
+correspondance run<->seed repose sur le nom de fichier. Dette de repro identique dans
+EDR 105/108 — a corriger dans une future iteration du probe (faire embarquer
+`experiment_seed` dans le `result`).
 
 ---
 
