@@ -17,6 +17,7 @@ from tools.evolve_competence import _reproduce
 from tools.robust_eval import _load_champions
 from tools.lewis_critical import _setup_critical
 from tools.lethality_curriculum import _disable_kuzu
+from src.seed_ai.persistence import calculate_life_score
 
 METAB = 0.25                       # sweet-spot energie 085 (fixe)
 LEVELS = (3, 6, 12, 24, 48)        # forage_payoff balaye : de 085 vers x16
@@ -494,6 +495,62 @@ def main_forage(metab_levels=(0.0, 0.25), n_eval=8, R=4, seed=None, _return=Fals
         return _report_forage(h, aggs, R, n_eval, _return)
 
 
+def _p_reach_of_pool(pool):
+    """EDR107 : fraction des agents du pool ayant atteint une cellule-proie (_forage_min_dist<=0).
+    Pool vide -> 0.0. Necessite trace_forage=True (sinon cle absente -> defaut 9999 -> non atteint)."""
+    if not pool:
+        return 0.0
+    reached = sum(1 for ag in pool if float(ag.get("_forage_min_dist", 9999.0)) <= 0)
+    return reached / len(pool)
+
+
+def _verdict_evolve_nav(traj):
+    """EDR107 : verdict sur la trajectoire p_reach par generation. NAVIGATION EVOLUE si la mediane des
+    k dernieres generations depasse celle des k premieres de >= 0.15 (ancre sur l'effet +0.05 d'EDR106) ;
+    sinon SUBSTRAT BLOQUE. k=5 si >=10 generations, sinon max(1, n//2). traj vide -> SUBSTRAT BLOQUE."""
+    if not traj:
+        return "SUBSTRAT BLOQUE"
+    n = len(traj)
+    k = 5 if n >= 10 else max(1, n // 2)
+    first = float(np.median(traj[:k]))
+    last = float(np.median(traj[-k:]))
+    return "NAVIGATION EVOLUE" if last >= first + 0.15 else "SUBSTRAT BLOQUE"
+
+
+def _evolve_nav_gen(cfg, genomes, max_ticks=80):
+    """EDR107 : lance UNE generation (ere fraiche, current_era=1 -> scaffold chaud) en Lewis vide d'apex.
+    cfg DOIT avoir trace_forage=True. Renvoie (scored, p_reach, stats) : scored = top-5 (life_score, genome)
+    pour le cliquet best-ever ; p_reach = _p_reach_of_pool(pool) ; stats = {ticks, eaten, p_reach}.
+    Calque run_era d'evolve_competence + setup Lewis de _measure_forage."""
+    env = Biosphere3D(cfg)
+    _setup_critical(env, 0.0, n_apex=0)
+    env.config.target_prey_count = PREY_COUNT
+    if hasattr(env, "memory_retriever"):
+        env.memory_retriever.stop()
+        env.memory_retriever.clear()
+    env.use_ref_head = False
+    env.decode_act = False
+    for g in genomes:
+        a = MambaAgent()
+        a.from_genome(g)
+        env.add_agent(a, energy=80.0)
+    env.current_era = 1
+    t = 0
+    while env.agents and t < max_ticks:
+        env.step()
+        t += 1
+    pool = list(env.agents) + list(getattr(env, "dead_agents", []))
+    ranked = sorted(pool, key=calculate_life_score, reverse=True)
+    scored = []
+    for ag in ranked[:5]:
+        g = ag["model"].genome if "model" in ag else ag.get("genome")
+        if g is not None:
+            scored.append((float(calculate_life_score(ag)), g))
+    p_reach = _p_reach_of_pool(pool)
+    eaten = int(sum(ag.get("preys_eaten", 0) for ag in pool))
+    return scored, p_reach, {"ticks": t, "eaten": eaten, "p_reach": p_reach}
+
+
 def _verdict_approach(aggs):
     """EDR106 : verdict porte par le niveau FIGE (prey_speed_scale=0.0). p_reach>=0.5 -> KINEMATIQUE
     (proies immobiles atteintes -> le mur etait la fuite, vitesse relative) ; sinon POLITIQUE (la
@@ -543,6 +600,59 @@ def main_approach(speed_levels=(1.0, 0.5, 0.25, 0.0), n_eval=8, R=4, seed=None, 
             aggs.append((s, _measure_forage(cfg, seeds, n_apex=0, max_ticks=150)))
             prog.update()
         return _report_approach(h, aggs, R, n_eval, _return)
+
+
+def _report_evolve_nav(h, traj, stats_hist, generations, num_agents, max_ticks, _return):
+    """Trajectoire p_reach par generation + first/last medianes + pente lineaire + verdict.
+    Tout ASCII (cp1252)."""
+    verdict = _verdict_evolve_nav(traj)
+    n = len(traj)
+    k = 5 if n >= 10 else max(1, n // 2)
+    first = float(np.median(traj[:k]))
+    last = float(np.median(traj[-k:]))
+    slope = float(np.polyfit(range(1, n + 1), traj, 1)[0]) if n >= 2 else 0.0
+    print("\n=== EDR107 evolution navigation Lewis : trajectoire p_reach ===")
+    print("  gen | p_reach | ticks eaten")
+    for i, (p, sd) in enumerate(zip(traj, stats_hist), 1):
+        print(f"  {i:3d} | {p:7.3f} | {sd['ticks']:5d} {sd['eaten']:5d}")
+    print(f"  first-{k} median={first:.3f}  last-{k} median={last:.3f}  delta={last - first:+.3f} (gate +0.15)")
+    print(f"  pente lineaire p_reach/gen = {slope:+.4f}")
+    print("=== VERDICT (pre-enregistre) ===")
+    print(f"  -> {verdict}")
+    h.save({"knob": "generation", "generations": generations, "num_agents": num_agents,
+            "max_ticks": max_ticks, "traj": traj, "first_median": first, "last_median": last,
+            "slope": slope, "verdict": verdict, "stats": stats_hist})
+    if _return:
+        return {"verdict": verdict, "traj": traj, "first_median": first, "last_median": last,
+                "slope": slope}
+
+
+def main_evolve_nav(generations=20, num_agents=24, max_ticks=80, seed=None, _return=False):
+    """EDR 107 : re-evolue la navigation EN Lewis (N_APEX=0, metab=0, forage_payoff=3) sur la fitness
+    de prod calculate_life_score. Cliquet best-ever (top-5 global). Mesure p_reach par generation ->
+    verdict NAVIGATION EVOLUE (last>=first+0.15) vs SUBSTRAT BLOQUE."""
+    with Harness(seed=seed, name="lewis_evolve_nav", with_db=False) as h:
+        base = h.seed
+        _disable_kuzu()
+        print(f"EDR107 : evolution navigation Lewis, gen={generations}, pop={num_agents}, "
+              f"max_ticks={max_ticks}, seed={base}.")
+        mc = MutationConfig(weight_init_std=2.0)
+        seed_at(base, 0)
+        champs = _load_champions()
+        best_ever = [(0.0, g) for g in champs]
+        cfg = _cfg(3, base_metabolism=0.0, trace_forage=True)
+        traj, stats_hist = [], []
+        prog = h.progress(generations, label="generations")
+        for gen in range(1, generations + 1):
+            seed_at(base + gen, 0)
+            champ_genomes = [g for (_s, g) in best_ever]
+            genomes = _reproduce(champ_genomes, num_agents, mc)
+            scored, p_reach, stats = _evolve_nav_gen(cfg, genomes, max_ticks=max_ticks)
+            best_ever = sorted(best_ever + scored, key=lambda sg: sg[0], reverse=True)[:5]
+            traj.append(p_reach)
+            stats_hist.append(stats)
+            prog.update()
+        return _report_evolve_nav(h, traj, stats_hist, generations, num_agents, max_ticks, _return)
 
 
 if __name__ == "__main__":
