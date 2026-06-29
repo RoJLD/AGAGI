@@ -66,18 +66,20 @@ def regime_diagnostic_verdict(cells, max_ticks=400):
                        "censored_frac": float(rc["champion"].get("censored_frac", 0.0))}
     md, ms = per.get("defaut", {}), per.get("sweet", {})
     md_med, ms_med = md.get("champ_median", 0.0), ms.get("champ_median", 0.0)
-    lift = (ms_med / md_med) if md_med > 0 else (float("inf") if ms_med > 0 else 1.0)
+    floored_lift = (md_med <= 0.0 and ms_med > 0.0)   # défaut au plancher (médiane 0) : lift "infini" -> None (JSON strict)
+    lift = None if floored_lift else ((ms_med / md_med) if md_med > 0.0 else 1.0)
+    lift_ok = floored_lift or (lift is not None and lift >= LIFT_RATIO)
 
     if md.get("beats"):
         verdict, reco = "SOUS_PUISSANCE", "defaut"
-    elif (not md.get("survivable")) and ms.get("survivable") and lift >= LIFT_RATIO and ms.get("beats"):
+    elif (not md.get("survivable")) and ms.get("survivable") and lift_ok and ms.get("beats"):
         verdict, reco = "CONFOND_PLANCHER", "sweet"
     elif ms.get("survivable") and not ms.get("beats"):
         verdict, reco = "N_EXIGE_PAS_REEL", None
     else:
         verdict, reco = "AMBIGU", None
 
-    return {"verdict": verdict, "regime_recommande": reco, "lift": float(lift), "per_regime": per,
+    return {"verdict": verdict, "regime_recommande": reco, "lift": lift, "per_regime": per,
             "thresholds": {"ALPHA": ALPHA, "CLIFF_THRESH": CLIFF_THRESH,
                            "SURV_FLOOR_FRAC": SURV_FLOOR_FRAC, "CENSORED_SURV": CENSORED_SURV,
                            "LIFT_RATIO": LIFT_RATIO}}
@@ -141,7 +143,8 @@ def _print_table(report):
         print(f"  {regime:7s} : survivable={str(r['survivable']):5s} | médiane_champ={r['champ_median']:6.1f} "
               f"| censuré={r['censored_frac']*100:3.0f}% | vs {r['strongest_baseline']:13s} "
               f"p={r['p']:.3f} Cliff δ={r['cliff']:+.2f} bat={r['beats']}")
-    print(f"  -> VERDICT : {report['verdict']} (lift sweet/défaut={report['lift']:.2f})")
+    lift_str = "∞(plancher)" if report["lift"] is None else f"{report['lift']:.2f}"
+    print(f"  -> VERDICT : {report['verdict']} (lift sweet/défaut={lift_str})")
     print(f"  -> {_ACTION.get(report['verdict'], '')}")
     if report["regime_recommande"]:
         print(f"  -> régime recommandé pour le S2 confirmatoire : {report['regime_recommande']}")

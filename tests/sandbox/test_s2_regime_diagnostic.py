@@ -25,6 +25,9 @@ def _equal_regime(age, n=8, censored=0.0):
             "random_action": _cell([age] * n)}
 
 
+# NB : n=8 ères ici = taille de TEST (séparation nette -> p≈0.014) ; la prod vise K>=12 (plancher s2_stats).
+
+
 def test_sous_puissance_when_champion_beats_at_default():
     cells = {"defaut": _sep_regime(300, 50), "sweet": _sep_regime(300, 50)}
     v = regime_diagnostic_verdict(cells, max_ticks=400)
@@ -76,8 +79,28 @@ def test_thresholds_and_regimes_reported():
     assert REGIMES["sweet"] == (0.25, 3.0)
 
 
-import pytest
 from tools.s2_regime_diagnostic import run_diagnostic_main
+
+
+def test_confond_plancher_floored_default_yields_none_lift():
+    # défaut : médiane champion = 0 (plancher absolu) ; sweet : champion 300 domine baseline 50
+    cells = {"defaut": {"champion": _cell([0] * 8), "reflex_naive": _cell([0] * 8),
+                        "random_action": _cell([0] * 8)},
+             "sweet": _sep_regime(300, 50)}
+    v = regime_diagnostic_verdict(cells, max_ticks=400)
+    assert v["verdict"] == "CONFOND_PLANCHER"
+    assert v["regime_recommande"] == "sweet"
+    assert v["lift"] is None                       # JSON-portable (pas d'Infinity)
+    import json
+    json.dumps(v)                                   # ne lève pas
+
+
+def test_ambigu_when_default_survivable_but_only_sweet_separates():
+    # défaut survivable (300>=200) mais champion ≈ dummy ; sweet : champion domine -> aucune branche -> AMBIGU
+    cells = {"defaut": _equal_regime(300), "sweet": _sep_regime(350, 50)}
+    v = regime_diagnostic_verdict(cells, max_ticks=400)
+    assert v["verdict"] == "AMBIGU"
+    assert v["regime_recommande"] is None
 
 
 def test_run_diagnostic_main_smoke(tmp_path, monkeypatch):
