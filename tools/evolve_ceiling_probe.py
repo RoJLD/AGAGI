@@ -95,6 +95,16 @@ def run_evolution(target, k_eras, num_agents, max_ticks, shared_db,
         nodes = [a["model"].genome.num_nodes for a in all_agents if a.get("model") is not None]
         w_means = [a["model"].genome.W.mean() for a in all_agents if a.get("model") is not None]
         genome_diversity = round(float(statistics.pstdev(w_means)), 4) if len(w_means) > 1 else 0.0
+        # Diversité COMPORTEMENTALE (EDR 109) : std inter-agents de descripteurs NORMALISÉS par dimension
+        # (sinon age ~0-300 domine mammoth ~0-2). Décompo -> stratégie (preys/mammoth/spears) vs survie (age).
+        DESCRIPTORS = ("preys_eaten", "mammoth_kills", "spears_crafted", "age")
+        bdiv = {}
+        for d in DESCRIPTORS:
+            vals = [s[d] for s in stats]
+            vmax = max(vals) if vals else 0
+            norm = [v / vmax for v in vals] if vmax > 0 else [0.0 for _ in vals]
+            bdiv[d] = statistics.pstdev(norm) if len(norm) > 1 else 0.0
+        behavioral_diversity = round(statistics.mean(bdiv.values()), 4) if bdiv else 0.0
         row = {
             "era": era,
             "frac_apex": round(_frac_reaching(stats, "mammoth_kills"), 4),
@@ -106,11 +116,16 @@ def run_evolution(target, k_eras, num_agents, max_ticks, shared_db,
             "ticks": t,
             "cap_hits": cap_hits,
             "genome_diversity": genome_diversity,
+            "behavioral_diversity": behavioral_diversity,
+            "bdiv_preys": round(bdiv["preys_eaten"], 4),
+            "bdiv_mammoth": round(bdiv["mammoth_kills"], 4),
+            "bdiv_spears": round(bdiv["spears_crafted"], 4),
+            "bdiv_age": round(bdiv["age"], 4),
         }
         per_era.append(row)
-        log.info("  era=%d apex=%.3f C=%.3f mean_nodes=%.1f max_nodes=%d n=%d t=%d cap_hits=%d div=%.4f",
+        log.info("  era=%d apex=%.3f C=%.3f mean_nodes=%.1f n=%d t=%d gdiv=%.4f bdiv=%.4f",
                  era, row["frac_apex"], row["median_competence"], row["mean_nodes"],
-                 row["max_nodes"], row["n"], t, cap_hits, row["genome_diversity"])
+                 row["n"], t, row["genome_diversity"], row["behavioral_diversity"])
 
         # Sélection -> carry. elitist=top-3 (EDR 105 baseline) ; diverse=tournoi sur TOUTE la pop.
         pool = [a for a in all_agents if a.get("model") is not None]
