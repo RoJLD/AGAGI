@@ -29,7 +29,9 @@ def parse_record(path: str) -> dict | None:
     """Lit un record .md. Frontmatter YAML -> record lié. EDR nommé NNN_*.md sans
     frontmatter -> record toléré non lié. Sinon None (fichier non-record)."""
     name = os.path.basename(path)
-    text = open(path, encoding="utf-8").read()
+    with open(path, encoding="utf-8") as fh:
+        text = fh.read()
+    text = text.replace("\r\n", "\n").replace("\r", "\n")
     rec = _empty_record(os.path.relpath(path, _ROOT).replace(os.sep, "/"))
 
     if text.startswith("---"):
