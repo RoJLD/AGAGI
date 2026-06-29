@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../api/client";
 import { queryKeys } from "../api/queryKeys";
 import { STATUS_POLL } from "../lib/polling";
-import type { QueuedRun, RunConfig, QueueStatus } from "../types";
+import type { RunConfig, QueueStatus } from "../types";
 import { validateRunConfig } from "../lib/validateRunConfig";
 import { useRunPresets } from "../hooks/useRunPresets";
 import { useToast } from "../contexts/ToastContext";
@@ -11,6 +11,15 @@ import { Panel } from "./ui/Panel";
 import { Field } from "./ui/Field";
 import { Button } from "./ui/Button";
 import { Badge } from "./ui/Badge";
+import {
+  buildQueueItems,
+  mergeQueue,
+  queueTick,
+  applyStartFailure,
+  stopQueue,
+  queueCounts,
+  type QueueState,
+} from "../lib/queue";
 
 interface SandboxStatusLite {
   running: boolean;
@@ -49,9 +58,7 @@ export function RunLauncher({ onLaunch }: { onLaunch?: (config: RunConfig) => vo
   }, [scripts, config.script_name]);
 
   const [presetLabel, setPresetLabel] = useState("");
-  const [queue, setQueue] = useState<QueuedRun[]>([]);
-  const [queueRunning, setQueueRunning] = useState(false);
-  const launched = useRef<{ seed: number; sawRunning: boolean } | null>(null);
+  const [q, setQ] = useState<QueueState>({ items: [], running: false, current: null });
 
   const { errors, warnings } = validateRunConfig(config);
   const set = <K extends keyof RunConfig>(k: K, v: RunConfig[K]) => setConfig((c) => ({ ...c, [k]: v }));
@@ -61,13 +68,9 @@ export function RunLauncher({ onLaunch }: { onLaunch?: (config: RunConfig) => vo
       notify(errors[0], "error");
       return;
     }
-    const items: QueuedRun[] = Array.from({ length: config.n_seeds }, (_, i) => ({
-      id: `${config.script_name}#${config.base_seed + i}`,
-      seed: config.base_seed + i,
-      status: "pending" as QueueStatus,
-    }));
-    setQueue((prev) => [...prev, ...items.filter((it) => !prev.some((p) => p.id === it.id))]);
-    notify(`${items.length} run(s) enfilé(s).`, "info");
+    const incoming = buildQueueItems(config);
+    setQ((s) => ({ ...s, items: mergeQueue(s.items, incoming) }));
+    notify(`${incoming.length} run(s) enfilé(s).`, "info");
   };
 
   const startRun = async (seed: number) => {
@@ -90,43 +93,21 @@ export function RunLauncher({ onLaunch }: { onLaunch?: (config: RunConfig) => vo
     });
   };
 
-  // Pilote séquentiel : le backend ne tient qu'un subprocess à la fois.
-  // launched.sawRunning évite de marquer "done" pendant la latence de polling avant que la sandbox passe running.
+  // Pilote séquentiel piloté par le signal de poll (statusQuery.data).
+  // queueTick est pur ; on ne commit l'état que s'il change, on exécute l'effet retourné.
   useEffect(() => {
-    if (!queueRunning || !statusQuery.data) return;
-    const running = statusQuery.data.running;
-
-    if (launched.current) {
-      if (running) {
-        launched.current.sawRunning = true;
-      } else if (launched.current.sawRunning) {
-        const seed = launched.current.seed;
-        setQueue((q) => q.map((it) => (it.seed === seed && it.status === "running" ? { ...it, status: "done" } : it)));
-        launched.current = null;
-      }
-      return;
-    }
-
-    if (running) return; // sandbox occupée (ex. run ad hoc) : on patiente
-    const next = queue.find((it) => it.status === "pending");
-    if (!next) {
-      setQueueRunning(false);
+    if (!statusQuery.data) return;
+    const { state: next, effect } = queueTick(q, statusQuery.data.running);
+    if (next !== q) setQ(next);
+    if (effect.type === "start") {
+      startRun(effect.seed).catch(() => setQ((s) => applyStartFailure(s, effect.id)));
+    } else if (effect.type === "complete") {
       notify("File de runs terminée.", "success");
-      return;
     }
-    launched.current = { seed: next.seed, sawRunning: false };
-    setQueue((q) => q.map((it) => (it.id === next.id ? { ...it, status: "running" } : it)));
-    startRun(next.seed).catch(() => {
-      setQueue((q) => q.map((it) => (it.seed === next.seed ? { ...it, status: "error" } : it)));
-      launched.current = null;
-    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [statusQuery.data, queueRunning, queue]);
+  }, [statusQuery.data, q]);
 
-  const counts = queue.reduce(
-    (acc, it) => ({ ...acc, [it.status]: (acc[it.status] ?? 0) + 1 }),
-    {} as Record<QueueStatus, number>,
-  );
+  const counts = queueCounts(q.items);
 
   return (
     <Panel className="mb-5">
@@ -225,38 +206,38 @@ export function RunLauncher({ onLaunch }: { onLaunch?: (config: RunConfig) => vo
         <Button variant="ghost" onClick={enqueue} disabled={errors.length > 0}>
           Enfiler {config.n_seeds} seed(s)
         </Button>
-        {queueRunning ? (
-          <Button variant="danger" onClick={() => { setQueueRunning(false); launched.current = null; }}>
+        {q.running ? (
+          <Button variant="danger" onClick={() => setQ(stopQueue)}>
             Stopper la file
           </Button>
         ) : (
           <Button
             variant="primary"
-            disabled={!queue.some((it) => it.status === "pending")}
+            disabled={!q.items.some((it) => it.status === "pending")}
             onClick={() => {
-              setQueueRunning(true);
+              setQ((s) => ({ ...s, running: true }));
               onLaunch?.(config);
             }}
           >
             Lancer la file
           </Button>
         )}
-        {queue.length > 0 && (
-          <Button variant="ghost" size="sm" onClick={() => { if (!queueRunning) setQueue([]); }} disabled={queueRunning}>
+        {q.items.length > 0 && (
+          <Button variant="ghost" size="sm" onClick={() => { if (!q.running) setQ((s) => ({ ...s, items: [] })); }} disabled={q.running}>
             Vider
           </Button>
         )}
       </div>
 
       {/* File */}
-      {queue.length > 0 && (
+      {q.items.length > 0 && (
         <div className="mt-4">
           <p className="text-dim">
             File : {counts.pending ?? 0} en attente · {counts.running ?? 0} en cours · {counts.done ?? 0} fini ·{" "}
             {counts.error ?? 0} erreur
           </p>
           <div className="row" style={{ flexWrap: "wrap" }}>
-            {queue.map((it) => (
+            {q.items.map((it) => (
               <Badge key={it.id} variant={STATUS_VARIANT[it.status]}>
                 seed {it.seed} · {it.status}
               </Badge>
