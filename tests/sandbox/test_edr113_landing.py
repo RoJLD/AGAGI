@@ -1,6 +1,7 @@
 import numpy as np
 from src.environments.config import WorldConfig
 from src.worlds.world_1_stoneage import Biosphere3D
+from tools.lewis_survival_sweep import _cfg, _landing_arm
 
 
 def _cfg_land(scaffold_land):
@@ -63,3 +64,18 @@ def test_non_regression_byte_identical_at_zero():
     e0a, _ = _run_with_prey_on_agent(0.0, seed=777)
     e0b, _ = _run_with_prey_on_agent(0.0, seed=777)
     assert e0a == e0b
+
+
+def test_cfg_scaffold_land_param():
+    assert _cfg(3).scaffold_land == 0.0
+    assert _cfg(3, scaffold_land=5.0).scaffold_land == 5.0
+
+
+def test_landing_arm_smoke_returns_expected_keys():
+    cfg = _cfg(3, base_metabolism=0.0, trace_forage=True, scaffold_land=5.0)
+    arm = _landing_arm(cfg, generations=2, num_agents=6, max_ticks=40, base_seed=99113)
+    assert arm["scaffold_land"] == 5.0
+    assert len(arm["traj"]) == 2
+    assert 0.0 <= arm["plateau"] <= 1.0
+    assert 0.0 <= arm["gen0"] <= 1.0
+    assert len(arm["stats"]) == 2

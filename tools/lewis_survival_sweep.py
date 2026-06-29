@@ -33,7 +33,7 @@ SURPRISE_LEVELS = (1.0, 0.5, 0.25, 0.0)   # ttc_surprise_scale : baseline 094 (1
 
 
 def _cfg(forage_payoff, ttc_surprise_scale=None, trace_energy_sinks=False, base_metabolism=METAB,
-         trace_forage=False, prey_speed_scale=1.0):
+         trace_forage=False, prey_speed_scale=1.0, scaffold_land=0.0):
     cfg = WorldConfig()
     cfg.base_metabolism = float(base_metabolism)             # EDR101 : sweepable (defaut METAB=0.25)
     cfg.forage_payoff = float(forage_payoff)
@@ -43,6 +43,7 @@ def _cfg(forage_payoff, ttc_surprise_scale=None, trace_energy_sinks=False, base_
     cfg.trace_energy_sinks = bool(trace_energy_sinks)         # EDR099
     cfg.trace_forage = bool(trace_forage)                     # EDR105
     cfg.prey_speed_scale = float(prey_speed_scale)            # EDR106
+    cfg.scaffold_land = float(scaffold_land)                  # EDR113
     return cfg
 
 
@@ -104,6 +105,35 @@ def _capacity_arm(cfg, mc, n_hidden, generations, num_agents, max_ticks, base_se
     return {
         "n_hidden": n_hidden, "num_nodes": expected_nodes,
         "traj": traj, "gen0": float(traj[0]) if traj else 0.0,
+        "first": float(np.median(traj[:k])) if traj else 0.0,
+        "plateau": float(np.median(traj[-k:])) if traj else 0.0,
+        "stats": stats_hist,
+    }
+
+
+def _landing_arm(cfg, generations, num_agents, max_ticks, base_seed):
+    """EDR113 : un bras = evolue la navigation sous un cfg portant un scaffold_land donne. Calque
+    main_evolve_nav (EDR107) : best_ever seedé par _load_champions, _reproduce (mc standard, add_node ON
+    comme 107), _evolve_nav_gen, cliquet best-ever top-5. La SEULE variable entre bras est
+    cfg.scaffold_land. Renvoie {scaffold_land, traj, gen0, first, plateau, stats}."""
+    mc = MutationConfig(weight_init_std=2.0)
+    seed_at(base_seed, 0)
+    champs = _load_champions()
+    best_ever = [(0.0, g) for g in champs]
+    traj, stats_hist = [], []
+    for gen in range(1, generations + 1):
+        seed_at(base_seed + gen, 0)
+        champ_genomes = [g for (_s, g) in best_ever]
+        genomes = _reproduce(champ_genomes, num_agents, mc)
+        scored, p_reach, stats = _evolve_nav_gen(cfg, genomes, max_ticks=max_ticks)
+        best_ever = sorted(best_ever + scored, key=lambda sg: sg[0], reverse=True)[:5]
+        traj.append(p_reach)
+        stats_hist.append(stats)
+    n = len(traj)
+    k = 5 if n >= 10 else max(1, n // 2)
+    return {
+        "scaffold_land": float(cfg.scaffold_land), "traj": traj,
+        "gen0": float(traj[0]) if traj else 0.0,
         "first": float(np.median(traj[:k])) if traj else 0.0,
         "plateau": float(np.median(traj[-k:])) if traj else 0.0,
         "stats": stats_hist,
