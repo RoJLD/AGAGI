@@ -59,3 +59,33 @@ def render_markdown(edr_name, interpretations, synthesis):
         lines += [f"## {it['title']}", "", it["interpretation"], ""]
     lines += ["## Synthèse — convergences & nouvelles pistes", "", synthesis, ""]
     return "\n".join(lines)
+
+
+def run_lenses(edr_text, results_json, llm_fn, lenses=None):
+    """Boucle les lentilles → llm_fn(build_lens_prompt). Une lentille en échec est capturée (n'avorte pas)."""
+    lenses = lenses if lenses is not None else LENSES
+    out = []
+    for lens in lenses:
+        try:
+            interp = llm_fn(build_lens_prompt(lens, edr_text, results_json))
+        except Exception as e:                       # noqa: BLE001 — on isole une lentille défaillante
+            interp = f"_(lentille « {lens.get('title', lens.get('key'))} » en échec : {e})_"
+        out.append({"key": lens["key"], "title": lens["title"], "interpretation": interp})
+    return out
+
+
+def synthesize(interpretations, edr_text, llm_fn):
+    """Passe finale : convergences + tensions + 2-3 hypothèses/expériences EDR nouvelles priorisées."""
+    joined = "\n\n".join(f"### {it['title']}\n{it['interpretation']}" for it in interpretations)
+    prompt = "\n".join([
+        "Voici plusieurs interprétations disciplinaires d'un même finding EDR (substrat neuro-évolutif) :",
+        joined,
+        "",
+        "Synthétise de façon ACTIONNABLE : (a) les CONVERGENCES inter-disciplines ; (b) les TENSIONS ou "
+        "désaccords ; (c) 2 à 3 HYPOTHÈSES ou EXPÉRIENCES EDR NOUVELLES, priorisées et FALSIFIABLES, pour "
+        "« chercher plus loin » (chacune : une variable, un effet mesurable attendu).",
+    ])
+    try:
+        return llm_fn(prompt)
+    except Exception as e:                           # noqa: BLE001
+        return f"_(synthèse en échec : {e})_"
