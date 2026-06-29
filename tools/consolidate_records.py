@@ -56,9 +56,22 @@ def parse_record(path: str) -> dict | None:
     return None
 
 
-def scan_records(root: str) -> list:
-    """Stub pour scan_records."""
-    pass
+def scan_records(root: str = _ROOT) -> list[dict]:
+    """Scanne docs/SDR, docs/ADR, docs/EDR sous root, retourne tous les records
+    (triés par id), ignore les fichiers non-record et les dossiers absents."""
+    out: list[dict] = []
+    for sub in ("docs/SDR", "docs/ADR", "docs/EDR"):
+        d = os.path.join(root, sub)
+        if not os.path.isdir(d):
+            continue
+        for name in os.listdir(d):
+            if not name.endswith(".md"):
+                continue
+            rec = parse_record(os.path.join(d, name))
+            if rec is not None:
+                out.append(rec)
+    out.sort(key=lambda r: r["id"])
+    return out
 
 
 def build_graph(records: list) -> dict:
