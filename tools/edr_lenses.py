@@ -122,15 +122,20 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description="Interprétations multi-lentilles d'un finding EDR.")
     ap.add_argument("edr_path", help="chemin du doc EDR (docs/EDR/NNN_*.md)")
     ap.add_argument("results_json", nargs="?", default=None, help="JSON de résultats optionnel")
-    ap.add_argument("--live", action="store_true", help="LLM Anthropic réel (gaté ANTHROPIC_API_KEY)")
-    ap.add_argument("--local", action="store_true", help="LLM local (LM Studio/Ollama)")
+    backend = ap.add_mutually_exclusive_group()
+    backend.add_argument("--live", action="store_true", help="LLM Anthropic réel (gaté ANTHROPIC_API_KEY)")
+    backend.add_argument("--local", action="store_true", help="LLM local (LM Studio/Ollama)")
     ap.add_argument("--lenses", default=None, help="clés de lentilles séparées par virgule (sous-ensemble)")
     ap.add_argument("--out-dir", default="docs/EDR/lenses", help="dossier de sortie")
     args = ap.parse_args(argv)
     lenses = None
     if args.lenses:
         keys = {k.strip() for k in args.lenses.split(",") if k.strip()}
-        lenses = [l for l in LENSES if l["key"] in keys] or None
+        selected = [lens for lens in LENSES if lens["key"] in keys]
+        if keys and not selected:
+            print(f"[avertissement] aucune lentille ne correspond à {sorted(keys)} ; "
+                  f"exécution des {len(LENSES)} lentilles par défaut.", file=sys.stderr)
+        lenses = selected or None
     llm_fn = select_llm_fn(live=args.live, local=args.local)
     path = generate(args.edr_path, args.results_json, llm_fn, lenses=lenses, out_dir=args.out_dir)
     print(f"écrit -> {path}")

@@ -5,8 +5,8 @@ from tools.edr_lenses import LENSES, build_lens_prompt, render_markdown, run_len
 
 def test_lenses_default_non_empty_well_formed():
     assert len(LENSES) >= 4
-    for l in LENSES:
-        assert set(["key", "title", "persona"]).issubset(l) and l["key"] and l["persona"]
+    for lens in LENSES:
+        assert set(["key", "title", "persona"]).issubset(lens) and lens["key"] and lens["persona"]
 
 
 def test_build_lens_prompt_includes_persona_finding_and_hypotheses_instruction():
@@ -21,7 +21,8 @@ def test_build_lens_prompt_truncates_and_includes_json():
     long_text = "x" * 10000
     p = build_lens_prompt({"key": "k", "title": "T", "persona": "p"}, long_text,
                           results_json='{"p_reach": 0.18}', max_chars=500)
-    assert p.count("x") <= 500                     # finding tronqué
+    assert long_text[:500] in p                    # the truncated finding (500 x's) is present
+    assert long_text[:501] not in p                # but no more than max_chars of it
     assert "p_reach" in p                          # JSON inclus
 
 
@@ -71,7 +72,6 @@ def test_synthesize_receives_all_interps_and_returns_text():
     assert "INT_A" in captured["prompt"] and "INT_B" in captured["prompt"]   # synthèse voit tout
 
 
-import tempfile
 from pathlib import Path
 from tools.edr_lenses import select_llm_fn, generate, main
 from src.metaprog.llm_proposer_fn import scripted_llm_fn
