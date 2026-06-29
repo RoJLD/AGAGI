@@ -1,5 +1,13 @@
 import { useEffect, useRef } from "react";
-import * as d3 from "d3";
+import { select } from "d3-selection";
+import {
+  forceSimulation,
+  forceCenter,
+  forceLink,
+  forceManyBody,
+  type SimulationNodeDatum,
+  type SimulationLinkDatum,
+} from "d3-force";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../api/client";
 import { queryKeys } from "../api/queryKeys";
@@ -7,8 +15,8 @@ import { Loading } from "./ui/Loading";
 import { ErrorState } from "./ui/ErrorState";
 import { Empty } from "./ui/Empty";
 
-type TimelineNode = { id: string; label: string } & d3.SimulationNodeDatum;
-type TimelineLink = d3.SimulationLinkDatum<TimelineNode>;
+type TimelineNode = { id: string; label: string } & SimulationNodeDatum;
+type TimelineLink = SimulationLinkDatum<TimelineNode>;
 
 export function TimelineViewer() {
   const svgRef = useRef<SVGSVGElement>(null);
@@ -20,20 +28,19 @@ export function TimelineViewer() {
 
   useEffect(() => {
     if (!data || !svgRef.current) return;
-    const svg = d3.select(svgRef.current);
+    const svg = select(svgRef.current);
     svg.selectAll("*").remove();
 
     const width = 800;
     const height = 400;
 
-    const simulation = d3
-      .forceSimulation<TimelineNode>(data.nodes)
+    const simulation = forceSimulation<TimelineNode>(data.nodes)
       .force(
         "link",
-        d3.forceLink<TimelineNode, TimelineLink>(data.links).id((d) => d.id).distance(100),
+        forceLink<TimelineNode, TimelineLink>(data.links).id((d) => d.id).distance(100),
       )
-      .force("charge", d3.forceManyBody().strength(-300))
-      .force("center", d3.forceCenter(width / 2, height / 2));
+      .force("charge", forceManyBody().strength(-300))
+      .force("center", forceCenter(width / 2, height / 2));
 
     const link = svg
       .append("g")
