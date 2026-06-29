@@ -69,3 +69,36 @@ def test_synthesize_receives_all_interps_and_returns_text():
     out = synthesize(interps, "finding", capture_llm)
     assert out == "SYNTH_OUT"
     assert "INT_A" in captured["prompt"] and "INT_B" in captured["prompt"]   # synthèse voit tout
+
+
+import tempfile
+from pathlib import Path
+from tools.edr_lenses import select_llm_fn, generate, main
+from src.metaprog.llm_proposer_fn import scripted_llm_fn
+
+
+def test_select_llm_fn_default_is_scripted():
+    assert select_llm_fn(live=False, local=False) is scripted_llm_fn
+
+
+def test_generate_writes_separate_file_without_touching_source(tmp_path):
+    edr = tmp_path / "077_Demo_Finding.md"
+    edr.write_text("# EDR 077\nLe forage casse à l'approche.", encoding="utf-8")
+    before = edr.read_text(encoding="utf-8")
+    out_dir = tmp_path / "lenses"
+    lenses = [{"key": "a", "title": "Éthologue", "persona": "p"}]
+    path = generate(str(edr), None, _fake_llm, lenses=lenses, out_dir=str(out_dir))
+    assert Path(path).exists()
+    assert Path(path).parent == out_dir and path.endswith("077_Demo_Finding_lenses.md")
+    md = Path(path).read_text(encoding="utf-8")
+    assert "spéculative" in md.lower() and "Éthologue" in md and "Synthèse" in md
+    assert edr.read_text(encoding="utf-8") == before     # NE mute PAS la source
+
+
+def test_main_smoke_scripted_default(tmp_path):
+    edr = tmp_path / "099_X.md"
+    edr.write_text("# EDR 099\nDrain = biologie.", encoding="utf-8")
+    out_dir = tmp_path / "out"
+    rc = main([str(edr), "--out-dir", str(out_dir)])     # défaut scripted → zéro API
+    assert rc == 0
+    assert (out_dir / "099_X_lenses.md").exists()

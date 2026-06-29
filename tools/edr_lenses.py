@@ -89,3 +89,53 @@ def synthesize(interpretations, edr_text, llm_fn):
         return llm_fn(prompt)
     except Exception as e:                           # noqa: BLE001
         return f"_(synthèse en échec : {e})_"
+
+
+def select_llm_fn(live=False, local=False):
+    """scripted (défaut, sûr) | anthropic (--live, gaté clé) | local (--local). Imports paresseux."""
+    from src.metaprog.llm_proposer_fn import scripted_llm_fn
+    if live:
+        from src.metaprog.llm_proposer_fn import anthropic_llm_fn
+        return anthropic_llm_fn()
+    if local:
+        from src.metaprog.llm_proposer_fn import local_llm_fn
+        return local_llm_fn()
+    return scripted_llm_fn
+
+
+def generate(edr_path, results_json_path, llm_fn, lenses=None, out_dir="docs/EDR/lenses"):
+    """Lit le doc EDR (+ JSON optionnel), génère interprétations + synthèse, écrit <out_dir>/<stem>_lenses.md."""
+    edr_text = Path(edr_path).read_text(encoding="utf-8")
+    results_json = Path(results_json_path).read_text(encoding="utf-8") if results_json_path else None
+    interps = run_lenses(edr_text, results_json, llm_fn, lenses=lenses)
+    synthesis = synthesize(interps, edr_text, llm_fn)
+    stem = Path(edr_path).stem
+    md = render_markdown(stem, interps, synthesis)
+    out = Path(out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    out_path = out / f"{stem}_lenses.md"
+    out_path.write_text(md, encoding="utf-8")
+    return str(out_path)
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description="Interprétations multi-lentilles d'un finding EDR.")
+    ap.add_argument("edr_path", help="chemin du doc EDR (docs/EDR/NNN_*.md)")
+    ap.add_argument("results_json", nargs="?", default=None, help="JSON de résultats optionnel")
+    ap.add_argument("--live", action="store_true", help="LLM Anthropic réel (gaté ANTHROPIC_API_KEY)")
+    ap.add_argument("--local", action="store_true", help="LLM local (LM Studio/Ollama)")
+    ap.add_argument("--lenses", default=None, help="clés de lentilles séparées par virgule (sous-ensemble)")
+    ap.add_argument("--out-dir", default="docs/EDR/lenses", help="dossier de sortie")
+    args = ap.parse_args(argv)
+    lenses = None
+    if args.lenses:
+        keys = {k.strip() for k in args.lenses.split(",") if k.strip()}
+        lenses = [l for l in LENSES if l["key"] in keys] or None
+    llm_fn = select_llm_fn(live=args.live, local=args.local)
+    path = generate(args.edr_path, args.results_json, llm_fn, lenses=lenses, out_dir=args.out_dir)
+    print(f"écrit -> {path}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
