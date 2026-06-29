@@ -289,5 +289,17 @@ vivant** (mur métabolique de Lewis, EDR 099-101 ; topologie évolutive désorma
 - Sweep a11y / perf / couverture de tests / dette de typage d3 résiduelle. Consolide l'instrument,
   faible valeur science directe. Interleavable en continu.
 
-**Ordre recommandé** : I1 (verrou science #1, mais arbitrer l'endpoint backend) ou I2 (frontend-only,
-livrable vite, fort récit) selon l'urgence ressentie → I3 → I4. Réordonnançable selon priorité produit.
+### I5 — Vue entonnoir de forage (acquisition)  · NET-NEW (backend handoff)
+*Valeur science ÉLEVÉE · effort moyen · dépendance backend (endpoint).*
+- **Pendant acquisition de I1** : I1 décompose la dépense (mur métab clos), I5 décompose le revenu —
+  le goulot VIVANT (EDR 105 : `p_reach=0.18`, `p_cap=1.00` → mur = navigation/approche). Lit l'artefact
+  persisté `lewis_forage_funnel` (`data.table` par niveau de métab). Endpoint `GET
+  /api/runs/forage-funnels` (patch-and-handoff). Spec `2026-06-25-frontend-forage-funnel-design.md`.
+
+**État (2026-06-25)** : I1 vue Énergie ✅ (#69/#70), I2 Fil EDR ✅ (#71, frontend-only). **I3 requalifié
+faible ROI** : la taille-réseau/génération est DÉJÀ tracée par `EvolutionView` (`history.size`) ; la
+version riche (composition par ère) n'est pas persistée → backend-gated sans données. **Pivot vers I5**
+(suit le goulot vivant EDR 105/106).
+
+**Ordre recommandé** : I1/I2 livrés → **I5** (verrou science vivant) → I4 (hygiène) ; I3 reporté/clos.
+Réordonnançable selon priorité produit.

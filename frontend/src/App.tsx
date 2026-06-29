@@ -26,6 +26,7 @@ const ParcoursView = lazy(() => import("./components/parcours/ParcoursView").the
 const SweepView = lazy(() => import("./components/SweepView").then((m) => ({ default: m.SweepView })));
 const CohortView = lazy(() => import("./components/CohortView").then((m) => ({ default: m.CohortView })));
 const EnergyView = lazy(() => import("./components/EnergyView").then((m) => ({ default: m.EnergyView })));
+const ForageFunnelView = lazy(() => import("./components/ForageFunnelView").then((m) => ({ default: m.ForageFunnelView })));
 const CarnetView = lazy(() => import("./components/CarnetView").then((m) => ({ default: m.CarnetView })));
 const EdrIndexView = lazy(() => import("./components/EdrIndexView").then((m) => ({ default: m.EdrIndexView })));
 
@@ -84,6 +85,7 @@ export default function App() {
           {tab === "sweeps" && <SweepView />}
           {tab === "cohorte" && <CohortView />}
           {tab === "energie" && <EnergyView />}
+          {tab === "forage" && <ForageFunnelView />}
           {tab === "academy" && <AcademyView />}
           {tab === "laboratoire" && <LaboratoryView />}
           {tab === "timeline" && <TimelineViewer />}
