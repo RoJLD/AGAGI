@@ -16,14 +16,20 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
-_LIST_KEYS = ("motivates", "triggers", "tests")
+# Arêtes causales internes (records de décision) + arêtes-pont vers le SOTA (REF).
+# Les ponts émanent des nœuds REF (rediscovered_by/supersedes/adopt_for/grounds) :
+# ainsi l'ancrage à la littérature s'ajoute sans toucher les EDR/SDR/ADR existants.
+_LIST_KEYS = ("motivates", "triggers", "tests",
+              "rediscovered_by", "supersedes", "adopt_for", "grounds")
 _EDR_NAME = re.compile(r"^(\d{3})_.+\.md$")
 
 
 def _empty_record(file: str) -> dict:
     return {"id": None, "type": None, "title": "", "status": "open", "gate": None,
-            "motivates": [], "triggers": [], "tests": [], "verdict": None,
-            "file": file, "linked": False}
+            "motivates": [], "triggers": [], "tests": [],
+            "rediscovered_by": [], "supersedes": [], "adopt_for": [], "grounds": [],
+            "url": None, "method": None, "lib": None, "maturity": None,
+            "verdict": None, "file": file, "linked": False}
 
 
 def parse_record(path: str) -> dict | None:
@@ -61,7 +67,7 @@ def scan_records(root: str = _ROOT) -> list[dict]:
     """Scanne docs/SDR, docs/ADR, docs/EDR sous root, retourne tous les records
     (triés par id), ignore les fichiers non-record et les dossiers absents."""
     out: list[dict] = []
-    for sub in ("docs/SDR", "docs/ADR", "docs/EDR"):
+    for sub in ("docs/SDR", "docs/ADR", "docs/EDR", "docs/REF"):
         d = os.path.join(root, sub)
         if not os.path.isdir(d):
             continue
@@ -75,19 +81,22 @@ def scan_records(root: str = _ROOT) -> list[dict]:
     return out
 
 
-_REL = {"motivates": "MOTIVE", "triggers": "DECLENCHE", "tests": "TESTE"}
-_NODE_KEYS = ("id", "type", "title", "status", "gate", "verdict", "linked")
+_REL = {"motivates": "MOTIVE", "triggers": "DECLENCHE", "tests": "TESTE",
+        "rediscovered_by": "REDECOUVERT_PAR", "supersedes": "DEPASSE",
+        "adopt_for": "A_ADOPTER_POUR", "grounds": "FONDE"}
+_NODE_KEYS = ("id", "type", "title", "status", "gate", "verdict", "linked",
+              "url", "method", "lib", "maturity")
 
 
 def build_graph(records: list[dict]) -> dict:
     """Construit le graphe causal à partir des records. Retourne
     {"nodes": [...], "edges": [...]}, où les arêtes sont typées selon
     motivates (MOTIVE), triggers (DECLENCHE), tests (TESTE)."""
-    nodes = [{k: r[k] for k in _NODE_KEYS} for r in records]
+    nodes = [{k: r.get(k) for k in _NODE_KEYS} for r in records]
     edges = []
     for r in records:
         for key, rel in _REL.items():
-            for target in r[key]:
+            for target in r.get(key) or []:
                 edges.append({"from": r["id"], "to": target, "rel": rel})
     return {"nodes": nodes, "edges": edges}
 
@@ -112,7 +121,7 @@ def validate_graph(records: list[dict]) -> list[dict]:
     # Vérifier les liens cassés
     for r in records:
         for key in _LIST_KEYS:
-            for target in r[key]:
+            for target in r.get(key) or []:
                 if target not in by_id:
                     problems.append({"kind": "broken_link", "record": r["id"],
                                      "detail": f"{r['id']}.{key} -> {target} inexistant"})

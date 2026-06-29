@@ -136,6 +136,64 @@ def test_main_exits_nonzero_on_broken_link(tmp_path, monkeypatch, capsys):
     assert out["problems"]
 
 
+def test_parse_record_reads_ref_node_with_metadata(tmp_path):
+    f = _write(tmp_path / "NEAT_2002.md", (
+        "---\n"
+        "id: REF-NEAT-2002\n"
+        "type: REF\n"
+        "title: Evolving Neural Networks through Augmenting Topologies\n"
+        "url: https://doi.org/10.1162/106365602320169811\n"
+        "method: speciation + complexification\n"
+        "lib: neat-python\n"
+        "maturity: production\n"
+        "rediscovered_by: [EDR-060]\n"
+        "---\n"
+        "# corps\n"
+    ))
+    rec = parse_record(f)
+    assert rec["id"] == "REF-NEAT-2002"
+    assert rec["type"] == "REF"
+    assert rec["lib"] == "neat-python"
+    assert rec["method"] == "speciation + complexification"
+    assert rec["maturity"] == "production"
+    assert rec["rediscovered_by"] == ["EDR-060"]
+    assert rec["linked"] is True
+
+
+def test_build_graph_emits_ref_bridge_edges():
+    recs = [
+        _rec("REF-NEAT-2002", "REF", rediscovered_by=["EDR-060"]),
+        _rec("REF-REINFORCE-1992", "REF", supersedes=["EDR-077"]),
+        _rec("REF-LTC-2021", "REF", adopt_for=["EDR-111"]),
+        _rec("REF-DREAMER-2023", "REF", grounds=["SDR-G4"]),
+    ]
+    g = build_graph(recs)
+    rels = sorted((e["from"], e["to"], e["rel"]) for e in g["edges"])
+    assert rels == [
+        ("REF-DREAMER-2023", "SDR-G4", "FONDE"),
+        ("REF-LTC-2021", "EDR-111", "A_ADOPTER_POUR"),
+        ("REF-NEAT-2002", "EDR-060", "REDECOUVERT_PAR"),
+        ("REF-REINFORCE-1992", "EDR-077", "DEPASSE"),
+    ]
+
+
+def test_validate_flags_broken_ref_bridge():
+    recs = [_rec("REF-X", "REF", supersedes=["EDR-999"])]
+    probs = validate_graph(recs)
+    assert any(p["kind"] == "broken_link" and "EDR-999" in p["detail"] for p in probs)
+
+
+def test_scan_includes_ref_dir(tmp_path):
+    (tmp_path / "docs" / "REF").mkdir(parents=True)
+    (tmp_path / "docs" / "EDR").mkdir(parents=True)
+    _write(tmp_path / "docs" / "REF" / "NEAT_2002.md",
+           "---\nid: REF-NEAT-2002\ntype: REF\ntitle: t\nrediscovered_by: [EDR-060]\n---\n")
+    _write(tmp_path / "docs" / "EDR" / "060_Speciation.md", "# edr\n")
+    recs = scan_records(str(tmp_path))
+    ids = sorted(r["id"] for r in recs)
+    assert ids == ["EDR-060", "REF-NEAT-2002"]
+
+
 def test_main_exits_zero_on_clean_repo():
     """Consolidation sur le vrai repo : problemes=0, rc=0."""
     rc = main([])
