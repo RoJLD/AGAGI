@@ -88,7 +88,8 @@ def _capacity_arm(cfg, mc, n_hidden, generations, num_agents, max_ticks, base_se
     return {
         "n_hidden": n_hidden, "num_nodes": expected_nodes,
         "traj": traj, "gen0": float(traj[0]) if traj else 0.0,
-        "first": float(np.median(traj[:k])), "plateau": float(np.median(traj[-k:])),
+        "first": float(np.median(traj[:k])) if traj else 0.0,
+        "plateau": float(np.median(traj[-k:])) if traj else 0.0,
         "stats": stats_hist,
     }
 

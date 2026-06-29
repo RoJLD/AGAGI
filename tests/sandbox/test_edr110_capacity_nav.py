@@ -42,6 +42,7 @@ def test_capacity_arm_smoke_returns_expected_keys():
     assert len(arm["traj"]) == 2
     assert 0.0 <= arm["plateau"] <= 1.0
     assert 0.0 <= arm["gen0"] <= 1.0
+    assert 0.0 <= arm["first"] <= 1.0
     assert len(arm["stats"]) == 2
 
 
