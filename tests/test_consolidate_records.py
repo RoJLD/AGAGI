@@ -59,3 +59,22 @@ def test_scan_records_collects_all_types(tmp_path):
     recs = scan_records(str(tmp_path))
     ids = sorted(r["id"] for r in recs)
     assert ids == ["EDR-105", "SDR-G0"]
+
+
+def test_build_graph_emits_typed_edges():
+    recs = [
+        {"id": "SDR-G1", "type": "SDR", "title": "t", "status": "open", "gate": "G1",
+         "motivates": ["EDR-105"], "triggers": [], "tests": [], "verdict": None,
+         "file": "f", "linked": True},
+        {"id": "EDR-105", "type": "EDR", "title": "t", "status": "refuted", "gate": "G1",
+         "motivates": [], "triggers": ["ADR-007"], "tests": ["SDR-G1"], "verdict": "NEUTRE",
+         "file": "f", "linked": True},
+    ]
+    g = build_graph(recs)
+    rels = sorted((e["from"], e["to"], e["rel"]) for e in g["edges"])
+    assert rels == [
+        ("EDR-105", "ADR-007", "DECLENCHE"),
+        ("EDR-105", "SDR-G1", "TESTE"),
+        ("SDR-G1", "EDR-105", "MOTIVE"),
+    ]
+    assert {n["id"] for n in g["nodes"]} == {"SDR-G1", "EDR-105"}
