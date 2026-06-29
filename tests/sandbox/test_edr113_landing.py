@@ -1,4 +1,3 @@
-import numpy as np
 from src.environments.config import WorldConfig
 from src.worlds.world_1_stoneage import Biosphere3D
 from tools.lewis_survival_sweep import _cfg, _landing_arm
@@ -59,11 +58,19 @@ def test_landing_reward_is_paid_monotone():
     assert eL > e0, f"scaffold_land=10 doit enrichir vs 0 (eL={eL} e0={e0})"
 
 
-def test_non_regression_byte_identical_at_zero():
+def test_determinism_at_zero():
     # Deux runs scaffold_land=0 -> energie totale identique (le defaut ne change rien).
     e0a, _ = _run_with_prey_on_agent(0.0, seed=777)
     e0b, _ = _run_with_prey_on_agent(0.0, seed=777)
     assert e0a == e0b
+
+
+def test_world_default_when_scaffold_land_field_absent():
+    # Vraie non-regression : si le champ scaffold_land est ABSENT du config (monde/EDR anterieur),
+    # le monde lit le defaut 0.0 via getattr -> comportement inchange. Couvre le chemin de repli.
+    cfg = _cfg_land(0.0)
+    delattr(cfg, "scaffold_land")
+    assert Biosphere3D(cfg).scaffold_land == 0.0
 
 
 def test_cfg_scaffold_land_param():
