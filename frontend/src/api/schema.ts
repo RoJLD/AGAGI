@@ -455,6 +455,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/runs/forage-funnels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Forage Funnels
+         * @description Entonnoirs de forage (acquisition : approche/capture/revenu par niveau de métab) pour la vue Forage.
+         */
+        get: operations["list_forage_funnels_api_runs_forage_funnels_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/runs/{run_id}": {
         parameters: {
             query?: never;
@@ -1033,6 +1053,42 @@ export interface components {
             robustness_score?: number | null;
             /** Sparsity */
             sparsity?: number | null;
+        };
+        /** ForageFunnel */
+        ForageFunnel: {
+            /** Commit */
+            commit?: string | null;
+            /** Levels */
+            levels: components["schemas"]["ForageLevel"][];
+            /** Name */
+            name: string;
+            /** Run Id */
+            run_id: string;
+            /** Seed */
+            seed: number;
+            /** Verdict */
+            verdict: string;
+        };
+        /** ForageLevel */
+        ForageLevel: {
+            /** Drain T */
+            drain_t: number;
+            /** Income T */
+            income_t: number;
+            /** Mean Captures */
+            mean_captures: number;
+            /** Mean Contacts */
+            mean_contacts: number;
+            /** Mean Min Dist */
+            mean_min_dist: number;
+            /** Metab */
+            metab: number;
+            /** N Agents */
+            n_agents: number;
+            /** P Cap */
+            p_cap: number;
+            /** P Reach */
+            p_reach: number;
         };
         /** GraphData */
         GraphData: {
@@ -1910,6 +1966,26 @@ export interface operations {
                     "application/json": {
                         [key: string]: string[];
                     };
+                };
+            };
+        };
+    };
+    list_forage_funnels_api_runs_forage_funnels_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ForageFunnel"][];
                 };
             };
         };

@@ -706,6 +706,106 @@
         "title": "ExperimentSummary",
         "type": "object"
       },
+      "ForageFunnel": {
+        "properties": {
+          "commit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commit"
+          },
+          "levels": {
+            "items": {
+              "$ref": "#/components/schemas/ForageLevel"
+            },
+            "title": "Levels",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "seed": {
+            "title": "Seed",
+            "type": "integer"
+          },
+          "verdict": {
+            "title": "Verdict",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "name",
+          "seed",
+          "verdict",
+          "levels"
+        ],
+        "title": "ForageFunnel",
+        "type": "object"
+      },
+      "ForageLevel": {
+        "properties": {
+          "drain_t": {
+            "title": "Drain T",
+            "type": "number"
+          },
+          "income_t": {
+            "title": "Income T",
+            "type": "number"
+          },
+          "mean_captures": {
+            "title": "Mean Captures",
+            "type": "number"
+          },
+          "mean_contacts": {
+            "title": "Mean Contacts",
+            "type": "number"
+          },
+          "mean_min_dist": {
+            "title": "Mean Min Dist",
+            "type": "number"
+          },
+          "metab": {
+            "title": "Metab",
+            "type": "number"
+          },
+          "n_agents": {
+            "title": "N Agents",
+            "type": "number"
+          },
+          "p_cap": {
+            "title": "P Cap",
+            "type": "number"
+          },
+          "p_reach": {
+            "title": "P Reach",
+            "type": "number"
+          }
+        },
+        "required": [
+          "metab",
+          "p_reach",
+          "p_cap",
+          "income_t",
+          "drain_t",
+          "mean_captures",
+          "mean_contacts",
+          "mean_min_dist",
+          "n_agents"
+        ],
+        "title": "ForageLevel",
+        "type": "object"
+      },
       "GraphData": {
         "properties": {
           "links": {
@@ -2107,6 +2207,32 @@
           }
         },
         "summary": "Edr Links",
+        "tags": [
+          "runs"
+        ]
+      }
+    },
+    "/api/runs/forage-funnels": {
+      "get": {
+        "description": "Entonnoirs de forage (acquisition : approche/capture/revenu par niveau de métab) pour la vue Forage.",
+        "operationId": "list_forage_funnels_api_runs_forage_funnels_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ForageFunnel"
+                  },
+                  "title": "Response List Forage Funnels Api Runs Forage Funnels Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Forage Funnels",
         "tags": [
           "runs"
         ]
