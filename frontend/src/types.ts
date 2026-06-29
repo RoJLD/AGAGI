@@ -237,3 +237,37 @@ export interface ForageFunnel {
   verdict: string;
   levels: ForageLevel[];
 }
+
+/** Une entité positionnée du monde sandbox live (/api/sandbox/state). */
+export interface SandboxEntity {
+  x: number;
+  y: number;
+}
+
+/** Un objet du monde sandbox (les "Fire" ont un rendu de halo spécifique). */
+export interface SandboxItem extends SandboxEntity {
+  type: string;
+}
+
+/** Un agent du monde sandbox (couleur selon l'énergie, label énergie). */
+export interface SandboxAgent extends SandboxEntity {
+  energy: number;
+}
+
+/** L'état du monde sandbox live rendu sur le canvas 2D (/api/sandbox/state). */
+export interface SandboxWorldState {
+  size: number;
+  is_night: boolean;
+  trees: SandboxEntity[];
+  items: SandboxItem[];
+  preys: SandboxEntity[];
+  agents: SandboxAgent[];
+}
+
+/** Une ligne de télémétrie cognitive (/api/sandbox/telemetry). */
+export interface SandboxTelemetryRow {
+  tick: number;
+  mean_energy: number;
+  mean_surprise: number;
+  mean_doubt: number;
+}

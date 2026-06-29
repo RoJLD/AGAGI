@@ -9,6 +9,10 @@ import { queryKeys } from "../../api/queryKeys";
 import { cssVar, vizColors } from "../../theme";
 import { Button } from "../ui/Button";
 import { Panel } from "../ui/Panel";
+import type {
+  SandboxWorldState,
+  SandboxTelemetryRow,
+} from "../../types";
 
 /** Tableau de bord live d'un run sandbox en cours (monde 2D, console, télémétrie,
  *  journal du superviseur, interventions god-mode). Extrait de SandboxView pour
@@ -31,7 +35,7 @@ const LiveWorld = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { data: state } = useQuery({
     queryKey: queryKeys.sandbox.state,
-    queryFn: () => apiFetch<any>("/api/sandbox/state"),
+    queryFn: () => apiFetch<SandboxWorldState>("/api/sandbox/state"),
     refetchInterval: 500,
     staleTime: 0,
   });
@@ -68,9 +72,9 @@ const LiveWorld = () => {
     }
 
     ctx.fillStyle = c.tree;
-    state.trees?.forEach((t: any) => ctx.fillRect(t.x * cellSize, t.y * cellSize, cellSize, cellSize));
+    state.trees?.forEach((t) => ctx.fillRect(t.x * cellSize, t.y * cellSize, cellSize, cellSize));
 
-    state.items?.forEach((it: any) => {
+    state.items?.forEach((it) => {
       ctx.fillStyle = it.type === "Fire" ? c.fire : c.item;
       ctx.fillRect(it.x * cellSize + 2, it.y * cellSize + 2, cellSize - 4, cellSize - 4);
       if (it.type === "Fire") {
@@ -80,11 +84,11 @@ const LiveWorld = () => {
     });
 
     ctx.fillStyle = c.prey;
-    state.preys?.forEach((p: any) => {
+    state.preys?.forEach((p) => {
       ctx.beginPath(); ctx.arc(p.x * cellSize + cellSize / 2, p.y * cellSize + cellSize / 2, cellSize / 2.5, 0, Math.PI * 2); ctx.fill();
     });
 
-    state.agents?.forEach((a: any) => {
+    state.agents?.forEach((a) => {
       ctx.fillStyle = a.energy > 50 ? c.agentHi : c.agentLo;
       ctx.beginPath(); ctx.arc(a.x * cellSize + cellSize / 2, a.y * cellSize + cellSize / 2, cellSize / 2, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = "white";
@@ -135,7 +139,7 @@ const LiveConsole = () => {
 const LiveTelemetry = () => {
   const { data } = useQuery({
     queryKey: queryKeys.sandbox.telemetry,
-    queryFn: () => apiFetch<{ data: any[] }>("/api/sandbox/telemetry"),
+    queryFn: () => apiFetch<{ data: SandboxTelemetryRow[] }>("/api/sandbox/telemetry"),
     refetchInterval: 2000,
     staleTime: 0,
   });
