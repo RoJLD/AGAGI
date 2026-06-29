@@ -517,6 +517,40 @@ def _verdict_evolve_nav(traj):
     return "NAVIGATION EVOLUE" if last >= first + 0.15 else "SUBSTRAT BLOQUE"
 
 
+def _evolve_nav_gen(cfg, genomes, max_ticks=80):
+    """EDR107 : lance UNE generation (ere fraiche, current_era=1 -> scaffold chaud) en Lewis vide d'apex.
+    cfg DOIT avoir trace_forage=True. Renvoie (scored, p_reach, stats) : scored = top-5 (life_score, genome)
+    pour le cliquet best-ever ; p_reach = _p_reach_of_pool(pool) ; stats = {ticks, eaten, p_reach}.
+    Calque run_era d'evolve_competence + setup Lewis de _measure_forage."""
+    env = Biosphere3D(cfg)
+    _setup_critical(env, 0.0, n_apex=0)
+    env.config.target_prey_count = PREY_COUNT
+    if hasattr(env, "memory_retriever"):
+        env.memory_retriever.stop()
+        env.memory_retriever.clear()
+    env.use_ref_head = False
+    env.decode_act = False
+    for g in genomes:
+        a = MambaAgent()
+        a.from_genome(g)
+        env.add_agent(a, energy=80.0)
+    env.current_era = 1
+    t = 0
+    while env.agents and t < max_ticks:
+        env.step()
+        t += 1
+    pool = list(env.agents) + list(getattr(env, "dead_agents", []))
+    ranked = sorted(pool, key=calculate_life_score, reverse=True)
+    scored = []
+    for ag in ranked[:5]:
+        g = ag["model"].genome if "model" in ag else ag.get("genome")
+        if g is not None:
+            scored.append((float(calculate_life_score(ag)), g))
+    p_reach = _p_reach_of_pool(pool)
+    eaten = int(sum(ag.get("preys_eaten", 0) for ag in pool))
+    return scored, p_reach, {"ticks": t, "eaten": eaten, "p_reach": p_reach}
+
+
 def _verdict_approach(aggs):
     """EDR106 : verdict porte par le niveau FIGE (prey_speed_scale=0.0). p_reach>=0.5 -> KINEMATIQUE
     (proies immobiles atteintes -> le mur etait la fuite, vitesse relative) ; sinon POLITIQUE (la

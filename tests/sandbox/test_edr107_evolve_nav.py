@@ -1,5 +1,8 @@
 import numpy as np
-from tools.lewis_survival_sweep import _p_reach_of_pool, _verdict_evolve_nav
+from tools.lewis_survival_sweep import _p_reach_of_pool, _verdict_evolve_nav, _evolve_nav_gen, _cfg, _reproduce
+from src.seed_ai.mutation import MutationConfig
+from src.seed_ai.harness import seed_at
+from src.agents.mamba_agent import MambaAgent
 
 
 def test_p_reach_of_pool_fraction():
@@ -37,3 +40,18 @@ def test_verdict_evolve_nav_boundary():
 
 def test_verdict_evolve_nav_empty():
     assert _verdict_evolve_nav([]) == "SUBSTRAT BLOQUE"
+
+
+def test_evolve_nav_gen_smoke():
+    seed_at(107, 0)
+    cfg = _cfg(3, base_metabolism=0.0, trace_forage=True)
+    mc = MutationConfig(weight_init_std=2.0)
+    genomes = _reproduce([MambaAgent().genome for _ in range(3)], 6, mc)
+    scored, p_reach, stats = _evolve_nav_gen(cfg, genomes, max_ticks=15)
+    assert 0.0 <= p_reach <= 1.0
+    assert isinstance(scored, list) and len(scored) >= 1
+    s0, g0 = scored[0]
+    assert isinstance(s0, float)
+    assert g0 is not None
+    assert set(stats) == {"ticks", "eaten", "p_reach"}
+    assert np.isfinite(stats["ticks"]) and stats["p_reach"] == p_reach
