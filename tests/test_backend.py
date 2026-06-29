@@ -315,6 +315,35 @@ def test_list_sweeps_extracts_knob_levels_series(tmp_path, monkeypatch) -> None:
     assert s["y_std"]["median_survival"] == [0.05, 0.05, 0.05]
 
 
+def test_list_forage_funnels_extracts_levels(tmp_path, monkeypatch) -> None:
+    """Un run d'entonnoir (data.table par niveau) -> 1 ForageFunnel ; un run scalaire -> ignoré."""
+    import backend.app.services.runs_service as rs_mod
+    monkeypatch.setattr(rs_mod, "RESULTS_DIR", tmp_path)
+    agg0 = {"p_reach": 0.18, "p_cap": 1.0, "income_t": 0.5, "drain_t": 0.2,
+            "mean_captures": 1.2, "mean_contacts": 6.5, "mean_min_dist": 3.1, "n_agents": 40}
+    agg25 = {"p_reach": 0.12, "p_cap": 1.0, "income_t": 0.3, "drain_t": 0.4,
+             "mean_captures": 0.8, "mean_contacts": 5.0, "mean_min_dist": 3.6, "n_agents": 38}
+    (tmp_path / "lewis_forage_funnel_7.json").write_text(json.dumps({
+        "name": "lewis_forage_funnel", "seed": 7, "commit": "abc1234",
+        "data": {"knob": "base_metab", "metab_levels": [0.0, 0.25], "verdict": "APPROCHE casse",
+                 "R": 4, "n_eval": 8, "table": {"0.0": agg0, "0.25": agg25}},
+    }), encoding="utf-8")
+    (tmp_path / "AND_0.json").write_text(json.dumps({
+        "name": "AND", "seed": 0, "data": {"fitness": 0.9},
+    }), encoding="utf-8")
+    funnels = rs_mod.runs_service.list_forage_funnels()
+    assert len(funnels) == 1
+    f = funnels[0]
+    assert f["run_id"] == "lewis_forage_funnel_7"
+    assert [lv["metab"] for lv in f["levels"]] == [0.0, 0.25]
+    assert f["levels"][0]["p_reach"] == 0.18
+    assert f["verdict"] == "APPROCHE casse"
+
+    resp = client.get("/api/runs/forage-funnels")
+    assert resp.status_code == 200
+    assert resp.json()[0]["name"] == "lewis_forage_funnel"
+
+
 def test_list_decompositions_extracts_phases(tmp_path, monkeypatch) -> None:
     """Un run avec data.phases -> 1 Decomposition ; un run scalaire -> ignore."""
     import backend.app.services.runs_service as rs_mod
