@@ -121,6 +121,7 @@ class Biosphere3D(BaseWorld):
         self.scaffold_bighit = 2.0    # coup porté à un gros gibier
         self.scaffold_eras = 30
         self.scaffold_land = getattr(self.config, "scaffold_land", 0.0)   # EDR113 : scaffold du pas final (atterrissage sur proie)
+        self.reach_oracle = getattr(self.config, "reach_oracle", False)   # EDR114 : oracle d'atteinte (override action)
         # Curiosité (réparation moteur évolutif, EDR 014) : récompense intrinsèque
         # = erreur de prédiction du World Model -> drive l'exploration d'actions/états
         # nouveaux (grab, rub...). S'auto-annèle (la surprise chute quand le monde est
@@ -363,6 +364,35 @@ class Biosphere3D(BaseWorld):
         if not isinstance(item_type, str):
             item_type = str(item_type)
         return self.physics_registry.get_properties(item_type)
+
+    def _reach_oracle_action(self, agent):
+        """EDR114 : primitive d'atteinte (oracle, pas d'apprentissage) -> pas glouton vers la proie la
+        plus proche (Manhattan) AVEC evitement d'obstacle a 1 pas (utilise prey-dir ET geometrie, tous
+        deux observes par l'agent : dn/ds/de/dw + lidar). Mapping : 0=N(y-1) 1=S(y+1) 2=E(x+1) 3=O(x-1).
+        Sur la proie / aucune proie -> 6 (no-op ; l'attaque est par co-localisation)."""
+        if not self.preys:
+            return 6
+        ax, ay = int(agent["x"]), int(agent["y"])
+        dists = [abs(p["x"] - ax) + abs(p["y"] - ay) for p in self.preys]
+        p = self.preys[int(np.argmin(dists))]
+        dx, dy = int(p["x"]) - ax, int(p["y"]) - ay
+        if dx == 0 and dy == 0:
+            return 6
+        ew = 2 if dx > 0 else 3
+        ns = 1 if dy > 0 else 0
+        if abs(dx) >= abs(dy):
+            cand = ([ew] if dx != 0 else []) + ([ns] if dy != 0 else [])
+        else:
+            cand = ([ns] if dy != 0 else []) + ([ew] if dx != 0 else [])
+        for a in cand:
+            tx, ty = ax, ay
+            if a == 0: ty -= 1
+            elif a == 1: ty += 1
+            elif a == 2: tx += 1
+            elif a == 3: tx -= 1
+            if 0 <= tx < self.size and 0 <= ty < self.size and self.geometry[0, ty, tx] == 0:
+                return a
+        return cand[0] if cand else 6
 
     def get_batch_observations(self) -> np.ndarray:
         if not self.agents:
@@ -1072,6 +1102,8 @@ class Biosphere3D(BaseWorld):
                 action = np.random.randint(0, 8)
                 force_grab = (np.random.rand() < 0.5)
                 force_rub = (self.craft_level >= 1 and np.random.rand() < 0.5)
+            if getattr(self, "reach_oracle", False):
+                action = self._reach_oracle_action(agent)   # EDR114 : override -> primitive d'atteinte
             agent["last_action"] = action
             
             do_throw = float(logits[8]) > 0
