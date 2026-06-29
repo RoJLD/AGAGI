@@ -9,9 +9,14 @@ avec W = Parameter ENTRAÎNABLE par autograd. But : un substrat appris par GRADI
 MambaBatchModel : ni NTM, ni router, ni thresholds, ni TTC — substrat minimal volontaire
 (moins de confounds). On adopte l'autodiff de torch, on ne réimplémente pas la roue.
 
+`learn` = Actor-Critic TD(0) à crédit temporel (parité sémantique avec le legacy
+`compute_policy_gradient`) : value head = nœud 28 ; acteur sur move (8 logits) + grab
+(nœud 24) + rub (nœud 25) ; δ = r + γ·V(s') − V(s), transition différée d'un tick. La
+perte A-C est posée, AUTOGRAD calcule le gradient (vs dérivation manuelle du legacy).
+
 Limites MVP (incréments suivants) : dimensions homogènes (I/O/N identiques sur la
-population) ; `learn` = REINFORCE sur l'action `move` (8 premiers logits de sortie).
-Hétérogénéité topologique, organes, et cellule ncps = variables séparées ultérieures.
+population). Hétérogénéité topologique, organes (NTM/router/TTC), et cellule ncps =
+variables séparées ultérieures.
 
 Réf : docs/ADR/003_backend_abstraction.md ; REF-LTC-2021.
 """
@@ -24,7 +29,11 @@ try:
 except Exception:  # pragma: no cover - environnement sans torch
     torch = None
 
-_MOVE_LOGITS = 8  # actions de déplacement 0..7 (cf. MambaBatchModel.PLAN_A)
+_MOVE_LOGITS = 8   # actions de déplacement 0..7 (cf. MambaBatchModel.PLAN_A)
+_GRAB_NODE = 24    # logit binaire grab (sortie 24, cf. legacy)
+_RUB_NODE = 25     # logit binaire rub (sortie 25, cf. legacy)
+_VALUE_NODE = 28   # value head V(s) (sortie 28, cf. legacy compute_policy_gradient)
+_GAMMA = 0.9       # crédit temporel (= MambaBatchModel.TD_GAMMA par défaut)
 
 
 class TorchPopulationModel(PopulationModel):
@@ -40,6 +49,7 @@ class TorchPopulationModel(PopulationModel):
         self.world_model = world_model
         self.device = torch.device(device)
         self._last = None
+        self._prev = None
         if self.B == 0:
             self.W = None
             return
@@ -84,18 +94,43 @@ class TorchPopulationModel(PopulationModel):
         return logits.cpu().numpy(), 0
 
     def learn(self, rewards_batch, actions_batch=None):
-        """REINFORCE par autograd sur l'action `move` : maximise reward·log π(move).
-        Re-différencie la dernière étape (stockée par forward) par rapport à W."""
+        """Actor-Critic TD(0) à crédit temporel. La transition (s,a,r) du tick courant
+        est mémorisée ; l'update est appliqué au tick SUIVANT, quand V(s') est connu
+        (δ = r + γ·V(s') − V(s)). Premier appel d'une vie -> différé (retourne None)."""
         if self.B == 0 or actions_batch is None or self._last is None:
             return None
         obs_t, H_in = self._last
-        H_new = self._step(obs_t, H_in)                            # graphe avec grad sur W
-        logits = H_new[:, self.N - self.O:self.N]
-        logp = torch.log_softmax(logits[:, :_MOVE_LOGITS], dim=1)
-        moves = torch.tensor([int(a.get("move", 0)) for a in actions_batch], device=self.device)
-        rew = torch.tensor(np.asarray(rewards_batch, dtype=np.float32), device=self.device)
-        chosen = logp[torch.arange(self.B, device=self.device), moves]
-        loss = -(rew * chosen).mean()
+        # V(s') = valeur de l'état courant (calculé par le dernier forward), bootstrap détaché
+        v_next = self.H[:, self.N - self.O + _VALUE_NODE].detach()
+        trans = {"obs": obs_t, "H_in": H_in, "act": list(actions_batch),
+                 "reward": np.asarray(rewards_batch, dtype=np.float32)}
+        loss = None
+        if self._prev is not None:
+            loss = self._td_update(self._prev, v_next)
+        self._prev = trans
+        return loss
+
+    def _td_update(self, prev, v_next):
+        """Applique l'update Actor-Critic TD pour la transition précédente."""
+        F = torch.nn.functional
+        H_new = self._step(prev["obs"], prev["H_in"])             # re-différencie s wrt W
+        out = H_new[:, self.N - self.O:self.N]                    # (B,O)
+        v = out[:, _VALUE_NODE]                                   # V(s)
+        rew = torch.tensor(prev["reward"], device=self.device)
+        target = (rew + _GAMMA * v_next).detach()                # cible TD (bootstrap)
+        delta = (target - v).detach()                            # avantage = erreur TD
+
+        idx = torch.arange(self.B, device=self.device)
+        moves = torch.tensor([int(a.get("move", 0)) for a in prev["act"]], device=self.device)
+        logp = torch.log_softmax(out[:, :_MOVE_LOGITS], dim=1)[idx, moves]
+        grab = torch.tensor([float(a.get("grab", 0)) for a in prev["act"]], device=self.device)
+        rub = torch.tensor([float(a.get("rub", 0)) for a in prev["act"]], device=self.device)
+        logp = logp - F.binary_cross_entropy_with_logits(out[:, _GRAB_NODE], grab, reduction="none")
+        logp = logp - F.binary_cross_entropy_with_logits(out[:, _RUB_NODE], rub, reduction="none")
+
+        actor_loss = -(delta * logp).mean()                      # ACTOR (avantage = δ)
+        critic_loss = ((v - target) ** 2).mean()                 # CRITIC (vers r + γV')
+        loss = actor_loss + 0.5 * critic_loss
         self.opt.zero_grad()
         loss.backward()
         self.opt.step()

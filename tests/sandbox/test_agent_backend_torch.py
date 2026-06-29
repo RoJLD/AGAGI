@@ -45,15 +45,47 @@ def test_torch_forward_deterministic():
     assert np.allclose(p1, p2)
 
 
-def test_torch_learn_reduces_reinforce_loss():
-    """Le gradient apprend : récompenser `move=0` fait baisser la perte REINFORCE."""
+def _pmove0(preds):
+    z = preds[0, :8] - preds[0, :8].max()
+    e = np.exp(z)
+    return float((e / e.sum())[0])
+
+
+def test_torch_actor_critic_first_call_is_deferred():
+    """Crédit TEMPOREL : le 1er learn n'a pas de V(s') -> différé (None). Le 2e apprend."""
+    pop = make_population(_agents(2), backend="torch")
+    obs = np.zeros((2, 59), dtype=np.float32)
+    pop.forward(obs)
+    assert pop.learn(np.array([1.0, 1.0], dtype=np.float32), [{"move": 0}, {"move": 0}]) is None
+    pop.forward(obs)
+    loss = pop.learn(np.array([1.0, 1.0], dtype=np.float32), [{"move": 0}, {"move": 0}])
+    assert loss is not None and np.isfinite(loss)
+
+
+def test_torch_critic_value_rises_with_reward():
+    """Le critic (value head, nœud 28) apprend : récompense forte -> V(s) monte."""
     pop = make_population(_agents(2), backend="torch")
     np.random.seed(1)
-    pop.forward(np.random.randn(2, 59).astype(np.float32))
-    rewards = np.array([1.0, 1.0], dtype=np.float32)
-    acts = [{"move": 0}, {"move": 0}]
-    losses = [pop.learn(rewards, acts) for _ in range(8)]
-    assert losses[-1] < losses[0]
+    obs = np.random.randn(2, 59).astype(np.float32)
+    v0 = float(pop.forward(obs)[0][0, 28])
+    for _ in range(60):
+        pop.forward(obs)
+        pop.learn(np.array([5.0, 5.0], dtype=np.float32), [{"move": 0, "grab": 0, "rub": 0}] * 2)
+    vN = float(pop.forward(obs)[0][0, 28])
+    assert vN > v0
+
+
+def test_torch_actor_raises_taken_move_prob():
+    """L'acteur apprend : avantage positif sur move=0 -> P(move=0) augmente."""
+    pop = make_population(_agents(2), backend="torch")
+    np.random.seed(2)
+    obs = np.random.randn(2, 59).astype(np.float32)
+    before = _pmove0(pop.forward(obs)[0])
+    for _ in range(60):
+        pop.forward(obs)
+        pop.learn(np.array([5.0, 5.0], dtype=np.float32), [{"move": 0, "grab": 0, "rub": 0}] * 2)
+    after = _pmove0(pop.forward(obs)[0])
+    assert after > before
 
 
 def test_torch_learn_writes_genome_back():
@@ -61,8 +93,11 @@ def test_torch_learn_writes_genome_back():
     pop = make_population(agents, backend="torch")
     before = agents[0].genome.W.copy()
     np.random.seed(1)
-    pop.forward(np.random.randn(2, 59).astype(np.float32))
-    pop.learn(np.array([1.0, 1.0], dtype=np.float32), [{"move": 0}, {"move": 0}])
+    obs = np.random.randn(2, 59).astype(np.float32)
+    pop.forward(obs)
+    pop.learn(np.array([1.0, 1.0], dtype=np.float32), [{"move": 0}, {"move": 0}])  # différé
+    pop.forward(obs)
+    pop.learn(np.array([1.0, 1.0], dtype=np.float32), [{"move": 0}, {"move": 0}])  # applique + write-back
     assert not np.allclose(before, agents[0].genome.W)
 
 
