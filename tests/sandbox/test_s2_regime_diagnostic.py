@@ -74,3 +74,24 @@ def test_thresholds_and_regimes_reported():
     v = regime_diagnostic_verdict(cells, max_ticks=400)
     assert v["thresholds"]["CLIFF_THRESH"] == 0.33
     assert REGIMES["sweet"] == (0.25, 3.0)
+
+
+import pytest
+from tools.s2_regime_diagnostic import run_diagnostic_main
+
+
+def test_run_diagnostic_main_smoke(tmp_path, monkeypatch):
+    """Pilote bout-en-bout à minuscule échelle, HoF mocké (champion = génome frais), KuzuDB désactivé."""
+    from tools.lethality_curriculum import _disable_kuzu
+    from src.agents.mamba_agent import MambaAgent
+    _disable_kuzu()                                   # déterminisme + pas de contention KuzuDB
+    monkeypatch.setattr("tools.s2_regime_diagnostic.load_champion_genome",
+                        lambda: MambaAgent().genome)  # pas besoin d'un vrai HoF en CI
+    monkeypatch.chdir(tmp_path)                        # ne pollue pas results/
+    (tmp_path / "results").mkdir()
+    report = run_diagnostic_main(seed=1, K=1, num_agents=2, max_ticks=3)
+    assert report["verdict"] in {"SOUS_PUISSANCE", "CONFOND_PLANCHER", "N_EXIGE_PAS_REEL", "AMBIGU"}
+    assert set(report["per_regime"]) == {"defaut", "sweet"}
+    for regime in ("defaut", "sweet"):
+        assert "beats" in report["per_regime"][regime]
+    assert (tmp_path / "results" / "s2_regime_diagnostic_1.json").exists()

@@ -81,3 +81,83 @@ def regime_diagnostic_verdict(cells, max_ticks=400):
             "thresholds": {"ALPHA": ALPHA, "CLIFF_THRESH": CLIFF_THRESH,
                            "SURV_FLOOR_FRAC": SURV_FLOOR_FRAC, "CENSORED_SURV": CENSORED_SURV,
                            "LIFT_RATIO": LIFT_RATIO}}
+
+
+def load_champion_genome():
+    """Proxy paresseux vers tools.s2_demand.load_champion_genome — patchable par monkeypatch en CI."""
+    from tools.s2_demand import load_champion_genome as _fn
+    return _fn()
+
+
+def _make_config(base_metabolism, forage_payoff):
+    """WorldConfig au régime voulu (base_metabolism, forage_payoff) ; reste = défauts."""
+    from src.environments.config import WorldConfig
+    return WorldConfig(base_metabolism=base_metabolism, forage_payoff=forage_payoff)
+
+
+# Agents du diagnostic. fresh_genome=True -> agents frais ; batch_model_cls=None -> moteur normal (champion).
+def _agents():
+    from src.agents.baseline_models import RandomActionBatchModel, ReflexBatchModel
+    return {
+        "champion":      {"batch_model_cls": None,                   "fresh_genome": False},
+        "reflex_naive":  {"batch_model_cls": ReflexBatchModel,       "fresh_genome": True},
+        "random_action": {"batch_model_cls": RandomActionBatchModel, "fresh_genome": True},
+    }
+
+
+AGENTS = ("champion", "reflex_naive", "random_action")
+
+
+def run_diagnostic(seed=2026, K=8, num_agents=20, max_ticks=400):
+    """Grille 2 régimes × 3 agents sur stoneage -> cells[regime][agent] = dict run_condition."""
+    from tools.s2_demand import run_condition
+    from src.worlds.world_1_stoneage import Biosphere3D
+    champion = load_champion_genome()
+    agents = _agents()
+    cells = {}
+    for regime, (bm, fp) in REGIMES.items():
+        cfg = _make_config(bm, fp)
+        rc = {}
+        for name in AGENTS:
+            spec = agents[name]
+            genome = None if spec["fresh_genome"] else champion
+            rc[name] = run_condition(Biosphere3D, spec["batch_model_cls"], genome, seed,
+                                     num_agents=num_agents, max_ticks=max_ticks, n_eras=K, config=cfg)
+        cells[regime] = rc
+    return cells
+
+
+_ACTION = {
+    "SOUS_PUISSANCE":   "le VOID n'était que du bruit -> lancer le S2 confirmatoire AU DÉFAUT (pré-reg tel quel).",
+    "CONFOND_PLANCHER": "effet plancher au régime dur -> lancer le S2 confirmatoire AU SWEET-SPOT (addendum daté à la pré-reg).",
+    "N_EXIGE_PAS_REEL": "le monde n'exige PAS l'intelligence même survivable -> finding fort (formaliser via S2 confirmatoire).",
+    "AMBIGU":           "inconclusif (aucun régime survivable, ou cas contradictoire) -> re-powerer / élargir les régimes.",
+}
+
+
+def _print_table(report):
+    print(f"\n=== S2 — Diagnostic de régime (seed={report['seed']}, commit={report['commit']}, K={report['K']}) ===")
+    for regime, r in report["per_regime"].items():
+        print(f"  {regime:7s} : survivable={str(r['survivable']):5s} | médiane_champ={r['champ_median']:6.1f} "
+              f"| censuré={r['censored_frac']*100:3.0f}% | vs {r['strongest_baseline']:13s} "
+              f"p={r['p']:.3f} Cliff δ={r['cliff']:+.2f} bat={r['beats']}")
+    print(f"  -> VERDICT : {report['verdict']} (lift sweet/défaut={report['lift']:.2f})")
+    print(f"  -> {_ACTION.get(report['verdict'], '')}")
+    if report["regime_recommande"]:
+        print(f"  -> régime recommandé pour le S2 confirmatoire : {report['regime_recommande']}")
+
+
+def run_diagnostic_main(seed=2026, K=8, num_agents=20, max_ticks=400, with_db=False):
+    """Orchestre le diagnostic, sauve le report (results/s2_regime_diagnostic_<seed>.json), imprime."""
+    from src.seed_ai.harness import Harness, _git_short_commit
+    with Harness(seed=seed, name="s2_regime_diagnostic", with_db=with_db) as h:
+        cells = run_diagnostic(seed=seed, K=K, num_agents=num_agents, max_ticks=max_ticks)
+        v = regime_diagnostic_verdict(cells, max_ticks=max_ticks)
+        report = {"seed": seed, "commit": _git_short_commit(), "K": K, **v}
+        h.save(report)
+    _print_table(report)
+    return report
+
+
+if __name__ == "__main__":
+    run_diagnostic_main(seed=int(os.getenv("EXPERIMENT_SEED", "2026")))
