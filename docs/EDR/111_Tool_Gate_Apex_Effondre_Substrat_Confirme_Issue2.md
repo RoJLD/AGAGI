@@ -1,10 +1,10 @@
-# EDR 111 — Tool-gate mammouth (hp 100→250) : apex effondre, craft ne monte pas → Issue 2 confirmee
+# EDR 111 — Tool-gate mammouth (hp 100→250) : apex effondre, craft ne monte pas → substrat ne pivote pas sous demande
 
 **Date :** 2026-06-29
 **Harnais :** `tools/evolve_ceiling_probe.py`
 **Parametres :** `EVP_SELECT=elitist EVP_PRESERVE_DIMS=1 EVP_TARGET=stoneage EVP_K=12 EVP_NUM_AGENTS=40 EVP_MAX_TICKS=300 EVP_POP_CAP=200 EVP_N_CARRY=12 EVP_TOURNAMENT=3 EVP_MAMMOTH_HP={100|250} CT_METAB=0.25 CT_PAYOFF=3.0`
 **Seeds :** 0, 1, 2 (x2 bras = 6 runs, tous reussis par exit code)
-**Statut :** CLOS — verdict Issue 2 (verrou substrat/architecture)
+**Statut :** CLOS — verdict Issue 2 (substrat ne pivote pas vers l'outil sous pression ; converge avec diagnostic architecture EDR 107)
 
 ---
 
@@ -114,7 +114,7 @@ Harnais valide. Lecture du bras gate est fiable.
 - `bdiv_spears` en gate : plancher (0.0000) sur 9/12 eres en moyenne, aucun signal
   d'emergence d'un tier lance coherent. Le craft ne diversifie pas le comportement.
 - `behavioral_diversity` gate : legerement inferieure au ctrl sur toutes les eres
-  (mean gate ~0.145 vs ctrl ~0.183), coherent avec une population qui collpase sans
+  (mean gate ~0.145 vs ctrl ~0.183), coherent avec une population qui collapse sans
   trouver de strategie alternative.
 
 ### Tailles de pack observees vs seuil de calibration
@@ -145,12 +145,19 @@ le craft. Le gate n'est pas contourne par la taille de population observee.
 
 ## Verdict : Issue 2 confirmee
 
-**Issue 2 (verrou substrat/architecture) :**
+**Issue 2 (le substrat ne pivote pas vers l'outil sous demande) :**
 - `frac_apex` : ctrl=0.1112 → gate=0.0490 (−56% toutes eres ; −63% tardif)
 - `frac_tool` : ctrl=0.0114 → gate=0.0054 (−53%, reste au plancher sous gate)
 - `bdiv_spears` : plancher sous gate sur la quasi-totalite des eres
 - Le substrat NE REPOND PAS au changement de pression en activant une strategie
   outil. Il s'effondre.
+
+**Note sur l'attribution architecturale :** l'hypothese que le verrou serait
+l'architecture du connectome (97% I/O, NEAT-like sans couche cachee) est IMPORTEE
+d'EDR 107/NAS — elle CONVERGE avec ce resultat mais n'est pas prouvee
+independamment ici (un seul levier hp, N=3 seeds). Cet EDR mesure uniquement que
+le substrat ne se reoriente pas ; la cause architecturale reste une hypothese
+renforcee par convergence.
 
 **Issue 1 refutee :** le craft ne monte pas malgre le gate. Aucun signal d'emergence
 d'un repertoire enrichi.
@@ -201,6 +208,16 @@ doublon.
 3. **Knob hp seul** : ce knob gate le mammouth mais ne modifie pas les affordances
    de craft (les recettes restent accessibles). L'absence de craft emergence est
    donc un signal de substrat, pas d'une absence d'affordance.
+4. **Traçabilite seed (artefact harnais)** : le champ `"seed"` des 6 JSON de run
+   affiche toujours `0` — `EXPERIMENT_SEED` n'est pas serialise dans le `result`
+   (meme artefact que EDR 109/105/108). Les donnees per_era sont bien distinctes par
+   seed (ctrl ere0 : 0.2906/0.175/0.218), ce qui confirme que les runs sont
+   independants. La correspondance run↔seed se fait par le nom de fichier, pas par
+   le champ metadata.
+5. **Cohérence config_hash** : les 6 JSON partagent `config_hash = "fa6f6ff765fb"`,
+   identique entre bras ctrl et gate. Indice de parite de configuration — note
+   honnete : le hash ne couvre pas necessairement `EVP_MAMMOTH_HP`, donc c'est une
+   indication, pas une preuve formelle que seul ce parametre differe.
 
 ---
 
@@ -208,11 +225,14 @@ doublon.
 
 **EDR 111 : CLOS — Issue 2 confirmee.**
 
-Le substrat (NAS actuel, architecture NEAT-like sans couche cachee profonde,
-connectome 97% I/O) ne porte pas de strategie outil sous pression obligatoire.
-Enrichir le repertoire-monde via un knob hp ne suffit pas : il faut enrichir le
-substrat lui-meme (capacite reseau, plasticite, curriculum progressif) ou le
-curriculum de craft (affordances scaffold).
+Le substrat (NAS actuel) ne porte pas de strategie outil sous pression obligatoire :
+il s'effondre sans pivoter vers le craft. Enrichir le repertoire-monde via un knob hp
+ne suffit pas — le substrat ne saisit pas l'affordance quand le monde l'exige.
+
+L'hypothese sur l'architecture (NEAT-like, connectome 97% I/O, sans couche cachee
+profonde) comme cause profonde CONVERGE avec EDR 107/NAS mais n'est pas etablie
+independamment ici. Elle reste a tester directement (substrat plus riche : hidden
+layers profonds, plasticite, proto-curriculum craft).
 
 Suite naturelle : EDR 110 (capacity-nav, Lewis, reserve) ou un pivot vers un
 substrat plus riche (hidden layers profonds, plastique, proto-curriculum craft).
