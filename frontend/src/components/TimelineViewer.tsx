@@ -93,7 +93,7 @@ export function TimelineViewer() {
     <div className="timeline-viewer">
       <h2>Timeline KuzuDB</h2>
       <p>Visualisation de l'arbre généalogique des agents et de leurs lignées.</p>
-      <svg ref={svgRef} width="100%" height={400} className="topology-svg" />
+      <svg ref={svgRef} width="100%" height={400} className="topology-svg" aria-label="Timeline généalogique des agents (KuzuDB)" />
     </div>
   );
 }

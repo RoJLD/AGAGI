@@ -199,6 +199,8 @@ export function FlatlandViewer() {
         ref={canvasRef}
         width={800}
         height={600}
+        role="img"
+        aria-label="Carte Flatland 2D (terrain, agents, proies, objets)"
         style={{ width: "100%", height: "100%", touchAction: "none", cursor: "grab" }}
         onWheel={handleWheel}
         onPointerDown={handlePointerDown}

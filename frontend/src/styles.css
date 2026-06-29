@@ -525,3 +525,27 @@ body {
 .carnet-feed__text {
   margin: var(--space-1) 0 0;
 }
+
+/* Accessibilité : anneau de focus clavier (n'apparaît qu'au clavier via :focus-visible). */
+.btn:focus-visible,
+.tab:focus-visible,
+.field input:focus-visible,
+.field select:focus-visible,
+textarea:focus-visible,
+.checkbox-inline input:focus-visible,
+.toast-dismiss:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Bouton de fermeture des toasts. */
+.toast-dismiss {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0;
+  margin-left: auto;
+}

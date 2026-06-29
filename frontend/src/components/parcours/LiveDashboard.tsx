@@ -104,6 +104,8 @@ const LiveWorld = () => {
         ref={canvasRef}
         width={400}
         height={400}
+        role="img"
+        aria-label="Visualisation 2D du monde sandbox (agents, proies, objets, arbres)"
         style={{ border: "1px solid var(--color-border)", borderRadius: "var(--radius-sm)", background: "var(--color-bg)", width: "100%", height: "auto" }}
       />
     </Panel>
