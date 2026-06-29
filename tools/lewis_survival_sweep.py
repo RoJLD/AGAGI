@@ -46,6 +46,135 @@ def _cfg(forage_payoff, ttc_surprise_scale=None, trace_energy_sinks=False, base_
     return cfg
 
 
+def _fresh_genome(n_hidden):
+    """EDR110 : genome frais a capacite cachee n_hidden (num_nodes=167+n_hidden, I=59, O=108,
+    W dense aleatoire x0.1). Reutilise la construction par defaut de MambaAgent ; seule la bande
+    mediane [59, 59+n_hidden) grossit. La graine RNG doit etre posee par l'appelant (seed_at)
+    pour le determinisme."""
+    return MambaAgent(num_inputs=59, num_outputs=108, num_nodes=167 + n_hidden).genome
+
+
+def _capacity_mc():
+    """EDR110 : MutationConfig a CAPACITE FIGEE (num_nodes constant) pour que n_hidden soit la
+    seule variable entre bras. Gele TOUTES les ops qui inserent des noeuds :
+      - add_node_rate=0.0  : insertion directe d'un noeud (chemin standard)
+      - meso_gate_rate=0.0 : add_meso_gated_unit insere 2 noeuds via np.insert ; sans ce gel,
+                             num_nodes derive dans ~67% des seeds et crash le assert de _capacity_arm
+      - meso_skip_rate=0.0 : add_meso_skip_connection (macro motif, ajoute une connexion) gele aussi
+                             pour correspondre a l'intention du spec (seul le niveau connexion reste)
+    Mutations conservees (identiques entre bras = bruit de recherche commun, pas un confound) :
+      - mutation de poids (weight_init_std=2.0 comme EDR107)
+      - add_connection (niveau connexion uniquement)
+    NOTE : prune_rate=0.0 est INERTE (la fonction prune lit genome.mutation_genes[4], pas le config),
+    mais prune ne change jamais num_nodes -> la garantie de capacite figee tient quand meme."""
+    return MutationConfig(weight_init_std=2.0, add_node_rate=0.0, prune_rate=0.0,
+                          meso_skip_rate=0.0, meso_gate_rate=0.0)
+
+
+def _capacity_arm(cfg, mc, n_hidden, generations, num_agents, max_ticks, base_seed):
+    """EDR110 : un bras = evolue la navigation a capacite cachee FIXEE n_hidden. Calque
+    main_evolve_nav (EDR107) mais (a) seme best_ever depuis _fresh_genome(n_hidden) au lieu de
+    _load_champions, (b) utilise mc a capacite figee, (c) assert num_nodes==167+n_hidden a chaque
+    generation (garde-fou anti-derive). Renvoie un dict {n_hidden, num_nodes, traj, gen0, first,
+    plateau, stats}. gen0 = p_reach de la 1re generation (capacite BRUTE) ; plateau = mediane des
+    k dernieres (k=5 si gen>=10) ; first = mediane des k premieres."""
+    expected_nodes = 167 + n_hidden
+    seed_at(base_seed, 0)
+    best_ever = [(0.0, _fresh_genome(n_hidden)) for _ in range(5)]
+    traj, stats_hist = [], []
+    for gen in range(1, generations + 1):
+        seed_at(base_seed + gen, 0)
+        champ_genomes = [g for (_s, g) in best_ever]
+        genomes = _reproduce(champ_genomes, num_agents, mc)
+        assert all(g.num_nodes == expected_nodes for g in genomes), (
+            f"capacity drift: n_hidden={n_hidden} attendu {expected_nodes} noeuds")
+        scored, p_reach, stats = _evolve_nav_gen(cfg, genomes, max_ticks=max_ticks)
+        # In-world reproduction (energy/MATE/HGT, world_1_stoneage) spawns offspring via
+        # MambaAgent.mutate() (meso_*_rate left at 0.05 -> add_meso_gated_unit inserts 2 nodes) or
+        # HGT crossover -> their num_nodes can drift off the seeded capacity. Exclude any off-capacity
+        # genome from the best-ever ratchet so the seeded N stays the only variable across arms
+        # (Phase 1 holds capacity FIXED; in-world-grown offspring are evaluated for p_reach but never
+        # selected). This is what keeps the per-generation guard-rail assert from ever firing.
+        scored = [(s, g) for (s, g) in scored if g.num_nodes == expected_nodes]
+        best_ever = sorted(best_ever + scored, key=lambda sg: sg[0], reverse=True)[:5]
+        traj.append(p_reach)
+        stats_hist.append(stats)
+    n = len(traj)
+    k = 5 if n >= 10 else max(1, n // 2)
+    return {
+        "n_hidden": n_hidden, "num_nodes": expected_nodes,
+        "traj": traj, "gen0": float(traj[0]) if traj else 0.0,
+        "first": float(np.median(traj[:k])) if traj else 0.0,
+        "plateau": float(np.median(traj[-k:])) if traj else 0.0,
+        "stats": stats_hist,
+    }
+
+
+def _verdict_capacity(arms):
+    """EDR110 : verdict pre-enregistre sur l'effet de la capacite cachee sur le plateau de navigation.
+    delta = plateau(N_max) - plateau(N_min) ; slope = pente du plateau vs log2(N) (lisse l'echelle
+    geometrique 5->80). CAPACITE LEVE si delta>=0.10 ET slope>0. CAPACITE INERTE si abs(delta)<0.10
+    ET abs(slope)<0.05. CAPACITE AMBIGUE sinon (signal partiel/non-monotone)."""
+    arms = sorted(arms, key=lambda a: a["n_hidden"])
+    plateaus = [a["plateau"] for a in arms]
+    delta = plateaus[-1] - plateaus[0]
+    x = [float(np.log2(a["n_hidden"])) for a in arms]
+    slope = float(np.polyfit(x, plateaus, 1)[0]) if len(arms) >= 2 else 0.0
+    if delta >= 0.10 and slope > 0:
+        return "CAPACITE LEVE"
+    if abs(delta) < 0.10 and abs(slope) < 0.05:
+        return "CAPACITE INERTE"
+    return "CAPACITE AMBIGUE"
+
+
+def _report_capacity_nav(h, arms, generations, num_agents, max_ticks, _return):
+    """Table ASCII (1 ligne/bras : n_hidden, num_nodes, gen0, first, plateau, delta_vs_base) +
+    pente plateau vs log2(N) + delta(max-min) + verdict pre-enregistre. Sauvegarde JSON. Tout ASCII."""
+    verdict = _verdict_capacity(arms)
+    arms_sorted = sorted(arms, key=lambda a: a["n_hidden"])
+    base_plateau = arms_sorted[0]["plateau"]
+    plateaus = [a["plateau"] for a in arms_sorted]
+    x = [float(np.log2(a["n_hidden"])) for a in arms_sorted]
+    slope = float(np.polyfit(x, plateaus, 1)[0]) if len(arms_sorted) >= 2 else 0.0
+    print("\n=== EDR110 capacite cachee -> plafond navigation Lewis ===")
+    print("  n_hidden | num_nodes | gen0  first plateau | delta_vs_base")
+    for a in arms_sorted:
+        print(f"  {a['n_hidden']:8d} | {a['num_nodes']:9d} | {a['gen0']:.3f} {a['first']:.3f} "
+              f"{a['plateau']:.3f} | {a['plateau'] - base_plateau:+.3f}")
+    print(f"  pente plateau vs log2(N) = {slope:+.4f}  delta(max-min) = "
+          f"{plateaus[-1] - plateaus[0]:+.3f} (gate +0.10)")
+    print("=== VERDICT (pre-enregistre) ===")
+    print(f"  -> {verdict}")
+    h.save({"knob": "n_hidden", "hidden_levels": [a["n_hidden"] for a in arms_sorted],
+            "generations": generations, "num_agents": num_agents, "max_ticks": max_ticks,
+            "slope_vs_log2N": slope, "delta": plateaus[-1] - plateaus[0], "verdict": verdict,
+            "arms": arms_sorted})
+    if _return:
+        return {"verdict": verdict, "arms": arms_sorted, "slope": slope,
+                "delta": plateaus[-1] - plateaus[0]}
+
+
+def main_capacity_nav(hidden_levels=(5, 20, 40, 80), generations=20, num_agents=24,
+                      max_ticks=80, seed=110, _return=False):
+    """EDR 110 : seme une echelle de capacite cachee (n_hidden) figee et evolue la navigation a
+    chaque palier (boucle evolve_nav EDR107, metab=0, Lewis vide d'apex, forage_payoff=3). Lit
+    gen0 (capacite brute) + plateau evolue. Verdict CAPACITE LEVE / INERTE / AMBIGUE."""
+    with Harness(seed=seed, name="lewis_capacity_nav", with_db=False) as h:
+        base = h.seed
+        _disable_kuzu()
+        print(f"EDR110 : capacite cachee nav, hidden={hidden_levels}, gen={generations}, "
+              f"pop={num_agents}, max_ticks={max_ticks}, seed={base}.")
+        mc = _capacity_mc()
+        cfg = _cfg(3, base_metabolism=0.0, trace_forage=True)
+        prog = h.progress(len(hidden_levels), label="paliers de capacite")
+        arms = []
+        for n_hidden in hidden_levels:
+            arms.append(_capacity_arm(cfg, mc, n_hidden, generations, num_agents,
+                                      max_ticks, base + n_hidden))
+            prog.update()
+        return _report_capacity_nav(h, arms, generations, num_agents, max_ticks, _return)
+
+
 def _measure_survival(cfg, seeds, leurre_frac=0.0, n_apex=N_APEX, num_agents=NUM_AGENTS,
                       max_ticks=MAX_TICKS, collect_surprise=False):
     """Mesure la survie des CHAMPIONS (repliques, pas d'evolution) en Lewis a letalite leurre_frac.
