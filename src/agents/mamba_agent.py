@@ -310,6 +310,8 @@ class MambaBatchModel:
     # NAS Axe 3 — Planificateur latent (activation du dreaming). Défaut OFF (non-régressif).
     PLAN_BIAS = 0.0   # poids du biais des logits d'action par le plan (0 = planificateur désactivé)
     PLAN_LR = 0.05    # taux d'apprentissage en ligne de g
+    TD_GAMMA = 0.9    # EDR 112 : facteur d'escompte du crédit temporel (Actor-Critic TD). Défaut 0.9
+                      # = comportement historique ; relevé (0.99/0.999) étend l'horizon craft->apex.
     PLAN_A = 8        # nombre d'actions planifiées (= logits de déplacement 0..7)
 
     def __init__(self, agents: list[MambaAgent], world_model=None):
@@ -780,7 +782,8 @@ class MambaBatchModel:
         #   δ = r + γ·V(s') − V(s)  sert d'avantage (actor) ET d'erreur du critic.
         # -> une action coûteuse mais qui mène à un bon état (crafter -> pouvoir chasser)
         #    reçoit un avantage positif. _td est stocké sur le modèle (robuste au re-batch).
-        lr_actor, lr_critic, gamma = 0.04, 0.05, 0.9
+        lr_actor, lr_critic = 0.04, 0.05
+        gamma = MambaBatchModel.TD_GAMMA          # EDR 112 : horizon de crédit (knob, défaut 0.9)
         for i in range(self.B):
             N_i = self.agents[i].genome.num_nodes
             O_i = self.agents[i].genome.num_outputs
