@@ -43,7 +43,7 @@ late elitist 0.0821 vs 0.082, late diverse 0.0974 vs 0.097). Harnais valide.
 | Metrique             | Bras elitist | Bras diverse | Ratio vs genome_div |
 |----------------------|--------------|--------------|---------------------|
 | `genome_diversity`   | 0.0011       | 0.0011       | 1x (plancher)       |
-| `behavioral_diversity` | **0.1807** | **0.1833**   | **~168x**           |
+| `behavioral_diversity` | **0.1807** | **0.1833**   | **~165x**           |
 
 `behavioral_diversity` est un `pstdev` borne dans [0, 0.5] theoriquement.
 Valeurs observees (~0.15-0.21) : bien au-dessus de zero, **sensibilite confirmee**.
@@ -114,7 +114,11 @@ Observations :
 
 La correlation positive indique que la diversite comportementale et l'apex covarient
 (eres avec plus de diversite tendent vers plus d'apex) — mais c'est une correlation
-intra-run, pas un effet causal de la selection.
+intra-run, pas un effet causal de la selection. A noter que `bdiv_age` est une composante
+de `behavioral_diversity` ; l'age correlant mecaniquement avec `frac_apex` (vivre plus
+longtemps augmente la probabilite de tuer un mammouth), une part attendue (tautologique)
+de cette correlation est expliquee par cette composante survie, ce qui ne remet pas en
+cause le verdict (qui ne repose pas sur cette correlation causale).
 
 ---
 
