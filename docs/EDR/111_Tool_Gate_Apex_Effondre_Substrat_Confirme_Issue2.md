@@ -198,10 +198,26 @@ doublon.
 
 ## Caveat et limites
 
-1. **Gate partiellement poreux** : au-dela de 12 individus mains-nues coordonnes le
-   gate cede (calibration Task 2). Les tailles de population observees tombent sous
-   ce seuil apres ere 0, mais nous n'avons pas de mesure directe du pack de chasse
-   effectif (nombre d'agents qui attaquent un mammouth simultanement).
+1. **Gate partiellement poreux — et pré-check analytique insuffisant en isolation** :
+   au-dela de 12 individus mains-nues coordonnes le gate cede (calibration Task 2).
+   Les tailles de population observees tombent sous ce seuil apres ere 0, mais nous
+   n'avons pas de mesure directe du pack de chasse effectif (nombre d'agents qui
+   attaquent un mammouth simultanement).
+
+   **Biais de modele dans la calibration :** le pre-check (`tools/tool_gate_calibration.py`)
+   suppose que la riposte du mammouth est distribuee UNIFORMEMENT sur l'ensemble du
+   pack a chaque tick. Or la mecanique reelle (`src/worlds/world_1_stoneage.py:595-597`)
+   ne riposte que contre l'UNIQUE agent `closest` par tick de proie (instruction
+   `continue` apres riposte), ce qui concentre les degats sur un seul agent a la fois.
+   Consequence : le pack encaisse moins de riposte distribuee que le modele ne le
+   suppose → le gate reel est **plus POREUX que `break_pack_size=13`**.
+
+   Le pre-check est donc **NECESSAIRE MAIS NON SUFFISANT** : il prouve que, sous le
+   modele uniforme, le pack mains-nues ne tue pas et la lance tue, mais il ne prouve
+   pas que le gate mord avec la meme durete dans la sim. La preuve que le gate a
+   effectivement morde reste **INDIRECTE** (effondrement apex + frac_tool au plancher).
+   Le verdict honnete est « le substrat ne pivote pas vers l'outil sous CE gate » ;
+   la force exacte du gate in-sim est incertaine.
 2. **3 seeds** : variance inter-seeds visible (ex. ctrl s1 ere3 : 0.270 vs s0 : 0.038).
    Les directions sont coherentes sur les 3 seeds mais un test de significativite
    formel (sign test) n'est pas calcule sur N=3.
