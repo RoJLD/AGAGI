@@ -54,6 +54,45 @@ def _fresh_genome(n_hidden):
     return MambaAgent(num_inputs=59, num_outputs=108, num_nodes=167 + n_hidden).genome
 
 
+def _capacity_mc():
+    """EDR110 : MutationConfig a CAPACITE FIGEE (add_node_rate=0, prune_rate=0) pour que n_hidden
+    soit la seule variable entre bras. Mutation de poids + add_connection conservees (cabler les
+    caches semes sans changer N). weight_init_std=2.0 comme EDR107. NB : le defaut de MutationConfig
+    porte add_node_rate=0.2 ET prune_rate=0.1 -> sans ce gel, les bras deriveraient en taille."""
+    return MutationConfig(weight_init_std=2.0, add_node_rate=0.0, prune_rate=0.0)
+
+
+def _capacity_arm(cfg, mc, n_hidden, generations, num_agents, max_ticks, base_seed):
+    """EDR110 : un bras = evolue la navigation a capacite cachee FIXEE n_hidden. Calque
+    main_evolve_nav (EDR107) mais (a) seme best_ever depuis _fresh_genome(n_hidden) au lieu de
+    _load_champions, (b) utilise mc a capacite figee, (c) assert num_nodes==167+n_hidden a chaque
+    generation (garde-fou anti-derive). Renvoie un dict {n_hidden, num_nodes, traj, gen0, first,
+    plateau, stats}. gen0 = p_reach de la 1re generation (capacite BRUTE) ; plateau = mediane des
+    k dernieres (k=5 si gen>=10) ; first = mediane des k premieres."""
+    expected_nodes = 167 + n_hidden
+    seed_at(base_seed, 0)
+    best_ever = [(0.0, _fresh_genome(n_hidden)) for _ in range(5)]
+    traj, stats_hist = [], []
+    for gen in range(1, generations + 1):
+        seed_at(base_seed + gen, 0)
+        champ_genomes = [g for (_s, g) in best_ever]
+        genomes = _reproduce(champ_genomes, num_agents, mc)
+        assert all(g.num_nodes == expected_nodes for g in genomes), (
+            f"capacity drift: n_hidden={n_hidden} attendu {expected_nodes} noeuds")
+        scored, p_reach, stats = _evolve_nav_gen(cfg, genomes, max_ticks=max_ticks)
+        best_ever = sorted(best_ever + scored, key=lambda sg: sg[0], reverse=True)[:5]
+        traj.append(p_reach)
+        stats_hist.append(stats)
+    n = len(traj)
+    k = 5 if n >= 10 else max(1, n // 2)
+    return {
+        "n_hidden": n_hidden, "num_nodes": expected_nodes,
+        "traj": traj, "gen0": float(traj[0]) if traj else 0.0,
+        "first": float(np.median(traj[:k])), "plateau": float(np.median(traj[-k:])),
+        "stats": stats_hist,
+    }
+
+
 def _measure_survival(cfg, seeds, leurre_frac=0.0, n_apex=N_APEX, num_agents=NUM_AGENTS,
                       max_ticks=MAX_TICKS, collect_surprise=False):
     """Mesure la survie des CHAMPIONS (repliques, pas d'evolution) en Lewis a letalite leurre_frac.
