@@ -55,11 +55,20 @@ def _fresh_genome(n_hidden):
 
 
 def _capacity_mc():
-    """EDR110 : MutationConfig a CAPACITE FIGEE (add_node_rate=0, prune_rate=0) pour que n_hidden
-    soit la seule variable entre bras. Mutation de poids + add_connection conservees (cabler les
-    caches semes sans changer N). weight_init_std=2.0 comme EDR107. NB : le defaut de MutationConfig
-    porte add_node_rate=0.2 ET prune_rate=0.1 -> sans ce gel, les bras deriveraient en taille."""
-    return MutationConfig(weight_init_std=2.0, add_node_rate=0.0, prune_rate=0.0)
+    """EDR110 : MutationConfig a CAPACITE FIGEE (num_nodes constant) pour que n_hidden soit la
+    seule variable entre bras. Gele TOUTES les ops qui inserent des noeuds :
+      - add_node_rate=0.0  : insertion directe d'un noeud (chemin standard)
+      - meso_gate_rate=0.0 : add_meso_gated_unit insere 2 noeuds via np.insert ; sans ce gel,
+                             num_nodes derive dans ~67% des seeds et crash le assert de _capacity_arm
+      - meso_skip_rate=0.0 : add_meso_skip_connection (macro motif, ajoute une connexion) gele aussi
+                             pour correspondre a l'intention du spec (seul le niveau connexion reste)
+    Mutations conservees (identiques entre bras = bruit de recherche commun, pas un confound) :
+      - mutation de poids (weight_init_std=2.0 comme EDR107)
+      - add_connection (niveau connexion uniquement)
+    NOTE : prune_rate=0.0 est INERTE (la fonction prune lit genome.mutation_genes[4], pas le config),
+    mais prune ne change jamais num_nodes -> la garantie de capacite figee tient quand meme."""
+    return MutationConfig(weight_init_std=2.0, add_node_rate=0.0, prune_rate=0.0,
+                          meso_skip_rate=0.0, meso_gate_rate=0.0)
 
 
 def _capacity_arm(cfg, mc, n_hidden, generations, num_agents, max_ticks, base_seed):

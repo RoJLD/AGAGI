@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 from src.seed_ai.harness import seed_at
 from src.agents.mamba_agent import MambaAgent
 from tools.lewis_survival_sweep import _fresh_genome
@@ -27,15 +26,20 @@ def test_capacity_mc_freezes_capacity():
     mc = _capacity_mc()
     assert mc.add_node_rate == 0.0
     assert mc.prune_rate == 0.0
+    assert mc.meso_skip_rate == 0.0
+    assert mc.meso_gate_rate == 0.0
 
 
 def test_apply_mutations_preserves_num_nodes_under_frozen_mc():
-    seed_at(110, 0)
-    g = _fresh_genome(40)  # 207 noeuds
+    # Multi-seed regression guard: frozen mc must keep num_nodes constant for ALL seeds
+    # (the meso_gate path inserted 2 nodes in ~67% of seeds before the freeze fix).
     mc = _capacity_mc()
-    for _ in range(10):
-        g = apply_mutations(g, mc)
-    assert g.num_nodes == 207
+    for s in range(60):
+        seed_at(1000 + s, 0)
+        g = _fresh_genome(40)  # 207 noeuds
+        for _ in range(20):
+            g = apply_mutations(g, mc)
+        assert g.num_nodes == 207, f"capacity drift at seed {1000 + s}: {g.num_nodes}"
 
 
 def test_capacity_arm_smoke_returns_expected_keys():
