@@ -602,5 +602,58 @@ def main_approach(speed_levels=(1.0, 0.5, 0.25, 0.0), n_eval=8, R=4, seed=None, 
         return _report_approach(h, aggs, R, n_eval, _return)
 
 
+def _report_evolve_nav(h, traj, stats_hist, generations, num_agents, max_ticks, _return):
+    """Trajectoire p_reach par generation + first/last medianes + pente lineaire + verdict.
+    Tout ASCII (cp1252)."""
+    verdict = _verdict_evolve_nav(traj)
+    n = len(traj)
+    k = 5 if n >= 10 else max(1, n // 2)
+    first = float(np.median(traj[:k]))
+    last = float(np.median(traj[-k:]))
+    slope = float(np.polyfit(range(1, n + 1), traj, 1)[0]) if n >= 2 else 0.0
+    print("\n=== EDR107 evolution navigation Lewis : trajectoire p_reach ===")
+    print("  gen | p_reach | ticks eaten")
+    for i, (p, sd) in enumerate(zip(traj, stats_hist), 1):
+        print(f"  {i:3d} | {p:7.3f} | {sd['ticks']:5d} {sd['eaten']:5d}")
+    print(f"  first-{k} median={first:.3f}  last-{k} median={last:.3f}  delta={last - first:+.3f} (gate +0.15)")
+    print(f"  pente lineaire p_reach/gen = {slope:+.4f}")
+    print("=== VERDICT (pre-enregistre) ===")
+    print(f"  -> {verdict}")
+    h.save({"knob": "generation", "generations": generations, "num_agents": num_agents,
+            "max_ticks": max_ticks, "traj": traj, "first_median": first, "last_median": last,
+            "slope": slope, "verdict": verdict, "stats": stats_hist})
+    if _return:
+        return {"verdict": verdict, "traj": traj, "first_median": first, "last_median": last,
+                "slope": slope}
+
+
+def main_evolve_nav(generations=20, num_agents=24, max_ticks=80, seed=None, _return=False):
+    """EDR 107 : re-evolue la navigation EN Lewis (N_APEX=0, metab=0, forage_payoff=3) sur la fitness
+    de prod calculate_life_score. Cliquet best-ever (top-5 global). Mesure p_reach par generation ->
+    verdict NAVIGATION EVOLUE (last>=first+0.15) vs SUBSTRAT BLOQUE."""
+    with Harness(seed=seed, name="lewis_evolve_nav", with_db=False) as h:
+        base = h.seed
+        _disable_kuzu()
+        print(f"EDR107 : evolution navigation Lewis, gen={generations}, pop={num_agents}, "
+              f"max_ticks={max_ticks}, seed={base}.")
+        mc = MutationConfig(weight_init_std=2.0)
+        seed_at(base, 0)
+        champs = _load_champions()
+        best_ever = [(0.0, g) for g in champs]
+        cfg = _cfg(3, base_metabolism=0.0, trace_forage=True)
+        traj, stats_hist = [], []
+        prog = h.progress(generations, label="generations")
+        for gen in range(1, generations + 1):
+            seed_at(base + gen, 0)
+            champ_genomes = [g for (_s, g) in best_ever]
+            genomes = _reproduce(champ_genomes, num_agents, mc)
+            scored, p_reach, stats = _evolve_nav_gen(cfg, genomes, max_ticks=max_ticks)
+            best_ever = sorted(best_ever + scored, key=lambda sg: sg[0], reverse=True)[:5]
+            traj.append(p_reach)
+            stats_hist.append(stats)
+            prog.update()
+        return _report_evolve_nav(h, traj, stats_hist, generations, num_agents, max_ticks, _return)
+
+
 if __name__ == "__main__":
     main()
