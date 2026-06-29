@@ -297,6 +297,8 @@ class Biosphere3D(BaseWorld):
             if self.geometry[0, y, x] == 0:
                 cfg = self.config.preys.get(p_type, None)
                 hp = cfg.hp if cfg else 1.0
+                if p_type == "Mammouth":
+                    hp = float(getattr(self.config, "mammoth_hp", hp))  # tool-gate EDR 111
                 self.preys.append({"x": x, "y": y, "type": p_type, "stunned": 0, "hp": hp})
                 break
 
