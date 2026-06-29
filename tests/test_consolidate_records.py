@@ -109,3 +109,28 @@ def test_validate_clean_graph_has_no_problems():
         _rec("EDR-105", "EDR", gate="G1", status="validated", tests=["SDR-G1"]),
     ]
     assert validate_graph(recs) == []
+
+
+def test_roadmap_state_maps_gate_to_records():
+    recs = [
+        _rec("SDR-G1", "SDR", gate="G1", status="open", motivates=["EDR-105"]),
+        _rec("EDR-105", "EDR", gate="G1", status="refuted", tests=["SDR-G1"],
+             triggers=["ADR-007"]),
+    ]
+    state = roadmap_state(recs)
+    assert state["G1"]["sdr"] == "SDR-G1"
+    assert state["G1"]["tested_by"] == ["EDR-105"]
+    assert state["G1"]["triggered_adr"] == ["ADR-007"]
+    assert state["G0"]["sdr"] is None
+
+
+def test_main_exits_nonzero_on_broken_link(tmp_path, monkeypatch, capsys):
+    (tmp_path / "docs" / "SDR").mkdir(parents=True)
+    (tmp_path / "results").mkdir()
+    _write(tmp_path / "docs" / "SDR" / "G1_x.md",
+           "---\nid: SDR-G1\ntype: SDR\ntitle: t\nstatus: open\ngate: G1\n"
+           "motivates: [EDR-999]\n---\n")
+    rc = main(["--root", str(tmp_path)])
+    assert rc == 1
+    out = json.loads((tmp_path / "results" / "records_graph.json").read_text(encoding="utf-8"))
+    assert out["problems"]

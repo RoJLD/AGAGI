@@ -8,6 +8,7 @@ import os
 import re
 import sys
 import json
+import argparse
 
 import yaml
 
@@ -128,11 +129,72 @@ def validate_graph(records: list[dict]) -> list[dict]:
     return problems
 
 
-def roadmap_state(graph: dict) -> dict:
-    """Stub pour roadmap_state."""
-    pass
+_GATES = ("G0", "G1", "G2", "G3", "G4")
 
 
-def main():
-    """Stub pour main."""
-    pass
+def roadmap_state(records: list[dict]) -> dict:
+    """Mappe les portes G0..G4 à leurs SDR, EDR testeurs, et ADR déclenchés.
+
+    Retourne {gate: {"sdr": id|None, "status": str, "tested_by": [edr_ids], "triggered_adr": [adr_ids]}}
+    - sdr : id du record SDR de la porte, ou None si absent
+    - status : statut de la SDR, ou "absent" si pas de SDR
+    - tested_by : EDR dont la porte == gate OU qui testent la SDR de la porte
+    - triggered_adr : ADR cités dans triggers des EDR testeurs (dédupliqués, triés)
+    """
+    sdr_by_gate = {r["gate"]: r for r in records if r["type"] == "SDR"}
+    state: dict = {}
+
+    for g in _GATES:
+        sdr = sdr_by_gate.get(g)
+        sdr_id = sdr["id"] if sdr else None
+
+        # EDR testeurs : ceux dont gate == g OU qui testent la SDR de g
+        tested_by = sorted(
+            r["id"] for r in records
+            if r["type"] == "EDR" and (r["gate"] == g or (sdr_id and sdr_id in r["tests"]))
+        )
+
+        # ADR déclenchés par les EDR testeurs
+        triggered = sorted({adr for r in records if r["id"] in tested_by for adr in r["triggers"]})
+
+        state[g] = {
+            "sdr": sdr_id,
+            "status": sdr["status"] if sdr else "absent",
+            "tested_by": tested_by,
+            "triggered_adr": triggered
+        }
+
+    return state
+
+
+def main(argv=None) -> int:
+    """Consolide les records, construit le graphe, valide la cohérence.
+
+    Écrit results/records_graph.json avec {"graph", "roadmap", "problems"},
+    imprime un résumé, retourne 1 si problèmes sinon 0.
+    """
+    ap = argparse.ArgumentParser(description="Consolide les records SDR/ADR/EDR.")
+    ap.add_argument("--root", default=_ROOT)
+    args = ap.parse_args(argv)
+
+    records = scan_records(args.root)
+    graph = build_graph(records)
+    problems = validate_graph(records)
+    roadmap = roadmap_state(records)
+
+    out_dir = os.path.join(args.root, "results")
+    os.makedirs(out_dir, exist_ok=True)
+    payload = {"graph": graph, "roadmap": roadmap, "problems": problems}
+
+    with open(os.path.join(out_dir, "records_graph.json"), "w", encoding="utf-8") as fh:
+        json.dump(payload, fh, ensure_ascii=False, indent=2)
+
+    print(f"records={len(records)} edges={len(graph['edges'])} problemes={len(problems)}")
+    for p in problems:
+        print(f"  [{p['kind']}] {p['detail']}")
+
+    return 1 if problems else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
