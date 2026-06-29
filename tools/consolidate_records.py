@@ -1,0 +1,79 @@
+"""Consolidation des records de décision (SDR/ADR/EDR) en un graphe statique.
+
+Scanne docs/{SDR,ADR,EDR}/, lit le frontmatter YAML, construit le graphe causal
+SDR --MOTIVE--> EDR --DECLENCHE--> ADR (+ EDR --TESTE--> SDR), valide sa cohérence
+et génère l'état de la roadmap G0->G4. Pur, sans LLM, sans réseau.
+Spec : docs/superpowers/specs/2026-06-29-Roadmap-AGI-Gates-design.md (section 4)."""
+import os
+import re
+import sys
+import json
+
+import yaml
+
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
+
+_LIST_KEYS = ("motivates", "triggers", "tests")
+_EDR_NAME = re.compile(r"^(\d{3})_.+\.md$")
+
+
+def _empty_record(file: str) -> dict:
+    return {"id": None, "type": None, "title": "", "status": "open", "gate": None,
+            "motivates": [], "triggers": [], "tests": [], "verdict": None,
+            "file": file, "linked": False}
+
+
+def parse_record(path: str) -> dict | None:
+    """Lit un record .md. Frontmatter YAML -> record lié. EDR nommé NNN_*.md sans
+    frontmatter -> record toléré non lié. Sinon None (fichier non-record)."""
+    name = os.path.basename(path)
+    text = open(path, encoding="utf-8").read()
+    rec = _empty_record(os.path.relpath(path, _ROOT).replace(os.sep, "/"))
+
+    if text.startswith("---"):
+        end = text.find("\n---", 3)
+        if end != -1:
+            meta = yaml.safe_load(text[3:end]) or {}
+            for k, v in meta.items():
+                if k in _LIST_KEYS:
+                    rec[k] = list(v) if v else []
+                elif k in rec:
+                    rec[k] = v
+            if rec["id"]:
+                rec["linked"] = True
+                return rec
+
+    m = _EDR_NAME.match(name)
+    if m:
+        rec["id"] = f"EDR-{int(m.group(1)):03d}"
+        rec["type"] = "EDR"
+        rec["title"] = name[4:-3].replace("_", " ")
+        return rec
+    return None
+
+
+def scan_records(root: str) -> list:
+    """Stub pour scan_records."""
+    pass
+
+
+def build_graph(records: list) -> dict:
+    """Stub pour build_graph."""
+    pass
+
+
+def validate_graph(graph: dict) -> bool:
+    """Stub pour validate_graph."""
+    pass
+
+
+def roadmap_state(graph: dict) -> dict:
+    """Stub pour roadmap_state."""
+    pass
+
+
+def main():
+    """Stub pour main."""
+    pass
