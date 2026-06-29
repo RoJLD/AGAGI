@@ -140,6 +140,70 @@ def _landing_arm(cfg, generations, num_agents, max_ticks, base_seed):
     }
 
 
+def _verdict_landing(arms):
+    """EDR113 : verdict pre-enregistre sur l'effet de scaffold_land (recompense du pas final) sur le
+    plateau de navigation. delta = plateau(max) - plateau(0) ; slope = pente du plateau vs scaffold_land
+    (echelle lineaire 0-10). AFFORDANCE LEVE si delta>=0.10 ET slope>0. AFFORDANCE INERTE si
+    abs(delta)<0.10 ET abs(slope)<0.01. AFFORDANCE AMBIGUE sinon (signal partiel/non-monotone)."""
+    arms = sorted(arms, key=lambda a: a["scaffold_land"])
+    plateaus = [a["plateau"] for a in arms]
+    delta = plateaus[-1] - plateaus[0]
+    x = [a["scaffold_land"] for a in arms]
+    slope = float(np.polyfit(x, plateaus, 1)[0]) if len(arms) >= 2 else 0.0
+    if delta >= 0.10 and slope > 0:
+        return "AFFORDANCE LEVE"
+    if abs(delta) < 0.10 and abs(slope) < 0.01:
+        return "AFFORDANCE INERTE"
+    return "AFFORDANCE AMBIGUE"
+
+
+def _report_landing(h, arms, generations, num_agents, max_ticks, _return):
+    """Table ASCII (1 ligne/bras : scaffold_land, gen0, first, plateau, delta_vs_base) + pente +
+    delta(max-base) + verdict pre-enregistre. Sauvegarde JSON. Tout ASCII (cp1252)."""
+    verdict = _verdict_landing(arms)
+    arms_sorted = sorted(arms, key=lambda a: a["scaffold_land"])
+    base_plateau = arms_sorted[0]["plateau"]
+    plateaus = [a["plateau"] for a in arms_sorted]
+    x = [a["scaffold_land"] for a in arms_sorted]
+    slope = float(np.polyfit(x, plateaus, 1)[0]) if len(arms_sorted) >= 2 else 0.0
+    print("\n=== EDR113 scaffold_land (recompense pas final) -> plafond navigation Lewis ===")
+    print("  land | gen0  first plateau | delta_vs_base")
+    for a in arms_sorted:
+        print(f"  {a['scaffold_land']:4.1f} | {a['gen0']:.3f} {a['first']:.3f} "
+              f"{a['plateau']:.3f} | {a['plateau'] - base_plateau:+.3f}")
+    print(f"  pente plateau vs scaffold_land = {slope:+.4f}  delta(max-base) = "
+          f"{plateaus[-1] - plateaus[0]:+.3f} (gate +0.10)")
+    print("=== VERDICT (pre-enregistre) ===")
+    print(f"  -> {verdict}")
+    h.save({"knob": "scaffold_land", "land_levels": [a["scaffold_land"] for a in arms_sorted],
+            "generations": generations, "num_agents": num_agents, "max_ticks": max_ticks,
+            "slope": slope, "delta": plateaus[-1] - plateaus[0], "verdict": verdict,
+            "arms": arms_sorted})
+    if _return:
+        return {"verdict": verdict, "arms": arms_sorted, "slope": slope,
+                "delta": plateaus[-1] - plateaus[0]}
+
+
+def main_landing_nav(land_levels=(0.0, 2.0, 5.0, 10.0), generations=20, num_agents=24,
+                     max_ticks=80, seed=113, _return=False):
+    """EDR 113 : balaye scaffold_land (recompense du pas final) et evolue la navigation a chaque niveau
+    (boucle evolve_nav EDR107, metab=0, Lewis vide d'apex, forage_payoff=3). Lit gen0 + plateau.
+    Verdict AFFORDANCE LEVE / INERTE / AMBIGUE. Bras land=0 reproduit EDR107 (controle)."""
+    with Harness(seed=seed, name="lewis_landing_nav", with_db=False) as h:
+        base = h.seed
+        _disable_kuzu()
+        print(f"EDR113 : scaffold_land nav, levels={land_levels}, gen={generations}, "
+              f"pop={num_agents}, max_ticks={max_ticks}, seed={base}.")
+        prog = h.progress(len(land_levels), label="niveaux scaffold_land")
+        arms = []
+        for land in land_levels:
+            cfg = _cfg(3, base_metabolism=0.0, trace_forage=True, scaffold_land=land)
+            arms.append(_landing_arm(cfg, generations, num_agents, max_ticks,
+                                     base + int(round(land * 10))))
+            prog.update()
+        return _report_landing(h, arms, generations, num_agents, max_ticks, _return)
+
+
 def _verdict_capacity(arms):
     """EDR110 : verdict pre-enregistre sur l'effet de la capacite cachee sur le plateau de navigation.
     delta = plateau(N_max) - plateau(N_min) ; slope = pente du plateau vs log2(N) (lisse l'echelle

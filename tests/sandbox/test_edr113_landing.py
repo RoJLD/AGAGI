@@ -79,3 +79,36 @@ def test_landing_arm_smoke_returns_expected_keys():
     assert 0.0 <= arm["plateau"] <= 1.0
     assert 0.0 <= arm["gen0"] <= 1.0
     assert len(arm["stats"]) == 2
+
+
+from tools.lewis_survival_sweep import _verdict_landing, main_landing_nav
+
+
+def _arm(land, plateau):
+    return {"scaffold_land": land, "plateau": plateau, "gen0": plateau,
+            "first": plateau, "traj": [plateau], "stats": []}
+
+
+def test_verdict_leve_on_rising_plateaus():
+    arms = [_arm(0, 0.36), _arm(2, 0.42), _arm(5, 0.50), _arm(10, 0.58)]
+    assert _verdict_landing(arms) == "AFFORDANCE LEVE"
+
+
+def test_verdict_inerte_on_flat_plateaus():
+    arms = [_arm(0, 0.36), _arm(2, 0.35), _arm(5, 0.37), _arm(10, 0.36)]
+    assert _verdict_landing(arms) == "AFFORDANCE INERTE"
+
+
+def test_verdict_ambigue_on_descending_plateaus():
+    arms = [_arm(0, 0.55), _arm(2, 0.40), _arm(5, 0.30), _arm(10, 0.20)]
+    assert _verdict_landing(arms) == "AFFORDANCE AMBIGUE"
+
+
+def test_main_landing_nav_smoke_and_determinism():
+    r1 = main_landing_nav(land_levels=(0.0, 5.0), generations=2, num_agents=6,
+                          max_ticks=40, seed=88113, _return=True)
+    assert r1["verdict"] in ("AFFORDANCE LEVE", "AFFORDANCE INERTE", "AFFORDANCE AMBIGUE")
+    assert len(r1["arms"]) == 2
+    r2 = main_landing_nav(land_levels=(0.0, 5.0), generations=2, num_agents=6,
+                          max_ticks=40, seed=88113, _return=True)
+    assert [a["traj"] for a in r1["arms"]] == [a["traj"] for a in r2["arms"]]
