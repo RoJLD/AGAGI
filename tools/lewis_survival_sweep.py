@@ -46,6 +46,14 @@ def _cfg(forage_payoff, ttc_surprise_scale=None, trace_energy_sinks=False, base_
     return cfg
 
 
+def _fresh_genome(n_hidden):
+    """EDR110 : genome frais a capacite cachee n_hidden (num_nodes=167+n_hidden, I=59, O=108,
+    W dense aleatoire x0.1). Reutilise la construction par defaut de MambaAgent ; seule la bande
+    mediane [59, 59+n_hidden) grossit. La graine RNG doit etre posee par l'appelant (seed_at)
+    pour le determinisme."""
+    return MambaAgent(num_inputs=59, num_outputs=108, num_nodes=167 + n_hidden).genome
+
+
 def _measure_survival(cfg, seeds, leurre_frac=0.0, n_apex=N_APEX, num_agents=NUM_AGENTS,
                       max_ticks=MAX_TICKS, collect_surprise=False):
     """Mesure la survie des CHAMPIONS (repliques, pas d'evolution) en Lewis a letalite leurre_frac.
