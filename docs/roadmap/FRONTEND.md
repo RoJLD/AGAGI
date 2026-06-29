@@ -326,11 +326,18 @@ la navigation → SUBSTRAT BLOQUÉ, verrou = architecture, pas monde/sélection 
 - **J1a** (frontend-only, quick win) : afficher `hidden_ratio` / `num_nodes` dans `ComparisonView` +
   `RadarChart`. Données déjà exposées par `/api/experiments` (`ExperimentSummary.hidden_ratio`),
   simplement non affichées. ~3 lignes + un axe radar.
-- **J1b** (frontend-only) : **vue Introspection** — l'endpoint `GET /api/introspection/{agent_id}`
-  expose déjà `w_connectome` (matrice de poids du connectome) + `attention_mask` + `ntm_memory` par
-  tick, et **aucun composant ne le consomme** (`queryKeys` n'a pas de clé introspection). Heatmap de
-  `w_connectome[tick]` + slider temporel → preuve directe que l'architecture se restructure pendant la
-  vie d'un agent (EDR 107). Backend complet (KuzuDB), conditionné à des snapshots présents.
+- **J1b** (DIFFÉRÉ — prémisse corrigée 2026-06-29) : **vue Introspection** `w_connectome`. ⚠️ Audit de
+  la source (`generate_snapshot.py`, `main_curriculum.py:56`, `main_biosphere.py:285`) : `w_connectome
+  = json.dumps(genome.W.tolist())` = **matrice de poids du génome, STATIQUE** (le connectome EST le
+  génome, figé sur la vie de l'agent ; seuls thresholds/W_router bougent, EDR 031). Les snapshots sont
+  écrits **parcimonieusement** (meilleur agent, souvent 1/run), pas en série dense par tick. → La
+  promesse phare « voir l'architecture se *restructurer* pendant la vie » (EDR 107) **n'est PAS supportée
+  par les données** : une heatmap par tick montrerait une matrice constante ; ce qui varie par tick =
+  `ntm_memory`/`attention_mask`. Réduit J1b à une heatmap *statique* d'architecture (valeur moindre),
+  TOUJOURS bloquée par (a) l'absence d'endpoint listant les `agent_id` introspectables (découverte
+  manuelle uniquement) et (b) la rareté des snapshots. **Verdict : différé, à ne reconsidérer que si le
+  besoin science le ramène ET avec un endpoint `GET /api/introspection/agents` + confirmation que des
+  snapshots utiles existent.**
 - **J1c** (backend-gated, handoff d1) : courbe temporelle de `hidden_ratio` / `hidden_nodes` par
   génération dans `EvolutionView` (clarifier aussi `size` composite → `num_nodes`). `ExperimentHistory`
   n'expose que `generation/fitness/accuracy/size?` ; il faut que le CSV de run trace `hidden_nodes` par
@@ -398,3 +405,8 @@ la navigation → SUBSTRAT BLOQUÉ, verrou = architecture, pas monde/sélection 
 handoff J1c/J1d) → **J2** (charge backend, trivial) → **J3** (a11y, faible effort large) → **J4**
 (protège le cœur) → **J5** (bundle) → **J6** (hygiène, interleavable). Chaque piste = son cycle
 spec → plan → impl. Réordonnançable selon priorité produit.
+
+**État (2026-06-29)** : **J1a ✅ livré (PR #81)**. **J1b DIFFÉRÉ** — audit de la source : `w_connectome`
+= `genome.W` statique (pas de restructuration par tick → prémisse EDR 107 non supportée), snapshots
+rares, pas d'endpoint de découverte d'`agent_id` (voir le détail J1b ci-dessus). **Pivot vers J2**
+(valeur certaine, frontend-only) comme prochaine tranche livrée.
