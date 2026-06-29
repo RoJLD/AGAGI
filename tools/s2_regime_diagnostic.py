@@ -138,12 +138,13 @@ _ACTION = {
 
 
 def _print_table(report):
-    print(f"\n=== S2 — Diagnostic de régime (seed={report['seed']}, commit={report['commit']}, K={report['K']}) ===")
+    # ASCII-safe : pas de glyphes hors cp1252 (-, d, inf) -> la CLI ne crashe pas sur console Windows.
+    print(f"\n=== S2 - Diagnostic de regime (seed={report['seed']}, commit={report['commit']}, K={report['K']}) ===")
     for regime, r in report["per_regime"].items():
-        print(f"  {regime:7s} : survivable={str(r['survivable']):5s} | médiane_champ={r['champ_median']:6.1f} "
-              f"| censuré={r['censored_frac']*100:3.0f}% | vs {r['strongest_baseline']:13s} "
-              f"p={r['p']:.3f} Cliff δ={r['cliff']:+.2f} bat={r['beats']}")
-    lift_str = "∞(plancher)" if report["lift"] is None else f"{report['lift']:.2f}"
+        print(f"  {regime:7s} : survivable={str(r['survivable']):5s} | mediane_champ={r['champ_median']:6.1f} "
+              f"| censure={r['censored_frac']*100:3.0f}% | vs {r['strongest_baseline']:13s} "
+              f"p={r['p']:.3f} Cliff d={r['cliff']:+.2f} bat={r['beats']}")
+    lift_str = "inf(plancher)" if report["lift"] is None else f"{report['lift']:.2f}"
     print(f"  -> VERDICT : {report['verdict']} (lift sweet/défaut={lift_str})")
     print(f"  -> {_ACTION.get(report['verdict'], '')}")
     if report["regime_recommande"]:
