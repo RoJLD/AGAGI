@@ -74,9 +74,21 @@ def scan_records(root: str = _ROOT) -> list[dict]:
     return out
 
 
-def build_graph(records: list) -> dict:
-    """Stub pour build_graph."""
-    pass
+_REL = {"motivates": "MOTIVE", "triggers": "DECLENCHE", "tests": "TESTE"}
+_NODE_KEYS = ("id", "type", "title", "status", "gate", "verdict", "linked")
+
+
+def build_graph(records: list[dict]) -> dict:
+    """Construit le graphe causal à partir des records. Retourne
+    {"nodes": [...], "edges": [...]}, où les arêtes sont typées selon
+    motivates (MOTIVE), triggers (DECLENCHE), tests (TESTE)."""
+    nodes = [{k: r[k] for k in _NODE_KEYS} for r in records]
+    edges = []
+    for r in records:
+        for key, rel in _REL.items():
+            for target in r[key]:
+                edges.append({"from": r["id"], "to": target, "rel": rel})
+    return {"nodes": nodes, "edges": edges}
 
 
 def validate_graph(graph: dict) -> bool:
