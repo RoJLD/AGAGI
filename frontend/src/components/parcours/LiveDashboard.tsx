@@ -9,6 +9,7 @@ import { queryKeys } from "../../api/queryKeys";
 import { cssVar, vizColors } from "../../theme";
 import { Button } from "../ui/Button";
 import { Panel } from "../ui/Panel";
+import { livePoll } from "../../lib/polling";
 import type {
   SandboxWorldState,
   SandboxTelemetryRow,
@@ -36,8 +37,7 @@ const LiveWorld = () => {
   const { data: state } = useQuery({
     queryKey: queryKeys.sandbox.state,
     queryFn: () => apiFetch<SandboxWorldState>("/api/sandbox/state"),
-    refetchInterval: 500,
-    staleTime: 0,
+    ...livePoll(500),
   });
 
   useEffect(() => {
@@ -115,8 +115,7 @@ const LiveConsole = () => {
   const { data } = useQuery({
     queryKey: queryKeys.sandbox.logs,
     queryFn: () => apiFetch<{ logs: string[] }>("/api/sandbox/logs"),
-    refetchInterval: 1000,
-    staleTime: 0,
+    ...livePoll(1000),
   });
   const logs = data?.logs ?? [];
 
@@ -140,8 +139,7 @@ const LiveTelemetry = () => {
   const { data } = useQuery({
     queryKey: queryKeys.sandbox.telemetry,
     queryFn: () => apiFetch<{ data: SandboxTelemetryRow[] }>("/api/sandbox/telemetry"),
-    refetchInterval: 2000,
-    staleTime: 0,
+    ...livePoll(2000),
   });
   const rows = data?.data ?? [];
   const viz = vizColors();
@@ -169,8 +167,7 @@ const LiveSupervisor = () => {
   const { data: article } = useQuery({
     queryKey: queryKeys.sandbox.article,
     queryFn: () => apiFetch<{ title: string; content: string; timestamp: number }>("/api/sandbox/article"),
-    refetchInterval: 5000,
-    staleTime: 0,
+    ...livePoll(5000),
   });
 
   return (

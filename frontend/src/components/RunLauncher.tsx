@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "../api/client";
 import { queryKeys } from "../api/queryKeys";
+import { STATUS_POLL } from "../lib/polling";
 import type { QueuedRun, RunConfig, QueueStatus } from "../types";
 import { validateRunConfig } from "../lib/validateRunConfig";
 import { useRunPresets } from "../hooks/useRunPresets";
@@ -30,8 +31,7 @@ export function RunLauncher({ onLaunch }: { onLaunch?: (config: RunConfig) => vo
   const statusQuery = useQuery({
     queryKey: queryKeys.sandbox.status,
     queryFn: () => apiFetch<SandboxStatusLite>("/api/sandbox/status"),
-    refetchInterval: 3000,
-    staleTime: 0,
+    ...STATUS_POLL,
   });
   const scripts = statusQuery.data?.available_scripts ?? [];
 
