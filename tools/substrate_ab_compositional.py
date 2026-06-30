@@ -182,9 +182,10 @@ def _probe_one(backend: str, seed: int, n_agents: int, trials: int, num_nodes: i
 
 def memory_probe(seeds=(0, 1, 2), n_agents: int = 16, trials: int = 300,
                  num_nodes: int = 172, target_x: int = 0) -> dict:
-    """Sonde la décodabilité linéaire de did_x depuis H_S2 (mémoire) vs H_pre (contrôle au hasard),
-    per-agent, par backend. Verdict : MEMORY_PRESENT si AUC_S2 médian >0.6 ET delta >0.1 sur les DEUX
-    backends ; MEMORY_ABSENT si AUC_S2 ≈0.5 (≤0.55) sur les deux ; sinon ASYMÉTRIQUE."""
+    """Sonde la décodabilité linéaire de did_x depuis H_S2 (mémoire) vs H_pre (diagnostic),
+    per-agent, par backend. Verdict : MEMORY_PRESENT si AUC_S2 médian >0.6 sur les DEUX backends
+    ET control_valid (contrôle permutation dans la bande chance) ; MEMORY_ABSENT si AUC_S2 ≈0.5
+    (≤0.55) sur les deux ; sinon ASYMÉTRIQUE."""
     cells = []
     for backend in ("legacy", "torch"):
         for s in seeds:
@@ -201,23 +202,25 @@ def memory_probe(seeds=(0, 1, 2), n_agents: int = 16, trials: int = 300,
     leg_s2, leg_d, leg_shuf = _agg("legacy")
     tor_s2, tor_d, tor_shuf = _agg("torch")
 
-    def _carries(s2, d):
-        return (s2 is not None and s2 > 0.6 and d is not None and d > 0.1)
+    def _in_chance(v):
+        return v is not None and 0.40 <= v <= 0.60
+
+    control_valid = _in_chance(leg_shuf) and _in_chance(tor_shuf)
+
+    # Verdict gate sur le contrôle permutation (pas le delta H_pre, qui est confondu car
+    # H_pre est causalement en amont de did_x et peut être élevé sans encoder did_x).
+    def _carries(s2):
+        return (s2 is not None and s2 > 0.6)
 
     def _absent(s2):
         return (s2 is not None and s2 <= 0.55)
 
-    if _carries(leg_s2, leg_d) and _carries(tor_s2, tor_d):
+    if control_valid and _carries(leg_s2) and _carries(tor_s2):
         verdict = "MEMORY_PRESENT"
     elif _absent(leg_s2) and _absent(tor_s2):
         verdict = "MEMORY_ABSENT"
     else:
         verdict = "ASYMÉTRIQUE"
-
-    def _in_chance(v):
-        return v is not None and 0.40 <= v <= 0.60
-
-    control_valid = _in_chance(leg_shuf) and _in_chance(tor_shuf)
 
     return {"cells": cells, "verdict": verdict, "control_valid": control_valid,
             "summary": {"legacy_auc_s2": leg_s2, "legacy_delta": leg_d,

@@ -151,7 +151,7 @@ def test_read_state_torch_shape():
 
 @pytest.mark.slow
 def test_memory_probe_smoke():
-    """memory_probe renvoie un dict structuré ; le contrôle AUC_pre est sain (≈0.5)."""
+    """memory_probe renvoie un dict structuré ; le contrôle permutation est dans la bande chance (≈0.5)."""
     pytest.importorskip("torch")
     from tools.substrate_ab_compositional import memory_probe
     res = memory_probe(seeds=(0,), n_agents=8, trials=60)
@@ -163,5 +163,7 @@ def test_memory_probe_smoke():
         for k in ("n_qualifying", "base_rate", "median_auc_s2", "median_auc_pre", "median_delta",
                   "median_auc_shuffled"):
             assert k in c
-        if c["median_auc_pre"] is not None:
-            assert 0.3 <= c["median_auc_pre"] <= 0.7   # contrôle au hasard sain
+        # Le contrôle permutation (labels mélangés sur H_S2) est la vraie baseline chance :
+        # H_pre est confondu (causalement amont de did_x) et ne constitue PAS un contrôle fiable.
+        if c["median_auc_shuffled"] is not None:
+            assert 0.3 <= c["median_auc_shuffled"] <= 0.7   # contrôle permutation dans la bande chance
