@@ -35,7 +35,7 @@ cette échelle, les deux bras sont bloqués par la taille/représentation.
   reward=+1 SSI X fait en S1 ET Y correct en S2, sinon -1. Métrique = taux trials **pleinement corrects**
   (X-puis-Y, `hit`), début vs fin.
 - **A/B apparié** : même seed, backends `legacy` vs `torch`. 5 seeds {0,1,2,3,4}, 150 trials, 8 agents.
-- **Verdict** : `compute_ab_verdict` de `substrate_ab` (test de signe apparié, seuil band=0.05).
+- **Verdict** : `compute_ab_verdict` de `substrate_ab` (test de signe apparié, seuil band=0.02 — défaut, non surchargé ; le verdict NEUTRE est robuste sous 0.02 comme sous 0.05).
 - Environnement : `AGISEED_QUIET_LOG=1 SABC_SEEDS=0,1,2,3,4 SABC_TRIALS=150 SABC_AGENTS=8`.
 
 ## Contrôle de dureté (anti-théâtre)
