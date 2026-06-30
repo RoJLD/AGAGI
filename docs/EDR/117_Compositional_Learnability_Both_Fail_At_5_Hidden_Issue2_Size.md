@@ -54,7 +54,7 @@ Run de référence mono-étape (`tools/substrate_ab.py`, 5 seeds, 300 ticks, 8 a
 | 4 | -0.302 | +0.202 |
 | **médiane** | **+0.075** | **+0.465** |
 
-Verdict mono = `GRADIENT_GAGNE`, médiane diff +0.358, sign_p=0.062 (5 seeds, plancher).
+Verdict mono = `GRADIENT_GAGNE`, médiane diff +0.358, sign_p=0.062 (contrôle local 5 seeds, plancher de puissance — distinct du sign_p 0.002 officiel d'EDR 115 à 10 seeds).
 
 Legacy Δ mono médian = **+0.075** → le legacy APPREND la contingence simple.
 Legacy Δ compo médian = **-0.007** → le legacy ÉCHOUE la compositionnelle.
@@ -89,10 +89,12 @@ la structure compositionnelle (S1→S2 conditionnel via récurrence).
 
 Comparaison synthèse :
 
-| tâche | legacy Δ médian | torch Δ médian | verdict |
-|-------|-----------------|----------------|---------|
-| mono-étape (EDR 115) | +0.075 | +0.465 | GRADIENT_GAGNE |
-| compositionnelle (EDR 117) | -0.007 | +0.010 | NEUTRE (Issue 2) |
+| tâche                                                   | legacy Δ médian | torch Δ médian | verdict          |
+|---------------------------------------------------------|-----------------|----------------|------------------|
+| mono-étape — contrôle local 5 seeds (protocole EDR 115) | +0.075          | +0.465         | GRADIENT_GAGNE   |
+| compositionnelle (EDR 117)                              | -0.007          | +0.010         | NEUTRE (Issue 2) |
+
+> Note provenance : les valeurs mono-étape (+0.075/+0.465, sign_p=0.062) viennent du **run de contrôle local à 5 seeds** lancé pour ce chantier (`sab_mono.log`), PAS des chiffres officiels d'EDR 115 (10 seeds, sign_p=0.002). Le rôle de ce contrôle = vérifier que la tâche compositionnelle est bien plus dure (garde-fou issue 3), pas re-mesurer EDR 115.
 
 La **chute de torch** (+0.465 → +0.010) est aussi sévère que celle de legacy (+0.075 → -0.007) :
 les deux bras s'effondrent face à la composition. Le signal torch (5/5 en direction) est réel mais
@@ -110,8 +112,11 @@ microscopique — insuffisant pour conclure que la règle seule lève le verrou 
 
 ## Conséquences
 
-- La **porte de décision torch-prod** reste verte (EDR 115 la justifie) mais le barreau compositionnel
-  exige **taille + gradient conjointement**, pas le gradient seul.
+- La **porte de décision torch-prod** reste verte (EDR 115 la justifie) : cette porte concerne le
+  **remplacement du substrat/moteur** (gradient bat hebbien sur la mono-contingence), PAS une
+  démonstration que la composition means→ends est résolue. Ce run montre qu'à taille égale (~5 cachés)
+  le gradient seul ne résout pas la composition non plus — le barreau compositionnel exige **taille +
+  gradient conjointement**, pas le gradient seul.
 - Suite recommandée : (a) sweep taille cachés (20/50/100) sur la tâche compositionnelle — isole si
   la représentation seule suffit ou si gradient×taille est nécessaire ; (b) curriculum progressif
   (récompenser d'abord X seul, puis Y|X) — réduit la difficulté du crédit différé.
