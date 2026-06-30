@@ -1,6 +1,24 @@
 from tools.competence_profile import _tier_fractions, _verdict_craft_wall
 
 
+def test_measure_profile_fixed_cohort_no_repro():
+    # benchmark_mode -> pas de reproduction -> pool = cohorte initiale (pas d'explosion) + cles presentes.
+    from tools.competence_profile import _measure_profile
+    from tools.map_elites_compare import _make_cfg
+    from src.agents.mamba_agent import MambaAgent
+    genomes = [MambaAgent().genome for _ in range(3)]
+    stats = _measure_profile(_make_cfg(), genomes, max_ticks=40, disable_repro=True)
+    assert len(stats) == 3, "cohorte fixe : pas de naissances (pool = genomes initiaux)"
+    assert all(k in stats[0] for k in ("age", "preys_eaten", "spears_crafted", "mammoth_kills"))
+
+
+def test_main_competence_profile_smoke():
+    from tools.competence_profile import main_competence_profile
+    r = main_competence_profile(R=1, eras=2, num_agents=10, max_ticks=80, seed=99240, _return=True)
+    assert r["verdict"] in ("CRAFT_WALL CONFIRME", "ECHELLE MONOTONE", "INDETERMINE")
+    assert len(r["per_seed"]) == 1
+
+
 def test_tier_fractions_binary_per_agent():
     stats = [
         {"preys_eaten": 3, "spears_crafted": 0, "mammoth_kills": 1},

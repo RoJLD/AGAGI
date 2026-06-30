@@ -60,3 +60,64 @@ def _report_profile(h, per_seed, R, _return):
     h.save({"R": R, "verdict": verdict, "mean_fracs": fracs, "per_seed": per_seed})
     if _return:
         return {"verdict": verdict, "mean_fracs": fracs, "per_seed": per_seed, "R": R}
+
+
+def _measure_profile(cfg, genomes, max_ticks=400, disable_repro=True):
+    """Mesure profil sur COHORTE FIXE. Mirror run_era_pool MAIS : benchmark_mode si disable_repro (pas
+    de repro -> pas de dilution pooling, EDR 114b) ; memory_retriever stop()+clear() AVANT la boucle
+    (repro, P0) ; renvoie la liste des stats par agent {age, preys_eaten, spears_crafted, mammoth_kills}."""
+    env = Biosphere3D(cfg)
+    if disable_repro:
+        env.benchmark_mode = True
+    if hasattr(env, "memory_retriever"):
+        env.memory_retriever.stop()
+        env.memory_retriever.clear()
+    for g in genomes:
+        a = MambaAgent()
+        a.from_genome(g, preserve_dims=PRESERVE_DIMS)
+        env.add_agent(a, energy=80.0)
+    env.current_era = 1
+    t = 0
+    while env.agents and t < max_ticks:
+        env.step()
+        t += 1
+    pool_agents = env.agents + list(getattr(env, "dead_agents", []))
+    return [{"age": ag.get("age", 0), "preys_eaten": ag.get("preys_eaten", 0),
+             "spears_crafted": ag.get("spears_crafted", 0), "mammoth_kills": ag.get("mammoth_kills", 0)}
+            for ag in pool_agents]
+
+
+def _evolve_champions(seed, eras=12, num_agents=30, max_ticks=400):
+    """Cliquet top-5 (boucle de run_lineage_hof, repro ON) -> renvoie les genomes best_ever (top-5)."""
+    SeedManager(seed).seed_boundary(0)
+    cfg = _make_cfg()
+    best_ever = [(0.0, g) for g in [_seed_genome(i) for i in range(5)]]
+    for _ in range(eras):
+        genomes = _reproduce([g for _s, g in best_ever], num_agents)
+        pool, _m = run_era_pool(cfg, genomes, max_ticks)
+        scored = sorted([(s, g) for s, g, _st in pool], key=lambda x: x[0], reverse=True)[:5]
+        best_ever = sorted(best_ever + scored, key=lambda x: x[0], reverse=True)[:5]
+    return [g for _s, g in best_ever]
+
+
+def main_competence_profile(R=3, eras=12, num_agents=30, max_ticks=400, seed=1240, _return=False):
+    """Pour chaque seed base+r : evolue des champions stoneage (repro ON) puis mesure leur profil par
+    tier sur cohorte fixe (benchmark_mode). Agrege R seeds, verdict mur du craft."""
+    base = seed
+    async_logger.start()
+    try:
+        per_seed = []
+        for r in range(R):
+            s = base + r
+            champs = _evolve_champions(s, eras=eras, num_agents=num_agents, max_ticks=max_ticks)
+            reps = (champs * (num_agents // len(champs) + 1))[:num_agents] if champs else []
+            stats = _measure_profile(_make_cfg(), reps, max_ticks=max_ticks, disable_repro=True)
+            per_seed.append({**_tier_fractions(stats), "seed": int(s)})
+    finally:
+        async_logger.stop()
+    h = Harness(seed=base, name="competence_profile", with_db=False, config=WorldConfig())
+    return _report_profile(h, per_seed, R, _return)
+
+
+if __name__ == "__main__":
+    main_competence_profile()
