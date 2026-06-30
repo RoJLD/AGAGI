@@ -1,13 +1,18 @@
-"""FamineWorld (axe causalité temporelle) — pénurie cyclique + stockage à coût.
+"""FamineWorld (axe causalité temporelle) — pénurie cyclique + stockage à coût réel.
 
 2e monde GENUINEMENT distinct (spec 2026-06-30-FamineWorld). Hérite du moteur canonique
 Biosphere3D (contrat I/O 59/108 partagé) ; la distinctness est dans les mécaniques AJOUTÉES :
 régénération de nourriture cyclique (gelée en famine) + cache d'inventaire auto-consommé à la
-disette, dont le coût est le drain de portage existant. Survivre exige de STOCKER pendant
-l'abondance -> gratification différée, que stoneage n'exige ni n'enseigne."""
+disette, dont le coût est COMPOSITE = (1) drain de portage réel (carry_weight×0.5/tick, fruit
+poids=0.5 → 0.25/tick/fruit) + (2) péremption (valeur décroît de SPOIL_RATE/tick depuis le
+stockage). Survivre exige de STOCKER pendant l'abondance -> gratification différée, que stoneage
+n'exige ni n'enseigne."""
 from src.worlds.world_1_stoneage import Biosphere3D
 
-FOOD_VALUE = 30.0   # énergie rendue par un fruit consommé depuis le cache
+FOOD_VALUE = 25.0    # énergie rendue par un fruit FRAIS consommé depuis le cache
+                     # (à peine > manger direct +20 pour justifier le report sans upgrade gratuit)
+SPOIL_RATE = 0.1     # énergie perdue par tick de stockage
+MIN_FOOD_VALUE = 5.0  # valeur plancher d'un fruit très vieux (évite valeur négative)
 RESERVE_CAP = 150.0  # plafond d'énergie via cache (réserve > energy_max stoneage)
 
 
@@ -17,9 +22,9 @@ class FamineWorld(Biosphere3D):
         self.cycle_abundance = 60      # ticks d'abondance (variable d'expérience)
         self.cycle_famine = 40         # ticks de famine
         self.starve_threshold = 25.0   # sous ce niveau d'énergie, auto-consommation du cache
-        # FamineWorld isole la pression de PÉNURIE (pas de nuit) : le défi est la
-        # gestion du cache, pas la thermodynamique nocturne (distinctness propre).
-        self.night_enabled = False
+        # FamineWorld hérite la nuit (night_enabled=True par défaut du moteur).
+        # On N'ÉCRASE PAS night_enabled : FamineWorld AJOUTE des mécaniques, n'en retire pas
+        # (spec §3). Le coût nocturne ×2.5 renforce l'intérêt du stockage préventif.
 
     def is_famine(self) -> bool:
         period = self.cycle_abundance + self.cycle_famine
@@ -28,15 +33,22 @@ class FamineWorld(Biosphere3D):
     def _auto_consume_cache(self, agent):
         """Consomme un Fruit de l'inventaire si l'agent est sous starve_threshold.
 
-        Retourne True si un fruit a été consommé. Appelé deux fois par step : une fois
-        avant le moteur (urgence, évite la mort pendant le step) et une fois après
-        (agents passés sous le seuil pendant le step).
+        La valeur effective tient compte de la péremption : un fruit stocké depuis longtemps
+        vaut moins qu'un fruit frais. Retourne True si un fruit a été consommé.
+
+        Appelé une fois AVANT super().step() (urgence : évite la mort mid-step) et une fois
+        APRÈS (agents passés sous le seuil pendant le step). Deux passes conservées car le
+        moteur retire les agents morts PENDANT le step ; sans passe pré-step un agent déjà
+        sous le seuil serait éliminé avant de pouvoir consommer son cache.
         """
         if agent["energy"] < self.starve_threshold:
             for i, it in enumerate(agent["inventory"]):
                 if isinstance(it, dict) and it.get("type") == "Fruit":
+                    stored_tick = it.get("_stored_tick", self.ticks)
+                    age = self.ticks - stored_tick
+                    effective_value = max(MIN_FOOD_VALUE, FOOD_VALUE - SPOIL_RATE * age)
                     agent["inventory"].pop(i)
-                    agent["energy"] = min(RESERVE_CAP, agent["energy"] + FOOD_VALUE)
+                    agent["energy"] = min(RESERVE_CAP, agent["energy"] + effective_value)
                     return True
         return False
 
@@ -47,22 +59,23 @@ class FamineWorld(Biosphere3D):
         # son cache (les agents morts sont retirés de self.agents avant la passe post-step).
         for a in self.agents:
             self._auto_consume_cache(a)
-        # Masquer les Fruits restants : le moteur stoneage les consommerait au seuil 80
-        # alors qu'en FamineWorld ils sont des réserves de famine (seuil=starve_threshold).
-        # Les fruits-réserves sont aussi exemptés du coût de portage (poids mis à 0) :
-        # le "sac de stockage" est un équipement, son coût est le stockage lui-même
-        # (FOOD_VALUE réduit par rapport à un repas direct), pas le drain de portage.
+        # Masquer les Fruits restants en _FruitReserve : le moteur stoneage consomme
+        # automatiquement le 1er Fruit de l'inventaire si energy<80 (ligne 672 stoneage).
+        # En FamineWorld, ces fruits sont des réserves de famine (seuil=starve_threshold=25),
+        # donc on masque le TYPE pour que le moteur ne les touche pas.
+        # NOTE : on NE TOUCHE PAS au poids — le drain de portage (carry_weight×0.5/tick)
+        # s'applique NORMALEMENT. C'est le 1er coût du modèle composite de stockage.
         for a in self.agents:
             for it in a["inventory"]:
                 if isinstance(it, dict) and it.get("type") == "Fruit":
                     it["type"] = "_FruitReserve"
-                    it["_orig_weight"] = it.get("weight", 0.5)
-                    it["weight"] = 0.0
+                    # Enregistrer le tick de stockage si pas encore fait (péremption)
+                    if "_stored_tick" not in it:
+                        it["_stored_tick"] = self.ticks
         super().step()
-        # Démasquer (restaurer type et poids), puis passe POST-step.
+        # Démasquer (restaurer type), puis passe POST-step.
         for a in self.agents:
             for it in a["inventory"]:
                 if isinstance(it, dict) and it.get("type") == "_FruitReserve":
                     it["type"] = "Fruit"
-                    it["weight"] = it.pop("_orig_weight", 0.5)
             self._auto_consume_cache(a)
