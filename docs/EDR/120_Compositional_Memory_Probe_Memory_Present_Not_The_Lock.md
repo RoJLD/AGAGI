@@ -43,10 +43,16 @@ réel d'artefact :
    très fortement) → `H_pre` prédit légitimement `did_x` sans le « contenir ». Le contrôle `H_pre`
    conflait « contient l'issue » avec « prédit l'issue » → insuffisant seul.
 2. **Contrôle par PERMUTATION** (ajouté après investigation, commit `d3f3593`) : décoder un `did_x`
-   MÉLANGÉ depuis `H_S2`. **AUC_shuffled = 0.5 partout** (legacy 0.474, torch 0.515 ; `control_valid =
+   MÉLANGÉ depuis `H_S2`. **AUC_shuffled MÉDIAN = 0.5** (legacy 0.474, torch 0.515 ; `control_valid =
    True`, tous ∈ [0.40, 0.60]). → le décodeur 113-dim sur ~26 échantillons/agent **NE gonfle PAS**
-   l'AUC : les valeurs élevées (AUC_s2 ~0.90, AUC_pre ~0.58/0.77) sont du **signal génuin**, pas du
-   sur-apprentissage. C'est ce qui valide le verdict.
+   l'AUC en médiane : les valeurs élevées (AUC_s2 ~0.90, AUC_pre ~0.58/0.77) sont du **signal génuin**.
+   **Dispersion honnête du null** (queue à n faible) : la permutation par agent a un étalement large
+   (legacy max 0.94, p95 0.64, 17 % d'agents > 0.6 ; torch max 0.82, p95 0.67, 22 % > 0.6) — attendu
+   pour un vrai null à ~26 échantillons. **Mais la séparation tient quand même** : le MINIMUM per-agent
+   d'`AUC_s2` (legacy 0.743, torch 0.716) **dépasse le p95 de la permutation** (0.64 / 0.67), et la
+   médiane `AUC_s2` (~0.90) est très au-dessus du null. Le signal est donc séparé du bruit même en
+   tenant compte de la dispersion, pas seulement en médiane. **Le verdict gate sur ce contrôle
+   permutation, pas sur le delta `H_pre`** (confondu, cf. point 1).
 
 > Leçon méthodo : le contrôle prévu (`H_pre`) a échoué à donner 0.5 ; au lieu de conclure à l'aveugle,
 > l'investigation par permutation a tranché « signal réel vs artefact » ET réinterprété `H_pre` élevé
@@ -69,8 +75,11 @@ Agrégats : legacy AUC_s2 **0.904** (shuffled 0.474) ; torch AUC_s2 **0.905** (s
 
 - **`did_x` est décodable de `H_S2` à AUC ~0.90 sur les DEUX substrats**, contre un plancher de
   permutation à 0.5 → signal massif et génuin.
-- **delta (s2 − pre) positif partout** (legacy +0.30, torch +0.13–0.20) → exécuter S1 AJOUTE du signal
-  `did_x` à l'état porté en S2, au-dessus de la base récurrente.
+- **delta (s2 − pre) positif partout** (legacy +0.30, torch +0.13–0.20) — COHÉRENT avec un apport de S1
+  au-dessus de la base récurrente, mais n'isole PAS causalement cet apport : `H_pre` étant déjà
+  prédictif (récurrence amont), le delta confond « S1 ajoute du signal » et « la trajectoire récurrente
+  dérive davantage vers une région prédictive de `did_x` ». Diagnostic secondaire, pas le fondement du
+  verdict (qui repose sur AUC_s2 vs permutation).
 - `H_pre` lui-même porte déjà `did_x` (récurrence causale), torch (0.77) > legacy (0.58) — la LTC
   continue de torch propage l'information plus fortement.
 
