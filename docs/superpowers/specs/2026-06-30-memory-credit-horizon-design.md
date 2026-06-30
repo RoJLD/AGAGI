@@ -23,12 +23,16 @@ separateur (verdict REFUTE, retour a la planche a dessin).
 
 Tout dans un nouveau `tools/memory_credit_horizon.py` qui **reutilise** (DRY) les primitives de
 `tools/grad_mem.py` : reseau simplifie numpy (dynamique LTC `H=(1-dt)*Hc+dt*tanh(Hc@Wnd)`), tache K-bit
-recall avec delai, `run_bptt`/`train` (BPTT+Adam), et le bras MUTATION (hill-climbing sur W, deja
-present dans `grad_mem.main`). AUCUN fichier `src/`, AUCUN `make_population`/torch/Biosphere.
+recall avec delai, `run_bptt`/`train` (BPTT+Adam). AUCUN fichier `src/`, AUCUN `make_population`/torch/
+Biosphere.
 
-Si le bras mutation n'est pas expose isolement dans `grad_mem.py`, on l'EXTRAIT en fonction publique
-(`train_mutation`) — petit refactor de `grad_mem.py` (tooling, hors session //), non-regressif (le
-`main()` existant continue d'appeler la fonction extraite).
+**Correction (lecture du code)** : `grad_mem.py` n'a PAS de bras mutation — les « ~0.78 » de son
+`main()` renvoient a EDR 064/`mem_nas.py` (qui mute le vrai Genome, pas le reseau simplifie). Le bras
+mutation est donc a IMPLEMENTER sur le reseau simplifie, en fonction publique `train_mutation` AJOUTEE
+a `grad_mem.py` : (1+1)-ES qui perturbe `W += N(0,sigma)`, compare candidat vs incumbent sur la **MEME
+batch** chaque pas (fitness appariee -> robuste au bruit, lecon EDR 078), garde si `acc_cand >=
+acc_inc` ; reutilise `run_bptt` pour le forward (dW ignore). Meme budget (`epochs`) que `train` (BPTT)
+-> comparaison appariee. Ajout non-regressif (le `main()` existant inchange).
 
 ## 3. Tache (existante, reutilisee)
 
@@ -41,7 +45,7 @@ K-bit recall avec delai D : encoder K bits dans les K premiers slots d'obs ; D t
 ### 4.1 `train_arm(arm, N, I, O, K, D, epochs, batch, lr, seed) -> float`
 - `arm in {"bptt", "mutation"}`. **Meme reseau, meme tache, meme budget** (epochs/batch) pour les deux
   bras -> comparaison appariee. Renvoie l'accuracy finale (sign-match) sur un batch d'eval frais.
-- `bptt` delegue a `grad_mem.train` ; `mutation` delegue a `grad_mem.train_mutation` (extrait).
+- `bptt` delegue a `grad_mem.train` ; `mutation` delegue a `grad_mem.train_mutation` (ajoute).
 
 ### 4.2 `frontier(arm, K, Ds, R, epochs, seed) -> dict`
 - Balaie `Ds` (defaut `(1, 3, 6, 10, 16, 24)`) a K fixe (defaut `K=4`), `R` seeds APPARIES
