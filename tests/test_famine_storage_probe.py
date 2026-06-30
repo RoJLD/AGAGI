@@ -1,8 +1,9 @@
 import numpy as np
-from tools.famine_storage_probe import count_reserves, measure_genome
+from tools.famine_storage_probe import count_reserves, measure_genome, evolve_in_famine
 from src.agents.mamba_agent import MambaAgent
 from main_biosphere import init_primordial_soup
 from src.environments.config import WorldConfig
+from src.seed_ai.mutation import Genome
 
 
 def test_count_reserves_counts_fruits_and_masked():
@@ -24,3 +25,20 @@ def test_measure_genome_returns_survival_and_fruits():
     assert set(out) == {"median_survival", "fruits_at_transition"}
     assert out["median_survival"] >= 0.0
     assert out["fruits_at_transition"] >= 0.0
+
+
+def test_evolve_in_famine_returns_genome():
+    # smoke minimal : 2 ères, peu d'agents/ticks -> renvoie un Genome aux bonnes dims.
+    g = evolve_in_famine(seed=3, eras=2, num_agents=4, max_ticks=30,
+                         cycle_abundance=10, cycle_famine=10)
+    assert isinstance(g, Genome)
+    assert g.num_inputs == 64 and g.num_outputs == 126
+
+
+def test_evolve_in_famine_deterministic():
+    # même seed -> même champion (W identique). Repro (verrou Dev #3).
+    g1 = evolve_in_famine(seed=5, eras=2, num_agents=4, max_ticks=30,
+                          cycle_abundance=10, cycle_famine=10)
+    g2 = evolve_in_famine(seed=5, eras=2, num_agents=4, max_ticks=30,
+                          cycle_abundance=10, cycle_famine=10)
+    assert np.array_equal(g1.W, g2.W)

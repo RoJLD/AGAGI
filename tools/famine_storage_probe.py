@@ -20,6 +20,9 @@ from src.worlds.world_famine import FamineWorld
 from src.environments.config import WorldConfig
 from src.seed_ai.persistence import calculate_life_score
 from src.seed_ai.harness import SeedManager
+from main_biosphere import init_primordial_soup
+from src.seed_ai.repopulation import build_population
+from src.seed_ai.mutation import apply_mutations, MutationConfig
 
 
 def count_reserves(agent: dict) -> int:
@@ -68,3 +71,27 @@ def measure_genome(genome, seed, cache_enabled=True, num_agents=10, max_ticks=30
     ages = [int(a["age"]) for a in all_agents]
     return {"median_survival": float(np.median(ages)) if ages else 0.0,
             "fruits_at_transition": fruits_at_transition if fruits_at_transition is not None else 0.0}
+
+
+def evolve_in_famine(seed, eras=15, num_agents=20, max_ticks=300,
+                     cycle_abundance=60, cycle_famine=40):
+    """Évolue une population tabula-rasa DANS famine (sélection par survie) -> génome du champion final.
+    GA autonome (génome en mémoire, pas de KuzuDB) : population fraîche puis reseed muté du champion."""
+    SeedManager(seed).seed_boundary(0)
+    genomes, _ = init_primordial_soup(num_agents=num_agents, config=WorldConfig())
+    mut_config = MutationConfig(weight_init_std=2.0, add_node_rate=0.0)  # topo fixe (batching stable)
+    champion_genome = genomes[0]
+    for _era in range(max(1, eras)):
+        w = _new_famine(cache_enabled=True, cycle_abundance=cycle_abundance, cycle_famine=cycle_famine)
+        for g in genomes:
+            w.add_agent(_genome_to_agent(g), energy=50.0)
+        t = 0
+        while w.agents and t < max_ticks:
+            w.step()
+            t += 1
+        all_agents = w.agents + getattr(w, "dead_agents", [])
+        if not all_agents:
+            break
+        champion_genome = max(all_agents, key=calculate_life_score)["model"].genome
+        genomes = build_population([champion_genome], num_agents, mut_config, apply_mutations)
+    return champion_genome
