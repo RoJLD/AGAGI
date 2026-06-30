@@ -14,6 +14,10 @@ FOOD_VALUE = 25.0    # énergie rendue par un fruit FRAIS consommé depuis le ca
 SPOIL_RATE = 0.1     # énergie perdue par tick de stockage
 MIN_FOOD_VALUE = 5.0  # valeur plancher d'un fruit très vieux (évite valeur négative)
 RESERVE_CAP = 150.0  # plafond d'énergie via cache (réserve > energy_max stoneage)
+BANK_THRESHOLD = 60.0   # en abondance, energie au-dessus de ce seuil = surplus banquable
+BANK_RATE = 8.0         # max d'energie banque par tick
+BANK_EFFICIENCY = 0.8   # cout du stockage : 20% perdu au depot (gratification differee couteuse)
+WITHDRAW_RATE = 25.0    # max retire de la reserve par tick en famine
 
 
 class FamineWorld(Biosphere3D):
@@ -56,6 +60,23 @@ class FamineWorld(Biosphere3D):
                     return True
         return False
 
+    def _bank_or_withdraw(self):
+        """Banque d'energie (affordance de stockage exploitable en jeu). En ABONDANCE : le surplus
+        au-dessus de BANK_THRESHOLD passe en reserve (perte BANK_EFFICIENCY = cout). En FAMINE : on
+        retire de la reserve quand l'agent starve. Gate par cache_enabled (ablation)."""
+        famine = self.is_famine()
+        for a in self.agents:
+            if not famine:
+                surplus = a["energy"] - BANK_THRESHOLD
+                if surplus > 0:
+                    amt = min(surplus, BANK_RATE)
+                    a["energy"] -= amt
+                    a["reserve"] = min(RESERVE_CAP, a.get("reserve", 0.0) + amt * BANK_EFFICIENCY)
+            elif a["energy"] < self.starve_threshold and a.get("reserve", 0.0) > 0:
+                amt = min(a.get("reserve", 0.0), WITHDRAW_RATE)
+                a["reserve"] = a.get("reserve", 0.0) - amt
+                a["energy"] += amt
+
     def step(self):
         self.food_regen_scale = 0.0 if self.is_famine() else 1.0
         # Passe PRÉ-step : auto-consommation d'urgence pour les agents déjà sous le seuil.
@@ -64,6 +85,10 @@ class FamineWorld(Biosphere3D):
         if self.cache_enabled:
             for a in self.agents:
                 self._auto_consume_cache(a)
+        # Banque d'énergie : avant super().step() pour garantir le retrait même si l'agent meurt
+        # en famine. En abondance, les surplus sont stockés avec un coût réel (BANK_EFFICIENCY).
+        if self.cache_enabled:
+            self._bank_or_withdraw()
         # Masquer les Fruits restants en _FruitReserve : le moteur stoneage consomme
         # automatiquement le 1er Fruit de l'inventaire si energy<80 (ligne 672 stoneage).
         # En FamineWorld, ces fruits sont des réserves de famine (seuil=starve_threshold=25),
