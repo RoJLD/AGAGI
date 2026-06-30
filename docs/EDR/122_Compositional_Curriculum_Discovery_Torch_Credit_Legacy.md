@@ -75,14 +75,20 @@ décolle ; la lecture honnête est SPLIT) :
   ET sans curriculum → le hebbien/numpy **ne binde JAMAIS Y sur did_x**. Le verrou de legacy est le
   **mécanisme de crédit** lui-même.
 
-### Nuance forte — torch a résolu le BINDING ; le plafond résiduel est la rétention de X
+### Nuance — le binding n'est PAS le limiteur dominant pour torch ; la rétention de X borne le plafond
 
-X **décline** en phase B (S1 reward 0, rien ne le renforce : compo_didx ~0.9→0.4). Pourtant torch
-atteint 0.30 alors que did_x n'est plus qu'à ~0.38 en fin de B → **hit_end / did_x ≈ 0.81** : torch
-produit Y correctement dans ~80 % des trials où X a eu lieu. **Le binding Y|X est largement résolu** ;
-le plafond à 0.30 (au lieu de plus) vient de la DÉCROISSANCE de X, pas du binding. Un shaping qui
-maintient X (fade, ou bonus did_x résiduel) lèverait davantage — confirmant que pour torch la voie est
-ouverte. legacy, lui, retient X autant mais ne binde rien (0.000) → ce n'est pas la rétention.
+X **décline** en phase B (S1 reward 0, rien ne le renforce : compo_didx ~0.9→0.4). Le joint `hit_end`
+(0.30) reste proche de la rétention de X en fin de B (~0.38) : le ratio `hit_end / did_x_end` vaut
+**~0.7** (⚠️ ATTENTION : c'est un ratio de DEUX médianes agrégées séparément ; la médiane des ratios
+PER-SEED est 0.70, plage 0.56–0.82 — pas une mesure per-trial de `P(Y|X)`, et did_x DÉCLINE dans la
+fenêtre donc le conditionnel n'est pas propre). **Bornage honnête** : l'instrument n'enregistre que le
+JOINT `mean((move2==Y) ET did_x)`, JAMAIS `move2==Y` inconditionnel → on ne MESURE pas `P(Y|X)`, on
+l'infère. Ce qu'on peut dire SANS sur-lire : le joint de torch (0.30) n'est pas étranglé loin sous le
+plafond de rétention de X (~0.38) → **le binding Y|X n'est PAS le limiteur résiduel dominant** (le
+plafond est largement la décroissance de X). Un shaping qui maintient X (fade, ou bonus did_x résiduel)
+testerait si torch monte au-delà — voie plausible, pas prouvée. legacy, lui, retient X autant
+(compo_didx 0.25–0.75) mais le joint reste 0.000 → pour legacy le limiteur N'EST PAS la rétention,
+c'est le binding lui-même.
 
 | régime | legacy hit_end | torch hit_end | lecture |
 |--------|----------------|---------------|---------|
@@ -97,7 +103,11 @@ ouverte. legacy, lui, retient X autant mais ne binde rien (0.000) → ce n'est p
    sont heuristiques ; le verdict final est lu sur les chiffres bruts.
 2. **Bascule dure → X décline** en phase B : le crédit différé ne MAINTIENT pas le means même chez torch
    (compo_didx ~0.9→0.4). Borne le plafond ; un curriculum à fade le testerait (hors-scope, choisi).
-3. **Puissance** : n=5 seeds. Signal robuste (torch 5/5 décolle à ~0.30 ; legacy 5/5 à 0.000).
+3. **Puissance** : n=5 seeds. Le test de signe apparié torch>legacy donne **sign_p=0.0625** (5/5 =
+   1/16, JUSTE au-dessus de 0.05 — plancher de puissance à n=5, pas significatif au seuil conventionnel).
+   La robustesse repose sur la **consistance directionnelle 5/5** (torch décolle à ~0.30 SUR TOUS les
+   seeds ; legacy à 0.000 SUR TOUS) + la **taille d'effet ×10**, plus convaincantes que le p-value pour
+   ce design apparié intra-seed — mais le p-value est nommé, pas glissé.
 4. **Micro-tâche proxy** : X-gate-Y, PAS une preuve de transfert apex en prod (bornage 115/117/119/120).
 5. **0.30 n'est pas « résolu »** : la composition est PARTIELLEMENT cracké (torch), pas saturée ;
    c'est une porte de décision, pas une preuve de maîtrise.
