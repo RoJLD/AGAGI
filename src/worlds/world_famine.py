@@ -14,9 +14,14 @@ FOOD_VALUE = 25.0    # énergie rendue par un fruit FRAIS consommé depuis le ca
 SPOIL_RATE = 0.1     # énergie perdue par tick de stockage
 MIN_FOOD_VALUE = 5.0  # valeur plancher d'un fruit très vieux (évite valeur négative)
 RESERVE_CAP = 150.0  # plafond d'énergie via cache (réserve > energy_max stoneage)
-BANK_THRESHOLD = 60.0   # en abondance, energie au-dessus de ce seuil = surplus banquable
+BANK_THRESHOLD = 90.0   # en abondance, energie au-dessus de ce seuil = VRAI surplus (proche du
+                        # plafond energie_max, sinon gaspille) -> banquer ne ponctionne PAS l'energie
+                        # necessaire (un seuil bas ecremait l'energie vitale -> stockage net-nuisible)
 BANK_RATE = 8.0         # max d'energie banque par tick
-BANK_EFFICIENCY = 0.8   # cout du stockage : 20% perdu au depot (gratification differee couteuse)
+BANK_EFFICIENCY = 1.0   # depot sans perte : le COUT du stockage est le verrou d'opportunite
+                        # (l'energie en reserve n'est retiree qu'en famine quand on starve ; si
+                        # l'agent meurt avant, elle est perdue) -> affordance EQUITABLE (storage
+                        # net-positif ssi la famine est letale), l'evolution decide honnetement.
 WITHDRAW_RATE = 25.0    # max retire de la reserve par tick en famine
 
 
