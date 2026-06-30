@@ -155,9 +155,12 @@ def test_cache_enabled_false_disables_auto_consume():
     a["inventory"].append({"type": "Fruit", "weight": 0.5})
     e0 = a["energy"]
     w.step()
-    # cache OFF : le fruit n'est PAS consommé -> reste en inventaire, pas de gain FOOD_VALUE
-    assert any(it.get("type") == "Fruit" for it in a["inventory"])
-    assert a["energy"] <= e0    # aucune remontée d'énergie (drain seul)
+    # cache OFF : le fruit n'est PAS consommé par le cache -> reste STOCKÉ. Robuste à la mort de
+    # l'agent (drain RNG) : s'il survit, le fruit est démasqué ("Fruit") ; s'il meurt mid-step, il
+    # reste masqué ("_FruitReserve", la boucle de démasquage n'itère que les vivants). Dans les deux
+    # cas il n'est PAS consommé (cache OFF) -> toujours présent comme réserve.
+    assert any(it.get("type") in ("Fruit", "_FruitReserve") for it in a["inventory"])
+    assert a["energy"] <= e0    # aucune remontée d'énergie (cache off : drain seul, pas de FOOD_VALUE)
 
 
 def test_cache_enabled_default_true_consumes():
