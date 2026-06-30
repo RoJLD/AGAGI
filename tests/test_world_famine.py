@@ -150,7 +150,7 @@ def test_cache_enabled_false_disables_auto_consume():
         w.memory_retriever.stop()
     w.cache_enabled = False
     w.cycle_abundance, w.cycle_famine = 0, 100   # famine permanente
-    w.add_agent(_fresh_model(w), energy=26.5)
+    w.add_agent(_fresh_model(w), energy=10.0)
     a = w.agents[0]
     a["inventory"].append({"type": "Fruit", "weight": 0.5})
     e0 = a["energy"]
@@ -166,7 +166,7 @@ def test_cache_enabled_default_true_consumes():
         w.memory_retriever.stop()
     assert w.cache_enabled is True   # défaut non-régressif
     w.cycle_abundance, w.cycle_famine = 0, 100
-    w.add_agent(_fresh_model(w), energy=26.5)
+    w.add_agent(_fresh_model(w), energy=10.0)
     a = w.agents[0]
     a["inventory"].append({"type": "Fruit", "weight": 0.5})
     e0 = a["energy"]
