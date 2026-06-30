@@ -86,8 +86,8 @@ D, REFUTE.
 - `Harness(name="memory_credit_horizon")` -> JSON distinct ; seed reel 1167, smoke 99167 distinct.
 - Determinisme : 2 runs byte-identiques (seeds appaires via `seed_boundary`). Run reel APRES revue ;
   AUCUN test relance apres (lecon EDR 107).
-- Non-regression : `grad_mem.main()` inchange (appelle la fonction `train_mutation` extraite). Refactor
-  pur, comportement identique.
+- Non-regression : `grad_mem.main()`/`train`/`run_bptt` byte-identiques ; `train_mutation` est un AJOUT
+  pur (pas une extraction), comportement existant inchange.
 - ASCII-only dans tout `print` execute (cp1252).
 
 ## 7. Tests (TDD, `tests/sandbox/test_memory_credit_horizon.py`)
