@@ -14,6 +14,7 @@ import os
 import sys
 
 import numpy as np
+import statistics
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
@@ -30,8 +31,30 @@ def compositional_reward(move2: int, target_y: int, did_x: bool) -> float:
     return 1.0 if (move2 == target_y and did_x) else -1.0
 
 
+def _init_factor(num_nodes: int, init_scale: str) -> float:
+    """Facteur d'échelle d'init des poids. `normalized` = sqrt(171/(N-1)) → maintient la variance
+    d'excitation (Σ_{k≠j} H_k W_kj ∝ (N-1)·Var(W)) ≈ invariante à N, calibrée sur N_ref=172.
+    À N=172 → 1.0 (anchor identique à prod). `prod` → 1.0 (init MambaAgent intact). PUR."""
+    if init_scale == "normalized":
+        return float(np.sqrt(171.0 / (num_nodes - 1)))
+    return 1.0
+
+
+def _build_agents(n_agents: int, num_nodes: int, init_scale: str) -> list:
+    """Construit n_agents MambaAgent à `num_nodes` (hidden = num_nodes-167, I/O fixes 59/108),
+    puis applique l'échelle d'init au niveau GÉNOME (backend-agnostique : legacy et torch lisent
+    le même W). Le caller seed np.random avant d'appeler (déterminisme)."""
+    agents = [MambaAgent(num_nodes=num_nodes) for _ in range(n_agents)]
+    factor = _init_factor(num_nodes, init_scale)
+    if factor != 1.0:
+        for a in agents:
+            a.genome.W = (a.genome.W * factor).astype(np.float32)
+    return agents
+
+
 def run_compositional(backend: str, seed: int = 0, trials: int = 100, n_agents: int = 8,
-                      target_x: int = 0, target_y: int = 4) -> dict:
+                      target_x: int = 0, target_y: int = 4,
+                      num_nodes: int = 172, init_scale: str = "prod") -> dict:
     """Entraîne une pop sur la tâche 2-étapes. Renvoie le taux d'essais PLEINEMENT corrects
     (X-puis-Y) début vs fin (delta = apprentissage compositionnel)."""
     np.random.seed(seed)
@@ -40,7 +63,7 @@ def run_compositional(backend: str, seed: int = 0, trials: int = 100, n_agents: 
         torch.manual_seed(seed)
     except Exception:
         pass
-    agents = [MambaAgent() for _ in range(n_agents)]
+    agents = _build_agents(n_agents, num_nodes, init_scale)
     pop = make_population(agents, backend=backend)
     rng = np.random.RandomState(seed + 1)
     n_in = agents[0].genome.num_inputs
@@ -69,6 +92,41 @@ def run_compositional(backend: str, seed: int = 0, trials: int = 100, n_agents: 
             "hit_start": hit_start, "hit_end": hit_end, "delta": hit_end - hit_start}
 
 
+def sweep(hiddens=(5, 20, 50, 100), inits=("prod", "normalized"),
+          seeds=(0, 1, 2, 3, 4), trials: int = 250, n_agents: int = 8) -> dict:
+    """Grille A/B legacy↔torch par cellule (hidden, init). Déduplique normalized@5 == prod@5
+    (même facteur 1.0). Renvoie {cells, curve} ; curve = hit_end médian par taille et backend
+    (lecture décisive A/B/C). Jamais de scalaire nu : per_seed conservé par cellule."""
+    cells = []
+    curve = {"legacy": [], "torch": []}
+    seen = set()
+    for hidden in hiddens:
+        num_nodes = 167 + hidden
+        for init in inits:
+            factor = round(_init_factor(num_nodes, init), 6)
+            key = (hidden, factor)            # dédup : normalized@anchor (factor 1.0) == prod
+            if key in seen:
+                continue
+            seen.add(key)
+            rows = []
+            for s in seeds:
+                leg = run_compositional("legacy", seed=s, trials=trials, n_agents=n_agents,
+                                        num_nodes=num_nodes, init_scale=init)
+                tor = run_compositional("torch", seed=s, trials=trials, n_agents=n_agents,
+                                        num_nodes=num_nodes, init_scale=init)
+                rows.append({"seed": int(s), "legacy_delta": leg["delta"], "torch_delta": tor["delta"],
+                             "diff": tor["delta"] - leg["delta"], "legacy": leg, "torch": tor})
+            verdict = compute_ab_verdict(rows)
+            cells.append({"hidden": hidden, "init": init, **verdict, "per_seed": rows})
+            curve["legacy"].append({"hidden": hidden, "init": init,
+                                    "median_hit_end": statistics.median([r["legacy"]["hit_end"] for r in rows]),
+                                    "median_delta": statistics.median([r["legacy_delta"] for r in rows])})
+            curve["torch"].append({"hidden": hidden, "init": init,
+                                   "median_hit_end": statistics.median([r["torch"]["hit_end"] for r in rows]),
+                                   "median_delta": statistics.median([r["torch_delta"] for r in rows])})
+    return {"cells": cells, "curve": curve}
+
+
 def compare(seeds=(0, 1, 2, 3, 4), trials: int = 100, n_agents: int = 8) -> dict:
     """A/B apparié legacy vs torch par seed -> verdict de learnabilité compositionnelle."""
     rows = []
@@ -81,15 +139,27 @@ def compare(seeds=(0, 1, 2, 3, 4), trials: int = 100, n_agents: int = 8) -> dict
 
 
 def main():
+    hiddens = [int(h) for h in os.environ.get("SABC_HIDDENS", "5,20,50,100").split(",") if h.strip()]
+    inits = [x.strip() for x in os.environ.get("SABC_INITS", "prod,normalized").split(",") if x.strip()]
     seeds = [int(s) for s in os.environ.get("SABC_SEEDS", "0,1,2,3,4").split(",") if s.strip()]
-    trials = int(os.environ.get("SABC_TRIALS", "150"))
+    trials = int(os.environ.get("SABC_TRIALS", "250"))
     n_agents = int(os.environ.get("SABC_AGENTS", "8"))
-    res = compare(seeds=seeds, trials=trials, n_agents=n_agents)
-    print(f"VERDICT={res['verdict']} median_diff={res['median_diff']:+.3f} "
-          f"(grad_fav={res['n_gradient_favorable']}/{res['n']}, sign_p={res['sign_p']:.3f})")
-    for r in res["per_seed"]:
-        print(f"  seed={r['seed']} legacy d={r['legacy_delta']:+.3f}  torch d={r['torch_delta']:+.3f}  "
-              f"diff={r['diff']:+.3f}  (legacy end={r['legacy']['hit_end']:.3f} torch end={r['torch']['hit_end']:.3f})")
+    res = sweep(hiddens=hiddens, inits=inits, seeds=seeds, trials=trials, n_agents=n_agents)
+    print("CELLS (hidden x init -> verdict, median diff, hit_end medians):")
+    for c in res["cells"]:
+        leg_he = statistics.median([r["legacy"]["hit_end"] for r in c["per_seed"]])
+        tor_he = statistics.median([r["torch"]["hit_end"] for r in c["per_seed"]])
+        print(f"  hidden={c['hidden']:>3} init={c['init']:<10} verdict={c['verdict']:<14} "
+              f"median_diff={c['median_diff']:+.3f} sign_p={c['sign_p']:.3f} "
+              f"legacy_hit_end={leg_he:.3f} torch_hit_end={tor_he:.3f}")
+    print("CURVE legacy:", [(p["hidden"], p["init"], round(p["median_hit_end"], 3)) for p in res["curve"]["legacy"]])
+    print("CURVE torch :", [(p["hidden"], p["init"], round(p["median_hit_end"], 3)) for p in res["curve"]["torch"]])
+    out = os.environ.get("SABC_OUT")
+    if out:
+        import json
+        with open(out, "w") as f:
+            json.dump(res, f, indent=2)
+        print(f"WROTE {out}")
     return res
 
 
