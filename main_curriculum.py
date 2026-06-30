@@ -23,6 +23,7 @@ from src.curriculum.competence import competence_for
 from src.worlds.world_1_stoneage import Biosphere3D
 from src.worlds.world_2_agricultural import AgriculturalWorld
 from src.worlds.world_3_industrial import IndustrialWorld
+from src.worlds.world_famine import FamineWorld
 from src.environments.config import WorldConfig
 from src.agents.mamba_agent import MambaAgent
 from src.graph_rag.async_logger import logger as async_logger
@@ -38,6 +39,7 @@ WORLD_FACTORY = {
     "stoneage": Biosphere3D,
     "agricultural": AgriculturalWorld,
     "industrial": IndustrialWorld,
+    "famine": FamineWorld,
 }
 
 # Ladder développementale par défaut (EDR 008 §Échelle de Développement).
