@@ -44,6 +44,9 @@ class Biosphere3D(BaseWorld):
         # mesure (sinon la lignée est immortelle et la survie sature au cap, blocker panel). Défaut
         # False = comportement historique. L'apprentissage intra-vie reste actif. Spec §4.
         self.benchmark_mode = False
+        # Seam famine (FamineWorld) : échelle de régénération de la nourriture. 1.0 = normal
+        # (non-régressif). 0.0 = aucune nouvelle nourriture (fruits + proies) -> phase de famine.
+        self.food_regen_scale = 1.0
         # Curriculum (EDR 017) : "grab" = entraînement de la collecte (monde sûr, nuit off).
         self.training_mode = None
         # AXE CRAFT (EDR 018) : complexité de la mécanique de craft. 0 = auto-craft (tenir
@@ -934,34 +937,35 @@ class Biosphere3D(BaseWorld):
                     logger.emit("DAWN_SURVIVAL", {"agent_id": a["id"], "energy": a["energy"]})
         
         self.pheromone_map *= 0.90
-        
-        for idx, (tx, ty, *tz_info) in enumerate(self.trees):
-            tz = tz_info[0] if tz_info else 0
-            if idx < len(self.tree_data) and self.tree_data[idx]["is_fruit"]:
-                self.tree_data[idx]["cooldown"] -= 1
-                if self.tree_data[idx]["cooldown"] <= 0:
-                    spawned = False
-                    for dz in [0] if not self.use_3d else [-1, 0, 1]:
-                        for dy in [-1, 0, 1]:
-                            for dx in [-1, 0, 1]:
-                                if dx == 0 and dy == 0 and dz == 0: continue
-                                sx, sy, sz = tx + dx, ty + dy, tz + dz
-                                if (0 <= sx < self.size and 0 <= sy < self.size and 
-                                    0 <= sz < self.dim_z and self.geometry[sz, sy, sx] == 0):
-                                    self.items.append({"x": sx, "y": sy, "z": sz, "type": "Fruit", "weight": 0.5})
-                                    spawned = True
-                                    break
+
+        if self.food_regen_scale > 0:
+            for idx, (tx, ty, *tz_info) in enumerate(self.trees):
+                tz = tz_info[0] if tz_info else 0
+                if idx < len(self.tree_data) and self.tree_data[idx]["is_fruit"]:
+                    self.tree_data[idx]["cooldown"] -= 1
+                    if self.tree_data[idx]["cooldown"] <= 0:
+                        spawned = False
+                        for dz in [0] if not self.use_3d else [-1, 0, 1]:
+                            for dy in [-1, 0, 1]:
+                                for dx in [-1, 0, 1]:
+                                    if dx == 0 and dy == 0 and dz == 0: continue
+                                    sx, sy, sz = tx + dx, ty + dy, tz + dz
+                                    if (0 <= sx < self.size and 0 <= sy < self.size and
+                                        0 <= sz < self.dim_z and self.geometry[sz, sy, sx] == 0):
+                                        self.items.append({"x": sx, "y": sy, "z": sz, "type": "Fruit", "weight": 0.5})
+                                        spawned = True
+                                        break
+                                if spawned: break
                             if spawned: break
-                        if spawned: break
-                    self.tree_data[idx]["cooldown"] = np.random.randint(50, 150)
-                    
+                        self.tree_data[idx]["cooldown"] = np.random.randint(50, 150)
+
         self._move_preys()
         
         # RARETÉ recalibrée (C) : régénération en rafale plafonnée — jusqu'à
         # prey_regen_burst proies/step vers le plafond. Assez de flux pour qu'une
         # population persiste (capacité de charge), sans refill instantané.
         spawned = 0
-        while (not self.training_mode) and len(self.preys) < self.config.target_prey_count and spawned < self.prey_regen_burst:
+        while (not self.training_mode) and self.food_regen_scale > 0 and len(self.preys) < self.config.target_prey_count and spawned < self.prey_regen_burst:
             self._spawn_prey_instance(np.random.choice(["Lapin", "Cerf", "Sanglier", "Mammouth"], p=[0.4, 0.3, 0.2, 0.1]))
             spawned += 1
 
