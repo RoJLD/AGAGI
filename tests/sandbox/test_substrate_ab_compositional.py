@@ -84,3 +84,82 @@ def test_sweep_smoke():
         assert c["per_seed"] and len(c["per_seed"]) == 1
     assert len(res["curve"]["legacy"]) == 2 and len(res["curve"]["torch"]) == 2
     assert all("median_hit_end" in p for p in res["curve"]["torch"])
+
+
+def test_decode_auc_separable_signal():
+    """Sur un signal linéairement séparable, l'AUC du décodeur ≈ 1."""
+    import numpy as np
+    from tools.substrate_ab_compositional import _decode_auc
+    rng = np.random.RandomState(0)
+    y = np.array([0, 1] * 60)                          # 120 samples, 2 classes équilibrées
+    X = rng.randn(120, 4) + y[:, None] * 6.0           # signal fort corrélé à y
+    auc = _decode_auc(X, y, min_per_class=8, seed=0)
+    assert auc is not None and auc > 0.9
+
+
+def test_decode_auc_pure_noise():
+    """Sur du bruit indépendant de y, l'AUC ≈ 0.5 (pas de signal décodable)."""
+    import numpy as np
+    from tools.substrate_ab_compositional import _decode_auc
+    rng = np.random.RandomState(1)
+    y = np.array([0, 1] * 60)
+    X = rng.randn(120, 4)                               # aucun lien avec y
+    auc = _decode_auc(X, y, min_per_class=8, seed=0)
+    assert auc is not None and 0.35 <= auc <= 0.65
+
+
+def test_decode_auc_missing_class_returns_none():
+    """Si une classe manque (ou < min_per_class), renvoie None (agent non qualifiant)."""
+    import numpy as np
+    from tools.substrate_ab_compositional import _decode_auc
+    X = np.random.RandomState(2).randn(40, 4)
+    y_one_class = np.zeros(40, dtype=int)              # une seule classe
+    assert _decode_auc(X, y_one_class, min_per_class=8, seed=0) is None
+    y_too_few = np.array([1] * 3 + [0] * 37)           # classe 1 < min_per_class
+    assert _decode_auc(X, y_too_few, min_per_class=8, seed=0) is None
+
+
+def test_read_state_legacy_shape():
+    """_read_state(legacy) renvoie l'état récurrent batché (B, N) après un forward."""
+    import numpy as np
+    from src.agents.backend import make_population
+    from tools.substrate_ab_compositional import _build_agents, _read_state
+    np.random.seed(0)
+    agents = _build_agents(4, 172, "prod")
+    pop = make_population(agents, backend="legacy")
+    obs = (np.random.RandomState(1).randn(4, agents[0].genome.num_inputs) * 0.5).astype(np.float32)
+    pop.forward(obs)
+    st = _read_state(pop, "legacy")
+    assert st.shape == (4, 172)
+
+
+@pytest.mark.slow
+def test_read_state_torch_shape():
+    """_read_state(torch) renvoie pop.H sous forme numpy (B, N)."""
+    pytest.importorskip("torch")
+    import numpy as np
+    from src.agents.backend import make_population
+    from tools.substrate_ab_compositional import _build_agents, _read_state
+    np.random.seed(0)
+    agents = _build_agents(4, 172, "prod")
+    pop = make_population(agents, backend="torch")
+    obs = (np.random.RandomState(1).randn(4, agents[0].genome.num_inputs) * 0.5).astype(np.float32)
+    pop.forward(obs)
+    st = _read_state(pop, "torch")
+    assert st.shape == (4, 172)
+
+
+@pytest.mark.slow
+def test_memory_probe_smoke():
+    """memory_probe renvoie un dict structuré ; le contrôle AUC_pre est sain (≈0.5)."""
+    pytest.importorskip("torch")
+    from tools.substrate_ab_compositional import memory_probe
+    res = memory_probe(seeds=(0,), n_agents=8, trials=60)
+    assert res["verdict"] in {"MEMORY_PRESENT", "MEMORY_ABSENT", "ASYMÉTRIQUE"}
+    assert res["cells"]
+    for c in res["cells"]:
+        assert c["backend"] in {"legacy", "torch"}
+        for k in ("n_qualifying", "base_rate", "median_auc_s2", "median_auc_pre", "median_delta"):
+            assert k in c
+        if c["median_auc_pre"] is not None:
+            assert 0.3 <= c["median_auc_pre"] <= 0.7   # contrôle au hasard sain

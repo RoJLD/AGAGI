@@ -15,6 +15,11 @@ import sys
 
 import numpy as np
 import statistics
+from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import make_pipeline
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import roc_auc_score
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
@@ -50,6 +55,33 @@ def _build_agents(n_agents: int, num_nodes: int, init_scale: str) -> list:
         for a in agents:
             a.genome.W = (a.genome.W * factor).astype(np.float32)
     return agents
+
+
+def _decode_auc(X, y, *, min_per_class: int = 8, seed: int = 0):
+    """ROC-AUC d'une régression logistique linéaire décodant y depuis X (split train/test stratifié
+    70/30, StandardScaler). Renvoie None si une classe a < min_per_class échantillons (agent non
+    qualifiant). Mesure la décodabilité LINÉAIRE de y (pur, testable sans backend)."""
+    X = np.asarray(X, dtype=np.float64)
+    y = np.asarray(y).astype(int)
+    n0 = int(np.sum(y == 0))
+    n1 = int(np.sum(y == 1))
+    if n0 < min_per_class or n1 < min_per_class:
+        return None
+    X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.3, stratify=y, random_state=seed)
+    if len(np.unique(y_tr)) < 2 or len(np.unique(y_te)) < 2:
+        return None
+    clf = make_pipeline(StandardScaler(), LogisticRegression(max_iter=1000))
+    clf.fit(X_tr, y_tr)
+    proba = clf.predict_proba(X_te)[:, 1]
+    return float(roc_auc_score(y_te, proba))
+
+
+def _read_state(pop, backend: str):
+    """Lit l'état récurrent batché (B, N) du backend (LECTURE SEULE, ne modifie rien).
+    legacy -> MambaBatchModel.H_prev_batch ; torch -> TorchPopulationModel.H."""
+    if backend == "torch":
+        return pop.H.detach().cpu().numpy().copy()
+    return np.asarray(pop._model.H_prev_batch, dtype=np.float64).copy()
 
 
 def run_compositional(backend: str, seed: int = 0, trials: int = 100, n_agents: int = 8,
@@ -90,6 +122,90 @@ def run_compositional(backend: str, seed: int = 0, trials: int = 100, n_agents: 
     hit_start, hit_end = float(np.mean(full[:q])), float(np.mean(full[-q:]))
     return {"backend": backend, "seed": int(seed), "trials": trials, "n_agents": n_agents,
             "hit_start": hit_start, "hit_end": hit_end, "delta": hit_end - hit_start}
+
+
+def _probe_one(backend: str, seed: int, n_agents: int, trials: int, num_nodes: int, target_x: int):
+    """Collecte (H_pre, H_S2, did_x) par agent SANS apprentissage, puis décode per-agent.
+    obs_a VARIÉ par trial (fait varier did_x), obs_b FIXE (S2 n'encode pas did_x)."""
+    np.random.seed(seed)
+    try:
+        import torch
+        torch.manual_seed(seed)
+    except Exception:
+        pass
+    agents = _build_agents(n_agents, num_nodes, "prod")
+    pop = make_population(agents, backend=backend)
+    I = agents[0].genome.num_inputs
+    rng = np.random.RandomState(seed + 1)
+    obs_b = (rng.randn(n_agents, I) * 0.5).astype(np.float32)         # S2 fixe
+    pre_buf = [[] for _ in range(n_agents)]
+    s2_buf = [[] for _ in range(n_agents)]
+    didx_buf = [[] for _ in range(n_agents)]
+    for _ in range(trials):
+        H_pre = _read_state(pop, backend)                             # état AVANT S1
+        obs_a = (rng.randn(n_agents, I) * 0.5).astype(np.float32)     # S1 VARIÉ
+        preds1, _ = pop.forward(obs_a)
+        move1 = np.asarray(preds1)[:, :_MOVE].argmax(axis=1)
+        did_x = (move1 == target_x)
+        pop.forward(obs_b)                                            # S2 -> met à jour l'état
+        H_s2 = _read_state(pop, backend)
+        for i in range(n_agents):
+            pre_buf[i].append(H_pre[i, I:])
+            s2_buf[i].append(H_s2[i, I:])
+            didx_buf[i].append(bool(did_x[i]))
+    auc_s2, auc_pre, base = [], [], []
+    for i in range(n_agents):
+        y = np.array(didx_buf[i], dtype=int)
+        base.append(float(np.mean(y)))
+        a2 = _decode_auc(np.array(s2_buf[i]), y, seed=seed)
+        ap = _decode_auc(np.array(pre_buf[i]), y, seed=seed)
+        if a2 is not None:
+            auc_s2.append(a2)
+        if ap is not None:
+            auc_pre.append(ap)
+    med_s2 = statistics.median(auc_s2) if auc_s2 else None
+    med_pre = statistics.median(auc_pre) if auc_pre else None
+    med_delta = (med_s2 - med_pre) if (med_s2 is not None and med_pre is not None) else None
+    return {"backend": backend, "seed": int(seed), "n_qualifying": len(auc_s2),
+            "base_rate": float(np.mean(base)), "median_auc_s2": med_s2,
+            "median_auc_pre": med_pre, "median_delta": med_delta,
+            "per_agent_auc_s2": auc_s2, "per_agent_auc_pre": auc_pre}
+
+
+def memory_probe(seeds=(0, 1, 2), n_agents: int = 16, trials: int = 300,
+                 num_nodes: int = 172, target_x: int = 0) -> dict:
+    """Sonde la décodabilité linéaire de did_x depuis H_S2 (mémoire) vs H_pre (contrôle au hasard),
+    per-agent, par backend. Verdict : MEMORY_PRESENT si AUC_S2 médian >0.6 ET delta >0.1 sur les DEUX
+    backends ; MEMORY_ABSENT si AUC_S2 ≈0.5 (≤0.55) sur les deux ; sinon ASYMÉTRIQUE."""
+    cells = []
+    for backend in ("legacy", "torch"):
+        for s in seeds:
+            cells.append(_probe_one(backend, s, n_agents, trials, num_nodes, target_x))
+
+    def _agg(backend):
+        vals_s2 = [c["median_auc_s2"] for c in cells if c["backend"] == backend and c["median_auc_s2"] is not None]
+        vals_d = [c["median_delta"] for c in cells if c["backend"] == backend and c["median_delta"] is not None]
+        return (statistics.median(vals_s2) if vals_s2 else None,
+                statistics.median(vals_d) if vals_d else None)
+
+    leg_s2, leg_d = _agg("legacy")
+    tor_s2, tor_d = _agg("torch")
+
+    def _carries(s2, d):
+        return (s2 is not None and s2 > 0.6 and d is not None and d > 0.1)
+
+    def _absent(s2):
+        return (s2 is not None and s2 <= 0.55)
+
+    if _carries(leg_s2, leg_d) and _carries(tor_s2, tor_d):
+        verdict = "MEMORY_PRESENT"
+    elif _absent(leg_s2) and _absent(tor_s2):
+        verdict = "MEMORY_ABSENT"
+    else:
+        verdict = "ASYMÉTRIQUE"
+    return {"cells": cells, "verdict": verdict,
+            "summary": {"legacy_auc_s2": leg_s2, "legacy_delta": leg_d,
+                        "torch_auc_s2": tor_s2, "torch_delta": tor_d}}
 
 
 def sweep(hiddens=(5, 20, 50, 100), inits=("prod", "normalized"),
@@ -161,5 +277,31 @@ def main():
     return res
 
 
+def main_memory_probe():
+    seeds = [int(s) for s in os.environ.get("SABC_MP_SEEDS", "0,1,2").split(",") if s.strip()]
+    n_agents = int(os.environ.get("SABC_MP_AGENTS", "16"))
+    trials = int(os.environ.get("SABC_MP_TRIALS", "300"))
+    res = memory_probe(seeds=tuple(seeds), n_agents=n_agents, trials=trials)
+    print(f"VERDICT={res['verdict']}  summary={res['summary']}")
+    print("CELLS (backend x seed -> n_qual, base_rate, AUC_s2, AUC_pre, delta):")
+    for c in res["cells"]:
+        def _f(x):
+            return f"{x:.3f}" if x is not None else "  NA "
+        print(f"  {c['backend']:<6} seed={c['seed']} n_qual={c['n_qualifying']:>2} "
+              f"base={c['base_rate']:.3f} AUC_s2={_f(c['median_auc_s2'])} "
+              f"AUC_pre={_f(c['median_auc_pre'])} delta={_f(c['median_delta'])}")
+    out = os.environ.get("SABC_MP_OUT")
+    if out:
+        import json
+        with open(out, "w") as f:
+            json.dump(res, f, indent=2)
+        print(f"WROTE {out}")
+    return res
+
+
 if __name__ == "__main__":
-    main()
+    import sys as _sys
+    if "--memory-probe" in _sys.argv:
+        main_memory_probe()
+    else:
+        main()
