@@ -119,3 +119,26 @@ def test_distinctness_non_storer_dies_storer_survives_famine():
         f"Distinctness échouée : stockeur={t_cache} ticks, non-stockeur={t_nocache} ticks, "
         f"delta={t_cache - t_nocache} (attendu >20)"
     )
+
+
+def test_famine_wired_into_factories():
+    from main_curriculum import WORLD_FACTORY, DEFAULT_LADDER
+    from tools.s2_demand import WORLDS as S2_WORLDS
+    from src.worlds.world_famine import FamineWorld
+    assert WORLD_FACTORY["famine"] is FamineWorld
+    assert S2_WORLDS["famine"] is FamineWorld
+    # non-régression
+    assert DEFAULT_LADDER == ["stoneage", "agricultural", "industrial"]
+    for k in ("stoneage", "soup"):
+        assert k in WORLD_FACTORY
+
+
+def test_famine_io_compat_with_champion_agent():
+    from src.environments.config import WorldConfig
+    from src.worlds.world_famine import FamineWorld
+    w = FamineWorld(WorldConfig())
+    if hasattr(w, "memory_retriever"):
+        w.memory_retriever.stop()
+    w.add_agent(_fresh_model(w), energy=80.0)
+    w.step()   # ne crashe pas : obs/action hérités de stoneage
+    assert True
