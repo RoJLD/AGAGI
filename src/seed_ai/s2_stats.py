@@ -195,3 +195,36 @@ def s2_verdict(champ, baselines, alpha=ALPHA, cliff_thresh=CLIFF_THRESH, equiv_m
     return {"verdict": verdict, "coherence_ok": True, "life_p": life_p,
             "p_monde": p_monde, "strongest_baseline": strongest,
             "survival": cmps}
+
+
+def verdict_from_survival_cmps(survival_cmps, alpha=ALPHA, cliff_thresh=CLIFF_THRESH):
+    """Re-rend le verdict S2 d'UN monde depuis les comparaisons de SURVIE déjà calculées
+    (champion vs chaque baseline : dicts {p, cliff, ratio_lo, ratio_hi}), SANS re-simuler.
+
+    ADDENDUM 2026-06-30 (post-confirmatoire EDR S2) — cohérence basée SURVIE, pas life_score :
+    le gate de cohérence original (`s2_verdict`, sur life_score) produit un FAUX VOID quand le
+    champion domine la survie (3-5x) mais que son edge en life_score est noyé par des événements
+    rares/chanceux (proies/lances/mammouth). Intention du gate = « le champion se comporte en
+    champion » -> mieux opérationnalisée par la survie elle-même. life_score devient corroborant
+    NON-bloquant (rapporté ailleurs). Verdict = IUT min-test sur la survie (p_monde = max des p) ;
+    effet = Cliff du baseline le plus FORT (cliff minimal = le plus dur à battre).
+
+    Cohérence (survie) : le champion bat le baseline le plus fort en survie -> p_monde<alpha ET
+    tous les Cliff>0 ; sinon VOID. Décision : EXIGE (p<alpha & cliff>=thresh) / ANTI-CORRELE
+    (p<alpha & cliff<=-thresh) / AMBIGU sinon."""
+    p_monde = float(max(c["p"] for c in survival_cmps.values()))
+    strongest = min(survival_cmps, key=lambda k: survival_cmps[k]["cliff"])   # plus dur à battre
+    s = survival_cmps[strongest]
+    # Cohérence survie = champion bat TOUS les baselines (p_monde<alpha ET tous les Cliff>0). Si un
+    # baseline domine le champion (cliff<0), incohérent -> VOID (pas d'ANTI-CORRELE : la cohérence
+    # exige déjà cliff>0, donc cette branche serait morte ici).
+    coherent = (p_monde < alpha) and all(c["cliff"] > 0.0 for c in survival_cmps.values())
+    if not coherent:
+        verdict = "VOID"
+    elif s["cliff"] >= cliff_thresh:                  # p_monde<alpha déjà garanti par `coherent`
+        verdict = "EXIGE"
+    else:
+        verdict = "AMBIGU"                            # cohérent mais effet sous-seuil
+    return {"verdict": verdict, "coherence_basis": "survival", "p_monde": p_monde,
+            "strongest_baseline": strongest, "cliff": float(s["cliff"]),
+            "ratio_lo": s.get("ratio_lo"), "ratio_hi": s.get("ratio_hi")}
