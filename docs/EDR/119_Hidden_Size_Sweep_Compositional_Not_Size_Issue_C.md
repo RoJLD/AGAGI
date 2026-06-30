@@ -48,9 +48,11 @@ Le point d'ancrage hidden=5 (prod) doit reproduire EDR 117, sinon le banc a dér
 | torch hit_end | ≤ 0.155 | 0.048 (médian) ; ≤ 0.125 par seed |
 | legacy hit_end | ~0 | 0.000 |
 
-legacy Δ −0.006 ≈ −0.007 d'EDR 117 (quasi-identique) ; torch au même plancher (~0.05), micro-favorisé.
-**Ancrage TENU** (le RNG diffère trials 150→250, pas d'égalité stricte attendue ; ordres de grandeur
-et signes reproduits). Banc non contaminé.
+legacy Δ −0.006 ≈ −0.007 d'EDR 117 (quasi-identique). Le torch Δ est +0.028 vs +0.010 (EDR 117) —
+même SIGNE et même plancher hit_end (0.048 dans l'enveloppe ≤0.155 d'EDR 117), mais **~2.8×** ;
+les deux restent sous-band (< 0.05) et au plancher, l'écart est attribué au changement trials 150→250
+(RNG distinct, pas d'égalité stricte attendue). **Ancrage TENU** (signes + ordres de grandeur + plancher
+reproduits ; la divergence torch est nommée, pas glissée). Banc non contaminé.
 
 ## Résultats — la courbe (lecture décisive)
 
@@ -67,8 +69,10 @@ Médianes par cellule (5 seeds) :
 | 80 | normalized | −0.004 | +0.042 | **0.000** | **0.050** | GRADIENT_GAGNE |
 
 **Courbe hit_end vs taille (la lecture maîtresse) :**
-- **legacy = 0.000 à TOUTE taille** (Δ médian NÉGATIF partout : il n'apprend jamais, dégrade même
-  légèrement). Totalement plat au plancher.
+- **legacy hit_end MÉDIAN = 0.000 aux 7 cellules** (Δ médian NÉGATIF partout : il n'apprend jamais,
+  dégrade même légèrement). Précision per-seed : quelques 0.06 ISOLÉS aux PETITES tailles (5, 20 :
+  2/5 seeds) qui DISPARAISSENT aux grandes (50, 80 : 0.000 sur tous les seeds) → non seulement aucune
+  tendance montante, mais un léger DÉCLIN avec la taille (renforce Issue C).
 - **torch = ~0.05 PLAT** (0.048 → 0.052 → 0.052 → 0.014/0.050). Ne monte PAS avec la taille ; au mieux
   hit_end=0.125 sur un seul seed (hidden=5, seed=4). Jamais proche d'un sens (>0.3).
 
@@ -118,7 +122,8 @@ d'éligibilité, mémoire explicite, ou curriculum), PAS le nombre de neurones c
 
 1. **Puissance** : n=5 seeds, sign_p par cellule au plancher (0.062–0.625). La lecture décisive n'est
    PAS le sign-test par cellule mais la **valeur absolue de hit_end** (plancher partout) agrégée sur
-   la courbe inter-tailles — robuste car le plancher est unanime (legacy 0.000 × 7 cellules).
+   la courbe inter-tailles — robuste car le plancher MÉDIAN est unanime (legacy 0.000 aux 7 cellules ;
+   per-seed, seuls quelques 0.06 isolés aux petites tailles, nuls aux grandes → aucune tendance montante).
 2. **Cap legacy 256** : la grille A/B comparable s'arrête à hidden=80 (legacy ne représente pas plus).
    On ne peut pas EXCLURE qu'un torch à hidden≫80 (hors portée legacy) décolle — mais l'absence totale
    de tendance entre 5 et 80 le rend improbable ; à tester en torch-only si l'on poursuit.
