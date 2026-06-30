@@ -6,7 +6,7 @@ url: https://arxiv.org/abs/2006.04439
 method: RNN à constante de temps adaptative (ODE) entraîné par gradient ; expressif à petit nombre de neurones
 lib: ncps (mlech26l/ncps)
 maturity: production
-adopt_for: [EDR-111, ADR-003]
+adopt_for: [EDR-111, ADR-003, EDR-115]
 ---
 # REF-LTC-2021 — Hasani, Lechner et al. (AAAI 2021)
 
