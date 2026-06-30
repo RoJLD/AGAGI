@@ -56,7 +56,7 @@ def run_evolution(target, k_eras, num_agents, max_ticks, shared_db,
     config.base_metabolism = float(os.environ.get("CT_METAB", "0.25"))
     config.forage_payoff = float(os.environ.get("CT_PAYOFF", "3.0"))
     config.mammoth_hp = float(os.environ.get("EVP_MAMMOTH_HP", "100"))   # tool-gate EDR 111 (100 = contrôle)
-    MambaBatchModel.TD_GAMMA = float(os.environ.get("EVP_GAMMA", "0.9"))   # EDR 112 horizon crédit (0.9 = contrôle)
+    MambaBatchModel.TD_GAMMA = float(os.environ.get("EVP_GAMMA", "0.9"))   # EDR 113 horizon crédit (0.9 = contrôle)
     config.max_population = pop_cap     # None = pas de cap (historique) ; sinon borne le runaway (EDR 105)
 
     mut_config = MutationConfig(weight_init_std=2.0)
