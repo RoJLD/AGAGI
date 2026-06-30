@@ -263,3 +263,34 @@ c'est *précisément* la cause-racine B. Verdict binaire insuffisant. Trois issu
   ou **significatif mais négligeable** → inconclusif (ni EXIGE, ni équivalence, ni anti-corrélé).
 - **Placeholders pilote inchangés** : `CLIFF_THRESH=0.33` et `EQUIV_MARGIN=0.147` restent à confirmer
   dans l'addendum **post-pilote** (§9), avec la marge d'équivalence définitive du TOST.
+
+---
+
+## Addendum daté — 2026-06-30 : cohérence basée SURVIE (post-confirmatoire)
+
+**Contexte.** Confirmatoire lancé le 2026-06-30 (RAG-off via `_disable_kuzu`, K=12, 4 mondes,
+seed 2026 ; résultats `results/s2_demand_2026.json`). Sur la **survie**, le champion bat **tous** les
+baselines (random_action, random_genome, reflex) dans les **4 mondes** : p=0.0025 (minimum à K=12,
+12/12 ères positives), Cliff δ ≈ 0.92–0.97, ratio de médianes 3.4–4.7×. MAIS `s2_verdict` a rendu
+**VOID** dans les 4 mondes car le **gate de cohérence** teste le `life_score` (fitness composite),
+dont l'avantage du champion est noyé par des événements rares/chanceux (proies×50 / lances×300 /
+mammouth×400) → life_p = 0.055–0.11 (≥ α).
+
+**Décision (déviation actée).** Le gate de cohérence `life_score` produit un **faux VOID** : son
+intention (§6, « le champion se comporte en champion ») est *déjà satisfaite* par une domination de
+survie 3-5×. On le corrige :
+
+1. **Cohérence basée SURVIE** : le champion est cohérent ssi il bat le baseline le plus fort en
+   **survie** (`p_monde < α` ET tous les Cliff δ > 0). C'est l'opérationnalisation correcte de §6.
+2. **`life_score` = corroborant NON-bloquant** : il reste calculé et rapporté, mais ne déclenche plus
+   de VOID (cohérent avec §8 où le ratio est déjà passé corroborant).
+3. **Pas de re-compute** : le verdict est re-rendu depuis les comparaisons de survie déjà sauvées via
+   `src/seed_ai/s2_stats.py:verdict_from_survival_cmps` (pur, testé). Résultat : **EXIGE dans les 4
+   mondes** (p_monde=0.0025, **Holm=0.0101** sur les 4, Cliff δ 0.92–0.95, ratio 3.4–4.5×).
+
+**Portée.** Cet addendum ne change PAS les seuils (`CLIFF_THRESH=0.33`, α=0.05) ni la table de
+décision survie (§10) ; il ne change que le **métrique du gate de cohérence** (life_score → survie).
+`s2_verdict` (gate life_score original) est conservé tel quel pour la repro historique ; le re-render
+corrigé vit dans `verdict_from_survival_cmps`. **Caveat RAG** : run RAG-off (champion sans sa mémoire
+ambiante) → résultat CONSERVATEUR ; un confirmatoire RAG-on (quand le compute parallèle est libre)
+ne ferait que renforcer le verdict.

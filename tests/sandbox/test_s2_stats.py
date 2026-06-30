@@ -122,3 +122,37 @@ def test_verdict_nexige_pas_when_champion_equiv_reflex():
                  "reflex": _cond(_rng_arr(4, 40, 70), _rng_arr(8, 50, 200))}
     v = s2_verdict(champ, baselines)
     assert v["verdict"] == "N'EXIGE PAS"
+
+
+def test_verdict_from_survival_cmps_exige():
+    # Re-render (addendum 2026-06-30) : champion domine tous les baselines en survie -> EXIGE.
+    from src.seed_ai.s2_stats import verdict_from_survival_cmps
+    cmps = {"random_action": {"p": 0.0025, "cliff": 0.92, "ratio_lo": 3.4, "ratio_hi": 4.2},
+            "random_genome": {"p": 0.0025, "cliff": 0.93, "ratio_lo": 3.4, "ratio_hi": 4.2},
+            "reflex":        {"p": 0.0025, "cliff": 0.95, "ratio_lo": 3.4, "ratio_hi": 4.5}}
+    v = verdict_from_survival_cmps(cmps)
+    assert v["verdict"] == "EXIGE"
+    assert v["coherence_basis"] == "survival"
+    assert v["strongest_baseline"] == "random_action"   # cliff minimal = le plus dur à battre
+    assert v["p_monde"] == 0.0025
+
+
+def test_verdict_from_survival_cmps_void_when_incoherent():
+    # p_monde >= alpha (un baseline non battu) -> incohérent -> VOID (pas de verdict survie forcé).
+    from src.seed_ai.s2_stats import verdict_from_survival_cmps
+    cmps = {"reflex": {"p": 0.40, "cliff": 0.10}, "random_action": {"p": 0.01, "cliff": 0.5}}
+    assert verdict_from_survival_cmps(cmps)["verdict"] == "VOID"
+
+
+def test_verdict_from_survival_cmps_void_when_champion_dominated():
+    # champion DOMINÉ (cliff négatif) -> incohérent (cohérence exige tous cliff>0) -> VOID.
+    from src.seed_ai.s2_stats import verdict_from_survival_cmps
+    cmps = {"reflex": {"p": 0.001, "cliff": -0.8}, "random_action": {"p": 0.001, "cliff": -0.7}}
+    assert verdict_from_survival_cmps(cmps)["verdict"] == "VOID"
+
+
+def test_verdict_from_survival_cmps_ambigu_subthreshold():
+    # cohérent (tous cliff>0, p<alpha) mais effet sous le seuil (cliff<0.33) -> AMBIGU.
+    from src.seed_ai.s2_stats import verdict_from_survival_cmps
+    cmps = {"reflex": {"p": 0.01, "cliff": 0.20}, "random_action": {"p": 0.01, "cliff": 0.25}}
+    assert verdict_from_survival_cmps(cmps)["verdict"] == "AMBIGU"
