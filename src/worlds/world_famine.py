@@ -22,6 +22,10 @@ class FamineWorld(Biosphere3D):
         self.cycle_abundance = 60      # ticks d'abondance (variable d'expérience)
         self.cycle_famine = 40         # ticks de famine
         self.starve_threshold = 25.0   # sous ce niveau d'énergie, auto-consommation du cache
+        # Seam d'ablation (probe d'évolvabilité) : à False, l'auto-consommation du cache est
+        # désactivée -> les fruits stockés deviennent du poids mort (le coût de portage reste).
+        # Défaut True = comportement EDR-118 / distinctness inchangé (non-régressif).
+        self.cache_enabled = True
         # FamineWorld hérite la nuit (night_enabled=True par défaut du moteur).
         # On N'ÉCRASE PAS night_enabled : FamineWorld AJOUTE des mécaniques, n'en retire pas
         # (spec §3). Le coût nocturne ×2.5 renforce l'intérêt du stockage préventif.
@@ -57,8 +61,9 @@ class FamineWorld(Biosphere3D):
         # Passe PRÉ-step : auto-consommation d'urgence pour les agents déjà sous le seuil.
         # Cela évite qu'un agent meure pendant super().step() avant d'avoir pu consommer
         # son cache (les agents morts sont retirés de self.agents avant la passe post-step).
-        for a in self.agents:
-            self._auto_consume_cache(a)
+        if self.cache_enabled:
+            for a in self.agents:
+                self._auto_consume_cache(a)
         # Masquer les Fruits restants en _FruitReserve : le moteur stoneage consomme
         # automatiquement le 1er Fruit de l'inventaire si energy<80 (ligne 672 stoneage).
         # En FamineWorld, ces fruits sont des réserves de famine (seuil=starve_threshold=25),
@@ -78,4 +83,5 @@ class FamineWorld(Biosphere3D):
             for it in a["inventory"]:
                 if isinstance(it, dict) and it.get("type") == "_FruitReserve":
                     it["type"] = "Fruit"
-            self._auto_consume_cache(a)
+            if self.cache_enabled:
+                self._auto_consume_cache(a)
