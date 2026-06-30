@@ -153,23 +153,31 @@ def _probe_one(backend: str, seed: int, n_agents: int, trials: int, num_nodes: i
             pre_buf[i].append(H_pre[i, I:])
             s2_buf[i].append(H_s2[i, I:])
             didx_buf[i].append(bool(did_x[i]))
-    auc_s2, auc_pre, base = [], [], []
+    auc_s2, auc_pre, auc_shuffled, base = [], [], [], []
     for i in range(n_agents):
         y = np.array(didx_buf[i], dtype=int)
         base.append(float(np.mean(y)))
-        a2 = _decode_auc(np.array(s2_buf[i]), y, seed=seed)
+        X_s2 = np.array(s2_buf[i])
+        y_perm = np.random.RandomState(seed * 1000 + i).permutation(y)
+        a2 = _decode_auc(X_s2, y, seed=seed)
         ap = _decode_auc(np.array(pre_buf[i]), y, seed=seed)
+        ash = _decode_auc(X_s2, y_perm, seed=seed)
         if a2 is not None:
             auc_s2.append(a2)
         if ap is not None:
             auc_pre.append(ap)
+        if ash is not None:
+            auc_shuffled.append(ash)
     med_s2 = statistics.median(auc_s2) if auc_s2 else None
     med_pre = statistics.median(auc_pre) if auc_pre else None
     med_delta = (med_s2 - med_pre) if (med_s2 is not None and med_pre is not None) else None
+    med_shuf = statistics.median(auc_shuffled) if auc_shuffled else None
     return {"backend": backend, "seed": int(seed), "n_qualifying": len(auc_s2),
             "base_rate": float(np.mean(base)), "median_auc_s2": med_s2,
             "median_auc_pre": med_pre, "median_delta": med_delta,
-            "per_agent_auc_s2": auc_s2, "per_agent_auc_pre": auc_pre}
+            "median_auc_shuffled": med_shuf,
+            "per_agent_auc_s2": auc_s2, "per_agent_auc_pre": auc_pre,
+            "per_agent_auc_shuffled": auc_shuffled}
 
 
 def memory_probe(seeds=(0, 1, 2), n_agents: int = 16, trials: int = 300,
@@ -185,11 +193,13 @@ def memory_probe(seeds=(0, 1, 2), n_agents: int = 16, trials: int = 300,
     def _agg(backend):
         vals_s2 = [c["median_auc_s2"] for c in cells if c["backend"] == backend and c["median_auc_s2"] is not None]
         vals_d = [c["median_delta"] for c in cells if c["backend"] == backend and c["median_delta"] is not None]
+        vals_shuf = [c["median_auc_shuffled"] for c in cells if c["backend"] == backend and c["median_auc_shuffled"] is not None]
         return (statistics.median(vals_s2) if vals_s2 else None,
-                statistics.median(vals_d) if vals_d else None)
+                statistics.median(vals_d) if vals_d else None,
+                statistics.median(vals_shuf) if vals_shuf else None)
 
-    leg_s2, leg_d = _agg("legacy")
-    tor_s2, tor_d = _agg("torch")
+    leg_s2, leg_d, leg_shuf = _agg("legacy")
+    tor_s2, tor_d, tor_shuf = _agg("torch")
 
     def _carries(s2, d):
         return (s2 is not None and s2 > 0.6 and d is not None and d > 0.1)
@@ -203,9 +213,16 @@ def memory_probe(seeds=(0, 1, 2), n_agents: int = 16, trials: int = 300,
         verdict = "MEMORY_ABSENT"
     else:
         verdict = "ASYMÉTRIQUE"
-    return {"cells": cells, "verdict": verdict,
+
+    def _in_chance(v):
+        return v is not None and 0.40 <= v <= 0.60
+
+    control_valid = _in_chance(leg_shuf) and _in_chance(tor_shuf)
+
+    return {"cells": cells, "verdict": verdict, "control_valid": control_valid,
             "summary": {"legacy_auc_s2": leg_s2, "legacy_delta": leg_d,
-                        "torch_auc_s2": tor_s2, "torch_delta": tor_d}}
+                        "torch_auc_s2": tor_s2, "torch_delta": tor_d,
+                        "legacy_auc_shuffled": leg_shuf, "torch_auc_shuffled": tor_shuf}}
 
 
 def sweep(hiddens=(5, 20, 50, 100), inits=("prod", "normalized"),
@@ -283,13 +300,17 @@ def main_memory_probe():
     trials = int(os.environ.get("SABC_MP_TRIALS", "300"))
     res = memory_probe(seeds=tuple(seeds), n_agents=n_agents, trials=trials)
     print(f"VERDICT={res['verdict']}  summary={res['summary']}")
-    print("CELLS (backend x seed -> n_qual, base_rate, AUC_s2, AUC_pre, delta):")
+    print(f"control_valid={res['control_valid']}  "
+          f"legacy_auc_shuffled={res['summary'].get('legacy_auc_shuffled')}  "
+          f"torch_auc_shuffled={res['summary'].get('torch_auc_shuffled')}")
+    print("CELLS (backend x seed -> n_qual, base_rate, AUC_s2, AUC_pre, delta, AUC_shuf):")
     for c in res["cells"]:
         def _f(x):
             return f"{x:.3f}" if x is not None else "  NA "
         print(f"  {c['backend']:<6} seed={c['seed']} n_qual={c['n_qualifying']:>2} "
               f"base={c['base_rate']:.3f} AUC_s2={_f(c['median_auc_s2'])} "
-              f"AUC_pre={_f(c['median_auc_pre'])} delta={_f(c['median_delta'])}")
+              f"AUC_pre={_f(c['median_auc_pre'])} delta={_f(c['median_delta'])} "
+              f"AUC_shuf={_f(c['median_auc_shuffled'])}")
     out = os.environ.get("SABC_MP_OUT")
     if out:
         import json

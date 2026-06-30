@@ -156,10 +156,12 @@ def test_memory_probe_smoke():
     from tools.substrate_ab_compositional import memory_probe
     res = memory_probe(seeds=(0,), n_agents=8, trials=60)
     assert res["verdict"] in {"MEMORY_PRESENT", "MEMORY_ABSENT", "ASYMÉTRIQUE"}
+    assert "control_valid" in res
     assert res["cells"]
     for c in res["cells"]:
         assert c["backend"] in {"legacy", "torch"}
-        for k in ("n_qualifying", "base_rate", "median_auc_s2", "median_auc_pre", "median_delta"):
+        for k in ("n_qualifying", "base_rate", "median_auc_s2", "median_auc_pre", "median_delta",
+                  "median_auc_shuffled"):
             assert k in c
         if c["median_auc_pre"] is not None:
             assert 0.3 <= c["median_auc_pre"] <= 0.7   # contrôle au hasard sain
