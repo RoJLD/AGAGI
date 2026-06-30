@@ -167,3 +167,37 @@ def test_memory_probe_smoke():
         # H_pre est confondu (causalement amont de did_x) et ne constitue PAS un contrôle fiable.
         if c["median_auc_shuffled"] is not None:
             assert 0.3 <= c["median_auc_shuffled"] <= 0.7   # contrôle permutation dans la bande chance
+
+
+def test_warmup_reward_rule():
+    """Phase A (warmup) : reward = +1 si l'action == target_x (did_x), sinon −1. Pur."""
+    from tools.substrate_ab_compositional import _warmup_reward
+    assert _warmup_reward(move1=0, target_x=0) == 1.0
+    assert _warmup_reward(move1=3, target_x=0) == -1.0
+    assert _warmup_reward(move1=4, target_x=4) == 1.0
+
+
+@pytest.mark.slow
+def test_run_curriculum_warmup0_is_compositional():
+    """warmup_trials=0 → phase A vide → run_curriculum exécute la phase B seule (plancher compo)."""
+    pytest.importorskip("torch")
+    from tools.substrate_ab_compositional import run_curriculum
+    r = run_curriculum("legacy", seed=0, warmup_trials=0, compo_trials=40, n_agents=4)
+    # warmup vide → did_x de warmup non défini/neutre ; les clés existent et hit ∈ [0,1]
+    for k in ("warmup_didx_end", "hit_start", "hit_end", "compo_didx_end", "delta"):
+        assert k in r
+    assert 0.0 <= r["hit_end"] <= 1.0
+
+
+@pytest.mark.slow
+def test_compare_curriculum_smoke():
+    """compare_curriculum renvoie un verdict curriculum structuré + per_seed avec les trajectoires."""
+    pytest.importorskip("torch")
+    from tools.substrate_ab_compositional import compare_curriculum
+    res = compare_curriculum(seeds=(0,), warmup_trials=40, compo_trials=40, n_agents=4)
+    assert res["verdict_curriculum"] in {"DISCOVERY", "CREDIT", "WARMUP_FAILED", "AMBIGU"}
+    assert res["per_seed"] and len(res["per_seed"]) == 1
+    row = res["per_seed"][0]
+    for k in ("legacy", "torch"):
+        for kk in ("warmup_didx_end", "hit_end", "compo_didx_end"):
+            assert kk in row[k]

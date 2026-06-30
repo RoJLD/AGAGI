@@ -124,6 +124,104 @@ def run_compositional(backend: str, seed: int = 0, trials: int = 100, n_agents: 
             "hit_start": hit_start, "hit_end": hit_end, "delta": hit_end - hit_start}
 
 
+def _warmup_reward(move1: int, target_x: int) -> float:
+    """Phase A : récompense DENSE directe sur l'action X de S1. +1 si did_x, −1 sinon. PURE."""
+    return 1.0 if move1 == target_x else -1.0
+
+
+def run_curriculum(backend: str, seed: int = 0, warmup_trials: int = 150, compo_trials: int = 250,
+                   n_agents: int = 8, target_x: int = 0, target_y: int = 4) -> dict:
+    """Curriculum 2 phases (bascule dure). Phase A : enseigner X (reward dense did_x, S1 seul).
+    Phase B : compositionnel pur (S1 reward 0, S2 reward Y|X). Trace l'efficacité (warmup did_x),
+    le hit compositionnel (phase B) et la rétention de X en phase B. warmup_trials=0 → phase B seule."""
+    np.random.seed(seed)
+    try:
+        import torch
+        torch.manual_seed(seed)
+    except Exception:
+        pass
+    agents = _build_agents(n_agents, 172, "prod")
+    pop = make_population(agents, backend=backend)
+    rng = np.random.RandomState(seed + 1)
+    n_in = agents[0].genome.num_inputs
+    obs_a = (rng.randn(n_agents, n_in) * 0.5).astype(np.float32)    # S1 fixe (partagé A/B)
+    obs_b = (rng.randn(n_agents, n_in) * 0.5).astype(np.float32)    # S2 fixe
+
+    # --- Phase A : warmup dense sur X (S1 seul) ---
+    warm = []
+    for _ in range(warmup_trials):
+        preds1, _ = pop.forward(obs_a)
+        move1 = np.asarray(preds1)[:, :_MOVE].argmax(axis=1)
+        did_x = (move1 == target_x)
+        reward = np.array([_warmup_reward(int(m), target_x) for m in move1], dtype=np.float32)
+        pop.learn(reward, [{"move": int(m), "grab": 0, "rub": 0} for m in move1])
+        warm.append(float(np.mean(did_x)))
+    qa = max(1, warmup_trials // 4) if warmup_trials else 0
+    warmup_didx_start = float(np.mean(warm[:qa])) if qa else 0.0
+    warmup_didx_end = float(np.mean(warm[-qa:])) if qa else 0.0
+
+    # --- Phase B : compositionnel pur (bascule dure) ---
+    hit, bx = [], []
+    zeros = np.zeros(n_agents, dtype=np.float32)
+    for _ in range(compo_trials):
+        preds1, _ = pop.forward(obs_a)
+        move1 = np.asarray(preds1)[:, :_MOVE].argmax(axis=1)
+        did_x = (move1 == target_x)
+        pop.learn(zeros, [{"move": int(m), "grab": 0, "rub": 0} for m in move1])   # S1 différé (0)
+        preds2, _ = pop.forward(obs_b)
+        move2 = np.asarray(preds2)[:, :_MOVE].argmax(axis=1)
+        reward2 = np.array([compositional_reward(int(move2[i]), target_y, bool(did_x[i]))
+                            for i in range(n_agents)], dtype=np.float32)
+        pop.learn(reward2, [{"move": int(m), "grab": 0, "rub": 0} for m in move2])
+        hit.append(float(np.mean((move2 == target_y) & did_x)))
+        bx.append(float(np.mean(did_x)))
+    qb = max(1, compo_trials // 4)
+    hit_start, hit_end = float(np.mean(hit[:qb])), float(np.mean(hit[-qb:]))
+    compo_didx_start, compo_didx_end = float(np.mean(bx[:qb])), float(np.mean(bx[-qb:]))
+    return {"backend": backend, "seed": int(seed), "warmup_trials": warmup_trials,
+            "compo_trials": compo_trials, "n_agents": n_agents,
+            "warmup_didx_start": warmup_didx_start, "warmup_didx_end": warmup_didx_end,
+            "hit_start": hit_start, "hit_end": hit_end,
+            "compo_didx_start": compo_didx_start, "compo_didx_end": compo_didx_end,
+            "delta": hit_end - hit_start}
+
+
+def compare_curriculum(seeds=(0, 1, 2, 3, 4), warmup_trials: int = 150,
+                       compo_trials: int = 250, n_agents: int = 8) -> dict:
+    """A/B apparié legacy vs torch du curriculum. Verdict_curriculum :
+    WARMUP_FAILED si did_x ne monte pas en warmup (médiane warmup_didx_end ≤ 0.30 sur un bras) ;
+    DISCOVERY si warmup réussit ET hit_end médian décolle (> 0.30) sur ≥1 bras ;
+    CREDIT si warmup réussit MAIS hit_end médian reste planché (≤ 0.15) sur les DEUX bras ;
+    sinon AMBIGU. Seuils heuristiques (le verdict final est lu par l'humain sur les chiffres)."""
+    rows = []
+    for s in seeds:
+        leg = run_curriculum("legacy", seed=s, warmup_trials=warmup_trials,
+                             compo_trials=compo_trials, n_agents=n_agents)
+        tor = run_curriculum("torch", seed=s, warmup_trials=warmup_trials,
+                             compo_trials=compo_trials, n_agents=n_agents)
+        rows.append({"seed": int(s), "legacy_delta": leg["delta"], "torch_delta": tor["delta"],
+                     "diff": tor["delta"] - leg["delta"], "legacy": leg, "torch": tor})
+
+    def _med(arm, key):
+        return statistics.median([r[arm][key] for r in rows])
+
+    leg_warm, tor_warm = _med("legacy", "warmup_didx_end"), _med("torch", "warmup_didx_end")
+    leg_hit, tor_hit = _med("legacy", "hit_end"), _med("torch", "hit_end")
+    warmup_ok = (leg_warm > 0.30) and (tor_warm > 0.30)
+    if not warmup_ok:
+        verdict_c = "WARMUP_FAILED"
+    elif leg_hit > 0.30 or tor_hit > 0.30:
+        verdict_c = "DISCOVERY"
+    elif leg_hit <= 0.15 and tor_hit <= 0.15:
+        verdict_c = "CREDIT"
+    else:
+        verdict_c = "AMBIGU"
+    return {**compute_ab_verdict(rows), "verdict_curriculum": verdict_c,
+            "summary": {"legacy_warmup_didx_end": leg_warm, "torch_warmup_didx_end": tor_warm,
+                        "legacy_hit_end": leg_hit, "torch_hit_end": tor_hit},
+            "per_seed": rows}
+
+
 def _probe_one(backend: str, seed: int, n_agents: int, trials: int, num_nodes: int, target_x: int):
     """Collecte (H_pre, H_S2, did_x) par agent SANS apprentissage, puis décode per-agent.
     obs_a VARIÉ par trial (fait varier did_x), obs_b FIXE (S2 n'encode pas did_x)."""
@@ -323,9 +421,34 @@ def main_memory_probe():
     return res
 
 
+def main_curriculum():
+    seeds = [int(s) for s in os.environ.get("SABC_CU_SEEDS", "0,1,2,3,4").split(",") if s.strip()]
+    warmup = int(os.environ.get("SABC_CU_WARMUP", "150"))
+    compo = int(os.environ.get("SABC_CU_COMPO", "250"))
+    n_agents = int(os.environ.get("SABC_CU_AGENTS", "8"))
+    res = compare_curriculum(seeds=tuple(seeds), warmup_trials=warmup,
+                             compo_trials=compo, n_agents=n_agents)
+    print(f"VERDICT_CURRICULUM={res['verdict_curriculum']}  summary={res['summary']}")
+    print("PER-SEED (warmup_didx_end -> hit_end ; compo_didx retention):")
+    for r in res["per_seed"]:
+        for arm in ("legacy", "torch"):
+            a = r[arm]
+            print(f"  seed={r['seed']} {arm:<6} warmup_didx={a['warmup_didx_end']:.3f} "
+                  f"hit_end={a['hit_end']:.3f} compo_didx {a['compo_didx_start']:.3f}->{a['compo_didx_end']:.3f}")
+    out = os.environ.get("SABC_CU_OUT")
+    if out:
+        import json
+        with open(out, "w") as f:
+            json.dump(res, f, indent=2)
+        print(f"WROTE {out}")
+    return res
+
+
 if __name__ == "__main__":
     import sys as _sys
     if "--memory-probe" in _sys.argv:
         main_memory_probe()
+    elif "--curriculum" in _sys.argv:
+        main_curriculum()
     else:
         main()
