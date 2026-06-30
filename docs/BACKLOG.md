@@ -111,6 +111,9 @@ Toute expérience se situe dans **4 familles** de dimensions orthogonales.
 ## 📈 Améliorations et Extensions Futures
 
 ### 1. Richesse de l'Agentique
+
+> **Audit grounded 2026-06-30** (`AUDIT_MEMOIRE_INTELLIGENCE.md`) : backlog priorisé P0→P4 mémoire + typologie d'intelligence. Les items ci-dessous y sont re-cadrés sur le code réel (récup KuzuDB = 5 scalaires top-500 global ≠ épisodique ; ToM = MORTE ; connectome plat sans isolation de gradient).
+
 *   **Mémoire Hiérarchique et Associative** : court terme (tampons sensoriels, mémoire de travail) + long terme (KuzuDB sémantique/épisodique) + buffer d'expérience.
 *   **Modélisation d'Autrui (Theory of Mind Light)** : inférer intentions/croyances/buts d'autrui — fondamental pour les Arcs sociaux.
 *   **Apprentissage Multimodal et Imitatif** : apprendre par observation/imitation, ou instructions simplifiées (dès que le langage émerge).

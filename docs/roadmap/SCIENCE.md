@@ -66,6 +66,15 @@
 5. **Régler le sweet spot d'énergie** (`085`) comme variable d'expérience ; **étoffer les mondes 2&3** (Agri=anticipation, Industrial=coopération) — substrat de l'Arc 5 *(design détaillé → `../BACKLOG.md`)*.
 6. **Vraie RSI** (#8 armé `065-069`) — **après** durcir la sandbox (cf. garde-fous) ; Arc 5 **après** clôture Arc 4.
 
+> **Audit Mémoire & Typologie d'intelligence (2026-06-30)** → backlog priorisé complet dans
+> [`../AUDIT_MEMOIRE_INTELLIGENCE.md`](../AUDIT_MEMOIRE_INTELLIGENCE.md). Constat : mémoire surtout
+> câblée (récup KuzuDB = 5 scalaires top-500 global, pas épisodique) ; modèle = connectome PLAT, têtes
+> = tranches de sortie sans isolation de gradient, fitness scalaire `life_score` (aucune dissociation
+> des facultés). Leviers ordonnés P0→P4 : **P0** fix `clear()` robust_hof + retirer gènes morts (`memory_cache`) ;
+> **P1** banc « demande mémoire » (n-back) + **BPTT dans la boucle** (EDR 067 : 0.78→1.00) ; **P2** [moteur torch]
+> têtes disjointes/losses séparées + récup épisodique réelle ; **P3** fitness per-type + MAP-Elites 4-tier +
+> worlds 2/3 réels (KPI cognitif) + G2 ; **P4** Theory of Mind. Recoupe la migration moteur (`NAS.md`, `sota-gap-substrate`).
+
 ## 🛠️ Outillage / Dev
 
 **Livré (session)** : **Dashboard EDR** + **Biosphère live** (onglets `edr`/`live`, `/api/edr`) ; **HoF robuste** en prod (`robust_hof_K`, gated) ; **knobs d'énergie** (`base_metabolism`/`forage_payoff`, gated) ; **stabilité connectome** longs épisodes (`086`) ; **D1 — socle de validité (RNG/Harness)** : `SeedManager` + `Harness` (composition : seed aux frontières, cycle async_logger, éval robuste **appariée**, provenance), seed boot **loggé** dans `main_biosphere` (run rejouable via `EXPERIMENT_SEED`), `robust_evaluate(seed=)`, pilote `robust_eval` migré (repro exacte prouvée sur la vraie biosphère). **+21 tests.** *(spec/plan : `../superpowers/{specs,plans}/2026-06-13-D1-RNG-Harness*`)*.
