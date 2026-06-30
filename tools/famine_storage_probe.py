@@ -8,7 +8,11 @@ import os
 import sys
 import math
 import statistics
+import json
 from typing import List, Dict
+
+from tools.curriculum_transfer import _sign_test_p
+from tools.s2_demand import load_champion_genome
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
@@ -95,3 +99,63 @@ def evolve_in_famine(seed, eras=15, num_agents=20, max_ticks=300,
         champion_genome = max(all_agents, key=calculate_life_score)["model"].genome
         genomes = build_population([champion_genome], num_agents, mut_config, apply_mutations)
     return champion_genome
+
+
+def compute_emergence_verdict(deltas_famine: List[float], deltas_stoneage: List[float],
+                              min_effect: float = 5.0) -> Dict:
+    """PUR. Delta d'ablation apparié (famine - stoneage) par seed -> verdict d'émergence du stockage."""
+    n = min(len(deltas_famine), len(deltas_stoneage))
+    if n == 0:
+        return {"n": 0, "median_delta_famine": 0.0, "median_delta_stoneage": 0.0,
+                "median_paired": 0.0, "n_favorable": 0, "sign_p": 1.0, "verdict": "N_EMERGE_PAS"}
+    paired = [deltas_famine[i] - deltas_stoneage[i] for i in range(n)]
+    med_pair = float(statistics.median(paired))
+    n_fav = sum(1 for p in paired if p > 0.0)
+    effective = [p for p in paired if p != 0.0]
+    sign_p = _sign_test_p(sum(1 for p in effective if p > 0.0), len(effective))
+    emerge = (med_pair > min_effect) and (2 * n_fav > n) and (sign_p < 0.05)
+    return {"n": n,
+            "median_delta_famine": float(statistics.median(deltas_famine[:n])),
+            "median_delta_stoneage": float(statistics.median(deltas_stoneage[:n])),
+            "median_paired": med_pair, "n_favorable": n_fav, "sign_p": sign_p,
+            "verdict": "EMERGE" if emerge else "N_EMERGE_PAS"}
+
+
+def run_storage_probe(seeds, eras=15, num_agents=20, max_ticks=300,
+                      cycle_abundance=60, cycle_famine=40) -> Dict:
+    """Orchestration : par seed, évolue en famine + ablation A/B (évolué) + contrôle stoneage."""
+    stoneage_genome = load_champion_genome()
+    per_seed, df, ds = [], [], []
+    for seed in seeds:
+        champ = evolve_in_famine(seed, eras, num_agents, max_ticks, cycle_abundance, cycle_famine)
+        f_on = measure_genome(champ, seed, True, num_agents, max_ticks, cycle_abundance, cycle_famine)
+        f_off = measure_genome(champ, seed, False, num_agents, max_ticks, cycle_abundance, cycle_famine)
+        s_on = measure_genome(stoneage_genome, seed, True, num_agents, max_ticks, cycle_abundance, cycle_famine)
+        s_off = measure_genome(stoneage_genome, seed, False, num_agents, max_ticks, cycle_abundance, cycle_famine)
+        d_f = f_on["median_survival"] - f_off["median_survival"]
+        d_s = s_on["median_survival"] - s_off["median_survival"]
+        df.append(d_f); ds.append(d_s)
+        per_seed.append({"seed": int(seed), "delta_famine": d_f, "delta_stoneage": d_s,
+                         "fruits_famine": f_on["fruits_at_transition"],
+                         "fruits_stoneage": s_on["fruits_at_transition"],
+                         "f_on": f_on["median_survival"], "f_off": f_off["median_survival"],
+                         "s_on": s_on["median_survival"], "s_off": s_off["median_survival"]})
+    verdict = compute_emergence_verdict(df, ds)
+    return {**verdict, "per_seed": per_seed,
+            "config": {"seeds": [int(s) for s in seeds], "eras": eras, "num_agents": num_agents,
+                       "max_ticks": max_ticks, "cycle_abundance": cycle_abundance,
+                       "cycle_famine": cycle_famine}}
+
+
+def main():
+    seeds = [int(s) for s in os.environ.get("FSP_SEEDS", "0,1").split(",") if s.strip()]
+    eras = int(os.environ.get("FSP_ERAS", "15"))
+    num_agents = int(os.environ.get("FSP_NUM_AGENTS", "20"))
+    max_ticks = int(os.environ.get("FSP_MAX_TICKS", "300"))
+    r = run_storage_probe(seeds, eras=eras, num_agents=num_agents, max_ticks=max_ticks)
+    print("FSP_RESULT", json.dumps(r))
+    return r
+
+
+if __name__ == "__main__":
+    main()

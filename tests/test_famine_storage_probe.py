@@ -1,5 +1,5 @@
 import numpy as np
-from tools.famine_storage_probe import count_reserves, measure_genome, evolve_in_famine
+from tools.famine_storage_probe import count_reserves, measure_genome, evolve_in_famine, compute_emergence_verdict
 from src.agents.mamba_agent import MambaAgent
 from main_biosphere import init_primordial_soup
 from src.environments.config import WorldConfig
@@ -42,3 +42,26 @@ def test_evolve_in_famine_deterministic():
     g2 = evolve_in_famine(seed=5, eras=2, num_agents=4, max_ticks=30,
                           cycle_abundance=10, cycle_famine=10)
     assert np.array_equal(g1.W, g2.W)
+
+
+def test_verdict_emerge_when_famine_delta_dominates():
+    # l'évolué dépend du cache (gros delta), le stoneage non (delta ~0) -> EMERGE
+    df = [40.0, 35.0, 50.0, 45.0, 38.0, 42.0, 47.0, 39.0]
+    ds = [2.0, 1.0, 3.0, 0.0, 1.0, 2.0, 1.0, 0.0]
+    v = compute_emergence_verdict(df, ds)
+    assert v["verdict"] == "EMERGE"
+    assert v["n"] == 8 and v["n_favorable"] == 8
+    assert v["sign_p"] < 0.05
+
+
+def test_verdict_n_emerge_pas_when_deltas_match():
+    # aucun avantage cache spécifique à l'évolué -> N_EMERGE_PAS (finding substrat)
+    df = [3.0, 2.0, 1.0, 4.0, 2.0, 3.0, 1.0, 2.0]
+    ds = [2.0, 3.0, 2.0, 1.0, 3.0, 2.0, 2.0, 1.0]
+    v = compute_emergence_verdict(df, ds)
+    assert v["verdict"] == "N_EMERGE_PAS"
+
+
+def test_verdict_empty():
+    v = compute_emergence_verdict([], [])
+    assert v["verdict"] == "N_EMERGE_PAS" and v["n"] == 0
