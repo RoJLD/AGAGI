@@ -367,7 +367,7 @@ def _measure_drain(cfg, seeds, n_apex=0, num_agents=NUM_AGENTS, max_ticks=MAX_TI
             "bio_carry": mean(bcarry), "bio_autres": mean(bautres)}
 
 
-def _measure_forage(cfg, seeds, n_apex=0, num_agents=NUM_AGENTS, max_ticks=150):
+def _measure_forage(cfg, seeds, n_apex=0, num_agents=NUM_AGENTS, max_ticks=150, disable_repro=False):
     """EDR105 : decompose l'entonnoir de forage a N_APEX=0. Lit les compteurs _forage_* (poses par
     trace_forage) + preys_eaten + les buckets de pure depense _e_phases/_e_bio (trace_energy_sinks
     co-active) sur le pool, agrege par agent. cfg DOIT avoir trace_forage=True ET trace_energy_sinks=True.
@@ -383,6 +383,8 @@ def _measure_forage(cfg, seeds, n_apex=0, num_agents=NUM_AGENTS, max_ticks=150):
         seed_at(s, 0)
         genomes = _reproduce(champs, num_agents, mc)
         env = Biosphere3D(cfg)
+        if disable_repro:
+            env.benchmark_mode = True   # cohorte fixe : coupe repro energie/MATE/HGT -> de-confond p_reach (pas de dilution par nouveau-nes tardifs)
         _setup_critical(env, 0.0, n_apex=n_apex)
         env.config.target_prey_count = PREY_COUNT
         if hasattr(env, "memory_retriever"):
@@ -824,6 +826,64 @@ def main_approach(speed_levels=(1.0, 0.5, 0.25, 0.0), n_eval=8, R=4, seed=None, 
             aggs.append((s, _measure_forage(cfg, seeds, n_apex=0, max_ticks=150)))
             prog.update()
         return _report_approach(h, aggs, R, n_eval, _return)
+
+
+def _verdict_deconfound(aggs):
+    """De-confond p_reach : compare la cellule FIGEE (speed=0) sans-repro vs avec-repro.
+    CONFOND CONFIRME si ratio (no-repro / repro) >= 1.5 (deflation par pooling reelle) ; CONFOND
+    NEGLIGEABLE si < 1.5 ; INDETERMINE si une des deux cellules figees manque. aggs = liste
+    (disable_repro, speed, agg)."""
+    repro = next((a for d, s, a in aggs if d is False and s == 0.0), None)
+    norepro = next((a for d, s, a in aggs if d is True and s == 0.0), None)
+    if repro is None or norepro is None:
+        return "INDETERMINE"
+    ratio = norepro["p_reach"] / max(repro["p_reach"], 1e-9)
+    return "CONFOND CONFIRME" if ratio >= 1.5 else "CONFOND NEGLIGEABLE"
+
+
+def _report_deconfound(h, aggs, R, n_eval, _return):
+    """Table 2x2 (1 ligne/cellule : disable_repro, speed, p_reach, p_cap, min_dist, n) + facteur de
+    deflation par vitesse (no-repro / repro) + verdict. reached_raw retire avant save. Tout ASCII."""
+    verdict = _verdict_deconfound(aggs)
+    print("\n=== De-confond p_reach (benchmark_mode = cohorte fixe) ===")
+    print("  disable_repro | speed | p_reach p_cap | min_dist | n")
+    for d, s, a in aggs:
+        print(f"  {str(bool(d)):<13} | {s:<5.3g} | {a['p_reach']:7.2f} {a['p_cap']:5.2f} | "
+              f"{a['mean_min_dist']:8.2f} | {a['n_agents']}")
+    for s in sorted({s for _, s, _ in aggs}):
+        rp = next((a['p_reach'] for d, sp, a in aggs if d is False and sp == s), None)
+        nr = next((a['p_reach'] for d, sp, a in aggs if d is True and sp == s), None)
+        if rp is not None and nr is not None:
+            print(f"  speed={s:<5.3g} : repro={rp:.3f} -> no-repro={nr:.3f}  (deflation x{nr / max(rp, 1e-9):.2f})")
+    print("=== VERDICT (de-confond) ===")
+    print(f"  -> {verdict}")
+    table = [{"disable_repro": bool(d), "speed": s, **{k: v for k, v in a.items() if k != "reached_raw"}}
+             for d, s, a in aggs]
+    h.save({"knob": "disable_repro x prey_speed_scale", "R": R, "n_eval": n_eval,
+            "verdict": verdict, "table": table})
+    if _return:
+        return {"verdict": verdict, "table": table, "R": R, "n_eval": n_eval}
+
+
+def main_forage_deconfound(speeds=(1.0, 0.0), n_eval=8, R=1, seed=1140, _return=False):
+    """De-confond p_reach : matrice 2x2 {disable_repro False/True} x {prey_speed mobiles/figees}, politique
+    APPRISE (replicas _load_champions), a N_APEX=0/metab=0/forage_payoff=3, SANS evolution. Quantifie la
+    deflation de p_reach par pooling-reproduction et donne les baselines corriges (re-base EDR 105/106)."""
+    with Harness(seed=seed, name="lewis_forage_deconfound", with_db=False) as h:
+        base = h.seed
+        _disable_kuzu()
+        print(f"De-confond p_reach : speeds={speeds}, R={R}, n_eval={n_eval}, seed={base}.")
+        seeds = [base + r * 1000 + i for r in range(R) for i in range(n_eval)]   # memes seeds/cellule
+        prog = h.progress(2 * len(speeds), label="cellules (disable_repro x speed)")
+        aggs = []
+        for disable_repro in (False, True):
+            for s in speeds:
+                cfg = _cfg(3, base_metabolism=0.0, trace_energy_sinks=True, trace_forage=True,
+                           prey_speed_scale=s)
+                aggs.append((disable_repro, s,
+                             _measure_forage(cfg, seeds, n_apex=0, max_ticks=150, disable_repro=disable_repro)))
+                prog.update()
+        return _report_deconfound(h, aggs, R, n_eval, _return)
 
 
 def _verdict_reach(aggs):
