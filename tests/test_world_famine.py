@@ -142,3 +142,35 @@ def test_famine_io_compat_with_champion_agent():
     w.add_agent(_fresh_model(w), energy=80.0)
     w.step()   # ne crashe pas : obs/action hérités de stoneage
     assert True
+
+
+def test_cache_enabled_false_disables_auto_consume():
+    w = FamineWorld(WorldConfig())
+    if hasattr(w, "memory_retriever"):
+        w.memory_retriever.stop()
+    w.cache_enabled = False
+    w.cycle_abundance, w.cycle_famine = 0, 100   # famine permanente
+    w.add_agent(_fresh_model(w), energy=30.0)
+    a = w.agents[0]
+    a["inventory"].append({"type": "Fruit", "weight": 0.5})
+    e0 = a["energy"]
+    w.step()
+    # cache OFF : le fruit n'est PAS consommé -> reste en inventaire, pas de gain FOOD_VALUE
+    assert any(it.get("type") == "Fruit" for it in a["inventory"])
+    assert a["energy"] <= e0    # aucune remontée d'énergie (drain seul)
+
+
+def test_cache_enabled_default_true_consumes():
+    w = FamineWorld(WorldConfig())
+    if hasattr(w, "memory_retriever"):
+        w.memory_retriever.stop()
+    assert w.cache_enabled is True   # défaut non-régressif
+    w.cycle_abundance, w.cycle_famine = 0, 100
+    w.add_agent(_fresh_model(w), energy=30.0)
+    a = w.agents[0]
+    a["inventory"].append({"type": "Fruit", "weight": 0.5})
+    e0 = a["energy"]
+    w.step()
+    # cache ON (défaut) : fruit consommé, énergie remontée (comportement EDR-118)
+    assert all(it.get("type") != "Fruit" for it in a["inventory"])
+    assert a["energy"] > e0 - 5.0
