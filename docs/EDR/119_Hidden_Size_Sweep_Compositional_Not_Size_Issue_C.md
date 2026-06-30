@@ -4,7 +4,7 @@ type: EDR
 title: Sweep taille cachée compositionnel — la TAILLE n'est PAS le verrou (Issue C ; ×16 cachés sans effet sur les deux substrats ; cap legacy 256)
 status: validated
 gate: null
-verdict: ISSUE C — NOT_SIZE. Grossir la couche cachée ×16 (5→80) ne lève la composition NI pour legacy NI pour torch (hit_end reste au plancher ~0–0.05 partout). RÉFUTE l'interprétation « Issue 2 TAILLE_REQUISE » d'EDR 117 : le verrou est plus profond que la capacité réseau (crédit compositionnel / mémoire récurrente / structure de tâche). Bonus : le substrat legacy est plafonné en DUR à 256 nœuds (LIMIT_N).
+verdict: "ISSUE C — NOT_SIZE. Grossir la couche cachée ×16 (5→80) ne lève la composition NI pour legacy NI pour torch (hit_end reste au plancher ~0–0.05 partout). RÉFUTE l'interprétation « Issue 2 TAILLE_REQUISE » d'EDR 117 : le verrou est plus profond que la capacité réseau (crédit compositionnel / mémoire récurrente / structure de tâche). Bonus : le substrat legacy est plafonné en DUR à 256 nœuds (LIMIT_N)."
 ---
 
 # EDR 119 : Sweep taille cachée — la taille n'est pas le verrou compositionnel (Issue C)
