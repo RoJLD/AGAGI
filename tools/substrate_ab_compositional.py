@@ -175,9 +175,11 @@ def run_curriculum(backend: str, seed: int = 0, warmup_trials: int = 150, compo_
         pop.learn(reward2, [{"move": int(m), "grab": 0, "rub": 0} for m in move2])
         hit.append(float(np.mean((move2 == target_y) & did_x)))
         bx.append(float(np.mean(did_x)))
-    qb = max(1, compo_trials // 4)
-    hit_start, hit_end = float(np.mean(hit[:qb])), float(np.mean(hit[-qb:]))
-    compo_didx_start, compo_didx_end = float(np.mean(bx[:qb])), float(np.mean(bx[-qb:]))
+    qb = max(1, compo_trials // 4) if compo_trials else 0
+    hit_start = float(np.mean(hit[:qb])) if qb else 0.0
+    hit_end = float(np.mean(hit[-qb:])) if qb else 0.0
+    compo_didx_start = float(np.mean(bx[:qb])) if qb else 0.0
+    compo_didx_end = float(np.mean(bx[-qb:])) if qb else 0.0
     return {"backend": backend, "seed": int(seed), "warmup_trials": warmup_trials,
             "compo_trials": compo_trials, "n_agents": n_agents,
             "warmup_didx_start": warmup_didx_start, "warmup_didx_end": warmup_didx_end,

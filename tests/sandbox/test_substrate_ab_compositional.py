@@ -187,6 +187,8 @@ def test_run_curriculum_warmup0_is_compositional():
     for k in ("warmup_didx_end", "hit_start", "hit_end", "compo_didx_end", "delta"):
         assert k in r
     assert 0.0 <= r["hit_end"] <= 1.0
+    assert r["warmup_didx_start"] == 0.0
+    assert r["warmup_didx_end"] == 0.0
 
 
 @pytest.mark.slow
