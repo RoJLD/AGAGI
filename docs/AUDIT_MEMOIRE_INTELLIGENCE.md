@@ -50,9 +50,17 @@
 Tri par (valeur × levier) / coût, en respectant la coordination avec la session // moteur torch.
 Légende coordination : **[I]** = instrument-side, zéro collision ; **[M]** = à poser dans le moteur torch (coordonner).
 
-### P0 — Quick wins / hygiène (cheap, immédiat) **[I]**
+### P0 — Quick win / hygiène (cheap, immédiat) **[I]**
 1. **Fix `clear()` manquant** dans `robust_hof.py:40` (`stop()` sans `clear()` → fuite de cache, non-repro entre évals back-to-back). Une ligne. Étend `biosphere-ambient-memory-nonrepro`.
-2. **Retirer la machinerie morte** : gène `memory_cache` (`mutation.py:27/52`, `evolution.py:286`) ; `H_history`/`H_potentials` non mis à jour dans le batch forward. Clarté, zéro comportement.
+
+> **NE PAS supprimer la « machinerie morte »** (`memory_cache`, `H_history`/`H_potentials`, `bytecode`).
+> Décision 2026-06-30 : (a) `memory_cache` n'est pas mort mais **DORMANT** — lu par le moteur legacy
+> `evolution.py::forward()` (op 4 Neurone-Sonde), même statut que `bytecode` qu'EDR 031 a gardé comme
+> « câblage différé Vague 2 (RSI) » ; (b) ce sont des champs `Genome` → supprimer touche la
+> sérialisation (champions/HoF KuzuDB), risque de régression pour gain nul ; (c) `mutation.py`/
+> `evolution.py` sont édités par la session // moteur torch → collision ; (d) la migration moteur les
+> retirera d'elle-même. **La valeur = les DOCUMENTER mort-en-prod (fait ici)**, pas les couper. Seul
+> garde-fou utile contre la reconfusion (cf. bug keystone `from_genome`) = ce statut écrit.
 
 ### P1 — Leviers mesurés à fort ROI (falsifiables, préalables) **[I]**
 3. **Banc « demande mémoire »** : tâche n-back / delayed-match-to-sample (nouveau monde/bench). EDR 062/058 : SANS demande mémoire, l'archi ne grandit pas et la mémoire ne paie pas → **préalable** qui débloque #4/#6 (sans lui, BPTT et récup épisodique optimisent une capacité que rien n'exige).
