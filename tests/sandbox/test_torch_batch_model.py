@@ -31,6 +31,7 @@ def test_forward_syncs_agent_state():
 
 
 def test_cpg_actor_critic_learns():
+    import torch; torch.manual_seed(0)
     np.random.seed(0)
     m = MambaAgent()
     bm = TorchBatchModel([m])

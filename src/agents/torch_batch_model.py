@@ -70,11 +70,10 @@ class TorchBatchModel:
 
     def _sync_agent_state(self, H_new, env_surprise_batch):
         """Sync des attributs lus par le monde après chaque forward."""
-        H_np = H_new.cpu().numpy()
+        W_np = self.W.detach().cpu().numpy()
         for i, a in enumerate(self.agents):
             idx = self.mappings[i]
             # W writeback (état courant du réseau différentiable → génome)
-            W_np = self.W.detach().cpu().numpy()
             a.genome.W = W_np[i][idx[:, None], idx[None, :]].astype(np.float32).copy()
             # surprise_momentum : scalaire flottant
             if env_surprise_batch is not None:
