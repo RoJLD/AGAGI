@@ -203,3 +203,53 @@ def test_compare_curriculum_smoke():
     for k in ("legacy", "torch"):
         for kk in ("warmup_didx_end", "hit_end", "compo_didx_end"):
             assert kk in row[k]
+
+
+def test_fade_weight_linear_decay():
+    """fade_w = w0·(1−t/T) : plein à t=0, 0 à t=T, moitié à t=T/2 ; w0=0 → 0 partout (bascule dure)."""
+    from tools.substrate_ab_compositional import _fade_weight
+    assert _fade_weight(0, 100, 1.0) == 1.0
+    assert _fade_weight(100, 100, 1.0) == 0.0
+    assert _fade_weight(50, 100, 1.0) == 0.5
+    assert _fade_weight(0, 100, 0.0) == 0.0
+    assert _fade_weight(50, 100, 0.0) == 0.0
+
+
+def test_p_y_given_x_conditional():
+    """P(Y|X) = fraction de y_correct PARMI les trials où did_x ; None si aucun did_x."""
+    import numpy as np
+    from tools.substrate_ab_compositional import _p_y_given_x
+    # did_x sur trials 0,1 ; y_correct sur 0 seulement → 1/2 = 0.5
+    assert _p_y_given_x(np.array([True, False, True, True]),
+                        np.array([True, True, False, False])) == 0.5
+    # tous did_x, tous y → 1.0
+    assert _p_y_given_x(np.array([True, True]), np.array([True, True])) == 1.0
+    # aucun did_x → None
+    assert _p_y_given_x(np.array([True, True]), np.array([False, False])) is None
+
+
+@pytest.mark.slow
+def test_run_curriculum_fade_keys_and_w0_zero():
+    """run_curriculum_fade renvoie les clés (dont p_y_given_x_end) ; fade_w0=0 tourne sans erreur."""
+    pytest.importorskip("torch")
+    from tools.substrate_ab_compositional import run_curriculum_fade
+    r = run_curriculum_fade("legacy", seed=0, warmup_trials=10, compo_trials=40, n_agents=4, fade_w0=0.0)
+    for k in ("warmup_didx_end", "hit_end", "compo_didx_end", "p_y_given_x_end", "y_rate_end", "delta"):
+        assert k in r
+    assert 0.0 <= r["hit_end"] <= 1.0
+    assert (r["p_y_given_x_end"] is None) or (0.0 <= r["p_y_given_x_end"] <= 1.0)
+
+
+@pytest.mark.slow
+def test_compare_curriculum_fade_smoke():
+    """compare_curriculum_fade renvoie un verdict_fade structuré + per_seed avec P(Y|X)."""
+    pytest.importorskip("torch")
+    from tools.substrate_ab_compositional import compare_curriculum_fade
+    res = compare_curriculum_fade(seeds=(0,), warmup_trials=40, compo_trials=40, n_agents=4)
+    assert res["verdict_fade"] in {"CEILING_WAS_RETENTION", "CEILING_WAS_BINDING",
+                                   "FADE_INEFFECTIVE", "AMBIGU"}
+    assert res["per_seed"] and len(res["per_seed"]) == 1
+    row = res["per_seed"][0]
+    for arm in ("legacy", "torch"):
+        for k in ("hit_end", "compo_didx_end", "p_y_given_x_end"):
+            assert k in row[arm]

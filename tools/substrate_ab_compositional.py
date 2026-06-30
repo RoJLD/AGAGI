@@ -129,6 +129,25 @@ def _warmup_reward(move1: int, target_x: int) -> float:
     return 1.0 if move1 == target_x else -1.0
 
 
+def _fade_weight(t: int, total: int, w0: float) -> float:
+    """Poids de maintien de X en phase B : décroissance LINÉAIRE w0·(1−t/total) (plein à t=0, 0 à
+    t=total). w0=0 → 0 partout (≡ bascule dure). PUR."""
+    if total <= 0 or w0 == 0.0:
+        return 0.0
+    return float(w0 * (1.0 - t / total))
+
+
+def _p_y_given_x(y_correct, did_x):
+    """P(Y correct | X fait) = fraction de y_correct PARMI les trials où did_x est vrai.
+    None si aucun did_x (conditionnel indéfini). MESURE directe du binding (pas d'inférence). PUR."""
+    y_correct = np.asarray(y_correct, dtype=bool)
+    did_x = np.asarray(did_x, dtype=bool)
+    n = int(np.sum(did_x))
+    if n == 0:
+        return None
+    return float(np.sum(y_correct & did_x) / n)
+
+
 def run_curriculum(backend: str, seed: int = 0, warmup_trials: int = 150, compo_trials: int = 250,
                    n_agents: int = 8, target_x: int = 0, target_y: int = 4) -> dict:
     """Curriculum 2 phases (bascule dure). Phase A : enseigner X (reward dense did_x, S1 seul).
@@ -186,6 +205,114 @@ def run_curriculum(backend: str, seed: int = 0, warmup_trials: int = 150, compo_
             "hit_start": hit_start, "hit_end": hit_end,
             "compo_didx_start": compo_didx_start, "compo_didx_end": compo_didx_end,
             "delta": hit_end - hit_start}
+
+
+def run_curriculum_fade(backend: str, seed: int = 0, warmup_trials: int = 150, compo_trials: int = 250,
+                        n_agents: int = 8, target_x: int = 0, target_y: int = 4,
+                        fade_w0: float = 1.0) -> dict:
+    """Curriculum à FADE. Phase A : enseigner X (dense). Phase B : S1 reward = fade_w·warmup_reward
+    (fade_w décroît linéairement de fade_w0 à 0) → maintient X au lieu de le laisser décliner ;
+    S2 reward = compositionnel. Mesure le joint `hit`, la rétention `compo_didx`, ET P(Y|X) DIRECT.
+    fade_w0=0 ≡ bascule dure (baseline EDR 122)."""
+    np.random.seed(seed)
+    try:
+        import torch
+        torch.manual_seed(seed)
+    except Exception:
+        pass
+    agents = _build_agents(n_agents, 172, "prod")
+    pop = make_population(agents, backend=backend)
+    rng = np.random.RandomState(seed + 1)
+    n_in = agents[0].genome.num_inputs
+    obs_a = (rng.randn(n_agents, n_in) * 0.5).astype(np.float32)
+    obs_b = (rng.randn(n_agents, n_in) * 0.5).astype(np.float32)
+
+    # --- Phase A : warmup dense sur X (S1 seul) ---
+    warm = []
+    for _ in range(warmup_trials):
+        preds1, _ = pop.forward(obs_a)
+        move1 = np.asarray(preds1)[:, :_MOVE].argmax(axis=1)
+        warm.append(float(np.mean(move1 == target_x)))
+        reward = np.array([_warmup_reward(int(m), target_x) for m in move1], dtype=np.float32)
+        pop.learn(reward, [{"move": int(m), "grab": 0, "rub": 0} for m in move1])
+    qa = max(1, warmup_trials // 4) if warmup_trials else 0
+    warmup_didx_end = float(np.mean(warm[-qa:])) if qa else 0.0
+
+    # --- Phase B : compositionnel + fade linéaire du maintien de X ---
+    hit, bx, yc = [], [], []
+    for t in range(compo_trials):
+        fade_w = _fade_weight(t, compo_trials, fade_w0)
+        preds1, _ = pop.forward(obs_a)
+        move1 = np.asarray(preds1)[:, :_MOVE].argmax(axis=1)
+        did_x = (move1 == target_x)
+        s1_reward = np.array([fade_w * _warmup_reward(int(m), target_x) for m in move1], dtype=np.float32)
+        pop.learn(s1_reward, [{"move": int(m), "grab": 0, "rub": 0} for m in move1])
+        preds2, _ = pop.forward(obs_b)
+        move2 = np.asarray(preds2)[:, :_MOVE].argmax(axis=1)
+        y_correct = (move2 == target_y)
+        reward2 = np.array([compositional_reward(int(move2[i]), target_y, bool(did_x[i]))
+                            for i in range(n_agents)], dtype=np.float32)
+        pop.learn(reward2, [{"move": int(m), "grab": 0, "rub": 0} for m in move2])
+        hit.append(float(np.mean(y_correct & did_x)))
+        bx.append(did_x)
+        yc.append(y_correct)
+    qb = max(1, compo_trials // 4) if compo_trials else 0
+    hit_start = float(np.mean(hit[:qb])) if qb else 0.0
+    hit_end = float(np.mean(hit[-qb:])) if qb else 0.0
+    didx_end = np.concatenate(bx[-qb:]) if qb else np.array([], dtype=bool)
+    didx_start = np.concatenate(bx[:qb]) if qb else np.array([], dtype=bool)
+    yc_end = np.concatenate(yc[-qb:]) if qb else np.array([], dtype=bool)
+    yc_start = np.concatenate(yc[:qb]) if qb else np.array([], dtype=bool)
+    compo_didx_start = float(np.mean(didx_start)) if didx_start.size else 0.0
+    compo_didx_end = float(np.mean(didx_end)) if didx_end.size else 0.0
+    return {"backend": backend, "seed": int(seed), "warmup_trials": warmup_trials,
+            "compo_trials": compo_trials, "fade_w0": fade_w0, "n_agents": n_agents,
+            "warmup_didx_end": warmup_didx_end,
+            "hit_start": hit_start, "hit_end": hit_end,
+            "compo_didx_start": compo_didx_start, "compo_didx_end": compo_didx_end,
+            "p_y_given_x_start": _p_y_given_x(yc_start, didx_start),
+            "p_y_given_x_end": _p_y_given_x(yc_end, didx_end),
+            "y_rate_end": float(np.mean(yc_end)) if yc_end.size else 0.0,
+            "delta": hit_end - hit_start}
+
+
+def compare_curriculum_fade(seeds=(0, 1, 2, 3, 4), warmup_trials: int = 150, compo_trials: int = 250,
+                            n_agents: int = 8, fade_w0: float = 1.0) -> dict:
+    """A/B apparié legacy vs torch du curriculum à fade. Verdict_fade :
+    FADE_INEFFECTIVE si torch compo_didx_end médian ≤ 0.40 (le fade n'a PAS maintenu X → garde-fou) ;
+    CEILING_WAS_RETENTION si torch hit_end médian > 0.35 ET p_y_given_x_end médian > 0.70 ;
+    CEILING_WAS_BINDING si X maintenu (compo_didx_end > 0.60) MAIS hit_end ≤ 0.35 / p_y_given_x ≤ 0.70 ;
+    sinon AMBIGU. Seuils heuristiques (verdict final lu par l'humain sur les chiffres)."""
+    rows = []
+    for s in seeds:
+        leg = run_curriculum_fade("legacy", seed=s, warmup_trials=warmup_trials,
+                                  compo_trials=compo_trials, n_agents=n_agents, fade_w0=fade_w0)
+        tor = run_curriculum_fade("torch", seed=s, warmup_trials=warmup_trials,
+                                  compo_trials=compo_trials, n_agents=n_agents, fade_w0=fade_w0)
+        rows.append({"seed": int(s), "legacy_delta": leg["delta"], "torch_delta": tor["delta"],
+                     "diff": tor["delta"] - leg["delta"], "legacy": leg, "torch": tor})
+
+    def _med(arm, key):
+        vals = [r[arm][key] for r in rows if r[arm][key] is not None]
+        return statistics.median(vals) if vals else None
+
+    tor_didx = _med("torch", "compo_didx_end")
+    tor_hit = _med("torch", "hit_end")
+    tor_pyx = _med("torch", "p_y_given_x_end")
+    if tor_didx is None or tor_didx <= 0.40:
+        verdict_f = "FADE_INEFFECTIVE"
+    elif tor_hit is not None and tor_hit > 0.35 and tor_pyx is not None and tor_pyx > 0.70:
+        verdict_f = "CEILING_WAS_RETENTION"
+    elif tor_didx > 0.60 and (tor_hit is None or tor_hit <= 0.35 or tor_pyx is None or tor_pyx <= 0.70):
+        verdict_f = "CEILING_WAS_BINDING"
+    else:
+        verdict_f = "AMBIGU"
+    return {**compute_ab_verdict(rows), "verdict_fade": verdict_f,
+            "summary": {"torch_compo_didx_end": tor_didx, "torch_hit_end": tor_hit,
+                        "torch_p_y_given_x_end": tor_pyx,
+                        "legacy_hit_end": _med("legacy", "hit_end"),
+                        "legacy_p_y_given_x_end": _med("legacy", "p_y_given_x_end")},
+            "per_seed": rows}
 
 
 def compare_curriculum(seeds=(0, 1, 2, 3, 4), warmup_trials: int = 150,
@@ -446,10 +573,38 @@ def main_curriculum():
     return res
 
 
+def main_curriculum_fade():
+    seeds = [int(s) for s in os.environ.get("SABC_CF_SEEDS", "0,1,2,3,4").split(",") if s.strip()]
+    warmup = int(os.environ.get("SABC_CF_WARMUP", "150"))
+    compo = int(os.environ.get("SABC_CF_COMPO", "250"))
+    n_agents = int(os.environ.get("SABC_CF_AGENTS", "8"))
+    fade_w0 = float(os.environ.get("SABC_CF_W0", "1.0"))
+    res = compare_curriculum_fade(seeds=tuple(seeds), warmup_trials=warmup, compo_trials=compo,
+                                  n_agents=n_agents, fade_w0=fade_w0)
+    print(f"VERDICT_FADE={res['verdict_fade']} (w0={fade_w0})  summary={res['summary']}")
+    print("PER-SEED (compo_didx_end ; hit_end ; P(Y|X)_end) :")
+    for r in res["per_seed"]:
+        for arm in ("legacy", "torch"):
+            a = r[arm]
+            pyx = a["p_y_given_x_end"]
+            pyx_s = f"{pyx:.3f}" if pyx is not None else " None"
+            print(f"  seed={r['seed']} {arm:<6} didx_end={a['compo_didx_end']:.3f} "
+                  f"hit_end={a['hit_end']:.3f} P(Y|X)={pyx_s} y_rate={a['y_rate_end']:.3f}")
+    out = os.environ.get("SABC_CF_OUT")
+    if out:
+        import json
+        with open(out, "w") as f:
+            json.dump(res, f, indent=2)
+        print(f"WROTE {out}")
+    return res
+
+
 if __name__ == "__main__":
     import sys as _sys
     if "--memory-probe" in _sys.argv:
         main_memory_probe()
+    elif "--curriculum-fade" in _sys.argv:
+        main_curriculum_fade()
     elif "--curriculum" in _sys.argv:
         main_curriculum()
     else:
