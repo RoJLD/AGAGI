@@ -210,7 +210,7 @@ def main():
     logger.info(f"[SEED] experiment_seed={config.experiment_seed}  (rejouer : EXPERIMENT_SEED={config.experiment_seed})")
 
     generation_auto = 1
-    MAX_ERAS = 30
+    MAX_ERAS = int(os.environ.get("MAX_ERAS", "30"))
     MAX_TICKS_PER_ERA = 1200  # garde-temps : evite un hang si une population se stabilise
     headless = os.getenv("HEADLESS", "0") == "1"  # run sans rendu (arriere-plan)
     
@@ -227,6 +227,9 @@ def main():
             env = AgriculturalWorld(config)
         elif world_type == "industrial":
             env = IndustrialWorld(config)
+        elif world_type == "famine":
+            from src.worlds.world_famine import FamineWorld
+            env = FamineWorld(config)
         else:
             env = Biosphere3D(config)
 
