@@ -107,9 +107,9 @@ Harnais valide. La lecture des bras γ=0.99 et γ=0.999 est fiable.
 | 11  | 0.0492 | 0.0556 | 0.0196 | 0.0415   | 0.0220  | 0.1090  | 0.1170  | 0.0827    | 0.0000  | 0.0820  | 0.0180  | 0.0333     |
 
 **Synthèse frac_apex :**
-- Toutes ères : γ=0.9 → 0.1112, γ=0.99 → 0.0922, γ=0.999 → 0.0841
+- Toutes ères : γ=0.9 → 0.1112, γ=0.99 → 0.0922, γ=0.999 → 0.0976
 - Ères tardives (e6-11) : γ=0.9 → 0.0821, γ=0.99 → 0.0739, γ=0.999 → 0.0828
-- **γ↑ NE MONTE PAS l'apex.** La dose-réponse est plate ou légèrement négative.
+- **γ↑ NE MONTE PAS l'apex.** La dose-réponse est **non-monotone** : apex_all passe de 0.111 → 0.092 → **0.098** (légère remontée à γ=0.999), mais reste sous le bras γ=0.9 ; l'apex tardif reste plat (~0.07-0.08) quelle que soit la valeur de γ.
 - Les ères tardives convergent vers le même plateau (~0.07-0.08) quelle que soit la valeur de γ.
 - L'ère initiale (e0) décline légèrement avec γ↑ : 0.228 → 0.148 → 0.119.
 
@@ -146,13 +146,13 @@ le résultat.
 gamma | horizon ~  | apex_e0 | apex_late | apex_all | tool_all | C_all
 0.9   |    10 ticks | 0.2279  | 0.0821    | 0.1112   | 0.0114   | 0.1991
 0.99  |   100 ticks | 0.1480  | 0.0739    | 0.0922   | N/A      | 0.1770
-0.999 |  1000 ticks | 0.1187  | 0.0828    | 0.0841   | N/A      | 0.1817
+0.999 |  1000 ticks | 0.1187  | 0.0828    | 0.0976   | N/A      | 0.1817
 ```
 
 Forme de la dose-réponse (par colonne) :
 - `apex_e0` : monotone décroissant (0.228 → 0.148 → 0.119). γ↑ dégrade l'ère initiale.
 - `apex_late` : plat (~0.07-0.08) ; pas de signal monotone.
-- `apex_all` : légèrement décroissant (0.111 → 0.092 → 0.084) mais dominé par l'effet e0.
+- `apex_all` : **non-monotone** (0.111 → 0.092 → 0.098) — légère remontée à γ=0.999, mais reste sous γ=0.9 et dominé par l'effet e0 ; l'apex tardif reste plat.
 - `C_all` : légère baisse γ=0.9→0.99, remontée partielle γ=0.999 — pas de tendance monotone claire.
 
 Interprétation de la décroissance à l'ère 0 : pour un horizon long (γ=0.999, ~1000 ticks),
@@ -160,6 +160,16 @@ les valeurs bootstrap (issues du HoF stoneage) sont moins stables — la varianc
 TD augmente, ce qui perturbe plus la politique en début d'ère. Cet effet s'estompe avec
 l'accumulation d'expérience (ères tardives convergent au même plateau). Ce n'est pas un
 effondrement d'apprentissage (Issue 3 : C et n restent sains).
+
+**Caveat — γ élevé comme nuisance active à l'apprentissage précoce :** la dégradation monotone
+d'apex_e0 avec γ↑ (0.228 → 0.148 → 0.119) est également cohérente avec l'hypothèse que γ
+élevé nuit activement à l'apprentissage précoce — en parallèle avec EDR 095 ([[dreaming-organ-not-dead]])
+où forcer un mécanisme temporel supplémentaire réduit la survie. La convergence tardive montre
+seulement que le *plancher* des ères tardives est γ-invariant, pas que γ est inoffensif en début
+d'apprentissage. Ces deux interprétations (variance TD transitoire vs nuisance active précoce) sont
+compatibles avec les données disponibles et ne sont pas tranchées par cet EDR. Elles ne changent
+pas le verdict Issue 2 : que γ soit neutre ou légèrement nuisible à l'ère 0, il n'aide pas l'apex
+— l'horizon de crédit n'est pas le levier qui lève la stratégie craft→apex.
 
 ---
 
