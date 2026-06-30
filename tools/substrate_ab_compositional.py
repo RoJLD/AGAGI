@@ -146,12 +146,10 @@ def main():
     n_agents = int(os.environ.get("SABC_AGENTS", "8"))
     res = sweep(hiddens=hiddens, inits=inits, seeds=seeds, trials=trials, n_agents=n_agents)
     print("CELLS (hidden x init -> verdict, median diff, hit_end medians):")
-    for c in res["cells"]:
-        leg_he = statistics.median([r["legacy"]["hit_end"] for r in c["per_seed"]])
-        tor_he = statistics.median([r["torch"]["hit_end"] for r in c["per_seed"]])
+    for c, lp, tp in zip(res["cells"], res["curve"]["legacy"], res["curve"]["torch"]):
         print(f"  hidden={c['hidden']:>3} init={c['init']:<10} verdict={c['verdict']:<14} "
               f"median_diff={c['median_diff']:+.3f} sign_p={c['sign_p']:.3f} "
-              f"legacy_hit_end={leg_he:.3f} torch_hit_end={tor_he:.3f}")
+              f"legacy_hit_end={lp['median_hit_end']:.3f} torch_hit_end={tp['median_hit_end']:.3f}")
     print("CURVE legacy:", [(p["hidden"], p["init"], round(p["median_hit_end"], 3)) for p in res["curve"]["legacy"]])
     print("CURVE torch :", [(p["hidden"], p["init"], round(p["median_hit_end"], 3)) for p in res["curve"]["torch"]])
     out = os.environ.get("SABC_OUT")

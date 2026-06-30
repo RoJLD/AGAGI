@@ -35,6 +35,14 @@ def test_init_factor_anchor_is_one():
     assert _init_factor(172, "prod") == 1.0
 
 
+def test_normalized_anchor_equals_prod_factor():
+    """À l'ancrage (num_nodes=172, hidden=5), normalized et prod ont le MÊME facteur (1.0)
+    → c'est l'invariant qui déclenche la déduplication dans sweep (pas de cellule en double)."""
+    assert _init_factor(172, "normalized") == _init_factor(172, "prod") == 1.0
+    # Hors ancrage, les facteurs DIVERGENT (pas de dédup) :
+    assert _init_factor(187, "normalized") != _init_factor(187, "prod")
+
+
 def test_init_factor_normalized_formula():
     """Facteur normalisé = sqrt(171/(N-1)) ; prod toujours 1.0 quelle que soit la taille."""
     assert _init_factor(267, "normalized") == pytest.approx(np.sqrt(171.0 / 266.0))
