@@ -84,7 +84,11 @@ La mesure DIRECTE de P(Y|X) (le gap d'EDR 122, comblé ici) montre :
 
 → Conditionner sur `did_x` **n'augmente PAS** l'émission de Y (si quoi que ce soit, marginalement
 anti-corrélé). Par l'algèbre `P(Y) = P(Y|X)·P(X) + P(Y|¬X)·P(¬X)`, on déduit **P(Y|¬X) ≈ P(Y|X)**
-(seed 0 : P(Y|¬X) ≈ 0.84 ≥ P(Y|X) = 0.77). **Y ⊥ did_x.** Torch résout le joint en **montant les DEUX
+(seed 0 : P(Y|¬X) ≈ 0.84 ≥ P(Y|X) = 0.77). **Y ⊥ did_x (au plus marginalement anti-corrélé, jamais
+positivement).** Ce qui est établi par les données, c'est l'**absence de binding POSITIF** (X n'augmente
+pas Y) ; le signe systématiquement ≤ 0 pourrait être une stricte indépendance OU un léger trade-off
+comportemental (l'action S1 sur X corrélant à une politique S2 marginalement différente) — la conclusion
+« pas de binding » est identique dans les deux lectures. Torch résout le joint en **montant les DEUX
 marginales** P(X) (0.87) et P(Y) (~0.72), PAS en **conditionnant** Y sur X. Le joint élevé (0.59) est le
 PRODUIT de deux marginales hautes, pas un binding.
 
@@ -135,6 +139,10 @@ torch + curriculum + fade.** Le binding reste le verrou résiduel.
    AUC~0.90), donc l'info EST là ; torch ne l'UTILISE pas pour gater Y sous ce shaping. Un shaping qui
    punit Y-sans-X testerait si le conditionnement peut être forcé (suite).
 5. **Micro-tâche proxy** : X-gate-Y, PAS une preuve d'apex en prod (bornage 115/117/119/120/122).
+6. **Asymétrie de seeds baseline** : le bras fade (w0=1.0) tourne sur 5 seeds, la baseline de cohérence
+   (w0=0) sur 3 seeds seulement. Non bloquant car l'équivalence w0=0 ≡ bascule dure est garantie
+   STRUCTURELLEMENT (`_fade_weight` retourne 0.0 si w0=0), pas par hasard de seed ; mais l'asymétrie est
+   notée pour honnêteté (un re-run baseline 5 seeds la lèverait).
 
 ## Liens
 
