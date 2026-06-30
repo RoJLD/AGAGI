@@ -177,3 +177,45 @@ def test_cache_enabled_default_true_consumes():
     # cache ON (défaut) : fruit consommé, énergie remontée (comportement EDR-118)
     assert all(it.get("type") != "Fruit" for it in a["inventory"])
     assert a["energy"] > e0 - 5.0
+
+
+def test_energy_bank_withdraws_from_reserve_in_famine():
+    np.random.seed(42)
+    w = FamineWorld(WorldConfig())
+    if hasattr(w, "memory_retriever"):
+        w.memory_retriever.stop()
+    w.cache_enabled = True
+    w.cycle_abundance, w.cycle_famine = 0, 100   # famine permanente
+    w.add_agent(_fresh_model(w), energy=10.0)    # affame (< starve_threshold 25)
+    a = w.agents[0]
+    a["reserve"] = 50.0
+    r0 = a["reserve"]
+    w.step()
+    assert a.get("reserve", 0.0) < r0   # retrait de la reserve en famine quand affame
+
+
+def test_energy_bank_no_withdraw_when_cache_off():
+    w = FamineWorld(WorldConfig())
+    if hasattr(w, "memory_retriever"):
+        w.memory_retriever.stop()
+    w.cache_enabled = False
+    w.cycle_abundance, w.cycle_famine = 0, 100
+    w.add_agent(_fresh_model(w), energy=10.0)
+    a = w.agents[0]
+    a["reserve"] = 50.0
+    r0 = a["reserve"]
+    w.step()
+    assert a.get("reserve", 0.0) == r0   # cache OFF : aucun retrait (banque desactivee)
+
+
+def test_energy_bank_stores_surplus_in_abundance():
+    w = FamineWorld(WorldConfig())
+    if hasattr(w, "memory_retriever"):
+        w.memory_retriever.stop()
+    w.cache_enabled = True
+    w.cycle_abundance, w.cycle_famine = 100, 0   # abondance permanente
+    w.add_agent(_fresh_model(w), energy=100.0)   # surplus > BANK_THRESHOLD 60
+    a = w.agents[0]
+    a["model"].phenotype_energy_drain = 0.0      # isole l'effet banque
+    w.step()
+    assert a.get("reserve", 0.0) > 0   # le surplus est banque en abondance
