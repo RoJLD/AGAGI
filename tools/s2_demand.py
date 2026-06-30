@@ -14,6 +14,7 @@ from src.worlds.world_1_stoneage import Biosphere3D
 from src.worlds.world_0_soup import SoupWorld
 from src.worlds.world_2_agricultural import AgriculturalWorld
 from src.worlds.world_3_industrial import IndustrialWorld
+from src.worlds.world_famine import FamineWorld
 
 
 def run_condition(world_cls, batch_model_cls, genome, seed, num_agents=20, max_ticks=400, n_eras=1):
@@ -107,7 +108,8 @@ def pilot_required_k(world_cls, champion_genome, seed, k_pilot=5):
 
 
 WORLDS = {"soup": SoupWorld, "stoneage": Biosphere3D,
-          "agricultural": AgriculturalWorld, "industrial": IndustrialWorld}
+          "agricultural": AgriculturalWorld, "industrial": IndustrialWorld,
+          "famine": FamineWorld}
 BASELINE_KEYS = ("random_action", "random_genome", "reflex_naive", "reflex_prudent")
 
 
