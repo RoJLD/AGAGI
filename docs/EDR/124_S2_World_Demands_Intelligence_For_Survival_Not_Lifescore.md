@@ -39,6 +39,14 @@ p=0.0025 = minimum à K=12 (12/12 ères appariées positives). Holm sur les 4 mo
 (survit à la correction FWER). **Le monde EXIGE l'intelligence pour survivre, partout, massivement.**
 Cause-racine B **fermée**.
 
+**Réplication RAG-on (2026-06-30).** Refait SANS `_disable_kuzu` (mémoire RAG active, KuzuDB isolé
+par worktree). Verdict **identique : EXIGE partout**, à des magnitudes quasi inchangées (p=0.0025,
+Cliff δ 0.92–0.95, ratio 3.4–4.5×) — y compris sur un **5ᵉ monde `famine`** ajouté entre-temps
+(Holm sur 5 = 0.0126). Deux corollaires : (a) le résultat RAG-off n'était pas un artefact du
+`_disable_kuzu` ; (b) **activer la RAG ne change PAS la survie** dans ce benchmark → la mémoire
+ambiante n'est pas le levier de survie ici (cohérent avec l'audit mémoire : KuzuDB ≈ 5 scalaires
+globaux, peu épisodique).
+
 ## Le faux VOID et sa correction (addendum 2026-06-30)
 
 `s2_verdict` rendait d'abord **VOID** dans les 4 mondes : son **gate de cohérence** teste le
