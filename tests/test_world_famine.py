@@ -214,7 +214,7 @@ def test_energy_bank_stores_surplus_in_abundance():
         w.memory_retriever.stop()
     w.cache_enabled = True
     w.cycle_abundance, w.cycle_famine = 100, 0   # abondance permanente
-    w.add_agent(_fresh_model(w), energy=100.0)   # surplus > BANK_THRESHOLD 60
+    w.add_agent(_fresh_model(w), energy=100.0)   # surplus > BANK_THRESHOLD 90
     a = w.agents[0]
     a["model"].phenotype_energy_drain = 0.0      # isole l'effet banque
     w.step()
