@@ -51,3 +51,11 @@ def test_interference_cosine_h_runs():
     batch = _make_data(16, 123, teachers)
     c = _interference_cosine_h(FlatModelH(6), batch)
     assert isinstance(c, float) and c == c  # not NaN
+
+
+def test_smoke_capacity_returns_verdict():
+    from tools.disjoint_heads_capacity import main_capacity_check
+
+    res = main_capacity_check(K=1, base=99000, Hs=(48, 3), steps=25, _return=True)
+    assert res["verdict"] == "SKIPPED_NO_TORCH" or "+" in res["verdict"]
+    assert "per_H" in res

@@ -107,3 +107,111 @@ def _verdict_capacity(cos_list, recovery_list):
     else:
         axis_b = "CREDIT_PARTIAL"
     return axis_a + "+" + axis_b
+
+
+def _train_arm_h(arm, seed, teachers, H, steps=STEPS):
+    """Entraine un bras ('flat'|'disjoint') a capacite H, deterministe par seed. Fidele a _train_arm (152).
+    Retourne (eval_losses, interference|None)."""
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    held = _make_data(HELDOUT, seed + 10_000, teachers)
+    if arm == "flat":
+        model = FlatModelH(H)
+        opt = torch.optim.Adam(model.parameters(), lr=LR)
+        model.train()
+        for t in range(steps):
+            batch = _make_data(BATCH, seed * 1_000_003 + t, teachers)
+            opt.zero_grad(set_to_none=True)
+            la, lv, lp = _losses(model(batch[0]), batch)
+            (la + lv + lp).backward()
+            opt.step()
+        interf = _interference_cosine_h(model, _make_data(BATCH, seed + 20_000, teachers))
+        return _eval_losses(model, held), interf
+    model = DisjointModelH(H)
+    opts = [torch.optim.Adam(g, lr=LR) for g in model.head_param_groups()]
+    model.train()
+    for t in range(steps):
+        batch = _make_data(BATCH, seed * 1_000_003 + t, teachers)
+        for o in opts:
+            o.zero_grad(set_to_none=True)
+        ls = _losses(model(batch[0]), batch)
+        for k in range(N_HEADS):
+            ls[k].backward(retain_graph=(k < N_HEADS - 1))
+        for o in opts:
+            o.step()
+    return _eval_losses(model, held), None
+
+
+def _train_flat_norm_h(seed, teachers, H, steps=STEPS, decay=0.99):
+    """FLAT_NORM a capacite H (plat + equilibrage d'echelle de loss GradNorm-lite, 1 Adam). Fidele a _train_flat_norm
+    (153)."""
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    held = _make_data(HELDOUT, seed + 10_000, teachers)
+    model = FlatModelH(H)
+    opt = torch.optim.Adam(model.parameters(), lr=LR)
+    model.train()
+    ema = None
+    for t in range(steps):
+        batch = _make_data(BATCH, seed * 1_000_003 + t, teachers)
+        opt.zero_grad(set_to_none=True)
+        ls = _losses(model(batch[0]), batch)
+        det = np.array([float(ls[0]), float(ls[1]), float(ls[2])], dtype=np.float64)
+        ema = det.copy() if ema is None else decay * ema + (1.0 - decay) * det
+        w = 1.0 / (ema + 1e-8)
+        w = w / w.sum() * N_HEADS
+        loss = w[0] * ls[0] + w[1] * ls[1] + w[2] * ls[2]
+        loss.backward()
+        opt.step()
+    return _eval_losses(model, held)
+
+
+def _report_capacity(h_rows):
+    print("\n=== Sweep de capacite (FLAT vs DISJOINT vs FLAT_NORM par H, tetes MSE) ===")
+    for hr in h_rows:
+        print("  H=%2d | cos=%+.3f | improv=%+.3f | recovery=%+.3f"
+              % (hr["H"], hr["mean_cos"], hr["mean_improv"], hr["mean_recovery"]))
+        for r in hr["seeds"]:
+            print("    seed %4d | cos %+.3f | improv %+.3f | recovery %+.3f | gain(FLAT-DISJ) v/p %.3f %.3f"
+                  % (r["seed"], r["cos"], r["improv"], r["recovery"],
+                     r["flat"]["value"] - r["disj"]["value"], r["flat"]["pred"] - r["disj"]["pred"]))
+    print("=== VERDICT (mesure a H_min) ===")
+
+
+def main_capacity_check(K=5, base=2200, Hs=(48, 6, 3), steps=STEPS, _return=False):
+    if torch is None:
+        print("PyTorch indisponible -> banc saute.")
+        res = {"verdict": "SKIPPED_NO_TORCH", "per_H": []}
+        return res if _return else None
+    try:
+        torch.use_deterministic_algorithms(True)
+    except Exception:
+        pass
+    torch.set_num_threads(1)
+    teachers = _make_teachers()
+    h_rows = []
+    for H in Hs:
+        seeds = []
+        for i in range(K):
+            s = base + i
+            flat, cos = _train_arm_h("flat", s, teachers, H, steps=steps)
+            disj, _ = _train_arm_h("disjoint", s, teachers, H, steps=steps)
+            flatnorm = _train_flat_norm_h(s, teachers, H, steps=steps)
+            seeds.append({"seed": s, "flat": flat, "disj": disj, "flatnorm": flatnorm,
+                          "cos": cos, "improv": _seed_improv(flat, disj),
+                          "recovery": _recovery(flat, flatnorm, disj)})
+        h_rows.append({"H": H, "seeds": seeds,
+                       "mean_cos": float(np.mean([r["cos"] for r in seeds])),
+                       "mean_improv": float(np.mean([r["improv"] for r in seeds])),
+                       "mean_recovery": float(np.mean([r["recovery"] for r in seeds]))})
+    h_min = min(Hs)
+    top = [hr for hr in h_rows if hr["H"] == h_min][0]
+    verdict = _verdict_capacity([r["cos"] for r in top["seeds"]], [r["recovery"] for r in top["seeds"]])
+    _report_capacity(h_rows)
+    print("  -> %s (A: cos<=-0.05 majorite=INDUCED ; B: recovery>=0.50=CREDIT_ROBUST, <=0.20=ARCH_MATTERS)" % verdict)
+    res = {"verdict": verdict, "per_H": h_rows, "h_min": h_min}
+    return res if _return else None
+
+
+if __name__ == "__main__":
+    main_capacity_check()
