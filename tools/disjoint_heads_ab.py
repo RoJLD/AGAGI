@@ -223,6 +223,7 @@ def main_disjoint_heads(K=5, base=2200, steps=STEPS, _return=False):
         torch.use_deterministic_algorithms(True)
     except Exception:
         pass
+    torch.set_num_threads(1)   # garantit la double passe byte-identique (BLAS multi-thread = non-determinisme bit)
     teachers = _make_teachers()
     rows = []
     for i in range(K):
