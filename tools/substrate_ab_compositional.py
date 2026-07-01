@@ -314,7 +314,7 @@ def run_curriculum_fade_gated(backend: str, seed: int = 0, warmup_trials: int = 
                               oracle_bias: float = 8.0, gate_lr: float = 0.05,
                               y_without_x_penalty: float = 0.0, entropy_coef: float = 0.0,
                               elig_lambda: float = 0.0, gate_warmstart_trials: int = 0,
-                              freeze_gate_after_warmstart: bool = False,
+                              freeze_gate_after_warmstart: bool = False, gate_hidden: int = 0,
                               capture_probe: bool = False, capture_gate_bias: bool = False) -> dict:
     """LEVIER 2 (gating archi, suite EDR 126/128) : curriculum à fade + GATE sur le logit Y en phase B.
     L'action Y est échantillonnée d'un softmax sur les logits de mouvement (règle commune aux 3 modes
@@ -342,6 +342,10 @@ def run_curriculum_fade_gated(backend: str, seed: int = 0, warmup_trials: int = 
       - capture_gate_bias : reporte le biais RÉEL du gate en fin de phase B, séparé did_x vs ¬did_x
         (gate_bias_didx_end / _notdidx_end / _margin_end). Distingue les modes d'échec : MARGE faible
         (readout ne sépare pas) vs OFFSET élevé aux deux (le gate booste Y partout → always-Y).
+    READOUT (suite EDR 132, verrou résiduel = suppression de Y sur ¬did_x) :
+      - gate_hidden=0 : readout LINÉAIRE (défaut, rétrocompat EDR 129-132).
+      - gate_hidden>0 : MLP 1 couche cachée (tanh) sur H_S2 → teste si un readout plus riche débloque
+        la suppression négative sur les seeds résistants (3,4) là où le linéaire échoue (marge≈0).
     Mesure binding_gap = P(Y|X) − P(Y|¬X) en fin de phase B."""
     if gate_mode not in ("none", "oracle", "learned"):
         raise ValueError(f"gate_mode inconnu : {gate_mode!r} (attendu none/oracle/learned)")
@@ -367,16 +371,31 @@ def run_curriculum_fade_gated(backend: str, seed: int = 0, warmup_trials: int = 
     warmup_didx_end = float(np.mean(warm[-qa:])) if qa else 0.0
 
     # --- Gate appris : params + optim (créés seulement pour learned) ---
-    gate_w = gate_b = optim = None
-    trace_w = trace_b = None
+    # gate_hidden=0 → readout LINÉAIRE (biais_Y = w·H_S2 + b), init zéros = rétrocompat EDR 129-132.
+    # gate_hidden>0 → MLP 1 couche cachée (biais_Y = tanh(H_S2·W1+b1)·W2 + b2), init aléatoire seedée
+    #   (les zéros tueraient le gradient : tanh(0)=0). Teste si un readout plus riche débloque la
+    #   suppression négative de Y sur ¬did_x, verrou résiduel d'EDR 132.
+    gate_params = optim = gate_bias_fn = None
+    traces = None
     baseline_ret = 0.0
     if gate_mode == "learned":
         state_dim = _read_state(pop, backend).shape[1]
-        gate_w = torch.zeros(state_dim, requires_grad=True)
-        gate_b = torch.zeros(1, requires_grad=True)
-        optim = torch.optim.Adam([gate_w, gate_b], lr=gate_lr)
-        trace_w = torch.zeros(state_dim)   # trace d'éligibilité (levier 3) sur le gradient
-        trace_b = torch.zeros(1)
+        if gate_hidden > 0:
+            W1 = (torch.randn(state_dim, gate_hidden) * 0.1).requires_grad_(True)
+            b1 = torch.zeros(gate_hidden, requires_grad=True)
+            W2 = (torch.randn(gate_hidden) * 0.1).requires_grad_(True)
+            b2 = torch.zeros(1, requires_grad=True)
+            gate_params = [W1, b1, W2, b2]
+            def gate_bias_fn(h):
+                return torch.tanh(h @ W1 + b1) @ W2 + b2                                   # (B,)
+        else:
+            gate_w = torch.zeros(state_dim, requires_grad=True)
+            gate_b = torch.zeros(1, requires_grad=True)
+            gate_params = [gate_w, gate_b]
+            def gate_bias_fn(h):
+                return h @ gate_w + gate_b                                                 # (B,)
+        optim = torch.optim.Adam(gate_params, lr=gate_lr)
+        traces = [torch.zeros_like(p) for p in gate_params]   # traces d'éligibilité (levier 3)
 
     # --- Warm-start (test causal EDR 131) : pré-entraîner le gate à imiter l'oracle depuis H_S2 ---
     # Population GELÉE (forward sans learn) : on seed UNIQUEMENT le routage did_x→biais_Y, sans laisser
@@ -390,16 +409,18 @@ def run_curriculum_fade_gated(backend: str, seed: int = 0, warmup_trials: int = 
             did_x_ws = (move1_ws == target_x)
             pop.forward(obs_b)                                   # avance l'état vers H_S2 (comme phase B)
             h_s2_ws = torch.tensor(_read_state(pop, backend), dtype=torch.float32)
-            gate_bias_ws = h_s2_ws @ gate_w + gate_b
+            gate_bias_ws = gate_bias_fn(h_s2_ws)
             target_ws = torch.tensor(oracle_bias * (2.0 * did_x_ws - 1.0), dtype=torch.float32)
             ws_loss = ((gate_bias_ws - target_ws) ** 2).mean()
             optim.zero_grad(); ws_loss.backward(); optim.step()
 
     # --- Phase B : compositionnel + fade + gate sur le logit Y ---
     hit, bx, yc = [], [], []
-    probe_H, probe_dx = [], []          # diagnostic précoce (H_S2, did_x) sur la 1re moitié
+    probe_H, probe_dx = [], []          # diagnostic PRÉCOCE (H_S2, did_x) sur la 1re moitié
+    probe_H_late, probe_dx_late = [], []  # diagnostic TARDIF (dernier quart) : séparabilité que LIT le gate
     gbias = []                          # biais réel du gate par trial (mécanisme : marge vs offset)
     probe_cut = compo_trials // 2
+    late_cut = compo_trials - max(1, compo_trials // 4)
     for t in range(compo_trials):
         fade_w = _fade_weight(t, compo_trials, fade_w0)
         preds1, _ = pop.forward(obs_a)
@@ -417,10 +438,12 @@ def run_curriculum_fade_gated(backend: str, seed: int = 0, warmup_trials: int = 
         elif gate_mode == "learned":
             state_np = _read_state(pop, backend)                                          # (B, N)
             h_s2 = torch.tensor(state_np, dtype=torch.float32)
-            gate_bias = h_s2 @ gate_w + gate_b                                            # (B,)
+            gate_bias = gate_bias_fn(h_s2)                                                # (B,)
             base_logits = base_logits.clone(); base_logits[:, target_y] = base_logits[:, target_y] + gate_bias
             if capture_probe and t < probe_cut:      # décodabilité did_x de H_S2 (avant que le gate route)
                 probe_H.append(state_np.copy()); probe_dx.append(did_x.copy())
+            if capture_probe and t >= late_cut:       # décodabilité TARDIVE (ce que lit le gate en fin)
+                probe_H_late.append(state_np.copy()); probe_dx_late.append(did_x.copy())
             if capture_gate_bias:                     # biais réel appliqué au logit Y (par agent, ce trial)
                 gbias.append(gate_bias.detach().cpu().numpy().copy())
 
@@ -444,8 +467,8 @@ def run_curriculum_fade_gated(backend: str, seed: int = 0, warmup_trials: int = 
             optim.zero_grad(); loss.backward()
             # LEVIER 3b : trace d'éligibilité sur le gradient (λ=0 → Adam nu = baseline EDR 129/gating)
             if elig_lambda > 0.0:
-                trace_w.mul_(elig_lambda).add_(gate_w.grad); gate_w.grad = trace_w.clone()
-                trace_b.mul_(elig_lambda).add_(gate_b.grad); gate_b.grad = trace_b.clone()
+                for p, tr in zip(gate_params, traces):
+                    tr.mul_(elig_lambda).add_(p.grad); p.grad = tr.clone()
             optim.step()
             baseline_ret = 0.9 * baseline_ret + 0.1 * float(np.mean(reward2))
 
@@ -473,7 +496,8 @@ def run_curriculum_fade_gated(backend: str, seed: int = 0, warmup_trials: int = 
            "y_without_x_penalty": float(y_without_x_penalty),
            "entropy_coef": float(entropy_coef), "elig_lambda": float(elig_lambda),
            "gate_warmstart_trials": int(gate_warmstart_trials),
-           "freeze_gate_after_warmstart": bool(freeze_gate_after_warmstart), "n_agents": n_agents,
+           "freeze_gate_after_warmstart": bool(freeze_gate_after_warmstart),
+           "gate_hidden": int(gate_hidden), "n_agents": n_agents,
            "warmup_didx_end": warmup_didx_end, "hit_end": hit_end,
            "compo_didx_end": compo_didx_end, "p_y_given_x_end": p_yx,
            "p_y_given_not_x_end": p_ynx, "binding_gap_end": gap,
@@ -489,6 +513,15 @@ def run_curriculum_fade_gated(backend: str, seed: int = 0, warmup_trials: int = 
             out["did_x_auc_early"] = _decode_auc(X, y, min_per_class=8, seed=seed)
         else:
             out["did_x_auc_early"] = None
+        # AUC TARDIVE : séparabilité de did_x dans H_S2 tel que le gate le LIT en fin de phase B.
+        # Distingue « bassin d'optim » (AUC tardive haute partout) de « features tardives pauvres » (basse
+        # chez les résistants). EDR 131 ne mesurait que l'AUC early → contrôle complémentaire (revue EDR 133).
+        if probe_H_late:
+            Xl = np.concatenate(probe_H_late, axis=0)
+            yl = np.concatenate(probe_dx_late, axis=0).astype(int)
+            out["did_x_auc_late"] = _decode_auc(Xl, yl, min_per_class=8, seed=seed)
+        else:
+            out["did_x_auc_late"] = None
     if capture_gate_bias:
         # Biais RÉEL appliqué au logit Y en fin de phase B (dernier quart), séparé did_x vs ¬did_x.
         # Distingue les mécanismes d'échec du gate : MARGE (biais_didx − biais_¬didx) faible = le readout
@@ -667,6 +700,49 @@ def sweep_gate_warmstart(seeds=tuple(range(10)), warmstart_levels=(0, 100), fade
         verdict = "PARTIAL_RESCUE"
     elif base_bind is not None:
         verdict = "NO_RESCUE"
+    else:
+        verdict = "AMBIGU"
+    return {"verdict": verdict, "bind_thresh": bind_thresh, "base_n_bind": base_bind,
+            "best_n_bind": best, "rows": rows}
+
+
+def sweep_gate_readout(seeds=tuple(range(10)), hidden_levels=(0, 8, 16), fade_w0: float = 0.0,
+                       y_without_x_penalty: float = 2.0, warmup_trials: int = 150,
+                       compo_trials: int = 250, n_agents: int = 8, bind_thresh: float = 0.30) -> dict:
+    """TEST DE L'ACTIONNABLE MIGRATION (suite EDR 132) : un readout NON-LINÉAIRE du gate débloque-t-il
+    la SUPPRESSION de Y sur ¬did_x, verrou résiduel des seeds 3,4 ? EDR 132 : le gate LINÉAIRE binde
+    ~8/10 (avec warm-start) mais ne produit jamais de marge suppressive sur 3,4 (bias|¬did_x reste
+    positif → always-Y). Ici, gate learned SANS warm-start (régime REINFORCE de prod, cf. EDR 129),
+    régime incitatif fade0.0/pen2 ; on compare gate_hidden ∈ {0 (linéaire), 8, 16 (MLP)}. Capture le
+    biais réel (marge) → on VOIT si le MLP construit la suppression. Rapporte n_bind/n_seeds + gap ET
+    marge per-seed par niveau. Verdict :
+    - READOUT_HELPS : un MLP atteint n_bind ≥ linéaire+2 (débloque ≥2 seeds résistants).
+    - READOUT_MARGINAL : un MLP atteint linéaire+1.
+    - READOUT_NEUTRAL : aucun MLP ne dépasse le linéaire (le verrou n'est pas la richesse du readout).
+    Seuils heuristiques ; le déblocage per-seed (3,4 basculent-ils ?) est lu par l'humain."""
+    rows = []
+    for h in hidden_levels:
+        cells = [run_curriculum_fade_gated("torch", seed=s, gate_mode="learned", fade_w0=fade_w0,
+                                           y_without_x_penalty=y_without_x_penalty,
+                                           warmup_trials=warmup_trials, compo_trials=compo_trials,
+                                           n_agents=n_agents, gate_hidden=h,
+                                           capture_gate_bias=True) for s in seeds]
+        per_seed = [(int(s), c["binding_gap_end"], c["gate_bias_margin_end"])
+                    for s, c in zip(seeds, cells)]
+        gaps = [g for _, g, _ in per_seed if g is not None]
+        bound_seeds = [s for s, g, _ in per_seed if g is not None and g > bind_thresh]
+        rows.append({"gate_hidden": int(h), "n_bind": len(bound_seeds), "n_seeds": len(gaps),
+                     "gap_median": statistics.median(gaps) if gaps else None,
+                     "per_seed": per_seed, "bound_seeds": bound_seeds})
+    base = next((r for r in rows if r["gate_hidden"] == 0), None)
+    base_bind = base["n_bind"] if base else None
+    best = max((r["n_bind"] for r in rows if r["gate_hidden"] > 0), default=0)
+    if base_bind is not None and best >= base_bind + 2:
+        verdict = "READOUT_HELPS"
+    elif base_bind is not None and best == base_bind + 1:
+        verdict = "READOUT_MARGINAL"
+    elif base_bind is not None:
+        verdict = "READOUT_NEUTRAL"
     else:
         verdict = "AMBIGU"
     return {"verdict": verdict, "bind_thresh": bind_thresh, "base_n_bind": base_bind,
