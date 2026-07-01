@@ -1,5 +1,6 @@
 import os
 import sys
+import types
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _ROOT not in sys.path:
@@ -13,6 +14,9 @@ from tools.tom_probe import (
     _shuffle_accuracy,
     _latent_probe,
     _verdict_tom_emergence,
+    _collect_pairs_from_agents,
+    _agent_latent,
+    main_tom_probe,
 )
 
 
@@ -61,3 +65,43 @@ def test_verdict_tom_emergence_two_branches():
     assert _verdict_tom_emergence(0.45, 0.20, 0.22) == "TOM_EMERGES"
     assert _verdict_tom_emergence(0.22, 0.20, 0.21) == "TOM_INERT"
     assert _verdict_tom_emergence(0.40, 0.35, 0.20) == "TOM_INERT"
+
+
+def _fake_model(pred_argmax):
+    ph = np.zeros(8)
+    ph[pred_argmax] = 1.0
+    return types.SimpleNamespace(
+        predictor_head=ph,
+        goal_vector=np.zeros(5),
+        explicit_memory=np.zeros(5),
+        ntm_memory=np.zeros((10, 5)),
+    )
+
+
+def _fake_agent(x, y, pred_argmax, last_action):
+    return {"x": x, "y": y, "z": 0, "last_action": last_action, "model": _fake_model(pred_argmax)}
+
+
+def test_collect_pairs_same_cell_both_directions():
+    a = _fake_agent(0, 0, pred_argmax=3, last_action=2)
+    b = _fake_agent(0, 0, pred_argmax=5, last_action=3)
+    far = _fake_agent(9, 9, pred_argmax=1, last_action=1)
+    records = []
+    _collect_pairs_from_agents([a, b, far], records)
+    assert len(records) == 2
+    preds_acts = sorted((r["pred"], r["act"]) for r in records)
+    assert (3, 3) in preds_acts and (5, 2) in preds_acts
+    assert all(r["latent"].shape == (68,) for r in records)
+
+
+def test_agent_latent_shape_and_none_guard():
+    assert _agent_latent(_fake_model(0)).shape == (68,)
+    empty = types.SimpleNamespace(predictor_head=None, goal_vector=None, explicit_memory=None, ntm_memory=None)
+    assert _agent_latent(empty).shape == (68,)
+
+
+def test_smoke_main_tom_probe_returns_verdict():
+    res = main_tom_probe(R=1, eras=2, num_agents=12, max_ticks=80, seed=99280, _return=True)
+    assert res["verdict"] in {"TOM_EMERGES", "TOM_INERT"}
+    assert len(res["per_seed"]) == 1
+    assert set(res["per_seed"][0].keys()) >= {"seed", "ctrl", "tom"}
