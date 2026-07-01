@@ -20,6 +20,7 @@ from src.curriculum.runner import (
     CurriculumRunner, WorldStage, GraduationConfig, EraResult,
 )
 from src.curriculum.competence import competence_for
+from src.worlds.world_0_soup import SoupWorld
 from src.worlds.world_1_stoneage import Biosphere3D
 from src.worlds.world_2_agricultural import AgriculturalWorld
 from src.worlds.world_3_industrial import IndustrialWorld
@@ -33,9 +34,11 @@ from main_biosphere import init_primordial_soup
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger("AGIseed.Curriculum.Main")
 
-# Mondes canoniques (même interface add_agent(model)). world_0_soup est legacy
-# (son add_agent prend un genome) -> exclu de la ladder pour l'instant.
+# Mondes canoniques (même interface add_agent(model)). soup (world_0) hérite du moteur canonique
+# Biosphere3D (EDR 033) -> interface modèle compatible ; câblé pour le transfert G1 soup->stoneage
+# (north-star, spec 2026-06-29-G1). DEFAULT_LADDER reste inchangé (ajout purement additif).
 WORLD_FACTORY = {
+    "soup": SoupWorld,
     "stoneage": Biosphere3D,
     "agricultural": AgriculturalWorld,
     "industrial": IndustrialWorld,

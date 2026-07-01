@@ -312,6 +312,35 @@ class RunsService:
             })
         return sorted(out, key=lambda d: d["run_id"])
 
+    def list_forage_funnels(self) -> list[dict]:
+        """Runs d'entonnoir de forage (data.table par niveau de metab) — vue Forage."""
+        out: list[dict] = []
+        for r in self._scan():
+            data = r["data"]
+            table = data.get("table")
+            levels_raw = data.get("metab_levels")
+            if not isinstance(table, dict) or not isinstance(levels_raw, list):
+                continue
+            levels: list[dict] = []
+            for lv in levels_raw:
+                agg = table.get(str(lv))
+                if not isinstance(agg, dict) or "p_reach" not in agg:
+                    continue
+                levels.append({
+                    "metab": float(lv),
+                    "p_reach": agg["p_reach"], "p_cap": agg["p_cap"],
+                    "income_t": agg["income_t"], "drain_t": agg["drain_t"],
+                    "mean_captures": agg["mean_captures"], "mean_contacts": agg["mean_contacts"],
+                    "mean_min_dist": agg["mean_min_dist"], "n_agents": agg["n_agents"],
+                })
+            if not levels:
+                continue
+            out.append({
+                "run_id": r["_run_id"], "name": r["name"], "seed": r["seed"],
+                "commit": r.get("commit"), "verdict": data.get("verdict", ""), "levels": levels,
+            })
+        return sorted(out, key=lambda d: d["run_id"])
+
     @staticmethod
     def _agg(name: str, vals: list[float]) -> dict:
         return {

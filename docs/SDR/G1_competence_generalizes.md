@@ -4,7 +4,8 @@ type: SDR
 title: La competence generalise-t-elle (north-star)
 status: open
 gate: G1
-motivates: [EDR-105, EDR-108]
+motivates: [EDR-105, EDR-108, EDR-116]
+requires_ref: true
 ---
 # SDR-G1 — Généralisation zéro-shot (north-star)
 

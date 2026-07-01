@@ -5,6 +5,7 @@ title: L'agent anticipe-t-il (capstone)
 status: open
 gate: G4
 motivates: [EDR-095]
+requires_ref: true
 ---
 # SDR-G4 — Planification instrumentale
 

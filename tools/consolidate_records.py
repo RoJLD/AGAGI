@@ -16,14 +16,21 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
-_LIST_KEYS = ("motivates", "triggers", "tests")
+# Arêtes causales internes (records de décision) + arêtes-pont vers le SOTA (REF).
+# Les ponts émanent des nœuds REF (rediscovered_by/supersedes/adopt_for/grounds) :
+# ainsi l'ancrage à la littérature s'ajoute sans toucher les EDR/SDR/ADR existants.
+_LIST_KEYS = ("motivates", "triggers", "tests",
+              "rediscovered_by", "supersedes", "adopt_for", "grounds")
 _EDR_NAME = re.compile(r"^(\d{3})_.+\.md$")
 
 
 def _empty_record(file: str) -> dict:
     return {"id": None, "type": None, "title": "", "status": "open", "gate": None,
-            "motivates": [], "triggers": [], "tests": [], "verdict": None,
-            "file": file, "linked": False}
+            "motivates": [], "triggers": [], "tests": [],
+            "rediscovered_by": [], "supersedes": [], "adopt_for": [], "grounds": [],
+            "url": None, "method": None, "lib": None, "maturity": None,
+            "requires_ref": False,
+            "verdict": None, "file": file, "linked": False}
 
 
 def parse_record(path: str) -> dict | None:
@@ -61,7 +68,7 @@ def scan_records(root: str = _ROOT) -> list[dict]:
     """Scanne docs/SDR, docs/ADR, docs/EDR sous root, retourne tous les records
     (triés par id), ignore les fichiers non-record et les dossiers absents."""
     out: list[dict] = []
-    for sub in ("docs/SDR", "docs/ADR", "docs/EDR"):
+    for sub in ("docs/SDR", "docs/ADR", "docs/EDR", "docs/REF"):
         d = os.path.join(root, sub)
         if not os.path.isdir(d):
             continue
@@ -75,19 +82,24 @@ def scan_records(root: str = _ROOT) -> list[dict]:
     return out
 
 
-_REL = {"motivates": "MOTIVE", "triggers": "DECLENCHE", "tests": "TESTE"}
-_NODE_KEYS = ("id", "type", "title", "status", "gate", "verdict", "linked")
+_REL = {"motivates": "MOTIVE", "triggers": "DECLENCHE", "tests": "TESTE",
+        "rediscovered_by": "REDECOUVERT_PAR", "supersedes": "DEPASSE",
+        "adopt_for": "A_ADOPTER_POUR", "grounds": "FONDE"}
+# Clés-pont émanant des nœuds REF (cibles = records ancrés au SOTA).
+_BRIDGE_KEYS = ("rediscovered_by", "supersedes", "adopt_for", "grounds")
+_NODE_KEYS = ("id", "type", "title", "status", "gate", "verdict", "linked",
+              "url", "method", "lib", "maturity")
 
 
 def build_graph(records: list[dict]) -> dict:
     """Construit le graphe causal à partir des records. Retourne
     {"nodes": [...], "edges": [...]}, où les arêtes sont typées selon
     motivates (MOTIVE), triggers (DECLENCHE), tests (TESTE)."""
-    nodes = [{k: r[k] for k in _NODE_KEYS} for r in records]
+    nodes = [{k: r.get(k) for k in _NODE_KEYS} for r in records]
     edges = []
     for r in records:
         for key, rel in _REL.items():
-            for target in r[key]:
+            for target in r.get(key) or []:
                 edges.append({"from": r["id"], "to": target, "rel": rel})
     return {"nodes": nodes, "edges": edges}
 
@@ -100,19 +112,28 @@ def validate_graph(records: list[dict]) -> list[dict]:
     - record: id du record concerné
     - detail: description textuelle du problème
 
-    Deux types de problèmes :
+    Trois types de problèmes :
     1. broken_link : un id cité dans motivates/triggers/tests n'existe pas
     2. unsupported_gate : une SDR validée sans EDR validé qui la teste
+    3. missing_ref : un record requires_ref=True qu'aucun nœud REF ne couvre
+       (procédure anti-réinvention : un nouvel organe doit citer le SOTA)
 
     Liste vide = graphe cohérent.
     """
     by_id = {r["id"]: r for r in records}
     problems: list[dict] = []
 
+    # Records ancrés au SOTA = cibles d'au moins une arête-pont d'un nœud REF
+    ref_anchored: set = set()
+    for r in records:
+        if r["type"] == "REF":
+            for key in _BRIDGE_KEYS:
+                ref_anchored.update(r.get(key) or [])
+
     # Vérifier les liens cassés
     for r in records:
         for key in _LIST_KEYS:
-            for target in r[key]:
+            for target in r.get(key) or []:
                 if target not in by_id:
                     problems.append({"kind": "broken_link", "record": r["id"],
                                      "detail": f"{r['id']}.{key} -> {target} inexistant"})
@@ -126,6 +147,12 @@ def validate_graph(records: list[dict]) -> list[dict]:
             if not supporters:
                 problems.append({"kind": "unsupported_gate", "record": r["id"],
                                  "detail": f"{r['id']} validee sans EDR valide qui la teste"})
+
+    # Vérifier l'ancrage SOTA des records qui l'exigent (requires_ref)
+    for r in records:
+        if r.get("requires_ref") and r["id"] not in ref_anchored:
+            problems.append({"kind": "missing_ref", "record": r["id"],
+                             "detail": f"{r['id']} requires_ref mais aucun noeud REF ne le couvre"})
     return problems
 
 

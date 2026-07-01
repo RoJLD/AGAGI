@@ -130,7 +130,8 @@ def test_famine_wired_into_factories():
     assert S2_WORLDS["famine"] is FamineWorld
     # non-régression
     assert DEFAULT_LADDER == ["stoneage", "agricultural", "industrial"]
-    assert "stoneage" in WORLD_FACTORY
+    for k in ("stoneage", "soup"):
+        assert k in WORLD_FACTORY
 
 
 def test_famine_io_compat_with_champion_agent():

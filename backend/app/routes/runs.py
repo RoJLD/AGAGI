@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
-from ..schemas import ABCompareResult, ConditionSummary, Decomposition, DistributionSummary, NoteCreate, NoteFeedItem, RunDetail, RunNote, RunSummary, SweepResult
+from ..schemas import ABCompareResult, ConditionSummary, Decomposition, DistributionSummary, ForageFunnel, NoteCreate, NoteFeedItem, RunDetail, RunNote, RunSummary, SweepResult
 from ..services.runs_service import runs_service
 
 router = APIRouter()
@@ -97,6 +97,12 @@ def all_notes() -> list[dict]:
 def list_decompositions() -> list[dict]:
     """Decompositions energetiques (budget par phase + sous-decompo biologie) pour la vue Energie."""
     return runs_service.list_decompositions()
+
+
+@router.get("/runs/forage-funnels", response_model=list[ForageFunnel])
+def list_forage_funnels() -> list[dict]:
+    """Entonnoirs de forage (acquisition : approche/capture/revenu par niveau de métab) pour la vue Forage."""
+    return runs_service.list_forage_funnels()
 
 
 @router.get("/runs/{run_id}", response_model=RunDetail)

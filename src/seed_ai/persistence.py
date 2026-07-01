@@ -4,7 +4,7 @@ import numpy as np
 from typing import Optional, Tuple, Dict, Any
 from dataclasses import dataclass
 
-HALL_OF_FAME_PATH = "data/hall_of_fame.pkl"
+HALL_OF_FAME_PATH = os.environ.get("HOF_PATH", "data/hall_of_fame.pkl")
 AGENT_STATE_DIR = "data/agent_states/"
 HOF_VERSION = 2
 

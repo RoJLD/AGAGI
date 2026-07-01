@@ -169,6 +169,27 @@ class Decomposition(BaseModel):
     bio_verdict: str
 
 
+class ForageLevel(BaseModel):
+    metab: float
+    p_reach: float
+    p_cap: float
+    income_t: float
+    drain_t: float
+    mean_captures: float
+    mean_contacts: float
+    mean_min_dist: float
+    n_agents: float
+
+
+class ForageFunnel(BaseModel):
+    run_id: str
+    name: str
+    seed: int
+    commit: str | None = None
+    verdict: str
+    levels: list[ForageLevel]
+
+
 class RunNote(BaseModel):
     id: str
     text: str
