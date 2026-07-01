@@ -47,7 +47,7 @@ def _shuffle_accuracy(records):
         return 0.0
     preds = np.array([r["pred"] for r in records])
     acts = np.array([r["act"] for r in records])
-    shuf = np.random.permutation(acts)
+    shuf = np.random.default_rng(0).permutation(acts)
     return float(np.mean(preds == shuf))
 
 
@@ -90,7 +90,7 @@ def _latent_probe(records, split=0.7):
         return float(np.mean(pred == yte))
 
     acc_true = _fit_eval(y)
-    acc_shuffle = _fit_eval(np.random.permutation(y))
+    acc_shuffle = _fit_eval(np.random.default_rng(0).permutation(y))
     return acc_true, acc_shuffle
 
 
@@ -193,21 +193,27 @@ def _report_tom(h, per_seed, R, _return):
     tom = {k: _m("tom", k) for k in ("acc_head", "acc_shuffle")}
     verdict = _verdict_tom_emergence(tom["acc_head"], ctrl["acc_head"], tom["acc_shuffle"])
     print("\n=== ToM representationnel : decode + emergence (cohorte fixe, 2 bras) ===")
-    print("  seed | CTRL head shuf probe(t/s) | TOM  head shuf")
+    print("  seed | CTRL head shuf probe(t/s) nC | TOM  head shuf nT")
     for p in per_seed:
         c, t = p["ctrl"], p["tom"]
         print(f"  {p['seed']:4d} |      {c['acc_head']:.3f} {c['acc_shuffle']:.3f} "
-              f"{c['probe_true']:.3f}/{c['probe_shuffle']:.3f} |      {t['acc_head']:.3f} {t['acc_shuffle']:.3f}")
+              f"{c['probe_true']:.3f}/{c['probe_shuffle']:.3f} {c['n']:5d} |      "
+              f"{t['acc_head']:.3f} {t['acc_shuffle']:.3f} {t['n']:5d}")
     print(f"  MOYEN|      {ctrl['acc_head']:.3f} {ctrl['acc_shuffle']:.3f} "
           f"{ctrl['probe_true']:.3f}/{ctrl['probe_shuffle']:.3f} |      {tom['acc_head']:.3f} {tom['acc_shuffle']:.3f}")
     print("=== DECODE (bras CONTROL) ===")
     print(f"  head vs shuffle : {ctrl['acc_head']:.3f} vs {ctrl['acc_shuffle']:.3f} "
           f"| latent-probe vs shuffle : {ctrl['probe_true']:.3f} vs {ctrl['probe_shuffle']:.3f}")
+    n_ctrl = float(np.mean([p["ctrl"]["n"] for p in per_seed]))
+    n_tom = float(np.mean([p["tom"]["n"] for p in per_seed]))
+    print(f"  records/seed (moyenne) : CTRL {n_ctrl:.0f} | TOM {n_tom:.0f}")
     print("=== VERDICT (emergence ToM) ===")
     print(f"  -> {verdict}")
-    h.save({"R": R, "verdict": verdict, "mean_ctrl": ctrl, "mean_tom": tom, "per_seed": per_seed})
+    h.save({"R": R, "verdict": verdict, "n_ctrl": n_ctrl, "n_tom": n_tom,
+            "mean_ctrl": ctrl, "mean_tom": tom, "per_seed": per_seed})
     if _return:
-        return {"verdict": verdict, "mean_ctrl": ctrl, "mean_tom": tom, "per_seed": per_seed, "R": R}
+        return {"verdict": verdict, "n_ctrl": n_ctrl, "n_tom": n_tom,
+                "mean_ctrl": ctrl, "mean_tom": tom, "per_seed": per_seed, "R": R}
 
 
 def _measure_arm_records(exp_var_for_evo, seed, eras, num_agents, max_ticks):
@@ -221,6 +227,7 @@ def main_tom_probe(R=3, eras=12, num_agents=30, max_ticks=400, seed=1280, _retur
     """Par seed base+r : evolue CONTROL(NONE) + TOM, mesure les paires per-bras sur cohorte fixe (mesure
     neutre), calcule accuracy head/shuffle (+ sonde latente sur CONTROL), agrege, verdict emergence."""
     base = seed
+    h = Harness(seed=base, name="tom_probe", with_db=False, config=WorldConfig())
     async_logger.start()
     try:
         per_seed = []
@@ -237,7 +244,6 @@ def main_tom_probe(R=3, eras=12, num_agents=30, max_ticks=400, seed=1280, _retur
             })
     finally:
         async_logger.stop()
-    h = Harness(seed=base, name="tom_probe", with_db=False, config=WorldConfig())
     return _report_tom(h, per_seed, R, _return)
 
 

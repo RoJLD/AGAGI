@@ -105,3 +105,8 @@ def test_smoke_main_tom_probe_returns_verdict():
     assert res["verdict"] in {"TOM_EMERGES", "TOM_INERT"}
     assert len(res["per_seed"]) == 1
     assert set(res["per_seed"][0].keys()) >= {"seed", "ctrl", "tom"}
+
+
+def test_shuffle_accuracy_idempotent():
+    recs = [_rec(i % 8, (i * 3) % 8) for i in range(50)]
+    assert _shuffle_accuracy(recs) == _shuffle_accuracy(recs)
