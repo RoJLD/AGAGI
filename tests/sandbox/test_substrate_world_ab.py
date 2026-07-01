@@ -51,6 +51,7 @@ def test_evolve_native_signature():
     # #2 Baldwin : évolution native sur substrat (benchmark_mode=False).
     p = inspect.signature(evolve_native).parameters
     assert "world_key" in p and "backend_cls" in p and "max_ticks" in p and "pop_cap" in p
+    assert "seed_genome" in p     # EDR-143 warm-start Baldwin
 
 
 def test_sweep_lr_torch_signature():
