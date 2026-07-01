@@ -678,3 +678,21 @@ def test_sweep_y_saturation_per_seed_carries_real_metrics():
         for cell in row["per_seed"]:
             for k in ("seed", "gap", "p_y_given_x", "p_y_given_not_x", "hit_end", "y_rate_end"):
                 assert k in cell
+
+
+# --- Robustesse au sur-entraînement (intersection fil in-world : érosion par le gradient intra-vie) ---
+
+@pytest.mark.slow
+def test_sweep_overtraining_stability_smoke():
+    """sweep_overtraining_stability : par (pénalité, compo_trials) → n_bind, gap, hit_end, didx + verdict."""
+    pytest.importorskip("torch")
+    from tools.substrate_ab_compositional import sweep_overtraining_stability
+    res = sweep_overtraining_stability(seeds=(0, 1), penalties=(0.0, 6.0), compo_trials_list=(30, 60),
+                                       warmup_trials=30, n_agents=4)
+    assert res["rows"] and "verdict" in res
+    for row in res["rows"]:
+        for k in ("penalty", "compo_trials", "n_bind", "gap_median", "hit_end_median",
+                  "didx_median", "y_rate_median"):
+            assert k in row
+    # 2 pénalités × 2 longueurs = 4 lignes
+    assert len(res["rows"]) == 4
