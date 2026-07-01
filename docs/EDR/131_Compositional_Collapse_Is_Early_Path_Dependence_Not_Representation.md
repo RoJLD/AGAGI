@@ -30,14 +30,17 @@ PRÉCOCE de 3 prédicteurs, corrélés à l'issue finale bind (gap_end>0.3) / co
 
 n_bind = **7/10** (reproduit EDR 129/130 : bindeurs {1,2,5,6,7,8,9}, collapsés {0,3,4}).
 
-| prédicteur | moyenne BINDEUR | moyenne COLLAPSÉ | \|séparation\| |
-|------------|----------------:|-----------------:|--------------:|
-| binding_gap_start | 0.475 | −0.057 | **0.532** |
-| y_rate_start | 0.755 | 0.948 | 0.194 |
-| did_x_auc_early | 0.956 | 0.895 | **0.060** |
+| prédicteur | moyenne BINDEUR | moyenne COLLAPSÉ | \|séparation\| | chevauchement des plages ? |
+|------------|----------------:|-----------------:|--------------:|:---------------------------|
+| **y_rate_start** (héros) | 0.755 | 0.948 | 0.194 | **NON — séparation parfaite** (bind max 0.863 < collapse min 0.940) |
+| did_x_auc_early | 0.956 | 0.895 | **0.060** | oui, fort (représentation ⊥ issue) |
+| binding_gap_start | 0.475 | −0.057 | 0.532 | oui (partiellement tautologique) |
 
-Par seed (did_x_auc_early) : collapsés 0.821 / 0.906 / 0.960 ; bindeurs 0.921-0.989. did_x est **bien
-décodable partout**.
+Le prédicteur le plus SÉPARANT en moyenne (gap_start, 0.532) est partiellement tautologique (même
+trajectoire, 1er vs 4e quart) ; le prédicteur DÉCISIF est **y_rate_start**, seul à séparation NETTE sans
+chevauchement. Par seed (did_x_auc_early) : collapsés 0.821 / 0.906 / **0.960** ; bindeurs 0.921-0.989 —
+les plages se CHEVAUCHENT et la collapsée seed 4 (0.960) décode MIEUX que 4 des 7 bindeurs → did_x est
+**bien décodable partout**, orthogonalement à l'issue.
 
 ## Interprétation
 
@@ -48,9 +51,12 @@ qui collapsent → le collapse n'est PAS un défaut de représentation. C'est le
 là où le gate échoue.
 
 **(2) ENTRÉE PRÉCOCE DU BASSIN always-Y.** Les collapsés ont y_rate_start ≈ 0.95 (quasi always-Y) dès le
-1er quart, contre 0.76 pour les bindeurs. Ils saturent la marginale Y TÔT — avant que le gate n'ait
-appris à conditionner — et ne peuvent en sortir (P(Y)→1 tue le gradient différentiel). L'info did_x est
-disponible mais INUTILISÉE car la politique s'est verrouillée.
+1er quart, contre 0.76 pour les bindeurs — **séparation parfaite, sans chevauchement** (bind max 0.863 <
+collapse min 0.940). Ils saturent la marginale Y TÔT — avant que le gate n'ait appris à conditionner — et
+ne peuvent en sortir (P(Y)→1 tue le gradient différentiel). L'info did_x est disponible mais INUTILISÉE
+car la politique s'est verrouillée. **Contre-preuve anti-tautologie (seed 5)** : ce seed BINDE (gap_end
+0.369) malgré un gap_start NÉGATIF (−0.065, dans la plage collapsée) — le gap précoce ne SCELLE donc pas
+mécaniquement l'issue ; c'est la SATURATION-Y précoce (y_rate_start), pas le gap, qui discrimine.
 
 → **Le plafond 7/10 est une PATH-DEPENDENCE d'init/trajectoire précoce, pas une limite de capacité de la
 mémoire.** Cela explique mécaniquement l'échec des leviers d'EDR 130 : entropie et éligibilité agissent
@@ -65,8 +71,12 @@ jointe), récompense différée/annelée, ou freiner la saturation-Y précoce du
   représentation, mesure orthogonale au gap) et (b) y_rate_start (les collapsés sont déjà à 0.95 =
   mécanisme de saturation précoce). Le gap_start ne fait que dater le verrouillage.
 - **AUC pooled agents×trials** (pas per-agent comme EDR 120) : mesure population grossière ; conflit
-  d'identité d'agent possible. Mais l'écart NUL bind/collapse (0.06) est robuste à cette grossièreté
-  (aucun des deux groupes n'est bas). Un per-agent affinerait sans changer le verdict de réfutation.
+  d'identité d'agent possible. Mais le CHEVAUCHEMENT des plages (collapse seed 4 = 0.960 > 4/7 bindeurs)
+  est robuste à cette grossièreté et suffit à la réfutation (l'issue est orthogonale à l'AUC).
+- **Fenêtres asymétriques** : AUC sur la 1re MOITIÉ (besoin de plus d'échantillons/classe, `min_per_class=8`
+  pour un décodage stable), y_rate/gap sur le 1er QUART (marqueurs de trajectoire, plus sensibles tôt).
+- **bind_thresh=0.30 libre** : le split 7/10 est INSENSIBLE au seuil dans [0.05, 0.35] car gap_end est
+  BIMODAL (collapsés ~0.00 ; bindeurs ≥ 0.365) — pas de seed près de la frontière.
 - **Path-dependence est INFÉRÉE de la corrélation, pas prouvée causalement** : le test causal = une
   intervention précoce (warm-start) qui RESCAPE les collapsés → c'est la piste suivante directe.
 - n=10, micro-tâche proxy, régime hérité 129/130.
