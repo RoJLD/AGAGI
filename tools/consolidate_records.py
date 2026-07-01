@@ -45,7 +45,15 @@ def parse_record(path: str) -> dict | None:
     if text.startswith("---"):
         end = text.find("\n---", 3)
         if end != -1:
-            meta = yaml.safe_load(text[3:end]) or {}
+            try:
+                meta = yaml.safe_load(text[3:end]) or {}
+            except yaml.YAMLError as e:
+                # Frontmatter YAML illisible (ex. valeur non quotee avec ':') : NE PAS crasher tout
+                # le graphe pour un seul record malforme (souvent une session //). On avertit et on
+                # traite le fichier comme sans frontmatter -> EDR NNN_*.md tolere non-lie.
+                print(f"WARN: frontmatter YAML illisible dans {name} "
+                      f"({e.__class__.__name__}) -> record tolere non-lie", file=sys.stderr)
+                meta = {}
             for k, v in meta.items():
                 if k in _LIST_KEYS:
                     rec[k] = list(v) if v else []
