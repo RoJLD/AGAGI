@@ -115,3 +115,20 @@ def test_unresolved_verdicts_matches_verdict_and_title():
     by_id = {r["id"]: r for r in res}
     assert by_id["EDR-121"]["marker"] == "INCONCLUSIF"
     assert by_id["EDR-151"]["marker"] == "INDETERMINE"
+
+
+def test_pending_leads_scans_markers_case_insensitive():
+    from tools.cartography import pending_leads
+    files = [
+        ("docs/EDR/131_x.md",
+         "Contexte.\nintervention précoce (warm-start) → c'est la piste suivante directe.\nFin."),
+        ("memory/edr090.md", "Le prochain levier est l'adaptation du substrat."),
+        ("docs/EDR/010_y.md", "Rien à signaler ici."),
+    ]
+    leads = pending_leads(files)
+    assert len(leads) == 2
+    by_file = {l["file"]: l for l in leads}
+    assert by_file["docs/EDR/131_x.md"]["line"] == 2
+    assert by_file["docs/EDR/131_x.md"]["marker"] == "piste suivante"
+    assert by_file["memory/edr090.md"]["marker"] == "prochain levier"
+    assert "warm-start" in by_file["docs/EDR/131_x.md"]["snippet"]

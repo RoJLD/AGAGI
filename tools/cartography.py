@@ -125,3 +125,26 @@ def unresolved_verdicts(records) -> list[dict]:
             out.append({"id": r["id"], "file": r.get("file"),
                         "marker": marker, "verdict": r.get("verdict")})
     return out
+
+
+_LEAD_MARKERS = ("piste suivante", "prochain chantier", "prochaine piste",
+                 "prochain levier", "prochaine sonde", "prochain build",
+                 "piste principale", "piste prioritaire", "piste amont",
+                 "actionnable")
+
+
+def pending_leads(files) -> list[dict]:
+    """Scanne des (relpath, texte) pour des marqueurs de piste ouverte. Retourne
+    {file, line, marker, snippet}. Une entrée par ligne (1re correspondance).
+    Sans accents ni casse. Advisory (l'agent croise avec l'aval)."""
+    markers = [(_norm(m), m) for m in _LEAD_MARKERS]
+    out: list[dict] = []
+    for relpath, text in files:
+        for i, raw in enumerate((text or "").replace("\r\n", "\n").split("\n"), 1):
+            hn = _norm(raw)
+            for mn, m in markers:
+                if mn in hn:
+                    out.append({"file": relpath, "line": i, "marker": m,
+                                "snippet": raw.strip()[:200]})
+                    break
+    return out
