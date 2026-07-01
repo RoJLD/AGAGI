@@ -26,7 +26,8 @@ def per_tick_divergence(genome, ticks: int = 12, force_legacy_mask_ones: bool = 
     from src.agents.mamba_agent import MambaAgent, MambaCoreBatchModel
     from src.agents.torch_batch_model import TorchBatchModel
 
-    Swish = type("TorchSwish", (TorchBatchModel,), {"ACTIVATION": "swish"})
+    # INPUT_ATTENTION=True : démontre que porter le masque DONNE la parité FORWARD (EDR-144).
+    Swish = type("TorchSwish", (TorchBatchModel,), {"ACTIVATION": "swish", "INPUT_ATTENTION": True})
     I = genome.num_inputs
     rng = np.random.RandomState(seed)
     al = MambaAgent(); al.from_genome(genome)
@@ -49,14 +50,15 @@ def main():
     ticks = int(os.environ.get("TPP_TICKS", "12"))
     g = _load_champion(hof)
     normal = per_tick_divergence(g, ticks, force_legacy_mask_ones=False)
-    nomask = per_tick_divergence(g, ticks, force_legacy_mask_ones=True)
-    print("PARITE torch-swish vs legacy-core (max|logit diff| par tick)")
+    legacy_off = per_tick_divergence(g, ticks, force_legacy_mask_ones=True)
+    print("PARITE torch-swish vs legacy-core (max|logit diff| par tick) — EDR-144 (masque porté)")
     print("  tick   normal   legacy-masque-force-ones")
     for t in range(ticks):
-        print(f"  {t:4d}   {normal[t]:.4f}   {nomask[t]:.4f}")
-    print(f"resume : max normal={max(normal):.4f} | max sans-masque={max(nomask):.6f} "
-          f"-> residu = masque d'attention d'entree ({'CONFIRME' if max(nomask) < 1e-4 else 'PARTIEL'})")
-    return {"normal": normal, "nomask": nomask}
+        print(f"  {t:4d}   {normal[t]:.6f}   {legacy_off[t]:.4f}")
+    parity = "BIT-A-BIT" if max(normal) < 1e-4 else "RESIDU"
+    print(f"resume : max normal={max(normal):.6f} ({parity}) | max legacy-masque-off={max(legacy_off):.4f} "
+          f"(>0 => masque d'attention d'entree load-bearing)")
+    return {"normal": normal, "legacy_off": legacy_off}
 
 
 if __name__ == "__main__":

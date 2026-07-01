@@ -12,16 +12,17 @@ def _genome():
     return MambaAgent().genome
 
 
-def test_per_step_parity_is_exact_at_t0():
-    # t=0 (depuis H=0 identique) : legacy-core et torch-swish calculent la MÊME chose.
-    d = per_tick_divergence(_genome(), ticks=3)
-    assert d[0] < 1e-4
-
-
-def test_masking_off_gives_bit_parity_every_tick():
-    # neutraliser le masque d'attention d'entrée de legacy -> parité à CHAQUE tick (le résidu = ce masque).
-    d = per_tick_divergence(_genome(), ticks=8, force_legacy_mask_ones=True)
+def test_bit_parity_every_tick_after_mask_port():
+    # EDR-144 : torch réplique le masque d'attention d'entrée -> parité BIT-À-BIT à CHAQUE tick.
+    d = per_tick_divergence(_genome(), ticks=8)
     assert max(d) < 1e-4
+
+
+def test_forcing_legacy_mask_off_breaks_parity():
+    # neutraliser SEULEMENT le masque de legacy (torch garde le sien) -> divergence
+    # = preuve que le masque d'attention d'entrée est bien load-bearing dans la parité.
+    d = per_tick_divergence(_genome(), ticks=8, force_legacy_mask_ones=True)
+    assert max(d) > 1e-3
 
 
 def test_signature():

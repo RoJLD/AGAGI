@@ -82,6 +82,10 @@ class TorchBatchModel:
     KWTA_KEEP_FRAC = 1.0           # tolère les attrs posés par le monde (no-op torch)
     LR = 0.04                      # taux du TD autograd (EDR-139 : balayable ; 0.0 = pas d'apprentissage,
                                    # récurrence conservée). Lu par type(self) -> sous-classe sans mutation globale.
+    INPUT_ATTENTION = False        # EDR-144 : masque d'attention d'entrée dynamique (comme legacy). ON =
+                                   # parité FORWARD bit-à-bit avec legacy-core, MAIS DÉGRADE la survie
+                                   # in-world (52.5->38, cf EDR-144) -> OFF par défaut. La parité forward
+                                   # (learning-off, 1 agent) != parité comportementale (monde). Voir EDR-144.
     ACTIVATION = "auto"            # EDR-140 (reco migration) : "auto" détecte l'activation LIVE du monde
                                    # (swish évolué par le métaprog) et la matche -> adaptateur FIDÈLE (récupère
                                    # ~55% du gap, EDR-139). "tanh"|"swish" forcent (repro EDR-134..139).
@@ -141,6 +145,17 @@ class TorchBatchModel:
                 "act": [td["act"] for td in tds],
                 "reward": np.array([td["reward"] for td in tds], dtype=np.float32),
             }
+        # EDR-144 : masque d'attention d'ENTRÉE dynamique (parité bit-à-bit avec legacy). Legacy gate
+        # ses entrées par sigmoid(logits[O-I:O]) recalculé chaque tick et round-trippé via l'agent
+        # (a.attention_mask). On le restaure ici (ones à l'init = pas de masque), l'applique dans forward,
+        # et le recalcule dans _sync. Sans lui, le résidu torch<->legacy (EDR-141) subsistait.
+        self.attn_mask = np.ones((self.B, self.max_I), dtype=np.float32)
+        for i, a in enumerate(self.agents):
+            m = getattr(a, "attention_mask", None)
+            if m is not None:
+                m = np.asarray(m, dtype=np.float32).ravel()
+                L = min(m.shape[0], self.max_I)
+                self.attn_mask[i, :L] = m[:L]
 
     def _activate(self, excit):
         """Activation résolue par instance via le registre (EDR-139/140/141)."""
@@ -165,6 +180,7 @@ class TorchBatchModel:
         """Sync des attributs lus par le monde après chaque forward."""
         W_np = self.W.detach().cpu().numpy()
         H_np = H_new.detach().cpu().numpy()
+        logits_np = H_np[:, self.max_N - self.max_O:self.max_N]   # (B, max_O)
         for i, a in enumerate(self.agents):
             idx = self.mappings[i]
             a._torch_H = H_np[i].copy()   # round-trip récurrence (BUGFIX EDR-137)
@@ -177,8 +193,16 @@ class TorchBatchModel:
                 a.surprise_momentum = getattr(a, "surprise_momentum", 0.0)
                 if not isinstance(a.surprise_momentum, float):
                     a.surprise_momentum = 0.0
-            # attention_mask : vecteur d'entrées (ones = pas de masque)
-            a.attention_mask = np.ones(a.genome.num_inputs, dtype=np.float32)
+            # attention_mask (EDR-144) : si INPUT_ATTENTION, recalcul EXACT comme legacy ->
+            # sigmoid(logits[O-I:O]) (round-trippé) ; sinon ones (défaut non-régressif).
+            I_i, O_i = a.genome.num_inputs, a.genome.num_outputs
+            if type(self).INPUT_ATTENTION:
+                al = np.zeros(I_i, dtype=np.float32)
+                sl = logits_np[i, max(0, O_i - I_i):O_i]
+                al[:sl.shape[0]] = sl
+                a.attention_mask = (1.0 / (1.0 + np.exp(-np.clip(al, -60.0, 60.0)))).astype(np.float32)
+            else:
+                a.attention_mask = np.ones(I_i, dtype=np.float32)
             # ntm_memory : conserve l'existant ou initialise
             if not hasattr(a, "ntm_memory") or a.ntm_memory is None:
                 a.ntm_memory = np.zeros((10, 5), dtype=np.float32)
@@ -190,6 +214,8 @@ class TorchBatchModel:
             return np.array([]), np.array([])
         x = np.zeros((self.B, self.max_I), dtype=np.float32)
         x[:, :batch_obs.shape[1]] = batch_obs
+        if type(self).INPUT_ATTENTION:
+            x = x * self.attn_mask           # EDR-144 : masque d'attention d'entrée (parité forward legacy ; OFF par défaut)
         obs_t = torch.tensor(x)
         H_in = self.H.detach()
         with torch.no_grad():

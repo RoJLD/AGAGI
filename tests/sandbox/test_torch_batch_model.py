@@ -76,6 +76,11 @@ def test_activation_auto_matches_world():
     assert bm._act_kind == detected                      # résout vers l'activation du monde
 
 
+def test_input_attention_off_by_default():
+    # EDR-144 : le masque d'attention d'entrée est OFF par défaut (dégrade la survie ; non-régressif).
+    assert TorchBatchModel.INPUT_ATTENTION is False
+
+
 def test_activation_registry_numpy_torch_parity():
     """EDR-141 : chaque entrée du registre {réf numpy (détection), noyau torch} doit être cohérente
     (sinon la détection mapperait vers un noyau qui ne correspond pas à l'activation détectée)."""
