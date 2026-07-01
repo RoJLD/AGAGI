@@ -82,6 +82,17 @@ def _report_qd_rescue(h, per_seed, R, _return):
     qd = {k: _mean("qd", k) for k in keys}
     verdict = _verdict_qd_rescue(hof, qd)
     dcraft = qd["frac_craft"] - hof["frac_craft"]
+    # Robustesse (revue finale I1) : nb de seeds ou le CONFIRME tiendrait PER-SEED. Le verdict gele reste
+    # sur la MOYENNE ; ce readout evite un faux CONFIRME pilote par une seule graine au plancher (n=3).
+    n_confirme_seeds = sum(1 for p in per_seed
+                           if (p["qd"]["frac_craft"] - p["hof"]["frac_craft"]) >= 0.10
+                           and p["qd"]["frac_craft"] >= 0.10)
+    # Borne haute de frac_craft_QD que sample(5) UNIFORME peut delivrer (revue finale C1) : part des
+    # cellules tier2 dans l'archive QD. Un NEUTRE avec tier2>0 peut venir de la dilution d'echantillonnage
+    # (craft present mais noye), pas seulement de la non-retention.
+    cells_tier2 = float(np.mean([p["coverage"]["cells_tier2"] for p in per_seed]))
+    coverage_tot = float(np.mean([sum(p["coverage"].values()) for p in per_seed]))
+    craft_cell_share = cells_tier2 / coverage_tot if coverage_tot > 0 else 0.0
     print("\n=== QD sauve-t-il le tier CRAFT ? (cohorte fixe, 2 bras apparies) ===")
     print("  seed | HOF  forg  craf  apex | QD   forg  craf  apex | QDcells t2/t3")
     for p in per_seed:
@@ -92,11 +103,17 @@ def _report_qd_rescue(h, per_seed, R, _return):
     print(f"  MOYEN|      {hof['frac_forage']:5.3f} {hof['frac_craft']:5.3f} {hof['frac_apex']:5.3f} "
           f"|      {qd['frac_forage']:5.3f} {qd['frac_craft']:5.3f} {qd['frac_apex']:5.3f}")
     print(f"  d(craft) = {dcraft:+.3f}")
+    print(f"  seeds CONFIRME per-seed = {n_confirme_seeds}/{len(per_seed)}")
+    print(f"  QD craft-cell share (borne haute sample) = {craft_cell_share:.3f} "
+          f"(cells_tier2 {cells_tier2:.2f} / coverage {coverage_tot:.2f})")
     print("=== VERDICT (QD sauve le craft ?) ===")
     print(f"  -> {verdict}")
-    h.save({"R": R, "verdict": verdict, "d_craft": dcraft, "mean_hof": hof, "mean_qd": qd, "per_seed": per_seed})
+    h.save({"R": R, "verdict": verdict, "d_craft": dcraft, "n_confirme_seeds": n_confirme_seeds,
+            "craft_cell_share": craft_cell_share, "mean_hof": hof, "mean_qd": qd, "per_seed": per_seed})
     if _return:
-        return {"verdict": verdict, "d_craft": dcraft, "mean_hof": hof, "mean_qd": qd, "per_seed": per_seed, "R": R}
+        return {"verdict": verdict, "d_craft": dcraft, "n_confirme_seeds": n_confirme_seeds,
+                "craft_cell_share": craft_cell_share, "mean_hof": hof, "mean_qd": qd,
+                "per_seed": per_seed, "R": R}
 
 
 def main_qd_tier_rescue(R=3, eras=12, num_agents=30, max_ticks=400, seed=1260, _return=False):

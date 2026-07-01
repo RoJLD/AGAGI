@@ -1,12 +1,19 @@
 import os
 import sys
+import types
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
 from src.seed_ai.map_elites import MapElitesArchive
-from tools.qd_tier_rescue import _tier_coverage, _verdict_qd_rescue
+from tools.qd_tier_rescue import (
+    _tier_coverage,
+    _verdict_qd_rescue,
+    _evolve_qd_champions,
+    main_qd_tier_rescue,
+    _report_qd_rescue,
+)
 
 
 def test_tier_coverage_counts_cells_per_tier():
@@ -41,11 +48,6 @@ def test_verdict_qd_rescue_lift_but_still_floored_is_neutre():
     assert _verdict_qd_rescue({"frac_craft": 0.01}, {"frac_craft": 0.10}) == "QD_NEUTRE"
 
 
-import types
-
-from tools.qd_tier_rescue import _evolve_qd_champions, main_qd_tier_rescue
-
-
 def test_evolve_qd_champions_populates_craft_cell_with_fake_runner():
     def _g(nodes):
         return types.SimpleNamespace(num_nodes=nodes)
@@ -69,3 +71,28 @@ def test_smoke_main_qd_tier_rescue_returns_verdict():
     assert "d_craft" in res
     assert len(res["per_seed"]) == 1
     assert set(res["per_seed"][0].keys()) >= {"seed", "hof", "qd", "coverage"}
+
+
+def test_report_qd_rescue_per_seed_sign_and_craft_share():
+    class _FakeH:
+        def save(self, d):
+            self.saved = d
+
+    per_seed = [
+        {"seed": 1, "hof": {"frac_forage": 0.6, "frac_craft": 0.01, "frac_apex": 0.16, "n": 30},
+         "qd": {"frac_forage": 0.6, "frac_craft": 0.40, "frac_apex": 0.16, "n": 30},
+         "coverage": {"cells_tier0": 2, "cells_tier1": 3, "cells_tier2": 1, "cells_tier3": 1}},
+        {"seed": 2, "hof": {"frac_forage": 0.6, "frac_craft": 0.01, "frac_apex": 0.16, "n": 30},
+         "qd": {"frac_forage": 0.6, "frac_craft": 0.00, "frac_apex": 0.16, "n": 30},
+         "coverage": {"cells_tier0": 2, "cells_tier1": 3, "cells_tier2": 0, "cells_tier3": 1}},
+        {"seed": 3, "hof": {"frac_forage": 0.6, "frac_craft": 0.01, "frac_apex": 0.16, "n": 30},
+         "qd": {"frac_forage": 0.6, "frac_craft": 0.00, "frac_apex": 0.16, "n": 30},
+         "coverage": {"cells_tier0": 2, "cells_tier1": 3, "cells_tier2": 0, "cells_tier3": 1}},
+    ]
+    res = _report_qd_rescue(_FakeH(), per_seed, R=3, _return=True)
+    # moyenne qd craft = 0.1333, d = 0.1233 -> le verdict GELE (sur moyenne) est CONFIRME
+    assert res["verdict"] == "QD_RESCUE_CRAFT CONFIRME"
+    # mais un SEUL seed le porte (I1) :
+    assert res["n_confirme_seeds"] == 1
+    # borne haute sample (C1) : mean(cells_tier2)=1/3 / mean(coverage_tot)=19/3 ~ 0.0526
+    assert 0.04 < res["craft_cell_share"] < 0.06
