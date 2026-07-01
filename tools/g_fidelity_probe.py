@@ -256,7 +256,7 @@ def run_probe_env(seeds, warmup: int = 300, measure: int = 300) -> dict:
 
 
 
-def collect_ratios_stoneage(seed, num_agents=30, warmup=150, measure=150):
+def collect_ratios_stoneage(seed, num_agents=30, warmup=150, measure=150, genome=None, benchmark=False):
     """Collecte les ratios g_err/base_err sur observations REELLES du monde stoneage.
 
     Approche : num_agents agents libres dans Biosphere3D. Apres warmup ticks, on mesure
@@ -297,21 +297,36 @@ def collect_ratios_stoneage(seed, num_agents=30, warmup=150, measure=150):
         cfg.base_metabolism = 0.25
         cfg.forage_payoff = 3.0
 
-        # Agents avec planificateur actif
+        # Agents avec planificateur actif. genome fourni -> CHAMPION competent (leve le blocueur
+        # n=0 : les agents frais meurent ~15 ticks < warmup, aucune transition mesurable ; un
+        # champion survit 66+ au sweet-spot EDR-129 -> g a le temps d'apprendre et d'etre mesure).
         agents_list = []
         for _ in range(num_agents):
             a = MambaAgent()
-            a.genome.organ_genes = np.array([True, False])
+            if genome is not None:
+                a.from_genome(genome)
+            a.genome.organ_genes = np.array([True, False])   # planner ON (apres from_genome)
             agents_list.append(a)
 
         # Determinisme
         SeedManager(seed).seed_boundary(0)
 
         env = Biosphere3D(cfg)
+        if benchmark:
+            # cohorte fixe (pas de repro -> le planner n'est pas dilue par des rejetons sans g,
+            # cf. caveat 'clone() ne propage pas planner_G') + regime EDR-129 (nuit OFF, scaffolds OFF).
+            env.benchmark_mode = True
+            env.night_enabled = False
+            env.current_era = 10_000
         for a in agents_list:
             env.add_agent(a, energy=80.0)
 
-        async_logger.start()
+        # KuzuDB async_logger = goulot (écriture par tick) et INUTILE pour une mesure de fidélité.
+        # En benchmark (champion), on le SAUTE -> step() marche sans (cf. cross_world_transfer) et le
+        # run passe de minutes à secondes. Chemin par défaut (agents frais) inchangé (le démarre).
+        _use_logger = not benchmark
+        if _use_logger:
+            async_logger.start()
 
         # prev_H par agent_id : H(t-1) et action(t-1)
         prev_state = {}  # agent_id -> {"H": np.ndarray (N,), "move": int, "G_col": np.ndarray}
@@ -379,11 +394,12 @@ def collect_ratios_stoneage(seed, num_agents=30, warmup=150, measure=150):
     finally:
         MambaBatchModel.PLAN_BIAS = prev_bias
         MambaBatchModel.PLAN_LR = prev_lr
-        try:
-            from src.graph_rag.async_logger import logger as async_logger
-            async_logger.stop()
-        except Exception:
-            pass
+        if not benchmark:
+            try:
+                from src.graph_rag.async_logger import logger as async_logger
+                async_logger.stop()
+            except Exception:
+                pass
 
     result = {
         "ratios": ratios,
@@ -395,15 +411,17 @@ def collect_ratios_stoneage(seed, num_agents=30, warmup=150, measure=150):
     return result
 
 
-def run_probe_stoneage(seeds, warmup=150, measure=150, num_agents=30) -> dict:
-    """Agrege collect_ratios_stoneage sur plusieurs seeds. Retourne le verdict + diagnostics."""
+def run_probe_stoneage(seeds, warmup=150, measure=150, num_agents=30, genome=None, benchmark=False) -> dict:
+    """Agrege collect_ratios_stoneage sur plusieurs seeds. Retourne le verdict + diagnostics.
+    genome fourni -> cohorte de champions (leve le blocueur n=0) ; benchmark -> cohorte fixe."""
     all_ratios = []
     action_abs_accum = {a_idx: [] for a_idx in range(MambaBatchModel.PLAN_A)}
     total_transitions = 0
     notes = []
 
     for s in seeds:
-        res = collect_ratios_stoneage(int(s), num_agents=num_agents, warmup=warmup, measure=measure)
+        res = collect_ratios_stoneage(int(s), num_agents=num_agents, warmup=warmup, measure=measure,
+                                      genome=genome, benchmark=benchmark)
         all_ratios.extend(res["ratios"])
         total_transitions += res["n_transitions"]
         for a_idx, vals in res["action_abs_by_action"].items():
@@ -431,8 +449,23 @@ def main():
 
     if mode == "stoneage":
         num_agents = int(os.environ.get("GFP_NUM_AGENTS", "30"))
+        # GFP_HOF -> injecte un CHAMPION competent (leve le blocueur n=0 ; cohorte fixe par defaut).
+        genome = None
+        hof = os.environ.get("GFP_HOF", "").strip()
+        benchmark = os.environ.get("GFP_BENCHMARK", "1" if hof else "0").strip() not in ("0", "false", "False")
+        if hof:
+            import importlib
+            from src.seed_ai import persistence
+            os.environ["HOF_PATH"] = hof
+            importlib.reload(persistence)
+            _v, entries = persistence.load_hall_of_fame()
+            if not entries:
+                raise RuntimeError(f"HoF vide : {hof}")
+            genome = entries[0].genome
+            print(f"[champion] {hof} (dims {genome.num_inputs}/{genome.num_outputs}), benchmark={benchmark}")
         print(f"=== g-fidelity probe STONEAGE (Biosphere3D, obs reelles) seeds={seeds} ===")
-        out = run_probe_stoneage(seeds, warmup=warmup, measure=measure, num_agents=num_agents)
+        out = run_probe_stoneage(seeds, warmup=warmup, measure=measure, num_agents=num_agents,
+                                 genome=genome, benchmark=benchmark)
     elif use_env:
         print(f"=== g-fidelity probe ENV (grille 1-D, action->obs couple) seeds={seeds} ===")
         out = run_probe_env(seeds, warmup, measure)
