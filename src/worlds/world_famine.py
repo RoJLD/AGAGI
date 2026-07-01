@@ -7,6 +7,8 @@ disette, dont le coût est COMPOSITE = (1) drain de portage réel (carry_weight�
 poids=0.5 → 0.25/tick/fruit) + (2) péremption (valeur décroît de SPOIL_RATE/tick depuis le
 stockage). Survivre exige de STOCKER pendant l'abondance -> gratification différée, que stoneage
 n'exige ni n'enseigne."""
+import os
+
 from src.worlds.world_1_stoneage import Biosphere3D
 
 FOOD_VALUE = 25.0    # énergie rendue par un fruit FRAIS consommé depuis le cache
@@ -28,8 +30,12 @@ WITHDRAW_RATE = 25.0    # max retire de la reserve par tick en famine
 class FamineWorld(Biosphere3D):
     def __init__(self, config=None):
         super().__init__(config)
-        self.cycle_abundance = 60      # ticks d'abondance (variable d'expérience)
-        self.cycle_famine = 40         # ticks de famine
+        # Seam de dureté (durcir la famine, EDR-129→130) : env-vars FAMINE_CYCLE_* pilotent le régime
+        # sans toucher main_biosphere (comme HOF_PATH/MAX_ERAS, EDR-126). Défaut = régime EDR-118/126.
+        # Régime dur calibré : abondance 30 / famine 120 -> buffer naturel épuisé (~96 ticks), le
+        # stockage devient load-bearing (oracle-storer ~223) -> le monde EXIGE une réserve.
+        self.cycle_abundance = int(os.environ.get("FAMINE_CYCLE_ABUNDANCE", "60"))  # ticks d'abondance
+        self.cycle_famine = int(os.environ.get("FAMINE_CYCLE_FAMINE", "40"))        # ticks de famine
         self.starve_threshold = 25.0   # sous ce niveau d'énergie, auto-consommation du cache
         # Seam d'ablation (probe d'évolvabilité) : à False, l'auto-consommation du cache est
         # désactivée -> les fruits stockés deviennent du poids mort (le coût de portage reste).
