@@ -447,3 +447,89 @@ def test_probe_collapse_predictors_smoke():
     for row in res["rows"]:
         for k in ("seed", "bound", "binding_gap_end", "did_x_auc_early", "y_rate_start"):
             assert k in row
+
+
+# --- Warm-start du gate (test causal path-dependence, suite EDR 131) ---
+
+def test_gated_warmstart_default_zero_is_baseline():
+    """Par défaut gate_warmstart_trials=0 → aucun pré-entraînement (rétrocompat EDR 129/131)."""
+    from tools.substrate_ab_compositional import run_curriculum_fade_gated
+    import inspect
+    assert inspect.signature(run_curriculum_fade_gated).parameters["gate_warmstart_trials"].default == 0
+
+
+def test_gated_warmstart_runs_and_reports_trials():
+    """gate_warmstart_trials>0 pré-entraîne le gate à imiter l'oracle depuis H_S2 puis tourne ;
+    le nombre de trials de warm-start est reporté dans la sortie."""
+    pytest.importorskip("torch")
+    from tools.substrate_ab_compositional import run_curriculum_fade_gated
+    r = run_curriculum_fade_gated("torch", seed=0, warmup_trials=30, compo_trials=40, n_agents=4,
+                                  gate_mode="learned", gate_warmstart_trials=20)
+    assert r["gate_warmstart_trials"] == 20
+    assert (r["binding_gap_end"] is None) or (-1.0 <= r["binding_gap_end"] <= 1.0)
+
+
+def test_gated_warmstart_ignored_when_not_learned():
+    """Le warm-start ne s'applique qu'au gate learned : none/oracle tournent sans erreur avec le param."""
+    pytest.importorskip("torch")
+    from tools.substrate_ab_compositional import run_curriculum_fade_gated
+    r = run_curriculum_fade_gated("torch", seed=0, warmup_trials=20, compo_trials=20, n_agents=4,
+                                  gate_mode="none", gate_warmstart_trials=20)
+    assert r["gate_mode"] == "none"
+    assert r["gate_warmstart_trials"] == 20
+
+
+def test_gated_freeze_after_warmstart_default_false():
+    """Par défaut freeze_gate_after_warmstart=False → gate plastique en phase B (rétrocompat)."""
+    from tools.substrate_ab_compositional import run_curriculum_fade_gated
+    import inspect
+    p = inspect.signature(run_curriculum_fade_gated).parameters["freeze_gate_after_warmstart"]
+    assert p.default is False
+
+
+def test_gated_freeze_after_warmstart_runs():
+    """freeze_gate_after_warmstart=True : le gate warm-starté n'est plus mis à jour en phase B, tourne."""
+    pytest.importorskip("torch")
+    from tools.substrate_ab_compositional import run_curriculum_fade_gated
+    r = run_curriculum_fade_gated("torch", seed=0, warmup_trials=30, compo_trials=40, n_agents=4,
+                                  gate_mode="learned", gate_warmstart_trials=30,
+                                  freeze_gate_after_warmstart=True)
+    assert r["freeze_gate_after_warmstart"] is True
+    assert (r["binding_gap_end"] is None) or (-1.0 <= r["binding_gap_end"] <= 1.0)
+
+
+def test_capture_gate_bias_off_by_default():
+    """Sans capture_gate_bias, pas de clés de biais du gate (coût évité)."""
+    from tools.substrate_ab_compositional import run_curriculum_fade_gated
+    import inspect
+    assert inspect.signature(run_curriculum_fade_gated).parameters["capture_gate_bias"].default is False
+
+
+def test_capture_gate_bias_reports_conditional_bias():
+    """capture_gate_bias=True : biais MOYEN du gate en phase B, séparé did_x vs ¬did_x.
+    Sur un gate warm-starté à imiter l'oracle (+8/−8), le biais sur did_x doit être > celui sur ¬did_x
+    (marge de conditionnement) — c'est l'instrument qui distingue sous-ajustement de marge vs offset."""
+    pytest.importorskip("torch")
+    from tools.substrate_ab_compositional import run_curriculum_fade_gated
+    r = run_curriculum_fade_gated("torch", seed=1, warmup_trials=30, compo_trials=40, n_agents=4,
+                                  gate_mode="learned", gate_warmstart_trials=60,
+                                  freeze_gate_after_warmstart=True, capture_gate_bias=True)
+    for k in ("gate_bias_didx_end", "gate_bias_notdidx_end", "gate_bias_margin_end"):
+        assert k in r
+    # marge = biais(did_x) − biais(¬did_x) ; cohérence interne
+    if r["gate_bias_margin_end"] is not None:
+        assert abs(r["gate_bias_margin_end"]
+                   - (r["gate_bias_didx_end"] - r["gate_bias_notdidx_end"])) < 1e-4
+
+
+@pytest.mark.slow
+def test_sweep_gate_warmstart_smoke():
+    """sweep_gate_warmstart : n_bind/n_seeds par niveau de warm-start (test causal path-dependence)."""
+    pytest.importorskip("torch")
+    from tools.substrate_ab_compositional import sweep_gate_warmstart
+    res = sweep_gate_warmstart(seeds=(0, 1), warmstart_levels=(0, 20),
+                               warmup_trials=30, compo_trials=30, n_agents=4)
+    assert res["rows"] and "verdict" in res
+    for row in res["rows"]:
+        for k in ("warmstart", "n_bind", "n_seeds", "gap_median", "gap_per_seed"):
+            assert k in row
