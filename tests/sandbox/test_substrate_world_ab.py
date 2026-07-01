@@ -7,7 +7,7 @@ KuzuDB calme — non committé ici (anti-contention machine multi-sessions).
 import sys, os, inspect
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
-from tools.substrate_world_ab import _ab_from_meds, measure_survival, compare_backends
+from tools.substrate_world_ab import _ab_from_meds, measure_survival, compare_backends, compare_arms
 
 
 def test_ab_from_meds_gradient_wins():
@@ -37,4 +37,10 @@ def test_measure_survival_accepts_backend_cls_and_genome():
 
 def test_compare_backends_signature():
     p = inspect.signature(compare_backends).parameters
+    assert "world_key" in p and "genome" in p and "band" in p
+
+
+def test_compare_arms_signature():
+    # bras à 3 (EDR-134 suite) : legacy-full / legacy-core / torch-core.
+    p = inspect.signature(compare_arms).parameters
     assert "world_key" in p and "genome" in p and "band" in p

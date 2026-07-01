@@ -101,12 +101,68 @@ def compare_backends(world_key: str = "stoneage", seed: int = 42, k_eval: int = 
     return res
 
 
+def _load_champion(hof_path: str):
+    """Génome du #1 d'un HoF (seam EDR-126, réutilise le loader de cross_world_transfer)."""
+    import importlib
+    from src.seed_ai import persistence
+    os.environ["HOF_PATH"] = hof_path
+    importlib.reload(persistence)
+    _v, entries = persistence.load_hall_of_fame()
+    if not entries:
+        raise RuntimeError(f"HoF vide : {hof_path}")
+    return entries[0].genome
+
+
+def compare_arms(world_key: str = "stoneage", seed: int = 42, k_eval: int = 12,
+                 num_agents: int = 12, max_ticks: int = 300, genome=None, band: float = 2.0) -> dict:
+    """A/B à TROIS bras (EDR-134 suite, contrôle du confound d'organes) :
+
+      - legacy-full : MambaBatchModel        (organes ON, règle numpy)
+      - legacy-core : MambaCoreBatchModel     (organes ABLÉS, règle numpy)  <-- nouveau
+      - torch-core  : TorchBatchModel         (organes absents, règle autograd)
+
+    Lectures décisives :
+      * legacy-full vs legacy-core = APPORT DES ORGANES (si le champion chute -> organes porteurs).
+      * legacy-core vs torch-core  = RÈGLE D'APPRENTISSAGE À PARITÉ D'ORGANES (la question PROPRE
+        qu'EDR-134 ne pouvait pas trancher).
+    """
+    from src.agents.mamba_agent import MambaBatchModel, MambaCoreBatchModel
+    from src.agents.torch_batch_model import TorchBatchModel
+
+    legacy = measure_survival(world_key, seed, MambaBatchModel, genome, k_eval, num_agents, max_ticks)
+    core = measure_survival(world_key, seed, MambaCoreBatchModel, genome, k_eval, num_agents, max_ticks)
+    torch_meds = measure_survival(world_key, seed, TorchBatchModel, genome, k_eval, num_agents, max_ticks)
+
+    med = lambda xs: float(statistics.median(xs)) if xs else 0.0
+    return {
+        "world": world_key,
+        "legacy_median": med(legacy), "core_median": med(core), "torch_median": med(torch_meds),
+        "organs_contribution": _ab_from_meds(core, legacy, band),   # "torch"=legacy_full : diff>0 => organes AIDENT
+        "rule_at_parity": _ab_from_meds(core, torch_meds, band),    # torch vs core : GRADIENT_GAGNE => la règle torch gagne À PARITÉ
+        "full_confound": _ab_from_meds(legacy, torch_meds, band),   # reproduit la mesure EDR-134
+    }
+
+
 def main():
     world = os.environ.get("SWA_WORLD", "stoneage")
     seed = int(os.environ.get("SWA_SEED", "42"))
     k_eval = int(os.environ.get("SWA_KEVAL", "10"))
     num_agents = int(os.environ.get("SWA_AGENTS", "12"))
     max_ticks = int(os.environ.get("SWA_TICKS", "300"))
+
+    if os.environ.get("SWA_MODE") == "arms":
+        hof = os.environ.get("SWA_HOF", "data/hall_of_fame.pkl")
+        genome = _load_champion(hof)
+        r = compare_arms(world, seed, k_eval, num_agents, max_ticks, genome=genome)
+        print(f"ARMS world={r['world']} legacy={r['legacy_median']:.1f} core={r['core_median']:.1f} "
+              f"torch={r['torch_median']:.1f}")
+        oc, rp = r["organs_contribution"], r["rule_at_parity"]
+        print(f"  ORGANES (legacy_full - core) : median_diff={oc['median_diff']:+.2f} "
+              f"verdict={oc['verdict']} (fav={oc['n_gradient_favorable']}/{oc['n']}, p={oc['sign_p']:.4f})")
+        print(f"  REGLE @parite (torch - core) : median_diff={rp['median_diff']:+.2f} "
+              f"verdict={rp['verdict']} (fav={rp['n_gradient_favorable']}/{rp['n']}, p={rp['sign_p']:.4f})")
+        return r
+
     res = compare_backends(world, seed, k_eval, num_agents, max_ticks)
     print(f"VERDICT={res['verdict']} world={res['world']} median_diff={res['median_diff']:+.2f} "
           f"(grad_fav={res['n_gradient_favorable']}/{res['n']}, sign_p={res['sign_p']:.4f}) "
