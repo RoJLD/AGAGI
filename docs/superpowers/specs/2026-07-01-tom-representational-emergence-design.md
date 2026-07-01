@@ -52,7 +52,9 @@ Par seed `base+r` :
    enregistrer les 2 échantillons dirigés `{pred=argmax(predictor_head_A), act=last_action_B, latent_A}` et
    symétrique. Ignorer si `last_action == -1` ou `predictor_head is None`.
 
-**Pairing = same-cell** (réplique exacte de `:789`). `pred ∈ {0..7}` (argmax de 8), `act ∈ {0..28}`.
+**Pairing = same-cell** (réplique exacte de `:789`). `pred ∈ {0..7}` (argmax de 8) ET `act ∈ {0..7}`
+(CORRIGÉ, revue finale : `last_action = argmax(logits[:8])`, `world_1_stoneage.py:1060,1071` → espace
+d'action réel = 8, identique à `predictor_head` → tâche BIEN POSÉE, accuracy non plafonnée).
 
 ## 5. Composants & interfaces
 
