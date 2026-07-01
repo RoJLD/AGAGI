@@ -64,3 +64,71 @@ def _verdict_coordination(sig):
     if sig["delta"] >= 0.10:
         return "COORDINATED"
     return "INDEPENDENT"
+
+
+def _collect_hunt_decisions(cfg, genomes, max_ticks=400):
+    """Cohorte fixe (benchmark_mode + memory neutralisee AVANT boucle, lecons 114b/P0). A chaque tick,
+    collecte les samples de chasse (mammouths frais, agents proches). Renvoie tous les samples."""
+    env = Biosphere3D(cfg)
+    env.benchmark_mode = True
+    if hasattr(env, "memory_retriever"):
+        env.memory_retriever.stop()
+        env.memory_retriever.clear()
+    for g in genomes:
+        a = MambaAgent()
+        a.from_genome(g, preserve_dims=PRESERVE_DIMS)
+        env.add_agent(a, energy=80.0)
+    env.current_era = 1
+    mammoth_hp = getattr(cfg, "mammoth_hp", 100.0)
+    samples = []
+    t = 0
+    while env.agents and t < max_ticks:
+        env.step()
+        samples += _hunt_samples_from_state(env.agents, env.preys, mammoth_hp)
+        t += 1
+    return samples
+
+
+def _report_coordination(h, per_seed, R, _return):
+    """Table ASCII (par seed : p_with, p_alone, delta, nW, nA) + moyenne + verdict (delta moyen, garde min n)."""
+    delta = float(np.mean([p["delta"] for p in per_seed]))
+    p_with = float(np.mean([p["p_with"] for p in per_seed]))
+    p_alone = float(np.mean([p["p_alone"] for p in per_seed]))
+    n_with = int(min(p["n_with"] for p in per_seed))
+    n_alone = int(min(p["n_alone"] for p in per_seed))
+    verdict = _verdict_coordination({"delta": delta, "n_with": n_with, "n_alone": n_alone})
+    print("\n=== ToM comportementale : chasse coop coordonnee ? (cohorte fixe) ===")
+    print("  seed | p_with p_alone  delta   nW    nA")
+    for p in per_seed:
+        print(f"  {p['seed']:4d} | {p['p_with']:.3f}  {p['p_alone']:.3f}  {p['delta']:+.3f} {p['n_with']:5d} {p['n_alone']:5d}")
+    print(f"  MOYEN| {p_with:.3f}  {p_alone:.3f}  {delta:+.3f}")
+    print("=== VERDICT (recrutement) ===")
+    print(f"  -> {verdict}  (garde min nW={n_with} nA={n_alone})")
+    h.save({"R": R, "verdict": verdict, "delta": delta, "p_with": p_with, "p_alone": p_alone,
+            "n_with_min": n_with, "n_alone_min": n_alone, "per_seed": per_seed})
+    if _return:
+        return {"verdict": verdict, "delta": delta, "p_with": p_with, "p_alone": p_alone,
+                "n_with_min": n_with, "n_alone_min": n_alone, "per_seed": per_seed, "R": R}
+
+
+def main_tom_coordination(R=3, eras=12, num_agents=30, max_ticks=400, seed=1300, _return=False):
+    """Par seed base+r : evolue des champions (coop par defaut), mesure les decisions de chasse sur cohorte
+    fixe, agrege R seeds, verdict recrutement."""
+    base = seed
+    h = Harness(seed=base, name="tom_coordination", with_db=False, config=WorldConfig())
+    async_logger.start()
+    try:
+        per_seed = []
+        for r in range(R):
+            s = base + r
+            champs = _evolve_champions(s, eras=eras, num_agents=num_agents, max_ticks=max_ticks)
+            reps = (champs * (num_agents // len(champs) + 1))[:num_agents] if champs else []
+            samples = _collect_hunt_decisions(_make_cfg(), reps, max_ticks=max_ticks)
+            per_seed.append({**_recruitment_signal(samples), "seed": int(s)})
+    finally:
+        async_logger.stop()
+    return _report_coordination(h, per_seed, R, _return)
+
+
+if __name__ == "__main__":
+    main_tom_coordination()

@@ -53,3 +53,13 @@ def test_verdict_coordination_three_branches():
     assert _verdict_coordination({"delta": 0.15, "n_with": 30, "n_alone": 30}) == "COORDINATED"
     assert _verdict_coordination({"delta": 0.02, "n_with": 30, "n_alone": 30}) == "INDEPENDENT"
     assert _verdict_coordination({"delta": 0.15, "n_with": 5, "n_alone": 30}) == "INDETERMINE"
+
+
+from tools.tom_coordination import main_tom_coordination
+
+
+def test_smoke_main_tom_coordination_returns_verdict():
+    res = main_tom_coordination(R=1, eras=2, num_agents=16, max_ticks=120, seed=99300, _return=True)
+    assert res["verdict"] in {"COORDINATED", "INDEPENDENT", "INDETERMINE"}
+    assert len(res["per_seed"]) == 1
+    assert set(res["per_seed"][0].keys()) >= {"seed", "delta", "n_with", "n_alone"}
