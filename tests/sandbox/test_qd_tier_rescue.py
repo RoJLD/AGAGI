@@ -39,3 +39,33 @@ def test_verdict_qd_rescue_nuit():
 
 def test_verdict_qd_rescue_lift_but_still_floored_is_neutre():
     assert _verdict_qd_rescue({"frac_craft": 0.01}, {"frac_craft": 0.10}) == "QD_NEUTRE"
+
+
+import types
+
+from tools.qd_tier_rescue import _evolve_qd_champions, main_qd_tier_rescue
+
+
+def test_evolve_qd_champions_populates_craft_cell_with_fake_runner():
+    def _g(nodes):
+        return types.SimpleNamespace(num_nodes=nodes)
+
+    def fake_runner(cfg, genomes, max_ticks):
+        pool = [
+            (10.0, _g(160), {"num_nodes": 160, "preys_eaten": 1, "spears_crafted": 0, "mammoth_kills": 0}),
+            (50.0, _g(200), {"num_nodes": 200, "preys_eaten": 2, "spears_crafted": 3, "mammoth_kills": 0}),
+        ]
+        return pool, {"score": 50.0, "ticks": 10.0}
+
+    champs, archive = _evolve_qd_champions(seed=99260, eras=2, num_agents=6, max_ticks=10, run_era_fn=fake_runner)
+    assert archive.coverage() > 0
+    assert _tier_coverage(archive)["cells_tier2"] >= 1
+    assert isinstance(champs, list)
+
+
+def test_smoke_main_qd_tier_rescue_returns_verdict():
+    res = main_qd_tier_rescue(R=1, eras=2, num_agents=10, max_ticks=80, seed=99260, _return=True)
+    assert res["verdict"] in {"QD_RESCUE_CRAFT CONFIRME", "QD_NEUTRE", "QD_NUIT"}
+    assert "d_craft" in res
+    assert len(res["per_seed"]) == 1
+    assert set(res["per_seed"][0].keys()) >= {"seed", "hof", "qd", "coverage"}

@@ -42,3 +42,85 @@ def _verdict_qd_rescue(fracs_hof, fracs_qd):
     if d <= -0.10:
         return "QD_NUIT"
     return "QD_NEUTRE"
+
+
+def _evolve_qd_champions(seed, eras=12, num_agents=30, max_ticks=400, run_era_fn=None):
+    """Bras QD : archive MAP-Elites, reproduit depuis niches diverses (sample). Renvoie (champions, archive).
+    Mirror de run_lineage_qd (map_elites_compare) mais renvoie les genomes champions + l'archive.
+    run_era_fn injectable (defaut run_era_pool) pour les tests."""
+    if run_era_fn is None:
+        run_era_fn = run_era_pool
+    SeedManager(seed).seed_boundary(0)
+    cfg = _make_cfg()
+    archive = MapElitesArchive()
+    genomes = [_seed_genome(i) for i in range(num_agents)]
+    for _ in range(eras):
+        pool, _m = run_era_fn(cfg, genomes, max_ticks)
+        for s, g, st in pool:
+            archive.upsert(s, g, st)
+        champ = archive.sample(5)
+        genomes = _reproduce(champ, num_agents) if champ else [MambaAgent().genome for _ in range(num_agents)]
+    return archive.sample(5), archive
+
+
+def _measure_arm(champs, num_agents, max_ticks):
+    """Replique les champions a num_agents et mesure le profil per-tier sur cohorte fixe (benchmark_mode).
+    Bras vide -> fractions nulles (_frac_reaching([]) == 0.0)."""
+    if not champs:
+        return _tier_fractions([])
+    reps = (champs * (num_agents // len(champs) + 1))[:num_agents]
+    stats = _measure_profile(_make_cfg(), reps, max_ticks=max_ticks, disable_repro=True)
+    return _tier_fractions(stats)
+
+
+def _report_qd_rescue(h, per_seed, R, _return):
+    """Table ASCII (HOF forg/craf/apex | QD forg/craf/apex | QD craft/apex cells) + moyenne + Delta + verdict."""
+    def _mean(arm, k):
+        return float(np.mean([p[arm][k] for p in per_seed]))
+    keys = ("frac_forage", "frac_craft", "frac_apex")
+    hof = {k: _mean("hof", k) for k in keys}
+    qd = {k: _mean("qd", k) for k in keys}
+    verdict = _verdict_qd_rescue(hof, qd)
+    dcraft = qd["frac_craft"] - hof["frac_craft"]
+    print("\n=== QD sauve-t-il le tier CRAFT ? (cohorte fixe, 2 bras apparies) ===")
+    print("  seed | HOF  forg  craf  apex | QD   forg  craf  apex | QDcells t2/t3")
+    for p in per_seed:
+        hf, qf, cv = p["hof"], p["qd"], p["coverage"]
+        print(f"  {p['seed']:4d} |      {hf['frac_forage']:5.3f} {hf['frac_craft']:5.3f} {hf['frac_apex']:5.3f} "
+              f"|      {qf['frac_forage']:5.3f} {qf['frac_craft']:5.3f} {qf['frac_apex']:5.3f} "
+              f"|   {cv['cells_tier2']:2d}/{cv['cells_tier3']:2d}")
+    print(f"  MOYEN|      {hof['frac_forage']:5.3f} {hof['frac_craft']:5.3f} {hof['frac_apex']:5.3f} "
+          f"|      {qd['frac_forage']:5.3f} {qd['frac_craft']:5.3f} {qd['frac_apex']:5.3f}")
+    print(f"  d(craft) = {dcraft:+.3f}")
+    print("=== VERDICT (QD sauve le craft ?) ===")
+    print(f"  -> {verdict}")
+    h.save({"R": R, "verdict": verdict, "d_craft": dcraft, "mean_hof": hof, "mean_qd": qd, "per_seed": per_seed})
+    if _return:
+        return {"verdict": verdict, "d_craft": dcraft, "mean_hof": hof, "mean_qd": qd, "per_seed": per_seed, "R": R}
+
+
+def main_qd_tier_rescue(R=3, eras=12, num_agents=30, max_ticks=400, seed=1260, _return=False):
+    """Pour chaque seed base+r : evolue 2 bras (HoF life_score / QD niches), mesure le profil per-tier de
+    chacun sur cohorte fixe, agrege R seeds, verdict QD-sauve-craft."""
+    base = seed
+    async_logger.start()
+    try:
+        per_seed = []
+        for r in range(R):
+            s = base + r
+            hof_champs = _evolve_champions(s, eras=eras, num_agents=num_agents, max_ticks=max_ticks)
+            qd_champs, archive = _evolve_qd_champions(s, eras=eras, num_agents=num_agents, max_ticks=max_ticks)
+            per_seed.append({
+                "seed": int(s),
+                "hof": _measure_arm(hof_champs, num_agents, max_ticks),
+                "qd": _measure_arm(qd_champs, num_agents, max_ticks),
+                "coverage": _tier_coverage(archive),
+            })
+    finally:
+        async_logger.stop()
+    h = Harness(seed=base, name="qd_tier_rescue", with_db=False, config=WorldConfig())
+    return _report_qd_rescue(h, per_seed, R, _return)
+
+
+if __name__ == "__main__":
+    main_qd_tier_rescue()
