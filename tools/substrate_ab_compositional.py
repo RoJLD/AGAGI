@@ -846,6 +846,61 @@ def sweep_y_saturation(seeds=tuple(range(10)), penalties=(0.0, 1.0, 3.0), fade_w
             "best_n_bind": best, "manip_lowered_saturation": lowered, "rows": rows}
 
 
+def sweep_overtraining_stability(seeds=tuple(range(10)), penalties=(0.0, 6.0),
+                                 compo_trials_list=(250, 500, 1000), fade_w0: float = 0.0,
+                                 y_without_x_penalty: float = 2.0, y_saturation_target: float = 0.5,
+                                 warmup_trials: int = 150, n_agents: int = 8,
+                                 bind_thresh: float = 0.30) -> dict:
+    """ROBUSTESSE au SUR-ENTRAÎNEMENT (intersection du fil in-world : le gradient intra-vie ÉRODE-t-il
+    une liaison ACQUISE ?). Pour chaque (pénalité, compo_trials), 10 seeds : n_bind, gap, hit_end
+    (ACCOMPLISSEMENT X-puis-Y), compo_didx (rétention du MOYEN X). La recette 136 = gate + anti-saturation
+    (pen>0) ; le brut (pen=0) sert de référence d'érosion. Verdict (sur la plus forte pénalité) :
+    - RECIPE_ROBUST : n_bind au plus long ct ≥ (au plus court − 1) ET gap médian ne s'effondre pas (>0.3).
+    - BINDING_EROSION : n_bind de la recette CHUTE de ≥2 entre le plus court et le plus long ct.
+    La protection du MOYEN (hit_end/didx recette vs brut) est lue par l'humain. Régime fade_w0 fixé
+    (0.0 = X non maintenu ; >0 = X maintenu → teste la synergie rétention×binding, tension EDR 126)."""
+    rows = []
+    for pen in penalties:
+        for ct in compo_trials_list:
+            cells = [run_curriculum_fade_gated("torch", seed=s, gate_mode="learned", fade_w0=fade_w0,
+                                               y_without_x_penalty=y_without_x_penalty,
+                                               warmup_trials=warmup_trials, compo_trials=ct,
+                                               n_agents=n_agents, y_saturation_penalty=pen,
+                                               y_saturation_target=y_saturation_target) for s in seeds]
+            gaps = [c["binding_gap_end"] for c in cells if c["binding_gap_end"] is not None]
+            hits = [c["hit_end"] for c in cells if c["hit_end"] is not None]
+            didx = [c["compo_didx_end"] for c in cells if c["compo_didx_end"] is not None]
+            # y_rate_median : anti-artefact du gap (un gap stable peut cacher une dérive de la marginale Y ;
+            # cf. revue EDR 136 — sans y_rate, la "stabilité du gap" n'est pas complète).
+            yr = [c["y_rate_end"] for c in cells if c["y_rate_end"] is not None]
+            rows.append({"penalty": float(pen), "compo_trials": int(ct),
+                         "n_bind": sum(1 for g in gaps if g > bind_thresh), "n_seeds": len(gaps),
+                         "gap_median": statistics.median(gaps) if gaps else None,
+                         "hit_end_median": statistics.median(hits) if hits else None,
+                         "didx_median": statistics.median(didx) if didx else None,
+                         "y_rate_median": statistics.median(yr) if yr else None})
+    # verdict sur la plus forte pénalité (la recette) : tient-elle le n_bind au plus long ct ?
+    # NB : verdict CONSERVATEUR/peu sensible (barre gap>bind_thresh vs gap réel ~0.9, n_bind saturé) ;
+    # une érosion partielle du gap (0.9→0.4) passerait encore ROBUST si n_bind tient — lecture humaine des
+    # médianes requise. En fade>0, la comparaison ct-croissant DILATE le schedule de fade (confond durée
+    # et schedule) ; propre seulement en fade0.0 (fade≡0). Voir bornage EDR.
+    pen_max = max(penalties)
+    recipe = [r for r in rows if r["penalty"] == pen_max]
+    verdict = "AMBIGU"
+    if recipe:
+        short = min(recipe, key=lambda r: r["compo_trials"])
+        long = max(recipe, key=lambda r: r["compo_trials"])
+        if long["compo_trials"] == short["compo_trials"]:
+            verdict = "AMBIGU"                       # un seul ct → pas de test de robustesse possible
+        elif long["n_bind"] <= short["n_bind"] - 2:
+            verdict = "BINDING_EROSION"
+        elif (long["gap_median"] or 0.0) > bind_thresh and long["n_bind"] >= short["n_bind"] - 1:
+            verdict = "RECIPE_ROBUST"
+        else:
+            verdict = "PARTIAL"
+    return {"verdict": verdict, "bind_thresh": bind_thresh, "fade_w0": float(fade_w0), "rows": rows}
+
+
 def compare_curriculum_fade(seeds=(0, 1, 2, 3, 4), warmup_trials: int = 150, compo_trials: int = 250,
                             n_agents: int = 8, fade_w0: float = 1.0) -> dict:
     """A/B apparié legacy vs torch du curriculum à fade. Verdict_fade :
