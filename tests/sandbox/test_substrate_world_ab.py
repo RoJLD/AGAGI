@@ -7,7 +7,8 @@ KuzuDB calme — non committé ici (anti-contention machine multi-sessions).
 import sys, os, inspect
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
-from tools.substrate_world_ab import _ab_from_meds, measure_survival, compare_backends, compare_arms
+from tools.substrate_world_ab import (_ab_from_meds, measure_survival, compare_backends,
+                                       compare_arms, evolve_native)
 
 
 def test_ab_from_meds_gradient_wins():
@@ -44,3 +45,9 @@ def test_compare_arms_signature():
     # bras à 3 (EDR-134 suite) : legacy-full / legacy-core / torch-core.
     p = inspect.signature(compare_arms).parameters
     assert "world_key" in p and "genome" in p and "band" in p
+
+
+def test_evolve_native_signature():
+    # #2 Baldwin : évolution native sur substrat (benchmark_mode=False).
+    p = inspect.signature(evolve_native).parameters
+    assert "world_key" in p and "backend_cls" in p and "max_ticks" in p and "pop_cap" in p

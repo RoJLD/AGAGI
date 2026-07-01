@@ -85,6 +85,57 @@ def measure_survival(world_key: str, seed: int, backend_cls, genome=None, k_eval
     return meds
 
 
+def evolve_native(world_key: str, seed: int, backend_cls, max_ticks: int = 1500,
+                  num_agents: int = 24, start_energy: float = 80.0, pop_cap: int = 120):
+    """ÉVOLUTION NATIVE sur un substrat (EDR-137 suite, #2 Baldwin). benchmark_mode=False -> la
+    reproduction/mutation/HGT façonnent le connectome SOUS ce substrat (les descendants héritent du
+    W appris par le substrat + mutation = Baldwin/Lamarckien). Sépare « moteur » de « mismatch » :
+    un champion évolué NATIVEMENT sur torch évite-t-il la déstabilisation du transplant (33.0) ?
+
+    Retourne le génome du plus vieux agent observé (proxy de champion natif) + stats de population
+    (extinction / pic). `pop_cap` borne le coût (torch forward sur B grand est lent)."""
+    import copy
+    import numpy as np
+    from src.agents.mamba_agent import MambaAgent
+    from src.seed_ai.harness import seed_at
+    from tools.s2_demand import WORLDS
+
+    world_cls = WORLDS[world_key]
+    seed_at(seed, 0)
+    env = world_cls(_sweet_config())
+    env.benchmark_mode = False       # <-- ÉVOLUTION active (repro/mutation/HGT)
+    env.night_enabled = False
+    env.current_era = 10_000
+    env.batch_model_cls = backend_cls
+    if hasattr(env, "memory_retriever"):
+        env.memory_retriever.stop()
+        env.memory_retriever.clear()
+    for _ in range(num_agents):
+        env.add_agent(MambaAgent(), energy=start_energy)
+
+    best_age, best_genome, peak_pop, births = -1, None, num_agents, 0
+    t = 0
+    while env.agents and t < max_ticks:
+        n_before = len(env.agents)
+        env.step()
+        t += 1
+        n_after = len(env.agents)
+        if n_after > n_before:
+            births += (n_after - n_before)
+        peak_pop = max(peak_pop, n_after)
+        for a in env.agents:
+            age = int(a["age"])
+            if age > best_age:
+                best_age = age
+                best_genome = copy.deepcopy(a["model"].genome)
+        # garde-fou coût : si la population explose, on stoppe (le probe a son signal)
+        if n_after > pop_cap:
+            break
+    return {"world": world_key, "seed": seed, "ticks": t, "best_age": best_age,
+            "best_genome": best_genome, "final_pop": len(env.agents), "peak_pop": peak_pop,
+            "births": births, "extinct": not env.agents}
+
+
 def compare_backends(world_key: str = "stoneage", seed: int = 42, k_eval: int = 12,
                      num_agents: int = 12, max_ticks: int = 300, genome=None, band: float = 2.0) -> dict:
     """A/B apparié legacy (MambaBatchModel) vs torch (TorchBatchModel) dans un monde -> verdict
@@ -149,6 +200,27 @@ def main():
     k_eval = int(os.environ.get("SWA_KEVAL", "10"))
     num_agents = int(os.environ.get("SWA_AGENTS", "12"))
     max_ticks = int(os.environ.get("SWA_TICKS", "300"))
+
+    if os.environ.get("SWA_MODE") == "evolve":
+        # #2 Baldwin : évolue NATIVEMENT sur torch, puis mesure le champion natif sous torch
+        # (comparer à transplant legacy sous torch ~33.0, et legacy-natif ~74.5).
+        from src.agents.torch_batch_model import TorchBatchModel
+        from src.agents.mamba_agent import MambaBatchModel
+        ev_ticks = int(os.environ.get("SWA_EVOTICKS", "1500"))
+        r = evolve_native(world, seed, TorchBatchModel, max_ticks=ev_ticks,
+                          num_agents=num_agents, pop_cap=int(os.environ.get("SWA_POPCAP", "120")))
+        print(f"EVOLVE-NATIVE-TORCH world={world} seed={seed} ticks={r['ticks']} "
+              f"best_age={r['best_age']} births={r['births']} peak_pop={r['peak_pop']} "
+              f"final_pop={r['final_pop']} extinct={r['extinct']}")
+        if r["best_genome"] is not None:
+            g = r["best_genome"]
+            t_meds = measure_survival(world, seed, TorchBatchModel, g, k_eval, num_agents, max_ticks)
+            l_meds = measure_survival(world, seed, MambaBatchModel, g, k_eval, num_agents, max_ticks)
+            print(f"  champion NATIF-torch sous torch  : med={float(statistics.median(t_meds)):.1f} "
+                  f"(vs transplant legacy sous torch ~33.0)")
+            print(f"  champion NATIF-torch sous legacy : med={float(statistics.median(l_meds)):.1f} "
+                  f"(vs legacy-natif sous legacy ~74.5)")
+        return r
 
     if os.environ.get("SWA_MODE") == "arms":
         hof = os.environ.get("SWA_HOF", "data/hall_of_fame.pkl")
