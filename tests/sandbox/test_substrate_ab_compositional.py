@@ -533,3 +533,58 @@ def test_sweep_gate_warmstart_smoke():
     for row in res["rows"]:
         for k in ("warmstart", "n_bind", "n_seeds", "gap_median", "gap_per_seed"):
             assert k in row
+
+
+# --- Readout non-linéaire du gate (test de l'actionnable migration, suite EDR 132) ---
+
+def test_gate_hidden_default_zero_is_linear():
+    """Par défaut gate_hidden=0 → gate LINÉAIRE (rétrocompat EDR 129-132)."""
+    from tools.substrate_ab_compositional import run_curriculum_fade_gated
+    import inspect
+    assert inspect.signature(run_curriculum_fade_gated).parameters["gate_hidden"].default == 0
+
+
+def test_gate_mlp_runs_and_reports_hidden():
+    """gate_hidden>0 : le gate devient un MLP (H_S2 → tanh → biais Y), tourne, reporte gate_hidden."""
+    pytest.importorskip("torch")
+    from tools.substrate_ab_compositional import run_curriculum_fade_gated
+    r = run_curriculum_fade_gated("torch", seed=0, warmup_trials=30, compo_trials=40, n_agents=4,
+                                  gate_mode="learned", gate_hidden=8)
+    assert r["gate_hidden"] == 8
+    assert (r["binding_gap_end"] is None) or (-1.0 <= r["binding_gap_end"] <= 1.0)
+
+
+def test_gate_mlp_composes_with_warmstart_and_bias_capture():
+    """Le MLP compose avec warm-start (régression MSE vers oracle) et capture_gate_bias."""
+    pytest.importorskip("torch")
+    from tools.substrate_ab_compositional import run_curriculum_fade_gated
+    r = run_curriculum_fade_gated("torch", seed=1, warmup_trials=30, compo_trials=40, n_agents=4,
+                                  gate_mode="learned", gate_hidden=8, gate_warmstart_trials=40,
+                                  capture_gate_bias=True)
+    assert r["gate_hidden"] == 8
+    for k in ("gate_bias_didx_end", "gate_bias_notdidx_end", "gate_bias_margin_end"):
+        assert k in r
+
+
+def test_capture_probe_adds_late_auc():
+    """capture_probe expose aussi did_x_auc_late (séparabilité TARDIVE que lit le gate) — contrôle
+    bassin-d'optim vs features-tardives-pauvres (suite revue EDR 133)."""
+    pytest.importorskip("torch")
+    from tools.substrate_ab_compositional import run_curriculum_fade_gated
+    r = run_curriculum_fade_gated("torch", seed=0, warmup_trials=30, compo_trials=40, n_agents=6,
+                                  gate_mode="learned", capture_probe=True)
+    assert "did_x_auc_late" in r
+    assert (r["did_x_auc_late"] is None) or (0.0 <= r["did_x_auc_late"] <= 1.0)
+
+
+@pytest.mark.slow
+def test_sweep_gate_readout_smoke():
+    """sweep_gate_readout : n_bind/gap/marge par niveau gate_hidden (test readout non-linéaire)."""
+    pytest.importorskip("torch")
+    from tools.substrate_ab_compositional import sweep_gate_readout
+    res = sweep_gate_readout(seeds=(0, 1), hidden_levels=(0, 8),
+                             warmup_trials=30, compo_trials=30, n_agents=4)
+    assert res["rows"] and "verdict" in res
+    for row in res["rows"]:
+        for k in ("gate_hidden", "n_bind", "n_seeds", "gap_median", "per_seed", "bound_seeds"):
+            assert k in row
