@@ -588,3 +588,93 @@ def test_sweep_gate_readout_smoke():
     for row in res["rows"]:
         for k in ("gate_hidden", "n_bind", "n_seeds", "gap_median", "per_seed", "bound_seeds"):
             assert k in row
+
+
+# --- Anti-saturation-Y de la politique de base (verrou résiduel EDR 133 = bassin d'optim) ---
+
+def test_apply_y_saturation_penalty_coef0_is_identity():
+    """coef=0 → récompense inchangée (rétrocompat garantie)."""
+    from tools.substrate_ab_compositional import _apply_y_saturation_penalty
+    r = np.array([1.0, -1.0, 1.0, -1.0], dtype=np.float32)
+    move2 = np.array([4, 0, 4, 1])
+    out = _apply_y_saturation_penalty(r, move2, target_y=4, coef=0.0, y_target=0.5)
+    assert np.allclose(out, r)
+
+
+def test_apply_y_saturation_penalty_only_when_marginal_exceeds_target():
+    """Sous la cible → identité ; au-dessus → seuls les Y-pickers pénalisés de coef*(y_rate−cible)."""
+    from tools.substrate_ab_compositional import _apply_y_saturation_penalty
+    r = np.array([1.0, 1.0, 1.0, -1.0], dtype=np.float32)
+    move2 = np.array([4, 4, 4, 0])              # y_rate = 3/4 = 0.75
+    # cible 0.8 > 0.75 → pas de pénalité
+    out_lo = _apply_y_saturation_penalty(r, move2, target_y=4, coef=2.0, y_target=0.8)
+    assert np.allclose(out_lo, r)
+    # cible 0.25 < 0.75 → excess 0.5, pénalité 2.0*0.5=1.0 sur les 3 Y-pickers, pas le non-Y
+    out_hi = _apply_y_saturation_penalty(r, move2, target_y=4, coef=2.0, y_target=0.25)
+    assert np.allclose(out_hi, np.array([0.0, 0.0, 0.0, -1.0], dtype=np.float32))
+
+
+def test_gated_y_saturation_default_zero_is_baseline():
+    """Par défaut y_saturation_penalty=0 → régime EDR 129-133 inchangé."""
+    from tools.substrate_ab_compositional import run_curriculum_fade_gated
+    import inspect
+    p = inspect.signature(run_curriculum_fade_gated).parameters["y_saturation_penalty"]
+    assert p.default == 0.0
+
+
+def test_gated_y_saturation_runs_and_reports():
+    """y_saturation_penalty>0 tourne et est reporté ; y_rate_end reste borné."""
+    pytest.importorskip("torch")
+    from tools.substrate_ab_compositional import run_curriculum_fade_gated
+    r = run_curriculum_fade_gated("torch", seed=0, warmup_trials=30, compo_trials=40, n_agents=4,
+                                  gate_mode="learned", y_saturation_penalty=1.5, y_saturation_target=0.5)
+    assert r["y_saturation_penalty"] == 1.5
+    assert 0.0 <= r["y_rate_end"] <= 1.0
+
+
+@pytest.mark.slow
+def test_sweep_y_saturation_smoke():
+    """sweep_y_saturation : n_bind + y_rate par coef de pénalité anti-saturation."""
+    pytest.importorskip("torch")
+    from tools.substrate_ab_compositional import sweep_y_saturation
+    res = sweep_y_saturation(seeds=(0, 1), penalties=(0.0, 1.0),
+                             warmup_trials=30, compo_trials=30, n_agents=4)
+    assert res["rows"] and "verdict" in res
+    for row in res["rows"]:
+        for k in ("penalty", "n_bind", "n_seeds", "gap_median", "y_rate_start_median", "per_seed"):
+            assert k in row
+
+
+def test_y_saturation_scope_default_both_and_invalid_raises():
+    """Défaut y_saturation_scope='both' (base+gate, rétrocompat) ; valeur inconnue → ValueError."""
+    from tools.substrate_ab_compositional import run_curriculum_fade_gated
+    import inspect
+    assert inspect.signature(run_curriculum_fade_gated).parameters["y_saturation_scope"].default == "both"
+    with pytest.raises(ValueError):
+        run_curriculum_fade_gated("torch", seed=0, warmup_trials=5, compo_trials=5, n_agents=3,
+                                  gate_mode="learned", y_saturation_scope="bogus")
+
+
+def test_y_saturation_scope_base_lets_gate_see_raw_reward():
+    """scope='base' tourne (le gate lit la reward brute, seule pop.learn est pénalisée) — décompose
+    le locus base vs gate (revue EDR 134)."""
+    pytest.importorskip("torch")
+    from tools.substrate_ab_compositional import run_curriculum_fade_gated
+    r = run_curriculum_fade_gated("torch", seed=0, warmup_trials=30, compo_trials=40, n_agents=4,
+                                  gate_mode="learned", y_saturation_penalty=3.0, y_saturation_scope="base")
+    assert r["y_saturation_scope"] == "base"
+    assert (r["binding_gap_end"] is None) or (-1.0 <= r["binding_gap_end"] <= 1.0)
+
+
+@pytest.mark.slow
+def test_sweep_y_saturation_per_seed_carries_real_metrics():
+    """Le per_seed remonte P(Y|X)/hit_end/y_rate_end (anti-artefact du gap) — revue EDR 134."""
+    pytest.importorskip("torch")
+    from tools.substrate_ab_compositional import sweep_y_saturation
+    res = sweep_y_saturation(seeds=(0, 1), penalties=(0.0, 3.0),
+                             warmup_trials=30, compo_trials=30, n_agents=4)
+    for row in res["rows"]:
+        assert "hit_end_median" in row
+        for cell in row["per_seed"]:
+            for k in ("seed", "gap", "p_y_given_x", "p_y_given_not_x", "hit_end", "y_rate_end"):
+                assert k in cell
