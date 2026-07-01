@@ -76,6 +76,13 @@ def test_run_prod_episodic_smoke():
     assert TorchPopulationModel.CONDITION_GATE is False   # flags restaurés
 
 
+def test_run_prod_episodic_uniform_gate_smoke():
+    # gate uniforme (self-scope depuis H, EDR-159) : régime valide (gate à tous les pas).
+    r = run_prod(True, episodes=20, n_agents=16, seed=0, antisat=6.0,
+                 stochastic=True, credit="episodic", gate_uniform=True)
+    assert "binding_gap" in r
+
+
 def test_learn_still_works_gate_off():
     # le chemin learn (Actor-Critic TD) reste fonctionnel sans gate (banc // intact).
     pop = TorchPopulationModel([MambaAgent() for _ in range(4)], lr=0.05)

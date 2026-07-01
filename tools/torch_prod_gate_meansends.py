@@ -37,7 +37,8 @@ def _softmax_np(z):
 
 def run_prod(use_gate: bool, episodes: int = 1000, n_agents: int = 128, seed: int = 0,
              target_x: int = 0, target_y: int = 4, lr: float = 0.05, antisat: float = 6.0,
-             stochastic: bool = False, gate_s2_only: bool = False, credit: str = "td"):
+             stochastic: bool = False, gate_s2_only: bool = False, credit: str = "td",
+             gate_uniform: bool = False):
     """Entraîne une pop torch sur means→ends via le CHEMIN PROD (forward + crédit), gate ON/OFF.
     `credit` : 'td' = `pop.learn` Actor-Critic TD(0) différé 1-pas (défaut prod, EDR-148 : ne binde pas) ;
     'episodic' = `pop.learn_episode` (retour épisodique + gate + anti-sat, EDR-158 : le véhicule qui
@@ -80,8 +81,8 @@ def run_prod(use_gate: bool, episodes: int = 1000, n_agents: int = 128, seed: in
         did_hist, cor_hist = [], []
         for _ in range(episodes):
             pop.H = torch.zeros((n_agents, pop.N))                  # épisode frais
-            # gate OFF au forward de S1 si scoping (episodic gate_last_only ⇒ toujours off à S1)
-            pop._gate_runtime = not (gate_s2_only or episodic)
+            # gate OFF au forward de S1 si scoping ; gate_uniform (EDR-159 : self-scope depuis H) ⇒ ON partout
+            pop._gate_runtime = gate_uniform or not (gate_s2_only or episodic)
             preds1, _ = pop.forward(obs_a)                          # S1 : émettre X (récompense différée)
             move1 = _pick(preds1)
             did_x = (move1 == target_x)
@@ -95,9 +96,10 @@ def run_prod(use_gate: bool, episodes: int = 1000, n_agents: int = 128, seed: in
             reward2 = np.array([_compo_reward(int(move2[i]), target_y, bool(did_x[i]))
                                 for i in range(n_agents)], dtype=np.float32)
             act2 = [{"move": int(m), "grab": 0, "rub": 0} for m in move2]
-            if episodic:                                           # crédit ÉPISODIQUE : retour 2-pas, gate au dernier pas
+            if episodic:                                           # crédit ÉPISODIQUE : retour 2-pas
                 adv = reward2 - reward2.mean()                     # baseline (variance REINFORCE)
-                pop.learn_episode([obs_a, obs_b], [act1, act2], adv, gate_last_only=True)
+                # gate_uniform ⇒ gate à TOUS les pas (self-scope depuis H) ; sinon scopé au dernier (ends)
+                pop.learn_episode([obs_a, obs_b], [act1, act2], adv, gate_last_only=not gate_uniform)
             else:
                 pop.learn(reward2, act2)                           # crédit TD : update différé de S2
             did_hist.append(did_x)
