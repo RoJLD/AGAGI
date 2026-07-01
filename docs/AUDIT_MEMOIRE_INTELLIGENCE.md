@@ -92,7 +92,7 @@ Légende coordination : **[I]** = instrument-side, zéro collision ; **[M]** = �
 
 | Couche (§A) | Question | Instrument | Verdict | Preuve |
 |---|---|---|---|---|
-| **Travail** (`H_prev` récurrent) | La récurrence porte-t-elle l'info ? | décode latent de `H_S2` | **PRÉSENTE** (did_x décodable AUC~0.90) | EDR 120 / 141 |
+| **Travail** (`H_prev` récurrent) | La récurrence porte-t-elle l'info ? | décode latent de `H_S2` | **PRÉSENTE** (did_x décodable AUC~0.90) | EDR 120 / 150 |
 | **Explicite** (NTM 10×5) | La mémoire câblée paie-t-elle in-world ? | `ABLATE_NTM` (bundle organes) | **INERTE** (organes du champion inertes, NEUTRE p=1.0) | EDR-134 / 135 (fil //) |
 | **Long-terme** (KuzuDB → slots obs 51-55) | Le canal « épisodique » contribue-t-il ? | neutralisé par défaut en `benchmark_mode` | **SANS COÛT** (déjà ablaté dans toute éval rigoureuse ; champions performent) | lessons P0 + `biosphere-ambient-memory-nonrepro` |
 | **Génétique** (`W` lamarckien) | Peut-on améliorer par gradient ? | mem_nas / grad_mem (isolation) | **OUI EN ISOLATION** (BPTT 0.78→1.00 rappel K-bits ; domine la mutation à tout délai) | EDR 064 / 067 / 123 |
@@ -119,9 +119,10 @@ moteur (substrat différentiable + plasticité/crédit, cf. `roadmap/NAS.md` + `
   seule serait redondant et collisionnerait ce fil (le plus actif sur `mamba_agent.py`).
 - **`H_prev` (working memory)** : ablation = retirer la récurrence cœur → éditer `mamba_agent.py` collisionne le
   fil torch. Non poursuivi.
-- **Instruments per-type ToM** : représentationnel = **EDR 141** (ex-132, `tools/tom_probe.py`) ; comportemental =
-  **EDR 142** (ex-139, `tools/tom_coordination.py`). Renumérotés le 2026-07-01 pour résoudre les doublons de
-  numéro cross-session (132/139 pris par les fils compositional/torch //).
+- **Instruments per-type ToM** : représentationnel = **EDR 150** (ex-132/141, `tools/tom_probe.py`) ; comportemental =
+  **EDR 151** (ex-139/142, `tools/tom_coordination.py`). Parqués dans le **bloc distant 150+** le 2026-07-01 après
+  deux collisions cross-session (132 puis 141 repris par les fils compositional/torch //) — **convention** :
+  instruments per-type/ToM en 150+, fils // (compositional/torch/famine) en 120-149.
 
 ### Conséquence
 
