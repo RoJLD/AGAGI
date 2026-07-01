@@ -9,7 +9,7 @@
 
 | # | Gap | Territoire | Impact | Statut |
 |---|-----|-----------|--------|--------|
-| **P1** | Rétention du craft : le craft est ATTEINT mais non re-crafté en cohorte fixe (EDR 127) — quel mécanisme fait re-crafter (mémoire de recette ? incitation ?) | CRAFT (dormant) | moyen-haut | **EN COURS** |
+| ~~P1~~ | Rétention du craft (EDR 127) — mémoire de recette ? incitation ? | CRAFT | moyen-haut | **FAIT → EDR-CRAFT-001 : POLICY_LOCKED** (aucun levier environnemental n'aide ; re-craft≈0 ; verrou = politique figée/substrat → levier = plasticité torch, backlog C1-C3). Axe tooling CLOS. |
 | P2 | Gate de cohérence `life_score` : le verdict S2 était VOID car « survivant ≠ marqueur » — re-spécifier le gate pour qu'un survivant ne suffise pas | WLD (dormant) | moyen | à faire |
 | P3 | Réveil NAV : densité-verrou #2 (51) mais dormant ; mur navigation = politique/substrat, pont SUB non tiré | NAV (dormant) | moyen (gros banc) | à faire |
 

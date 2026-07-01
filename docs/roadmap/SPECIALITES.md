@@ -70,11 +70,11 @@
 - statut: actif
 - couche: Monde
 - question_phare: Pourquoi le craft n'est pas retenu
-- fichiers_possedes: tools/craft_*.py
+- fichiers_possedes: tools/craft_*.py, tools/craft_retention_probe.py
 - memoire: world-floor-survivability-gate.md
 - legacy_edr: 125,127
-- frontiere_courante: mécanisme de rétention du craft en cohorte fixe
-- ponts_actifs: —
+- frontiere_courante: EDR-CRAFT-001 → rétention POLICY-LOCKED (aucun levier environnemental n'aide, re-craft≈0) ; levier désigné = apprentissage en ligne / plasticité torch (pont SUB, backlog C1-C3)
+- ponts_actifs: [SUB (plasticité in-world sur le craft)]
 - filiation: —
 
 ### NAV — Navigation & économie d'énergie
