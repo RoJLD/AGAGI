@@ -37,8 +37,9 @@ _FIELD = re.compile(r"^-\s+([a-z_]+):\s*(.*)$")
 
 def parse_territories(text: str) -> list[dict]:
     """Parse les sections territoire de SPECIALITES.md. Chaque `### CODE — Label`
-    suivi de lignes `- champ: valeur` -> dict. `legacy_edr` -> list[int]
-    (vide si la valeur commence par '—', même si le texte contient des chiffres)."""
+    suivi de lignes `- champ: valeur` -> dict. `legacy_edr` -> list[int] : SEULE
+    la liste numérique propre en tête est parsée ; toute annotation qui suit (avec
+    ses propres chiffres) ou un préfixe '—'/texte donne [] pour cette partie."""
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     terrs: list[dict] = []
     cur = None
@@ -57,8 +58,11 @@ def parse_territories(text: str) -> list[dict]:
         if mf:
             key, val = mf.group(1), mf.group(2).strip()
             if key == "legacy_edr":
-                cur["legacy_edr"] = ([int(n) for n in re.findall(r"\d{1,3}", val)]
-                                    if not val.startswith("—") else [])
+                # Ne parse QUE la liste propre en tête (chiffres/virgules/espaces).
+                # Toute annotation qui suit — même avec ses propres chiffres — est
+                # ignorée ; une valeur commençant par '—' ou du texte -> [].
+                lead = re.match(r"[\d,\s]*", val).group(0)
+                cur["legacy_edr"] = [int(n) for n in re.findall(r"\d{1,3}", lead)]
             else:
                 cur[key] = val
     return terrs

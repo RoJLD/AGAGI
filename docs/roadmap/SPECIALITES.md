@@ -141,3 +141,10 @@ Collision de titres (FAM, notée 2026-07-01 par le cartographe) : les fichiers `
 (id frontmatter EDR-155/156/157, rattachés à FAM) portent des titres H1 internes « EDR 126/129/130 »
 — numérotation FAM héritée du suivi mémoire. NE PAS confondre avec les EDR-126/129/130 de BIND
 (fil Compositional). Cohabitation tolérée ; à harmoniser lors d'un nettoyage coordonné.
+
+Collision de numéros 155/156 (COG↔FAM, notée 2026-07-01) : le fil disjoint-heads (COG, session //)
+suit en MÉMOIRE des records « EDR-155/156 » (V2/V3 `disjoint_heads_correlated.py`) qui ne sont PAS
+matérialisés en `docs/EDR/` ; sur disque, 155/156/157 = les records FAMINE (autoritaires). Aucun doublon
+d'id disque (donc pas de `warning` consolidate), mais la session disjoint-heads NE DOIT PAS filer ses
+V2/V3 sous 155-157. **Règle de sortie** : tout nouveau record COG (dont les disjoint V2/V3) prend un ID
+PRÉFIXÉ `EDR-COG-nnn` (convention append-only, cf. en-tête), pas un numéro legacy.
