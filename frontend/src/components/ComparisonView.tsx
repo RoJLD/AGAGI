@@ -53,6 +53,8 @@ export function ComparisonView({ onBaselineChange }: { onBaselineChange?: (name:
                 <span>Précision: {formatPercentage(item.latest_accuracy)}</span>
                 {item.robustness_score !== undefined && <span>Robustesse: {item.robustness_score.toFixed(3)}</span>}
                 {item.performance_stability !== undefined && <span>Stabilité: {item.performance_stability.toFixed(3)}</span>}
+                {item.hidden_ratio !== undefined && <span>Ratio caché: {item.hidden_ratio.toFixed(3)}</span>}
+                {item.num_nodes !== undefined && <span>Nœuds: {item.num_nodes}</span>}
               </div>
             ))}
           </div>

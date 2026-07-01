@@ -289,5 +289,124 @@ vivant** (mur métabolique de Lewis, EDR 099-101 ; topologie évolutive désorma
 - Sweep a11y / perf / couverture de tests / dette de typage d3 résiduelle. Consolide l'instrument,
   faible valeur science directe. Interleavable en continu.
 
-**Ordre recommandé** : I1 (verrou science #1, mais arbitrer l'endpoint backend) ou I2 (frontend-only,
-livrable vite, fort récit) selon l'urgence ressentie → I3 → I4. Réordonnançable selon priorité produit.
+### I5 — Vue entonnoir de forage (acquisition)  · NET-NEW (backend handoff)
+*Valeur science ÉLEVÉE · effort moyen · dépendance backend (endpoint).*
+- **Pendant acquisition de I1** : I1 décompose la dépense (mur métab clos), I5 décompose le revenu —
+  le goulot VIVANT (EDR 105 : `p_reach=0.18`, `p_cap=1.00` → mur = navigation/approche). Lit l'artefact
+  persisté `lewis_forage_funnel` (`data.table` par niveau de métab). Endpoint `GET
+  /api/runs/forage-funnels` (patch-and-handoff). Spec `2026-06-25-frontend-forage-funnel-design.md`.
+
+**État (2026-06-25)** : I1 vue Énergie ✅ (#69/#70), I2 Fil EDR ✅ (#71, frontend-only). **I3 requalifié
+faible ROI** : la taille-réseau/génération est DÉJÀ tracée par `EvolutionView` (`history.size`) ; la
+version riche (composition par ère) n'est pas persistée → backend-gated sans données. **Pivot vers I5**
+(suit le goulot vivant EDR 105/106).
+
+**Ordre recommandé** : I1/I2 livrés → **I5** (verrou science vivant) → I4 (hygiène) ; I3 reporté/clos.
+Réordonnançable selon priorité produit.
+
+**État final Vague I (2026-06-29) : COMPLÈTE.** I1 Énergie ✅ (#69/#70), I2 Fil EDR ✅ (#71),
+I5 Forage ✅ (#75/#76), I4 typage sandbox ✅ (#78, frontend-only — le panier I4 était déjà absorbé
+par G4+H+I ; seul résidu = 6 `any` de `LiveDashboard` → 6 interfaces `Sandbox*`). I3 clos low-ROI.
+Dette de typage d3/`any` close pour de bon.
+
+---
+
+## Vague J — audit transverse (2026-06-29)
+
+Vague I close. Nouvel audit frontend en 4 dimensions parallèles (architecture/dette/tests,
+UX/a11y/design-system, perf/bundle/data-fetching, alignement science). **Constat transverse** :
+`LiveDashboard` et `FlatlandViewer` concentrent la dette (perf + a11y + design-system) ; le fil
+science le plus porteur est la **capacité cachée du connectome** — le goulot a re-pivoté de
+l'acquisition vers l'**architecture** (EDR 107 : `p_reach` plafonne ~0.36 même après ré-évolution de
+la navigation → SUBSTRAT BLOQUÉ, verrou = architecture, pas monde/sélection ; EDR 108 NAS :
+« la capacité cachée monte-t-elle le plafond ? »). Pistes priorisées par ROI / alignement science.
+
+### J1 — Instrument de capacité cachée  ⭐ priorité 1 (suit EDR 107/108)
+*Valeur science MAXIMALE · effort variable · gating mixte.* Décomposé :
+- **J1a** (frontend-only, quick win) : afficher `hidden_ratio` / `num_nodes` dans `ComparisonView` +
+  `RadarChart`. Données déjà exposées par `/api/experiments` (`ExperimentSummary.hidden_ratio`),
+  simplement non affichées. ~3 lignes + un axe radar.
+- **J1b** (DIFFÉRÉ — prémisse corrigée 2026-06-29) : **vue Introspection** `w_connectome`. ⚠️ Audit de
+  la source (`generate_snapshot.py`, `main_curriculum.py:56`, `main_biosphere.py:285`) : `w_connectome
+  = json.dumps(genome.W.tolist())` = **matrice de poids du génome, STATIQUE** (le connectome EST le
+  génome, figé sur la vie de l'agent ; seuls thresholds/W_router bougent, EDR 031). Les snapshots sont
+  écrits **parcimonieusement** (meilleur agent, souvent 1/run), pas en série dense par tick. → La
+  promesse phare « voir l'architecture se *restructurer* pendant la vie » (EDR 107) **n'est PAS supportée
+  par les données** : une heatmap par tick montrerait une matrice constante ; ce qui varie par tick =
+  `ntm_memory`/`attention_mask`. Réduit J1b à une heatmap *statique* d'architecture (valeur moindre),
+  TOUJOURS bloquée par (a) l'absence d'endpoint listant les `agent_id` introspectables (découverte
+  manuelle uniquement) et (b) la rareté des snapshots. **Verdict : différé, à ne reconsidérer que si le
+  besoin science le ramène ET avec un endpoint `GET /api/introspection/agents` + confirmation que des
+  snapshots utiles existent.**
+- **J1c** (backend-gated, handoff d1) : courbe temporelle de `hidden_ratio` / `hidden_nodes` par
+  génération dans `EvolutionView` (clarifier aussi `size` composite → `num_nodes`). `ExperimentHistory`
+  n'expose que `generation/fitness/accuracy/size?` ; il faut que le CSV de run trace `hidden_nodes` par
+  génération + l'ajouter au schéma. C'est la preuve directe d'EDR 108 (la capacité cachée monte-t-elle ?).
+- **J1d** (backend-gated, handoff d1) : `hidden_ratio` comme KPI sauvegardé dans `data` des JSONs de
+  run (via `Harness.save`) → débloque le A/B rigoureux (Welch + Cohen d) et la distribution Cohorte sur
+  la capacité cachée entre conditions NAS.
+
+### J2 — Perf data-fetching live  · priorité 2 (frontend-only)
+*Charge backend ↓ réelle · effort faible · risque nul-faible.*
+- `refetchIntervalInBackground: false` sur les 4 `useQuery` de `LiveDashboard` (state 500 ms / logs 1 s
+  / telemetry 2 s / article 5 s) → supprime ~60 req/min quand l'onglet navigateur est masqué (trivial).
+- Partage de la connexion WebSocket `/ws/flatland` : `LiveMetrics` + `FlatlandViewer` ouvrent **2**
+  connexions au même endpoint (frames envoyées 2×) → extraire un contexte/singleton WS (effort moyen).
+- `staleTime: 2000` sur `sandbox.status` (3 composants, `staleTime:0` → refetch superflu au montage).
+- Mémoriser `vizColors()`/`cssVar()` hors du chemin chaud (`LiveTelemetry` re-render 2 Hz ; `LiveWorld`
+  relit 9 vars CSS dans un `useEffect` à 500 ms → ~18 `getComputedStyle`/s inutiles).
+
+### J3 — a11y transverse  · priorité 3 (frontend-only)
+*Inclusivité/clavier · effort faible · risque très faible.*
+- **`:focus-visible` global absent** : aucune règle focus dans `styles.css` ; `.btn`/`.tab`/inputs
+  réinitialisent le border → focus clavier peu/non visible en dark. Ajouter un token `--focus-ring` +
+  règles `:focus-visible` (ratio effort/impact maximal).
+- Toasts (`ToastContext`) sans ARIA : `role="alert"` (erreurs) / `role="status" aria-live="polite"`
+  (succès/info) + bouton de fermeture accessible. Seul canal de feedback des mutations.
+- `role="img"` + `aria-label` sur les 2 `<canvas>` monde (`LiveWorld`, `FlatlandViewer`) +
+  `aria-label` manquant sur le SVG `TimelineViewer` (incohérent vs Topology/Provenance).
+- Double-label `aria-label` + texte visible sur les checkboxes de séries `SweepView` (pattern incorrect).
+
+### J4 — Robustesse RunLauncher  · priorité 4 (frontend-only)
+*Fiabilité du cœur expérimentation · effort moyen · risque (logique non testée).*
+- `RunLauncher` (269 l.) orchestre une file multi-seed via une machine d'état (`pending/running/done/
+  error`) pilotée par un `useEffect` complexe (deps désactivées) ; **zéro test**. Risque réel : statut
+  bloqué sur `running` si le backend ne repasse pas à `true` avant un 2ᵉ run. Extraire le pilote en
+  `lib/queue.ts` (`useQueueRunner`) pur + tests déterministes (transitions, erreurs, runs bloqués).
+
+### J5 — Bundle  · priorité 5 (frontend-only)
+*TTI mesurable · effort moyen.*
+- `LiveDashboard` importe **recharts en synchrone** (444 Ko) → tiré dès l'entrée sur Parcours/Sandbox
+  (via `SandboxView`/`StepSuivre` lazy) avant même l'onglet Suivre. Isoler `LiveTelemetry` derrière un
+  `lazy()` interne.
+- `import * as d3` dans `TopologyViewer`/`TimelineViewer`/`ProvenanceGraph` empêche le tree-shaking
+  (chunk d3 108 Ko ; seuls `forceSimulation/forceLink/forceManyBody/forceCenter/forceCollide/drag/select`
+  utilisés) → imports nommés depuis `d3-force`/`d3-selection`/`d3-drag` (−60-70 Ko).
+
+### J6 — Cohérence DS + dette Live/Flatland  · priorité 6 (frontend-only, interleavable)
+*Hygiène / correctif dark-mode · effort faible-moyen.*
+- `FlatlandViewer` : rendu canvas en **couleurs CSS brutes** (`"purple"`/`"cyan"`/`"red"`…) au lieu des
+  tokens `--world-*` (déjà utilisés correctement par `LiveDashboard`) ; overlay `background:
+  rgba(255,255,255,0.86)` + `border:#ccc` **illisible en thème sombre**.
+- `.live-stat` duplique `.stat` à l'identique (valeur orpheline `12px` hors tokens) ; `LiveMetrics`
+  réécrit `.live-stat` à la main au lieu d'utiliser la primitive `<Stat>`.
+- **Décision emojis** : 5 vues (`LiveDashboard`, `RunLauncher`, `ABComparisonView`, `HealthView`)
+  ont des emojis dans les titres/messages (🌍🖥️📊🤖⚡🧪🏆⛔⚠), ~10 vues n'en ont aucun → trancher la
+  cohérence (règle utilisateur « pas d'emoji sauf demande »).
+
+### Quick wins one-liners (à fondre dans n'importe quelle vague)
+- Clé `edrDocs` hard-codée `["edr","docs"]` dans `EDRDashboard:92` au lieu de `queryKeys.edrDocs`
+  (source unique, bug latent au refactor de cache).
+- `aria-label` manquant sur le `<svg>` de `TimelineViewer:96` (cf. J3).
+- (Optionnel, structurel) `tsconfig.test.json` pour type-checker les tests en strict (mocks
+  `mockResolvedValue` non vérifiés contre les types `apiFetch` actuellement).
+
+**Ordre recommandé** : **J1** (science vivante : commencer par J1a quick-win + J1b introspection ;
+handoff J1c/J1d) → **J2** (charge backend, trivial) → **J3** (a11y, faible effort large) → **J4**
+(protège le cœur) → **J5** (bundle) → **J6** (hygiène, interleavable). Chaque piste = son cycle
+spec → plan → impl. Réordonnançable selon priorité produit.
+
+**État (2026-06-29)** : **J1a ✅ livré (PR #81)**. **J1b DIFFÉRÉ** — audit de la source : `w_connectome`
+= `genome.W` statique (pas de restructuration par tick → prémisse EDR 107 non supportée), snapshots
+rares, pas d'endpoint de découverte d'`agent_id` (voir le détail J1b ci-dessus). **Pivot vers J2**
+(valeur certaine, frontend-only) comme prochaine tranche livrée.

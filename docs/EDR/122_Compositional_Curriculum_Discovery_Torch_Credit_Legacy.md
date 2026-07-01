@@ -1,7 +1,7 @@
 ---
 id: EDR-122
 type: EDR
-title: Curriculum compositionnel — SPLIT par substrat : DISCOVERY (torch, ×10) / CREDIT (legacy, 0.000) ; le gradient+curriculum craque le means→ends que ni l'un ni l'autre ne craquait
+title: "Curriculum compositionnel — SPLIT par substrat : DISCOVERY (torch, ×10) / CREDIT (legacy, 0.000) ; le gradient+curriculum craque le means→ends que ni l'un ni l'autre ne craquait"
 status: validated
 gate: null
 verdict: "SPLIT par backend. Enseigner X d'abord (warmup dense) lève la composition Y|X pour torch (hit_end 0.03→0.30, ×10, 5/5 seeds) = DISCOVERY (le verrou était la récompense jointe rare), mais PAS pour legacy (0.000 même avec X maîtrisé + mémoire) = CREDIT (le hebbien ne binde pas). → gradient + curriculum/shaping craque le means→ends ; le hebbien numpy est crédit-limité. Renforce la thèse de migration moteur."

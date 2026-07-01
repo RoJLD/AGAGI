@@ -17,17 +17,18 @@ from src.worlds.world_3_industrial import IndustrialWorld
 from src.worlds.world_famine import FamineWorld
 
 
-def run_condition(world_cls, batch_model_cls, genome, seed, num_agents=20, max_ticks=400, n_eras=1):
+def run_condition(world_cls, batch_model_cls, genome, seed, num_agents=20, max_ticks=400, n_eras=1, config=None):
     """K=n_eras ères seedées base+i d'UN monde sous UNE condition. batch_model_cls=None -> moteur
     normal (MambaBatchModel, pour champion/RandomGenome) ; sinon baseline injecté (RandomAction/Reflex).
     genome=None -> agents frais (RandomGenome) ; sinon clones du génome (champion). Renvoie la survie
-    INDIVIDUELLE (âge de chaque agent, mort OU survivant-censuré) + life_score, agrégée sur les ères."""
+    INDIVIDUELLE (âge de chaque agent, mort OU survivant-censuré) + life_score, agrégée sur les ères.
+    config (WorldConfig) fixe le régime à la construction ; None = défaut historique."""
     from src.agents.mamba_agent import MambaAgent
     survival, life, censored = [], [], 0
     era_survival, era_life = [], []        # médiane PAR ère -> unité d'appariement par seed (spec §8)
     for i in range(max(1, int(n_eras))):
         seed_at(seed, i)
-        env = world_cls()
+        env = world_cls(config) if config is not None else world_cls()
         env.benchmark_mode = True              # cohorte fixe (pas de reproduction/mutation/HGT)
         env.night_enabled = False              # nuit OFF (irrésoluble dans Soup)
         env.current_era = 10_000               # scaffolds OFF (anneal -> 0)

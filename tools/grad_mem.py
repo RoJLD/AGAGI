@@ -82,6 +82,25 @@ def train(N, I=8, O=8, K=6, D=3, epochs=700, batch=64, lr=0.02, seed=0):
     return acc
 
 
+def train_mutation(N, I=8, O=8, K=6, D=3, epochs=700, batch=64, sigma=0.1, seed=0):
+    """(1+1)-ES sur le reseau simplifie : perturbe W += N(0,sigma), compare candidat vs incumbent sur
+    la MEME batch chaque pas (fitness appariee -> robuste au bruit de fitness, EDR 078), garde si
+    acc_cand >= acc_inc. Reutilise run_bptt pour le forward (dW ignore). Meme budget (epochs) que train
+    (BPTT) -> comparaison appariee. Renvoie l'accuracy sign-match finale (eval frais 512)."""
+    np.random.seed(seed)
+    W = np.random.randn(N, N) * 0.3
+    for _ in range(epochs):
+        cand = W + np.random.randn(N, N) * sigma
+        bits = np.random.choice([-1.0, 1.0], size=(batch, K)).astype(np.float64)
+        _, _, a_w = run_bptt(W, I, O, K, D, bits)
+        _, _, a_c = run_bptt(cand, I, O, K, D, bits)
+        if a_c >= a_w:
+            W = cand
+    bits = np.random.choice([-1.0, 1.0], size=(512, K)).astype(np.float64)
+    _, _, acc = run_bptt(W, I, O, K, D, bits)
+    return acc
+
+
 def main(seeds=(0, 1, 2)):
     print("GRADIENT (BPTT) sur le banc memoire. (mutation : K=6 plafonne a ~0.78, EDR 064)")
     print("\n=== 1. Le gradient resout-il la tache ? (K, N=19 = 3 caches) ===")

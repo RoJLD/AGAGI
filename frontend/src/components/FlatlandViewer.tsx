@@ -176,8 +176,8 @@ export function FlatlandViewer() {
   };
 
   return (
-    <div style={{ width: "100%", height: "600px", border: "1px solid #ccc", position: "relative", overflow: "hidden" }}>
-      <div style={{ position: "absolute", top: 10, left: 10, background: "rgba(255,255,255,0.86)", padding: 8, borderRadius: 6, zIndex: 10, minWidth: 260 }}>
+    <div className="flatland-frame">
+      <div className="flatland-overlay">
         <div style={{ fontWeight: 700, marginBottom: 6 }}>Flatland Metrics</div>
         <div>Ticks: {frame?.ticks || 0}</div>
         <div>Agents: {frame?.agents.length || 0}</div>
@@ -199,6 +199,8 @@ export function FlatlandViewer() {
         ref={canvasRef}
         width={800}
         height={600}
+        role="img"
+        aria-label="Carte Flatland 2D (terrain, agents, proies, objets)"
         style={{ width: "100%", height: "100%", touchAction: "none", cursor: "grab" }}
         onWheel={handleWheel}
         onPointerDown={handlePointerDown}

@@ -62,7 +62,7 @@ test("le toggle de normalisation est présent", async () => {
 test("cocher une 2e série l'ajoute à la superposition", async () => {
   renderWithClient(<SweepView />);
   await screen.findByLabelText(/Paramètre \(knob\)/);
-  const second = screen.getByLabelText("lewis · median_competence") as HTMLInputElement;
+  const second = screen.getByRole("checkbox", { name: "lewis · median_competence" }) as HTMLInputElement;
   expect(second.checked).toBe(false);
   fireEvent.click(second);
   expect(second.checked).toBe(true);

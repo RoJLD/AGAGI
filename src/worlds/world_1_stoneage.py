@@ -123,6 +123,8 @@ class Biosphere3D(BaseWorld):
         self.scaffold_craft = 5.0     # craft d'une lance (jalon)
         self.scaffold_bighit = 2.0    # coup porté à un gros gibier
         self.scaffold_eras = 30
+        self.scaffold_land = getattr(self.config, "scaffold_land", 0.0)   # EDR113 : scaffold du pas final (atterrissage sur proie)
+        self.reach_oracle = getattr(self.config, "reach_oracle", False)   # EDR114 : oracle d'atteinte (override action)
         # Curiosité (réparation moteur évolutif, EDR 014) : récompense intrinsèque
         # = erreur de prédiction du World Model -> drive l'exploration d'actions/états
         # nouveaux (grab, rub...). S'auto-annèle (la surprise chute quand le monde est
@@ -366,6 +368,35 @@ class Biosphere3D(BaseWorld):
             item_type = str(item_type)
         return self.physics_registry.get_properties(item_type)
 
+    def _reach_oracle_action(self, agent):
+        """EDR114 : primitive d'atteinte (oracle, pas d'apprentissage) -> pas glouton vers la proie la
+        plus proche (Manhattan) AVEC evitement d'obstacle a 1 pas (utilise prey-dir ET geometrie, tous
+        deux observes par l'agent : dn/ds/de/dw + lidar). Mapping : 0=N(y-1) 1=S(y+1) 2=E(x+1) 3=O(x-1).
+        Sur la proie / aucune proie -> 6 (no-op ; l'attaque est par co-localisation)."""
+        if not self.preys:
+            return 6
+        ax, ay = int(agent["x"]), int(agent["y"])
+        dists = [abs(p["x"] - ax) + abs(p["y"] - ay) for p in self.preys]
+        p = self.preys[int(np.argmin(dists))]
+        dx, dy = int(p["x"]) - ax, int(p["y"]) - ay
+        if dx == 0 and dy == 0:
+            return 6
+        ew = 2 if dx > 0 else 3
+        ns = 1 if dy > 0 else 0
+        if abs(dx) >= abs(dy):
+            cand = ([ew] if dx != 0 else []) + ([ns] if dy != 0 else [])
+        else:
+            cand = ([ns] if dy != 0 else []) + ([ew] if dx != 0 else [])
+        for a in cand:
+            tx, ty = ax, ay
+            if a == 0: ty -= 1
+            elif a == 1: ty += 1
+            elif a == 2: tx += 1
+            elif a == 3: tx -= 1
+            if 0 <= tx < self.size and 0 <= ty < self.size and self.geometry[0, ty, tx] == 0:
+                return a
+        return cand[0] if cand else 6
+
     def get_batch_observations(self) -> np.ndarray:
         if not self.agents:
             return np.array([])
@@ -571,19 +602,21 @@ class Biosphere3D(BaseWorld):
                 p["stunned"] -= 1
                 continue
                 
+            scale = getattr(self.config, "prey_speed_scale", 1.0)   # EDR106 : 0 = proies figees
             fled = False
-            for fx, fy in fire_pos:
-                if abs(p["x"] - fx) <= 2 and abs(p["y"] - fy) <= 2:
-                    p["x"] += 1 if p["x"] > fx else -1
-                    p["y"] += 1 if p["y"] > fy else -1
-                    p["x"] = np.clip(p["x"], 0, self.size - 1)
-                    p["y"] = np.clip(p["y"], 0, self.size - 1)
-                    fled = True
-                    break
+            if scale > 0:                                            # EDR106 : figees -> ne fuient pas le feu
+                for fx, fy in fire_pos:
+                    if abs(p["x"] - fx) <= 2 and abs(p["y"] - fy) <= 2:
+                        p["x"] += 1 if p["x"] > fx else -1
+                        p["y"] += 1 if p["y"] > fy else -1
+                        p["x"] = np.clip(p["x"], 0, self.size - 1)
+                        p["y"] = np.clip(p["y"], 0, self.size - 1)
+                        fled = True
+                        break
             if fled: continue
-                
+
             cfg = self.config.preys.get(p["type"], None)
-            moves_per_tick = cfg.moves_per_tick if cfg else 0
+            moves_per_tick = (cfg.moves_per_tick if cfg else 0) * scale   # EDR106 : vitesse echelonnee
             
             # Handle fractional moves (e.g. 0.2 means 20% chance to move)
             moves = int(moves_per_tick)
@@ -691,6 +724,9 @@ class Biosphere3D(BaseWorld):
         # Hunt / Attack (Asymmetrical combat)
         attacked_prey = next((p for p in self.preys if agent["x"] == p["x"] and agent["y"] == p["y"]), None)
         if attacked_prey:
+            # EDR113 : scaffold du PAS FINAL — recompense l'atterrissage sur une cellule-proie
+            # (tous gibiers, contrairement a scaffold_bighit gate sur damage>0). Annelé. Defaut 0.0 -> inerte.
+            agent["energy"] += self.scaffold_land * anneal(getattr(self, "current_era", 1), self.scaffold_eras)
             if getattr(self.config, "trace_forage", False):
                 agent["_forage_contacts"] = agent.get("_forage_contacts", 0) + 1
             cfg_atk = self.config.preys.get(attacked_prey["type"], None)
@@ -754,6 +790,8 @@ class Biosphere3D(BaseWorld):
                     agent["preys_eaten"] += 1
                     if getattr(self.config, "trace_forage", False):
                         agent["_forage_income"] = agent.get("_forage_income", 0.0) + reward
+                        sp = agent.setdefault("_forage_species", {})   # EDR106 : captures par espece
+                        sp[attacked_prey["type"]] = sp.get(attacked_prey["type"], 0) + 1
                 self.preys.remove(attacked_prey)
                 # RARETÉ (Step 2) : plus de respawn instantané — régénération lente ailleurs.
                 logger.emit("PREY_KILLED", {"agent_id": agent["id"], "prey_type": attacked_prey["type"], "reward": float(reward)})
@@ -1068,6 +1106,8 @@ class Biosphere3D(BaseWorld):
                 action = np.random.randint(0, 8)
                 force_grab = (np.random.rand() < 0.5)
                 force_rub = (self.craft_level >= 1 and np.random.rand() < 0.5)
+            if getattr(self, "reach_oracle", False):
+                action = self._reach_oracle_action(agent)   # EDR114 : override -> primitive d'atteinte
             agent["last_action"] = action
             
             do_throw = float(logits[8]) > 0

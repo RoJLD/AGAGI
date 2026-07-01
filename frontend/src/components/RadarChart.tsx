@@ -9,6 +9,7 @@ const metrics = [
   { key: "emergent_score" as const, label: "Intelligence", maxScale: 1.0 },
   { key: "performance_stability" as const, label: "Stabilité", maxScale: 1.0 },
   { key: "robustness_score" as const, label: "Robustesse", maxScale: 1.0 },
+  { key: "hidden_ratio" as const, label: "Ratio caché", maxScale: 1.0 },
 ];
 
 type RadarChartProps = {
@@ -46,6 +47,7 @@ export function RadarChart({ experiments }: RadarChartProps) {
     emergent_score: Math.max(...experiments.map((item) => item.emergent_score ?? 0), 1),
     performance_stability: Math.max(...experiments.map((item) => item.performance_stability ?? 0), 1),
     robustness_score: Math.max(...experiments.map((item) => item.robustness_score ?? 0), 1),
+    hidden_ratio: 1,
   };
 
   const axes = metrics.map((metric, index) => {
