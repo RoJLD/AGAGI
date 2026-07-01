@@ -373,3 +373,39 @@ def test_compare_gate_modes_smoke():
     for mode in ("none", "oracle"):
         for k in ("gap_median", "gap_per_seed", "n_bind", "n_seeds"):
             assert k in res["per_mode"][mode]
+
+
+# --- Levier 3 : crédit/optimisation du gate (entropy + éligibilité) — fiabiliser le binding (EDR 129 suite) ---
+
+@pytest.mark.slow
+def test_gated_learned_entropy_and_eligibility_run():
+    """Le gate learned accepte entropy_coef (anti-collapse) et elig_lambda (trace) et tourne."""
+    pytest.importorskip("torch")
+    from tools.substrate_ab_compositional import run_curriculum_fade_gated
+    r = run_curriculum_fade_gated("torch", seed=0, warmup_trials=30, compo_trials=40, n_agents=4,
+                                  gate_mode="learned", entropy_coef=0.05, elig_lambda=0.5)
+    assert r["gate_mode"] == "learned"
+    assert r["entropy_coef"] == 0.05 and r["elig_lambda"] == 0.5
+    assert (r["binding_gap_end"] is None) or (-1.0 <= r["binding_gap_end"] <= 1.0)
+
+
+def test_gated_entropy_default_zero_is_baseline_reinforce():
+    """Par défaut entropy_coef=0 et elig_lambda=0 → REINFORCE nu (baseline EDR 129, rétrocompat)."""
+    from tools.substrate_ab_compositional import run_curriculum_fade_gated
+    import inspect
+    sig = inspect.signature(run_curriculum_fade_gated)
+    assert sig.parameters["entropy_coef"].default == 0.0
+    assert sig.parameters["elig_lambda"].default == 0.0
+
+
+@pytest.mark.slow
+def test_sweep_gate_reliability_smoke():
+    """sweep_gate_reliability : n_bind/n_seeds par config d'optimisation (fiabilité du binding)."""
+    pytest.importorskip("torch")
+    from tools.substrate_ab_compositional import sweep_gate_reliability
+    res = sweep_gate_reliability(seeds=(0, 1), configs=({"entropy_coef": 0.0}, {"entropy_coef": 0.05}),
+                                 warmup_trials=30, compo_trials=30, n_agents=4)
+    assert res["rows"]
+    for row in res["rows"]:
+        for k in ("config", "n_bind", "n_seeds", "gap_median", "gap_per_seed"):
+            assert k in row
