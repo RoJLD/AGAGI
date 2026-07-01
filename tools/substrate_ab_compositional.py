@@ -386,7 +386,8 @@ def run_curriculum_fade_gated(backend: str, seed: int = 0, warmup_trials: int = 
         pop.learn(reward2, [{"move": int(m), "grab": 0, "rub": 0} for m in move2])
 
         if gate_mode == "learned":
-            logp = torch.log_softmax(base_logits, dim=1)[range(n_agents), move2]          # (B,)
+            idx = torch.arange(n_agents)
+            logp = torch.log_softmax(base_logits, dim=1)[idx, torch.as_tensor(move2)]      # (B,)
             adv = torch.tensor(reward2, dtype=torch.float32) - baseline_ret
             loss = -(logp * adv).mean()
             optim.zero_grad(); loss.backward(); optim.step()
@@ -435,13 +436,13 @@ def compare_gate_modes(seeds=(0, 1, 2, 3, 4), modes=("none", "learned", "oracle"
                                            warmup_trials=warmup_trials, compo_trials=compo_trials,
                                            n_agents=n_agents) for s in seeds]
         gaps = [c["binding_gap_end"] for c in cells if c["binding_gap_end"] is not None]
+        pyx_vals = [c["p_y_given_x_end"] for c in cells if c["p_y_given_x_end"] is not None]
         per_mode[mode] = {
             "gap_median": statistics.median(gaps) if gaps else None,
             "gap_per_seed": gaps,
             "n_bind": sum(1 for g in gaps if g > bind_thresh),
             "n_seeds": len(gaps),
-            "p_y_given_x_median": statistics.median([c["p_y_given_x_end"] for c in cells
-                                                     if c["p_y_given_x_end"] is not None]) or None,
+            "p_y_given_x_median": statistics.median(pyx_vals) if pyx_vals else None,
             "y_rate_median": statistics.median([c["y_rate_end"] for c in cells])}
 
     verdict = "AMBIGU"

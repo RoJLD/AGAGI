@@ -77,6 +77,9 @@ always-Y ; une réduction de variance / meilleur crédit (éligibilité) firmera
 ## Bornage / honnêteté
 
 - **n=10** (condition décisive), n=5 (contrôles) ; micro-tâche proxy ; pas de transfert apex.
+- **Taux 7/10 hétérogène par bloc de seeds** : seeds 0-4 → 2/5 bindent, seeds 5-9 → 5/5. Le « 7/10 »
+  agrège deux sous-ensembles très différents → le taux de succès n'est PAS stable ; la conclusion
+  robuste est QUALITATIVE (« le gate PEUT binder, là où le base ne peut jamais »), pas le taux exact.
 - **oracle = force à la DÉCISION** (biais ±8 sur le logit) : plafond quasi-tautologique, sert de
   validation d'instrument (« le binding est détectable et la tâche solvable par routage »), pas de preuve
   d'apprentissage.
