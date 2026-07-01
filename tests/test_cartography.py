@@ -153,5 +153,6 @@ def test_lock_term_counts_by_territory_and_systemic():
     # "réfuté" apparaît sur BIND et NAV -> 2 territoires, pas systémique (<3)
     assert res["per_term"]["refute"]["systemic"] is False
     assert sorted(res["per_term"]["refute"]["territories"]) == ["BIND", "NAV"]
-    # "murmure" ne doit PAS compter comme "mur"
-    assert "mur" not in res["per_territory"] or res["per_term"]["mur"]["total"] == 1
+    # "murmure" ne doit PAS compter comme "mur" : seul l'EDR 110 ("le mur reste")
+    # compte, pas le "murmure" de l'EDR 999 -> total exactement 1.
+    assert res["per_term"]["mur"]["total"] == 1
