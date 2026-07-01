@@ -253,3 +253,65 @@ def test_compare_curriculum_fade_smoke():
     for arm in ("legacy", "torch"):
         for k in ("hit_end", "compo_didx_end", "p_y_given_x_end"):
             assert k in row[arm]
+
+
+# --- Levier binding par le SIGNAL : punir Y-sans-X (EDR 126 suite) ---
+
+def test_compositional_reward_penalized_penalty0_equals_baseline():
+    """À penalty=0, la récompense pénalisée == compositional_reward (les 4 cas) : le baseline
+    reproduit EXACTEMENT EDR 126 (garantie structurelle de la dose-réponse)."""
+    from tools.substrate_ab_compositional import compositional_reward_penalized as pen, compositional_reward as base
+    for move2, did_x in [(4, True), (4, False), (2, True), (2, False)]:
+        assert pen(move2, 4, did_x, 0.0) == base(move2, 4, did_x)
+
+
+def test_compositional_reward_penalized_makes_y_without_x_harsher_than_silence():
+    """penalty>0 : Y-sans-X (−1−p) est PLUS punitif que le silence ¬Y (−1) → pression DIFFÉRENTIELLE
+    forçant le conditionnement. Y&X reste +1 (le seul chemin payant)."""
+    from tools.substrate_ab_compositional import compositional_reward_penalized as pen
+    assert pen(move2=4, target_y=4, did_x=True, y_without_x_penalty=1.0) == 1.0     # Y&X : inchangé
+    assert pen(move2=4, target_y=4, did_x=False, y_without_x_penalty=1.0) == -2.0   # Y&¬X : surpuni
+    assert pen(move2=2, target_y=4, did_x=False, y_without_x_penalty=1.0) == -1.0   # ¬Y : silence
+    # l'ordre est ce qui compte : silence (−1) STRICTEMENT préféré à Y-sans-X (−2)
+    assert pen(4, 4, False, 1.0) < pen(2, 4, False, 1.0)
+
+
+def test_p_y_given_not_x_conditional():
+    """P(Y|¬X) = fraction de y_correct parmi les trials ¬did_x (dénominateur du binding_gap).
+    None si aucun ¬did_x."""
+    import numpy as np
+    from tools.substrate_ab_compositional import _p_y_given_not_x
+    # did_x = [T,F,F,T], y_correct=[T,T,F,T] → parmi ¬X (idx 1,2) : y=[T,F] → 0.5
+    assert _p_y_given_not_x(np.array([True, True, False, True]),
+                            np.array([True, False, False, True])) == 0.5
+    assert _p_y_given_not_x(np.array([True, True]), np.array([False, False])) == 1.0  # tous ¬X, tous Y
+    assert _p_y_given_not_x(np.array([True, True]), np.array([True, True])) is None   # aucun ¬X
+
+
+@pytest.mark.slow
+def test_run_curriculum_fade_penalty_keys_and_gap():
+    """run_curriculum_fade accepte y_without_x_penalty et renvoie p_y_given_not_x_end + binding_gap_end
+    (= P(Y|X) − P(Y|¬X)) ; penalty=0 tourne comme le baseline."""
+    pytest.importorskip("torch")
+    from tools.substrate_ab_compositional import run_curriculum_fade
+    r = run_curriculum_fade("torch", seed=0, warmup_trials=10, compo_trials=40, n_agents=4,
+                            fade_w0=1.0, y_without_x_penalty=1.0)
+    for k in ("p_y_given_x_end", "p_y_given_not_x_end", "binding_gap_end", "y_rate_end"):
+        assert k in r
+    # gap défini ssi les deux conditionnels existent
+    if r["p_y_given_x_end"] is not None and r["p_y_given_not_x_end"] is not None:
+        assert abs(r["binding_gap_end"] - (r["p_y_given_x_end"] - r["p_y_given_not_x_end"])) < 1e-9
+
+
+@pytest.mark.slow
+def test_sweep_binding_penalty_smoke():
+    """sweep_binding_penalty renvoie une ligne par (penalty, backend) avec le gap de binding."""
+    pytest.importorskip("torch")
+    from tools.substrate_ab_compositional import sweep_binding_penalty
+    res = sweep_binding_penalty(seeds=(0,), penalties=(0.0, 1.0), warmup_trials=30,
+                                compo_trials=30, n_agents=4)
+    assert res["rows"]
+    for row in res["rows"]:
+        for k in ("penalty", "backend", "seed", "p_y_given_x_end", "p_y_given_not_x_end",
+                  "binding_gap_end", "y_rate_end", "hit_end"):
+            assert k in row
