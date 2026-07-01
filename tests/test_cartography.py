@@ -156,3 +156,53 @@ def test_lock_term_counts_by_territory_and_systemic():
     # "murmure" ne doit PAS compter comme "mur" : seul l'EDR 110 ("le mur reste")
     # compte, pas le "murmure" de l'EDR 999 -> total exactement 1.
     assert res["per_term"]["mur"]["total"] == 1
+
+
+def test_dormant_territories_flags_by_gap():
+    from tools.cartography import dormant_territories
+    terrs = [
+        {"code": "SUB", "statut": "actif", "legacy_edr": [140, 145]},
+        {"code": "NAV", "statut": "dormant", "legacy_edr": [90, 110]},
+        {"code": "MEM", "statut": "dormant", "legacy_edr": []},
+    ]
+    res = {d["code"]: d for d in dormant_territories(terrs, k=30)}
+    assert res["SUB"]["dormant"] is False and res["SUB"]["gap"] == 0
+    assert res["NAV"]["dernier_edr"] == 110 and res["NAV"]["gap"] == 35
+    assert res["NAV"]["dormant"] is True
+    assert res["MEM"]["dernier_edr"] == 0 and res["MEM"]["dormant"] is True
+
+
+def test_main_writes_signals_json(tmp_path):
+    from tools.cartography import main
+    # mini registre + mini corpus EDR
+    (tmp_path / "docs" / "roadmap").mkdir(parents=True)
+    (tmp_path / "docs" / "EDR").mkdir(parents=True)
+    (tmp_path / "docs" / "roadmap" / "SPECIALITES.md").write_text(
+        "## Territoires\n\n"
+        "### SUB — Substrat\n- statut: actif\n- legacy_edr: 134,135\n- filiation: —\n\n"
+        "### BIND — Binding\n- statut: actif\n- legacy_edr: 128\n- filiation: —\n\n"
+        "## Fin\n", encoding="utf-8")
+    # EDR mappé (corps avec un lead + un terme-verrou, frontmatter YAML)
+    (tmp_path / "docs" / "EDR" / "134_Sub.md").write_text(
+        "---\nid: EDR-134\ntype: EDR\ntitle: Sub\nstatus: accepted\n---\n"
+        "# EDR 134\nLe VERROU tient. c'est la piste suivante directe.\n", encoding="utf-8")
+    # EDR legacy récent non mappé (> 135) -> orphelin
+    (tmp_path / "docs" / "EDR" / "200_New.md").write_text(
+        "---\nid: EDR-200\ntype: EDR\ntitle: New\nstatus: accepted\n---\n"
+        "# EDR 200\n", encoding="utf-8")
+    # EDR avec verdict INCONCLUSIF (frontmatter)
+    (tmp_path / "docs" / "EDR" / "121_Inc.md").write_text(
+        "---\nid: EDR-121\ntype: EDR\ntitle: t\nstatus: accepted\nverdict: INCONCLUSIF\n---\n",
+        encoding="utf-8")
+
+    rc = main(["--root", str(tmp_path), "--date", "2026-07-01"])
+    assert rc == 0
+    out = json.loads((tmp_path / "docs" / "roadmap" / "cartographie"
+                      / "signals-2026-07-01.json").read_text(encoding="utf-8"))
+    assert out["date"] == "2026-07-01"
+    assert set(out) >= {"date", "prefix_counts", "dormant_territories", "orphans",
+                        "unresolved_verdicts", "pending_leads", "lock_terms"}
+    assert any(o["id"] == "EDR-200" for o in out["orphans"])
+    assert any(v["id"] == "EDR-121" for v in out["unresolved_verdicts"])
+    assert any(l["marker"] == "piste suivante" for l in out["pending_leads"])
+    assert out["lock_terms"]["per_territory"].get("SUB", 0) >= 1

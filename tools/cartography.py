@@ -185,3 +185,109 @@ def lock_term_counts(edr_texts, territories) -> dict:
                         "systemic": len(v["territories"]) >= 3}
                     for t, v in per_term.items()}
     return {"per_territory": per_territory, "per_term": per_term_out}
+
+
+def dormant_territories(territories, k: int = 30) -> list[dict]:
+    """Dormance par écart de records : gap = (max legacy global) - (max legacy du territoire).
+    dormant si gap >= k. Proxy de récence sans dates (le numéro EDR est ~monotone)."""
+    global_max = 0
+    for t in territories:
+        if t.get("legacy_edr"):
+            global_max = max(global_max, max(t["legacy_edr"]))
+    out: list[dict] = []
+    for t in territories:
+        last = max(t["legacy_edr"]) if t.get("legacy_edr") else 0
+        gap = global_max - last
+        out.append({"code": t["code"], "statut": t.get("statut", ""),
+                    "dernier_edr": last, "gap": gap, "dormant": gap >= k})
+    return out
+
+
+def _read_texts(root, relpaths) -> list:
+    """Lit (relpath, texte) pour chaque chemin relatif existant sous root.
+    Gère aussi les chemins absolus (cherche les fichiers tels quels)."""
+    files = []
+    for rel in relpaths:
+        # Essayer d'abord comme relatif à root
+        path = os.path.join(root, rel)
+        if not os.path.exists(path):
+            # Sinon, essayer comme absolu ou chemins réinterprétés
+            path = rel
+        try:
+            with open(path, encoding="utf-8") as fh:
+                files.append((rel, fh.read()))
+        except OSError:
+            continue
+    return files
+
+
+def _memory_files(memory_dir) -> list:
+    """Lit (memory/<nom>, texte) pour chaque .md du dossier mémoire, s'il existe."""
+    if not memory_dir or not os.path.isdir(memory_dir):
+        return []
+    out = []
+    for name in sorted(os.listdir(memory_dir)):
+        if not name.endswith(".md"):
+            continue
+        try:
+            with open(os.path.join(memory_dir, name), encoding="utf-8") as fh:
+                out.append((f"memory/{name}", fh.read()))
+        except OSError:
+            continue
+    return out
+
+
+def build_signals(root, memory_dir, the_date, dormant_gap) -> dict:
+    """Assemble tous les signaux (pur, sans écriture disque)."""
+    with open(os.path.join(root, "docs", "roadmap", "SPECIALITES.md"),
+              encoding="utf-8") as fh:
+        territories = parse_territories(fh.read())
+
+    records = scan_records(root)
+    edr_records = [r for r in records if r.get("type") == "EDR"]
+    edr_files = _read_texts(root, [r["file"] for r in edr_records])
+    text_by_file = dict(edr_files)
+    edr_texts = [{"num": _edr_number(r["id"]), "prefix": _prefix_of(r["id"]),
+                  "text": text_by_file.get(r["file"], "")} for r in edr_records]
+    mem_files = _memory_files(memory_dir)
+
+    return {
+        "date": the_date,
+        "prefix_counts": dict(Counter(_prefix_of(r["id"]) for r in records)),
+        "dormant_territories": dormant_territories(territories, dormant_gap),
+        "orphans": orphan_edrs(records, territories),
+        "unresolved_verdicts": unresolved_verdicts(records),
+        "pending_leads": pending_leads(edr_files + mem_files),
+        "lock_terms": lock_term_counts(edr_texts, territories),
+    }
+
+
+def main(argv=None) -> int:
+    """Moissonne les signaux et écrit docs/roadmap/cartographie/signals-<date>.json."""
+    ap = argparse.ArgumentParser(description="Cartographe — moisson de signaux déterministes.")
+    ap.add_argument("--root", default=_ROOT)
+    ap.add_argument("--memory-dir", default=None)
+    ap.add_argument("--out-dir", default=None)
+    ap.add_argument("--date", default=None)
+    ap.add_argument("--dormant-gap", type=int, default=30)
+    args = ap.parse_args(argv)
+
+    the_date = args.date or _date.today().isoformat()
+    out_dir = args.out_dir or os.path.join(args.root, "docs", "roadmap", "cartographie")
+    signals = build_signals(args.root, args.memory_dir, the_date, args.dormant_gap)
+
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, f"signals-{the_date}.json")
+    with open(out_path, "w", encoding="utf-8") as fh:
+        json.dump(signals, fh, ensure_ascii=False, indent=2)
+
+    print(f"cartographie {the_date}: "
+          f"orphelins={len(signals['orphans'])} "
+          f"verdicts_ouverts={len(signals['unresolved_verdicts'])} "
+          f"leads={len(signals['pending_leads'])} "
+          f"-> {os.path.relpath(out_path, args.root)}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
