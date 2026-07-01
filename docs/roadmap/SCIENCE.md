@@ -108,6 +108,8 @@
 
 ## Statut des Vagues (pointeurs)
 
+- 🗺️ **Territoires de recherche & convention d'IDs** : `docs/roadmap/SPECIALITES.md` (registre vivant, source de vérité de la spécialisation).
+
 | Vague | Statut |
 |---|---|
 | **0 — Fondations** | ✅ LIVRÉE (`010-030`) : moteur évolutif réparé (`016`), Actor-Critic (`020`), chaîne moyens→fins auto-suffisante (`030`) |
