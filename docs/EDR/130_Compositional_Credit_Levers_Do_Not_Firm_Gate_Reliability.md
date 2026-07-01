@@ -43,9 +43,12 @@ INCITATIF (fade0.0 → ¬X fréquent, penalty=2, cf. EDR 129). Métrique = **n_b
 | 0.05 | 0.7 (les deux) | 5/10 | 0.194 |
 
 **VERDICT NO_IMPROVEMENT.** Aucune intervention ne dépasse le baseline 7/10 ; les deux nuisent
-légèrement. L'**éligibilité DÉGRADE** (n_bind 7→5, gap médian 0.37→0.18) : accumuler le gradient sur des
-essais INDÉPENDANTS (pas de structure temporelle intra-essai) mélange des directions non-liées → bruit,
-exactement l'inadéquation prédite d'un TD(λ) sur un gate 1-pas.
+légèrement. L'**éligibilité DÉGRADE** (n_bind 7→5, gap médian 0.37→0.18) de façon SYSTÉMATIQUE, pas
+bruitée : les gaps ne deviennent pas erratiques, ils tombent NET à 0.000 (seeds 5 et 8, bindeurs sous
+baseline gap 0.37, → 0.000 sous éligibilité). Mécanisme = INERTIE/SATURATION — la trace λ=0.7 empilée sur
+le momentum d'Adam (β1=0.9) sature le biais du gate → always-Y. Accumuler un gradient sur des essais
+INDÉPENDANTS (pas de structure temporelle intra-essai à créditer) n'aide pas et déstabilise : exactement
+l'inadéquation prédite d'un TD(λ) sur un gate 1-pas.
 
 **Les collapses sont DÉTERMINISTES par seed** : les seeds 0, 3, 4 collapsent en always-Y (gap ~0) dans
 **les 4 configs** ; les seeds bindeurs (1,2,6,7,8,9) bindent dans toutes. L'intervention ne déplace pas
