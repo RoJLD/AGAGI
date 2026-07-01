@@ -28,3 +28,12 @@ le stockage. **Évolvabilité du stockage (EDR-121) : INCONCLUSIVE.** Le probe d
 inerte en jeu (moteur auto-mange) ; une **banque d'énergie** ablatable est livrée (1ʳᵉ affordance de
 stockage atteignable). `SDR-G1` reste `open`. Test propre = pipeline biosphère complet (élitisme HoF) sur
 famine → sous-chantier dédié (backlog).
+
+**Test propre livré (EDR-126) : compétence ÉMERGE, stockage explicite REDONDANT.** Le pipeline complet
+(`main_biosphere` famine, HoF dédié, 3 seeds) LÈVE le confond GA d'EDR-121 : les champions sont COMPÉTENTS
+(atteignent/dépassent la famine : 84/200/38 ticks vs 7-12 du GA léger) → **le substrat PEUT évoluer une
+compétence de survie cyclique (temporelle)**. MAIS le stockage explicite n'émerge pas (réserve=0, delta
+d'ablation ≤0, 3/3) : la survie vient du **buffer d'énergie naturel** (forager haut en abondance, planer en
+famine), le cache/banque est redondant à ces paramètres. Signal partiellement POSITIF (nuance au verrou
+horizon 095/113/117). Suite : durcir la famine (buffer insuffisant) pour EXIGER le stockage, OU mesurer le
+transfert (G1) de la compétence famine.
