@@ -54,3 +54,44 @@ def test_parse_territories_stops_at_next_h2():
     terrs = parse_territories(SPEC_SNIPPET)
     # la section "## Doublons" ne crée pas de territoire
     assert len(terrs) == 2
+
+
+def _rec(id, type="EDR", file="f.md"):
+    return {"id": id, "type": type, "file": file}
+
+
+TERRS = [
+    {"code": "SUB", "label": "S", "legacy_edr": [134, 135]},
+    {"code": "BIND", "label": "B", "legacy_edr": [128, 129]},
+]
+
+
+def test_edr_number_parsing():
+    from tools.cartography import _edr_number
+    assert _edr_number("EDR-140") == 140
+    assert _edr_number("EDR-093") == 93
+    assert _edr_number("EDR-SUB-012") is None
+    assert _edr_number(None) is None
+
+
+def test_territory_of_maps_by_legacy():
+    from tools.cartography import territory_of
+    assert territory_of(134, TERRS) == "SUB"
+    assert territory_of(128, TERRS) == "BIND"
+    assert territory_of(999, TERRS) is None
+    assert territory_of(None, TERRS) is None
+
+
+def test_orphan_edrs_recent_legacy_and_unknown_prefix():
+    from tools.cartography import orphan_edrs
+    records = [
+        _rec("EDR-134"),                 # mappé SUB -> pas orphelin
+        _rec("EDR-100"),                 # legacy non mappé MAIS < max(135) -> pas orphelin
+        _rec("EDR-200"),                 # legacy > max mappé (135) -> ORPHELIN
+        _rec("EDR-SUB-012"),             # préfixe connu -> pas orphelin
+        _rec("EDR-ZZZ-001"),             # préfixe inconnu -> ORPHELIN
+        _rec("REF-NEAT-2002", type="REF"),  # pas un EDR -> ignoré
+    ]
+    orphans = orphan_edrs(records, TERRS)
+    ids = sorted(o["id"] for o in orphans)
+    assert ids == ["EDR-200", "EDR-ZZZ-001"]

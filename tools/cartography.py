@@ -62,3 +62,48 @@ def parse_territories(text: str) -> list[dict]:
             else:
                 cur[key] = val
     return terrs
+
+
+def _edr_number(rec_id) -> int | None:
+    """Numéro legacy d'un id EDR. 'EDR-140'->140, 'EDR-093'->93 ;
+    'EDR-SUB-012' (préfixé) -> None ; None -> None."""
+    if not rec_id:
+        return None
+    m = re.fullmatch(r"EDR-(\d{1,3})", str(rec_id))
+    return int(m.group(1)) if m else None
+
+
+def territory_of(edr_num, territories) -> str | None:
+    """Code du territoire dont legacy_edr contient ce numéro, sinon None."""
+    if edr_num is None:
+        return None
+    for t in territories:
+        if edr_num in t.get("legacy_edr", []):
+            return t["code"]
+    return None
+
+
+def orphan_edrs(records, territories) -> list[dict]:
+    """EDR non rattachables. Legacy : orphelin si son numéro > max des legacy_edr connus
+    (plus récent que tout ce que le registre mappe). Préfixé : orphelin si son préfixe
+    n'est pas un territoire connu (REF exclu). Advisory (aucune suppression)."""
+    codes = {t["code"] for t in territories}
+    mapped: set = set()
+    for t in territories:
+        mapped.update(t.get("legacy_edr", []))
+    max_mapped = max(mapped) if mapped else 0
+    out: list[dict] = []
+    for r in records:
+        if r.get("type") != "EDR":
+            continue
+        num = _edr_number(r["id"])
+        if num is not None:
+            if num not in mapped and num > max_mapped:
+                out.append({"id": r["id"], "file": r.get("file"),
+                            "reason": "legacy récent non mappé"})
+        else:
+            prefix = _prefix_of(r["id"])
+            if prefix not in codes and prefix != "REF":
+                out.append({"id": r["id"], "file": r.get("file"),
+                            "reason": f"préfixe {prefix} inconnu"})
+    return out
