@@ -1,4 +1,8 @@
-# EDR 155 (V2) — Les profs corrélés N'INDUISENT PAS d'interférence de trunc : le readout linéaire absorbe le signe (NOT_INDUCED, prédit avant le run)
+# EDR 190 (V2, ex-155 renuméroté) — Les profs corrélés N'INDUISENT PAS d'interférence de trunc : le readout linéaire absorbe le signe (NOT_INDUCED, prédit avant le run)
+
+> **Renumérotation** : publié initialement EDR 155 (PR #127) ; collision cross-session avec `155_Famine_Full_Pipeline`
+> (PR #124, récupération d'orphelins par un fil //). Renuméroté **EDR 190** — le per-type disjoint EXTENSION est
+> ancré en **bloc 190+** pour échapper au débordement des fils // dans le 150-158 (cf. `parallel-sessions-shared-tree`).
 
 > **Date** : 2026-07-01. **Verdict pré-enregistré** : Axe A `INDUCED` si cosinus-conflit `≤ −0.05` sur majorité ;
 > Axe B `CREDIT_ROBUST` recovery≥0.50 / `ARCH_MATTERS` ≤0.20 / `CREDIT_PARTIAL`.
@@ -59,7 +63,8 @@ le crédit-équilibrage **plat** (FLAT_NORM, 153) recouvre-t-il encore l'avantag
 - **Ce qu'il faudrait pour tester B** (opus finding g, et **correction d'une erreur de conception** : réduire H
   **uniformément** PRÉSERVE la parité inter-bras — FLAT `D·H` et DISJOINT `3·(D·H/3)` scalent tous deux avec H) : une
   **pression de capacité** (H réduit) pour que le trunc NE PUISSE PAS servir toutes les têtes → vraie interférence →
-  test réel de B. **Suite = EDR 156 (profs corrélés à H réduit).**
+  test réel de B. **Suite = EDR 191 (H réduit + profs INDÉPENDANTS 152 — 155 a montré que corréler AIDE, donc pour
+  induire le conflit sous rareté il faut des tâches DIVERSES qui se disputent des dims rares).**
 
 ## 5. Caveats
 
@@ -71,7 +76,7 @@ le crédit-équilibrage **plat** (FLAT_NORM, 153) recouvre-t-il encore l'avantag
 - **(f)** `w2` (readouts profs) **indépendants par tête, non modulés par ρ** → une part de l'orthogonalité des cibles
   survit à ρ=1 (corrélation induite seulement dans `w1`), atténuant encore le conflit atteignable.
 - **(g)** Tester B exige de sonder `∂L/∂h` (pré-readout), OU geler les readouts, OU **pression de capacité (H
-  réduit)** — cette dernière préserve la parité inter-bras (correction de l'écart initial) → **EDR 156**.
+  réduit)** — cette dernière préserve la parité inter-bras (correction de l'écart initial) → **EDR 191**.
 - **(c)** `SIGMA=(+1,+1,-1)` fixe/arbitraire. **(d)** dénominateur recovery petit (dégénère à ρ élevé, ici l'axe B est
   moot). Hérite 152/153/154 (proxy supervisé, têtes non appariées).
 
@@ -82,13 +87,13 @@ indépendante) garde l'échelle des features comparable ; à ρ=0 le régime ort
 FLAT/DISJOINT proche de 152) → sweep **propre**. Pas de fuite RNG (`_train_arm`/`_train_flat_norm` re-seedent en
 interne). Parité de params trunc FLAT vs DISJOINT préservée (H=48 inchangé).
 
-## 7. Boucle EDR 152 → 155
+## 7. Boucle EDR 152 → 190
 
 - **152** : disjoint aide, cos≈0 (profs indépendants) → interférence réfutée.
 - **153/154** : le gain = crédit-équilibrage (échelle/moments), pas l'archi.
-- **155** : forcer la corrélation des profs **ne crée toujours pas** de conflit de trunc (readout absorbe le signe ;
-  trunc surdimensionné) → le cos≈0 de 152 est **robuste mécaniquement**, MAIS le régime interférent reste inatteint →
-  **EDR 156** (H réduit = pression de capacité) pour tester enfin si l'archi compte sous vraie interférence.
+- **190 (ex-155)** : forcer la corrélation des profs **ne crée toujours pas** de conflit de trunc (readout absorbe le
+  signe ; trunc surdimensionné) → le cos≈0 de 152 est **robuste mécaniquement**, MAIS le régime interférent reste
+  inatteint → **EDR 191** (H réduit = pression de capacité) pour tester enfin si l'archi compte sous vraie interférence.
 
 ## 8. Provenance / non-périmètre
 
@@ -100,4 +105,6 @@ interne). Parité de params trunc FLAT vs DISJOINT préservée (H=48 inchangé).
 - Subagent-driven : 2 tâches (SPEC conforme + qualité Approved chacune), revue finale **opus PRÊT À INTÉGRER OUI, 0
   Critical**, qui a **prédit NOT_INDUCED avant le run** (dry-run), validé le contrôle (sweep propre, parité, pas de
   fuite RNG) et posé les caveats e/f/g. Verdict pré-enregistré gelé avant le run.
-- **Numérotation** : EDR 155 — bloc **150+**. 8e instrument per-type, suite d'EDR 152/153/154.
+- **Numérotation** : EDR **190** (ex-155, renuméroté pour collision cross-session avec `155_Famine_Full_Pipeline`
+  PR#124). 8e instrument per-type. Le per-type disjoint EXTENSION est désormais ancré en **bloc 190+** (le 150-158
+  a été saturé par le débordement des fils //). Suite d'EDR 152/153/154.
