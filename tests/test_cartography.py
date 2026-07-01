@@ -56,6 +56,18 @@ def test_parse_territories_stops_at_next_h2():
     assert len(terrs) == 2
 
 
+def test_parse_territories_legacy_ignores_annotation_digits():
+    # Une annotation APRÈS la liste propre (avec ses propres chiffres) ne doit PAS
+    # polluer legacy_edr : seule la liste numérique en tête compte.
+    txt = ("## Territoires\n\n"
+           "### FAM — Famine\n"
+           "- legacy_edr: 155,156,157 (⚠ titres H1 « EDR 126/129/130 » ; 2026-07-01)\n"
+           "- filiation: —\n\n"
+           "## Fin\n")
+    terrs = parse_territories(txt)
+    assert terrs[0]["legacy_edr"] == [155, 156, 157]
+
+
 def _rec(id, type="EDR", file="f.md"):
     return {"id": id, "type": type, "file": file}
 
