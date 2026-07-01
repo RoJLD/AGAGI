@@ -312,7 +312,8 @@ def run_curriculum_fade_gated(backend: str, seed: int = 0, warmup_trials: int = 
                               compo_trials: int = 250, n_agents: int = 8, target_x: int = 0,
                               target_y: int = 4, fade_w0: float = 1.0, gate_mode: str = "none",
                               oracle_bias: float = 8.0, gate_lr: float = 0.05,
-                              y_without_x_penalty: float = 0.0) -> dict:
+                              y_without_x_penalty: float = 0.0, entropy_coef: float = 0.0,
+                              elig_lambda: float = 0.0) -> dict:
     """LEVIER 2 (gating archi, suite EDR 126/128) : curriculum à fade + GATE sur le logit Y en phase B.
     L'action Y est échantillonnée d'un softmax sur les logits de mouvement (règle commune aux 3 modes
     → comparaison équitable ; `none` doit reproduire le baseline EDR 126/128).
@@ -323,6 +324,10 @@ def run_curriculum_fade_gated(backend: str, seed: int = 0, warmup_trials: int = 
       - "learned" : gate LINÉAIRE entraînable biais_Y = w·H_S2 + b, entraîné par REINFORCE sur reward2
                     (avantage = reward − baseline glissant). Teste si le substrat APPREND à router did_x
                     (décodable de H_S2, EDR 120) vers le logit Y quand on lui donne la STRUCTURE.
+    LEVIER 3 (crédit/optimisation du gate learned, fiabiliser vs collapse always-Y d'EDR 129) :
+      - entropy_coef>0 : bonus d'entropie sur la politique (anti-collapse, exploration).
+      - elig_lambda>0 : trace d'éligibilité sur le gradient du gate (trace=λ·trace+grad). λ=0 → Adam nu.
+    Les deux valent 0 par défaut → REINFORCE nu = baseline gating (rétrocompat garantie).
     Mesure binding_gap = P(Y|X) − P(Y|¬X) en fin de phase B."""
     if gate_mode not in ("none", "oracle", "learned"):
         raise ValueError(f"gate_mode inconnu : {gate_mode!r} (attendu none/oracle/learned)")
@@ -349,12 +354,15 @@ def run_curriculum_fade_gated(backend: str, seed: int = 0, warmup_trials: int = 
 
     # --- Gate appris : params + optim (créés seulement pour learned) ---
     gate_w = gate_b = optim = None
+    trace_w = trace_b = None
     baseline_ret = 0.0
     if gate_mode == "learned":
         state_dim = _read_state(pop, backend).shape[1]
         gate_w = torch.zeros(state_dim, requires_grad=True)
         gate_b = torch.zeros(1, requires_grad=True)
         optim = torch.optim.Adam([gate_w, gate_b], lr=gate_lr)
+        trace_w = torch.zeros(state_dim)   # trace d'éligibilité (levier 3) sur le gradient
+        trace_b = torch.zeros(1)
 
     # --- Phase B : compositionnel + fade + gate sur le logit Y ---
     hit, bx, yc = [], [], []
@@ -387,10 +395,18 @@ def run_curriculum_fade_gated(backend: str, seed: int = 0, warmup_trials: int = 
 
         if gate_mode == "learned":
             idx = torch.arange(n_agents)
-            logp = torch.log_softmax(base_logits, dim=1)[idx, torch.as_tensor(move2)]      # (B,)
+            log_probs = torch.log_softmax(base_logits, dim=1)                              # (B, _MOVE)
+            logp = log_probs[idx, torch.as_tensor(move2)]                                  # (B,)
             adv = torch.tensor(reward2, dtype=torch.float32) - baseline_ret
-            loss = -(logp * adv).mean()
-            optim.zero_grad(); loss.backward(); optim.step()
+            # LEVIER 3a : bonus d'entropie (anti-collapse always-Y ; exploration)
+            entropy = -(torch.softmax(base_logits, dim=1) * log_probs).sum(dim=1)          # (B,)
+            loss = -(logp * adv).mean() - entropy_coef * entropy.mean()
+            optim.zero_grad(); loss.backward()
+            # LEVIER 3b : trace d'éligibilité sur le gradient (λ=0 → Adam nu = baseline EDR 129/gating)
+            if elig_lambda > 0.0:
+                trace_w.mul_(elig_lambda).add_(gate_w.grad); gate_w.grad = trace_w.clone()
+                trace_b.mul_(elig_lambda).add_(gate_b.grad); gate_b.grad = trace_b.clone()
+            optim.step()
             baseline_ret = 0.9 * baseline_ret + 0.1 * float(np.mean(reward2))
 
         hit.append(float(np.mean(y_correct & did_x)))
@@ -408,7 +424,9 @@ def run_curriculum_fade_gated(backend: str, seed: int = 0, warmup_trials: int = 
     return {"backend": backend, "seed": int(seed), "gate_mode": gate_mode,
             "warmup_trials": warmup_trials, "compo_trials": compo_trials, "fade_w0": fade_w0,
             "oracle_bias": float(oracle_bias), "gate_lr": float(gate_lr),
-            "y_without_x_penalty": float(y_without_x_penalty), "n_agents": n_agents,
+            "y_without_x_penalty": float(y_without_x_penalty),
+            "entropy_coef": float(entropy_coef), "elig_lambda": float(elig_lambda),
+            "n_agents": n_agents,
             "warmup_didx_end": warmup_didx_end, "hit_end": hit_end,
             "compo_didx_end": compo_didx_end, "p_y_given_x_end": p_yx,
             "p_y_given_not_x_end": p_ynx, "binding_gap_end": gap,
@@ -460,6 +478,46 @@ def compare_gate_modes(seeds=(0, 1, 2, 3, 4), modes=("none", "learned", "oracle"
             verdict = "GATE_INTERMITTENT"
     return {"verdict": verdict, "bind_thresh": bind_thresh, "fade_w0": fade_w0,
             "y_without_x_penalty": y_without_x_penalty, "per_mode": per_mode}
+
+
+def sweep_gate_reliability(seeds=tuple(range(10)), configs=None, fade_w0: float = 0.0,
+                           y_without_x_penalty: float = 2.0, warmup_trials: int = 150,
+                           compo_trials: int = 250, n_agents: int = 8, bind_thresh: float = 0.30) -> dict:
+    """LEVIER 3 — FIABILITÉ du gate learned sous interventions crédit/optimisation (suite EDR 129).
+    EDR 129 : le gate binde ~7/10 seeds mais collapse en always-Y sur le reste. Question : entropy
+    (anti-collapse) et/ou éligibilité fiabilisent-ils (n_bind ↑ vers n_seeds) ?
+    `configs` = liste de dicts d'overrides passés à run_curriculum_fade_gated (gate_mode='learned'),
+    ex. {'entropy_coef':0.05} ; défaut = {baseline, entropy, elig, both}. Régime = conditionnement
+    optimal (fade0.0/pen2, cf. EDR 129). Rapporte n_bind/n_seeds par config (la FIABILITÉ, pas juste
+    la médiane). Verdict : RELIABILITY_IMPROVED si un config atteint n_bind ≥ baseline+2 sur 10 seeds ;
+    NO_IMPROVEMENT sinon (les collapses sont irréductibles à ces leviers). Seuils heuristiques."""
+    if configs is None:
+        configs = ({"entropy_coef": 0.0, "elig_lambda": 0.0},   # baseline REINFORCE (= EDR 129)
+                   {"entropy_coef": 0.05, "elig_lambda": 0.0},   # entropie
+                   {"entropy_coef": 0.0, "elig_lambda": 0.7},    # éligibilité
+                   {"entropy_coef": 0.05, "elig_lambda": 0.7})   # les deux
+    rows = []
+    for cfg in configs:
+        cells = [run_curriculum_fade_gated("torch", seed=s, gate_mode="learned", fade_w0=fade_w0,
+                                           y_without_x_penalty=y_without_x_penalty,
+                                           warmup_trials=warmup_trials, compo_trials=compo_trials,
+                                           n_agents=n_agents, **cfg) for s in seeds]
+        gaps = [c["binding_gap_end"] for c in cells if c["binding_gap_end"] is not None]
+        rows.append({"config": dict(cfg), "n_bind": sum(1 for g in gaps if g > bind_thresh),
+                     "n_seeds": len(gaps), "gap_median": statistics.median(gaps) if gaps else None,
+                     "gap_per_seed": gaps})
+    base = next((r for r in rows if r["config"].get("entropy_coef", 0.0) == 0.0
+                 and r["config"].get("elig_lambda", 0.0) == 0.0), None)
+    base_bind = base["n_bind"] if base else None
+    best = max((r["n_bind"] for r in rows), default=0)
+    if base_bind is not None and best >= base_bind + 2:
+        verdict = "RELIABILITY_IMPROVED"
+    elif base_bind is not None:
+        verdict = "NO_IMPROVEMENT"
+    else:
+        verdict = "AMBIGU"
+    return {"verdict": verdict, "bind_thresh": bind_thresh, "base_n_bind": base_bind,
+            "best_n_bind": best, "rows": rows}
 
 
 def compare_curriculum_fade(seeds=(0, 1, 2, 3, 4), warmup_trials: int = 150, compo_trials: int = 250,
