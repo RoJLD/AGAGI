@@ -37,11 +37,12 @@ def _softmax_np(z):
 
 def run_prod(use_gate: bool, episodes: int = 1000, n_agents: int = 128, seed: int = 0,
              target_x: int = 0, target_y: int = 4, lr: float = 0.05, antisat: float = 6.0,
-             stochastic: bool = False, gate_s2_only: bool = False):
-    """Entraîne une pop torch sur means→ends via le CHEMIN PROD (forward/learn), gate ON/OFF.
-    `stochastic` : échantillonne les actions depuis softmax (exploration, comme le banc 147) au lieu de
-    l'argmax déterministe de run_compositional. `gate_s2_only` : désactive le gate au forward de S1
-    (diagnostic EDR-148 : isole la contamination de l'étape « means »). Renvoie binding_gap poolé."""
+             stochastic: bool = False, gate_s2_only: bool = False, credit: str = "td"):
+    """Entraîne une pop torch sur means→ends via le CHEMIN PROD (forward + crédit), gate ON/OFF.
+    `credit` : 'td' = `pop.learn` Actor-Critic TD(0) différé 1-pas (défaut prod, EDR-148 : ne binde pas) ;
+    'episodic' = `pop.learn_episode` (retour épisodique + gate + anti-sat, EDR-158 : le véhicule qui
+    PORTE le binding). `stochastic` : échantillonne (exploration) vs argmax. `gate_s2_only` : gate OFF au
+    forward de S1 (anti-contamination, EDR-148). Renvoie binding_gap poolé sur le dernier quart."""
     import numpy as np
     import torch
     from src.agents.mamba_agent import MambaAgent
@@ -75,22 +76,30 @@ def run_prod(use_gate: bool, episodes: int = 1000, n_agents: int = 128, seed: in
                 return np.array([rng.choice(_MOVE, p=pi) for pi in p])
             return logits.argmax(axis=1)
 
+        episodic = (credit == "episodic")
         did_hist, cor_hist = [], []
         for _ in range(episodes):
             pop.H = torch.zeros((n_agents, pop.N))                  # épisode frais
-            if gate_s2_only:
-                pop._gate_runtime = False                          # gate OFF au forward de S1 (anti-contamination)
+            # gate OFF au forward de S1 si scoping (episodic gate_last_only ⇒ toujours off à S1)
+            pop._gate_runtime = not (gate_s2_only or episodic)
             preds1, _ = pop.forward(obs_a)                          # S1 : émettre X (récompense différée)
             move1 = _pick(preds1)
             did_x = (move1 == target_x)
-            pop.learn(zeros, [{"move": int(m), "grab": 0, "rub": 0} for m in move1])
+            act1 = [{"move": int(m), "grab": 0, "rub": 0} for m in move1]
+            if not episodic:
+                pop.learn(zeros, act1)                             # crédit TD : update différé de S1
             pop._gate_runtime = True                               # gate ON au forward de S2
             preds2, _ = pop.forward(obs_b)                          # S2 : émettre Y (payé SSI X)
             move2 = _pick(preds2)
             correct_y = (move2 == target_y)
             reward2 = np.array([_compo_reward(int(move2[i]), target_y, bool(did_x[i]))
                                 for i in range(n_agents)], dtype=np.float32)
-            pop.learn(reward2, [{"move": int(m), "grab": 0, "rub": 0} for m in move2])
+            act2 = [{"move": int(m), "grab": 0, "rub": 0} for m in move2]
+            if episodic:                                           # crédit ÉPISODIQUE : retour 2-pas, gate au dernier pas
+                adv = reward2 - reward2.mean()                     # baseline (variance REINFORCE)
+                pop.learn_episode([obs_a, obs_b], [act1, act2], adv, gate_last_only=True)
+            else:
+                pop.learn(reward2, act2)                           # crédit TD : update différé de S2
             did_hist.append(did_x)
             cor_hist.append(correct_y)
 

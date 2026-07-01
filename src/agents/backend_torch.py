@@ -215,6 +215,53 @@ class TorchPopulationModel(PopulationModel):
         self._write_back()
         return float(loss.item())
 
+    def learn_episode(self, obs_seq, actions_seq, rewards, gamma=1.0, gate_last_only=True):
+        """CRÉDIT ÉPISODIQUE prod (EDR-158) — le véhicule que le `learn()` TD différé n'était PAS
+        (EDR-148 : la recette de binding 129/136/147, validée sous REINFORCE épisodique, NE tient pas
+        dans le TD(0) différé 1-pas). Rejoue l'épisode en TRONQUANT la récurrence (H détaché entre pas
+        = crédit 1-pas par pas) mais crédite les actions par le RETOUR ÉPISODIQUE multi-actions ;
+        applique le gate de conditionnement (biais appris sur GATE_TARGET) + anti-saturation de la
+        marginale de base. Reproduit la recette 147 comme MÉTHODE du substrat prod (réutilisable), pas
+        une boucle de banc. ADDITIF : ne touche NI forward NI learn NI learn_episode_bptt.
+
+        gate_last_only=True : gate appliqué au SEUL dernier pas (l'action « ends ») -> évite la
+        contamination de l'étape « means » (EDR-148). rewards: (B,) retour/avantage épisodique
+        (baseliné par le caller). Le caller échantillonne les actions ; ici on crédite celles prises."""
+        if self.B == 0 or not obs_seq:
+            return None
+        R = torch.tensor(np.asarray(rewards, dtype=np.float32), device=self.device)   # (B,)
+        H = torch.zeros((self.B, self.N), device=self.device)
+        idx = torch.arange(self.B, device=self.device)
+        total_logp = torch.zeros(self.B, device=self.device)
+        gate_pen = 0.0
+        T = len(obs_seq)
+        for t, obs in enumerate(obs_seq):
+            obs_t = torch.tensor(np.asarray(obs, dtype=np.float32)[:, :self.I], device=self.device)
+            H = H.detach()                                            # tronqué (crédit 1-pas ; retour porte le multi-actions)
+            H = self._step(obs_t, H)
+            out = H[:, self.N - self.O:self.N]
+            base_move = out[:, :_MOVE_LOGITS]
+            move_logits = base_move
+            use_gate = self.w_gate is not None and (not gate_last_only or t == T - 1)
+            if use_gate:
+                tgt = type(self).GATE_TARGET
+                onehot = torch.zeros(_MOVE_LOGITS, device=self.device)
+                onehot[tgt] = 1.0
+                gb = H @ self.w_gate + self.b_gate                   # readout de H -> biais action ends
+                move_logits = base_move + gb.unsqueeze(1) * onehot
+                if type(self).ANTISAT > 0:
+                    base_p_tgt = torch.softmax(base_move, dim=1)[:, tgt].mean()
+                    gate_pen = gate_pen + type(self).ANTISAT * base_p_tgt ** 2
+            moves = torch.tensor([int(a.get("move", 0)) for a in actions_seq[t]], device=self.device)
+            logp = torch.log_softmax(move_logits, dim=1)[idx, moves]
+            total_logp = total_logp + (gamma ** t) * logp
+        loss = -(R * total_logp).mean() + gate_pen                   # REINFORCE épisodique + anti-saturation
+        self.opt.zero_grad()
+        loss.backward()
+        self.opt.step()
+        self._write_back()
+        return float(loss.item())
+
     def _write_back(self):
         """Baldwin : réécrit W appris dans les génomes (in place)."""
         W = self.W.detach().cpu().numpy()

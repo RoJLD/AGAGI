@@ -53,6 +53,29 @@ def test_run_prod_stochastic_smoke():
     assert "binding_gap" in r
 
 
+def test_learn_episode_exists_and_additive():
+    # crédit épisodique ADDITIF (EDR-158) : ne remplace ni forward, ni learn, ni learn_episode_bptt.
+    for m in ("forward", "learn", "learn_episode", "learn_episode_bptt"):
+        assert hasattr(TorchPopulationModel, m)
+
+
+def test_learn_episode_updates_W():
+    pop = TorchPopulationModel([MambaAgent() for _ in range(4)], lr=0.05)
+    W0 = pop.W.detach().cpu().numpy().copy()
+    obs = (np.random.RandomState(0).randn(4, pop.I) * 0.5).astype(np.float32)
+    acts = [[{"move": 1}] * 4, [{"move": 2}] * 4]
+    loss = pop.learn_episode([obs, obs], acts, np.array([1.0, -1.0, 1.0, -1.0], np.float32))
+    assert loss is not None
+    assert not np.allclose(W0, pop.W.detach().cpu().numpy())
+
+
+def test_run_prod_episodic_smoke():
+    r = run_prod(True, episodes=20, n_agents=16, seed=0, antisat=6.0,
+                 stochastic=True, credit="episodic")
+    assert "binding_gap" in r
+    assert TorchPopulationModel.CONDITION_GATE is False   # flags restaurés
+
+
 def test_learn_still_works_gate_off():
     # le chemin learn (Actor-Critic TD) reste fonctionnel sans gate (banc // intact).
     pop = TorchPopulationModel([MambaAgent() for _ in range(4)], lr=0.05)
