@@ -1,7 +1,7 @@
 {
   "date": "2026-07-01",
   "prefix_counts": {
-    "LEGACY": 152,
+    "LEGACY": 157,
     "REF": 11
   },
   "dormant_territories": [
@@ -9,91 +9,86 @@
       "code": "SUB",
       "statut": "actif",
       "dernier_edr": 145,
-      "gap": 6,
+      "gap": 12,
       "dormant": false
     },
     {
       "code": "BIND",
       "statut": "actif (résolu sur proxy → portage)",
       "dernier_edr": 149,
-      "gap": 2,
+      "gap": 8,
       "dormant": false
     },
     {
       "code": "MEM",
       "statut": "dormant (Partie A close)",
       "dernier_edr": 123,
-      "gap": 28,
-      "dormant": false
+      "gap": 34,
+      "dormant": true
     },
     {
       "code": "WLD",
       "statut": "actif",
       "dernier_edr": 124,
-      "gap": 27,
-      "dormant": false
+      "gap": 33,
+      "dormant": true
     },
     {
       "code": "CRAFT",
       "statut": "actif",
       "dernier_edr": 127,
-      "gap": 24,
-      "dormant": false
+      "gap": 30,
+      "dormant": true
     },
     {
       "code": "NAV",
       "statut": "dormant",
       "dernier_edr": 114,
-      "gap": 37,
+      "gap": 43,
       "dormant": true
     },
     {
       "code": "FAM",
-      "statut": "dormant",
-      "dernier_edr": 0,
-      "gap": 151,
-      "dormant": true
+      "statut": "actif",
+      "dernier_edr": 157,
+      "gap": 0,
+      "dormant": false
     },
     {
       "code": "COG",
-      "statut": "partiellement clos (ToM clos, dreaming réfuté)",
-      "dernier_edr": 151,
-      "gap": 0,
+      "statut": "actif (dreaming réfuté ; ToM comportemental épuisé sur instrument gelé MAIS volet causal OUVERT — cf. EDR-151/150 ; têtes disjointes relancées 152-154)",
+      "dernier_edr": 154,
+      "gap": 3,
       "dormant": false
     },
     {
       "code": "INFRA",
       "statut": "continu",
       "dernier_edr": 0,
-      "gap": 151,
+      "gap": 157,
       "dormant": true
     },
     {
       "code": "PROD",
       "statut": "actif",
       "dernier_edr": 0,
-      "gap": 151,
+      "gap": 157,
       "dormant": true
     }
   ],
-  "orphans": [
-    {
-      "id": "EDR-152",
-      "file": "docs/EDR/152_Disjoint_Heads_Help_But_Cosine_Zero_Gain_Is_Optimizer_Conditioning_Not_Interference.md",
-      "reason": "legacy récent non mappé"
-    },
-    {
-      "id": "EDR-153",
-      "file": "docs/EDR/153_Disjoint_Gain_Is_Loss_Scale_Credit_Confound_Flat_GradNorm_Recovers_It_Migration5_Refuted.md",
-      "reason": "legacy récent non mappé"
-    }
-  ],
+  "orphans": [],
   "unresolved_verdicts": [
     {
       "id": "EDR-121",
       "file": "docs/EDR/121_Storage_Evolvability_In_Famine_Inconclusive.md",
       "marker": "INCONCLUSIF",
       "verdict": "INCONCLUSIF"
+    },
+    {
+      "id": "EDR-151",
+      "file": "docs/EDR/151_ToM_Behavioral_Coordination_Indeterminate_No_Recruitment_Above_Geometric_Baseline.md",
+      "marker": "INDETERMINATE",
+      "verdict": null
     }
   ],
   "pending_leads": [
@@ -354,6 +349,114 @@
       "line": 89,
       "marker": "actionnable",
       "snippet": "- **Actionnable prod** : le substrat torch de prod devrait embarquer un **équilibrage de crédit multi-tête**"
+    },
+    {
+      "file": "docs/EDR/154_Disjoint_Residual_Not_Cleanly_Moments_PerHead_Adam_Recovers_Like_LossScale_PARTIAL.md",
+      "line": 57,
+      "marker": "actionnable",
+      "snippet": "3. **Migration #5 : conclusion INCHANGÉE et renforcée.** L'actionnable prod reste un **équilibrage de crédit"
+    },
+    {
+      "file": "docs/EDR/154_Disjoint_Residual_Not_Cleanly_Moments_PerHead_Adam_Recovers_Like_LossScale_PARTIAL.md",
+      "line": 96,
+      "marker": "actionnable",
+      "snippet": "- **Actionnable prod (inchangé)** : embarquer un **équilibrage de crédit multi-tête** (échelle de loss / moments"
+    },
+    {
+      "file": "memory/MEMORY.md",
+      "line": 6,
+      "marker": "actionnable",
+      "snippet": "- [Audit typologie d'intelligence : connectome PLAT, têtes non dissociées](intelligence-typing-flat-connectome.md) — 5 cachés sans isolation gradient ; seul module séparé = referential_head ; même ver"
+    },
+    {
+      "file": "memory/MEMORY.md",
+      "line": 20,
+      "marker": "actionnable",
+      "snippet": "- [Compétence coop = POPULATION ; chaîne 104-140 → binding RÉSOLU : recette 10/10 = gate (129) + anti-saturation politique de base (136), ROBUSTE au sur-entraînement (149, ex-140)](coop-competence-is-"
+    },
+    {
+      "file": "memory/coop-competence-is-population-property.md",
+      "line": 43,
+      "marker": "prochaine piste",
+      "snippet": "**Diversite COMPORTEMENTALE -> le tournoi ne PRESERVE meme pas la diversite (EDR 109)** : clot le caveat metrique d'EDR 108. Ajout d'une metrique `behavioral_diversity`/ere a `evolve_ceiling_probe` (d"
+    },
+    {
+      "file": "memory/coop-competence-is-population-property.md",
+      "line": 61,
+      "marker": "actionnable",
+      "snippet": "**LEVIER 2 (GATING) POSITIF — un gate appris DEBLOQUE le binding (7/10 seeds), le verrou EST la structure de routage (EDR 129)** : test du 2e levier. `run_curriculum_fade_gated` : gate sur le logit Y "
+    },
+    {
+      "file": "memory/coop-competence-is-population-property.md",
+      "line": 63,
+      "marker": "piste suivante",
+      "snippet": "**LEVIER 3 (CREDIT/OPTIM) NE FIRME PAS — le plafond 7/10 est un probleme d'INIT, pas de credit (EDR 130) ; CLOT LA TRILOGIE 128-129-130** : test du 3e levier pour firmer les 3/10 collapses d'EDR 129. "
+    },
+    {
+      "file": "memory/coop-competence-is-population-property.md",
+      "line": 65,
+      "marker": "piste suivante",
+      "snippet": "**DIAGNOSTIC : le plafond 7/10 est une PATH-DEPENDENCE PRECOCE (always-Y), PAS une limite de representation (EDR 131)** : explique POURQUOI les seeds 0,3,4 collapsent (suite EDR 130). `run_curriculum_"
+    },
+    {
+      "file": "memory/coop-competence-is-population-property.md",
+      "line": 69,
+      "marker": "prochaine piste",
+      "snippet": "**READOUT NON-LINEAIRE (MLP) N'OUVRE PAS LA SUPPRESSION — residuel = BASSIN d'optim (0,4), pas l'expressivite (EDR 133)** : teste l'actionnable d'EDR 132 (un readout plus riche debloque-t-il la suppre"
+    },
+    {
+      "file": "memory/edr090-no-survivable-first-rung.md",
+      "line": 14,
+      "marker": "prochain levier",
+      "snippet": "**How to apply:** ne pas relancer un curriculum de létalité sur substrat stoneage. Le prochain levier est l'**adaptation du substrat au monde référentiel** (survivre-en-Lewis comme pré-requis), pas un"
+    },
+    {
+      "file": "memory/fil-directeur-agi-gates.md",
+      "line": 20,
+      "marker": "prochaine piste",
+      "snippet": "**G1 (north-star) 1ʳᵉ mesure = NEUTRE** (EDR-116, 2026-06-30) : soup→stoneage (les 2 seuls mondes réels distincts après G0 — agri VOID, indus=stoneage-déguisé) ne transfère PAS. soup câblé dans `WORLD"
+    },
+    {
+      "file": "memory/fil-directeur-agi-gates.md",
+      "line": 28,
+      "marker": "prochaine piste",
+      "snippet": "**Transfert ZÉRO-SHOT cross-world = POSITIF (EDR-129, 2026-07-01) — PREMIER G1 net.** Priorité tranchée (robla « le mieux dans le bon ordre ») : transfert G1 AVANT durcir-la-famine (le zéro-shot est l"
+    },
+    {
+      "file": "memory/intelligence-typing-flat-connectome.md",
+      "line": 22,
+      "marker": "actionnable",
+      "snippet": "**How to apply:** backlog priorisé dans `docs/AUDIT_MEMOIRE_INTELLIGENCE.md`. P2 [torch] têtes disjointes/losses séparées = collision session // (différé/coordonner). **P3a per-type LIVRÉ (EDR 125, `t"
+    },
+    {
+      "file": "memory/nas-bottleneck-is-substrate-not-search.md",
+      "line": 21,
+      "marker": "piste amont",
+      "snippet": "**RAFFINEMENT (EDR 105, 2026-06-25) — « substrat » = RÉPERTOIRE-MONDE, PAS capacité réseau.** ⚠️ Ce raffinement est RENVERSÉ par EDR 111 ci-dessus (le répertoire-monde n'est pas le verrou non plus). L"
+    },
+    {
+      "file": "memory/sota-gap-substrate.md",
+      "line": 18,
+      "marker": "actionnable",
+      "snippet": "**Résultat in-world (EDR-134, 2026-07-01)** : le barreau-0 (gradient gagne sur jouet) NE réplique PAS en biosphère. `tools/substrate_world_ab.py` injecte `env.batch_model_cls` (seam S2 world_1_stoneag"
+    },
+    {
+      "file": "memory/sota-gap-substrate.md",
+      "line": 34,
+      "marker": "prochain build",
+      "snippet": "**EDR-144/145 (backlog frontière, 2026-07-01).** **144 (port masque attention)** : le masque d'entrée dynamique de legacy porté dans torch (flag `INPUT_ATTENTION`) donne la parité FORWARD bit-à-bit (p"
+    },
+    {
+      "file": "memory/sota-gap-substrate.md",
+      "line": 36,
+      "marker": "prochain build",
+      "snippet": "**EDR-146 (BPTT in-substrat sur means→ends, coordonné //).** `learn_episode_bptt` ADDITIF sur `TorchPopulationModel` (ne touche ni forward ni learn → banc compositional // intact). Coordination : leur"
+    },
+    {
+      "file": "memory/sota-gap-substrate.md",
+      "line": 40,
+      "marker": "actionnable",
+      "snippet": "**EDR-148 (port PROD de la recette gate+anti-saturation LIVRÉ dans `backend_torch.py`, flag-gated OFF prod-safe).** Head de gate porté dans le VRAI substrat `TorchPopulationModel` (`CONDITION_GATE`/`A"
     }
   ],
   "lock_terms": {
@@ -361,19 +464,23 @@
       "MEM": 30,
       "WLD": 5,
       "NAV": 51,
-      "COG": 23,
+      "COG": 39,
       "CRAFT": 11,
-      "BIND": 63
+      "BIND": 63,
+      "SUB": 5,
+      "FAM": 10
     },
     "per_term": {
       "verrou": {
-        "total": 152,
+        "total": 162,
         "territories": [
           "BIND",
           "COG",
           "CRAFT",
+          "FAM",
           "MEM",
           "NAV",
+          "SUB",
           "WLD"
         ],
         "systemic": true
@@ -389,13 +496,15 @@
         "systemic": true
       },
       "refute": {
-        "total": 81,
+        "total": 86,
         "territories": [
           "BIND",
           "COG",
           "CRAFT",
+          "FAM",
           "MEM",
-          "NAV"
+          "NAV",
+          "SUB"
         ],
         "systemic": true
       },
@@ -407,11 +516,12 @@
         "systemic": false
       },
       "plancher": {
-        "total": 69,
+        "total": 73,
         "territories": [
           "BIND",
           "COG",
           "CRAFT",
+          "FAM",
           "MEM",
           "NAV",
           "WLD"

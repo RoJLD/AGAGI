@@ -89,25 +89,25 @@
 - filiation: —
 
 ### FAM — Famine, stockage & spécialisation
-- statut: dormant
+- statut: actif
 - couche: Monde
 - question_phare: Émergence de spécialisation world-spécifique
 - fichiers_possedes: tools/famine_harshness_probe.py, tools/cross_world_transfer.py
 - memoire: fil-directeur-agi-gates.md
-- legacy_edr: — (fil transfert zéro-shot / famine-harshness suivi en mémoire + scripts cross_world_transfer.py/famine_harshness_probe.py ; PAS matérialisé en docs/EDR — les fichiers 129_*/130_* sur disque sont les records Compositional de BIND)
-- frontiere_courante: durcir réfuté → levier = substrat/moteur (pont SUB)
+- legacy_edr: 155,156,157
+- frontiere_courante: durcir réfuté → levier = substrat/moteur (pont SUB) ; EDR-157 re-confirme (durcir DÉGRADE, le substrat ne spécialise pas)
 - ponts_actifs: [SUB]
 - filiation: —
 
 ### COG — Types d'intelligence & organes cognitifs
-- statut: partiellement clos (ToM clos, dreaming réfuté)
+- statut: actif (dreaming réfuté ; ToM comportemental épuisé sur instrument gelé MAIS volet causal OUVERT — cf. EDR-151/150 ; têtes disjointes relancées 152-154)
 - couche: Cognition
 - question_phare: Quels types émergent / sont dissociables
-- fichiers_possedes: tools/tom_probe.py, tools/anticipation_bench.py
+- fichiers_possedes: tools/tom_probe.py, tools/anticipation_bench.py, tools/disjoint_heads_ab.py
 - memoire: intelligence-typing-flat-connectome.md, dreaming-organ-not-dead.md, planner-depth1-refuted.md
-- legacy_edr: 093,094,095,150,151
-- frontiere_courante: —
-- ponts_actifs: —
+- legacy_edr: 093,094,095,150,151,152,153,154
+- frontiere_courante: équilibrage de crédit multi-tête (GradNorm-lite / lr-par-tête) dans le connectome PLAT, porté en prod — PAS la refonte #5 (EDR 152-154) ; + volet causal ToM NON TESTÉ (incitation ToM→life_score, différé migration torch — EDR 150/151)
+- ponts_actifs: [BIND (crédit multi-tête), SUB (portage prod)]
 - filiation: —
 
 ### INFRA — Instruments, méthodo & reproductibilité
@@ -136,3 +136,8 @@
 
 EDR-093, EDR-094, EDR-100, EDR-105, EDR-113 : deux records distincts partagent le numéro (collisions
 de sessions //). Tolérés (legacy cohabite) ; signalés en `warnings` par consolidate.
+
+Collision de titres (FAM, notée 2026-07-01 par le cartographe) : les fichiers `155_*`/`156_*`/`157_*.md`
+(id frontmatter EDR-155/156/157, rattachés à FAM) portent des titres H1 internes « EDR 126/129/130 »
+— numérotation FAM héritée du suivi mémoire. NE PAS confondre avec les EDR-126/129/130 de BIND
+(fil Compositional). Cohabitation tolérée ; à harmoniser lors d'un nettoyage coordonné.
