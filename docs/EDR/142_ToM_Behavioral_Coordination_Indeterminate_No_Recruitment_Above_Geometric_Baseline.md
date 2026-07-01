@@ -1,13 +1,13 @@
-# EDR 139 — ToM comportementale : verdict formel INDETERMINE, mais AUCUN recrutement au-dessus du plancher géométrique (→ directionnellement INDEPENDENT ; le décode latent d'EDR 132 = contexte partagé)
+# EDR 142 — ToM comportementale : verdict formel INDETERMINE, mais AUCUN recrutement au-dessus du plancher géométrique (→ directionnellement INDEPENDENT ; le décode latent d'EDR 141 = contexte partagé)
 
 > **Date** : 2026-07-01. **Verdict pre-enregistre** : `COORDINATED` si `delta = P(attack|>=1 autre) - P(attack|seul) >= 0.10` ; `INDETERMINE` si `n_with<20` OU `n_alone<20` ; sinon `INDEPENDENT`.
 > **Resultat** : **INDETERMINE** (garde `min n_alone = 15 < 20`, seed 1302). Lecture interpretable = **AUCUN recrutement robuste** : seeds bien echantillonnes delta +0.047 / +0.049 (< 0.10) ; le seul delta >= 0.10 = outlier (seed 1302, n_alone=15, p_alone=0 sur 15). A num_agents/ticks montes : mean delta +0.004 (2/3 seeds negatifs).
 > **Outil** : `tools/tom_coordination.py` (`main_tom_coordination`). **Seed** : 1300, R=3, **MEC_PRESERVE_DIMS=1** (smoke 99300). **Commits** : 8acab96 (T1) / 7561e12 (T2).
-> **Spec/Plan** : `docs/superpowers/{specs,plans}/2026-07-01-tom-coordination-behavioral*`. Chantier P4-ToM #2 (comportemental). Tranche le caveat #2 d'EDR 132.
+> **Spec/Plan** : `docs/superpowers/{specs,plans}/2026-07-01-tom-coordination-behavioral*`. Chantier P4-ToM #2 (comportemental). Tranche le caveat #2 d'EDR 141.
 
 ## 1. Question
 
-EDR 132 a laissé un caveat : le décode latent +0.12 (l'action d'un congénère faiblement décodable du latent
+EDR 141 a laissé un caveat : le décode latent +0.12 (l'action d'un congénère faiblement décodable du latent
 d'un agent) = vraie modélisation de l'autre, ou simple **contexte partagé** ? Ce chantier tranche au niveau
 COMPORTEMENTAL. Mécanique (EDR 028) : attaquer = **être sur la cellule d'une proie** (`world:692`) ; le
 mammouth (`hp=100`) meurt des dégâts cumulés du pack ; à la mort tous les `attackers` sont crédités.
@@ -49,8 +49,8 @@ Contrôle de robustesse (num_agents=40, max_ticks=500) : `MOYEN delta +0.004` (s
    rare parce que le même scaffold partagé agglomère les agents (et la cohorte fixe s'éteint avant `max_ticks`,
    plafonnant les échantillons). Cette famine du contrôle est **elle-même faiblement cohérente avec une
    convergence (non un recrutement)**.
-5. **Tranche EDR 132.** Aucun signal de recrutement comportemental au-dessus du plancher géométrique → le
-   décode latent +0.12 d'EDR 132 se lit mieux comme **contexte partagé** (agents co-localisés voyant les mêmes
+5. **Tranche EDR 141.** Aucun signal de recrutement comportemental au-dessus du plancher géométrique → le
+   décode latent +0.12 d'EDR 141 se lit mieux comme **contexte partagé** (agents co-localisés voyant les mêmes
    stimuli) que comme modélisation de l'autre. La désambiguïsation visée est obtenue **directionnellement**,
    malgré l'INDETERMINE formel.
 
@@ -78,7 +78,7 @@ Contrôle de robustesse (num_agents=40, max_ticks=500) : `MOYEN delta +0.004` (s
   des agents à distance propre ÉGALE, même mammouth, avec vs sans voisin, à HP stratifié) — plus lourd, hors
   périmètre read-only actuel, différé. Le takeaway acquis : **pas de recrutement au-dessus du plancher
   géométrique** → conforme à l'arc substrat (la coop-apex = propriété de population/convergence, EDR 097/102 ;
-  pas de ToM comportementale émergente), et tranche EDR 132 vers le contexte partagé.
+  pas de ToM comportementale émergente), et tranche EDR 141 vers le contexte partagé.
 - **Provenance** : `Harness(name="tom_coordination")` → `results/tom_coordination_1300.json` (gitignore) ; seed
   1300, smoke 99300 distinct ; MEC_PRESERVE_DIMS=1 ; 2 passes byte-identiques ; AUCUN test relancé après le run
   (EDR 107). Tooling-only READ-ONLY : `git diff src/` VIDE (zéro collision session //).
@@ -86,4 +86,4 @@ Contrôle de robustesse (num_agents=40, max_ticks=500) : `MOYEN delta +0.004` (s
   **opus** PRÊT À INTÉGRER — a établi le **cadrage asymétrique** (le banc ne peut conclure que INDEPENDENT), les
   4 réserves ci-dessus, et le risque de non-vacuité `n_alone` (confirmé au run). Aucun fix code (0 Critical/
   Important code).
-- **Numérotation** : EDR 139 (renuméroté depuis 135 : la session // a pris 134/135/137/138 en drafts, 136 mergé, fil compositionnel/moteur EDR 128-138 ; 139 = prochain libre).
+- **Numérotation** : RENUMÉROTÉ 139 → 142 (2026-07-01) pour résoudre le double-139 cross-session (mon `139_ToM` sur main vs `139_Sweep_LR` du fil torch // sur feat/d1). Antérieurement renuméroté 135 → 139 (135 = `LegacyCore` du fil //) ; 142 = prochain libre (plage 130-140 prise par les fils compositional + torch //). Prédécesseur ToM représentationnel = EDR 141 (ex-132). Cf. [[parallel-sessions-shared-tree]].

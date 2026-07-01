@@ -1,4 +1,4 @@
-# EDR 132 — Theory of Mind : GATEE, pas morte ; tete inerte + recompense DECONNECTEE de la fitness ; decode latent FAIBLE (contexte partage ?)
+# EDR 141 — Theory of Mind : GATEE, pas morte ; tete inerte + recompense DECONNECTEE de la fitness ; decode latent FAIBLE (contexte partage ?)
 
 > **Date** : 2026-07-01. **Verdict pre-enregistre** : `TOM_EMERGES` si `acc_head_tom >= acc_shuffle_tom + 0.10` ET `acc_head_tom >= acc_head_ctrl + 0.10` ; sinon `TOM_INERT`.
 > **Resultat** : **TOM_INERT** (TOM head 0.072 < CONTROL 0.110 < shuffle_tom 0.122 -> aucune emergence). Lecture DECODE : tete inerte (ctrl head 0.110 ~ shuffle 0.113) MAIS sonde latente 0.387 vs shuffle 0.264 = **+0.12 robuste 3/3 seeds**.
@@ -98,5 +98,7 @@ latent_A(68)}`. Metriques : `_head_accuracy` (pred==act), `_shuffle_accuracy` (b
   stratifie jugee amelioration). Revue finale **opus** PRET A INTEGRER : a surface les 2 reserves majeures
   (act espace 8 ; energie absente de la fitness), integrees ici. 3 fixes avant run (RNG local seede, `n`
   affiche, Harness) sans toucher le verdict gele. 10/10 tests.
-- **Numerotation** : EDR 132 (131 pris par la session //, `131_Compositional`, merge via #108). Corrige la
-  memoire `intelligence-typing-flat-connectome` (« ToM morte » -> « ToM gatee, mesuree »).
+- **Numerotation** : RENUMEROTE 132 -> 141 (2026-07-01) pour resoudre le double-132 cross-session (mon
+  `132_ToM` vs `132_Compositional_Warmstart` du fil // sur main, tous deux merges). 141 = prochain libre
+  (plage 130-140 prise par les fils compositional+torch //). Cf. [[parallel-sessions-shared-tree]]. Corrige la
+  memoire `intelligence-typing-flat-connectome` (« ToM morte » -> « ToM gatee, mesuree »). Chantier `tools/tom_probe.py`.
