@@ -4,7 +4,8 @@ type: SDR
 title: La competence generalise-t-elle (north-star)
 status: open
 gate: G1
-motivates: [EDR-105, EDR-108]
+motivates: [EDR-105, EDR-108, EDR-116, EDR-129]
+requires_ref: true
 ---
 # SDR-G1 — Généralisation zéro-shot (north-star)
 
@@ -36,3 +37,17 @@ d'ablation ≤0, 3/3) : la survie vient du **buffer d'énergie naturel** (forage
 famine), le cache/banque est redondant à ces paramètres. Signal partiellement POSITIF (nuance au verrou
 horizon 095/113/117). Suite : durcir la famine (buffer insuffisant) pour EXIGER le stockage, OU mesurer le
 transfert (G1) de la compétence famine.
+
+**Transfert ZÉRO-SHOT mesuré (EDR-129) : POSITIF — premier signal G1 net.** Un champion lâché tel quel
+(sans ré-évolution) dans un monde jamais vu survit à **2-7× tabula-rasa**, dans les 4 bras (3 champions
+famine→stoneage + stoneage→famine), **12/12 seeds appariés, sign_p=0.0005**, et aussi bien qu'un champion
+natif (interchangeabilité). Ceci diffère du NEUTRE d'EDR-116, qui mesurait le transfert *développemental à
+compute égal* (ré-évolution) : deux facettes distinctes de G1 ; la facette **zéro-shot** est confirmée.
+**MAIS lecture déflationniste (le nerf)** : le transfert est « parfait » parce qu'il n'existe qu'UNE
+compétence — la survie world-générale (forage/énergie) — générale par construction ; les affordances
+world-spécifiques (craft, stockage) ne deviennent jamais compétence (EDR-111/126) → rien de spécifique à
+échouer à transférer. « Généralisation parfaite » ⟺ « absence de spécialisation ». `SDR-G1` reste `open` :
+le north-star FORT (généraliser une compétence *composée/spécialisée*) est intestable faute de
+spécialisation. Le verrou se déplace du transfert vers l'**émergence d'une compétence world-spécifique**
+(binding compositionnel EDR-125/128 ; tool-gate EDR-111). Prochaine piste : faire émerger une compétence
+spécifique (durcir la famine / débloquer le tool-gate) PUIS re-mesurer si ELLE transfère.
