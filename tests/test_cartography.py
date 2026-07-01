@@ -117,6 +117,17 @@ def test_unresolved_verdicts_matches_verdict_and_title():
     assert by_id["EDR-151"]["marker"] == "INDETERMINE"
 
 
+def test_unresolved_verdicts_matches_english_indeterminate():
+    from tools.cartography import unresolved_verdicts
+    records = [
+        {"id": "EDR-151", "type": "EDR", "file": "b.md",
+         "title": "ToM behavioral Indeterminate", "verdict": None},
+    ]
+    res = unresolved_verdicts(records)
+    assert len(res) == 1
+    assert res[0]["marker"] == "INDETERMINATE"
+
+
 def test_pending_leads_scans_markers_case_insensitive():
     from tools.cartography import pending_leads
     files = [

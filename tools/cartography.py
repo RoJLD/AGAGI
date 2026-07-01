@@ -109,7 +109,7 @@ def orphan_edrs(records, territories) -> list[dict]:
     return out
 
 
-_UNRESOLVED = ("INCONCLUSIF", "INCONCLUSIVE", "VOID", "INDETERMINE")
+_UNRESOLVED = ("INCONCLUSIF", "INCONCLUSIVE", "VOID", "INDETERMINATE", "INDETERMINE")
 
 
 def unresolved_verdicts(records) -> list[dict]:

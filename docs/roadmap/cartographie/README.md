@@ -35,6 +35,19 @@ donner à un sous-agent. Le rapport est écrit dans `docs/roadmap/cartographie/r
 - **Le cartographe ne touche JAMAIS le registre.** Il lit, il propose ; il n'écrit que dans
   `cartographie/`.
 
+## Bornage des signaux (proxys structurels)
+
+Le script est volontairement grossier ; l'affinage sémantique revient à la passe agent :
+
+- **Orphelins** : proxy structurel (EDR plus récent que tout `legacy_edr` mappé, ou préfixe inconnu),
+  pas un matching de mots-clés contre `question_phare`/`fichiers`. L'agent fait le rattachement sémantique.
+- **Leads** : le script LISTE les marqueurs de piste ; il ne vérifie PAS si un EDR aval a déjà repris la piste.
+  L'agent croise avec l'aval pour écarter les leads déjà traités.
+- **Verdicts ouverts** : lus dans le frontmatter (`verdict:`) et le titre uniquement — un marqueur enfoui dans
+  le corps d'un EDR sans frontmatter n'est pas capté. L'agent peut relire les corps ambigus.
+- **Dormance** : proxy par écart de numéro d'EDR (`legacy_edr` vide → « dormant »). Un territoire jeune ou
+  suivi uniquement en mémoire apparaît dormant à tort ; le champ `statut` (présent dans la sortie) désambiguïse.
+
 ## Cadence
 
 À la demande. Idéalement en fin de session lead, ou hebdomadaire. Pas de cron imposé (coût token
