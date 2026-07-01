@@ -227,3 +227,25 @@ def test_main_exits_zero_on_clean_repo():
     """Consolidation sur le vrai repo : problemes=0, rc=0."""
     rc = main([])
     assert rc == 0
+
+
+def test_prefix_of_classifies_ids():
+    from tools.consolidate_records import _prefix_of
+    assert _prefix_of("EDR-SUB-012") == "SUB"
+    assert _prefix_of("EDR-BIND-003") == "BIND"
+    assert _prefix_of("EDR-140") == "LEGACY"
+    assert _prefix_of("SDR-G1") == "LEGACY"
+    assert _prefix_of("REF-NEAT-2002") == "REF"
+    assert _prefix_of(None) == "LEGACY"
+
+
+def test_main_payload_has_prefix_counts(tmp_path):
+    (tmp_path / "docs" / "EDR").mkdir(parents=True)
+    (tmp_path / "results").mkdir()
+    _write(tmp_path / "docs" / "EDR" / "140_Legacy.md", "# legacy\n")
+    _write(tmp_path / "docs" / "EDR" / "SUB-012_New.md",
+           "---\nid: EDR-SUB-012\ntype: EDR\ntitle: t\nstatus: validated\n---\n")
+    main(["--root", str(tmp_path)])
+    out = json.loads((tmp_path / "results" / "records_graph.json").read_text(encoding="utf-8"))
+    assert out["prefix_counts"]["LEGACY"] == 1
+    assert out["prefix_counts"]["SUB"] == 1

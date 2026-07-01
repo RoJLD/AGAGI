@@ -9,6 +9,7 @@ import re
 import sys
 import json
 import argparse
+from collections import Counter
 
 import yaml
 
@@ -62,6 +63,19 @@ def parse_record(path: str) -> dict | None:
         rec["title"] = name[4:-3].replace("_", " ")
         return rec
     return None
+
+
+def _prefix_of(rec_id) -> str:
+    """Préfixe de territoire d'un id. `EDR-SUB-012` -> 'SUB' ; `EDR-140` -> 'LEGACY' ;
+    `SDR-G1` -> 'LEGACY' ; `REF-NEAT-2002` -> 'REF'. Alimente le recensement du cartographe."""
+    if not rec_id:
+        return "LEGACY"
+    parts = str(rec_id).split("-")
+    if parts[0] == "REF":
+        return "REF"
+    if len(parts) >= 3 and parts[1].isalpha():   # EDR-<PREFIX>-<num>
+        return parts[1]
+    return "LEGACY"
 
 
 def scan_records(root: str = _ROOT) -> list[dict]:
@@ -208,10 +222,12 @@ def main(argv=None) -> int:
     graph = build_graph(records)
     problems = validate_graph(records)
     roadmap = roadmap_state(records)
+    prefix_counts = dict(Counter(_prefix_of(r["id"]) for r in records))
 
     out_dir = os.path.join(args.root, "results")
     os.makedirs(out_dir, exist_ok=True)
-    payload = {"graph": graph, "roadmap": roadmap, "problems": problems}
+    payload = {"graph": graph, "roadmap": roadmap, "problems": problems,
+               "prefix_counts": prefix_counts}
 
     with open(os.path.join(out_dir, "records_graph.json"), "w", encoding="utf-8") as fh:
         json.dump(payload, fh, ensure_ascii=False, indent=2)
