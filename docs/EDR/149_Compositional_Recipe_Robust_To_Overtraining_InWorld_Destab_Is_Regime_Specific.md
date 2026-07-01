@@ -1,5 +1,5 @@
 ---
-id: EDR-140
+id: EDR-149
 type: EDR
 title: "La recette de fiabilité 10/10 (gate + anti-saturation, EDR 136) est ROBUSTE au SUR-ENTRAÎNEMENT en régime stationnaire (fade0.0, comparaison PROPRE : reste 10/10 de 250 à 1000 trials, gap ET y_rate stables 0.86-0.90 / 0.625) → sur ce banc STATIONNAIRE le gradient intra-vie N'ÉRODE PAS la liaison acquise (érode juste marginalement le hit, −3%) ; la déstabilisation du champion torch IN-WORLD (fil parallèle : apprendre nuit) ne se reproduit donc PAS ici — mais mon banc diffère sur ≥4 axes (stationnarité, TD-bootstrap vs REINFORCE, champion transplanté vs from-scratch, tâche) : au moins un est nécessaire, NON DÉPARTAGÉS ; la seule érosion intra-vie ici est celle du MOYEN X non maintenu, que la recette atténue ; à UN point (fade0.3, schedule-confondu) l'anti-saturation semble réconcilier maintien-de-X et binding (tension EDR 126)"
 status: validated
@@ -7,7 +7,7 @@ gate: null
 verdict: "Test à l'intersection du fil in-world (le gradient intra-vie TD-autograd DÉSTABILISE un champion transplanté : torch-avec 33.0 < sans 38.8) et de la recette d'EDR 136 : le gradient continu ÉRODE-t-il une liaison ACQUISE sur mon banc, et la recette protège-t-elle ? `sweep_overtraining_stability` : recette (gate+anti-saturation pen6) vs brut (pen0), 10 seeds, compo_trials {250,500,1000}, 2 régimes fade_w0 {0.0, 0.3}. RÉSULTAT (fade0.0, comparaison PROPRE car fade≡0 → ct = vraie prolongation identique) : RECIPE_ROBUST — la recette reste 10/10 de 250 à 1000, gap STABLE 0.855→0.899, y_rate STABLE 0.626 (donc la stabilité du gap n'est pas un artefact de dérive de P(Y)), hit_end quasi-stable 0.623→0.603 (érosion MARGINALE −3%). Le gradient continu N'ÉRODE PAS la liaison en régime stationnaire ; le brut érode le MOYEN (hit 0.618→0.561, didx 0.659→0.573), la recette le protège mieux. SCOPING du fil in-world — PRUDENT : la déstabilisation in-world ne se reproduit PAS ici, mais mon banc diffère de l'in-world sur ≥4 axes SIMULTANÉS (stationnaire vs non ; REINFORCE/gate linéaire vs TD-autograd qui bootstrappe une valeur pouvant diverger ; pop from-scratch vs champion legacy transplanté ; tâche abstraite vs survie) → « banc stationnaire n'érode pas » implique AU PLUS qu'AU MOINS UN de ces facteurs est nécessaire, PAS que la non-stationnarité seule est la cause (absence de preuve ≠ preuve d'absence ; explications rivales TD-bootstrap/transplant non éliminées). SYNERGIE (à UN point, schedule-confondu) : fade0.3 SEUL tue le binding (brut 3-4/10, gap 0.000 ; y_rate SATURE 0.94→1.00 — ¬X trop rare, EDR 126/128) mais fade0.3 + recette = 9-10/10 avec rétention (didx 0.79-0.88, hit_end 0.75) → l'anti-saturation semble réconcilier maintien-de-X et binding (tension EDR 126) ; MAIS ct-croissant en fade>0 DILATE le schedule de fade (×4), confondant durée et schedule → un point encourageant, pas une résolution. CONCLUSION : la recette d'EDR 136 est durable en stationnaire ; le gradient n'y est pas un déstabilisateur ; pour le fil in-world, le bon cadrage n'est pas 'dompter le gradient en général' mais isoler lequel des ≥4 facteurs porte l'instabilité (piste : TD-bootstrap et/ou non-stationnarité). Bornage : banc STATIONNAIRE (le point) ; robustesse jusqu'à 4× pas ∞ ; verdict conservateur ; fade0.3 = 1 point confondu."
 ---
 
-# EDR 140 : La recette 10/10 est robuste au sur-entraînement (stationnaire) — l'écart avec l'in-world n'est pas attribué à un seul facteur
+# EDR 149 : La recette 10/10 est robuste au sur-entraînement (stationnaire) — l'écart avec l'in-world n'est pas attribué à un seul facteur
 
 ## Question
 
@@ -101,6 +101,8 @@ Outils : `tools/substrate_ab_compositional.py` (`sweep_overtraining_stability`).
 `tests/sandbox/test_substrate_ab_compositional.py`. Étend EDR 136 (durabilité en stationnaire) ; SCOPE
 prudemment l'écart avec le fil in-world (EDR 134/135/137, [[sota-gap-substrate]]) sans attribution
 mono-causale ; réconcilie à un point la tension d'EDR 126. Revue double-lens appliquée (attribution
-in-world rétrogradée mono→multi-facteur ; confond schedule fade0.3 explicité ; y_rate ajouté). Numéro 140
-(134/135/137 = fil in-world, 139 = ToM parallèle, cf. [[parallel-sessions-shared-tree]]). Étend
-[[nas-bottleneck-is-substrate-not-search]].
+in-world rétrogradée mono→multi-facteur ; confond schedule fade0.3 explicité ; y_rate ajouté).
+**Renuméroté 140→149** : le fil in-world parallèle traite EDR-140 comme un jalon LIVRÉ (reco migration
+torch, ADR-003, avec 141/143 dépendants) ; comme cet EDR-ci est une FEUILLE terminale, je cède le numéro
+et prends 149 (haut de la bande // 120-149) pour éviter le doublon d'id — cf. [[parallel-sessions-shared-tree]].
+Étend [[nas-bottleneck-is-substrate-not-search]], [[sota-gap-substrate]].
