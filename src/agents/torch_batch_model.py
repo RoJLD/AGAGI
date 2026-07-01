@@ -52,6 +52,26 @@ class TorchBatchModel:
         self._eye = torch.eye(self.max_N)
         self._last = None
         self._prev = None
+        # ROUND-TRIP via l'agent (BUGFIX EDR-137) : le monde reconstruit le batch model CHAQUE
+        # tick (world_1_stoneage.py:992). Sans round-trip, self.H et self._prev sont jetés ->
+        # torch perdait la récurrence ET n'apprenait jamais (_td_update jamais atteint). On restaure
+        # l'état caché et la transition TD différée depuis l'agent, comme legacy (a.H_prev / a._td).
+        for i, a in enumerate(self.agents):
+            h = getattr(a, "_torch_H", None)
+            if h is not None:
+                h = np.asarray(h, dtype=np.float32)
+                if h.shape == (self.max_N,):
+                    self.H[i] = torch.tensor(h)
+        tds = [getattr(a, "_torch_td", None) for a in self.agents]
+        if self.B > 0 and all(td is not None and td.get("obs") is not None
+                              and td["obs"].shape == (self.max_I,)
+                              and td["H_in"].shape == (self.max_N,) for td in tds):
+            self._prev = {
+                "obs": torch.tensor(np.stack([td["obs"] for td in tds])),
+                "H_in": torch.tensor(np.stack([td["H_in"] for td in tds])),
+                "act": [td["act"] for td in tds],
+                "reward": np.array([td["reward"] for td in tds], dtype=np.float32),
+            }
 
     def _step(self, obs_t, H_in):
         H = H_in.clone()
@@ -71,8 +91,10 @@ class TorchBatchModel:
     def _sync_agent_state(self, H_new, env_surprise_batch):
         """Sync des attributs lus par le monde après chaque forward."""
         W_np = self.W.detach().cpu().numpy()
+        H_np = H_new.detach().cpu().numpy()
         for i, a in enumerate(self.agents):
             idx = self.mappings[i]
+            a._torch_H = H_np[i].copy()   # round-trip récurrence (BUGFIX EDR-137)
             # W writeback (état courant du réseau différentiable → génome)
             a.genome.W = W_np[i][idx[:, None], idx[None, :]].astype(np.float32).copy()
             # surprise_momentum : scalaire flottant
@@ -133,6 +155,16 @@ class TorchBatchModel:
         if self._prev is not None:
             loss = self._td_update(self._prev, v_next)
         self._prev = trans
+        # round-trip de la transition via l'agent (BUGFIX EDR-137) : survit au rebuild par-tick
+        # du batch model par le monde, pour que l'update TD différé se déclenche au tick suivant.
+        acts = trans["act"] if trans["act"] is not None else [None] * self.B
+        obs_np = obs_t.detach().cpu().numpy()
+        Hin_np = H_in.detach().cpu().numpy()
+        rew_np = trans["reward"]
+        for i, a in enumerate(self.agents):
+            a._torch_td = {"obs": obs_np[i].copy(), "H_in": Hin_np[i].copy(),
+                           "act": acts[i] if i < len(acts) else None,
+                           "reward": float(rew_np[i])}
         return loss
 
     def _td_update(self, prev, v_next):

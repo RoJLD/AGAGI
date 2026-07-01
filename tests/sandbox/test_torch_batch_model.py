@@ -47,3 +47,24 @@ def test_cpg_actor_critic_learns():
         )
     vN = float(bm.forward(obs)[0][0, 28])
     assert vN > v0 and not np.allclose(W0, m.genome.W)
+
+
+def test_learns_and_carries_H_across_per_tick_rebuild():
+    """BUGFIX EDR-137 : le monde reconstruit le batch model CHAQUE tick (world:992).
+    Sans round-trip via l'agent, torch n'apprendrait jamais (self._prev jeté) et H repartirait
+    à zéro. Ce test simule le pattern monde (nouvelle instance chaque tick, mêmes agents)."""
+    import torch; torch.manual_seed(0)
+    np.random.seed(0)
+    agents = [MambaAgent() for _ in range(3)]
+    W0 = agents[0].genome.W.copy()
+    h_carried = False
+    for t in range(6):
+        bm = TorchBatchModel(agents)                     # <-- rebuild par-tick
+        if t >= 2 and float(torch.max(torch.abs(bm.H))) > 0.0:
+            h_carried = True                             # H restaurée depuis l'agent
+        obs = (np.random.randn(3, agents[0].genome.num_inputs) * 0.5).astype(np.float32)
+        bm.forward(obs)
+        bm.compute_policy_gradient(np.array([1.0, -1.0, 0.5], np.float32),
+                                   [{"move": 1, "grab": 1, "rub": 0}] * 3)
+    assert not np.allclose(W0, agents[0].genome.W)        # a APPRIS malgré le rebuild
+    assert h_carried                                     # récurrence portée entre ticks
