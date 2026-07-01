@@ -170,6 +170,19 @@ def validate_graph(records: list[dict]) -> list[dict]:
     return problems
 
 
+def find_duplicate_ids(records: list[dict]) -> list[dict]:
+    """Ids apparaissant plus d'une fois = collision de sessions parallèles.
+    Retourne [{"id", "files":[...]}] trié. Signalé en WARNING NON BLOQUANT : le legacy
+    cohabite (5 doublons connus 093/094/100/105/113), et les EDR préfixés ne collisionnent
+    jamais par construction. Le cartographe (Partie 2) exploite cette liste pour proposer un
+    nettoyage coordonné."""
+    from collections import defaultdict
+    by_id: dict = defaultdict(list)
+    for r in records:
+        by_id[r["id"]].append(r["file"])
+    return [{"id": i, "files": sorted(fs)} for i, fs in sorted(by_id.items()) if len(fs) > 1]
+
+
 _GATES = ("G0", "G1", "G2", "G3", "G4")
 
 
@@ -223,11 +236,12 @@ def main(argv=None) -> int:
     problems = validate_graph(records)
     roadmap = roadmap_state(records)
     prefix_counts = dict(Counter(_prefix_of(r["id"]) for r in records))
+    warnings = find_duplicate_ids(records)
 
     out_dir = os.path.join(args.root, "results")
     os.makedirs(out_dir, exist_ok=True)
     payload = {"graph": graph, "roadmap": roadmap, "problems": problems,
-               "prefix_counts": prefix_counts}
+               "prefix_counts": prefix_counts, "warnings": warnings}
 
     with open(os.path.join(out_dir, "records_graph.json"), "w", encoding="utf-8") as fh:
         json.dump(payload, fh, ensure_ascii=False, indent=2)
@@ -235,6 +249,8 @@ def main(argv=None) -> int:
     print(f"records={len(records)} edges={len(graph['edges'])} problemes={len(problems)}")
     for p in problems:
         print(f"  [{p['kind']}] {p['detail']}")
+    for w in warnings:
+        print(f"  [warning] doublon d'id {w['id']} : {', '.join(w['files'])}")
 
     return 1 if problems else 0
 
