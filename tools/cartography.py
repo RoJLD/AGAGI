@@ -203,18 +203,15 @@ def dormant_territories(territories, k: int = 30) -> list[dict]:
     return out
 
 
-def _read_texts(root, relpaths) -> list:
-    """Lit (relpath, texte) pour chaque chemin relatif existant sous root.
-    Gère aussi les chemins absolus (cherche les fichiers tels quels)."""
+def _read_texts(relpaths) -> list:
+    """Lit (relpath, texte) pour chaque chemin. Les relpath viennent de scan_records,
+    qui les étiquette relativement au _ROOT du module (consolidate partage le même _ROOT) :
+    on les résout donc contre _ROOT — round-trip correct quel que soit --root, sans
+    dépendance au CWD."""
     files = []
     for rel in relpaths:
-        # Essayer d'abord comme relatif à root
-        path = os.path.join(root, rel)
-        if not os.path.exists(path):
-            # Sinon, essayer comme absolu ou chemins réinterprétés
-            path = rel
         try:
-            with open(path, encoding="utf-8") as fh:
+            with open(os.path.join(_ROOT, rel), encoding="utf-8") as fh:
                 files.append((rel, fh.read()))
         except OSError:
             continue
@@ -245,7 +242,7 @@ def build_signals(root, memory_dir, the_date, dormant_gap) -> dict:
 
     records = scan_records(root)
     edr_records = [r for r in records if r.get("type") == "EDR"]
-    edr_files = _read_texts(root, [r["file"] for r in edr_records])
+    edr_files = _read_texts([r["file"] for r in edr_records])
     text_by_file = dict(edr_files)
     edr_texts = [{"num": _edr_number(r["id"]), "prefix": _prefix_of(r["id"]),
                   "text": text_by_file.get(r["file"], "")} for r in edr_records]
