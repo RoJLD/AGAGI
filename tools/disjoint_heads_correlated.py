@@ -67,3 +67,54 @@ def _verdict_correlated(cos_list, recovery_list):
     else:
         axis_b = "CREDIT_PARTIAL"
     return axis_a + "+" + axis_b
+
+
+def _report_correlated(rho_rows):
+    print("\n=== Profs correles : interference induite (FLAT vs DISJOINT vs FLAT_NORM par rho) ===")
+    for rr in rho_rows:
+        print("  rho=%.2f | cos=%+.3f | improv=%+.3f | recovery=%+.3f"
+              % (rr["rho"], rr["mean_cos"], rr["mean_improv"], rr["mean_recovery"]))
+        for r in rr["seeds"]:
+            print("    seed %4d | cos %+.3f | improv %+.3f | recovery %+.3f | gain(FLAT-DISJ) v/p %.3f %.3f"
+                  % (r["seed"], r["cos"], r["improv"], r["recovery"],
+                     r["flat"]["value"] - r["disj"]["value"], r["flat"]["pred"] - r["disj"]["pred"]))
+    print("=== VERDICT (mesure a rho_max) ===")
+
+
+def main_correlated_check(K=5, base=2200, rhos=(0.0, 0.6, 0.95), steps=STEPS, _return=False):
+    if torch is None:
+        print("PyTorch indisponible -> banc saute.")
+        res = {"verdict": "SKIPPED_NO_TORCH", "per_rho": []}
+        return res if _return else None
+    try:
+        torch.use_deterministic_algorithms(True)
+    except Exception:
+        pass
+    torch.set_num_threads(1)
+    rho_rows = []
+    for rho in rhos:
+        teachers = _make_correlated_teachers(rho)
+        seeds = []
+        for i in range(K):
+            s = base + i
+            flat, cos = _train_arm("flat", s, teachers, steps=steps)
+            disj, _ = _train_arm("disjoint", s, teachers, steps=steps)
+            flatnorm = _train_flat_norm(s, teachers, steps=steps)
+            seeds.append({"seed": s, "flat": flat, "disj": disj, "flatnorm": flatnorm,
+                          "cos": cos, "improv": _seed_improv(flat, disj),
+                          "recovery": _recovery(flat, flatnorm, disj)})
+        rho_rows.append({"rho": rho, "seeds": seeds,
+                         "mean_cos": float(np.mean([r["cos"] for r in seeds])),
+                         "mean_improv": float(np.mean([r["improv"] for r in seeds])),
+                         "mean_recovery": float(np.mean([r["recovery"] for r in seeds]))})
+    rho_max = max(rhos)
+    top = [rr for rr in rho_rows if rr["rho"] == rho_max][0]
+    verdict = _verdict_correlated([r["cos"] for r in top["seeds"]], [r["recovery"] for r in top["seeds"]])
+    _report_correlated(rho_rows)
+    print("  -> %s (A: cos<=-0.05 majorite=INDUCED ; B: recovery>=0.50=CREDIT_ROBUST, <=0.20=ARCH_MATTERS)" % verdict)
+    res = {"verdict": verdict, "per_rho": rho_rows, "rho_max": rho_max}
+    return res if _return else None
+
+
+if __name__ == "__main__":
+    main_correlated_check()

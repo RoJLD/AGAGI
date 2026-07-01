@@ -35,3 +35,12 @@ def test_verdict_induced_arch_matters():
 
 def test_verdict_induced_partial():
     assert _verdict_correlated([-0.2, -0.15, -0.3, -0.1, -0.25], [0.35, 0.4, 0.3, 0.45, 0.38]) == "INDUCED+CREDIT_PARTIAL"
+
+
+from tools.disjoint_heads_correlated import main_correlated_check
+
+
+def test_smoke_correlated_returns_verdict():
+    res = main_correlated_check(K=1, base=99000, rhos=(0.0, 0.95), steps=25, _return=True)
+    assert res["verdict"] == "SKIPPED_NO_TORCH" or "+" in res["verdict"]
+    assert "per_rho" in res
