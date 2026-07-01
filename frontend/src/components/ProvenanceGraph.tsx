@@ -1,10 +1,20 @@
 import { useEffect, useRef } from "react";
-import * as d3 from "d3";
+import { select } from "d3-selection";
+import {
+  forceSimulation,
+  forceCenter,
+  forceCollide,
+  forceLink,
+  forceManyBody,
+  type SimulationNodeDatum,
+  type SimulationLinkDatum,
+} from "d3-force";
+import { drag } from "d3-drag";
 import type { ProvNode, ProvEdge, ProvNodeType } from "../lib/provenance";
 import { vizColors } from "../theme";
 
-type NodeDatum = ProvNode & d3.SimulationNodeDatum & { fx?: number | null; fy?: number | null };
-type LinkDatum = d3.SimulationLinkDatum<NodeDatum>;
+type NodeDatum = ProvNode & SimulationNodeDatum & { fx?: number | null; fy?: number | null };
+type LinkDatum = SimulationLinkDatum<NodeDatum>;
 
 interface ProvenanceGraphProps {
   nodes: ProvNode[];
@@ -20,7 +30,7 @@ export function ProvenanceGraph({ nodes, edges, onSelect }: ProvenanceGraphProps
     const viz = vizColors();
     const colorOf = (t: ProvNodeType) => (t === "condition" ? viz[0] : t === "edr" ? viz[1] : viz[2]);
 
-    const svg = d3.select(ref.current);
+    const svg = select(ref.current);
     svg.selectAll("*").remove();
     const width = ref.current.clientWidth || 800;
     const height = ref.current.clientHeight || 500;
@@ -29,12 +39,11 @@ export function ProvenanceGraph({ nodes, edges, onSelect }: ProvenanceGraphProps
     const nodeData: NodeDatum[] = nodes.map((n) => ({ ...n }));
     const linkData: LinkDatum[] = edges.map((e) => ({ source: e.source, target: e.target }));
 
-    const simulation = d3
-      .forceSimulation<NodeDatum>(nodeData)
-      .force("link", d3.forceLink<NodeDatum, LinkDatum>(linkData).id((d) => d.id).distance(90))
-      .force("charge", d3.forceManyBody().strength(-240))
-      .force("center", d3.forceCenter(width / 2, height / 2))
-      .force("collision", d3.forceCollide(28));
+    const simulation = forceSimulation<NodeDatum>(nodeData)
+      .force("link", forceLink<NodeDatum, LinkDatum>(linkData).id((d) => d.id).distance(90))
+      .force("charge", forceManyBody().strength(-240))
+      .force("center", forceCenter(width / 2, height / 2))
+      .force("collision", forceCollide(28));
 
     const link = svg
       .append("g")
@@ -44,8 +53,7 @@ export function ProvenanceGraph({ nodes, edges, onSelect }: ProvenanceGraphProps
       .join("line")
       .attr("stroke-width", 1.4);
 
-    const drag = d3
-      .drag<SVGGElement, NodeDatum>()
+    const dragHandler = drag<SVGGElement, NodeDatum>()
       .on("start", (event, d) => {
         if (!event.active) simulation.alphaTarget(0.3).restart();
         d.fx = d.x;
@@ -68,7 +76,7 @@ export function ProvenanceGraph({ nodes, edges, onSelect }: ProvenanceGraphProps
       .join("g")
       .style("cursor", "pointer")
       .on("click", (_event, d) => onSelect(d))
-      .call(drag);
+      .call(dragHandler);
 
     node.append("circle").attr("r", 14).style("fill", (d) => colorOf(d.type));
     node

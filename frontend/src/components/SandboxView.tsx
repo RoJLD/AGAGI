@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../api/client";
 import { queryKeys } from "../api/queryKeys";
+import { STATUS_POLL } from "../lib/polling";
 import { Loading } from "./ui/Loading";
 import { ErrorState } from "./ui/ErrorState";
 import { Button } from "./ui/Button";
@@ -46,8 +47,7 @@ export function SandboxView() {
   const statusQuery = useQuery({
     queryKey: queryKeys.sandbox.status,
     queryFn: () => apiFetch<SandboxStatus>("/api/sandbox/status"),
-    refetchInterval: 3000,
-    staleTime: 0,
+    ...STATUS_POLL,
   });
   const status = statusQuery.data;
   const running = status?.running ?? false;

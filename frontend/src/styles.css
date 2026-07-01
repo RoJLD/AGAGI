@@ -334,6 +334,29 @@ body {
 .live-stat span { color: var(--color-text-dim); font-size: var(--font-size-xs); }
 .live-stat strong { color: var(--color-text); font-size: var(--font-size-lg); }
 
+/* Conteneur + overlay métriques Flatland — couleurs en tokens DS (theme-aware).
+   Géométrie en px littéraux (identique à l'inline d'origine) : seules les
+   COULEURS sont tokenisées (le bug dark est purement chromatique). */
+.flatland-frame {
+  width: 100%;
+  height: 600px;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+}
+.flatland-overlay {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 10;
+  min-width: 260px;
+  padding: 8px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--color-surface) 86%, transparent);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+
 /* ============================ Primitives UI ============================ */
 
 .btn {

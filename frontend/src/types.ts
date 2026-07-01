@@ -214,3 +214,60 @@ export interface Decomposition {
   verdict: string;
   bio_verdict: string;
 }
+
+/** Un niveau de métab d'un entonnoir de forage (sortie de main_forage, EDR 105). */
+export interface ForageLevel {
+  metab: number;
+  p_reach: number;
+  p_cap: number;
+  income_t: number;
+  drain_t: number;
+  mean_captures: number;
+  mean_contacts: number;
+  mean_min_dist: number;
+  n_agents: number;
+}
+
+/** Un run d'entonnoir de forage persisté (lewis_forage_funnel_<seed>.json). */
+export interface ForageFunnel {
+  run_id: string;
+  name: string;
+  seed: number;
+  commit?: string | null;
+  verdict: string;
+  levels: ForageLevel[];
+}
+
+/** Une entité positionnée du monde sandbox live (/api/sandbox/state). */
+export interface SandboxEntity {
+  x: number;
+  y: number;
+}
+
+/** Un objet du monde sandbox (les "Fire" ont un rendu de halo spécifique). */
+export interface SandboxItem extends SandboxEntity {
+  type: string;
+}
+
+/** Un agent du monde sandbox (couleur selon l'énergie, label énergie). */
+export interface SandboxAgent extends SandboxEntity {
+  energy: number;
+}
+
+/** L'état du monde sandbox live rendu sur le canvas 2D (/api/sandbox/state). */
+export interface SandboxWorldState {
+  size: number;
+  is_night: boolean;
+  trees: SandboxEntity[];
+  items: SandboxItem[];
+  preys: SandboxEntity[];
+  agents: SandboxAgent[];
+}
+
+/** Une ligne de télémétrie cognitive (/api/sandbox/telemetry). */
+export interface SandboxTelemetryRow {
+  tick: number;
+  mean_energy: number;
+  mean_surprise: number;
+  mean_doubt: number;
+}

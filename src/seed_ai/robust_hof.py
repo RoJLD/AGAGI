@@ -25,6 +25,13 @@ def robust_evaluate(config, genome, K=3, num_agents=20, max_ticks=400, seed=None
         if seed is not None:
             seed_at(seed, i)
         env = Biosphere3D(config)
+        # Neutralise la memoire ambiante async AVANT la boucle (verrou repro Dev #3) : sinon le
+        # memory_retriever, demarre par Biosphere3D.__init__, peuple les slots d'obs 51-55 a un rythme
+        # timing-dependant (lecture d'un KuzuDB partage qui grossit) -> robust_evaluate non reproductible
+        # meme a seed fixe. Meme pattern que main_curriculum._prepare_world(deterministic=True).
+        if hasattr(env, "memory_retriever"):
+            env.memory_retriever.stop()
+            env.memory_retriever.clear()
         for _ in range(num_agents):
             a = MambaAgent()
             a.from_genome(genome)
@@ -37,8 +44,6 @@ def robust_evaluate(config, genome, K=3, num_agents=20, max_ticks=400, seed=None
         pool = list(env.agents) + list(getattr(env, "dead_agents", []))
         if pool:
             scores.append(max(calculate_life_score(a) for a in pool))
-        if hasattr(env, "memory_retriever"):
-            env.memory_retriever.stop()
     return float(np.mean(scores)) if scores else 0.0
 
 

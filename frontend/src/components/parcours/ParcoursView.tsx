@@ -4,6 +4,7 @@ import { useHashRoute } from "../../hooks/useHashRoute";
 import { TAB_KEYS } from "../../tabs";
 import { apiFetch } from "../../api/client";
 import { queryKeys } from "../../api/queryKeys";
+import { STATUS_POLL } from "../../lib/polling";
 import { StepBar } from "./StepBar";
 import { STEP_ORDER, type ParcoursStep } from "./steps";
 import { StepLancer } from "./StepLancer";
@@ -22,8 +23,7 @@ export function ParcoursView() {
   const statusQuery = useQuery({
     queryKey: queryKeys.sandbox.status,
     queryFn: () => apiFetch<{ running: boolean }>("/api/sandbox/status"),
-    refetchInterval: 3000,
-    staleTime: 0,
+    ...STATUS_POLL,
   });
   const running = statusQuery.data?.running ?? false;
 

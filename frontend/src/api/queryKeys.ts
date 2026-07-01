@@ -32,6 +32,7 @@ export const queryKeys = {
     compare: (a: string, b: string, metric: string) => ["runs", "compare", a, b, metric] as const,
     distributions: (metric: string) => ["runs", "distributions", metric] as const,
     decompositions: ["runs", "decompositions"] as const,
+    forageFunnels: ["runs", "forage-funnels"] as const,
     notes: (runId: string) => ["runs", "notes", runId] as const,
   },
   health: {

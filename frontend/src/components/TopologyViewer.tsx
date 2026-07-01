@@ -1,13 +1,23 @@
 import { useEffect, useRef } from "react";
-import * as d3 from "d3";
+import { select } from "d3-selection";
+import {
+  forceSimulation,
+  forceCenter,
+  forceCollide,
+  forceLink,
+  forceManyBody,
+  type SimulationNodeDatum,
+  type SimulationLinkDatum,
+} from "d3-force";
+import { drag, type DragBehavior, type SubjectPosition } from "d3-drag";
 import type { GraphData, GraphLink, GraphNode } from "../types";
 
 interface TopologyViewerProps {
   graph: GraphData;
 }
 
-type NodeDatum = GraphNode & d3.SimulationNodeDatum & { fx?: number | null; fy?: number | null };
-type LinkDatum = GraphLink & d3.SimulationLinkDatum<NodeDatum>;
+type NodeDatum = GraphNode & SimulationNodeDatum & { fx?: number | null; fy?: number | null };
+type LinkDatum = GraphLink & SimulationLinkDatum<NodeDatum>;
 
 export function TopologyViewer({ graph }: TopologyViewerProps) {
   const ref = useRef<SVGSVGElement | null>(null);
@@ -17,7 +27,7 @@ export function TopologyViewer({ graph }: TopologyViewerProps) {
       return;
     }
 
-    const svg = d3.select(ref.current);
+    const svg = select(ref.current);
     svg.selectAll("*").remove();
 
     const width = ref.current.clientWidth;
@@ -29,15 +39,14 @@ export function TopologyViewer({ graph }: TopologyViewerProps) {
       return "var(--color-text-dim)";
     };
 
-    const simulation = d3
-      .forceSimulation<NodeDatum>(graph.nodes as NodeDatum[])
+    const simulation = forceSimulation<NodeDatum>(graph.nodes as NodeDatum[])
       .force(
         "link",
-        d3.forceLink<NodeDatum, LinkDatum>(graph.links).id((d) => String(d.id)).distance(120).strength(1)
+        forceLink<NodeDatum, LinkDatum>(graph.links).id((d) => String(d.id)).distance(120).strength(1)
       )
-      .force("charge", d3.forceManyBody().strength(-280))
-      .force("center", d3.forceCenter(width / 2, height / 2))
-      .force("collision", d3.forceCollide(24));
+      .force("charge", forceManyBody().strength(-280))
+      .force("center", forceCenter(width / 2, height / 2))
+      .force("collision", forceCollide(24));
 
     const link = svg
       .append("g")
@@ -47,8 +56,7 @@ export function TopologyViewer({ graph }: TopologyViewerProps) {
       .join("line")
       .attr("stroke-width", (d) => Math.max(1.2, Math.abs(d.weight) * 1.8));
 
-    const dragBehavior: d3.DragBehavior<SVGGElement, NodeDatum, NodeDatum | d3.SubjectPosition> = d3
-      .drag<SVGGElement, NodeDatum>()
+    const dragBehavior: DragBehavior<SVGGElement, NodeDatum, NodeDatum | SubjectPosition> = drag<SVGGElement, NodeDatum>()
       .on("start", (event, d) => {
         if (!event.active) simulation.alphaTarget(0.3).restart();
         d.fx = d.x;
