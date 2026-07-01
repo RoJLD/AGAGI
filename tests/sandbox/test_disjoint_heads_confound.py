@@ -10,7 +10,7 @@ if _ROOT not in sys.path:
 torch = pytest.importorskip("torch")
 
 from tools.disjoint_heads_ab import _make_teachers
-from tools.disjoint_heads_confound import _train_flat_norm, _recovery, _verdict_confound
+from tools.disjoint_heads_confound import _train_flat_norm, _recovery, _verdict_confound, main_confound_check
 
 
 def test_verdict_confound_three_branches():
@@ -31,3 +31,9 @@ def test_train_flat_norm_finite():
     d = _train_flat_norm(2200, te, steps=40)
     assert set(d.keys()) == {"action", "value", "pred"}
     assert all(v == v and v < 1e6 for v in d.values())
+
+
+def test_smoke_confound_returns_verdict():
+    res = main_confound_check(K=1, base=99000, steps=30, _return=True)
+    assert res["verdict"] in {"CONFOUND_CONFIRMED", "CONFOUND_REFUTED", "CONFOUND_PARTIAL", "SKIPPED_NO_TORCH"}
+    assert "per_seed" in res
