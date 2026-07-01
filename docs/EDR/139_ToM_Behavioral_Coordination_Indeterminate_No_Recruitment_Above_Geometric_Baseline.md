@@ -1,4 +1,4 @@
-# EDR 135 — ToM comportementale : verdict formel INDETERMINE, mais AUCUN recrutement au-dessus du plancher géométrique (→ directionnellement INDEPENDENT ; le décode latent d'EDR 132 = contexte partagé)
+# EDR 139 — ToM comportementale : verdict formel INDETERMINE, mais AUCUN recrutement au-dessus du plancher géométrique (→ directionnellement INDEPENDENT ; le décode latent d'EDR 132 = contexte partagé)
 
 > **Date** : 2026-07-01. **Verdict pre-enregistre** : `COORDINATED` si `delta = P(attack|>=1 autre) - P(attack|seul) >= 0.10` ; `INDETERMINE` si `n_with<20` OU `n_alone<20` ; sinon `INDEPENDENT`.
 > **Resultat** : **INDETERMINE** (garde `min n_alone = 15 < 20`, seed 1302). Lecture interpretable = **AUCUN recrutement robuste** : seeds bien echantillonnes delta +0.047 / +0.049 (< 0.10) ; le seul delta >= 0.10 = outlier (seed 1302, n_alone=15, p_alone=0 sur 15). A num_agents/ticks montes : mean delta +0.004 (2/3 seeds negatifs).
@@ -86,4 +86,4 @@ Contrôle de robustesse (num_agents=40, max_ticks=500) : `MOYEN delta +0.004` (s
   **opus** PRÊT À INTÉGRER — a établi le **cadrage asymétrique** (le banc ne peut conclure que INDEPENDENT), les
   4 réserves ci-dessus, et le risque de non-vacuité `n_alone` (confirmé au run). Aucun fix code (0 Critical/
   Important code).
-- **Numérotation** : EDR 135 (133 pris + 134 réservé par le draft session //, fil compositionnel EDR 128-134).
+- **Numérotation** : EDR 139 (renuméroté depuis 135 : la session // a pris 134/135/137/138 en drafts, 136 mergé, fil compositionnel/moteur EDR 128-138 ; 139 = prochain libre).
