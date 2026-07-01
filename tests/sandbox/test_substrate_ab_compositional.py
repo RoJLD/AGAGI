@@ -315,3 +315,61 @@ def test_sweep_binding_penalty_smoke():
         for k in ("penalty", "backend", "seed", "p_y_given_x_end", "p_y_given_not_x_end",
                   "binding_gap_end", "y_rate_end", "hit_end"):
             assert k in row
+
+
+# --- Levier 2 : GATING archi did_x -> logit Y (EDR 126 suite, chantier binding-gate) ---
+
+@pytest.mark.slow
+def test_run_curriculum_fade_gated_none_keys():
+    """gate_mode='none' : mêmes clés que le fade + gate_mode ; tourne sans erreur (≈ baseline)."""
+    pytest.importorskip("torch")
+    from tools.substrate_ab_compositional import run_curriculum_fade_gated
+    r = run_curriculum_fade_gated("torch", seed=0, warmup_trials=20, compo_trials=40, n_agents=4,
+                                  gate_mode="none")
+    for k in ("p_y_given_x_end", "p_y_given_not_x_end", "binding_gap_end", "y_rate_end", "gate_mode"):
+        assert k in r
+    assert r["gate_mode"] == "none"
+
+
+@pytest.mark.slow
+def test_gated_oracle_opens_binding_gap():
+    """CONTRÔLE POSITIF : le gate ORACLE (biais câblé ±selon did_x VRAI sur le logit Y) DOIT ouvrir
+    un gap de binding large (P(Y|X)≫P(Y|¬X)) → valide que l'instrument détecte le binding quand il
+    existe, et que la tâche est solvable par routage did_x→Y."""
+    pytest.importorskip("torch")
+    from tools.substrate_ab_compositional import run_curriculum_fade_gated
+    r = run_curriculum_fade_gated("torch", seed=0, warmup_trials=60, compo_trials=120, n_agents=6,
+                                  gate_mode="oracle", oracle_bias=8.0)
+    # biais ±8 domine les logits → move2=Y quasi ssi did_x → gap franchement positif
+    assert r["binding_gap_end"] is not None and r["binding_gap_end"] > 0.5
+
+
+@pytest.mark.slow
+def test_gated_learned_runs_and_returns_gap():
+    """gate_mode='learned' : le gate entraînable (REINFORCE sur H_S2) tourne et renvoie un gap ∈ [-1,1]."""
+    pytest.importorskip("torch")
+    from tools.substrate_ab_compositional import run_curriculum_fade_gated
+    r = run_curriculum_fade_gated("torch", seed=0, warmup_trials=40, compo_trials=60, n_agents=4,
+                                  gate_mode="learned", gate_lr=0.05)
+    assert r["gate_mode"] == "learned"
+    assert (r["binding_gap_end"] is None) or (-1.0 <= r["binding_gap_end"] <= 1.0)
+
+
+def test_gated_invalid_mode_raises():
+    """Un gate_mode inconnu lève ValueError (garde-fou explicite)."""
+    from tools.substrate_ab_compositional import run_curriculum_fade_gated
+    with pytest.raises(ValueError):
+        run_curriculum_fade_gated("torch", gate_mode="bogus", warmup_trials=1, compo_trials=1, n_agents=2)
+
+
+@pytest.mark.slow
+def test_compare_gate_modes_smoke():
+    """compare_gate_modes renvoie un verdict + per_mode avec gap per-seed (expose la bimodalité)."""
+    pytest.importorskip("torch")
+    from tools.substrate_ab_compositional import compare_gate_modes
+    res = compare_gate_modes(seeds=(0,), modes=("none", "oracle"), warmup_trials=30, compo_trials=30,
+                             n_agents=4)
+    assert res["verdict"] in {"GATE_BINDS", "GATE_COLLAPSES", "GATE_INTERMITTENT", "AMBIGU"}
+    for mode in ("none", "oracle"):
+        for k in ("gap_median", "gap_per_seed", "n_bind", "n_seeds"):
+            assert k in res["per_mode"][mode]

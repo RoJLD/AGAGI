@@ -308,6 +308,159 @@ def run_curriculum_fade(backend: str, seed: int = 0, warmup_trials: int = 150, c
             "delta": hit_end - hit_start}
 
 
+def run_curriculum_fade_gated(backend: str, seed: int = 0, warmup_trials: int = 150,
+                              compo_trials: int = 250, n_agents: int = 8, target_x: int = 0,
+                              target_y: int = 4, fade_w0: float = 1.0, gate_mode: str = "none",
+                              oracle_bias: float = 8.0, gate_lr: float = 0.05,
+                              y_without_x_penalty: float = 0.0) -> dict:
+    """LEVIER 2 (gating archi, suite EDR 126/128) : curriculum à fade + GATE sur le logit Y en phase B.
+    L'action Y est échantillonnée d'un softmax sur les logits de mouvement (règle commune aux 3 modes
+    → comparaison équitable ; `none` doit reproduire le baseline EDR 126/128).
+    gate_mode :
+      - "none"    : aucun gate (biais Y = 0) ≡ baseline (sert de contrôle négatif).
+      - "oracle"  : biais CÂBLÉ ±oracle_bias au logit Y selon did_x VRAI → force le conditionnement à
+                    la décision (CONTRÔLE POSITIF : plafond du binding, valide l'instrument).
+      - "learned" : gate LINÉAIRE entraînable biais_Y = w·H_S2 + b, entraîné par REINFORCE sur reward2
+                    (avantage = reward − baseline glissant). Teste si le substrat APPREND à router did_x
+                    (décodable de H_S2, EDR 120) vers le logit Y quand on lui donne la STRUCTURE.
+    Mesure binding_gap = P(Y|X) − P(Y|¬X) en fin de phase B."""
+    if gate_mode not in ("none", "oracle", "learned"):
+        raise ValueError(f"gate_mode inconnu : {gate_mode!r} (attendu none/oracle/learned)")
+    import torch
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    agents = _build_agents(n_agents, 172, "prod")
+    pop = make_population(agents, backend=backend)
+    rng = np.random.RandomState(seed + 1)
+    n_in = agents[0].genome.num_inputs
+    obs_a = (rng.randn(n_agents, n_in) * 0.5).astype(np.float32)
+    obs_b = (rng.randn(n_agents, n_in) * 0.5).astype(np.float32)
+
+    # --- Phase A : warmup dense sur X (S1 seul), identique au fade ---
+    warm = []
+    for _ in range(warmup_trials):
+        preds1, _ = pop.forward(obs_a)
+        move1 = np.asarray(preds1)[:, :_MOVE].argmax(axis=1)
+        warm.append(float(np.mean(move1 == target_x)))
+        reward = np.array([_warmup_reward(int(m), target_x) for m in move1], dtype=np.float32)
+        pop.learn(reward, [{"move": int(m), "grab": 0, "rub": 0} for m in move1])
+    qa = max(1, warmup_trials // 4) if warmup_trials else 0
+    warmup_didx_end = float(np.mean(warm[-qa:])) if qa else 0.0
+
+    # --- Gate appris : params + optim (créés seulement pour learned) ---
+    gate_w = gate_b = optim = None
+    baseline_ret = 0.0
+    if gate_mode == "learned":
+        state_dim = _read_state(pop, backend).shape[1]
+        gate_w = torch.zeros(state_dim, requires_grad=True)
+        gate_b = torch.zeros(1, requires_grad=True)
+        optim = torch.optim.Adam([gate_w, gate_b], lr=gate_lr)
+
+    # --- Phase B : compositionnel + fade + gate sur le logit Y ---
+    hit, bx, yc = [], [], []
+    for t in range(compo_trials):
+        fade_w = _fade_weight(t, compo_trials, fade_w0)
+        preds1, _ = pop.forward(obs_a)
+        move1 = np.asarray(preds1)[:, :_MOVE].argmax(axis=1)
+        did_x = (move1 == target_x)
+        s1_reward = np.array([fade_w * _warmup_reward(int(m), target_x) for m in move1], dtype=np.float32)
+        pop.learn(s1_reward, [{"move": int(m), "grab": 0, "rub": 0} for m in move1])
+
+        preds2, _ = pop.forward(obs_b)
+        base_logits = torch.tensor(np.asarray(preds2)[:, :_MOVE], dtype=torch.float32)  # (B, _MOVE)
+        gate_bias = None
+        if gate_mode == "oracle":
+            add = torch.tensor(oracle_bias * (2.0 * did_x - 1.0), dtype=torch.float32)   # (B,)
+            base_logits = base_logits.clone(); base_logits[:, target_y] = base_logits[:, target_y] + add
+        elif gate_mode == "learned":
+            h_s2 = torch.tensor(_read_state(pop, backend), dtype=torch.float32)           # (B, N)
+            gate_bias = h_s2 @ gate_w + gate_b                                            # (B,)
+            base_logits = base_logits.clone(); base_logits[:, target_y] = base_logits[:, target_y] + gate_bias
+
+        probs = torch.softmax(base_logits.detach(), dim=1)
+        move2 = torch.multinomial(probs, 1).squeeze(1).cpu().numpy()                      # échantillonné
+        y_correct = (move2 == target_y)
+        reward2 = np.array([compositional_reward_penalized(int(move2[i]), target_y, bool(did_x[i]),
+                                                           y_without_x_penalty)
+                            for i in range(n_agents)], dtype=np.float32)
+        pop.learn(reward2, [{"move": int(m), "grab": 0, "rub": 0} for m in move2])
+
+        if gate_mode == "learned":
+            logp = torch.log_softmax(base_logits, dim=1)[range(n_agents), move2]          # (B,)
+            adv = torch.tensor(reward2, dtype=torch.float32) - baseline_ret
+            loss = -(logp * adv).mean()
+            optim.zero_grad(); loss.backward(); optim.step()
+            baseline_ret = 0.9 * baseline_ret + 0.1 * float(np.mean(reward2))
+
+        hit.append(float(np.mean(y_correct & did_x)))
+        bx.append(did_x)
+        yc.append(y_correct)
+
+    qb = max(1, compo_trials // 4) if compo_trials else 0
+    hit_end = float(np.mean(hit[-qb:])) if qb else 0.0
+    didx_end = np.concatenate(bx[-qb:]) if qb else np.array([], dtype=bool)
+    yc_end = np.concatenate(yc[-qb:]) if qb else np.array([], dtype=bool)
+    compo_didx_end = float(np.mean(didx_end)) if didx_end.size else 0.0
+    p_yx = _p_y_given_x(yc_end, didx_end)
+    p_ynx = _p_y_given_not_x(yc_end, didx_end)
+    gap = (p_yx - p_ynx) if (p_yx is not None and p_ynx is not None) else None
+    return {"backend": backend, "seed": int(seed), "gate_mode": gate_mode,
+            "warmup_trials": warmup_trials, "compo_trials": compo_trials, "fade_w0": fade_w0,
+            "oracle_bias": float(oracle_bias), "gate_lr": float(gate_lr),
+            "y_without_x_penalty": float(y_without_x_penalty), "n_agents": n_agents,
+            "warmup_didx_end": warmup_didx_end, "hit_end": hit_end,
+            "compo_didx_end": compo_didx_end, "p_y_given_x_end": p_yx,
+            "p_y_given_not_x_end": p_ynx, "binding_gap_end": gap,
+            "y_rate_end": float(np.mean(yc_end)) if yc_end.size else 0.0}
+
+
+def compare_gate_modes(seeds=(0, 1, 2, 3, 4), modes=("none", "learned", "oracle"),
+                       fade_w0: float = 0.0, y_without_x_penalty: float = 2.0,
+                       warmup_trials: int = 150, compo_trials: int = 250, n_agents: int = 8,
+                       bind_thresh: float = 0.30) -> dict:
+    """LEVIER 2 (gating) — compare none / learned / oracle sur le binding_gap (suite EDR 126/128).
+    Défauts = régime où CONDITIONNER est optimal (fade0.0 → ¬X fréquent ; penalty=2 → silence −1 >
+    Y-sans-X −3), sans quoi always-Y est optimal et le gate collapse trivialement.
+    Expose le gap PER-SEED (le gate appris est BIMODAL : binde ou collapse en always-Y) — la médiane
+    seule masque le signal. `n_bind` = nb de seeds avec gap > bind_thresh.
+    Verdict (bras learned vs none/oracle) :
+    - GATE_BINDS : learned n_bind ≥ majorité ET oracle gap médian > 0.5 (plafond) ET none gap méd < 0.2.
+    - GATE_COLLAPSES : learned n_bind = 0 (toujours always-Y ou pas de routage).
+    - GATE_INTERMITTENT : learned binde sur certains seeds mais < majorité.
+    Seuils heuristiques ; verdict final lu par l'humain sur la distribution per-seed."""
+    per_mode = {}
+    for mode in modes:
+        cells = [run_curriculum_fade_gated("torch", seed=s, gate_mode=mode, fade_w0=fade_w0,
+                                           y_without_x_penalty=y_without_x_penalty,
+                                           warmup_trials=warmup_trials, compo_trials=compo_trials,
+                                           n_agents=n_agents) for s in seeds]
+        gaps = [c["binding_gap_end"] for c in cells if c["binding_gap_end"] is not None]
+        per_mode[mode] = {
+            "gap_median": statistics.median(gaps) if gaps else None,
+            "gap_per_seed": gaps,
+            "n_bind": sum(1 for g in gaps if g > bind_thresh),
+            "n_seeds": len(gaps),
+            "p_y_given_x_median": statistics.median([c["p_y_given_x_end"] for c in cells
+                                                     if c["p_y_given_x_end"] is not None]) or None,
+            "y_rate_median": statistics.median([c["y_rate_end"] for c in cells])}
+
+    verdict = "AMBIGU"
+    if "learned" in per_mode:
+        lb = per_mode["learned"]["n_bind"]
+        ln = per_mode["learned"]["n_seeds"]
+        none_gap = per_mode.get("none", {}).get("gap_median")
+        oracle_gap = per_mode.get("oracle", {}).get("gap_median")
+        if lb == 0:
+            verdict = "GATE_COLLAPSES"
+        elif (lb * 2 >= ln and (oracle_gap is None or oracle_gap > 0.5)
+              and (none_gap is None or none_gap < 0.2)):
+            verdict = "GATE_BINDS"
+        else:
+            verdict = "GATE_INTERMITTENT"
+    return {"verdict": verdict, "bind_thresh": bind_thresh, "fade_w0": fade_w0,
+            "y_without_x_penalty": y_without_x_penalty, "per_mode": per_mode}
+
+
 def compare_curriculum_fade(seeds=(0, 1, 2, 3, 4), warmup_trials: int = 150, compo_trials: int = 250,
                             n_agents: int = 8, fade_w0: float = 1.0) -> dict:
     """A/B apparié legacy vs torch du curriculum à fade. Verdict_fade :
