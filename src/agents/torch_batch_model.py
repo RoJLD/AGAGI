@@ -20,25 +20,59 @@ _VALUE_NODE = 28   # value head V(s) (sortie 28)
 _GAMMA = 0.9       # crédit temporel (parité backend_torch)
 
 
+def _np_gelu(x):
+    # GELU exact (erf), = torch.nn.functional.gelu(approximate="none"). erf vectorisé (grille courte).
+    import math
+    erf = np.vectorize(math.erf)
+    return 0.5 * x * (1.0 + erf(x / np.sqrt(2.0)))
+
+
+def _np_softplus(x):
+    # stable : log1p(exp(-|x|)) + max(x,0)
+    return np.log1p(np.exp(-np.abs(x))) + np.maximum(x, 0.0)
+
+
+def _sigmoid(x):
+    return 1.0 / (1.0 + np.exp(-np.clip(x, -60.0, 60.0)))
+
+
+# EDR-141 : registre d'activations DIFFÉRENTIABLES {nom: (réf numpy pour la détection, noyau torch)}.
+# Enrichir ici tout noyau que le métaprog peut produire, pour une migration fidèle (sinon repli tanh+warn).
+def _act_registry():
+    F = torch.nn.functional if torch is not None else None
+    return {
+        "tanh":       (np.tanh,                                   (lambda t: torch.tanh(t))),
+        "swish":      (lambda x: x * _sigmoid(x),                 (lambda t: t * torch.sigmoid(t))),
+        "sigmoid":    (_sigmoid,                                  (lambda t: torch.sigmoid(t))),
+        "relu":       (lambda x: np.maximum(0.0, x),              (lambda t: torch.relu(t))),
+        "leaky_relu": (lambda x: np.where(x > 0, x, 0.01 * x),    (lambda t: F.leaky_relu(t, 0.01))),
+        "softplus":   (_np_softplus,                              (lambda t: F.softplus(t))),
+        "gelu":       (_np_gelu,                                  (lambda t: F.gelu(t))),
+        "identity":   (lambda x: x,                               (lambda t: t)),
+    }
+
+
 def _detect_world_activation():
-    """EDR-140 (reco migration) : détecte l'activation LIVE du monde (`_get_activation_function`,
+    """EDR-140/141 (reco migration) : détecte l'activation LIVE du monde (`_get_activation_function`,
     évoluée par le métaprog) et la mappe à un noyau torch DIFFÉRENTIABLE. Sonde par évaluation
-    (l'identité du callable est opaque) : matche {swish, tanh} sur une grille ; repli tanh + warn si
-    inconnu (on ne peut pas traduire du numpy arbitraire en autograd). Fidèle : suit l'évolution du
-    métaprog. Retourne "swish" | "tanh"."""
+    (l'identité du callable est opaque) : matche le registre `_act_registry` sur une grille ; repli
+    tanh + warn si inconnue (on ne peut pas traduire du numpy arbitraire en autograd). Fidèle : suit
+    l'évolution du métaprog. Retourne un nom du registre."""
     try:
         from src.agents.mamba_agent import _get_activation_function
         f = _get_activation_function()
-        x = np.linspace(-4.0, 4.0, 17).astype(np.float64)
+        x = np.linspace(-4.0, 4.0, 33).astype(np.float64)
         y = np.asarray(f(x), dtype=np.float64)
-        if np.allclose(y, x * (1.0 / (1.0 + np.exp(-x))), atol=1e-5):
-            return "swish"
-        if np.allclose(y, np.tanh(x), atol=1e-5):
-            return "tanh"
+        for name, (ref_np, _) in _act_registry().items():
+            try:
+                if np.allclose(y, np.asarray(ref_np(x), dtype=np.float64), atol=1e-5):
+                    return name
+            except Exception:
+                continue
         import logging
         logging.getLogger("AGIseed.TorchBatch").warning(
-            "[EDR-140] activation du monde non reconnue (ni swish ni tanh) -> repli tanh (non-différentiable "
-            "en torch). Ajouter le noyau au registre pour une migration fidèle.")
+            "[EDR-141] activation du monde non reconnue (hors registre) -> repli tanh (non-fidèle en "
+            "torch). Ajouter le noyau différentiable au registre `_act_registry`.")
     except Exception:
         pass
     return "tanh"
@@ -58,9 +92,12 @@ class TorchBatchModel:
         self.agents = models           # NB: le monde passe les .model (MambaAgent)
         self.B = len(models)
         self.world_model = world_model
-        # EDR-140 : résout l'activation une fois par instance ("auto" -> détecte le monde).
+        # EDR-140/141 : résout l'activation une fois par instance ("auto" -> détecte le monde)
+        # et cache le noyau torch différentiable (repli tanh si nom hors registre).
         _act = type(self).ACTIVATION
         self._act_kind = _detect_world_activation() if _act == "auto" else _act
+        _reg = _act_registry()
+        self._act_fn = _reg.get(self._act_kind, _reg["tanh"])[1]
         if self.B == 0:
             return
         self.max_I = max(m.genome.num_inputs for m in models)
@@ -106,10 +143,8 @@ class TorchBatchModel:
             }
 
     def _activate(self, excit):
-        """Activation résolue par instance (EDR-139/140). swish = custom_activation legacy (x*sigmoid(x))."""
-        if self._act_kind == "swish":
-            return excit * torch.sigmoid(excit)
-        return torch.tanh(excit)
+        """Activation résolue par instance via le registre (EDR-139/140/141)."""
+        return self._act_fn(excit)
 
     def _step(self, obs_t, H_in):
         H = H_in.clone()

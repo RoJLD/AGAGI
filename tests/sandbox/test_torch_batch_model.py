@@ -76,6 +76,34 @@ def test_activation_auto_matches_world():
     assert bm._act_kind == detected                      # résout vers l'activation du monde
 
 
+def test_activation_registry_numpy_torch_parity():
+    """EDR-141 : chaque entrée du registre {réf numpy (détection), noyau torch} doit être cohérente
+    (sinon la détection mapperait vers un noyau qui ne correspond pas à l'activation détectée)."""
+    import torch
+    from src.agents.torch_batch_model import _act_registry
+    reg = _act_registry()
+    assert {"tanh", "swish", "sigmoid", "relu", "leaky_relu", "softplus", "gelu", "identity"} <= set(reg)
+    x = np.linspace(-4.0, 4.0, 33).astype(np.float64)
+    xt = torch.tensor(x)
+    for name, (ref_np, ker_t) in reg.items():
+        yn = np.asarray(ref_np(x), dtype=np.float64)
+        yt = ker_t(xt).detach().cpu().numpy()
+        assert np.allclose(yn, yt, atol=1e-5), f"parité numpy/torch cassée pour {name}"
+
+
+def test_activation_forced_relu_dispatches():
+    """EDR-141 : ACTIVATION forcée hors {tanh,swish} dispatche via le registre."""
+    import torch
+    np.random.seed(0)
+    agents = [MambaAgent() for _ in range(2)]
+    Relu = type("TorchRelu", (TorchBatchModel,), {"ACTIVATION": "relu"})
+    bm = Relu(agents)
+    assert bm._act_kind == "relu"
+    # noyau relu != tanh sur une valeur négative
+    t = torch.tensor([-2.0])
+    assert float(bm._act_fn(t)) == 0.0
+
+
 def test_learns_and_carries_H_across_per_tick_rebuild():
     """BUGFIX EDR-137 : le monde reconstruit le batch model CHAQUE tick (world:992).
     Sans round-trip via l'agent, torch n'apprendrait jamais (self._prev jeté) et H repartirait
