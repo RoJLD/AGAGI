@@ -61,7 +61,19 @@ def test_activation_swish_changes_dynamics():
     lt = bt.forward(obs)[0]
     ls = bs.forward(obs)[0]
     assert not np.allclose(lt, ls)             # l'activation change bien la dynamique
-    assert TorchBatchModel.ACTIVATION == "tanh"  # défaut base inchangé (non-régressif)
+    assert bt._act_kind == "tanh" and bs._act_kind == "swish"
+
+
+def test_activation_auto_matches_world():
+    """EDR-140 (reco migration) : défaut "auto" détecte l'activation LIVE du monde et la matche."""
+    from src.agents.torch_batch_model import _detect_world_activation
+    np.random.seed(0)
+    agents = [MambaAgent() for _ in range(2)]
+    assert TorchBatchModel.ACTIVATION == "auto"          # défaut = adaptateur fidèle
+    detected = _detect_world_activation()
+    assert detected in ("swish", "tanh")
+    bm = TorchBatchModel(agents)                          # auto
+    assert bm._act_kind == detected                      # résout vers l'activation du monde
 
 
 def test_learns_and_carries_H_across_per_tick_rebuild():

@@ -20,13 +20,37 @@ _VALUE_NODE = 28   # value head V(s) (sortie 28)
 _GAMMA = 0.9       # crédit temporel (parité backend_torch)
 
 
+def _detect_world_activation():
+    """EDR-140 (reco migration) : détecte l'activation LIVE du monde (`_get_activation_function`,
+    évoluée par le métaprog) et la mappe à un noyau torch DIFFÉRENTIABLE. Sonde par évaluation
+    (l'identité du callable est opaque) : matche {swish, tanh} sur une grille ; repli tanh + warn si
+    inconnu (on ne peut pas traduire du numpy arbitraire en autograd). Fidèle : suit l'évolution du
+    métaprog. Retourne "swish" | "tanh"."""
+    try:
+        from src.agents.mamba_agent import _get_activation_function
+        f = _get_activation_function()
+        x = np.linspace(-4.0, 4.0, 17).astype(np.float64)
+        y = np.asarray(f(x), dtype=np.float64)
+        if np.allclose(y, x * (1.0 / (1.0 + np.exp(-x))), atol=1e-5):
+            return "swish"
+        if np.allclose(y, np.tanh(x), atol=1e-5):
+            return "tanh"
+        import logging
+        logging.getLogger("AGIseed.TorchBatch").warning(
+            "[EDR-140] activation du monde non reconnue (ni swish ni tanh) -> repli tanh (non-différentiable "
+            "en torch). Ajouter le noyau au registre pour une migration fidèle.")
+    except Exception:
+        pass
+    return "tanh"
+
+
 class TorchBatchModel:
     KWTA_KEEP_FRAC = 1.0           # tolère les attrs posés par le monde (no-op torch)
     LR = 0.04                      # taux du TD autograd (EDR-139 : balayable ; 0.0 = pas d'apprentissage,
                                    # récurrence conservée). Lu par type(self) -> sous-classe sans mutation globale.
-    ACTIVATION = "tanh"            # EDR-139 : "tanh" (défaut historique) | "swish" (= custom_activation
-                                   # legacy generated_ops, x*sigmoid(x)). Le champion legacy a évolué SOUS
-                                   # swish -> le lancer sous tanh = mismatch d'activation (confond EDR-137).
+    ACTIVATION = "auto"            # EDR-140 (reco migration) : "auto" détecte l'activation LIVE du monde
+                                   # (swish évolué par le métaprog) et la matche -> adaptateur FIDÈLE (récupère
+                                   # ~55% du gap, EDR-139). "tanh"|"swish" forcent (repro EDR-134..139).
 
     def __init__(self, models, world_model=None):
         if torch is None:
@@ -34,6 +58,9 @@ class TorchBatchModel:
         self.agents = models           # NB: le monde passe les .model (MambaAgent)
         self.B = len(models)
         self.world_model = world_model
+        # EDR-140 : résout l'activation une fois par instance ("auto" -> détecte le monde).
+        _act = type(self).ACTIVATION
+        self._act_kind = _detect_world_activation() if _act == "auto" else _act
         if self.B == 0:
             return
         self.max_I = max(m.genome.num_inputs for m in models)
@@ -79,8 +106,8 @@ class TorchBatchModel:
             }
 
     def _activate(self, excit):
-        """Activation configurable (EDR-139). swish = custom_activation legacy (x*sigmoid(x))."""
-        if type(self).ACTIVATION == "swish":
+        """Activation résolue par instance (EDR-139/140). swish = custom_activation legacy (x*sigmoid(x))."""
+        if self._act_kind == "swish":
             return excit * torch.sigmoid(excit)
         return torch.tanh(excit)
 
