@@ -148,3 +148,40 @@ def pending_leads(files) -> list[dict]:
                                 "snippet": raw.strip()[:200]})
                     break
     return out
+
+
+# Racines avec bornes de mot : capturent les formes fléchies/accentuées
+# (verrouillent, réfutée, réfutent) sans faux positifs (murmure, muraille).
+_LOCK_PATTERNS = {
+    "verrou": r"\bVERROU",
+    "mur": r"\bMURS?\b",
+    "refute": r"\bREFUT",
+    "bassin": r"\bBASSIN",
+    "plancher": r"\bPLANCH",
+}
+
+
+def lock_term_counts(edr_texts, territories) -> dict:
+    """Compte les termes-verrou par territoire (mappé via territory_of/préfixe) et
+    transverse. edr_texts: [{num, prefix, text}]. `systemic` = terme dans ≥3 territoires."""
+    per_territory: dict = {}
+    per_term = {t: {"total": 0, "territories": set()} for t in _LOCK_PATTERNS}
+    compiled = {t: re.compile(p) for t, p in _LOCK_PATTERNS.items()}
+    for e in edr_texts:
+        code = territory_of(e.get("num"), territories)
+        if code is None and e.get("prefix") not in (None, "LEGACY", "REF"):
+            code = e["prefix"]
+        hay = _norm(e.get("text") or "")
+        for term, rx in compiled.items():
+            c = len(rx.findall(hay))
+            if not c:
+                continue
+            per_term[term]["total"] += c
+            if code:
+                per_territory[code] = per_territory.get(code, 0) + c
+                per_term[term]["territories"].add(code)
+    per_term_out = {t: {"total": v["total"],
+                        "territories": sorted(v["territories"]),
+                        "systemic": len(v["territories"]) >= 3}
+                    for t, v in per_term.items()}
+    return {"per_territory": per_territory, "per_term": per_term_out}

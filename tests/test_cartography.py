@@ -132,3 +132,26 @@ def test_pending_leads_scans_markers_case_insensitive():
     assert by_file["docs/EDR/131_x.md"]["marker"] == "piste suivante"
     assert by_file["memory/edr090.md"]["marker"] == "prochain levier"
     assert "warm-start" in by_file["docs/EDR/131_x.md"]["snippet"]
+
+
+def test_lock_term_counts_by_territory_and_systemic():
+    from tools.cartography import lock_term_counts
+    territories = [
+        {"code": "SUB", "legacy_edr": [134]},
+        {"code": "BIND", "legacy_edr": [128]},
+        {"code": "NAV", "legacy_edr": [110]},
+    ]
+    edr_texts = [
+        {"num": 134, "prefix": "LEGACY", "text": "le VERROU tient, les seeds verrouillent"},
+        {"num": 128, "prefix": "LEGACY", "text": "hypothèse RÉFUTÉE ; c'est un bassin"},
+        {"num": 110, "prefix": "LEGACY", "text": "au plancher, le mur reste ; réfutée aussi"},
+        {"num": 999, "prefix": "LEGACY", "text": "un murmure sans verrou-mot"},  # non mappé
+    ]
+    res = lock_term_counts(edr_texts, territories)
+    # "verrou" (VERROU + verrouillent) compte 2 sur SUB
+    assert res["per_territory"]["SUB"] == 2
+    # "réfuté" apparaît sur BIND et NAV -> 2 territoires, pas systémique (<3)
+    assert res["per_term"]["refute"]["systemic"] is False
+    assert sorted(res["per_term"]["refute"]["territories"]) == ["BIND", "NAV"]
+    # "murmure" ne doit PAS compter comme "mur"
+    assert "mur" not in res["per_territory"] or res["per_term"]["mur"]["total"] == 1
