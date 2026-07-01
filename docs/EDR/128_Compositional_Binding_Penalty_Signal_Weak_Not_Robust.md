@@ -47,7 +47,8 @@ l'agent joue ENCORE Y ~77-84% du temps malgré la punition. Effet secondaire : l
 **monter P(X)** (compo_didx 0.865→0.935) — l'agent évite la punition en faisant X plus, PAS en
 conditionnant Y. Le gap négatif au baseline est COHÉRENT avec EDR 126 (P(Y|X) ≤ y_rate).
 
-**(2) Avec ¬X fréquent (fade0.0) — un gap POSITIF FAIBLE émerge mais SATURE.** torch :
+**(2) Avec ¬X fréquent (fade0.0) — un gap POSITIF FAIBLE émerge mais SATURE.** torch, **médianes 5 seeds**
+(mêmes seeds 0-4 ; le run de désambiguïsation fade0.0/p=2 reproduit ces médianes à l'identique — déterminisme, pas mono-seed) :
 
 | penalty | P(Y\|X) | P(Y\|¬X) | gap | y_rate | ¬X freq |
 |--------:|--------:|---------:|------:|-------:|--------:|
@@ -82,6 +83,15 @@ restent les leviers **2 (archi/gating)** et **3 (crédit)** d'EDR 126.
 - Le gap NÉGATIF au baseline (P(Y|¬X) > P(Y|X)) est cohérent avec EDR 126 (P(Y|X) ≤ y_rate) mais son
   signe est secondaire ; c'est la **platitude vs dose** (régime maintien-X) et la **saturation faible**
   (régime ¬X-fréquent) qui portent le verdict.
+- **P(Y|¬X) est un estimateur À HAUTE VARIANCE dans le régime maintien-X** : ¬X y est rare (6-14% →
+  dénominateur ~15-35 trials/fin de phase), et P(Y|¬X)=1.000 exact sur certains seeds → le GAP y est
+  bruité. C'est justement pourquoi le point PORTEUR du verdict dans ce régime est la **platitude du
+  y_rate marginal** (gelé 0.722, robuste), PAS le gap. Le gap ne devient un instrument fiable que dans
+  le régime ¬X-fréquent (fade0.0), où il porte la conclusion « faible et saturant ».
+- « **Suppression** » est employé au sens PROSE (chute du y_rate marginal, ex. fade0.0/p=5 : 0.73→0.39),
+  distinct du seuil-machine `SUPPRESSION` de `sweep_binding_penalty` (déclenché sur P(Y|X)<0.20).
+  fade0.0 n'est PAS passé par le verdict auto (runs manuels) → pas de contradiction, juste deux
+  acceptions du mot.
 - Confonds ASSUMÉS et mesurés : la pénalité monte P(X) et supprime Y — c'est justement pourquoi elle
   ne « binde » pas (elle contourne le conditionnement). ¬X-fréquence obtenue via fade0.0 = X non
   maintenu (compo_didx plus bas) : régime favorable au signal MAIS défavorable au joint.
