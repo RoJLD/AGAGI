@@ -313,7 +313,9 @@ def run_curriculum_fade_gated(backend: str, seed: int = 0, warmup_trials: int = 
                               target_y: int = 4, fade_w0: float = 1.0, gate_mode: str = "none",
                               oracle_bias: float = 8.0, gate_lr: float = 0.05,
                               y_without_x_penalty: float = 0.0, entropy_coef: float = 0.0,
-                              elig_lambda: float = 0.0, capture_probe: bool = False) -> dict:
+                              elig_lambda: float = 0.0, gate_warmstart_trials: int = 0,
+                              freeze_gate_after_warmstart: bool = False,
+                              capture_probe: bool = False, capture_gate_bias: bool = False) -> dict:
     """LEVIER 2 (gating archi, suite EDR 126/128) : curriculum à fade + GATE sur le logit Y en phase B.
     L'action Y est échantillonnée d'un softmax sur les logits de mouvement (règle commune aux 3 modes
     → comparaison équitable ; `none` doit reproduire le baseline EDR 126/128).
@@ -328,6 +330,18 @@ def run_curriculum_fade_gated(backend: str, seed: int = 0, warmup_trials: int = 
       - entropy_coef>0 : bonus d'entropie sur la politique (anti-collapse, exploration).
       - elig_lambda>0 : trace d'éligibilité sur le gradient du gate (trace=λ·trace+grad). λ=0 → Adam nu.
     Les deux valent 0 par défaut → REINFORCE nu = baseline gating (rétrocompat garantie).
+    WARM-START (test causal path-dependence, suite EDR 131) :
+      - gate_warmstart_trials>0 : AVANT la phase B, pré-entraîne le gate (population GELÉE, forward sans
+        learn) à IMITER l'oracle depuis H_S2 — régression `gate_bias → oracle_bias·(2·did_x−1)` par MSE.
+        Le gate entre alors en phase B en conditionnant DÉJÀ (au lieu de partir de 0 et tomber dans le
+        bassin always-Y). Si ça rescape les collapsés d'EDR 129 (7/10 → ~10/10), la path-dependence
+        précoce (EDR 131) est confirmée CAUSALEMENT. =0 par défaut → rétrocompat EDR 129/131.
+      - freeze_gate_after_warmstart : GÈLE le gate warm-starté en phase B (aucun update REINFORCE) →
+        isole si le collapse = ÉROSION du routage par la récompense jointe (gate gelé binde) vs
+        NOYAGE par les base-logits de la population (gate gelé collapse aussi). Contrôle du mécanisme.
+      - capture_gate_bias : reporte le biais RÉEL du gate en fin de phase B, séparé did_x vs ¬did_x
+        (gate_bias_didx_end / _notdidx_end / _margin_end). Distingue les modes d'échec : MARGE faible
+        (readout ne sépare pas) vs OFFSET élevé aux deux (le gate booste Y partout → always-Y).
     Mesure binding_gap = P(Y|X) − P(Y|¬X) en fin de phase B."""
     if gate_mode not in ("none", "oracle", "learned"):
         raise ValueError(f"gate_mode inconnu : {gate_mode!r} (attendu none/oracle/learned)")
@@ -364,9 +378,27 @@ def run_curriculum_fade_gated(backend: str, seed: int = 0, warmup_trials: int = 
         trace_w = torch.zeros(state_dim)   # trace d'éligibilité (levier 3) sur le gradient
         trace_b = torch.zeros(1)
 
+    # --- Warm-start (test causal EDR 131) : pré-entraîner le gate à imiter l'oracle depuis H_S2 ---
+    # Population GELÉE (forward sans learn) : on seed UNIQUEMENT le routage did_x→biais_Y, sans laisser
+    # la politique dériver. Régression MSE de gate_bias vers la cible oracle ±oracle_bias.
+    # NB : on RÉUTILISE `optim` (pas un 2e Adam) → l'état des moments est continu warm-start→phase B ;
+    # un optimizer neuf en phase B donnerait un pas plein-lr au trial 1 sur un gate déjà placé (choc).
+    if gate_mode == "learned" and gate_warmstart_trials > 0:
+        for _ in range(gate_warmstart_trials):
+            preds1_ws, _ = pop.forward(obs_a)
+            move1_ws = np.asarray(preds1_ws)[:, :_MOVE].argmax(axis=1)
+            did_x_ws = (move1_ws == target_x)
+            pop.forward(obs_b)                                   # avance l'état vers H_S2 (comme phase B)
+            h_s2_ws = torch.tensor(_read_state(pop, backend), dtype=torch.float32)
+            gate_bias_ws = h_s2_ws @ gate_w + gate_b
+            target_ws = torch.tensor(oracle_bias * (2.0 * did_x_ws - 1.0), dtype=torch.float32)
+            ws_loss = ((gate_bias_ws - target_ws) ** 2).mean()
+            optim.zero_grad(); ws_loss.backward(); optim.step()
+
     # --- Phase B : compositionnel + fade + gate sur le logit Y ---
     hit, bx, yc = [], [], []
     probe_H, probe_dx = [], []          # diagnostic précoce (H_S2, did_x) sur la 1re moitié
+    gbias = []                          # biais réel du gate par trial (mécanisme : marge vs offset)
     probe_cut = compo_trials // 2
     for t in range(compo_trials):
         fade_w = _fade_weight(t, compo_trials, fade_w0)
@@ -389,6 +421,8 @@ def run_curriculum_fade_gated(backend: str, seed: int = 0, warmup_trials: int = 
             base_logits = base_logits.clone(); base_logits[:, target_y] = base_logits[:, target_y] + gate_bias
             if capture_probe and t < probe_cut:      # décodabilité did_x de H_S2 (avant que le gate route)
                 probe_H.append(state_np.copy()); probe_dx.append(did_x.copy())
+            if capture_gate_bias:                     # biais réel appliqué au logit Y (par agent, ce trial)
+                gbias.append(gate_bias.detach().cpu().numpy().copy())
 
         probs = torch.softmax(base_logits.detach(), dim=1)
         move2 = torch.multinomial(probs, 1).squeeze(1).cpu().numpy()                      # échantillonné
@@ -398,7 +432,8 @@ def run_curriculum_fade_gated(backend: str, seed: int = 0, warmup_trials: int = 
                             for i in range(n_agents)], dtype=np.float32)
         pop.learn(reward2, [{"move": int(m), "grab": 0, "rub": 0} for m in move2])
 
-        if gate_mode == "learned":
+        gate_frozen = (gate_warmstart_trials > 0 and freeze_gate_after_warmstart)
+        if gate_mode == "learned" and not gate_frozen:
             idx = torch.arange(n_agents)
             log_probs = torch.log_softmax(base_logits, dim=1)                              # (B, _MOVE)
             logp = log_probs[idx, torch.as_tensor(move2)]                                  # (B,)
@@ -437,7 +472,8 @@ def run_curriculum_fade_gated(backend: str, seed: int = 0, warmup_trials: int = 
            "oracle_bias": float(oracle_bias), "gate_lr": float(gate_lr),
            "y_without_x_penalty": float(y_without_x_penalty),
            "entropy_coef": float(entropy_coef), "elig_lambda": float(elig_lambda),
-           "n_agents": n_agents,
+           "gate_warmstart_trials": int(gate_warmstart_trials),
+           "freeze_gate_after_warmstart": bool(freeze_gate_after_warmstart), "n_agents": n_agents,
            "warmup_didx_end": warmup_didx_end, "hit_end": hit_end,
            "compo_didx_end": compo_didx_end, "p_y_given_x_end": p_yx,
            "p_y_given_not_x_end": p_ynx, "binding_gap_end": gap,
@@ -453,6 +489,24 @@ def run_curriculum_fade_gated(backend: str, seed: int = 0, warmup_trials: int = 
             out["did_x_auc_early"] = _decode_auc(X, y, min_per_class=8, seed=seed)
         else:
             out["did_x_auc_early"] = None
+    if capture_gate_bias:
+        # Biais RÉEL appliqué au logit Y en fin de phase B (dernier quart), séparé did_x vs ¬did_x.
+        # Distingue les mécanismes d'échec du gate : MARGE (biais_didx − biais_¬didx) faible = le readout
+        # ne sépare pas ; OFFSET élevé aux deux = le gate booste Y partout (always-Y malgré la marge).
+        b_didx = b_notdidx = margin = None
+        if gbias and qb:
+            gb_end = np.concatenate(gbias[-qb:], axis=0)          # (agents×trials,)
+            mask = didx_end
+            if mask.size == gb_end.size:
+                if mask.any():
+                    b_didx = float(gb_end[mask].mean())
+                if (~mask).any():
+                    b_notdidx = float(gb_end[~mask].mean())
+                if b_didx is not None and b_notdidx is not None:
+                    margin = b_didx - b_notdidx
+        out["gate_bias_didx_end"] = b_didx
+        out["gate_bias_notdidx_end"] = b_notdidx
+        out["gate_bias_margin_end"] = margin
     return out
 
 
@@ -569,6 +623,50 @@ def sweep_gate_reliability(seeds=tuple(range(10)), configs=None, fade_w0: float 
         verdict = "RELIABILITY_IMPROVED"
     elif base_bind is not None:
         verdict = "NO_IMPROVEMENT"
+    else:
+        verdict = "AMBIGU"
+    return {"verdict": verdict, "bind_thresh": bind_thresh, "base_n_bind": base_bind,
+            "best_n_bind": best, "rows": rows}
+
+
+def sweep_gate_warmstart(seeds=tuple(range(10)), warmstart_levels=(0, 100), fade_w0: float = 0.0,
+                         y_without_x_penalty: float = 2.0, warmup_trials: int = 150,
+                         compo_trials: int = 250, n_agents: int = 8, oracle_bias: float = 8.0,
+                         bind_thresh: float = 0.30) -> dict:
+    """TEST CAUSAL de la path-dependence précoce (EDR 131) via WARM-START du gate.
+    EDR 129 : le gate learned binde ~7/10, collapse en always-Y sur le reste. EDR 131 (corrélationnel) :
+    les collapsés saturent always-Y dès le 1er quart, AVANT que le gate n'apprenne à router — did_x
+    reste pourtant décodable (AUC~0.9) chez tous. Intervention : pré-entraîner le gate à imiter l'oracle
+    depuis H_S2 (warmstart>0) → il entre en phase B en conditionnant déjà. Si les collapsés sont RESCAPÉS
+    (n_bind ↑), la path-dependence est la CAUSE (pas la représentation) → recette de fiabilité concrète.
+    Régime = conditionnement optimal (fade0.0/pen2, cf. EDR 129). Rapporte n_bind/n_seeds ET le gap
+    per-seed par niveau (le rescue se lit sur les seeds AUPARAVANT collapsés). Verdict :
+    - RESCUE : un niveau warmstart>0 atteint n_bind ≥ baseline+2 sur 10 seeds.
+    - PARTIAL_RESCUE : le meilleur niveau atteint exactement baseline+1 (un seul collapsé basculé).
+    - NO_RESCUE : aucun niveau ne dépasse baseline (collapse irréductible au warm-start du gate).
+    Seuils heuristiques ; le rescue per-seed (quels seeds basculent) est lu par l'humain."""
+    rows = []
+    for ws in warmstart_levels:
+        cells = [run_curriculum_fade_gated("torch", seed=s, gate_mode="learned", fade_w0=fade_w0,
+                                           y_without_x_penalty=y_without_x_penalty,
+                                           warmup_trials=warmup_trials, compo_trials=compo_trials,
+                                           n_agents=n_agents, oracle_bias=oracle_bias,
+                                           gate_warmstart_trials=ws) for s in seeds]
+        gaps_by_seed = [(int(s), c["binding_gap_end"]) for s, c in zip(seeds, cells)]
+        gaps = [g for _, g in gaps_by_seed if g is not None]
+        bound_seeds = [s for s, g in gaps_by_seed if g is not None and g > bind_thresh]
+        rows.append({"warmstart": int(ws), "n_bind": len(bound_seeds), "n_seeds": len(gaps),
+                     "gap_median": statistics.median(gaps) if gaps else None,
+                     "gap_per_seed": gaps_by_seed, "bound_seeds": bound_seeds})
+    base = next((r for r in rows if r["warmstart"] == 0), None)
+    base_bind = base["n_bind"] if base else None
+    best = max((r["n_bind"] for r in rows if r["warmstart"] > 0), default=0)
+    if base_bind is not None and best >= base_bind + 2:
+        verdict = "RESCUE"
+    elif base_bind is not None and best == base_bind + 1:
+        verdict = "PARTIAL_RESCUE"
+    elif base_bind is not None:
+        verdict = "NO_RESCUE"
     else:
         verdict = "AMBIGU"
     return {"verdict": verdict, "bind_thresh": bind_thresh, "base_n_bind": base_bind,
