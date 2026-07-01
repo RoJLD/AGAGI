@@ -107,3 +107,21 @@ def orphan_edrs(records, territories) -> list[dict]:
                 out.append({"id": r["id"], "file": r.get("file"),
                             "reason": f"préfixe {prefix} inconnu"})
     return out
+
+
+_UNRESOLVED = ("INCONCLUSIF", "INCONCLUSIVE", "VOID", "INDETERMINE")
+
+
+def unresolved_verdicts(records) -> list[dict]:
+    """EDR dont le verdict OU le titre porte un marqueur non tranché
+    (INCONCLUSIF/VOID/INDÉTERMINÉ), comparaison sans accents ni casse. Advisory."""
+    out: list[dict] = []
+    for r in records:
+        if r.get("type") != "EDR":
+            continue
+        hay = _norm(r.get("verdict") or "") + " " + _norm(r.get("title") or "")
+        marker = next((m for m in _UNRESOLVED if m in hay), None)
+        if marker:
+            out.append({"id": r["id"], "file": r.get("file"),
+                        "marker": marker, "verdict": r.get("verdict")})
+    return out

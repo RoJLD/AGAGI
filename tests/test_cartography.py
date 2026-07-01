@@ -95,3 +95,23 @@ def test_orphan_edrs_recent_legacy_and_unknown_prefix():
     orphans = orphan_edrs(records, TERRS)
     ids = sorted(o["id"] for o in orphans)
     assert ids == ["EDR-200", "EDR-ZZZ-001"]
+
+
+def test_unresolved_verdicts_matches_verdict_and_title():
+    from tools.cartography import unresolved_verdicts
+    records = [
+        {"id": "EDR-121", "type": "EDR", "file": "a.md",
+         "title": "Stockage INCONCLUSIVE", "verdict": "INCONCLUSIF"},
+        {"id": "EDR-151", "type": "EDR", "file": "b.md",
+         "title": "ToM comportementale INDÉTERMINÉ", "verdict": None},
+        {"id": "EDR-112", "type": "EDR", "file": "c.md",
+         "title": "Le monde exige", "verdict": "EXIGE"},
+        {"id": "SDR-G1", "type": "SDR", "file": "d.md",
+         "title": "porte VOID", "verdict": None},   # pas un EDR -> ignoré
+    ]
+    res = unresolved_verdicts(records)
+    ids = sorted(r["id"] for r in res)
+    assert ids == ["EDR-121", "EDR-151"]
+    by_id = {r["id"]: r for r in res}
+    assert by_id["EDR-121"]["marker"] == "INCONCLUSIF"
+    assert by_id["EDR-151"]["marker"] == "INDETERMINE"
