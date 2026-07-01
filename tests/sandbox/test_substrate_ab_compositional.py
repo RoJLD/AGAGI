@@ -409,3 +409,41 @@ def test_sweep_gate_reliability_smoke():
     for row in res["rows"]:
         for k in ("config", "n_bind", "n_seeds", "gap_median", "gap_per_seed"):
             assert k in row
+
+
+# --- Diagnostic collapse (suite EDR 130) : prédicteurs bind vs collapse ---
+
+@pytest.mark.slow
+def test_capture_probe_adds_early_diagnostics():
+    """capture_probe=True ajoute did_x_auc_early ; les métriques de fenêtre précoce sont toujours là."""
+    pytest.importorskip("torch")
+    from tools.substrate_ab_compositional import run_curriculum_fade_gated
+    r = run_curriculum_fade_gated("torch", seed=0, warmup_trials=30, compo_trials=40, n_agents=6,
+                                  gate_mode="learned", capture_probe=True)
+    for k in ("binding_gap_start", "y_rate_start", "did_x_auc_early"):
+        assert k in r
+    assert (r["did_x_auc_early"] is None) or (0.0 <= r["did_x_auc_early"] <= 1.0)
+    assert 0.0 <= r["y_rate_start"] <= 1.0
+
+
+def test_capture_probe_off_by_default():
+    """Sans capture_probe, pas de clé did_x_auc_early (coût sklearn évité par défaut)."""
+    from tools.substrate_ab_compositional import run_curriculum_fade_gated
+    import inspect
+    assert inspect.signature(run_curriculum_fade_gated).parameters["capture_probe"].default is False
+
+
+@pytest.mark.slow
+def test_probe_collapse_predictors_smoke():
+    """probe_collapse_predictors : rows per-seed + prédicteurs (moyenne bind vs collapse)."""
+    pytest.importorskip("torch")
+    from tools.substrate_ab_compositional import probe_collapse_predictors
+    res = probe_collapse_predictors(seeds=(0, 1), warmup_trials=30, compo_trials=40, n_agents=4)
+    assert res["n_seeds"] == 2 and res["rows"]
+    for k in ("did_x_auc_early", "y_rate_start", "binding_gap_start"):
+        assert k in res["predictors"]
+        for stat in ("bind_mean", "collapse_mean", "separation"):
+            assert stat in res["predictors"][k]
+    for row in res["rows"]:
+        for k in ("seed", "bound", "binding_gap_end", "did_x_auc_early", "y_rate_start"):
+            assert k in row

@@ -313,7 +313,7 @@ def run_curriculum_fade_gated(backend: str, seed: int = 0, warmup_trials: int = 
                               target_y: int = 4, fade_w0: float = 1.0, gate_mode: str = "none",
                               oracle_bias: float = 8.0, gate_lr: float = 0.05,
                               y_without_x_penalty: float = 0.0, entropy_coef: float = 0.0,
-                              elig_lambda: float = 0.0) -> dict:
+                              elig_lambda: float = 0.0, capture_probe: bool = False) -> dict:
     """LEVIER 2 (gating archi, suite EDR 126/128) : curriculum à fade + GATE sur le logit Y en phase B.
     L'action Y est échantillonnée d'un softmax sur les logits de mouvement (règle commune aux 3 modes
     → comparaison équitable ; `none` doit reproduire le baseline EDR 126/128).
@@ -366,6 +366,8 @@ def run_curriculum_fade_gated(backend: str, seed: int = 0, warmup_trials: int = 
 
     # --- Phase B : compositionnel + fade + gate sur le logit Y ---
     hit, bx, yc = [], [], []
+    probe_H, probe_dx = [], []          # diagnostic précoce (H_S2, did_x) sur la 1re moitié
+    probe_cut = compo_trials // 2
     for t in range(compo_trials):
         fade_w = _fade_weight(t, compo_trials, fade_w0)
         preds1, _ = pop.forward(obs_a)
@@ -381,9 +383,12 @@ def run_curriculum_fade_gated(backend: str, seed: int = 0, warmup_trials: int = 
             add = torch.tensor(oracle_bias * (2.0 * did_x - 1.0), dtype=torch.float32)   # (B,)
             base_logits = base_logits.clone(); base_logits[:, target_y] = base_logits[:, target_y] + add
         elif gate_mode == "learned":
-            h_s2 = torch.tensor(_read_state(pop, backend), dtype=torch.float32)           # (B, N)
+            state_np = _read_state(pop, backend)                                          # (B, N)
+            h_s2 = torch.tensor(state_np, dtype=torch.float32)
             gate_bias = h_s2 @ gate_w + gate_b                                            # (B,)
             base_logits = base_logits.clone(); base_logits[:, target_y] = base_logits[:, target_y] + gate_bias
+            if capture_probe and t < probe_cut:      # décodabilité did_x de H_S2 (avant que le gate route)
+                probe_H.append(state_np.copy()); probe_dx.append(did_x.copy())
 
         probs = torch.softmax(base_logits.detach(), dim=1)
         move2 = torch.multinomial(probs, 1).squeeze(1).cpu().numpy()                      # échantillonné
@@ -421,16 +426,66 @@ def run_curriculum_fade_gated(backend: str, seed: int = 0, warmup_trials: int = 
     p_yx = _p_y_given_x(yc_end, didx_end)
     p_ynx = _p_y_given_not_x(yc_end, didx_end)
     gap = (p_yx - p_ynx) if (p_yx is not None and p_ynx is not None) else None
-    return {"backend": backend, "seed": int(seed), "gate_mode": gate_mode,
-            "warmup_trials": warmup_trials, "compo_trials": compo_trials, "fade_w0": fade_w0,
-            "oracle_bias": float(oracle_bias), "gate_lr": float(gate_lr),
-            "y_without_x_penalty": float(y_without_x_penalty),
-            "entropy_coef": float(entropy_coef), "elig_lambda": float(elig_lambda),
-            "n_agents": n_agents,
-            "warmup_didx_end": warmup_didx_end, "hit_end": hit_end,
-            "compo_didx_end": compo_didx_end, "p_y_given_x_end": p_yx,
-            "p_y_given_not_x_end": p_ynx, "binding_gap_end": gap,
-            "y_rate_end": float(np.mean(yc_end)) if yc_end.size else 0.0}
+    # Fenêtre PRÉCOCE (1er quart) : la trajectoire early prédit-elle le collapse ?
+    didx_start = np.concatenate(bx[:qb]) if qb else np.array([], dtype=bool)
+    yc_start = np.concatenate(yc[:qb]) if qb else np.array([], dtype=bool)
+    p_yx_s = _p_y_given_x(yc_start, didx_start)
+    p_ynx_s = _p_y_given_not_x(yc_start, didx_start)
+    gap_start = (p_yx_s - p_ynx_s) if (p_yx_s is not None and p_ynx_s is not None) else None
+    out = {"backend": backend, "seed": int(seed), "gate_mode": gate_mode,
+           "warmup_trials": warmup_trials, "compo_trials": compo_trials, "fade_w0": fade_w0,
+           "oracle_bias": float(oracle_bias), "gate_lr": float(gate_lr),
+           "y_without_x_penalty": float(y_without_x_penalty),
+           "entropy_coef": float(entropy_coef), "elig_lambda": float(elig_lambda),
+           "n_agents": n_agents,
+           "warmup_didx_end": warmup_didx_end, "hit_end": hit_end,
+           "compo_didx_end": compo_didx_end, "p_y_given_x_end": p_yx,
+           "p_y_given_not_x_end": p_ynx, "binding_gap_end": gap,
+           "y_rate_end": float(np.mean(yc_end)) if yc_end.size else 0.0,
+           "binding_gap_start": gap_start,
+           "y_rate_start": float(np.mean(yc_start)) if yc_start.size else 0.0}
+    if capture_probe:
+        # Décodabilité de did_x depuis H_S2 précoce (pooled agents×trials) : la mémoire encode-t-elle
+        # did_x proprement chez ce seed ? (hypothèse REPRÉSENTATION du collapse)
+        if probe_H:
+            X = np.concatenate(probe_H, axis=0)
+            y = np.concatenate(probe_dx, axis=0).astype(int)
+            out["did_x_auc_early"] = _decode_auc(X, y, min_per_class=8, seed=seed)
+        else:
+            out["did_x_auc_early"] = None
+    return out
+
+
+def probe_collapse_predictors(seeds=tuple(range(10)), fade_w0: float = 0.0,
+                              y_without_x_penalty: float = 2.0, warmup_trials: int = 150,
+                              compo_trials: int = 250, n_agents: int = 8, bind_thresh: float = 0.30) -> dict:
+    """DIAGNOSTIC (suite EDR 130) : POURQUOI certains seeds collapsent-ils en always-Y (plafond 7/10) ?
+    Pour chaque seed : gate learned (régime incitatif) + capture PRÉCOCE — did_x_auc_early
+    (décodabilité de did_x depuis H_S2 = hypothèse REPRÉSENTATION), y_rate_start / binding_gap_start
+    (trajectoire du 1er quart = hypothèse POLITIQUE PRÉCOCE) — corrélés à l'issue finale bind/collapse.
+    Rapporte, par prédicteur, la moyenne du groupe BINDEUR vs COLLAPSÉ : celui dont l'écart est net
+    tranche l'hypothèse (représentation vs entrée précoce du bassin always-Y). Diagnostic, pas verdict."""
+    rows = []
+    for s in seeds:
+        r = run_curriculum_fade_gated("torch", seed=s, gate_mode="learned", fade_w0=fade_w0,
+                                      y_without_x_penalty=y_without_x_penalty, warmup_trials=warmup_trials,
+                                      compo_trials=compo_trials, n_agents=n_agents, capture_probe=True)
+        bound = (r["binding_gap_end"] is not None and r["binding_gap_end"] > bind_thresh)
+        rows.append({"seed": int(s), "bound": bound, "binding_gap_end": r["binding_gap_end"],
+                     "did_x_auc_early": r["did_x_auc_early"], "y_rate_start": r["y_rate_start"],
+                     "binding_gap_start": r["binding_gap_start"]})
+
+    def _grp(key, want):
+        vals = [row[key] for row in rows if row["bound"] == want and row[key] is not None]
+        return (sum(vals) / len(vals)) if vals else None
+
+    predictors = {}
+    for key in ("did_x_auc_early", "y_rate_start", "binding_gap_start"):
+        bm, cm = _grp(key, True), _grp(key, False)
+        sep = abs(bm - cm) if (bm is not None and cm is not None) else None
+        predictors[key] = {"bind_mean": bm, "collapse_mean": cm, "separation": sep}
+    return {"n_bind": sum(1 for r in rows if r["bound"]), "n_seeds": len(rows),
+            "predictors": predictors, "rows": rows}
 
 
 def compare_gate_modes(seeds=(0, 1, 2, 3, 4), modes=("none", "learned", "oracle"),
