@@ -48,6 +48,22 @@ def compositional_reward_penalized(move2: int, target_y: int, did_x: bool,
     return -1.0
 
 
+def _apply_y_saturation_penalty(reward2, move2, target_y: int, coef: float, y_target: float):
+    """Pénalité HOMÉOSTATIQUE anti-saturation-Y de la politique de base (verrou résiduel EDR 133 =
+    bassin d'optim ; les seeds collapsés saturent P(Y)→1 tôt, annulant le gradient différentiel EDR 131).
+    Si la marginale Y de POPULATION ce trial dépasse `y_target`, retire `coef*(y_rate−y_target)` à la
+    récompense des seuls agents qui ont choisi Y → pression collective maintenant P(Y) loin de 1, ce qui
+    PRÉSERVE la variance sur ¬X (où le gate apprend à supprimer). ≠ EDR 128 (qui pénalisait Y-SANS-X,
+    CONDITIONNEL) : ici la marginale INCONDITIONNELLE. coef=0 → identité (rétrocompat). PUR."""
+    if coef <= 0.0:
+        return reward2
+    y_rate = float(np.mean(move2 == target_y))
+    excess = max(0.0, y_rate - y_target)
+    if excess <= 0.0:
+        return reward2
+    return reward2 - (coef * excess) * (move2 == target_y).astype(reward2.dtype)
+
+
 def _init_factor(num_nodes: int, init_scale: str) -> float:
     """Facteur d'échelle d'init des poids. `normalized` = sqrt(171/(N-1)) → maintient la variance
     d'excitation (Σ_{k≠j} H_k W_kj ∝ (N-1)·Var(W)) ≈ invariante à N, calibrée sur N_ref=172.
@@ -315,6 +331,8 @@ def run_curriculum_fade_gated(backend: str, seed: int = 0, warmup_trials: int = 
                               y_without_x_penalty: float = 0.0, entropy_coef: float = 0.0,
                               elig_lambda: float = 0.0, gate_warmstart_trials: int = 0,
                               freeze_gate_after_warmstart: bool = False, gate_hidden: int = 0,
+                              y_saturation_penalty: float = 0.0, y_saturation_target: float = 0.5,
+                              y_saturation_scope: str = "both",
                               capture_probe: bool = False, capture_gate_bias: bool = False) -> dict:
     """LEVIER 2 (gating archi, suite EDR 126/128) : curriculum à fade + GATE sur le logit Y en phase B.
     L'action Y est échantillonnée d'un softmax sur les logits de mouvement (règle commune aux 3 modes
@@ -346,9 +364,18 @@ def run_curriculum_fade_gated(backend: str, seed: int = 0, warmup_trials: int = 
       - gate_hidden=0 : readout LINÉAIRE (défaut, rétrocompat EDR 129-132).
       - gate_hidden>0 : MLP 1 couche cachée (tanh) sur H_S2 → teste si un readout plus riche débloque
         la suppression négative sur les seeds résistants (3,4) là où le linéaire échoue (marge≈0).
+    POLITIQUE DE BASE (suite EDR 133, verrou résiduel = bassin d'optim / saturation-Y précoce EDR 131) :
+      - y_saturation_penalty>0 : pénalité HOMÉOSTATIQUE anti-saturation de la marginale Y de population
+        (cf. `_apply_y_saturation_penalty`, seuil y_saturation_target). Maintient P(Y) loin de 1 pour
+        PRÉSERVER le gradient différentiel que le gate exploite. =0 par défaut → rétrocompat EDR 129-133.
+      - y_saturation_scope : QUEL apprenant reçoit la reward pénalisée — "both" (défaut, base+gate),
+        "base" (seul pop.learn ; le gate lit la reward BRUTE → teste si le locus est la politique de
+        base), "gate" (seule l'avantage du gate). Décompose l'effet (revue EDR 134).
     Mesure binding_gap = P(Y|X) − P(Y|¬X) en fin de phase B."""
     if gate_mode not in ("none", "oracle", "learned"):
         raise ValueError(f"gate_mode inconnu : {gate_mode!r} (attendu none/oracle/learned)")
+    if y_saturation_scope not in ("both", "base", "gate"):
+        raise ValueError(f"y_saturation_scope inconnu : {y_saturation_scope!r} (attendu both/base/gate)")
     import torch
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -450,17 +477,24 @@ def run_curriculum_fade_gated(backend: str, seed: int = 0, warmup_trials: int = 
         probs = torch.softmax(base_logits.detach(), dim=1)
         move2 = torch.multinomial(probs, 1).squeeze(1).cpu().numpy()                      # échantillonné
         y_correct = (move2 == target_y)
-        reward2 = np.array([compositional_reward_penalized(int(move2[i]), target_y, bool(did_x[i]),
-                                                           y_without_x_penalty)
-                            for i in range(n_agents)], dtype=np.float32)
-        pop.learn(reward2, [{"move": int(m), "grab": 0, "rub": 0} for m in move2])
+        reward2_raw = np.array([compositional_reward_penalized(int(move2[i]), target_y, bool(did_x[i]),
+                                                               y_without_x_penalty)
+                                for i in range(n_agents)], dtype=np.float32)
+        # LEVIER politique-de-base (EDR 133 résiduel) : homéostasie anti-saturation-Y (reshape la reward).
+        # `y_saturation_scope` décompose QUEL apprenant reçoit la pénalité (revue EDR 134) :
+        #   "both" (défaut) → base ET gate (rétrocompat) ; "base" → seul pop.learn ; "gate" → seule adv.
+        reward2_pen = _apply_y_saturation_penalty(reward2_raw, move2, target_y,
+                                                  y_saturation_penalty, y_saturation_target)
+        reward2_base = reward2_pen if y_saturation_scope in ("both", "base") else reward2_raw
+        reward2_gate = reward2_pen if y_saturation_scope in ("both", "gate") else reward2_raw
+        pop.learn(reward2_base, [{"move": int(m), "grab": 0, "rub": 0} for m in move2])
 
         gate_frozen = (gate_warmstart_trials > 0 and freeze_gate_after_warmstart)
         if gate_mode == "learned" and not gate_frozen:
             idx = torch.arange(n_agents)
             log_probs = torch.log_softmax(base_logits, dim=1)                              # (B, _MOVE)
             logp = log_probs[idx, torch.as_tensor(move2)]                                  # (B,)
-            adv = torch.tensor(reward2, dtype=torch.float32) - baseline_ret
+            adv = torch.tensor(reward2_gate, dtype=torch.float32) - baseline_ret
             # LEVIER 3a : bonus d'entropie (anti-collapse always-Y ; exploration)
             entropy = -(torch.softmax(base_logits, dim=1) * log_probs).sum(dim=1)          # (B,)
             loss = -(logp * adv).mean() - entropy_coef * entropy.mean()
@@ -470,7 +504,7 @@ def run_curriculum_fade_gated(backend: str, seed: int = 0, warmup_trials: int = 
                 for p, tr in zip(gate_params, traces):
                     tr.mul_(elig_lambda).add_(p.grad); p.grad = tr.clone()
             optim.step()
-            baseline_ret = 0.9 * baseline_ret + 0.1 * float(np.mean(reward2))
+            baseline_ret = 0.9 * baseline_ret + 0.1 * float(np.mean(reward2_gate))
 
         hit.append(float(np.mean(y_correct & did_x)))
         bx.append(did_x)
@@ -497,7 +531,10 @@ def run_curriculum_fade_gated(backend: str, seed: int = 0, warmup_trials: int = 
            "entropy_coef": float(entropy_coef), "elig_lambda": float(elig_lambda),
            "gate_warmstart_trials": int(gate_warmstart_trials),
            "freeze_gate_after_warmstart": bool(freeze_gate_after_warmstart),
-           "gate_hidden": int(gate_hidden), "n_agents": n_agents,
+           "gate_hidden": int(gate_hidden),
+           "y_saturation_penalty": float(y_saturation_penalty),
+           "y_saturation_target": float(y_saturation_target),
+           "y_saturation_scope": str(y_saturation_scope), "n_agents": n_agents,
            "warmup_didx_end": warmup_didx_end, "hit_end": hit_end,
            "compo_didx_end": compo_didx_end, "p_y_given_x_end": p_yx,
            "p_y_given_not_x_end": p_ynx, "binding_gap_end": gap,
@@ -747,6 +784,66 @@ def sweep_gate_readout(seeds=tuple(range(10)), hidden_levels=(0, 8, 16), fade_w0
         verdict = "AMBIGU"
     return {"verdict": verdict, "bind_thresh": bind_thresh, "base_n_bind": base_bind,
             "best_n_bind": best, "rows": rows}
+
+
+def sweep_y_saturation(seeds=tuple(range(10)), penalties=(0.0, 1.0, 3.0), fade_w0: float = 0.0,
+                       y_without_x_penalty: float = 2.0, y_saturation_target: float = 0.5,
+                       gate_mode: str = "learned", y_saturation_scope: str = "both",
+                       warmup_trials: int = 150, compo_trials: int = 250, n_agents: int = 8,
+                       bind_thresh: float = 0.30) -> dict:
+    """TEST côté POLITIQUE DE BASE (verrou résiduel EDR 133 = bassin d'optim / saturation-Y précoce
+    EDR 131). Une pénalité HOMÉOSTATIQUE anti-saturation de la marginale Y (garde P(Y) loin de 1 →
+    préserve le gradient différentiel) rescape-t-elle les seeds résistants (3,4) ? Gate learned, régime
+    incitatif fade0.0/pen2, 10 seeds. Rapporte, par coef : n_bind, y_rate_start (CHECK DE MANIPULATION :
+    la pénalité abaisse-t-elle bien la saturation précoce ?), gap per-seed. Verdict :
+    - ANTISAT_RESCUES : un coef>0 atteint n_bind ≥ baseline+2 (déverrouille ≥2 résistants).
+    - ANTISAT_MARGINAL : un coef>0 atteint baseline+1.
+    - ANTISAT_NEUTRAL : aucun ne dépasse baseline MAIS y_rate_start CHUTE → saturation réduite sans
+      rescue = la saturation N'EST PAS la cause (réfute l'hypothèse EDR 131/133).
+    - ANTISAT_INEFFECTIVE : y_rate_start ne bouge pas → la pénalité ne mord pas (manip ratée, pas concluant).
+    Distinction NEUTRAL/INEFFECTIVE lue par l'humain sur le check de manipulation. Seuils heuristiques."""
+    rows = []
+    for pen in penalties:
+        cells = [run_curriculum_fade_gated("torch", seed=s, gate_mode=gate_mode, fade_w0=fade_w0,
+                                           y_without_x_penalty=y_without_x_penalty,
+                                           warmup_trials=warmup_trials, compo_trials=compo_trials,
+                                           n_agents=n_agents, y_saturation_penalty=pen,
+                                           y_saturation_target=y_saturation_target,
+                                           y_saturation_scope=y_saturation_scope) for s in seeds]
+        # per_seed remonte les VRAIES métriques (anti-artefact du gap : le gap peut monter en baissant
+        # P(Y) ; on veut voir si P(Y|X) ET hit_end MONTENT chez les rescapés, pas juste le gap) — revue.
+        per_seed = [{"seed": int(s), "gap": c["binding_gap_end"], "y_rate_start": c["y_rate_start"],
+                     "p_y_given_x": c["p_y_given_x_end"], "p_y_given_not_x": c["p_y_given_not_x_end"],
+                     "hit_end": c["hit_end"], "y_rate_end": c["y_rate_end"]}
+                    for s, c in zip(seeds, cells)]
+        gaps = [r["gap"] for r in per_seed if r["gap"] is not None]
+        yrs = [r["y_rate_start"] for r in per_seed]
+        hits = [r["hit_end"] for r in per_seed if r["hit_end"] is not None]
+        bound_seeds = [r["seed"] for r in per_seed if r["gap"] is not None and r["gap"] > bind_thresh]
+        rows.append({"penalty": float(pen), "n_bind": len(bound_seeds), "n_seeds": len(gaps),
+                     "gap_median": statistics.median(gaps) if gaps else None,
+                     "y_rate_start_median": statistics.median(yrs) if yrs else None,
+                     "hit_end_median": statistics.median(hits) if hits else None,
+                     "per_seed": per_seed, "bound_seeds": bound_seeds})
+    base = next((r for r in rows if r["penalty"] == 0.0), None)
+    base_bind = base["n_bind"] if base else None
+    base_yrs = base["y_rate_start_median"] if base else None
+    best = max((r["n_bind"] for r in rows if r["penalty"] > 0.0), default=0)
+    # la pénalité abaisse-t-elle la saturation précoce (check de manipulation) ?
+    lowered = any(r["penalty"] > 0.0 and r["y_rate_start_median"] is not None and base_yrs is not None
+                  and r["y_rate_start_median"] < base_yrs - 0.05 for r in rows)
+    if base_bind is not None and best >= base_bind + 2:
+        verdict = "ANTISAT_RESCUES"
+    elif base_bind is not None and best == base_bind + 1:
+        verdict = "ANTISAT_MARGINAL"
+    elif base_bind is not None and lowered:
+        verdict = "ANTISAT_NEUTRAL"
+    elif base_bind is not None:
+        verdict = "ANTISAT_INEFFECTIVE"
+    else:
+        verdict = "AMBIGU"
+    return {"verdict": verdict, "bind_thresh": bind_thresh, "base_n_bind": base_bind,
+            "best_n_bind": best, "manip_lowered_saturation": lowered, "rows": rows}
 
 
 def compare_curriculum_fade(seeds=(0, 1, 2, 3, 4), warmup_trials: int = 150, compo_trials: int = 250,
