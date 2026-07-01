@@ -129,3 +129,25 @@ def test_run_probe_stoneage_returns_verdict():
     result = run_probe_stoneage([0], warmup=5, measure=5, num_agents=4)
     assert "verdict" in result
     assert result["n"] >= 0
+
+
+import pytest
+
+
+@pytest.mark.slow
+def test_stoneage_champion_lifts_n_zero_blocker():
+    """Correctif du blocueur n=0 (arc anticipation en PAUSE, planner-depth1-refuted) : les agents
+    FRAIS meurent ~15 ticks < warmup -> 0 transition mesurée sur obs riches. Injecter un CHAMPION
+    compétent (survie 66+ au sweet-spot, EDR-129) + cohorte fixe doit produire des transitions (n>0),
+    condition NÉCESSAIRE pour mesurer la fidélité de g sur le vrai monde."""
+    import os, importlib
+    if not os.path.exists("data/hall_of_fame.pkl"):
+        pytest.skip("HoF stoneage absent")
+    from src.seed_ai import persistence
+    os.environ["HOF_PATH"] = "data/hall_of_fame.pkl"
+    importlib.reload(persistence)
+    champ = persistence.load_hall_of_fame()[1][0].genome
+    from tools.g_fidelity_probe import run_probe_stoneage
+    result = run_probe_stoneage([0], warmup=8, measure=12, num_agents=6,
+                                genome=champ, benchmark=True)
+    assert result["n"] > 0, f"champion devrait produire des transitions, n={result['n']}"
