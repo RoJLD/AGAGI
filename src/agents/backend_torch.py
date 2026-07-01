@@ -137,6 +137,39 @@ class TorchPopulationModel(PopulationModel):
         self._write_back()
         return float(loss.item())
 
+    def learn_episode_bptt(self, obs_seq, actions_seq, rewards, truncate=False, gamma=1.0):
+        """BPTT FENÊTRÉ (EDR-146) — la capacité que numpy N'A PAS. Rejoue l'épisode (obs_seq) depuis
+        H=0 en RETENANT le graphe récurrent, crédite les actions PRISES par le retour (REINFORCE) et
+        backprop UNE fois à travers toute la fenêtre -> le crédit de l'étape finale remonte par la
+        récurrence jusqu'à W (façonne la mémoire des étapes antérieures). ADDITIF : ne touche NI
+        forward NI learn (le banc compositional // reste intact).
+
+        truncate=True détache H entre les pas (= crédit 1-pas, ce que forward/learn/legacy font) pour
+        l'A/B : le crédit final ne peut alors PAS remonter la récurrence -> pas de means→ends.
+        obs_seq: liste de (B,I) ; actions_seq: liste (par pas) de listes de dicts {"move":int} ;
+        rewards: (B,) retour épisodique. Ne fait PAS l'échantillonnage (le banc choisit les actions)."""
+        if self.B == 0 or not obs_seq:
+            return None
+        R = torch.tensor(np.asarray(rewards, dtype=np.float32), device=self.device)   # (B,)
+        H = torch.zeros((self.B, self.N), device=self.device)
+        idx = torch.arange(self.B, device=self.device)
+        total_logp = torch.zeros(self.B, device=self.device)
+        for t, obs in enumerate(obs_seq):
+            obs_t = torch.tensor(np.asarray(obs, dtype=np.float32)[:, :self.I], device=self.device)
+            if truncate and t > 0:
+                H = H.detach()                                        # coupe le crédit à travers le temps
+            H = self._step(obs_t, H)                                  # graphe retenu (BPTT) sauf si truncate
+            out = H[:, self.N - self.O:self.N]
+            moves = torch.tensor([int(a.get("move", 0)) for a in actions_seq[t]], device=self.device)
+            logp = torch.log_softmax(out[:, :_MOVE_LOGITS], dim=1)[idx, moves]
+            total_logp = total_logp + (gamma ** t) * logp
+        loss = -(R * total_logp).mean()                              # REINFORCE, retour épisodique
+        self.opt.zero_grad()
+        loss.backward()
+        self.opt.step()
+        self._write_back()
+        return float(loss.item())
+
     def _write_back(self):
         """Baldwin : réécrit W appris dans les génomes (in place)."""
         W = self.W.detach().cpu().numpy()
