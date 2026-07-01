@@ -116,3 +116,67 @@ def _trunk_params_count(model):
         return sum(pp.numel() for pp in model.trunk.parameters())
     return sum(pp.numel() for t in (model.trunk_action, model.trunk_value, model.trunk_pred)
                for pp in t.parameters())
+
+
+def _losses(out, targets):
+    """(logits_a, v, p), (x, a_idx, v_t, p_t) -> (loss_action CE, loss_value MSE, loss_pred MSE)."""
+    la = F.cross_entropy(out[0], targets[1])
+    lv = F.mse_loss(out[1], targets[2])
+    lp = F.mse_loss(out[2], targets[3])
+    return la, lv, lp
+
+
+def _eval_losses(model, held):
+    model.eval()
+    with torch.no_grad():
+        la, lv, lp = _losses(model(held[0]), held)
+    return {"action": float(la), "value": float(lv), "pred": float(lp)}
+
+
+def _interference_cosine(model, batch):
+    """FLAT seulement : cosinus moyen des gradients par tete w.r.t. les poids du trunc partage (<0 = conflit)."""
+    grads = []
+    for k in range(N_HEADS):
+        model.zero_grad(set_to_none=True)
+        losses = _losses(model(batch[0]), batch)
+        losses[k].backward()
+        grads.append(model.trunk.weight.grad.detach().reshape(-1).clone())
+    cos = []
+    for i in range(N_HEADS):
+        for j in range(i + 1, N_HEADS):
+            denom = (grads[i].norm() * grads[j].norm()).clamp_min(1e-12)
+            cos.append(float((grads[i] @ grads[j]) / denom))
+    model.zero_grad(set_to_none=True)
+    return float(np.mean(cos))
+
+
+def _train_arm(arm, seed, teachers, steps=STEPS):
+    """Entraine un bras ('flat'|'disjoint'), deterministe par seed. Retourne (eval_losses, interference|None)."""
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    held = _make_data(HELDOUT, seed + 10_000, teachers)
+    if arm == "flat":
+        model = FlatModel()
+        opt = torch.optim.Adam(model.parameters(), lr=LR)
+        model.train()
+        for t in range(steps):
+            batch = _make_data(BATCH, seed * 1_000_003 + t, teachers)
+            opt.zero_grad(set_to_none=True)
+            la, lv, lp = _losses(model(batch[0]), batch)
+            (la + lv + lp).backward()
+            opt.step()
+        interf = _interference_cosine(model, _make_data(BATCH, seed + 20_000, teachers))
+        return _eval_losses(model, held), interf
+    model = DisjointModel()
+    opts = [torch.optim.Adam(g, lr=LR) for g in model.head_param_groups()]
+    model.train()
+    for t in range(steps):
+        batch = _make_data(BATCH, seed * 1_000_003 + t, teachers)
+        for o in opts:
+            o.zero_grad(set_to_none=True)
+        ls = _losses(model(batch[0]), batch)
+        for k in range(N_HEADS):
+            ls[k].backward(retain_graph=(k < N_HEADS - 1))   # loss separee -> son sous-reseau seul
+        for o in opts:
+            o.step()
+    return _eval_losses(model, held), None
