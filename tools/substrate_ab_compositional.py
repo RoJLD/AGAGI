@@ -36,6 +36,18 @@ def compositional_reward(move2: int, target_y: int, did_x: bool) -> float:
     return 1.0 if (move2 == target_y and did_x) else -1.0
 
 
+def compositional_reward_penalized(move2: int, target_y: int, did_x: bool,
+                                   y_without_x_penalty: float = 0.0) -> float:
+    """Récompense d'étape 2 avec SURCOÛT sur Y-sans-X (levier binding par le signal, suite EDR 126).
+    Y&X → +1 (seul chemin payant) ; Y&¬X → −1 − penalty (PLUS punitif que le silence) ; ¬Y → −1.
+    penalty=0 ≡ compositional_reward EXACTEMENT (baseline EDR 126). Le baseline actuel donne le MÊME
+    −1 à « Y-sans-X » et au silence → aucune pression DIFFÉRENTIELLE pour conditionner Y sur X ;
+    penalty>0 rend le silence strictement préférable à Y-sans-X → force P(Y|¬X)→0. PUR."""
+    if move2 == target_y:
+        return 1.0 if did_x else (-1.0 - y_without_x_penalty)
+    return -1.0
+
+
 def _init_factor(num_nodes: int, init_scale: str) -> float:
     """Facteur d'échelle d'init des poids. `normalized` = sqrt(171/(N-1)) → maintient la variance
     d'excitation (Σ_{k≠j} H_k W_kj ∝ (N-1)·Var(W)) ≈ invariante à N, calibrée sur N_ref=172.
@@ -148,6 +160,18 @@ def _p_y_given_x(y_correct, did_x):
     return float(np.sum(y_correct & did_x) / n)
 
 
+def _p_y_given_not_x(y_correct, did_x):
+    """P(Y correct | X NON fait) = fraction de y_correct PARMI les trials ¬did_x. None si aucun ¬did_x.
+    C'est le DÉNOMINATEUR du binding : le gap P(Y|X) − P(Y|¬X) distingue le CONDITIONNEMENT (gap>0)
+    de la montée des marginales (gap≈0, EDR 126) et de la suppression triviale (les deux ≈0). PUR."""
+    y_correct = np.asarray(y_correct, dtype=bool)
+    not_x = ~np.asarray(did_x, dtype=bool)
+    n = int(np.sum(not_x))
+    if n == 0:
+        return None
+    return float(np.sum(y_correct & not_x) / n)
+
+
 def run_curriculum(backend: str, seed: int = 0, warmup_trials: int = 150, compo_trials: int = 250,
                    n_agents: int = 8, target_x: int = 0, target_y: int = 4) -> dict:
     """Curriculum 2 phases (bascule dure). Phase A : enseigner X (reward dense did_x, S1 seul).
@@ -209,11 +233,12 @@ def run_curriculum(backend: str, seed: int = 0, warmup_trials: int = 150, compo_
 
 def run_curriculum_fade(backend: str, seed: int = 0, warmup_trials: int = 150, compo_trials: int = 250,
                         n_agents: int = 8, target_x: int = 0, target_y: int = 4,
-                        fade_w0: float = 1.0) -> dict:
+                        fade_w0: float = 1.0, y_without_x_penalty: float = 0.0) -> dict:
     """Curriculum à FADE. Phase A : enseigner X (dense). Phase B : S1 reward = fade_w·warmup_reward
     (fade_w décroît linéairement de fade_w0 à 0) → maintient X au lieu de le laisser décliner ;
-    S2 reward = compositionnel. Mesure le joint `hit`, la rétention `compo_didx`, ET P(Y|X) DIRECT.
-    fade_w0=0 ≡ bascule dure (baseline EDR 122)."""
+    S2 reward = compositionnel PÉNALISÉ (surcoût y_without_x_penalty sur Y-sans-X → force le
+    conditionnement, levier binding par le signal, EDR 126). Mesure le joint `hit`, la rétention
+    `compo_didx`, P(Y|X) ET P(Y|¬X) → binding_gap. fade_w0=0 ≡ bascule dure ; penalty=0 ≡ EDR 126."""
     np.random.seed(seed)
     try:
         import torch
@@ -250,7 +275,8 @@ def run_curriculum_fade(backend: str, seed: int = 0, warmup_trials: int = 150, c
         preds2, _ = pop.forward(obs_b)
         move2 = np.asarray(preds2)[:, :_MOVE].argmax(axis=1)
         y_correct = (move2 == target_y)
-        reward2 = np.array([compositional_reward(int(move2[i]), target_y, bool(did_x[i]))
+        reward2 = np.array([compositional_reward_penalized(int(move2[i]), target_y, bool(did_x[i]),
+                                                           y_without_x_penalty)
                             for i in range(n_agents)], dtype=np.float32)
         pop.learn(reward2, [{"move": int(m), "grab": 0, "rub": 0} for m in move2])
         hit.append(float(np.mean(y_correct & did_x)))
@@ -265,13 +291,19 @@ def run_curriculum_fade(backend: str, seed: int = 0, warmup_trials: int = 150, c
     yc_start = np.concatenate(yc[:qb]) if qb else np.array([], dtype=bool)
     compo_didx_start = float(np.mean(didx_start)) if didx_start.size else 0.0
     compo_didx_end = float(np.mean(didx_end)) if didx_end.size else 0.0
+    p_yx_end = _p_y_given_x(yc_end, didx_end)
+    p_ynotx_end = _p_y_given_not_x(yc_end, didx_end)
+    binding_gap_end = (p_yx_end - p_ynotx_end) if (p_yx_end is not None and p_ynotx_end is not None) else None
     return {"backend": backend, "seed": int(seed), "warmup_trials": warmup_trials,
-            "compo_trials": compo_trials, "fade_w0": fade_w0, "n_agents": n_agents,
+            "compo_trials": compo_trials, "fade_w0": fade_w0,
+            "y_without_x_penalty": float(y_without_x_penalty), "n_agents": n_agents,
             "warmup_didx_end": warmup_didx_end,
             "hit_start": hit_start, "hit_end": hit_end,
             "compo_didx_start": compo_didx_start, "compo_didx_end": compo_didx_end,
             "p_y_given_x_start": _p_y_given_x(yc_start, didx_start),
-            "p_y_given_x_end": _p_y_given_x(yc_end, didx_end),
+            "p_y_given_x_end": p_yx_end,
+            "p_y_given_not_x_end": p_ynotx_end,
+            "binding_gap_end": binding_gap_end,
             "y_rate_end": float(np.mean(yc_end)) if yc_end.size else 0.0,
             "delta": hit_end - hit_start}
 
@@ -313,6 +345,67 @@ def compare_curriculum_fade(seeds=(0, 1, 2, 3, 4), warmup_trials: int = 150, com
                         "legacy_hit_end": _med("legacy", "hit_end"),
                         "legacy_p_y_given_x_end": _med("legacy", "p_y_given_x_end")},
             "per_seed": rows}
+
+
+def sweep_binding_penalty(seeds=(0, 1, 2, 3, 4), penalties=(0.0, 0.5, 1.0, 2.0),
+                          backends=("torch", "legacy"), warmup_trials: int = 150,
+                          compo_trials: int = 250, n_agents: int = 8, fade_w0: float = 1.0) -> dict:
+    """Dose-réponse du LEVIER BINDING PAR LE SIGNAL (punir Y-sans-X, suite EDR 126).
+    Pour chaque (penalty, backend, seed) : curriculum à fade (X maintenu) + surcoût y_without_x_penalty
+    sur Y-sans-X. Mesure le GAP de binding = P(Y|X) − P(Y|¬X) à la fin.
+    Verdict (sur le bras torch, celui qui apprend), penalty=0 = baseline EDR 126 (Y⊥did_x, gap≈0) :
+    - BINDING_FORCED : le gap médian s'OUVRE avec la pénalité (max-penalty > 0.30 ET > baseline+0.15)
+      SANS suppression (P(Y|X) reste > 0.40) → le signal SUFFIT à forcer le conditionnement.
+    - SUPPRESSION : y_rate s'effondre (P(Y|X) médian < 0.20 au max-penalty) → l'agent fait taire Y
+      au lieu de le conditionner (échec trivial que le gap seul masquerait).
+    - SIGNAL_INSUFFICIENT : le gap reste ≈0 (max-penalty ≤ baseline+0.15) → punir ne binde pas,
+      le verrou est un MÉCANISME (archi/crédit), pas le signal.
+    Seuils heuristiques ; verdict final lu par l'humain sur la courbe dose-réponse."""
+    rows = []
+    for pen in penalties:
+        for backend in backends:
+            for s in seeds:
+                r = run_curriculum_fade(backend, seed=s, warmup_trials=warmup_trials,
+                                        compo_trials=compo_trials, n_agents=n_agents,
+                                        fade_w0=fade_w0, y_without_x_penalty=pen)
+                rows.append({"penalty": float(pen), "backend": backend, "seed": int(s),
+                             "p_y_given_x_end": r["p_y_given_x_end"],
+                             "p_y_given_not_x_end": r["p_y_given_not_x_end"],
+                             "binding_gap_end": r["binding_gap_end"],
+                             "y_rate_end": r["y_rate_end"], "hit_end": r["hit_end"],
+                             "compo_didx_end": r["compo_didx_end"]})
+
+    def _cell_med(pen, backend, key):
+        vals = [r[key] for r in rows if r["penalty"] == pen and r["backend"] == backend
+                and r[key] is not None]
+        return statistics.median(vals) if vals else None
+
+    cells = {}
+    for pen in penalties:
+        for backend in backends:
+            cells[f"{backend}_p{pen}"] = {
+                "gap": _cell_med(pen, backend, "binding_gap_end"),
+                "p_y_given_x": _cell_med(pen, backend, "p_y_given_x_end"),
+                "p_y_given_not_x": _cell_med(pen, backend, "p_y_given_not_x_end"),
+                "y_rate": _cell_med(pen, backend, "y_rate_end"),
+                "hit": _cell_med(pen, backend, "hit_end")}
+
+    verdict = "AMBIGU"
+    if "torch" in backends:
+        pmax = max(penalties)
+        base_gap = _cell_med(0.0, "torch", "binding_gap_end") if 0.0 in penalties else None
+        max_gap = _cell_med(pmax, "torch", "binding_gap_end")
+        max_pyx = _cell_med(pmax, "torch", "p_y_given_x_end")
+        if max_pyx is not None and max_pyx < 0.20:
+            verdict = "SUPPRESSION"
+        elif (max_gap is not None and max_gap > 0.30
+              and (base_gap is None or max_gap > base_gap + 0.15)
+              and max_pyx is not None and max_pyx > 0.40):
+            verdict = "BINDING_FORCED"
+        elif max_gap is not None and (base_gap is not None and max_gap <= base_gap + 0.15):
+            verdict = "SIGNAL_INSUFFICIENT"
+    return {"verdict": verdict, "penalties": list(penalties), "backends": list(backends),
+            "cells": cells, "rows": rows}
 
 
 def compare_curriculum(seeds=(0, 1, 2, 3, 4), warmup_trials: int = 150,
