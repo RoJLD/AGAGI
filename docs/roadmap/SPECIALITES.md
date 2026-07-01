@@ -94,7 +94,7 @@
 - question_phare: Émergence de spécialisation world-spécifique
 - fichiers_possedes: tools/famine_harshness_probe.py, tools/cross_world_transfer.py
 - memoire: fil-directeur-agi-gates.md
-- legacy_edr: 129,130
+- legacy_edr: — (fil transfert zéro-shot / famine-harshness suivi en mémoire + scripts cross_world_transfer.py/famine_harshness_probe.py ; PAS matérialisé en docs/EDR — les fichiers 129_*/130_* sur disque sont les records Compositional de BIND)
 - frontiere_courante: durcir réfuté → levier = substrat/moteur (pont SUB)
 - ponts_actifs: [SUB]
 - filiation: —
