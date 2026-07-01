@@ -49,6 +49,21 @@ def test_cpg_actor_critic_learns():
     assert vN > v0 and not np.allclose(W0, m.genome.W)
 
 
+def test_activation_swish_changes_dynamics():
+    """EDR-139 : activation configurable. swish (x*sigmoid(x)) != tanh -> H diffère."""
+    import torch
+    np.random.seed(0)
+    agents = [MambaAgent() for _ in range(2)]
+    obs = (np.random.RandomState(2).randn(2, agents[0].genome.num_inputs) * 2.0).astype(np.float32)
+    Tanh = type("TorchTanh", (TorchBatchModel,), {"ACTIVATION": "tanh"})
+    Swish = type("TorchSwish", (TorchBatchModel,), {"ACTIVATION": "swish"})
+    bt, bs = Tanh(agents), Swish(agents)
+    lt = bt.forward(obs)[0]
+    ls = bs.forward(obs)[0]
+    assert not np.allclose(lt, ls)             # l'activation change bien la dynamique
+    assert TorchBatchModel.ACTIVATION == "tanh"  # défaut base inchangé (non-régressif)
+
+
 def test_learns_and_carries_H_across_per_tick_rebuild():
     """BUGFIX EDR-137 : le monde reconstruit le batch model CHAQUE tick (world:992).
     Sans round-trip via l'agent, torch n'apprendrait jamais (self._prev jeté) et H repartirait

@@ -136,6 +136,27 @@ def evolve_native(world_key: str, seed: int, backend_cls, max_ticks: int = 1500,
             "births": births, "extinct": not env.agents}
 
 
+def sweep_lr_torch(world_key: str, seed: int, genome, k_eval: int = 10, num_agents: int = 12,
+                   max_ticks: int = 300, lrs=(0.0, 0.001, 0.005, 0.02, 0.04)):
+    """EDR-139 : balaye le lr du TD autograd de torch sur un champion transplanté. Question : baisser
+    le lr (voire l'annuler) annule-t-il la déstabilisation (EDR-137, torch 33.0 vs legacy-core 68.2) ?
+    Si oui -> migration triviale (régler l'optimiseur). lr=0.0 = pas d'apprentissage, récurrence gardée
+    (isole la contribution du gradient vs de la seule récurrence). Sous-classe par lr (pas de mutation
+    globale). Repères : legacy-core et legacy-full mesurés sur le MÊME génome."""
+    from src.agents.torch_batch_model import TorchBatchModel
+    from src.agents.mamba_agent import MambaBatchModel, MambaCoreBatchModel
+
+    med = lambda xs: float(statistics.median(xs)) if xs else 0.0
+    rows = []
+    for lr in lrs:
+        cls = type("TorchLR", (TorchBatchModel,), {"LR": float(lr)})
+        rows.append({"lr": float(lr),
+                     "median": med(measure_survival(world_key, seed, cls, genome, k_eval, num_agents, max_ticks))})
+    return {"world": world_key, "seed": seed, "lr_rows": rows,
+            "legacy_core": med(measure_survival(world_key, seed, MambaCoreBatchModel, genome, k_eval, num_agents, max_ticks)),
+            "legacy_full": med(measure_survival(world_key, seed, MambaBatchModel, genome, k_eval, num_agents, max_ticks))}
+
+
 def compare_backends(world_key: str = "stoneage", seed: int = 42, k_eval: int = 12,
                      num_agents: int = 12, max_ticks: int = 300, genome=None, band: float = 2.0) -> dict:
     """A/B apparié legacy (MambaBatchModel) vs torch (TorchBatchModel) dans un monde -> verdict
@@ -200,6 +221,15 @@ def main():
     k_eval = int(os.environ.get("SWA_KEVAL", "10"))
     num_agents = int(os.environ.get("SWA_AGENTS", "12"))
     max_ticks = int(os.environ.get("SWA_TICKS", "300"))
+
+    if os.environ.get("SWA_MODE") == "sweep_lr":
+        hof = os.environ.get("SWA_HOF", "data/hall_of_fame.pkl")
+        genome = _load_champion(hof)
+        r = sweep_lr_torch(world, seed, genome, k_eval, num_agents, max_ticks)
+        print(f"SWEEP-LR world={world} legacy_core={r['legacy_core']:.1f} legacy_full={r['legacy_full']:.1f}")
+        for row in r["lr_rows"]:
+            print(f"  torch lr={row['lr']:.4f} : med={row['median']:.1f}")
+        return r
 
     if os.environ.get("SWA_MODE") == "evolve":
         # #2 Baldwin : évolue NATIVEMENT sur torch, puis mesure le champion natif sous torch

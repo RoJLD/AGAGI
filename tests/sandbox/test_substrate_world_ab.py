@@ -8,7 +8,7 @@ import sys, os, inspect
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 from tools.substrate_world_ab import (_ab_from_meds, measure_survival, compare_backends,
-                                       compare_arms, evolve_native)
+                                       compare_arms, evolve_native, sweep_lr_torch)
 
 
 def test_ab_from_meds_gradient_wins():
@@ -51,3 +51,19 @@ def test_evolve_native_signature():
     # #2 Baldwin : évolution native sur substrat (benchmark_mode=False).
     p = inspect.signature(evolve_native).parameters
     assert "world_key" in p and "backend_cls" in p and "max_ticks" in p and "pop_cap" in p
+
+
+def test_sweep_lr_torch_signature():
+    # EDR-139 : balayage du lr du TD autograd de torch.
+    p = inspect.signature(sweep_lr_torch).parameters
+    assert "world_key" in p and "genome" in p and "lrs" in p
+
+
+def test_torch_lr_is_configurable():
+    # lr balayable via sous-classe sans mutation globale (défaut base inchangé).
+    import pytest
+    pytest.importorskip("torch")
+    from src.agents.torch_batch_model import TorchBatchModel
+    assert TorchBatchModel.LR == 0.04
+    Sub = type("TorchLR", (TorchBatchModel,), {"LR": 0.0})
+    assert Sub.LR == 0.0 and TorchBatchModel.LR == 0.04

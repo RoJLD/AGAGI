@@ -22,6 +22,11 @@ _GAMMA = 0.9       # crédit temporel (parité backend_torch)
 
 class TorchBatchModel:
     KWTA_KEEP_FRAC = 1.0           # tolère les attrs posés par le monde (no-op torch)
+    LR = 0.04                      # taux du TD autograd (EDR-139 : balayable ; 0.0 = pas d'apprentissage,
+                                   # récurrence conservée). Lu par type(self) -> sous-classe sans mutation globale.
+    ACTIVATION = "tanh"            # EDR-139 : "tanh" (défaut historique) | "swish" (= custom_activation
+                                   # legacy generated_ops, x*sigmoid(x)). Le champion legacy a évolué SOUS
+                                   # swish -> le lancer sous tanh = mismatch d'activation (confond EDR-137).
 
     def __init__(self, models, world_model=None):
         if torch is None:
@@ -48,7 +53,7 @@ class TorchBatchModel:
             W[i][idx[:, None], idx[None, :]] = m.genome.W
         self.W = torch.tensor(W, requires_grad=True)
         self.H = torch.zeros((self.B, self.max_N))
-        self.opt = torch.optim.SGD([self.W], lr=0.04)
+        self.opt = torch.optim.SGD([self.W], lr=type(self).LR)
         self._eye = torch.eye(self.max_N)
         self._last = None
         self._prev = None
@@ -73,13 +78,19 @@ class TorchBatchModel:
                 "reward": np.array([td["reward"] for td in tds], dtype=np.float32),
             }
 
+    def _activate(self, excit):
+        """Activation configurable (EDR-139). swish = custom_activation legacy (x*sigmoid(x))."""
+        if type(self).ACTIVATION == "swish":
+            return excit * torch.sigmoid(excit)
+        return torch.tanh(excit)
+
     def _step(self, obs_t, H_in):
         H = H_in.clone()
         H[:, :obs_t.shape[1]] = obs_t
         diag = torch.diagonal(self.W, dim1=1, dim2=2)
         delta = torch.sigmoid(torch.clamp(diag, -10.0, 10.0))
         excit = torch.bmm(H.unsqueeze(1), self.W * (1.0 - self._eye)).squeeze(1)
-        return (1.0 - delta) * H + delta * torch.tanh(excit)
+        return (1.0 - delta) * H + delta * self._activate(torch.clamp(excit, -30.0, 30.0))
 
     def _write_back(self):
         """Demap W appris vers chaque genome (inverse du scatter __init__)."""
