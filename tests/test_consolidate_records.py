@@ -140,3 +140,18 @@ def test_main_exits_zero_on_clean_repo():
     """Consolidation sur le vrai repo : problemes=0, rc=0."""
     rc = main([])
     assert rc == 0
+
+
+def test_parse_record_tolerates_malformed_frontmatter(tmp_path):
+    """Frontmatter YAML illisible (':' non quote) -> NE crashe PAS ; EDR NNN_*.md tolere non-lie."""
+    f = _write(tmp_path / "199_Bad_Frontmatter.md", (
+        "---\n"
+        "id: EDR-199\n"
+        "verdict: SPLIT par substrat : DISCOVERY torch / CREDIT legacy\n"  # ':' non quote -> ScannerError
+        "---\n\n# corps\n"
+    ))
+    rec = parse_record(f)
+    assert rec is not None                 # pas de crash
+    assert rec["id"] == "EDR-199"          # id derive du nom NNN_ (chemin tolerant)
+    assert rec["type"] == "EDR"
+    assert rec["linked"] is False          # frontmatter ignore -> non-lie
