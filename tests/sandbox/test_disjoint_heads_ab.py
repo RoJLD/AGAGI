@@ -55,3 +55,18 @@ def test_train_arm_deterministic():
     a, _ = _train_arm("flat", 2201, te, steps=40)
     b, _ = _train_arm("flat", 2201, te, steps=40)
     assert a == b
+
+
+from tools.disjoint_heads_ab import _verdict_disjoint, main_disjoint_heads
+
+
+def test_verdict_three_branches():
+    assert _verdict_disjoint([0.2, 0.2, 0.2, 0.0, -0.1]) == "DISJOINT_HELPS"
+    assert _verdict_disjoint([-0.2, -0.2, -0.2, 0.0, 0.1]) == "DISJOINT_HURTS"
+    assert _verdict_disjoint([0.05, -0.05, 0.0, 0.2, -0.2]) == "DISJOINT_NEUTRAL"
+
+
+def test_smoke_main_returns_verdict():
+    res = main_disjoint_heads(K=1, base=99000, steps=30, _return=True)
+    assert res["verdict"] in {"DISJOINT_HELPS", "DISJOINT_HURTS", "DISJOINT_NEUTRAL", "SKIPPED_NO_TORCH"}
+    assert "per_seed" in res

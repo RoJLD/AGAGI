@@ -180,3 +180,66 @@ def _train_arm(arm, seed, teachers, steps=STEPS):
         for o in opts:
             o.step()
     return _eval_losses(model, held), None
+
+
+def _verdict_disjoint(per_seed_improv):
+    """HELPS/HURTS si >= majorite des seeds depassent +/-IMPROV_THRESH ; sinon NEUTRAL. GELE."""
+    n = len(per_seed_improv)
+    maj = n // 2 + 1
+    helps = sum(1 for v in per_seed_improv if v >= IMPROV_THRESH)
+    hurts = sum(1 for v in per_seed_improv if v <= -IMPROV_THRESH)
+    if helps >= maj:
+        return "DISJOINT_HELPS"
+    if hurts >= maj:
+        return "DISJOINT_HURTS"
+    return "DISJOINT_NEUTRAL"
+
+
+def _seed_improv(flat_losses, disj_losses):
+    """Moyenne sur 3 tetes de (flat - disjoint) / flat (amelioration relative)."""
+    ks = ("action", "value", "pred")
+    return float(np.mean([(flat_losses[k] - disj_losses[k]) / max(flat_losses[k], 1e-12) for k in ks]))
+
+
+def _report(rows, verdict, mean_improv, mean_interf):
+    print("\n=== Banc A/B tetes disjointes vs plat (teacher-student) ===")
+    print("  seed | headloss FLAT (a/v/p)      | DISJOINT (a/v/p)          | improv | interf")
+    for r in rows:
+        f, d = r["flat"], r["disj"]
+        print("  %4d | %.3f %.3f %.3f | %.3f %.3f %.3f | %+.3f | %+.3f"
+              % (r["seed"], f["action"], f["value"], f["pred"],
+                 d["action"], d["value"], d["pred"], r["improv"], r["interf"]))
+    print("  MOYEN improv=%+.3f  conflit-gradient FLAT (cos)=%+.3f" % (mean_improv, mean_interf))
+    print("=== VERDICT ===")
+    print("  -> %s (seuil improv >= %.2f, majorite ; interf<0 = interference)" % (verdict, IMPROV_THRESH))
+
+
+def main_disjoint_heads(K=5, base=2200, steps=STEPS, _return=False):
+    if torch is None:
+        print("PyTorch indisponible -> banc saute.")
+        res = {"verdict": "SKIPPED_NO_TORCH", "per_seed": []}
+        return res if _return else None
+    try:
+        torch.use_deterministic_algorithms(True)
+    except Exception:
+        pass
+    teachers = _make_teachers()
+    rows = []
+    for i in range(K):
+        s = base + i
+        flat_losses, interf = _train_arm("flat", s, teachers, steps=steps)
+        disj_losses, _ = _train_arm("disjoint", s, teachers, steps=steps)
+        rows.append({"seed": s, "flat": flat_losses, "disj": disj_losses,
+                     "improv": _seed_improv(flat_losses, disj_losses), "interf": interf})
+    improvs = [r["improv"] for r in rows]
+    verdict = _verdict_disjoint(improvs)
+    mean_improv = float(np.mean(improvs))
+    mean_interf = float(np.mean([r["interf"] for r in rows]))
+    _report(rows, verdict, mean_improv, mean_interf)
+    res = {"verdict": verdict, "mean_improv": mean_improv, "mean_interference": mean_interf,
+           "per_seed": rows, "trunk_params": (_trunk_params_count(FlatModel()), _trunk_params_count(DisjointModel()))}
+    return res if _return else None
+
+
+if __name__ == "__main__":
+    main_disjoint_heads()
