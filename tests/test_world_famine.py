@@ -219,3 +219,23 @@ def test_energy_bank_stores_surplus_in_abundance():
     a["model"].phenotype_energy_drain = 0.0      # isole l'effet banque
     w.step()
     assert a.get("reserve", 0.0) > 0   # le surplus est banque en abondance
+
+
+def test_cycle_defaults_60_40_sans_env(monkeypatch):
+    monkeypatch.delenv("FAMINE_CYCLE_ABUNDANCE", raising=False)
+    monkeypatch.delenv("FAMINE_CYCLE_FAMINE", raising=False)
+    w = FamineWorld(WorldConfig())
+    if hasattr(w, "memory_retriever"):
+        w.memory_retriever.stop()
+    assert (w.cycle_abundance, w.cycle_famine) == (60, 40)
+
+
+def test_cycle_params_overridables_par_env(monkeypatch):
+    """Seam de dureté (durcir la famine) : env-vars FAMINE_CYCLE_* pilotent le régime pour un run
+    main_biosphere sans toucher au code (comme HOF_PATH/MAX_ERAS, EDR-126). Régime dur = famine longue."""
+    monkeypatch.setenv("FAMINE_CYCLE_ABUNDANCE", "30")
+    monkeypatch.setenv("FAMINE_CYCLE_FAMINE", "120")
+    w = FamineWorld(WorldConfig())
+    if hasattr(w, "memory_retriever"):
+        w.memory_retriever.stop()
+    assert (w.cycle_abundance, w.cycle_famine) == (30, 120)

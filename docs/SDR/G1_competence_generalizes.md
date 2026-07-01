@@ -4,7 +4,7 @@ type: SDR
 title: La competence generalise-t-elle (north-star)
 status: open
 gate: G1
-motivates: [EDR-105, EDR-108, EDR-129]
+motivates: [EDR-105, EDR-108, EDR-129, EDR-130]
 requires_ref: true
 ---
 # SDR-G1 — Généralisation zéro-shot (north-star)
@@ -51,3 +51,13 @@ le north-star FORT (généraliser une compétence *composée/spécialisée*) est
 spécialisation. Le verrou se déplace du transfert vers l'**émergence d'une compétence world-spécifique**
 (binding compositionnel EDR-125/128 ; tool-gate EDR-111). Prochaine piste : faire émerger une compétence
 spécifique (durcir la famine / débloquer le tool-gate) PUIS re-mesurer si ELLE transfère.
+
+**Durcir la famine RÉFUTÉ comme levier (EDR-130).** On a rendu le monde tel qu'il EXIGE le stockage
+(régime `cyc_ab=30 / cyc_fam=120` : oracle-storer ~2× le buffer naturel) puis ré-évolué (pipeline complet,
+3 seeds × 60 ères). **Le stockage n'émerge PAS** : réserve à la transition 7.6 ≈ 7.7 (identique aux
+champions doux), aucun bénéfice du banking (storage_help ≈ 0), et les champions durs sont **plus faibles**
+que les doux dans le même régime (durcir DÉGRADE au lieu de spécialiser — piège EDR-090). → **le substrat
+n'évolue pas la compétence world-spécifique que le monde EXIGE**. Répond au frontier d'EDR-129 : le
+transfert « noyau-partagé-seulement » n'est pas un accident, c'est la limite du substrat. Le north-star
+fort est bloqué **à l'ÉMERGENCE, pas au transfert** ; prochain levier = substrat/moteur (crédit conditionné,
+migration torch — EDR-128, [[sota-gap-substrate]]), pas l'exigence du monde. `SDR-G1` reste `open`.
