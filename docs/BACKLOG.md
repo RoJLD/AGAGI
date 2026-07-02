@@ -151,6 +151,26 @@ Toute expérience se situe dans **4 familles** de dimensions orthogonales.
 
 - **Table de craft spatiale (façon Minecraft)** : remplacer la recette unique (`rub` → lance) par une **grille 3×3** où la *disposition* définit la recette (*shaped crafting*) → arbre technologique compositionnel, pressure la planification spatiale. Progression : **3×3 → n×n → n×n×n** (craft volumétrique 3D). Après validation de la boucle moyens→fins par l'évolution.
 
+### Instruments isolés différés (2026-07-02, issus de l'exploration post-clôture arc têtes disjointes)
+
+> Deux axes identifiés comme vierges/quasi-vierges et ISOLABLES (banc `tools/*.py` auto-contenu), enregistrés
+> ici car de valeur secondaire ou à re-designer. Le backlog d'instruments per-type isolés est sinon ÉPUISÉ ;
+> tout le reste converge sur le substrat torch (territoire du fil // actif).
+
+- **Récupération épisodique par-agent ordonnée dans le temps** (audit P2-#6, AXE VRAIMENT NEUF, non instrumenté) :
+  une récupération par-agent triée temporellement (le timestamp est DÉJÀ dans le champ `id`
+  `tht_{timestamp}_{agent_id}`, cf. `src/graph_rag/async_logger.py:281-282`) prédit-elle mieux un signal futur
+  (`value_pred`/survie) que le schéma global actuel `MATCH (t:AgentThought) ORDER BY value_pred DESC LIMIT 500`
+  (`src/graph_rag/memory_retriever.py`) ? **Blocage repro** : la KuzuDB live est en contention active
+  (`data/kuzu_graph.db.corrupt-*`) → à refaire en **banc synthétique** (dataset épisodique fixe) pour garantir
+  les 2 passes byte-identiques, PAS en lecture de la DB live. Valeur brute élevée (jamais mesuré nulle part).
+- **`lr`-par-tête isolé** (résidu de l'arc têtes disjointes, EDR 152-192 ; nommé ouvert par
+  `docs/roadmap/HANDOFF_TORCH_READOUT_CREDIT.md` T2) : un multiplicateur de taux d'apprentissage scalaire par
+  tête (distinct des moments Adam séparés d'EDR 154) recouvre-t-il le gain DISJOINT comme l'échelle de loss
+  (recovery 0.79, EDR 153) ? Très propre/isolé (famille `tools/disjoint_heads_*.py`, harnais teacher-student),
+  mais **valeur marginale** : la synthèse de clôture qualifie ce résidu ~21% de « second ordre, ne justifie pas
+  une refonte ». Referme surtout une note de bas de page méthodo.
+
 ---
 
 ## Solidification G0 (porte FRANCHIE par EDR 112, raffinements différés)
