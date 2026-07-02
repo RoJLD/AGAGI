@@ -1018,6 +1018,11 @@ class Biosphere3D(BaseWorld):
         old_energies = np.array([a["energy"] for a in self.agents], dtype=np.float32)
         
         batch_logits, compute_spent = batch_model.forward(batch_obs, env_surprise_batch=env_surprise_batch)
+        if np.ndim(compute_spent) == 0:
+            # Backend torch (MVP) : TTC/dreaming pas encore porté -> renvoie un scalaire (0, cf.
+            # backend_torch.py). Normalisation locale à la boucle (par-agent) pour l'indexation
+            # downstream ; ne modifie pas le contrat forward() lui-même.
+            compute_spent = np.zeros(len(self.agents), dtype=np.float32)
         batch_logits = self._apply_social_consensus(batch_logits)
 
         # Differentiable / Configurable TTC Caloric Cost
@@ -1466,7 +1471,10 @@ class Biosphere3D(BaseWorld):
         rewards = (new_energies - old_energies) + self.curiosity_scale * curiosity + novelty
         # Actions prises ce tick (crédit d'action, EDR 020), alignées sur self.agents.
         actions_batch = [a.get("_pg", {"move": -1, "grab": 0, "rub": 0}) for a in self.agents]
-        batch_model.compute_policy_gradient(rewards, actions_batch)
+        if self.use_torch_inworld:
+            batch_model.learn(rewards, actions_batch)          # API PopulationModel (ADR-003)
+        else:
+            batch_model.compute_policy_gradient(rewards, actions_batch)
                 
         self.agents = survivors
         

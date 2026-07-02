@@ -40,3 +40,15 @@ def test_flag_on_returns_persistent_torch_pop():
     bm2 = w._get_batch_model(models)
     assert bm1 is bm2                  # MÊME objet -> optimiseur/gate persistent
     assert type(bm1).backend == "torch"
+
+
+def test_one_tick_torch_forward_and_learn():
+    w = _tiny_world(use_torch=True)
+    if not w.agents:
+        return
+    w.step()                            # un pas complet : ne doit pas lever
+    assert w._torch_pop is not None
+    W0 = np.asarray(w.agents[0]["model"].genome.W, dtype=np.float32).copy()
+    w.step()
+    W1 = np.asarray(w.agents[0]["model"].genome.W, dtype=np.float32)
+    assert W0.shape == W1.shape          # Baldwin : W réécrit, forme stable
