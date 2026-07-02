@@ -32,6 +32,9 @@ par gradient** et (2) une **assignation de crédit correcte** (lr/GradNorm par-t
   `émise==correct` doit monter de ~0.03 vers l'accord de décodage (~0.8) ; `p_reach` (via
   `lewis_survival_sweep._measure_forage`, cohorte fixe) de ~0.52 vers ~0.875 (borne oracle EDR 114).
 - **Banc prêt** : `nav_localization_probe` (probe) + `lewis_survival_sweep` (p_reach de-confondu 114b).
+- **BRIEF PRÊT-À-EXÉCUTER** : [`HANDOFF_T1_NAV_readout_brief.md`](HANDOFF_T1_NAV_readout_brief.md) —
+  points d'accroche `backend_torch`, perte auxiliaire supervisée (label oracle exogène, flag OFF), 2 jalons
+  (offline dé-risqué → in-world), critères mesurables. T1 libre (aucune session // dessus, 2026-07-02).
 
 ### T2 — Crédit multi-tête : GradNorm-lite / lr-par-tête dans le PLAT
 - **Preuve** : EDR 153 (le plat + GradNorm-lite recouvre le gain disjoint) / 154 (moments par-tête ≈
