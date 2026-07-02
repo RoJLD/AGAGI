@@ -27,3 +27,12 @@ def test_flat_norm_perhead_runs_and_returns_dict():
     for k in out:
         assert out[k] == out[k]  # not NaN
         assert out[k] >= 0.0
+
+
+from tools.disjoint_heads_synergy import main_v4_check
+
+
+def test_smoke_v4_returns_verdict():
+    res = main_v4_check(K=1, base=99000, steps=30, _return=True)
+    assert res["verdict"] in {"SYNERGY_CLOSES", "NO_SYNERGY", "PARTIAL", "SKIPPED_NO_TORCH"}
+    assert "per_seed" in res
