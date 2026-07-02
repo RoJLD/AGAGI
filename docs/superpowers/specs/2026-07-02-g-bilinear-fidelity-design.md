@@ -1,121 +1,119 @@
-# EDR 193 — Un g BILINÉAIRE (état-dépendant) est-il G_FIDÈLE là où le g linéaire d'EDR 135 était NEUTRE ? (design)
+# EDR 193 (REFORMULÉ) — La g-fidélité sur env-grille est-elle une anticipation LATENTE ou un artefact de ré-encodage d'ENTRÉE ? (design)
 
-> **Date** : 2026-07-02. **Fil** : G4 / anticipation (extension d'EDR 135). **Bloc de numérotation** : 193 (bloc
-> 190+, distant du débordement des fils // à ~161). **Statut** : design approuvé (brainstorming), à implémenter en
-> subagent-driven.
+> **Date** : 2026-07-02. **Fil** : G4 / anticipation (RE-EXAMINE EDR 135). **Bloc** : 193 (190+). **Statut** : design
+> RÉVISÉ après revue finale opus (voir §0). À implémenter en subagent-driven.
 
-## 1. Contexte et question
+## 0. Correction de prémisse (revue finale opus, vérifiée empiriquement)
 
-EDR 135 (« anticipation dé-pausée ») a mesuré la **fidélité de g** — la capacité de `g(H, a)` à prédire la transition
-latente `H → H'` mieux que la baseline « pas de changement ». Le `g` du modèle (`planner_G` / `G_batch`) est
-**LINÉAIRE** : un delta constant **par action**, `ΔH = g_delta[a]`, **indépendant de H courant**. Verdict d'EDR 135
-sur obs riches (env-grille causal) : **NEUTRE** (ratio ~1.0) — le g linéaire n'anticipe pas.
+Le design **initial** posait : « le g LINÉAIRE d'EDR 135 était NEUTRE sur env-grille (obs riches) ; un g bilinéaire
+craque-t-il là ? ». **Cette prémisse est FAUSSE** (vérifié en relançant le tool d'EDR 135) :
+- env-grille (obs riches causal) : **G_FIDELE** (median ~0.75, sign_p 0.000) — le g linéaire anticipe DÉJÀ.
+- synthétique (obs gaussiennes, pas de couplage action→obs) : **NEUTRE** (median ~1.04) — c'est LÀ le « neutre » d'EDR 135.
 
-EDR 135 conclut explicitement que **le dernier levier non testé du fil G4 est un `g` BILINÉAIRE** : rendre le delta
-**état-dépendant**, `ΔH = W_a · H` (une matrice par action, multipliée par H courant). Question falsifiable :
+Donc « le bilinéaire craque-t-il là où le linéaire échouait ? » est **moot** sur env-grille (le linéaire n'échoue pas),
+et un `bilin < learned` y serait un **artefact de ré-encodage** (opus, Q5 confirmé) : la position est un one-hot dans
+les nœuds d'ENTRÉE, `pos_t = clip(pos_{t-1}+move−1)` en fait un **opérateur de décalage déterministe par action** →
+trivialement récupérable par une carte linéaire état-dépendante, SANS aucune anticipation de dynamique cachée.
 
-> **Un g bilinéaire (`ΔH = W_a · H`) prédit-il les transitions latentes réelles mieux que la baseline ET mieux que le
-> g linéaire, sur les mêmes trajectoires obs-riches où le linéaire était NEUTRE ?**
+**Reformulation** : la vraie question G4, et un RE-EXAMEN d'EDR 135, est **où** vit cette fidélité — dans le
+ré-encodage d'entrée (trivial) ou dans le latent CACHÉ (anticipation réelle) ?
 
-Le modèle n'apprenant qu'un g linéaire, on ne peut PAS lire un g bilinéaire du modèle : on le **fitte OFFLINE** sur les
-vraies transitions latentes (trajectoire FIXE), et on compare les fidélités à la même métrique ratio.
+## 1. Question
 
-## 2. Substrat de trajectoires — env-grille (déterministe, isolé)
+> **La g-fidélité mesurée sur env-grille (linéaire ET bilinéaire) SURVIT-elle quand on restreint la métrique aux
+> nœuds CACHÉS (hors blocs one-hot d'entrée/sortie), ou s'effondre-t-elle vers NEUTRE — révélant que le G_FIDELE
+> d'EDR 135 était un artefact de ré-encodage de position, pas une anticipation latente ?**
 
-Rollout grille 1-D (longueur L=7, obs = one-hot(pos) ++ one-hot(danger), moves {gauche, rester, droite}), **miroir de
-`collect_ratios_env` d'EDR 135** : action → pos' → obs' est couplé (obs riche causal), round-robin des 3 actions, `g`
-appris en ligne (`PLAN_BIAS=0.5`, `PLAN_A=3`, `PLAN_LR=0.1`, restaurés en `finally`). **Pas de Biosphere, pas de HoF,
-pas de KuzuDB** → auto-contenu, reproductible (`np.random.seed(seed)` + numpy pur). C'est le régime où EDR 135
-mesurait le g linéaire NEUTRE → comparaison directe.
+Et, conditionnellement : si une anticipation latente CACHÉE existe, le g bilinéaire (état-dépendant) la capte-t-il
+mieux que le linéaire ?
 
-## 3. Collecte des triplets
+## 2. Layout des nœuds (vérifié dans `src/agents/mamba_agent.py:356-376`)
 
-Pour chaque tick `t ≥ warmup` où une transition existe, capturer un triplet :
-- `H_prev` = `H_rec` au tick t-1 (latent pré-rêve, `m.H_rec_batch[0, map_idx]`), forme `(N,)`, `N = num_nodes = 172`.
-- `move` = action jouée au tick t-1.
-- `H_next` = `H_rec` au tick t.
-- `g_learned` = `m.G_batch[0][:, map_idx][move]` au tick t (le g LINÉAIRE appris par le modèle — mesure exacte
-  d'EDR 135, sert de référence).
+`H_rec` est indexé en ordre agent-local par `map_idx` : **entrées** `[0, I)`, **cachés** `[I, N−O)`, **sorties**
+`[N−O, N)`. Pour l'agent env-grille : `I = _OBS_DIM = 14`, `O = 108`, `N = 172` → **cachés = [14, 64)** (50 nœuds ;
+le one-hot(pos)++one-hot(danger) vit dans les entrées `[0,14)`).
 
-`ΔH_true = H_next − H_prev`. Cible de prédiction = `ΔH_true` (comme `transition_error(H_prev, ΔH_pred, H_next)`).
+## 3. Substrat et collecte (inchangés)
 
-## 4. Prédicteurs comparés (offline, PAR SEED)
+Rollout env-grille 1-D déterministe (miroir de `collect_ratios_env`, EDR 135), triplets `(H_prev, move, H_next,
+g_learned)` en dims PLEINES (N=172). `g_learned = m.G_batch[0][:, map_idx][prev_move]` (le g linéaire appris = la
+mesure exacte d'EDR 135). Auto-contenu, déterministe, pas de Biosphere/HoF/KuzuDB.
 
-Chaque seed = réseau distinct = espace latent distinct → **fit PAR SEED, aucun pooling inter-seed**. Split **temporel
-70/30 par action** (les premiers 70 % des triplets d'une action = train, les 30 % suivants = test) → mesure la
-généralisation temporelle, pas la mémorisation.
+## 4. Prédicteurs (fit offline PAR SEED, split temporel 70/30 par action) — INCHANGÉS
 
-Sur le **test set**, pour chaque triplet, ratio = `pred_err / base_err` (filtré `base_err > 1e-4`, seuil env-one-hot
-d'EDR 135) :
-- **baseline** : `ΔH_pred = 0` → `base_err`.
-- **linéaire-appris** (référence EDR 135) : `ΔH_pred = g_learned`.
-- **linéaire-offline** (contrôle) : `ΔH_pred = c_a` où `c_a` = moyenne des `ΔH_true` du TRAIN pour l'action a
-  (delta constant par action, ré-estimé offline).
-- **bilinéaire** (la question) : `ΔH_pred = W_a · H_prev`, `W_a (N×N)` fitté par **ridge** sur le train de l'action a :
-  `W_a = ΔY^T X (X^T X + λ I)^{-1}`, où `X` = matrice des `H_prev` train (lignes), `ΔY` = matrice des `ΔH_true` train,
-  `λ = 1.0` (gelé). Résolution via `np.linalg.solve` (déterministe).
+- **learned-linéaire** (référence EDR 135) : `ΔH = g_learned`.
+- **linéaire-offline** (contrôle) : `ΔH = c_a` (moyenne train de ΔH par action).
+- **bilinéaire** : `ΔH = H_prev @ W_a`, `W_a` ridge par action (`λ=1.0`, convention ligne).
 
-Justification du bas-rang : le connectome a ~5 cachés EFFECTIFS (audit) → la carte de transition latente est
-effectivement bas-rang → `W_a` est fittable depuis ~200 triplets/action avec ridge, malgré N=172.
+## 5. Métrique décomposée — le CONTRÔLE DÉCISIF (nouveau)
 
-## 5. Verdict pré-enregistré (gelé), agrégé sur K seeds
+Pour chaque prédicteur, calculer le ratio `pred_err/base_err` sur le test-set de DEUX façons :
+- **FULL** : sur les N=172 dims (reproduit EDR 135 / la mesure initiale).
+- **HIDDEN** : sur les seules dims cachées `[I, N−O) = [14, 64)` (exclut le ré-encodage one-hot entrée/sortie).
 
-Réutilise `fidelity_verdict` (EDR 135) : `G_FIDELE` si `median(ratio) < 0.95` ET majorité favorable ; `G_INUTILE` si
-`median > 1.05` ; sinon `NEUTRE`.
+`transition_error` est réutilisé mais appliqué à un **sous-vecteur** (via un masque d'indices). Filtre
+`base_err_subset > base_thresh` (1e-4).
 
-Verdict combiné (sur les ratios test-set poolés des K seeds) :
-- **BILINEAR_FIDELE** si `fidelity_verdict(ratios_bilin)` = `G_FIDELE` **ET** `median(ratios_bilin) <
-  median(ratios_learned)` (le bilinéaire bat la référence linéaire-apprise) → **la FORME état-dépendante est le levier**
-  là où le linéaire était NEUTRE.
-- **BILINEAR_NEUTRAL** si `fidelity_verdict(ratios_bilin)` ∈ {`NEUTRE`, `G_INUTILE`} → le bilinéaire n'aide pas non
-  plus → **la forme de g n'est PAS le verrou** (confirme le soupçon d'EDR 135 : le linéaire accumulait mais restait
-  neutre).
-- **PARTIAL** sinon (bilinéaire fidèle mais ne bat pas le linéaire-appris).
+## 6. Verdict pré-enregistré (gelé), agrégé sur K seeds
 
-## 6. Interprétation (les issues)
+Réutilise `fidelity_verdict` (FIDELE si median<0.95 & majorité ; sinon NEUTRE/G_INUTILE). Verdicts calculés sur les
+ratios test-set poolés, séparément FULL et HIDDEN.
 
-- **BILINEAR_FIDELE** : découverte positive — le fil G4 avait un levier (la forme de g). Actionnable : embarquer un g
-  bilinéaire dans le planificateur. (Le moins probable au vu du soupçon d'EDR 135.)
-- **BILINEAR_NEUTRAL** : **clôt le fil G4 « forme de g »** — ni linéaire (135) ni bilinéaire n'anticipent les
-  transitions latentes réelles → le verrou de l'anticipation n'est PAS la forme du modèle de transition, mais ailleurs
-  (latent trop pauvre / non prédictible / crédit). Cohérent avec l'arc substrat (le verrou = crédit/substrat).
-- **PARTIAL** : le bilinéaire fitte quelque chose mais ne dépasse pas le linéaire-appris → forme insuffisante.
+- **ENCODING_ARTIFACT** si (learned-FULL = G_FIDELE ET bilin-FULL = G_FIDELE) MAIS (learned-HIDDEN NON-FIDELE ET
+  bilin-HIDDEN NON-FIDELE, median ≥ 0.95) → la fidélité env-grille est un **artefact de ré-encodage** ; le latent
+  caché N'EST PAS anticipé. **Corrige EDR 135** (son G_FIDELE env était I/O, pas latent).
+- **LATENT_BILINEAR** si `bilin-HIDDEN` = G_FIDELE (median < 0.95) ET `median(bilin-HIDDEN) < median(learned-HIDDEN)`
+  → une anticipation latente CACHÉE existe ET le bilinéaire la capte mieux → **la forme état-dépendante est le levier**
+  (découverte G4 positive).
+- **LATENT_LINEAR** si `learned-HIDDEN` = G_FIDELE ET `bilin-HIDDEN` ne bat pas (`median(bilin-HIDDEN) ≥
+  median(learned-HIDDEN)`) → anticipation cachée réelle mais le linéaire suffit (la forme n'est pas le levier).
+- **PARTIAL** sinon.
 
-## 7. Caveats (à graver)
+## 7. Interprétation (les issues)
 
-- **(a) Fit offline ≠ appris en ligne** : le bilinéaire est fitté par ridge sur les triplets, pas appris par le
-  modèle. On teste si la FORME (état-dépendante) PEUT prédire, pas si le modèle SAURAIT l'apprendre en ligne. Un
-  BILINEAR_FIDELE serait une borne HAUTE optimiste (oracle de fit).
-- **(b) Sous-détermination** : `W_a` (172×172) fitté depuis ~200 triplets → fortement régularisé (λ=1.0). Le test-set
-  tranche l'overfit ; λ non swept (gelé). Si bas-rang réel (~5 cachés), suffisant.
-- **(c)** Split temporel : suppose quasi-stationnarité après warmup ; round-robin garantit chaque action échantillonnée
-  régulièrement. **(d)** Substrat env-grille seul (obs riche causal) ; stoneage/synthétique non inclus (isolation).
-  Hérite des caveats d'EDR 135 (mesure de fidélité latente, pas de survie).
+- **ENCODING_ARTIFACT** (prédiction opus la plus probable) : le « g anticipe » d'EDR 135 sur env-grille était un
+  ré-encodage de position, pas une anticipation de conséquences latentes → **le fil G4 « forme/fidélité de g » n'a
+  toujours pas de levier réel** ; converge avec l'arc substrat (le latent caché ~5 effectifs ne porte pas de dynamique
+  prédictible état-dépendante). Résultat de correction, honnête.
+- **LATENT_BILINEAR** : le seul cas « découverte » — embarquer un g bilinéaire. (Peu probable au vu du latent pauvre.)
+- **LATENT_LINEAR** : anticipation cachée réelle mais linéaire suffit → la forme n'est pas le verrou (le modèle
+  actuel, linéaire, la capterait déjà).
 
-## 8. Périmètre / tooling additif
+## 8. Caveats (à graver)
 
-- **Nouveau fichier** : `tools/g_bilinear_probe.py`. Réutilise par **import** de `tools.g_fidelity_probe` :
-  `MambaAgent, MambaBatchModel, transition_error, fidelity_verdict, _obs_bench, _GRID_L, _N_MOVES, _OBS_DIM,
-  _T_WARN_PERIOD`. `numpy as np`.
-- **Nouveau test** : `tests/sandbox/test_g_bilinear_probe.py` (unit verdict + unit fit ridge sur données jouet +
-  smoke du rollout+fit à petite échelle).
-- **NE modifie NI** `tools/g_fidelity_probe.py` (mergé EDR-135) **NI** `src/` (import read-only de `mamba_agent`),
-  ni le substrat torch (`torch_batch_model.py`/`backend_torch.py`/`substrate_*` — fil //).
-- **Prints exécutés = ASCII-only** (cp1252) ; accents seulement en docstrings.
-- **Déterminisme** : rollout `np.random.seed(seed)` + ridge `np.linalg.solve` (numpy pur, pas de torch) ; run en
-  **2 passes byte-identiques**. Flags `PLAN_*` restaurés en `finally`.
+- **(a) [C1 opus] Correction de prémisse** : le linéaire est FIDELE sur env-grille (pas neutre) ; le neutre est le
+  synthétique. Le cadrage « craquer le neutre » est abandonné (§0).
+- **(b) [C2/Q5 opus] Artefact de décalage d'encodage** : sur les ENTRÉES, `pos` est un one-hot dont la transition est
+  un shift déterministe par action → une fidélité FULL peut être 100 % ce shift. **C'est précisément pourquoi le
+  contrôle HIDDEN est décisif** ; l'interprétation ne repose QUE sur le verdict HIDDEN.
+- **(c) Fit offline = oracle optimiste** (borne haute) : un HIDDEN non-fidèle même en oracle de fit est un signal
+  FORT (le latent caché n'est pas prédictible état-dépendant).
+- **(d) Sorties incluses dans le masque exclu** : `[N−O, N)` = moteurs, potentiellement aussi structurés ; on
+  restreint aux CACHÉS purs `[I, N−O)`. **(e) Substrat synthétique non inclus** (I2 opus) : le régime où le linéaire
+  est vraiment neutre ; différé au backlog (le contrôle HIDDEN sur env-grille tranche déjà l'artefact). **(f)** float64
+  (fit) vs float32 (135) : divergence numérique mineure. Hérite des caveats d'EDR 135.
 
-## 9. Interfaces produites
+## 9. Périmètre / tooling additif
 
-- `_collect_transitions_env(seed, warmup, measure) -> list[dict]` (triplets `{H_prev, move, H_next, g_learned}`).
-- `_fit_bilinear(train_triples, n_moves, N, lam) -> dict[move -> W_a]` (ridge par action).
-- `_fit_linear_offline(train_triples, n_moves, N) -> dict[move -> c_a]` (delta moyen par action).
-- `_split_temporal(triples, n_moves, frac=0.7) -> (train, test)`.
-- `_ratios_for_predictor(test, predictor_fn, base_thresh=1e-4) -> list[float]`.
-- `_verdict_bilinear(ratios_bilin, ratios_learned) -> str` (`BILINEAR_FIDELE`/`BILINEAR_NEUTRAL`/`PARTIAL`, gelé §5).
-- `main_bilinear_check(seeds=(0..7), warmup=300, measure=600, lam=1.0, _return=False) -> dict|None`
-  (`{verdict, median_bilin, median_learned, median_linoff, per_ratios...}`).
+- **Modifié (dans le chantier, branche non mergée)** : `tools/g_bilinear_probe.py` — ajout d'un masque de nœuds au
+  calcul de ratio + verdict de décomposition + rework de `main`. **Ne modifie NI** `tools/g_fidelity_probe.py` (mergé
+  EDR-135) **NI** `src/` (import read-only) ni le substrat torch (fil //).
+- **Test** : `tests/sandbox/test_g_bilinear_probe.py` (étendu : masque + verdict décomposition + smoke).
+- **Prints ASCII-only** (cp1252) ; accents seulement en docstrings. **Déterminisme** : numpy pur pour le fit ; rollout
+  seedé ; **2 passes byte-identiques**.
 
-## 10. Numérotation
+## 10. Interfaces produites (delta vs code existant)
 
-**EDR 193** — bloc **190+** (distant du débordement des fils //). Extension isolée d'EDR 135 (G4/anticipation).
+- Conservées (Task 1/2 existantes) : `_split_temporal`, `_fit_bilinear`, `_fit_linear_offline`,
+  `_collect_transitions_env`.
+- **Modifiée** : `_ratios_for_predictor(test, predictor_fn, idx=None, base_thresh=1e-4)` — `idx=None` → dims pleines ;
+  `idx` (array d'indices) → ratio restreint à ces dims.
+- **Nouvelle** : `_hidden_idx(N, n_in, n_out) -> np.ndarray` (= `arange(n_in, N - n_out)`).
+- **Remplacée** : `_verdict_bilinear` → `_verdict_decomposition(learned_full, bilin_full, learned_hidden,
+  bilin_hidden) -> str` (§6, gelé).
+- **Reworkée** : `main_bilinear_check(...)` calcule les 4 jeux de ratios (learned/bilin × full/hidden) et le verdict
+  de décomposition ; retour `{verdict, med_learned_full, med_bilin_full, med_learned_hidden, med_bilin_hidden, n}`.
+
+## 11. Numérotation
+
+**EDR 193** — bloc **190+**. Re-examen isolé d'EDR 135 (G4/anticipation).
