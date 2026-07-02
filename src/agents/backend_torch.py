@@ -48,6 +48,8 @@ class TorchPopulationModel(PopulationModel):
     CONDITION_GATE = False   # active le gate de conditionnement dans forward + learn
     ANTISAT = 0.0            # force de l'anti-saturation de la marginale de base (EDR-136)
     GATE_TARGET = None       # index du logit move gaté (l'action "ends") ; None => gate désactivé
+    GATE_MULT = False        # EDR-160 : gate MULTIPLICATIF sigmoïde (biais = SCALE·σ(H·w+b) ∈ [0,SCALE])
+    GATE_SCALE = 8.0         # amplitude du gate multiplicatif ; σ→0 supprime PROPREMENT hors-contexte
 
     def __init__(self, agents, world_model=None, lr=0.04, device="cpu"):
         if torch is None:
@@ -84,7 +86,11 @@ class TorchPopulationModel(PopulationModel):
         params = [self.W]
         if type(self).CONDITION_GATE and type(self).GATE_TARGET is not None:
             self.w_gate = torch.zeros(self.N, device=self.device, requires_grad=True)
-            self.b_gate = torch.zeros(1, device=self.device, requires_grad=True)
+            # MULTIPLICATIF (EDR-160) : biais initial NÉGATIF -> σ≈0 -> gate démarre ÉTEINT (bon prior de
+            # porte : apprend à s'ALLUMER en contexte). ADDITIF : 0 (neutre). Sinon le gate mult démarre
+            # always-on (σ(0)=0.5) et doit désapprendre, ce qui dégrade le binding (smoke EDR-160).
+            b0 = -4.0 if type(self).GATE_MULT else 0.0
+            self.b_gate = torch.full((1,), b0, device=self.device, requires_grad=True)
             params += [self.w_gate, self.b_gate]
         self.opt = torch.optim.SGD(params, lr=lr)
 
@@ -99,15 +105,24 @@ class TorchPopulationModel(PopulationModel):
         excitation = torch.bmm(H.unsqueeze(1), W_off).squeeze(1)   # (B,N) = H · W_off
         return (1.0 - delta) * H + delta * torch.tanh(excitation)
 
+    def _gate_value(self, H):
+        """Valeur brute du gate (B,) = readout de l'état H. ADDITIF : H·w+b (non borné). MULTIPLICATIF
+        (EDR-160, GATE_MULT) : SCALE·σ(H·w+b) ∈ [0,SCALE] -> le gate sort ~0 hors-contexte (suppression
+        PROPRE de la contamination S1 d'EDR-159) et ~SCALE en contexte. Pas de garde runtime (le banc
+        contrôle le scoping via gate_last_only) ; utilisé par _gate_bias et learn_episode."""
+        raw = H @ self.w_gate + self.b_gate                       # (B,)
+        if type(self).GATE_MULT:
+            return type(self).GATE_SCALE * torch.sigmoid(raw)
+        return raw
+
     def _gate_bias(self, H):
-        """Biais de gate (B,) = readout linéaire de l'état H (EDR-148). None si gate inactif.
-        Le gate CONDITIONNE sur H -> il apprend QUAND se déclencher (pas de béquille d'étape S1/S2 :
-        le substrat prod est task-agnostique). Généralise la recette de banc (147, gate câblé à S2).
+        """Biais de gate (B,) pour forward/_td_update. None si gate inactif. Le gate CONDITIONNE sur H
+        -> il apprend QUAND se déclencher (pas de béquille d'étape : substrat prod task-agnostique).
         `_gate_runtime` (défaut True) permet à un banc de le désactiver ponctuellement (diagnostic
         EDR-148 : isoler la contamination de l'étape « means » S1)."""
         if self.w_gate is None or not getattr(self, "_gate_runtime", True):
             return None
-        return H @ self.w_gate + self.b_gate                      # (B,)
+        return self._gate_value(H)
 
     def forward(self, batch_obs, env_surprise_batch=None):
         if self.B == 0:
@@ -247,7 +262,7 @@ class TorchPopulationModel(PopulationModel):
                 tgt = type(self).GATE_TARGET
                 onehot = torch.zeros(_MOVE_LOGITS, device=self.device)
                 onehot[tgt] = 1.0
-                gb = H @ self.w_gate + self.b_gate                   # readout de H -> biais action ends
+                gb = self._gate_value(H)                             # additif ou multiplicatif (EDR-160)
                 move_logits = base_move + gb.unsqueeze(1) * onehot
                 if type(self).ANTISAT > 0:
                     base_p_tgt = torch.softmax(base_move, dim=1)[:, tgt].mean()

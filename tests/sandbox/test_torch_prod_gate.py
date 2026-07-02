@@ -83,6 +83,35 @@ def test_run_prod_episodic_uniform_gate_smoke():
     assert "binding_gap" in r
 
 
+def test_gate_mult_value_is_bounded():
+    # gate MULTIPLICATIF (EDR-160) : σ borné -> _gate_value ∈ [0, GATE_SCALE], contrairement à l'additif.
+    import torch
+    saved = (TorchPopulationModel.CONDITION_GATE, TorchPopulationModel.GATE_TARGET,
+             TorchPopulationModel.GATE_MULT)
+    TorchPopulationModel.CONDITION_GATE = True
+    TorchPopulationModel.GATE_TARGET = 4
+    TorchPopulationModel.GATE_MULT = True
+    try:
+        pop = TorchPopulationModel([MambaAgent() for _ in range(4)])
+        with torch.no_grad():
+            pop.w_gate += 100.0                       # excitation extrême
+            v_hi = pop._gate_value(torch.ones(4, pop.N))
+            pop.w_gate -= 200.0
+            v_lo = pop._gate_value(torch.ones(4, pop.N))
+        assert float(v_hi.max()) <= TorchPopulationModel.GATE_SCALE + 1e-4   # borné en haut
+        assert float(v_lo.min()) >= -1e-4                                    # borné en bas (≥0)
+    finally:
+        (TorchPopulationModel.CONDITION_GATE, TorchPopulationModel.GATE_TARGET,
+         TorchPopulationModel.GATE_MULT) = saved
+
+
+def test_run_prod_gate_mult_smoke():
+    r = run_prod(True, episodes=20, n_agents=16, seed=0, antisat=6.0,
+                 stochastic=True, credit="episodic", gate_uniform=True, gate_mult=True)
+    assert "binding_gap" in r
+    assert TorchPopulationModel.GATE_MULT is False   # flag restauré
+
+
 def test_learn_still_works_gate_off():
     # le chemin learn (Actor-Critic TD) reste fonctionnel sans gate (banc // intact).
     pop = TorchPopulationModel([MambaAgent() for _ in range(4)], lr=0.05)

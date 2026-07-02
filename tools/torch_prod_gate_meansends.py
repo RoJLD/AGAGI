@@ -38,7 +38,7 @@ def _softmax_np(z):
 def run_prod(use_gate: bool, episodes: int = 1000, n_agents: int = 128, seed: int = 0,
              target_x: int = 0, target_y: int = 4, lr: float = 0.05, antisat: float = 6.0,
              stochastic: bool = False, gate_s2_only: bool = False, credit: str = "td",
-             gate_uniform: bool = False):
+             gate_uniform: bool = False, gate_mult: bool = False):
     """Entraîne une pop torch sur means→ends via le CHEMIN PROD (forward + crédit), gate ON/OFF.
     `credit` : 'td' = `pop.learn` Actor-Critic TD(0) différé 1-pas (défaut prod, EDR-148 : ne binde pas) ;
     'episodic' = `pop.learn_episode` (retour épisodique + gate + anti-sat, EDR-158 : le véhicule qui
@@ -55,10 +55,11 @@ def run_prod(use_gate: bool, episodes: int = 1000, n_agents: int = 128, seed: in
 
     # Flags de classe (restaurés en fin — isolation intra-process). GATE_TARGET = l'action "ends".
     saved = (TorchPopulationModel.CONDITION_GATE, TorchPopulationModel.ANTISAT,
-             TorchPopulationModel.GATE_TARGET)
+             TorchPopulationModel.GATE_TARGET, TorchPopulationModel.GATE_MULT)
     TorchPopulationModel.CONDITION_GATE = bool(use_gate)
     TorchPopulationModel.ANTISAT = antisat if use_gate else 0.0
     TorchPopulationModel.GATE_TARGET = target_y if use_gate else None
+    TorchPopulationModel.GATE_MULT = bool(gate_mult)              # EDR-160 : gate multiplicatif sigmoïde
     try:
         agents = [MambaAgent() for _ in range(n_agents)]
         pop = make_population(agents, backend="torch")
@@ -114,7 +115,7 @@ def run_prod(use_gate: bool, episodes: int = 1000, n_agents: int = 128, seed: in
                 "p_x": float(np.mean(did)), "binding_gap": pyx - pynx}
     finally:
         (TorchPopulationModel.CONDITION_GATE, TorchPopulationModel.ANTISAT,
-         TorchPopulationModel.GATE_TARGET) = saved
+         TorchPopulationModel.GATE_TARGET, TorchPopulationModel.GATE_MULT) = saved
 
 
 def main():
