@@ -37,3 +37,13 @@ def test_survival_ratio_none_si_non_fourni():
 def test_survival_2d_zero_ne_divise_pas_par_zero():
     r = classify_vertical_signal(2.0, 0.40, survival_2d=0.0, survival_3d=5.0)
     assert r["survival_ratio"] > 0  # epsilon au dénominateur, pas d'exception
+
+
+def test_measure_arm_smoke_3d_tourne_et_renvoie_les_cles():
+    from tools.vertical_world_probe import measure_arm
+    from src.agents.mamba_agent import MambaAgent
+    genome = MambaAgent().genome  # génome frais, aucune dépendance HoF
+    out = measure_arm(genome, use_3d=True, seed=42, n_eras=1, n_agents=3, max_ticks=20)
+    assert set(out.keys()) == {"survival", "z_range", "updown_frac"}
+    assert out["z_range"] >= 0.0
+    assert 0.0 <= out["updown_frac"] <= 1.0
