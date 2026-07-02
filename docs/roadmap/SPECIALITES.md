@@ -81,10 +81,10 @@
 - statut: actif
 - couche: Monde
 - question_phare: Le mur de navigation (approche vs capture)
-- fichiers_possedes: tools/lewis_survival_sweep.py, tools/nav_*.py
+- fichiers_possedes: tools/lewis_survival_sweep.py, tools/nav_*.py, tools/energy_readout_probe.py
 - memoire: lewis-energy-economy-wall.md
 - legacy_edr: 090,107,110,113,114
-- frontiere_courante: EDR-NAV-001 → mur = READOUT_GAP (H décode la direction à ~0.81, la tête d'action l'ignore ; encodeur OK) ; cible torch = entraîner la tête d'action par gradient (H→action déjà présent), pas l'encodeur
+- frontiere_courante: EDR-NAV-001 → mur navigation = READOUT_GAP (H décode la direction ~0.81, la tête d'action l'ignore ; encodeur OK) ; EDR-NAV-002 → détresse énergétique aussi richement dans H (0.89-0.91) mais readout énergie non isolable (endogène) → cible torch = tête d'action par gradient sur signal EXOGÈNE (NAV), pas l'encodeur
 - ponts_actifs: [SUB (tête d'action par gradient sur le signal NAV présent dans H)]
 - filiation: —
 

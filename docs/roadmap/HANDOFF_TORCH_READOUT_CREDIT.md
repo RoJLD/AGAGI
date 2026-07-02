@@ -68,8 +68,11 @@ par gradient** et (2) une **assignation de crédit correcte** (lr/GradNorm par-t
 - **Ownership** : ces cibles touchent `src/agents/backend_torch.py` + boucle biosphère = territoire de la
   session torch. Ce doc est un *handoff*, pas une implémentation. Les bancs (`nav_localization_probe`,
   `disjoint_heads_*`, `substrate_ab_compositional`) restent côté tooling (sessions //).
-- **Pont inter-murs** (hypothèse à tester, EDR-NAV-001) : navigation ↔ énergie (soin −10 compulsif
-  EDR 094) = possiblement le MÊME readout émettant des actions chères non-navigantes. Si T1 corrige la
-  navigation, re-mesurer la survie Lewis : un readout réparé pourrait lever les DEUX murs d'un coup.
+- **Pont inter-murs** (EDR-NAV-001 → **EDR-NAV-002, testé**) : la détresse énergétique est **richement
+  encodée dans H** (0.89-0.91 > obs), comme la direction en NAV-001 → la moitié *encodeur* de la thèse
+  readout tient pour les DEUX murs. **Mais** le readout énergétique n'est pas isolable *comportementalement*
+  (l'énergie est ENDOGÈNE au forage → pas de label exogène ; cf. NAV-002). ⇒ T1 (NAV, seul mur à label
+  exogène) reste la cible mesurable ; un readout réparé pourrait lever les deux murs (les deux états sont
+  dans H), mais seul NAV le prouvera. Leçon : un probe de readout exige un **label-cible exogène**.
 
 Lignée : cartographe (backlog C1-C3) + EDR-NAV-001 / 152-191 / 148-159 → ce handoff unifié.
