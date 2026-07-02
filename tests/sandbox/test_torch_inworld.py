@@ -52,3 +52,22 @@ def test_one_tick_torch_forward_and_learn():
     w.step()
     W1 = np.asarray(w.agents[0]["model"].genome.W, dtype=np.float32)
     assert W0.shape == W1.shape          # Baldwin : W réécrit, forme stable
+
+
+def test_traj_buffer_slides_with_maxlen():
+    w = _tiny_world(use_torch=True)
+    w.torch_episode_k = 3
+    if not w.agents:
+        return
+    for _ in range(4):
+        w.step()
+    # benchmark_mode desactive repro/mutation/HGT mais pas la mort (famine/combat) : la
+    # cohorte peut retrecir DANS un tick (actions_batch construit avant le filtrage des
+    # survivants). On capture donc la taille de cohorte EN ENTREE du dernier tick, seule
+    # reference stable pour l'alignement (pas w.agents apres coup, qui peut deja refleter
+    # les morts du tick).
+    n_before = len(w.agents)
+    w.step()
+    assert len(w._torch_traj) == 3                 # maxlen respecte
+    obs, acts, rew = w._torch_traj[-1]
+    assert len(acts) == n_before                    # actions alignees sur la cohorte du tick

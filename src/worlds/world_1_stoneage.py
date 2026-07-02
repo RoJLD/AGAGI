@@ -45,6 +45,12 @@ class Biosphere3D(BaseWorld):
         # doivent survivre entre ticks). Exige cohorte fixe (benchmark_mode) pour dims homogènes.
         self.use_torch_inworld = False
         self._torch_pop = None
+        # Buffer glissant K ticks (cran 1, collecte) : trajectoire episodique pour le futur
+        # credit learn_episode (Task 4). Pousse seulement en mode torch (voir bloc du credit
+        # par-tick). deque(maxlen=K) -> glisse automatiquement, garde les K derniers ticks.
+        from collections import deque
+        self.torch_episode_k = 8          # taille de fenetre episodique (variable EDR)
+        self._torch_traj = deque(maxlen=self.torch_episode_k)
         # Mode benchmark (S2) : cohorte FIXE -> désactive reproduction/mutation/HGT pendant la
         # mesure (sinon la lignée est immortelle et la survie sature au cap, blocker panel). Défaut
         # False = comportement historique. L'apprentissage intra-vie reste actif. Spec §4.
@@ -1473,6 +1479,16 @@ class Biosphere3D(BaseWorld):
         actions_batch = [a.get("_pg", {"move": -1, "grab": 0, "rub": 0}) for a in self.agents]
         if self.use_torch_inworld:
             batch_model.learn(rewards, actions_batch)          # API PopulationModel (ADR-003)
+            # resynchro du maxlen si torch_episode_k a change apres construction (banc/tests)
+            if self._torch_traj.maxlen != self.torch_episode_k:
+                from collections import deque
+                self._torch_traj = deque(self._torch_traj, maxlen=self.torch_episode_k)
+            # snapshot du tick pour le credit episodique (Task 4). Copie defensive : batch_obs/
+            # rewards sont reutilises par la boucle ; actions_batch est deja une liste fraiche
+            # de dicts.
+            self._torch_traj.append((np.asarray(batch_obs, dtype=np.float32).copy(),
+                                      list(actions_batch),
+                                      np.asarray(rewards, dtype=np.float32).copy()))
         else:
             batch_model.compute_policy_gradient(rewards, actions_batch)
                 
