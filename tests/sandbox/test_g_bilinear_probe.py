@@ -55,3 +55,12 @@ def test_verdict_bilinear_neutral():
 def test_verdict_bilinear_partial():
     # fidele mais NE bat PAS le learned (learned median plus bas)
     assert _verdict_bilinear([0.4, 0.5, 0.3, 0.45, 0.5], [0.1, 0.1, 0.1, 0.1, 0.1]) == "PARTIAL"
+
+
+from tools.g_bilinear_probe import main_bilinear_check
+
+
+def test_smoke_bilinear_returns_verdict():
+    res = main_bilinear_check(seeds=(0,), warmup=30, measure=60, _return=True)
+    assert res["verdict"] in {"BILINEAR_FIDELE", "BILINEAR_NEUTRAL", "PARTIAL", "NO_DATA"}
+    assert "median_bilin" in res
