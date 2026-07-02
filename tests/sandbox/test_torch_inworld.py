@@ -106,3 +106,26 @@ def test_learn_episode_applies_real_credit_during_steps():
             break
         w.step()
     assert any(isinstance(r, float) for r in returns), f"aucun credit episodique applique: {returns}"
+
+
+def test_maybe_learn_episode_skips_cleanly_without_pop():
+    # aucun step -> pop torch pas encore construit -> skip propre, pas de crash
+    w = _tiny_world(use_torch=True)
+    assert w._torch_pop is None
+    assert w._maybe_learn_episode() is None
+
+
+def test_maybe_learn_episode_skips_on_pop_desync():
+    # cohorte courante != pop.B -> garde pop_desync -> None sans crash
+    w = _tiny_world(use_torch=True)
+    w.torch_episode_k = 3
+    if not w.agents:
+        return
+    for _ in range(3):
+        if not w.agents:
+            break
+        w.step()
+    if w._torch_pop is None or not w.agents:
+        return
+    w.agents = list(w.agents) + [dict(w.agents[0])]   # +1 agent factice -> len(current_ids) != pop.B
+    assert w._maybe_learn_episode() is None            # skip pop_desync, pas d'exception
