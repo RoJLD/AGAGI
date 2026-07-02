@@ -15,11 +15,16 @@
 
 ## À coordonner (haute impact MAIS territoire activement piloté par une session parallèle)
 
+> **Spec de handoff unifiée : [`../HANDOFF_TORCH_READOUT_CREDIT.md`](../HANDOFF_TORCH_READOUT_CREDIT.md)**
+> — C1/C2/C3 + NAV-001 convergent : le verrou est le **READOUT/CRÉDIT**, pas l'encodeur (disculpé 3×
+> indépendamment). Cible priorisée + critères mesurables pour la session torch.
+
 | # | Gap | Territoire | Note collision |
 |---|-----|-----------|----------------|
-| C1 | Crédit multi-tête → substrat torch-prod (GradNorm-lite / lr-par-tête dans le PLAT, PAS la refonte #5) | COG→SUB/PROD | Fil disjoint-heads ACTIF (EDR 152-155, planifie 156). `lr-par-tête` proxy non testé (caveat EDR 154) = seul angle proxy encore libre. |
-| C2 | Recette gate+anti-saturation (BIND) → prod : activer EDR-148 (flag OFF), valider hors banc jouet | BIND→PROD | Fil compositional // ; port prod entamé (EDR-148). |
-| C3 | BPTT fenêtré in-world (persister le graphe K ticks) | SUB | Fil torch ACTIF (EDR 145/146 BPTT). |
+| C1 | Crédit multi-tête → substrat torch-prod (GradNorm-lite / lr-par-tête dans le PLAT, PAS la refonte #5) | COG→SUB/PROD | Fil disjoint-heads ACTIF (EDR 152-155, planifie 156). `lr-par-tête` proxy non testé (caveat EDR 154) = seul angle proxy encore libre. → handoff **T2**. |
+| C2 | Recette gate+anti-saturation (BIND) → prod : activer EDR-148 (flag OFF), valider hors banc jouet | BIND→PROD | Fil compositional // ; port prod entamé (EDR-148/158/159). → handoff **T3**. |
+| C3 | BPTT fenêtré in-world (persister le graphe K ticks) | SUB | Fil torch ACTIF (EDR 145/146 BPTT). → handoff **T4** (subordonné : la recette binding vit SANS BPTT). |
+| C0 | **NAV readout → tête d'action par gradient** (nouveau, EDR-NAV-001) | NAV→SUB/PROD | Cible la plus nette, banc prêt (`nav_localization_probe`). → handoff **T1** (prio 1). |
 
 ## Verdicts à tenir à jour
 

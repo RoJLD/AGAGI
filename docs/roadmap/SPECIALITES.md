@@ -105,8 +105,8 @@
 - question_phare: Quels types émergent / sont dissociables
 - fichiers_possedes: tools/tom_probe.py, tools/anticipation_bench.py, tools/disjoint_heads_ab.py
 - memoire: intelligence-typing-flat-connectome.md, dreaming-organ-not-dead.md, planner-depth1-refuted.md
-- legacy_edr: 093,094,095,150,151,152,153,154
-- frontiere_courante: équilibrage de crédit multi-tête (GradNorm-lite / lr-par-tête) dans le connectome PLAT, porté en prod — PAS la refonte #5 (EDR 152-154) ; + volet causal ToM NON TESTÉ (incitation ToM→life_score, différé migration torch — EDR 150/151)
+- legacy_edr: 093,094,095,150,151,152,153,154,190,191
+- frontiere_courante: équilibrage de crédit multi-tête (GradNorm-lite / lr-par-tête) dans le connectome PLAT, porté en prod — PAS la refonte #5 (EDR 152-154, 190-191 : « crédit pas archi » robuste à l'interférence induite) ; + volet causal ToM NON TESTÉ (incitation ToM→life_score, différé migration torch — EDR 150/151)
 - ponts_actifs: [BIND (crédit multi-tête), SUB (portage prod)]
 - filiation: —
 
