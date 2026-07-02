@@ -40,6 +40,11 @@ class Biosphere3D(BaseWorld):
         # (inchangé). Le runner S2 le remplace par un BaselineBatchModel (RandomAction/Reflex) APRÈS
         # construction du monde -> baselines sans connectome, zéro fork. Spec §11.
         self.batch_model_cls = MambaBatchModel
+        # Intégration torch in-world (axe 1). OFF par défaut = legacy strictement non-régressif.
+        # ON => pop torch PERSISTANT (hissé hors boucle par-tick : l'optimiseur SGD et le gate
+        # doivent survivre entre ticks). Exige cohorte fixe (benchmark_mode) pour dims homogènes.
+        self.use_torch_inworld = False
+        self._torch_pop = None
         # Mode benchmark (S2) : cohorte FIXE -> désactive reproduction/mutation/HGT pendant la
         # mesure (sinon la lignée est immortelle et la survie sature au cap, blocker panel). Défaut
         # False = comportement historique. L'apprentissage intra-vie reste actif. Spec §4.
@@ -922,6 +927,22 @@ class Biosphere3D(BaseWorld):
                     except Exception as e:
                         logger.emit("HGT_FAILED", {"error": str(e), "parents": [agent["id"], best_neighbor["id"]]})
 
+    def _get_batch_model(self, models):
+        """Renvoie le batch model du tick. Legacy = recréé/tick (non-régressif). Torch = pop
+        PERSISTANT (créé une fois, réutilisé) pour conserver optimiseur + gate. Reconstruit si la
+        taille de population change (B)."""
+        if not self.use_torch_inworld:
+            return self.batch_model_cls(models, world_model=self.world_model)
+        from src.agents.backend import make_population
+        need_rebuild = (
+            self._torch_pop is None
+            or getattr(self._torch_pop, "B", -1) != len(models)
+        )
+        if need_rebuild:
+            self._torch_pop = make_population(models, backend="torch",
+                                              world_model=self.world_model)
+        return self._torch_pop
+
     def step(self):
         self.ticks += 1
         was_night = getattr(self, "is_night", False)
@@ -984,12 +1005,12 @@ class Biosphere3D(BaseWorld):
 
         if not self.agents:
             return
-            
+
         # VECTORIZED OBSERVATION & BATCHING
         batch_obs = self.get_batch_observations()
         models = [a["model"] for a in self.agents]
         MambaBatchModel.KWTA_KEEP_FRAC = getattr(self.config, "kwta_keep_frac", 1.0)
-        batch_model = self.batch_model_cls(models, world_model=self.world_model)
+        batch_model = self._get_batch_model(models)
 
         env_surprise_batch = np.array([a.get("last_env_surprise", 0.0) for a in self.agents])
         
