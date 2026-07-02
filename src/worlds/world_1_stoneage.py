@@ -51,6 +51,7 @@ class Biosphere3D(BaseWorld):
         from collections import deque
         self.torch_episode_k = 8          # taille de fenetre episodique (variable EDR)
         self._torch_traj = deque(maxlen=self.torch_episode_k)
+        self._torch_tick = 0
         # Mode benchmark (S2) : cohorte FIXE -> désactive reproduction/mutation/HGT pendant la
         # mesure (sinon la lignée est immortelle et la survie sature au cap, blocker panel). Défaut
         # False = comportement historique. L'apprentissage intra-vie reste actif. Spec §4.
@@ -949,6 +950,37 @@ class Biosphere3D(BaseWorld):
                                               world_model=self.world_model)
         return self._torch_pop
 
+    def _maybe_learn_episode(self):
+        """Crédit épisodique torch aligné par IDENTITÉ d'agent. La population décroît (mortalité, même
+        en benchmark_mode) -> les tuples du buffer ont des tailles décroissantes. On crédite les agents
+        ENCORE présents (cohorte courante = pop courant) en rognant chaque tick du buffer à ces ids.
+        Skip propre (log, pas de crash) si la fenêtre n'est pas pleine, si le pop est absent/désync, ou
+        si un id courant manque d'un tick. Ne se déclenche qu'aux multiples de torch_episode_k."""
+        traj = self._torch_traj
+        if self._torch_pop is None:
+            return None
+        if len(traj) != traj.maxlen or self._torch_tick % self.torch_episode_k != 0:
+            return None
+        current_ids = [a["id"] for a in self.agents]
+        B = getattr(self._torch_pop, "B", -1)
+        if B == 0 or len(current_ids) != B:
+            logger.emit("TORCH_EPISODE_SKIP", {"reason": "pop_desync", "tick": self._torch_tick})
+            return None
+        obs_seq, actions_seq = [], []
+        ep_return = np.zeros(len(current_ids), dtype=np.float32)
+        for (obs, actions, rewards, ids) in traj:
+            pos = {aid: j for j, aid in enumerate(ids)}
+            if any(aid not in pos for aid in current_ids):
+                logger.emit("TORCH_EPISODE_SKIP", {"reason": "id_missing", "tick": self._torch_tick})
+                return None
+            idx = [pos[aid] for aid in current_ids]
+            obs_seq.append(np.asarray(obs, dtype=np.float32)[idx])
+            actions_seq.append([actions[j] for j in idx])
+            ep_return += np.asarray(rewards, dtype=np.float32)[idx]
+        ep_return = ep_return - float(np.mean(ep_return))          # baseline = moyenne de population
+        return self._torch_pop.learn_episode(obs_seq, actions_seq, ep_return,
+                                             gamma=1.0, gate_last_only=True)
+
     def step(self):
         self.ticks += 1
         was_night = getattr(self, "is_night", False)
@@ -1488,7 +1520,10 @@ class Biosphere3D(BaseWorld):
             # de dicts.
             self._torch_traj.append((np.asarray(batch_obs, dtype=np.float32).copy(),
                                       list(actions_batch),
-                                      np.asarray(rewards, dtype=np.float32).copy()))
+                                      np.asarray(rewards, dtype=np.float32).copy(),
+                                      [a["id"] for a in self.agents]))
+            self._torch_tick += 1
+            self._maybe_learn_episode()
         else:
             batch_model.compute_policy_gradient(rewards, actions_batch)
                 

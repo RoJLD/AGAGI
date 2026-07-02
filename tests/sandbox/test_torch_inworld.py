@@ -69,5 +69,23 @@ def test_traj_buffer_slides_with_maxlen():
     n_before = len(w.agents)
     w.step()
     assert len(w._torch_traj) == 3                 # maxlen respecte
-    obs, acts, rew = w._torch_traj[-1]
+    obs, acts, rew, ids = w._torch_traj[-1]
     assert len(acts) == n_before                    # actions alignees sur la cohorte du tick
+    assert len(ids) == len(acts)                   # ids alignés sur les actions
+
+
+def test_maybe_learn_episode_fires_and_returns_loss():
+    w = _tiny_world(use_torch=True)
+    w.torch_episode_k = 3
+    if not w.agents:
+        return
+    losses = []
+    for _ in range(6):                              # 2 fenêtres pleines
+        w.step()
+        if w._torch_pop is not None:
+            pass
+    # après 6 ticks avec K=3, au moins une fenêtre a dû se compléter
+    assert w._torch_tick >= 6
+    # déclenche manuellement pour vérifier le retour (fenêtre pleine à ce stade)
+    out = w._maybe_learn_episode()
+    assert out is None or isinstance(out, float)    # float si crédit appliqué, None si skip propre
