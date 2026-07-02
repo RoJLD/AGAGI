@@ -9,7 +9,7 @@ import numpy as np
 from src.seed_ai.harness import seed_at, Harness, _git_short_commit
 from src.seed_ai.persistence import calculate_life_score, load_hall_of_fame
 from src.agents.baseline_models import RandomActionBatchModel, ReflexBatchModel
-from src.seed_ai.s2_stats import s2_verdict, holm
+from src.seed_ai.s2_stats import s2_verdict, verdict_from_survival_cmps, holm
 from src.worlds.world_1_stoneage import Biosphere3D
 from src.worlds.world_0_soup import SoupWorld
 from src.worlds.world_2_agricultural import AgriculturalWorld
@@ -143,11 +143,20 @@ def run_s2(worlds=None, seed=2026, K=None, num_agents=20, max_ticks=400, with_db
             # s2_verdict reçoit les dicts de condition (pooled pour l'effet + par-ère pour l'appariement)
             baselines = {"random_action": conds["random_action"],
                          "random_genome": conds["random_genome"], "reflex": refl}
+            # Verdict basé SURVIE (addendum daté 2026-06-30, cf. EDR 124) : le gate de cohérence
+            # life_score donnait un faux VOID quand le champion domine la survie 3-5x mais que son
+            # edge life_score est noyé par des événements rares/chanceux. s2_verdict calcule déjà les
+            # cmps de survie (dans les 2 branches) + life_p -> on re-rend le verdict SANS re-simuler.
             v = s2_verdict(conds["champion"], baselines)
-            v["censored_frac_champion"] = conds["champion"]["censored_frac"]
-            report["worlds"][w] = v
+            sv = verdict_from_survival_cmps(v["survival"])
+            sv["survival"] = v["survival"]
+            sv["life_p"] = v["life_p"]                          # corroborant NON-bloquant (rapporté)
+            sv["coherence_ok_lifescore"] = v["coherence_ok"]   # ce qu'aurait tranché l'ancien gate
+            sv["censored_frac_champion"] = conds["champion"]["censored_frac"]
+            report["worlds"][w] = sv
 
-        # FWER global : Holm sur les p_monde des mondes au verdict non-VOID
+        # FWER global : Holm sur les p_monde de la famille des mondes testés (tous ont un p_monde
+        # sous la base survie ; ne plus sélectionner la famille a posteriori sur le non-VOID)
         decided = [w for w in worlds if report["worlds"][w].get("p_monde") is not None]
         if decided:
             adj = holm([report["worlds"][w]["p_monde"] for w in decided])
@@ -162,15 +171,19 @@ def run_s2(worlds=None, seed=2026, K=None, num_agents=20, max_ticks=400, with_db
 
 def _print_table(report):
     print(f"\n=== S2 — Le monde exige-t-il l'intelligence ? (seed={report['seed']}, commit={report['commit']}) ===")
+    print("    cohérence basée SURVIE (addendum 2026-06-30, EDR 124) ; life_p = corroborant non-bloquant")
     for w, v in report["worlds"].items():
-        if v["verdict"] == "VOID":
-            print(f"  {w:12s} : VOID (cohérence life_score échouée, life_p={v['life_p']:.3f})")
-            continue
         s = v["survival"][v["strongest_baseline"]]
+        if v["verdict"] == "VOID":
+            # base survie : VOID = un baseline domine le champion en survie (vraie incohérence)
+            print(f"  {w:12s} : VOID (survie incohérente : {v['strongest_baseline']} domine, "
+                  f"p_monde={v['p_monde']:.3f}, Cliff d={s['cliff']:+.2f})")
+            continue
+        gate = "ok" if v.get("coherence_ok_lifescore") else "faux-VOID"
         print(f"  {w:12s} : {v['verdict']:12s} | p_monde={v.get('p_monde_holm', v['p_monde']):.3f} "
-              f"| vs {v['strongest_baseline']}: Cliff δ={s['cliff']:+.2f}, ratio[{s['ratio_lo']:.2f},{s['ratio_hi']:.2f}] "
-              f"| censuré={v['censored_frac_champion']*100:.0f}%")
-    print("  -> Rédiger EDR 088 à partir de ce verdict. Si censuré>5% quelque part : augmenter max_ticks.")
+              f"| vs {v['strongest_baseline']}: Cliff d={s['cliff']:+.2f}, ratio[{s['ratio_lo']:.2f},{s['ratio_hi']:.2f}] "
+              f"| censuré={v['censored_frac_champion']*100:.0f}% | life_p={v['life_p']:.3f} (ancien gate: {gate})")
+    print("  -> Verdict porté par EDR 124. Si censuré>5% quelque part : augmenter max_ticks.")
 
 
 if __name__ == "__main__":
