@@ -44,6 +44,10 @@ par gradient** et (2) une **assignation de crédit correcte** (lr/GradNorm par-t
 - **Action torch** : lr/GradNorm par-tête dans le connectome plat prod — **PAS** la refonte archi #5
   (réfutée comme levier, EDR 153).
 - **Critère** : recouvrement ≥ celui de l'échelle-de-loss (0.79, EDR 153) sur `tools/disjoint_heads_*.py`.
+- **BRIEF PRÊT-À-EXÉCUTER** : [`HANDOFF_T2_multihead_credit_brief.md`](HANDOFF_T2_multihead_credit_brief.md) —
+  M1 proxy (bras FLAT_PERHEAD_LR, ferme le caveat 154, tooling ownable seul) → M2 port prod (GradNorm-lite
+  dans `_td_update`, flag OFF). ⚠️ payoff prod incertain (EDR 191 : avantage = sur-capacité) → définir un
+  métrique multi-tête AVANT M2. Prio 3.
 
 ### T3 — BIND : activer la recette gate + crédit épisodique en prod (flag OFF)
 - **Preuve** : EDR 158 (`TorchPopulationModel.learn_episode` : crédit épisodique + gate + anti-sat
