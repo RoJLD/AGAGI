@@ -50,6 +50,11 @@ survie 3-5×. **Addendum daté** : cohérence basée **survie**, `life_score` co
 re-render hors-ligne (zéro re-compute) → EXIGE × 4. C'était un **défaut de design du benchmark**, pas
 un résultat négatif.
 
+*MAJ (câblage) :* `tools/s2_demand.run_s2` rend désormais le verdict **nativement** via
+`verdict_from_survival_cmps` (`life_p` conservé en corroborant non-bloquant, trace de l'ancien gate
+sous `coherence_ok_lifescore`) : relancer le benchmark reproduit EXIGE × 4 sans étape hors-ligne. Le
+`_print_table` est rendu ASCII-safe (bug latent cp1252 sur `δ`, cohérent avec PR #87).
+
 ## Interprétation (FAIT vs INTERPRÉTATION)
 
 - **FAIT** : le monde exige l'intelligence pour la SURVIE (4 mondes, p=0.0025, Holm 0.0101, 3.4–4.7×).
