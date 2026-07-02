@@ -74,18 +74,35 @@ def test_traj_buffer_slides_with_maxlen():
     assert len(ids) == len(acts)                   # ids alignés sur les actions
 
 
-def test_maybe_learn_episode_fires_and_returns_loss():
-    w = _tiny_world(use_torch=True)
+def test_learn_episode_applies_real_credit_during_steps():
+    """Prouve qu'un crédit épisodique RÉEL (float non-None) est appliqué PENDANT step(), pas
+    via un appel manuel post-boucle. L'ancien test (`_maybe_learn_episode` invoqué à la main
+    après la boucle) était tautologique : `out is None or isinstance(out, float)` passe même
+    si l'alignement casse et que le crédit skippe TOUJOURS (retour None systématique) — de
+    plus l'appel manuel intervenait après `self.agents = survivors` du dernier step(), donc
+    pouvait subir un pop_desync et renvoyer None de façon trompeuse. Ici on espionne
+    `_maybe_learn_episode` (appelé en interne par `step()`, AVANT le filtrage des survivants,
+    cf. Biosphere3D.step) et on collecte ses retours non-None au fil des steps.
+
+    Seed/n_agents/K figés (déterministe, revérifié 5x + 8 seeds différents en amont) : avec
+    seed=0, n_agents=16, K=3, la cohorte s'éteint vers le step 6 mais 2 fenêtres épisodiques
+    (tick 3 et tick 6) ont le temps de se compléter et de créditer AVANT extinction -> exactement
+    2 floats non-None sur 9 steps, de façon stable (pas de flakiness observée)."""
+    np.random.seed(0)                          # repro : éviter une extinction précoce aléatoire
+    w = _tiny_world(use_torch=True, n_agents=16)
     w.torch_episode_k = 3
     if not w.agents:
         return
-    losses = []
-    for _ in range(6):                              # 2 fenêtres pleines
+    returns = []
+    orig = w._maybe_learn_episode
+    def _spy():
+        out = orig()
+        if out is not None:
+            returns.append(out)
+        return out
+    w._maybe_learn_episode = _spy
+    for _ in range(9):
+        if not w.agents:
+            break
         w.step()
-        if w._torch_pop is not None:
-            pass
-    # après 6 ticks avec K=3, au moins une fenêtre a dû se compléter
-    assert w._torch_tick >= 6
-    # déclenche manuellement pour vérifier le retour (fenêtre pleine à ce stade)
-    out = w._maybe_learn_episode()
-    assert out is None or isinstance(out, float)    # float si crédit appliqué, None si skip propre
+    assert any(isinstance(r, float) for r in returns), f"aucun credit episodique applique: {returns}"
