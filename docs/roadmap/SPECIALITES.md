@@ -78,14 +78,14 @@
 - filiation: —
 
 ### NAV — Navigation & économie d'énergie
-- statut: dormant
+- statut: actif
 - couche: Monde
 - question_phare: Le mur de navigation (approche vs capture)
 - fichiers_possedes: tools/lewis_survival_sweep.py, tools/nav_*.py
 - memoire: lewis-energy-economy-wall.md
 - legacy_edr: 090,107,110,113,114
-- frontiere_courante: mur = politique/substrat (pont SUB) ; dette knob disable_repro
-- ponts_actifs: [SUB]
+- frontiere_courante: EDR-NAV-001 → mur = READOUT_GAP (H décode la direction à ~0.81, la tête d'action l'ignore ; encodeur OK) ; cible torch = entraîner la tête d'action par gradient (H→action déjà présent), pas l'encodeur
+- ponts_actifs: [SUB (tête d'action par gradient sur le signal NAV présent dans H)]
 - filiation: —
 
 ### FAM — Famine, stockage & spécialisation
