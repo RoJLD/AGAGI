@@ -32,3 +32,10 @@ def test_run_arm_smoke_on_and_off():
         assert set(["gate_on", "binding_gap", "comp_rate", "throw_rate"]).issubset(r)
         assert -1.0 <= r["binding_gap"] <= 1.0
         assert 0.0 <= r["throw_rate"] <= 1.0
+
+
+def test_verdict_pure_on_binds_more():
+    from tools.substrate_ab import compute_ab_verdict
+    rows = [{"diff": 0.30}, {"diff": 0.25}, {"diff": 0.40}]   # gap_ON - gap_OFF > 0
+    v = compute_ab_verdict(rows, band=0.02)
+    assert v["verdict"] == "GRADIENT_GAGNE" and v["n"] == 3

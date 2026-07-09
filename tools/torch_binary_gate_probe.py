@@ -90,3 +90,27 @@ def run_arm(gate_on, episodes=800, n_agents=64, seed=0, lr=0.05, antisat=6.0):
             "binding_gap": _binding_gap(th, cr),
             "comp_rate": float(np.mean(th * cr)),
             "throw_rate": float(np.mean(th))}
+
+
+def compare(seeds=(0, 1, 2, 3), episodes=800, n_agents=64):
+    """A/B apparie gate-binaire ON vs OFF par seed -> verdict (diff = binding_gap ON - OFF)."""
+    rows = []
+    for s in seeds:
+        on = run_arm(True, episodes=episodes, n_agents=n_agents, seed=s)
+        off = run_arm(False, episodes=episodes, n_agents=n_agents, seed=s)
+        rows.append({"seed": s, "on": on["binding_gap"], "off": off["binding_gap"],
+                     "on_comp": on["comp_rate"], "diff": on["binding_gap"] - off["binding_gap"]})
+    return {"rows": rows, "verdict": compute_ab_verdict(rows, band=0.02)}
+
+
+if __name__ == "__main__":
+    seeds = tuple(int(x) for x in os.environ.get("TBG_SEEDS", "0,1,2,3").split(","))
+    episodes = int(os.environ.get("TBG_EPISODES", "800"))
+    agents = int(os.environ.get("TBG_AGENTS", "64"))
+    out = compare(seeds=seeds, episodes=episodes, n_agents=agents)
+    for r in out["rows"]:
+        print(f"seed={r['seed']} gap_ON={r['on']:+.3f} gap_OFF={r['off']:+.3f} "
+              f"diff={r['diff']:+.3f} (comp_ON={r['on_comp']:.3f})")
+    print("VERDICT:", out["verdict"])
+    _label = {"GRADIENT_GAGNE": "GATE_BINAIRE_BINDE", "HEBBIEN_GAGNE": "OFF_BINDE_PLUS", "NEUTRE": "NEUTRE"}
+    print("INTERPRETATION:", _label.get(out["verdict"]["verdict"], out["verdict"]["verdict"]))
