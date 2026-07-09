@@ -301,8 +301,12 @@ class MambaBatchModel:
     Supporte le Connectome Élastique avec dynamic padding et alignement des nœuds sensoriels, cachés et moteurs.
     """
     # Flags d'ablation (EDR 032) : neutralisent un gène câblé pour mesurer son apport réel.
+    # Lus via type(self) -> un sous-classe (ex. MambaCoreBatchModel) les configure SANS muter
+    # l'état global de classe (sûr en sessions parallèles).
     ABLATE_THRESHOLDS = False   # ignore les seuils d'excitabilité
     ABLATE_ROUTER = False       # gain neuromodulateur neutre (=1)
+    ABLATE_NTM = False          # EDR-134 suite : coupe le self-wiring NTM (compile_and_apply no-op)
+    ABLATE_ATTENTION = False    # EDR-134 suite : coupe l'organe d'attention QKV
     METABOLIC_ACTIVE_EPS = 0.1  # NAS Axe D-1 : seuil |H_i|>eps pour compter un nœud "actif"
     KWTA_KEEP_FRAC = 1.0        # NAS Axe D-2 : fraction de cachés gardés actifs (1.0 = off)
     FORCE_DREAM = None          # intervention causale (EDR 094) : None|"off"|int K (profondeur forcée)
@@ -445,7 +449,8 @@ class MambaBatchModel:
             return np.array([]), np.array([])
 
         # Self-wiring neuronal: compile memory slots to W_batch
-        self.W_batch = NTMProgramCompiler.compile_and_apply(self.NTM_Memory, self.W_batch, self.agents)
+        if not type(self).ABLATE_NTM:
+            self.W_batch = NTMProgramCompiler.compile_and_apply(self.NTM_Memory, self.W_batch, self.agents)
 
         # Padding/slicing de batch_obs s'il ne correspond pas à max_I
         x_obs = np.zeros((self.B, self.max_I), dtype=np.float32)
@@ -486,13 +491,13 @@ class MambaBatchModel:
         # 3. Passe de base (réflexe)
         H[:, :self.max_I] = x
         # Neuromodulation (EDR 031) : gain global dépendant du contexte (W_router câblé).
-        if MambaBatchModel.ABLATE_ROUTER:
+        if type(self).ABLATE_ROUTER:
             gain = 1.0
         else:
             mod = np.tanh(np.einsum('bi,bij->bj', x, self.router_batch))    # (B, 3)
             gain = 1.0 + 0.3 * mod.mean(axis=1, keepdims=True)             # (B, 1) dans [0.7, 1.3]
         excitation = np.einsum('bi,bij->bj', H, W_no_diag) * gain
-        thr = 0.0 if MambaBatchModel.ABLATE_THRESHOLDS else self.thresholds_batch
+        thr = 0.0 if type(self).ABLATE_THRESHOLDS else self.thresholds_batch
         # EDR 086 : borner l'ENTRÉE de l'activation. Sur les longs épisodes (survie longue, 085),
         # excitation = H@W sommée sur ~172 nœuds atteint des centaines -> une activation générée par le
         # #8 à base d'exp (EDR 069) overflow -> H=inf -> W=NaN -> crash. tanh(±30)≈tanh(±800)≈±1 :
@@ -505,7 +510,7 @@ class MambaBatchModel:
             for a in self.agents
         ], dtype=bool)
         
-        if has_attention_batch.any():
+        if has_attention_batch.any() and not type(self).ABLATE_ATTENTION:
             T_tok, D_tok = 4, 8
             block_size = T_tok * D_tok  # 32
             start_idx = self.max_I
@@ -556,7 +561,7 @@ class MambaBatchModel:
         ], dtype=bool)
 
         is_dreaming, K_individual = _resolve_dreaming(
-            MambaBatchModel.FORCE_DREAM, has_mcts_batch, do_dream_batch,
+            type(self).FORCE_DREAM, has_mcts_batch, do_dream_batch,
             self.surprise_momentum_batch, DREAM_THRESHOLD, SURPRISE_THRESHOLD,
         )
 
@@ -822,3 +827,22 @@ class MambaBatchModel:
             self.agents[i]._td = {"h": h_t.copy(), "out": out_t.copy(), "value": v_t,
                                   "reward": float(rewards_batch[i]), "act": act,
                                   "v_node": N_i - O_i + 28, "h_rec": hrec_t}
+
+
+class MambaCoreBatchModel(MambaBatchModel):
+    """Substrat legacy RÉDUIT au noyau LTC — parité d'organes avec TorchBatchModel (EDR-134 suite).
+
+    EDR-134 a trouvé le champion s'effondrer sous torch-core (−46 ticks), MAIS confondu :
+    TorchBatchModel OMET les organes (NTM/router/thresholds/attention/dreaming) et le champion
+    a évolué son W POUR eux. Ce bras able les MÊMES organes côté legacy → à parité structurelle,
+    le seul degré de liberté restant est la RÈGLE D'APPRENTISSAGE (TD numpy analytique héritée
+    vs TD autograd de torch). Isole enfin « règle » de « organes ».
+
+    Hérite `compute_policy_gradient` (Actor-Critic TD numpy) — c'est le point : même algo de crédit,
+    moteur différent. Config via attributs de classe (lus par type(self), non-régressif pour la base).
+    """
+    ABLATE_THRESHOLDS = True
+    ABLATE_ROUTER = True
+    ABLATE_NTM = True
+    ABLATE_ATTENTION = True
+    FORCE_DREAM = "off"

@@ -40,6 +40,18 @@ class Biosphere3D(BaseWorld):
         # (inchangé). Le runner S2 le remplace par un BaselineBatchModel (RandomAction/Reflex) APRÈS
         # construction du monde -> baselines sans connectome, zéro fork. Spec §11.
         self.batch_model_cls = MambaBatchModel
+        # Intégration torch in-world (axe 1). OFF par défaut = legacy strictement non-régressif.
+        # ON => pop torch PERSISTANT (hissé hors boucle par-tick : l'optimiseur SGD et le gate
+        # doivent survivre entre ticks). Exige cohorte fixe (benchmark_mode) pour dims homogènes.
+        self.use_torch_inworld = False
+        self._torch_pop = None
+        # Buffer glissant K ticks (cran 1, collecte) : trajectoire episodique pour le futur
+        # credit learn_episode (Task 4). Pousse seulement en mode torch (voir bloc du credit
+        # par-tick). deque(maxlen=K) -> glisse automatiquement, garde les K derniers ticks.
+        from collections import deque
+        self.torch_episode_k = 8          # taille de fenetre episodique (variable EDR)
+        self._torch_traj = deque(maxlen=self.torch_episode_k)
+        self._torch_tick = 0
         # Mode benchmark (S2) : cohorte FIXE -> désactive reproduction/mutation/HGT pendant la
         # mesure (sinon la lignée est immortelle et la survie sature au cap, blocker panel). Défaut
         # False = comportement historique. L'apprentissage intra-vie reste actif. Spec §4.
@@ -960,6 +972,58 @@ class Biosphere3D(BaseWorld):
                     except Exception as e:
                         logger.emit("HGT_FAILED", {"error": str(e), "parents": [agent["id"], best_neighbor["id"]]})
 
+    def _get_batch_model(self, models):
+        """Renvoie le batch model du tick. Legacy = recréé/tick (non-régressif). Torch = pop
+        PERSISTANT (créé une fois, réutilisé) pour conserver optimiseur + gate. Reconstruit si la
+        taille de population change (B)."""
+        if not self.use_torch_inworld:
+            return self.batch_model_cls(models, world_model=self.world_model)
+        if not self.benchmark_mode:
+            raise ValueError(
+                "use_torch_inworld exige benchmark_mode=True (crans 0-1 : cohorte fixe pour "
+                "l'alignement par identite). L'evolution topologique hors cohorte fixe est un cran ulterieur."
+            )
+        from src.agents.backend import make_population
+        need_rebuild = (
+            self._torch_pop is None
+            or getattr(self._torch_pop, "B", -1) != len(models)
+        )
+        if need_rebuild:
+            self._torch_pop = make_population(models, backend="torch",
+                                              world_model=self.world_model)
+        return self._torch_pop
+
+    def _maybe_learn_episode(self):
+        """Crédit épisodique torch aligné par IDENTITÉ d'agent. La population décroît (mortalité, même
+        en benchmark_mode) -> les tuples du buffer ont des tailles décroissantes. On crédite les agents
+        ENCORE présents (cohorte courante = pop courant) en rognant chaque tick du buffer à ces ids.
+        Skip propre (log, pas de crash) si la fenêtre n'est pas pleine, si le pop est absent/désync, ou
+        si un id courant manque d'un tick. Ne se déclenche qu'aux multiples de torch_episode_k."""
+        traj = self._torch_traj
+        if self._torch_pop is None:
+            return None
+        if len(traj) != traj.maxlen or self._torch_tick % self.torch_episode_k != 0:
+            return None
+        current_ids = [a["id"] for a in self.agents]
+        B = getattr(self._torch_pop, "B", -1)
+        if B == 0 or len(current_ids) != B:
+            logger.emit("TORCH_EPISODE_SKIP", {"reason": "pop_desync", "tick": self._torch_tick})
+            return None
+        obs_seq, actions_seq = [], []
+        ep_return = np.zeros(len(current_ids), dtype=np.float32)
+        for (obs, actions, rewards, ids) in traj:
+            pos = {aid: j for j, aid in enumerate(ids)}
+            if any(aid not in pos for aid in current_ids):
+                logger.emit("TORCH_EPISODE_SKIP", {"reason": "id_missing", "tick": self._torch_tick})
+                return None
+            idx = [pos[aid] for aid in current_ids]
+            obs_seq.append(np.asarray(obs, dtype=np.float32)[idx])
+            actions_seq.append([actions[j] for j in idx])
+            ep_return += np.asarray(rewards, dtype=np.float32)[idx]
+        ep_return = ep_return - float(np.mean(ep_return))          # baseline = moyenne de population
+        return self._torch_pop.learn_episode(obs_seq, actions_seq, ep_return,
+                                             gamma=1.0, gate_last_only=True)
+
     def step(self):
         self.ticks += 1
         was_night = getattr(self, "is_night", False)
@@ -1022,12 +1086,12 @@ class Biosphere3D(BaseWorld):
 
         if not self.agents:
             return
-            
+
         # VECTORIZED OBSERVATION & BATCHING
         batch_obs = self.get_batch_observations()
         models = [a["model"] for a in self.agents]
         MambaBatchModel.KWTA_KEEP_FRAC = getattr(self.config, "kwta_keep_frac", 1.0)
-        batch_model = self.batch_model_cls(models, world_model=self.world_model)
+        batch_model = self._get_batch_model(models)
 
         env_surprise_batch = np.array([a.get("last_env_surprise", 0.0) for a in self.agents])
         
@@ -1035,6 +1099,11 @@ class Biosphere3D(BaseWorld):
         old_energies = np.array([a["energy"] for a in self.agents], dtype=np.float32)
         
         batch_logits, compute_spent = batch_model.forward(batch_obs, env_surprise_batch=env_surprise_batch)
+        if np.ndim(compute_spent) == 0:
+            # Backend torch (MVP) : TTC/dreaming pas encore porté -> renvoie un scalaire (0, cf.
+            # backend_torch.py). Normalisation locale à la boucle (par-agent) pour l'indexation
+            # downstream ; ne modifie pas le contrat forward() lui-même.
+            compute_spent = np.zeros(len(self.agents), dtype=np.float32)
         batch_logits = self._apply_social_consensus(batch_logits)
 
         # Differentiable / Configurable TTC Caloric Cost
@@ -1485,7 +1554,23 @@ class Biosphere3D(BaseWorld):
         rewards = (new_energies - old_energies) + self.curiosity_scale * curiosity + novelty
         # Actions prises ce tick (crédit d'action, EDR 020), alignées sur self.agents.
         actions_batch = [a.get("_pg", {"move": -1, "grab": 0, "rub": 0}) for a in self.agents]
-        batch_model.compute_policy_gradient(rewards, actions_batch)
+        if self.use_torch_inworld:
+            batch_model.learn(rewards, actions_batch)          # API PopulationModel (ADR-003)
+            # resynchro du maxlen si torch_episode_k a change apres construction (banc/tests)
+            if self._torch_traj.maxlen != self.torch_episode_k:
+                from collections import deque
+                self._torch_traj = deque(self._torch_traj, maxlen=self.torch_episode_k)
+            # snapshot du tick pour le credit episodique (Task 4). Copie defensive : batch_obs/
+            # rewards sont reutilises par la boucle ; actions_batch est deja une liste fraiche
+            # de dicts.
+            self._torch_traj.append((np.asarray(batch_obs, dtype=np.float32).copy(),
+                                      list(actions_batch),
+                                      np.asarray(rewards, dtype=np.float32).copy(),
+                                      [a["id"] for a in self.agents]))
+            self._torch_tick += 1
+            self._maybe_learn_episode()
+        else:
+            batch_model.compute_policy_gradient(rewards, actions_batch)
                 
         self.agents = survivors
         
