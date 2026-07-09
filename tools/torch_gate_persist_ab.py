@@ -98,3 +98,26 @@ def run_arm(persist, demand=1.0, episodes=800, rebuild_every=200, n_agents=64,
     finally:
         (TorchPopulationModel.CONDITION_GATE, TorchPopulationModel.ANTISAT,
          TorchPopulationModel.GATE_TARGET) = saved
+
+
+def compare(seeds=(0, 1, 2, 3), demand=1.0, episodes=800, rebuild_every=200, n_agents=64):
+    """A/B apparie PERSIST vs RESET par seed -> verdict (diff = comp_rate persist - reset)."""
+    rows = []
+    for s in seeds:
+        p = run_arm(True, demand, episodes, rebuild_every, n_agents, seed=s)
+        r = run_arm(False, demand, episodes, rebuild_every, n_agents, seed=s)
+        rows.append({"seed": s, "persist": p["comp_rate"], "reset": r["comp_rate"],
+                     "diff": p["comp_rate"] - r["comp_rate"], "n_rebuilds": p["n_rebuilds"]})
+    return {"rows": rows, "verdict": compute_ab_verdict(rows, band=0.02)}
+
+
+if __name__ == "__main__":
+    seeds = tuple(int(x) for x in os.environ.get("TGP_SEEDS", "0,1,2,3").split(","))
+    episodes = int(os.environ.get("TGP_EPISODES", "800"))
+    rebuild_every = int(os.environ.get("TGP_REBUILD_EVERY", "200"))
+    demand = float(os.environ.get("TGP_DEMAND", "1.0"))
+    out = compare(seeds=seeds, demand=demand, episodes=episodes, rebuild_every=rebuild_every)
+    for r in out["rows"]:
+        print(f"seed={r['seed']} persist={r['persist']:.3f} reset={r['reset']:.3f} "
+              f"diff={r['diff']:+.3f} (rebuilds={r['n_rebuilds']})")
+    print("VERDICT:", out["verdict"])

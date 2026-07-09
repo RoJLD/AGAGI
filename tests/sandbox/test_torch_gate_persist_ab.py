@@ -52,3 +52,10 @@ def test_run_arm_smoke_persist_and_reset():
         assert set(["persist", "comp_rate", "n_rebuilds"]).issubset(r)
         assert 0.0 <= r["comp_rate"] <= 1.0
     assert r_p["n_rebuilds"] == r_r["n_rebuilds"] == 1     # 40/20 - 1 rebuild a l'episode 20
+
+
+def test_verdict_pure_persist_better():
+    from tools.substrate_ab import compute_ab_verdict
+    rows = [{"diff": 0.10}, {"diff": 0.08}, {"diff": 0.12}]   # persist - reset > 0
+    v = compute_ab_verdict(rows, band=0.02)
+    assert v["verdict"] == "GRADIENT_GAGNE" and v["n"] == 3
