@@ -28,6 +28,14 @@ près : au lieu de scaler la loss par `w_k`, on module le lr : `opts[k].param_gr
 avec `w_k ∝ 1/EMA(loss_k)` normalisé `mean(w)=1`. `recovery = (flat − flat_lr)/(flat − disj)` sur les têtes MSE
 {value, pred} (fonction `_recovery` de 153, directement comparable à 0.79/0.73/0.70).
 
+**⚠️ Cadrage précis (crucial — cf. §3bis réconciliation avec EDR-COG-001).** Ce banc n'isole PAS un lr « pur ».
+La structure vient de 192/154 : **N_HEADS Adam par-tête**, chacun possédant TOUS les params (trunc inclus), chacun
+faisant un pas avec le gradient de SA tête. Le lr `w_k` module donc le pas de chaque Adam **sur le trunc partagé**
+(que chaque Adam met à jour, 3 fois/pas). Donc EDR 194 = **154 (moments Adam par-tête) + lr adaptatif appliqué au
+TRONC**. Ce n'est pas « lr vs loss » à l'état pur ; c'est « lr adaptatif sur le crédit du tronc, au-dessus des
+moments par-tête ». La question « lr sur les *readouts* seuls suffit-il ? » est un bouton DIFFÉRENT, testé par la
+session // (EDR-COG-001, ci-dessous) avec un résultat opposé — les deux se réconcilient.
+
 ## 2. Résultat (run pré-enregistré, 2 passes byte-identiques)
 
 ```
@@ -63,16 +71,39 @@ Comparaison famille (recovery moyen du gain DISJOINT par le levier côté FLAT) 
    (48 vs 16) domine l'isolation. Donc non seulement l'isolation architecturale n'était pas nécessaire (arc
    152→192), mais elle est **contre-productive** ici : le bon bouton de crédit rend le partage strictement supérieur.
 
-3. **Décomposition nette du crédit.** Moments Adam par-tête *seuls* (154) = 0.73 ; y ajouter le **lr adaptatif**
-   par-tête = 1.36. Le saut 0.73 → 1.36 isole le lr comme le levier de crédit **décisif** — cohérent avec la théorie
-   (Adam cancels loss-scaling, pas le lr). C'est le levier de crédit multi-tête le plus fort de tout l'arc.
+3. **Décomposition nette du crédit.** Moments Adam par-tête *seuls* (154, même structure, lr fixe) = 0.73 ; y
+   ajouter le **lr adaptatif** par-tête (sur les mêmes Adams qui possèdent le trunc) = 1.36. Le saut 0.73 → 1.36
+   isole le lr adaptatif **sur le tronc** comme le levier de crédit **décisif** — cohérent avec la théorie (Adam
+   cancels loss-scaling, pas le lr). C'est le levier de crédit multi-tête le plus fort de tout l'arc.
+
+## 3bis. Réconciliation avec EDR-COG-001 (session // T2/M1, `disjoint_heads_v4.py`)
+
+En parallèle, la session // a testé un **autre** bouton lr-par-tête et obtenu le résultat **opposé en apparence** :
+`LR_INSUFFICIENT` (recovery **−0.16**). Ce n'est PAS une contradiction — c'est **où** le lr agit :
+
+| | EDR-COG-001 (// T2/M1) | **EDR 194 (ce banc)** |
+|---|---|---|
+| lr adaptatif agit sur | **readouts seuls** (trunc figé au lr de base) | **trunc + têtes** (N Adam par-tête possèdent le trunc) |
+| moments | uniques (1 Adam à groupes) | **par-tête** (N Adam, = 154) |
+| loss / backward | combinée, 1 backward | par-tête, N backwards |
+| recovery | **−0.16** (LR_INSUFFICIENT) | **+1.36** (LR_CLOSES, over-recovery) |
+
+**Les deux se renforcent** : COG-001 montre que rééchelonner le lr des **readouts** ne recouvre pas → *le conflit
+inter-têtes vit dans le TRONC partagé, pas dans les têtes de lecture*. EDR 194 applique le lr adaptatif AU TRONC (via
+les Adams par-tête qui le mettent à jour) → **sur-récupère**. Conclusion conjointe robuste : **le crédit qui compte
+est celui du tronc partagé** ; un lr par-tête n'aide que s'il module le gradient du tronc (194), pas les readouts
+(COG-001). Cohérent aussi avec 153 (échelle de loss, qui équilibre le gradient du tronc → 0.79) et 154 (moments sur
+le tronc → 0.73). **La FORME du levier de crédit importe moins que sa CIBLE : le tronc.** EDR 194 est le premier à
+montrer qu'un lr par-tête **sur le tronc** non seulement ferme le résidu mais dépasse le disjoint.
 
 ## 4. Portée — clôture forte de l'arc, bornée
 
 - **Actionnable** : si un jour un équilibrage de crédit multi-tête est embarqué en prod (cf. synthèse arc têtes
-  disjointes), le **lr adaptatif par-tête** (∝ 1/EMA(loss_k)) est le mécanisme à privilégier — il domine le
-  loss-scaling et les moments, et sous crédit équilibré le trunc **partagé** (plus de capacité par tête) bat le
-  disjoint. Aucune refonte architecturale disjointe n'est justifiée (renforce EDR 152/153/154/190/191/192).
+  disjointes), viser **le gradient du TRONC partagé** (là où vit le conflit, §3bis + COG-001) : un **lr adaptatif
+  par-tête sur le tronc** (∝ 1/EMA(loss_k), via optimiseurs par-tête) domine le loss-scaling et les moments et, sous
+  crédit équilibré, le trunc **partagé** (plus de capacité par tête) bat le disjoint. ⚠️ Un lr par-tête **sur les
+  readouts seuls** ne suffit PAS (EDR-COG-001, −0.16). Aucune refonte architecturale disjointe n'est justifiée
+  (renforce EDR 152/153/154/190/191/192 ; complète COG-001).
 - **Verdict d'interprétation gelé AVANT le run (revue opus)** : `LR_CLOSES` réfute l'archi ; l'issue symétrique
   `LR_INTERCHANGEABLE` aurait dit « le résidu résiste aux boutons de crédit *testés* », **pas** « le résidu est
   architectural » (espace des mécanismes de crédit non borné). Ici c'est LR_CLOSES : pas de sur-conclusion requise,

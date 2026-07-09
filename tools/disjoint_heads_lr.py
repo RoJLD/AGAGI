@@ -9,6 +9,10 @@ plafonne au niveau des leviers interchangeables ~0.7-0.79 (-> CE bouton de credi
 PAS qu'il soit architectural — l'espace des mecanismes de credit non testes est non borne). Reutilise 152
 (_train_arm, FlatModel) + 153 (_recovery). Auto-contenu PyTorch, ne modifie rien.
 
+NB (cadrage, cf. EDR 194 §3bis) : les N_HEADS Adam par-tete possedent chacun le TRONC partage -> le lr module ici le
+credit du TRONC (pas seulement les readouts). Bouton DISTINCT du lr-sur-readouts-seuls (EDR-COG-001,
+disjoint_heads_v4.py, session // = LR_INSUFFICIENT -0.16) : les deux se reconcilient (le conflit vit dans le tronc).
+
 Usage : python -m tools.disjoint_heads_lr
 """
 import os
