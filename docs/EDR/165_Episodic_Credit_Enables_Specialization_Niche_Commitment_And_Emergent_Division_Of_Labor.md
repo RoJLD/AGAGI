@@ -1,13 +1,13 @@
 ---
-id: EDR-163
+id: EDR-165
 type: EDR
-title: "Le crédit épisodique + gate MULTI-CIBLE PERMET la SPÉCIALISATION (156/157) — 3e proxy H-unif, POSITIF. Monde 2-chaînes symétriques (craft_A→use_A, craft_B→use_B) : capacité ON (gate multi-cible EDR-163 + learn_episode) s'engage sur UNE chaîne (spec_depth 0.213 vs OFF 0.042 ; comp_total≈spec_depth = pas de dispersion) là où le plain reste généraliste (0 spécialiste). BONUS : hétérogénéité de population émergente (frac_A≈0.49 = division du travail ~50/50 depuis l'init). Complète le triptyque H-unif : binding(161)+spécialisation(163) POSITIFS (routage conditionnel), rétention(162) gated par la FORCE du binding. Gate multi-cible ajouté à backend_torch (additif, in-world non cassé)"
+title: "Le crédit épisodique + gate MULTI-CIBLE PERMET la SPÉCIALISATION (156/157) — 3e proxy H-unif, POSITIF. Monde 2-chaînes symétriques (craft_A→use_A, craft_B→use_B) : capacité ON (gate multi-cible EDR-165 + learn_episode) s'engage sur UNE chaîne (spec_depth 0.213 vs OFF 0.042 ; comp_total≈spec_depth = pas de dispersion) là où le plain reste généraliste (0 spécialiste). BONUS : hétérogénéité de population émergente (frac_A≈0.49 = division du travail ~50/50 depuis l'init). Complète le triptyque H-unif : binding(161)+spécialisation(165) POSITIFS (routage conditionnel), rétention(162) gated par la FORCE du binding. Gate multi-cible ajouté à backend_torch (additif, in-world non cassé)"
 status: accepted
 gate: null
 verdict: CAPABILITY_ENABLES_SPECIALIZATION
 ---
 
-# EDR 163 : le crédit épisodique + gate multi-cible permet la spécialisation (division du travail émergente)
+# EDR 165 : le crédit épisodique + gate multi-cible permet la spécialisation (division du travail émergente)
 
 ## Contexte
 
@@ -46,7 +46,7 @@ moyenne de max(comp_A_i, comp_B_i) ; comp_total ; frac_specialists ; frac_A parm
   entre chaînes A et B, la symétrie brisée par l'init de chaque agent. Une hétérogénéité de population
   que le crédit épisodique + gate multi-cible rend possible et que le plain n'atteint pas.
 - **Complète le triptyque H-unif** : binding/composition (161, POSITIF), rétention (162, gated par la
-  force du binding), spécialisation (163, POSITIF). Les phénomènes de ROUTAGE CONDITIONNEL (binding,
+  force du binding), spécialisation (165, POSITIF). Les phénomènes de ROUTAGE CONDITIONNEL (binding,
   spécialisation) sont PERMIS par la capacité ; le phénomène à COÛT (rétention) reste subordonné à la
   FORCE du binding. **H-unif substantiellement VALIDÉ comme famille routage/crédit conditionnel**, avec
   la nuance 162 (mécanisme ≠ suffisant pour les phénomènes coûteux ; il faut aussi la force).
@@ -59,7 +59,7 @@ moyenne de max(comp_A_i, comp_B_i) ; comp_total ; frac_specialists ; frac_A parm
 - **Informe l'axe 3 in-world** : porter `learn_episode` (+ gate multi-cible) devrait faire émerger la
   spécialisation ET une division du travail de population là où le monde offre des niches distinctes —
   au contraire de 156/157 (substrat plain). Le levier restait le moteur (crédit + routage), pas le monde.
-- Relié : `REF-LTC -A_ADOPTER_POUR-> EDR-163`.
+- Relié : `REF-LTC -A_ADOPTER_POUR-> EDR-165`.
 
 ## Caveats
 

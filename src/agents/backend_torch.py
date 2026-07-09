@@ -48,7 +48,7 @@ class TorchPopulationModel(PopulationModel):
     CONDITION_GATE = False   # active le gate de conditionnement dans forward + learn
     ANTISAT = 0.0            # force de l'anti-saturation de la marginale de base (EDR-136)
     GATE_TARGET = None       # index du logit move gaté (l'action "ends") ; None => gate désactivé
-    GATE_TARGETS = None      # EDR-163 : liste d'indices pour un gate MULTI-CIBLE (routage conditionnel
+    GATE_TARGETS = None      # EDR-165 : liste d'indices pour un gate MULTI-CIBLE (routage conditionnel
                              # vers plusieurs "ends", ex. spécialisation multi-chaînes) ; prioritaire sur
                              # GATE_TARGET quand non-None. Additif seulement. Single-target inchangé si None.
     GATE_MULT = False        # EDR-160 : gate MULTIPLICATIF sigmoïde (biais = SCALE·σ(H·w+b) ∈ [0,SCALE])
@@ -91,7 +91,7 @@ class TorchPopulationModel(PopulationModel):
         # porte). ADDITIF : 0 (neutre). Sinon le gate mult démarre always-on (σ(0)=0.5) et dégrade.
         b0 = -4.0 if type(self).GATE_MULT else 0.0
         if type(self).CONDITION_GATE and type(self).GATE_TARGETS:
-            k = len(type(self).GATE_TARGETS)                      # gate MULTI-CIBLE (EDR-163)
+            k = len(type(self).GATE_TARGETS)                      # gate MULTI-CIBLE (EDR-165)
             self.w_gate = torch.zeros(self.N, k, device=self.device, requires_grad=True)
             self.b_gate = torch.full((k,), b0, device=self.device, requires_grad=True)
             params += [self.w_gate, self.b_gate]
@@ -144,7 +144,7 @@ class TorchPopulationModel(PopulationModel):
         gb = self._gate_bias(H_new)
         if gb is not None:                                        # le gate influence l'action ÉCHANTILLONNÉE
             logits = logits.clone()
-            if type(self).GATE_TARGETS:                           # multi-cible (EDR-163)
+            if type(self).GATE_TARGETS:                           # multi-cible (EDR-165)
                 for k, tgt in enumerate(type(self).GATE_TARGETS):
                     logits[:, tgt] = logits[:, tgt] + gb[:, k].detach()
             else:
@@ -270,7 +270,7 @@ class TorchPopulationModel(PopulationModel):
             move_logits = base_move
             use_gate = self.w_gate is not None and (not gate_last_only or t == T - 1)
             if use_gate:
-                gb = self._gate_value(H)                             # (B,) single ou (B,K) multi (EDR-163)
+                gb = self._gate_value(H)                             # (B,) single ou (B,K) multi (EDR-165)
                 if type(self).GATE_TARGETS:                          # gate MULTI-CIBLE : un biais par "ends"
                     for k, tgt in enumerate(type(self).GATE_TARGETS):
                         onehot = torch.zeros(_MOVE_LOGITS, device=self.device)

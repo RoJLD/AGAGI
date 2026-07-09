@@ -1,4 +1,4 @@
-"""Tests du probe de spécialisation multi-chaînes (EDR-163). Pur. Skip si torch absent."""
+"""Tests du probe de spécialisation multi-chaînes (EDR-165). Pur. Skip si torch absent."""
 import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 import pytest
@@ -11,7 +11,7 @@ from src.agents.backend_torch import TorchPopulationModel
 
 
 def test_multi_target_gate_creates_matrix_params():
-    # gate MULTI-CIBLE (EDR-163) : w_gate (N,K), b_gate (K,) ; single-target inchangé.
+    # gate MULTI-CIBLE (EDR-165) : w_gate (N,K), b_gate (K,) ; single-target inchangé.
     saved = (TorchPopulationModel.CONDITION_GATE, TorchPopulationModel.GATE_TARGETS)
     TorchPopulationModel.CONDITION_GATE = True
     TorchPopulationModel.GATE_TARGETS = [USE_A, USE_B]

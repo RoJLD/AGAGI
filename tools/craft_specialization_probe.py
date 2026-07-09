@@ -1,4 +1,4 @@
-"""Le crédit épisodique permet-il la SPÉCIALISATION (choisir/s'engager sur UNE niche) ? — 3e proxy H-unif (EDR-163).
+"""Le crédit épisodique permet-il la SPÉCIALISATION (choisir/s'engager sur UNE niche) ? — 3e proxy H-unif (EDR-165).
 
 EDR-156/157 : le substrat développe un NOYAU de survie PARTAGÉ, pas de compétence spécialisée → verrou
 de spécialisation. Le pari H-unif ([[torch-inworld-integration-plan]]) : spécialisation, binding (161) et
@@ -9,7 +9,7 @@ ENGAGER (spécialisation-comme-niche), + hétérogénéité de population émerg
 Monde 2 chaînes SYMÉTRIQUES : S1 CRAFT_A ou CRAFT_B ; S2 USE_A (paie SSI craft_A) ou USE_B (paie SSI
 craft_B). Une chaîne CROISÉE (craft_A→use_B) ne paie pas → il faut s'ENGAGER sur une chaîne cohérente.
 Requiert un gate MULTI-CIBLE (route vers use_A si did_A, use_B si did_B, appris depuis H) — capacité
-EDR-163 ajoutée à `backend_torch` (additif, flag-gated). Compare ON (gate multi + learn_episode) vs OFF
+EDR-165 ajoutée à `backend_torch` (additif, flag-gated). Compare ON (gate multi + learn_episode) vs OFF
 (TD sans gate). STANDALONE.
 
 Métriques : spec_depth = moyenne sur agents de max(comp_A_i, comp_B_i) (profondeur d'engagement sur la
