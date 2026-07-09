@@ -36,3 +36,57 @@ def _binding_gap(throws, did_crafts):
     p_given = float(throws[dc].mean()) if dc.any() else 0.0
     p_notgiven = float(throws[~dc].mean()) if (~dc).any() else 0.0
     return p_given - p_notgiven
+
+
+def run_arm(gate_on, episodes=800, n_agents=64, seed=0, lr=0.05, antisat=6.0):
+    """Entraine une tete throw BINAIRE sur le monde 2-pas. gate_on=True : logit_throw = H·w_throw + b
+    (conditionne sur H -> peut decoder did_craft) ; gate_on=False : logit_throw = b seul (marginal, pas
+    de lecture de H -> ne peut pas conditionner). Credit episodique REINFORCE binaire + anti-saturation
+    (penalise P(throw) -> empeche le collapse always-throw). W gele (H detache) : isole la tete throw.
+    Renvoie binding_gap (dernier quart) + comp_rate + throw_rate."""
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    pop = make_population([MambaAgent() for _ in range(n_agents)], backend="torch")
+    N, I = pop.N, pop.I
+    w_throw = torch.zeros(N, requires_grad=True)
+    b_throw = torch.zeros(1, requires_grad=True)
+    params = [w_throw, b_throw] if gate_on else [b_throw]
+    opt = torch.optim.Adam(params, lr=lr)
+    rng = np.random.RandomState(seed + 1)
+    obs_a = (rng.randn(n_agents, I) * 0.5).astype(np.float32)
+    obs_b = (rng.randn(n_agents, I) * 0.5).astype(np.float32)
+
+    throw_hist, craft_hist = [], []
+    for _ in range(episodes):
+        pop.H = torch.zeros((n_agents, pop.N))
+        with torch.no_grad():
+            p1, _ = pop.forward(obs_a)
+        move1 = _softmax_np(np.asarray(p1)[:, :_MOVE]).argmax(1)
+        did_craft = (move1 == CRAFT)
+        with torch.no_grad():
+            pop.forward(obs_b)                                  # met a jour pop.H (S2)
+        H_S2 = pop.H.detach()                                   # W gele : gradient seulement via w_throw
+        if gate_on:
+            z = H_S2 @ w_throw + b_throw                        # conditionne sur H
+        else:
+            z = b_throw.expand(n_agents)                       # marginal (aucune lecture de H)
+        pthrow = torch.sigmoid(torch.clamp(z, -10.0, 10.0))
+        throw = (pthrow.detach() > torch.rand(n_agents)).float()
+        energy = np.array([_energy_binary(bool(throw[i]), bool(did_craft[i]))
+                           for i in range(n_agents)], dtype=np.float32)
+        ret = torch.tensor(energy - energy.mean())             # retour episodique baseline
+        logp = throw * torch.log(pthrow + 1e-6) + (1 - throw) * torch.log(1 - pthrow + 1e-6)
+        loss = -(ret * logp).mean() + antisat * pthrow.mean() ** 2   # REINFORCE + anti-saturation
+        opt.zero_grad()
+        loss.backward()
+        opt.step()
+        throw_hist.append(throw.detach().numpy())
+        craft_hist.append(did_craft.copy())
+
+    q = max(1, episodes // 4)
+    th = np.concatenate(throw_hist[-q:])
+    cr = np.concatenate(craft_hist[-q:])
+    return {"gate_on": bool(gate_on), "seed": int(seed),
+            "binding_gap": _binding_gap(th, cr),
+            "comp_rate": float(np.mean(th * cr)),
+            "throw_rate": float(np.mean(th))}

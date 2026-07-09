@@ -22,3 +22,13 @@ def test_binding_gap():
     # throw independant du craft -> gap = 0
     throws2 = [1, 0, 1, 0]; craft2 = [True, True, False, False]
     assert abs(_binding_gap(throws2, craft2) - 0.0) < 1e-6
+
+
+def test_run_arm_smoke_on_and_off():
+    from tools.torch_binary_gate_probe import run_arm
+    r_on = run_arm(gate_on=True, episodes=60, n_agents=16, seed=0)
+    r_off = run_arm(gate_on=False, episodes=60, n_agents=16, seed=0)
+    for r in (r_on, r_off):
+        assert set(["gate_on", "binding_gap", "comp_rate", "throw_rate"]).issubset(r)
+        assert -1.0 <= r["binding_gap"] <= 1.0
+        assert 0.0 <= r["throw_rate"] <= 1.0
