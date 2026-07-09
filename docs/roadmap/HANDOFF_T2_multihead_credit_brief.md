@@ -22,18 +22,15 @@ GradNorm-lite loss-scale) dans le connectome PLAT — **PAS** par split architec
   l'avantage disjoint d'origine était de la **sur-capacité** (à H=6, disjoint NUIT). → « crédit pas archi »
   robuste à l'interférence, ET le payoff multi-tête lui-même dépend du régime de capacité.
 
-## Jalon M1 — PROXY : fermer le caveat lr-par-tête *(décisif, tooling, ownable seul)*
+## Jalon M1 — PROXY : fermer le caveat lr-par-tête ✅ FAIT (EDR-COG-001)
 
-Ajouter un bras **FLAT_PERHEAD_LR** à `tools/disjoint_heads_v3.py` (calqué sur `_train_flat_perhead`) :
-FlatModel (archi plate, trunc partagé, même init au seed), **un lr par tête** (les params de readout de
-chaque tête montés à un lr propre ; trunc partagé à un lr de base), **1 seul jeu de moments**, **sans**
-échelle de loss. Isole « lr-par-tête » comme SEUL facteur.
-- **Comparaisons** : vs FLAT_NORM (153, échelle) et FLAT_PERHEAD (154, moments), archi/seeds/données identiques.
-- **Critère** : `_recovery(flat, flat_perhead_lr, disj)` (réutiliser `disjoint_heads_confound._recovery`).
-  Attendu ≈ 0.73-0.79 (comme échelle/moments) → **confirme « tout knob d'équilibrage de crédit recouvre
-  ~75 %, robustement crédit-pas-archi »** et ferme le dernier angle proxy (EDR-COG-nnn).
-- Coût : petit (réutilise tout le harnais disjoint). **Ce jalon ne nécessite PAS torch-prod** — il est
-  ownable en tooling ; il tranche AVANT d'investir le port prod.
+Bras **FLAT_PERHEAD_LR** livré (`tools/disjoint_heads_v4.py`) : 1 Adam à groupes, lr propre par **readout**
+(trunc au lr de base), moments uniques, sans échelle. Comparé à FLAT_NORM (153) et FLAT_PERHEAD (154) sur
+mêmes seeds/init/données. **RÉSULTAT (K=5, déterministe) : lr-par-tête recouvre −0.16 → LR_INSUFFICIENT**
+(échelle 0.79 / moments 0.73 reproduits). → **NÉGATIF INFORMATIF** : rééchelonner les lr des readouts NE
+recouvre PAS (nuit même). L'équilibrage qui recouvre (153/154) agit sur le **gradient du TRONC partagé**,
+pas les têtes de lecture → le « crédit pas archi » se précise en **« crédit sur le tronc partagé »**.
+**Conséquence pour M2 : NE PAS porter lr-par-tête** ; porter l'échelle de loss (GradNorm-lite, 153).
 
 ## Jalon M2 — PORT PROD : GradNorm-lite dans `backend_torch` *(hedge, flag OFF)*
 
@@ -49,8 +46,10 @@ if self.gradnorm_lite:                      # défaut False -> byte-identique
 else:
     loss = actor_loss + 0.5 * critic_loss   # inchangé
 ```
-Alternative (lr-par-tête) : groupes de params par tête dans l'optimiseur avec lr propres (si M1 montre
-lr-par-tête ≥ échelle). GradNorm-lite est le plus simple et le plus direct (déjà prouvé 79 %).
+~~Alternative (lr-par-tête)~~ : **RÉFUTÉE par M1/EDR-COG-001** (lr-par-readout recouvre −0.16, nuit).
+GradNorm-lite sur l'échelle de loss est le mécanisme à porter (agit sur le tronc partagé, prouvé 79 %).
+NB : `critic` (value) ici lit le tronc partagé — l'équilibrer via l'échelle de loss touche bien le
+gradient du tronc, conforme au mécanisme validé (COG-001).
 
 ## Payoff (honnêteté)
 
