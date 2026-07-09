@@ -13,7 +13,8 @@ rétention échoue). Le crédit épisodique voit le retour NET (r−c>0) → le 
 Compare capacité ON (gate additif task-agnostique + `learn_episode`, EDR-159) vs OFF (`learn` TD 1-pas,
 EDR-148). STANDALONE (ne touche AUCUN code monde partagé).
 
-Usage : python tools/craft_retention_probe.py   (env: CRP_EPISODES, CRP_SEEDS, CRP_COSTS, CRP_R)
+Usage : python tools/hunif_retention_probe.py   (env: CRP_EPISODES, CRP_SEEDS, CRP_COSTS, CRP_R)
+(Renommé de craft_retention_probe pour éviter la collision de chemin avec le banc craft in-world de main.)
 """
 import os
 import sys

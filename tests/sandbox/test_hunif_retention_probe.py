@@ -1,10 +1,11 @@
-"""Tests du probe de rétention du craft (EDR-162). Pur (pas de biosphère). Skip si torch absent."""
+"""Tests du probe de rétention H-unif synthétique (EDR-162). Pur. Skip si torch absent.
+(Renommé hunif_retention_probe pour éviter la collision avec le banc craft in-world de main.)"""
 import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 import pytest
 pytest.importorskip("torch")
 
-from tools.craft_retention_probe import run_retention
+from tools.hunif_retention_probe import run_retention
 from src.agents.backend_torch import TorchPopulationModel
 
 

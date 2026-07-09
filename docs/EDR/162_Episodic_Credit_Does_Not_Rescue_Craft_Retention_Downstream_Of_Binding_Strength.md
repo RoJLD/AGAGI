@@ -23,7 +23,8 @@ et binding partageraient le MÊME verrou de crédit conditionnel, rachetable par
 a validé l'axe binding/composition (la capacité PAIE sous demande). Ici l'axe RÉTENTION : EDR-127 = le
 craft est ATTEINT mais NON RETENU. Prédiction H-unif : une action CRAFT coûteuse (−c immédiat) à payoff
 DIFFÉRÉ (+r au consume) devrait être RETENUE sous crédit épisodique (voit le net r−c) mais décroître
-sous TD 1-pas (voit le coût immédiat). STANDALONE (`tools/craft_retention_probe.py`).
+sous TD 1-pas (voit le coût immédiat). STANDALONE (`tools/hunif_retention_probe.py` ; renommé de
+craft_retention_probe pour éviter la collision de chemin avec le banc craft in-world de main).
 
 ## Méthode
 
