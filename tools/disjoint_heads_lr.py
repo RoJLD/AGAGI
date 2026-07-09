@@ -4,9 +4,10 @@ EDR 192 : combiner echelle de loss + moments Adam par-tete ne ferme pas le resid
 « Adam par-tete annule le scaling » (Adam est ~invariant d'echelle : scaler la loss par c scale le gradient par c,
 mais Adam divise par sqrt(v) ~ c -> pas inchange). Il reste UN bouton de credit qu'Adam ne normalise pas : le
 learning rate (lr multiplie directement le pas d'Adam). Ce banc teste si un lr adaptatif par-tete
-(lr_k proportionnel a 1/EMA(loss_k)) ferme le residu (-> desequilibre de PAS, archi refutee ~100%) ou plafonne au
-niveau des leviers interchangeables ~0.7-0.79 (-> plancher architectural, petit). Reutilise 152 (_train_arm,
-FlatModel) + 153 (_recovery). Auto-contenu PyTorch, ne modifie rien.
+(lr_k proportionnel a 1/EMA(loss_k)) ferme le residu (-> desequilibre de PAS par-tete, archi refutee ~100%) ou
+plafonne au niveau des leviers interchangeables ~0.7-0.79 (-> CE bouton de credit ne ferme pas le residu ; N'ETABLIT
+PAS qu'il soit architectural — l'espace des mecanismes de credit non testes est non borne). Reutilise 152
+(_train_arm, FlatModel) + 153 (_recovery). Auto-contenu PyTorch, ne modifie rien.
 
 Usage : python -m tools.disjoint_heads_lr
 """

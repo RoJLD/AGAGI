@@ -92,8 +92,11 @@ Notes de correction (pour l'implémenteur) :
 **Verdict pré-enregistré `_verdict_lr(per_seed_recovery)` — GELÉ, seuils calqués sur 192 pour comparabilité :**
 - `LR_CLOSES` si `recovery ≥ 0.90` sur une majorité de seeds → le résidu était un déséquilibre de *pas* par-tête,
   archi réfutée ~100 %.
-- `LR_INTERCHANGEABLE` si `recovery ≤ 0.79` sur une majorité → lr-par-tête n'a pas d'avantage sur les leviers ~0.7,
-  le résidu ~0.27 est un plancher *architectural* (petit mais réel).
+- `LR_INTERCHANGEABLE` si `recovery ≤ 0.79` sur une majorité → lr-par-tête est **interchangeable** avec les leviers
+  de crédit ~0.70–0.79 (153/154/192) et **ne ferme pas** le résidu. ⚠️ Cela **n'établit PAS** que le résidu ~0.27
+  soit *architectural* : ne pas le fermer avec CE bouton de crédit (lr adaptatif doux, mean(w)=1) laisse ouvert que
+  d'autres mécanismes de crédit non testés (lr par-paramètre, 2ᵉ ordre, schedules) le ferment. Seul `LR_CLOSES`
+  réfuterait l'archi ; `LR_INTERCHANGEABLE` dit « le résidu résiste aux boutons de crédit *testés* », pas plus.
 - `PARTIAL` sinon (fermeture partielle du résidu).
 
 Majorité = `n // 2 + 1` (identique à toute la famille).
