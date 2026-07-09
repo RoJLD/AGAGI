@@ -39,3 +39,10 @@ def test_verdict_pure_on_binds_more():
     rows = [{"diff": 0.30}, {"diff": 0.25}, {"diff": 0.40}]   # gap_ON - gap_OFF > 0
     v = compute_ab_verdict(rows, band=0.02)
     assert v["verdict"] == "GRADIENT_GAGNE" and v["n"] == 3
+
+
+def test_shuffle_control_present():
+    from tools.torch_binary_gate_probe import run_arm
+    r = run_arm(True, shuffle_label=True, episodes=40, n_agents=16, seed=0)
+    assert set(["gate_on", "binding_gap", "comp_rate", "throw_rate"]).issubset(r)
+    assert -1.0 <= r["binding_gap"] <= 1.0

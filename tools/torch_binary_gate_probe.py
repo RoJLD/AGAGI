@@ -38,11 +38,16 @@ def _binding_gap(throws, did_crafts):
     return p_given - p_notgiven
 
 
-def run_arm(gate_on, episodes=800, n_agents=64, seed=0, lr=0.05, antisat=6.0):
+def run_arm(gate_on, episodes=800, n_agents=64, seed=0, lr=0.05, antisat=6.0, shuffle_label=False):
     """Entraine une tete throw BINAIRE sur le monde 2-pas. gate_on=True : logit_throw = H·w_throw + b
     (conditionne sur H -> peut decoder did_craft) ; gate_on=False : logit_throw = b seul (marginal, pas
     de lecture de H -> ne peut pas conditionner). Credit episodique REINFORCE binaire + anti-saturation
     (penalise P(throw) -> empeche le collapse always-throw). W gele (H detache) : isole la tete throw.
+    shuffle_label=True (revue finale C1/I1) : CONTROLE anti-memorisation -- did_craft est permute par une
+    permutation FIXE (seedee, constante sur tous les episodes) avant de calculer l'energie ET le
+    binding_gap. Le label garde le meme taux de base mais est decorrele du vrai contexte : un gap_ON
+    eleve sous ce controle prouverait que le readout memorise n'importe quel label fixe (confond), pas
+    qu'il conditionne sur le VRAI craft.
     Renvoie binding_gap (dernier quart) + comp_rate + throw_rate."""
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -55,6 +60,7 @@ def run_arm(gate_on, episodes=800, n_agents=64, seed=0, lr=0.05, antisat=6.0):
     rng = np.random.RandomState(seed + 1)
     obs_a = (rng.randn(n_agents, I) * 0.5).astype(np.float32)
     obs_b = (rng.randn(n_agents, I) * 0.5).astype(np.float32)
+    perm = np.random.RandomState(seed + 7).permutation(n_agents) if shuffle_label else None
 
     throw_hist, craft_hist = [], []
     for _ in range(episodes):
@@ -63,6 +69,8 @@ def run_arm(gate_on, episodes=800, n_agents=64, seed=0, lr=0.05, antisat=6.0):
             p1, _ = pop.forward(obs_a)
         move1 = _softmax_np(np.asarray(p1)[:, :_MOVE]).argmax(1)
         did_craft = (move1 == CRAFT)
+        if shuffle_label:
+            did_craft = did_craft[perm]                        # label fixe mais FAUX (meme perm/episode)
         with torch.no_grad():
             pop.forward(obs_b)                                  # met a jour pop.H (S2)
         H_S2 = pop.H.detach()                                   # W gele : gradient seulement via w_throw
@@ -93,14 +101,22 @@ def run_arm(gate_on, episodes=800, n_agents=64, seed=0, lr=0.05, antisat=6.0):
 
 
 def compare(seeds=(0, 1, 2, 3), episodes=800, n_agents=64):
-    """A/B apparie gate-binaire ON vs OFF par seed -> verdict (diff = binding_gap ON - OFF)."""
+    """A/B apparie gate-binaire ON vs OFF vs SHUFFLE par seed -> verdict (diff = binding_gap ON - OFF).
+    Le VRAI test de binding est diff_vs_shuffle (ON vrai vs ON avec label permute fixe) : si le readout
+    memorise n'importe quel label fixe (confond, revue finale C1/I1), gap_ON ~= gap_shuffle et
+    diff_vs_shuffle ~= 0 malgre un diff (ON vs OFF) positif."""
     rows = []
     for s in seeds:
         on = run_arm(True, episodes=episodes, n_agents=n_agents, seed=s)
         off = run_arm(False, episodes=episodes, n_agents=n_agents, seed=s)
+        shuf = run_arm(True, shuffle_label=True, episodes=episodes, n_agents=n_agents, seed=s)
         rows.append({"seed": s, "on": on["binding_gap"], "off": off["binding_gap"],
-                     "on_comp": on["comp_rate"], "diff": on["binding_gap"] - off["binding_gap"]})
-    return {"rows": rows, "verdict": compute_ab_verdict(rows, band=0.02)}
+                     "shuffle": shuf["binding_gap"], "on_comp": on["comp_rate"],
+                     "diff": on["binding_gap"] - off["binding_gap"],
+                     "diff_vs_shuffle": on["binding_gap"] - shuf["binding_gap"]})
+    verdict_vs_shuffle = compute_ab_verdict([{"diff": r["diff_vs_shuffle"]} for r in rows], band=0.02)
+    return {"rows": rows, "verdict": compute_ab_verdict(rows, band=0.02),
+            "verdict_vs_shuffle": verdict_vs_shuffle}
 
 
 if __name__ == "__main__":
@@ -110,7 +126,13 @@ if __name__ == "__main__":
     out = compare(seeds=seeds, episodes=episodes, n_agents=agents)
     for r in out["rows"]:
         print(f"seed={r['seed']} gap_ON={r['on']:+.3f} gap_OFF={r['off']:+.3f} "
-              f"diff={r['diff']:+.3f} (comp_ON={r['on_comp']:.3f})")
+              f"gap_shuffle={r['shuffle']:+.3f} diff={r['diff']:+.3f} "
+              f"diff_vs_shuffle={r['diff_vs_shuffle']:+.3f} (comp_ON={r['on_comp']:.3f})")
     print("VERDICT:", out["verdict"])
+    print("VERDICT_VS_SHUFFLE:", out["verdict_vs_shuffle"])
     _label = {"GRADIENT_GAGNE": "GATE_BINAIRE_BINDE", "HEBBIEN_GAGNE": "OFF_BINDE_PLUS", "NEUTRE": "NEUTRE"}
     print("INTERPRETATION:", _label.get(out["verdict"]["verdict"], out["verdict"]["verdict"]))
+    if out["verdict_vs_shuffle"]["verdict"] == "NEUTRE":
+        print("CONFOND_MEMORISATION: gap(vrai) ~= gap(shuffle) -> le binding n'est PAS isole du label-fixe")
+    else:
+        print("INTERPRETATION_VS_SHUFFLE: gap(vrai) domine gap(shuffle) -> binding isole du label-fixe")
