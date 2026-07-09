@@ -35,3 +35,66 @@ def inherit_gate(new_pop, old_pop) -> bool:
         new_pop.w_gate.data.copy_(old_pop.w_gate.data)
         new_pop.b_gate.data.copy_(old_pop.b_gate.data)
     return True
+
+
+def _new_gated_pop(agents, lr):
+    """Construit un pop torch gate-ON depuis des agents (W relu de leur genome) + opt Adam."""
+    pop = make_population(agents, backend="torch")
+    pop.opt = torch.optim.Adam([p for p in [pop.W, pop.w_gate, pop.b_gate] if p is not None], lr=lr)
+    pop._gate_runtime = True
+    return pop
+
+
+def run_arm(persist, demand=1.0, episodes=800, rebuild_every=200, n_agents=64,
+            seed=0, lr=0.05, antisat=6.0):
+    """Pop torch PERSISTANT sur le monde 2-pas craft->USE (EDR-161) avec rebuilds tous les
+    `rebuild_every` episodes. Au rebuild : nouveau pop depuis les MEMES agents (W survit via genome) ;
+    persist=True -> inherit_gate (le gate survit), persist=False -> gate neuf (bug actuel). Renvoie le
+    comp_rate du dernier quart. Isole PERSIST vs RESET (1 variable = le sort du gate au rebuild)."""
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    saved = (TorchPopulationModel.CONDITION_GATE, TorchPopulationModel.ANTISAT,
+             TorchPopulationModel.GATE_TARGET)
+    TorchPopulationModel.CONDITION_GATE = True
+    TorchPopulationModel.ANTISAT = antisat
+    TorchPopulationModel.GATE_TARGET = USE
+    try:
+        agents = [MambaAgent() for _ in range(n_agents)]
+        pop = _new_gated_pop(agents, lr)
+        rng = np.random.RandomState(seed + 1)
+        I = pop.I
+        obs_a = (rng.randn(n_agents, I) * 0.5).astype(np.float32)
+        obs_b = (rng.randn(n_agents, I) * 0.5).astype(np.float32)
+
+        def _sample(preds):
+            p = _softmax_np(np.asarray(preds)[:, :_MOVE])
+            return np.array([rng.choice(_MOVE, p=pi) for pi in p])
+
+        comp_hist, n_rebuilds = [], 0
+        for ep in range(episodes):
+            if ep > 0 and ep % rebuild_every == 0:
+                old = pop
+                pop = _new_gated_pop(agents, lr)          # W survit (genome) ; gate neuf
+                if persist:
+                    inherit_gate(pop, old)                # ... sauf carry-over explicite
+                n_rebuilds += 1
+            pop.H = torch.zeros((n_agents, pop.N))
+            preds1, _ = pop.forward(obs_a)
+            move1 = _sample(preds1)
+            did_x = (move1 == CRAFT)
+            act1 = [{"move": int(m), "grab": 0, "rub": 0} for m in move1]
+            preds2, _ = pop.forward(obs_b)
+            move2 = _sample(preds2)
+            act2 = [{"move": int(m), "grab": 0, "rub": 0} for m in move2]
+            energy = np.array([_energy(int(move2[i]), bool(did_x[i]), demand)
+                               for i in range(n_agents)], dtype=np.float32)
+            pop.learn_episode([obs_a, obs_b], [act1, act2], energy - energy.mean(),
+                              gate_last_only=False)
+            comp_hist.append((move2 == USE) & did_x)
+        q = max(1, episodes // 4)
+        comp_rate = float(np.mean(np.concatenate(comp_hist[-q:])))
+        return {"persist": bool(persist), "demand": float(demand), "seed": int(seed),
+                "comp_rate": comp_rate, "n_rebuilds": n_rebuilds}
+    finally:
+        (TorchPopulationModel.CONDITION_GATE, TorchPopulationModel.ANTISAT,
+         TorchPopulationModel.GATE_TARGET) = saved

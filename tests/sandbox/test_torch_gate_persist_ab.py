@@ -42,3 +42,13 @@ def test_inherit_gate_noop_when_gate_absent():
     plain = make_population([MambaAgent() for _ in range(4)], backend="torch")  # gate OFF -> w_gate None
     assert inherit_gate(plain, old) is False     # cible sans gate -> no-op
     assert inherit_gate(old, plain) is False      # source sans gate -> no-op
+
+
+def test_run_arm_smoke_persist_and_reset():
+    from tools.torch_gate_persist_ab import run_arm
+    r_p = run_arm(persist=True, episodes=40, rebuild_every=20, n_agents=16, seed=0)
+    r_r = run_arm(persist=False, episodes=40, rebuild_every=20, n_agents=16, seed=0)
+    for r in (r_p, r_r):
+        assert set(["persist", "comp_rate", "n_rebuilds"]).issubset(r)
+        assert 0.0 <= r["comp_rate"] <= 1.0
+    assert r_p["n_rebuilds"] == r_r["n_rebuilds"] == 1     # 40/20 - 1 rebuild a l'episode 20
