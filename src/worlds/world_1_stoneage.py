@@ -940,6 +940,11 @@ class Biosphere3D(BaseWorld):
         taille de population change (B)."""
         if not self.use_torch_inworld:
             return self.batch_model_cls(models, world_model=self.world_model)
+        if not self.benchmark_mode:
+            raise ValueError(
+                "use_torch_inworld exige benchmark_mode=True (crans 0-1 : cohorte fixe pour "
+                "l'alignement par identite). L'evolution topologique hors cohorte fixe est un cran ulterieur."
+            )
         from src.agents.backend import make_population
         need_rebuild = (
             self._torch_pop is None

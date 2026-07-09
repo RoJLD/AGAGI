@@ -115,6 +115,21 @@ def test_maybe_learn_episode_skips_cleanly_without_pop():
     assert w._maybe_learn_episode() is None
 
 
+def test_torch_inworld_requires_benchmark_mode():
+    """I1 (revue finale) : use_torch_inworld SANS benchmark_mode est un footgun de corruption
+    silencieuse (naissance+mort meme tick -> B stable mais identites changees -> obs passees
+    aux mauvais poids, write-back Baldwin corrompu sans crash). Le chemin torch doit lever une
+    vraie exception (pas assert, strippable par -O) des que benchmark_mode est desactive."""
+    import pytest
+    w = _tiny_world(use_torch=True)
+    w.benchmark_mode = False                       # violation : torch sans cohorte fixe
+    if not w.agents:
+        return
+    models = [a["model"] for a in w.agents]
+    with pytest.raises(ValueError, match="benchmark_mode"):
+        w._get_batch_model(models)
+
+
 def test_maybe_learn_episode_skips_on_pop_desync():
     # cohorte courante != pop.B -> garde pop_desync -> None sans crash
     w = _tiny_world(use_torch=True)
