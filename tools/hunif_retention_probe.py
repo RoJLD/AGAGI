@@ -35,10 +35,12 @@ def _softmax_np(z):
 
 
 def run_retention(capability: bool, cost: float, r: float = 1.0, episodes: int = 800,
-                  n_agents: int = 128, seed: int = 0, lr: float = 0.05, antisat: float = 6.0):
+                  n_agents: int = 128, seed: int = 0, lr: float = 0.05, antisat: float = 6.0,
+                  warmstart_episodes: int = 0):
     """Entraîne une pop torch sur le jeu craft(coûteux, différé)→consomme. capability=True : gate +
-    learn_episode (crédit épisodique). False : learn TD 1-pas. Renvoie craft_rate EARLY/LATE (rétention),
-    comp_rate LATE, payoff LATE."""
+    learn_episode (crédit épisodique). False : learn TD 1-pas. `warmstart_episodes` : phase préalable à
+    coût 0 (bâtit le bassin haut-craft, EDR-167 test d'hystérésis) AVANT la phase mesurée au coût `cost`.
+    Renvoie craft_rate EARLY/LATE (rétention), comp_rate LATE, payoff LATE."""
     import numpy as np
     import torch
     from src.agents.mamba_agent import MambaAgent
@@ -68,13 +70,14 @@ def run_retention(capability: bool, cost: float, r: float = 1.0, episodes: int =
 
         pop._gate_runtime = bool(capability)                         # gate uniforme (self-scope, EDR-159)
         craft_hist, comp_hist, e_hist = [], [], []
-        for _ in range(episodes):
+
+        def _episode(ep_cost, record):
             pop.H = torch.zeros((n_agents, pop.N))
             preds1, _ = pop.forward(obs_a)
             move1 = _sample(preds1)
             crafted = (move1 == CRAFT)
             act1 = [{"move": int(m), "grab": 0, "rub": 0} for m in move1]
-            r1 = np.where(crafted, -cost, 0.0).astype(np.float32)     # COÛT immédiat du craft (S1)
+            r1 = np.where(crafted, -ep_cost, 0.0).astype(np.float32)  # COÛT immédiat du craft (S1)
             if not capability:
                 pop.learn(r1, act1)                                  # TD : le coût du craft est vu à S1
             preds2, _ = pop.forward(obs_b)
@@ -88,9 +91,15 @@ def run_retention(capability: bool, cost: float, r: float = 1.0, episodes: int =
                                   gate_last_only=False)
             else:
                 pop.learn(r2, act2)
-            craft_hist.append(crafted)
-            comp_hist.append(consumed)
-            e_hist.append(energy)
+            if record:
+                craft_hist.append(crafted)
+                comp_hist.append(consumed)
+                e_hist.append(energy)
+
+        for _ in range(warmstart_episodes):                          # bassin haut à coût 0 (non enregistré)
+            _episode(0.0, record=False)
+        for _ in range(episodes):                                    # phase mesurée au coût `cost`
+            _episode(cost, record=True)
 
         q = max(1, episodes // 4)
         craft_early = float(np.mean(np.concatenate(craft_hist[:q])))

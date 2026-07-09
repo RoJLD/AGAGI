@@ -23,3 +23,9 @@ def test_run_retention_smoke_on_off():
 def test_capability_off_has_no_gate():
     off = run_retention(False, 0.0, episodes=10, n_agents=8, seed=1)
     assert off["capability"] is False
+
+
+def test_warmstart_phase_runs():
+    # warm-start (EDR-167) : phase préalable à coût 0 avant la phase mesurée ; renvoie un résultat valide.
+    r = run_retention(True, 0.1, episodes=15, n_agents=16, seed=0, warmstart_episodes=15)
+    assert "craft_late" in r and 0.0 <= r["craft_late"] <= 1.0
