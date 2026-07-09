@@ -1,5 +1,5 @@
 ---
-id: EDR-168
+id: EDR-169
 type: EDR
 title: "Gate de conditionnement sur action BINAIRE (cran 2, Brique A) : la machinerie (tête throw + REINFORCE épisodique + anti-saturation) est ENTRAÎNABLE, mais le monde jouet 2-pas CONFOND binding et MÉMORISATION. Un premier verdict gap_ON 0.53-0.99 vs gap_OFF ~0 (GATE_BINAIRE_BINDE, 4/4) a été RÉFUTÉ par la revue adversariale : un CONTRÔLE SHUFFLE (did_craft permuté par une permutation fixe) donne gap_shuffle ~= gap_ON (diff médian −0.02, verdict_vs_shuffle HEBBIEN_GAGNE) → le label FAUX binde autant que le vrai. Cause : readout 172-dim ≫ 64 agents (séparabilité triviale) + did_craft déterministe (argmax S1 + W gelé → label FIXE par agent, pas un événement) + l'action craft n'entre pas dans H. Contrôle shuffle intégré au harnais. Leçon Brique B : did_craft doit ENTRER dans l'état (inventaire), contrôle shuffle + held-out, n_agents ≫ N, S1 stochastique"
 status: accepted
@@ -7,7 +7,9 @@ gate: null
 verdict: BINARY_GATE_TRAINABLE_TOY_WORLD_CONFOUNDS_BINDING_WITH_MEMORIZATION
 ---
 
-# EDR 168 : gate binaire entraînable, mais le monde jouet confond binding et mémorisation
+# EDR 169 : gate binaire entraînable, mais le monde jouet confond binding et mémorisation
+
+> ⚠️ Renuméroté 168→169 : collision de numéro avec l'EDR-168 (hystérésis rétention) d'une session // (tree partagé).
 
 ## Contexte
 
