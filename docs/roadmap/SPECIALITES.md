@@ -84,7 +84,7 @@
 - fichiers_possedes: tools/lewis_survival_sweep.py, tools/nav_*.py, tools/energy_readout_probe.py
 - memoire: lewis-energy-economy-wall.md
 - legacy_edr: 090,107,110,113,114
-- frontiere_courante: EDR-NAV-001 → mur navigation = READOUT_GAP (H décode la direction ~0.81, la tête d'action l'ignore ; encodeur OK) ; EDR-NAV-002 → détresse énergétique aussi richement dans H (0.89-0.91) mais readout énergie non isolable (endogène) → cible torch = tête d'action par gradient sur signal EXOGÈNE (NAV), pas l'encodeur
+- frontiere_courante: EDR-NAV-001 → mur navigation = READOUT_GAP (H décode ~0.81, tête d'action l'ignore ; encodeur OK) ; EDR-NAV-002 → détresse énergétique aussi dans H (0.89-0.91) mais readout énergie non isolable (endogène) ; EDR-NAV-003 → le readout NAV EST RL-récupérable (recovery +0.92, SUP 0.86/RL 0.82, offline sur H figé, déterministe) → le gap in-world = DENSITÉ/alignement du signal, PAS la trainabilité → fourche T1 RÉSOLUE (aux supervisé OU shaping per-pas dense, tous deux étayés). Reste = M2 in-world (session torch, touche backend_torch)
 - ponts_actifs: [SUB (tête d'action par gradient sur le signal NAV présent dans H)]
 - filiation: —
 

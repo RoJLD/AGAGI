@@ -40,16 +40,22 @@ if self.nav_aux_weight > 0 and oracle_dirs is not None:   # oracle_dirs (B,) in 
 ```
 Le gradient traverse `out = readout(H_new(W))` → ajuste la tête d'action (et W) pour mapper la direction
 présente dans H vers le bon logit. **Ne touche pas l'encodeur explicitement** ; l'aux loss est additive à
-l'Actor-Critic existant. Alternative (pure RL / reward-shaping sur l'atteinte) : plus faible — le champion
-a évolué sous RL et a échoué (NAV-001) ; l'aux supervisé exploite directement le signal linéairement présent.
+l'Actor-Critic existant. Alternative (reward-shaping per-pas dense) : **désormais étayée aussi** — EDR-NAV-003
+montre que le readout est RL-récupérable dès que le signal est dense (le champion a échoué NON par incapacité
+mais par signal de forage trop clairsemé). L'aux supervisé reste le plus dense/direct ; le shaping est une
+route équivalente. Le risque n'est plus « le readout est-il entraînable » (résolu) mais « fournir le signal ».
 
 ## Jalons (dé-risqués)
 
-**M1 — offline, rapide, couplage minimal (preuve de concept).**
-Charger les paires `(H, oracle_dir)` capturées par `tools/nav_localization_probe.capture` ; entraîner une
-tête `torch.nn.Linear(N→4)` par gradient sur ces paires ; montrer que `argmax(head(H)) == oracle_dir` monte
-vers l'accord de décodage (~0.8). **Prouve que la tête d'action PEUT apprendre le mapping** (le probe montre
-qu'un readout *frais* décode à 0.81 ; M1 le refait par gradient torch). Zéro modif de la boucle in-world.
+**M1 — offline ✅ FAIT (EDR-NAV-003, `tools/nav_readout_trainability.py`).**
+Non pas « un Linear sait-il fitter » (redondant avec le ridge NAV-001) mais la **fourche de conception** :
+sur les mêmes paires `(H, correct)` figées, deux readouts identiques (seule la perte diffère) — SUPERVISÉ
+(CE oracle) vs RL (REINFORCE-bandit dense aligné). **RÉSULTAT (n=17411, déterministe) : RL_RECOVERS
+(recovery +0.923 ; SUP 0.858 / RL 0.822 ≈ ridge 0.825)**. → **le readout de navigation EST RL-récupérable**
+dès qu'on lui donne un signal per-pas dense. L'échec in-world (émise==correct=0.03) est donc un problème de
+**DENSITÉ/ALIGNEMENT du signal**, PAS de trainabilité du readout. **Fourche résolue** : les DEUX routes sont
+étayées — (a) aux supervisé (signal le plus dense) OU (b) reward-shaping per-pas dense ; le choix devient un
+détail d'implémentation, pas un risque.
 
 **M2 — in-world (intégration).**
 Câbler `nav_aux_weight` + faire passer `oracle_dirs` du monde à `learn` (le monde calcule déjà le label via
@@ -57,7 +63,7 @@ Câbler `nav_aux_weight` + faire passer `oracle_dirs` du monde à `learn` (le mo
 
 ## Critères de succès (mesurables, bancs existants)
 
-1. **M1** : accuracy `head(H)→oracle_dir` (test) ≥ ~0.75 (proche du décodage linéaire 0.81 de NAV-001).
+1. **M1** ✅ : SUP 0.858 / RL 0.822 (recovery +0.923) → RL_RECOVERS (EDR-NAV-003). Fourche résolue.
 2. **M2 — probe** : relancer `tools/nav_localization_probe` sur la politique torch → `émise==correct`
    monte de ~0.03 vers ~0.8 ; `H→correct` reste haut (encodeur intact).
 3. **M2 — survie** : `tools/lewis_survival_sweep._measure_forage(disable_repro=True)` → `p_reach` de
