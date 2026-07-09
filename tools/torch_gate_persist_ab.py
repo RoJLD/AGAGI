@@ -41,7 +41,6 @@ def _new_gated_pop(agents, lr):
     """Construit un pop torch gate-ON depuis des agents (W relu de leur genome) + opt Adam."""
     pop = make_population(agents, backend="torch")
     pop.opt = torch.optim.Adam([p for p in [pop.W, pop.w_gate, pop.b_gate] if p is not None], lr=lr)
-    pop._gate_runtime = True
     return pop
 
 
@@ -121,3 +120,5 @@ if __name__ == "__main__":
         print(f"seed={r['seed']} persist={r['persist']:.3f} reset={r['reset']:.3f} "
               f"diff={r['diff']:+.3f} (rebuilds={r['n_rebuilds']})")
     print("VERDICT:", out["verdict"])
+    _label = {"GRADIENT_GAGNE": "PERSIST_MAINTIENT", "HEBBIEN_GAGNE": "RESET_MEILLEUR", "NEUTRE": "NEUTRE"}
+    print("INTERPRETATION:", _label.get(out["verdict"]["verdict"], out["verdict"]["verdict"]))

@@ -59,3 +59,60 @@ def test_verdict_pure_persist_better():
     rows = [{"diff": 0.10}, {"diff": 0.08}, {"diff": 0.12}]   # persist - reset > 0
     v = compute_ab_verdict(rows, band=0.02)
     assert v["verdict"] == "GRADIENT_GAGNE" and v["n"] == 3
+
+
+def test_rebuild_asymmetry_gate_lost_unless_inherited():
+    """Preuve directe de l'asymetrie du rebuild : un pas de learn_episode fait diverger le gate (w_gate)
+    ET ecrit un W neuf dans le genome. Au rebuild : W SURVIT toujours (relu du genome par le nouveau pop)
+    mais le gate est PERDU (RESET, neuf ~ 0) sauf carry-over explicite (PERSIST, inherit_gate)."""
+    import numpy as np, torch
+    from tools.torch_gate_persist_ab import _new_gated_pop, inherit_gate
+    from tools.compositional_world_probe import _energy, _softmax_np, CRAFT, USE, _MOVE
+    from src.agents.mamba_agent import MambaAgent
+    from src.agents.backend_torch import TorchPopulationModel
+    np.random.seed(0); torch.manual_seed(0)
+    saved = (TorchPopulationModel.CONDITION_GATE, TorchPopulationModel.ANTISAT, TorchPopulationModel.GATE_TARGET)
+    TorchPopulationModel.CONDITION_GATE = True; TorchPopulationModel.ANTISAT = 6.0; TorchPopulationModel.GATE_TARGET = USE
+    try:
+        n = 8
+        agents = [MambaAgent() for _ in range(n)]
+        pop = _new_gated_pop(agents, lr=0.05)
+        W_before = np.asarray(agents[0].genome.W, dtype=np.float32).copy()
+
+        # un episode minimal (2 pas, structure de run_arm) pour faire bouger W (genome) ET w_gate
+        rng = np.random.RandomState(1)
+        I = pop.I
+        obs_a = (rng.randn(n, I) * 0.5).astype(np.float32)
+        obs_b = (rng.randn(n, I) * 0.5).astype(np.float32)
+
+        def _sample(preds):
+            p = _softmax_np(np.asarray(preds)[:, :_MOVE])
+            return np.array([rng.choice(_MOVE, p=pi) for pi in p])
+
+        pop.H = torch.zeros((n, pop.N))
+        preds1, _ = pop.forward(obs_a)
+        move1 = _sample(preds1)
+        did_x = (move1 == CRAFT)
+        act1 = [{"move": int(m), "grab": 0, "rub": 0} for m in move1]
+        preds2, _ = pop.forward(obs_b)
+        move2 = _sample(preds2)
+        act2 = [{"move": int(m), "grab": 0, "rub": 0} for m in move2]
+        energy = np.array([_energy(int(move2[i]), bool(did_x[i]), 1.0) for i in range(n)], dtype=np.float32)
+        pop.learn_episode([obs_a, obs_b], [act1, act2], energy - energy.mean(), gate_last_only=False)
+
+        W_after = np.asarray(agents[0].genome.W, dtype=np.float32).copy()
+        assert not np.allclose(W_after, W_before)       # W a change (learn_episode ecrit dans le genome)
+        with torch.no_grad():
+            pop.w_gate += 2.0                           # simule un gate appris fortement (distinct de 0)
+
+        # RESET : rebuild sans inherit -> gate neuf ~ 0, mais W (genome, deja mis a jour) survit
+        reset_pop = _new_gated_pop(agents, lr=0.05)
+        assert float(reset_pop.w_gate.abs().sum()) < 1e-6
+        assert np.allclose(reset_pop.W.detach().numpy()[0], W_after)
+
+        # PERSIST : rebuild + inherit -> gate porte (identique au pop appris)
+        persist_pop = _new_gated_pop(agents, lr=0.05)
+        assert inherit_gate(persist_pop, pop) is True
+        assert torch.allclose(persist_pop.w_gate.data, pop.w_gate.data)
+    finally:
+        (TorchPopulationModel.CONDITION_GATE, TorchPopulationModel.ANTISAT, TorchPopulationModel.GATE_TARGET) = saved
