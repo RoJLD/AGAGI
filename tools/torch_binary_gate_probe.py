@@ -132,7 +132,12 @@ if __name__ == "__main__":
     print("VERDICT_VS_SHUFFLE:", out["verdict_vs_shuffle"])
     _label = {"GRADIENT_GAGNE": "GATE_BINAIRE_BINDE", "HEBBIEN_GAGNE": "OFF_BINDE_PLUS", "NEUTRE": "NEUTRE"}
     print("INTERPRETATION:", _label.get(out["verdict"]["verdict"], out["verdict"]["verdict"]))
-    if out["verdict_vs_shuffle"]["verdict"] == "NEUTRE":
+    _vvs = out["verdict_vs_shuffle"]["verdict"]
+    if _vvs == "NEUTRE":
         print("CONFOND_MEMORISATION: gap(vrai) ~= gap(shuffle) -> le binding n'est PAS isole du label-fixe")
+    elif _vvs == "HEBBIEN_GAGNE":
+        print("CONFOND_MEMORISATION: gap(vrai) <= gap(shuffle) -> le label FAUX bind AUTANT OU PLUS "
+              "que le vrai contexte -> le binding n'est PAS isole du label-fixe (confond confirme)")
     else:
-        print("INTERPRETATION_VS_SHUFFLE: gap(vrai) domine gap(shuffle) -> binding isole du label-fixe")
+        print("INTERPRETATION_VS_SHUFFLE: gap(vrai) domine gap(shuffle) -> binding partiellement "
+              "isole du label-fixe (residu du confond a verifier)")
