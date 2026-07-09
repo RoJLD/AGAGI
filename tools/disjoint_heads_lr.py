@@ -70,3 +70,47 @@ def _verdict_lr(per_seed_recovery):
     if inter >= maj:
         return "LR_INTERCHANGEABLE"
     return "PARTIAL"
+
+
+def _report_lr(rows, verdict, mean_rec):
+    print("\n=== Bras lr-par-tete (FLAT vs FLAT_LR_PERHEAD vs DISJOINT, tetes MSE) ===")
+    print("  seed | FLAT v/p     | FLAT_LR v/p   | DISJOINT v/p  | recovery")
+    for r in rows:
+        f, lr_, d = r["flat"], r["flatlrperhead"], r["disj"]
+        print("  %4d | %.3f %.3f | %.3f %.3f | %.3f %.3f | %+.3f"
+              % (r["seed"], f["value"], f["pred"], lr_["value"], lr_["pred"],
+                 d["value"], d["pred"], r["recovery"]))
+    print("  MOYEN recovery=%+.3f" % mean_rec)
+    print("=== VERDICT ===")
+    print("  -> %s (recovery >= 0.90 majorite = LR_CLOSES ; <= 0.79 = LR_INTERCHANGEABLE)" % verdict)
+
+
+def main_lr_check(K=5, base=2200, steps=STEPS, _return=False):
+    if torch is None:
+        print("PyTorch indisponible -> banc saute.")
+        res = {"verdict": "SKIPPED_NO_TORCH", "per_seed": []}
+        return res if _return else None
+    try:
+        torch.use_deterministic_algorithms(True)
+    except Exception:
+        pass
+    torch.set_num_threads(1)   # garantit la double passe byte-identique (BLAS multi-thread = non-determinisme bit)
+    teachers = _make_teachers()
+    rows = []
+    for i in range(K):
+        s = base + i
+        flat, _ = _train_arm("flat", s, teachers, steps=steps)
+        flatlrperhead = _train_flat_lr_perhead(s, teachers, steps=steps)
+        disj, _ = _train_arm("disjoint", s, teachers, steps=steps)
+        rows.append({"seed": s, "flat": flat, "flatlrperhead": flatlrperhead, "disj": disj,
+                     "recovery": _recovery(flat, flatlrperhead, disj)})
+    recs = [r["recovery"] for r in rows]
+    verdict = _verdict_lr(recs)
+    mean_rec = float(np.mean(recs))
+    _report_lr(rows, verdict, mean_rec)
+    res = {"verdict": verdict, "mean_recovery": mean_rec, "per_seed": rows}
+    return res if _return else None
+
+
+if __name__ == "__main__":
+    main_lr_check()

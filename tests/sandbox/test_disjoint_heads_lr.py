@@ -48,3 +48,20 @@ def test_lr_perhead_differs_from_loss_scaling():
     syn_out = _train_flat_norm_perhead(2200, teachers, steps=50)
     assert (abs(lr_out["value"] - syn_out["value"]) > 1e-6
             or abs(lr_out["pred"] - syn_out["pred"]) > 1e-6)
+
+
+from tools.disjoint_heads_lr import main_lr_check
+
+
+def test_smoke_lr_returns_verdict():
+    res = main_lr_check(K=2, base=2200, steps=30, _return=True)
+    assert res["verdict"] in {"LR_CLOSES", "LR_INTERCHANGEABLE", "PARTIAL", "SKIPPED_NO_TORCH"}
+    assert "per_seed" in res
+
+
+@pytest.mark.skipif(torch is None, reason="PyTorch indisponible")
+def test_lr_check_deterministic_two_passes():
+    a = main_lr_check(K=2, base=2200, steps=50, _return=True)
+    b = main_lr_check(K=2, base=2200, steps=50, _return=True)
+    assert a["mean_recovery"] == b["mean_recovery"]
+    assert [r["recovery"] for r in a["per_seed"]] == [r["recovery"] for r in b["per_seed"]]
