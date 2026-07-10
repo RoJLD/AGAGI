@@ -27,3 +27,12 @@ def test_heldout_is_diagonal_untrained():
     r = run_compositional(episodes=15, n_agents=8, A=4, V=6, seed=1, rotate=False)
     assert r["chance"] == pytest.approx(0.25)
     assert 0.0 <= r["zeroshot"] <= 1.0
+
+
+def test_curriculum_and_cross_mi_keys():
+    # LANG-004 : warmstart_fixed>0 (phase figée puis rotation) + cross_mi (intelligibilité croisée).
+    r = run_compositional(episodes=15, n_agents=8, A=3, V=6, seed=0, rotate=True, warmstart_fixed=15)
+    assert {"cross", "cross_mi"} <= set(r)
+    assert 0.0 <= r["cross"] <= 1.0
+    # cross_mi est NaN (non-appris) ou borné dans [-1, 2] par construction.
+    assert (r["cross_mi"] != r["cross_mi"]) or (-1.0 <= r["cross_mi"] <= 2.0)

@@ -37,10 +37,13 @@ def _softmax_np(z):
 
 
 def run_compositional(episodes: int = 5000, n_agents: int = 16, A: int = 3, V: int = 6,
-                      seed: int = 0, lr: float = 0.05, rotate: bool = True):
+                      seed: int = 0, lr: float = 0.05, rotate: bool = True, warmstart_fixed: int = 0):
     """Entraîne sender+receiver sur le jeu compositionnel (référents (a0,a1), messages 2-symboles), en
-    tenant la DIAGONALE (a,a) hors entraînement. Renvoie within (combos vus) et zeroshot (combos held-out),
-    par-attribut, + chance=1/A. rotate=True apparie sender_i<->receiver_{i+s} (décalage aléatoire/épisode)."""
+    tenant la DIAGONALE (a,a) hors entraînement. Renvoie within (combos vus), zeroshot (combos held-out),
+    topsim, et cross_mi (intelligibilité mutuelle croisée), + chance=1/A. rotate=True apparie
+    sender_i<->receiver_{i+s} (décalage aléatoire/épisode). warmstart_fixed>0 (LANG-004) : ce nombre
+    d'épisodes INITIAUX est joué en PAIRES FIGÉES (s=0) avant la phase `rotate` -> curriculum dyade->rotation
+    (warm-start d'un code compositionnel avant de le partager)."""
     import numpy as np
     import torch
     from src.agents.mamba_agent import MambaAgent
@@ -114,11 +117,13 @@ def run_compositional(episodes: int = 5000, n_agents: int = 16, A: int = 3, V: i
                 g1 = _sample(q1, A)
             return g0, g1, r0, r1
 
-        for _ in range(episodes):
+        for ep in range(warmstart_fixed + episodes):
+            # curriculum (LANG-004) : phase 1 = paires FIGÉES (warm-start du code) ; phase 2 = `rotate`
+            phase_rotate = rotate and ep >= warmstart_fixed
             idx = rng.randint(0, len(train), size=n_agents)
             a0, a1 = train_arr[idx, 0], train_arr[idx, 1]
             s0, s1, o0, o1 = _message(a0, a1)
-            s = rng.randint(1, n_agents) if rotate else 0          # appariement sender_i<->receiver_{i+s}
+            s = rng.randint(1, n_agents) if phase_rotate else 0    # appariement sender_i<->receiver_{i+s}
             rs0, rs1 = np.roll(s0, s), np.roll(s1, s)              # receiver_j lit le message de sender_{j-s}
             ra0, ra1 = np.roll(a0, s), np.roll(a1, s)             # ... et vise SES attributs
             g0, g1, r0, r1 = _decode(rs0, rs1)
@@ -132,19 +137,25 @@ def run_compositional(episodes: int = 5000, n_agents: int = 16, A: int = 3, V: i
                                  [[{"move": int(x)} for x in s0], [{"move": int(x)} for x in s1]],
                                  snd_rew - snd_rew.mean(), gate_last_only=False)
 
-        # --- éval greedy, appariement d'origine (s=0) : within (train) vs zeroshot (held-out) ---
-        def _acc_over(comboset):
+        # --- éval greedy : within/zeroshot en paire d'origine (shift=0) ; cross-MI en partenaire décalé ---
+        def _acc_over(comboset, shift=0):
             accs = []
             for (a0v, a1v) in comboset:
                 a0 = np.full(n_agents, a0v)
                 a1 = np.full(n_agents, a1v)
                 s0, s1, _, _ = _message(a0, a1, greedy=True)
-                g0, g1, _, _ = _decode(s0, s1, greedy=True)
-                accs.append(0.5 * (g0 == a0) + 0.5 * (g1 == a1))
+                rs0, rs1 = np.roll(s0, shift), np.roll(s1, shift)  # receiver_j décode le msg de sender_{j-shift}
+                ra0, ra1 = np.roll(a0, shift), np.roll(a1, shift)
+                g0, g1, _, _ = _decode(rs0, rs1, greedy=True)
+                accs.append(0.5 * (g0 == ra0) + 0.5 * (g1 == ra1))
             return float(np.mean(np.concatenate(accs)))
 
-        within = _acc_over(train)
-        zeroshot = _acc_over(heldout)
+        within = _acc_over(train, 0)
+        zeroshot = _acc_over(heldout, 0)
+        # intelligibilité mutuelle croisée (LANG-002 porté au 2-attributs) : un partenaire jamais co-apparié
+        # décode-t-il le message ? code partagé -> cross ~ within ; code privé -> cross ~ chance.
+        cross_shifts = sorted({max(1, (j * n_agents) // 4) for j in range(1, 4)})
+        cross = float(np.mean([_acc_over(train, sh) for sh in cross_shifts]))
 
         # --- similarité topographique (métrique CANONIQUE de compositionnalité, indépendante du split
         #     zéro-shot) : corrélation de rang entre distance de SENS (Hamming attributs) et distance de
@@ -175,8 +186,10 @@ def run_compositional(episodes: int = 5000, n_agents: int = 16, A: int = 3, V: i
         topsim = float(_st.median(rhos))
 
         chance = 1.0 / A
+        cross_mi = max(-1.0, min(2.0, (cross - chance) / (within - chance))) if within > chance + 0.05 else float("nan")
         return {"seed": int(seed), "A": A, "V": V, "rotate": bool(rotate), "chance": chance,
-                "within": within, "zeroshot": zeroshot, "gen_gap": zeroshot - chance, "topsim": topsim}
+                "within": within, "zeroshot": zeroshot, "gen_gap": zeroshot - chance, "topsim": topsim,
+                "cross": cross, "cross_mi": cross_mi}
     finally:
         (TorchPopulationModel.CONDITION_GATE, TorchPopulationModel.GATE_TARGET) = saved
 

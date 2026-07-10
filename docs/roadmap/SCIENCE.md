@@ -59,7 +59,7 @@
 
 ## 🔬 Frontière scientifique — prochains leviers
 
-1. **Clore le bénéfice fonctionnel du langage (Arc 4)** — re-test `087` (FIABLE vs BROUILLÉ, isole le *contenu* du téléguidage) + **power (R≥4)** : à survie longue, le contenu référentiel paye-t-il ? Si oui → Arc 4 clos.
+1. **Clore le bénéfice fonctionnel du langage (Arc 4)** — re-test `087` (FIABLE vs BROUILLÉ, isole le *contenu* du téléguidage) + **power (R≥4)** : à survie longue, le contenu référentiel paye-t-il ? Si oui → Arc 4 clos. *(Prérequis de CAPACITÉ désormais dé-risqués en proxy : trilogie `LANG-001/002/003` — cf. § Fil langage.)*
 2. **Prouver que chaque monde EXIGE l'intelligence** *(hygiène fondatrice, scan S2)* — benchmark **agent dummy vs champion HoF** (ratio de survie par monde). Si ratio≈1 → le monde est factice et toute mesure de « compétence » y est du bruit. Conditionne la validité du curriculum.
 3. **Vrai planning** *(scan S6)* — le « dreaming/MCTS » est du **random-shooting latent** (perturbe `H`, n'exploite PAS le World Model). Le brancher sur `world_model.predict()` pour simuler des trajectoires (obs→action→reward) → imagination instrumentale.
 4. **Co-évoluer l'usage du langage** (`083`, +0.29 sous 2 SE) — pression de sélection explicite sur l'écoute ; + **récompenses intrinsèques** (curiosité comme fitness — le World Model EST actif).
@@ -103,6 +103,44 @@ recommandations CHIFFRÉES des proxies, à valider in-world (P y sera différent
 - Profondeur de warm-start en 2D (ws × coût) ; seuil warm exact près de r·P.
 - Combiner les 3 axes (tâche exigeant binding + spécialisation + rétention coûteuse simultanément).
 - Le vrai test = in-world (axe 1/3), pas plus de proxy.
+
+### 🗣️ Fil langage — trilogie proxy Arc 4 (LANG-001/002/003 ; détail `lang-referential-capability`)
+
+**Les 3 paliers du langage établis EN PROXY synthétique** (hors biosphère, substrat torch, crédit
+épisodique `learn_episode`, sans toucher le code monde) — dé-risquent la roadmap #1 (re-test `087`) comme
+les proxies H-unif ont dé-risqué le binding :
+- **LANG-001 — CAPACITÉ** : jeu de Lewis 2-pops → signalisation référentielle porteuse (FIABLE 0.77 vs
+  chance/BROUILLÉ 0.17, K=6) ; le contenu PAIE (brouiller le signal = hasard). `referential_game_probe.py`.
+- **LANG-002 — PARTAGE** : un batch torch = N politiques distinctes → paires FIGÉES = codes PRIVÉS
+  (within 0.80 mais cross-partenaire = chance, MI≈0) ; la **rotation de partenaires** produit un protocole
+  PARTAGÉ (MI≈0.94–1.06, tout transfère à un partenaire neuf). Loi de consensus : précision partagée ↓ avec
+  la taille M (goulot de conventionnalisation), MI reste ≈1. `referential_community_probe.py`.
+- **LANG-003 — SYSTÉMATICITÉ** : référents (a0,a1), messages 2-symboles → code **compositionnel** qui
+  GÉNÉRALISE zéro-shot aux combos jamais vus (zeroshot 0.505 ≈ within 0.539 ≫ chance 0.333) + **topsim +0.30**
+  (double-confirmé, répliqué M=8/M=16). La rotation NE converge PAS sur 2-symboles (structure du message, pas
+  communauté). `compositional_language_probe.py`.
+- **LANG-004 — CONCILIATION (curriculum)** : le goulot de consensus de 003 est un DÉMARRAGE À FROID. Un
+  **curriculum dyade→rotation** (warm-start figé puis rotation) donne un code COMPOSITIONNEL (zeroshot 0.51,
+  topsim +0.31 retenus) ET PARTAGÉ (cross_mi 0.045→**0.59**, ×13) — ce que ni les dyades (privé) ni la
+  rotation à froid (échoue) ne donnaient. Partage PARTIEL + érosion du within (métastabilité). Analogue exact
+  du **warm-start de rétention (167/168/170)** : même hystérésis de bootstrap. `compositional_curriculum_probe.py`.
+
+**➡️ Handoff in-world (roadmap #1, `087`)** — le re-test 087 n'a plus à prouver la CAPACITÉ (établie), seulement
+le **bénéfice de survie** du contenu référentiel in-world :
+1. **Recette langage torch** : crédit ÉPISODIQUE suffit pour la signalisation ; **rotation de partenaires**
+   pour un protocole partagé ; **messages multi-symboles indicés par position + prédiction par attribut**
+   pour la compositionnalité.
+2. **Insight transférable — le levier de qualité dépend de la COMPLEXITÉ** : la rotation (communauté) paie
+   sur tâche simple (partage 1-symbole) mais **s'effondre en consensus** sur tâche complexe (2-symboles, ne
+   converge pas) ; là c'est la **structure du message** qui porte la compositionnalité (émerge en dyades
+   figées). In-world : langage compositionnel possible même en interactions dyadiques stables SI référents
+   structurés + messages multi-tokens ; le langage PARTAGÉ exige des partenaires VARIÉS (design du monde).
+3. Recoupe #4 frontière (co-évoluer l'usage, `083`) : le proxy n'a PAS de coût de signal ni de pression sur
+   l'écoute — in-world plus dur.
+
+**Backlog langage (faible priorité — proxy)** : compositionnalité PARFAITE (within ~0.54 = plafond substrat ;
+curriculum dyade→rotation, pression longueur/vocab) ; scaling consensus×complexité ; coût de signal + sélection
+sur l'écoute (`083`) ; le vrai test = in-world `087`.
 
 ## 🛠️ Outillage / Dev
 
