@@ -116,9 +116,12 @@ def test_gates_deterministic():
 
 
 def test_calibrate_returns_ok_or_report():
-    # on ne prejuge PAS du verdict (c'est le GATE DUR du controleur) : on verifie le CONTRAT de retour.
+    # on ne prejuge PAS du verdict (GATE DUR du controleur) : on verifie le CONTRAT + la fenetre viable.
     res = calibrate(seeds=(1000, 1001), e0_grid=(16.0, 24.0), M=32)
-    assert 'ok' in res
+    assert 'ok' in res and 'grid' in res
+    assert len(res['grid']) == 2                      # grid balaye TOUT le grille (pas d'early-return)
+    for row in res['grid']:
+        assert set(row) >= {'E0', 'all', 'composer', 'metronome'}
     if res['ok']:
         assert res['result']['gates']['ALL']
-        assert res['params'].E0 in (16.0, 24.0)
+        assert res['E0_min_viable'] in (16.0, 24.0)

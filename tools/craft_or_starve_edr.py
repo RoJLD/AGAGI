@@ -185,28 +185,42 @@ def check_viability_gates(params, seeds=PILOT_SEEDS, M=128):
 
 
 def calibrate(seeds=PILOT_SEEDS, e0_grid=(6.0, 8.0, 10.0, 12.0, 16.0, 24.0), base=None, M=128):
-    """Balaie E0 ; renvoie le PREMIER qui fait passer TOUTES les gates (GATE DUR), sinon un rapport d'echec.
-    Les autres params sont figes (spec §1). E0 tamponne la variance precoce du composeur."""
+    """Balaie TOUT le grid E0 et renvoie la fenetre viable + le E0 minimal viable (BORNE INFERIEURE).
+    Autres params figes (spec §1). ATTENTION : le E0 minimal viable NE DOIT PAS etre gele pour la Phase B
+    (un apprenant quasi-aleatoire mourrait avant d'apprendre) ; la Phase B doit RE-CALIBRER E0 contre G4
+    (headroom apprenant) avant les seeds confirmatoires."""
     base = base if base is not None else Params()
-    last = None
+    grid = []
+    ok_e0, ok_res, last = None, None, None
     for e0 in e0_grid:
-        p = replace(base, E0=e0)
-        last = check_viability_gates(p, seeds, M)
-        if last['gates']['ALL']:
-            return {'ok': True, 'E0': e0, 'params': p, 'result': last}
-    return {'ok': False, 'params': base, 'last': last}
+        last = check_viability_gates(replace(base, E0=e0), seeds, M)
+        grid.append({'E0': e0, 'all': bool(last['gates']['ALL']),
+                     'composer': last['aucs']['oracle_composer'], 'metronome': last['aucs']['metronome']})
+        if last['gates']['ALL'] and ok_e0 is None:
+            ok_e0, ok_res = e0, last
+    ok = ok_e0 is not None
+    return {'ok': ok, 'grid': grid, 'E0_min_viable': ok_e0,
+            'params': replace(base, E0=ok_e0) if ok else base,
+            'result': ok_res, 'last': last}
 
 
 def _report(res):
-    a, g = res.get('result', res.get('last', {})).get('aucs', {}), res.get('result', res.get('last', {})).get('gates', {})
-    print("\n=== CRAFT-OR-STARVE — gates de viabilite (Phase A) ===")
-    print("  E0 retenu : %s  |  TOUTES gates : %s" % (res.get('E0', 'AUCUN'), res.get('ok')))
-    print("  AUC oracle_composer=%.3f  random_inesc=%.3f  metronome=%.3f" %
-          (a.get('oracle_composer', float('nan')), a.get('random_inesc', float('nan')), a.get('metronome', float('nan'))))
-    print("  AUC oracle_forage=%.3f  random_absent=%.3f" %
-          (a.get('oracle_forage', float('nan')), a.get('random_absent', float('nan'))))
-    print("  gates : %s" % g)
-    print("=== GATE DUR : %s ===" % ("PASSE -> Phase B autorisee" if res.get('ok') else "ECHOUE -> reviser le design AVANT Phase B"))
+    full = res.get('result') or res.get('last') or {}
+    a, g = full.get('aucs', {}), full.get('gates', {})
+    print("\n=== CRAFT-OR-STARVE — gates de viabilite (Phase A pilote) ===")
+    print("  E0 MINIMAL VIABLE : %s  (BORNE INFERIEURE — NE PAS geler ; Phase B recalibre E0 contre G4 headroom)"
+          % res.get('E0_min_viable'))
+    print("  TOUTES gates (au E0 minimal) : %s" % res.get('ok'))
+    print("  fenetre viable (grid E0) :")
+    for row in res.get('grid', []):
+        print("    E0=%5.1f  ALL=%s  composer=%.3f  metronome=%.3f"
+              % (row['E0'], row['all'], row['composer'], row['metronome']))
+    print("  AUC (au E0 minimal) : composer=%.3f random_inesc=%.3f metronome=%.3f forage=%.3f random_absent=%.3f"
+          % (a.get('oracle_composer', float('nan')), a.get('random_inesc', float('nan')),
+             a.get('metronome', float('nan')), a.get('oracle_forage', float('nan')), a.get('random_absent', float('nan'))))
+    print("  gates (au E0 minimal) : %s" % g)
+    print("=== GATE DUR : %s ===" % ("PASSE -> Phase B autorisee (RE-CALIBRER E0 contre G4 AVANT seeds confirmatoires)"
+                                     if res.get('ok') else "ECHOUE -> reviser le design AVANT Phase B"))
 
 
 if __name__ == "__main__":
