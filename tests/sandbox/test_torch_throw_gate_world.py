@@ -80,6 +80,7 @@ def test_gate_on_step_records_and_H_shape():
     for a in w.agents:
         assert "_throw_did" in a and isinstance(a["_throw_did"], bool)
         assert "_throw_ctx" in a and isinstance(a["_throw_ctx"], bool)
+        assert "_throw_kill_tool" in a and isinstance(a["_throw_kill_tool"], bool)
         assert "throw" in a["_pg"]
 
 
@@ -94,3 +95,4 @@ def test_gate_off_is_nonregressive():
     w.step()                                  # ne doit pas crasher
     for a in w.agents:
         assert "_throw_did" not in a          # aucun record B2 en legacy
+        assert "_throw_kill_tool" not in a    # garde de flag : le bloc kill-outil ne fuit pas en legacy

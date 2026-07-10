@@ -1175,7 +1175,6 @@ class Biosphere3D(BaseWorld):
             
             if (self.use_torch_inworld and self.torch_throw_gate
                     and self._throw_w is not None):
-                import torch
                 h_i = self._torch_pop.H[idx].detach()
                 z = float(h_i @ self._throw_w) + float(self._throw_b)
                 p_throw = 1.0 / (1.0 + np.exp(-np.clip(float(logits[8]) + z, -10.0, 10.0)))
@@ -1339,9 +1338,10 @@ class Biosphere3D(BaseWorld):
                         hit_entity["stunned"] = int(damage * 2)
                     agent["throw_feedback"] = 1.0
                     agent["throw_feedback_ttl"] = 5
-                    if (thrown_item.get("type") == "Spear"
+                    if (self.use_torch_inworld and self.torch_throw_gate
+                            and thrown_item.get("type") == "Spear"
                             and any(hit_entity is p for p in self.preys)):
-                        agent["_throw_kill_tool"] = True   # KPI : spear lance touchant une prey
+                        agent["_throw_kill_tool"] = True   # KPI (gate ON) : spear lance touchant une prey
                 else:
                     agent["throw_feedback"] = -1.0
                     agent["throw_feedback_ttl"] = 5
