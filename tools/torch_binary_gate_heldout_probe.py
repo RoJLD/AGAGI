@@ -82,3 +82,30 @@ def run_arm(shuffle_reward=False, train_ep=1200, test_ep=100, n_agents=128, seed
             "binding_gap_heldout": _binding_gap(th, cr),
             "comp_rate_heldout": float(np.mean(th * cr)),
             "throw_rate_heldout": float(np.mean(th))}
+
+
+def compare(seeds=(0, 1, 2, 3), train_ep=1200, test_ep=100, n_agents=128):
+    """A/B apparie held-out : gap(ON vrai) vs gap(SHUFFLE label de recompense) par seed -> verdict.
+    diff>0 sur held-out = le gate binaire binde un contexte PRESENT, generalise, et est SPECIFIQUE
+    (pas de memorisation, distinct du shuffle)."""
+    rows = []
+    for s in seeds:
+        t = run_arm(False, train_ep=train_ep, test_ep=test_ep, n_agents=n_agents, seed=s)
+        sh = run_arm(True, train_ep=train_ep, test_ep=test_ep, n_agents=n_agents, seed=s)
+        rows.append({"seed": s, "on": t["binding_gap_heldout"], "shuffle": sh["binding_gap_heldout"],
+                     "on_comp": t["comp_rate_heldout"], "diff": t["binding_gap_heldout"] - sh["binding_gap_heldout"]})
+    return {"rows": rows, "verdict": compute_ab_verdict(rows, band=0.02)}
+
+
+if __name__ == "__main__":
+    seeds = tuple(int(x) for x in os.environ.get("TBH_SEEDS", "0,1,2,3").split(","))
+    train_ep = int(os.environ.get("TBH_TRAIN", "1200"))
+    test_ep = int(os.environ.get("TBH_TEST", "100"))
+    agents = int(os.environ.get("TBH_AGENTS", "128"))
+    out = compare(seeds=seeds, train_ep=train_ep, test_ep=test_ep, n_agents=agents)
+    for r in out["rows"]:
+        print(f"seed={r['seed']} gap_ON={r['on']:+.3f} gap_SHUF={r['shuffle']:+.3f} "
+              f"diff={r['diff']:+.3f} (comp_ON={r['on_comp']:.3f})")
+    print("VERDICT:", out["verdict"])
+    _label = {"GRADIENT_GAGNE": "BINDING_REEL_HELDOUT", "HEBBIEN_GAGNE": "SHUFFLE_BINDE_PLUS", "NEUTRE": "PAS_DE_BINDING_HELDOUT"}
+    print("INTERPRETATION:", _label.get(out["verdict"]["verdict"], out["verdict"]["verdict"]))
