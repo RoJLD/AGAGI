@@ -182,3 +182,19 @@ def test_null_metronome_gap_is_low():
     # l'horloge open-loop ne conditionne pas sur inv -> gap ~0 (borne null). Materiau stochastique p_mat=0.5.
     g = null_metronome_gap(Params(E0=16.0, T=200), seed=5, M=64)
     assert abs(g) < 0.15
+
+
+# === Phase B1a Task 3 : re-calibration apprenant + GATE DUR ===
+
+from tools.craft_or_starve_edr import recalibrate_learner
+
+
+def test_recalibrate_learner_contract():
+    # on ne prejuge PAS du verdict (GATE DUR du controleur) : on verifie le CONTRAT + la fenetre.
+    res = recalibrate_learner(seeds=(1000,), e0_grid=(16.0, 32.0), M=16, n_episodes=10)
+    assert "ok" in res and "grid" in res and "gate" in res
+    assert len(res["grid"]) == 2
+    for row in res["grid"]:
+        assert set(row) >= {"E0", "g4_headroom", "binding_adv", "pass"}
+    if res["ok"]:
+        assert res["E0_learner"] in (16.0, 32.0)

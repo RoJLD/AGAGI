@@ -422,5 +422,49 @@ def null_metronome_gap(params, seed, M):
     return p1 - p0
 
 
+def recalibrate_learner(seeds=PILOT_SEEDS, e0_grid=(8.0, 12.0, 16.0, 24.0, 32.0), M=32, n_episodes=60):
+    """GATE DUR apprenant (I1, contre EDR 172 : cohorte eteinte avant l'horizon d'apprentissage).
+    Pour chaque E0 : entraine L0 (arm inesc ET absent, seeds appariés), evalue, teste :
+    (a) G4 headroom : mediane_seeds survie(L0, absent) dans [0.4, 0.85] ;
+    (b) apprend : mediane_seeds [binding_gap(L0, inesc) - null_metronome_gap] >= 0.15.
+    Renvoie le 1er E0 qui passe les DEUX. Balaie tout le grid (fenetre auditable)."""
+    grid = []
+    ok_e0 = None
+    for e0 in e0_grid:
+        P = replace(Params(), E0=e0)
+        head, adv = [], []
+        for s in seeds:
+            li = rollout_learn(NpReinforceLearner(seed=int(s), arm="inesc"), "inesc", P, seed=int(s), M=M, n_episodes=n_episodes)
+            la = rollout_learn(NpReinforceLearner(seed=int(s), arm="absent"), "absent", P, seed=int(s), M=M, n_episodes=n_episodes)
+            ei = evaluate_learner(li, "inesc", P, seed=int(s) + 5000, M=M)
+            ea = evaluate_learner(la, "absent", P, seed=int(s) + 5000, M=M)
+            ng = null_metronome_gap(P, seed=int(s) + 5000, M=M)
+            head.append(ea["survival"])
+            adv.append(ei["binding_gap"] - ng)
+        g4 = float(np.median(head))
+        badv = float(np.median(adv))
+        passed = bool((0.4 <= g4 <= 0.85) and (badv >= 0.15))
+        grid.append({"E0": e0, "g4_headroom": g4, "binding_adv": badv, "pass": passed})
+        if passed and ok_e0 is None:
+            ok_e0 = e0
+    return {"ok": ok_e0 is not None, "E0_learner": ok_e0, "grid": grid,
+            "gate": "PASSE" if ok_e0 is not None else "ECHOUE"}
+
+
+def _report_learner(res):
+    print("\n=== CRAFT-OR-STARVE — GATE DUR apprenant (Phase B1a) ===")
+    print("  E0 apprenant retenu : %s  |  gate : %s" % (res.get("E0_learner"), res.get("gate")))
+    print("  fenetre (E0 -> G4 headroom absent / binding_adv inesc / pass) :")
+    for row in res.get("grid", []):
+        print("    E0=%5.1f  headroom=%.3f  binding_adv=%+.3f  pass=%s"
+              % (row["E0"], row["g4_headroom"], row["binding_adv"], row["pass"]))
+    print("=== %s ===" % ("PASSE -> Phase B1b (torch L1/L2 + parite) autorisee, E0_learner fige (borne inf, cf I1)"
+                          if res.get("ok") else "ECHOUE -> l'apprenant n'apprend pas le conditionnement dans COS ; STOP + diagnostic (converge EDR 172)"))
+
+
 if __name__ == "__main__":
-    _report(calibrate())
+    import sys as _s
+    if "--learner" in _s.argv:
+        _report_learner(recalibrate_learner())
+    else:
+        _report(calibrate())
