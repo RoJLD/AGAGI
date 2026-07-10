@@ -52,6 +52,19 @@ class Biosphere3D(BaseWorld):
         self.torch_episode_k = 8          # taille de fenetre episodique (variable EDR)
         self._torch_traj = deque(maxlen=self.torch_episode_k)
         self._torch_tick = 0
+        # Throw-gate in-world (B2, EDR-171 -> biosphere). Tete apprise au niveau MONDE (readout
+        # partage population sur H) qui route l'action "ends" (throw, logit 8) sur le contexte
+        # spear-en-inventaire. OFF par defaut => crans 0-1 strictement inchanges. Exige
+        # use_torch_inworld. W gele (H detache) ; REINFORCE immediat 1-pas sur l'outcome.
+        self.torch_throw_gate = False
+        self.torch_throw_gate_lr = 0.05
+        self.torch_throw_antisat = 6.0
+        self.torch_throw_shuffle = False     # bras temoin : recompense permutee
+        self._throw_w = None                 # torch (N,) : cree paresseusement au 1er tick torch
+        self._throw_b = None                 # torch (1,)
+        self._throw_opt = None               # Adam([_throw_w, _throw_b])
+        self._throw_shuf_rng = None          # RandomState fixe pour le shuffle
+        self._throw_kills_tool = 0           # compteur KPI : throws de spear touchant une prey
         # Mode benchmark (S2) : cohorte FIXE -> désactive reproduction/mutation/HGT pendant la
         # mesure (sinon la lignée est immortelle et la survie sature au cap, blocker panel). Défaut
         # False = comportement historique. L'apprentissage intra-vie reste actif. Spec §4.
@@ -971,6 +984,24 @@ class Biosphere3D(BaseWorld):
                         })
                     except Exception as e:
                         logger.emit("HGT_FAILED", {"error": str(e), "parents": [agent["id"], best_neighbor["id"]]})
+
+    def _ensure_throw_gate(self):
+        """Init paresseuse de la tete throw-gate (B2). No-op si gate OFF, deja init, ou pop absent.
+        Cree w_throw (N-dim partage population), b_throw (scalaire), l'optimiseur Adam et le RNG de
+        shuffle. Appelee au 1er tick torch quand pop.N est connu."""
+        if not (self.use_torch_inworld and self.torch_throw_gate):
+            return
+        if self._throw_w is not None:
+            return
+        if self._torch_pop is None:
+            return
+        import torch
+        N = self._torch_pop.N
+        self._throw_w = torch.zeros(N, requires_grad=True)
+        self._throw_b = torch.zeros(1, requires_grad=True)
+        self._throw_opt = torch.optim.Adam([self._throw_w, self._throw_b],
+                                           lr=self.torch_throw_gate_lr)
+        self._throw_shuf_rng = np.random.RandomState(12345)
 
     def _get_batch_model(self, models):
         """Renvoie le batch model du tick. Legacy = recréé/tick (non-régressif). Torch = pop
