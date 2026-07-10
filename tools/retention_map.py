@@ -17,6 +17,7 @@ Usage :
 import argparse
 import json
 import os
+import sys
 
 import numpy as np
 
@@ -88,6 +89,10 @@ def run_retention_map(ladder, keep_memory=False, num_agents=60, max_ticks=400,
 
 
 if __name__ == "__main__":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
     ap = argparse.ArgumentParser(description="Carte de rétention (EDR 009 §2).")
     ap.add_argument("--ladder", nargs="+",
                     default=["stoneage", "agricultural", "industrial"])

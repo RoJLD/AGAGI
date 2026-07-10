@@ -5,6 +5,7 @@ letalite 0 (isole l'energie). PAS d'evolution, PAS de langage. Fonde sur le diag
 mort par FAMINE (actions -10 x densite apex >> forage), pas letalite.
 Pre-enregistrement : docs/superpowers/specs/2026-06-24-EDR093-Lewis-Survival-Sweep-design.md
 """
+import sys
 import numpy as np
 
 from src.environments.config import WorldConfig
@@ -1000,4 +1001,8 @@ def main_evolve_nav(generations=20, num_agents=24, max_ticks=80, seed=None, _ret
 
 
 if __name__ == "__main__":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
     main()

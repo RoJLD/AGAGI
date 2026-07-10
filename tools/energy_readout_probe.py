@@ -25,6 +25,7 @@ Tooling-only (git diff src/ VIDE ; coordination session //). Cohorte fixe (bench
 constante. Reutilise le decodeur lineaire d'EDR-NAV-001 (DRY).
 """
 import os
+import sys
 import numpy as np
 
 from src.seed_ai.harness import Harness, seed_at
@@ -161,6 +162,10 @@ def main(metab=0.25, seed=1140, n_eval=6, max_ticks=200, _return=False):
 
 
 if __name__ == "__main__":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
     main(metab=float(os.getenv("EN_METAB", "0.25")),
          seed=int(os.getenv("EXPERIMENT_SEED", "1140")),
          n_eval=int(os.getenv("EN_NEVAL", "6")),
