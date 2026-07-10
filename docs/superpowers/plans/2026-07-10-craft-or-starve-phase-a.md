@@ -459,5 +459,5 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 Après la revue finale des 2 tâches, le contrôleur lance la **calibration réelle** :
 
 Run: `cd .claude/worktrees/craft-or-starve && python -m tools.craft_or_starve_edr`
-- **Si `GATE DUR : PASSE`** (un `E0` fait passer G1∧G2∧G3∧G5, byte-identique en 2 passes) → le monde EXIGE le conditionnement ; les params sont GELÉS ; la **Phase B** (substrats L0/L1/L2 + `compute_verdict` + runner 3×2×16) devient autorisée → nouveau brainstorm/spec/plan pour la Phase B.
+- **Si `GATE DUR : PASSE`** (un `E0` fait passer G1∧G2∧G3∧G5, byte-identique en 2 passes) → le monde EXIGE le conditionnement ; les params sont figés **SAUF `E0`** (⚠️ le `E0` minimal viable est une **BORNE INFÉRIEURE** — sûr pour l'oracle, fatal pour un apprenant quasi-aléatoire ; la Phase B doit **RE-CALIBRER `E0` contre G4 headroom** avant les seeds confirmatoires, cf. spec §9 / I1 revue opus). La **Phase B** (substrats L0/L1/L2 + `compute_verdict` + runner 3×2×16) devient autorisée → nouveau brainstorm/spec/plan pour la Phase B.
 - **Si `GATE DUR : ÉCHOUE`** (aucun `E0`) → **STOP**. Le monde ne discrimine pas proprement (fenêtre de calibration trop étroite) → réviser le design (élargir la grille, ajuster `R/c/c'`, revoir le contrôle absent) AVANT toute Phase B. Consigner l'échec + les AUC obtenus.

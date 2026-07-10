@@ -218,7 +218,11 @@ Le risque n°1 (les gates de viabilité G1-G5 peuvent ne pas se calibrer simulta
 - **PHASE A — PILOTE (à livrer et valider EN PREMIER)** : moteur de monde (T1) + politiques de référence
   (oracle-composeur, oracle-forage, random, métronome) + harnais de calibration des **gates de viabilité** (T2).
   **GATE DUR** : si `(c,c',h,R,p_mat,E0,N,T)` ne peut satisfaire G1-G5 simultanément (composeur vit, métronome/random
-  meurent, headroom OK), **STOP** — le design est révisé avant Phase B. Sinon, params GELÉS.
+  meurent, headroom OK), **STOP** — le design est révisé avant Phase B. Sinon, params figés **SAUF `E0`**. ⚠️
+  **`E0` du pilote = BORNE INFÉRIEURE, jamais gelé à la valeur minimale viable** (revue opus I1) : le `E0` minimal
+  fait vivre l'ORACLE mais tue un apprenant quasi-aléatoire (mort avant apprentissage → verdict [1]-MORT spurious).
+  La Phase B doit **RE-CALIBRER `E0` contre G4 (headroom apprenant `L0-absent ∈ [0.4,0.85]`)** avant les 16 seeds
+  confirmatoires. `calibrate` expose la fenêtre viable complète (grid) pour choisir un `E0` avec headroom.
 - **PHASE B — CONTINGENTE au pilote** : cœurs L0/L1/L2 + règles de crédit (T3-T4), métriques (T5),
   `compute_verdict` pur (T6), runner 3×2×16 + robustesse pen/`c` (T7), doc de pré-enregistrement gelé (T8, committé
   AVANT les 16 seeds confirmatoires).
