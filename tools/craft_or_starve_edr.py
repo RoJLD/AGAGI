@@ -336,5 +336,91 @@ def rollout_learn(learner, arm, params, seed, M, n_episodes):
     return learner
 
 
+# ============================ Phase B1a Task 2 : metriques d'evaluation (poids GELES) ============================
+
+def _run_frozen(policy_act, arm, params, seed, M):
+    """Deroule M agents avec une politique GELEE `policy_act(obs, H_state)->(actions, H_state)`, en collectant
+    au niveau TICK (S2) : (inv_avant_consume, action==CONSUME). Retourne (alive_matrix[M,T], list de (invb, cons))."""
+    rng = np.random.default_rng(seed)
+    P = params
+    E = np.full(M, P.E0, dtype=np.float64)
+    inv = np.zeros(M, dtype=bool)
+    alive = np.ones(M, dtype=bool)
+    pending = np.zeros(M, dtype=np.float64)
+    Hstate = [None]
+    alive_matrix = np.zeros((M, P.T), dtype=bool)
+    s2_inv, s2_cons, s2_alive = [], [], []
+    for t in range(P.T):
+        mat = (rng.random(M) < P.p_mat).astype(np.float64)
+        obs1 = _build_obs(mat, 0, rng.standard_normal((M, N_NOISE)))
+        a1, Hstate[0] = policy_act(obs1, Hstate[0])
+        matb = mat > 0.5
+        if arm == "inesc":
+            crafted = alive & (a1 == CRAFT)
+            inv = np.where(crafted & matb, True, inv)
+            E = E - np.where(crafted & matb, P.c_craft, 0.0) - np.where(crafted & ~matb, P.c_craft_nomat, 0.0)
+        else:
+            pending = np.where(alive & (a1 == FORAGE), P.f_forage, 0.0)
+        E = E - np.where(alive, P.h, 0.0)
+        obs2 = _build_obs(np.zeros(M), 1, rng.standard_normal((M, N_NOISE)))
+        a2, Hstate[0] = policy_act(obs2, Hstate[0])
+        inv_at_s2 = inv.copy()
+        if arm == "inesc":
+            consume = alive & (a2 == CONSUME)
+            got = consume & inv
+            E = E + np.where(got, P.R, 0.0) - np.where(consume & ~inv, P.c_consume_empty, 0.0)
+            inv = np.where(got, False, inv)
+        else:
+            E = E + np.where(alive, pending, 0.0)
+            pending = np.zeros(M, dtype=np.float64)
+        E = E - np.where(alive, P.h, 0.0)
+        s2_inv.append(inv_at_s2.copy()); s2_cons.append(a2 == CONSUME); s2_alive.append(alive.copy())
+        alive = alive & (E > 0.0)
+        alive_matrix[:, t] = alive
+    return alive_matrix, (np.array(s2_inv), np.array(s2_cons), np.array(s2_alive))
+
+
+def _binding_from_log(s2):
+    """P(CONSUME|inv=1) - P(CONSUME|inv=0) sur les transitions S2 des agents VIVANTS, dernier quart."""
+    inv, cons, al = s2                      # chacun [T, M]
+    T = inv.shape[0]
+    q = (3 * T) // 4
+    inv, cons, al = inv[q:], cons[q:], al[q:]
+    m1 = al & inv
+    m0 = al & ~inv
+    p1 = float(cons[m1].mean()) if m1.any() else 0.0
+    p0 = float(cons[m0].mean()) if m0.any() else 0.0
+    craft_rate = float(inv.mean())
+    return p1, p0, craft_rate
+
+
+def evaluate_learner(learner, arm, params, seed, M):
+    """Eval poids GELES (pas d'update) : survie (AUC mediane-par-agent) + conditionnement TICK-level."""
+    def act(obs, H):
+        if H is None:
+            H = np.zeros((obs.shape[0], N_H), dtype=np.float64)
+        z = obs @ learner.W_ih.T + H @ learner.W_hh.T + learner.b_h
+        Hn = np.tanh(z)
+        logits = Hn @ learner.W_out.T + learner.b_out
+        # eval = poids GELES + politique GREEDY (argmax) -> deterministe, pas de rng d'echantillonnage
+        a = _softmax(logits / TEMP).argmax(axis=1)
+        return a, Hn
+    am, s2 = _run_frozen(act, arm, params, seed, M)
+    p1, p0, craft_rate = _binding_from_log(s2)
+    return {"survival": survival_auc(am), "binding_gap": p1 - p0,
+            "p_c_inv1": p1, "p_c_inv0": p0, "craft_rate": craft_rate}
+
+
+def null_metronome_gap(params, seed, M):
+    """binding_gap d'un metronome open-loop (CRAFT en S1, CONSUME en S2) -> borne null (ne lit pas inv)."""
+    def act(obs, H):
+        phase = int(round(float(obs[0, 1])))
+        a = np.full(obs.shape[0], CRAFT if phase == 0 else CONSUME, dtype=int)
+        return a, H
+    _, s2 = _run_frozen(act, "inesc", params, seed, M)
+    p1, p0, _ = _binding_from_log(s2)
+    return p1 - p0
+
+
 if __name__ == "__main__":
     _report(calibrate())

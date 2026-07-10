@@ -161,3 +161,24 @@ def test_learner_updates_weights():
     W0 = learner.W_out.copy()
     rollout_learn(learner, "inesc", Params(E0=16.0, T=60), seed=1, M=16, n_episodes=5)
     assert not np.allclose(learner.W_out, W0)
+
+
+# === Phase B1a Task 2 : metriques d'evaluation (binding_gap tick-level, null-metronome) ===
+
+from tools.craft_or_starve_edr import evaluate_learner, null_metronome_gap
+
+
+def test_evaluate_learner_contract():
+    learner = rollout_learn(NpReinforceLearner(seed=2, arm="inesc"), "inesc", Params(E0=16.0, T=80), seed=2, M=16, n_episodes=8)
+    res = evaluate_learner(learner, "inesc", Params(E0=16.0, T=200), seed=99, M=32)
+    assert set(res) >= {"survival", "binding_gap", "p_c_inv1", "p_c_inv0", "craft_rate"}
+    assert 0.0 <= res["survival"] <= 1.0
+    assert -1.0 <= res["binding_gap"] <= 1.0
+    # binding_gap == p_c_inv1 - p_c_inv0
+    assert res["binding_gap"] == pytest.approx(res["p_c_inv1"] - res["p_c_inv0"], abs=1e-9)
+
+
+def test_null_metronome_gap_is_low():
+    # l'horloge open-loop ne conditionne pas sur inv -> gap ~0 (borne null). Materiau stochastique p_mat=0.5.
+    g = null_metronome_gap(Params(E0=16.0, T=200), seed=5, M=64)
+    assert abs(g) < 0.15
