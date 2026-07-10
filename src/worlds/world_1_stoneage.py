@@ -52,6 +52,19 @@ class Biosphere3D(BaseWorld):
         self.torch_episode_k = 8          # taille de fenetre episodique (variable EDR)
         self._torch_traj = deque(maxlen=self.torch_episode_k)
         self._torch_tick = 0
+        # Throw-gate in-world (B2, EDR-171 -> biosphere). Tete apprise au niveau MONDE (readout
+        # partage population sur H) qui route l'action "ends" (throw, logit 8) sur le contexte
+        # spear-en-inventaire. OFF par defaut => crans 0-1 strictement inchanges. Exige
+        # use_torch_inworld. W gele (H detache) ; REINFORCE immediat 1-pas sur l'outcome.
+        self.torch_throw_gate = False
+        self.torch_throw_gate_lr = 0.05
+        self.torch_throw_antisat = 6.0
+        self.torch_throw_shuffle = False     # bras temoin : recompense permutee
+        self._throw_w = None                 # torch (N,) : cree paresseusement au 1er tick torch
+        self._throw_b = None                 # torch (1,)
+        self._throw_opt = None               # Adam([_throw_w, _throw_b])
+        self._throw_shuf_rng = None          # RandomState fixe pour le shuffle
+        self._throw_kills_tool = 0           # compteur KPI : throws de spear touchant une prey
         # Mode benchmark (S2) : cohorte FIXE -> désactive reproduction/mutation/HGT pendant la
         # mesure (sinon la lignée est immortelle et la survie sature au cap, blocker panel). Défaut
         # False = comportement historique. L'apprentissage intra-vie reste actif. Spec §4.
@@ -972,6 +985,24 @@ class Biosphere3D(BaseWorld):
                     except Exception as e:
                         logger.emit("HGT_FAILED", {"error": str(e), "parents": [agent["id"], best_neighbor["id"]]})
 
+    def _ensure_throw_gate(self):
+        """Init paresseuse de la tete throw-gate (B2). No-op si gate OFF, deja init, ou pop absent.
+        Cree w_throw (N-dim partage population), b_throw (scalaire), l'optimiseur Adam et le RNG de
+        shuffle. Appelee au 1er tick torch quand pop.N est connu."""
+        if not (self.use_torch_inworld and self.torch_throw_gate):
+            return
+        if self._throw_w is not None:
+            return
+        if self._torch_pop is None:
+            return
+        import torch
+        N = self._torch_pop.N
+        self._throw_w = torch.zeros(N, requires_grad=True)
+        self._throw_b = torch.zeros(1, requires_grad=True)
+        self._throw_opt = torch.optim.Adam([self._throw_w, self._throw_b],
+                                           lr=self.torch_throw_gate_lr)
+        self._throw_shuf_rng = np.random.RandomState(12345)
+
     def _get_batch_model(self, models):
         """Renvoie le batch model du tick. Legacy = recréé/tick (non-régressif). Torch = pop
         PERSISTANT (créé une fois, réutilisé) pour conserver optimiseur + gate. Reconstruit si la
@@ -1023,6 +1054,48 @@ class Biosphere3D(BaseWorld):
         ep_return = ep_return - float(np.mean(ep_return))          # baseline = moyenne de population
         return self._torch_pop.learn_episode(obs_seq, actions_seq, ep_return,
                                              gamma=1.0, gate_last_only=True)
+
+    def _learn_throw_gate(self):
+        """REINFORCE immediat 1-pas de la tete throw-gate (B2). Recompute p (differentiable) depuis
+        H cache ce tick, utilise les decisions _throw_did stockees, recompense = outcome (kill-avec-
+        outil +1.0, autre throw -0.5, pas de throw 0.0). Shuffle => permute r parmi les vivants
+        (permutation seed-deterministe) pour decorreler recompense/contexte. Skip propre (log, pas
+        de crash) si gate OFF, pop absent, ou desync B != len(agents). Baseline = moyenne population."""
+        if not (self.use_torch_inworld and self.torch_throw_gate) or self._throw_w is None:
+            return None
+        if self._torch_pop is None:
+            return None
+        import torch
+        H = self._torch_pop.H.detach()
+        B = H.shape[0]
+        if B == 0 or B != len(self.agents):
+            logger.emit("TORCH_THROW_SKIP", {"reason": "pop_desync", "tick": self._torch_tick})
+            return None
+        did = np.array([1.0 if a.get("_throw_did") else 0.0 for a in self.agents],
+                       dtype=np.float32)
+        r = np.zeros(B, dtype=np.float32)
+        n_kill = 0
+        for i, a in enumerate(self.agents):
+            if not a.get("_throw_did"):
+                r[i] = 0.0
+            elif a.get("_throw_kill_tool"):
+                r[i] = 1.0
+                n_kill += 1
+            else:
+                r[i] = -0.5
+        self._throw_kills_tool += n_kill
+        if self.torch_throw_shuffle:
+            r = r[self._throw_shuf_rng.permutation(B)]   # decorrele recompense/contexte
+        ret = torch.tensor(r - float(r.mean()))
+        z = H @ self._throw_w + self._throw_b
+        p = torch.sigmoid(torch.clamp(z, -10.0, 10.0))
+        did_t = torch.tensor(did)
+        logp = did_t * torch.log(p + 1e-6) + (1 - did_t) * torch.log(1 - p + 1e-6)
+        loss = -(ret * logp).mean() + self.torch_throw_antisat * p.mean() ** 2
+        self._throw_opt.zero_grad()
+        loss.backward()
+        self._throw_opt.step()
+        return float(loss.item())
 
     def step(self):
         self.ticks += 1
@@ -1110,6 +1183,9 @@ class Biosphere3D(BaseWorld):
         base_cost = getattr(self.config, "ttc_base_cost", 0.01)
         night_mult = getattr(self.config, "ttc_night_penalty", 2.5) if getattr(self, "is_night", False) else 1.0
 
+        if self.use_torch_inworld and self.torch_throw_gate:
+            self._ensure_throw_gate()          # init paresseuse (pop.N connu apres forward)
+
         for i, agent in enumerate(self.agents):
             if getattr(self.config, "trace_energy_sinks", False):
                 agent["_e0"] = agent["energy"]                 # EDR099 : energie debut tick
@@ -1179,7 +1255,17 @@ class Biosphere3D(BaseWorld):
                 action = self._reach_oracle_action(agent)   # EDR114 : override -> primitive d'atteinte
             agent["last_action"] = action
             
-            do_throw = float(logits[8]) > 0
+            if (self.use_torch_inworld and self.torch_throw_gate
+                    and self._throw_w is not None):
+                h_i = self._torch_pop.H[idx].detach()
+                z = float(h_i @ self._throw_w) + float(self._throw_b)
+                p_throw = 1.0 / (1.0 + np.exp(-np.clip(float(logits[8]) + z, -10.0, 10.0)))
+                do_throw = bool(np.random.rand() < p_throw)
+                agent["_throw_ctx"] = bool(has_spear(agent["inventory"]))  # AVANT le pop
+                agent["_throw_did"] = do_throw
+                agent["_throw_kill_tool"] = False        # arme par le bloc balistique si kill-outil
+            else:
+                do_throw = float(logits[8]) > 0
             aim_vec = np.array([float(logits[11]), float(logits[12])])
             if getattr(self.config, "active_exp_variable", "NONE") == "LANGUAGE":
                 raw_spoken = logits[19:23]
@@ -1334,6 +1420,10 @@ class Biosphere3D(BaseWorld):
                         hit_entity["stunned"] = int(damage * 2)
                     agent["throw_feedback"] = 1.0
                     agent["throw_feedback_ttl"] = 5
+                    if (self.use_torch_inworld and self.torch_throw_gate
+                            and thrown_item.get("type") == "Spear"
+                            and any(hit_entity is p for p in self.preys)):
+                        agent["_throw_kill_tool"] = True   # KPI (gate ON) : spear lance touchant une prey
                 else:
                     agent["throw_feedback"] = -1.0
                     agent["throw_feedback_ttl"] = 5
@@ -1368,7 +1458,8 @@ class Biosphere3D(BaseWorld):
 
             # Enregistrer l'action prise pour le crédit d'action du policy gradient (EDR 020).
             agent["_pg"] = {"move": int(action), "grab": 1 if do_grab > 0 else 0,
-                            "rub": 1 if do_rub > 0 else 0}
+                            "rub": 1 if do_rub > 0 else 0,
+                            "throw": 1 if do_throw else 0}
 
             # 6. Grab (Inventory mechanics)
             if do_grab > 0:
@@ -1569,6 +1660,8 @@ class Biosphere3D(BaseWorld):
                                       [a["id"] for a in self.agents]))
             self._torch_tick += 1
             self._maybe_learn_episode()
+            if self.torch_throw_gate:
+                self._learn_throw_gate()       # REINFORCE immediat de la tete throw (B2)
         else:
             batch_model.compute_policy_gradient(rewards, actions_batch)
                 
