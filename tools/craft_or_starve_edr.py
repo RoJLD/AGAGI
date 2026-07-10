@@ -79,7 +79,6 @@ def rollout(policy, arm, params, seed, M, mat_stream=None):
             foraged = alive & (a1 == FORAGE)
             pending = np.where(foraged, P.f_forage, 0.0)
         E = E - np.where(alive, P.h, 0.0)
-        alive = alive & (E > 0.0)
         # --- S2 : phase consume ---
         obs2 = _build_obs(np.zeros(M), 1, rng.standard_normal((M, N_NOISE)))
         a2, mem = policy(obs2, mem, 1)

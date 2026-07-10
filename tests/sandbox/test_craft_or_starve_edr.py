@@ -76,3 +76,13 @@ def test_obs_shape_and_action_space():
     rollout(probe, 'inesc', p, seed=0, M=3)
     assert seen['obs_dim'] == OBS_DIM
     assert N_ACTIONS == 8
+
+
+def test_dip_then_recover_survives_single_mortality_check():
+    # E0=1.0, un seul tick, mat=1, oracle_composer : S1 craft-avec-mat (-c_craft -h) fait plonger E sous 0,
+    # mais S2 consume-avec-inv (+R -h) le rachete au-dessus de 0 -> DOIT survivre (mort verifiee 1x en fin de tick).
+    # E = 1.0 -0.5 -1.0 -1.0 +8.0 = 6.5 > 0.
+    p = Params(E0=1.0, T=1)
+    mat = np.array([[1]], dtype=float)
+    am = rollout(oracle_composer_policy(), 'inesc', p, seed=0, M=1, mat_stream=mat)
+    assert am[0, 0]   # vivant en fin de tick 0 (aurait ete tue par un double-check apres S1)
