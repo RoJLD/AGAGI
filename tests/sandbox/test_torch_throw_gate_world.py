@@ -53,3 +53,44 @@ def test_ensure_throw_gate_builds_head():
     prev = w._throw_w
     w._ensure_throw_gate()            # idempotent : ne recree pas
     assert w._throw_w is prev
+
+
+def _torch_world(n_agents=4, seed=0):
+    np.random.seed(seed)
+    import torch
+    torch.manual_seed(seed)
+    w = _fresh_world()
+    for _ in range(n_agents):
+        w.add_agent(MambaAgent(), energy=80.0)
+    w.current_era = 1
+    w.benchmark_mode = True
+    w.use_torch_inworld = True
+    w.torch_throw_gate = True
+    for a in w.agents:                       # semer un spear (contexte present)
+        a["inventory"].insert(0, {"type": "Spear", "weight": 2.0})
+    return w
+
+
+def test_gate_on_step_records_and_H_shape():
+    w = _torch_world()
+    w.step()
+    # pop.H aligne sur les agents (assomption porteuse)
+    assert w._torch_pop.H.shape[0] == len(w.agents)
+    assert w._torch_pop.H.shape[1] == w._torch_pop.N
+    for a in w.agents:
+        assert "_throw_did" in a and isinstance(a["_throw_did"], bool)
+        assert "_throw_ctx" in a and isinstance(a["_throw_ctx"], bool)
+        assert "throw" in a["_pg"]
+
+
+def test_gate_off_is_nonregressive():
+    np.random.seed(1)
+    w = _fresh_world()
+    for _ in range(4):
+        w.add_agent(MambaAgent(), energy=80.0)
+    w.current_era = 1
+    w.benchmark_mode = True
+    # use_torch_inworld reste False, torch_throw_gate reste False : legacy pur
+    w.step()                                  # ne doit pas crasher
+    for a in w.agents:
+        assert "_throw_did" not in a          # aucun record B2 en legacy

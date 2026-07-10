@@ -1103,6 +1103,9 @@ class Biosphere3D(BaseWorld):
         base_cost = getattr(self.config, "ttc_base_cost", 0.01)
         night_mult = getattr(self.config, "ttc_night_penalty", 2.5) if getattr(self, "is_night", False) else 1.0
 
+        if self.use_torch_inworld and self.torch_throw_gate:
+            self._ensure_throw_gate()          # init paresseuse (pop.N connu apres forward)
+
         for i, agent in enumerate(self.agents):
             if getattr(self.config, "trace_energy_sinks", False):
                 agent["_e0"] = agent["energy"]                 # EDR099 : energie debut tick
@@ -1170,7 +1173,18 @@ class Biosphere3D(BaseWorld):
                 force_rub = (self.craft_level >= 1 and np.random.rand() < 0.5)
             agent["last_action"] = action
             
-            do_throw = float(logits[8]) > 0
+            if (self.use_torch_inworld and self.torch_throw_gate
+                    and self._throw_w is not None):
+                import torch
+                h_i = self._torch_pop.H[idx].detach()
+                z = float(h_i @ self._throw_w) + float(self._throw_b)
+                p_throw = 1.0 / (1.0 + np.exp(-np.clip(float(logits[8]) + z, -10.0, 10.0)))
+                do_throw = bool(np.random.rand() < p_throw)
+                agent["_throw_ctx"] = bool(has_spear(agent["inventory"]))  # AVANT le pop
+                agent["_throw_did"] = do_throw
+                agent["_throw_kill_tool"] = False        # arme par le bloc balistique si kill-outil
+            else:
+                do_throw = float(logits[8]) > 0
             aim_vec = np.array([float(logits[11]), float(logits[12])])
             if getattr(self.config, "active_exp_variable", "NONE") == "LANGUAGE":
                 raw_spoken = logits[19:23]
@@ -1325,6 +1339,9 @@ class Biosphere3D(BaseWorld):
                         hit_entity["stunned"] = int(damage * 2)
                     agent["throw_feedback"] = 1.0
                     agent["throw_feedback_ttl"] = 5
+                    if (thrown_item.get("type") == "Spear"
+                            and any(hit_entity is p for p in self.preys)):
+                        agent["_throw_kill_tool"] = True   # KPI : spear lance touchant une prey
                 else:
                     agent["throw_feedback"] = -1.0
                     agent["throw_feedback_ttl"] = 5
@@ -1359,7 +1376,8 @@ class Biosphere3D(BaseWorld):
 
             # Enregistrer l'action prise pour le crédit d'action du policy gradient (EDR 020).
             agent["_pg"] = {"move": int(action), "grab": 1 if do_grab > 0 else 0,
-                            "rub": 1 if do_rub > 0 else 0}
+                            "rub": 1 if do_rub > 0 else 0,
+                            "throw": 1 if do_throw else 0}
 
             # 6. Grab (Inventory mechanics)
             if do_grab > 0:
