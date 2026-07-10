@@ -96,3 +96,47 @@ def test_gate_off_is_nonregressive():
     for a in w.agents:
         assert "_throw_did" not in a          # aucun record B2 en legacy
         assert "_throw_kill_tool" not in a    # garde de flag : le bloc kill-outil ne fuit pas en legacy
+
+
+def test_learn_throw_gate_steps_optimizer():
+    import torch
+    w = _fresh_world()
+    w.use_torch_inworld = True
+    w.torch_throw_gate = True
+    w._torch_pop = _FakePop(6)
+    w._ensure_throw_gate()
+    # H fixe (3 agents x 6) ; agent 0 kill-outil, agent 1 throw-rate, agent 2 pas de throw
+    w._torch_pop.H = torch.randn(3, 6)
+    w.agents = [{"_throw_did": True, "_throw_kill_tool": True},
+                {"_throw_did": True, "_throw_kill_tool": False},
+                {"_throw_did": False, "_throw_kill_tool": False}]
+    w0 = w._throw_w.detach().clone()
+    loss = w._learn_throw_gate()
+    assert loss is not None
+    assert not torch.equal(w._throw_w.detach(), w0)   # l'optimiseur a bouge les poids
+    assert w._throw_kills_tool == 1                    # 1 kill-outil credite
+
+
+def test_learn_throw_gate_shuffle_runs():
+    import torch
+    w = _fresh_world()
+    w.use_torch_inworld = True
+    w.torch_throw_gate = True
+    w.torch_throw_shuffle = True
+    w._torch_pop = _FakePop(6)
+    w._ensure_throw_gate()
+    w._torch_pop.H = torch.randn(4, 6)
+    w.agents = [{"_throw_did": bool(i % 2), "_throw_kill_tool": False} for i in range(4)]
+    assert w._learn_throw_gate() is not None            # bras shuffle ne crashe pas
+
+
+def test_learn_throw_gate_skips_on_desync():
+    import torch
+    w = _fresh_world()
+    w.use_torch_inworld = True
+    w.torch_throw_gate = True
+    w._torch_pop = _FakePop(6)
+    w._ensure_throw_gate()
+    w._torch_pop.H = torch.randn(3, 6)
+    w.agents = [{"_throw_did": False, "_throw_kill_tool": False}]   # B(3) != agents(1)
+    assert w._learn_throw_gate() is None
