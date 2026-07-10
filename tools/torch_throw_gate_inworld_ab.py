@@ -84,3 +84,31 @@ def run_arm(shuffle=False, seed=0, ticks=400, warmup=200, n_agents=32, respawn_p
             "kills_with_tool": int(getattr(w, "_throw_kills_tool", 0)),
             "spear_n": int(spear_n), "nospear_n": int(nospear_n),
             "throw_rate": float((spear_thr + nospear_thr) / tot_n) if tot_n else 0.0}
+
+
+def compare(seeds=(0, 1, 2, 3), ticks=400, warmup=200, n_agents=32):
+    """A/B apparie ON vs SHUFFLE par seed -> verdict. diff = gap_ON - gap_SHUFFLE. diff>0 = le
+    throw-gate route sur la VRAIE presence-spear et generalise (pas artefact : le shuffle est plat)."""
+    rows = []
+    for s in seeds:
+        on = run_arm(shuffle=False, seed=s, ticks=ticks, warmup=warmup, n_agents=n_agents)
+        sh = run_arm(shuffle=True, seed=s, ticks=ticks, warmup=warmup, n_agents=n_agents)
+        rows.append({"seed": s, "on": on["binding_gap_inworld"], "shuffle": sh["binding_gap_inworld"],
+                     "kills_on": on["kills_with_tool"],
+                     "diff": on["binding_gap_inworld"] - sh["binding_gap_inworld"]})
+    return {"rows": rows, "verdict": compute_ab_verdict(rows, band=0.02)}
+
+
+if __name__ == "__main__":
+    seeds = tuple(int(x) for x in os.environ.get("TTG_SEEDS", "0,1,2,3").split(","))
+    ticks = int(os.environ.get("TTG_TICKS", "400"))
+    warmup = int(os.environ.get("TTG_WARMUP", "200"))
+    agents = int(os.environ.get("TTG_AGENTS", "32"))
+    out = compare(seeds=seeds, ticks=ticks, warmup=warmup, n_agents=agents)
+    for r in out["rows"]:
+        print(f"seed={r['seed']} gap_ON={r['on']:+.3f} gap_SHUF={r['shuffle']:+.3f} "
+              f"diff={r['diff']:+.3f} (kills_ON={r['kills_on']})")
+    print("VERDICT:", out["verdict"])
+    _label = {"GRADIENT_GAGNE": "BINDING_INWORLD_REEL", "HEBBIEN_GAGNE": "SHUFFLE_BINDE_PLUS",
+              "NEUTRE": "PAS_DE_BINDING_INWORLD"}
+    print("INTERPRETATION:", _label.get(out["verdict"]["verdict"], out["verdict"]["verdict"]))
