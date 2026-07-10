@@ -149,3 +149,65 @@ def random_policy(seed):
         M = obs.shape[0]
         return rng.integers(0, N_ACTIONS, size=M), mem
     return policy
+
+
+PILOT_SEEDS = (1000, 1001, 1002, 1003)   # set DISJOINT du set confirmatoire Phase B
+
+
+def _median_auc(policy_factory, arm, params, seeds, M):
+    """Mediane sur les seeds de survival_auc (chacun deja mediane-par-agent sur M agents)."""
+    vals = []
+    for s in seeds:
+        am = rollout(policy_factory(s), arm, params, seed=int(s), M=M)
+        vals.append(survival_auc(am))
+    return float(np.median(vals))
+
+
+def check_viability_gates(params, seeds=PILOT_SEEDS, M=128):
+    """Gates de viabilite Phase A (world-only) : le monde EXIGE-t-il le conditionnement ?
+    G1 oracle-composeur>=0.90 (inesc) ; G2 random<=0.20 (inesc) ; G3 oracle-forage>=0.90 ET random<=0.20 (absent) ;
+    G5 metronome<=0.40 (inesc). (G4/G6/G7/G8 = Phase B : substrats.)"""
+    comp = _median_auc(lambda s: oracle_composer_policy(), 'inesc', params, seeds, M)
+    rand_inesc = _median_auc(lambda s: random_policy(s), 'inesc', params, seeds, M)
+    forage = _median_auc(lambda s: oracle_forage_policy(), 'absent', params, seeds, M)
+    rand_absent = _median_auc(lambda s: random_policy(s), 'absent', params, seeds, M)
+    metro = _median_auc(lambda s: metronome_policy(), 'inesc', params, seeds, M)
+    gates = {
+        'G1_oracle_composer': bool(comp >= 0.90),
+        'G2_random_inesc': bool(rand_inesc <= 0.20),
+        'G3_forage': bool((forage >= 0.90) and (rand_absent <= 0.20)),
+        'G5_metronome': bool(metro <= 0.40),
+    }
+    gates['ALL'] = bool(all(gates.values()))
+    aucs = {'oracle_composer': comp, 'random_inesc': rand_inesc, 'oracle_forage': forage,
+            'random_absent': rand_absent, 'metronome': metro}
+    return {'gates': gates, 'aucs': aucs}
+
+
+def calibrate(seeds=PILOT_SEEDS, e0_grid=(6.0, 8.0, 10.0, 12.0, 16.0, 24.0), base=None, M=128):
+    """Balaie E0 ; renvoie le PREMIER qui fait passer TOUTES les gates (GATE DUR), sinon un rapport d'echec.
+    Les autres params sont figes (spec §1). E0 tamponne la variance precoce du composeur."""
+    base = base if base is not None else Params()
+    last = None
+    for e0 in e0_grid:
+        p = replace(base, E0=e0)
+        last = check_viability_gates(p, seeds, M)
+        if last['gates']['ALL']:
+            return {'ok': True, 'E0': e0, 'params': p, 'result': last}
+    return {'ok': False, 'params': base, 'last': last}
+
+
+def _report(res):
+    a, g = res.get('result', res.get('last', {})).get('aucs', {}), res.get('result', res.get('last', {})).get('gates', {})
+    print("\n=== CRAFT-OR-STARVE — gates de viabilite (Phase A) ===")
+    print("  E0 retenu : %s  |  TOUTES gates : %s" % (res.get('E0', 'AUCUN'), res.get('ok')))
+    print("  AUC oracle_composer=%.3f  random_inesc=%.3f  metronome=%.3f" %
+          (a.get('oracle_composer', float('nan')), a.get('random_inesc', float('nan')), a.get('metronome', float('nan'))))
+    print("  AUC oracle_forage=%.3f  random_absent=%.3f" %
+          (a.get('oracle_forage', float('nan')), a.get('random_absent', float('nan'))))
+    print("  gates : %s" % g)
+    print("=== GATE DUR : %s ===" % ("PASSE -> Phase B autorisee" if res.get('ok') else "ECHOUE -> reviser le design AVANT Phase B"))
+
+
+if __name__ == "__main__":
+    _report(calibrate())

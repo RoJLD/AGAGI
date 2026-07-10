@@ -86,3 +86,39 @@ def test_dip_then_recover_survives_single_mortality_check():
     mat = np.array([[1]], dtype=float)
     am = rollout(oracle_composer_policy(), 'inesc', p, seed=0, M=1, mat_stream=mat)
     assert am[0, 0]   # vivant en fin de tick 0 (aurait ete tue par un double-check apres S1)
+
+
+from tools.craft_or_starve_edr import check_viability_gates, calibrate, PILOT_SEEDS
+
+
+def test_gates_structure_and_bools():
+    res = check_viability_gates(Params(E0=16.0), seeds=(1000, 1001), M=32)
+    assert set(res['gates']) >= {'G1_oracle_composer', 'G2_random_inesc', 'G3_forage', 'G5_metronome', 'ALL'}
+    assert set(res['aucs']) >= {'oracle_composer', 'random_inesc', 'oracle_forage', 'random_absent', 'metronome'}
+    for v in res['gates'].values():
+        assert isinstance(v, (bool, np.bool_))
+
+
+def test_world_discriminates_conditioning():
+    # coeur du pilote : a E0 confortable, l'oracle-composeur survit BEAUCOUP mieux que metronome ET random.
+    res = check_viability_gates(Params(E0=16.0), seeds=(1000, 1001), M=64)
+    a = res['aucs']
+    assert a['oracle_composer'] > a['metronome']
+    assert a['oracle_composer'] > a['random_inesc']
+    assert a['oracle_composer'] >= 0.90        # G1 doit tenir a E0 confortable
+    assert a['metronome'] <= 0.40              # G5 : l'horloge ne survit pas
+
+
+def test_gates_deterministic():
+    r1 = check_viability_gates(Params(E0=12.0), seeds=(1000, 1001), M=32)
+    r2 = check_viability_gates(Params(E0=12.0), seeds=(1000, 1001), M=32)
+    assert r1['aucs'] == r2['aucs']
+
+
+def test_calibrate_returns_ok_or_report():
+    # on ne prejuge PAS du verdict (c'est le GATE DUR du controleur) : on verifie le CONTRAT de retour.
+    res = calibrate(seeds=(1000, 1001), e0_grid=(16.0, 24.0), M=32)
+    assert 'ok' in res
+    if res['ok']:
+        assert res['result']['gates']['ALL']
+        assert res['params'].E0 in (16.0, 24.0)
