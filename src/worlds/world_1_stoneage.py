@@ -1017,6 +1017,48 @@ class Biosphere3D(BaseWorld):
         return self._torch_pop.learn_episode(obs_seq, actions_seq, ep_return,
                                              gamma=1.0, gate_last_only=True)
 
+    def _learn_throw_gate(self):
+        """REINFORCE immediat 1-pas de la tete throw-gate (B2). Recompute p (differentiable) depuis
+        H cache ce tick, utilise les decisions _throw_did stockees, recompense = outcome (kill-avec-
+        outil +1.0, autre throw -0.5, pas de throw 0.0). Shuffle => permute r parmi les vivants
+        (permutation seed-deterministe) pour decorreler recompense/contexte. Skip propre (log, pas
+        de crash) si gate OFF, pop absent, ou desync B != len(agents). Baseline = moyenne population."""
+        if not (self.use_torch_inworld and self.torch_throw_gate) or self._throw_w is None:
+            return None
+        if self._torch_pop is None:
+            return None
+        import torch
+        H = self._torch_pop.H.detach()
+        B = H.shape[0]
+        if B == 0 or B != len(self.agents):
+            logger.emit("TORCH_THROW_SKIP", {"reason": "pop_desync", "tick": self._torch_tick})
+            return None
+        did = np.array([1.0 if a.get("_throw_did") else 0.0 for a in self.agents],
+                       dtype=np.float32)
+        r = np.zeros(B, dtype=np.float32)
+        n_kill = 0
+        for i, a in enumerate(self.agents):
+            if not a.get("_throw_did"):
+                r[i] = 0.0
+            elif a.get("_throw_kill_tool"):
+                r[i] = 1.0
+                n_kill += 1
+            else:
+                r[i] = -0.5
+        self._throw_kills_tool += n_kill
+        if self.torch_throw_shuffle:
+            r = r[self._throw_shuf_rng.permutation(B)]   # decorrele recompense/contexte
+        ret = torch.tensor(r - float(r.mean()))
+        z = H @ self._throw_w + self._throw_b
+        p = torch.sigmoid(torch.clamp(z, -10.0, 10.0))
+        did_t = torch.tensor(did)
+        logp = did_t * torch.log(p + 1e-6) + (1 - did_t) * torch.log(1 - p + 1e-6)
+        loss = -(ret * logp).mean() + self.torch_throw_antisat * p.mean() ** 2
+        self._throw_opt.zero_grad()
+        loss.backward()
+        self._throw_opt.step()
+        return float(loss.item())
+
     def step(self):
         self.ticks += 1
         was_night = getattr(self, "is_night", False)
@@ -1578,6 +1620,8 @@ class Biosphere3D(BaseWorld):
                                       [a["id"] for a in self.agents]))
             self._torch_tick += 1
             self._maybe_learn_episode()
+            if self.torch_throw_gate:
+                self._learn_throw_gate()       # REINFORCE immediat de la tete throw (B2)
         else:
             batch_model.compute_policy_gradient(rewards, actions_batch)
                 
