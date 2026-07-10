@@ -223,5 +223,118 @@ def _report(res):
                                      if res.get('ok') else "ECHOUE -> reviser le design AVANT Phase B"))
 
 
+# ============================ Phase B1a : apprenant L0 (REINFORCE tronque, pur numpy) ============================
+N_H = 12
+LR = 0.02
+TEMP = 1.0
+
+
+def _softmax(logits):
+    z = logits - logits.max(axis=-1, keepdims=True)
+    e = np.exp(z)
+    return e / e.sum(axis=-1, keepdims=True)
+
+
+class NpReinforceLearner:
+    """Cœur recurrent H_t = tanh(W_ih·obs + W_hh·H_{t-1} + b_h) -> readout lineaire -> softmax(/TEMP).
+    Credit = REINFORCE TRONQUE 1-pas : le gradient de logπ(a) ne remonte QUE le sous-pas courant (H_prev detache,
+    PAS de BPTT). advantage = reward - baseline (EMA). Poids persistants (apprentissage en ligne). Pur numpy."""
+
+    def __init__(self, seed, arm):
+        rng = np.random.default_rng((int(seed) ^ 0x51ED270B) & 0xFFFFFFFF)
+        s = 1.0 / np.sqrt(N_H)
+        self.W_ih = (rng.standard_normal((N_H, OBS_DIM)) * s).astype(np.float64)
+        self.W_hh = (rng.standard_normal((N_H, N_H)) * s).astype(np.float64)
+        self.b_h = np.zeros(N_H, dtype=np.float64)
+        self.W_out = (rng.standard_normal((N_ACTIONS, N_H)) * s).astype(np.float64)
+        self.b_out = np.zeros(N_ACTIONS, dtype=np.float64)
+        self.arm = arm
+        self._rng = np.random.default_rng((int(seed) ^ 0x2C1B3A9F) & 0xFFFFFFFF)  # echantillonnage d'actions
+        self._baseline = 0.0
+        self._H = None
+        self._ctx = None   # (obs, H_prev, H_new, probs, actions) du dernier act
+
+    def reset_state(self, M):
+        self._H = np.zeros((M, N_H), dtype=np.float64)
+
+    def act(self, obs):
+        H_prev = self._H
+        z = obs @ self.W_ih.T + H_prev @ self.W_hh.T + self.b_h
+        H_new = np.tanh(z)
+        logits = H_new @ self.W_out.T + self.b_out
+        probs = _softmax(logits / TEMP)
+        u = self._rng.random(probs.shape[0])
+        actions = (probs.cumsum(axis=1) > u[:, None]).argmax(axis=1)
+        self._H = H_new
+        self._ctx = (obs, H_prev, H_new, probs, actions)
+        return actions
+
+    def update(self, rewards, alive):
+        """REINFORCE 1-pas sur le DERNIER act. advantage = reward - baseline (EMA), masque les morts."""
+        obs, H_prev, H_new, probs, actions = self._ctx
+        M = obs.shape[0]
+        r = np.asarray(rewards, dtype=np.float64)
+        m = np.asarray(alive, dtype=np.float64)
+        n = max(m.sum(), 1.0)
+        self._baseline = 0.99 * self._baseline + 0.01 * float((r * m).sum() / n)
+        adv = (r - self._baseline) * m                                    # (M,) morts -> 0
+        onehot = np.zeros_like(probs)
+        onehot[np.arange(M), actions] = 1.0
+        dlogits = (onehot - probs) * adv[:, None] / TEMP                  # d(adv·logπ(a))/dlogits
+        # backprop tronque (H_prev traite comme constante -> pas de BPTT)
+        self.W_out += LR * (dlogits.T @ H_new) / n
+        self.b_out += LR * dlogits.sum(axis=0) / n
+        dH = dlogits @ self.W_out                                         # (M, N_H)
+        dz = dH * (1.0 - H_new ** 2)
+        self.W_ih += LR * (dz.T @ obs) / n
+        self.W_hh += LR * (dz.T @ H_prev) / n
+        self.b_h += LR * dz.sum(axis=0) / n
+
+
+def rollout_learn(learner, arm, params, seed, M, n_episodes):
+    """Entraine `learner` en ligne : n_episodes vies (T ticks x 2 sous-pas x M agents), reward = delta d'energie
+    du sous-pas, mort ABSORBANTE. Meme dynamique de monde que `rollout` (Phase A). Retourne le learner entraine."""
+    rng = np.random.default_rng(seed)
+    P = params
+    for _ in range(n_episodes):
+        learner.reset_state(M)
+        E = np.full(M, P.E0, dtype=np.float64)
+        inv = np.zeros(M, dtype=bool)
+        alive = np.ones(M, dtype=bool)
+        pending = np.zeros(M, dtype=np.float64)
+        for t in range(P.T):
+            # --- S1 ---
+            mat = (rng.random(M) < P.p_mat).astype(np.float64)
+            obs1 = _build_obs(mat, 0, rng.standard_normal((M, N_NOISE)))
+            a1 = learner.act(obs1)
+            E_before = E.copy()
+            matb = mat > 0.5
+            if arm == "inesc":
+                crafted = alive & (a1 == CRAFT)
+                inv = np.where(crafted & matb, True, inv)
+                E = E - np.where(crafted & matb, P.c_craft, 0.0) - np.where(crafted & ~matb, P.c_craft_nomat, 0.0)
+            else:
+                foraged = alive & (a1 == FORAGE)
+                pending = np.where(foraged, P.f_forage, 0.0)
+            E = E - np.where(alive, P.h, 0.0)
+            learner.update(np.where(alive, E - E_before, 0.0), alive)
+            # --- S2 ---
+            obs2 = _build_obs(np.zeros(M), 1, rng.standard_normal((M, N_NOISE)))
+            a2 = learner.act(obs2)
+            E_before = E.copy()
+            if arm == "inesc":
+                consume = alive & (a2 == CONSUME)
+                got = consume & inv
+                E = E + np.where(got, P.R, 0.0) - np.where(consume & ~inv, P.c_consume_empty, 0.0)
+                inv = np.where(got, False, inv)
+            else:
+                E = E + np.where(alive, pending, 0.0)
+                pending = np.zeros(M, dtype=np.float64)
+            E = E - np.where(alive, P.h, 0.0)
+            learner.update(np.where(alive, E - E_before, 0.0), alive)
+            alive = alive & (E > 0.0)
+    return learner
+
+
 if __name__ == "__main__":
     _report(calibrate())

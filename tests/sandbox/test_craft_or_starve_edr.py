@@ -125,3 +125,39 @@ def test_calibrate_returns_ok_or_report():
     if res['ok']:
         assert res['result']['gates']['ALL']
         assert res['E0_min_viable'] in (16.0, 24.0)
+
+
+# === Phase B1a : apprenant L0 (REINFORCE tronque, pur numpy) ===
+
+from tools.craft_or_starve_edr import (
+    N_H, LR, TEMP, _softmax, NpReinforceLearner, rollout_learn,
+)
+
+
+def test_softmax_stable_and_normalized():
+    p = _softmax(np.array([[1000.0, 1000.0, 1000.0, 0, 0, 0, 0, 0]]))
+    assert np.isfinite(p).all()
+    assert abs(p.sum() - 1.0) < 1e-9
+    assert p[0, 0] == pytest.approx(p[0, 1])
+
+
+def test_learner_shapes_and_determinism():
+    l1 = NpReinforceLearner(seed=0, arm="inesc")
+    l1.reset_state(4)
+    obs = np.zeros((4, 6))
+    a = l1.act(obs)
+    assert a.shape == (4,) and a.dtype.kind in "iu"
+    assert (a >= 0).all() and (a < N_ACTIONS).all()
+    # deux rollouts d'apprentissage au meme seed -> poids byte-identiques
+    a_learner = rollout_learn(NpReinforceLearner(seed=7, arm="inesc"), "inesc", Params(E0=16.0, T=40), seed=7, M=8, n_episodes=3)
+    b_learner = rollout_learn(NpReinforceLearner(seed=7, arm="inesc"), "inesc", Params(E0=16.0, T=40), seed=7, M=8, n_episodes=3)
+    assert np.array_equal(a_learner.W_out, b_learner.W_out)
+    assert np.array_equal(a_learner.W_hh, b_learner.W_hh)
+
+
+def test_learner_updates_weights():
+    # l'apprentissage DOIT bouger les poids (sinon le gradient est nul = bug)
+    learner = NpReinforceLearner(seed=1, arm="inesc")
+    W0 = learner.W_out.copy()
+    rollout_learn(learner, "inesc", Params(E0=16.0, T=60), seed=1, M=16, n_episodes=5)
+    assert not np.allclose(learner.W_out, W0)
