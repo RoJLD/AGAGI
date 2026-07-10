@@ -1,5 +1,10 @@
 # EDR 081 : La sélection robuste fait COMPOSER la compétence au fil des générations
 
+> ⚠️ **Correction (trouvaille D1)** : le fix D1 corrige une revendication liée à cet EDR — la sélection
+> robuste `K=4` n'était PAS active EN PRODUCTION (`main_biosphere` écrasait `robust_hof_K` → K=0 bruité)
+> jusqu'au fix. La GRIMPÉE mesurée ici (expérience d'évolution ISOLÉE) reste valide ; c'est l'effet EN
+> PROD qui n'a pris qu'après le fix. Détail : `docs/roadmap/SCIENCE.md` §D1.
+
 ## Contexte
 
 EDR 080 : la sélection HoF robuste donne un meilleur champion FINAL (+50 %, instantané). Question plus
