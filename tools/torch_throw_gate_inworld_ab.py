@@ -36,7 +36,8 @@ def _reseed_spears(world, rng, respawn_p):
             a["inventory"].insert(0, {"type": "Spear", "weight": 2.0})
 
 
-def run_arm(shuffle=False, seed=0, ticks=400, warmup=200, n_agents=32, respawn_p=0.5):
+def run_arm(shuffle=False, seed=0, ticks=400, warmup=200, n_agents=32, respawn_p=0.5,
+            base_metabolism=1.0, forage_payoff=1.0):
     """Tourne un monde torch avec le throw-gate, sème/re-sème des spears, agrege le binding_gap
     sur la fenetre post-warmup (couples agent,tick sur la VRAIE presence-spear). CRN par seed.
     ON (shuffle=False) vs SHUFFLE (recompense permutee, contexte decorrele)."""
@@ -46,7 +47,7 @@ def run_arm(shuffle=False, seed=0, ticks=400, warmup=200, n_agents=32, respawn_p
         torch.manual_seed(seed)
     except Exception:
         pass
-    w = Biosphere3D(WorldConfig())
+    w = Biosphere3D(WorldConfig(base_metabolism=base_metabolism, forage_payoff=forage_payoff))
     for _ in range(n_agents):
         w.add_agent(MambaAgent(), energy=80.0)
     if hasattr(w, "memory_retriever"):
@@ -83,18 +84,26 @@ def run_arm(shuffle=False, seed=0, ticks=400, warmup=200, n_agents=32, respawn_p
             "binding_gap_inworld": float(p_spear - p_nospear),
             "kills_with_tool": int(getattr(w, "_throw_kills_tool", 0)),
             "spear_n": int(spear_n), "nospear_n": int(nospear_n),
+            "n_alive_end": int(len(w.agents)),
             "throw_rate": float((spear_thr + nospear_thr) / tot_n) if tot_n else 0.0}
 
 
-def compare(seeds=(0, 1, 2, 3), ticks=400, warmup=200, n_agents=32):
+def compare(seeds=(0, 1, 2, 3), ticks=400, warmup=200, n_agents=32,
+            base_metabolism=1.0, forage_payoff=1.0):
     """A/B apparie ON vs SHUFFLE par seed -> verdict. diff = gap_ON - gap_SHUFFLE. diff>0 = le
-    throw-gate route sur la VRAIE presence-spear et generalise (pas artefact : le shuffle est plat)."""
+    throw-gate route sur la VRAIE presence-spear et generalise (pas artefact : le shuffle est plat).
+    base_metabolism/forage_payoff : regime energetique (defaut 1.0/1.0 = letal ; sweet EDR-085 =
+    0.25/3.0 = survivable, laisse le temps au gate d'apprendre)."""
     rows = []
     for s in seeds:
-        on = run_arm(shuffle=False, seed=s, ticks=ticks, warmup=warmup, n_agents=n_agents)
-        sh = run_arm(shuffle=True, seed=s, ticks=ticks, warmup=warmup, n_agents=n_agents)
+        on = run_arm(shuffle=False, seed=s, ticks=ticks, warmup=warmup, n_agents=n_agents,
+                     base_metabolism=base_metabolism, forage_payoff=forage_payoff)
+        sh = run_arm(shuffle=True, seed=s, ticks=ticks, warmup=warmup, n_agents=n_agents,
+                     base_metabolism=base_metabolism, forage_payoff=forage_payoff)
         rows.append({"seed": s, "on": on["binding_gap_inworld"], "shuffle": sh["binding_gap_inworld"],
                      "kills_on": on["kills_with_tool"],
+                     "on_throw": on["throw_rate"], "on_sn": on["spear_n"], "on_nn": on["nospear_n"],
+                     "sh_throw": sh["throw_rate"], "alive": on["n_alive_end"],
                      "diff": on["binding_gap_inworld"] - sh["binding_gap_inworld"]})
     return {"rows": rows, "verdict": compute_ab_verdict(rows, band=0.02)}
 
@@ -104,10 +113,14 @@ if __name__ == "__main__":
     ticks = int(os.environ.get("TTG_TICKS", "400"))
     warmup = int(os.environ.get("TTG_WARMUP", "200"))
     agents = int(os.environ.get("TTG_AGENTS", "32"))
-    out = compare(seeds=seeds, ticks=ticks, warmup=warmup, n_agents=agents)
+    bm = float(os.environ.get("TTG_BM", "1.0"))          # base_metabolism (sweet EDR-085 = 0.25)
+    fp = float(os.environ.get("TTG_FP", "1.0"))          # forage_payoff  (sweet EDR-085 = 3.0)
+    out = compare(seeds=seeds, ticks=ticks, warmup=warmup, n_agents=agents,
+                  base_metabolism=bm, forage_payoff=fp)
     for r in out["rows"]:
         print(f"seed={r['seed']} gap_ON={r['on']:+.3f} gap_SHUF={r['shuffle']:+.3f} "
-              f"diff={r['diff']:+.3f} (kills_ON={r['kills_on']})")
+              f"diff={r['diff']:+.3f} | throw_ON={r['on_throw']:.3f} throw_SH={r['sh_throw']:.3f} "
+              f"spear_n={r['on_sn']} nospear_n={r['on_nn']} alive={r['alive']} kills_ON={r['kills_on']}")
     print("VERDICT:", out["verdict"])
     _label = {"GRADIENT_GAGNE": "BINDING_INWORLD_REEL", "HEBBIEN_GAGNE": "SHUFFLE_BINDE_PLUS",
               "NEUTRE": "PAS_DE_BINDING_INWORLD"}
