@@ -75,6 +75,35 @@
 > têtes disjointes/losses séparées + récup épisodique réelle ; **P3** fitness per-type + MAP-Elites 4-tier +
 > worlds 2/3 réels (KPI cognitif) + G2 ; **P4** Theory of Mind. Recoupe la migration moteur (`NAS.md`, `sota-gap-substrate`).
 
+### 🔩 Fil torch / migration moteur — proxies H-unif (EDR 134-148, 158-168, 170 ; détail `sota-gap-substrate`)
+
+**Carte de valeur torch COMPLÈTE, exécutable prod flag-OFF** : (1) migration faisable (torch≈legacy,
+140/141) ; (2) mémoire BPTT numpy-impossible mais capacité prod (145) ; (3) **binding means→ends LIVRÉ**
+= gate + anti-saturation + `learn_episode` (crédit ÉPISODIQUE, pas TD 1-pas ; 158/159, task-agnostique,
+gate multi-cible `GATE_TARGETS` pour multi-compétences).
+
+**Pari H-unif VALIDÉ en proxy standalone** (famille routage/crédit conditionnel) :
+- **binding/composition PAIE** sous demande (161) ; **spécialisation** émerge + **division du travail**
+  (165) — les deux POSITIFS.
+- **rétention** d'un moyen COÛTEUX = **BISTABILITÉ** entièrement cartographiée (162→164→167→168→170) :
+  deux seuils — cold ≈0.04 (barrière de *bootstrap*) vs warm = **r·P** (rentabilité statique, LOI
+  confirmée par scaling 170) ; hystérésis ~22× ; warm-start **court (~50 ép)** rescape ; au-delà de r·P,
+  métastable puis collapse.
+
+**➡️ Handoff axe 3 in-world** (`[[torch-inworld-integration-plan]]`, la session in-world exécute) —
+recommandations CHIFFRÉES des proxies, à valider in-world (P y sera différent) :
+1. **Porter le binding via crédit ÉPISODIQUE** (`learn_episode`), PAS le `learn()` TD 1-pas (148).
+2. **Rétention d'un moyen coûteux** : garantir `coût_du_moyen < récompense × P(suite|moyen)` OU
+   **warm-start court** du binding (pré-entraîner à coût faible / curriculum de coût croissant / warm-start
+   du gate EDR-132). Le levier n'est PAS « renforcer le binding » (déjà fort, P~0.9) mais le **bassin**.
+3. **Multi-compétences** : gate multi-cible (`GATE_TARGETS`) route conditionnellement vers plusieurs ends.
+
+**Raffinements restants (backlog, faible priorité — substrat synthétique dégénéré)** :
+- Loi c_warm = r·P : forme exacte de P(r) (super-linéaire léger, 170) ; plus de r + seeds.
+- Profondeur de warm-start en 2D (ws × coût) ; seuil warm exact près de r·P.
+- Combiner les 3 axes (tâche exigeant binding + spécialisation + rétention coûteuse simultanément).
+- Le vrai test = in-world (axe 1/3), pas plus de proxy.
+
 ## 🛠️ Outillage / Dev
 
 **Livré (session)** : **Dashboard EDR** + **Biosphère live** (onglets `edr`/`live`, `/api/edr`) ; **HoF robuste** en prod (`robust_hof_K`, gated) ; **knobs d'énergie** (`base_metabolism`/`forage_payoff`, gated) ; **stabilité connectome** longs épisodes (`086`) ; **D1 — socle de validité (RNG/Harness)** : `SeedManager` + `Harness` (composition : seed aux frontières, cycle async_logger, éval robuste **appariée**, provenance), seed boot **loggé** dans `main_biosphere` (run rejouable via `EXPERIMENT_SEED`), `robust_evaluate(seed=)`, pilote `robust_eval` migré (repro exacte prouvée sur la vraie biosphère). **+21 tests.** *(spec/plan : `../superpowers/{specs,plans}/2026-06-13-D1-RNG-Harness*`)*.
