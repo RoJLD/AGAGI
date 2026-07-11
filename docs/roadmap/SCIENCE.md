@@ -124,6 +124,13 @@ les proxies H-unif ont dé-risqué le binding :
   topsim +0.31 retenus) ET PARTAGÉ (cross_mi 0.045→**0.59**, ×13) — ce que ni les dyades (privé) ni la
   rotation à froid (échoue) ne donnaient. Partage PARTIEL + érosion du within (métastabilité). Analogue exact
   du **warm-start de rétention (167/168/170)** : même hystérésis de bootstrap. `compositional_curriculum_probe.py`.
+- **LANG-005 — PLAFOND = RÉGIME D'OPTIM, pas capacité** : le plafond d'accuracy (within ~0.54) est INVARIANT
+  au budget (2× ép : 0.547→0.547 exact), au crédit (per_attr ≈ joint) ET à la capacité (num_nodes 172→384,
+  cachés 5→217 = ×43 : plat) → c'est l'**équilibre partiel de la co-adaptation REINFORCE** (verrou récurrent
+  « optim pas capacité », 131/132/133, 105/110), PAS la taille du substrat. MAIS capacité et crédit
+  par-attribut améliorent la **généralisation zéro-shot** (0.49→0.57) sans toucher l'accuracy → systématicité
+  et maîtrise sont des axes DISSOCIÉS. Levier compo parfaite = **optimiseur/critique** (pas + de neurones).
+  `compositional_ceiling_probe.py`.
 
 **➡️ Handoff in-world (roadmap #1, `087`)** — le re-test 087 n'a plus à prouver la CAPACITÉ (établie), seulement
 le **bénéfice de survie** du contenu référentiel in-world :
@@ -139,8 +146,20 @@ le **bénéfice de survie** du contenu référentiel in-world :
    l'écoute — in-world plus dur.
 
 **Backlog langage (faible priorité — proxy)** : compositionnalité PARFAITE (within ~0.54 = plafond substrat ;
-curriculum dyade→rotation, pression longueur/vocab) ; scaling consensus×complexité ; coût de signal + sélection
-sur l'écoute (`083`) ; le vrai test = in-world `087`.
+E rotation plus court / LR décru phase 2 / warm-start plus long ; pression longueur/vocab) ; scaling
+consensus×complexité ; coût de signal + sélection sur l'écoute (`083`) ; le vrai test = in-world `087`.
+
+> 🔑 **Loi transversale du substrat — warm-start franchit une barrière de bootstrap (cold-start).** DEUX fils
+> indépendants convergent sur *un* mécanisme du substrat torch sous crédit épisodique : un **bassin pré-formé**
+> rend franchissable ce qui est **infranchissable à froid**.
+> - **Rétention** (fil torch `167/168/170`) : un moyen coûteux n'est PAS retenu à froid (seuil cold ≈0.04)
+>   mais l'est jusqu'à ≈`r·P` après warm-start ; hystérésis ~22× ; **~50 ép de warm-start suffisent**.
+> - **Consensus langage** (`LANG-004`) : la rotation NE partage RIEN à froid (échoue) mais partage
+>   (cross_mi ×13) après un warm-start dyade — même hystérésis de bootstrap.
+> - **Prédiction actionnable (in-world)** : un verrou qui *ressemble* à une limite de capacité peut être une
+>   **barrière de bootstrap** → tester un **warm-start (cohorte/gate pré-entraîné, curriculum de coût/social)
+>   AVANT** de conclure à l'incapacité du substrat. Recoupe directement le cran 2 B2 in-world (cohorte fraîche
+>   éteinte avant l'horizon d'apprentissage = cold-start ; `[[torch-inworld-integration-plan]]`).
 
 ## 🛠️ Outillage / Dev
 

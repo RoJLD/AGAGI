@@ -36,3 +36,12 @@ def test_curriculum_and_cross_mi_keys():
     assert 0.0 <= r["cross"] <= 1.0
     # cross_mi est NaN (non-appris) ou borné dans [-1, 2] par construction.
     assert (r["cross_mi"] != r["cross_mi"]) or (-1.0 <= r["cross_mi"] <= 2.0)
+
+
+def test_per_attr_credit_runs():
+    # LANG-005 : crédit par-attribut (épisodes 1-pas séparés, H réinitialisé entre symboles).
+    r = run_compositional(episodes=20, n_agents=8, A=3, V=6, seed=0, rotate=False, credit="per_attr")
+    for k in ("within", "zeroshot", "topsim"):
+        assert k in r
+    assert 0.0 <= r["within"] <= 1.0
+    assert -1.0 <= r["topsim"] <= 1.0

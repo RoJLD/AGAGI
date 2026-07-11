@@ -37,7 +37,8 @@ def _softmax_np(z):
 
 
 def run_compositional(episodes: int = 5000, n_agents: int = 16, A: int = 3, V: int = 6,
-                      seed: int = 0, lr: float = 0.05, rotate: bool = True, warmstart_fixed: int = 0):
+                      seed: int = 0, lr: float = 0.05, rotate: bool = True, warmstart_fixed: int = 0,
+                      credit: str = "joint", num_nodes: int = 172):
     """Entraîne sender+receiver sur le jeu compositionnel (référents (a0,a1), messages 2-symboles), en
     tenant la DIAGONALE (a,a) hors entraînement. Renvoie within (combos vus), zeroshot (combos held-out),
     topsim, et cross_mi (intelligibilité mutuelle croisée), + chance=1/A. rotate=True apparie
@@ -57,8 +58,9 @@ def run_compositional(episodes: int = 5000, n_agents: int = 16, A: int = 3, V: i
     TorchPopulationModel.CONDITION_GATE = False
     TorchPopulationModel.GATE_TARGET = None
     try:
-        sender = make_population([MambaAgent() for _ in range(n_agents)], backend="torch")
-        receiver = make_population([MambaAgent() for _ in range(n_agents)], backend="torch")
+        # num_nodes = capacité du substrat (LTC) ; défaut 172 (prod). LANG-005 : sweep pour tester le plafond.
+        sender = make_population([MambaAgent(num_nodes=num_nodes) for _ in range(n_agents)], backend="torch")
+        receiver = make_population([MambaAgent(num_nodes=num_nodes) for _ in range(n_agents)], backend="torch")
         sender.opt = torch.optim.Adam([sender.W], lr=lr)
         receiver.opt = torch.optim.Adam([receiver.W], lr=lr)
         I = sender.I
@@ -89,10 +91,14 @@ def run_compositional(episodes: int = 5000, n_agents: int = 16, A: int = 3, V: i
             p = _softmax_np(np.asarray(preds)[:, :n])
             return np.array([rng.choice(n, p=pi) for pi in p])
 
-        def _message(a0, a1, greedy=False):
+        # independent=True (crédit par-attribut, LANG-005) : réinitialise H entre les 2 pas -> chaque symbole
+        # est une fonction pure de (référent, position), crédité 1-pas séparément (cohérent avec le replay).
+        def _message(a0, a1, greedy=False, independent=False):
             sender.H = torch.zeros((n_agents, sender.N))
             o0 = _sender_obs(a0, a1, 0)
-            p0, _ = sender.forward(o0)                              # H porté au pas suivant
+            p0, _ = sender.forward(o0)                              # H porté au pas suivant (sauf independent)
+            if independent:
+                sender.H = torch.zeros((n_agents, sender.N))
             o1 = _sender_obs(a0, a1, 1)
             p1, _ = sender.forward(o1)
             if greedy:
@@ -103,10 +109,12 @@ def run_compositional(episodes: int = 5000, n_agents: int = 16, A: int = 3, V: i
                 s1 = _sample(p1, V)
             return s0, s1, o0, o1
 
-        def _decode(s0, s1, greedy=False):
+        def _decode(s0, s1, greedy=False, independent=False):
             receiver.H = torch.zeros((n_agents, receiver.N))
             r0 = _recv_obs(s0, s1, 0)
             q0, _ = receiver.forward(r0)
+            if independent:
+                receiver.H = torch.zeros((n_agents, receiver.N))
             r1 = _recv_obs(s0, s1, 1)
             q1, _ = receiver.forward(r1)
             if greedy:
@@ -117,25 +125,39 @@ def run_compositional(episodes: int = 5000, n_agents: int = 16, A: int = 3, V: i
                 g1 = _sample(q1, A)
             return g0, g1, r0, r1
 
+        independent = (credit == "per_attr")
+
+        def _acts(vals):
+            return [{"move": int(x)} for x in vals]
+
         for ep in range(warmstart_fixed + episodes):
             # curriculum (LANG-004) : phase 1 = paires FIGÉES (warm-start du code) ; phase 2 = `rotate`
             phase_rotate = rotate and ep >= warmstart_fixed
             idx = rng.randint(0, len(train), size=n_agents)
             a0, a1 = train_arr[idx, 0], train_arr[idx, 1]
-            s0, s1, o0, o1 = _message(a0, a1)
+            s0, s1, o0, o1 = _message(a0, a1, independent=independent)
             s = rng.randint(1, n_agents) if phase_rotate else 0    # appariement sender_i<->receiver_{i+s}
             rs0, rs1 = np.roll(s0, s), np.roll(s1, s)              # receiver_j lit le message de sender_{j-s}
             ra0, ra1 = np.roll(a0, s), np.roll(a1, s)             # ... et vise SES attributs
-            g0, g1, r0, r1 = _decode(rs0, rs1)
-            rew = 0.5 * (g0 == ra0) + 0.5 * (g1 == ra1)            # fraction d'attributs corrects (receiver j)
-            rew = rew.astype(np.float32)
-            snd_rew = np.roll(rew, -s)                             # sender_i récolte la reward de receiver_{i+s}
-            receiver.learn_episode([r0, r1],
-                                   [[{"move": int(x)} for x in g0], [{"move": int(x)} for x in g1]],
-                                   rew - rew.mean(), gate_last_only=False)
-            sender.learn_episode([o0, o1],
-                                 [[{"move": int(x)} for x in s0], [{"move": int(x)} for x in s1]],
-                                 snd_rew - snd_rew.mean(), gate_last_only=False)
+            g0, g1, r0, r1 = _decode(rs0, rs1, independent=independent)
+            c0 = (g0 == ra0).astype(np.float32)                    # correction attribut 0 (receiver j)
+            c1 = (g1 == ra1).astype(np.float32)                    # correction attribut 1
+            if credit == "per_attr":
+                # LANG-005 : chaque symbole/guess crédité par SON attribut seul (signal net, faible variance) ;
+                # épisodes 1-pas séparés par position. Sender : reward de l'attribut ré-alignée par roll(-s).
+                sc0, sc1 = np.roll(c0, -s), np.roll(c1, -s)
+                receiver.learn_episode([r0], [_acts(g0)], c0 - c0.mean(), gate_last_only=False)
+                receiver.learn_episode([r1], [_acts(g1)], c1 - c1.mean(), gate_last_only=False)
+                sender.learn_episode([o0], [_acts(s0)], sc0 - sc0.mean(), gate_last_only=False)
+                sender.learn_episode([o1], [_acts(s1)], sc1 - sc1.mean(), gate_last_only=False)
+            else:
+                # joint (défaut, LANG-003/004) : retour épisodique = fraction d'attributs corrects.
+                rew = 0.5 * c0 + 0.5 * c1
+                snd_rew = np.roll(rew, -s)                         # sender_i récolte la reward de receiver_{i+s}
+                receiver.learn_episode([r0, r1], [_acts(g0), _acts(g1)],
+                                       rew - rew.mean(), gate_last_only=False)
+                sender.learn_episode([o0, o1], [_acts(s0), _acts(s1)],
+                                     snd_rew - snd_rew.mean(), gate_last_only=False)
 
         # --- éval greedy : within/zeroshot en paire d'origine (shift=0) ; cross-MI en partenaire décalé ---
         def _acc_over(comboset, shift=0):
@@ -143,10 +165,10 @@ def run_compositional(episodes: int = 5000, n_agents: int = 16, A: int = 3, V: i
             for (a0v, a1v) in comboset:
                 a0 = np.full(n_agents, a0v)
                 a1 = np.full(n_agents, a1v)
-                s0, s1, _, _ = _message(a0, a1, greedy=True)
+                s0, s1, _, _ = _message(a0, a1, greedy=True, independent=independent)
                 rs0, rs1 = np.roll(s0, shift), np.roll(s1, shift)  # receiver_j décode le msg de sender_{j-shift}
                 ra0, ra1 = np.roll(a0, shift), np.roll(a1, shift)
-                g0, g1, _, _ = _decode(rs0, rs1, greedy=True)
+                g0, g1, _, _ = _decode(rs0, rs1, greedy=True, independent=independent)
                 accs.append(0.5 * (g0 == ra0) + 0.5 * (g1 == ra1))
             return float(np.mean(np.concatenate(accs)))
 
@@ -162,7 +184,8 @@ def run_compositional(episodes: int = 5000, n_agents: int = 16, A: int = 3, V: i
         #     MESSAGE (Hamming symboles greedy), par agent, médiane sur agents. rho>0 => code systématique.
         msgs = []                                                  # (n_combos, n_agents, 2) symboles greedy
         for (a0v, a1v) in combos:
-            s0, s1, _, _ = _message(np.full(n_agents, a0v), np.full(n_agents, a1v), greedy=True)
+            s0, s1, _, _ = _message(np.full(n_agents, a0v), np.full(n_agents, a1v),
+                                    greedy=True, independent=independent)
             msgs.append(np.stack([s0, s1], axis=1))
         msgs = np.stack(msgs, axis=0)                              # (C, n_agents, 2)
         meanings = np.array(combos)                                # (C, 2)
