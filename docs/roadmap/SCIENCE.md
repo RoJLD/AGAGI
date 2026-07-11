@@ -149,17 +149,23 @@ le **bénéfice de survie** du contenu référentiel in-world :
 E rotation plus court / LR décru phase 2 / warm-start plus long ; pression longueur/vocab) ; scaling
 consensus×complexité ; coût de signal + sélection sur l'écoute (`083`) ; le vrai test = in-world `087`.
 
-> 🔑 **Loi transversale du substrat — warm-start franchit une barrière de bootstrap (cold-start).** DEUX fils
-> indépendants convergent sur *un* mécanisme du substrat torch sous crédit épisodique : un **bassin pré-formé**
-> rend franchissable ce qui est **infranchissable à froid**.
-> - **Rétention** (fil torch `167/168/170`) : un moyen coûteux n'est PAS retenu à froid (seuil cold ≈0.04)
->   mais l'est jusqu'à ≈`r·P` après warm-start ; hystérésis ~22× ; **~50 ép de warm-start suffisent**.
-> - **Consensus langage** (`LANG-004`) : la rotation NE partage RIEN à froid (échoue) mais partage
->   (cross_mi ×13) après un warm-start dyade — même hystérésis de bootstrap.
-> - **Prédiction actionnable (in-world)** : un verrou qui *ressemble* à une limite de capacité peut être une
->   **barrière de bootstrap** → tester un **warm-start (cohorte/gate pré-entraîné, curriculum de coût/social)
->   AVANT** de conclure à l'incapacité du substrat. Recoupe directement le cran 2 B2 in-world (cohorte fraîche
->   éteinte avant l'horizon d'apprentissage = cold-start ; `[[torch-inworld-integration-plan]]`).
+> 🔑 **Loi transversale du substrat (TRIANGULÉE — 3 fils indépendants).** Sous crédit épisodique, le verrou
+> n'est PAS la capacité du substrat mais le **régime de crédit/optimisation** ; et un **bassin pré-formé
+> (warm-start / curriculum)** franchit une barrière de bootstrap infranchissable à froid. Trois fils, méthodes
+> disjointes, même conclusion :
+> - **Rétention** (fil torch `167/168/170`) : un moyen coûteux n'est PAS retenu à froid (seuil cold ≈0.04) mais
+>   l'est jusqu'à ≈`r·P` après warm-start ; hystérésis ~22× ; **~50 ép de warm-start suffisent**.
+> - **Langage** (`LANG-004/005`) : la rotation ne partage rien à froid mais partage (cross_mi ×13) après un
+>   warm-start dyade (004) ; le plafond d'accuracy est **invariant à la capacité** (num_nodes ×43 cachés = plat)
+>   = régime d'optim, pas capacité (005).
+> - **Craft-or-starve** (`EDR-200` Phase B, session //, `[[decisive-substrate-thesis-test]]`) : sur un réseau
+>   12-cachés, le binding échoue à froid mais un **curriculum warm-start binde 1.000 + survit 1.000** → substrat
+>   CAPABLE, verrou = crédit/objectif ; thèse « migrer torch pour la capacité » **réfutée**.
+> - **Prédiction actionnable (in-world)** : un verrou qui *ressemble* à une limite de capacité est
+>   probablement une **barrière de bootstrap / de crédit** → (1) tester un **warm-start** (cohorte/gate
+>   pré-entraîné, curriculum de coût/social) et (2) soigner le **crédit/objectif** (retour épisodique, critique)
+>   AVANT de conclure à l'incapacité. Recoupe le cran 2 B2 in-world (cohorte fraîche éteinte avant l'horizon =
+>   cold-start ; `[[torch-inworld-integration-plan]]`).
 
 ## 🛠️ Outillage / Dev
 
