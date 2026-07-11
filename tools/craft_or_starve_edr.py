@@ -423,7 +423,9 @@ def null_metronome_gap(params, seed, M):
 
 
 def recalibrate_learner(seeds=PILOT_SEEDS, e0_grid=(8.0, 12.0, 16.0, 24.0, 32.0), M=32, n_episodes=60):
-    """GATE DUR apprenant (I1, contre EDR 172 : cohorte eteinte avant l'horizon d'apprentissage).
+    """DIAGNOSTIC L0 (barreau faible du ladder ; SUPERSEDE par `ladder_verdict`/`--ladder` pour le verdict).
+    NB : L0 (credit substep) ne peut PAS binder le differe-1-sous-pas de COS -> son echec est ATTENDU et signifie
+    « credit-horizon insuffisant », PAS « substrat » (cf [2] CREDIT-ATTRIBUE). Conserve comme baseline negatif auditable.
     Pour chaque E0 : entraine L0 (arm inesc ET absent, seeds appariés), evalue, teste :
     (a) G4 headroom : mediane_seeds survie(L0, absent) dans [0.4, 0.85] ;
     (b) apprend : mediane_seeds [binding_gap(L0, inesc) - null_metronome_gap] >= 0.15.
@@ -452,14 +454,17 @@ def recalibrate_learner(seeds=PILOT_SEEDS, e0_grid=(8.0, 12.0, 16.0, 24.0, 32.0)
 
 
 def _report_learner(res):
-    print("\n=== CRAFT-OR-STARVE — GATE DUR apprenant (Phase B1a) ===")
-    print("  E0 apprenant retenu : %s  |  gate : %s" % (res.get("E0_learner"), res.get("gate")))
+    # DIAGNOSTIC L0 UNIQUEMENT (barreau faible du ladder). Le VERDICT autoritatif substrat-vs-credit est `--ladder`.
+    # L0 (credit substep, TD 1-pas) ne peut PAS binder le differe-1-sous-pas de COS : son echec est ATTENDU et
+    # signifie « credit-horizon insuffisant », PAS « substrat » ni « converge EDR-172 » (cf [2] CREDIT-ATTRIBUE du ladder).
+    print("\n=== CRAFT-OR-STARVE — diagnostic L0 (barreau faible ; le VERDICT est `--ladder`) ===")
+    print("  E0 L0 retenu : %s  |  gate L0 : %s" % (res.get("E0_learner"), res.get("gate")))
     print("  fenetre (E0 -> G4 headroom absent / binding_adv inesc / pass) :")
     for row in res.get("grid", []):
         print("    E0=%5.1f  headroom=%.3f  binding_adv=%+.3f  pass=%s"
               % (row["E0"], row["g4_headroom"], row["binding_adv"], row["pass"]))
-    print("=== %s ===" % ("PASSE -> Phase B1b (torch L1/L2 + parite) autorisee, E0_learner fige (borne inf, cf I1)"
-                          if res.get("ok") else "ECHOUE -> l'apprenant n'apprend pas le conditionnement dans COS ; STOP + diagnostic (converge EDR 172)"))
+    print("=== L0 %s ===" % ("compose (inattendu pour le barreau faible)" if res.get("ok")
+                             else "NE COMPOSE PAS -> credit-horizon insuffisant, PAS substrat ; verdict = `--ladder`"))
 
 
 # ============================ Phase B1a Task 4 : ladder d'attribution SUBSTRAT-vs-CREDIT ============================
