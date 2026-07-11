@@ -243,3 +243,52 @@ def test_ladder_verdict_contract():
     for r in res["rungs"].values():
         assert set(r) >= {"binding", "survival", "composes"}
         assert isinstance(r["composes"], bool)
+
+
+# === EDR 201 Task 1 : decomposition 2x2 credit x curriculum ===
+
+from tools.craft_or_starve_edr import _train_cell, decompose_2x2
+
+
+def test_train_cell_determinism():
+    a = _train_cell("substep", True, "inesc", Params(E0=16.0, T=40), seed=1000, M=8, n_episodes=6, n_warm=6, n_cold=6)
+    b = _train_cell("substep", True, "inesc", Params(E0=16.0, T=40), seed=1000, M=8, n_episodes=6, n_warm=6, n_cold=6)
+    assert np.array_equal(a.W_out, b.W_out)
+    assert np.array_equal(a.W_hh, b.W_hh)
+    assert np.array_equal(a.W_ih, b.W_ih)
+
+
+def test_decompose_2x2_contract():
+    # CONTRAT uniquement — on ne prejuge PAS quelle cellule compose (c'est le resultat du run).
+    res = decompose_2x2(seeds=(1000,), E0=16.0, M=8, n_episodes=10, n_warm=10, n_cold=10)
+    assert set(res["cells"]) == {("substep", False), ("substep", True), ("tick", False), ("tick", True)}
+    for c in res["cells"].values():
+        assert set(c) >= {"binding", "survival", "composes"}
+        assert isinstance(c["composes"], bool)
+    assert res["verdict"] in ("CURRICULUM-SUFFISANT", "CREDIT-SUFFISANT", "BOTH-NECESSARY", "INCOHERENT")
+
+
+# === EDR 201 Task 2 : sweep de robustesse E0 ===
+
+from tools.craft_or_starve_edr import robustness_sweep
+
+
+def test_robustness_sweep_contract():
+    res = robustness_sweep(seeds=(1000,), e0_grid=(16.0, 24.0), M=8, n_episodes=10, n_warm=10, n_cold=10)
+    assert len(res["grid"]) == 2
+    for row in res["grid"]:
+        assert set(row) >= {"E0", "verdict", "L0_composes", "L1_composes", "L2_composes"}
+    assert isinstance(res["robust"], bool)
+    assert res["verdict"] in ("[2]-ROBUSTE", "[2]-FRAGILE")
+
+
+def test_decomp_sanity_known_cells():
+    # cellules CONNUES (jamais la cellule ouverte) : (tick,on)=L2 compose ; (substep,off)=L0 ne binde pas.
+    # config validee (M=32, 80+80) pour que L2 binde de facon fiable.
+    P = Params(E0=16.0)
+    l2 = _train_cell("tick", True, "inesc", P, seed=1000, M=32, n_episodes=120, n_warm=80, n_cold=80)
+    l0 = _train_cell("substep", False, "inesc", P, seed=1000, M=32, n_episodes=160, n_warm=80, n_cold=80)
+    e2 = evaluate_learner(l2, "inesc", P, seed=6000, M=32)
+    e0 = evaluate_learner(l0, "inesc", P, seed=6000, M=32)
+    assert e2["binding_gap"] >= 0.5 and e2["survival"] >= 0.5   # L2 compose
+    assert e0["binding_gap"] < 0.5                               # L0 ne binde pas
