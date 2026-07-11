@@ -125,3 +125,121 @@ def test_calibrate_returns_ok_or_report():
     if res['ok']:
         assert res['result']['gates']['ALL']
         assert res['E0_min_viable'] in (16.0, 24.0)
+
+
+# === Phase B1a : apprenant L0 (REINFORCE tronque, pur numpy) ===
+
+from tools.craft_or_starve_edr import (
+    N_H, LR, TEMP, _softmax, NpReinforceLearner, rollout_learn,
+)
+
+
+def test_softmax_stable_and_normalized():
+    p = _softmax(np.array([[1000.0, 1000.0, 1000.0, 0, 0, 0, 0, 0]]))
+    assert np.isfinite(p).all()
+    assert abs(p.sum() - 1.0) < 1e-9
+    assert p[0, 0] == pytest.approx(p[0, 1])
+
+
+def test_learner_shapes_and_determinism():
+    l1 = NpReinforceLearner(seed=0, arm="inesc")
+    l1.reset_state(4)
+    obs = np.zeros((4, 6))
+    a = l1.act(obs)
+    assert a.shape == (4,) and a.dtype.kind in "iu"
+    assert (a >= 0).all() and (a < N_ACTIONS).all()
+    # deux rollouts d'apprentissage au meme seed -> poids byte-identiques
+    a_learner = rollout_learn(NpReinforceLearner(seed=7, arm="inesc"), "inesc", Params(E0=16.0, T=40), seed=7, M=8, n_episodes=3)
+    b_learner = rollout_learn(NpReinforceLearner(seed=7, arm="inesc"), "inesc", Params(E0=16.0, T=40), seed=7, M=8, n_episodes=3)
+    assert np.array_equal(a_learner.W_out, b_learner.W_out)
+    assert np.array_equal(a_learner.W_hh, b_learner.W_hh)
+
+
+def test_learner_updates_weights():
+    # l'apprentissage DOIT bouger les poids (sinon le gradient est nul = bug)
+    learner = NpReinforceLearner(seed=1, arm="inesc")
+    W0 = learner.W_out.copy()
+    rollout_learn(learner, "inesc", Params(E0=16.0, T=60), seed=1, M=16, n_episodes=5)
+    assert not np.allclose(learner.W_out, W0)
+
+
+# === Phase B1a Task 2 : metriques d'evaluation (binding_gap tick-level, null-metronome) ===
+
+from tools.craft_or_starve_edr import evaluate_learner, null_metronome_gap
+
+
+def test_evaluate_learner_contract():
+    learner = rollout_learn(NpReinforceLearner(seed=2, arm="inesc"), "inesc", Params(E0=16.0, T=80), seed=2, M=16, n_episodes=8)
+    res = evaluate_learner(learner, "inesc", Params(E0=16.0, T=200), seed=99, M=32)
+    assert set(res) >= {"survival", "binding_gap", "p_c_inv1", "p_c_inv0", "craft_rate"}
+    assert 0.0 <= res["survival"] <= 1.0
+    assert -1.0 <= res["binding_gap"] <= 1.0
+    # binding_gap == p_c_inv1 - p_c_inv0
+    assert res["binding_gap"] == pytest.approx(res["p_c_inv1"] - res["p_c_inv0"], abs=1e-9)
+
+
+def test_null_metronome_gap_is_low():
+    # l'horloge open-loop ne conditionne pas sur inv -> gap ~0 (borne null). Materiau stochastique p_mat=0.5.
+    g = null_metronome_gap(Params(E0=16.0, T=200), seed=5, M=64)
+    assert abs(g) < 0.15
+
+
+# === Phase B1a Task 3 : re-calibration apprenant + GATE DUR ===
+
+from tools.craft_or_starve_edr import recalibrate_learner
+
+
+def test_recalibrate_learner_contract():
+    # on ne prejuge PAS du verdict (GATE DUR du controleur) : on verifie le CONTRAT + la fenetre.
+    res = recalibrate_learner(seeds=(1000,), e0_grid=(16.0, 32.0), M=16, n_episodes=10)
+    assert "ok" in res and "grid" in res and "gate" in res
+    assert len(res["grid"]) == 2
+    for row in res["grid"]:
+        assert set(row) >= {"E0", "g4_headroom", "binding_adv", "pass"}
+    if res["ok"]:
+        assert res["E0_learner"] in (16.0, 32.0)
+
+
+# === Phase B1a Task 4 : ladder SUBSTRAT-vs-CREDIT (tick-return + curriculum + verdict gele) ===
+
+from tools.craft_or_starve_edr import (
+    NpTickLearner, rollout_learn_tick, rollout_learn_curriculum, ladder_verdict,
+)
+
+
+def test_tick_learner_determinism():
+    a = rollout_learn_tick(NpTickLearner(seed=3, arm="inesc"), "inesc", Params(E0=16.0, T=40), seed=3, M=8, n_episodes=3)
+    b = rollout_learn_tick(NpTickLearner(seed=3, arm="inesc"), "inesc", Params(E0=16.0, T=40), seed=3, M=8, n_episodes=3)
+    assert np.array_equal(a.W_out, b.W_out)
+    assert np.array_equal(a.W_hh, b.W_hh)
+    assert np.array_equal(a.W_ih, b.W_ih)
+
+
+def test_tick_learner_updates_weights():
+    L = NpTickLearner(seed=1, arm="inesc")
+    W0 = L.W_out.copy()
+    rollout_learn_tick(L, "inesc", Params(E0=16.0, T=60), seed=1, M=16, n_episodes=5)
+    assert not np.allclose(L.W_out, W0)
+
+
+def test_curriculum_binds_where_cold_fails():
+    # LE RESULTAT DECISIF : sur le MEME substrat + MEME credit tick-return, le curriculum warm-start BINDE
+    # (P(C|inv=1)~1, P(C|inv=0)~0) et SURVIT sous COS plein, la ou le cold-start echoue a binder (chicken-and-egg
+    # + coût de mis-émission qui punit l'exploration). Isole le verrou au BOOTSTRAP (credit/objectif), pas au substrat.
+    P = Params(E0=16.0)
+    warm = rollout_learn_curriculum(NpTickLearner(seed=1000, arm="inesc"), "inesc", P, seed=1000, M=32, n_warm=80, n_cold=80)
+    cold = rollout_learn_tick(NpTickLearner(seed=1000, arm="inesc"), "inesc", P, seed=1000, M=32, n_episodes=160)
+    ew = evaluate_learner(warm, "inesc", P, seed=6000, M=32)
+    ec = evaluate_learner(cold, "inesc", P, seed=6000, M=32)
+    assert ew["binding_gap"] >= 0.5 and ew["survival"] >= 0.5   # curriculum : compose
+    assert ec["binding_gap"] < 0.5                               # cold : echoue a binder
+
+
+def test_ladder_verdict_contract():
+    # contrat + structure UNIQUEMENT (le verdict complet = run du controleur, plus lourd) : config minimale.
+    res = ladder_verdict(seeds=(1000,), E0=16.0, M=8, n_episodes=8, n_warm=8, n_cold=8)
+    assert res["verdict"] in ("[1] SUBSTRAT-LIMITE", "[2] CREDIT-ATTRIBUE", "[3] COMPOSITION-TRIVIALE")
+    assert set(res["rungs"]) == {"L0", "L1", "L2"}
+    for r in res["rungs"].values():
+        assert set(r) >= {"binding", "survival", "composes"}
+        assert isinstance(r["composes"], bool)
