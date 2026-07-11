@@ -140,3 +140,29 @@ def test_learn_throw_gate_skips_on_desync():
     w._torch_pop.H = torch.randn(3, 6)
     w.agents = [{"_throw_did": False, "_throw_kill_tool": False}]   # B(3) != agents(1)
     assert w._learn_throw_gate() is None
+
+
+def test_torch_throw_penalty_default_and_debias_knob():
+    """EDR-NAV-005 : la penalite throw-sans-kill est un knob. Defaut = -0.5 (EDR-172, biaise).
+    La mettre a 0.0 (non-biaise) DOIT produire un update d'optimiseur different, a H/init/agents
+    identiques (seul l'agent throw-sans-kill change de recompense)."""
+    import torch
+
+    def _run(penalty):
+        w = _fresh_world()
+        w.use_torch_inworld = True
+        w.torch_throw_gate = True
+        w.torch_throw_penalty = penalty
+        w.torch_throw_antisat = 0.0        # isole le signal de recompense (sinon l'anti-sat le noie
+                                           # et Adam sature en signe au 1er pas -> updates identiques)
+        w._torch_pop = _FakePop(6)
+        w._ensure_throw_gate()
+        w._torch_pop.H = torch.arange(18, dtype=torch.float32).reshape(3, 6)   # H fixe deterministe
+        w.agents = [{"_throw_did": True, "_throw_kill_tool": True},
+                    {"_throw_did": True, "_throw_kill_tool": False},   # sensible au penalty
+                    {"_throw_did": False, "_throw_kill_tool": False}]
+        w._learn_throw_gate()
+        return w._throw_w.detach().clone()
+
+    assert _fresh_world().torch_throw_penalty == -0.5               # defaut retro-compatible
+    assert not torch.allclose(_run(-0.5), _run(0.0))               # le debias change l'update

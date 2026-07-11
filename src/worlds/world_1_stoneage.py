@@ -60,6 +60,10 @@ class Biosphere3D(BaseWorld):
         self.torch_throw_gate_lr = 0.05
         self.torch_throw_antisat = 6.0
         self.torch_throw_shuffle = False     # bras temoin : recompense permutee
+        self.torch_throw_penalty = -0.5      # penalite throw-sans-kill. Defaut -0.5 = valeur EDR-172
+                                             # (BIAISEE). EDR-NAV-005 : ce biais effondre le binding a la
+                                             # rarete in-world (E[correct]<0 des p_success<1/3) -> mettre
+                                             # 0.0 pour la recompense NON-biaisee (borne >= -p/(1-p)).
         self._throw_w = None                 # torch (N,) : cree paresseusement au 1er tick torch
         self._throw_b = None                 # torch (1,)
         self._throw_opt = None               # Adam([_throw_w, _throw_b])
@@ -1058,7 +1062,8 @@ class Biosphere3D(BaseWorld):
     def _learn_throw_gate(self):
         """REINFORCE immediat 1-pas de la tete throw-gate (B2). Recompute p (differentiable) depuis
         H cache ce tick, utilise les decisions _throw_did stockees, recompense = outcome (kill-avec-
-        outil +1.0, autre throw -0.5, pas de throw 0.0). Shuffle => permute r parmi les vivants
+        outil +1.0, autre throw = torch_throw_penalty [defaut -0.5 EDR-172 ; 0.0 = non-biaise NAV-005],
+        pas de throw 0.0). Shuffle => permute r parmi les vivants
         (permutation seed-deterministe) pour decorreler recompense/contexte. Skip propre (log, pas
         de crash) si gate OFF, pop absent, ou desync B != len(agents). Baseline = moyenne population."""
         if not (self.use_torch_inworld and self.torch_throw_gate) or self._throw_w is None:
@@ -1082,7 +1087,7 @@ class Biosphere3D(BaseWorld):
                 r[i] = 1.0
                 n_kill += 1
             else:
-                r[i] = -0.5
+                r[i] = self.torch_throw_penalty   # NAV-005 : 0.0 = non-biaise (defaut -0.5 = EDR-172)
         self._throw_kills_tool += n_kill
         if self.torch_throw_shuffle:
             r = r[self._throw_shuf_rng.permutation(B)]   # decorrele recompense/contexte
