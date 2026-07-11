@@ -501,7 +501,8 @@ class NpTickLearner(NpReinforceLearner):
             if entropy_beta:
                 logp = np.log(probs + 1e-12)
                 Hent = -(probs * logp).sum(axis=1, keepdims=True)
-                dlogits = dlogits + entropy_beta * (-probs * (logp + Hent)) * m[:, None]
+                # gradient d'entropie w.r.t. logits (probs = softmax(logits/TEMP)) -> /TEMP comme le terme principal
+                dlogits = dlogits + entropy_beta * (-probs * (logp + Hent)) / TEMP * m[:, None]
             self.W_out += LR * (dlogits.T @ H_new) / n
             self.b_out += LR * dlogits.sum(axis=0) / n
             dz = (dlogits @ self.W_out) * (1.0 - H_new ** 2)
