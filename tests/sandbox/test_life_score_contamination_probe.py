@@ -25,6 +25,13 @@ def test_kendall_tau_reversed():
     assert kendall_tau([1.0, 2.0, 3.0], [3.0, 2.0, 1.0]) == -1.0
 
 
+def test_kendall_tau_identity_with_ties():
+    # regression : ex-aequo presents -> tau(a, a) == 1.0 (tau-b corrige, tau-a echouait).
+    # cas reel : cohorte de clones-champions aux stats identiques.
+    a = [5.0, 5.0, 3.0, 3.0, 1.0]
+    assert kendall_tau(a, a) == 1.0
+
+
 def test_topk_indices_tie_broken_by_index():
     # scores egaux -> indices croissants
     assert _topk_indices([5.0, 5.0, 5.0], 2) == {0, 1}

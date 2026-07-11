@@ -23,21 +23,31 @@ def score(components, weights):
 
 
 def kendall_tau(a, b):
-    """tau-a manuel (sans scipy). a, b : listes paralleles de scores. Paires a egalite
-    (sur a ou b) comptees ni concordantes ni discordantes."""
+    """tau-b manuel (sans scipy) : corrige les ex-aequo -> kendall_tau(a, a) == 1.0 meme
+    quand plusieurs elements partagent le meme score (cas courant : cohorte de clones-
+    champions aux stats identiques). tau = (C - D) / sqrt((C+D+Tx)(C+D+Ty)) ou Tx/Ty
+    comptent les paires a egalite dans UN SEUL vecteur ; les paires egales dans les deux
+    sont exclues. a, b : listes paralleles de scores."""
     n = len(a)
     if n < 2:
         return 1.0
-    concordant = discordant = 0
+    C = D = Tx = Ty = 0
     for i in range(n):
         for j in range(i + 1, n):
-            s = (a[i] - a[j]) * (b[i] - b[j])
-            if s > 0:
-                concordant += 1
-            elif s < 0:
-                discordant += 1
-    total = n * (n - 1) // 2
-    return (concordant - discordant) / total if total else 1.0
+            da = a[i] - a[j]
+            db = b[i] - b[j]
+            if da == 0 and db == 0:
+                continue                      # egalite dans les deux -> exclue
+            if da == 0:
+                Ty += 1                       # egalite seulement dans a
+            elif db == 0:
+                Tx += 1                       # egalite seulement dans b
+            elif da * db > 0:
+                C += 1
+            else:
+                D += 1
+    denom = math.sqrt((C + D + Tx) * (C + D + Ty))
+    return (C - D) / denom if denom else 1.0
 
 
 def _topk_indices(scores, k):
