@@ -59,10 +59,10 @@
 - statut: actif
 - couche: Monde
 - question_phare: Le monde exige-t-il l'intelligence (métrique life_score)
-- fichiers_possedes: (commons sim de monde — intendant), tools/agricultural_demand_probe.py
+- fichiers_possedes: (commons sim de monde — intendant), tools/agricultural_demand_probe.py, tools/life_score_contamination_probe.py
 - memoire: s2-world-demand-thread.md, world-floor-survivability-gate.md
 - legacy_edr: 085,124
-- frontiere_courante: gate life_score RÉPARÉ (#132) + VÉRIFIÉ end-to-end 2026-07-10 (run_s2=EXIGE p=0.036, ancien gate faux-VOID life_p=0.675) ; EDR-WLD-001 → « chaque monde exige un type » ASPIRATIONNEL pour 2/3 : world 3 = stoneage déguisé (pollution code mort), world 2 agricole COSMÉTIQUE (champion ne plante JAMAIS, Planted_Seed=0 sur 5 seeds malgré 30 graines+temps illimité ; chaîne temporellement inatteignable) → même pattern que le mur du craft ; levier = substrat/crédit, pas plus de monde
+- frontiere_courante: EDR-WLD-002 (#156) → « réparer la métrique life_score » (096/125) est un NON-LEVIER : probe d'impact K=12, retirer altars·20 = no-op EXACT de sélection (12/12 seeds, preuve du dead-code 096), retirer spears·300 = INERTE au médian (contamine le top-K dans 1/12 seeds seulement, craft ~1.4%) → les termes sont inertes PARCE QUE le comportement l'est, pas parce que les poids sont faux ; NE PAS muter calculate_life_score, levier = crédit/rétention. // gate life_score RÉPARÉ (#132) + VÉRIFIÉ 2026-07-10 (run_s2=EXIGE) ; EDR-WLD-001 → mondes 2/3 OFFRENT mais n'EXIGENT pas (world 3 stoneage déguisé, world 2 agri cosmétique) ; pattern commun = le monde offre, l'agent ne convertit pas → substrat/crédit
 - ponts_actifs: —
 - filiation: —
 
