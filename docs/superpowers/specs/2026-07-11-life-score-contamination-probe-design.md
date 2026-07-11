@@ -49,8 +49,9 @@ Non-goals stricts (ce probe NE fait PAS) :
 **Réutilise le harness canonique de `competence_profile.py`** (DRY, prouvé, revu) plutôt que de dupliquer l'évolution :
 
 ```python
-from tools.competence_profile import _evolve_champions           # cliquet top-5, repro ON, SeedManager(seed)
-from tools.map_elites_compare import _make_cfg, _reproduce, PRESERVE_DIMS  # régime sweet canonique
+from tools.competence_profile import _evolve_champions      # cliquet top-5, repro ON, SeedManager(seed)
+from tools.map_elites_compare import _make_cfg, PRESERVE_DIMS  # régime sweet canonique
+from src.seed_ai.harness import SeedManager                  # re-seed déterministe de la mesure
 from src.worlds.world_1_stoneage import Biosphere3D
 from src.agents.mamba_agent import MambaAgent
 ```

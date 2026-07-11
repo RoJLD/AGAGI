@@ -162,7 +162,16 @@ def test_global_verdict_picks_most_actionable():
     assert agg["global_verdict"] == "METRIQUE_CONTAMINEE"
 
 
-from tools.life_score_contamination_probe import hof_decomposition, compare
+from tools.life_score_contamination_probe import hof_decomposition, compare, _components
+
+
+def test_weights_full_matches_prod_life_score():
+    # fidelite : le baseline "full" DOIT egaler la fitness de prod, sinon on mesure
+    # silencieusement la mauvaise chose si un poids de prod derive.
+    from src.seed_ai.persistence import calculate_life_score
+    agent = {"age": 12, "preys_eaten": 3, "altars_solved": 0,
+             "spears_crafted": 1, "mammoth_kills": 2, "_ref_distinction": 0.0}
+    assert score(_components(agent), WEIGHTS_FULL) == calculate_life_score(agent)
 
 
 def test_hof_decomposition_graceful_absent():
@@ -171,10 +180,28 @@ def test_hof_decomposition_graceful_absent():
     assert res is None or ("mean_share" in res and "n_champions" in res)
 
 
+def test_hof_decomposition_with_synthetic_entries(monkeypatch):
+    # couvre le chemin de decomposition (le cas absent est trivialement None)
+    import src.seed_ai.persistence as P
+
+    class _Snap:
+        def __init__(self, stats):
+            self.stats = stats
+
+    fake = [_Snap({"age": 10, "preys_eaten": 2, "altars_solved": 0,
+                   "spears_crafted": 0, "mammoth_kills": 1}) for _ in range(3)]
+    monkeypatch.setattr(P, "load_hall_of_fame", lambda: (1, fake))
+    res = hof_decomposition()
+    assert res is not None and res["n_champions"] == 3
+    assert abs(sum(res["mean_share"].values()) - 1.0) < 1e-9
+
+
 def test_compare_schema_and_repro():
-    # 2 seeds, run minuscule ; verifie schema + que la garde repro ne leve pas
+    # 2 seeds, run minuscule ; verifie schema + garde repro fail-soft (flag repro_ok)
     out = compare(seeds=(0, 1), eras=1, num_agents=4, max_ticks=5)
-    assert set(out) >= {"config", "per_seed", "per_variant", "global_verdict", "hof_decomposition"}
+    assert set(out) >= {"config", "per_seed", "per_variant", "global_verdict",
+                        "repro_ok", "hof_decomposition"}
     assert len(out["per_seed"]) == 2
+    assert isinstance(out["repro_ok"], bool)
     assert out["global_verdict"] in {"METRIQUE_INERTE", "METRIQUE_CONTAMINEE", "AMBIGU"}
     assert out["per_variant"]["drop_altars"]["verdict"] == "METRIQUE_INERTE"  # altars dead
