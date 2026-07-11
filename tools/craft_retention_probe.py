@@ -172,6 +172,10 @@ def main_craft_retention(R=3, eras=12, num_agents=30, max_ticks=400, seed=1260, 
 
 
 if __name__ == "__main__":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
     import logging
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     main_craft_retention(

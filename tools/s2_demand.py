@@ -5,6 +5,7 @@ censurée + life_score (cohérence), appariement seedé (Harness D1), verdict IU
 Pré-enregistrement : docs/superpowers/specs/2026-06-14-S2-World-Demands-Intelligence-design.md.
 """
 import math
+import sys
 import numpy as np
 from src.seed_ai.harness import seed_at, Harness, _git_short_commit
 from src.seed_ai.persistence import calculate_life_score, load_hall_of_fame
@@ -187,5 +188,9 @@ def _print_table(report):
 
 
 if __name__ == "__main__":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
     import os
     run_s2(seed=int(os.getenv("EXPERIMENT_SEED", "2026")), with_db=False)

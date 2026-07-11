@@ -4,6 +4,7 @@ _setup met déjà night OFF) avec un cfg SWEET-SPOT (085) ; ajoute mesure à com
 + stats rigoureuses. N'altère pas coevolve_language.py.
 Pré-enregistrement : docs/superpowers/specs/2026-06-15-EDR089-Coevolve-Use-Long-design.md
 """
+import sys
 import numpy as np
 
 from src.environments.config import WorldConfig
@@ -196,4 +197,8 @@ def main_mp(R=8, gens=20, num_agents=24, K=4, n_eval=8, seed=None, n_procs=4, _r
 
 
 if __name__ == "__main__":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
     main()
