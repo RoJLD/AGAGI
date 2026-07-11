@@ -49,3 +49,35 @@ def test_term_mass_share_sums_to_one():
 
 def test_term_mass_share_zero_total_safe():
     assert term_mass_share([_c()], W)["preys_eaten"] == 0.0  # pas de division par zero
+
+
+from tools.life_score_contamination_probe import WEIGHTS_FULL, variants, analyze_roster
+
+
+def test_variants_structure():
+    v = variants()
+    assert set(v) == {"full", "drop_altars", "drop_spears", "drop_both"}
+    assert v["drop_altars"]["altars_solved"] == 0.0
+    assert v["drop_altars"]["spears_crafted"] == 300.0
+    assert v["drop_spears"]["spears_crafted"] == 0.0
+    assert v["drop_both"]["altars_solved"] == 0.0 and v["drop_both"]["spears_crafted"] == 0.0
+    # full ne modifie pas les poids de reference
+    assert v["full"]["spears_crafted"] == WEIGHTS_FULL["spears_crafted"]
+
+
+def test_drop_altars_is_identity_when_altars_dead():
+    # altars_solved == 0 partout (dead code EDR 096) -> retirer altars = no-op EXACT
+    roster = [_c(age=i, preys=i % 3) for i in range(20)]
+    res = analyze_roster(roster)
+    assert res["variants"]["drop_altars"]["kendall_tau"] == 1.0
+    assert res["variants"]["drop_altars"]["topk_jaccard"] == 1.0
+    assert res["n_altar_solvers"] == 0
+
+
+def test_drop_spears_reorders_when_crafter_present():
+    # 19 agents faibles + 1 crafteur qui, GRACE au terme spears.300, entre dans le top-k ;
+    # le retirer doit l'en sortir -> jaccard < 1
+    roster = [_c(age=1, preys=1) for _ in range(19)] + [_c(age=1, preys=1, spears=1)]
+    res = analyze_roster(roster, frac_topk=0.25)
+    assert res["n_crafters"] == 1
+    assert res["variants"]["drop_spears"]["topk_jaccard"] < 1.0

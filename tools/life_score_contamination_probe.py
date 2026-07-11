@@ -59,3 +59,48 @@ def term_mass_share(roster, weights):
     terms = {k: sum(c[k] * weights[k] for c in roster) for k in weights}
     total = sum(terms.values())
     return {k: (terms[k] / total if total else 0.0) for k in terms}
+
+
+from src.seed_ai.persistence import REF_FITNESS_WEIGHT
+
+WEIGHTS_FULL = {
+    "age": 0.1, "preys_eaten": 50.0, "altars_solved": 20.0,
+    "spears_crafted": 300.0, "mammoth_kills": 400.0, "ref_distinction": REF_FITNESS_WEIGHT,
+}
+
+
+def variants():
+    """full + une variante par terme suspect annule (copies locales, jamais la prod)."""
+    v = {"full": dict(WEIGHTS_FULL)}
+    for name, zeroed in (("drop_altars", ("altars_solved",)),
+                         ("drop_spears", ("spears_crafted",)),
+                         ("drop_both", ("altars_solved", "spears_crafted"))):
+        w = dict(WEIGHTS_FULL)
+        for key in zeroed:
+            w[key] = 0.0
+        v[name] = w
+    return v
+
+
+def analyze_roster(roster, frac_topk=0.25):
+    """Compare chaque variante a full sur ce roster. Retourne metriques + comptes d'events."""
+    W = variants()
+    n = len(roster)
+    full_scores = [score(c, W["full"]) for c in roster]
+    k = max(1, math.ceil(frac_topk * n)) if n else 1
+    out = {
+        "n": n,
+        "n_crafters": sum(1 for c in roster if c["spears_crafted"] > 0),
+        "n_altar_solvers": sum(1 for c in roster if c["altars_solved"] > 0),
+        "term_mass_share": term_mass_share(roster, W["full"]) if n else {},
+        "variants": {},
+    }
+    for name, w in W.items():
+        if name == "full":
+            continue
+        var_scores = [score(c, w) for c in roster]
+        out["variants"][name] = {
+            "kendall_tau": kendall_tau(full_scores, var_scores),
+            "topk_jaccard": topk_jaccard(full_scores, var_scores, k),
+        }
+    return out
