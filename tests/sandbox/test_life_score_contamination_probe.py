@@ -105,3 +105,51 @@ def test_run_arm_smoke_returns_roster():
     assert isinstance(roster, list) and len(roster) >= 1
     assert set(roster[0]) == {"age", "preys_eaten", "altars_solved",
                               "spears_crafted", "mammoth_kills", "ref_distinction"}
+
+
+from tools.life_score_contamination_probe import _median, aggregate
+
+
+def _seed_result(jac_by_variant):
+    # helper : construit un dict analyze_roster minimal avec les jaccard/tau donnes
+    return {"variants": {name: {"topk_jaccard": j, "kendall_tau": (1.0 if j == 1.0 else 0.5)}
+                         for name, j in jac_by_variant.items()}}
+
+
+def test_median_odd_even():
+    assert _median([3.0, 1.0, 2.0]) == 2.0
+    assert _median([1.0, 2.0, 3.0, 4.0]) == 2.5
+
+
+def test_verdict_inerte_when_no_change():
+    per_seed = [_seed_result({"drop_altars": 1.0}) for _ in range(12)]
+    agg = aggregate(per_seed, k_seeds=12)
+    assert agg["per_variant"]["drop_altars"]["verdict"] == "METRIQUE_INERTE"
+
+
+def test_verdict_contaminee_needs_strong_effect_and_k12():
+    # jaccard 0.5 partout (effect 0.5), 12 seeds tous changes -> CONTAMINEE
+    per_seed = [_seed_result({"drop_spears": 0.5}) for _ in range(12)]
+    agg = aggregate(per_seed, k_seeds=12)
+    assert agg["per_variant"]["drop_spears"]["verdict"] == "METRIQUE_CONTAMINEE"
+
+
+def test_guardrail_blocks_contaminee_under_12():
+    # meme effet fort mais seulement 6 seeds -> jamais CONTAMINEE (garde-fou)
+    per_seed = [_seed_result({"drop_spears": 0.5}) for _ in range(6)]
+    agg = aggregate(per_seed, k_seeds=6)
+    assert agg["per_variant"]["drop_spears"]["verdict"] == "AMBIGU"
+
+
+def test_verdict_ambigu_weak_effect():
+    # jaccard 0.95 partout -> mediane 0.95 (!= 1.0 donc pas INERTE), effect 0.05 < 0.10
+    # donc pas CONTAMINEE -> AMBIGU
+    per_seed = [_seed_result({"drop_spears": 0.95}) for _ in range(12)]
+    agg = aggregate(per_seed, k_seeds=12)
+    assert agg["per_variant"]["drop_spears"]["verdict"] == "AMBIGU"
+
+
+def test_global_verdict_picks_most_actionable():
+    per_seed = [_seed_result({"drop_altars": 1.0, "drop_spears": 0.5}) for _ in range(12)]
+    agg = aggregate(per_seed, k_seeds=12)
+    assert agg["global_verdict"] == "METRIQUE_CONTAMINEE"

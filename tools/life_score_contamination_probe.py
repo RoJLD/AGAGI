@@ -150,3 +150,40 @@ def run_arm(seed=0, eras=8, num_agents=30, max_ticks=300):
         return []
     reps = (champs * (num_agents // len(champs) + 1))[:num_agents]
     return _measure_roster(_make_cfg(), reps, max_ticks)
+
+
+def _median(xs):
+    s = sorted(xs)
+    n = len(s)
+    if n == 0:
+        return 0.0
+    m = n // 2
+    return s[m] if n % 2 else (s[m - 1] + s[m]) / 2.0
+
+
+_RANK = {"METRIQUE_CONTAMINEE": 2, "AMBIGU": 1, "METRIQUE_INERTE": 0}
+
+
+def aggregate(per_seed, k_seeds, effect_thresh=0.10):
+    """Agrege les metriques par variante sur les seeds et rend un verdict. Garde-fou :
+    aucun METRIQUE_CONTAMINEE sous k_seeds=12."""
+    names = list(per_seed[0]["variants"]) if per_seed else []
+    per_variant = {}
+    for name in names:
+        jac = [s["variants"][name]["topk_jaccard"] for s in per_seed]
+        tau = [s["variants"][name]["kendall_tau"] for s in per_seed]
+        med_j = _median(jac)
+        med_t = _median(tau)
+        n_changed = sum(1 for x in jac if x < 1.0)
+        effect = 1.0 - med_j
+        if med_j == 1.0 and med_t == 1.0:
+            verdict = "METRIQUE_INERTE"
+        elif k_seeds >= 12 and effect >= effect_thresh and n_changed >= math.ceil(k_seeds / 2):
+            verdict = "METRIQUE_CONTAMINEE"
+        else:
+            verdict = "AMBIGU"
+        per_variant[name] = {"median_jaccard": med_j, "median_tau": med_t,
+                             "n_changed": n_changed, "effect": effect, "verdict": verdict}
+    global_verdict = max((v["verdict"] for v in per_variant.values()),
+                         key=lambda x: _RANK[x], default="METRIQUE_INERTE")
+    return {"per_variant": per_variant, "global_verdict": global_verdict}
