@@ -243,3 +243,26 @@ def test_ladder_verdict_contract():
     for r in res["rungs"].values():
         assert set(r) >= {"binding", "survival", "composes"}
         assert isinstance(r["composes"], bool)
+
+
+# === EDR 201 Task 1 : decomposition 2x2 credit x curriculum ===
+
+from tools.craft_or_starve_edr import _train_cell, decompose_2x2
+
+
+def test_train_cell_determinism():
+    a = _train_cell("substep", True, "inesc", Params(E0=16.0, T=40), seed=1000, M=8, n_episodes=6, n_warm=6, n_cold=6)
+    b = _train_cell("substep", True, "inesc", Params(E0=16.0, T=40), seed=1000, M=8, n_episodes=6, n_warm=6, n_cold=6)
+    assert np.array_equal(a.W_out, b.W_out)
+    assert np.array_equal(a.W_hh, b.W_hh)
+    assert np.array_equal(a.W_ih, b.W_ih)
+
+
+def test_decompose_2x2_contract():
+    # CONTRAT uniquement — on ne prejuge PAS quelle cellule compose (c'est le resultat du run).
+    res = decompose_2x2(seeds=(1000,), E0=16.0, M=8, n_episodes=10, n_warm=10, n_cold=10)
+    assert set(res["cells"]) == {("substep", False), ("substep", True), ("tick", False), ("tick", True)}
+    for c in res["cells"].values():
+        assert set(c) >= {"binding", "survival", "composes"}
+        assert isinstance(c["composes"], bool)
+    assert res["verdict"] in ("CURRICULUM-SUFFISANT", "CREDIT-SUFFISANT", "BOTH-NECESSARY", "INCOHERENT")

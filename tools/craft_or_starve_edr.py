@@ -625,6 +625,73 @@ def _report_ladder(res):
     print("        decisive (substrat CAPABLE ; converge 167/168/170 warm-start, 004 curriculum, 129/136).")
 
 
+# ============================ EDR 201 : decomposition 2x2 (credit x curriculum) + robustesse ============================
+# Ferme les 2 caveats de la revue finale COS. AUCUNE dynamique nouvelle : reutilise les entraineurs Phase B.
+
+
+def _train_cell(credit, curriculum, arm, params, seed, M, n_episodes, n_warm, n_cold):
+    """Entraine l'apprenant d'une cellule du 2x2 (credit x curriculum) et le retourne.
+    credit in {'substep','tick'} ; curriculum bool. Curriculum = warm (c_consume_empty=0.5, seed) puis cold
+    (params pleins, seed+100) — MEME schedule que rollout_learn_curriculum, avec l'entraineur du credit choisi."""
+    if credit == "substep":
+        learner = NpReinforceLearner(seed=int(seed), arm=arm)
+        if curriculum:
+            rollout_learn(learner, arm, replace(params, c_consume_empty=0.5), seed=int(seed), M=M, n_episodes=n_warm)
+            rollout_learn(learner, arm, params, seed=int(seed) + 100, M=M, n_episodes=n_cold)
+        else:
+            rollout_learn(learner, arm, params, seed=int(seed), M=M, n_episodes=n_episodes)
+    else:  # 'tick'
+        learner = NpTickLearner(seed=int(seed), arm=arm)
+        if curriculum:
+            rollout_learn_curriculum(learner, arm, params, seed=int(seed), M=M, n_warm=n_warm, n_cold=n_cold)
+        else:
+            rollout_learn_tick(learner, arm, params, seed=int(seed), M=M, n_episodes=n_episodes)
+    return learner
+
+
+_DECOMP_CELLS = (("substep", False), ("substep", True), ("tick", False), ("tick", True))
+
+
+def _decomp_verdict(cells):
+    """Arbre de decision gate sur (tick,True)=L2 (cellule CONNUE-composante). Isole le levier decisif du binding."""
+    if not cells[("tick", True)]["composes"]:
+        return "INCOHERENT"                     # (tick,on) ne compose pas -> contredit le verdict merge = artefact
+    if cells[("substep", True)]["composes"]:
+        return "CURRICULUM-SUFFISANT"           # curriculum seul rachete le credit substep faible -> bootstrap = levier
+    if cells[("tick", False)]["composes"]:
+        return "CREDIT-SUFFISANT"               # tick-return seul binde sans curriculum
+    return "BOTH-NECESSARY"                      # ni curriculum seul ni tick seul ; les deux ensemble oui
+
+
+def decompose_2x2(seeds=PILOT_SEEDS[:3], E0=16.0, M=32, n_episodes=120, n_warm=80, n_cold=80):
+    """Decomposition factorielle 2x2 credit x curriculum sur le bras inesc a E0 fixe. Isole le levier decisif.
+    Cellules connues : (substep,off)=L0, (tick,off)=L1, (tick,on)=L2 ; NOUVELLE = (substep,on) (tranche)."""
+    P = replace(Params(), E0=E0)
+    cells = {}
+    for credit, curr in _DECOMP_CELLS:
+        binds, survs = [], []
+        for s in seeds:
+            lr = _train_cell(credit, curr, "inesc", P, seed=int(s), M=M,
+                             n_episodes=n_episodes, n_warm=n_warm, n_cold=n_cold)
+            ev = evaluate_learner(lr, "inesc", P, seed=int(s) + 5000, M=M)
+            binds.append(ev["binding_gap"])
+            survs.append(ev["survival"])
+        b, sv = float(np.median(binds)), float(np.median(survs))
+        cells[(credit, curr)] = {"binding": b, "survival": sv, "composes": _rung_composes(b, sv)}
+    return {"cells": cells, "verdict": _decomp_verdict(cells), "E0": E0}
+
+
+def _report_decompose(res):
+    lab = {("substep", False): "(substep, off ) L0", ("substep", True): "(substep, CURR)   ",
+           ("tick", False): "(tick,    off ) L1", ("tick", True): "(tick,    CURR) L2"}
+    print("\n=== EDR 201 — decomposition 2x2 credit x curriculum (bras inesc, E0=%.1f) ===" % res.get("E0", float("nan")))
+    for key in _DECOMP_CELLS:
+        c = res["cells"][key]
+        print("    %s  binding=%+.3f  survie=%.3f  compose=%s" % (lab[key], c["binding"], c["survival"], c["composes"]))
+    print("=== LEVIER DECISIF : %s ===" % res.get("verdict"))
+    print("    CURRICULUM-SUFFISANT = bootstrap seul suffit | BOTH-NECESSARY = credit-horizon + bootstrap requis")
+
+
 if __name__ == "__main__":
     import sys as _s
     if "--ladder" in _s.argv:
