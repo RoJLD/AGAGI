@@ -161,6 +161,9 @@ consensus×complexité ; coût de signal + sélection sur l'écoute (`083`) ; le
 > - **Craft-or-starve** (`EDR-200` Phase B, session //, `[[decisive-substrate-thesis-test]]`) : sur un réseau
 >   12-cachés, le binding échoue à froid mais un **curriculum warm-start binde 1.000 + survit 1.000** → substrat
 >   CAPABLE, verrou = crédit/objectif ; thèse « migrer torch pour la capacité » **réfutée**.
+> - **Difficulté de tâche** (`CURR-001`, proxy de `transfer_ratio` Dev #3) : à budget égal, un curriculum
+>   facile→plein BAT le tabula-rasa (within ×1.41, zeroshot ×1.84 au-dessus de la chance ; 6000 facile + 6000
+>   plein > 12000 plein) — bénéfice plus fort en généralisation. Proxy POSITIF pour Dev #3 in-world.
 > - **Prédiction actionnable (in-world)** : un verrou qui *ressemble* à une limite de capacité est
 >   probablement une **barrière de bootstrap / de crédit** → (1) tester un **warm-start** (cohorte/gate
 >   pré-entraîné, curriculum de coût/social) et (2) soigner le **crédit/objectif** (retour épisodique, critique)

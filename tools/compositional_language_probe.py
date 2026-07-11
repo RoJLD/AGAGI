@@ -38,7 +38,8 @@ def _softmax_np(z):
 
 def run_compositional(episodes: int = 5000, n_agents: int = 16, A: int = 3, V: int = 6,
                       seed: int = 0, lr: float = 0.05, rotate: bool = True, warmstart_fixed: int = 0,
-                      credit: str = "joint", num_nodes: int = 172):
+                      credit: str = "joint", num_nodes: int = 172,
+                      warmstart_easy: int = 0, easy_values: int = 0):
     """Entraîne sender+receiver sur le jeu compositionnel (référents (a0,a1), messages 2-symboles), en
     tenant la DIAGONALE (a,a) hors entraînement. Renvoie within (combos vus), zeroshot (combos held-out),
     topsim, et cross_mi (intelligibilité mutuelle croisée), + chance=1/A. rotate=True apparie
@@ -70,6 +71,10 @@ def run_compositional(episodes: int = 5000, n_agents: int = 16, A: int = 3, V: i
         heldout = [(k, k) for k in range(A)]                       # diagonale = combos jamais entraînés
         train = [c for c in combos if c not in heldout]            # chaque VALEUR d'attribut reste vue
         train_arr = np.array(train)
+        # CURR-001 : sous-monde FACILE = combos restreints aux `easy_values` premières valeurs (dims fixes,
+        # seule la plage de valeurs échantillonnée change) -> curriculum de difficulté easy->full.
+        train_easy = [c for c in train if c[0] < easy_values and c[1] < easy_values] if easy_values else []
+        train_easy_arr = np.array(train_easy) if train_easy else train_arr
 
         def _sender_obs(a0, a1, pos):
             """[a0_onehot(A), a1_onehot(A), position_onehot(2)] dans les I premières dims."""
@@ -130,11 +135,14 @@ def run_compositional(episodes: int = 5000, n_agents: int = 16, A: int = 3, V: i
         def _acts(vals):
             return [{"move": int(x)} for x in vals]
 
-        for ep in range(warmstart_fixed + episodes):
-            # curriculum (LANG-004) : phase 1 = paires FIGÉES (warm-start du code) ; phase 2 = `rotate`
+        for ep in range(warmstart_fixed + warmstart_easy + episodes):
+            # curriculum LANG-004 (social) : phase 1 = paires FIGÉES puis `rotate`.
             phase_rotate = rotate and ep >= warmstart_fixed
-            idx = rng.randint(0, len(train), size=n_agents)
-            a0, a1 = train_arr[idx, 0], train_arr[idx, 1]
+            # curriculum CURR-001 (difficulté) : phase 1 = sous-monde FACILE (valeurs restreintes) puis full.
+            easy_phase = easy_values > 0 and ep < warmstart_easy
+            src = train_easy_arr if easy_phase else train_arr
+            idx = rng.randint(0, len(src), size=n_agents)
+            a0, a1 = src[idx, 0], src[idx, 1]
             s0, s1, o0, o1 = _message(a0, a1, independent=independent)
             s = rng.randint(1, n_agents) if phase_rotate else 0    # appariement sender_i<->receiver_{i+s}
             rs0, rs1 = np.roll(s0, s), np.roll(s1, s)              # receiver_j lit le message de sender_{j-s}

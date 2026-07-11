@@ -45,3 +45,21 @@ def test_per_attr_credit_runs():
         assert k in r
     assert 0.0 <= r["within"] <= 1.0
     assert -1.0 <= r["topsim"] <= 1.0
+
+
+def test_difficulty_curriculum_runs():
+    # CURR-001 : phase facile (valeurs restreintes) puis pleine, dims fixes. Budget total = easy + episodes.
+    r = run_compositional(episodes=15, warmstart_easy=15, easy_values=3, n_agents=8, A=4, V=6,
+                          seed=0, rotate=False)
+    assert r["chance"] == pytest.approx(0.25)
+    assert 0.0 <= r["within"] <= 1.0 and 0.0 <= r["zeroshot"] <= 1.0
+
+
+def test_transfer_verdict_pure():
+    # compute_transfer est PUR (sans torch) : ratio (curr-chance)/(tab-chance).
+    from tools.compositional_transfer_probe import compute_transfer
+    tab = [{"within": 0.40, "zeroshot": 0.40}, {"within": 0.40, "zeroshot": 0.40}]
+    cur = [{"within": 0.55, "zeroshot": 0.55}, {"within": 0.55, "zeroshot": 0.55}]
+    res = compute_transfer(tab, cur, chance=0.25)     # ratio = (0.55-0.25)/(0.40-0.25) = 2.0
+    assert res["verdict"] == "CURRICULUM_TRANSFERS"
+    assert res["ratio_within"] == pytest.approx(2.0)
