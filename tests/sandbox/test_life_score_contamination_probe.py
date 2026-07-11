@@ -81,3 +81,27 @@ def test_drop_spears_reorders_when_crafter_present():
     res = analyze_roster(roster, frac_topk=0.25)
     assert res["n_crafters"] == 1
     assert res["variants"]["drop_spears"]["topk_jaccard"] < 1.0
+
+
+from tools.life_score_contamination_probe import _components, run_arm
+
+
+def test_components_extracts_six_terms():
+    agent = {"age": 5, "preys_eaten": 3, "altars_solved": 0,
+             "spears_crafted": 1, "mammoth_kills": 2, "_ref_distinction": 0.4}
+    c = _components(agent)
+    assert c == {"age": 5, "preys_eaten": 3, "altars_solved": 0,
+                 "spears_crafted": 1, "mammoth_kills": 2, "ref_distinction": 0.4}
+
+
+def test_components_defaults_missing_keys():
+    c = _components({"age": 1, "preys_eaten": 0, "altars_solved": 0})
+    assert c["spears_crafted"] == 0 and c["mammoth_kills"] == 0 and c["ref_distinction"] == 0.0
+
+
+def test_run_arm_smoke_returns_roster():
+    # run minuscule : evolue 1 ere de 4 agents 5 ticks, mesure -> liste de dicts a 6 cles
+    roster = run_arm(seed=0, eras=1, num_agents=4, max_ticks=5)
+    assert isinstance(roster, list) and len(roster) >= 1
+    assert set(roster[0]) == {"age", "preys_eaten", "altars_solved",
+                              "spears_crafted", "mammoth_kills", "ref_distinction"}

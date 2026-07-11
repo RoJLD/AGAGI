@@ -104,3 +104,49 @@ def analyze_roster(roster, frac_topk=0.25):
             "topk_jaccard": topk_jaccard(full_scores, var_scores, k),
         }
     return out
+
+
+from src.worlds.world_1_stoneage import Biosphere3D
+from src.agents.mamba_agent import MambaAgent
+from tools.competence_profile import _evolve_champions
+from tools.map_elites_compare import _make_cfg, _reproduce, PRESERVE_DIMS
+
+
+def _components(agent):
+    """Extrait les 6 termes de life_score (dont altars_solved, pour MESURER qu'il est 0)."""
+    return {"age": agent.get("age", 0), "preys_eaten": agent.get("preys_eaten", 0),
+            "altars_solved": agent.get("altars_solved", 0),
+            "spears_crafted": agent.get("spears_crafted", 0),
+            "mammoth_kills": agent.get("mammoth_kills", 0),
+            "ref_distinction": agent.get("_ref_distinction", 0.0)}
+
+
+def _measure_roster(cfg, genomes, max_ticks):
+    """Mesure sur COHORTE FIXE (benchmark_mode) ; roster = env.agents + dead_agents
+    (mirror competence_profile._measure_profile : inclut les morts avec stats finales)."""
+    env = Biosphere3D(cfg)
+    env.benchmark_mode = True
+    if hasattr(env, "memory_retriever"):
+        env.memory_retriever.stop()
+        env.memory_retriever.clear()
+    for g in genomes:
+        a = MambaAgent()
+        a.from_genome(g, preserve_dims=PRESERVE_DIMS)
+        env.add_agent(a, energy=80.0)
+    env.current_era = 1
+    t = 0
+    while env.agents and t < max_ticks:
+        env.step()
+        t += 1
+    pool = list(env.agents) + list(getattr(env, "dead_agents", []))
+    return [_components(a) for a in pool]
+
+
+def run_arm(seed=0, eras=8, num_agents=30, max_ticks=300):
+    """Evolue des champions (cliquet top-5, repro ON, regime sweet _make_cfg) puis mesure
+    leur cohorte fixe. Retourne le roster (liste de composants). CRN via _evolve_champions."""
+    champs = _evolve_champions(seed, eras=eras, num_agents=num_agents, max_ticks=max_ticks)
+    if not champs:
+        return []
+    reps = (champs * (num_agents // len(champs) + 1))[:num_agents]
+    return _measure_roster(_make_cfg(), reps, max_ticks)
