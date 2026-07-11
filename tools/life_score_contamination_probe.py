@@ -187,3 +187,81 @@ def aggregate(per_seed, k_seeds, effect_thresh=0.10):
     global_verdict = max((v["verdict"] for v in per_variant.values()),
                          key=lambda x: _RANK[x], default="METRIQUE_INERTE")
     return {"per_variant": per_variant, "global_verdict": global_verdict}
+
+
+def hof_decomposition():
+    """Corroborant non-bloquant : decompose le HoF de prod (si present) en part-de-masse
+    par terme (moyenne sur les champions). Retourne None sur toute absence/erreur."""
+    try:
+        from src.seed_ai.persistence import load_hall_of_fame
+        _version, hof = load_hall_of_fame()
+        if not hof:
+            return None
+        shares = []
+        for entry in hof:
+            stats = getattr(entry, "stats", None)
+            if stats is None and isinstance(entry, dict):
+                stats = entry.get("stats")
+            if not stats:
+                continue
+            comp = {"age": stats.get("age", 0), "preys_eaten": stats.get("preys_eaten", 0),
+                    "altars_solved": stats.get("altars_solved", 0),
+                    "spears_crafted": stats.get("spears_crafted", 0),
+                    "mammoth_kills": stats.get("mammoth_kills", 0), "ref_distinction": 0.0}
+            shares.append(term_mass_share([comp], WEIGHTS_FULL))
+        if not shares:
+            return None
+        keys = list(shares[0])
+        return {"n_champions": len(shares),
+                "mean_share": {k: sum(s[k] for s in shares) / len(shares) for k in keys}}
+    except Exception:
+        return None
+
+
+def compare(seeds=(0,), eras=8, num_agents=30, max_ticks=300, frac_topk=0.25):
+    """Evolue+mesure chaque seed, analyse, agrege, verdict. Garde repro : re-run seed[0]
+    et exige un roster byte-identique."""
+    rosters = {}
+    per_seed = []
+    for s in seeds:
+        roster = run_arm(seed=s, eras=eras, num_agents=num_agents, max_ticks=max_ticks)
+        rosters[s] = roster
+        per_seed.append(analyze_roster(roster, frac_topk=frac_topk))
+    repro = run_arm(seed=seeds[0], eras=eras, num_agents=num_agents, max_ticks=max_ticks)
+    assert repro == rosters[seeds[0]], "repro cassee : deux passes seed[0] different"
+    agg = aggregate(per_seed, k_seeds=len(seeds))
+    return {"config": {"seeds": list(seeds), "eras": eras, "num_agents": num_agents,
+                       "max_ticks": max_ticks, "frac_topk": frac_topk},
+            "per_seed": per_seed, "per_variant": agg["per_variant"],
+            "global_verdict": agg["global_verdict"], "hof_decomposition": hof_decomposition()}
+
+
+if __name__ == "__main__":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+    import json
+    seeds = tuple(int(x) for x in os.environ.get("LSC_SEEDS", ",".join(str(i) for i in range(12))).split(","))
+    eras = int(os.environ.get("LSC_ERAS", "8"))
+    n_agents = int(os.environ.get("LSC_AGENTS", "30"))
+    ticks = int(os.environ.get("LSC_TICKS", "300"))
+    out = compare(seeds=seeds, eras=eras, num_agents=n_agents, max_ticks=ticks)
+    for i, ps in enumerate(out["per_seed"]):
+        da = ps["variants"]["drop_altars"]
+        ds = ps["variants"]["drop_spears"]
+        print(f"seed={seeds[i]} n={ps['n']} crafters={ps['n_crafters']} altar={ps['n_altar_solvers']} "
+              f"| drop_altars tau={da['kendall_tau']:+.3f} jac={da['topk_jaccard']:.3f} "
+              f"| drop_spears tau={ds['kendall_tau']:+.3f} jac={ds['topk_jaccard']:.3f}")
+    print("--- verdict par variante ---")
+    for name, v in out["per_variant"].items():
+        print(f"{name:12s} med_jac={v['median_jaccard']:.3f} med_tau={v['median_tau']:+.3f} "
+              f"effect={v['effect']:.3f} n_changed={v['n_changed']} -> {v['verdict']}")
+    print("VERDICT GLOBAL:", out["global_verdict"])
+    if out["hof_decomposition"]:
+        print("HoF mean_share:", out["hof_decomposition"]["mean_share"])
+    os.makedirs("results", exist_ok=True)
+    path = f"results/life_score_contamination_{seeds[0]}.json"
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(out, f, indent=2)
+    print("RESULT ->", path)

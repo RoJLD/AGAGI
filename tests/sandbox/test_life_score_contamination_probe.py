@@ -153,3 +153,21 @@ def test_global_verdict_picks_most_actionable():
     per_seed = [_seed_result({"drop_altars": 1.0, "drop_spears": 0.5}) for _ in range(12)]
     agg = aggregate(per_seed, k_seeds=12)
     assert agg["global_verdict"] == "METRIQUE_CONTAMINEE"
+
+
+from tools.life_score_contamination_probe import hof_decomposition, compare
+
+
+def test_hof_decomposition_graceful_absent():
+    # aucun HoF en prod -> None, jamais d'exception
+    res = hof_decomposition()
+    assert res is None or ("mean_share" in res and "n_champions" in res)
+
+
+def test_compare_schema_and_repro():
+    # 2 seeds, run minuscule ; verifie schema + que la garde repro ne leve pas
+    out = compare(seeds=(0, 1), eras=1, num_agents=4, max_ticks=5)
+    assert set(out) >= {"config", "per_seed", "per_variant", "global_verdict", "hof_decomposition"}
+    assert len(out["per_seed"]) == 2
+    assert out["global_verdict"] in {"METRIQUE_INERTE", "METRIQUE_CONTAMINEE", "AMBIGU"}
+    assert out["per_variant"]["drop_altars"]["verdict"] == "METRIQUE_INERTE"  # altars dead
