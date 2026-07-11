@@ -59,10 +59,10 @@
 - statut: actif
 - couche: Monde
 - question_phare: Le monde exige-t-il l'intelligence (métrique life_score)
-- fichiers_possedes: (commons sim de monde — intendant)
+- fichiers_possedes: (commons sim de monde — intendant), tools/agricultural_demand_probe.py
 - memoire: s2-world-demand-thread.md, world-floor-survivability-gate.md
 - legacy_edr: 085,124
-- frontiere_courante: réparer le gate de cohérence life_score (survivant≠marqueur)
+- frontiere_courante: gate life_score RÉPARÉ (#132) + VÉRIFIÉ end-to-end 2026-07-10 (run_s2=EXIGE p=0.036, ancien gate faux-VOID life_p=0.675) ; EDR-WLD-001 → « chaque monde exige un type » ASPIRATIONNEL pour 2/3 : world 3 = stoneage déguisé (pollution code mort), world 2 agricole COSMÉTIQUE (champion ne plante JAMAIS, Planted_Seed=0 sur 5 seeds malgré 30 graines+temps illimité ; chaîne temporellement inatteignable) → même pattern que le mur du craft ; levier = substrat/crédit, pas plus de monde
 - ponts_actifs: —
 - filiation: —
 
