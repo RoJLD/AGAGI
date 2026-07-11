@@ -44,42 +44,49 @@ Non-goals stricts (ce probe NE fait PAS) :
 
 ## Harness de cohorte
 
-Réutilise le pattern éprouvé du banc B2 ([tools/torch_throw_gate_inworld_ab.py](../../../tools/torch_throw_gate_inworld_ab.py)) et de `competence_profile.py`, **en legacy** (pas besoin de torch) :
+**Cohorte = champions ÉVOLUÉS, pas soupe fraîche.** Décision critique (validée par exploration) : sur de la soupe non-évoluée le craft n'émerge jamais (EDR 014/111) et l'apex est rare → 0 event → toutes les variantes seraient trivialement INERTE *par absence d'events* (résultat dégénéré, non-informatif). Le test de contamination n'a de sens que sur une cohorte aux **taux réalistes** (craft ~1.1 %, apex ~15-21 % — EDR 125). Comme **aucun HoF n'existe** en prod à mesurer, la cohorte doit être produite par évolution.
+
+**Réutilise le harness canonique de `competence_profile.py`** (DRY, prouvé, revu) plutôt que de dupliquer l'évolution :
 
 ```python
-w = Biosphere3D(WorldConfig(base_metabolism=bm, forage_payoff=fp))
-for _ in range(n_agents):
-    w.add_agent(MambaAgent(), energy=80.0)
-if hasattr(w, "memory_retriever"):
-    w.memory_retriever.stop()        # repro : couper la mémoire KuzuDB ambiante
-w.current_era = 1
-w.benchmark_mode = True               # cohorte fixe : repro figée, la population ne fait que rétrécir
+from tools.competence_profile import _evolve_champions           # cliquet top-5, repro ON, SeedManager(seed)
+from tools.map_elites_compare import _make_cfg, _reproduce, PRESERVE_DIMS  # régime sweet canonique
+from src.worlds.world_1_stoneage import Biosphere3D
+from src.agents.mamba_agent import MambaAgent
 ```
 
-- Régime **sweet 0.25/3.0 par défaut** (EDR-085 : population diverse et vivante ~140, laisse apparaître les events rares craft/mammouth qu'il s'agit de mesurer) ; **défaut 1.0/1.0 en option** (env `LSC_BM`/`LSC_FP`).
-- `n_agents=40` (prod-like), `ticks=300` par défaut (env `LSC_TICKS`), `K=12` seeds par défaut (env `LSC_SEEDS`).
-- **Seed CRN** : `np.random.seed(seed)` avant chaque run.
+- **Régime = `_make_cfg()`** (= `SWEET_METAB`/`SWEET_PAYOFF` = 0.25/3.0, EDR-085) — **les mêmes conditions qu'EDR 125**, donc la contamination mesurée est directement comparable au mur du craft. Pas de knobs de régime (une variable en moins).
+- Seeding **déterministe** via `_evolve_champions` (`SeedManager(seed).seed_boundary(0)` en interne, CRN).
+- `eras=8`, `num_agents=30`, `max_ticks=300` par défaut (env `LSC_ERAS`/`LSC_AGENTS`/`LSC_TICKS`) ; `K=12` seeds (env `LSC_SEEDS`).
 
 ### Roster (capture des composants)
 
-`benchmark_mode=True` fige la reproduction → la cohorte initiale de `n_agents` est **stable** (elle rétrécit par mortalité, ne grandit jamais). On capture la cohorte initiale et on **snapshot chaque tick** les composants de chaque membre encore vivant, en conservant la dernière valeur vue (les membres morts gardent leur snapshot final — sinon on sous-échantillonne exactement les agents à event rare qui meurent ensuite).
+`run_arm(seed)` évolue des champions puis les mesure sur **cohorte fixe** (`benchmark_mode=True`, repro figée). Le roster = pool canonique `env.agents + env.dead_agents` (mirror exact de `competence_profile._measure_profile:84` — inclut les morts avec leurs stats finales, donc capture les agents à event rare qui meurent ensuite ; pas de snapshot par-tick nécessaire) :
 
 ```python
-cohort = list(w.agents)                       # n_agents membres, identités stables (repro figée)
-roster = [None] * len(cohort)
-# ... par tick, après w.step() :
-for i, a in enumerate(cohort):
-    if a in living_set:                       # a['energy'] > 0 / présent dans w.agents
-        roster[i] = _components(a)            # écrase avec la valeur la plus récente
+def _measure_roster(cfg, genomes, max_ticks):
+    env = Biosphere3D(cfg)
+    env.benchmark_mode = True
+    if hasattr(env, "memory_retriever"):
+        env.memory_retriever.stop(); env.memory_retriever.clear()   # repro P0
+    for g in genomes:
+        a = MambaAgent(); a.from_genome(g, preserve_dims=PRESERVE_DIMS); env.add_agent(a, energy=80.0)
+    env.current_era = 1
+    t = 0
+    while env.agents and t < max_ticks:
+        env.step(); t += 1
+    pool = env.agents + list(getattr(env, "dead_agents", []))
+    return [_components(a) for a in pool]
 ```
 
-Composants extraits par `_components(agent)` :
+Composants extraits par `_components(agent)` — capture **les 6 termes**, dont `altars_solved` (pour MESURER, pas assumer, qu'il est ≡0) :
 ```python
-{"age": agent["age"], "preys_eaten": agent["preys_eaten"],
- "altars_solved": agent["altars_solved"], "spears_crafted": agent.get("spears_crafted", 0),
+{"age": agent.get("age", 0), "preys_eaten": agent.get("preys_eaten", 0),
+ "altars_solved": agent.get("altars_solved", 0), "spears_crafted": agent.get("spears_crafted", 0),
  "mammoth_kills": agent.get("mammoth_kills", 0), "ref_distinction": agent.get("_ref_distinction", 0.0)}
 ```
-Membres jamais vus vivants après tick 0 gardent leur snapshot de tick 0 (jamais `None` : on snapshot une fois avant la boucle).
+
+> Note DRY/coupling : `_evolve_champions`, `_make_cfg`, `_reproduce`, `PRESERVE_DIMS` sont importés de tools existants (competence_profile / map_elites_compare). Le reviewer vérifie que ces symboles existent et gardent leur signature.
 
 ## Variantes de poids
 
@@ -130,8 +137,8 @@ Verdict global = la variante la plus actionnable (`CONTAMINÉE` > `AMBIGU` > `IN
 
 ## Bornage / caveats (à consigner dans l'EDR)
 
-- La cohorte est **fraîche** (soupe non évoluée), pas le HoF de prod → mesure la contamination sur la *distribution de population* que la sélection voit, pas sur les champions déjà filtrés. Le corroborant HoF couvre le second angle.
-- `benchmark_mode` fige la repro (leçon 114b) : la politique ne fait qu'agir, pas apprendre — cohérent avec une mesure de *composition de fitness*, pas d'apprentissage.
-- Sweet 0.25/3.0 maximise la diversité d'events : un `INERTE` au sweet est **conservateur** (si le terme ne bouge pas la sélection même quand les events sont les plus fréquents, il ne la bouge pas au régime dur non plus).
-- `n=40` cohorte, `K=12` seeds : respecte le seuil du garde-fou pour tout verdict positif.
+- La cohorte est **évoluée** (champions cliquetés, mêmes conditions qu'EDR 125), pas le HoF de prod (absent) ni de la soupe fraîche (dégénérée). Mesure la contamination sur la distribution qu'une sélection en cours de course voit. Le corroborant HoF (si présent un jour) couvre l'angle « champions déjà filtrés ».
+- `benchmark_mode` fige la repro dans la phase de MESURE (leçon 114b) : la politique agit sans apprendre — cohérent avec une mesure de *composition de fitness*. L'évolution (phase amont) utilise la repro ON canonique.
+- Régime sweet (`_make_cfg`) maximise la diversité d'events : un `INERTE` au sweet est **conservateur** (si le terme ne bouge pas la sélection quand les events sont les plus fréquents, il ne la bouge pas au régime dur non plus).
+- `num_agents=30` × 5 clones-champions, `K=12` seeds : respecte le seuil du garde-fou pour tout verdict positif. Coût : 12 × (évolution 8 ères + mesure) → run de recherche à lancer en tâche de fond, pas interactif.
 ```
