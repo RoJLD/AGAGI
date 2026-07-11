@@ -269,8 +269,10 @@ class NpReinforceLearner:
         self._ctx = (obs, H_prev, H_new, probs, actions)
         return actions
 
-    def update(self, rewards, alive):
-        """REINFORCE 1-pas sur le DERNIER act. advantage = reward - baseline (EMA), masque les morts."""
+    def update(self, rewards, alive, entropy_beta=0.0):
+        """REINFORCE 1-pas sur le DERNIER act. advantage = reward - baseline (EMA), masque les morts.
+        entropy_beta optionnel (defaut 0.0 -> BYTE-IDENTIQUE aux appelants existants) : bonus d'entropie, aligne
+        la voie substep+curriculum sur celle de rollout_learn_curriculum (2x2 strictement factoriel, EDR 201)."""
         obs, H_prev, H_new, probs, actions = self._ctx
         M = obs.shape[0]
         r = np.asarray(rewards, dtype=np.float64)
@@ -281,6 +283,10 @@ class NpReinforceLearner:
         onehot = np.zeros_like(probs)
         onehot[np.arange(M), actions] = 1.0
         dlogits = (onehot - probs) * adv[:, None] / TEMP                  # d(adv·logπ(a))/dlogits
+        if entropy_beta:
+            logp = np.log(probs + 1e-12)
+            Hent = -(probs * logp).sum(axis=1, keepdims=True)
+            dlogits = dlogits + entropy_beta * (-probs * (logp + Hent)) / TEMP * m[:, None]
         # backprop tronque (H_prev traite comme constante -> pas de BPTT)
         self.W_out += LR * (dlogits.T @ H_new) / n
         self.b_out += LR * dlogits.sum(axis=0) / n
@@ -291,9 +297,10 @@ class NpReinforceLearner:
         self.b_h += LR * dz.sum(axis=0) / n
 
 
-def rollout_learn(learner, arm, params, seed, M, n_episodes):
+def rollout_learn(learner, arm, params, seed, M, n_episodes, entropy_beta=0.0):
     """Entraine `learner` en ligne : n_episodes vies (T ticks x 2 sous-pas x M agents), reward = delta d'energie
-    du sous-pas, mort ABSORBANTE. Meme dynamique de monde que `rollout` (Phase A). Retourne le learner entraine."""
+    du sous-pas, mort ABSORBANTE. Meme dynamique de monde que `rollout` (Phase A). Retourne le learner entraine.
+    entropy_beta optionnel (defaut 0.0 -> BYTE-IDENTIQUE aux appelants existants), transmis a learner.update."""
     rng = np.random.default_rng(seed)
     P = params
     for _ in range(n_episodes):
@@ -317,7 +324,7 @@ def rollout_learn(learner, arm, params, seed, M, n_episodes):
                 foraged = alive & (a1 == FORAGE)
                 pending = np.where(foraged, P.f_forage, 0.0)
             E = E - np.where(alive, P.h, 0.0)
-            learner.update(np.where(alive, E - E_before, 0.0), alive)
+            learner.update(np.where(alive, E - E_before, 0.0), alive, entropy_beta)
             # --- S2 ---
             obs2 = _build_obs(np.zeros(M), 1, rng.standard_normal((M, N_NOISE)))
             a2 = learner.act(obs2)
@@ -331,7 +338,7 @@ def rollout_learn(learner, arm, params, seed, M, n_episodes):
                 E = E + np.where(alive, pending, 0.0)
                 pending = np.zeros(M, dtype=np.float64)
             E = E - np.where(alive, P.h, 0.0)
-            learner.update(np.where(alive, E - E_before, 0.0), alive)
+            learner.update(np.where(alive, E - E_before, 0.0), alive, entropy_beta)
             alive = alive & (E > 0.0)
     return learner
 
@@ -631,12 +638,13 @@ def _report_ladder(res):
 
 def _train_cell(credit, curriculum, arm, params, seed, M, n_episodes, n_warm, n_cold):
     """Entraine l'apprenant d'une cellule du 2x2 (credit x curriculum) et le retourne.
-    credit in {'substep','tick'} ; curriculum bool. Curriculum = warm (c_consume_empty=0.5, seed) puis cold
-    (params pleins, seed+100) — MEME schedule que rollout_learn_curriculum, avec l'entraineur du credit choisi."""
+    credit in {'substep','tick'} ; curriculum bool. Curriculum = warm (c_consume_empty=0.5, seed, entropy 0.01)
+    puis cold (params pleins, seed+100) — MEME schedule ET MEME bonus d'entropie warm que rollout_learn_curriculum,
+    avec l'entraineur du credit choisi -> 2x2 STRICTEMENT factoriel (le facteur curriculum = meme bundle des 2 cotes)."""
     if credit == "substep":
         learner = NpReinforceLearner(seed=int(seed), arm=arm)
         if curriculum:
-            rollout_learn(learner, arm, replace(params, c_consume_empty=0.5), seed=int(seed), M=M, n_episodes=n_warm)
+            rollout_learn(learner, arm, replace(params, c_consume_empty=0.5), seed=int(seed), M=M, n_episodes=n_warm, entropy_beta=0.01)
             rollout_learn(learner, arm, params, seed=int(seed) + 100, M=M, n_episodes=n_cold)
         else:
             rollout_learn(learner, arm, params, seed=int(seed), M=M, n_episodes=n_episodes)
