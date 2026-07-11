@@ -52,6 +52,26 @@ inchangé). Le banc 158/159 masquait ce point (là `pop` persiste sur tout l'ép
 > P(Y|X). ⚠️ **Bloqueur cran 2** : le rebuild du pop sur mortalité RÉINITIALISE `w_gate`/`b_gate` → éroderait
 > l'accumulation du gate → persister le gate à travers rebuild AVANT d'allumer le gate in-world.
 
+> **REPRISE 2026-07-11 — cran 2 (throw-gate) : le verrou couche-2 est DÉCOMPOSÉ.** EDR-172 (B2) NEUTRE =
+> substrat 2 couches. NAV-005 (main, offline) raffine la couche 2 : la « rareté » est un **BIAIS** (−0.5 sur
+> throw-sans-kill). **EDR-173 (PR #160, branche `chantier/throw-gate-debias-nav005`) porte le débias in-world**
+> (knob `src` `torch_throw_penalty` défaut −0.5 rétro-compat / 0.0 non-biaisé ; banc `compare_debias` apparié
+> biaisé-vs-non-biaisé ; knobs `night`/`energy`/`spear_weight` neutralisent la couche 1) → **NÉCESSAIRE mais
+> PAS SUFFISANT** : les 2 bras NEUTRES ; `kills` 1-6 / `spear_n` 500-2400 → **p_success ≈ 0.001 in-world**
+> (~10-20× < le sweep offline NAV-005 à 0.02-0.03) → E[correct]≈0 → gradient négligeable. **Verrou résiduel =
+> DENSITÉ du crédit kill-outil, pas le signe.**
+
+### ➡️ PROCHAIN CHANTIER (levier densité) — « densifier le crédit du throw-outil in-world »
+
+Remonter `p_success` au-dessus du plancher de NAV-004 par **shaping du geste correct** au lieu du seul kill
+terminal (rare). **Piste** : récompenser le throw **dirigé vers une proie** / l'approche balistique (crédit
+DENSE — gradient à chaque throw pertinent), pas seulement le kill réussi. Garder `torch_throw_penalty=0.0`
+(débias acquis, EDR-173). **Banc** : étendre `tools/torch_throw_gate_inworld_ab.py` avec une récompense de
+shaping (distance projectile→proie ou hit non-létal), ré-utiliser les knobs couche-1 déjà en place. **Verdict**
+= `binding_gap` positif non-biaisé, K≥12, shuffle plat (garde-fou power-evaporation). **Prérequis couche 1
+RÉSOLU** (knobs energy/spear_weight/night). Recoupe le fil densité-de-signal (EDR-NAV-004). Détail : EDR-173,
+mémoire `torch-inworld-integration-plan`.
+
 **Historique de la reco (2026-07-02, avant livraison) :**
 Reco couture (**approuvée 2026-07-02**) : faire passer la boucle biosphère par `make_population`
 (ADR-003, dette payée — aujourd'hui seuls tools/tests l'utilisent), buffer épisodique porté par le
