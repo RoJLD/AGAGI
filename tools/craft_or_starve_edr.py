@@ -692,9 +692,34 @@ def _report_decompose(res):
     print("    CURRICULUM-SUFFISANT = bootstrap seul suffit | BOTH-NECESSARY = credit-horizon + bootstrap requis")
 
 
+def robustness_sweep(seeds=PILOT_SEEDS[:3], e0_grid=(12.0, 16.0, 24.0, 32.0), M=32, n_episodes=120, n_warm=80, n_cold=80):
+    """Rejoue ladder_verdict sur le grid E0. [2]-ROBUSTE ssi le verdict par-E0 == '[2] CREDIT-ATTRIBUE' partout."""
+    grid = []
+    for e0 in e0_grid:
+        res = ladder_verdict(seeds=seeds, E0=e0, M=M, n_episodes=n_episodes, n_warm=n_warm, n_cold=n_cold)
+        r = res["rungs"]
+        grid.append({"E0": e0, "verdict": res["verdict"],
+                     "L0_composes": r["L0"]["composes"], "L1_composes": r["L1"]["composes"],
+                     "L2_composes": r["L2"]["composes"]})
+    robust = all(row["verdict"] == "[2] CREDIT-ATTRIBUE" for row in grid)
+    return {"grid": grid, "robust": robust, "verdict": "[2]-ROBUSTE" if robust else "[2]-FRAGILE"}
+
+
+def _report_robustness(res):
+    print("\n=== EDR 201 — robustesse du verdict [2] sur le grid E0 (bras inesc) ===")
+    print("    E0    verdict               L0/L1/L2 compose")
+    for row in res["grid"]:
+        print("    %5.1f  %-21s %s/%s/%s" % (row["E0"], row["verdict"],
+              row["L0_composes"], row["L1_composes"], row["L2_composes"]))
+    print("=== %s ===" % res.get("verdict"))
+
+
 if __name__ == "__main__":
     import sys as _s
-    if "--ladder" in _s.argv:
+    if "--edr201" in _s.argv:
+        _report_decompose(decompose_2x2())
+        _report_robustness(robustness_sweep())
+    elif "--ladder" in _s.argv:
         _report_ladder(ladder_verdict())
     elif "--learner" in _s.argv:
         _report_learner(recalibrate_learner())
