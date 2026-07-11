@@ -462,9 +462,168 @@ def _report_learner(res):
                           if res.get("ok") else "ECHOUE -> l'apprenant n'apprend pas le conditionnement dans COS ; STOP + diagnostic (converge EDR 172)"))
 
 
+# ============================ Phase B1a Task 4 : ladder d'attribution SUBSTRAT-vs-CREDIT ============================
+# Le crédit L0 (substep, TD 1-pas) ne peut créditer le différé-1-sous-pas de COS (craft->consume). On ajoute deux
+# barreaux qui ne changent QUE la cadence/amorce du crédit (MEME reseau 12-caches) : L1 = crédit tick-return
+# (franchit le différé), L2 = tick-return + curriculum warm-start (amorce le binding séquentiel que le coût de
+# mis-émission plein empêche de bootstrapper à froid). Le ladder tranche : si le MEME substrat compose seulement
+# avec un meilleur crédit/bootstrap -> le verrou est le CREDIT/OBJECTIF, pas le substrat.
+
+
+class NpTickLearner(NpReinforceLearner):
+    """L1/L2 : crédit TICK-RETURN. Bufferise les acts S1+S2 d'un tick et crédite les DEUX du retour du TICK
+    entier (E_fin_tick - E_debut_tick), sans BPTT (chaque ctx garde son H_prev traité comme constante).
+    Franchit le différé-1-sous-pas de COS (le payoff craft/forage arrive au sous-pas SUIVANT, crédité à une
+    autre action sous L0). Bonus d'entropie optionnel. MEME reseau que L0 : seule la CADENCE de crédit change."""
+
+    def reset_state(self, M):
+        super().reset_state(M)
+        self._buf = []
+
+    def act(self, obs):
+        a = super().act(obs)
+        self._buf.append(self._ctx)
+        return a
+
+    def update_tick(self, tick_return, alive, entropy_beta=0.0):
+        """REINFORCE tick-return : applique le gradient à TOUS les acts bufferisés du tick avec
+        advantage = tick_return - baseline (EMA). 1 update/tick, sans BPTT. Bonus d'entropie optionnel."""
+        r = np.asarray(tick_return, dtype=np.float64)
+        m = np.asarray(alive, dtype=np.float64)
+        n = max(m.sum(), 1.0)
+        self._baseline = 0.99 * self._baseline + 0.01 * float((r * m).sum() / n)
+        adv = (r - self._baseline) * m
+        for (obs, H_prev, H_new, probs, actions) in self._buf:
+            M = obs.shape[0]
+            onehot = np.zeros_like(probs)
+            onehot[np.arange(M), actions] = 1.0
+            dlogits = (onehot - probs) * adv[:, None] / TEMP
+            if entropy_beta:
+                logp = np.log(probs + 1e-12)
+                Hent = -(probs * logp).sum(axis=1, keepdims=True)
+                dlogits = dlogits + entropy_beta * (-probs * (logp + Hent)) * m[:, None]
+            self.W_out += LR * (dlogits.T @ H_new) / n
+            self.b_out += LR * dlogits.sum(axis=0) / n
+            dz = (dlogits @ self.W_out) * (1.0 - H_new ** 2)
+            self.W_ih += LR * (dz.T @ obs) / n
+            self.W_hh += LR * (dz.T @ H_prev) / n
+            self.b_h += LR * dz.sum(axis=0) / n
+        self._buf = []
+
+
+def rollout_learn_tick(learner, arm, params, seed, M, n_episodes, entropy_beta=0.0):
+    """Entraine un NpTickLearner en crédit tick-return. Même dynamique de monde que rollout_learn, mais 1 update
+    PAR TICK (crédite les 2 acts du retour du tick). Mort ABSORBANTE. Retourne le learner entraine."""
+    rng = np.random.default_rng(seed)
+    P = params
+    for _ in range(n_episodes):
+        learner.reset_state(M)
+        E = np.full(M, P.E0, dtype=np.float64)
+        inv = np.zeros(M, dtype=bool)
+        alive = np.ones(M, dtype=bool)
+        pending = np.zeros(M, dtype=np.float64)
+        for t in range(P.T):
+            E_tick0 = E.copy()
+            mat = (rng.random(M) < P.p_mat).astype(np.float64)
+            a1 = learner.act(_build_obs(mat, 0, rng.standard_normal((M, N_NOISE))))
+            matb = mat > 0.5
+            if arm == "inesc":
+                crafted = alive & (a1 == CRAFT)
+                inv = np.where(crafted & matb, True, inv)
+                E = E - np.where(crafted & matb, P.c_craft, 0.0) - np.where(crafted & ~matb, P.c_craft_nomat, 0.0)
+            else:
+                pending = np.where(alive & (a1 == FORAGE), P.f_forage, 0.0)
+            E = E - np.where(alive, P.h, 0.0)
+            a2 = learner.act(_build_obs(np.zeros(M), 1, rng.standard_normal((M, N_NOISE))))
+            if arm == "inesc":
+                consume = alive & (a2 == CONSUME)
+                got = consume & inv
+                E = E + np.where(got, P.R, 0.0) - np.where(consume & ~inv, P.c_consume_empty, 0.0)
+                inv = np.where(got, False, inv)
+            else:
+                E = E + np.where(alive, pending, 0.0)
+                pending = np.zeros(M, dtype=np.float64)
+            E = E - np.where(alive, P.h, 0.0)
+            learner.update_tick(np.where(alive, E - E_tick0, 0.0), alive, entropy_beta)
+            alive = alive & (E > 0.0)
+    return learner
+
+
+def rollout_learn_curriculum(learner, arm, params, seed, M, n_warm, n_cold, c_warm=0.5, entropy_beta=0.01):
+    """L2 : warm-start/curriculum. Phase WARM (c_consume_empty=c_warm : explorer consume est sûr + bonus entropie)
+    puis phase COLD (params PLEINS). Amorce le binding séquentiel craft->consume que le coût de mis-émission plein
+    (c_consume_empty) empêche de bootstrapper à froid. Retourne le learner (poids persistants, crédit tick-return)."""
+    rollout_learn_tick(learner, arm, replace(params, c_consume_empty=c_warm), seed=seed, M=M,
+                       n_episodes=n_warm, entropy_beta=entropy_beta)
+    rollout_learn_tick(learner, arm, params, seed=seed + 100, M=M, n_episodes=n_cold, entropy_beta=0.0)
+    return learner
+
+
+# Seuils GELÉS du ladder (séparation exploratoire STARK : binding 1.0 vs 0.0, survie 1.0 vs 0.0 -> 0.5 sépare net).
+LADDER_BIND_PASS = 0.5
+LADDER_SURV_PASS = 0.5
+
+
+def _rung_composes(binding, survival):
+    """Un barreau COMPOSE s'il binde (P(C|inv=1)-P(C|inv=0)) ET survit sous COS plein."""
+    return bool(binding >= LADDER_BIND_PASS and survival >= LADDER_SURV_PASS)
+
+
+def ladder_verdict(seeds=PILOT_SEEDS, E0=16.0, M=32, n_episodes=120, n_warm=80, n_cold=80):
+    """Ladder d'attribution SUBSTRAT-vs-CREDIT sur le bras inesc (composition craft->consume = SEULE survie).
+    MEME substrat (12 caches) aux 3 barreaux ; seule la cadence/amorce de crédit change :
+      L0 = crédit substep (TD 1-pas) ; L1 = crédit tick-return ; L2 = tick-return + curriculum warm-start.
+    Verdict GELÉ : [1] SUBSTRAT-LIMITE (L2 ne compose pas -> verrou = substrat/capacite) /
+    [2] CREDIT-ATTRIBUE (L2 compose, L0/L1 NON -> le MEME substrat compose seulement avec meilleur credit/bootstrap
+    -> verrou = CREDIT/OBJECTIF, these 'migrer torch' REFUTEE) / [3] COMPOSITION-TRIVIALE (L0 ou L1 compose deja)."""
+    P = replace(Params(), E0=E0)
+    rungs = {}
+    for name in ("L0", "L1", "L2"):
+        binds, survs = [], []
+        for s in seeds:
+            if name == "L0":
+                lr = rollout_learn(NpReinforceLearner(seed=int(s), arm="inesc"), "inesc", P,
+                                   seed=int(s), M=M, n_episodes=n_episodes)
+            elif name == "L1":
+                lr = rollout_learn_tick(NpTickLearner(seed=int(s), arm="inesc"), "inesc", P,
+                                        seed=int(s), M=M, n_episodes=n_episodes)
+            else:
+                lr = rollout_learn_curriculum(NpTickLearner(seed=int(s), arm="inesc"), "inesc", P,
+                                              seed=int(s), M=M, n_warm=n_warm, n_cold=n_cold)
+            ev = evaluate_learner(lr, "inesc", P, seed=int(s) + 5000, M=M)
+            binds.append(ev["binding_gap"])
+            survs.append(ev["survival"])
+        b, sv = float(np.median(binds)), float(np.median(survs))
+        rungs[name] = {"binding": b, "survival": sv, "composes": _rung_composes(b, sv)}
+    l0, l1, l2 = rungs["L0"]["composes"], rungs["L1"]["composes"], rungs["L2"]["composes"]
+    if not l2:
+        verdict = "[1] SUBSTRAT-LIMITE"
+    elif not l0 and not l1:
+        verdict = "[2] CREDIT-ATTRIBUE"
+    else:
+        verdict = "[3] COMPOSITION-TRIVIALE"
+    return {"verdict": verdict, "rungs": rungs, "E0": E0}
+
+
+def _report_ladder(res):
+    labels = {"L0": "L0 substep (TD 1-pas)", "L1": "L1 tick-return", "L2": "L2 tick+curriculum"}
+    print("\n=== CRAFT-OR-STARVE — Ladder SUBSTRAT-vs-CREDIT (Phase B1a, bras inesc) ===")
+    print("  E0=%.1f | MEME substrat (12 caches) ; seule la cadence/amorce de credit change :" % res.get("E0", float("nan")))
+    for name in ("L0", "L1", "L2"):
+        r = res["rungs"][name]
+        print("    %-22s  binding=%+.3f  survie=%.3f  compose=%s"
+              % (labels[name], r["binding"], r["survival"], r["composes"]))
+    print("=== VERDICT : %s ===" % res.get("verdict"))
+    print("    [2] CREDIT-ATTRIBUE = le MEME substrat compose SEULEMENT avec meilleur credit + bootstrap")
+    print("        -> verrou = CREDIT/OBJECTIF (pas le substrat) ; these 'migrer torch' REFUTEE dans l'ecologie")
+    print("        decisive (substrat CAPABLE ; converge 167/168/170 warm-start, 004 curriculum, 129/136).")
+
+
 if __name__ == "__main__":
     import sys as _s
-    if "--learner" in _s.argv:
+    if "--ladder" in _s.argv:
+        _report_ladder(ladder_verdict())
+    elif "--learner" in _s.argv:
         _report_learner(recalibrate_learner())
     else:
         _report(calibrate())

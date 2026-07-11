@@ -198,3 +198,48 @@ def test_recalibrate_learner_contract():
         assert set(row) >= {"E0", "g4_headroom", "binding_adv", "pass"}
     if res["ok"]:
         assert res["E0_learner"] in (16.0, 32.0)
+
+
+# === Phase B1a Task 4 : ladder SUBSTRAT-vs-CREDIT (tick-return + curriculum + verdict gele) ===
+
+from tools.craft_or_starve_edr import (
+    NpTickLearner, rollout_learn_tick, rollout_learn_curriculum, ladder_verdict,
+)
+
+
+def test_tick_learner_determinism():
+    a = rollout_learn_tick(NpTickLearner(seed=3, arm="inesc"), "inesc", Params(E0=16.0, T=40), seed=3, M=8, n_episodes=3)
+    b = rollout_learn_tick(NpTickLearner(seed=3, arm="inesc"), "inesc", Params(E0=16.0, T=40), seed=3, M=8, n_episodes=3)
+    assert np.array_equal(a.W_out, b.W_out)
+    assert np.array_equal(a.W_hh, b.W_hh)
+    assert np.array_equal(a.W_ih, b.W_ih)
+
+
+def test_tick_learner_updates_weights():
+    L = NpTickLearner(seed=1, arm="inesc")
+    W0 = L.W_out.copy()
+    rollout_learn_tick(L, "inesc", Params(E0=16.0, T=60), seed=1, M=16, n_episodes=5)
+    assert not np.allclose(L.W_out, W0)
+
+
+def test_curriculum_binds_where_cold_fails():
+    # LE RESULTAT DECISIF : sur le MEME substrat + MEME credit tick-return, le curriculum warm-start BINDE
+    # (P(C|inv=1)~1, P(C|inv=0)~0) et SURVIT sous COS plein, la ou le cold-start echoue a binder (chicken-and-egg
+    # + coût de mis-émission qui punit l'exploration). Isole le verrou au BOOTSTRAP (credit/objectif), pas au substrat.
+    P = Params(E0=16.0)
+    warm = rollout_learn_curriculum(NpTickLearner(seed=1000, arm="inesc"), "inesc", P, seed=1000, M=32, n_warm=80, n_cold=80)
+    cold = rollout_learn_tick(NpTickLearner(seed=1000, arm="inesc"), "inesc", P, seed=1000, M=32, n_episodes=160)
+    ew = evaluate_learner(warm, "inesc", P, seed=6000, M=32)
+    ec = evaluate_learner(cold, "inesc", P, seed=6000, M=32)
+    assert ew["binding_gap"] >= 0.5 and ew["survival"] >= 0.5   # curriculum : compose
+    assert ec["binding_gap"] < 0.5                               # cold : echoue a binder
+
+
+def test_ladder_verdict_contract():
+    # contrat + structure UNIQUEMENT (le verdict complet = run du controleur, plus lourd) : config minimale.
+    res = ladder_verdict(seeds=(1000,), E0=16.0, M=8, n_episodes=8, n_warm=8, n_cold=8)
+    assert res["verdict"] in ("[1] SUBSTRAT-LIMITE", "[2] CREDIT-ATTRIBUE", "[3] COMPOSITION-TRIVIALE")
+    assert set(res["rungs"]) == {"L0", "L1", "L2"}
+    for r in res["rungs"].values():
+        assert set(r) >= {"binding", "survival", "composes"}
+        assert isinstance(r["composes"], bool)
