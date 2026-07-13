@@ -124,8 +124,18 @@ Contrat/déterminisme/sanité UNIQUEMENT (jamais préjuger la courbe ni la cellu
 - Un `INCOHERENT`, une viabilité `calibrate_K` qui ÉCHOUE à un K, ou W=2 qui composerait à K≥3 = signal à investiguer
   AVANT consolidation.
 
+## Staging (Phase A puis Phase B, comme COS)
+
+- **Phase A** (ce cycle) : monde `KCHAIN(K)` + politiques de référence + `calibrate_K` + gates de viabilité par-K +
+  `survival_auc`/`binding_gap` (mesure). **GATE DUR** : pour chaque K ∈ {2,3,4,5}, un `(R_K,E0_K)` doit rendre le monde
+  viable (oracle-chain ≥ 0.90 ; métronome ≤ 0.40 ; random ≤ 0.20 ; oracle-forage/absent OK). Si un K échoue → on le
+  sait AVANT de construire l'apprenant (évite le piège I1 de COS) → on rapporte la fenêtre viable et on borne le K_grid
+  de Phase B. Pur numpy, aucune machinerie d'apprentissage.
+- **Phase B** (contingente au gate A) : `NpChainLearner` + fenêtre-crédit W + curriculum progressif-K +
+  `generality_curve` + `decompose_2x2_chain` + verdicts gelés. `E0_K` re-calibré contre le headroom apprenant (I1).
+
 ## Compute
 
 Lourd : K=5 (cycles longs) + curriculum 4 crans + courbe 4 K + 2×2. 3 seeds, `n_stage`/`n_episodes` tunés, 1 pass.
 Cible pragmatique : privilégier la clarté du verdict sur l'exhaustivité ; `log` tout budget tronqué. Estimation
-plusieurs dizaines de minutes → ~1-2 h ; run en arrière-plan.
+plusieurs dizaines de minutes → ~1-2 h ; run en arrière-plan. Phase A (réfs, sans apprentissage) est rapide.
