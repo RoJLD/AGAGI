@@ -166,3 +166,28 @@ def test_torch_throw_penalty_default_and_debias_knob():
 
     assert _fresh_world().torch_throw_penalty == -0.5               # defaut retro-compatible
     assert not torch.allclose(_run(-0.5), _run(0.0))               # le debias change l'update
+
+
+def test_torch_throw_shaping_default_and_knob():
+    """EDR-173-suite : le shaping remplace la recompense binaire (hit/penalty) par le credit DENSE
+    de visee _throw_aim. Defaut OFF (retro-compatible). ON avec des _throw_aim distincts DOIT produire
+    un update different, a H/init/agents identiques."""
+    import torch
+
+    def _run(shaping):
+        w = _fresh_world()
+        w.use_torch_inworld = True
+        w.torch_throw_gate = True
+        w.torch_throw_shaping = shaping
+        w.torch_throw_antisat = 0.0        # isole le signal (cf. test penalty)
+        w._torch_pop = _FakePop(6)
+        w._ensure_throw_gate()
+        w._torch_pop.H = torch.arange(18, dtype=torch.float32).reshape(3, 6)
+        w.agents = [{"_throw_did": True, "_throw_kill_tool": False, "_throw_aim": 0.9},
+                    {"_throw_did": True, "_throw_kill_tool": False, "_throw_aim": 0.2},
+                    {"_throw_did": False, "_throw_kill_tool": False, "_throw_aim": 0.0}]
+        w._learn_throw_gate()
+        return w._throw_w.detach().clone()
+
+    assert _fresh_world().torch_throw_shaping is False              # defaut retro-compatible
+    assert not torch.allclose(_run(False), _run(True))             # le shaping change l'update

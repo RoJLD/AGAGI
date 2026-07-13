@@ -39,7 +39,7 @@ def _reseed_spears(world, rng, respawn_p, weight=2.0):
 
 def run_arm(shuffle=False, seed=0, ticks=400, warmup=200, n_agents=32, respawn_p=0.5,
             base_metabolism=1.0, forage_payoff=1.0, penalty=-0.5, night=True,
-            energy=80.0, spear_weight=2.0):
+            energy=80.0, spear_weight=2.0, shaping=False, antisat=None):
     """Tourne un monde torch avec le throw-gate, sème/re-sème des spears, agrege le binding_gap
     sur la fenetre post-warmup (couples agent,tick sur la VRAIE presence-spear). CRN par seed.
     ON (shuffle=False) vs SHUFFLE (recompense permutee, contexte decorrele). `penalty` = recompense
@@ -64,6 +64,9 @@ def run_arm(shuffle=False, seed=0, ticks=400, warmup=200, n_agents=32, respawn_p
     w.use_torch_inworld = True
     w.torch_throw_gate = True
     w.torch_throw_penalty = penalty             # NAV-005 : le knob teste
+    w.torch_throw_shaping = shaping              # EDR-173-suite : credit DENSE de visee
+    if antisat is not None:
+        w.torch_throw_antisat = antisat          # modere l'anti-sat (defaut 6.0 ecrase p->0 => throw_rate~0)
     w.torch_throw_shuffle = shuffle
     rng = np.random.RandomState(seed + 100)
     _seed_spears(w, weight=spear_weight)
@@ -145,6 +148,37 @@ def compare_debias(seeds=(0, 1, 2, 3), ticks=400, warmup=200, n_agents=32, respa
             "info": info}
 
 
+def compare_density(seeds=(0, 1, 2, 3), ticks=400, warmup=200, n_agents=32, respawn_p=0.5,
+                    base_metabolism=0.25, forage_payoff=3.0, energy=250.0, spear_weight=2.0,
+                    antisat=None):
+    """EDR-173-suite in-world : experience APPARIEE credit SPARSE (hit binaire, EDR-173) vs DENSE
+    (shaping de visee _throw_aim). LES DEUX non-biaises (penalty=0). Chaque bras verdict ON-vs-SHUFFLE.
+    Hypothese (raffine NAV-005) : sparse -> NEUTRE (repro EDR-173, p_success~0.001 < plancher) ; dense ->
+    GRADIENT_GAGNE (le shaping remonte le signal au-dessus du plancher NAV-004 -> 1er binding in-world).
+    Couche 1 levee (energy/spear_weight/night) — heritee d'EDR-173."""
+    sparse, dense, info = [], [], []
+    kw = dict(ticks=ticks, warmup=warmup, n_agents=n_agents, respawn_p=respawn_p, night=False,
+              base_metabolism=base_metabolism, forage_payoff=forage_payoff,
+              energy=energy, spear_weight=spear_weight, penalty=0.0, antisat=antisat)
+    for s in seeds:
+        s_on = run_arm(shuffle=False, shaping=False, seed=s, **kw)
+        s_sh = run_arm(shuffle=True, shaping=False, seed=s, **kw)
+        d_on = run_arm(shuffle=False, shaping=True, seed=s, **kw)
+        d_sh = run_arm(shuffle=True, shaping=True, seed=s, **kw)
+        sparse.append({"seed": s, "on": s_on["binding_gap_inworld"], "shuffle": s_sh["binding_gap_inworld"],
+                       "diff": s_on["binding_gap_inworld"] - s_sh["binding_gap_inworld"]})
+        dense.append({"seed": s, "on": d_on["binding_gap_inworld"], "shuffle": d_sh["binding_gap_inworld"],
+                      "diff": d_on["binding_gap_inworld"] - d_sh["binding_gap_inworld"]})
+        info.append({"seed": s, "spear_n": d_on["spear_n"], "nospear_n": d_on["nospear_n"],
+                     "alive": d_on["n_alive_end"], "sparse_on": s_on["binding_gap_inworld"],
+                     "dense_on": d_on["binding_gap_inworld"], "kills_sparse": s_on["kills_with_tool"],
+                     "kills_dense": d_on["kills_with_tool"],
+                     "throw_dense": d_on["throw_rate"], "throw_sparse": s_on["throw_rate"]})
+    return {"sparse": {"rows": sparse, "verdict": compute_ab_verdict(sparse, band=0.02)},
+            "dense": {"rows": dense, "verdict": compute_ab_verdict(dense, band=0.02)},
+            "info": info}
+
+
 if __name__ == "__main__":
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -159,6 +193,8 @@ if __name__ == "__main__":
     rp = float(os.environ.get("TTG_RESPAWN", "0.5"))     # respawn_p : bas => garde du contexte ¬spear
     en = float(os.environ.get("TTG_ENERGY", "80"))       # energie initiale (haute = survie ++)
     sw = float(os.environ.get("TTG_SPEARW", "2.0"))      # poids spear (leger = pas de drain de portage)
+    _as = os.environ.get("TTG_ANTISAT")                  # anti-sat (defaut monde 6.0 ; bas => throw_rate ++)
+    asat = float(_as) if _as is not None else None
     if os.environ.get("TTG_MODE", "debias") == "debias":
         out = compare_debias(seeds=seeds, ticks=ticks, warmup=warmup, n_agents=agents,
                              respawn_p=rp, base_metabolism=bm, forage_payoff=fp,
@@ -175,6 +211,22 @@ if __name__ == "__main__":
         bv, uv = out["biased"]["verdict"]["verdict"], out["unbiased"]["verdict"]["verdict"]
         print("CONCLUSION:", "DEBIAS_DEBLOQUE_LE_BINDING" if (uv == "GRADIENT_GAGNE" and bv != "GRADIENT_GAGNE")
               else "PAS_DE_BASCULE" if uv != "GRADIENT_GAGNE" else "BINDING_INDEPENDANT_DU_BIAIS")
+    elif os.environ.get("TTG_MODE") == "density":
+        out = compare_density(seeds=seeds, ticks=ticks, warmup=warmup, n_agents=agents,
+                              respawn_p=rp, base_metabolism=bm, forage_payoff=fp,
+                              energy=en, spear_weight=sw, antisat=asat)
+        for r in out["info"]:
+            print(f"seed={r['seed']} spear_n={r['spear_n']} nospear_n={r['nospear_n']} alive={r['alive']} "
+                  f"| gap_SPARSE={r['sparse_on']:+.3f} (thr {r['throw_sparse']:.2f} kills {r['kills_sparse']}) "
+                  f"gap_DENSE={r['dense_on']:+.3f} (thr {r['throw_dense']:.2f} kills {r['kills_dense']})")
+        _lab = {"GRADIENT_GAGNE": "BINDING_INWORLD_REEL", "HEBBIEN_GAGNE": "SHUFFLE_BINDE_PLUS",
+                "NEUTRE": "PAS_DE_BINDING"}
+        for arm in ("sparse", "dense"):
+            v = out[arm]["verdict"]
+            print(f"[{arm:6s}] VERDICT: {v['verdict']} -> {_lab.get(v['verdict'], v['verdict'])}  {v}")
+        sv, dv = out["sparse"]["verdict"]["verdict"], out["dense"]["verdict"]["verdict"]
+        print("CONCLUSION:", "DENSITE_DEBLOQUE_LE_BINDING" if (dv == "GRADIENT_GAGNE" and sv != "GRADIENT_GAGNE")
+              else "PAS_DE_BASCULE" if dv != "GRADIENT_GAGNE" else "BINDING_INDEPENDANT_DE_LA_DENSITE")
     else:
         out = compare(seeds=seeds, ticks=ticks, warmup=warmup, n_agents=agents,
                       base_metabolism=bm, forage_payoff=fp)
