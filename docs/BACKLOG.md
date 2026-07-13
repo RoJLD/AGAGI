@@ -66,16 +66,25 @@ inchangé). Le banc 158/159 masquait ce point (là `pop` persiste sur tout l'ép
 > densifier fait throw ++ → l'agent devient spearless → `P(throw|¬spear)` monte → gap négatif. **Méta-verdict :
 > 3ᵉ échec côté SIGNAL (câblage 172 / débias 173 / densité 174) → les fixes de récompense sont ÉPUISÉS in-world.**
 
-### ➡️ PROCHAIN CHANTIER — warm-start / curriculum du throw-gate (PAS plus de retouche de signal)
+> **Warm-start TESTÉ (EDR-175, PR #160) : FRANCHIT le bootstrap mais NE RETIENT PAS.** FROZEN (gate gelé) : le
+> `_throw_w` spear-aware (régression logistique H→has_spear) crée un gap **+0.40** → binding REPRÉSENTABLE,
+> bootstrap franchissable. Mais sous REINFORCE le warm **érode** (+0.40 → médiane −0.04) ; cold anti-binde (−0.22) ;
+> warm>cold 5/6 mais n.s. (sign_p 0.22). **Loi rétention-167 (`c_warm=r·P`)** : la rétention exige récompense·P >
+> coût ; in-world kill/hit ~0.001 → `r·P` SOUS le plancher → érosion.
 
-Recadrage EDR-174 via [[warm-start-transversal-law]] : sous crédit épisodique, le binding émerge d'un **bassin
-pré-formé**, PAS de la forme du signal (établi sur 4 fils : rétention 167, langage LANG-004, COS L2, difficulté
-CURR-001). Donc **pré-entraîner le throw-gate sur un régime FACILE** (proies denses / cohorte survivante / hit
-fréquent → binding s'installe), PUIS transférer/mesurer in-world au régime dur — analogue exact du curriculum
-LANG-004 (dyade→rotation) et du warm-start rétention-167. **Banc** : phase de warm-up sur monde facile qui gèle
-un `_throw_w` déjà bindé, puis `compare` in-world (le gate part warm, pas de zéro). **Verdict** = `binding_gap`
-positif in-world K≥12, shuffle plat. **Prérequis couche 1 + knobs (antisat/energy/spear_weight) déjà en place**
-(banc `torch_throw_gate_inworld_ab.py`). Détail : EDR-174, mémoire `torch-inworld-integration-plan`.
+### ✅ ARC THROW-GATE IN-WORLD CLOS (172→175) — explication unifiée
+
+Le throw-gate échoue au **bootstrap** (cold 172/173) ET à la **rétention** (warm 175) pour la MÊME raison :
+**densité de récompense in-world sous le seuil `r·P`**. Les 4 leviers (câblage 172 / débias 173 / densité 174 /
+warm-start 175) échouent tous parce qu'aucun ne relève le PAYOFF réel du throw-avec-spear au-dessus du plancher.
+Le throw-gate SÉPARE les deux moitiés de [[warm-start-transversal-law]] : franchir-le-bootstrap (warm ✓) ≠
+retenir (r·P ✗). **Le throw balistique de la biosphère est structurellement sous le plancher** (payoff rare).
+
+**Leçon générale actionnable (gravée)** : avant tout binding in-world d'une action, **vérifier `r·P` (récompense
+fiable × proba de succès) vs le plancher de rétention**. Les actions à payoff rare (throw-outil, craft, autel)
+NE BINDENT PAS — ni à froid ni warm — sans densifier le **PAYOFF** (pas le signal/l'init). → si le fil BIND
+in-world reprend : construire une TÂCHE où l'outil paie de façon fiable et dense, PAS régler le gate. Banc
+`compare_warmstart` (knobs warm/lr/antisat) réutilisable dès qu'une telle tâche existe.
 
 **Historique de la reco (2026-07-02, avant livraison) :**
 Reco couture (**approuvée 2026-07-02**) : faire passer la boucle biosphère par `make_population`
