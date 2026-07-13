@@ -61,16 +61,21 @@ inchangé). Le banc 158/159 masquait ce point (là `pop` persiste sur tout l'ép
 > (~10-20× < le sweep offline NAV-005 à 0.02-0.03) → E[correct]≈0 → gradient négligeable. **Verrou résiduel =
 > DENSITÉ du crédit kill-outil, pas le signe.**
 
-### ➡️ PROCHAIN CHANTIER (levier densité) — « densifier le crédit du throw-outil in-world »
+> **Levier densité TESTÉ (EDR-174, PR #160) = BACKFIRE.** Le shaping de visée dense (`torch_throw_shaping`)
+> produit de l'**ANTI-binding** (gap −0.28 à −0.52, HEBBIEN_GAGNE, 6/6 seeds) : throw consomme le spear →
+> densifier fait throw ++ → l'agent devient spearless → `P(throw|¬spear)` monte → gap négatif. **Méta-verdict :
+> 3ᵉ échec côté SIGNAL (câblage 172 / débias 173 / densité 174) → les fixes de récompense sont ÉPUISÉS in-world.**
 
-Remonter `p_success` au-dessus du plancher de NAV-004 par **shaping du geste correct** au lieu du seul kill
-terminal (rare). **Piste** : récompenser le throw **dirigé vers une proie** / l'approche balistique (crédit
-DENSE — gradient à chaque throw pertinent), pas seulement le kill réussi. Garder `torch_throw_penalty=0.0`
-(débias acquis, EDR-173). **Banc** : étendre `tools/torch_throw_gate_inworld_ab.py` avec une récompense de
-shaping (distance projectile→proie ou hit non-létal), ré-utiliser les knobs couche-1 déjà en place. **Verdict**
-= `binding_gap` positif non-biaisé, K≥12, shuffle plat (garde-fou power-evaporation). **Prérequis couche 1
-RÉSOLU** (knobs energy/spear_weight/night). Recoupe le fil densité-de-signal (EDR-NAV-004). Détail : EDR-173,
-mémoire `torch-inworld-integration-plan`.
+### ➡️ PROCHAIN CHANTIER — warm-start / curriculum du throw-gate (PAS plus de retouche de signal)
+
+Recadrage EDR-174 via [[warm-start-transversal-law]] : sous crédit épisodique, le binding émerge d'un **bassin
+pré-formé**, PAS de la forme du signal (établi sur 4 fils : rétention 167, langage LANG-004, COS L2, difficulté
+CURR-001). Donc **pré-entraîner le throw-gate sur un régime FACILE** (proies denses / cohorte survivante / hit
+fréquent → binding s'installe), PUIS transférer/mesurer in-world au régime dur — analogue exact du curriculum
+LANG-004 (dyade→rotation) et du warm-start rétention-167. **Banc** : phase de warm-up sur monde facile qui gèle
+un `_throw_w` déjà bindé, puis `compare` in-world (le gate part warm, pas de zéro). **Verdict** = `binding_gap`
+positif in-world K≥12, shuffle plat. **Prérequis couche 1 + knobs (antisat/energy/spear_weight) déjà en place**
+(banc `torch_throw_gate_inworld_ab.py`). Détail : EDR-174, mémoire `torch-inworld-integration-plan`.
 
 **Historique de la reco (2026-07-02, avant livraison) :**
 Reco couture (**approuvée 2026-07-02**) : faire passer la boucle biosphère par `make_population`
