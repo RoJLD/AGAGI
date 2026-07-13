@@ -4,6 +4,7 @@ import pytest
 from tools.kchain_edr import (
     Params, rollout_chain, survival_auc, NOOP, STEP, CONSUME, FORAGE, N_ACTIONS, OBS_DIM,
     oracle_chain_policy, metronome_policy, random_policy, oracle_forage_policy,
+    binding_gap, _run_chain_logged, calibrate_K,
 )
 
 
@@ -35,3 +36,25 @@ def test_survival_auc_range():
     am = rollout_chain(oracle_chain_policy(2), 'inesc', 2, Params(E0=50.0, T=40), seed=1, M=8)
     s = survival_auc(am)
     assert 0.0 <= s <= 1.0
+
+
+def test_binding_gap_oracle_high_metronome_low():
+    # oracle : CONSUME ssi prog==K-1 -> binding_gap eleve. metronome : CONSUME open-loop -> ~0.
+    P = Params(E0=50.0, T=200)
+    orc = oracle_chain_policy(3)
+    met = metronome_policy(3)
+    _, so = _run_chain_logged(lambda obs, mem, prog: orc(obs, mem, prog), 'inesc', 3, P, seed=7, M=32)
+    _, sm = _run_chain_logged(lambda obs, mem, prog: met(obs, mem, prog), 'inesc', 3, P, seed=7, M=32)
+    go = binding_gap((*so, 3))
+    gm = binding_gap((*sm, 3))
+    assert go > 0.6           # l'oracle conditionne fortement (CONSUME ssi prog==K-1)
+    assert gm < go - 0.3      # le metronome conditionne NETTEMENT moins (ne lit pas prog)
+
+
+def test_calibrate_k_contract():
+    # CONTRAT seulement (config reduite) : structure + la fenetre.
+    res = calibrate_K(2, seeds=(2000,), r_grid=(8.0, 12.0), e0_grid=(12.0, 24.0), M=16)
+    assert set(res) >= {"ok", "R_K", "E0_K", "last"}
+    assert isinstance(res["ok"], bool)
+    if res["ok"]:
+        assert res["R_K"] in (8.0, 12.0) and res["E0_K"] in (12.0, 24.0)
