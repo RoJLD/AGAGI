@@ -170,6 +170,21 @@ consensus×complexité ; coût de signal + sélection sur l'écoute (`083`) ; le
 >   AVANT de conclure à l'incapacité. Recoupe le cran 2 B2 in-world (cohorte fraîche éteinte avant l'horizon =
 >   cold-start ; `[[torch-inworld-integration-plan]]`).
 
+> 🔑 **Instrument transversal : le témoin causal de « le monde EXIGE-t-il X / X PAIE-t-il » = ablation
+> WITHIN-subject de X**, pas l'existence d'un agent qui réussit. Le marqueur **between-subject** (« un champion
+> bat un dummy ») FAUX-POSITIVE : un survivant compétent peut exister dans un monde qui n'exige pas X, et gagner
+> par un autre facteur. Le marqueur **within-subject** (décorréler X sur le MÊME agent : obs/canal randomisé) ne
+> s'effondre que si X est causalement porteur. Corroborant gratuit : le **poids que la politique optimale met
+> sur X → 0 EXACT** quand X ne paie pas. Validé par vérité-terrain (mondes DEMANDING vs TRIVIAL) sur 2 modalités :
+> - **Perception** (`S2-001`, `world_demand_marker_probe.py`) : ablation obs → demand 5-7× / trivial 1.0× ;
+>   between faux-positive 5-7× sur trivial ; corroborant `|W|` 0.996 vs 0.000. Reco : bras d'ablation-perception
+>   dans `s2_demand` (verdict CAUSAL).
+> - **Communication** (`LANG-006`, porte G3, `language_payoff_probe.py`) : ablation canal → demand 5-7× /
+>   trivial 1.0× ; le protocole n'émerge même pas s'il ne paie pas (`MI(m;a)` 1.04 vs 0.000). Reco pour clôre
+>   `087` : la tâche in-world doit imposer une **asymétrie d'info**, sinon NEUTRE attendu (structure, pas capacité).
+> - **Généralise** à toute capacité (mémoire, anticipation, spécialisation) ; prochaine cible = **G1** (une
+>   compétence transférée est-elle causalement réutilisée ?). `[[within-subject-demand-marker]]`.
+
 ## 🛠️ Outillage / Dev
 
 **Livré (session)** : **Dashboard EDR** + **Biosphère live** (onglets `edr`/`live`, `/api/edr`) ; **HoF robuste** en prod (`robust_hof_K`, gated) ; **knobs d'énergie** (`base_metabolism`/`forage_payoff`, gated) ; **stabilité connectome** longs épisodes (`086`) ; **D1 — socle de validité (RNG/Harness)** : `SeedManager` + `Harness` (composition : seed aux frontières, cycle async_logger, éval robuste **appariée**, provenance), seed boot **loggé** dans `main_biosphere` (run rejouable via `EXPERIMENT_SEED`), `robust_evaluate(seed=)`, pilote `robust_eval` migré (repro exacte prouvée sur la vraie biosphère). **+21 tests.** *(spec/plan : `../superpowers/{specs,plans}/2026-06-13-D1-RNG-Harness*`)*.
