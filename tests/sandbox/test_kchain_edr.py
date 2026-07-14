@@ -38,17 +38,21 @@ def test_survival_auc_range():
     assert 0.0 <= s <= 1.0
 
 
-def test_binding_gap_oracle_high_metronome_low():
-    # oracle : CONSUME ssi prog==K-1 -> binding_gap eleve. metronome : CONSUME open-loop -> ~0.
+def test_binding_gap_oracle_high_random_low():
+    # oracle : CONSUME ssi prog==K-1 -> binding_gap ~1. random : actions independantes de prog -> ~0.
+    # NB (finding EDR 202) : le metronome N'EST PAS un controle negatif de BINDING : sous p_mat=0.8
+    # sa cadence fixe (STEP..STEP,CONSUME) traque INCIDEMMENT prog -> gm ~0.71-0.83 a bas K (0 a K>=4).
+    # Il reste le controle negatif de SURVIE (gate G2, il meurt via cons_empty). random est le vrai
+    # controle negatif de binding : gr = 0.0 a TOUT K.
     P = Params(E0=50.0, T=200)
     orc = oracle_chain_policy(3)
-    met = metronome_policy(3)
+    rnd = random_policy(7)
     _, so = _run_chain_logged(lambda obs, mem, prog: orc(obs, mem, prog), 'inesc', 3, P, seed=7, M=32)
-    _, sm = _run_chain_logged(lambda obs, mem, prog: met(obs, mem, prog), 'inesc', 3, P, seed=7, M=32)
+    _, sr = _run_chain_logged(lambda obs, mem, prog: rnd(obs, mem, prog), 'inesc', 3, P, seed=7, M=32)
     go = binding_gap((*so, 3))
-    gm = binding_gap((*sm, 3))
-    assert go > 0.6           # l'oracle conditionne fortement (CONSUME ssi prog==K-1)
-    assert gm < go - 0.3      # le metronome conditionne NETTEMENT moins (ne lit pas prog)
+    gr = binding_gap((*sr, 3))
+    assert go > 0.6            # l'oracle conditionne fortement (CONSUME ssi prog==K-1)
+    assert gr < go - 0.3       # random independant de prog -> binding_gap ~0
 
 
 def test_calibrate_k_contract():
