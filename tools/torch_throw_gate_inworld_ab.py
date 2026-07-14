@@ -40,7 +40,7 @@ def _reseed_spears(world, rng, respawn_p, weight=2.0):
 def run_arm(shuffle=False, seed=0, ticks=400, warmup=200, n_agents=32, respawn_p=0.5,
             base_metabolism=1.0, forage_payoff=1.0, penalty=-0.5, night=True,
             energy=80.0, spear_weight=2.0, shaping=False, antisat=None,
-            warm_w=None, warm_b=None, lr=None):
+            warm_w=None, warm_b=None, lr=None, prey_count=None, prey_regen=None):
     """Tourne un monde torch avec le throw-gate, sème/re-sème des spears, agrege le binding_gap
     sur la fenetre post-warmup (couples agent,tick sur la VRAIE presence-spear). CRN par seed.
     ON (shuffle=False) vs SHUFFLE (recompense permutee, contexte decorrele). `penalty` = recompense
@@ -54,6 +54,9 @@ def run_arm(shuffle=False, seed=0, ticks=400, warmup=200, n_agents=32, respawn_p
     except Exception:
         pass
     w = Biosphere3D(WorldConfig(base_metabolism=base_metabolism, forage_payoff=forage_payoff))
+    if prey_count is not None:                    # densite de proies => monte P(hit) => r.P (dose-reponse)
+        w.config.target_prey_count = int(prey_count)
+        w.prey_regen_burst = int(prey_regen) if prey_regen is not None else int(prey_count)
     for _ in range(n_agents):
         w.add_agent(MambaAgent(), energy=energy)
     if hasattr(w, "memory_retriever"):
@@ -285,6 +288,34 @@ def compare_warmstart(seeds=(0, 1, 2, 3), ticks=150, warmup=90, n_agents=30, res
             "info": info}
 
 
+def compare_rp_sweep(seeds=(0, 1, 2, 3), prey_levels=(15, 60, 150), ticks=120, warmup=30, n_agents=30,
+                     respawn_p=0.06, base_metabolism=0.05, forage_payoff=3.0, energy=250.0,
+                     spear_weight=2.0, antisat=0.3):
+    """CONTROLE POSITIF de l'arc 172-175 : dose-reponse densite de proies (=> P(hit) => r.P) -> binding.
+    Gate COLD + NON-BIAISE + recompense SPARSE (hit=+1) ; on monte r.P via les PROIES (pas la forme du
+    signal, pas l'init). Hypothese (loi retention-167) : le gap bascule ~0/negatif -> POSITIF quand r.P
+    franchit le plancher. `kills` = proxy observe de r.P (frequence de payoff). Verdict ON-vs-SHUFFLE
+    par niveau ; le niveau ou le gap devient GRADIENT_GAGNE = franchissement du plancher."""
+    import statistics as _st
+    out = []
+    kw = dict(ticks=ticks, warmup=warmup, n_agents=n_agents, respawn_p=respawn_p, night=False,
+              base_metabolism=base_metabolism, forage_payoff=forage_payoff, energy=energy,
+              spear_weight=spear_weight, penalty=0.0, antisat=antisat)
+    for pc in prey_levels:
+        rows, kills, throws = [], [], []
+        for s in seeds:
+            on = run_arm(shuffle=False, seed=s, prey_count=pc, **kw)
+            sh = run_arm(shuffle=True, seed=s, prey_count=pc, **kw)
+            rows.append({"seed": s, "on": on["binding_gap_inworld"], "shuffle": sh["binding_gap_inworld"],
+                         "diff": on["binding_gap_inworld"] - sh["binding_gap_inworld"]})
+            kills.append(on["kills_with_tool"]); throws.append(on["throw_rate"])
+        out.append({"prey_count": pc, "verdict": compute_ab_verdict(rows, band=0.02),
+                    "median_gap_on": _st.median([r["on"] for r in rows]),
+                    "median_diff": _st.median([r["diff"] for r in rows]),
+                    "median_kills": _st.median(kills), "median_throw": _st.median(throws), "rows": rows})
+    return out
+
+
 if __name__ == "__main__":
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -356,6 +387,23 @@ if __name__ == "__main__":
         print("CONCLUSION:", "WARMSTART_RETIENT_LE_BINDING" if (wvc["verdict"] == "GRADIENT_GAGNE" and _wm > 0.02)
               else "WARM_ERODE_VERS_COLD" if _wm <= 0.02
               else "WARM_>_COLD_MAIS_FAIBLE")
+    elif os.environ.get("TTG_MODE") == "rpsweep":
+        levels = tuple(int(x) for x in os.environ.get("TTG_PREY", "15,60,150,400").split(","))
+        rows = compare_rp_sweep(seeds=seeds, prey_levels=levels, ticks=ticks, warmup=warmup,
+                                n_agents=agents, respawn_p=rp, base_metabolism=bm, forage_payoff=fp,
+                                energy=en, spear_weight=sw, antisat=(asat if asat is not None else 0.3))
+        _lab = {"GRADIENT_GAGNE": "BINDING_REEL", "HEBBIEN_GAGNE": "SHUFFLE_BINDE_PLUS", "NEUTRE": "PAS_DE_BINDING"}
+        for r in rows:
+            v = r["verdict"]
+            print(f"prey={r['prey_count']:4d} | median_kills={r['median_kills']:5.1f} (r.P proxy) "
+                  f"throw={r['median_throw']:.2f} gap_ON={r['median_gap_on']:+.3f} diff={r['median_diff']:+.3f} "
+                  f"-> {v['verdict']} ({_lab.get(v['verdict'], '?')}) sign_p={v.get('sign_p')}")
+        _pos = [r for r in rows if r["verdict"]["verdict"] == "GRADIENT_GAGNE"]
+        if _pos:
+            print(f"CONCLUSION: DOSE_REPONSE_rP -> BINDING EMERGE des prey>={_pos[0]['prey_count']} "
+                  f"(kills~{_pos[0]['median_kills']:.0f}) => plancher r.P FRANCHI, cause CONFIRMEE")
+        else:
+            print("CONCLUSION: PAS_DE_BINDING meme a forte densite -> CONFOND PLUS PROFOND que r.P")
     else:
         out = compare(seeds=seeds, ticks=ticks, warmup=warmup, n_agents=agents,
                       base_metabolism=bm, forage_payoff=fp)
