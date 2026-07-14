@@ -72,19 +72,22 @@ inchangé). Le banc 158/159 masquait ce point (là `pop` persiste sur tout l'ép
 > warm>cold 5/6 mais n.s. (sign_p 0.22). **Loi rétention-167 (`c_warm=r·P`)** : la rétention exige récompense·P >
 > coût ; in-world kill/hit ~0.001 → `r·P` SOUS le plancher → érosion.
 
-### ✅ ARC THROW-GATE IN-WORLD CLOS (172→175) — explication unifiée
+### ✅ ARC THROW-GATE IN-WORLD CLOS (172→176) — blocage MULTI-CAUSAL
 
-Le throw-gate échoue au **bootstrap** (cold 172/173) ET à la **rétention** (warm 175) pour la MÊME raison :
-**densité de récompense in-world sous le seuil `r·P`**. Les 4 leviers (câblage 172 / débias 173 / densité 174 /
-warm-start 175) échouent tous parce qu'aucun ne relève le PAYOFF réel du throw-avec-spear au-dessus du plancher.
-Le throw-gate SÉPARE les deux moitiés de [[warm-start-transversal-law]] : franchir-le-bootstrap (warm ✓) ≠
-retenir (r·P ✗). **Le throw balistique de la biosphère est structurellement sous le plancher** (payoff rare).
+4 leviers échouent : câblage (172 NEUTRE) / débias (173 nécessaire-pas-suffisant) / densité-signal (174 BACKFIRE) /
+warm-start (175 franchit le bootstrap frozen +0.40 mais N'A PAS retenu). **EDR-175 proposait `r·P` (densité de
+récompense) comme cause UNIQUE.** → **EDR-176 (contrôle POSITIF, sweep densité de proies) CORRIGE** : monter `r·P`
+~5× (kills 6→30) N'produit PAS de binding (gap reste négatif, −0.62→−0.28) MAIS l'améliore monotoniquement
+(dose-réponse). Donc **`r·P` est nécessaire et directionnellement causal, PAS suffisant** ; le blocage in-world est
+**MULTI-CAUSAL / sur-déterminé** — verrous co-dominants : (a) **consommation** (throw consomme le spear → P(throw|¬spear)
+gonflé), (b) **poids-spear** (contexte-means = détresse énergétique), (c) **crédit MARGINAL** (« throw paie » ≠ « throw-SI-spear »).
 
-**Leçon générale actionnable (gravée)** : avant tout binding in-world d'une action, **vérifier `r·P` (récompense
-fiable × proba de succès) vs le plancher de rétention**. Les actions à payoff rare (throw-outil, craft, autel)
-NE BINDENT PAS — ni à froid ni warm — sans densifier le **PAYOFF** (pas le signal/l'init). → si le fil BIND
-in-world reprend : construire une TÂCHE où l'outil paie de façon fiable et dense, PAS régler le gate. Banc
-`compare_warmstart` (knobs warm/lr/antisat) réutilisable dès qu'une telle tâche existe.
+**Leçon générale actionnable (gravée, MAJ EDR-176)** : avant un binding in-world, vérifier NON SEULEMENT `r·P` mais
+aussi (i) l'action est-elle **CONSOMMATRICE** (biaise P(y|x) mécaniquement), (ii) le contexte-means est-il **ENTANGLÉ**
+à d'autres facteurs (coût/détresse), (iii) le crédit est-il **CONDITIONNEL** (means→ends) ou seulement marginal. Le
+bon banc = action NON-consommatrice, contexte-means propre, payoff dense, crédit conditionnel — PAS la balistique
+consommatrice actuelle. → si le fil BIND in-world reprend : découper (a) action non-consommatrice/reseed-à-la-décision,
+(b) spear sans poids, (c) crédit du conditionnel (séparables). Bancs `compare_rp_sweep`/`compare_warmstart` réutilisables.
 
 **Historique de la reco (2026-07-02, avant livraison) :**
 Reco couture (**approuvée 2026-07-02**) : faire passer la boucle biosphère par `make_population`
