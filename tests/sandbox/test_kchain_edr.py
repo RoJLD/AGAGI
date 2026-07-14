@@ -44,7 +44,10 @@ def test_binding_gap_oracle_high_random_low():
     # sa cadence fixe (STEP..STEP,CONSUME) traque INCIDEMMENT prog -> gm ~0.71-0.83 a bas K (0 a K>=4).
     # Il reste le controle negatif de SURVIE (gate G2, il meurt via cons_empty). random est le vrai
     # controle negatif de binding : gr = 0.0 a TOUT K.
-    P = Params(E0=50.0, T=200)
+    # E0=400 : le controle negatif random doit SURVIVRE le dernier quart pour que gr soit MESURE.
+    # A E0=50 la population random s'eteint avant t=50 -> gr=0.0 par DEFAUT masque-vide (extinction),
+    # pas par mesure. A E0=400 random survit tout le dernier quart (K=2..5, les 2 masques peuples) -> gr mesure ~0.
+    P = Params(E0=400.0, T=200)
     orc = oracle_chain_policy(3)
     rnd = random_policy(7)
     _, so = _run_chain_logged(lambda obs, mem, prog: orc(obs, mem, prog), 'inesc', 3, P, seed=7, M=32)
