@@ -68,7 +68,31 @@ substrat » — en fait : le mur est que la survie = métabolisme), [[dreaming-o
 3. **Politique survival-négative** : `champion_body ≥ champion` est le pattern « cerveau = poids mort » anticipé (revue
    finale caveat #2) — signal fort, pas un misfire (`body_sig` exige δ≥+0.33, ne se déclenche pas sur δ négatif).
 
-## Piste de reprise
-Décompo cognition/corps sur `life_score` (le monde exige-t-il la cognition pour la FITNESS, sinon pas ?) — c'est la
-frontière suivante : si life_score = COGNITION mais survie = BODY, alors le benchmark d'intelligence doit basculer sa
-métrique de la survie vers la fitness composite (ou une tâche à contenu cognitif explicite).
+## Extension life_score/FITNESS — le benchmark N'EST PAS sauvable en changeant de métrique (BODY aussi, 5/5)
+
+Rejoué sur `life_score` (fitness composite : survie + proies×50 + lances×300 + mammouth×400 ; param `metric` de
+`verdict_cognition_body`). **Verdict BODY UNANIME sur les 5 mondes AUSSI**, et plus fort encore :
+
+| Monde | life champ / champ_body / floor | corps δ (p) | politique δ (p) |
+|---|---|---|---|
+| soup | 52.4 / **104.0** / 0.6 | +0.69 (0.0025) | **−0.29 (0.009)** |
+| stoneage | 51.5 / 54.3 / 0.6 | +0.59 (0.0025) | −0.19 (0.038) |
+| agricultural | 52.4 / **101.2** / 0.6 | +0.66 (0.0025) | −0.15 (0.007) |
+| industrial | 51.5 / 54.3 / 0.6 | +0.59 (0.0025) | −0.19 (0.038) |
+| famine | 51.3 / 67.3 / 0.6 | +0.60 (0.0025) | −0.19 (0.025) |
+
+Le CORPS porte la fitness (`champ_body` δ +0.59 à +0.69, p=0.0025) ; la politique du champion est **fitness-NÉGATIVE ET
+SIGNIFICATIVE** (δ −0.15 à −0.29, **p<0.05 partout** — bien pire que pour la survie où c'était n.s.). `champ_body`
+(actions RANDOM) atteint jusqu'à **2× le life_score du champion réel** (soup/agricultural). La cognition du champion
+**RÉDUIT activement** sa fitness.
+
+## Conclusion foundational (complète, triangulée)
+
+**Le biosphère, tel que conçu, ne peut PAS mesurer/sélectionner l'intelligence — ni par la survie, ni par la fitness.**
+Perception survival-neutre (S2-ablation) ; politique survival-neutre + fitness-NÉGATIVE (ce run). Les DEUX métriques du
+benchmark sont dominées par le CORPS métabolique évolué ; ni l'une ni l'autre ne récompense la cognition. **Explication
+mécaniste DÉFINITIVE du « proxy 9 / in-world 0 »** : la pression de sélection (survie ET fitness) n'a jamais créé de
+gradient pour la cognition → toute expérience de cognition in-world DEVAIT revenir neutre — ni substrat, ni crédit, mais
+un OBJECTIF sans contenu cognitif. Pour mesurer l'intelligence, il faut une tâche à **contenu cognitif explicite** que le
+corps ne peut court-circuiter (métrique récompensant une décision obs-conditionnée que la survie/fitness métaboliques ne
+capturent pas). Caveat : « corps » = phénotype dérivé des mêmes poids que la décision (`update_phenotype`).
