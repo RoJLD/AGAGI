@@ -88,3 +88,21 @@ def test_within_verdict_non_causal():
     r = verdict_within_subject(_cond(45), _cond(44), _cond(10))
     assert r["verdict"] == "NON-CAUSAL"
     assert not r["is_causal"]
+
+
+from tools.s2_demand import CONDITIONS as S2_CONDITIONS, _within_block
+
+
+def test_condition_registered():
+    assert "champion_obs_ablated" in S2_CONDITIONS
+    spec = S2_CONDITIONS["champion_obs_ablated"]
+    assert spec["fresh_genome"] is False              # MÊME génome champion
+    assert spec["batch_model_cls"] is ObsAblatedMambaBatchModel
+
+
+def test_within_block_from_conds():
+    # _within_block extrait champion / champion_obs_ablated / random_action et rend le verdict
+    conds = {"champion": _cond(45), "champion_obs_ablated": _cond(15), "random_action": _cond(15)}
+    r = _within_block(conds)
+    assert r["verdict"] in {"CAUSAL-FULL", "CAUSAL-PARTIEL", "NON-CAUSAL"}
+    assert r["verdict"] == "CAUSAL-FULL"

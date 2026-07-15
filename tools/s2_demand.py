@@ -10,7 +10,8 @@ import numpy as np
 from src.seed_ai.harness import seed_at, Harness, _git_short_commit
 from src.seed_ai.persistence import calculate_life_score, load_hall_of_fame
 from src.agents.baseline_models import RandomActionBatchModel, ReflexBatchModel
-from src.seed_ai.s2_stats import s2_verdict, verdict_from_survival_cmps, holm
+from src.agents.ablation_models import ObsAblatedMambaBatchModel
+from src.seed_ai.s2_stats import s2_verdict, verdict_from_survival_cmps, holm, verdict_within_subject
 from src.worlds.world_1_stoneage import Biosphere3D
 from src.worlds.world_0_soup import SoupWorld
 from src.worlds.world_2_agricultural import AgriculturalWorld
@@ -82,6 +83,7 @@ CONDITIONS = {
     "random_action":   {"batch_model_cls": RandomActionBatchModel,  "fresh_genome": True},
     "reflex_naive":    {"batch_model_cls": ReflexBatchModel,        "fresh_genome": True},
     "reflex_prudent":  {"batch_model_cls": _reflex_prudent,         "fresh_genome": True},
+    "champion_obs_ablated": {"batch_model_cls": ObsAblatedMambaBatchModel, "fresh_genome": False},
 }
 
 
@@ -113,6 +115,13 @@ WORLDS = {"soup": SoupWorld, "stoneage": Biosphere3D,
           "agricultural": AgriculturalWorld, "industrial": IndustrialWorld,
           "famine": FamineWorld}
 BASELINE_KEYS = ("random_action", "random_genome", "reflex_naive", "reflex_prudent")
+
+
+def _within_block(conds):
+    """Verdict CAUSAL within-subject d'UN monde depuis ses conditions : ablation-perception du champion.
+    champion vs champion_obs_ablated (l'ablation effondre-t-elle la survie ?), corroboré par
+    champion_obs_ablated vs random_action (l'ablé retombe-t-il au niveau aléatoire ?)."""
+    return verdict_within_subject(conds["champion"], conds["champion_obs_ablated"], conds["random_action"])
 
 
 def _run_all_conditions(world_cls, champion_genome, seed, K, num_agents, max_ticks):
@@ -155,6 +164,7 @@ def run_s2(worlds=None, seed=2026, K=None, num_agents=20, max_ticks=400, with_db
             sv["coherence_ok_lifescore"] = v["coherence_ok"]   # ce qu'aurait tranché l'ancien gate
             sv["censored_frac_champion"] = conds["champion"]["censored_frac"]
             report["worlds"][w] = sv
+            report["worlds"][w]["within"] = _within_block(conds)
 
         # FWER global : Holm sur les p_monde de la famille des mondes testés (tous ont un p_monde
         # sous la base survie ; ne plus sélectionner la famille a posteriori sur le non-VOID)
@@ -184,6 +194,12 @@ def _print_table(report):
         print(f"  {w:12s} : {v['verdict']:12s} | p_monde={v.get('p_monde_holm', v['p_monde']):.3f} "
               f"| vs {v['strongest_baseline']}: Cliff d={s['cliff']:+.2f}, ratio[{s['ratio_lo']:.2f},{s['ratio_hi']:.2f}] "
               f"| censuré={v['censored_frac_champion']*100:.0f}% | life_p={v['life_p']:.3f} (ancien gate: {gate})")
+        wi = v.get("within")
+        if wi is not None:
+            cc = wi["causal_cmp"]; rc = wi["residual_cmp"]
+            print(f"      within (ablation-perception): {wi['verdict']:14s} "
+                  f"| champion vs ablaté: Cliff d={cc['cliff']:+.2f} p={cc['p']:.4f} "
+                  f"| ablaté vs random: Cliff d={rc['cliff']:+.2f}")
     print("  -> Verdict porté par EDR 124. Si censuré>5% quelque part : augmenter max_ticks.")
 
 
