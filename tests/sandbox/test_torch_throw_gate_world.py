@@ -216,3 +216,26 @@ def test_no_consume_default_and_reseed():
     agent2 = {"inventory": []}
     w._maybe_reseed_spear(agent2, {"type": "Wood", "weight": 1.0})
     assert agent2["inventory"] == []
+
+
+def test_weightless_default_and_carry_decoupling():
+    """F2 (EDR-177) : torch_throw_weightless exempte le Spear du COUT DE PORTAGE (detresse energetique
+    = contexte-spear confondu au cout), SANS toucher les degats du throw (qui lisent le poids reel).
+    Defaut OFF = non-regressif."""
+    assert _fresh_world().torch_throw_weightless is False          # defaut retro-compatible
+
+    inv = [{"type": "Spear", "weight": 2.0}, {"type": "Wood", "weight": 1.0}]
+
+    # OFF : le Spear compte dans le portage -> 2.0 + 1.0 = 3.0
+    w = _fresh_world()
+    w.use_torch_inworld = True
+    w.torch_throw_gate = True
+    assert w._carry_weight(inv) == 3.0
+
+    # ON : le Spear est exempte -> seul le Wood compte = 1.0
+    w.torch_throw_weightless = True
+    assert w._carry_weight(inv) == 1.0
+
+    # ON mais gate OFF -> pas d'exemption (garde torch_throw_gate)
+    w.torch_throw_gate = False
+    assert w._carry_weight(inv) == 3.0

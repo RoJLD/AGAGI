@@ -68,6 +68,7 @@ class Biosphere3D(BaseWorld):
         self.torch_throw_aim_radius = 5.0    # (proximite projectile->proie) au lieu du hit binaire rare
                                              # (~0.001 in-world). True => r(throw)=_throw_aim in [0,1].
         self.torch_throw_no_consume = False  # F1 (EDR-177) : reseed spear post-throw => contexte persiste
+        self.torch_throw_weightless = False  # F2 (EDR-177) : Spear exempte du cout de portage (degats gardes)
         self._throw_w = None                 # torch (N,) : cree paresseusement au 1er tick torch
         self._throw_b = None                 # torch (1,)
         self._throw_opt = None               # Adam([_throw_w, _throw_b])
@@ -727,7 +728,7 @@ class Biosphere3D(BaseWorld):
 
         if getattr(self.config, "trace_energy_sinks", False):
             agent["_s3_bio"] = agent["energy"]               # EDR100 : avant carry
-        carry_weight = sum(i.get("weight", 1.0) if isinstance(i, dict) else 1.0 for i in agent["inventory"])
+        carry_weight = self._carry_weight(agent["inventory"])
         agent["energy"] -= carry_weight * 0.5
         if getattr(self.config, "trace_energy_sinks", False):
             agent["_s4_bio"] = agent["energy"]               # EDR100 : apres carry
@@ -1062,6 +1063,17 @@ class Biosphere3D(BaseWorld):
         ep_return = ep_return - float(np.mean(ep_return))          # baseline = moyenne de population
         return self._torch_pop.learn_episode(obs_seq, actions_seq, ep_return,
                                              gamma=1.0, gate_last_only=True)
+
+    def _carry_weight(self, inventory):
+        """Somme des poids portes (cout de portage = carry_weight * 0.5 energie/tick). F2 (EDR-177) : si
+        torch_throw_weightless (gate ON), le Spear est EXEMPTE du portage -> decouple la detresse-portage
+        des degats du throw (qui lisent thrown_item['weight'] reel, inchange). No-op si flag OFF."""
+        wl = self.use_torch_inworld and self.torch_throw_gate and self.torch_throw_weightless
+        return sum(
+            i.get("weight", 1.0) if isinstance(i, dict) else 1.0
+            for i in inventory
+            if not (wl and isinstance(i, dict) and i.get("type") == "Spear")
+        )
 
     def _maybe_reseed_spear(self, agent, thrown_item):
         """F1 (EDR-177) : si torch_throw_no_consume (gate ON) et un Spear vient d'etre lance, re-insere
