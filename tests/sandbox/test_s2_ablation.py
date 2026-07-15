@@ -57,3 +57,34 @@ def test_ablation_delegates_grad():
     w = ObsAblatedMambaBatchModel(agents); w._inner = _RecordingInner()
     w.compute_policy_gradient(np.zeros(4))
     assert getattr(w._inner, "grad_called", False)
+
+
+from src.seed_ai.s2_stats import verdict_within_subject
+
+
+def _cond(center, n=12, spread=4.0):
+    """Condition synthétique : survie centrée sur `center` (era = n médianes, pooled = 4n individus)."""
+    era = list(np.linspace(center - spread, center + spread, n))
+    pooled = list(np.linspace(center - spread, center + spread, 4 * n))
+    return {"survival": pooled, "era_survival": era}
+
+
+def test_within_verdict_causal_full():
+    # champion (45) >> ablaté (15) ; ablaté ~ random (15) -> perception explique TOUT -> CAUSAL-FULL
+    r = verdict_within_subject(_cond(45), _cond(15), _cond(15))
+    assert r["verdict"] == "CAUSAL-FULL"
+    assert r["is_causal"] and r["edge_fully_perceptual"]
+
+
+def test_within_verdict_causal_partiel():
+    # champion (45) >> ablaté (25) ; ablaté (25) >> random (10) -> perception explique une PART -> PARTIEL
+    r = verdict_within_subject(_cond(45), _cond(25), _cond(10))
+    assert r["verdict"] == "CAUSAL-PARTIEL"
+    assert r["is_causal"] and not r["edge_fully_perceptual"]
+
+
+def test_within_verdict_non_causal():
+    # champion (45) ~ ablaté (44) -> ablater la perception NE nuit PAS -> NON-CAUSAL
+    r = verdict_within_subject(_cond(45), _cond(44), _cond(10))
+    assert r["verdict"] == "NON-CAUSAL"
+    assert not r["is_causal"]

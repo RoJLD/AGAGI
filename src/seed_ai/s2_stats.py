@@ -228,3 +228,30 @@ def verdict_from_survival_cmps(survival_cmps, alpha=ALPHA, cliff_thresh=CLIFF_TH
     return {"verdict": verdict, "coherence_basis": "survival", "p_monde": p_monde,
             "strongest_baseline": strongest, "cliff": float(s["cliff"]),
             "ratio_lo": s.get("ratio_lo"), "ratio_hi": s.get("ratio_hi")}
+
+
+def verdict_within_subject(champion, champion_ablated, random_action,
+                           alpha=ALPHA, cliff_thresh=CLIFF_THRESH, equiv_margin=EQUIV_MARGIN):
+    """Verdict CAUSAL within-subject de « le monde exige la PERCEPTION » (S2-001). Réutilise `_compare`
+    (Cliff δ + p apparié par ère). Ablater la perception du MÊME champion (obs décorrélée) doit effondrer
+    la survie SI la perception est causalement porteuse.
+
+    - `causal`   = _compare(champion, champion_ablated) : le champion bat-il sa version obs-ablée ?
+    - `residual` = _compare(champion_ablated, random_action) : l'ablé garde-t-il un edge sur l'aléatoire ?
+    Décision (seuils gelés) :
+      NON-CAUSAL     : ablater la perception NE nuit PAS (p≥α OU Cliff<thresh) -> l'edge n'était pas perceptif.
+      CAUSAL-FULL    : champion≫ablé ET ablé≈random (|Cliff résiduel|<equiv_margin) -> la perception explique TOUT.
+      CAUSAL-PARTIEL : champion≫ablé mais ablé garde un edge résiduel sur l'aléatoire -> la perception explique une PART.
+    On ne préjuge PAS : NON-CAUSAL est un résultat falsifiable (l'edge survie viendrait d'un autre facteur)."""
+    causal = _compare(champion, champion_ablated, "survival")
+    residual = _compare(champion_ablated, random_action, "survival")
+    is_causal = (causal["p"] < alpha) and (causal["cliff"] >= cliff_thresh)
+    edge_fully_perceptual = bool(abs(residual["cliff"]) < equiv_margin)
+    if not is_causal:
+        verdict = "NON-CAUSAL"
+    elif edge_fully_perceptual:
+        verdict = "CAUSAL-FULL"
+    else:
+        verdict = "CAUSAL-PARTIEL"
+    return {"verdict": verdict, "causal_cmp": causal, "residual_cmp": residual,
+            "is_causal": bool(is_causal), "edge_fully_perceptual": edge_fully_perceptual}
