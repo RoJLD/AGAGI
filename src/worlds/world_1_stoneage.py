@@ -67,6 +67,7 @@ class Biosphere3D(BaseWorld):
         self.torch_throw_shaping = False     # EDR-173-suite : credit DENSE sur la qualite de visee
         self.torch_throw_aim_radius = 5.0    # (proximite projectile->proie) au lieu du hit binaire rare
                                              # (~0.001 in-world). True => r(throw)=_throw_aim in [0,1].
+        self.torch_throw_no_consume = False  # F1 (EDR-177) : reseed spear post-throw => contexte persiste
         self._throw_w = None                 # torch (N,) : cree paresseusement au 1er tick torch
         self._throw_b = None                 # torch (1,)
         self._throw_opt = None               # Adam([_throw_w, _throw_b])
@@ -1062,6 +1063,16 @@ class Biosphere3D(BaseWorld):
         return self._torch_pop.learn_episode(obs_seq, actions_seq, ep_return,
                                              gamma=1.0, gate_last_only=True)
 
+    def _maybe_reseed_spear(self, agent, thrown_item):
+        """F1 (EDR-177) : si torch_throw_no_consume (gate ON) et un Spear vient d'etre lance, re-insere
+        un Spear en tete d'inventaire -> le contexte-spear PERSISTE a travers le throw. Sinon la
+        consommation met l'agent en ¬spear et gonfle mecaniquement P(throw|¬spear) (anti-bind, EDR-174).
+        No-op si flag OFF ou item non-Spear."""
+        if (self.use_torch_inworld and self.torch_throw_gate
+                and self.torch_throw_no_consume and isinstance(thrown_item, dict)
+                and thrown_item.get("type") == "Spear"):
+            agent["inventory"].insert(0, {"type": "Spear", "weight": 2.0})
+
     def _learn_throw_gate(self):
         """REINFORCE immediat 1-pas de la tete throw-gate (B2). Recompute p (differentiable) depuis
         H cache ce tick, utilise les decisions _throw_did stockees, recompense = outcome (kill-avec-
@@ -1433,7 +1444,8 @@ class Biosphere3D(BaseWorld):
                 
                 if not is_fueled:
                     self.items.append(thrown_item)
-                
+                self._maybe_reseed_spear(agent, thrown_item)   # F1 (no-op si flag OFF)
+
                 if hit_entity:
                     damage = energy_spent * weight
                     if "energy" in hit_entity:

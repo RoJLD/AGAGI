@@ -191,3 +191,28 @@ def test_torch_throw_shaping_default_and_knob():
 
     assert _fresh_world().torch_throw_shaping is False              # defaut retro-compatible
     assert not torch.allclose(_run(False), _run(True))             # le shaping change l'update
+
+
+def test_no_consume_default_and_reseed():
+    """F1 (EDR-177) : torch_throw_no_consume reseed un Spear apres un throw de Spear -> le contexte
+    spear PERSISTE a travers le throw (sinon la consommation gonfle P(throw|¬spear), EDR-174).
+    Defaut OFF = non-regressif (aucun reseed)."""
+    assert _fresh_world().torch_throw_no_consume is False          # defaut retro-compatible
+
+    # OFF : pas de reseed, l'inventaire reste vide apres un throw de spear
+    w = _fresh_world()
+    w.use_torch_inworld = True
+    w.torch_throw_gate = True
+    agent = {"inventory": []}
+    w._maybe_reseed_spear(agent, {"type": "Spear", "weight": 2.0})
+    assert agent["inventory"] == []                                # OFF => no-op
+
+    # ON : reseed d'un Spear en tete d'inventaire
+    w.torch_throw_no_consume = True
+    w._maybe_reseed_spear(agent, {"type": "Spear", "weight": 2.0})
+    assert len(agent["inventory"]) == 1 and agent["inventory"][0]["type"] == "Spear"
+
+    # ON mais item non-Spear (ex. Wood) => pas de reseed
+    agent2 = {"inventory": []}
+    w._maybe_reseed_spear(agent2, {"type": "Wood", "weight": 1.0})
+    assert agent2["inventory"] == []
