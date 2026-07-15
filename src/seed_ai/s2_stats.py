@@ -228,3 +228,36 @@ def verdict_from_survival_cmps(survival_cmps, alpha=ALPHA, cliff_thresh=CLIFF_TH
     return {"verdict": verdict, "coherence_basis": "survival", "p_monde": p_monde,
             "strongest_baseline": strongest, "cliff": float(s["cliff"]),
             "ratio_lo": s.get("ratio_lo"), "ratio_hi": s.get("ratio_hi")}
+
+
+def verdict_within_subject(champion, champion_ablated, random_action,
+                           alpha=ALPHA, cliff_thresh=CLIFF_THRESH, equiv_margin=EQUIV_MARGIN):
+    """Verdict CAUSAL within-subject de « le monde exige la PERCEPTION » (S2-001). Réutilise `_compare`
+    (Cliff δ + p apparié par ère). Ablater la perception du MÊME champion (obs décorrélée) doit effondrer
+    la survie SI la perception est causalement porteuse.
+
+    - `causal`   = _compare(champion, champion_ablated) : le champion bat-il sa version obs-ablée ?
+    - `residual` = _compare(champion_ablated, random_action) : l'ablé vs l'aléatoire ? (le SIGNE compte)
+    Décision (seuils gelés) :
+      NON-CAUSAL      : ablater NE nuit PAS (p≥α OU Cliff causal<thresh) -> l'edge survie n'est pas perceptif.
+      CAUSAL-PARTIEL  : champion≫ablé ET ablé garde un edge POSITIF sur random (Cliff résiduel ≥ +margin)
+                        -> la perception explique une PART de l'edge (d'autres facteurs aident aussi).
+      CAUSAL-FULL     : champion≫ablé ET ablé ≈ random (|Cliff résiduel| < margin) -> la perception explique TOUT.
+      CAUSAL-CRITIQUE : champion≫ablé ET ablé PIRE que random (Cliff résiduel ≤ −margin) -> agir avec confiance
+                        sur une perception corrompue est ACTIVEMENT nuisible -> perception essentielle (preuve la + forte).
+    On ne préjuge PAS : NON-CAUSAL est falsifiable (l'edge viendrait d'un autre facteur — corps/génome)."""
+    causal = _compare(champion, champion_ablated, "survival")
+    residual = _compare(champion_ablated, random_action, "survival")
+    is_causal = (causal["p"] < alpha) and (causal["cliff"] >= cliff_thresh)
+    rc = residual["cliff"]
+    edge_fully_perceptual = bool(abs(rc) < equiv_margin)
+    if not is_causal:
+        verdict = "NON-CAUSAL"
+    elif rc <= -equiv_margin:
+        verdict = "CAUSAL-CRITIQUE"
+    elif edge_fully_perceptual:
+        verdict = "CAUSAL-FULL"
+    else:
+        verdict = "CAUSAL-PARTIEL"
+    return {"verdict": verdict, "causal_cmp": causal, "residual_cmp": residual,
+            "is_causal": bool(is_causal), "edge_fully_perceptual": edge_fully_perceptual}
