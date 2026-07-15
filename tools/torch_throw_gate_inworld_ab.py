@@ -40,7 +40,8 @@ def _reseed_spears(world, rng, respawn_p, weight=2.0):
 def run_arm(shuffle=False, seed=0, ticks=400, warmup=200, n_agents=32, respawn_p=0.5,
             base_metabolism=1.0, forage_payoff=1.0, penalty=-0.5, night=True,
             energy=80.0, spear_weight=2.0, shaping=False, antisat=None,
-            warm_w=None, warm_b=None, lr=None, prey_count=None, prey_regen=None):
+            warm_w=None, warm_b=None, lr=None, prey_count=None, prey_regen=None,
+            no_consume=False, weightless=False, conditional_credit=False):
     """Tourne un monde torch avec le throw-gate, sème/re-sème des spears, agrege le binding_gap
     sur la fenetre post-warmup (couples agent,tick sur la VRAIE presence-spear). CRN par seed.
     ON (shuffle=False) vs SHUFFLE (recompense permutee, contexte decorrele). `penalty` = recompense
@@ -69,6 +70,9 @@ def run_arm(shuffle=False, seed=0, ticks=400, warmup=200, n_agents=32, respawn_p
     w.torch_throw_gate = True
     w.torch_throw_penalty = penalty             # NAV-005 : le knob teste
     w.torch_throw_shaping = shaping              # EDR-173-suite : credit DENSE de visee
+    w.torch_throw_no_consume = no_consume            # F1 (EDR-177)
+    w.torch_throw_weightless = weightless             # F2 (EDR-177)
+    w.torch_throw_conditional_credit = conditional_credit  # F4 (EDR-177)
     if antisat is not None:
         w.torch_throw_antisat = antisat          # modere l'anti-sat (defaut 6.0 ecrase p->0 => throw_rate~0)
     if lr is not None:
