@@ -113,6 +113,7 @@ def _rand_survive(demanding, K, rng, ticks):
 
 def main():
     import statistics
+    from tools.demand_marker import ablation_verdict
     seeds = list(range(int(os.environ.get("WDM_SEEDS", "8"))))
     K = int(os.environ.get("WDM_ACTIONS", "4"))
     ticks = int(os.environ.get("WDM_TICKS", "200"))
@@ -124,11 +125,14 @@ def main():
     for demanding, name in ((True, "DEMANDING"), (False, "TRIVIAL")):
         rows = [run_world(demanding, K, s, ticks=ticks) for s in seeds]
         ft = statistics.median(r["fit_true"] for r in rows)
-        fa = statistics.median(r["fit_ablated"] for r in rows)
+        fa = statistics.median(r["fit_ablated"] for r in rows)   # conservé pour l'affichage du tableau
         ra = statistics.median(r["random_action"] for r in rows)
         ow = statistics.median(r["obs_weight"] for r in rows)
         between = ft / max(ra, 1e-9)          # « un survivant compétent existe ? »
-        within = ft / max(fa, 1e-9)           # « la perception est-elle porteuse ? »
+        wv = ablation_verdict([r["fit_true"] for r in rows],
+                              [r["fit_ablated"] for r in rows],
+                              weight_on_x=ow)  # ratio within + verdict, définition partagée
+        within = wv["ratio"]                  # inchangé numériquement vs ft/max(fa,1e-9)
         summary[name] = (between, within)
         print(f"{name:10s} {ft:9.1f} {fa:8.1f} {ra:7.1f} | {ow:8.3f} | {between:7.1f}x {within:7.1f}x")
 
