@@ -69,6 +69,7 @@ class Biosphere3D(BaseWorld):
                                              # (~0.001 in-world). True => r(throw)=_throw_aim in [0,1].
         self.torch_throw_no_consume = False  # F1 (EDR-177) : reseed spear post-throw => contexte persiste
         self.torch_throw_weightless = False  # F2 (EDR-177) : Spear exempte du cout de portage (degats gardes)
+        self.torch_throw_conditional_credit = False  # F4 (EDR-177) : baseline REINFORCE par contexte spear/¬spear
         self._throw_w = None                 # torch (N,) : cree paresseusement au 1er tick torch
         self._throw_b = None                 # torch (1,)
         self._throw_opt = None               # Adam([_throw_w, _throw_b])
@@ -1064,6 +1065,21 @@ class Biosphere3D(BaseWorld):
         return self._torch_pop.learn_episode(obs_seq, actions_seq, ep_return,
                                              gamma=1.0, gate_last_only=True)
 
+    def _throw_advantage(self, r, ctx):
+        """Centre les recompenses REINFORCE du throw-gate. Marginal (defaut) : r - moyenne(r). Conditionnel
+        (torch_throw_conditional_credit, F4/EDR-177) : baseline PAR GROUPE de contexte (spear vs ¬spear) ->
+        l'avantage reflete 'throw a aide SACHANT mon contexte' (le contingent means->ends) plutot que
+        'throw paie en moyenne' (le marginal, qui credite juste la correlation contexte-recompense).
+        `r`, `ctx` : np.ndarray (B,) ; ctx in {0.,1.} = presence-spear par agent. Retourne np.ndarray (B,)."""
+        if not self.torch_throw_conditional_credit:
+            return r - float(r.mean())
+        adv = r.copy()
+        for grp in (0.0, 1.0):
+            m = (ctx == grp)
+            if m.any():
+                adv[m] = r[m] - float(r[m].mean())   # baseline intra-contexte
+        return adv
+
     def _carry_weight(self, inventory):
         """Somme des poids portes (cout de portage = carry_weight * 0.5 energie/tick). F2 (EDR-177) : si
         torch_throw_weightless (gate ON), le Spear est EXEMPTE du portage -> decouple la detresse-portage
@@ -1121,7 +1137,8 @@ class Biosphere3D(BaseWorld):
         self._throw_kills_tool += n_kill
         if self.torch_throw_shuffle:
             r = r[self._throw_shuf_rng.permutation(B)]   # decorrele recompense/contexte
-        ret = torch.tensor(r - float(r.mean()))
+        ctx = np.array([1.0 if a.get("_throw_ctx") else 0.0 for a in self.agents], dtype=np.float32)
+        ret = torch.tensor(self._throw_advantage(r, ctx))   # F4 : marginal (defaut) ou conditionnel
         z = H @ self._throw_w + self._throw_b
         p = torch.sigmoid(torch.clamp(z, -10.0, 10.0))
         did_t = torch.tensor(did)

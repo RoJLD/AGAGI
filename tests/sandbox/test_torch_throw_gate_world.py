@@ -239,3 +239,52 @@ def test_weightless_default_and_carry_decoupling():
     # ON mais gate OFF -> pas d'exemption (garde torch_throw_gate)
     w.torch_throw_gate = False
     assert w._carry_weight(inv) == 3.0
+
+
+def test_throw_advantage_marginal_vs_conditional():
+    """F4 (EDR-177) : _throw_advantage centre les recompenses. Marginal (defaut) = r - moyenne globale.
+    Conditionnel (torch_throw_conditional_credit) = baseline PAR GROUPE de contexte -> retire la
+    difference ENTRE contextes (le marginal 'throw+spear paie'), ne garde que la variation INTRA-contexte
+    (le contingent means->ends). Cas ou spear-agents killent, ¬spear non : le conditionnel aplatit."""
+    r = np.array([1.0, 1.0, 0.0, 0.0], dtype=np.float32)
+    ctx = np.array([1.0, 1.0, 0.0, 0.0], dtype=np.float32)         # 2 spear (r=1), 2 ¬spear (r=0)
+
+    w = _fresh_world()
+    w.torch_throw_conditional_credit = False
+    assert np.allclose(w._throw_advantage(r, ctx), np.array([0.5, 0.5, -0.5, -0.5]))   # marginal
+
+    w.torch_throw_conditional_credit = True
+    assert np.allclose(w._throw_advantage(r, ctx), np.array([0.0, 0.0, 0.0, 0.0]))     # conditionnel : plat
+
+
+def test_conditional_credit_changes_learn_update():
+    """F4 bout-en-bout : a H/init/agents identiques (mais _throw_ctx mixtes), le credit conditionnel DOIT
+    produire un update d'optimiseur different du marginal.
+    NB : 2 appels a _learn_throw_gate (pas 1). Avec ce H (arange, colineaire entre lignes) et ces 3
+    agents (tous _throw_did=True -> meme signe de d(logp)/dz), le 1er pas Adam est SATURE-SIGNE (m/v
+    non-biaises s'annulent au rang 1 -> update = -lr*sign(grad) identique quelle que soit la magnitude,
+    cf. meme phenomene documente pour torch_throw_antisat) : marginal et conditionnel produisent alors
+    le MEME sens sur les 6 dims -> update identique bien que les avantages r-baseline different reellement
+    (verifie par test_throw_advantage_marginal_vs_conditional). Le 2e pas Adam exploite l'historique de
+    moment (m1,v1 non-nuls) -> devient sensible a la MAGNITUDE du gradient, ce qui distingue enfin les
+    deux bras. Root-cause verifiee numeriquement (cf. rapport task-3)."""
+    import torch
+
+    def _run(conditional):
+        w = _fresh_world()
+        w.use_torch_inworld = True
+        w.torch_throw_gate = True
+        w.torch_throw_conditional_credit = conditional
+        w.torch_throw_antisat = 0.0        # isole le signal (cf. tests penalty/shaping)
+        w._torch_pop = _FakePop(6)
+        w._ensure_throw_gate()
+        w._torch_pop.H = torch.arange(18, dtype=torch.float32).reshape(3, 6)
+        w.agents = [{"_throw_did": True, "_throw_kill_tool": True, "_throw_ctx": True},
+                    {"_throw_did": True, "_throw_kill_tool": False, "_throw_ctx": True},
+                    {"_throw_did": True, "_throw_kill_tool": False, "_throw_ctx": False}]
+        w._learn_throw_gate()
+        w._learn_throw_gate()               # 2e pas : sort du plateau signe-seul du 1er pas Adam
+        return w._throw_w.detach().clone()
+
+    assert _fresh_world().torch_throw_conditional_credit is False   # defaut retro-compatible
+    assert not torch.allclose(_run(False), _run(True))            # le credit conditionnel change l'update
