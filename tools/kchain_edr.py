@@ -447,5 +447,121 @@ def rollout_learn_progressive(learner, arm, K, calib_fn, seed, M, n_stage, W, pa
     return learner
 
 
+# ============================ Phase B — courbe de generalite + decomposition 2x2 + verdicts ============================
+# composes = binding_gap >= 0.5 ET survival >= 0.5 (memes seuils gelés que la Phase A / le ladder COS).
+_COMPOSE_BIND = 0.5
+_COMPOSE_SURV = 0.5
+SEEDS_RUN = (3000, 3001, 3002)
+
+
+def _composes(binding, survival):
+    return bool(binding >= _COMPOSE_BIND and survival >= _COMPOSE_SURV)
+
+
+def _train_full_lever(seed, arm, K, calib_fn, M, n_stage, params_base):
+    """Le levier COMPLET : curriculum progressif-K (warm->cold) + fenetre W_long=2K. Retourne le learner entraine."""
+    learner = NpChainLearner(seed=seed, arm=arm)
+    rollout_learn_progressive(learner, arm, K, calib_fn, seed=seed, M=M, n_stage=n_stage, W=2 * K,
+                              params_base=params_base)
+    return learner
+
+
+def generality_curve(seeds, K_grid=(2, 3, 4, 5), M=64, n_stage=40, calib_fn=None, params_base=None):
+    """Pour chaque K : levier COMPLET (curriculum progressif + W_long=2K), eval GELEE. composes = bind>=0.5 & surv>=0.5.
+    Verdict GELE : 'GENERIQUE' si composes a TOUS les K ; 'COS-SPECIFIQUE(K*)' si la 1re rupture est a K* (courbe rendue)."""
+    calib_fn = calib_fn or calibrate_headroom_K
+    P0 = params_base if params_base is not None else Params()
+    grid, first_break = [], None
+    for K in K_grid:
+        cal = calib_fn(K)
+        e0 = cal["E0_learner"] if cal["E0_learner"] is not None else P0.E0
+        Peval = replace(P0, R=cal["R_K"], E0=e0)
+        binds, survs = [], []
+        for s in seeds:
+            learner = _train_full_lever(int(s), 'inesc', K, calib_fn, M, n_stage, P0)
+            ev = evaluate_chain(learner, 'inesc', K, Peval, seed=int(s) + 5000, M=M)
+            binds.append(ev["binding_gap"]); survs.append(ev["survival"])
+        b, sv = float(np.median(binds)), float(np.median(survs))
+        comp = _composes(b, sv)
+        grid.append({"K": K, "binding": b, "survival": sv, "composes": comp})
+        if not comp and first_break is None:
+            first_break = K
+    verdict = "GENERIQUE" if first_break is None else "COS-SPECIFIQUE(%d)" % first_break
+    return {"grid": grid, "verdict": verdict}
+
+
+def _train_cell_chain(W_mode, curriculum, K, calib_fn, seed, M, n_stage, params_base):
+    """Une cellule du 2x2. W = 2 (court) ou 2K (long). curriculum=True -> progressif-K warm->cold ;
+    curriculum=False -> 1 cran FROID direct a K, cout plein, budget apparie (n_stage*(K-1) episodes)."""
+    W = 2 if W_mode == 'short' else 2 * K
+    cal = calib_fn(K)
+    e0 = cal["E0_learner"] if cal["E0_learner"] is not None else params_base.E0
+    P = replace(params_base, R=cal["R_K"], E0=e0)
+    learner = NpChainLearner(seed=seed, arm='inesc')
+    if curriculum:
+        rollout_learn_progressive(learner, 'inesc', K, calib_fn, seed=seed, M=M, n_stage=n_stage, W=W,
+                                  params_base=params_base)
+    else:
+        rollout_learn_window(learner, 'inesc', K, P, seed=seed, M=M, n_episodes=n_stage * (K - 1), W=W,
+                             entropy_beta=0.0)
+    ev = evaluate_chain(learner, 'inesc', K, P, seed=seed + 5000, M=M)
+    return {"binding": ev["binding_gap"], "survival": ev["survival"]}
+
+
+def decompose_2x2_chain(seeds, K=3, M=64, n_stage=40, calib_fn=None, params_base=None):
+    """2x2 fenetre{short=2, long=2K} x curriculum{off, on} (bras inesc). Verdict GELE (arbre gate sur (long,on),
+    sinon INCOHERENT) : CURRICULUM-SUFFISANT si (short,on) compose ; CREDIT-SUFFISANT si (long,off) compose ;
+    sinon BOTH-NECESSARY. On ne prejuge PAS (replique EDR 201 a K=3)."""
+    calib_fn = calib_fn or calibrate_headroom_K
+    P0 = params_base if params_base is not None else Params()
+    cells = {}
+    for W_mode in ('short', 'long'):
+        for curr in (False, True):
+            binds, survs = [], []
+            for s in seeds:
+                c = _train_cell_chain(W_mode, curr, K, calib_fn, int(s), M, n_stage, P0)
+                binds.append(c["binding"]); survs.append(c["survival"])
+            b, sv = float(np.median(binds)), float(np.median(survs))
+            cells[(W_mode, curr)] = {"binding": b, "survival": sv, "composes": _composes(b, sv)}
+    long_on = cells[('long', True)]["composes"]
+    short_on = cells[('short', True)]["composes"]
+    long_off = cells[('long', False)]["composes"]
+    if not long_on:
+        verdict = "INCOHERENT"
+    elif short_on:
+        verdict = "CURRICULUM-SUFFISANT"
+    elif long_off:
+        verdict = "CREDIT-SUFFISANT"
+    else:
+        verdict = "BOTH-NECESSARY"
+    return {"cells": cells, "verdict": verdict}
+
+
+def _report_generality(res):
+    print("\n=== EDR 202 KCHAIN — courbe de generalite (levier complet : curriculum + W_long) ===")
+    for row in res["grid"]:
+        print("    K=%d  binding=%+.3f  survie=%.3f  compose=%s"
+              % (row["K"], row["binding"], row["survival"], row["composes"]))
+    print("=== VERDICT COURBE : %s ===" % res["verdict"])
+    print("    (GENERIQUE = le levier credit-horizon x curriculum binde la composition a toute profondeur ;")
+    print("     COS-SPECIFIQUE(K*) = la loi a une limite de profondeur a K*)")
+
+
+def _report_decompose(res):
+    print("\n=== EDR 202 KCHAIN — decomposition 2x2 fenetre x curriculum (K=3, bras inesc) ===")
+    label = {('short', False): '(W2,   off )', ('short', True): '(W2,   CURR)',
+             ('long', False): '(Wlong,off )', ('long', True): '(Wlong,CURR)'}
+    for key in (('short', False), ('short', True), ('long', False), ('long', True)):
+        c = res["cells"][key]
+        print("    %s  binding=%+.3f  survie=%.3f  compose=%s"
+              % (label[key], c["binding"], c["survival"], c["composes"]))
+    print("=== VERDICT 2x2 : %s ===" % res["verdict"])
+
+
 if __name__ == "__main__":
-    _report_viability(viability_gate_all_K())
+    import sys
+    if "--kchain" in sys.argv:
+        _report_generality(generality_curve(SEEDS_RUN))
+        _report_decompose(decompose_2x2_chain(SEEDS_RUN))
+    else:
+        _report_viability(viability_gate_all_K())

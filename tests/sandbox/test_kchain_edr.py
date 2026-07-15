@@ -116,3 +116,26 @@ def test_progressive_reaches_target_K():
         n_stage=4, W=6, params_base=Params(T=40),
     )
     assert lr.W_out.shape[0] == NA
+
+
+from tools.kchain_edr import generality_curve, decompose_2x2_chain
+
+_STUB_CALIB = lambda K: {"R_K": 2.0 * K, "E0_learner": 24.0, "grid": []}
+_GEN_VERDICTS = {"GENERIQUE"}   # + "COS-SPECIFIQUE(K*)" (prefixe verifie ci-dessous)
+_DEC_VERDICTS = {"BOTH-NECESSARY", "CREDIT-SUFFISANT", "CURRICULUM-SUFFISANT", "INCOHERENT"}
+
+
+def test_generality_curve_contract():
+    res = generality_curve(seeds=(1000,), K_grid=(2, 3), M=8, n_stage=4,
+                           calib_fn=_STUB_CALIB, params_base=Params(T=40))
+    assert len(res["grid"]) == 2
+    for row in res["grid"]:
+        assert set(row) >= {"K", "binding", "survival", "composes"}
+    assert (res["verdict"] in _GEN_VERDICTS) or res["verdict"].startswith("COS-SPECIFIQUE(")
+
+
+def test_decompose_2x2_chain_contract():
+    res = decompose_2x2_chain(seeds=(1000,), K=3, M=8, n_stage=4,
+                              calib_fn=_STUB_CALIB, params_base=Params(T=40))
+    assert len(res["cells"]) == 4
+    assert res["verdict"] in _DEC_VERDICTS
