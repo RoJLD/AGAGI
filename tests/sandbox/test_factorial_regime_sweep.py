@@ -12,9 +12,13 @@ def test_regimes_defined():
     """Les 3 régimes attendus sont définis, chacun avec les knobs de régime."""
     assert set(REGIMES) == {"neutralise", "letal", "rare"}
     for rk in REGIMES.values():
-        assert set(rk) == {"night", "energy", "base_metabolism", "prey_sparse", "prey_dense"}
+        assert set(rk) == {"night", "energy", "base_metabolism", "forage_payoff", "prey_sparse", "prey_dense"}
     assert REGIMES["neutralise"]["night"] is False        # baseline = EDR-177
-    assert REGIMES["letal"]["night"] is True               # régime nuit létal
+    # létal calibré = tampon d'énergie RÉDUIT (night=True exterminait la cohorte) : survie contrainte
+    assert REGIMES["letal"]["energy"] < REGIMES["neutralise"]["energy"]
+    # rare calibré = proies rares (kills clairsemés) mais survie soutenue (fourrage/énergie hauts)
+    assert REGIMES["rare"]["prey_dense"] < REGIMES["neutralise"]["prey_dense"]
+    assert REGIMES["rare"]["forage_payoff"] > REGIMES["neutralise"]["forage_payoff"]
 
 
 def test_regime_main_effects_table_pivots_by_factor():

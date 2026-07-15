@@ -18,12 +18,14 @@ if _ROOT not in sys.path:
 
 from tools.torch_throw_gate_inworld_ab import compare_factorial, _factorial_effects
 
-# Régimes : mêmes 16 cellules 2^4, seuls les knobs de régime changent. Létal/rare = valeurs de
-# DÉPART (calibrées à l'exécution : voir spec §Calibration).
+# Régimes : mêmes 16 cellules 2^4, seuls les knobs de régime changent. Valeurs CALIBRÉES (sonde
+# survie+kills, 3 tours) : le drain-throw plafonne la survie, donc « létal » = tampon d'énergie
+# RÉDUIT (night=True exterminait la cohorte, écarté) ; « rare » = proies rares + fourrage/énergie
+# soutenus (sinon famine : la proie est cible ET nourriture, et les throws sans kill drainent).
 REGIMES = {
-    "neutralise": dict(night=False, energy=250.0, base_metabolism=0.05, prey_sparse=15, prey_dense=300),
-    "letal":      dict(night=True,  energy=150.0, base_metabolism=0.20, prey_sparse=15, prey_dense=300),
-    "rare":       dict(night=False, energy=250.0, base_metabolism=0.05, prey_sparse=2,  prey_dense=8),
+    "neutralise": dict(night=False, energy=250.0, base_metabolism=0.05, forage_payoff=3.0, prey_sparse=15, prey_dense=300),
+    "letal":      dict(night=False, energy=150.0, base_metabolism=0.05, forage_payoff=3.0, prey_sparse=15, prey_dense=300),
+    "rare":       dict(night=False, energy=800.0, base_metabolism=0.05, forage_payoff=6.0, prey_sparse=3,  prey_dense=6),
 }
 
 _FACTORS = ("no_consume", "weightless", "dense", "conditional_credit")
