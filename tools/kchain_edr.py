@@ -14,6 +14,7 @@ if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
 from dataclasses import dataclass, replace
+from functools import lru_cache
 
 import numpy as np
 
@@ -403,6 +404,7 @@ def evaluate_chain(learner, arm, K, params, seed, M):
 PHASE_A_R = {2: 4.0, 3: 6.0, 4: 8.0, 5: 10.0}
 
 
+@lru_cache(maxsize=None)
 def calibrate_headroom_K(K, seeds=PILOT_SEEDS, e0_grid=(16.0, 24.0, 32.0, 48.0, 64.0), M=64):
     """R_K gele (Phase A) ; balaie e0_grid ASCENDANT et retient le PLUS GRAND E0 gardant le monde inescapable
     (G1 oracle-chain >=0.90, G2 metronome <=0.40, G3 random <=0.20). Runway apprenant maximal sans casser
