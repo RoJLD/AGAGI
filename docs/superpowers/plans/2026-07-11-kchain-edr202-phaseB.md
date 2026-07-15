@@ -1,259 +1,91 @@
-"""tools/kchain_edr.py — Ecologie KCHAIN (EDR 202) : composition a profondeur K parametrable.
+# EDR 202 KCHAIN — Phase B (apprenant + 2 leviers + courbe de généralité + 2×2) Implementation Plan
 
-Generalise CRAFT-OR-STARVE (EDR 200) : composer = accumuler K-1 pas (STEP, si materiau present) puis CONSUME.
-La progression `prog` est CACHEE et PERSISTANTE ; seul CONSUME-a-prog-complet rend +R (mis-emission COUTE).
-K=2 = COS structurel. But EDR 202 : le levier credit-horizon x curriculum generalise-t-il a K>2 ?
-Phase A (ce fichier, PUR NUMPY, standalone) : monde + politiques de reference + gate de viabilite par-K.
-Usage : python -m tools.kchain_edr  (calibration + gate de viabilite K in {2,3,4,5}).
-"""
-import os
-import sys
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-if _ROOT not in sys.path:
-    sys.path.insert(0, _ROOT)
+**Goal:** Construire l'apprenant récurrent numpy `NpChainLearner` + les deux leviers (fenêtre-crédit W, curriculum progressif-K à warm-start) et rendre deux verdicts gelés : la **courbe de généralité** (le levier crédit-horizon×curriculum binde-t-il la composition à K∈{2,3,4,5} → GÉNÉRIQUE, ou casse à K* → COS-SPÉCIFIQUE) et la **décomposition 2×2 @ K=3** (BOTH-NECESSARY / CREDIT-SUFFISANT / CURRICULUM-SUFFISANT).
 
-from dataclasses import dataclass, replace
-from functools import lru_cache
+**Architecture:** APPEND au fichier standalone `tools/kchain_edr.py` (pur numpy) livré en Phase A (#163). L'apprenant réutilise la structure PROUVÉE de COS (`craft_or_starve_edr.py` NpReinforceLearner/NpTickLearner) mais RE-IMPLÉMENTÉE standalone (aucun import de COS). Le levier crédit-horizon = fenêtre-crédit W (retour n-pas bufferisé, généralise le tick-return de COS) ; le levier curriculum = progressif-K où chaque cran fait warm(coût de mis-émission relâché + entropie)→cold(plein) — le bundle de bootstrap prouvé par COS L2. L'évaluation réutilise `_run_chain_logged`/`binding_gap`/`survival_auc` de Phase A.
 
-import numpy as np
+**Tech Stack:** Python, numpy (déterministe `np.random.default_rng`), pytest.
 
-NOOP, STEP, CONSUME, FORAGE = 0, 1, 2, 3
-N_ACTIONS = 8
-N_NOISE = 4
-OBS_DIM = 2 + N_NOISE   # [mat, bias=1, noise x N_NOISE]
+## Global Constraints
 
-PILOT_SEEDS = (2000, 2001, 2002, 2003)
+- **Standalone pur numpy** : APPEND à `tools/kchain_edr.py` + `tests/sandbox/test_kchain_edr.py`. AUCUN import de `src/`/`world_1_stoneage.py`/`backend_torch.py`/`craft_or_starve_edr.py`. Additif.
+- **Substrat à capacité FIXE** : `N_H=16` cachés CONSTANT sur TOUS les K (disculpe la capacité : 16 cachés ≫ compteur ≤5 états). `LR=0.02`, `TEMP=1.0`, baseline EMA(0.99). REINFORCE, **PAS de BPTT** (H_prev détaché).
+- **Levier 1 — fenêtre-crédit W** : `advantage_t = (Σ_{i=0}^{W−1} δ_{t+i}) − baseline`, δ = delta d'énergie du sous-pas ; H_prev traité constant. `W=2` = analogue tick-return COS (aveugle dès K≥3) ; `W_long = 2*K` = fenêtre-chaîne.
+- **Levier 2 — curriculum** : `curriculum-on` = progressif-K (K'=2→K), CHAQUE cran = warm(`c_consume_empty=c_warm=0.5` + `entropy_beta=0.01`)→cold(plein, `entropy_beta=0.0`). `curriculum-off` = 1 cran FROID direct au K cible, coût plein, sans warm, budget apparié (`n_episodes = n_stage*(K−1)`).
+- **Headroom apprenant (caveat I1)** : `R_K` GELÉ de la Phase A (GATE DUR : `{2:4.0, 3:6.0, 4:8.0, 5:10.0}`) ; `E0_learner` = le PLUS GRAND E0 gardant le monde inescapable (oracle-chain ≥0.90, métronome ≤0.40, random ≤0.20) → runway maximal SANS casser l'inescapabilité.
+- **Évaluation** : poids GELÉS, politique GREEDY (argmax), sur le monde PLEIN (`c_consume_empty` plein, `E0=E0_learner`). `composes = binding_gap ≥ 0.5 ET survival_auc ≥ 0.5`.
+- **Verdicts gelés pré-enregistrés** ; **déterminisme** (`np.random.default_rng(seed)`, 2 runs même seed byte-identiques). On ne préjuge NI la courbe NI la cellule ouverte.
+- **Tree partagé** : chemins ABSOLUS worktree pour les handoffs sous-agent ; commits path-scopés ; pytest/git préfixés `cd "c:/Users/robla/VScode_Project/AGAGI/.claude/worktrees/kchain-edr202" && …`.
 
+## File Structure
 
-@dataclass(frozen=True)
-class Params:
-    p_mat: float = 0.8
-    R: float = 8.0
-    c_step: float = 0.5
-    c_step_bad: float = 2.0
-    c_consume: float = 0.2
-    c_consume_empty: float = 6.0
-    h: float = 1.0
-    f_forage: float = 4.0
-    E0: float = 12.0
-    T: int = 1000
+- `tools/kchain_edr.py` — APPEND :
+  - T1 : `_softmax`, constantes `N_H/LR/TEMP`, `NpChainLearner`, `rollout_learn_window`, `evaluate_chain`.
+  - T2 : `PHASE_A_R`, `calibrate_headroom_K`, `rollout_learn_curriculum_stage`, `rollout_learn_progressive`.
+  - T3 : `generality_curve`, `decompose_2x2_chain`, `_report_generality`, `_report_decompose`, `SEEDS_RUN` + branche CLI `--kchain` (MODIFIE le bloc `__main__` de Phase A).
+- `tests/sandbox/test_kchain_edr.py` — APPEND : déterminisme apprenant + shapes (T1) ; headroom contrat + progressif atteint K (T2) ; courbe contrat + 2×2 contrat (T3).
 
+Trois tâches : **T1** = apprenant + fenêtre-W + éval ; **T2** = headroom + curriculum ; **T3** = courbe + 2×2 + verdicts + CLI.
 
-def _build_obs(mat, noise):
-    """obs[M, OBS_DIM] = [mat, bias=1, noise x N_NOISE]. PAS de prog observable (cache)."""
-    M = mat.shape[0]
-    obs = np.zeros((M, OBS_DIM), dtype=np.float64)
-    obs[:, 0] = mat
-    obs[:, 1] = 1.0
-    obs[:, 2:] = noise
-    return obs
+---
 
+### Task 1: NpChainLearner + fenêtre-crédit W + évaluation
 
-def rollout_chain(policy, arm, K, params, seed, M, mat_stream=None):
-    """Deroule M agents (mondes PRIVES) sur T sous-pas. arm in {'inesc','absent'}.
-    policy(obs[M,OBS_DIM], mem, prog[M]) -> (actions[M] int, mem) ; mem=None au 1er appel.
-    prog PERSISTANT in {0..K-1} (les policies de reference le lisent ; l'apprenant Phase B ne l'observe pas).
-    mat_stream optionnel [M,T] 0/1 force la matiere (tests). Retourne alive_matrix[M,T] bool (mort ABSORBANTE)."""
-    rng = np.random.default_rng(seed)
-    P = params
-    E = np.full(M, P.E0, dtype=np.float64)
-    prog = np.zeros(M, dtype=np.int64)
-    alive = np.ones(M, dtype=bool)
-    pending = np.zeros(M, dtype=np.float64)
-    mem = None
-    alive_matrix = np.zeros((M, P.T), dtype=bool)
-    for t in range(P.T):
-        if mat_stream is not None:
-            mat = mat_stream[:, t].astype(np.float64)
-        else:
-            mat = (rng.random(M) < P.p_mat).astype(np.float64)
-        obs = _build_obs(mat, rng.standard_normal((M, N_NOISE)))
-        a, mem = policy(obs, mem, prog)
-        a = np.asarray(a)
-        matb = mat > 0.5
-        if arm == 'inesc':
-            step = alive & (a == STEP)
-            step_ok = step & matb & (prog < K - 1)
-            step_bad = step & ~step_ok
-            cons = alive & (a == CONSUME)
-            cons_ok = cons & (prog == K - 1)
-            cons_empty = cons & ~cons_ok
-            E = E - np.where(step_ok, P.c_step, 0.0) - np.where(step_bad, P.c_step_bad, 0.0)
-            E = E + np.where(cons_ok, P.R, 0.0) - np.where(cons_ok, P.c_consume, 0.0) - np.where(cons_empty, P.c_consume_empty, 0.0)
-            prog = np.where(step_ok, prog + 1, prog)
-            prog = np.where(cons_ok, 0, prog)
-        else:  # absent : FORAGE -> livraison inconditionnelle au sous-pas SUIVANT (delai apparie)
-            E = E + np.where(alive, pending, 0.0)
-            foraged = alive & (a == FORAGE)
-            pending = np.where(foraged, P.f_forage, 0.0)
-        E = E - np.where(alive, P.h, 0.0)
-        alive = alive & (E > 0.0)
-        alive_matrix[:, t] = alive
-    return alive_matrix
+**Files:**
+- Modify: `tools/kchain_edr.py` (APPEND, après les fonctions de Phase A, avant le bloc `if __name__`)
+- Test: `tests/sandbox/test_kchain_edr.py` (APPEND)
+
+**Interfaces:**
+- Consumes (Phase A) : `Params, replace, np, _build_obs, _run_chain_logged, binding_gap, survival_auc, NOOP, STEP, CONSUME, FORAGE, N_ACTIONS, N_NOISE, OBS_DIM`.
+- Produces :
+  - `_softmax(x) -> ndarray` (stable, axis=-1).
+  - Constantes `N_H=16, LR=0.02, TEMP=1.0`.
+  - `NpChainLearner(seed, arm)` : `.reset_state(M)`, `.act(obs)->actions[M]` (échantillonne + bufferise ctx), `.update_window(deltas, alives, W, entropy_beta=0.0)`. Attributs poids `W_ih[N_H,OBS_DIM], W_hh[N_H,N_H], b_h[N_H], W_out[N_ACTIONS,N_H], b_out[N_ACTIONS]`.
+  - `rollout_learn_window(learner, arm, K, params, seed, M, n_episodes, W, entropy_beta=0.0) -> learner`.
+  - `evaluate_chain(learner, arm, K, params, seed, M) -> {"survival","binding_gap","consume_rate"}`.
+
+- [ ] **Step 1: Écrire les tests qui échouent**
+
+Ajouter à `tests/sandbox/test_kchain_edr.py` :
+
+```python
+from tools.kchain_edr import (
+    NpChainLearner, rollout_learn_window, evaluate_chain, N_H, N_ACTIONS as NA,
+)
 
 
-def survival_auc(alive_matrix):
-    """MEDIANE-PAR-AGENT de la fraction de sous-pas vivants sur le DERNIER QUART (defense anti-immortels)."""
-    T = alive_matrix.shape[1]
-    q = (3 * T) // 4
-    per_agent = alive_matrix[:, q:].mean(axis=1)
-    return float(np.median(per_agent))
+def test_chain_learner_determinism():
+    # 2 entrainements fenetre-W au meme seed -> poids byte-identiques (determinisme REINFORCE).
+    P = Params(E0=32.0, T=60)
+    la = rollout_learn_window(NpChainLearner(seed=11, arm='inesc'), 'inesc', 3, P, seed=11, M=8, n_episodes=5, W=6)
+    lb = rollout_learn_window(NpChainLearner(seed=11, arm='inesc'), 'inesc', 3, P, seed=11, M=8, n_episodes=5, W=6)
+    assert np.array_equal(la.W_out, lb.W_out)
+    assert np.array_equal(la.W_ih, lb.W_ih)
+    assert np.array_equal(la.W_hh, lb.W_hh)
 
 
-def oracle_chain_policy(K):
-    """Optimal : CONSUME si prog==K-1 ; sinon STEP si (mat & prog<K-1) ; sinon NOOP. Lit prog (oracle)."""
-    def policy(obs, mem, prog):
-        mat = obs[:, 0] > 0.5
-        a = np.full(obs.shape[0], NOOP, dtype=int)
-        a = np.where(mat & (prog < K - 1), STEP, a)
-        a = np.where(prog == K - 1, CONSUME, a)
-        return a, mem
-    return policy
+def test_window_credit_shapes():
+    P = Params(E0=32.0, T=60)
+    lr = rollout_learn_window(NpChainLearner(seed=1, arm='inesc'), 'inesc', 3, P, seed=1, M=8, n_episodes=3, W=6)
+    assert lr.W_out.shape == (NA, N_H)
+    ev = evaluate_chain(lr, 'inesc', 3, P, seed=99, M=8)
+    assert set(ev) >= {"survival", "binding_gap", "consume_rate"}
+    assert -1.0 <= ev["binding_gap"] <= 1.0
+    assert 0.0 <= ev["survival"] <= 1.0
+```
 
+- [ ] **Step 2: Lancer, vérifier l'échec**
 
-def metronome_policy(K):
-    """Open-loop : STEP (K-1 fois) puis CONSUME, en boucle ; ne lit NI mat NI prog (compteur propre)."""
-    def policy(obs, mem, prog):
-        M = obs.shape[0]
-        if mem is None:
-            mem = {'c': np.zeros(M, dtype=np.int64)}
-        c = mem['c']
-        a = np.where(c < K - 1, STEP, CONSUME).astype(int)
-        c = np.where(c < K - 1, c + 1, 0)
-        mem = {'c': c}
-        return a, mem
-    return policy
+Run: `cd "c:/Users/robla/VScode_Project/AGAGI/.claude/worktrees/kchain-edr202" && python -m pytest tests/sandbox/test_kchain_edr.py -k "determinism or window_credit" -q`
+Expected: FAIL — `ImportError: cannot import name 'NpChainLearner'`.
 
+- [ ] **Step 3: Écrire l'apprenant + la fenêtre-W + l'évaluation**
 
-def random_policy(seed):
-    """Action uniforme sur N_ACTIONS ; rng propre (independant du monde) mais deterministe au seed."""
-    rng = np.random.default_rng((int(seed) ^ 0x9E3779B9) & 0xFFFFFFFF)
-    def policy(obs, mem, prog):
-        M = obs.shape[0]
-        return rng.integers(0, N_ACTIONS, size=M), mem
-    return policy
+Ajouter à `tools/kchain_edr.py` (après les fonctions de Phase A, AVANT `if __name__`) :
 
-
-def oracle_forage_policy():
-    """Bras absent : FORAGE a chaque sous-pas (livraison inconditionnelle au suivant)."""
-    def policy(obs, mem, prog):
-        return np.full(obs.shape[0], FORAGE, dtype=int), mem
-    return policy
-
-
-def _run_chain_logged(policy_act, arm, K, params, seed, M):
-    """Comme rollout_chain mais journalise (prog AVANT action, action==CONSUME, alive) par sous-pas pour binding_gap.
-    policy_act(obs, mem, prog) -> (actions, mem)."""
-    rng = np.random.default_rng(seed)
-    P = params
-    E = np.full(M, P.E0, dtype=np.float64)
-    prog = np.zeros(M, dtype=np.int64)
-    alive = np.ones(M, dtype=bool)
-    pending = np.zeros(M, dtype=np.float64)
-    mem = None
-    alive_matrix = np.zeros((M, P.T), dtype=bool)
-    prog_log, cons_log, alive_log = [], [], []
-    for t in range(P.T):
-        mat = (rng.random(M) < P.p_mat).astype(np.float64)
-        obs = _build_obs(mat, rng.standard_normal((M, N_NOISE)))
-        a, mem = policy_act(obs, mem, prog)
-        a = np.asarray(a)
-        prog_log.append(prog.copy())
-        cons_log.append(a == CONSUME)
-        alive_log.append(alive.copy())
-        matb = mat > 0.5
-        if arm == 'inesc':
-            step = alive & (a == STEP)
-            step_ok = step & matb & (prog < K - 1)
-            step_bad = step & ~step_ok
-            cons = alive & (a == CONSUME)
-            cons_ok = cons & (prog == K - 1)
-            cons_empty = cons & ~cons_ok
-            E = E - np.where(step_ok, P.c_step, 0.0) - np.where(step_bad, P.c_step_bad, 0.0)
-            E = E + np.where(cons_ok, P.R, 0.0) - np.where(cons_ok, P.c_consume, 0.0) - np.where(cons_empty, P.c_consume_empty, 0.0)
-            prog = np.where(step_ok, prog + 1, prog)
-            prog = np.where(cons_ok, 0, prog)
-        else:
-            E = E + np.where(alive, pending, 0.0)
-            foraged = alive & (a == FORAGE)
-            pending = np.where(foraged, P.f_forage, 0.0)
-        E = E - np.where(alive, P.h, 0.0)
-        alive = alive & (E > 0.0)
-        alive_matrix[:, t] = alive
-    return alive_matrix, (np.array(prog_log), np.array(cons_log), np.array(alive_log))
-
-
-def binding_gap(s2):
-    """P(CONSUME|prog==K-1) - P(CONSUME|prog<K-1) sur les sous-pas des agents VIVANTS, dernier quart. s2=(prog,cons,alive,K)."""
-    prog, cons, al, K = s2
-    T = prog.shape[0]
-    q = (3 * T) // 4
-    prog, cons, al = prog[q:], cons[q:], al[q:]
-    m1 = al & (prog == K - 1)
-    m0 = al & (prog < K - 1)
-    p1 = float(cons[m1].mean()) if m1.any() else 0.0
-    p0 = float(cons[m0].mean()) if m0.any() else 0.0
-    return p1 - p0
-
-
-def _median_surv(policy_factory, arm, K, params, seeds, M):
-    """Mediane sur les seeds de survival_auc (chacun deja mediane-par-agent)."""
-    vals = []
-    for s in seeds:
-        am = rollout_chain(policy_factory(s), arm, K, params, seed=int(s), M=M)
-        vals.append(survival_auc(am))
-    return float(np.median(vals))
-
-
-def check_viability_gates_K(K, params, seeds=PILOT_SEEDS, M=64):
-    """Gates viabilite du monde K (inesc : oracle-chaine >=0.90, metronome <=0.40, random <=0.20 ;
-    absent : oracle-forage >=0.90, random <=0.20). Le monde EXIGE-t-il le conditionnement a cette config ?"""
-    orc = _median_surv(lambda s: oracle_chain_policy(K), 'inesc', K, params, seeds, M)
-    met = _median_surv(lambda s: metronome_policy(K), 'inesc', K, params, seeds, M)
-    rnd_i = _median_surv(lambda s: random_policy(s), 'inesc', K, params, seeds, M)
-    forage = _median_surv(lambda s: oracle_forage_policy(), 'absent', K, params, seeds, M)
-    rnd_a = _median_surv(lambda s: random_policy(s), 'absent', K, params, seeds, M)
-    gates = {
-        'G1_oracle_chain': bool(orc >= 0.90),
-        'G2_metronome': bool(met <= 0.40),
-        'G3_random_inesc': bool(rnd_i <= 0.20),
-        'G4_forage': bool((forage >= 0.90) and (rnd_a <= 0.20)),
-    }
-    gates['ALL'] = bool(all(gates.values()))
-    aucs = {'oracle_chain': orc, 'metronome': met, 'random_inesc': rnd_i, 'oracle_forage': forage, 'random_absent': rnd_a}
-    return {'gates': gates, 'aucs': aucs}
-
-
-def calibrate_K(K, seeds=PILOT_SEEDS, r_grid=(4., 6., 8., 10., 12., 16.), e0_grid=(8., 12., 16., 24., 32.), M=64):
-    """Balaie (R, E0) et renvoie le 1er (R_K, E0_K) rendant le monde K viable (toutes gates). E0_K = BORNE INFERIEURE
-    (Phase B re-calibre contre le headroom apprenant, cf I1). Autres params geles (spec)."""
-    last = None
-    for r in r_grid:
-        for e0 in e0_grid:
-            last = check_viability_gates_K(K, replace(Params(), R=r, E0=e0), seeds, M)
-            if last['gates']['ALL']:
-                return {'ok': True, 'R_K': r, 'E0_K': e0, 'last': last}
-    return {'ok': False, 'R_K': None, 'E0_K': None, 'last': last}
-
-
-def viability_gate_all_K(k_grid=(2, 3, 4, 5), seeds=PILOT_SEEDS, M=64):
-    """GATE DUR de viabilite : pour chaque K, un (R,E0) doit rendre le monde viable. all_ok => Phase B autorisee."""
-    per_K = []
-    for K in k_grid:
-        c = calibrate_K(K, seeds=seeds, M=M)
-        per_K.append({'K': K, 'ok': c['ok'], 'R_K': c['R_K'], 'E0_K': c['E0_K']})
-    return {'per_K': per_K, 'all_ok': bool(all(row['ok'] for row in per_K))}
-
-
-def _report_viability(res):
-    print("\n=== EDR 202 KCHAIN — GATE DUR de viabilite par-K (Phase A) ===")
-    for row in res['per_K']:
-        print("    K=%d  viable=%s  R_K=%s  E0_K=%s" % (row['K'], row['ok'], row['R_K'], row['E0_K']))
-    print("=== %s ===" % ("TOUS VIABLES -> Phase B autorisee (RE-CALIBRER E0 contre headroom apprenant, I1)"
-                          if res['all_ok'] else "AU MOINS UN K NON-VIABLE -> borner le K_grid de Phase B a la fenetre viable"))
-
-
+```python
 # ============================ Phase B — apprenant recurrent + fenetre-credit W ============================
 # Apprenant RE-IMPLEMENTE standalone (structure prouvee de COS craft_or_starve_edr NpReinforceLearner/NpTickLearner,
 # AUCUN import). Le levier credit-horizon = fenetre-credit W : advantage_t = (somme des deltas d'energie sur les W
@@ -395,8 +227,77 @@ def evaluate_chain(learner, arm, K, params, seed, M):
     prog_log, cons_log, _al = s2
     return {"survival": survival_auc(am), "binding_gap": binding_gap((*s2, K)),
             "consume_rate": float(cons_log.mean())}
+```
+
+- [ ] **Step 4: Lancer, vérifier le succès**
+
+Run: `cd "c:/Users/robla/VScode_Project/AGAGI/.claude/worktrees/kchain-edr202" && python -m pytest tests/sandbox/test_kchain_edr.py -k "determinism or window_credit" -q`
+Expected: PASS — 2 tests verts.
+
+- [ ] **Step 5: Commit**
+
+```bash
+cd "c:/Users/robla/VScode_Project/AGAGI/.claude/worktrees/kchain-edr202"
+git add -- tools/kchain_edr.py tests/sandbox/test_kchain_edr.py
+git commit -m "feat(EDR-202): NpChainLearner + fenetre-credit W + evaluation (Phase B T1)
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
+```
+
+---
+
+### Task 2: Headroom apprenant (I1) + curriculum progressif-K à warm-start
+
+**Files:**
+- Modify: `tools/kchain_edr.py` (APPEND, avant `if __name__`)
+- Test: `tests/sandbox/test_kchain_edr.py` (APPEND)
+
+**Interfaces:**
+- Consumes : T1 (`NpChainLearner, rollout_learn_window`) + Phase A (`check_viability_gates_K, replace, Params, PILOT_SEEDS, np`).
+- Produces :
+  - `PHASE_A_R = {2: 4.0, 3: 6.0, 4: 8.0, 5: 10.0}` (R_K gelés du GATE DUR de Phase A).
+  - `calibrate_headroom_K(K, seeds=PILOT_SEEDS, e0_grid=(16.,24.,32.,48.,64.), M=64) -> {"R_K","E0_learner","grid"}`.
+  - `rollout_learn_curriculum_stage(learner, arm, K_stage, params_stage, seed, M, n_warm, n_cold, W, c_warm=0.5, entropy_beta=0.01) -> learner`.
+  - `rollout_learn_progressive(learner, arm, K, calib_fn, seed, M, n_stage, W, params_base=None, c_warm=0.5, entropy_beta=0.01) -> learner`.
+
+- [ ] **Step 1: Écrire les tests qui échouent**
+
+Ajouter à `tests/sandbox/test_kchain_edr.py` :
+
+```python
+from tools.kchain_edr import (
+    calibrate_headroom_K, rollout_learn_progressive, PHASE_A_R,
+)
 
 
+def test_calibrate_headroom_contract():
+    # CONTRAT (grille reduite) : structure + R_K = R gele Phase A + E0_learner dans la grille (ou None).
+    res = calibrate_headroom_K(2, seeds=(2000,), e0_grid=(16.0, 24.0), M=16)
+    assert set(res) >= {"R_K", "E0_learner", "grid"}
+    assert res["R_K"] == PHASE_A_R[2]
+    assert (res["E0_learner"] in (16.0, 24.0)) or (res["E0_learner"] is None)
+
+
+def test_progressive_reaches_target_K():
+    # CONTRAT : le curriculum progressif 2->3 s'entraine sans erreur et produit un learner evaluable (pas un verdict).
+    stub = lambda K: {"R_K": 2.0 * K, "E0_learner": 24.0}
+    lr = rollout_learn_progressive(
+        NpChainLearner(seed=7, arm='inesc'), 'inesc', 3, stub, seed=7, M=8,
+        n_stage=4, W=6, params_base=Params(T=40),
+    )
+    assert lr.W_out.shape[0] == NA
+```
+
+- [ ] **Step 2: Lancer, vérifier l'échec**
+
+Run: `cd "c:/Users/robla/VScode_Project/AGAGI/.claude/worktrees/kchain-edr202" && python -m pytest tests/sandbox/test_kchain_edr.py -k "headroom or progressive_reaches" -q`
+Expected: FAIL — `ImportError: cannot import name 'calibrate_headroom_K'`.
+
+- [ ] **Step 3: Écrire le headroom + le curriculum**
+
+Ajouter à `tools/kchain_edr.py` (avant `if __name__`) :
+
+```python
 # ============================ Phase B — headroom apprenant (I1) + curriculum progressif-K ============================
 # R_K GELE du GATE DUR de Phase A (oracle-viable, R_K≈2K). E0_learner = le PLUS GRAND E0 gardant le monde inescapable
 # (random meurt) -> runway maximal pour l'apprenant SANS casser l'inescapabilite (repond au caveat I1 de COS).
@@ -404,7 +305,6 @@ def evaluate_chain(learner, arm, K, params, seed, M):
 PHASE_A_R = {2: 4.0, 3: 6.0, 4: 8.0, 5: 10.0}
 
 
-@lru_cache(maxsize=None)
 def calibrate_headroom_K(K, seeds=PILOT_SEEDS, e0_grid=(16.0, 24.0, 32.0, 48.0, 64.0), M=64):
     """R_K gele (Phase A) ; balaie e0_grid ASCENDANT et retient le PLUS GRAND E0 gardant le monde inescapable
     (G1 oracle-chain >=0.90, G2 metronome <=0.40, G3 random <=0.20). Runway apprenant maximal sans casser
@@ -447,8 +347,77 @@ def rollout_learn_progressive(learner, arm, K, calib_fn, seed, M, n_stage, W, pa
         rollout_learn_curriculum_stage(learner, arm, Kp, P, seed=seed + 1000 * i, M=M,
                                        n_warm=n_warm, n_cold=n_cold, W=W, c_warm=c_warm, entropy_beta=entropy_beta)
     return learner
+```
+
+- [ ] **Step 4: Lancer, vérifier le succès**
+
+Run: `cd "c:/Users/robla/VScode_Project/AGAGI/.claude/worktrees/kchain-edr202" && python -m pytest tests/sandbox/test_kchain_edr.py -k "headroom or progressive_reaches" -q`
+Expected: PASS — 2 tests verts.
+
+- [ ] **Step 5: Commit**
+
+```bash
+cd "c:/Users/robla/VScode_Project/AGAGI/.claude/worktrees/kchain-edr202"
+git add -- tools/kchain_edr.py tests/sandbox/test_kchain_edr.py
+git commit -m "feat(EDR-202): headroom apprenant (I1) + curriculum progressif-K warm-start (Phase B T2)
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
+```
+
+---
+
+### Task 3: Courbe de généralité + décomposition 2×2 + verdicts + CLI
+
+**Files:**
+- Modify: `tools/kchain_edr.py` (APPEND + MODIFIE le bloc `if __name__`)
+- Test: `tests/sandbox/test_kchain_edr.py` (APPEND)
+
+**Interfaces:**
+- Consumes : T1/T2 (`NpChainLearner, rollout_learn_window, rollout_learn_progressive, evaluate_chain, calibrate_headroom_K`) + Phase A (`replace, Params, np`).
+- Produces :
+  - `generality_curve(seeds, K_grid=(2,3,4,5), M=64, n_stage=40, calib_fn=None, params_base=None) -> {"grid":[{K,binding,survival,composes}], "verdict"}`.
+  - `decompose_2x2_chain(seeds, K=3, M=64, n_stage=40, calib_fn=None, params_base=None) -> {"cells":{...}, "verdict"}`.
+  - `_report_generality(res)`, `_report_decompose(res)`, `SEEDS_RUN=(3000,3001,3002)`.
+  - CLI : `python -m tools.kchain_edr --kchain` lance courbe + 2×2 ; sans flag = gate de viabilité (Phase A).
+
+- [ ] **Step 1: Écrire les tests qui échouent**
+
+Ajouter à `tests/sandbox/test_kchain_edr.py` :
+
+```python
+from tools.kchain_edr import generality_curve, decompose_2x2_chain
+
+_STUB_CALIB = lambda K: {"R_K": 2.0 * K, "E0_learner": 24.0, "grid": []}
+_GEN_VERDICTS = {"GENERIQUE"}   # + "COS-SPECIFIQUE(K*)" (prefixe verifie ci-dessous)
+_DEC_VERDICTS = {"BOTH-NECESSARY", "CREDIT-SUFFISANT", "CURRICULUM-SUFFISANT", "INCOHERENT"}
 
 
+def test_generality_curve_contract():
+    res = generality_curve(seeds=(1000,), K_grid=(2, 3), M=8, n_stage=4,
+                           calib_fn=_STUB_CALIB, params_base=Params(T=40))
+    assert len(res["grid"]) == 2
+    for row in res["grid"]:
+        assert set(row) >= {"K", "binding", "survival", "composes"}
+    assert (res["verdict"] in _GEN_VERDICTS) or res["verdict"].startswith("COS-SPECIFIQUE(")
+
+
+def test_decompose_2x2_chain_contract():
+    res = decompose_2x2_chain(seeds=(1000,), K=3, M=8, n_stage=4,
+                              calib_fn=_STUB_CALIB, params_base=Params(T=40))
+    assert len(res["cells"]) == 4
+    assert res["verdict"] in _DEC_VERDICTS
+```
+
+- [ ] **Step 2: Lancer, vérifier l'échec**
+
+Run: `cd "c:/Users/robla/VScode_Project/AGAGI/.claude/worktrees/kchain-edr202" && python -m pytest tests/sandbox/test_kchain_edr.py -k "generality_curve or decompose_2x2" -q`
+Expected: FAIL — `ImportError: cannot import name 'generality_curve'`.
+
+- [ ] **Step 3: Écrire la courbe + le 2×2 + les verdicts + la CLI**
+
+Ajouter à `tools/kchain_edr.py` (avant `if __name__`) :
+
+```python
 # ============================ Phase B — courbe de generalite + decomposition 2x2 + verdicts ============================
 # composes = binding_gap >= 0.5 ET survival >= 0.5 (memes seuils gelés que la Phase A / le ladder COS).
 _COMPOSE_BIND = 0.5
@@ -558,8 +527,11 @@ def _report_decompose(res):
         print("    %s  binding=%+.3f  survie=%.3f  compose=%s"
               % (label[key], c["binding"], c["survival"], c["composes"]))
     print("=== VERDICT 2x2 : %s ===" % res["verdict"])
+```
 
+Et MODIFIER le bloc `if __name__` de Phase A pour router selon `--kchain` :
 
+```python
 if __name__ == "__main__":
     import sys
     if "--kchain" in sys.argv:
@@ -567,3 +539,30 @@ if __name__ == "__main__":
         _report_decompose(decompose_2x2_chain(SEEDS_RUN))
     else:
         _report_viability(viability_gate_all_K())
+```
+
+- [ ] **Step 4: Lancer, vérifier le succès**
+
+Run: `cd "c:/Users/robla/VScode_Project/AGAGI/.claude/worktrees/kchain-edr202" && python -m pytest tests/sandbox/test_kchain_edr.py -k "generality_curve or decompose_2x2" -q`
+Expected: PASS — 2 tests verts. (Puis la suite complète : `python -m pytest tests/sandbox/test_kchain_edr.py -q` → 12 verts.)
+
+- [ ] **Step 5: Commit**
+
+```bash
+cd "c:/Users/robla/VScode_Project/AGAGI/.claude/worktrees/kchain-edr202"
+git add -- tools/kchain_edr.py tests/sandbox/test_kchain_edr.py
+git commit -m "feat(EDR-202): courbe de generalite + decomposition 2x2 + verdicts + CLI --kchain (Phase B T3)
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
+```
+
+---
+
+## Run décisif (contrôleur, hors tâches TDD — après revue finale)
+
+Run (arrière-plan, LOURD ~dizaines de min → ~1-2 h) : `cd "c:/Users/robla/VScode_Project/AGAGI/.claude/worktrees/kchain-edr202" && python -m tools.kchain_edr --kchain`. Déterminisme prouvé par tests (1 pass suffit ; confirmer par une 2ᵉ passe si le temps le permet).
+
+- **Courbe GÉNÉRIQUE** (le levier binde à K=2..5) → la loi crédit-horizon×curriculum est le débloqueur GÉNÉRIQUE du bootstrap de composition, pas un artefact de K=2. **COS-SPÉCIFIQUE(K\*)** → la loi a une limite de profondeur (rapporter K\* + la courbe).
+- **2×2 @ K=3 = BOTH-NECESSARY** attendu (réplique EDR 201 en profondeur) ; CURRICULUM-SUFFISANT / CREDIT-SUFFISANT raffineraient.
+- **Signaux à investiguer AVANT consolidation** : un `INCOHERENT` (la cellule levier-complet ne compose pas → tuning n_stage/M/headroom ou trap I1 non résolu) ; un `E0_learner=None` à un K (aucun E0 inescapable dans la grille → élargir e0_grid) ; W=2 (short) qui composerait à K≥3 (le crédit-horizon ne serait PAS le levier → réexaminer).
+- Si le levier complet ne binde à AUCUN K (courbe plate négative) : c'est le trap I1/headroom → diagnostiquer (augmenter n_stage warm, vérifier `calibrate_headroom_K`, cf. COS L2) AVANT de conclure.

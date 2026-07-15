@@ -65,3 +65,77 @@ def test_calibrate_k_contract():
     assert isinstance(res["ok"], bool)
     if res["ok"]:
         assert res["R_K"] in (8.0, 12.0) and res["E0_K"] in (12.0, 24.0)
+
+
+def test_chain_learner_determinism():
+    # 2 entrainements fenetre-W au meme seed -> poids byte-identiques (determinisme REINFORCE).
+    from tools.kchain_edr import (
+        NpChainLearner, rollout_learn_window, N_H,
+    )
+    P = Params(E0=32.0, T=60)
+    la = rollout_learn_window(NpChainLearner(seed=11, arm='inesc'), 'inesc', 3, P, seed=11, M=8, n_episodes=5, W=6)
+    lb = rollout_learn_window(NpChainLearner(seed=11, arm='inesc'), 'inesc', 3, P, seed=11, M=8, n_episodes=5, W=6)
+    assert np.array_equal(la.W_out, lb.W_out)
+    assert np.array_equal(la.W_ih, lb.W_ih)
+    assert np.array_equal(la.W_hh, lb.W_hh)
+
+
+def test_window_credit_shapes():
+    # Vérifie que les poids ont les bonnes formes et l'évaluation retourne les bonnes clés.
+    from tools.kchain_edr import (
+        NpChainLearner, rollout_learn_window, evaluate_chain, N_H, N_ACTIONS as NA,
+    )
+    P = Params(E0=32.0, T=60)
+    lr = rollout_learn_window(NpChainLearner(seed=1, arm='inesc'), 'inesc', 3, P, seed=1, M=8, n_episodes=3, W=6)
+    assert lr.W_out.shape == (NA, N_H)
+    ev = evaluate_chain(lr, 'inesc', 3, P, seed=99, M=8)
+    assert set(ev) >= {"survival", "binding_gap", "consume_rate"}
+    assert -1.0 <= ev["binding_gap"] <= 1.0
+    assert 0.0 <= ev["survival"] <= 1.0
+
+
+def test_calibrate_headroom_contract():
+    # CONTRAT (grille reduite) : structure + R_K = R gele Phase A + E0_learner dans la grille (ou None).
+    from tools.kchain_edr import (
+        calibrate_headroom_K, PHASE_A_R,
+    )
+    res = calibrate_headroom_K(2, seeds=(2000,), e0_grid=(16.0, 24.0), M=16)
+    assert set(res) >= {"R_K", "E0_learner", "grid"}
+    assert res["R_K"] == PHASE_A_R[2]
+    assert (res["E0_learner"] in (16.0, 24.0)) or (res["E0_learner"] is None)
+
+
+def test_progressive_reaches_target_K():
+    # CONTRAT : le curriculum progressif 2->3 s'entraine sans erreur et produit un learner evaluable (pas un verdict).
+    from tools.kchain_edr import (
+        rollout_learn_progressive, NpChainLearner, Params, N_ACTIONS as NA,
+    )
+    stub = lambda K: {"R_K": 2.0 * K, "E0_learner": 24.0}
+    lr = rollout_learn_progressive(
+        NpChainLearner(seed=7, arm='inesc'), 'inesc', 3, stub, seed=7, M=8,
+        n_stage=4, W=6, params_base=Params(T=40),
+    )
+    assert lr.W_out.shape[0] == NA
+
+
+from tools.kchain_edr import generality_curve, decompose_2x2_chain
+
+_STUB_CALIB = lambda K: {"R_K": 2.0 * K, "E0_learner": 24.0, "grid": []}
+_GEN_VERDICTS = {"GENERIQUE"}   # + "COS-SPECIFIQUE(K*)" (prefixe verifie ci-dessous)
+_DEC_VERDICTS = {"BOTH-NECESSARY", "CREDIT-SUFFISANT", "CURRICULUM-SUFFISANT", "INCOHERENT"}
+
+
+def test_generality_curve_contract():
+    res = generality_curve(seeds=(1000,), K_grid=(2, 3), M=8, n_stage=4,
+                           calib_fn=_STUB_CALIB, params_base=Params(T=40))
+    assert len(res["grid"]) == 2
+    for row in res["grid"]:
+        assert set(row) >= {"K", "binding", "survival", "composes"}
+    assert (res["verdict"] in _GEN_VERDICTS) or res["verdict"].startswith("COS-SPECIFIQUE(")
+
+
+def test_decompose_2x2_chain_contract():
+    res = decompose_2x2_chain(seeds=(1000,), K=3, M=8, n_stage=4,
+                              calib_fn=_STUB_CALIB, params_base=Params(T=40))
+    assert len(res["cells"]) == 4
+    assert res["verdict"] in _DEC_VERDICTS
