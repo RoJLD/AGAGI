@@ -51,13 +51,25 @@ DÉFAUT (dur) où la cohorte s'effondre vite (20→3 agents en 35 ticks) : l'end
 guidée par l'obs. Le marqueur between-subject « champion bat baselines » mesurait donc une compétence de survie RÉELLE,
 mais l'attribuait à tort à la PERCEPTION — le faux-positif exact de S2-001, confirmé in-world.
 
-## Caveats (consignés)
+## Extension régime SWEET (0.25/3.0) — le finding est RÉGIME-ROBUSTE
 
-1. **Régime-spécifique** : DÉFAUT (base_metabolism=1.0, dur). Effet plancher possible (tout le monde meurt vite,
-   cf. H2 du diagnostic de régime). Le régime **sweet** (0.25/3.0) n'est pas testé — la perception pourrait devenir
-   causale quand la survie est atteignable (ou non : au sweet, le random survit aussi bien, cf. `s2-world-demand-thread`).
-2. **Cohorte survivante** : mesuré sur les agents vivants (dernier quart), appariement par ère.
-3. **Sous-question ouverte** : le diagnostic n'a pas pu mesurer la sensibilité-action directement (le monde construit
+Rejoué au sweet-spot (base_metabolism=0.25, forage_payoff=3.0, K=12, RAG-off) pour fermer le caveat d'effet-plancher :
+
+| Régime | survie médiane (champ/ablé/random) | BETWEEN champ vs random | WITHIN |
+|---|---|---|---|
+| DÉFAUT (dur) | ~4× le random | **EXIGE** (δ=0.92, p=0.0025) | **NON-CAUSAL** (δ=0.066) |
+| SWEET (0.25/3.0) | 39 / 36 / 38.5 (≈ égaux) | **PAS d'edge** (δ=−0.043, p=0.224) | **NON-CAUSAL** (δ=0.055) |
+
+Les deux régimes convergent : **la perception n'est JAMAIS le levier causal de survie du champion**. En dur, l'edge 4×
+existe mais est perception-indépendant (métabolique/corporel). En sweet, l'edge DISPARAÎT (champion ≈ random ≈ ablé ~38
+ticks) : quand le forage est facile, l'intelligence ne discrimine pas la survie. **Le NON-CAUSAL du régime dur n'est
+donc PAS un artefact d'effet-plancher — il tient à travers les régimes.** Le caveat régime est FERMÉ : le verdict
+between-subject EXIGE faux-positive robustement pour la demande de PERCEPTION.
+
+## Caveats restants (consignés)
+
+1. **Cohorte survivante** : mesuré sur les agents vivants (dernier quart), appariement par ère.
+2. **Sous-question ouverte** : le diagnostic n'a pas pu mesurer la sensibilité-action directement (le monde construit
    le batch-model en interne depuis des dicts d'agents, `env.agents` ≠ objets `.genome`). Reste ouvert : le champion
    IGNORE-t-il l'obs, ou l'utilise-t-il sans que ça compte pour la survie ? Les deux → NON-CAUSAL ; distinction = refinement.
 
