@@ -253,5 +253,148 @@ def _report_viability(res):
                           if res['all_ok'] else "AU MOINS UN K NON-VIABLE -> borner le K_grid de Phase B a la fenetre viable"))
 
 
+# ============================ Phase B — apprenant recurrent + fenetre-credit W ============================
+# Apprenant RE-IMPLEMENTE standalone (structure prouvee de COS craft_or_starve_edr NpReinforceLearner/NpTickLearner,
+# AUCUN import). Le levier credit-horizon = fenetre-credit W : advantage_t = (somme des deltas d'energie sur les W
+# sous-pas suivants) - baseline. W=2 = analogue tick-return COS (aveugle des K>=3) ; W_long=2K couvre la chaine.
+# REINFORCE, PAS de BPTT (H_prev traite constant). N_H=16 FIXE sur tous les K -> disculpe la capacite.
+
+N_H = 16
+LR = 0.02
+TEMP = 1.0
+
+
+def _softmax(x):
+    x = x - x.max(axis=-1, keepdims=True)
+    e = np.exp(x)
+    return e / e.sum(axis=-1, keepdims=True)
+
+
+class NpChainLearner:
+    """Coeur recurrent H_t = tanh(W_ih·obs + W_hh·H_{t-1} + b_h) -> readout lineaire -> softmax(/TEMP).
+    Bufferise les ctx d'un episode (act) ; credite chaque sous-pas t d'un retour fenetre-W (update_window) :
+    advantage_t = (Σ_{i<W} δ_{t+i}) - baseline(EMA). H_prev traite constant -> PAS de BPTT. Poids persistants."""
+
+    def __init__(self, seed, arm):
+        rng = np.random.default_rng((int(seed) ^ 0x51ED270B) & 0xFFFFFFFF)
+        s = 1.0 / np.sqrt(N_H)
+        self.W_ih = (rng.standard_normal((N_H, OBS_DIM)) * s).astype(np.float64)
+        self.W_hh = (rng.standard_normal((N_H, N_H)) * s).astype(np.float64)
+        self.b_h = np.zeros(N_H, dtype=np.float64)
+        self.W_out = (rng.standard_normal((N_ACTIONS, N_H)) * s).astype(np.float64)
+        self.b_out = np.zeros(N_ACTIONS, dtype=np.float64)
+        self.arm = arm
+        self._rng = np.random.default_rng((int(seed) ^ 0x2C1B3A9F) & 0xFFFFFFFF)  # echantillonnage d'actions
+        self._baseline = 0.0
+        self._H = None
+        self._buf = []   # liste de (obs, H_prev, H_new, probs, actions) de l'episode courant
+
+    def reset_state(self, M):
+        self._H = np.zeros((M, N_H), dtype=np.float64)
+        self._buf = []
+
+    def act(self, obs):
+        H_prev = self._H
+        z = obs @ self.W_ih.T + H_prev @ self.W_hh.T + self.b_h
+        H_new = np.tanh(z)
+        logits = H_new @ self.W_out.T + self.b_out
+        probs = _softmax(logits / TEMP)
+        u = self._rng.random(probs.shape[0])
+        actions = (probs.cumsum(axis=1) > u[:, None]).argmax(axis=1)
+        self._H = H_new
+        self._buf.append((obs, H_prev, H_new, probs, actions))
+        return actions
+
+    def update_window(self, deltas, alives, W, entropy_beta=0.0):
+        """REINFORCE a retour fenetre-W sur les ctx bufferises. deltas/alives : listes de T tableaux (M,).
+        Pour chaque sous-pas t : G_t = Σ_{i=0}^{W-1} δ_{t+i} (tronque a T) ; advantage = (G_t - baseline)·alive_t.
+        Gradient applique a ctx_t (H_prev constant -> pas de BPTT). Bonus d'entropie optionnel (/TEMP, aligne 201)."""
+        D = np.asarray(deltas, dtype=np.float64)   # [T, M]
+        A = np.asarray(alives, dtype=np.float64)   # [T, M]
+        T = D.shape[0]
+        for t in range(T):
+            hi = min(t + W, T)
+            G = D[t:hi].sum(axis=0)                 # (M,) retour fenetre-W
+            m = A[t]
+            n = max(m.sum(), 1.0)
+            self._baseline = 0.99 * self._baseline + 0.01 * float((G * m).sum() / n)
+            adv = (G - self._baseline) * m
+            obs, H_prev, H_new, probs, actions = self._buf[t]
+            Mn = obs.shape[0]
+            onehot = np.zeros_like(probs)
+            onehot[np.arange(Mn), actions] = 1.0
+            dlogits = (onehot - probs) * adv[:, None] / TEMP
+            if entropy_beta:
+                logp = np.log(probs + 1e-12)
+                Hent = -(probs * logp).sum(axis=1, keepdims=True)
+                dlogits = dlogits + entropy_beta * (-probs * (logp + Hent)) / TEMP * m[:, None]
+            self.W_out += LR * (dlogits.T @ H_new) / n
+            self.b_out += LR * dlogits.sum(axis=0) / n
+            dz = (dlogits @ self.W_out) * (1.0 - H_new ** 2)
+            self.W_ih += LR * (dz.T @ obs) / n
+            self.W_hh += LR * (dz.T @ H_prev) / n
+            self.b_h += LR * dz.sum(axis=0) / n
+        self._buf = []
+
+
+def rollout_learn_window(learner, arm, K, params, seed, M, n_episodes, W, entropy_beta=0.0):
+    """Entraine `learner` en ligne : n_episodes vies (T sous-pas x M agents), reward = delta d'energie du sous-pas,
+    mort ABSORBANTE. La dynamique du monde DOIT rester identique a rollout_chain (Phase A) : garder en synchro.
+    Bufferise l'episode puis update_window (retour W). Retourne le learner entraine."""
+    rng = np.random.default_rng(seed)
+    P = params
+    for _ in range(n_episodes):
+        learner.reset_state(M)
+        E = np.full(M, P.E0, dtype=np.float64)
+        prog = np.zeros(M, dtype=np.int64)
+        alive = np.ones(M, dtype=bool)
+        pending = np.zeros(M, dtype=np.float64)
+        deltas, alives = [], []
+        for t in range(P.T):
+            mat = (rng.random(M) < P.p_mat).astype(np.float64)
+            obs = _build_obs(mat, rng.standard_normal((M, N_NOISE)))
+            a = learner.act(obs)
+            E_before = E.copy()
+            matb = mat > 0.5
+            if arm == 'inesc':
+                step = alive & (a == STEP)
+                step_ok = step & matb & (prog < K - 1)
+                step_bad = step & ~step_ok
+                cons = alive & (a == CONSUME)
+                cons_ok = cons & (prog == K - 1)
+                cons_empty = cons & ~cons_ok
+                E = E - np.where(step_ok, P.c_step, 0.0) - np.where(step_bad, P.c_step_bad, 0.0)
+                E = E + np.where(cons_ok, P.R, 0.0) - np.where(cons_ok, P.c_consume, 0.0) - np.where(cons_empty, P.c_consume_empty, 0.0)
+                prog = np.where(step_ok, prog + 1, prog)
+                prog = np.where(cons_ok, 0, prog)
+            else:
+                E = E + np.where(alive, pending, 0.0)
+                foraged = alive & (a == FORAGE)
+                pending = np.where(foraged, P.f_forage, 0.0)
+            E = E - np.where(alive, P.h, 0.0)
+            deltas.append(np.where(alive, E - E_before, 0.0))
+            alives.append(alive.astype(np.float64))
+            alive = alive & (E > 0.0)
+        learner.update_window(deltas, alives, W, entropy_beta)
+    return learner
+
+
+def evaluate_chain(learner, arm, K, params, seed, M):
+    """Eval poids GELES + politique GREEDY (argmax, deterministe). Reutilise _run_chain_logged (Phase A) :
+    survie (survival_auc) + binding_gap (P(CONSUME|prog==K-1)-P(CONSUME|prog<K-1)) + consume_rate.
+    Un learner mort n'a pas de sous-pas vivants -> binding_gap=0 par defaut masque-vide = 'ne compose pas' (correct)."""
+    def act(obs, mem, prog):
+        H = mem if mem is not None else np.zeros((obs.shape[0], N_H), dtype=np.float64)
+        z = obs @ learner.W_ih.T + H @ learner.W_hh.T + learner.b_h
+        Hn = np.tanh(z)
+        logits = Hn @ learner.W_out.T + learner.b_out
+        a = _softmax(logits / TEMP).argmax(axis=1)
+        return a, Hn
+    am, s2 = _run_chain_logged(act, arm, K, params, seed, M)
+    prog_log, cons_log, _al = s2
+    return {"survival": survival_auc(am), "binding_gap": binding_gap((*s2, K)),
+            "consume_rate": float(cons_log.mean())}
+
+
 if __name__ == "__main__":
     _report_viability(viability_gate_all_K())

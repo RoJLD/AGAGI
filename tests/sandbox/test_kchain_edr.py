@@ -65,3 +65,30 @@ def test_calibrate_k_contract():
     assert isinstance(res["ok"], bool)
     if res["ok"]:
         assert res["R_K"] in (8.0, 12.0) and res["E0_K"] in (12.0, 24.0)
+
+
+def test_chain_learner_determinism():
+    # 2 entrainements fenetre-W au meme seed -> poids byte-identiques (determinisme REINFORCE).
+    from tools.kchain_edr import (
+        NpChainLearner, rollout_learn_window, N_H,
+    )
+    P = Params(E0=32.0, T=60)
+    la = rollout_learn_window(NpChainLearner(seed=11, arm='inesc'), 'inesc', 3, P, seed=11, M=8, n_episodes=5, W=6)
+    lb = rollout_learn_window(NpChainLearner(seed=11, arm='inesc'), 'inesc', 3, P, seed=11, M=8, n_episodes=5, W=6)
+    assert np.array_equal(la.W_out, lb.W_out)
+    assert np.array_equal(la.W_ih, lb.W_ih)
+    assert np.array_equal(la.W_hh, lb.W_hh)
+
+
+def test_window_credit_shapes():
+    # Vérifie que les poids ont les bonnes formes et l'évaluation retourne les bonnes clés.
+    from tools.kchain_edr import (
+        NpChainLearner, rollout_learn_window, evaluate_chain, N_H, N_ACTIONS as NA,
+    )
+    P = Params(E0=32.0, T=60)
+    lr = rollout_learn_window(NpChainLearner(seed=1, arm='inesc'), 'inesc', 3, P, seed=1, M=8, n_episodes=3, W=6)
+    assert lr.W_out.shape == (NA, N_H)
+    ev = evaluate_chain(lr, 'inesc', 3, P, seed=99, M=8)
+    assert set(ev) >= {"survival", "binding_gap", "consume_rate"}
+    assert -1.0 <= ev["binding_gap"] <= 1.0
+    assert 0.0 <= ev["survival"] <= 1.0
