@@ -40,7 +40,8 @@ def _reseed_spears(world, rng, respawn_p, weight=2.0):
 def run_arm(shuffle=False, seed=0, ticks=400, warmup=200, n_agents=32, respawn_p=0.5,
             base_metabolism=1.0, forage_payoff=1.0, penalty=-0.5, night=True,
             energy=80.0, spear_weight=2.0, shaping=False, antisat=None,
-            warm_w=None, warm_b=None, lr=None, prey_count=None, prey_regen=None):
+            warm_w=None, warm_b=None, lr=None, prey_count=None, prey_regen=None,
+            no_consume=False, weightless=False, conditional_credit=False):
     """Tourne un monde torch avec le throw-gate, sème/re-sème des spears, agrege le binding_gap
     sur la fenetre post-warmup (couples agent,tick sur la VRAIE presence-spear). CRN par seed.
     ON (shuffle=False) vs SHUFFLE (recompense permutee, contexte decorrele). `penalty` = recompense
@@ -69,6 +70,9 @@ def run_arm(shuffle=False, seed=0, ticks=400, warmup=200, n_agents=32, respawn_p
     w.torch_throw_gate = True
     w.torch_throw_penalty = penalty             # NAV-005 : le knob teste
     w.torch_throw_shaping = shaping              # EDR-173-suite : credit DENSE de visee
+    w.torch_throw_no_consume = no_consume            # F1 (EDR-177)
+    w.torch_throw_weightless = weightless             # F2 (EDR-177)
+    w.torch_throw_conditional_credit = conditional_credit  # F4 (EDR-177)
     if antisat is not None:
         w.torch_throw_antisat = antisat          # modere l'anti-sat (defaut 6.0 ecrase p->0 => throw_rate~0)
     if lr is not None:
@@ -316,6 +320,66 @@ def compare_rp_sweep(seeds=(0, 1, 2, 3), prey_levels=(15, 60, 150), ticks=120, w
     return out
 
 
+def compare_factorial(seeds=(0, 1, 2, 3), prey_sparse=15, prey_dense=300, ticks=120, warmup=30,
+                      n_agents=30, respawn_p=0.06, base_metabolism=0.05, forage_payoff=3.0,
+                      energy=250.0, spear_weight=2.0, antisat=0.3):
+    """Factoriel 2^4 (EDR-177) : isole les 4 confounds du binding in-world. Facteurs (True=propre) :
+    no_consume (F1), weightless (F2), dense (F3 : prey_count=dense/sparse), conditional_credit (F4).
+    Regime couche-1 neutralisee + non-biaise (penalty=0) -> seuls les 4 facteurs varient. Par cellule :
+    K seeds x {ON, SHUFFLE}, diff = gap_ON - gap_SHUFFLE, verdict via compute_ab_verdict. La cellule
+    tout-propre (T,T,T,T) est le test decisif : le substrat binde-t-il in-world PROPREMENT ?"""
+    import itertools
+    import statistics as _st
+    kw = dict(ticks=ticks, warmup=warmup, n_agents=n_agents, respawn_p=respawn_p, night=False,
+              base_metabolism=base_metabolism, forage_payoff=forage_payoff, energy=energy,
+              spear_weight=spear_weight, penalty=0.0, antisat=antisat)
+    cells = []
+    for nc, wl, dn, cc in itertools.product([False, True], repeat=4):
+        prey = prey_dense if dn else prey_sparse
+        rows, kills, throws = [], [], []
+        for s in seeds:
+            on = run_arm(shuffle=False, seed=s, prey_count=prey, no_consume=nc, weightless=wl,
+                         conditional_credit=cc, **kw)
+            sh = run_arm(shuffle=True, seed=s, prey_count=prey, no_consume=nc, weightless=wl,
+                         conditional_credit=cc, **kw)
+            diff = on["binding_gap_inworld"] - sh["binding_gap_inworld"]
+            rows.append({"seed": s, "on": on["binding_gap_inworld"],
+                         "shuffle": sh["binding_gap_inworld"], "diff": diff})
+            kills.append(on["kills_with_tool"]); throws.append(on["throw_rate"])
+        cells.append({"no_consume": nc, "weightless": wl, "dense": dn, "conditional_credit": cc,
+                      "prey_count": prey, "verdict": compute_ab_verdict(rows, band=0.02),
+                      "median_diff": _st.median([r["diff"] for r in rows]),
+                      "median_gap_on": _st.median([r["on"] for r in rows]),
+                      "median_kills": _st.median(kills), "median_throw": _st.median(throws),
+                      "diffs": [r["diff"] for r in rows], "rows": rows})
+    return cells
+
+
+def _factorial_effects(cells):
+    """Effets principaux + interactions 2-way sur la carte 2^4 (EDR-177). Chaque cellule expose ses 4
+    niveaux booleens (True=propre) + `diffs` (liste des diff ON-SHUFFLE par seed). Effet principal d'un
+    facteur = moyenne(diffs | facteur propre) - moyenne(diffs | facteur confound), poole sur les 8
+    cellules de chaque niveau. Interaction 2-way = demi-difference des effets simples croises."""
+    import statistics as _st
+    factors = ("no_consume", "weightless", "dense", "conditional_credit")
+
+    def _pool(pred):
+        vals = [d for c in cells if pred(c) for d in c["diffs"]]
+        return _st.mean(vals) if vals else 0.0
+
+    main = {f: _pool(lambda c, f=f: c[f]) - _pool(lambda c, f=f: not c[f]) for f in factors}
+    inter = {}
+    for i in range(len(factors)):
+        for j in range(i + 1, len(factors)):
+            f, g = factors[i], factors[j]
+            both = _pool(lambda c, f=f, g=g: c[f] and c[g])
+            neither = _pool(lambda c, f=f, g=g: (not c[f]) and (not c[g]))
+            only_f = _pool(lambda c, f=f, g=g: c[f] and not c[g])
+            only_g = _pool(lambda c, f=f, g=g: (not c[f]) and c[g])
+            inter[f"{f}×{g}"] = 0.5 * ((both + neither) - (only_f + only_g))
+    return {"main": main, "interactions": inter}
+
+
 if __name__ == "__main__":
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -404,6 +468,46 @@ if __name__ == "__main__":
                   f"(kills~{_pos[0]['median_kills']:.0f}) => plancher r.P FRANCHI, cause CONFIRMEE")
         else:
             print("CONCLUSION: PAS_DE_BINDING meme a forte densite -> CONFOND PLUS PROFOND que r.P")
+    elif os.environ.get("TTG_MODE") == "factorial":
+        ps = int(os.environ.get("TTG_PREY_SPARSE", "15"))
+        pd = int(os.environ.get("TTG_PREY_DENSE", "300"))
+        # Le regime (energy=250, base_metabolism=0.05, respawn_p=0.06, forage_payoff=3.0, spear_weight=2.0,
+        # antisat=0.3, penalty=0.0, night=False) est FIXE pour l'isolation (couche-1 neutralisee, non-biaise).
+        # On laisse les defauts de compare_factorial s'appliquer plutot que les TTG_* partages du fichier
+        # (dont les defauts 80/0.25/0.5 confondraient la couche 1). Seuls les knobs OPERATIONNELS restent
+        # pilotables (seeds, densites, ticks, warmup, n_agents).
+        cells = compare_factorial(seeds=seeds, prey_sparse=ps, prey_dense=pd, ticks=ticks,
+                                  warmup=warmup, n_agents=agents)
+        _lab = {"GRADIENT_GAGNE": "BINDE", "HEBBIEN_GAGNE": "SHUFFLE_BINDE_PLUS", "NEUTRE": "PLAT"}
+
+        def _tag(c):
+            return ("N" if c["no_consume"] else ".") + ("W" if c["weightless"] else ".") + \
+                   ("D" if c["dense"] else ".") + ("K" if c["conditional_credit"] else ".")
+
+        for c in sorted(cells, key=lambda c: c["median_diff"], reverse=True):
+            v = c["verdict"]
+            print(f"[{_tag(c)}] diff={c['median_diff']:+.3f} gap_ON={c['median_gap_on']:+.3f} "
+                  f"kills={c['median_kills']:.0f} throw={c['median_throw']:.2f} "
+                  f"-> {v['verdict']} ({_lab.get(v['verdict'], '?')}) sign_p={v.get('sign_p')}")
+        eff = _factorial_effects(cells)
+        print("\nEFFETS PRINCIPAUX (diff propre - diff confound) :")
+        for f, e in eff["main"].items():
+            print(f"  {f:22s} {e:+.3f}")
+        print("INTERACTIONS 2-way :")
+        for p, e in eff["interactions"].items():
+            print(f"  {p:34s} {e:+.3f}")
+        c0 = next(c for c in cells if c["no_consume"] and c["weightless"] and c["dense"]
+                  and c["conditional_credit"])
+        v0 = c0["verdict"]
+        print(f"\nCELLULE-0 (tout-propre NWDK) : diff={c0['median_diff']:+.3f} gap_ON={c0['median_gap_on']:+.3f} "
+              f"-> {v0['verdict']} sign_p={v0.get('sign_p')}")
+        if v0["verdict"] == "GRADIENT_GAGNE" and len(seeds) >= 12:
+            print("CONCLUSION: SUBSTRAT_BINDE_IN_WORLD_PROPRE")
+        elif v0["verdict"] == "GRADIENT_GAGNE":
+            print(f"CONCLUSION: BINDING_APPARENT mais n={len(seeds)}<12 -> NON-CONCLUANT "
+                  "(garde-fou power-evaporation ; relancer avec TTG_SEEDS>=12)")
+        else:
+            print("CONCLUSION: VERROU_IN_WORLD_PLUS_PROFOND")
     else:
         out = compare(seeds=seeds, ticks=ticks, warmup=warmup, n_agents=agents,
                       base_metabolism=bm, forage_payoff=fp)

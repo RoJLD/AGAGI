@@ -67,6 +67,9 @@ class Biosphere3D(BaseWorld):
         self.torch_throw_shaping = False     # EDR-173-suite : credit DENSE sur la qualite de visee
         self.torch_throw_aim_radius = 5.0    # (proximite projectile->proie) au lieu du hit binaire rare
                                              # (~0.001 in-world). True => r(throw)=_throw_aim in [0,1].
+        self.torch_throw_no_consume = False  # F1 (EDR-177) : reseed spear post-throw => contexte persiste
+        self.torch_throw_weightless = False  # F2 (EDR-177) : Spear exempte du cout de portage (degats gardes)
+        self.torch_throw_conditional_credit = False  # F4 (EDR-177) : baseline REINFORCE par contexte spear/¬spear
         self._throw_w = None                 # torch (N,) : cree paresseusement au 1er tick torch
         self._throw_b = None                 # torch (1,)
         self._throw_opt = None               # Adam([_throw_w, _throw_b])
@@ -726,7 +729,7 @@ class Biosphere3D(BaseWorld):
 
         if getattr(self.config, "trace_energy_sinks", False):
             agent["_s3_bio"] = agent["energy"]               # EDR100 : avant carry
-        carry_weight = sum(i.get("weight", 1.0) if isinstance(i, dict) else 1.0 for i in agent["inventory"])
+        carry_weight = self._carry_weight(agent["inventory"])
         agent["energy"] -= carry_weight * 0.5
         if getattr(self.config, "trace_energy_sinks", False):
             agent["_s4_bio"] = agent["energy"]               # EDR100 : apres carry
@@ -1062,6 +1065,42 @@ class Biosphere3D(BaseWorld):
         return self._torch_pop.learn_episode(obs_seq, actions_seq, ep_return,
                                              gamma=1.0, gate_last_only=True)
 
+    def _throw_advantage(self, r, ctx):
+        """Centre les recompenses REINFORCE du throw-gate. Marginal (defaut) : r - moyenne(r). Conditionnel
+        (torch_throw_conditional_credit, F4/EDR-177) : baseline PAR GROUPE de contexte (spear vs ¬spear) ->
+        l'avantage reflete 'throw a aide SACHANT mon contexte' (le contingent means->ends) plutot que
+        'throw paie en moyenne' (le marginal, qui credite juste la correlation contexte-recompense).
+        `r`, `ctx` : np.ndarray (B,) ; ctx in {0.,1.} = presence-spear par agent. Retourne np.ndarray (B,)."""
+        if not self.torch_throw_conditional_credit:
+            return r - float(r.mean())
+        adv = r.copy()
+        for grp in (0.0, 1.0):
+            m = (ctx == grp)
+            if m.any():
+                adv[m] = r[m] - float(r[m].mean())   # baseline intra-contexte
+        return adv
+
+    def _carry_weight(self, inventory):
+        """Somme des poids portes (cout de portage = carry_weight * 0.5 energie/tick). F2 (EDR-177) : si
+        torch_throw_weightless (gate ON), le Spear est EXEMPTE du portage -> decouple la detresse-portage
+        des degats du throw (qui lisent thrown_item['weight'] reel, inchange). No-op si flag OFF."""
+        wl = self.use_torch_inworld and self.torch_throw_gate and self.torch_throw_weightless
+        return sum(
+            i.get("weight", 1.0) if isinstance(i, dict) else 1.0
+            for i in inventory
+            if not (wl and isinstance(i, dict) and i.get("type") == "Spear")
+        )
+
+    def _maybe_reseed_spear(self, agent, thrown_item):
+        """F1 (EDR-177) : si torch_throw_no_consume (gate ON) et un Spear vient d'etre lance, re-insere
+        un Spear en tete d'inventaire -> le contexte-spear PERSISTE a travers le throw. Sinon la
+        consommation met l'agent en ¬spear et gonfle mecaniquement P(throw|¬spear) (anti-bind, EDR-174).
+        No-op si flag OFF ou item non-Spear."""
+        if (self.use_torch_inworld and self.torch_throw_gate
+                and self.torch_throw_no_consume and isinstance(thrown_item, dict)
+                and thrown_item.get("type") == "Spear"):
+            agent["inventory"].insert(0, {"type": "Spear", "weight": 2.0})
+
     def _learn_throw_gate(self):
         """REINFORCE immediat 1-pas de la tete throw-gate (B2). Recompute p (differentiable) depuis
         H cache ce tick, utilise les decisions _throw_did stockees, recompense = outcome (kill-avec-
@@ -1098,7 +1137,8 @@ class Biosphere3D(BaseWorld):
         self._throw_kills_tool += n_kill
         if self.torch_throw_shuffle:
             r = r[self._throw_shuf_rng.permutation(B)]   # decorrele recompense/contexte
-        ret = torch.tensor(r - float(r.mean()))
+        ctx = np.array([1.0 if a.get("_throw_ctx") else 0.0 for a in self.agents], dtype=np.float32)
+        ret = torch.tensor(self._throw_advantage(r, ctx))   # F4 : marginal (defaut) ou conditionnel
         z = H @ self._throw_w + self._throw_b
         p = torch.sigmoid(torch.clamp(z, -10.0, 10.0))
         did_t = torch.tensor(did)
@@ -1433,7 +1473,8 @@ class Biosphere3D(BaseWorld):
                 
                 if not is_fueled:
                     self.items.append(thrown_item)
-                
+                self._maybe_reseed_spear(agent, thrown_item)   # F1 (no-op si flag OFF)
+
                 if hit_entity:
                     damage = energy_spent * weight
                     if "energy" in hit_entity:
