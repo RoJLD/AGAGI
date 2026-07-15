@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-085
+type: EDR
+title: "Le sweet spot de l'économie d'énergie débloque la survie longue"
+status: legacy
+gate: foundational
+---
+
 # EDR 085 : Le sweet spot de l'économie d'énergie débloque la survie longue
 
 ## Contexte

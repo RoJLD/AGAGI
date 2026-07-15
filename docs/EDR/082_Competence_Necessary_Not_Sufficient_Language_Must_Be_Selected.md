@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-082
+type: EDR
+title: "Compétence nécessaire mais PAS suffisante — le langage doit être SÉLECTIONNÉ"
+status: legacy
+gate: G3
+---
+
 # EDR 082 : Compétence nécessaire mais PAS suffisante — le langage doit être SÉLECTIONNÉ
 
 ## Contexte

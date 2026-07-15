@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-090
+type: EDR
+title: "NEGATIF PROFOND : le curriculum de létalité n'a pas de premier barreau survivable"
+status: legacy
+gate: G1
+---
+
 # EDR 090 — NEGATIF PROFOND : le curriculum de létalité n'a pas de premier barreau survivable
 
 ## Contexte

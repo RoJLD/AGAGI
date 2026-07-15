@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-070
+type: EDR
+title: "La convergence du langage SOUS GRADIENT — le mur tombe largement (#4)"
+status: legacy
+gate: G3
+---
+
 # EDR 070 : La convergence du langage SOUS GRADIENT — le mur tombe largement (#4)
 
 ## Contexte

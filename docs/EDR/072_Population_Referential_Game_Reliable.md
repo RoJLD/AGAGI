@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-072
+type: EDR
+title: "Jeu référentiel de POPULATION par gradient — convention fiable à 100 %"
+status: legacy
+gate: G3
+---
+
 # EDR 072 : Jeu référentiel de POPULATION par gradient — convention fiable à 100 %
 
 ## Contexte

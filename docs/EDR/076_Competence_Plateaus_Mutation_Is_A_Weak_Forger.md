@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-076
+type: EDR
+title: "La compétence PLAFONNE — la mutation est un forgeron faible (la boucle se referme)"
+status: legacy
+gate: foundational
+---
+
 # EDR 076 : La compétence PLAFONNE — la mutation est un forgeron faible (la boucle se referme)
 
 ## Contexte

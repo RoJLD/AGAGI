@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-071
+type: EDR
+title: "Gradient dans l'agent vivant — BPTT-RL validé, et une correction importante"
+status: legacy
+gate: foundational
+---
+
 # EDR 071 : Gradient dans l'agent vivant — BPTT-RL validé, et une correction importante
 
 ## Contexte

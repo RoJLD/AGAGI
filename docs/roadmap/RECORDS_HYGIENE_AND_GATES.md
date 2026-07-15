@@ -119,5 +119,12 @@ presque tous NEUTRES).
   (la porte la plus vide est amorcée). Baseline rétréci à 80.
 - **2026-07-15** — **P3 vague 2 FAITE** : EDR **031–059** dé-orphanisés (28 records, 047 déjà lié). Orphelins
   **80 → 52**. Couverture : **G3 1→14** (la 2ᵉ porte la plus vide, le fil langage historique était orphelin).
-  Baseline rétréci à 52. **Portes maintenant : G0=5, G1=6, G2=8, G3=14, G4=1** (G4 devient la plus vide →
-  prochaine cible, EDR planning/dreaming/world-model ~090-095). Restant P3 : **060–104**.
+  Baseline rétréci à 52.
+- **2026-07-15** — **P3 vague 3 FAITE : legacy-mien TERMINÉ.** EDR **060–104** dé-orphanisés (33 records ;
+  093/094/100 exclus = collisions P1). Orphelins **52 → 19**. Couverture : **G1 6→9, G2 8→11, G3 14→23,
+  G4 1→2** (G4 peu boosté car ses EDR planning 093/094 sont justement des collisions bloquées P1).
+  **Portes finales : G0=5, G1=9, G2=11, G3=23, G4=2.** Baseline rétréci à 19.
+  → **Bilan P3 : 90 des 109 orphelins d'origine nettoyés (→19).** Les **19 restants sont HORS de mon
+  périmètre** : 6 fichiers de collision (093/094/100, → P1/robla), 12 EDR récents //-authored (109/113/117/
+  119/120/122/125/163/166/169/171/172 → leurs sessions propriétaires), 1 ADR (ADR-002). Le legacy prose
+  001-104 (le mien) est intégralement raccordé.

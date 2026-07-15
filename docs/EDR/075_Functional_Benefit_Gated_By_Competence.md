@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-075
+type: EDR
+title: "Le bénéfice fonctionnel du langage est GATÉ par la compétence (négatif honnête)"
+status: legacy
+gate: G3
+---
+
 # EDR 075 : Le bénéfice fonctionnel du langage est GATÉ par la compétence (négatif honnête)
 
 ## Contexte

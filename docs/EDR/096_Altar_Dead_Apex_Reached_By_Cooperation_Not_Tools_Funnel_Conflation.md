@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-096
+type: EDR
+title: "Autel mort confirmé, apex atteint par COOPÉRATION (pas par l'outil) — le funnel conflait deux pathways"
+status: legacy
+gate: G2
+---
+
 # EDR 096 : Autel mort confirmé, apex atteint par COOPÉRATION (pas par l'outil) — le funnel conflait deux pathways
 
 ## Contexte

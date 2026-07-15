@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-063
+type: EDR
+title: "Porter la spéciation au langage — révèle des dynamiques OPPOSÉES"
+status: legacy
+gate: G3
+---
+
 # EDR 063 : Porter la spéciation au langage — révèle des dynamiques OPPOSÉES
 
 ## Contexte

@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-080
+type: EDR
+title: "Le HoF robuste en PRODUCTION + validation avec PUISSANCE"
+status: legacy
+gate: foundational
+---
+
 # EDR 080 : Le HoF robuste en PRODUCTION + validation avec PUISSANCE
 
 ## Contexte
