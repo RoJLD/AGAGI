@@ -471,10 +471,13 @@ if __name__ == "__main__":
     elif os.environ.get("TTG_MODE") == "factorial":
         ps = int(os.environ.get("TTG_PREY_SPARSE", "15"))
         pd = int(os.environ.get("TTG_PREY_DENSE", "300"))
+        # Le regime (energy=250, base_metabolism=0.05, respawn_p=0.06, forage_payoff=3.0, spear_weight=2.0,
+        # antisat=0.3, penalty=0.0, night=False) est FIXE pour l'isolation (couche-1 neutralisee, non-biaise).
+        # On laisse les defauts de compare_factorial s'appliquer plutot que les TTG_* partages du fichier
+        # (dont les defauts 80/0.25/0.5 confondraient la couche 1). Seuls les knobs OPERATIONNELS restent
+        # pilotables (seeds, densites, ticks, warmup, n_agents).
         cells = compare_factorial(seeds=seeds, prey_sparse=ps, prey_dense=pd, ticks=ticks,
-                                  warmup=warmup, n_agents=agents, respawn_p=rp,
-                                  base_metabolism=bm, forage_payoff=fp, energy=en,
-                                  spear_weight=sw, antisat=(asat if asat is not None else 0.3))
+                                  warmup=warmup, n_agents=agents)
         _lab = {"GRADIENT_GAGNE": "BINDE", "HEBBIEN_GAGNE": "SHUFFLE_BINDE_PLUS", "NEUTRE": "PLAT"}
 
         def _tag(c):
@@ -498,8 +501,13 @@ if __name__ == "__main__":
         v0 = c0["verdict"]
         print(f"\nCELLULE-0 (tout-propre NWDK) : diff={c0['median_diff']:+.3f} gap_ON={c0['median_gap_on']:+.3f} "
               f"-> {v0['verdict']} sign_p={v0.get('sign_p')}")
-        print("CONCLUSION:", "SUBSTRAT_BINDE_IN_WORLD_PROPRE" if v0["verdict"] == "GRADIENT_GAGNE"
-              else "VERROU_IN_WORLD_PLUS_PROFOND")
+        if v0["verdict"] == "GRADIENT_GAGNE" and len(seeds) >= 12:
+            print("CONCLUSION: SUBSTRAT_BINDE_IN_WORLD_PROPRE")
+        elif v0["verdict"] == "GRADIENT_GAGNE":
+            print(f"CONCLUSION: BINDING_APPARENT mais n={len(seeds)}<12 -> NON-CONCLUANT "
+                  "(garde-fou power-evaporation ; relancer avec TTG_SEEDS>=12)")
+        else:
+            print("CONCLUSION: VERROU_IN_WORLD_PLUS_PROFOND")
     else:
         out = compare(seeds=seeds, ticks=ticks, warmup=warmup, n_agents=agents,
                       base_metabolism=bm, forage_payoff=fp)
