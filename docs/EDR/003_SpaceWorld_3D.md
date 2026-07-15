@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-003
+type: EDR
+title: "Simulateur Volumétrique 3D (SpaceWorld)"
+status: legacy
+gate: foundational
+---
+
 # EDR 003 : Simulateur Volumétrique 3D (SpaceWorld)
 
 ## Contexte

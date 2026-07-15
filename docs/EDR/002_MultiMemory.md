@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-002
+type: EDR
+title: "Architecture Multi-Mémoire (Cognitive Layers)"
+status: legacy
+gate: foundational
+---
+
 # EDR 002 : Architecture Multi-Mémoire (Cognitive Layers)
 
 ## Contexte

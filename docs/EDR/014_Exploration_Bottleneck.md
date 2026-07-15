@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-014
+type: EDR
+title: "Le Goulot d'Exploration — Diagnostic du Moteur Évolutif & Limite du Reward-Shaping"
+status: legacy
+gate: foundational
+---
+
 # EDR 014 : Le Goulot d'Exploration — Diagnostic du Moteur Évolutif & Limite du Reward-Shaping
 
 ## Contexte

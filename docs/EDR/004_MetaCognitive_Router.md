@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-004
+type: EDR
+title: "Méta-Cognition Pure NumPy (Routeur de Mémoires)"
+status: legacy
+gate: foundational
+---
+
 # EDR 004 : Méta-Cognition Pure NumPy (Routeur de Mémoires)
 
 ## Contexte

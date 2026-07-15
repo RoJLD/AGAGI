@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-027
+type: EDR
+title: "Intégration 2D (Monde × Craft) — la chaîne moyens→fins émerge bout à bout"
+status: legacy
+gate: G2
+---
+
 # EDR 027 : Intégration 2D (Monde × Craft) — la chaîne moyens→fins émerge bout à bout
 
 ## Contexte — Vague 0quater

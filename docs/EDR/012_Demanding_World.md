@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-012
+type: EDR
+title: "Monde Exigeant (Step 2) & Premier Verdict de Falsifiabilité"
+status: legacy
+gate: G0
+---
+
 # EDR 012 : Monde Exigeant (Step 2) & Premier Verdict de Falsifiabilité
 
 ## Contexte

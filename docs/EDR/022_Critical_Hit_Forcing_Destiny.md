@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-022
+type: EDR
+title: "Le Payoff Moyens→Fins — Vérifié (cassé), puis Réparé par le Coup Critique Annealé"
+status: legacy
+gate: G2
+---
+
 # EDR 022 : Le Payoff Moyens→Fins — Vérifié (cassé), puis Réparé par le Coup Critique Annealé
 
 ## Contexte — étape 1 de la Vague 0bis : vérifier que la lance *paie*

@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-028
+type: EDR
+title: "Persistance — sevrer le crit, faire émerger la coopération robuste"
+status: legacy
+gate: G2
+---
+
 # EDR 028 : Persistance — sevrer le crit, faire émerger la coopération robuste
 
 ## Contexte — fiabiliser la Vague 0quater

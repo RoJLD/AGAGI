@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-006
+type: EDR
+title: "O1-Spiking Bytecode (V6 Core Refactoring)"
+status: legacy
+gate: foundational
+---
+
 # EDR 006 : O1-Spiking Bytecode (V6 Core Refactoring)
 
 ## Contexte

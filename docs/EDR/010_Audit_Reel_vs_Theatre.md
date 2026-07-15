@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-010
+type: EDR
+title: "Audit Réel vs Théâtre — Diagnostic & Leviers AGI"
+status: legacy
+gate: foundational
+---
+
 # EDR 010 : Audit Réel vs Théâtre — Diagnostic & Leviers AGI
 
 ## Contexte

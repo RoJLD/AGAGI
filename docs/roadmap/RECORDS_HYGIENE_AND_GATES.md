@@ -108,3 +108,12 @@ presque tous NEUTRES).
 > Note : les items touchant le legacy //-authored (P1, P2, P3) exigent l'aval de robla / une coordination
 > inter-sessions (arbre partagé). Le reste (règle anti-orphelin, P4, consolidation via nouveaux proxies) est
 > exécutable côté « mon poste » sans collision.
+
+## Journal d'exécution
+
+- **2026-07-15** — Règle anti-orphelin LIVRÉE (validateur + baseline + hook, commit 3158c47).
+- **2026-07-15** — **P4 FAIT** : convention d'ID canonisée dans `docs/EDR/README.md` (nouveaux = préfixe
+  thématique ; legacy gelé ; ancre `foundational`).
+- **2026-07-15** — **P3 vague 1 FAITE** : EDR **001–030** dé-orphanisés (29 records, frontmatter rétro-ajouté,
+  corps inchangé, `status: legacy`). Orphelins **109 → 80**. Couverture des portes : **G0 3→5, G2 0→8**
+  (la porte la plus vide est amorcée). Baseline rétréci à 80. Restant P3 : **031–104** (vagues suivantes).
