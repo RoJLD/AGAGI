@@ -63,9 +63,9 @@ Corrobore le fil « in-world NEUTRE » et la thèse substrat/crédit : ces monde
 perception→survie au niveau où opère le champion.
 
 ## Portée & limites
-- Le label `OPEN_LOOP` de l'outil est trompeur pris seul (survie-only) ; le finding CORRECT est
-  survie-neutre + comportement-dépendant. Reformuler le label de l'outil en `SURVIVAL_NEUTRAL` serait un
-  follow-up de propreté (n'invalide pas les chiffres).
+- Labels de l'outil CORRIGÉS (`OPEN_LOOP`→`SURVIVAL_NEUTRAL`, `INPUT_SENSITIVE`→`SURVIVAL_SENSITIVE`) pour
+  ne pas suggérer un verdict comportemental : le témoin mesure la SURVIE, pas le comportement. Chiffres
+  inchangés.
 - Claim sur le champion HoF COURANT, pas une preuve qu'aucun agent ne pourrait faire payer la perception.
 - Ablation du flux égocentrique COMPLET (perception + proprioception) ; corroborant |W| indisponible (HoF).
 - **Duplication assumée** : `chantier/s2-ablation` (câblé dans `s2_demand`, mono-monde + régime sweet +

@@ -1,10 +1,15 @@
-"""S2-003 — Sonde ladder open-loop : localise la compétence du champion au-dessus de S2-002.
-S2-002 tranche "la perception est-elle causalement porteuse ?" via UNE ablation (permutation
-inter-agents). Cette sonde ajoute une ÉCHELLE de sévérité within-subject : permuted (dans-
-distribution, décorrélée) -> noise (hors-distribution, échelle appariée) -> zero (hors-
-distribution, dégénérée). Si les 3 barreaux sont plats (decoy), le champion est OPEN_LOOP
-(il ignore l'entrée, quelle que soit sa forme) ; si un barreau s'effondre, il est
-INPUT_SENSITIVE (la perception porte, au moins sous une forme d'ablation).
+"""S2-003 — Sonde ladder : localise la compétence de SURVIE du champion au-dessus de S2-002.
+S2-002 tranche "la perception est-elle causalement porteuse de la survie ?" via UNE ablation
+(permutation inter-agents). Cette sonde ajoute une ÉCHELLE de sévérité within-subject : permuted
+(dans-distribution, décorrélée) -> noise (hors-distribution, échelle appariée) -> zero (hors-
+distribution, dégénérée). Si les 3 barreaux sont plats (decoy), la survie est SURVIVAL_NEUTRAL
+(indépendante de l'obs, même nulle) ; si un barreau s'effondre, elle est SURVIVAL_SENSITIVE.
+
+ATTENTION : ce témoin mesure la SURVIE, donc l'(in)dépendance de la survie vis-à-vis de l'obs — PAS
+l'(in)dépendance COMPORTEMENTALE. SURVIVAL_NEUTRAL n'implique PAS "open-loop" : le champion peut
+utiliser l'obs pour agir sans que ça change sa survie (cf. contrefactuel par-tick de chantier/
+s2-ablation : ~29% des mouvements dépendent de l'obs). Pour trancher le comportement, croiser avec un
+contrefactuel d'action.
 
 N'importe PAS en modifiant s2_demand/s2_demand_ablation/demand_marker (déjà livrés, réutilisés
 tels quels via le seam batch_model_cls). Ajoute deux nouvelles classes d'ablation (bruit gaussien
@@ -50,8 +55,9 @@ def run_openloop_ladder(worlds=None, seed=2026, K=12, num_agents=12, max_ticks=2
     """Pour chaque monde : champion INTACT vs 3 barreaux d'ablation croissante (permuted -> noise
     -> zero), toutes within-subject, appariées par ère (n_eras=K). Renvoie
     {world: {intact_med, permuted, noise, zero, verdict}} où chaque barreau porte le dict complet
-    ablation_verdict (ratio/n/collapse/decoy/verdict) et verdict = lecture world-level :
-    OPEN_LOOP (les 3 barreaux sont des leurres) / INPUT_SENSITIVE (au moins un s'effondre) / MIXED."""
+    ablation_verdict (ratio/n/collapse/decoy/verdict) et verdict = lecture world-level (SURVIE) :
+    SURVIVAL_NEUTRAL (les 3 barreaux sont des leurres) / SURVIVAL_SENSITIVE (au moins un s'effondre) /
+    MIXED. NB : verdict sur la SURVIE, ne conclut pas sur le comportement (voir docstring module)."""
     worlds = worlds if worlds is not None else ["soup", "stoneage", "famine"]
     champion = load_champion_genome()
     out = {}
@@ -72,9 +78,9 @@ def run_openloop_ladder(worlds=None, seed=2026, K=12, num_agents=12, max_ticks=2
         rungs = (permuted_v, noise_v, zero_v)
 
         if all(r["decoy"] for r in rungs):
-            verdict = "OPEN_LOOP"
+            verdict = "SURVIVAL_NEUTRAL"
         elif any(r["collapse"] for r in rungs):
-            verdict = "INPUT_SENSITIVE"
+            verdict = "SURVIVAL_SENSITIVE"
         else:
             verdict = "MIXED"
 
@@ -103,10 +109,10 @@ def main():
     for w, r in m.items():
         print(f"{w:12s} {r['intact_med']:10.1f} {r['permuted']['ratio']:9.2f} "
               f"{r['noise']['ratio']:9.2f} {r['zero']['ratio']:9.2f}  {r['verdict']}")
-    open_loop = [w for w, r in m.items() if r["verdict"] == "OPEN_LOOP"]
-    input_sensitive = [w for w, r in m.items() if r["verdict"] == "INPUT_SENSITIVE"]
-    print(f"\nOPEN_LOOP (champion ignore l'entrée, tous barreaux leurres) : {open_loop or 'aucun'}")
-    print(f"INPUT_SENSITIVE (au moins un barreau s'effondre) : {input_sensitive or 'aucun'}")
+    surv_neutral = [w for w, r in m.items() if r["verdict"] == "SURVIVAL_NEUTRAL"]
+    surv_sensitive = [w for w, r in m.items() if r["verdict"] == "SURVIVAL_SENSITIVE"]
+    print(f"\nSURVIVAL_NEUTRAL (survie indifférente à l'obs, même nulle ; PAS 'open-loop') : {surv_neutral or 'aucun'}")
+    print(f"SURVIVAL_SENSITIVE (au moins un barreau effondre la survie) : {surv_sensitive or 'aucun'}")
     print("-> Rédiger EDR-S2-003 à partir de cette échelle.")
     return m
 

@@ -1,6 +1,6 @@
-"""TDD S2-003 — ladder open-loop (permuted/noise/zero) au-dessus de S2-002. RED avant
-implémentation de tools/s2_openloop_probe.py : localise si le champion ignore l'entrée
-(OPEN_LOOP) ou y est sensible-mais-robuste (INPUT_SENSITIVE)."""
+"""TDD S2-003 — ladder de survie (permuted/noise/zero) au-dessus de S2-002. RED avant
+implémentation de tools/s2_openloop_probe.py : la survie du champion est-elle indifférente à l'obs
+(SURVIVAL_NEUTRAL) ou s'effondre-t-elle sous une ablation (SURVIVAL_SENSITIVE) ?"""
 import numpy as np
 from src.agents.mamba_agent import MambaBatchModel
 
@@ -46,7 +46,7 @@ def test_ladder_wiring(monkeypatch):
     import tools.s2_openloop_probe as mod
     from tools.s2_demand_ablation import PerceptionAblatedMamba
 
-    # cas 1 : les 3 barreaux sont PLATS -> verdict monde OPEN_LOOP
+    # cas 1 : les 3 barreaux sont PLATS -> verdict monde SURVIVAL_NEUTRAL
     def _fake_flat(world_cls, batch_model_cls, genome, seed, num_agents=12, max_ticks=200, n_eras=12):
         if batch_model_cls in (None, PerceptionAblatedMamba, mod.NoiseObsMamba, mod.ZeroObsMamba):
             return {"survival": [100.0] * 12, "era_survival": [100.0] * 12}
@@ -63,9 +63,9 @@ def test_ladder_wiring(monkeypatch):
     assert r["permuted"]["n"] == 12
     assert r["noise"]["n"] == 12
     assert r["zero"]["n"] == 12
-    assert r["verdict"] == "OPEN_LOOP"
+    assert r["verdict"] == "SURVIVAL_NEUTRAL"
 
-    # cas 2 : le barreau ZERO s'effondre (ratio 5.0 >= collapse_factor) -> INPUT_SENSITIVE
+    # cas 2 : le barreau ZERO s'effondre (ratio 5.0 >= collapse_factor) -> SURVIVAL_SENSITIVE
     def _fake_zero_collapse(world_cls, batch_model_cls, genome, seed, num_agents=12, max_ticks=200, n_eras=12):
         if batch_model_cls is mod.ZeroObsMamba:
             return {"survival": [20.0] * 12, "era_survival": [20.0] * 12}
@@ -79,4 +79,4 @@ def test_ladder_wiring(monkeypatch):
     assert r2["zero"]["ratio"] == 5.0
     assert r2["permuted"]["ratio"] == 1.0
     assert r2["noise"]["ratio"] == 1.0
-    assert r2["verdict"] == "INPUT_SENSITIVE"
+    assert r2["verdict"] == "SURVIVAL_SENSITIVE"
