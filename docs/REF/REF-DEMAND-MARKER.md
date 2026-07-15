@@ -3,7 +3,7 @@ id: REF-DEMAND-MARKER
 type: REF
 title: "Témoin causal de demande — ablation within-subject de la capacité X"
 status: active
-adopt_for: [S2-001, LANG-006, G1-001, MEM-001, EDR-S2-002]
+adopt_for: [S2-001, LANG-006, G1-001, MEM-001, EDR-S2-002, EDR-S2-003]
 ---
 
 ## Énoncé
@@ -24,6 +24,7 @@ FAUX-POSITIVE : un survivant compétent peut exister dans un monde qui n'exige p
 |---|---|---|---|
 | perception (proxy) | S2-001 | obs décorrélée | within tranche, between faux-positif |
 | perception (in-world) | EDR-S2-002 | permutation batch_obs, 5 mondes | within plat (1.0×) tous mondes, between 4.7-5.2× → PERCEPTION_DECOY unanime |
+| perception (ladder) | EDR-S2-003 | échelle permuted/noise/zero, 3 mondes | tous barreaux < 1.5× même obs NULLE → champion QUASI OPEN-LOOP |
 | communication | LANG-006 | canal coupé | MI 1.04 vs 0.000 |
 | généralisation | G1-001 | θ ablaté | Δ0.83 causal |
 | mémoire | MEM-001 | mémoire remise à 0 | effondre 6-8× |
