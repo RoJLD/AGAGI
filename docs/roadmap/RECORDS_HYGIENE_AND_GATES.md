@@ -116,4 +116,8 @@ presque tous NEUTRES).
   thématique ; legacy gelé ; ancre `foundational`).
 - **2026-07-15** — **P3 vague 1 FAITE** : EDR **001–030** dé-orphanisés (29 records, frontmatter rétro-ajouté,
   corps inchangé, `status: legacy`). Orphelins **109 → 80**. Couverture des portes : **G0 3→5, G2 0→8**
-  (la porte la plus vide est amorcée). Baseline rétréci à 80. Restant P3 : **031–104** (vagues suivantes).
+  (la porte la plus vide est amorcée). Baseline rétréci à 80.
+- **2026-07-15** — **P3 vague 2 FAITE** : EDR **031–059** dé-orphanisés (28 records, 047 déjà lié). Orphelins
+  **80 → 52**. Couverture : **G3 1→14** (la 2ᵉ porte la plus vide, le fil langage historique était orphelin).
+  Baseline rétréci à 52. **Portes maintenant : G0=5, G1=6, G2=8, G3=14, G4=1** (G4 devient la plus vide →
+  prochaine cible, EDR planning/dreaming/world-model ~090-095). Restant P3 : **060–104**.

@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-041
+type: EDR
+title: "Ablation multi-points — tout verdict dépend du crit (corrige EDR 039)"
+status: legacy
+gate: foundational
+---
+
 # EDR 041 : Ablation multi-points — tout verdict dépend du crit (corrige EDR 039)
 
 ## Contexte

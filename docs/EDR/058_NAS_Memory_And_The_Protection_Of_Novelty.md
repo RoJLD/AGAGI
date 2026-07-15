@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-058
+type: EDR
+title: "NAS-mémoire — l'architecture ne grandit toujours pas, et POURQUOI (unification)"
+status: legacy
+gate: foundational
+---
+
 # EDR 058 : NAS-mémoire — l'architecture ne grandit toujours pas, et POURQUOI (unification)
 
 ## Contexte

@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-051
+type: EDR
+title: "Le #8 sur les demandes de monde — la boucle marche, la mesure est le goulot"
+status: legacy
+gate: foundational
+---
+
 # EDR 051 : Le #8 sur les demandes de monde — la boucle marche, la mesure est le goulot
 
 ## Contexte

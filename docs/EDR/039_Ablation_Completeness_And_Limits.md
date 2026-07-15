@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-039
+type: EDR
+title: "Ablations complétées — et les LIMITES de l'ablation (Vague 1bis / honnêteté)"
+status: legacy
+gate: foundational
+---
+
 # EDR 039 : Ablations complétées — et les LIMITES de l'ablation (Vague 1bis / honnêteté)
 
 ## Contexte

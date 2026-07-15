@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-055
+type: EDR
+title: "Sélection alignée — le lever le plus prometteur, mais sous-puissant"
+status: legacy
+gate: G3
+---
+
 # EDR 055 : Sélection alignée — le lever le plus prometteur, mais sous-puissant
 
 ## Contexte

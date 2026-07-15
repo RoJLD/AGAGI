@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-052
+type: EDR
+title: "Harnais d'évaluation puissant — et la recalibration de nos verdicts à 1 run"
+status: legacy
+gate: foundational
+---
+
 # EDR 052 : Harnais d'évaluation puissant — et la recalibration de nos verdicts à 1 run
 
 ## Contexte

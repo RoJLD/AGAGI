@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-038
+type: EDR
+title: "Portée du signal — la communication brise l'impasse (Vague 3, levier B)"
+status: legacy
+gate: G3
+---
+
 # EDR 038 : Portée du signal — la communication brise l'impasse (Vague 3, levier B)
 
 ## Contexte

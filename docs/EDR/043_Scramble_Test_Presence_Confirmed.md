@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-043
+type: EDR
+title: "Test de brouillage — la PRÉSENCE confirmée (ferme EDR 042)"
+status: legacy
+gate: G3
+---
+
 # EDR 043 : Test de brouillage — la PRÉSENCE confirmée (ferme EDR 042)
 
 ## Contexte

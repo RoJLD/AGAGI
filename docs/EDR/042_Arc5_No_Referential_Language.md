@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-042
+type: EDR
+title: "Arc 5 — pas de langage référentiel (l'agrégation n'est pas la communication)"
+status: legacy
+gate: G3
+---
+
 # EDR 042 : Arc 5 — pas de langage référentiel (l'agrégation n'est pas la communication)
 
 ## Contexte
