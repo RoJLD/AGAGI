@@ -320,6 +320,41 @@ def compare_rp_sweep(seeds=(0, 1, 2, 3), prey_levels=(15, 60, 150), ticks=120, w
     return out
 
 
+def compare_factorial(seeds=(0, 1, 2, 3), prey_sparse=15, prey_dense=300, ticks=120, warmup=30,
+                      n_agents=30, respawn_p=0.06, base_metabolism=0.05, forage_payoff=3.0,
+                      energy=250.0, spear_weight=2.0, antisat=0.3):
+    """Factoriel 2^4 (EDR-177) : isole les 4 confounds du binding in-world. Facteurs (True=propre) :
+    no_consume (F1), weightless (F2), dense (F3 : prey_count=dense/sparse), conditional_credit (F4).
+    Regime couche-1 neutralisee + non-biaise (penalty=0) -> seuls les 4 facteurs varient. Par cellule :
+    K seeds x {ON, SHUFFLE}, diff = gap_ON - gap_SHUFFLE, verdict via compute_ab_verdict. La cellule
+    tout-propre (T,T,T,T) est le test decisif : le substrat binde-t-il in-world PROPREMENT ?"""
+    import itertools
+    import statistics as _st
+    kw = dict(ticks=ticks, warmup=warmup, n_agents=n_agents, respawn_p=respawn_p, night=False,
+              base_metabolism=base_metabolism, forage_payoff=forage_payoff, energy=energy,
+              spear_weight=spear_weight, penalty=0.0, antisat=antisat)
+    cells = []
+    for nc, wl, dn, cc in itertools.product([False, True], repeat=4):
+        prey = prey_dense if dn else prey_sparse
+        rows, kills, throws = [], [], []
+        for s in seeds:
+            on = run_arm(shuffle=False, seed=s, prey_count=prey, no_consume=nc, weightless=wl,
+                         conditional_credit=cc, **kw)
+            sh = run_arm(shuffle=True, seed=s, prey_count=prey, no_consume=nc, weightless=wl,
+                         conditional_credit=cc, **kw)
+            diff = on["binding_gap_inworld"] - sh["binding_gap_inworld"]
+            rows.append({"seed": s, "on": on["binding_gap_inworld"],
+                         "shuffle": sh["binding_gap_inworld"], "diff": diff})
+            kills.append(on["kills_with_tool"]); throws.append(on["throw_rate"])
+        cells.append({"no_consume": nc, "weightless": wl, "dense": dn, "conditional_credit": cc,
+                      "prey_count": prey, "verdict": compute_ab_verdict(rows, band=0.02),
+                      "median_diff": _st.median([r["diff"] for r in rows]),
+                      "median_gap_on": _st.median([r["on"] for r in rows]),
+                      "median_kills": _st.median(kills), "median_throw": _st.median(throws),
+                      "diffs": [r["diff"] for r in rows], "rows": rows})
+    return cells
+
+
 if __name__ == "__main__":
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
