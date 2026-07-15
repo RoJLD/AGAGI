@@ -30,6 +30,15 @@ def test_n_floor_blocks_positive():
     assert v["n"] == 5                            # ...mais n insuffisant
 
 
+def test_n_floor_blocks_decoy():
+    intact = [200.0] * 5                          # n=5 < 12
+    ablated = [195.0] * 5                          # plat -> ratio ~1.03 <= 1.3 (decoy)
+    v = ablation_verdict(intact, ablated)
+    assert v["verdict"] == "INCONCLUSIVE"         # garde-fou : pas de NUL non plus sous n<12
+    assert v["decoy"] is True                      # l'effet nul est là...
+    assert v["n"] == 5                             # ...mais n insuffisant
+
+
 def test_ratio_matches_legacy_proxy_formula():
     # non-régression : ablation_verdict doit reproduire EXACTEMENT le calcul historique
     # du proxy S2-001 : within = median(intact) / max(median(ablated), 1e-9)

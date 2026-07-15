@@ -67,7 +67,8 @@ def run_ablation_map(worlds=None, seed=2026, K=12, num_agents=20, max_ticks=400)
                                 max_ticks=max_ticks, n_eras=K)
         reflex = run_condition(wcls, ReflexBatchModel, None, seed, num_agents=num_agents,
                                max_ticks=max_ticks, n_eras=K)
-        # appariement par ère (même seed_at(seed, i)) : era_survival est la médiane par ère
+        # appariement par ère (seed_at par ère) ; l'ablation consomme des tirages RNG en plus ->
+        # tape intra-ère non identique, mais le contraste porte sur la perception
         wv = ablation_verdict(intact["era_survival"], ablated["era_survival"])
         between_ratio = _median_survival(intact) / max(_median_survival(reflex), 1e-9)
         verdict = wv["verdict"].replace("X_", "PERCEPTION_")

@@ -4,7 +4,8 @@ WITHIN-subject de X, pas « un agent équipé de X réussit » (between-subject,
 ablation_verdict compare la fitness (survie) d'un MÊME sujet avec X intact vs X ablaté :
 - ratio = median(intact) / median(ablated) ; ratio >> 1 => X est causalement porteur (X_DEMANDED) ;
   ratio ~ 1 => X est un leurre (X_DECOY).
-- garde-fou n<12 : aucun verdict POSITIF sous puissance insuffisante (les petits n s'évaporent).
+- garde-fou n<12 : aucun verdict SOUS n<12, qu'il soit POSITIF (demandé) OU NUL (leurre) — les
+  petits n s'évaporent dans les deux sens.
 - corroborant optionnel weight_on_x = |W| que la politique met sur X (2e témoin ; le proxy montre
   |W|->0 quand X ne paie pas). Non calculable sur le champion HoF in-world -> None.
 
@@ -19,7 +20,8 @@ def ablation_verdict(intact, ablated, weight_on_x=None,
     """intact, ablated : itérables de fitness appariées (survies par ère/seed). Renvoie le dict verdict.
 
     - collapse := ratio >= collapse_factor (X porteur)  ; decoy := ratio <= decoy_ceiling (X leurre).
-    - verdict : X_DEMANDED si collapse ET n>=n_floor ; X_DECOY si decoy ; sinon INCONCLUSIVE.
+    - verdict : X_DEMANDED si collapse ET n>=n_floor ; X_DECOY si decoy ET n>=n_floor ; sinon
+      INCONCLUSIVE (le garde-fou n<12 bloque les deux verdicts, pas seulement le positif).
     """
     intact = [float(x) for x in intact]
     ablated = [float(x) for x in ablated]
@@ -31,9 +33,9 @@ def ablation_verdict(intact, ablated, weight_on_x=None,
     decoy = ratio <= decoy_ceiling
     if collapse and n >= n_floor:
         verdict = "X_DEMANDED"
-    elif decoy:
+    elif decoy and n >= n_floor:
         verdict = "X_DECOY"
     else:
-        verdict = "INCONCLUSIVE"          # effet présent mais sous-puissant, OU zone grise
+        verdict = "INCONCLUSIVE"          # effet OU nul sous-puissant (n<n_floor), ou zone grise
     return {"ratio": float(ratio), "n": int(n), "collapse": bool(collapse),
             "decoy": bool(decoy), "corroborant": weight_on_x, "verdict": verdict}
