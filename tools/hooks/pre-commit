@@ -1,0 +1,18 @@
+#!/bin/sh
+# Garde-fou d'hygiène du graphe de records (AGAGI).
+# Bloque tout commit qui INTRODUIT un nouvel orphelin (record sans porte ni arête) ou une
+# nouvelle collision d'id. La dette légataire est gelée dans results/record_link_baseline.json,
+# donc seuls les NOUVEAUX cas échouent. Scopé aux fichiers stagés -> ne bloque jamais sur le
+# travail non-committé d'une session parallèle.
+#
+# Installation : cp tools/hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+# Bypass d'urgence (déconseillé) : git commit --no-verify
+staged=$(git diff --cached --name-only --diff-filter=AM | grep -E '^docs/(EDR|ADR|SDR|REF)/.*\.md$')
+[ -z "$staged" ] && exit 0
+PYTHONIOENCODING=utf-8 python tools/check_record_links.py --only $staged || {
+  echo ""
+  echo "-> Raccorde le record à une porte (frontmatter 'gate: Gx' et/ou 'tests: [SDR-Gx]'),"
+  echo "   ou fais-le adopter par une REF, ou dé-duplique l'id. Puis re-commit."
+  echo "   (urgence : git commit --no-verify)"
+  exit 1
+}
