@@ -27,6 +27,8 @@ class ObsAblatedMambaBatchModel:
         if B == 0:
             return self._inner.forward(batch_obs, env_surprise_batch)
         perm = np.random.permutation(B)                  # décorrèle obs↔agent (flux seedé global)
+        # NB : seul batch_obs est permuté. env_surprise_batch (aligné agent i) est transmis tel quel ; inoffensif
+        # tant que MambaBatchModel.forward l'ignore. S'il devient actif un jour, le permuter avec la MÊME perm.
         return self._inner.forward(batch_obs[perm], env_surprise_batch)
 
     def compute_policy_gradient(self, *args, **kwargs):

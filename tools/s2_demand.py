@@ -164,7 +164,8 @@ def run_s2(worlds=None, seed=2026, K=None, num_agents=20, max_ticks=400, with_db
             sv["coherence_ok_lifescore"] = v["coherence_ok"]   # ce qu'aurait tranché l'ancien gate
             sv["censored_frac_champion"] = conds["champion"]["censored_frac"]
             report["worlds"][w] = sv
-            report["worlds"][w]["within"] = _within_block(conds)
+            if sv["verdict"] != "VOID":                  # within = sans objet si le champion est incohérent (VOID)
+                report["worlds"][w]["within"] = _within_block(conds)
 
         # FWER global : Holm sur les p_monde de la famille des mondes testés (tous ont un p_monde
         # sous la base survie ; ne plus sélectionner la famille a posteriori sur le non-VOID)

@@ -90,6 +90,13 @@ def test_within_verdict_non_causal():
     assert not r["is_causal"]
 
 
+def test_within_verdict_causal_critique():
+    # champion (45) >> ablaté (8) ; ablaté (8) PIRE que random (15) -> perception essentielle -> CAUSAL-CRITIQUE
+    r = verdict_within_subject(_cond(45), _cond(8), _cond(15))
+    assert r["verdict"] == "CAUSAL-CRITIQUE"
+    assert r["is_causal"]
+
+
 from tools.s2_demand import CONDITIONS as S2_CONDITIONS, _within_block
 
 
@@ -104,5 +111,5 @@ def test_within_block_from_conds():
     # _within_block extrait champion / champion_obs_ablated / random_action et rend le verdict
     conds = {"champion": _cond(45), "champion_obs_ablated": _cond(15), "random_action": _cond(15)}
     r = _within_block(conds)
-    assert r["verdict"] in {"CAUSAL-FULL", "CAUSAL-PARTIEL", "NON-CAUSAL"}
+    assert r["verdict"] in {"CAUSAL-FULL", "CAUSAL-PARTIEL", "CAUSAL-CRITIQUE", "NON-CAUSAL"}
     assert r["verdict"] == "CAUSAL-FULL"
