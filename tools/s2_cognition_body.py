@@ -50,9 +50,14 @@ def cognition_body_study(worlds=None, seed=2026, K=12, num_agents=20, max_ticks=
                 conds[name] = run_fn(wcls, spec["batch_model_cls"], genome, seed,
                                      num_agents=num_agents, max_ticks=max_ticks, n_eras=K)
             v = verdict_cognition_body(conds["champion"], conds["champion_body"],
-                                       conds["random_genome"], conds["random_action"])
+                                       conds["random_genome"], conds["random_action"], metric="survival")
             v["survivals"] = {k: (float(np.median(conds[k]["survival"])) if conds[k]["survival"] else 0.0)
                               for k in CELLS}
+            vl = verdict_cognition_body(conds["champion"], conds["champion_body"],
+                                        conds["random_genome"], conds["random_action"], metric="life_score")
+            vl["life_scores"] = {k: (float(np.median(conds[k]["life_score"])) if conds[k].get("life_score") else 0.0)
+                                 for k in CELLS}
+            v["life"] = vl
             report["worlds"][w] = v
     decided = [w for w in worlds if report["worlds"][w].get("policy_cmp")]
     if decided:
@@ -73,6 +78,13 @@ def _report_cogbody(report):
         print("      politique (champ vs champ_body): Cliff d=%+.2f p=%.4f | corps (champ_body vs random): Cliff d=%+.2f p=%.4f"
               " | interaction (rnd_genome vs random): Cliff d=%+.2f"
               % (pc["cliff"], v.get("policy_p_holm", pc["p"]), bc["cliff"], bc["p"], ic["cliff"]))
+        vl = v.get("life")
+        if vl is not None:
+            ls = vl["life_scores"]; pc2, bc2 = vl["policy_cmp"], vl["body_cmp"]
+            print("      [LIFE_SCORE] verdict=%-9s | life champ=%.1f champ_body=%.1f rnd_genome=%.1f rnd_action=%.1f"
+                  % (vl["verdict"], ls["champion"], ls["champion_body"], ls["random_genome"], ls["random_action"]))
+            print("        politique (champ vs champ_body): Cliff d=%+.2f p=%.4f | corps (champ_body vs random): Cliff d=%+.2f p=%.4f"
+                  % (pc2["cliff"], pc2["p"], bc2["cliff"], bc2["p"]))
     print("  -> COGNITION = la survie vient du FAIRE (politique) ; BODY = de l'ÊTRE (corps/génome).")
 
 
