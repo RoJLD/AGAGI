@@ -355,6 +355,31 @@ def compare_factorial(seeds=(0, 1, 2, 3), prey_sparse=15, prey_dense=300, ticks=
     return cells
 
 
+def _factorial_effects(cells):
+    """Effets principaux + interactions 2-way sur la carte 2^4 (EDR-177). Chaque cellule expose ses 4
+    niveaux booleens (True=propre) + `diffs` (liste des diff ON-SHUFFLE par seed). Effet principal d'un
+    facteur = moyenne(diffs | facteur propre) - moyenne(diffs | facteur confound), poole sur les 8
+    cellules de chaque niveau. Interaction 2-way = demi-difference des effets simples croises."""
+    import statistics as _st
+    factors = ("no_consume", "weightless", "dense", "conditional_credit")
+
+    def _pool(pred):
+        vals = [d for c in cells if pred(c) for d in c["diffs"]]
+        return _st.mean(vals) if vals else 0.0
+
+    main = {f: _pool(lambda c, f=f: c[f]) - _pool(lambda c, f=f: not c[f]) for f in factors}
+    inter = {}
+    for i in range(len(factors)):
+        for j in range(i + 1, len(factors)):
+            f, g = factors[i], factors[j]
+            both = _pool(lambda c, f=f, g=g: c[f] and c[g])
+            neither = _pool(lambda c, f=f, g=g: (not c[f]) and (not c[g]))
+            only_f = _pool(lambda c, f=f, g=g: c[f] and not c[g])
+            only_g = _pool(lambda c, f=f, g=g: (not c[f]) and c[g])
+            inter[f"{f}×{g}"] = 0.5 * ((both + neither) - (only_f + only_g))
+    return {"main": main, "interactions": inter}
+
+
 if __name__ == "__main__":
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -443,6 +468,38 @@ if __name__ == "__main__":
                   f"(kills~{_pos[0]['median_kills']:.0f}) => plancher r.P FRANCHI, cause CONFIRMEE")
         else:
             print("CONCLUSION: PAS_DE_BINDING meme a forte densite -> CONFOND PLUS PROFOND que r.P")
+    elif os.environ.get("TTG_MODE") == "factorial":
+        ps = int(os.environ.get("TTG_PREY_SPARSE", "15"))
+        pd = int(os.environ.get("TTG_PREY_DENSE", "300"))
+        cells = compare_factorial(seeds=seeds, prey_sparse=ps, prey_dense=pd, ticks=ticks,
+                                  warmup=warmup, n_agents=agents, respawn_p=rp,
+                                  base_metabolism=bm, forage_payoff=fp, energy=en,
+                                  spear_weight=sw, antisat=(asat if asat is not None else 0.3))
+        _lab = {"GRADIENT_GAGNE": "BINDE", "HEBBIEN_GAGNE": "SHUFFLE_BINDE_PLUS", "NEUTRE": "PLAT"}
+
+        def _tag(c):
+            return ("N" if c["no_consume"] else ".") + ("W" if c["weightless"] else ".") + \
+                   ("D" if c["dense"] else ".") + ("K" if c["conditional_credit"] else ".")
+
+        for c in sorted(cells, key=lambda c: c["median_diff"], reverse=True):
+            v = c["verdict"]
+            print(f"[{_tag(c)}] diff={c['median_diff']:+.3f} gap_ON={c['median_gap_on']:+.3f} "
+                  f"kills={c['median_kills']:.0f} throw={c['median_throw']:.2f} "
+                  f"-> {v['verdict']} ({_lab.get(v['verdict'], '?')}) sign_p={v.get('sign_p')}")
+        eff = _factorial_effects(cells)
+        print("\nEFFETS PRINCIPAUX (diff propre - diff confound) :")
+        for f, e in eff["main"].items():
+            print(f"  {f:22s} {e:+.3f}")
+        print("INTERACTIONS 2-way :")
+        for p, e in eff["interactions"].items():
+            print(f"  {p:34s} {e:+.3f}")
+        c0 = next(c for c in cells if c["no_consume"] and c["weightless"] and c["dense"]
+                  and c["conditional_credit"])
+        v0 = c0["verdict"]
+        print(f"\nCELLULE-0 (tout-propre NWDK) : diff={c0['median_diff']:+.3f} gap_ON={c0['median_gap_on']:+.3f} "
+              f"-> {v0['verdict']} sign_p={v0.get('sign_p')}")
+        print("CONCLUSION:", "SUBSTRAT_BINDE_IN_WORLD_PROPRE" if v0["verdict"] == "GRADIENT_GAGNE"
+              else "VERROU_IN_WORLD_PLUS_PROFOND")
     else:
         out = compare(seeds=seeds, ticks=ticks, warmup=warmup, n_agents=agents,
                       base_metabolism=bm, forage_payoff=fp)

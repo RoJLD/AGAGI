@@ -5,7 +5,8 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
-from tools.torch_throw_gate_inworld_ab import run_arm, compare_factorial
+import itertools
+from tools.torch_throw_gate_inworld_ab import run_arm, compare_factorial, _factorial_effects
 
 
 def test_run_arm_accepts_factorial_knobs():
@@ -30,3 +31,31 @@ def test_compare_factorial_returns_16_cells():
     for c in cells:
         assert "verdict" in c and "median_diff" in c and isinstance(c["diffs"], list)
         assert c["prey_count"] == (30 if c["dense"] else 15)  # densite mappee sur prey_count
+
+
+def test_factorial_effects_isolates_main_effect():
+    """_factorial_effects (pur) : sur 16 cellules synthetiques ou diff=+1 SSI conditional_credit propre,
+    l'effet principal de conditional_credit vaut +1.0 et les 3 autres 0.0 (isolation)."""
+    cells = []
+    for nc, wl, dn, cc in itertools.product([False, True], repeat=4):
+        diff = 1.0 if cc else 0.0
+        cells.append({"no_consume": nc, "weightless": wl, "dense": dn,
+                      "conditional_credit": cc, "diffs": [diff, diff]})
+    eff = _factorial_effects(cells)
+    assert abs(eff["main"]["conditional_credit"] - 1.0) < 1e-9
+    assert abs(eff["main"]["no_consume"]) < 1e-9
+    assert abs(eff["main"]["weightless"]) < 1e-9
+    assert abs(eff["main"]["dense"]) < 1e-9
+    assert "no_consume×conditional_credit" in eff["interactions"]
+
+
+def test_factorial_effects_detects_interaction():
+    """Interaction 2-way : diff=+1 SSI (no_consume ET conditional_credit) tous deux propres (effet
+    non-additif). L'interaction no_consume×conditional_credit doit etre positive et non nulle."""
+    cells = []
+    for nc, wl, dn, cc in itertools.product([False, True], repeat=4):
+        diff = 1.0 if (nc and cc) else 0.0
+        cells.append({"no_consume": nc, "weightless": wl, "dense": dn,
+                      "conditional_credit": cc, "diffs": [diff]})
+    eff = _factorial_effects(cells)
+    assert eff["interactions"]["no_consume×conditional_credit"] > 0.2   # interaction reelle detectee
