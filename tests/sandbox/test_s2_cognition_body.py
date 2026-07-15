@@ -34,3 +34,35 @@ def test_verdict_neither():
     # C(20) ~ B(20) ~ R(20) -> aucun -> NEITHER
     r = verdict_cognition_body(_cond(20), _cond(20), _cond(20), _cond(20))
     assert r["verdict"] == "NEITHER"
+
+
+from tools.s2_cognition_body import cognition_body_study, CELLS
+
+
+def test_cells_registered():
+    assert set(CELLS) == {"champion", "champion_body", "random_genome", "random_action"}
+    assert CELLS["champion"]["fresh_genome"] is False
+    assert CELLS["champion_body"]["fresh_genome"] is False           # MÊME génome champion
+    from src.agents.baseline_models import RandomActionBatchModel
+    assert CELLS["champion_body"]["batch_model_cls"] is RandomActionBatchModel
+    assert CELLS["champion"]["batch_model_cls"] is None              # moteur normal
+
+
+def test_study_contract_with_stub():
+    # stub run_fn : evite la biosphere. Rend une survie par cellule -> verdict structurel.
+    surv = {"champion": _cond(45), "champion_body": _cond(12),
+            "random_genome": _cond(20), "random_action": _cond(12)}
+    def stub_run(world_cls, batch_model_cls, genome, seed, num_agents, max_ticks, n_eras):
+        # associe la cellule par (batch_model_cls, genome is None)
+        from src.agents.baseline_models import RandomActionBatchModel
+        rnd = batch_model_cls is RandomActionBatchModel
+        champ = genome is not None
+        key = ("champion" if (champ and not rnd) else "champion_body" if (champ and rnd)
+               else "random_genome" if (not champ and not rnd) else "random_action")
+        return surv[key]
+    rep = cognition_body_study(worlds=["stoneage"], seed=1, K=2, num_agents=4, max_ticks=10,
+                               run_fn=stub_run, champion_genome="dummy")
+    w = rep["worlds"]["stoneage"]
+    assert w["verdict"] in {"COGNITION", "BODY", "BOTH", "NEITHER"}
+    assert w["verdict"] == "COGNITION"                              # C(45)>>B(12), B(12)~R(12)
+    assert set(w["survivals"]) == set(CELLS)
