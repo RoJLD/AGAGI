@@ -396,5 +396,56 @@ def evaluate_chain(learner, arm, K, params, seed, M):
             "consume_rate": float(cons_log.mean())}
 
 
+# ============================ Phase B — headroom apprenant (I1) + curriculum progressif-K ============================
+# R_K GELE du GATE DUR de Phase A (oracle-viable, R_K≈2K). E0_learner = le PLUS GRAND E0 gardant le monde inescapable
+# (random meurt) -> runway maximal pour l'apprenant SANS casser l'inescapabilite (repond au caveat I1 de COS).
+
+PHASE_A_R = {2: 4.0, 3: 6.0, 4: 8.0, 5: 10.0}
+
+
+def calibrate_headroom_K(K, seeds=PILOT_SEEDS, e0_grid=(16.0, 24.0, 32.0, 48.0, 64.0), M=64):
+    """R_K gele (Phase A) ; balaie e0_grid ASCENDANT et retient le PLUS GRAND E0 gardant le monde inescapable
+    (G1 oracle-chain >=0.90, G2 metronome <=0.40, G3 random <=0.20). Runway apprenant maximal sans casser
+    l'inescapabilite (I1). Renvoie E0_learner=None si aucun E0 de la grille n'est inescapable (a diagnostiquer)."""
+    R = PHASE_A_R[K]
+    grid, best = [], None
+    for e0 in e0_grid:
+        g = check_viability_gates_K(K, replace(Params(), R=R, E0=e0), seeds, M)['gates']
+        inesc_ok = bool(g['G1_oracle_chain'] and g['G2_metronome'] and g['G3_random_inesc'])
+        grid.append({"E0": e0, "inescapable": inesc_ok})
+        if inesc_ok:
+            best = e0   # ascendant -> garde le plus grand E0 encore inescapable
+    return {"R_K": R, "E0_learner": best, "grid": grid}
+
+
+def rollout_learn_curriculum_stage(learner, arm, K_stage, params_stage, seed, M, n_warm, n_cold, W,
+                                   c_warm=0.5, entropy_beta=0.01):
+    """Un cran du curriculum : phase WARM (c_consume_empty=c_warm : explorer CONSUME est sur + bonus entropie) puis
+    phase COLD (params PLEINS, sans entropie). Bootstrap du binding sequentiel que le cout de mis-emission plein
+    empeche d'amorcer a froid (recette L2 de COS, generalisee a la profondeur). Poids persistants."""
+    rollout_learn_window(learner, arm, K_stage, replace(params_stage, c_consume_empty=c_warm),
+                         seed=seed, M=M, n_episodes=n_warm, W=W, entropy_beta=entropy_beta)
+    rollout_learn_window(learner, arm, K_stage, params_stage,
+                         seed=seed + 100, M=M, n_episodes=n_cold, W=W, entropy_beta=0.0)
+    return learner
+
+
+def rollout_learn_progressive(learner, arm, K, calib_fn, seed, M, n_stage, W, params_base=None,
+                              c_warm=0.5, entropy_beta=0.01):
+    """Curriculum progressif-K : entraine successivement sur les mondes K'=2,3,...,K (MEME learner, poids persistants),
+    chaque cran = warm->cold (rollout_learn_curriculum_stage) au (R_{K'}, E0_{K'}) de calib_fn. n_stage episodes/cran
+    (moitie warm, moitie cold). W FIXE (le levier) sur tous les crans. params_base fournit les params geles (T, couts)."""
+    P0 = params_base if params_base is not None else Params()
+    for i, Kp in enumerate(range(2, K + 1)):
+        cal = calib_fn(Kp)
+        e0 = cal["E0_learner"] if cal["E0_learner"] is not None else P0.E0
+        P = replace(P0, R=cal["R_K"], E0=e0)
+        n_warm = n_stage // 2
+        n_cold = n_stage - n_warm
+        rollout_learn_curriculum_stage(learner, arm, Kp, P, seed=seed + 1000 * i, M=M,
+                                       n_warm=n_warm, n_cold=n_cold, W=W, c_warm=c_warm, entropy_beta=entropy_beta)
+    return learner
+
+
 if __name__ == "__main__":
     _report_viability(viability_gate_all_K())

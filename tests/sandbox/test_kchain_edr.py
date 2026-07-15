@@ -92,3 +92,27 @@ def test_window_credit_shapes():
     assert set(ev) >= {"survival", "binding_gap", "consume_rate"}
     assert -1.0 <= ev["binding_gap"] <= 1.0
     assert 0.0 <= ev["survival"] <= 1.0
+
+
+def test_calibrate_headroom_contract():
+    # CONTRAT (grille reduite) : structure + R_K = R gele Phase A + E0_learner dans la grille (ou None).
+    from tools.kchain_edr import (
+        calibrate_headroom_K, PHASE_A_R,
+    )
+    res = calibrate_headroom_K(2, seeds=(2000,), e0_grid=(16.0, 24.0), M=16)
+    assert set(res) >= {"R_K", "E0_learner", "grid"}
+    assert res["R_K"] == PHASE_A_R[2]
+    assert (res["E0_learner"] in (16.0, 24.0)) or (res["E0_learner"] is None)
+
+
+def test_progressive_reaches_target_K():
+    # CONTRAT : le curriculum progressif 2->3 s'entraine sans erreur et produit un learner evaluable (pas un verdict).
+    from tools.kchain_edr import (
+        rollout_learn_progressive, NpChainLearner, Params, N_ACTIONS as NA,
+    )
+    stub = lambda K: {"R_K": 2.0 * K, "E0_learner": 24.0}
+    lr = rollout_learn_progressive(
+        NpChainLearner(seed=7, arm='inesc'), 'inesc', 3, stub, seed=7, M=8,
+        n_stage=4, W=6, params_base=Params(T=40),
+    )
+    assert lr.W_out.shape[0] == NA
