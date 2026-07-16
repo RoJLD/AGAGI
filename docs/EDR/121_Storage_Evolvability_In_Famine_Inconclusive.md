@@ -10,6 +10,8 @@ verdict: INCONCLUSIF
 
 # EDR 121 : L'évolvabilité du stockage en famine est INCONCLUSIVE (l'évolution érode avant de bâtir)
 
+> **Suite (2026-07-01, passe cartographe) — RÉSOLU-PAR-AVAL.** Le verdict INCONCLUSIF de ce run tenait au confond « meltdown GA » (l'évolution érode la compétence avant que le stockage soit testable). EDR-155 (pipeline-complet en famine) lève ce confond : la compétence ÉMERGE, le stockage explicite est redondant. EDR-157 tranche ensuite l'émergence du stockage sous pression : NÉGATIF (le substrat ne spécialise pas). La question sous-jacente est donc résolue en aval — ce verdict reste INCONCLUSIF *pour ce run*, mais n'est plus un gap ouvert.
+
 ## Contexte
 
 Suite directe d'EDR-118 : `FamineWorld` EXIGE l'intelligence, mais via le **transfert de compétence

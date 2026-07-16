@@ -1,0 +1,533 @@
+{
+  "date": "2026-07-01",
+  "prefix_counts": {
+    "LEGACY": 157,
+    "REF": 11
+  },
+  "dormant_territories": [
+    {
+      "code": "SUB",
+      "statut": "actif",
+      "dernier_edr": 145,
+      "gap": 12,
+      "dormant": false
+    },
+    {
+      "code": "BIND",
+      "statut": "actif (résolu sur proxy → portage)",
+      "dernier_edr": 149,
+      "gap": 8,
+      "dormant": false
+    },
+    {
+      "code": "MEM",
+      "statut": "dormant (Partie A close)",
+      "dernier_edr": 123,
+      "gap": 34,
+      "dormant": true
+    },
+    {
+      "code": "WLD",
+      "statut": "actif",
+      "dernier_edr": 124,
+      "gap": 33,
+      "dormant": true
+    },
+    {
+      "code": "CRAFT",
+      "statut": "actif",
+      "dernier_edr": 127,
+      "gap": 30,
+      "dormant": true
+    },
+    {
+      "code": "NAV",
+      "statut": "dormant",
+      "dernier_edr": 114,
+      "gap": 43,
+      "dormant": true
+    },
+    {
+      "code": "FAM",
+      "statut": "actif",
+      "dernier_edr": 157,
+      "gap": 0,
+      "dormant": false
+    },
+    {
+      "code": "COG",
+      "statut": "actif (dreaming réfuté ; ToM comportemental épuisé sur instrument gelé MAIS volet causal OUVERT — cf. EDR-151/150 ; têtes disjointes relancées 152-154)",
+      "dernier_edr": 154,
+      "gap": 3,
+      "dormant": false
+    },
+    {
+      "code": "INFRA",
+      "statut": "continu",
+      "dernier_edr": 0,
+      "gap": 157,
+      "dormant": true
+    },
+    {
+      "code": "PROD",
+      "statut": "actif",
+      "dernier_edr": 0,
+      "gap": 157,
+      "dormant": true
+    }
+  ],
+  "orphans": [],
+  "unresolved_verdicts": [
+    {
+      "id": "EDR-121",
+      "file": "docs/EDR/121_Storage_Evolvability_In_Famine_Inconclusive.md",
+      "marker": "INCONCLUSIF",
+      "verdict": "INCONCLUSIF"
+    },
+    {
+      "id": "EDR-151",
+      "file": "docs/EDR/151_ToM_Behavioral_Coordination_Indeterminate_No_Recruitment_Above_Geometric_Baseline.md",
+      "marker": "INDETERMINATE",
+      "verdict": null
+    }
+  ],
+  "pending_leads": [
+    {
+      "file": "docs/EDR/016_HoF_Never_Saved.md",
+      "line": 53,
+      "marker": "prochain levier",
+      "snippet": "régénération (taux de mutation, part d'élite clonée) = prochain levier."
+    },
+    {
+      "file": "docs/EDR/075_Functional_Benefit_Gated_By_Competence.md",
+      "line": 51,
+      "marker": "prochain levier",
+      "snippet": "> Le prochain levier n'est **pas** plus de langage — c'est la **COMPÉTENCE de foraging** : faire"
+    },
+    {
+      "file": "docs/EDR/078_The_Plateau_Is_Fitness_Noise_Evaluate_Robustly.md",
+      "line": 47,
+      "marker": "actionnable",
+      "snippet": "## Application à la biosphère (concrète, actionnable)"
+    },
+    {
+      "file": "docs/EDR/079_Robust_Evaluation_Lifts_The_Plateau_In_The_Living_Biosphere.md",
+      "line": 39,
+      "marker": "actionnable",
+      "snippet": "## Le correctif actionnable (production)"
+    },
+    {
+      "file": "docs/EDR/082_Competence_Necessary_Not_Sufficient_Language_Must_Be_Selected.md",
+      "line": 54,
+      "marker": "prochain levier",
+      "snippet": "> Prochain levier : **co-évoluer l'usage du langage AVEC la compétence** — une fitness qui récompense"
+    },
+    {
+      "file": "docs/EDR/082_Competence_Necessary_Not_Sufficient_Language_Must_Be_Selected.md",
+      "line": 71,
+      "marker": "prochain levier",
+      "snippet": "nécessaire, pas suffisante ; le langage doit être SÉLECTIONNÉ pour payer.** Prochain levier :"
+    },
+    {
+      "file": "docs/EDR/087_Language_Content_Does_Not_Pay_Its_Teleguidance.md",
+      "line": 53,
+      "marker": "prochain levier",
+      "snippet": "- **Prochain levier (le vrai)** : un monde où le contenu est *décisionnellement critique* (densité de"
+    },
+    {
+      "file": "docs/EDR/088_Content_Benefit_Rises_With_Criticality_Trend_Not_Yet_Robust.md",
+      "line": 67,
+      "marker": "prochain levier",
+      "snippet": "## Suite (le vrai prochain levier)"
+    },
+    {
+      "file": "docs/EDR/088_Content_Benefit_Rises_With_Criticality_Trend_Not_Yet_Robust.md",
+      "line": 103,
+      "marker": "prochain levier",
+      "snippet": "Suite du « vrai prochain levier » : on pousse à **criticalité extrême** (niveaux 0.67/0.83/**0.95**) avec"
+    },
+    {
+      "file": "docs/EDR/088_Content_Benefit_Rises_With_Criticality_Trend_Not_Yet_Robust.md",
+      "line": 135,
+      "marker": "prochain levier",
+      "snippet": "*imposé* (gated), pas *sélectionné* — comme en 082. Prochain levier : **co-évoluer l'écoute/l'usage du"
+    },
+    {
+      "file": "docs/EDR/094_Intrinsic_Wall_Survival_Is_Apex_Independent.md",
+      "line": 61,
+      "marker": "prochain levier",
+      "snippet": "métabolisme de base **relatifs à l'apport de forage**. Le prochain levier mesurable :"
+    },
+    {
+      "file": "docs/EDR/094_Intrinsic_Wall_Survival_Is_Apex_Independent.md",
+      "line": 97,
+      "marker": "prochain levier",
+      "snippet": "`N_APEX` (balayé, **inerte**), **coût d'action** (−10, hardcodé — le tarif, prochain levier), `brain_cost`,"
+    },
+    {
+      "file": "docs/EDR/098_Intrinsic_Wall_Is_Not_The_Surprise_Brain_Cost.md",
+      "line": 104,
+      "marker": "prochain levier",
+      "snippet": "`ttc_surprise_scale` (balayé, **inerte**), et — prochain levier — **décomposition du drain** (throw `:1122`,"
+    },
+    {
+      "file": "docs/EDR/101_Metabolism_Rescale_Necessary_Not_Sufficient.md",
+      "line": 98,
+      "marker": "prochain levier",
+      "snippet": "`base_metabolism` (balayé : **nécessaire non suffisant**), et — prochain levier — **le forage/comportement**"
+    },
+    {
+      "file": "docs/EDR/103_Architecture_Preservation_Is_Noop_For_Apex_Monoculture_Confirmed.md",
+      "line": 56,
+      "marker": "piste suivante",
+      "snippet": "- **Piste suivante** (la seule restante du levier diversité) : **dose de diversité** — balayer la"
+    },
+    {
+      "file": "docs/EDR/104_Diversity_Dose_Has_No_Tractable_Dose_Response_Apex_Robust_To_Homogenization.md",
+      "line": 66,
+      "marker": "actionnable",
+      "snippet": "trace pas de courbe actionnable."
+    },
+    {
+      "file": "docs/EDR/104_Diversity_Dose_Has_No_Tractable_Dose_Response_Apex_Robust_To_Homogenization.md",
+      "line": 83,
+      "marker": "actionnable",
+      "snippet": "- Levier diversité-apex : **CLOS** comme dose-réponse actionnable. Pas de seuil, pas de gradient ; effet"
+    },
+    {
+      "file": "docs/EDR/105_Forage_Bottleneck_Is_Approach_Not_Capture_Champions_Dont_Reach_Prey.md",
+      "line": 110,
+      "marker": "prochain levier",
+      "snippet": "`base_metabolism` (balayé : {0, 0.25}, GOULOT=APPROCHE aux deux), et — prochain levier — **l'APPROCHE"
+    },
+    {
+      "file": "docs/EDR/105_Topological_Growth_Does_Not_Lift_Apex_Ceiling_World_Repertoire_Is_The_Lock.md",
+      "line": 64,
+      "marker": "piste amont",
+      "snippet": "> [[world-floor-survivability-gate]]) — la seule piste amont restante."
+    },
+    {
+      "file": "docs/EDR/106_Approach_Wall_Is_Policy_Not_Kinematics_Frozen_Prey_Still_Unreached.md",
+      "line": 109,
+      "marker": "prochain levier",
+      "snippet": "`prey_speed_scale` (balayé : POLITIQUE — figer ne débloque pas), et — prochain levier — la **compétence"
+    },
+    {
+      "file": "docs/EDR/107_Evolving_Navigation_In_Lewis_Plateaus_At_Low_Ceiling_Substrate_Blocked.md",
+      "line": 110,
+      "marker": "prochain levier",
+      "snippet": "one-shot ~0.18→~0.36 puis sature), et — prochain levier — l'**architecture du connectome** (capacité"
+    },
+    {
+      "file": "docs/EDR/108_Diverse_Selection_Does_Not_Rescue_Apex_Selection_Is_Not_The_Lever.md",
+      "line": 88,
+      "marker": "piste amont",
+      "snippet": "2. **Pivot répertoire-monde** (option a, la piste amont) : la convergence 104/105/108 le désigne →"
+    },
+    {
+      "file": "docs/EDR/109_Behavioral_Diversity_Confirms_Issue2_Tournament_Insufficient_Not_Issue1.md",
+      "line": 153,
+      "marker": "piste principale",
+      "snippet": "ce re-run ne l'etablit pas directement. Le verrou repertoire-monde reste la piste principale"
+    },
+    {
+      "file": "docs/EDR/109_Behavioral_Diversity_Confirms_Issue2_Tournament_Insufficient_Not_Issue1.md",
+      "line": 194,
+      "marker": "piste prioritaire",
+      "snippet": "La piste prioritaire reste **enrichir une affordance du monde** (EDR 105 : goulot = approche,"
+    },
+    {
+      "file": "docs/EDR/110_Hidden_Capacity_Does_Not_Lift_The_Navigation_Ceiling_The_Lock_Is_Not_Neuron_Count.md",
+      "line": 116,
+      "marker": "piste amont",
+      "snippet": "- **Seule piste amont restante** : enrichir le **repertoire-MONDE** (une affordance : un signal/outil/"
+    },
+    {
+      "file": "docs/EDR/116_Soup_To_Stoneage_Transfer_Is_Neutral_Under_Power_G1.md",
+      "line": 66,
+      "marker": "prochaine piste",
+      "snippet": "- **Pivot justifié** : la prochaine piste à plus fort levier n'est PAS un meilleur curriculum ni un"
+    },
+    {
+      "file": "docs/EDR/120_Compositional_Memory_Probe_Memory_Present_Not_The_Lock.md",
+      "line": 7,
+      "marker": "prochain chantier",
+      "snippet": "verdict: MEMORY_PRESENT. did_x (action X de S1) est décodable linéairement de l'état récurrent H_S2 qui produit move2 (AUC ~0.90 legacy ET torch), contrôle par permutation = 0.5 (décodeur honnête). La"
+    },
+    {
+      "file": "docs/EDR/120_Compositional_Memory_Probe_Memory_Present_Not_The_Lock.md",
+      "line": 98,
+      "marker": "prochain chantier",
+      "snippet": "→ Prochain chantier = **curriculum progressif** (récompenser `did_x` seul en S1, dense, puis basculer"
+    },
+    {
+      "file": "docs/EDR/120_Compositional_Memory_Probe_Memory_Present_Not_The_Lock.md",
+      "line": 130,
+      "marker": "actionnable",
+      "snippet": "la composition → verrou = découverte (récompense rare), actionnable par shaping en prod ; si non →"
+    },
+    {
+      "file": "docs/EDR/129_Compositional_Gating_Learned_Gate_Binds_Intermittently.md",
+      "line": 4,
+      "marker": "actionnable",
+      "snippet": "title: \"Levier 2 (gating archi did_x→logits Y) : un gate explicite entraînable DÉBLOQUE le binding compositionnel (7/10 seeds, gap 0.37-0.68) là où le substrat de base ne binde JAMAIS — mais uniquemen"
+    },
+    {
+      "file": "docs/EDR/129_Compositional_Gating_Learned_Gate_Binds_Intermittently.md",
+      "line": 7,
+      "marker": "actionnable",
+      "snippet": "verdict: \"Levier 2 d'EDR 126 (le binding est-il un problème de ROUTAGE ?). On ajoute un GATE sur le logit Y en phase B, 3 modes : none (baseline), oracle (biais câblé ±selon did_x VRAI = plafond), lea"
+    },
+    {
+      "file": "docs/EDR/130_Compositional_Credit_Levers_Do_Not_Firm_Gate_Reliability.md",
+      "line": 67,
+      "marker": "actionnable",
+      "snippet": "- **Levier 2 (structure de gating)** — LE DÉBLOQUEUR (EDR 129 : 7/10, actionnable migration)."
+    },
+    {
+      "file": "docs/EDR/130_Compositional_Credit_Levers_Do_Not_Firm_Gate_Reliability.md",
+      "line": 82,
+      "marker": "piste suivante",
+      "snippet": "pourquoi les seeds 0/3/4 verrouillent) — c'est la piste suivante (sonder H_S2 précoce des seeds"
+    },
+    {
+      "file": "docs/EDR/131_Compositional_Collapse_Is_Early_Path_Dependence_Not_Representation.md",
+      "line": 7,
+      "marker": "actionnable",
+      "snippet": "verdict: \"Diagnostic du plafond 7/10 (pourquoi les seeds 0,3,4 collapsent déterministiquement). probe_collapse_predictors : gate learned + capture PRÉCOCE (1er quart / 1re moitié) de 3 prédicteurs, co"
+    },
+    {
+      "file": "docs/EDR/131_Compositional_Collapse_Is_Early_Path_Dependence_Not_Representation.md",
+      "line": 63,
+      "marker": "actionnable",
+      "snippet": "TROP TARD (le bassin always-Y est déjà entré au 1er quart). **Actionnable** : la fiabilité se gagnera par"
+    },
+    {
+      "file": "docs/EDR/131_Compositional_Collapse_Is_Early_Path_Dependence_Not_Representation.md",
+      "line": 81,
+      "marker": "piste suivante",
+      "snippet": "intervention précoce (warm-start) qui RESCAPE les collapsés → c'est la piste suivante directe."
+    },
+    {
+      "file": "docs/EDR/131_Compositional_Collapse_Is_Early_Path_Dependence_Not_Representation.md",
+      "line": 87,
+      "marker": "piste suivante",
+      "snippet": "collapsés). Piste suivante = intervention précoce (warm-start du gate) pour tester causalement la"
+    },
+    {
+      "file": "docs/EDR/133_Compositional_Nonlinear_Readout_Does_Not_Unlock_Suppression.md",
+      "line": 7,
+      "marker": "actionnable",
+      "snippet": "verdict: \"Test de l'actionnable migration d'EDR 132 (verrou résiduel = suppression de Y sur ¬did_x sur 3,4) : un readout plus riche le débloque-t-il ? Gate refactoré en MLP 1 couche cachée (tanh), gat"
+    },
+    {
+      "file": "docs/EDR/133_Compositional_Nonlinear_Readout_Does_Not_Unlock_Suppression.md",
+      "line": 16,
+      "marker": "actionnable",
+      "snippet": "Y boosté partout → always-Y), et ni le warm-start ni le gel ne le rescapent. Actionnable migration"
+    },
+    {
+      "file": "docs/EDR/133_Compositional_Nonlinear_Readout_Does_Not_Unlock_Suppression.md",
+      "line": 18,
+      "marker": "actionnable",
+      "snippet": "cet actionnable et, sur la revue, ajoute le contrôle représentationnel tardif qui départage bassin"
+    },
+    {
+      "file": "docs/EDR/133_Compositional_Nonlinear_Readout_Does_Not_Unlock_Suppression.md",
+      "line": 110,
+      "marker": "actionnable",
+      "snippet": "Clôt l'actionnable « readout additif plus riche » d'EDR 132 (RÉFUTÉ pour l'additif tanh : capacité ≠"
+    },
+    {
+      "file": "docs/EDR/150_ToM_Gated_Not_Dead_Head_Inert_Reward_Disconnected_From_Fitness.md",
+      "line": 90,
+      "marker": "actionnable",
+      "snippet": "latent (contexte partage vs modelisation) ; (2) le finding actionnable = **rebrancher l'incitation ToM sur"
+    },
+    {
+      "file": "docs/EDR/153_Disjoint_Gain_Is_Loss_Scale_Credit_Confound_Flat_GradNorm_Recovers_It_Migration5_Refuted.md",
+      "line": 89,
+      "marker": "actionnable",
+      "snippet": "- **Actionnable prod** : le substrat torch de prod devrait embarquer un **équilibrage de crédit multi-tête**"
+    },
+    {
+      "file": "docs/EDR/154_Disjoint_Residual_Not_Cleanly_Moments_PerHead_Adam_Recovers_Like_LossScale_PARTIAL.md",
+      "line": 57,
+      "marker": "actionnable",
+      "snippet": "3. **Migration #5 : conclusion INCHANGÉE et renforcée.** L'actionnable prod reste un **équilibrage de crédit"
+    },
+    {
+      "file": "docs/EDR/154_Disjoint_Residual_Not_Cleanly_Moments_PerHead_Adam_Recovers_Like_LossScale_PARTIAL.md",
+      "line": 96,
+      "marker": "actionnable",
+      "snippet": "- **Actionnable prod (inchangé)** : embarquer un **équilibrage de crédit multi-tête** (échelle de loss / moments"
+    },
+    {
+      "file": "memory/MEMORY.md",
+      "line": 6,
+      "marker": "actionnable",
+      "snippet": "- [Audit typologie d'intelligence : connectome PLAT, têtes non dissociées](intelligence-typing-flat-connectome.md) — 5 cachés sans isolation gradient ; seul module séparé = referential_head ; même ver"
+    },
+    {
+      "file": "memory/MEMORY.md",
+      "line": 20,
+      "marker": "actionnable",
+      "snippet": "- [Compétence coop = POPULATION ; chaîne 104-140 → binding RÉSOLU : recette 10/10 = gate (129) + anti-saturation politique de base (136), ROBUSTE au sur-entraînement (149, ex-140)](coop-competence-is-"
+    },
+    {
+      "file": "memory/coop-competence-is-population-property.md",
+      "line": 43,
+      "marker": "prochaine piste",
+      "snippet": "**Diversite COMPORTEMENTALE -> le tournoi ne PRESERVE meme pas la diversite (EDR 109)** : clot le caveat metrique d'EDR 108. Ajout d'une metrique `behavioral_diversity`/ere a `evolve_ceiling_probe` (d"
+    },
+    {
+      "file": "memory/coop-competence-is-population-property.md",
+      "line": 61,
+      "marker": "actionnable",
+      "snippet": "**LEVIER 2 (GATING) POSITIF — un gate appris DEBLOQUE le binding (7/10 seeds), le verrou EST la structure de routage (EDR 129)** : test du 2e levier. `run_curriculum_fade_gated` : gate sur le logit Y "
+    },
+    {
+      "file": "memory/coop-competence-is-population-property.md",
+      "line": 63,
+      "marker": "piste suivante",
+      "snippet": "**LEVIER 3 (CREDIT/OPTIM) NE FIRME PAS — le plafond 7/10 est un probleme d'INIT, pas de credit (EDR 130) ; CLOT LA TRILOGIE 128-129-130** : test du 3e levier pour firmer les 3/10 collapses d'EDR 129. "
+    },
+    {
+      "file": "memory/coop-competence-is-population-property.md",
+      "line": 65,
+      "marker": "piste suivante",
+      "snippet": "**DIAGNOSTIC : le plafond 7/10 est une PATH-DEPENDENCE PRECOCE (always-Y), PAS une limite de representation (EDR 131)** : explique POURQUOI les seeds 0,3,4 collapsent (suite EDR 130). `run_curriculum_"
+    },
+    {
+      "file": "memory/coop-competence-is-population-property.md",
+      "line": 69,
+      "marker": "prochaine piste",
+      "snippet": "**READOUT NON-LINEAIRE (MLP) N'OUVRE PAS LA SUPPRESSION — residuel = BASSIN d'optim (0,4), pas l'expressivite (EDR 133)** : teste l'actionnable d'EDR 132 (un readout plus riche debloque-t-il la suppre"
+    },
+    {
+      "file": "memory/edr090-no-survivable-first-rung.md",
+      "line": 14,
+      "marker": "prochain levier",
+      "snippet": "**How to apply:** ne pas relancer un curriculum de létalité sur substrat stoneage. Le prochain levier est l'**adaptation du substrat au monde référentiel** (survivre-en-Lewis comme pré-requis), pas un"
+    },
+    {
+      "file": "memory/fil-directeur-agi-gates.md",
+      "line": 20,
+      "marker": "prochaine piste",
+      "snippet": "**G1 (north-star) 1ʳᵉ mesure = NEUTRE** (EDR-116, 2026-06-30) : soup→stoneage (les 2 seuls mondes réels distincts après G0 — agri VOID, indus=stoneage-déguisé) ne transfère PAS. soup câblé dans `WORLD"
+    },
+    {
+      "file": "memory/fil-directeur-agi-gates.md",
+      "line": 28,
+      "marker": "prochaine piste",
+      "snippet": "**Transfert ZÉRO-SHOT cross-world = POSITIF (EDR-129, 2026-07-01) — PREMIER G1 net.** Priorité tranchée (robla « le mieux dans le bon ordre ») : transfert G1 AVANT durcir-la-famine (le zéro-shot est l"
+    },
+    {
+      "file": "memory/intelligence-typing-flat-connectome.md",
+      "line": 22,
+      "marker": "actionnable",
+      "snippet": "**How to apply:** backlog priorisé dans `docs/AUDIT_MEMOIRE_INTELLIGENCE.md`. P2 [torch] têtes disjointes/losses séparées = collision session // (différé/coordonner). **P3a per-type LIVRÉ (EDR 125, `t"
+    },
+    {
+      "file": "memory/nas-bottleneck-is-substrate-not-search.md",
+      "line": 21,
+      "marker": "piste amont",
+      "snippet": "**RAFFINEMENT (EDR 105, 2026-06-25) — « substrat » = RÉPERTOIRE-MONDE, PAS capacité réseau.** ⚠️ Ce raffinement est RENVERSÉ par EDR 111 ci-dessus (le répertoire-monde n'est pas le verrou non plus). L"
+    },
+    {
+      "file": "memory/sota-gap-substrate.md",
+      "line": 18,
+      "marker": "actionnable",
+      "snippet": "**Résultat in-world (EDR-134, 2026-07-01)** : le barreau-0 (gradient gagne sur jouet) NE réplique PAS en biosphère. `tools/substrate_world_ab.py` injecte `env.batch_model_cls` (seam S2 world_1_stoneag"
+    },
+    {
+      "file": "memory/sota-gap-substrate.md",
+      "line": 34,
+      "marker": "prochain build",
+      "snippet": "**EDR-144/145 (backlog frontière, 2026-07-01).** **144 (port masque attention)** : le masque d'entrée dynamique de legacy porté dans torch (flag `INPUT_ATTENTION`) donne la parité FORWARD bit-à-bit (p"
+    },
+    {
+      "file": "memory/sota-gap-substrate.md",
+      "line": 36,
+      "marker": "prochain build",
+      "snippet": "**EDR-146 (BPTT in-substrat sur means→ends, coordonné //).** `learn_episode_bptt` ADDITIF sur `TorchPopulationModel` (ne touche ni forward ni learn → banc compositional // intact). Coordination : leur"
+    },
+    {
+      "file": "memory/sota-gap-substrate.md",
+      "line": 40,
+      "marker": "actionnable",
+      "snippet": "**EDR-148 (port PROD de la recette gate+anti-saturation LIVRÉ dans `backend_torch.py`, flag-gated OFF prod-safe).** Head de gate porté dans le VRAI substrat `TorchPopulationModel` (`CONDITION_GATE`/`A"
+    }
+  ],
+  "lock_terms": {
+    "per_territory": {
+      "MEM": 30,
+      "WLD": 5,
+      "NAV": 51,
+      "COG": 39,
+      "CRAFT": 11,
+      "BIND": 63,
+      "SUB": 5,
+      "FAM": 10
+    },
+    "per_term": {
+      "verrou": {
+        "total": 162,
+        "territories": [
+          "BIND",
+          "COG",
+          "CRAFT",
+          "FAM",
+          "MEM",
+          "NAV",
+          "SUB",
+          "WLD"
+        ],
+        "systemic": true
+      },
+      "mur": {
+        "total": 99,
+        "territories": [
+          "COG",
+          "CRAFT",
+          "MEM",
+          "NAV"
+        ],
+        "systemic": true
+      },
+      "refute": {
+        "total": 86,
+        "territories": [
+          "BIND",
+          "COG",
+          "CRAFT",
+          "FAM",
+          "MEM",
+          "NAV",
+          "SUB"
+        ],
+        "systemic": true
+      },
+      "bassin": {
+        "total": 28,
+        "territories": [
+          "BIND"
+        ],
+        "systemic": false
+      },
+      "plancher": {
+        "total": 73,
+        "territories": [
+          "BIND",
+          "COG",
+          "CRAFT",
+          "FAM",
+          "MEM",
+          "NAV",
+          "WLD"
+        ],
+        "systemic": true
+      }
+    }
+  }
+}

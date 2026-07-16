@@ -12,7 +12,7 @@ export default defineConfig({
       output: {
         manualChunks: {
           react: ["react", "react-dom"],
-          d3: ["d3", "d3-sankey"],
+          d3: ["d3-selection", "d3-force", "d3-drag"],
           recharts: ["recharts"],
         },
       },

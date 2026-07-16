@@ -49,7 +49,7 @@
 - **Compétence (075-081)** : plateau = **bruit de fitness** (`078`) → remède robuste en prod, qui **compose** (`081`).
 - **Survie (082-087)** : le langage ne payait pas car les agents mouraient ~45 ticks (`082`). Cause = **économie d'énergie** (`084` : 79 % starvent) → **sweet spot** (`085`, survie ×4) → débloquer la survie a *révélé et corrigé* une **instabilité du connectome** sur les longs épisodes (`086`) → **re-test rigoureux du bénéfice du langage en cours** (`087`, design audité contre 12 confounds).
 
-> **Discipline** : 5 fois un signal à peu de seeds s'est évaporé sous puissance (`057/075/077/082/083`). *Powerer + auditer le design avant de conclure.*
+> **Discipline** : **6 fois** un signal à peu de seeds s'est évaporé sous puissance (`057/075/082/083/163` ; `077` = réfutation d'hypothèse, mécanique distincte). Cause-racine (diagnostic 2026-07-10) = puissance **RÉACTIVE** (on mesure à n=3-6 → positif → *puis* on double) + la **bande-sur-médiane** de `compute_ab_verdict` est plus permissive que le **test de signe** (explicite `163` : « bande fragile ; le sign-test tranche »). **Règle : aucun verdict POSITIF sous n=12 seeds** (sous 12 = verdict *exploratoire* seulement) ; **`sign_p` prime sur la seule bande-sur-médiane** ; l'effet-taille juge s'il **SURVIT à la puissance** (pas à n=4). *Powerer + auditer le design avant de conclure.*
 
 ---
 
@@ -217,6 +217,8 @@ consensus×complexité ; coût de signal + sélection sur l'écoute (`083`) ; le
 ---
 
 ## Statut des Vagues (pointeurs)
+
+- 🗺️ **Territoires de recherche & convention d'IDs** : `docs/roadmap/SPECIALITES.md` (registre vivant, source de vérité de la spécialisation).
 
 | Vague | Statut |
 |---|---|

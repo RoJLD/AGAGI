@@ -1,5 +1,5 @@
 ---
-id: EDR-125
+id: EDR-126
 type: EDR
 title: Curriculum à fade — le plafond JOINT était la rétention de X (hit_end 0.30→0.59 ×2 quand X est maintenu), MAIS la mesure DIRECTE de P(Y|X) révèle que le binding conditionnel est ABSENT (Y ⊥ did_x) ; torch résout le joint en montant les marginales, pas en conditionnant Y sur X
 status: validated
@@ -7,7 +7,7 @@ gate: null
 verdict: "Le fade maintient X (compo_didx 0.38→0.865, 5/5, le contrôle PASSE). Sous X maintenu, torch hit_end DOUBLE (0.30→0.59) → le plafond joint d'EDR 122 était LARGEMENT la rétention de X. MAIS la mesure DIRECTE P(Y|X) (le gap d'EDR 122, comblé ici) montre P(Y|X) ≈ P(Y) inconditionnel sur 5/5 seeds (Y INDÉPENDANT de did_x ; P(Y|X) même légèrement ≤ P(Y)) → torch NE binde PAS Y sur did_x, il monte les DEUX marginales. Le means→ends conditionnel n'est PAS cracké même par torch+curriculum+fade ; le binding est le verrou résiduel irréductible (legacy ne monte même pas les marginales : hit 0.000). Nuance/correction d'EDR 122 : la « DISCOVERY torch » est du marginal-raising, pas du binding."
 ---
 
-# EDR 125 : Curriculum à fade — plafond joint = rétention de X ; binding conditionnel ABSENT
+# EDR 126 : Curriculum à fade — plafond joint = rétention de X ; binding conditionnel ABSENT
 
 ## Contexte
 

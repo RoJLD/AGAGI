@@ -76,7 +76,7 @@ def measure_in_world(world_key: str, genome, seed: int, k_eval: int = 12,
 
 
 def _load_genome(hof_path: str):
-    """Génome du #1 d'un HoF donné (via override HOF_PATH, seam EDR-126)."""
+    """Génome du #1 d'un HoF donné (via override HOF_PATH, seam EDR-155)."""
     import importlib
     os.environ["HOF_PATH"] = hof_path
     importlib.reload(persistence)

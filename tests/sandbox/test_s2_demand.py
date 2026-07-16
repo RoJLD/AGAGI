@@ -68,3 +68,8 @@ def test_run_s2_smoke_one_world(monkeypatch):
     w = rep["worlds"]["stoneage"]
     assert "verdict" in w and "survival" in w
     assert rep["seed"] == 2026 and "commit" in rep
+    # Câblage addendum 2026-06-30 (EDR 124) : le verdict est porté par la SURVIE, pas life_score
+    assert w["coherence_basis"] == "survival"          # verdict_from_survival_cmps, pas s2_verdict
+    assert "life_p" in w                               # life_score conservé en corroborant non-bloquant
+    assert "coherence_ok_lifescore" in w              # trace de ce qu'aurait tranché l'ancien gate
+    assert w["verdict"] in {"EXIGE", "AMBIGU", "ANTI-CORRELE", "VOID"}

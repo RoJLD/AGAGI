@@ -4,6 +4,7 @@ has_graduated dormant) vs flat (cold start à 0.83), apparié par seed, budget d
 survie/évitement (PAS de langage : têtes/decode_act/FIABLE-BRUITÉ → EDR 091).
 Pré-enregistrement : docs/superpowers/specs/2026-06-22-EDR090-Lethality-Curriculum-design.md
 """
+import sys
 import numpy as np
 
 from src.environments.config import WorldConfig
@@ -273,4 +274,8 @@ def main_mp(R=8, levels=LEVELS, num_agents=24, n_eval=8, grad_cfg=None, seed=Non
 
 
 if __name__ == "__main__":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
     main()

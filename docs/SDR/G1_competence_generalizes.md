@@ -4,7 +4,7 @@ type: SDR
 title: La competence generalise-t-elle (north-star)
 status: open
 gate: G1
-motivates: [EDR-105, EDR-108, EDR-116, EDR-129, EDR-130]
+motivates: [EDR-105, EDR-108, EDR-116, EDR-155, EDR-156, EDR-157]
 requires_ref: true
 ---
 # SDR-G1 — Généralisation zéro-shot (north-star)
@@ -29,7 +29,7 @@ inerte en jeu (moteur auto-mange) ; une **banque d'énergie** ablatable est livr
 stockage atteignable). `SDR-G1` reste `open`. Test propre = pipeline biosphère complet (élitisme HoF) sur
 famine → sous-chantier dédié (backlog).
 
-**Test propre livré (EDR-126) : compétence ÉMERGE, stockage explicite REDONDANT.** Le pipeline complet
+**Test propre livré (EDR-155) : compétence ÉMERGE, stockage explicite REDONDANT.** Le pipeline complet
 (`main_biosphere` famine, HoF dédié, 3 seeds) LÈVE le confond GA d'EDR-121 : les champions sont COMPÉTENTS
 (atteignent/dépassent la famine : 84/200/38 ticks vs 7-12 du GA léger) → **le substrat PEUT évoluer une
 compétence de survie cyclique (temporelle)**. MAIS le stockage explicite n'émerge pas (réserve=0, delta
@@ -38,7 +38,7 @@ famine), le cache/banque est redondant à ces paramètres. Signal partiellement 
 horizon 095/113/117). Suite : durcir la famine (buffer insuffisant) pour EXIGER le stockage, OU mesurer le
 transfert (G1) de la compétence famine.
 
-**Transfert ZÉRO-SHOT mesuré (EDR-129) : POSITIF — premier signal G1 net.** Un champion lâché tel quel
+**Transfert ZÉRO-SHOT mesuré (EDR-156) : POSITIF — premier signal G1 net.** Un champion lâché tel quel
 (sans ré-évolution) dans un monde jamais vu survit à **2-7× tabula-rasa**, dans les 4 bras (3 champions
 famine→stoneage + stoneage→famine), **12/12 seeds appariés, sign_p=0.0005**, et aussi bien qu'un champion
 natif (interchangeabilité). Ceci diffère du NEUTRE d'EDR-116, qui mesurait le transfert *développemental à
@@ -52,12 +52,12 @@ spécialisation. Le verrou se déplace du transfert vers l'**émergence d'une co
 (binding compositionnel EDR-125/128 ; tool-gate EDR-111). Prochaine piste : faire émerger une compétence
 spécifique (durcir la famine / débloquer le tool-gate) PUIS re-mesurer si ELLE transfère.
 
-**Durcir la famine RÉFUTÉ comme levier (EDR-130).** On a rendu le monde tel qu'il EXIGE le stockage
+**Durcir la famine RÉFUTÉ comme levier (EDR-157).** On a rendu le monde tel qu'il EXIGE le stockage
 (régime `cyc_ab=30 / cyc_fam=120` : oracle-storer ~2× le buffer naturel) puis ré-évolué (pipeline complet,
 3 seeds × 60 ères). **Le stockage n'émerge PAS** : réserve à la transition 7.6 ≈ 7.7 (identique aux
 champions doux), aucun bénéfice du banking (storage_help ≈ 0), et les champions durs sont **plus faibles**
 que les doux dans le même régime (durcir DÉGRADE au lieu de spécialiser — piège EDR-090). → **le substrat
-n'évolue pas la compétence world-spécifique que le monde EXIGE**. Répond au frontier d'EDR-129 : le
+n'évolue pas la compétence world-spécifique que le monde EXIGE**. Répond au frontier d'EDR-156 : le
 transfert « noyau-partagé-seulement » n'est pas un accident, c'est la limite du substrat. Le north-star
 fort est bloqué **à l'ÉMERGENCE, pas au transfert** ; prochain levier = substrat/moteur (crédit conditionné,
 migration torch — EDR-128, [[sota-gap-substrate]]), pas l'exigence du monde. `SDR-G1` reste `open`.

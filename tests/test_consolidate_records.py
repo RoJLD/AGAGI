@@ -7,6 +7,7 @@ import pytest
 
 from tools.consolidate_records import (
     parse_record, scan_records, build_graph, validate_graph, roadmap_state, main,
+    find_duplicate_ids,
 )
 
 
@@ -242,3 +243,53 @@ def test_parse_record_tolerates_malformed_frontmatter(tmp_path):
     assert rec["id"] == "EDR-199"          # id derive du nom NNN_ (chemin tolerant)
     assert rec["type"] == "EDR"
     assert rec["linked"] is False          # frontmatter ignore -> non-lie
+def test_prefix_of_classifies_ids():
+    from tools.consolidate_records import _prefix_of
+    assert _prefix_of("EDR-SUB-012") == "SUB"
+    assert _prefix_of("EDR-BIND-003") == "BIND"
+    assert _prefix_of("EDR-140") == "LEGACY"
+    assert _prefix_of("SDR-G1") == "LEGACY"
+    assert _prefix_of("REF-NEAT-2002") == "REF"
+    assert _prefix_of(None) == "LEGACY"
+
+
+def test_main_payload_has_prefix_counts(tmp_path):
+    (tmp_path / "docs" / "EDR").mkdir(parents=True)
+    (tmp_path / "results").mkdir()
+    _write(tmp_path / "docs" / "EDR" / "140_Legacy.md", "# legacy\n")
+    _write(tmp_path / "docs" / "EDR" / "SUB-012_New.md",
+           "---\nid: EDR-SUB-012\ntype: EDR\ntitle: t\nstatus: validated\n---\n")
+    main(["--root", str(tmp_path)])
+    out = json.loads((tmp_path / "results" / "records_graph.json").read_text(encoding="utf-8"))
+    assert out["prefix_counts"]["LEGACY"] == 1
+    assert out["prefix_counts"]["SUB"] == 1
+
+
+def test_find_duplicate_ids_flags_collisions():
+    recs = [
+        _rec("EDR-093", "EDR"), _rec("EDR-093", "EDR"),
+        _rec("EDR-140", "EDR"),
+    ]
+    recs[0]["file"] = "docs/EDR/093_A.md"
+    recs[1]["file"] = "docs/EDR/093_B.md"
+    dups = find_duplicate_ids(recs)
+    assert len(dups) == 1
+    assert dups[0]["id"] == "EDR-093"
+    assert dups[0]["files"] == ["docs/EDR/093_A.md", "docs/EDR/093_B.md"]
+
+
+def test_find_duplicate_ids_empty_when_unique():
+    assert find_duplicate_ids([_rec("EDR-140", "EDR"), _rec("EDR-141", "EDR")]) == []
+
+
+def test_main_reports_warnings_without_failing(tmp_path):
+    (tmp_path / "docs" / "EDR").mkdir(parents=True)
+    (tmp_path / "results").mkdir()
+    # deux fichiers legacy qui résolvent au même id EDR-093
+    _write(tmp_path / "docs" / "EDR" / "093_First.md", "# a\n")
+    _write(tmp_path / "docs" / "EDR" / "093_Second.md", "# b\n")
+    rc = main(["--root", str(tmp_path)])
+    assert rc == 0   # doublon = WARNING, pas un problème bloquant
+    out = json.loads((tmp_path / "results" / "records_graph.json").read_text(encoding="utf-8"))
+    assert any(w["id"] == "EDR-093" for w in out["warnings"])
+    assert out["problems"] == []
