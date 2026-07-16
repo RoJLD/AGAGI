@@ -261,3 +261,32 @@ def verdict_within_subject(champion, champion_ablated, random_action,
         verdict = "CAUSAL-PARTIEL"
     return {"verdict": verdict, "causal_cmp": causal, "residual_cmp": residual,
             "is_causal": bool(is_causal), "edge_fully_perceptual": edge_fully_perceptual}
+
+
+def verdict_cognition_body(champion, champion_body, random_genome, random_action,
+                           alpha=ALPHA, cliff_thresh=CLIFF_THRESH, metric="survival"):
+    """Décompose l'edge de survie du champion : COGNITION (politique) vs CORPS (génome/métabolisme).
+    2x2 GÉNOME × POLITIQUE. Réutilise `_compare` (Cliff δ + p apparié par ère).
+
+    - `policy` = _compare(champion, champion_body) : sur le génome CHAMPION, la politique Mamba bat-elle
+      les actions random ? (la survie vient-elle du FAIRE ?)
+    - `body`   = _compare(champion_body, random_action) : le génome champion + actions random bat-il le
+      floor random ? (la survie vient-elle de l'ÊTRE — traits corps/métabolisme ?)
+    - `inter`  = _compare(random_genome, random_action) : effet politique sur génome RANDOM (corroborant
+      d'interaction : si la politique aide plus avec le génome champion qu'avec un génome random -> synergie).
+    Verdict (seuils gelés) : BOTH / COGNITION (politique seule) / BODY (corps seul) / NEITHER (dégénéré)."""
+    policy = _compare(champion, champion_body, metric)
+    body = _compare(champion_body, random_action, metric)
+    inter = _compare(random_genome, random_action, metric)
+    policy_sig = bool((policy["p"] < alpha) and (policy["cliff"] >= cliff_thresh))
+    body_sig = bool((body["p"] < alpha) and (body["cliff"] >= cliff_thresh))
+    if policy_sig and body_sig:
+        verdict = "BOTH"
+    elif policy_sig:
+        verdict = "COGNITION"
+    elif body_sig:
+        verdict = "BODY"
+    else:
+        verdict = "NEITHER"
+    return {"verdict": verdict, "policy_cmp": policy, "body_cmp": body, "inter_cmp": inter,
+            "policy_sig": policy_sig, "body_sig": body_sig, "metric": metric}
