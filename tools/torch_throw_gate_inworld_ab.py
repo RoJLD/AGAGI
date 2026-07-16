@@ -322,7 +322,7 @@ def compare_rp_sweep(seeds=(0, 1, 2, 3), prey_levels=(15, 60, 150), ticks=120, w
 
 def compare_factorial(seeds=(0, 1, 2, 3), prey_sparse=15, prey_dense=300, ticks=120, warmup=30,
                       n_agents=30, respawn_p=0.06, base_metabolism=0.05, forage_payoff=3.0,
-                      energy=250.0, spear_weight=2.0, antisat=0.3):
+                      energy=250.0, spear_weight=2.0, antisat=0.3, night=False):
     """Factoriel 2^4 (EDR-177) : isole les 4 confounds du binding in-world. Facteurs (True=propre) :
     no_consume (F1), weightless (F2), dense (F3 : prey_count=dense/sparse), conditional_credit (F4).
     Regime couche-1 neutralisee + non-biaise (penalty=0) -> seuls les 4 facteurs varient. Par cellule :
@@ -330,7 +330,7 @@ def compare_factorial(seeds=(0, 1, 2, 3), prey_sparse=15, prey_dense=300, ticks=
     tout-propre (T,T,T,T) est le test decisif : le substrat binde-t-il in-world PROPREMENT ?"""
     import itertools
     import statistics as _st
-    kw = dict(ticks=ticks, warmup=warmup, n_agents=n_agents, respawn_p=respawn_p, night=False,
+    kw = dict(ticks=ticks, warmup=warmup, n_agents=n_agents, respawn_p=respawn_p, night=night,
               base_metabolism=base_metabolism, forage_payoff=forage_payoff, energy=energy,
               spear_weight=spear_weight, penalty=0.0, antisat=antisat)
     cells = []

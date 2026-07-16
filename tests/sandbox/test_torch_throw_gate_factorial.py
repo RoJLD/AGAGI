@@ -5,6 +5,7 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
+import inspect
 import itertools
 from tools.torch_throw_gate_inworld_ab import run_arm, compare_factorial, _factorial_effects
 
@@ -59,3 +60,19 @@ def test_factorial_effects_detects_interaction():
                       "conditional_credit": cc, "diffs": [diff]})
     eff = _factorial_effects(cells)
     assert eff["interactions"]["no_consume×conditional_credit"] > 0.2   # interaction reelle detectee
+
+
+def test_compare_factorial_night_param_defaults_false():
+    """EDR-178 : night est expose en param de compare_factorial, defaut False (non-regressif :
+    le regime neutralise et le mode CLI factorial restent inchanges)."""
+    sig = inspect.signature(compare_factorial)
+    assert "night" in sig.parameters
+    assert sig.parameters["night"].default is False
+
+
+def test_compare_factorial_accepts_night_true():
+    """compare_factorial accepte night=True (regime letal) et complete un run court sans crash,
+    en renvoyant les 16 cellules."""
+    cells = compare_factorial(seeds=(0,), prey_sparse=15, prey_dense=30, ticks=6, warmup=2,
+                              n_agents=4, night=True)
+    assert len(cells) == 16
