@@ -60,6 +60,13 @@ class Biosphere3D(BaseWorld):
         self.torch_throw_gate_lr = 0.05
         self.torch_throw_antisat = 6.0
         self.torch_throw_shuffle = False     # bras temoin : recompense permutee
+        self.torch_throw_penalty = -0.5      # penalite throw-sans-kill. Defaut -0.5 = valeur EDR-172
+                                             # (BIAISEE). EDR-NAV-005 : ce biais effondre le binding a la
+                                             # rarete in-world (E[correct]<0 des p_success<1/3) -> mettre
+                                             # 0.0 pour la recompense NON-biaisee (borne >= -p/(1-p)).
+        self.torch_throw_shaping = False     # EDR-173-suite : credit DENSE sur la qualite de visee
+        self.torch_throw_aim_radius = 5.0    # (proximite projectile->proie) au lieu du hit binaire rare
+                                             # (~0.001 in-world). True => r(throw)=_throw_aim in [0,1].
         self._throw_w = None                 # torch (N,) : cree paresseusement au 1er tick torch
         self._throw_b = None                 # torch (1,)
         self._throw_opt = None               # Adam([_throw_w, _throw_b])
@@ -1058,7 +1065,8 @@ class Biosphere3D(BaseWorld):
     def _learn_throw_gate(self):
         """REINFORCE immediat 1-pas de la tete throw-gate (B2). Recompute p (differentiable) depuis
         H cache ce tick, utilise les decisions _throw_did stockees, recompense = outcome (kill-avec-
-        outil +1.0, autre throw -0.5, pas de throw 0.0). Shuffle => permute r parmi les vivants
+        outil +1.0, autre throw = torch_throw_penalty [defaut -0.5 EDR-172 ; 0.0 = non-biaise NAV-005],
+        pas de throw 0.0). Shuffle => permute r parmi les vivants
         (permutation seed-deterministe) pour decorreler recompense/contexte. Skip propre (log, pas
         de crash) si gate OFF, pop absent, ou desync B != len(agents). Baseline = moyenne population."""
         if not (self.use_torch_inworld and self.torch_throw_gate) or self._throw_w is None:
@@ -1078,11 +1086,15 @@ class Biosphere3D(BaseWorld):
         for i, a in enumerate(self.agents):
             if not a.get("_throw_did"):
                 r[i] = 0.0
+                continue
+            if a.get("_throw_kill_tool"):
+                n_kill += 1
+            if self.torch_throw_shaping:
+                r[i] = float(a.get("_throw_aim", 0.0))    # EDR-173-suite : credit DENSE de visee
             elif a.get("_throw_kill_tool"):
                 r[i] = 1.0
-                n_kill += 1
             else:
-                r[i] = -0.5
+                r[i] = self.torch_throw_penalty   # NAV-005 : 0.0 = non-biaise (defaut -0.5 = EDR-172)
         self._throw_kills_tool += n_kill
         if self.torch_throw_shuffle:
             r = r[self._throw_shuf_rng.permutation(B)]   # decorrele recompense/contexte
@@ -1264,6 +1276,7 @@ class Biosphere3D(BaseWorld):
                 agent["_throw_ctx"] = bool(has_spear(agent["inventory"]))  # AVANT le pop
                 agent["_throw_did"] = do_throw
                 agent["_throw_kill_tool"] = False        # arme par le bloc balistique si kill-outil
+                agent["_throw_aim"] = 0.0                # arme par le bloc balistique (visee spear, EDR-173-suite)
             else:
                 do_throw = float(logits[8]) > 0
             aim_vec = np.array([float(logits[11]), float(logits[12])])
@@ -1398,7 +1411,16 @@ class Biosphere3D(BaseWorld):
                     end_pos = (int_x, int_y, az)
 
                 thrown_item["x"], thrown_item["y"], thrown_item["z"] = end_pos[0], end_pos[1], end_pos[2]
-                
+
+                # EDR-173-suite : credit DENSE de visee (spear seulement) = proximite du point d'arrivee
+                # a la proie la plus proche, in [0,1] (1 si touche, decroit sur torch_throw_aim_radius).
+                # Densifie le signal ~binaire du hit rare (~0.001) -> gradient a chaque throw bien vise.
+                if (self.use_torch_inworld and self.torch_throw_gate
+                        and thrown_item.get("type") == "Spear" and self.preys):
+                    _md = min(((end_pos[0] - p["x"]) ** 2 + (end_pos[1] - p["y"]) ** 2) ** 0.5
+                              for p in self.preys)
+                    agent["_throw_aim"] = max(0.0, 1.0 - _md / self.torch_throw_aim_radius)
+
                 # EXP-9 : Fueling Fire
                 is_fueled = False
                 if thrown_item.get("type") == "Wood":
