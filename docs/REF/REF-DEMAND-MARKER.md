@@ -3,7 +3,7 @@ id: REF-DEMAND-MARKER
 type: REF
 title: "Témoin causal de demande — ablation within-subject de la capacité X"
 status: active
-adopt_for: [S2-001, LANG-006, G1-001, MEM-001, EDR-S2-002, EDR-S2-003, EDR-S2-004, EDR-S2-005]
+adopt_for: [S2-001, LANG-006, G1-001, MEM-001, EDR-S2-002, EDR-S2-003, EDR-S2-004, EDR-S2-005, EDR-S2-006]
 ---
 
 ## Énoncé

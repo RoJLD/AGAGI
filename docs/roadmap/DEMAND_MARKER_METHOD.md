@@ -22,5 +22,20 @@ IN-WORLD** du témoin (les 4 autres sont proxy ou synthétiques) : le pont proxy
 (within ≈ 1.0 partout, between 4.67-5.17×). C'est le témoin within-subject qui refuse correctement le
 faux-positif between, exactement comme prédit par S2-001 en proxy.
 
+## Recette CONSTRUCTIVE (arc S2-003→006) — comment FAIRE qu'un monde exige X
+S2-003 (in-world) : la survie du champion est perception-NEUTRE (corps-driven). Contrepartie constructive :
+un objectif de survie in-world exige une capacité X ssi **TROIS conditions** tiennent ensemble —
+1. **corps INSUFFISANT** (`body_gain < metab`) — sinon la survie plafonne sur le corps → NEUTRE ;
+2. **demande STRUCTURÉE par X** (obs=perception, passé=mémoire, coordination=comm, futur=anticipation) ;
+3. **devise de SURVIE** (le succès de X paie en énergie, pas une devise séparée type fitness/points).
+Confirmé sur 2 modalités disjointes : perception (S2-004) + mémoire (S2-005), cellule satisfaisant les 3 →
+SENSIBLE (~10×), sinon NEUTRE. Théorème + corollaire « proxy 9 / in-world 0 » : EDR-S2-006.
+
+## Frontière de portée : INPUT vs CALCUL
+Le demand-marker ablate un INPUT → couvre perception/mémoire/communication (inputs ablatables). Les
+capacités-CALCUL (anticipation=forward-model G4, composition=chaînage G2) exigent une **ablation de MODULE**
+(instrument distinct, plus lourd). L'arc input-ablation est complet ; l'arc module-ablation reste ouvert.
+Le poids |W| est nécessaire mais PAS suffisant (S2-005 : |W|=0.909 alors que NEUTRE) → préférer l'ablation.
+
 ## Limites
 Ablation de flux complet vs canal isolé ; corroborant |W| indisponible sur poids non exposés (HoF).
