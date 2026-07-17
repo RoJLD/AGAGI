@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-083
+type: EDR
+title: "Co-évoluer l'USAGE du langage — tendance positive préliminaire"
+status: legacy
+gate: G3
+---
+
 # EDR 083 : Co-évoluer l'USAGE du langage — tendance positive préliminaire
 
 ## Contexte

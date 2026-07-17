@@ -820,6 +820,10 @@ class MambaBatchModel:
                         self.G_batch[i][:, map_idx][None, ...],            # (1,A,N_i)
                         prev["h_rec"][None, :], cur_hrec[None, :],
                         np.array([pm]), MambaBatchModel.PLAN_LR)[0]
+                    # FIX (issue #123) : re-persister planner_G APRÈS l'update. Le forward extrait
+                    # planner_G AVANT ce point puis remet G_batch à zéro au tick suivant (restauré
+                    # depuis planner_G) ; sans cette ligne l'update ci-dessus est perdu -> g≡0 in-world.
+                    self.agents[i].planner_G = self.G_batch[i][:, map_idx].copy()
 
             # Mémoriser la transition courante pour l'update différé du prochain tick.
             hrec_t = (self.H_rec_batch[i, self.mappings[i]].copy()

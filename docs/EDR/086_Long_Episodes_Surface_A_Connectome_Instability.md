@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-086
+type: EDR
+title: "Débloquer la survie longue fait surgir (et corrige) une instabilité du connectome"
+status: legacy
+gate: foundational
+---
+
 # EDR 086 : Débloquer la survie longue fait surgir (et corrige) une instabilité du connectome
 
 ## Contexte

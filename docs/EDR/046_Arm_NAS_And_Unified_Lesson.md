@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-046
+type: EDR
+title: "Arming dirigé du #8 sur le NAS — et la leçon unifiée des deux frontières"
+status: legacy
+gate: foundational
+---
+
 # EDR 046 : Arming dirigé du #8 sur le NAS — et la leçon unifiée des deux frontières
 
 ## Contexte

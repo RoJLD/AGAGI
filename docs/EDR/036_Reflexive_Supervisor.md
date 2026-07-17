@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-036
+type: EDR
+title: "Supervisor réflexif (tendance multi-ères) + positionnement MiroFish (Vague 2 #9)"
+status: legacy
+gate: foundational
+---
+
 # EDR 036 : Supervisor réflexif (tendance multi-ères) + positionnement MiroFish (Vague 2 #9)
 
 ## Contexte

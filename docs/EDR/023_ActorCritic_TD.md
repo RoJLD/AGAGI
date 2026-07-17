@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-023
+type: EDR
+title: "Actor-Critic TD(0) — le crédit temporel pour les chaînes différées"
+status: legacy
+gate: foundational
+---
+
 # EDR 023 : Actor-Critic TD(0) — le crédit temporel pour les chaînes différées
 
 ## Contexte — étape 2 de la Vague 0bis

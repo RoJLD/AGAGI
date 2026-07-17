@@ -120,4 +120,8 @@ def main_competence_profile(R=3, eras=12, num_agents=30, max_ticks=400, seed=124
 
 
 if __name__ == "__main__":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
     main_competence_profile()

@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-097
+type: EDR
+title: "Le champion HoF ne porte PAS la compétence vivante — il fait pire que la soupe fraîche"
+status: legacy
+gate: G1
+---
+
 # EDR 097 : Le champion HoF ne porte PAS la compétence vivante — il fait pire que la soupe fraîche
 
 ## Contexte

@@ -1,4 +1,19 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-080
+type: EDR
+title: "Le HoF robuste en PRODUCTION + validation avec PUISSANCE"
+status: legacy
+gate: foundational
+---
+
 # EDR 080 : Le HoF robuste en PRODUCTION + validation avec PUISSANCE
+
+> ⚠️ **Correction (trouvaille D1, post-081)** : la revendication « EN PRODUCTION » a été INVALIDÉE puis
+> corrigée — `main_biosphere` réinstanciait un 2ᵉ `WorldConfig()` qui écrasait `robust_hof_K=4`, donc la
+> prod tournait en sélection **bruitée K=0** (pas robuste) jusqu'au fix D1. Les mesures ISOLÉES de cet
+> EDR (validation avec puissance) ne sont pas affectées ; c'est le déploiement prod qui n'a pris effet
+> qu'après le fix. Détail : `docs/roadmap/SCIENCE.md` §D1.
 
 ## Contexte
 

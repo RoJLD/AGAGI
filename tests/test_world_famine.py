@@ -232,8 +232,8 @@ def test_cycle_defaults_60_40_sans_env(monkeypatch):
 
 
 def test_cycle_params_overridables_par_env(monkeypatch):
-    """Seam de dureté (durcir la famine) : env-vars FAMINE_CYCLE_* pilotent le régime pour un run
-    main_biosphere sans toucher au code (comme HOF_PATH/MAX_ERAS, EDR-126). Régime dur = famine longue."""
+    """Seam de dureté (durcir la famine, EDR-157) : env-vars FAMINE_CYCLE_* pilotent le régime pour un
+    run main_biosphere sans toucher au code (comme HOF_PATH/MAX_ERAS). Régime dur = famine longue."""
     monkeypatch.setenv("FAMINE_CYCLE_ABUNDANCE", "30")
     monkeypatch.setenv("FAMINE_CYCLE_FAMINE", "120")
     w = FamineWorld(WorldConfig())

@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-053
+type: EDR
+title: "Re-confirmation de 047 sous puissance — l'émergence du langage est STOCHASTIQUE"
+status: legacy
+gate: G3
+---
+
 # EDR 053 : Re-confirmation de 047 sous puissance — l'émergence du langage est STOCHASTIQUE
 
 ## Contexte

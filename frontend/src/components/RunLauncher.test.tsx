@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, cleanup } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { vi, test, expect, afterEach, beforeEach } from "vitest";
 
@@ -29,7 +29,13 @@ test("le bouton Enfiler ajoute n_seeds badges pending à la file", async () => {
   renderWithClient(<RunLauncher />);
   // attend que le script se peuple depuis /api/sandbox/status
   await screen.findByRole("option", { name: "main_biosphere.py" });
-  fireEvent.click(screen.getByText(/Enfiler/));
+  // ANTI-FLAKE : script_name est peuplé par un useEffect async ; tant qu'il est vide, validateRunConfig
+  // renvoie une erreur et le bouton Enfiler reste désactivé (enqueue no-op). On attend donc que le bouton
+  // soit ACTIVÉ (précondition observable) avant de cliquer — sinon course perdue en CI = zéro badge.
+  await waitFor(() =>
+    expect((screen.getByRole("button", { name: /Enfiler/ }) as HTMLButtonElement).disabled).toBe(false),
+  );
+  fireEvent.click(screen.getByRole("button", { name: /Enfiler/ }));
   const badges = await screen.findAllByText(/· pending$/);
   expect(badges).toHaveLength(4); // n_seeds défaut = 4
 });

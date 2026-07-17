@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-007
+type: EDR
+title: "Swarm Biosphere (In-Vivo Evolution)"
+status: legacy
+gate: foundational
+---
+
 # EDR 007 : Swarm Biosphere (In-Vivo Evolution)
 
 ## Contexte

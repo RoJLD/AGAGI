@@ -49,7 +49,7 @@
 - **Compétence (075-081)** : plateau = **bruit de fitness** (`078`) → remède robuste en prod, qui **compose** (`081`).
 - **Survie (082-087)** : le langage ne payait pas car les agents mouraient ~45 ticks (`082`). Cause = **économie d'énergie** (`084` : 79 % starvent) → **sweet spot** (`085`, survie ×4) → débloquer la survie a *révélé et corrigé* une **instabilité du connectome** sur les longs épisodes (`086`) → **re-test rigoureux du bénéfice du langage en cours** (`087`, design audité contre 12 confounds).
 
-> **Discipline** : 5 fois un signal à peu de seeds s'est évaporé sous puissance (`057/075/077/082/083`). *Powerer + auditer le design avant de conclure.*
+> **Discipline** : **6 fois** un signal à peu de seeds s'est évaporé sous puissance (`057/075/082/083/163` ; `077` = réfutation d'hypothèse, mécanique distincte). Cause-racine (diagnostic 2026-07-10) = puissance **RÉACTIVE** (on mesure à n=3-6 → positif → *puis* on double) + la **bande-sur-médiane** de `compute_ab_verdict` est plus permissive que le **test de signe** (explicite `163` : « bande fragile ; le sign-test tranche »). **Règle : aucun verdict POSITIF sous n=12 seeds** (sous 12 = verdict *exploratoire* seulement) ; **`sign_p` prime sur la seule bande-sur-médiane** ; l'effet-taille juge s'il **SURVIT à la puissance** (pas à n=4). *Powerer + auditer le design avant de conclure.*
 
 ---
 
@@ -59,7 +59,7 @@
 
 ## 🔬 Frontière scientifique — prochains leviers
 
-1. **Clore le bénéfice fonctionnel du langage (Arc 4)** — re-test `087` (FIABLE vs BROUILLÉ, isole le *contenu* du téléguidage) + **power (R≥4)** : à survie longue, le contenu référentiel paye-t-il ? Si oui → Arc 4 clos.
+1. **Clore le bénéfice fonctionnel du langage (Arc 4)** — re-test `087` (FIABLE vs BROUILLÉ, isole le *contenu* du téléguidage) + **power (R≥4)** : à survie longue, le contenu référentiel paye-t-il ? Si oui → Arc 4 clos. *(Prérequis de CAPACITÉ désormais dé-risqués en proxy : trilogie `LANG-001/002/003` — cf. § Fil langage.)*
 2. **Prouver que chaque monde EXIGE l'intelligence** *(hygiène fondatrice, scan S2)* — benchmark **agent dummy vs champion HoF** (ratio de survie par monde). Si ratio≈1 → le monde est factice et toute mesure de « compétence » y est du bruit. Conditionne la validité du curriculum.
 3. **Vrai planning** *(scan S6)* — le « dreaming/MCTS » est du **random-shooting latent** (perturbe `H`, n'exploite PAS le World Model). Le brancher sur `world_model.predict()` pour simuler des trajectoires (obs→action→reward) → imagination instrumentale.
 4. **Co-évoluer l'usage du langage** (`083`, +0.29 sous 2 SE) — pression de sélection explicite sur l'écoute ; + **récompenses intrinsèques** (curiosité comme fitness — le World Model EST actif).
@@ -74,6 +74,116 @@
 > **P1** banc « demande mémoire » (n-back) + **BPTT dans la boucle** (EDR 067 : 0.78→1.00) ; **P2** [moteur torch]
 > têtes disjointes/losses séparées + récup épisodique réelle ; **P3** fitness per-type + MAP-Elites 4-tier +
 > worlds 2/3 réels (KPI cognitif) + G2 ; **P4** Theory of Mind. Recoupe la migration moteur (`NAS.md`, `sota-gap-substrate`).
+
+### 🔩 Fil torch / migration moteur — proxies H-unif (EDR 134-148, 158-168, 170 ; détail `sota-gap-substrate`)
+
+**Carte de valeur torch COMPLÈTE, exécutable prod flag-OFF** : (1) migration faisable (torch≈legacy,
+140/141) ; (2) mémoire BPTT numpy-impossible mais capacité prod (145) ; (3) **binding means→ends LIVRÉ**
+= gate + anti-saturation + `learn_episode` (crédit ÉPISODIQUE, pas TD 1-pas ; 158/159, task-agnostique,
+gate multi-cible `GATE_TARGETS` pour multi-compétences).
+
+**Pari H-unif VALIDÉ en proxy standalone** (famille routage/crédit conditionnel) :
+- **binding/composition PAIE** sous demande (161) ; **spécialisation** émerge + **division du travail**
+  (165) — les deux POSITIFS.
+- **rétention** d'un moyen COÛTEUX = **BISTABILITÉ** entièrement cartographiée (162→164→167→168→170) :
+  deux seuils — cold ≈0.04 (barrière de *bootstrap*) vs warm = **r·P** (rentabilité statique, LOI
+  confirmée par scaling 170) ; hystérésis ~22× ; warm-start **court (~50 ép)** rescape ; au-delà de r·P,
+  métastable puis collapse.
+
+**➡️ Handoff axe 3 in-world** (`[[torch-inworld-integration-plan]]`, la session in-world exécute) —
+recommandations CHIFFRÉES des proxies, à valider in-world (P y sera différent) :
+1. **Porter le binding via crédit ÉPISODIQUE** (`learn_episode`), PAS le `learn()` TD 1-pas (148).
+2. **Rétention d'un moyen coûteux** : garantir `coût_du_moyen < récompense × P(suite|moyen)` OU
+   **warm-start court** du binding (pré-entraîner à coût faible / curriculum de coût croissant / warm-start
+   du gate EDR-132). Le levier n'est PAS « renforcer le binding » (déjà fort, P~0.9) mais le **bassin**.
+3. **Multi-compétences** : gate multi-cible (`GATE_TARGETS`) route conditionnellement vers plusieurs ends.
+
+**Raffinements restants (backlog, faible priorité — substrat synthétique dégénéré)** :
+- Loi c_warm = r·P : forme exacte de P(r) (super-linéaire léger, 170) ; plus de r + seeds.
+- Profondeur de warm-start en 2D (ws × coût) ; seuil warm exact près de r·P.
+- Combiner les 3 axes (tâche exigeant binding + spécialisation + rétention coûteuse simultanément).
+- Le vrai test = in-world (axe 1/3), pas plus de proxy.
+
+### 🗣️ Fil langage — trilogie proxy Arc 4 (LANG-001/002/003 ; détail `lang-referential-capability`)
+
+**Les 3 paliers du langage établis EN PROXY synthétique** (hors biosphère, substrat torch, crédit
+épisodique `learn_episode`, sans toucher le code monde) — dé-risquent la roadmap #1 (re-test `087`) comme
+les proxies H-unif ont dé-risqué le binding :
+- **LANG-001 — CAPACITÉ** : jeu de Lewis 2-pops → signalisation référentielle porteuse (FIABLE 0.77 vs
+  chance/BROUILLÉ 0.17, K=6) ; le contenu PAIE (brouiller le signal = hasard). `referential_game_probe.py`.
+- **LANG-002 — PARTAGE** : un batch torch = N politiques distinctes → paires FIGÉES = codes PRIVÉS
+  (within 0.80 mais cross-partenaire = chance, MI≈0) ; la **rotation de partenaires** produit un protocole
+  PARTAGÉ (MI≈0.94–1.06, tout transfère à un partenaire neuf). Loi de consensus : précision partagée ↓ avec
+  la taille M (goulot de conventionnalisation), MI reste ≈1. `referential_community_probe.py`.
+- **LANG-003 — SYSTÉMATICITÉ** : référents (a0,a1), messages 2-symboles → code **compositionnel** qui
+  GÉNÉRALISE zéro-shot aux combos jamais vus (zeroshot 0.505 ≈ within 0.539 ≫ chance 0.333) + **topsim +0.30**
+  (double-confirmé, répliqué M=8/M=16). La rotation NE converge PAS sur 2-symboles (structure du message, pas
+  communauté). `compositional_language_probe.py`.
+- **LANG-004 — CONCILIATION (curriculum)** : le goulot de consensus de 003 est un DÉMARRAGE À FROID. Un
+  **curriculum dyade→rotation** (warm-start figé puis rotation) donne un code COMPOSITIONNEL (zeroshot 0.51,
+  topsim +0.31 retenus) ET PARTAGÉ (cross_mi 0.045→**0.59**, ×13) — ce que ni les dyades (privé) ni la
+  rotation à froid (échoue) ne donnaient. Partage PARTIEL + érosion du within (métastabilité). Analogue exact
+  du **warm-start de rétention (167/168/170)** : même hystérésis de bootstrap. `compositional_curriculum_probe.py`.
+- **LANG-005 — PLAFOND = RÉGIME D'OPTIM, pas capacité** : le plafond d'accuracy (within ~0.54) est INVARIANT
+  au budget (2× ép : 0.547→0.547 exact), au crédit (per_attr ≈ joint) ET à la capacité (num_nodes 172→384,
+  cachés 5→217 = ×43 : plat) → c'est l'**équilibre partiel de la co-adaptation REINFORCE** (verrou récurrent
+  « optim pas capacité », 131/132/133, 105/110), PAS la taille du substrat. MAIS capacité et crédit
+  par-attribut améliorent la **généralisation zéro-shot** (0.49→0.57) sans toucher l'accuracy → systématicité
+  et maîtrise sont des axes DISSOCIÉS. Levier compo parfaite = **optimiseur/critique** (pas + de neurones).
+  `compositional_ceiling_probe.py`.
+
+**➡️ Handoff in-world (roadmap #1, `087`)** — le re-test 087 n'a plus à prouver la CAPACITÉ (établie), seulement
+le **bénéfice de survie** du contenu référentiel in-world :
+1. **Recette langage torch** : crédit ÉPISODIQUE suffit pour la signalisation ; **rotation de partenaires**
+   pour un protocole partagé ; **messages multi-symboles indicés par position + prédiction par attribut**
+   pour la compositionnalité.
+2. **Insight transférable — le levier de qualité dépend de la COMPLEXITÉ** : la rotation (communauté) paie
+   sur tâche simple (partage 1-symbole) mais **s'effondre en consensus** sur tâche complexe (2-symboles, ne
+   converge pas) ; là c'est la **structure du message** qui porte la compositionnalité (émerge en dyades
+   figées). In-world : langage compositionnel possible même en interactions dyadiques stables SI référents
+   structurés + messages multi-tokens ; le langage PARTAGÉ exige des partenaires VARIÉS (design du monde).
+3. Recoupe #4 frontière (co-évoluer l'usage, `083`) : le proxy n'a PAS de coût de signal ni de pression sur
+   l'écoute — in-world plus dur.
+
+**Backlog langage (faible priorité — proxy)** : compositionnalité PARFAITE (within ~0.54 = plafond substrat ;
+E rotation plus court / LR décru phase 2 / warm-start plus long ; pression longueur/vocab) ; scaling
+consensus×complexité ; coût de signal + sélection sur l'écoute (`083`) ; le vrai test = in-world `087`.
+
+> 🔑 **Loi transversale du substrat (TRIANGULÉE — 3 fils indépendants).** Sous crédit épisodique, le verrou
+> n'est PAS la capacité du substrat mais le **régime de crédit/optimisation** ; et un **bassin pré-formé
+> (warm-start / curriculum)** franchit une barrière de bootstrap infranchissable à froid. Trois fils, méthodes
+> disjointes, même conclusion :
+> - **Rétention** (fil torch `167/168/170`) : un moyen coûteux n'est PAS retenu à froid (seuil cold ≈0.04) mais
+>   l'est jusqu'à ≈`r·P` après warm-start ; hystérésis ~22× ; **~50 ép de warm-start suffisent**.
+> - **Langage** (`LANG-004/005`) : la rotation ne partage rien à froid mais partage (cross_mi ×13) après un
+>   warm-start dyade (004) ; le plafond d'accuracy est **invariant à la capacité** (num_nodes ×43 cachés = plat)
+>   = régime d'optim, pas capacité (005).
+> - **Craft-or-starve** (`EDR-200` Phase B, session //, `[[decisive-substrate-thesis-test]]`) : sur un réseau
+>   12-cachés, le binding échoue à froid mais un **curriculum warm-start binde 1.000 + survit 1.000** → substrat
+>   CAPABLE, verrou = crédit/objectif ; thèse « migrer torch pour la capacité » **réfutée**.
+> - **Difficulté de tâche** (`CURR-001`, proxy de `transfer_ratio` Dev #3) : à budget égal, un curriculum
+>   facile→plein BAT le tabula-rasa (within ×1.41, zeroshot ×1.84 au-dessus de la chance ; 6000 facile + 6000
+>   plein > 12000 plein) — bénéfice plus fort en généralisation. Proxy POSITIF pour Dev #3 in-world.
+> - **Prédiction actionnable (in-world)** : un verrou qui *ressemble* à une limite de capacité est
+>   probablement une **barrière de bootstrap / de crédit** → (1) tester un **warm-start** (cohorte/gate
+>   pré-entraîné, curriculum de coût/social) et (2) soigner le **crédit/objectif** (retour épisodique, critique)
+>   AVANT de conclure à l'incapacité. Recoupe le cran 2 B2 in-world (cohorte fraîche éteinte avant l'horizon =
+>   cold-start ; `[[torch-inworld-integration-plan]]`).
+
+> 🔑 **Instrument transversal : le témoin causal de « le monde EXIGE-t-il X / X PAIE-t-il » = ablation
+> WITHIN-subject de X**, pas l'existence d'un agent qui réussit. Le marqueur **between-subject** (« un champion
+> bat un dummy ») FAUX-POSITIVE : un survivant compétent peut exister dans un monde qui n'exige pas X, et gagner
+> par un autre facteur. Le marqueur **within-subject** (décorréler X sur le MÊME agent : obs/canal randomisé) ne
+> s'effondre que si X est causalement porteur. Corroborant gratuit : le **poids que la politique optimale met
+> sur X → 0 EXACT** quand X ne paie pas. Validé par vérité-terrain (mondes DEMANDING vs TRIVIAL) sur 2 modalités :
+> - **Perception** (`S2-001`, `world_demand_marker_probe.py`) : ablation obs → demand 5-7× / trivial 1.0× ;
+>   between faux-positive 5-7× sur trivial ; corroborant `|W|` 0.996 vs 0.000. Reco : bras d'ablation-perception
+>   dans `s2_demand` (verdict CAUSAL).
+> - **Communication** (`LANG-006`, porte G3, `language_payoff_probe.py`) : ablation canal → demand 5-7× /
+>   trivial 1.0× ; le protocole n'émerge même pas s'il ne paie pas (`MI(m;a)` 1.04 vs 0.000). Reco pour clôre
+>   `087` : la tâche in-world doit imposer une **asymétrie d'info**, sinon NEUTRE attendu (structure, pas capacité).
+> - **Généralise** à toute capacité (mémoire, anticipation, spécialisation) ; prochaine cible = **G1** (une
+>   compétence transférée est-elle causalement réutilisée ?). `[[within-subject-demand-marker]]`.
 
 ## 🛠️ Outillage / Dev
 
@@ -107,6 +217,8 @@
 ---
 
 ## Statut des Vagues (pointeurs)
+
+- 🗺️ **Territoires de recherche & convention d'IDs** : `docs/roadmap/SPECIALITES.md` (registre vivant, source de vérité de la spécialisation).
 
 | Vague | Statut |
 |---|---|

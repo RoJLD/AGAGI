@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-021
+type: EDR
+title: "Affordance Matérielle — la Boucle d'Émergence Complète Tourne"
+status: legacy
+gate: G2
+---
+
 # EDR 021 : Affordance Matérielle — la Boucle d'Émergence Complète Tourne
 
 ## Contexte

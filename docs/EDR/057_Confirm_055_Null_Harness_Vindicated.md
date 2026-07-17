@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-057
+type: EDR
+title: "Confirmation de 055 à 40 seeds — NUL. Le harnais vindiqué, l'arc fiabiliser fermé."
+status: legacy
+gate: G3
+---
+
 # EDR 057 : Confirmation de 055 à 40 seeds — NUL. Le harnais vindiqué, l'arc fiabiliser fermé.
 
 ## Contexte

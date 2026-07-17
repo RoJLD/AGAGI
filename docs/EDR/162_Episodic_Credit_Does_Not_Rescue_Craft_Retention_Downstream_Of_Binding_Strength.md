@@ -9,6 +9,13 @@ verdict: NO_RETENTION_ADVANTAGE_RETENTION_DOWNSTREAM_OF_BINDING_STRENGTH
 
 # EDR 162 : le crédit épisodique ne rachète pas la rétention du craft (elle est en aval de la force du binding)
 
+> **⚠️ MÉCANISME CORRIGÉ PAR EDR-164.** Le constat (rétention à COÛT échoue) TIENT, mais l'explication
+> ci-dessous est FAUSSE : `P(consume|craft)` est en réalité HAUT (0.79-0.97), pas « ≈0.25 » (0.25 = le
+> comp_rate INCONDITIONNEL, pas le P conditionnel). Le binding est FORT ; l'effondrement est une
+> INSTABILITÉ DYNAMIQUE de bassin (falaise nette à c*≈0.04, ≪ borne statique r·P), pas une
+> non-rentabilité statique. Levier corrigé = warm-start / bassin (131/132), pas « renforcer le binding ».
+> Lire EDR-164 pour le mécanisme correct.
+
 ## Contexte
 
 2e proxy standalone du pari H-unif ([[torch-inworld-integration-plan]] : rétention(127), spécialisation
@@ -16,7 +23,8 @@ et binding partageraient le MÊME verrou de crédit conditionnel, rachetable par
 a validé l'axe binding/composition (la capacité PAIE sous demande). Ici l'axe RÉTENTION : EDR-127 = le
 craft est ATTEINT mais NON RETENU. Prédiction H-unif : une action CRAFT coûteuse (−c immédiat) à payoff
 DIFFÉRÉ (+r au consume) devrait être RETENUE sous crédit épisodique (voit le net r−c) mais décroître
-sous TD 1-pas (voit le coût immédiat). STANDALONE (`tools/craft_retention_probe.py`).
+sous TD 1-pas (voit le coût immédiat). STANDALONE (`tools/hunif_retention_probe.py` ; renommé de
+craft_retention_probe pour éviter la collision de chemin avec le banc craft in-world de main).
 
 ## Méthode
 

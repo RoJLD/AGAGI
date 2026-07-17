@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-035
+type: EDR
+title: "Sandbox sécurisée — colmater la faille RCE avant la RSI (Vague 2 #7)"
+status: legacy
+gate: foundational
+---
+
 # EDR 035 : Sandbox sécurisée — colmater la faille RCE avant la RSI (Vague 2 #7)
 
 ## Contexte

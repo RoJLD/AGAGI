@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-091
+type: EDR
+title: "Le transfert curriculum est au plancher (goulot d'exploration) ; re-métricisation sur la survie"
+status: legacy
+gate: G1
+---
+
 # EDR 091 : Le transfert curriculum est au plancher (goulot d'exploration) ; re-métricisation sur la survie
 
 ## Contexte

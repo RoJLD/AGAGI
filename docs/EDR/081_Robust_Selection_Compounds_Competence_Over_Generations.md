@@ -1,4 +1,18 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-081
+type: EDR
+title: "La sélection robuste fait COMPOSER la compétence au fil des générations"
+status: legacy
+gate: foundational
+---
+
 # EDR 081 : La sélection robuste fait COMPOSER la compétence au fil des générations
+
+> ⚠️ **Correction (trouvaille D1)** : le fix D1 corrige une revendication liée à cet EDR — la sélection
+> robuste `K=4` n'était PAS active EN PRODUCTION (`main_biosphere` écrasait `robust_hof_K` → K=0 bruité)
+> jusqu'au fix. La GRIMPÉE mesurée ici (expérience d'évolution ISOLÉE) reste valide ; c'est l'effet EN
+> PROD qui n'a pris qu'après le fix. Détail : `docs/roadmap/SCIENCE.md` §D1.
 
 ## Contexte
 

@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-049
+type: EDR
+title: "NAS sous demande — l'architecture ne grandit toujours pas (recette raffinée)"
+status: legacy
+gate: foundational
+---
+
 # EDR 049 : NAS sous demande — l'architecture ne grandit toujours pas (recette raffinée)
 
 ## Contexte

@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-032
+type: EDR
+title: "Ablation systématique + Ontologie scientifique branchée (Vague 1)"
+status: legacy
+gate: foundational
+---
+
 # EDR 032 : Ablation systématique + Ontologie scientifique branchée (Vague 1)
 
 ## Contexte

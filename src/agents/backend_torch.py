@@ -48,6 +48,9 @@ class TorchPopulationModel(PopulationModel):
     CONDITION_GATE = False   # active le gate de conditionnement dans forward + learn
     ANTISAT = 0.0            # force de l'anti-saturation de la marginale de base (EDR-136)
     GATE_TARGET = None       # index du logit move gaté (l'action "ends") ; None => gate désactivé
+    GATE_TARGETS = None      # EDR-165 : liste d'indices pour un gate MULTI-CIBLE (routage conditionnel
+                             # vers plusieurs "ends", ex. spécialisation multi-chaînes) ; prioritaire sur
+                             # GATE_TARGET quand non-None. Additif seulement. Single-target inchangé si None.
     GATE_MULT = False        # EDR-160 : gate MULTIPLICATIF sigmoïde (biais = SCALE·σ(H·w+b) ∈ [0,SCALE])
     GATE_SCALE = 8.0         # amplitude du gate multiplicatif ; σ→0 supprime PROPREMENT hors-contexte
 
@@ -84,12 +87,16 @@ class TorchPopulationModel(PopulationModel):
         self.b_gate = None
         self._gate_runtime = True     # interrupteur runtime (diagnostic EDR-148 ; voir _gate_bias)
         params = [self.W]
-        if type(self).CONDITION_GATE and type(self).GATE_TARGET is not None:
-            self.w_gate = torch.zeros(self.N, device=self.device, requires_grad=True)
-            # MULTIPLICATIF (EDR-160) : biais initial NÉGATIF -> σ≈0 -> gate démarre ÉTEINT (bon prior de
-            # porte : apprend à s'ALLUMER en contexte). ADDITIF : 0 (neutre). Sinon le gate mult démarre
-            # always-on (σ(0)=0.5) et doit désapprendre, ce qui dégrade le binding (smoke EDR-160).
-            b0 = -4.0 if type(self).GATE_MULT else 0.0
+        # MULTIPLICATIF (EDR-160) : biais initial NÉGATIF -> σ≈0 -> gate démarre ÉTEINT (bon prior de
+        # porte). ADDITIF : 0 (neutre). Sinon le gate mult démarre always-on (σ(0)=0.5) et dégrade.
+        b0 = -4.0 if type(self).GATE_MULT else 0.0
+        if type(self).CONDITION_GATE and type(self).GATE_TARGETS:
+            k = len(type(self).GATE_TARGETS)                      # gate MULTI-CIBLE (EDR-165)
+            self.w_gate = torch.zeros(self.N, k, device=self.device, requires_grad=True)
+            self.b_gate = torch.full((k,), b0, device=self.device, requires_grad=True)
+            params += [self.w_gate, self.b_gate]
+        elif type(self).CONDITION_GATE and type(self).GATE_TARGET is not None:
+            self.w_gate = torch.zeros(self.N, device=self.device, requires_grad=True)   # single (inchangé)
             self.b_gate = torch.full((1,), b0, device=self.device, requires_grad=True)
             params += [self.w_gate, self.b_gate]
         self.opt = torch.optim.SGD(params, lr=lr)
@@ -137,8 +144,12 @@ class TorchPopulationModel(PopulationModel):
         gb = self._gate_bias(H_new)
         if gb is not None:                                        # le gate influence l'action ÉCHANTILLONNÉE
             logits = logits.clone()
-            tgt = type(self).GATE_TARGET
-            logits[:, tgt] = logits[:, tgt] + gb.detach()
+            if type(self).GATE_TARGETS:                           # multi-cible (EDR-165)
+                for k, tgt in enumerate(type(self).GATE_TARGETS):
+                    logits[:, tgt] = logits[:, tgt] + gb[:, k].detach()
+            else:
+                tgt = type(self).GATE_TARGET
+                logits[:, tgt] = logits[:, tgt] + gb.detach()
         return logits.cpu().numpy(), 0
 
     def learn(self, rewards_batch, actions_batch=None):
@@ -174,7 +185,7 @@ class TorchPopulationModel(PopulationModel):
         move_logits = base_move
         gate_pen = 0.0
         gb = self._gate_bias(H_new)
-        if gb is not None:                                       # gate DANS le graphe (crédite le conditionnement)
+        if gb is not None and type(self).GATE_TARGETS is None:   # gate DANS le graphe (single ; multi = via learn_episode)
             tgt = type(self).GATE_TARGET
             onehot = torch.zeros(_MOVE_LOGITS, device=self.device)
             onehot[tgt] = 1.0
@@ -259,14 +270,23 @@ class TorchPopulationModel(PopulationModel):
             move_logits = base_move
             use_gate = self.w_gate is not None and (not gate_last_only or t == T - 1)
             if use_gate:
-                tgt = type(self).GATE_TARGET
-                onehot = torch.zeros(_MOVE_LOGITS, device=self.device)
-                onehot[tgt] = 1.0
-                gb = self._gate_value(H)                             # additif ou multiplicatif (EDR-160)
-                move_logits = base_move + gb.unsqueeze(1) * onehot
-                if type(self).ANTISAT > 0:
-                    base_p_tgt = torch.softmax(base_move, dim=1)[:, tgt].mean()
-                    gate_pen = gate_pen + type(self).ANTISAT * base_p_tgt ** 2
+                gb = self._gate_value(H)                             # (B,) single ou (B,K) multi (EDR-165)
+                if type(self).GATE_TARGETS:                          # gate MULTI-CIBLE : un biais par "ends"
+                    for k, tgt in enumerate(type(self).GATE_TARGETS):
+                        onehot = torch.zeros(_MOVE_LOGITS, device=self.device)
+                        onehot[tgt] = 1.0
+                        move_logits = move_logits + gb[:, k:k + 1] * onehot
+                        if type(self).ANTISAT > 0:
+                            base_p_tgt = torch.softmax(base_move, dim=1)[:, tgt].mean()
+                            gate_pen = gate_pen + type(self).ANTISAT * base_p_tgt ** 2
+                else:
+                    tgt = type(self).GATE_TARGET
+                    onehot = torch.zeros(_MOVE_LOGITS, device=self.device)
+                    onehot[tgt] = 1.0
+                    move_logits = base_move + gb.unsqueeze(1) * onehot
+                    if type(self).ANTISAT > 0:
+                        base_p_tgt = torch.softmax(base_move, dim=1)[:, tgt].mean()
+                        gate_pen = gate_pen + type(self).ANTISAT * base_p_tgt ** 2
             moves = torch.tensor([int(a.get("move", 0)) for a in actions_seq[t]], device=self.device)
             logp = torch.log_softmax(move_logits, dim=1)[idx, moves]
             total_logp = total_logp + (gamma ** t) * logp

@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-079
+type: EDR
+title: "L'évaluation robuste lève le plateau DANS la biosphère vivante (validation)"
+status: legacy
+gate: foundational
+---
+
 # EDR 079 : L'évaluation robuste lève le plateau DANS la biosphère vivante (validation)
 
 ## Contexte

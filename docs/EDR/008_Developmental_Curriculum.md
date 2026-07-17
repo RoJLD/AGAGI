@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-008
+type: EDR
+title: "Curriculum Développemental (Axe Ontogénétique)"
+status: legacy
+gate: foundational
+---
+
 # EDR 008 : Curriculum Développemental (Axe Ontogénétique)
 
 ## Contexte

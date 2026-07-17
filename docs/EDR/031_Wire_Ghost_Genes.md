@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-031
+type: EDR
+title: "Câbler (et non tuer) les gènes fantômes — hygiène *connective*"
+status: legacy
+gate: foundational
+---
+
 # EDR 031 : Câbler (et non tuer) les gènes fantômes — hygiène *connective*
 
 ## Contexte — Vague 1, et une objection juste

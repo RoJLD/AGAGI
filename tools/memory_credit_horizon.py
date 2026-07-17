@@ -7,6 +7,7 @@ le verrou credit-assignment d'EDR 119/120) ; si la mutation suit BPTT a grand D 
 
 Tooling pur (pas de src/, pas de make_population/torch/Biosphere). Usage : python -m tools.memory_credit_horizon
 """
+import sys
 import numpy as np
 
 from src.seed_ai.harness import Harness
@@ -86,4 +87,8 @@ def main_credit_horizon(K=4, Ds=(1, 3, 6, 10, 16, 24), R=3, epochs=400, seed=116
 
 
 if __name__ == "__main__":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
     main_credit_horizon()

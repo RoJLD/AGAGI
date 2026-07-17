@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-092
+type: EDR
+title: "La sonde de dreaming est aveugle à l'extinction — le signal est dans les morts"
+status: legacy
+gate: G4
+---
+
 # EDR 092 : La sonde de dreaming est aveugle à l'extinction — le signal est dans les morts
 
 ## Contexte

@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-045
+type: EDR
+title: "Arming dirigé du #8 sur le LANGAGE — frontière tenace (et pourquoi)"
+status: legacy
+gate: G3
+---
+
 # EDR 045 : Arming dirigé du #8 sur le LANGAGE — frontière tenace (et pourquoi)
 
 ## Contexte

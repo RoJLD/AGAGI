@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-101
+type: EDR
+title: "PAS LE METABOLISME SEUL : le rescale aide (×5) mais sature loin du gate ; le mur résiduel est le forage"
+status: legacy
+gate: foundational
+---
+
 # EDR 101 — PAS LE METABOLISME SEUL : le rescale aide (×5) mais sature loin du gate ; le mur résiduel est le forage
 
 ## Contexte

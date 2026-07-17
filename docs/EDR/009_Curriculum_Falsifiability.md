@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-009
+type: EDR
+title: "Falsifiabilité & Observabilité du Curriculum"
+status: legacy
+gate: foundational
+---
+
 # EDR 009 : Falsifiabilité & Observabilité du Curriculum
 
 ## Contexte

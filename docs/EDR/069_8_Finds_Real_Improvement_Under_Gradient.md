@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-069
+type: EDR
+title: "Le #8 trouve une VRAIE amélioration de l'agent (sur frontière gradient)"
+status: legacy
+gate: foundational
+---
+
 # EDR 069 : Le #8 trouve une VRAIE amélioration de l'agent (sur frontière gradient)
 
 ## Contexte

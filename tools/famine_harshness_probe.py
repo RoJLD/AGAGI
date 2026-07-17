@@ -1,6 +1,6 @@
-"""Sonde de DURETÉ famine (durcir-la-famine, EDR-130). Calibre le régime où le buffer d'énergie naturel
+"""Sonde de DURETÉ famine (durcir-la-famine, EDR-157). Calibre le régime où le buffer d'énergie naturel
 ÉCHOUE mais où une réserve suffirait — c.-à-d. où le monde EXIGE le stockage (corrige le « redondant »
-d'EDR-126, valable seulement à famine courte). Compare 3 conditions sur un génome donné :
+d'EDR-155, valable seulement à famine courte). Compare 3 conditions sur un génome donné :
   - buffer seul  : cache OFF (aucun stockage possible)     -> survie sur le tank d'énergie uniquement
   - réel         : cache ON  (banking auto si energy>90)    -> ce que la politique exploite vraiment
   - oracle       : cache ON + réserve pré-remplie injectée  -> borne haute du bénéfice du stockage
@@ -30,7 +30,7 @@ def classify_storage_regime(buffer_survival: float, oracle_survival: float,
                             min_ratio: float = 1.5) -> Dict:
     """PUR. Le stockage est-il load-bearing ? ratio = oracle / buffer. >= min_ratio -> STORAGE_REQUIRED
     (le buffer naturel ne suffit pas, une réserve sauverait) ; sinon STORAGE_REDUNDANT (buffer suffit,
-    cas EDR-126 à famine courte). buffer=0 -> epsilon (pas de division par zéro)."""
+    cas EDR-155 à famine courte). buffer=0 -> epsilon (pas de division par zéro)."""
     ratio = oracle_survival / max(buffer_survival, 1e-6)
     verdict = "STORAGE_REQUIRED" if ratio >= min_ratio else "STORAGE_REDUNDANT"
     return {"verdict": verdict, "ratio": ratio,

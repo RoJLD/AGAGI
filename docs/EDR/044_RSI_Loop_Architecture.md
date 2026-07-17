@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-044
+type: EDR
+title: "Architecture de la boucle RSI (#8) — câblée, NON armée"
+status: legacy
+gate: foundational
+---
+
 # EDR 044 : Architecture de la boucle RSI (#8) — câblée, NON armée
 
 ## Objet

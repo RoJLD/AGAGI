@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-050
+type: EDR
+title: "Incitation du locuteur — échec par crédit temporel (4ᵉ design manqué = l'argument #8)"
+status: legacy
+gate: G3
+---
+
 # EDR 050 : Incitation du locuteur — échec par crédit temporel (4ᵉ design manqué = l'argument #8)
 
 ## Contexte
