@@ -30,7 +30,7 @@
 - **`Metier.md`** — profils de sous-agents experts mobilisables.
 
 ### Historique (immuable — **ne pas déplacer** : `tools/parity_check.py` en dépend)
-- **`EDR/`** — 93 décisions expérimentales (`NNN_*.md`). La preuve granulaire.
+- **`EDR/`** — les décisions expérimentales (`NNN_*.md`). La preuve granulaire.
 - **`FIL_CONDUCTEUR.md`** — le récit qui relie les EDR.
 
 ### `superpowers/{specs,plans}/`

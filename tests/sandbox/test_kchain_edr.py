@@ -1,0 +1,141 @@
+import numpy as np
+import pytest
+
+from tools.kchain_edr import (
+    Params, rollout_chain, survival_auc, NOOP, STEP, CONSUME, FORAGE, N_ACTIONS, OBS_DIM,
+    oracle_chain_policy, metronome_policy, random_policy, oracle_forage_policy,
+    binding_gap, _run_chain_logged, calibrate_K,
+)
+
+
+def test_oracle_chain_survives_with_materials_k2():
+    # K=2, materiau TOUJOURS present : l'oracle STEP (prog 0->1) puis CONSUME (+R) -> gain net positif -> survit.
+    p = Params(E0=50.0, T=8)
+    mat = np.ones((1, 8), dtype=float)
+    am = rollout_chain(oracle_chain_policy(2), 'inesc', 2, p, seed=0, M=1, mat_stream=mat)
+    assert am.shape == (1, 8)
+    assert am.all()   # drift positif -> vivant tout du long
+
+
+def test_metronome_consume_empty_penalty_k3():
+    # K=3, materiau ABSENT : le metronome STEP,STEP,CONSUME open-loop -> STEP gaspilles (pas de mat) -> prog reste 0
+    # -> CONSUME a prog<K-1 = consume_empty (cout 6) -> meurt vite. E0 bas.
+    p = Params(E0=6.0, T=30)
+    mat = np.zeros((1, 30), dtype=float)
+    am = rollout_chain(metronome_policy(3), 'inesc', 3, p, seed=0, M=1, mat_stream=mat)
+    assert not am[:, -1].any()   # mort
+
+
+def test_rollout_determinism():
+    a = rollout_chain(random_policy(5), 'inesc', 3, Params(T=100), seed=5, M=16)
+    b = rollout_chain(random_policy(5), 'inesc', 3, Params(T=100), seed=5, M=16)
+    assert np.array_equal(a, b)
+
+
+def test_survival_auc_range():
+    am = rollout_chain(oracle_chain_policy(2), 'inesc', 2, Params(E0=50.0, T=40), seed=1, M=8)
+    s = survival_auc(am)
+    assert 0.0 <= s <= 1.0
+
+
+def test_binding_gap_oracle_high_random_low():
+    # oracle : CONSUME ssi prog==K-1 -> binding_gap ~1. random : actions independantes de prog -> ~0.
+    # NB (finding EDR 202) : le metronome N'EST PAS un controle negatif de BINDING : sous p_mat=0.8
+    # sa cadence fixe (STEP..STEP,CONSUME) traque INCIDEMMENT prog -> gm ~0.71-0.83 a bas K (0 a K>=4).
+    # Il reste le controle negatif de SURVIE (gate G2, il meurt via cons_empty). random est le vrai
+    # controle negatif de binding : gr = 0.0 a TOUT K.
+    # E0=400 : le controle negatif random doit SURVIVRE le dernier quart pour que gr soit MESURE.
+    # A E0=50 la population random s'eteint avant t=50 -> gr=0.0 par DEFAUT masque-vide (extinction),
+    # pas par mesure. A E0=400 random survit tout le dernier quart (K=2..5, les 2 masques peuples) -> gr mesure ~0.
+    P = Params(E0=400.0, T=200)
+    orc = oracle_chain_policy(3)
+    rnd = random_policy(7)
+    _, so = _run_chain_logged(lambda obs, mem, prog: orc(obs, mem, prog), 'inesc', 3, P, seed=7, M=32)
+    _, sr = _run_chain_logged(lambda obs, mem, prog: rnd(obs, mem, prog), 'inesc', 3, P, seed=7, M=32)
+    go = binding_gap((*so, 3))
+    gr = binding_gap((*sr, 3))
+    assert go > 0.6            # l'oracle conditionne fortement (CONSUME ssi prog==K-1)
+    assert gr < go - 0.3       # random independant de prog -> binding_gap ~0
+
+
+def test_calibrate_k_contract():
+    # CONTRAT seulement (config reduite) : structure + la fenetre.
+    res = calibrate_K(2, seeds=(2000,), r_grid=(8.0, 12.0), e0_grid=(12.0, 24.0), M=16)
+    assert set(res) >= {"ok", "R_K", "E0_K", "last"}
+    assert isinstance(res["ok"], bool)
+    if res["ok"]:
+        assert res["R_K"] in (8.0, 12.0) and res["E0_K"] in (12.0, 24.0)
+
+
+def test_chain_learner_determinism():
+    # 2 entrainements fenetre-W au meme seed -> poids byte-identiques (determinisme REINFORCE).
+    from tools.kchain_edr import (
+        NpChainLearner, rollout_learn_window, N_H,
+    )
+    P = Params(E0=32.0, T=60)
+    la = rollout_learn_window(NpChainLearner(seed=11, arm='inesc'), 'inesc', 3, P, seed=11, M=8, n_episodes=5, W=6)
+    lb = rollout_learn_window(NpChainLearner(seed=11, arm='inesc'), 'inesc', 3, P, seed=11, M=8, n_episodes=5, W=6)
+    assert np.array_equal(la.W_out, lb.W_out)
+    assert np.array_equal(la.W_ih, lb.W_ih)
+    assert np.array_equal(la.W_hh, lb.W_hh)
+
+
+def test_window_credit_shapes():
+    # Vérifie que les poids ont les bonnes formes et l'évaluation retourne les bonnes clés.
+    from tools.kchain_edr import (
+        NpChainLearner, rollout_learn_window, evaluate_chain, N_H, N_ACTIONS as NA,
+    )
+    P = Params(E0=32.0, T=60)
+    lr = rollout_learn_window(NpChainLearner(seed=1, arm='inesc'), 'inesc', 3, P, seed=1, M=8, n_episodes=3, W=6)
+    assert lr.W_out.shape == (NA, N_H)
+    ev = evaluate_chain(lr, 'inesc', 3, P, seed=99, M=8)
+    assert set(ev) >= {"survival", "binding_gap", "consume_rate"}
+    assert -1.0 <= ev["binding_gap"] <= 1.0
+    assert 0.0 <= ev["survival"] <= 1.0
+
+
+def test_calibrate_headroom_contract():
+    # CONTRAT (grille reduite) : structure + R_K = R gele Phase A + E0_learner dans la grille (ou None).
+    from tools.kchain_edr import (
+        calibrate_headroom_K, PHASE_A_R,
+    )
+    res = calibrate_headroom_K(2, seeds=(2000,), e0_grid=(16.0, 24.0), M=16)
+    assert set(res) >= {"R_K", "E0_learner", "grid"}
+    assert res["R_K"] == PHASE_A_R[2]
+    assert (res["E0_learner"] in (16.0, 24.0)) or (res["E0_learner"] is None)
+
+
+def test_progressive_reaches_target_K():
+    # CONTRAT : le curriculum progressif 2->3 s'entraine sans erreur et produit un learner evaluable (pas un verdict).
+    from tools.kchain_edr import (
+        rollout_learn_progressive, NpChainLearner, Params, N_ACTIONS as NA,
+    )
+    stub = lambda K: {"R_K": 2.0 * K, "E0_learner": 24.0}
+    lr = rollout_learn_progressive(
+        NpChainLearner(seed=7, arm='inesc'), 'inesc', 3, stub, seed=7, M=8,
+        n_stage=4, W=6, params_base=Params(T=40),
+    )
+    assert lr.W_out.shape[0] == NA
+
+
+from tools.kchain_edr import generality_curve, decompose_2x2_chain
+
+_STUB_CALIB = lambda K: {"R_K": 2.0 * K, "E0_learner": 24.0, "grid": []}
+_GEN_VERDICTS = {"GENERIQUE"}   # + "COS-SPECIFIQUE(K*)" (prefixe verifie ci-dessous)
+_DEC_VERDICTS = {"BOTH-NECESSARY", "CREDIT-SUFFISANT", "CURRICULUM-SUFFISANT", "INCOHERENT"}
+
+
+def test_generality_curve_contract():
+    res = generality_curve(seeds=(1000,), K_grid=(2, 3), M=8, n_stage=4,
+                           calib_fn=_STUB_CALIB, params_base=Params(T=40))
+    assert len(res["grid"]) == 2
+    for row in res["grid"]:
+        assert set(row) >= {"K", "binding", "survival", "composes"}
+    assert (res["verdict"] in _GEN_VERDICTS) or res["verdict"].startswith("COS-SPECIFIQUE(")
+
+
+def test_decompose_2x2_chain_contract():
+    res = decompose_2x2_chain(seeds=(1000,), K=3, M=8, n_stage=4,
+                              calib_fn=_STUB_CALIB, params_base=Params(T=40))
+    assert len(res["cells"]) == 4
+    assert res["verdict"] in _DEC_VERDICTS

@@ -5,11 +5,13 @@ censurée + life_score (cohérence), appariement seedé (Harness D1), verdict IU
 Pré-enregistrement : docs/superpowers/specs/2026-06-14-S2-World-Demands-Intelligence-design.md.
 """
 import math
+import sys
 import numpy as np
 from src.seed_ai.harness import seed_at, Harness, _git_short_commit
 from src.seed_ai.persistence import calculate_life_score, load_hall_of_fame
 from src.agents.baseline_models import RandomActionBatchModel, ReflexBatchModel
-from src.seed_ai.s2_stats import s2_verdict, holm
+from src.agents.ablation_models import ObsAblatedMambaBatchModel
+from src.seed_ai.s2_stats import s2_verdict, verdict_from_survival_cmps, holm, verdict_within_subject
 from src.worlds.world_1_stoneage import Biosphere3D
 from src.worlds.world_0_soup import SoupWorld
 from src.worlds.world_2_agricultural import AgriculturalWorld
@@ -17,17 +19,18 @@ from src.worlds.world_3_industrial import IndustrialWorld
 from src.worlds.world_famine import FamineWorld
 
 
-def run_condition(world_cls, batch_model_cls, genome, seed, num_agents=20, max_ticks=400, n_eras=1):
+def run_condition(world_cls, batch_model_cls, genome, seed, num_agents=20, max_ticks=400, n_eras=1, config=None):
     """K=n_eras ères seedées base+i d'UN monde sous UNE condition. batch_model_cls=None -> moteur
     normal (MambaBatchModel, pour champion/RandomGenome) ; sinon baseline injecté (RandomAction/Reflex).
     genome=None -> agents frais (RandomGenome) ; sinon clones du génome (champion). Renvoie la survie
-    INDIVIDUELLE (âge de chaque agent, mort OU survivant-censuré) + life_score, agrégée sur les ères."""
+    INDIVIDUELLE (âge de chaque agent, mort OU survivant-censuré) + life_score, agrégée sur les ères.
+    config (WorldConfig) fixe le régime à la construction ; None = défaut historique."""
     from src.agents.mamba_agent import MambaAgent
     survival, life, censored = [], [], 0
     era_survival, era_life = [], []        # médiane PAR ère -> unité d'appariement par seed (spec §8)
     for i in range(max(1, int(n_eras))):
         seed_at(seed, i)
-        env = world_cls()
+        env = world_cls(config) if config is not None else world_cls()
         env.benchmark_mode = True              # cohorte fixe (pas de reproduction/mutation/HGT)
         env.night_enabled = False              # nuit OFF (irrésoluble dans Soup)
         env.current_era = 10_000               # scaffolds OFF (anneal -> 0)
@@ -80,6 +83,7 @@ CONDITIONS = {
     "random_action":   {"batch_model_cls": RandomActionBatchModel,  "fresh_genome": True},
     "reflex_naive":    {"batch_model_cls": ReflexBatchModel,        "fresh_genome": True},
     "reflex_prudent":  {"batch_model_cls": _reflex_prudent,         "fresh_genome": True},
+    "champion_obs_ablated": {"batch_model_cls": ObsAblatedMambaBatchModel, "fresh_genome": False},
 }
 
 
@@ -113,6 +117,13 @@ WORLDS = {"soup": SoupWorld, "stoneage": Biosphere3D,
 BASELINE_KEYS = ("random_action", "random_genome", "reflex_naive", "reflex_prudent")
 
 
+def _within_block(conds):
+    """Verdict CAUSAL within-subject d'UN monde depuis ses conditions : ablation-perception du champion.
+    champion vs champion_obs_ablated (l'ablation effondre-t-elle la survie ?), corroboré par
+    champion_obs_ablated vs random_action (l'ablé retombe-t-il au niveau aléatoire ?)."""
+    return verdict_within_subject(conds["champion"], conds["champion_obs_ablated"], conds["random_action"])
+
+
 def _run_all_conditions(world_cls, champion_genome, seed, K, num_agents, max_ticks):
     """Toutes les conditions d'UN monde -> {cond: {survival, life_score, censored_frac}}."""
     out = {}
@@ -142,11 +153,22 @@ def run_s2(worlds=None, seed=2026, K=None, num_agents=20, max_ticks=400, with_db
             # s2_verdict reçoit les dicts de condition (pooled pour l'effet + par-ère pour l'appariement)
             baselines = {"random_action": conds["random_action"],
                          "random_genome": conds["random_genome"], "reflex": refl}
+            # Verdict basé SURVIE (addendum daté 2026-06-30, cf. EDR 124) : le gate de cohérence
+            # life_score donnait un faux VOID quand le champion domine la survie 3-5x mais que son
+            # edge life_score est noyé par des événements rares/chanceux. s2_verdict calcule déjà les
+            # cmps de survie (dans les 2 branches) + life_p -> on re-rend le verdict SANS re-simuler.
             v = s2_verdict(conds["champion"], baselines)
-            v["censored_frac_champion"] = conds["champion"]["censored_frac"]
-            report["worlds"][w] = v
+            sv = verdict_from_survival_cmps(v["survival"])
+            sv["survival"] = v["survival"]
+            sv["life_p"] = v["life_p"]                          # corroborant NON-bloquant (rapporté)
+            sv["coherence_ok_lifescore"] = v["coherence_ok"]   # ce qu'aurait tranché l'ancien gate
+            sv["censored_frac_champion"] = conds["champion"]["censored_frac"]
+            report["worlds"][w] = sv
+            if sv["verdict"] != "VOID":                  # within = sans objet si le champion est incohérent (VOID)
+                report["worlds"][w]["within"] = _within_block(conds)
 
-        # FWER global : Holm sur les p_monde des mondes au verdict non-VOID
+        # FWER global : Holm sur les p_monde de la famille des mondes testés (tous ont un p_monde
+        # sous la base survie ; ne plus sélectionner la famille a posteriori sur le non-VOID)
         decided = [w for w in worlds if report["worlds"][w].get("p_monde") is not None]
         if decided:
             adj = holm([report["worlds"][w]["p_monde"] for w in decided])
@@ -161,17 +183,31 @@ def run_s2(worlds=None, seed=2026, K=None, num_agents=20, max_ticks=400, with_db
 
 def _print_table(report):
     print(f"\n=== S2 — Le monde exige-t-il l'intelligence ? (seed={report['seed']}, commit={report['commit']}) ===")
+    print("    cohérence basée SURVIE (addendum 2026-06-30, EDR 124) ; life_p = corroborant non-bloquant")
     for w, v in report["worlds"].items():
-        if v["verdict"] == "VOID":
-            print(f"  {w:12s} : VOID (cohérence life_score échouée, life_p={v['life_p']:.3f})")
-            continue
         s = v["survival"][v["strongest_baseline"]]
+        if v["verdict"] == "VOID":
+            # base survie : VOID = un baseline domine le champion en survie (vraie incohérence)
+            print(f"  {w:12s} : VOID (survie incohérente : {v['strongest_baseline']} domine, "
+                  f"p_monde={v['p_monde']:.3f}, Cliff d={s['cliff']:+.2f})")
+            continue
+        gate = "ok" if v.get("coherence_ok_lifescore") else "faux-VOID"
         print(f"  {w:12s} : {v['verdict']:12s} | p_monde={v.get('p_monde_holm', v['p_monde']):.3f} "
-              f"| vs {v['strongest_baseline']}: Cliff δ={s['cliff']:+.2f}, ratio[{s['ratio_lo']:.2f},{s['ratio_hi']:.2f}] "
-              f"| censuré={v['censored_frac_champion']*100:.0f}%")
-    print("  -> Rédiger EDR 088 à partir de ce verdict. Si censuré>5% quelque part : augmenter max_ticks.")
+              f"| vs {v['strongest_baseline']}: Cliff d={s['cliff']:+.2f}, ratio[{s['ratio_lo']:.2f},{s['ratio_hi']:.2f}] "
+              f"| censuré={v['censored_frac_champion']*100:.0f}% | life_p={v['life_p']:.3f} (ancien gate: {gate})")
+        wi = v.get("within")
+        if wi is not None:
+            cc = wi["causal_cmp"]; rc = wi["residual_cmp"]
+            print(f"      within (ablation-perception): {wi['verdict']:14s} "
+                  f"| champion vs ablaté: Cliff d={cc['cliff']:+.2f} p={cc['p']:.4f} "
+                  f"| ablaté vs random: Cliff d={rc['cliff']:+.2f}")
+    print("  -> Verdict porté par EDR 124. Si censuré>5% quelque part : augmenter max_ticks.")
 
 
 if __name__ == "__main__":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
     import os
     run_s2(seed=int(os.getenv("EXPERIMENT_SEED", "2026")), with_db=False)

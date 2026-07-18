@@ -52,6 +52,43 @@ inchangé). Le banc 158/159 masquait ce point (là `pop` persiste sur tout l'ép
 > P(Y|X). ⚠️ **Bloqueur cran 2** : le rebuild du pop sur mortalité RÉINITIALISE `w_gate`/`b_gate` → éroderait
 > l'accumulation du gate → persister le gate à travers rebuild AVANT d'allumer le gate in-world.
 
+> **REPRISE 2026-07-11 — cran 2 (throw-gate) : le verrou couche-2 est DÉCOMPOSÉ.** EDR-172 (B2) NEUTRE =
+> substrat 2 couches. NAV-005 (main, offline) raffine la couche 2 : la « rareté » est un **BIAIS** (−0.5 sur
+> throw-sans-kill). **EDR-173 (PR #160, branche `chantier/throw-gate-debias-nav005`) porte le débias in-world**
+> (knob `src` `torch_throw_penalty` défaut −0.5 rétro-compat / 0.0 non-biaisé ; banc `compare_debias` apparié
+> biaisé-vs-non-biaisé ; knobs `night`/`energy`/`spear_weight` neutralisent la couche 1) → **NÉCESSAIRE mais
+> PAS SUFFISANT** : les 2 bras NEUTRES ; `kills` 1-6 / `spear_n` 500-2400 → **p_success ≈ 0.001 in-world**
+> (~10-20× < le sweep offline NAV-005 à 0.02-0.03) → E[correct]≈0 → gradient négligeable. **Verrou résiduel =
+> DENSITÉ du crédit kill-outil, pas le signe.**
+
+> **Levier densité TESTÉ (EDR-174, PR #160) = BACKFIRE.** Le shaping de visée dense (`torch_throw_shaping`)
+> produit de l'**ANTI-binding** (gap −0.28 à −0.52, HEBBIEN_GAGNE, 6/6 seeds) : throw consomme le spear →
+> densifier fait throw ++ → l'agent devient spearless → `P(throw|¬spear)` monte → gap négatif. **Méta-verdict :
+> 3ᵉ échec côté SIGNAL (câblage 172 / débias 173 / densité 174) → les fixes de récompense sont ÉPUISÉS in-world.**
+
+> **Warm-start TESTÉ (EDR-175, PR #160) : FRANCHIT le bootstrap mais NE RETIENT PAS.** FROZEN (gate gelé) : le
+> `_throw_w` spear-aware (régression logistique H→has_spear) crée un gap **+0.40** → binding REPRÉSENTABLE,
+> bootstrap franchissable. Mais sous REINFORCE le warm **érode** (+0.40 → médiane −0.04) ; cold anti-binde (−0.22) ;
+> warm>cold 5/6 mais n.s. (sign_p 0.22). **Loi rétention-167 (`c_warm=r·P`)** : la rétention exige récompense·P >
+> coût ; in-world kill/hit ~0.001 → `r·P` SOUS le plancher → érosion.
+
+### ✅ ARC THROW-GATE IN-WORLD CLOS (172→176) — blocage MULTI-CAUSAL
+
+4 leviers échouent : câblage (172 NEUTRE) / débias (173 nécessaire-pas-suffisant) / densité-signal (174 BACKFIRE) /
+warm-start (175 franchit le bootstrap frozen +0.40 mais N'A PAS retenu). **EDR-175 proposait `r·P` (densité de
+récompense) comme cause UNIQUE.** → **EDR-176 (contrôle POSITIF, sweep densité de proies) CORRIGE** : monter `r·P`
+~5× (kills 6→30) N'produit PAS de binding (gap reste négatif, −0.62→−0.28) MAIS l'améliore monotoniquement
+(dose-réponse). Donc **`r·P` est nécessaire et directionnellement causal, PAS suffisant** ; le blocage in-world est
+**MULTI-CAUSAL / sur-déterminé** — verrous co-dominants : (a) **consommation** (throw consomme le spear → P(throw|¬spear)
+gonflé), (b) **poids-spear** (contexte-means = détresse énergétique), (c) **crédit MARGINAL** (« throw paie » ≠ « throw-SI-spear »).
+
+**Leçon générale actionnable (gravée, MAJ EDR-176)** : avant un binding in-world, vérifier NON SEULEMENT `r·P` mais
+aussi (i) l'action est-elle **CONSOMMATRICE** (biaise P(y|x) mécaniquement), (ii) le contexte-means est-il **ENTANGLÉ**
+à d'autres facteurs (coût/détresse), (iii) le crédit est-il **CONDITIONNEL** (means→ends) ou seulement marginal. Le
+bon banc = action NON-consommatrice, contexte-means propre, payoff dense, crédit conditionnel — PAS la balistique
+consommatrice actuelle. → si le fil BIND in-world reprend : découper (a) action non-consommatrice/reseed-à-la-décision,
+(b) spear sans poids, (c) crédit du conditionnel (séparables). Bancs `compare_rp_sweep`/`compare_warmstart` réutilisables.
+
 **Historique de la reco (2026-07-02, avant livraison) :**
 Reco couture (**approuvée 2026-07-02**) : faire passer la boucle biosphère par `make_population`
 (ADR-003, dette payée — aujourd'hui seuls tools/tests l'utilisent), buffer épisodique porté par le

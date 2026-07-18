@@ -60,6 +60,13 @@ class Biosphere3D(BaseWorld):
         self.torch_throw_gate_lr = 0.05
         self.torch_throw_antisat = 6.0
         self.torch_throw_shuffle = False     # bras temoin : recompense permutee
+        self.torch_throw_penalty = -0.5      # penalite throw-sans-kill. Defaut -0.5 = valeur EDR-172
+                                             # (BIAISEE). EDR-NAV-005 : ce biais effondre le binding a la
+                                             # rarete in-world (E[correct]<0 des p_success<1/3) -> mettre
+                                             # 0.0 pour la recompense NON-biaisee (borne >= -p/(1-p)).
+        self.torch_throw_shaping = False     # EDR-173-suite : credit DENSE sur la qualite de visee
+        self.torch_throw_aim_radius = 5.0    # (proximite projectile->proie) au lieu du hit binaire rare
+                                             # (~0.001 in-world). True => r(throw)=_throw_aim in [0,1].
         self._throw_w = None                 # torch (N,) : cree paresseusement au 1er tick torch
         self._throw_b = None                 # torch (1,)
         self._throw_opt = None               # Adam([_throw_w, _throw_b])
@@ -148,6 +155,8 @@ class Biosphere3D(BaseWorld):
         self.scaffold_craft = 5.0     # craft d'une lance (jalon)
         self.scaffold_bighit = 2.0    # coup porté à un gros gibier
         self.scaffold_eras = 30
+        self.scaffold_land = getattr(self.config, "scaffold_land", 0.0)   # EDR113 : scaffold du pas final (atterrissage sur proie)
+        self.reach_oracle = getattr(self.config, "reach_oracle", False)   # EDR114 : oracle d'atteinte (override action)
         # Curiosité (réparation moteur évolutif, EDR 014) : récompense intrinsèque
         # = erreur de prédiction du World Model -> drive l'exploration d'actions/états
         # nouveaux (grab, rub...). S'auto-annèle (la surprise chute quand le monde est
@@ -391,6 +400,35 @@ class Biosphere3D(BaseWorld):
             item_type = str(item_type)
         return self.physics_registry.get_properties(item_type)
 
+    def _reach_oracle_action(self, agent):
+        """EDR114 : primitive d'atteinte (oracle, pas d'apprentissage) -> pas glouton vers la proie la
+        plus proche (Manhattan) AVEC evitement d'obstacle a 1 pas (utilise prey-dir ET geometrie, tous
+        deux observes par l'agent : dn/ds/de/dw + lidar). Mapping : 0=N(y-1) 1=S(y+1) 2=E(x+1) 3=O(x-1).
+        Sur la proie / aucune proie -> 6 (no-op ; l'attaque est par co-localisation)."""
+        if not self.preys:
+            return 6
+        ax, ay = int(agent["x"]), int(agent["y"])
+        dists = [abs(p["x"] - ax) + abs(p["y"] - ay) for p in self.preys]
+        p = self.preys[int(np.argmin(dists))]
+        dx, dy = int(p["x"]) - ax, int(p["y"]) - ay
+        if dx == 0 and dy == 0:
+            return 6
+        ew = 2 if dx > 0 else 3
+        ns = 1 if dy > 0 else 0
+        if abs(dx) >= abs(dy):
+            cand = ([ew] if dx != 0 else []) + ([ns] if dy != 0 else [])
+        else:
+            cand = ([ns] if dy != 0 else []) + ([ew] if dx != 0 else [])
+        for a in cand:
+            tx, ty = ax, ay
+            if a == 0: ty -= 1
+            elif a == 1: ty += 1
+            elif a == 2: tx += 1
+            elif a == 3: tx -= 1
+            if 0 <= tx < self.size and 0 <= ty < self.size and self.geometry[0, ty, tx] == 0:
+                return a
+        return cand[0] if cand else 6
+
     def get_batch_observations(self) -> np.ndarray:
         if not self.agents:
             return np.array([])
@@ -602,19 +640,21 @@ class Biosphere3D(BaseWorld):
                 p["stunned"] -= 1
                 continue
                 
+            scale = getattr(self.config, "prey_speed_scale", 1.0)   # EDR106 : 0 = proies figees
             fled = False
-            for fx, fy in fire_pos:
-                if abs(p["x"] - fx) <= 2 and abs(p["y"] - fy) <= 2:
-                    p["x"] += 1 if p["x"] > fx else -1
-                    p["y"] += 1 if p["y"] > fy else -1
-                    p["x"] = np.clip(p["x"], 0, self.size - 1)
-                    p["y"] = np.clip(p["y"], 0, self.size - 1)
-                    fled = True
-                    break
+            if scale > 0:                                            # EDR106 : figees -> ne fuient pas le feu
+                for fx, fy in fire_pos:
+                    if abs(p["x"] - fx) <= 2 and abs(p["y"] - fy) <= 2:
+                        p["x"] += 1 if p["x"] > fx else -1
+                        p["y"] += 1 if p["y"] > fy else -1
+                        p["x"] = np.clip(p["x"], 0, self.size - 1)
+                        p["y"] = np.clip(p["y"], 0, self.size - 1)
+                        fled = True
+                        break
             if fled: continue
-                
+
             cfg = self.config.preys.get(p["type"], None)
-            moves_per_tick = cfg.moves_per_tick if cfg else 0
+            moves_per_tick = (cfg.moves_per_tick if cfg else 0) * scale   # EDR106 : vitesse echelonnee
             
             # Handle fractional moves (e.g. 0.2 means 20% chance to move)
             moves = int(moves_per_tick)
@@ -728,6 +768,9 @@ class Biosphere3D(BaseWorld):
         # Hunt / Attack (Asymmetrical combat)
         attacked_prey = next((p for p in self.preys if agent["x"] == p["x"] and agent["y"] == p["y"]), None)
         if attacked_prey:
+            # EDR113 : scaffold du PAS FINAL — recompense l'atterrissage sur une cellule-proie
+            # (tous gibiers, contrairement a scaffold_bighit gate sur damage>0). Annelé. Defaut 0.0 -> inerte.
+            agent["energy"] += self.scaffold_land * anneal(getattr(self, "current_era", 1), self.scaffold_eras)
             if getattr(self.config, "trace_forage", False):
                 agent["_forage_contacts"] = agent.get("_forage_contacts", 0) + 1
             cfg_atk = self.config.preys.get(attacked_prey["type"], None)
@@ -791,6 +834,8 @@ class Biosphere3D(BaseWorld):
                     agent["preys_eaten"] += 1
                     if getattr(self.config, "trace_forage", False):
                         agent["_forage_income"] = agent.get("_forage_income", 0.0) + reward
+                        sp = agent.setdefault("_forage_species", {})   # EDR106 : captures par espece
+                        sp[attacked_prey["type"]] = sp.get(attacked_prey["type"], 0) + 1
                 self.preys.remove(attacked_prey)
                 # RARETÉ (Step 2) : plus de respawn instantané — régénération lente ailleurs.
                 logger.emit("PREY_KILLED", {"agent_id": agent["id"], "prey_type": attacked_prey["type"], "reward": float(reward)})
@@ -1045,7 +1090,8 @@ class Biosphere3D(BaseWorld):
     def _learn_throw_gate(self):
         """REINFORCE immediat 1-pas de la tete throw-gate (B2). Recompute p (differentiable) depuis
         H cache ce tick, utilise les decisions _throw_did stockees, recompense = outcome (kill-avec-
-        outil +1.0, autre throw -0.5, pas de throw 0.0). Shuffle => permute r parmi les vivants
+        outil +1.0, autre throw = torch_throw_penalty [defaut -0.5 EDR-172 ; 0.0 = non-biaise NAV-005],
+        pas de throw 0.0). Shuffle => permute r parmi les vivants
         (permutation seed-deterministe) pour decorreler recompense/contexte. Skip propre (log, pas
         de crash) si gate OFF, pop absent, ou desync B != len(agents). Baseline = moyenne population."""
         if not (self.use_torch_inworld and self.torch_throw_gate) or self._throw_w is None:
@@ -1065,11 +1111,15 @@ class Biosphere3D(BaseWorld):
         for i, a in enumerate(self.agents):
             if not a.get("_throw_did"):
                 r[i] = 0.0
+                continue
+            if a.get("_throw_kill_tool"):
+                n_kill += 1
+            if self.torch_throw_shaping:
+                r[i] = float(a.get("_throw_aim", 0.0))    # EDR-173-suite : credit DENSE de visee
             elif a.get("_throw_kill_tool"):
                 r[i] = 1.0
-                n_kill += 1
             else:
-                r[i] = -0.5
+                r[i] = self.torch_throw_penalty   # NAV-005 : 0.0 = non-biaise (defaut -0.5 = EDR-172)
         self._throw_kills_tool += n_kill
         if self.torch_throw_shuffle:
             r = r[self._throw_shuf_rng.permutation(B)]   # decorrele recompense/contexte
@@ -1246,6 +1296,8 @@ class Biosphere3D(BaseWorld):
                 action = np.random.randint(0, 8)
                 force_grab = (np.random.rand() < 0.5)
                 force_rub = (self.craft_level >= 1 and np.random.rand() < 0.5)
+            if getattr(self, "reach_oracle", False):
+                action = self._reach_oracle_action(agent)   # EDR114 : override -> primitive d'atteinte
             agent["last_action"] = action
             
             if (self.use_torch_inworld and self.torch_throw_gate
@@ -1257,6 +1309,7 @@ class Biosphere3D(BaseWorld):
                 agent["_throw_ctx"] = bool(has_spear(agent["inventory"]))  # AVANT le pop
                 agent["_throw_did"] = do_throw
                 agent["_throw_kill_tool"] = False        # arme par le bloc balistique si kill-outil
+                agent["_throw_aim"] = 0.0                # arme par le bloc balistique (visee spear, EDR-173-suite)
             else:
                 do_throw = float(logits[8]) > 0
             aim_vec = np.array([float(logits[11]), float(logits[12])])
@@ -1391,7 +1444,16 @@ class Biosphere3D(BaseWorld):
                     end_pos = (int_x, int_y, az)
 
                 thrown_item["x"], thrown_item["y"], thrown_item["z"] = end_pos[0], end_pos[1], end_pos[2]
-                
+
+                # EDR-173-suite : credit DENSE de visee (spear seulement) = proximite du point d'arrivee
+                # a la proie la plus proche, in [0,1] (1 si touche, decroit sur torch_throw_aim_radius).
+                # Densifie le signal ~binaire du hit rare (~0.001) -> gradient a chaque throw bien vise.
+                if (self.use_torch_inworld and self.torch_throw_gate
+                        and thrown_item.get("type") == "Spear" and self.preys):
+                    _md = min(((end_pos[0] - p["x"]) ** 2 + (end_pos[1] - p["y"]) ** 2) ** 0.5
+                              for p in self.preys)
+                    agent["_throw_aim"] = max(0.0, 1.0 - _md / self.torch_throw_aim_radius)
+
                 # EXP-9 : Fueling Fire
                 is_fueled = False
                 if thrown_item.get("type") == "Wood":

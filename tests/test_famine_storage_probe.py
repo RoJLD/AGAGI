@@ -32,7 +32,8 @@ def test_evolve_in_famine_returns_genome():
     g = evolve_in_famine(seed=3, eras=2, num_agents=4, max_ticks=30,
                          cycle_abundance=10, cycle_famine=10)
     assert isinstance(g, Genome)
-    assert g.num_inputs == 64 and g.num_outputs == 126
+    # Dimensions canoniques de la base main (num_inputs=59, num_outputs=108 via MambaAgent defaut)
+    assert g.num_inputs == 59 and g.num_outputs == 108
 
 
 def test_evolve_in_famine_deterministic():

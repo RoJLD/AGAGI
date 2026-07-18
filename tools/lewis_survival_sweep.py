@@ -5,6 +5,7 @@ letalite 0 (isole l'energie). PAS d'evolution, PAS de langage. Fonde sur le diag
 mort par FAMINE (actions -10 x densite apex >> forage), pas letalite.
 Pre-enregistrement : docs/superpowers/specs/2026-06-24-EDR093-Lewis-Survival-Sweep-design.md
 """
+import sys
 import numpy as np
 
 from src.environments.config import WorldConfig
@@ -17,6 +18,7 @@ from tools.evolve_competence import _reproduce
 from tools.robust_eval import _load_champions
 from tools.lewis_critical import _setup_critical
 from tools.lethality_curriculum import _disable_kuzu
+from src.seed_ai.persistence import calculate_life_score
 
 METAB = 0.25                       # sweet-spot energie 085 (fixe)
 LEVELS = (3, 6, 12, 24, 48)        # forage_payoff balaye : de 085 vers x16
@@ -32,7 +34,7 @@ SURPRISE_LEVELS = (1.0, 0.5, 0.25, 0.0)   # ttc_surprise_scale : baseline 094 (1
 
 
 def _cfg(forage_payoff, ttc_surprise_scale=None, trace_energy_sinks=False, base_metabolism=METAB,
-         trace_forage=False):
+         trace_forage=False, prey_speed_scale=1.0, scaffold_land=0.0, reach_oracle=False):
     cfg = WorldConfig()
     cfg.base_metabolism = float(base_metabolism)             # EDR101 : sweepable (defaut METAB=0.25)
     cfg.forage_payoff = float(forage_payoff)
@@ -41,7 +43,232 @@ def _cfg(forage_payoff, ttc_surprise_scale=None, trace_energy_sinks=False, base_
         cfg.ttc_surprise_scale = float(ttc_surprise_scale)   # EDR098
     cfg.trace_energy_sinks = bool(trace_energy_sinks)         # EDR099
     cfg.trace_forage = bool(trace_forage)                     # EDR105
+    cfg.prey_speed_scale = float(prey_speed_scale)            # EDR106
+    cfg.scaffold_land = float(scaffold_land)                  # EDR113
+    cfg.reach_oracle = bool(reach_oracle)                     # EDR114
     return cfg
+
+
+def _fresh_genome(n_hidden):
+    """EDR110 : genome frais a capacite cachee n_hidden (num_nodes=167+n_hidden, I=59, O=108,
+    W dense aleatoire x0.1). Reutilise la construction par defaut de MambaAgent ; seule la bande
+    mediane [59, 59+n_hidden) grossit. La graine RNG doit etre posee par l'appelant (seed_at)
+    pour le determinisme."""
+    return MambaAgent(num_inputs=59, num_outputs=108, num_nodes=167 + n_hidden).genome
+
+
+def _capacity_mc():
+    """EDR110 : MutationConfig a CAPACITE FIGEE (num_nodes constant) pour que n_hidden soit la
+    seule variable entre bras. Gele TOUTES les ops qui inserent des noeuds :
+      - add_node_rate=0.0  : insertion directe d'un noeud (chemin standard)
+      - meso_gate_rate=0.0 : add_meso_gated_unit insere 2 noeuds via np.insert ; sans ce gel,
+                             num_nodes derive dans ~67% des seeds et crash le assert de _capacity_arm
+      - meso_skip_rate=0.0 : add_meso_skip_connection (macro motif, ajoute une connexion) gele aussi
+                             pour correspondre a l'intention du spec (seul le niveau connexion reste)
+    Mutations conservees (identiques entre bras = bruit de recherche commun, pas un confound) :
+      - mutation de poids (weight_init_std=2.0 comme EDR107)
+      - add_connection (niveau connexion uniquement)
+    NOTE : prune_rate=0.0 est INERTE (la fonction prune lit genome.mutation_genes[4], pas le config),
+    mais prune ne change jamais num_nodes -> la garantie de capacite figee tient quand meme."""
+    return MutationConfig(weight_init_std=2.0, add_node_rate=0.0, prune_rate=0.0,
+                          meso_skip_rate=0.0, meso_gate_rate=0.0)
+
+
+def _capacity_arm(cfg, mc, n_hidden, generations, num_agents, max_ticks, base_seed):
+    """EDR110 : un bras = evolue la navigation a capacite cachee FIXEE n_hidden. Calque
+    main_evolve_nav (EDR107) mais (a) seme best_ever depuis _fresh_genome(n_hidden) au lieu de
+    _load_champions, (b) utilise mc a capacite figee, (c) assert num_nodes==167+n_hidden a chaque
+    generation (garde-fou anti-derive). Renvoie un dict {n_hidden, num_nodes, traj, gen0, first,
+    plateau, stats}. gen0 = p_reach de la 1re generation (capacite BRUTE) ; plateau = mediane des
+    k dernieres (k=5 si gen>=10) ; first = mediane des k premieres."""
+    expected_nodes = 167 + n_hidden
+    seed_at(base_seed, 0)
+    best_ever = [(0.0, _fresh_genome(n_hidden)) for _ in range(5)]
+    traj, stats_hist = [], []
+    for gen in range(1, generations + 1):
+        seed_at(base_seed + gen, 0)
+        champ_genomes = [g for (_s, g) in best_ever]
+        genomes = _reproduce(champ_genomes, num_agents, mc)
+        assert all(g.num_nodes == expected_nodes for g in genomes), (
+            f"capacity drift: n_hidden={n_hidden} attendu {expected_nodes} noeuds")
+        scored, p_reach, stats = _evolve_nav_gen(cfg, genomes, max_ticks=max_ticks)
+        # In-world reproduction (energy/MATE/HGT, world_1_stoneage) spawns offspring via
+        # MambaAgent.mutate() (meso_*_rate left at 0.05 -> add_meso_gated_unit inserts 2 nodes) or
+        # HGT crossover -> their num_nodes can drift off the seeded capacity. Exclude any off-capacity
+        # genome from the best-ever ratchet so the seeded N stays the only variable across arms
+        # (Phase 1 holds capacity FIXED; in-world-grown offspring are evaluated for p_reach but never
+        # selected). This is what keeps the per-generation guard-rail assert from ever firing.
+        scored = [(s, g) for (s, g) in scored if g.num_nodes == expected_nodes]
+        best_ever = sorted(best_ever + scored, key=lambda sg: sg[0], reverse=True)[:5]
+        traj.append(p_reach)
+        stats_hist.append(stats)
+    n = len(traj)
+    k = 5 if n >= 10 else max(1, n // 2)
+    return {
+        "n_hidden": n_hidden, "num_nodes": expected_nodes,
+        "traj": traj, "gen0": float(traj[0]) if traj else 0.0,
+        "first": float(np.median(traj[:k])) if traj else 0.0,
+        "plateau": float(np.median(traj[-k:])) if traj else 0.0,
+        "stats": stats_hist,
+    }
+
+
+def _landing_arm(cfg, generations, num_agents, max_ticks, base_seed):
+    """EDR113 : un bras = evolue la navigation sous un cfg portant un scaffold_land donne. Calque
+    main_evolve_nav (EDR107) : best_ever seedé par _load_champions, _reproduce (mc standard, add_node ON
+    comme 107), _evolve_nav_gen, cliquet best-ever top-5. La SEULE variable entre bras est
+    cfg.scaffold_land. Renvoie {scaffold_land, traj, gen0, first, plateau, stats}."""
+    mc = MutationConfig(weight_init_std=2.0)
+    seed_at(base_seed, 0)
+    champs = _load_champions()
+    best_ever = [(0.0, g) for g in champs]
+    traj, stats_hist = [], []
+    for gen in range(1, generations + 1):
+        seed_at(base_seed + gen, 0)
+        champ_genomes = [g for (_s, g) in best_ever]
+        genomes = _reproduce(champ_genomes, num_agents, mc)
+        scored, p_reach, stats = _evolve_nav_gen(cfg, genomes, max_ticks=max_ticks)
+        best_ever = sorted(best_ever + scored, key=lambda sg: sg[0], reverse=True)[:5]
+        traj.append(p_reach)
+        stats_hist.append(stats)
+    n = len(traj)
+    k = 5 if n >= 10 else max(1, n // 2)
+    return {
+        "scaffold_land": float(cfg.scaffold_land), "traj": traj,
+        "gen0": float(traj[0]) if traj else 0.0,
+        "first": float(np.median(traj[:k])) if traj else 0.0,
+        "plateau": float(np.median(traj[-k:])) if traj else 0.0,
+        "stats": stats_hist,
+    }
+
+
+def _verdict_landing(arms):
+    """EDR113 : verdict pre-enregistre sur l'effet de scaffold_land (recompense du pas final) sur le
+    plateau de navigation. delta = plateau(max) - plateau(0) ; slope = pente du plateau vs scaffold_land
+    (echelle lineaire 0-10). AFFORDANCE LEVE si delta>=0.10 ET slope>0. AFFORDANCE INERTE si
+    abs(delta)<0.10 ET abs(slope)<0.01. AFFORDANCE AMBIGUE sinon (signal partiel/non-monotone)."""
+    arms = sorted(arms, key=lambda a: a["scaffold_land"])
+    plateaus = [a["plateau"] for a in arms]
+    delta = plateaus[-1] - plateaus[0]
+    x = [a["scaffold_land"] for a in arms]
+    slope = float(np.polyfit(x, plateaus, 1)[0]) if len(arms) >= 2 else 0.0
+    if delta >= 0.10 and slope > 0:
+        return "AFFORDANCE LEVE"
+    if abs(delta) < 0.10 and abs(slope) < 0.01:
+        return "AFFORDANCE INERTE"
+    return "AFFORDANCE AMBIGUE"
+
+
+def _report_landing(h, arms, generations, num_agents, max_ticks, _return):
+    """Table ASCII (1 ligne/bras : scaffold_land, gen0, first, plateau, delta_vs_base) + pente +
+    delta(max-base) + verdict pre-enregistre. Sauvegarde JSON. Tout ASCII (cp1252)."""
+    verdict = _verdict_landing(arms)
+    arms_sorted = sorted(arms, key=lambda a: a["scaffold_land"])
+    base_plateau = arms_sorted[0]["plateau"]
+    plateaus = [a["plateau"] for a in arms_sorted]
+    x = [a["scaffold_land"] for a in arms_sorted]
+    slope = float(np.polyfit(x, plateaus, 1)[0]) if len(arms_sorted) >= 2 else 0.0
+    print("\n=== EDR113 scaffold_land (recompense pas final) -> plafond navigation Lewis ===")
+    print("  land | gen0  first plateau | delta_vs_base")
+    for a in arms_sorted:
+        print(f"  {a['scaffold_land']:4.1f} | {a['gen0']:.3f} {a['first']:.3f} "
+              f"{a['plateau']:.3f} | {a['plateau'] - base_plateau:+.3f}")
+    print(f"  pente plateau vs scaffold_land = {slope:+.4f}  delta(max-base) = "
+          f"{plateaus[-1] - plateaus[0]:+.3f} (gate +0.10)")
+    print("=== VERDICT (pre-enregistre) ===")
+    print(f"  -> {verdict}")
+    h.save({"knob": "scaffold_land", "land_levels": [a["scaffold_land"] for a in arms_sorted],
+            "generations": generations, "num_agents": num_agents, "max_ticks": max_ticks,
+            "slope": slope, "delta": plateaus[-1] - plateaus[0], "verdict": verdict,
+            "arms": arms_sorted})
+    if _return:
+        return {"verdict": verdict, "arms": arms_sorted, "slope": slope,
+                "delta": plateaus[-1] - plateaus[0]}
+
+
+def main_landing_nav(land_levels=(0.0, 2.0, 5.0, 10.0), generations=20, num_agents=24,
+                     max_ticks=80, seed=113, _return=False):
+    """EDR 113 : balaye scaffold_land (recompense du pas final) et evolue la navigation a chaque niveau
+    (boucle evolve_nav EDR107, metab=0, Lewis vide d'apex, forage_payoff=3). Lit gen0 + plateau.
+    Verdict AFFORDANCE LEVE / INERTE / AMBIGUE. Bras land=0 reproduit EDR107 (controle)."""
+    with Harness(seed=seed, name="lewis_landing_nav", with_db=False) as h:
+        base = h.seed
+        _disable_kuzu()
+        print(f"EDR113 : scaffold_land nav, levels={land_levels}, gen={generations}, "
+              f"pop={num_agents}, max_ticks={max_ticks}, seed={base}.")
+        prog = h.progress(len(land_levels), label="niveaux scaffold_land")
+        arms = []
+        for land in land_levels:
+            cfg = _cfg(3, base_metabolism=0.0, trace_forage=True, scaffold_land=land)
+            arms.append(_landing_arm(cfg, generations, num_agents, max_ticks,
+                                     base + int(round(land * 10))))
+            prog.update()
+        return _report_landing(h, arms, generations, num_agents, max_ticks, _return)
+
+
+def _verdict_capacity(arms):
+    """EDR110 : verdict pre-enregistre sur l'effet de la capacite cachee sur le plateau de navigation.
+    delta = plateau(N_max) - plateau(N_min) ; slope = pente du plateau vs log2(N) (lisse l'echelle
+    geometrique 5->80). CAPACITE LEVE si delta>=0.10 ET slope>0. CAPACITE INERTE si abs(delta)<0.10
+    ET abs(slope)<0.05. CAPACITE AMBIGUE sinon (signal partiel/non-monotone)."""
+    arms = sorted(arms, key=lambda a: a["n_hidden"])
+    plateaus = [a["plateau"] for a in arms]
+    delta = plateaus[-1] - plateaus[0]
+    x = [float(np.log2(a["n_hidden"])) for a in arms]
+    slope = float(np.polyfit(x, plateaus, 1)[0]) if len(arms) >= 2 else 0.0
+    if delta >= 0.10 and slope > 0:
+        return "CAPACITE LEVE"
+    if abs(delta) < 0.10 and abs(slope) < 0.05:
+        return "CAPACITE INERTE"
+    return "CAPACITE AMBIGUE"
+
+
+def _report_capacity_nav(h, arms, generations, num_agents, max_ticks, _return):
+    """Table ASCII (1 ligne/bras : n_hidden, num_nodes, gen0, first, plateau, delta_vs_base) +
+    pente plateau vs log2(N) + delta(max-min) + verdict pre-enregistre. Sauvegarde JSON. Tout ASCII."""
+    verdict = _verdict_capacity(arms)
+    arms_sorted = sorted(arms, key=lambda a: a["n_hidden"])
+    base_plateau = arms_sorted[0]["plateau"]
+    plateaus = [a["plateau"] for a in arms_sorted]
+    x = [float(np.log2(a["n_hidden"])) for a in arms_sorted]
+    slope = float(np.polyfit(x, plateaus, 1)[0]) if len(arms_sorted) >= 2 else 0.0
+    print("\n=== EDR110 capacite cachee -> plafond navigation Lewis ===")
+    print("  n_hidden | num_nodes | gen0  first plateau | delta_vs_base")
+    for a in arms_sorted:
+        print(f"  {a['n_hidden']:8d} | {a['num_nodes']:9d} | {a['gen0']:.3f} {a['first']:.3f} "
+              f"{a['plateau']:.3f} | {a['plateau'] - base_plateau:+.3f}")
+    print(f"  pente plateau vs log2(N) = {slope:+.4f}  delta(max-min) = "
+          f"{plateaus[-1] - plateaus[0]:+.3f} (gate +0.10)")
+    print("=== VERDICT (pre-enregistre) ===")
+    print(f"  -> {verdict}")
+    h.save({"knob": "n_hidden", "hidden_levels": [a["n_hidden"] for a in arms_sorted],
+            "generations": generations, "num_agents": num_agents, "max_ticks": max_ticks,
+            "slope_vs_log2N": slope, "delta": plateaus[-1] - plateaus[0], "verdict": verdict,
+            "arms": arms_sorted})
+    if _return:
+        return {"verdict": verdict, "arms": arms_sorted, "slope": slope,
+                "delta": plateaus[-1] - plateaus[0]}
+
+
+def main_capacity_nav(hidden_levels=(5, 20, 40, 80), generations=20, num_agents=24,
+                      max_ticks=80, seed=110, _return=False):
+    """EDR 110 : seme une echelle de capacite cachee (n_hidden) figee et evolue la navigation a
+    chaque palier (boucle evolve_nav EDR107, metab=0, Lewis vide d'apex, forage_payoff=3). Lit
+    gen0 (capacite brute) + plateau evolue. Verdict CAPACITE LEVE / INERTE / AMBIGUE."""
+    with Harness(seed=seed, name="lewis_capacity_nav", with_db=False) as h:
+        base = h.seed
+        _disable_kuzu()
+        print(f"EDR110 : capacite cachee nav, hidden={hidden_levels}, gen={generations}, "
+              f"pop={num_agents}, max_ticks={max_ticks}, seed={base}.")
+        mc = _capacity_mc()
+        cfg = _cfg(3, base_metabolism=0.0, trace_forage=True)
+        prog = h.progress(len(hidden_levels), label="paliers de capacite")
+        arms = []
+        for n_hidden in hidden_levels:
+            arms.append(_capacity_arm(cfg, mc, n_hidden, generations, num_agents,
+                                      max_ticks, base + n_hidden))
+            prog.update()
+        return _report_capacity_nav(h, arms, generations, num_agents, max_ticks, _return)
 
 
 def _measure_survival(cfg, seeds, leurre_frac=0.0, n_apex=N_APEX, num_agents=NUM_AGENTS,
@@ -141,7 +368,7 @@ def _measure_drain(cfg, seeds, n_apex=0, num_agents=NUM_AGENTS, max_ticks=MAX_TI
             "bio_carry": mean(bcarry), "bio_autres": mean(bautres)}
 
 
-def _measure_forage(cfg, seeds, n_apex=0, num_agents=NUM_AGENTS, max_ticks=150):
+def _measure_forage(cfg, seeds, n_apex=0, num_agents=NUM_AGENTS, max_ticks=150, disable_repro=False):
     """EDR105 : decompose l'entonnoir de forage a N_APEX=0. Lit les compteurs _forage_* (poses par
     trace_forage) + preys_eaten + les buckets de pure depense _e_phases/_e_bio (trace_energy_sinks
     co-active) sur le pool, agrege par agent. cfg DOIT avoir trace_forage=True ET trace_energy_sinks=True.
@@ -152,10 +379,13 @@ def _measure_forage(cfg, seeds, n_apex=0, num_agents=NUM_AGENTS, max_ticks=150):
     champs = _load_champions()
     reached, captured_if_reached = [], []
     income_t, drain_t, captures, contacts, min_dists = [], [], [], [], []
+    cap_lapin, cap_cerf, cap_sanglier = [], [], []
     for s in seeds:
         seed_at(s, 0)
         genomes = _reproduce(champs, num_agents, mc)
         env = Biosphere3D(cfg)
+        if disable_repro:
+            env.benchmark_mode = True   # cohorte fixe : coupe repro energie/MATE/HGT -> de-confond p_reach (pas de dilution par nouveau-nes tardifs)
         _setup_critical(env, 0.0, n_apex=n_apex)
         env.config.target_prey_count = PREY_COUNT
         if hasattr(env, "memory_retriever"):
@@ -192,6 +422,10 @@ def _measure_forage(cfg, seeds, n_apex=0, num_agents=NUM_AGENTS, max_ticks=150):
             captures.append(float(ag.get("preys_eaten", 0)))
             contacts.append(float(ag.get("_forage_contacts", 0)))
             min_dists.append(md)
+            sp = ag.get("_forage_species", {})
+            cap_lapin.append(float(sp.get("Lapin", 0)))
+            cap_cerf.append(float(sp.get("Cerf", 0)))
+            cap_sanglier.append(float(sp.get("Sanglier", 0)))
     med = lambda xs: float(np.median(xs)) if xs else 0.0
     mean = lambda xs: float(np.mean(xs)) if xs else 0.0
     return {"p_reach": mean(reached),
@@ -201,6 +435,10 @@ def _measure_forage(cfg, seeds, n_apex=0, num_agents=NUM_AGENTS, max_ticks=150):
             "mean_captures": mean(captures),
             "mean_contacts": mean(contacts),
             "mean_min_dist": mean(min_dists),
+            "cap_lapin": mean(cap_lapin),
+            "cap_cerf": mean(cap_cerf),
+            "cap_sanglier": mean(cap_sanglier),
+            "reached_raw": reached,
             "n_agents": len(income_t)}
 
 
@@ -484,5 +722,287 @@ def main_forage(metab_levels=(0.0, 0.25), n_eval=8, R=4, seed=None, _return=Fals
         return _report_forage(h, aggs, R, n_eval, _return)
 
 
+def _p_reach_of_pool(pool):
+    """EDR107 : fraction des agents du pool ayant atteint une cellule-proie (_forage_min_dist<=0).
+    Pool vide -> 0.0. Necessite trace_forage=True (sinon cle absente -> defaut 9999 -> non atteint)."""
+    if not pool:
+        return 0.0
+    reached = sum(1 for ag in pool if float(ag.get("_forage_min_dist", 9999.0)) <= 0)
+    return reached / len(pool)
+
+
+def _verdict_evolve_nav(traj):
+    """EDR107 : verdict sur la trajectoire p_reach par generation. NAVIGATION EVOLUE si la mediane des
+    k dernieres generations depasse celle des k premieres de >= 0.15 (ancre sur l'effet +0.05 d'EDR106) ;
+    sinon SUBSTRAT BLOQUE. k=5 si >=10 generations, sinon max(1, n//2). traj vide -> SUBSTRAT BLOQUE."""
+    if not traj:
+        return "SUBSTRAT BLOQUE"
+    n = len(traj)
+    k = 5 if n >= 10 else max(1, n // 2)
+    first = float(np.median(traj[:k]))
+    last = float(np.median(traj[-k:]))
+    return "NAVIGATION EVOLUE" if last >= first + 0.15 else "SUBSTRAT BLOQUE"
+
+
+def _evolve_nav_gen(cfg, genomes, max_ticks=80):
+    """EDR107 : lance UNE generation (ere fraiche, current_era=1 -> scaffold chaud) en Lewis vide d'apex.
+    cfg DOIT avoir trace_forage=True. Renvoie (scored, p_reach, stats) : scored = top-5 (life_score, genome)
+    pour le cliquet best-ever ; p_reach = _p_reach_of_pool(pool) ; stats = {ticks, eaten, p_reach}.
+    Calque run_era d'evolve_competence + setup Lewis de _measure_forage."""
+    env = Biosphere3D(cfg)
+    _setup_critical(env, 0.0, n_apex=0)
+    env.config.target_prey_count = PREY_COUNT
+    if hasattr(env, "memory_retriever"):
+        env.memory_retriever.stop()
+        env.memory_retriever.clear()
+    env.use_ref_head = False
+    env.decode_act = False
+    for g in genomes:
+        a = MambaAgent()
+        a.from_genome(g)
+        env.add_agent(a, energy=80.0)
+    env.current_era = 1
+    t = 0
+    while env.agents and t < max_ticks:
+        env.step()
+        t += 1
+    pool = list(env.agents) + list(getattr(env, "dead_agents", []))
+    ranked = sorted(pool, key=calculate_life_score, reverse=True)
+    scored = []
+    for ag in ranked[:5]:
+        g = ag["model"].genome if "model" in ag else ag.get("genome")
+        if g is not None:
+            scored.append((float(calculate_life_score(ag)), g))
+    p_reach = _p_reach_of_pool(pool)
+    eaten = int(sum(ag.get("preys_eaten", 0) for ag in pool))
+    return scored, p_reach, {"ticks": t, "eaten": eaten, "p_reach": p_reach}
+
+
+def _verdict_approach(aggs):
+    """EDR106 : verdict porte par le niveau FIGE (prey_speed_scale=0.0). p_reach>=0.5 -> KINEMATIQUE
+    (proies immobiles atteintes -> le mur etait la fuite, vitesse relative) ; sinon POLITIQUE (la
+    navigation est le mur, meme sans fuite). aggs = liste (prey_speed_scale, agg)."""
+    frozen = next((a for s, a in aggs if s == 0.0), None)
+    if frozen is None:
+        return "INDETERMINE"
+    return "KINEMATIQUE" if frozen["p_reach"] >= 0.5 else "POLITIQUE"
+
+
+def _report_approach(h, aggs, R, n_eval, _return):
+    """Table APPROCHE (1 ligne/vitesse : p_reach, p_cap, captures totales + par espece) + Jonckheere-
+    Terpstra (tendance p_reach quand la vitesse baisse) + verdict (porte par le niveau fige) + provenance.
+    Tout ASCII (cp1252). aggs = liste de (prey_speed_scale, agg). reached_raw est retire avant sauvegarde."""
+    verdict = _verdict_approach(aggs)
+    jt = st.jonckheere_terpstra([a["reached_raw"] for _, a in aggs])
+    print("\n=== EDR106 decomposition APPROCHE a N_APEX=0 (verdict sur prey_speed_scale=0) ===")
+    print("  speed | p_reach p_cap | cap_tot cap_lapin cap_cerf cap_sanglier | min_dist | n")
+    for s, a in aggs:
+        print(f"  {s:<5.3g} | {a['p_reach']:7.2f} {a['p_cap']:5.2f} | "
+              f"{a['mean_captures']:7.2f} {a['cap_lapin']:9.2f} {a['cap_cerf']:8.2f} "
+              f"{a['cap_sanglier']:12.2f} | {a['mean_min_dist']:8.2f} | {a['n_agents']}")
+    print(f"  Jonckheere-Terpstra z={jt['z']:.2f}, p(p_reach croit qd vitesse baisse)={jt['p_one_sided']:.3f}")
+    print("=== VERDICT (pre-enregistre, porte par le niveau fige) ===")
+    print(f"  -> {verdict}")
+    slim = {str(s): {k: v for k, v in a.items() if k != "reached_raw"} for s, a in aggs}
+    h.save({"knob": "prey_speed_scale", "speed_levels": [s for s, _ in aggs], "R": R, "n_eval": n_eval,
+            "jt": jt, "verdict": verdict, "table": slim})
+    if _return:
+        return {"verdict": verdict, "jt": jt, "table": slim, "R": R, "n_eval": n_eval}
+
+
+def main_approach(speed_levels=(1.0, 0.5, 0.25, 0.0), n_eval=8, R=4, seed=None, _return=False):
+    """EDR 106 : decompose l'APPROCHE en balayant prey_speed_scale a N_APEX=0/metab=0, forage_payoff=3.
+    Verdict KINEMATIQUE (p_reach>=0.5 au niveau fige) vs POLITIQUE. Reutilise l'entonnoir trace_forage
+    (EDR105). Co-active trace_forage ET trace_energy_sinks (instruments inertes)."""
+    with Harness(seed=seed, name="lewis_approach_kinematics", with_db=False) as h:
+        base = h.seed
+        _disable_kuzu()
+        print(f"EDR106 : approche prey_speed_scale={speed_levels}, R={R}, n_eval={n_eval}, seed={base}.")
+        seeds = [base + r * 1000 + i for r in range(R) for i in range(n_eval)]  # memes seeds/niveau
+        prog = h.progress(len(speed_levels), label="niveaux prey_speed_scale")
+        aggs = []
+        for s in speed_levels:
+            cfg = _cfg(3, base_metabolism=0.0, trace_energy_sinks=True, trace_forage=True,
+                       prey_speed_scale=s)
+            aggs.append((s, _measure_forage(cfg, seeds, n_apex=0, max_ticks=150)))
+            prog.update()
+        return _report_approach(h, aggs, R, n_eval, _return)
+
+
+def _verdict_deconfound(aggs):
+    """De-confond p_reach : compare la cellule FIGEE (speed=0) sans-repro vs avec-repro.
+    CONFOND CONFIRME si ratio (no-repro / repro) >= 1.5 (deflation par pooling reelle) ; CONFOND
+    NEGLIGEABLE si < 1.5 ; INDETERMINE si une des deux cellules figees manque. aggs = liste
+    (disable_repro, speed, agg)."""
+    repro = next((a for d, s, a in aggs if d is False and s == 0.0), None)
+    norepro = next((a for d, s, a in aggs if d is True and s == 0.0), None)
+    if repro is None or norepro is None:
+        return "INDETERMINE"
+    ratio = norepro["p_reach"] / max(repro["p_reach"], 1e-9)
+    return "CONFOND CONFIRME" if ratio >= 1.5 else "CONFOND NEGLIGEABLE"
+
+
+def _report_deconfound(h, aggs, R, n_eval, _return):
+    """Table 2x2 (1 ligne/cellule : disable_repro, speed, p_reach, p_cap, min_dist, n) + facteur de
+    deflation par vitesse (no-repro / repro) + verdict. reached_raw retire avant save. Tout ASCII."""
+    verdict = _verdict_deconfound(aggs)
+    print("\n=== De-confond p_reach (benchmark_mode = cohorte fixe) ===")
+    print("  disable_repro | speed | p_reach p_cap | min_dist | n")
+    for d, s, a in aggs:
+        print(f"  {str(bool(d)):<13} | {s:<5.3g} | {a['p_reach']:7.2f} {a['p_cap']:5.2f} | "
+              f"{a['mean_min_dist']:8.2f} | {a['n_agents']}")
+    for s in sorted({s for _, s, _ in aggs}):
+        rp = next((a['p_reach'] for d, sp, a in aggs if d is False and sp == s), None)
+        nr = next((a['p_reach'] for d, sp, a in aggs if d is True and sp == s), None)
+        if rp is not None and nr is not None:
+            print(f"  speed={s:<5.3g} : repro={rp:.3f} -> no-repro={nr:.3f}  (deflation x{nr / max(rp, 1e-9):.2f})")
+    print("=== VERDICT (de-confond) ===")
+    print(f"  -> {verdict}")
+    table = [{"disable_repro": bool(d), "speed": s, **{k: v for k, v in a.items() if k != "reached_raw"}}
+             for d, s, a in aggs]
+    h.save({"knob": "disable_repro x prey_speed_scale", "R": R, "n_eval": n_eval,
+            "verdict": verdict, "table": table})
+    if _return:
+        return {"verdict": verdict, "table": table, "R": R, "n_eval": n_eval}
+
+
+def main_forage_deconfound(speeds=(1.0, 0.0), n_eval=8, R=1, seed=1140, _return=False):
+    """De-confond p_reach : matrice 2x2 {disable_repro False/True} x {prey_speed mobiles/figees}, politique
+    APPRISE (replicas _load_champions), a N_APEX=0/metab=0/forage_payoff=3, SANS evolution. Quantifie la
+    deflation de p_reach par pooling-reproduction et donne les baselines corriges (re-base EDR 105/106)."""
+    with Harness(seed=seed, name="lewis_forage_deconfound", with_db=False) as h:
+        base = h.seed
+        _disable_kuzu()
+        print(f"De-confond p_reach : speeds={speeds}, R={R}, n_eval={n_eval}, seed={base}.")
+        seeds = [base + r * 1000 + i for r in range(R) for i in range(n_eval)]   # memes seeds/cellule
+        prog = h.progress(2 * len(speeds), label="cellules (disable_repro x speed)")
+        aggs = []
+        for disable_repro in (False, True):
+            for s in speeds:
+                cfg = _cfg(3, base_metabolism=0.0, trace_energy_sinks=True, trace_forage=True,
+                           prey_speed_scale=s)
+                aggs.append((disable_repro, s,
+                             _measure_forage(cfg, seeds, n_apex=0, max_ticks=150, disable_repro=disable_repro)))
+                prog.update()
+        return _report_deconfound(h, aggs, R, n_eval, _return)
+
+
+def _verdict_reach(aggs):
+    """EDR114 : verdict pre-enregistre porte par la cellule (oracle=True, speed=0.0). FERME si son
+    p_reach>=0.90 (le monde permet d'atteindre une cible immobile -> mur = POLITIQUE/substrat) ;
+    NE FERME PAS si <0.50 (mecanique-monde cassee) ; PARTIELLE sinon. aggs = liste (oracle, speed, agg)."""
+    cell = next((a for o, s, a in aggs if o is True and s == 0.0), None)
+    if cell is None:
+        return "INDETERMINE"
+    pr = cell["p_reach"]
+    if pr >= 0.90:
+        return "PRIMITIVE FERME"
+    if pr < 0.50:
+        return "PRIMITIVE NE FERME PAS"
+    return "PRIMITIVE PARTIELLE"
+
+
+def _report_reach(h, aggs, R, n_eval, _return):
+    """Table 2x2 (1 ligne/cellule : oracle, speed, p_reach, p_cap, min_dist, n) + lecture cinematique
+    (oracle figees vs mobiles) + verdict pre-enregistre + provenance. reached_raw retire avant save.
+    Tout ASCII (cp1252). aggs = liste (oracle, speed, agg)."""
+    verdict = _verdict_reach(aggs)
+    print("\n=== EDR114 borne-sup primitive d'atteinte (verdict sur oracle=True, figees) ===")
+    print("  oracle | speed | p_reach p_cap | min_dist | n")
+    for o, s, a in aggs:
+        print(f"  {str(bool(o)):<6} | {s:<5.3g} | {a['p_reach']:7.2f} {a['p_cap']:5.2f} | "
+              f"{a['mean_min_dist']:8.2f} | {a['n_agents']}")
+    orc_frozen = next((a['p_reach'] for o, s, a in aggs if o is True and s == 0.0), None)
+    orc_moving = next((a['p_reach'] for o, s, a in aggs if o is True and s == 1.0), None)
+    if orc_frozen is not None and orc_moving is not None:
+        print(f"  cinematique (oracle) : figees={orc_frozen:.2f} vs mobiles={orc_moving:.2f} "
+              f"(delta={orc_frozen - orc_moving:+.2f})")
+    print("=== VERDICT (pre-enregistre, porte par oracle+figees) ===")
+    print(f"  -> {verdict}")
+    table = [{"oracle": bool(o), "speed": s, **{k: v for k, v in a.items() if k != "reached_raw"}}
+             for o, s, a in aggs]
+    h.save({"knob": "reach_oracle x prey_speed_scale", "R": R, "n_eval": n_eval,
+            "verdict": verdict, "table": table})
+    if _return:
+        return {"verdict": verdict, "table": table, "R": R, "n_eval": n_eval}
+
+
+def main_reach_oracle(speeds=(1.0, 0.0), n_eval=8, R=1, seed=114, _return=False):
+    """EDR 114 : sonde borne-sup. Mesure p_reach sous l'oracle d'atteinte (override action) vs politique
+    apprise, x {proies mobiles, figees}, a N_APEX=0/metab=0/forage_payoff=3, SANS evolution (replicas
+    via _measure_forage). Verdict PRIMITIVE FERME/NE FERME PAS/PARTIELLE (porte par oracle+figees)."""
+    with Harness(seed=seed, name="lewis_reach_oracle", with_db=False) as h:
+        base = h.seed
+        _disable_kuzu()
+        print(f"EDR114 : borne-sup oracle, speeds={speeds}, R={R}, n_eval={n_eval}, seed={base}.")
+        seeds = [base + r * 1000 + i for r in range(R) for i in range(n_eval)]   # memes seeds/cellule
+        prog = h.progress(2 * len(speeds), label="cellules (oracle x speed)")
+        aggs = []
+        for oracle in (False, True):
+            for s in speeds:
+                cfg = _cfg(3, base_metabolism=0.0, trace_energy_sinks=True, trace_forage=True,
+                           prey_speed_scale=s, reach_oracle=oracle)
+                aggs.append((oracle, s, _measure_forage(cfg, seeds, n_apex=0, max_ticks=150)))
+                prog.update()
+        return _report_reach(h, aggs, R, n_eval, _return)
+
+
+def _report_evolve_nav(h, traj, stats_hist, generations, num_agents, max_ticks, _return):
+    """Trajectoire p_reach par generation + first/last medianes + pente lineaire + verdict.
+    Tout ASCII (cp1252)."""
+    verdict = _verdict_evolve_nav(traj)
+    n = len(traj)
+    k = 5 if n >= 10 else max(1, n // 2)
+    first = float(np.median(traj[:k]))
+    last = float(np.median(traj[-k:]))
+    slope = float(np.polyfit(range(1, n + 1), traj, 1)[0]) if n >= 2 else 0.0
+    print("\n=== EDR107 evolution navigation Lewis : trajectoire p_reach ===")
+    print("  gen | p_reach | ticks eaten")
+    for i, (p, sd) in enumerate(zip(traj, stats_hist), 1):
+        print(f"  {i:3d} | {p:7.3f} | {sd['ticks']:5d} {sd['eaten']:5d}")
+    print(f"  first-{k} median={first:.3f}  last-{k} median={last:.3f}  delta={last - first:+.3f} (gate +0.15)")
+    print(f"  pente lineaire p_reach/gen = {slope:+.4f}")
+    print("=== VERDICT (pre-enregistre) ===")
+    print(f"  -> {verdict}")
+    h.save({"knob": "generation", "generations": generations, "num_agents": num_agents,
+            "max_ticks": max_ticks, "traj": traj, "first_median": first, "last_median": last,
+            "slope": slope, "verdict": verdict, "stats": stats_hist})
+    if _return:
+        return {"verdict": verdict, "traj": traj, "first_median": first, "last_median": last,
+                "slope": slope}
+
+
+def main_evolve_nav(generations=20, num_agents=24, max_ticks=80, seed=None, _return=False):
+    """EDR 107 : re-evolue la navigation EN Lewis (N_APEX=0, metab=0, forage_payoff=3) sur la fitness
+    de prod calculate_life_score. Cliquet best-ever (top-5 global). Mesure p_reach par generation ->
+    verdict NAVIGATION EVOLUE (last>=first+0.15) vs SUBSTRAT BLOQUE."""
+    with Harness(seed=seed, name="lewis_evolve_nav", with_db=False) as h:
+        base = h.seed
+        _disable_kuzu()
+        print(f"EDR107 : evolution navigation Lewis, gen={generations}, pop={num_agents}, "
+              f"max_ticks={max_ticks}, seed={base}.")
+        mc = MutationConfig(weight_init_std=2.0)
+        seed_at(base, 0)
+        champs = _load_champions()
+        best_ever = [(0.0, g) for g in champs]
+        cfg = _cfg(3, base_metabolism=0.0, trace_forage=True)
+        traj, stats_hist = [], []
+        prog = h.progress(generations, label="generations")
+        for gen in range(1, generations + 1):
+            seed_at(base + gen, 0)
+            champ_genomes = [g for (_s, g) in best_ever]
+            genomes = _reproduce(champ_genomes, num_agents, mc)
+            scored, p_reach, stats = _evolve_nav_gen(cfg, genomes, max_ticks=max_ticks)
+            best_ever = sorted(best_ever + scored, key=lambda sg: sg[0], reverse=True)[:5]
+            traj.append(p_reach)
+            stats_hist.append(stats)
+            prog.update()
+        return _report_evolve_nav(h, traj, stats_hist, generations, num_agents, max_ticks, _return)
+
+
 if __name__ == "__main__":
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
     main()

@@ -358,6 +358,13 @@ def scaffold_edr_stubs(repo: Path) -> list[int]:
 # CLI
 # --------------------------------------------------------------------------- #
 def main(argv=None) -> int:
+    # Windows : la console cp1252 plante sur les caracteres non-latin1 (fleche, etc.) omnipresents
+    # dans les docs FR -> UnicodeEncodeError a l'affichage du rapport. Forcer utf-8 (errors=replace)
+    # pour que le rapport ne crashe jamais a l'impression (meme classe de bug que s2_demand._print_table).
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
     ap = argparse.ArgumentParser(description="Parity check narration EDR <-> frontend (étape 1)")
     ap.add_argument("--repo", default=None, help="racine du repo (défaut : auto)")
     ap.add_argument("--staged", action="store_true", help="classer le diff stagé et n'agir que si EXPERIENCE")

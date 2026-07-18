@@ -30,8 +30,8 @@ WITHDRAW_RATE = 25.0    # max retire de la reserve par tick en famine
 class FamineWorld(Biosphere3D):
     def __init__(self, config=None):
         super().__init__(config)
-        # Seam de dureté (durcir la famine, EDR-129→130) : env-vars FAMINE_CYCLE_* pilotent le régime
-        # sans toucher main_biosphere (comme HOF_PATH/MAX_ERAS, EDR-126). Défaut = régime EDR-118/126.
+        # Seam de dureté (durcir la famine, EDR-157) : env-vars FAMINE_CYCLE_* pilotent le régime
+        # sans toucher main_biosphere (comme HOF_PATH/MAX_ERAS, EDR-155). Défaut = régime EDR-118/155.
         # Régime dur calibré : abondance 30 / famine 120 -> buffer naturel épuisé (~96 ticks), le
         # stockage devient load-bearing (oracle-storer ~223) -> le monde EXIGE une réserve.
         self.cycle_abundance = int(os.environ.get("FAMINE_CYCLE_ABUNDANCE", "60"))  # ticks d'abondance

@@ -95,7 +95,6 @@ export function SweepView() {
               type="checkbox"
               checked={shownIds.includes(s.id)}
               onChange={() => toggleId(s.id)}
-              aria-label={s.label}
             />
             {s.label}
           </label>
