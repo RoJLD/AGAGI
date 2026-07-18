@@ -3,7 +3,7 @@ id: REF-DEMAND-MARKER
 type: REF
 title: "Témoin causal de demande — ablation within-subject de la capacité X"
 status: active
-adopt_for: [S2-001, LANG-006, G1-001, MEM-001, EDR-S2-002, EDR-S2-003, EDR-S2-004, EDR-S2-005, EDR-S2-006, EDR-S2-007]
+adopt_for: [S2-001, LANG-006, G1-001, MEM-001, EDR-S2-002, EDR-S2-003, EDR-S2-004, EDR-S2-005, EDR-S2-006, EDR-S2-007, EDR-S2-008]
 ---
 
 ## Énoncé
@@ -28,6 +28,7 @@ FAUX-POSITIVE : un survivant compétent peut exister dans un monde qui n'exige p
 | recette cognitive | EDR-S2-004 | grille corps×devise, sim survie | SENSIBLE SSI corps INSUFFISANT ET cognition payée en énergie (ratio ~10×, \|W\|0.93) ; sinon NEUTRE (\|W\|0.000) |
 | recette mémoire | EDR-S2-005 | ablation mémoire, grille corps×rappel×devise | SENSIBLE SSI corps INSUFFISANT ET rappel DIFFÉRÉ ET énergie (ratio ~10×) ; **\|W\| faux-positive (0.909 neutre) → préférer l'ablation** |
 | anticipation (MODULE) | EDR-S2-007 | ablation de MODULE (forward-model→identité) | SENSIBLE SSI corps INSUFFISANT ET dynamique (shift≠0) ET énergie (ratio ~16×) ; 1er jalon ablation-CALCUL (G4) |
+| composition (MODULE) | EDR-S2-008 | ablation de MODULE (plan means→0), chaîne means→ends | SENSIBLE SSI corps INSUFFISANT ET chaîne≥2 ET énergie (ratio ~8×) ; 2e jalon ablation-CALCUL (G2) |
 | communication | LANG-006 | canal coupé | MI 1.04 vs 0.000 |
 | généralisation | G1-001 | θ ablaté | Δ0.83 causal |
 | mémoire | MEM-001 | mémoire remise à 0 | effondre 6-8× |
