@@ -455,9 +455,10 @@ class Biosphere3D(BaseWorld):
             bit_b[mask] = altar["bit_b"]
 
         if getattr(self.config, "cognitive_demand", False):
-            sig = getattr(self, "_cog_signal", (1.0, 1.0))
-            bit_a[:] = sig[0]        # signal GLOBAL (tous agents le voient), pas altar-gated
-            bit_b[:] = sig[1]
+            for _i, _a in enumerate(self.agents):
+                _s = _a.get("_cog_sig", (1.0, 1.0))
+                bit_a[_i] = _s[0]    # signal PAR-AGENT (chacun voit le sien), pas altar-gated
+                bit_b[_i] = _s[1]
 
         # Vectorized adj_energy and in_hear (Tensor Lidar)
         dx = ax[:, None] == ax[None, :]
@@ -818,7 +819,7 @@ class Biosphere3D(BaseWorld):
             bio["autres"] += (_s2 - _s3) + (_s4 - agent["energy"])   # gains approach/forage + jump/heal/hunt
 
         if getattr(self.config, "cognitive_demand", False):
-            sig = getattr(self, "_cog_signal", (1.0, 1.0))
+            sig = agent.get("_cog_sig", (1.0, 1.0))
             correct_dir = 2 * (sig[0] > 0) + (sig[1] > 0)     # ∈ {0,1,2,3}
             if action == correct_dir:
                 agent["energy"] = min(self.config.agent.energy_max,
@@ -1079,8 +1080,9 @@ class Biosphere3D(BaseWorld):
 
     def step(self):
         if getattr(self.config, "cognitive_demand", False):
-            self._cog_signal = (float(np.random.choice([-1.0, 1.0])),
-                                float(np.random.choice([-1.0, 1.0])))   # signal 2-bits GLOBAL de CE tick
+            for _a in self.agents:
+                _a["_cog_sig"] = (float(np.random.choice([-1.0, 1.0])),
+                                  float(np.random.choice([-1.0, 1.0])))   # signal 2-bits PAR-AGENT de CE tick
 
         self.ticks += 1
         was_night = getattr(self, "is_night", False)

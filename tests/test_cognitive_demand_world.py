@@ -29,7 +29,7 @@ def test_on_mode_rewards_signal_matched_direction():
     env = _fresh_world(cognitive_demand=True, cog_gain=6.0, base_metabolism=0.1)
     a = MambaAgent(); env.add_agent(a, energy=50.0)
     ag = env.agents[0]
-    env._cog_signal = (1.0, 1.0)               # dir = 2*(1>0)+(1>0) = 3
+    ag["_cog_sig"] = (1.0, 1.0)                 # dir = 2*(1>0)+(1>0) = 3
     ag["energy"] = 50.0
     env._resolve_biology(ag, action=3, logits=np.zeros(120))   # action correcte
     correct_e = ag["energy"]
@@ -41,11 +41,14 @@ def test_on_mode_rewards_signal_matched_direction():
 
 
 def test_on_mode_signal_in_obs_columns_12_13():
-    # ON : le signal global est présent dans l'obs (colonnes bit_a=12, bit_b=13) pour tous les agents
+    # ON : le signal est PAR-AGENT, présent dans l'obs (colonnes bit_a=12, bit_b=13) de CHAQUE agent
     env = _fresh_world(cognitive_demand=True)
     for _ in range(3):
         env.add_agent(MambaAgent(), energy=50.0)
-    env._cog_signal = (1.0, -1.0)
+    sigs = [(1.0, 1.0), (-1.0, 1.0), (1.0, -1.0)]
+    for a, s in zip(env.agents, sigs):
+        a["_cog_sig"] = s
     obs = env.get_batch_observations()
-    assert np.allclose(obs[:, 12], 1.0)         # bit_a global
-    assert np.allclose(obs[:, 13], -1.0)        # bit_b global
+    for i, s in enumerate(sigs):
+        assert obs[i, 12] == s[0]                # bit_a de CET agent
+        assert obs[i, 13] == s[1]                # bit_b de CET agent
