@@ -282,3 +282,55 @@ def run_bptt_imitation_warmstart(seed=2026, num_agents=12, n_epochs=200, truncat
     pop._write_back()
     acc = _imitation_accuracy(pop, obs_seq, tgt_seq)
     return {"learned_genome": agents[0].genome, "loss_trend": loss_trend, "imit_acc": acc}
+
+
+def main():
+    seed = int(os.environ.get("WARM_SEED", "2026"))
+    generations = int(os.environ.get("WARM_GEN", "50"))
+    pop_size = int(os.environ.get("WARM_POP", "24"))
+    n_epochs = int(os.environ.get("WARM_EPOCHS", "200"))
+    K = int(os.environ.get("WARM_K", "12"))
+    metab = float(os.environ.get("WARM_METAB", str(METAB_DEFAULT)))
+    cog = float(os.environ.get("WARM_COG", str(COG_DEFAULT)))
+
+    print(f"\n=== WARM — deux optimiseurs vs le verrou crédit in-world "
+          f"(seed={seed}, K={K}, metab={metab}, cog={cog}) ===")
+    print(f"repères : plancher no-perception ≈ {PLANCHER} | oracle intact ≈ 200 | REINFORCE froid = plat (S2-009)\n")
+
+    # WARM-002 — évolution W-only
+    evo = run_inworld_evolution(seed=seed, generations=generations, pop_size=pop_size,
+                                max_ticks=200, metab=metab, cog=cog)
+    print(f"WARM-002 évolution : trend top-k = {[round(x, 1) for x in evo['trend']]}")
+    ve = verdict_demand_marker(evo["best_genome"], backend="mamba", seed=seed, K=K,
+                               metab=metab, cog=cog)
+    print(f"WARM-002 verdict (mamba) : ratio={ve['ratio']:.2f} intact={ve['intact_survival']:.1f} "
+          f"ablé={ve['ablated_survival']:.1f} -> {ve['verdict']} (n={ve['n']})")
+
+    # WARM-001 — imitation BPTT
+    imi = run_bptt_imitation_warmstart(seed=seed, num_agents=max(12, K), n_epochs=n_epochs,
+                                       max_ticks=200, metab=metab, cog=cog)
+    if imi is None:
+        vi = None
+        print("WARM-001 : SKIP (torch absent)")
+    else:
+        print(f"WARM-001 imitation : loss {imi['loss_trend'][0]:.3f} -> {imi['loss_trend'][-1]:.3f} "
+              f"| imit_acc={imi['imit_acc']:.3f}")
+        vi = verdict_demand_marker(imi["learned_genome"], backend="torch", seed=seed, K=K,
+                                   metab=metab, cog=cog)
+        print(f"WARM-001 verdict (torch) : ratio={vi['ratio']:.2f} intact={vi['intact_survival']:.1f} "
+              f"ablé={vi['ablated_survival']:.1f} -> {vi['verdict']} (n={vi['n']})")
+
+    def _pass(v):
+        return bool(v) and v["verdict"] == "PERCEPTION_DEMANDED" and v["intact_survival"] > 2 * PLANCHER
+
+    print("\nSynthèse (PASS = marqueur PERCEPTION_DEMANDED ET survie intacte ≫ plancher) :")
+    print(f"  WARM-002 évolution W-only : {'PASS' if _pass(ve) else 'FAIL'}")
+    print(f"  WARM-001 imitation BPTT   : {'PASS' if _pass(vi) else ('SKIP' if vi is None else 'FAIL')}")
+    print("-> Interpréter : un PASS où le REINFORCE froid échoue = le verrou était le chemin de crédit "
+          "de CET optimiseur, pas le substrat/monde. Deux FAIL = verrou plus profond (gradient de "
+          "sélection cognitif faible). Rédiger EDR-WARM-001/002 + MàJ REF-DEMAND-MARKER.")
+    return {"evo": evo["trend"], "warm002": ve, "warm001": vi}
+
+
+if __name__ == "__main__":
+    main()
