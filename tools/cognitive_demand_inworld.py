@@ -111,6 +111,52 @@ def run_credit_probe(seed=2026, eras=6, num_agents=12, max_ticks=200, base_metab
     return trend
 
 
+CURRICULUM_COG = [(0.75, 40.0), (0.75, 28.0), (0.75, 20.0), (0.75, 16.0), (0.75, 12.0), (0.75, 12.0)]
+CURRICULUM_METAB = [(0.25, 12.0), (0.35, 12.0), (0.5, 12.0), (0.65, 12.0), (0.75, 12.0), (0.75, 12.0)]
+
+
+def run_warmstart_credit_probe(seed=2026, num_agents=12, max_ticks=200, schedule=None, floor=7.0):
+    """Suite naturelle (warm-start/curriculum du credit-probe). Le probe FROID (run_credit_probe) montre que
+    le crédit in-world n'apprend pas la nourriture cognitive à froid (survie plate ~7). Catch-22 du
+    bootstrap : régime dur = meurt avant d'apprendre ; régime facile = pas de pression. Curriculum : UNE
+    cohorte PERSISTÉE (mêmes MambaAgent → genome.W accumule l'apprentissage, world_1 sync) traverse un
+    `schedule` de (base_metabolism, cog_gain) allant du FACILE au DUR. Si à l'étape finale (dure) la survie
+    TIENT (≫ floor) → le curriculum a franchi le bootstrap (loi warm-start). CURRICULUM_COG = cog annelé
+    haut→normal (metab dur fixe) ; CURRICULUM_METAB = metab facile→dur (cog fixe). Renvoie survie médiane
+    par étape + flag learned."""
+    import numpy as np
+    from src.worlds.world_1_stoneage import Biosphere3D
+    from src.seed_ai.harness import seed_at
+    from src.agents.mamba_agent import MambaAgent
+
+    schedule = schedule if schedule is not None else CURRICULUM_COG
+    agents = [MambaAgent() for _ in range(num_agents)]     # cohorte PERSISTÉE (genome.W accumule)
+    trend = []
+    for stage, (metab, cog) in enumerate(schedule):
+        seed_at(seed, stage)
+        e = Biosphere3D()
+        e.benchmark_mode = True
+        e.night_enabled = False
+        e.current_era = 10_000
+        e.config.cognitive_demand = True
+        e.config.cog_gain = cog
+        e.config.base_metabolism = metab
+        e.config.forage_payoff = 0.0
+        e.use_torch_inworld = True
+        for a in agents:
+            e.add_agent(a, energy=80.0)                    # réutilise les objets → genome.W persiste
+        t = 0
+        while e.agents and t < max_ticks:
+            e.step()
+            t += 1
+        ages = [int(a["age"]) for a in list(e.agents) + list(getattr(e, "dead_agents", []))]
+        trend.append((metab, cog, float(np.median(ages)) if ages else 0.0))
+        if hasattr(e, "memory_retriever"):
+            e.memory_retriever.stop()
+    final = trend[-1][2]
+    return {"trend": trend, "final": final, "learned": final >= 4 * floor}   # 4× plancher = franchi
+
+
 def main():
     seed = int(os.environ.get("CDI_SEED", "2026"))
     K = int(os.environ.get("CDI_K", "12"))
