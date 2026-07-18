@@ -326,6 +326,89 @@ def _inworld_accuracy(genome, seed=2026, num_agents=12, max_ticks=200,
     return stats["correct"] / max(1, stats["total"])
 
 
+def _collect_onpolicy_trajectory(genome, seed=2026, num_agents=12, max_ticks=200,
+                                 metab=METAB_DEFAULT, cog=COG_DEFAULT):
+    """Déroule le génome LEARNER on-policy sous torch (W gelé) et enregistre les séquences fixed-B
+    masquées qu'il visite LUI-MÊME (DAgger). Alignement à travers les morts par id(model) : les objets-
+    modèles persistent aux reconstructions de pop -> chaque ligne du forward est remise à son index
+    d'origine ; les morts -> obs 0 / mask 0. Réétiquette par l'oracle correct_dir=2*(bit_a>0)+(bit_b>0).
+    L'obs est lue DANS forward (signal _cog_sig frais du tick). Renvoie (obs_seq, tgt_seq, mask_seq)."""
+    try:
+        import torch  # noqa: F401
+    except Exception:
+        return [], [], []
+    import src.agents.backend as backend_mod
+    from src.agents.backend_torch import TorchPopulationModel
+    from src.worlds.world_1_stoneage import Biosphere3D
+    from src.agents.mamba_agent import MambaAgent
+    from src.seed_ai.harness import seed_at
+
+    rec = {"obs": [], "tgt": [], "mask": []}
+    orig_index = {}
+
+    class _RecTorchPop(TorchPopulationModel):
+        def forward(self, batch_obs, env_surprise_batch=None):
+            arr = np.asarray(batch_obs, dtype=np.float32)
+            logits, cs = super().forward(arr, env_surprise_batch)
+            cols = arr.shape[1] if arr.ndim == 2 else 0
+            obs_row = np.zeros((num_agents, cols), dtype=np.float32)
+            tgt_row = np.zeros(num_agents, dtype=np.int64)
+            mask_row = np.zeros(num_agents, dtype=np.float32)
+            for j in range(arr.shape[0]):
+                oi = orig_index.get(id(self.agents[j]))
+                if oi is None:
+                    continue
+                obs_row[oi] = arr[j]
+                tgt_row[oi] = int(2 * (arr[j, BIT_A] > 0) + (arr[j, BIT_B] > 0))
+                mask_row[oi] = 1.0
+            rec["obs"].append(obs_row)
+            rec["tgt"].append(tgt_row)
+            rec["mask"].append(mask_row)
+            return logits, cs
+
+    _orig = backend_mod.make_population
+
+    def _frozen_rec(agents, backend="legacy", world_model=None):
+        if backend == "torch":
+            pop = _RecTorchPop(agents, world_model=world_model)
+            for grp in pop.opt.param_groups:
+                grp["lr"] = 0.0
+            return pop
+        return _orig(agents, backend=backend, world_model=world_model)
+
+    backend_mod.make_population = _frozen_rec
+    try:
+        seed_at(seed, 0)
+        e = Biosphere3D()
+        e.benchmark_mode = True
+        e.night_enabled = False
+        e.current_era = 10_000
+        e.config.cognitive_demand = True
+        e.config.cog_gain = cog
+        e.config.base_metabolism = metab
+        e.config.forage_payoff = 0.0
+        e.use_torch_inworld = True
+        e.torch_episode_k = 10 ** 9
+        for _ in range(num_agents):
+            a = MambaAgent()
+            a.from_genome(genome)
+            e.add_agent(a, energy=80.0)
+        for i, ag in enumerate(e.agents):                 # index d'origine par identité du modèle
+            orig_index[id(ag["model"])] = i
+        t = 0
+        while e.agents and t < max_ticks:
+            e.step()
+            t += 1
+        if hasattr(e, "memory_retriever"):
+            e.memory_retriever.stop()
+    finally:
+        backend_mod.make_population = _orig
+    # filtre les ticks entièrement vides (aucun agent mappé) par sécurité
+    keep = [k for k in range(len(rec["obs"])) if rec["mask"][k].sum() > 0]
+    return ([rec["obs"][k] for k in keep], [rec["tgt"][k] for k in keep],
+            [rec["mask"][k] for k in keep])
+
+
 def run_bptt_imitation_warmstart(seed=2026, num_agents=12, n_epochs=200, truncate_window=25,
                                  max_ticks=200, metab=METAB_DEFAULT, cog=COG_DEFAULT, lr=0.5):
     """WARM-001 : collecte la trajectoire-enseignant (oracle, B constant) puis entraîne une cohorte

@@ -93,6 +93,19 @@ def test_run_bptt_imitation_warmstart_smoke_reduces_loss():
     assert out["loss_trend"][-1] <= out["loss_trend"][0]
 
 
+def test_collect_onpolicy_trajectory_shapes_and_mask():
+    from tools.warmstart_evolution_inworld import _collect_onpolicy_trajectory
+    from src.agents.mamba_agent import MambaAgent
+    pytest.importorskip("torch")
+    g = MambaAgent().genome
+    obs_seq, tgt_seq, mask_seq = _collect_onpolicy_trajectory(g, seed=2026, num_agents=4, max_ticks=10)
+    assert len(obs_seq) == len(tgt_seq) == len(mask_seq) >= 1
+    assert obs_seq[0].shape == (4, obs_seq[0].shape[1]) and obs_seq[0].shape[1] >= 14
+    assert tgt_seq[0].shape == (4,) and mask_seq[0].shape == (4,)
+    assert set(np.unique(mask_seq[0])).issubset({0.0, 1.0})
+    assert mask_seq[0].sum() == 4.0           # tous vivants au 1er tick
+
+
 def test_imitate_episode_bptt_mask_all_ones_trains_and_zero_mask_noop():
     pytest.importorskip("torch")
     pop = _tiny_torch_pop(B=4, I=2, O=8, N=12, seed=3)
