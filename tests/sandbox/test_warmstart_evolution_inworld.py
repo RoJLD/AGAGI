@@ -72,3 +72,22 @@ def test_mutate_w_only_changes_W_not_router():
     assert not np.allclose(g.W, W0), "W devrait changer"
     if router0 is not None:
         assert np.allclose(g.W_router, router0), "W_router ne doit PAS changer (comparaison propre au gradient)"
+
+
+def test_collect_oracle_trajectory_shapes():
+    from tools.warmstart_evolution_inworld import _collect_oracle_trajectory
+    obs_seq, tgt_seq = _collect_oracle_trajectory(seed=2026, num_agents=4, max_ticks=8,
+                                                  metab=0.75, cog=12.0)
+    assert len(obs_seq) == len(tgt_seq) and len(obs_seq) >= 1
+    assert obs_seq[0].shape[0] == 4 and obs_seq[0].shape[1] >= 14      # B=4, >= colonnes bit_a/bit_b
+    assert tgt_seq[0].shape[0] == 4 and tgt_seq[0].max() < 8
+
+
+def test_run_bptt_imitation_warmstart_smoke_reduces_loss():
+    pytest.importorskip("torch")
+    from tools.warmstart_evolution_inworld import run_bptt_imitation_warmstart
+    from src.seed_ai.mutation import Genome
+    out = run_bptt_imitation_warmstart(seed=2026, num_agents=4, n_epochs=8,
+                                       truncate_window=10, max_ticks=12)
+    assert isinstance(out["learned_genome"], Genome)
+    assert out["loss_trend"][-1] <= out["loss_trend"][0]

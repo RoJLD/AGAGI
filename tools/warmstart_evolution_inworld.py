@@ -18,6 +18,7 @@ if _ROOT not in sys.path:
 from tools.s2_demand import run_condition
 from tools.s2_demand_ablation import derange_rows, PerceptionAblatedMamba
 from tools.demand_marker import ablation_verdict
+from tools.cognitive_demand_inworld import CognitiveOracleBatchModel, BIT_A, BIT_B
 
 METAB_DEFAULT = 0.75
 COG_DEFAULT = 12.0
@@ -197,3 +198,87 @@ def run_inworld_evolution(seed=2026, generations=50, pop_size=24, survival_frac=
             new.append(child)
         genomes = new
     return {"trend": trend, "best_genome": best_genome, "best_age": best_age}
+
+
+class RecordingOracleBatchModel(CognitiveOracleBatchModel):
+    """Oracle qui ENREGISTRE, par tick, l'obs présentée (B,59) + le label enseignant correct_dir
+    (B,) avant de jouer normalement. Attributs de CLASSE (le monde ré-instancie le batch model chaque
+    tick). Réinitialiser RECORDED_OBS/RECORDED_TGT avant chaque collecte."""
+    RECORDED_OBS = []
+    RECORDED_TGT = []
+
+    def forward(self, batch_obs, env_surprise_batch=None):
+        arr = np.asarray(batch_obs, dtype=np.float32)
+        a = arr[:, BIT_A]
+        b = arr[:, BIT_B]
+        tgt = (2 * (a > 0) + (b > 0)).astype(int)
+        type(self).RECORDED_OBS.append(arr.copy())
+        type(self).RECORDED_TGT.append(tgt.copy())
+        return super().forward(batch_obs, env_surprise_batch)
+
+
+def _collect_oracle_trajectory(seed, num_agents, max_ticks, metab, cog):
+    """Rollout d'une cohorte oracle (survie pleine -> B constant) ; renvoie (obs_seq, tgt_seq) à B fixe.
+    Garde le préfixe où toutes les lignes sont présentes (B == num_agents) : la séquence BPTT exige B
+    constant. L'oracle intact survit ~max_ticks (S2-009) -> préfixe = trajectoire quasi complète."""
+    RecordingOracleBatchModel.RECORDED_OBS = []
+    RecordingOracleBatchModel.RECORDED_TGT = []
+    world = make_cog_world(metab, cog)
+    run_condition(world, RecordingOracleBatchModel, None, seed,
+                  num_agents=num_agents, max_ticks=max_ticks, n_eras=1)
+    obs_all = RecordingOracleBatchModel.RECORDED_OBS
+    tgt_all = RecordingOracleBatchModel.RECORDED_TGT
+    obs_seq, tgt_seq = [], []
+    for obs, tgt in zip(obs_all, tgt_all):
+        if obs.shape[0] != num_agents:                 # une mort a réduit B -> stop (B doit rester fixe)
+            break
+        obs_seq.append(obs)
+        tgt_seq.append(tgt)
+    return obs_seq, tgt_seq
+
+
+def _imitation_accuracy(pop, obs_seq, tgt_seq):
+    """Taux de bonne-direction du génome courant sous le forward torch (sans grad), sur la trajectoire."""
+    import torch
+    correct = total = 0
+    H = torch.zeros((pop.B, pop.N), device=pop.device)
+    with torch.no_grad():
+        for obs, tgt in zip(obs_seq, tgt_seq):
+            obs_t = torch.tensor(np.asarray(obs, dtype=np.float32)[:, :pop.I], device=pop.device)
+            H = pop._step(obs_t, H)
+            out = H[:, pop.N - pop.O:pop.N]
+            pred = torch.argmax(out[:, :8], dim=1).cpu().numpy()
+            correct += int(np.sum(pred == np.asarray(tgt)))
+            total += len(tgt)
+    return correct / max(1, total)
+
+
+def run_bptt_imitation_warmstart(seed=2026, num_agents=12, n_epochs=200, truncate_window=25,
+                                 max_ticks=200, metab=METAB_DEFAULT, cog=COG_DEFAULT):
+    """WARM-001 : collecte la trajectoire-enseignant (oracle, B constant) puis entraîne une cohorte
+    torch par imitation récurrente BPTT (imitate_episode_bptt) sur les obs RÉELLES 59-dim. Renvoie le
+    génome warm-starté (agent 0), la trace de perte et l'accuracy d'imitation finale. None si torch absent."""
+    try:
+        import torch  # noqa: F401
+    except Exception:
+        print("WARM-001 SKIP : torch absent (requirements-torch.txt).")
+        return None
+    from src.agents.mamba_agent import MambaAgent
+    from src.agents.backend import make_population
+    from src.seed_ai.harness import seed_at
+
+    obs_seq, tgt_seq = _collect_oracle_trajectory(seed, num_agents, max_ticks, metab, cog)
+    if not obs_seq:
+        print("WARM-001 SKIP : trajectoire oracle vide.")
+        return None
+
+    seed_at(seed, 1)
+    agents = [MambaAgent() for _ in range(num_agents)]        # génomes apprenants (dims homogènes)
+    pop = make_population(agents, backend="torch")
+    loss_trend = []
+    for _ in range(n_epochs):
+        loss = pop.imitate_episode_bptt(obs_seq, tgt_seq, truncate_window=truncate_window)
+        loss_trend.append(loss)
+    pop._write_back()
+    acc = _imitation_accuracy(pop, obs_seq, tgt_seq)
+    return {"learned_genome": agents[0].genome, "loss_trend": loss_trend, "imit_acc": acc}
