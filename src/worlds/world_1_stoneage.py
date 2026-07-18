@@ -798,12 +798,18 @@ class Biosphere3D(BaseWorld):
         if do_duck:
             eaten_worm = next((w for w in self.worms if w["x"] == agent["x"] and w["y"] == agent["y"] and w.get("z", 0) == agent.get("z", 0)), None)
             if eaten_worm:
-                agent["energy"] += 10.0
+                # Guardé OFF en mode cognitive_demand : pas de revenu-ver (le corps ne doit
+                # pas pouvoir résoudre la tâche, seul le signal le peut).
+                if not getattr(self.config, "cognitive_demand", False):
+                    agent["energy"] += 10.0
                 self.worms.remove(eaten_worm)
                 self._spawn_worms() # spawn 1 worm actually
-                
+
         if agent["x"] == self.treasure_x and agent["y"] == self.treasure_y and agent.get("z", 0) == self.treasure_z and float(logits[14]) > 0:
-            agent["energy"] += self.config.treasure_reward
+            # Guardé OFF en mode cognitive_demand : pas de revenu-trésor (le corps ne doit
+            # pas pouvoir résoudre la tâche, seul le signal le peut).
+            if not getattr(self.config, "cognitive_demand", False):
+                agent["energy"] += self.config.treasure_reward
             logger.emit("TREASURE_FOUND", {"agent_id": agent["id"]})
             self._spawn_treasure()
         if getattr(self.config, "trace_energy_sinks", False):
@@ -1210,7 +1216,10 @@ class Biosphere3D(BaseWorld):
                 error = abs(delta_e - agent["last_value_pred"])
                 # Bénédiction épistémique : +0.5 si la prédiction est parfaite
                 alignment_reward = max(0.0, 0.5 - error)
-                agent["energy"] = min(100.0, agent["energy"] + alignment_reward)
+                # Guardé OFF en mode cognitive_demand : pas de bonus d'alignement de value (le
+                # corps ne doit pas pouvoir résoudre la tâche, seul le signal le peut).
+                if not getattr(self.config, "cognitive_demand", False):
+                    agent["energy"] = min(100.0, agent["energy"] + alignment_reward)
             
             agent["last_energy"] = agent["energy"]
             

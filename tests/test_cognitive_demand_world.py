@@ -24,6 +24,20 @@ def test_off_mode_is_non_regressive():
     assert env.agents[0]["energy"] < e0        # métabolisme draine, aucun cog_gain injecté
 
 
+def test_off_mode_legacy_fruit_income_still_fires():
+    # OFF : la voie de revenu corporel LÉGACY (fruit en inventaire, +20) doit toujours payer ->
+    # preuve que le gating cognitive_demand ne fuit pas et ne bloque rien en mode OFF.
+    env = _fresh_world(cognitive_demand=False, base_metabolism=0.01)
+    a = MambaAgent(); env.add_agent(a, energy=50.0)
+    ag = env.agents[0]
+    ag["x"] = -1                                # hors grille -> déterministe (aucun treasure/prey/worm collision)
+    ag["inventory"] = [{"type": "Fruit", "weight": 1.0}]
+    ag["energy"] = 50.0
+    env._resolve_biology(ag, action=0, logits=np.zeros(120))
+    assert ag["energy"] > 50.0                  # la voie fruit (+20, min plafonné 100) a bien payé
+    assert not any(isinstance(it, dict) and it.get("type") == "Fruit" for it in ag["inventory"])  # fruit consommé
+
+
 def test_on_mode_rewards_signal_matched_direction():
     # ON : forcer le signal, appeler _resolve_biology avec l'action == direction correcte -> +cog_gain net
     env = _fresh_world(cognitive_demand=True, cog_gain=6.0, base_metabolism=0.1)
