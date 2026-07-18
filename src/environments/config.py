@@ -77,6 +77,8 @@ class WorldConfig:
     # règlent le sweet spot dureté↔soutenabilité. Défauts = comportement historique (non-régression).
     base_metabolism: float = 1.0   # multiplicateur du drain de base par tick (↓ = survie plus longue)
     forage_payoff: float = 1.0     # multiplicateur de la nutrition d'une proie (↑ = foraging plus payant)
+    cognitive_demand: bool = False   # S2-009 : mode demande cognitive (défaut OFF, non-régressif).
+    cog_gain: float = 6.0            # énergie payée quand l'agent bouge dans la direction signalée (mode ON).
     # Tool-gate de l'apex (EDR 111) : hp du Mammouth. Défaut 100.0 = comportement historique
     # (non-régression bit-exacte). Relevé (~250) -> la riposte cumulée tue le pack mains-nues
     # avant le kill mais pas le pack-lance (5x plus efficace) -> l'outil devient nécessaire.
