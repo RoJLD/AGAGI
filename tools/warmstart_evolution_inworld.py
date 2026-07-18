@@ -5,7 +5,8 @@ régime S2-009 (cognitive_demand). NE modifie PAS les outils partagés (s2_deman
 s2_demand_ablation, mutation). REF-DEMAND-MARKER.
 
 Usage : python tools/warmstart_evolution_inworld.py
-  (env: WARM_SEED, WARM_GEN, WARM_POP, WARM_EPOCHS, WARM_K, WARM_METAB, WARM_COG)
+  (env: WARM_SEED, WARM_GEN, WARM_POP, WARM_EPOCHS, WARM_LR, WARM_K, WARM_METAB, WARM_COG)
+  Ex. reproduction table EDR-WARM-001 (acc->1.0) : WARM_LR=0.6 WARM_EPOCHS=20000 python tools/warmstart_evolution_inworld.py
 """
 import os
 import sys
@@ -22,7 +23,8 @@ from tools.cognitive_demand_inworld import CognitiveOracleBatchModel, BIT_A, BIT
 
 METAB_DEFAULT = 0.75
 COG_DEFAULT = 12.0
-PLANCHER = 7.0                      # survie no-perception (S2-009) ; repère "≫ plancher"
+PLANCHER = 7.0                      # survie no-perception (S2-009) ; repère bas
+ORACLE_REF = 200.0                 # survie de l'oracle (S2-009) ; repère haut. PASS = survie ≥ mi-chemin.
 
 
 def make_cog_world(metab=METAB_DEFAULT, cog=COG_DEFAULT):
@@ -253,18 +255,90 @@ def _imitation_accuracy(pop, obs_seq, tgt_seq):
     return correct / max(1, total)
 
 
+def _inworld_accuracy(genome, seed=2026, num_agents=12, max_ticks=200,
+                      metab=METAB_DEFAULT, cog=COG_DEFAULT):
+    """Sonde DÉCISIVE (EDR-WARM-001 §mécanisme) : accuracy per-tick RÉELLE du génome quand il pilote
+    SES PROPRES états in-world (forward torch, W gelé), vs l'accuracy sur la trajectoire-enseignant.
+    Enregistre argmax(logits[:8]) vs correct_dir=2*(bit_a>0)+(bit_b>0) de CHAQUE tick, sur les obs que
+    l'agent visite lui-même. Si elle s'effondre vs l'accuracy enseignant -> la carte ne tient PAS hors
+    de la distribution de l'oracle (dérive de l'état récurrent / sur-apprentissage mono-trajectoire) ;
+    si elle reste haute alors que la survie plafonne -> le mur n'est pas la décision (autre cause).
+    NB : lit les logits BRUTS du forward (avant pénalité anti-répétition/consensus appliqués par le monde)
+    = la décision INTRINSÈQUE du génome. Renvoie l'accuracy on-policy (float)."""
+    try:
+        import torch  # noqa: F401
+    except Exception:
+        return None
+    import src.agents.backend as backend_mod
+    from src.agents.backend_torch import TorchPopulationModel
+    from src.worlds.world_1_stoneage import Biosphere3D
+    from src.agents.mamba_agent import MambaAgent
+    from src.seed_ai.harness import seed_at
+
+    stats = {"correct": 0, "total": 0}
+
+    class _RecAccTorchPop(TorchPopulationModel):
+        def forward(self, batch_obs, env_surprise_batch=None):
+            arr = np.asarray(batch_obs, dtype=np.float32)
+            logits, cs = super().forward(arr, env_surprise_batch)
+            if getattr(logits, "shape", (0,))[0]:
+                pred = np.argmax(logits[:, :8], axis=1)
+                cd = (2 * (arr[:, BIT_A] > 0) + (arr[:, BIT_B] > 0)).astype(int)
+                stats["correct"] += int(np.sum(pred == cd))
+                stats["total"] += int(len(cd))
+            return logits, cs
+
+    _orig = backend_mod.make_population
+
+    def _frozen_rec(agents, backend="legacy", world_model=None):
+        if backend == "torch":
+            pop = _RecAccTorchPop(agents, world_model=world_model)
+            for grp in pop.opt.param_groups:
+                grp["lr"] = 0.0
+            return pop
+        return _orig(agents, backend=backend, world_model=world_model)
+
+    backend_mod.make_population = _frozen_rec
+    try:
+        seed_at(seed, 0)
+        e = Biosphere3D()
+        e.benchmark_mode = True
+        e.night_enabled = False
+        e.current_era = 10_000
+        e.config.cognitive_demand = True
+        e.config.cog_gain = cog
+        e.config.base_metabolism = metab
+        e.config.forage_payoff = 0.0
+        e.use_torch_inworld = True
+        e.torch_episode_k = 10 ** 9
+        for _ in range(num_agents):
+            a = MambaAgent()
+            a.from_genome(genome)
+            e.add_agent(a, energy=80.0)
+        t = 0
+        while e.agents and t < max_ticks:
+            e.step()
+            t += 1
+        if hasattr(e, "memory_retriever"):
+            e.memory_retriever.stop()
+    finally:
+        backend_mod.make_population = _orig
+    return stats["correct"] / max(1, stats["total"])
+
+
 def run_bptt_imitation_warmstart(seed=2026, num_agents=12, n_epochs=200, truncate_window=25,
-                                 max_ticks=200, metab=METAB_DEFAULT, cog=COG_DEFAULT):
+                                 max_ticks=200, metab=METAB_DEFAULT, cog=COG_DEFAULT, lr=0.5):
     """WARM-001 : collecte la trajectoire-enseignant (oracle, B constant) puis entraîne une cohorte
-    torch par imitation récurrente BPTT (imitate_episode_bptt) sur les obs RÉELLES 59-dim. Renvoie le
-    génome warm-starté (agent 0), la trace de perte et l'accuracy d'imitation finale. None si torch absent."""
+    torch par imitation récurrente BPTT (imitate_episode_bptt) sur les obs RÉELLES 59-dim. `lr` est
+    EXPOSÉ (le run par défaut lr=0.04 sous-entraîne ; la table EDR-WARM-001 balaie lr∈[0.5,0.7]). Renvoie
+    le génome warm-starté (agent 0), la trace de perte et l'accuracy d'imitation finale. None si torch absent."""
     try:
         import torch  # noqa: F401
     except Exception:
         print("WARM-001 SKIP : torch absent (requirements-torch.txt).")
         return None
     from src.agents.mamba_agent import MambaAgent
-    from src.agents.backend import make_population
+    from src.agents.backend_torch import TorchPopulationModel      # lr exposé (make_population ne le propage pas)
     from src.seed_ai.harness import seed_at
 
     obs_seq, tgt_seq = _collect_oracle_trajectory(seed, num_agents, max_ticks, metab, cog)
@@ -274,7 +348,7 @@ def run_bptt_imitation_warmstart(seed=2026, num_agents=12, n_epochs=200, truncat
 
     seed_at(seed, 1)
     agents = [MambaAgent() for _ in range(num_agents)]        # génomes apprenants (dims homogènes)
-    pop = make_population(agents, backend="torch")
+    pop = TorchPopulationModel(agents, lr=lr)
     loss_trend = []
     for _ in range(n_epochs):
         loss = pop.imitate_episode_bptt(obs_seq, tgt_seq, truncate_window=truncate_window)
@@ -289,6 +363,7 @@ def main():
     generations = int(os.environ.get("WARM_GEN", "50"))
     pop_size = int(os.environ.get("WARM_POP", "24"))
     n_epochs = int(os.environ.get("WARM_EPOCHS", "200"))
+    lr = float(os.environ.get("WARM_LR", "0.5"))
     K = int(os.environ.get("WARM_K", "12"))
     metab = float(os.environ.get("WARM_METAB", str(METAB_DEFAULT)))
     cog = float(os.environ.get("WARM_COG", str(COG_DEFAULT)))
@@ -308,27 +383,35 @@ def main():
 
     # WARM-001 — imitation BPTT
     imi = run_bptt_imitation_warmstart(seed=seed, num_agents=max(12, K), n_epochs=n_epochs,
-                                       max_ticks=200, metab=metab, cog=cog)
+                                       max_ticks=200, metab=metab, cog=cog, lr=lr)
     if imi is None:
         vi = None
         print("WARM-001 : SKIP (torch absent)")
     else:
+        # Sonde décisive du MÉCANISME : accuracy enseignant (in-sample) vs on-policy (états auto-visités).
+        acc_onpolicy = _inworld_accuracy(imi["learned_genome"], seed=seed, num_agents=max(12, K),
+                                         metab=metab, cog=cog)
         print(f"WARM-001 imitation : loss {imi['loss_trend'][0]:.3f} -> {imi['loss_trend'][-1]:.3f} "
-              f"| imit_acc={imi['imit_acc']:.3f}")
+              f"| acc_enseignant={imi['imit_acc']:.3f} | acc_on-policy={acc_onpolicy:.3f}")
         vi = verdict_demand_marker(imi["learned_genome"], backend="torch", seed=seed, K=K,
                                    metab=metab, cog=cog)
         print(f"WARM-001 verdict (torch) : ratio={vi['ratio']:.2f} intact={vi['intact_survival']:.1f} "
               f"ablé={vi['ablated_survival']:.1f} -> {vi['verdict']} (n={vi['n']})")
 
     def _pass(v):
-        return bool(v) and v["verdict"] == "PERCEPTION_DEMANDED" and v["intact_survival"] > 2 * PLANCHER
+        # PASS = perception causalement portée (marqueur) ET survie ≥ mi-chemin de l'oracle (pas juste
+        # « un peu > plancher ») : un suiveur qui utilise la perception SANS survivre n'est pas un succès.
+        return (bool(v) and v["verdict"] == "PERCEPTION_DEMANDED"
+                and v["intact_survival"] >= 0.5 * ORACLE_REF)
 
-    print("\nSynthèse (PASS = marqueur PERCEPTION_DEMANDED ET survie intacte ≫ plancher) :")
+    print(f"\nSynthèse (PASS = marqueur PERCEPTION_DEMANDED ET survie intacte ≥ {0.5*ORACLE_REF:.0f} "
+          f"= mi-chemin oracle) :")
     print(f"  WARM-002 évolution W-only : {'PASS' if _pass(ve) else 'FAIL'}")
     print(f"  WARM-001 imitation BPTT   : {'PASS' if _pass(vi) else ('SKIP' if vi is None else 'FAIL')}")
     print("-> Interpréter : un PASS où le REINFORCE froid échoue = le verrou était le chemin de crédit "
-          "de CET optimiseur, pas le substrat/monde. Deux FAIL = verrou plus profond (gradient de "
-          "sélection cognitif faible). Rédiger EDR-WARM-001/002 + MàJ REF-DEMAND-MARKER.")
+          "de CET optimiseur. Deux FAIL = verrou plus profond. Si (WARM-001) acc_enseignant haute MAIS "
+          "acc_on-policy s'effondre -> la carte ne tient pas hors de la distribution de l'oracle (dérive "
+          "de l'état récurrent). Rédiger EDR-WARM-001/002 + MàJ REF-DEMAND-MARKER.")
     return {"evo": evo["trend"], "warm002": ve, "warm001": vi}
 
 

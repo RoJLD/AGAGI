@@ -26,48 +26,60 @@ lr × epochs × fenêtre pour cartographier accuracy(imitation) → survie in-wo
 
 ## Résultats
 
-**L'imitation converge (le substrat est CAPABLE).** Le run à budget standard (lr=0.04, 200 ep) donnait
-acc=0.312 (≈ hasard 4-voies) → **sous-entraînement**, pas plafond. En poussant (lr=0.5–0.7) :
+**L'imitation converge sur la trajectoire-enseignant.** Le run à budget standard (lr=0.04, 200 ep) donnait
+acc=0.312 (≈ hasard 4-voies) → **sous-entraînement**, pas plafond de capacité. En poussant lr/epochs, la
+cohorte SUR-APPREND la trajectoire de l'oracle (acc_enseignant → 1.000). Mesure DÉCISIVE du mécanisme :
+l'accuracy ON-POLICY, le génome pilotant SES PROPRES états in-world (`_inworld_accuracy`, argmax(dir) vs
+bits courants sur les états auto-visités) :
 
-| budget imitation | acc (sur la traj. oracle) | intact | ablé | ratio | verdict marqueur |
-|---|---|---|---|---|---|
-| lr0.5 / 1500 ep | 0.717 | 9.8 | 6.8 | 1.44 | INCONCLUSIVE |
-| lr0.5 / 4000 ep | 0.931 | 11.2 | 7.0 | 1.61 | **PERCEPTION_DEMANDED** |
-| lr0.7 / 10000 ep | 0.995 | 15.0 | 7.0 | 2.14 | **PERCEPTION_DEMANDED** |
-| lr0.6 / 20000 ep | **1.000** | **15.0** | 7.0 | 2.14 | **PERCEPTION_DEMANDED** |
+| budget imitation | acc_enseignant (traj oracle) | acc **ON-POLICY** (états auto-visités) | intact | ablé | ratio | verdict marqueur |
+|---|---|---|---|---|---|---|
+| lr0.5 / 1500 ep | 0.717 | 0.597 | 9.8 | 6.8 | 1.44 | INCONCLUSIVE |
+| lr0.6 / 10000 ep | 0.995 | 0.695 | 12.8 | 7.0 | 1.82 | **PERCEPTION_DEMANDED** |
+| lr0.6 / 20000 ep | **1.000** | **0.734** | 15.0 | 7.0 | 2.14 | **PERCEPTION_DEMANDED** |
 
-Repères : plancher ≈ 7 ; oracle intact ≈ 200 / ablé ≈ 9 / ratio ≈ 21 (S2-009).
+Repères : plancher ≈ 7 ; oracle intact ≈ 200 / ablé ≈ 9 / ratio ≈ 21, oracle acc ≡ 1.0 (S2-009).
 
-**Dissociation nette.** (a) Le marqueur within-subject **BASCULE en PERCEPTION_DEMANDED** dès acc≈0.93 :
-le génome imité utilise CAUSALEMENT la perception (l'ablation l'effondre 11–15 → 7). (b) MAIS la survie
-intacte **plafonne à 15** même à acc=**1.000**, à des années-lumière de l'oracle (200).
-
-**La preuve du shift de covariables.** À acc=1.000, l'espérance d'erreur sur 15 ticks ≈ 0 → l'accumulation
-multiplicative ne peut PAS expliquer la mort à ~15. Donc les 99–100% sont mesurés SUR LA DISTRIBUTION D'OBS
-DE L'ORACLE (in-distribution) ; dès que le génome imité PILOTE SES PROPRES états, il dérive hors de cette
-distribution, son accuracy réelle s'effondre, il erre et meurt. C'est le mode d'échec canonique du behavioral
-cloning (que DAgger corrige), démontré ici avec une trajectoire-enseignant PARFAITE.
+**Dissociation + mécanisme MESURÉ (pas supposé).** (a) Le marqueur within-subject **BASCULE PERCEPTION_DEMANDED**
+dès acc_enseignant≈0.99 : le génome imité utilise CAUSALEMENT la perception (l'ablation l'effondre 12–15 → 7).
+(b) MAIS la survie plafonne à ~15 (oracle 200). **Cause mesurée** : l'accuracy PARFAITE (1.000) est IN-SAMPLE
+sur la trajectoire de l'oracle ; l'accuracy ON-POLICY, quand le génome pilote ses propres états, **plafonne à
+0.734 et ne monte PLUS** (0.597 → 0.695 → 0.734) alors même que l'accuracy-enseignant atteint 1.000 →
+**plafond de TRANSFERT, pas sous-entraînement**. À ~27% d'erreurs on-policy, l'énergie s'érode → mort à ~15.
+**Étiquette précise** (correction post-revue) : ce n'est PAS un shift de covariables des OBSERVATIONS — le
+signal bit_a/bit_b est EXOGÈNE (re-randomisé chaque tick, indépendant de l'état) ; c'est la **dérive de l'état
+RÉCURRENT H + le sur-apprentissage d'une trajectoire UNIQUE (35 ticks, 1 seed)** : la lecture apprise sur la
+distribution d'états de l'oracle ne tient pas sur les états (H, position, voisinage — dims policy-dépendantes)
+que le génome visite en s'auto-pilotant 200 ticks.
 
 ## Verdict
-**`RECURRENT_IMITATION_SUBSTRATE_CAPABLE_BUT_COVARIATE_SHIFT_CAPS_SURVIVAL`** — PASS partiel : l'imitation
-récurrente BPTT installe un utilisateur-de-perception CAUSAL (marqueur PERCEPTION_DEMANDED) mais PAS un
-survivant (survie ≫ plancher = FAIL, plafond ~15 vs 200). **Réfute deux hypothèses** : (1) le substrat LTC
-est CAPABLE (imite jusqu'à acc 1.000 la carte réactive sur obs réelles 59-dim → ce n'est ni un plafond de
-représentation ni de capacité) ; (2) ce n'est pas la DÉCOUVERTE qui manque (l'enseignant est parfait). Le mur
-restant est le **SHIFT DE COVARIABLES** : l'accuracy sur la distribution de l'enseignant ne transfère pas à
-la survie on-policy. Le levier suivant est donc MOTIVÉ par preuve directe (plus une spéculation) : correction
-**on-policy** (DAgger : relabel de la distribution de l'apprenant par l'oracle) ou crédit in-world qui visite
-les propres états de l'agent.
+**`TEACHER_IMITATION_DOES_NOT_TRANSFER_ONPOLICY`** — PASS partiel : l'imitation récurrente BPTT installe un
+utilisateur-de-perception CAUSAL (marqueur PERCEPTION_DEMANDED dès acc_enseignant≈0.99) mais PAS un survivant
+(survie ~15 vs oracle 200 = FAIL sur « survie ≥ mi-chemin oracle »). **Ce qui est réfuté** : (1) ce n'est PAS
+un plafond de découverte (l'enseignant est parfait) ; (2) ce n'est PAS du sous-entraînement (acc_enseignant
+atteint 1.000 ; l'acc on-policy plafonne à 0.73 SANS monter avec plus d'epochs). **Ce qui est établi (MESURÉ,
+`_inworld_accuracy`)** : le mur est le TRANSFERT ON-POLICY — la lecture apprise atteint 0.73 d'accuracy sur les
+états que le génome auto-visite, à cause de la **dérive de l'état récurrent H + du sur-apprentissage d'une
+trajectoire unique**. ⚠️ Nuance de capacité : « le substrat imite jusqu'à 1.000 » prouve qu'il peut SUR-APPRENDRE
+35 ticks d'une trajectoire, PAS qu'il représente l'invariant réactif général ni qu'il le SOUTIENT sur 200 ticks
+auto-pilotés (l'acc on-policy 0.73 le nuance explicitement). Levier suivant MOTIVÉ par la mesure (plus spéculatif) :
+correction **ON-POLICY** (DAgger : relabel de la distribution de l'apprenant par l'oracle — attaque directement
+le 0.73) OU crédit in-world visitant les propres états de l'agent.
 
 ## Portée & limites
 - Trajectoire-enseignant à B constant = 35 ticks (un agent oracle meurt à t≈35 → préfixe tronqué) ; 420
-  échantillons équilibrés, suffisants pour la carte réactive (acc atteint 1.000). Le signal `_cog_sig` est
-  re-randomisé chaque tick → tâche RÉACTIVE (cible = f(obs courante)), pas de mémoire.
-- Verdict sous forward torch (consistance avec l'entraînement, anti-confound), W gelé, K=12 (garde-fou n≥12).
-- `acc` = moyenne de population sur la traj. oracle ; le verdict clone `agents[0].genome` en 12. Léger écart
-  possible (génome individuel vs moyenne), sans effet sur la conclusion (le plafond de survie tient à acc 1.0).
-- Complémentaire de WARM-002 (évolution : paysage plat). Même cause profonde : la survie ne récompense la
-  cognition qu'au-delà de ~99% d'accuracy (seuil dur, gradient quasi-nul) → converge le fil S2.
+  échantillons équilibrés. `acc_enseignant=1.000` = SUR-APPRENTISSAGE de CETTE trajectoire (1 seed), pas une
+  généralisation prouvée. Le signal `_cog_sig` est re-randomisé chaque tick → tâche RÉACTIVE (cible = f(obs
+  courante)), pas de mémoire ; le shift n'est donc PAS sur le signal (exogène) mais sur l'état récurrent/obs
+  policy-dépendantes.
+- `_inworld_accuracy` lit les logits BRUTS du forward (décision INTRINSÈQUE du génome, avant pénalité
+  anti-répétition/consensus appliquées par le monde) — c'est la borne HAUTE de la décision on-policy.
+- Reproductibilité : `lr` EXPOSÉ (`run_bptt_imitation_warmstart(lr=)` / env `WARM_LR`) car le défaut lr=0.04
+  sous-entraîne ; la table ci-dessus se reproduit via `WARM_LR`/`WARM_EPOCHS`. Verdict forward torch, W gelé,
+  K=12 (garde-fou n≥12).
+- Complémentaire de WARM-002 (évolution : paysage plat). Deux murs distincts mais issus de la même propriété :
+  la survie ne récompense la cognition qu'au-delà d'une accuracy très élevée (~99%+), gradient de sélection
+  quasi-nul en deçà → converge le fil S2.
 
 Converge [[EDR-WARM-002]], [[decisive-substrate-thesis-test]], [[warm-start-transversal-law]],
 [[within-subject-demand-marker]], [[s2-world-demand-thread]], REF-DEMAND-MARKER, S2-009.
