@@ -3,7 +3,7 @@ id: REF-DEMAND-MARKER
 type: REF
 title: "Témoin causal de demande — ablation within-subject de la capacité X"
 status: active
-adopt_for: [S2-001, LANG-006, G1-001, MEM-001, EDR-S2-002, EDR-S2-003, EDR-S2-004, EDR-S2-005, EDR-S2-006, EDR-S2-007, EDR-S2-008, EDR-S2-009, EDR-S2-010, EDR-S2-011, EDR-WARM-001, EDR-WARM-002]
+adopt_for: [S2-001, LANG-006, G1-001, MEM-001, EDR-S2-002, EDR-S2-003, EDR-S2-004, EDR-S2-005, EDR-S2-006, EDR-S2-007, EDR-S2-008, EDR-S2-009, EDR-S2-010, EDR-S2-011, EDR-WARM-001, EDR-WARM-002, EDR-WARM-003]
 ---
 
 ## Énoncé
@@ -32,6 +32,7 @@ FAUX-POSITIVE : un survivant compétent peut exister dans un monde qui n'exige p
 | **recette IN-WORLD** | EDR-S2-009 | flag cognitive_demand stoneage, oracle intact/ablé (par-agent) | **ON=PERCEPTION_DEMANDED (ratio 21×), OFF=NEUTRE → recette S2-006 RÉALISÉE in-world, flip S2-003.** ⚠️ signal GLOBAL défait l'ablation-permutation → canal PAR-AGENT requis |
 | optim. imitation (in-world) | EDR-WARM-001 | génome imité par BPTT (forward torch), intact/ablé K=12 | **marqueur BASCULE PERCEPTION_DEMANDED dès acc_enseignant≈0.99 (ratio 1.6→2.1) MAIS survie plafonne 15 (oracle 200) à acc_enseignant 1.000 → dissociation : perception causale ✓, survie ✗. Mécanisme MESURÉ : acc on-policy plafonne 0.73 = transfert (dérive état récurrent), PAS covariate-shift des obs.** Usage : le marqueur mesure « utilise X », PAS « survit grâce à X » |
 | optim. évolution (in-world) | EDR-WARM-002 | meilleur génome évolué W-only (forward mamba), intact/ablé K=12 | ratio ≈ 1.0 NEUTRAL sur 3 régimes de mutation → paysage de fitness PLAT, aucun gradient cognitif |
+| optim. DAgger (in-world) | EDR-WARM-003 | génome DAgger on-policy (forward torch), intact/ablé K=12 | **ratio 5.04 PERCEPTION_DEMANDED (le plus fort de l'arc)** : DAgger casse le plafond de transfert 0.734→0.99, survie 15→35 (×2.3), marqueur ×2.4 — MAIS survie < oracle (gap résiduel = précision aux états critiques). Confirme que le mur WARM-001 = transfert |
 | communication | LANG-006 | canal coupé | MI 1.04 vs 0.000 |
 | généralisation | G1-001 | θ ablaté | Δ0.83 causal |
 | mémoire | MEM-001 | mémoire remise à 0 | effondre 6-8× |
