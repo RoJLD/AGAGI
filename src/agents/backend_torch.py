@@ -241,6 +241,40 @@ class TorchPopulationModel(PopulationModel):
         self._write_back()
         return float(loss.item())
 
+    def imitate_episode_bptt(self, obs_seq, target_moves_seq, truncate_window=None):
+        """IMITATION récurrente supervisée (BPTT) — distincte de learn_episode_bptt (REINFORCE par le
+        retour). Rejoue obs_seq depuis H=0 en RETENANT le graphe récurrent ; perte = cross-entropy des
+        move-logits (out[:, :8]) vs l'action-enseignant par pas ; backprop unique à travers la fenêtre
+        -> _write_back. Matcher le forward RÉCURRENT du monde (pas _step isolé) sur la distribution
+        d'obs RÉELLE (attaque le shift qui a tué le BC single-step). ADDITIF : ne touche NI forward NI
+        learn NI learn_episode NI learn_episode_bptt.
+
+        obs_seq : liste de (B, >=I) ; target_moves_seq : liste de (B,) entiers dans [0, 8).
+        truncate_window=W : détache H tous les W pas (stabilité gradient longue fenêtre ; la tâche
+        réactive n'exige pas le crédit pleine-fenêtre). Renvoie la perte moyenne (float)."""
+        if self.B == 0 or not obs_seq:
+            return None
+        F = torch.nn.functional
+        H = torch.zeros((self.B, self.N), device=self.device)
+        loss = torch.zeros((), device=self.device)
+        nsteps = 0
+        for t, obs in enumerate(obs_seq):
+            obs_t = torch.tensor(np.asarray(obs, dtype=np.float32)[:, :self.I], device=self.device)
+            if truncate_window and t > 0 and (t % truncate_window == 0):
+                H = H.detach()
+            H = self._step(obs_t, H)                              # graphe retenu (BPTT)
+            out = H[:, self.N - self.O:self.N]
+            move_logits = out[:, :_MOVE_LOGITS]                  # (B, 8)
+            tgt = torch.tensor(np.asarray(target_moves_seq[t]), dtype=torch.long, device=self.device)
+            loss = loss + F.cross_entropy(move_logits, tgt)
+            nsteps += 1
+        loss = loss / max(1, nsteps)
+        self.opt.zero_grad()
+        loss.backward()
+        self.opt.step()
+        self._write_back()
+        return float(loss.item())
+
     def learn_episode(self, obs_seq, actions_seq, rewards, gamma=1.0, gate_last_only=True):
         """CRÉDIT ÉPISODIQUE prod (EDR-158) — le véhicule que le `learn()` TD différé n'était PAS
         (EDR-148 : la recette de binding 129/136/147, validée sous REINFORCE épisodique, NE tient pas
