@@ -79,6 +79,8 @@ class WorldConfig:
     forage_payoff: float = 1.0     # multiplicateur de la nutrition d'une proie (↑ = foraging plus payant)
     cognitive_demand: bool = False   # S2-009 : mode demande cognitive (défaut OFF, non-régressif).
     cog_gain: float = 6.0            # énergie payée quand l'agent bouge dans la direction signalée (mode ON).
+    cog_linear: bool = False         # S2-011 : signal 1-bit LINÉAIREMENT décodable (dir∈{0,1}=int(bit_a>0))
+                                     # au lieu du 2-bits XOR (S2-009) -> isole le CRÉDIT de la représentation.
     # Tool-gate de l'apex (EDR 111) : hp du Mammouth. Défaut 100.0 = comportement historique
     # (non-régression bit-exacte). Relevé (~250) -> la riposte cumulée tue le pack mains-nues
     # avant le kill mais pas le pack-lance (5x plus efficace) -> l'outil devient nécessaire.

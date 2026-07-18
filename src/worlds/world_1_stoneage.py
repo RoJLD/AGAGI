@@ -871,7 +871,10 @@ class Biosphere3D(BaseWorld):
 
         if getattr(self.config, "cognitive_demand", False):
             sig = agent.get("_cog_sig", (1.0, 1.0))
-            correct_dir = 2 * (sig[0] > 0) + (sig[1] > 0)     # ∈ {0,1,2,3}
+            if getattr(self.config, "cog_linear", False):
+                correct_dir = int(sig[0] > 0)                 # S2-011 : 1-bit LINÉAIRE (dir ∈ {0,1})
+            else:
+                correct_dir = 2 * (sig[0] > 0) + (sig[1] > 0) # S2-009 : 2-bits XOR (dir ∈ {0,1,2,3})
             if action == correct_dir:
                 agent["energy"] = min(self.config.agent.energy_max,
                                       agent["energy"] + getattr(self.config, "cog_gain", 6.0))

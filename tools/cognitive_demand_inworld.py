@@ -157,6 +157,88 @@ def run_warmstart_credit_probe(seed=2026, num_agents=12, max_ticks=200, schedule
     return {"trend": trend, "final": final, "learned": final >= 4 * floor}   # 4× plancher = franchi
 
 
+class LinearCognitiveOracle(BaselineBatchModel):
+    """Oracle du signal LINÉAIRE 1-bit (S2-011) : dir = int(bit_a>0) ∈ {0,1} (col 12 de l'obs)."""
+
+    def _logits(self, batch_obs):
+        logits = np.zeros((self.B, self.O), dtype=np.float32)
+        a = batch_obs[:, BIT_A] if batch_obs.shape[1] > BIT_A else np.ones(self.B)
+        dirs = (a > 0).astype(int)                         # {0,1}
+        for i in range(self.B):
+            logits[i, dirs[i]] = 1.0
+        return logits
+
+
+def _bc_clone_linear(agents, steps=800, seed=0):
+    """Warm-start des POIDS par behavioral cloning de l'oracle LINÉAIRE (obs col 12 → dir 0/1) dans la
+    politique torch, puis sync → genome.W. Renvoie l'accuracy finale (gate : >0.9 = bassin formé).
+    ⚠️ CAVEAT (EDR-S2-011) : le BC entraîne `_step(obs, H_in=0)` (SINGLE-step). Le bassin obtenu (acc 1.0)
+    NE TRANSFÈRE PAS au forward RÉCURRENT du monde (H accumulé sur les ticks + gate) : la cohorte
+    warm-startée survit au plancher (~8) même SANS crédit. Pour un vrai warm-start in-world, cloner sur des
+    ROLLOUTS réels (séquences obs/H/action de l'oracle in-world), pas `_step` à H=0."""
+    import torch
+    from src.agents.backend import make_population
+    pop = make_population(agents, backend="torch")
+    I, O, N, B = pop.I, pop.O, pop.N, pop.B
+    rng = np.random.RandomState(seed)
+
+    def batch():
+        a = rng.choice([-1.0, 1.0], B)
+        o = np.zeros((B, I), dtype=np.float32)
+        o[:, BIT_A] = a
+        return torch.tensor(o), torch.tensor((a > 0).astype(np.int64))
+
+    for _ in range(steps):
+        o, tg = batch()
+        out = pop._step(o, torch.zeros((B, N)))[:, N - O:N][:, :8]
+        loss = torch.nn.functional.cross_entropy(out, tg)
+        pop.opt.zero_grad(); loss.backward(); pop.opt.step()
+    o, tg = batch()
+    out = pop._step(o, torch.zeros((B, N)))[:, N - O:N][:, :8]
+    acc = float((out.argmax(1) == tg).float().mean())
+    pop._write_back()                                      # sync poids appris → genome.W des agents
+    return acc
+
+
+def run_credit_linear(seed=2026, warmstart=False, eras=6, num_agents=12, max_ticks=200,
+                      base_metabolism=0.75, cog_gain=12.0, bc_steps=800):
+    """Test PROPRE du verrou crédit (tâche LINÉAIREMENT décodable, isole le crédit de la représentation).
+    warmstart=False : cohorte fraîche → le crédit in-world APPREND-il la tâche linéaire à froid ?
+    warmstart=True  : cohorte BC-clonée (bassin de poids pré-formé) → le crédit RETIENT-il le bassin sous
+    le régime dur ? Renvoie {bc_acc, trend (survie médiane/ère), final}."""
+    from src.worlds.world_1_stoneage import Biosphere3D
+    from src.seed_ai.harness import seed_at
+    from src.agents.mamba_agent import MambaAgent
+
+    agents = [MambaAgent() for _ in range(num_agents)]
+    bc_acc = _bc_clone_linear(agents, steps=bc_steps, seed=seed) if warmstart else None
+    trend = []
+    for era in range(eras):
+        seed_at(seed, era)
+        e = Biosphere3D()
+        e.benchmark_mode = True
+        e.night_enabled = False
+        e.current_era = 10_000
+        e.config.cognitive_demand = True
+        e.config.cog_linear = True
+        e.config.cog_gain = cog_gain
+        e.config.base_metabolism = base_metabolism
+        e.config.forage_payoff = 0.0
+        e.use_torch_inworld = True
+        for a in agents:
+            e.add_agent(a, energy=80.0)
+        t = 0
+        while e.agents and t < max_ticks:
+            e.step()
+            t += 1
+        ages = [int(a["age"]) for a in list(e.agents) + list(getattr(e, "dead_agents", []))]
+        import numpy as _np
+        trend.append(float(_np.median(ages)) if ages else 0.0)
+        if hasattr(e, "memory_retriever"):
+            e.memory_retriever.stop()
+    return {"bc_acc": bc_acc, "trend": trend, "final": trend[-1] if trend else 0.0}
+
+
 def main():
     seed = int(os.environ.get("CDI_SEED", "2026"))
     K = int(os.environ.get("CDI_K", "12"))
