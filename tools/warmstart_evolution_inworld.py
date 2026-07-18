@@ -119,3 +119,81 @@ def verdict_demand_marker(genome, backend, seed=2026, K=12, num_agents=12, max_t
     return {"ratio": v["ratio"], "verdict": verdict, "n": v["n"],
             "intact_survival": float(np.median(intact)) if intact else 0.0,
             "ablated_survival": float(np.median(ablated)) if ablated else 0.0}
+
+
+def _mutate_W_only(genome, power, rate=0.8, rng=None):
+    """Mutation W-SEUL (in place) : bruit gaussien sur les entrées non-nulles de genome.W. NE touche
+    NI W_router NI bytecode NI thresholds -> même espace de recherche que le gradient (genome.W seul),
+    pour que 'évolution vs gradient' n'ait qu'une variable : l'optimiseur."""
+    draw = rng or np.random
+    W = genome.W
+    nz = np.nonzero(W)
+    if len(nz[0]) == 0:
+        return
+    m = draw.rand(len(nz[0])) < rate
+    ii, jj = nz[0][m], nz[1][m]
+    if len(ii) == 0:
+        return
+    genome.W[ii, jj] = (genome.W[ii, jj]
+                        + draw.normal(0.0, power, size=len(ii))).astype(genome.W.dtype)
+
+
+def _eval_generation(genomes, seed, era_idx, max_ticks, metab, cog):
+    """Un épisode cognitive_demand : tous les génomes = agents dans UN monde ; fitness = âge (survie).
+    La population partage un rollout (signal per-agent). Renvoie les âges alignés sur `genomes`."""
+    from src.worlds.world_1_stoneage import Biosphere3D
+    from src.agents.mamba_agent import MambaAgent
+    from src.seed_ai.harness import seed_at
+
+    seed_at(seed, era_idx)
+    e = Biosphere3D()
+    e.benchmark_mode = True
+    e.night_enabled = False
+    e.current_era = 10_000
+    e.config.cognitive_demand = True
+    e.config.cog_gain = cog
+    e.config.base_metabolism = metab
+    e.config.forage_payoff = 0.0
+    ids = []
+    for g in genomes:
+        a = MambaAgent()
+        a.from_genome(g)
+        e.add_agent(a, energy=80.0)
+        ids.append(e.agents[-1]["id"])          # add_agent() ne renvoie pas l'id -> capturé juste après
+    t = 0
+    while e.agents and t < max_ticks:
+        e.step()
+        t += 1
+    ages_by_id = {rec["id"]: int(rec["age"])
+                  for rec in list(e.agents) + list(getattr(e, "dead_agents", []))}
+    if hasattr(e, "memory_retriever"):
+        e.memory_retriever.stop()
+    return [ages_by_id.get(i, 0) for i in ids]
+
+
+def run_inworld_evolution(seed=2026, generations=50, pop_size=24, survival_frac=0.25,
+                          mut_power=0.15, max_ticks=200, metab=METAB_DEFAULT, cog=COG_DEFAULT):
+    """Évolution W-only : population de MambaAgents (W aléatoire), fitness = survie en cognitive_demand,
+    sélection top-k + élitisme + descendance mutée W-seul. Renvoie la trace de survie médiane du top-k
+    par génération + le meilleur génome final. L'optimiseur que le SIM utilise (pas le gradient)."""
+    from src.agents.mamba_agent import MambaAgent
+    from src.seed_ai.harness import seed_at
+
+    seed_at(seed, 0)
+    genomes = [MambaAgent().genome for _ in range(pop_size)]
+    n_surv = max(1, int(pop_size * survival_frac))
+    trend, best_genome, best_age = [], None, 0
+    for gen in range(generations):
+        ages = _eval_generation(genomes, seed, gen, max_ticks, metab, cog)
+        order = list(np.argsort(ages)[::-1])
+        survivors = [genomes[i] for i in order[:n_surv]]
+        best_genome, best_age = genomes[order[0]].clone(), int(ages[order[0]])
+        trend.append(float(np.median([ages[i] for i in order[:n_surv]])))
+        new = [s.clone() for s in survivors]                       # élitisme
+        while len(new) < pop_size:
+            parent = survivors[np.random.randint(n_surv)]
+            child = parent.clone()
+            _mutate_W_only(child, mut_power)
+            new.append(child)
+        genomes = new
+    return {"trend": trend, "best_genome": best_genome, "best_age": best_age}

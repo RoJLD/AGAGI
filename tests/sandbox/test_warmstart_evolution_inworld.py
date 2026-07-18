@@ -50,3 +50,25 @@ def test_verdict_demand_marker_random_genome_is_neutral_and_wellformed():
                               num_agents=4, max_ticks=20)
     assert set(r) >= {"ratio", "verdict", "n", "intact_survival", "ablated_survival"}
     assert r["verdict"] in ("PERCEPTION_DEMANDED", "NEUTRAL", "INCONCLUSIVE")
+
+
+def test_run_inworld_evolution_smoke_returns_trend_and_best():
+    from tools.warmstart_evolution_inworld import run_inworld_evolution
+    from src.seed_ai.mutation import Genome
+    out = run_inworld_evolution(seed=2026, generations=2, pop_size=6, survival_frac=0.34,
+                                mut_power=0.2, max_ticks=15)
+    assert len(out["trend"]) == 2
+    assert isinstance(out["best_genome"], Genome)
+    assert out["best_age"] >= 0
+
+
+def test_mutate_w_only_changes_W_not_router():
+    from tools.warmstart_evolution_inworld import _mutate_W_only
+    from src.agents.mamba_agent import MambaAgent
+    g = MambaAgent().genome
+    W0 = g.W.copy()
+    router0 = None if g.W_router is None else g.W_router.copy()
+    _mutate_W_only(g, power=0.5, rng=np.random.RandomState(0))
+    assert not np.allclose(g.W, W0), "W devrait changer"
+    if router0 is not None:
+        assert np.allclose(g.W_router, router0), "W_router ne doit PAS changer (comparaison propre au gradient)"
