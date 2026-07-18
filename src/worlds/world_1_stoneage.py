@@ -453,7 +453,12 @@ class Biosphere3D(BaseWorld):
             altar_active[mask] = 1.0
             bit_a[mask] = altar["bit_a"]
             bit_b[mask] = altar["bit_b"]
-            
+
+        if getattr(self.config, "cognitive_demand", False):
+            sig = getattr(self, "_cog_signal", (1.0, 1.0))
+            bit_a[:] = sig[0]        # signal GLOBAL (tous agents le voient), pas altar-gated
+            bit_b[:] = sig[1]
+
         # Vectorized adj_energy and in_hear (Tensor Lidar)
         dx = ax[:, None] == ax[None, :]
         dy = ay[:, None] == ay[None, :]
@@ -676,13 +681,16 @@ class Biosphere3D(BaseWorld):
 
         # A) Scaffold d'approche (annelé) : récompense la réduction de distance au
         # gibier le plus proche -> enseigne la chasse (fix du goulot, EDR 012).
-        if self.preys:
-            d = min(abs(agent["x"] - p["x"]) + abs(agent["y"] - p["y"]) for p in self.preys)
-            lam = anneal(getattr(self, "current_era", 1), self.scaffold_eras)
-            agent["energy"] += approach_reward(agent.get("last_prey_dist", d), d, self.scaffold_eps, lam)
-            agent["last_prey_dist"] = d
-            if getattr(self.config, "trace_forage", False):
-                agent["_forage_min_dist"] = min(agent.get("_forage_min_dist", d), d)
+        # Guardé OFF en mode cognitive_demand : aucun raccourci corporel (le corps ne doit
+        # pas pouvoir résoudre la tâche, seul le signal le peut).
+        if not getattr(self.config, "cognitive_demand", False):
+            if self.preys:
+                d = min(abs(agent["x"] - p["x"]) + abs(agent["y"] - p["y"]) for p in self.preys)
+                lam = anneal(getattr(self, "current_era", 1), self.scaffold_eras)
+                agent["energy"] += approach_reward(agent.get("last_prey_dist", d), d, self.scaffold_eps, lam)
+                agent["last_prey_dist"] = d
+                if getattr(self.config, "trace_forage", False):
+                    agent["_forage_min_dist"] = min(agent.get("_forage_min_dist", d), d)
 
         if getattr(self.config, "trace_energy_sinks", False):
             agent["_s3_bio"] = agent["energy"]               # EDR100 : avant carry
@@ -691,17 +699,20 @@ class Biosphere3D(BaseWorld):
         if getattr(self.config, "trace_energy_sinks", False):
             agent["_s4_bio"] = agent["energy"]               # EDR100 : apres carry
         
-        if len(agent["inventory"]) > 0:
-            first_item = agent["inventory"][0]
-            item_type = first_item.get("type", "") if isinstance(first_item, dict) else str(first_item)
-            if item_type == "Fruit" and agent["energy"] < 80:
-                agent["energy"] = min(100.0, agent["energy"] + 20.0)
-                agent["inventory"].pop(0)
-                new_seed = {"x": agent["x"], "y": agent["y"], "z": 0, "type": "Seed", "weight": 0.1, "ttl": 100}
-                if len(agent["inventory"]) < agent["inv_capacity"]:
-                    agent["inventory"].append(new_seed)
-                else:
-                    self.items.append(new_seed)
+        # Guardé OFF en mode cognitive_demand : aucun gain-fruit standard (le corps ne doit
+        # pas pouvoir résoudre la tâche, seul le signal le peut).
+        if not getattr(self.config, "cognitive_demand", False):
+            if len(agent["inventory"]) > 0:
+                first_item = agent["inventory"][0]
+                item_type = first_item.get("type", "") if isinstance(first_item, dict) else str(first_item)
+                if item_type == "Fruit" and agent["energy"] < 80:
+                    agent["energy"] = min(100.0, agent["energy"] + 20.0)
+                    agent["inventory"].pop(0)
+                    new_seed = {"x": agent["x"], "y": agent["y"], "z": 0, "type": "Seed", "weight": 0.1, "ttl": 100}
+                    if len(agent["inventory"]) < agent["inv_capacity"]:
+                        agent["inventory"].append(new_seed)
+                    else:
+                        self.items.append(new_seed)
         
         do_jump = float(logits[9]) > 0
         do_duck = float(logits[10]) > 0
@@ -805,6 +816,13 @@ class Biosphere3D(BaseWorld):
             bio["terrain"] += _s1 - _s2
             bio["carry"] += _s3 - _s4
             bio["autres"] += (_s2 - _s3) + (_s4 - agent["energy"])   # gains approach/forage + jump/heal/hunt
+
+        if getattr(self.config, "cognitive_demand", False):
+            sig = getattr(self, "_cog_signal", (1.0, 1.0))
+            correct_dir = 2 * (sig[0] > 0) + (sig[1] > 0)     # ∈ {0,1,2,3}
+            if action == correct_dir:
+                agent["energy"] = min(self.config.agent.energy_max,
+                                      agent["energy"] + getattr(self.config, "cog_gain", 6.0))
 
     def _resolve_social(self):
         new_agents = []
@@ -1060,6 +1078,10 @@ class Biosphere3D(BaseWorld):
         return float(loss.item())
 
     def step(self):
+        if getattr(self.config, "cognitive_demand", False):
+            self._cog_signal = (float(np.random.choice([-1.0, 1.0])),
+                                float(np.random.choice([-1.0, 1.0])))   # signal 2-bits GLOBAL de CE tick
+
         self.ticks += 1
         was_night = getattr(self, "is_night", False)
         # Curriculum : pas de nuit (mortelle) en mode entraînement -> les agents survivent
