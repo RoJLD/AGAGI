@@ -441,6 +441,54 @@ def run_bptt_imitation_warmstart(seed=2026, num_agents=12, n_epochs=200, truncat
     return {"learned_genome": agents[0].genome, "loss_trend": loss_trend, "imit_acc": acc}
 
 
+def run_dagger_warmstart(seed=2026, rounds=6, epochs_per_round=3000, lr=0.5, num_agents=12,
+                         max_ticks=200, metab=METAB_DEFAULT, cog=COG_DEFAULT, K=12):
+    """WARM-003 : DAgger on-policy. Round 0 = bootstrap sur la trajectoire-ENSEIGNANT (= WARM-001).
+    Rounds suivants : agrège les états que le learner visite lui-même (réétiquetés oracle) et réentraîne
+    en BPTT récurrent MASQUÉ (round-robin sur le dataset -> coût borné = epochs_per_round×rounds appels).
+    Trace acc_on-policy + survie par round ; attaque le plafond 0.734 de WARM-001. None si torch absent."""
+    try:
+        import torch  # noqa: F401
+    except Exception:
+        print("WARM-003 SKIP : torch absent.")
+        return None
+    from src.agents.mamba_agent import MambaAgent
+    from src.agents.backend_torch import TorchPopulationModel
+    from src.seed_ai.harness import seed_at
+
+    o0, t0 = _collect_oracle_trajectory(seed, num_agents, max_ticks, metab, cog)
+    if not o0:
+        print("WARM-003 SKIP : trajectoire oracle vide.")
+        return None
+    dataset = [(o0, t0, [np.ones(len(t), dtype=np.float32) for t in t0])]   # round 0 = oracle (mask=1)
+
+    seed_at(seed, 1)
+    agents = [MambaAgent() for _ in range(num_agents)]
+    pop = TorchPopulationModel(agents, lr=lr)
+
+    trend_acc, trend_surv = [], []
+    for r in range(rounds):
+        for ep in range(epochs_per_round):
+            obs_s, tgt_s, mask_s = dataset[ep % len(dataset)]        # round-robin (coût borné)
+            pop.imitate_episode_bptt(obs_s, tgt_s, truncate_window=25, mask_seq=mask_s)
+        pop._write_back()
+        g = agents[0].genome
+        acc_op = _inworld_accuracy(g, seed=seed, num_agents=num_agents, max_ticks=max_ticks,
+                                   metab=metab, cog=cog)
+        surv = _torch_survival_eras(g, False, seed, K, num_agents, max_ticks, metab, cog)
+        trend_acc.append(float(acc_op) if acc_op is not None else 0.0)
+        trend_surv.append(float(np.median(surv)) if surv else 0.0)
+        if r < rounds - 1:                                          # collecte pour le round suivant
+            oo, tt, mm = _collect_onpolicy_trajectory(g, seed=seed, num_agents=num_agents,
+                                                      max_ticks=max_ticks, metab=metab, cog=cog)
+            if oo:
+                dataset.append((oo, tt, mm))
+    final_v = verdict_demand_marker(agents[0].genome, backend="torch", seed=seed, K=K,
+                                    metab=metab, cog=cog)
+    return {"trend_onpolicy_acc": trend_acc, "trend_survival": trend_surv,
+            "final_genome": agents[0].genome, "final_verdict": final_v}
+
+
 def main():
     seed = int(os.environ.get("WARM_SEED", "2026"))
     generations = int(os.environ.get("WARM_GEN", "50"))
@@ -495,6 +543,20 @@ def main():
           "de CET optimiseur. Deux FAIL = verrou plus profond. Si (WARM-001) acc_enseignant haute MAIS "
           "acc_on-policy s'effondre -> la carte ne tient pas hors de la distribution de l'oracle (dérive "
           "de l'état récurrent). Rédiger EDR-WARM-001/002 + MàJ REF-DEMAND-MARKER.")
+
+    dagger_rounds = int(os.environ.get("WARM_DAGGER_ROUNDS", "0"))
+    if dagger_rounds > 0:
+        dg = run_dagger_warmstart(seed=seed, rounds=dagger_rounds, lr=lr, num_agents=max(12, K),
+                                  K=K, metab=metab, cog=cog)
+        if dg is not None:
+            print(f"\nWARM-003 DAgger : acc_on-policy par round = "
+                  f"{[round(a, 3) for a in dg['trend_onpolicy_acc']]}")
+            print(f"WARM-003 DAgger : survie par round = {[round(s, 1) for s in dg['trend_survival']]}")
+            fv = dg["final_verdict"]
+            print(f"WARM-003 verdict final (torch) : ratio={fv['ratio']:.2f} "
+                  f"intact={fv['intact_survival']:.1f} ablé={fv['ablated_survival']:.1f} -> {fv['verdict']}")
+            print(f"WARM-003 : {'PASS' if (fv['verdict']=='PERCEPTION_DEMANDED' and fv['intact_survival']>=0.5*ORACLE_REF) else 'FAIL'} "
+                  f"(vs WARM-001 point de départ : acc_on-policy~0.73, survie~15)")
     return {"evo": evo["trend"], "warm002": ve, "warm001": vi}
 
 

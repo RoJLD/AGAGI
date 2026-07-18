@@ -123,3 +123,15 @@ def test_imitate_episode_bptt_mask_all_ones_trains_and_zero_mask_noop():
     zeros = [np.zeros(4, dtype=np.float32) for _ in range(5)]
     lz = pop.imitate_episode_bptt(obs_seq, tgt_seq, mask_seq=zeros)
     assert lz <= 1e-6, "masque tout-à-0 -> perte nulle, pas d'exception"
+
+
+def test_run_dagger_warmstart_smoke():
+    from tools.warmstart_evolution_inworld import run_dagger_warmstart
+    from src.seed_ai.mutation import Genome
+    pytest.importorskip("torch")
+    out = run_dagger_warmstart(seed=2026, rounds=2, epochs_per_round=6, lr=0.5,
+                               num_agents=4, max_ticks=12, K=2)
+    assert len(out["trend_onpolicy_acc"]) == 2
+    assert len(out["trend_survival"]) == 2
+    assert isinstance(out["final_genome"], Genome)
+    assert set(out["final_verdict"]) >= {"ratio", "verdict", "intact_survival"}
