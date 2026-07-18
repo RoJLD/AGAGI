@@ -1,0 +1,121 @@
+"""WARM-001 / WARM-002 — deux optimiseurs (imitation BPTT récurrente ; évolution W-only) contre le
+verrou crédit in-world. Verdict DÉCISIF partagé = témoin within-subject (marqueur + survie) sur le
+génome résultant, évalué sous le MÊME forward que celui qui l'a produit (anti-confound). Réutilise le
+régime S2-009 (cognitive_demand). NE modifie PAS les outils partagés (s2_demand, demand_marker,
+s2_demand_ablation, mutation). REF-DEMAND-MARKER.
+
+Usage : python tools/warmstart_evolution_inworld.py
+  (env: WARM_SEED, WARM_GEN, WARM_POP, WARM_EPOCHS, WARM_K, WARM_METAB, WARM_COG)
+"""
+import os
+import sys
+import numpy as np
+
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
+
+from tools.s2_demand import run_condition
+from tools.s2_demand_ablation import derange_rows, PerceptionAblatedMamba
+from tools.demand_marker import ablation_verdict
+
+METAB_DEFAULT = 0.75
+COG_DEFAULT = 12.0
+PLANCHER = 7.0                      # survie no-perception (S2-009) ; repère "≫ plancher"
+
+
+def make_cog_world(metab=METAB_DEFAULT, cog=COG_DEFAULT):
+    """Renvoie un callable zero-arg construisant un Biosphere3D en régime cognitive_demand S2-009."""
+    from src.worlds.world_1_stoneage import Biosphere3D
+
+    def _make():
+        e = Biosphere3D()
+        e.config.cognitive_demand = True
+        e.config.cog_gain = cog
+        e.config.base_metabolism = metab
+        e.config.forage_payoff = 0.0
+        return e
+    return _make
+
+
+def _mamba_survival_eras(genome, ablate, seed, K, num_agents, max_ticks, metab, cog):
+    """K ères, forward mamba, génome fixé sur des agents frais. ablate=True -> obs dérangée
+    (PerceptionAblatedMamba, within-subject). Renvoie era_survival (liste de K médianes)."""
+    world = make_cog_world(metab, cog)
+    cls = PerceptionAblatedMamba if ablate else None
+    res = run_condition(world, cls, genome, seed, num_agents=num_agents,
+                        max_ticks=max_ticks, n_eras=K)
+    return res["era_survival"]
+
+
+def _torch_survival_eras(genome, ablate, seed, K, num_agents, max_ticks, metab, cog):
+    """K ères, forward torch LTC, W GELÉ (lr=0), génome fixé. ablate=True -> obs dérangée avant le
+    forward torch. Robuste aux reconstructions de pop (mortalité) via un patch local de make_population
+    qui GÈLE (+ ABLATE) toute pop torch reconstruite par le monde. Renvoie era_survival."""
+    import src.agents.backend as backend_mod
+    from src.agents.backend_torch import TorchPopulationModel
+    from src.worlds.world_1_stoneage import Biosphere3D
+    from src.agents.mamba_agent import MambaAgent
+    from src.seed_ai.harness import seed_at
+
+    class _AblatedTorchPop(TorchPopulationModel):
+        def forward(self, batch_obs, env_surprise_batch=None):
+            return super().forward(derange_rows(np.asarray(batch_obs, dtype=np.float32)),
+                                   env_surprise_batch)
+
+    _orig_make = backend_mod.make_population
+
+    def _frozen_make(agents, backend="legacy", world_model=None):
+        if backend == "torch":
+            cls = _AblatedTorchPop if ablate else TorchPopulationModel
+            pop = cls(agents, world_model=world_model)
+            for grp in pop.opt.param_groups:
+                grp["lr"] = 0.0                       # GÈLE W (verdict : aucun apprentissage)
+            return pop
+        return _orig_make(agents, backend=backend, world_model=world_model)
+
+    era_survival = []
+    backend_mod.make_population = _frozen_make
+    try:
+        for i in range(K):
+            seed_at(seed, i)
+            e = Biosphere3D()
+            e.benchmark_mode = True
+            e.night_enabled = False
+            e.current_era = 10_000
+            e.config.cognitive_demand = True
+            e.config.cog_gain = cog
+            e.config.base_metabolism = metab
+            e.config.forage_payoff = 0.0
+            e.use_torch_inworld = True
+            e.torch_episode_k = 10 ** 9               # _maybe_learn_episode ne se déclenche jamais
+            for _ in range(num_agents):
+                a = MambaAgent()
+                a.from_genome(genome)
+                e.add_agent(a, energy=80.0)
+            t = 0
+            while e.agents and t < max_ticks:
+                e.step()
+                t += 1
+            ages = [int(a["age"]) for a in list(e.agents) + list(getattr(e, "dead_agents", []))]
+            era_survival.append(float(np.median(ages)) if ages else 0.0)
+            if hasattr(e, "memory_retriever"):
+                e.memory_retriever.stop()
+    finally:
+        backend_mod.make_population = _orig_make      # restaure toujours le seam global
+    return era_survival
+
+
+def verdict_demand_marker(genome, backend, seed=2026, K=12, num_agents=12, max_ticks=200,
+                          metab=METAB_DEFAULT, cog=COG_DEFAULT):
+    """Témoin within-subject sur un génome : intact vs perception dérangée, K ères, sous le forward
+    `backend` ('mamba' ou 'torch'). PASS = verdict PERCEPTION_DEMANDED ET intact ≫ plancher."""
+    eras = _torch_survival_eras if backend == "torch" else _mamba_survival_eras
+    intact = eras(genome, False, seed, K, num_agents, max_ticks, metab, cog)
+    ablated = eras(genome, True, seed, K, num_agents, max_ticks, metab, cog)
+    v = ablation_verdict(intact, ablated)
+    verdict = {"X_DEMANDED": "PERCEPTION_DEMANDED", "X_DECOY": "NEUTRAL",
+               "INCONCLUSIVE": "INCONCLUSIVE"}[v["verdict"]]
+    return {"ratio": v["ratio"], "verdict": verdict, "n": v["n"],
+            "intact_survival": float(np.median(intact)) if intact else 0.0,
+            "ablated_survival": float(np.median(ablated)) if ablated else 0.0}

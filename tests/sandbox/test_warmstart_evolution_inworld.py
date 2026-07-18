@@ -40,3 +40,13 @@ def test_imitate_episode_bptt_reduces_loss_and_learns_separable_map():
     for _ in range(60):
         last = pop.imitate_episode_bptt(obs_seq, tgt_seq)
     assert last < first, f"la perte d'imitation devrait décroître ({first:.3f} -> {last:.3f})"
+
+
+def test_verdict_demand_marker_random_genome_is_neutral_and_wellformed():
+    from tools.warmstart_evolution_inworld import verdict_demand_marker
+    from src.agents.mamba_agent import MambaAgent
+    g = MambaAgent().genome                         # génome aléatoire (non-suiveur)
+    r = verdict_demand_marker(g, backend="mamba", seed=2026, K=2,
+                              num_agents=4, max_ticks=20)
+    assert set(r) >= {"ratio", "verdict", "n", "intact_survival", "ablated_survival"}
+    assert r["verdict"] in ("PERCEPTION_DEMANDED", "NEUTRAL", "INCONCLUSIVE")
