@@ -21,17 +21,20 @@ def test_oracle_picks_signal_direction():
     assert int(np.argmax(logits[1, :8])) == 1
 
 
-def test_oracle_ablated_decorrelates(monkeypatch):
-    # l'oracle ablé décode un signal DÉRANGÉ -> au moins un agent reçoit une autre direction
+def test_oracle_ablated_decorrelates():
     np.random.seed(0)
-    agents = [_Ag() for _ in range(6)]
-    obs = np.zeros((6, 20), dtype=np.float32)
-    for i in range(6):
-        obs[i, 12] = 1.0 if i % 2 else -1.0
-        obs[i, 13] = 1.0
+    agents = [_Ag() for _ in range(4)]
+    obs = np.zeros((4, 20), dtype=np.float32)
+    combos = [(-1.0, -1.0), (-1.0, 1.0), (1.0, -1.0), (1.0, 1.0)]   # dirs 0,1,2,3 (distincts)
+    for i, (a, b) in enumerate(combos):
+        obs[i, 12] = a; obs[i, 13] = b
     intact, _ = CognitiveOracleBatchModel(agents).forward(obs)
     ablated, _ = CognitiveOracleAblated(agents).forward(obs)
-    assert not np.array_equal(np.argmax(intact[:, :8], 1), np.argmax(ablated[:, :8], 1))
+    intact_dirs = np.argmax(intact[:, :8], 1)
+    ablated_dirs = np.argmax(ablated[:, :8], 1)
+    # tous distincts intact (0,1,2,3) ; un dérangement (aucun point fixe) change CHAQUE direction
+    assert sorted(intact_dirs.tolist()) == [0, 1, 2, 3]
+    assert not np.any(intact_dirs == ablated_dirs)   # aucun agent ne garde sa direction
 
 
 @pytest.mark.skipif(os.environ.get("RUN_SLOW") != "1", reason="run in-world lourd")

@@ -19,7 +19,7 @@ if _ROOT not in sys.path:
 from src.agents.baseline_models import BaselineBatchModel
 from tools.s2_demand_ablation import derange_rows
 from tools.demand_marker import ablation_verdict
-from tools.s2_demand import run_condition, WORLDS
+from tools.s2_demand import run_condition
 
 BIT_A, BIT_B = 12, 13                                  # colonnes du signal dans l'obs (world_1 column_stack)
 
@@ -44,11 +44,6 @@ class CognitiveOracleAblated(CognitiveOracleBatchModel):
         return super().forward(derange_rows(batch_obs), env_surprise_batch)
 
 
-def _median_survival(cond):
-    s = cond.get("survival") or []
-    return float(np.median(s)) if s else 0.0
-
-
 def _run_mode(cognitive_demand, seed, K, num_agents, max_ticks, base_metabolism, cog_gain):
     """Configure le régime (via un world_cls partiel) puis oracle intact vs ablé → verdict."""
     from src.worlds.world_1_stoneage import Biosphere3D
@@ -66,8 +61,9 @@ def _run_mode(cognitive_demand, seed, K, num_agents, max_ticks, base_metabolism,
     ablated = run_condition(make_world, CognitiveOracleAblated, None, seed,
                             num_agents=num_agents, max_ticks=max_ticks, n_eras=K)
     v = ablation_verdict(intact["era_survival"], ablated["era_survival"])
-    verdict = ("PERCEPTION_DEMANDED" if v["collapse"] and v["n"] >= 12
-               else "NEUTRAL" if v["decoy"] else "MIXED")
+    verdict = {"X_DEMANDED": "PERCEPTION_DEMANDED",
+               "X_DECOY": "NEUTRAL",
+               "INCONCLUSIVE": "INCONCLUSIVE"}[v["verdict"]]
     return {"ratio": v["ratio"], "verdict": verdict, "n": v["n"]}
 
 
