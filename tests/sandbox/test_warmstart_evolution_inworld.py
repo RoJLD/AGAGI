@@ -91,3 +91,22 @@ def test_run_bptt_imitation_warmstart_smoke_reduces_loss():
                                        truncate_window=10, max_ticks=12)
     assert isinstance(out["learned_genome"], Genome)
     assert out["loss_trend"][-1] <= out["loss_trend"][0]
+
+
+def test_imitate_episode_bptt_mask_all_ones_trains_and_zero_mask_noop():
+    pytest.importorskip("torch")
+    pop = _tiny_torch_pop(B=4, I=2, O=8, N=12, seed=3)
+    rng = np.random.RandomState(4)
+    obs_seq, tgt_seq = [], []
+    for _ in range(5):
+        s = rng.choice([-1.0, 1.0], size=4).astype(np.float32)
+        o = np.zeros((4, 2), dtype=np.float32); o[:, 0] = s
+        obs_seq.append(o); tgt_seq.append(np.where(s > 0, 3, 0).astype(int))
+    ones = [np.ones(4, dtype=np.float32) for _ in range(5)]
+    first = pop.imitate_episode_bptt(obs_seq, tgt_seq, mask_seq=ones)
+    for _ in range(50):
+        last = pop.imitate_episode_bptt(obs_seq, tgt_seq, mask_seq=ones)
+    assert last < first, "masque tout-à-1 doit entraîner (perte décroît)"
+    zeros = [np.zeros(4, dtype=np.float32) for _ in range(5)]
+    lz = pop.imitate_episode_bptt(obs_seq, tgt_seq, mask_seq=zeros)
+    assert lz <= 1e-6, "masque tout-à-0 -> perte nulle, pas d'exception"

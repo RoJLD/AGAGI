@@ -241,34 +241,39 @@ class TorchPopulationModel(PopulationModel):
         self._write_back()
         return float(loss.item())
 
-    def imitate_episode_bptt(self, obs_seq, target_moves_seq, truncate_window=None):
-        """IMITATION récurrente supervisée (BPTT) — distincte de learn_episode_bptt (REINFORCE par le
-        retour). Rejoue obs_seq depuis H=0 en RETENANT le graphe récurrent ; perte = cross-entropy des
-        move-logits (out[:, :8]) vs l'action-enseignant par pas ; backprop unique à travers la fenêtre
-        -> _write_back. Matcher le forward RÉCURRENT du monde (pas _step isolé) sur la distribution
-        d'obs RÉELLE (attaque le shift qui a tué le BC single-step). ADDITIF : ne touche NI forward NI
-        learn NI learn_episode NI learn_episode_bptt.
+    def imitate_episode_bptt(self, obs_seq, target_moves_seq, truncate_window=None, mask_seq=None):
+        """IMITATION récurrente supervisée (BPTT) — distincte de learn_episode_bptt (REINFORCE). Rejoue
+        obs_seq depuis H=0 en RETENANT le graphe récurrent ; perte = cross-entropy des move-logits vs
+        l'action-enseignant par pas ; backprop unique -> _write_back. ADDITIF (ne touche pas forward/
+        learn/learn_episode/learn_episode_bptt).
 
-        obs_seq : liste de (B, >=I) ; target_moves_seq : liste de (B,) entiers dans [0, 8).
-        truncate_window=W : détache H tous les W pas (stabilité gradient longue fenêtre ; la tâche
-        réactive n'exige pas le crédit pleine-fenêtre). Renvoie la perte moyenne (float)."""
+        obs_seq : liste de (B,>=I) ; target_moves_seq : liste de (B,) entiers dans [0,8).
+        truncate_window=W : détache H tous les W pas (stabilité longue fenêtre).
+        mask_seq (optionnel) : liste de (B,) ∈ {0,1} par pas -> perte CE PONDÉRÉE, normalisée par Σmask
+        (exclut les pas post-mortem des agents). None -> moyenne uniforme (comportement INCHANGÉ)."""
         if self.B == 0 or not obs_seq:
             return None
         F = torch.nn.functional
         H = torch.zeros((self.B, self.N), device=self.device)
         loss = torch.zeros((), device=self.device)
-        nsteps = 0
+        denom = 0.0
         for t, obs in enumerate(obs_seq):
             obs_t = torch.tensor(np.asarray(obs, dtype=np.float32)[:, :self.I], device=self.device)
             if truncate_window and t > 0 and (t % truncate_window == 0):
                 H = H.detach()
-            H = self._step(obs_t, H)                              # graphe retenu (BPTT)
+            H = self._step(obs_t, H)
             out = H[:, self.N - self.O:self.N]
-            move_logits = out[:, :_MOVE_LOGITS]                  # (B, 8)
+            move_logits = out[:, :_MOVE_LOGITS]
             tgt = torch.tensor(np.asarray(target_moves_seq[t]), dtype=torch.long, device=self.device)
-            loss = loss + F.cross_entropy(move_logits, tgt)
-            nsteps += 1
-        loss = loss / max(1, nsteps)
+            if mask_seq is None:
+                loss = loss + F.cross_entropy(move_logits, tgt)
+                denom += 1.0
+            else:
+                ce = F.cross_entropy(move_logits, tgt, reduction="none")      # (B,)
+                m = torch.tensor(np.asarray(mask_seq[t], dtype=np.float32), device=self.device)
+                loss = loss + (ce * m).sum()
+                denom += float(m.sum().item())
+        loss = loss / max(1.0, denom)
         self.opt.zero_grad()
         loss.backward()
         self.opt.step()
