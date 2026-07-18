@@ -50,9 +50,20 @@ sa propre perception) pour que la permutation décorrèle. Fix : signal par-agen
 où l'obs égocentrique du champion EST par-agent). Corollaire pour REF-DEMAND-MARKER : vérifier que le canal
 ablaté est bien per-subject ; sinon utiliser une ablation de contenu (bruit/zéro du canal), pas de permutation.
 
+## Sonde crédit intra-vie (Task 4, bornée) — le monde EXIGE, le crédit N'APPREND PAS (à froid)
+`tools/cognitive_demand_inworld.py::run_credit_probe` : cohorte FRAÎCHE `use_torch_inworld` (REINFORCE
+in-world), mode cognitive_demand (corps insuffisant STRUCTUREL — ver/trésor/alignment gatés), 6 ères,
+metab=0.75/cog_gain=12. **Résultat : survie médiane PLATE ~7-8 sur les 6 ères** (torch_pop actif) = le
+PLANCHER no-perception (≈ l'oracle ablé à ~9), TRÈS loin de l'oracle intact (200). **Le crédit in-world
+n'apprend PAS à utiliser la perception à froid.** Sépare nettement les deux verrous : le MONDE est résolu
+(la recette le rend perceptif, oracle 200 vs 7) mais le CRÉDIT est le verrou restant. Corrobore directement
+[[warm-start-transversal-law]] (le crédit ne bootstrappe pas à froid) et [[decisive-substrate-thesis-test]]
+(verrou = crédit, pas substrat/monde). ⚠️ BORNÉ : 6 ères, cohorte fixe, SANS warm-start/curriculum — la loi
+prédit qu'un bassin pré-formé franchirait le bootstrap ; à tester en suite (warm-start + run_credit_probe).
+
 ## Portée & limites
-- **Oracle = preuve que le MONDE exige la perception** (100% hit vérifié, ablation le prive → mort), PAS
-  que le CRÉDIT in-world l'apprend (sonde intra-vie `use_torch_inworld` = suite, EDR addendum/Task 4).
+- **Oracle = preuve que le MONDE exige la perception** (100% hit vérifié, ablation le prive → mort) ; la
+  sonde crédit ci-dessus montre que le CRÉDIT ne l'apprend pas à froid (verrou séparé, isolé).
 - Flag guardé défaut OFF (non-régressif, tests 3/3 + non-régression 10/10). cog food = direction-signalée
   par-agent (proxy fidèle du mécanisme obs→action→énergie), pas une écologie riche.
 - Régime « corps insuffisant » obtenu par `forage_payoff=0` + `base_metabolism` calibré ; revenus corporels

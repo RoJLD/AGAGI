@@ -75,6 +75,42 @@ def run_cog_demand_map(seed=2026, K=12, num_agents=12, max_ticks=200, base_metab
     }
 
 
+def run_credit_probe(seed=2026, eras=6, num_agents=12, max_ticks=200, base_metabolism=0.75, cog_gain=12.0):
+    """Sonde crédit intra-vie (Task 4) : une cohorte FRAÎCHE use_torch_inworld (REINFORCE) apprend-elle la
+    nourriture cognitive ? Le monde EXIGE la perception (oracle : survie 200 vs plancher ~7). Si le crédit
+    apprend, la survie médiane MONTE sur les ères ; sinon elle reste au plancher (= verrou = crédit, pas le
+    monde). Renvoie la liste des survies médianes par ère. Prérequis : corps insuffisant structurel (ver/
+    trésor/alignment gatés en cognitive_demand). Borné (à froid, sans warm-start/curriculum)."""
+    import numpy as np
+    from src.worlds.world_1_stoneage import Biosphere3D
+    from src.seed_ai.harness import seed_at
+    from src.agents.mamba_agent import MambaAgent
+
+    trend = []
+    for era in range(eras):
+        seed_at(seed, era)
+        e = Biosphere3D()
+        e.benchmark_mode = True
+        e.night_enabled = False
+        e.current_era = 10_000
+        e.config.cognitive_demand = True
+        e.config.cog_gain = cog_gain
+        e.config.base_metabolism = base_metabolism
+        e.config.forage_payoff = 0.0
+        e.use_torch_inworld = True
+        for _ in range(num_agents):
+            e.add_agent(MambaAgent(), energy=80.0)
+        t = 0
+        while e.agents and t < max_ticks:
+            e.step()
+            t += 1
+        ages = [int(a["age"]) for a in list(e.agents) + list(getattr(e, "dead_agents", []))]
+        trend.append(float(np.median(ages)) if ages else 0.0)
+        if hasattr(e, "memory_retriever"):
+            e.memory_retriever.stop()
+    return trend
+
+
 def main():
     seed = int(os.environ.get("CDI_SEED", "2026"))
     K = int(os.environ.get("CDI_K", "12"))
