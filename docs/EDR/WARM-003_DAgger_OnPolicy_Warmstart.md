@@ -1,7 +1,7 @@
 ---
 id: EDR-WARM-003
 type: EDR
-title: "DAgger on-policy CASSE le plafond de transfert 0.734 (acc→0.99) et DOUBLE la survie, mais un gap résiduel à l'oracle demeure : le dernier mille est la précision aux états critiques"
+title: "DAgger on-policy monte l'acc_on-policy (métrique) 0.73→0.99 et DOUBLE la survie (marqueur 5.04, le plus fort de l'arc), mais plafonne loin de l'oracle : gap résiduel = COUVERTURE (hypothèse principale) vs précision, non départagé"
 status: active
 gate: G0
 tests: [SDR-G0]
@@ -33,28 +33,39 @@ oracle `2*(bit_a>0)+(bit_b>0)` → AGRÉGATION au dataset → réentraînement B
 Verdict final : **ratio=5.04, intact=35.2, ablé=7.0 → PERCEPTION_DEMANDED (n=12)**.
 Repères : WARM-001 (départ) acc_on-policy≈0.73 / survie≈15 / ratio 2.14 ; plancher≈7 ; oracle≈200/ratio≈21.
 
-**Trois faits :**
-1. **DAgger CASSE le plafond de transfert** : `acc_on-policy` 0.73 → **0.988**. Entraîner sur les états
-   auto-visités lève la dérive de distribution → **confirme causalement le diagnostic WARM-001** (le mur
-   ÉTAIT le transfert, fixable on-policy).
+**Trois faits (dont un à interprétation OUVERTE) :**
+1. **DAgger monte la MÉTRIQUE `acc_on-policy`** : ~0.66-0.73 (bootstrap enseignant) → **0.988**. Entraîner
+   sur les états auto-visités améliore fortement la décision sur la fenêtre survivable → le plafond mesuré
+   par WARM-001 (0.734) est bien franchi EN TANT QUE MÉTRIQUE. (Glose causale « le mur ÉTAIT le transfert,
+   réparé on-policy » : à nuancer — voir fait 3, la survie reste 35/200 donc le transfert n'est démontré
+   résolu que SUR LA FENÊTRE ≤35, pas sur les 200 ticks.)
 2. **La survie DOUBLE et le marqueur se renforce** : survie 15→35 (×2.3, 5× le plancher), marqueur ratio
    2.14→**5.04** (×2.4). C'est le **suiveur-de-signal in-world le plus fort de tout l'arc** — un génome
-   appris (pas codé main) dont l'ablation-perception effondre la survie 35→7.
-3. **MAIS un GAP RÉSIDUEL demeure** : `acc_on-policy` est ~MAXÉE à 0.99 (rounds 3-6 plats) tandis que la
-   survie ne fait que **grimper lentement (~+2/round)** vers 35, loin de l'oracle (200). À ~99% de décisions
-   correctes, **la survie DÉCOUPLE de l'accuracy moyenne** : la survie-à-200 est limitée par les ~1%
-   d'erreurs résiduelles AUX ÉTATS CRITIQUES (basse énergie, une erreur = mort), pas par l'accuracy moyenne.
+   APPRIS (pas codé main) dont l'ablation-perception effondre la survie 35→7. Résultat SOLIDE (instrument validé).
+3. **MAIS la survie plafonne loin de l'oracle** (~35 vs 200), le trend montant lentement (~+2/round).
+   ⚠️ **Interprétation OUVERTE, NON départagée par ce banc** : (a) **hypothèse COUVERTURE** (principale, plus
+   parcimonieuse, anticipée par le spec) — le learner meurt à ~35 → ne VISITE jamais les états tardifs
+   basse-énergie → DAgger ne peut ni les collecter ni les apprendre ; le plateau de survie et la fenêtre où
+   l'accuracy est mesurée sont **LE MÊME HORIZON (≤35)**, pas deux faits qui « découplent » ; le cercle
+   vertueux DAgger (survivre plus → couvrir plus) est LENT. (b) hypothèse précision — erreurs résiduelles aux
+   états critiques. **Biais de mesure clé** : `_inworld_accuracy` est TRONQUÉE (n'accumule que tant qu'un
+   agent vit, ~ticks 0-35) et à BIAIS-SURVIVANT (sous-ensemble vivant) → `acc=0.99` = « 0.99 sur la fenêtre
+   survivable courte », PAS l'accuracy sur l'horizon-oracle 200. Corroborant arithmétique : à 1% d'erreur iid
+   la survie attendue ≈ 100 (pas 35) → le taux d'erreur pertinent-survie dépasse le 0.99 mesuré (symptôme de
+   sur-estimation par troncature OU d'erreurs fatales CONCENTRÉES = couverture). **Départager exige une mesure
+   conditionnée (acc par bin de tick/énergie, ou acc du génome sur les états TARDIFS de l'oracle) — non faite.**
 
 ## Verdict
-**`DAGGER_BREAKS_TRANSFER_CEILING_SURVIVAL_DOUBLES_RESIDUAL_PRECISION_GAP`** — POSITIF PARTIEL (le plus fort
-in-world de l'arc). PASS sur le MARQUEUR (PERCEPTION_DEMANDED fort, ratio 5.04) ; FAIL sur la barre de survie
-(35 < mi-chemin oracle 100). DAgger **confirme et répare partiellement** le mur WARM-001 : la correction
-on-policy lève le plafond d'accuracy (0.73→0.99) et double la survie — donc le verrou WARM-001 ÉTAIT bien le
-transfert de distribution. **Mais il révèle un mur de SECOND ORDRE** : même à ~99% d'accuracy on-policy, la
-survie plafonne ~35 car la survie-à-200 exige la dernière fraction de précision aux états à haut risque, que
-l'imitation agrégée n'instille pas à budget modéré. Le dernier mille n'est plus le transfert mais la
-**PRÉCISION quasi-parfaite aux états critiques** — exactement ce que l'oracle codé-à-la-main possède par
-construction.
+**`DAGGER_LIFTS_ONPOLICY_METRIC_AND_DOUBLES_SURVIVAL_RESIDUAL_MECHANISM_OPEN`** — POSITIF PARTIEL (le plus
+fort in-world de l'arc). PASS sur le MARQUEUR (PERCEPTION_DEMANDED fort, ratio 5.04) ; FAIL sur la barre de
+survie (35 < mi-chemin oracle 100). **Établi (mesuré)** : la correction on-policy lève la métrique
+`acc_on-policy` (0.73→0.99 sur la fenêtre survivable) et DOUBLE la survie (15→35), renforçant le marqueur
+×2.4 — un vrai suiveur-de-signal APPRIS. **NON établi (à ne pas sur-interpréter, leçon WARM-001)** : le
+MÉCANISME du gap résiduel (~35 vs 200). L'hypothèse principale (parcimonieuse) est un **mur de COUVERTURE**
+(le learner ne visite/n'apprend jamais les états tardifs qu'il faudrait pour survivre, le cercle vertueux
+DAgger étant lent), PAS forcément une « précision aux états critiques » — le banc ne les départage pas
+(`_inworld_accuracy` est tronquée à la fenêtre pré-mortem). Le mécanisme reste une HYPOTHÈSE ouverte jusqu'à
+une mesure conditionnée.
 
 ## Synthèse d'arc (WARM-001→003) — le verrou in-world est un mur EN COUCHES
 Chaque couche pelée révèle la suivante, toutes contournées par l'oracle (perfection codée) :
@@ -62,16 +73,27 @@ Chaque couche pelée révèle la suivante, toutes contournées par l'oracle (per
 - **Imitation-enseignant** n'installe pas de survivant : le substrat imite 1.000 mais l'acc on-policy
   plafonne 0.73 = **transfert** (WARM-001). L'**évolution W-only** échoue en parallèle : **paysage plat**
   (WARM-002).
-- **DAgger on-policy** casse le transfert (acc→0.99) et double la survie (35, marqueur 5.04) MAIS bute sur
-  la **précision aux états critiques** (WARM-003).
+- **DAgger on-policy** lève la métrique acc_on-policy (→0.99 sur fenêtre survivable) et double la survie
+  (35, marqueur 5.04) MAIS plafonne loin de l'oracle — mécanisme résiduel OUVERT (couverture principale vs
+  précision), non départagé (WARM-003).
 Levier suivant motivé : soit pousser DAgger (budget agressif — la survie montait encore, non plateau net à
-6 rounds ; l'extension 12 rounds caractérise plateau vs montée lente), soit un signal de crédit qui pénalise
-spécifiquement l'erreur aux états à haut risque (asymétrie de coût survie).
+6 rounds ; l'extension 12 rounds caractérise plateau vs montée lente = test direct de l'hypothèse couverture),
+soit une mesure discriminante (acc conditionnée tick/énergie) avant de conclure sur le mécanisme.
 
 ## Portée & limites
-- Budget modéré (6 rounds, epochs_per_round=3000). Le trend de survie n'est PAS nettement plateau à 6 rounds
-  (+2/round) ; un NÉGATIF de survie ici = « pas atteint 100 à budget modéré », pas « impossible ».
-- Verdict K=12 (garde-fou n≥12) forward torch W gelé. acc = moyenne pop sur rollout ; verdict = agent 0 cloné.
+- **Biais de la métrique acc_on-policy (important)** : `_inworld_accuracy` n'accumule que pendant que des
+  agents vivent (~ticks 0-35) et sur le sous-ensemble vivant → TRONCATURE + BIAIS-SURVIVANT. « acc=0.99 » =
+  accuracy sur la fenêtre pré-mortem courte, PAS sur l'horizon-oracle 200 ticks. Ne pas lire « 0.99 » comme
+  « maîtrise de la tâche ». Discriminateur couverture-vs-précision non implémenté (acc par bin tick/énergie,
+  ou acc sur états tardifs de l'oracle).
+- Budget modéré (6 rounds, epochs_per_round=3000). Trend de survie NON plateau à 6 rounds (+2/round) →
+  l'extension 12 rounds teste directement l'hypothèse couverture (monte encore = couverture lente / plateau
+  dur = mur plus profond). Un NÉGATIF de survie = « pas atteint 100 à budget modéré », pas « impossible ».
+- « Round 0 = WARM-001 » lâche : round 0 ici (3000 ep) donne acc 0.66 ; le 0.734 de WARM-001 était à budget
+  supérieur (20000 ep). La comparaison de baseline est indicative, pas iso-budget.
+- Verdict K=12 (garde-fou n≥12) forward torch W gelé. Seed-monde 0 partagé entre collecte/acc/survie-ère-0 :
+  corrélation légère, PAS de fuite train/test (génomes différents, `_inworld_accuracy` = rollout indépendant).
+  acc = moyenne pop ; verdict = agent 0 cloné.
 - Réétiquetage oracle = fonction pure f(bit_a,bit_b) → étiquette exacte sur tout état visité (propre à cette
   tâche réactive ; un DAgger général exigerait un expert requêtable).
 
