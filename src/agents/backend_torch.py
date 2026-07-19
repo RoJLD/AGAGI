@@ -241,7 +241,8 @@ class TorchPopulationModel(PopulationModel):
         self._write_back()
         return float(loss.item())
 
-    def imitate_episode_bptt(self, obs_seq, target_moves_seq, truncate_window=None, mask_seq=None):
+    def imitate_episode_bptt(self, obs_seq, target_moves_seq, truncate_window=None, mask_seq=None,
+                             aux_off_weight=0.0):
         """IMITATION récurrente supervisée (BPTT) — distincte de learn_episode_bptt (REINFORCE). Rejoue
         obs_seq depuis H=0 en RETENANT le graphe récurrent ; perte = cross-entropy des move-logits vs
         l'action-enseignant par pas ; backprop unique -> _write_back. ADDITIF (ne touche pas forward/
@@ -250,7 +251,14 @@ class TorchPopulationModel(PopulationModel):
         obs_seq : liste de (B,>=I) ; target_moves_seq : liste de (B,) entiers dans [0,8).
         truncate_window=W : détache H tous les W pas (stabilité longue fenêtre).
         mask_seq (optionnel) : liste de (B,) ∈ {0,1} par pas -> perte CE PONDÉRÉE, normalisée par Σmask
-        (exclut les pas post-mortem des agents). None -> moyenne uniforme (comportement INCHANGÉ)."""
+        (exclut les pas post-mortem des agents). None -> moyenne uniforme (comportement INCHANGÉ).
+
+        ⚠️ aux_off_weight (EDR-WARM-005) : ne superviser QUE les 8 logits de mouvement laisse les canaux
+        d'ACTION AUXILIAIRES libres — mesuré in-world, `grab` (nœud 24) se fige à ON sur 100 % des ticks
+        et draine l'énergie en continu (ablation within-subject : survie ×2.3 en le forçant OFF, alors
+        que la décision de mouvement était déjà correcte à 98.7 %). aux_off_weight>0 ajoute une BCE
+        poussant grab ET rub vers OFF — l'oracle, lui, sort des zéros partout sauf la direction.
+        Défaut 0.0 = comportement INCHANGÉ (rétro-compatible)."""
         if self.B == 0 or not obs_seq:
             return None
         F = torch.nn.functional
@@ -265,6 +273,7 @@ class TorchPopulationModel(PopulationModel):
             out = H[:, self.N - self.O:self.N]
             move_logits = out[:, :_MOVE_LOGITS]
             tgt = torch.tensor(np.asarray(target_moves_seq[t]), dtype=torch.long, device=self.device)
+            m = None
             if mask_seq is None:
                 loss = loss + F.cross_entropy(move_logits, tgt)
                 denom += 1.0
@@ -273,6 +282,11 @@ class TorchPopulationModel(PopulationModel):
                 m = torch.tensor(np.asarray(mask_seq[t], dtype=np.float32), device=self.device)
                 loss = loss + (ce * m).sum()
                 denom += float(m.sum().item())
+            if aux_off_weight > 0:            # canaux d'action auxiliaires -> OFF (comme l'oracle)
+                zeros = torch.zeros(self.B, device=self.device)
+                aux = (F.binary_cross_entropy_with_logits(out[:, _GRAB_NODE], zeros, reduction="none")
+                       + F.binary_cross_entropy_with_logits(out[:, _RUB_NODE], zeros, reduction="none"))
+                loss = loss + aux_off_weight * (aux.mean() if m is None else (aux * m).sum())
         loss = loss / max(1.0, denom)
         self.opt.zero_grad()
         loss.backward()

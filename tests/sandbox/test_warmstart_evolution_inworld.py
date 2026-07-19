@@ -204,3 +204,14 @@ def test_run_coverage_precision_diagnostic_smoke(tmp_path):
                                             genome_path=str(tmp_path / "g.npz"))
     assert "coverage" in out and "precision" in out and "verdict" in out
     assert isinstance(out["coverage"], list) and isinstance(out["precision"], list)
+
+
+def test_measure_action_pipeline_wellformed():
+    from tools.warmstart_evolution_inworld import measure_action_pipeline
+    from src.agents.mamba_agent import MambaAgent
+    pytest.importorskip("torch")
+    r = measure_action_pipeline(MambaAgent().genome, seed=2026, num_agents=4, max_ticks=12)
+    assert set(r) >= {"n", "acc_raw", "acc_applied", "flip_rate", "ticks"}
+    assert r["n"] > 0 and r["ticks"] > 0
+    for k in ("acc_raw", "acc_applied", "flip_rate"):
+        assert 0.0 <= r[k] <= 1.0, f"{k} hors [0,1]"

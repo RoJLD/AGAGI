@@ -409,6 +409,129 @@ def _collect_onpolicy_trajectory(genome, seed=2026, num_agents=12, max_ticks=200
             [rec["mask"][k] for k in keep])
 
 
+def measure_action_pipeline(genome, seed=2026, num_agents=12, max_ticks=200,
+                            metab=METAB_DEFAULT, cog=COG_DEFAULT):
+    """WARM-005 — la survie est-elle bornée par le PIPELINE D'ACTION DU MONDE plutôt que par les
+    décisions du génome ? `_inworld_accuracy` lit les logits BRUTS du forward, mais le monde applique
+    ENSUITE (world_1_stoneage.py) : le consensus social (l.1225, seulement si des agents partagent une
+    case) PUIS la pénalité anti-répétition (l.1288-89 : `logits[last_action] -= 0.1`), avant l'argmax
+    final (l.1291) et l'écriture `agent["last_action"] = action` (l.1304).
+
+    Cette tâche y est structurellement exposée : le signal étant re-tiré CHAQUE tick, la bonne direction
+    se répète ~1/4 du temps par hasard — et le -0.1 frappe alors exactement le choix correct, le
+    retournant si la marge est faible.
+
+    Mesure sur le rollout du génome (W GELÉ) : acc_BRUTE (argmax des logits du forward) vs acc_EXÉCUTÉE
+    (l'action réellement appliquée, relue dans `agent["last_action"]` juste après le step), le taux de
+    FLIP (exécuté != brut), la part des flips qui transforment une décision CORRECTE en action FAUSSE,
+    et la part des flips COMPATIBLES avec l'anti-répétition (le choix brut était l'action du tick
+    précédent, donc pénalisée). Renvoie un dict ; None si torch absent."""
+    try:
+        import torch  # noqa: F401
+    except Exception:
+        return None
+    import src.agents.backend as backend_mod
+    from src.agents.backend_torch import TorchPopulationModel
+    from src.worlds.world_1_stoneage import Biosphere3D
+    from src.agents.mamba_agent import MambaAgent
+    from src.seed_ai.harness import seed_at
+
+    orig_index = {}
+    per_tick = []          # {raw, tgt, mask} par tick (aligné fixed-B)
+
+    class _RecPop(TorchPopulationModel):
+        def forward(self, batch_obs, env_surprise_batch=None):
+            arr = np.asarray(batch_obs, dtype=np.float32)
+            logits, cs = super().forward(arr, env_surprise_batch)
+            raw = np.full(num_agents, -1, dtype=np.int64)
+            tgt = np.full(num_agents, -1, dtype=np.int64)
+            msk = np.zeros(num_agents, dtype=np.float32)
+            for j in range(arr.shape[0]):
+                oi = orig_index.get(id(self.agents[j]))
+                if oi is None:
+                    continue
+                raw[oi] = int(np.argmax(logits[j, :8]))
+                tgt[oi] = int(2 * (arr[j, BIT_A] > 0) + (arr[j, BIT_B] > 0))
+                msk[oi] = 1.0
+            per_tick.append({"raw": raw, "tgt": tgt, "mask": msk})
+            return logits, cs
+
+    _orig = backend_mod.make_population
+
+    def _frozen(agents, backend="legacy", world_model=None):
+        if backend == "torch":
+            pop = _RecPop(agents, world_model=world_model)
+            for grp in pop.opt.param_groups:
+                grp["lr"] = 0.0
+            return pop
+        return _orig(agents, backend=backend, world_model=world_model)
+
+    applied_seq = []
+    backend_mod.make_population = _frozen
+    try:
+        seed_at(seed, 0)
+        e = Biosphere3D()
+        e.benchmark_mode = True
+        e.night_enabled = False
+        e.current_era = 10_000
+        e.config.cognitive_demand = True
+        e.config.cog_gain = cog
+        e.config.base_metabolism = metab
+        e.config.forage_payoff = 0.0
+        e.use_torch_inworld = True
+        e.torch_episode_k = 10 ** 9
+        for _ in range(num_agents):
+            a = MambaAgent()
+            a.from_genome(genome)
+            e.add_agent(a, energy=80.0)
+        for i, ag in enumerate(e.agents):
+            orig_index[id(ag["model"])] = i
+        t = 0
+        while e.agents and t < max_ticks:
+            e.step()
+            # action RÉELLEMENT exécutée à ce tick (vivants + ceux qui viennent de mourir)
+            app = np.full(num_agents, -1, dtype=np.int64)
+            for ag in list(e.agents) + list(getattr(e, "dead_agents", [])):
+                oi = orig_index.get(id(ag["model"]))
+                if oi is not None:
+                    app[oi] = int(ag.get("last_action", -1))
+            applied_seq.append(app)
+            t += 1
+        if hasattr(e, "memory_retriever"):
+            e.memory_retriever.stop()
+    finally:
+        backend_mod.make_population = _orig
+
+    n = min(len(per_tick), len(applied_seq))
+    tot = raw_ok = app_ok = flips = flip_breaks = flip_antirep = 0
+    prev_app = None
+    for t in range(n):
+        raw, tgt, msk = per_tick[t]["raw"], per_tick[t]["tgt"], per_tick[t]["mask"]
+        app = applied_seq[t]
+        for i in range(num_agents):
+            if msk[i] <= 0 or app[i] < 0 or raw[i] < 0:
+                continue
+            tot += 1
+            r_ok = int(raw[i] == tgt[i])
+            a_ok = int(app[i] == tgt[i])
+            raw_ok += r_ok
+            app_ok += a_ok
+            if app[i] != raw[i]:
+                flips += 1
+                if r_ok and not a_ok:
+                    flip_breaks += 1                      # décision correcte CASSÉE par le pipeline
+                if prev_app is not None and prev_app[i] >= 0 and raw[i] == prev_app[i]:
+                    flip_antirep += 1                     # le choix brut était l'action pénalisée
+        prev_app = app
+    return {"n": tot,
+            "acc_raw": raw_ok / max(1, tot),
+            "acc_applied": app_ok / max(1, tot),
+            "flip_rate": flips / max(1, tot),
+            "flips_breaking_correct": flip_breaks / max(1, flips) if flips else float("nan"),
+            "flips_antirepeat_consistent": flip_antirep / max(1, flips) if flips else float("nan"),
+            "ticks": n}
+
+
 def _collect_diag_trajectory(driver, genome=None, seed=2026, num_agents=12, max_ticks=200,
                              metab=METAB_DEFAULT, cog=COG_DEFAULT):
     """Collecteur de DIAGNOSTIC (WARM-004) : trajectoire PLEINE LONGUEUR (aucune troncature à la 1re
@@ -625,7 +748,8 @@ def run_bptt_imitation_warmstart(seed=2026, num_agents=12, n_epochs=200, truncat
 
 
 def run_dagger_warmstart(seed=2026, rounds=6, epochs_per_round=3000, lr=0.5, num_agents=12,
-                         max_ticks=200, metab=METAB_DEFAULT, cog=COG_DEFAULT, K=12):
+                         max_ticks=200, metab=METAB_DEFAULT, cog=COG_DEFAULT, K=12,
+                         aux_off_weight=0.0):
     """WARM-003 : DAgger on-policy. Round 0 = bootstrap sur la trajectoire-ENSEIGNANT (= WARM-001).
     Rounds suivants : agrège les états que le learner visite lui-même (réétiquetés oracle) et réentraîne
     en BPTT récurrent MASQUÉ (round-robin sur le dataset -> coût borné = epochs_per_round×rounds appels).
@@ -653,7 +777,8 @@ def run_dagger_warmstart(seed=2026, rounds=6, epochs_per_round=3000, lr=0.5, num
     for r in range(rounds):
         for ep in range(epochs_per_round):
             obs_s, tgt_s, mask_s = dataset[ep % len(dataset)]        # round-robin (coût borné)
-            pop.imitate_episode_bptt(obs_s, tgt_s, truncate_window=25, mask_seq=mask_s)
+            pop.imitate_episode_bptt(obs_s, tgt_s, truncate_window=25, mask_seq=mask_s,
+                                     aux_off_weight=aux_off_weight)
         pop._write_back()
         g = agents[0].genome
         acc_op = _inworld_accuracy(g, seed=seed, num_agents=num_agents, max_ticks=max_ticks,

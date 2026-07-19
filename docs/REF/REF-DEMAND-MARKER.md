@@ -3,7 +3,7 @@ id: REF-DEMAND-MARKER
 type: REF
 title: "Témoin causal de demande — ablation within-subject de la capacité X"
 status: active
-adopt_for: [S2-001, LANG-006, G1-001, MEM-001, EDR-S2-002, EDR-S2-003, EDR-S2-004, EDR-S2-005, EDR-S2-006, EDR-S2-007, EDR-S2-008, EDR-S2-009, EDR-S2-010, EDR-S2-011, EDR-WARM-001, EDR-WARM-002, EDR-WARM-003, EDR-WARM-004]
+adopt_for: [S2-001, LANG-006, G1-001, MEM-001, EDR-S2-002, EDR-S2-003, EDR-S2-004, EDR-S2-005, EDR-S2-006, EDR-S2-007, EDR-S2-008, EDR-S2-009, EDR-S2-010, EDR-S2-011, EDR-WARM-001, EDR-WARM-002, EDR-WARM-003, EDR-WARM-004, EDR-WARM-005]
 ---
 
 ## Énoncé
@@ -32,6 +32,7 @@ FAUX-POSITIVE : un survivant compétent peut exister dans un monde qui n'exige p
 | **recette IN-WORLD** | EDR-S2-009 | flag cognitive_demand stoneage, oracle intact/ablé (par-agent) | **ON=PERCEPTION_DEMANDED (ratio 21×), OFF=NEUTRE → recette S2-006 RÉALISÉE in-world, flip S2-003.** ⚠️ signal GLOBAL défait l'ablation-permutation → canal PAR-AGENT requis |
 | optim. imitation (in-world) | EDR-WARM-001 | génome imité par BPTT (forward torch), intact/ablé K=12 | **marqueur BASCULE PERCEPTION_DEMANDED dès acc_enseignant≈0.99 (ratio 1.6→2.1) MAIS survie plafonne 15 (oracle 200) à acc_enseignant 1.000 → dissociation : perception causale ✓, survie ✗. Mécanisme MESURÉ : acc on-policy plafonne 0.73 = transfert (dérive état récurrent), PAS covariate-shift des obs.** Usage : le marqueur mesure « utilise X », PAS « survit grâce à X » |
 | optim. évolution (in-world) | EDR-WARM-002 | meilleur génome évolué W-only (forward mamba), intact/ablé K=12 | ratio ≈ 1.0 NEUTRAL sur 3 régimes de mutation → paysage de fitness PLAT, aucun gradient cognitif |
+| canal d'action parasite | EDR-WARM-005 | ablation within-subject d'un CANAL D'ACTION (grab force OFF), K=12 | **survie x2.06 (12/12 eres, sign_p=0.00024)** : un canal non supervise bloque ON saignait l'energie -> une part majeure du deficit de SURVIE de WARM-001/003/004 n'etait PAS cognitive (decision deja correcte a 98.7%). ⚠️ Lecon : avant d'expliquer un deficit de survie par la cognition, verifier le BILAN ENERGETIQUE et les canaux d'action NON SUPERVISES |
 | diagnostic profondeur récurrente | EDR-WARM-004 | accuracy BINNÉE (tick / énergie), replay torch avec `reset_h_every` | **dégradation hors fenêtre entraînée SOLIDE (10/10 agents, sign_p=0.001, Δ médian 0.21) MAIS ce n'est ni couverture ni précision** : axe énergie COLINÉAIRE au tick (effet nul/inversé à tick contrôlé) ; signature MONO-CLASSE = frontière de décision dégradée par la PROFONDEUR RÉCURRENTE. ⚠️ **2 pièges d'instrument** : (1) deux axes corrélés donnent des magnitudes concordantes qu'on lit à tort comme corroboration (= double comptage) ; (2) un replay à H CONTINU ne reproduit pas l'in-world (où H est remis à 0 à chaque mort) → 0.112 d'artefact sur états identiques |
 | optim. DAgger (in-world) | EDR-WARM-003 | génome DAgger on-policy (forward torch), intact/ablé K=12 | **ratio 5.04 PERCEPTION_DEMANDED (le plus fort de l'arc)** : DAgger lève la métrique acc_on-policy 0.73→0.99 (fenêtre survivable), survie 15→35 (×2.3), marqueur ×2.4 — MAIS survie < oracle, mécanisme résiduel OUVERT (couverture vs précision, `_inworld_accuracy` tronquée). ⚠️ Usage : cette acc est pré-mortem, pas l'horizon-tâche |
 | communication | LANG-006 | canal coupé | MI 1.04 vs 0.000 |
