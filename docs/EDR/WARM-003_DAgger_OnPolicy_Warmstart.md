@@ -77,8 +77,11 @@ Chaque couche pelée révèle la suivante, toutes contournées par l'oracle (per
   (35, marqueur 5.04) MAIS plafonne loin de l'oracle — mécanisme résiduel OUVERT (couverture principale vs
   précision), non départagé (WARM-003).
 Levier suivant motivé : soit pousser DAgger (budget agressif — la survie montait encore, non plateau net à
-6 rounds ; l'extension 12 rounds caractérise plateau vs montée lente = test direct de l'hypothèse couverture),
-soit une mesure discriminante (acc conditionnée tick/énergie) avant de conclure sur le mécanisme.
+6 rounds), soit une mesure discriminante (acc conditionnée tick/énergie) avant de conclure sur le mécanisme.
+**Note d'exécution** : une extension à 12 rounds a été TENTÉE mais ABANDONNÉE (runtime >8h vs ~90 min
+attendu) ; ce ralentissement 5× est FAIBLEMENT cohérent avec des épisodes qui s'allongent (survie qui
+grandit en rounds tardifs → le cycle de couverture continuerait), mais NON CONFIRMÉ — à relancer en nocturne
+avec K réduit pour le trend (K=12 seulement au verdict final). Le finding tient sur 6 rounds.
 
 ## Portée & limites
 - **Biais de la métrique acc_on-policy (important)** : `_inworld_accuracy` n'accumule que pendant que des
