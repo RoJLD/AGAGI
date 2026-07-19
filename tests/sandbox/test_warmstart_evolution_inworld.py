@@ -146,6 +146,17 @@ def test_collect_diag_trajectory_oracle_is_long_and_masked():
     assert set(np.unique(mask[0])).issubset({0.0, 1.0})
     alive0 = mask[0] > 0
     assert np.all(np.isfinite(en[0][alive0])), "énergie finie là où mask=1"
+    # PLEINE LONGUEUR (raison d'être de ce collecteur) : si une mort survient, l'enregistrement
+    # DOIT continuer au-delà — contrairement à _collect_oracle_trajectory qui tronque à la 1re mort.
+    partiels = [k for k, m in enumerate(mask) if 0 < m.sum() < 4]
+    if partiels:
+        assert len(mask) > partiels[0] + 1, "doit enregistrer APRÈS la 1re mort (pas de troncature)"
+
+
+def test_collect_diag_trajectory_rejects_unknown_driver():
+    from tools.warmstart_evolution_inworld import _collect_diag_trajectory
+    with pytest.raises(ValueError):
+        _collect_diag_trajectory("oracel", seed=2026, num_agents=2, max_ticks=3)
 
 
 def test_collect_diag_trajectory_genome_runs():

@@ -491,8 +491,10 @@ def _collect_diag_trajectory(driver, genome=None, seed=2026, num_agents=12, max_
         backend_mod.make_population = _frozen
         e.use_torch_inworld = True
         e.torch_episode_k = 10 ** 9
-    else:
+    elif driver == "oracle":
         e.batch_model_cls = _RecOracle
+    else:                                    # instrument de mesure : pas de repli silencieux sur l'oracle
+        raise ValueError(f"driver inconnu : {driver!r} (attendu 'oracle' ou 'genome')")
 
     try:
         for _ in range(num_agents):
