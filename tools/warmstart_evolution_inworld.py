@@ -723,14 +723,33 @@ def run_coverage_precision_diagnostic(seed=2026, rounds=6, epochs_per_round=3000
         vals = [r["acc"] for r in rows[:2] if r["n"] > 0 and r["acc"] == r["acc"]]
         return min(vals) if vals else float("nan")
 
+    def _high_e(rows, n_floor=30):
+        """Bins d'énergie CONFORTABLE (index >=2) — le comparateur interne au test B."""
+        vals = [r["acc"] for r in rows[2:] if r["n"] >= n_floor and r["acc"] == r["acc"]]
+        return max(vals) if vals else float("nan")
+
     late_acc, low_e_acc = _late(cov), _low(prec)
+    high_e_acc = _high_e(prec)
     early_acc = cov[0]["acc"] if cov and cov[0]["n"] > 0 else float("nan")
-    if late_acc == late_acc and late_acc < 0.6:
+
+    # Deux effets GRADUÉS, jugés séparément et sur des comparaisons INTERNES à leur propre test.
+    # (corrige un défaut de conception : comparer low_energy (test B) à late (test A) confrontait
+    #  deux trajectoires DIFFÉRENTES ; la comparaison de précision doit être interne au test B.)
+    COV_DROP, PREC_DROP = 0.10, 0.10
+    cov_gap = (early_acc - late_acc) if (early_acc == early_acc and late_acc == late_acc) else float("nan")
+    prec_gap = (high_e_acc - low_e_acc) if (high_e_acc == high_e_acc and low_e_acc == low_e_acc) else float("nan")
+    has_cov = cov_gap == cov_gap and cov_gap >= COV_DROP
+    has_prec = prec_gap == prec_gap and prec_gap >= PREC_DROP
+    if has_cov and has_prec:
+        verdict = "LES_DEUX"
+    elif has_cov:
         verdict = "COUVERTURE"
-    elif low_e_acc == low_e_acc and late_acc == late_acc and low_e_acc < late_acc - 0.15:
+    elif has_prec:
         verdict = "PRECISION"
     else:
         verdict = "NI_COUVERTURE_NI_PRECISION"
+    if late_acc == late_acc and late_acc < 0.4:
+        verdict += "_COUVERTURE_DOMINANTE"      # effondrement quasi-total hors du vécu
 
     print(f"\n=== WARM-004 — couverture vs précision (seed={seed}) ===")
     print(f"(A) COUVERTURE — acc du génome sur les états de l'ORACLE, par bin de tick {TICK_EDGES[:-1]}+ :")
@@ -741,13 +760,20 @@ def run_coverage_precision_diagnostic(seed=2026, rounds=6, epochs_per_round=3000
     for r in prec:
         print(f"    bin {r['bin']} (énergie {ENERGY_EDGES[r['bin']]}-{ENERGY_EDGES[r['bin']+1]}) : "
               f"n={r['n']:5d} acc={r['acc']:.3f}")
-    print(f"\nacc early(oracle ≤35)={early_acc:.3f} | acc late(oracle >35)={late_acc:.3f} | "
-          f"acc basse-énergie={low_e_acc:.3f}")
+    print(f"\n(A) écart COUVERTURE : early(≤35)={early_acc:.3f} -> late(>35)={late_acc:.3f} "
+          f"| gap={cov_gap:.3f} (seuil {COV_DROP})")
+    print(f"(B) écart PRÉCISION  : haute-énergie={high_e_acc:.3f} -> basse-énergie={low_e_acc:.3f} "
+          f"| gap={prec_gap:.3f} (seuil {PREC_DROP})")
     print(f"VERDICT WARM-004 : {verdict}")
-    print("  COUVERTURE = il ne sait pas hors de son vécu (le plateau est un mur de données).")
-    print("  PRECISION  = il sait partout mais rate aux états critiques.")
-    print("  NI_L'UN_NI_L'AUTRE = cause non-décisionnelle (dynamique métabolique) -> chercher ailleurs.")
-    return {"coverage": cov, "precision": prec, "verdict": verdict, "genome_path": genome_path}
+    print("  COUVERTURE = dégradation sur les états jamais visités (mur de données).")
+    print("  PRECISION  = dégradation aux états critiques basse-énergie.")
+    print("  LES_DEUX   = les deux effets contribuent (plateau sur-déterminé).")
+    print("  ⚠️ Le test (B) est CORRÉLATIONNEL : les états basse-énergie sont peuplés par des agents "
+          "qui ont DÉJÀ erré -> causalité inverse non exclue. Le test (A) est propre (états imposés "
+          "par l'oracle, aucune sélection par le comportement du génome).")
+    return {"coverage": cov, "precision": prec, "verdict": verdict, "genome_path": genome_path,
+            "cov_gap": cov_gap, "prec_gap": prec_gap, "early_acc": early_acc,
+            "late_acc": late_acc, "low_e_acc": low_e_acc, "high_e_acc": high_e_acc}
 
 
 def main():
