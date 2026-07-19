@@ -168,3 +168,29 @@ def test_collect_diag_trajectory_genome_runs():
                                                  num_agents=4, max_ticks=15)
     assert len(obs) >= 1 and obs[0].shape[0] == 4
     assert mask[0].sum() == 4.0
+
+
+def test_bins_and_accuracy_binned_random_genome_is_chance():
+    from tools.warmstart_evolution_inworld import (_collect_diag_trajectory, bins_by_tick,
+                                                   accuracy_binned)
+    from src.agents.mamba_agent import MambaAgent
+    pytest.importorskip("torch")
+    obs, tgt, mask, en = _collect_diag_trajectory("oracle", seed=2026, num_agents=4, max_ticks=30)
+    edges = [0, 10, 1000]
+    bids = bins_by_tick(mask, edges)
+    assert len(bids) == len(mask) and bids[0].shape == (4,)
+    res = accuracy_binned(MambaAgent().genome, obs, tgt, mask, bids, n_bins=2, num_agents=4)
+    assert len(res) == 2
+    peupled = [r for r in res if r["n"] > 0]
+    assert peupled, "au moins un bin peuplé"
+    for r in peupled:
+        assert 0.0 <= r["acc"] <= 1.0
+    # contrôle négatif : un génome aléatoire ne doit pas être excellent partout
+    assert min(r["acc"] for r in peupled) < 0.9
+
+
+def test_bins_by_energy_maps_nan_to_minus_one():
+    from tools.warmstart_evolution_inworld import bins_by_energy
+    en = [np.array([10.0, 50.0, np.nan, 95.0], dtype=np.float32)]
+    b = bins_by_energy(en, [0, 40, 80, 101])
+    assert b[0].tolist() == [0, 1, -1, 2]

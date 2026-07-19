@@ -518,6 +518,71 @@ def _collect_diag_trajectory(driver, genome=None, seed=2026, num_agents=12, max_
             [rec["mask"][k] for k in keep], [rec["energy"][k] for k in keep])
 
 
+def bins_by_tick(mask_seq, edges):
+    """bin_ids[t] = (B,) index du segment de tick contenant t selon `edges` croissants ; -1 hors bornes."""
+    ids = []
+    for t, m in enumerate(mask_seq):
+        b = -1
+        for k in range(len(edges) - 1):
+            if edges[k] <= t < edges[k + 1]:
+                b = k
+                break
+        ids.append(np.full(len(m), b, dtype=np.int64))
+    return ids
+
+
+def bins_by_energy(energy_seq, edges):
+    """bin_ids[t] = (B,) index du segment d'énergie par agent selon `edges` ; NaN (mort) -> -1."""
+    ids = []
+    for en in energy_seq:
+        en = np.asarray(en, dtype=np.float64)
+        b = np.full(en.shape[0], -1, dtype=np.int64)
+        for k in range(len(edges) - 1):
+            sel = (~np.isnan(en)) & (en >= edges[k]) & (en < edges[k + 1])
+            b[sel] = k
+        ids.append(b)
+    return ids
+
+
+def accuracy_binned(genome, obs_seq, tgt_seq, mask_seq, bin_ids, n_bins, num_agents=12):
+    """Rejoue `genome` (forward torch, no_grad, W gelé, replay PUR sans monde) sur obs_seq depuis H=0 et
+    agrège l'accuracy de décision par bin. Ignore mask==0 et bin<0. Renvoie [{bin,n,acc}]. None si torch
+    absent. NB : sur une trajectoire d'un AUTRE pilote (ex. l'oracle), H suit l'historique de CE pilote —
+    contrefactuel voulu (« s'il se trouvait dans ces états, déciderait-il juste ? »)."""
+    try:
+        import torch
+    except Exception:
+        return None
+    from src.agents.mamba_agent import MambaAgent
+    from src.agents.backend_torch import TorchPopulationModel
+
+    agents = [MambaAgent() for _ in range(num_agents)]
+    for a in agents:
+        a.from_genome(genome)
+    pop = TorchPopulationModel(agents, lr=0.0)
+    correct = np.zeros(n_bins, dtype=np.int64)
+    total = np.zeros(n_bins, dtype=np.int64)
+    H = torch.zeros((pop.B, pop.N), device=pop.device)
+    with torch.no_grad():
+        for t, obs in enumerate(obs_seq):
+            obs_t = torch.tensor(np.asarray(obs, dtype=np.float32)[:, :pop.I], device=pop.device)
+            H = pop._step(obs_t, H)
+            out = H[:, pop.N - pop.O:pop.N]
+            pred = torch.argmax(out[:, :8], dim=1).cpu().numpy()
+            tgt = np.asarray(tgt_seq[t])
+            m = np.asarray(mask_seq[t])
+            b = np.asarray(bin_ids[t])
+            for i in range(min(len(tgt), len(pred))):
+                if m[i] <= 0 or b[i] < 0 or b[i] >= n_bins:
+                    continue
+                total[b[i]] += 1
+                if int(pred[i]) == int(tgt[i]):
+                    correct[b[i]] += 1
+    return [{"bin": k, "n": int(total[k]),
+             "acc": (float(correct[k]) / total[k]) if total[k] else float("nan")}
+            for k in range(n_bins)]
+
+
 def run_bptt_imitation_warmstart(seed=2026, num_agents=12, n_epochs=200, truncate_window=25,
                                  max_ticks=200, metab=METAB_DEFAULT, cog=COG_DEFAULT, lr=0.5):
     """WARM-001 : collecte la trajectoire-enseignant (oracle, B constant) puis entraîne une cohorte
