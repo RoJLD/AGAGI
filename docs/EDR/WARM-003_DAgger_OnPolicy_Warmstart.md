@@ -64,8 +64,16 @@ survie (35 < mi-chemin oracle 100). **Établi (mesuré)** : la correction on-pol
 MÉCANISME du gap résiduel (~35 vs 200). L'hypothèse principale (parcimonieuse) est un **mur de COUVERTURE**
 (le learner ne visite/n'apprend jamais les états tardifs qu'il faudrait pour survivre, le cercle vertueux
 DAgger étant lent), PAS forcément une « précision aux états critiques » — le banc ne les départage pas
-(`_inworld_accuracy` est tronquée à la fenêtre pré-mortem). Le mécanisme reste une HYPOTHÈSE ouverte jusqu'à
-une mesure conditionnée.
+(`_inworld_accuracy` est tronquée à la fenêtre pré-mortem).
+
+> **✅ HYPOTHÈSE TRANCHÉE par [[EDR-WARM-004]] (2026-07-19) : LES DEUX contribuent — plateau SUR-DÉTERMINÉ.**
+> Mesures conditionnées : accuracy sur les états de l'ORACLE par bin de tick → **0.931 (vécu ≤35) → 0.713
+> (jamais visité)**, écart **0.218** — test causalement PROPRE ; accuracy sur son propre rollout par bin
+> d'énergie → **0.992 (confortable) → 0.762 (basse énergie)**, écart **0.230** — test CORRÉLATIONNEL
+> (causalité inverse non exclue). Magnitudes comparables, aucun mécanisme ne domine ; les deux se couplent
+> en spirale (moins de couverture → erreurs → énergie plus basse → zone de moindre accuracy → mort).
+> **Corollaire confirmant la revue finale** : `acc_on-policy=0.99` était bien TRONQUÉE — l'accuracy vraie
+> sur l'horizon complet de la tâche est ~0.71-0.79, pas 0.99.
 
 ## Synthèse d'arc (WARM-001→003) — le verrou in-world est un mur EN COUCHES
 Chaque couche pelée révèle la suivante, toutes contournées par l'oracle (perfection codée) :
