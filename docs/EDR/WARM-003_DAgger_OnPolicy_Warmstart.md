@@ -66,14 +66,19 @@ MÉCANISME du gap résiduel (~35 vs 200). L'hypothèse principale (parcimonieuse
 DAgger étant lent), PAS forcément une « précision aux états critiques » — le banc ne les départage pas
 (`_inworld_accuracy` est tronquée à la fenêtre pré-mortem).
 
-> **✅ HYPOTHÈSE TRANCHÉE par [[EDR-WARM-004]] (2026-07-19) : LES DEUX contribuent — plateau SUR-DÉTERMINÉ.**
-> Mesures conditionnées : accuracy sur les états de l'ORACLE par bin de tick → **0.931 (vécu ≤35) → 0.713
-> (jamais visité)**, écart **0.218** — test causalement PROPRE ; accuracy sur son propre rollout par bin
-> d'énergie → **0.992 (confortable) → 0.762 (basse énergie)**, écart **0.230** — test CORRÉLATIONNEL
-> (causalité inverse non exclue). Magnitudes comparables, aucun mécanisme ne domine ; les deux se couplent
-> en spirale (moins de couverture → erreurs → énergie plus basse → zone de moindre accuracy → mort).
-> **Corollaire confirmant la revue finale** : `acc_on-policy=0.99` était bien TRONQUÉE — l'accuracy vraie
-> sur l'horizon complet de la tâche est ~0.71-0.79, pas 0.99.
+> **✅ TRANCHÉ par [[EDR-WARM-004]] (2026-07-19) — mais la DICHOTOMIE ELLE-MÊME était mal posée.**
+> Ni couverture ni précision : (i) l'axe énergie est **COLINÉAIRE au tick** (`forage_payoff=0` fait de
+> l'énergie une horloge, corr −0.735 ; à tick contrôlé l'effet d'énergie s'évanouit et s'inverse) → les
+> « deux effets » étaient **un seul, compté deux fois** ; (ii) ce n'est pas de la couverture d'états — la
+> cible est une fonction pure de bits EXOGÈNES uniformément distribués dans tous les bins ; la signature
+> réelle est **MONO-CLASSE** (classe 3 : 0.74→0.09 ; classes 1-2 : 1.00) = **défaut de frontière de
+> décision croissant avec la PROFONDEUR RÉCURRENTE**. Ce qui est solide : la décision se dégrade hors de
+> la fenêtre entraînée (**10/10 agents, sign_p=0.001, Δ médian 0.21**). **Confirme le mécanisme déjà
+> rétracté-vers par [[EDR-WARM-001]]** (dérive de H), sans mécanisme nouveau.
+>
+> ⚠️ **Le corollaire « acc_on-policy=0.99 était TRONQUÉE » est RÉFUTÉ** : sur des états IDENTIQUES,
+> in-world = 0.988 vs replay = 0.876, soit **0.112 d'artefact** (in-world, H est remis à 0 à chaque mort ;
+> le replay le fait tourner en continu). Sur son propre horizon complet, l'accuracy in-world **est** 0.988.
 
 ## Synthèse d'arc (WARM-001→003) — le verrou in-world est un mur EN COUCHES
 Chaque couche pelée révèle la suivante, toutes contournées par l'oracle (perfection codée) :

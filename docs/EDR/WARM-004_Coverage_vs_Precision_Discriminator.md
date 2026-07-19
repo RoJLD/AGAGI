@@ -1,7 +1,7 @@
 ---
 id: EDR-WARM-004
 type: EDR
-title: "Le plateau de survie du DAgger est SUR-DÉTERMINÉ : couverture (−0.22 hors du vécu) ET précision aux états critiques (−0.23 en basse énergie) contribuent, aucun ne domine"
+title: "Le plateau du DAgger n'est ni couverture ni précision : la décision se dégrade avec la PROFONDEUR RÉCURRENTE, sur UNE classe — et l'axe énergie est colinéaire au tick (un seul effet compté deux fois)"
 status: active
 gate: G0
 tests: [SDR-G0]
@@ -9,91 +9,100 @@ adopts: [REF-DEMAND-MARKER]
 ---
 
 ## Question
-EDR-WARM-003 a laissé une hypothèse OUVERTE : DAgger monte `acc_on-policy` à 0.99 et double la survie
-(15→35, marqueur 5.04) mais plafonne loin de l'oracle (200). Pourquoi ?
-- **(a) COUVERTURE** : le learner meurt à ~35 → ne visite jamais les états tardifs → ne les apprend pas
-  (et l'`acc_on-policy` mesurée est tronquée à la fenêtre pré-mortem, donc quasi-tautologique).
-- **(b) PRÉCISION** : il « sait » partout, mais ses erreurs résiduelles tombent aux états critiques
-  (basse énergie, où une erreur est fatale).
+EDR-WARM-003 laissait ouvert : pourquoi DAgger plafonne-t-il à ~35 ticks malgré `acc_on-policy=0.99` ?
+(a) COUVERTURE (états tardifs jamais visités, donc jamais appris) ou (b) PRÉCISION (erreurs résiduelles
+aux états critiques basse-énergie) ?
 
 ## Méthode
-Deux mesures aux comparaisons INTERNES à chaque test (`tools/warmstart_evolution_inworld.py`) :
-- **Instrument** : `_collect_diag_trajectory` (trajectoire PLEINE LONGUEUR — aucune troncature à la 1ʳᵉ
-  mort, contrairement à `_collect_oracle_trajectory` —, MASQUÉE, alignée à travers les morts par
-  `id(model)`, avec l'ÉNERGIE lue au moment de la DÉCISION) + `accuracy_binned` (replay PUR torch,
-  `no_grad`, W gelé, sans monde) + `bins_by_tick` / `bins_by_energy`.
-- **(A) COUVERTURE** : accuracy du génome DAgger sur les états de l'**ORACLE**, binnée par TICK. Les bins
-  > 35 sont des états que le learner **ne visite jamais**. Test PROPRE : mêmes états imposés pour tous,
-  aucune sélection par le comportement du génome.
-- **(B) PRÉCISION** : accuracy sur **son propre** rollout, binnée par ÉNERGIE (comparaison interne
-  basse vs haute énergie).
-Génome DAgger reproduit (6 rounds, seed 2026) puis **PERSISTÉ** (`results/warm003_dagger_genome.npz`) —
-il n'avait pas été sauvé en WARM-003, ce qui avait coûté une reproduction de 40 min ; le re-diagnostic
-ne coûte plus que ~2 min.
+`_collect_diag_trajectory` (trajectoire PLEINE LONGUEUR, masquée, alignée par `id(model)`, énergie lue à
+l'instant de la décision) + `accuracy_binned` (replay torch `no_grad`, W gelé, sans monde) +
+`bins_by_tick` / `bins_by_energy`. Génome DAgger (6 rounds, seed 2026) PERSISTÉ
+(`results/warm003_dagger_genome.npz`) → re-diagnostic ~2 min.
+- **(A)** accuracy sur les états de l'**ORACLE**, binnée par TICK (bins >35 = jamais visités par le learner).
+- **(B)** accuracy sur **son propre** rollout, binnée par ÉNERGIE.
 
-## Résultats
+## Résultats bruts
 
-**(A) COUVERTURE — acc sur les états de l'ORACLE, par bin de tick**
+**(A) états de l'ORACLE, par tick** — 0.931 (0-35, n=420) / 0.795 (35-70, n=385) / 0.734 (70-120, n=512) /
+**0.713** (120+, n=734) → écart brut **0.218**.
+**(B) son rollout, par énergie** — 0.844 (0-20, n=160) / 0.762 (20-40, n=193) / 0.973 (40-60, n=110) /
+0.992 (60-80, n=126) / 1.000 (80+, n=17) → écart brut **0.230**.
 
-| ticks | 0-35 (son vécu) | 35-70 | 70-120 | 120+ |
-|---|---|---|---|---|
-| **acc** | **0.931** | 0.795 | 0.734 | **0.713** |
-| n | 420 | 385 | 512 | 734 |
+**La lecture naïve « les deux effets contribuent, magnitudes comparables » est FAUSSE.** Quatre probes
+adversariaux (revue finale) la démontent :
 
-**(B) PRÉCISION — acc sur son propre rollout, par bin d'énergie**
+### 1. L'axe ÉNERGIE est COLINÉAIRE à l'axe TICK — un seul effet compté deux fois
+Avec `forage_payoff=0`, l'énergie est une **horloge** : `corr(tick, énergie) = −0.735` (ticks médians par
+bin d'énergie : 80+→0, 60-80→7, 40-60→19, 20-40→41, 0-20→52). Le **même rollout binné par TICK** donne
+1.000 / 0.963 / 0.874 / 0.787 → écart **0.213**, soit exactement les « deux » effets. **À tick contrôlé,
+l'effet d'énergie s'évanouit et change de signe** : Δ(haute−basse énergie) = +0.012 / +0.125 / +0.032 /
+**−0.089**. → La concordance des magnitudes n'était pas une corroboration mais la **signature d'une
+double comptabilisation**. **Verdict « LES_DEUX » RÉFUTÉ.**
 
-| énergie | 0-20 | 20-40 | 40-60 | 60-80 | 80+ |
-|---|---|---|---|---|---|
-| **acc** | 0.844 | **0.762** | 0.973 | **0.992** | 1.000 |
-| n | 160 | 193 | 110 | 126 | 17 |
+### 2. Un quart de l'écart (A) est un ARTEFACT DU REPLAY (profondeur récurrente)
+In-world, le pop torch est **reconstruit (H→0) à chaque changement de B, donc à chaque MORT**
+(`world_1_stoneage.py` ~l.1041-1059 ; `backend_torch.py` l.82) ; le replay, lui, fait tourner H en continu
+sur 200 ticks — condition qui **n'existe jamais in-world**. Remettre H à 0 en début de bin récupère
+l'essentiel : bin1 0.795→**0.904**, bin3 0.713→**0.771**. Écart résiduel réel : 0.931→0.771 = **0.160**
+(l'écart brut 0.218 le **surestimait de ~27 %**).
 
-- **Écart COUVERTURE** : 0.931 → 0.713 = **0.218**. Dégradation MONOTONE, bien alimentée (n ≥ 385/bin).
-  Ce n'est PAS un effondrement (0.713 ≫ hasard 0.25) : le génome généralise PARTIELLEMENT hors de son
-  vécu, mais perd 22 points.
-- **Écart PRÉCISION** : 0.992 → 0.762 = **0.230**, sur des bins bien alimentés (n=160/193 en bas).
+### 3. Ce n'est PAS de la « couverture d'états »
+La cible est une **fonction pure de deux bits EXOGÈNES** (`bit_a`/`bit_b`, re-randomisés chaque tick),
+dont la distribution est **uniforme dans TOUS les bins** (p(classe) ≈ 0.25 partout — donc pas non plus
+d'artefact de composition). « Ne jamais avoir visité ces états » n'a donc pas de contenu pour CETTE
+décision : rien n'y est spécifique à apprendre. La vraie signature est **MONO-CLASSE** : classe 3 →
+0.74 / 0.24 / 0.19 / **0.09** tandis que les classes 1 et 2 restent à **1.00** et la classe 0 à
+1.00/0.93/0.74/0.69 ; les prédictions s'effondrent vers la classe 2 (966/2051 pour 25 % de base). C'est
+un **défaut de FRONTIÈRE DE DÉCISION qui croît avec la profondeur récurrente**, pas un mur de données.
+
+### 4. Le corollaire « acc 0.99 était tronquée » est FAUX
+Même génome, même seed, **mêmes états** : `_inworld_accuracy` = **0.988** vs `accuracy_binned` = **0.876**
+(n=606) → **Δ0.112 d'artefact pur** (H continu vs H remis à 0 aux morts). Sur l'horizon complet de son
+PROPRE rollout, l'accuracy in-world **est bien 0.988**. Le passage 0.99→0.71 mélangeait trois choses
+(états différents, régime de H différent, plage de ticks différente) dont une seule est la troncature.
+
+### Ce qui EST solide
+La dégradation avec la profondeur est **robuste au garde-fou within-subject du projet** : bin0 vs bin3
+**par agent** → **10/10 positifs, sign_p = 0.0010, Δ médian +0.211**. C'est ce chiffre (et non un écart
+de moyennes) qui fait foi.
 
 ## Verdict
-**`SURVIVAL_PLATEAU_IS_OVERDETERMINED_COVERAGE_AND_PRECISION_BOTH_CONTRIBUTE`** — l'hypothèse ouverte de
-WARM-003 est TRANCHÉE : **ce n'est ni l'un NI l'autre exclusivement, ce sont LES DEUX**, avec des
-magnitudes comparables (0.218 vs 0.230). Le plateau à ~35 est **sur-déterminé** :
-1. plus le learner survit, plus il entre dans des états dont il a MOINS de couverture (acc −0.22) ;
-2. et il passe plus de temps en basse énergie, là où son accuracy est la PIRE (−0.23) — précisément où
-   une erreur est fatale.
-Les deux se COUPLENT en spirale (moins de couverture → erreurs → énergie plus basse → zone de moindre
-accuracy → mort), ce qui explique pourquoi DAgger améliore réellement (chaque round étend la couverture)
-mais LENTEMENT (la généralisation hors-couverture est faible, et le régime basse-énergie reste mal maîtrisé).
+**`DEGRADATION_WITH_RECURRENT_DEPTH_NOT_COVERAGE_ENERGY_AXIS_COLLINEAR`** — la dichotomie
+couverture/précision posée par WARM-003 était **mal posée** ; les deux mesures proposées ne sont pas deux
+mécanismes mais **un seul effet vu sous deux angles corrélés**. Ce qui est établi :
+1. **La décision se dégrade fortement hors de la fenêtre entraînée** (10/10 agents, sign_p=0.001,
+   Δ médian 0.21 ; résidu 0.160 après correction du confond de replay).
+2. **Le mécanisme n'est PAS la couverture d'états** (cible = fonction pure de bits exogènes uniformément
+   distribués) mais un **défaut de frontière de décision concentré sur UNE classe, croissant avec la
+   profondeur récurrente**.
+3. **L'axe énergie n'ajoute rien** (colinéaire au tick ; effet nul/inversé à tick contrôlé).
 
-**Corollaire pour WARM-003** : sa métrique `acc_on-policy=0.99` était bien TRONQUÉE — l'accuracy vraie
-sur l'horizon complet de la tâche est ~0.71-0.79, pas 0.99. Le diagnostic de la revue finale (« 0.99 =
-fenêtre survivable, pas maîtrise ») est CONFIRMÉ quantitativement.
-
-## ⚠️ Asymétrie de rigueur entre les deux tests (à ne pas gommer)
-- **Test (A) est causalement PROPRE** : les états sont imposés par l'oracle, identiques quel que soit le
-  comportement du génome → l'écart mesure bien une généralisation défaillante.
-- **Test (B) est CORRÉLATIONNEL** : les états basse-énergie sont peuplés par des agents qui ont DÉJÀ
-  commis des erreurs → **la causalité inverse n'est pas exclue** (les erreurs causent la basse énergie
-  plutôt que l'inverse), et elle est même parcimonieuse. Donc « précision aux états critiques » est
-  ÉTABLI comme CORRÉLATION, pas comme cause. Trancher exigerait une intervention (p.ex. imposer une
-  énergie basse à énergie-initiale variée et mesurer l'accuracy à comportement passé égal).
-Le verdict « LES_DEUX » repose donc sur un pied solide (A) et un pied corrélationnel (B).
+**Réconciliation avec [[EDR-WARM-001]]** : ce résultat **CONFIRME et PRÉCISE** le mécanisme que WARM-001
+avait déjà rétracté-vers après revue — « pas un covariate-shift des OBSERVATIONS (signal exogène) mais la
+dérive de l'état RÉCURRENT H ». WARM-004 le localise : la dérive de H dégrade **une classe de décision en
+particulier**, proportionnellement à la profondeur. Il n'y avait donc pas de mécanisme nouveau à inventer.
 
 ## Portée & limites
-- Seuils de verdict (écart ≥ 0.10) arbitraires mais explicites ; tous les bins et leurs `n` sont imprimés
-  → conclusion auditable, pas de boîte noire. Le bin énergie 80+ (n=17) est trop peu alimenté pour peser
-  (le comparateur haute-énergie applique un plancher n≥30).
-- Un seul génome / une seule seed (2026) : l'écart est net et monotone mais non répliqué sur seeds.
-- Le test (A) rejoue le génome sur la trajectoire de l'ORACLE : son H suit l'historique de l'oracle. C'est
-  le contrefactuel voulu (« s'il se trouvait là, déciderait-il juste ? »), pas « y arriver par lui-même ».
-- **Correction de conception en cours de route** : la 1ʳᵉ règle de verdict comparait low-énergie (test B)
-  à late (test A) — deux trajectoires DIFFÉRENTES ; corrigée en comparaisons internes à chaque test
-  (commit `1c54301`). Le run initial affichait `NI_COUVERTURE_NI_PRECISION` par cet artefact de seuils.
+- **Correction majeure post-revue** : la 1ʳᵉ version de ce record concluait « LES_DEUX / plateau
+  sur-déterminé » avec un corollaire « acc 0.99 tronquée ». Les deux sont RÉFUTÉS ci-dessus (probes de la
+  revue finale, ~5 min depuis le génome persisté, sans ré-entraînement). Conservé ici pour la traçabilité :
+  le piège était de lire une **concordance de magnitudes** comme une corroboration alors que les deux axes
+  étaient colinéaires.
+- Une seule seed (2026), un seul génome. Le sign-test within-subject (10/10) porte sur les agents, pas sur
+  des seeds indépendantes.
+- `accuracy_binned` expose désormais `reset_h_every` (borne la profondeur récurrente) — c'est le paramètre
+  qui rend l'instrument DISCRIMINANT ; tout usage futur doit rapporter les deux régimes (continu ET
+  réinitialisé), sinon la mesure re-mélange états et profondeur.
+- L'axe énergie devrait être abandonné pour ce monde tant que `forage_payoff=0` (énergie ≡ horloge).
+- `results/` est gitignoré → le génome persisté n'est pas versionné (reproductible localement, pas depuis
+  le dépôt nu).
 
-## Levier suivant (motivé par CE résultat)
-La spirale couverture↔énergie suggère deux attaques complémentaires : (1) **amorcer la couverture tardive
-sans avoir à survivre** (démarrer des rollouts DAgger à des états tardifs/basse-énergie de l'oracle —
-« reset distribué » plutôt que toujours depuis t=0) ; (2) **pondérer l'imitation par la criticité**
-(sur-échantillonner les états basse-énergie dans le dataset agrégé). La (1) attaque le pied SOLIDE du
-verdict, la (2) le pied corrélationnel — à privilégier dans cet ordre.
+## Levier suivant (re-motivé par le mécanisme CORRIGÉ)
+Puisque le défaut est une frontière de décision qui se dégrade avec la profondeur récurrente, et non un
+manque de données : (1) **borner/réinitialiser la profondeur récurrente** au service (l'in-world le fait
+déjà aux morts — l'exploiter délibérément) ; (2) **entraîner à profondeur variée** (l'imitation BPTT part
+toujours de H=0 avec `truncate_window` fixe → sur-apprend un régime de profondeur) ; (3) cibler la
+**classe défaillante** (classe 3) plutôt que « les états basse-énergie ».
 
-Converge [[EDR-WARM-003]] (ferme son hypothèse ouverte), [[EDR-WARM-001]], [[EDR-WARM-002]],
-[[within-subject-demand-marker]], REF-DEMAND-MARKER, S2-009.
+Converge [[EDR-WARM-003]] (dont il corrige l'hypothèse), [[EDR-WARM-001]] (dont il confirme le mécanisme),
+[[EDR-WARM-002]], [[within-subject-demand-marker]], [[power-evaporation-guardrail]] (sign-test), REF-DEMAND-MARKER.

@@ -544,11 +544,18 @@ def bins_by_energy(energy_seq, edges):
     return ids
 
 
-def accuracy_binned(genome, obs_seq, tgt_seq, mask_seq, bin_ids, n_bins, num_agents=12):
+def accuracy_binned(genome, obs_seq, tgt_seq, mask_seq, bin_ids, n_bins, num_agents=12,
+                    reset_h_every=None):
     """Rejoue `genome` (forward torch, no_grad, W gelé, replay PUR sans monde) sur obs_seq depuis H=0 et
     agrège l'accuracy de décision par bin. Ignore mask==0 et bin<0. Renvoie [{bin,n,acc}]. None si torch
-    absent. NB : sur une trajectoire d'un AUTRE pilote (ex. l'oracle), H suit l'historique de CE pilote —
-    contrefactuel voulu (« s'il se trouvait dans ces états, déciderait-il juste ? »)."""
+    absent.
+
+    ⚠️ CONFOND DE PROFONDEUR RÉCURRENTE (EDR-WARM-004) : en replay continu, H tourne sans interruption
+    sur toute la séquence, alors qu'IN-WORLD le pop torch est RECONSTRUIT (H→0) à chaque changement de B,
+    c'est-à-dire à CHAQUE MORT. Sur des états identiques, ce seul écart vaut ~0.11 d'accuracy. Donc une
+    dégradation par bin de tick mélange (i) les états eux-mêmes et (ii) la profondeur récurrente atteinte.
+    `reset_h_every=W` remet H à 0 tous les W pas -> permet de DÉPARTAGER les deux (comparer le replay
+    continu et le replay réinitialisé sur les mêmes bins)."""
     try:
         import torch
     except Exception:
@@ -566,6 +573,8 @@ def accuracy_binned(genome, obs_seq, tgt_seq, mask_seq, bin_ids, n_bins, num_age
     with torch.no_grad():
         for t, obs in enumerate(obs_seq):
             obs_t = torch.tensor(np.asarray(obs, dtype=np.float32)[:, :pop.I], device=pop.device)
+            if reset_h_every and t > 0 and (t % reset_h_every == 0):
+                H = torch.zeros((pop.B, pop.N), device=pop.device)   # borne la profondeur récurrente
             H = pop._step(obs_t, H)
             out = H[:, pop.N - pop.O:pop.N]
             pred = torch.argmax(out[:, :8], dim=1).cpu().numpy()
