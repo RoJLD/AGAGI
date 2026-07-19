@@ -194,3 +194,13 @@ def test_bins_by_energy_maps_nan_to_minus_one():
     en = [np.array([10.0, 50.0, np.nan, 95.0], dtype=np.float32)]
     b = bins_by_energy(en, [0, 40, 80, 101])
     assert b[0].tolist() == [0, 1, -1, 2]
+
+
+def test_run_coverage_precision_diagnostic_smoke(tmp_path):
+    from tools.warmstart_evolution_inworld import run_coverage_precision_diagnostic
+    pytest.importorskip("torch")
+    out = run_coverage_precision_diagnostic(seed=2026, rounds=1, epochs_per_round=4, lr=0.5,
+                                            num_agents=4, max_ticks=12, K=2,
+                                            genome_path=str(tmp_path / "g.npz"))
+    assert "coverage" in out and "precision" in out and "verdict" in out
+    assert isinstance(out["coverage"], list) and isinstance(out["precision"], list)

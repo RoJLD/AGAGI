@@ -663,6 +663,93 @@ def run_dagger_warmstart(seed=2026, rounds=6, epochs_per_round=3000, lr=0.5, num
             "final_genome": agents[0].genome, "final_verdict": final_v}
 
 
+TICK_EDGES = [0, 35, 70, 120, 10 ** 6]        # bins de tick : ≤35 = vécu du learner ; >35 = jamais visité
+ENERGY_EDGES = [0, 20, 40, 60, 80, 10 ** 6]   # bins d'énergie : bas = états critiques
+
+
+def run_coverage_precision_diagnostic(seed=2026, rounds=6, epochs_per_round=3000, lr=0.5,
+                                      num_agents=12, max_ticks=200, metab=METAB_DEFAULT,
+                                      cog=COG_DEFAULT, K=12,
+                                      genome_path="results/warm003_dagger_genome.npz"):
+    """WARM-004 : tranche COUVERTURE vs PRÉCISION pour le gap résiduel de WARM-003.
+      (A) COUVERTURE : accuracy du génome DAgger sur les états TARDIFS de l'ORACLE (jamais visités),
+          binnée par tick -> effondrement sur les bins tardifs = couverture.
+      (B) PRÉCISION : accuracy sur SON PROPRE rollout, binnée par ÉNERGIE -> chute en basse énergie =
+          précision aux états critiques.
+    Reproduit (ou recharge) le génome DAgger et le PERSISTE (il n'avait pas été sauvé en WARM-003)."""
+    try:
+        import torch  # noqa: F401
+    except Exception:
+        print("WARM-004 SKIP : torch absent.")
+        return None
+    from src.seed_ai.mutation import Genome
+
+    g = None
+    if genome_path and os.path.exists(genome_path):
+        d = np.load(genome_path, allow_pickle=False)
+        g = Genome(d["W"], int(d["num_inputs"]), int(d["num_outputs"]))
+        print(f"WARM-004 : génome rechargé depuis {genome_path}")
+    else:
+        dg = run_dagger_warmstart(seed=seed, rounds=rounds, epochs_per_round=epochs_per_round, lr=lr,
+                                  num_agents=num_agents, max_ticks=max_ticks, metab=metab, cog=cog, K=K)
+        if dg is None:
+            return None
+        g = dg["final_genome"]
+        if genome_path:
+            os.makedirs(os.path.dirname(genome_path) or ".", exist_ok=True)
+            np.savez(genome_path, W=np.asarray(g.W, dtype=np.float32),
+                     num_inputs=g.num_inputs, num_outputs=g.num_outputs)
+            print(f"WARM-004 : génome DAgger sauvé -> {genome_path}")
+
+    # (A) COUVERTURE — états de l'ORACLE, binnés par tick
+    o_obs, o_tgt, o_mask, _o_en = _collect_diag_trajectory("oracle", seed=seed,
+                                                           num_agents=num_agents, max_ticks=max_ticks,
+                                                           metab=metab, cog=cog)
+    cov = accuracy_binned(g, o_obs, o_tgt, o_mask, bins_by_tick(o_mask, TICK_EDGES),
+                          n_bins=len(TICK_EDGES) - 1, num_agents=num_agents)
+
+    # (B) PRÉCISION — rollout du génome, binné par énergie
+    g_obs, g_tgt, g_mask, g_en = _collect_diag_trajectory("genome", genome=g, seed=seed,
+                                                          num_agents=num_agents, max_ticks=max_ticks,
+                                                          metab=metab, cog=cog)
+    prec = accuracy_binned(g, g_obs, g_tgt, g_mask, bins_by_energy(g_en, ENERGY_EDGES),
+                           n_bins=len(ENERGY_EDGES) - 1, num_agents=num_agents)
+
+    def _late(rows, first_late=1):
+        vals = [r["acc"] for r in rows[first_late:] if r["n"] > 0 and r["acc"] == r["acc"]]
+        return min(vals) if vals else float("nan")
+
+    def _low(rows):
+        vals = [r["acc"] for r in rows[:2] if r["n"] > 0 and r["acc"] == r["acc"]]
+        return min(vals) if vals else float("nan")
+
+    late_acc, low_e_acc = _late(cov), _low(prec)
+    early_acc = cov[0]["acc"] if cov and cov[0]["n"] > 0 else float("nan")
+    if late_acc == late_acc and late_acc < 0.6:
+        verdict = "COUVERTURE"
+    elif low_e_acc == low_e_acc and late_acc == late_acc and low_e_acc < late_acc - 0.15:
+        verdict = "PRECISION"
+    else:
+        verdict = "NI_COUVERTURE_NI_PRECISION"
+
+    print(f"\n=== WARM-004 — couverture vs précision (seed={seed}) ===")
+    print(f"(A) COUVERTURE — acc du génome sur les états de l'ORACLE, par bin de tick {TICK_EDGES[:-1]}+ :")
+    for r in cov:
+        print(f"    bin {r['bin']} (ticks {TICK_EDGES[r['bin']]}-{TICK_EDGES[r['bin']+1]}) : "
+              f"n={r['n']:5d} acc={r['acc']:.3f}")
+    print(f"(B) PRÉCISION — acc sur son propre rollout, par bin d'énergie {ENERGY_EDGES[:-1]}+ :")
+    for r in prec:
+        print(f"    bin {r['bin']} (énergie {ENERGY_EDGES[r['bin']]}-{ENERGY_EDGES[r['bin']+1]}) : "
+              f"n={r['n']:5d} acc={r['acc']:.3f}")
+    print(f"\nacc early(oracle ≤35)={early_acc:.3f} | acc late(oracle >35)={late_acc:.3f} | "
+          f"acc basse-énergie={low_e_acc:.3f}")
+    print(f"VERDICT WARM-004 : {verdict}")
+    print("  COUVERTURE = il ne sait pas hors de son vécu (le plateau est un mur de données).")
+    print("  PRECISION  = il sait partout mais rate aux états critiques.")
+    print("  NI_L'UN_NI_L'AUTRE = cause non-décisionnelle (dynamique métabolique) -> chercher ailleurs.")
+    return {"coverage": cov, "precision": prec, "verdict": verdict, "genome_path": genome_path}
+
+
 def main():
     seed = int(os.environ.get("WARM_SEED", "2026"))
     generations = int(os.environ.get("WARM_GEN", "50"))
