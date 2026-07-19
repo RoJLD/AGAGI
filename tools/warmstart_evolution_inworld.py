@@ -409,6 +409,113 @@ def _collect_onpolicy_trajectory(genome, seed=2026, num_agents=12, max_ticks=200
             [rec["mask"][k] for k in keep])
 
 
+def _collect_diag_trajectory(driver, genome=None, seed=2026, num_agents=12, max_ticks=200,
+                             metab=METAB_DEFAULT, cog=COG_DEFAULT):
+    """Collecteur de DIAGNOSTIC (WARM-004) : trajectoire PLEINE LONGUEUR (aucune troncature à la 1re
+    mort) et MASQUÉE, alignée par id(model) à travers les morts. Enregistre aussi l'ÉNERGIE au moment
+    de la DÉCISION (lue depuis l'env dans forward, avant la résolution biologique).
+      driver='oracle' : l'ORACLE pilote (chemin non-torch via batch_model_cls) -> fournit les états
+        TARDIFS (ticks > ~35) que le learner ne visite JAMAIS (ce que _collect_oracle_trajectory, qui
+        tronque à la 1re mort, ne peut pas donner).
+      driver='genome' : `genome` pilote sous torch, W GELÉ -> rollout on-policy du learner.
+    Morts -> obs 0 / tgt 0 / mask 0 / énergie NaN. Renvoie (obs_seq, tgt_seq, mask_seq, energy_seq)."""
+    from src.worlds.world_1_stoneage import Biosphere3D
+    from src.agents.mamba_agent import MambaAgent
+    from src.seed_ai.harness import seed_at
+
+    rec = {"obs": [], "tgt": [], "mask": [], "energy": []}
+    orig_index = {}
+    env_ref = {}
+
+    def _record(arr, models):
+        cols = arr.shape[1] if arr.ndim == 2 else 0
+        obs_row = np.zeros((num_agents, cols), dtype=np.float32)
+        tgt_row = np.zeros(num_agents, dtype=np.int64)
+        mask_row = np.zeros(num_agents, dtype=np.float32)
+        en_row = np.full(num_agents, np.nan, dtype=np.float32)
+        e = env_ref.get("e")
+        energies = [float(a["energy"]) for a in e.agents] if e is not None else []
+        for j in range(arr.shape[0]):
+            oi = orig_index.get(id(models[j]))
+            if oi is None:
+                continue
+            obs_row[oi] = arr[j]
+            tgt_row[oi] = int(2 * (arr[j, BIT_A] > 0) + (arr[j, BIT_B] > 0))
+            mask_row[oi] = 1.0
+            if j < len(energies):
+                en_row[oi] = energies[j]
+        rec["obs"].append(obs_row)
+        rec["tgt"].append(tgt_row)
+        rec["mask"].append(mask_row)
+        rec["energy"].append(en_row)
+
+    class _RecOracle(CognitiveOracleBatchModel):
+        def forward(self, batch_obs, env_surprise_batch=None):
+            _record(np.asarray(batch_obs, dtype=np.float32), self.agents)
+            return super().forward(batch_obs, env_surprise_batch)
+
+    seed_at(seed, 0)
+    e = Biosphere3D()
+    e.benchmark_mode = True
+    e.night_enabled = False
+    e.current_era = 10_000
+    e.config.cognitive_demand = True
+    e.config.cog_gain = cog
+    e.config.base_metabolism = metab
+    e.config.forage_payoff = 0.0
+    env_ref["e"] = e
+
+    backend_mod = None
+    _orig = None
+    if driver == "genome":
+        import src.agents.backend as backend_mod
+        from src.agents.backend_torch import TorchPopulationModel
+
+        class _RecTorch(TorchPopulationModel):
+            def forward(self, batch_obs, env_surprise_batch=None):
+                arr = np.asarray(batch_obs, dtype=np.float32)
+                logits, cs = super().forward(arr, env_surprise_batch)
+                _record(arr, self.agents)
+                return logits, cs
+
+        _orig = backend_mod.make_population
+
+        def _frozen(agents, backend="legacy", world_model=None):
+            if backend == "torch":
+                pop = _RecTorch(agents, world_model=world_model)
+                for grp in pop.opt.param_groups:
+                    grp["lr"] = 0.0
+                return pop
+            return _orig(agents, backend=backend, world_model=world_model)
+
+        backend_mod.make_population = _frozen
+        e.use_torch_inworld = True
+        e.torch_episode_k = 10 ** 9
+    else:
+        e.batch_model_cls = _RecOracle
+
+    try:
+        for _ in range(num_agents):
+            a = MambaAgent()
+            if genome is not None:
+                a.from_genome(genome)
+            e.add_agent(a, energy=80.0)
+        for i, ag in enumerate(e.agents):
+            orig_index[id(ag["model"])] = i
+        t = 0
+        while e.agents and t < max_ticks:
+            e.step()
+            t += 1
+        if hasattr(e, "memory_retriever"):
+            e.memory_retriever.stop()
+    finally:
+        if _orig is not None:
+            backend_mod.make_population = _orig
+    keep = [k for k in range(len(rec["obs"])) if rec["mask"][k].sum() > 0]
+    return ([rec["obs"][k] for k in keep], [rec["tgt"][k] for k in keep],
+            [rec["mask"][k] for k in keep], [rec["energy"][k] for k in keep])
+
+
 def run_bptt_imitation_warmstart(seed=2026, num_agents=12, n_epochs=200, truncate_window=25,
                                  max_ticks=200, metab=METAB_DEFAULT, cog=COG_DEFAULT, lr=0.5):
     """WARM-001 : collecte la trajectoire-enseignant (oracle, B constant) puis entraîne une cohorte

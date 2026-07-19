@@ -135,3 +135,25 @@ def test_run_dagger_warmstart_smoke():
     assert len(out["trend_survival"]) == 2
     assert isinstance(out["final_genome"], Genome)
     assert set(out["final_verdict"]) >= {"ratio", "verdict", "intact_survival"}
+
+
+def test_collect_diag_trajectory_oracle_is_long_and_masked():
+    from tools.warmstart_evolution_inworld import _collect_diag_trajectory
+    pytest.importorskip("torch")
+    obs, tgt, mask, en = _collect_diag_trajectory("oracle", seed=2026, num_agents=4, max_ticks=60)
+    assert len(obs) == len(tgt) == len(mask) == len(en) >= 1
+    assert obs[0].shape[0] == 4 and obs[0].shape[1] >= 14
+    assert set(np.unique(mask[0])).issubset({0.0, 1.0})
+    alive0 = mask[0] > 0
+    assert np.all(np.isfinite(en[0][alive0])), "énergie finie là où mask=1"
+
+
+def test_collect_diag_trajectory_genome_runs():
+    from tools.warmstart_evolution_inworld import _collect_diag_trajectory
+    from src.agents.mamba_agent import MambaAgent
+    pytest.importorskip("torch")
+    g = MambaAgent().genome
+    obs, tgt, mask, en = _collect_diag_trajectory("genome", genome=g, seed=2026,
+                                                 num_agents=4, max_ticks=15)
+    assert len(obs) >= 1 and obs[0].shape[0] == 4
+    assert mask[0].sum() == 4.0
