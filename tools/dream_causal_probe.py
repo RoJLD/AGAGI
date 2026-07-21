@@ -128,6 +128,73 @@ def main() -> Dict:
     return result
 
 
+def run_founder_matched(seeds, target="stoneage", num_agents=25, max_ticks=80, k=8,
+                        organ_fraction=1.0, metab=0.25, payoff=3.0, out_path=None) -> Dict:
+    """Compare `off` vs `FORCE_DREAM=k` sur la COHORTE FONDATRICE seule (EDR-DREAM-001).
+
+    POURQUOI CE BRAS EXISTE : `survival_competence` est la médiane des âges sur TOUS les agents de
+    l'ère, donc une **statistique de POPULATION**. Or le rêve forcé multiplie `n_lived` par ~13-16
+    (mesuré) : la métrique compare alors deux populations de compositions incomparables, dont la
+    plupart des membres sont nés tard et ont un âge mécaniquement faible. C'est ce qui a produit le
+    verdict `CAUSE_NUISIBLE` d'EDR-095, réfuté par ce bras.
+
+    ⚠️ Restreindre aux « N plus vieux » NE CORRIGE RIEN — c'est une sélection sur la variable de
+    SORTIE à des quantiles incomparables (top 26 % d'un côté, top 1.6 % de l'autre). Seule l'identité
+    (`founder`, posé à t=0 dans `run_era_organ`) permet un appariement honnête.
+
+    Deux tests : SIGNE (robuste, jette l'amplitude) et WILCOXON signé (utilise les magnitudes, donc
+    plus puissant quand les écarts sont larges — c'est le test qu'utilise `_compare` pour le fil S2).
+
+    PERSISTE le résultat : sans artefact, des chiffres publiés ne sont re-dérivables d'aucun fichier —
+    le défaut relevé sur `champion_body` (EDR-S2-012)."""
+    import json
+    from src.seed_ai.s2_stats import wilcoxon_signed_rank
+
+    rows = []
+    for seed in seeds:
+        cell = {"seed": int(seed)}
+        for arm in ("off", int(k)):
+            MambaBatchModel.FORCE_DREAM = arm if arm == "off" else int(arm)
+            try:
+                stats = run_era_organ(target, seed, organ_fraction, metab, payoff,
+                                      num_agents, max_ticks, shared_db=None)
+            finally:
+                MambaBatchModel.FORCE_DREAM = None
+            ages = [a["age"] for a in stats]
+            fond = [a["age"] for a in stats if a.get("founder")]
+            key = "off" if arm == "off" else "on"
+            cell[f"{key}_n_lived"] = len(ages)
+            cell[f"{key}_med_all"] = float(statistics.median(ages)) if ages else 0.0
+            cell[f"{key}_med_founder"] = float(statistics.median(fond)) if fond else 0.0
+            cell[f"{key}_n_founder"] = len(fond)
+        rows.append(cell)
+        log.info("  seed=%s n_lived %s->%s | fondateurs %.1f->%.1f", seed,
+                 cell["off_n_lived"], cell["on_n_lived"],
+                 cell["off_med_founder"], cell["on_med_founder"])
+
+    def _pair(key):
+        o = [r[f"off_{key}"] for r in rows]
+        n = [r[f"on_{key}"] for r in rows]
+        diffs = [a - b for a, b in zip(n, o)]
+        n_fav = sum(1 for d in diffs if d > 0)
+        eff = [d for d in diffs if d != 0]
+        _w, p_wil = wilcoxon_signed_rank(diffs)
+        return {"med_off": float(statistics.median(o)), "med_on": float(statistics.median(n)),
+                "ratio": float(statistics.median(n)) / max(float(statistics.median(o)), 1e-9),
+                "n_favorable": n_fav, "n": len(diffs),
+                "sign_p": _sign_test_p(n_fav, len(eff)), "wilcoxon_p": float(p_wil)}
+
+    out = {"rows": rows, "config": {"target": target, "seeds": [int(s) for s in seeds], "k": int(k),
+                                    "num_agents": num_agents, "max_ticks": max_ticks},
+           "med_all": _pair("med_all"), "med_founder": _pair("med_founder"),
+           "n_lived": _pair("n_lived")}
+    if out_path:
+        os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
+        with open(out_path, "w", encoding="utf-8") as fh:
+            json.dump(out, fh, indent=2)
+        log.info("artefact persiste -> %s", out_path)
+    return out
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(message)s")
     main()
