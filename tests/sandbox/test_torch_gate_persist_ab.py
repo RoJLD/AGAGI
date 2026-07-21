@@ -56,9 +56,9 @@ def test_run_arm_smoke_persist_and_reset():
 
 def test_verdict_pure_persist_better():
     from tools.substrate_ab import compute_ab_verdict
-    rows = [{"diff": 0.10}, {"diff": 0.08}, {"diff": 0.12}]   # persist - reset > 0
+    rows = [{"diff": d} for d in (0.10, 0.08, 0.12, 0.09, 0.11, 0.10)]   # persist - reset > 0
     v = compute_ab_verdict(rows, band=0.02)
-    assert v["verdict"] == "GRADIENT_GAGNE" and v["n"] == 3
+    assert v["verdict"] == "GRADIENT_GAGNE" and v["n"] == 6
 
 
 def test_rebuild_asymmetry_gate_lost_unless_inherited():

@@ -7,14 +7,17 @@ from tools.substrate_ab import compute_ab_verdict, run_substrate_ab, compare
 
 
 def test_verdict_gradient_wins_when_torch_better():
-    rows = [{"diff": 0.30}, {"diff": 0.25}, {"diff": 0.40}]
+    # n=6 : depuis P2.5 le verdict exige la bande ET `sign_p<0.1`. A n=3, sign_p vaut 0.25 meme en
+    # separation parfaite -> aucun verdict possible. Ce test verifiait le CABLAGE a une taille qui ne
+    # peut rien porter ; les 7 tests de cablage du depot faisaient tous la meme chose.
+    rows = [{"diff": d} for d in (0.30, 0.25, 0.40, 0.32, 0.28, 0.35)]
     v = compute_ab_verdict(rows)
     assert v["verdict"] == "GRADIENT_GAGNE"
-    assert v["n_gradient_favorable"] == 3 and v["n"] == 3
+    assert v["n_gradient_favorable"] == 6 and v["n"] == 6
 
 
 def test_verdict_hebbien_wins_when_legacy_better():
-    rows = [{"diff": -0.30}, {"diff": -0.25}, {"diff": -0.40}]
+    rows = [{"diff": d} for d in (-0.30, -0.25, -0.40, -0.32, -0.28, -0.35)]
     assert compute_ab_verdict(rows)["verdict"] == "HEBBIEN_GAGNE"
 
 

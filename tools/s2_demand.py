@@ -36,6 +36,13 @@ def run_condition(world_cls, batch_model_cls, genome, seed, num_agents=20, max_t
         env.current_era = 10_000               # scaffolds OFF (anneal -> 0)
         if batch_model_cls is not None:
             env.batch_model_cls = batch_model_cls
+        if hasattr(env, "memory_retriever"):   # AVANT la boucle. Le `stop()` en fin d'ère (plus bas) ne
+            env.memory_retriever.stop()        # protégeait RIEN : le retriever tournait pendant TOUTE la
+            env.memory_retriever.clear()       # simulation -> mémoire ambiante KuzuDB -> runs non
+                                               # reproductibles. Même défaut que celui mesuré dans
+                                               # EDR-INFRA-001, ici dans la fonction PARTAGÉE que
+                                               # traversent s2_demand_ablation, s2_openloop_probe,
+                                               # cognitive_demand_inworld et warmstart (dette P2.8).
         for _ in range(num_agents):
             a = MambaAgent()
             if genome is not None:

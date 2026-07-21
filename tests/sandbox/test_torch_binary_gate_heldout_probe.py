@@ -16,6 +16,6 @@ def test_run_arm_smoke_true_and_shuffle():
 
 def test_verdict_pure_true_binds_more():
     from tools.substrate_ab import compute_ab_verdict
-    rows = [{"diff": 0.60}, {"diff": 0.70}, {"diff": 0.55}]   # gap ON - gap SHUFFLE > 0
+    rows = [{"diff": d} for d in (0.60, 0.70, 0.55, 0.62, 0.58, 0.66)]   # gap ON - gap SHUFFLE > 0
     v = compute_ab_verdict(rows, band=0.02)
-    assert v["verdict"] == "GRADIENT_GAGNE" and v["n"] == 3
+    assert v["verdict"] == "GRADIENT_GAGNE" and v["n"] == 6

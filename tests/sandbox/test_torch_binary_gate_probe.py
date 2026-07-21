@@ -36,9 +36,9 @@ def test_run_arm_smoke_on_and_off():
 
 def test_verdict_pure_on_binds_more():
     from tools.substrate_ab import compute_ab_verdict
-    rows = [{"diff": 0.30}, {"diff": 0.25}, {"diff": 0.40}]   # gap_ON - gap_OFF > 0
+    rows = [{"diff": d} for d in (0.30, 0.25, 0.40, 0.32, 0.28, 0.35)]   # gap_ON - gap_OFF > 0
     v = compute_ab_verdict(rows, band=0.02)
-    assert v["verdict"] == "GRADIENT_GAGNE" and v["n"] == 3
+    assert v["verdict"] == "GRADIENT_GAGNE" and v["n"] == 6
 
 
 def test_shuffle_control_present():

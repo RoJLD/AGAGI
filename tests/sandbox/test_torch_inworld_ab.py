@@ -2,10 +2,10 @@ from tools.substrate_ab import compute_ab_verdict
 
 
 def test_verdict_pure_on_synthetic_rows():
-    rows = [{"diff": 0.1}, {"diff": 0.2}, {"diff": 0.15}]   # torch > legacy
+    rows = [{"diff": d} for d in (0.1, 0.2, 0.15, 0.12, 0.18, 0.14)]   # torch > legacy
     v = compute_ab_verdict(rows, band=0.02)
     assert v["verdict"] == "GRADIENT_GAGNE"
-    assert v["n"] == 3
+    assert v["n"] == 6
 
 
 def test_run_arm_smoke():

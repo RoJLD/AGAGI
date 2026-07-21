@@ -24,9 +24,32 @@ from main_curriculum import _acquire_shared_db
 log = logging.getLogger("AGIseed.DreamCausal")
 
 
-def _paired_ratios(arm: List[float], off: List[float]) -> List[float]:
+def _paired_ratios(arm: List[float], off: List[float], eps: float = 1e-6):
+    """Ratios appariés, **paires non informatives EXCLUES**. Renvoie (ratios, n_ecartees).
+
+    ⚠️ CORRIGÉ le 2026-07-21 (calibration P2.2). L'implémentation précédente faisait
+    `arm[i] / max(off[i], 1e-6)` sans condition : une paire **doublement ÉTEINTE** (les deux bras à
+    compétence 0, donc AUCUNE différence) rendait `0 / 1e-6 = 0.0`. Or `0.0 != 1.0`, donc elle
+    survivait au filtre `r != 1.0` et était comptée comme **DÉFAVORABLE au rêve**.
+
+    Mesuré : deux bras **strictement identiques et éteints** sur 10 seeds rendaient
+    `CAUSE_NUISIBLE, ratio 0.0, sign_p 0.00195`. Un contrôle qui ne peut pas rendre NEUTRE — classe E1,
+    dans l'instrument qui a produit le verdict d'EDR-095. Le défaut agit dans les DEUX sens : sur un jeu
+    où le rêve aide dans 4 paires informatives sur 4, six paires éteintes empoisonnaient la médiane et
+    gonflaient le dénominateur du test de signe -> verdict NEUTRE au lieu de bénéfique.
+
+    ✅ **EDR-095 n'est PAS affecté** : ses bras publient `off ∈ [0.113, 0.165]` et forcés
+    `∈ [0.055, 0.090]` — séparation parfaite, **aucun zéro**, donc aucune paire éteinte. Sa conclusion
+    tient. On ne peut le dire que parce qu'il a publié ses VALEURS ABSOLUES."""
     m = min(len(arm), len(off))
-    return [arm[i] / max(off[i], 1e-6) for i in range(m)]
+    out, ecartees = [], 0
+    for i in range(m):
+        a, o = float(arm[i]), float(off[i])
+        if a <= eps and o <= eps:
+            ecartees += 1                      # les deux éteints : aucune information, pas un "contre"
+            continue
+        out.append(a / max(o, eps))
+    return out, ecartees
 
 
 def dose_response_verdict(per_arm: Dict, eps: float = 0.02) -> Dict:
@@ -35,14 +58,18 @@ def dose_response_verdict(per_arm: Dict, eps: float = 0.02) -> Dict:
     off = per_arm.get("off", [])
     ks = sorted(k for k in per_arm if k != "off")
     if not off or not ks:
-        return {"ratio": 1.0, "sign_p": 1.0, "n_favorable": 0, "n": 0,
+        return {"ratio": 1.0, "sign_p": 1.0, "n_favorable": 0, "n": 0, "n_ecartees": 0,
                 "verdict": "NEUTRE", "ratios_par_K": {}}
     ratios_par_K = {}
     for k in ks:
-        pr = _paired_ratios(per_arm[k], off)
+        pr, _ = _paired_ratios(per_arm[k], off)
         ratios_par_K[str(k)] = float(statistics.median(pr)) if pr else 1.0
-    pr = _paired_ratios(per_arm[ks[-1]], off)            # bras le plus profond
-    ratio = float(statistics.median(pr)) if pr else 1.0
+    pr, ecartees = _paired_ratios(per_arm[ks[-1]], off)   # bras le plus profond
+    if not pr:                                           # TOUTES les paires non informatives
+        return {"ratio": 1.0, "sign_p": 1.0, "n_favorable": 0, "n": 0, "n_ecartees": ecartees,
+                "verdict": "INCONCLUSIVE_DEGENERATE", "ratios_par_K": ratios_par_K,
+                "why": f"les {ecartees} paires ont les DEUX bras éteints : aucune information"}
+    ratio = float(statistics.median(pr))
     effective = [r for r in pr if r != 1.0]
     sign_p = _sign_test_p(sum(1 for r in effective if r > 1.0), len(effective))
     n_fav = sum(1 for r in pr if r > 1.0)
@@ -53,7 +80,7 @@ def dose_response_verdict(per_arm: Dict, eps: float = 0.02) -> Dict:
     else:
         verdict = "NEUTRE"
     return {"ratio": ratio, "sign_p": sign_p, "n_favorable": n_fav, "n": len(pr),
-            "verdict": verdict, "ratios_par_K": ratios_par_K}
+            "n_ecartees": ecartees, "verdict": verdict, "ratios_par_K": ratios_par_K}
 
 
 def run_causal(seeds, target, num_agents, max_ticks, shared_db, ks=(1, 4, 8)) -> Dict:
