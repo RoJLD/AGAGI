@@ -8,6 +8,7 @@ Usage : python tools/warmstart_evolution_inworld.py
   (env: WARM_SEED, WARM_GEN, WARM_POP, WARM_EPOCHS, WARM_LR, WARM_K, WARM_METAB, WARM_COG)
   Ex. reproduction table EDR-WARM-001 (acc->1.0) : WARM_LR=0.6 WARM_EPOCHS=20000 python tools/warmstart_evolution_inworld.py
 """
+import json
 import os
 import sys
 import numpy as np
@@ -19,12 +20,19 @@ if _ROOT not in sys.path:
 from tools.s2_demand import run_condition
 from tools.s2_demand_ablation import derange_rows, PerceptionAblatedMamba
 from tools.demand_marker import ablation_verdict
-from tools.cognitive_demand_inworld import CognitiveOracleBatchModel, BIT_A, BIT_B
+from tools.cognitive_demand_inworld import (CognitiveOracleBatchModel, CognitiveOracleAblated,
+                                            BIT_A, BIT_B)
 
 METAB_DEFAULT = 0.75
 COG_DEFAULT = 12.0
 PLANCHER = 7.0                      # survie no-perception (S2-009) ; repère bas
+PLANCHER_COG = 9.0                 # plancher MESURÉ au régime cognitive_demand : survie de l'oracle
+                                   # privé de perception, 12 ères (EDR-WARM-010). Sert de `floor=` à
+                                   # `ablation_verdict` — sous ce niveau, un ratio n'est pas un nul,
+                                   # il est DÉGÉNÉRÉ. Le repère 7.0 ci-dessus était une estimation.
 ORACLE_REF = 200.0                 # survie de l'oracle (S2-009) ; repère haut. PASS = survie ≥ mi-chemin.
+_GRAB_NODE_T = 24                  # canaux LIBRES (non supervisés par l'imitation de mouvement) ;
+_RUB_NODE_T = 25                   # miroir de backend_torch._GRAB_NODE/_RUB_NODE (import évité : torch optionnel)
 
 
 def make_cog_world(metab=METAB_DEFAULT, cog=COG_DEFAULT):
@@ -41,20 +49,57 @@ def make_cog_world(metab=METAB_DEFAULT, cog=COG_DEFAULT):
     return _make
 
 
-def _mamba_survival_eras(genome, ablate, seed, K, num_agents, max_ticks, metab, cog):
+def _mamba_survival_eras(genome, ablate, seed, K, num_agents, max_ticks, metab, cog,
+                         intact_cls=None, ablated_cls=PerceptionAblatedMamba):
     """K ères, forward mamba, génome fixé sur des agents frais. ablate=True -> obs dérangée
-    (PerceptionAblatedMamba, within-subject). Renvoie era_survival (liste de K médianes)."""
+    (PerceptionAblatedMamba, within-subject). Renvoie era_survival (liste de K médianes).
+
+    `intact_cls` / `ablated_cls` = SEAM DE CALIBRATION (défauts = comportement historique exact). Il
+    permet d'injecter une politique à réponse CONNUE — l'oracle lecteur-de-signal de S2-009 — dans ce
+    banc précis, et donc de vérifier qu'il sait rendre un ratio 21× avant de croire le NEUTRAL de
+    WARM-002. Sans ce seam, un banc incapable de produire un positif était indiscernable d'un monde
+    sans gradient (générateur d'erreur A du pré-vol : l'instrument peut-il produire LES DEUX issues ?).
+    ⚠️ PORTÉE : l'oracle entre avec `genome=None`, donc ce contrôle valide le BANC (monde, boucle
+    d'ères, agrégation), PAS le chemin génome→comportement."""
     world = make_cog_world(metab, cog)
-    cls = PerceptionAblatedMamba if ablate else None
+    cls = ablated_cls if ablate else intact_cls
     res = run_condition(world, cls, genome, seed, num_agents=num_agents,
                         max_ticks=max_ticks, n_eras=K)
     return res["era_survival"]
 
 
-def _torch_survival_eras(genome, ablate, seed, K, num_agents, max_ticks, metab, cog):
-    """K ères, forward torch LTC, W GELÉ (lr=0), génome fixé. ablate=True -> obs dérangée avant le
-    forward torch. Robuste aux reconstructions de pop (mortalité) via un patch local de make_population
-    qui GÈLE (+ ABLATE) toute pop torch reconstruite par le monde. Renvoie era_survival."""
+def _acquire_kuzu(owner):
+    """Prend la ressource exclusive « kuzu » le temps d'une mesure (tools/jobs/lease.py).
+
+    POURQUOI : deux sondes monde concurrentes se disputent le lock KuzuDB -> mesure silencieusement
+    CONTAMINÉE (constaté le 2026-07-21 : un résultat « 3/6 génomes diffèrent » produit sous contention,
+    à refaire) + suite de tests en timeout. La règle était documentée de longue date et a été violée 2×
+    dans la journée : classe E10 du registre — une règle sans application exécutable finit violée.
+    Ré-entrant : un même processus peut ré-acquérir. None si le module jobs est absent (dégradé)."""
+    try:
+        from tools.jobs import lease as _lz
+        return _lz.acquire("kuzu", owner=owner)
+    except ImportError:
+        return None
+
+
+def _release_kuzu(lz):
+    if lz is not None:
+        try:
+            from tools.jobs import lease as _l
+            _l.release(lz)
+        except Exception:
+            pass
+
+
+def _torch_survival_eras(genome, ablate, seed, K, num_agents, max_ticks, metab, cog,
+                         ablate_kind="perception", grab_tally=None, cognitive_demand=True,
+                         world_cls=None):
+    """K ères, forward torch LTC, W GELÉ (lr=0), génome fixé. ablate=True -> ablation appliquée avant/après
+    le forward torch selon `ablate_kind` : "perception" (obs dérangée, défaut historique) ou "grab_off"
+    (canal libre 24 forcé sous le seuil d'exécution du monde -> l'agent ne grab JAMAIS, cf. EDR-WARM-005).
+    Robuste aux reconstructions de pop (mortalité) via un patch local de make_population qui GÈLE
+    (+ ABLATE) toute pop torch reconstruite par le monde. Renvoie era_survival."""
     import src.agents.backend as backend_mod
     from src.agents.backend_torch import TorchPopulationModel
     from src.worlds.world_1_stoneage import Biosphere3D
@@ -66,11 +111,40 @@ def _torch_survival_eras(genome, ablate, seed, K, num_agents, max_ticks, metab, 
             return super().forward(derange_rows(np.asarray(batch_obs, dtype=np.float32)),
                                    env_surprise_batch)
 
+    class _DecoupledTorchPop(TorchPopulationModel):
+        """Bras INTACT apparié à `_GrabOffTorchPop`. ⚠️ `forward` renvoie une VUE de `self.H`
+        (backend_torch: `logits = H_new[:, N-O:N]` puis `.cpu().numpy()` partage le storage), donc TOUTE
+        écriture de l'appelant dans `logits` mute l'ÉTAT RÉCURRENT. Le monde lui-même y écrit
+        (world_1_stoneage:1289 pénalité anti-répétition, :966 consensus social). On renvoie donc une COPIE
+        dans LES DEUX bras : sans cela, le bras ablaté perdrait ces write-backs et l'on comparerait deux
+        dynamiques différentes en plus de l'action — confond qui a invalidé la 1re passe de WARM-007."""
+        def forward(self, batch_obs, env_surprise_batch=None):
+            logits, extra = super().forward(batch_obs, env_surprise_batch)
+            if getattr(logits, "ndim", 0) == 2 and logits.size:
+                logits = logits.copy()
+                if grab_tally is not None:      # prédicteur mesuré DANS le bras intact, mêmes ères
+                    grab_tally["on"] = grab_tally.get("on", 0) + int(np.sum(logits[:, _GRAB_NODE_T] > 0.0))
+                    grab_tally["n"] = grab_tally.get("n", 0) + int(logits.shape[0])
+            return logits, extra
+
+    class _GrabOffTorchPop(_DecoupledTorchPop):
+        """Ablation du canal LIBRE, ACTION SEULE : le monde exécute grab ssi logits[24] > 0
+        (world_1_stoneage:1513). On clampe sur la COPIE -> le geste disparaît sans que l'état récurrent
+        soit perturbé, et sans toucher NI les poids NI la décision de mouvement (argmax sur logits[:8])."""
+        def forward(self, batch_obs, env_surprise_batch=None):
+            logits, extra = super().forward(batch_obs, env_surprise_batch)   # déjà découplé de H
+            if getattr(logits, "ndim", 0) == 2 and logits.size:
+                logits[:, _GRAB_NODE_T] = -1.0
+            return logits, extra
+
     _orig_make = backend_mod.make_population
 
     def _frozen_make(agents, backend="legacy", world_model=None):
         if backend == "torch":
-            cls = _AblatedTorchPop if ablate else TorchPopulationModel
+            if ablate_kind == "grab_off":          # les DEUX bras découplés : seule l'action diffère
+                cls = _GrabOffTorchPop if ablate else _DecoupledTorchPop
+            else:
+                cls = _AblatedTorchPop if ablate else TorchPopulationModel
             pop = cls(agents, world_model=world_model)
             for grp in pop.opt.param_groups:
                 grp["lr"] = 0.0                       # GÈLE W (verdict : aucun apprentissage)
@@ -78,20 +152,24 @@ def _torch_survival_eras(genome, ablate, seed, K, num_agents, max_ticks, metab, 
         return _orig_make(agents, backend=backend, world_model=world_model)
 
     era_survival = []
+    _kuzu = _acquire_kuzu("_torch_survival_eras")   # B1 : sérialise sur la ressource KuzuDB (E10)
     backend_mod.make_population = _frozen_make
     try:
         for i in range(K):
             seed_at(seed, i)
-            e = Biosphere3D()
+            e = (world_cls or Biosphere3D)()   # world_cls : injection d'un ETALON (tools/ground_truth_worlds) pour CALIBRER l'instrument
             e.benchmark_mode = True
             e.night_enabled = False
             e.current_era = 10_000
-            e.config.cognitive_demand = True
+            e.config.cognitive_demand = cognitive_demand        # WARM-008 : False = regime PRODUCTION (revenus d'inventaire actifs)
             e.config.cog_gain = cog
             e.config.base_metabolism = metab
             e.config.forage_payoff = 0.0
             e.use_torch_inworld = True
             e.torch_episode_k = 10 ** 9               # _maybe_learn_episode ne se déclenche jamais
+            if hasattr(e, "memory_retriever"):        # AVANT la boucle : un retriever actif pendant la
+                e.memory_retriever.stop()             # sim rend les runs NON REPRODUCTIBLES (KuzuDB
+                e.memory_retriever.clear()            # ambiant) — règle projet, cf. famine_harshness_probe
             for _ in range(num_agents):
                 a = MambaAgent()
                 a.from_genome(genome)
@@ -106,6 +184,7 @@ def _torch_survival_eras(genome, ablate, seed, K, num_agents, max_ticks, metab, 
                 e.memory_retriever.stop()
     finally:
         backend_mod.make_population = _orig_make      # restaure toujours le seam global
+        _release_kuzu(_kuzu)
     return era_survival
 
 
@@ -116,10 +195,14 @@ def verdict_demand_marker(genome, backend, seed=2026, K=12, num_agents=12, max_t
     eras = _torch_survival_eras if backend == "torch" else _mamba_survival_eras
     intact = eras(genome, False, seed, K, num_agents, max_ticks, metab, cog)
     ablated = eras(genome, True, seed, K, num_agents, max_ticks, metab, cog)
-    v = ablation_verdict(intact, ablated)
+    # `floor` DÉCLARÉ : plancher no-perception mesuré à ce régime (EDR-WARM-010, oracle privé de
+    # perception = 9.0 sur 12 ères). Sans lui, un bras intact au sol rendrait NEUTRAL — c'est
+    # exactement ce qui a produit le « paysage de fitness PLAT » de WARM-002.
+    v = ablation_verdict(intact, ablated, floor=PLANCHER_COG)
     verdict = {"X_DEMANDED": "PERCEPTION_DEMANDED", "X_DECOY": "NEUTRAL",
-               "INCONCLUSIVE": "INCONCLUSIVE"}[v["verdict"]]
-    return {"ratio": v["ratio"], "verdict": verdict, "n": v["n"],
+               "INCONCLUSIVE": "INCONCLUSIVE",
+               "INCONCLUSIVE_DEGENERATE": "INCONCLUSIVE_DEGENERATE"}.get(v["verdict"], v["verdict"])
+    return {"ratio": v["ratio"], "verdict": verdict, "n": v["n"], "why": v.get("why"),
             "intact_survival": float(np.median(intact)) if intact else 0.0,
             "ablated_survival": float(np.median(ablated)) if ablated else 0.0}
 
@@ -795,6 +878,371 @@ def run_dagger_warmstart(seed=2026, rounds=6, epochs_per_round=3000, lr=0.5, num
                                     metab=metab, cog=cog)
     return {"trend_onpolicy_acc": trend_acc, "trend_survival": trend_surv,
             "final_genome": agents[0].genome, "final_verdict": final_v}
+
+
+def _probe_free_channels_by_agent(pop, obs_seq, tgt_seq):
+    """Mesure les canaux LIBRES (grab=24, rub=25, NON supervisés par l'imitation) sur une trajectoire
+    de RÉFÉRENCE FIXE, sans gradient, et SANS moyenner sur la population : renvoie un vecteur (B,) par
+    métrique. C'est la vue de référence depuis EDR-WARM-006 — `W` est de forme (B,N,N), donc les agents
+    ont des poids DISTINCTS et divergent ; une moyenne de population n'est PAS comparable à un agent.
+    Trajectoire fixe = points de sonde comparables entre checkpoints (seul W a bougé). `move_acc` (canal
+    SUPERVISÉ) sert de témoin que l'entraînement progresse ; `grab_on_frac` = fraction de ticks où le
+    monde EXÉCUTERAIT le grab (logit > 0, même seuil que world_1_stoneage:1513-1518)."""
+    import torch
+    H = torch.zeros((pop.B, pop.N), device=pop.device)
+    g = np.zeros(pop.B); r = np.zeros(pop.B); on = np.zeros(pop.B); corr = np.zeros(pop.B)
+    n = 0
+    with torch.no_grad():
+        for obs, tgt in zip(obs_seq, tgt_seq):
+            obs_t = torch.tensor(np.asarray(obs, dtype=np.float32)[:, :pop.I], device=pop.device)
+            H = pop._step(obs_t, H)
+            out = H[:, pop.N - pop.O:pop.N]
+            grab = out[:, _GRAB_NODE_T].cpu().numpy()
+            g += grab
+            on += (grab > 0)
+            r += out[:, _RUB_NODE_T].cpu().numpy()
+            corr += (torch.argmax(out[:, :8], dim=1).cpu().numpy() == np.asarray(tgt))
+            n += 1
+    n = max(1, n)
+    return {"grab": g / n, "rub": r / n, "grab_on_frac": on / n, "move_acc": corr / n}
+
+
+def _probe_free_channels(pop, obs_seq, tgt_seq):
+    """Moyenne de population de `_probe_free_channels_by_agent`. ⚠️ EDR-WARM-006 : ne JAMAIS comparer
+    cette moyenne à la valeur d'un agent unique — c'est l'erreur d'unité d'analyse qui a fabriqué la
+    fausse « dérive OFF -> ON » de WARM-005. Pour tout raisonnement par agent, utiliser la variante _by_agent."""
+    return {k: float(np.mean(v)) for k, v in _probe_free_channels_by_agent(pop, obs_seq, tgt_seq).items()}
+
+
+def probe_genome_free_channels(genome, seed=2026, num_agents=12, max_ticks=200,
+                               metab=METAB_DEFAULT, cog=COG_DEFAULT):
+    """Sonde les canaux libres d'un génome DÉJÀ entraîné (ex. le génome DAgger persisté de WARM-003)
+    avec EXACTEMENT la même sonde que `run_grab_drift_diagnostic` -> point final comparable au bras de
+    contrôle (apples-to-apples). Sans cela, comparer à une mesure ad-hoc antérieure serait un confound."""
+    try:
+        import torch  # noqa: F401
+    except Exception:
+        return None
+    from src.agents.mamba_agent import MambaAgent
+    from src.agents.backend_torch import TorchPopulationModel
+
+    o0, t0 = _collect_oracle_trajectory(seed, num_agents, max_ticks, metab, cog)
+    if not o0:
+        return None
+    agents = []
+    for _ in range(num_agents):
+        a = MambaAgent()
+        a.from_genome(genome)
+        agents.append(a)
+    return _probe_free_channels(TorchPopulationModel(agents, lr=0.0), o0, t0)
+
+
+def run_grab_drift_diagnostic(seed=2026, rounds=6, epochs_per_round=3000, lr=0.5, num_agents=12,
+                              max_ticks=200, metab=METAB_DEFAULT, cog=COG_DEFAULT, probe_every=250,
+                              arms=("dagger", "oracle_only")):
+    """WARM-006 : d'où vient la dérive du canal LIBRE `grab` (OFF -> ON) constatée en EDR-WARM-005 ?
+
+    Le levier tel qu'écrit en WARM-005 (« comparer le logit 24 round par round ») CONFOND deux causes :
+    le round 0 est DÉJÀ `epochs_per_round` pas de gradient sur données oracle pures, et les rounds
+    suivants ajoutent À LA FOIS des données on-policy ET des pas de gradient. Ce diagnostic les sépare :
+
+      * sonde TOUS LES `probe_every` epochs (donc PLUSIEURS points DANS le round 0, avant toute
+        donnée on-policy) sur une trajectoire de référence FIXE ;
+      * bras de contrôle `oracle_only` = MÊME nombre total d'epochs, dataset qui NE grandit JAMAIS.
+        C'est le contrôle que WARM-005 n'avait pas (le sien était COURT, or la durée est justement
+        la variable suspecte).
+
+    Prédictions discriminantes :
+      - dérive dès le round 0 ET `oracle_only` ≈ `dagger` -> cause = DURÉE d'entraînement (le canal
+        libre est un PASSAGER des poids récurrents partagés : `out` est une tranche de H, pas une
+        tête isolée) ; la boucle DAgger est INNOCENTE.
+      - plat au round 0 puis montée aux rounds ≥1, et `oracle_only` reste plat -> cause = les données
+        ON-POLICY (états masqués / basse énergie / mourants).
+
+    Coût BORNÉ (leçon WARM-005) : AUCUNE mesure de survie ni d'accuracy in-world par round — seules
+    les sondes sans gradient et, pour le bras dagger, `rounds-1` collectes on-policy. None si torch absent."""
+    try:
+        import torch  # noqa: F401
+    except Exception:
+        print("WARM-006 SKIP : torch absent.")
+        return None
+    from src.agents.mamba_agent import MambaAgent
+    from src.agents.backend_torch import TorchPopulationModel
+    from src.seed_ai.harness import seed_at
+
+    o0, t0 = _collect_oracle_trajectory(seed, num_agents, max_ticks, metab, cog)
+    if not o0:
+        print("WARM-006 SKIP : trajectoire oracle vide.")
+        return None
+    base = (o0, t0, [np.ones(len(t), dtype=np.float32) for t in t0])
+
+    out = {}
+    for arm in arms:
+        seed_at(seed, 1)                                  # MÊME initialisation pour les deux bras
+        agents = [MambaAgent() for _ in range(num_agents)]
+        pop = TorchPopulationModel(agents, lr=lr)
+        dataset = [base]
+        trace = [dict(_probe_free_channels(pop, o0, t0), epoch=0, round=-1)]   # état AVANT tout gradient
+        for r in range(rounds):
+            for ep in range(epochs_per_round):
+                obs_s, tgt_s, mask_s = dataset[ep % len(dataset)]
+                pop.imitate_episode_bptt(obs_s, tgt_s, truncate_window=25, mask_seq=mask_s)
+                done = r * epochs_per_round + ep + 1
+                if probe_every and done % probe_every == 0:
+                    trace.append(dict(_probe_free_channels(pop, o0, t0), epoch=done, round=r))
+            if arm == "dagger" and r < rounds - 1:         # oracle_only : dataset FIGÉ (le contrôle)
+                oo, tt, mm = _collect_onpolicy_trajectory(agents[0].genome, seed=seed,
+                                                          num_agents=num_agents, max_ticks=max_ticks,
+                                                          metab=metab, cog=cog)
+                if oo:
+                    dataset.append((oo, tt, mm))
+        out[arm] = trace
+    return out
+
+
+def measure_inworld_grab_rate(genome, seed=2026, K=1, num_agents=12, max_ticks=200,
+                              metab=METAB_DEFAULT, cog=COG_DEFAULT, cognitive_demand=True):
+    """Fraction de (agent, tick) où le monde EXÉCUTE réellement le grab, mesurée DANS le monde.
+
+    C'est le prédicteur correct pour l'ablation `grab_off`, et celui qui manquait à WARM-007 : les sondes
+    `_probe_free_channels*` mesurent sur la trajectoire ORACLE, une distribution d'observations qui n'est
+    PAS celle que l'agent rencontre in-world. Un agent peut n'avoir aucun grab sur la trajectoire oracle
+    et grabber en permanence in-world (ou l'inverse).
+    Valide tant que `explore_eps == 0` (défaut) : sinon le monde force le grab indépendamment du logit
+    (world_1_stoneage:1298-1310, ε-greedy EDR-019) et le logit ne gouverne plus le geste."""
+    try:
+        import torch  # noqa: F401
+    except Exception:
+        return None
+    import src.agents.backend as backend_mod
+    from src.agents.backend_torch import TorchPopulationModel
+    from src.worlds.world_1_stoneage import Biosphere3D
+    from src.agents.mamba_agent import MambaAgent
+    from src.seed_ai.harness import seed_at
+
+    tally = {"on": 0, "n": 0}
+
+    class _CountingPop(TorchPopulationModel):
+        def forward(self, batch_obs, env_surprise_batch=None):
+            logits, extra = super().forward(batch_obs, env_surprise_batch)
+            if getattr(logits, "ndim", 0) == 2 and logits.size:
+                tally["on"] += int(np.sum(logits[:, _GRAB_NODE_T] > 0.0))   # même seuil que le monde
+                tally["n"] += int(logits.shape[0])
+            return logits, extra
+
+    _orig_make = backend_mod.make_population
+
+    def _counting_make(agents, backend="legacy", world_model=None):
+        if backend == "torch":
+            pop = _CountingPop(agents, world_model=world_model)
+            for grp in pop.opt.param_groups:
+                grp["lr"] = 0.0
+            return pop
+        return _orig_make(agents, backend=backend, world_model=world_model)
+
+    _kuzu = _acquire_kuzu("measure_inworld_grab_rate")   # B1 : ressource exclusive (E10)
+    backend_mod.make_population = _counting_make
+    try:
+        for i in range(K):
+            seed_at(seed, i)
+            e = Biosphere3D()
+            e.benchmark_mode = True
+            e.night_enabled = False
+            e.current_era = 10_000
+            e.config.cognitive_demand = cognitive_demand        # WARM-008 : False = regime PRODUCTION (revenus d'inventaire actifs)
+            e.config.cog_gain = cog
+            e.config.base_metabolism = metab
+            e.config.forage_payoff = 0.0
+            e.use_torch_inworld = True
+            e.torch_episode_k = 10 ** 9
+            assert e.explore_eps == 0.0, "explore_eps>0 : le monde force le grab, mesure invalide"
+            for _ in range(num_agents):
+                a = MambaAgent()
+                a.from_genome(genome)
+                e.add_agent(a, energy=80.0)
+            t = 0
+            while e.agents and t < max_ticks:
+                e.step()
+                t += 1
+            if hasattr(e, "memory_retriever"):
+                e.memory_retriever.stop()
+    finally:
+        backend_mod.make_population = _orig_make
+        _release_kuzu(_kuzu)
+    return tally["on"] / tally["n"] if tally["n"] else float("nan")
+
+
+def assert_aux_off_safe(env):
+    """Garde runtime pour `aux_off_weight > 0` (EDR-WARM-008). Le défaut 0.0 protège le code EXISTANT,
+    pas le prochain appelant qui activera le flag — d'où cette vérification explicite.
+
+    Forcer `rub` OFF ferme un gate DUR du craft (`stone_economy:103`) et du feu (`world:1507`) ; forcer
+    `grab` OFF vide l'inventaire donc bloque le craft même à L0. Contagion silencieuse : sans rub, pas de
+    Spear, donc `_throw_kill_tool` (`world:1455,1482`) ne se déclenche jamais et le KPI de l'axe
+    torch-throw-gate (EDR-172→178) tombe à 0 sans erreur. Enfin, sous `explore_eps > 0` le monde force
+    grab/rub indépendamment du logit (ε-greedy EDR-019) : le correctif y serait contourné."""
+    lvl = int(getattr(getattr(env, "config", None), "craft_level", 0) or 0)
+    if lvl != 0:
+        raise AssertionError(f"aux_off_weight interdit : craft_level={lvl} (gate dur rub, EDR-WARM-008)")
+    if getattr(env, "torch_throw_gate", False):
+        raise AssertionError("aux_off_weight interdit : torch_throw_gate actif -> pas de Spear, KPI=0")
+    eps = float(getattr(env, "explore_eps", 0.0) or 0.0)
+    if eps > 0:
+        raise AssertionError(f"aux_off_weight sans effet : explore_eps={eps} force grab/rub hors logit")
+    return True
+
+
+def run_aux_off_validation(seeds=(2026, 7, 13, 42), epochs=1500, lr=0.5, num_agents=12,
+                           max_ticks=200, gi_ticks=100, metab=METAB_DEFAULT, cog=COG_DEFAULT,
+                           weights=(0.0, 1.0), out_path="results/warm008_aux_off.json"):
+    """WARM-008 : `aux_off_weight` annule-t-il le grab IN-WORLD, et à quel prix pour le mouvement ?
+
+    Ce que WARM-005 avait montré : la BCE pousse le logit `grab` de −0.032 à −0.986 **sur la trajectoire
+    ORACLE**. Ce que WARM-007 a démontré depuis : cette sonde CLASSE LES AGENTS À L'ENVERS (un agent à
+    `oracle_on_frac = 0.15` peut grabber 0.996 in-world). Le maillon d'entrée n'était donc pas établi.
+
+    Ce banc mesure les DEUX quantités qui décident du correctif, appariées par (seed, agent) — même
+    initialisation, mêmes données, SEULE la perte diffère :
+      * `gi` = taux de grab réellement EXÉCUTÉ in-world (le prédicteur validé par WARM-007) ;
+      * `move_acc` = accuracy du canal SUPERVISÉ, pour vérifier que le correctif ne coûte rien.
+
+    ⚠️ Ce banc NE MESURE PAS la survie : la chaîne grab -> taxe de portage -> survie est établie
+    causalement et bidirectionnellement par [[EDR-WARM-007]] ; la re-mesurer exigerait >=12 seeds pour
+    honorer le garde-fou n>=12 en répliquant sur les SEEDS (~7 h) et n'ajouterait pas d'information.
+    Le gain de survie attendu est donc INFÉRÉ, pas mesuré — et doit être rapporté comme tel."""
+    try:
+        import torch  # noqa: F401
+    except Exception:
+        print("WARM-008 SKIP : torch absent.")
+        return None
+    from src.agents.mamba_agent import MambaAgent
+    from src.agents.backend_torch import TorchPopulationModel
+    from src.seed_ai.harness import seed_at
+
+    out = {"params": {"epochs": epochs, "weights": list(weights), "gi_ticks": gi_ticks}, "seeds": {}}
+    for seed in seeds:
+        o0, t0 = _collect_oracle_trajectory(seed, num_agents, max_ticks, metab, cog)
+        if not o0:
+            continue
+        mask = [np.ones(len(t), dtype=np.float32) for t in t0]
+        per_arm = {}
+        for w in weights:
+            seed_at(seed, 1)                       # MÊME init pour les deux bras : appariement strict
+            agents = [MambaAgent() for _ in range(num_agents)]
+            pop = TorchPopulationModel(agents, lr=lr)
+            for _ in range(epochs):
+                pop.imitate_episode_bptt(o0, t0, truncate_window=25, mask_seq=mask, aux_off_weight=w)
+            probe = _probe_free_channels_by_agent(pop, o0, t0)
+            recs = []
+            for i, a in enumerate(agents):
+                gi = measure_inworld_grab_rate(a.genome, seed=seed, K=1, num_agents=num_agents,
+                                               max_ticks=gi_ticks, metab=metab, cog=cog)
+                recs.append({"agent": i, "gi": float(gi), "move_acc": float(probe["move_acc"][i]),
+                             "grab_logit": float(probe["grab"][i]), "rub_logit": float(probe["rub"][i])})
+            per_arm[str(w)] = recs
+            print("  seed=%-5s w=%-4s gi_median=%.3f  gi>0.5: %d/%d  move_acc_median=%.3f"
+                  % (seed, w, float(np.median([r["gi"] for r in recs])),
+                     sum(1 for r in recs if r["gi"] > 0.5), len(recs),
+                     float(np.median([r["move_acc"] for r in recs]))))
+        out["seeds"][str(seed)] = per_arm
+
+    if out_path:
+        os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
+        with open(out_path, "w") as fh:
+            json.dump(out, fh, indent=2)
+        print(f"WARM-008 -> {out_path}")
+    return out
+
+
+def run_grab_incidence_and_ablation(seeds=(2026, 7), rounds=2, epochs_per_round=3000, lr=0.5,
+                                    num_agents=12, max_ticks=200, metab=METAB_DEFAULT, cog=COG_DEFAULT,
+                                    K=12, n_probe=None, out_path="results/warm007_incidence.json",
+                                    genome_dir="results/warm007_genomes"):
+    """WARM-007 : quelle est l'INCIDENCE du canal libre né-ON, et l'ablation de WARM-005 généralise-t-elle ?
+
+    WARM-005 a mesuré une ablation causale forte (grab OFF -> survie ×2.06, 12/12) mais sur UN génome
+    retenu par l'index arbitraire `agents[0]` ; WARM-006 a montré que cet agent était le SEUL des 12 né
+    saturé ON sous seed 2026, et que le canal est fixé par l'INITIALISATION, pas par l'entraînement.
+
+    PRÉDICTION FALSIFIABLE testée ici : si le canal est bien la cause, l'effet de l'ablation doit
+    **corréler avec le grab de naissance** — grand chez les agents nés ON, ≈1.0 (no-op) chez les nés OFF.
+    Une corrélation nulle réfuterait le mécanisme ; un effet uniforme chez TOUS les agents indiquerait
+    que l'ablation agit par autre chose que le canal (p. ex. en perturbant la dynamique récurrente).
+
+    Chaque agent est son PROPRE contrôle (within-subject, K ères appariées), et l'on rapporte la
+    distribution par agent — jamais une moyenne de population (leçon WARM-006).
+    Coût BORNÉ : `n_probe` plafonne le nombre d'agents ablatés (2 bras × K ères chacun). None si torch absent."""
+    try:
+        import torch  # noqa: F401
+    except Exception:
+        print("WARM-007 SKIP : torch absent.")
+        return None
+    from src.agents.mamba_agent import MambaAgent
+    from src.agents.backend_torch import TorchPopulationModel
+    from src.seed_ai.harness import seed_at
+
+    out = {"seeds": {}, "params": {"rounds": rounds, "epochs_per_round": epochs_per_round,
+                                   "K": K, "num_agents": num_agents, "max_ticks": max_ticks}}
+    for seed in seeds:
+        o0, t0 = _collect_oracle_trajectory(seed, num_agents, max_ticks, metab, cog)
+        if not o0:
+            print(f"WARM-007 seed={seed} SKIP : trajectoire oracle vide.")
+            continue
+        seed_at(seed, 1)
+        agents = [MambaAgent() for _ in range(num_agents)]
+        pop = TorchPopulationModel(agents, lr=lr)
+
+        birth = _probe_free_channels_by_agent(pop, o0, t0)          # AVANT tout gradient (coût nul)
+        dataset = [(o0, t0, [np.ones(len(t), dtype=np.float32) for t in t0])]
+        for r in range(rounds):                                     # DAgger, comme WARM-003
+            for ep in range(epochs_per_round):
+                obs_s, tgt_s, mask_s = dataset[ep % len(dataset)]
+                pop.imitate_episode_bptt(obs_s, tgt_s, truncate_window=25, mask_seq=mask_s)
+            if r < rounds - 1:
+                oo, tt, mm = _collect_onpolicy_trajectory(agents[0].genome, seed=seed,
+                                                          num_agents=num_agents, max_ticks=max_ticks,
+                                                          metab=metab, cog=cog)
+                if oo:
+                    dataset.append((oo, tt, mm))
+        final = _probe_free_channels_by_agent(pop, o0, t0)
+        if genome_dir:                      # persiste les 12 : ne JAMAIS re-payer l'entraînement (WARM-007)
+            os.makedirs(genome_dir, exist_ok=True)
+            for i, a in enumerate(agents):
+                g = a.genome
+                np.savez(os.path.join(genome_dir, f"seed{seed}_agent{i:02d}.npz"),
+                         W=np.asarray(g.W, dtype=np.float32),
+                         num_inputs=g.num_inputs, num_outputs=g.num_outputs)
+
+        idx = list(range(num_agents))[:n_probe] if n_probe else list(range(num_agents))
+        recs = []
+        for i in idx:
+            g = agents[i].genome
+            intact = _torch_survival_eras(g, False, seed, K, num_agents, max_ticks, metab, cog)
+            offed = _torch_survival_eras(g, True, seed, K, num_agents, max_ticks, metab, cog,
+                                         ablate_kind="grab_off")
+            m_i = float(np.median(intact)) if intact else 0.0
+            m_o = float(np.median(offed)) if offed else 0.0
+            wins = int(sum(1 for a, b in zip(intact, offed) if b > a))   # ères appariées améliorées
+            recs.append({"agent": i, "birth_grab": float(birth["grab"][i]),
+                         "birth_on_frac": float(birth["grab_on_frac"][i]),
+                         "final_grab": float(final["grab"][i]),
+                         "final_on_frac": float(final["grab_on_frac"][i]),
+                         "surv_intact": m_i, "surv_grab_off": m_o,
+                         "ratio": (m_o / m_i) if m_i > 0 else float("nan"),
+                         "eras_improved": wins, "K": len(intact)})
+            print(f"  seed={seed} agent={i:2d} birth_grab={recs[-1]['birth_grab']:+.3f} "
+                  f"(on={recs[-1]['birth_on_frac']:.2f}) surv {m_i:.0f}->{m_o:.0f} "
+                  f"ratio={recs[-1]['ratio']:.2f} eras_improved={wins}/{len(intact)}")
+        out["seeds"][str(seed)] = {"agents": recs,
+                                   "n_born_on": int(np.sum(birth["grab_on_frac"] > 0.5)),
+                                   "birth_grab_all": [float(x) for x in birth["grab"]]}
+
+    if out_path:                                     # corrélation ratio ~ grab de naissance = le test
+        os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
+        with open(out_path, "w") as fh:
+            json.dump(out, fh, indent=2)
+        print(f"WARM-007 -> {out_path}")
+    return out
 
 
 TICK_EDGES = [0, 35, 70, 120, 10 ** 6]        # bins de tick : ≤35 = vécu du learner ; >35 = jamais visité

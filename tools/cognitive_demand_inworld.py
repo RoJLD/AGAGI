@@ -60,11 +60,16 @@ def _run_mode(cognitive_demand, seed, K, num_agents, max_ticks, base_metabolism,
                            num_agents=num_agents, max_ticks=max_ticks, n_eras=K)
     ablated = run_condition(make_world, CognitiveOracleAblated, None, seed,
                             num_agents=num_agents, max_ticks=max_ticks, n_eras=K)
-    v = ablation_verdict(intact["era_survival"], ablated["era_survival"])
+    # `ceiling=max_ticks` : borne CONNUE (les survivants à max_ticks sont censurés). On ne déclare PAS
+    # de `floor` ici — le plancher 9.0 mesuré par WARM-010 vaut pour le régime ON, pas pour le bras OFF,
+    # et importer un plancher d'un autre régime est précisément l'erreur E8. La garde auto (bras
+    # identiques / variance nulle) s'applique quand même.
+    v = ablation_verdict(intact["era_survival"], ablated["era_survival"], ceiling=float(max_ticks))
     verdict = {"X_DEMANDED": "PERCEPTION_DEMANDED",
                "X_DECOY": "NEUTRAL",
-               "INCONCLUSIVE": "INCONCLUSIVE"}[v["verdict"]]
-    return {"ratio": v["ratio"], "verdict": verdict, "n": v["n"]}
+               "INCONCLUSIVE": "INCONCLUSIVE"}.get(v["verdict"], v["verdict"])
+    return {"ratio": v["ratio"], "verdict": verdict, "n": v["n"],
+            "censored": v.get("censored"), "why": v.get("why")}
 
 
 def run_cog_demand_map(seed=2026, K=12, num_agents=12, max_ticks=200, base_metabolism=4.0, cog_gain=6.0):
@@ -143,6 +148,9 @@ def run_warmstart_credit_probe(seed=2026, num_agents=12, max_ticks=200, schedule
         e.config.base_metabolism = metab
         e.config.forage_payoff = 0.0
         e.use_torch_inworld = True
+        if hasattr(e, "memory_retriever"):     # AVANT la boucle : un retriever actif pendant la sim rend
+            e.memory_retriever.stop()          # les runs NON REPRODUCTIBLES (KuzuDB ambiant). Même défaut
+            e.memory_retriever.clear()         # que celui mesuré dans EDR-INFRA-001. Règle projet.
         for a in agents:
             e.add_agent(a, energy=80.0)                    # réutilise les objets → genome.W persiste
         t = 0
@@ -167,6 +175,35 @@ class LinearCognitiveOracle(BaselineBatchModel):
         for i in range(self.B):
             logits[i, dirs[i]] = 1.0
         return logits
+
+
+class LinearOracleAblated(LinearCognitiveOracle):
+    """Oracle linéaire recevant l'obs DÉRANGÉE (within-subject) → lit le bit d'un pair.
+    ⚠️ Avec `dir ∈ {0,1}`, il tombe juste **une fois sur deux** par accident : le plancher de cette
+    variante est structurellement PLUS HAUT que celui du régime 4-directions. D'où l'obligation de le
+    mesurer ici et non de l'importer (S2-011 importait « ~7-8 » du régime 2-bits — classe E8)."""
+
+    def forward(self, batch_obs, env_surprise_batch=None):
+        return super().forward(derange_rows(batch_obs), env_surprise_batch)
+
+
+def _acquire_kuzu(owner):
+    """Bail sur la ressource exclusive « kuzu » (cf. tools/jobs/lease.py) : deux sondes monde
+    concurrentes se disputent le lock KuzuDB -> mesure silencieusement contaminée."""
+    try:
+        from tools.jobs import lease as _lz
+        return _lz.acquire("kuzu", owner=owner)
+    except ImportError:
+        return None
+
+
+def _release_kuzu(lz):
+    if lz is not None:
+        try:
+            from tools.jobs import lease as _l
+            _l.release(lz)
+        except Exception:
+            pass
 
 
 def _bc_clone_linear(agents, steps=800, seed=0):
@@ -200,12 +237,60 @@ def _bc_clone_linear(agents, steps=800, seed=0):
     return acc
 
 
+def make_linear_world(base_metabolism=0.75, cog_gain=12.0):
+    """Callable zero-arg construisant la variante `cog_linear` (signal 1-bit) au régime dur S2-011."""
+    from src.worlds.world_1_stoneage import Biosphere3D
+
+    def _make():
+        e = Biosphere3D()
+        e.config.cognitive_demand = True
+        e.config.cog_linear = True
+        e.config.cog_gain = cog_gain
+        e.config.base_metabolism = base_metabolism
+        e.config.forage_payoff = 0.0
+        return e
+    return _make
+
+
+def run_linear_sanity(seed=2026, K=12, num_agents=12, max_ticks=200,
+                      base_metabolism=0.75, cog_gain=12.0):
+    """CONTRÔLE POSITIF + PLANCHER de la variante `cog_linear` — les deux chiffres que S2-011 publiait
+    SANS chemin d'exécution committé (dette P2.8, ouverte par EDR-AUDIT-001).
+
+    POURQUOI ÇA COMPTAIT : le finding « VALIDE » de S2-011 (« le crédit à froid n'apprend pas ») repose
+    sur la prémisse « un suiveur-de-signal survit trivialement (oracle 200) ». Cette ligne n'avait aucun
+    appelant : `LinearCognitiveOracle` était du CODE MORT. Un contrôle positif jamais exécuté ne prouve
+    rien — c'est le générateur A du pré-vol.
+
+    ⚠️ Le PLANCHER de cette variante ne peut PAS être importé du régime 4-directions : avec
+    `dir ∈ {0,1}`, un agent privé de signal tombe juste **une fois sur deux** au lieu d'une sur quatre.
+    S2-011 y importait « ~7-8 », mesuré ailleurs — classe E8. On le mesure ici, dans son propre régime."""
+    world = make_linear_world(base_metabolism, cog_gain)
+    lz = _acquire_kuzu("linear-sanity")
+    try:
+        intact = run_condition(world, LinearCognitiveOracle, None, seed,
+                               num_agents=num_agents, max_ticks=max_ticks, n_eras=K)
+        ablated = run_condition(world, LinearOracleAblated, None, seed,
+                                num_agents=num_agents, max_ticks=max_ticks, n_eras=K)
+    finally:
+        _release_kuzu(lz)
+    v = ablation_verdict(intact["era_survival"], ablated["era_survival"], ceiling=float(max_ticks))
+    return {"oracle": intact["era_survival"], "floor": ablated["era_survival"],
+            "oracle_median": float(np.median(intact["era_survival"])),
+            "floor_median": float(np.median(ablated["era_survival"])),
+            "ratio": v["ratio"], "verdict": v["verdict"], "censored": v["censored"], "n": v["n"]}
+
+
 def run_credit_linear(seed=2026, warmstart=False, eras=6, num_agents=12, max_ticks=200,
-                      base_metabolism=0.75, cog_gain=12.0, bc_steps=800):
+                      base_metabolism=0.75, cog_gain=12.0, bc_steps=800, use_credit=True):
     """Test PROPRE du verrou crédit (tâche LINÉAIREMENT décodable, isole le crédit de la représentation).
     warmstart=False : cohorte fraîche → le crédit in-world APPREND-il la tâche linéaire à froid ?
     warmstart=True  : cohorte BC-clonée (bassin de poids pré-formé) → le crédit RETIENT-il le bassin sous
-    le régime dur ? Renvoie {bc_acc, trend (survie médiane/ère), final}."""
+    le régime dur ? Renvoie {bc_acc, trend (survie médiane/ère), final}.
+
+    `use_credit=False` : cohorte warm-startée SANS apprentissage in-world — c'est le bras DIAGNOSTIC que
+    S2-011 publiait (« WARM SANS crédit → 8 ») alors que `use_torch_inworld` était codé EN DUR à True :
+    la ligne n'avait aucun chemin d'exécution (dette P2.8)."""
     from src.worlds.world_1_stoneage import Biosphere3D
     from src.seed_ai.harness import seed_at
     from src.agents.mamba_agent import MambaAgent
@@ -224,7 +309,10 @@ def run_credit_linear(seed=2026, warmstart=False, eras=6, num_agents=12, max_tic
         e.config.cog_gain = cog_gain
         e.config.base_metabolism = base_metabolism
         e.config.forage_payoff = 0.0
-        e.use_torch_inworld = True
+        e.use_torch_inworld = bool(use_credit)   # False = bras DIAGNOSTIC (bassin BC, aucun apprentissage)
+        if hasattr(e, "memory_retriever"):       # AVANT la boucle (cf. EDR-INFRA-001, règle projet)
+            e.memory_retriever.stop()
+            e.memory_retriever.clear()
         for a in agents:
             e.add_agent(a, energy=80.0)
         t = 0

@@ -242,7 +242,7 @@ class TorchPopulationModel(PopulationModel):
         return float(loss.item())
 
     def imitate_episode_bptt(self, obs_seq, target_moves_seq, truncate_window=None, mask_seq=None,
-                             aux_off_weight=0.0):
+                             aux_off_weight=0.0, aux_off_margin=0.2):
         """IMITATION récurrente supervisée (BPTT) — distincte de learn_episode_bptt (REINFORCE). Rejoue
         obs_seq depuis H=0 en RETENANT le graphe récurrent ; perte = cross-entropy des move-logits vs
         l'action-enseignant par pas ; backprop unique -> _write_back. ADDITIF (ne touche pas forward/
@@ -253,12 +253,23 @@ class TorchPopulationModel(PopulationModel):
         mask_seq (optionnel) : liste de (B,) ∈ {0,1} par pas -> perte CE PONDÉRÉE, normalisée par Σmask
         (exclut les pas post-mortem des agents). None -> moyenne uniforme (comportement INCHANGÉ).
 
-        ⚠️ aux_off_weight (EDR-WARM-005) : ne superviser QUE les 8 logits de mouvement laisse les canaux
-        d'ACTION AUXILIAIRES libres — mesuré in-world, `grab` (nœud 24) se fige à ON sur 100 % des ticks
-        et draine l'énergie en continu (ablation within-subject : survie ×2.3 en le forçant OFF, alors
-        que la décision de mouvement était déjà correcte à 98.7 %). aux_off_weight>0 ajoute une BCE
-        poussant grab ET rub vers OFF — l'oracle, lui, sort des zéros partout sauf la direction.
-        Défaut 0.0 = comportement INCHANGÉ (rétro-compatible)."""
+        aux_off_weight (EDR-WARM-005/007/008) : ne superviser QUE les 8 logits de mouvement laisse les
+        canaux d'ACTION AUXILIAIRES libres ; `grab` (nœud 24) peut rester ON et coûter de la survie —
+        non par le geste (one-shot −1.0) mais par la TAXE DE PORTAGE cumulative qu'il déclenche
+        (`world_1_stoneage:738-739`, `energy -= carry_weight*0.5` à chaque tick, à vie ; EDR-WARM-007).
+        aux_off_weight>0 pousse grab ET rub sous le seuil d'exécution du monde via une charnière à marge
+        `aux_off_margin` (cf. commentaire dans le corps : la BCE d'origine était structurellement mal
+        posée). Défaut 0.0 = comportement INCHANGÉ (rétro-compatible).
+
+        🛑 **INTERDIT hors `craft_level == 0` ET `torch_throw_gate` désactivé** (EDR-WARM-008). Forcer
+        rub OFF ferme un gate DUR du craft (`stone_economy.py:103` `if craft_level >= 1 and not do_rub`)
+        et le feu/Spark (`world_1_stoneage:1507`) ; forcer grab OFF vide l'inventaire, donc bloque le
+        craft même à L0. Contagion : sans rub il n'y a pas de Spear, donc `_throw_kill_tool`
+        (`world_1_stoneage:1455,1482`) ne peut plus se déclencher et le KPI de l'axe torch-throw-gate
+        (EDR-172→178) tombe à 0 **silencieusement**. Le défaut 0.0 protège le code existant, PAS le
+        prochain appelant : vérifier la config du monde avant d'activer ce flag.
+        ⚠️ Ne PAS l'activer non plus sous `explore_eps > 0` (0.15-0.2 dans les runners réels) : le monde
+        y force grab/rub ~8-10 % des ticks INDÉPENDAMMENT du logit, donc le correctif est contourné."""
         if self.B == 0 or not obs_seq:
             return None
         F = torch.nn.functional
@@ -283,9 +294,17 @@ class TorchPopulationModel(PopulationModel):
                 loss = loss + (ce * m).sum()
                 denom += float(m.sum().item())
             if aux_off_weight > 0:            # canaux d'action auxiliaires -> OFF (comme l'oracle)
-                zeros = torch.zeros(self.B, device=self.device)
-                aux = (F.binary_cross_entropy_with_logits(out[:, _GRAB_NODE], zeros, reduction="none")
-                       + F.binary_cross_entropy_with_logits(out[:, _RUB_NODE], zeros, reduction="none"))
+                # CHARNIÈRE À MARGE, pas BCE (EDR-WARM-008). La BCE d'origine (WARM-005) visait 0 via
+                # `log(1+e^x)`, dont l'optimum est en −∞ : INATTEIGNABLE puisque `out` est borné par tanh.
+                # À la borne x=−1 il restait un gradient de 0.269 et une perte irréductible de 0.627 pour
+                # la paire — une pression PERMANENTE sur les nœuds 88/89, qui ne sont pas des readouts mais
+                # des unités d'un récurrent 172×172 pleinement connecté : saturer y injecte un −1 constant
+                # dans tout le tronc (argmax de mouvement changé sur 9.5 % des pas, un agent perdant 0.429
+                # de move_acc). Or le monde ne teste que `logit > 0` (world_1_stoneage:1513) : l'objectif
+                # est un CHANGEMENT DE SIGNE, pas −∞. La charnière a un gradient EXACTEMENT NUL dès que le
+                # nœud est sous −margin -> zéro pression sur les agents déjà conformes, zéro saturation.
+                aux = (F.relu(out[:, _GRAB_NODE] + aux_off_margin)
+                       + F.relu(out[:, _RUB_NODE] + aux_off_margin))
                 loss = loss + aux_off_weight * (aux.mean() if m is None else (aux * m).sum())
         loss = loss / max(1.0, denom)
         self.opt.zero_grad()
