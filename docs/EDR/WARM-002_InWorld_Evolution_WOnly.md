@@ -1,12 +1,25 @@
 ---
 id: EDR-WARM-002
 type: EDR
-title: "Évolution in-world W-only : le paysage de fitness de survie est PLAT (aucun gradient cognitif à escalader)"
+title: "Évolution in-world W-only : l'optimiseur ne franchit PAS le verrou (FAIL robuste aux 3 régimes) — ⚠️ le mécanisme « paysage PLAT » est RÉFUTÉ par WARM-010"
 status: active
 gate: G0
 tests: [SDR-G0]
 adopts: [REF-DEMAND-MARKER]
+corrected_by: [EDR-WARM-010]
 ---
+
+> ⚠️ **MÉCANISME CORRIGÉ le 2026-07-21 par [[EDR-WARM-010]] — lire les deux ensemble.**
+> Le **résultat empirique de ce record TIENT** : l'évolution W-only n'a pas franchi le verrou, sur 3
+> régimes. Mais son **explication est réfutée par mesure directe**. La dose-réponse de fidélité, mesurée
+> sur ce banc et ce régime, est **strictement monotone : 9.0 → 12.0 → 17.5 → 37.0 → 94.2 → 200.0**
+> (22×, aucun chevauchement d'ères sur les 5 marches). La compétence PARTIELLE est **densément
+> récompensée**, dès +36 % à p=0.25 — il n'y a pas de seuil à « ~99 % ».
+> **Deux erreurs identifiées** : (E3) le ratio ≈ 1.00 a été lu sur un bras intact à **5.0–7.2 ticks**,
+> soit **SOUS** le plancher no-perception mesuré à **9.0** — un ratio sur métrique au sol vaut 1.0 par
+> construction ; (E8) le seuil « ~99 % » a été importé de WARM-001, d'une autre grandeur et d'une autre
+> population. **L'attribution correcte est l'OPTIMISEUR, pas le monde.** La question ouverte devient
+> l'ATTEIGNABILITÉ par mutation de `genome.W`, non la platitude du paysage.
 
 ## Question
 L'oracle S2-009 prouve que le monde `cognitive_demand` EXIGE la perception (survie 200 vs plancher 7), mais
@@ -36,13 +49,23 @@ Repères : plancher no-perception ≈ 7 ; oracle intact ≈ 200 (S2-009). Le mei
 5–10 ticks (= plancher) et son ablation-perception ne change RIEN (ratio ≈ 1) sur les 3 régimes.
 
 ## Verdict
-**`INWORLD_EVOLUTION_WONLY_FLAT_FITNESS_LANDSCAPE`** — l'évolution W-only ne franchit PAS le verrou (FAIL,
-robuste aux 3 régimes de mutation). Le trend ne monte jamais (plat/déclinant autour du plancher), et le
-meilleur génome n'utilise pas causalement la perception (NEUTRAL). Cause : le paysage de fitness de survie
-est **PLAT** — un suiveur-de-signal PARTIEL survit AUSSI PEU qu'un non-suiveur (la survie est un accumulateur
-multiplicatif qui ne récompense qu'au-delà de ~99% d'accuracy de perception, cf. WARM-001), donc la sélection
-n'a **aucun gradient de fitness cognitif** à escalader. Augmenter la puissance de mutation (0.15→1.0) ne
-crée pas de gradient là où il n'y en a pas.
+**`INWORLD_EVOLUTION_WONLY_FAILS`** *(ancien slug : `..._FLAT_FITNESS_LANDSCAPE`, conservé ici pour la
+traçabilité des citations — la prémisse qu'il encodait est réfutée)* — l'évolution W-only ne franchit PAS
+le verrou (FAIL, robuste aux 3 régimes de mutation). Le trend ne monte jamais (plat/déclinant autour du
+plancher), et le meilleur génome n'utilise pas causalement la perception (NEUTRAL). **Cet échec empirique
+TIENT.**
+
+> ~~Cause : le paysage de fitness de survie est **PLAT** — un suiveur-de-signal PARTIEL survit AUSSI PEU
+> qu'un non-suiveur (la survie est un accumulateur multiplicatif qui ne récompense qu'au-delà de ~99%
+> d'accuracy de perception, cf. WARM-001), donc la sélection n'a **aucun gradient de fitness cognitif** à
+> escalader.~~ **CAUSE PRÉSUMÉE, RÉFUTÉE par [[EDR-WARM-010]]** : mesurée avec un étalon de compétence
+> graduée, la survie fait **9.0 → 12.0 → 17.5 → 37.0 → 94.2 → 200.0** pour une fidélité de 0 à 1,
+> strictement monotone, 12/12 ères séparées à chaque marche. Il n'y a pas de seuil à ~99 %.
+
+**CAUSE SURVIVANTE, non testée : l'ATTEIGNABILITÉ.** Le gradient est dense dans l'espace des
+COMPORTEMENTS ; rien n'établit que la mutation W-only depuis une init aléatoire puisse s'y déplacer.
+Augmenter la puissance de mutation (0.15→1.0) n'a pas aidé — ce qui est cohérent avec un problème
+d'atteignabilité, pas d'absence de gradient.
 
 ## Portée & limites
 - Budget modéré (≤80 générations, pop ≤32). Un NÉGATIF sous ce budget = « pas franchi ni de gradient

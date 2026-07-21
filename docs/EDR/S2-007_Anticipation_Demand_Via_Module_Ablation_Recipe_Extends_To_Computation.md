@@ -6,7 +6,20 @@ status: active
 gate: G4
 tests: [SDR-G0]
 adopts: [REF-DEMAND-MARKER]
+corrected_by: [EDR-AUDIT-001]
 ---
+
+> ⚠️ **MOITIÉ « NÉCESSITÉ » CORRIGÉE le 2026-07-21 — [[EDR-AUDIT-001]].**
+> **Ce qui TIENT** : la cellule POSITIVE (corps insuffisant + shift1 + énergie, ratio 16.23) est un
+> contrôle positif réellement exécuté sur ce banc. La **suffisance** est établie — et le ratio y est une
+> borne INFÉRIEURE, l'intact étant censuré au cap.
+> **Ce qui NE TIENT PAS** : la cellule `shift0` est une **identité algébrique exacte**. Vérifié par
+> exécution : `_model_matrix(0, K)` **est** `np.eye(K)`, et `anticipation_demand_world_probe:58` fait
+> `pred = (M @ obs) if intact else obs` — donc à `shift = 0` **les deux bras calculent la même chose**.
+> Le `ratio 1.00` ne peut pas prendre d'autre valeur ; il est publié comme condition de nécessité
+> (« dynamique NON-triviale »). C'est la classe **E1** — un contrôle qui ne peut pas échouer.
+> Les deux autres cellules nulles sont également forcées (plafond corps ; plancher policy-invariant en
+> devise séparée), et le record ne publie **aucune valeur absolue de survie**, seulement des ratios.
 
 ## Question
 EDR-S2-006 posait la frontière : le demand-marker (ablation d'INPUT) couvre perception/mémoire/comm, mais

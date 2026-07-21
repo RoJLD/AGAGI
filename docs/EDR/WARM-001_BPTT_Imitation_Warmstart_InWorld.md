@@ -77,9 +77,14 @@ le 0.73) OU crédit in-world visitant les propres états de l'agent.
 - Reproductibilité : `lr` EXPOSÉ (`run_bptt_imitation_warmstart(lr=)` / env `WARM_LR`) car le défaut lr=0.04
   sous-entraîne ; la table ci-dessus se reproduit via `WARM_LR`/`WARM_EPOCHS`. Verdict forward torch, W gelé,
   K=12 (garde-fou n≥12).
-- Complémentaire de WARM-002 (évolution : paysage plat). Deux murs distincts mais issus de la même propriété :
-  la survie ne récompense la cognition qu'au-delà d'une accuracy très élevée (~99%+), gradient de sélection
-  quasi-nul en deçà → converge le fil S2.
+- Complémentaire de WARM-002 (l'évolution échoue aussi). ⚠️ **CORRIGÉ le 2026-07-21** : ~~deux murs issus
+  de la même propriété — la survie ne récompense la cognition qu'au-delà d'une accuracy très élevée
+  (~99%+), gradient de sélection quasi-nul en deçà~~. **C'est ICI que le seuil « ~99 % » a été formulé, et
+  WARM-002 l'a importé pour en tirer « paysage PLAT » — d'une grandeur (accuracy d'IMITATION, mesurée sur
+  ce banc) à une autre (fitness de SURVIE in-world), sans la mesurer : classe E8.** [[EDR-WARM-010]] a
+  mesuré la seconde : la survie récompense **dès p=0.25 de fidélité** (+36 %), pas à partir de 99 %. Le
+  seuil vaut pour l'accuracy d'imitation de ce record ; il **ne se transporte pas**. Les deux murs sont
+  ceux de l'OPTIMISEUR → converge [[warm-start-transversal-law]].
 
 Converge [[EDR-WARM-002]], [[decisive-substrate-thesis-test]], [[warm-start-transversal-law]],
 [[within-subject-demand-marker]], [[s2-world-demand-thread]], REF-DEMAND-MARKER, S2-009.

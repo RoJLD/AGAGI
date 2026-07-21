@@ -104,6 +104,142 @@ recommandations CHIFFRÉES des proxies, à valider in-world (P y sera différent
 - Combiner les 3 axes (tâche exigeant binding + spécialisation + rétention coûteuse simultanément).
 - Le vrai test = in-world (axe 1/3), pas plus de proxy.
 
+> 📋 **Priorités & dettes (actionnable) : `docs/roadmap/PRIORITES_ET_DETTES.md`** (P0 environnement → P1 dettes →
+> P2 calibration → P3 générateurs d'erreur → P4 science). Les leviers WARM ci-dessous sont en P4.2.
+
+### 🧪 Fil WARM — warm-start in-world sous `cognitive_demand` (EDR-WARM-001→006 ; `tools/warmstart_evolution_inworld.py`)
+
+Arc livré : le substrat **imite l'oracle jusqu'à acc 1.000** (001) donc le plafond n'est PAS la capacité ;
+l'**évolution W-only** ÉCHOUE (002) — mais ~~sur un paysage de fitness PLAT~~ : **WARM-010 réfute ce
+mécanisme**, la fitness récompense densément la compétence partielle (9→200, monotone, 12/12 ères par
+marche) ; l'échec est celui de l'**OPTIMISEUR**, pas du monde, et 002 rejoint donc la loi transversale au
+lieu d'en être l'exception. Question ouverte reformulée : l'**atteignabilité** en espace génome ; le
+**DAgger on-policy** lève l'acc
+on-policy 0.73→0.99 et donne le marqueur le plus fort de l'arc (003, ratio 5.04) ; la dégradation avec la
+**profondeur récurrente** est réelle mais n'est ni couverture ni précision (004). **WARM-005 amende les
+trois premiers** : ~la moitié du déficit de SURVIE venait d'un **canal d'action non supervisé** (`grab`,
+nœud 24) bloqué ON qui saignait l'énergie — ablation causale ×2.06 (12/12, sign_p=0.00024) — alors que la
+décision était déjà correcte à 98.7 %. **WARM-006 amende à son tour WARM-005 : il n'y a JAMAIS eu de
+dérive.** L'agent persisté (`agents[0]`, seed 2026) est **né saturé ON** (grab +0.9626 à zéro pas de
+gradient) et n'a pas bougé (Δ = −0.011) ; le « OFF → ON » comparait la **moyenne des 12 agents à t=0**
+(−0.2447) au **réplicat unique agent 0 à t=fin** — erreur d'unité d'analyse.
+
+**WARM-007 clôt l'arc, et amende les DEUX précédents.** Le phénomène est **réel et réplique** : causalité
+établie **bidirectionnellement** (retirer le grab améliore ; le FORCER dégrade **8/8** non-grabbers,
+sign_p = 0.0078), en forward production. **Mais le mécanisme n'était pas le bon** : le grab coûte un
+one-shot de −1.0, alors que le vrai puits est la **TAXE DE PORTAGE** (`world_1_stoneage:738-739`,
+`energy -= carry_weight*0.5` **à chaque tick, à vie**) = 1.66/agent-tick ≈ **55 % de la marge nette**.
+Corollaire vérifié : l'ampleur croît avec la durée de vie de base (ρ = −0.83). **Trois négatifs importants** :
+(i) **aucune dose-réponse** au taux de grab n'est établie (intra-répondeurs ρ = +0.09, p = 0.73 — la
+corrélation apparente n'était que le contraste zéro/non-zéro) ; (ii) le contrôle négatif « agents qui ne
+grabbent jamais » est **TAUTOLOGIQUE** (clamper une action non exécutée est un no-op par construction,
+6/8 tableaux bit-identiques) — le vrai contrôle est la manipulation **inverse** ; (iii) **le ×2.06 n'est
+pas répliqué** (3000 epochs vs 18 000 ; médiane répondeurs 1.69). WARM-007 réfute aussi la thèse de
+WARM-006 « canal fixé par l'initialisation » : |final − birth| médian = **0.557**, le canal est plastique
+(l'agent 0 est saturé au plafond de tanh, donc le seul qui ne PEUT pas bouger).
+
+> ⚠️ **Pseudo-réplication : alerte ÉMISE PUIS RÉTRACTÉE (audit fait le 2026-07-20).** J'avais annoncé que
+> tout `sign_p` du projet comptant « 12 agents » était invalide. **FAUX** : `ablation_verdict` documente
+> son entrée comme « survies appariées par **ère/seed** », et tous les bancs agrègent d'abord les agents
+> (`era_survival.append(np.median(ages))` — `s2_demand:56`, `cross_world_transfer:74`,
+> `cognitive_demand_inworld:108`, `substrate_world_ab:84`, …), soit **une valeur par ère**, chaque ère
+> tirant un monde distinct (`seed_at(seed, i)`) ; `curriculum_transfer:42` dit « ratio par seed ».
+> **L'unité de réplication du projet est l'ÈRE/le SEED — le design est sain**, le couplage inter-agents
+> (consensus social) étant absorbé dans la médiane.
+> **Ce qui reste vrai** : le `sign_p = 1.5e-05` de WARM-007 portait sur **16 AGENTS** partageant oracle,
+> augmentation DAgger, optimiseur et mondes (corr inter-agents +0.345/+0.309) → invalide, n indépendant
+> ≈ 2. **Défaut local à ce banc, pas de l'idiome.** Aucun audit transversal requis.
+
+**WARM-008 ferme le levier 2 — et son résultat est NÉGATIF.** `aux_off_weight` fait bien ce qu'il prétend
+sur le canal (`gi` in-world 0.690 → **0.000**, 4/4 seeds, 39/39 paires réduites) **mais le gain de survie
+est MESURÉ NUL** (ratio 1.000, 6 améliorés/6 dégradés) : dans une population **bootstrap-oracle** la taxe
+de portage ne pèse que **2.4-9.5 % du métabolisme**, contre le génome **DAgger à inventaire lourd** de
+WARM-005/007. **La chaîne causale de WARM-007 ne TRAVERSE PAS les populations** — c'est le vrai résultat.
+Trois autres négatifs : « sans coût sur le mouvement » est un **effet de plafond** (32/48 déjà à 1.000 ;
+sd(Δ)=0.293 sur les mobiles) ; n indépendant = **4 seeds** (sign_p 0.0625, sous le garde-fou) ; et le banc
+`cognitive_demand=True` **coupe tous les revenus d'inventaire** en laissant la taxe → « grab nuit » y est
+quasi-tautologique, et la moitié `rub` du correctif y est testée à effet nul.
+**Découverte** : le canal « libre » est **fonctionnellement PORTEUR** chez certains agents — `ag04` perd
+`move_acc` 0.886 → 0.457, **identiquement sous BCE et sous charnière à gradient nul**, donc le coût n'est
+pas optimisationnel. Les nœuds 24/25 sont les unités 88/89 d'un récurrent 172×172, pas des readouts.
+
+> 🔒 **BORNE DE PORTÉE DE TOUT L'ARC (WARM-009, run NUL).** « Le grab nuit » n'est établi que dans un
+> monde où grabber **n'a aucun avantage possible** : le banc engendre `stick ×2, stick_short ×3,
+> stick_long ×1, rock ×18` et **AUCUN `Fruit`**, alors que le revenu +20 exige `item_type == "Fruit"`
+> (`world:746-749`). L'inventaire y est un **coût pur par construction**. Le bras `cognitive_demand=False`
+> tenté pour tester la validité externe est **NUL** : les 24 génomes y meurent tous à **6.0-7.2 ticks**
+> (plancher de famine), car basculer le flag retire le revenu cognitif sans en activer aucun autre —
+> le bras était **structurellement incapable** de montrer que grabber paie (miroir du contrôle
+> tautologique : un bras qui ne pouvait pas *réussir*). Drain mesuré ~12.5/tick dans LES DEUX régimes
+> alors que `base_metabolism = 0.75` : le flag n'est même pas le terme dominant.
+> **La validité externe de WARM-005/007/008 reste OUVERTE.** Le paramètre `cognitive_demand` est livré
+> et testé dans le banc (`_torch_survival_eras`, `measure_inworld_grab_rate`) pour le jour où un monde
+> à revenu d'inventaire sera utilisé.
+
+**🎯 EXPÉRIENCE SPÉCIFIÉE (prête à lancer, ~2 h construction + ~1 h calcul) — « le grab nuit-il quand
+grabber NOURRIT ? »** Reconnaissance faite le 2026-07-20 ; tout est vérifié sauf le run.
+
+*Le matériel existe déjà* : `FamineWorld` (`src/worlds/world_famine.py:30`) **hérite de `Biosphere3D`**,
+donc porte la taxe de portage — qu'elle documente explicitement (« coût COMPOSITE = drain de portage réel
+`carry_weight×0.5`/tick ») — ET tourne à `forage_payoff = 3.0`, `base_metabolism = 0.25` (`_sweet()` dans
+`tools/famine_harshness_probe.py`). Des **champions entraînés dedans sont persistés** :
+`data/hof_famine_harsh_s{42,43,44}.pkl`, dict `{version, entries}` avec 10 `AgentSnapshot` chacun
+(attribut `.genome`) → **30 génomes, aucun réentraînement nécessaire**.
+
+*L'obstacle identifié* : ce banc tourne en backend **legacy/mamba** (aucun `use_torch_inworld`), donc
+l'ablation `_GrabOffTorchPop` livrée pour WARM-007/008 **ne s'y applique pas**. Forcer le forward torch
+changerait le calcul sous lequel ces champions ont été sélectionnés — confond à proscrire.
+
+*Ce qu'il reste à écrire* : un `GrabOffMamba(MambaBatchModel)` sur le patron de
+`PerceptionAblatedMamba` (`tools/s2_demand_ablation.py:42`) mais clampant la SORTIE 24 sous 0 — avec
+⚠️ **vérification d'aliasing obligatoire** (`np.shares_memory`) et **découplage appliqué aux DEUX bras**
+si le forward mamba renvoie une vue, leçon non négociable de [[EDR-WARM-007]] ; puis un
+`_famine_survival_eras` calqué sur `measure_regime` (n_eras=3, n_agents=12, max_ticks=600).
+
+*Garde-fous du design* : répliquer sur les **ères/seeds** (3 seeds HoF), pas sur les agents ; contrôle
+négatif = manipulation **INVERSE** (forcer grab ON), pas les non-grabbers ; mesurer `gi` **dans ce
+monde-là**, pas ailleurs. *Portée bornée d'avance* : régime **famine dure**, pas « la production » générique.
+
+> 🛑 **`aux_off_weight` est INTERDIT hors `craft_level=0`, `torch_throw_gate=off`, `explore_eps=0`.**
+> Forcer `rub` OFF ferme un gate DUR du craft (`stone_economy:103`) et du feu (`world:1507`) ; grab OFF
+> vide l'inventaire (craft impossible même à L0). **Contagion silencieuse** : sans rub → pas de Spear →
+> `_throw_kill_tool` (`world:1455,1482`) jamais déclenché → **KPI de l'arc EDR-172→178 à 0 sans erreur**.
+> Garde runtime livrée : `assert_aux_off_safe(env)`. Le défaut 0.0 protège le code existant, pas le
+> prochain appelant.
+
+**Backlog (ordonné, non démarré)** :
+1. Si l'on veut le gain de survie : le **mesurer** sur ≥12 seeds, mondes par agent
+   (`seed_at(seed*1000+agent, i)`), sur une population **DAgger** (inventaire lourd) — pas bootstrap.
+2. Tester l'hypothèse du **canal porteur** (corrélation coût ↔ poids de W autour du nœud 88).
+3. Bras `cognitive_demand=False` : vérifier que supprimer le grab ne détruit pas le revenu-fruit (+20),
+   que ce banc annule par construction.
+4. **Identifier les termes résiduels du bilan énergétique** — *partiellement répondu* : WARM-007 identifie
+   la taxe de portage (~55 % de la marge nette sur le génome DAgger). Reste l'écart `delta_bio(correct)`
+   −0.075 contre +0.583 pour l'oracle. Méthode qui a marché : instrumenter `_resolve_biology` DANS le
+   monde et comparer poste par poste, plutôt que raisonner sur les instruments d'entraînement.
+   ⚠️ Contrainte de design non négociable (leçon 005) : plafonner `max_ticks` pour les traces et réserver
+   K=12 au verdict final — quand la survie augmente, les épisodes s'allongent et TOUT le pipeline ralentit
+   (3 runs abandonnés : 8 h, 4 h projetées, 89 min).
+   *(L'ancien levier 2 « valider `aux_off_weight` bout-en-bout » est CLOS par [[EDR-WARM-008]] : le canal
+   est bien annulé, mais le gain de survie est mesuré NUL et le correctif est interdit hors craft_level=0.)*
+
+> ⚠️ **Leçons méthodo transverses de l'arc** (à appliquer hors WARM) :
+> 1. Avant d'imputer un déficit de SURVIE à la cognition, vérifier le **bilan énergétique** et les
+>    **canaux d'action NON supervisés**.
+> 2. **Un contrôle négatif qui ne PEUT pas échouer n'est pas un contrôle** (ablater une action que le
+>    sujet n'exécute jamais est un no-op analytique). Le contrôle informatif est la manipulation
+>    **INVERSE** : forcer l'action chez ceux qui ne la font pas.
+> 3. **Un sham doit reproduire la VOIE de l'artefact suspecté**, pas seulement « ne rien faire » — c'est
+>    en clampant un nœud non lu *via la même vue aliasée* qu'on a prouvé qu'un bug était inerte.
+> 4. **Vérifier l'aliasing mémoire** (`np.shares_memory`) avant de déclarer une ablation propre :
+>    `forward` renvoie une VUE de `H`, donc écrire dans les logits mute l'état récurrent.
+> 5. **Ne pas généraliser depuis `agents[0]`** ni depuis quelques cas saillants — c'est la faute commise
+>    **trois fois** dans cet arc, y compris par le record qui la dénonçait.
+>
+> Sur **six** passages en revue adversariale, **six** ont trouvé une erreur réelle (dont un bug
+> d'aliasing, une fausse alerte transversale et une inférence réfutée par mesure). Le mécanisme qui les a
+> attrapées est la **revue qui lance ses propres sondes**, pas la prudence rédactionnelle.
+
 ### 🗣️ Fil langage — trilogie proxy Arc 4 (LANG-001/002/003 ; détail `lang-referential-capability`)
 
 **Les 3 paliers du langage établis EN PROXY synthétique** (hors biosphère, substrat torch, crédit

@@ -68,11 +68,35 @@ comme l'oracle. Défaut 0.0 = comportement inchangé (rétro-compatible, 32 test
   provient de quelque chose de spécifique à la **boucle DAgger** (6 rounds, agrégation on-policy), pas de
   la simple absence de supervision. **Origine de la dérive = OUVERTE.**
 
+> 🛑 **AMENDÉ PAR [[EDR-WARM-006]] — il n'y a jamais eu de dérive.** Le bras de contrôle ci-dessus ne
+> reproduisait pas la panne pour une raison plus simple que « spécifique à DAgger » : l'agent persisté
+> (`agents[0]`, seed 2026) est **NÉ saturé ON** (grab +0.9626, on_frac 1.000 à zéro pas de gradient) et
+> n'a jamais bougé (Δ = −0.011 après 18 000 epochs). Le « OFF → ON » comparait la **moyenne des 12 agents
+> à t=0** (−0.2447) au **réplicat unique agent 0 à t=fin** — une erreur d'unité d'analyse. Le canal libre
+> est distribué par l'**initialisation** (1 saturé sur 12 ici ; 0 à 5 sur 12 selon le seed ; sous seed 7
+> `agents[0]` est saturé **OFF**). Le levier 1 est CLOS comme sans objet.
+> **Ce qui reste valide dans le présent record** : l'ablation causale ×2.06 (12/12, sign_p = 0.00024) —
+> mais **pour cet agent uniquement**. L'**incidence** du phénomène n'a jamais été mesurée.
+
+> 🔬 **AMENDÉ AUSSI PAR [[EDR-WARM-007]] — le phénomène réplique, le MÉCANISME était faux.**
+> Causalité confirmée **bidirectionnellement** (retirer le grab améliore ; le FORCER dégrade 8/8 agents,
+> sign_p = 0.0078) et en forward production. **Mais le puits d'énergie n'est pas le geste** : le grab coûte
+> un one-shot de −1.0 (`world_1_stoneage:1526`), tandis que le vrai coût est la **TAXE DE PORTAGE**
+> (`world_1_stoneage:738-739`, `agent["energy"] -= carry_weight * 0.5`) prélevée **à chaque tick, à vie** —
+> mesurée à 1.66 énergie/agent-tick, soit **~55 % de la marge nette de survie**. Le titre de ce record
+> (« saigne l'énergie ») décrit donc le bon effet par la mauvaise cause : c'est **cumulatif via l'inventaire**,
+> pas per-geste. Conséquence testable et vérifiée : l'ampleur croît avec la durée de vie de base (ρ = −0.83).
+> ⚠️ **Le chiffre ×2.06 n'est PAS répliqué** (génomes à 3000 epochs : médiane des répondeurs 1.69).
+> ⚠️ L'ablation de ce record utilisait l'idiome `logits[24] = -1.0` sur une **VUE de l'état récurrent**
+> (aliasing `backend_torch` ~L144) : son attribution mécaniste n'avait jamais été isolée. WARM-007 l'isole
+> (contrôle sham : l'aliasing seul est **inerte**, ratios 1.035/1.077/0.968), mais pour d'autres génomes.
+
 ## Amendements aux records antérieurs
 Les lectures de **SURVIE** de [[EDR-WARM-001]], [[EDR-WARM-003]] et [[EDR-WARM-004]] doivent être lues avec
 ce facteur : une part ~×2 du déficit de survie est imputable au canal parasite, pas à la cognition. Restent
 INTACTS : les verdicts du marqueur (`PERCEPTION_DEMANDED`, ablation-perception within-subject), le finding
-de [[EDR-WARM-002]] (paysage de fitness plat de l'évolution), et l'accuracy de décision elle-même.
+de [[EDR-WARM-002]] (⚠️ l'**ÉCHEC** de l'évolution W-only reste intact ; son mécanisme « paysage de
+fitness plat » est en revanche **réfuté** par [[EDR-WARM-010]]), et l'accuracy de décision elle-même.
 En particulier, la « dégradation avec la profondeur récurrente » de WARM-004 reste mesurée (10/10,
 sign_p=0.001) — mais son lien causal avec la SURVIE est désormais confondu par ce canal.
 

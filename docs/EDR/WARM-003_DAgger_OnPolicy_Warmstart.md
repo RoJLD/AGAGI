@@ -84,8 +84,9 @@ DAgger étant lent), PAS forcément une « précision aux états critiques » �
 Chaque couche pelée révèle la suivante, toutes contournées par l'oracle (perfection codée) :
 - **Crédit à froid** ne bootstrappe pas (S2-009/010/011).
 - **Imitation-enseignant** n'installe pas de survivant : le substrat imite 1.000 mais l'acc on-policy
-  plafonne 0.73 = **transfert** (WARM-001). L'**évolution W-only** échoue en parallèle : **paysage plat**
-  (WARM-002).
+  plafonne 0.73 = **transfert** (WARM-001). L'**évolution W-only** échoue en parallèle (WARM-002) —
+  ⚠️ échec RÉEL, mais son mécanisme « paysage plat » est **réfuté** par [[EDR-WARM-010]] : c'est
+  l'OPTIMISEUR qui bute, pas le monde qui manque de gradient.
 - **DAgger on-policy** lève la métrique acc_on-policy (→0.99 sur fenêtre survivable) et double la survie
   (35, marqueur 5.04) MAIS plafonne loin de l'oracle — mécanisme résiduel OUVERT (couverture principale vs
   précision), non départagé (WARM-003).

@@ -1,5 +1,29 @@
 # EDR 095 : Le rêve forcé RÉDUIT causalement la survie — le coût est dans l'acte, pas dans la profondeur
 
+> ✅ **INSTRUMENT CALIBRÉ le 2026-07-21 (P2.2) — un bug RÉEL trouvé, et ce record N'EST PAS affecté.**
+>
+> `dose_response_verdict` portait un défaut de classe **E1** : `_paired_ratios` faisait
+> `arm / max(off, 1e-6)` sans condition, donc une paire **doublement ÉTEINTE** (les deux bras à
+> compétence 0) rendait `0.0`, survivait au filtre `r != 1.0`, et comptait comme **DÉFAVORABLE au rêve**.
+> Mesuré avant correctif : deux bras **strictement identiques et éteints** sur 10 seeds rendaient
+> `CAUSE_NUISIBLE, ratio 0.0, sign_p 0.00195`. Le défaut agissait dans les **deux** sens — sur un jeu où
+> le rêve aide dans 4 paires informatives sur 4, six paires éteintes empoisonnaient la médiane
+> (ratio 0.0 au lieu de 1.40) et masquaient le bénéfice.
+>
+> **Pourquoi ce record tient quand même** : ses bras publiés sont `off ∈ [0.113, 0.165]` et forcés
+> `∈ [0.055, 0.090]` — **séparation parfaite, AUCUN zéro**, donc **aucune paire éteinte**. Rejoué sur
+> ces valeurs après correctif : `CAUSE_NUISIBLE, ratio 0.547, sign_p 0.00195` contre `0.543 / 0.00195`
+> publiés. **On ne peut l'affirmer que parce que ce record a publié ses VALEURS ABSOLUES** — ce que
+> S2-009 n'avait pas fait (cf. [[EDR-AUDIT-001]]). C'est l'argument le plus concret en faveur de cette
+> pratique qu'ait produit la passe de calibration.
+>
+> ⚠️ **UNE QUESTION RESTE OUVERTE, et ce record la contient déjà** : il note que le rêve forcé fait
+> passer `n_lived` de ≈74 à ≈1205 (**×16**) « en effet secondaire ». Or `survival_competence` est la
+> **médiane des âges** sur les agents de l'ère : une population 16× plus nombreuse dont la plupart
+> naissent tard a des âges mécaniquement faibles. **La baisse de survie pourrait être un artefact de
+> calendrier de naissance plutôt qu'un coût de survie.** Test décisif non lancé : restreindre la médiane
+> aux agents nés avant un tick donné, ou apparier les cohortes sur la date de naissance.
+
 ## Contexte
 
 EDR 093/094 laissaient un paradoxe non tranché : la population *portant* l'organe MCTS survit ~9 %

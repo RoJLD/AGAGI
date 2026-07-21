@@ -7,7 +7,36 @@ gate: G0
 tests: [SDR-G0]
 adopts: [REF-DEMAND-MARKER]
 foundational: true
+corrected_by: [EDR-AUDIT-001]
 ---
+
+> ⚠️ **DÉRIVATION CORRIGÉE le 2026-07-21 — [[EDR-AUDIT-001]]. Record `foundational`, à lire avec ceci.**
+> **Deux failles dans la démonstration** :
+> 1. **La prémisse « le corps de la biosphère est SUFFISANT » n'a jamais été mesurée.** Dans le jouet,
+>    « corps suffisant » signifie `body_gain > metab` → survie INFINIE, plafond 300/300. Dans la
+>    biosphère, le champion **meurt à 27.5 ticks sur 200** (chiffre de S2-003, ~14 % du cap) : son corps
+>    n'est pas suffisant au sens du théorème. Le transfert est une **analogie**, pas une mesure — classe
+>    **E8** et [[causal-chain-does-not-cross-populations]].
+> 2. **L'exclusion causale « ce n'est ni le substrat ni le crédit » est tirée d'un nul in-world SANS
+>    contrôle positif in-world** — la forme exacte de l'erreur de WARM-002.
+>
+> S'y ajoute l'héritage : les conditions 1 et 3 du « théorème » viennent de cellules de S2-004/005 où le
+> bras de référence est à 300/300 avec `W` **gelé à son initialisation** (voir le bandeau de S2-004).
+>
+> **⚠️ CE QUI N'EST PAS RÉFUTÉ POUR AUTANT** : la conclusion large — la survie et la fitness n'ont pas de
+> contenu cognitif dans la biosphère par défaut — a un appui **INDÉPENDANT** : l'arc cognition-vs-corps,
+> où `champion_body` (génome du champion + actions ALÉATOIRES) survit ~4× le plancher. C'est la
+> **dérivation** de ce record qui est fautive, pas nécessairement son verdict. Réfuter un raisonnement
+> n'est pas réfuter sa conclusion.
+>
+> **⚠️⚠️ AMENDÉ le même jour, après avoir mesuré ce filet de sécurité — [[EDR-S2-012]].** La phrase
+> ci-dessus disait « verdict BODY unanime **5/5 mondes** » : c'est **4 mondes au plus**, car
+> `IndustrialWorld` est un clone de `Biosphere3D` (compteur `pollution` jamais lu par la biologie) et
+> `stoneage` **EST** `Biosphere3D` — l'unanimité comptait deux fois la même simulation. Par ailleurs la
+> moitié « la cognition n'apporte rien » de `champion_body` est elle aussi un **nul in-world sans
+> contrôle positif in-world** — le défaut même qu'elle était censée rattraper ici. **L'appui reste réel
+> dans sa direction, mais il est plus faible qu'annoncé.** *Un filet de sécurité qu'on n'a pas vérifié
+> n'en est pas un.*
 
 ## Synthèse (clôt l'arc « recette » S2-003→004→005)
 S2-003 (négatif) : la survie in-world est corps-driven, sans contenu cognitif → tout test in-world NEUTRE

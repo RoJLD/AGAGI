@@ -24,6 +24,26 @@ Calibration retenue : `base_metabolism=0.75`, `cog_gain=12.0`, seed=2026, 12 age
 
 ## Résultats
 
+> ⚠️ **CONTRÔLE NÉGATIF CORRIGÉ le 2026-07-21 — [[EDR-AUDIT-001]] (calibration P2.10).** Ce record ne
+> publiait que des **ratios, aucune valeur absolue**. Re-mesuré au régime publié (metab=0.75, cog=12.0,
+> seed 2026, K=12) :
+>
+> | mode | intact | ablé | ratio | statut |
+> |---|---|---|---|---|
+> | **ON** | **200.0** | **9.0** | **22.22** | ✅ **CONFIRMÉ** — `X_DEMANDED`, amplitude réelle, non dégénéré |
+> | **OFF** | **7.0** | **7.0** | 1.00 | ❌ **DÉGÉNÉRÉ** — bras **bit à bit identiques sur les 12 ères** |
+>
+> **Le bras ON tient, et c'est lui qui porte le verdict.** Mais la ligne OFF est un **no-op LITTÉRAL** :
+> en mode OFF, `forage_payoff = 0` et aucune nourriture cognitive → tout le monde meurt à ~7 ticks quoi
+> qu'il fasse. Le ratio 1.00 ne montre donc pas « le marqueur reste inerte quand la perception ne paie
+> pas », mais « le marqueur rend 1.00 quand la métrique est morte ». Un vrai contrôle négatif exige un
+> monde où les agents **SURVIVENT** et où la perception ne paie pas.
+>
+> **Portée stricte** : la **spécificité du marqueur est établie AILLEURS**, par des bras où les agents
+> vivent et le ratio vaut 1.0 — S2-001 (monde TRIVIAL), LANG-006 (MI 0.000), MEM-001. C'est **cette
+> ligne** qui ne la démontre pas, pas la propriété. Le verdict `COGNITIVE_DEMAND_RECIPE_REALIZED_INWORLD`
+> n'est pas remis en cause. `ablation_verdict` rendrait aujourd'hui `INCONCLUSIVE_DEGENERATE` sur OFF.
+
 | mode | ratio (survie intact / ablé) | verdict |
 |---|---|---|
 | **ON** (cognitive_demand) | **21.05** | **PERCEPTION_DEMANDED** (n=12) |

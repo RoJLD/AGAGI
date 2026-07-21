@@ -6,7 +6,21 @@ status: active
 gate: G0
 tests: [SDR-G0]
 adopts: [REF-DEMAND-MARKER]
+corrected_by: [EDR-AUDIT-001]
 ---
+
+> ⚠️ **CONDITIONS DE NÉCESSITÉ CORRIGÉES le 2026-07-21 — [[EDR-AUDIT-001]].**
+> **Ce qui TIENT** : la cellule POSITIVE (corps INSUFFISANT + énergie, ratio 10.71, `|W|obs = 0.931`)
+> est un contrôle positif réellement exécuté, avec un W authentiquement entraîné. La **suffisance** des
+> conditions est établie.
+> **Ce qui NE TIENT PAS** : les 3 cellules NULLES sont des **no-op de construction**, pas des mesures.
+> `fit_policy` part de `W = zeros` et n'accepte qu'en `sc > best` STRICT ; quand `score(W=0)` atteint
+> déjà le cap, **W ne quitte jamais son initialisation** — mesuré `|W| = 0.0000` exact dans 3 cellules
+> sur 4. Avec `W = 0`, `argmax(0·o) = 0` quelle que soit l'obs : la politique est CONSTANTE, ablater
+> l'obs est un no-op littéral, et le `ratio 1.00` est une **identité**.
+> **Le corroborant est void** : « `|W|obs = 0.000` EXACT partout ailleurs », présenté comme second
+> témoin indépendant, est **le zéro de départ** — l'optimiseur n'a jamais accepté un pas. La conclusion
+> paraissait doublement étayée ; les deux témoins sortaient du même no-op.
 
 ## Question
 S2-003 (+ s2-cognition-body sur main) : la survie in-world est perception-NEUTRE / corps-driven — la
