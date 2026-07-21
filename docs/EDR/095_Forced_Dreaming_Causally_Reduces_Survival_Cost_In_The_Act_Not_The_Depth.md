@@ -17,12 +17,34 @@
 > S2-009 n'avait pas fait (cf. [[EDR-AUDIT-001]]). C'est l'argument le plus concret en faveur de cette
 > pratique qu'ait produit la passe de calibration.
 >
-> ⚠️ **UNE QUESTION RESTE OUVERTE, et ce record la contient déjà** : il note que le rêve forcé fait
-> passer `n_lived` de ≈74 à ≈1205 (**×16**) « en effet secondaire ». Or `survival_competence` est la
-> **médiane des âges** sur les agents de l'ère : une population 16× plus nombreuse dont la plupart
-> naissent tard a des âges mécaniquement faibles. **La baisse de survie pourrait être un artefact de
-> calendrier de naissance plutôt qu'un coût de survie.** Test décisif non lancé : restreindre la médiane
-> aux agents nés avant un tick donné, ou apparier les cohortes sur la date de naissance.
+> ## ❌ VERDICT PRINCIPAL RÉFUTÉ le 2026-07-21 — [[EDR-DREAM-001]]
+>
+> **L'indice était dans ce record même**, en note de bas de page : il mesure et publie que le rêve forcé
+> fait passer `n_lived` de ≈74 à ≈1205 (**×16**), qualifié d'« effet secondaire notable (calibration) ».
+> Or `survival_competence` est la **médiane des âges sur les agents de l'ère** — une statistique de
+> POPULATION. Une population 16× plus nombreuse a la plupart de ses membres nés tard, donc des âges
+> mécaniquement faibles.
+>
+> Mesuré (12 seeds, cohorte fondatrice marquée par IDENTITÉ, 25 vs 25 dans chaque cellule) :
+>
+> | métrique | off | K=8 | ratio | K8 > off | `sign_p` |
+> |---|---|---|---|---|---|
+> | **TOUS** *(la métrique de ce record)* | 29.0 | 13.0 | **0.448** | 0/12 | 0.0005 |
+> | **FONDATEURS** *(apparié)* | 35.5 | 54.5 | **1.535** | **8/12** | 0.3877 |
+>
+> `n_lived` : off 56 / K=8 756 → **×13.4**.
+>
+> **Le chiffre de ce record se reproduit exactement** — ce n'était pas une erreur de mesure, mais une
+> mesure juste d'une grandeur CONFONDUE. Sur des agents comparables, la pénalité de ~45 % **n'existe
+> pas** : si le vrai ratio valait 0.448, on attendrait ~0/12 favorables à K=8 ; on en observe 8/12.
+>
+> **CE QUI TIENT** : le hook `FORCE_DREAM` marche, l'intervention s'applique, et forcer le rêve a un
+> effet massif et reproductible sur la **DÉMOGRAPHIE**. C'est un vrai résultat — pas celui revendiqué.
+> **CE QUI TOMBE** : « le rêve forcé coûte la survie », le palier de la courbe `ratios_par_K`, et la
+> conclusion « planifier est un luxe au plancher de compétence ». À réexaminer : ce que ce record en
+> déduisait sur l'organe MCTS comme levier (EDR-014).
+> **NON TRANCHÉ** : l'effet réel du rêve sur des agents comparables (8/12 penche positif sans le
+> démontrer).
 
 ## Contexte
 

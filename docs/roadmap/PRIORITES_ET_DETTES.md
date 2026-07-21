@@ -131,7 +131,27 @@ comptait **contre le rêve**. Avant correctif, deux bras **strictement identique
 - 5 cas de calibration, dont le **générateur A** (l'instrument peut-il rendre LES DEUX issues ? — non
   établi jusqu'ici ; vérifié). **Cliquet : 80 détectés, 7 calibrés.**
 
-**P2.12 — Confond `n_lived` d'EDR-095** *(nouveau, non tranché)*. Le record note lui-même que le rêve
+**P2.12 — ✅ FAIT (2026-07-21) — EDR-095 est RÉFUTÉ dans son verdict principal.**
+Résultat gravé : **[EDR-DREAM-001](../EDR/DREAM-001_Forced_Dreaming_Harm_Is_A_Birth_Flood_Artifact_Effect_Absent_On_Matched_Cohort.md)**.
+Cohorte fondatrice marquée par IDENTITÉ dans `run_era_organ`, 12 seeds, 25 vs 25 par cellule :
+
+| métrique | off | K=8 | ratio | K8>off | `sign_p` |
+|---|---|---|---|---|---|
+| TOUS *(publiée)* | 29.0 | 13.0 | **0.448** | 0/12 | 0.0005 |
+| FONDATEURS *(apparié)* | 35.5 | 54.5 | **1.535** | **8/12** | 0.3877 |
+
+`n_lived` : off 56 / K=8 756 → **×13.4**. Le chiffre publié **se reproduit exactement** : mesure juste
+d'une grandeur CONFONDUE, pas erreur de mesure. Sur agents comparables, la pénalité de ~45 % **n'existe
+pas** — si le vrai ratio valait 0.448 on attendrait ~0/12 favorables à K=8, on en observe 8/12.
+- ⚠️ **Une première correction REJETÉE par moi avant publication** : « les N plus vieux » est biaisé
+  (top 26 % vs top **1,6 %** — sélection sur la variable de sortie à quantiles incomparables). Elle
+  rendait 1.339 et aurait donné un titre inverse tout aussi faux.
+- ⚠️ `sign_p = 0.39` n'établit PAS l'effet inverse, et le record ne l'affirme pas. Il établit l'ABSENCE
+  de l'effet publié — une question différente, et décidable à ce n.
+- **Nouvelle classe E15** au registre : statistique de population comparée entre populations de
+  compositions différentes. **Aucune garde de borne ne voit ça** (aucun bras au plancher/plafond).
+
+*(entrée d'origine)* — Confond `n_lived` d'EDR-095 *(non tranché)*. Le record note lui-même que le rêve
 forcé fait passer `n_lived` de ≈74 à ≈1205 (**×16**), en « effet secondaire ». Or `survival_competence`
 est la **médiane des âges** sur les agents de l'ère : une population 16× plus nombreuse dont la plupart
 naissent tard a des âges mécaniquement faibles. **La baisse de survie pourrait être un artefact de
