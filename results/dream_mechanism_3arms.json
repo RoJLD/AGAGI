@@ -1,0 +1,484 @@
+{
+  "rows": [
+    {
+      "seed": 0,
+      "off": {
+        "n_lived": 96,
+        "med_founder_age": 38.0,
+        "altars": 0,
+        "spears": 3,
+        "preys": 176,
+        "dreams": 0
+      },
+      "dream8": {
+        "n_lived": 1588,
+        "med_founder_age": 18.0,
+        "altars": 0,
+        "spears": 1,
+        "preys": 386,
+        "dreams": 213896
+      },
+      "sham8": {
+        "n_lived": 1532,
+        "med_founder_age": 61.0,
+        "altars": 0,
+        "spears": 1,
+        "preys": 370,
+        "dreams": 224144
+      }
+    },
+    {
+      "seed": 1,
+      "off": {
+        "n_lived": 56,
+        "med_founder_age": 48.0,
+        "altars": 0,
+        "spears": 1,
+        "preys": 84,
+        "dreams": 0
+      },
+      "dream8": {
+        "n_lived": 1088,
+        "med_founder_age": 58.0,
+        "altars": 0,
+        "spears": 1,
+        "preys": 279,
+        "dreams": 150424
+      },
+      "sham8": {
+        "n_lived": 802,
+        "med_founder_age": 53.0,
+        "altars": 0,
+        "spears": 2,
+        "preys": 290,
+        "dreams": 110144
+      }
+    },
+    {
+      "seed": 2,
+      "off": {
+        "n_lived": 41,
+        "med_founder_age": 22.0,
+        "altars": 0,
+        "spears": 1,
+        "preys": 40,
+        "dreams": 0
+      },
+      "dream8": {
+        "n_lived": 1338,
+        "med_founder_age": 75.0,
+        "altars": 0,
+        "spears": 0,
+        "preys": 304,
+        "dreams": 196464
+      },
+      "sham8": {
+        "n_lived": 1077,
+        "med_founder_age": 80.0,
+        "altars": 0,
+        "spears": 2,
+        "preys": 308,
+        "dreams": 155720
+      }
+    },
+    {
+      "seed": 3,
+      "off": {
+        "n_lived": 69,
+        "med_founder_age": 29.0,
+        "altars": 0,
+        "spears": 0,
+        "preys": 81,
+        "dreams": 0
+      },
+      "dream8": {
+        "n_lived": 1592,
+        "med_founder_age": 69.0,
+        "altars": 0,
+        "spears": 0,
+        "preys": 342,
+        "dreams": 227704
+      },
+      "sham8": {
+        "n_lived": 1547,
+        "med_founder_age": 55.0,
+        "altars": 0,
+        "spears": 0,
+        "preys": 361,
+        "dreams": 236320
+      }
+    },
+    {
+      "seed": 4,
+      "off": {
+        "n_lived": 103,
+        "med_founder_age": 36.0,
+        "altars": 0,
+        "spears": 0,
+        "preys": 166,
+        "dreams": 0
+      },
+      "dream8": {
+        "n_lived": 1151,
+        "med_founder_age": 70.0,
+        "altars": 0,
+        "spears": 0,
+        "preys": 305,
+        "dreams": 158416
+      },
+      "sham8": {
+        "n_lived": 2100,
+        "med_founder_age": 56.0,
+        "altars": 0,
+        "spears": 0,
+        "preys": 372,
+        "dreams": 297776
+      }
+    },
+    {
+      "seed": 5,
+      "off": {
+        "n_lived": 68,
+        "med_founder_age": 29.0,
+        "altars": 0,
+        "spears": 1,
+        "preys": 82,
+        "dreams": 0
+      },
+      "dream8": {
+        "n_lived": 423,
+        "med_founder_age": 46.0,
+        "altars": 0,
+        "spears": 0,
+        "preys": 160,
+        "dreams": 66144
+      },
+      "sham8": {
+        "n_lived": 1037,
+        "med_founder_age": 51.0,
+        "altars": 0,
+        "spears": 0,
+        "preys": 291,
+        "dreams": 148200
+      }
+    },
+    {
+      "seed": 6,
+      "off": {
+        "n_lived": 44,
+        "med_founder_age": 44.0,
+        "altars": 0,
+        "spears": 1,
+        "preys": 46,
+        "dreams": 0
+      },
+      "dream8": {
+        "n_lived": 649,
+        "med_founder_age": 51.0,
+        "altars": 0,
+        "spears": 1,
+        "preys": 186,
+        "dreams": 98016
+      },
+      "sham8": {
+        "n_lived": 1886,
+        "med_founder_age": 74.0,
+        "altars": 0,
+        "spears": 0,
+        "preys": 377,
+        "dreams": 276592
+      }
+    },
+    {
+      "seed": 7,
+      "off": {
+        "n_lived": 57,
+        "med_founder_age": 35.0,
+        "altars": 0,
+        "spears": 6,
+        "preys": 69,
+        "dreams": 0
+      },
+      "dream8": {
+        "n_lived": 103,
+        "med_founder_age": 22.0,
+        "altars": 0,
+        "spears": 0,
+        "preys": 82,
+        "dreams": 11392
+      },
+      "sham8": {
+        "n_lived": 66,
+        "med_founder_age": 16.0,
+        "altars": 0,
+        "spears": 0,
+        "preys": 34,
+        "dreams": 9216
+      }
+    },
+    {
+      "seed": 8,
+      "off": {
+        "n_lived": 38,
+        "med_founder_age": 40.0,
+        "altars": 0,
+        "spears": 1,
+        "preys": 24,
+        "dreams": 0
+      },
+      "dream8": {
+        "n_lived": 95,
+        "med_founder_age": 21.0,
+        "altars": 0,
+        "spears": 0,
+        "preys": 82,
+        "dreams": 14056
+      },
+      "sham8": {
+        "n_lived": 919,
+        "med_founder_age": 49.0,
+        "altars": 0,
+        "spears": 1,
+        "preys": 166,
+        "dreams": 139936
+      }
+    },
+    {
+      "seed": 9,
+      "off": {
+        "n_lived": 58,
+        "med_founder_age": 30.0,
+        "altars": 0,
+        "spears": 1,
+        "preys": 66,
+        "dreams": 0
+      },
+      "dream8": {
+        "n_lived": 169,
+        "med_founder_age": 15.0,
+        "altars": 0,
+        "spears": 0,
+        "preys": 111,
+        "dreams": 26592
+      },
+      "sham8": {
+        "n_lived": 490,
+        "med_founder_age": 16.0,
+        "altars": 0,
+        "spears": 0,
+        "preys": 221,
+        "dreams": 58432
+      }
+    },
+    {
+      "seed": 10,
+      "off": {
+        "n_lived": 45,
+        "med_founder_age": 46.0,
+        "altars": 0,
+        "spears": 1,
+        "preys": 77,
+        "dreams": 0
+      },
+      "dream8": {
+        "n_lived": 843,
+        "med_founder_age": 80.0,
+        "altars": 0,
+        "spears": 2,
+        "preys": 285,
+        "dreams": 122280
+      },
+      "sham8": {
+        "n_lived": 1403,
+        "med_founder_age": 80.0,
+        "altars": 0,
+        "spears": 0,
+        "preys": 308,
+        "dreams": 188728
+      }
+    },
+    {
+      "seed": 11,
+      "off": {
+        "n_lived": 53,
+        "med_founder_age": 29.0,
+        "altars": 0,
+        "spears": 1,
+        "preys": 51,
+        "dreams": 0
+      },
+      "dream8": {
+        "n_lived": 669,
+        "med_founder_age": 66.0,
+        "altars": 0,
+        "spears": 3,
+        "preys": 221,
+        "dreams": 90504
+      },
+      "sham8": {
+        "n_lived": 891,
+        "med_founder_age": 80.0,
+        "altars": 0,
+        "spears": 0,
+        "preys": 217,
+        "dreams": 134408
+      }
+    }
+  ],
+  "config": {
+    "seeds": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "agents": 25,
+    "ticks": 80,
+    "K": 8
+  },
+  "cmp": {
+    "med_founder_age:off->dream8": {
+      "med_a": 35.5,
+      "med_b": 54.5,
+      "ratio": 1.5352112676056338,
+      "fav": 8,
+      "n": 12,
+      "sign_p": 0.3876953125,
+      "wilcoxon_p": 0.14670764206619946
+    },
+    "med_founder_age:off->sham8": {
+      "med_a": 35.5,
+      "med_b": 55.5,
+      "ratio": 1.5633802816901408,
+      "fav": 10,
+      "n": 12,
+      "sign_p": 0.03857421875,
+      "wilcoxon_p": 0.01347119701821331
+    },
+    "med_founder_age:sham8->dream8": {
+      "med_a": 55.5,
+      "med_b": 54.5,
+      "ratio": 0.9819819819819819,
+      "fav": 4,
+      "n": 12,
+      "sign_p": 0.548828125,
+      "wilcoxon_p": 0.35052890898233313
+    },
+    "n_lived:off->dream8": {
+      "med_a": 56.5,
+      "med_b": 756.0,
+      "ratio": 13.380530973451327,
+      "fav": 12,
+      "n": 12,
+      "sign_p": 0.00048828125,
+      "wilcoxon_p": 0.0025261742685023236
+    },
+    "n_lived:off->sham8": {
+      "med_a": 56.5,
+      "med_b": 1057.0,
+      "ratio": 18.707964601769913,
+      "fav": 12,
+      "n": 12,
+      "sign_p": 0.00048828125,
+      "wilcoxon_p": 0.0025261742685023236
+    },
+    "n_lived:sham8->dream8": {
+      "med_a": 1057.0,
+      "med_b": 756.0,
+      "ratio": 0.7152317880794702,
+      "fav": 5,
+      "n": 12,
+      "sign_p": 0.7744140625,
+      "wilcoxon_p": 0.09168053014599131
+    },
+    "altars:off->dream8": {
+      "med_a": 0.0,
+      "med_b": 0.0,
+      "ratio": 0.0,
+      "fav": 0,
+      "n": 12,
+      "sign_p": 1.0,
+      "wilcoxon_p": 1.0
+    },
+    "altars:off->sham8": {
+      "med_a": 0.0,
+      "med_b": 0.0,
+      "ratio": 0.0,
+      "fav": 0,
+      "n": 12,
+      "sign_p": 1.0,
+      "wilcoxon_p": 1.0
+    },
+    "altars:sham8->dream8": {
+      "med_a": 0.0,
+      "med_b": 0.0,
+      "ratio": 0.0,
+      "fav": 0,
+      "n": 12,
+      "sign_p": 1.0,
+      "wilcoxon_p": 1.0
+    },
+    "spears:off->dream8": {
+      "med_a": 1.0,
+      "med_b": 0.0,
+      "ratio": 0.0,
+      "fav": 2,
+      "n": 12,
+      "sign_p": 0.2890625,
+      "wilcoxon_p": 0.2626182904425205
+    },
+    "spears:off->sham8": {
+      "med_a": 1.0,
+      "med_b": 0.0,
+      "ratio": 0.0,
+      "fav": 2,
+      "n": 12,
+      "sign_p": 0.1796875,
+      "wilcoxon_p": 0.09720108830623486
+    },
+    "spears:sham8->dream8": {
+      "med_a": 0.0,
+      "med_b": 0.0,
+      "ratio": 0.0,
+      "fav": 3,
+      "n": 12,
+      "sign_p": 1.0,
+      "wilcoxon_p": 0.7531523647659146
+    },
+    "preys:off->dream8": {
+      "med_a": 73.0,
+      "med_b": 250.0,
+      "ratio": 3.4246575342465753,
+      "fav": 12,
+      "n": 12,
+      "sign_p": 0.00048828125,
+      "wilcoxon_p": 0.0025261742685023236
+    },
+    "preys:off->sham8": {
+      "med_a": 73.0,
+      "med_b": 299.5,
+      "ratio": 4.102739726027397,
+      "fav": 11,
+      "n": 12,
+      "sign_p": 0.00634765625,
+      "wilcoxon_p": 0.003263716901670266
+    },
+    "preys:sham8->dream8": {
+      "med_a": 299.5,
+      "med_b": 250.0,
+      "ratio": 0.8347245409015025,
+      "fav": 3,
+      "n": 12,
+      "sign_p": 0.14599609375,
+      "wilcoxon_p": 0.041389404009149366
+    }
+  }
+}

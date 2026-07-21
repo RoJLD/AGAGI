@@ -113,8 +113,14 @@ def run_era_organ(target: str, seed: int, organ_fraction: float, metab: float, p
     # (vivants + morts). Le signal de sélection est la prévalence de l'organe parmi tous (reproduction
     # différentielle) + l'âge-à-la-mort ; PAS la prévalence des survivants (vide sous extinction).
     all_agents = list(env.agents) + list(getattr(env, "dead_agents", []))
+    # `altars_solved` / `spears_crafted` = les métriques d'EXPLORATION d'EDR-014 (couche 2), exposées
+    # ici pour tester directement la thèse dont EDR-095 rejetait le levier — un rejet lui-même réfuté
+    # par EDR-DREAM-001. Elles étaient déjà portées par l'agent, jamais remontées par cette sonde.
     out = [{"age": a.get("age", 0), "total_dreams": a.get("total_dreams", 0),
-            "has_organ": _has_organ(a), "founder": bool(a.get("_founder", False))}
+            "has_organ": _has_organ(a), "founder": bool(a.get("_founder", False)),
+            "altars_solved": int(a.get("altars_solved", 0) or 0),
+            "spears_crafted": int(a.get("spears_crafted", 0) or 0),
+            "preys_eaten": int(a.get("preys_eaten", 0) or 0)}
            for a in all_agents]
     if hasattr(env, "memory_retriever"):
         env.memory_retriever.stop()

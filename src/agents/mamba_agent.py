@@ -310,6 +310,14 @@ class MambaBatchModel:
     METABOLIC_ACTIVE_EPS = 0.1  # NAS Axe D-1 : seuil |H_i|>eps pour compter un nœud "actif"
     KWTA_KEEP_FRAC = 1.0        # NAS Axe D-2 : fraction de cachés gardés actifs (1.0 = off)
     FORCE_DREAM = None          # intervention causale (EDR 094) : None|"off"|int K (profondeur forcée)
+    DREAM_SHAM = False          # RÊVE FACTICE (EDR-DREAM-002, défaut OFF = prod inchangée).
+    # Le rêve fait DEUX choses simultanément : il BRUITE l'état caché sur K branches, et il GARDE la
+    # meilleure au sens du logit de valeur (28). Ces deux ingrédients sont séparables. En mode factice,
+    # on explore exactement les mêmes K branches, avec le même bruit et le même coût de calcul, mais on
+    # en garde une AU HASARD (échantillonnage par réservoir) au lieu de la meilleure.
+    # C'est l'ablation WITHIN-subject du MÉCANISME : si le bénéfice mesuré par EDR-DREAM-001 (+77 % de
+    # survie, reproduction ×15.7) vient de la SÉLECTION-PAR-VALEUR, le factice doit retomber sur `off` ;
+    # s'il vient de l'exploration bruitée de H, le factice doit le reproduire.
 
     # NAS Axe 3 — Planificateur latent (activation du dreaming). Défaut OFF (non-régressif).
     PLAN_BIAS = 0.0   # poids du biais des logits d'action par le plan (0 = planificateur désactivé)
@@ -594,7 +602,15 @@ class MambaBatchModel:
                     # Le logit 28 est au décalage N_i - O_i + 28
                     val_idx = map_idx[N_i - O_i + 28]
                     val = float(H_branch[i, val_idx])
-                    if np.isfinite(val) and val > best_value[i]:
+                    if type(self).DREAM_SHAM:
+                        # Réservoir : garde la branche k avec proba 1/(k+1) -> branche UNIFORME parmi
+                        # celles explorées. Même bruit, même nombre de branches, même compute_spent —
+                        # seule la SÉLECTION change. Le logit de valeur est quand même lu (coût
+                        # identique) pour que les deux bras ne diffèrent que par le critère.
+                        if np.random.rand() < 1.0 / (k + 1):
+                            best_value[i] = val
+                            best_H[i] = H_branch[i]
+                    elif np.isfinite(val) and val > best_value[i]:
                         best_value[i] = val
                         best_H[i] = H_branch[i]
                     compute_spent[i] += 1.0
