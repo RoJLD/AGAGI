@@ -25,26 +25,29 @@
 > POPULATION. Une population 16× plus nombreuse a la plupart de ses membres nés tard, donc des âges
 > mécaniquement faibles.
 >
-> Mesuré (12 seeds, cohorte fondatrice marquée par IDENTITÉ, 25 vs 25 dans chaque cellule) :
+> Mesuré (**20 seeds**, cohorte fondatrice marquée par IDENTITÉ, 25 vs 25 par cellule ; artefact
+> `results/dream_founder_matched_n20.json`) :
 >
-> | métrique | off | K=8 | ratio | K8 > off | `sign_p` |
-> |---|---|---|---|---|---|
-> | **TOUS** *(la métrique de ce record)* | 29.0 | 13.0 | **0.448** | 0/12 | 0.0005 |
-> | **FONDATEURS** *(apparié)* | 35.5 | 54.5 | **1.535** | **8/12** | 0.3877 |
->
-> `n_lived` : off 56 / K=8 756 → **×13.4**.
+> | métrique | off | K=8 | ratio | K8 > off | `sign_p` | `wilcoxon_p` |
+> |---|---|---|---|---|---|---|
+> | `n_lived` | 57.0 | 895.0 | **15.70** | 20/20 | 0.0000 | 0.0001 |
+> | **TOUS** *(la métrique de ce record)* | 28.5 | 13.0 | **0.456** | 0/20 | 0.0000 | 0.0001 |
+> | **FONDATEURS** *(apparié)* | 32.0 | **56.5** | **1.766** | **15/20** | **0.0414** | **0.0085** |
 >
 > **Le chiffre de ce record se reproduit exactement** — ce n'était pas une erreur de mesure, mais une
-> mesure juste d'une grandeur CONFONDUE. Sur des agents comparables, la pénalité de ~45 % **n'existe
-> pas** : si le vrai ratio valait 0.448, on attendrait ~0/12 favorables à K=8 ; on en observe 8/12.
+> mesure juste d'une grandeur CONFONDUE. Et le **SIGNE est inversé** : sur des agents comparables, le
+> rêve forcé **AUGMENTE** la survie de **+77 %** au lieu de la réduire de 45 %.
 >
 > **CE QUI TIENT** : le hook `FORCE_DREAM` marche, l'intervention s'applique, et forcer le rêve a un
-> effet massif et reproductible sur la **DÉMOGRAPHIE**. C'est un vrai résultat — pas celui revendiqué.
-> **CE QUI TOMBE** : « le rêve forcé coûte la survie », le palier de la courbe `ratios_par_K`, et la
-> conclusion « planifier est un luxe au plancher de compétence ». À réexaminer : ce que ce record en
-> déduisait sur l'organe MCTS comme levier (EDR-014).
-> **NON TRANCHÉ** : l'effet réel du rêve sur des agents comparables (8/12 penche positif sans le
-> démontrer).
+> effet massif et reproductible sur la **DÉMOGRAPHIE** (×15.7, 20/20). C'est un vrai résultat — pas
+> celui revendiqué.
+> **CE QUI TOMBE, ET S'INVERSE** : « le rêve forcé coûte la survie » (il la fait **gagner** +77 %), le
+> palier de la courbe `ratios_par_K` (lecture de la même grandeur confondue), et la conclusion
+> « planifier est un luxe non payable au plancher de compétence » — **planifier PAIE**.
+> ⚠️ **CE QUI RESTE OUVERT** : ce record déduisait de son coût de survie que l'organe MCTS n'est pas
+> un levier d'exploration (approche A, EDR-014). **Le motif du rejet est réfuté et inversé, donc le
+> verrou saute — mais « le rêve améliore la survie » n'est PAS « le rêve débloque l'exploration ».**
+> La thèse d'EDR-014 reste à tester ; ne pas remplacer un verdict non mesuré par un autre.
 
 ## Contexte
 

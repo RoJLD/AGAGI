@@ -1,7 +1,7 @@
 ---
 id: EDR-DREAM-001
 type: EDR
-title: "Le « rêve forcé réduit causalement la survie » (EDR-095) est un artefact d'AFFLUX DE NAISSANCES : l'effet publié est ABSENT sur cohorte appariée (8/12 dans l'autre sens)"
+title: "Le « rêve forcé réduit causalement la survie » (EDR-095) est un artefact d'AFFLUX DE NAISSANCES — et le SIGNE est inversé : sur cohorte appariée le rêve AUGMENTE la survie de +77 % (15/20, wilcoxon_p 0.0085)"
 status: active
 gate: G0
 tests: [SDR-G0]
@@ -31,7 +31,31 @@ chaque cellule). 12 seeds, `stoneage`, 25 agents, 80 ticks, organe ON, bras `off
 > quantiles incomparables, qui favorise mécaniquement le bras le plus peuplé (elle rendait 1.339).
 > Seule l'identité permet un appariement honnête.
 
-## Résultats (12 seeds)
+## Résultats — VERDICT au n complet (20 seeds, artefact `results/dream_founder_matched_n20.json`)
+
+| métrique | off | K=8 | ratio | favorables | `sign_p` | `wilcoxon_p` |
+|---|---|---|---|---|---|---|
+| `n_lived` | 57.0 | 895.0 | **15.70** | 20/20 | 0.0000 | 0.0001 |
+| **TOUS** *(la métrique publiée)* | 28.5 | 13.0 | **0.456** | 0/20 | 0.0000 | 0.0001 |
+| **FONDATEURS** *(apparié 25/25)* | 32.0 | **56.5** | **1.766** | **15/20** | **0.0414** | **0.0085** |
+
+**Le SIGNE est inversé, et l'inversion est significative.** EDR-095 publiait « le rêve forcé RÉDUIT la
+survie de ~45 % » ; sur des agents comparables, il l'**AUGMENTE de +77 %**, aux deux tests. Le confond
+ne masquait pas l'effet : il en **retournait le signe**.
+
+Le Wilcoxon (0.0085) est nettement plus net que le test de signe (0.0414) — précisément parce que les
+écarts sont larges. Le signe seul, qui jette l'amplitude, laissait le résultat sous-puissant à n=12
+(8/12, 0.39) ; c'était le mauvais outil, pas un manque de données.
+
+**Les deux axes convergent** : les fondateurs vivent plus longtemps ET se reproduisent 15.7× plus,
+sur 20 seeds sur 20. Ce n'est donc pas un cycle mort-remplacement, c'est un avantage reproductif.
+
+> **Objection traitée** : les fondateurs du bras K=8 vivent dans un monde à 895 agents contre 57 —
+> l'environnement diffère. Mais c'est une **conséquence de l'intervention**, pas un confond : mêmes
+> seeds, même monde, mêmes agents initiaux, seul `FORCE_DREAM` change. La chaîne « forcer le rêve →
+> fondateurs plus vieux » est correctement estimée.
+
+## Résultats intermédiaires (12 seeds — conservés pour la traçabilité)
 
 `n_lived` : **off = 56, K=8 = 756 → ×13.4** (confond confirmé au n complet).
 
@@ -45,15 +69,18 @@ au plancher). Ce n'était donc pas une erreur de mesure : c'était une **mesure 
 confondue**.
 
 ## Verdict
-**`FORCED_DREAMING_HARM_IS_A_BIRTH_FLOOD_ARTIFACT__EFFECT_ABSENT_ON_MATCHED_COHORT`**
+**`FORCED_DREAMING_HELPS__PUBLISHED_HARM_WAS_A_BIRTH_FLOOD_ARTIFACT_WITH_INVERTED_SIGN`**
 
-Sur des agents comparables, la pénalité de ~45 % **n'existe pas**.
+Sur des agents comparables, le rêve forcé **AUGMENTE** la survie des fondateurs de **+77 %**
+(32.0 → 56.5 ; 15/20 seeds ; `sign_p` 0.0414, `wilcoxon_p` 0.0085). La pénalité publiée de ~45 %
+était l'ombre d'un afflux de naissances (`n_lived` ×15.7, 20/20 seeds).
 
-**L'argument de puissance, qui est le cœur du verdict.** `sign_p = 0.39` ne permet PAS d'affirmer un
-effet inverse — et ce record ne l'affirme pas. Mais la question qui décide n'est pas « y a-t-il un
-effet ? », c'est « **l'effet PUBLIÉ est-il là ?** ». Si le vrai ratio valait 0.448 sur les fondateurs, on
-attendrait ~0/12 seeds favorables à K=8. On en observe **8/12**. Un effet de −55 % aurait été trivialement
-détectable à ce n — il est absent. C'est une réfutation de la CLAIM, pas une démonstration de son inverse.
+**Ce que la montée en puissance a changé — et la leçon qu'elle porte.** À n=12 avec le seul test de
+SIGNE, le résultat était 8/12, `sign_p` 0.39 : je n'ai alors affirmé que l'ABSENCE de l'effet publié
+(argument de puissance : si le ratio valait 0.448, on attendrait ~0/12 favorables). C'était le verdict
+correct **avec cet outil**. Le test de signe **jette l'amplitude** ; or les écarts étaient massifs. Avec
+Wilcoxon signé — celui qu'emploie `_compare` pour tout le fil S2 — l'inversion devient significative.
+*Le résultat n'attendait pas plus de données, il attendait la bonne statistique.*
 
 ## Portée & limites
 - **Ce qui TIENT d'EDR-095** : le hook `FORCE_DREAM` fonctionne, l'intervention s'applique, et forcer le
@@ -62,11 +89,18 @@ détectable à ce n — il est absent. C'est une réfutation de la CLAIM, pas un
 - **Ce qui TOMBE** : « le rêve forcé **coûte** la survie », et avec lui la conclusion « au plancher de
   compétence, planifier est un luxe ». La courbe `ratios_par_K` (0.613 → 0.522 → 0.543), lue comme un
   « palier », est une lecture de la même grandeur confondue.
-- **Non tranché** : l'effet réel du rêve sur la survie d'agents comparables. 8/12 penche positif sans le
-  démontrer. Un verdict exigerait plus de seeds — mais ce record n'en a pas besoin pour établir que
-  l'effet publié n'est pas là.
-- **Non retesté** : l'affirmation d'EDR-095 sur l'organe MCTS comme levier (EDR-014) reposait sur ce
-  coût de survie ; elle est à réexaminer.
+- ✅ **TRANCHÉ à n=20** : le rêve forcé aide (+77 %, `wilcoxon_p` 0.0085). L'inversion est établie, pas
+  seulement l'absence de la pénalité.
+- ⚠️ **CE QUI RESTE OUVERT, et il ne faut pas le sur-lire** : ce record mesure la **SURVIE**, pas
+  l'**EXPLORATION**. L'approche A d'EDR-014 posait que l'organe MCTS débloque les autels / la couche 2.
+  EDR-095 la rejetait au motif que « planifier est un luxe non payable au plancher de compétence » — ce
+  motif est maintenant **réfuté et inversé** : planifier PAIE. Mais « le rêve améliore la survie » n'est
+  pas « le rêve débloque l'exploration ». **Le VERROU du rejet saute ; la thèse d'origine reste à
+  tester.** Ne pas remplacer un verdict non mesuré par un autre.
+- **Mécanisme non élucidé** : pourquoi forcer le rêve multiplie-t-il la reproduction par 15.7 ? L'effet
+  est énorme et parfaitement reproductible (20/20) — c'est la piste la plus accessible du fil.
+- **Borné au régime mesuré** : `stoneage`, organe ON 100 %, sweet spot (metab 0.25 / payoff 3.0),
+  25 agents, 80 ticks, K=8. EDR-095 assumait déjà le caveat des ères courtes.
 
 ## Leçons (registre des erreurs)
 * **Classe E3 sous une forme neuve — la métrique n'est pas dégénérée, elle est CONFONDUE PAR LA

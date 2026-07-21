@@ -1,0 +1,279 @@
+{
+  "rows": [
+    {
+      "seed": 0,
+      "off_n_lived": 96,
+      "off_med_all": 28.0,
+      "off_med_founder": 38.0,
+      "off_n_founder": 25,
+      "on_n_lived": 1588,
+      "on_med_all": 13.0,
+      "on_med_founder": 18.0,
+      "on_n_founder": 25
+    },
+    {
+      "seed": 1,
+      "off_n_lived": 56,
+      "off_med_all": 29.0,
+      "off_med_founder": 48.0,
+      "off_n_founder": 25,
+      "on_n_lived": 1088,
+      "on_med_all": 12.0,
+      "on_med_founder": 58.0,
+      "on_n_founder": 25
+    },
+    {
+      "seed": 2,
+      "off_n_lived": 41,
+      "off_med_all": 32.0,
+      "off_med_founder": 22.0,
+      "off_n_founder": 25,
+      "on_n_lived": 1338,
+      "on_med_all": 14.0,
+      "on_med_founder": 75.0,
+      "on_n_founder": 25
+    },
+    {
+      "seed": 3,
+      "off_n_lived": 69,
+      "off_med_all": 24.0,
+      "off_med_founder": 29.0,
+      "off_n_founder": 25,
+      "on_n_lived": 1592,
+      "on_med_all": 15.0,
+      "on_med_founder": 69.0,
+      "on_n_founder": 25
+    },
+    {
+      "seed": 4,
+      "off_n_lived": 103,
+      "off_med_all": 28.0,
+      "off_med_founder": 36.0,
+      "off_n_founder": 25,
+      "on_n_lived": 1151,
+      "on_med_all": 12.0,
+      "on_med_founder": 70.0,
+      "on_n_founder": 25
+    },
+    {
+      "seed": 5,
+      "off_n_lived": 68,
+      "off_med_all": 29.0,
+      "off_med_founder": 29.0,
+      "off_n_founder": 25,
+      "on_n_lived": 423,
+      "on_med_all": 14.0,
+      "on_med_founder": 46.0,
+      "on_n_founder": 25
+    },
+    {
+      "seed": 6,
+      "off_n_lived": 44,
+      "off_med_all": 30.0,
+      "off_med_founder": 44.0,
+      "off_n_founder": 25,
+      "on_n_lived": 649,
+      "on_med_all": 16.0,
+      "on_med_founder": 51.0,
+      "on_n_founder": 25
+    },
+    {
+      "seed": 7,
+      "off_n_lived": 57,
+      "off_med_all": 27.0,
+      "off_med_founder": 35.0,
+      "off_n_founder": 25,
+      "on_n_lived": 103,
+      "on_med_all": 12.0,
+      "on_med_founder": 22.0,
+      "on_n_founder": 25
+    },
+    {
+      "seed": 8,
+      "off_n_lived": 38,
+      "off_med_all": 36.0,
+      "off_med_founder": 40.0,
+      "off_n_founder": 25,
+      "on_n_lived": 95,
+      "on_med_all": 12.0,
+      "on_med_founder": 21.0,
+      "on_n_founder": 25
+    },
+    {
+      "seed": 9,
+      "off_n_lived": 58,
+      "off_med_all": 25.5,
+      "off_med_founder": 30.0,
+      "off_n_founder": 25,
+      "on_n_lived": 169,
+      "on_med_all": 13.0,
+      "on_med_founder": 15.0,
+      "on_n_founder": 25
+    },
+    {
+      "seed": 10,
+      "off_n_lived": 45,
+      "off_med_all": 36.0,
+      "off_med_founder": 46.0,
+      "off_n_founder": 25,
+      "on_n_lived": 843,
+      "on_med_all": 13.0,
+      "on_med_founder": 80.0,
+      "on_n_founder": 25
+    },
+    {
+      "seed": 11,
+      "off_n_lived": 53,
+      "off_med_all": 30.0,
+      "off_med_founder": 29.0,
+      "off_n_founder": 25,
+      "on_n_lived": 669,
+      "on_med_all": 12.0,
+      "on_med_founder": 66.0,
+      "on_n_founder": 25
+    },
+    {
+      "seed": 12,
+      "off_n_lived": 50,
+      "off_med_all": 34.0,
+      "off_med_founder": 34.0,
+      "off_n_founder": 25,
+      "on_n_lived": 947,
+      "on_med_all": 13.0,
+      "on_med_founder": 55.0,
+      "on_n_founder": 25
+    },
+    {
+      "seed": 13,
+      "off_n_lived": 89,
+      "off_med_all": 29.0,
+      "off_med_founder": 50.0,
+      "off_n_founder": 25,
+      "on_n_lived": 1519,
+      "on_med_all": 14.0,
+      "on_med_founder": 74.0,
+      "on_n_founder": 25
+    },
+    {
+      "seed": 14,
+      "off_n_lived": 54,
+      "off_med_all": 36.5,
+      "off_med_founder": 29.0,
+      "off_n_founder": 25,
+      "on_n_lived": 1322,
+      "on_med_all": 13.0,
+      "on_med_founder": 66.0,
+      "on_n_founder": 25
+    },
+    {
+      "seed": 15,
+      "off_n_lived": 91,
+      "off_med_all": 24.0,
+      "off_med_founder": 36.0,
+      "off_n_founder": 25,
+      "on_n_lived": 1260,
+      "on_med_all": 14.0,
+      "on_med_founder": 63.0,
+      "on_n_founder": 25
+    },
+    {
+      "seed": 16,
+      "off_n_lived": 57,
+      "off_med_all": 27.0,
+      "off_med_founder": 24.0,
+      "off_n_founder": 25,
+      "on_n_lived": 323,
+      "on_med_all": 13.0,
+      "on_med_founder": 36.0,
+      "on_n_founder": 25
+    },
+    {
+      "seed": 17,
+      "off_n_lived": 62,
+      "off_med_all": 20.5,
+      "off_med_founder": 29.0,
+      "off_n_founder": 25,
+      "on_n_lived": 1205,
+      "on_med_all": 14.0,
+      "on_med_founder": 77.0,
+      "on_n_founder": 25
+    },
+    {
+      "seed": 18,
+      "off_n_lived": 49,
+      "off_med_all": 24.0,
+      "off_med_founder": 20.0,
+      "off_n_founder": 25,
+      "on_n_lived": 74,
+      "on_med_all": 13.5,
+      "on_med_founder": 15.0,
+      "on_n_founder": 25
+    },
+    {
+      "seed": 19,
+      "off_n_lived": 74,
+      "off_med_all": 28.0,
+      "off_med_founder": 28.0,
+      "off_n_founder": 25,
+      "on_n_lived": 602,
+      "on_med_all": 11.0,
+      "on_med_founder": 30.0,
+      "on_n_founder": 25
+    }
+  ],
+  "config": {
+    "target": "stoneage",
+    "seeds": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19
+    ],
+    "k": 8,
+    "num_agents": 25,
+    "max_ticks": 80
+  },
+  "med_all": {
+    "med_off": 28.5,
+    "med_on": 13.0,
+    "ratio": 0.45614035087719296,
+    "n_favorable": 0,
+    "n": 20,
+    "sign_p": 1.9073486328125e-06,
+    "wilcoxon_p": 9.569173157064625e-05
+  },
+  "med_founder": {
+    "med_off": 32.0,
+    "med_on": 56.5,
+    "ratio": 1.765625,
+    "n_favorable": 15,
+    "n": 20,
+    "sign_p": 0.04138946533203125,
+    "wilcoxon_p": 0.008489555376820057
+  },
+  "n_lived": {
+    "med_off": 57.0,
+    "med_on": 895.0,
+    "ratio": 15.701754385964913,
+    "n_favorable": 20,
+    "n": 20,
+    "sign_p": 1.9073486328125e-06,
+    "wilcoxon_p": 9.569173157064625e-05
+  }
+}
