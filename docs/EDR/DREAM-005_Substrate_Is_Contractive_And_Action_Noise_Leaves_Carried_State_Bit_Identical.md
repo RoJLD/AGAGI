@@ -18,7 +18,7 @@ d'action doit laisser `H` inchangé (il n'écrit jamais dans l'état), et le bru
 `H`.
 
 ## Méthode
-Sonde purement numpy (`scratchpad/dream_attractor_probe.py`) : 12 génomes du substrat, organe ON,
+Sonde purement numpy (`tools/substrate_attractor_probe.py`) : 12 génomes du substrat, organe ON,
 conduits `T=50` ticks sous **entrée constante** (zéro, puis obs aléatoire fixe), dans trois bras —
 `off`, `action` (`ACTION_NOISE=8`), `H` (`FORCE_DREAM=8, DREAM_NOISE=0.2`). Mesures par agent : la
 trajectoire de l'état `self.H_prev_batch` et l'action de déplacement (`argmax` des 8 logits).
@@ -69,11 +69,13 @@ indépendant de `W`) → faux bit-identique ; sous entrée non nulle le point fi
 comparer des bras, c'est d'abord vérifier qu'ils portent la MÊME population** — le piège exact que le
 dépôt a payé trois fois sur l'arc WARM, ici sur mon propre outil de diagnostic.
 
-## Dette ouverte
+## Dette — FERMÉE dans la même passe
 La sonde produit une affirmation scientifique (« le substrat est contractif ») → c'est un INSTRUMENT.
-Elle porte sa propre calibration (contractif vs marche aléatoire) mais vit dans le scratchpad, donc
-**hors du cliquet** (`check_instrument_calibration` ne scanne que `tools/` + `src/seed_ai/`). La
-promouvoir dans `tools/` la ferait compter — angle mort connu du cliquet
-([[instrument-calibration-ratchet]]).
+Plutôt que de la laisser dans le scratchpad (hors du cliquet, angle mort connu de
+[[instrument-calibration-ratchet]]), elle est **promue dans `tools/substrate_attractor_probe.py`** et
+son cœur `measure_convergence` **calibré** dans `tests/sandbox/test_instrument_calibration.py`
+(déclaration `CALIBRATED`) : contractif connu → CONVERGE, marche aléatoire connue → NON, + monotonie du
+pas de queue en la contraction, + borne trajectoire-trop-courte. Cliquet : 80/11 → **81/12**, 0 nouveau
+non calibré. La promotion applique à cette sonde la discipline que le record lui-même réclame.
 
 Converge [[EDR-DREAM-004]], [[EDR-DREAM-003]], [[planner-depth1-refuted]], REF-EXPERIMENT-PREFLIGHT.

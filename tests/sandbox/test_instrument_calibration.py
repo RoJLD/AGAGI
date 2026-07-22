@@ -65,6 +65,12 @@ CALIBRATED = {
     # Débloqué par la fin des sessions parallèles. Ne peut que transformer un POSITIF
     # en NEUTRE -> les conclusions nulles du graphe sont intactes par construction.
     "compute_ab_verdict": ["*"],
+    # DREAM-005 : sonde d'attracteur promue du scratchpad. `measure_convergence` est le CŒUR
+    # scientifique (il tranche « cette trajectoire d'état converge-t-elle ? »). Calibré sur deux
+    # systèmes CONNUS — contractif (converge) et marche aléatoire (ne converge pas) — + monotonie
+    # (le pas de queue décroît quand la contraction est plus forte). Ferme la dette « instrument
+    # de scratchpad hors cliquet » signalée par le record.
+    "measure_convergence": ["*"],
 }
 
 _GENOMES = os.path.join("results", "warm007_genomes")
@@ -698,3 +704,52 @@ def test_ab_verdict_flags_underpowered_rather_than_hiding_it():
     assert faible["verdict"] == "NEUTRE" and faible["underpowered"] is True
     vrai_nul = _ab([0.001, -0.001, 0.002, -0.002, 0.0, 0.001])
     assert vrai_nul["verdict"] == "NEUTRE" and vrai_nul["underpowered"] is False
+
+
+# --- DREAM-005 : `measure_convergence` (sonde d'attracteur, tools/substrate_attractor_probe.py) -----
+from tools.substrate_attractor_probe import measure_convergence  # noqa: E402
+
+
+def _contractive_traj(rate, n=40, start=(1.0, 1.0)):
+    """Système CONTRACTIF connu : H <- rate*H (rate<1) -> point fixe 0. Réponse connue : CONVERGE."""
+    h = np.array(start, dtype=float)
+    traj = [h.copy()]
+    for _ in range(n):
+        h = rate * h
+        traj.append(h.copy())
+    return traj
+
+
+def _random_walk_traj(sigma, n=40, seed=0, start=(1.0, 1.0)):
+    """Marche aléatoire CONNUE : H <- H + bruit -> jamais de point fixe. Réponse connue : NE CONVERGE PAS."""
+    rng = np.random.RandomState(seed)
+    h = np.array(start, dtype=float)
+    traj = [h.copy()]
+    for _ in range(n):
+        h = h + rng.randn(2) * sigma
+        traj.append(h.copy())
+    return traj
+
+
+def test_measure_convergence_contractive_converges():
+    """Spécificité (+) : un système contractif connu est classé CONVERGE, pas de faux négatif."""
+    assert measure_convergence(_contractive_traj(0.5))["converges"] is True
+
+
+def test_measure_convergence_random_walk_does_not():
+    """Spécificité (−) : une marche aléatoire connue N'EST PAS classée convergente. Sans ce contrôle,
+    un détecteur toujours-vrai passerait le test contractif et fabriquerait le verdict « contractif »."""
+    assert measure_convergence(_random_walk_traj(0.3))["converges"] is False
+
+
+def test_measure_convergence_tail_step_monotone_in_contraction():
+    """Monotonie (direction) : plus la contraction est forte (rate petit), plus le pas de queue est
+    petit. La grandeur mesurée suit la dose imposée, pas seulement le verdict binaire."""
+    tails = [measure_convergence(_contractive_traj(r))["tail_step"] for r in (0.9, 0.7, 0.5, 0.3)]
+    assert tails == sorted(tails, reverse=True), f"non monotone : {tails}"
+
+
+def test_measure_convergence_too_short_is_not_convergent():
+    """Borne : une trajectoire plus courte que la fenêtre de queue ne peut RIEN affirmer -> non
+    convergente par défaut (ne pas fabriquer un verdict sur trop peu de pas)."""
+    assert measure_convergence([np.zeros(2), np.zeros(2)], tail=8)["converges"] is False
