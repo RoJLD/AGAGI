@@ -295,6 +295,34 @@ def _resolve_dreaming(force_dream, has_mcts, do_dream, surprise, dream_thr, surp
         K_individual = np.where(is_dreaming, np.clip((do_dream * 8).astype(int), 1, 8), 0)
     return is_dreaming, K_individual
 
+def _dream_node_group_mask(agents, mappings, max_N, group):
+    """Masque (B, max_N) restreignant le bruit de rêve à un GROUPE de nœuds par rôle (EDR-DREAM-006).
+
+    group="all" -> None (pas de restriction, comportement historique). "input"/"hidden"/"output"
+    marquent, pour chaque agent, les nœuds de ce rôle À LEUR POSITION dans l'espace padé (via mapping).
+    Extrait pour être calibrable : les trois groupes DOIVENT partitionner exactement les nœuds réels
+    (disjoints, union = tous les nœuds mappés) — sinon le bruit fuit hors du groupe déclaré et la
+    localisation de DREAM-006 attribuerait l'effet au mauvais registre."""
+    if group == "all":
+        return None
+    B = len(agents)
+    mask = np.zeros((B, max_N), dtype=np.float32)
+    for i in range(B):
+        N_i = agents[i].genome.num_nodes
+        I_i = agents[i].genome.num_inputs
+        O_i = agents[i].genome.num_outputs
+        mp = mappings[i]
+        if group == "input":
+            mask[i, mp[:I_i]] = 1.0
+        elif group == "output":
+            mask[i, mp[N_i - O_i:N_i]] = 1.0
+        elif group == "hidden":
+            mask[i, mp[I_i:N_i - O_i]] = 1.0
+        else:
+            raise ValueError(f"groupe de nœuds inconnu : {group!r}")
+    return mask
+
+
 class MambaBatchModel:
     """
     Gestionnaire de population pour vectoriser l'inférence de N agents simultanément (TensorWorld).
@@ -318,6 +346,10 @@ class MambaBatchModel:
     # C'est l'ablation WITHIN-subject du MÉCANISME : si le bénéfice mesuré par EDR-DREAM-001 (+77 % de
     # survie, reproduction ×15.7) vient de la SÉLECTION-PAR-VALEUR, le factice doit retomber sur `off` ;
     # s'il vient de l'exploration bruitée de H, le factice doit le reproduire.
+    DREAM_NOISE_GROUP = "all"   # GROUPE de nœuds bruités par le rêve (EDR-DREAM-006). Défaut "all" =
+    # tous (prod inchangée). "input"|"hidden"|"output" restreint le bruit porté à un rôle de nœud (via
+    # `mappings`) -> localise QUEL registre de l'état porté débloque la reproduction. Le cœur récurrent
+    # (hidden) porte la dynamique W ; les sorties sont des readouts sémantiques (valeur 28, goal, NTM).
     DREAM_NOISE = 0.05          # AMPLITUDE du bruit sur H (EDR-DREAM-003). Défaut = valeur historique
     # en dur -> prod inchangée. DREAM-002 a montré que le bénéfice vient du BRUIT, pas de la sélection.
     # Mais le rêve fait ENCORE deux choses : il bruite K fois ET il applique K mises à jour récurrentes
@@ -596,6 +628,11 @@ class MambaBatchModel:
             best_H = H.copy()
             best_value = np.full(self.B, -np.inf)
 
+            # EDR-DREAM-006 : masque de GROUPE de nœuds pour le bruit porté. Construit une fois par
+            # forward (les mappings sont stables dans l'épisode). None = "all" -> pas de restriction.
+            group_mask = _dream_node_group_mask(
+                self.agents, self.mappings, self.max_N, type(self).DREAM_NOISE_GROUP)
+
             for k in range(T_max):
                 active_mask = K_individual > k
 
@@ -607,6 +644,8 @@ class MambaBatchModel:
                 # dans tous les bras garde les flux RNG alignés, sinon la dose 0 diverge du reste de
                 # la simulation pour une raison sans rapport avec le bruit.
                 noise = np.random.randn(*H_branch.shape).astype(np.float32) * type(self).DREAM_NOISE
+                if group_mask is not None:
+                    noise *= group_mask               # bruit restreint au groupe de nœuds (DREAM-006)
                 H_branch[active_mask] += noise[active_mask]
 
                 excitation = np.einsum('bi,bij->bj', H_branch, W_no_diag)
