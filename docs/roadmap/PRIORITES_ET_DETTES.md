@@ -24,14 +24,16 @@ J'avais écrit « processus/threads orphelins probables » **sans le mesurer**. 
 fork OK, 13/13 tests passent. *(Classe E9 du registre — conclure depuis un symptôme saillant sans
 mesurer, commis dans le document qui liste E9.)*
 
-**P0.2 — ⏳ PARTIEL (2026-07-22) — collecte OK, bout-en-bout bloqué par P1.1.**
-Collecte : **1266 tests, 0 erreur** (en hausse de 1170). Bout-en-bout : la suite complète HANGE, cause =
-P1.1 (état async_logger/kuzu accumulé entre fichiers). **Un root cause du hang trouvé ET corrigé** (cf.
-P1.1 : `stop()` bouclait sans borne) → la suite passe désormais de **6 % à 24 %**. **Un second hang
-subsiste** (`test_edr114_reach_oracle::test_main_reach_oracle_smoke_and_determinism`, ~24 %) : accumulation
-plus profonde, passe en ISOLATION, ne hange qu'en suite — cœur dur de P1.1. Échec RÉEL pré-existant
-noté au passage : `test_edr113_landing::test_landing_reward_is_paid_monotone` (`eL==e0`, scaffold_land
-no-op — hors périmètre, code de récompense monde, non lié à mes changements). *Reste : le fix profond P1.1.*
+**P0.2 — ✅ RÉSOLU (2026-07-22) — la suite passe BOUT-EN-BOUT, plus aucun hang.**
+Collecte : **1266 tests, 0 erreur** (en hausse de 1170). Bout-en-bout `pytest -m "not slow"` : **1215
+passed, 6 failed, 6 skipped, 41 deselected en 13 min 21 s** — plus AUCUN hang. Les DEUX hangs (racine #1
+`async_logger.stop`, racine #2 `edr114` smoke lent) étaient les seuls blocages ; pas de racine #3.
+Les **6 échecs sont tous PRÉ-EXISTANTS, rapides (pas des hangs), NON liés à mes changements** (vérifié :
+persistent avec `mamba_agent.py` à l'état pré-DREAM `f9b1845`) — à trier séparément :
+- `test_edr113_landing::test_landing_reward_is_paid_monotone` (`eL==e0`, scaffold_land no-op)
+- `test_g_fidelity_probe` ×2 (`collect_ratios` renvoie VIDE, `len(ratios)==0`)
+- `test_substrate_world_ab` ×2 (verdict `NEUTRE` vs `GRADIENT_GAGNE`/`HEBBIEN_GAGNE` attendu — vraisemblablement la garde de puissance P2.5)
+- `test_famine_storage_probe::test_evolve_in_famine_returns_genome` (`num_inputs 64 != 59`, divergence de lignée feat/d1↔main)
 
 ---
 
