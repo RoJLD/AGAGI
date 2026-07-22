@@ -12,14 +12,17 @@ from tools.substrate_world_ab import (_ab_from_meds, measure_survival, compare_b
 
 
 def test_ab_from_meds_gradient_wins():
-    r = _ab_from_meds([10, 12, 11], [30, 28, 33])  # torch >> legacy
+    # n=6 (PAS 3) : la garde de puissance de `compute_ab_verdict` (P2.5) exige sign_p<0.05 pour un
+    # verdict non-NEUTRE, IMPOSSIBLE a n=3 (sign_p=0.25). Meme correctif que les 7 autres tests bumpes
+    # a n=6 quand la garde a ete armee ; celui-ci avait ete manque (mesure 2026-07-22).
+    r = _ab_from_meds([10, 12, 11, 10, 12, 11], [30, 28, 33, 30, 28, 33])  # torch >> legacy
     assert r["verdict"] == "GRADIENT_GAGNE"
-    assert len(r["per_seed"]) == 3
+    assert len(r["per_seed"]) == 6
     assert r["per_seed"][0]["diff"] == 20.0
 
 
 def test_ab_from_meds_hebbien_wins():
-    assert _ab_from_meds([30, 28, 32], [10, 12, 11])["verdict"] == "HEBBIEN_GAGNE"
+    assert _ab_from_meds([30, 28, 32, 30, 28, 32], [10, 12, 11, 10, 12, 11])["verdict"] == "HEBBIEN_GAGNE"
 
 
 def test_ab_from_meds_neutral_within_band():

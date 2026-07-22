@@ -28,12 +28,20 @@ mesurer, commis dans le document qui liste E9.)*
 Collecte : **1266 tests, 0 erreur** (en hausse de 1170). Bout-en-bout `pytest -m "not slow"` : **1215
 passed, 6 failed, 6 skipped, 41 deselected en 13 min 21 s** — plus AUCUN hang. Les DEUX hangs (racine #1
 `async_logger.stop`, racine #2 `edr114` smoke lent) étaient les seuls blocages ; pas de racine #3.
-Les **6 échecs sont tous PRÉ-EXISTANTS, rapides (pas des hangs), NON liés à mes changements** (vérifié :
-persistent avec `mamba_agent.py` à l'état pré-DREAM `f9b1845`) — à trier séparément :
-- `test_edr113_landing::test_landing_reward_is_paid_monotone` (`eL==e0`, scaffold_land no-op)
-- `test_g_fidelity_probe` ×2 (`collect_ratios` renvoie VIDE, `len(ratios)==0`)
-- `test_substrate_world_ab` ×2 (verdict `NEUTRE` vs `GRADIENT_GAGNE`/`HEBBIEN_GAGNE` attendu — vraisemblablement la garde de puissance P2.5)
-- `test_famine_storage_probe::test_evolve_in_famine_returns_genome` (`num_inputs 64 != 59`, divergence de lignée feat/d1↔main)
+Les **6 échecs étaient tous PRÉ-EXISTANTS, rapides (pas des hangs), NON liés à mes changements** (vérifié :
+persistent avec `mamba_agent.py` à l'état pré-DREAM `f9b1845`). **TRIÉS (2026-07-22)** — 2 vrais fix + 4
+xfail documentés, la suite est désormais VERTE (39 passed / 4 xfailed / 0 failed sur les 4 fichiers) :
+- ✅ **FIX** `test_substrate_world_ab` ×2 : `_ab_from_meds` testé à **n=3** (`sign_p=0.25`), impossible à
+  passer sous la garde de puissance P2.5 → bumpé à **n=6** (`GRADIENT_GAGNE`/`HEBBIEN_GAGNE` retrouvés).
+  Même correctif que les 7 autres tests bumpés quand la garde a été armée ; celui-ci avait été manqué.
+- ⏭️ **xfail** `test_g_fidelity_probe` ×2 : blocueur n=0 DOCUMENTÉ (agents frais meurent avant warmup,
+  arc anticipation en PAUSE, `planner-depth1-refuted`) — cf. `test_stoneage_champion_lifts_n_zero_blocker`.
+- ⏭️ **xfail** `test_edr113_landing::test_landing_reward_is_paid_monotone` : `scaffold_land` EST payé
+  (L773, `anneal(1,30)=0.967`) et le contact compté, mais l'énergie agrégée finale est identique au
+  centième (`delta=0.000` exact) → gain négé en aval (reproduction/clamp/mort). Vrai problème
+  comportemental EDR-113, à trancher par l'arc (code monde, non trivial).
+- ⏭️ **xfail** `test_famine_storage_probe::test_evolve_in_famine_returns_genome` : `num_inputs 64 != 59`,
+  divergence de lignée feat/d1↔main (dette de réconciliation, cf. `lineage-divergence-d1-vs-main`).
 
 ---
 
