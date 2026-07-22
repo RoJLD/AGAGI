@@ -24,21 +24,32 @@ J'avais écrit « processus/threads orphelins probables » **sans le mesurer**. 
 fork OK, 13/13 tests passent. *(Classe E9 du registre — conclure depuis un symptôme saillant sans
 mesurer, commis dans le document qui liste E9.)*
 
-**P0.2 — Valider la suite COMPLÈTE après redémarrage.** Les deux `tests/__init__.py` et
-`tests/sandbox/__init__.py` (correctif des doublons de basename) ont été validés **à la collecte**
-(1170 tests, 0 erreur) mais **jamais bout-en-bout**. *Coût : ~15 min.*
+**P0.2 — ⏳ PARTIEL (2026-07-22) — collecte OK, bout-en-bout bloqué par P1.1.**
+Collecte : **1266 tests, 0 erreur** (en hausse de 1170). Bout-en-bout : la suite complète HANGE, cause =
+P1.1 (état async_logger/kuzu accumulé entre fichiers). **Un root cause du hang trouvé ET corrigé** (cf.
+P1.1 : `stop()` bouclait sans borne) → la suite passe désormais de **6 % à 24 %**. **Un second hang
+subsiste** (`test_edr114_reach_oracle::test_main_reach_oracle_smoke_and_determinism`, ~24 %) : accumulation
+plus profonde, passe en ISOLATION, ne hange qu'en suite — cœur dur de P1.1. Échec RÉEL pré-existant
+noté au passage : `test_edr113_landing::test_landing_reward_is_paid_monotone` (`eL==e0`, scaffold_land
+no-op — hors périmètre, code de récompense monde, non lié à mes changements). *Reste : le fix profond P1.1.*
 
 ---
 
 ## P1 — Dettes ouvertes
 
-**P1.1 — Blocage de `tests/sandbox/test_behavioral_diversity.py` en suite complète.**
-PASSE en isolation (26 s), BLOQUE dans la suite sur `async_logger.stop()` → `time.sleep`. **Préexistant**
-(fichier du 2026-06-29) : il était masqué par l'erreur de collecte qui avortait la suite avant de
-l'atteindre — le correctif P1 l'a *révélé*, pas créé. Cause probable : état global (`async_logger` +
-connexion KuzuDB) non nettoyé entre fichiers.
-⚠️ Une fixture `autouse` de nettoyage a été tentée dans `tests/conftest.py` : elle a **cassé 2 tests** et
-n'a pas pu être diagnostiquée (environnement épuisé) → **retirée**, à reprendre après P0. *Coût : ~1 h.*
+**P1.1 — ⏳ RACINE #1 CORRIGÉE (2026-07-22), accumulation profonde restante.**
+Le hang `async_logger.stop() → time.sleep` est ÉLUCIDÉ par la démarche systématique (faulthandler →
+`async_logger.py:80`) : `stop()` faisait `while not queue.empty()` **SANS BORNE** ; si le worker meurt
+(échec de connexion KuzuDB, 5 retries → `return`), la queue ne se vide jamais → boucle infinie. **Fix
+livré** : `stop()` borné (worker vivant ET délai 5 s ; le flush restant se termine sous le join, pas de
+perte). Test `test_async_logger_stop_bounded.py` (échec→passe, + non-régression worker-vivant). Effet
+mesuré : la suite passe de **6 % à 24 %** (`competence_profile`, `behavioral_diversity` et les hangers
+intermédiaires DÉBLOQUÉS).
+⚠️ **RACINE #2 restante** : `test_edr114_reach_oracle` hange encore vers 24 % — passe en ISOLATION, ne
+hange qu'en suite → accumulation plus profonde (workers daemon non terminés / connexions KuzuDB qui
+s'empilent sur ~290 tests). C'est le cœur dur de P1.1, celui où la fixture `autouse` avait cassé 2 tests.
+**Démarche systématique Phase 4.5 : ne PAS whack-a-mole ; le fix profond (cycle de vie du worker ou
+isolation par-fichier via process) est une tâche scopée à part.** *Coût : ~1-2 h, à cadrer.*
 
 **P1.2 — ~~Câbler `sim_session`~~ → FAIT, et remplacé par un JOB MANAGER.**
 `tools/jobs/` livré (lease/run/doctor, **11/11 tests**), inspiré de `cmex_crypto.batch` (Quant-lab) dont
@@ -49,11 +60,14 @@ concurrence (un nombre) ; AGAGI a besoin de **ressources NOMMÉES exclusives** (
 `sim_session.py` est **déprécié**. Reste à câbler : `measure_inworld_grab_rate` et les ~70 autres sondes.
 *(Ancien texte ci-dessous conservé pour la traçabilité de la preuve.)*
 
-**P1.2-bis — Câbler le bail dans les sondes restantes.** La primitive existe et est testée (5/5) mais
-n'est utilisée nulle part : `_torch_survival_eras` et `measure_inworld_grab_rate` portent encore un
-correctif ad hoc. Le verrou de processus rend la contention KuzuDB **impossible** au lieu de déconseillée.
-*Preuve : 3 violations de la même règle en une journée — par moi (2×, sondes parallèles → mesure
-contaminée + suite en timeout) et par le code d'instrument (retriever actif pendant la sim).* *Coût : ~1 h.*
+**P1.2-bis — ⚠️ LARGEMENT PÉRIMÉ (constaté 2026-07-22).** Les cibles nommées `measure_inworld_grab_rate`
+(`warmstart_evolution_inworld.py:1043`) ET `_torch_survival_eras` tiennent DÉJÀ le VRAI bail
+(`_acquire_kuzu` → `tools.jobs.lease.acquire("kuzu")`, pas un correctif ad hoc). L'entrée décrit un état
+antérieur à leur câblage. De plus, sa motivation « suite en timeout » était en réalité le bug `stop()`
+de P1.1 (corrigé), **pas** la contention de lock. Reste, en défense-en-profondeur (valeur moindre,
+sessions parallèles finies) : les sondes standalone actives sans bail exclusif — `dreaming_probe.main()`
+(utilise `_acquire_shared_db` mais pas le bail) et `s2_demand` — plus ~70 scripts one-off legacy à ne
+PAS wirer en masse (morts, risque > valeur). *Coût résiduel : ~30 min pour les 2 sondes actives.*
 
 **P1.3 — Graver un EDR : aliasing des bancs torch + défaut du retriever.** Deux findings mesurés, non
 encore consignés, qui **changent la lecture de WARM-005/007/008** :
