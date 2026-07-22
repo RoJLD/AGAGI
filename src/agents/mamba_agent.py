@@ -327,6 +327,13 @@ class MambaBatchModel:
     # récursion de la leçon de DREAM-002 sur elle-même : une intervention qui fait deux choses doit
     # être ablatée composante par composante.
 
+    ACTION_NOISE = 0.0          # BRUIT sur les LOGITS D'ACTION (EDR-DREAM-004). Défaut 0 = prod inchangée.
+    # Contrôle de LOCUS pour DREAM-003 : le bruit de rêve perturbe l'état caché H qui est PORTÉ au tick
+    # suivant (self.H_prev_batch = H) -> perturbation PERSISTANTE. Ce seam injecte un bruit sur les 8
+    # logits de déplacement, chez les mêmes porteurs d'organe, mais TRANSITOIRE (par-tick, non porté).
+    # Départage échappement-d'attracteur (exige la persistance : bruit d'action DOIT échouer) vs simple
+    # exploration/jitter (bruit d'action REPRODUIT l'effet, et l'organe serait un ε-greedy déguisé).
+
     # NAS Axe 3 — Planificateur latent (activation du dreaming). Défaut OFF (non-régressif).
     PLAN_BIAS = 0.0   # poids du biais des logits d'action par le plan (0 = planificateur désactivé)
     PLAN_LR = 0.05    # taux d'apprentissage en ligne de g
@@ -770,6 +777,22 @@ class MambaBatchModel:
                 a.world_model_Wp = self.Wp_batch[i].copy()  # World Model par-agent (EDR 015)
             a.planner_G = self.G_batch[i][:, map_idx].copy()   # extrait (A,N_i) en ordre nœud
             a.genome.W = self.W_batch[i][map_idx[:, None], map_idx[None, :]].copy()
+
+        # Bruit d'action TRANSITOIRE (EDR-DREAM-004) : contrôle de locus/persistance pour DREAM-003.
+        # Placé APRÈS toutes les sous-sorties internes (attention/NTM/goal/pred déjà consommées) et
+        # juste avant le retour -> ne perturbe QUE l'action de déplacement lue par le monde, jamais la
+        # machinerie interne. Sur les 8 logits de déplacement, chez les porteurs d'organe uniquement
+        # (même population que le rêve). N'écrit PAS dans H -> non porté au tick suivant, contrairement
+        # au bruit de rêve : c'est exactement le contraste persistant-vs-transitoire.
+        if type(self).ACTION_NOISE > 0.0:
+            A_mov = min(MambaBatchModel.PLAN_A, self.max_O)
+            carriers = np.array([
+                bool(getattr(a.genome, 'organ_genes', None) is not None
+                     and len(a.genome.organ_genes) > 0 and a.genome.organ_genes[0])
+                for a in self.agents], dtype=bool)
+            if carriers.any():
+                anoise = np.random.randn(self.B, A_mov).astype(np.float32) * type(self).ACTION_NOISE
+                preds[carriers, :A_mov] += anoise[carriers]
 
         return preds, compute_spent
 
