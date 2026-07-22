@@ -1,7 +1,6 @@
 import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 import numpy as np
-import pytest
 from tools.g_fidelity_probe import (
     transition_error, fidelity_verdict,
     collect_ratios, run_probe,
@@ -45,10 +44,6 @@ def test_fidelity_verdict_neutral_and_no_nan():
     assert np.isfinite(out["sign_p"])
 
 
-@pytest.mark.xfail(reason="blocueur n=0 DOCUMENTE (arc anticipation en PAUSE, planner-depth1-refuted) : "
-                          "les agents FRAIS meurent avant le warmup -> 0 transition mesuree. "
-                          "Cf. test_stoneage_champion_lifts_n_zero_blocker qui l'esquive via un champion.",
-                   strict=False)
 def test_collect_ratios_returns_finite_positive():
     ratios, action_abs = collect_ratios(seed=0, warmup=20, measure=20)
     assert len(ratios) > 0
@@ -71,11 +66,9 @@ def test_collect_ratios_all_actions_exercised():
         assert all(np.isfinite(v) for v in action_abs[a_idx]), f"mean|G[{a_idx}]| non fini"
 
 
-@pytest.mark.xfail(reason="blocueur n=0 DOCUMENTE (idem test_collect_ratios_returns_finite_positive) : "
-                          "agents frais -> 0 transition au-dessus du seuil base_err. Arc anticipation en PAUSE.",
-                   strict=False)
 def test_collect_ratios_nontrivial_transitions():
-    """Avec obs variables σ=0.3, les transitions latentes doivent dépasser le seuil base_err>0.01."""
+    """Avec obs variables σ=0.3, les transitions latentes (~5e-3, substrat contractif EDR-DREAM-005)
+    dépassent le seuil base_err > 1e-3 -> au moins quelques transitions mesurées."""
     ratios, _ = collect_ratios(seed=1, warmup=10, measure=50)
     # Au moins quelques transitions doivent être mesurées (base_err > 0.01)
     assert len(ratios) > 0, "Aucune transition non-triviale mesurée avec obs variables"

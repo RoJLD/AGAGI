@@ -1,5 +1,3 @@
-import pytest
-
 from src.environments.config import WorldConfig
 from src.worlds.world_1_stoneage import Biosphere3D
 from tools.lewis_survival_sweep import _cfg, _landing_arm
@@ -51,19 +49,41 @@ def _run_with_prey_on_agent(scaffold_land, steps=40, seed=4242):
     return total_energy, contacts
 
 
-@pytest.mark.xfail(reason="scaffold_land=10 EST paye (branche attacked_prey L773, anneal(1,30)=0.967) et "
-                          "le contact est compte (cL=1), mais l'energie agregee finale est IDENTIQUE au "
-                          "centieme (delta=0.000 exact) : le gain est integralement nege en aval "
-                          "(reproduction/clamp/mort de l'agent frais). Vrai probleme comportemental de "
-                          "l'arc EDR-113, pre-existant, non trivial (code monde) — a trancher par l'arc.",
-                   strict=False)
+def _landing_energy_one_step(scaffold_land, seed=4242):
+    """UN pas, agent + proie SURVIVANTE (hp élevé) sur la même cellule. La proie ne meurt pas -> pas de
+    récompense-manger (qui CLAMPE à energy_max, L833) ni de divergence comportementale (l'énergie est
+    dans l'obs -> au pas 2 elle changerait les actions). Isole donc le paiement du scaffold du PAS FINAL
+    (L773). Au pas 1, l'action est calculée AVANT que le scaffold ne s'ajoute -> les deux bras ont la
+    même obs/action/drain, et l'écart d'énergie = exactement scaffold_land * anneal. Renvoie (énergie,
+    contacts)."""
+    from src.seed_ai.harness import seed_at
+    from src.agents.mamba_agent import MambaAgent
+    seed_at(seed, 0)
+    env = Biosphere3D(_cfg_land(scaffold_land))
+    env.preys = [p for p in env.preys if p["type"] not in ("Mammouth", "Ours", "Leurre")]
+    env.current_era = 1
+    if hasattr(env, "memory_retriever"):
+        env.memory_retriever.stop(); env.memory_retriever.clear()
+    a = MambaAgent()
+    env.add_agent(a, energy=50.0)
+    ag = env.agents[0]
+    env.preys.append({"x": ag["x"], "y": ag["y"], "z": 0, "type": "Lapin", "hp": 1000})  # SURVIT
+    env.step()
+    return ag["energy"], ag.get("_forage_contacts", 0)
+
+
 def test_landing_reward_is_paid_monotone():
-    # scaffold_land n'AJOUTE que de l'energie sur atterrissage -> env riche >= env pauvre,
-    # strictement > si au moins un contact a eu lieu. Cible le PAS FINAL.
-    e0, c0 = _run_with_prey_on_agent(0.0)
-    eL, cL = _run_with_prey_on_agent(10.0)
-    assert cL >= 1, "le scenario doit produire au moins un atterrissage (contact)"
-    assert eL > e0, f"scaffold_land=10 doit enrichir vs 0 (eL={eL} e0={e0})"
+    # ⚠️ Ancienne version RÉFUTÉE (2026-07-22) : elle comparait l'énergie AGRÉGÉE après 40 pas avec une
+    # proie tuée -> le gain du scaffold etait (a) efface par le clamp energy_max sur le repas (L833),
+    # (b) rendu CHAOTIQUE par le couplage energie->obs->comportement (delta mesure : 0.00 a start=80,
+    # -55 a start=20). La premisse d'additivite etait fausse. On teste desormais le PAIEMENT direct.
+    from src.environments.stone_economy import anneal
+    e0, c0 = _landing_energy_one_step(0.0)
+    eL, cL = _landing_energy_one_step(10.0)
+    assert c0 >= 1 and cL >= 1, "le scenario doit produire un atterrissage (contact)"
+    expected = 10.0 * anneal(1, 30)
+    assert abs((eL - e0) - expected) < 1e-3, \
+        f"scaffold_land=10 doit ajouter exactement {expected:.3f} au pas final (eL-e0={eL - e0:.3f})"
 
 
 def test_determinism_at_zero():

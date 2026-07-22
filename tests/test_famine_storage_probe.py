@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 from tools.famine_storage_probe import count_reserves, measure_genome, evolve_in_famine, compute_emergence_verdict
 from src.agents.mamba_agent import MambaAgent
 from main_biosphere import init_primordial_soup
@@ -28,17 +27,18 @@ def test_measure_genome_returns_survival_and_fruits():
     assert out["fruits_at_transition"] >= 0.0
 
 
-@pytest.mark.xfail(reason="divergence de lignee feat/d1 vs main : la branche courante produit "
-                          "num_inputs=64 (obs etendue), le test asserte 59 (base main). Dette de "
-                          "reconciliation connue, cf. memoire lineage-divergence-d1-vs-main.",
-                   strict=False)
 def test_evolve_in_famine_returns_genome():
     # smoke minimal : 2 ères, peu d'agents/ticks -> renvoie un Genome aux bonnes dims.
     g = evolve_in_famine(seed=3, eras=2, num_agents=4, max_ticks=30,
                          cycle_abundance=10, cycle_famine=10)
     assert isinstance(g, Genome)
-    # Dimensions canoniques de la base main (num_inputs=59, num_outputs=108 via MambaAgent defaut)
-    assert g.num_inputs == 59 and g.num_outputs == 108
+    # Dims = celles de la SOUPE PRIMORDIALE canonique (init_primordial_soup, la source qu'utilise
+    # evolve_in_famine), PAS le MambaAgent nu. La soupe dérive l'obs/action du MONDE : 64/126 sur cette
+    # branche (obs étendue) vs 59/108 pour le MambaAgent par défaut. Dériver la référence rend le test
+    # AGNOSTIQUE à la lignée (ne casse pas si l'obs du monde change) — l'ancien hardcode 59/108 était
+    # la dette de divergence feat/d1<->main.
+    ref, _ = init_primordial_soup(num_agents=1, config=WorldConfig())
+    assert g.num_inputs == ref[0].num_inputs and g.num_outputs == ref[0].num_outputs
 
 
 def test_evolve_in_famine_deterministic():
