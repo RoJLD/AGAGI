@@ -18,6 +18,17 @@ import pytest
 def pytest_configure(config):
     config.addinivalue_line("markers", "slow: test lent (lance la biosphere), deselectionne par defaut en CI rapide")
 
+
+def pytest_collection_modifyitems(config, items):
+    """Garde-fou anti-hang (P1.1, 2026-07-22) : le timeout global de 120 s (pytest.ini) catche les hangs
+    de la CI RAPIDE, mais couperait les tests `@slow` légitimement longs (edr114 = 270 s). On leur donne
+    donc 600 s automatiquement (assez pour tout lent légitime, catche quand même un vrai infini), sauf
+    si le test porte déjà un `@pytest.mark.timeout(N)` explicite. Résultat : `pytest -m slow` marche
+    sans `--timeout=0`, et un slow qui HANGE pour de bon échoue quand même (à 600 s)."""
+    for item in items:
+        if item.get_closest_marker("slow") and item.get_closest_marker("timeout") is None:
+            item.add_marker(pytest.mark.timeout(600))
+
 _FIXTURES = pathlib.Path(__file__).parent / "fixtures" / "experiments"
 
 
