@@ -47,13 +47,14 @@ reclassée `non automatisable`. Pas de troisième occurrence tolérée sans chan
 | **E13** | **Dépassement de coût non borné au design** | 3 runs abandonnés (8 h, 4 h, 89 min) + 1 run de 1,8 h sur une question sans objet | ⚠️ **AUCUNE** | *à faire* : budget mesuré au smoke, obligatoire (P3.2) |
 | **E15** | **Statistique de POPULATION comparée entre populations de compositions différentes** — la métrique n'est pas dégénérée, elle est CONFONDUE | EDR-095 : le rêve forcé multiplie `n_lived` par **13-16** ; la survie médiane sur TOUS les agents chute de 55 % (`sign_p` 0.0005, reproduit) alors que sur la cohorte fondatrice appariée l'effet est **ABSENT** (8/12). L'indice — le `n_lived` ×16 — était publié **dans le record**, en « effet secondaire » | `documenté` | **Vérifier `n` PAR BRAS avant de comparer des médianes.** ⚠️ Aucune garde de borne ne voit ça : aucun bras n'est au plancher ni au plafond. Une médiane est robuste aux valeurs extrêmes, **pas à un changement de population** |
 | **E14** | **Garde exécutable jamais RÉTRO-APPLIQUÉE** — le cliquet protège le travail à venir, pas les conclusions déjà gravées, qui continuent d'être citées | `assert_not_degenerate` existait quand WARM-002 a été relu ×N ; personne ne l'a pointée sur son bras à 5.0-7.2 ticks. Le verdict « paysage PLAT » a alimenté 4 records pendant ce temps | `exécutable` **(triage seul)** | `tools/retro_audit_records.py` — signale `verdict NUL × conclusion sur le MONDE × plancher avoué`. ⚠️ **La partie jugement N'EST PAS automatisable** : voir ci-dessous |
+| **E16** | **Métrique nommée pour un mécanisme MORT** — une compétence agrégée dont un terme DOMINANT est alimenté par une stat que rien n'écrit ; la métrique varie normalement (≠ E3), mais toute sa variation vient de ses termes accessoires et se lit sous le nom du terme mort | `altars_solved` jamais incrémenté dans les 5 mondes actifs (bloc de résolution resté dans du legacy déprécié) → `gym_competence` ≡ 0, `industrial_competence` plafonnée à 0.4, et le barreau 2 du design dreaming (« la compétence-autels quitte le plancher ») ne pouvait bouger que par la SURVIE — que [[EDR-DREAM-001]] augmente de 77 % : faux positif armé ([[EDR-AUDIT-002]]) | `exécutable` | `tests/sandbox/test_competence_stats_are_live.py` — cliquet statique : toute stat lue par une fonction de compétence doit être écrite par `src/worlds/` hors init-à-0 et hors classes `Legacy`. Dette gelée `{altars_solved}`. ⚠️ **Ni E3 (pas dégénérée) ni E15 (pas de comparaison de populations)** : défaut COMPOSITIONNEL, détectable statiquement pas dynamiquement |
 
 ---
 
 ## Lecture du registre
 
-- **9 classes sur 14 ont une garde exécutable ou documentée** ; 3 n'en ont aucune (E11, E13, E14) et sont
-  inscrites au backlog ; 1 est explicitement non automatisable (E9).
+- **13 classes sur 16 ont une garde exécutable ou documentée** (9 exécutables, 4 documentées) ; 2 n'en
+  ont aucune (E11, E13) et sont inscrites au backlog ; 1 est explicitement non automatisable (E9).
 - **E9 est la plus coûteuse et la seule irréductible** : trois occurrences, aucune détectable par du code.
   C'est elle, et elle seule, qui justifie que la revue adversariale soit une **obligation** et non un confort.
 - **E10 est la plus instructive** : la règle existait, écrite depuis longtemps, et a été violée par trois

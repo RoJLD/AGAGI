@@ -318,6 +318,14 @@ class MambaBatchModel:
     # C'est l'ablation WITHIN-subject du MÉCANISME : si le bénéfice mesuré par EDR-DREAM-001 (+77 % de
     # survie, reproduction ×15.7) vient de la SÉLECTION-PAR-VALEUR, le factice doit retomber sur `off` ;
     # s'il vient de l'exploration bruitée de H, le factice doit le reproduire.
+    DREAM_NOISE = 0.05          # AMPLITUDE du bruit sur H (EDR-DREAM-003). Défaut = valeur historique
+    # en dur -> prod inchangée. DREAM-002 a montré que le bénéfice vient du BRUIT, pas de la sélection.
+    # Mais le rêve fait ENCORE deux choses : il bruite K fois ET il applique K mises à jour récurrentes
+    # supplémentaires (la boucle MUTE H, cf. ~L618 : c'est une marche à K pas, pas K branches
+    # parallèles). `DREAM_NOISE = 0.0` isole le second ingrédient : mêmes K pas, même `compute_spent`
+    # donc même `brain_cost`, mais AUCUN bruit. C'est la dose 0 de l'échelle d'amplitude — et la
+    # récursion de la leçon de DREAM-002 sur elle-même : une intervention qui fait deux choses doit
+    # être ablatée composante par composante.
 
     # NAS Axe 3 — Planificateur latent (activation du dreaming). Défaut OFF (non-régressif).
     PLAN_BIAS = 0.0   # poids du biais des logits d'action par le plan (0 = planificateur désactivé)
@@ -588,7 +596,10 @@ class MambaBatchModel:
                     break
 
                 H_branch = H.copy()
-                noise = np.random.randn(*H_branch.shape).astype(np.float32) * 0.05
+                # Le tirage a lieu MÊME à sigma=0 : consommer le même nombre de nombres aléatoires
+                # dans tous les bras garde les flux RNG alignés, sinon la dose 0 diverge du reste de
+                # la simulation pour une raison sans rapport avec le bruit.
+                noise = np.random.randn(*H_branch.shape).astype(np.float32) * type(self).DREAM_NOISE
                 H_branch[active_mask] += noise[active_mask]
 
                 excitation = np.einsum('bi,bij->bj', H_branch, W_no_diag)
