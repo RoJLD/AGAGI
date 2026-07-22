@@ -75,3 +75,40 @@ def test_group_sizes_match_genome_counts():
 def test_seam_default_is_all():
     """Le flag par défaut est 'all' -> prod strictement inchangée par l'ajout du seam."""
     assert MambaBatchModel.DREAM_NOISE_GROUP == "all"
+
+
+# --- EDR-DREAM-007 : specs APPARIÉES EN TAILLE (contrôlent le confondant de DREAM-006) --------------
+def test_size_matched_specs_have_expected_counts():
+    """Chaque spec appariée marque exactement le bon nombre de nœuds : action8/input8/outhi8 = 8,
+    hidden ≈ le cœur (5). Sans compte exact, le contrôle de taille de DREAM-007 serait faux."""
+    m = _batch()
+    for i, a in enumerate(m.agents):
+        I_i, O_i, N_i = a.genome.num_inputs, a.genome.num_outputs, a.genome.num_nodes
+        for spec, exp in (("action8", min(8, O_i)), ("input8", min(8, I_i)), ("outhi8", 8)):
+            mk = _dream_node_group_mask(m.agents, m.mappings, m.max_N, spec)[i]
+            assert int(mk.sum()) == exp, f"{spec}: {int(mk.sum())} != {exp}"
+
+
+def test_action8_is_first_of_output_and_disjoint_from_outhi8():
+    """`action8` = les 8 PREMIÈRES sorties (logits de déplacement) ; `outhi8` = les 8 DERNIÈRES.
+    Ils doivent être DISJOINTS, sinon « action » et « autre sortie » se confondraient."""
+    m = _batch()
+    ma = _dream_node_group_mask(m.agents, m.mappings, m.max_N, "action8")
+    mo = _dream_node_group_mask(m.agents, m.mappings, m.max_N, "outhi8")
+    for i, a in enumerate(m.agents):
+        assert np.all(ma[i] + mo[i] <= 1.0), f"agent {i} : action8 et outhi8 se chevauchent"
+        # action8 ⊂ output (toutes ses positions sont dans le bloc de sortie)
+        out_mask = _dream_node_group_mask(m.agents, m.mappings, m.max_N, "output")[i]
+        assert np.all(ma[i] <= out_mask), f"agent {i} : action8 fuit hors du bloc de sortie"
+
+
+def test_action8_matches_the_movement_logits_read_by_the_world():
+    """`action8` doit marquer exactement les nœuds dont dérivent les logits de déplacement preds[:8]
+    (`preds[i,:O]=H[mp[N-O:N]]` -> preds j ↔ nœud mp[N-O+j]). C'est la garantie que « bruit d'action
+    PORTÉ » touche bien les MÊMES nœuds que le bruit d'action transitoire de DREAM-004."""
+    m = _batch()
+    ma = _dream_node_group_mask(m.agents, m.mappings, m.max_N, "action8")
+    for i, a in enumerate(m.agents):
+        N_i, O_i = a.genome.num_nodes, a.genome.num_outputs
+        expected = m.mappings[i][N_i - O_i: N_i - O_i + 8]
+        assert set(np.where(ma[i] > 0)[0]) == set(expected)

@@ -312,12 +312,25 @@ def _dream_node_group_mask(agents, mappings, max_N, group):
         I_i = agents[i].genome.num_inputs
         O_i = agents[i].genome.num_outputs
         mp = mappings[i]
+        out0 = N_i - O_i                          # début du bloc de sortie dans l'ordre nœud
+        # Rôles PLEINS (EDR-DREAM-006) — ⚠️ tailles très inégales (input≈59/hidden≈5/output≈108),
+        # à ne comparer qu'entre eux.
         if group == "input":
             mask[i, mp[:I_i]] = 1.0
         elif group == "output":
-            mask[i, mp[N_i - O_i:N_i]] = 1.0
+            mask[i, mp[out0:N_i]] = 1.0
         elif group == "hidden":
-            mask[i, mp[I_i:N_i - O_i]] = 1.0
+            mask[i, mp[I_i:out0]] = 1.0
+        # Specs APPARIÉES EN TAILLE (EDR-DREAM-007) : ~5-8 nœuds chacune -> comparables sans confondant
+        # de taille. `action8` = les 8 logits de déplacement PORTÉS (sorties preds 0-7) : mêmes nœuds
+        # que le bruit d'action transitoire de DREAM-004, mais persistants -> teste si la persistance
+        # SUR CES NŒUDS suffit. `input8`/`outhi8` = 8 nœuds d'autres rôles = contrôles à COMPTE ÉGAL.
+        elif group == "action8":
+            mask[i, mp[out0:out0 + min(8, O_i)]] = 1.0
+        elif group == "input8":
+            mask[i, mp[:min(8, I_i)]] = 1.0
+        elif group == "outhi8":                   # 8 DERNIÈRES sorties (non-action)
+            mask[i, mp[max(out0, N_i - 8):N_i]] = 1.0
         else:
             raise ValueError(f"groupe de nœuds inconnu : {group!r}")
     return mask
