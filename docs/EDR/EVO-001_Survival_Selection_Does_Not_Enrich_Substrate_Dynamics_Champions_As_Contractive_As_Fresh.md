@@ -44,6 +44,22 @@ autant enrichir la dynamique (⚠️ le rayon spectral « caché » n'est PAS ca
 `N < I+O`, entrées/sorties chevauchées, `hidden = N−I−O = −18` — d'où le recours à la mesure EMPIRIQUE
 de convergence, seule fiable ici).
 
+### Robustesse : 4 lignées, 2 objectifs (le hedge « une seule lignée » tombe)
+Répliqué sur **3 lignées famine indépendantes** (`hof_famine_harsh_s{42,43,44}`, objectif « survie
+FAMINE DURE » — un second objectif de type survie) : elles sont **aussi largement contractives** et
+sparses.
+
+| lignée / objectif | converge (zéro / obs fixe) | densité W |
+|---|---|---|
+| HoF principal (survie) | 9/10 · 6/10 | 0.017 |
+| famine s42 | 8/10 · 7/10 | 0.064 |
+| famine s43 | 4/10 · 5/10 | 0.064 |
+| famine s44 | 5/10 · 5/10 | 0.064 |
+
+Les lignées famine varient un peu plus (5-8/10 stricts), mais les queues des non-convergents restent
+**~1e-3 = quasi-figées** — aucune ne développe de dynamique riche. **Deux objectifs de type survie, 4
+lignées : tous produisent des substrats contractifs + sparses.**
+
 ## Verdict
 **`SURVIVAL_SELECTION_DOES_NOT_ENRICH_SUBSTRATE_DYNAMICS`** → **le verrou est l'OBJECTIF, pas la
 capacité du substrat.**
@@ -62,9 +78,11 @@ l'OBJECTIF** : il faut une tâche à contenu cognitif EXPLICITE que le corps ne 
 prescription de [[EDR-S2-012]]) — le régime `cognitive_demand` in-world en est le candidat instrumenté.
 
 ## Portée (hedges)
-* **Une seule lignée évolutive** (le HoF principal, 10 champions d'un même run). Robuste À CETTE lignée,
-  pas encore répliqué sur des runs indépendants (les HoF famine ont une structure de pickle différente,
-  non lus ici).
+* ~~Une seule lignée~~ **RÉPLIQUÉ sur 4 lignées, 2 objectifs de survie** (HoF principal + 3 famine
+  s42/43/44) — cf. section Robustesse. Ce qui reste NON testé : un objectif qui RÉCOMPENSE le calcul
+  (mémoire/récurrence). ⚠️ le régime `cognitive_demand` in-world est un XOR **statique** (2 bits dans
+  l'obs courante) → il ne demande PAS de récurrence, donc il ne trancherait PAS. Le test discriminant
+  exige une tâche à demande de MÉMOIRE temporelle (cf. [[memory-architecture-audit]] MEM-001).
 * **Contractivité mesurée sous entrée CONSTANTE** (caricature ; in-world l'entrée varie). Comme dans
   DREAM-005, c'est un proxy de la tendance du substrat à se figer, pas une preuve de l'absence de calcul
   in-world.
