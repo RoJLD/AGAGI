@@ -45,11 +45,22 @@ livré** : `stop()` borné (worker vivant ET délai 5 s ; le flush restant se te
 perte). Test `test_async_logger_stop_bounded.py` (échec→passe, + non-régression worker-vivant). Effet
 mesuré : la suite passe de **6 % à 24 %** (`competence_profile`, `behavioral_diversity` et les hangers
 intermédiaires DÉBLOQUÉS).
-⚠️ **RACINE #2 restante** : `test_edr114_reach_oracle` hange encore vers 24 % — passe en ISOLATION, ne
-hange qu'en suite → accumulation plus profonde (workers daemon non terminés / connexions KuzuDB qui
-s'empilent sur ~290 tests). C'est le cœur dur de P1.1, celui où la fixture `autouse` avait cassé 2 tests.
-**Démarche systématique Phase 4.5 : ne PAS whack-a-mole ; le fix profond (cycle de vie du worker ou
-isolation par-fichier via process) est une tâche scopée à part.** *Coût : ~1-2 h, à cadrer.*
+**RACINE #2 — RÉSOLUE (2026-07-22), et ce n'était PAS de l'accumulation.** Diagnostic corrigé par la
+mesure : `test_main_reach_oracle_smoke_and_determinism` **hange AUSSI en isolation** (2m10 seul via
+pytest) — mon hypothèse d'accumulation était FAUSSE (mesure : 200 workers retriever zombies ne
+ralentissent un `einsum` que ×1.3, pas ×1000). Faulthandler (isolation propre) : le thread principal est
+dans `mamba_agent.forward`, à des lignes DIFFÉRENTES entre deux snapshots (659 puis 831) → il **progresse,
+c'est LENT pas infini**. Mesuré : `main_reach_oracle` = **135 s**, et le test le lance **2×**
+(déterminisme) ≈ 270 s. Cause : world model divergé en régime oracle → `surprise` sature à 1.0
+(`mamba_agent:549`, overflow clippé) → dreaming naturel à CHAQUE tick sur 4 cellules × 2 seeds × 150
+ticks. **Fix : `@pytest.mark.slow`** (7 autres tests du fichier passent, 1 désélectionné). C'était juste
+un smoke lourd **mal catégorisé**, démasqué par le fix racine #1 (qui a laissé la suite progresser
+au-delà de 6 %).
+⚠️ **Systémique probable** : d'autres smokes lourds sont sans doute non marqués `slow`. Le fix propre
+serait un **timeout PAR-TEST** (`pytest-timeout`, dép. dev) faisant ÉCHOUER vite tout test >N s au lieu
+de hanger la suite — surface tous les mal-catégorisés d'un coup au lieu du whack-a-mole. *Décision robla
+(ajout de dépendance).* ⚠️ Note d'efficacité hors sujet : la divergence du world model en régime oracle
+(overflow ligne 549) est peut-être elle-même corrigeable, ce qui accélérerait le smoke.
 
 **P1.2 — ~~Câbler `sim_session`~~ → FAIT, et remplacé par un JOB MANAGER.**
 `tools/jobs/` livré (lease/run/doctor, **11/11 tests**), inspiré de `cmex_crypto.batch` (Quant-lab) dont
