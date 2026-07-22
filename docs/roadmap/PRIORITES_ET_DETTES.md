@@ -322,9 +322,15 @@ DONT ON SAIT qu'elle utilise sa cognition), génomes tous FRAIS (aucun corps à 
 `python tools/check_instrument_calibration.py --report` donne la liste (70 non calibrés). Ne PAS viser
 l'exhaustivité : viser les **porteurs**. *Coût : ~2 h par instrument.*
 
-**P2.3 — Hook pre-commit pour le cliquet de calibration**, sur le modèle de celui des records
-(`tools/hooks/pre-commit`). Sans hook, le cliquet dépend de la discipline — or c'est exactement ce que la
-session a montré insuffisant. *Coût : ~30 min.*
+**P2.3 — ✅ FAIT (2026-07-22) — hook pre-commit du cliquet de calibration livré.**
+`tools/hooks/pre-commit` fait désormais DEUX vérifications indépendantes (records + calibration), chacune
+gatée sur ses fichiers stagés, drapeau `fail` partagé. La garde calibration ne se déclenche que quand un
+`.py` de `tools/` ou `src/seed_ai/` est stagé (le checker scanne l'arbre entier, pas de `--only`) →
+n'ennuie pas les commits de docs seuls. Testé dans les deux sens : un instrument bidon non calibré
+**bloque** (exit 1, message actionnable) ; l'arbre propre **passe** (81/12/0 nouveaux) ; un commit
+hook-seul **skippe** la garde. Le cliquet ne dépend plus de la discipline — principe transverse n°1
+(règle documentée sans application exécutable => violée) enfin fermé pour la calibration comme il l'était
+pour les records. *Bypass d'urgence : `git commit --no-verify`.*
 
 ---
 
