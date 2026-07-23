@@ -5,9 +5,11 @@
 levier = STAKES (Leurre létal), pas corps insuffisant (-> plancher EDR-090). Contrôle positif PARTIEL trouvé
 (discrimination VISIBLE s'évolue). ⚠️ La sonde dense isolée `_approach_rate` est INVALIDE (agent hors-contexte
 FIGÉ, agent_moved=0.00). `probe_navigation_incontext` corrige ça (env normal) : densité RÉSOLUE (n=160-361) mais
-convergence de toutes les sondes = champions RÉACTIFS, pas navigateurs (moved_frac≈0.06 face au statique,
-approche≈0.07 Mammouth ET Leurre, disc≈0) -> la survie in-world ne sélectionne PAS la cognition d'apex par type
-(confirme S2-012). Dernière marche = discrimination RÉACTIVE (apex à mobilité IDENTIQUE, attaque/fuite). Effort dédié.
+convergence de ~6 sondes (roaming/isolé/in-contexte × statique/mobile) = champions QUASI-STATIONNAIRES
+(moved_frac≈0.06 même sous apex qui charge, disc≈0, INTACT≡VISIBLE≡ABLATE) -> les métriques COMPORTEMENTALES
+ne peuvent pas extraire de discrimination d'un agent immobile. Pas de contrôle positif propre -> verdict différé.
+Vraie dernière marche = inspecter le LOGIT D'ATTAQUE (adjacent Mammouth vs Leurre, occlusion+ablation), immunisé
+contre l'immobilité (défi : obs de contexte réel, pas isolée). Substrat capable (EVO-002 8/8), infra prête.
 
 [[EDR-EVO-002]] a montré HORS-MONDE qu'un objectif à rappel différé fait évoluer un substrat qui MAÎTRISE
 la mémoire (1.00 sur 8/8). Question du pont : dans le VRAI monde (corps + économie d'énergie qui peuvent
@@ -269,12 +271,16 @@ def probe_memory_discrimination(genome, mode, seed, n_trials=40):
     return {"disc": p_mam - p_leu, "engage_mammouth": p_mam, "engage_leurre": p_leu}
 
 
-def probe_navigation_incontext(genome, mode, seed, num_agents=24, ticks=120, zone=3):
+def probe_navigation_incontext(genome, mode, seed, num_agents=24, ticks=120, zone=3, apex_speed=0.0):
     """MESURE DENSE IN-CONTEXTE (corrige le 3e mur : l'agent isolé fige). Un env NORMAL (`_setup_lewis`,
-    N_APEX apex, contexte complet -> l'agent BOUGE) ; apex FIGÉS (positions = cibles de décision, pas de
-    confond mouvement). À chaque tick, pour chaque agent dans la zone d'un apex, on lit s'il s'APPROCHE
-    (vers Mammouth = bon) ou s'ÉLOIGNE (fuit le Leurre = bon). disc = approche(Mam) − approche(Leu).
-    `moved_frac` = CONTRÔLE POSITIF de la sonde (agents non figés). Dense (agent-ticks), en contexte."""
+    N_APEX apex, contexte complet -> l'agent BOUGE). À chaque tick, pour chaque agent dans la zone d'un apex,
+    on lit s'il s'APPROCHE (vers Mammouth = bon) ou s'ÉLOIGNE (fuit le Leurre = bon), mesuré vs la position de
+    l'apex en DÉBUT de tick (intent de l'agent, isolé du mouvement de l'apex). disc = approche(Mam)−approche(Leu).
+
+    apex_speed=0 : apex FIGÉS (cibles statiques -> teste la navigation PROACTIVE ; les champions réactifs y
+    sont passifs). apex_speed>0 : les DEUX types s'approchent à mobilité IDENTIQUE (pas de confond mouvement)
+    -> teste la discrimination RÉACTIVE (fuir/engager quand l'apex vient), la « dernière marche » pour un
+    verdict propre. `moved_frac` = CONTRÔLE POSITIF de la sonde (agents non figés)."""
     np.random.seed(seed)
     env = MemoryDemandBiosphere(_cfg())
     env.hide_on_approach = (mode != "visible")
@@ -283,18 +289,18 @@ def probe_navigation_incontext(genome, mode, seed, num_agents=24, ticks=120, zon
     env.benchmark_mode = True
     env.current_era = 10_000
     _setup_lewis(env, n_each=N_APEX)
-    for t in ("Mammouth", "Leurre"):                 # apex FIGÉS -> pas de confond mouvement
+    for t in ("Mammouth", "Leurre"):                 # mobilité IDENTIQUE des deux types -> pas de confond mouvement
         if t in env.config.preys:
-            env.config.preys[t].moves_per_tick = 0.0
+            env.config.preys[t].moves_per_tick = apex_speed
     if LEURRE_DAMAGE is not None:
         env.config.preys["Leurre"].damage = float(LEURRE_DAMAGE)
     for _ in range(num_agents):
         a = MambaAgent()
         a.from_genome(genome)
         env.add_agent(a, energy=80.0)
-    apex = [(p["x"], p["y"], p["type"]) for p in env.preys if p["type"] in _APEX_TYPEVAL]
     mam, leu, moved, ntot = [], [], 0, 0
     for _ in range(ticks):
+        apex = [(p["x"], p["y"], p["type"]) for p in env.preys if p["type"] in _APEX_TYPEVAL]  # recalc/tick (apex mobiles)
         if not env.agents or not apex:
             break
         before = {}

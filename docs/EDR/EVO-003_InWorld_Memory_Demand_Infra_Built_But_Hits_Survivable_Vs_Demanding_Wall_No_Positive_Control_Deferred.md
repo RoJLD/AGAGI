@@ -109,12 +109,25 @@ statique par type ; `INTACT ≡ VISIBLE ≡ ABLATE` partout. La survie in-world 
 d'apex par type : elle est résolue réactivement. C'est une confirmation directe de [[EDR-S2-012]] (« la survie
 n'a aucun contenu cognitif ») pour la modalité apex/mémoire, et l'explication concrète de « in-world 0 ».
 
-## Portée honnête et dernière marche
-Ce n'est PAS un verdict « pas de mémoire » : `moved_frac=0.06` (passivité face au statique) laisse ambigu
-« pas de navigation par type » vs « pas de navigation du tout vers le statique ». La dernière marche pour un
-verdict PROPRE : mesurer la discrimination RÉACTIVE — deux apex qui s'approchent de l'agent à mobilité
-IDENTIQUE (pas de confond mouvement), puis attaque (Mammouth) vs fuite (Leurre) à l'adjacence, sous occlusion
-+ ablation. Le substrat EST capable de mémoire ([[EDR-EVO-002]], 8/8) et l'infra est prête ; il ne manque que
-ce dernier protocole de mesure. Effort dédié.
+## Dernière marche RÉALISÉE (discrimination réactive) — même mur : champions QUASI-STATIONNAIRES
+Protocole : deux apex à mobilité IDENTIQUE (`apex_speed=0.5`, pas de confond mouvement) qui s'approchent des
+agents in-contexte -> l'agent devrait FUIR le Leurre / ENGAGER le Mammouth. Résultat : `moved_frac` reste
+**0.06** (les apex qui foncent sur l'agent ne le font PAS bouger davantage), disc ≈ +0.02 (chance),
+visible ≡ memory ≡ ablate. **Cause racine enfin nette** : les champions sont QUASI-STATIONNAIRES — ils bougent
+~6 % des ticks près d'un apex, même sous un apex qui les charge ; ils survivent en laissant la nourriture venir
+à eux. Toute discrimination qu'ils auraient vivrait dans la décision d'ATTAQUE (nœud immobile), PAS dans le
+mouvement — et les métriques COMPORTEMENTALES (mouvement ; kills qui exigent un pack) ne peuvent PAS l'extraire
+d'un agent immobile. **~6 angles de mesure (roaming/isolé/in-contexte × statique/mobile), tous défaits par la
+même near-stationarité.**
+
+## Verdict de méthode (ce qui EST établi)
+Toujours PAS de verdict « mémoire in-world oui/non » — et surtout PAS de CONTRÔLE POSITIF propre (aucune sonde
+comportementale ne montre un champion qui discrimine par type). Mais le POURQUOI est borné : le comportement
+des champions (near-stationarité réactive) défait toute métrique comportementale de discrimination. La vraie
+dernière marche n'est donc PAS comportementale mais l'**inspection directe du logit d'ATTAQUE** : présenter au
+champion une obs in-contexte réaliste où il est adjacent à un Mammouth vs un Leurre (sous occlusion + ablation)
+et lire si son logit d'attaque diffère par type — dense (chaque obs = 1 décision), immunisé contre l'immobilité.
+⚠️ défi connu (le frozen-agent montre qu'une obs ISOLÉE est dégénérée -> il faut une obs de contexte réel).
+Le substrat EST capable ([[EDR-EVO-002]], 8/8), l'infra est prête. Effort dédié.
 
 Converge [[EDR-EVO-002]], [[EDR-S2-012]], [[EDR-090]], [[EDR-INFRA-001]], REF-EXPERIMENT-PREFLIGHT.
