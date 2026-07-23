@@ -1,0 +1,6 @@
+Format et méthodologie inspirés de withmarbleapp/os-taxonomy (Marble Skill Taxonomy),
+double licence ODbL 1.0 (base) + CC BY-SA 4.0 (contenu).
+
+Les fichiers de ce répertoire sont une FIXTURE SYNTHÉTIQUE au format os-taxonomy, destinée
+à la calibration d'instrument (SP-3). Ce ne sont PAS une copie de la base de données Marble.
+Vendre un extrait réel exige une vérification humaine des lignes source.
