@@ -58,12 +58,33 @@ exigées le proxy » (sous-entraînement). Un nul non contrôlé a déjà fabriq
   mémoire SANS s'effondrer** — la prescription non résolue de [[EDR-090]] (« adapter le substrat / trouver un
   barreau survivable AVANT de durcir »).
 
-## Suite (l'effort dédié : le barreau survivable = le contrôle positif)
-Prochaine étape (décision utilisateur « 1 puis 2 ») : établir un CONTRÔLE POSITIF in-world — un régime où la
-mémoire d'apex PAIE démontrablement (discrimination mémoire-basée, ablation-sensible, au-dessus du plancher).
-Leviers : desserrer la pression corps jusqu'au sweet-spot survie (EDR-085) tout en gardant l'occlusion dist-2 ;
-augmenter les ères ; récompenser explicitement la bonne discrimination (Mammouth vs Leurre) en énergie pour
-sur-pondérer l'apex dans une survie autrement dominée par le foraging. SANS ce contrôle positif, aucun verdict
-in-world n'est interprétable.
+## Campagne du barreau survivable (étape 2) — contrôle positif PARTIEL trouvé
+Décision utilisateur « 1 puis 2 » : chercher un régime où la mémoire d'apex PAIE. Campagne de smokes
+(1-3 seeds, exploratoire, sous-puissance assumée) qui a **resserré** le gap :
+
+- **Levier décisif = STAKES, pas corps insuffisant.** Rendre le Leurre LÉTAL (`LEURRE_DAMAGE=100` : attaquer
+  un Leurre = mort) sur-pondère l'apex dans une survie sinon dominée par le foraging, SANS affamer (évite le
+  plancher EDR-090). C'est ce qui débloque la sélection pour la discrimination.
+- **Contrôle positif PARTIEL établi** (réfute « le corps ne peut pas discriminer in-world ») : sous Leurre
+  létal + type VISIBLE, l'évolution in-world discrimine **disc 0.80-1.00** (2 seeds) — la discrimination
+  d'apex EST sélectionnable in-world.
+- **Mais l'étape MÉMOIRE ne se franchit pas dans ce budget** : sous Leurre létal + occlusion dist-2 (mémoire
+  requise, 22 ères, 3 seeds), disc INTACT = 0.25 / 0.75 / 0.20, et INTACT ≡ VISIBLE sur 2/3 seeds (le champion
+  n'utilise pas le type même visible) ; un seul seed montre un signal mémoire faible (0.75 -> 0.57 sous
+  ablation). Évoluer SOUS occlusion dégrade même la discrimination visible -> l'occlusion est plus dure à
+  franchir qu'à apprendre la discrimination nue.
+- **Verrou résiduel = MESURE ÉPARSE** : 5-10 rencontres d'apex par champion (30 agents × 200 ticks) -> chaque
+  disc repose sur trop peu d'événements pour un verdict. La navigation imparfaite + la mort rapide rendent les
+  kills rares.
+
+Bilan raffiné : le gap in-world se resserre de « rien ne marche » à **(a) l'étape MÉMOIRE spécifiquement**
+(la discrimination visible, elle, s'évolue) **et (b) la sparsité de la mesure par kills**.
+
+## Suite (frontière dédiée — mesure DENSE)
+Le pont robuste exige, AVANT tout verdict : une **mesure dense** de la décision d'apex (rencontres
+CONTRÔLÉES — spawn d'un apex adjacent + occlusion + lecture de l'action attaque/fuite — au lieu de compter
+des kills rares en roaming libre), + plus de seeds/ères. Avec la discrimination visible comme contrôle
+positif (acquis) et l'ablation within-subject comme marqueur causal (bâti), il ne manque que la densité de
+mesure. C'est un effort dédié, pas un add-on de session.
 
 Converge [[EDR-EVO-002]], [[EDR-S2-012]], [[EDR-090]], [[EDR-INFRA-001]], REF-EXPERIMENT-PREFLIGHT.

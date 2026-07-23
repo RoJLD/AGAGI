@@ -76,6 +76,8 @@ from tools.lewis_world import _setup_lewis  # noqa: E402
 BODY_METAB = 0.25          # cfg.base_metabolism (0.25 = sweet-spot survie EDR-085 ; ↑ = corps moins suffisant)
 BODY_PAYOFF = 3.0          # cfg.forage_payoff  (3.0 = sweet-spot ; ↓ = foraging moins nourrissant -> pousse à chasser)
 N_APEX = 5                 # Mammouth+Leurre spawnés (↑ = rencontres plus DENSES, sans affamer -> évite le plancher EDR-090)
+LEURRE_DAMAGE = None       # None = défaut _setup_lewis (50) ; 100 = LÉTAL -> discrimination vitale (sur-pondère
+                           # l'apex dans une survie sinon dominée par le foraging -> établit le contrôle positif)
 
 
 _APEX_TYPEVAL = {"Mammouth": 1.0, "Ours": 0.5, "Leurre": -1.0}
@@ -137,6 +139,9 @@ def _run_era(genomes, memory_regime, cfg, max_ticks, era, ablate=False, benchmar
         env = Biosphere3D(cfg)
         env.transient_apex = False               # contrôle : type visible dans la fenêtre d'attaque
     _setup_lewis(env, n_each=N_APEX)
+    if LEURRE_DAMAGE is not None:                 # stakes : Leurre létal -> discrimination VITALE (contrôle positif)
+        from src.environments.config import PreyConfig
+        env.config.preys["Leurre"] = PreyConfig(hp=100.0, damage=float(LEURRE_DAMAGE), moves_per_tick=0.2)
     if benchmark:
         env.benchmark_mode = True         # cohorte fixe : pas de repro qui dilue le champion (cf. g_fidelity)
         env.night_enabled = False
