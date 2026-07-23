@@ -1,7 +1,7 @@
 """EDR-EVO-003 — PONT IN-WORLD : la demande de mémoire d'EVO-002 survit-elle à l'embarquement ?
 
 ✅ RÉSOLU (cf. docs/EDR/EVO-003…) : l'évolution in-world n'encode PAS de cognition d'apex par type — la POLITIQUE
-IGNORE causalement le canal de type (obs[4]). Mesuré par `probe_type_sensitivity` : perturber obs[4]=+1 vs −1 et
+IGNORE causalement le canal de type (obs[4]). Mesuré par `measure_type_sensitivity` : perturber obs[4]=+1 vs −1 et
 lire Δ du logit vers l'apex -> Δ_abs ≈ 0.000-0.006 sur 8 champions (2 objectifs × 4 seeds) vs **0.65 pour un
 génome-lecteur synthétique** (contrôle positif de la sonde -> instrument PROUVÉ sensible). Pas de lecture -> pas
 de discrimination -> pas de mémoire (sous-question caduque). Confirme S2-012 causalement, explique proxy→monde.
@@ -400,7 +400,7 @@ def probe_attack_logit(genome, mode, seed, num_agents=24, ticks=120, zone=2, ape
             "logit_std": float(np.std(allv)) if allv else 0.0}
 
 
-def probe_type_sensitivity(genome, seed, num_agents=24, ticks=120, zone=2):
+def measure_type_sensitivity(genome, seed, num_agents=24, ticks=120, zone=2):
     """CONTRÔLE POSITIF + mesure CAUSALE définitive : la décision d'approche du champion DÉPEND-elle du canal
     type (obs[4]) ? In-contexte (obs réelles), pour chaque agent près d'un apex, on perturbe obs[4]=+1
     (Mammouth) vs −1 (Leurre) sur la MÊME obs, forward NON destructif (`recurrent_forward` sur le H courant),

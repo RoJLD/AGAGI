@@ -86,6 +86,12 @@ CALIBRATED = {
     # monotonie (dur > mou > non-arête), + contraste : une ablation par l'ANCÊTRE faux-positive.
     "run_prerequisite_recovery_probe": ["*"],
     "prerequisite_recovery_verdict": ["*"],
+    # EVO-003 : instrument LOAD-BEARING du verdict in-world (l'évolution n'encode PAS la cognition d'apex :
+    # la politique ignore le canal type obs[4]). Calibré PAR CONSTRUCTION : un génome qui CÂBLE obs[4] vers
+    # les move-outputs -> Δ grand (sonde sensible) ; un génome dont le FANOUT de obs[4] est nul -> Δ EXACT 0
+    # avec sorties non dégénérées (logit_std>0) -> ce qui rend le Δ≈0 des champions INTERPRÉTABLE (ils
+    # ignorent obs[4]) et non un artefact. C'est le contrôle positif qui a débloqué le verdict après 4 sondes.
+    "measure_type_sensitivity": ["*"],
 }
 
 _GENOMES = os.path.join("results", "warm007_genomes")
@@ -974,3 +980,54 @@ def test_sp3_recovered_ratio_tracks_the_imposed_gate_dose_by_prediction():
             f"hard_w={hw}: ratio récupéré {got:.3f} vs prédit {predicted:.3f}")
         ratios.append(got)
     assert ratios == sorted(ratios), f"le ratio récupéré doit croître avec la dose hard_w : {ratios}"
+
+
+# --- EVO-003 : `measure_type_sensitivity` (tools/evo_memory_inworld.py) ----------------------------
+# L'instrument LOAD-BEARING du verdict EVO-003 : la décision d'approche du champion dépend-elle du canal
+# type d'apex (obs[4]) ? Calibré PAR CONSTRUCTION avec deux génomes de réponse CONNUE — un LECTEUR (câble
+# obs[4] vers les move-outputs) et un NON-LECTEUR (fanout de obs[4] mis à zéro, sorties variables sinon).
+from tools.evo_memory_inworld import measure_type_sensitivity  # noqa: E402
+from src.agents.mamba_agent import MambaAgent as _MambaAgentTS  # noqa: E402
+
+
+def _reader_genome():
+    """Réponse CONNUE = LIT obs[4] : W nul sauf canal type (obs[4]) -> les 4 move-outputs (δ≈1)."""
+    g = _MambaAgentTS().genome
+    N, O = g.num_nodes, g.num_outputs
+    g.W[:] = 0.0
+    for j in range(4):
+        g.W[4, N - O + j] = 5.0
+        g.W[N - O + j, N - O + j] = 5.0
+    return g
+
+
+def _nonreader_genome():
+    """Réponse CONNUE = IGNORE obs[4] : W dense aléatoire (sorties non dégénérées) mais fanout de obs[4] nul."""
+    g = _MambaAgentTS().genome
+    g.W[4, :] = 0.0
+    return g
+
+
+def test_type_sensitivity_detects_a_reader():
+    """CONTRÔLE POSITIF de la sonde : un génome qui câble obs[4] vers les move-outputs rend un Δ nettement
+    non nul -> la sonde SAIT détecter la dépendance de la décision au canal type."""
+    r = measure_type_sensitivity(_reader_genome(), seed=1, num_agents=12, ticks=40)
+    assert r["n"] > 0, "aucun agent près d'un apex -> régime à ajuster"
+    assert r["delta_abs_mean"] > 0.3, f"lecteur NON détecté : Δ={r['delta_abs_mean']:.3f}"
+
+
+def test_type_sensitivity_zero_on_a_nonreader():
+    """SPÉCIFICITÉ : un génome dont le FANOUT de obs[4] est nul (sorties variables via d'autres entrées)
+    rend Δ≈0 SANS être dégénéré (logit_std>0). C'est ce qui rend le Δ≈0 des champions évolués
+    INTERPRÉTABLE (ils ignorent obs[4]) plutôt qu'un artefact d'instrument insensible."""
+    r = measure_type_sensitivity(_nonreader_genome(), seed=1, num_agents=12, ticks=40)
+    assert r["n"] > 0
+    assert r["delta_abs_mean"] < 0.02, f"Δ non nul alors que obs[4] n'a AUCUN fanout : {r['delta_abs_mean']:.4f}"
+    assert r["logit_std"] > 0.1, "sorties dégénérées -> un Δ≈0 y serait ININTERPRÉTABLE"
+
+
+def test_type_sensitivity_reader_dominates_nonreader():
+    """PRÉDICTION (le contraste qui porte le verdict EVO-003 : champions ≈ non-lecteurs) : lecteur ≫ non-lecteur."""
+    rr = measure_type_sensitivity(_reader_genome(), seed=2, num_agents=12, ticks=40)
+    rn = measure_type_sensitivity(_nonreader_genome(), seed=2, num_agents=12, ticks=40)
+    assert rr["delta_abs_mean"] > 10.0 * max(rn["delta_abs_mean"], 1e-6)
