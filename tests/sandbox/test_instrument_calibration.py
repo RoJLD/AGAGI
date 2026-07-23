@@ -97,6 +97,11 @@ CALIBRATED = {
     # (le garde STRUCTUREL) est aveugle à la fuite que le garde COMPORTEMENTAL attrape.
     "run_functional_aliasing_probe": ["*"],
     "functional_aliasing_verdict": ["*"],
+    # EVO-004 : généralise measure_type_sensitivity à TOUS les canaux (quels canaux d'obs la politique LIT).
+    # Calibré PAR CONSTRUCTION : un lecteur du canal k -> saillance ISOLÉE sur k (haute), 0 ailleurs ; un
+    # non-lecteur (fanout de k = 0) -> saillance nulle sur k. C'est le contrôle positif qui rend le « ~200×
+    # sous un lecteur » des champions INTERPRÉTABLE (ils ne lisent presque rien) et non un artefact.
+    "measure_channel_saliency": ["*"],
 }
 
 _GENOMES = os.path.join("results", "warm007_genomes")
@@ -1086,3 +1091,25 @@ def test_alias_structural_guard_is_blind_to_functional_leak():
     assert assert_no_aliasing(ci, ca) is True, "le garde STRUCTUREL est aveugle à la fuite fonctionnelle"
     with pytest.raises(PreflightError):
         assert_no_functional_aliasing(r["control_intact"], r["control_ablated"])
+
+
+# --- EVO-004 : `measure_channel_saliency` (généralise measure_type_sensitivity à tous les canaux) --------
+# Calibré PAR CONSTRUCTION avec les mêmes génomes de réponse CONNUE : un LECTEUR du canal 4 doit avoir une
+# saillance ISOLÉE sur le canal 4 (haute) et 0 sur les autres ; un NON-LECTEUR (fanout de 4 nul) -> 0 sur 4.
+from tools.evo_memory_inworld import measure_channel_saliency  # noqa: E402
+
+
+def test_channel_saliency_isolates_the_read_channel():
+    """CONTRÔLE POSITIF + spécificité : le lecteur du canal 4 doit s'allumer FORT sur le canal 4 et rester
+    à ~0 sur des canaux qu'il ne câble pas -> la sonde attribue la saillance au BON canal."""
+    sal = measure_channel_saliency(_reader_genome(), seed=1, channels=[0, 1, 4, 11, 36], num_agents=12, ticks=40)
+    assert sal[4] > 0.3, f"canal lu non détecté : {sal[4]:.3f}"
+    for k in (0, 1, 11, 36):
+        assert sal[k] < 0.02, f"saillance parasite sur un canal NON câblé {k} : {sal[k]:.3f}"
+
+
+def test_channel_saliency_zero_on_a_nonread_channel():
+    """SPÉCIFICITÉ : un génome dont le fanout du canal 4 est nul rend une saillance ≈0 sur le canal 4 ->
+    ce qui rend le « ~200× sous un lecteur » des champions INTERPRÉTABLE (ils ne lisent presque rien)."""
+    sal = measure_channel_saliency(_nonreader_genome(), seed=1, channels=[4], num_agents=12, ticks=40)
+    assert sal[4] < 0.02, f"saillance non nulle alors que le canal 4 n'a pas de fanout : {sal[4]:.4f}"

@@ -452,6 +452,49 @@ def measure_type_sensitivity(genome, seed, num_agents=24, ticks=120, zone=2):
             "logit_std": float(np.std(logits_all)) if logits_all else 0.0, "n": len(deltas)}
 
 
+def measure_channel_saliency(genome, seed, channels, num_agents=24, ticks=80, n_out=8):
+    """EDR-EVO-004 — SAILLANCE par canal d'obs (généralise measure_type_sensitivity à tous les canaux) :
+    de combien la DÉCISION (logits d'action [:n_out]) change-t-elle quand on met obs[k]=+1 vs −1 ? In-contexte
+    (obs réelles), forward NON destructif (`recurrent_forward` sur le H courant). Renvoie {k: mean |Δlogits|}.
+    Révèle quels canaux la politique évoluée LIT vs IGNORE. Contrôle positif intrinsèque : au moins un canal de
+    SURVIE (direction proie 0-3, hp) doit s'allumer, sinon la politique/sonde est dégénérée."""
+    from src.seed_ai.rl_evolution import recurrent_forward
+    np.random.seed(seed)
+    env = MemoryDemandBiosphere(_cfg())
+    env.hide_on_approach = False
+    env.night_enabled = False
+    env.benchmark_mode = True
+    env.current_era = 10_000
+    _setup_lewis(env, n_each=N_APEX)
+    for t in ("Mammouth", "Leurre"):
+        if t in env.config.preys:
+            env.config.preys[t].moves_per_tick = 0.0
+    for _ in range(num_agents):
+        a = MambaAgent()
+        a.from_genome(genome)
+        env.add_agent(a, energy=80.0)
+    sal = {k: [] for k in channels}
+    for _ in range(ticks):
+        if not env.agents:
+            break
+        obs = np.asarray(env.get_batch_observations(), dtype=np.float32)
+        for i, ag in enumerate(env.agents):
+            if i >= obs.shape[0]:
+                continue
+            m = ag["model"]
+            H, Hh, Hp = m.H_prev, m.H_history, m.H_potentials
+            for k in channels:
+                if k >= obs.shape[1]:
+                    continue
+                op = obs[i:i + 1].copy(); op[0, k] = 1.0
+                om = obs[i:i + 1].copy(); om[0, k] = -1.0
+                pp = recurrent_forward(genome, op, H, Hh, Hp)[0]
+                pm = recurrent_forward(genome, om, H, Hh, Hp)[0]
+                sal[k].append(float(np.mean(np.abs(pp[0, :n_out] - pm[0, :n_out]))))
+        env.step()
+    return {k: (float(np.mean(v)) if v else 0.0) for k, v in sal.items()}
+
+
 def run_contrast(seeds, eras=15, max_ticks=120, num_agents=30, bench_ticks=150):
     """EXPLORATOIRE : évolue ON vs OFF par seed, benchmarke chaque champion SOUS occultation (transient=ON,
     mémoire requise) ET sous type visible (transient=OFF, contrôle). Le champion ON discrimine-t-il mieux
