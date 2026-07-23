@@ -44,3 +44,20 @@ def test_shared_leaks_and_is_monotone_in_alpha():
     assert leaks[0] == 0.0, f"α=0 doit être un no-op exact : {leaks}"
     assert leaks == sorted(leaks) and leaks[-1] > leaks[0], f"fuite non monotone : {leaks}"
     assert leaks[-1] > 0.1, f"α=1 doit fuir nettement : {leaks[-1]}"
+
+
+def test_functional_guard_passes_when_control_unchanged():
+    from tools.experiment_preflight import assert_no_functional_aliasing
+    assert assert_no_functional_aliasing(0.4658, 0.4658) is True
+
+
+def test_functional_guard_fires_when_control_moves():
+    import pytest
+    from tools.experiment_preflight import assert_no_functional_aliasing, PreflightError
+    with pytest.raises(PreflightError):
+        assert_no_functional_aliasing(0.4658, 0.7190)      # fuite mesurée à α=1
+
+
+def test_functional_guard_respects_tolerance():
+    from tools.experiment_preflight import assert_no_functional_aliasing
+    assert assert_no_functional_aliasing(1.0, 1.0 + 1e-12) is True   # sous la tolérance

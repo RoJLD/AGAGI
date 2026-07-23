@@ -7,7 +7,8 @@ automatise ceux-là ; les deux autres exigent une DÉCLARATION écrite avant le 
     A. L'instrument peut-il produire LES DEUX issues ?   -> assert_ablation_changes_something,
                                                             assert_positive_control, assert_not_degenerate,
                                                             assert_selection_nonempty
-    C. La grandeur mesurée est-elle celle qui AGIT ?     -> assert_no_aliasing, assert_predictor_measured_in_situ
+    C. La grandeur mesurée est-elle celle qui AGIT ?     -> assert_no_aliasing, assert_no_functional_aliasing,
+                                                            assert_predictor_measured_in_situ
     B. Quelle est l'unité de réplication ?               -> declare_design (non automatisable)
     D. Est-ce que je raisonne au lieu de mesurer ?       -> declare_design (non automatisable)
 
@@ -112,6 +113,25 @@ def assert_no_aliasing(produced, source, label="sortie"):
             f"{label} ALIASÉE sur l'état interne : écrire dedans mutera l'état. "
             "Copier avant de modifier, et appliquer la copie aux DEUX bras (sinon on compare deux "
             "dynamiques en plus de l'intervention).")
+    return True
+
+
+def assert_no_functional_aliasing(control_intact, control_ablated, tol=1e-9, label="capacité de contrôle"):
+    """Complément COMPORTEMENTAL de `assert_no_aliasing` (qui, lui, est STRUCTUREL via np.shares_memory).
+
+    Une capacité de CONTRÔLE, connue INDÉPENDANTE du canal ablaté, ne doit pas bouger sous l'ablation.
+    Si elle bouge, l'ablation agit par un canal partagé du substrat (aliasing FONCTIONNEL) — et tout
+    verdict de demande tiré de cette ablation est contaminé.
+
+    Aurait attrapé (le faux positif que SP-2 hériterait) : ablater X pour mesurer « Y demande-t-elle X ? »
+    sur un substrat où X et Y partagent des neurones effondre Y par la représentation partagée, pas parce
+    que Y demande X. `np.shares_memory` est AVEUGLE à ça (buffers séparés) ; ce garde le mesure."""
+    d = abs(float(control_intact) - float(control_ablated))
+    if d > float(tol):
+        raise PreflightError(
+            f"{label} a BOUGÉ de {d:.4g} (> tol {float(tol):.1g}) sous l'ablation d'un canal censé lui être "
+            "ÉTRANGER : aliasing FONCTIONNEL de substrat. L'ablation n'est pas chirurgicale -> tout verdict "
+            "de demande qui en découle est contaminé (mesurer sur une capacité de contrôle indépendante).")
     return True
 
 
