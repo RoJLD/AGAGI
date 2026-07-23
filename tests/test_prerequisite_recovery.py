@@ -86,3 +86,8 @@ def test_graph_recovery_is_perfect_on_the_fixture():
     rec = run_prerequisite_recovery_probe(fixture_subgraph(), fixture_world(), seeds=list(range(12)))["recovery"]
     assert rec["precision"] == 1.0 and rec["recall"] == 1.0
     assert rec["recovered"] == ["Ah_food_chains"]
+
+
+def test_preflight_passes_and_main_reports_go():
+    from tools.prerequisite_recovery_probe import main
+    assert main() == 0, "le pré-vol + le go/no-go doivent PASSER sur la fixture calibrée"
