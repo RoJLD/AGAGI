@@ -83,3 +83,8 @@ def test_verdict_flags_vacuous_ablation():
     from tools.ground_truth_worlds import make_aliasing_genome
     r = run_functional_aliasing_probe(make_aliasing_genome(0.0), x_input=1, x_readout=0, control_readout=0)
     assert r["x_response"] == 0.0 and r["verdict"] == "VACUOUS_ABLATION"
+
+
+def test_preflight_passes_and_main_reports_go():
+    from tools.functional_aliasing_probe import main
+    assert main() == 0, "disjoint SURGICAL + partagé FUNCTIONAL_LEAK -> GO"
