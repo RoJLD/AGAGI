@@ -61,3 +61,25 @@ def test_functional_guard_fires_when_control_moves():
 def test_functional_guard_respects_tolerance():
     from tools.experiment_preflight import assert_no_functional_aliasing
     assert assert_no_functional_aliasing(1.0, 1.0 + 1e-12) is True   # sous la tolérance
+
+
+def test_probe_surgical_on_disjoint():
+    from tools.functional_aliasing_probe import run_functional_aliasing_probe
+    from tools.ground_truth_worlds import make_aliasing_genome
+    r = run_functional_aliasing_probe(make_aliasing_genome(0.0))
+    assert r["leakage"] == 0.0 and r["verdict"] == "SURGICAL" and r["x_response"] > 0.1
+
+
+def test_probe_leak_on_shared():
+    from tools.functional_aliasing_probe import run_functional_aliasing_probe
+    from tools.ground_truth_worlds import make_aliasing_genome
+    r = run_functional_aliasing_probe(make_aliasing_genome(1.0))
+    assert r["leakage"] > 0.1 and r["verdict"] == "FUNCTIONAL_LEAK"
+
+
+def test_verdict_flags_vacuous_ablation():
+    # ablate Y (in 1) mais lire out_X (readout 0) : out_X ne dépend pas de Y -> x_response=0 -> vacux
+    from tools.functional_aliasing_probe import run_functional_aliasing_probe
+    from tools.ground_truth_worlds import make_aliasing_genome
+    r = run_functional_aliasing_probe(make_aliasing_genome(0.0), x_input=1, x_readout=0, control_readout=0)
+    assert r["x_response"] == 0.0 and r["verdict"] == "VACUOUS_ABLATION"

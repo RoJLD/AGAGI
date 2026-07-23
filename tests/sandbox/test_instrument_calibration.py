@@ -92,6 +92,11 @@ CALIBRATED = {
     # avec sorties non dégénérées (logit_std>0) -> ce qui rend le Δ≈0 des champions INTERPRÉTABLE (ils
     # ignorent obs[4]) et non un artefact. C'est le contrôle positif qui a débloqué le verdict après 4 sondes.
     "measure_type_sensitivity": ["*"],
+    # CALIB-ALIAS : aliasing FONCTIONNEL de substrat (câblage imposé dans le vrai recurrent_forward).
+    # no-op EXACT sur disjoint, FUITE sur partagé, monotone en la dose, + contraste : np.shares_memory
+    # (le garde STRUCTUREL) est aveugle à la fuite que le garde COMPORTEMENTAL attrape.
+    "run_functional_aliasing_probe": ["*"],
+    "functional_aliasing_verdict": ["*"],
 }
 
 _GENOMES = os.path.join("results", "warm007_genomes")
@@ -1031,3 +1036,53 @@ def test_type_sensitivity_reader_dominates_nonreader():
     rr = measure_type_sensitivity(_reader_genome(), seed=2, num_agents=12, ticks=40)
     rn = measure_type_sensitivity(_nonreader_genome(), seed=2, num_agents=12, ticks=40)
     assert rr["delta_abs_mean"] > 10.0 * max(rn["delta_abs_mean"], 1e-6)
+
+
+# --- CALIB-ALIAS : run_functional_aliasing_probe / functional_aliasing_verdict ----------------------
+# Étalon = un génome câblé à la main dans le VRAI recurrent_forward. Réponse connue PAR CONSTRUCTION :
+# α=0 disjoint (ablater X = no-op exact sur out_Y), α>0 partagé (fuite), monotone en α. Déterministe.
+
+
+def test_alias_noop_exact_on_disjoint_substrate():
+    """no-op EXACT (spécificité) : sur un câblage DISJOINT, ablater X ne touche PAS out_Y (bit-identique),
+    mais tue bien out_X (ablation NON vacuse -> générateur A). Mesuré : leakage 0.0, x_response ~0.466."""
+    from tools.functional_aliasing_probe import run_functional_aliasing_probe
+    from tools.ground_truth_worlds import make_aliasing_genome
+    r = run_functional_aliasing_probe(make_aliasing_genome(0.0))
+    assert r["leakage"] == 0.0 and r["verdict"] == "SURGICAL"
+    assert r["x_response"] > 0.1, "l'ablation doit changer la capacité PROPRE de X (sinon no-op vacux)"
+
+
+def test_alias_positive_control_leak_on_shared_substrate():
+    """contrôle positif : sur un câblage PARTAGÉ (α=1), ablater X fait FUIR out_Y. Mesuré : leakage ~0.253."""
+    from tools.functional_aliasing_probe import run_functional_aliasing_probe
+    from tools.ground_truth_worlds import make_aliasing_genome
+    r = run_functional_aliasing_probe(make_aliasing_genome(1.0))
+    assert r["verdict"] == "FUNCTIONAL_LEAK" and r["leakage"] > 0.1
+
+
+def test_alias_leakage_is_monotone_in_the_sharing_dose():
+    """monotonie (direction) : la fuite croît avec la dose de partage α. Mesuré : ~0/0.099/0.177/0.253."""
+    from tools.functional_aliasing_probe import run_functional_aliasing_probe
+    from tools.ground_truth_worlds import make_aliasing_genome
+    leaks = [run_functional_aliasing_probe(make_aliasing_genome(a))["leakage"] for a in (0.0, 0.3, 0.6, 1.0)]
+    assert leaks[0] == 0.0, f"α=0 doit être un no-op exact : {leaks}"
+    assert all(a < b for a, b in zip(leaks, leaks[1:])), f"fuite non STRICTEMENT croissante : {leaks}"
+
+
+def test_alias_structural_guard_is_blind_to_functional_leak():
+    """LE CONTRASTE QUI JUSTIFIE LE NOUVEAU GARDE. Sur le substrat partagé, la sortie de contrôle FUIT,
+    mais les deux mesures sont des arrays INDÉPENDANTS -> np.shares_memory est False -> l'ancien garde
+    STRUCTUREL `assert_no_aliasing` PASSE (aveugle), tandis que le garde COMPORTEMENTAL tire."""
+    import numpy as np
+    import pytest
+    from tools.functional_aliasing_probe import run_functional_aliasing_probe
+    from tools.ground_truth_worlds import make_aliasing_genome
+    from tools.experiment_preflight import assert_no_aliasing, assert_no_functional_aliasing, PreflightError
+    r = run_functional_aliasing_probe(make_aliasing_genome(1.0))
+    ci = np.array([r["control_intact"]], dtype=np.float32)
+    ca = np.array([r["control_ablated"]], dtype=np.float32)
+    assert not np.shares_memory(ci, ca), "deux mesures indépendantes ne partagent pas la mémoire"
+    assert assert_no_aliasing(ci, ca) is True, "le garde STRUCTUREL est aveugle à la fuite fonctionnelle"
+    with pytest.raises(PreflightError):
+        assert_no_functional_aliasing(r["control_intact"], r["control_ablated"])
