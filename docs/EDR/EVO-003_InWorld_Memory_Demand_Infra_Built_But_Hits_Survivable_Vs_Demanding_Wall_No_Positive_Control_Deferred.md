@@ -86,9 +86,14 @@ Décision utilisateur « 1 puis 2 » : chercher un régime où la mémoire d'ape
 - **Levier décisif = STAKES, pas corps insuffisant.** Rendre le Leurre LÉTAL (`LEURRE_DAMAGE=100` : attaquer
   un Leurre = mort) sur-pondère l'apex dans une survie sinon dominée par le foraging, SANS affamer (évite le
   plancher EDR-090). C'est ce qui débloque la sélection pour la discrimination.
-- **Contrôle positif PARTIEL établi** (réfute « le corps ne peut pas discriminer in-world ») : sous Leurre
-  létal + type VISIBLE, l'évolution in-world discrimine **disc 0.80-1.00** (2 seeds) — la discrimination
-  d'apex EST sélectionnable in-world.
+- ~~**Contrôle positif PARTIEL établi** : sous Leurre létal + type VISIBLE, disc 0.80-1.00~~ **← RÉFUTÉ par la
+  RÉSOLUTION (en tête).** Ce n'était PAS de la discrimination par type mais un ARTEFACT DE SURVIE du Leurre
+  létal : attaquer un Leurre (damage 100) TUE l'agent avant qu'il ne le tue -> `leurre_hits` bas ; attaquer un
+  Mammouth (damage 50, survivable) laisse l'agent accumuler -> `big_kills` haut. disc élevé SANS lecture du
+  type (les deux apex ont pourtant `moves_per_tick=0.2` — pas d'asymétrie de vitesse ; c'est la LÉTALITÉ qui
+  biaise le compte de kills). La mesure définitive (logit, Δ≈0) le confirme : la politique ignore obs[4], donc
+  aucune discrimination n'a JAMAIS été sélectionnée. Nouveau confond consigné : **disc par kills sous létalité
+  asymétrique = biais de SURVIVANT**, pas de la compétence.
 - **Mais l'étape MÉMOIRE ne se franchit pas dans ce budget** : sous Leurre létal + occlusion dist-2 (mémoire
   requise, 22 ères, 3 seeds), disc INTACT = 0.25 / 0.75 / 0.20, et INTACT ≡ VISIBLE sur 2/3 seeds (le champion
   n'utilise pas le type même visible) ; un seul seed montre un signal mémoire faible (0.75 -> 0.57 sous
@@ -98,8 +103,9 @@ Décision utilisateur « 1 puis 2 » : chercher un régime où la mémoire d'ape
   disc repose sur trop peu d'événements pour un verdict. La navigation imparfaite + la mort rapide rendent les
   kills rares.
 
-Bilan raffiné : le gap in-world se resserre de « rien ne marche » à **(a) l'étape MÉMOIRE spécifiquement**
-(la discrimination visible, elle, s'évolue) **et (b) la sparsité de la mesure par kills**.
+Bilan raffiné (à l'époque de la campagne, AVANT la résolution) : on croyait le gap resserré à l'étape mémoire
++ la sparsité. La RÉSOLUTION a montré que c'était plus profond — la politique ne lit pas le canal type du tout,
+donc même la « discrimination visible » supposée était un artefact (biais de survivant ci-dessus).
 
 ## Mesure dense TENTÉE — invalidée par son PROPRE contrôle positif (3ᵉ mur)
 La sonde de rencontre CONTRÔLÉE a été bâtie (`_approach_rate` : 1 agent + 1 apex STATIQUE à dist 2, lire
