@@ -1,7 +1,7 @@
 ---
 id: EDR-EVO-003
 type: EDR
-title: "Pont in-world de la demande de mémoire : infra bâtie (MemoryDemandBiosphere, occlusion dist-2 + ablation within-subject) mais tout régime bute sur la tension SURVIVABLE↔EXIGEANT (mur S2/EDR-090) — PAS de contrôle positif → résultat DIFFÉRÉ, non un verdict"
+title: "Pont in-world : l'évolution par la survie n'encode PAS la cognition d'apex par type — la POLITIQUE ignore causalement le canal de type (Δ≈0 vs 0.65 pour un lecteur, 8 champions), résolu par inspection du logit après 5 murs de mesure comportementale. Confirme S2-012 causalement, explique proxy→monde"
 status: active
 gate: G0
 tests: [SDR-G0]
@@ -9,12 +9,33 @@ adopts: [REF-EXPERIMENT-PREFLIGHT]
 extends: [EDR-EVO-002]
 ---
 
+## RÉSOLUTION (verdict causal PROPRE — lire en premier)
+Après 5 murs de mesure COMPORTEMENTALE (tous documentés plus bas, tous défaits par la near-stationarité des
+champions), la question est tranchée par une mesure NON comportementale : **la décision d'approche du champion
+dépend-elle du canal de type d'apex (obs[4]) ?** On perturbe obs[4]=+1 (Mammouth) vs −1 (Leurre) sur la MÊME
+obs in-contexte, forward non destructif, et on lit Δ du logit de la direction VERS l'apex.
+
+| sujet | Δ_abs (effet du canal type sur la décision) |
+|---|---|
+| **génome SYNTHÉTIQUE qui LIT obs[4]** (contrôle positif de la sonde) | **0.65** |
+| **8 champions évolués** (survie visible ET sous occlusion, 4 seeds ×2) | **0.000–0.006** (≈ 0) |
+
+Instrument PROUVÉ sensible (détecte 0.65), champions 100-1000× sous ça, négligeable vs leur propre
+`logit_std` (0.22-7.8). **VERDICT : l'évolution in-world n'encode PAS de cognition d'apex par type — la
+politique IGNORE causalement le canal de type.** Pas de lecture -> pas de discrimination -> pas de mémoire
+(la sous-question mémoire est CADUQUE : rien à retenir d'un signal jamais lu). Confirmation CAUSALE de
+[[EDR-S2-012]] (« la survie n'a aucun contenu cognitif ») pour la modalité apex, et explication directe du gap
+d'[[EDR-EVO-002]] : l'objectif (survie) ne demande pas de LIRE le signal discriminant, donc l'évolution ne le
+lit pas — exactement « objectif = levier », vu par la négative in-world. (Le disc≈0 de toutes les sondes
+comportementales n'était PAS un échec de mesure : c'en était le symptôme — la politique ignore le canal.)
+
 ## Question
 [[EDR-EVO-002]] a montré HORS-MONDE qu'un objectif à rappel différé fait ÉVOLUER un substrat qui maîtrise la
 mémoire (1.00 sur 8/8). Le pont : la demande de mémoire survit-elle à l'embarquement dans le VRAI monde (le
-gap « proxy 9 / in-world 0 ») ? Ce record documente **ce qui a été bâti, le mur rencontré, et pourquoi je
-NE CONCLUS PAS** — la rigueur de l'arc (un nul sans contrôle positif est un artefact, cf. [[EDR-AUDIT-001]],
-WARM-002, [[EDR-090]]) l'interdit.
+gap « proxy 9 / in-world 0 ») ? Ce record documente le chemin — infra, 5 murs de mesure — jusqu'à la
+RÉSOLUTION ci-dessus. La rigueur de l'arc (un nul sans contrôle positif est un artefact, cf. [[EDR-AUDIT-001]],
+WARM-002, [[EDR-090]]) explique pourquoi il a fallu 5 sondes : les 4 premières n'avaient pas de contrôle
+positif VALIDE (agents figés/immobiles) ; la 5ᵉ (inspection du logit + génome-lecteur synthétique) l'a enfin.
 
 ## Ce qui a été bâti (infra réutilisable, `tools/evo_memory_inworld.py`)
 - **Évolution in-world auto-contenue** : soupe FRAÎCHE aux dims du monde -> ères -> sélection élitiste par

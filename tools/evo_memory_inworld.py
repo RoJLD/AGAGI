@@ -1,15 +1,13 @@
 """EDR-EVO-003 — PONT IN-WORLD : la demande de mémoire d'EVO-002 survit-elle à l'embarquement ?
 
-⚠️ STATUT (cf. docs/EDR/EVO-003…) : infra bâtie et VALIDÉE, mais le verdict mémoire in-world reste NON établi
-(3 murs distincts). `MemoryDemandBiosphere` (occlusion dist-2 + ablation) crée une VRAIE demande de rappel ;
-levier = STAKES (Leurre létal), pas corps insuffisant (-> plancher EDR-090). Contrôle positif PARTIEL trouvé
-(discrimination VISIBLE s'évolue). ⚠️ La sonde dense isolée `_approach_rate` est INVALIDE (agent hors-contexte
-FIGÉ, agent_moved=0.00). `probe_navigation_incontext` corrige ça (env normal) : densité RÉSOLUE (n=160-361) mais
-convergence de ~6 sondes (roaming/isolé/in-contexte × statique/mobile) = champions QUASI-STATIONNAIRES
-(moved_frac≈0.06 même sous apex qui charge, disc≈0, INTACT≡VISIBLE≡ABLATE) -> les métriques COMPORTEMENTALES
-ne peuvent pas extraire de discrimination d'un agent immobile. Pas de contrôle positif propre -> verdict différé.
-Vraie dernière marche = inspecter le LOGIT D'ATTAQUE (adjacent Mammouth vs Leurre, occlusion+ablation), immunisé
-contre l'immobilité (défi : obs de contexte réel, pas isolée). Substrat capable (EVO-002 8/8), infra prête.
+✅ RÉSOLU (cf. docs/EDR/EVO-003…) : l'évolution in-world n'encode PAS de cognition d'apex par type — la POLITIQUE
+IGNORE causalement le canal de type (obs[4]). Mesuré par `probe_type_sensitivity` : perturber obs[4]=+1 vs −1 et
+lire Δ du logit vers l'apex -> Δ_abs ≈ 0.000-0.006 sur 8 champions (2 objectifs × 4 seeds) vs **0.65 pour un
+génome-lecteur synthétique** (contrôle positif de la sonde -> instrument PROUVÉ sensible). Pas de lecture -> pas
+de discrimination -> pas de mémoire (sous-question caduque). Confirme S2-012 causalement, explique proxy→monde.
+Il a fallu 5 sondes : les 4 comportementales (roaming/isolé/in-contexte × statique/mobile) n'avaient pas de
+contrôle positif VALIDE (champions QUASI-STATIONNAIRES, moved_frac≈0.06 -> disc≈0 ininterprétable) ; la 5ᵉ
+(inspection du logit + génome-lecteur) l'a enfin. Infra + substrat capables (EVO-002 8/8) : le verrou est l'OBJECTIF.
 
 [[EDR-EVO-002]] a montré HORS-MONDE qu'un objectif à rappel différé fait évoluer un substrat qui MAÎTRISE
 la mémoire (1.00 sur 8/8). Question du pont : dans le VRAI monde (corps + économie d'énergie qui peuvent
@@ -326,6 +324,132 @@ def probe_navigation_incontext(genome, mode, seed, num_agents=24, ticks=120, zon
     al = float(np.mean(leu)) if leu else float("nan")
     return {"disc": am - al, "approach_mam": am, "approach_leu": al,
             "n_mam": len(mam), "n_leu": len(leu), "moved_frac": moved / max(ntot, 1)}
+
+
+def _dir_toward(agx, agy, apx, apy):
+    """Index d'action (0=haut y−1, 1=bas y+1, 2=gauche x−1, 3=droite x+1, cf. world_1_stoneage:683-686)
+    qui rapproche l'agent de l'apex, sur l'axe dominant."""
+    dx, dy = apx - agx, apy - agy
+    if abs(dx) >= abs(dy):
+        return 3 if dx > 0 else 2
+    return 1 if dy > 0 else 0
+
+
+def probe_attack_logit(genome, mode, seed, num_agents=24, ticks=120, zone=2, apex_speed=0.0):
+    """MESURE NON COMPORTEMENTALE (immunisée contre l'immobilité) : « attaquer » = marcher sur la case de
+    l'apex (world:769), donc l'inclination à attaquer = le LOGIT de la direction VERS l'apex (`action =
+    argmax(logits[:8])`, world:1291). On capture les `batch_logits` RÉELS (monkeypatch de
+    `MambaBatchModel.forward`, sans double-avancer H) et on lit, pour chaque agent près d'un apex, le logit
+    de la direction vers lui. disc = logit_vers(Mammouth) − logit_vers(Leurre) : >0 = la politique INCLINE à
+    approcher le Mammouth plus que le Leurre (discrimination par type dans la POLITIQUE, même sans mouvement).
+    `logit_std` = contrôle positif (les logits varient ; sinon dégénéré). mode : visible|memory|ablate."""
+    from src.agents.mamba_agent import MambaBatchModel
+    np.random.seed(seed)
+    env = MemoryDemandBiosphere(_cfg())
+    env.hide_on_approach = (mode != "visible")
+    env.ablate_memory = (mode == "ablate")
+    env.night_enabled = False
+    env.benchmark_mode = True
+    env.current_era = 10_000
+    _setup_lewis(env, n_each=N_APEX)
+    for t in ("Mammouth", "Leurre"):
+        if t in env.config.preys:
+            env.config.preys[t].moves_per_tick = apex_speed
+    if LEURRE_DAMAGE is not None:
+        env.config.preys["Leurre"].damage = float(LEURRE_DAMAGE)
+    for _ in range(num_agents):
+        a = MambaAgent()
+        a.from_genome(genome)
+        env.add_agent(a, energy=80.0)
+    cap, orig = {}, MambaBatchModel.forward
+
+    def _patched(self, *a, **k):
+        out = orig(self, *a, **k)
+        cap["logits"] = np.asarray(out[0])
+        return out
+
+    MambaBatchModel.forward = _patched
+    mam, leu = [], []
+    try:
+        for _ in range(ticks):
+            if not env.agents:
+                break
+            apex = [(p["x"], p["y"], p["type"]) for p in env.preys if p["type"] in _APEX_TYPEVAL]
+            if not apex:
+                break
+            snap = []                                    # (idx agent, dir vers apex, type) — ordre = env.agents au step
+            for i, ag in enumerate(env.agents):
+                d0, (ax, ay, ty) = min(((abs(ag["x"] - ax) + abs(ag["y"] - ay), (ax, ay, ty))
+                                        for ax, ay, ty in apex), key=lambda z: z[0])
+                if 1 <= d0 <= zone:
+                    snap.append((i, _dir_toward(ag["x"], ag["y"], ax, ay), ty))
+            cap.clear()
+            env.step()
+            L = cap.get("logits")
+            if L is None:
+                continue
+            for i, dr, ty in snap:
+                if i < len(L):
+                    (mam if ty == "Mammouth" else leu).append(float(L[i][dr]))
+    finally:
+        MambaBatchModel.forward = orig
+    am = float(np.mean(mam)) if mam else float("nan")
+    al = float(np.mean(leu)) if leu else float("nan")
+    allv = mam + leu
+    return {"disc": am - al, "logit_mam": am, "logit_leu": al, "n_mam": len(mam), "n_leu": len(leu),
+            "logit_std": float(np.std(allv)) if allv else 0.0}
+
+
+def probe_type_sensitivity(genome, seed, num_agents=24, ticks=120, zone=2):
+    """CONTRÔLE POSITIF + mesure CAUSALE définitive : la décision d'approche du champion DÉPEND-elle du canal
+    type (obs[4]) ? In-contexte (obs réelles), pour chaque agent près d'un apex, on perturbe obs[4]=+1
+    (Mammouth) vs −1 (Leurre) sur la MÊME obs, forward NON destructif (`recurrent_forward` sur le H courant),
+    et on lit le logit de la direction VERS l'apex. Δ = logit(+1) − logit(−1). |Δ| gros = la politique LIT le
+    type (et Δ>0 = incline vers le Mammouth) ; Δ≈0 (≪ std) = elle IGNORE le canal -> « pas de cognition de
+    type » DÉFINITIF, avec instrument prouvé sensible (contrairement à un disc≈0 ambigu)."""
+    from src.seed_ai.rl_evolution import recurrent_forward
+    np.random.seed(seed)
+    env = MemoryDemandBiosphere(_cfg())
+    env.hide_on_approach = False                     # type visible (on teste la LECTURE du canal, pas la mémoire)
+    env.night_enabled = False
+    env.benchmark_mode = True
+    env.current_era = 10_000
+    _setup_lewis(env, n_each=N_APEX)
+    for t in ("Mammouth", "Leurre"):
+        if t in env.config.preys:
+            env.config.preys[t].moves_per_tick = 0.0
+    if LEURRE_DAMAGE is not None:
+        env.config.preys["Leurre"].damage = float(LEURRE_DAMAGE)
+    for _ in range(num_agents):
+        a = MambaAgent()
+        a.from_genome(genome)
+        env.add_agent(a, energy=80.0)
+    deltas, logits_all = [], []
+    for _ in range(ticks):
+        if not env.agents:
+            break
+        apex = [(p["x"], p["y"], p["type"]) for p in env.preys if p["type"] in _APEX_TYPEVAL]
+        if not apex:
+            break
+        obs = np.asarray(env.get_batch_observations(), dtype=np.float32)
+        for i, ag in enumerate(env.agents):
+            d0, (ax, ay, ty) = min(((abs(ag["x"] - ax) + abs(ag["y"] - ay), (ax, ay, ty))
+                                    for ax, ay, ty in apex), key=lambda z: z[0])
+            if not (1 <= d0 <= zone) or i >= obs.shape[0]:
+                continue
+            dr = _dir_toward(ag["x"], ag["y"], ax, ay)
+            m = ag["model"]
+            H, Hh, Hp = m.H_prev, m.H_history, m.H_potentials
+            oM = obs[i:i + 1].copy(); oM[0, _APEX_COL] = 1.0
+            oL = obs[i:i + 1].copy(); oL[0, _APEX_COL] = -1.0
+            pM = recurrent_forward(genome, oM, H, Hh, Hp)[0]
+            pL = recurrent_forward(genome, oL, H, Hh, Hp)[0]
+            deltas.append(float(pM[0, dr] - pL[0, dr]))
+            logits_all.extend([float(pM[0, dr]), float(pL[0, dr])])
+        env.step()
+    md = float(np.mean(deltas)) if deltas else float("nan")
+    return {"delta_mean": md, "delta_abs_mean": float(np.mean(np.abs(deltas))) if deltas else float("nan"),
+            "logit_std": float(np.std(logits_all)) if logits_all else 0.0, "n": len(deltas)}
 
 
 def run_contrast(seeds, eras=15, max_ticks=120, num_agents=30, bench_ticks=150):
