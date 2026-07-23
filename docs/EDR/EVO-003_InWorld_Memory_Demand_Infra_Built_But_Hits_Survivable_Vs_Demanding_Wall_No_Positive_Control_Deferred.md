@@ -80,11 +80,24 @@ Décision utilisateur « 1 puis 2 » : chercher un régime où la mémoire d'ape
 Bilan raffiné : le gap in-world se resserre de « rien ne marche » à **(a) l'étape MÉMOIRE spécifiquement**
 (la discrimination visible, elle, s'évolue) **et (b) la sparsité de la mesure par kills**.
 
-## Suite (frontière dédiée — mesure DENSE)
-Le pont robuste exige, AVANT tout verdict : une **mesure dense** de la décision d'apex (rencontres
-CONTRÔLÉES — spawn d'un apex adjacent + occlusion + lecture de l'action attaque/fuite — au lieu de compter
-des kills rares en roaming libre), + plus de seeds/ères. Avec la discrimination visible comme contrôle
-positif (acquis) et l'ablation within-subject comme marqueur causal (bâti), il ne manque que la densité de
-mesure. C'est un effort dédié, pas un add-on de session.
+## Mesure dense TENTÉE — invalidée par son PROPRE contrôle positif (3ᵉ mur)
+La sonde de rencontre CONTRÔLÉE a été bâtie (`_approach_rate` : 1 agent + 1 apex STATIQUE à dist 2, lire
+approche/fuite ; env réutilisé ; occlusion `hide_on_approach` + ablation). Résultat brut : engage ≈ 0 pour
+Mammouth ET Leurre, tous modes -> tentant de conclure « champions RÉACTIFS-seuls, pas de navigation par type,
+la discrimination roaming (0.80-1.00) était un artefact de MOUVEMENT (apex mobiles) ». **MAIS le contrôle
+positif de la sonde l'a RÉFUTÉE** : `agent_moved = 0.00` dans tous les essais — l'agent isolé **ne bouge
+JAMAIS** (env minimal -> obs dégénérée -> politique no-move) ; avec apex MOBILE, engage=1.00 seulement parce
+que l'apex vient SUR l'agent figé, pas par navigation. Donc engage≈0 est un ARTEFACT d'agent figé, PAS une
+absence de navigation. Sans ce contrôle positif, une fausse conclusion « réactif-seul / pas de mémoire »
+aurait été gravée (la leçon [[EDR-AUDIT-001]] : ne pas conclure d'une mesure non contrôlée). **3ᵉ mur
+distinct** (après délai-1 non-contraignant et corps-insuffisant-plancher) : l'agent ISOLÉ fige -> une sonde
+hors-contexte ne préserve pas le comportement normal. Le verdict mémoire in-world reste genuinement NON établi.
+
+## Suite (frontière dédiée)
+Le pont robuste exige une mesure dense QUI PRÉSERVE LE COMPORTEMENT NORMAL — donc IN-CONTEXTE (env normal,
+densité d'apex élevée + stimuli), pas un agent isolé qui fige ; instrumenter la décision par tick (adjacent à
+un apex de type T -> attaque/fuite) au fil d'un run normal, avec la discrimination visible comme contrôle
+positif et l'ablation within-subject (bâtie) comme marqueur causal. C'est un effort dédié : rendre la mesure
+DENSE sans stripper le contexte qui fait agir l'agent.
 
 Converge [[EDR-EVO-002]], [[EDR-S2-012]], [[EDR-090]], [[EDR-INFRA-001]], REF-EXPERIMENT-PREFLIGHT.

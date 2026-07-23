@@ -1,10 +1,11 @@
 """EDR-EVO-003 — PONT IN-WORLD : la demande de mémoire d'EVO-002 survit-elle à l'embarquement ?
 
-⚠️ STATUT (cf. docs/EDR/EVO-003…) : infra bâtie et VALIDÉE, mais tout régime bute sur la tension
-SURVIVABLE↔EXIGEANT (mur S2/EDR-090) — PAS de contrôle positif -> résultat DIFFÉRÉ, PAS un verdict.
-`MemoryDemandBiosphere` (occlusion dist-2 + ablation within-subject) crée une VRAIE demande de rappel, mais
-le régime qui l'exige affame la survie (~13 ticks, plancher) avant que la mémoire soit sélectionnée. La suite
-(effort dédié) est d'établir un CONTRÔLE POSITIF : un régime où la mémoire d'apex PAIE démontrablement.
+⚠️ STATUT (cf. docs/EDR/EVO-003…) : infra bâtie et VALIDÉE, mais le verdict mémoire in-world reste NON établi
+(3 murs distincts). `MemoryDemandBiosphere` (occlusion dist-2 + ablation) crée une VRAIE demande de rappel ;
+levier = STAKES (Leurre létal), pas corps insuffisant (-> plancher EDR-090). Contrôle positif PARTIEL trouvé
+(discrimination VISIBLE s'évolue). ⚠️ La sonde dense isolée `_approach_rate` est INVALIDE : l'agent hors-contexte
+NE BOUGE PAS (agent_moved=0.00) -> engage≈0 est un artefact d'agent figé, PAS une absence de navigation (contrôle
+positif de la sonde ÉCHOUE). La mesure dense valide doit rester IN-CONTEXTE. Effort dédié — cf. le record.
 
 [[EDR-EVO-002]] a montré HORS-MONDE qu'un objectif à rappel différé fait évoluer un substrat qui MAÎTRISE
 la mémoire (1.00 sur 8/8). Question du pont : dans le VRAI monde (corps + économie d'énergie qui peuvent
@@ -89,8 +90,10 @@ class MemoryDemandBiosphere(Biosphere3D):
     est révélé à DISTANCE 2 (Manhattan) et CACHÉ dans la fenêtre d'attaque (dist<=1) -> l'agent doit RETENIR
     le type vu de loin pour décider l'attaque de près (délai réel >= 1 tick, non contournable au contact,
     contrairement à `transient_apex` délai-0). `ablate_memory` : révèle un type ALÉATOIRE à dist 2 (mémoire
-    portée DÉCORRÉLÉE) = le marqueur within-subject calibré (S2-005/MEM-001)."""
+    portée DÉCORRÉLÉE) = le marqueur within-subject calibré (S2-005/MEM-001).
+    hide_on_approach=False : type révélé à d<=2 EN CONTINU (pas de mémoire requise) = contrôle POSITIF."""
     ablate_memory = False
+    hide_on_approach = True
 
     def get_batch_observations(self):
         obs = super().get_batch_observations()
@@ -106,11 +109,12 @@ class MemoryDemandBiosphere(Biosphere3D):
             ci = int(np.argmin(d))
             if types[ci] not in _APEX_TYPEVAL:
                 obs[i, _APEX_COL] = 0.0
-            elif d[ci] == 2:                     # révélé UNE fenêtre, à distance
-                obs[i, _APEX_COL] = np.random.choice([1.0, 0.5, -1.0]) if self.ablate_memory \
-                    else _APEX_TYPEVAL[types[ci]]
-            else:                                # dist<=1 (attaque) ou >2 : CACHÉ -> il faut avoir retenu
-                obs[i, _APEX_COL] = 0.0
+                continue
+            val = np.random.choice([1.0, 0.5, -1.0]) if self.ablate_memory else _APEX_TYPEVAL[types[ci]]
+            if self.hide_on_approach:            # MÉMOIRE : révélé à d==2, CACHÉ dès l'approche (d<=1) -> retenir
+                obs[i, _APEX_COL] = val if d[ci] == 2 else 0.0
+            else:                                # VISIBLE : révélé à d<=2 en continu -> perception suffit (contrôle +)
+                obs[i, _APEX_COL] = val if d[ci] <= 2 else 0.0
         return obs
 
 
@@ -201,6 +205,61 @@ def benchmark_discrimination(genome, memory_regime, seed, num_agents=24, ticks=1
     ages = [ag["age"] for ag in pool] or [0]
     return {"big_kills": big, "leurre_hits": leurre, "disc": disc, "med_age": float(statistics.median(ages)),
             "encounters": big + leurre}
+
+
+def _approach_rate(genome, apex_type, mode, seed, n_trials=40, steps=12, sep=2):
+    """MESURE DENSE (rencontre CONTRÔLÉE) de l'APPROCHE/FUITE : 1 agent au centre + 1 apex STATIQUE à
+    distance `sep`. Les champions sont RÉACTIFS (n'attaquent que l'adjacent) -> on mesure la NAVIGATION :
+    l'agent s'APPROCHE-t-il de l'apex (pour l'attaquer) ou le FUIT-il ? Renvoie la fraction d'essais où il
+    a engagé (tué OU fini plus près qu'au départ OU mort en attaquant). Chaque essai = UNE décision.
+
+    mode : 'visible' (type révélé à d<=2 en continu, mémoire inutile = contrôle POSITIF) |
+           'memory'  (type révélé à d==2 puis caché -> il faut RETENIR) |
+           'ablate'  (memory + type révélé ALÉATOIRE = mémoire portée décorrélée, marqueur causal)."""
+    from src.environments.config import PreyConfig
+    np.random.seed(seed)
+    env = MemoryDemandBiosphere(_cfg())              # la sous-classe pilote la révélation dans les 3 modes
+    env.hide_on_approach = (mode != "visible")
+    env.ablate_memory = (mode == "ablate")
+    env.night_enabled = False
+    env.benchmark_mode = True
+    dmg = float(LEURRE_DAMAGE) if LEURRE_DAMAGE is not None else 50.0
+    env.config.preys["Leurre"] = PreyConfig(hp=100.0, damage=dmg, moves_per_tick=0.0)
+    if "Mammouth" in env.config.preys:
+        env.config.preys["Mammouth"].moves_per_tick = 0.0   # MÊME mobilité -> pas de confond mouvement
+    cx = cy = env.size // 2
+    apx = min(cx + sep, env.size - 1)
+    engaged = 0
+    for _ in range(n_trials):                        # env RÉUTILISÉ ; agent+apex reset/essai
+        env.agents, env.dead_agents = [], []
+        env.big_kills, env.leurre_hits = 0, 0
+        a = MambaAgent()
+        a.from_genome(genome)
+        env.add_agent(a, x=cx, y=cy, energy=80.0)
+        env.preys = [{"x": apx, "y": cy, "type": apex_type, "stunned": 0, "hp": 1.0}]
+        for _ in range(steps):
+            if not env.agents:
+                break
+            env.step()
+        killed = int(env.big_kills) > 0 or int(env.leurre_hits) > 0
+        if not env.agents:                           # mort en attaquant (riposte Leurre) -> a engagé
+            engaged += 1
+        elif killed:
+            engaged += 1
+        else:
+            ag = env.agents[0]
+            final = abs(ag["x"] - apx) + abs(ag["y"] - cy)
+            engaged += 1 if final < sep else 0        # a fini PLUS PRÈS = s'est approché
+    return engaged / n_trials
+
+
+def probe_memory_discrimination(genome, mode, seed, n_trials=40):
+    """disc = engage(Mammouth) − engage(Leurre) sur rencontres contrôlées. >0 = discrimine (approche le
+    Mammouth, fuit le Leurre) ; ~0 = indiscriminé. Dense (n_trials décisions/type). mode : visible|memory|
+    ablate (cf. _approach_rate)."""
+    p_mam = _approach_rate(genome, "Mammouth", mode, seed, n_trials)
+    p_leu = _approach_rate(genome, "Leurre", mode, seed + 7, n_trials)
+    return {"disc": p_mam - p_leu, "engage_mammouth": p_mam, "engage_leurre": p_leu}
 
 
 def run_contrast(seeds, eras=15, max_ticks=120, num_agents=30, bench_ticks=150):
