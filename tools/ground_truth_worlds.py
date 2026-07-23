@@ -185,3 +185,57 @@ def _gt_perception_init(self, *a, **kw):
     self.config.cog_gain = self._gt_cog
     self.config.base_metabolism = self._gt_metab
     self.config.forage_payoff = 0.0
+
+
+# ------------------------------------------------------------------------------------------------
+# SP-3 — MONDE-JOUET À GATE IMPOSÉ (étalon pour la sonde de récupération de prérequis).
+# Pur numpy, aucune sous-classe Biosphere3D — même esprit que `partial_oracle` : une réponse CONNUE
+# PAR CONSTRUCTION. L'acquisition d'un topic B est gatée sur ses prérequis ; un transfert d'ancêtre
+# fabrique la CORRÉLATION entre un vrai prérequis et un non-prérequis, pour tester la spécificité.
+# ------------------------------------------------------------------------------------------------
+
+def fixture_world():
+    """Overlay du monde-jouet SP-3 (compétences/ancêtres imposés) — SOURCE UNIQUE, importée par les
+    tests, le cliquet de calibration et le CLI. Les compétences sont des paramètres IMPOSÉS, distincts
+    des données os-taxonomy (qui ne portent que la structure d'arêtes)."""
+    return {
+        "income": 0.1, "hard_w": 0.4, "soft_w": 0.2,
+        "own": {"B_matter_movement": 1.0, "Ah_food_chains": 0.1, "As_biodiversity": 1.0,
+                "Aprime_rainforest_web": 0.1, "Z_producers": 1.0},
+        "ancestor": {"Ah_food_chains": "Z_producers", "Aprime_rainforest_web": "Z_producers"},
+        "transfer": {"Ah_food_chains": 0.9, "Aprime_rainforest_web": 0.9},
+    }
+
+
+def effective_competence(node_id, world, zeroed=()):
+    """Compétence effective d'un nœud, avec UN niveau de transfert d'ancêtre.
+
+    `zeroed` : ensemble de nœuds ABLATÉS chirurgicalement -> compétence forcée à 0.0. C'est le canal
+    de l'ablation within-subject : retirer la compétence à un nœud, sans toucher aux autres."""
+    if node_id in zeroed:
+        return 0.0
+    own = float(world["own"].get(node_id, 1.0))
+    anc = world.get("ancestor", {}).get(node_id)
+    if anc is not None:
+        own += float(world.get("transfer", {}).get(node_id, 0.0)) * effective_competence(anc, world, zeroed)
+    return max(0.0, min(1.0, own))
+
+
+def acquisition_prob(subgraph, world, zeroed=()):
+    """Probabilité par pas d'acquérir le topic cible, GATÉE par construction sur ses prérequis :
+    income (revenu plat obs-indépendant, garde la métrique VIVANTE) + hard_w*moyenne(eff des prérequis
+    DURS) + soft_w*moyenne(eff des prérequis MOUS). Bornée [0,1]."""
+    def _mean(ids):
+        return sum(effective_competence(i, world, zeroed) for i in ids) / len(ids) if ids else 0.0
+    p = (float(world["income"])
+         + float(world["hard_w"]) * _mean(subgraph["hard"])
+         + float(world["soft_w"]) * _mean(subgraph["soft"]))
+    return max(0.0, min(1.0, p))
+
+
+def acquisition_scores(subgraph, world, seeds, zeroed=(), T=200):
+    """Score d'acquisition par seed = Binomial(T, p) — T pas, chacun réussit avec proba p. La variance
+    inter-seeds rend la métrique NON dégénérée ; `p` est fixe pour un `zeroed` donné (déterministe)."""
+    import numpy as np
+    p = acquisition_prob(subgraph, world, zeroed)
+    return [int(np.random.RandomState(int(s)).binomial(int(T), p)) for s in seeds]

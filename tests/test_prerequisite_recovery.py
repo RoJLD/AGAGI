@@ -32,3 +32,35 @@ def test_fixture_subgraph_is_the_single_source():
     sg = fixture_subgraph()
     assert sg["target"] == "B_matter_movement"
     assert sg["hard"] == ["Ah_food_chains"] and sg["soft"] == ["As_biodiversity"]
+
+
+def test_effective_competence_transfers_from_ancestor():
+    from tools.ground_truth_worlds import effective_competence, fixture_world
+    w = fixture_world()
+    # Ah : own 0.1 + transfer 0.9 * eff(Z=1.0) = 1.0 (borné)
+    assert effective_competence("Ah_food_chains", w) == 1.0
+    # zeroer Z fait chuter Ah (perd le transfert) -> 0.1
+    assert abs(effective_competence("Ah_food_chains", w, zeroed={"Z_producers"}) - 0.1) < 1e-9
+    # zeroer Ah lui-même -> 0.0 (ablation chirurgicale)
+    assert effective_competence("Ah_food_chains", w, zeroed={"Ah_food_chains"}) == 0.0
+
+
+def test_acquisition_prob_matches_the_imposed_gate():
+    from tools.ground_truth_worlds import acquisition_prob, fixture_world
+    from tools.os_taxonomy_adapter import fixture_subgraph
+    w, sg = fixture_world(), fixture_subgraph()
+    assert abs(acquisition_prob(sg, w) - 0.7) < 1e-9                                  # intact
+    assert abs(acquisition_prob(sg, w, zeroed={"Ah_food_chains"}) - 0.3) < 1e-9       # ablate dur
+    assert abs(acquisition_prob(sg, w, zeroed={"As_biodiversity"}) - 0.5) < 1e-9      # ablate mou
+    assert abs(acquisition_prob(sg, w, zeroed={"Aprime_rainforest_web"}) - 0.7) < 1e-9  # non-arête = inerte
+
+
+def test_acquisition_scores_are_alive_and_seed_deterministic():
+    from tools.ground_truth_worlds import acquisition_scores, fixture_world
+    from tools.os_taxonomy_adapter import fixture_subgraph
+    w, sg = fixture_world(), fixture_subgraph()
+    seeds = list(range(12))
+    s = acquisition_scores(sg, w, seeds)
+    assert len(s) == 12
+    assert 15.0 < sorted(s)[len(s) // 2] < 200.0, "métrique doit être VIVANTE"
+    assert acquisition_scores(sg, w, seeds) == s, "doit être déterministe par seed"
