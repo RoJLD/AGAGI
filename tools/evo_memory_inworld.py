@@ -3,9 +3,11 @@
 ⚠️ STATUT (cf. docs/EDR/EVO-003…) : infra bâtie et VALIDÉE, mais le verdict mémoire in-world reste NON établi
 (3 murs distincts). `MemoryDemandBiosphere` (occlusion dist-2 + ablation) crée une VRAIE demande de rappel ;
 levier = STAKES (Leurre létal), pas corps insuffisant (-> plancher EDR-090). Contrôle positif PARTIEL trouvé
-(discrimination VISIBLE s'évolue). ⚠️ La sonde dense isolée `_approach_rate` est INVALIDE : l'agent hors-contexte
-NE BOUGE PAS (agent_moved=0.00) -> engage≈0 est un artefact d'agent figé, PAS une absence de navigation (contrôle
-positif de la sonde ÉCHOUE). La mesure dense valide doit rester IN-CONTEXTE. Effort dédié — cf. le record.
+(discrimination VISIBLE s'évolue). ⚠️ La sonde dense isolée `_approach_rate` est INVALIDE (agent hors-contexte
+FIGÉ, agent_moved=0.00). `probe_navigation_incontext` corrige ça (env normal) : densité RÉSOLUE (n=160-361) mais
+convergence de toutes les sondes = champions RÉACTIFS, pas navigateurs (moved_frac≈0.06 face au statique,
+approche≈0.07 Mammouth ET Leurre, disc≈0) -> la survie in-world ne sélectionne PAS la cognition d'apex par type
+(confirme S2-012). Dernière marche = discrimination RÉACTIVE (apex à mobilité IDENTIQUE, attaque/fuite). Effort dédié.
 
 [[EDR-EVO-002]] a montré HORS-MONDE qu'un objectif à rappel différé fait évoluer un substrat qui MAÎTRISE
 la mémoire (1.00 sur 8/8). Question du pont : dans le VRAI monde (corps + économie d'énergie qui peuvent
@@ -58,6 +60,11 @@ def _disable_kuzu():
     al.start = lambda *a, **k: None
     al.emit = lambda *a, **k: None
     al.emit_sync = lambda *a, **k: False
+    # `memory_retriever` est un OBJET SÉPARÉ que Biosphere3D.__init__ démarre inconditionnellement (thread) :
+    # neutraliser son start() aussi -> pas de leak de thread ni de bruit (get_memory_vector rend déjà [0]*5,
+    # cache vide -> in_mem=0, donc PAS de contamination du substrat ; on tue juste le thread). Cf. INFRA-001.
+    from src.graph_rag.memory_retriever import AsyncMemoryRetriever
+    AsyncMemoryRetriever.start = lambda self: None
 
 
 _disable_kuzu()
@@ -260,6 +267,59 @@ def probe_memory_discrimination(genome, mode, seed, n_trials=40):
     p_mam = _approach_rate(genome, "Mammouth", mode, seed, n_trials)
     p_leu = _approach_rate(genome, "Leurre", mode, seed + 7, n_trials)
     return {"disc": p_mam - p_leu, "engage_mammouth": p_mam, "engage_leurre": p_leu}
+
+
+def probe_navigation_incontext(genome, mode, seed, num_agents=24, ticks=120, zone=3):
+    """MESURE DENSE IN-CONTEXTE (corrige le 3e mur : l'agent isolé fige). Un env NORMAL (`_setup_lewis`,
+    N_APEX apex, contexte complet -> l'agent BOUGE) ; apex FIGÉS (positions = cibles de décision, pas de
+    confond mouvement). À chaque tick, pour chaque agent dans la zone d'un apex, on lit s'il s'APPROCHE
+    (vers Mammouth = bon) ou s'ÉLOIGNE (fuit le Leurre = bon). disc = approche(Mam) − approche(Leu).
+    `moved_frac` = CONTRÔLE POSITIF de la sonde (agents non figés). Dense (agent-ticks), en contexte."""
+    np.random.seed(seed)
+    env = MemoryDemandBiosphere(_cfg())
+    env.hide_on_approach = (mode != "visible")
+    env.ablate_memory = (mode == "ablate")
+    env.night_enabled = False
+    env.benchmark_mode = True
+    env.current_era = 10_000
+    _setup_lewis(env, n_each=N_APEX)
+    for t in ("Mammouth", "Leurre"):                 # apex FIGÉS -> pas de confond mouvement
+        if t in env.config.preys:
+            env.config.preys[t].moves_per_tick = 0.0
+    if LEURRE_DAMAGE is not None:
+        env.config.preys["Leurre"].damage = float(LEURRE_DAMAGE)
+    for _ in range(num_agents):
+        a = MambaAgent()
+        a.from_genome(genome)
+        env.add_agent(a, energy=80.0)
+    apex = [(p["x"], p["y"], p["type"]) for p in env.preys if p["type"] in _APEX_TYPEVAL]
+    mam, leu, moved, ntot = [], [], 0, 0
+    for _ in range(ticks):
+        if not env.agents or not apex:
+            break
+        before = {}
+        for ag in env.agents:
+            d0, tgt = min(((abs(ag["x"] - ax) + abs(ag["y"] - ay), (ax, ay, ty)) for ax, ay, ty in apex),
+                          key=lambda z: z[0])
+            before[ag["id"]] = (d0, tgt, ag["x"], ag["y"])
+        env.step()
+        alive = {ag["id"]: ag for ag in env.agents}
+        for aid, (d0, (ax, ay, ty), x0, y0) in before.items():
+            if d0 > zone:
+                continue
+            ntot += 1
+            ag = alive.get(aid)
+            if ag is None:                           # mort en attaquant (riposte Leurre létal) -> a engagé
+                approached = 1
+            else:
+                if ag["x"] != x0 or ag["y"] != y0:
+                    moved += 1
+                approached = 1 if (abs(ag["x"] - ax) + abs(ag["y"] - ay)) < d0 else 0
+            (mam if ty == "Mammouth" else leu).append(approached)
+    am = float(np.mean(mam)) if mam else float("nan")
+    al = float(np.mean(leu)) if leu else float("nan")
+    return {"disc": am - al, "approach_mam": am, "approach_leu": al,
+            "n_mam": len(mam), "n_leu": len(leu), "moved_frac": moved / max(ntot, 1)}
 
 
 def run_contrast(seeds, eras=15, max_ticks=120, num_agents=30, bench_ticks=150):

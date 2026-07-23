@@ -93,11 +93,28 @@ aurait été gravée (la leçon [[EDR-AUDIT-001]] : ne pas conclure d'une mesure
 distinct** (après délai-1 non-contraignant et corps-insuffisant-plancher) : l'agent ISOLÉ fige -> une sonde
 hors-contexte ne préserve pas le comportement normal. Le verdict mémoire in-world reste genuinement NON établi.
 
-## Suite (frontière dédiée)
-Le pont robuste exige une mesure dense QUI PRÉSERVE LE COMPORTEMENT NORMAL — donc IN-CONTEXTE (env normal,
-densité d'apex élevée + stimuli), pas un agent isolé qui fige ; instrumenter la décision par tick (adjacent à
-un apex de type T -> attaque/fuite) au fil d'un run normal, avec la discrimination visible comme contrôle
-positif et l'ablation within-subject (bâtie) comme marqueur causal. C'est un effort dédié : rendre la mesure
-DENSE sans stripper le contexte qui fait agir l'agent.
+## Mesure dense IN-CONTEXTE réalisée — densité RÉSOLUE, mais convergence « réactif, pas navigateur »
+`probe_navigation_incontext` : env NORMAL (`_setup_lewis`, N_APEX apex, contexte complet), apex FIGÉS
+(cibles de décision, pas de confond mouvement) ; à chaque tick, pour chaque agent dans la zone d'un apex, on
+lit approche/fuite. **Densité RÉSOLUE** (n = 160-361 agent-ticks/type vs 5-10 kills en roaming) — le problème
+de sparsité est corrigé. `moved_frac` (contrôle positif de la sonde) = **0.06** : l'agent n'est plus TOTALEMENT
+figé (vs 0.00 en isolé) mais reste **passif face à un apex STATIQUE**. Résultat, 3 modes identiques :
+approche ≈ 0.07 pour Mammouth ET Leurre -> **disc ≈ 0**. (Fix au passage : `_disable_kuzu` neutralise désormais
+aussi `AsyncMemoryRetriever.start` — le retriever tournait pendant toutes les mesures ; sans effet ici
+— `in_mem=0`, cache vide — le résultat est bit-identique retriever ON/OFF, mais le thread/leak est supprimé.)
+
+**Convergence de TOUTES les sondes** (roaming, isolée, in-contexte) : les champions in-world sont des
+FOURRAGEURS RÉACTIFS — ils engagent l'apex qui devient adjacent (mobile) mais ne NAVIGUENT pas vers un apex
+statique par type ; `INTACT ≡ VISIBLE ≡ ABLATE` partout. La survie in-world ne sélectionne PAS de cognition
+d'apex par type : elle est résolue réactivement. C'est une confirmation directe de [[EDR-S2-012]] (« la survie
+n'a aucun contenu cognitif ») pour la modalité apex/mémoire, et l'explication concrète de « in-world 0 ».
+
+## Portée honnête et dernière marche
+Ce n'est PAS un verdict « pas de mémoire » : `moved_frac=0.06` (passivité face au statique) laisse ambigu
+« pas de navigation par type » vs « pas de navigation du tout vers le statique ». La dernière marche pour un
+verdict PROPRE : mesurer la discrimination RÉACTIVE — deux apex qui s'approchent de l'agent à mobilité
+IDENTIQUE (pas de confond mouvement), puis attaque (Mammouth) vs fuite (Leurre) à l'adjacence, sous occlusion
++ ablation. Le substrat EST capable de mémoire ([[EDR-EVO-002]], 8/8) et l'infra est prête ; il ne manque que
+ce dernier protocole de mesure. Effort dédié.
 
 Converge [[EDR-EVO-002]], [[EDR-S2-012]], [[EDR-090]], [[EDR-INFRA-001]], REF-EXPERIMENT-PREFLIGHT.
