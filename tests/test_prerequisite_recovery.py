@@ -64,3 +64,25 @@ def test_acquisition_scores_are_alive_and_seed_deterministic():
     assert len(s) == 12
     assert 15.0 < sorted(s)[len(s) // 2] < 200.0, "métrique doit être VIVANTE"
     assert acquisition_scores(sg, w, seeds) == s, "doit être déterministe par seed"
+
+
+def test_probe_recovers_hard_and_noops_on_correlated_non_edge():
+    from tools.prerequisite_recovery_probe import run_prerequisite_recovery_probe
+    from tools.ground_truth_worlds import fixture_world
+    from tools.os_taxonomy_adapter import fixture_subgraph
+    out = run_prerequisite_recovery_probe(fixture_subgraph(), fixture_world(), seeds=list(range(12)))
+    by = {e["prereq"]: e for e in out["edges"]}
+    assert by["Ah_food_chains"]["verdict"] == "X_DEMANDED"           # prérequis dur récupéré
+    assert by["Aprime_rainforest_web"]["verdict"] == "X_DECOY"       # non-arête corrélée = inerte
+    # monotonie : dur > mou > non-arête (~1)
+    assert by["Ah_food_chains"]["ratio"] > by["As_biodiversity"]["ratio"] > by["Aprime_rainforest_web"]["ratio"]
+    assert abs(by["Aprime_rainforest_web"]["ratio"] - 1.0) < 1e-9
+
+
+def test_graph_recovery_is_perfect_on_the_fixture():
+    from tools.prerequisite_recovery_probe import run_prerequisite_recovery_probe
+    from tools.ground_truth_worlds import fixture_world
+    from tools.os_taxonomy_adapter import fixture_subgraph
+    rec = run_prerequisite_recovery_probe(fixture_subgraph(), fixture_world(), seeds=list(range(12)))["recovery"]
+    assert rec["precision"] == 1.0 and rec["recall"] == 1.0
+    assert rec["recovered"] == ["Ah_food_chains"]

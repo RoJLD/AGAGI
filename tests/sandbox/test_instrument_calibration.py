@@ -81,6 +81,11 @@ CALIBRATED = {
     # INCONCLUSIVE) + garde de PUISSANCE (test de signe : n=3 unanime -> p=0.25 -> INCONCLUSIVE malgré
     # une accuracy haute).
     "compute_enrichment_verdict": ["*"],
+    # SP-3 : récupération d'un DAG de prérequis IMPOSÉ (os-taxonomy = clé de réponse). Contrôle positif
+    # (prérequis DUR récupéré), SPÉCIFICITÉ sous confond corrélé (no-op sur non-arête même corrélée),
+    # monotonie (dur > mou > non-arête), + contraste : une ablation par l'ANCÊTRE faux-positive.
+    "run_prerequisite_recovery_probe": ["*"],
+    "prerequisite_recovery_verdict": ["*"],
 }
 
 _GENOMES = os.path.join("results", "warm007_genomes")
@@ -862,3 +867,81 @@ def test_enrichment_verdict_power_guard_blocks_small_n():
     v = compute_enrichment_verdict([1.0, 1.0, 1.0], [0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
     assert v["sign_p"] == pytest.approx(0.25, abs=1e-9)
     assert v["verdict"] != "OBJECTIVE_IS_LEVER"
+
+
+# --- SP-3 : run_prerequisite_recovery_probe / prerequisite_recovery_verdict --------------------------
+# Étalon = un DAG de prérequis IMPOSÉ au format os-taxonomy (fixture SOURCE UNIQUE dans tools/). La
+# réponse est connue PAR CONSTRUCTION : Ah est prérequis DUR de B, As MOU, Aprime NON-prérequis mais
+# corrélé à Ah via l'ancêtre Z. On importe la fixture depuis tools/ (jamais de redéclaration locale).
+
+
+def test_sp3_positive_control_recovers_a_hard_prerequisite():
+    """CONTRÔLE POSITIF (générateur A) : sur un prérequis DUR imposé, l'ablation within-subject DOIT
+    effondrer l'acquisition. Mesuré par construction : p 0.7 -> 0.3 (ratio ~2.33)."""
+    from tools.prerequisite_recovery_probe import run_prerequisite_recovery_probe
+    from tools.ground_truth_worlds import fixture_world
+    from tools.os_taxonomy_adapter import fixture_subgraph
+    out = run_prerequisite_recovery_probe(fixture_subgraph(), fixture_world(), seeds=list(range(12)))
+    by = {e["prereq"]: e for e in out["edges"]}
+    assert by["Ah_food_chains"]["verdict"] == "X_DEMANDED", by
+
+
+def test_sp3_specificity_holds_under_correlation():
+    """LE TEST QUI DÉCIDE LE GO/NO-GO. Aprime est un NON-prérequis de B, mais corrélé à Ah (ancêtre Z
+    partagé). L'ablation CHIRURGICALE d'Aprime ne touche pas ce que B lit -> no-op, X_DECOY. La
+    corrélation seule ne fait PAS faux-positiver un marqueur qui ablate le bon canal."""
+    from tools.prerequisite_recovery_probe import run_prerequisite_recovery_probe
+    from tools.ground_truth_worlds import fixture_world
+    from tools.os_taxonomy_adapter import fixture_subgraph
+    out = run_prerequisite_recovery_probe(fixture_subgraph(), fixture_world(), seeds=list(range(12)))
+    by = {e["prereq"]: e for e in out["edges"]}
+    assert by["Aprime_rainforest_web"]["verdict"] == "X_DECOY", by
+    assert abs(by["Aprime_rainforest_web"]["ratio"] - 1.0) < 1e-9
+
+
+def test_sp3_metric_is_alive_not_floored_or_ceilinged():
+    """La spécificité ne vaut que sur une métrique VIVANTE (piège WARM-002). Le bras intact médian doit
+    être strictement entre le plancher et le plafond déclarés."""
+    import numpy as np
+    from tools.ground_truth_worlds import acquisition_scores, fixture_world
+    from tools.os_taxonomy_adapter import fixture_subgraph
+    med = float(np.median(acquisition_scores(fixture_subgraph(), fixture_world(), list(range(12)))))
+    assert 15.0 < med < 200.0, f"métrique NON vivante (médiane {med})"
+
+
+def test_sp3_ratio_is_monotone_hard_soft_nonedge():
+    """MONOTONIE (direction) : dur > mou > non-arête (~1). Le mou n'est PAS tenu d'être X_DEMANDED —
+    il est évalué par le RATIO, pas la catégorie (spec §7)."""
+    from tools.prerequisite_recovery_probe import run_prerequisite_recovery_probe
+    from tools.ground_truth_worlds import fixture_world
+    from tools.os_taxonomy_adapter import fixture_subgraph
+    by = {e["prereq"]: e for e in
+          run_prerequisite_recovery_probe(fixture_subgraph(), fixture_world(), list(range(12)))["edges"]}
+    assert (by["Ah_food_chains"]["ratio"] > by["As_biodiversity"]["ratio"]
+            > by["Aprime_rainforest_web"]["ratio"]), by
+
+
+def test_sp3_confounded_ablation_would_false_positive():
+    """LE CONTRASTE QUI REND LE RÉSULTAT NON-VACUEUX. Si on ablate Aprime par son ANCÊTRE Z (au lieu du
+    canal chirurgical), Z alimente aussi Ah -> B s'effondre -> on attribuerait à tort une arête Aprime->B.
+    C'est le mode d'échec que SP-2 doit éviter : la spécificité n'est PAS automatique, elle exige d'ablater
+    le bon canal."""
+    from tools.ground_truth_worlds import acquisition_scores, fixture_world
+    from tools.os_taxonomy_adapter import fixture_subgraph
+    from tools.demand_marker import ablation_verdict
+    sg, w = fixture_subgraph(), fixture_world()
+    intact = acquisition_scores(sg, w, list(range(12)))
+    confounded = acquisition_scores(sg, w, list(range(12)), zeroed={"Z_producers"})  # ablation par l'ancêtre
+    v = ablation_verdict(intact, confounded, intervention_verified=True, floor=15.0, ceiling=200.0)
+    assert v["verdict"] == "X_DEMANDED", (
+        "l'ablation par l'ancêtre DOIT effondrer B (faux positif si attribué à Aprime) : "
+        f"{v['ratio']:.2f}")
+
+
+def test_sp3_graph_recovery_precision_recall():
+    """Recouvrement de graphe : sur la fixture, précision=rappel=1.0 (seul Ah récupéré, imposé dur)."""
+    from tools.prerequisite_recovery_probe import run_prerequisite_recovery_probe
+    from tools.ground_truth_worlds import fixture_world
+    from tools.os_taxonomy_adapter import fixture_subgraph
+    rec = run_prerequisite_recovery_probe(fixture_subgraph(), fixture_world(), list(range(12)))["recovery"]
+    assert rec["precision"] == 1.0 and rec["recall"] == 1.0 and rec["recovered"] == ["Ah_food_chains"]
