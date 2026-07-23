@@ -945,3 +945,32 @@ def test_sp3_graph_recovery_precision_recall():
     from tools.os_taxonomy_adapter import fixture_subgraph
     rec = run_prerequisite_recovery_probe(fixture_subgraph(), fixture_world(), list(range(12)))["recovery"]
     assert rec["precision"] == 1.0 and rec["recall"] == 1.0 and rec["recovered"] == ["Ah_food_chains"]
+
+
+def test_sp3_recovered_ratio_tracks_the_imposed_gate_dose_by_prediction():
+    """PRÉDICTION / LINÉARITÉ (3e forme canonique, spec §7.2) — distincte de la monotonie §7.3.
+
+    Le ratio RÉCUPÉRÉ par la sonde (sortie de l'instrument) suit la DOSE imposée `hard_w`, avec une
+    valeur PRÉDITE sans paramètre libre (générateur entièrement connu) :
+        p_intact  = income + hard_w·eff(Ah=1) + soft_w·eff(As=1) = income + hard_w + soft_w
+        p_ablated = income + soft_w              (ablation du dur -> terme dur = 0)
+        ratio prédit = p_intact / p_ablated
+    On vérifie que le ratio récupéré colle à la prédiction à chaque dose, ET qu'il croît avec la dose.
+    C'est la calibration PAR PRÉDICTION (le cliquet ne vérifie que l'enregistrement, pas cette forme)."""
+    from tools.prerequisite_recovery_probe import run_prerequisite_recovery_probe
+    from tools.ground_truth_worlds import fixture_world
+    from tools.os_taxonomy_adapter import fixture_subgraph
+    sg = fixture_subgraph()
+    hard = sg["hard"][0]
+    seeds = list(range(12))
+    ratios = []
+    for hw in (0.2, 0.4, 0.6):
+        w = fixture_world()
+        w["hard_w"] = hw
+        predicted = (w["income"] + hw + w["soft_w"]) / (w["income"] + w["soft_w"])
+        by = {e["prereq"]: e for e in run_prerequisite_recovery_probe(sg, w, seeds)["edges"]}
+        got = by[hard]["ratio"]
+        assert got == pytest.approx(predicted, rel=0.15), (
+            f"hard_w={hw}: ratio récupéré {got:.3f} vs prédit {predicted:.3f}")
+        ratios.append(got)
+    assert ratios == sorted(ratios), f"le ratio récupéré doit croître avec la dose hard_w : {ratios}"
