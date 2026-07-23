@@ -14,6 +14,42 @@ et le coût estimé.
 
 ---
 
+## ⏱️ MISE À JOUR 2026-07-23 — état réel (le corps du doc ci-dessous est en partie PÉRIMÉ)
+
+> Ce doc date du 2026-07-21. Plusieurs entrées marquées « ouvert » sont en fait CLOSES (vérifié) ; ne pas
+> repartir dessus sans vérifier le cliquet / les tests. État à jour :
+
+**Cliquet de calibration : 83 détectés, 14 calibrés** (vs « 71 / 1 » de l'en-tête et « 80 / 10 » de P2).
+Items P2 marqués ouverts mais en réalité CLOS : **P2.1** (branche `perception` de `_torch_survival_eras` —
+3 vrais tests, `make_perception_world`, `test_instrument_calibration.py:385-426`), **P2.5**
+(`compute_ab_verdict` calibré `["*"]`), le confond **n_lived** de P2.2 (tranché par EDR-DREAM-001).
+
+**Arc EVO-001→003 livré cette session (2026-07-22/23)** :
+- **EDR-EVO-002** (`513ef7e`) : test discriminant d'EVO-001 → `OBJECTIVE_IS_LEVER`. Un objectif qui EXIGE
+  la mémoire fait ÉVOLUER un substrat qui la maîtrise (rappel différé 1.00 sur 8/8, sign_p=0.0078) ; FRESH/
+  MLESS à chance. Le verrou est l'OBJECTIF, pas le substrat ni la recherche. 2 instruments calibrés (dont
+  `sep(D)` réfuté comme mesure de capacité → mesurer la CAPACITÉ, pas un proxy dynamique).
+- **EDR-EVO-003** (`1e8cfce`/`a02a34e`/`47a2b71`) : pont in-world. Infra bâtie (`tools/evo_memory_inworld.py` :
+  évolution in-world auto-contenue + `MemoryDemandBiosphere` + ablation). Verdict mémoire in-world genuinement
+  DIFFÉRÉ — **3 murs distincts** : délai-1 non-contraignant · corps-insuffisant → plancher EDR-090 · agent
+  ISOLÉ figé (la sonde dense hors-contexte est invalidée par son propre contrôle positif, `agent_moved=0.00`).
+  Contrôle positif PARTIEL trouvé (discrimination VISIBLE s'évolue sous Leurre létal). Frontière = mesure
+  dense **IN-CONTEXTE**. Rigueur tenue : aucune fausse victoire gravée.
+
+**Le déficit dominant du doc (calibration P2) est ESSENTIELLEMENT RÉSOLU.** Tous les items P2 « ouverts »
+vérifiés ce jour sont clos : P2.0-bis (`champion_body` **est** gravé — EDR-S2-012), P2.1, P2.5, confond
+n_lived (DREAM-001). Le cliquet est passé de 1 à 14 calibrés. Ce doc a besoin d'un vrai refresh, pas d'items.
+
+**Frontière genuinement OUVERTE (le doc n'y pointe plus)** :
+- **Cognition IN-WORLD** — le vrai gap « proxy 9 / in-world 0 ». EVO-002 l'a tranché en PROXY (objectif =
+  levier) ; EVO-003 a montré que le porter in-world bute sur survivable↔exigeant (3 murs). Frontière concrète =
+  mesure dense **IN-CONTEXTE** (cf. [[inworld-memory-bridge-status]]), et plus largement la recette S2-005 in-world.
+- **Axes science ouverts** (cf. mémoire `research-backlog-and-gaps`) : H-unif in-world, G4, langage in-world
+  (087), vrai planning. C'est là qu'est la valeur, pas dans la calibration (close).
+- **DÉCISION robla** hors périmètre agent : P1.4 (aliasing prod), P1.5 (commits).
+
+---
+
 ## P0 — Bloquant : restaurer un environnement vérifiable
 
 **P0.1 — ~~Redémarrer l'environnement~~ → RÉSOLU, et mon diagnostic était FAUX.**
@@ -406,6 +442,27 @@ découplage des DEUX bras. Garde-fous posés : réplication sur les **ères**, c
 **P4.2 — Reste du backlog WARM** (cf. `SCIENCE.md`, fil WARM) : incidence du canal né-ON sur ≥6 agents et
 ≥2 seeds ; hypothèse du **canal porteur** (corrélation coût ↔ poids de W autour du nœud 88) ; bras à
 revenu d'inventaire réel ; termes résiduels du bilan énergétique. *Coût : variable.*
+
+**P4.3 — AGI-Taxonomy : graphe de prérequis vers un world-model, dans le format `os-taxonomy`.**
+Vision : construire, dans le format de `withmarbleapp/os-taxonomy` (DAG de prérequis à arêtes taggées
+`strength`+`reason`, double licence ODbL/CC BY-SA), un graphe dont les nœuds sont des **capacités-demandes
+in-world** — chaque arête une claim falsifiable, chaque nœud un critère d'évidence **within-subject**
+(`REF-DEMAND-MARKER`), plus rigoureux que les critères humains de os-taxonomy. **Pourquoi** : le verrou du
+dépôt est l'OBJECTIF/curriculum, pas le substrat (fil EVO/S2), et la composition ne bootstrappe que sur un
+rythme de prérequis observable (KCHAIN) — os-taxonomy est exactement cette forme. Tension à respecter : un
+DAG de capacités *sans canal de demande in-world* est le piège « proxy 9 / in-world 0 ». Décomposé en :
+
+- **SP-1 Schéma** — transposer `schema/` + validateurs os-taxonomy en un « capability-demand graph ».
+  *Socle réutilisable, faible coût, documentaire.*
+- **SP-2 Peupler** — convertir gates G0→G4 + arc EDR + tétralogie G4 en nœuds/arêtes v0 (force = force de
+  preuve empirique). Rend le records-graph **prédictif** au lieu de descriptif. *Dépend de SP-1 ; suppose
+  la forme validée par SP-3.*
+- **SP-3 Calibrer — ✅ SPÉCIFIÉ (2026-07-23), maillon discriminant.** Le demand-marker récupère-t-il un DAG
+  de prérequis *imposé* (os-taxonomy comme clé de réponse), en no-opant sur les non-arêtes **corrélées** ?
+  Go/no-go de toute la vision. Design : `docs/superpowers/specs/2026-07-23-sp3-prerequisite-recovery-calibration-design.md`.
+  *Pur numpy, aucun bail, aucun run long — cheap.*
+- **SP-4 Forker/publier** — `agi-taxonomy` en fork-schéma, contribuer les critères within-subject en
+  retour. *Dépend de SP-1→3.*
 
 ---
 
