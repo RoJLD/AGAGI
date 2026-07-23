@@ -71,6 +71,16 @@ CALIBRATED = {
     # (le pas de queue décroît quand la contraction est plus forte). Ferme la dette « instrument
     # de scratchpad hors cliquet » signalée par le record.
     "measure_convergence": ["*"],
+    # EVO-002 : instrument de RÉTENTION calibré PAR PRÉDICTION (sep(D)=(1−δ)^D sur un génome diagonal, δ
+    # depuis le forget-gate clippé), + les deux pôles (δ=0 -> 1 ; δ=1&W_off=0 -> 0) + monotonie. Surtout :
+    # démontre qu'il DISSOCIE ce que measure_convergence CONFOND — un substrat δ=0 est « gelé » pour
+    # measure_convergence (pas médian 0) mais sep=1 (il RETIENT). C'est la calibration-contre-tâche qui a
+    # fait rétrograder cet instrument de primaire à corroborant dans EDR-EVO-002.
+    "measure_retention_separation": ["*"],
+    # EVO-002 : verdict de CAPACITÉ (3 branches OBJECTIVE_IS_LEVER / SUBSTRATE_OR_SEARCH_LIMITED /
+    # INCONCLUSIVE) + garde de PUISSANCE (test de signe : n=3 unanime -> p=0.25 -> INCONCLUSIVE malgré
+    # une accuracy haute).
+    "compute_enrichment_verdict": ["*"],
 }
 
 _GENOMES = os.path.join("results", "warm007_genomes")
@@ -753,3 +763,102 @@ def test_measure_convergence_too_short_is_not_convergent():
     """Borne : une trajectoire plus courte que la fenêtre de queue ne peut RIEN affirmer -> non
     convergente par défaut (ne pas fabriquer un verdict sur trop peu de pas)."""
     assert measure_convergence([np.zeros(2), np.zeros(2)], tail=8)["converges"] is False
+
+
+# --- EVO-002 : `measure_retention_separation` + `compute_enrichment_verdict` ------------------------
+# (tools/evo_memory_enrichment.py). L'instrument de rétention est calibré PAR PRÉDICTION : sur un génome
+# à W purement DIAGONAL (W_off=0), la dynamique sous entrée nulle est H_new=(1−δ)·H avec δ=sigmoid(diag
+# clippé à [−10,10]) -> sep(D)=(1−δ)^D, sans paramètre libre. On vérifie aussi qu'il DISSOCIE ce que
+# measure_convergence confond (δ→0 : « gelé » mais retient).
+from tools.evo_memory_enrichment import (  # noqa: E402
+    measure_retention_separation, compute_enrichment_verdict, I_DIM, O_DIM)
+from src.seed_ai.rl_evolution import recurrent_forward  # noqa: E402
+
+_N_RET = I_DIM + O_DIM + 3
+
+
+def _diag_genome(c):
+    """Génome à W DIAGONAL pur (W_off=0) : forget-gate uniforme δ=sigmoid(clip(c,−10,10)), aucune
+    interaction récurrente -> sep(D) = (1−δ)^D exactement (réponse CONNUE)."""
+    W = np.zeros((_N_RET, _N_RET), dtype=np.float32)
+    np.fill_diagonal(W, c)
+    return Genome(W, I_DIM, O_DIM)
+
+
+def _delta(c):
+    return 1.0 / (1.0 + np.exp(-max(-10.0, min(10.0, c))))   # forget-gate, AVEC le clip de recurrent_forward
+
+
+def test_retention_separation_matches_prediction():
+    """CALIBRATION PRINCIPALE, par PRÉDICTION : sep(D) mesuré = (1−δ)^D prédit depuis le forget-gate, sur
+    plusieurs doses δ et délais D, sans paramètre libre. Un instrument qui suit sa prédiction analytique
+    ne fabrique pas son résultat."""
+    for c in (-2.0, 0.0, 2.0):
+        for D in (2, 3, 5):
+            pred = (1.0 - _delta(c)) ** D
+            got = measure_retention_separation(_diag_genome(c), D, n_pairs=48, seed=0)
+            assert got == pytest.approx(pred, rel=0.05, abs=1e-3), \
+                f"NON CALIBRÉ à c={c} D={D} : mesuré {got:.5f} vs prédit {pred:.5f}"
+
+
+def test_retention_separation_poles():
+    """Deux pôles CONNUS : δ→0 (c très négatif) -> RETIENT (sep≈1) ; δ→1 & W_off=0 (c très positif) ->
+    OUBLIE (sep≈0). Bornes de l'échelle."""
+    assert measure_retention_separation(_diag_genome(-10.0), 3, n_pairs=48, seed=0) > 0.99
+    assert measure_retention_separation(_diag_genome(+10.0), 3, n_pairs=48, seed=0) < 0.01
+
+
+def test_retention_separation_monotone_in_forget_gate():
+    """Monotonie (direction) : sep décroît quand δ croît (le substrat oublie plus vite). La grandeur suit
+    la dose imposée, pas seulement les bornes."""
+    seps = [measure_retention_separation(_diag_genome(c), 3, n_pairs=48, seed=0)
+            for c in (-6.0, -2.0, 0.0, 2.0, 6.0)]
+    assert seps == sorted(seps, reverse=True), f"non monotone en δ : {seps}"
+
+
+def test_retention_dissociates_from_convergence_confound():
+    """LE CONTRÔLE QUI JUSTIFIE L'INSTRUMENT : un substrat δ≈0 NE BOUGE PAS -> measure_convergence le dit
+    « convergent/gelé » (ce que EVO-001 lirait comme « contractif, pas de mémoire »), ALORS QU'il RETIENT
+    parfaitement (sep≈1). Les deux instruments mesurent des choses DIFFÉRENTES ; sep est immunisé contre
+    le confond qui aurait fait passer une mémoire pour un oubli. C'est la raison d'être de EDR-EVO-002."""
+    g = _diag_genome(-10.0)
+    # trajectoire d'un seul état sous entrée nulle -> quasi constante
+    N = g.num_nodes
+    Hh = np.zeros((1, 5, N), np.float32)
+    Hp = np.zeros((1, N), np.float32)
+    H = np.zeros((1, N), np.float32)
+    H[0, I_DIM:] = np.linspace(-1, 1, N - I_DIM).astype(np.float32)
+    traj = [H[0].copy()]
+    for _ in range(40):
+        _, H, _, _, _ = recurrent_forward(g, np.zeros((1, I_DIM), np.float32), H, Hh, Hp)
+        traj.append(H[0].copy())
+    assert measure_convergence(traj)["converges"] is True, "un substrat δ≈0 devrait sembler GELÉ"
+    assert measure_retention_separation(g, 3, n_pairs=48, seed=0) > 0.99, "…mais il RETIENT (sep≈1)"
+
+
+def test_enrichment_verdict_objective_is_lever():
+    """Branche POSITIVE : DEMAND maîtrise (≈1), FRESH à chance, MLESS-xeval à chance (avec UNE fuite
+    incidente tolérée par la médiane) -> OBJECTIVE_IS_LEVER, sign_p<0.05 sur DEMAND>FRESH."""
+    dem = [1.0, 1.0, 0.98, 1.0, 0.99, 1.0]
+    fresh = [0.55, 0.48, 0.60, 0.52, 0.50, 0.44]
+    mless = [0.50, 1.0, 0.45, 0.52, 0.48, 0.51]          # 1 fuite -> médiane reste ~chance
+    v = compute_enrichment_verdict(dem, mless, fresh)
+    assert v["verdict"] == "OBJECTIVE_IS_LEVER"
+    assert v["n_favorable"] == 6 and v["sign_p"] < 0.05 and v["specific_to_demand"]
+
+
+def test_enrichment_verdict_substrate_or_search_limited():
+    """Branche NÉGATIVE (réfuterait EVO-001) : DEMAND reste au plancher malgré la demande."""
+    dem = [0.52, 0.48, 0.55, 0.50, 0.47, 0.53]
+    fresh = [0.50, 0.49, 0.51, 0.50, 0.48, 0.52]
+    mless = [0.50, 0.50, 0.49, 0.51, 0.50, 0.50]
+    v = compute_enrichment_verdict(dem, mless, fresh)
+    assert v["verdict"] == "SUBSTRATE_OR_SEARCH_LIMITED"
+
+
+def test_enrichment_verdict_power_guard_blocks_small_n():
+    """Garde de PUISSANCE : n=3 unanime -> sign_p=0.25 (>0.05) -> PAS de positif, malgré une accuracy
+    parfaite. Reproduit le garde-fou du dépôt (pas de verdict positif sous puissance)."""
+    v = compute_enrichment_verdict([1.0, 1.0, 1.0], [0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
+    assert v["sign_p"] == pytest.approx(0.25, abs=1e-9)
+    assert v["verdict"] != "OBJECTIVE_IS_LEVER"
