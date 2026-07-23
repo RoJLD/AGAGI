@@ -239,3 +239,27 @@ def acquisition_scores(subgraph, world, seeds, zeroed=(), T=200):
     import numpy as np
     p = acquisition_prob(subgraph, world, zeroed)
     return [int(np.random.RandomState(int(s)).binomial(int(T), p)) for s in seeds]
+
+
+# ------------------------------------------------------------------------------------------------
+# CALIB-ALIAS — GÉNOME-ÉTALON D'ALIASING FONCTIONNEL. Câblé à la main, injecté dans le VRAI
+# recurrent_forward (même esprit que partial_oracle). Deux capacités : X (in 0 -> hA -> out_X) et
+# Y (in 1 -> hB -> out_Y). `alpha` dose une FUITE de X vers out_Y (in 0 -> hS -> alpha*out_Y). À
+# alpha=0 les capacités sont DISJOINTES : ablater X est un no-op EXACT sur out_Y. Réponse connue par
+# construction. Layout : [0:I] entrées, [I:N-O] cachés, [N-O:N] sorties ; W[i,j] = source i -> cible j.
+# ------------------------------------------------------------------------------------------------
+
+def make_aliasing_genome(alpha):
+    """Génome-étalon à DOSE de partage `alpha` (I=2, O=2, N=7). Voir en-tête de section pour le câblage.
+    Diagonale = 0 (forget-gate δ=0.5). Reflex (MCTS off) -> 1 micro-tick par appel de recurrent_forward."""
+    import numpy as np
+    from src.seed_ai.mutation import Genome
+    I, O, N = 2, 2, 7
+    W = np.zeros((N, N), dtype=np.float32)
+    W[0, 2] = 1.0          # X -> hA
+    W[2, 5] = 1.0          # hA -> out_X
+    W[1, 3] = 1.0          # Y -> hB
+    W[3, 6] = 1.0          # hB -> out_Y
+    W[0, 4] = 1.0          # X -> hS
+    W[4, 6] = float(alpha)  # hS -> out_Y (dose de fuite : 0 = disjoint)
+    return Genome(W, I, O)
