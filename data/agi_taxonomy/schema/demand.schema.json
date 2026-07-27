@@ -14,7 +14,8 @@
         "ablation_verdict": {"type": "string"},
         "ratio": {"type": "number"},
         "n": {"type": "integer"},
-        "functional_aliasing": {"type": "string"},
+        "functional_aliasing": {"enum": ["pass", "n/a"]},
+        "specificity_control": {"enum": ["pass", "fail"]},
         "record": {"type": "string"}
       }
     }

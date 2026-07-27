@@ -60,9 +60,15 @@ def validate_edge(edge, capability_ids):
                  "(exigé X_DEMANDED — demand-marker SP-3)")
     if not isinstance(ev.get("n"), int) or ev.get("n", 0) < 12:
         v.append(f"arête {lbl} : n={ev.get('n')} (exigé entier >= 12, n_floor)")
-    if ev.get("functional_aliasing") != "pass":
-        v.append(f"arête {lbl} : functional_aliasing='{ev.get('functional_aliasing')}' "
-                 "(exigé 'pass' — garde CALIB-ALIAS)")
+    fa = ev.get("functional_aliasing")
+    if fa == "pass":
+        pass  # garde structurel/comportemental appliqué (CALIB-ALIAS)
+    elif fa == "n/a":
+        if ev.get("specificity_control") != "pass":
+            v.append(f"arête {lbl} : functional_aliasing='n/a' EXIGE specificity_control='pass' "
+                     "(contrôle de demande : ablation inerte là où la capacité n'est pas demandée)")
+    else:
+        v.append(f"arête {lbl} : functional_aliasing='{fa}' (attendu 'pass', ou 'n/a' + specificity_control)")
     if not _exists(ev.get("record")):
         v.append(f"arête {lbl} : record de preuve manquant/inexistant '{ev.get('record')}'")
     return v

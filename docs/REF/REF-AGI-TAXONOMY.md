@@ -15,7 +15,7 @@ Calqué sur `check_record_links` / `check_instrument_calibration` (baseline gel�
 mesurée COMPLÈTE** :
 - `ablation_verdict == "X_DEMANDED"` (demand-marker, cf. CALIB-SP3) ;
 - `n >= 12` (n_floor de `ablation_verdict`) ;
-- `functional_aliasing == "pass"` (garde `assert_no_functional_aliasing`, cf. CALIB-ALIAS) ;
+- `functional_aliasing == "pass"` (garde CALIB-ALIAS) OU `functional_aliasing == "n/a"` + `specificity_control == "pass"` (ablation d'ENTRÉE : pas de fuite de substrat, spécificité prouvée par un contrôle de demande — ablation inerte là où la capacité n'est pas demandée) ;
 - `record` = un docs/EDR existant ; `capability`/`prerequisite` présents dans `capabilities.json`.
 
 `strength` (hard/soft) est DESCRIPTIF (magnitude du ratio) et ne relâche PAS la règle de verdict.

@@ -32,6 +32,31 @@ def _valid_edge(**evidence_over):
     return {"capability": "memory", "prerequisite": "perception", "strength": "hard", "evidence": ev}
 
 
+def test_edge_accepts_na_aliasing_with_specificity_control():
+    from tools.check_agi_taxonomy import validate_edge
+    e = _valid_edge(functional_aliasing="n/a", specificity_control="pass")
+    assert validate_edge(e, _IDS) == []
+
+
+def test_edge_rejects_na_aliasing_without_specificity_control():
+    from tools.check_agi_taxonomy import validate_edge
+    e = _valid_edge(functional_aliasing="n/a")           # pas de specificity_control
+    v = validate_edge(e, _IDS)
+    assert any("specificity_control" in x for x in v)
+
+
+def test_edge_rejects_na_aliasing_with_failed_specificity():
+    from tools.check_agi_taxonomy import validate_edge
+    e = _valid_edge(functional_aliasing="n/a", specificity_control="fail")
+    v = validate_edge(e, _IDS)
+    assert any("specificity_control" in x for x in v)
+
+
+def test_edge_still_accepts_pass_aliasing():
+    from tools.check_agi_taxonomy import validate_edge
+    assert validate_edge(_valid_edge(functional_aliasing="pass"), _IDS) == []
+
+
 _IDS = {"perception", "memory", "language", "generalization"}
 
 
