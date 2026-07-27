@@ -1,1 +1,15 @@
-[]
+[
+  {
+    "capability": "language",
+    "prerequisite": "perception",
+    "strength": "hard",
+    "evidence": {
+      "ablation_verdict": "X_DEMANDED",
+      "ratio": 2.115,
+      "n": 12,
+      "functional_aliasing": "n/a",
+      "specificity_control": "pass",
+      "record": "docs/EDR/EDR-LANG-PERCEPTION_Coordination_Demands_Perception.md"
+    }
+  }
+]
