@@ -1,0 +1,34 @@
+[
+  {
+    "id": "perception",
+    "title": "Perception (lecture de l'observation)",
+    "description": "La politique lit l'observation et l'utilise causalement pour agir.",
+    "evidence_criterion": "ablation within-subject de l'observation (obs randomisée/occultée) effondre la survie",
+    "probe": "tools/s2_demand.py",
+    "record": "docs/EDR/S2-001_Within_Subject_Perception_Ablation_Is_The_Sound_Demand_Marker.md"
+  },
+  {
+    "id": "memory",
+    "title": "Mémoire (rappel différé)",
+    "description": "La politique retient une information pour l'utiliser après un délai.",
+    "evidence_criterion": "ablation within-subject de la mémoire effondre le rappel différé",
+    "probe": "tools/memory_demand_world_probe.py",
+    "record": "docs/EDR/MEM-001_Memory_Pays_Iff_Task_Demands_Delayed_Recall.md"
+  },
+  {
+    "id": "language",
+    "title": "Langage référentiel / coordination",
+    "description": "La politique émet et lit un signal porteur d'information pour coordonner.",
+    "evidence_criterion": "ablation within-subject du canal de communication effondre la coordination",
+    "probe": "tools/language_payoff_probe.py",
+    "record": "docs/EDR/LANG-006_Language_Pays_Iff_Task_Demands_Coordination.md"
+  },
+  {
+    "id": "generalization",
+    "title": "Généralisation (compétence causale)",
+    "description": "La compétence transfère à des conditions non vues, seulement sous entraînement varié.",
+    "evidence_criterion": "variation d'entraînement within-subject : la compétence n'est causale que sous entraînement varié",
+    "probe": "tools/generalization_transfer_probe.py",
+    "record": "docs/EDR/G1-001_Generalization_Is_Causal_Skill_Only_Under_Varied_Training.md"
+  }
+]
