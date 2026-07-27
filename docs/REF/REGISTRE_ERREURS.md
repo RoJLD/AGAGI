@@ -47,14 +47,26 @@ reclassée `non automatisable`. Pas de troisième occurrence tolérée sans chan
 | **E13** | **Dépassement de coût non borné au design** | 3 runs abandonnés (8 h, 4 h, 89 min) + 1 run de 1,8 h sur une question sans objet | ⚠️ **AUCUNE** | *à faire* : budget mesuré au smoke, obligatoire (P3.2) |
 | **E15** | **Statistique de POPULATION comparée entre populations de compositions différentes** — la métrique n'est pas dégénérée, elle est CONFONDUE | EDR-095 : le rêve forcé multiplie `n_lived` par **13-16** ; la survie médiane sur TOUS les agents chute de 55 % (`sign_p` 0.0005, reproduit) alors que sur la cohorte fondatrice appariée l'effet est **ABSENT** (8/12). L'indice — le `n_lived` ×16 — était publié **dans le record**, en « effet secondaire » | `documenté` | **Vérifier `n` PAR BRAS avant de comparer des médianes.** ⚠️ Aucune garde de borne ne voit ça : aucun bras n'est au plancher ni au plafond. Une médiane est robuste aux valeurs extrêmes, **pas à un changement de population** |
 | **E14** | **Garde exécutable jamais RÉTRO-APPLIQUÉE** — le cliquet protège le travail à venir, pas les conclusions déjà gravées, qui continuent d'être citées | `assert_not_degenerate` existait quand WARM-002 a été relu ×N ; personne ne l'a pointée sur son bras à 5.0-7.2 ticks. Le verdict « paysage PLAT » a alimenté 4 records pendant ce temps | `exécutable` **(triage seul)** | `tools/retro_audit_records.py` — signale `verdict NUL × conclusion sur le MONDE × plancher avoué`. ⚠️ **La partie jugement N'EST PAS automatisable** : voir ci-dessous |
+| **E17** | **AMPLITUDE mesurée là où le mécanisme lit le SIGNE ou le RANG** — l'instrument rapporte ‖Δsortie‖ alors que la décision est prise par `sign()` ou `argmax()`. Sur un substrat **contractif** les amplitudes sont écrasées : une dépendance fonctionnelle TOTALE peut se lire comme une saillance nulle (faux négatif), et du bruit de grande amplitude comme une saillance forte (faux positif) | **(1)** EVO-002 : `sep(D)` (rétention par norme d'état) — ne distinguait PAS un champion à `acc 1.00` d'un génome frais (0.70 vs 0.70/0.47) ; réfuté, rétrogradé en corroborant. **(2)** EVO-004 : `measure_cue_saliency` en amplitude — un champion DEMAND à `acc 1.00` (donc lecteur OBLIGÉ) mesuré à **0.13**, soit SOUS un génome frais (0.10) ; la mesure fonctionnelle `sign_flip` sépare **1.00 vs 0.48** | `exécutable` | Cas de calibration figé : l'instrument doit séparer un LECTEUR connu d'un non-lecteur **sur la grandeur qui AGIT** (`sign_flip`, bascule d'`argmax`), et le test épingle que **la variante en amplitude ÉCHOUE là où la fonctionnelle réussit** (`test_instrument_calibration.py`). Règle de lecture : avant de mesurer une saillance, identifier l'opérateur de DÉCISION en aval (`np.sign(preds)` proxy ; `argmax(logits[:8])` in-world, `world_1_stoneage.py:1291`) |
 | **E16** | **Métrique nommée pour un mécanisme MORT** — une compétence agrégée dont un terme DOMINANT est alimenté par une stat que rien n'écrit ; la métrique varie normalement (≠ E3), mais toute sa variation vient de ses termes accessoires et se lit sous le nom du terme mort | `altars_solved` jamais incrémenté dans les 5 mondes actifs (bloc de résolution resté dans du legacy déprécié) → `gym_competence` ≡ 0, `industrial_competence` plafonnée à 0.4, et le barreau 2 du design dreaming (« la compétence-autels quitte le plancher ») ne pouvait bouger que par la SURVIE — que [[EDR-DREAM-001]] augmente de 77 % : faux positif armé ([[EDR-AUDIT-002]]) | `exécutable` | `tests/sandbox/test_competence_stats_are_live.py` — cliquet statique : toute stat lue par une fonction de compétence doit être écrite par `src/worlds/` hors init-à-0 et hors classes `Legacy`. Dette gelée `{altars_solved}`. ⚠️ **Ni E3 (pas dégénérée) ni E15 (pas de comparaison de populations)** : défaut COMPOSITIONNEL, détectable statiquement pas dynamiquement |
 
 ---
 
 ## Lecture du registre
 
-- **13 classes sur 16 ont une garde exécutable ou documentée** (9 exécutables, 4 documentées) ; 2 n'en
+- **14 classes sur 17 ont une garde exécutable ou documentée** (10 exécutables, 4 documentées) ; 2 n'en
   ont aucune (E11, E13) et sont inscrites au backlog ; 1 est explicitement non automatisable (E9).
+- **E17 est née directement `exécutable`, et c'est le rituel qui a fonctionné** : sa 1ʳᵉ occurrence
+  (`sep(D)`, EVO-002) avait été traitée comme un fait local (« cet instrument-là est trompeur ») au lieu
+  d'être élevée en classe. La 2ᵉ (EVO-004) est arrivée quelques heures plus tard, dans la même session,
+  sur un instrument DIFFÉRENT — preuve que le défaut est structural (substrat contractif + décision par
+  `sign`/`argmax`), pas une maladresse ponctuelle. La règle « pas de troisième occurrence » l'a promue
+  d'emblée.
+- **E17 est aussi le premier contre-exemple à E14** (« une garde n'est jamais rétro-appliquée ») : la
+  classe a été **immédiatement pointée sur le record déjà gravé** ([[EDR-EVO-004]], committé la veille) au
+  lieu d'attendre un audit. Le verdict a été re-mesuré sur la grandeur fonctionnelle (bascule d'`argmax`)
+  et **tient** — champions ≤ 0.06 vs 1.00 pour un lecteur avéré. Un verdict qui survit à un changement de
+  la grandeur mesurée est bien plus solide qu'un verdict jamais re-interrogé.
 - **E9 est la plus coûteuse et la seule irréductible** : trois occurrences, aucune détectable par du code.
   C'est elle, et elle seule, qui justifie que la revue adversariale soit une **obligation** et non un confort.
 - **E10 est la plus instructive** : la règle existait, écrite depuis longtemps, et a été violée par trois

@@ -127,6 +127,54 @@ def eval_genome(genome, K, D, demanding=True, trials=32, seed=0):
     return float(np.mean(accs))
 
 
+def measure_cue_saliency(genome, K, D, trials=64, seed=0, bit=0):
+    """EDR-EVO-004 — CONTRÔLE POSITIF AU NIVEAU DE L'OBJECTIF (le maillon que le génome câblé à la main ne
+    fournit pas) : l'ÉVOLUTION sait-elle produire une politique qui LIT son entrée, quand l'objectif l'exige ?
+
+    Même épisode que `eval_genome` (encode -> D pas d'entrée NULLE -> sonde), joué DEUX fois à l'identique
+    (design apparié : mêmes autres bits, même H initial) sauf l'indice `bit` mis à +1 vs −1. On lit |Δ preds| :
+      * `delayed`   : Δ à l'étape de RAPPEL, après D pas nuls -> saillance INTÉGRÉE sur D+1 ticks (il faut
+                      avoir LU l'indice PUIS l'avoir PORTÉ dans l'état récurrent).
+      * `immediate` : Δ à l'étape d'ENCODE -> saillance instantanée, l'analogue exact de
+                      `measure_channel_saliency` (in-world) sur ce banc.
+      * `sign_flip` : ⚠️ LA MESURE QUI TRANCHE. Fraction des essais où le SIGNE de la sortie s'inverse avec
+                      l'indice, au RAPPEL. Le substrat est CONTRACTIF et la tâche se lit sur `np.sign(preds)`
+                      : une AMPLITUDE faible qui inverse SYSTÉMATIQUEMENT le signe est fonctionnellement
+                      décisive, là où une grosse amplitude de direction aléatoire ne l'est pas. Mesuré :
+                      un champion DEMAND à acc 1.00 a une saillance en amplitude (0.13) NON supérieure à un
+                      génome frais (0.10) — même piège que la réfutation de `sep(D)` dans EDR-EVO-002.
+                      Échelle (politique déterministe) : 0 = ignore strictement l'indice, 1 = le suit toujours.
+    Prédiction : un champion DEMAND (acc 1.00) a `sign_flip` ≈ 1 (il ne peut pas répondre sans lire) ; un
+    champion MEMORYLESS (leurre à l'encode) est bas (il a appris à IGNORER l'encode)."""
+    N = genome.num_nodes
+    Hh = np.zeros((1, 5, N), np.float32)
+    Hp = np.zeros((1, N), np.float32)
+    rng = np.random.RandomState(seed)
+    d_imm, d_del, flips = [], [], []
+    for _ in range(trials):
+        other = rng.choice([-1.0, 1.0], size=K).astype(np.float32)   # bits NON perturbés, PARTAGÉS (apparié)
+        outs = {}
+        for sign in (+1.0, -1.0):
+            H = np.zeros((1, N), np.float32)
+            obs = np.zeros((1, I_DIM), np.float32)
+            obs[0, :K] = other
+            obs[0, bit] = sign                                        # seule différence entre les deux runs
+            p_enc, H, _, _, _ = recurrent_forward(genome, obs, H, Hh, Hp)
+            enc = p_enc[0, :K].copy()
+            for _ in range(D):
+                _, H, _, _, _ = recurrent_forward(genome, np.zeros((1, I_DIM), np.float32), H, Hh, Hp)
+            go = np.zeros((1, I_DIM), np.float32)
+            go[0, K] = 1.0
+            p_rec, H, _, _, _ = recurrent_forward(genome, go, H, Hh, Hp)
+            outs[sign] = (enc, p_rec[0, :K].copy())
+        d_imm.append(float(np.mean(np.abs(outs[+1.0][0] - outs[-1.0][0]))))
+        d_del.append(float(np.mean(np.abs(outs[+1.0][1] - outs[-1.0][1]))))
+        # FONCTIONNEL : le signe de la sortie du bit sondé s'inverse-t-il avec l'indice ? (la tâche lit `sign`)
+        flips.append(float(np.sign(outs[+1.0][1][bit]) != np.sign(outs[-1.0][1][bit])))
+    return {"immediate": float(np.mean(d_imm)), "delayed": float(np.mean(d_del)),
+            "sign_flip": float(np.mean(flips))}
+
+
 # ============================================================ ÉVOLUTION (unité = seed)
 
 def _fresh_genome(N, rng):

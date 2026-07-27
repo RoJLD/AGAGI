@@ -102,6 +102,11 @@ CALIBRATED = {
     # non-lecteur (fanout de k = 0) -> saillance nulle sur k. C'est le contrôle positif qui rend le « ~200×
     # sous un lecteur » des champions INTERPRÉTABLE (ils ne lisent presque rien) et non un artefact.
     "measure_channel_saliency": ["*"],
+    # EVO-004 / classe E17 : saillance de l'indice sur le banc proxy. Calibré sur un génome qui RÉSOUT la
+    # tâche (acc 1.000, câblé à la main) — et qui sert de CONTRE-EXEMPLE gelé : sa saillance en AMPLITUDE
+    # vaut 2e-6, indiscernable de celle d'un NON-lecteur (0.0), tandis que `sign_flip` sépare 1.00 vs 0.00.
+    # C'est la garde exécutable de la classe E17 du registre (amplitude mesurée là où la décision lit le signe).
+    "measure_cue_saliency": ["*"],
 }
 
 _GENOMES = os.path.join("results", "warm007_genomes")
@@ -1113,3 +1118,63 @@ def test_channel_saliency_zero_on_a_nonread_channel():
     ce qui rend le « ~200× sous un lecteur » des champions INTERPRÉTABLE (ils ne lisent presque rien)."""
     sal = measure_channel_saliency(_nonreader_genome(), seed=1, channels=[4], num_agents=12, ticks=40)
     assert sal[4] < 0.02, f"saillance non nulle alors que le canal 4 n'a pas de fanout : {sal[4]:.4f}"
+
+
+def test_channel_saliency_decision_branch_detects_the_reader():
+    """Branche `decision=True` (FONCTIONNELLE, classe E17) : le taux de bascule d'`argmax` — la grandeur qui
+    AGIT in-world (`action = argmax(logits[:8])`, world_1_stoneage.py:1291). Le lecteur du canal 4 doit
+    changer d'action quasi systématiquement quand on inverse ce canal ; le non-lecteur, jamais."""
+    rd = measure_channel_saliency(_reader_genome(), seed=1, channels=[4], num_agents=12, ticks=40, decision=True)
+    rn = measure_channel_saliency(_nonreader_genome(), seed=1, channels=[4], num_agents=12, ticks=40, decision=True)
+    assert rd[4] > 0.5, f"le lecteur ne change pas d'action : flip={rd[4]:.3f}"
+    assert rn[4] < 0.02, f"le non-lecteur change d'action : flip={rn[4]:.3f}"
+
+
+# --- E17 : AMPLITUDE vs SIGNE — la garde exécutable de la classe (registre des erreurs) -----------------
+# Contre-exemple GELÉ : un génome qui RÉSOUT le rappel différé (acc 1.000) a une saillance en AMPLITUDE de
+# ~2e-6, indiscernable de celle d'un NON-lecteur (0.0) ; seul `sign_flip` les sépare (1.00 vs 0.00). Deux
+# occurrences dans l'arc EVO (sep(D) puis measure_cue_saliency) -> classe promue `exécutable` d'emblée.
+from tools.evo_memory_enrichment import (  # noqa: E402
+    measure_cue_saliency, eval_genome as _eval_cue, I_DIM as _I, O_DIM as _O)
+
+_N_CUE = _I + _O + 3
+
+
+def _cue_reader(w=0.05, K=2):
+    """Réponse CONNUE : indice j -> nœud de sortie j (poids MINUSCULE), diagonale très négative (δ≈0) donc
+    la valeur est PORTÉE à travers les D pas nuls. Résout la tâche (acc 1.000) avec une amplitude ~0."""
+    W = np.zeros((_N_CUE, _N_CUE), np.float32)
+    for j in range(K):
+        W[j, _N_CUE - _O + j] = w
+        W[_N_CUE - _O + j, _N_CUE - _O + j] = -10.0
+    return Genome(W, _I, _O)
+
+
+def _cue_nonreader(seed=0):
+    """Réponse CONNUE : W dense aléatoire mais fanout de l'indice NUL -> ne peut pas le lire."""
+    rng = np.random.RandomState(seed)
+    W = (rng.randn(_N_CUE, _N_CUE) * 0.4).astype(np.float32)
+    W[0, :] = 0.0
+    return Genome(W, _I, _O)
+
+
+def test_cue_saliency_sign_flip_separates_reader_from_nonreader():
+    """CONTRÔLE POSITIF + SPÉCIFICITÉ sur la grandeur FONCTIONNELLE : le lecteur suit toujours l'indice
+    (sign_flip=1), le non-lecteur jamais (0). C'est cette mesure — pas l'amplitude — qui porte le verdict."""
+    assert measure_cue_saliency(_cue_reader(), K=2, D=3, trials=48, seed=0)["sign_flip"] > 0.95
+    assert measure_cue_saliency(_cue_nonreader(), K=2, D=3, trials=48, seed=0)["sign_flip"] < 0.05
+
+
+def test_cue_saliency_amplitude_is_blind_to_a_perfect_reader():
+    """⚠️ LE CONTRE-EXEMPLE GELÉ (classe E17). Le génome ci-dessous RÉSOUT la tâche — `acc = 1.000`, il lit
+    donc l'indice par construction — et pourtant sa saillance en AMPLITUDE est ~1e-6, du même ordre que
+    celle d'un non-lecteur (0.0). Sur un substrat CONTRACTIF dont la décision se lit par `np.sign`,
+    l'amplitude ne mesure PAS la dépendance fonctionnelle. Si quelqu'un ré-adopte l'amplitude comme mesure
+    de saillance, ce test tombe."""
+    g = _cue_reader()
+    assert _eval_cue(g, 2, 3, True, 200, seed=99) == pytest.approx(1.0), "le témoin doit RÉSOUDRE la tâche"
+    ampl_reader = measure_cue_saliency(g, K=2, D=3, trials=48, seed=0)["delayed"]
+    ampl_none = measure_cue_saliency(_cue_nonreader(), K=2, D=3, trials=48, seed=0)["delayed"]
+    assert ampl_reader < 1e-4, f"amplitude du lecteur PARFAIT attendue ≈0, mesurée {ampl_reader:.2e}"
+    assert abs(ampl_reader - ampl_none) < 1e-4, (
+        "l'amplitude doit être INDISCERNABLE entre lecteur parfait et non-lecteur — c'est la classe E17")
