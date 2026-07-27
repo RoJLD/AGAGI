@@ -457,6 +457,14 @@ DAG de capacités *sans canal de demande in-world* est le piège « proxy 9 / in
 - **SP-2 Peupler** — convertir gates G0→G4 + arc EDR + tétralogie G4 en nœuds/arêtes v0 (force = force de
   preuve empirique). Rend le records-graph **prédictif** au lieu de descriptif. *Dépend de SP-1 ; suppose
   la forme validée par SP-3.*
+- **SP-2 dette — barre d'émergence NON vérifiée par un validateur (à fermer en itération 2, avant
+  accumulation d'arêtes).** La barre « intact VIVANT » (`coord_intact` médian > `1/K + 0.15`), qui distingue
+  une capacité réellement émergente d'un artefact de plancher, n'est appliquée par AUCUN outil :
+  `ablation_verdict` ne pose que le plancher de dégénérescence `1/K` (plus lâche), et
+  `check_agi_taxonomy.validate_edge` ne lit pas du tout `coord_intact`. Chaque future arête dépend donc
+  d'un humain relisant les médianes persistées à l'œil. Fix proposé : champ optionnel `coord_intact_median`
+  dans le schéma `evidence` de la demande + une vérification dans `validate_edge` contre le plancher
+  d'émergence.
 - **SP-3 Calibrer — ✅ SPÉCIFIÉ (2026-07-23), maillon discriminant.** Le demand-marker récupère-t-il un DAG
   de prérequis *imposé* (os-taxonomy comme clé de réponse), en no-opant sur les non-arêtes **corrélées** ?
   Go/no-go de toute la vision. Design : `docs/superpowers/specs/2026-07-23-sp3-prerequisite-recovery-calibration-design.md`.

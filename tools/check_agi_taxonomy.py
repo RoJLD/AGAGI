@@ -1,7 +1,8 @@
 """Cliquet du graphe AGI-Taxonomy — calqué sur check_record_links / check_instrument_calibration.
 
 Une arête « Y demande X » n'existe que si elle porte sa PREUVE mesurée complète : verdict d'ablation
-X_DEMANDED (demand-marker SP-3), n >= 12 (n_floor), garde d'aliasing fonctionnel `pass` (CALIB-ALIAS),
+X_DEMANDED (demand-marker SP-3), n >= 12 (n_floor), garde d'aliasing fonctionnel `pass` (CALIB-ALIAS) —
+ou `n/a` accompagné de `specificity_control` `pass` (contrôle de demande, ablation inerte hors demande) —,
 et un record docs/EDR existant. Une arête sans preuve est REJETÉE. Baseline gelée (vide en v0).
 
 Le fichier commence par `check_` -> exclu du scan du cliquet de calibration (pas d'auto-référence).
@@ -119,7 +120,8 @@ def main(argv=None):
     for x in nouvelles:
         print("  [NOUVELLE VIOLATION]", x)
     if nouvelles:
-        print("\nUne arête n'existe que si elle porte sa preuve (X_DEMANDED, n>=12, aliasing pass, record).")
+        print("\nUne arête n'existe que si elle porte sa preuve (X_DEMANDED, n>=12, "
+              "aliasing pass (ou n/a + specificity_control pass), record).")
         return 1
     print("OK : aucune nouvelle violation.")
     return 0
