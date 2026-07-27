@@ -19,8 +19,12 @@ def test_capabilities_v0_shape_and_files_exist():
         assert os.path.isfile(os.path.join(_ROOT, c["record"])), f"record absent : {c['record']}"
 
 
-def test_demands_v0_is_empty():
-    assert _load("demands.json") == [], "demands.json doit être VIDE en v0 (arêtes = livrable SP-2)"
+def test_demands_shipped_graph_validates():
+    from tools.check_agi_taxonomy import validate_graph
+    caps = _load("capabilities.json")
+    demands = _load("demands.json")
+    assert validate_graph(caps, demands) == [], "le graphe LIVRÉ (capabilities + demands) doit valider sans violation"
+    assert len(demands) >= 1, "demands.json porte au moins la 1ère arête mesurée (SP-2)"
 
 
 def _valid_edge(**evidence_over):

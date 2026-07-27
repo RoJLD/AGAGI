@@ -27,12 +27,19 @@ cellule seed×condition) — terminé en 237.5 s, confirmant que le run de fond 
 simplement lent.
 
 ## Résultat
-COORD : X_DEMANDED (ratio 2.115 ; intacte VIVANTE médiane 0.34375 > 1/K=0.167, ablée 0.1625 ~ hasard).
+COORD : X_DEMANDED (ratio 2.115 ; intacte médiane 0.34375, ablée 0.1625 ~ hasard 1/K=0.167). Le seuil
+« vivant » retenu pour le bornage n'est PAS 1/K mais 1/K+0.15≈0.317 (marge d'émergence, pas le simple
+plancher de hasard) : la médiane intacte le dépasse de +0.027 seulement — marge NARROW sur la médiane
+seule. Ce qui rend le verdict robuste n'est pas cette marge de médiane mais la séparation **12/12 seeds à
+recouvrement ZÉRO** entre intacte (min 0.306) et ablée (max 0.184) : aucun seed n'échappe au collapse, la
+médiane étroite est un artefact de l'échelle, pas un signal fragile.
 NO-COORD : X_DECOY, inerte sur métrique VIVANTE (intacte médiane ~0.74, ablée ~0.74 ; nocoord_alive=True,
 specificity_control = pass). Donc la coordination LIT causalement la perception de la cible — arête
 `language → perception` gravée dans `data/agi_taxonomy/demands.json`, validée par `check_agi_taxonomy`.
 `functional_aliasing = "n/a"` (ablation d'entrée, pas de fuite de substrat) justifié par le contrôle de
-demande. Accuracies complètes persistées dans `results/sp2_edge_accuracies.json`.
+demande. Accuracies complètes persistées dans `results/sp2_edge_accuracies.json`, régénérées par un appel
+DIRECT et bloquant à `run_perception_coordination_demand_probe` (le point d'entrée calibré, pas le pilote
+de secours) — reproduit à l'identique (mêmes tableaux, `_train_and_eval` est déterministe par seed).
 
 ## Portée (bornée)
 Proxy hors-monde (jeu de Lewis), pas la biosphère. Une seule arête ; les autres (perception→memory, …) sont
