@@ -1,3 +1,5 @@
+import pytest
+
 from src.environments.config import WorldConfig
 from src.worlds.world_1_stoneage import Biosphere3D
 from src.seed_ai.harness import seed_at
@@ -119,7 +121,14 @@ def test_verdict_reach_branches():
     assert _verdict_reach([]) == "INDETERMINE"
 
 
+@pytest.mark.slow
 def test_main_reach_oracle_smoke_and_determinism():
+    # LENT (~135 s x2 = ~270 s, mesure 2026-07-22) : lance main_reach_oracle DEUX fois (determinisme),
+    # chaque appel = 4 cellules x 2 seeds x 150 ticks, avec dreaming naturel a chaque tick (le world
+    # model diverge en regime oracle -> surprise sature a 1.0, cf. mamba_agent:549). Fini, pas infini
+    # (deux snapshots faulthandler a des lignes DIFFERENTES de forward -> progresse). N'a rien a faire
+    # dans la suite RAPIDE : c'est ce test, non marque slow, qui bloquait `pytest -m "not slow"` vers
+    # 24 % (P0.2/P1.1 racine #2) une fois le hang async_logger (racine #1) leve.
     r1 = main_reach_oracle(speeds=(1.0, 0.0), n_eval=2, R=1, seed=88114, _return=True)
     assert r1["verdict"] in ("PRIMITIVE FERME", "PRIMITIVE NE FERME PAS", "PRIMITIVE PARTIELLE", "INDETERMINE")
     assert len(r1["table"]) == 4

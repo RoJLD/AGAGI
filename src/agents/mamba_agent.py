@@ -295,17 +295,89 @@ def _resolve_dreaming(force_dream, has_mcts, do_dream, surprise, dream_thr, surp
         K_individual = np.where(is_dreaming, np.clip((do_dream * 8).astype(int), 1, 8), 0)
     return is_dreaming, K_individual
 
+def _dream_node_group_mask(agents, mappings, max_N, group):
+    """Masque (B, max_N) restreignant le bruit de rêve à un GROUPE de nœuds par rôle (EDR-DREAM-006).
+
+    group="all" -> None (pas de restriction, comportement historique). "input"/"hidden"/"output"
+    marquent, pour chaque agent, les nœuds de ce rôle À LEUR POSITION dans l'espace padé (via mapping).
+    Extrait pour être calibrable : les trois groupes DOIVENT partitionner exactement les nœuds réels
+    (disjoints, union = tous les nœuds mappés) — sinon le bruit fuit hors du groupe déclaré et la
+    localisation de DREAM-006 attribuerait l'effet au mauvais registre."""
+    if group == "all":
+        return None
+    B = len(agents)
+    mask = np.zeros((B, max_N), dtype=np.float32)
+    for i in range(B):
+        N_i = agents[i].genome.num_nodes
+        I_i = agents[i].genome.num_inputs
+        O_i = agents[i].genome.num_outputs
+        mp = mappings[i]
+        out0 = N_i - O_i                          # début du bloc de sortie dans l'ordre nœud
+        # Rôles PLEINS (EDR-DREAM-006) — ⚠️ tailles très inégales (input≈59/hidden≈5/output≈108),
+        # à ne comparer qu'entre eux.
+        if group == "input":
+            mask[i, mp[:I_i]] = 1.0
+        elif group == "output":
+            mask[i, mp[out0:N_i]] = 1.0
+        elif group == "hidden":
+            mask[i, mp[I_i:out0]] = 1.0
+        # Specs APPARIÉES EN TAILLE (EDR-DREAM-007) : ~5-8 nœuds chacune -> comparables sans confondant
+        # de taille. `action8` = les 8 logits de déplacement PORTÉS (sorties preds 0-7) : mêmes nœuds
+        # que le bruit d'action transitoire de DREAM-004, mais persistants -> teste si la persistance
+        # SUR CES NŒUDS suffit. `input8`/`outhi8` = 8 nœuds d'autres rôles = contrôles à COMPTE ÉGAL.
+        elif group == "action8":
+            mask[i, mp[out0:out0 + min(8, O_i)]] = 1.0
+        elif group == "input8":
+            mask[i, mp[:min(8, I_i)]] = 1.0
+        elif group == "outhi8":                   # 8 DERNIÈRES sorties (non-action)
+            mask[i, mp[max(out0, N_i - 8):N_i]] = 1.0
+        else:
+            raise ValueError(f"groupe de nœuds inconnu : {group!r}")
+    return mask
+
+
 class MambaBatchModel:
     """
     Gestionnaire de population pour vectoriser l'inférence de N agents simultanément (TensorWorld).
     Supporte le Connectome Élastique avec dynamic padding et alignement des nœuds sensoriels, cachés et moteurs.
     """
     # Flags d'ablation (EDR 032) : neutralisent un gène câblé pour mesurer son apport réel.
+    # Lus via type(self) -> un sous-classe (ex. MambaCoreBatchModel) les configure SANS muter
+    # l'état global de classe (sûr en sessions parallèles).
     ABLATE_THRESHOLDS = False   # ignore les seuils d'excitabilité
     ABLATE_ROUTER = False       # gain neuromodulateur neutre (=1)
+    ABLATE_NTM = False          # EDR-134 suite : coupe le self-wiring NTM (compile_and_apply no-op)
+    ABLATE_ATTENTION = False    # EDR-134 suite : coupe l'organe d'attention QKV
     METABOLIC_ACTIVE_EPS = 0.1  # NAS Axe D-1 : seuil |H_i|>eps pour compter un nœud "actif"
     KWTA_KEEP_FRAC = 1.0        # NAS Axe D-2 : fraction de cachés gardés actifs (1.0 = off)
     FORCE_DREAM = None          # intervention causale (EDR 094) : None|"off"|int K (profondeur forcée)
+    DREAM_SHAM = False          # RÊVE FACTICE (EDR-DREAM-002, défaut OFF = prod inchangée).
+    # Le rêve fait DEUX choses simultanément : il BRUITE l'état caché sur K branches, et il GARDE la
+    # meilleure au sens du logit de valeur (28). Ces deux ingrédients sont séparables. En mode factice,
+    # on explore exactement les mêmes K branches, avec le même bruit et le même coût de calcul, mais on
+    # en garde une AU HASARD (échantillonnage par réservoir) au lieu de la meilleure.
+    # C'est l'ablation WITHIN-subject du MÉCANISME : si le bénéfice mesuré par EDR-DREAM-001 (+77 % de
+    # survie, reproduction ×15.7) vient de la SÉLECTION-PAR-VALEUR, le factice doit retomber sur `off` ;
+    # s'il vient de l'exploration bruitée de H, le factice doit le reproduire.
+    DREAM_NOISE_GROUP = "all"   # GROUPE de nœuds bruités par le rêve (EDR-DREAM-006). Défaut "all" =
+    # tous (prod inchangée). "input"|"hidden"|"output" restreint le bruit porté à un rôle de nœud (via
+    # `mappings`) -> localise QUEL registre de l'état porté débloque la reproduction. Le cœur récurrent
+    # (hidden) porte la dynamique W ; les sorties sont des readouts sémantiques (valeur 28, goal, NTM).
+    DREAM_NOISE = 0.05          # AMPLITUDE du bruit sur H (EDR-DREAM-003). Défaut = valeur historique
+    # en dur -> prod inchangée. DREAM-002 a montré que le bénéfice vient du BRUIT, pas de la sélection.
+    # Mais le rêve fait ENCORE deux choses : il bruite K fois ET il applique K mises à jour récurrentes
+    # supplémentaires (la boucle MUTE H, cf. ~L618 : c'est une marche à K pas, pas K branches
+    # parallèles). `DREAM_NOISE = 0.0` isole le second ingrédient : mêmes K pas, même `compute_spent`
+    # donc même `brain_cost`, mais AUCUN bruit. C'est la dose 0 de l'échelle d'amplitude — et la
+    # récursion de la leçon de DREAM-002 sur elle-même : une intervention qui fait deux choses doit
+    # être ablatée composante par composante.
+
+    ACTION_NOISE = 0.0          # BRUIT sur les LOGITS D'ACTION (EDR-DREAM-004). Défaut 0 = prod inchangée.
+    # Contrôle de LOCUS pour DREAM-003 : le bruit de rêve perturbe l'état caché H qui est PORTÉ au tick
+    # suivant (self.H_prev_batch = H) -> perturbation PERSISTANTE. Ce seam injecte un bruit sur les 8
+    # logits de déplacement, chez les mêmes porteurs d'organe, mais TRANSITOIRE (par-tick, non porté).
+    # Départage échappement-d'attracteur (exige la persistance : bruit d'action DOIT échouer) vs simple
+    # exploration/jitter (bruit d'action REPRODUIT l'effet, et l'organe serait un ε-greedy déguisé).
 
     # NAS Axe 3 — Planificateur latent (activation du dreaming). Défaut OFF (non-régressif).
     PLAN_BIAS = 0.0   # poids du biais des logits d'action par le plan (0 = planificateur désactivé)
@@ -445,7 +517,8 @@ class MambaBatchModel:
             return np.array([]), np.array([])
 
         # Self-wiring neuronal: compile memory slots to W_batch
-        self.W_batch = NTMProgramCompiler.compile_and_apply(self.NTM_Memory, self.W_batch, self.agents)
+        if not type(self).ABLATE_NTM:
+            self.W_batch = NTMProgramCompiler.compile_and_apply(self.NTM_Memory, self.W_batch, self.agents)
 
         # Padding/slicing de batch_obs s'il ne correspond pas à max_I
         x_obs = np.zeros((self.B, self.max_I), dtype=np.float32)
@@ -486,13 +559,13 @@ class MambaBatchModel:
         # 3. Passe de base (réflexe)
         H[:, :self.max_I] = x
         # Neuromodulation (EDR 031) : gain global dépendant du contexte (W_router câblé).
-        if MambaBatchModel.ABLATE_ROUTER:
+        if type(self).ABLATE_ROUTER:
             gain = 1.0
         else:
             mod = np.tanh(np.einsum('bi,bij->bj', x, self.router_batch))    # (B, 3)
             gain = 1.0 + 0.3 * mod.mean(axis=1, keepdims=True)             # (B, 1) dans [0.7, 1.3]
         excitation = np.einsum('bi,bij->bj', H, W_no_diag) * gain
-        thr = 0.0 if MambaBatchModel.ABLATE_THRESHOLDS else self.thresholds_batch
+        thr = 0.0 if type(self).ABLATE_THRESHOLDS else self.thresholds_batch
         # EDR 086 : borner l'ENTRÉE de l'activation. Sur les longs épisodes (survie longue, 085),
         # excitation = H@W sommée sur ~172 nœuds atteint des centaines -> une activation générée par le
         # #8 à base d'exp (EDR 069) overflow -> H=inf -> W=NaN -> crash. tanh(±30)≈tanh(±800)≈±1 :
@@ -505,7 +578,7 @@ class MambaBatchModel:
             for a in self.agents
         ], dtype=bool)
         
-        if has_attention_batch.any():
+        if has_attention_batch.any() and not type(self).ABLATE_ATTENTION:
             T_tok, D_tok = 4, 8
             block_size = T_tok * D_tok  # 32
             start_idx = self.max_I
@@ -556,7 +629,7 @@ class MambaBatchModel:
         ], dtype=bool)
 
         is_dreaming, K_individual = _resolve_dreaming(
-            MambaBatchModel.FORCE_DREAM, has_mcts_batch, do_dream_batch,
+            type(self).FORCE_DREAM, has_mcts_batch, do_dream_batch,
             self.surprise_momentum_batch, DREAM_THRESHOLD, SURPRISE_THRESHOLD,
         )
 
@@ -568,6 +641,11 @@ class MambaBatchModel:
             best_H = H.copy()
             best_value = np.full(self.B, -np.inf)
 
+            # EDR-DREAM-006 : masque de GROUPE de nœuds pour le bruit porté. Construit une fois par
+            # forward (les mappings sont stables dans l'épisode). None = "all" -> pas de restriction.
+            group_mask = _dream_node_group_mask(
+                self.agents, self.mappings, self.max_N, type(self).DREAM_NOISE_GROUP)
+
             for k in range(T_max):
                 active_mask = K_individual > k
 
@@ -575,7 +653,12 @@ class MambaBatchModel:
                     break
 
                 H_branch = H.copy()
-                noise = np.random.randn(*H_branch.shape).astype(np.float32) * 0.05
+                # Le tirage a lieu MÊME à sigma=0 : consommer le même nombre de nombres aléatoires
+                # dans tous les bras garde les flux RNG alignés, sinon la dose 0 diverge du reste de
+                # la simulation pour une raison sans rapport avec le bruit.
+                noise = np.random.randn(*H_branch.shape).astype(np.float32) * type(self).DREAM_NOISE
+                if group_mask is not None:
+                    noise *= group_mask               # bruit restreint au groupe de nœuds (DREAM-006)
                 H_branch[active_mask] += noise[active_mask]
 
                 excitation = np.einsum('bi,bij->bj', H_branch, W_no_diag)
@@ -589,7 +672,15 @@ class MambaBatchModel:
                     # Le logit 28 est au décalage N_i - O_i + 28
                     val_idx = map_idx[N_i - O_i + 28]
                     val = float(H_branch[i, val_idx])
-                    if np.isfinite(val) and val > best_value[i]:
+                    if type(self).DREAM_SHAM:
+                        # Réservoir : garde la branche k avec proba 1/(k+1) -> branche UNIFORME parmi
+                        # celles explorées. Même bruit, même nombre de branches, même compute_spent —
+                        # seule la SÉLECTION change. Le logit de valeur est quand même lu (coût
+                        # identique) pour que les deux bras ne diffèrent que par le critère.
+                        if np.random.rand() < 1.0 / (k + 1):
+                            best_value[i] = val
+                            best_H[i] = H_branch[i]
+                    elif np.isfinite(val) and val > best_value[i]:
                         best_value[i] = val
                         best_H[i] = H_branch[i]
                     compute_spent[i] += 1.0
@@ -739,6 +830,22 @@ class MambaBatchModel:
             a.planner_G = self.G_batch[i][:, map_idx].copy()   # extrait (A,N_i) en ordre nœud
             a.genome.W = self.W_batch[i][map_idx[:, None], map_idx[None, :]].copy()
 
+        # Bruit d'action TRANSITOIRE (EDR-DREAM-004) : contrôle de locus/persistance pour DREAM-003.
+        # Placé APRÈS toutes les sous-sorties internes (attention/NTM/goal/pred déjà consommées) et
+        # juste avant le retour -> ne perturbe QUE l'action de déplacement lue par le monde, jamais la
+        # machinerie interne. Sur les 8 logits de déplacement, chez les porteurs d'organe uniquement
+        # (même population que le rêve). N'écrit PAS dans H -> non porté au tick suivant, contrairement
+        # au bruit de rêve : c'est exactement le contraste persistant-vs-transitoire.
+        if type(self).ACTION_NOISE > 0.0:
+            A_mov = min(MambaBatchModel.PLAN_A, self.max_O)
+            carriers = np.array([
+                bool(getattr(a.genome, 'organ_genes', None) is not None
+                     and len(a.genome.organ_genes) > 0 and a.genome.organ_genes[0])
+                for a in self.agents], dtype=bool)
+            if carriers.any():
+                anoise = np.random.randn(self.B, A_mov).astype(np.float32) * type(self).ACTION_NOISE
+                preds[carriers, :A_mov] += anoise[carriers]
+
         return preds, compute_spent
 
     def compute_policy_gradient(self, rewards_batch: np.ndarray, actions_batch=None):
@@ -826,3 +933,22 @@ class MambaBatchModel:
             self.agents[i]._td = {"h": h_t.copy(), "out": out_t.copy(), "value": v_t,
                                   "reward": float(rewards_batch[i]), "act": act,
                                   "v_node": N_i - O_i + 28, "h_rec": hrec_t}
+
+
+class MambaCoreBatchModel(MambaBatchModel):
+    """Substrat legacy RÉDUIT au noyau LTC — parité d'organes avec TorchBatchModel (EDR-134 suite).
+
+    EDR-134 a trouvé le champion s'effondrer sous torch-core (−46 ticks), MAIS confondu :
+    TorchBatchModel OMET les organes (NTM/router/thresholds/attention/dreaming) et le champion
+    a évolué son W POUR eux. Ce bras able les MÊMES organes côté legacy → à parité structurelle,
+    le seul degré de liberté restant est la RÈGLE D'APPRENTISSAGE (TD numpy analytique héritée
+    vs TD autograd de torch). Isole enfin « règle » de « organes ».
+
+    Hérite `compute_policy_gradient` (Actor-Critic TD numpy) — c'est le point : même algo de crédit,
+    moteur différent. Config via attributs de classe (lus par type(self), non-régressif pour la base).
+    """
+    ABLATE_THRESHOLDS = True
+    ABLATE_ROUTER = True
+    ABLATE_NTM = True
+    ABLATE_ATTENTION = True
+    FORCE_DREAM = "off"

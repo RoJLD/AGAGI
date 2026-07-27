@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-034
+type: EDR
+title: "Graphe-projet KuzuDB — la carte des dimensions devient requêtable"
+status: legacy
+gate: foundational
+---
+
 # EDR 034 : Graphe-projet KuzuDB — la carte des dimensions devient requêtable
 
 ## Contexte — Vague 1, finition du graphe

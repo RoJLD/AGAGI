@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-103
+type: EDR
+title: "Préserver l'architecture est un no-op pour l'apex — le verdict MONOCULTURE tient sous topologie réelle"
+status: legacy
+gate: foundational
+---
+
 # EDR 103 : Préserver l'architecture est un no-op pour l'apex — le verdict MONOCULTURE tient sous topologie réelle
 
 ## Contexte

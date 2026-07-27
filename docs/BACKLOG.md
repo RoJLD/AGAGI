@@ -9,6 +9,118 @@
 
 ---
 
+## 2026-07-02 — Brainstorm « Aller plus loin » : intégration torch in-world + 4 axes
+
+> Cadre après clôture de la **carte valeur torch** (parité 140/141 · mémoire BPTT 145 · binding
+> `learn_episode` 158/159). Reste explicite du fil G1 = **intégration boucle biosphère**. Les 4 axes
+> ci-dessous sont hiérarchisés ; l'axe 1 est le chemin critique choisi (session 2026-07-02).
+
+### Hypothèse unificatrice (H-unif) — le pari scientifique
+**Rétention craft (127), spécialisation world-spécifique (156/157) et binding means→ends (126-159)
+sont le MÊME verrou : le crédit conditionnel.** Le craft « atteint mais non retenu » (127) est
+structurellement du *marginal-raising* (126) : l'agent essaie le craft mais n'apprend pas à crafter
+*quand ça paie*. La recette **gate + crédit épisodique** (158/159, `learn_episode`, +0.298) est le
+1er levier qui casse ce motif en isolation. **Prédiction falsifiable** : porter `learn_episode`
+in-world (axe 1) doit *racheter* 127/156/157 sans nouveau mécanisme. Si faux → verrous distincts,
+appris via EDR bon marché. Test = axe 3.
+
+### Contrainte d'archi découverte (décisive)
+Le `batch_model` est **transitoire** — [`world_1_stoneage.py:992`](roadmap/../../src/worlds/world_1_stoneage.py)
+le ré-instancie *à chaque tick*. L'état durable (H, poids) vit dans les agents (`a["model"]`). Donc
+le **buffer de trajectoire de `learn_episode` ne peut vivre sur le batch_model** (jeté/tick) : il doit
+être porté par le **monde** (ring-buffer `self._torch_traj` de K ticks) et le `pop` torch doit
+**persister entre ticks** (hissé hors de la boucle par-tick, backend torch seulement ; legacy
+inchangé). Le banc 158/159 masquait ce point (là `pop` persiste sur tout l'épisode).
+
+### Axe 1 — Intégration torch in-world (CHEMIN CRITIQUE)
+
+> **CRANS 0-1 LIVRÉS 2026-07-02** (subagent-driven, 6 tâches TDD + fix I1 ; 10 tests verts ; review final
+> Opus = PRÊT À MERGER ; commits path-scopés `b5e91db`→`74295af`, NON poussés). `Biosphere3D.use_torch_inworld`
+> (opt-in OFF, legacy non-régressif prouvé) fait tourner `learn_episode` in-boucle : pop torch persistant,
+> buffer glissant K, crédit épisodique **aligné par identité d'agent** (rogne aux vivants — benchmark_mode
+> fige la repro mais PAS la mortalité). Banc `tools/torch_inworld_ab.py`. Garde : `use_torch_inworld` EXIGE
+> `benchmark_mode`. Détail : mémoire `torch-inworld-integration-plan`, ledger `.superpowers/sdd/progress.md`.
+>
+> **VERDICT A/B SURVIE = NEUTRE (powered, 12 seeds appariés)** : régime very_soft (sweet spot EDR-085),
+> métrique **AUC de survie** (le monde est létal aux frais → survie finale = plancher structurel EDR-090,
+> l'AUC discrimine). median_diff +0.017 (<bande), 7/12, sign_p 0.55 ; le signal 6-seeds (+0.033) a fondu
+> sous puissance. Établit la **NON-RÉGRESSION in-world** (torch ne dégrade pas la survie) MAIS **la survie
+> n'est pas le KPI du binding** — `learn_episode` porte la composition, pas la survie brute. Prochain
+> instrument = brancher une DEMANDE DE COMPOSITION in-world (pont vers EDR-161). À formaliser en EDR.
+>
+> **RESTE crans 2-4** : gate (`CONDITION_GATE`/`GATE_TARGET`), antisat, gate mult + mesure binding in-world
+> P(Y|X). ⚠️ **Bloqueur cran 2** : le rebuild du pop sur mortalité RÉINITIALISE `w_gate`/`b_gate` → éroderait
+> l'accumulation du gate → persister le gate à travers rebuild AVANT d'allumer le gate in-world.
+
+> **REPRISE 2026-07-11 — cran 2 (throw-gate) : le verrou couche-2 est DÉCOMPOSÉ.** EDR-172 (B2) NEUTRE =
+> substrat 2 couches. NAV-005 (main, offline) raffine la couche 2 : la « rareté » est un **BIAIS** (−0.5 sur
+> throw-sans-kill). **EDR-173 (PR #160, branche `chantier/throw-gate-debias-nav005`) porte le débias in-world**
+> (knob `src` `torch_throw_penalty` défaut −0.5 rétro-compat / 0.0 non-biaisé ; banc `compare_debias` apparié
+> biaisé-vs-non-biaisé ; knobs `night`/`energy`/`spear_weight` neutralisent la couche 1) → **NÉCESSAIRE mais
+> PAS SUFFISANT** : les 2 bras NEUTRES ; `kills` 1-6 / `spear_n` 500-2400 → **p_success ≈ 0.001 in-world**
+> (~10-20× < le sweep offline NAV-005 à 0.02-0.03) → E[correct]≈0 → gradient négligeable. **Verrou résiduel =
+> DENSITÉ du crédit kill-outil, pas le signe.**
+
+> **Levier densité TESTÉ (EDR-174, PR #160) = BACKFIRE.** Le shaping de visée dense (`torch_throw_shaping`)
+> produit de l'**ANTI-binding** (gap −0.28 à −0.52, HEBBIEN_GAGNE, 6/6 seeds) : throw consomme le spear →
+> densifier fait throw ++ → l'agent devient spearless → `P(throw|¬spear)` monte → gap négatif. **Méta-verdict :
+> 3ᵉ échec côté SIGNAL (câblage 172 / débias 173 / densité 174) → les fixes de récompense sont ÉPUISÉS in-world.**
+
+> **Warm-start TESTÉ (EDR-175, PR #160) : FRANCHIT le bootstrap mais NE RETIENT PAS.** FROZEN (gate gelé) : le
+> `_throw_w` spear-aware (régression logistique H→has_spear) crée un gap **+0.40** → binding REPRÉSENTABLE,
+> bootstrap franchissable. Mais sous REINFORCE le warm **érode** (+0.40 → médiane −0.04) ; cold anti-binde (−0.22) ;
+> warm>cold 5/6 mais n.s. (sign_p 0.22). **Loi rétention-167 (`c_warm=r·P`)** : la rétention exige récompense·P >
+> coût ; in-world kill/hit ~0.001 → `r·P` SOUS le plancher → érosion.
+
+### ✅ ARC THROW-GATE IN-WORLD CLOS (172→176) — blocage MULTI-CAUSAL
+
+4 leviers échouent : câblage (172 NEUTRE) / débias (173 nécessaire-pas-suffisant) / densité-signal (174 BACKFIRE) /
+warm-start (175 franchit le bootstrap frozen +0.40 mais N'A PAS retenu). **EDR-175 proposait `r·P` (densité de
+récompense) comme cause UNIQUE.** → **EDR-176 (contrôle POSITIF, sweep densité de proies) CORRIGE** : monter `r·P`
+~5× (kills 6→30) N'produit PAS de binding (gap reste négatif, −0.62→−0.28) MAIS l'améliore monotoniquement
+(dose-réponse). Donc **`r·P` est nécessaire et directionnellement causal, PAS suffisant** ; le blocage in-world est
+**MULTI-CAUSAL / sur-déterminé** — verrous co-dominants : (a) **consommation** (throw consomme le spear → P(throw|¬spear)
+gonflé), (b) **poids-spear** (contexte-means = détresse énergétique), (c) **crédit MARGINAL** (« throw paie » ≠ « throw-SI-spear »).
+
+**Leçon générale actionnable (gravée, MAJ EDR-176)** : avant un binding in-world, vérifier NON SEULEMENT `r·P` mais
+aussi (i) l'action est-elle **CONSOMMATRICE** (biaise P(y|x) mécaniquement), (ii) le contexte-means est-il **ENTANGLÉ**
+à d'autres facteurs (coût/détresse), (iii) le crédit est-il **CONDITIONNEL** (means→ends) ou seulement marginal. Le
+bon banc = action NON-consommatrice, contexte-means propre, payoff dense, crédit conditionnel — PAS la balistique
+consommatrice actuelle. → si le fil BIND in-world reprend : découper (a) action non-consommatrice/reseed-à-la-décision,
+(b) spear sans poids, (c) crédit du conditionnel (séparables). Bancs `compare_rp_sweep`/`compare_warmstart` réutilisables.
+
+**Historique de la reco (2026-07-02, avant livraison) :**
+Reco couture (**approuvée 2026-07-02**) : faire passer la boucle biosphère par `make_population`
+(ADR-003, dette payée — aujourd'hui seuls tools/tests l'utilisent), buffer épisodique porté par le
+monde, `pop` torch persistant. Opt-in **`USE_TORCH_INWORLD`** (défaut off, legacy strictement
+non-régressif). **Définition d'épisode** = fenêtre glissante K ticks (reco : c'est le régime exact
+où 158/159 ont livré ; garde `learn()` TD en //; K devient variable EDR propre). Alternatives
+écartées : vie de l'agent (crédit trop dilué, mémoire O(vie)) ; segments événementiels (détection à
+câbler). **Progression flag-par-flag** (Commandement 15, 1 variable) : (0) `USE_TORCH_INWORLD` à
+parité forward — déjà prouvé hors-boucle 140/141 ; (1) `learn_episode` seul ; (2) +gate ; (3)
++antisat ; (4) +gate multiplicatif EDR-160 (en vol). Chaque cran = 1 EDR powered avec banc in-world.
+
+### Axe 2 — Lancer `transfer_ratio` à l'échelle (en //, background)
+Instrument `tools/curriculum_transfer.py` **livré mais jamais lancé**. C'est le KPI (X2) dont
+dépendent RSI (#2) et NAS. Design bon marché (outil prêt), coût = compute. Verrou = budget mono-machine
+(garde-fou SCIENCE.md : profiling/parallélisme/early-stopping AVANT). À orchestrer en tâche de fond
+pendant l'axe 1.
+
+### Axe 3 — Verrous 2e génération (test de H-unif)
+Une fois `learn_episode` in-world (axe 1) : **rejouer EDR-127 (rétention craft) et EDR-156/157
+(spécialisation) sous crédit épisodique**. Bancs `tools/tool_gate_calibration.py`,
+`tools/cross_world_transfer.py`, `tools/famine_harshness_probe.py` existants. Si H-unif tient →
+craft retenu + spécialisation émergente sans nouveau mécanisme = validation la plus élégante du fil.
+
+### Axe 4 — G4 (anticipation) / G2 (composition)
+- **G4** : depth-1 g linéaire RÉFUTÉ (135, `planner-depth1-refuted`) MAIS `world_model.predict()`
+  jamais branché (dreaming = random-shooting latent, SCIENCE.md #3). Leviers vierges : g **bilinéaire**
+  OU brancher le vrai world model dans le planning. Banc `tools/anticipation_bench.py`.
+- **G2** : outil « émergence de chaîne non récompensée » **à créer** (table des portes,
+  `FIL_DIRECTEUR_AGI.md`). Germe = `tools/substrate_ab_compositional.py`.
+
+---
+
 ## L'Axe Ontogénétique — Curriculum Développemental (2ᵉ Échelle de Temps)
 
 > **Deux axes du temps, orthogonaux.** Les 7 Arcs décrivent la *phylogénèse* (ce que le **système** gagne, version après version). Cette section décrit l'*ontogénèse* : ce qu'un **cerveau individuel** doit maîtriser, et dans quel ordre, avant de changer de monde.

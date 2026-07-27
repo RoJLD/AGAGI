@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-067
+type: EDR
+title: "Le gradient (BPTT) débloque le goulot — la découverte mécaniste centrale"
+status: legacy
+gate: foundational
+---
+
 # EDR 067 : Le gradient (BPTT) débloque le goulot — la découverte mécaniste centrale
 
 ## Contexte

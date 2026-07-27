@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-037
+type: EDR
+title: "Sondeur d'impasse — le plateau est atteint, le langage n'émerge pas (Vague 3 / pré-#8)"
+status: legacy
+gate: G3
+---
+
 # EDR 037 : Sondeur d'impasse — le plateau est atteint, le langage n'émerge pas (Vague 3 / pré-#8)
 
 ## Contexte

@@ -67,7 +67,8 @@ def test_collect_ratios_all_actions_exercised():
 
 
 def test_collect_ratios_nontrivial_transitions():
-    """Avec obs variables σ=0.3, les transitions latentes doivent dépasser le seuil base_err>0.01."""
+    """Avec obs variables σ=0.3, les transitions latentes (~5e-3, substrat contractif EDR-DREAM-005)
+    dépassent le seuil base_err > 1e-3 -> au moins quelques transitions mesurées."""
     ratios, _ = collect_ratios(seed=1, warmup=10, measure=50)
     # Au moins quelques transitions doivent être mesurées (base_err > 0.01)
     assert len(ratios) > 0, "Aucune transition non-triviale mesurée avec obs variables"

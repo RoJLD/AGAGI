@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-084
+type: EDR
+title: "Le plafond de survie est STRUCTUREL (économie d'énergie), pas évolutif"
+status: legacy
+gate: foundational
+---
+
 # EDR 084 : Le plafond de survie est STRUCTUREL (économie d'énergie), pas évolutif
 
 ## Contexte

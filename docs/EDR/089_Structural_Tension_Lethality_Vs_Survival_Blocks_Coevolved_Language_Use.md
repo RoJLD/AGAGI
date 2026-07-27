@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-089
+type: EDR
+title: "VOID structurel : la létalité (qu'exige 088) et la survie longue (qu'exige 083) sont INCOMPATIBLES"
+status: legacy
+gate: G3
+---
+
 # EDR 089 — VOID structurel : la létalité (qu'exige 088) et la survie longue (qu'exige 083) sont INCOMPATIBLES
 
 ## Contexte

@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-029
+type: EDR
+title: "Rendre la chaîne DOMINANTE — sélection pour l'apex + capacité de charge"
+status: legacy
+gate: G2
+---
+
 # EDR 029 : Rendre la chaîne DOMINANTE — sélection pour l'apex + capacité de charge
 
 ## Contexte — Vague 0quinquies

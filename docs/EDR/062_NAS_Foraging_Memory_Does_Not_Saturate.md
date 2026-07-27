@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-062
+type: EDR
+title: "NAS — le foraging-mémoire ne sature pas (la conclusion robuste, après 6 EDR)"
+status: legacy
+gate: foundational
+---
+
 # EDR 062 : NAS — le foraging-mémoire ne sature pas (la conclusion robuste, après 6 EDR)
 
 ## Contexte

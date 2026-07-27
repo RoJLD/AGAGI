@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-030
+type: EDR
+title: "Sevrage de la prime + Curriculum développemental unifié (fin Vague 0quinquies)"
+status: legacy
+gate: foundational
+---
+
 # EDR 030 : Sevrage de la prime + Curriculum développemental unifié (fin Vague 0quinquies)
 
 ## Contexte

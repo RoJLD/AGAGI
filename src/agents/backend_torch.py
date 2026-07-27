@@ -41,6 +41,19 @@ class TorchPopulationModel(PopulationModel):
 
     backend = "torch"
 
+    # --- Gate de conditionnement optionnel (EDR-148 : port prod de la recette 129/136/147) ---
+    # OFF par défaut => chemin prod inchangé (banc compositional // intact). Quand activé, un readout
+    # linéaire de H (population-partagé, SÉPARÉ de W, non hérité = MVP) biaise l'action cible, appris
+    # dans le VRAI chemin Actor-Critic TD(0) ; ANTISAT pénalise la saturation de la marginale de base.
+    CONDITION_GATE = False   # active le gate de conditionnement dans forward + learn
+    ANTISAT = 0.0            # force de l'anti-saturation de la marginale de base (EDR-136)
+    GATE_TARGET = None       # index du logit move gaté (l'action "ends") ; None => gate désactivé
+    GATE_TARGETS = None      # EDR-165 : liste d'indices pour un gate MULTI-CIBLE (routage conditionnel
+                             # vers plusieurs "ends", ex. spécialisation multi-chaînes) ; prioritaire sur
+                             # GATE_TARGET quand non-None. Additif seulement. Single-target inchangé si None.
+    GATE_MULT = False        # EDR-160 : gate MULTIPLICATIF sigmoïde (biais = SCALE·σ(H·w+b) ∈ [0,SCALE])
+    GATE_SCALE = 8.0         # amplitude du gate multiplicatif ; σ→0 supprime PROPREMENT hors-contexte
+
     def __init__(self, agents, world_model=None, lr=0.04, device="cpu"):
         if torch is None:
             raise NotImplementedError("backend 'torch' : PyTorch non installé (requirements-torch.txt)")
@@ -67,8 +80,26 @@ class TorchPopulationModel(PopulationModel):
         W = np.stack([np.asarray(a.genome.W, dtype=np.float32) for a in agents], axis=0)
         self.W = torch.tensor(W, device=self.device, requires_grad=True)
         self.H = torch.zeros((self.B, self.N), device=self.device)
-        self.opt = torch.optim.SGD([self.W], lr=lr)
         self._eye = torch.eye(self.N, device=self.device)
+
+        # Gate de conditionnement (EDR-148) : params population-partagés, ajoutés à l'optimiseur.
+        self.w_gate = None
+        self.b_gate = None
+        self._gate_runtime = True     # interrupteur runtime (diagnostic EDR-148 ; voir _gate_bias)
+        params = [self.W]
+        # MULTIPLICATIF (EDR-160) : biais initial NÉGATIF -> σ≈0 -> gate démarre ÉTEINT (bon prior de
+        # porte). ADDITIF : 0 (neutre). Sinon le gate mult démarre always-on (σ(0)=0.5) et dégrade.
+        b0 = -4.0 if type(self).GATE_MULT else 0.0
+        if type(self).CONDITION_GATE and type(self).GATE_TARGETS:
+            k = len(type(self).GATE_TARGETS)                      # gate MULTI-CIBLE (EDR-165)
+            self.w_gate = torch.zeros(self.N, k, device=self.device, requires_grad=True)
+            self.b_gate = torch.full((k,), b0, device=self.device, requires_grad=True)
+            params += [self.w_gate, self.b_gate]
+        elif type(self).CONDITION_GATE and type(self).GATE_TARGET is not None:
+            self.w_gate = torch.zeros(self.N, device=self.device, requires_grad=True)   # single (inchangé)
+            self.b_gate = torch.full((1,), b0, device=self.device, requires_grad=True)
+            params += [self.w_gate, self.b_gate]
+        self.opt = torch.optim.SGD(params, lr=lr)
 
     def _step(self, obs_t, H_in):
         """Une étape LTC différentiable. obs_t (B,I), H_in (B,N) -> H_new (B,N).
@@ -81,6 +112,25 @@ class TorchPopulationModel(PopulationModel):
         excitation = torch.bmm(H.unsqueeze(1), W_off).squeeze(1)   # (B,N) = H · W_off
         return (1.0 - delta) * H + delta * torch.tanh(excitation)
 
+    def _gate_value(self, H):
+        """Valeur brute du gate (B,) = readout de l'état H. ADDITIF : H·w+b (non borné). MULTIPLICATIF
+        (EDR-160, GATE_MULT) : SCALE·σ(H·w+b) ∈ [0,SCALE] -> le gate sort ~0 hors-contexte (suppression
+        PROPRE de la contamination S1 d'EDR-159) et ~SCALE en contexte. Pas de garde runtime (le banc
+        contrôle le scoping via gate_last_only) ; utilisé par _gate_bias et learn_episode."""
+        raw = H @ self.w_gate + self.b_gate                       # (B,)
+        if type(self).GATE_MULT:
+            return type(self).GATE_SCALE * torch.sigmoid(raw)
+        return raw
+
+    def _gate_bias(self, H):
+        """Biais de gate (B,) pour forward/_td_update. None si gate inactif. Le gate CONDITIONNE sur H
+        -> il apprend QUAND se déclencher (pas de béquille d'étape : substrat prod task-agnostique).
+        `_gate_runtime` (défaut True) permet à un banc de le désactiver ponctuellement (diagnostic
+        EDR-148 : isoler la contamination de l'étape « means » S1)."""
+        if self.w_gate is None or not getattr(self, "_gate_runtime", True):
+            return None
+        return self._gate_value(H)
+
     def forward(self, batch_obs, env_surprise_batch=None):
         if self.B == 0:
             return np.array([]), 0
@@ -91,6 +141,15 @@ class TorchPopulationModel(PopulationModel):
         self.H = H_new.detach()
         self._last = (obs_t, H_in)
         logits = H_new[:, self.N - self.O:self.N]
+        gb = self._gate_bias(H_new)
+        if gb is not None:                                        # le gate influence l'action ÉCHANTILLONNÉE
+            logits = logits.clone()
+            if type(self).GATE_TARGETS:                           # multi-cible (EDR-165)
+                for k, tgt in enumerate(type(self).GATE_TARGETS):
+                    logits[:, tgt] = logits[:, tgt] + gb[:, k].detach()
+            else:
+                tgt = type(self).GATE_TARGET
+                logits[:, tgt] = logits[:, tgt] + gb.detach()
         return logits.cpu().numpy(), 0
 
     def learn(self, rewards_batch, actions_batch=None):
@@ -122,7 +181,19 @@ class TorchPopulationModel(PopulationModel):
 
         idx = torch.arange(self.B, device=self.device)
         moves = torch.tensor([int(a.get("move", 0)) for a in prev["act"]], device=self.device)
-        logp = torch.log_softmax(out[:, :_MOVE_LOGITS], dim=1)[idx, moves]
+        base_move = out[:, :_MOVE_LOGITS]                        # politique de BASE (pré-gate)
+        move_logits = base_move
+        gate_pen = 0.0
+        gb = self._gate_bias(H_new)
+        if gb is not None and type(self).GATE_TARGETS is None:   # gate DANS le graphe (single ; multi = via learn_episode)
+            tgt = type(self).GATE_TARGET
+            onehot = torch.zeros(_MOVE_LOGITS, device=self.device)
+            onehot[tgt] = 1.0
+            move_logits = base_move + gb.unsqueeze(1) * onehot
+            if type(self).ANTISAT > 0:                           # anti-saturation de la marginale de BASE (EDR-136)
+                base_p_tgt = torch.softmax(base_move, dim=1)[:, tgt].mean()
+                gate_pen = type(self).ANTISAT * base_p_tgt ** 2
+        logp = torch.log_softmax(move_logits, dim=1)[idx, moves]
         grab = torch.tensor([float(a.get("grab", 0)) for a in prev["act"]], device=self.device)
         rub = torch.tensor([float(a.get("rub", 0)) for a in prev["act"]], device=self.device)
         logp = logp - F.binary_cross_entropy_with_logits(out[:, _GRAB_NODE], grab, reduction="none")
@@ -130,7 +201,168 @@ class TorchPopulationModel(PopulationModel):
 
         actor_loss = -(delta * logp).mean()                      # ACTOR (avantage = δ)
         critic_loss = ((v - target) ** 2).mean()                 # CRITIC (vers r + γV')
-        loss = actor_loss + 0.5 * critic_loss
+        loss = actor_loss + 0.5 * critic_loss + gate_pen
+        self.opt.zero_grad()
+        loss.backward()
+        self.opt.step()
+        self._write_back()
+        return float(loss.item())
+
+    def learn_episode_bptt(self, obs_seq, actions_seq, rewards, truncate=False, gamma=1.0):
+        """BPTT FENÊTRÉ (EDR-146) — la capacité que numpy N'A PAS. Rejoue l'épisode (obs_seq) depuis
+        H=0 en RETENANT le graphe récurrent, crédite les actions PRISES par le retour (REINFORCE) et
+        backprop UNE fois à travers toute la fenêtre -> le crédit de l'étape finale remonte par la
+        récurrence jusqu'à W (façonne la mémoire des étapes antérieures). ADDITIF : ne touche NI
+        forward NI learn (le banc compositional // reste intact).
+
+        truncate=True détache H entre les pas (= crédit 1-pas, ce que forward/learn/legacy font) pour
+        l'A/B : le crédit final ne peut alors PAS remonter la récurrence -> pas de means→ends.
+        obs_seq: liste de (B,I) ; actions_seq: liste (par pas) de listes de dicts {"move":int} ;
+        rewards: (B,) retour épisodique. Ne fait PAS l'échantillonnage (le banc choisit les actions)."""
+        if self.B == 0 or not obs_seq:
+            return None
+        R = torch.tensor(np.asarray(rewards, dtype=np.float32), device=self.device)   # (B,)
+        H = torch.zeros((self.B, self.N), device=self.device)
+        idx = torch.arange(self.B, device=self.device)
+        total_logp = torch.zeros(self.B, device=self.device)
+        for t, obs in enumerate(obs_seq):
+            obs_t = torch.tensor(np.asarray(obs, dtype=np.float32)[:, :self.I], device=self.device)
+            if truncate and t > 0:
+                H = H.detach()                                        # coupe le crédit à travers le temps
+            H = self._step(obs_t, H)                                  # graphe retenu (BPTT) sauf si truncate
+            out = H[:, self.N - self.O:self.N]
+            moves = torch.tensor([int(a.get("move", 0)) for a in actions_seq[t]], device=self.device)
+            logp = torch.log_softmax(out[:, :_MOVE_LOGITS], dim=1)[idx, moves]
+            total_logp = total_logp + (gamma ** t) * logp
+        loss = -(R * total_logp).mean()                              # REINFORCE, retour épisodique
+        self.opt.zero_grad()
+        loss.backward()
+        self.opt.step()
+        self._write_back()
+        return float(loss.item())
+
+    def imitate_episode_bptt(self, obs_seq, target_moves_seq, truncate_window=None, mask_seq=None,
+                             aux_off_weight=0.0, aux_off_margin=0.2):
+        """IMITATION récurrente supervisée (BPTT) — distincte de learn_episode_bptt (REINFORCE). Rejoue
+        obs_seq depuis H=0 en RETENANT le graphe récurrent ; perte = cross-entropy des move-logits vs
+        l'action-enseignant par pas ; backprop unique -> _write_back. ADDITIF (ne touche pas forward/
+        learn/learn_episode/learn_episode_bptt).
+
+        obs_seq : liste de (B,>=I) ; target_moves_seq : liste de (B,) entiers dans [0,8).
+        truncate_window=W : détache H tous les W pas (stabilité longue fenêtre).
+        mask_seq (optionnel) : liste de (B,) ∈ {0,1} par pas -> perte CE PONDÉRÉE, normalisée par Σmask
+        (exclut les pas post-mortem des agents). None -> moyenne uniforme (comportement INCHANGÉ).
+
+        aux_off_weight (EDR-WARM-005/007/008) : ne superviser QUE les 8 logits de mouvement laisse les
+        canaux d'ACTION AUXILIAIRES libres ; `grab` (nœud 24) peut rester ON et coûter de la survie —
+        non par le geste (one-shot −1.0) mais par la TAXE DE PORTAGE cumulative qu'il déclenche
+        (`world_1_stoneage:738-739`, `energy -= carry_weight*0.5` à chaque tick, à vie ; EDR-WARM-007).
+        aux_off_weight>0 pousse grab ET rub sous le seuil d'exécution du monde via une charnière à marge
+        `aux_off_margin` (cf. commentaire dans le corps : la BCE d'origine était structurellement mal
+        posée). Défaut 0.0 = comportement INCHANGÉ (rétro-compatible).
+
+        🛑 **INTERDIT hors `craft_level == 0` ET `torch_throw_gate` désactivé** (EDR-WARM-008). Forcer
+        rub OFF ferme un gate DUR du craft (`stone_economy.py:103` `if craft_level >= 1 and not do_rub`)
+        et le feu/Spark (`world_1_stoneage:1507`) ; forcer grab OFF vide l'inventaire, donc bloque le
+        craft même à L0. Contagion : sans rub il n'y a pas de Spear, donc `_throw_kill_tool`
+        (`world_1_stoneage:1455,1482`) ne peut plus se déclencher et le KPI de l'axe torch-throw-gate
+        (EDR-172→178) tombe à 0 **silencieusement**. Le défaut 0.0 protège le code existant, PAS le
+        prochain appelant : vérifier la config du monde avant d'activer ce flag.
+        ⚠️ Ne PAS l'activer non plus sous `explore_eps > 0` (0.15-0.2 dans les runners réels) : le monde
+        y force grab/rub ~8-10 % des ticks INDÉPENDAMMENT du logit, donc le correctif est contourné."""
+        if self.B == 0 or not obs_seq:
+            return None
+        F = torch.nn.functional
+        H = torch.zeros((self.B, self.N), device=self.device)
+        loss = torch.zeros((), device=self.device)
+        denom = 0.0
+        for t, obs in enumerate(obs_seq):
+            obs_t = torch.tensor(np.asarray(obs, dtype=np.float32)[:, :self.I], device=self.device)
+            if truncate_window and t > 0 and (t % truncate_window == 0):
+                H = H.detach()
+            H = self._step(obs_t, H)
+            out = H[:, self.N - self.O:self.N]
+            move_logits = out[:, :_MOVE_LOGITS]
+            tgt = torch.tensor(np.asarray(target_moves_seq[t]), dtype=torch.long, device=self.device)
+            m = None
+            if mask_seq is None:
+                loss = loss + F.cross_entropy(move_logits, tgt)
+                denom += 1.0
+            else:
+                ce = F.cross_entropy(move_logits, tgt, reduction="none")      # (B,)
+                m = torch.tensor(np.asarray(mask_seq[t], dtype=np.float32), device=self.device)
+                loss = loss + (ce * m).sum()
+                denom += float(m.sum().item())
+            if aux_off_weight > 0:            # canaux d'action auxiliaires -> OFF (comme l'oracle)
+                # CHARNIÈRE À MARGE, pas BCE (EDR-WARM-008). La BCE d'origine (WARM-005) visait 0 via
+                # `log(1+e^x)`, dont l'optimum est en −∞ : INATTEIGNABLE puisque `out` est borné par tanh.
+                # À la borne x=−1 il restait un gradient de 0.269 et une perte irréductible de 0.627 pour
+                # la paire — une pression PERMANENTE sur les nœuds 88/89, qui ne sont pas des readouts mais
+                # des unités d'un récurrent 172×172 pleinement connecté : saturer y injecte un −1 constant
+                # dans tout le tronc (argmax de mouvement changé sur 9.5 % des pas, un agent perdant 0.429
+                # de move_acc). Or le monde ne teste que `logit > 0` (world_1_stoneage:1513) : l'objectif
+                # est un CHANGEMENT DE SIGNE, pas −∞. La charnière a un gradient EXACTEMENT NUL dès que le
+                # nœud est sous −margin -> zéro pression sur les agents déjà conformes, zéro saturation.
+                aux = (F.relu(out[:, _GRAB_NODE] + aux_off_margin)
+                       + F.relu(out[:, _RUB_NODE] + aux_off_margin))
+                loss = loss + aux_off_weight * (aux.mean() if m is None else (aux * m).sum())
+        loss = loss / max(1.0, denom)
+        self.opt.zero_grad()
+        loss.backward()
+        self.opt.step()
+        self._write_back()
+        return float(loss.item())
+
+    def learn_episode(self, obs_seq, actions_seq, rewards, gamma=1.0, gate_last_only=True):
+        """CRÉDIT ÉPISODIQUE prod (EDR-158) — le véhicule que le `learn()` TD différé n'était PAS
+        (EDR-148 : la recette de binding 129/136/147, validée sous REINFORCE épisodique, NE tient pas
+        dans le TD(0) différé 1-pas). Rejoue l'épisode en TRONQUANT la récurrence (H détaché entre pas
+        = crédit 1-pas par pas) mais crédite les actions par le RETOUR ÉPISODIQUE multi-actions ;
+        applique le gate de conditionnement (biais appris sur GATE_TARGET) + anti-saturation de la
+        marginale de base. Reproduit la recette 147 comme MÉTHODE du substrat prod (réutilisable), pas
+        une boucle de banc. ADDITIF : ne touche NI forward NI learn NI learn_episode_bptt.
+
+        gate_last_only=True : gate appliqué au SEUL dernier pas (l'action « ends ») -> évite la
+        contamination de l'étape « means » (EDR-148). rewards: (B,) retour/avantage épisodique
+        (baseliné par le caller). Le caller échantillonne les actions ; ici on crédite celles prises."""
+        if self.B == 0 or not obs_seq:
+            return None
+        R = torch.tensor(np.asarray(rewards, dtype=np.float32), device=self.device)   # (B,)
+        H = torch.zeros((self.B, self.N), device=self.device)
+        idx = torch.arange(self.B, device=self.device)
+        total_logp = torch.zeros(self.B, device=self.device)
+        gate_pen = 0.0
+        T = len(obs_seq)
+        for t, obs in enumerate(obs_seq):
+            obs_t = torch.tensor(np.asarray(obs, dtype=np.float32)[:, :self.I], device=self.device)
+            H = H.detach()                                            # tronqué (crédit 1-pas ; retour porte le multi-actions)
+            H = self._step(obs_t, H)
+            out = H[:, self.N - self.O:self.N]
+            base_move = out[:, :_MOVE_LOGITS]
+            move_logits = base_move
+            use_gate = self.w_gate is not None and (not gate_last_only or t == T - 1)
+            if use_gate:
+                gb = self._gate_value(H)                             # (B,) single ou (B,K) multi (EDR-165)
+                if type(self).GATE_TARGETS:                          # gate MULTI-CIBLE : un biais par "ends"
+                    for k, tgt in enumerate(type(self).GATE_TARGETS):
+                        onehot = torch.zeros(_MOVE_LOGITS, device=self.device)
+                        onehot[tgt] = 1.0
+                        move_logits = move_logits + gb[:, k:k + 1] * onehot
+                        if type(self).ANTISAT > 0:
+                            base_p_tgt = torch.softmax(base_move, dim=1)[:, tgt].mean()
+                            gate_pen = gate_pen + type(self).ANTISAT * base_p_tgt ** 2
+                else:
+                    tgt = type(self).GATE_TARGET
+                    onehot = torch.zeros(_MOVE_LOGITS, device=self.device)
+                    onehot[tgt] = 1.0
+                    move_logits = base_move + gb.unsqueeze(1) * onehot
+                    if type(self).ANTISAT > 0:
+                        base_p_tgt = torch.softmax(base_move, dim=1)[:, tgt].mean()
+                        gate_pen = gate_pen + type(self).ANTISAT * base_p_tgt ** 2
+            moves = torch.tensor([int(a.get("move", 0)) for a in actions_seq[t]], device=self.device)
+            logp = torch.log_softmax(move_logits, dim=1)[idx, moves]
+            total_logp = total_logp + (gamma ** t) * logp
+        loss = -(R * total_logp).mean() + gate_pen                   # REINFORCE épisodique + anti-saturation
         self.opt.zero_grad()
         loss.backward()
         self.opt.step()

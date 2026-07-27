@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-073
+type: EDR
+title: "Jeu référentiel sur le VRAI connectome — l'écart banc→biosphère est architectural"
+status: legacy
+gate: G3
+---
+
 # EDR 073 : Jeu référentiel sur le VRAI connectome — l'écart banc→biosphère est architectural
 
 ## Contexte

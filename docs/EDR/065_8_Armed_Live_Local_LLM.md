@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-065
+type: EDR
+title: "Le #8 ARMÉ POUR DE VRAI — LLM local dans la boucle, en sécurité, sans conteneur"
+status: legacy
+gate: foundational
+---
+
 # EDR 065 : Le #8 ARMÉ POUR DE VRAI — LLM local dans la boucle, en sécurité, sans conteneur
 
 ## Contexte

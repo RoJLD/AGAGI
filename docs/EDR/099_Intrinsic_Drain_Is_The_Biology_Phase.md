@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-099
+type: EDR
+title: "TARIF=BIOLOGIE : le drain intrinsèque de Lewis est la phase biologie (90%)"
+status: legacy
+gate: foundational
+---
+
 # EDR 099 — TARIF=BIOLOGIE : le drain intrinsèque de Lewis est la phase biologie (90%)
 
 ## Contexte

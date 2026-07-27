@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-102
+type: EDR
+title: "Le déficit du champion est la MONOCULTURE, pas le génome — la diversité porte l'apex coopératif"
+status: legacy
+gate: G2
+---
+
 # EDR 102 : Le déficit du champion est la MONOCULTURE, pas le génome — la diversité porte l'apex coopératif
 
 > NB numérotation : EDR 098-101 sont pris par l'arc Lewis/métabolisme (sessions parallèles). Ce

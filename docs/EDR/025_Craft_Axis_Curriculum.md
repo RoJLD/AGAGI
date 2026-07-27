@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-025
+type: EDR
+title: "Curriculum sur l'Axe Craft — la complexité se grimpe palier par palier"
+status: legacy
+gate: G2
+---
+
 # EDR 025 : Curriculum sur l'Axe Craft — la complexité se grimpe palier par palier
 
 ## Contexte — étape 4 de la Vague 0ter

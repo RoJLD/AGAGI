@@ -20,8 +20,75 @@ _VALUE_NODE = 28   # value head V(s) (sortie 28)
 _GAMMA = 0.9       # crédit temporel (parité backend_torch)
 
 
+def _np_gelu(x):
+    # GELU exact (erf), = torch.nn.functional.gelu(approximate="none"). erf vectorisé (grille courte).
+    import math
+    erf = np.vectorize(math.erf)
+    return 0.5 * x * (1.0 + erf(x / np.sqrt(2.0)))
+
+
+def _np_softplus(x):
+    # stable : log1p(exp(-|x|)) + max(x,0)
+    return np.log1p(np.exp(-np.abs(x))) + np.maximum(x, 0.0)
+
+
+def _sigmoid(x):
+    return 1.0 / (1.0 + np.exp(-np.clip(x, -60.0, 60.0)))
+
+
+# EDR-141 : registre d'activations DIFFÉRENTIABLES {nom: (réf numpy pour la détection, noyau torch)}.
+# Enrichir ici tout noyau que le métaprog peut produire, pour une migration fidèle (sinon repli tanh+warn).
+def _act_registry():
+    F = torch.nn.functional if torch is not None else None
+    return {
+        "tanh":       (np.tanh,                                   (lambda t: torch.tanh(t))),
+        "swish":      (lambda x: x * _sigmoid(x),                 (lambda t: t * torch.sigmoid(t))),
+        "sigmoid":    (_sigmoid,                                  (lambda t: torch.sigmoid(t))),
+        "relu":       (lambda x: np.maximum(0.0, x),              (lambda t: torch.relu(t))),
+        "leaky_relu": (lambda x: np.where(x > 0, x, 0.01 * x),    (lambda t: F.leaky_relu(t, 0.01))),
+        "softplus":   (_np_softplus,                              (lambda t: F.softplus(t))),
+        "gelu":       (_np_gelu,                                  (lambda t: F.gelu(t))),
+        "identity":   (lambda x: x,                               (lambda t: t)),
+    }
+
+
+def _detect_world_activation():
+    """EDR-140/141 (reco migration) : détecte l'activation LIVE du monde (`_get_activation_function`,
+    évoluée par le métaprog) et la mappe à un noyau torch DIFFÉRENTIABLE. Sonde par évaluation
+    (l'identité du callable est opaque) : matche le registre `_act_registry` sur une grille ; repli
+    tanh + warn si inconnue (on ne peut pas traduire du numpy arbitraire en autograd). Fidèle : suit
+    l'évolution du métaprog. Retourne un nom du registre."""
+    try:
+        from src.agents.mamba_agent import _get_activation_function
+        f = _get_activation_function()
+        x = np.linspace(-4.0, 4.0, 33).astype(np.float64)
+        y = np.asarray(f(x), dtype=np.float64)
+        for name, (ref_np, _) in _act_registry().items():
+            try:
+                if np.allclose(y, np.asarray(ref_np(x), dtype=np.float64), atol=1e-5):
+                    return name
+            except Exception:
+                continue
+        import logging
+        logging.getLogger("AGIseed.TorchBatch").warning(
+            "[EDR-141] activation du monde non reconnue (hors registre) -> repli tanh (non-fidèle en "
+            "torch). Ajouter le noyau différentiable au registre `_act_registry`.")
+    except Exception:
+        pass
+    return "tanh"
+
+
 class TorchBatchModel:
     KWTA_KEEP_FRAC = 1.0           # tolère les attrs posés par le monde (no-op torch)
+    LR = 0.04                      # taux du TD autograd (EDR-139 : balayable ; 0.0 = pas d'apprentissage,
+                                   # récurrence conservée). Lu par type(self) -> sous-classe sans mutation globale.
+    INPUT_ATTENTION = False        # EDR-144 : masque d'attention d'entrée dynamique (comme legacy). ON =
+                                   # parité FORWARD bit-à-bit avec legacy-core, MAIS DÉGRADE la survie
+                                   # in-world (52.5->38, cf EDR-144) -> OFF par défaut. La parité forward
+                                   # (learning-off, 1 agent) != parité comportementale (monde). Voir EDR-144.
+    ACTIVATION = "auto"            # EDR-140 (reco migration) : "auto" détecte l'activation LIVE du monde
+                                   # (swish évolué par le métaprog) et la matche -> adaptateur FIDÈLE (récupère
+                                   # ~55% du gap, EDR-139). "tanh"|"swish" forcent (repro EDR-134..139).
 
     def __init__(self, models, world_model=None):
         if torch is None:
@@ -29,6 +96,12 @@ class TorchBatchModel:
         self.agents = models           # NB: le monde passe les .model (MambaAgent)
         self.B = len(models)
         self.world_model = world_model
+        # EDR-140/141 : résout l'activation une fois par instance ("auto" -> détecte le monde)
+        # et cache le noyau torch différentiable (repli tanh si nom hors registre).
+        _act = type(self).ACTIVATION
+        self._act_kind = _detect_world_activation() if _act == "auto" else _act
+        _reg = _act_registry()
+        self._act_fn = _reg.get(self._act_kind, _reg["tanh"])[1]
         if self.B == 0:
             return
         self.max_I = max(m.genome.num_inputs for m in models)
@@ -48,10 +121,45 @@ class TorchBatchModel:
             W[i][idx[:, None], idx[None, :]] = m.genome.W
         self.W = torch.tensor(W, requires_grad=True)
         self.H = torch.zeros((self.B, self.max_N))
-        self.opt = torch.optim.SGD([self.W], lr=0.04)
+        self.opt = torch.optim.SGD([self.W], lr=type(self).LR)
         self._eye = torch.eye(self.max_N)
         self._last = None
         self._prev = None
+        # ROUND-TRIP via l'agent (BUGFIX EDR-137) : le monde reconstruit le batch model CHAQUE
+        # tick (world_1_stoneage.py:992). Sans round-trip, self.H et self._prev sont jetés ->
+        # torch perdait la récurrence ET n'apprenait jamais (_td_update jamais atteint). On restaure
+        # l'état caché et la transition TD différée depuis l'agent, comme legacy (a.H_prev / a._td).
+        for i, a in enumerate(self.agents):
+            h = getattr(a, "_torch_H", None)
+            if h is not None:
+                h = np.asarray(h, dtype=np.float32)
+                if h.shape == (self.max_N,):
+                    self.H[i] = torch.tensor(h)
+        tds = [getattr(a, "_torch_td", None) for a in self.agents]
+        if self.B > 0 and all(td is not None and td.get("obs") is not None
+                              and td["obs"].shape == (self.max_I,)
+                              and td["H_in"].shape == (self.max_N,) for td in tds):
+            self._prev = {
+                "obs": torch.tensor(np.stack([td["obs"] for td in tds])),
+                "H_in": torch.tensor(np.stack([td["H_in"] for td in tds])),
+                "act": [td["act"] for td in tds],
+                "reward": np.array([td["reward"] for td in tds], dtype=np.float32),
+            }
+        # EDR-144 : masque d'attention d'ENTRÉE dynamique (parité bit-à-bit avec legacy). Legacy gate
+        # ses entrées par sigmoid(logits[O-I:O]) recalculé chaque tick et round-trippé via l'agent
+        # (a.attention_mask). On le restaure ici (ones à l'init = pas de masque), l'applique dans forward,
+        # et le recalcule dans _sync. Sans lui, le résidu torch<->legacy (EDR-141) subsistait.
+        self.attn_mask = np.ones((self.B, self.max_I), dtype=np.float32)
+        for i, a in enumerate(self.agents):
+            m = getattr(a, "attention_mask", None)
+            if m is not None:
+                m = np.asarray(m, dtype=np.float32).ravel()
+                L = min(m.shape[0], self.max_I)
+                self.attn_mask[i, :L] = m[:L]
+
+    def _activate(self, excit):
+        """Activation résolue par instance via le registre (EDR-139/140/141)."""
+        return self._act_fn(excit)
 
     def _step(self, obs_t, H_in):
         H = H_in.clone()
@@ -59,7 +167,7 @@ class TorchBatchModel:
         diag = torch.diagonal(self.W, dim1=1, dim2=2)
         delta = torch.sigmoid(torch.clamp(diag, -10.0, 10.0))
         excit = torch.bmm(H.unsqueeze(1), self.W * (1.0 - self._eye)).squeeze(1)
-        return (1.0 - delta) * H + delta * torch.tanh(excit)
+        return (1.0 - delta) * H + delta * self._activate(torch.clamp(excit, -30.0, 30.0))
 
     def _write_back(self):
         """Demap W appris vers chaque genome (inverse du scatter __init__)."""
@@ -71,8 +179,11 @@ class TorchBatchModel:
     def _sync_agent_state(self, H_new, env_surprise_batch):
         """Sync des attributs lus par le monde après chaque forward."""
         W_np = self.W.detach().cpu().numpy()
+        H_np = H_new.detach().cpu().numpy()
+        logits_np = H_np[:, self.max_N - self.max_O:self.max_N]   # (B, max_O)
         for i, a in enumerate(self.agents):
             idx = self.mappings[i]
+            a._torch_H = H_np[i].copy()   # round-trip récurrence (BUGFIX EDR-137)
             # W writeback (état courant du réseau différentiable → génome)
             a.genome.W = W_np[i][idx[:, None], idx[None, :]].astype(np.float32).copy()
             # surprise_momentum : scalaire flottant
@@ -82,8 +193,16 @@ class TorchBatchModel:
                 a.surprise_momentum = getattr(a, "surprise_momentum", 0.0)
                 if not isinstance(a.surprise_momentum, float):
                     a.surprise_momentum = 0.0
-            # attention_mask : vecteur d'entrées (ones = pas de masque)
-            a.attention_mask = np.ones(a.genome.num_inputs, dtype=np.float32)
+            # attention_mask (EDR-144) : si INPUT_ATTENTION, recalcul EXACT comme legacy ->
+            # sigmoid(logits[O-I:O]) (round-trippé) ; sinon ones (défaut non-régressif).
+            I_i, O_i = a.genome.num_inputs, a.genome.num_outputs
+            if type(self).INPUT_ATTENTION:
+                al = np.zeros(I_i, dtype=np.float32)
+                sl = logits_np[i, max(0, O_i - I_i):O_i]
+                al[:sl.shape[0]] = sl
+                a.attention_mask = (1.0 / (1.0 + np.exp(-np.clip(al, -60.0, 60.0)))).astype(np.float32)
+            else:
+                a.attention_mask = np.ones(I_i, dtype=np.float32)
             # ntm_memory : conserve l'existant ou initialise
             if not hasattr(a, "ntm_memory") or a.ntm_memory is None:
                 a.ntm_memory = np.zeros((10, 5), dtype=np.float32)
@@ -95,6 +214,8 @@ class TorchBatchModel:
             return np.array([]), np.array([])
         x = np.zeros((self.B, self.max_I), dtype=np.float32)
         x[:, :batch_obs.shape[1]] = batch_obs
+        if type(self).INPUT_ATTENTION:
+            x = x * self.attn_mask           # EDR-144 : masque d'attention d'entrée (parité forward legacy ; OFF par défaut)
         obs_t = torch.tensor(x)
         H_in = self.H.detach()
         with torch.no_grad():
@@ -133,6 +254,16 @@ class TorchBatchModel:
         if self._prev is not None:
             loss = self._td_update(self._prev, v_next)
         self._prev = trans
+        # round-trip de la transition via l'agent (BUGFIX EDR-137) : survit au rebuild par-tick
+        # du batch model par le monde, pour que l'update TD différé se déclenche au tick suivant.
+        acts = trans["act"] if trans["act"] is not None else [None] * self.B
+        obs_np = obs_t.detach().cpu().numpy()
+        Hin_np = H_in.detach().cpu().numpy()
+        rew_np = trans["reward"]
+        for i, a in enumerate(self.agents):
+            a._torch_td = {"obs": obs_np[i].copy(), "H_in": Hin_np[i].copy(),
+                           "act": acts[i] if i < len(acts) else None,
+                           "reward": float(rew_np[i])}
         return loss
 
     def _td_update(self, prev, v_next):

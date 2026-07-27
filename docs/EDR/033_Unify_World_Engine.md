@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-033
+type: EDR
+title: "Unifier le moteur des mondes (axe Monde) — collision de nom résolue"
+status: legacy
+gate: foundational
+---
+
 # EDR 033 : Unifier le moteur des mondes (axe Monde) — collision de nom résolue
 
 ## Contexte — Vague 1 #5, recadré

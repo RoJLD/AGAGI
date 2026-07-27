@@ -103,5 +103,10 @@ def test_run_era_organ_smoke_seeds_organ(monkeypatch):
         async_logger.stop()
     assert isinstance(stats, list)
     for s in stats:
-        assert set(s) == {"age", "total_dreams", "has_organ"}
+        # Sur-ensemble, PAS égalité : la sonde expose désormais `founder` (appariement de cohorte,
+        # EDR-DREAM-001) et `altars_solved`/`spears_crafted`/`preys_eaten` (fil exploration,
+        # EDR-DREAM-002). Une égalité STRICTE de clés transforme tout enrichissement de sortie en
+        # FAUSSE régression — 2ᵉ occurrence du motif dans la journée (cf. test_cognitive_demand_inworld,
+        # où la variante `skipif RUN_SLOW` du même motif aurait cassé EN SILENCE).
+        assert {"age", "total_dreams", "has_organ"} <= set(s)
         assert isinstance(s["has_organ"], bool)

@@ -95,6 +95,13 @@ def run_era_organ(target: str, seed: int, organ_fraction: float, metab: float, p
         a.from_genome(g)
         _set_organ(a.genome, i < n_on)  # FIX B (EDR 092) : semer sur le génome PROPRE de l'agent
         env.add_agent(a, energy=50.0)   # (after_genome deepcopy) -> évite l'aliasing d'init_primordial_soup
+        # Marque la COHORTE FONDATRICE (P2.12). Nécessaire parce que le rêve forcé déclenche une
+        # explosion reproductive (n_lived ×20 mesuré) : une médiane d'âge sur TOUS les agents compare
+        # alors deux populations de tailles incomparables, dont la plupart des membres sont nés tard et
+        # ont donc un âge mécaniquement faible. Sélectionner les « N plus vieux » ne corrige RIEN — c'est
+        # une sélection sur la variable de sortie, à des quantiles différents (top 26 % vs top 1.6 %).
+        # Seule l'identité permet un appariement honnête.
+        env.agents[-1]["_founder"] = True
 
     env.current_era = 1
     t = 0
@@ -106,8 +113,15 @@ def run_era_organ(target: str, seed: int, organ_fraction: float, metab: float, p
     # (vivants + morts). Le signal de sélection est la prévalence de l'organe parmi tous (reproduction
     # différentielle) + l'âge-à-la-mort ; PAS la prévalence des survivants (vide sous extinction).
     all_agents = list(env.agents) + list(getattr(env, "dead_agents", []))
+    # `altars_solved` / `spears_crafted` = les métriques d'EXPLORATION d'EDR-014 (couche 2), exposées
+    # ici pour tester directement la thèse dont EDR-095 rejetait le levier — un rejet lui-même réfuté
+    # par EDR-DREAM-001. Elles étaient déjà portées par l'agent, jamais remontées par cette sonde.
     out = [{"age": a.get("age", 0), "total_dreams": a.get("total_dreams", 0),
-            "has_organ": _has_organ(a)} for a in all_agents]
+            "has_organ": _has_organ(a), "founder": bool(a.get("_founder", False)),
+            "altars_solved": int(a.get("altars_solved", 0) or 0),
+            "spears_crafted": int(a.get("spears_crafted", 0) or 0),
+            "preys_eaten": int(a.get("preys_eaten", 0) or 0)}
+           for a in all_agents]
     if hasattr(env, "memory_retriever"):
         env.memory_retriever.stop()
     return out

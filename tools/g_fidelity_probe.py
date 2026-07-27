@@ -106,8 +106,12 @@ def collect_ratios(seed: int, warmup: int = 300, measure: int = 300):
             if t >= warmup and prev_hrec is not None and prev_move is not None:
                 g_delta = m.G_batch[0][:, map_idx][prev_move]    # colonne de l'action JOUÉE au tick précédent
                 g_err, base_err = transition_error(prev_hrec, g_delta, cur_hrec)
-                # FIX 3 — seuil relevé : ignorer les transitions de très faible amplitude
-                if base_err > 0.01:
+                # Seuil calibré sur l'ÉCHELLE MESURÉE des transitions de ce substrat (2026-07-22) : sous
+                # obs σ=0.3, le substrat CONTRACTIF (cf. EDR-DREAM-005) ne déplace H_rec que de ~5e-3 par
+                # tick (médiane mesurée 5.2e-3, min 4.0e-3, jamais nul). L'ancien seuil 0.01 filtrait
+                # 100 % de ces transitions RÉELLES -> `ratios` vide -> sonde inutile (n=0 blocker). 1e-3
+                # garde les vraies transitions et n'exclut que le quasi-figé (évite la division par ~0).
+                if base_err > 1e-3:
                     ratios.append(g_err / base_err)
             # Diagnostic diversité : mean|G[a]| pour l'action jouée à ce tick
             g_col = m.G_batch[0][:, map_idx][move]               # (N_i,)

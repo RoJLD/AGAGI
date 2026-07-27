@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-054
+type: EDR
+title: "Fiabiliser l'émergence — la sélection est aveugle au langage"
+status: legacy
+gate: G3
+---
+
 # EDR 054 : Fiabiliser l'émergence — la sélection est aveugle au langage
 
 ## Contexte

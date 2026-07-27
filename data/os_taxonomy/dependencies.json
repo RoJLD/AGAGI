@@ -1,0 +1,6 @@
+[
+  {"topicId": "B_matter_movement", "prerequisiteId": "Ah_food_chains", "strength": "hard", "reason": "Fixture synthétique : prérequis DUR de B."},
+  {"topicId": "B_matter_movement", "prerequisiteId": "As_biodiversity", "strength": "soft", "reason": "Fixture synthétique : prérequis MOU de B."},
+  {"topicId": "Ah_food_chains", "prerequisiteId": "Z_producers", "strength": "hard", "reason": "Fixture synthétique : ancêtre partagé (source de corrélation)."},
+  {"topicId": "Aprime_rainforest_web", "prerequisiteId": "Z_producers", "strength": "hard", "reason": "Fixture synthétique : NON-prérequis de B, corrélé à Ah via l'ancêtre Z."}
+]

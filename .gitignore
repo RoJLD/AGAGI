@@ -50,3 +50,8 @@ Thumbs.db
 tests/sandbox/generated_op.py
 tests/sandbox/test_generated_op.py
 src/metaprog/sandbox/generated_ops.py
+
+# Artefacts d'execution (gestionnaire de jobs, sorties de sondes) — ajoutes le 2026-07-21
+runs/
+.worktrees/
+probe*_out.json

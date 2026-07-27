@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-056
+type: EDR
+title: "Lever fort (fitness alignée) — backfire par métrique bruitée (5ᵉ défaut de design)"
+status: legacy
+gate: G3
+---
+
 # EDR 056 : Lever fort (fitness alignée) — backfire par métrique bruitée (5ᵉ défaut de design)
 
 ## Contexte

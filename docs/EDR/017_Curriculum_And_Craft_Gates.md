@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-017
+type: EDR
+title: "Curriculum de Collecte & la Preuve que la Mécanique de Craft est Inémergeable"
+status: legacy
+gate: G2
+---
+
 # EDR 017 : Curriculum de Collecte & la Preuve que la Mécanique de Craft est Inémergeable
 
 ## Contexte

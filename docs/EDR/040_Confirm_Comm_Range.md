@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-040
+type: EDR
+title: "Confirmation propre de la portée du signal (A/B simultané)"
+status: legacy
+gate: G3
+---
+
 # EDR 040 : Confirmation propre de la portée du signal (A/B simultané)
 
 ## Contexte

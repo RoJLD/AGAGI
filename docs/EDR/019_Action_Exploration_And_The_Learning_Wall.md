@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-019
+type: EDR
+title: "Exploration de l'Action `grab` — et le Mur Ultime : l'Encodage (Apprentissage)"
+status: legacy
+gate: foundational
+---
+
 # EDR 019 : Exploration de l'Action `grab` — et le Mur Ultime : l'Encodage (Apprentissage)
 
 ## Contexte

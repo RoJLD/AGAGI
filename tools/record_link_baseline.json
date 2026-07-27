@@ -1,0 +1,31 @@
+{
+  "orphan_files": [
+    "docs/ADR/002_preserve_dims_default_on.md",
+    "docs/EDR/093_No_Income_Rung_The_Wall_Is_Action_Spending.md",
+    "docs/EDR/093_Planning_Organ_Not_Dead_Weak_Underpowered_Revival_At_Sweet_Spot.md",
+    "docs/EDR/094_Dream_Distress_Median_Washout_Dreaming_Is_A_Minority_Behavior.md",
+    "docs/EDR/094_Intrinsic_Wall_Survival_Is_Apex_Independent.md",
+    "docs/EDR/100_Biology_Drain_Is_Evolved_Phenotype_Metabolism.md",
+    "docs/EDR/100_Champion_Deficit_Is_Monoculture_Not_Genome_Diversity_Drives_Coop_Apex.md",
+    "docs/EDR/109_Behavioral_Diversity_Confirms_Issue2_Tournament_Insufficient_Not_Issue1.md",
+    "docs/EDR/113_gamma_sweep_horizon_credit_no_op_issue2.md",
+    "docs/EDR/117_Compositional_Learnability_Both_Fail_At_5_Hidden_Issue2_Size.md",
+    "docs/EDR/119_Hidden_Size_Sweep_Compositional_Not_Size_Issue_C.md",
+    "docs/EDR/120_Compositional_Memory_Probe_Memory_Present_Not_The_Lock.md",
+    "docs/EDR/122_Compositional_Curriculum_Discovery_Torch_Credit_Legacy.md",
+    "docs/EDR/125_Compositional_Fade_Joint_Ceiling_Was_Retention_Binding_Absent.md",
+    "docs/EDR/163_Torch_InWorld_Integration_Delivered_Survival_AB_Neutral_Not_The_Binding_KPI.md",
+    "docs/EDR/166_Gate_Persist_Across_Rebuild_Neutral_Likely_Fast_Relearning.md",
+    "docs/EDR/169_Binary_Gate_Mechanism_Trainable_But_Toy_World_Confounds_Binding_With_Memorization.md",
+    "docs/EDR/171_Binary_Gate_Routes_Present_Context_Heldout_Passes_Shuffle_Control.md",
+    "docs/EDR/172_Throw_Gate_Wired_Inworld_But_Substrate_Blocks_Learning_Neutral.md"
+  ],
+  "collision_ids": [
+    "EDR-093",
+    "EDR-094",
+    "EDR-100",
+    "EDR-105",
+    "EDR-135"
+  ],
+  "_note": "Dette légataire gelée. Le ratchet interdit tout NOUVEL orphelin/collision."
+}

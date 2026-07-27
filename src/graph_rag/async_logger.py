@@ -74,10 +74,20 @@ class AsyncLogger:
         log.info("AsyncLogger started")
         
     def stop(self):
-        # Wait until queue is empty
+        # Draine la queue avant d'arrêter — mais JAMAIS indéfiniment. Si le worker est MORT (échec de
+        # connexion KuzuDB : 5 retries -> return, cf. _worker), la queue ne se videra jamais ; l'ancienne
+        # boucle `while not queue.empty()` hangait alors pour toujours -> la suite complète se bloquait
+        # (racine mesurée par faulthandler : async_logger.py:80, sur ~76 tests de sim accumulés).
+        # Borne double : on n'attend que tant que le worker est VIVANT, et au plus 5 s. Mettre _running
+        # à False n'arrête pas le worker en plein vidage — sa boucle est `while _running OR not empty` —,
+        # donc le flush restant se termine sous le join ci-dessous : pas de perte d'événement.
+        deadline = time.time() + 5.0
         while not self.queue.empty():
-            import time
-            time.sleep(0.5)
+            if self._thread is None or not self._thread.is_alive():
+                break                    # worker mort -> la queue ne se videra pas, ne pas attendre
+            if time.time() >= deadline:
+                break                    # borne de sécurité (worker vivant mais bloqué)
+            time.sleep(0.1)
         self._running = False
         if self._thread is not None:
             self._thread.join(timeout=5.0)

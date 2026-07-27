@@ -38,23 +38,43 @@ def _sign_p(k: int, n: int) -> float:
     return min(1.0, 2.0 * tail)
 
 
-def compute_ab_verdict(rows, band: float = 0.02) -> dict:
-    """Lignes appariées {diff = torch_delta - legacy_delta} -> verdict. PUR (testable sans run)."""
+def compute_ab_verdict(rows, band: float = 0.02, sign_alpha: float = 0.1) -> dict:
+    """Lignes appariées {diff = torch_delta - legacy_delta} -> verdict. PUR (testable sans run).
+
+    **GARDE DE PUISSANCE ARMÉE le 2026-07-21 (calibration P2.5).** `sign_p` était calculé, renvoyé et
+    affiché — mais **ne conditionnait RIEN** : le verdict reposait entièrement sur `med > band`.
+    Mesuré avant correctif, tous rendaient `GRADIENT_GAGNE` :
+      * 6 favorables sur 11, **`sign_p = 1.000`** (le test de signe dit « aucune preuve, absolument ») ;
+      * **n = 2** seulement, avec une grosse médiane ;
+      * médiane 0.021 (à peine au-dessus de `band`) contre deux contre-exemples de −0.5.
+    C'est un générateur de FAUX POSITIFS pur — et son garde-fou était déjà dans la fonction, débranché.
+    `ablation_verdict`, lui, bloque à `n < 12` dans les DEUX sens depuis toujours.
+
+    Le verdict exige désormais **la bande ET le test de signe** (`sign_p < sign_alpha`). Conséquence
+    arithmétique à connaître : en séparation parfaite il faut **n ≥ 5** (`sign_p` vaut 0.25 à n=3,
+    0.0625 à n=5) — trois réplicats ne peuvent porter aucun verdict, quelle que soit l'amplitude.
+
+    ⚠️ Portée du changement : il ne peut que TRANSFORMER UN POSITIF EN NEUTRE, jamais l'inverse. Les
+    conclusions NEUTRES du graphe sont donc intactes par construction, et les affirmations positives
+    appliquaient déjà `sign_p` à la main."""
     diffs = [r["diff"] for r in rows]
     n = len(diffs)
     if n == 0:
-        return {"n": 0, "median_diff": 0.0, "n_gradient_favorable": 0, "sign_p": 1.0, "verdict": "NEUTRE"}
+        return {"n": 0, "median_diff": 0.0, "n_gradient_favorable": 0, "sign_p": 1.0,
+                "verdict": "NEUTRE", "underpowered": False}
     med = float(statistics.median(diffs))
     eff = [d for d in diffs if abs(d) > 1e-12]
     n_grad = sum(1 for d in eff if d > 0)
     sign_p = _sign_p(n_grad, len(eff))
-    if med > band:
+    powered = sign_p < sign_alpha
+    if med > band and powered:
         verdict = "GRADIENT_GAGNE"
-    elif med < -band:
+    elif med < -band and powered:
         verdict = "HEBBIEN_GAGNE"
     else:
         verdict = "NEUTRE"
-    return {"n": n, "median_diff": med, "n_gradient_favorable": n_grad, "sign_p": sign_p, "verdict": verdict}
+    return {"n": n, "median_diff": med, "n_gradient_favorable": n_grad, "sign_p": sign_p,
+            "verdict": verdict, "underpowered": bool(abs(med) > band and not powered)}
 
 
 def run_substrate_ab(backend: str, seed: int = 0, ticks: int = 200,

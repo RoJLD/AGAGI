@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-066
+type: EDR
+title: "Le #8 armé sur le kind `activation` — il améliore l'AGENT (et confirme tanh)"
+status: legacy
+gate: foundational
+---
+
 # EDR 066 : Le #8 armé sur le kind `activation` — il améliore l'AGENT (et confirme tanh)
 
 ## Contexte

@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-059
+type: EDR
+title: "Préparer le #8 — `LLMProposer` armable (injection), testé, non armé"
+status: legacy
+gate: foundational
+---
+
 # EDR 059 : Préparer le #8 — `LLMProposer` armable (injection), testé, non armé
 
 ## Contexte

@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-013
+type: EDR
+title: "Recalibrage (C) + Scaffold d'Approche (A) — et le déplacement du goulot"
+status: legacy
+gate: foundational
+---
+
 # EDR 013 : Recalibrage (C) + Scaffold d'Approche (A) — et le déplacement du goulot
 
 ## Contexte

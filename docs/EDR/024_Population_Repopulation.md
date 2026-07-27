@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-024
+type: EDR
+title: "Progrès au niveau Population — fin des agents inertes dans la régénération"
+status: legacy
+gate: foundational
+---
+
 # EDR 024 : Progrès au niveau Population — fin des agents inertes dans la régénération
 
 ## Contexte — étape 3 de la Vague 0bis

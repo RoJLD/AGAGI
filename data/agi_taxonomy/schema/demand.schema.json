@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AGI-Taxonomy demand edge (Y demands X)",
+  "type": "object",
+  "required": ["capability", "prerequisite", "strength", "evidence"],
+  "properties": {
+    "capability": {"type": "string"},
+    "prerequisite": {"type": "string"},
+    "strength": {"enum": ["hard", "soft"]},
+    "evidence": {
+      "type": "object",
+      "required": ["ablation_verdict", "ratio", "n", "functional_aliasing", "record"],
+      "properties": {
+        "ablation_verdict": {"type": "string"},
+        "ratio": {"type": "number"},
+        "n": {"type": "integer"},
+        "functional_aliasing": {"type": "string"},
+        "record": {"type": "string"}
+      }
+    }
+  }
+}

@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-001
+type: EDR
+title: "Passage au Reinforcement Learning (GridWorld)"
+status: legacy
+gate: foundational
+---
+
 # EDR 001 : Passage au Reinforcement Learning (GridWorld)
 
 ## Contexte

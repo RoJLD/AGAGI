@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-018
+type: EDR
+title: "Axe Craft — un 2ᵉ Axe Développemental (complexité de la mécanique)"
+status: legacy
+gate: G2
+---
+
 # EDR 018 : Axe Craft — un 2ᵉ Axe Développemental (complexité de la mécanique)
 
 ## Contexte

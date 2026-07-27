@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-005
+type: EDR
+title: "Embodied Cognition (Multi-Task Learning & Autels XOR)"
+status: legacy
+gate: foundational
+---
+
 # EDR 005 : Embodied Cognition (Multi-Task Learning & Autels XOR)
 
 ## Contexte

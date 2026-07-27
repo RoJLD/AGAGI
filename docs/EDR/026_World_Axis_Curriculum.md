@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-026
+type: EDR
+title: "Curriculum sur l'Axe Monde — et l'imbrication des deux axes"
+status: legacy
+gate: G0
+---
+
 # EDR 026 : Curriculum sur l'Axe Monde — et l'imbrication des deux axes
 
 ## Contexte — étape 5 de la Vague 0ter

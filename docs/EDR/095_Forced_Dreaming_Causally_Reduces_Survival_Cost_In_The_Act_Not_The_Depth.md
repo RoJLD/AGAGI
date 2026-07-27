@@ -1,5 +1,54 @@
 # EDR 095 : Le rêve forcé RÉDUIT causalement la survie — le coût est dans l'acte, pas dans la profondeur
 
+> ✅ **INSTRUMENT CALIBRÉ le 2026-07-21 (P2.2) — un bug RÉEL trouvé, et ce record N'EST PAS affecté.**
+>
+> `dose_response_verdict` portait un défaut de classe **E1** : `_paired_ratios` faisait
+> `arm / max(off, 1e-6)` sans condition, donc une paire **doublement ÉTEINTE** (les deux bras à
+> compétence 0) rendait `0.0`, survivait au filtre `r != 1.0`, et comptait comme **DÉFAVORABLE au rêve**.
+> Mesuré avant correctif : deux bras **strictement identiques et éteints** sur 10 seeds rendaient
+> `CAUSE_NUISIBLE, ratio 0.0, sign_p 0.00195`. Le défaut agissait dans les **deux** sens — sur un jeu où
+> le rêve aide dans 4 paires informatives sur 4, six paires éteintes empoisonnaient la médiane
+> (ratio 0.0 au lieu de 1.40) et masquaient le bénéfice.
+>
+> **Pourquoi ce record tient quand même** : ses bras publiés sont `off ∈ [0.113, 0.165]` et forcés
+> `∈ [0.055, 0.090]` — **séparation parfaite, AUCUN zéro**, donc **aucune paire éteinte**. Rejoué sur
+> ces valeurs après correctif : `CAUSE_NUISIBLE, ratio 0.547, sign_p 0.00195` contre `0.543 / 0.00195`
+> publiés. **On ne peut l'affirmer que parce que ce record a publié ses VALEURS ABSOLUES** — ce que
+> S2-009 n'avait pas fait (cf. [[EDR-AUDIT-001]]). C'est l'argument le plus concret en faveur de cette
+> pratique qu'ait produit la passe de calibration.
+>
+> ## ❌ VERDICT PRINCIPAL RÉFUTÉ le 2026-07-21 — [[EDR-DREAM-001]]
+>
+> **L'indice était dans ce record même**, en note de bas de page : il mesure et publie que le rêve forcé
+> fait passer `n_lived` de ≈74 à ≈1205 (**×16**), qualifié d'« effet secondaire notable (calibration) ».
+> Or `survival_competence` est la **médiane des âges sur les agents de l'ère** — une statistique de
+> POPULATION. Une population 16× plus nombreuse a la plupart de ses membres nés tard, donc des âges
+> mécaniquement faibles.
+>
+> Mesuré (**20 seeds**, cohorte fondatrice marquée par IDENTITÉ, 25 vs 25 par cellule ; artefact
+> `results/dream_founder_matched_n20.json`) :
+>
+> | métrique | off | K=8 | ratio | K8 > off | `sign_p` | `wilcoxon_p` |
+> |---|---|---|---|---|---|---|
+> | `n_lived` | 57.0 | 895.0 | **15.70** | 20/20 | 0.0000 | 0.0001 |
+> | **TOUS** *(la métrique de ce record)* | 28.5 | 13.0 | **0.456** | 0/20 | 0.0000 | 0.0001 |
+> | **FONDATEURS** *(apparié)* | 32.0 | **56.5** | **1.766** | **15/20** | **0.0414** | **0.0085** |
+>
+> **Le chiffre de ce record se reproduit exactement** — ce n'était pas une erreur de mesure, mais une
+> mesure juste d'une grandeur CONFONDUE. Et le **SIGNE est inversé** : sur des agents comparables, le
+> rêve forcé **AUGMENTE** la survie de **+77 %** au lieu de la réduire de 45 %.
+>
+> **CE QUI TIENT** : le hook `FORCE_DREAM` marche, l'intervention s'applique, et forcer le rêve a un
+> effet massif et reproductible sur la **DÉMOGRAPHIE** (×15.7, 20/20). C'est un vrai résultat — pas
+> celui revendiqué.
+> **CE QUI TOMBE, ET S'INVERSE** : « le rêve forcé coûte la survie » (il la fait **gagner** +77 %), le
+> palier de la courbe `ratios_par_K` (lecture de la même grandeur confondue), et la conclusion
+> « planifier est un luxe non payable au plancher de compétence » — **planifier PAIE**.
+> ⚠️ **CE QUI RESTE OUVERT** : ce record déduisait de son coût de survie que l'organe MCTS n'est pas
+> un levier d'exploration (approche A, EDR-014). **Le motif du rejet est réfuté et inversé, donc le
+> verrou saute — mais « le rêve améliore la survie » n'est PAS « le rêve débloque l'exploration ».**
+> La thèse d'EDR-014 reste à tester ; ne pas remplacer un verdict non mesuré par un autre.
+
 ## Contexte
 
 EDR 093/094 laissaient un paradoxe non tranché : la population *portant* l'organe MCTS survit ~9 %

@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-020
+type: EDR
+title: "Vrai Actor-Critic (crédit d'action) — le verrou de l'apprentissage est levé"
+status: legacy
+gate: foundational
+---
+
 # EDR 020 : Vrai Actor-Critic (crédit d'action) — le verrou de l'apprentissage est levé
 
 ## Contexte

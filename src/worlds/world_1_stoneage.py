@@ -40,6 +40,38 @@ class Biosphere3D(BaseWorld):
         # (inchangé). Le runner S2 le remplace par un BaselineBatchModel (RandomAction/Reflex) APRÈS
         # construction du monde -> baselines sans connectome, zéro fork. Spec §11.
         self.batch_model_cls = MambaBatchModel
+        # Intégration torch in-world (axe 1). OFF par défaut = legacy strictement non-régressif.
+        # ON => pop torch PERSISTANT (hissé hors boucle par-tick : l'optimiseur SGD et le gate
+        # doivent survivre entre ticks). Exige cohorte fixe (benchmark_mode) pour dims homogènes.
+        self.use_torch_inworld = False
+        self._torch_pop = None
+        # Buffer glissant K ticks (cran 1, collecte) : trajectoire episodique pour le futur
+        # credit learn_episode (Task 4). Pousse seulement en mode torch (voir bloc du credit
+        # par-tick). deque(maxlen=K) -> glisse automatiquement, garde les K derniers ticks.
+        from collections import deque
+        self.torch_episode_k = 8          # taille de fenetre episodique (variable EDR)
+        self._torch_traj = deque(maxlen=self.torch_episode_k)
+        self._torch_tick = 0
+        # Throw-gate in-world (B2, EDR-171 -> biosphere). Tete apprise au niveau MONDE (readout
+        # partage population sur H) qui route l'action "ends" (throw, logit 8) sur le contexte
+        # spear-en-inventaire. OFF par defaut => crans 0-1 strictement inchanges. Exige
+        # use_torch_inworld. W gele (H detache) ; REINFORCE immediat 1-pas sur l'outcome.
+        self.torch_throw_gate = False
+        self.torch_throw_gate_lr = 0.05
+        self.torch_throw_antisat = 6.0
+        self.torch_throw_shuffle = False     # bras temoin : recompense permutee
+        self.torch_throw_penalty = -0.5      # penalite throw-sans-kill. Defaut -0.5 = valeur EDR-172
+                                             # (BIAISEE). EDR-NAV-005 : ce biais effondre le binding a la
+                                             # rarete in-world (E[correct]<0 des p_success<1/3) -> mettre
+                                             # 0.0 pour la recompense NON-biaisee (borne >= -p/(1-p)).
+        self.torch_throw_shaping = False     # EDR-173-suite : credit DENSE sur la qualite de visee
+        self.torch_throw_aim_radius = 5.0    # (proximite projectile->proie) au lieu du hit binaire rare
+                                             # (~0.001 in-world). True => r(throw)=_throw_aim in [0,1].
+        self._throw_w = None                 # torch (N,) : cree paresseusement au 1er tick torch
+        self._throw_b = None                 # torch (1,)
+        self._throw_opt = None               # Adam([_throw_w, _throw_b])
+        self._throw_shuf_rng = None          # RandomState fixe pour le shuffle
+        self._throw_kills_tool = 0           # compteur KPI : throws de spear touchant une prey
         # Mode benchmark (S2) : cohorte FIXE -> désactive reproduction/mutation/HGT pendant la
         # mesure (sinon la lignée est immortelle et la survie sature au cap, blocker panel). Défaut
         # False = comportement historique. L'apprentissage intra-vie reste actif. Spec §4.
@@ -459,7 +491,13 @@ class Biosphere3D(BaseWorld):
             altar_active[mask] = 1.0
             bit_a[mask] = altar["bit_a"]
             bit_b[mask] = altar["bit_b"]
-            
+
+        if getattr(self.config, "cognitive_demand", False):
+            for _i, _a in enumerate(self.agents):
+                _s = _a.get("_cog_sig", (1.0, 1.0))
+                bit_a[_i] = _s[0]    # signal PAR-AGENT (chacun voit le sien), pas altar-gated
+                bit_b[_i] = _s[1]
+
         # Vectorized adj_energy and in_hear (Tensor Lidar)
         dx = ax[:, None] == ax[None, :]
         dy = ay[:, None] == ay[None, :]
@@ -684,13 +722,16 @@ class Biosphere3D(BaseWorld):
 
         # A) Scaffold d'approche (annelé) : récompense la réduction de distance au
         # gibier le plus proche -> enseigne la chasse (fix du goulot, EDR 012).
-        if self.preys:
-            d = min(abs(agent["x"] - p["x"]) + abs(agent["y"] - p["y"]) for p in self.preys)
-            lam = anneal(getattr(self, "current_era", 1), self.scaffold_eras)
-            agent["energy"] += approach_reward(agent.get("last_prey_dist", d), d, self.scaffold_eps, lam)
-            agent["last_prey_dist"] = d
-            if getattr(self.config, "trace_forage", False):
-                agent["_forage_min_dist"] = min(agent.get("_forage_min_dist", d), d)
+        # Guardé OFF en mode cognitive_demand : aucun raccourci corporel (le corps ne doit
+        # pas pouvoir résoudre la tâche, seul le signal le peut).
+        if not getattr(self.config, "cognitive_demand", False):
+            if self.preys:
+                d = min(abs(agent["x"] - p["x"]) + abs(agent["y"] - p["y"]) for p in self.preys)
+                lam = anneal(getattr(self, "current_era", 1), self.scaffold_eras)
+                agent["energy"] += approach_reward(agent.get("last_prey_dist", d), d, self.scaffold_eps, lam)
+                agent["last_prey_dist"] = d
+                if getattr(self.config, "trace_forage", False):
+                    agent["_forage_min_dist"] = min(agent.get("_forage_min_dist", d), d)
 
         if getattr(self.config, "trace_energy_sinks", False):
             agent["_s3_bio"] = agent["energy"]               # EDR100 : avant carry
@@ -699,17 +740,20 @@ class Biosphere3D(BaseWorld):
         if getattr(self.config, "trace_energy_sinks", False):
             agent["_s4_bio"] = agent["energy"]               # EDR100 : apres carry
         
-        if len(agent["inventory"]) > 0:
-            first_item = agent["inventory"][0]
-            item_type = first_item.get("type", "") if isinstance(first_item, dict) else str(first_item)
-            if item_type == "Fruit" and agent["energy"] < 80:
-                agent["energy"] = min(100.0, agent["energy"] + 20.0)
-                agent["inventory"].pop(0)
-                new_seed = {"x": agent["x"], "y": agent["y"], "z": 0, "type": "Seed", "weight": 0.1, "ttl": 100}
-                if len(agent["inventory"]) < agent["inv_capacity"]:
-                    agent["inventory"].append(new_seed)
-                else:
-                    self.items.append(new_seed)
+        # Guardé OFF en mode cognitive_demand : aucun gain-fruit standard (le corps ne doit
+        # pas pouvoir résoudre la tâche, seul le signal le peut).
+        if not getattr(self.config, "cognitive_demand", False):
+            if len(agent["inventory"]) > 0:
+                first_item = agent["inventory"][0]
+                item_type = first_item.get("type", "") if isinstance(first_item, dict) else str(first_item)
+                if item_type == "Fruit" and agent["energy"] < 80:
+                    agent["energy"] = min(100.0, agent["energy"] + 20.0)
+                    agent["inventory"].pop(0)
+                    new_seed = {"x": agent["x"], "y": agent["y"], "z": 0, "type": "Seed", "weight": 0.1, "ttl": 100}
+                    if len(agent["inventory"]) < agent["inv_capacity"]:
+                        agent["inventory"].append(new_seed)
+                    else:
+                        self.items.append(new_seed)
         
         do_jump = float(logits[9]) > 0
         do_duck = float(logits[10]) > 0
@@ -799,12 +843,18 @@ class Biosphere3D(BaseWorld):
         if do_duck:
             eaten_worm = next((w for w in self.worms if w["x"] == agent["x"] and w["y"] == agent["y"] and w.get("z", 0) == agent.get("z", 0)), None)
             if eaten_worm:
-                agent["energy"] += 10.0
+                # Guardé OFF en mode cognitive_demand : pas de revenu-ver (le corps ne doit
+                # pas pouvoir résoudre la tâche, seul le signal le peut).
+                if not getattr(self.config, "cognitive_demand", False):
+                    agent["energy"] += 10.0
                 self.worms.remove(eaten_worm)
                 self._spawn_worms() # spawn 1 worm actually
-                
+
         if agent["x"] == self.treasure_x and agent["y"] == self.treasure_y and agent.get("z", 0) == self.treasure_z and float(logits[14]) > 0:
-            agent["energy"] += self.config.treasure_reward
+            # Guardé OFF en mode cognitive_demand : pas de revenu-trésor (le corps ne doit
+            # pas pouvoir résoudre la tâche, seul le signal le peut).
+            if not getattr(self.config, "cognitive_demand", False):
+                agent["energy"] += self.config.treasure_reward
             logger.emit("TREASURE_FOUND", {"agent_id": agent["id"]})
             self._spawn_treasure()
         if getattr(self.config, "trace_energy_sinks", False):
@@ -818,6 +868,16 @@ class Biosphere3D(BaseWorld):
             bio["terrain"] += _s1 - _s2
             bio["carry"] += _s3 - _s4
             bio["autres"] += (_s2 - _s3) + (_s4 - agent["energy"])   # gains approach/forage + jump/heal/hunt
+
+        if getattr(self.config, "cognitive_demand", False):
+            sig = agent.get("_cog_sig", (1.0, 1.0))
+            if getattr(self.config, "cog_linear", False):
+                correct_dir = int(sig[0] > 0)                 # S2-011 : 1-bit LINÉAIRE (dir ∈ {0,1})
+            else:
+                correct_dir = 2 * (sig[0] > 0) + (sig[1] > 0) # S2-009 : 2-bits XOR (dir ∈ {0,1,2,3})
+            if action == correct_dir:
+                agent["energy"] = min(self.config.agent.energy_max,
+                                      agent["energy"] + getattr(self.config, "cog_gain", 6.0))
 
     def _resolve_social(self):
         new_agents = []
@@ -960,7 +1020,129 @@ class Biosphere3D(BaseWorld):
                     except Exception as e:
                         logger.emit("HGT_FAILED", {"error": str(e), "parents": [agent["id"], best_neighbor["id"]]})
 
+    def _ensure_throw_gate(self):
+        """Init paresseuse de la tete throw-gate (B2). No-op si gate OFF, deja init, ou pop absent.
+        Cree w_throw (N-dim partage population), b_throw (scalaire), l'optimiseur Adam et le RNG de
+        shuffle. Appelee au 1er tick torch quand pop.N est connu."""
+        if not (self.use_torch_inworld and self.torch_throw_gate):
+            return
+        if self._throw_w is not None:
+            return
+        if self._torch_pop is None:
+            return
+        import torch
+        N = self._torch_pop.N
+        self._throw_w = torch.zeros(N, requires_grad=True)
+        self._throw_b = torch.zeros(1, requires_grad=True)
+        self._throw_opt = torch.optim.Adam([self._throw_w, self._throw_b],
+                                           lr=self.torch_throw_gate_lr)
+        self._throw_shuf_rng = np.random.RandomState(12345)
+
+    def _get_batch_model(self, models):
+        """Renvoie le batch model du tick. Legacy = recréé/tick (non-régressif). Torch = pop
+        PERSISTANT (créé une fois, réutilisé) pour conserver optimiseur + gate. Reconstruit si la
+        taille de population change (B)."""
+        if not self.use_torch_inworld:
+            return self.batch_model_cls(models, world_model=self.world_model)
+        if not self.benchmark_mode:
+            raise ValueError(
+                "use_torch_inworld exige benchmark_mode=True (crans 0-1 : cohorte fixe pour "
+                "l'alignement par identite). L'evolution topologique hors cohorte fixe est un cran ulterieur."
+            )
+        from src.agents.backend import make_population
+        need_rebuild = (
+            self._torch_pop is None
+            or getattr(self._torch_pop, "B", -1) != len(models)
+        )
+        if need_rebuild:
+            self._torch_pop = make_population(models, backend="torch",
+                                              world_model=self.world_model)
+        return self._torch_pop
+
+    def _maybe_learn_episode(self):
+        """Crédit épisodique torch aligné par IDENTITÉ d'agent. La population décroît (mortalité, même
+        en benchmark_mode) -> les tuples du buffer ont des tailles décroissantes. On crédite les agents
+        ENCORE présents (cohorte courante = pop courant) en rognant chaque tick du buffer à ces ids.
+        Skip propre (log, pas de crash) si la fenêtre n'est pas pleine, si le pop est absent/désync, ou
+        si un id courant manque d'un tick. Ne se déclenche qu'aux multiples de torch_episode_k."""
+        traj = self._torch_traj
+        if self._torch_pop is None:
+            return None
+        if len(traj) != traj.maxlen or self._torch_tick % self.torch_episode_k != 0:
+            return None
+        current_ids = [a["id"] for a in self.agents]
+        B = getattr(self._torch_pop, "B", -1)
+        if B == 0 or len(current_ids) != B:
+            logger.emit("TORCH_EPISODE_SKIP", {"reason": "pop_desync", "tick": self._torch_tick})
+            return None
+        obs_seq, actions_seq = [], []
+        ep_return = np.zeros(len(current_ids), dtype=np.float32)
+        for (obs, actions, rewards, ids) in traj:
+            pos = {aid: j for j, aid in enumerate(ids)}
+            if any(aid not in pos for aid in current_ids):
+                logger.emit("TORCH_EPISODE_SKIP", {"reason": "id_missing", "tick": self._torch_tick})
+                return None
+            idx = [pos[aid] for aid in current_ids]
+            obs_seq.append(np.asarray(obs, dtype=np.float32)[idx])
+            actions_seq.append([actions[j] for j in idx])
+            ep_return += np.asarray(rewards, dtype=np.float32)[idx]
+        ep_return = ep_return - float(np.mean(ep_return))          # baseline = moyenne de population
+        return self._torch_pop.learn_episode(obs_seq, actions_seq, ep_return,
+                                             gamma=1.0, gate_last_only=True)
+
+    def _learn_throw_gate(self):
+        """REINFORCE immediat 1-pas de la tete throw-gate (B2). Recompute p (differentiable) depuis
+        H cache ce tick, utilise les decisions _throw_did stockees, recompense = outcome (kill-avec-
+        outil +1.0, autre throw = torch_throw_penalty [defaut -0.5 EDR-172 ; 0.0 = non-biaise NAV-005],
+        pas de throw 0.0). Shuffle => permute r parmi les vivants
+        (permutation seed-deterministe) pour decorreler recompense/contexte. Skip propre (log, pas
+        de crash) si gate OFF, pop absent, ou desync B != len(agents). Baseline = moyenne population."""
+        if not (self.use_torch_inworld and self.torch_throw_gate) or self._throw_w is None:
+            return None
+        if self._torch_pop is None:
+            return None
+        import torch
+        H = self._torch_pop.H.detach()
+        B = H.shape[0]
+        if B == 0 or B != len(self.agents):
+            logger.emit("TORCH_THROW_SKIP", {"reason": "pop_desync", "tick": self._torch_tick})
+            return None
+        did = np.array([1.0 if a.get("_throw_did") else 0.0 for a in self.agents],
+                       dtype=np.float32)
+        r = np.zeros(B, dtype=np.float32)
+        n_kill = 0
+        for i, a in enumerate(self.agents):
+            if not a.get("_throw_did"):
+                r[i] = 0.0
+                continue
+            if a.get("_throw_kill_tool"):
+                n_kill += 1
+            if self.torch_throw_shaping:
+                r[i] = float(a.get("_throw_aim", 0.0))    # EDR-173-suite : credit DENSE de visee
+            elif a.get("_throw_kill_tool"):
+                r[i] = 1.0
+            else:
+                r[i] = self.torch_throw_penalty   # NAV-005 : 0.0 = non-biaise (defaut -0.5 = EDR-172)
+        self._throw_kills_tool += n_kill
+        if self.torch_throw_shuffle:
+            r = r[self._throw_shuf_rng.permutation(B)]   # decorrele recompense/contexte
+        ret = torch.tensor(r - float(r.mean()))
+        z = H @ self._throw_w + self._throw_b
+        p = torch.sigmoid(torch.clamp(z, -10.0, 10.0))
+        did_t = torch.tensor(did)
+        logp = did_t * torch.log(p + 1e-6) + (1 - did_t) * torch.log(1 - p + 1e-6)
+        loss = -(ret * logp).mean() + self.torch_throw_antisat * p.mean() ** 2
+        self._throw_opt.zero_grad()
+        loss.backward()
+        self._throw_opt.step()
+        return float(loss.item())
+
     def step(self):
+        if getattr(self.config, "cognitive_demand", False):
+            for _a in self.agents:
+                _a["_cog_sig"] = (float(np.random.choice([-1.0, 1.0])),
+                                  float(np.random.choice([-1.0, 1.0])))   # signal 2-bits PAR-AGENT de CE tick
+
         self.ticks += 1
         was_night = getattr(self, "is_night", False)
         # Curriculum : pas de nuit (mortelle) en mode entraînement -> les agents survivent
@@ -1022,12 +1204,12 @@ class Biosphere3D(BaseWorld):
 
         if not self.agents:
             return
-            
+
         # VECTORIZED OBSERVATION & BATCHING
         batch_obs = self.get_batch_observations()
         models = [a["model"] for a in self.agents]
         MambaBatchModel.KWTA_KEEP_FRAC = getattr(self.config, "kwta_keep_frac", 1.0)
-        batch_model = self.batch_model_cls(models, world_model=self.world_model)
+        batch_model = self._get_batch_model(models)
 
         env_surprise_batch = np.array([a.get("last_env_surprise", 0.0) for a in self.agents])
         
@@ -1035,11 +1217,19 @@ class Biosphere3D(BaseWorld):
         old_energies = np.array([a["energy"] for a in self.agents], dtype=np.float32)
         
         batch_logits, compute_spent = batch_model.forward(batch_obs, env_surprise_batch=env_surprise_batch)
+        if np.ndim(compute_spent) == 0:
+            # Backend torch (MVP) : TTC/dreaming pas encore porté -> renvoie un scalaire (0, cf.
+            # backend_torch.py). Normalisation locale à la boucle (par-agent) pour l'indexation
+            # downstream ; ne modifie pas le contrat forward() lui-même.
+            compute_spent = np.zeros(len(self.agents), dtype=np.float32)
         batch_logits = self._apply_social_consensus(batch_logits)
 
         # Differentiable / Configurable TTC Caloric Cost
         base_cost = getattr(self.config, "ttc_base_cost", 0.01)
         night_mult = getattr(self.config, "ttc_night_penalty", 2.5) if getattr(self, "is_night", False) else 1.0
+
+        if self.use_torch_inworld and self.torch_throw_gate:
+            self._ensure_throw_gate()          # init paresseuse (pop.N connu apres forward)
 
         for i, agent in enumerate(self.agents):
             if getattr(self.config, "trace_energy_sinks", False):
@@ -1079,7 +1269,10 @@ class Biosphere3D(BaseWorld):
                 error = abs(delta_e - agent["last_value_pred"])
                 # Bénédiction épistémique : +0.5 si la prédiction est parfaite
                 alignment_reward = max(0.0, 0.5 - error)
-                agent["energy"] = min(100.0, agent["energy"] + alignment_reward)
+                # Guardé OFF en mode cognitive_demand : pas de bonus d'alignement de value (le
+                # corps ne doit pas pouvoir résoudre la tâche, seul le signal le peut).
+                if not getattr(self.config, "cognitive_demand", False):
+                    agent["energy"] = min(100.0, agent["energy"] + alignment_reward)
             
             agent["last_energy"] = agent["energy"]
             
@@ -1110,7 +1303,18 @@ class Biosphere3D(BaseWorld):
                 action = self._reach_oracle_action(agent)   # EDR114 : override -> primitive d'atteinte
             agent["last_action"] = action
             
-            do_throw = float(logits[8]) > 0
+            if (self.use_torch_inworld and self.torch_throw_gate
+                    and self._throw_w is not None):
+                h_i = self._torch_pop.H[idx].detach()
+                z = float(h_i @ self._throw_w) + float(self._throw_b)
+                p_throw = 1.0 / (1.0 + np.exp(-np.clip(float(logits[8]) + z, -10.0, 10.0)))
+                do_throw = bool(np.random.rand() < p_throw)
+                agent["_throw_ctx"] = bool(has_spear(agent["inventory"]))  # AVANT le pop
+                agent["_throw_did"] = do_throw
+                agent["_throw_kill_tool"] = False        # arme par le bloc balistique si kill-outil
+                agent["_throw_aim"] = 0.0                # arme par le bloc balistique (visee spear, EDR-173-suite)
+            else:
+                do_throw = float(logits[8]) > 0
             aim_vec = np.array([float(logits[11]), float(logits[12])])
             if getattr(self.config, "active_exp_variable", "NONE") == "LANGUAGE":
                 raw_spoken = logits[19:23]
@@ -1243,7 +1447,16 @@ class Biosphere3D(BaseWorld):
                     end_pos = (int_x, int_y, az)
 
                 thrown_item["x"], thrown_item["y"], thrown_item["z"] = end_pos[0], end_pos[1], end_pos[2]
-                
+
+                # EDR-173-suite : credit DENSE de visee (spear seulement) = proximite du point d'arrivee
+                # a la proie la plus proche, in [0,1] (1 si touche, decroit sur torch_throw_aim_radius).
+                # Densifie le signal ~binaire du hit rare (~0.001) -> gradient a chaque throw bien vise.
+                if (self.use_torch_inworld and self.torch_throw_gate
+                        and thrown_item.get("type") == "Spear" and self.preys):
+                    _md = min(((end_pos[0] - p["x"]) ** 2 + (end_pos[1] - p["y"]) ** 2) ** 0.5
+                              for p in self.preys)
+                    agent["_throw_aim"] = max(0.0, 1.0 - _md / self.torch_throw_aim_radius)
+
                 # EXP-9 : Fueling Fire
                 is_fueled = False
                 if thrown_item.get("type") == "Wood":
@@ -1265,6 +1478,10 @@ class Biosphere3D(BaseWorld):
                         hit_entity["stunned"] = int(damage * 2)
                     agent["throw_feedback"] = 1.0
                     agent["throw_feedback_ttl"] = 5
+                    if (self.use_torch_inworld and self.torch_throw_gate
+                            and thrown_item.get("type") == "Spear"
+                            and any(hit_entity is p for p in self.preys)):
+                        agent["_throw_kill_tool"] = True   # KPI (gate ON) : spear lance touchant une prey
                 else:
                     agent["throw_feedback"] = -1.0
                     agent["throw_feedback_ttl"] = 5
@@ -1299,7 +1516,8 @@ class Biosphere3D(BaseWorld):
 
             # Enregistrer l'action prise pour le crédit d'action du policy gradient (EDR 020).
             agent["_pg"] = {"move": int(action), "grab": 1 if do_grab > 0 else 0,
-                            "rub": 1 if do_rub > 0 else 0}
+                            "rub": 1 if do_rub > 0 else 0,
+                            "throw": 1 if do_throw else 0}
 
             # 6. Grab (Inventory mechanics)
             if do_grab > 0:
@@ -1485,7 +1703,25 @@ class Biosphere3D(BaseWorld):
         rewards = (new_energies - old_energies) + self.curiosity_scale * curiosity + novelty
         # Actions prises ce tick (crédit d'action, EDR 020), alignées sur self.agents.
         actions_batch = [a.get("_pg", {"move": -1, "grab": 0, "rub": 0}) for a in self.agents]
-        batch_model.compute_policy_gradient(rewards, actions_batch)
+        if self.use_torch_inworld:
+            batch_model.learn(rewards, actions_batch)          # API PopulationModel (ADR-003)
+            # resynchro du maxlen si torch_episode_k a change apres construction (banc/tests)
+            if self._torch_traj.maxlen != self.torch_episode_k:
+                from collections import deque
+                self._torch_traj = deque(self._torch_traj, maxlen=self.torch_episode_k)
+            # snapshot du tick pour le credit episodique (Task 4). Copie defensive : batch_obs/
+            # rewards sont reutilises par la boucle ; actions_batch est deja une liste fraiche
+            # de dicts.
+            self._torch_traj.append((np.asarray(batch_obs, dtype=np.float32).copy(),
+                                      list(actions_batch),
+                                      np.asarray(rewards, dtype=np.float32).copy(),
+                                      [a["id"] for a in self.agents]))
+            self._torch_tick += 1
+            self._maybe_learn_episode()
+            if self.torch_throw_gate:
+                self._learn_throw_gate()       # REINFORCE immediat de la tete throw (B2)
+        else:
+            batch_model.compute_policy_gradient(rewards, actions_batch)
                 
         self.agents = survivors
         

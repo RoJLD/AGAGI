@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-104
+type: EDR
+title: "La dose de diversité n'a PAS de dose-réponse traçable — l'apex est robuste à l'homogénéisation partielle"
+status: legacy
+gate: G2
+---
+
 # EDR 104 : La dose de diversité n'a PAS de dose-réponse traçable — l'apex est robuste à l'homogénéisation partielle
 
 ## Contexte

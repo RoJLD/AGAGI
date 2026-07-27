@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-081
+type: EDR
+title: "La sélection robuste fait COMPOSER la compétence au fil des générations"
+status: legacy
+gate: foundational
+---
+
 # EDR 081 : La sélection robuste fait COMPOSER la compétence au fil des générations
 
 > ⚠️ **Correction (trouvaille D1)** : le fix D1 corrige une revendication liée à cet EDR — la sélection

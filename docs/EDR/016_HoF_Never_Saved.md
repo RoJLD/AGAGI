@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-016
+type: EDR
+title: "Le Moteur Évolutif était Cassé — le Hall of Fame n'était JAMAIS sauvé"
+status: legacy
+gate: foundational
+---
+
 # EDR 016 : Le Moteur Évolutif était Cassé — le Hall of Fame n'était JAMAIS sauvé
 
 ## Contexte

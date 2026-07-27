@@ -1,3 +1,12 @@
+---
+# frontmatter ajouté rétroactivement (dé-orphanisation P3, 2026-07-15) ; corps d'origine inchangé
+id: EDR-061
+type: EDR
+title: "Le #8 entièrement développé — mesure puissante branchée, armable en 1 ligne"
+status: legacy
+gate: foundational
+---
+
 # EDR 061 : Le #8 entièrement développé — mesure puissante branchée, armable en 1 ligne
 
 ## Contexte
