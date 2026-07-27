@@ -104,8 +104,15 @@ de survie, même durci, ne fait pas apparaître la LECTURE du monde.
 * Saillance = sensibilité INSTANTANÉE (un pas) obs→action. N'exclut pas une intégration LENTE de l'obs dans le
   H récurrent sur plusieurs ticks ; mais pour la cognition réactive (traiter l'entrée courante), la sensibilité
   instantanée au plancher est décisive, et cohérente avec la near-stationarité d'EVO-003 (moved_frac≈0.06).
-* Mesuré sur des champions `evolve_inworld` (64-dim natifs) ; le HoF principal canonique (59-dim, main) est
-  INCOMPATIBLE avec le monde 64-dim de cette branche (dette de divergence d1↔main) — non probé ici.
+* Mesuré sur des champions `evolve_inworld` (**59** entrées natives = la dimension du monde sur cette
+  branche, `WorldConfig.num_inputs = 59`) ; le HoF principal `data/hall_of_fame.pkl` est en **64 entrées /
+  126 sorties**, donc INCOMPATIBLE avec ce monde (dette de divergence d1↔main) — non probé ici.
+  ⚠️ **Correction du 2026-07-27** : la 1ʳᵉ rédaction de ce hedge INTERVERTISSAIT les deux dimensions
+  (« champions 64-dim, HoF 59-dim »). La conclusion — incompatibilité, HoF canonique non probé — est
+  inchangée, mais le SENS de l'écart était faux, ce qui enverrait quiconque reprend le fil construire un
+  adaptateur à l'envers. Les deux nombres sont désormais MESURÉS (`WorldConfig().agent.num_inputs` = 59 ;
+  `pickle.load('data/hall_of_fame.pkl')` -> `(num_inputs, num_outputs, num_nodes) = (64, 126, 172)` sur
+  les 10 entrées) et non plus écrits de mémoire — mandat D du pré-vol appliqué aux MÉTADONNÉES.
 * Saillance ~0.004 ≠ zéro strict (le non-lecteur synthétique rend 0.000 EXACT) : les champions lisent un
   RÉSIDU, ~200× sous un vrai lecteur. « À peine », pas « rien du tout ». ⚠️ Depuis E17, **l'amplitude n'est
   plus la grandeur de référence** : lire le verdict sur la bascule d'`argmax` (≤ 6 % vs 100 %), pas sur le

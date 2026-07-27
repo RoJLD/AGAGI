@@ -1331,18 +1331,23 @@ def test_synthetic_reader_needs_the_reflex_diagonal_state_drift_counterexample()
 from tools import evo_memory_inworld as _emi  # noqa: E402
 
 
-def test_benchmark_discrimination_saturates_at_1_on_a_single_event():
-    """⚠️ CONTRE-EXEMPLE GELÉ — `disc` rend son MAXIMUM sur une preuve qui ne peut pas le soutenir.
+def test_benchmark_discrimination_resolution_is_coarser_than_its_published_claims():
+    """⚠️ CONTRE-EXEMPLE GELÉ — `disc` est calculé sur 1-2 ÉVÉNEMENTS, donc sa RÉSOLUTION (1/n ≥ 0.2) est
+    plus grossière que les écarts qu'on lui fait dire.
 
-    Des génomes FRAIS (donc non discriminants par construction) produisent 1-2 rencontres et ZÉRO contact
-    Leurre sur une cohorte entière -> `disc = big/(big+leurre) = 1.00`. L'instrument est saturé : il ne peut
-    essentiellement rendre que `1.00` (dès qu'il y a un événement) ou `nan` (s'il n'y en a aucun). Un
-    « pouvoir discriminant parfait » y est donc produit par l'ABSENCE de la preuve contraire — la classe E18
-    hors d'une fitness (elle ne fausse pas la sélection, elle fabrique un VERDICT), doublée d'un plafond E3.
+    `disc = big/(big+leurre)` sur une cohorte entière de 24 agents × 150 ticks ne rassemble qu'une poignée
+    de rencontres. Il ne peut alors prendre que {0, 0.5, 1.0} : le « contrôle positif partiel, disc
+    0.80-1.00 » d'[[EDR-EVO-003]] n'est pas seulement fragile, il est **littéralement non représentable**
+    à ces comptes — et un `disc = 1.00` y est produit par l'ABSENCE d'un contact Leurre, pas par un choix
+    (classe E18 hors d'une fitness : elle ne fausse pas la sélection, elle fabrique un VERDICT).
 
-    C'est ce qui rend le « contrôle positif partiel (disc 0.80-1.00) » d'EDR-EVO-003 ininterprétable, et la
-    raison de sa réfutation. ⚠️ La mesure a CORRIGÉ l'hypothèse initiale (« biais du survivant par létalité
-    du Leurre ») : le défaut est plus simple et plus grave — la saturation à compte 1."""
+    ⚠️ DEUX corrections successives par la mesure, gardées ici en mémoire :
+    (1) l'hypothèse initiale (« biais du survivant par la létalité du Leurre ») était plus faible que le
+        défaut réel ;
+    (2) la 1ʳᵉ version de CE test assertait `disc == 1.00`, généralisé depuis 3 génomes qui rendaient tous
+        1.00 — un 4ᵉ rend 0.500 (2 rencontres, 1 Leurre). C'était une **classe E9** (généralisation depuis
+        un échantillon saillant) dans le test écrit pour épingler un défaut d'échantillonnage. Ce qui est
+        gelé désormais est STRUCTUREL — la taille du dénominateur — pas la valeur observée."""
     np.random.seed(0)
     seen = [_emi.benchmark_discrimination(g, memory_regime=False, seed=7, num_agents=24, ticks=150)
             for g in _emi._fresh_soup(3, _emi._cfg(), 0.4)]
@@ -1351,8 +1356,10 @@ def test_benchmark_discrimination_saturates_at_1_on_a_single_event():
                   "(vérification vide, classe E4) — réviser num_agents/ticks avant de lire ce test vert")
     for r in live:
         assert r["encounters"] <= 5, (
-            f"le régime a changé : {r['encounters']} rencontres. À comptes ÉLEVÉS `disc` redeviendrait "
-            f"interprétable et EDR-EVO-003 devrait être relu")
-        assert r["disc"] == pytest.approx(1.0), (
-            f"le contre-exemple doit RESTER un contre-exemple : disc={r['disc']:.3f} sur "
-            f"{r['encounters']} rencontre(s) dont {r['leurre_hits']} Leurre")
+            f"le régime a CHANGÉ : {r['encounters']} rencontres. À comptes élevés `disc` redeviendrait "
+            f"interprétable, et les verdicts d'EDR-EVO-003 devraient être relus")
+        assert r["disc"] * r["encounters"] == pytest.approx(round(r["disc"] * r["encounters"])), (
+            f"disc={r['disc']:.3f} devrait être quantifié au 1/{r['encounters']}")
+        assert 1.0 / r["encounters"] >= 0.2, (
+            f"résolution de disc = 1/{r['encounters']} — un écart de 0.20 est le PLUS PETIT que cet "
+            f"instrument puisse représenter ici, or EVO-003 en publiait de plus fins")

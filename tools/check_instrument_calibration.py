@@ -45,6 +45,12 @@ _INSTRUMENT_PATTERNS = (
     # entré dans le dépôt SANS que le cliquet bronche. Le pire angle mort était `run_cog_demand_map` :
     # c'est la sonde qui a produit le ratio 21.05 publié par EDR-S2-009, invisible depuis le début.
     re.compile(r"^def\s+(run_\w*(?:sanity|control|oracle|floor|map|sweep)\w*)\s*\(", re.M),
+    # Élargi le 2026-07-27 : TROISIÈME angle mort de nommage, trouvé en y tombant moi-même (comme les
+    # deux précédents). `benchmark_cognitive` (EVO-005) produit LE chiffre du verdict — taux de réponse
+    # correcte d'un champion — et était invisible ; `benchmark_discrimination` (EVO-003) l'était depuis
+    # sa création. Un cliquet ne peut pas signaler ce qu'il ne sait pas NOMMER : la leçon récurrente est
+    # que l'heuristique doit être élargie à chaque fois qu'un instrument réel passe à travers.
+    re.compile(r"^def\s+(benchmark_\w+)\s*\(", re.M),
 )
 
 
