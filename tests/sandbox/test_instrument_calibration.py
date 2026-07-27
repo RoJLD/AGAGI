@@ -86,6 +86,9 @@ CALIBRATED = {
     # monotonie (dur > mou > non-arête), + contraste : une ablation par l'ANCÊTRE faux-positive.
     "run_prerequisite_recovery_probe": ["*"],
     "prerequisite_recovery_verdict": ["*"],
+    # SP-2 : « coordination demande perception » sur le jeu de Lewis. Contrôle positif = sender ORACLE
+    # (signal = perception -> ablater effondre) ; contrôle négatif = sender ALÉATOIRE (inerte). Générateur A.
+    "run_perception_coordination_demand_probe": ["*"],
     # EVO-003 : instrument LOAD-BEARING du verdict in-world (l'évolution n'encode PAS la cognition d'apex :
     # la politique ignore le canal type obs[4]). Calibré PAR CONSTRUCTION : un génome qui CÂBLE obs[4] vers
     # les move-outputs -> Δ grand (sonde sensible) ; un génome dont le FANOUT de obs[4] est nul -> Δ EXACT 0
@@ -107,6 +110,22 @@ CALIBRATED = {
     # vaut 2e-6, indiscernable de celle d'un NON-lecteur (0.0), tandis que `sign_flip` sépare 1.00 vs 0.00.
     # C'est la garde exécutable de la classe E17 du registre (amplitude mesurée là où la décision lit le signe).
     "measure_cue_saliency": ["*"],
+    # EVO-005 : objectif cognitif in-world. `measure_cognitive_rate` est l'ESTIMATEUR qui décide quels agents
+    # la sélection retient -> calibré sur vérité-terrain ANALYTIQUE (la chance à faible compte est écrasée,
+    # monotonie, un tick réussi de plus aide toujours) + un CONTRE-EXEMPLE gelé : la variante « lissage vers
+    # la chance » — la lecture évidente de la leçon d'EDR-056 — crée une incitation à MOURIR TÔT et aurait
+    # fabriqué un faux négatif. `benchmark_cognitive` a ses deux bornes (lecteur câblé > plafond d'une
+    # politique fixe ; MÊME génome privé de l'information -> effondrement ; non-lecteur -> plancher).
+    # (`synthetic_reader` n'est PAS déclaré : c'est un TÉMOIN câblé, pas une fonction qui produit une
+    # affirmation — mais la dérive d'état qu'il révèle est gelée par un test.)
+    "measure_cognitive_rate": ["*"],
+    "benchmark_cognitive": ["reader:positive", "blind:specificity", "nonreader:floor"],
+    # EVO-003, rendu VISIBLE au cliquet le 2026-07-27 (motif `benchmark_\w+`, classe E4). Couverture
+    # PARTIELLE assumée : seule la branche du DÉFAUT est calibrée — `disc` SATURE à 1.00 sur 1-2 rencontres
+    # et zéro contact Leurre, donc rend son maximum sur une preuve qui ne peut pas le soutenir (E18 hors
+    # d'une fitness + plafond E3). C'est ce qui rend le « contrôle positif partiel » d'EVO-003
+    # ininterprétable. La branche « disc mesure vraiment un choix » reste NON calibrée.
+    "benchmark_discrimination": ["saturation:degenerate"],
 }
 
 _GENOMES = os.path.join("results", "warm007_genomes")
@@ -1048,6 +1067,35 @@ def test_type_sensitivity_reader_dominates_nonreader():
     assert rr["delta_abs_mean"] > 10.0 * max(rn["delta_abs_mean"], 1e-6)
 
 
+# --- SP-2 : run_perception_coordination_demand_probe --------------------------------------------------
+# Jeu référentiel de Lewis (pur torch CPU) : ablation d'ENTRÉE within-subject sur la perception du sender
+# (derange_rows, in-distribution). `episodes=200` (PAS 0) pour les DEUX cas ci-dessous : à episodes=0 le
+# RECEIVER n'est jamais entraîné (la boucle `for _ in range(episodes)` ne tourne pas), donc même un signal
+# ORACLE PARFAIT reste indécodé -> l'accuracy intacte stagne à la chance -> ablater ne peut rien effondrer
+# (mesuré : ratio 1.09, X_DECOY, PAS X_DEMANDED). Le sender reste bypassé (oracle/aléatoire n'apprend
+# jamais) -> le banc reste rapide (~50s/cas) même en entraînant le receiver.
+
+
+def test_sp2_oracle_sender_makes_perception_demanded():
+    """CONTRÔLE POSITIF (générateur A) : avec un sender ORACLE (signal = index perçu), la coordination est
+    parfaite et DÉRANGER la perception l'effondre -> COORD X_DEMANDED. Le banc SAIT produire l'effondrement.
+    Sender bypassé (oracle) -> seul le receiver entraîne, ~50s pour 12 seeds."""
+    from tools.perception_coordination_demand_probe import run_perception_coordination_demand_probe
+    r = run_perception_coordination_demand_probe(seeds=list(range(12)), episodes=200, n_agents=16, K=6,
+                                                 sender_mode="oracle")
+    assert r["coord"]["verdict"] == "X_DEMANDED", r["coord"]
+    assert r["coord"]["ratio"] > 1.5
+
+
+def test_sp2_random_sender_is_inert_no_false_demand():
+    """CONTRÔLE NÉGATIF : avec un sender ALÉATOIRE (signal décorrélé), pas de coordination -> DÉRANGER la
+    perception est inerte -> COORD PAS X_DEMANDED. Le banc ne FABRIQUE pas un effondrement inexistant."""
+    from tools.perception_coordination_demand_probe import run_perception_coordination_demand_probe
+    r = run_perception_coordination_demand_probe(seeds=list(range(12)), episodes=200, n_agents=16, K=6,
+                                                 sender_mode="random")
+    assert r["coord"]["verdict"] != "X_DEMANDED", r["coord"]
+
+
 # --- CALIB-ALIAS : run_functional_aliasing_probe / functional_aliasing_verdict ----------------------
 # Étalon = un génome câblé à la main dans le VRAI recurrent_forward. Réponse connue PAR CONSTRUCTION :
 # α=0 disjoint (ablater X = no-op exact sur out_Y), α>0 partagé (fuite), monotone en α. Déterministe.
@@ -1178,3 +1226,133 @@ def test_cue_saliency_amplitude_is_blind_to_a_perfect_reader():
     assert ampl_reader < 1e-4, f"amplitude du lecteur PARFAIT attendue ≈0, mesurée {ampl_reader:.2e}"
     assert abs(ampl_reader - ampl_none) < 1e-4, (
         "l'amplitude doit être INDISCERNABLE entre lecteur parfait et non-lecteur — c'est la classe E17")
+
+
+# --- EVO-005 : objectif cognitif in-world — estimateur de fitness + banc ------------------------------
+# Instruments NÉS le 2026-07-27, calibrés dans la même passe (cliquet : aucun nouvel instrument non
+# calibré). Vérité-terrain ANALYTIQUE pour l'estimateur, contrôle positif CÂBLÉ pour le banc in-world.
+from tools.evo_cognitive_objective import (  # noqa: E402
+    measure_cognitive_rate, benchmark_cognitive, synthetic_reader,
+    CHANCE as _CHANCE, PSEUDO as _PSEUDO)
+
+
+def _ag(ticks, hits):
+    return {"_cog_ticks": ticks, "_cog_hits": hits}
+
+
+def _naive_rate_toward_chance(ticks, hits, pseudo=_PSEUDO):
+    """Variante NAÏVE, figée ici comme CONTRE-EXEMPLE : lissage vers la CHANCE (prior Beta(10,10)).
+    C'est la formulation « évidente » de la leçon d'EDR-056 — et elle est fausse (cf. test ci-dessous)."""
+    return (hits + 0.5 * pseudo) / (ticks + pseudo)
+
+
+def test_cognitive_rate_crushes_low_count_luck():
+    """CONTRÔLE de SPÉCIFICITÉ (leçon d'EDR-056) : un agent qui a « réussi » 3 fois sur 3 par hasard ne
+    doit PAS être crédité comme un lecteur. C'est exactement le mode d'échec qui a fait backfirer la
+    fitness alignée de 056 (distinction fortuite à compte 1, amplifiée ×400)."""
+    lucky = measure_cognitive_rate(_ag(3, 3))
+    real = measure_cognitive_rate(_ag(120, 120))
+    assert lucky < 0.2, f"la chance à faible compte est créditée : {lucky:.3f}"
+    assert real > 0.8, f"un lecteur RÉEL doit être crédité : {real:.3f}"
+    assert lucky < real
+
+
+def test_cognitive_rate_has_no_incentive_to_die_early():
+    """⚠️ CONTRE-EXEMPLE GELÉ (classe E18) — le défaut de design attrapé au pré-vol d'EVO-005.
+
+    Un lissage vers la CHANCE récompense l'ABSENCE DE PREUVE : comme les agents réels plafonnent vers
+    0.10, un agent mort à 3 ticks est tiré vers 0.435 tandis qu'un agent vivant 120 ticks et lisant mal
+    tombe à 0.157. À poids fort la sélection optimiserait alors la MORT PRÉCOCE, et le banc rendrait un
+    faux négatif (« l'objectif cognitif ne produit pas de lecture ») qui ne mesurerait que l'estimateur.
+    Le lissage vers ZÉRO n'a pas ce défaut. Si quelqu'un ré-adopte le lissage vers la chance, ce test tombe."""
+    dead_early, long_poor = _ag(3, 0), _ag(120, 12)
+    assert _naive_rate_toward_chance(3, 0) > _naive_rate_toward_chance(120, 12), (
+        "le contre-exemple doit RESTER un contre-exemple : la variante naïve favorise la mort précoce")
+    assert measure_cognitive_rate(dead_early) < measure_cognitive_rate(long_poor), (
+        "l'estimateur retenu ne doit JAMAIS préférer un agent mort tôt à un agent qui a vécu et fait mieux")
+
+
+def test_cognitive_rate_is_monotone_and_never_penalises_a_good_tick():
+    """MONOTONIE (direction) : à ticks fixés le taux croît avec les succès, et un tick RÉUSSI de plus
+    améliore TOUJOURS le score — la propriété algébrique (`t + PSEUDO > h`) qui garantit l'absence
+    d'incitation perverse quel que soit le régime de survie."""
+    assert (measure_cognitive_rate(_ag(100, 10)) < measure_cognitive_rate(_ag(100, 50))
+            < measure_cognitive_rate(_ag(100, 90)))
+    for t, h in ((0, 0), (5, 2), (50, 25), (200, 199)):
+        assert measure_cognitive_rate(_ag(t + 1, h + 1)) > measure_cognitive_rate(_ag(t, h)), (
+            f"un tick réussi de plus doit toujours aider (t={t}, h={h})")
+
+
+def test_benchmark_cognitive_positive_control_and_specificity():
+    """CONTRÔLE POSITIF (générateur A du pré-vol) + SPÉCIFICITÉ, in-world.
+
+    Le lecteur RÉFLEXE câblé doit dépasser le plafond analytique d'une politique FIXE (0.5) ; le MÊME
+    génome privé de l'INFORMATION (`inject=False` : le signal est tiré et noté mais jamais montré) doit
+    s'effondrer. Sans ces deux bornes, un nul du banc serait ininterprétable — l'instrument doit pouvoir
+    produire LES DEUX issues."""
+    g = synthetic_reader(59, 108, 172, w=2.0, reflex=True)
+    seen = benchmark_cognitive(g, seed=1, num_agents=8, ticks=100, inject=True)
+    blind = benchmark_cognitive(g, seed=1, num_agents=8, ticks=100, inject=False)
+    assert seen["raw"] > _CHANCE, (
+        f"le lecteur câblé doit dépasser le plafond d'une politique FIXE : {seen['raw']:.3f} <= {_CHANCE}")
+    assert blind["raw"] < seen["raw"] / 2.0, (
+        f"retirer l'INFORMATION doit effondrer le taux : vu={seen['raw']:.3f} aveugle={blind['raw']:.3f}")
+
+
+def test_benchmark_cognitive_nonreader_stays_at_floor():
+    """CONTRÔLE NÉGATIF : même substrat réflexe, canal du signal NON câblé (w=0) -> le banc ne doit rien
+    créditer. Distingue « lit le signal » de « bouge beaucoup »."""
+    nr = benchmark_cognitive(synthetic_reader(59, 108, 172, w=0.0, reflex=True),
+                             seed=1, num_agents=8, ticks=100, inject=True)
+    assert nr["raw"] < 0.25, f"un non-lecteur est crédité : {nr['raw']:.3f}"
+
+
+def test_synthetic_reader_needs_the_reflex_diagonal_state_drift_counterexample():
+    """⚠️ CONTRE-EXEMPLE GELÉ (classe E6) — la DÉRIVE D'ÉTAT du substrat in-world, mesurée au pré-vol.
+
+    Le MÊME câblage lecteur, à diagonale nulle (δ = sigmoid(0) = 0.5), tombe à la CHANCE in-world alors
+    qu'il est parfait sur un état frais : H accumule et, l'activation ayant f(0) ≠ 0, même les sorties
+    JAMAIS câblées dérivent (+7.45 ± 9.8 après 25 ticks), ce qui noie une marge de signal de ±2.5.
+
+    C'est le mécanisme du confond laissé OUVERT par EDR-S2-011 (« le bassin BC atteint acc 1.00 sur
+    `_step(obs, H=0)` mais ne transfère pas au forward RÉCURRENT du monde »). Conséquence de design : un
+    lecteur RÉACTIF exige une CONJONCTION de deux mutations — câbler le canal ET dé-mémoriser la sortie."""
+    drift = benchmark_cognitive(synthetic_reader(59, 108, 172, w=8.0, reflex=False),
+                                seed=1, num_agents=8, ticks=100, inject=True)
+    reflex = benchmark_cognitive(synthetic_reader(59, 108, 172, w=2.0, reflex=True),
+                                 seed=1, num_agents=8, ticks=100, inject=True)
+    assert drift["raw"] < _CHANCE + 0.1, (
+        f"le contre-exemple doit RESTER un contre-exemple : lecteur à état dérivant = {drift['raw']:.3f}")
+    assert reflex["raw"] > drift["raw"] + 0.15, (
+        f"le lecteur RÉFLEXE doit nettement dominer : réflexe={reflex['raw']:.3f} dérivant={drift['raw']:.3f}")
+
+
+# --- EVO-003 : `benchmark_discrimination` — la SATURATION à compte 1, gelée ---------------------------
+from tools import evo_memory_inworld as _emi  # noqa: E402
+
+
+def test_benchmark_discrimination_saturates_at_1_on_a_single_event():
+    """⚠️ CONTRE-EXEMPLE GELÉ — `disc` rend son MAXIMUM sur une preuve qui ne peut pas le soutenir.
+
+    Des génomes FRAIS (donc non discriminants par construction) produisent 1-2 rencontres et ZÉRO contact
+    Leurre sur une cohorte entière -> `disc = big/(big+leurre) = 1.00`. L'instrument est saturé : il ne peut
+    essentiellement rendre que `1.00` (dès qu'il y a un événement) ou `nan` (s'il n'y en a aucun). Un
+    « pouvoir discriminant parfait » y est donc produit par l'ABSENCE de la preuve contraire — la classe E18
+    hors d'une fitness (elle ne fausse pas la sélection, elle fabrique un VERDICT), doublée d'un plafond E3.
+
+    C'est ce qui rend le « contrôle positif partiel (disc 0.80-1.00) » d'EDR-EVO-003 ininterprétable, et la
+    raison de sa réfutation. ⚠️ La mesure a CORRIGÉ l'hypothèse initiale (« biais du survivant par létalité
+    du Leurre ») : le défaut est plus simple et plus grave — la saturation à compte 1."""
+    np.random.seed(0)
+    seen = [_emi.benchmark_discrimination(g, memory_regime=False, seed=7, num_agents=24, ticks=150)
+            for g in _emi._fresh_soup(3, _emi._cfg(), 0.4)]
+    live = [r for r in seen if r["encounters"] > 0]
+    assert live, ("le banc ne produit AUCUN événement sur 3 génomes : le cas ne peut plus rien épingler "
+                  "(vérification vide, classe E4) — réviser num_agents/ticks avant de lire ce test vert")
+    for r in live:
+        assert r["encounters"] <= 5, (
+            f"le régime a changé : {r['encounters']} rencontres. À comptes ÉLEVÉS `disc` redeviendrait "
+            f"interprétable et EDR-EVO-003 devrait être relu")
+        assert r["disc"] == pytest.approx(1.0), (
+            f"le contre-exemple doit RESTER un contre-exemple : disc={r['disc']:.3f} sur "
+            f"{r['encounters']} rencontre(s) dont {r['leurre_hits']} Leurre")
