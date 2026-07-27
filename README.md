@@ -20,7 +20,7 @@ refutations, null results, and self-corrections carry the same weight as success
 
 ## At a glance
 
-| Dimension | Measured today |
+| Dimension | Measured on `main`, 2026-07-27 |
 | --- | --- |
 | **Decision records** | 270 in the graph (249 EDR · 5 SDR · 3 ADR · 14 REF), 132 typed edges, link-checked in CI |
 | **Measurement instruments** | 89 detected, 20 calibrated against ground truth, 0 new uncalibrated (ratcheted) |
@@ -30,7 +30,8 @@ refutations, null results, and self-corrections carry the same weight as success
 | **Core dependency** | NumPy. PyTorch is optional (`requirements-torch.txt`) |
 | **License** | MIT |
 
-Numbers above are produced by the repository's own checkers, not by hand. Reproduce them:
+Numbers above are produced by the repository's own checkers, not by hand — and they drift as research
+lands, so the date matters. Reproduce them on any checkout:
 
 ```bash
 python tools/check_record_links.py --report          # records, orphans, id collisions
@@ -362,9 +363,13 @@ Good entry points: [`EDR-S2-012`](docs/EDR/S2-012_Champion_Body_Foundational_Ver
 
 ## On AI-assisted development
 
-This repository is developed with heavy AI assistance — 116 design specs and 112 execution plans under
-`docs/superpowers/`, agent-run adversarial reviews, and a `CLAUDE.md` that encodes the experimental
-protocol as standing instructions.
+This repository is developed with heavy AI assistance — **220 design documents** under
+[`docs/superpowers/`](docs/superpowers/) (113 specs, 107 execution plans), agent-run adversarial reviews,
+and a [`CLAUDE.md`](CLAUDE.md) that encodes the experimental protocol as standing instructions.
+
+That corpus is committed, not summarised: each spec states what was going to be built and why, and its
+paired plan states what was actually done. Read alongside the records they produced, the two form an
+auditable trail from intent to measured verdict — including the passes that ended in a refutation.
 
 That is stated up front because it explains the guardrails rather than excusing them. Every ratchet
 described above was built in response to a **measured** agent failure mode:
