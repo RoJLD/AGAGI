@@ -126,6 +126,13 @@ CALIBRATED = {
     # d'une fitness + plafond E3). C'est ce qui rend le « contrôle positif partiel » d'EVO-003
     # ininterprétable. La branche « disc mesure vraiment un choix » reste NON calibrée.
     "benchmark_discrimination": ["saturation:degenerate"],
+    # EVO-006 : crédit PARTIEL (K sous-tâches). `benchmark_cognitive` gagne la branche `partial:ladder`
+    # (monotonie 0/3 < 1/3 < 3/3 ET isolation : câbler la sous-tâche k ne fait monter QUE k).
+    # `measure_decision_saliency` est NÉ avec ce record : il lit la bascule de `sign(logits[out])`,
+    # l'opérateur EXACT du monde (`do_throw = logits[8] > 0`), là où `measure_channel_saliency` lit
+    # `argmax(logits[:8])` et est donc AVEUGLE aux sous-tâches hors-argmax — contre-exemple gelé : sur un
+    # lecteur `throw` PARFAIT (bascule 1.000), la saillance d'argmax rend 0.000.
+    "measure_decision_saliency": ["reader:positive", "channel:specificity", "nonreader:floor"],
 }
 
 _GENOMES = os.path.join("results", "warm007_genomes")
@@ -1363,3 +1370,93 @@ def test_benchmark_discrimination_resolution_is_coarser_than_its_published_claim
         assert 1.0 / r["encounters"] >= 0.2, (
             f"résolution de disc = 1/{r['encounters']} — un écart de 0.20 est le PLUS PETIT que cet "
             f"instrument puisse représenter ici, or EVO-003 en publiait de plus fins")
+
+
+# --- EVO-006 : crédit PARTIEL (K sous-tâches) — monotonie ET spécificité ------------------------------
+# Le banc K>1 ne teste quelque chose QUE si câbler une sous-tâche sur K rend un score strictement entre le
+# plancher et le lecteur complet. C'est `assert_ablation_changes_something` appliqué à la GRANULARITÉ du
+# crédit : sans ce gradient, un nul du banc serait ininterprétable (rien n'aurait été offert à trouver).
+
+
+def test_partial_credit_ladder_is_monotone():
+    """MONOTONIE (direction) — l'échelle du crédit partiel. Chaque sous-tâche câblée en plus doit AUGMENTER
+    le score, et 1 sur 3 doit déjà FRANCHIR le plafond analytique d'une politique fixe (0.5). C'est
+    exactement ce qui était impossible à K=1, où il fallait un lecteur complet d'un seul coup."""
+    raws = [benchmark_cognitive(synthetic_reader(59, 108, 172, w=2.0, reflex=True, wire=n),
+                                seed=1, num_agents=8, ticks=100, inject=True, K=3)["raw"]
+            for n in (0, 1, 3)]
+    assert raws[0] < raws[1] < raws[2], f"échelle non monotone : {[round(r, 3) for r in raws]}"
+    assert raws[1] > _CHANCE, (
+        f"câbler 1 sous-tâche sur 3 doit franchir le plafond d'une politique FIXE : {raws[1]:.3f}")
+
+
+def test_partial_credit_is_isolated_to_the_wired_subtask():
+    """SPÉCIFICITÉ (no-op sur les autres) — câbler la sous-tâche 0 ne doit faire monter QUE la sous-tâche 0 ;
+    les autres restent à la chance. Sans ça, le score global monterait pour une raison sans rapport avec la
+    lecture (p.ex. un changement de comportement moteur), et la lecture « par sous-tâche » ne voudrait
+    rien dire."""
+    b = benchmark_cognitive(synthetic_reader(59, 108, 172, w=2.0, reflex=True, wire=1),
+                            seed=1, num_agents=8, ticks=100, inject=True, K=3)
+    assert b["sub"][0] > 0.6, f"la sous-tâche CÂBLÉE doit monter : {b['sub'][0]:.3f}"
+    for k in (1, 2):
+        assert abs(b["sub"][k] - _CHANCE) < 0.15, (
+            f"la sous-tâche NON câblée {k} doit rester à la chance : {b['sub'][k]:.3f}")
+
+
+def test_signal_channels_carry_zero_information_in_the_base_world():
+    """CONTRÔLE de base, bon marché et load-bearing : les 3 canaux porteurs sont des `np.zeros` CÂBLÉS EN
+    DUR du monde (world_1_stoneage.py:610-623). S'ils cessaient d'être exactement nuls, le banc ne
+    mesurerait plus une lecture du SIGNAL mais une corrélation avec un contenu de monde, et toute la
+    série EVO-005/006 deviendrait ininterprétable."""
+    from tools.evo_cognitive_objective import _run_era as _cog_run_era, SIG_COLS
+    np.random.seed(0)
+    env, _ = _cog_run_era(_emi._fresh_soup(10, _emi._cfg(), 0.4), _emi._cfg(), 40, era=1,
+                          inject=False, K=3)
+    if not env.agents:
+        pytest.skip("aucun survivant à 40 ticks : rien à inspecter")
+    obs = np.asarray(env.get_batch_observations(), dtype=np.float32)
+    for c in SIG_COLS:
+        assert np.abs(obs[:, c]).max() == 0.0, (
+            f"le canal {c} n'est PLUS à information nulle (max|v|={np.abs(obs[:, c]).max():.6f}) — "
+            f"le monde a changé, les verdicts EVO-005/006 doivent être relus")
+
+
+def test_decision_saliency_separates_reader_from_nonreader_and_is_channel_specific():
+    """CONTRÔLE POSITIF + SPÉCIFICITÉ de `measure_decision_saliency` (instrument NÉ avec EVO-006).
+
+    Il mesure la bascule de `sign(logits[out_idx])` — l'opérateur EXACT par lequel le monde décide
+    (`do_throw = logits[8] > 0`). Nécessaire parce que `measure_channel_saliency(decision=True)` lit la
+    bascule d'`argmax(logits[:8])` et est donc AVEUGLE PAR CONSTRUCTION aux sous-tâches qui ne passent pas
+    par l'argmax : sur un lecteur `throw` PARFAIT elle rend 0.000. C'est la classe E17 déplacée du choix
+    de la GRANDEUR (amplitude vs signe) au choix de la SORTIE mesurée."""
+    from tools.evo_cognitive_objective import measure_decision_saliency, SIG_COLS, THROW_IDX
+    reader = synthetic_reader(59, 108, 172, w=2.0, reflex=True, wire=2)
+    nonreader = synthetic_reader(59, 108, 172, w=2.0, reflex=True, wire=0)
+    on = measure_decision_saliency(reader, seed=2000, channel=SIG_COLS[1], out_idx=THROW_IDX,
+                                   num_agents=8, ticks=40)
+    off = measure_decision_saliency(reader, seed=2000, channel=SIG_COLS[0], out_idx=THROW_IDX,
+                                    num_agents=8, ticks=40)
+    floor = measure_decision_saliency(nonreader, seed=2000, channel=SIG_COLS[1], out_idx=THROW_IDX,
+                                      num_agents=8, ticks=40)
+    assert on > 0.9, f"le lecteur câblé doit basculer quasi toujours : {on:.3f}"
+    assert off < 0.05, f"SPÉCIFICITÉ : un canal sans rapport ne doit rien basculer : {off:.3f}"
+    assert floor < 0.05, f"le non-lecteur ne doit rien basculer : {floor:.3f}"
+
+
+def test_argmax_saliency_is_blind_to_a_perfect_throw_reader():
+    """⚠️ CONTRE-EXEMPLE GELÉ — pourquoi l'instrument précédent ne suffisait pas.
+
+    Un génome qui lit PARFAITEMENT le signal `throw` (bascule de sign(logits[8]) = 1.000, cf. test
+    ci-dessus) rend une saillance d'`argmax` NULLE : sa lecture ne passe pas par les logits de
+    déplacement. Sonder la mauvaise SORTIE produit donc un faux négatif sur un lecteur avéré — et c'est
+    ce qui a rendu la règle pré-enregistrée d'EVO-006 inapplicable telle qu'écrite."""
+    from tools.evo_cognitive_objective import measure_decision_saliency, SIG_COLS, THROW_IDX
+    from tools.evo_memory_inworld import measure_channel_saliency as _mcs
+    reader = synthetic_reader(59, 108, 172, w=2.0, reflex=True, wire=2)
+    real = measure_decision_saliency(reader, seed=2000, channel=SIG_COLS[1], out_idx=THROW_IDX,
+                                   num_agents=8, ticks=40)
+    blind = _mcs(reader, seed=2000, channels=[SIG_COLS[1]], num_agents=8, ticks=40, decision=True)
+    assert real > 0.9, f"le témoin doit être un lecteur AVÉRÉ : {real:.3f}"
+    assert blind[SIG_COLS[1]] < 0.05, (
+        f"la saillance d'argmax doit être AVEUGLE à ce lecteur : {blind[SIG_COLS[1]]:.3f} — "
+        f"si ça devient faux, les deux instruments se recouvrent et ce garde-fou est caduc")

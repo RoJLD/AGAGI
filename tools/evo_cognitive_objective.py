@@ -61,6 +61,36 @@ ACT_POS, ACT_NEG = 2, 3    # signal +1 -> Est (action 2) ; signal −1 -> Ouest 
 PSEUDO = 20.0          # pseudo-comptes du prior Beta(PSEUDO/2, PSEUDO/2) : corrige le backfire EDR-056
 CHANCE = 0.5           # plafond d'une politique FIXE : toujours-Est matche la moitié des ticks (signal 50/50)
 
+# --- EVO-006 : crédit PARTIEL (K sous-tâches indépendantes) ------------------------------------------
+# EVO-005 a laissé UNE différence structurelle non testée entre le proxy qui réussit et l'in-world qui
+# échoue : le proxy note K bits INDÉPENDAMMENT (câbler 1 bit sur K gagne 1/K même si les autres sont
+# faux = un GRADIENT), l'in-world n'en notait qu'un (tout ou rien). Le monde consomme pourtant PLUSIEURS
+# décisions indépendantes par tick — pas seulement `argmax(logits[:8])` mais aussi `do_throw =
+# logits[8] > 0` (:1319) et `out_accept = logits[14] > 0` (:957). Chacune a le MÊME plafond de politique
+# fixe (0.5), donc le repère d'EVO-005 est conservé À L'IDENTIQUE et une seule variable change.
+SIG_COLS = (5, 10, 23)     # 3 canaux `np.zeros` câblés en dur — vérifiés à 0.0 EXACT dans le monde de base
+THROW_IDX, ACCEPT_IDX = 8, 14
+
+
+def _resp_move(agent, logits, s):
+    """Sous-tâche 0 — l'ACTION réellement exécutée par le monde (pas un logit) : Est si +1, Ouest si −1."""
+    a = int(agent.get("last_action", -1))
+    return None if a < 0 else int(a == (ACT_POS if s > 0 else ACT_NEG))
+
+
+def _resp_sign(idx):
+    """Sous-tâches 1..n — variable de DÉCISION binaire que le monde lit (`logit > 0`), capturée après
+    `_apply_social_consensus`, donc telle que le monde l'utilise. ⚠️ Le monde peut ensuite GATER l'effet
+    (un throw sans lance ne part pas) : on note la décision, pas son effet — hedge à porter au record."""
+    def f(agent, logits, s):
+        if logits is None or idx >= len(logits):
+            return None
+        return int((float(logits[idx]) > 0.0) == (s > 0))
+    return f
+
+
+SUBTASKS = (("move", _resp_move), ("throw", _resp_sign(THROW_IDX)), ("accept", _resp_sign(ACCEPT_IDX)))
+
 
 def measure_cognitive_rate(agent) -> float:
     """Taux de réponse correcte au signal, lissé par pseudo-comptes vers ZÉRO : `succès / (ticks + PSEUDO)`.
@@ -98,6 +128,7 @@ class CognitiveSignalBiosphere(Biosphere3D):
     ne peut dépasser la chance. `assert_ablation_changes_something` du pré-vol."""
 
     inject = True
+    K = 1                                       # nombre de sous-tâches INDÉPENDANTES (1 = régime EVO-005)
 
     def get_batch_observations(self):
         obs = super().get_batch_observations()
@@ -106,28 +137,48 @@ class CognitiveSignalBiosphere(Biosphere3D):
         for i, ag in enumerate(self.agents):
             if i >= obs.shape[0]:
                 continue
-            s = 1.0 if np.random.rand() < 0.5 else -1.0
-            ag["_cog_sig"] = s                  # stocké sur le DICT (robuste à un réordonnancement)
+            sigs = [1.0 if np.random.rand() < 0.5 else -1.0 for _ in range(self.K)]
+            ag["_cog_sig"] = sigs               # stocké sur le DICT (robuste à un réordonnancement)
             if self.inject:
-                obs[i, SIG_COL] = s
+                for k, s in enumerate(sigs):
+                    obs[i, SIG_COLS[k]] = s
         return obs
 
+    def _apply_social_consensus(self, batch_logits):
+        """Seam de capture : le monde appelle ceci JUSTE après le forward et AVANT la boucle d'action
+        (world_1_stoneage.py:1225), donc `out[i]` est exactement le vecteur de logits sur lequel les
+        décisions du tick sont prises. Rangé sur le DICT de l'agent -> insensible aux morts/réordres."""
+        out = super()._apply_social_consensus(batch_logits)
+        for i, ag in enumerate(self.agents):
+            if i < len(out):
+                ag["_cog_logits"] = np.asarray(out[i], dtype=np.float32).copy()
+        return out
+
     def step(self):
-        super().step()                          # obs (signal injecté) -> logits -> `last_action`
+        super().step()                          # obs (signaux injectés) -> logits -> `last_action`
         for ag in self.agents:
-            s = ag.pop("_cog_sig", None)        # consommé : jamais compté deux fois
-            if s is None:
+            sigs = ag.pop("_cog_sig", None)     # consommé : jamais compté deux fois
+            lg = ag.pop("_cog_logits", None)
+            if sigs is None:
                 continue
-            a = int(ag.get("last_action", -1))
-            if a < 0:
-                continue
-            ag["_cog_ticks"] = int(ag.get("_cog_ticks", 0)) + 1
-            ag["_cog_hits"] = int(ag.get("_cog_hits", 0)) + int(a == (ACT_POS if s > 0 else ACT_NEG))
+            per = ag.setdefault("_cog_hits_k", [0] * len(SUBTASKS))
+            tk = ag.setdefault("_cog_ticks_k", [0] * len(SUBTASKS))
+            for k, s in enumerate(sigs):
+                r = SUBTASKS[k][1](ag, lg, s)
+                if r is None:
+                    continue
+                # `_cog_ticks` compte les ESSAIS (K par tick) -> `measure_cognitive_rate` et le plafond
+                # CHANCE=0.5 restent valides sans changement, K quelconque.
+                ag["_cog_ticks"] = int(ag.get("_cog_ticks", 0)) + 1
+                ag["_cog_hits"] = int(ag.get("_cog_hits", 0)) + r
+                per[k] += r
+                tk[k] += 1
 
 
-def _make_env(cfg, inject=True, benchmark=False, era=1):
+def _make_env(cfg, inject=True, benchmark=False, era=1, K=1):
     env = CognitiveSignalBiosphere(cfg)
     env.inject = inject
+    env.K = int(K)
     _setup_lewis(env, n_each=N_APEX)
     if benchmark:
         env.benchmark_mode = True               # cohorte fixe : pas de repro qui dilue le champion
@@ -138,8 +189,8 @@ def _make_env(cfg, inject=True, benchmark=False, era=1):
     return env
 
 
-def _run_era(genomes, cfg, max_ticks, era, inject=True, benchmark=False):
-    env = _make_env(cfg, inject=inject, benchmark=benchmark, era=era)
+def _run_era(genomes, cfg, max_ticks, era, inject=True, benchmark=False, K=1):
+    env = _make_env(cfg, inject=inject, benchmark=benchmark, era=era, K=K)
     for g in genomes:
         a = MambaAgent()
         a.from_genome(g)
@@ -169,7 +220,7 @@ def _make_reflex(genomes, diag=10.0):
 
 
 def evolve_cognitive(weight, seed, eras=15, max_ticks=120, num_agents=30, add_node_rate=0.4,
-                     inject=True, reflex_init=False):
+                     inject=True, reflex_init=False, K=1):
     """Évolution in-world auto-contenue sous fitness = survie + `weight` × lecture du signal.
 
     `weight=0` -> la sélection est EXACTEMENT celle de prod (le signal est présent mais non noté) : c'est
@@ -191,7 +242,7 @@ def evolve_cognitive(weight, seed, eras=15, max_ticks=120, num_agents=30, add_no
     best_g, best_fit, best_rate = genomes[0].clone(), -1e18, 0.0
     traj = []
     for era in range(1, eras + 1):
-        _, pool = _run_era(genomes, cfg, max_ticks, era, inject=inject)
+        _, pool = _run_era(genomes, cfg, max_ticks, era, inject=inject, K=K)
         if not pool:
             break
         pool.sort(key=lambda ag: cognitive_fitness(ag, weight), reverse=True)
@@ -210,7 +261,7 @@ def evolve_cognitive(weight, seed, eras=15, max_ticks=120, num_agents=30, add_no
             "nodes": best_g.num_nodes, "traj": traj}
 
 
-def benchmark_cognitive(genome, seed, num_agents=24, ticks=150, inject=True):
+def benchmark_cognitive(genome, seed, num_agents=24, ticks=150, inject=True, K=1):
     """INSTRUMENT PRIMAIRE (calibré) — taux de réponse correcte d'un champion, sur cohorte de clones.
 
     Renvoie `raw` (= succès/ticks, LA grandeur du verdict, à lire contre le plafond analytique CHANCE),
@@ -224,24 +275,36 @@ def benchmark_cognitive(genome, seed, num_agents=24, ticks=150, inject=True):
     np.random.seed(seed)
     cfg = _cfg()
     cohort = [genome.clone() for _ in range(num_agents)]
-    env, pool = _run_era(cohort, cfg, ticks, era=10_000, inject=inject, benchmark=True)
+    env, pool = _run_era(cohort, cfg, ticks, era=10_000, inject=inject, benchmark=True, K=K)
     hits = sum(int(ag.get("_cog_hits", 0)) for ag in pool)
     tk = sum(int(ag.get("_cog_ticks", 0)) for ag in pool)
     ages = [ag["age"] for ag in pool] or [0]
+    per, per_t = [0] * len(SUBTASKS), [0] * len(SUBTASKS)
+    for ag in pool:
+        for k, (h, t) in enumerate(zip(ag.get("_cog_hits_k", []), ag.get("_cog_ticks_k", []))):
+            per[k] += int(h)
+            per_t[k] += int(t)
     return {
         "rate": hits / (tk + PSEUDO) if tk else float("nan"),
         "raw": hits / tk if tk else float("nan"),
         "ticks": tk,
+        # `sub` = taux PAR sous-tâche : c'est là que se lit le crédit PARTIEL (une sous-tâche au-dessus de
+        # CHANCE pendant que les autres y restent = l'évolution a câblé UN signal sur K).
+        "sub": [(per[k] / per_t[k] if per_t[k] else float("nan")) for k in range(len(SUBTASKS))],
         "med_age": float(statistics.median(ages)),
         "preys": sum(int(ag.get("preys_eaten", 0)) for ag in pool),
     }
 
 
-def synthetic_reader(num_inputs, num_outputs, num_nodes, w=8.0, reflex=True):
-    """CONTRÔLE POSITIF de la TÂCHE (générateur A du pré-vol) : génome câblé à la main qui lit le canal
-    du signal et pousse Est/Ouest en conséquence. Si LUI ne dépasse pas la chance in-world, la tâche est
-    irréalisable et aucun verdict négatif sur l'évolution ne serait interprétable.
+def synthetic_reader(num_inputs, num_outputs, num_nodes, w=8.0, reflex=True, wire=1):
+    """CONTRÔLE POSITIF de la TÂCHE (générateur A du pré-vol) : génome câblé à la main qui lit le(s)
+    canal(aux) de signal et pousse la sortie correspondante. Si LUI ne dépasse pas la chance in-world, la
+    tâche est irréalisable et aucun verdict négatif sur l'évolution ne serait interprétable.
     Convention de layout : entrées = premiers `num_inputs` noeuds, sorties = `num_outputs` DERNIERS.
+
+    `wire` = nombre de sous-tâches CÂBLÉES (défaut 1 = régime EVO-005). C'est aussi l'instrument du
+    CRÉDIT PARTIEL : câbler 1 sur 3 doit rendre un score STRICTEMENT entre la chance et le lecteur
+    complet. Si ce n'est pas le cas, il n'y a pas de gradient à offrir et le banc K>1 ne teste rien.
 
     ⚠️ `reflex=True` met TOUTE la diagonale à +10 -> δ = sigmoid(diag) ≈ 1 -> `H_new = f(excitation)`,
     aucun report d'état. Indispensable, et mesuré : avec une diagonale nulle (δ=0.5) l'état s'ACCUMULE
@@ -252,9 +315,55 @@ def synthetic_reader(num_inputs, num_outputs, num_nodes, w=8.0, reflex=True):
     W = np.zeros((num_nodes, num_nodes), dtype=np.float32)
     if reflex:
         np.fill_diagonal(W, 10.0)          # δ≈1 -> substrat sans mémoire : pas de dérive accumulée
-    W[SIG_COL, num_nodes - num_outputs + ACT_POS] = +w
-    W[SIG_COL, num_nodes - num_outputs + ACT_NEG] = -w
+    o = num_nodes - num_outputs
+    wired = range(min(int(wire), len(SUBTASKS)))
+    for k in wired:
+        if k == 0:                                  # sous-tâche « move » : Est vs Ouest
+            W[SIG_COLS[0], o + ACT_POS] = +w
+            W[SIG_COLS[0], o + ACT_NEG] = -w
+        elif k == 1:                                # sous-tâche « throw » : signe de logits[8]
+            W[SIG_COLS[1], o + THROW_IDX] = +w
+        elif k == 2:                                # sous-tâche « accept » : signe de logits[14]
+            W[SIG_COLS[2], o + ACCEPT_IDX] = +w
     return Genome(W, num_inputs, num_outputs)
+
+
+def measure_decision_saliency(genome, seed, channel, out_idx, num_agents=24, ticks=80, K=3):
+    """Saillance FONCTIONNELLE d'une DÉCISION BINAIRE : perturber `obs[channel]` = ±1 change-t-il le SIGNE
+    de `logits[out_idx]` — l'opérateur exact par lequel le monde décide (`do_throw = logits[8] > 0`,
+    world_1_stoneage.py:1319 ; `out_accept = logits[14] > 0`, :957) ?
+
+    Nécessaire parce que `measure_channel_saliency(decision=True)` lit la bascule d'`argmax(logits[:8])` :
+    elle est AVEUGLE par construction aux sous-tâches `throw`/`accept` d'EVO-006, qui ne passent pas par
+    l'argmax. Mesurer la mauvaise sortie rendrait « 0.000 » sur un lecteur parfait — la classe E17 déplacée
+    du choix de la GRANDEUR (amplitude vs signe) au choix de la SORTIE.
+
+    In-contexte (obs réelles), forward NON destructif sur le H courant. Renvoie le taux de bascule.
+    Vérité-terrain : un génome câblant `channel -> out_idx` rend ~1.0 ; un non-câblé ~0.0."""
+    from src.seed_ai.rl_evolution import recurrent_forward
+    np.random.seed(seed)
+    env = _make_env(_cfg(), inject=True, benchmark=True, K=K)
+    for _ in range(num_agents):
+        a = MambaAgent()
+        a.from_genome(genome)
+        env.add_agent(a, energy=80.0)
+    flips = []
+    for _ in range(ticks):
+        if not env.agents:
+            break
+        obs = np.asarray(env.get_batch_observations(), dtype=np.float32)
+        for i, ag in enumerate(env.agents):
+            if i >= obs.shape[0]:
+                continue
+            m = ag["model"]
+            op = obs[i:i + 1].copy(); op[0, channel] = 1.0
+            om = obs[i:i + 1].copy(); om[0, channel] = -1.0
+            pp = recurrent_forward(genome, op, m.H_prev, m.H_history, m.H_potentials)[0]
+            pm = recurrent_forward(genome, om, m.H_prev, m.H_history, m.H_potentials)[0]
+            if out_idx < pp.shape[1]:
+                flips.append(float((float(pp[0, out_idx]) > 0.0) != (float(pm[0, out_idx]) > 0.0)))
+        env.step()
+    return float(np.mean(flips)) if flips else 0.0
 
 
 def _med(xs):
@@ -276,34 +385,44 @@ def main():
     eras = int(os.environ.get("EVO5_ERAS", "35"))
     ticks = int(os.environ.get("EVO5_TICKS", "120"))
     agents = int(os.environ.get("EVO5_AGENTS", "30"))
-    print(f"EVO-005 : plan factoriel OBJECTIF × ATTEIGNABILITÉ | {len(ARMS)} bras x {len(seeds)} seeds "
-          f"x {eras} ères x {ticks} ticks x {agents} agents")
-    print(f"  tâche : obs[{SIG_COL}]=±1 (canal à information NULLE) -> action {ACT_POS} (Est) / {ACT_NEG} (Ouest)")
-    print(f"  plafond d'une politique FIXE = {CHANCE} | pré-vol : lecteur câblé 0.856, non-lecteur 0.100\n")
+    K = int(os.environ.get("EVO5_K", "1"))
+    arms = ARMS if K == 1 else [(w, False) for w in (0.0, 200.0, 800.0, 5000.0)]
+    names = [s[0] for s in SUBTASKS][:K]
+    print(f"{'EVO-005' if K == 1 else 'EVO-006'} : K={K} sous-tâche(s) {names} | {len(arms)} bras x "
+          f"{len(seeds)} seeds x {eras} ères x {ticks} ticks x {agents} agents")
+    print(f"  signaux dans obs{list(SIG_COLS[:K])} (canaux à information NULLE, vérifiés à 0.0 exact)")
+    print(f"  plafond d'une politique FIXE = {CHANCE} sur CHAQUE sous-tâche -> même repère qu'à K=1")
+    if K > 1:
+        print("  pré-vol : câblé 0/3=0.378  1/3=0.581  2/3=0.751  3/3=0.939 -> le CRÉDIT PARTIEL existe\n")
+    else:
+        print("  pré-vol : lecteur câblé 0.856, non-lecteur 0.100\n")
     table = {}
-    for w, refl in ARMS:
+    for w, refl in arms:
         rows = []
         for s in seeds:
-            r = evolve_cognitive(w, s, eras, ticks, agents, reflex_init=refl)
-            b = benchmark_cognitive(r["genome"], 1000 + s)
+            r = evolve_cognitive(w, s, eras, ticks, agents, reflex_init=refl, K=K)
+            b = benchmark_cognitive(r["genome"], 1000 + s, K=K)
             sal = measure_channel_saliency(r["genome"], 2000 + s, channels=[SIG_COL], decision=True)
-            tr = r["traj"]
-            rows.append({"seed": s, **b, "sal": sal[SIG_COL], "nodes": r["nodes"], "traj": tr})
-            half = len(tr) // 2
-            print(f"  W={w:<6} reflex={int(refl)} seed {s}: raw={b['raw']:.3f} sal={sal[SIG_COL]:.3f} | "
-                  f"traj 1re/2de moitié={_med(tr[:half]):.3f}/{_med(tr[half:]):.3f} max={max(tr) if tr else float('nan'):.3f} | "
-                  f"age={b['med_age']:.0f} proies={b['preys']} N={r['nodes']}")
+            rows.append({"seed": s, **b, "sal": sal[SIG_COL], "nodes": r["nodes"], "traj": r["traj"]})
+            subs = " ".join(f"{names[k]}={b['sub'][k]:.3f}" for k in range(K))
+            print(f"  W={w:<6} reflex={int(refl)} seed {s}: raw={b['raw']:.3f} [{subs}] "
+                  f"sal={sal[SIG_COL]:.3f} | age={b['med_age']:.0f} proies={b['preys']} N={r['nodes']}")
         table[(w, refl)] = rows
-    print("\n=== PLAN FACTORIEL (médianes sur seeds) ===")
-    print(f"{'W':>7} {'reflex':>7} | {'raw':>6} | {'sal argmax':>10} | {'traj max':>8} | {'age':>5} | {'proies':>6}")
-    for key in ARMS:
+    print(f"\n=== SYNTHÈSE K={K} (médianes sur seeds) ===")
+    head = " ".join(f"{n:>8}" for n in names)
+    print(f"{'W':>7} {'reflex':>7} | {'raw':>6} | {head} | {'sal':>6} | {'age':>5} | {'proies':>6} | max raw")
+    for key in arms:
         rr = table[key]
-        print(f"{key[0]:>7} {int(key[1]):>7} | {_med([r['raw'] for r in rr]):>6.3f} | "
-              f"{_med([r['sal'] for r in rr]):>10.3f} | {_med([max(r['traj']) for r in rr if r['traj']]):>8.3f} | "
-              f"{_med([r['med_age'] for r in rr]):>5.0f} | {_med([r['preys'] for r in rr]):>6.0f}")
-    print(f"\n  (chance={CHANCE} : toute valeur raw > {CHANCE} EXIGE de lire obs[{SIG_COL}])")
-    print("  lecture : si raw monte avec W à reflex=0 -> l'OBJECTIF est le levier ; si ça ne monte QUE")
-    print("  à reflex=1 -> le verrou était l'ATTEIGNABILITÉ ; si rien ne monte -> verrou crédit/recherche.")
+        subs = " ".join(f"{_med([r['sub'][k] for r in rr]):>8.3f}" for k in range(K))
+        print(f"{key[0]:>7} {int(key[1]):>7} | {_med([r['raw'] for r in rr]):>6.3f} | {subs} | "
+              f"{_med([r['sal'] for r in rr]):>6.3f} | {_med([r['med_age'] for r in rr]):>5.0f} | "
+              f"{_med([r['preys'] for r in rr]):>6.0f} | {max(r['raw'] for r in rr):.3f}")
+    print(f"\n  (règle PRÉ-ENREGISTRÉE : raw > {CHANCE} = affirmation d'EXISTENCE contre un plafond")
+    print("   ANALYTIQUE ; contrastes entre bras DIRECTIONNELS seulement à n=5.)")
+    if K > 1:
+        print("  lecture : une SOUS-TÂCHE au-dessus de 0.5 pendant que les autres y restent = l'évolution")
+        print("  a saisi le crédit PARTIEL -> le verrou d'EVO-005 était la GRANULARITÉ du gradient.")
+        print("  Si rien ne dépasse 0.5 malgré un gradient VÉRIFIÉ -> « verrou = paysage » est RÉFUTÉ.")
     return table
 
 
