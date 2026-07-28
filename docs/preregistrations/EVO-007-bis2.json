@@ -1,0 +1,22 @@
+{
+  "name": "EVO-007-bis2",
+  "rule": {
+    "defaut_de_la_regle_initiale": "Le seuil 0.5 a ete herite d EVO-005/006, ou les sous-taches reposaient sur le deplacement (gagner un argmax a 8 voies) : un non-lecteur y obtient 0.09-0.38, donc 0.5 etait une vraie barre. Les sous-taches APPARIEES sont des seuils de SIGNE : une politique fixe y obtient 0.5 EN ESPERANCE, donc environ la moitie des seeds la depasse par simple bruit d echantillonnage. La mesure qui l annoncait etait DEJA au pre-vol -- MATCHED non-lecteur = 0.514 -- et je l ai lue sans en tirer la consequence. Le nombre est reste, sa signification a change.",
+    "discrimination": {
+      "easy1 ECHOUE et matched FRANCHIT": "credit PARTIEL confirme, difficulte CONTROLEE -> EVO-006 renforce",
+      "easy1 FRANCHIT": "une sous-tache FACILE suffit -> le gain d EVO-006 venait de la DIFFICULTE et non du credit partiel -> EVO-006 doit etre REVISE",
+      "les deux ECHOUENT": "EVO-006 (1 seed/5, sous un seuil non separant) etait un artefact -> A RETRACTER",
+      "les deux FRANCHISSENT": "la difficulte suffit ; le credit partiel n est pas necessaire, mais peut aider en frequence"
+    },
+    "dv_primaire_corrigee": "saillance de DECISION sur la sous-tache la plus haute : taux de bascule de sign(logits[out]) sous obs[canal] = +/-1. Quasi binaire et CALIBREE (lecteur cable 1.000, non-lecteur 0.000, canal sans rapport 0.000). Seuil : superieur a 0.5.",
+    "dv_secondaire": "raw superieur au MAX du bras de CONTROLE -- le nul EMPIRIQUE du meme dispositif, pas un nombre importe d une autre tache.",
+    "etat_au_moment_du_scellement": "Seuls des seeds du bras de CONTROLE (W=0, le nul par construction) ont ete vus : seeds 0-1, raw 0.527 et 0.505. AUCUNE donnee des bras traites (easy1, matched) n a ete vue. Utiliser le nul pour fixer une valeur critique est legitime ; utiliser le traite ne le serait pas.",
+    "lecon": "Un seuil pre-enregistre n est valide que pour la TACHE sur laquelle il a ete calibre. Re-verifier le PLANCHER du non-lecteur a chaque changement de jeu de sous-taches.",
+    "pourquoi_bis2": "EVO-007-bis portait la meme regle que celle-ci, mais son texte a ete ampute par une substitution de commande shell (backticks dans une chaine passee a python -c) : des fragments de justification ont disparu du JSON scelle. Le fichier corrompu est CONSERVE, pas supprime : l outil refuse de reecrire un contenu different sous un nom deja pris, et contourner cette regle -- meme pour une raison legitime -- rendrait indiscernables une correction technique et un changement d avis. La chaine EVO-007 -> bis -> bis2 reste donc entierement lisible.",
+    "record": "EDR-EVO-007",
+    "regle_existence": "un seed a PRODUIT de la lecture ssi saillance > 0.5 ET raw > max(controle)",
+    "regle_frequence": "a n=12, la fraction de seeds satisfaisant les DEUX criteres est le verdict de systematicite ; c est la taille d echantillon qu exige le garde-fou du depot pour une affirmation de frequence.",
+    "remplace": "EVO-007 (seuil 0.5, INADEQUAT) puis EVO-007-bis (CORROMPU a l ecriture)"
+  },
+  "seal": "4357af67cb2829226530d768309a6989423a66bd3e51a6e61bb893c3381b977d"
+}

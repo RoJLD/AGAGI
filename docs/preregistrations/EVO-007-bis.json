@@ -1,0 +1,21 @@
+{
+  "name": "EVO-007-bis",
+  "rule": {
+    "defaut_de_la_regle_initiale": "Le seuil 0.5 a ete herite d EVO-005/006, ou les taches reposaient sur  : un non-lecteur y obtient 0.09-0.38, donc 0.5 etait une vraie barre. Les sous-taches APPARIEES sont des seuils de SIGNE : une politique fixe y obtient 0.5 EN ESPERANCE, donc ~la moitie des seeds la depasse par bruit d echantillonnage. Mesure au pre-vol qui l annoncait et que j ai lue sans agir : MATCHED non-lecteur = 0.514. Le nombre est reste, sa signification a change.",
+    "discrimination": {
+      "si easy1 ECHOUE et matched FRANCHIT": "credit PARTIEL confirme, difficulte CONTROLEE -> EVO-006 renforce",
+      "si easy1 FRANCHIT": "une sous-tache FACILE suffit -> le gain d EVO-006 venait de la DIFFICULTE, pas du credit partiel -> EVO-006 A REVISER",
+      "si les deux echouent": "EVO-006 (1 seed/5, seuil non separant) etait un artefact -> A RETRACTER",
+      "si les deux franchissent": "la difficulte suffit ; le credit partiel n est pas necessaire (peut aider en frequence)"
+    },
+    "dv_primaire_corrigee": "saillance de DECISION sur la sous-tache la plus haute : bascule de sign(logits[out]) sous obs[canal] = +-1. Quasi binaire et CALIBREE : lecteur cable 1.000, non-lecteur 0.000, canal sans rapport 0.000. Seuil : > 0.5.",
+    "dv_secondaire": "raw > max(raw du bras de CONTROLE) -- le nul EMPIRIQUE du meme dispositif, pas un nombre importe",
+    "etat_au_moment_du_scellement": "Seuls des seeds du bras de CONTROLE (W=0, le nul par construction) ont ete vus (seeds 0-1, raw 0.527 et 0.505). AUCUNE donnee des bras traites (easy1, matched) n a ete vue. Utiliser le nul pour fixer une valeur critique est legitime ; utiliser le traite ne le serait pas.",
+    "lecon": "Un seuil pre-enregistre n est valide que pour la tache sur laquelle il a ete calibre. Re-verifier le PLANCHER du non-lecteur a chaque changement de tache.",
+    "record": "EDR-EVO-007",
+    "regle_existence": "un seed a PRODUIT de la lecture ssi saillance > 0.5 ET raw > max(controle)",
+    "regle_frequence": "a n=12, la fraction de seeds satisfaisant les DEUX est le verdict de systematicite",
+    "remplace": "EVO-007 (seuil 0.5) -- INADEQUAT, et ce l etait DEJA au pre-vol"
+  },
+  "seal": "50741623c691f41ebb767dce4ca5e70ca8712777383a58ab2531dee2e9a527ea"
+}

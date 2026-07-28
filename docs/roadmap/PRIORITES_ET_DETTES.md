@@ -411,12 +411,23 @@ pour les records. *Bypass d'urgence : `git commit --no-verify`.*
 
 ## P3 — Générateurs d'erreur encore sans réponse exécutable
 
-*(Classes E11 et E13 du registre des erreurs — les deux seules SANS aucune garde.)*
+*(Classe **E13** du registre — désormais la SEULE sans aucune garde. E11 close le 2026-07-27, ci-dessous.)*
 
-**P3.1 — Pré-enregistrement du plan d'analyse.** **Aucune** analyse de la session n'a été pré-enregistrée :
-seuil 0.5 sur `gi`, partition FRÉQUENT/RARE, choix du prédicteur — tous arrêtés APRÈS avoir vu les données
-(jardin aux sentiers qui bifurquent). Étendre `declare_design` pour figer *statistique + seuil + critère*
-avant le run, et faire lire ces valeurs par l'analyse au lieu de les choisir ensuite. *Coût : ~2 h.*
+**P3.1 — Pré-enregistrement du plan d'analyse. ✅ CLOSE (2026-07-27).** `tools/preregister.py` +
+`tests/sandbox/test_preregistration_guard.py` (6 tests). Scelle *statistique + seuil + critère + **liste
+des instruments autorisés*** par un hash : ré-enregistrer un contenu DIFFÉRENT sous le même nom **lève**
+(une règle ne se corrige pas — on écrit une `-bis`, ce qui rend le changement VISIBLE), et une édition du
+JSON à la main est DÉTECTÉE ; un test balaie `docs/preregistrations/` et tombe si une règle déjà gravée
+est retouchée.
+
+*Ce que la fermeture a appris, et qui ne figurait pas dans l'énoncé de la dette* : la forme fuyante d'E11
+n'est pas le SEUIL — la discipline manuelle le protégeait déjà (EVO-005, EVO-006) — mais l'**INSTRUMENT**.
+Sur EVO-006, la règle était bien pré-écrite, et pourtant la sonde qui a confirmé le verdict a été choisie
+APRÈS avoir vu quelle sous-tâche bougeait. D'où la clause `instruments_autorises` dans le format scellé.
+Second enseignement, immédiat : **un seuil pré-enregistré n'est valide que pour la tâche sur laquelle il a
+été calibré** — le 0.5 d'EVO-005/006 ne sépare plus sur un jeu de sous-tâches en seuils de signe (plancher
+du non-lecteur = 0.514), ce qui a exigé une règle `-bis2` dès EVO-007. *Portée honnête : la garde prouve
+la NON-MODIFICATION, pas l'antériorité au run.*
 
 **P3.2 — Budget obligatoire, mesuré au smoke.** *Preuve : 3 runs abandonnés (8 h, 4 h projetées, 89 min),
 plus WARM-009 nul et un run de 1,8 h sur une question sans objet.* Exiger un débit mesuré sur smoke + un

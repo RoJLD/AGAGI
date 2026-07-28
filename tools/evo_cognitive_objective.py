@@ -54,6 +54,7 @@ from src.agents.mamba_agent import MambaAgent  # noqa: E402
 from src.seed_ai.persistence import calculate_life_score  # noqa: E402
 from src.seed_ai.mutation import apply_mutations, MutationConfig, Genome  # noqa: E402
 from tools.lewis_world import _setup_lewis  # noqa: E402
+from tools.cost_guard import CostGuard  # noqa: E402
 
 
 SIG_COL = 5            # canal d'obs câblé à `np.zeros(N)` (world_1_stoneage.py:610) -> information NULLE
@@ -68,8 +69,9 @@ CHANCE = 0.5           # plafond d'une politique FIXE : toujours-Est matche la m
 # décisions indépendantes par tick — pas seulement `argmax(logits[:8])` mais aussi `do_throw =
 # logits[8] > 0` (:1319) et `out_accept = logits[14] > 0` (:957). Chacune a le MÊME plafond de politique
 # fixe (0.5), donc le repère d'EVO-005 est conservé À L'IDENTIQUE et une seule variable change.
-SIG_COLS = (5, 10, 23)     # 3 canaux `np.zeros` câblés en dur — vérifiés à 0.0 EXACT dans le monde de base
+SIG_COLS = (5, 10, 23, 24, 30)   # canaux `np.zeros` câblés en dur — vérifiés à 0.0 EXACT dans le monde de base
 THROW_IDX, ACCEPT_IDX = 8, 14
+AIM_X_IDX, AIM_Y_IDX = 11, 12    # `aim_vec = [logits[11], logits[12]]` (world_1_stoneage.py:1321)
 
 
 def _resp_move(agent, logits, s):
@@ -89,7 +91,31 @@ def _resp_sign(idx):
     return f
 
 
-SUBTASKS = (("move", _resp_move), ("throw", _resp_sign(THROW_IDX)), ("accept", _resp_sign(ACCEPT_IDX)))
+SUBTASKS = (
+    ("move", _resp_move),                 # 0 — DURE : gagner un `argmax` à 8 voies
+    ("throw", _resp_sign(THROW_IDX)),     # 1 — seuil de SIGNE : un seul poids suffit
+    ("accept", _resp_sign(ACCEPT_IDX)),   # 2 — idem
+    ("aim_x", _resp_sign(AIM_X_IDX)),     # 3 — idem (ajoutées pour APPARIER la difficulté, EVO-007)
+    ("aim_y", _resp_sign(AIM_Y_IDX)),     # 4 — idem
+)
+SUB_OUT = {"move": None, "throw": THROW_IDX, "accept": ACCEPT_IDX,
+           "aim_x": AIM_X_IDX, "aim_y": AIM_Y_IDX}
+
+# Jeux de sous-tâches (EVO-007) — le confond qu'EVO-006 n'a PAS démêlé : ses 3 sous-tâches n'étaient pas
+# d'égale difficulté (`move` exige un argmax, `throw`/`accept` un simple signe), et c'est `throw` qui a été
+# appris. Une part du gain venait donc peut-être de sous-tâches plus FACILES, pas seulement plus NOMBREUSES.
+# Pire : EVO-005 (K=1) n'utilisait QUE `move`, la plus DURE -> son échec confondait « pas de crédit
+# partiel » et « tâche unique trop dure ». Ces trois jeux séparent les deux facteurs.
+TASKS_EVO006 = (0, 1, 2)     # mixte, tel quel : reproduit EVO-006
+TASKS_MATCHED = (1, 3, 4)    # 3 sous-tâches au MÊME opérateur (signe) -> difficulté APPARIÉE + crédit partiel
+TASKS_EASY1 = (1,)           # UNE sous-tâche facile, SANS crédit partiel -> le contrôle décisif
+
+
+def _tasks_of(K=None, tasks=None):
+    """`tasks` = indices explicites dans SUBTASKS ; `K` = raccourci rétro-compatible (K premières)."""
+    if tasks is not None:
+        return tuple(tasks)
+    return tuple(range(int(K or 1)))
 
 
 def measure_cognitive_rate(agent) -> float:
@@ -128,7 +154,7 @@ class CognitiveSignalBiosphere(Biosphere3D):
     ne peut dépasser la chance. `assert_ablation_changes_something` du pré-vol."""
 
     inject = True
-    K = 1                                       # nombre de sous-tâches INDÉPENDANTES (1 = régime EVO-005)
+    tasks = (0,)                                # indices dans SUBTASKS ; la i-ᵉ tâche ACTIVE lit SIG_COLS[i]
 
     def get_batch_observations(self):
         obs = super().get_batch_observations()
@@ -137,11 +163,11 @@ class CognitiveSignalBiosphere(Biosphere3D):
         for i, ag in enumerate(self.agents):
             if i >= obs.shape[0]:
                 continue
-            sigs = [1.0 if np.random.rand() < 0.5 else -1.0 for _ in range(self.K)]
+            sigs = [1.0 if np.random.rand() < 0.5 else -1.0 for _ in self.tasks]
             ag["_cog_sig"] = sigs               # stocké sur le DICT (robuste à un réordonnancement)
             if self.inject:
-                for k, s in enumerate(sigs):
-                    obs[i, SIG_COLS[k]] = s
+                for i_t, s in enumerate(sigs):
+                    obs[i, SIG_COLS[i_t]] = s
         return obs
 
     def _apply_social_consensus(self, batch_logits):
@@ -163,7 +189,8 @@ class CognitiveSignalBiosphere(Biosphere3D):
                 continue
             per = ag.setdefault("_cog_hits_k", [0] * len(SUBTASKS))
             tk = ag.setdefault("_cog_ticks_k", [0] * len(SUBTASKS))
-            for k, s in enumerate(sigs):
+            for i_t, s in enumerate(sigs):
+                k = self.tasks[i_t]
                 r = SUBTASKS[k][1](ag, lg, s)
                 if r is None:
                     continue
@@ -175,10 +202,10 @@ class CognitiveSignalBiosphere(Biosphere3D):
                 tk[k] += 1
 
 
-def _make_env(cfg, inject=True, benchmark=False, era=1, K=1):
+def _make_env(cfg, inject=True, benchmark=False, era=1, K=1, tasks=None):
     env = CognitiveSignalBiosphere(cfg)
     env.inject = inject
-    env.K = int(K)
+    env.tasks = _tasks_of(K, tasks)
     _setup_lewis(env, n_each=N_APEX)
     if benchmark:
         env.benchmark_mode = True               # cohorte fixe : pas de repro qui dilue le champion
@@ -189,16 +216,34 @@ def _make_env(cfg, inject=True, benchmark=False, era=1, K=1):
     return env
 
 
-def _run_era(genomes, cfg, max_ticks, era, inject=True, benchmark=False, K=1):
-    env = _make_env(cfg, inject=inject, benchmark=benchmark, era=era, K=K)
+MAX_AGENTS = 200      # plafond DETERMINISTE de population par ere (garde de cout, classe E13)
+
+
+def _run_era(genomes, cfg, max_ticks, era, inject=True, benchmark=False, K=1, tasks=None,
+             max_agents=MAX_AGENTS):
+    """⚠️ `max_agents` borne l'UNITE DE TRAVAIL ATOMIQUE, pas la boucle qui l'appelle.
+
+    Mesure qui l'impose (2026-07-27) : à l'ère 13 du seed 8, la population passe de ~33 à **962 agents**
+    en 84 ticks — la reproduction s'emballe quand un seed trouve un fourrageur très survivant. Une garde
+    posée ENTRE les ères (`CostGuard` dans `evolve_cognitive`) ne peut rien : on ne lui rend jamais la
+    main. Deux runs ont été tués comme ça (187 min / 8 seeds, puis 7 h).
+
+    Le plafond porte sur le NOMBRE D'AGENTS, pas sur le temps : une échéance en secondes rendrait la
+    troncature dépendante de la machine et de sa charge, donc le banc NON REPRODUCTIBLE. Un plafond de
+    population est déterministe — même seed, même troncature, partout. Pics normaux mesurés : 30-44."""
+    env = _make_env(cfg, inject=inject, benchmark=benchmark, era=era, K=K, tasks=tasks)
     for g in genomes:
         a = MambaAgent()
         a.from_genome(g)
         env.add_agent(a, energy=80.0)
     t = 0
+    env.pop_capped = False
     while env.agents and t < max_ticks:
         env.step()
         t += 1
+        if max_agents and len(env.agents) > max_agents:
+            env.pop_capped = True          # troncature DÉTERMINISTE, à rapporter et non à taire
+            break
     return env, list(env.agents) + list(env.dead_agents)
 
 
@@ -220,7 +265,7 @@ def _make_reflex(genomes, diag=10.0):
 
 
 def evolve_cognitive(weight, seed, eras=15, max_ticks=120, num_agents=30, add_node_rate=0.4,
-                     inject=True, reflex_init=False, K=1):
+                     inject=True, reflex_init=False, K=1, tasks=None, budget_s=None):
     """Évolution in-world auto-contenue sous fitness = survie + `weight` × lecture du signal.
 
     `weight=0` -> la sélection est EXACTEMENT celle de prod (le signal est présent mais non noté) : c'est
@@ -241,8 +286,19 @@ def evolve_cognitive(weight, seed, eras=15, max_ticks=120, num_agents=30, add_no
     n_elite = max(3, num_agents // 4)
     best_g, best_fit, best_rate = genomes[0].clone(), -1e18, 0.0
     traj = []
+    # Garde de COÛT (classe E13). Le coût de cette boucle dépend du SEED — il suit le succès évolutif
+    # (`CLAUDE.md` §Coût des runs) : mesuré, les seeds 0-4 coûtent ~35 s et le seed 8 n'a pas fini 35 ères
+    # en 10 min. Aucune projection linéaire ne borne cette queue -> il faut un plafond AU RUNTIME, qui
+    # abandonne l'unité coûteuse au lieu de laisser un seed pathologique tuer le run entier
+    # (4ᵉ run abandonné du dépôt, 2026-07-27 : 187 min pour 8 seeds sur 36).
+    guard = CostGuard(budget_s, label=f"seed {seed}") if budget_s else None
     for era in range(1, eras + 1):
-        _, pool = _run_era(genomes, cfg, max_ticks, era, inject=inject, K=K)
+        if guard is not None and guard.would_exceed():
+            return {"genome": best_g, "fitness": best_fit, "rate_evo": best_rate,
+                    "nodes": best_g.num_nodes, "traj": traj,
+                    "aborted": f"budget {budget_s:.0f}s dépassé à l'ère {era}/{eras} "
+                               f"({guard.spent_s:.0f}s) — seed EXCLU, à COMPTER dans le rapport"}
+        _, pool = _run_era(genomes, cfg, max_ticks, era, inject=inject, K=K, tasks=tasks)
         if not pool:
             break
         pool.sort(key=lambda ag: cognitive_fitness(ag, weight), reverse=True)
@@ -258,10 +314,10 @@ def evolve_cognitive(weight, seed, eras=15, max_ticks=120, num_agents=30, add_no
             children.append(apply_mutations(parent, mc))
         genomes = elites + children
     return {"genome": best_g, "fitness": best_fit, "rate_evo": best_rate,
-            "nodes": best_g.num_nodes, "traj": traj}
+            "nodes": best_g.num_nodes, "traj": traj, "aborted": None}
 
 
-def benchmark_cognitive(genome, seed, num_agents=24, ticks=150, inject=True, K=1):
+def benchmark_cognitive(genome, seed, num_agents=24, ticks=150, inject=True, K=1, tasks=None):
     """INSTRUMENT PRIMAIRE (calibré) — taux de réponse correcte d'un champion, sur cohorte de clones.
 
     Renvoie `raw` (= succès/ticks, LA grandeur du verdict, à lire contre le plafond analytique CHANCE),
@@ -275,7 +331,7 @@ def benchmark_cognitive(genome, seed, num_agents=24, ticks=150, inject=True, K=1
     np.random.seed(seed)
     cfg = _cfg()
     cohort = [genome.clone() for _ in range(num_agents)]
-    env, pool = _run_era(cohort, cfg, ticks, era=10_000, inject=inject, benchmark=True, K=K)
+    env, pool = _run_era(cohort, cfg, ticks, era=10_000, inject=inject, benchmark=True, K=K, tasks=tasks)
     hits = sum(int(ag.get("_cog_hits", 0)) for ag in pool)
     tk = sum(int(ag.get("_cog_ticks", 0)) for ag in pool)
     ages = [ag["age"] for ag in pool] or [0]
@@ -296,7 +352,7 @@ def benchmark_cognitive(genome, seed, num_agents=24, ticks=150, inject=True, K=1
     }
 
 
-def synthetic_reader(num_inputs, num_outputs, num_nodes, w=8.0, reflex=True, wire=1):
+def synthetic_reader(num_inputs, num_outputs, num_nodes, w=8.0, reflex=True, wire=1, tasks=None):
     """CONTRÔLE POSITIF de la TÂCHE (générateur A du pré-vol) : génome câblé à la main qui lit le(s)
     canal(aux) de signal et pousse la sortie correspondante. Si LUI ne dépasse pas la chance in-world, la
     tâche est irréalisable et aucun verdict négatif sur l'évolution ne serait interprétable.
@@ -316,19 +372,18 @@ def synthetic_reader(num_inputs, num_outputs, num_nodes, w=8.0, reflex=True, wir
     if reflex:
         np.fill_diagonal(W, 10.0)          # δ≈1 -> substrat sans mémoire : pas de dérive accumulée
     o = num_nodes - num_outputs
-    wired = range(min(int(wire), len(SUBTASKS)))
-    for k in wired:
-        if k == 0:                                  # sous-tâche « move » : Est vs Ouest
-            W[SIG_COLS[0], o + ACT_POS] = +w
-            W[SIG_COLS[0], o + ACT_NEG] = -w
-        elif k == 1:                                # sous-tâche « throw » : signe de logits[8]
-            W[SIG_COLS[1], o + THROW_IDX] = +w
-        elif k == 2:                                # sous-tâche « accept » : signe de logits[14]
-            W[SIG_COLS[2], o + ACCEPT_IDX] = +w
+    active = tuple(tasks) if tasks is not None else (0, 1, 2)
+    for i_t, k in enumerate(active[:int(wire)]):
+        name = SUBTASKS[k][0]
+        if name == "move":                          # Est vs Ouest : il faut GAGNER l'argmax -> 2 poids
+            W[SIG_COLS[i_t], o + ACT_POS] = +w
+            W[SIG_COLS[i_t], o + ACT_NEG] = -w
+        else:                                       # seuil de SIGNE : un seul poids suffit
+            W[SIG_COLS[i_t], o + SUB_OUT[name]] = +w
     return Genome(W, num_inputs, num_outputs)
 
 
-def measure_decision_saliency(genome, seed, channel, out_idx, num_agents=24, ticks=80, K=3):
+def measure_decision_saliency(genome, seed, channel, out_idx, num_agents=24, ticks=80, K=3, tasks=None):
     """Saillance FONCTIONNELLE d'une DÉCISION BINAIRE : perturber `obs[channel]` = ±1 change-t-il le SIGNE
     de `logits[out_idx]` — l'opérateur exact par lequel le monde décide (`do_throw = logits[8] > 0`,
     world_1_stoneage.py:1319 ; `out_accept = logits[14] > 0`, :957) ?
@@ -342,7 +397,7 @@ def measure_decision_saliency(genome, seed, channel, out_idx, num_agents=24, tic
     Vérité-terrain : un génome câblant `channel -> out_idx` rend ~1.0 ; un non-câblé ~0.0."""
     from src.seed_ai.rl_evolution import recurrent_forward
     np.random.seed(seed)
-    env = _make_env(_cfg(), inject=True, benchmark=True, K=K)
+    env = _make_env(_cfg(), inject=True, benchmark=True, K=K, tasks=tasks)
     for _ in range(num_agents):
         a = MambaAgent()
         a.from_genome(genome)

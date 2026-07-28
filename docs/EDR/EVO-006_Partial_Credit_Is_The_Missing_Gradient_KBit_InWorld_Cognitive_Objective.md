@@ -154,6 +154,14 @@ opposable et testable, là où « investir dans l'objectif » restait une orient
   sous-tâches le sont » — et une partie du gain vient de ce que j'ai ajouté des sous-tâches PLUS FACILES,
   pas seulement plus nombreuses. Distinguer les deux exigerait K sous-tâches de difficulté APPARIÉE.
 * On note la **décision**, pas son effet : un `throw` décidé sans lance ne part pas (le monde gate).
+* ⚠️ **Le seuil 0.500 est valide POUR CE JEU DE SOUS-TÂCHES, et ne se transporte pas** (constaté le
+  2026-07-27 en montant EVO-007). Il sépare ici parce que le jeu contient `move`, dont un non-lecteur
+  n'obtient que 0.09-0.38 : le bras de CONTRÔLE plafonne à **0.409**, donc aucun seed ne le franchit par
+  bruit, et le 0.612 est bien un signal. Mais sur un jeu de sous-tâches **uniquement** en seuils de SIGNE,
+  une politique fixe obtient 0.5 EN ESPÉRANCE et la moitié des seeds le dépasse par bruit
+  d'échantillonnage (mesuré : non-lecteur apparié = 0.514, et 2 seeds de contrôle d'EVO-007 à 0.527 /
+  0.505). **Règle** : re-vérifier le PLANCHER du non-lecteur à chaque changement de jeu de sous-tâches ;
+  un seuil pré-enregistré n'est valide que pour la tâche sur laquelle il a été calibré.
 * Génome persisté cette fois (`results/evo006_champion_w5000_seed0.npz`) — la passe EVO-005 ne l'avait pas
   fait, en violation de la consigne de `CLAUDE.md`, ce qui a coûté un ré-entraînement pour le prober.
   ⚠️ `results/` est gitignoré : l'artefact est LOCAL. Il n'est pas load-bearing pour autant — le champion
