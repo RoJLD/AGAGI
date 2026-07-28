@@ -2,12 +2,54 @@
 id: EDR-EVO-006
 type: EDR
 title: "Le crédit PARTIEL est-il le gradient manquant ? — objectif cognitif in-world à K sous-tâches indépendantes, à une seule variable près d'EVO-005"
-status: active
-verdict: PARTIAL_CREDIT_IS_THE_MISSING_GRADIENT
+status: retracted
+verdict: RETIRÉ (ex-PARTIAL_CREDIT_IS_THE_MISSING_GRADIENT) — réfuté par EDR-EVO-007
+retracted_by: [EDR-EVO-007]
 gate: G0
 tests: [SDR-G0]
 adopts: [REF-EXPERIMENT-PREFLIGHT]
 extends: [EDR-EVO-005]
+---
+
+## ⛔ RÉTRACTATION (2026-07-28, le lendemain) — le verdict est RETIRÉ, le FAIT tient
+
+Ce record a été écrit avec, en tête de ses hedges, l'aveu qu'il ne démêlait pas « crédit partiel » de
+« sous-tâches plus faciles ». [[EDR-EVO-007]] a fait ce démêlage, sous **règle de lecture SCELLÉE avant le
+run** (`docs/preregistrations/EVO-007-bis2.json`). Résultat, à difficulté APPARIÉE (toutes sous-tâches en
+seuils de signe), n=12 :
+
+| bras | lecteurs |
+|---|---|
+| contrôle `W=0` | **0/12** |
+| `easy1` — facile, SANS crédit partiel | **0/12** |
+| `matched` — facile, AVEC crédit partiel | **0/12** |
+
+La thèse de ce record prédisait que `matched` produirait des lecteurs. **Elle en produit zéro sur douze.**
+L'explication concurrente (la facilité) échoue aussi. Le verdict `PARTIAL_CREDIT_IS_THE_MISSING_GRADIENT`
+est donc **RETIRÉ** — l'engagement en était pris, par écrit et scellé, avant de voir les chiffres.
+
+**Réplication directe** de la configuration EXACTE de ce record (jeu MIXTE, n=12,
+`docs/preregistrations/EVO-006-REPLICATION.json`) :
+
+| bras (jeu mixte) | lecteurs | raw max | saillance max |
+|---|---|---|---|
+| contrôle `W=0` | 0/11 | 0.491 | 0.016 |
+| `W=5000` | **1/12** (le seed 0) | 0.612 | **1.000** |
+
+* **Le FAIT tient** : le champion du seed 0 est un lecteur authentique — bascule de `sign(logits[8])` sous
+  `obs[10]` = 1.000, spécificité de canal exacte, **reproduit bit pour bit une 4ᵉ fois**. Aucune expérience
+  ultérieure n'efface une mesure.
+* **La FRÉQUENCE le tue comme mécanisme** : 1/12 contre 0/11 au contrôle → **test exact de Fisher
+  bilatéral p = 1.000**. À ce n, le bras traité est **indistinguable du contrôle** : le lecteur unique ne
+  peut pas être attribué à l'objectif cognitif.
+* **Statut** : ce record est rétrogradé en **observation isolée** — un événement rare, réel, reproductible
+  et **inexpliqué**. Il ne porte plus de mécanisme, plus de prescription, et ne doit plus être cité comme
+  tel. Le fil est repris par [[EDR-EVO-007]].
+
+**Classe E9 du registre** (« généralisation depuis un échantillon saillant ») — la seule marquée
+`non automatisable`, dont la garde EST la revue adversariale. Elle a fonctionné : j'ai élevé **1 seed sur
+5** en mécanisme + prescription, et le contre-test l'a défait en quelques heures.
+
 ---
 
 ## Question

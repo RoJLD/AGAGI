@@ -1,0 +1,19 @@
+{
+  "name": "EVO-006-REPLICATION",
+  "rule": {
+    "design": "2 bras x 12 seeds x 35 eres. tasks=TASKS_EVO006 (mixte). W=0 (controle) et W=5000.",
+    "discrimination": {
+      "0 seed sur 12": "meme le seed 0 ne ressort pas -> le banc a change sous le plafond de population ; verifier AVANT toute conclusion, ne pas retracter sur cette base.",
+      "au moins 2 seeds sur 12 sont LECTEURS": "phenomene REEL mais RARE, specifique au jeu MIXTE -> EVO-006 garde son fait et perd son explication ('credit partiel'), refutee par EVO-007. Nouvelle question ouverte : qu a le jeu mixte que le jeu apparie n a pas ?",
+      "exactement 1 seed sur 12 (le seed 0)": "le fait tient mais n est PAS generalisable : 1/12 est indistinguable d un tirage chanceux -> EVO-006 doit etre RETROGRADE en observation isolee, verdict RETIRE."
+    },
+    "dv_primaire": "saillance de DECISION sur la sous-tache la plus haute (bascule de sign(logits[out]) sous obs[canal]) -- calibree : lecteur cable 1.000, non-lecteur 0.000. Seuil : > 0.5.",
+    "dv_secondaire": "raw > max(raw) du bras de CONTROLE de CE run (nul empirique du meme jeu de taches)",
+    "engagement": "Quelle que soit l issue, le verdict PARTIAL_CREDIT_IS_THE_MISSING_GRADIENT d EVO-006 est RETIRE : il est refute par EVO-007 (0/12 avec credit partiel, difficulte controlee), independamment de cette replication. Celle-ci decide seulement du statut du FAIT observe.",
+    "note_seed0": "Le seed 0 est celui qui avait produit le lecteur d EVO-006 (raw 0.612, throw 0.925, bascule 1.000, deja reproduit bit pour bit DEUX fois). Il DOIT ressortir lecteur : s il ne ressort pas, c est le plafond de population MAX_AGENTS=200 qui a change le banc, et il faudra le verifier separement (mesure faite : 0/35 eres plafonnees sur cette config, donc attendu inchange).",
+    "question": "EVO-007 a rendu 0/12 lecteurs sur DEUX jeux a difficulte APPARIEE (avec et sans credit partiel), ce qui refute l interpretation d EVO-006. Mais EVO-007 n a JAMAIS rejoue la configuration EXACTE d EVO-006 (jeu MIXTE move/throw/accept, W=5000). Sans cette cellule, on ne peut pas distinguer 'evenement RARE propre a ce jeu' de 'ARTEFACT non reproductible'.",
+    "record": "EDR-EVO-006 (replication directe)",
+    "regle_existence": "un seed est LECTEUR ssi saillance > 0.5 ET raw > max(controle)"
+  },
+  "seal": "537c25e2a438cdd8f365f037e54c59d9f634969c4fc8251b541a074fb65b1810"
+}
