@@ -89,6 +89,9 @@ CALIBRATED = {
     # SP-2 : « coordination demande perception » sur le jeu de Lewis. Contrôle positif = sender ORACLE
     # (signal = perception -> ablater effondre) ; contrôle négatif = sender ALÉATOIRE (inerte). Générateur A.
     "run_perception_coordination_demand_probe": ["*"],
+    # « memory demands perception » (delayed-match torch). Contrôle positif = memory ORACLE (rétention
+    # parfaite -> déranger l'encodage effondre) ; contrôle négatif = memory ALÉATOIRE (inerte). Générateur A.
+    "run_memory_perception_demand_probe": ["*"],
     # EVO-003 : instrument LOAD-BEARING du verdict in-world (l'évolution n'encode PAS la cognition d'apex :
     # la politique ignore le canal type obs[4]). Calibré PAR CONSTRUCTION : un génome qui CÂBLE obs[4] vers
     # les move-outputs -> Δ grand (sonde sensible) ; un génome dont le FANOUT de obs[4] est nul -> Δ EXACT 0
@@ -1460,3 +1463,29 @@ def test_argmax_saliency_is_blind_to_a_perfect_throw_reader():
     assert blind[SIG_COLS[1]] < 0.05, (
         f"la saillance d'argmax doit être AVEUGLE à ce lecteur : {blind[SIG_COLS[1]]:.3f} — "
         f"si ça devient faux, les deux instruments se recouvrent et ce garde-fou est caduc")
+
+
+# ------------------------------------------- run_memory_perception_demand_probe (MEM-PERCEPTION)
+# « memory demande perception » sur un delayed-match-to-sample torch (Tâche 1, deuxième arête du
+# graphe AGI-Taxonomy). Mémoire = état récurrent H PORTÉ encode -> délai -> test. oracle/random
+# BYPASSENT l'agent (guess lu directement sur l'indice encodé, ou tiré au hasard) -> aucun
+# entraînement -> episodes=0 valide et rapide, symétrique à SP-2 (run_perception_coordination_demand_probe).
+
+def test_mp_oracle_memory_makes_perception_demanded():
+    """CONTRÔLE POSITIF (générateur A) : avec une mémoire ORACLE (rétention parfaite de l'indice encodé),
+    DÉRANGER la perception à l'encodage l'effondre -> DELAYED X_DEMANDED. Le banc SAIT produire l'effondrement.
+    Oracle BYPASSE l'agent (guess = indice encodé) -> aucun entraînement -> episodes=0 valide, quelques secondes."""
+    from tools.memory_perception_demand_probe import run_memory_perception_demand_probe
+    r = run_memory_perception_demand_probe(seeds=list(range(12)), episodes=0, n_agents=16, K=6, D=2,
+                                           memory_mode="oracle")
+    assert r["delayed"]["verdict"] == "X_DEMANDED", r["delayed"]
+    assert r["delayed"]["ratio"] > 1.5
+
+
+def test_mp_random_memory_is_inert_no_false_demand():
+    """CONTRÔLE NÉGATIF : avec une mémoire ALÉATOIRE (guess décorrélé de l'indice), DÉRANGER la perception
+    est inerte -> DELAYED PAS X_DEMANDED. Le banc ne FABRIQUE pas un effondrement inexistant."""
+    from tools.memory_perception_demand_probe import run_memory_perception_demand_probe
+    r = run_memory_perception_demand_probe(seeds=list(range(12)), episodes=0, n_agents=16, K=6, D=2,
+                                           memory_mode="random")
+    assert r["delayed"]["verdict"] != "X_DEMANDED", r["delayed"]
