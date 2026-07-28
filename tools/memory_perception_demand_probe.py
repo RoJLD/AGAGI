@@ -3,9 +3,22 @@
 Mémoire = état récurrent APPRIS du MambaAgent, PORTÉ à travers les ticks (encode -> délai -> test).
 Ablation d'ENTRÉE within-subject : à l'éval, on DÉRANGE le one-hot de l'indice au tick d'ENCODAGE
 (derange_rows, in-distribution). Deux conditions : DELAYED (obs de test vide -> il faut la rétention) ->
-l'ablation effondre ; PRESENT (obs de test = vue directe BRUITÉE de l'indice) -> l'ablation est inerte
-(contrôle de demande = specificity_control). functional_aliasing="n/a" (ablation d'entrée, pas d'écriture
-substrat -> pas de fuite à garder, cf. CALIB-ALIAS).
+l'ablation effondre ; PRESENT (obs de test = vue directe BRUITÉE de l'indice) -> l'ablation DOIT être
+inerte (contrôle de demande = specificity_control).
+
+⚠️ CORRECTIF (Task 3, confond d'entraînement H1) : en PRESENT, l'indice ENCODÉ n'est PLUS `cues` mais un
+LEURRE aléatoire DÉCOUPLÉ de la réponse (indépendant de `cues`) — seule la vue de TEST reste `cues`
+(bruitée). Avant ce correctif, l'encodage PRESENT portait la RÉPONSE elle-même : pendant l'entraînement,
+avec l'encodage toujours intact, le gradient apprenait à s'appuyer sur ce raccourci parfait (preuve :
+`present_intact` mesuré = 0.761, AU-DESSUS du plafond atteignable par la seule observation de test bruitée
+`(1-flip_p)+flip_p/K` = 0.75 à flip_p=0.2 ; à flip_p=0.2/D=0 c'était 1.000 vs plafond 0.833) — ce qui
+faisait ÉCHOUER `specificity_control` (PRESENT collapsait aussi sous ablation) sans que ce soit une fuite
+structurelle du substrat : c'était un artefact de DESIGN du contrôle, pas du mécanisme mesuré. Avec le
+leurre découplé, l'encodage PRESENT est non-informatif pour la réponse -> le gradient n'a plus aucune
+raison de s'y appuyer -> l'agent apprend à lire directement la vue de test -> déranger l'encodage devient
+INERTE en PRESENT (le vrai comportement attendu d'un contrôle de spécificité propre). DELAYED est
+INCHANGÉ (encode toujours `cues`, seule source d'information disponible). functional_aliasing="n/a"
+(ablation d'entrée, pas d'écriture substrat -> pas de fuite à garder, cf. CALIB-ALIAS).
 
 ⚠️ Vérifié contre le code réel (`src/agents/backend_torch.py`), DIVERGENCE avec la transcription initiale :
 `TorchPopulationModel.forward(x)` renvoie `(logits, 0)` — le 2e élément est un PLACEHOLDER entier, PAS
@@ -59,9 +72,18 @@ def _sample(preds, n, rng, n_agents):
 
 
 def _seq_inputs(cues, condition, ablate, K, I, n_agents, D, flip_p, rng):
-    """Construit la séquence [encode, délai×D, test]. encode = one-hot indice (dérangé si ablate).
-    délai = zéros. test = zéros (delayed) ou vue bruitée (present)."""
-    enc_in = _onehot(cues, K, I, n_agents)
+    """Construit la séquence [encode, délai×D, test]. encode = one-hot indice (dérangé si ablate) ;
+    délai = zéros ; test = zéros (delayed) ou vue bruitée (present).
+
+    DELAYED encode l'indice-réponse (`cues`) : seule source d'information, la rétention est nécessaire.
+    PRESENT encode un LEURRE indépendant de la réponse (`rng.randint`, découplé de `cues`) — la vue de
+    TEST, elle, reste la vue bruitée de `cues`. Ainsi l'encodage PRESENT est NON-INFORMATIF pour la
+    réponse : pendant l'entraînement l'agent n'a aucune raison de s'appuyer dessus (contrairement à
+    l'ancien design où l'encodage PRESENT portait `cues`, donc la réponse elle-même, ce qui créait un
+    raccourci d'entraînement — cf. docstring module) -> déranger cet encodage devient INERTE, contrôle
+    de spécificité PROPRE."""
+    enc_cue = (rng.randint(0, K, size=n_agents) if condition == "present" else cues)
+    enc_in = _onehot(enc_cue, K, I, n_agents)
     if ablate:
         enc_in = derange_rows(enc_in, rng)             # ABLATION de la perception à l'ENCODAGE
     zeros = np.zeros((n_agents, I), dtype=np.float32)
