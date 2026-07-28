@@ -1,0 +1,26 @@
+{
+  "name": "EVO-009",
+  "rule": {
+    "arms": {
+      "baseline": "operateur INCHANGE -- reference dans le MEME run (l'observe historique est 1/12)",
+      "biased": "avec probabilite 0.5, `add_connection` restreint ses candidats aux paires (canal de signal -> noeud de sortie note). Sinon, comportement normal."
+    },
+    "design": "2 bras x 12 seeds x 35 eres, jeu MIXTE (TASKS_EVO006), W=5000, meme monde, meme graine. SEULE la loi de tirage de `add_connection` change.",
+    "discrimination": {
+      "biased >= 6/12 et baseline <= 2/12": "CONFIRME : la decouverte est bien un tirage combinatoire, et l'operateur de variation est le levier. 1er levier ACTIONNABLE de tout l'arc EVO.",
+      "biased eleve MAIS survie effondree": "le biais paie la lecture en survie -> lire et vivre sont en compromis ; rapporter les DEUX et ne pas vendre le taux de lecture seul.",
+      "biased ~ baseline (ecart < 3 seeds)": "REFUTE : creer l'arete ne suffit pas -> il manque une condition qu'EVO-008 n'a pas identifiee (candidate n=1 a NE PAS presumer : la sortie doit etre DOMINEE par un seul canal). La these 'verrou = decouverte' devrait etre revue."
+    },
+    "dv": "taux de seeds LECTEURS = saillance de decision > 0.5 sur la sous-tache la plus haute",
+    "garde_cout": "budget_s=150 par seed (E13) ; abandons COMPTES et rapportes",
+    "instruments_autorises": [
+      "measure_decision_saliency -- calibre, et RNG-neutre depuis EVO-008",
+      "benchmark_cognitive -- calibre"
+    ],
+    "note_honnete": "La micro-explication du 'pourquoi l'ere 5 ne lit pas alors qu'elle est cablee' (interference de 3 canaux sur la meme sortie) est une HYPOTHESE a n=1, explicitement NON testee ici. Elle n'entre pas dans la lecture de ce run. C'est la lecon d'EVO-006, retracte le meme jour.",
+    "prevol_obligatoire": "Le bras `biased` doit REELLEMENT changer la loi de tirage : compter, sur 200 mutations, la fraction d'aretes creees qui sont (signal -> sortie notee). Doit etre ~0 en baseline et nettement > 0 en biased. Sans cette assertion, un nul serait ininterpretable (assert_ablation_changes_something).",
+    "question": "EVO-008 conclut que le verrou est la DECOUVERTE (saut mutationnel unique, puis retention 28/29 eres). Prediction quantitative : le taux de decouverte est fixe par la combinatoire de `add_connection` -- ~3 aretes cibles sur ~11000 candidates, x ~400 tirages par lignee = ~0.11 attendu contre 1/12 = 0.083 observe. Si c'est juste, BIAISER l'operateur vers les aretes entree->sortie doit faire BONDIR le taux.",
+    "record": "EDR-EVO-009"
+  },
+  "seal": "8e513d0118ca966ffc540f9dbcc415cb5e922ce50a7c7ac29164741471b40014"
+}
