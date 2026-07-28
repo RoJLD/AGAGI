@@ -88,11 +88,18 @@ nécessaire pour un verdict n=12 défendable sur les deux dimensions à la fois 
   façon équivalente (D=1 : 0.205 vs médiane REINFORCE comparable ; D=2 : 0.167) — ce n'est pas un artefact
   du crédit 1-pas tronqué.
 - **Imitation SUPERVISÉE + BPTT** (`imitate_episode_bptt`, masquée sur le dernier pas — élimine toute
-  question de crédit RL) échoue AUSSI, y compris à D=0 (0.216 à lr=0.05/3000 épisodes) : la composition
-  `(q+key)%K` de deux one-hot injectés à des ticks séparés est dure à représenter/apprendre pour ce
-  substrat même sous supervision directe. → **le problème n'est pas l'assignation de crédit, il est
-  représentationnel** (le substrat contractif ne compose pas facilement deux entrées one-hot injectées à
-  des ticks différents).
+  question de crédit RL) échoue AUSSI **à D=2** (0.202 à lr=0.02/1200 épisodes) — le même D que REINFORCE
+  tronqué et BPTT réel ci-dessus (D=2 : 0.167) : les **trois** méthodes de crédit échouent ensemble,
+  proprement, au réglage de la spec. C'est sur ce triplet D=2 que repose l'argument d'isolation : la
+  composition `(q+key)%K` de deux one-hot injectés à des ticks séparés reste dure à représenter/apprendre
+  pour ce substrat même sous supervision directe. → **le problème n'est pas l'assignation de crédit, il
+  est représentationnel** (le substrat contractif ne compose pas facilement deux entrées one-hot injectées
+  à des ticks différents).
+  (Le chiffre D=0 de cette même méthode supervisée, 0.216 à lr=0.05/3000 épisodes, n'est PAS retenu comme
+  preuve confirmatoire : lr et régime différents du sweep D=0 principal — et EN TENSION avec le fait que
+  le RL seul APPREND déjà à D=0 [`train_control=False`, médiane 0.328, § résultat ci-dessus] : une
+  supervision qui sous-performe le RL au même D est l'inverse de ce qu'annoncerait un mur
+  représentationnel propre. Point confondu, mentionné ici pour mémoire, non porteur de l'argument.)
 - **Contrôle de sanité (le harnais fonctionne)** : une tâche de pur RAPPEL (`_carry` puis test vide,
   cible=`key`, SANS combinaison) apprend vite et bien avec exactement la même mécanique
   (D=1/ep=600→acc=0.880 ; D=1/ep=1200→0.903 ; D=2/ep=1200→0.564). La rétention seule n'est pas le
@@ -143,5 +150,8 @@ nécessaire pour un verdict n=12 défendable sur les deux dimensions à la fois 
   d'épisodes ou un réglage plus fin du même modèle affine.
 
 Cf. `.superpowers/sdd/2026-07-28-language-memory-demand-edge/task-1-report.md`,
-`.superpowers/sdd/2026-07-28-language-memory-demand-edge/task-2-report.md`,
-`results/lang_memory_diagnostic.json` (résumé des configs et verdicts de ce diagnostic).
+`.superpowers/sdd/2026-07-28-language-memory-demand-edge/task-2-report.md` — artefacts SDD
+**session-locaux, non trackés dans git** (`.superpowers/sdd/.gitignore`) : ces deux chemins sont morts
+pour un lecteur du dépôt seul. Les chiffres qu'ils contiennent sont préservés dans le fichier committé
+`results/lang_memory_diagnostic.json` (résumé des configs et verdicts de ce diagnostic — source de
+vérité committée).
