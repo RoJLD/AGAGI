@@ -1489,3 +1489,35 @@ def test_mp_random_memory_is_inert_no_false_demand():
     r = run_memory_perception_demand_probe(seeds=list(range(12)), episodes=0, n_agents=16, K=6, D=2,
                                            memory_mode="random")
     assert r["delayed"]["verdict"] != "X_DEMANDED", r["delayed"]
+
+
+# --- EVO-008 : un instrument ne doit laisser AUCUNE trace sur le RNG global ---------------------------
+# Classe E5 (aliasing) transposee a l'ETAT GLOBAL : `np.random.seed(...)` dans une sonde detourne
+# l'evolution qu'elle est censee OBSERVER quand on l'appelle ENTRE deux eres. Le defaut a ete revele par
+# un cas a REPONSE CONNUE (le seed 0, lecteur avere 4 fois, rendait une courbe de saillance PLATE) — sans
+# ce temoin, l'artefact se lisait comme un resultat : « le lecteur apparait de nulle part ».
+
+
+def test_decision_saliency_leaves_the_global_rng_untouched():
+    """⚠️ CONTRE-EXEMPLE GELE. Mesurer ne doit pas MUTER le systeme mesure. Si quelqu'un retire la
+    restauration d'etat, toute sonde intercalee dans une boucle d'evolution la detournera silencieusement."""
+    from tools.evo_cognitive_objective import measure_decision_saliency, SIG_COLS, THROW_IDX
+    np.random.seed(1234)
+    before = np.random.rand(4)
+    np.random.seed(1234)
+    measure_decision_saliency(synthetic_reader(59, 108, 172, w=2.0, reflex=True, wire=2),
+                              seed=77, channel=SIG_COLS[1], out_idx=THROW_IDX, num_agents=4, ticks=10)
+    after = np.random.rand(4)
+    assert np.allclose(before, after), (
+        f"la sonde a DETOURNE le RNG global : {before} -> {after}. Une mesure intercalee dans une "
+        f"evolution la rendrait non reproductible, et sa courbe ININTERPRETABLE")
+
+
+def test_decision_saliency_value_is_unchanged_by_the_restoration():
+    """La restauration ne doit pas alterer ce que l'instrument MESURE : meme graine -> meme valeur."""
+    from tools.evo_cognitive_objective import measure_decision_saliency, SIG_COLS, THROW_IDX
+    g = synthetic_reader(59, 108, 172, w=2.0, reflex=True, wire=2)
+    a = measure_decision_saliency(g, seed=5, channel=SIG_COLS[1], out_idx=THROW_IDX, num_agents=4, ticks=10)
+    np.random.seed(999)                     # etat d'appelant DIFFERENT
+    b = measure_decision_saliency(g, seed=5, channel=SIG_COLS[1], out_idx=THROW_IDX, num_agents=4, ticks=10)
+    assert a == b, f"l'instrument doit dependre de SA graine, pas de l'etat de l'appelant : {a} vs {b}"

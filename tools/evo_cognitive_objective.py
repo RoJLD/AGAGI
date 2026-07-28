@@ -396,6 +396,13 @@ def measure_decision_saliency(genome, seed, channel, out_idx, num_agents=24, tic
     In-contexte (obs réelles), forward NON destructif sur le H courant. Renvoie le taux de bascule.
     Vérité-terrain : un génome câblant `channel -> out_idx` rend ~1.0 ; un non-câblé ~0.0."""
     from src.seed_ai.rl_evolution import recurrent_forward
+    # ⚠️ `np.random.seed` REECRIT le RNG GLOBAL. Appelee APRES un run c'est inoffensif ; appelee PENDANT
+    # (p.ex. pour tracer une lignee ere par ere) elle detourne l'evolution qu'elle est censee OBSERVER —
+    # l'acte de mesurer mute le systeme mesure, meme forme que l'aliasing memoire de la classe E5.
+    # Detecte le 2026-07-28 par un cas a REPONSE CONNUE : le seed 0, lecteur avere (4 reproductions),
+    # rendait une courbe de saillance PLATE. Sans ce temoin, l'artefact se lisait comme un resultat.
+    # L'etat est donc restaure a la sortie : la valeur rendue est inchangee, le flux de l'appelant intact.
+    _rng_state = np.random.get_state()
     np.random.seed(seed)
     env = _make_env(_cfg(), inject=True, benchmark=True, K=K, tasks=tasks)
     for _ in range(num_agents):
@@ -418,6 +425,7 @@ def measure_decision_saliency(genome, seed, channel, out_idx, num_agents=24, tic
             if out_idx < pp.shape[1]:
                 flips.append(float((float(pp[0, out_idx]) > 0.0) != (float(pm[0, out_idx]) > 0.0)))
         env.step()
+    np.random.set_state(_rng_state)      # l'instrument ne laisse AUCUNE trace sur le RNG de l'appelant
     return float(np.mean(flips)) if flips else 0.0
 
 

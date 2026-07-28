@@ -1,0 +1,21 @@
+{
+  "name": "EVO-008",
+  "rule": {
+    "controle": "Les seeds 1 et 2 doivent rester a saillance ~0 sur les 35 eres. S ils montrent des pics, la sonde par-ere est bruitee et la lecture de la courbe du seed 0 est invalide.",
+    "design": "Rejouer l evolution des seeds 0 (lecteur), 1 et 2 (non-lecteurs) en sondant le MEILLEUR genome a CHAQUE ere : saillance de decision sur obs[SIG_COLS[1]] -> sign(logits[8]) (sous-tache throw, celle qui est apprise). 35 eres, meme graine, meme monde. Instrument deja calibre.",
+    "discrimination": {
+      "INSTABLE : la saillance apparait, disparait, revient": "le circuit n est pas RETENU par la selection -> il est incident et non selectionne ; le 'lecteur' final serait un tirage de fin de course, pas un acquis.",
+      "MONTEE : la saillance croit sur >=3 eres consecutives": "un GRADIENT existait dans cette lignee -> la question devient ce que la population du seed 0 avait et que les autres n avaient pas. C est la seule issue qui rouvre une piste mecaniste.",
+      "SAUT : la saillance passe de <0.1 a >0.9 en UNE ere": "evenement mutationnel UNIQUE -> il n y a pas de mecanisme a chercher, seulement un TAUX. La suite serait d estimer ce taux par ere, pas d expliquer une trajectoire."
+    },
+    "dv": "saillance de decision par ere, du champion courant (0.000 = pas de lecture, 1.000 = lecteur)",
+    "garde_cout": "budget_s=150 par seed (garde E13), abandons comptes et rapportes",
+    "instruments_autorises": [
+      "measure_decision_saliency(channel=SIG_COLS[1], out_idx=THROW_IDX) -- calibre",
+      "benchmark_cognitive -- calibre"
+    ],
+    "question": "EVO-007 laisse UN fait sans explication : le seed 0 (jeu MIXTE, W=5000) construit un lecteur authentique et reproductible (bascule 1.000, 4 reproductions), quand 11 autres seeds n en construisent aucun (Fisher p=1.000 contre le controle). QUAND et COMMENT ce circuit apparait-il dans la lignee ?",
+    "record": "EDR-EVO-008"
+  },
+  "seal": "ccd65d0952c95a19e24a97732dfd8daa704a84a7afad189d5dec02434a1121a2"
+}
