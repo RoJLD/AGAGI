@@ -108,7 +108,8 @@ def _control_move(agent, c, K, I, n_agents):
     return np.asarray(logits)[:, :K].argmax(axis=1)
 
 
-def _train_and_eval(seed, episodes, n_agents, K, D, lr, memory_mode, control_mode, eval_batches=40):
+def _train_and_eval(seed, episodes, n_agents, K, D, lr, memory_mode, control_mode, eval_batches=40,
+                     train_control=True, weight_decay=0.0):
     """Entraîne l'agent (learned) sur LANG+CONTROL interleavés (même tête d'action, même W), puis
     évalue LANG et CONTROL intact vs H-reset. Renvoie (lang_i, lang_a, ctrl_i, ctrl_a) = accuracies.
 
@@ -116,7 +117,13 @@ def _train_and_eval(seed, episodes, n_agents, K, D, lr, memory_mode, control_mod
     pondérée par l'avantage centré (guess correct -> avantage>0 -> renforce ce guess). Les ticks
     intermédiaires (encode/délai) portent une action neutre `{"move": 0}` mais reçoivent le MÊME
     retour épisodique (`gate_last_only=True` ne pilote que le gate, désactivé ici ; le crédit
-    d'action, lui, s'applique à CHAQUE pas via `total_logp`, cf. `learn_episode`)."""
+    d'action, lui, s'applique à CHAQUE pas via `total_logp`, cf. `learn_episode`).
+
+    `train_control=False` (Tâche 2, levier 1 : isoler l'interférence de tête partagée) SAUTE le
+    bloc d'entraînement CONTROL -> seul LANG entraîne W. Défaut True = comportement Tâche 1 inchangé
+    (calibration non affectée : oracle/random/leaky utilisent episodes=0, ce bloc n'exécute jamais).
+    `weight_decay` (Tâche 2, levier 2 : grokking) est threadé dans le constructeur Adam ; défaut 0.0
+    = comportement Tâche 1 inchangé (Adam sans decay)."""
     import torch
     from src.agents.mamba_agent import MambaAgent
     from src.agents.backend import make_population
@@ -133,7 +140,7 @@ def _train_and_eval(seed, episodes, n_agents, K, D, lr, memory_mode, control_mod
         rng = np.random.RandomState(seed + 1)
         learned = memory_mode == "learned"
         if learned:
-            agent.opt = torch.optim.Adam([agent.W], lr=lr)
+            agent.opt = torch.optim.Adam([agent.W], lr=lr, weight_decay=weight_decay)
             for _ in range(episodes):
                 # --- trial LANG : encode(key) + délai + usage(query) -> (q+key)%K ---
                 key = rng.randint(0, K, size=n_agents)
@@ -150,6 +157,9 @@ def _train_and_eval(seed, episodes, n_agents, K, D, lr, memory_mode, control_mod
                 acts = [[{"move": 0} for _ in range(n_agents)] for _ in range(len(seq) - 1)]
                 acts.append([{"move": int(g)} for g in guess])  # crédit du GUESS échantillonné
                 agent.learn_episode(seq, acts, adv, gate_last_only=True)
+
+                if not train_control:
+                    continue  # levier Tâche 2 #1 : isoler l'interférence de tête partagée -> W ne voit que LANG
 
                 # --- trial CONTROL : encode(nuisance) + délai + usage(control) -> c (feedforward) ---
                 # ⚠️ CORRIGÉ : entraîner CONTROL sur H=0 pur (reset direct avant le tick unique) désaligne
@@ -213,14 +223,19 @@ def _train_and_eval(seed, episodes, n_agents, K, D, lr, memory_mode, control_mod
 
 
 def run_language_memory_demand_probe(seeds, episodes=1200, n_agents=16, K=6, D=2, lr=0.02,
-                                     memory_mode="learned", control_mode="feedforward"):
+                                     memory_mode="learned", control_mode="feedforward",
+                                     train_control=True, weight_decay=0.0):
     """Mesure « language demands memory ». Par seed : LANG et CONTROL, chacun éval intact/ablé (H-reset).
     LANG -> ablation_verdict (X_DEMANDED) ; CONTROL -> garde functional_aliasing (leakage≈0 -> pass,
     1er usage réel du jalon CALIB-ALIAS sur une ablation SUBSTRAT — les 2 arêtes précédentes du graphe
-    AGI-Taxonomy ablataient l'ENTRÉE, `functional_aliasing='n/a'`)."""
+    AGI-Taxonomy ablataient l'ENTRÉE, `functional_aliasing='n/a'`).
+
+    `train_control` / `weight_decay` : knobs diagnostiques Tâche 2 (défauts = comportement Tâche 1
+    inchangé), cf. docstring de `_train_and_eval`."""
     li, la, ci, ca = [], [], [], []
     for s in seeds:
-        l_i, l_a, c_i, c_a = _train_and_eval(s, episodes, n_agents, K, D, lr, memory_mode, control_mode)
+        l_i, l_a, c_i, c_a = _train_and_eval(s, episodes, n_agents, K, D, lr, memory_mode, control_mode,
+                                             train_control=train_control, weight_decay=weight_decay)
         li.append(l_i); la.append(l_a); ci.append(c_i); ca.append(c_a)
 
     floor = 1.0 / K
