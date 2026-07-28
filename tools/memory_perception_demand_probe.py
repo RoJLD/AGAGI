@@ -11,7 +11,7 @@ LEURRE aléatoire DÉCOUPLÉ de la réponse (indépendant de `cues`) — seule l
 (bruitée). Avant ce correctif, l'encodage PRESENT portait la RÉPONSE elle-même : pendant l'entraînement,
 avec l'encodage toujours intact, le gradient apprenait à s'appuyer sur ce raccourci parfait (preuve :
 `present_intact` mesuré = 0.761, AU-DESSUS du plafond atteignable par la seule observation de test bruitée
-`(1-flip_p)+flip_p/K` = 0.75 à flip_p=0.2 ; à flip_p=0.2/D=0 c'était 1.000 vs plafond 0.833) — ce qui
+`(1-flip_p)+flip_p/K` = 0.75 à flip_p=0.3 ; à flip_p=0.2/D=0 c'était 1.000 vs plafond 0.833) — ce qui
 faisait ÉCHOUER `specificity_control` (PRESENT collapsait aussi sous ablation) sans que ce soit une fuite
 structurelle du substrat : c'était un artefact de DESIGN du contrôle, pas du mécanisme mesuré. Avec le
 leurre découplé, l'encodage PRESENT est non-informatif pour la réponse -> le gradient n'a plus aucune
