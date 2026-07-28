@@ -136,6 +136,12 @@ CALIBRATED = {
     # `argmax(logits[:8])` et est donc AVEUGLE aux sous-tâches hors-argmax — contre-exemple gelé : sur un
     # lecteur `throw` PARFAIT (bascule 1.000), la saillance d'argmax rend 0.000.
     "measure_decision_saliency": ["reader:positive", "channel:specificity", "nonreader:floor"],
+    # « language demands memory » (delayed-code-application). Contrôle positif DEMANDE = memory ORACLE
+    # (rétention parfaite -> ablater collapse LANG) ; négatif = ALÉATOIRE (inerte) ; le garde
+    # functional_aliasing est prouvé SENSIBLE par control LEAKY (contrôle forcé de dépendre du key ->
+    # FUITE détectée). Générateur A dans les DEUX dimensions (demande + aliasing) — 1ère ablation
+    # SUBSTRAT du graphe AGI-Taxonomy (les 2 arêtes précédentes ablataient l'ENTRÉE, 'n/a').
+    "run_language_memory_demand_probe": ["*"],
 }
 
 _GENOMES = os.path.join("results", "warm007_genomes")
@@ -1521,3 +1527,39 @@ def test_decision_saliency_value_is_unchanged_by_the_restoration():
     np.random.seed(999)                     # etat d'appelant DIFFERENT
     b = measure_decision_saliency(g, seed=5, channel=SIG_COLS[1], out_idx=THROW_IDX, num_agents=4, ticks=10)
     assert a == b, f"l'instrument doit dependre de SA graine, pas de l'etat de l'appelant : {a} vs {b}"
+
+
+# ------------------------------------------- run_language_memory_demand_probe (LANG-MEMORY) ------------
+# « language demands memory » (delayed-code-application, torch). Tâche 1, 3e arête du graphe
+# AGI-Taxonomy — 1re ablation SUBSTRAT (reset de H PORTÉ, pas une ablation d'ENTRÉE) : `functional_aliasing`
+# doit être MESURÉ ('pass'/'fail'), jamais 'n/a'. oracle/random BYPASSENT LANG (guess lu directement sur
+# (q+key)%K, ou tiré au hasard) ; leaky BYPASSE CONTROL (forcé de dépendre du key retenu) -> aucun
+# entraînement -> episodes=0 valide et rapide, symétrique à SP-2/MEM-PERCEPTION.
+
+def test_lm_oracle_memory_makes_language_demanded():
+    """CONTRÔLE POSITIF (demande) : mémoire ORACLE (rétention parfaite du key) -> ablater l'état
+    (H-reset) effondre LANG -> X_DEMANDED. Le banc SAIT produire l'effondrement."""
+    from tools.language_memory_demand_probe import run_language_memory_demand_probe
+    r = run_language_memory_demand_probe(seeds=list(range(12)), episodes=0, n_agents=16, K=6, D=2,
+                                         memory_mode="oracle")
+    assert r["lang_demand"]["verdict"] == "X_DEMANDED", r["lang_demand"]
+
+
+def test_lm_random_memory_is_inert():
+    """CONTRÔLE NÉGATIF (demande) : mémoire ALÉATOIRE (guess décorrélé) -> ablation inerte -> PAS
+    X_DEMANDED. Le banc ne fabrique pas un effondrement inexistant."""
+    from tools.language_memory_demand_probe import run_language_memory_demand_probe
+    r = run_language_memory_demand_probe(seeds=list(range(12)), episodes=0, n_agents=16, K=6, D=2,
+                                         memory_mode="random")
+    assert r["lang_demand"]["verdict"] != "X_DEMANDED", r["lang_demand"]
+
+
+def test_lm_leaky_control_fires_the_aliasing_guard():
+    """VÉRITÉ-TERRAIN DU GARDE : un control LEAKY (forcé de dépendre du key retenu, pas de `c`) ->
+    ablater l'état fait FUIR le contrôle -> `functional_aliasing='fail'` (FUNCTIONAL_LEAK). Prouve que
+    le garde SAIT détecter une fuite (sinon un 'pass' serait vacux). oracle+leaky : LANG effondre
+    (X_DEMANDED) ET le garde tire — les deux dimensions (demande + aliasing) sont sensibles."""
+    from tools.language_memory_demand_probe import run_language_memory_demand_probe
+    r = run_language_memory_demand_probe(seeds=list(range(12)), episodes=0, n_agents=16, K=6, D=2,
+                                         memory_mode="oracle", control_mode="leaky")
+    assert r["functional_aliasing"] == "fail" and r["alias_verdict"] == "FUNCTIONAL_LEAK", r
