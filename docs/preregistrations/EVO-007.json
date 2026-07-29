@@ -1,0 +1,37 @@
+{
+  "name": "EVO-007",
+  "rule": {
+    "arms": {
+      "control": "W=0,    tasks=MATCHED (throw,aim_x,aim_y) -- signal present, non note",
+      "easy1": "W=5000, tasks=EASY1   (throw)             -- FACILE mais SANS credit partiel",
+      "matched": "W=5000, tasks=MATCHED (throw,aim_x,aim_y) -- FACILE ET AVEC credit partiel"
+    },
+    "design": "3 bras x 12 seeds x 35 eres. Difficulte APPARIEE : toutes les sous-taches sont des seuils de SIGNE.",
+    "discrimination": {
+      "si easy1 ECHOUE et matched FRANCHIT": "le credit PARTIEL est le levier, difficulte CONTROLEE -> EVO-006 confirme et renforce",
+      "si easy1 FRANCHIT": "le gain d EVO-006 venait de la DIFFICULTE, pas du credit partiel -> EVO-006 doit etre REVISE",
+      "si les deux echouent": "ni l un ni l autre ne suffit a n=12 ; EVO-006 (1 seed/5) etait un coup de chance -> a retracter",
+      "si les deux franchissent": "une sous-tache FACILE suffit ; le credit partiel n est pas necessaire (mais peut aider en frequence)"
+    },
+    "dv_primaire": "raw = succes/essais du champion, plafond ANALYTIQUE 0.5 (toute politique fixe)",
+    "garde_puissance": "n=12 respecte le seuil du depot pour un verdict de FREQUENCE (power-evaporation-guardrail)",
+    "instruments_autorises": [
+      "benchmark_cognitive (raw, sub) -- calibre",
+      "measure_decision_saliency(channel=SIG_COLS[i], out_idx=SUB_OUT[tache]) -- calibre, sur la sous-tache APPRISE"
+    ],
+    "note_instrument": "ERREUR D EVO-006 A NE PAS REPETER : la sonde mecaniste est nommee ICI, avant le run, avec la regle qui dit quelle sortie prober selon la sous-tache qui bouge. Elle n est donc plus post-hoc.",
+    "prevol_mesure": {
+      "easy1_lecteur": 1.0,
+      "easy1_non_lecteur": 0.498,
+      "matched_1sur3": 0.663,
+      "matched_3sur3": 1.0,
+      "matched_non_lecteur": 0.514
+    },
+    "question": "Le gain d EVO-006 vient-il du CREDIT PARTIEL ou de sous-taches plus FACILES ?",
+    "record": "EDR-EVO-007",
+    "regle_existence": "un bras a PRODUIT de la lecture ssi au moins 1 seed a raw > 0.5",
+    "regle_frequence": "a n=12, le taux de seeds franchissant EST le verdict de systematicite ; test de signe bilateral possible (n=12 -> p<0.05 atteignable)",
+    "seuil": 0.5
+  },
+  "seal": "dd57a29d9a35a53472a9d31bd256acb209eb1cfd29e9148464936399aea1c99a"
+}

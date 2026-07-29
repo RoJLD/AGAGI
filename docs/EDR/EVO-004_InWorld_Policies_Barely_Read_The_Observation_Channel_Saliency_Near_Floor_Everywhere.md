@@ -44,6 +44,45 @@ dépend de ce canal. Carte des canaux (`world_1_stoneage.py:611-624`) : SURVIE =
 - **Ni survie ni cognitif** : `survie ≈ cognitif` sur tous les seeds (seed1 lit même un peu plus le cognitif).
   L'hypothèse « lit la survie, ignore le cognitif » est RÉFUTÉE — ils ne lisent presque RIEN, des deux.
 
+## Contrôle positif au niveau de l'OBJECTIF (le maillon manquant, ajouté 2026-07-23)
+Le contrôle ci-dessus est un contrôle d'INSTRUMENT (un génome câblé à la main), pas un contrôle SCIENTIFIQUE :
+il laissait ouverte l'échappatoire « l'opérateur d'évolution de ce dépôt est peut-être incapable de produire
+un lecteur, quel que soit l'objectif » — auquel cas le verrou serait la RECHERCHE, pas l'objectif. Fermé sur le
+banc proxy d'[[EDR-EVO-002]] (`measure_cue_saliency`) : MÊME substrat, MÊME opérateur (`apply_mutations`),
+MÊME banc — seul l'OBJECTIF change.
+
+| source (objectif d'évolution) | acc rappel différé | `sign_flip` (lit-il l'indice ?) |
+|---|---|---|
+| **DEMAND** (l'objectif EXIGE la mémoire), 3/3 seeds | 1.00 | **1.00** |
+| MEMORYLESS (leurre à l'encode -> mémoire inutile), médiane | ~0.5 | **0.00** |
+| FRESH (non évolué), médiane | ~0.5 | 0.48 (bruit, pas de suivi systématique) |
+
+**L'évolution produit un lecteur PARFAIT quand l'objectif l'exige, et AUCUN quand il ne l'exige pas.** Le
+verrou est donc bien l'objectif et non la recherche. Validation interne fortuite : le seed MEMORYLESS qui
+présentait la « fuite incidente » d'EVO-002 (acc xeval 1.00) rend `sign_flip = 1.00` — l'instrument est
+d'accord avec l'accuracy jusque sur le cas atypique, il ne la fabrique pas.
+
+## Robustesse : le verdict survit au changement de GRANDEUR mesurée (classe E17)
+⚠️ En construisant le contrôle ci-dessus, l'instrument s'est fait prendre à son propre piège : la saillance en
+AMPLITUDE ne séparait rien (DEMAND à `acc 1.00` mesuré 0.13, soit SOUS un génome frais à 0.10). Cause : le
+substrat est CONTRACTIF et la décision se lit par `np.sign(preds)` — **le signe porte l'information, pas
+l'amplitude**. C'est la 2ᵉ occurrence de cette erreur dans l'arc (après la réfutation de `sep(D)`), désormais
+**classe E17 du registre**, née `exécutable` (contre-exemple gelé : un génome qui RÉSOUT la tâche, `acc 1.000`,
+a une saillance en amplitude de **2e-6**, indiscernable d'un non-lecteur à 0.0).
+
+Ce record utilisant lui aussi une saillance en amplitude, il a été **immédiatement re-mesuré sur la grandeur
+qui AGIT in-world** — le taux de bascule de l'action, `action = argmax(logits[:8])`
+(`world_1_stoneage.py:1291`), via `measure_channel_saliency(decision=True)` :
+
+| sujet | bascule d'`argmax` (max sur canaux) |
+|---|---|
+| lecteur synthétique (canal 4 câblé) | **1.00** |
+| champions in-world (3 seeds) | **0.003 · 0.060 · 0.003** |
+
+**Le verdict TIENT** : perturber n'importe quel canal ne change l'action choisie que dans ≤ 6 % des
+(agent × tick), contre 100 % pour un lecteur avéré sur son canal. Un verdict qui survit à un changement de la
+grandeur mesurée — obtenu en cherchant à le casser — est bien plus solide qu'un verdict jamais réinterrogé.
+
 ## Verdict
 **La politique évoluée in-world dépend à peine de l'observation courante** : sa sensibilité instantanée
 action/obs est au plancher sur TOUS les canaux (~200× sous un lecteur avéré). Les champions survivent par une
@@ -65,9 +104,27 @@ de survie, même durci, ne fait pas apparaître la LECTURE du monde.
 * Saillance = sensibilité INSTANTANÉE (un pas) obs→action. N'exclut pas une intégration LENTE de l'obs dans le
   H récurrent sur plusieurs ticks ; mais pour la cognition réactive (traiter l'entrée courante), la sensibilité
   instantanée au plancher est décisive, et cohérente avec la near-stationarité d'EVO-003 (moved_frac≈0.06).
-* Mesuré sur des champions `evolve_inworld` (64-dim natifs) ; le HoF principal canonique (59-dim, main) est
-  INCOMPATIBLE avec le monde 64-dim de cette branche (dette de divergence d1↔main) — non probé ici.
+* ✅ **DETTE LEVÉE et hedge CLOS (2026-07-28)** — le HoF canonique EST probable, et il A été probé.
+  Le blocage n'était ni une incompatibilité de fond ni une archive périmée : ce sont **deux contrats
+  coexistants** dans le code vivant. `WorldConfig.agent` = 59 entrées (le monde en construit 64 puis
+  TRONQUE les 5 colonnes `manager_goal`) / 108 sorties = 29 actions + 20 NTM + 59 masque ;
+  `MambaAgent` (`mamba_agent.py:153`, contrat V18) = 64 / **126** = 29 actions + **8 ToM** + **5 Goal**
+  + 20 NTM + 64 masque. L'écart de sortie (+18) est donc exactement **deux têtes entières**, ToM et Goal.
+  Débloquer tient en deux lignes : `cfg.agent.num_inputs = 64 ; num_outputs = 126` -> le monde sert 64
+  colonnes et les champions HoF (`preserve_dims=True`, le défaut) se chargent et tournent.
+* **Résultat de ce probe, et il CONFIRME ce record sur la population qu'il avait dû laisser de côté** :
+  les 4 meilleurs champions canoniques (scores 1953 à 3004, `spears_crafted=10`) rendent une bascule
+  d'`argmax` **médiane de 0.0000** en SURVIE comme en COGNITIF. ⚠️ Un canal semblait faire exception
+  (obs[16], `in_hear`, à 0.18-0.44 sur les 4) — **réfuté par son propre contrôle** : des génomes FRAIS,
+  jamais évolués, y rendent 0.12 / 0.24 / **0.76**, soit autant ou plus. C'est une propriété du substrat
+  aléatoire sous ce contrat, pas une lecture acquise. L'observation n'a jamais atteint un verdict.
 * Saillance ~0.004 ≠ zéro strict (le non-lecteur synthétique rend 0.000 EXACT) : les champions lisent un
-  RÉSIDU, ~200× sous un vrai lecteur. « À peine », pas « rien du tout ».
+  RÉSIDU, ~200× sous un vrai lecteur. « À peine », pas « rien du tout ». ⚠️ Depuis E17, **l'amplitude n'est
+  plus la grandeur de référence** : lire le verdict sur la bascule d'`argmax` (≤ 6 % vs 100 %), pas sur le
+  0.004. Les deux concordent ici, mais seule la seconde est la grandeur qui agit.
+* Le contrôle positif au niveau de l'objectif est mesuré sur le banc PROXY (I=8), pas in-world : il établit
+  que l'OPÉRATEUR sait produire un lecteur, pas qu'il le saurait à 64 canaux. Les deux mondes diffèrent aussi
+  en dimension d'entrée — l'argument porte sur la présence/absence de lecture, pas sur une comparaison
+  d'amplitudes entre bancs.
 
 Converge [[EDR-EVO-001]], [[EDR-EVO-002]], [[EDR-EVO-003]], [[EDR-S2-012]], REF-EXPERIMENT-PREFLIGHT.

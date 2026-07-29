@@ -86,6 +86,12 @@ CALIBRATED = {
     # monotonie (dur > mou > non-arête), + contraste : une ablation par l'ANCÊTRE faux-positive.
     "run_prerequisite_recovery_probe": ["*"],
     "prerequisite_recovery_verdict": ["*"],
+    # SP-2 : « coordination demande perception » sur le jeu de Lewis. Contrôle positif = sender ORACLE
+    # (signal = perception -> ablater effondre) ; contrôle négatif = sender ALÉATOIRE (inerte). Générateur A.
+    "run_perception_coordination_demand_probe": ["*"],
+    # « memory demands perception » (delayed-match torch). Contrôle positif = memory ORACLE (rétention
+    # parfaite -> déranger l'encodage effondre) ; contrôle négatif = memory ALÉATOIRE (inerte). Générateur A.
+    "run_memory_perception_demand_probe": ["*"],
     # EVO-003 : instrument LOAD-BEARING du verdict in-world (l'évolution n'encode PAS la cognition d'apex :
     # la politique ignore le canal type obs[4]). Calibré PAR CONSTRUCTION : un génome qui CÂBLE obs[4] vers
     # les move-outputs -> Δ grand (sonde sensible) ; un génome dont le FANOUT de obs[4] est nul -> Δ EXACT 0
@@ -102,6 +108,40 @@ CALIBRATED = {
     # non-lecteur (fanout de k = 0) -> saillance nulle sur k. C'est le contrôle positif qui rend le « ~200×
     # sous un lecteur » des champions INTERPRÉTABLE (ils ne lisent presque rien) et non un artefact.
     "measure_channel_saliency": ["*"],
+    # EVO-004 / classe E17 : saillance de l'indice sur le banc proxy. Calibré sur un génome qui RÉSOUT la
+    # tâche (acc 1.000, câblé à la main) — et qui sert de CONTRE-EXEMPLE gelé : sa saillance en AMPLITUDE
+    # vaut 2e-6, indiscernable de celle d'un NON-lecteur (0.0), tandis que `sign_flip` sépare 1.00 vs 0.00.
+    # C'est la garde exécutable de la classe E17 du registre (amplitude mesurée là où la décision lit le signe).
+    "measure_cue_saliency": ["*"],
+    # EVO-005 : objectif cognitif in-world. `measure_cognitive_rate` est l'ESTIMATEUR qui décide quels agents
+    # la sélection retient -> calibré sur vérité-terrain ANALYTIQUE (la chance à faible compte est écrasée,
+    # monotonie, un tick réussi de plus aide toujours) + un CONTRE-EXEMPLE gelé : la variante « lissage vers
+    # la chance » — la lecture évidente de la leçon d'EDR-056 — crée une incitation à MOURIR TÔT et aurait
+    # fabriqué un faux négatif. `benchmark_cognitive` a ses deux bornes (lecteur câblé > plafond d'une
+    # politique fixe ; MÊME génome privé de l'information -> effondrement ; non-lecteur -> plancher).
+    # (`synthetic_reader` n'est PAS déclaré : c'est un TÉMOIN câblé, pas une fonction qui produit une
+    # affirmation — mais la dérive d'état qu'il révèle est gelée par un test.)
+    "measure_cognitive_rate": ["*"],
+    "benchmark_cognitive": ["reader:positive", "blind:specificity", "nonreader:floor"],
+    # EVO-003, rendu VISIBLE au cliquet le 2026-07-27 (motif `benchmark_\w+`, classe E4). Couverture
+    # PARTIELLE assumée : seule la branche du DÉFAUT est calibrée — `disc` SATURE à 1.00 sur 1-2 rencontres
+    # et zéro contact Leurre, donc rend son maximum sur une preuve qui ne peut pas le soutenir (E18 hors
+    # d'une fitness + plafond E3). C'est ce qui rend le « contrôle positif partiel » d'EVO-003
+    # ininterprétable. La branche « disc mesure vraiment un choix » reste NON calibrée.
+    "benchmark_discrimination": ["saturation:degenerate"],
+    # EVO-006 : crédit PARTIEL (K sous-tâches). `benchmark_cognitive` gagne la branche `partial:ladder`
+    # (monotonie 0/3 < 1/3 < 3/3 ET isolation : câbler la sous-tâche k ne fait monter QUE k).
+    # `measure_decision_saliency` est NÉ avec ce record : il lit la bascule de `sign(logits[out])`,
+    # l'opérateur EXACT du monde (`do_throw = logits[8] > 0`), là où `measure_channel_saliency` lit
+    # `argmax(logits[:8])` et est donc AVEUGLE aux sous-tâches hors-argmax — contre-exemple gelé : sur un
+    # lecteur `throw` PARFAIT (bascule 1.000), la saillance d'argmax rend 0.000.
+    "measure_decision_saliency": ["reader:positive", "channel:specificity", "nonreader:floor"],
+    # « language demands memory » (delayed-code-application). Contrôle positif DEMANDE = memory ORACLE
+    # (rétention parfaite -> ablater collapse LANG) ; négatif = ALÉATOIRE (inerte) ; le garde
+    # functional_aliasing est prouvé SENSIBLE par control LEAKY (contrôle forcé de dépendre du key ->
+    # FUITE détectée). Générateur A dans les DEUX dimensions (demande + aliasing) — 1ère ablation
+    # SUBSTRAT du graphe AGI-Taxonomy (les 2 arêtes précédentes ablataient l'ENTRÉE, 'n/a').
+    "run_language_memory_demand_probe": ["*"],
 }
 
 _GENOMES = os.path.join("results", "warm007_genomes")
@@ -1043,6 +1083,35 @@ def test_type_sensitivity_reader_dominates_nonreader():
     assert rr["delta_abs_mean"] > 10.0 * max(rn["delta_abs_mean"], 1e-6)
 
 
+# --- SP-2 : run_perception_coordination_demand_probe --------------------------------------------------
+# Jeu référentiel de Lewis (pur torch CPU) : ablation d'ENTRÉE within-subject sur la perception du sender
+# (derange_rows, in-distribution). `episodes=200` (PAS 0) pour les DEUX cas ci-dessous : à episodes=0 le
+# RECEIVER n'est jamais entraîné (la boucle `for _ in range(episodes)` ne tourne pas), donc même un signal
+# ORACLE PARFAIT reste indécodé -> l'accuracy intacte stagne à la chance -> ablater ne peut rien effondrer
+# (mesuré : ratio 1.09, X_DECOY, PAS X_DEMANDED). Le sender reste bypassé (oracle/aléatoire n'apprend
+# jamais) -> le banc reste rapide (~50s/cas) même en entraînant le receiver.
+
+
+def test_sp2_oracle_sender_makes_perception_demanded():
+    """CONTRÔLE POSITIF (générateur A) : avec un sender ORACLE (signal = index perçu), la coordination est
+    parfaite et DÉRANGER la perception l'effondre -> COORD X_DEMANDED. Le banc SAIT produire l'effondrement.
+    Sender bypassé (oracle) -> seul le receiver entraîne, ~50s pour 12 seeds."""
+    from tools.perception_coordination_demand_probe import run_perception_coordination_demand_probe
+    r = run_perception_coordination_demand_probe(seeds=list(range(12)), episodes=200, n_agents=16, K=6,
+                                                 sender_mode="oracle")
+    assert r["coord"]["verdict"] == "X_DEMANDED", r["coord"]
+    assert r["coord"]["ratio"] > 1.5
+
+
+def test_sp2_random_sender_is_inert_no_false_demand():
+    """CONTRÔLE NÉGATIF : avec un sender ALÉATOIRE (signal décorrélé), pas de coordination -> DÉRANGER la
+    perception est inerte -> COORD PAS X_DEMANDED. Le banc ne FABRIQUE pas un effondrement inexistant."""
+    from tools.perception_coordination_demand_probe import run_perception_coordination_demand_probe
+    r = run_perception_coordination_demand_probe(seeds=list(range(12)), episodes=200, n_agents=16, K=6,
+                                                 sender_mode="random")
+    assert r["coord"]["verdict"] != "X_DEMANDED", r["coord"]
+
+
 # --- CALIB-ALIAS : run_functional_aliasing_probe / functional_aliasing_verdict ----------------------
 # Étalon = un génome câblé à la main dans le VRAI recurrent_forward. Réponse connue PAR CONSTRUCTION :
 # α=0 disjoint (ablater X = no-op exact sur out_Y), α>0 partagé (fuite), monotone en α. Déterministe.
@@ -1113,3 +1182,384 @@ def test_channel_saliency_zero_on_a_nonread_channel():
     ce qui rend le « ~200× sous un lecteur » des champions INTERPRÉTABLE (ils ne lisent presque rien)."""
     sal = measure_channel_saliency(_nonreader_genome(), seed=1, channels=[4], num_agents=12, ticks=40)
     assert sal[4] < 0.02, f"saillance non nulle alors que le canal 4 n'a pas de fanout : {sal[4]:.4f}"
+
+
+def test_channel_saliency_decision_branch_detects_the_reader():
+    """Branche `decision=True` (FONCTIONNELLE, classe E17) : le taux de bascule d'`argmax` — la grandeur qui
+    AGIT in-world (`action = argmax(logits[:8])`, world_1_stoneage.py:1291). Le lecteur du canal 4 doit
+    changer d'action quasi systématiquement quand on inverse ce canal ; le non-lecteur, jamais."""
+    rd = measure_channel_saliency(_reader_genome(), seed=1, channels=[4], num_agents=12, ticks=40, decision=True)
+    rn = measure_channel_saliency(_nonreader_genome(), seed=1, channels=[4], num_agents=12, ticks=40, decision=True)
+    assert rd[4] > 0.5, f"le lecteur ne change pas d'action : flip={rd[4]:.3f}"
+    assert rn[4] < 0.02, f"le non-lecteur change d'action : flip={rn[4]:.3f}"
+
+
+# --- E17 : AMPLITUDE vs SIGNE — la garde exécutable de la classe (registre des erreurs) -----------------
+# Contre-exemple GELÉ : un génome qui RÉSOUT le rappel différé (acc 1.000) a une saillance en AMPLITUDE de
+# ~2e-6, indiscernable de celle d'un NON-lecteur (0.0) ; seul `sign_flip` les sépare (1.00 vs 0.00). Deux
+# occurrences dans l'arc EVO (sep(D) puis measure_cue_saliency) -> classe promue `exécutable` d'emblée.
+from tools.evo_memory_enrichment import (  # noqa: E402
+    measure_cue_saliency, eval_genome as _eval_cue, I_DIM as _I, O_DIM as _O)
+
+_N_CUE = _I + _O + 3
+
+
+def _cue_reader(w=0.05, K=2):
+    """Réponse CONNUE : indice j -> nœud de sortie j (poids MINUSCULE), diagonale très négative (δ≈0) donc
+    la valeur est PORTÉE à travers les D pas nuls. Résout la tâche (acc 1.000) avec une amplitude ~0."""
+    W = np.zeros((_N_CUE, _N_CUE), np.float32)
+    for j in range(K):
+        W[j, _N_CUE - _O + j] = w
+        W[_N_CUE - _O + j, _N_CUE - _O + j] = -10.0
+    return Genome(W, _I, _O)
+
+
+def _cue_nonreader(seed=0):
+    """Réponse CONNUE : W dense aléatoire mais fanout de l'indice NUL -> ne peut pas le lire."""
+    rng = np.random.RandomState(seed)
+    W = (rng.randn(_N_CUE, _N_CUE) * 0.4).astype(np.float32)
+    W[0, :] = 0.0
+    return Genome(W, _I, _O)
+
+
+def test_cue_saliency_sign_flip_separates_reader_from_nonreader():
+    """CONTRÔLE POSITIF + SPÉCIFICITÉ sur la grandeur FONCTIONNELLE : le lecteur suit toujours l'indice
+    (sign_flip=1), le non-lecteur jamais (0). C'est cette mesure — pas l'amplitude — qui porte le verdict."""
+    assert measure_cue_saliency(_cue_reader(), K=2, D=3, trials=48, seed=0)["sign_flip"] > 0.95
+    assert measure_cue_saliency(_cue_nonreader(), K=2, D=3, trials=48, seed=0)["sign_flip"] < 0.05
+
+
+def test_cue_saliency_amplitude_is_blind_to_a_perfect_reader():
+    """⚠️ LE CONTRE-EXEMPLE GELÉ (classe E17). Le génome ci-dessous RÉSOUT la tâche — `acc = 1.000`, il lit
+    donc l'indice par construction — et pourtant sa saillance en AMPLITUDE est ~1e-6, du même ordre que
+    celle d'un non-lecteur (0.0). Sur un substrat CONTRACTIF dont la décision se lit par `np.sign`,
+    l'amplitude ne mesure PAS la dépendance fonctionnelle. Si quelqu'un ré-adopte l'amplitude comme mesure
+    de saillance, ce test tombe."""
+    g = _cue_reader()
+    assert _eval_cue(g, 2, 3, True, 200, seed=99) == pytest.approx(1.0), "le témoin doit RÉSOUDRE la tâche"
+    ampl_reader = measure_cue_saliency(g, K=2, D=3, trials=48, seed=0)["delayed"]
+    ampl_none = measure_cue_saliency(_cue_nonreader(), K=2, D=3, trials=48, seed=0)["delayed"]
+    assert ampl_reader < 1e-4, f"amplitude du lecteur PARFAIT attendue ≈0, mesurée {ampl_reader:.2e}"
+    assert abs(ampl_reader - ampl_none) < 1e-4, (
+        "l'amplitude doit être INDISCERNABLE entre lecteur parfait et non-lecteur — c'est la classe E17")
+
+
+# --- EVO-005 : objectif cognitif in-world — estimateur de fitness + banc ------------------------------
+# Instruments NÉS le 2026-07-27, calibrés dans la même passe (cliquet : aucun nouvel instrument non
+# calibré). Vérité-terrain ANALYTIQUE pour l'estimateur, contrôle positif CÂBLÉ pour le banc in-world.
+from tools.evo_cognitive_objective import (  # noqa: E402
+    measure_cognitive_rate, benchmark_cognitive, synthetic_reader,
+    CHANCE as _CHANCE, PSEUDO as _PSEUDO)
+
+
+def _ag(ticks, hits):
+    return {"_cog_ticks": ticks, "_cog_hits": hits}
+
+
+def _naive_rate_toward_chance(ticks, hits, pseudo=_PSEUDO):
+    """Variante NAÏVE, figée ici comme CONTRE-EXEMPLE : lissage vers la CHANCE (prior Beta(10,10)).
+    C'est la formulation « évidente » de la leçon d'EDR-056 — et elle est fausse (cf. test ci-dessous)."""
+    return (hits + 0.5 * pseudo) / (ticks + pseudo)
+
+
+def test_cognitive_rate_crushes_low_count_luck():
+    """CONTRÔLE de SPÉCIFICITÉ (leçon d'EDR-056) : un agent qui a « réussi » 3 fois sur 3 par hasard ne
+    doit PAS être crédité comme un lecteur. C'est exactement le mode d'échec qui a fait backfirer la
+    fitness alignée de 056 (distinction fortuite à compte 1, amplifiée ×400)."""
+    lucky = measure_cognitive_rate(_ag(3, 3))
+    real = measure_cognitive_rate(_ag(120, 120))
+    assert lucky < 0.2, f"la chance à faible compte est créditée : {lucky:.3f}"
+    assert real > 0.8, f"un lecteur RÉEL doit être crédité : {real:.3f}"
+    assert lucky < real
+
+
+def test_cognitive_rate_has_no_incentive_to_die_early():
+    """⚠️ CONTRE-EXEMPLE GELÉ (classe E18) — le défaut de design attrapé au pré-vol d'EVO-005.
+
+    Un lissage vers la CHANCE récompense l'ABSENCE DE PREUVE : comme les agents réels plafonnent vers
+    0.10, un agent mort à 3 ticks est tiré vers 0.435 tandis qu'un agent vivant 120 ticks et lisant mal
+    tombe à 0.157. À poids fort la sélection optimiserait alors la MORT PRÉCOCE, et le banc rendrait un
+    faux négatif (« l'objectif cognitif ne produit pas de lecture ») qui ne mesurerait que l'estimateur.
+    Le lissage vers ZÉRO n'a pas ce défaut. Si quelqu'un ré-adopte le lissage vers la chance, ce test tombe."""
+    dead_early, long_poor = _ag(3, 0), _ag(120, 12)
+    assert _naive_rate_toward_chance(3, 0) > _naive_rate_toward_chance(120, 12), (
+        "le contre-exemple doit RESTER un contre-exemple : la variante naïve favorise la mort précoce")
+    assert measure_cognitive_rate(dead_early) < measure_cognitive_rate(long_poor), (
+        "l'estimateur retenu ne doit JAMAIS préférer un agent mort tôt à un agent qui a vécu et fait mieux")
+
+
+def test_cognitive_rate_is_monotone_and_never_penalises_a_good_tick():
+    """MONOTONIE (direction) : à ticks fixés le taux croît avec les succès, et un tick RÉUSSI de plus
+    améliore TOUJOURS le score — la propriété algébrique (`t + PSEUDO > h`) qui garantit l'absence
+    d'incitation perverse quel que soit le régime de survie."""
+    assert (measure_cognitive_rate(_ag(100, 10)) < measure_cognitive_rate(_ag(100, 50))
+            < measure_cognitive_rate(_ag(100, 90)))
+    for t, h in ((0, 0), (5, 2), (50, 25), (200, 199)):
+        assert measure_cognitive_rate(_ag(t + 1, h + 1)) > measure_cognitive_rate(_ag(t, h)), (
+            f"un tick réussi de plus doit toujours aider (t={t}, h={h})")
+
+
+def test_benchmark_cognitive_positive_control_and_specificity():
+    """CONTRÔLE POSITIF (générateur A du pré-vol) + SPÉCIFICITÉ, in-world.
+
+    Le lecteur RÉFLEXE câblé doit dépasser le plafond analytique d'une politique FIXE (0.5) ; le MÊME
+    génome privé de l'INFORMATION (`inject=False` : le signal est tiré et noté mais jamais montré) doit
+    s'effondrer. Sans ces deux bornes, un nul du banc serait ininterprétable — l'instrument doit pouvoir
+    produire LES DEUX issues."""
+    g = synthetic_reader(59, 108, 172, w=2.0, reflex=True)
+    seen = benchmark_cognitive(g, seed=1, num_agents=8, ticks=100, inject=True)
+    blind = benchmark_cognitive(g, seed=1, num_agents=8, ticks=100, inject=False)
+    assert seen["raw"] > _CHANCE, (
+        f"le lecteur câblé doit dépasser le plafond d'une politique FIXE : {seen['raw']:.3f} <= {_CHANCE}")
+    assert blind["raw"] < seen["raw"] / 2.0, (
+        f"retirer l'INFORMATION doit effondrer le taux : vu={seen['raw']:.3f} aveugle={blind['raw']:.3f}")
+
+
+def test_benchmark_cognitive_nonreader_stays_at_floor():
+    """CONTRÔLE NÉGATIF : même substrat réflexe, canal du signal NON câblé (w=0) -> le banc ne doit rien
+    créditer. Distingue « lit le signal » de « bouge beaucoup »."""
+    nr = benchmark_cognitive(synthetic_reader(59, 108, 172, w=0.0, reflex=True),
+                             seed=1, num_agents=8, ticks=100, inject=True)
+    assert nr["raw"] < 0.25, f"un non-lecteur est crédité : {nr['raw']:.3f}"
+
+
+def test_synthetic_reader_needs_the_reflex_diagonal_state_drift_counterexample():
+    """⚠️ CONTRE-EXEMPLE GELÉ (classe E6) — la DÉRIVE D'ÉTAT du substrat in-world, mesurée au pré-vol.
+
+    Le MÊME câblage lecteur, à diagonale nulle (δ = sigmoid(0) = 0.5), tombe à la CHANCE in-world alors
+    qu'il est parfait sur un état frais : H accumule et, l'activation ayant f(0) ≠ 0, même les sorties
+    JAMAIS câblées dérivent (+7.45 ± 9.8 après 25 ticks), ce qui noie une marge de signal de ±2.5.
+
+    C'est le mécanisme du confond laissé OUVERT par EDR-S2-011 (« le bassin BC atteint acc 1.00 sur
+    `_step(obs, H=0)` mais ne transfère pas au forward RÉCURRENT du monde »). Conséquence de design : un
+    lecteur RÉACTIF exige une CONJONCTION de deux mutations — câbler le canal ET dé-mémoriser la sortie."""
+    drift = benchmark_cognitive(synthetic_reader(59, 108, 172, w=8.0, reflex=False),
+                                seed=1, num_agents=8, ticks=100, inject=True)
+    reflex = benchmark_cognitive(synthetic_reader(59, 108, 172, w=2.0, reflex=True),
+                                 seed=1, num_agents=8, ticks=100, inject=True)
+    assert drift["raw"] < _CHANCE + 0.1, (
+        f"le contre-exemple doit RESTER un contre-exemple : lecteur à état dérivant = {drift['raw']:.3f}")
+    assert reflex["raw"] > drift["raw"] + 0.15, (
+        f"le lecteur RÉFLEXE doit nettement dominer : réflexe={reflex['raw']:.3f} dérivant={drift['raw']:.3f}")
+
+
+# --- EVO-003 : `benchmark_discrimination` — la SATURATION à compte 1, gelée ---------------------------
+from tools import evo_memory_inworld as _emi  # noqa: E402
+
+
+def test_benchmark_discrimination_resolution_is_coarser_than_its_published_claims():
+    """⚠️ CONTRE-EXEMPLE GELÉ — `disc` est calculé sur 1-2 ÉVÉNEMENTS, donc sa RÉSOLUTION (1/n ≥ 0.2) est
+    plus grossière que les écarts qu'on lui fait dire.
+
+    `disc = big/(big+leurre)` sur une cohorte entière de 24 agents × 150 ticks ne rassemble qu'une poignée
+    de rencontres. Il ne peut alors prendre que {0, 0.5, 1.0} : le « contrôle positif partiel, disc
+    0.80-1.00 » d'[[EDR-EVO-003]] n'est pas seulement fragile, il est **littéralement non représentable**
+    à ces comptes — et un `disc = 1.00` y est produit par l'ABSENCE d'un contact Leurre, pas par un choix
+    (classe E18 hors d'une fitness : elle ne fausse pas la sélection, elle fabrique un VERDICT).
+
+    ⚠️ DEUX corrections successives par la mesure, gardées ici en mémoire :
+    (1) l'hypothèse initiale (« biais du survivant par la létalité du Leurre ») était plus faible que le
+        défaut réel ;
+    (2) la 1ʳᵉ version de CE test assertait `disc == 1.00`, généralisé depuis 3 génomes qui rendaient tous
+        1.00 — un 4ᵉ rend 0.500 (2 rencontres, 1 Leurre). C'était une **classe E9** (généralisation depuis
+        un échantillon saillant) dans le test écrit pour épingler un défaut d'échantillonnage. Ce qui est
+        gelé désormais est STRUCTUREL — la taille du dénominateur — pas la valeur observée."""
+    np.random.seed(0)
+    seen = [_emi.benchmark_discrimination(g, memory_regime=False, seed=7, num_agents=24, ticks=150)
+            for g in _emi._fresh_soup(3, _emi._cfg(), 0.4)]
+    live = [r for r in seen if r["encounters"] > 0]
+    assert live, ("le banc ne produit AUCUN événement sur 3 génomes : le cas ne peut plus rien épingler "
+                  "(vérification vide, classe E4) — réviser num_agents/ticks avant de lire ce test vert")
+    for r in live:
+        assert r["encounters"] <= 5, (
+            f"le régime a CHANGÉ : {r['encounters']} rencontres. À comptes élevés `disc` redeviendrait "
+            f"interprétable, et les verdicts d'EDR-EVO-003 devraient être relus")
+        assert r["disc"] * r["encounters"] == pytest.approx(round(r["disc"] * r["encounters"])), (
+            f"disc={r['disc']:.3f} devrait être quantifié au 1/{r['encounters']}")
+        assert 1.0 / r["encounters"] >= 0.2, (
+            f"résolution de disc = 1/{r['encounters']} — un écart de 0.20 est le PLUS PETIT que cet "
+            f"instrument puisse représenter ici, or EVO-003 en publiait de plus fins")
+
+
+# --- EVO-006 : crédit PARTIEL (K sous-tâches) — monotonie ET spécificité ------------------------------
+# Le banc K>1 ne teste quelque chose QUE si câbler une sous-tâche sur K rend un score strictement entre le
+# plancher et le lecteur complet. C'est `assert_ablation_changes_something` appliqué à la GRANULARITÉ du
+# crédit : sans ce gradient, un nul du banc serait ininterprétable (rien n'aurait été offert à trouver).
+
+
+def test_partial_credit_ladder_is_monotone():
+    """MONOTONIE (direction) — l'échelle du crédit partiel. Chaque sous-tâche câblée en plus doit AUGMENTER
+    le score, et 1 sur 3 doit déjà FRANCHIR le plafond analytique d'une politique fixe (0.5). C'est
+    exactement ce qui était impossible à K=1, où il fallait un lecteur complet d'un seul coup."""
+    raws = [benchmark_cognitive(synthetic_reader(59, 108, 172, w=2.0, reflex=True, wire=n),
+                                seed=1, num_agents=8, ticks=100, inject=True, K=3)["raw"]
+            for n in (0, 1, 3)]
+    assert raws[0] < raws[1] < raws[2], f"échelle non monotone : {[round(r, 3) for r in raws]}"
+    assert raws[1] > _CHANCE, (
+        f"câbler 1 sous-tâche sur 3 doit franchir le plafond d'une politique FIXE : {raws[1]:.3f}")
+
+
+def test_partial_credit_is_isolated_to_the_wired_subtask():
+    """SPÉCIFICITÉ (no-op sur les autres) — câbler la sous-tâche 0 ne doit faire monter QUE la sous-tâche 0 ;
+    les autres restent à la chance. Sans ça, le score global monterait pour une raison sans rapport avec la
+    lecture (p.ex. un changement de comportement moteur), et la lecture « par sous-tâche » ne voudrait
+    rien dire."""
+    b = benchmark_cognitive(synthetic_reader(59, 108, 172, w=2.0, reflex=True, wire=1),
+                            seed=1, num_agents=8, ticks=100, inject=True, K=3)
+    assert b["sub"][0] > 0.6, f"la sous-tâche CÂBLÉE doit monter : {b['sub'][0]:.3f}"
+    for k in (1, 2):
+        assert abs(b["sub"][k] - _CHANCE) < 0.15, (
+            f"la sous-tâche NON câblée {k} doit rester à la chance : {b['sub'][k]:.3f}")
+
+
+def test_signal_channels_carry_zero_information_in_the_base_world():
+    """CONTRÔLE de base, bon marché et load-bearing : les 3 canaux porteurs sont des `np.zeros` CÂBLÉS EN
+    DUR du monde (world_1_stoneage.py:610-623). S'ils cessaient d'être exactement nuls, le banc ne
+    mesurerait plus une lecture du SIGNAL mais une corrélation avec un contenu de monde, et toute la
+    série EVO-005/006 deviendrait ininterprétable."""
+    from tools.evo_cognitive_objective import _run_era as _cog_run_era, SIG_COLS
+    np.random.seed(0)
+    env, _ = _cog_run_era(_emi._fresh_soup(10, _emi._cfg(), 0.4), _emi._cfg(), 40, era=1,
+                          inject=False, K=3)
+    if not env.agents:
+        pytest.skip("aucun survivant à 40 ticks : rien à inspecter")
+    obs = np.asarray(env.get_batch_observations(), dtype=np.float32)
+    for c in SIG_COLS:
+        assert np.abs(obs[:, c]).max() == 0.0, (
+            f"le canal {c} n'est PLUS à information nulle (max|v|={np.abs(obs[:, c]).max():.6f}) — "
+            f"le monde a changé, les verdicts EVO-005/006 doivent être relus")
+
+
+def test_decision_saliency_separates_reader_from_nonreader_and_is_channel_specific():
+    """CONTRÔLE POSITIF + SPÉCIFICITÉ de `measure_decision_saliency` (instrument NÉ avec EVO-006).
+
+    Il mesure la bascule de `sign(logits[out_idx])` — l'opérateur EXACT par lequel le monde décide
+    (`do_throw = logits[8] > 0`). Nécessaire parce que `measure_channel_saliency(decision=True)` lit la
+    bascule d'`argmax(logits[:8])` et est donc AVEUGLE PAR CONSTRUCTION aux sous-tâches qui ne passent pas
+    par l'argmax : sur un lecteur `throw` PARFAIT elle rend 0.000. C'est la classe E17 déplacée du choix
+    de la GRANDEUR (amplitude vs signe) au choix de la SORTIE mesurée."""
+    from tools.evo_cognitive_objective import measure_decision_saliency, SIG_COLS, THROW_IDX
+    reader = synthetic_reader(59, 108, 172, w=2.0, reflex=True, wire=2)
+    nonreader = synthetic_reader(59, 108, 172, w=2.0, reflex=True, wire=0)
+    on = measure_decision_saliency(reader, seed=2000, channel=SIG_COLS[1], out_idx=THROW_IDX,
+                                   num_agents=8, ticks=40)
+    off = measure_decision_saliency(reader, seed=2000, channel=SIG_COLS[0], out_idx=THROW_IDX,
+                                    num_agents=8, ticks=40)
+    floor = measure_decision_saliency(nonreader, seed=2000, channel=SIG_COLS[1], out_idx=THROW_IDX,
+                                      num_agents=8, ticks=40)
+    assert on > 0.9, f"le lecteur câblé doit basculer quasi toujours : {on:.3f}"
+    assert off < 0.05, f"SPÉCIFICITÉ : un canal sans rapport ne doit rien basculer : {off:.3f}"
+    assert floor < 0.05, f"le non-lecteur ne doit rien basculer : {floor:.3f}"
+
+
+def test_argmax_saliency_is_blind_to_a_perfect_throw_reader():
+    """⚠️ CONTRE-EXEMPLE GELÉ — pourquoi l'instrument précédent ne suffisait pas.
+
+    Un génome qui lit PARFAITEMENT le signal `throw` (bascule de sign(logits[8]) = 1.000, cf. test
+    ci-dessus) rend une saillance d'`argmax` NULLE : sa lecture ne passe pas par les logits de
+    déplacement. Sonder la mauvaise SORTIE produit donc un faux négatif sur un lecteur avéré — et c'est
+    ce qui a rendu la règle pré-enregistrée d'EVO-006 inapplicable telle qu'écrite."""
+    from tools.evo_cognitive_objective import measure_decision_saliency, SIG_COLS, THROW_IDX
+    from tools.evo_memory_inworld import measure_channel_saliency as _mcs
+    reader = synthetic_reader(59, 108, 172, w=2.0, reflex=True, wire=2)
+    real = measure_decision_saliency(reader, seed=2000, channel=SIG_COLS[1], out_idx=THROW_IDX,
+                                   num_agents=8, ticks=40)
+    blind = _mcs(reader, seed=2000, channels=[SIG_COLS[1]], num_agents=8, ticks=40, decision=True)
+    assert real > 0.9, f"le témoin doit être un lecteur AVÉRÉ : {real:.3f}"
+    assert blind[SIG_COLS[1]] < 0.05, (
+        f"la saillance d'argmax doit être AVEUGLE à ce lecteur : {blind[SIG_COLS[1]]:.3f} — "
+        f"si ça devient faux, les deux instruments se recouvrent et ce garde-fou est caduc")
+
+
+# ------------------------------------------- run_memory_perception_demand_probe (MEM-PERCEPTION)
+# « memory demande perception » sur un delayed-match-to-sample torch (Tâche 1, deuxième arête du
+# graphe AGI-Taxonomy). Mémoire = état récurrent H PORTÉ encode -> délai -> test. oracle/random
+# BYPASSENT l'agent (guess lu directement sur l'indice encodé, ou tiré au hasard) -> aucun
+# entraînement -> episodes=0 valide et rapide, symétrique à SP-2 (run_perception_coordination_demand_probe).
+
+def test_mp_oracle_memory_makes_perception_demanded():
+    """CONTRÔLE POSITIF (générateur A) : avec une mémoire ORACLE (rétention parfaite de l'indice encodé),
+    DÉRANGER la perception à l'encodage l'effondre -> DELAYED X_DEMANDED. Le banc SAIT produire l'effondrement.
+    Oracle BYPASSE l'agent (guess = indice encodé) -> aucun entraînement -> episodes=0 valide, quelques secondes."""
+    from tools.memory_perception_demand_probe import run_memory_perception_demand_probe
+    r = run_memory_perception_demand_probe(seeds=list(range(12)), episodes=0, n_agents=16, K=6, D=2,
+                                           memory_mode="oracle")
+    assert r["delayed"]["verdict"] == "X_DEMANDED", r["delayed"]
+    assert r["delayed"]["ratio"] > 1.5
+
+
+def test_mp_random_memory_is_inert_no_false_demand():
+    """CONTRÔLE NÉGATIF : avec une mémoire ALÉATOIRE (guess décorrélé de l'indice), DÉRANGER la perception
+    est inerte -> DELAYED PAS X_DEMANDED. Le banc ne FABRIQUE pas un effondrement inexistant."""
+    from tools.memory_perception_demand_probe import run_memory_perception_demand_probe
+    r = run_memory_perception_demand_probe(seeds=list(range(12)), episodes=0, n_agents=16, K=6, D=2,
+                                           memory_mode="random")
+    assert r["delayed"]["verdict"] != "X_DEMANDED", r["delayed"]
+
+
+# --- EVO-008 : un instrument ne doit laisser AUCUNE trace sur le RNG global ---------------------------
+# Classe E5 (aliasing) transposee a l'ETAT GLOBAL : `np.random.seed(...)` dans une sonde detourne
+# l'evolution qu'elle est censee OBSERVER quand on l'appelle ENTRE deux eres. Le defaut a ete revele par
+# un cas a REPONSE CONNUE (le seed 0, lecteur avere 4 fois, rendait une courbe de saillance PLATE) — sans
+# ce temoin, l'artefact se lisait comme un resultat : « le lecteur apparait de nulle part ».
+
+
+def test_decision_saliency_leaves_the_global_rng_untouched():
+    """⚠️ CONTRE-EXEMPLE GELE. Mesurer ne doit pas MUTER le systeme mesure. Si quelqu'un retire la
+    restauration d'etat, toute sonde intercalee dans une boucle d'evolution la detournera silencieusement."""
+    from tools.evo_cognitive_objective import measure_decision_saliency, SIG_COLS, THROW_IDX
+    np.random.seed(1234)
+    before = np.random.rand(4)
+    np.random.seed(1234)
+    measure_decision_saliency(synthetic_reader(59, 108, 172, w=2.0, reflex=True, wire=2),
+                              seed=77, channel=SIG_COLS[1], out_idx=THROW_IDX, num_agents=4, ticks=10)
+    after = np.random.rand(4)
+    assert np.allclose(before, after), (
+        f"la sonde a DETOURNE le RNG global : {before} -> {after}. Une mesure intercalee dans une "
+        f"evolution la rendrait non reproductible, et sa courbe ININTERPRETABLE")
+
+
+def test_decision_saliency_value_is_unchanged_by_the_restoration():
+    """La restauration ne doit pas alterer ce que l'instrument MESURE : meme graine -> meme valeur."""
+    from tools.evo_cognitive_objective import measure_decision_saliency, SIG_COLS, THROW_IDX
+    g = synthetic_reader(59, 108, 172, w=2.0, reflex=True, wire=2)
+    a = measure_decision_saliency(g, seed=5, channel=SIG_COLS[1], out_idx=THROW_IDX, num_agents=4, ticks=10)
+    np.random.seed(999)                     # etat d'appelant DIFFERENT
+    b = measure_decision_saliency(g, seed=5, channel=SIG_COLS[1], out_idx=THROW_IDX, num_agents=4, ticks=10)
+    assert a == b, f"l'instrument doit dependre de SA graine, pas de l'etat de l'appelant : {a} vs {b}"
+
+
+# ------------------------------------------- run_language_memory_demand_probe (LANG-MEMORY) ------------
+# « language demands memory » (delayed-code-application, torch). Tâche 1, 3e arête du graphe
+# AGI-Taxonomy — 1re ablation SUBSTRAT (reset de H PORTÉ, pas une ablation d'ENTRÉE) : `functional_aliasing`
+# doit être MESURÉ ('pass'/'fail'), jamais 'n/a'. oracle/random BYPASSENT LANG (guess lu directement sur
+# (q+key)%K, ou tiré au hasard) ; leaky BYPASSE CONTROL (forcé de dépendre du key retenu) -> aucun
+# entraînement -> episodes=0 valide et rapide, symétrique à SP-2/MEM-PERCEPTION.
+
+def test_lm_oracle_memory_makes_language_demanded():
+    """CONTRÔLE POSITIF (demande) : mémoire ORACLE (rétention parfaite du key) -> ablater l'état
+    (H-reset) effondre LANG -> X_DEMANDED. Le banc SAIT produire l'effondrement."""
+    from tools.language_memory_demand_probe import run_language_memory_demand_probe
+    r = run_language_memory_demand_probe(seeds=list(range(12)), episodes=0, n_agents=16, K=6, D=2,
+                                         memory_mode="oracle")
+    assert r["lang_demand"]["verdict"] == "X_DEMANDED", r["lang_demand"]
+
+
+def test_lm_random_memory_is_inert():
+    """CONTRÔLE NÉGATIF (demande) : mémoire ALÉATOIRE (guess décorrélé) -> ablation inerte -> PAS
+    X_DEMANDED. Le banc ne fabrique pas un effondrement inexistant."""
+    from tools.language_memory_demand_probe import run_language_memory_demand_probe
+    r = run_language_memory_demand_probe(seeds=list(range(12)), episodes=0, n_agents=16, K=6, D=2,
+                                         memory_mode="random")
+    assert r["lang_demand"]["verdict"] != "X_DEMANDED", r["lang_demand"]
+
+
+def test_lm_leaky_control_fires_the_aliasing_guard():
+    """VÉRITÉ-TERRAIN DU GARDE : un control LEAKY (forcé de dépendre du key retenu, pas de `c`) ->
+    ablater l'état fait FUIR le contrôle -> `functional_aliasing='fail'` (FUNCTIONAL_LEAK). Prouve que
+    le garde SAIT détecter une fuite (sinon un 'pass' serait vacux). oracle+leaky : LANG effondre
+    (X_DEMANDED) ET le garde tire — les deux dimensions (demande + aliasing) sont sensibles."""
+    from tools.language_memory_demand_probe import run_language_memory_demand_probe
+    r = run_language_memory_demand_probe(seeds=list(range(12)), episodes=0, n_agents=16, K=6, D=2,
+                                         memory_mode="oracle", control_mode="leaky")
+    assert r["functional_aliasing"] == "fail" and r["alias_verdict"] == "FUNCTIONAL_LEAK", r

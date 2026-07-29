@@ -1,0 +1,28 @@
+{
+  "name": "EVO-010",
+  "rule": {
+    "arms": {
+      "baseline": "operateur inchange",
+      "wake20": "20 reveils/mutation",
+      "wake5": "5 reveils/mutation"
+    },
+    "design": "3 bras x 12 seeds x 35 eres, jeu MIXTE, W=5000. Seul mutate_weights change (patch LOCAL).",
+    "dimensionnement": "~800 mutations par lignee x n_wake reveils, ~11000 candidates dont 3 lectrices -> n_wake=5 donne une esperance de ~1 decouverte par lignee. 5 et 20 donnent une dose-reponse.",
+    "discrimination": {
+      "dose-reponse non monotone (wake5 > wake20)": "signe que le reveil massif DETRUIT la structure existante -> lire le n_wake comme un optimum, pas comme un monotone.",
+      "wake >= 6/12 ET survie preservee": "CONFIRME : un biais AGNOSTIQUE suffit -> le levier d'EVO-009 devient DEPLOYABLE, et la racine est bien que mutate_weights ne reveille pas les poids nuls.",
+      "wake >= 6/12 MAIS survie effondree": "le volume de reveils paie la lecture en viabilite -> levier reel mais avec un cout a borner ; rapporter les DEUX et chercher le n_wake minimal.",
+      "wake ~ baseline (<3 seeds d ecart)": "REFUTE : augmenter le VOLUME de tirages ne suffit pas -> l'ingredient actif d'EVO-009 etait le CIBLAGE, pas le nombre. Un levier agnostique devra viser autrement (p.ex. densite structuree)."
+    },
+    "dv": "taux de seeds LECTEURS (saillance de decision > 0.5), + age median et proies comme temoins de survie",
+    "garde_cout": "budget_s=150 par seed (E13), abandons COMPTES",
+    "instruments_autorises": [
+      "measure_decision_saliency (calibre, RNG-neutre)",
+      "benchmark_cognitive (calibre)"
+    ],
+    "mecanisme_vise": "mutate_weights ne perturbe que les entrees NON NULLES de W, donc toute la creation de structure repose sur le seul add_connection (1 arete parmi ~11000). Lui laisser REVEILLER n_wake entrees nulles au hasard n'utilise AUCUNE connaissance de la tache.",
+    "question": "EVO-009 leve le verrou de la decouverte avec un biais qui CONNAIT les aretes qui comptent (diagnostic, pas algorithme). Un biais AGNOSTIQUE a la tache produit-il le meme effet ?",
+    "record": "EDR-EVO-010"
+  },
+  "seal": "4d54ee6a366446e71b180cd2bb98416c9eaeea74a7a0ed917dc8ae656511037e"
+}

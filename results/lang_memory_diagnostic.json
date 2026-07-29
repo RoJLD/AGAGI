@@ -1,0 +1,83 @@
+{
+  "_note": "Diagnostic Tache 2 (EDR-LANG-MEMORY) -- PAS un run-verdict n=12. n=3-6 par config, seuil d'emergence retenu = 1/K+0.15 = 0.31667 (K=6). Source : .superpowers/sdd/2026-07-28-language-memory-demand-edge/task-2-report.md",
+  "threshold_emergence": 0.31667,
+  "floor_chance": 0.16667,
+  "K": 6,
+  "n_agents": 16,
+  "D2_sweep_null": {
+    "D": 2,
+    "note": "reglage de la spec (vrai delai sur 2 ticks) -- NUL PROPRE sous tous les leviers, jusqu'a 15000 episodes",
+    "configs": [
+      {"train_control": true,  "weight_decay": 0.0,  "episodes": 1200,  "seeds": [0,1,2],     "lang_intact": [0.170, 0.166, 0.153], "lang_intact_median": 0.166, "crosses_threshold": false},
+      {"train_control": false, "weight_decay": 0.0,  "episodes": 1200,  "seeds": [0,1,2],     "lang_intact": [0.197, 0.225, 0.180], "lang_intact_median": 0.197, "crosses_threshold": false},
+      {"train_control": false, "weight_decay": 1e-2, "episodes": 3000,  "seeds": [0],         "lang_intact_median": 0.159, "crosses_threshold": false},
+      {"train_control": false, "weight_decay": 1e-2, "episodes": 8000,  "seeds": [0],         "lang_intact_median": 0.175, "crosses_threshold": false},
+      {"train_control": false, "weight_decay": 1e-2, "episodes": 15000, "seeds": [0,1,2],     "lang_intact_median": 0.172, "crosses_threshold": false},
+      {"train_control": false, "weight_decay": 1e-3, "episodes": 3000,  "seeds": [0],         "lang_intact_median": 0.161, "crosses_threshold": false},
+      {"train_control": false, "weight_decay": 1e-3, "episodes": 8000,  "seeds": [0],         "lang_intact_median": 0.164, "crosses_threshold": false},
+      {"train_control": false, "weight_decay": 1e-3, "episodes": 15000, "seeds": [0],         "lang_intact_median": 0.167, "crosses_threshold": false}
+    ],
+    "conclusion": "trajectoire PLATE sur 5 seeds distincts et budget x12.5 -- pas de grokking, weight_decay ne debloque rien a D=2"
+  },
+  "D0_marginal": {
+    "D": 0,
+    "note": "query immediatement apres l'encodage -- H porte quand meme key sur 1 pas recurrent, l'ablation mord toujours. Version AFFAIBLIE de la question posee (retention 1 pas, pas un vrai delai).",
+    "configs": [
+      {"train_control": false, "weight_decay": 0.0,   "episodes": 1200, "seeds": [0,1,2],     "lang_intact": [0.331, 0.283, 0.280], "lang_intact_median": 0.283, "crosses_threshold_count": "1/3"},
+      {"train_control": false, "weight_decay": 0.0,   "episodes": 3000, "seeds": [0,1,2],     "lang_intact": [0.316, 0.328, 0.336], "lang_intact_median": 0.328, "strict_cross_gt_0.316667": "2/3 (0.316 manque le seuil de 0.0007)"},
+      {"train_control": false, "weight_decay": 0.0,   "episodes": 3000, "seeds": [3,4,5],     "lang_intact": [0.327, 0.308, 0.348], "lang_intact_median": 0.327, "strict_cross_gt_0.316667": "2/3 (replication independante ; 0.308 manque le seuil de 0.0087)"},
+      {"train_control": false, "weight_decay": 1e-3,  "episodes": 3000, "seeds": [0,1,2],     "lang_intact": [0.169, 0.133, 0.156], "lang_intact_median": 0.156, "crosses_threshold_count": "0/3 (weight_decay NUIT)"},
+      {"train_control": true,  "weight_decay": 0.0,   "episodes": 3000, "seeds": [0,1,2],     "lang_intact": [0.328, 0.280, 0.239], "lang_intact_median": 0.280, "crosses_threshold_count": "1/3", "control_intact": [1.0,1.0,1.0], "control_ablated": [1.0,1.0,1.0], "functional_aliasing_note": "CONTROL sature et reste chirurgical (leakage=0.0) ICI, mais LANG retombe a 1/3 seeds"}
+    ],
+    "combined_6_seeds": {
+      "seeds": [0,1,2,3,4,5],
+      "train_control": false,
+      "episodes": 3000,
+      "lang_intact_sorted": [0.308, 0.316, 0.327, 0.328, 0.336, 0.348],
+      "lang_intact_median": 0.328,
+      "lang_intact_min": 0.308,
+      "lang_intact_max": 0.348,
+      "strict_cross_gt_0.316667": "4/6 (0.316 manque le seuil de 0.0007 ; 0.308 en manque de 0.0087 ; les 4 autres sont strictement au-dessus)"
+    },
+    "two_capability_guard_conflict": "aucune config ne tient les deux jambes simultanement -- train_control=False fait franchir LANG au sens large (4/6 strict, 6/6 franchissent-ou-approchent le seuil) mais laisse CONTROL non-entraine (functional_aliasing='pass' VIDE DE SENS, poids jamais appris) ; train_control=True rend CONTROL probant (leakage=0.0, sature a 1.0) mais LANG retombe a 1/3 seeds. Pas de config testee qui donne LANG fiable ET CONTROL entraine-donc-probant en meme temps."
+  },
+  "isolation_checks": {
+    "supervised_imitation_fails_too": {
+      "method": "imitate_episode_bptt (supervise, BPTT, masque dernier pas -- elimine toute question de credit RL)",
+      "D0_lr0.05_ep3000": 0.216,
+      "D1_lr0.02_ep1200": 0.161,
+      "D2_lr0.02_ep1200": 0.202,
+      "D1_lr0.05_ep5000": 0.158,
+      "conclusion": "echoue aussi a D=2 (0.202) -- meme D ou REINFORCE tronque et BPTT reel echouent deja : argument d'isolation PROPRE repose sur ce triple-echec a D=2, pointe vers une difficulte REPRESENTATIONNELLE (composer (q+key) de deux one-hot a ticks separes), pas un probleme de credit. Le chiffre D0_lr0.05_ep3000=0.216 (lr/regime differents) n'est PAS retenu comme confirmatoire -- en tension avec le RL seul qui APPREND deja a D=0 (median 0.328)."
+    },
+    "pure_recall_sanity_check_learns_fine": {
+      "method": "_carry puis test vide, cible=key, SANS combinaison -- meme mecanique d'entrainement/eval",
+      "D1_ep600": 0.880,
+      "D1_ep1200": 0.903,
+      "D2_ep1200": 0.564,
+      "conclusion": "le harnais fonctionne, la retention seule n'est pas le probleme -- l'echec est specifique a la fonction de COMBINAISON (q+key), pas a la mecanique"
+    }
+  },
+  "levers_tried": [
+    "train_control=False (isole l'interference de tete partagee -- W ne voit que LANG)",
+    "weight_decay in {1e-3, 1e-2} x budget jusqu'a 15000 episodes (recherche de grokking)",
+    "D in {0, 1, 2} (delai encode->quete)",
+    "methode de credit : REINFORCE tronque (learn_episode) / BPTT reel (learn_episode_bptt truncate=False) / supervise+BPTT (imitate_episode_bptt)",
+    "lr in {0.02, 0.05}"
+  ],
+  "levers_not_tried": [
+    "tete bilineaire (precedent direct : planner-depth1-refuted / PLAN-001, un modele affine ne compose pas)",
+    "tache a rythme observable pendant l'entrainement (precedent EDR-202 KCHAIN)",
+    "n_agents plus grand",
+    "curriculum D croissant"
+  ],
+  "n12_run": "non lance -- n_floor=12 de demand_marker.ablation_verdict bloque tout verdict positif sous n=6 (INCONCLUSIVE meme avec ratio>=1.5/collapse=True). Ce diagnostic (n=3-6 par config) visait a etablir si l'antecedent existe, pas a trancher un verdict.",
+  "calibration_status": {
+    "instrument": "tools/language_memory_demand_probe.py::run_language_memory_demand_probe",
+    "lm_oracle": "pass (memory_mode=oracle -> verdict=X_DEMANDED)",
+    "lm_random": "pass (memory_mode=random -> verdict!=X_DEMANDED)",
+    "lm_leaky": "pass (control_mode=leaky -> functional_aliasing=fail, alias_verdict=FUNCTIONAL_LEAK) -- garde prouve SENSIBLE sur une vraie ablation SUBSTRAT",
+    "conclusion": "instrument SAIN sur les deux versants ; le nul mesure l'ABSENCE de l'antecedent (capacite LANG vivante), pas un defaut de l'instrument"
+  },
+  "conclusion": "La capacite langage (composition (q+key)%K) n'emerge pas de facon fiable au reglage de la spec (D=2) sur ce substrat, dans les budgets et leviers testes ; a D=0 (version affaiblie, 1 pas de retention) elle emerge de facon reproductible (4/6 seeds strict au-dessus du seuil, 6/6 franchissent-ou-approchent) mais aucune config ne rend simultanement le garde a deux capacites probant. L'arete language->memory n'est donc PAS mesurable proprement ici et n'est PAS gravee dans data/agi_taxonomy/demands.json (toujours 2 aretes : language->perception, memory->perception)."
+}

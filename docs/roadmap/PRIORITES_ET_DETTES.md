@@ -14,6 +14,52 @@ et le coût estimé.
 
 ---
 
+## ⏱️ MISE À JOUR 2026-07-28 — arc EVO-005→009 livré, et les DEUX dernières dettes P3 sont CLOSES
+
+> Lire ce bloc avant tout le reste : il périme plusieurs entrées ci-dessous.
+
+**P3 est TERMINÉ. Le registre n'a plus AUCUNE classe sans garde exécutable** (18/18).
+* **P3.1 / E11** — `tools/preregister.py` + 6 tests. Règle de lecture scellée par hash ; la ré-écrire sous
+  le même nom LÈVE (on écrit une `-bis`, le changement devient VISIBLE) ; édition manuelle DÉTECTÉE.
+* **P3.2 / E13** — `tools/cost_guard.py` + 6 tests. Projection AVANT (marge ×3) + plafond PENDANT, et un
+  plafond de population DÉTERMINISTE dans la boucle de ticks (`MAX_AGENTS`).
+
+⚠️ **Chacune a corrigé l'énoncé de sa propre dette en se fermant**, et c'est l'enseignement le plus
+réutilisable de la passe : E11 ne fuit pas par le SEUIL (la discipline manuelle le protégeait déjà) mais
+par l'**INSTRUMENT** ; E13 ne se borne pas par une projection, parce que **le coût dépend du SEED** (il suit
+le succès évolutif) — le débit mesuré au smoke était JUSTE et le run a explosé quand même.
+
+**Arc EVO-005→009 — 5 records, dont un RÉTRACTÉ par les suivants :**
+* **EVO-005** : un objectif cognitif dense achète le plafond de ce qu'on gagne SANS lire (raw max 0.472 /
+  plafond analytique 0.500) et rien au-delà. Réconcilie « fitness = non-levier » (EDR-056/WLD-002, artefact
+  de RARETÉ du comportement noté) et « verrou = objectif » (surestimé).
+* **EVO-006 — ⛔ RÉTRACTÉ** : « le crédit partiel est le gradient manquant », bâti sur **1 seed sur 5**.
+  Réfuté par EVO-007 (0/12 à difficulté appariée). Classe **E9**, occurrence la plus coûteuse à ce jour.
+* **EVO-007** : 0/12 lecteurs dans les trois bras. Ni le crédit partiel ni la facilité ne produisent la
+  lecture. Réplication du jeu mixte : 1/12 vs 0/11, **Fisher p = 1.000**.
+* **EVO-008** : la lecture apparaît d'un **SAUT** mutationnel (0.00 → 1.00 en une ère) puis est RETENUE
+  28/29 ères -> **le verrou est la DÉCOUVERTE, pas la rétention**.
+* **EVO-009** : biaiser l'**opérateur de variation** fait passer la lecture de **1/12 à 12/12**
+  (**Fisher p = 9.6e-6**), sans coût de survie. ⚠️ **DIAGNOSTIC, pas algorithme** — le biais connaît les
+  arêtes qui comptent.
+
+**Dette HoF 59↔64 / 108↔126 : CLOSE.** Ce n'était pas une divergence de lignée mais **deux contrats
+coexistants** — `WorldConfig` (59/108) vs `MambaAgent` V18 (64/126 = +8 ToM +5 Goal +5 masque), le monde
+tronquant ses 5 colonnes `manager_goal`. Débloquer tient en deux lignes de config ; fait, et les champions
+canoniques probés confirment EVO-004 (bascule médiane **0.0000**).
+
+**Ce qui reste ouvert, par ordre de valeur :**
+1. **Un biais de variation AGNOSTIQUE à la tâche** — la vraie question posée par EVO-009. Candidat le plus
+   net : rendre `mutate_weights` capable de RÉVEILLER des poids nuls (il ne touche aujourd'hui que les
+   non-nuls, ce qui rend la découverte dépendante du seul `add_connection`).
+2. **Pointer le levier sur un canal à contenu de MONDE** (obs[4], type d'apex) : la lecture apparaît-elle,
+   et **PAIE-t-elle en survie** ? Un négatif confirmerait [[EDR-S2-012]] causalement.
+3. `benchmark_discrimination` : seule la branche du DÉFAUT est calibrée (`disc` sature à 1.00 sur 1-2
+   rencontres). La branche « `disc` mesure vraiment un choix » exige un génome connu-discriminant
+   in-world — qui n'existe pas encore, et que le point 2 produirait. **Dépendance explicite, pas oubli.**
+
+---
+
 ## ⏱️ MISE À JOUR 2026-07-23 — état réel (le corps du doc ci-dessous est en partie PÉRIMÉ)
 
 > Ce doc date du 2026-07-21. Plusieurs entrées marquées « ouvert » sont en fait CLOSES (vérifié) ; ne pas
@@ -411,12 +457,23 @@ pour les records. *Bypass d'urgence : `git commit --no-verify`.*
 
 ## P3 — Générateurs d'erreur encore sans réponse exécutable
 
-*(Classes E11 et E13 du registre des erreurs — les deux seules SANS aucune garde.)*
+*(Classe **E13** du registre — désormais la SEULE sans aucune garde. E11 close le 2026-07-27, ci-dessous.)*
 
-**P3.1 — Pré-enregistrement du plan d'analyse.** **Aucune** analyse de la session n'a été pré-enregistrée :
-seuil 0.5 sur `gi`, partition FRÉQUENT/RARE, choix du prédicteur — tous arrêtés APRÈS avoir vu les données
-(jardin aux sentiers qui bifurquent). Étendre `declare_design` pour figer *statistique + seuil + critère*
-avant le run, et faire lire ces valeurs par l'analyse au lieu de les choisir ensuite. *Coût : ~2 h.*
+**P3.1 — Pré-enregistrement du plan d'analyse. ✅ CLOSE (2026-07-27).** `tools/preregister.py` +
+`tests/sandbox/test_preregistration_guard.py` (6 tests). Scelle *statistique + seuil + critère + **liste
+des instruments autorisés*** par un hash : ré-enregistrer un contenu DIFFÉRENT sous le même nom **lève**
+(une règle ne se corrige pas — on écrit une `-bis`, ce qui rend le changement VISIBLE), et une édition du
+JSON à la main est DÉTECTÉE ; un test balaie `docs/preregistrations/` et tombe si une règle déjà gravée
+est retouchée.
+
+*Ce que la fermeture a appris, et qui ne figurait pas dans l'énoncé de la dette* : la forme fuyante d'E11
+n'est pas le SEUIL — la discipline manuelle le protégeait déjà (EVO-005, EVO-006) — mais l'**INSTRUMENT**.
+Sur EVO-006, la règle était bien pré-écrite, et pourtant la sonde qui a confirmé le verdict a été choisie
+APRÈS avoir vu quelle sous-tâche bougeait. D'où la clause `instruments_autorises` dans le format scellé.
+Second enseignement, immédiat : **un seuil pré-enregistré n'est valide que pour la tâche sur laquelle il a
+été calibré** — le 0.5 d'EVO-005/006 ne sépare plus sur un jeu de sous-tâches en seuils de signe (plancher
+du non-lecteur = 0.514), ce qui a exigé une règle `-bis2` dès EVO-007. *Portée honnête : la garde prouve
+la NON-MODIFICATION, pas l'antériorité au run.*
 
 **P3.2 — Budget obligatoire, mesuré au smoke.** *Preuve : 3 runs abandonnés (8 h, 4 h projetées, 89 min),
 plus WARM-009 nul et un run de 1,8 h sur une question sans objet.* Exiger un débit mesuré sur smoke + un
@@ -457,6 +514,14 @@ DAG de capacités *sans canal de demande in-world* est le piège « proxy 9 / in
 - **SP-2 Peupler** — convertir gates G0→G4 + arc EDR + tétralogie G4 en nœuds/arêtes v0 (force = force de
   preuve empirique). Rend le records-graph **prédictif** au lieu de descriptif. *Dépend de SP-1 ; suppose
   la forme validée par SP-3.*
+- **SP-2 dette — barre d'émergence NON vérifiée par un validateur (à fermer en itération 2, avant
+  accumulation d'arêtes).** La barre « intact VIVANT » (`coord_intact` médian > `1/K + 0.15`), qui distingue
+  une capacité réellement émergente d'un artefact de plancher, n'est appliquée par AUCUN outil :
+  `ablation_verdict` ne pose que le plancher de dégénérescence `1/K` (plus lâche), et
+  `check_agi_taxonomy.validate_edge` ne lit pas du tout `coord_intact`. Chaque future arête dépend donc
+  d'un humain relisant les médianes persistées à l'œil. Fix proposé : champ optionnel `coord_intact_median`
+  dans le schéma `evidence` de la demande + une vérification dans `validate_edge` contre le plancher
+  d'émergence.
 - **SP-3 Calibrer — ✅ SPÉCIFIÉ (2026-07-23), maillon discriminant.** Le demand-marker récupère-t-il un DAG
   de prérequis *imposé* (os-taxonomy comme clé de réponse), en no-opant sur les non-arêtes **corrélées** ?
   Go/no-go de toute la vision. Design : `docs/superpowers/specs/2026-07-23-sp3-prerequisite-recovery-calibration-design.md`.
