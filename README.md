@@ -20,11 +20,12 @@ refutations, null results, and self-corrections carry the same weight as success
 
 ## At a glance
 
-| Dimension | Measured on `main`, 2026-07-27 |
+| Dimension | Measured on `main`, 2026-07-29 |
 | --- | --- |
-| **Decision records** | 270 in the graph (249 EDR · 5 SDR · 3 ADR · 14 REF), 132 typed edges, link-checked in CI |
-| **Measurement instruments** | 89 detected, 20 calibrated against ground truth, 0 new uncalibrated (ratcheted) |
-| **Error classes** | 16 catalogued: 9 with executable guards, 4 documented, 2 open, 1 explicitly not automatable |
+| **Decision records** | 279 in the graph, of which 258 EDR, plus gate specs, ADRs and method references — link-checked, orphans ratcheted |
+| **Measurement instruments** | 97 detected, 28 calibrated against ground truth, 0 new uncalibrated (ratcheted) |
+| **Error classes** | 18 catalogued, **every one now carrying a guard**: executable, documented, or explicitly not automatable |
+| **Sealed pre-registrations** | 7 — analysis rules fixed before the run, corrections kept visible |
 | **Code** | ~62k lines of Python (`src/` `tools/` `tests/` `backend/`) · 173 analysis tools · 1310 tests |
 | **Dashboard** | FastAPI backend + React 18 / Vite frontend, OpenAPI-typed, Playwright E2E |
 | **Core dependency** | NumPy. PyTorch is optional (`requirements-torch.txt`) |
@@ -139,11 +140,10 @@ Specifications live in [`docs/SDR/`](docs/SDR/); the strategy that connects them
 
 ## What we have learned (and what we got wrong)
 
-### The convergent lock
+### Offline, the lock is credit; in-world, it is not
 
-Territory by territory, the records converge on one diagnosis: **the substrate REPRESENTS what is needed
-but does not CONVERT representation into behaviour.** The bottleneck is credit assignment and selection
-signal — not capacity, not architecture.
+Territory by territory, the offline records converge on one diagnosis: **the substrate REPRESENTS what is
+needed but does not CONVERT representation into behaviour.**
 
 | Territory | The representation is there | …the behaviour fails | The lever |
 | --- | --- | --- | --- |
@@ -152,21 +152,52 @@ signal — not capacity, not architecture.
 | Means-ends binding | `did_x` decodable from H (AUC 0.90) | outcome ⊥ `did_x` | gate + episodic credit |
 | Craft | tier-2 reached | never re-crafted | retention is policy-locked; no world-side lever |
 
-### The dominant open gap: proxy 9 / in-world 0
+That diagnosis held for a year and drove the migration to differentiable credit. **In-world, it has now
+been tested and it does not hold** — see below. Decodable-from-H and causally-used-by-the-policy turn out
+to be different properties, and the in-world policy fails the second one.
 
-Capabilities that appear cleanly in toy proxies vanish in the biosphere. The `EVO` arc traced this to its
-root: **the evolved in-world policy barely reads its observation at all.** Action/channel saliency sits at
-the floor across every channel (median ≈ 0.004, max ≤ 0.024) against 0.99 for a synthetic reader genome on
-the same probe. No reading, therefore no discrimination, therefore no cognition.
+### The in-world frontier: the lock is DISCOVERY, and it is not yet transferable
 
-The complement is `EVO-002`: an objective that *requires* deferred recall evolves a substrate that masters
-it (1.00 on 8/8 seeds, sign_p 0.0078), while memoryless and fresh controls stay at chance. **The lock is
-the objective, not the substrate and not the search.**
+The dominant gap in this repository is that capabilities appearing cleanly in toy proxies vanish in the
+biosphere. The `EVO` arc attacked it by elimination, changing one thing at a time:
+
+| What was manipulated | Record | Outcome |
+| --- | --- | --- |
+| nothing — survival alone | `EVO-004` | the policy reads **nothing**: saliency at the floor on every channel (median ≈ 0.004) against 0.99 for a synthetic reader |
+| the **weight** of a cognitive objective | `EVO-005` | the population climbs to the ceiling of what is winnable *without* reading, and no further |
+| the **granularity** of the objective (partial credit) | `EVO-007` | **0/12**, at matched subtask difficulty — identical to no partial credit at all |
+| the **variation operator** | `EVO-009` | **12/12** readers, Fisher p = 9.6 × 10⁻⁶, at no survival cost |
+
+The pivot is `EVO-008`. Tracing the one lineage that ever produced a reader shows saliency going from
+`0.00` to `1.00` **in a single era**, with no intermediate value in any era of any seed — a discrete event,
+not a gradient — and then holding for 28 eras out of 29. The objective already does half the work: it
+**retains** reading as soon as reading exists. What it cannot do is **create** it. Partial credit was
+built to climb a gradient that is not there; you do not make a dice roll more frequent by smoothing the
+reward.
+
+**This is a diagnosis, not a solution, and the follow-up says so.** `EVO-009`'s bias uses knowledge of
+which edges matter — information no real problem provides. `EVO-010` tested the obvious agnostic
+substitute and refuted it: **254,117 random weight wakeups bought zero readers.** Worse for the tidy
+story, it measured that creating the edge is not sufficient — **4 champions out of 4 carry the reader edge
+and none of them reads.** The appealing explanation that followed (the output must be dominated by a
+single channel) was itself tested: pruning competitors recovers **8%** of the effect, specific but tiny.
+
+So the honest position today: the in-world lock is localised to the variation operator's ability to
+*produce* the wiring, **targeting** rather than volume — and what distinguishes a reader from a mere
+edge-carrier is **not established**. `EVO-010` closes a road without opening one.
 
 ### Self-refutations, recorded in full
 
 The repository grades itself by how it handles being wrong:
 
+- **`EDR-EVO-007` retracts `EDR-EVO-006`, one day later.** "Partial credit is the missing gradient" rested
+  on three subtasks of unequal difficulty — the one that got learned was a sign threshold, the one that
+  failed required winning an 8-way argmax. At matched difficulty the arm *with* partial credit produced
+  exactly as many readers as the arm without: **zero out of twelve**. Both candidate explanations fell
+  together. The reading rule had been **sealed before the run** (`tools/preregister.py`, the first use of
+  the E11 guard), with the explicit commitment that `EVO-006` would fall if both arms failed. The initial
+  threshold then proved inadequate mid-run, and the guard forced correcting it **visibly** — all three
+  sealed files kept — rather than silently.
 - **`EDR-DREAM-001` refutes `EDR-095`.** "Forced dreaming causally reduces survival by 40–46%" reproduced
   exactly — and was a **birth-flood artefact**. Forced dreaming multiplies the living population by 13–16×;
   most members are born late, so median age falls mechanically. On a birth-matched founder cohort the
@@ -363,8 +394,8 @@ Good entry points: [`EDR-S2-012`](docs/EDR/S2-012_Champion_Body_Foundational_Ver
 
 ## On AI-assisted development
 
-This repository is developed with heavy AI assistance — **220 design documents** under
-[`docs/superpowers/`](docs/superpowers/) (113 specs, 107 execution plans), agent-run adversarial reviews,
+This repository is developed with heavy AI assistance — **228 design documents** under
+[`docs/superpowers/`](docs/superpowers/) (117 specs, 111 execution plans), agent-run adversarial reviews,
 and a [`CLAUDE.md`](CLAUDE.md) that encodes the experimental protocol as standing instructions.
 
 That corpus is committed, not summarised: each spec states what was going to be built and why, and its
@@ -381,6 +412,8 @@ described above was built in response to a **measured** agent failure mode:
 | Generalised from `agents[0]`, three times, once inside the record denouncing it | error registry E9, marked **not automatable** — hence mandatory review |
 | Inferred a causal link to save 7 hours of compute; it measured null in 28 minutes | `declare_design(links={...: "inferred"})` |
 | Documented a rule and then violated it the same day, three times, by three different actors | **every rule here is an executable check or a blocking hook** |
+| Wrote a probe that reseeded the global RNG between eras, silently re-running a *different* lineage than the one under observation — and returned a flat curve that read as a finding | RNG save/restore with two frozen tests; the artefact was caught only because a **known-answer case** was in the design |
+| Chose the analysis threshold after seeing the data | E11 guard — `tools/preregister.py` seals the rule before the run and refuses to rewrite it under a used name |
 
 The transferable principle: **a documented rule without executable enforcement will be violated.** Prose
 does not resist conviction; an assertion does.
@@ -393,11 +426,13 @@ Honest accounting, since the same standard applies to the README:
 
 - **G0 is the only validated gate.** G1–G4 are open. The north-star — zero-shot transfer — measured
   NEUTRAL under power on its first attempt, and that null stands.
-- **69 of 89 instruments remain uncalibrated.** The debt is frozen and cannot grow, but it exists.
+- **The in-world mechanism is unexplained.** `EVO-009` localises the lock to the variation operator, but
+  with a bias that knows the answer. The agnostic substitute was tested and refuted (`EVO-010`), and what
+  separates a reader from a genome merely carrying the reader edge is not established. This is the live
+  frontier, and it is a narrow one.
+- **69 of 97 instruments remain uncalibrated.** The debt is frozen and cannot grow, but it exists.
 - **42 orphan records and 8 id collisions** are inherited from an earlier numbering scheme used across
   parallel sessions. Frozen in a baseline, de-orphaned in waves.
-- **Two error classes have no guard at all** (E11: post-hoc analysis choices; E13: unbounded run cost).
-  Both are in the backlog with a cost estimate.
 - **Runs are expensive and cost scales with success** — as survival rises, episodes lengthen and everything
   slows. Three long runs have been abandoned (8 h, 4 h projected, 89 min). Bound the cost in the design.
 - **Research records are in French.**

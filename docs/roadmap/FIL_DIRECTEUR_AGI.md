@@ -44,6 +44,53 @@ brief + M1 `EDR-NAV-003` : fourche résolue), **T2** (crédit multi-tête — br
 l'échelle-de-loss, pas lr-par-tête), **T3** (recette BIND en prod — en cours, `learn_episode` in-world). La
 représentation n'est plus le sujet ; le **crédit différentiable** l'est.
 
+## ⚠️ MISE À JOUR 2026-07-29 — la thèse ci-dessus a été TESTÉE IN-WORLD, et elle n'y tient pas
+
+> Ce qui précède datait du 2026-07-10 et n'a jamais intégré l'arc **EVO-001→010** (22-28 juillet). Le
+> tableau reste valide **hors-monde** ; sa conséquence stratégique ne l'est plus in-world.
+
+**Le tableau ci-dessus repose entièrement sur de la DÉCODABILITÉ** (H décode la direction 0.81, `did_x`
+AUC 0.90, têtes décodables du tronc) — d'où « la représentation EST là ». L'arc EVO a mesuré autre chose :
+l'**usage causal**. Les deux ne coïncident pas.
+
+- [[EDR-EVO-004]] : la politique in-world évoluée ne LIT pas son observation — saillance action/canal au
+  plancher sur tous les canaux (médiane ≈ 0.004) contre 0.99 pour un génome-lecteur synthétique.
+- [[EDR-EVO-010]] : **4 champions sur 4 PORTENT l'arête lectrice et aucun ne lit** (1 concurrent sur la
+  sortie → saillance 1.000 ; 64-75 concurrents → 0.000-0.021).
+
+« Décodable depuis H » et « causalement lu par la politique » sont donc **deux propriétés distinctes**.
+Là où la seconde échoue, il n'y a pas d'échec de CONVERSION en aval d'une représentation : il n'y a rien
+qui lise en amont. La prescription « migrer vers le crédit différentiable comme frontière opérante » perd
+son fondement in-world.
+
+**Le crédit a été testé directement, et il ne produit pas la lecture** : [[EDR-EVO-007]] — crédit partiel,
+sous-tâches à difficulté APPARIÉE, règle scellée, n=12 → **0/12**, identique au bras sans crédit partiel.
+Converge [[EDR-S2-010]] (le crédit in-world ne bootstrappe pas la perception, même sous curriculum).
+
+### Ce que l'arc EVO établit à la place
+
+| levier manipulé | record | issue |
+|---|---|---|
+| rien (survie seule) | EVO-004 | ne lit rien |
+| **poids** de l'objectif cognitif | EVO-005 | plafond non-cognitif, rien au-delà |
+| **granularité** de l'objectif | EVO-007 | 0/12 |
+| **opérateur de variation** | **EVO-009** | **12/12**, Fisher p = 9.6e-6, sans coût de survie |
+
+Pivot = [[EDR-EVO-008]] : la lecture apparaît d'un **saut** (0.00 → 1.00 en une ère, aucune valeur
+intermédiaire) puis se maintient **28 ères sur 29**. L'objectif fait déjà la RÉTENTION ; ce qu'il ne sait
+pas faire, c'est CRÉER. Le crédit partiel servait à gravir un gradient qui n'existe pas.
+
+⚠️ **EVO-009 est un DIAGNOSTIC, pas un algorithme** — son biais connaît les arêtes qui comptent.
+[[EDR-EVO-010]] a réfuté le substitut agnostique évident (254 117 réveils → **zéro** lecteur) et montré que
+créer l'arête ne SUFFIT pas. Le mécanisme qui distingue un lecteur d'un porteur d'arête **n'est pas établi**.
+
+### Conséquence stratégique révisée
+
+La frontière in-world n'est ni l'objectif ni le crédit : c'est la **structure de la variation** (ciblage,
+pas volume). Pistes non adossées à un mécanisme établi : normaliser le fan-in par sortie, élaguer PENDANT
+l'évolution, faire porter la variation sur des sous-espaces. Les jalons T1/T2/T3 gardent leur valeur
+**offline** (NAV-003 : le readout EST RL-récupérable à signal dense) ; ils ne sont plus la voie in-world.
+
 ## Consolidation (SDR→EDR→ADR)
 `docs/{SDR,ADR,EDR}/` + frontmatter `motivates`/`triggers`/`tests`. `tools/consolidate_records.py`
 construit le graphe, échoue sur lien cassé (anti-théâtre). Niveau actuel : index statique (pas de LLM).
