@@ -1,0 +1,21 @@
+{
+  "name": "EVO-015",
+  "rule": {
+    "controle_de_manipulation_OBLIGATOIRE": "Le bras doit COPIER effectivement (compteur instrumente DANS LES DEUX BRAS -- 4 fois cette semaine un compteur n'a pu lire que zero) et creer plus d'aretes entree->sortie que le baseline.",
+    "design": "2 bras x 12 seeds : baseline / motif. Jeu MIXTE, W=5000, memes graines. Patch LOCAL.",
+    "discrimination": {
+      "copies effectuees ~ 0": "le bras ne teste rien (aucune arete E->S a reutiliser) -- revoir le levier.",
+      "lecteurs >= 6/12": "CONFIRME : un operateur STRUCTURE leve le verrou sans connaitre la tache -> 1er levier agnostique deployable, et la borne d'EVO-014 est bien specifique aux tirages uniformes.",
+      "lecteurs en hausse MAIS survie effondree": "rapporter les deux, chercher le p minimal.",
+      "lecteurs ~ baseline": "REFUTE : meme la reutilisation de motif echoue -> la decouverte agnostique est hors de portee de ce substrat TOUTES FAMILLES D'OPERATEURS TESTEES, et l'arc EVO se ferme sur ce constat."
+    },
+    "dv_primaire": "taux de seeds LECTEURS (saillance de decision > 0.5)",
+    "dv_survie": "age median et proies -- surveilles, pas accessoires",
+    "garde_cout": "budget_s=150/seed (E13) ; PRE-VOL DE VIABILITE OBLIGATOIRE (E10 occ.5)",
+    "levier": "REUTILISATION DE MOTIF : avec probabilite p, add_connection COPIE une arete entree->sortie DEJA PRESENTE vers une AUTRE sortie (meme source, destination differente). Aucune connaissance de la tache -- on reutilise ce que le genome a deja trouve.",
+    "pourquoi_ca_echappe_a_la_borne": "Le tirage ne porte plus sur 6372 paires mais sur ~108 destinations, l'entree etant HERITEE. Si cette entree est un canal de signal, 3 des 108 sont bonnes : ~3 % par copie contre 0.05 % en uniforme, soit ~60x -- obtenu sans savoir quelles aretes comptent.",
+    "question": "EVO-014 ferme les leviers agnostiques par TIRAGE UNIFORME sur des aretes isolees (borne : 6372 candidates, 3 bonnes, narrowing 1.7x max). Il laisse UNE famille ouverte : les operateurs STRUCTURES, qui exploitent ce qui existe deja. Un tel operateur produit-il des lecteurs ?",
+    "record": "EDR-EVO-015"
+  },
+  "seal": "694a813474651825d3581f64050facb2589a5d812fdb315fb971c3850077e94b"
+}
