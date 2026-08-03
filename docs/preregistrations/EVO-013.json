@@ -1,0 +1,21 @@
+{
+  "name": "EVO-013",
+  "rule": {
+    "controle_de_manipulation_OBLIGATOIRE": "Le plafond doit REDUIRE |logit| median. Si |logit| ne bouge pas, le bras ne teste RIEN et le taux de lecteurs ne doit pas etre lu -- c'est precisement l'erreur qui a rendu nul le test causal d'EVO-012.",
+    "design": "3 bras x 12 seeds : baseline / fanin=4 / fanin=1. Jeu MIXTE, W=5000, memes graines.",
+    "discrimination": {
+      "lecteurs en hausse MAIS survie effondree": "levier reel a cout de viabilite -> chercher le K minimal, rapporter les deux.",
+      "|logit| BAISSE et lecteurs >= 6/12": "CONFIRME : R est CAUSAL et le levier est agnostique -> premier levier deployable de l'arc.",
+      "|logit| BAISSE mais lecteurs ~ baseline": "REFUTE : baisser |logit| ne suffit pas -> R n'est pas la grandeur causale, ou il faut aussi que le signal soit CABLE (le plafond ne cree aucune arete). Lire les DEUX ensemble.",
+      "|logit| NE BAISSE PAS": "le bras ne teste rien -- NE PAS lire le taux de lecteurs. Revoir le levier."
+    },
+    "dv_mecaniste": "|logit| median et R -- servent AUSSI de controle de manipulation",
+    "dv_primaire": "taux de seeds LECTEURS (saillance de decision > 0.5)",
+    "dv_survie": "age median et proies : un plafond agressif peut casser la viabilite",
+    "garde_cout": "budget_s=150 par seed (E13) ; PRE-VOL DE VIABILITE avant le run long (E10 occ.5)",
+    "levier": "Plafonner le FAN-IN des noeuds de SORTIE pendant l'evolution : apres chaque mutation, ne garder que les K plus grandes |W[i,j]| entrantes sur chaque sortie, annuler le reste. Purement structurel, aucune connaissance de la tache.",
+    "question": "EVO-012 : R = |w_signal| / |logit| separe lecteur et porteur (1500x), mais AUCUNE intervention n'a reussi a manipuler R. Un levier AGNOSTIQUE qui augmente R produit-il des lecteurs ?",
+    "record": "EDR-EVO-013"
+  },
+  "seal": "5ee5d73c4d3aa7ead6ec2a8787a5899e0b6e5799f64f864e48d00feac2198238"
+}
