@@ -54,6 +54,10 @@ class TorchPopulationModel(PopulationModel):
     GATE_MULT = False        # EDR-160 : gate MULTIPLICATIF sigmoïde (biais = SCALE·σ(H·w+b) ∈ [0,SCALE])
     GATE_SCALE = 8.0         # amplitude du gate multiplicatif ; σ→0 supprime PROPREMENT hors-contexte
 
+    # --- Terme bilinéaire low-rank optionnel (attaque le mur de composition/binding) ---
+    BILINEAR = False         # terme d'interaction bilinéaire low-rank dans _step (débloque la composition).
+    BILINEAR_RANK = 16       # rang r du bilinéaire ((H·U)⊙(H·V))·W_bl ; params créés SEULEMENT si BILINEAR.
+
     def __init__(self, agents, world_model=None, lr=0.04, device="cpu"):
         if torch is None:
             raise NotImplementedError("backend 'torch' : PyTorch non installé (requirements-torch.txt)")
@@ -65,6 +69,7 @@ class TorchPopulationModel(PopulationModel):
         self._prev = None
         if self.B == 0:
             self.W = None
+            self.U = self.V = self.W_bl = None
             return
 
         dims_I = {a.genome.num_inputs for a in agents}
@@ -99,6 +104,16 @@ class TorchPopulationModel(PopulationModel):
             self.w_gate = torch.zeros(self.N, device=self.device, requires_grad=True)   # single (inchangé)
             self.b_gate = torch.full((1,), b0, device=self.device, requires_grad=True)
             params += [self.w_gate, self.b_gate]
+
+        # Terme bilinéaire low-rank (flag BILINEAR) : params créés seulement si activé, sinon None (chemin
+        # prod bit-identique). Init petit-aléatoire pour les TROIS (W_bl=0 gèlerait le gradient de U,V).
+        self.U = self.V = self.W_bl = None
+        if type(self).BILINEAR:
+            r = int(type(self).BILINEAR_RANK)
+            self.U = (0.1 * torch.randn(self.B, self.N, r, device=self.device)).detach().requires_grad_(True)
+            self.V = (0.1 * torch.randn(self.B, self.N, r, device=self.device)).detach().requires_grad_(True)
+            self.W_bl = (0.1 * torch.randn(self.B, r, self.N, device=self.device)).detach().requires_grad_(True)
+            params += [self.U, self.V, self.W_bl]
         self.opt = torch.optim.SGD(params, lr=lr)
 
     def _step(self, obs_t, H_in):
@@ -110,6 +125,10 @@ class TorchPopulationModel(PopulationModel):
         delta = torch.sigmoid(torch.clamp(diag, -10.0, 10.0))
         W_off = self.W * (1.0 - self._eye)                         # hors-diagonale
         excitation = torch.bmm(H.unsqueeze(1), W_off).squeeze(1)   # (B,N) = H · W_off
+        if type(self).BILINEAR and self.W_bl is not None:
+            hu = torch.bmm(H.unsqueeze(1), self.U).squeeze(1)      # (B,r)
+            hv = torch.bmm(H.unsqueeze(1), self.V).squeeze(1)      # (B,r)
+            excitation = excitation + torch.bmm((hu * hv).unsqueeze(1), self.W_bl).squeeze(1)  # (B,N)
         return (1.0 - delta) * H + delta * torch.tanh(excitation)
 
     def _gate_value(self, H):
