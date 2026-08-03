@@ -1,0 +1,20 @@
+{
+  "name": "EVO-014",
+  "rule": {
+    "contrainte_arithmetique_ETABLIE_AVANT": "Le biais d'EVO-009 reduisait les candidats de ~11000 a 3. Un prior STRUCTUREL entree->sortie ne descend qu'a 59x108 = 6372, dont 3 sont bonnes : gain 1.7x, pas 100x. AUCUNE regle agnostique ne peut narrower la recherche jusqu'a la reponse. Si un levier agnostique existe, il ne passe donc PAS par le ciblage mais par la PRESERVATION DE R -- garder les sorties propres pour que chaque arete essayee soit EVALUABLE au lieu d'etre noyee.",
+    "controle_de_manipulation_OBLIGATOIRE": "Le bras doit (a) creer davantage d'aretes entree->sortie que le baseline ET (b) garder |logit| BAS. Si l'un des deux echoue, le bras ne teste rien -- ne pas lire le taux de lecteurs.",
+    "design": "3 bras x 12 seeds : baseline / lowfanin / lowfanin+cap. Jeu MIXTE, W=5000, memes graines.",
+    "discrimination": {
+      "lecteurs >= 6/12 et |logit| bas": "CONFIRME : un levier AGNOSTIQUE existe, et il agit par PRESERVATION DE R, pas par ciblage. 1er levier deployable de l'arc.",
+      "lecteurs en hausse MAIS survie effondree": "levier reel a cout de viabilite -- rapporter les deux.",
+      "lecteurs ~ baseline malgre |logit| bas": "REFUTE : garder R eleve ne suffit pas -- il faut aussi tomber sur la bonne arete, et 1.7x de narrowing n'y suffit pas. La decouverte agnostique serait alors hors de portee de ce substrat, et l'arc doit le dire.",
+      "|logit| PAS bas": "le bras ne teste rien -- revoir le levier, ne pas lire le taux de lecteurs."
+    },
+    "dv_mecaniste": "|logit| median (= controle de manipulation : le bras doit le garder BAS) et fan-in moyen",
+    "dv_primaire": "taux de seeds LECTEURS (saillance de decision > 0.5)",
+    "garde_cout": "budget_s=150/seed (E13) ; PRE-VOL DE VIABILITE OBLIGATOIRE avant le run long (E10 occ.5)",
+    "levier": "add_connection biaise vers (source = noeud d'ENTREE, destination = SORTIE de plus faible fan-in), combine a un plafond de fan-in sur les sorties. Purement structurel : aucune connaissance de la tache, aucun canal ni sortie nomme.",
+    "record": "EDR-EVO-014"
+  },
+  "seal": "596160de0c4688786cf648debe12e10a4ecd3f493b8b533eb47b0799f5c8ec1c"
+}
