@@ -1,0 +1,21 @@
+{
+  "name": "EVO-012",
+  "rule": {
+    "design": "reproduire le LECTEUR (baseline seed 0) et 3 PORTEURS (wake20 seeds 0,2,3), mesurer R et |logit|",
+    "discrimination": {
+      "R >> 1 chez le lecteur ET R << 1 chez les porteurs": "CONFIRME : le verrou est le POINT DE FONCTIONNEMENT, pas l'exclusivite. Levier agnostique immediat et testable : normaliser/centrer les logits de decision.",
+      "R comparable dans les deux groupes": "REFUTE : la saturation n'explique pas l'ecart -> chercher ailleurs (dynamique de H, co-adaptation amont). Ne PAS elever l'exclusivite en mecanisme pour autant.",
+      "|logit| comparable mais bascule differente": "l'ecart vient de la VARIANCE du logit dans le temps, pas de son niveau -> mesurer la distribution, pas la mediane."
+    },
+    "dv": "ratio R = |contribution du signal| / |logits[8]| median, mesure in-world par agent-tick. Contribution = |poids de l'arete| (car obs = +-1). Compare au taux de bascule mesure.",
+    "hypothese": "POINT DE FONCTIONNEMENT. La decision est sign(logits[8]). Pour qu'une perturbation de obs=+-1 ponderee par une arete de ~0.5 fasse BASCULER le signe, il faut que logits[8] soit PRES DE ZERO. Un porteur sature (|logit| grand sous 70 entrees) ne peut pas basculer ; un lecteur opere au seuil.",
+    "instruments_autorises": [
+      "measure_decision_saliency (calibre)",
+      "inspection directe de logits via recurrent_forward"
+    ],
+    "note": "Mesure purement mecaniste (passages avant + inspection de W) : n'utilise NI le harnais de survie NI les compteurs du monde, tous deux defaillants (cf. EVO-011 arrete au pre-vol).",
+    "question": "EVO-010 laisse UN fait inexplique : 4/4 champions PORTENT l'arete lectrice sans lire, et elaguer les concurrents ne recupere que 8 %. Qu'est-ce qui distingue un PORTEUR d'un LECTEUR ?",
+    "record": "EDR-EVO-012"
+  },
+  "seal": "5cffb23abe3a135337e126c4c351fb9d2c3a547b4adcf9856232eb86d7f168ad"
+}
