@@ -142,15 +142,21 @@ CALIBRATED = {
     # FUITE détectée). Générateur A dans les DEUX dimensions (demande + aliasing) — 1ère ablation
     # SUBSTRAT du graphe AGI-Taxonomy (les 2 arêtes précédentes ablataient l'ENTRÉE, 'n/a').
     "run_language_memory_demand_probe": ["*"],
-    # Le terme BILINÉAIRE débloque-t-il la composition ? Positif ATTENDU (hypothèse du sous-projet) =
-    # (q+key)%K passe de NUL (plain) à APPRIS (bilinéaire) ; no-op = pur-rappel non régressé en
-    # bilinéaire. ⚠️ MESURÉ (Tâche 2, 2026-08-03) : le positif NE SE PRODUIT PAS dans l'enveloppe
-    # testée (episodes 150-3000, lr 0.02-0.1, rank 16-64, 5 seeds) — bilinéaire reste AU PLANCHER
-    # (~0.15-0.20) et est même SYSTÉMATIQUEMENT SOUS plain (qui frôle le seuil, cohérent avec
-    # l'étalon LANG-MEMORY). Calibré sur le NUL REPRODUCTIBLE (le bras « positif » ne peut PAS
-    # réussir à ce budget — c'est une MESURE, pas un artefact d'instrument, car le même instrument
-    # démontre bilinéaire > seuil sur task='recall', donc n'est pas structurellement bloqué à False)
-    # + le no-op RÉEL (bilinéaire apprend bien le pur-rappel). Verdict scientifique n=12 : Tâche 3.
+    # Le terme BILINÉAIRE débloque-t-il la composition ? Le nul de la Tâche 2 (REINFORCE/2-pas défaut,
+    # `same_tick=False, credit_mode="reinforce"`) était PROVISOIRE : la revue adversariale a identifié
+    # 2 confonds — CRÉDIT (`learn_episode` détache H à CHAQUE pas, sévrant le gradient encode->usage) et
+    # RÉTENTION (key au pas 0, q au pas 1 — le bilinéaire doit porter key à travers un tick). Tâche 3
+    # (2026-08-03) a ajouté 2 leviers optionnels (défauts = comportement Tâche 2 INCHANGÉ) : `same_tick`
+    # (key+q dans LA MÊME observation, 1 pas — lève la rétention) et `credit_mode="supervised"` (BPTT non
+    # tronqué via `imitate_episode_bptt` — lève le crédit). ⚠️ MESURÉ : en levant les DEUX confonds à la
+    # fois (`same_tick=True, credit_mode="supervised"`), le bilinéaire APPREND (q+key)%K quasi-parfaitement
+    # (médiane 0.932, 12/12 seeds > 0.89) alors que plain reste au plancher (médiane 0.271, 12/12 seeds
+    # < 0.31) -> `unlocked=True`, SÉPARATION TOTALE par-seed. Mais lever le crédit SEUL (2-pas,
+    # `credit_mode="supervised", same_tick=False`) NE SUFFIT PAS : bilinéaire reste au plancher (médiane
+    # 0.178, même SOUS plain 0.218) -> le confond dominant du nul de la Tâche 2 était la RÉTENTION, pas le
+    # crédit seul. Le bilinéaire low-rank PEUT représenter le produit q·key (capacité représentationnelle
+    # prouvée), mais ne résout PAS, par lui-même, le portage de key à travers un tick récurrent. Verdict
+    # n=12 sur les 2 conditions, cf. tests ci-dessous + `docs/EDR/EDR-BILINEAR_...md`.
     "run_bilinear_composition_probe": ["*"],
 }
 
@@ -1577,31 +1583,55 @@ def test_lm_leaky_control_fires_the_aliasing_guard():
 
 # ------------------------------------------- run_bilinear_composition_probe (BILINEAR) ------------
 # Le terme bilinéaire low-rank de `TorchPopulationModel` (Tâche 1, `7747b1e`) débloque-t-il
-# (q+key)%K, que le substrat PLAIN ne peut pas apprendre (étalon LANG-MEMORY, 0.15-0.33) ? Ces cas
-# ENTRAÎNENT réellement (pas de bypass agent, contrairement à MEM-PERCEPTION/LANG-MEMORY) -> budget
-# BORNÉ au strict nécessaire pour trancher (seeds=[0,1,2], voir docstrings pour le budget exact et
-# le wall-clock mesuré). ⚠️ Le test « positif » ci-dessous a été RENOMMÉ pour refléter le résultat
-# RÉELLEMENT MESURÉ : après recherche d'hyperparamètres bornée (episodes 150-3000, lr 0.02-0.1,
-# rank 16-64, 5 seeds), le bilinéaire ne franchit JAMAIS le seuil sur la composition — il reste
-# systématiquement SOUS plain. Forcer un budget non borné pour fabriquer un "unlocked=True" aurait
-# violé le protocole de pré-vol (ne pas raisonner/forcer au lieu de mesurer) ; le nul reproductible
-# EST la calibration (cf. commentaire CALIBRATED ci-dessus).
+# (q+key)%K, que le substrat PLAIN ne peut pas apprendre (étalon LANG-MEMORY, 0.15-0.33) ? Le nul
+# REINFORCE/2-pas de la Tâche 2 (`4bd8b8b`) était PROVISOIRE (revue adversariale, 2 confonds : CRÉDIT
+# + RÉTENTION, cf. commentaire CALIBRATED ci-dessus). Tâche 3 (2026-08-03) lève les deux confonds
+# séparément puis ensemble, n=12, budget borné (episodes=300, wall mesuré < 5 min/condition).
+# `test_bilinear_unlocks_composition_same_tick_supervised` = le test DÉCISIF (renommé depuis
+# `test_bilinear_composition_crux_finding_stays_null`, dont l'assertion "reste nul" ne survit PAS à la
+# levée des deux confonds — la levée seule du crédit, ci-dessous, laisse le nul intact ; c'est la
+# RÉTENTION, pas le crédit, qui était le confond dominant).
 
-def test_bilinear_composition_crux_finding_stays_null():
-    """CRUX (générateur A, résultat MESURÉ, pas l'hypothèse aspirationnelle du brief) : sur
-    (q+key)%K, PLAIN reste nul (reproduit l'étalon LANG-MEMORY) ET BILINÉAIRE reste nul AUSSI ->
-    `unlocked=False`. Budget borné : seeds=[0,1,2], episodes=600, n_agents=16, K=6 (wall mesuré
-    ≈60s, << 3 min). Medians mesurés (2026-08-03) : plain≈0.22, bilinéaire≈0.18 (per-seed
-    bilinéaire = [0.195, 0.178, 0.180], TOUJOURS sous plain [0.209, 0.259, 0.219] et sous le seuil
-    1/6+0.15≈0.317). Ce nul est REPRODUCTIBLE, pas un budget insuffisant : 3000 épisodes (seed 0)
-    et rank=64/lr=0.1 (seeds 0,1) donnent le MÊME plancher (~0.15-0.19). Verdict scientifique n=12,
-    Tâche 3 : ce nul pourrait être le finding final du sous-projet, ou un axe différent (méthode de
-    crédit, tâche de combinaison plus simple) pourrait renverser — pas cette recherche bornée-ci."""
+@pytest.mark.slow          # wall mesuré 107-292s (variance système) > 120s (pytest.ini) ; désélectionné
+@pytest.mark.timeout(600)  # en CI rapide (-m "not slow") ; override explicite (marge sur la variance mesurée)
+def test_bilinear_unlocks_composition_same_tick_supervised():
+    """POSITIF DÉCISIF (générateur A, les DEUX confonds levés à la fois) : `same_tick=True` (key ET q
+    dans LA MÊME observation, 1 seul pas -> lève la RÉTENTION) + `credit_mode="supervised"` (BPTT non
+    tronqué via `imitate_episode_bptt` -> lève le CRÉDIT, contrairement à `learn_episode` qui détache H
+    à chaque pas). Sur (q+key)%K : PLAIN reste au plancher, BILINÉAIRE APPREND quasi-parfaitement ->
+    `unlocked=True`, SÉPARATION TOTALE par-seed (aucun recouvrement des 12+12 valeurs). Budget : n=12,
+    episodes=300, n_agents=16, K=6, rank=16 (wall mesuré ≈292s < 5 min, << 9 min). Medians mesurés
+    (2026-08-03) : plain=0.271 (12 seeds dans [0.233,0.303]), bilinéaire=0.932 (12 seeds dans
+    [0.891,0.969]) — le bilinéaire low-rank PEUT représenter le produit q·key quand les deux sont
+    présents au même pas (capacité représentationnelle prouvée). Cf.
+    `test_bilinear_composition_null_under_retention_supervised` (le crédit seul, sans lever la
+    rétention, NE SUFFIT PAS -> la rétention était le confond dominant, pas le crédit)."""
     from tools.bilinear_composition_probe import run_bilinear_composition_probe
-    r = run_bilinear_composition_probe(seeds=[0, 1, 2], episodes=600, n_agents=16, K=6, task="composition")
+    r = run_bilinear_composition_probe(seeds=list(range(12)), episodes=300, n_agents=16, K=6, rank=16,
+                                        task="composition", same_tick=True, credit_mode="supervised")
     bar = 1 / 6 + 0.15
-    assert r["plain_median"] <= bar, r              # plain reste nul (reproduit l'étalon LANG-MEMORY)
-    assert r["bilinear_median"] <= bar, r            # FINDING : bilinéaire ne décolle PAS non plus
+    assert r["plain_median"] <= bar, r                                        # plain reste au plancher
+    assert r["bilinear_median"] > bar and r["unlocked"], r                    # bilinéaire décolle nettement
+    assert min(r["per_seed"]["bilinear"]) > max(r["per_seed"]["plain"]), r    # séparation TOTALE par-seed
+
+
+@pytest.mark.slow          # wall mesuré ≈160s (2×80s) > 120s (pytest.ini) ; désélectionné en CI rapide
+@pytest.mark.timeout(600)  # override explicite (marge sur la variance mesurée du système)
+def test_bilinear_composition_null_under_retention_supervised():
+    """SECONDAIRE (isole la RÉTENTION, crédit DÉJÀ réparé) : `credit_mode="supervised"` (même correctif
+    de crédit que le test décisif) MAIS `same_tick=False` (2 pas, key au pas 0 / q au pas 1, comme la
+    Tâche 2 — la rétention reste EXIGÉE). Résultat : bilinéaire reste AU PLANCHER, même SOUS plain
+    (reproduit le "smoking gun" de la revue Tâche 2 — le bilinéaire est plus dur à optimiser — malgré le
+    crédit réparé) -> réparer le crédit SEUL ne débloque PAS la composition ; le confond dominant du nul
+    de la Tâche 2 était la RÉTENTION. Budget : n=12 (2 lots de 6 seeds), episodes=300, n_agents=16, K=6,
+    rank=16 (wall mesuré ≈80s/lot). Medians mesurés (2026-08-03) : plain=0.218, bilinéaire=0.178 (SOUS
+    plain), tous deux SOUS le seuil 1/6+0.15≈0.317."""
+    from tools.bilinear_composition_probe import run_bilinear_composition_probe
+    r = run_bilinear_composition_probe(seeds=list(range(12)), episodes=300, n_agents=16, K=6, rank=16,
+                                        task="composition", same_tick=False, credit_mode="supervised")
+    bar = 1 / 6 + 0.15
+    assert r["plain_median"] <= bar, r
+    assert r["bilinear_median"] <= bar, r            # FINDING : le crédit seul ne débloque PAS
     assert not r["unlocked"], r
 
 

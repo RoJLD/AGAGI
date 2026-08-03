@@ -1,0 +1,110 @@
+{
+  "decisive_same_tick_supervised": {
+    "plain_median": 0.2710937410593033,
+    "bilinear_median": 0.9320312440395355,
+    "unlocked": true,
+    "per_seed": {
+      "plain": [
+        0.27031248807907104,
+        0.26875001192092896,
+        0.25312501192092896,
+        0.27812498807907104,
+        0.2750000059604645,
+        0.27656251192092896,
+        0.23281249403953552,
+        0.3031249940395355,
+        0.2718749940395355,
+        0.2796874940395355,
+        0.26093751192092896,
+        0.2671875059604645
+      ],
+      "bilinear": [
+        0.932812511920929,
+        0.925000011920929,
+        0.9375,
+        0.901562511920929,
+        0.890625,
+        0.925000011920929,
+        0.9375,
+        0.9312499761581421,
+        0.9468749761581421,
+        0.9234374761581421,
+        0.942187488079071,
+        0.96875
+      ]
+    },
+    "task": "composition",
+    "n": 12,
+    "same_tick": true,
+    "credit_mode": "supervised",
+    "_params": {
+      "episodes": 300,
+      "n_agents": 16,
+      "K": 6,
+      "lr": 0.02,
+      "rank": 16,
+      "seeds": 12,
+      "same_tick": true,
+      "credit_mode": "supervised",
+      "wall_s": 292.4
+    }
+  },
+  "secondary_two_tick_supervised": {
+    "plain_median": 0.21796874701976776,
+    "bilinear_median": 0.17812500149011612,
+    "unlocked": false,
+    "per_seed": {
+      "plain": [
+        0.21406249701976776,
+        0.21250000596046448,
+        0.22187499701976776,
+        0.23593750596046448,
+        0.19374999403953552,
+        0.21406249701976776,
+        0.19687500596046448,
+        0.2515625059604645,
+        0.22343750298023224,
+        0.19374999403953552,
+        0.23281249403953552,
+        0.23125000298023224
+      ],
+      "bilinear": [
+        0.14687499403953552,
+        0.19374999403953552,
+        0.17656250298023224,
+        0.203125,
+        0.16875000298023224,
+        0.1875,
+        0.171875,
+        0.1953125,
+        0.17656250298023224,
+        0.18125000596046448,
+        0.1796875,
+        0.15937499701976776
+      ]
+    },
+    "task": "composition",
+    "n": 12,
+    "same_tick": false,
+    "credit_mode": "supervised",
+    "_params": {
+      "episodes": 300,
+      "n_agents": 16,
+      "K": 6,
+      "lr": 0.02,
+      "rank": 16,
+      "seeds": 12,
+      "same_tick": false,
+      "credit_mode": "supervised",
+      "wall_s": 159.1,
+      "note": "run en 2 lots de 6 seeds (contrainte de timeout outil) puis fusionn\u00e9"
+    }
+  },
+  "_meta": {
+    "question": "Le terme BILINEAIRE low-rank debloque-t-il (q+key)%K une fois les confonds CREDIT et RETENTION identifies par la revue adversariale de la Tache 2 leves ?",
+    "bar": 0.31666666666666665,
+    "baseline_task2_reinforce_2tick_default": "plain_med~0.22-0.27, bilinear_med~0.18-0.19 (cf. tests/sandbox/test_instrument_calibration.py::test_bilinear_noop_on_recall et historique git 4bd8b8b) -- NUL, confondu (credit+retention)",
+    "verdict": "UNLOCKED sous same_tick=True+credit_mode=supervised (capacite representationnelle prouvee) ; NUL sous credit_mode=supervised seul (same_tick=False) -- le confond dominant etait la RETENTION, pas le CREDIT seul.",
+    "date": "2026-08-03"
+  }
+}
