@@ -142,6 +142,16 @@ CALIBRATED = {
     # FUITE détectée). Générateur A dans les DEUX dimensions (demande + aliasing) — 1ère ablation
     # SUBSTRAT du graphe AGI-Taxonomy (les 2 arêtes précédentes ablataient l'ENTRÉE, 'n/a').
     "run_language_memory_demand_probe": ["*"],
+    # Le terme BILINÉAIRE débloque-t-il la composition ? Positif ATTENDU (hypothèse du sous-projet) =
+    # (q+key)%K passe de NUL (plain) à APPRIS (bilinéaire) ; no-op = pur-rappel non régressé en
+    # bilinéaire. ⚠️ MESURÉ (Tâche 2, 2026-08-03) : le positif NE SE PRODUIT PAS dans l'enveloppe
+    # testée (episodes 150-3000, lr 0.02-0.1, rank 16-64, 5 seeds) — bilinéaire reste AU PLANCHER
+    # (~0.15-0.20) et est même SYSTÉMATIQUEMENT SOUS plain (qui frôle le seuil, cohérent avec
+    # l'étalon LANG-MEMORY). Calibré sur le NUL REPRODUCTIBLE (le bras « positif » ne peut PAS
+    # réussir à ce budget — c'est une MESURE, pas un artefact d'instrument, car le même instrument
+    # démontre bilinéaire > seuil sur task='recall', donc n'est pas structurellement bloqué à False)
+    # + le no-op RÉEL (bilinéaire apprend bien le pur-rappel). Verdict scientifique n=12 : Tâche 3.
+    "run_bilinear_composition_probe": ["*"],
 }
 
 _GENOMES = os.path.join("results", "warm007_genomes")
@@ -1563,3 +1573,45 @@ def test_lm_leaky_control_fires_the_aliasing_guard():
     r = run_language_memory_demand_probe(seeds=list(range(12)), episodes=0, n_agents=16, K=6, D=2,
                                          memory_mode="oracle", control_mode="leaky")
     assert r["functional_aliasing"] == "fail" and r["alias_verdict"] == "FUNCTIONAL_LEAK", r
+
+
+# ------------------------------------------- run_bilinear_composition_probe (BILINEAR) ------------
+# Le terme bilinéaire low-rank de `TorchPopulationModel` (Tâche 1, `7747b1e`) débloque-t-il
+# (q+key)%K, que le substrat PLAIN ne peut pas apprendre (étalon LANG-MEMORY, 0.15-0.33) ? Ces cas
+# ENTRAÎNENT réellement (pas de bypass agent, contrairement à MEM-PERCEPTION/LANG-MEMORY) -> budget
+# BORNÉ au strict nécessaire pour trancher (seeds=[0,1,2], voir docstrings pour le budget exact et
+# le wall-clock mesuré). ⚠️ Le test « positif » ci-dessous a été RENOMMÉ pour refléter le résultat
+# RÉELLEMENT MESURÉ : après recherche d'hyperparamètres bornée (episodes 150-3000, lr 0.02-0.1,
+# rank 16-64, 5 seeds), le bilinéaire ne franchit JAMAIS le seuil sur la composition — il reste
+# systématiquement SOUS plain. Forcer un budget non borné pour fabriquer un "unlocked=True" aurait
+# violé le protocole de pré-vol (ne pas raisonner/forcer au lieu de mesurer) ; le nul reproductible
+# EST la calibration (cf. commentaire CALIBRATED ci-dessus).
+
+def test_bilinear_composition_crux_finding_stays_null():
+    """CRUX (générateur A, résultat MESURÉ, pas l'hypothèse aspirationnelle du brief) : sur
+    (q+key)%K, PLAIN reste nul (reproduit l'étalon LANG-MEMORY) ET BILINÉAIRE reste nul AUSSI ->
+    `unlocked=False`. Budget borné : seeds=[0,1,2], episodes=600, n_agents=16, K=6 (wall mesuré
+    ≈60s, << 3 min). Medians mesurés (2026-08-03) : plain≈0.22, bilinéaire≈0.18 (per-seed
+    bilinéaire = [0.195, 0.178, 0.180], TOUJOURS sous plain [0.209, 0.259, 0.219] et sous le seuil
+    1/6+0.15≈0.317). Ce nul est REPRODUCTIBLE, pas un budget insuffisant : 3000 épisodes (seed 0)
+    et rank=64/lr=0.1 (seeds 0,1) donnent le MÊME plancher (~0.15-0.19). Verdict scientifique n=12,
+    Tâche 3 : ce nul pourrait être le finding final du sous-projet, ou un axe différent (méthode de
+    crédit, tâche de combinaison plus simple) pourrait renverser — pas cette recherche bornée-ci."""
+    from tools.bilinear_composition_probe import run_bilinear_composition_probe
+    r = run_bilinear_composition_probe(seeds=[0, 1, 2], episodes=600, n_agents=16, K=6, task="composition")
+    bar = 1 / 6 + 0.15
+    assert r["plain_median"] <= bar, r              # plain reste nul (reproduit l'étalon LANG-MEMORY)
+    assert r["bilinear_median"] <= bar, r            # FINDING : bilinéaire ne décolle PAS non plus
+    assert not r["unlocked"], r
+
+
+def test_bilinear_noop_on_recall():
+    """NO-OP : le pur-rappel (que le plain apprend déjà vite) reste appris en bilinéaire (pas de
+    régression) — ET prouve que l'instrument N'EST PAS structurellement bloqué à `bilinear_median`
+    bas (cf. commentaire CALIBRATED) : le même code produit un score ÉLEVÉ ici, bas sur la
+    composition. Budget borné : seeds=[0,1,2], episodes=150, n_agents=16, K=6 (wall mesuré ≈23s).
+    Per-seed bilinéaire mesuré (2026-08-03) : [0.608, 0.688, 0.712], tous >> seuil 1/6+0.15≈0.317
+    (plus lent que plain [0.975, 0.958, 1.0] à ce budget, mais clairement au-dessus du seuil)."""
+    from tools.bilinear_composition_probe import run_bilinear_composition_probe
+    r = run_bilinear_composition_probe(seeds=[0, 1, 2], episodes=150, n_agents=16, K=6, task="recall")
+    assert r["bilinear_median"] > 1 / 6 + 0.15, r    # bilinéaire n'abîme pas le rappel
