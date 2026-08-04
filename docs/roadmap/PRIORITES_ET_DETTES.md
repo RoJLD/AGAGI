@@ -14,6 +14,33 @@ et le coût estimé.
 
 ---
 
+## ⏱️ 2026-08-04 — ARC EVO CLOS (005→018). Trois directions restantes, priorisées
+
+**Énoncé de clôture** : dans ce substrat, la découverte d'un câblage cognitif ne s'obtient qu'en
+FOURNISSANT la réponse. Ni objectif (EVO-005/016), ni récompense (×2.4 de durée de vie, mesuré), ni
+atteignabilité (1 seul poids), ni difficulté de la cible (EVO-018), ni inertie de la sélection.
+**C'est le TIRAGE** : `add_connection` doit tomber sur ~3 arêtes utiles parmi ~11 000, et **six** méthodes
+de recherche ont échoué à changer cette probabilité (009 ciblage=triche · 010 volume · 013 plafond fan-in ·
+014 préservation de R · 015 réutilisation de motif · 017 nouveauté).
+
+**D1 — VOLUME × PRÉSERVATION DU FAN-IN (la cellule VIDE, priorité haute).** L'analyse à deux régimes
+d'[[EDR-EVO-013]] la désigne : le baseline est limité par le NUMÉRATEUR (l'arête n'est jamais créée), le
+régime densifié par le DÉNOMINATEUR (sorties saturées). EVO-010 a testé le volume SEUL, EVO-014 le
+fan-in SEUL — **jamais les deux ensemble**. Beaucoup de tirages ET des sorties maintenues propres attaque
+les deux régimes à la fois. Agnostique, bon marché (~30 min), et c'est le seul levier que l'arc désigne
+sans l'avoir essayé. *Coût : ~1 h avec pré-vol.*
+
+**D2 — Horizon d'un autre ORDRE.** À ~2.7e-4 par tirage et ~400 tirages/lignée, l'espérance est de 0.11
+découverte. Pour atteindre ~90 % il faut ~21× plus de tirages (≈750 ères, ou une population bien plus
+large). Mesurable, mais ce n'est plus la même expérience — et EVO-010 suggère que le volume seul sature.
+À faire APRÈS D1, qui teste la même idée en bornant le coût. *Coût : plusieurs heures.*
+
+**D3 — Changer le MOTEUR, pas la recherche.** Un substrat où la variation ne soit pas un tirage d'arêtes
+isolées. ⚠️ **Recoupe le travail en cours d'une session parallèle** (`bilinear-substrate-unlocks-composition`,
+2026-08-03) — coordonner avant d'engager quoi que ce soit, sous peine de doublon.
+
+---
+
 ## ⏱️ MISE À JOUR 2026-07-28 — arc EVO-005→009 livré, et les DEUX dernières dettes P3 sont CLOSES
 
 > Lire ce bloc avant tout le reste : il périme plusieurs entrées ci-dessous.

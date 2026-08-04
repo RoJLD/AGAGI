@@ -1,0 +1,20 @@
+{
+  "name": "EVO-019",
+  "rule": {
+    "controle_de_manipulation_OBLIGATOIRE": "(a) le volume doit AUGMENTER les aretes creees, compteur instrumente DANS LES TROIS BRAS ; (b) le plafond doit REDUIRE |logit| median par rapport au bras volume-seul. Si l'un des deux echoue, ce bras ne teste rien -- ne pas lire le taux de lecteurs.",
+    "design": "3 bras x 12 seeds : baseline / volume seul / volume+plafond. Sous-tache `throw` (la plus facile, EVO-018), hazard=15, W=0, survie seule. Le bras 'volume seul' est le controle qui isole l'apport du plafond.",
+    "discrimination": {
+      "les deux bras 0/12": "L'enonce de cloture tient sur sa DERNIERE cellule vide. Plus aucune combinaison des leviers connus ne franchit -> il faut changer de MOTEUR (D3), pas de recherche.",
+      "volume seul >= 3/12": "surprise : EVO-010 aurait rate l'effet -- verifier la difference de dispositif (sous-tache `throw` ici vs mixte la-bas) avant toute conclusion.",
+      "volume+plafond >= 3/12 alors que volume seul ~ 0": "LEVIER : c'est la COMBINAISON qui leve, et l'arc rouvre sur un resultat agnostique.",
+      "|logit| ne baisse pas avec le plafond": "le bras ne teste rien -- revoir le plafond."
+    },
+    "dv_primaire": "taux de seeds LECTEURS (saillance de decision > 0.5), vs le 0/12 d'EVO-018",
+    "garde_cout": "budget_s=150/seed (E13) ; PRE-VOL DE VIABILITE ET DE MANIPULATION OBLIGATOIRE",
+    "levier": "add_connection_rate x10 (0.5 -> 5.0, soit ~10x plus de tirages) COMBINE a un plafond de fan-in sur les sorties applique a chaque mutation. Purement structurel, aucune connaissance de la tache.",
+    "pourquoi_les_deux": "Le volume seul cree l'arete mais sature la sortie -> R s'effondre (EVO-010 : 4/4 champions PORTENT l'arete sans lire). Le plafond seul est inerte car le fan-in baseline est deja < 1 (EVO-013). Ensemble : le volume rend le plafond PERTINENT, et le plafond rend le volume LISIBLE.",
+    "question": "L'analyse a DEUX REGIMES d'EVO-013 designe une cellule VIDE : le baseline est limite par le NUMERATEUR (l'arete n'est jamais creee), le regime densifie par le DENOMINATEUR (sorties saturees). EVO-010 a teste le VOLUME seul (0/12), EVO-014 le FAN-IN seul (0/11). JAMAIS LES DEUX ENSEMBLE. Beaucoup de tirages ET des sorties propres leve-t-il le verrou ?",
+    "record": "EDR-EVO-019"
+  },
+  "seal": "d438371510978ddb2a558f7fe92b8094c9ef0682e0f820092df9028ba984786b"
+}
