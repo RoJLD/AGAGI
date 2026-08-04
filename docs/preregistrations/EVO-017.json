@@ -1,0 +1,20 @@
+{
+  "name": "EVO-017",
+  "rule": {
+    "descripteur_de_comportement": "Profil de SAILLANCE sur 4 canaux TIRES AU HASARD par ere (re-tires a chaque ere), mesure sur 20 ticks. Ne nomme AUCUN canal -> agnostique. Recompense la propriete generale d'etre sensible a son entree.",
+    "discrimination": {
+      "lecteurs 0/12 comme EVO-016": "REFUTE : meme une recherche auto-evaluee ne franchit pas. Le verrou de regime serait alors hors de portee des methodes de recherche testables ici, et l'arc EVO se clot sur ce constat.",
+      "lecteurs >= 3/12": "LEVIER : une pression de nouveaute agnostique leve le verrou de recherche. 1er resultat positif agnostique de tout l'arc.",
+      "lecteurs en hausse MAIS survie effondree": "la nouveaute paie la lecture en viabilite -> rapporter les deux, chercher le dosage minimal.",
+      "prevol : le lecteur n'est PAS plus nouveau que la foule": "le descripteur est aveugle a ce qu'on cherche -> NE PAS lancer, en changer."
+    },
+    "dv_primaire": "taux de seeds LECTEURS (saillance de decision sur obs[5] > 0.5), a comparer au 0/12 d'EVO-016",
+    "garde_cout": "budget_s=200/seed (surcout du descripteur) ; PRE-VOL DE COUT ET DE VIABILITE OBLIGATOIRE",
+    "levier": "Selection des elites : 4 par life_score + 3 par NOUVEAUTE (distance du profil de saillance a la moyenne de population). Sinon identique a EVO-016 : hazard=15, W=0, survie seule.",
+    "pourquoi_pas_les_alternatives": "Histogramme d'actions : un lecteur alterne E/O comme une politique fixe alternante -> ne les distingue pas. Entropie : une politique ALEATOIRE la maximise sans rien lire -> recompenserait le bruit. Ce qui distingue un lecteur, c'est que son action est PREDICTIBLE DEPUIS SON ENTREE.",
+    "prevol_decisif": "CONTROLE POSITIF : le descripteur DISTINGUE-t-il un lecteur cable de la foule des non-lecteurs ? Si sa nouveaute n'est pas nettement superieure, la pression ne peut pas le selectionner et le banc ne teste rien (classe E2). Mesurer aussi le SURCOUT par ere (garde E13).",
+    "question": "EVO-016 : le verrou est le REGIME DE RECHERCHE -- meme quand lire double la duree de vie et tient en un fil, la selection ne le trouve pas. Derniere famille non refutee : une recherche guidee par un SIGNAL INTERNE, qui ne reduit pas l'espace a priori mais le parcourt en s'auto-evaluant. Une pression de NOUVEAUTE leve-t-elle le verrou ?",
+    "record": "EDR-EVO-017"
+  },
+  "seal": "04a0cff03973d76d9f12c0f584c81da88157991018b00827d626a50ae3f2f8dd"
+}

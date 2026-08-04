@@ -1,0 +1,21 @@
+{
+  "name": "EVO-017-bis",
+  "rule": {
+    "correction": "Descripteur = saillance sur TOUS les canaux (59), sur 3 ticks seulement, au lieu de 4 canaux sur 20 ticks. Meme cout (~80 vs ~177 canal-ticks, ~1s vs ~2s), mais couverture COMPLETE. Regle de conception : pour une propriete RARE et CONCENTREE, large-et-superficiel bat etroit-et-profond.",
+    "defaut_mesure": "Un lecteur n'est NOUVEAU que sur le canal qu'il LIT ; sur les 58 autres il est aussi insensible que la foule. Mesure : avec le canal du signal inclus, nouveaute 0.9525 vs 0.0475 -> rang 1/30. Avec 4 canaux au hasard : 0.0144 vs 0.0144 -> rang 3/30, INDISTINGUABLE. La pression ne pouvait donc pas selectionner le lecteur.",
+    "discrimination": {
+      "lecteurs 0/12 comme EVO-016": "REFUTE : meme une recherche auto-evaluee ne franchit pas -> le verrou de regime est hors de portee des methodes testables ici, et l'arc EVO se clot.",
+      "lecteurs >= 3/12": "LEVIER : une pression de nouveaute AGNOSTIQUE leve le verrou de recherche.",
+      "lecteurs en hausse MAIS survie effondree": "rapporter les deux, chercher le dosage minimal.",
+      "prevol : rang != 1": "descripteur encore aveugle -> NE PAS lancer."
+    },
+    "dv_primaire": "taux de seeds LECTEURS (saillance de decision sur obs[5] > 0.5), vs le 0/12 d'EVO-016",
+    "etat_au_scellement": "Seul le PRE-VOL a ete vu (population synthetique : 1 lecteur cable + 29 genomes frais). AUCUNE donnee d'evolution, aucun bras traite.",
+    "garde_cout": "budget_s=200/seed ; PRE-VOL DE COUT ET DE VIABILITE OBLIGATOIRE",
+    "levier": "elites = 4 par life_score + 3 par NOUVEAUTE. Sinon identique a EVO-016 (hazard=15, W=0).",
+    "prevol_decisif": "le lecteur cable doit sortir RANG 1 sur le descripteur corrige, et le surcout rester borne",
+    "record": "EDR-EVO-017",
+    "remplace": "EVO-017 (descripteur = 4 canaux TIRES AU HASARD) -- AVEUGLE, mesure au pre-vol"
+  },
+  "seal": "df1174d8f078391c241b67d7703ef5756763e5de5a8e9b1e44313680e1890200"
+}
