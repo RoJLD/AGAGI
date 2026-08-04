@@ -1,0 +1,18 @@
+{
+  "name": "EVO-018",
+  "rule": {
+    "comparaison": "directe avec le 0/12 d'EVO-016 (meme hazard, meme W=0, meme n) -- seule la sous-tache change",
+    "design": "Identique a EVO-016 (hazard=15, W=0, survie seule, n=12) SAUF la sous-tache : tasks=(1,) = `throw`, un seuil de signe qu'UN SEUL POIDS suffit a cabler, au lieu de tasks=(0,) = `move`.",
+    "discrimination": {
+      "lecteurs 0/12": "L'enonce de cloture TIENT et se renforce : meme sur la sous-tache la PLUS FACILE, un seul poids suffisant, la survie seule ne trouve pas. Le hedge est ferme.",
+      "lecteurs >= 3/12": "L'ENONCE DE CLOTURE DOIT ETRE QUALIFIE : le verrou de recherche depend de la DIFFICULTE de la sous-tache, pas seulement du regime. EVO-016/017 restent vrais pour `move` mais leur portee se retrecit, et une piste rouvre : rendre la cible plus facile plutot que la recherche plus maligne.",
+      "lecteurs en hausse MAIS survie non amelioree": "la lecture emerge sans payer -> derive ou hitchhiking, pas selection ; rapporter les deux."
+    },
+    "dv_primaire": "taux de seeds LECTEURS (saillance de decision sur obs[5] -> logits[8] > 0.5)",
+    "garde_cout": "budget_s=150/seed (E13) ; PRE-VOL DE VIABILITE OBLIGATOIRE (E10 occ.5)",
+    "prevol_decisif": "CONTROLE POSITIF : un lecteur `throw` cable survit-il mieux qu'un non-lecteur sous le hazard ? Si non, le banc ne peut pas repondre (classe E2) -- recalibrer avant tout run.",
+    "question": "EVO-016 et EVO-017 portent le MEME hedge : la lecture requise y passe par un argmax a 8 voies (sous-tache DURE au sens d'EVO-007) ; un seuil de SIGNE serait plus facile et n'a pas ete teste sous survie seule. Ce record teste ce hedge -- c'est l'endroit le plus probable ou l'enonce de cloture casse.",
+    "record": "EDR-EVO-018"
+  },
+  "seal": "bfd95c050552086e78e9e105f4f96a613f7334d35a30dda1a23f73a67e1021c8"
+}
