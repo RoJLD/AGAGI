@@ -1,0 +1,19 @@
+{
+  "name": "EVO-016",
+  "rule": {
+    "design": "HazardSignalBiosphere : signal +-1 dans obs[5] ; apres chaque step, les agents dont last_action n'est PAS la direction signalee perdent HAZARD energie. Lire = survivre. 2 bras x 12 seeds, W=0 (SURVIE SEULE), memes graines.",
+    "discrimination": {
+      "lecteurs emergent sous survie seule": "LE MONDE RECOMPENSE la cognition des qu'elle est atteignable ET payante -> S2-012 doit etre NUANCE : ce n'est pas que la survie n'a pas de contenu cognitif, c'est que les canaux du monde n'en portaient pas d'exploitable.",
+      "lecteurs n'emergent PAS malgre l'avantage de survie": "CONFIRME S2-012 CAUSALEMENT et va plus loin : meme quand lire PAIE en survie et que la capacite est atteignable, la selection ne la saisit pas -> le verrou est le REGIME DE RECHERCHE, pas l'objectif ni l'atteignabilite. C'est le resultat le plus fort possible ici.",
+      "prevol : lecteur cable NE survit PAS mieux": "le banc ne peut pas repondre -- recalibrer HAZARD avant tout run (E2 : bras qui ne peut pas reussir)."
+    },
+    "dv_primaire": "taux de seeds LECTEURS (saillance de decision sur obs[5] > 0.5), sous survie SEULE",
+    "dv_survie": "age median et proies dans les deux bras",
+    "garde_cout": "budget_s=150/seed (E13) ; PRE-VOL OBLIGATOIRE (E10 occ.5)",
+    "pourquoi_ce_design": "EVO-011 a echoue sur obs[4]->throw : la decision est gatee par l'inventaire, le compteur _throw_did n'existe qu'en branche torch, et aim_vec (logits[11],[12]) est une SECONDE variable non controlee -- un lecteur parfait lancerait dans une direction aleatoire. On evite les trois en rendant le canal ARTIFICIEL informatif : signal +-1 = direction a prendre pour eviter un dommage. Pas de lance, pas de visee, pas de life_score.",
+    "prevol_decisif": "CONTROLE POSITIF avant tout run : un lecteur CABLE survit-il mieux qu'un non-lecteur (age median, proies) ? Si NON, le dommage est mal calibre ou le monde noie l'effet -> ne pas evoluer. Verifier aussi que le dommage MORD (les non-lecteurs doivent en souffrir).",
+    "question": "Question de S2-012, jamais testee avec la capacite ATTEIGNABLE **et** PAYANTE : quand lire un canal procure un avantage de SURVIE direct, l'evolution sous survie SEULE decouvre-t-elle la lecture ? Tout l'arc EVO-005..015 faisait lire un signal que MA fitness payait ; ici la fitness cognitive est RETIREE (W=0).",
+    "record": "EDR-EVO-016"
+  },
+  "seal": "c508c32c4a93e0921863641b2eecfbc8730c08b340596497aaa6cb4924be32a9"
+}
