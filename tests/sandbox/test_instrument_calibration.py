@@ -158,6 +158,9 @@ CALIBRATED = {
     # prouvée), mais ne résout PAS, par lui-même, le portage de key à travers un tick récurrent. Verdict
     # n=12 sur les 2 conditions, cf. tests ci-dessous + `docs/EDR/EDR-BILINEAR_...md`.
     "run_bilinear_composition_probe": ["*"],
+    # Diagnostic retain+compose. Positif = same_tick (le bilinéaire compose 2 entrées co-présentes -> >bar) ;
+    # négatif = oracle DÉCORRÉLÉ (key aléatoire en état -> ne porte pas la bonne info -> plancher). Générateur A.
+    "run_retain_compose_diagnostic_probe": ["*"],
 }
 
 _GENOMES = os.path.join("results", "warm007_genomes")
@@ -1645,3 +1648,28 @@ def test_bilinear_noop_on_recall():
     from tools.bilinear_composition_probe import run_bilinear_composition_probe
     r = run_bilinear_composition_probe(seeds=[0, 1, 2], episodes=150, n_agents=16, K=6, task="recall")
     assert r["bilinear_median"] > 1 / 6 + 0.15, r    # bilinéaire n'abîme pas le rappel
+
+
+# ------------------------------------------------- run_retain_compose_diagnostic_probe (Task 1)
+# H1 (rétention apprise) vs H2 (lecture d'état) sur le mur retain+compose. Budget mesuré (2026-08-04) :
+# n=4 seeds, episodes=400, n_agents=16, K=6 -> ≈81s (same_tick) / ≈73s (oracle_decorrelated), chacun
+# sous le timeout pytest.ini de 120s (pas de marqueur @pytest.mark.slow/@timeout requis).
+
+def test_retain_compose_same_tick_composes():
+    """POSITIF (générateur A) : le bilinéaire compose key+q CO-PRÉSENTS -> same_tick > bar. Prouve que
+    l'instrument PEUT montrer la composition (sinon un oracle<=bar serait ininterprétable).
+    Mesuré (2026-08-04) : same_tick_median=0.966, 4 seeds dans [0.955, 0.977], tous > bar=1/6+0.15≈0.317."""
+    from tools.retain_compose_diagnostic_probe import run_retain_compose_diagnostic_probe
+    r = run_retain_compose_diagnostic_probe(seeds=list(range(4)), episodes=400, n_agents=16, K=6,
+                                            conditions=("same_tick",))
+    assert r["same_tick_median"] > 1/6 + 0.15, r
+
+
+def test_retain_compose_decorrelated_oracle_is_floor():
+    """NÉGATIF : un key ALÉATOIRE injecté en état (décorrélé de la cible) ne permet PAS (q+key)%K -> plancher.
+    Prouve que l'oracle mesure la LECTURE de l'état retenu, pas un artefact d'injection.
+    Mesuré (2026-08-04) : oracle_decorrelated_median=0.162, 4 seeds dans [0.152, 0.178], tous <= bar≈0.317."""
+    from tools.retain_compose_diagnostic_probe import run_retain_compose_diagnostic_probe
+    r = run_retain_compose_diagnostic_probe(seeds=list(range(4)), episodes=400, n_agents=16, K=6,
+                                            conditions=("oracle_decorrelated",))
+    assert r["oracle_decorrelated_median"] <= 1/6 + 0.15, r
