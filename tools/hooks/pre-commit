@@ -31,7 +31,11 @@ fi
 # ce que la session-mère a montré insuffisant (règle documentée sans application exécutable => violée).
 staged_py=$(git diff --cached --name-only --diff-filter=AM | grep -E '^(tools|src/seed_ai)/.*\.py$')
 if [ -n "$staged_py" ]; then
-  PYTHONIOENCODING=utf-8 python tools/check_instrument_calibration.py || {
+  # ⚠️ `--only` sur les fichiers INDEXÉS : l'arbre est PARTAGÉ entre sessions parallèles, et un
+  # instrument non suivi écrit par une autre session bloquait des commits sans rapport (mesuré
+  # le 2026-09-01). L'état de l'arbre reste imprimé ; seul le BLOCAGE est restreint. Même
+  # principe que la porte 1, qui scope déjà avec `--only`.
+  PYTHONIOENCODING=utf-8 python tools/check_instrument_calibration.py --only $staged_py || {
     echo ""
     echo "-> Un NOUVEL instrument (fonction produisant un verdict/ratio/survie/taux) n'est pas calibré."
     echo "   Ajoute un cas dans tests/sandbox/test_instrument_calibration.py (déclaration CALIBRATED),"

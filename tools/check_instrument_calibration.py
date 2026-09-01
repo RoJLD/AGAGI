@@ -83,6 +83,36 @@ def scan_instruments():
     return found
 
 
+def scan_collisions():
+    """{nom: [chemins]} pour les noms définis dans PLUSIEURS fichiers du périmètre.
+
+    ⚠️ TROISIÈME angle mort du cliquet, mesuré le 2026-09-01. `scan_instruments` indexe par NOM seul
+    et garde le PREMIER fichier (`setdefault`) : **6 noms sont définis dans plusieurs fichiers et
+    8 définitions sont donc INVISIBLES**. Le cliquet rapportait 101 instruments là où il en existe 109.
+    Le danger n'est pas seulement le sous-comptage : déclarer calibré `run_probe` (3 fichiers) aurait
+    verdi DEUX instruments JAMAIS testés — un faux vert fabriqué par l'outil censé les empêcher, soit
+    la classe E4 dans sa troisième incarnation ici (après le motif de nommage, puis le périmètre).
+    Vérifié au moment du correctif : aucune collision n'était déclarée calibrée, donc aucun faux vert
+    n'existait — le risque était PROSPECTIF, et il est désormais bloqué."""
+    seen = {}
+    for rel in _SCAN_DIRS:
+        d = os.path.join(_ROOT, rel)
+        if not os.path.isdir(d):
+            continue
+        for fn in sorted(os.listdir(d)):
+            if not fn.endswith(".py") or fn.startswith("check_"):
+                continue
+            try:
+                src = open(os.path.join(d, fn), encoding="utf-8").read()
+            except OSError:
+                continue
+            path = os.path.join(rel, fn).replace("\\", "/")
+            for pat in _INSTRUMENT_PATTERNS:
+                for name in pat.findall(src):
+                    seen.setdefault(name, set()).add(path)
+    return {n: sorted(p) for n, p in seen.items() if len(p) > 1}
+
+
 def scan_calibrated():
     """Instruments DÉCLARÉS calibrés par la suite, via un dict `CALIBRATED` explicite.
 
@@ -106,12 +136,19 @@ def scan_calibrated():
     except (ValueError, SyntaxError):
         return set()
     known = scan_instruments()
+    collisions = scan_collisions()
     out = set()
     for name, branches in (declared or {}).items():
-        if name not in known:
+        # Une déclaration peut être QUALIFIÉE : "tools/foo.py::run_probe" — obligatoire dès que le nom
+        # est ambigu, sinon on validerait des homonymes jamais testés (cf. `scan_collisions`).
+        qualified = "::" in name
+        bare = name.split("::")[-1] if qualified else name
+        if bare not in known:
             continue                                  # déclaration périmée : ignorée, pas de faux vert
+        if bare in collisions and not qualified:
+            continue                                  # AMBIGUË : refusée tant qu'elle n'est pas qualifiée
         if isinstance(branches, (list, tuple, set)) and branches:
-            out.add(name)
+            out.add(bare)
     return out
 
 
@@ -141,6 +178,9 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--report", action="store_true", help="État complet, exit 0.")
     ap.add_argument("--update-baseline", action="store_true", help="Gèle l'état courant.")
+    ap.add_argument("--only", nargs="*", metavar="FICHIER", default=None,
+                    help="Ne considérer comme NOUVEAU que ce qui est défini dans ces fichiers. "
+                         "L'état de l'ARBRE reste rapporté ; seul le BLOCAGE est restreint.")
     args = ap.parse_args(argv)
 
     instruments = scan_instruments()
@@ -156,9 +196,35 @@ def main(argv=None):
 
     known = set(_load_baseline().get("uncalibrated", []))
     nouveaux = [n for n in uncalibrated if n not in known]
+    # ⚠️ PORTÉE DU BLOCAGE (2026-09-01) — l'arbre est PARTAGÉ entre sessions parallèles. Sans `--only`,
+    # un instrument NON SUIVI créé par une autre session bloquait des commits sans aucun rapport
+    # (mesuré : `run_delayed_coordination_demand_probe`). Les deux échappatoires étaient mauvaises :
+    # `--no-verify` contourne la garde, et `--update-baseline` déclarerait « légataire » un instrument
+    # né le jour même, donc le laisserait passer EN SILENCE — le faux vert que la garde doit empêcher.
+    # La porte SŒUR (`check_record_links.py`) avait déjà résolu ça en se limitant aux fichiers indexés.
+    # Ce qu'on NE perd PAS : stager un instrument non calibré reste bloqué, et l'état de l'arbre
+    # continue d'être imprimé. Ce qu'on perd : on peut committer du code d'instrument pendant qu'un
+    # instrument non calibré dort, non stagé, ailleurs dans l'arbre.
+    hors_portee = []
+    if args.only is not None:
+        portee = {f.replace("\\", "/") for f in args.only}
+        dans = [n for n in nouveaux if instruments.get(n, "") in portee]
+        hors_portee = [n for n in nouveaux if n not in dans]
+        nouveaux = dans
 
+    collisions = scan_collisions()
+    masquees = sum(len(v) - 1 for v in collisions.values())
     print(f"instruments détectés : {len(instruments)} | calibrés : {len(calibrated)} | "
           f"non calibrés : {len(uncalibrated)} (dont {len(nouveaux)} NOUVEAUX)")
+    if collisions:
+        # ⚠️ Ne PAS laisser ce chiffre implicite : le total réel est len(instruments) + masquees.
+        print(f"⚠️  {len(collisions)} nom(s) en COLLISION -> {masquees} définition(s) INVISIBLE(S) "
+              f"au cliquet (total réel : {len(instruments) + masquees}). Une déclaration NUE sur un de "
+              f"ces noms est REFUSÉE : la qualifier « fichier.py::fonction ».")
+        if args.report:
+            for n, paths in sorted(collisions.items()):
+                etat = "DÉCLARÉ CALIBRÉ" if n in calibrated else "non calibré"
+                print(f"     {n}  [{etat}] : {', '.join(paths)}")
     if args.report:
         br = scan_declared_branches()
         for n in sorted(instruments):
@@ -167,6 +233,9 @@ def main(argv=None):
             print(f"  {mark} {n}  ({instruments[n]}){suffix}")
         return 0
 
+    for n in hors_portee:
+        print(f"  [non calibré, HORS PORTÉE de ce commit] {n}  ({instruments[n]})"
+              f"  -> à traiter par la session qui l'a écrit")
     for n in nouveaux:
         print(f"  [NOUVEL INSTRUMENT NON CALIBRÉ] {n}  ({instruments[n]})"
               f"  -> ajouter un cas dans tests/sandbox/test_instrument_calibration.py")

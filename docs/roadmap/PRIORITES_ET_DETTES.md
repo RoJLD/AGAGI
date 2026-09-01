@@ -21,6 +21,17 @@ et le coût estimé.
 
 ### Dans la machinerie de calibration elle-même (le plus grave : l'outil qui compte se trompe)
 
+* **La porte de calibration du hook BLOQUE les sessions les unes contre les autres.** Mesuré le
+  2026-09-01 : un instrument NON SUIVI créé par une session parallèle
+  (`run_delayed_coordination_demand_probe`) a bloqué un commit sans aucun rapport, parce que la porte 2
+  scanne l'**arbre entier** dès qu'on touche un `.py` de `tools/` ou `src/seed_ai/`. Le comportement est
+  délibéré (« bloque tout commit qui touche du code d'instrument tant qu'un NOUVEL instrument non
+  calibré existe dans l'arbre ») — mais l'arbre est **partagé entre sessions**, et la porte sœur
+  (graphe de records) a déjà résolu exactement ça avec `--only` sur les fichiers **indexés**.
+  ⚠️ Ni contourner (`--no-verify`), ni geler la dette d'autrui (`--update-baseline` déclarerait
+  « légataire » un instrument né il y a une heure, et le laisserait passer en silence). **Piste** :
+  ne compter comme NOUVEAU que ce qui est indexé, tout en continuant à rapporter l'état de l'arbre.
+
 * **Collision de noms — 8 instruments réels INVISIBLES.** `tools/check_instrument_calibration.py:82`
   indexe par `name` seul (`found.setdefault(name, ...)`). Deux fonctions homonymes dans deux fichiers
   n'en font qu'une : déclarer l'une calibrée **verdirait l'autre, jamais testée**. Clé à passer en

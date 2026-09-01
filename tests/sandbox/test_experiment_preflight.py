@@ -171,3 +171,84 @@ def test_calibration_ratchet_requires_explicit_declaration(tmp_path, monkeypatch
     # Déclaration périmée (instrument inexistant) : ignorée, jamais de faux vert.
     faux.write_text('CALIBRATED = {\n    "instrument_qui_nexiste_pas": ["*"],\n}\n', encoding="utf-8")
     assert C.scan_calibrated() == set()
+
+
+def test_calibration_ratchet_REFUSES_a_bare_declaration_on_an_ambiguous_name(tmp_path, monkeypatch):
+    """TROISIÈME angle mort du cliquet, mesuré le 2026-09-01 — après le motif de nommage (2026-07-21)
+    et le périmètre de scan (même jour). L'heuristique est faillible sur TROIS axes : ce qu'elle
+    cherche, OÙ elle le cherche, et **comment elle IDENTIFIE ce qu'elle trouve**.
+
+    `scan_instruments` indexe par NOM seul et garde le premier fichier (`setdefault`) : 6 noms sont
+    définis dans plusieurs fichiers, donc **8 définitions étaient invisibles** (101 rapportés, 109
+    réels). Le danger n'est pas le sous-comptage mais le FAUX VERT : déclarer calibré `run_probe`
+    (3 fichiers) aurait verdi DEUX instruments jamais testés — classe E4, dans l'outil écrit pour
+    l'empêcher, pour la troisième fois.
+
+    Vérifié au moment du correctif : aucune collision n'était déclarée calibrée, donc aucun faux vert
+    n'existait. Le risque était PROSPECTIF — c'est exactement le moment où il faut le fermer."""
+    import tools.check_instrument_calibration as C
+
+    collisions = C.scan_collisions()
+    assert collisions, "aucune collision détectée -> le détecteur est cassé, il ne peut plus rien voir"
+    ambigu = sorted(collisions)[0]
+    assert len(collisions[ambigu]) >= 2
+
+    faux = tmp_path / "test_calib.py"
+    monkeypatch.setattr(C, "_CALIB_TESTS", str(faux))
+
+    # ⚠️ LE contre-exemple : une déclaration NUE sur un nom ambigu ne doit RIEN valider.
+    faux.write_text(f'CALIBRATED = {{\n    "{ambigu}": ["*"],\n}}\n', encoding="utf-8")
+    assert ambigu not in C.scan_calibrated(), (
+        f"« {ambigu} » est défini dans {len(collisions[ambigu])} fichiers ; une déclaration nue "
+        f"validerait des homonymes JAMAIS testés")
+
+    # SPÉCIFICITÉ 1 — qualifiée « fichier::fonction », elle doit être acceptée : sans ça, les 6 noms
+    # en collision deviendraient incalibrables et la garde bloquerait le travail au lieu de le guider.
+    faux.write_text(f'CALIBRATED = {{\n    "{collisions[ambigu][0]}::{ambigu}": ["*"],\n}}\n',
+                    encoding="utf-8")
+    assert ambigu in C.scan_calibrated(), "une déclaration QUALIFIÉE doit être acceptée"
+
+    # SPÉCIFICITÉ 2 — un nom NON ambigu reste déclarable nu (aucune régression sur les 36 existants).
+    non_ambigu = next(n for n in C.scan_instruments() if n not in collisions)
+    faux.write_text(f'CALIBRATED = {{\n    "{non_ambigu}": ["*"],\n}}\n', encoding="utf-8")
+    assert non_ambigu in C.scan_calibrated(), (
+        "un nom sans homonyme doit rester déclarable simplement — sinon la correction casse tout")
+
+
+def test_calibration_gate_blocks_only_what_THIS_commit_touches(tmp_path, monkeypatch, capsys):
+    """PORTÉE DU BLOCAGE — l'arbre est PARTAGÉ entre sessions parallèles (CLAUDE.md).
+
+    Mesuré le 2026-09-01 : un instrument NON SUIVI écrit par une autre session
+    (`run_delayed_coordination_demand_probe`) bloquait un commit sans aucun rapport, parce que la porte
+    scannait l'arbre entier. Les deux échappatoires étaient mauvaises — `--no-verify` contourne la
+    garde, et `--update-baseline` déclarerait « légataire » un instrument né le jour même, donc le
+    laisserait passer EN SILENCE. La porte sœur (`check_record_links.py`) avait déjà résolu ça.
+
+    Ce test gèle les DEUX sens : hors portée -> on passe (mais l'instrument reste VISIBLE dans le
+    rapport) ; dans la portée -> on bloque. Sans le second, la porte ne garderait plus rien."""
+    import tools.check_instrument_calibration as C
+
+    faux_base = tmp_path / "baseline.json"
+    faux_base.write_text('{"uncalibrated": []}', encoding="utf-8")
+    monkeypatch.setattr(C, "_BASELINE", str(faux_base))
+    monkeypatch.setattr(C, "scan_instruments",
+                        lambda: {"verdict_a_moi": "tools/a_moi.py",
+                                 "verdict_d_autrui": "tools/d_autrui.py"})
+    monkeypatch.setattr(C, "scan_calibrated", lambda: set())
+    monkeypatch.setattr(C, "scan_collisions", lambda: {})
+    monkeypatch.setattr(C, "scan_declared_branches", lambda: {})
+
+    # HORS PORTÉE : je ne stage que mon fichier, déjà calibré côté baseline -> le leur ne doit pas bloquer.
+    faux_base.write_text('{"uncalibrated": ["verdict_a_moi"]}', encoding="utf-8")
+    assert C.main(["--only", "tools/a_moi.py"]) == 0
+    sortie = capsys.readouterr().out
+    assert "HORS PORTÉE" in sortie and "verdict_d_autrui" in sortie, (
+        "l'instrument d'autrui doit rester VISIBLE : le scoper ne veut pas dire le cacher")
+
+    # DANS LA PORTÉE : je stage un fichier qui définit un instrument non calibré -> ça DOIT bloquer.
+    faux_base.write_text('{"uncalibrated": []}', encoding="utf-8")
+    assert C.main(["--only", "tools/a_moi.py"]) == 1, (
+        "stager un instrument non calibré doit TOUJOURS bloquer — sinon la porte ne garde plus rien")
+
+    # SANS --only : comportement historique, l'arbre entier bloque.
+    assert C.main([]) == 1
