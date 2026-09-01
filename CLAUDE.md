@@ -56,6 +56,50 @@ C'est le pendant, pour les classes d'erreur, du cliquet de calibration pour les 
 la même erreur revient : elle est revenue **3 fois** sur l'arc WARM, dont une dans le record qui la
 dénonçait.
 
+## Consigner en PASSANT (règle permanente)
+
+**Toute lacune, tout défaut, toute occasion d'automatiser vue en chemin s'écrit AU MOMENT où on la voit**
+— même (surtout) quand on faisait autre chose. Ne pas attendre qu'on la demande, ne pas la garder « pour
+plus tard » : plus tard, elle est perdue, et elle recoûtera le prix fort.
+
+Justification mesurée (session du 2026-09-01, tout trouvé **en passant**) : douze péremptions du backlog,
+dont une direction déjà tranchée par un record et présentée comme « à faire » ; un **faux vert** de
+cliquet lu contre une baseline élargie ; une récidive d'E14 dont la conséquence était **encore publiée**
+(`sign_p` calculé puis jeté, deux lignes adjacentes de NAS.md appliquant le même critère de façon
+inconstante). Aucune n'était l'objet de la tâche en cours.
+
+**Où consigner, selon la nature :**
+
+| ce qu'on voit | où ça va |
+|---|---|
+| classe d'erreur (méthodologique, reproductible) | `docs/REF/REGISTRE_ERREURS.md` + sa garde, **dans la même passe** |
+| instrument non calibré / mal calibré | cas dans `tests/sandbox/test_instrument_calibration.py` + `CALIBRATED` |
+| dette actionnable, gap, angle mort | `docs/roadmap/PRIORITES_ET_DETTES.md`, avec la PREUVE (`fichier:ligne` ou sortie de commande) |
+| règle qu'on vient d'apprendre | ici, dans ce fichier |
+
+**Le critère qui décide s'il faut automatiser** : est-ce que ça peut se **reformer silencieusement** ? Si
+oui, une note ne suffit pas — il faut un cliquet (baseline gelée + hook + garde de la garde), sur le
+modèle de `check_record_links.py`. Une règle documentée sans application exécutable est violée : c'est la
+classe **E10**, et elle a récidivé plusieurs fois.
+
+⚠️ **Un cliquet doit pouvoir ÉCHOUER, et se calibrer comme un instrument.** Écrire son contre-exemple
+gelé dans la même passe, et le confronter à une réponse connue avant de le croire : les deux cliquets
+livrés le 2026-09-01 ont rendu **5 puis 2 faux positifs** avant d'être corrigés. Un outil de vérification
+non calibré ne se contente pas d'échouer — il **produit** un verdict, exactement comme un instrument.
+
+**Ne pas proxifier ce qu'on ne sait pas mesurer.** Quand une propriété n'est pas décidable (« ce test
+discrimine-t-il ? », « ce plancher est-il un plancher ? »), la règle est de faire **DÉCLARER** l'auteur
+plutôt que de deviner. Cf. `tools/demand_marker._degeneracy` et `tools/check_guard_negative_cases.py`.
+
+## Cliquets en place
+
+`check_record_links.py` (graphe de records) · `check_instrument_calibration.py` (calibration) ·
+`check_preregistration_applied.py` (DV scellée mesurée) · `check_guard_negative_cases.py` (toute garde
+`exécutable` nomme son contre-exemple) · `check_backlog_freshness.py` (liens morts, numéros dupliqués,
+chemins disparus). Tous branchés sur le hook pre-commit (`tools/hooks/pre-commit`).
+⚠️ **La baseline d'un cliquet doit elle-même déclencher le hook** — sinon l'élargir et la committer seule
+ne vérifie rien (faux vert mesuré le 2026-09-01, classe E4 occ. 5).
+
 ## Revue adversariale
 Toute conclusion destinée au graphe de records passe par une **revue qui lance ses propres sondes**,
 pas une relecture. Bilan mesuré sur l'arc WARM-005→009 : **7 revues, 7 erreurs réelles trouvées** —
