@@ -54,6 +54,10 @@ fichier `mamba_agent.py` est WIP parallèle, non patché ici) : `g` accumule (me
 | stoneage, fix simulé (5 seeds, 24 ag) | **NEUTRE** | **1.008** | **14/44** | `g` accumule mais n'aide pas |
 
 `g` linéaire est **NEUTRE sur obs riches** (median_ratio ≈ 1,0, 32 % favorables, sign_p 0,03 côté
+
+> ⚠️ **CORRECTION MÉTHODOLOGIQUE (2026-09-01).** Les `sign_p` et les `n_fav / n` de ce record sont calculés sur des ratios **poolés PAR TICK** (`run_probe` faisait `all_ratios.extend`), et non par seed. Or 300 ticks consécutifs du même agent, sur la même trajectoire, avec le même `g`, ne sont pas 300 réplicats indépendants : l'unité de réplication de ce dépôt est le SEED. Mesuré : sur des données où `g` gagne 55 % des ticks, le pool donne `sign_p` 7.5e-04 (G_FIDELE) quand l'agrégation par seed donne 0.250 (NEUTRE) — même effet, même médiane, verdict opposé. **Les `sign_p` cités ici sont donc trop petits** et `n` est gonflé. La sonde a été corrigée (verdict pris sur une valeur par seed ; le pool par tick reste rapporté en diagnostic).
+>
+> **Ce que la correction ne change PAS** : les CONCLUSIONS de ce record reposent sur des écarts énormes — `median_ratio` 0.132 pour la grille-jouet (un facteur 7,6) et ≈ 1,000 pour les obs riches (un no-op littéral, `g=0 ⟹ g_err=base_err`). Ni l'un ni l'autre ne bascule sur une question de *n*. C'est la PRÉCISION affichée qui était fausse, pas la direction.
 inutile) — sa fidélité de la grille-jouet **ne transfère PAS** au monde riche.
 
 ## Lecture

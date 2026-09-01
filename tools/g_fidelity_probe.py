@@ -132,16 +132,31 @@ def collect_ratios(seed: int, warmup: int = 300, measure: int = 300):
 
 def run_probe(seeds, warmup: int = 300, measure: int = 300) -> dict:
     """Agrège collect_ratios sur plusieurs seeds. Retourne le verdict + diagnostics action."""
-    all_ratios = []
+    all_ratios, par_seed = [], []
     # accumulate mean|G[a]| per action across seeds
     n_actions = MambaBatchModel.PLAN_A
     action_abs_accum: dict = {a_idx: [] for a_idx in range(n_actions)}
     for s in seeds:
         ratios, action_abs = collect_ratios(int(s), warmup, measure)
         all_ratios.extend(ratios)
+        par_seed.append(float(np.median(ratios)) if ratios else 1.0)
         for a_idx in range(n_actions):
             action_abs_accum[a_idx].extend(action_abs[a_idx])
-    result = fidelity_verdict(all_ratios)
+    # ⚠️ UNITE DE REPLICATION (2026-09-01). `all_ratios` poolait UN RATIO PAR TICK sur tous les seeds :
+    # avec measure=300 et 3 seeds, n=900. Or 300 ticks consecutifs du MEME agent, sur la MEME
+    # trajectoire, avec le MEME g, ne sont pas 300 replicats independants. Le test des signes calcule
+    # sur ce pool FABRIQUAIT de la significativite -- mesure sur des donnees ou g gagne 55 % des ticks :
+    #     poole   n=900  mediane 0.900  sign_p 7.5e-04  -> G_FIDELE
+    #     par seed n=3   mediane 0.900  sign_p 0.250    -> NEUTRE
+    # Meme effet, meme mediane, verdict OPPOSE. Et a 3 seeds le test des signes ne peut pas descendre
+    # sous 0.25 : la garde de puissance cablee le matin meme etait donc ENTIEREMENT NEUTRALISEE ici --
+    # elle avait l'air d'une garde et ne pouvait jamais mordre.
+    # L'unite de replication de ce depot est le SEED (CLAUDE.md, question 3 du pre-vol) : le verdict se
+    # prend sur UNE valeur par seed. Le pool par tick reste rapporte comme DIAGNOSTIC.
+    result = fidelity_verdict(par_seed)
+    result["n_ticks_pooles"] = len(all_ratios)
+    result["median_ratio_ticks"] = float(np.median(all_ratios)) if all_ratios else 1.0
+    result["ratios_par_seed"] = par_seed
     result["mean_G_abs_by_action"] = {
         a_idx: float(np.mean(vals)) if vals else 0.0
         for a_idx, vals in action_abs_accum.items()
@@ -249,14 +264,29 @@ def collect_ratios_env(seed: int, warmup: int = 300, measure: int = 300):
 
 def run_probe_env(seeds, warmup: int = 300, measure: int = 300) -> dict:
     """Agrège collect_ratios_env sur plusieurs seeds. Mesure CAUSALE (env réel)."""
-    all_ratios = []
+    all_ratios, par_seed = [], []
     action_abs_accum: dict = {a_idx: [] for a_idx in range(_N_MOVES)}
     for s in seeds:
         ratios, action_abs = collect_ratios_env(int(s), warmup, measure)
         all_ratios.extend(ratios)
+        par_seed.append(float(np.median(ratios)) if ratios else 1.0)
         for a_idx in range(_N_MOVES):
             action_abs_accum[a_idx].extend(action_abs[a_idx])
-    result = fidelity_verdict(all_ratios)
+    # ⚠️ UNITE DE REPLICATION (2026-09-01). `all_ratios` poolait UN RATIO PAR TICK sur tous les seeds :
+    # avec measure=300 et 3 seeds, n=900. Or 300 ticks consecutifs du MEME agent, sur la MEME
+    # trajectoire, avec le MEME g, ne sont pas 300 replicats independants. Le test des signes calcule
+    # sur ce pool FABRIQUAIT de la significativite -- mesure sur des donnees ou g gagne 55 % des ticks :
+    #     poole   n=900  mediane 0.900  sign_p 7.5e-04  -> G_FIDELE
+    #     par seed n=3   mediane 0.900  sign_p 0.250    -> NEUTRE
+    # Meme effet, meme mediane, verdict OPPOSE. Et a 3 seeds le test des signes ne peut pas descendre
+    # sous 0.25 : la garde de puissance cablee le matin meme etait donc ENTIEREMENT NEUTRALISEE ici --
+    # elle avait l'air d'une garde et ne pouvait jamais mordre.
+    # L'unite de replication de ce depot est le SEED (CLAUDE.md, question 3 du pre-vol) : le verdict se
+    # prend sur UNE valeur par seed. Le pool par tick reste rapporte comme DIAGNOSTIC.
+    result = fidelity_verdict(par_seed)
+    result["n_ticks_pooles"] = len(all_ratios)
+    result["median_ratio_ticks"] = float(np.median(all_ratios)) if all_ratios else 1.0
+    result["ratios_par_seed"] = par_seed
     result["mean_G_abs_by_action"] = {
         a_idx: float(np.mean(vals)) if vals else 0.0
         for a_idx, vals in action_abs_accum.items()
@@ -423,7 +453,7 @@ def collect_ratios_stoneage(seed, num_agents=30, warmup=150, measure=150, genome
 def run_probe_stoneage(seeds, warmup=150, measure=150, num_agents=30, genome=None, benchmark=False) -> dict:
     """Agrege collect_ratios_stoneage sur plusieurs seeds. Retourne le verdict + diagnostics.
     genome fourni -> cohorte de champions (leve le blocueur n=0) ; benchmark -> cohorte fixe."""
-    all_ratios = []
+    all_ratios, par_seed = [], []
     action_abs_accum = {a_idx: [] for a_idx in range(MambaBatchModel.PLAN_A)}
     total_transitions = 0
     notes = []
@@ -432,13 +462,28 @@ def run_probe_stoneage(seeds, warmup=150, measure=150, num_agents=30, genome=Non
         res = collect_ratios_stoneage(int(s), num_agents=num_agents, warmup=warmup, measure=measure,
                                       genome=genome, benchmark=benchmark)
         all_ratios.extend(res["ratios"])
+        par_seed.append(float(np.median(res["ratios"])) if res["ratios"] else 1.0)
         total_transitions += res["n_transitions"]
         for a_idx, vals in res["action_abs_by_action"].items():
             action_abs_accum.setdefault(a_idx, []).extend(vals)
         if "needs_context" in res:
             notes.append(res["needs_context"])
 
-    result = fidelity_verdict(all_ratios)
+    # ⚠️ UNITE DE REPLICATION (2026-09-01). `all_ratios` poolait UN RATIO PAR TICK sur tous les seeds :
+    # avec measure=300 et 3 seeds, n=900. Or 300 ticks consecutifs du MEME agent, sur la MEME
+    # trajectoire, avec le MEME g, ne sont pas 300 replicats independants. Le test des signes calcule
+    # sur ce pool FABRIQUAIT de la significativite -- mesure sur des donnees ou g gagne 55 % des ticks :
+    #     poole   n=900  mediane 0.900  sign_p 7.5e-04  -> G_FIDELE
+    #     par seed n=3   mediane 0.900  sign_p 0.250    -> NEUTRE
+    # Meme effet, meme mediane, verdict OPPOSE. Et a 3 seeds le test des signes ne peut pas descendre
+    # sous 0.25 : la garde de puissance cablee le matin meme etait donc ENTIEREMENT NEUTRALISEE ici --
+    # elle avait l'air d'une garde et ne pouvait jamais mordre.
+    # L'unite de replication de ce depot est le SEED (CLAUDE.md, question 3 du pre-vol) : le verdict se
+    # prend sur UNE valeur par seed. Le pool par tick reste rapporte comme DIAGNOSTIC.
+    result = fidelity_verdict(par_seed)
+    result["n_ticks_pooles"] = len(all_ratios)
+    result["median_ratio_ticks"] = float(np.median(all_ratios)) if all_ratios else 1.0
+    result["ratios_par_seed"] = par_seed
     result["mean_G_abs_by_action"] = {
         a_idx: float(np.mean(vals)) if vals else 0.0
         for a_idx, vals in action_abs_accum.items()

@@ -3127,3 +3127,76 @@ def test_storage_probe_PAIRING_cancels_between_seed_variance(monkeypatch):
     S = _storage(monkeypatch, _EMERGE, bruit={s: 500.0 * (s % 4) for s in range(12)})
     r = S.run_storage_probe(list(range(12)))
     assert r["median_delta_famine"] == 30.0 and r["verdict"] == "EMERGE"
+
+
+# ======================================================================================================
+# P2.32 (2026-09-01) — PSEUDO-REPLICATION dans les 3 sondes `g_fidelity`, et la garde qu'elle annulait.
+#
+# `run_probe` / `run_probe_env` / `run_probe_stoneage` poolaient UN RATIO PAR TICK sur tous les seeds
+# (`all_ratios.extend`) puis passaient le pool a `fidelity_verdict`. Avec measure=300 et 3 seeds :
+# n = 900. Or 300 ticks consecutifs du MEME agent, sur la MEME trajectoire, avec le MEME g, ne sont pas
+# 300 replicats independants -- l'unite de replication de ce depot est le SEED (CLAUDE.md, question 3).
+#
+# MESURE, sur des donnees ou g gagne 55 % des ticks :
+#     poole    n=900  mediane 0.900  sign_p 7.5e-04  -> G_FIDELE
+#     par seed n=3    mediane 0.900  sign_p 0.250    -> NEUTRE
+# Meme effet, meme mediane, VERDICT OPPOSE.
+#
+# ⚠️ CONSEQUENCE SUR MA PROPRE CORRECTION DU MATIN. J'avais cable `sign_p < 0.05` dans `fidelity_verdict`
+# (P2.20) pour empecher un positif sous-puissant. Sur un pool de 900 ticks correles, ce test passe
+# TOUJOURS : la garde avait l'air d'une garde et ne pouvait jamais mordre. Un correctif juste, pose sur
+# une unite d'analyse fausse, ne corrige rien.
+#
+# ⚠️ Et il y a une borne dure a connaitre : a 3 seeds, le test des signes ne peut pas descendre sous
+# 0.25. Un dispositif a 3 seeds ne PEUT PAS etre significatif par ce test -- ce qui est une information
+# de design, pas un defaut de l'instrument.
+# ======================================================================================================
+
+def test_g_fidelity_takes_its_verdict_on_SEEDS_not_on_ticks(monkeypatch):
+    """⚠️ LE contre-exemple. 3 seeds x 300 ticks, g meilleur sur 55 % des ticks. Le verdict doit se
+    prendre sur n=3, donc NEUTRE -- pas sur n=900, qui rendrait G_FIDELE."""
+    import random
+    import tools.g_fidelity_probe as G
+    random.seed(0)
+
+    def faux(seed, warmup, measure):
+        return ([0.9 if random.random() < 0.55 else 1.1 for _ in range(300)],
+                {a: [] for a in range(G.MambaBatchModel.PLAN_A)})
+
+    monkeypatch.setattr(G, "collect_ratios", faux)
+    r = G.run_probe([0, 1, 2])
+    assert r["n"] == 3, f"l'unite de replication doit etre le SEED, or n={r['n']}"
+    assert r["verdict"] == "NEUTRE", f"3 seeds ne peuvent pas etre significatifs, or : {r['verdict']}"
+    assert r["sign_p"] >= 0.25
+
+
+def test_g_fidelity_still_reports_the_TICK_diagnostic(monkeypatch):
+    """⚠️ SPECIFICITE : corriger l'unite d'analyse ne doit pas SUPPRIMER l'information par tick, qui
+    reste un diagnostic utile. La perdre rendrait les anciens rapports incomparables."""
+    import random
+    import tools.g_fidelity_probe as G
+    random.seed(0)
+    monkeypatch.setattr(G, "collect_ratios", lambda s, w, m: (
+        [0.9 if random.random() < 0.55 else 1.1 for _ in range(300)],
+        {a: [] for a in range(G.MambaBatchModel.PLAN_A)}))
+    r = G.run_probe([0, 1, 2])
+    assert r["n_ticks_pooles"] == 900 and abs(r["median_ratio_ticks"] - 0.9) < 1e-9
+    assert len(r["ratios_par_seed"]) == 3
+
+
+def test_g_fidelity_still_finds_a_REAL_effect_across_seeds(monkeypatch):
+    """⚠️ L'autre bord : un effet PRESENT DANS CHAQUE SEED doit rester detectable. Sans ce cas, on aurait
+    remplace un instrument trop permissif par un instrument aveugle."""
+    import tools.g_fidelity_probe as G
+    monkeypatch.setattr(G, "collect_ratios", lambda s, w, m: (
+        [0.3] * 300, {a: [] for a in range(G.MambaBatchModel.PLAN_A)}))
+    r = G.run_probe(list(range(12)))
+    assert r["n"] == 12 and r["verdict"] == "G_FIDELE" and r["sign_p"] < 0.05
+
+
+def test_the_sign_test_has_a_HARD_FLOOR_at_three_seeds():
+    """Information de DESIGN, pas defaut : a n=3 le test des signes ne peut pas descendre sous 0.25.
+    Le geler evite qu'on relance un jour un dispositif a 3 seeds en esperant un p significatif."""
+    from tools.g_fidelity_probe import _sign_p
+    assert _sign_p(3, 3) >= 0.25
+    assert _sign_p(5, 5) < 0.25, "a 5 seeds unanimes, le test peut enfin conclure"
