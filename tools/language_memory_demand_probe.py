@@ -8,7 +8,21 @@ c'est la 1ʳᵉ ablation SUBSTRAT du graphe AGI-Taxonomy (les 2 arêtes précéd
 l'ENTRÉE, `functional_aliasing='n/a'`) — ici le garde CALIB-ALIAS `functional_aliasing` DOIT être
 MESURÉ ('pass'/'fail'), jamais 'n/a' : `ablation_verdict` sur LANG (X_DEMANDED si la rétention
 porte la réponse) ; leakage sur CONTROL (bouge-t-il aussi sous le même reset ? si oui, l'ablation
-n'est pas chirurgicale, SURGICAL/FUNCTIONAL_LEAK/VACUOUS_ABLATION cf. `run_language_memory_demand_probe`).
+n'est pas chirurgicale, SURGICAL/FUNCTIONAL_LEAK/VACUOUS_ABLATION/DEGENERATE_CONTROL cf.
+`alias_guard_verdict` et `run_language_memory_demand_probe`).
+
+⚠️ GARDE DE DÉGÉNÉRESCENCE DU BRAS CONTROL (armée le 2026-09-01, revue adversariale). Jusqu'ici
+`functional_aliasing='pass'` ne demandait QUE `leakage <= tol` — SANS jamais vérifier que le bras
+CONTROL est VIVANT. C'est exactement le motif E3 que `_degeneracy` (tools/demand_marker.py:18-66)
+bloque sur le bras PRINCIPAL et que ce chemin contournait. Les deux dégénérescences sont ATTESTÉES,
+pas hypothétiques, et produisent toutes deux `leakage = 0` MÉCANIQUEMENT :
+  * PLANCHER — `train_control=False` n'entraîne JAMAIS CONTROL : deux mesures de hasard, écart nul
+    garanti par construction (docs/EDR/EDR-LANG-MEMORY_Language_Demands_Memory.md:120-124,
+    « `functional_aliasing="pass"` y est **vide de sens** ») ;
+  * PLAFOND — `train_control=True, D=0` : `control_intact = control_ablated = [1.0, 1.0, 1.0]`
+    (results/lang_memory_diagnostic.json:30, « CONTROL sature et reste chirurgical (leakage=0.0) »).
+Le critère commun est l'AMPLITUDE DISPONIBLE : si les deux bras tiennent dans une bande de largeur
+`tol` contre une borne, `leakage <= tol` est ARITHMÉTIQUEMENT FORCÉ et le 'pass' ne mesure rien.
 
 ⚠️ Vérifié contre le code réel (`src/agents/backend_torch.py`, comme `memory_perception_demand_probe.py`) :
 `TorchPopulationModel.forward(x)` renvoie `(logits, 0)` — le 2e élément est un PLACEHOLDER entier, PAS
@@ -106,6 +120,93 @@ def _control_move(agent, c, K, I, n_agents):
     """Forward CONTROL (cible aux slots [2K:3K]) -> guess = argmax(logits[:, :K])."""
     logits, _ = agent.forward(_slot(c, K, 2 * K, I, n_agents))
     return np.asarray(logits)[:, :K].argmax(axis=1)
+
+
+def alias_guard_verdict(control_intact, control_ablated, x_response, floor, ceiling=1.0,
+                        tol=0.05, alive_margin=None, intervention_verified=True):
+    """Garde CALIB-ALIAS sur le bras CONTROL : l'ablation est-elle CHIRURGICALE — et la question
+    a-t-elle seulement un sens sur ce bras ? Fonction de décision PURE (aucun entraînement, aucun
+    torch) : elle ne prend que les accuracies par seed, ce qui la rend calibrable numériquement.
+
+    Décision (ordre significatif, il encode « la dégénérescence n'invalide que le NUL », cf. note de
+    conception de `ablation_verdict`) :
+      1. `x_response <= tol`  -> VACUOUS_ABLATION : l'ablation ne mord même pas le bras PRINCIPAL,
+         parler de chirurgie n'a pas de sens (comportement historique, inchangé) ;
+      2. `leakage > tol`      -> FUNCTIONAL_LEAK : le CONTROL bouge sous le même reset -> 'fail'
+         (comportement historique, inchangé — un POSITIF de fuite n'a pas besoin d'un bras vivant :
+         un bras qui BOUGE est vivant par définition) ;
+      3. bras CONTROL DÉGÉNÉRÉ -> DEGENERATE_CONTROL : `leakage <= tol` est arithmétiquement forcé,
+         le 'pass' serait vide de sens -> 'fail' (NOUVEAU, 2026-09-01) ;
+      4. sinon                -> SURGICAL -> `functional_aliasing='pass'`.
+
+    ⚠️ POURQUOI L'ÉTAPE 3 (motif E3, cf. docstring du module). `leakage = |med(ci) - med(ca)|` était
+    lu comme « pas d'effet » alors qu'un bras COLLÉ À UNE BORNE le rend nul MÉCANIQUEMENT. Trois
+    façons de le dire, une seule règle : le bras CONTROL doit disposer d'une AMPLITUDE d'au moins
+    `alive_margin` pour qu'une fuite de taille `tol` soit seulement OBSERVABLE.
+      - PLANCHER : `med(ci) <= floor + marge` -> CONTROL jamais appris (config `train_control=False`,
+        EDR-LANG-MEMORY:120-124) : deux mesures de hasard, rien à faire fuir.
+      - PLAFOND : `med(ci)` ET `med(ca)` `>= ceiling - marge` -> les deux bras tiennent dans une bande
+        de largeur `marge`, donc `leakage <= marge` est FORCÉ (cas attesté `[1.0]*3` vs `[1.0]*3`,
+        results/lang_memory_diagnostic.json:30).
+      - GÉNÉRAL : le `why` de `_degeneracy` via `ablation_verdict(ci, ca, floor=…, ceiling=…)`, avec
+        les MÊMES bornes que le bras principal — toute règle future de `_degeneracy` s'applique donc
+        ici sans nouvelle modification.
+    `intervention_verified=True` par défaut : c'est la MÊME intervention (H-reset) que celle attestée
+    sur le bras principal, et le bras CONTROL est ATTENDU X_DECOY — bloquer des bras identiques ici
+    reviendrait à refuser la réponse même qu'on cherche (cas (b) de `_degeneracy`).
+
+    ⚠️ APPARIEMENT PAR SEED (`leak_seeds`). `leakage` est une différence de MÉDIANES AGRÉGÉES, alors
+    que `demand_marker` est explicitement l'instrument WITHIN-SUBJECT et que la SÉPARATION PAR SEED
+    (« 12/12 seeds à recouvrement ZÉRO ») porte les verdicts gravés du graphe. Une médiane agrégée à
+    0.03 est INDISCERNABLE entre une chirurgie propre (12 seeds à ~0.03) et 4 seeds qui fuient à 0.20
+    noyés par 8 seeds à 0.00 : la médiane écrase l'appariement, la fuite survit dans les seeds.
+    `leak_seeds` = nombre de seeds où `ci - ca > tol` (fuite DIRECTIONNELLE : le CONTROL se dégrade
+    quand on efface l'état) ; `leak_seeds_two_sided` compte `|ci - ca| > tol`.
+    ⚠️ CETTE MESURE N'ENTRE PAS DANS LA DÉCISION, délibérément : aucun seuil par seed n'est étalonné
+    ici (combien de seeds fuyants rendent une ablation non chirurgicale ? la réponse dépend du n et
+    du bruit d'échantillon, et l'inventer produirait un instrument non calibré de plus). Elle est
+    EXPOSÉE pour que le lecteur du verdict voie l'appariement ; un `alias_verdict='SURGICAL'` avec
+    `leak_seeds > 0` doit être regardé, pas gravé tel quel.
+    """
+    ci = [float(x) for x in control_intact]
+    ca = [float(x) for x in control_ablated]
+    if not ci or not ca:
+        raise ValueError("alias_guard_verdict : bras CONTROL vide (rien à garder)")
+    m = tol if alive_margin is None else float(alive_margin)
+    med_i, med_a = float(np.median(ci)), float(np.median(ca))
+    leakage = abs(med_i - med_a)
+    per_seed = [a - b for a, b in zip(ci, ca)]
+    leak_seeds = int(sum(1 for d in per_seed if d > tol))
+    leak_seeds_two_sided = int(sum(1 for d in per_seed if abs(d) > tol))
+
+    ctrl = ablation_verdict(ci, ca, intervention_verified=intervention_verified,
+                            floor=floor, ceiling=ceiling)
+    reasons = []
+    if ctrl["why"]:
+        reasons.append(f"_degeneracy(bras CONTROL) : {ctrl['why']}")
+    if floor is not None and med_i <= floor + m:
+        reasons.append(f"CONTROL jamais appris : médiane intacte {med_i:g} <= plancher {floor:g} "
+                       f"+ marge {m:g} — deux mesures de hasard, leakage {leakage:g} sans contenu")
+    if ceiling is not None and med_i >= ceiling - m and med_a >= ceiling - m:
+        reasons.append(f"CONTROL SATURÉ : médianes {med_i:g}/{med_a:g} >= plafond {ceiling:g} "
+                       f"- marge {m:g} — leakage <= {m:g} est arithmétiquement FORCÉ")
+    why = " ; ".join(reasons) or None
+
+    if x_response <= tol:
+        alias = "VACUOUS_ABLATION"
+    elif leakage > tol:
+        alias = "FUNCTIONAL_LEAK"
+    elif why:
+        alias = "DEGENERATE_CONTROL"
+    else:
+        alias = "SURGICAL"
+    return {"functional_aliasing": "pass" if alias == "SURGICAL" else "fail",
+            "alias_verdict": alias, "leakage": leakage, "x_response": float(x_response),
+            "leak_seeds": leak_seeds, "leak_seeds_two_sided": leak_seeds_two_sided,
+            "leak_per_seed": per_seed, "control_intact_median": med_i,
+            "control_ablated_median": med_a, "control_degenerate": bool(why),
+            "control_why": why, "control_demand": ctrl,
+            "alias_tol": float(tol), "alive_margin": float(m)}
 
 
 def _train_and_eval(seed, episodes, n_agents, K, D, lr, memory_mode, control_mode, eval_batches=40,
@@ -226,9 +327,13 @@ def run_language_memory_demand_probe(seeds, episodes=1200, n_agents=16, K=6, D=2
                                      memory_mode="learned", control_mode="feedforward",
                                      train_control=True, weight_decay=0.0):
     """Mesure « language demands memory ». Par seed : LANG et CONTROL, chacun éval intact/ablé (H-reset).
-    LANG -> ablation_verdict (X_DEMANDED) ; CONTROL -> garde functional_aliasing (leakage≈0 -> pass,
+    LANG -> ablation_verdict (X_DEMANDED) ; CONTROL -> `alias_guard_verdict` (leakage≈0 sur un bras
+    VIVANT -> pass ; bras collé à une borne -> DEGENERATE_CONTROL, pas un 'pass' silencieux),
     1er usage réel du jalon CALIB-ALIAS sur une ablation SUBSTRAT — les 2 arêtes précédentes du graphe
-    AGI-Taxonomy ablataient l'ENTRÉE, `functional_aliasing='n/a'`).
+    AGI-Taxonomy ablataient l'ENTRÉE, `functional_aliasing='n/a'`.
+    Le dict renvoyé fusionne celui de `alias_guard_verdict` : outre `functional_aliasing`/`alias_verdict`/
+    `leakage`, il porte `leak_seeds` (appariement PAR SEED, hors décision), `control_degenerate` et
+    `control_why`.
 
     `train_control` / `weight_decay` : knobs diagnostiques Tâche 2 (défauts = comportement Tâche 1
     inchangé), cf. docstring de `_train_and_eval`."""
@@ -240,19 +345,13 @@ def run_language_memory_demand_probe(seeds, episodes=1200, n_agents=16, K=6, D=2
 
     floor = 1.0 / K
     lang = ablation_verdict(li, la, intervention_verified=True, floor=floor, ceiling=1.0)
-    leakage = abs(float(np.median(ci)) - float(np.median(ca)))
     x_response = abs(float(np.median(li)) - float(np.median(la)))
     tol = 0.05                                                  # tolérance de fuite (bruit d'échantillon)
-    if x_response <= tol:
-        alias = "VACUOUS_ABLATION"
-    elif leakage <= tol:
-        alias = "SURGICAL"
-    else:
-        alias = "FUNCTIONAL_LEAK"
-    fa = "pass" if alias == "SURGICAL" else "fail"
-    return {"lang_demand": lang, "functional_aliasing": fa, "alias_verdict": alias,
-            "leakage": leakage, "x_response": x_response, "n": len(seeds),
-            "lang_intact": li, "lang_ablated": la, "control_intact": ci, "control_ablated": ca}
+    guard = alias_guard_verdict(ci, ca, x_response, floor=floor, ceiling=1.0, tol=tol)
+    out = {"lang_demand": lang, "n": len(seeds),
+           "lang_intact": li, "lang_ablated": la, "control_intact": ci, "control_ablated": ca}
+    out.update(guard)                                           # fa, alias_verdict, leakage, leak_seeds…
+    return out
 
 
 if __name__ == "__main__":
@@ -262,4 +361,6 @@ if __name__ == "__main__":
                                          n_agents=int(os.environ.get("LM_AGENTS", "16")))
     print(json.dumps({k: v for k, v in r.items()
                       if k in ("lang_demand", "functional_aliasing", "alias_verdict", "leakage",
-                               "x_response", "n")}, ensure_ascii=False, indent=2))
+                               "x_response", "n", "leak_seeds", "control_degenerate", "control_why",
+                               "control_intact_median", "control_ablated_median")},
+                     ensure_ascii=False, indent=2))

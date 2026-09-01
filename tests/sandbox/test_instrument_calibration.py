@@ -142,6 +142,16 @@ CALIBRATED = {
     # FUITE détectée). Générateur A dans les DEUX dimensions (demande + aliasing) — 1ère ablation
     # SUBSTRAT du graphe AGI-Taxonomy (les 2 arêtes précédentes ablataient l'ENTRÉE, 'n/a').
     "run_language_memory_demand_probe": ["*"],
+    # 2026-09-01, revue adversariale du graphe AGI-Taxonomy : la garde `functional_aliasing` de
+    # LANG-MEMORY donnait 'pass' sur le SEUL critère `leakage <= tol`, sans jamais vérifier que le bras
+    # CONTROL est VIVANT — motif E3 (« métrique dégénérée lue comme pas d'effet ») que `_degeneracy`
+    # bloque sur le bras PRINCIPAL et que ce chemin contournait. La fonction de décision est extraite en
+    # `alias_guard_verdict` (pure, sans entraînement) et calibrée sur les DEUX dégénérescences ATTESTÉES
+    # (plancher `train_control=False` ; plafond `[1.0]*3` vs `[1.0]*3` de
+    # results/lang_memory_diagnostic.json:30), plus le POSITIF qui prouve que la garde n'est pas
+    # devenue vacueuse, la FUITE (comportement historique préservé) et l'APPARIEMENT par seed.
+    "alias_guard_verdict": ["floor:degenerate", "ceiling:degenerate", "surgical:positive",
+                            "leak:negative", "seeds:pairing"],
     # Le terme BILINÉAIRE débloque-t-il la composition ? Le nul de la Tâche 2 (REINFORCE/2-pas défaut,
     # `same_tick=False, credit_mode="reinforce"`) était PROVISOIRE : la revue adversariale a identifié
     # 2 confonds — CRÉDIT (`learn_episode` détache H à CHAQUE pas, sévrant le gradient encode->usage) et
@@ -1608,6 +1618,125 @@ def test_lm_leaky_control_fires_the_aliasing_guard():
     r = run_language_memory_demand_probe(seeds=list(range(12)), episodes=0, n_agents=16, K=6, D=2,
                                          memory_mode="oracle", control_mode="leaky")
     assert r["functional_aliasing"] == "fail" and r["alias_verdict"] == "FUNCTIONAL_LEAK", r
+
+
+# --- alias_guard_verdict : la garde de DÉGÉNÉRESCENCE du bras CONTROL (armée le 2026-09-01) --------
+# Cas PUREMENT NUMÉRIQUES (aucun entraînement, aucun torch) : ils testent la LOGIQUE de la garde, pas
+# le harnais. Contre-exemples GELÉS = les deux configurations RÉELLES qui ont produit un
+# `functional_aliasing='pass'` vide de sens. K=6 -> floor=1/6=0.16667, ceiling=1.0, tol=0.05.
+
+_LM_FLOOR = 1.0 / 6                       # plancher de chance à K=6, tel que passé par la sonde
+_LM_XRESP = 0.40                          # réponse du bras PRINCIPAL, largement > tol (ablation qui mord)
+
+
+def test_alias_guard_refuses_pass_when_control_was_never_trained():
+    """DÉGÉNÉRESCENCE PLANCHER — contre-exemple GELÉ, la config `train_control=False`.
+
+    Config réelle : `train_control=False` SAUTE le bloc d'entraînement CONTROL
+    (tools/language_memory_demand_probe.py:161-162) -> les deux mesures CONTROL restent au hasard
+    (1/K=0.167). Le record le dit explicitement — docs/EDR/EDR-LANG-MEMORY_Language_Demands_Memory.md
+    :120-124 : « `control_intact` et `control_ablated` restent tous deux proches du hasard (poids jamais
+    entraînés sur cette tête), donc `functional_aliasing="pass"` y est **vide de sens** — une différence
+    quasi nulle entre deux mesures de hasard est garantie par construction, pas une preuve de chirurgie ».
+    L'ancienne règle (leakage <= tol SEUL) rendait 'pass' ici."""
+    from tools.language_memory_demand_probe import alias_guard_verdict
+    ci = [0.171, 0.163, 0.168, 0.159, 0.174, 0.166, 0.170, 0.161, 0.167, 0.172, 0.164, 0.169]
+    ca = [0.166, 0.170, 0.161, 0.168, 0.163, 0.172, 0.165, 0.167, 0.160, 0.169, 0.171, 0.164]
+    r = alias_guard_verdict(ci, ca, x_response=_LM_XRESP, floor=_LM_FLOOR, ceiling=1.0)
+    assert r["leakage"] <= 0.05, r["leakage"]                 # l'ANCIEN critère est bien satisfait…
+    assert r["alias_verdict"] == "DEGENERATE_CONTROL", r      # …et ne suffit PLUS
+    assert r["functional_aliasing"] == "fail" and r["control_degenerate"] is True, r
+    assert "jamais appris" in r["control_why"], r["control_why"]
+
+
+def test_alias_guard_refuses_pass_when_control_is_saturated():
+    """DÉGÉNÉRESCENCE PLAFOND — contre-exemple GELÉ, valeurs RÉELLES du diagnostic.
+
+    results/lang_memory_diagnostic.json:30 (config `train_control=True, weight_decay=0.0,
+    episodes=3000, D=0, seeds=[0,1,2]`) porte littéralement :
+        "control_intact": [1.0,1.0,1.0], "control_ablated": [1.0,1.0,1.0],
+        "functional_aliasing_note": "CONTROL sature et reste chirurgical (leakage=0.0) ICI, ..."
+    Deux bras SATURÉS à 1.0 donnent `leakage = 0` MÉCANIQUEMENT : le 'pass' ne mesure rien. C'est
+    exactement le cas que `_degeneracy` bloque sur le bras principal (« les deux bras au PLAFOND
+    déclaré ») et que le calcul de leakage contournait."""
+    from tools.language_memory_demand_probe import alias_guard_verdict
+    ci = ca = [1.0] * 12                                       # n=12 ; le diagnostic réel portait n=3
+    r = alias_guard_verdict(ci, ca, x_response=_LM_XRESP, floor=_LM_FLOOR, ceiling=1.0)
+    assert r["leakage"] == 0.0                                 # « leakage=0.0 » du diagnostic
+    assert r["alias_verdict"] == "DEGENERATE_CONTROL", r
+    assert r["functional_aliasing"] == "fail", r
+    # les deux bras EXACTEMENT à 1.0 : le `_degeneracy` du bras CONTROL tire aussi, pas seulement la marge
+    assert r["control_demand"]["degenerate"] is True and "PLAFOND" in r["control_demand"]["why"]
+
+
+def test_alias_guard_still_passes_a_LIVING_surgical_control():
+    """CONTRÔLE POSITIF DE LA GARDE (indispensable : une garde qui refuse TOUT est aussi inutile
+    qu'une garde qui accepte tout). CONTROL VIVANT — médiane ~0.58, bien au-dessus du plancher 0.167
+    et bien sous le plafond, dans la bande MESURÉE du récit (« CONTROL, lui, APPREND bien (médianes
+    0.54-0.61) », docstring de tools/language_memory_demand_probe.py) — et CHIRURGICAL : le H-reset
+    ne le fait pas bouger de plus de `tol`. -> SURGICAL, `functional_aliasing='pass'`."""
+    from tools.language_memory_demand_probe import alias_guard_verdict
+    ci = [0.58, 0.61, 0.55, 0.60, 0.57, 0.59, 0.54, 0.62, 0.56, 0.60, 0.58, 0.57]
+    ca = [0.57, 0.60, 0.56, 0.59, 0.58, 0.58, 0.55, 0.60, 0.55, 0.61, 0.57, 0.58]
+    r = alias_guard_verdict(ci, ca, x_response=_LM_XRESP, floor=_LM_FLOOR, ceiling=1.0)
+    assert r["alias_verdict"] == "SURGICAL" and r["functional_aliasing"] == "pass", r
+    assert r["control_degenerate"] is False and r["control_why"] is None, r
+    assert r["leak_seeds"] == 0, r["leak_per_seed"]
+
+
+def test_alias_guard_leak_verdict_is_unchanged_by_the_new_rule():
+    """NON-RÉGRESSION DU NÉGATIF : un CONTROL VIVANT qui FUIT (il se dégrade sous le même H-reset)
+    reste FUNCTIONAL_LEAK. La garde de dégénérescence n'invalide QUE le nul (note de conception de
+    `ablation_verdict`) : un bras qui BOUGE est vivant par définition, l'ordre des branches
+    (fuite AVANT dégénérescence) l'encode."""
+    from tools.language_memory_demand_probe import alias_guard_verdict
+    ci = [0.95, 0.93, 0.96, 0.94, 0.95, 0.92, 0.97, 0.94, 0.93, 0.96, 0.95, 0.94]
+    ca = [0.20, 0.18, 0.22, 0.17, 0.19, 0.21, 0.16, 0.20, 0.18, 0.19, 0.22, 0.17]
+    r = alias_guard_verdict(ci, ca, x_response=_LM_XRESP, floor=_LM_FLOOR, ceiling=1.0)
+    assert r["alias_verdict"] == "FUNCTIONAL_LEAK" and r["functional_aliasing"] == "fail", r
+    assert r["leak_seeds"] == 12, r["leak_per_seed"]
+
+
+def test_alias_guard_vacuous_ablation_takes_priority_unchanged():
+    """NON-RÉGRESSION : si le bras PRINCIPAL ne bouge pas (`x_response <= tol`), la question de la
+    chirurgie ne se pose pas -> VACUOUS_ABLATION, avant toute autre branche (comportement historique)."""
+    from tools.language_memory_demand_probe import alias_guard_verdict
+    r = alias_guard_verdict([0.58] * 12, [0.57] * 12, x_response=0.01, floor=_LM_FLOOR, ceiling=1.0)
+    assert r["alias_verdict"] == "VACUOUS_ABLATION" and r["functional_aliasing"] == "fail", r
+
+
+def test_alias_guard_leak_seeds_separates_two_sets_with_the_SAME_aggregate_median():
+    """APPARIEMENT PAR SEED — ce que la médiane AGRÉGÉE ne peut pas voir.
+
+    `demand_marker` est l'instrument WITHIN-SUBJECT et la SÉPARATION PAR SEED porte les deux verdicts
+    gravés du graphe (« 12/12 seeds à recouvrement ZÉRO »). Ici deux jeux ont EXACTEMENT la même
+    médiane agrégée de fuite (0.02, donc le même `leakage`, donc le même `alias_verdict`) mais des
+    profils par seed OPPOSÉS : chirurgie propre (12 seeds à 0.02) vs 4 seeds fuyant à 0.20. Seul
+    `leak_seeds` les distingue — c'est pourquoi il est EXPOSÉ (hors décision, aucun seuil par seed
+    n'étant étalonné)."""
+    from tools.language_memory_demand_probe import alias_guard_verdict
+    clean_i = [0.60] * 12
+    clean_a = [0.58] * 12                                        # 12 seeds à 0.02 de fuite
+    lumpy_i = [0.60] * 12
+    lumpy_a = [0.40] * 4 + [0.58] * 4 + [0.60] * 4               # 4 seeds fuient à 0.20
+    a = alias_guard_verdict(clean_i, clean_a, _LM_XRESP, floor=_LM_FLOOR, ceiling=1.0)
+    b = alias_guard_verdict(lumpy_i, lumpy_a, _LM_XRESP, floor=_LM_FLOOR, ceiling=1.0)
+    assert a["leakage"] == pytest.approx(b["leakage"], abs=1e-12), (a["leakage"], b["leakage"])
+    assert a["alias_verdict"] == b["alias_verdict"] == "SURGICAL"   # INDISCERNABLES sur l'agrégat
+    assert a["leak_seeds"] == 0 and b["leak_seeds"] == 4, (a["leak_per_seed"], b["leak_per_seed"])
+
+
+def test_alias_guard_is_wired_into_the_probe_result():
+    """La garde doit être BRANCHÉE, pas seulement écrite : les clés remontent bien dans le dict de
+    `run_language_memory_demand_probe` (classe E4 — une vérification qui ne peut pas échouer).
+    `episodes=0` -> aucun entraînement, rapide."""
+    from tools.language_memory_demand_probe import run_language_memory_demand_probe
+    r = run_language_memory_demand_probe(seeds=list(range(12)), episodes=0, n_agents=8, K=6, D=1,
+                                         memory_mode="oracle")
+    assert set(r) >= {"alias_verdict", "functional_aliasing", "leak_seeds", "control_degenerate",
+                      "control_why", "leak_per_seed", "control_demand"}, sorted(r)
+    # le CONTROL du mode oracle est un bypass CÂBLÉ (`g = c`, :218) -> saturé 1.0/1.0 -> dégénéré.
+    assert r["alias_verdict"] == "DEGENERATE_CONTROL" and r["control_degenerate"] is True, r
 
 
 # ------------------------------------------- run_bilinear_composition_probe (BILINEAR) ------------
