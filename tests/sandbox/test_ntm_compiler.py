@@ -70,6 +70,10 @@ def test_ntm_compiler_numerical_stability():
     # Should not crash, and should return unchanged W_batch (or safe modifications)
     try:
         W_batch = NTMProgramCompiler.compile_and_apply(ntm_memory, W_batch, agents)
-        assert True
     except Exception as e:
         pytest.fail(f"NTMProgramCompiler crashed on NaN/Inf: {e}")
+    # ⚠️ `assert True` n'assertait RIEN : le test promet la STABILITE NUMERIQUE et se contentait de
+    # verifier l'absence de crash. Une sortie remplie de NaN ne crashe pas -- et n'est pas stable.
+    assert np.isfinite(W_batch).all(), (
+        "NaN/Inf ont FUITE dans W_batch : le compilateur ne crashe pas, mais il propage "
+        "l'instabilite qu'il est cense contenir")

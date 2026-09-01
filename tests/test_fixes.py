@@ -24,13 +24,12 @@ def test_attention_mask_fix():
     obs = np.random.randn(45).astype(np.float32)
     
     # Forward pass ne doit pas planter
-    try:
-        logits = agent.forward(obs)
-        assert logits.shape[0] == 75, f"Expected 75 outputs, got {logits.shape[0]}"
-        print("  [OK] Agent.forward() works with 45 inputs")
-    except Exception as e:
-        print(f"  [FAIL] FAILED: {e}")
-        return False
+    # ⚠️ Le `try/except Exception` qui entourait ce bloc AVALAIT l'AssertionError : le test
+    # imprimait « [FAIL] » puis faisait `return False`, et pytest le comptait comme PASSÉ.
+    # Laisser l'assertion REMONTER — c'est tout ce qu'il faut pour qu'un test puisse échouer.
+    logits = agent.forward(obs)
+    assert logits.shape[0] == 75, f"Expected 75 outputs, got {logits.shape[0]}"
+    print("  [OK] Agent.forward() works with 45 inputs")
     
     # Verifier que genome.num_outputs >= genome.num_inputs + 2
     assert agent.genome.num_outputs >= agent.genome.num_inputs + 2, \
@@ -108,14 +107,13 @@ def test_crossover():
     genome2 = Genome(W2, 45, 75)
     
     # Tester crossover
-    try:
-        child = crossover(genome1, genome2, fitness1=1.0, fitness2=0.5)
-        assert child is not None
-        assert child.W.shape == (10, 10)
-        print("  [OK] crossover() creates valid child genome")
-    except Exception as e:
-        print(f"  [FAIL] FAILED: {e}")
-        return False
+    # ⚠️ Le `try/except Exception` qui entourait ce bloc AVALAIT l'AssertionError : le test
+    # imprimait « [FAIL] » puis faisait `return False`, et pytest le comptait comme PASSÉ.
+    # Laisser l'assertion REMONTER — c'est tout ce qu'il faut pour qu'un test puisse échouer.
+    child = crossover(genome1, genome2, fitness1=1.0, fitness2=0.5)
+    assert child is not None
+    assert child.W.shape == (10, 10)
+    print("  [OK] crossover() creates valid child genome")
     
     # Tester Population avec crossover
     config = EvolutionConfig(pop_size=10, generations=1, local_epochs=0, tournament_size=2)
@@ -125,12 +123,8 @@ def test_crossover():
     X = np.random.randn(10, 45).astype(np.float32)
     y = np.random.randn(10, 1).astype(np.float32)
     
-    try:
-        pop.step(X, y)
-        print("  [OK] Population.step() with crossover works")
-    except Exception as e:
-        print(f"  [FAIL] FAILED: {e}")
-        return False
+    pop.step(X, y)
+    print("  [OK] Population.step() with crossover works")
     
     print("  [OK] Task 4 PASSED\n")
     return True
@@ -186,21 +180,23 @@ def test_vectorized_forward():
     # Creer le modele batch
     batch_model = MambaBatchModel(agents)
     
-    try:
-        # Forward pass batch
-        batch_logits = batch_model.forward(batch_obs)
-        assert batch_logits.shape == (5, 75), f"Expected shape (5, 75), got {batch_logits.shape}"
-        print("  [OK] MambaBatchModel.forward() works")
-        
-        # Verifier que les etats des agents ont ete mis a jour
-        for agent in agents:
-            assert agent.H_prev is not None
-            assert agent.surprise >= 0
-        print("  [OK] Agent states updated after batch forward")
-        
-    except Exception as e:
-        print(f"  [FAIL] FAILED: {e}")
-        return False
+    # ⚠️ Le `try/except Exception` qui entourait ce bloc AVALAIT l'AssertionError : le test
+    # imprimait « [FAIL] » puis faisait `return False`, et pytest le comptait comme PASSÉ.
+    # Laisser l'assertion REMONTER — c'est tout ce qu'il faut pour qu'un test puisse échouer.
+    # ⚠️ RÉGRESSION RÉVÉLÉE en retirant le `try/except` qui avalait l'assertion : `forward` renvoie
+    # un TUPLE `(preds, compute_spent)` (mamba_agent.py:512 `-> tuple`, :849). Le test le traitait
+    # comme un tableau depuis un changement d'API, et « passait » en imprimant [FAIL] dans un flux
+    # que personne ne lit. Une assertion avalée ne cache pas rien : elle cachait ceci.
+    batch_logits, compute_spent = batch_model.forward(batch_obs)
+    assert batch_logits.shape == (5, 75), f"Expected shape (5, 75), got {batch_logits.shape}"
+    assert compute_spent is not None
+    print("  [OK] MambaBatchModel.forward() works")
+
+    # Verifier que les etats des agents ont ete mis a jour
+    for agent in agents:
+        assert agent.H_prev is not None
+        assert agent.surprise >= 0
+    print("  [OK] Agent states updated after batch forward")
     
     print("  [OK] Task 3 PASSED\n")
     return True
