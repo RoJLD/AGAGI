@@ -1,3 +1,11 @@
+---
+id: REF-AGI-TAXONOMY
+type: REF
+title: "AGI-Taxonomy — graphe capability-demand (format os-taxonomy)"
+status: active
+gate: foundational
+---
+
 # REF — AGI-Taxonomy : graphe capability-demand
 
 Modèle de données de l'arc AGI-Taxonomy (backlog P4.3), au format `withmarbleapp/os-taxonomy`.

@@ -14,6 +14,7 @@ Usage :
   python tools/check_record_links.py --update-baseline  # gèle l'état courant comme référence légataire
 """
 import os
+import re
 import sys
 import json
 import argparse
@@ -30,6 +31,58 @@ _ANCHORS = set(_GATES) | {"foundational"}
 
 # Baseline dans tools/ (tracké) et non results/ (gitignored) -> la dette gelée est versionnée/portable.
 _BASELINE = os.path.join(_ROOT, "tools", "record_link_baseline.json")
+
+
+# --- FERMETURE DU SILENCE (2026-09-01) -------------------------------------------------------------
+# `parse_record` jette EN SILENCE toute clé de frontmatter absente de `_LIST_KEYS` (branche
+# `elif k in rec`). C'est ce silence qui a laissé **122 arêtes déclarées hors du graphe**, dont TOUTES
+# les arêtes de rétractation — un graphe de records qui ne lit pas ses rétractations ne peut pas
+# signaler une conclusion périmée, ce pour quoi il existe.
+#
+# Deux corruptions silencieuses, distinctes, détectées séparément :
+#   * CLÉ NON LUE — un auteur déclare `adopts:` (que CLAUDE.md prescrit !) et rien ne la lit.
+#   * VALEUR SCALAIRE — `supersedes_mechanism_of: EDR-162` au lieu de `[EDR-162]`. Le code itère la
+#     CHAÎNE, donc produit une arête PAR CARACTÈRE ('E','D','R','-','1','6','2'). Trouvé sur EDR-164 à
+#     la seconde où les clés manquantes ont été branchées.
+_ID_LIKE = re.compile(r"^(EDR|SDR|ADR|REF)-[A-Za-z0-9\-]+$")
+
+
+def edge_key_silences(root: str = _ROOT) -> dict:
+    """{'non_lues': [(fichier, clé)], 'scalaires': [(fichier, clé, valeur)]}."""
+    from tools.consolidate_records import _LIST_KEYS, _empty_record
+    # ⚠️ Les champs SCALAIRES du schéma (`id`, `gate`, `verdict`, …) ont souvent la FORME d'un id de
+    # record — `id: SDR-G0` en est un. Les exclure via le schéma DÉJÀ DÉCLARÉ plutôt qu'une liste ad hoc :
+    # une liste écrite à la main se serait désynchronisée du schéma à la première évolution.
+    _SCALAIRES_DU_SCHEMA = {k for k in _empty_record("") if k not in _LIST_KEYS}
+    non_lues, scalaires = [], []
+    for sub in ("docs/SDR", "docs/ADR", "docs/EDR", "docs/REF"):
+        d = os.path.join(root, sub)
+        if not os.path.isdir(d):
+            continue
+        for name in sorted(os.listdir(d)):
+            if not name.endswith(".md"):
+                continue
+            path = os.path.join(d, name)
+            try:
+                txt = open(path, encoding="utf-8", errors="ignore").read(6000)
+            except OSError:
+                continue
+            if not txt.startswith("---"):
+                continue
+            fm = txt.split("---", 2)[1]
+            rel = os.path.join(sub, name).replace(os.sep, "/")
+            for m in re.finditer(r"^([a-z_]+):[ \t]*(\S.*)$", fm, re.M):
+                key, raw = m.group(1), m.group(2).strip()
+                ressemble = raw.startswith("[") and _ID_LIKE.match(raw.strip("[]").split(",")[0].strip())
+                if key in _LIST_KEYS:
+                    # déclarée et lue : reste à vérifier qu'elle est bien une LISTE
+                    if _ID_LIKE.match(raw):
+                        scalaires.append((rel, key, raw))
+                elif key in _SCALAIRES_DU_SCHEMA:
+                    continue                       # champ scalaire connu du schéma, pas une arête
+                elif ressemble or _ID_LIKE.match(raw):
+                    non_lues.append((rel, key))
+    return {"non_lues": non_lues, "scalaires": scalaires}
 
 
 def analyze(root: str = _ROOT) -> dict:
@@ -91,6 +144,23 @@ def main(argv=None) -> int:
             json.dump(payload, fh, ensure_ascii=False, indent=2)
         print(f"baseline gelé : {n_orph} orphelins, {n_coll} collisions (dette légataire).")
         return 0
+
+    # ⚠️ SILENCES D'ARÊTES — vérifiés à CHAQUE appel, jamais gelés dans un baseline. Une arête
+    # déclarée mais non lue n'est pas de la « dette légataire tolérable » : c'est une information que
+    # le graphe possède et n'utilise pas. 122 arêtes étaient dans ce cas jusqu'au 2026-09-01, dont
+    # TOUTES les rétractations.
+    sil = edge_key_silences()
+    if sil["non_lues"] or sil["scalaires"]:
+        print("ÉCHEC : le graphe IGNORE des arêtes pourtant déclarées." + chr(10))
+        for f, k in sil["non_lues"]:
+            print(f"  [clé jamais lue] {k}  ({f})  -> l'ajouter à `_LIST_KEYS` et `_REL`, "
+                  f"ou renommer la clé")
+        for f, k, v in sil["scalaires"]:
+            print(f"  [valeur scalaire] {k}: {v}  ({f})  -> mettre des crochets : [{v}]. "
+                  f"Sans eux, la CHAÎNE est itérée et produit une arête PAR CARACTÈRE.")
+        print(chr(10) + "Un graphe qui ne lit pas ses rétractations ne peut pas signaler une "
+              "conclusion périmée.")
+        return 1
 
     if args.report:
         print(f"records={st['n_records']} orphelins={n_orph} collisions={n_coll} "

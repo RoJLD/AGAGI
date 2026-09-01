@@ -20,8 +20,15 @@ if _ROOT not in sys.path:
 # Arêtes causales internes (records de décision) + arêtes-pont vers le SOTA (REF).
 # Les ponts émanent des nœuds REF (rediscovered_by/supersedes/adopt_for/grounds) :
 # ainsi l'ancrage à la littérature s'ajoute sans toucher les EDR/SDR/ADR existants.
+# ⚠️ LISTE BLANCHE — toute clé absente d'ici est JETÉE EN SILENCE par `parse_record` (branche
+# `elif k in rec`). C'est ce silence qui a laissé 122 arêtes déclarées hors du graphe jusqu'au
+# 2026-09-01, dont TOUTES les arêtes de rétractation. La garde `check_record_links.py --report`
+# signale désormais toute clé d'arête déclarée mais non lue : le silence est fermé.
 _LIST_KEYS = ("motivates", "triggers", "tests",
-              "rediscovered_by", "supersedes", "adopt_for", "grounds")
+              "rediscovered_by", "supersedes", "adopt_for", "grounds",
+              "adopts", "extends", "corroborates",
+              # Arêtes de RÉTRACTATION / CORRECTION — les plus importantes du graphe.
+              "corrects", "corrected_by", "retracted_by", "supersedes_mechanism_of")
 _EDR_NAME = re.compile(r"^(\d{3})_.+\.md$")
 
 
@@ -29,6 +36,9 @@ def _empty_record(file: str) -> dict:
     return {"id": None, "type": None, "title": "", "status": "open", "gate": None,
             "motivates": [], "triggers": [], "tests": [],
             "rediscovered_by": [], "supersedes": [], "adopt_for": [], "grounds": [],
+            "adopts": [], "extends": [], "corroborates": [],
+            "corrects": [], "corrected_by": [], "retracted_by": [],
+            "supersedes_mechanism_of": [],
             "url": None, "method": None, "lib": None, "maturity": None,
             "requires_ref": False,
             "verdict": None, "file": file, "linked": False}
@@ -104,9 +114,24 @@ def scan_records(root: str = _ROOT) -> list[dict]:
     return out
 
 
+# ⚠️ COMPLÉTÉ le 2026-09-01 — le graphe IGNORAIT SILENCIEUSEMENT 122 arêtes déclarées dans les records.
+# Deux conséquences, de gravité très inégale :
+#   (1) GRAVE — `retracted_by`, `corrects`, `corrected_by`, `supersedes_mechanism_of` n'existaient PAS
+#       dans le graphe. **Un graphe de records qui ne lit pas ses rétractations ne peut pas signaler une
+#       conclusion périmée** : c'est précisément ce pour quoi il existe.
+#   (2) `adopts` (77 occurrences) était ignoré alors que CLAUDE.md prescrit explicitement aux auteurs
+#       d'ancrer un record par « gate: / tests: / adopts: ». L'outil ne connaissait pas une clé que le
+#       protocole impose.
+# ⚠️ CE QUE CE CORRECTIF NE FAIT PAS, mesuré dans les DEUX sens avant de l'écrire : il ne résorbe AUCUN
+# orphelin (0 sur 39). Les 122 arêtes relient des records déjà ancrés autrement. L'hypothèse « la dette
+# d'orphelins est un artefact du parseur » était plausible et FAUSSE.
 _REL = {"motivates": "MOTIVE", "triggers": "DECLENCHE", "tests": "TESTE",
         "rediscovered_by": "REDECOUVERT_PAR", "supersedes": "DEPASSE",
-        "adopt_for": "A_ADOPTER_POUR", "grounds": "FONDE"}
+        "adopt_for": "A_ADOPTER_POUR", "grounds": "FONDE",
+        "adopts": "ADOPTE", "extends": "ETEND", "corroborates": "CORROBORE",
+        # Arêtes de RÉTRACTATION / CORRECTION — les plus importantes du graphe.
+        "corrects": "CORRIGE", "corrected_by": "CORRIGE_PAR", "retracted_by": "RETRACTE_PAR",
+        "supersedes_mechanism_of": "DEPASSE_MECANISME_DE"}
 # Clés-pont émanant des nœuds REF (cibles = records ancrés au SOTA).
 _BRIDGE_KEYS = ("rediscovered_by", "supersedes", "adopt_for", "grounds")
 _NODE_KEYS = ("id", "type", "title", "status", "gate", "verdict", "linked",

@@ -5,7 +5,7 @@ title: "Le seuil de rétention du craft est une FALAISE NETTE (transition de pha
 status: accepted
 gate: null
 verdict: RETENTION_THRESHOLD_IS_SHARP_BISTABLE_CLIFF_BINDING_ALREADY_STRONG
-supersedes_mechanism_of: EDR-162
+supersedes_mechanism_of: [EDR-162]
 ---
 
 # EDR 164 : le seuil de rétention est une falaise bistable (c*≈0.04) — corrige le mécanisme d'EDR-162
