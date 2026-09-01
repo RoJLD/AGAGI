@@ -109,7 +109,8 @@ dose CONNUE teste la couche qui transforme des mesures en affirmation.
   (`{p, cliff, ratio}`) et non les distributions : la garde de dégénérescence armée sur `s2_verdict`
   (2026-09-01) ne peut pas s'y étendre sans changer son contrat. Il faut que l'appelant lui PASSE le
   résultat de `s2_degeneracy`. Tant que ce n'est pas fait, il existe un chemin non gardé vers le verdict.
-* **`check_preregistration_applied.py` n'inspecte que 6 règles scellées sur 23** et ignore le champ
+* ✅ **RÉSOLU (2026-09-02)** — le cliquet dit sa couverture RÉELLE (9/23), nomme les 13 légataires pré-convention non inspectables, et REFUSE toute règle nouvelle sans grandeur backtickée.
+  * **`check_preregistration_applied.py` n'inspecte que 6 règles scellées sur 23** et ignore le champ
   `instruments_autorises` — celui que la clôture d'E11 avait inventé. Le cliquet couvre moins que ce que
   son nom promet (classe E4).
 * **`retro_audit_records.py` n'a jamais été rétro-appliqué** : `58 records examinés | 27 à EXAMINER
@@ -145,17 +146,20 @@ dose CONNUE teste la couche qui transforme des mesures en affirmation.
 * ✅ **RÉSOLU / non reproduit (2026-09-01)** — 0 occurrence mesurée du motif `assert verdict in <co-domaine>`.
   * **~50 tests « smoke » assertent `verdict in <co-domaine COMPLET>`** — tautologie payée au prix d'une
   simulation (ex. `tools/disjoint_heads_v3.py:49-60`).
-* **4 tests sans AUCUNE assertion**, dont 3 dont le NOM promet une propriété non vérifiée ; deux
+* ✅ **RÉSOLU (2026-09-02)** — 3 des 6 signalés étaient des faux positifs du scan (fixture, `np.testing.assert_*`, no-crash légitime documenté) ; les vrais corrigés, dont le no-op qui vérifie désormais l'état du RNG GLOBAL (classe E5).
+  * **4 tests sans AUCUNE assertion**, dont 3 dont le NOM promet une propriété non vérifiée ; deux
   `assert True` décoratifs (`tests/sandbox/test_ntm_compiler.py:71-75`).
 * **`tests/test_frontend_build.py`** : skip silencieux si npm absent, build non vérifié, dépasse le
   timeout global.
 
 ### Dans le registre d'erreurs
 
-* **Le registre viole sa propre règle « pas de troisième fois »** : E10 compte **3** occurrences
+* ✅ **RÉSOLU (2026-09-02)** — E15 PROMUE (`assert_n_per_arm`, contre-exemple gelé aux chiffres d'EDR-095), E10 occ.4 reclassée `non automatisable` avec justification, occ.7 exécutable (garde de bail). Plus aucune occurrence en `documenté`.
+  * **Le registre viole sa propre règle « pas de troisième fois »** : E10 compte **3** occurrences
   `documenté` (4, 5, 6) et sa cellule affirme encore « occurrence unique » ; E8 en a 2 et n'a jamais été
   statuée. La règle exige promotion en `exécutable` ou reclassement.
-* **E15 est la seule classe dont la « garde » est une phrase adressée à un humain**, alors qu'elle est
+* ✅ **RÉSOLU (2026-09-02)** — voir ci-dessus.
+  * **E15 est la seule classe dont la « garde » est une phrase adressée à un humain**, alors qu'elle est
   trivialement exécutable (vérifier `n` PAR BRAS avant de comparer des médianes).
 * ✅ **RÉSOLU (2026-09-01)** — 4 fichiers de `tools/` l'invoquent désormais.
   * **E19 est calibrée dans les deux sens mais n'est appelée par AUCUN dispositif** ; seuls 3 outils sur

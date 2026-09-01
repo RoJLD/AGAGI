@@ -1,7 +1,6 @@
 {
-  "_comment": "Peremptions MECANIQUES legataires du backlog, gelees. Le cliquet refuse toute NOUVELLE entree. Retirer une ligne quand elle est corrigee -- jamais en ajouter pour faire passer le hook. DECLARATIONS EXPLICITES : (1) `lien-mort:EDR-EVO-026` -- le record est EN COURS D'ECRITURE, son run tourne ; a retirer des qu'il est grave. (2) `numero-double:P2.0-bis` et `numero-double:P2.1` -- ce sont des paires PLAN/JOURNAL de la MEME tache, desormais croisees explicitement (l'entree de plan dit -> RESOLU, voir le journal). Le numero reste double, mais plus aucun lecteur n'est trompe.",
+  "_comment": "Peremptions MECANIQUES legataires du backlog, gelees. Le cliquet refuse toute NOUVELLE entree. Retirer une ligne quand elle est corrigee -- jamais en ajouter pour faire passer le hook.",
   "legataires": {
-    "lien-mort:EDR-EVO-026": "le backlog cite [[EDR-EVO-026]] mais aucun record ne porte cet identifiant",
     "numero-double:P2.0-bis": "P2.0-bis apparaît 2 fois en tête d'entrée : l'une des versions est périmée et rien ne dit laquelle",
     "numero-double:P2.1": "P2.1 apparaît 2 fois en tête d'entrée : l'une des versions est périmée et rien ne dit laquelle"
   }
