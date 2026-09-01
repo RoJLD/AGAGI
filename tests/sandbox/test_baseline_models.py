@@ -32,9 +32,17 @@ def test_random_action_writes_zero_surprise():
 
 
 def test_random_action_compute_policy_gradient_is_noop():
+    """Le NOM promet un no-op : on le VERIFIE au lieu de seulement ne pas crasher (2026-09-02).
+    La propriete qui compte est l'etat du RNG GLOBAL (classe E5) : ce modele tire du flux global
+    seede pour preserver l'appariement -- si `compute_policy_gradient` consommait ce flux, il
+    desappariererait TOUS les bancs qui utilisent la baseline aleatoire, silencieusement."""
     agents = _agents()
     bm = RandomActionBatchModel(agents)
+    etat_avant = np.random.get_state()
     bm.compute_policy_gradient(np.zeros(len(agents)), None)     # ne lève pas
+    etat_apres = np.random.get_state()
+    assert etat_avant[0] == etat_apres[0] and np.array_equal(etat_avant[1], etat_apres[1])         and etat_avant[2:] == etat_apres[2:], (
+        "compute_policy_gradient a CONSOMME le flux RNG global : l'appariement des bancs est casse")
 
 
 def test_random_action_is_seeded():

@@ -8,7 +8,7 @@ from src.graph_rag.database import KuzuDatabase, DatabaseConfig
 from src.graph_rag.memory_sync import MemorySyncer
 
 @pytest.fixture
-def test_db_path():
+def kuzu_db_path():   # renommee (ex test_db_path) : une fixture nommee test_* passe pour un test dans tout scan
     path = "./tests/test_kuzudb"
     if os.path.exists(path):
         try:
@@ -23,9 +23,9 @@ def test_db_path():
         except Exception:
             pass
 
-def test_memory_sync(test_db_path):
+def test_memory_sync(kuzu_db_path):
     # Initialize DB
-    db_config = DatabaseConfig(db_path=test_db_path, buffer_pool_size=1024 * 1024 * 128)
+    db_config = DatabaseConfig(db_path=kuzu_db_path, buffer_pool_size=1024 * 1024 * 128)
     db = KuzuDatabase(db_config)
     
     # Initialize Engine

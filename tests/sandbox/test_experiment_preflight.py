@@ -318,3 +318,29 @@ def test_calibration_gate_blocks_only_what_THIS_commit_touches(tmp_path, monkeyp
 
     # SANS --only : comportement historique, l'arbre entier bloque.
     assert C.main([]) == 1
+
+
+# ------------------------------------------- assert_n_per_arm (classe E15, promue 2026-09-02) ----
+
+def test_n_per_arm_catches_the_EDR095_population_shift():
+    """⚠️ CONTRE-EXEMPLE GELÉ aux chiffres RÉELS d'EDR-095 : le rêve forcé multipliait `n_lived` par
+    13-16 entre bras, et la « chute de 55 % » de la médiane comparait deux populations différentes.
+    Sur la cohorte fondatrice appariée, l'effet était ABSENT."""
+    from tools.experiment_preflight import PreflightError, assert_n_per_arm
+    with pytest.raises(PreflightError, match="INCOMPARABLES"):
+        assert_n_per_arm([50.0] * 12, [22.0] * 160, label="dream on/off")
+
+
+def test_n_per_arm_SPARES_comparable_populations():
+    """⚠️ SPÉCIFICITÉ : des cohortes appariées (n égaux) et un déséquilibre modéré sous le seuil
+    passent — sinon la garde interdirait toute comparaison réelle."""
+    from tools.experiment_preflight import assert_n_per_arm
+    assert assert_n_per_arm([1.0] * 12, [2.0] * 12)
+    assert assert_n_per_arm([1.0] * 12, [2.0] * 16)          # 1.33x < 1.5x
+
+
+def test_n_per_arm_refuses_an_empty_arm():
+    """Un bras vide n'a pas de médiane à comparer : refus, pas une sentinelle."""
+    from tools.experiment_preflight import PreflightError, assert_n_per_arm
+    with pytest.raises(PreflightError, match="VIDE"):
+        assert_n_per_arm([], [1.0] * 12)

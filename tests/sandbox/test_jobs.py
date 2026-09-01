@@ -27,6 +27,10 @@ def test_distinct_resources_do_not_block_each_other(tmp_path):
     """Un cap global à 1 sérialiserait des jobs indépendants : c'est précisément ce qu'on refuse."""
     L.acquire("kuzu", leases_dir=tmp_path, pid=os.getpid())
     L.acquire("gpu", leases_dir=tmp_path, pid=os.getpid() + 1)   # ne doit PAS lever
+    # 2026-09-02 : asserter que les DEUX bails coexistent reellement -- « n'a pas leve » ne
+    # distingue pas « les deux tiennent » de « le second a ecrase le premier ».
+    assert L.read("kuzu", leases_dir=tmp_path) is not None
+    assert L.read("gpu", leases_dir=tmp_path) is not None
 
 
 def test_dead_holder_lease_is_reclaimable(tmp_path):

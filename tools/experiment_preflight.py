@@ -321,3 +321,27 @@ def declare_design(question, replication_unit, n_independent, links, cost_estima
             "warning": (f"{len(inferred)} maillon(s) INFÉRÉ(S) : {inferred}. Une chaîne causale "
                         "transporte son signe, pas son amplitude — vérifier que le régime place "
                         "l'effet au-dessus du bruit, ou mesurer à n réduit.") if inferred else None}
+
+
+def assert_n_per_arm(arm_a, arm_b, max_ratio=1.5, label="bras"):
+    """Les deux bras doivent porter des POPULATIONS comparables avant qu'on compare leurs médianes.
+
+    Classe E15 du registre, promue `exécutable` le 2026-09-02. Occurrence fondatrice (EDR-095) : le
+    rêve forcé multipliait `n_lived` par **13-16** entre bras ; la survie médiane « chutait de 55 % »
+    (sign_p 0.0005, reproduit) alors que sur la cohorte fondatrice APPARIÉE l'effet était ABSENT.
+    L'indice — le n ×16 — était publié DANS le record, en « effet secondaire ».
+
+    ⚠️ Aucune garde de borne ne voit ça : aucun bras n'est au plancher ni au plafond. Une médiane est
+    robuste aux valeurs extrêmes, PAS à un changement de population — si un bras fait naître 15× plus
+    d'agents, sa médiane décrit une AUTRE population, pas le même monde mesuré deux fois."""
+    na, nb = len(list(arm_a)), len(list(arm_b))
+    if na == 0 or nb == 0:
+        raise PreflightError(f"{label} : un bras est VIDE (n_a={na}, n_b={nb}) — rien à comparer.")
+    ratio = max(na, nb) / min(na, nb)
+    if ratio > max_ratio:
+        raise PreflightError(
+            f"{label} : populations INCOMPARABLES (n_a={na}, n_b={nb}, ratio {ratio:.1f}x > "
+            f"{max_ratio}x). Comparer leurs médianes décrirait deux populations différentes, pas un "
+            f"effet — apparier les cohortes (même naissance), ou expliquer le n AVANT le verdict "
+            f"(cf. EDR-095, classe E15).")
+    return True

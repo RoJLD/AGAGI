@@ -79,6 +79,8 @@ def test_harness_with_db_false_never_starts_logger():
 
 
 def test_harness_exit_without_enter_is_safe():
+    # ⚠️ PAS d'assert, et c'est VOULU : la propriete testee EST « ne leve pas » (pytest echoue sur
+    # toute exception). Ajouter un `assert True` serait le motif decoratif retire le 2026-09-01.
     h = Harness(seed=1, name="t", with_db=False)
     h.__exit__(None, None, None)  # ne doit pas crasher
 

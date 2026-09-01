@@ -24,9 +24,12 @@ def test_kuzu_database_bootstrap():
     
     # First bootstrap
     db.bootstrap_schema()
-    
-    # Second bootstrap to test idempotency
+    assert os.path.exists(test_db_dir), "bootstrap_schema n'a rien cree sur disque"
+
+    # Second bootstrap to test idempotency (2026-09-02 : la docstring promettait « survive multiple
+    # idempotent bootstrap calls » sans rien asserter -- un echec silencieux ressemblait a un succes)
     db.bootstrap_schema()
+    assert os.path.exists(test_db_dir), "le second bootstrap a detruit la base"
     
     # Clean up after
     if os.path.exists(test_db_dir):
