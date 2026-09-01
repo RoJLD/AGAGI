@@ -157,10 +157,36 @@ CALIBRATED = {
     # crédit seul. Le bilinéaire low-rank PEUT représenter le produit q·key (capacité représentationnelle
     # prouvée), mais ne résout PAS, par lui-même, le portage de key à travers un tick récurrent. Verdict
     # n=12 sur les 2 conditions, cf. tests ci-dessous + `docs/EDR/EDR-BILINEAR_...md`.
-    "run_bilinear_composition_probe": ["*"],
+    # ⚠️ E19, 2026-09-01 — la phrase « lever le crédit SEUL ne suffit pas -> le confond dominant était la
+    # RÉTENTION » est SUSPENDUE : elle est conditionnée à `lr=0.02` (:163). MESURÉ n=12 en ne changeant
+    # QUE le pas : 2-pas supervisé -> bilinéaire 0.1789 / `unlocked=False` à lr=0.02 (reproduit 0.178) mais
+    # 0.3797 / `unlocked=True` à lr=0.002, séparation par-seed TOTALE (0.2016 < 0.3500, 0/144). Le régime
+    # à UN pas (`same_tick=True`, le résultat PHARE) n'est PAS touché. Branches : le régime 2-pas est
+    # désormais couvert par `..._is_lr_dependent`, qui gèle la BASCULE au lieu du nul.
+    "run_bilinear_composition_probe": ["same_tick:positive", "two_step:lr_artifact", "recall:noop"],
     # Diagnostic retain+compose. Positif = same_tick (le bilinéaire compose 2 entrées co-présentes -> >bar) ;
     # négatif = oracle DÉCORRÉLÉ (key aléatoire en état -> ne porte pas la bonne info -> plancher). Générateur A.
-    "run_retain_compose_diagnostic_probe": ["*"],
+    # ⚠️ CLASSE E19, 2026-09-01 — la déclaration `["*"]` (« instrument sans branches ») était FAUSSE et a
+    # coûté le verdict d'un record entier : la sonde a un paramètre de RÉGIME énuméré (`conditions=`), et
+    # les DEUX branches calibrées (`same_tick` :51-52 et `oracle_decorrelated` :53-58) sont des conditions
+    # à UN SEUL `_step`. La branche qui PORTE le verdict (`learned`, DEUX `_step` + BPTT, :59-61) n'était
+    # PAS calibrée — et c'est exactement là que `lr=0.02` diverge (batch effectif = 1, chaque agent porte
+    # ses PROPRES W/U/V/W_bl, `src/agents/backend_torch.py:85-86`). Un « OK » du cliquet ne vaut QUE dans
+    # les régimes des cas gelés : un contrôle positif du régime FACILE ne calibre PAS le régime DUR.
+    # La branche `learned:lr_artifact` gèle la bascule de verdict (cf. le contre-exemple en fin de fichier).
+    "run_retain_compose_diagnostic_probe": ["same_tick:positive", "oracle_decorrelated:floor",
+                                            "learned:lr_artifact"],
+    # E19, garde de pré-vol NÉE le 2026-09-01 et calibrée dans la MÊME passe (rituel du registre).
+    # Détectée par le cliquet via le motif `\\w*verdict\\w*` — et c'en EST un : elle rend un jugement
+    # binaire (« ce nul est-il un artefact de réglage ? ») sur un balayage de `lr`, donc elle peut
+    # PRODUIRE un résultat comme n'importe quel instrument. Ses deux cas sont des réponses CONNUES de
+    # signes opposés, toutes deux MESURÉES dans ce dépôt : `artifact:fires` (RETAIN-COMPOSE, écart au bras
+    # de référence 0.798 -> 0.022, closure 0.972 -> LÈVE) et `structural:spares` (BILINEAR/plain, 0.652 ->
+    # 0.594, closure 0.089 -> ne lève PAS, alors qu'un critère de SEUIL absolu aurait flagué ce vrai
+    # négatif). ⚠️ Les deux cas vivent dans `tests/sandbox/test_experiment_preflight.py`
+    # (`test_optimizer_sweep_REFUSES_the_retain_compose_null` / `..._SPARES_the_bilinear_structural_null`),
+    # là où sont testées toutes les assertions de pré-vol — pas dans ce fichier. Purement numériques.
+    "assert_verdict_invariant_to_optimizer": ["artifact:fires", "structural:spares"],
 }
 
 _GENOMES = os.path.join("results", "warm007_genomes")
@@ -1592,8 +1618,13 @@ def test_lm_leaky_control_fires_the_aliasing_guard():
 # séparément puis ensemble, n=12, budget borné (episodes=300, wall mesuré < 5 min/condition).
 # `test_bilinear_unlocks_composition_same_tick_supervised` = le test DÉCISIF (renommé depuis
 # `test_bilinear_composition_crux_finding_stays_null`, dont l'assertion "reste nul" ne survit PAS à la
-# levée des deux confonds — la levée seule du crédit, ci-dessous, laisse le nul intact ; c'est la
-# RÉTENTION, pas le crédit, qui était le confond dominant).
+# levée des deux confonds).
+# ⚠️ E19, 2026-09-01 : la clause « la levée seule du crédit laisse le nul intact -> c'est la RÉTENTION,
+# pas le crédit, qui était le confond dominant » est CONDITIONNÉE au pas d'apprentissage et n'est PAS
+# établie. MESURÉ n=12 en ne changeant QUE `lr` : bilinéaire 2-pas 0.1789 (`unlocked=False`) à lr=0.02
+# mais 0.3797 (`unlocked=True`) à lr=0.002, séparation par-seed totale (0.2016 < 0.3500, 0/144).
+# Cf. `test_bilinear_composition_null_under_retention_is_lr_dependent` ci-dessous, qui gèle la bascule.
+# Le POSITIF principal (same_tick, UN pas) n'est PAS touché : il ne vit pas dans le régime pathologique.
 
 @pytest.mark.slow          # wall mesuré 107-292s (variance système) > 120s (pytest.ini) ; désélectionné
 @pytest.mark.timeout(600)  # en CI rapide (-m "not slow") ; override explicite (marge sur la variance mesurée)
@@ -1606,9 +1637,10 @@ def test_bilinear_unlocks_composition_same_tick_supervised():
     episodes=300, n_agents=16, K=6, rank=16 (wall mesuré ≈292s < 5 min, << 9 min). Medians mesurés
     (2026-08-03) : plain=0.271 (12 seeds dans [0.233,0.303]), bilinéaire=0.932 (12 seeds dans
     [0.891,0.969]) — le bilinéaire low-rank PEUT représenter le produit q·key quand les deux sont
-    présents au même pas (capacité représentationnelle prouvée). Cf.
-    `test_bilinear_composition_null_under_retention_supervised` (le crédit seul, sans lever la
-    rétention, NE SUFFIT PAS -> la rétention était le confond dominant, pas le crédit)."""
+    présents au même pas (capacité représentationnelle prouvée). Ce test vit dans le régime à UN SEUL pas
+    et n'est donc PAS touché par l'artefact E19. Cf.
+    `test_bilinear_composition_null_under_retention_is_lr_dependent` (le nul du 2-pas, lui, BASCULE avec
+    le seul `lr` : « la rétention était le confond dominant » n'est pas établi)."""
     from tools.bilinear_composition_probe import run_bilinear_composition_probe
     r = run_bilinear_composition_probe(seeds=list(range(12)), episodes=300, n_agents=16, K=6, rank=16,
                                         task="composition", same_tick=True, credit_mode="supervised")
@@ -1618,24 +1650,53 @@ def test_bilinear_unlocks_composition_same_tick_supervised():
     assert min(r["per_seed"]["bilinear"]) > max(r["per_seed"]["plain"]), r    # séparation TOTALE par-seed
 
 
-@pytest.mark.slow          # wall mesuré ≈160s (2×80s) > 120s (pytest.ini) ; désélectionné en CI rapide
-@pytest.mark.timeout(600)  # override explicite (marge sur la variance mesurée du système)
-def test_bilinear_composition_null_under_retention_supervised():
-    """SECONDAIRE (isole la RÉTENTION, crédit DÉJÀ réparé) : `credit_mode="supervised"` (même correctif
-    de crédit que le test décisif) MAIS `same_tick=False` (2 pas, key au pas 0 / q au pas 1, comme la
-    Tâche 2 — la rétention reste EXIGÉE). Résultat : bilinéaire reste AU PLANCHER, même SOUS plain
-    (reproduit le "smoking gun" de la revue Tâche 2 — le bilinéaire est plus dur à optimiser — malgré le
-    crédit réparé) -> réparer le crédit SEUL ne débloque PAS la composition ; le confond dominant du nul
-    de la Tâche 2 était la RÉTENTION. Budget : n=12 (2 lots de 6 seeds), episodes=300, n_agents=16, K=6,
-    rank=16 (wall mesuré ≈80s/lot). Medians mesurés (2026-08-03) : plain=0.218, bilinéaire=0.178 (SOUS
-    plain), tous deux SOUS le seuil 1/6+0.15≈0.317."""
+@pytest.mark.slow          # wall MESURÉ 199.7s (call) / 204.8s (session) > 120s (pytest.ini) ;
+                           # détail : 92.5s le lot lr=0.02 + 109.9s le lot lr=0.002. Désélectionné en CI rapide.
+@pytest.mark.timeout(600)  # override explicite (marge ~3× sur la variance système)
+def test_bilinear_composition_null_under_retention_is_lr_dependent():
+    """CONTRE-EXEMPLE GELÉ, classe **E19** — ce test s'appelait `..._null_under_retention_supervised` et
+    assertait `bilinear_median <= bar` + `not unlocked` au SEUL `lr=0.02` : il GELAIT un artefact, et
+    aurait fait échouer toute correction future du réglage. Il gèle désormais la BASCULE elle-même.
+
+    Condition INCHANGÉE (isole la RÉTENTION, crédit déjà réparé) : `credit_mode="supervised"` +
+    `same_tick=False` (2 pas, key au pas 0 / q au pas 1 — la rétention reste EXIGÉE), episodes=300,
+    n_agents=16, K=6, rank=16. SEULE variable ajoutée : `lr`, désormais passé EXPLICITEMENT aux deux
+    appels (le test ne dépend donc plus du défaut de la sonde, qui pourra bouger sans le casser).
+
+    MESURÉ ICI, n=12, 2026-09-01 (les deux lots, wall 92.5s + 109.9s) :
+      * `lr=0.02`  -> plain 0.2180, bilinéaire **0.1789** (SOUS plain), `unlocked=False`
+                     — reproduit AU CHIFFRE PRÈS le nul publié le 2026-08-03 (0.218 / 0.178).
+      * `lr=0.002` -> plain 0.1812, bilinéaire **0.3797** (> bar 0.3167), `unlocked=True`.
+      * Séparation par-seed TOTALE sur le bras bilinéaire : max(lr=0.02)=0.2016 < min(lr=0.002)=0.3500,
+        **0/144** chevauchement, 12/12 seeds au-dessus de la barre à lr=0.002 (signe p=2⁻¹²).
+    Le nul du 2-pas et le verdict `unlocked` sont donc des propriétés du RÉGLAGE, pas du substrat : la
+    conclusion « réparer le crédit SEUL ne débloque rien, le confond dominant était la RÉTENTION » est
+    conditionnée à `lr=0.02` et n'est PAS établie. Même défaut, même sonde-sœur, même Adam à batch
+    effectif 1 (`n_agents` n'est pas un minibatch — `src/agents/backend_torch.py:85-86`) que
+    EDR-RETAIN-COMPOSE. Les chiffres du 2026-08-03 ne sont pas effacés : ils sont REPRODUITS ci-dessus et
+    restent vrais À CE PAS.
+
+    ⚠️ Ce que ce test n'affirme PAS : que le 2-pas soit RÉSOLU à lr=0.002. 0.3797 reste très loin du 0.932
+    obtenu à opérandes co-présents ; il franchit une barre (0.3167) elle-même mal placée — 0.072 SOUS le
+    plafond structurel mesuré du substrat plain (0.3889). Ce qui est gelé, c'est la BASCULE, pas un
+    verdict de capacité."""
     from tools.bilinear_composition_probe import run_bilinear_composition_probe
-    r = run_bilinear_composition_probe(seeds=list(range(12)), episodes=300, n_agents=16, K=6, rank=16,
-                                        task="composition", same_tick=False, credit_mode="supervised")
     bar = 1 / 6 + 0.15
-    assert r["plain_median"] <= bar, r
-    assert r["bilinear_median"] <= bar, r            # FINDING : le crédit seul ne débloque PAS
-    assert not r["unlocked"], r
+    seeds = list(range(12))
+    lo = run_bilinear_composition_probe(seeds=seeds, episodes=300, n_agents=16, K=6, rank=16,
+                                        task="composition", same_tick=False, credit_mode="supervised",
+                                        lr=0.02)
+    hi = run_bilinear_composition_probe(seeds=seeds, episodes=300, n_agents=16, K=6, rank=16,
+                                        task="composition", same_tick=False, credit_mode="supervised",
+                                        lr=0.002)
+    # Le nul publié TIENT à lr=0.02 (aucune mesure n'est effacée)...
+    assert lo["plain_median"] <= bar and lo["bilinear_median"] <= bar, lo
+    assert not lo["unlocked"], lo
+    # ...et il BASCULE en ne changeant QUE le pas.
+    assert hi["bilinear_median"] > bar, hi
+    assert hi["unlocked"], hi
+    # Séparation TOTALE par-seed sur le bras testé : la bascule n'est pas un effet de médiane.
+    assert min(hi["per_seed"]["bilinear"]) > max(lo["per_seed"]["bilinear"]), (lo, hi)
 
 
 def test_bilinear_noop_on_recall():
@@ -1673,3 +1734,48 @@ def test_retain_compose_decorrelated_oracle_is_floor():
     r = run_retain_compose_diagnostic_probe(seeds=list(range(4)), episodes=400, n_agents=16, K=6,
                                             conditions=("oracle_decorrelated",))
     assert r["oracle_decorrelated_median"] <= 1/6 + 0.15, r
+
+
+@pytest.mark.slow          # wall MESURÉ 51.3s (call) / 69.7s (session) — SOUS les 120s de pytest.ini,
+                           # mais la variance système documentée dans ce fichier atteint 2.7× (:1607,
+                           # 107->292s) : 51×2.7 = 138s dépasserait le cap et tuerait le test à tort.
+@pytest.mark.timeout(600)  # override explicite. Marqueur `slow` à revoir si la variance se resserre.
+def test_retain_compose_learned_verdict_is_an_lr_artifact():
+    """CONTRE-EXEMPLE GELÉ de la classe **E19** — la branche `learned` est celle qui PORTE le verdict du
+    record, et c'était la SEULE des trois qui n'avait aucun cas de calibration. Les deux contrôles
+    ci-dessus (`same_tick`, `oracle_decorrelated`) sont des conditions à UN SEUL `_step` : par
+    CONSTRUCTION, aucun ne POUVAIT voir une pathologie propre au régime à DEUX `_step`. Le cliquet
+    déclarait l'instrument couvert (`["*"]`) pendant que le régime porteur du verdict ne l'était pas.
+
+    Ce que ce test gèle : le verdict de la sonde BASCULE en ne changeant QUE le pas d'apprentissage.
+    ÉTABLI n=12, episodes=600 (2026-09-01) — `same_tick` / `oracle` / `learned` :
+      * `lr=0.02`  -> 0.969 / 0.971 / **0.173**  => verdict rendu `RETENTION`
+      * `lr=0.002` -> 0.937 / 0.945 / **0.923**  => verdict rendu `INCONCLUSIVE`
+    `learned` par seed, lr=0.02 : [0.145 … 0.192] ; lr=0.002 : [0.897 … 0.964]. Séparation TOTALE
+    (min à lr=0.002 = 0.897 > max à lr=0.02 = 0.192, **0/144**), 12/12 seeds au-dessus de la barre à
+    lr=0.002 (test de signe p=2⁻¹²). L'écart `learned`↔`oracle` passe de **0.798 à 0.022** : le bras testé
+    REJOINT son bras de référence — signature d'un ARTEFACT, pas d'un nul de capacité (cf.
+    `tools/experiment_preflight.py::assert_verdict_invariant_to_optimizer`).
+
+    CAUSE RACINE : `n_agents=16` n'est PAS un minibatch — chaque agent porte ses PROPRES `W/U/V/W_bl`
+    (`src/agents/backend_torch.py:85-86` et `:113-115`), donc la `cross_entropy` sur 16 lignes donne à
+    chaque jeu de paramètres EXACTEMENT 1 exemple par pas (batch effectif = 1) sous Adam `lr=0.02`
+    (`tools/retain_compose_diagnostic_probe.py:80`, signature `:101`). Les conditions à un `_step` sont
+    bien conditionnées et tolèrent ce pas ; `learned` enchaîne DEUX `_step` avec BPTT et diverge. Le
+    réglage avait été validé IMPLICITEMENT sur les conditions faciles, puis appliqué à la condition testée.
+
+    Budget de CE test (réduit : 3 seeds, episodes=400 — le n=12/600 ci-dessus est l'ÉTABLISSEMENT, pas la
+    garde) : wall MESURÉ 51.3 s (call) / 69.7 s (session), 2026-09-01, 1 thread. Le défaut `lr=0.02` de la
+    sonde n'est PAS modifié (cela ré-écrirait silencieusement le passé et invaliderait les chiffres cités
+    ici) : les deux pas sont passés EXPLICITEMENT."""
+    from tools.retain_compose_diagnostic_probe import run_retain_compose_diagnostic_probe
+    bar = 1/6 + 0.15
+    seeds = list(range(3))
+    lo = run_retain_compose_diagnostic_probe(seeds=seeds, episodes=400, n_agents=16, K=6,
+                                             conditions=("learned",), lr=0.02)
+    hi = run_retain_compose_diagnostic_probe(seeds=seeds, episodes=400, n_agents=16, K=6,
+                                             conditions=("learned",), lr=0.002)
+    # Le nul du record TIENT à son pas (aucune mesure n'est effacée)... et il BASCULE au pas voisin.
+    assert lo["learned_median"] <= bar < hi["learned_median"], (lo["learned_median"], hi["learned_median"])
+    # Séparation par-seed TOTALE : la bascule n'est pas un effet de médiane.
+    assert min(hi["per_seed"]["learned"]) > max(lo["per_seed"]["learned"]), (lo["per_seed"], hi["per_seed"])

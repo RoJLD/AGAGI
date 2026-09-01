@@ -6,7 +6,8 @@ automatise ceux-là ; les deux autres exigent une DÉCLARATION écrite avant le 
 
     A. L'instrument peut-il produire LES DEUX issues ?   -> assert_ablation_changes_something,
                                                             assert_positive_control, assert_not_degenerate,
-                                                            assert_selection_nonempty
+                                                            assert_selection_nonempty,
+                                                            assert_verdict_invariant_to_optimizer
     C. La grandeur mesurée est-elle celle qui AGIT ?     -> assert_no_aliasing, assert_no_functional_aliasing,
                                                             assert_predictor_measured_in_situ
     B. Quelle est l'unité de réplication ?               -> declare_design (non automatisable)
@@ -148,6 +149,80 @@ def assert_predictor_measured_in_situ(predictor_ctx, experiment_ctx, label="pré
         raise PreflightError(
             f"{label} mesuré dans « {predictor_ctx} » mais l'intervention opère dans « {experiment_ctx} ». "
             "Mesurer le prédicteur in situ, ou justifier explicitement l'écart.")
+    return True
+
+
+# ------------------------------------------------- A (bis). le verdict survit-il au RÉGLAGE ? (E19)
+
+def assert_verdict_invariant_to_optimizer(measure, lrs=(0.02, 0.002), max_gap_closure=2.0 / 3.0,
+                                          label="verdict comparatif"):
+    """Un NUL DE CAPACITÉ doit survivre au balayage du pas d'apprentissage — sinon il mesure le RÉGLAGE.
+
+    `measure(lr)` rend le couple `(bras_testé, bras_de_référence)` : deux scalaires (médianes) mesurés AU
+    MÊME `lr`, dans le MÊME run. La garde raisonne sur l'ÉCART AU BRAS DE RÉFÉRENCE d'un pas à l'autre —
+    motif MESURÉ : un nul ARTEFACTUEL REFERME son écart quand on change le pas, un nul STRUCTUREL le
+    CONSERVE.
+
+        gap(lr) = référence(lr) − testé(lr)        closure = 1 − min(gap) / max(gap)
+
+    ⚠️ JAMAIS une barre absolue — c'est LE point de conception, et il est mesuré, pas raisonné : la barre
+    du dépôt `1/K + 0.15 = 0.3167` se situe **0.072 SOUS** le plafond structurel du substrat plain
+    (**0.3889**, forme close des 36 paires, 8 restarts ; contrôle positif du même optimiseur sur une table
+    libre non séparable : 1.000). Un substrat PROUVABLEMENT incapable de composer franchit donc cette barre
+    au bon pas (0.3719 à `lr=0.1`) et même au pas d'origine avec plus de budget (0.3703 à
+    `episodes=2400`). Réévaluer un SEUIL sous balayage flaguerait ce VRAI négatif ; réévaluer l'ÉCART
+    ENTRE BRAS le laisse passer. Corollaire : un verdict à UN SEUL bras et seuil absolu n'est pas
+    protégeable par ce mécanisme — il faut un bras de référence DANS le même run.
+
+    Aurait attrapé (EDR-RETAIN-COMPOSE, 2026-09-01, le verdict d'un record ENTIER, n=12) : à `lr=0.02`,
+    `learned` 0.173 contre `oracle` 0.971 -> verdict `RETENTION` ; à `lr=0.002`, 0.923 contre 0.945.
+    L'écart passe de **0.798 à 0.022** (closure 0.97) — le bras testé REJOINT sa référence, le « mur de
+    rétention » était le pas. Séparation par-seed TOTALE (min à lr=0.002 = 0.897 > max à lr=0.02 = 0.192,
+    0/144). Cause racine : `n_agents=16` n'est PAS un minibatch (chaque agent porte ses PROPRES
+    `W/U/V/W_bl`, `src/agents/backend_torch.py:85-86`) -> batch effectif **1** sous Adam `lr=0.02` ; les
+    conditions à UN `_step` le tolèrent, celle à DEUX `_step` diverge. Aggravant : les DEUX contrôles
+    calibrés de la sonde vivaient dans le régime à un seul `_step`, donc aucun ne POUVAIT voir la
+    pathologie du régime qui portait le verdict. Classe **E19** du registre.
+
+    Ne tire PAS (SPÉCIFICITÉ, mesurée sur un nul structurel connu) : sous-projet BILINEAR, plain contre
+    bilinéaire (0.966) à opérandes co-présents — écart 0.652 à `lr=0.02`, 0.594 à `lr=0.1` -> closure
+    **0.089**. Baisser le pas y DÉGRADE le bras testé vers le hasard (0.160) au lieu de le sauver.
+    ⚠️ Provenance : ce volet de spécificité (balayage plain 4 seeds + plafond en forme close) vient d'UNE
+    seule passe, NON RÉPLIQUÉE — contrairement au cas artefact, établi à n=12. Il calibre la DIRECTION de
+    la garde (un nul structurel ne referme pas son écart), pas une valeur de seuil à 3 décimales.
+
+    Règle d'usage : quand deux bras d'un verdict n'ont pas la même difficulté d'OPTIMISATION (1 pas vs 2
+    pas, opérandes co-présents vs portés à travers un tick), le réglage n'est pas une nuisance mais un
+    FACTEUR — le balayer fait partie du contrôle positif."""
+    xs = [float(x) for x in lrs]
+    if len(set(xs)) < 2:
+        raise PreflightError(
+            f"{label} : il faut AU MOINS DEUX pas DISTINCTS pour tester l'invariance (reçu {xs}). "
+            "Un seul point d'hyperparamètre ne peut pas distinguer un nul de capacité d'un nul de réglage.")
+    gaps = {}
+    for lr in sorted(set(xs)):
+        pair = measure(lr)
+        try:
+            tested, reference = pair
+        except (TypeError, ValueError):
+            raise PreflightError(
+                f"{label} : `measure({lr:g})` doit rendre le couple (bras_testé, bras_de_référence) "
+                f"mesuré au MÊME pas ; reçu {pair!r}.")
+        gaps[lr] = float(reference) - float(tested)
+
+    lr_max = max(gaps, key=lambda k: gaps[k])          # pas où le nul est le plus PROFOND
+    lr_min = min(gaps, key=lambda k: gaps[k])          # pas où il est le plus REFERMÉ
+    g_max, g_min = gaps[lr_max], gaps[lr_min]
+    if g_max <= 0.0:
+        return True            # le bras testé n'est SOUS sa référence à aucun pas : aucun nul à défendre
+    closure = 1.0 - (g_min / g_max)
+    if closure > float(max_gap_closure):
+        raise PreflightError(
+            f"{label} : nul NON robuste au pas -> artefact d'hyperparamètre, PAS un verdict de capacité. "
+            f"L'écart au bras de référence se REFERME de {closure:.1%} sur le balayage "
+            f"(lr={lr_max:g} : écart {g_max:.4g} -> lr={lr_min:g} : écart {g_min:.4g} ; "
+            f"seuil {float(max_gap_closure):.1%}). Le bras testé REJOINT sa référence quand on change "
+            "SEULEMENT le réglage : le réglage est un FACTEUR du verdict. Rejouer, ou refuser le verdict.")
     return True
 
 

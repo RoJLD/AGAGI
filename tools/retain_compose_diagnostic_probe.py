@@ -3,10 +3,34 @@
 3 conditions bilinéaire (BILINEAR=True) + supervisé (cross-entropy via _step direct, grad) sur (q+key)%K :
  same_tick : key+q CO-PRÉSENTS en entrée (baseline, connu ~0.93) ;
  oracle    : key injecté PAR FIAT dans des nœuds d'ÉTAT (mem_slots), q en entrée -> rétention PARFAITE ;
- learned   : 2 pas encode(key)->use(q), rétention APPRISE (le cas qui échoue ~0.18).
+ learned   : 2 pas encode(key)->use(q), rétention APPRISE (~0.18 à `lr=0.02` SEULEMENT -> voir ⚠️ E19).
 oracle APPREND -> gap = rétention apprise (H1) ; oracle ÉCHOUE (same_tick OK) -> gap = lecture d'état (H2).
-Calibré : same_tick (positif, le bilinéaire compose) + oracle_decorrelated (négatif, key aléatoire -> plancher).
+Calibré : same_tick (positif, le bilinéaire compose) + oracle_decorrelated (négatif, key aléatoire ->
+plancher) + learned (contre-exemple GELÉ de la bascule de `lr`, ajouté le 2026-09-01).
 Pur torch CPU, aucun bail. Usage : python tools/retain_compose_diagnostic_probe.py
+
+⚠️⚠️ E19 — TOUT VERDICT ISSU DE CETTE SONDE DOIT ÊTRE REJOUÉ À `lr=0.002` AVANT D'ÊTRE ÉCRIT.
+Le défaut `lr=0.02` (:101) est CONSERVÉ tel quel — le changer ré-écrirait silencieusement le passé et
+invaliderait les chiffres cités dans les cas de calibration — mais il PRODUIT un faux nul sur `learned` :
+- `n_agents` n'est PAS un minibatch. Chaque agent porte ses PROPRES `W/U/V/W_bl`
+  (`src/agents/backend_torch.py:85-86` et `:113-115`), donc la `F.cross_entropy` sur les 16 lignes (:86)
+  donne à CHAQUE jeu de paramètres exactement 1 exemple par pas -> **batch effectif = 1** sous Adam (:80).
+- `same_tick` (:51-52) et `oracle` (:53-58) sont des problèmes à UN SEUL `_step`, bien conditionnés : ils
+  TOLÈRENT ce pas. `learned` (:59-61) enchaîne DEUX `_step` avec BPTT et DIVERGE. Le réglage avait été
+  validé implicitement sur les conditions faciles, puis appliqué à la condition testée.
+- MESURÉ n=12, episodes=600, seule variable changée = `lr` : lr=0.02 -> same_tick 0.969 / oracle 0.971 /
+  learned **0.173** (verdict `RETENTION`) ; lr=0.002 -> 0.937 / 0.945 / learned **0.923** (verdict
+  `INCONCLUSIVE`). Séparation par-seed TOTALE (0.897 > 0.192, **0/144**) ; l'écart learned↔oracle passe de
+  0.798 à 0.022. Le verdict rendu par `run_retain_compose_diagnostic_probe` (:110-119) est donc une
+  fonction du RÉGLAGE autant que du substrat.
+- Le verdict `RETENTION` bâti sur ce défaut a été RETIRÉ : record `EDR-RETAIN-COMPOSE` (rétracté),
+  remplacé par `EDR-RETAIN-COMPOSE-LR`. Garde de pré-vol :
+  `tools/experiment_preflight.py::assert_verdict_invariant_to_optimizer` (raisonne sur l'ÉCART AU BRAS DE
+  RÉFÉRENCE, jamais sur une barre absolue). Contre-exemple gelé :
+  `tests/sandbox/test_instrument_calibration.py::test_retain_compose_learned_verdict_is_an_lr_artifact`.
+- ⚠️ La barre `bar = 1/K + 0.15` (:108) est elle-même MAL PLACÉE : elle est 0.072 SOUS le plafond
+  structurel du substrat plain (0.3889, forme close — mesure d'UNE passe, NON RÉPLIQUÉE). Ne pas la
+  traiter comme une frontière de capacité.
 
 ⚠️ Vérifié contre le code réel (`src/agents/backend_torch.py`, `src/agents/mamba_agent.py`,
 `src/agents/backend.py`) au moment de l'implémentation — aucun écart avec le brief :

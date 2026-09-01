@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 from tools.experiment_preflight import (  # noqa: E402
     PreflightError, assert_ablation_changes_something, assert_positive_control,
     assert_not_degenerate, assert_selection_nonempty, assert_no_aliasing,
-    assert_predictor_measured_in_situ, declare_design)
+    assert_predictor_measured_in_situ, assert_verdict_invariant_to_optimizer, declare_design)
 
 
 def test_tautological_control_is_rejected():
@@ -63,6 +63,64 @@ def test_predictor_context_mismatch_is_rejected():
     with pytest.raises(PreflightError, match="in situ|opère"):
         assert_predictor_measured_in_situ("oracle_trajectory", "in_world")
     assert assert_predictor_measured_in_situ("in_world", "in_world") is True
+
+
+# ------------------------------------------- assert_verdict_invariant_to_optimizer (classe E19) ----
+# CALIBRATION DE LA GARDE — deux réponses CONNUES, toutes deux MESURÉES dans ce dépôt le 2026-09-01, et
+# de signes opposés : un ARTEFACT d'hyperparamètre avéré (le nul doit être REFUSÉ) et un nul STRUCTUREL
+# avéré (le nul doit être ÉPARGNÉ). Les chiffres sont EN DUR : ce sont les valeurs de vérité-terrain,
+# pas des tirages — les tests sont donc PUREMENT NUMÉRIQUES (aucun entraînement, < 1 ms).
+
+def test_optimizer_sweep_REFUSES_the_retain_compose_null():
+    """RÉPONSE CONNUE n°1 — ARTEFACT MESURÉ : le verdict `RETENTION` d'EDR-RETAIN-COMPOSE.
+
+    Configuration EXACTE qui a produit l'erreur réelle (contre-exemple gelé, patron `test_cost_guard`) :
+    `run_retain_compose_diagnostic_probe`, episodes=600, n_agents=16, K=6, n=12, seule variable = `lr`.
+    Bras testé = `learned` (2 `_step`), bras de référence = `oracle` (1 `_step`, rétention par fiat) :
+    lr=0.02 -> 0.173 vs 0.971 (écart 0.798, verdict RETENTION) ; lr=0.002 -> 0.923 vs 0.945 (écart 0.022,
+    verdict INCONCLUSIVE). Séparation par-seed TOTALE (0.897 > 0.192, 0/144). closure = 1 − 0.022/0.798 =
+    **0.972** > 2/3 -> la garde REFUSE le nul. Cause racine : batch effectif 1 (`n_agents` n'est pas un
+    minibatch, `src/agents/backend_torch.py:85-86`)."""
+    mesure = {0.02: (0.173, 0.971), 0.002: (0.923, 0.945)}      # (learned, oracle) au MÊME lr
+    with pytest.raises(PreflightError, match="artefact d'hyperparamètre"):
+        assert_verdict_invariant_to_optimizer(lambda lr: mesure[lr], lrs=(0.02, 0.002),
+                                              label="RETAIN-COMPOSE learned vs oracle")
+
+
+def test_optimizer_sweep_SPARES_the_bilinear_structural_null():
+    """RÉPONSE CONNUE n°2 — NUL STRUCTUREL MESURÉ : le substrat PLAIN ne peut PAS composer (q+key)%K.
+
+    Spécificité : sans elle la garde serait un interrupteur qui refuse tous les négatifs. Bras testé =
+    plain, bras de référence = bilinéaire (0.966), opérandes co-présents, episodes=600, 4 seeds :
+    lr=0.02 -> 0.3141 (écart 0.652) ; lr=0.1 -> 0.3719 (écart 0.594). closure = 1 − 0.594/0.652 =
+    **0.089** << 2/3 -> la garde ÉPARGNE ce nul. Il est structurel au sens FORT : le plafond exact du
+    plain en forme close vaut 0.3889 (8 restarts ; contrôle positif du même optimiseur sur une table libre
+    non séparable : 1.000), et baisser le pas DÉGRADE vers le hasard (0.1906 à lr=0.002, 1/K = 0.1667).
+
+    CONTRASTE qui justifie le design — un critère de SEUIL ABSOLU se serait trompé ICI : à lr=0.1 le plain
+    (0.3719) franchit la barre du dépôt 1/K+0.15 = 0.3167, alors qu'il est PROUVABLEMENT incapable de
+    composer. La barre est 0.072 SOUS le plafond structurel. Seul l'ÉCART AU BRAS DE RÉFÉRENCE sépare les
+    deux réponses connues.
+
+    ⚠️ PROVENANCE : ces chiffres de spécificité viennent d'UNE seule passe (4 seeds), NON RÉPLIQUÉE — là
+    où le cas artefact ci-dessus est établi à n=12. Ce test gèle donc la DIRECTION (un nul structurel ne
+    referme pas son écart au bras de référence), pas la troisième décimale de la closure."""
+    mesure = {0.02: (0.3141, 0.966), 0.1: (0.3719, 0.966)}      # (plain, bilinéaire) au MÊME lr
+    assert assert_verdict_invariant_to_optimizer(lambda lr: mesure[lr], lrs=(0.02, 0.1),
+                                                 label="BILINEAR plain vs bilinéaire") is True
+    bar = 1 / 6 + 0.15
+    assert mesure[0.1][0] > bar, "prémisse du contraste : un seuil absolu aurait flagué ce VRAI négatif"
+
+
+def test_optimizer_sweep_rejects_a_single_step_and_ignores_a_nonexistent_null():
+    """Deux bornes du domaine. (1) UN SEUL pas ne peut RIEN dire : c'est exactement la situation qui a
+    produit E19 (un seul point d'hyperparamètre, jamais balayé) -> refus explicite plutôt que vert vide
+    (classe E4 : une vérification qui ne peut pas échouer). (2) Si le bras testé n'est SOUS sa référence à
+    AUCUN pas, il n'y a pas de nul de capacité à défendre -> la garde passe sans rien inventer."""
+    with pytest.raises(PreflightError, match="DEUX pas DISTINCTS"):
+        assert_verdict_invariant_to_optimizer(lambda lr: (0.173, 0.971), lrs=(0.02, 0.02))
+    pas_de_nul = {0.02: (0.95, 0.94), 0.002: (0.97, 0.93)}
+    assert assert_verdict_invariant_to_optimizer(lambda lr: pas_de_nul[lr], lrs=(0.02, 0.002)) is True
 
 
 def test_declare_design_surfaces_inferred_links():
