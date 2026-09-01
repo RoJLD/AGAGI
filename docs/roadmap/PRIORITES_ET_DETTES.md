@@ -14,6 +14,36 @@ et le coût estimé.
 
 ---
 
+## ✅ 2026-09-01 — DETTE DE CALIBRATION CLOSE (32 → 104/105, baseline à ZÉRO)
+
+Le déficit que `CLAUDE.md` désignait comme **dominant** est refermé. 238 tests de calibration passent
+(110 le matin même), la baseline du cliquet est **vide** — donc tout nouvel instrument non calibré
+bloque le commit.
+
+**⚠️ Le motif compte plus que le compte.** Sur ~40 instruments examinés, une trentaine de défauts
+réels, et la direction est **CONSTANTE** : des données absentes ou incomplètes ne produisaient pas
+« inconnu » mais une **affirmation NÉGATIVE de fond** — `PAS DE RUNG`, `MUR INTRINSÈQUE`, `AUTEL MORT`,
+`N_EMERGE_PAS`, `SUBSTRAT BLOQUÉ`, `TOM_INERT`, `[1] SUBSTRAT-LIMITE`. Dans un dépôt dont la plupart des
+résultats **sont** négatifs, un négatif fabriqué ressemble à tous les autres. **Ça n'invalide aucun
+négatif publié — ça dit où regarder.**
+
+**Ce qui reste OUVERT et qui est maintenant le meilleur candidat au titre de dette dominante :**
+
+1. **Les 9 appels à `ablation_verdict` sans borne déclarée** (7 fichiers, section ci-dessous). Ils ne
+   sont pas corrigeables « en code » : chacun demande de **MESURER le plancher no-capacité de son
+   régime**, puis de le déclarer. C'est du travail expérimental, pas de la relecture — et ce sont les
+   sondes qui alimentent les arêtes de l'AGI-Taxonomy.
+2. **Le portail CI ne lance que 8 fichiers sur 207.** Le vert du gate ne dit presque rien, et rien de ce
+   qui a été livré aujourd'hui n'y tourne.
+3. **42 orphelins et 7 collisions** dans le graphe de records (dette légataire gelée).
+
+**Deux techniques à réutiliser** (documentées dans `CLAUDE.md`) : la garde posée **en tête de fonction,
+avant la construction du monde** (une vingtaine de cas passent à coût nul) ; et **l'injection** pour les
+orchestrateurs — 13 des 24 « instruments de monde » ne simulaient pas eux-mêmes, et leur imposer une
+dose CONNUE teste la couche qui transforme des mesures en affirmation.
+
+---
+
 ## 🕳️ 2026-09-01 — LACUNES ET ANGLES MORTS recensés (balayage 6 lecteurs + critique de complétude)
 
 > Consignés **en passant**, conformément à la règle de `CLAUDE.md` §« Consigner en PASSANT ». Chacun

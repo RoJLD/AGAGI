@@ -24,9 +24,34 @@ Quatre questions, dont deux ont des assertions exécutables :
 4. **Est-ce que je raisonne au lieu de mesurer ?** Réduire le n, **jamais** supprimer le maillon : une
    chaîne causale transporte son signe, pas son amplitude. → `declare_design`
 
-## Calibration des instruments (le déficit dominant du dépôt)
+## Calibration des instruments — **DETTE CLOSE le 2026-09-01** (104/105, baseline à zéro)
 
-**Inventaire au 2026-07-21 : 71 instruments détectés, 1 calibré.** Un « instrument » = une fonction qui
+**Inventaire au 2026-09-01 : 105 détectés, 104 calibrés, 1 déclaré non-instrument, ZÉRO dette.**
+*(Point de départ, 2026-07-21 : 71 détectés, 1 calibré.)* Le cliquet est désormais un **cliquet
+strict** : sa baseline est vide, donc tout nouvel instrument non calibré bloque le commit.
+
+⚠️ **Ce que la fermeture a appris, et qui vaut plus que le compte.** Sur ~40 instruments
+examinés, une trentaine de défauts réels — et la direction est **CONSTANTE** : des données
+absentes ou incomplètes ne produisaient pas « inconnu » mais une **affirmation NÉGATIVE de
+fond** (`PAS DE RUNG`, `AUTEL MORT`, `N_EMERGE_PAS`, `[1] SUBSTRAT-LIMITE`…). Dans un dépôt dont
+la plupart des résultats SONT négatifs, un négatif fabriqué ressemble à tous les autres.
+**Trois formes à chercher en priorité** : (a) entrée vide → verdict de fond ; (b) le `nan`
+DÉTECTÉ puis avalé dans une branche `else` (l'instrument SAIT et ne le dit pas) ; (c) `zip` /
+`min` / `[-1]` qui TRONQUE en silence — un « BARREAU TROUVÉ » y devenait « PAS DE RUNG ».
+
+**Deux techniques qui rendent la calibration presque gratuite :**
+* **Garde EN TÊTE de fonction, avant la construction du monde** — une vingtaine de cas passent
+  de « quelques secondes chacun » à ZÉRO simulation. Tester non pas QUE la garde lève mais **OÙ**
+  elle est posée (un refus doit être instantané).
+* **Injection pour les ORCHESTRATEURS** — 13 des 24 « instruments de monde » ne simulaient pas
+  eux-mêmes : leur imposer une mesure factice à DOSE CONNUE teste la couche qui transforme des
+  mesures en affirmation (agrégation, appariement, unité de réplication), à coût nul.
+
+⚠️ **Le cliquet est faillible sur QUATRE axes, tous mesurés** : ce qu'il cherche (motif), OÙ il
+cherche (périmètre), comment il IDENTIFIE (collisions de noms — 8 définitions invisibles), et
+sous quels VERBES (`classify_*`). Chaque élargissement a révélé de la dette RÉELLE : ne pas
+tenir le compteur pour acquis. Il refusait aussi **en silence** une déclaration ambiguë ; il
+crie désormais. Un « instrument » = une fonction qui
 produit une affirmation scientifique (verdict, ratio, survie, taux). 70 d'entre eux n'ont jamais été
 confrontés à une réponse connue — et un instrument non calibré ne se contente pas d'échouer, il
 **PRODUIT un résultat** : le bug d'aliasing d'EDR-WARM-007 a généré dose-réponse, corrélations et
