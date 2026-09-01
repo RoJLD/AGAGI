@@ -1,0 +1,23 @@
+{
+  "name": "EVO-011",
+  "rule": {
+    "design": "Aucun terme cognitif (W=0) : c'est la survie qui juge. L'operateur biaise (EVO-009) installe l'arete obs[4] -> logits[8] (throw). Comportement vise : lancer sur le Mammouth, pas sur le Leurre -- lineairement cablable, et mammoth_kills pese 400 dans life_score.",
+    "discrimination": {
+      "lecteurs emergent MAIS ne survivent pas mieux": "l'arete est installee et retenue sans payer -> la lecture est neutre pour la survie ; confirme S2-012 et montre que la retention d'EVO-008 etait un artefact du terme cognitif.",
+      "prevol : lecteur cable NE survit PAS mieux": "REPONSE SANS EVOLUER -- le monde ne recompense pas la discrimination de type meme quand elle est parfaite. Confirme S2-012 CAUSALEMENT avec un instrument neuf, et explique EVO-003/004 sans invoquer l'atteignabilite.",
+      "prevol OK mais lecteurs n'emergent PAS sous survie seule": "la capacite paie mais la selection ne la saisit pas -> verrou de CREDIT, pas d'objectif.",
+      "prevol OK puis lecteurs emergent ET survivent mieux": "le monde RECOMPENSE la cognition des qu'elle est atteignable -> le verrou etait bien l'operateur de variation, et S2-012 doit etre nuance."
+    },
+    "dv_primaire": "saillance de decision sur obs[4] -> sign(logits[8]) du champion (instrument calibre)",
+    "dv_survie": "age median, mammoth_kills, leurre_hits, proies -- mesures dans les DEUX bras",
+    "garde_cout": "budget_s=150 par seed (E13) ; PRE-VOL DE VIABILITE OBLIGATOIRE avant tout run long (E10 occ.5)",
+    "instruments_autorises": [
+      "measure_decision_saliency (calibre, RNG-neutre)",
+      "benchmark_cognitive (calibre)"
+    ],
+    "prevol_decisif": "CONTROLE POSITIF, a faire AVANT toute evolution : un lecteur d'obs[4] CABLE A LA MAIN survit-il mieux qu'un non-lecteur (age median, mammoth_kills, leurre_hits) ? Si NON, le monde ne recompense pas cette cognition et la question est tranchee sans evoluer. Si OUI, on evolue.",
+    "question": "Toute la serie EVO a fait lire un signal ARTIFICIEL que la fitness payait explicitement. Question de S2-012, jamais testee avec la capacite ATTEIGNABLE : si on force l'existence d'un lecteur d'un canal a CONTENU DE MONDE (obs[4] = type d'apex), la SURVIE SEULE le garde-t-elle ?",
+    "record": "EDR-EVO-011"
+  },
+  "seal": "15535b7cdae34d3a3c55dab6a50a3260c58eb90478d1d1773847517c1c29725b"
+}

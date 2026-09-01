@@ -8,9 +8,45 @@ Ordre de priorité **décroissant**. Chaque entrée porte : ce qu'il faut faire,
 et le coût estimé.
 
 > Contexte chiffré qui justifie l'ordre : sur cet arc, **7 revues adversariales → 7 erreurs réelles**, et
-> **71 instruments détectés, 1 calibré**. Le déficit dominant n'est pas l'honnêteté du compte-rendu
+> **71 instruments détectés, 1 calibré** *(chiffre d'origine, 2026-07-21 ; au 2026-09-01 : **101 détectés, 32 calibrés**, 69 restants — le déficit reste dominant mais il a bougé)*. Le déficit dominant n'est pas l'honnêteté du compte-rendu
 > (négatifs consignés, auto-réfutations écrites, portées bornées) mais l'**absence de calibration** et
 > l'**absence d'application exécutable** des règles déjà documentées.
+
+---
+
+## 📌 2026-09-01 — état de session : dette réglée, D2 en vol, DEUX décisions en attente
+
+**Réglé** — la dette de production d'indices ([[EDR-EVO-024]], commit `d4844fb`). Détail dans le bloc
+suivant.
+
+**⛔ [[EDR-EVO-026]] est NON LISIBLE, et le dit.** Son bras long a planté sur `LIMIT_N = 256`
+(`src/agents/mamba_agent.py:405`) dès le premier seed : à 735 ères le génome passe de 172 à ~300 nœuds.
+Le crash a révélé un défaut **plus grave que le plantage** — les arêtes possibles vont en **N²**
+(29 584 à N=172, 65 536 à N=256), donc le bras long **accumulait des tirages tout en diluant chacun
+d'eux ~2,2×**. La prédiction scellée `1−(1−p)²¹` suppose *p* constant ; l'appareil ne le tenait pas.
+Un nul aurait été lu « modèle B confirmé » alors qu'une part venait de la dilution — **classe E2**, un
+bras qui ne peut pas réussir. Le bras standard, lui, a TERMINÉ et vaut comme mesure : **0/12**, sal max
+0.013, ~450 tirages/lignée.
+
+**🔬 EVO-026-bis tourne** (~2 h) : croissance de nœuds **coupée dans les deux bras** → N constant à 172,
+dénominateur fixe, plafond jamais atteint ; n porté à **24** par bras (la puissance manquait) ; base de
+prédiction **poolée sur tout l'arc** (~2-3 lecteurs / ~130 lignées → p≈0.02) et non tirée d'un seul run ;
+trois contrôles de manipulation mesurés **in situ** qui bloquent le verdict si l'un échoue. Contrôle
+précoce validé : N=172 exactement, ~450 tirages/lignée.
+
+**Deux DÉCISIONS en attente — elles ne sont pas des tâches :**
+1. **Basculer `preserve_io_blocks=True` par défaut.** Le correctif est prêt, testé, validé neutre. Mais
+   `src/seed_ai/mutation.py` est partagé avec une session parallèle : changer le comportement sous les
+   pieds d'un run en vol est exactement la contamination que le bail `kuzu` interdit pour les mondes.
+2. **Commit du travail D2** (préinscriptions EVO-026/-bis, runners, smoke de débit, backlog, registre).
+
+**Deux occurrences ajoutées au registre**, trouvées en faisant et non en relisant :
+* **E4 (forme SILENCIEUSE)** — un runner dérivé par regex a gardé le pré-vol d'EVO-023 tout en annonçant
+  celui d'EVO-024 : il tournait, affichait un titre juste, et ne vérifiait **pas** ce qu'il prétendait.
+  Les 4 dérivations ratées précédentes avaient échoué bruyamment ; celle-ci non.
+* **E6 étendu aux CONTRÔLES** — un pré-vol appliquait 16 905 mutations cumulatives à un seul génome, un
+  régime que le run ne visite jamais (`apply_mutations` CLONE). Un contrôle de manipulation doit
+  s'exécuter dans le régime du dispositif, sinon il contrôle un proxy.
 
 ---
 
@@ -52,21 +88,36 @@ atteignabilité (1 seul poids), ni difficulté de la cible (EVO-018), ni inertie
 de recherche ont échoué à changer cette probabilité (009 ciblage=triche · 010 volume · 013 plafond fan-in ·
 014 préservation de R · 015 réutilisation de motif · 017 nouveauté).
 
-**D1 — VOLUME × PRÉSERVATION DU FAN-IN (la cellule VIDE, priorité haute).** L'analyse à deux régimes
-d'[[EDR-EVO-013]] la désigne : le baseline est limité par le NUMÉRATEUR (l'arête n'est jamais créée), le
-régime densifié par le DÉNOMINATEUR (sorties saturées). EVO-010 a testé le volume SEUL, EVO-014 le
-fan-in SEUL — **jamais les deux ensemble**. Beaucoup de tirages ET des sorties maintenues propres attaque
-les deux régimes à la fois. Agnostique, bon marché (~30 min), et c'est le seul levier que l'arc désigne
-sans l'avoir essayé. *Coût : ~1 h avec pré-vol.*
+**D1 — VOLUME × PRÉSERVATION DU FAN-IN : ✅ FAIT, c'est [[EDR-EVO-019]].** La cellule vide a été
+remplie — verdict `ISOLATED_READER_NOT_ELEVATED_CLOSURE_HOLDS` : **un lecteur isolé à 1/12, NON élevé**,
+la clôture tient. *(Cette entrée est restée listée « à faire » après coup ; corrigé le 2026-09-01.)*
 
-**D2 — Horizon d'un autre ORDRE.** À ~2.7e-4 par tirage et ~400 tirages/lignée, l'espérance est de 0.11
-découverte. Pour atteindre ~90 % il faut ~21× plus de tirages (≈750 ères, ou une population bien plus
-large). Mesurable, mais ce n'est plus la même expérience — et EVO-010 suggère que le volume seul sature.
-À faire APRÈS D1, qui teste la même idée en bornant le coût. *Coût : plusieurs heures.*
+**D2 — Horizon d'un autre ORDRE : 🔬 EN COURS, c'est [[EDR-EVO-026]].** Le seul axe restant que rien
+ne recoupe. Il ne s'agit pas de « faire tourner plus longtemps » mais d'un **test discriminant** entre deux
+modèles qui expliquent également bien tout l'arc et prédisent l'inverse à horizon long :
+
+| modèle | énoncé | prédiction à 21× l'horizon (n=24) |
+|---|---|---|
+| **A — rareté combinatoire** | les tirages sont INDÉPENDANTS | 1−(1−0.02)²¹ ≈ **8/24 lecteurs** |
+| **B — non-accumulation** ([[EDR-EVO-010]]) | les tirages ne se composent pas | **~0-1/24**, inchangé |
+
+⚠️ **Chiffres corrigés le 2026-09-01.** La première version de ce bloc prenait pour base 0.083, tirée du
+**seul** « 1/12 » d'un run. La base honnête est POOLÉE sur tout l'arc : ~2-3 lecteurs sur ~130 lignées,
+soit **p ≈ 0.02** — ce qui divise par deux l'effet prédit et a imposé de passer n de 12 à 24 pour garder
+la puissance. Estimer un taux de base sur l'observation la plus saillante est la classe **E9**.
+
+Cohérence qui rend A crédible malgré tout : le modèle A prédit un petit nombre de lecteurs isolés au
+régime standard — ce que l'arc observe effectivement ([[EDR-EVO-007]], [[EDR-EVO-019]] : 1/12, écartés
+comme non élevés). Ces lecteurs isolés ne seraient pas du bruit, ce serait **le taux de base**.
+
+⚠️ **Le coût était surestimé d'un ordre de grandeur.** Le smoke de débit (`evo025_throughput_smoke.py`)
+mesure 735 ères = **5 min/seed**, pas « plusieurs heures » : le coût par ère **baisse** (×0.73). Dans ce
+dépôt le coût suit le succès, donc un coût qui baisse veut dire que **la lignée survit de moins en moins
+bien** — d'où le confond scellé (un nul pourrait être « pas d'accumulation » OU « dégradation »), désambiguïsé
+par une DV de santé de lignée instrumentée dans **les deux** bras.
 
 **D3 — Changer le MOTEUR, pas la recherche.** Un substrat où la variation ne soit pas un tirage d'arêtes
-isolées. ⚠️ **Recoupe le travail en cours d'une session parallèle** (`bilinear-substrate-unlocks-composition`,
-2026-08-03) — coordonner avant d'engager quoi que ce soit, sous peine de doublon.
+isolées. ⚠️ **L'avertissement de doublon est PÉRIMÉ** : ce travail parallèle est LIVRÉ et gravé (`EDR-BILINEAR`, 2026-08-03 — le terme bilinéaire fait passer `(q+key)%K` de nul à appris). D3 doit donc être re-formulé à partir de ce qui existe, pas coordonné avec un chantier fini.
 
 ---
 
@@ -94,7 +145,10 @@ le succès évolutif) — le débit mesuré au smoke était JUSTE et le run a ex
 * **EVO-007** : 0/12 lecteurs dans les trois bras. Ni le crédit partiel ni la facilité ne produisent la
   lecture. Réplication du jeu mixte : 1/12 vs 0/11, **Fisher p = 1.000**.
 * **EVO-008** : la lecture apparaît d'un **SAUT** mutationnel (0.00 → 1.00 en une ère) puis est RETENUE
-  28/29 ères -> **le verrou est la DÉCOUVERTE, pas la rétention**.
+  28/29 ères -> **le verrou est la DÉCOUVERTE, pas la rétention**. ⚠️ **Nuancé par [[EDR-EVO-021]]** : la
+  rétention observée était en partie un effet d'ÉLITISME, `add_node` détruisant 56 % des lecteurs câblés.
+  La conclusion « le verrou est la découverte » tient ([[EDR-EVO-023]] : sans aucune croissance, 0/12),
+  mais le « 28/29 » ne mesure pas ce qu'il semblait mesurer.
 * **EVO-009** : biaiser l'**opérateur de variation** fait passer la lecture de **1/12 à 12/12**
   (**Fisher p = 9.6e-6**), sans coût de survie. ⚠️ **DIAGNOSTIC, pas algorithme** — le biais connaît les
   arêtes qui comptent.
@@ -105,11 +159,15 @@ tronquant ses 5 colonnes `manager_goal`. Débloquer tient en deux lignes de conf
 canoniques probés confirment EVO-004 (bascule médiane **0.0000**).
 
 **Ce qui reste ouvert, par ordre de valeur :**
-1. **Un biais de variation AGNOSTIQUE à la tâche** — la vraie question posée par EVO-009. Candidat le plus
-   net : rendre `mutate_weights` capable de RÉVEILLER des poids nuls (il ne touche aujourd'hui que les
-   non-nuls, ce qui rend la découverte dépendante du seul `add_connection`).
-2. **Pointer le levier sur un canal à contenu de MONDE** (obs[4], type d'apex) : la lecture apparaît-elle,
-   et **PAIE-t-elle en survie** ? Un négatif confirmerait [[EDR-S2-012]] causalement.
+1. ⛔ **RÉFUTÉ — ne pas relancer.** « Rendre `mutate_weights` capable de RÉVEILLER des poids nuls » a été
+   fait et mesuré : [[EDR-EVO-010]], **254 117 réveils de poids nuls → 0 lecteur**. L'ingrédient actif
+   d'EVO-009 était le **CIBLAGE**, pas le volume. Le document se contredisait ici avec son propre bloc de
+   clôture plus haut (« 010 volume » listé parmi les six méthodes échouées).
+2. ⚠️ **Largement tranché, et la tentative directe est bloquée.** L'enjeu (« la lecture paie-t-elle en
+   survie ? ») a reçu sa réponse par [[EDR-EVO-016]] : une lecture qui **double** la durée de vie
+   (6.5→14.0) donne quand même **0/12** sous survie seule. La tentative in-world dédiée (EVO-011) a été
+   **arrêtée au pré-vol** sur trois défauts de harnais et n'a produit aucun résultat — le harnais reste
+   à rebâtir avant toute relance.
 3. `benchmark_discrimination` : seule la branche du DÉFAUT est calibrée (`disc` sature à 1.00 sur 1-2
    rencontres). La branche « `disc` mesure vraiment un choix » exige un génome connu-discriminant
    in-world — qui n'existe pas encore, et que le point 2 produirait. **Dépendance explicite, pas oubli.**
@@ -232,8 +290,7 @@ sessions parallèles finies) : les sondes standalone actives sans bail exclusif 
 (utilise `_acquire_shared_db` mais pas le bail) et `s2_demand` — plus ~70 scripts one-off legacy à ne
 PAS wirer en masse (morts, risque > valeur). *Coût résiduel : ~30 min pour les 2 sondes actives.*
 
-**P1.3 — Graver un EDR : aliasing des bancs torch + défaut du retriever.** Deux findings mesurés, non
-encore consignés, qui **changent la lecture de WARM-005/007/008** :
+**P1.3 — Graver un EDR : aliasing des bancs torch + défaut du retriever. ✅ FAIT — c'est [[EDR-INFRA-001]].** Deux findings mesurés, désormais consignés, qui **changent la lecture de WARM-005/007/008** :
 - *Aliasing* : les écritures du monde dans `H` (`world_1_stoneage:1289` pénalité anti-répétition, `:966`
   consensus social) ne sont **PAS inertes** — mesure propre et séquentielle sur l'étalon : **3/6 génomes
   diffèrent, `agent02` de +37 %** (`[50.5, 46.0, 55.0]` aliasé vs `[35.0, 36.0, 41.0]` découplé).
@@ -283,11 +340,11 @@ Résultat gravé : **[EDR-WARM-010](../EDR/WARM-010_Fitness_Landscape_Is_Not_Fla
   COMPORTEMENTS ; rien ne dit que la mutation W-only le trouve dans l'espace des GÉNOMES. C'est
   maintenant la formulation correcte de l'échec de WARM-002 — et elle est testable.
 
-**P2.0-bis — `champion_body` n'a AUCUN record** (`grep docs/EDR/` : 0 hit) alors qu'il porte le verdict
+**P2.0-bis — ✅ RÉSOLU** *(l'entrée de journal plus bas dans cette même section porte le résultat : `champion_body` est gravé en `EDR-S2-012`)*. Énoncé d'origine : `champion_body` n'avait AUCUN record (`grep docs/EDR/` : 0 hit) alors qu'il porte le verdict
 fondateur S2, sur lequel repose toute la §2 de `SPECIFICATION_10ANS.md`. Finding fondateur sans record
 **ni** calibration. Candidat sérieux au top 3. *(non traité)*
 
-**P2.1 — `_torch_survival_eras`, branche `perception` — 85 ✔** *(passe DEVANT `ablation_verdict`)*
+**P2.1 — ✅ RÉSOLU** *(entrée de journal plus bas : branche `perception` calibrée le 2026-07-21)*. Énoncé d'origine : `_torch_survival_eras`, branche `perception` — 85 ✔ *(passait DEVANT `ablation_verdict`)*
 Le seam `world_cls` existe déjà ; la branche porte les ratios publiés de WARM-001 (1.6→2.1) et WARM-003
 (5.04) et n'a **aucun** cas. **Effet de levier** : le même étalon perceptif ferme d'un coup les trous de
 `_mamba_survival_eras` (34 ⚠) et `verdict_demand_marker` (48 ⚠). Ajouter 2 seams manquants au passage.
@@ -495,11 +552,11 @@ DONT ON SAIT qu'elle utilise sa cognition), génomes tous FRAIS (aucun corps à 
   `cliff = 1.000` (plafond). Les deux statistiques SATURENT — elles ne gradueront jamais rien.
 - **Premier instrument de `src/` calibré.** Cliquet : **80 détectés, 6 calibrés**.
 
-**P2.2 — Calibrer les instruments suivants par ordre de citation dans le graphe de records.**
+**P2.17 — Calibrer les instruments suivants par ordre de citation dans le graphe de records.** *(renumérotée le 2026-09-01 : portait « P2.2 », déjà pris par une tâche DIFFÉRENTE plus haut)*
 `python tools/check_instrument_calibration.py --report` donne la liste (70 non calibrés). Ne PAS viser
 l'exhaustivité : viser les **porteurs**. *Coût : ~2 h par instrument.*
 
-**P2.3 — ✅ FAIT (2026-07-22) — hook pre-commit du cliquet de calibration livré.**
+**P2.18 — ✅ FAIT (2026-07-22) — hook pre-commit du cliquet de calibration livré.** *(renumérotée le 2026-09-01 : portait « P2.3 », déjà pris par une tâche DIFFÉRENTE plus haut)*
 `tools/hooks/pre-commit` fait désormais DEUX vérifications indépendantes (records + calibration), chacune
 gatée sur ses fichiers stagés, drapeau `fail` partagé. La garde calibration ne se déclenche que quand un
 `.py` de `tools/` ou `src/seed_ai/` est stagé (le checker scanne l'arbre entier, pas de `--only`) →
@@ -589,7 +646,7 @@ travail de qui pense à la lancer. *Correctif : une 3ᵉ porte gatée sur `docs/
 
 ## P3 — Générateurs d'erreur encore sans réponse exécutable
 
-*(Classe **E13** du registre — désormais la SEULE sans aucune garde. E11 close le 2026-07-27, ci-dessous.)*
+*(⚠️ **BLOC PÉRIMÉ** : E13 est CLOSE depuis le 2026-07-28 — `tools/cost_guard.py` + `tests/sandbox/test_cost_guard.py`. Le registre n'a plus aucune classe sans garde exécutable. Conservé pour l'historique.)*
 
 **P3.1 — Pré-enregistrement du plan d'analyse. ✅ CLOSE (2026-07-27).** `tools/preregister.py` +
 `tests/sandbox/test_preregistration_guard.py` (6 tests). Scelle *statistique + seuil + critère + **liste
@@ -607,7 +664,7 @@ Second enseignement, immédiat : **un seuil pré-enregistré n'est valide que po
 du non-lecteur = 0.514), ce qui a exigé une règle `-bis2` dès EVO-007. *Portée honnête : la garde prouve
 la NON-MODIFICATION, pas l'antériorité au run.*
 
-**P3.2 — Budget obligatoire, mesuré au smoke.** *Preuve : 3 runs abandonnés (8 h, 4 h projetées, 89 min),
+**P3.2 — Budget obligatoire, mesuré au smoke. ✅ CLOSE (2026-07-28).** `tools/cost_guard.py` (`project_cost` avant + `CostGuard` pendant + `budget_agent_ticks` DÉTERMINISTE) + `tests/sandbox/test_cost_guard.py`. *Preuve : 3 runs abandonnés (8 h, 4 h projetées, 89 min),
 plus WARM-009 nul et un run de 1,8 h sur une question sans objet.* Exiger un débit mesuré sur smoke + un
 coût projeté avant tout run long, et **ne pas extrapoler une tendance depuis un préfixe court** (un
 transitoire d'apprentissage y ressemble — erreur commise sur la dérive du grab). *Coût : ~1 h.*
@@ -654,7 +711,7 @@ DAG de capacités *sans canal de demande in-world* est le piège « proxy 9 / in
   d'un humain relisant les médianes persistées à l'œil. Fix proposé : champ optionnel `coord_intact_median`
   dans le schéma `evidence` de la demande + une vérification dans `validate_edge` contre le plancher
   d'émergence.
-- **SP-3 Calibrer — ✅ SPÉCIFIÉ (2026-07-23), maillon discriminant.** Le demand-marker récupère-t-il un DAG
+- **SP-3 Calibrer — ✅ MESURÉE ET GRAVÉE (`EDR-CALIB-SP3`, verdict GO), pas seulement spécifiée.** Le demand-marker récupère-t-il un DAG
   de prérequis *imposé* (os-taxonomy comme clé de réponse), en no-opant sur les non-arêtes **corrélées** ?
   Go/no-go de toute la vision. Design : `docs/superpowers/specs/2026-07-23-sp3-prerequisite-recovery-calibration-design.md`.
   *Pur numpy, aucun bail, aucun run long — cheap.*
