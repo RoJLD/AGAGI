@@ -26,10 +26,33 @@ adopts: [REF-EXPERIMENT-PREFLIGHT, REF-DEMAND-MARKER, REF-AGI-TAXONOMY]
 > Étendre le signe d'un autre record par raisonnement serait la classe **E8** du registre (inférence
 > substituée à la mesure). Ce qui est inscrit ici est une **DETTE**, pas une conclusion.
 >
-> **Ce qu'il faut faire avant d'écrire quoi que ce soit de plus** : rejouer `D=2` à `lr=0.002`
-> (3-4 seeds suffisent pour trancher, la bascule mesurée ailleurs est de 0.75 point). Enjeu : ce verdict a
-> servi à REFUSER de graver l'arête `language→memory` du graphe AGI-Taxonomy. S'il tombe, c'est une arête
-> qui se rouvre — un record à part entière, pas une note en marge.
+> **CORRECTION (même jour, après inspection du code de la sonde) — le diagnostic ci-dessus est INCOMPLET,
+> et le test qu'il prescrivait aurait induit en erreur.** `_train_and_eval` ne sauvegarde/restaure que
+> `(CONDITION_GATE, GATE_TARGET)` (`tools/language_memory_demand_probe.py:134-137`) : **`BILINEAR` n'est
+> JAMAIS activé**, et l'optimiseur est `Adam([agent.W], ...)` (`:143`) — `W` SEUL. Cette sonde a donc
+> mesuré le substrat **PLAIN**. Or [[EDR-BILINEAR]] établit que le plain est **prouvablement incapable** de
+> représenter `(q+key)%K` (excitation séparable en `key` et `q` ; plafond structurel exact en forme close
+> **0.3889**). Le nul de ce record a donc une explication SUFFISANTE et INDÉPENDANTE du pas : le substrat ne
+> peut pas faire la tâche. **Le verdict était CORRECT pour son substrat.**
+>
+> ⚠️ **Piège à éviter** : rejouer `D=2` à `lr=0.002` **sur cette sonde telle quelle** rendra encore le
+> plancher — mesuré sur la sonde sœur, 2 pas, plain : **0.2180** à `lr=0.02` et **0.1812** à `lr=0.002`.
+> Ce négatif ne confirmerait PAS le record, il ne testerait rien : baisser le pas ne peut pas créer une
+> capacité absente. Les deux verrous doivent être levés ENSEMBLE.
+>
+> **Ce qui a changé depuis, et qui rouvre la question** : les DEUX verrous ont été levés séparément, et
+> aucun n'existait quand ce record a été mesuré. (1) CAPACITÉ — le terme bilinéaire rend `(q+key)%K`
+> représentable ([[EDR-BILINEAR]], 1 pas : plain 0.271 vs bilinéaire 0.932, 0/144). (2) APPRENABILITÉ à
+> 2 pas — [[EDR-RETAIN-COMPOSE-LR]] : `lr=0.002` au lieu de 0.02. **Combinés sur EXACTEMENT cette tâche**
+> (encode(key) au tick 1 en slots `[0:K]`, use(q) au tick 2 en slots `[K:2K]`, cible `(q+key)%K` — soit le
+> `D=0` de ce record), le résultat mesuré est **0.923, n=12, 12/12 seeds au-dessus de la barre**. La
+> capacité-antécédent que ce record déclarait ABSENTE **existe désormais**.
+>
+> **Conséquence** : le refus de graver l'arête `language→memory` était fondé au moment où il a été prononcé,
+> et il est aujourd'hui **caduc pour cause de substrat**. La mesure à faire n'est donc PAS un simple
+> re-run : c'est une sonde MISE À NIVEAU (`BILINEAR=True`, optimiseur incluant `U/V/W_bl`, `lr` balayé),
+> puis la mesure d'arête complète (ablation within-subject, `ablation_verdict`, garde
+> `functional_aliasing`, n≥12). C'est un sous-projet à part entière, avec son propre record.
 
 ## Question
 Troisième arête candidate du graphe AGI-Taxonomy : « language demands memory » ? Un agent qui doit

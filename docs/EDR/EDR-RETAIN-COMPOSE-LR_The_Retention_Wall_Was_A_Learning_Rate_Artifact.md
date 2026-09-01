@@ -160,11 +160,20 @@ mesurer est exactement la classe E8 du registre.
   réglage. ⚠️ Mais 0.3797 est loin du 0.932 du régime 1-pas et à peine au-dessus d'une barre douteuse :
   cela ne dit PAS que le 2-pas soit résolu. Le résultat PRINCIPAL de ce record (`same_tick`, un seul
   `_step`, plain 0.271 vs bilinéaire 0.932) est hors du régime suspect et reste INTACT.
-- [[EDR-LANG-MEMORY]] — tâche D=2 (donc 2 pas) déclarée à `K=6, n_agents=16, lr ∈ {0.02, 0.05}` (`:116`),
-  soit le même batch effectif 1 avec DEUX pas tous deux ≥ 0.02. Son verdict NÉGATIF a servi à REFUSER de
-  graver l'arête `language→memory` du graphe AGI-Taxonomy. **À re-mesurer à lr=0.002 avant toute
-  annotation de verdict** ; si le négatif tombe, c'est une arête du graphe qui se rouvre — un record à part
-  entière, pas une note en marge.
+- [[EDR-LANG-MEMORY]] — **diagnostic DIFFÉRENT, vérifié dans le code** : sa sonde ne sauvegarde que
+  `(CONDITION_GATE, GATE_TARGET)` (`tools/language_memory_demand_probe.py:134-137`) — **`BILINEAR` n'est
+  jamais activé** — et son optimiseur est `Adam([agent.W])`, `W` SEUL (`:143`). Elle a donc mesuré le
+  substrat **PLAIN**, prouvablement incapable de représenter `(q+key)%K`. **Son verdict était CORRECT pour
+  son substrat** ; ce n'est PAS le même artefact. ⚠️ Corollaire : rejouer sa tâche à `lr=0.002` **sur cette
+  sonde telle quelle** rendrait encore le plancher (plain 2-pas mesuré : 0.2180 @ `lr=0.02`, 0.1812 @
+  `lr=0.002`) et ce négatif ne confirmerait rien — baisser le pas ne crée pas une capacité absente.
+  Ce qui rouvre la question, c'est que les DEUX verrous ont été levés depuis, et qu'aucun n'existait
+  alors : la CAPACITÉ ([[EDR-BILINEAR]], 1 pas) et l'APPRENABILITÉ à 2 pas (ce record). Combinés sur
+  EXACTEMENT sa tâche `D=0` (encode(key) puis use(q), cible `(q+key)%K`), le résultat mesuré ici est
+  **0.923, n=12**. La capacité-antécédent qu'il déclarait absente **existe désormais** → le refus de graver
+  l'arête `language→memory` est **caduc pour cause de substrat**, et la mesure d'arête devient possible avec
+  une sonde MISE À NIVEAU (`BILINEAR=True`, optimiseur incluant `U/V/W_bl`, `lr` balayé). Sous-projet à part
+  entière.
 
 ## Ce que ça débloque
 

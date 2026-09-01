@@ -523,16 +523,30 @@ conclusions de l'arc BILINEAR / LANG-MEMORY / MEM-PERCEPTION / RETAIN-COMPOSE (t
 - *Coût mesuré du balayage-garde : 4 `lr` × 4 seeds × 600 épisodes en condition 1-pas = **92.6 s**
   (1 thread, `torch.set_num_threads(1)`). Coût unitaire 2-pas : 10-25 s par (seed × condition).*
 
-**P2.14 — ⚠️ OUVERTE (2026-09-01) — re-mesurer LANG-MEMORY à `lr=0.002` AVANT toute annotation.**
-Son régime déclaré est `K=6`, `n_agents=16`, `lr ∈ {0.02, 0.05}` sur une tâche **D=2** (2-tick,
-`EDR-LANG-MEMORY:116`) : même batch-effectif-1, avec DEUX pas tous deux ≥ 0.02. Son verdict NÉGATIF a servi
-à **REFUSER de graver la 3ᵉ arête `language→memory`** du graphe AGI-Taxonomy.
-- **Enjeu** : si le négatif tombe au pas corrigé, l'arête se rouvre — et c'est **un record à part entière**
-  (mesure propre, verdict propre, pré-inscription propre), **pas une note en marge** d'un record existant.
-- ⚠️ **Mesurer d'abord, écrire ensuite** (classe E8) : ne PAS propager le signe de RETAIN-COMPOSE par
-  raisonnement. En attendant la mesure, l'annotation admissible est « régime d'optimisation SUSPECT »,
-  sans toucher au verdict. *Coût : à cadrer sur son propre harnais ; ordre de grandeur du diagnostic
-  voisin, 10-25 s par (seed × condition) à 600 épisodes, 1 thread.*
+**P2.14 — ⚠️ OUVERTE (2026-09-01) — l'arête `language→memory` est REDEVENUE MESURABLE : sonde à mettre à
+niveau, puis mesure d'arête complète.**
+*Diagnostic corrigé le jour même, après inspection du code* : ce n'est **PAS** l'artefact E19.
+`tools/language_memory_demand_probe.py:134-137` ne sauvegarde que `(CONDITION_GATE, GATE_TARGET)` —
+**`BILINEAR` n'est jamais activé** — et `:143` construit `Adam([agent.W])`, **`W` SEUL**. La sonde a donc
+mesuré le substrat **PLAIN**, prouvablement incapable de représenter `(q+key)%K` (plafond structurel
+**0.3889**, cf. P2.15). **Son verdict NÉGATIF était CORRECT pour son substrat.**
+- ⚠️ **Piège à ne pas tomber dedans** : rejouer sa tâche à `lr=0.002` **sur la sonde telle quelle** rendra
+  encore le plancher (plain 2-pas mesuré : **0.2180** @ `lr=0.02`, **0.1812** @ `lr=0.002`) et ce négatif
+  ne confirmerait RIEN — baisser le pas ne crée pas une capacité absente. Les deux verrous se lèvent
+  ENSEMBLE ou pas du tout.
+- **Ce qui a changé** : les DEUX verrous ont été levés depuis, et aucun n'existait quand ce record a été
+  mesuré. (1) CAPACITÉ — le terme bilinéaire (`EDR-BILINEAR`, 1 pas : plain 0.271 vs bilinéaire 0.932).
+  (2) APPRENABILITÉ à 2 pas — `lr=0.002` (`EDR-RETAIN-COMPOSE-LR`). **Combinés sur EXACTEMENT la tâche
+  `D=0` de ce record** (encode(key) puis use(q), cible `(q+key)%K`) : **0.923, n=12, 12/12 seeds**. La
+  capacité-antécédent déclarée ABSENTE **existe désormais** → le refus de graver est **caduc pour cause de
+  substrat**, pas erroné.
+- **À faire** : (a) mettre la sonde à niveau — `BILINEAR=True` dans le `try/finally` des flags (l'y AJOUTER,
+  le tuple `saved` ne le couvre pas), optimiseur incluant `U/V/W_bl`, `lr` **balayé** (jamais fixé sur le
+  bras facile — classe E19) ; (b) mesure d'arête COMPLÈTE avec la méthodologie du graphe : ablation
+  **within-subject**, `ablation_verdict`, garde `functional_aliasing` (cette arête ablate le SUBSTRAT, pas
+  l'entrée : `n/a` ne suffit pas), n≥12. **Record à part entière**, pré-inscription propre.
+- **Enjeu** : ce serait la **3ᵉ arête** du graphe AGI-Taxonomy — la première à avoir été refusée puis
+  rouverte par une levée de verrou de substrat.
 
 **P2.15 — ⚠️ OUVERTE (2026-09-01) — DETTE DE SEUIL : la barre `1/K+0.15` est MAL PLACÉE, 0.072 SOUS le
 plafond structurel du substrat qu'elle est censée déclarer nul.**
