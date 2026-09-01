@@ -1,0 +1,17 @@
+{
+  "name": "EVO-023",
+  "rule": {
+    "confond_declare_AVANT": "Desactiver add_node retire aussi la CROISSANCE ARCHITECTURALE : le bras traite ne peut plus ajouter de noeuds cachés. Un gain de lecteurs pourrait donc venir de la stabilite des indices OU de l'absence de croissance. Ce run ne les separe PAS -- il mesure l'effet TOTAL de add_node, et un positif appellera un second test (add_node corrige vs desactive) pour trancher.",
+    "controle_de_manipulation_OBLIGATOIRE": "Le bras sans add_node doit avoir un `num_nodes` final CONSTANT (=172) alors que le bras temoin grandit. Si les deux grandissent, la desactivation n'a pas pris et le bras ne teste RIEN.",
+    "design": "2 bras x 12 seeds : add_node_rate=0.4 (le regime de TOUT l'arc) / add_node_rate=0.0. Sous-tache `throw`, hazard=15, W=0 (survie seule) -- strictement le dispositif d'EVO-018, baseline 0/12.",
+    "dv_primaire": "taux de seeds LECTEURS (`measure_decision_saliency` > 0.5 sur obs[5] -> logits[8])",
+    "dv_survie": "age median et `raw` median, surveilles dans les deux bras",
+    "garde_cout": "budget_agent_ticks (plafond DETERMINISTE, E13). Abandons COMPTES et rapportes.",
+    "levier": "Desactiver `add_node` (`add_node_rate = 0`). Si les lecteurs deviennent nettement plus frequents, une part du verrou etait la DESTRUCTION par un bug, pas la rarete du tirage.",
+    "puissance_declaree": "a n=12 par bras, 40 % contre 0 % donne p~0.04 (detectable) ; 17 % contre 0 % donne p~0.48 (NON detectable). Ce run peut CONFIRMER un effet fort, pas refuter un effet faible.",
+    "question": "QUESTION LA PLUS LOURDE DE L'ARC. EVO-021 a mesure que `add_node` DESALIGNE 56 % des aretes cablees (il n'ajuste pas `num_outputs`, donc inserer dans le bloc de sortie re-mappe quelle decision chaque noeud pilote). Le taux de decouverte observe dans tout l'arc est donc un PRODUIT : creation de l'arete x survie a add_node. La conclusion centrale -- « le verrou est le TIRAGE » -- est-elle en partie un ARTEFACT d'un defaut du code de production ?",
+    "record": "EDR-EVO-023",
+    "regle_de_lecture_continue": "Le verdict est une FONCTION du taux : Fisher exact bilateral traite vs temoin. p < 0.05 -> une part du verrou etait la DESTRUCTION et non le tirage ; les records EVO-016/018/019/020 doivent porter cette reserve. p >= 0.05 -> aucun effet demontre, quel que soit le nombre brut ; s'il y a >= 1 lecteur ils sont rapportes comme OBSERVATIONS ISOLEES et NON elevees (lecon E9). Aucune valeur intermediaire n'echappe a cette lecture."
+  },
+  "seal": "c1d6e56d316fa1d706b06f93fed3687cc02016478db4536a5e0770332bb274f4"
+}
