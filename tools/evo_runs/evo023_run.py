@@ -1,16 +1,20 @@
-"""EVO-023 -- preserver le caractere temporel d'un chemin lors d'une insertion leve-t-il le verrou ?
+"""EVO-023 -- la conclusion centrale de l'arc est-elle en partie un ARTEFACT d'un defaut du code ?
 
-EVO-021 : `add_node` DETRUIT un lecteur cable 6 fois sur 10 en une insertion, parce qu'il insere un noeud
-a diagonale NULLE (delta=0.5, noeud a MEMOIRE) au milieu d'un chemin reactif -> derive (E6) -> signal noye.
-Les six leviers refutes de l'arc attaquaient tous la DECOUVERTE ; aucun n'a touche la FRAGILITE.
+EVO-021 a mesure que `add_node` DESALIGNE 56 % des aretes cablees : il n'ajuste pas `num_outputs`, donc
+inserer dans le bloc de sortie re-mappe quelle decision chaque noeud pilote. Le taux de decouverte observe
+dans tout l'arc est donc un PRODUIT : creation de l'arete x survie a add_node.
 
-Levier : le noeud INSERE herite de la diagonale de sa DESTINATION. Purement structurel, aucune
-connaissance de la tache. Patch LOCAL -- src/seed_ai/mutation.py n'est JAMAIS modifie.
+Levier : desactiver add_node (`add_node_rate = 0`). Si les lecteurs deviennent nettement plus frequents,
+une part du verrou etait la DESTRUCTION par un bug, pas la rarete du tirage.
 
-Regle scellee : docs/preregistrations/EVO-023.json (lecture CONTINUE, Fisher calcule par ce script).
-Plafond de cout DETERMINISTE (budget en agent-ticks, E13) -- surtout PAS budget_s.
+⚠️ CONFOND DECLARE AVANT LE RUN (regle scellee) : desactiver add_node retire AUSSI la croissance
+architecturale. Un positif ne trancherait donc pas entre "stabilite des indices" et "absence de
+croissance" -- il appellerait un second test.
 
-    PYTHONPATH=. python -u tools/evo_runs/evo022_run.py
+Regle scellee : docs/preregistrations/EVO-023.json (lecture CONTINUE, Fisher calcule ici).
+Plafond de cout DETERMINISTE en agent-ticks (E13) -- surtout pas budget_s.
+
+    PYTHONPATH=. python -u tools/evo_runs/evo023_run.py
 """
 import statistics
 from math import comb
@@ -18,14 +22,14 @@ from math import comb
 import numpy as np
 from tools.jobs.run import hold
 
-BUDGET_TICKS = 60_000       # DETERMINISTE : meme seed -> meme troncature, partout
+BUDGET_TICKS = 60_000
 HAZARD = 15.0
 N_SEEDS = 12
 
 with hold("kuzu", owner="evo023-no-addnode", ttl_s=14400):
     from tools.preregister import verify
     import tools.evo_cognitive_objective as M
-    from src.seed_ai.mutation import MutationConfig, Genome, apply_mutations
+    from src.seed_ai.mutation import MutationConfig, apply_mutations
     from src.agents.mamba_agent import MambaAgent
     from src.seed_ai.persistence import calculate_life_score
     from tools.lewis_world import _setup_lewis
@@ -33,54 +37,33 @@ with hold("kuzu", owner="evo023-no-addnode", ttl_s=14400):
     rule = verify("EVO-023")
     print("regle SCELLEE verifiee |", rule["dv_primaire"], "\n")
 
-    _orig_add_node = MUT.add_node
-
-    def inherit_add_node(genome, config):
-        """Le noeud INSERE herite de la diagonale de sa DESTINATION -> le chemin garde son caractere."""
-        W = genome.W
-        nzi, nzj = np.nonzero(W)
-        if len(nzi) == 0:
-            return
-        idx = np.random.randint(len(nzi))
-        i, j = int(nzi[idx]), int(nzj[idx])
-        diag_dst = float(W[j, j])                 # <-- la SEULE difference avec l'original
-        old_w = float(W[i, j])
-        W[i, j] = 0.0
-        new_W = np.insert(W, j, 0, axis=0)
-        new_W = np.insert(new_W, j, 0, axis=1)
-        new_W[i, j] = 1.0
-        new_W[j, j + 1] = old_w
-        new_W[j, j] = diag_dst                    # le noeud insere n'est plus un noeud a MEMOIRE
-        genome.W = new_W
-
-    # ---- PRE-VOL : controle de manipulation OBLIGATOIRE (clause scellee) ---------------------------
-    I, O, N = 59, 108, 172
     SIG = M.SIG_COLS[0]
 
-    def wired_reader():
-        W = np.zeros((N, N), dtype=np.float32)
-        np.fill_diagonal(W, 10.0)
-        W[SIG, N - O + M.THROW_IDX] = 3.0
-        return Genome(W, I, O)
-
-    cfg = MutationConfig()
-    print("  PRE-VOL -- UN add_node applique a un lecteur cable, 20 seeds :")
-    prevol = {}
-    for label, fn in (("origine", _orig_add_node), ("diag heritee", inherit_add_node)):
-        lost = 0
-        for s in range(20):
-            np.random.seed(300 + s)
-            g = wired_reader().clone()
-            fn(g, cfg)
-            sal = M.measure_decision_saliency(g, 700 + s, channel=SIG, out_idx=M.THROW_IDX,
-                                              num_agents=6, ticks=20, tasks=(1,))
-            lost += int(sal < 0.5)
-        prevol[label] = lost
-        print(f"    {label:>13} : lecteur DETRUIT {lost}/20")
-    if prevol["diag heritee"] >= prevol["origine"]:
-        print("\n  ARRET : le patch ne REDUIT PAS la destruction -> le bras ne teste rien (clause scellee).")
-        raise SystemExit(1)
-    print(f"    -> destruction {prevol['origine']}/20 -> {prevol['diag heritee']}/20, le patch MORD\n")
+    # ---- PRE-VOL : controle de manipulation OBLIGATOIRE ------------------------------------------
+    # Le bras sans add_node doit garder num_nodes CONSTANT ; le temoin doit grandir.
+    print("  PRE-VOL -- la desactivation de TOUTE croissance prend-elle ?")
+    for lbl, rate in (("temoin (0.4)", 0.4), ("sans croissance (0.0)", 0.0)):
+        np.random.seed(0)
+        g0 = M._fresh_soup(1, M._cfg(), 0.4)[0]
+        mc0 = MutationConfig()
+        mc0.add_node_rate = rate
+        if rate == 0.0:
+            # ⚠️ add_node n'est PAS la seule voie de croissance : `add_meso_gated_unit`
+            # (mutation.py:188) fait DEUX np.insert de plus. Mesure : add_node_rate=0 seul
+            # laissait encore 172 -> 198 noeuds. Le pre-vol l'a intercepte.
+            mc0.meso_gate_rate = 0.0
+            mc0.meso_skip_rate = 0.0
+        n0 = g0.num_nodes
+        for _ in range(200):
+            g0 = apply_mutations(g0, mc0)
+        print(f"    {lbl:>20} : num_nodes {n0} -> {g0.num_nodes}")
+        if rate == 0.0 and g0.num_nodes != n0:
+            print("\n  ARRET : add_node n'est PAS desactive -> le bras ne teste rien (clause scellee).")
+            raise SystemExit(1)
+        if rate == 0.4 and g0.num_nodes == n0:
+            print("\n  ARRET : le temoin ne grandit pas -> pas de contraste, le bras ne teste rien.")
+            raise SystemExit(1)
+    print("")
 
     # ---- RUN ---------------------------------------------------------------------------------------
     class HazardWorld(M.CognitiveSignalBiosphere):
@@ -98,15 +81,18 @@ with hold("kuzu", owner="evo023-no-addnode", ttl_s=14400):
 
     def evolve(seed, add_rate, eras=35, ticks=120, n=30):
         np.random.seed(seed)
-        c = M._cfg()
+        cfg = M._cfg()
         mc = MutationConfig()
         mc.add_node_rate = add_rate
-        genomes = M._fresh_soup(n, c, 0.4)
+        if add_rate == 0.0:
+            mc.meso_gate_rate = 0.0     # 2e voie de croissance (add_meso_gated_unit)
+            mc.meso_skip_rate = 0.0
+        genomes = M._fresh_soup(n, cfg, 0.4)
         best, best_fit, spent = genomes[0].clone(), -1e18, 0
         for _ in range(eras):
             if spent > BUDGET_TICKS:
                 return best, True
-            env = HazardWorld(c)
+            env = HazardWorld(cfg)
             env.hazard = HAZARD
             env.tasks = (1,)
             env.inject = True
@@ -139,7 +125,7 @@ with hold("kuzu", owner="evo023-no-addnode", ttl_s=14400):
 
     out = {}
     for label, add_rate in (("temoin_0.4", 0.4), ("sans_addnode", 0.0)):
-        print(f"--- bras {label} ---")
+        print(f"--- bras {label} (add_node_rate={add_rate}) ---")
         rows = []
         for s in range(N_SEEDS):
             g, ab = evolve(s, add_rate)
@@ -149,13 +135,15 @@ with hold("kuzu", owner="evo023-no-addnode", ttl_s=14400):
                 continue
             sal = M.measure_decision_saliency(g, 2000 + s, channel=SIG, out_idx=M.THROW_IDX, tasks=(1,))
             b = M.benchmark_cognitive(g, 1000 + s, tasks=(1,))
-            rows.append({"seed": s, "sal": sal, "raw": b["raw"], "age": b["med_age"]})
+            rows.append({"seed": s, "sal": sal, "raw": b["raw"], "age": b["med_age"],
+                         "N": g.num_nodes})
             flag = "   <<< LECTEUR" if sal > 0.5 else ""
-            print(f"  seed {s:>2}: sal={sal:.3f} raw={b['raw']:.3f} age={b['med_age']:.0f}{flag}")
+            print(f"  seed {s:>2}: sal={sal:.3f} raw={b['raw']:.3f} age={b['med_age']:.0f} "
+                  f"N={g.num_nodes}{flag}")
         out[label] = [r for r in rows if not r.get("aborted")]
 
     print("\n=== EVO-023 ===")
-    print(f"{'bras':>13} | {'LECTEURS':>9} | {'sal max':>8} | {'raw med':>8} | {'age med':>8} | abandons")
+    print(f"{'bras':>13} | {'LECTEURS':>9} | {'sal max':>8} | {'raw med':>8} | {'N med':>6} | abandons")
     for label in ("temoin_0.4", "sans_addnode"):
         rr = out[label]
         nab = N_SEEDS - len(rr)
@@ -165,7 +153,7 @@ with hold("kuzu", owner="evo023-no-addnode", ttl_s=14400):
         rd = [r for r in rr if r["sal"] > 0.5]
         print(f"{label:>13} | {len(rd):>4}/{len(rr):<4} | {max(r['sal'] for r in rr):>8.3f} | "
               f"{statistics.median([r['raw'] for r in rr]):>8.3f} | "
-              f"{statistics.median([r['age'] for r in rr]):>8.0f} | {nab}")
+              f"{statistics.median([r['N'] for r in rr]):>6.0f} | {nab}")
 
     a = sum(1 for r in out["sans_addnode"] if r["sal"] > 0.5)
     b_ = len(out["sans_addnode"]) - a
@@ -187,7 +175,8 @@ with hold("kuzu", owner="evo023-no-addnode", ttl_s=14400):
                 p += pr
     print("")
     print(f"  Fisher exact bilateral sans_addnode({a}/{a+b_}) vs temoin({c_}/{c_+d}) : p = {p:.3f}")
-    verdict = "une PART du verrou etait la DESTRUCTION, pas le tirage" if p < 0.05 else "AUCUN effet demontre"
+    verdict = ("une PART du verrou etait la DESTRUCTION, pas le tirage" if p < 0.05
+               else "AUCUN effet demontre")
     statut = "effet" if p < 0.05 else "OBSERVATIONS ISOLEES, NON elevees"
     print(f"  -> {verdict} ; lecteurs bruts = {statut}")
-    print("  PUISSANCE :", rule["puissance_declaree"])
+    print("  CONFOND declare AVANT le run :", rule["confond_declare_AVANT"][:150])
