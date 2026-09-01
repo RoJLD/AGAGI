@@ -9,9 +9,12 @@ fail=0
 # 1. HYGIÈNE DU GRAPHE DE RECORDS — bloque tout commit qui INTRODUIT un nouvel orphelin (record sans
 # porte ni arête) ou une collision d'id. Dette légataire gelée dans results/record_link_baseline.json.
 # Scopé aux records stagés -> ne bloque jamais sur le travail non-committé d'une autre session.
-staged_rec=$(git diff --cached --name-only --diff-filter=AM | grep -E '^docs/(EDR|ADR|SDR|REF)/.*\.md$')
+# ⚠️ La baseline elle-meme DOIT declencher la garde : sans ca, elargir le baseline et le
+# committer seul ne verifiait RIEN -- le trou par lequel un faux vert est passe (mesure le
+# 2026-09-01 : baseline elargie de 19 a 42 orphelins dans l'arbre, sans commit).
+staged_rec=$(git diff --cached --name-only --diff-filter=AM | grep -E '^(docs/(EDR|ADR|SDR|REF)/.*\.md|tools/record_link_baseline\.json)$')
 if [ -n "$staged_rec" ]; then
-  PYTHONIOENCODING=utf-8 python tools/check_record_links.py --only $staged_rec || {
+  PYTHONIOENCODING=utf-8 python tools/check_record_links.py --only $(echo "$staged_rec" | grep -v record_link_baseline || true) || {
     echo ""
     echo "-> Raccorde le record à une porte (frontmatter 'gate: Gx' et/ou 'tests: [SDR-Gx]'),"
     echo "   ou fais-le adopter par une REF, ou dé-duplique l'id. Puis re-commit."
@@ -33,6 +36,33 @@ if [ -n "$staged_py" ]; then
     echo "-> Un NOUVEL instrument (fonction produisant un verdict/ratio/survie/taux) n'est pas calibré."
     echo "   Ajoute un cas dans tests/sandbox/test_instrument_calibration.py (déclaration CALIBRATED),"
     echo "   OU déclare la dette : python tools/check_instrument_calibration.py --update-baseline"
+    fail=1
+  }
+fi
+
+
+# 3. INTÉGRITÉ DES GARDES DU REGISTRE — toute classe d'erreur `exécutable` doit NOMMER le test qui
+# prouve qu'elle sait refuser. Une garde sans contre-exemple nommé est indiscernable d'une garde
+# absente (classe E1 appliquée au méta-niveau). Baseline gelée à ZÉRO : aucune dette tolérée.
+staged_reg=$(git diff --cached --name-only --diff-filter=AM | grep -E '^(docs/REF/REGISTRE_ERREURS\.md|tools/(check_)?guard_negative_cases.*)$')
+if [ -n "$staged_reg" ]; then
+  PYTHONIOENCODING=utf-8 python tools/check_guard_negative_cases.py || {
+    echo ""
+    echo "-> Nomme le test discriminant dans la colonne « Garde » du registre (cf. E6),"
+    echo "   OU déclare la dette : python tools/check_guard_negative_cases.py --update-baseline"
+    fail=1
+  }
+fi
+
+# 4. FRAÎCHEUR DU BACKLOG — liens de records morts, numéros de tâche dupliqués, chemins disparus.
+# Motivation mesurée : une direction présentée comme « à faire » avait déjà été tranchée par un record,
+# et l'entrée périmée a été trouvée en allant y chercher quoi faire — au pire moment possible.
+staged_bl=$(git diff --cached --name-only --diff-filter=AM | grep -E '^(docs/roadmap/PRIORITES_ET_DETTES\.md|tools/backlog_freshness_baseline\.json)$')
+if [ -n "$staged_bl" ]; then
+  PYTHONIOENCODING=utf-8 python tools/check_backlog_freshness.py || {
+    echo ""
+    echo "-> Corrige la péremption, OU déclare-la en disant POURQUOI :"
+    echo "   python tools/check_backlog_freshness.py --update-baseline"
     fail=1
   }
 fi
