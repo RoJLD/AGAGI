@@ -501,6 +501,68 @@ hook-seul **skippe** la garde. Le cliquet ne dépend plus de la discipline — p
 (règle documentée sans application exécutable => violée) enfin fermé pour la calibration comme il l'était
 pour les records. *Bypass d'urgence : `git commit --no-verify`.*
 
+**P2.13 — ⚠️ OUVERTE (2026-09-01) — classe E19 : balayer le PAS, et RE-AUDITER au réglage le stock de
+conclusions de l'arc BILINEAR / LANG-MEMORY / MEM-PERCEPTION / RETAIN-COMPOSE (tous à `lr=0.02`).**
+*Preuve : à protocole identique et n=12, la seule variation de `lr` bascule le verdict d'un record ENTIER*
+— `run_retain_compose_diagnostic_probe`, `episodes=600`, `n_agents=16`, `K=6`, `bar=0.3167` :
+`lr=0.02` → `learned` **0.173** (verdict `RETENTION`) ; `lr=0.002` → `learned` **0.923** (`INCONCLUSIVE`),
+**0/144** chevauchement, 12/12 seeds. Cause : `n_agents` n'est PAS un minibatch (chaque agent a ses propres
+`W/U/V/W_bl`, `src/agents/backend_torch.py:85-86`) → **batch effectif = 1**, toléré par les conditions à un
+`_step` et divergent sur les deux `_step`.
+- **À faire** : (a) tout probe dont le verdict compare des conditions de **profondeur récurrente
+  différente** doit exhiber la stabilité de son verdict sur ≥ 1 décade de `lr` ; le critère porte sur
+  l'**écart au bras de référence** (flaguer si le balayage le referme de plus de 2/3), **jamais** sur le
+  franchissement d'une barre absolue — ce dernier produit un faux positif sur un nul réel (cf. P2.15).
+  (b) Re-auditer le stock : les quatre passes de l'arc partagent `lr=0.02`, `n_agents=16` et le même
+  substrat torch. **Aucune re-mesure ne doit être extrapolée par raisonnement** (classe E8) : le signe se
+  transporte, pas l'amplitude ni le seuil.
+- ⚠️ **C'est une occurrence de plus d'E14** (garde jamais rétro-appliquée) sur le stock de conclusions
+  ACTIVES, et le cliquet de calibration ne peut pas la voir : il déclare l'instrument couvert
+  (`"run_retain_compose_diagnostic_probe": ["*"]`) alors que ses deux cas gelés vivent dans le régime
+  facile. **Déclarer la couverture PAR RÉGIME, pas par fonction.**
+- *Coût mesuré du balayage-garde : 4 `lr` × 4 seeds × 600 épisodes en condition 1-pas = **92.6 s**
+  (1 thread, `torch.set_num_threads(1)`). Coût unitaire 2-pas : 10-25 s par (seed × condition).*
+
+**P2.14 — ⚠️ OUVERTE (2026-09-01) — re-mesurer LANG-MEMORY à `lr=0.002` AVANT toute annotation.**
+Son régime déclaré est `K=6`, `n_agents=16`, `lr ∈ {0.02, 0.05}` sur une tâche **D=2** (2-tick,
+`EDR-LANG-MEMORY:116`) : même batch-effectif-1, avec DEUX pas tous deux ≥ 0.02. Son verdict NÉGATIF a servi
+à **REFUSER de graver la 3ᵉ arête `language→memory`** du graphe AGI-Taxonomy.
+- **Enjeu** : si le négatif tombe au pas corrigé, l'arête se rouvre — et c'est **un record à part entière**
+  (mesure propre, verdict propre, pré-inscription propre), **pas une note en marge** d'un record existant.
+- ⚠️ **Mesurer d'abord, écrire ensuite** (classe E8) : ne PAS propager le signe de RETAIN-COMPOSE par
+  raisonnement. En attendant la mesure, l'annotation admissible est « régime d'optimisation SUSPECT »,
+  sans toucher au verdict. *Coût : à cadrer sur son propre harnais ; ordre de grandeur du diagnostic
+  voisin, 10-25 s par (seed × condition) à 600 épisodes, 1 thread.*
+
+**P2.15 — ⚠️ OUVERTE (2026-09-01) — DETTE DE SEUIL : la barre `1/K+0.15` est MAL PLACÉE, 0.072 SOUS le
+plafond structurel du substrat qu'elle est censée déclarer nul.**
+*Preuve, mesurée en forme close* : à `H_in = 0`, le substrat plain se réduit à
+`logit_j = σ(W_jj)·tanh(W[key,j] + W[K+q,j])` — transformée MONOTONE d'un score **SÉPARABLE**, donc
+prouvablement incapable de représenter `(q+key)%K`. Optimisation directe plein-batch des 36 paires,
+8 restarts → **plafond exact 0.3889** ; contrôle positif du même optimiseur sur une table libre non
+séparable → **1.000 (8/8)**. Or `bar = 1/K + 0.15 = 0.3167`. **Un substrat prouvablement incapable de
+composer peut donc légitimement franchir la barre** : mesuré à `lr ∈ {0.05, 0.1, 0.2}` (0.3625 / 0.3719 /
+0.3391) et même au pas d'origine avec 8× de budget (`lr=0.02`, `episodes=2400` → 0.3703, 3/3 au-dessus).
+- **Sondes qui héritent du défaut** : `tools/bilinear_composition_probe.py:174` (dont le critère
+  `unlocked = plain <= bar and bil > bar` casse par simple allongement du budget) et
+  `tools/retain_compose_diagnostic_probe.py:108`.
+- **Recommandation** : tout nul revendiqué devrait embarquer son **PLAFOND CONSTRUCTIF** (ici ~72 s de fit
+  en forme close) plutôt qu'un seuil absolu — le plafond est invariant au PAS **et** au BUDGET, un seuil
+  ne l'est ni l'un ni l'autre. C'est le vrai contrôle négatif.
+- ✅ **Ce que cette mesure ne remet PAS en cause** : le résultat phare de BILINEAR (same_tick supervisé,
+  plain 0.271 vs bilinéaire 0.932) en sort **RENFORCÉ** — l'argument de séparabilité est confirmé
+  quantitativement, et 0.271 est simplement le point sous-entraîné d'une courbe qui sature à 0.389. Ce qui
+  est à corriger, c'est sa **marge de décision** (0.271 vs 0.3167 = 0.046), pas sa conclusion.
+
+**P2.16 — ⚠️ TROU CONSTATÉ (2026-09-01) — `tools/check_preregistration_applied.py` n'est branché à AUCUNE
+porte du hook.** `tools/hooks/pre-commit` ne contient que **deux** portes (vérifié : `:14`
+`check_record_links.py --only`, gatée sur `docs/(EDR|ADR|SDR|REF)/*.md` ; `:31`
+`check_instrument_calibration.py`, gatée sur `(tools|src/seed_ai)/*.py`). Le cliquet de l'occ. 4 d'E11 —
+celui qui attrape une **DV substituée en silence** dans un record se réclamant d'une règle scellée — n'est
+donc exécuté que par son fichier pytest. C'est exactement le principe transverse n°1 (« règle documentée
+sans application exécutable finit violée ») appliqué à une garde pourtant déjà ÉCRITE : elle protège le
+travail de qui pense à la lancer. *Correctif : une 3ᵉ porte gatée sur `docs/EDR/*.md` stagés. Coût : ~15 min.*
+
 ---
 
 ## P3 — Générateurs d'erreur encore sans réponse exécutable
