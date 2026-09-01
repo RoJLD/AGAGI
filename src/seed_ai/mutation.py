@@ -14,6 +14,18 @@ class MutationConfig:
     meta_mutate_power: float = 0.1
     meso_skip_rate: float = 0.05
     meso_gate_rate: float = 0.05
+    # --- MIGRATION (2026-08-04, EDR-EVO-024) : preservation des blocs d'E/S -----------------------
+    # `add_node` et `add_meso_gated_unit` inserent a l'indice `j` SANS mettre a jour num_inputs /
+    # num_outputs. Inserer DANS le bloc de sortie re-mappe donc quelle decision chaque noeud pilote :
+    # 56 % des aretes cablees sont DESALIGNEES par une insertion (EDR-EVO-021), ce qui detruit un
+    # lecteur ~65 % du temps. Ils utilisent aussi l'ANCIEN `i` apres le decalage des lignes (off-by-one
+    # pour i >= point d'insertion).
+    # ⚠️ DESACTIVE PAR DEFAUT : off = BIT-IDENTIQUE a l'historique. Les records EVO-005..023 ont ete
+    # mesures avec le defaut ; l'activer change le comportement et exige de les RE-MESURER.
+    # Mesure rassurante (EDR-EVO-023) : supprimer toute croissance donne 0/12 comme le temoin, donc le
+    # defaut n'est PAS contraignant pour les conclusions de l'arc -- il le redeviendra des qu'un levier
+    # fera monter le taux de creation d'aretes.
+    preserve_io_blocks: bool = False
 
 @dataclass
 class Genome:
@@ -51,6 +63,22 @@ class Genome:
         og = self.organ_genes.copy() if self.organ_genes is not None else np.array([False, False], dtype=bool)
         return Genome(self.W.copy(), self.num_inputs, self.num_outputs, self.mutation_genes.copy(), w_r, bc, th, memory_cache=None, organ_genes=og)
 
+def _insertion_point(genome: Genome, j: int, config: MutationConfig) -> int:
+    """Ou inserer un noeud sans casser les contrats de bloc.
+
+    Les ENTREES sont les `num_inputs` PREMIERS noeuds, les SORTIES les `num_outputs` DERNIERS. Une
+    insertion dans l'un de ces blocs en ejecte un membre : l'indice semantique de chaque sortie glisse,
+    et une arete cablee se met a piloter une AUTRE decision. La region cachee est le seul endroit sur.
+
+    Sans le flag, on rend `j` tel quel -> comportement historique EXACT (bit-identique)."""
+    if not getattr(config, "preserve_io_blocks", False):
+        return int(j)
+    lo, hi = genome.num_inputs, genome.num_nodes - genome.num_outputs
+    if hi < lo:
+        return int(j)
+    return int(min(max(int(j), lo), hi))
+
+
 def add_node(genome: Genome, config: MutationConfig) -> None:
     """Inserts a node by splitting an existing connection, preserving topological sort."""
     W = genome.W
@@ -62,14 +90,21 @@ def add_node(genome: Genome, config: MutationConfig) -> None:
     
     old_weight = W[i, j]
     W[i, j] = 0.0
-    
-    # Insert new node at index j. Old j moves to j+1.
-    new_W = np.insert(W, j, 0, axis=0)
-    new_W = np.insert(new_W, j, 0, axis=1)
-    
-    new_W[i, j] = 1.0
-    new_W[j, j+1] = old_weight
-    
+
+    p = _insertion_point(genome, j, config)
+    new_W = np.insert(W, p, 0, axis=0)
+    new_W = np.insert(new_W, p, 0, axis=1)
+
+    if getattr(config, "preserve_io_blocks", False):
+        # apres insertion en p, tout indice >= p glisse de +1 -- y compris la SOURCE
+        i2 = i + 1 if i >= p else i
+        j2 = j + 1 if j >= p else j
+        new_W[i2, p] = 1.0
+        new_W[p, j2] = old_weight
+    else:
+        new_W[i, j] = 1.0                 # comportement HISTORIQUE (ancien i, ancien j)
+        new_W[j, j + 1] = old_weight
+
     genome.W = new_W
 
 def add_connection(genome: Genome, config: MutationConfig) -> None:
@@ -205,15 +240,21 @@ def add_meso_gated_unit(genome: Genome, config: MutationConfig) -> None:
     W[i, j] = 0.0
     
     # On ajoute 2 nouveaux nœuds (Porte et Combinateur)
-    new_W = np.insert(W, j, 0, axis=0)
-    new_W = np.insert(new_W, j, 0, axis=1)
-    
-    new_W = np.insert(new_W, j+1, 0, axis=0)
-    new_W = np.insert(new_W, j+1, 0, axis=1)
-    
-    gate_node = j
-    combiner_node = j + 1
-    target_node = j + 2
+    p = _insertion_point(genome, j, config)
+    new_W = np.insert(W, p, 0, axis=0)
+    new_W = np.insert(new_W, p, 0, axis=1)
+
+    new_W = np.insert(new_W, p + 1, 0, axis=0)
+    new_W = np.insert(new_W, p + 1, 0, axis=1)
+
+    gate_node = p
+    combiner_node = p + 1
+    if getattr(config, "preserve_io_blocks", False):
+        # deux insertions en p puis p+1 : tout indice >= p glisse de +2
+        i = i + 2 if i >= p else i
+        target_node = j + 2 if j >= p else j
+    else:
+        target_node = j + 2               # comportement HISTORIQUE
     
     # Câblage du motif Gated Unit
     # Source -> Combinateur (Voie principale)

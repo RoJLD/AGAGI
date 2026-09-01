@@ -14,24 +14,32 @@ et le coût estimé.
 
 ---
 
-## ⚠️ 2026-08-04 (soir) — DETTE DE PRODUCTION ouverte par EVO-021/022
+## ✅ 2026-08-04 (soir) — DETTE DE PRODUCTION RÉGLÉE (correctif prêt, bascule à décider)
 
-**`add_node` ne met à jour NI `num_inputs` NI `num_outputs`** (`src/seed_ai/mutation.py:54-73`). Il insère
-une ligne et une colonne à l'indice `j` ; tous les nœuds ≥ `j` glissent, mais les bornes des blocs
-d'entrée et de sortie restent figées. **Insérer dans le bloc de sortie re-mappe donc quelle décision
-chaque nœud pilote.**
+**Le défaut** : `add_node` ET `add_meso_gated_unit` (`src/seed_ai/mutation.py`) insèrent des lignes et
+colonnes à l'indice `j` **sans mettre à jour `num_inputs`/`num_outputs`**. Insérer dans le bloc de sortie
+re-mappe quelle décision chaque nœud pilote — **56 % de désalignement mesuré**, ce qui détruit un lecteur
+câblé ~65 % du temps ([[EDR-EVO-021]]).
 
-Mesuré (`tools/evo_runs/probe_output_block_shift.py`, 200 insertions sur un lecteur câblé) : **56 % des
-insertions DÉSALIGNENT** une arête câblée — elle survit intacte mais ne pilote plus la même sortie. Ça
-explique les ~65 % de destruction d'un lecteur par UN `add_node` ([[EDR-EVO-021]]).
+**Le correctif** : `MutationConfig.preserve_io_blocks`, **désactivé par défaut** (off = bit-identique).
+L'insertion est contrainte à la région cachée et les indices `i`/`j` sont décalés correctement — l'
+off-by-one signalé par la revue est réglé du même coup. Pré-vol : **38/200 décalages en historique,
+0/200 corrigé**.
 
-⚠️ **Ne PAS corriger à la légère.** Changer `add_node` modifierait le comportement de TOUT l'arc EVO et
-casserait la comparabilité de tous les runs déjà gravés. À traiter comme une **migration** (avec
-re-mesure des records concernés), pas comme un patch. Priorité : haute, mais après décision explicite.
+**Validation** ([[EDR-EVO-024]]) : 2 bras × 12 seeds, **0/12 des deux côtés, Fisher p = 1.000**. Le
+correctif **ne change aucune conclusion** — les records EVO-005→023 restent valides, aucune re-mesure
+nécessaire. La prédiction avait été posée avant le run (EVO-023 : le défaut est réel mais non
+contraignant).
 
-**Second volet, plus étroit** : `new_W[i, j] = 1.0` utilise l'ancien `i` alors que les lignes `i ≥ j` ont
-glissé — off-by-one pour `i ≥ j`. Mesuré à 0 % sur une soupe fraîche (les arêtes y vont d'entrée à
-sortie), non nul sur un génome à auto-boucles. Même migration.
+**Ce qui reste — une DÉCISION, pas une tâche** : basculer `preserve_io_blocks=True` par défaut. Ce n'est
+pas fait ici parce que `mutation.py` est partagé avec des sessions parallèles et que changer le
+comportement sous les pieds d'un run en vol est exactement la contamination que le bail `kuzu` empêche
+pour les mondes. **Critère proposé** : quand aucun run n'est en vol, sur décision explicite.
+
+**Anti-récidive, automatisé** : `tests/sandbox/test_mutation_block_invariants.py` ne teste pas une liste
+d'opérateurs, **il la DÉCOUVRE** — toute fonction de `mutation.py` qui fait grandir `num_nodes` est
+soumise au contrat de bloc, y compris celles ajoutées plus tard. Nécessaire : le défaut avait deux
+porteurs et je n'en avais vu qu'un.
 
 ---
 

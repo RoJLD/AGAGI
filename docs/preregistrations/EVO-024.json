@@ -1,0 +1,15 @@
+{
+  "name": "EVO-024",
+  "rule": {
+    "controle_de_manipulation_OBLIGATOIRE": "Le flag doit REELLEMENT changer l'operateur : mesurer le taux de DECALAGE DU BLOC DE SORTIE dans les deux bras (marqueurs d'identite sur les diagonales de sortie). Il doit etre non nul en historique et NUL en corrige. Sinon le bras ne teste rien.",
+    "design": "2 bras x 12 seeds : preserve_io_blocks=False (historique) / True (corrige). Sous-tache `throw`, hazard=15, W=0 (survie seule) -- strictement le dispositif d'EVO-018/023.",
+    "dv_primaire": "taux de seeds LECTEURS (`measure_decision_saliency` > 0.5 sur obs[5] -> logits[8])",
+    "garde_cout": "budget_agent_ticks (plafond DETERMINISTE, E13). Abandons COMPTES et rapportes.",
+    "prediction_declaree_AVANT": "EDR-EVO-023 a mesure que supprimer TOUTE croissance donne 0/12 comme le temoin (Fisher p=1.000) : le defaut est reel mais NON contraignant, parce que l'arete n'est presque jamais creee en amont. PREDICTION : activer preserve_io_blocks donnera egalement 0/12. Si c'est le cas, les records EVO-005..023 restent valides ; sinon ils doivent etre RE-MESURES.",
+    "puissance_declaree": "a n=12 par bras, 40 % contre 0 % donne p~0.04 (detectable) ; 17 % contre 0 % donne p~0.48 (NON detectable). Ce run peut montrer un effet FORT du correctif, pas exclure un effet faible -- donc un nul ici ne PROUVE pas l'equivalence, il borne l'ecart.",
+    "question": "MIGRATION. Le defaut d'indices (add_node et add_meso_gated_unit n'ajustent ni num_inputs ni num_outputs) est desormais corrige derriere un flag `preserve_io_blocks`, DESACTIVE par defaut (off = bit-identique). Activer le correctif change-t-il les conclusions de l'arc ?",
+    "record": "EDR-EVO-024",
+    "regle_de_lecture_continue": "Le verdict est une FONCTION du taux : Fisher exact bilateral corrige vs historique. p < 0.05 -> le correctif CHANGE les conclusions, les records EVO-005..023 doivent etre re-mesures et la migration devient bloquante. p >= 0.05 -> le correctif est SANS EFFET sur les verdicts, les records restent valides et le flag peut etre bascule par defaut a une date choisie. Aucune valeur intermediaire n'echappe a cette lecture ; s'il y a >= 1 lecteur ils sont rapportes comme OBSERVATIONS ISOLEES et NON elevees (lecon E9)."
+  },
+  "seal": "33ee2a287268c306efffcfae0951d75442f10d919c4f7eabcfbaecf9c53e76ae"
+}
