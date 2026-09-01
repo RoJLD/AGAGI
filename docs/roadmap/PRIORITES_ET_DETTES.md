@@ -784,6 +784,41 @@ donc exécuté que par son fichier pytest. C'est exactement le principe transver
 sans application exécutable finit violée ») appliqué à une garde pourtant déjà ÉCRITE : elle protège le
 travail de qui pense à la lancer. *Correctif : une 3ᵉ porte gatée sur `docs/EDR/*.md` stagés. Coût : ~15 min.*
 
+**P2.21 — ⚠️ OUVERTE (2026-09-02) — la garde E19 a le trou qu'elle traque : `assert_verdict_invariant_to_optimizer`
+tire DÉGÉNÉRÉMENT quand c'est le bras de RÉFÉRENCE qui s'effondre.**
+*(numérotée 21 et non 19 : `P2.19`/`P2.20` sont déjà référencés depuis du code COMMITTÉ —
+`tests/sandbox/test_instrument_calibration.py:187,195,2213,2290,2465,2659,3027,3201` — pour la garde de
+dégénérescence de `s2_verdict` et pour `sign_p` calculé-puis-jeté. Le code référençant gagne.)*
+Elle refuse un nul dont l'écart au bras de référence se referme de plus de 2/3 sur une décade de `lr`.
+Mais elle ne vérifie jamais **POURQUOI** l'écart se referme : si le bras testé monte, le nul est un
+artefact (le cas visé) ; si c'est la RÉFÉRENCE qui s'effondre, l'écart se referme tout autant et la garde
+tire — alors qu'il n'y a aucun artefact à dénoncer. Constaté en acte sur les données de
+[[EDR-DELAYED-COORD]], où les deux bras sont au plancher. C'est le motif **E3** (métrique dégénérée lue
+comme un effet) **dans la garde même qui a été écrite pour attraper les nuls dégénérés** — exactement la
+forme du défaut qu'elle corrigeait chez `functional_aliasing` la veille.
+- **Correctif** : exiger que le bras de RÉFÉRENCE reste VIVANT aux deux points de `lr` avant de lire une
+  fermeture d'écart ; sinon rendre un verdict distinct (`INCONCLUSIVE_REFERENCE_COLLAPSED`), jamais un
+  refus silencieux. Contre-exemple gelé disponible : les deux bras au plancher de ce record.
+- ⚠️ **Ne PAS se contenter d'ajouter la garde** : ajouter aussi le contrôle POSITIF apparié (une vraie
+  fermeture d'écart, référence vivante, doit continuer à tirer) — sans lui on remplace une garde trop
+  laxiste par une garde trop stricte, ce qui est le même défaut de l'autre côté.
+
+**P2.22 — ⚠️ PROMOTION DUE (2026-09-02) — la classe E10 a récidivé DEUX fois dans la même journée, sur le
+MÊME fichier partagé, dans les DEUX sens.**
+`tests/sandbox/test_instrument_calibration.py` est le point de contention maximal du dépôt. Le 2026-09-01 :
+(a) un commit de cette session a happé ~159 lignes de travail non committé d'une session parallèle
+(P2.19/P2.20 d'alors) via un `git add` path-scopé mais **pas contenu-scopé** ; (b) en sens inverse, des
+sessions parallèles ont committé le contenu d'un implémenteur **avant lui** (`37bb389`, `8207b46`), le
+laissant sans commit propre. Le path-scoping protège des fichiers étrangers, **pas des hunks étrangers
+dans un fichier partagé**. La règle du registre s'applique : deux occurrences en `documenté` doivent être
+**promues** ou reclassées — pas de troisième sans changement de statut.
+- **Garde exécutable proposée, déjà éprouvée en pratique ce jour** : avant tout commit touchant un fichier
+  partagé à forte contention, inspecter `git diff --cached <fichier>` **hunk par hunk** et ABANDONNER si un
+  hunk n'est pas de son fait. Injectée dans les dispatches de la passe DELAYED-COORD, elle a fonctionné :
+  le commit `814a2a6` rapporte « 11 hunks tous vérifiés miens ».
+- *Correctif candidat, plus fort* : un script `tools/check_staged_authorship.py` qui compare le diff stagé
+  d'un fichier à une empreinte prise AVANT l'édition, et refuse tout hunk non attribuable. À évaluer.
+
 ---
 
 ## P3 — Générateurs d'erreur encore sans réponse exécutable
