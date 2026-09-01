@@ -21,6 +21,21 @@ et le coût estimé.
 
 ### Dans la machinerie de calibration elle-même (le plus grave : l'outil qui compte se trompe)
 
+* **`ablation_verdict` : la garde de plancher est ASYMÉTRIQUE — elle laisse passer les FAUX POSITIFS.**
+  Mesuré : `ablation_verdict([7.0]*12, [3.0]*12, floor=9.0)` rend **`X_DEMANDED`** avec
+  `degenerate=True` et `why="bras intact au PLANCHER déclaré (médiane 7 <= floor 9)"`. La
+  dégénérescence est **détectée, rapportée dans le dict, et non lue** par la branche `collapse` —
+  exactement la forme de `sign_p` calculé puis jeté. Deux bras mourant à 7 et 3 ticks, tous deux sous
+  le plancher de survivabilité, ne peuvent pas prouver qu'une capacité est exigée.
+  Le commentaire du code montre l'origine de l'asymétrie : la garde a été armée contre le faux NÉGATIF
+  de WARM-002 (« un bras intact au sol rendrait NEUTRAL »), et l'exemption « un positif censuré reste
+  un positif, le ratio est une borne INF » — juste pour le PLAFOND — a été appliquée à **toutes** les
+  raisons de dégénérescence, plancher compris.
+  ⚠️ **Fichier d'une session parallèle en cours de travail** (elle traite ces branches une par une :
+  `decoy`, puis `inverted` — commit « round 1 »). **Non modifié ici.** Documenté par un
+  `xfail(strict=True)` dans `tests/sandbox/test_instrument_calibration.py`, qui échouera le jour de la
+  correction pour forcer le retrait du marqueur.
+
 * **La porte de calibration du hook BLOQUE les sessions les unes contre les autres.** Mesuré le
   2026-09-01 : un instrument NON SUIVI créé par une session parallèle
   (`run_delayed_coordination_demand_probe`) a bloqué un commit sans aucun rapport, parce que la porte 2

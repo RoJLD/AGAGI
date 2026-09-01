@@ -39,6 +39,19 @@ NOT_AN_INSTRUMENT = {
 }
 
 CALIBRATED = {
+    # P2.30 (2026-09-01) : calibre PAR INJECTION (monkeypatch des `*_survival_eras`), sans simuler.
+    # Un DEFAUT a ete trouve en le faisant, dans `ablation_verdict` (fichier d'une session
+    # PARALLELE en cours -- non modifie) : la branche `collapse` rend X_DEMANDED SANS consulter
+    # `why`, donc un bras intact SOUS le plancher declare produit un FAUX POSITIF. Documente par un
+    # `xfail(strict=True)` qui ECHOUERA le jour de la correction.
+    "verdict_demand_marker": ["collapse:positive", "decoy:neutral", "floor:known-gap-xfail"],
+    # P2.29 (2026-09-01) : premier instrument SIMULANT UN MONDE calibre -- PAR INJECTION, sans
+    # simuler une seule ere. `run_sweep` accepte `run_era_fn` : on lui impose une DOSE CONNUE et on
+    # verifie qu'il la RETROUVE (calibration par PREDICTION, celle que CLAUDE.md prefere). Le cas
+    # decisif est l'APPARIEMENT : bruit de 161x entre seeds, dose de +50 % retrouvee a 1.5000
+    # EXACTEMENT -- personne ne testait que le design apparie fait ce pour quoi il existe.
+    "run_sweep": ["no-op-exact", "prediction:dose-recovered", "pairing:cancels-noise",
+                  "specificity:efficiency-not-competence"],
     # P2.28 (2026-09-01) : les 8 derniers verdicts PURS. AUCUN defaut -- c'est le resultat. Trois
     # sont exemplaires et gardent chacun une chose DIFFERENTE : la TAILLE D'ECHANTILLON
     # (_verdict_coordination, n>=20), le PREREQUIS d'entonnoir (_verdict_craft_wall, sans forage le
@@ -2864,3 +2877,149 @@ def test_a_declared_NON_INSTRUMENT_must_be_QUALIFIED_when_its_name_collides():
             assert "::" in nom, (
                 f"« {nu} » est defini dans {len(collisions[nu])} fichiers : une declaration NUE "
                 f"exempterait des homonymes jamais examines")
+
+
+# ======================================================================================================
+# P2.29 (2026-09-01) — `run_sweep` calibré PAR INJECTION, sans simuler une seule ère.
+#
+# METHODE, reutilisable pour tout ORCHESTRATEUR. `run_sweep` accepte `run_era_fn` : on lui impose une
+# DOSE CONNUE a la place de la simulation et on verifie qu'il la RETROUVE. C'est la calibration PAR
+# PREDICTION que CLAUDE.md prefere a la valeur absolue — et elle coute zero seconde de monde.
+#
+# Ce qu'on teste ainsi n'est pas le monde (ce n'est pas le role de cet instrument) mais la couche qui
+# transforme des mesures en AFFIRMATION : agregation, appariement, choix du ratio. C'est precisement la
+# couche que personne ne testait.
+#
+# Contrat du faux : run_era_fn(cfg, genomes, max_ticks) -> (scored, m),
+#   m = {"score", "ticks", "mean_active"} ; efficiency = competence / mean_active.
+# ======================================================================================================
+
+_SWEEP_PARAM = "metabolic_cost_coef"
+_SWEEP_ERAS = 3
+
+
+def _sweep_injecte(effet_comp, seeds, coefs, bruit=None, effet_actif=lambda c: 1.0):
+    """Lance `run_sweep` avec une ere FACTICE dont la competence suit une dose imposee."""
+    from tools.metabolic_cost_sweep import run_sweep
+    ordre, appels = list(seeds), {"n": 0}
+    par_seed = len(coefs) * _SWEEP_ERAS
+
+    def faux(cfg, genomes, max_ticks):
+        seed = ordre[(appels["n"] // par_seed) % len(ordre)]
+        appels["n"] += 1
+        coef = float(getattr(cfg, _SWEEP_PARAM, 0.0))
+        score = 100.0 * (bruit or {}).get(seed, 1.0) * effet_comp(coef)
+        return ([(score, g) for g in genomes[:5]],
+                {"score": score, "ticks": 200.0, "mean_active": 50.0 * effet_actif(coef)})
+
+    return run_sweep(seeds, coefs, eras=_SWEEP_ERAS, num_agents=6, max_ticks=10,
+                     run_era_fn=faux, param=_SWEEP_PARAM)
+
+
+def test_sweep_invents_NO_effect_when_the_dose_does_nothing():
+    """⚠️ NO-OP EXACT. La dose ne change rien -> ratio 1.0000 et verdict NEUTRE. Un sweep qui
+    fabriquerait un effet ici invaliderait tout ce qu'il a jamais rapporte."""
+    r = _sweep_injecte(lambda c: 1.0, seeds=list(range(12)), coefs=[0.0, 0.5])
+    cell = r["per_coef"][0]
+    assert abs(cell["median_eff"] - 1.0) < 1e-9, f"effet invente : {cell['median_eff']}"
+    assert cell["verdict"] == "NEUTRE"
+
+
+def test_sweep_RECOVERS_an_imposed_dose_exactly():
+    """⚠️ PREDICTION. On impose +50 % de competence ; le sweep doit rendre 1.5000, pas « un effet »."""
+    r = _sweep_injecte(lambda c: 1.0 + c, seeds=list(range(12)), coefs=[0.0, 0.5])
+    cell = r["per_coef"][0]
+    assert abs(cell["median_eff"] - 1.5) < 1e-9, f"dose non retrouvee : {cell['median_eff']}"
+    assert cell["verdict"] == "EFFICACE" and cell["sign_p"] < 0.05
+
+
+def test_sweep_PAIRING_cancels_between_seed_variance():
+    """⚠️ LE test qui manquait. Un sweep APPARIE existe pour que la variance entre seeds s'annule dans
+    le ratio. On impose un bruit de 161x entre seeds ET la meme dose de +50 % : si l'appariement est
+    reellement fait, la dose ressort EXACTE. Si quelqu'un remplacait un jour l'appariement par une
+    comparaison de moyennes, ce bruit noierait l'effet et ce test tomberait."""
+    bruit = {s: 1.0 + 40.0 * (s % 5) for s in range(12)}
+    r = _sweep_injecte(lambda c: 1.0 + c, seeds=list(range(12)), coefs=[0.0, 0.5], bruit=bruit)
+    cell = r["per_coef"][0]
+    assert abs(cell["median_eff"] - 1.5) < 1e-9, (
+        f"le bruit entre seeds n'est pas annule -> l'appariement est casse : {cell['median_eff']}")
+    assert cell["verdict"] == "EFFICACE"
+
+
+def test_sweep_measures_EFFICIENCY_not_competence():
+    """⚠️ SPECIFICITE sur la GRANDEUR MESUREE (la question 2 du pre-vol : est-ce bien la grandeur qui
+    agit ?). Competence ET `mean_active` montent de 50 % ensemble -> l'EFFICIENCE ne bouge pas. Un
+    compteur de score aurait crie a l'effet ; cet instrument doit rendre NEUTRE."""
+    r = _sweep_injecte(lambda c: 1.0 + c, seeds=list(range(12)), coefs=[0.0, 0.5],
+                       effet_actif=lambda c: 1.0 + c)
+    cell = r["per_coef"][0]
+    assert abs(cell["median_eff"] - 1.0) < 1e-9, (
+        f"l'instrument suit la competence, pas l'efficience : {cell['median_eff']}")
+    assert cell["verdict"] == "NEUTRE"
+
+
+# ======================================================================================================
+# P2.30 (2026-09-01) — `verdict_demand_marker` calibre PAR INJECTION, et un DEFAUT trouve en le faisant.
+#
+# Il appelle `_mamba_survival_eras` / `_torch_survival_eras` par nom de module : on injecte des survies
+# CONNUES et on verifie la traduction en verdict. Aucune simulation.
+#
+# ⚠️ DEFAUT TROUVE, dans `tools/demand_marker.ablation_verdict` (fichier d'une SESSION PARALLELE, en
+# cours de travail -- non modifie ici). La branche `collapse` rend X_DEMANDED SANS consulter `why` :
+#     ablation_verdict([7.0]*12, [3.0]*12, floor=9.0)
+#       -> verdict = "X_DEMANDED", degenerate = True,
+#          why = "bras intact au PLANCHER declare (mediane 7 <= floor 9)"
+# La degenerescence est DETECTEE, RAPPORTEE dans le dict, et NON LUE par le verdict -- exactement la
+# forme de `sign_p` calcule puis jete (P2.20).
+#
+# La garde de plancher est ASYMETRIQUE : son commentaire dit qu'elle existe parce qu'« un bras intact au
+# sol rendrait NEUTRAL » (le faux NEGATIF de WARM-002). Elle ne protege pas du faux POSITIF : deux bras
+# mourant a 7 et 3 ticks, tous deux SOUS le plancher de survivabilite, donnent ratio 2.33 donc
+# « la perception est exigee ». L'exemption « un positif censure reste un positif, le ratio est une
+# borne INF » est juste pour le PLAFOND ; elle a ete appliquee a TOUTES les raisons, plancher compris.
+#
+# Les commits de la session parallele montrent qu'elle traite ces branches une par une (`decoy`, puis
+# `inverted` -- « round 1 »). Le test ci-dessous est donc `xfail(strict=True)` : il documente le defaut
+# de facon EXECUTABLE et ECHOUERA le jour ou il sera corrige, forcant a retirer le marqueur.
+# ======================================================================================================
+
+def _wdm_injecte(monkeypatch, intact_med, ablated_med, n=12):
+    import tools.warmstart_evolution_inworld as W
+
+    def faux(genome, ablate, seed, K, num_agents, max_ticks, metab, cog):
+        return [ablated_med if ablate else intact_med] * n
+
+    monkeypatch.setattr(W, "_mamba_survival_eras", faux)
+    return W.verdict_demand_marker(None, "mamba")
+
+
+def test_demand_marker_reports_PERCEPTION_DEMANDED_on_a_real_collapse(monkeypatch):
+    """SPECIFICITE : un vrai effondrement, bien AU-DESSUS du plancher, doit rester un positif."""
+    assert _wdm_injecte(monkeypatch, 40.0, 5.0)["verdict"] == "PERCEPTION_DEMANDED"
+
+
+def test_demand_marker_reports_NEUTRAL_on_a_real_decoy(monkeypatch):
+    """SPECIFICITE inverse : ablater ne change presque rien, au-dessus du plancher -> leurre REEL."""
+    assert _wdm_injecte(monkeypatch, 40.0, 39.0)["verdict"] == "NEUTRAL"
+
+
+@pytest.mark.xfail(strict=True, reason=(
+    "DEFAUT CONNU (2026-09-01) : la branche `collapse` d'`ablation_verdict` rend X_DEMANDED sans "
+    "consulter `why`. Un bras intact SOUS le plancher declare (7 <= 9) produit donc un FAUX POSITIF. "
+    "Fichier d'une session parallele en cours de travail (elle traite ces branches une par une) -- "
+    "non modifie ici. Quand ce sera corrige, ce test PASSERA et l'xfail strict echouera : retirer "
+    "alors le marqueur."))
+def test_demand_marker_should_REFUSE_a_positive_below_the_declared_floor(monkeypatch):
+    """⚠️ Deux bras mourant a 7 et 3 ticks, tous deux SOUS le plancher de survivabilite, ne peuvent pas
+    prouver que la perception est exigee. `ablation_verdict` le SAIT (degenerate=True, why renseigne)
+    et l'ignore dans cette branche."""
+    assert _wdm_injecte(monkeypatch, 7.0, 3.0)["verdict"] == "INCONCLUSIVE_DEGENERATE"
+
+
+def test_the_degeneracy_IS_detected_even_though_the_verdict_ignores_it():
+    """Ce que le defaut n'est PAS : le detecteur ne se trompe pas, il est simplement pas lu. Geler ce
+    fait empeche qu'on « corrige » `_degeneracy` alors que le probleme est dans le branchement."""
+    from tools.demand_marker import ablation_verdict
+    r = ablation_verdict([7.0] * 12, [3.0] * 12, floor=9.0)
+    assert r["degenerate"] is True and "PLANCHER" in (r["why"] or "").upper(), (
+        "le detecteur de degenerescence doit continuer a VOIR le plancher")
