@@ -39,6 +39,20 @@ NOT_AN_INSTRUMENT = {
 }
 
 CALIBRATED = {
+    # P2.33 (2026-09-01) : QUATRIEME angle mort du cliquet -- aucun motif ne couvrait `classify_*`,
+    # alors que ce sont ELLES qui PRONONCENT le verdict (l'instrument detecte qui les appelle ne
+    # fait que relayer). Trois etaient ni calibrees ni comptees comme dette.
+    "classify_vertical_signal": ["both-conditions", "measured-zero:concludes"],
+    "classify_storage_regime": ["threshold:inclusive", "zero-buffer:epsilon"],
+    "classify_record": ["world-scoped-ranks-above-learner-scoped"],
+    # P2.32 (2026-09-01) : les 3 sondes g_fidelity poolaient UN RATIO PAR TICK sur tous les seeds
+    # (n=900 pour 3 seeds). 300 ticks consecutifs du meme agent ne sont pas 300 replicats :
+    # poole -> sign_p 7.5e-04 (G_FIDELE), par seed -> 0.250 (NEUTRE), meme effet, verdict OPPOSE.
+    # La garde `sign_p < 0.05` cablee le matin meme etait donc ENTIEREMENT NEUTRALISEE ici.
+    "tools/g_fidelity_probe.py::run_probe": ["unit:seed-not-tick", "diagnostic:tick-preserved",
+                                             "positive:real-across-seeds"],
+    "run_probe_env": ["unit:seed-not-tick"],
+    "run_probe_stoneage": ["unit:seed-not-tick"],
     # P2.31 (2026-09-01) : deux orchestrateurs FAMINE, par injection. Sur les 24 instruments
     # « simulant un monde » restants, TREIZE ne simulent pas eux-memes -- ils DELEGUENT par nom de
     # module, donc sont injectables a cout nul. Cas discriminant du sweep : la MEME table donnee en
@@ -3200,3 +3214,65 @@ def test_the_sign_test_has_a_HARD_FLOOR_at_three_seeds():
     from tools.g_fidelity_probe import _sign_p
     assert _sign_p(3, 3) >= 0.25
     assert _sign_p(5, 5) < 0.25, "a 5 seeds unanimes, le test peut enfin conclure"
+
+
+# ======================================================================================================
+# P2.33 (2026-09-01) — le QUATRIEME angle mort du cliquet : les fonctions `classify_*`.
+#
+# Aucun motif de `_INSTRUMENT_PATTERNS` ne couvrait `classify_*`. Or ce sont ELLES qui PRONONCENT le
+# verdict : `classify_storage_regime` rend « STORAGE_REQUIRED », et l'instrument detecte qui l'appelle
+# ne fait que le relayer. Trois fonctions etaient donc ni calibrees, ni meme COMPTEES comme dette.
+#
+# L'heuristique est desormais connue faillible sur QUATRE axes : ce qu'elle cherche (motif, 2026-07-21),
+# OU elle cherche (perimetre, 2026-07-21), comment elle IDENTIFIE ce qu'elle trouve (collisions,
+# 2026-09-01), et sous quels VERBES (classify_, 2026-09-01). Chaque elargissement a revele de la dette
+# REELLE -- c'est la raison de continuer a l'elargir.
+# ======================================================================================================
+
+def test_classify_vertical_signal_needs_BOTH_conditions():
+    """Z_UTILISE exige une amplitude verticale ET un usage des actions Up/Down au-dessus du hasard.
+    Une seule des deux ne suffit pas : monter sans jamais choisir Up, c'est etre pousse, pas voler."""
+    from tools.vertical_world_probe import classify_vertical_signal
+    assert classify_vertical_signal(2.0, 0.40)["verdict"] == "Z_UTILISE"
+    assert classify_vertical_signal(2.0, 0.10)["verdict"] == "Z_INERTE", "amplitude seule ne suffit pas"
+    assert classify_vertical_signal(0.1, 0.40)["verdict"] == "Z_INERTE", "actions seules ne suffisent pas"
+
+
+def test_classify_vertical_signal_treats_a_MEASURED_zero_as_a_result():
+    """⚠️ Meme distinction que pour `agri_verdict` : ses entrees sont des scalaires MESURES. Un
+    `z_range` de 0.0 signifie « l'agent n'a jamais change de couche » -- une observation, pas une
+    absence. Z_INERTE est donc CORRECT ici, et lui ajouter une garde « donnees vides » serait une
+    erreur. Le defaut de vide est chez son APPELANT (`measure_arm`, cohorte vide), pas chez lui."""
+    from tools.vertical_world_probe import classify_vertical_signal
+    assert classify_vertical_signal(0.0, 0.0)["verdict"] == "Z_INERTE"
+
+
+def test_classify_storage_regime_is_reachable_by_the_ratchet_now():
+    """Cette fonction etait DEJA calibree (P2.31) mais INVISIBLE au cliquet faute de motif : elle
+    n'apparaissait ni comme calibree ni comme dette. Le motif `classify_*` la rend comptable."""
+    import tools.check_instrument_calibration as C
+    assert "classify_storage_regime" in C.scan_instruments()
+
+
+def test_classify_record_ranks_a_world_scoped_null_above_a_learner_scoped_one():
+    """L'instrument de RETRO-AUDIT : il classe les records graves par risque de conclusion fabriquee.
+    Propriete qui porte tout son tri -- un nul qui conclut sur LE MONDE est plus risque qu'un nul
+    portant sur un apprenant, parce qu'il generalise plus loin que sa mesure."""
+    import os
+    import tempfile
+
+    from tools.retro_audit_records import classify_record
+
+    def _classe(corps):
+        """`classify_record` prend un CHEMIN, pas du texte : on écrit un record jetable."""
+        chemin = os.path.join(tempfile.mkdtemp(), "r.md")
+        with open(chemin, "w", encoding="utf-8") as fh:
+            fh.write("---\nid: EDR-999\ntype: EDR\nverdict: NEUTRE\n---\n\n" + corps)
+        return classify_record(chemin)
+
+    monde = _classe("Le MONDE n'exige pas cette capacite : aucun effet mesure.")
+    appr = _classe("Ce learner n'apprend pas la tache : aucun effet mesure.")
+    assert monde is not None and appr is not None
+    assert monde["risque"] >= appr["risque"], (
+        f"un nul portant sur LE MONDE generalise plus loin que sa mesure qu'un nul portant sur un "
+        f"apprenant : {monde['risque']} vs {appr['risque']}")

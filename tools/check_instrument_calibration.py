@@ -40,6 +40,12 @@ _INSTRUMENT_PATTERNS = (
     re.compile(r"^def\s+(measure_\w+)\s*\(", re.M),
     re.compile(r"^def\s+(\w+_survival_eras)\s*\(", re.M),
     re.compile(r"^def\s+(run_\w*(?:probe|diagnostic|ablation|validation)\w*)\s*\(", re.M),
+    # ⚠️ QUATRIEME angle mort, trouve le 2026-09-01 : aucun motif ne couvrait `classify_*`. Or ce sont
+    # ELLES qui PRONONCENT le verdict -- `classify_storage_regime` rend « STORAGE_REQUIRED », et
+    # l'instrument detecte qui l'appelle ne fait que le relayer. Elles etaient donc ni calibrees, ni
+    # meme comptees comme dette. L'heuristique est faillible sur QUATRE axes desormais connus : ce
+    # qu'elle cherche, OU elle cherche, comment elle IDENTIFIE (collisions), et sous quels VERBES.
+    re.compile(r"^def\s+(classify_\w+)\s*\(", re.M),
     # Élargi le 2026-07-21 : le motif précédent ratissait moins large que sa docstring ne le promettait.
     # Trouvé en y tombant moi-même — `run_linear_sanity` (qui produit oracle/plancher/ratio/verdict) est
     # entré dans le dépôt SANS que le cliquet bronche. Le pire angle mort était `run_cog_demand_map` :
@@ -137,7 +143,7 @@ def scan_calibrated():
         return set()
     known = scan_instruments()
     collisions = scan_collisions()
-    out = set()
+    out, refusees = set(), []
     for name, branches in (declared or {}).items():
         # Une déclaration peut être QUALIFIÉE : "tools/foo.py::run_probe" — obligatoire dès que le nom
         # est ambigu, sinon on validerait des homonymes jamais testés (cf. `scan_collisions`).
@@ -146,9 +152,16 @@ def scan_calibrated():
         if bare not in known:
             continue                                  # déclaration périmée : ignorée, pas de faux vert
         if bare in collisions and not qualified:
-            continue                                  # AMBIGUË : refusée tant qu'elle n'est pas qualifiée
+            refusees.append(bare)                     # AMBIGUË : refusée tant qu'elle n'est pas qualifiée
+            continue
         if isinstance(branches, (list, tuple, set)) and branches:
             out.add(bare)
+    # ⚠️ NE PAS REFUSER EN SILENCE (2026-09-01). La regle de qualification a REJETE une declaration
+    # ecrite le jour meme, et son auteur a rapporte « 81 calibres » sans voir que l'une des trois
+    # n'avait pas pris : le compteur monte de 2 au lieu de 3, rien ne le dit. Un rejet muet fait croire
+    # a l'auteur qu'il a declare ce qu'il n'a pas declare -- exactement la classe du « drop silencieux »
+    # corrigee le matin meme sur la liste blanche de frontmatter.
+    scan_calibrated.refusees = sorted(set(refusees))
     return out
 
 
@@ -255,6 +268,11 @@ def main(argv=None):
     if args.report and faux_positifs:
         for n, motif in sorted(faux_positifs.items()):
             print(f"  [PAS UN INSTRUMENT] {n}  ({instruments[n]})  -> {motif}")
+    refusees = getattr(scan_calibrated, "refusees", [])
+    if refusees:
+        print(f"⚠️  {len(refusees)} declaration(s) CALIBRATED REFUSEE(S) (nom ambigu, non qualifie) : "
+              f"{', '.join(refusees)}")
+        print("    -> les qualifier « fichier.py::fonction », sinon elles ne comptent PAS.")
     if collisions:
         # ⚠️ Ne PAS laisser ce chiffre implicite : le total réel est len(instruments) + masquees.
         print(f"⚠️  {len(collisions)} nom(s) en COLLISION -> {masquees} définition(s) INVISIBLE(S) "
