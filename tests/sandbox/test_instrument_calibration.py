@@ -28,7 +28,31 @@ from tools.warmstart_evolution_inworld import _torch_survival_eras  # noqa: E402
 # comptait un instrument calibré dès que son nom apparaissait dans ce fichier, ce qui masquait une
 # couverture PARTIELLE (classe E4 — une vérification qui ne peut pas échouer).
 # `["*"]` = instrument sans branches. Ajouter une branche ici EXIGE d'ajouter le cas de test.
+# Fonctions capturees par l'HEURISTIQUE DE NOMMAGE mais qui ne produisent AUCUNE affirmation
+# scientifique. La declaration exige un MOTIF : on ne se debarrasse pas d'une ligne, on justifie
+# qu'elle n'a rien a faire la. Sans ce mecanisme, le baseline confondait « dette reelle » et « faux
+# positif », et le compteur de non-calibres ne disait pas ce qu'il annoncait.
+NOT_AN_INSTRUMENT = {
+    "tools/is_machine_idle.py::verdict": "decide si la MACHINE est inoccupee (processus biosphere "
+               "actifs, age du WAL) pour ordonnancer des jobs. Infrastructure, aucune affirmation "
+               "sur le monde ni sur un agent.",
+}
+
 CALIBRATED = {
+    # P2.28 (2026-09-01) : les 8 derniers verdicts PURS. AUCUN defaut -- c'est le resultat. Trois
+    # sont exemplaires et gardent chacun une chose DIFFERENTE : la TAILLE D'ECHANTILLON
+    # (_verdict_coordination, n>=20), le PREREQUIS d'entonnoir (_verdict_craft_wall, sans forage le
+    # craft ne veut rien dire), et le fait que LA QUESTION SOIT BIEN POSEE (readout_verdict : si le
+    # plafond supervise ne depasse pas le hasard, juger le RL n'apprend rien). Trois questions
+    # distinctes ; un instrument peut echouer sur l'une en reussissant les autres.
+    "_verdict_coordination": ["sample-size", "coordinated", "independent"],
+    "_verdict_craft_wall": ["funnel-prerequisite", "wall-confirmed", "monotone"],
+    "readout_verdict": ["invalid-target", "rl-recovers", "credit-gated"],
+    "credit_verdict": ["bias-not-rarity", "rarity-also-fatal"],
+    "density_verdict": ["bias-is-fatal"],
+    "_verdict_qd_rescue": ["absolute-floor", "rescue", "harms", "neutral"],
+    "_verdict_retention": ["absolute-floor", "lever", "policy-locked"],
+    "dreaming_verdict": ["four-cases", "measured-zero:concludes"],
     # P2.27 (2026-09-01) : sondage SYSTEMATIQUE des verdicts de sondes sur entree vide. 11 etaient
     # deja corrects (levee / INDETERMINE / INVALID_TARGET) et sont geles comme tels ; 3 rendaient une
     # affirmation de FOND, NEGATIVE, sur zero donnee -- dont "AUTEL_MORT" et "N_EMERGE_PAS", deux
@@ -2749,3 +2773,94 @@ def test_the_eleven_already_correct_verdicts_stay_correct():
     assert nav_verdict(0.0, 0.0, 0.0, 0.0) == "INVALID_TARGET"
     assert energy_verdict(0.0, 0.0, 0.0) == "INVALID_TARGET"
     assert unresolved_verdicts([]) == []
+
+
+# ======================================================================================================
+# P2.28 (2026-09-01) — les 8 derniers verdicts PURS. Tous etaient DEJA corrects ; on gele leurs branches.
+#
+# Aucun defaut ici, et c'est le resultat. Trois sont meme exemplaires, chacun gardant une chose
+# DIFFERENTE — et c'est ce trio qui montre ce qu'une garde doit verifier :
+#   `_verdict_coordination` verifie la TAILLE D'ECHANTILLON (n >= 20 des deux cotes) ;
+#   `_verdict_craft_wall`   verifie le PREMIER ETAGE de l'entonnoir (sans forage, le craft ne veut rien
+#                           dire -> INDETERMINE) ;
+#   `readout_verdict`       verifie que LA CIBLE EST APPRENABLE (si le plafond supervise ne depasse pas
+#                           le hasard, juger le RL n'a aucun sens -> INVALID_TARGET).
+# Trois questions distinctes : « ai-je assez de donnees ? », « le prerequis est-il rempli ? », « la
+# question est-elle bien posee ? ». Un instrument peut echouer sur l'une en reussissant les autres.
+# ======================================================================================================
+
+def test_coordination_verdict_guards_its_SAMPLE_SIZE():
+    """n < 20 d'un cote suffit a refuser : un delta calcule sur 3 chasses n'est pas un delta."""
+    from tools.tom_coordination import _verdict_coordination
+    assert _verdict_coordination({"n_with": 5, "n_alone": 100, "delta": 0.9}) == "INDETERMINE"
+    assert _verdict_coordination({"n_with": 50, "n_alone": 50, "delta": 0.5}) == "COORDINATED"
+    assert _verdict_coordination({"n_with": 50, "n_alone": 50, "delta": 0.01}) == "INDEPENDENT"
+
+
+def test_craft_wall_verdict_guards_its_FUNNEL_PREREQUISITE():
+    """Sans forage (< 0.10), le taux de craft ne mesure rien : l'etage amont est vide."""
+    from tools.competence_profile import _verdict_craft_wall
+    assert _verdict_craft_wall({"frac_forage": 0.05, "frac_craft": 0.0, "frac_apex": 0.0}) == "INDETERMINE"
+    assert _verdict_craft_wall({"frac_forage": 0.80, "frac_craft": 0.02,
+                                "frac_apex": 0.30}) == "CRAFT_WALL CONFIRME"
+    assert _verdict_craft_wall({"frac_forage": 0.80, "frac_craft": 0.60,
+                                "frac_apex": 0.40}) == "ECHELLE MONOTONE"
+
+
+def test_readout_verdict_guards_that_the_QUESTION_IS_WELL_POSED():
+    """⚠️ La garde la plus subtile des trois : si le plafond SUPERVISE ne depasse pas le hasard, la
+    cible est mal posee et juger le RL dessus produirait un « CREDIT_GATED » qui n'apprend rien sur le
+    credit. L'instrument refuse de repondre a une mauvaise question."""
+    from tools.nav_readout_trainability import readout_verdict
+    assert readout_verdict(0.52, 0.51, 0.50) == "INVALID_TARGET"
+    assert readout_verdict(0.90, 0.85, 0.50) == "RL_RECOVERS"
+    assert readout_verdict(0.90, 0.52, 0.50) == "CREDIT_GATED"
+
+
+def test_the_nav_pair_separates_BIAS_from_RARITY_and_SPARSITY():
+    """Deux instruments jumeaux qui attribuent un effondrement a la bonne cause. Les confondre
+    inverserait le correctif recommande (retirer un biais contre densifier un signal)."""
+    from tools.nav_credit_structure import credit_verdict
+    from tools.nav_signal_density import density_verdict
+    assert credit_verdict([0.9], [0.1]) == "BIAS_NOT_RARITY"
+    assert credit_verdict([0.1], [0.1]) == "RARITY_ALSO_FATAL"
+    assert density_verdict([0.9, 0.8], [0.1, 0.2]) == "BIAS_IS_FATAL"
+
+
+def test_qd_rescue_and_retention_need_an_ABSOLUTE_floor_not_only_a_delta():
+    """⚠️ Propriete partagee et facile a perdre : un gain de +0.10 sur un craft quasi nul (0.001 ->
+    0.101) ne « sauve » rien. Les deux exigent le delta ET un plancher absolu. Sans le plancher, un
+    bruit sur un plancher deviendrait un levier."""
+    from tools.qd_tier_rescue import _verdict_qd_rescue
+    from tools.craft_retention_probe import _verdict_retention
+    assert _verdict_qd_rescue({"frac_craft": 0.00}, {"frac_craft": 0.15}) == "QD_RESCUE_CRAFT CONFIRME"
+    assert _verdict_qd_rescue({"frac_craft": 0.15}, {"frac_craft": 0.00}) == "QD_NUIT"
+    assert _verdict_qd_rescue({"frac_craft": 0.10}, {"frac_craft": 0.12}) == "QD_NEUTRE"
+    assert _verdict_retention({"frac_craft": 0.00}, "cond", {"frac_craft": 0.20}).startswith("RETENTION_LEVER")
+    assert _verdict_retention({"frac_craft": 0.10}, "cond", {"frac_craft": 0.11}) == "POLICY_LOCKED"
+
+
+def test_dreaming_verdict_covers_its_four_cases_on_MEASURED_values():
+    """Gate 4-cas (survit x paye). Ses entrees sont des scalaires MESURES : des zeros y sont une
+    observation (« aucun ecart »), pas une absence — « MORT » sur des zeros est donc CORRECT, et ce
+    test empeche qu'on y ajoute une garde « entree vide » qui serait une erreur."""
+    from tools.dreaming_probe import dreaming_verdict
+    assert dreaming_verdict(0.0, 0.0, 0.0, 1.0) == "MORT"
+    assert dreaming_verdict(0.1, -0.5, 0.1, 1.0) == "SURVIT_ET_PAYE"
+    assert dreaming_verdict(0.1, -0.5, 0.0, 1.0) == "SURVIT_PAS_PAYE"
+    assert dreaming_verdict(-0.9, 0.5, 0.1, 1.0) == "PAYE_PAS_SURVIT"
+
+
+def test_a_declared_NON_INSTRUMENT_must_be_QUALIFIED_when_its_name_collides():
+    """⚠️ Garde du mecanisme ajoute le meme jour. `verdict` existe dans DEUX fichiers : declarer le nom
+    NU exempterait aussi `src/seed_ai/eval_harness.py::verdict`, qui est peut-etre un vrai instrument.
+    Le defaut avait ete corrige pour `CALIBRATED` le matin, et REINTRODUIT ici l'apres-midi."""
+    import tools.check_instrument_calibration as C
+    declares = C.scan_not_instruments()
+    collisions = C.scan_collisions()
+    for nom in declares:
+        nu = nom.split("::")[-1]
+        if nu in collisions:
+            assert "::" in nom, (
+                f"« {nu} » est defini dans {len(collisions[nu])} fichiers : une declaration NUE "
+                f"exempterait des homonymes jamais examines")

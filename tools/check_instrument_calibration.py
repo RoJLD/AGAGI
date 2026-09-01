@@ -152,6 +152,27 @@ def scan_calibrated():
     return out
 
 
+def scan_not_instruments():
+    """{nom: motif} — fonctions capturees par l'HEURISTIQUE DE NOMMAGE mais qui ne produisent AUCUNE
+    affirmation scientifique.
+
+    ⚠️ POURQUOI CE MECANISME EXISTE (2026-09-01). Le baseline confondait deux choses tres differentes :
+    un instrument REELLEMENT non calibre (une dette) et une fonction qui n'est PAS un instrument (un
+    faux positif de l'heuristique). Un lecteur ne pouvait donc pas savoir combien de vraies lacunes
+    restaient -- le compteur ne disait pas ce qu'il annoncait. La declaration est EXPLICITE et exige un
+    MOTIF : on ne se debarrasse pas d'une ligne, on justifie qu'elle n'a rien a faire la."""
+    if not os.path.exists(_CALIB_TESTS):
+        return {}
+    src = open(_CALIB_TESTS, encoding="utf-8").read()
+    m = re.search(r"^NOT_AN_INSTRUMENT\s*=\s*(\{.*?^\})", src, re.M | re.S)
+    if not m:
+        return {}
+    try:
+        return ast.literal_eval(m.group(1)) or {}
+    except (ValueError, SyntaxError):
+        return {}
+
+
 def scan_declared_branches():
     """{instrument: [branches déclarées]} — pour le rapport, afin de rendre visible une couverture
     PARTIELLE (ex. `grab_off` couvert, `perception` non)."""
@@ -185,7 +206,21 @@ def main(argv=None):
 
     instruments = scan_instruments()
     calibrated = scan_calibrated()
-    uncalibrated = sorted(set(instruments) - calibrated)
+    # ⚠️ MEME REGLE QUE POUR `CALIBRATED` : une declaration NUE sur un nom en COLLISION est REFUSEE.
+    # Sans ca, declarer « verdict » non-instrument (is_machine_idle) exempterait AUSSI
+    # `src/seed_ai/eval_harness.py::verdict`, qui en est peut-etre un. Defaut reintroduit puis
+    # rattrape le 2026-09-01, dans le mecanisme meme ecrit pour rendre le compteur plus honnete.
+    _coll = scan_collisions()
+    faux_positifs = {}
+    for n, r in scan_not_instruments().items():
+        qualifie = "::" in n
+        nu = n.split("::")[-1] if qualifie else n
+        if nu not in instruments:
+            continue
+        if nu in _coll and not qualifie:
+            continue                       # ambigue : a qualifier « fichier.py::fonction »
+        faux_positifs[nu] = r
+    uncalibrated = sorted(set(instruments) - calibrated - set(faux_positifs))
 
     if args.update_baseline:
         os.makedirs(os.path.dirname(_BASELINE), exist_ok=True)
@@ -215,7 +250,11 @@ def main(argv=None):
     collisions = scan_collisions()
     masquees = sum(len(v) - 1 for v in collisions.values())
     print(f"instruments détectés : {len(instruments)} | calibrés : {len(calibrated)} | "
-          f"non calibrés : {len(uncalibrated)} (dont {len(nouveaux)} NOUVEAUX)")
+          f"non calibrés : {len(uncalibrated)} (dont {len(nouveaux)} NOUVEAUX)"
+          + (f" | non-instruments déclarés : {len(faux_positifs)}" if faux_positifs else ""))
+    if args.report and faux_positifs:
+        for n, motif in sorted(faux_positifs.items()):
+            print(f"  [PAS UN INSTRUMENT] {n}  ({instruments[n]})  -> {motif}")
     if collisions:
         # ⚠️ Ne PAS laisser ce chiffre implicite : le total réel est len(instruments) + masquees.
         print(f"⚠️  {len(collisions)} nom(s) en COLLISION -> {masquees} définition(s) INVISIBLE(S) "
@@ -228,6 +267,8 @@ def main(argv=None):
     if args.report:
         br = scan_declared_branches()
         for n in sorted(instruments):
+            if n in faux_positifs:
+                continue                   # deja liste ci-dessus comme « PAS UN INSTRUMENT »
             mark = "OK " if n in calibrated else "-- "
             suffix = f"  [branches: {', '.join(br[n])}]" if n in br else ""
             print(f"  {mark} {n}  ({instruments[n]}){suffix}")
