@@ -78,6 +78,29 @@ soit aveugle à la cognition — ici elle la paierait cher. C'est que **la séle
 qu'elle paierait**. Le verrou est en amont de l'objectif, dans la capacité de l'opérateur de variation à
 produire le câblage, et il est indépendant de la présence ou non d'une récompense.
 
+## ✅ CONFOND ÉCARTÉ par mesure (2026-08-04) — l'avantage vient bien de la LECTURE
+
+Le contrôle positif de ce record utilise un lecteur câblé **avec diagonale réflexe** (`diag=+10`,
+substrat sans mémoire), que les agents évolués n'ont pas. L'avantage de survie pouvait donc venir en
+partie de l'absence de dérive d'état (classe E6) plutôt que de la lecture. Contrôle manquant, mesuré
+(5 seeds × 24 agents × 200 ticks, `hazard=15`, sous-tâche `throw`) :
+
+| génome | âge méd | taux d'erreur |
+|---|---|---|
+| non-lecteur SANS réflexe | 8.0 | 0.506 |
+| non-lecteur AVEC réflexe | 9.0 | 0.500 |
+| **LECTEUR AVEC réflexe** | **23.0** | **0.000** |
+| LECTEUR SANS réflexe | 14.5 | 0.305 |
+
+**Le réflexe seul achète +1.0 an (7 % de l'écart) ; la lecture à réflexe égal en achète +14.0 (93 %).**
+La prémisse « lire paie » tient, et le confond est écarté par la mesure plutôt que par l'argument.
+
+⚠️ **Correction de portée à [[EDR-EVO-005]] et à la classe E6** : un lecteur SANS réflexe atteint quand
+même un taux d'erreur de **0.305** (contre 0.500 à la chance) et gagne +6.5 ans — il lit PARTIELLEMENT
+malgré la dérive. La « conjonction obligatoire » (câbler ET dé-mémoriser) était mesurée sur `move`, un
+`argmax` à 8 voies que la dérive arbitre entièrement ; sur un seuil de SIGNE elle n'est que partiellement
+nécessaire. La règle était surétendue depuis une seule sous-tâche.
+
 ## Portée (hedges)
 
 * n=12 par bras borne une FRÉQUENCE (borne sup ~22 %), pas une impossibilité.
