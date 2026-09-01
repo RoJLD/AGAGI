@@ -14,6 +14,78 @@ et le coût estimé.
 
 ---
 
+## 🕳️ 2026-09-01 — LACUNES ET ANGLES MORTS recensés (balayage 6 lecteurs + critique de complétude)
+
+> Consignés **en passant**, conformément à la règle de `CLAUDE.md` §« Consigner en PASSANT ». Chacun
+> porte sa preuve ; aucun n'était l'objet de la tâche en cours. Non triés par valeur — par domaine.
+
+### Dans la machinerie de calibration elle-même (le plus grave : l'outil qui compte se trompe)
+
+* **Collision de noms — 8 instruments réels INVISIBLES.** `tools/check_instrument_calibration.py:82`
+  indexe par `name` seul (`found.setdefault(name, ...)`). Deux fonctions homonymes dans deux fichiers
+  n'en font qu'une : déclarer l'une calibrée **verdirait l'autre, jamais testée**. Clé à passer en
+  `(chemin, nom)`, et `CALIBRATED` à indexer `"fichier::fonction"`. **À faire AVANT de continuer à
+  calibrer** — sinon le compteur monte sans que la couverture monte.
+* **Le registre `CALIBRATED` vit dans UN fichier codé en dur** (`_CALIB_TESTS`, ligne 35). Dans un arbre
+  partagé entre sessions parallèles, ça garantit les conflits : toute calibration, quel que soit son
+  domaine, doit toucher le même fichier. Piste : accepter des déclarations depuis plusieurs fichiers.
+* **`verdict_from_survival_cmps` ne PEUT PAS s'auto-garder.** Il reçoit des comparaisons déjà calculées
+  (`{p, cliff, ratio}`) et non les distributions : la garde de dégénérescence armée sur `s2_verdict`
+  (2026-09-01) ne peut pas s'y étendre sans changer son contrat. Il faut que l'appelant lui PASSE le
+  résultat de `s2_degeneracy`. Tant que ce n'est pas fait, il existe un chemin non gardé vers le verdict.
+* **`check_preregistration_applied.py` n'inspecte que 6 règles scellées sur 23** et ignore le champ
+  `instruments_autorises` — celui que la clôture d'E11 avait inventé. Le cliquet couvre moins que ce que
+  son nom promet (classe E4).
+* **`retro_audit_records.py` n'a jamais été rétro-appliqué** : `58 records examinés | 27 à EXAMINER
+  (risque >= 2)`, dont EDR-S2-009 au risque maximal 4. La garde de la classe « garde jamais
+  rétro-appliquée » est elle-même en attente de rétro-application. C'est E14 au carré.
+
+### Dans le graphe de records
+
+* **Le parseur IGNORE SILENCIEUSEMENT 101 arêtes déclarées — dont TOUTES les arêtes de rétractation**
+  (`retracted_by`, `corrects`, `corrected_by`, `supersedes_mechanism`…). Un graphe de records qui ne
+  lit pas ses rétractations ne peut pas signaler une conclusion périmée : c'est le défaut le plus grave
+  de la liste.
+* **Deux records `accepted` s'affirment le CONTRAIRE** sans rétractation ni renvoi : EDR-134
+  (`InWorld_Torch_vs_Legacy_Inconclusive_Organs_Are_LoadBearing`) contre EDR-135 (`LegacyCore_Contr…`).
+* **`docs/REF/REF-AGI-TAXONOMY.md` n'a AUCUN frontmatter** → le nœud n'existe pas dans le graphe et
+  **3 liens `adopts` pointent dans le vide**. La collision EDR-135 **détourne** en plus l'arête de la
+  porte G4 (`docs/SDR/G4_agent_anticipates.md:7`), et le validateur affiche `problèmes=0`.
+* **Canonicalisation EDR 126/129/130 ↔ 155/156/157 : dette CONFIRMÉE et résoluble sans AUCUNE perte** —
+  `diff --strip-trailing-cr` des 3 paires : seules les lignes d'`id` et les renvois diffèrent.
+* **16 des 42 orphelins tombent en DEUX éditions** (vérifié par simulation) — dé-orphanisation bon marché.
+
+### Dans la suite de tests (le vert qui ne veut rien dire)
+
+* **`tests/test_fixes.py` : 5 tests AVALENT leur propre `AssertionError` et passent VERT**
+  (`:29-33` — `assert` puis `except Exception: return False`). Un test qui ne peut pas échouer.
+* **Le portail CI ne lance que 8 fichiers sur 207** (`.github/workflows/ci.yml:26-38`) : le vert du gate
+  ne dit presque rien.
+* **~50 tests « smoke » assertent `verdict in <co-domaine COMPLET>`** — tautologie payée au prix d'une
+  simulation (ex. `tools/disjoint_heads_v3.py:49-60`).
+* **4 tests sans AUCUNE assertion**, dont 3 dont le NOM promet une propriété non vérifiée ; deux
+  `assert True` décoratifs (`tests/sandbox/test_ntm_compiler.py:71-75`).
+* **`tests/test_frontend_build.py`** : skip silencieux si npm absent, build non vérifié, dépasse le
+  timeout global.
+
+### Dans le registre d'erreurs
+
+* **Le registre viole sa propre règle « pas de troisième fois »** : E10 compte **3** occurrences
+  `documenté` (4, 5, 6) et sa cellule affirme encore « occurrence unique » ; E8 en a 2 et n'a jamais été
+  statuée. La règle exige promotion en `exécutable` ou reclassement.
+* **E15 est la seule classe dont la « garde » est une phrase adressée à un humain**, alors qu'elle est
+  trivialement exécutable (vérifier `n` PAR BRAS avant de comparer des médianes).
+* **E19 est calibrée dans les deux sens mais n'est appelée par AUCUN dispositif** ; seuls 3 outils sur
+  183 importent le pré-vol. Une garde que rien n'invoque ne garde rien.
+
+### En production
+
+* **`PRESERVE_DIMS` par défaut à OFF** (`tools/map_elites_compare.py:38`) : le chemin d'aplatissement
+  64/126 est atteignable PAR DÉFAUT et **échoue en SILENCE**. Même famille que la dette d'indices réglée
+  ce jour — un défaut qui ne lève pas.
+
+---
+
 ## 📌 2026-09-01 — état de session : dette réglée, D2 en vol, DEUX décisions en attente
 
 **Réglé** — la dette de production d'indices ([[EDR-EVO-024]], commit `d4844fb`). Détail dans le bloc
@@ -92,29 +164,25 @@ de recherche ont échoué à changer cette probabilité (009 ciblage=triche · 0
 remplie — verdict `ISOLATED_READER_NOT_ELEVATED_CLOSURE_HOLDS` : **un lecteur isolé à 1/12, NON élevé**,
 la clôture tient. *(Cette entrée est restée listée « à faire » après coup ; corrigé le 2026-09-01.)*
 
-**D2 — Horizon d'un autre ORDRE : 🔬 EN COURS, c'est [[EDR-EVO-026]].** Le seul axe restant que rien
-ne recoupe. Il ne s'agit pas de « faire tourner plus longtemps » mais d'un **test discriminant** entre deux
-modèles qui expliquent également bien tout l'arc et prédisent l'inverse à horizon long :
+**D2 — Horizon d'un autre ORDRE : ⚠️ NON CONCLUANT par DÉGRADATION ([[EDR-EVO-026]]).** Le dispositif
+a tenu toutes ses promesses — **21,3× de tirages** (447 → 9 508 par lignée), dénominateur strictement
+constant (N=172 des deux côtés), zéro extinction, zéro abandon, les **trois contrôles de manipulation
+passent**. Et pourtant : **0/24 des deux côtés, Fisher p = 1.000**, non lisible.
 
-| modèle | énoncé | prédiction à 21× l'horizon (n=24) |
-|---|---|---|
-| **A — rareté combinatoire** | les tirages sont INDÉPENDANTS | 1−(1−0.02)²¹ ≈ **8/24 lecteurs** |
-| **B — non-accumulation** ([[EDR-EVO-010]]) | les tirages ne se composent pas | **~0-1/24**, inchangé |
+**Pourquoi ce n'est PAS « modèle B confirmé »** : la santé de lignée du bras long s'effondre à **0,57×**
+du standard (`age_fin` 7,0 → 4,0), sous le seuil de 0,70 posé dans le sceau. Le bras long ne pouvait pas
+réussir — classe **E2**. La DV qui l'a attrapé avait été déclarée d'avance parce que le smoke de débit
+montrait un coût par ère qui BAISSE, signe d'une lignée qui survit de moins en moins bien. **Sans elle,
+ce record affirmerait aujourd'hui une conclusion fabriquée.**
 
-⚠️ **Chiffres corrigés le 2026-09-01.** La première version de ce bloc prenait pour base 0.083, tirée du
-**seul** « 1/12 » d'un run. La base honnête est POOLÉE sur tout l'arc : ~2-3 lecteurs sur ~130 lignées,
-soit **p ≈ 0.02** — ce qui divise par deux l'effet prédit et a imposé de passer n de 12 à 24 pour garder
-la puissance. Estimer un taux de base sur l'observation la plus saillante est la classe **E9**.
+**Fait acquis, contraignant pour toute suite** : dans ce substrat, un horizon long **dégrade** la lignée
+même croissance coupée — ce sont `mutate_weights` et `prune` seuls qui érodent sur 735 ères. **On ne peut
+pas accumuler des tirages en PROFONDEUR.**
 
-Cohérence qui rend A crédible malgré tout : le modèle A prédit un petit nombre de lecteurs isolés au
-régime standard — ce que l'arc observe effectivement ([[EDR-EVO-007]], [[EDR-EVO-019]] : 1/12, écartés
-comme non élevés). Ces lecteurs isolés ne seraient pas du bruit, ce serait **le taux de base**.
-
-⚠️ **Le coût était surestimé d'un ordre de grandeur.** Le smoke de débit (`evo025_throughput_smoke.py`)
-mesure 735 ères = **5 min/seed**, pas « plusieurs heures » : le coût par ère **baisse** (×0.73). Dans ce
-dépôt le coût suit le succès, donc un coût qui baisse veut dire que **la lignée survit de moins en moins
-bien** — d'où le confond scellé (un nul pourrait être « pas d'accumulation » OU « dégradation »), désambiguïsé
-par une DV de santé de lignée instrumentée dans **les deux** bras.
+**➡️ D2-bis, la voie qui reste** : accumuler les tirages **en LARGEUR** (beaucoup de lignées courtes en
+parallèle) plutôt qu'en profondeur — la charge mutationnelle ne s'accumule alors pas, et le dénominateur
+reste constant. C'est le seul design qui sépare encore A de B. *Coût : comparable (même total de tirages),
+mais parallélisable et sans dégradation.*
 
 **D3 — Changer le MOTEUR, pas la recherche.** Un substrat où la variation ne soit pas un tirage d'arêtes
 isolées. ⚠️ **L'avertissement de doublon est PÉRIMÉ** : ce travail parallèle est LIVRÉ et gravé (`EDR-BILINEAR`, 2026-08-03 — le terme bilinéaire fait passer `(q+key)%K` de nul à appris). D3 doit donc être re-formulé à partir de ce qui existe, pas coordonné avec un chantier fini.
