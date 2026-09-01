@@ -14,6 +14,27 @@ et le coût estimé.
 
 ---
 
+## ⚠️ 2026-08-04 (soir) — DETTE DE PRODUCTION ouverte par EVO-021/022
+
+**`add_node` ne met à jour NI `num_inputs` NI `num_outputs`** (`src/seed_ai/mutation.py:54-73`). Il insère
+une ligne et une colonne à l'indice `j` ; tous les nœuds ≥ `j` glissent, mais les bornes des blocs
+d'entrée et de sortie restent figées. **Insérer dans le bloc de sortie re-mappe donc quelle décision
+chaque nœud pilote.**
+
+Mesuré (`tools/evo_runs/probe_output_block_shift.py`, 200 insertions sur un lecteur câblé) : **56 % des
+insertions DÉSALIGNENT** une arête câblée — elle survit intacte mais ne pilote plus la même sortie. Ça
+explique les ~65 % de destruction d'un lecteur par UN `add_node` ([[EDR-EVO-021]]).
+
+⚠️ **Ne PAS corriger à la légère.** Changer `add_node` modifierait le comportement de TOUT l'arc EVO et
+casserait la comparabilité de tous les runs déjà gravés. À traiter comme une **migration** (avec
+re-mesure des records concernés), pas comme un patch. Priorité : haute, mais après décision explicite.
+
+**Second volet, plus étroit** : `new_W[i, j] = 1.0` utilise l'ancien `i` alors que les lignes `i ≥ j` ont
+glissé — off-by-one pour `i ≥ j`. Mesuré à 0 % sur une soupe fraîche (les arêtes y vont d'entrée à
+sortie), non nul sur un génome à auto-boucles. Même migration.
+
+---
+
 ## ⏱️ 2026-08-04 — ARC EVO CLOS (005→018). Trois directions restantes, priorisées
 
 **Énoncé de clôture** : dans ce substrat, la découverte d'un câblage cognitif ne s'obtient qu'en

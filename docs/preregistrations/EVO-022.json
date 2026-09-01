@@ -1,0 +1,16 @@
+{
+  "name": "EVO-022",
+  "rule": {
+    "controle_de_manipulation_OBLIGATOIRE": "Le patch doit REDUIRE la destruction d'un lecteur cable par UN add_node : la sonde d'EVO-021 rend 6/10 detruits en baseline ; le bras traite doit faire nettement mieux. Si la destruction ne baisse pas, le bras ne teste RIEN et le taux de lecteurs ne doit pas etre lu.",
+    "design": "2 bras x 12 seeds : add_node d'origine / add_node a diagonale heritee. Sous-tache `throw`, hazard=15, W=0 (survie seule) -- strictement le dispositif d'EVO-018, dont le baseline est 0/12.",
+    "dv_primaire": "taux de seeds LECTEURS (`measure_decision_saliency` > 0.5 sur obs[5] -> logits[8])",
+    "dv_survie": "age median et taux d'erreur, surveilles dans les deux bras",
+    "garde_cout": "budget_agent_ticks (plafond DETERMINISTE, E13) -- PAS budget_s, dont la censure est correlee au succes evolutif. Abandons COMPTES et rapportes.",
+    "levier": "`add_node` donne au noeud INSERE la diagonale de sa DESTINATION (le noeud j dont le chemin d'entree est scinde), au lieu de 0. Purement structurel : aucune connaissance de la tache, aucun canal ni sortie nomme. Patch LOCAL au banc, `src/seed_ai/mutation.py` n'est jamais modifie.",
+    "puissance_declaree": "a n=12 par bras, un taux vrai de 40 % contre 0 % donne p~0.04 (detectable) ; 17 % contre 0 % donne p~0.48 (NON detectable). Ce run peut CONFIRMER un effet FORT et ne peut PAS refuter un effet faible.",
+    "question": "EVO-021 a mesure que `add_node` DETRUIT un lecteur cable 6 fois sur 10 en une seule insertion : il scinde l'arete et insere un noeud a diagonale NULLE (delta=0.5, noeud a MEMOIRE), convertissant un chemin reactif en chemin DERIVANT que la derive (E6) noie. Les six leviers refutes de l'arc attaquaient tous la DECOUVERTE ; aucun n'a touche la FRAGILITE. Preserver le caractere temporel du chemin lors d'une insertion leve-t-il quelque chose ?",
+    "record": "EDR-EVO-022",
+    "regle_de_lecture_continue": "Le verdict est une FONCTION du taux, pas une branche : Fisher exact bilateral traite vs baseline. p < 0.05 -> la FRAGILITE etait une composante REELLE du verrou, et l'arc rouvre sur un levier agnostique. p >= 0.05 -> aucun effet demontre, quel que soit le nombre brut de lecteurs ; s'il y en a >= 1 ils sont rapportes comme OBSERVATIONS ISOLEES et explicitement NON elevees (lecon E9, EVO-006/019/020). Aucune valeur intermediaire n'echappe a cette lecture."
+  },
+  "seal": "345b95ee7ad950b9584146a66072489ec6e39087b4f73f5ee69a74ecd9afa3ce"
+}

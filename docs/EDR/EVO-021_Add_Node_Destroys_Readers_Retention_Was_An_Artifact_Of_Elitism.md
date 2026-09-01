@@ -1,9 +1,9 @@
 ---
 id: EDR-EVO-021
 type: EDR
-title: "UN SEUL add_node détruit un lecteur 6 fois sur 10 — la « rétention » d'EVO-008 était un artefact de l'élitisme"
+title: "UN SEUL add_node désaligne un lecteur 56 % du temps (le bloc de sortie glisse) — la « rétention » d'EVO-008 était un artefact de l'élitisme"
 status: active
-verdict: READERS_ARE_FRAGILE_RETENTION_IS_ELITISM
+verdict: READERS_ARE_FRAGILE_BY_OUTPUT_INDEX_SHIFT
 gate: G0
 tests: [SDR-G0]
 adopts: [REF-EXPERIMENT-PREFLIGHT]
@@ -39,11 +39,41 @@ désactivées (`weight_mutate_rate=0`, `add_connection_rate=0`, `prune_rate=0`) 
 | 4 seeds / 10 | +3.00 | **1.000** |
 | **6 seeds / 10** | **+0.00** | **0.000** |
 
-**Mécanisme, mesuré** : `add_node` **scinde** une arête existante — il met `W[i,j] = 0`, insère un nœud,
-puis recâble `i → nouveau` (poids 1.0) et `nouveau → j` (ancien poids). Le chemin survit *topologiquement*.
-Mais le nœud inséré arrive avec une **diagonale nulle**, donc `δ = sigmoid(0) = 0.5` : c'est un nœud à
-MÉMOIRE. Le chemin réactif direct devient un chemin **dérivant**, et la dérive d'état (classe **E6**) noie
-le signal — exactement le mécanisme mesuré au pré-vol d'[[EDR-EVO-005]] (+7.45 ± 9.8 après 25 ticks).
+### ⛔ Mécanisme initialement proposé — RÉFUTÉ PAR INTERVENTION (2026-08-04)
+
+La première version de ce record attribuait la destruction au **nœud inséré sans diagonale** (`δ = 0.5`,
+nœud à MÉMOIRE) qui convertirait un chemin réactif en chemin dérivant. C'était une inférence tirée de la
+structure du code, pas une intervention — et le record le signalait comme non isolé.
+
+**L'intervention a été faite ([[EDR-EVO-022]], arrêtée au pré-vol) : elle réfute ce mécanisme.** Donner au
+nœud inséré la diagonale de sa destination ne change **rien** — destruction 13/20 dans les deux bras. La
+clause scellée a stoppé le run avant toute dépense.
+
+### ✅ Mécanisme RÉEL, mesuré
+
+Un chiffre trahissait déjà la fausse piste : la destruction est de ~65 %, or le lecteur n'a **qu'une**
+arête parmi ~173 entrées non nulles — `add_node` ne peut la scinder que dans ~0.6 % des cas. **65 % ne
+peut pas venir d'une scission.**
+
+`add_node` insère une ligne et une colonne à l'indice `j`, **sans jamais mettre à jour `num_inputs` ni
+`num_outputs`**. Insérer DANS le bloc de sortie décale donc l'indice de chaque sortie : l'arête câblée
+survit intacte, mais elle ne pilote plus la même décision. Mesuré sur 200 insertions
+(`tools/evo_runs/probe_output_block_shift.py`) :
+
+| après une insertion | |
+|---|---|
+| l'arête pilote encore `throw` | 44 % |
+| **DÉSALIGNÉE** — elle survit mais pilote autre chose | **56 %** |
+| dont glissement du bloc d'ENTRÉE (`j ≤ 5`) | 0.5 % |
+
+**56 % de désalignement pour ~65 % de destruction** : la correspondance est nette. Le défaut est dans
+`src/seed_ai/mutation.py:54-73` — un vrai défaut du code de production, pas une propriété du substrat.
+
+⚠️ **Et ça corrige la réfutation que ce record faisait de la revue.** J'avais mesuré « `j < num_inputs` :
+0.0 % sur 3 000 tirages » et conclu que le décalage d'indices « ne se produit jamais en pratique ». C'était
+mesuré sur une **soupe fraîche**, où les arêtes vont d'une entrée vers une sortie (`j ≥ 64` toujours). Un
+génome porteur d'auto-boucles diagonales a un `j` uniforme sur TOUS les nœuds. La revue avait raison sur
+le fond ; c'est mon contre-test qui portait sur le mauvais régime — **E9, dans une réfutation**.
 
 `add_node_rate = 0.4` dans **tous** les runs de l'arc.
 
@@ -79,8 +109,11 @@ exemple) serait testable — et deviendrait le premier candidat agnostique non r
 * Le mécanisme (nœud inséré sans réflexe → dérive) est **inféré de la structure du code plus la mesure**,
   pas isolé par une intervention : donner au nœud inséré une diagonale à +10 et re-mesurer serait le test
   causal. Non fait.
-* Les deux bugs allégués par la revue sont réfutés **dans ce régime** ; ils restent des fragilités réelles
-  du code (`num_inputs`/`num_outputs` ne sont jamais mis à jour par `add_node`).
+* Le mécanisme retenu (décalage du bloc de sortie) est mesuré sur un lecteur CÂBLÉ. Sur un génome ÉVOLUÉ,
+  la distribution de `j` diffère (moins d'auto-boucles) — le taux de désalignement n'y est pas mesuré.
+* ⚠️ **Dette ouverte** : `add_node` ne met à jour ni `num_inputs` ni `num_outputs`. Corriger la production
+  changerait le comportement de TOUT l'arc et invaliderait la comparabilité des runs ; à traiter comme une
+  migration, pas comme un patch. Inscrit au backlog.
 
 ## Provenance
 
