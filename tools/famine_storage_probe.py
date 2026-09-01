@@ -72,6 +72,15 @@ def _new_famine(cache_enabled: bool, cycle_abundance: int, cycle_famine: int,
 def measure_genome(genome, seed, cache_enabled=True, num_agents=10, max_ticks=300,
                    cycle_abundance=60, cycle_famine=40) -> Dict:
     """Survie médiane d'une cohorte de clones du génome, + fruits portés à la 1ʳᵉ transition famine."""
+    # ⚠️ GARDE D'ARGUMENTS, EN TETE (2026-09-01). Sans elle, une cohorte vide ou un horizon nul
+    # produisait une MESURE : 0.0 rendu comme survie observee, puis lu par un verdict comme
+    # « reste au plancher ». Un argument degenere n'est pas un resultat scientifique, c'est une
+    # erreur d'appel -> on LEVE, on ne rend pas de sentinelle qui entrerait dans une moyenne.
+    # Posee AVANT la construction du monde : le refus ne coute aucune simulation.
+    if int(num_agents) <= 0 or int(max_ticks) <= 0:
+        raise ValueError(
+            f"measure_genome : argument degenere (num_agents={num_agents}, max_ticks={max_ticks}) -- "
+            "aucune mesure possible ; ne pas confondre avec une survie nulle MESUREE.")
     SeedManager(seed).seed_boundary(0)
     w = _new_famine(cache_enabled, cycle_abundance, cycle_famine)
     for _ in range(num_agents):

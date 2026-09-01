@@ -112,6 +112,15 @@ AGENTS = ("champion", "reflex_naive", "random_action")
 
 def run_diagnostic(seed=2026, K=8, num_agents=20, max_ticks=400):
     """Grille 2 régimes × 3 agents sur stoneage -> cells[regime][agent] = dict run_condition."""
+    # ⚠️ GARDE D'ARGUMENTS, EN TETE (2026-09-01). Sans elle, une cohorte vide ou un horizon nul
+    # produisait une MESURE : 0.0 rendu comme survie observee, puis lu par un verdict comme
+    # « reste au plancher ». Un argument degenere n'est pas un resultat scientifique, c'est une
+    # erreur d'appel -> on LEVE, on ne rend pas de sentinelle qui entrerait dans une moyenne.
+    # Posee AVANT la construction du monde : le refus ne coute aucune simulation.
+    if int(K) <= 0 or int(num_agents) <= 0 or int(max_ticks) <= 0:
+        raise ValueError(
+            f"run_diagnostic : argument degenere (K={K}, num_agents={num_agents}, max_ticks={max_ticks}) -- "
+            "aucune mesure possible ; ne pas confondre avec une survie nulle MESUREE.")
     from tools.s2_demand import run_condition
     from src.worlds.world_1_stoneage import Biosphere3D
     champion = load_champion_genome()

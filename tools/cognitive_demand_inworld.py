@@ -86,6 +86,15 @@ def run_credit_probe(seed=2026, eras=6, num_agents=12, max_ticks=200, base_metab
     apprend, la survie médiane MONTE sur les ères ; sinon elle reste au plancher (= verrou = crédit, pas le
     monde). Renvoie la liste des survies médianes par ère. Prérequis : corps insuffisant structurel (ver/
     trésor/alignment gatés en cognitive_demand). Borné (à froid, sans warm-start/curriculum)."""
+    # ⚠️ GARDE D'ARGUMENTS, EN TETE (2026-09-01). Sans elle, une cohorte vide ou un horizon nul
+    # produisait une MESURE : 0.0 rendu comme survie observee, puis lu par un verdict comme
+    # « reste au plancher ». Un argument degenere n'est pas un resultat scientifique, c'est une
+    # erreur d'appel -> on LEVE, on ne rend pas de sentinelle qui entrerait dans une moyenne.
+    # Posee AVANT la construction du monde : le refus ne coute aucune simulation.
+    if int(eras) <= 0 or int(num_agents) <= 0 or int(max_ticks) <= 0:
+        raise ValueError(
+            f"run_credit_probe : argument degenere (eras={eras}, num_agents={num_agents}, max_ticks={max_ticks}) -- "
+            "aucune mesure possible ; ne pas confondre avec une survie nulle MESUREE.")
     import numpy as np
     from src.worlds.world_1_stoneage import Biosphere3D
     from src.seed_ai.harness import seed_at

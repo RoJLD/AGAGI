@@ -54,6 +54,15 @@ def measure_survival(world_key: str, seed: int, backend_cls, genome=None, k_eval
     genome=None -> cohorte FRAÎCHE (tabula : mesure la learnabilité pure du substrat).
     Cohorte fixe (benchmark), sweet-spot, `memory_retriever` neutralisé (repro + anti-contention).
     L'injection `env.batch_model_cls = backend_cls` fait tourner tout le monde sur ce substrat."""
+    # ⚠️ GARDE D'ARGUMENTS, EN TETE (2026-09-01). Sans elle, une cohorte vide ou un horizon nul
+    # produisait une MESURE : 0.0 rendu comme survie observee, puis lu par un verdict comme
+    # « reste au plancher ». Un argument degenere n'est pas un resultat scientifique, c'est une
+    # erreur d'appel -> on LEVE, on ne rend pas de sentinelle qui entrerait dans une moyenne.
+    # Posee AVANT la construction du monde : le refus ne coute aucune simulation.
+    if int(k_eval) <= 0 or int(num_agents) <= 0 or int(max_ticks) <= 0:
+        raise ValueError(
+            f"measure_survival : argument degenere (k_eval={k_eval}, num_agents={num_agents}, max_ticks={max_ticks}) -- "
+            "aucune mesure possible ; ne pas confondre avec une survie nulle MESUREE.")
     import numpy as np
     from src.agents.mamba_agent import MambaAgent
     from src.seed_ai.harness import seed_at

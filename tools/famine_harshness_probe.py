@@ -31,6 +31,14 @@ def classify_storage_regime(buffer_survival: float, oracle_survival: float,
     """PUR. Le stockage est-il load-bearing ? ratio = oracle / buffer. >= min_ratio -> STORAGE_REQUIRED
     (le buffer naturel ne suffit pas, une réserve sauverait) ; sinon STORAGE_REDUNDANT (buffer suffit,
     cas EDR-155 à famine courte). buffer=0 -> epsilon (pas de division par zéro)."""
+    # ⚠️ LES DEUX BRAS MORTS ne prouvent pas que le buffer suffit (2026-09-01). Avec
+    # buffer = oracle = 0.0, le ratio vaut 0 et l'instrument rendait « STORAGE_REDUNDANT », c'est-a-dire
+    # « le buffer naturel suffit » -- alors que RIEN ne survit, ni avec reserve ni sans. Les deux tests
+    # existants ne couvraient que buffer=0 avec un oracle VIVANT (ou le REQUIRED est juste) : la
+    # frontiere etait gelee, la comparabilite des deux bras ne l'etait pas.
+    if oracle_survival <= 0.0 and buffer_survival <= 0.0:
+        return {"verdict": "INDETERMINE_AUCUN_SURVIVANT", "ratio": None,
+                "buffer_survival": buffer_survival, "oracle_survival": oracle_survival}
     ratio = oracle_survival / max(buffer_survival, 1e-6)
     verdict = "STORAGE_REQUIRED" if ratio >= min_ratio else "STORAGE_REDUNDANT"
     return {"verdict": verdict, "ratio": ratio,
@@ -49,6 +57,15 @@ def measure_regime(genome, cache: bool, cyc_ab: int, cyc_fam: int, inject_reserv
     """Survie médiane (médiane de médianes par ère) d'une cohorte fixe de clones du génome, régime dur.
     inject_reserve>0 -> chaque agent démarre avec cette réserve (oracle-storer). Cohorte fixe (benchmark),
     nuit OFF, scaffolds OFF, memory_retriever neutralisé (repro + anti-contention)."""
+    # ⚠️ GARDE D'ARGUMENTS, EN TETE (2026-09-01). Sans elle, une cohorte vide ou un horizon nul
+    # produisait une MESURE : 0.0 rendu comme survie observee, puis lu par un verdict comme
+    # « reste au plancher ». Un argument degenere n'est pas un resultat scientifique, c'est une
+    # erreur d'appel -> on LEVE, on ne rend pas de sentinelle qui entrerait dans une moyenne.
+    # Posee AVANT la construction du monde : le refus ne coute aucune simulation.
+    if int(n_agents) <= 0 or int(n_eras) <= 0 or int(max_ticks) <= 0:
+        raise ValueError(
+            f"measure_regime : argument degenere (n_agents={n_agents}, n_eras={n_eras}, max_ticks={max_ticks}) -- "
+            "aucune mesure possible ; ne pas confondre avec une survie nulle MESUREE.")
     meds: List[float] = []
     for i in range(max(1, n_eras)):
         seed_at(seed, i)

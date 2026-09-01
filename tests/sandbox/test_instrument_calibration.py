@@ -39,6 +39,18 @@ NOT_AN_INSTRUMENT = {
 }
 
 CALIBRATED = {
+    # P2.34 (2026-09-01) : gardes d'arguments EN TETE des mesures de monde -- le geste qui rend le
+    # lot gratuit. Une cohorte vide ou un horizon nul produisait une MESURE (0.0 rendu comme survie
+    # observee), lue en aval comme « reste au plancher » / « n'emerge pas » / « les deux se valent ».
+    # Le zero d'une cohorte inexistante et celui d'une cohorte qui meurt sont le meme nombre.
+    # Un test verifie non seulement QUE la garde leve, mais OU elle est posee (refus < 0.5 s).
+    "measure_regime": ["empty-cohort:raises", "guard-before-world"],
+    "measure_genome": ["empty-cohort:raises", "guard-before-world"],
+    "measure_in_world": ["empty-cohort:raises", "guard-before-world"],
+    "measure_survival": ["empty-cohort:raises", "guard-before-world"],
+    "measure_arm": ["empty-cohort:raises", "guard-before-world"],
+    "run_credit_probe": ["empty-cohort:raises", "guard-before-world"],
+    "run_diagnostic": ["empty-cohort:raises", "guard-before-world"],
     # P2.33 (2026-09-01) : QUATRIEME angle mort du cliquet -- aucun motif ne couvrait `classify_*`,
     # alors que ce sont ELLES qui PRONONCENT le verdict (l'instrument detecte qui les appelle ne
     # fait que relayer). Trois etaient ni calibrees ni comptees comme dette.
@@ -3096,8 +3108,15 @@ def test_classify_storage_regime_pivots_exactly_on_its_declared_ratio():
     from tools.famine_harshness_probe import classify_storage_regime
     assert classify_storage_regime(10.0, 15.0, 1.5)["verdict"] == "STORAGE_REQUIRED"
     assert classify_storage_regime(10.0, 14.9, 1.5)["verdict"] == "STORAGE_REDUNDANT"
-    assert classify_storage_regime(0.0, 1.0, 1.5)["verdict"] == "STORAGE_REQUIRED", (
-        "buffer nul -> epsilon, pas de division par zero")
+    assert classify_storage_regime(0.0, 50.0, 1.5)["verdict"] == "STORAGE_REQUIRED", (
+        "rien ne survit SANS reserve, 50 ticks AVEC : le stockage est bien requis (et pas de "
+        "division par zero -- epsilon)")
+    # ⚠️ CAS QUE MA PREMIERE PASSE AVAIT MANQUE (ajoute le 2026-09-01). J'avais gele la FRONTIERE et la
+    # division par zero, pas la COMPARABILITE des deux bras : avec buffer = oracle = 0.0, l'instrument
+    # rendait « STORAGE_REDUNDANT » -- « le buffer naturel suffit » -- alors que RIEN ne survit, ni avec
+    # reserve ni sans. Les deux tests du depot ne couvraient que buffer=0 avec un oracle VIVANT.
+    assert classify_storage_regime(0.0, 0.0, 1.5)["verdict"] == "INDETERMINE_AUCUN_SURVIVANT", (
+        "deux bras morts ne prouvent pas que le buffer suffit")
 
 
 def _storage(monkeypatch, table, bruit=None):
@@ -3276,3 +3295,58 @@ def test_classify_record_ranks_a_world_scoped_null_above_a_learner_scoped_one():
     assert monde["risque"] >= appr["risque"], (
         f"un nul portant sur LE MONDE generalise plus loin que sa mesure qu'un nul portant sur un "
         f"apprenant : {monde['risque']} vs {appr['risque']}")
+
+
+# ======================================================================================================
+# P2.34 (2026-09-01) — GARDES D'ARGUMENTS en tete des mesures de monde. Sept instruments, zero seconde.
+#
+# LE GESTE QUI REND LE LOT GRATUIT : poser la garde EN TETE de fonction, AVANT la construction du monde.
+# Une vingtaine de cas « donnees absentes » passent ainsi de « quelques secondes chacun » a ZERO
+# simulation -- la fonction repond avant que le monde n'existe.
+#
+# CE QUE LA GARDE EMPECHE. Sans elle, une cohorte vide ou un horizon nul produisait une MESURE : 0.0
+# rendu comme survie observee, puis lu en aval par un verdict comme « reste au plancher », « le
+# stockage n'emerge pas », « les deux substrats se valent ». Le zero d'une cohorte inexistante et le
+# zero d'une cohorte qui meurt sont le meme nombre -- et seule la garde les separe.
+#
+# ⚠️ ELLES LEVENT, elles ne rendent pas de sentinelle. Un `num_agents=0` n'est pas un resultat
+# scientifique, c'est une erreur d'appel : rendre 0.0 la ferait entrer dans une moyenne comme une
+# mesure. C'est l'idiome `assert_selection_nonempty` du depot.
+# ======================================================================================================
+
+_MESURES_GARDEES = [
+    ("tools.famine_harshness_probe", "measure_regime",
+     dict(genome=None, cache=True, cyc_ab=30, cyc_fam=20, n_agents=0)),
+    ("tools.famine_storage_probe", "measure_genome", dict(genome=None, seed=0, num_agents=0)),
+    ("tools.cross_world_transfer", "measure_in_world",
+     dict(world_key="x", genome=None, seed=0, num_agents=0)),
+    ("tools.substrate_world_ab", "measure_survival",
+     dict(world_key="x", seed=0, backend_cls=None, num_agents=0)),
+    ("tools.vertical_world_probe", "measure_arm", dict(genome=None, use_3d=False, seed=0, n_agents=0)),
+    ("tools.cognitive_demand_inworld", "run_credit_probe", dict(num_agents=0)),
+    ("tools.s2_regime_diagnostic", "run_diagnostic", dict(num_agents=0)),
+]
+
+
+@pytest.mark.parametrize("mod,nom,kw", _MESURES_GARDEES)
+def test_world_measures_REFUSE_an_empty_cohort_before_building_anything(mod, nom, kw):
+    """⚠️ LE contre-exemple, x7. Zero agent ne peut pas produire une survie mesuree."""
+    import importlib
+    f = getattr(importlib.import_module(mod), nom)
+    with pytest.raises(ValueError, match="degenere"):
+        f(**kw)
+
+
+@pytest.mark.parametrize("mod,nom,kw", _MESURES_GARDEES)
+def test_the_guard_is_placed_BEFORE_any_world_is_built(mod, nom, kw):
+    """⚠️ Ce n'est pas seulement QUE la garde leve, c'est OU elle est posee. Placee apres la
+    construction du monde, elle couterait une simulation par cas et ce lot serait impayable. On le
+    verifie par le TEMPS : un refus doit etre instantane (< 0.5 s), pas « quelques secondes »."""
+    import importlib
+    import time
+    f = getattr(importlib.import_module(mod), nom)
+    t0 = time.time()
+    with pytest.raises(ValueError):
+        f(**kw)
+    assert time.time() - t0 < 0.5, (
+        f"{nom} met trop de temps a refuser : la garde est posee APRES la construction du monde")

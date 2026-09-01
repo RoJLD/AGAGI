@@ -50,6 +50,15 @@ def measure_in_world(world_key: str, genome, seed: int, k_eval: int = 12,
     (seed base + i). genome=None -> tabula-rasa (MambaAgent init aléatoire). Cohorte fixe (benchmark),
     nuit OFF, scaffolds OFF (régime S2/EDR-118), memory_retriever neutralisé (repro + anti-contention).
     Retourne une médiane de survie PAR seed d'éval (unité d'appariement)."""
+    # ⚠️ GARDE D'ARGUMENTS, EN TETE (2026-09-01). Sans elle, une cohorte vide ou un horizon nul
+    # produisait une MESURE : 0.0 rendu comme survie observee, puis lu par un verdict comme
+    # « reste au plancher ». Un argument degenere n'est pas un resultat scientifique, c'est une
+    # erreur d'appel -> on LEVE, on ne rend pas de sentinelle qui entrerait dans une moyenne.
+    # Posee AVANT la construction du monde : le refus ne coute aucune simulation.
+    if int(k_eval) <= 0 or int(num_agents) <= 0 or int(max_ticks) <= 0:
+        raise ValueError(
+            f"measure_in_world : argument degenere (k_eval={k_eval}, num_agents={num_agents}, max_ticks={max_ticks}) -- "
+            "aucune mesure possible ; ne pas confondre avec une survie nulle MESUREE.")
     world_cls = WORLDS[world_key]
     meds: List[float] = []
     for i in range(max(1, k_eval)):
