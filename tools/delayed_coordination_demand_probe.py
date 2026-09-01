@@ -45,6 +45,25 @@ entre le préfixe et le tick de choix. `ablation_target = 'substrate'` : contrai
 gravées (ablation d'ENTRÉE, `functional_aliasing='n/a'`), celle-ci touche l'ÉTAT PORTÉ -> Task 3 devra
 mesurer `functional_aliasing` sur un bras ALIAS dédié, jamais le déclarer 'n/a'.
 
+CHEMIN DE CRÉDIT (`credit=`) — le patron copié ne peut PAS entraîner un report, et c'est mesuré.
+`learn_episode` détache l'état à CHAQUE pas (`backend_torch.py:357`, `H = H.detach()`). Au tick de choix,
+l'état qui porte le signal du tick 1 est donc une CONSTANTE : le gradient apprend à LIRE ce qui a été
+porté, jamais à le REPORTER. Trois chemins sont exposés, le défaut traverse le report :
+  `bptt`      (défaut) `learn_episode_bptt(..., truncate=False)` — même REINFORCE épisodique, même
+              avantage baseliné, mêmes actions échantillonnées que `learn_episode` : une SEULE variable
+              change, la troncature. C'est le chemin comparable aux arêtes gravées.
+  `imitate`   `imitate_episode_bptt` masqué sur le DERNIER pas — BPTT supervisé, supprime en plus la
+              variance REINFORCE (avec `n_agents` génomes SÉPARÉS, `backend_torch.py:85-86`, le batch
+              effectif est 1 : c'est la cause racine E19 de RETAIN-COMPOSE). Le sender reste REINFORCE
+              (aucun symbole « correct » n'existe : le code est émergent). VÉRIFIÉ dans le code, pas
+              supposé : `imitate_episode_bptt` part de `H = zeros` (`backend_torch.py:295`) — compatible,
+              `_forward_seq` part aussi de H=0.
+  `reinforce` `learn_episode` — le chemin TRONQUÉ du brief, gardé comme contrôle négatif du diagnostic.
+⚠️ Nuance mesurée, à ne pas sur-lire : la troncature n'interdit pas TOUTE rétention. Le report peut être
+PASSIF — `_step` écrit l'obs dans `H[:, :I]` et la porte à δ≈0.5 sans qu'aucun poids ne l'apprenne, et le
+readout final apprend à la décoder. C'est ainsi que l'arête gravée `memory→perception` atteint 0.564 à
+D=2 SOUS `learn_episode`. Ce que la troncature interdit, c'est d'APPRENDRE À ÉCRIRE dans le report.
+
 Ce module ne rend PAS de verdict : Task 3 ajoute le bras ALIAS, `ablation_verdict`, `specificity_control`
 et la calibration. Pur torch CPU, aucun bail `kuzu`, aucun monde.
 Usage : python tools/delayed_coordination_demand_probe.py
@@ -59,6 +78,7 @@ if _ROOT not in sys.path:
 import numpy as np
 
 ARMS = ("RETAIN", "PRESENT")
+CREDIT_PATHS = ("bptt", "imitate", "reinforce")   # cf. docstring — `reinforce` = chemin TRONQUÉ du brief
 
 
 def _onehot(idx, size, I, n_agents):
@@ -145,10 +165,11 @@ def _trial_draw(arm, K, I, n_agents, flip_p, rng):
             _noisy_onehot(last, K, I, n_agents, flip_p, rng))
 
 
-def _train_and_eval_arm(seed, arm, D, episodes, n_agents, K, V, lr, flip_p, eval_batches=40):
+def _train_and_eval_arm(seed, arm, D, episodes, n_agents, K, V, lr, flip_p, eval_batches=40,
+                        credit="bptt"):
     """Entraîne le couple sender/receiver sur UN bras, puis évalue INTACT vs SUBSTITUÉ sur les MÊMES
     essais (appariement par essai : chaque trial est rejoué deux fois, une fois intact une fois substitué,
-    même agent, mêmes poids). Renvoie (acc_intact, acc_ablated)."""
+    même agent, mêmes poids). Renvoie (acc_intact, acc_ablated). `credit` : cf. docstring du module."""
     import torch
     from src.agents.mamba_agent import MambaAgent
     from src.agents.backend import make_population
@@ -156,6 +177,8 @@ def _train_and_eval_arm(seed, arm, D, episodes, n_agents, K, V, lr, flip_p, eval
 
     if arm not in ARMS:
         raise ValueError(f"bras inconnu : {arm!r} (attendu parmi {ARMS})")
+    if credit not in CREDIT_PATHS:
+        raise ValueError(f"chemin de crédit inconnu : {credit!r} (attendu parmi {CREDIT_PATHS})")
 
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -184,10 +207,18 @@ def _train_and_eval_arm(seed, arm, D, episodes, n_agents, K, V, lr, flip_p, eval
             adv = (guess == target).astype(np.float32)
             adv = adv - adv.mean()
             # crédit du DERNIER tick (le choix) ; ticks intermédiaires = actions neutres (patron
-            # memory_perception_demand_probe : chaque tick contribue à total_logp dans learn_episode)
+            # memory_perception_demand_probe : chaque tick contribue à total_logp)
             acts = [[{"move": 0} for _ in range(n_agents)] for _ in range(len(inputs) - 1)]
             acts.append([{"move": int(g)} for g in guess])
-            receiver.learn_episode(inputs, acts, adv, gate_last_only=True)
+            if credit == "bptt":            # REINFORCE identique, mais le gradient TRAVERSE le report
+                receiver.learn_episode_bptt(inputs, acts, adv, truncate=False)
+            elif credit == "imitate":       # BPTT supervisé sur le SEUL tick de choix (masque)
+                tgt_seq = [target for _ in inputs]
+                mask = [np.zeros(n_agents, dtype=np.float32) for _ in inputs]
+                mask[-1] = np.ones(n_agents, dtype=np.float32)
+                receiver.imitate_episode_bptt(inputs, tgt_seq, mask_seq=mask)
+            else:                           # `reinforce` : chemin TRONQUÉ du brief (contrôle négatif)
+                receiver.learn_episode(inputs, acts, adv, gate_last_only=True)
             # le sender est mémoire-libre (H remis à zéro par émission) -> deux épisodes d'UN tick,
             # exactement le patron de la sonde de référence, et non un épisode à deux ticks (qui
             # rejouerait un H porté que le forward n'utilise jamais).
@@ -214,7 +245,7 @@ def _train_and_eval_arm(seed, arm, D, episodes, n_agents, K, V, lr, flip_p, eval
 
 
 def run_delayed_coordination_demand_probe(seeds, D=2, episodes=800, n_agents=16, K=6, V=8, lr=0.05,
-                                          flip_p=0.3, arms=ARMS, eval_batches=40):
+                                          flip_p=0.3, arms=ARMS, eval_batches=40, credit="bptt"):
     """Mesure « la coordination référentielle DIFFÉRÉE demande la rétention d'état ».
 
     Par seed et par bras : éval INTACTE vs SUBSTITUTION D'ÉTAT (appariées par essai). Renvoie les
@@ -228,14 +259,14 @@ def run_delayed_coordination_demand_probe(seeds, D=2, episodes=800, n_agents=16,
            "_params": {"D": D, "episodes": episodes, "n_agents": n_agents, "K": K, "V": V, "lr": lr,
                        "flip_p": flip_p, "arms": list(arms), "eval_batches": eval_batches,
                        "seeds": list(seeds), "threads": torch.get_num_threads(),
-                       "ablation_target": "substrate",
+                       "credit": credit, "ablation_target": "substrate",
                        "ceiling_bayes": (1.0 - flip_p) + flip_p / K, "floor": 1.0 / K}}
     for arm in arms:
         out[arm + "_intact"], out[arm + "_ablated"] = [], []
     for s in seeds:
         for arm in arms:
             i, a = _train_and_eval_arm(s, arm, D, episodes, n_agents, K, V, lr, flip_p,
-                                       eval_batches=eval_batches)
+                                       eval_batches=eval_batches, credit=credit)
             out[arm + "_intact"].append(i)
             out[arm + "_ablated"].append(a)
     return out
@@ -250,5 +281,6 @@ if __name__ == "__main__":
         episodes=int(os.environ.get("DC_EPISODES", "800")),
         n_agents=int(os.environ.get("DC_AGENTS", "16")),
         lr=float(os.environ.get("DC_LR", "0.05")),
+        credit=os.environ.get("DC_CREDIT", "bptt"),
     )
     print(json.dumps(r, ensure_ascii=False, indent=2))
