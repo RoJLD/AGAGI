@@ -5,6 +5,7 @@ title: "BUGFIX round-trip torch (apprentissage + récurrence intra-vie ne tourna
 status: accepted
 gate: null
 verdict: TORCH_INTRALIFE_DESTABILISE_TRANSPLANT
+corrects: [EDR-135]
 ---
 
 # EDR 137 : bugfix round-trip torch + règle d'apprentissage propre (l'autograd déstabilise un champion transplanté)

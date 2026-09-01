@@ -85,7 +85,7 @@ presque tous NEUTRES).
 | **G1** généralise ? | 🟠 ouverte | 6 | Lancer `transfer_ratio` À L'ÉCHELLE (jamais fait) ; tester l'entraînement **multi-mondes** (G1-001 : mono-monde = artefact). |
 | **G2** compose ? | ⚪ 0 preuve | 0 | **Priorité d'instrumentation** : créer l'outil G2 (émergence d'une chaîne non récompensée). ⚠️ recoupe COS (//) — coordonner. |
 | **G3** langage paie ? | 🔵 proxy | 1 (LANG-006) | Câbler une **asymétrie d'info survivable** in-world (087) + ablation-canal ; co-évoluer l'usage (083). |
-| **G4** anticipe ? | 🟠 proxy | 1 (EDR-135) | Porter un **forward-model bilinéaire** (PLAN-001→004) dans la boucle ; « vrai planning » in-world. |
+| **G4** anticipe ? | 🟠 proxy | 1 (EDR-142) | Porter un **forward-model bilinéaire** (PLAN-001→004) dans la boucle ; « vrai planning » in-world. |
 
 **Actions de consolidation transverses :**
 1. **Pont proxy→in-world** (méta-gap #1) — pour chaque capacité dé-risquée en proxy (binding, langage, mémoire,

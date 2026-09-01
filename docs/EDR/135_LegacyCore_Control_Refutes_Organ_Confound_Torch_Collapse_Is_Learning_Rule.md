@@ -5,6 +5,8 @@ title: "Bras legacy-core RÉFUTE le confound d'organes d'EDR-134 : les organes d
 status: accepted
 gate: null
 verdict: CONFOUND_ORGANES_REFUTE
+corrected_by: [EDR-137]
+corrects: [EDR-134]
 ---
 
 # EDR 135 : legacy-core — le confound d'organes d'EDR-134 est réfuté ; le collapse torch tient à la règle d'apprentissage

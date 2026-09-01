@@ -1,5 +1,5 @@
 ---
-id: EDR-135
+id: EDR-142
 type: EDR
 title: "G4 anticipation dé-pausée : le blocueur n=0 (survie) est levé (champion+sweet-spot, n=71) mais DEUX blocueurs plus profonds apparaissent — (1) l'organe g est INERTE in-world (bug d'ordre de persistance : planner_G extrait AVANT l'update -> mean|G|=0) ; (2) une fois le bug simulé-corrigé, g LINÉAIRE est NEUTRE sur obs riches (median_ratio 1.008, 14/44 fav) alors qu'il est G_FIDELE dans la grille-jouet (0.132, 82%) -> la fidélité ne transfère PAS au monde riche"
 status: accepted
@@ -8,7 +8,7 @@ tests: [SDR-G4]
 verdict: G_INERTE_PUIS_LINEAIRE_NEUTRE_OBS_RICHES
 ---
 
-# EDR 135 : Anticipation — l'organe g est inerte in-world (bug), et g linéaire est neutre sur obs riches
+# EDR 142 : Anticipation — l'organe g est inerte in-world (bug), et g linéaire est neutre sur obs riches
 
 ## Contexte
 

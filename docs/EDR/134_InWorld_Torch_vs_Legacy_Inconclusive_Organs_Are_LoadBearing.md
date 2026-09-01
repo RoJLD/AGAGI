@@ -5,6 +5,7 @@ title: "A/B in-world torch vs legacy — INCONCLUSIF (confondu) : le barreau-0 g
 status: accepted
 gate: null
 verdict: INCONCLUSIF_CONFONDU
+corrected_by: [EDR-135]
 ---
 
 # EDR 134 : A/B in-world torch vs legacy — inconclusif (confondu), organes porteurs
