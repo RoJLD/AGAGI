@@ -155,7 +155,54 @@ def _compare(champ, base, key):
             "ratio": ratio, "ratio_lo": ratio_lo, "ratio_hi": ratio_hi}
 
 
-def s2_verdict(champ, baselines, alpha=ALPHA, cliff_thresh=CLIFF_THRESH, equiv_margin=EQUIV_MARGIN):
+# --- GARDE DE DÉGÉNÉRESCENCE (classe E3) — armée le 2026-09-01 -------------------------------------
+# Le verdict S2 est NON-PARAMÉTRIQUE par choix : Cliff δ et Wilcoxon travaillent sur les RANGS, donc
+# sont insensibles à l'échelle. C'est voulu (la survie est censurée et asymétrique) — mais
+# l'insensibilité à l'échelle devient une CÉCITÉ à la dégénérescence.
+#
+# Mesuré le 2026-09-01 : « champion 3 ticks vs baselines 2 et 1 » (tout le monde est mort) et
+# « 400 vs 399 vs 398 » (tout le monde est censuré) rendaient EXIGE avec EXACTEMENT le même
+# p = 0.0025261742685023236 et le même Cliff = 1.0 qu'un vrai signal 45 vs 15. Trois régimes
+# incomparables, un seul verdict — sur l'instrument qui porte EDR-112 et tout le fil S2 FOUNDATIONAL.
+#
+# ⚠️ CE QUE LE CODE PEUT ET NE PEUT PAS DÉTECTER — même contrat que `tools/demand_marker._degeneracy`,
+# et pour la même raison : un plancher n'est PAS déductible de deux tableaux. Rien ne distingue « 3
+# ticks, c'est le sol » de « 3 ticks, c'est un niveau signifiant ». Sont donc détectés D'OFFICE les
+# seuls cas CERTAINS (variance nulle des deux côtés, bras identiques) ; le reste exige que l'APPELANT
+# déclare `floor=` / `ceiling=`. Proxifier une grandeur qu'on ne sait pas mesurer est l'erreur que ce
+# dépôt paie le plus cher.
+#
+# Non-régression vérifiée AVANT d'armer : EDR-112 publie « 0 % censure partout » et Cliff +0.92 (donc
+# du chevauchement, donc de l'étendue) — la garde ne le touche pas.
+
+def s2_degeneracy(champ, base, floor=None, ceiling=None, key="survival"):
+    """Le régime permet-il de LIRE une différence sur `key` ? Renvoie la RAISON, ou None.
+
+    `floor` / `ceiling` sont DÉCLARÉS par l'appelant, dans l'unité de `key` (typiquement des ticks).
+    Sans eux, seuls les cas certains sont vus — c'est délibéré, pas une limite qu'on ignore."""
+    c = np.asarray(list(champ.get(key, [])), dtype=float)
+    b = np.asarray(list(base.get(key, [])), dtype=float)
+    if c.size == 0 or b.size == 0:
+        return "un bras est VIDE : rien à comparer"
+    if c.size == b.size and np.array_equal(c, b):
+        return "les deux bras sont IDENTIQUES point par point : l'intervention n'a rien changé"
+    spread_c = float(np.nanmax(c) - np.nanmin(c))
+    spread_b = float(np.nanmax(b) - np.nanmin(b))
+    if spread_c <= 0.0 and spread_b <= 0.0:
+        return (f"les DEUX bras sont constants ({float(c[0]):.4g} vs {float(b[0]):.4g}) : aucune "
+                f"distribution à comparer, Cliff δ vaut ±1 MÉCANIQUEMENT")
+    med_c, med_b = float(np.median(c)), float(np.median(b))
+    if floor is not None and med_c <= floor:
+        return (f"PLANCHER déclaré : médiane du champion {med_c:.4g} <= plancher {floor:.4g} — le "
+                f"champion ne survit pas assez pour qu'une différence soit interprétable")
+    if ceiling is not None and med_c >= ceiling and med_b >= ceiling:
+        return (f"PLAFOND déclaré : les deux bras sont censurés (médianes {med_c:.4g} et {med_b:.4g} "
+                f">= {ceiling:.4g}) — la différence observée est un artefact de troncature")
+    return None
+
+
+def s2_verdict(champ, baselines, alpha=ALPHA, cliff_thresh=CLIFF_THRESH,
+               equiv_margin=EQUIV_MARGIN, floor=None, ceiling=None):
     """Verdict S2 d'UN monde (table de décision §10). `champ` et `baselines[nom]` = dicts de
     run_condition (clés 'survival'/'life_score' poolées + 'era_survival'/'era_life' par seed).
 
@@ -167,6 +214,15 @@ def s2_verdict(champ, baselines, alpha=ALPHA, cliff_thresh=CLIFF_THRESH, equiv_m
         ANTI-CORRÉLÉ : p<α ET Cliff δ ≤ -cliff_thresh
         N'EXIGE PAS  : |Cliff δ| < equiv_margin ET p ≥ α (équivalence : aucune différence détectable)
         AMBIGU       : sinon (effet réel sous-seuil, ou significatif mais négligeable -> inconclusif)."""
+    # --- GARDE DE DÉGÉNÉRESCENCE, AVANT tout le reste (classe E3) ---
+    # Un régime illisible rend illisibles la cohérence ET la survie : le signaler d'abord, sinon on
+    # rapporte un VOID (ou un EXIGE) fabriqué par la borne et non par les données.
+    strongest_pre = max(baselines, key=lambda k: np.median(baselines[k]["survival"]))
+    why = s2_degeneracy(champ, baselines[strongest_pre], floor=floor, ceiling=ceiling)
+    if why:
+        return {"verdict": "INCONCLUSIVE_DEGENERATE", "degenerate": True, "why": why,
+                "strongest_baseline": strongest_pre, "coherence_ok": None}
+
     # --- Test de cohérence sur life_score (IUT) ---
     life_cmps = {k: _compare(champ, baselines[k], "life_score") for k in baselines}
     life_p = iut_pvalue([c["p"] for c in life_cmps.values()])
