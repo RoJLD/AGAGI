@@ -265,7 +265,8 @@ def _make_reflex(genomes, diag=10.0):
 
 
 def evolve_cognitive(weight, seed, eras=15, max_ticks=120, num_agents=30, add_node_rate=0.4,
-                     inject=True, reflex_init=False, K=1, tasks=None, budget_s=None):
+                     inject=True, reflex_init=False, K=1, tasks=None, budget_s=None,
+                     budget_agent_ticks=None):
     """Évolution in-world auto-contenue sous fitness = survie + `weight` × lecture du signal.
 
     `weight=0` -> la sélection est EXACTEMENT celle de prod (le signal est présent mais non noté) : c'est
@@ -291,14 +292,33 @@ def evolve_cognitive(weight, seed, eras=15, max_ticks=120, num_agents=30, add_no
     # en 10 min. Aucune projection linéaire ne borne cette queue -> il faut un plafond AU RUNTIME, qui
     # abandonne l'unité coûteuse au lieu de laisser un seed pathologique tuer le run entier
     # (4ᵉ run abandonné du dépôt, 2026-07-27 : 187 min pour 8 seeds sur 36).
+    # ⚠️ `budget_s` est un plafond en SECONDES : il rend la troncature dépendante de la machine et de sa
+    # charge, donc le banc NON REPRODUCTIBLE — exactement ce que la clôture d'E13 proscrit, et que les
+    # runs EVO-019/020 ont pourtant enfreint (5 abandons sur 12 et 7 sur 24, CORRÉLÉS au succès évolutif
+    # puisque le coût suit le succès : une censure INFORMATIVE, biaisée contre la détection d'un lecteur).
+    # `budget_agent_ticks` est l'alternative DÉTERMINISTE : même seed -> même troncature, partout.
+    if budget_s is not None:
+        import warnings
+        warnings.warn(
+            "budget_s (plafond en SECONDES) rend la troncature dépendante de la machine et la censure "
+            "corrélée au succès évolutif (E13, cf. EDR-EVO-019). Préférer budget_agent_ticks, "
+            "déterministe.", DeprecationWarning, stacklevel=2)
     guard = CostGuard(budget_s, label=f"seed {seed}") if budget_s else None
+    ticks_spent = 0
     for era in range(1, eras + 1):
+        if budget_agent_ticks is not None and ticks_spent > budget_agent_ticks:
+            return {"genome": best_g, "fitness": best_fit, "rate_evo": best_rate,
+                    "nodes": best_g.num_nodes, "traj": traj,
+                    "aborted": f"budget {budget_agent_ticks} agent-ticks dépassé à l'ère {era}/{eras} "
+                               f"({ticks_spent}) — troncature DÉTERMINISTE, seed EXCLU, à COMPTER"}
         if guard is not None and guard.would_exceed():
             return {"genome": best_g, "fitness": best_fit, "rate_evo": best_rate,
                     "nodes": best_g.num_nodes, "traj": traj,
                     "aborted": f"budget {budget_s:.0f}s dépassé à l'ère {era}/{eras} "
                                f"({guard.spent_s:.0f}s) — seed EXCLU, à COMPTER dans le rapport"}
         _, pool = _run_era(genomes, cfg, max_ticks, era, inject=inject, K=K, tasks=tasks)
+        # unité DÉTERMINISTE de coût : somme des âges = agent-ticks réellement simulés cette ère
+        ticks_spent += sum(int(a.get("age", 0)) for a in pool)
         if not pool:
             break
         pool.sort(key=lambda ag: cognitive_fitness(ag, weight), reverse=True)
