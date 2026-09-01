@@ -226,10 +226,11 @@ def assert_verdict_invariant_to_optimizer(measure, lrs=(0.02, 0.002), max_gap_cl
     ce record mesure pour RETAIN/PRESENT au plancher documenté `1/K = 0.167`, K=6) — c'est la RÉFÉRENCE
     qui s'est effondrée (0.436 → 0.194, canal oracle noyé à `lr=0.08`). Avec `reference_floor = 1/6+0.15`
     (même barre que le contrôle BILINEAR ci-dessus, K=6 identique), `0.194 <= reference_floor` à
-    `lr=0.08` -> `ReferenceCollapsedError`, pas « artefact ». Chiffres du couple appris/oracle : notes de
-    session `.superpowers/sdd/2026-09-01-delayed-lewis-retention-edge/task-2-report.md` (mêmes seed et
-    `_params` que le crible publié dans `docs/EDR/EDR-DELAYED-COORD_...md`, dont la table RETAIN/PRESENT
-    corrobore que le bras appris n'a jamais quitté le plancher).
+    `lr=0.08` -> `ReferenceCollapsedError`, pas « artefact ». Chiffres du couple appris/oracle et
+    provenance : section « Ce que ça débloque » de
+    `docs/EDR/EDR-DELAYED-COORD_Deferred_Referential_Coordination_Demands_Retention.md` (mêmes seed et
+    `_params` que le crible publié dans ce même record, dont la table RETAIN/PRESENT corrobore que le
+    bras appris n'a jamais quitté le plancher).
 
     Ne tire PAS le NOUVEAU distingo (spécificité, positif apparié) : re-testé sur RETAIN-COMPOSE ci-dessus
     avec `reference_floor = 1/6+0.15` — `oracle` vaut 0.971 puis 0.945 aux deux pas, tous deux largement

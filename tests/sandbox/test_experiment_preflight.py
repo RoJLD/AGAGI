@@ -111,10 +111,9 @@ def test_optimizer_sweep_returns_INCONCLUSIVE_when_the_REFERENCE_collapses():
     crible PUBLIÉ de ce même record mesure pour RETAIN/PRESENT au plancher documenté `1/K = 0.167` (K=6)
     dans `docs/EDR/EDR-DELAYED-COORD_Deferred_Referential_Coordination_Demands_Retention.md`. C'est la
     RÉFÉRENCE (canal oracle) qui s'effondre : 0.436 (vivant) -> 0.194 (au plancher) à `lr=0.08`. Chiffres
-    du couple appris/oracle : notes de session
-    `.superpowers/sdd/2026-09-01-delayed-lewis-retention-edge/task-2-report.md` (mêmes seed et `_params`
-    que le crible publié ; fichier de travail non committé — le record publié acquitte le motif dans sa
-    section « Ce que ça débloque » sans réimprimer le balayage).
+    du couple appris/oracle et provenance : section « Ce que ça débloque » de
+    `docs/EDR/EDR-DELAYED-COORD_Deferred_Referential_Coordination_Demands_Retention.md` (mêmes seed et
+    `_params` que le crible publié — le balayage à 2 points y est inliné, pas seulement acquitté).
 
     `reference_floor = 1/6 + 0.15` (même barre, même K=6, que le contrôle de spécificité BILINEAR) :
     0.194 <= floor à `lr=0.08` -> `ReferenceCollapsedError`, PAS `artefact d'hyperparamètre`. Sans

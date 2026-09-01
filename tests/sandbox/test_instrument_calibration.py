@@ -357,14 +357,22 @@ CALIBRATED = {
     # E19, garde de pré-vol NÉE le 2026-09-01 et calibrée dans la MÊME passe (rituel du registre).
     # Détectée par le cliquet via le motif `\\w*verdict\\w*` — et c'en EST un : elle rend un jugement
     # binaire (« ce nul est-il un artefact de réglage ? ») sur un balayage de `lr`, donc elle peut
-    # PRODUIRE un résultat comme n'importe quel instrument. Ses deux cas sont des réponses CONNUES de
-    # signes opposés, toutes deux MESURÉES dans ce dépôt : `artifact:fires` (RETAIN-COMPOSE, écart au bras
+    # PRODUIRE un résultat comme n'importe quel instrument. Trois cas, réponses CONNUES de signes ou de
+    # nature opposés, toutes MESURÉES dans ce dépôt : `artifact:fires` (RETAIN-COMPOSE, écart au bras
     # de référence 0.798 -> 0.022, closure 0.972 -> LÈVE) et `structural:spares` (BILINEAR/plain, 0.652 ->
     # 0.594, closure 0.089 -> ne lève PAS, alors qu'un critère de SEUIL absolu aurait flagué ce vrai
-    # négatif). ⚠️ Les deux cas vivent dans `tests/sandbox/test_experiment_preflight.py`
-    # (`test_optimizer_sweep_REFUSES_the_retain_compose_null` / `..._SPARES_the_bilinear_structural_null`),
-    # là où sont testées toutes les assertions de pré-vol — pas dans ce fichier. Purement numériques.
-    "assert_verdict_invariant_to_optimizer": ["artifact:fires", "structural:spares"],
+    # négatif). Correctif P2.21 (`8d0b959`) : `reference:collapses` — motif E3 DANS la garde elle-même,
+    # constaté EN ACTE sur EDR-DELAYED-COORD (2026-09-01, cf. section « Ce que ça débloque » du record) :
+    # AVANT le correctif, la garde tirait « artefact » alors que c'était le bras de RÉFÉRENCE (canal
+    # oracle) qui s'effondrait (0.436 -> 0.194 à `lr=0.08`), pas le bras testé qui montait (0.141 -> 0.203,
+    # resté dans la bande plancher 0.164-0.206). Avec `reference_floor` armé, verdict DISTINCT
+    # `ReferenceCollapsedError` au lieu du refus muet dans l'ancienne branche. ⚠️ Les trois cas vivent dans
+    # `tests/sandbox/test_experiment_preflight.py` (`test_optimizer_sweep_REFUSES_the_retain_compose_null`
+    # / `..._SPARES_the_bilinear_structural_null` /
+    # `test_optimizer_sweep_returns_INCONCLUSIVE_when_the_REFERENCE_collapses`), là où sont testées toutes
+    # les assertions de pré-vol — pas dans ce fichier. Purement numériques.
+    "assert_verdict_invariant_to_optimizer": ["artifact:fires", "structural:spares",
+                                              "reference:collapses"],
     # DELAYED-COORD : sonde de Lewis DIFFÉRÉE, instrument NÉ le 2026-09-01 et calibré dans la MÊME passe
     # (rituel du cliquet). Deux réponses CONNUES ANALYTIQUEMENT, sans rien supposer de l'apprentissage :
     # (1) `mute-channel:chance` — à `flip_p=1.0` le sender ne voit qu'un tirage UNIFORME, donc le canal ne
