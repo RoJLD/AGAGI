@@ -39,6 +39,14 @@ NOT_AN_INSTRUMENT = {
 }
 
 CALIBRATED = {
+    # P2.37b (2026-09-02) : `_verdict_from`, duplique VOLONTAIREMENT dans les 4 sondes mini-monde
+    # (consommation de la garde de degenerescence). Nom en COLLISION -> declarations QUALIFIEES.
+    # Comportement calibre sur la copie de reference (anticipation) + test ANTI-DERIVE qui gele
+    # l'identite des 4 sources : la couverture s'etend aux copies tant qu'elles restent identiques.
+    "tools/anticipation_demand_world_probe.py::_verdict_from": ["degenerate-priority", "demanded", "decoy"],
+    "tools/cognitive_demand_world_probe.py::_verdict_from": ["identical-to-reference"],
+    "tools/composition_demand_world_probe.py::_verdict_from": ["identical-to-reference"],
+    "tools/memory_demand_world_probe.py::_verdict_from": ["identical-to-reference"],
     # P2.36 (2026-09-01) : les QUATRE derniers. `regime_diagnostic_verdict` prescrivait un changement
     # de protocole a partir d'un regime JAMAIS MESURE (ma calibration du matin avait gele les 4
     # branches en fournissant toujours les deux regimes -- le cas manquant n'etait couvert par
@@ -3527,3 +3535,99 @@ def test_last_warm_diagnostics_REFUSE_degenerate_arguments(nom, kw):
     with pytest.raises(ValueError, match="degenere"):
         f(**kw)
     assert time.time() - t0 < 0.5, f"{nom} refuse trop lentement"
+
+
+# ======================================================================================================
+# P2.37 (2026-09-02) — PLANCHERS des 4 sondes mini-monde : mesures calibrees sur FORME CLOSE.
+#
+# Les 6 appels a `ablation_verdict` de ces sondes ne declaraient AUCUNE borne (dette E14 gelee la
+# veille). Les planchers sont desormais MESURES (pas inventes) : regime partage A (anticipation /
+# cognitive / memory : E0=15, metab=1.0, INSUFF=0.5) -> PLANCHER_AVEUGLE = 30.0 ; composition (regime
+# propre, chaine 2 etapes) -> PLANCHER_SANS_PLAN = 54.0, par enumeration EXACTE des 25 politiques
+# stage-conditionnees. Une politique ALEATOIRE aurait rendu ~30 et SOUS-GARDE le nul de 24 ticks.
+#
+# ⚠️ LA CALIBRATION DU MESUREUR EST UNE FORME CLOSE : la politique corps (a=0) en INSUFF draine
+# exactement metab - body_gain = 0.5/tick depuis E0=15 -> mort au tick 30, DETERMINISTE. Si le mesureur
+# ne rend pas 30.0 exactement, c'est LUI qui est faux — l'etalon s'est deja trompe avant l'instrument
+# dans ce depot (CLAUDE.md), d'ou la preference pour la prediction sur la valeur absolue.
+#
+# ⚠️ ET LE CABLAGE EST LA MOITIE DU CORRECTIF : la garde ne modifie que v["verdict"]/v["degenerate"] —
+# les sondes lisaient les booleens bruts collapse/decoy, donc floor= aurait ete INERTE. Chaque sonde
+# passe par `_verdict_from`, teste ici.
+# ======================================================================================================
+
+def test_the_body_policy_floor_is_a_CLOSED_FORM():
+    """La forme close qui calibre le mesureur : corps a=0, INSUFF -> mort au tick 30 EXACTEMENT."""
+    import numpy as np
+    from tools.anticipation_demand_world_probe import survive as s_ant
+    from tools.cognitive_demand_world_probe import survive as s_cog
+    from tools.memory_demand_world_probe import survive as s_mem
+    K = 5
+    b0 = np.zeros(K); b0[0] = 1.0
+    rng = np.random.RandomState(0)
+    assert s_ant(np.zeros((K, K)), b0, "ablated", 0.5, 2.0, "energy", 1, K, rng, 300) == 30
+    assert s_cog(np.zeros((K, K)), b0, "true", 0.5, 2.0, "energy", K, rng, 300) == 30
+    assert s_mem(np.zeros((K, 2 * K)), b0, "ablated", 0.5, 2.0, "energy", "delayed", K, rng, 300) == 30
+
+
+def test_the_composition_floor_beats_the_blind_floor():
+    """⚠️ Le choix de la POLITIQUE de reference n'est pas un detail : l'oracle prive du plan (mais
+    gardant l'obs de stage) atteint ~54 par guess-and-craft, la ou l'aveugle plafonne a 30. Prendre
+    l'aveugle aurait SOUS-GARDE le nul de 24 ticks. Gele : la politique (a0=4, a1=1) doit battre 30."""
+    import numpy as np
+    from tools.composition_demand_world_probe import survive as s_cmp
+    K = 5
+    W = np.zeros((K, 2 * K)); W[4, 0] = 1.0; W[1, 1] = 1.0
+    vies = [s_cmp(W, np.zeros(K), "ablated", 0.5, 3.0, "energy", 2, K,
+                  np.random.RandomState(100 + i), 300) for i in range(24)]
+    import statistics
+    assert statistics.median(vies) > 40, (
+        f"guess-and-craft doit battre nettement le corps (30), or mediane = {statistics.median(vies)}")
+
+
+def test_verdict_from_READS_the_guard_instead_of_raw_booleans():
+    """⚠️ La moitie du correctif. Un dict avec degenerate=True ET collapse=True doit rendre
+    INDETERMINE — l'ancien code lisait collapse et aurait rendu SENSITIVE sur un regime illisible."""
+    from tools.anticipation_demand_world_probe import _verdict_from
+    degenere = {"degenerate": True, "verdict": "INCONCLUSIVE_DEGENERATE",
+                "collapse": True, "decoy": False, "n": 24, "ratio": 2.3}
+    assert _verdict_from(degenere, "SURVIVAL_ANTICIPATION_SENSITIVE") == "INDETERMINE_DEGENERATE"
+    positif = {"degenerate": False, "verdict": "X_DEMANDED", "n": 24, "ratio": 5.0}
+    assert _verdict_from(positif, "SURVIVAL_ANTICIPATION_SENSITIVE") == "SURVIVAL_ANTICIPATION_SENSITIVE"
+    leurre = {"degenerate": False, "verdict": "X_DECOY", "n": 24, "ratio": 1.0}
+    assert _verdict_from(leurre, "SURVIVAL_ANTICIPATION_SENSITIVE") == "SURVIVAL_NEUTRAL"
+
+
+def test_the_declared_floors_match_their_measurement():
+    """Les constantes declarees doivent rester celles qui ont ete MESUREES — pas de derive silencieuse."""
+    from tools.anticipation_demand_world_probe import PLANCHER_AVEUGLE as pa
+    from tools.cognitive_demand_world_probe import PLANCHER_AVEUGLE as pc
+    from tools.memory_demand_world_probe import PLANCHER_AVEUGLE as pm
+    from tools.composition_demand_world_probe import PLANCHER_AVEUGLE as pv, PLANCHER_SANS_PLAN as pp
+    assert pa == pc == pm == pv == 30.0, "le regime partage A a UN plancher : 30.0"
+    assert pp == 54.0, "composition a le sien : 54.0 (enumere)"
+
+
+def test_the_four_verdict_from_copies_are_IDENTICAL():
+    """⚠️ ANTI-DERIVE. `_verdict_from` est duplique VOLONTAIREMENT dans les 4 sondes (calque de la
+    recommandation « duplication commentee, pas de nouveau module »). Le prix de la duplication est la
+    derive silencieuse : si une copie change seule, les quatre sondes ne consomment plus la meme garde.
+    Ce test gele l'identite -- toute divergence doit etre soit propagee aux quatre, soit ce test mis a
+    jour EXPLICITEMENT avec la raison."""
+    import inspect
+    from tools import (anticipation_demand_world_probe as A, cognitive_demand_world_probe as C,
+                       composition_demand_world_probe as P, memory_demand_world_probe as M)
+    srcs = {m.__name__: inspect.getsource(m._verdict_from) for m in (A, P, M)}
+    ref = srcs.pop('tools.anticipation_demand_world_probe')
+    for nom, src in srcs.items():
+        assert src == ref, f"la copie de _verdict_from dans {nom} a derive de la reference"
+    assert not hasattr(C, '_verdict_from') or inspect.getsource(C._verdict_from) == ref
+
+
+def test_verdict_from_is_calibrated_via_the_anticipation_copy():
+    """Le comportement des 4 copies est calibre par test_verdict_from_READS_... (degenerate prioritaire,
+    X_DEMANDED -> sensitive, X_DECOY -> NEUTRAL) + l'anti-derive ci-dessus qui etend la couverture aux
+    trois autres copies. Ce test verifie seulement que la chaine tient : la copie de reference est bien
+    celle que le test de comportement importe."""
+    from tools.anticipation_demand_world_probe import _verdict_from
+    assert _verdict_from({"degenerate": True, "verdict": "X", "n": 24}, "S") == "INDETERMINE_DEGENERATE"

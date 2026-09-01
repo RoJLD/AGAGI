@@ -27,16 +27,17 @@ _SCAN = (os.path.join(_ROOT, "tools"), os.path.join(_ROOT, "src"))
 
 # Dette LÉGATAIRE gelée au 2026-09-01 : appels sans AUCUNE borne déclarée. Chaque ligne attend qu'un
 # plancher soit MESURÉ pour son régime — pas inventé. Retirer une entrée quand c'est fait.
+# 4 fichiers RESORBES le 2026-09-02 : planchers MESURES (30.0 regime partage, 54.0 composition,
+# mesureur calibre sur forme close E0/(metab-body_gain)=30 exact) et declares aux appels, avec bascule
+# de la consommation sur v["verdict"] -- sans quoi floor= etait inerte.
 _SANS_BORNE_LEGATAIRE = frozenset({
-    "tools/anticipation_demand_world_probe.py",
-    "tools/cognitive_demand_world_probe.py",
-    "tools/composition_demand_world_probe.py",
-    "tools/memory_demand_world_probe.py",
     "tools/s2_demand_ablation.py",
     # ⚠️ Ces deux-la n'apparaissaient PAS dans le releve par `grep` : leurs appels sont formates
     # autrement. Le balayage AST les a trouves. Mesurer, ne pas inferer -- y compris quand on recense.
     "tools/s2_openloop_probe.py",
-    "tools/world_demand_marker_probe.py",
+    # world_demand_marker_probe RESORBE le 2026-09-02 : PLANCHER_BLIND mesure (48 vies, forme close
+    # E0/(metab-gain/K)) et declare en DEMANDING ; PAS de ceiling, deliberement -- le nul TRIVIAL au cap
+    # est la verite-terrain qui valide le marqueur.
 })
 
 _BORNES = {"floor", "ceiling"}

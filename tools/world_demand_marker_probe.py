@@ -33,6 +33,15 @@ def _obs(demanding, food_action, K, rng, noise=0.35):
     return o + noise * rng.randn(K)
 
 
+# PLANCHER NO-CAPACITE (2026-09-02) : politique AVEUGLE (W=0, b=0 -> action 0 constante) en
+# DEMANDING, mesure 48 vies (mediane 34.0) ; forme close E0/(metab-gain/K) = 40.0.
+# Sert de floor= a ablation_verdict : sous ce niveau, le bras intact ne survit pas assez pour
+# qu'un nul soit interpretable. ⚠️ PAS de ceiling= ici, et c'est DELIBERE : en TRIVIAL les DEUX
+# bras saturent au cap -- ce nul est la VERITE-TERRAIN qui valide le marqueur (nuance (b) de
+# _degeneracy) ; le declarer degenere en silence casserait la validation. Arbitrage a graver.
+PLANCHER_BLIND = 34.0
+
+
 def survive(demanding, W, b, obs_mode, K, rng, ticks=200, E0=10.0, gain=1.0, metab=0.5):
     """Une vie : à chaque tick, l'agent choisit une action via ses logits ; s'il tape l'action nourricière il
     gagne de l'énergie, sinon rien ; le métabolisme ponctionne toujours. Survie = ticks avant énergie<=0.
@@ -131,7 +140,12 @@ def main():
         between = ft / max(ra, 1e-9)          # « un survivant compétent existe ? »
         wv = ablation_verdict([r["fit_true"] for r in rows],
                               [r["fit_ablated"] for r in rows],
-                              weight_on_x=ow)  # ratio within + verdict, définition partagée
+                              weight_on_x=ow,
+                              floor=(PLANCHER_BLIND if demanding else None))
+        if wv.get("degenerate"):
+            # 2026-09-02 : un intact DEMANDING sous le plancher aveugle rend le within illisible --
+            # le dire au lieu de laisser le ratio entrer muet dans la validation.
+            print(f"  ⚠️ {name}: bras intact au plancher ({wv.get('why')}) -> within NON interpretable")
         within = wv["ratio"]                  # inchangé numériquement vs ft/max(fa,1e-9)
         summary[name] = (between, within)
         print(f"{name:10s} {ft:9.1f} {fa:8.1f} {ra:7.1f} | {ow:8.3f} | {between:7.1f}x {within:7.1f}x")

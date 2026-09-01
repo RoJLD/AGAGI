@@ -29,6 +29,31 @@ if _ROOT not in sys.path:
 
 from tools.demand_marker import ablation_verdict
 
+# PLANCHERS NO-CAPACITE (2026-09-02), regime PROPRE (cog_gain=3.0, chaine 2 etapes) :
+#  - PLANCHER_SANS_PLAN = 54.0 : oracle PRIVE DU PLAN mais gardant l'obs de stage, enumere
+#    EXACTEMENT (25 politiques stage-conditionnees ; la meilleure, (a0=4, a1=1), devine un moyen
+#    fixe puis craft). Une politique ALEATOIRE aurait rendu ~30 et SOUS-GARDE le nul de 24 ticks.
+#  - PLANCHER_AVEUGLE = 30.0 : corps seul (devise separee -- le craft ne paie pas), forme close
+#    E0/(metab-body_gain) ; calibration du mesureur : la sous-famille a0=0 rend 30.0 exactement.
+PLANCHER_SANS_PLAN = 54.0
+PLANCHER_AVEUGLE = 30.0
+
+
+def _verdict_from(v, sensitive, n_floor=12):
+    """Consomme le VERDICT GARDE d'ablation_verdict, pas les booleens bruts (2026-09-02).
+
+    Sans cette bascule, floor=/ceiling= etaient INERTES : la garde de degenerescence ne modifie
+    que v["verdict"] et v["degenerate"] -- collapse/decoy restent vrais. Lire les booleens bruts
+    revenait a ignorer la garde qu'on venait de payer."""
+    if v.get("degenerate"):
+        return "INDETERMINE_DEGENERATE"
+    if v["verdict"] == "X_DEMANDED" and v["n"] >= n_floor:
+        return sensitive
+    if v["verdict"] == "X_DECOY":
+        return "SURVIVAL_NEUTRAL"
+    return "MIXED"
+
+
 END = 1                                               # action FIN (fixe) ; MOYEN ∈ [2,K) ; corps = 0
 
 
@@ -93,7 +118,7 @@ def fit_policy(body_gain, cog_gain, currency, chain_len, K, seed, iters=350, epi
     return W, b
 
 
-def probe(body_gain, cog_gain, currency, chain_len, K, seed, n_eval=24, ticks=300):
+def probe(body_gain, cog_gain, currency, chain_len, K, seed, n_eval=24, ticks=300, floor=None):
     """Entraîne (module intact) puis ablate le MODULE de plan (plan→0) → verdict SURVIE."""
     W, b = fit_policy(body_gain, cog_gain, currency, chain_len, K, seed, ticks=ticks)
     ev = np.random.RandomState(seed + 777)
@@ -102,10 +127,8 @@ def probe(body_gain, cog_gain, currency, chain_len, K, seed, n_eval=24, ticks=30
         return [survive(W, b, mode, body_gain, cog_gain, currency, chain_len, K,
                         np.random.RandomState(ev.randint(1 << 30)), ticks) for _ in range(n_eval)]
 
-    v = ablation_verdict(surv("intact"), surv("ablated"))
-    verdict = ("SURVIVAL_COMPOSITION_SENSITIVE" if v["collapse"] and v["n"] >= 12
-               else "SURVIVAL_NEUTRAL" if v["decoy"] else "MIXED")
-    return {"ratio": v["ratio"], "verdict": verdict}
+    v = ablation_verdict(surv("intact"), surv("ablated"), floor=floor, ceiling=float(ticks))
+    return {"ratio": v["ratio"], "verdict": _verdict_from(v, "SURVIVAL_COMPOSITION_SENSITIVE")}
 
 
 def main():
@@ -126,7 +149,10 @@ def main():
     print(f"{'cellule':52s} {'ratio':>6s}  verdict")
     results = {}
     for label, body_gain, currency, chain_len in cells:
-        rows = [probe(body_gain, cog_gain, currency, chain_len, K, s, ticks=ticks) for s in seeds]
+        rows = [probe(body_gain, cog_gain, currency, chain_len, K, s, ticks=ticks,
+                      floor=(((PLANCHER_SANS_PLAN if currency == 'energy' else PLANCHER_AVEUGLE)
+                              if chain_len == 2 else None) if body_gain < 1.0 else None))
+                for s in seeds]
         ratio = statistics.median(r["ratio"] for r in rows)
         verdicts = [r["verdict"] for r in rows]
         maj = max(set(verdicts), key=verdicts.count)

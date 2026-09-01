@@ -51,7 +51,8 @@ dose CONNUE teste la couche qui transforme des mesures en affirmation.
 
 ### Dans la machinerie de calibration elle-même (le plus grave : l'outil qui compte se trompe)
 
-* **9 appels à `ablation_verdict` ne déclarent AUCUNE borne, dans 7 fichiers — classe E14 littérale.**
+* ⚠️ **RÉSORBÉE À 5/7 (2026-09-02)** — planchers MESURÉS et câblés (30.0 régime partagé, 54.0 composition par énumération, 34.0 world_demand_marker), avec bascule de la consommation sur `v["verdict"]` (sans quoi `floor=` était inerte). **Restent 2 fichiers** (`s2_demand_ablation`, `s2_openloop_probe`) : leur table `PLANCHER_NOPERC` exige une campagne SOUS BAIL kuzu (clones du champion, design prêt).
+  * **9 appels à `ablation_verdict` ne déclarent AUCUNE borne, dans 7 fichiers — classe E14 littérale.**
   La garde `_degeneracy` ne s'active que si l'appelant passe `floor=` / `ceiling=` (un plancher n'est
   pas déductible de deux tableaux). Elle est armée chez 7 appelants et **jamais rétro-appliquée** aux
   autres : `anticipation_demand_world_probe`, `cognitive_demand_world_probe`,

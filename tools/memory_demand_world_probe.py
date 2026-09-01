@@ -28,6 +28,28 @@ if _ROOT not in sys.path:
 
 from tools.demand_marker import ablation_verdict
 
+# PLANCHER NO-CAPACITE (2026-09-02) -- meme regime et meme valeur que anticipation_demand_world_
+# probe (E0=15, metab=1.0, INSUFF=0.5) : politique corps a=0, forme close 30 EXACT (calibration
+# du mesureur). Ne vaut que pour recall='delayed' : en 'present', l'oracle prive de memoire lit
+# l'obs et SATURE au cap -- cette cellule est gardee par ceiling, pas par floor.
+PLANCHER_AVEUGLE = 30.0
+
+
+def _verdict_from(v, sensitive, n_floor=12):
+    """Consomme le VERDICT GARDE d'ablation_verdict, pas les booleens bruts (2026-09-02).
+
+    Sans cette bascule, floor=/ceiling= etaient INERTES : la garde de degenerescence ne modifie
+    que v["verdict"] et v["degenerate"] -- collapse/decoy restent vrais. Lire les booleens bruts
+    revenait a ignorer la garde qu'on venait de payer."""
+    if v.get("degenerate"):
+        return "INDETERMINE_DEGENERATE"
+    if v["verdict"] == "X_DEMANDED" and v["n"] >= n_floor:
+        return sensitive
+    if v["verdict"] == "X_DECOY":
+        return "SURVIVAL_NEUTRAL"
+    return "MIXED"
+
+
 
 def _onehot(i, K, noise, rng):
     o = np.zeros(K)
@@ -87,7 +109,7 @@ def fit_policy(body_gain, cog_gain, currency, recall, K, seed, iters=300, episod
     return W, b
 
 
-def probe(body_gain, cog_gain, currency, recall, K, seed, n_eval=24, ticks=300):
+def probe(body_gain, cog_gain, currency, recall, K, seed, n_eval=24, ticks=300, floor=None):
     """Entraîne, puis ablate la MÉMOIRE (m→0) → verdict SURVIE. mem_weight = poids que la politique met
     sur la moitié mémoire de l'entrée."""
     W, b = fit_policy(body_gain, cog_gain, currency, recall, K, seed, ticks=ticks)
@@ -97,10 +119,9 @@ def probe(body_gain, cog_gain, currency, recall, K, seed, n_eval=24, ticks=300):
         return [survive(W, b, mem_mode, body_gain, cog_gain, currency, recall, K,
                         np.random.RandomState(ev.randint(1 << 30)), ticks) for _ in range(n_eval)]
 
-    v = ablation_verdict(surv("intact"), surv("ablated"))
-    verdict = ("SURVIVAL_MEMORY_SENSITIVE" if v["collapse"] and v["n"] >= 12
-               else "SURVIVAL_NEUTRAL" if v["decoy"] else "MIXED")
-    return {"ratio": v["ratio"], "verdict": verdict, "mem_weight": float(np.mean(np.abs(W[:, K:])))}
+    v = ablation_verdict(surv("intact"), surv("ablated"), floor=floor, ceiling=float(ticks))
+    return {"ratio": v["ratio"], "verdict": _verdict_from(v, "SURVIVAL_MEMORY_SENSITIVE"),
+            "mem_weight": float(np.mean(np.abs(W[:, K:])))}
 
 
 def main():
@@ -121,7 +142,9 @@ def main():
     print(f"{'cellule':52s} {'ratio':>6s} {'|W|mém':>7s}  verdict")
     results = {}
     for label, body_gain, currency, recall in cells:
-        rows = [probe(body_gain, cog_gain, currency, recall, K, s, ticks=ticks) for s in seeds]
+        rows = [probe(body_gain, cog_gain, currency, recall, K, s, ticks=ticks,
+                      floor=(PLANCHER_AVEUGLE if (body_gain < 1.0 and recall == 'delayed')
+                             else None)) for s in seeds]
         ratio = statistics.median(r["ratio"] for r in rows)
         mw = statistics.median(r["mem_weight"] for r in rows)
         verdicts = [r["verdict"] for r in rows]

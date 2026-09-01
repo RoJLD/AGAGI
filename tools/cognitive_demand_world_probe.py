@@ -32,6 +32,10 @@ if _ROOT not in sys.path:
 
 from tools.demand_marker import ablation_verdict
 
+# PLANCHER NO-CAPACITE (2026-09-02) -- meme regime partage que anticipation/memory (E0=15,
+# metab=1.0, INSUFF=0.5) : politique corps a=0, forme close 30 EXACT (calibration du mesureur).
+PLANCHER_AVEUGLE = 30.0
+
 
 def _obs(cog_action, K, rng, noise=0.35):
     """Indice sensoriel = one-hot bruité de l'action nourricière cognitive de CE tick."""
@@ -92,7 +96,7 @@ def fit_policy(body_gain, cog_gain, currency, K, seed, iters=300, episodes=5, ti
     return W, b
 
 
-def ladder(body_gain, cog_gain, currency, K, seed, n_eval=24, ticks=300):
+def ladder(body_gain, cog_gain, currency, K, seed, n_eval=24, ticks=300, floor=None):
     """Entraîne une politique puis lit l'échelle d'ablation → verdict SURVIE (via demand_marker).
     Renvoie {ratios par barreau, verdict, obs_weight}."""
     W, b = fit_policy(body_gain, cog_gain, currency, K, seed, ticks=ticks)
@@ -103,7 +107,14 @@ def ladder(body_gain, cog_gain, currency, K, seed, n_eval=24, ticks=300):
                         np.random.RandomState(ev.randint(1 << 30)), ticks) for _ in range(n_eval)]
 
     intact = surv("true")
-    rungs = {m: ablation_verdict(intact, surv(m))["ratio"] for m in ("permuted", "noise", "zero")}
+    # 2026-09-02 : conserver les DICTS complets -- ne garder que ["ratio"] JETAIT le verdict garde,
+    # donc floor=/ceiling= auraient ete INERTES (la garde ne modifie que verdict/degenerate).
+    vs = {m: ablation_verdict(intact, surv(m), floor=floor, ceiling=float(ticks))
+          for m in ("permuted", "noise", "zero")}
+    rungs = {m: v["ratio"] for m, v in vs.items()}
+    if any(v.get("degenerate") for v in vs.values()):
+        return {"ratios": rungs, "verdict": "INDETERMINE_DEGENERATE",
+                "obs_weight": float(np.mean(np.abs(W)))}
     # verdict SURVIE : SENSIBLE si un barreau effondre (>=1.5), NEUTRE si tous plats (<=1.3), sinon MIXTE
     if any(r >= 1.5 for r in rungs.values()):
         verdict = "SURVIVAL_SENSITIVE"
@@ -137,7 +148,8 @@ def main():
     print(f"{'cellule':44s} {'permuted':>9s} {'noise':>7s} {'zero':>7s} {'|W|obs':>7s}  verdict")
     results = {}
     for label, body_gain, currency in cells:
-        rows = [ladder(body_gain, cog_gain, currency, K, s, ticks=ticks) for s in seeds]
+        rows = [ladder(body_gain, cog_gain, currency, K, s, ticks=ticks,
+                       floor=(PLANCHER_AVEUGLE if body_gain < 1.0 else None)) for s in seeds]
         med = lambda k: statistics.median(r["ratios"][k] for r in rows)
         ow = statistics.median(r["obs_weight"] for r in rows)
         verdicts = [r["verdict"] for r in rows]
