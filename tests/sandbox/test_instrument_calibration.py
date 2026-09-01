@@ -39,6 +39,27 @@ NOT_AN_INSTRUMENT = {
 }
 
 CALIBRATED = {
+    # P2.36 (2026-09-01) : les QUATRE derniers. `regime_diagnostic_verdict` prescrivait un changement
+    # de protocole a partir d'un regime JAMAIS MESURE (ma calibration du matin avait gele les 4
+    # branches en fournissant toujours les deux regimes -- le cas manquant n'etait couvert par
+    # personne). `run_coverage_precision_diagnostic` rendait « NI_COUVERTURE_NI_PRECISION » quand
+    # aucun des deux ecarts n'etait mesurable, alors que le code TESTE deja le nan.
+    "run_coverage_precision_diagnostic": ["unmeasurable-is-not-neither", "empty-cohort:raises"],
+    "run_grab_drift_diagnostic": ["empty-cohort:raises", "guard-before-training"],
+    "run_grab_incidence_and_ablation": ["empty-cohort:raises", "guard-before-training"],
+    "run_diagnostic_main": ["missing-regime:no-prescription"],
+    # P2.35 (2026-09-01) : les derniers instruments de monde. Deux defauts graves --
+    # `ladder_verdict(seeds=())` rendait « [1] SUBSTRAT-LIMITE », la these que EDR-200/202 ont
+    # REFUTEE, sur zero donnee ; et `run_aux_off_validation` comptait un REFUS (`nan`) comme un NON,
+    # donc comme une preuve du resultat cherche -- le chiffre du titre de WARM-008.
+    "ladder_verdict": ["zero-seed:refused"],
+    "run_aux_off_validation": ["missing-is-not-negative"],
+    "run_warmstart_credit_probe": ["empty-cohort:raises", "guard-before-world"],
+    "measure_action_pipeline": ["empty-cohort:raises", "guard-before-world"],
+    "measure_inworld_grab_rate": ["empty-cohort:raises", "guard-before-world"],
+    "tools/arm_language.py::measure_mi": ["empty-cohort:raises", "guard-before-world"],
+    "run_retention_map": ["empty-cohort:raises", "guard-before-world"],
+    "run_ablation_map": ["empty-cohort:raises", "guard-before-world"],
     # P2.34 (2026-09-01) : gardes d'arguments EN TETE des mesures de monde -- le geste qui rend le
     # lot gratuit. Une cohorte vide ou un horizon nul produisait une MESURE (0.0 rendu comme survie
     # observee), lue en aval comme « reste au plancher » / « n'emerge pas » / « les deux se valent ».
@@ -156,7 +177,8 @@ CALIBRATED = {
     # plancher ? » (classe E3), et sa garde donneuse `_survivable` -- reutilisee le meme jour pour
     # armer la degenerescence de `s2_verdict`. Un instrument qui sert d'etalon a un autre se
     # calibre en premier. Les 4 branches + les 3 regimes de la garde sont geles.
-    "regime_diagnostic_verdict": ["floor-confound", "underpower", "real-null", "ambiguous"],
+    "regime_diagnostic_verdict": ["floor-confound", "underpower", "real-null", "ambiguous",
+                                  "missing-regime:refused"],
     # P2.21 (2026-09-01) : `_decomp_verdict` avait ZERO test et un CONTROLE NEGATIF (L0, la cellule
     # sans aucun levier) entraine puis JAMAIS lu -- « BOTH-NECESSARY » ne pouvait pas etre refute
     # par le cas qui le refute le plus simplement (classe E1). Les 5 branches sont gelees.
@@ -3350,3 +3372,150 @@ def test_the_guard_is_placed_BEFORE_any_world_is_built(mod, nom, kw):
         f(**kw)
     assert time.time() - t0 < 0.5, (
         f"{nom} met trop de temps a refuser : la garde est posee APRES la construction du monde")
+
+
+# ======================================================================================================
+# P2.35 (2026-09-01) — les derniers instruments de monde. Deux defauts graves, six gardes d'arguments.
+#
+# DEFAUT 1 -- `ladder_verdict(seeds=())`. `binds`/`survs` restent vides, `np.median([])` rend nan,
+# `_rung_composes(nan, nan)` est False, `not l2` est vrai -> l'instrument rendait « [1] SUBSTRAT-LIMITE ».
+# C'est la these « le verrou est le substrat », PRECISEMENT celle que EDR-200/202 ont REFUTEE : une
+# these refutee ressuscitee sur ZERO donnee, avec pour seul signe un RuntimeWarning. Son DERIVE
+# `_decomp_verdict` avait recu la meme garde le meme jour (P2.21) ; le parent ne l'avait pas.
+#
+# DEFAUT 2 -- `run_aux_off_validation` : UN REFUS N'EST PAS UN NON. `measure_inworld_grab_rate` rend
+# `nan` quand il n'y a eu AUCUNE occasion de grab -- il refuse correctement d'inventer un taux. Mais
+# `nan > 0.5` vaut False, donc le refus etait compte comme « gi pas au-dessus du seuil », c'est-a-dire
+# comme une PREUVE que le grab est annule -- le resultat meme que ce banc cherche, et le chiffre du
+# titre de WARM-008. L'instrument disait « je ne sais pas », son appelant entendait « non ».
+# ======================================================================================================
+
+def test_ladder_verdict_REFUSES_to_resurrect_a_refuted_thesis_on_zero_data():
+    """⚠️ Zero seed ne peut pas prouver que le verrou est le substrat."""
+    import warnings
+    from tools.craft_or_starve_edr import ladder_verdict
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        assert ladder_verdict(seeds=())["verdict"] == "INDETERMINE_AUCUNE_MESURE"
+
+
+def test_a_missing_measurement_is_not_counted_as_a_negative():
+    """⚠️ La propriete qui compte, isolee : `nan > 0.5` vaut False en Python. Compter les refus avec les
+    negatifs transforme « je ne sais pas » en « non » -- et ici le « non » EST la conclusion cherchee.
+    Ce test gele l'arithmetique, independamment du banc qui la porte."""
+    import numpy as np
+    gis = [0.9, float("nan"), 0.2, float("nan")]
+    naif = sum(1 for g in gis if g > 0.5)
+    finis = [g for g in gis if np.isfinite(g)]
+    assert naif == 1 and len(gis) == 4, "le comptage naif dit 1/4"
+    assert sum(1 for g in finis if g > 0.5) == 1 and len(finis) == 2, "le comptage honnete dit 1/2"
+    assert len(gis) - len(finis) == 2, "et il DECLARE les 2 mesures manquantes"
+
+
+_MESURES_GARDEES_2 = [
+    ("tools.cognitive_demand_inworld", "run_warmstart_credit_probe", dict(num_agents=0)),
+    ("tools.warmstart_evolution_inworld", "measure_action_pipeline", dict(genome=None, num_agents=0)),
+    ("tools.warmstart_evolution_inworld", "measure_inworld_grab_rate", dict(genome=None, num_agents=0)),
+    ("tools.arm_language", "measure_mi", dict(config=None, db=None, eras=0)),
+    ("tools.retention_map", "run_retention_map", dict(ladder=None, num_agents=0)),
+    ("tools.s2_demand_ablation", "run_ablation_map", dict(num_agents=0)),
+]
+
+
+@pytest.mark.parametrize("mod,nom,kw", _MESURES_GARDEES_2)
+def test_remaining_world_measures_REFUSE_degenerate_arguments(mod, nom, kw):
+    """Seconde vague de gardes, meme principe et meme justification que P2.34."""
+    import importlib
+    f = getattr(importlib.import_module(mod), nom)
+    with pytest.raises(ValueError, match="degenere"):
+        f(**kw)
+
+
+@pytest.mark.parametrize("mod,nom,kw", _MESURES_GARDEES_2)
+def test_remaining_guards_are_also_placed_BEFORE_the_world(mod, nom, kw):
+    """⚠️ Meme verification de PLACEMENT : un refus instantane prouve que la garde precede la
+    construction du monde. `run_retention_map` acquiert une base KuzuDB -- une garde posee apres
+    couterait une ressource exclusive pour rien."""
+    import importlib
+    import time
+    f = getattr(importlib.import_module(mod), nom)
+    t0 = time.time()
+    with pytest.raises(ValueError):
+        f(**kw)
+    assert time.time() - t0 < 0.5, f"{nom} refuse trop lentement : la garde est posee trop bas"
+
+
+# ======================================================================================================
+# P2.36 (2026-09-01) — les QUATRE derniers. Deux defauts de la meme famille, vus une troisieme fois.
+#
+# `regime_diagnostic_verdict` : un regime ABSENT rendait 0.0 via `md.get("champ_median", 0.0)`,
+# exactement comme un regime ou tout meurt -> CONFOND_PLANCHER + `regime_recommande="sweet"`,
+# c'est-a-dire une PRESCRIPTION DE PROTOCOLE derivee d'une mesure inexistante.
+# ⚠️ Ma calibration du matin (P2.22) avait gele les QUATRE branches -- en fournissant toujours les deux
+# regimes. Le cas « entree manquante » n'etait couvert par personne, y compris par moi.
+#
+# `run_coverage_precision_diagnostic` : si les bins tardifs sont tous a n=0, les deux ecarts sont nan et
+# la branche `else` rendait « NI_COUVERTURE_NI_PRECISION » -- une affirmation de fond sans qu'aucun des
+# deux effets ait pu etre observe. Le code teste pourtant deja `cov_gap == cov_gap` : il CONNAIT le nan,
+# et l'avale quand meme. Troisieme occurrence du meme motif aujourd'hui (apres `degenerate` non lu par
+# `ablation_verdict`, et `nan > 0.5` compte comme un NON).
+# ======================================================================================================
+
+def _rd_regime(mediane):
+    return {"champion": {"survival": [mediane] * 40, "era_survival": [mediane] * 12,
+                         "censored_frac": 0.0},
+            "reflexe": {"survival": [10] * 40, "era_survival": [10] * 12, "censored_frac": 0.0}}
+
+
+def test_regime_diagnostic_REFUSES_to_prescribe_from_a_regime_never_measured():
+    """⚠️ Le regime « defaut » absent ne peut pas fonder « passe au sweet »."""
+    from tools.s2_regime_diagnostic import regime_diagnostic_verdict
+    r = regime_diagnostic_verdict({"sweet": _rd_regime(300)}, max_ticks=400)
+    assert r["verdict"] == "INDETERMINE_REGIME_MANQUANT"
+    assert r["regime_recommande"] is None, "aucune prescription sans les deux regimes"
+    assert r["regimes_manquants"] == ["defaut"]
+
+
+def test_regime_diagnostic_still_finds_a_REAL_floor_confound():
+    """⚠️ SPECIFICITE : avec les DEUX regimes mesures, le confond de plancher doit toujours sortir --
+    c'est le verdict que cet instrument existe pour produire."""
+    from tools.s2_regime_diagnostic import regime_diagnostic_verdict
+    cells = {"defaut": {"champion": {"survival": [5] * 40, "era_survival": [5] * 12,
+                                     "censored_frac": 0.0},
+                        "reflexe": {"survival": [5] * 40, "era_survival": [5] * 12,
+                                    "censored_frac": 0.0}},
+             "sweet": _rd_regime(300)}
+    assert regime_diagnostic_verdict(cells, max_ticks=400)["verdict"] == "CONFOND_PLANCHER"
+
+
+def test_UNMEASURABLE_is_not_the_same_as_NEITHER():
+    """⚠️ La propriete isolee, independamment du banc : deux ecarts non mesurables ne prouvent pas que
+    ni l'un ni l'autre n'agit. Le code connaissait le nan (il le teste) et l'avalait dans le negatif."""
+    nan = float("nan")
+    cov_gap, prec_gap = nan, nan
+    has_cov = cov_gap == cov_gap and cov_gap >= 0.10
+    has_prec = prec_gap == prec_gap and prec_gap >= 0.10
+    assert not has_cov and not has_prec, "les deux drapeaux sont False..."
+    assert cov_gap != cov_gap and prec_gap != prec_gap, (
+        "...mais pour cause de NON-MESURE, pas d'absence d'effet : c'est cette distinction que la "
+        "branche `else` effacait")
+
+
+_WARM_DERNIERS = [
+    ("run_coverage_precision_diagnostic", dict(num_agents=0)),
+    ("run_grab_drift_diagnostic", dict(num_agents=0)),
+    ("run_grab_incidence_and_ablation", dict(num_agents=0)),
+]
+
+
+@pytest.mark.parametrize("nom,kw", _WARM_DERNIERS)
+def test_last_warm_diagnostics_REFUSE_degenerate_arguments(nom, kw):
+    """Ces trois lancent un entrainement torch de plusieurs milliers d'epoques : une garde posee trop
+    bas couterait une passe complete avant de refuser."""
+    import time
+    import tools.warmstart_evolution_inworld as W
+    f = getattr(W, nom)
+    t0 = time.time()
+    with pytest.raises(ValueError, match="degenere"):
+        f(**kw)
+    assert time.time() - t0 < 0.5, f"{nom} refuse trop lentement"

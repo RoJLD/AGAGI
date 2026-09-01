@@ -56,6 +56,14 @@ def _median_survival(cond):
 def run_ablation_map(worlds=None, seed=2026, K=12, num_agents=20, max_ticks=400):
     """Pour chaque monde : champion INTACT vs champion ABLATÉ (within) + réflexe (between). Renvoie
     {world: {within_ratio, between_ratio, verdict, n}}. n = K ères (unité d'appariement)."""
+    # ⚠️ GARDE D'ARGUMENTS, EN TETE (2026-09-01). Meme raison que pour les autres mesures : sans
+    # elle, une cohorte vide ou un horizon nul produit une MESURE (0.0 rendu comme observation),
+    # que l'aval lit comme un resultat. On LEVE : un argument degenere est une erreur d'appel, pas
+    # un fait sur le monde. Posee avant la construction du monde -> le refus ne coute rien.
+    if int(K) <= 0 or int(num_agents) <= 0 or int(max_ticks) <= 0:
+        raise ValueError(
+            f"run_ablation_map : argument degenere (K={K}, num_agents={num_agents}, max_ticks={max_ticks}) -- "
+            "aucune mesure possible ; ne pas confondre avec une mesure nulle OBSERVEE.")
     worlds = worlds or list(WORLDS)
     champion = load_champion_genome()
     out = {}

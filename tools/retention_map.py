@@ -45,6 +45,14 @@ def _print_matrix(summary):
 
 def run_retention_map(ladder, keep_memory=False, num_agents=60, max_ticks=400,
                       grad_cfg=None):
+    # ⚠️ GARDE D'ARGUMENTS, EN TETE (2026-09-01). Meme raison que pour les autres mesures : sans
+    # elle, une cohorte vide ou un horizon nul produit une MESURE (0.0 rendu comme observation),
+    # que l'aval lit comme un resultat. On LEVE : un argument degenere est une erreur d'appel, pas
+    # un fait sur le monde. Posee avant la construction du monde -> le refus ne coute rien.
+    if int(num_agents) <= 0 or int(max_ticks) <= 0:
+        raise ValueError(
+            f"run_retention_map : argument degenere (num_agents={num_agents}, max_ticks={max_ticks}) -- "
+            "aucune mesure possible ; ne pas confondre avec une mesure nulle OBSERVEE.")
     grad_cfg = grad_cfg or GraduationConfig()
 
     async_logger.start()

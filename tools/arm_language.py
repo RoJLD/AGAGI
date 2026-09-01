@@ -59,6 +59,14 @@ def evolve(config, db, ref_scale, eras, max_ticks=200):
 
 
 def measure_mi(config, db, eras=6, max_ticks=200):
+    # ⚠️ GARDE D'ARGUMENTS, EN TETE (2026-09-01). Meme raison que pour les autres mesures : sans
+    # elle, une cohorte vide ou un horizon nul produit une MESURE (0.0 rendu comme observation),
+    # que l'aval lit comme un resultat. On LEVE : un argument degenere est une erreur d'appel, pas
+    # un fait sur le monde. Posee avant la construction du monde -> le refus ne coute rien.
+    if int(eras) <= 0 or int(max_ticks) <= 0:
+        raise ValueError(
+            f"measure_mi : argument degenere (eras={eras}, max_ticks={max_ticks}) -- "
+            "aucune mesure possible ; ne pas confondre avec une mesure nulle OBSERVEE.")
     toks, ctxs = [], []
     for _ in range(eras):
         env = _world(config, db, 0.0)        # mesure pure : pression off, on lit les politiques évoluées

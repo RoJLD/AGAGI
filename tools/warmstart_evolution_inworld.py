@@ -509,6 +509,14 @@ def measure_action_pipeline(genome, seed=2026, num_agents=12, max_ticks=200,
     FLIP (exécuté != brut), la part des flips qui transforment une décision CORRECTE en action FAUSSE,
     et la part des flips COMPATIBLES avec l'anti-répétition (le choix brut était l'action du tick
     précédent, donc pénalisée). Renvoie un dict ; None si torch absent."""
+    # ⚠️ GARDE D'ARGUMENTS, EN TETE (2026-09-01). Meme raison que pour les autres mesures : sans
+    # elle, une cohorte vide ou un horizon nul produit une MESURE (0.0 rendu comme observation),
+    # que l'aval lit comme un resultat. On LEVE : un argument degenere est une erreur d'appel, pas
+    # un fait sur le monde. Posee avant la construction du monde -> le refus ne coute rien.
+    if int(num_agents) <= 0 or int(max_ticks) <= 0:
+        raise ValueError(
+            f"measure_action_pipeline : argument degenere (num_agents={num_agents}, max_ticks={max_ticks}) -- "
+            "aucune mesure possible ; ne pas confondre avec une mesure nulle OBSERVEE.")
     try:
         import torch  # noqa: F401
     except Exception:
@@ -961,6 +969,11 @@ def run_grab_drift_diagnostic(seed=2026, rounds=6, epochs_per_round=3000, lr=0.5
 
     Coût BORNÉ (leçon WARM-005) : AUCUNE mesure de survie ni d'accuracy in-world par round — seules
     les sondes sans gradient et, pour le bras dagger, `rounds-1` collectes on-policy. None si torch absent."""
+    # ⚠️ GARDE D'ARGUMENTS, EN TETE (2026-09-01). Meme raison que pour les autres mesures.
+    # On LEVE : un argument degenere est une erreur d'appel, pas un fait sur le monde.
+    if int(rounds) <= 0 or int(num_agents) <= 0 or int(max_ticks) <= 0:
+        raise ValueError(
+            f"run_grab_drift_diagnostic : argument degenere (rounds={rounds}, num_agents={num_agents}, max_ticks={max_ticks}) -- aucune mesure possible.")
     try:
         import torch  # noqa: F401
     except Exception:
@@ -1010,6 +1023,14 @@ def measure_inworld_grab_rate(genome, seed=2026, K=1, num_agents=12, max_ticks=2
     et grabber en permanence in-world (ou l'inverse).
     Valide tant que `explore_eps == 0` (défaut) : sinon le monde force le grab indépendamment du logit
     (world_1_stoneage:1298-1310, ε-greedy EDR-019) et le logit ne gouverne plus le geste."""
+    # ⚠️ GARDE D'ARGUMENTS, EN TETE (2026-09-01). Meme raison que pour les autres mesures : sans
+    # elle, une cohorte vide ou un horizon nul produit une MESURE (0.0 rendu comme observation),
+    # que l'aval lit comme un resultat. On LEVE : un argument degenere est une erreur d'appel, pas
+    # un fait sur le monde. Posee avant la construction du monde -> le refus ne coute rien.
+    if int(K) <= 0 or int(num_agents) <= 0 or int(max_ticks) <= 0:
+        raise ValueError(
+            f"measure_inworld_grab_rate : argument degenere (K={K}, num_agents={num_agents}, max_ticks={max_ticks}) -- "
+            "aucune mesure possible ; ne pas confondre avec une mesure nulle OBSERVEE.")
     try:
         import torch  # noqa: F401
     except Exception:
@@ -1140,10 +1161,25 @@ def run_aux_off_validation(seeds=(2026, 7, 13, 42), epochs=1500, lr=0.5, num_age
                 recs.append({"agent": i, "gi": float(gi), "move_acc": float(probe["move_acc"][i]),
                              "grab_logit": float(probe["grab"][i]), "rub_logit": float(probe["rub"][i])})
             per_arm[str(w)] = recs
-            print("  seed=%-5s w=%-4s gi_median=%.3f  gi>0.5: %d/%d  move_acc_median=%.3f"
-                  % (seed, w, float(np.median([r["gi"] for r in recs])),
-                     sum(1 for r in recs if r["gi"] > 0.5), len(recs),
+            # ⚠️ UN REFUS N'EST PAS UN NON (2026-09-01). `measure_inworld_grab_rate` rend `nan` quand
+            # il n'y a eu AUCUNE occasion de grab -- il refuse correctement d'inventer un taux. Mais
+            # `nan > 0.5` vaut False : le refus etait donc compte comme « gi PAS au-dessus du seuil »,
+            # c'est-a-dire comme une PREUVE que le grab est annule -- le resultat meme que ce banc
+            # cherche, et le chiffre du titre de WARM-008. L'instrument disait « je ne sais pas », son
+            # appelant entendait « non ». Les mesures manquantes sont desormais COMPTEES A PART.
+            gis = [r["gi"] for r in recs]
+            finis = [g for g in gis if np.isfinite(g)]
+            n_manquants = len(gis) - len(finis)
+            n_au_dessus = sum(1 for g in finis if g > 0.5)
+            per_arm[str(w) + "__mesures_manquantes"] = n_manquants
+            print("  seed=%-5s w=%-4s gi_median=%s  gi>0.5: %d/%d  manquants=%d  move_acc_median=%.3f"
+                  % (seed, w,
+                     ("%.3f" % float(np.median(finis))) if finis else "AUCUNE MESURE",
+                     n_au_dessus, len(finis), n_manquants,
                      float(np.median([r["move_acc"] for r in recs]))))
+            if n_manquants:
+                print("     ⚠️ %d agent(s) SANS occasion de grab : mesure MANQUANTE, pas 'grab annule'."
+                      % n_manquants)
         out["seeds"][str(seed)] = per_arm
 
     if out_path:
@@ -1172,6 +1208,11 @@ def run_grab_incidence_and_ablation(seeds=(2026, 7), rounds=2, epochs_per_round=
     Chaque agent est son PROPRE contrôle (within-subject, K ères appariées), et l'on rapporte la
     distribution par agent — jamais une moyenne de population (leçon WARM-006).
     Coût BORNÉ : `n_probe` plafonne le nombre d'agents ablatés (2 bras × K ères chacun). None si torch absent."""
+    # ⚠️ GARDE D'ARGUMENTS, EN TETE (2026-09-01). Meme raison que pour les autres mesures.
+    # On LEVE : un argument degenere est une erreur d'appel, pas un fait sur le monde.
+    if int(rounds) <= 0 or int(num_agents) <= 0 or int(max_ticks) <= 0:
+        raise ValueError(
+            f"run_grab_incidence_and_ablation : argument degenere (rounds={rounds}, num_agents={num_agents}, max_ticks={max_ticks}) -- aucune mesure possible.")
     try:
         import torch  # noqa: F401
     except Exception:
@@ -1259,6 +1300,11 @@ def run_coverage_precision_diagnostic(seed=2026, rounds=6, epochs_per_round=3000
       (B) PRÉCISION : accuracy sur SON PROPRE rollout, binnée par ÉNERGIE -> chute en basse énergie =
           précision aux états critiques.
     Reproduit (ou recharge) le génome DAgger et le PERSISTE (il n'avait pas été sauvé en WARM-003)."""
+    # ⚠️ GARDE D'ARGUMENTS, EN TETE (2026-09-01). Meme raison que pour les autres mesures.
+    # On LEVE : un argument degenere est une erreur d'appel, pas un fait sur le monde.
+    if int(rounds) <= 0 or int(num_agents) <= 0 or int(max_ticks) <= 0:
+        raise ValueError(
+            f"run_coverage_precision_diagnostic : argument degenere (rounds={rounds}, num_agents={num_agents}, max_ticks={max_ticks}) -- aucune mesure possible.")
     try:
         import torch  # noqa: F401
     except Exception:
@@ -1322,7 +1368,14 @@ def run_coverage_precision_diagnostic(seed=2026, rounds=6, epochs_per_round=3000
     prec_gap = (high_e_acc - low_e_acc) if (high_e_acc == high_e_acc and low_e_acc == low_e_acc) else float("nan")
     has_cov = cov_gap == cov_gap and cov_gap >= COV_DROP
     has_prec = prec_gap == prec_gap and prec_gap >= PREC_DROP
-    if has_cov and has_prec:
+    # ⚠️ « PAS MESURABLE » N'EST PAS « NI L'UN NI L'AUTRE » (2026-09-01). Le code teste deja
+    # `cov_gap == cov_gap` -- il CONNAIT donc le cas nan -- mais la branche `else` l'avalait dans
+    # « NI_COUVERTURE_NI_PRECISION », une affirmation de fond. Si les bins tardifs sont tous a n=0, les
+    # deux ecarts sont nan et ce verdict etait rendu sans qu'AUCUN des deux effets ait pu etre observe.
+    # Le test de non-regression du depot tournait deja dans ce regime (max_ticks=12).
+    if cov_gap != cov_gap and prec_gap != prec_gap:
+        verdict = "INDETERMINE_AUCUN_ECART_MESURABLE"
+    elif has_cov and has_prec:
         verdict = "LES_DEUX"
     elif has_cov:
         verdict = "COUVERTURE"

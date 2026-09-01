@@ -64,6 +64,19 @@ def regime_diagnostic_verdict(cells, max_ticks=400):
                        "beats": cmp["beats"], "survivable": _survivable(rc["champion"], max_ticks),
                        "champ_median": _median(rc["champion"]),
                        "censored_frac": float(rc["champion"].get("censored_frac", 0.0))}
+    # ⚠️ UN REGIME ABSENT N'EST PAS UN REGIME AU PLANCHER (2026-09-01). `md.get("champ_median", 0.0)`
+    # rendait 0.0 pour un regime JAMAIS MESURE, exactement comme pour un regime ou tout meurt ->
+    # `floored_lift` devenait vrai -> CONFOND_PLANCHER + `regime_recommande="sweet"`, c'est-a-dire une
+    # PRESCRIPTION DE PROTOCOLE derivee d'une mesure inexistante. La calibration du matin (P2.22) avait
+    # gele les quatre branches en fournissant TOUJOURS les deux regimes : le cas manquant n'etait
+    # couvert par personne.
+    manquants = [r for r in ("defaut", "sweet") if r not in per]
+    if manquants:
+        return {"verdict": "INDETERMINE_REGIME_MANQUANT", "regime_recommande": None, "lift": None,
+                "per_regime": per, "regimes_manquants": manquants,
+                "thresholds": {"ALPHA": ALPHA, "CLIFF_THRESH": CLIFF_THRESH,
+                               "SURV_FLOOR_FRAC": SURV_FLOOR_FRAC, "CENSORED_SURV": CENSORED_SURV,
+                               "LIFT_RATIO": LIFT_RATIO}}
     md, ms = per.get("defaut", {}), per.get("sweet", {})
     md_med, ms_med = md.get("champ_median", 0.0), ms.get("champ_median", 0.0)
     floored_lift = (md_med <= 0.0 and ms_med > 0.0)   # défaut au plancher (médiane 0) : lift "infini" -> None (JSON strict)

@@ -138,6 +138,14 @@ def run_warmstart_credit_probe(seed=2026, num_agents=12, max_ticks=200, schedule
     TIENT (≫ floor) → le curriculum a franchi le bootstrap (loi warm-start). CURRICULUM_COG = cog annelé
     haut→normal (metab dur fixe) ; CURRICULUM_METAB = metab facile→dur (cog fixe). Renvoie survie médiane
     par étape + flag learned."""
+    # ⚠️ GARDE D'ARGUMENTS, EN TETE (2026-09-01). Meme raison que pour les autres mesures : sans
+    # elle, une cohorte vide ou un horizon nul produit une MESURE (0.0 rendu comme observation),
+    # que l'aval lit comme un resultat. On LEVE : un argument degenere est une erreur d'appel, pas
+    # un fait sur le monde. Posee avant la construction du monde -> le refus ne coute rien.
+    if int(num_agents) <= 0 or int(max_ticks) <= 0:
+        raise ValueError(
+            f"run_warmstart_credit_probe : argument degenere (num_agents={num_agents}, max_ticks={max_ticks}) -- "
+            "aucune mesure possible ; ne pas confondre avec une mesure nulle OBSERVEE.")
     import numpy as np
     from src.worlds.world_1_stoneage import Biosphere3D
     from src.seed_ai.harness import seed_at

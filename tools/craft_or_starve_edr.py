@@ -609,6 +609,14 @@ def ladder_verdict(seeds=PILOT_SEEDS, E0=16.0, M=32, n_episodes=120, n_warm=80, 
         b, sv = float(np.median(binds)), float(np.median(survs))
         rungs[name] = {"binding": b, "survival": sv, "composes": _rung_composes(b, sv)}
     l0, l1, l2 = rungs["L0"]["composes"], rungs["L1"]["composes"], rungs["L2"]["composes"]
+    # ⚠️ ZERO SEED = ZERO VERDICT (2026-09-01). Avec `seeds=()`, `binds`/`survs` restent vides,
+    # `np.median([])` rend nan, `_rung_composes(nan, nan)` est False, `not l2` est vrai -> l'instrument
+    # rendait « [1] SUBSTRAT-LIMITE » : la these « le verrou est le substrat », precisement celle que
+    # EDR-200/202 ont REFUTEE. Une these refutee ressuscitee sur ZERO donnee, avec pour seul signe un
+    # RuntimeWarning. Son DERIVE `_decomp_verdict` a recu la meme garde le meme jour (P2.21).
+    if any(not np.isfinite(rungs[n]["binding"]) or not np.isfinite(rungs[n]["survival"])
+           for n in ("L0", "L1", "L2")):
+        return {"verdict": "INDETERMINE_AUCUNE_MESURE", "rungs": rungs, "E0": E0}
     if not l2:
         verdict = "[1] SUBSTRAT-LIMITE"
     elif not l0 and not l1:
