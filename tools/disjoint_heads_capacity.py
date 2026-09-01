@@ -96,6 +96,13 @@ def _verdict_capacity(cos_list, recovery_list):
     Axe A : INDUCED si cos<=COS_INDUCED majorite, sinon NOT_INDUCED.
     Axe B : CREDIT_ROBUST recovery>=0.50 majorite / ARCH_MATTERS <=0.20 majorite / sinon CREDIT_PARTIAL."""
     n = len(cos_list)
+    # ⚠️ ZERO SEED = ZERO VERDICT (classes E4/E18, ajoute le 2026-09-01). Sans cette branche,
+    # une liste VIDE rendait un verdict de FOND : `_verdict_disjoint([])` -> "DISJOINT_NEUTRAL",
+    # soit « les tetes disjointes ne changent rien » affirme a partir d'AUCUNE donnee. Un
+    # estimateur qui recompense l'absence de preuve est precisement la classe E18.
+    # Les SEUILS restent GELES : cette branche n'en touche aucun, elle couvre n=0.
+    if n == 0:
+        return "INDETERMINE_AUCUN_SEED"
     maj = n // 2 + 1
     axis_a = "INDUCED" if sum(1 for c in cos_list if c <= COS_INDUCED) >= maj else "NOT_INDUCED"
     robust = sum(1 for r in recovery_list if r >= 0.50)

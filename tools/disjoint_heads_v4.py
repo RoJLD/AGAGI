@@ -69,6 +69,13 @@ def _verdict_v4(lr_recs):
     """Le knob lr-par-tete rejoint-il la famille d'equilibrage de credit ? Meme grille que le confond (153) :
     LR_RECOVERS si recovery>=0.50 majorite ; LR_INSUFFICIENT si <=0.20 majorite ; sinon LR_PARTIAL. GELE."""
     n = len(lr_recs)
+    # ⚠️ ZERO SEED = ZERO VERDICT (classes E4/E18, ajoute le 2026-09-01). Sans cette branche,
+    # une liste VIDE rendait un verdict de FOND : `_verdict_disjoint([])` -> "DISJOINT_NEUTRAL",
+    # soit « les tetes disjointes ne changent rien » affirme a partir d'AUCUNE donnee. Un
+    # estimateur qui recompense l'absence de preuve est precisement la classe E18.
+    # Les SEUILS restent GELES : cette branche n'en touche aucun, elle couvre n=0.
+    if n == 0:
+        return "INDETERMINE_AUCUN_SEED"
     maj = n // 2 + 1
     conf = sum(1 for r in lr_recs if r >= 0.50)
     ref = sum(1 for r in lr_recs if r <= 0.20)

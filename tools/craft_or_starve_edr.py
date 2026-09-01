@@ -661,7 +661,18 @@ _DECOMP_CELLS = (("substep", False), ("substep", True), ("tick", False), ("tick"
 
 
 def _decomp_verdict(cells):
-    """Arbre de decision gate sur (tick,True)=L2 (cellule CONNUE-composante). Isole le levier decisif du binding."""
+    """Arbre de decision gate sur (tick,True)=L2 (cellule CONNUE-composante). Isole le levier decisif du binding.
+
+    ⚠️ GARDE DE CONTROLE NEGATIF ajoutee le 2026-09-01 (classe E1). La cellule (substep, False) = L0 --
+    NI credit tick-return, NI curriculum -- etait ENTRAINEE au prix fort, AFFICHEE dans le rapport, et
+    JAMAIS LUE par ce verdict. C'est pourtant le controle negatif de toute la decomposition : si L0
+    compose deja, AUCUN levier n'est necessaire, et rendre « BOTH-NECESSARY » (les deux sont requis)
+    serait faux. Le verdict le plus fort du dispositif ne pouvait donc pas etre refute par le cas qui
+    le refute le plus simplement.
+    """
+    if cells[("substep", False)]["composes"]:
+        # Le barreau NU compose : il n'y a aucun contraste a decomposer.
+        return "DEGENERE-SANS-LEVIER"
     if not cells[("tick", True)]["composes"]:
         return "INCOHERENT"                     # (tick,on) ne compose pas -> contredit le verdict merge = artefact
     if cells[("substep", True)]["composes"]:

@@ -29,6 +29,30 @@ from tools.warmstart_evolution_inworld import _torch_survival_eras  # noqa: E402
 # couverture PARTIELLE (classe E4 — une vérification qui ne peut pas échouer).
 # `["*"]` = instrument sans branches. Ajouter une branche ici EXIGE d'ajouter le cas de test.
 CALIBRATED = {
+    # P2.23 (2026-09-01) : famille `disjoint_heads`, 8 verdicts a vote majoritaire calibres EN LOT.
+    # Defaut commun corrige : une liste VIDE rendait un verdict DE FOND (`_verdict_disjoint([])`
+    # -> "DISJOINT_NEUTRAL", une affirmation sans AUCUNE donnee -- classes E18 + E4). Les seuils
+    # GELES ne sont pas touches. Cas structurels : refus sur n=0, discrimination des deux extremes,
+    # existence d'une zone MEDIANE (majorite stricte), frontieres inclusives de `_verdict_lr`.
+    # ⚠️ `_verdict_capacity` et `_verdict_v4` sont des noms EN COLLISION -> declarations QUALIFIEES.
+    "_verdict_disjoint": ["empty:refused", "extremes:discriminated", "middle:exists"],
+    "_verdict_confound": ["empty:refused", "extremes:discriminated", "middle:exists"],
+    "_verdict_correlated": ["empty:refused", "extremes:discriminated", "middle:exists"],
+    "_verdict_v3": ["empty:refused", "extremes:discriminated", "middle:exists"],
+    "_verdict_lr": ["empty:refused", "extremes:discriminated", "middle:exists", "thresholds:inclusive"],
+    "tools/disjoint_heads_capacity.py::_verdict_capacity": ["empty:refused", "extremes:discriminated", "middle:exists"],
+    "tools/disjoint_heads_v4.py::_verdict_v4": ["empty:refused", "extremes:discriminated", "middle:exists"],
+    "tools/disjoint_heads_synergy.py::_verdict_v4": ["empty:refused", "extremes:discriminated", "middle:exists"],
+    # P2.22 (2026-09-01) : l'instrument qui tranche « ce nul est-il reel ou fabrique par un
+    # plancher ? » (classe E3), et sa garde donneuse `_survivable` -- reutilisee le meme jour pour
+    # armer la degenerescence de `s2_verdict`. Un instrument qui sert d'etalon a un autre se
+    # calibre en premier. Les 4 branches + les 3 regimes de la garde sont geles.
+    "regime_diagnostic_verdict": ["floor-confound", "underpower", "real-null", "ambiguous"],
+    # P2.21 (2026-09-01) : `_decomp_verdict` avait ZERO test et un CONTROLE NEGATIF (L0, la cellule
+    # sans aucun levier) entraine puis JAMAIS lu -- « BOTH-NECESSARY » ne pouvait pas etre refute
+    # par le cas qui le refute le plus simplement (classe E1). Les 5 branches sont gelees.
+    "_decomp_verdict": ["degenerate:L0-composes", "positive:both-necessary",
+                        "separation:two-levers", "coherence:L2-fails"],
     # P2.20 (2026-09-01) : E14 -- `sign_p` etait CALCULE puis JETE dans trois verdicts, alors que
     # `compute_ab_verdict` avait recu la garde. Contre-exemple gele : la configuration PUBLIEE de
     # D2 (+47 %, 7/8 seeds, sign_p=0.070) bascule EFFICACE -> NEUTRE. Specificite : 12 seeds
@@ -210,6 +234,30 @@ CALIBRATED = {
     # (`test_optimizer_sweep_REFUSES_the_retain_compose_null` / `..._SPARES_the_bilinear_structural_null`),
     # là où sont testées toutes les assertions de pré-vol — pas dans ce fichier. Purement numériques.
     "assert_verdict_invariant_to_optimizer": ["artifact:fires", "structural:spares"],
+    # DELAYED-COORD : sonde de Lewis DIFFÉRÉE, instrument NÉ le 2026-09-01 et calibré dans la MÊME passe
+    # (rituel du cliquet). Deux réponses CONNUES ANALYTIQUEMENT, sans rien supposer de l'apprentissage :
+    # (1) `mute-channel:chance` — à `flip_p=1.0` le sender ne voit qu'un tirage UNIFORME, donc le canal ne
+    #     porte AUCUNE information sur la cible et le plafond de Bayes vaut EXACTEMENT 1/K. Toute valeur
+    #     au-dessus signalerait une FUITE de la cible vers le readout — la classe d'erreur exacte de
+    #     MEM-PERCEPTION itération 1 (l'encodage du contrôle portait la réponse). Couvre le pipeline
+    #     COMPLET, entraînement inclus.
+    # (2) `mute-channel:arm-symmetry-exact` — no-op EXACT, la forme de test la plus forte. La DATE de
+    #     présentation de la cible est le SEUL facteur censé séparer RETAIN de PRESENT ; à `flip_p=1.0`
+    #     cette date devient sans objet, donc les deux bras doivent rendre des accuracies BIT-IDENTIQUES.
+    #     Casse dès qu'une édition rompt l'identité de construction (longueur de séquence, nombre de
+    #     forwards, ou simplement un tirage RNG de plus dans un bras) — c'est-à-dire la contrainte non
+    #     négociable du design, rendue exécutable au lieu d'être seulement écrite.
+    # (3) `untrained:floor` — `episodes=0` : PINGLE LE PLANCHER de l'instrument à 1/K. Portée VOLONTAIREMENT
+    #     modeste, et il faut le dire : un readout non entraîné est à la chance QUELLE QUE SOIT son entrée,
+    #     donc ce cas n'attrape PAS une fuite (c'est (1) qui le fait, prouvé sensible : porteur propre ->
+    #     0.490 contre une barre à 0.257). Ce qu'il attrape vraiment, c'est un chemin de SCORE cassé —
+    #     accuracy comparée au leurre plutôt qu'à la cible, ou éval dégénérée. Utile parce qu'un verdict
+    #     « effondrement vers ~0.17 » n'est lisible que si l'on sait mesurer ce que vaut le plancher (E14).
+    # ⚠️ NON couvert : le contrôle positif « générateur A » (canal ORACLE -> RETAIN s'effondre, PRESENT
+    # inerte) MESURÉ hors-test (0.436 -> 0.148 ; 0.391, Δ 0.026) mais qui exige un paramètre `sender_mode`
+    # que la sonde n'expose pas encore — il revient à la tâche qui ajoutera le bras ALIAS et le verdict.
+    "run_delayed_coordination_demand_probe": ["mute-channel:chance", "mute-channel:arm-symmetry-exact",
+                                              "untrained:floor"],
 }
 
 _GENOMES = os.path.join("results", "warm007_genomes")
@@ -2174,3 +2222,241 @@ def test_fidelity_verdict_is_SYMMETRIC_between_its_two_labels():
     faible_inutile = [1.47, 1.50, 1.45, 1.60, 1.40, 1.55, 1.42, 0.85]
     assert fidelity_verdict(faible_inutile)["verdict"] == "NEUTRE"
     assert fidelity_verdict([1.0 / r for r in faible_inutile])["verdict"] == "NEUTRE"
+
+
+# --- DELAYED-COORD : sonde de Lewis DIFFÉRÉE (instrument né le 2026-09-01, calibré dans la même passe) ---
+# Les deux cas ci-dessous n'utilisent QUE des réponses connues analytiquement (plafond de Bayes du canal,
+# indépendance d'un readout non entraîné, symétrie exacte des bras). Aucun ne suppose que la tâche est
+# apprenable — ils resteraient valides si la capacité était absente, ce qui est exactement ce qu'on veut
+# d'une calibration : elle interroge l'INSTRUMENT, pas le phénomène.
+
+def test_delayed_coordination_probe_is_at_CHANCE_when_the_channel_is_MUTE():
+    """Réponse CONNUE : à `flip_p=1.0`, `_noisy_onehot` ignore son référent et rend un tirage UNIFORME —
+    le sender ne perçoit RIEN de la cible, donc le canal ne porte aucune information et le plafond de
+    Bayes vaut EXACTEMENT `1/K`. Une accuracy au-dessus de la chance signalerait une FUITE de la cible
+    vers le readout du receiver (la classe d'erreur de MEM-PERCEPTION itération 1, où l'encodage du
+    contrôle portait la réponse elle-même). Couvre le pipeline COMPLET, entraînement inclus.
+
+    Second volet — no-op EXACT (spécificité la plus forte) : la DATE de présentation de la cible est le
+    SEUL facteur qui sépare RETAIN de PRESENT. Neutralisée (les deux référents sont le même tirage
+    uniforme), les deux bras doivent être BIT-IDENTIQUES. Cette assertion casse dès qu'une édition rompt
+    l'identité de construction exigée par le design — longueur de séquence, nombre de forwards, ou un
+    simple tirage RNG supplémentaire dans un bras."""
+    from tools.delayed_coordination_demand_probe import run_delayed_coordination_demand_probe as run
+    K = 6
+    r = run(seeds=[0, 1, 2], D=1, episodes=60, n_agents=8, K=K, V=8, lr=0.05, flip_p=1.0, eval_batches=25)
+    assert r["_params"]["ceiling_bayes"] == pytest.approx(1.0 / K), r["_params"]
+    vals = [v for arm in ("RETAIN", "PRESENT") for v in r[arm + "_intact"] + r[arm + "_ablated"]]
+    assert all(abs(v - 1.0 / K) <= 0.09 for v in vals), r      # aucune fuite cible -> readout
+    assert r["RETAIN_intact"] == r["PRESENT_intact"], r        # no-op EXACT : bras bit-identiques
+    assert r["RETAIN_ablated"] == r["PRESENT_ablated"], r
+
+
+def test_delayed_coordination_probe_UNTRAINED_cannot_beat_chance():
+    """Réponse CONNUE : sans entraînement (`episodes=0`) la réponse du receiver est indépendante d'une
+    cible tirée uniformément, donc son accuracy vaut `1/K` en espérance QUELLE QUE SOIT sa politique.
+    Ce cas PINGLE LE PLANCHER de l'instrument — pas davantage, et il faut le dire : un readout non
+    entraîné est à la chance quelle que soit son entrée, donc ce test n'attrape PAS une fuite de la
+    cible (c'est le cas `mute-channel` qui le fait). Ce qu'il attrape, c'est un chemin de SCORE cassé
+    (accuracy comparée au leurre plutôt qu'à la cible, éval dégénérée). Il vaut parce qu'un verdict
+    « effondrement vers ~0.17 » n'est interprétable que si le plancher a été MESURÉ (classe E14)."""
+    from tools.delayed_coordination_demand_probe import run_delayed_coordination_demand_probe as run
+    K = 6
+    r = run(seeds=[0, 1, 2], D=1, episodes=0, n_agents=8, K=K, V=8, flip_p=0.3, eval_batches=25)
+    vals = [v for arm in ("RETAIN", "PRESENT") for v in r[arm + "_intact"] + r[arm + "_ablated"]]
+    assert all(abs(v - 1.0 / K) <= 0.09 for v in vals), r
+
+
+# ======================================================================================================
+# P2.21 (2026-09-01) — `_decomp_verdict` : ZÉRO test, et un CONTRÔLE NÉGATIF entraîné puis jamais lu.
+#
+# La décomposition factorielle 2×2 (crédit × curriculum) entraîne QUATRE cellules. L'arbre de décision
+# n'en lisait que TROIS : `(substep, False)` = L0 — ni crédit tick-return, ni curriculum — était
+# entraînée au prix fort, affichée dans le rapport, et **jamais consultée**.
+#
+# Or L0 est le contrôle négatif de toute la décomposition. Si L0 compose déjà, AUCUN levier n'est
+# nécessaire, et rendre `BOTH-NECESSARY` (« les deux sont requis ») est faux. Le verdict le plus fort
+# du dispositif ne pouvait donc pas être réfuté par le cas qui le réfute le plus simplement — classe E1.
+#
+# Instrument PUR (un dict de booléens en entrée) : calibrable sans aucune simulation de monde.
+# ======================================================================================================
+
+def _decomp_cells(l0, substep_curr, tick_seul, l2):
+    """Les 4 cellules du 2×2, réduites à ce que l'arbre lit : `composes`."""
+    return {("substep", False): {"composes": l0},
+            ("substep", True): {"composes": substep_curr},
+            ("tick", False): {"composes": tick_seul},
+            ("tick", True): {"composes": l2}}
+
+
+def test_decomp_verdict_REFUSES_to_conclude_when_the_bare_rung_already_composes():
+    """⚠️ LE contre-exemple. Si L0 compose, il n'y a aucun contraste à décomposer — conclure
+    « les deux leviers sont nécessaires » serait faux. AVANT le correctif, ce cas rendait un verdict
+    de levier tout à fait ordinaire."""
+    from tools.craft_or_starve_edr import _decomp_verdict
+    v = _decomp_verdict(_decomp_cells(l0=True, substep_curr=True, tick_seul=True, l2=True))
+    assert v == "DEGENERE-SANS-LEVIER", (
+        f"le barreau NU compose : aucun levier n'est nécessaire, or le verdict rendu est {v}")
+
+
+def test_decomp_verdict_still_reports_BOTH_NECESSARY_on_the_real_positive():
+    """⚠️ SPÉCIFICITÉ — sans ce cas, une garde qui refuse TOUT passerait le test précédent tout en
+    détruisant le verdict que le dispositif existe pour produire. Seul L2 compose -> les deux requis."""
+    from tools.craft_or_starve_edr import _decomp_verdict
+    v = _decomp_verdict(_decomp_cells(l0=False, substep_curr=False, tick_seul=False, l2=True))
+    assert v == "BOTH-NECESSARY", f"le positif réel doit survivre à la garde, or : {v}"
+
+
+def test_decomp_verdict_separates_the_two_single_levers():
+    """Les deux branches intermédiaires doivent rester DISCRIMINANTES : un instrument qui rendrait le
+    même verdict pour « curriculum seul » et « crédit seul » n'isolerait plus le levier décisif —
+    c'est pourtant sa seule raison d'être."""
+    from tools.craft_or_starve_edr import _decomp_verdict
+    curr = _decomp_verdict(_decomp_cells(l0=False, substep_curr=True, tick_seul=False, l2=True))
+    cred = _decomp_verdict(_decomp_cells(l0=False, substep_curr=False, tick_seul=True, l2=True))
+    assert curr == "CURRICULUM-SUFFISANT" and cred == "CREDIT-SUFFISANT" and curr != cred
+
+
+def test_decomp_verdict_flags_INCOHERENT_when_the_known_composing_cell_fails():
+    """Le gate d'origine : si L2 — la cellule CONNUE composante — ne compose pas, la mesure contredit
+    le verdict déjà gravé et c'est un artefact, pas un résultat."""
+    from tools.craft_or_starve_edr import _decomp_verdict
+    v = _decomp_verdict(_decomp_cells(l0=False, substep_curr=False, tick_seul=False, l2=False))
+    assert v == "INCOHERENT"
+
+
+# ======================================================================================================
+# P2.22 (2026-09-01) — `regime_diagnostic_verdict` et sa garde donneuse `_survivable`.
+#
+# Cet instrument tranche la question « ce nul est-il réel, ou fabriqué par un plancher ? » — c'est-à-dire
+# exactement la classe E3. Et c'est LUI qui a fourni la notion de survivabilité (`SURV_FLOOR_FRAC`,
+# `CENSORED_SURV`) réutilisée le même jour pour armer la garde de dégénérescence de `s2_verdict`
+# (P2.19). Un instrument qui sert d'étalon à un autre doit être calibré en premier.
+#
+# Instrument PUR (dicts de `run_condition`) : aucune simulation de monde.
+# ======================================================================================================
+
+def _rd_cond(mediane, n=12, censures=0.0):
+    return {"survival": [mediane] * 40, "era_survival": [mediane] * n, "censored_frac": censures}
+
+
+def _rd_cells(defaut_champ, defaut_base, sweet_champ, sweet_base):
+    return {"defaut": {"champion": _rd_cond(defaut_champ), "reflexe": _rd_cond(defaut_base)},
+            "sweet": {"champion": _rd_cond(sweet_champ), "reflexe": _rd_cond(sweet_base)}}
+
+
+def test_regime_diagnostic_names_the_FLOOR_CONFOUND_it_exists_to_find():
+    """⚠️ LE verdict que l'outil existe pour produire : au régime par défaut tout le monde est au
+    plancher (5 ticks) et le champion ne se distingue pas ; au régime « sweet » il décolle (300) ET
+    bat sa baseline. Le nul du défaut était donc un ARTEFACT DE PLANCHER, pas une absence d'effet."""
+    from tools.s2_regime_diagnostic import regime_diagnostic_verdict
+    r = regime_diagnostic_verdict(_rd_cells(5, 5, 300, 10), max_ticks=400)
+    assert r["verdict"] == "CONFOND_PLANCHER" and r["regime_recommande"] == "sweet"
+    assert r["lift"] and r["lift"] >= 1.5
+
+
+def test_regime_diagnostic_calls_UNDERPOWER_when_the_default_regime_already_shows_it():
+    """Si le champion bat DÉJÀ au régime par défaut, un nul rapporté ailleurs vient d'un manque de
+    puissance, pas d'un plancher. Cette branche passe AVANT toutes les autres : la confondre avec
+    CONFOND_PLANCHER ferait recommander un changement de régime inutile."""
+    from tools.s2_regime_diagnostic import regime_diagnostic_verdict
+    r = regime_diagnostic_verdict(_rd_cells(250, 10, 300, 10), max_ticks=400)
+    assert r["verdict"] == "SOUS_PUISSANCE" and r["regime_recommande"] == "defaut"
+
+
+def test_regime_diagnostic_accepts_a_REAL_null_and_does_not_explain_it_away():
+    """⚠️ SPÉCIFICITÉ, et c'est la plus importante ici : un instrument conçu pour trouver des artefacts
+    de plancher doit savoir dire « ce nul est RÉEL ». Le régime sweet est survivable (300) et le
+    champion n'y bat toujours pas -> il n'y a rien à sauver."""
+    from tools.s2_regime_diagnostic import regime_diagnostic_verdict
+    r = regime_diagnostic_verdict(_rd_cells(5, 5, 300, 300), max_ticks=400)
+    assert r["verdict"] == "N_EXIGE_PAS_REEL" and r["regime_recommande"] is None
+
+
+def test_regime_diagnostic_says_AMBIGU_rather_than_guessing():
+    """Aucun régime survivable : l'instrument doit refuser de trancher plutôt qu'inventer un levier."""
+    from tools.s2_regime_diagnostic import regime_diagnostic_verdict
+    assert regime_diagnostic_verdict(_rd_cells(5, 5, 5, 5), max_ticks=400)["verdict"] == "AMBIGU"
+
+
+def test_the_survivability_guard_DONATED_to_s2_verdict_discriminates():
+    """La garde donneuse elle-même, dans ses TROIS régimes. Elle est réutilisée par la garde de
+    dégénérescence de `s2_verdict` : si elle se dérègle, deux instruments se dérèglent ensemble."""
+    from tools.s2_regime_diagnostic import _survivable
+    assert _survivable(_rd_cond(300), 400) is True, "médiane >= 50 % de max_ticks = survivable"
+    assert _survivable(_rd_cond(5), 400) is False, "médiane 5/400 ne peut pas être survivable"
+    assert _survivable(_rd_cond(5, censures=0.30), 400) is True, (
+        "30 % de censurés = des agents ATTEIGNENT max_ticks : survivable malgré une médiane basse")
+
+
+# ======================================================================================================
+# P2.23 (2026-09-01) — la famille `disjoint_heads` : 8 verdicts à vote majoritaire, calibrés EN LOT.
+#
+# DÉFAUT MESURÉ, commun aux huit : une liste VIDE produisait un verdict DE FOND.
+#     `_verdict_disjoint([])` -> "DISJOINT_NEUTRAL"  = « les têtes disjointes ne changent rien »,
+#     affirmé à partir d'AUCUNE donnée. C'est la classe E18 (un estimateur qui récompense l'absence
+#     de preuve) doublée de E4 (une vérification vide indiscernable d'un succès).
+# Les SEUILS sont marqués GELE dans chaque docstring et ne sont PAS touchés : la correction ajoute
+# uniquement la branche n=0, qu'aucun run réel ne visite.
+#
+# Les cas sont écrits sur des propriétés STRUCTURELLES et non sur les chaînes exactes : un futur membre
+# de la famille est ainsi couvert sans réécrire quoi que ce soit, et le test ne se périme pas si un
+# libellé change.
+# ======================================================================================================
+
+_FAMILLE_DISJOINT = [
+    ("tools.disjoint_heads_ab", "_verdict_disjoint", 1),
+    ("tools.disjoint_heads_capacity", "_verdict_capacity", 2),
+    ("tools.disjoint_heads_confound", "_verdict_confound", 1),
+    ("tools.disjoint_heads_correlated", "_verdict_correlated", 2),
+    ("tools.disjoint_heads_lr", "_verdict_lr", 1),
+    ("tools.disjoint_heads_synergy", "_verdict_v4", 1),
+    ("tools.disjoint_heads_v3", "_verdict_v3", 1),
+    ("tools.disjoint_heads_v4", "_verdict_v4", 1),
+]
+
+
+def _appelle(mod, fn, arite, valeurs):
+    import importlib
+    f = getattr(importlib.import_module(mod), fn)
+    return f(*([list(valeurs)] * arite))
+
+
+@pytest.mark.parametrize("mod,fn,arite", _FAMILLE_DISJOINT)
+def test_disjoint_family_REFUSES_to_judge_without_any_seed(mod, fn, arite):
+    """⚠️ LE contre-exemple. Zéro seed doit donner zéro verdict — pas un verdict de fond."""
+    assert _appelle(mod, fn, arite, []) == "INDETERMINE_AUCUN_SEED", (
+        f"{mod}.{fn} rend encore un verdict sur une entrée VIDE")
+
+
+@pytest.mark.parametrize("mod,fn,arite", _FAMILLE_DISJOINT)
+def test_disjoint_family_DISCRIMINATES_its_two_extremes(mod, fn, arite):
+    """⚠️ SPÉCIFICITÉ — sans ce cas, un instrument qui rendrait TOUJOURS « indéterminé » passerait le
+    test précédent tout en étant inutilisable. Les deux extrêmes unanimes doivent différer, et aucun
+    ne doit être le refus."""
+    haut = _appelle(mod, fn, arite, [1.0] * 5)
+    bas = _appelle(mod, fn, arite, [-1.0] * 5)
+    assert haut != bas, f"{mod}.{fn} ne distingue pas ses deux extrêmes ({haut})"
+    assert "INDETERMINE" not in haut and "INDETERMINE" not in bas, (
+        f"{mod}.{fn} refuse de juger des données unanimes")
+
+
+@pytest.mark.parametrize("mod,fn,arite", _FAMILLE_DISJOINT)
+def test_disjoint_family_has_a_real_MIDDLE_zone(mod, fn, arite):
+    """Une majorité stricte (`n//2 + 1`) doit exister : sur 4 seeds partagés 2/2, aucun camp ne
+    l'atteint. Si le verdict partagé était identique à un extrême, le seuil de majorité ne servirait
+    à rien et un demi-échantillon suffirait à conclure."""
+    partage = _appelle(mod, fn, arite, [1.0, 1.0, -1.0, -1.0])
+    haut = _appelle(mod, fn, arite, [1.0] * 5)
+    bas = _appelle(mod, fn, arite, [-1.0] * 5)
+    assert partage != haut and partage != bas, (
+        f"{mod}.{fn} : un partage 2/2 rend le même verdict qu'un consensus ({partage})")
+
+
+def test_the_frozen_thresholds_of_verdict_lr_are_INCLUSIVE():
+    """Les seuils publiés sont `>= 0.90` et `<= 0.79`. Un off-by-one les rendrait exclusifs et
+    déplacerait silencieusement le verdict qui porte le « 194 LR_CLOSES ». Frontières gelées."""
+    from tools.disjoint_heads_lr import _verdict_lr
+    assert _verdict_lr([0.90] * 5) == "LR_CLOSES", "0.90 doit être DANS le camp LR_CLOSES"
+    assert _verdict_lr([0.79] * 5) == "LR_INTERCHANGEABLE", "0.79 doit être DANS le camp opposé"
+    assert _verdict_lr([0.85] * 5) == "PARTIAL", "le TROU 0.80-0.89 ne conclut ni dans un sens ni l'autre"

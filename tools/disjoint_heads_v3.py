@@ -49,6 +49,13 @@ def _train_flat_perhead(seed, teachers, steps=STEPS):
 def _verdict_v3(per_seed_recovery):
     """OPTIMIZER_CONFIRMED si recovery>=0.90 majorite ; REFUTED si <=0.79 majorite ; sinon PARTIAL. GELE."""
     n = len(per_seed_recovery)
+    # ⚠️ ZERO SEED = ZERO VERDICT (classes E4/E18, ajoute le 2026-09-01). Sans cette branche,
+    # une liste VIDE rendait un verdict de FOND : `_verdict_disjoint([])` -> "DISJOINT_NEUTRAL",
+    # soit « les tetes disjointes ne changent rien » affirme a partir d'AUCUNE donnee. Un
+    # estimateur qui recompense l'absence de preuve est precisement la classe E18.
+    # Les SEUILS restent GELES : cette branche n'en touche aucun, elle couvre n=0.
+    if n == 0:
+        return "INDETERMINE_AUCUN_SEED"
     maj = n // 2 + 1
     conf = sum(1 for r in per_seed_recovery if r >= 0.90)
     ref = sum(1 for r in per_seed_recovery if r <= 0.79)
