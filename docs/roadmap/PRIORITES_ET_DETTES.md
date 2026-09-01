@@ -95,7 +95,8 @@ dose CONNUE teste la couche qui transforme des mesures en affirmation.
   « légataire » un instrument né il y a une heure, et le laisserait passer en silence). **Piste** :
   ne compter comme NOUVEAU que ce qui est indexé, tout en continuant à rapporter l'état de l'arbre.
 
-* **Collision de noms — 8 instruments réels INVISIBLES.** `tools/check_instrument_calibration.py:82`
+* ✅ **RÉSOLU (2026-09-01)** — déclaration nue refusée ET le refus est désormais CRIÉ.
+  * **Collision de noms — 8 instruments réels INVISIBLES.** `tools/check_instrument_calibration.py:82`
   indexe par `name` seul (`found.setdefault(name, ...)`). Deux fonctions homonymes dans deux fichiers
   n'en font qu'une : déclarer l'une calibrée **verdirait l'autre, jamais testée**. Clé à passer en
   `(chemin, nom)`, et `CALIBRATED` à indexer `"fichier::fonction"`. **À faire AVANT de continuer à
@@ -103,7 +104,8 @@ dose CONNUE teste la couche qui transforme des mesures en affirmation.
 * **Le registre `CALIBRATED` vit dans UN fichier codé en dur** (`_CALIB_TESTS`, ligne 35). Dans un arbre
   partagé entre sessions parallèles, ça garantit les conflits : toute calibration, quel que soit son
   domaine, doit toucher le même fichier. Piste : accepter des déclarations depuis plusieurs fichiers.
-* **`verdict_from_survival_cmps` ne PEUT PAS s'auto-garder.** Il reçoit des comparaisons déjà calculées
+* ✅ **RÉSOLU (2026-09-01)** — l'appelant lui passe `s2_degeneracy` ; sa levée sur entrée vide est gelée.
+  * **`verdict_from_survival_cmps` ne PEUT PAS s'auto-garder.** Il reçoit des comparaisons déjà calculées
   (`{p, cliff, ratio}`) et non les distributions : la garde de dégénérescence armée sur `s2_verdict`
   (2026-09-01) ne peut pas s'y étendre sans changer son contrat. Il faut que l'appelant lui PASSE le
   résultat de `s2_degeneracy`. Tant que ce n'est pas fait, il existe un chemin non gardé vers le verdict.
@@ -116,13 +118,16 @@ dose CONNUE teste la couche qui transforme des mesures en affirmation.
 
 ### Dans le graphe de records
 
-* **Le parseur IGNORE SILENCIEUSEMENT 101 arêtes déclarées — dont TOUTES les arêtes de rétractation**
+* ✅ **RÉSOLU (2026-09-01)** — 122 arêtes réintégrées (graphe 157 → 279), rétractations comprises ; détecteur de silence branché sur le cliquet.
+  * **Le parseur IGNORE SILENCIEUSEMENT 101 arêtes déclarées — dont TOUTES les arêtes de rétractation**
   (`retracted_by`, `corrects`, `corrected_by`, `supersedes_mechanism`…). Un graphe de records qui ne
   lit pas ses rétractations ne peut pas signaler une conclusion périmée : c'est le défaut le plus grave
   de la liste.
-* **Deux records `accepted` s'affirment le CONTRAIRE** sans rétractation ni renvoi : EDR-134
+* ✅ **RÉSOLU (2026-09-01)** — collision EDR-135 tranchée (anticipation → EDR-142) et arêtes `corrects`/`corrected_by` posées.
+  * **Deux records `accepted` s'affirment le CONTRAIRE** sans rétractation ni renvoi : EDR-134
   (`InWorld_Torch_vs_Legacy_Inconclusive_Organs_Are_LoadBearing`) contre EDR-135 (`LegacyCore_Contr…`).
-* **`docs/REF/REF-AGI-TAXONOMY.md` n'a AUCUN frontmatter** → le nœud n'existe pas dans le graphe et
+* ✅ **RÉSOLU (2026-09-01)** — frontmatter ajouté, le nœud existe.
+  * **`docs/REF/REF-AGI-TAXONOMY.md` n'a AUCUN frontmatter** → le nœud n'existe pas dans le graphe et
   **3 liens `adopts` pointent dans le vide**. La collision EDR-135 **détourne** en plus l'arête de la
   porte G4 (`docs/SDR/G4_agent_anticipates.md:7`), et le validateur affiche `problèmes=0`.
 * **Canonicalisation EDR 126/129/130 ↔ 155/156/157 : dette CONFIRMÉE et résoluble sans AUCUNE perte** —
@@ -131,11 +136,14 @@ dose CONNUE teste la couche qui transforme des mesures en affirmation.
 
 ### Dans la suite de tests (le vert qui ne veut rien dire)
 
-* **`tests/test_fixes.py` : 5 tests AVALENT leur propre `AssertionError` et passent VERT**
+* ✅ **RÉSOLU (2026-09-01)** — corrigés ; l'un cachait une régression d'API RÉELLE. Cliquet posé.
+  * **`tests/test_fixes.py` : 5 tests AVALENT leur propre `AssertionError` et passent VERT**
   (`:29-33` — `assert` puis `except Exception: return False`). Un test qui ne peut pas échouer.
-* **Le portail CI ne lance que 8 fichiers sur 207** (`.github/workflows/ci.yml:26-38`) : le vert du gate
+* ✅ **RÉSOLU (2026-09-02)** — job `garde-methodologique` ajouté (5 cliquets + 46 gardes, 16 s), et les déclencheurs couvrent enfin les branches de travail : les 43 commits de la veille n'avaient JAMAIS vu la CI.
+  * **Le portail CI ne lance que 8 fichiers sur 207** (`.github/workflows/ci.yml:26-38`) : le vert du gate
   ne dit presque rien.
-* **~50 tests « smoke » assertent `verdict in <co-domaine COMPLET>`** — tautologie payée au prix d'une
+* ✅ **RÉSOLU / non reproduit (2026-09-01)** — 0 occurrence mesurée du motif `assert verdict in <co-domaine>`.
+  * **~50 tests « smoke » assertent `verdict in <co-domaine COMPLET>`** — tautologie payée au prix d'une
   simulation (ex. `tools/disjoint_heads_v3.py:49-60`).
 * **4 tests sans AUCUNE assertion**, dont 3 dont le NOM promet une propriété non vérifiée ; deux
   `assert True` décoratifs (`tests/sandbox/test_ntm_compiler.py:71-75`).
@@ -149,7 +157,8 @@ dose CONNUE teste la couche qui transforme des mesures en affirmation.
   statuée. La règle exige promotion en `exécutable` ou reclassement.
 * **E15 est la seule classe dont la « garde » est une phrase adressée à un humain**, alors qu'elle est
   trivialement exécutable (vérifier `n` PAR BRAS avant de comparer des médianes).
-* **E19 est calibrée dans les deux sens mais n'est appelée par AUCUN dispositif** ; seuls 3 outils sur
+* ✅ **RÉSOLU (2026-09-01)** — 4 fichiers de `tools/` l'invoquent désormais.
+  * **E19 est calibrée dans les deux sens mais n'est appelée par AUCUN dispositif** ; seuls 3 outils sur
   183 importent le pré-vol. Une garde que rien n'invoque ne garde rien.
 
 ### En production

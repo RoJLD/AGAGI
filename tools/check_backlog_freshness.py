@@ -97,9 +97,20 @@ def scan():
                 f"{num} apparaît {n} fois en tête d'entrée : l'une des versions est périmée et rien "
                 f"ne dit laquelle")
 
+    # ⚠️ UN CHEMIN PROPOSE N'EST PAS UN CHEMIN MORT (2026-09-01). Un backlog PROPOSE legitimement des
+    # fichiers qui n'existent pas encore -- c'est meme sa fonction. Le detecteur confondait « reference
+    # perimee » et « travail a faire » : il a signale `tools/check_staged_authorship.py`, introduit par
+    # « *Correctif candidat, plus fort* : un script ... A evaluer ». Geler ce cas dans la baseline
+    # aurait masque une classe de faux positifs qui se reproduira a chaque proposition.
+    _PROPOSE = ("candidat", "propos", "à écrire", "a ecrire", "à évaluer", "a evaluer",
+                "TODO", "futur", "il faudra", "piste")
+    lignes_proposition = {l for l in txt.splitlines()
+                          if any(marq.lower() in l.lower() for marq in _PROPOSE)}
     for chemin in sorted(set(_BACKTICK_PATH.findall(txt))):
         if "/" not in chemin:
             continue                      # nom nu : trop ambigu pour conclure
+        if any(chemin in l for l in lignes_proposition):
+            continue                      # cite comme A FAIRE, pas comme existant
         if not os.path.exists(os.path.join(_ROOT, chemin)):
             trouve[f"chemin-mort:{chemin}"] = (
                 f"le backlog cite `{chemin}`, qui n'existe plus")

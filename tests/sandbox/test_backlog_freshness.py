@@ -80,3 +80,23 @@ def test_the_real_backlog_has_no_NEW_staleness():
     assert not nouvelles, (
         f"nouvelles péremptions du backlog : {nouvelles}. Corriger, ou les déclarer explicitement "
         f"avec `--update-baseline` en disant POURQUOI.")
+
+
+def test_a_PROPOSED_path_is_not_a_dead_path(tmp_path, monkeypatch):
+    """⚠️ FAUX POSITIF MESURE (2026-09-01), corrige plutot que gele. Un backlog PROPOSE legitimement des
+    fichiers qui n'existent pas encore -- c'est sa fonction. Le detecteur avait signale
+    `tools/check_staged_authorship.py`, introduit par « *Correctif candidat, plus fort* : un script ...
+    A evaluer ». Le geler dans la baseline aurait masque une classe de faux positifs qui se reproduira
+    a chaque proposition."""
+    _backlog(tmp_path, monkeypatch,
+             "*Correctif candidat* : un script `tools/pas_encore_ecrit.py` qui ferait X. À évaluer.\n")
+    assert not any(k.startswith("chemin-mort:") for k in B.scan()), (
+        "un chemin PROPOSE ne doit pas etre signale comme mort")
+
+
+def test_a_path_CITED_AS_EXISTING_is_still_detected(tmp_path, monkeypatch):
+    """⚠️ SPECIFICITE de la correction : sans elle, on aurait desactive le detecteur de chemins morts.
+    Une citation SANS marqueur de proposition doit toujours etre attrapee."""
+    _backlog(tmp_path, monkeypatch,
+             "La garde vit dans `tools/ce_fichier_a_ete_supprime.py` et bloque les commits.\n")
+    assert any(k.startswith("chemin-mort:") for k in B.scan())

@@ -2,11 +2,56 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'feat/**', 'fix/**', 'chore/**']
   pull_request:
-    branches: [main]
 
 jobs:
+  # ------------------------------------------------------------------------------------------------
+  # PORTAIL METHODOLOGIQUE. Les cliquets du depot ne tournaient QUE dans le hook pre-commit local :
+  # un `--no-verify`, une autre machine ou un push depuis ailleurs les contournait sans un mot. C'est
+  # la classe E10 a l'echelle du depot -- des regles executables qu'aucun portail n'executait.
+  # Rapide et sans monde : aucun de ces cliquets ne simule, aucun ne prend le bail `kuzu`.
+  # ------------------------------------------------------------------------------------------------
+  garde-methodologique:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install minimal deps
+        # ⚠️ `psutil` (tools/jobs/doctor, garde de bail) et `pyyaml` (consolidate_records, graphe)
+        # sont des dependances TRANSITIVES : verifiees par analyse d'imports AVANT de pousser,
+        # pas decouvertes sur un portail rouge.
+        run: python -m pip install --upgrade pip && python -m pip install numpy pytest pytest-timeout psutil pyyaml
+
+      - name: Graphe de records (orphelins, collisions, aretes ignorees)
+        run: PYTHONIOENCODING=utf-8 python tools/check_record_links.py
+
+      - name: Calibration des instruments (baseline a ZERO)
+        run: PYTHONIOENCODING=utf-8 python tools/check_instrument_calibration.py
+
+      - name: DV scellees effectivement mesurees
+        run: PYTHONIOENCODING=utf-8 PYTHONPATH=. python tools/check_preregistration_applied.py
+
+      - name: Gardes du registre (chacune nomme son contre-exemple)
+        run: PYTHONIOENCODING=utf-8 python tools/check_guard_negative_cases.py
+
+      - name: Fraicheur du backlog (liens morts, numeros doubles, chemins disparus)
+        run: PYTHONIOENCODING=utf-8 python tools/check_backlog_freshness.py
+
+      - name: Gardes-de-gardes (chaque cliquet doit pouvoir ECHOUER)
+        run: >-
+          PYTHONIOENCODING=utf-8 python -m pytest -q --timeout=300
+          tests/sandbox/test_guard_negative_cases.py
+          tests/sandbox/test_backlog_freshness.py
+          tests/sandbox/test_lease_guard.py
+          tests/sandbox/test_ablation_bounds_ratchet.py
+          tests/sandbox/test_no_swallowed_assertions.py
+          tests/sandbox/test_record_graph_completeness.py
+          tests/sandbox/test_mutation_block_invariants.py
+          tests/sandbox/test_mutation_index_invariants.py
+
   test-and-build:
     runs-on: ubuntu-latest
     steps:
