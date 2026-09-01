@@ -1,0 +1,14 @@
+{
+  "name": "EVO-020",
+  "rule": {
+    "design": "2 bras x 24 seeds (n double pour trancher un taux de ~8 %) : baseline / volume. Sous-tache throw, hazard=15, W=0, survie seule. PAS de plafond de fan-in -- EVO-019 a montre qu il coute 5 abandons sur 12 et ampute le bras.",
+    "dv_primaire": "taux de seeds LECTEURS (saillance de decision > 0.5)",
+    "garde_cout": "budget_s=150/seed (E13) ; abandons COMPTES et rapportes",
+    "pourquoi_ce_volume_differe_d_EVO-010": "EVO-010 densifiait via mutate_weights en reveillant des poids NULS uniformement (y compris hidden->hidden) : 0/12. Ici le volume passe par add_connection, qui respecte la contrainte de source (i < N-O) et ne tire que parmi les aretes ABSENTES. Deux operateurs differents, et le second est le SEUL des deux a avoir jamais produit un lecteur sous survie seule.",
+    "puissance_declaree": "a n=24 par bras, un taux vrai de 25 % contre 0 % donne p~0.02 (detectable) ; un taux de 8 % contre 0 % donne p~0.49 (NON detectable). Donc ce run peut CONFIRMER un effet fort et ne peut PAS refuter un effet faible -- limite a ecrire dans le record quelle que soit l issue.",
+    "question": "EVO-019 : le bras VOLUME (via add_connection, 10 tirages supplementaires) a produit UN lecteur authentique (saillance 0.982) sur 12 -- mais 1/12 vs 0/12 donne Fisher p=1.000, indistinguable. Est-ce un vrai effet, ou la meme observation isolee qu EVO-006 (retracte) ?",
+    "record": "EDR-EVO-020",
+    "regle_de_lecture_continue": "Le verdict est une FONCTION du taux, pas une branche : Fisher exact bilateral volume vs baseline. p < 0.05 -> EFFET REEL, la cloture d EVO-018 doit etre qualifiee. p >= 0.05 -> AUCUN effet demontre, quel que soit le nombre brut de lecteurs ; s il y en a >= 1 ils sont rapportes comme OBSERVATIONS ISOLEES et explicitement NON eleves (lecon E9, EVO-006). Aucune valeur intermediaire n echappe a cette lecture -- c est precisement le trou qu EVO-019 avait laisse ouvert."
+  },
+  "seal": "cc3d4241a7604e7dceeda1b9abbcb901a775e920820d33f19e79e86239482c3e"
+}

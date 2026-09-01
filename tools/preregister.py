@@ -44,6 +44,42 @@ class PreregistrationTampered(Exception):
     """Le contenu ne correspond plus à son sceau -> le fichier a été édité après coup."""
 
 
+class IncompleteDiscrimination(Exception):
+    """Les branches de lecture ne couvrent pas le CONTINUUM -> latitude post-hoc rouverte."""
+
+
+_CATCHALL = ("sinon", "autre", "autrement", "default", "toute autre issue", "tout autre resultat")
+
+
+def _assert_exhaustive(rule: dict):
+    """⚠️ GARDE née d'un ÉCHEC de cette garde même (EDR-EVO-019, 2026-08-04, 3ᵉ occurrence d'E11).
+
+    La règle d'EVO-019 prévoyait « >= 3/12 » et « 0/12 ». Le résultat est tombé à **1/12** — dans le TROU
+    entre les deux branches. Le pré-enregistrement scellait bien le seuil, mais il ne vérifiait pas que les
+    issues soient EXHAUSTIVES : toute la latitude post-hoc qu'il existe pour supprimer était rouverte au
+    milieu de l'échelle.
+
+    Une règle de lecture doit couvrir le CONTINUUM, pas seulement les issues franches. On l'exige donc
+    explicitement : soit une branche attrape-tout dans `discrimination`, soit une clé de haut niveau qui
+    décrit la lecture sur toute l'échelle. Refuser est le seul moyen de rendre l'omission impossible —
+    la documenter n'a pas suffi."""
+    disc = rule.get("discrimination")
+    if not isinstance(disc, dict) or not disc:
+        return                                    # pas de branches déclarées : rien à vérifier
+    if any(k in rule for k in ("regle_de_lecture_continue", "lecture_continue")):
+        return
+    keys = " | ".join(disc).lower()
+    if any(c in keys for c in _CATCHALL):
+        return
+    raise IncompleteDiscrimination(
+        "les branches de `discrimination` ne couvrent pas le CONTINUUM des issues possibles. "
+        "Ajouter une branche attrape-tout (clé contenant « sinon »/« autre »/« default ») OU une clé "
+        "`regle_de_lecture_continue` décrivant la lecture sur TOUTE l'échelle.\n"
+        "Pourquoi : EDR-EVO-019 prévoyait « >= 3/12 » et « 0/12 » ; le résultat est tombé à 1/12, entre "
+        "les deux — et la latitude post-hoc que le sceau devait supprimer était rouverte.\n"
+        f"Branches déclarées : {list(disc)}")
+
+
 def _seal(rule: dict) -> str:
     """Hash du contenu, indépendant de l'ordre des clés et du formatage."""
     return hashlib.sha256(json.dumps(rule, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
@@ -55,6 +91,7 @@ def path_for(name: str) -> str:
 
 def preregister(name: str, rule: dict, *, _dir=None) -> str:
     """Scelle `rule` sous `name`. Idempotent à contenu IDENTIQUE ; lève si le contenu DIFFÈRE."""
+    _assert_exhaustive(rule)                      # E11 occ.3 : les branches doivent couvrir le CONTINUUM
     d = _dir or _DIR
     os.makedirs(d, exist_ok=True)
     p = os.path.join(d, f"{name}.json")

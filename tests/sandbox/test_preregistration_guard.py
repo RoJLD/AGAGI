@@ -75,3 +75,38 @@ def test_the_repository_preregistrations_are_all_intact():
     assert names, "le répertoire existe mais est VIDE — vérification creuse (classe E4)"
     for n in names:
         verify(n)                                        # lève si retouché
+
+
+# --- E11 occurrence 3 (2026-08-04) : les branches doivent couvrir le CONTINUUM ------------------------
+# Née d'un ECHEC de cette garde meme. EDR-EVO-019 avait scelle « >= 3/12 » et « 0/12 » ; le resultat est
+# tombe a **1/12**, dans le TROU entre les deux. Le sceau protegeait le SEUIL, pas l'EXHAUSTIVITE.
+from tools.preregister import IncompleteDiscrimination  # noqa: E402
+
+_GAPPED = {"dv": "taux", "discrimination": {">= 3/12": "confirme", "0/12": "refute"}}
+
+
+def test_gapped_discrimination_is_REFUSED(tmp_path):
+    """⚠️ LE CŒUR DE LA NOUVELLE GARDE. Des branches « >= 3 » et « 0 » laissent 1 et 2 sans lecture —
+    exactement la latitude post-hoc que la pré-inscription existe pour supprimer."""
+    with pytest.raises(IncompleteDiscrimination):
+        preregister("gap", _GAPPED, _dir=str(tmp_path))
+
+
+def test_catchall_branch_makes_it_acceptable(tmp_path):
+    rule = {**_GAPPED, "discrimination": {**_GAPPED["discrimination"],
+                                          "sinon (1 ou 2 seeds)": "observation isolee, non elevee"}}
+    preregister("ok", rule, _dir=str(tmp_path))
+    assert verify("ok", _dir=str(tmp_path))["discrimination"]
+
+
+def test_continuous_reading_rule_also_accepted(tmp_path):
+    """L'autre forme valable : decrire la lecture sur TOUTE l'echelle plutot que par branches."""
+    rule = {**_GAPPED, "regle_de_lecture_continue": "verdict = f(taux) : Fisher vs baseline, p<0.05 requis"}
+    preregister("cont", rule, _dir=str(tmp_path))
+    assert verify("cont", _dir=str(tmp_path))
+
+
+def test_rule_without_discrimination_is_untouched(tmp_path):
+    """La garde ne doit pas gener une regle qui ne declare aucune branche (pas de faux positif)."""
+    preregister("nodisc", {"dv": "taux", "seuil": 0.5}, _dir=str(tmp_path))
+    assert verify("nodisc", _dir=str(tmp_path))["seuil"] == 0.5
