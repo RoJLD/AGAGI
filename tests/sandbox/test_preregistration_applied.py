@@ -69,3 +69,52 @@ def test_repository_preregistrations_are_all_applied():
     importlib.reload(C)
     problems = C.scan()
     assert not problems, f"DV scellees non mesurees : {problems}"
+
+
+# ======================================================================================================
+# 2026-09-02 — le cliquet SURDECLARAIT sa propre couverture.
+#
+# Il imprimait « OK : 23 regles scellees, chacune mesuree dans son record » alors que 8 sur 23 seulement
+# etaient REELLEMENT inspectees. Un cliquet qui annonce 100 % quand il en fait 35 est un faux vert sur
+# lui-meme -- et c'est la troisieme liste blanche silencieuse trouvee en deux jours (apres `_LIST_KEYS`
+# du frontmatter et `_INSTRUMENT_PATTERNS` du nommage).
+#
+# ⚠️ La cause n'etait PAS les champs. Les elargir de 10 a 20 n'a recupere qu'UNE regle. Les 13 autres
+# sont anterieures a la convention « backticker les grandeurs » : leurs clauses sont en prose
+# (`dv_primaire` d'EVO-007 = « raw = succes/essais du champion »). Deviner des identifiants nus
+# produirait des faux positifs -> on DECLARE ces regles non inspectables plutot que de les compter.
+# ======================================================================================================
+
+def test_the_ratchet_reports_its_REAL_coverage_not_the_total():
+    """⚠️ La couverture annoncee doit etre celle qui est VERIFIEE, pas le nombre de fichiers presents."""
+    import tools.check_preregistration_applied as C
+    insp, sans_qty, sans_rec, total = C.couverture()
+    assert insp + sans_qty + sans_rec == total, "la decomposition doit couvrir tout le corpus"
+    assert insp < total, (
+        "si toutes les regles devenaient inspectables, retirer les legataires de "
+        "`_LEGATAIRES_SANS_BACKTICK` et resserrer ce test")
+
+
+def test_a_NEW_rule_without_named_quantities_is_REFUSED():
+    """⚠️ Cliquet AVANT : une regle scellee recente dont aucune grandeur n'est extractible n'est pas
+    verifiable. La dette legataire est nommee ; les nouvelles doivent suivre la convention."""
+    import tools.check_preregistration_applied as C
+    assert C.nouvelles_sans_grandeur() == [], (
+        f"regle(s) recente(s) sans grandeur backtickee : {C.nouvelles_sans_grandeur()}")
+
+
+def test_the_legacy_declaration_is_STILL_REAL():
+    """L'inverse : si une regle legataire recoit des backticks, la retirer de la dette. Une dette qui
+    ne peut plus etre invalidee n'est plus une dette."""
+    import json
+    import os
+    import tools.check_preregistration_applied as C
+    resorbees = []
+    for name in C._LEGATAIRES_SANS_BACKTICK:
+        f = os.path.join(C._PREREG, name + ".json")
+        if not os.path.exists(f):
+            continue
+        rule = json.load(open(f, encoding="utf-8")).get("rule", {})
+        if C._quantities(rule):
+            resorbees.append(name)
+    assert not resorbees, f"{resorbees} nomme(nt) desormais des grandeurs -> retirer de la dette"

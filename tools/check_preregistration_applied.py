@@ -26,9 +26,21 @@ _PREREG = os.path.join(_ROOT, "docs", "preregistrations")
 _EDR = os.path.join(_ROOT, "docs", "EDR")
 
 # Champs d'une règle qui DÉCRIVENT une mesure à faire (par opposition au contexte narratif).
+# ⚠️ LISTE BLANCHE ELARGIE le 2026-09-02 -- elle SAUTAIT EN SILENCE. Mesure : sur 23 regles scellees,
+# seules 8 etaient REELLEMENT inspectees ; 14 etaient sautees parce qu'aucune grandeur n'en sortait,
+# faute de connaitre leurs champs. Le plus coûteux : `discrimination`, present dans 17 regles, porte la
+# regle de lecture de la plupart des regles EVO. Et `instruments_autorises` est le champ que la cloture
+# d'E11 avait INVENTE -- le cliquet ne le lisait pas.
+# C'est la TROISIEME liste blanche silencieuse trouvee en deux jours (apres `_LIST_KEYS` du frontmatter
+# et `_INSTRUMENT_PATTERNS` du nommage). Regle qui en sort : une liste blanche doit RAPPORTER ce qu'elle
+# ecarte, sinon elle transforme son ignorance en succes.
 _MEASURE_FIELDS = ("dv_primaire", "dv", "dv_mecaniste", "dv_survie", "dv_primaire_corrigee",
-                   "controle_de_manipulation_OBLIGATOIRE", "prevol_decisif", "regle_de_lecture_continue",
-                   "regle_existence", "regle_frequence")
+                   "dv_secondaire", "dv_sante_lignee",
+                   "controle_de_manipulation_OBLIGATOIRE", "controle", "prevol_decisif",
+                   "prevol_mesure", "prevol_obligatoire",
+                   "regle_de_lecture_continue", "regle_existence", "regle_frequence",
+                   "discrimination", "instruments_autorises", "garde_puissance",
+                   "predictions_chiffrees_AVANT_le_run", "seuil")
 
 # Tokens trop génériques pour porter une exigence de mesure.
 _STOP = {"raw", "sal", "n", "p", "seed", "seeds", "bras", "age", "med", "max", "min", "w", "k"}
@@ -66,6 +78,58 @@ def _record_text_for(name: str):
     return hits
 
 
+# Regles scellees AVANT l'adoption de la convention « backticker les grandeurs » : leurs clauses de
+# mesure sont en prose (« raw = succes/essais du champion »), donc AUCUNE grandeur n'en est extractible.
+# Elles sont declarees NON INSPECTABLES -- pas « verifiees ». Deviner des identifiants nus produirait des
+# faux positifs ; on ne proxifie pas ce qu'on ne sait pas mesurer, on le declare.
+_LEGATAIRES_SANS_BACKTICK = frozenset({
+    "EVO-006-REPLICATION", "EVO-007", "EVO-007-bis", "EVO-007-bis2", "EVO-008",
+    "EVO-010", "EVO-011", "EVO-012", "EVO-015", "EVO-016", "EVO-017", "EVO-017-bis", "EVO-020",
+})
+# ⚠️ EVO-009 a ete RETIRE de cette dette le 2026-09-02 : l'elargissement des champs de mesure a rendu
+# sa grandeur extractible. C'est le test `test_the_legacy_declaration_is_STILL_REAL` qui l'a impose --
+# une dette qui ne peut plus etre invalidee n'est plus une dette, c'est un commentaire.
+
+
+def couverture():
+    """(inspectees, sans_grandeur, sans_record, total) -- ce que le cliquet VERIFIE reellement."""
+    insp = sans_qty = sans_rec = total = 0
+    if not os.path.isdir(_PREREG):
+        return (0, 0, 0, 0)
+    for fn in sorted(os.listdir(_PREREG)):
+        if not fn.endswith(".json"):
+            continue
+        total += 1
+        name = fn[:-5]
+        with open(os.path.join(_PREREG, fn), encoding="utf-8") as f:
+            rule = json.load(f).get("rule", {})
+        if not _quantities(rule):
+            sans_qty += 1
+        elif not _record_text_for(name):
+            sans_rec += 1
+        else:
+            insp += 1
+    return (insp, sans_qty, sans_rec, total)
+
+
+def nouvelles_sans_grandeur():
+    """Regles NON legataires dont aucune grandeur n'est extractible : la convention n'a pas ete suivie."""
+    out = []
+    if not os.path.isdir(_PREREG):
+        return out
+    for fn in sorted(os.listdir(_PREREG)):
+        if not fn.endswith(".json"):
+            continue
+        name = fn[:-5]
+        if name in _LEGATAIRES_SANS_BACKTICK:
+            continue
+        with open(os.path.join(_PREREG, fn), encoding="utf-8") as f:
+            rule = json.load(f).get("rule", {})
+        if not _quantities(rule):
+            out.append(name)
+    return out
+
+
 def scan():
     problems = []
     if not os.path.isdir(_PREREG):
@@ -91,9 +155,21 @@ def scan():
 
 def main():
     problems = scan()
-    total = len([f for f in os.listdir(_PREREG) if f.endswith(".json")]) if os.path.isdir(_PREREG) else 0
+    insp, sans_qty, sans_rec, total = couverture()
+    orphelines = nouvelles_sans_grandeur()
+    # ⚠️ NE PAS SURDECLARER SA PROPRE COUVERTURE. Le message disait « {total} regles scellees, chacune
+    # mesuree » alors que 8 sur 23 seulement etaient REELLEMENT inspectees : un cliquet qui annonce
+    # 100 % quand il en fait 35 est un faux vert sur lui-meme.
+    print(f"couverture : {insp}/{total} regles REELLEMENT inspectees "
+          f"({sans_qty} sans grandeur nommee, {sans_rec} sans record ecrit)")
+    if orphelines:
+        print("ECHEC : regle(s) scellee(s) recente(s) dont AUCUNE grandeur n'est extractible :")
+        for n in orphelines:
+            print(f"  {n}  -> backticker les grandeurs dans les clauses de mesure, sinon la regle "
+                  f"n'est pas verifiable")
+        return 1
     if not problems:
-        print(f"OK : {total} regles scellees, chacune mesuree dans son record.")
+        print(f"OK : aucune DV scellee absente de son record (sur les {insp} regles inspectables).")
         return 0
     for name, rec, missing in problems:
         print(f"[DV SCELLEE NON MESUREE] {name} -> {rec}")
