@@ -38,8 +38,12 @@ def distress_verdict(deltas: List[float], delta_eps: float = 0.0) -> Dict:
     """Agrège les delta par seed. DETRESSE = court-vivants rêvent plus (median > eps ET sign_p<0.1) ;
     BENEFIQUE = long-vivants rêvent plus (median < -eps ET sign_p<0.1) ; NEUTRE sinon. sign_p calculé
     sur les deltas EFFECTIFS (≠0) -> évite k>n (pattern compute_transfer_verdict)."""
+    # ⚠️ ZERO SEED = ZERO VERDICT (classes E18/E4, 2026-09-01). Le cas vide etait code
+    # EXPLICITEMENT et rendait une affirmation de FOND, toujours NEGATIVE. Rendre un verdict
+    # neutre/negatif sans donnee, c'est recompenser l'absence de preuve.
     if not deltas:
-        return {"median_delta": 0.0, "n_favorable": 0, "sign_p": 1.0, "verdict": "NEUTRE"}
+        return {"median_delta": None, "n_favorable": 0, "sign_p": None,
+                "verdict": "INDETERMINE_AUCUN_SEED"}
     med = float(statistics.median(deltas))
     n_fav = sum(1 for d in deltas if d > 0.0)
     effective = [d for d in deltas if d != 0.0]

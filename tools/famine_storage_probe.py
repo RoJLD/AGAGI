@@ -127,9 +127,13 @@ def compute_emergence_verdict(deltas_famine: List[float], deltas_stoneage: List[
                               min_effect: float = 5.0) -> Dict:
     """PUR. Delta d'ablation apparié (famine - stoneage) par seed -> verdict d'émergence du stockage."""
     n = min(len(deltas_famine), len(deltas_stoneage))
+    # ⚠️ ZERO SEED = ZERO VERDICT (classes E18/E4, 2026-09-01). Le cas vide etait code
+    # EXPLICITEMENT et rendait une affirmation de FOND, toujours NEGATIVE. Rendre un verdict
+    # neutre/negatif sans donnee, c'est recompenser l'absence de preuve.
     if n == 0:
-        return {"n": 0, "median_delta_famine": 0.0, "median_delta_stoneage": 0.0,
-                "median_paired": 0.0, "n_favorable": 0, "sign_p": 1.0, "verdict": "N_EMERGE_PAS"}
+        return {"n": 0, "median_delta_famine": None, "median_delta_stoneage": None,
+                "median_paired": None, "n_favorable": 0, "sign_p": None,
+                "verdict": "INDETERMINE_AUCUN_SEED"}
     paired = [deltas_famine[i] - deltas_stoneage[i] for i in range(n)]
     med_pair = float(statistics.median(paired))
     n_fav = sum(1 for p in paired if p > 0.0)

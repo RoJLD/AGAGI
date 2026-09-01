@@ -29,6 +29,32 @@ from tools.warmstart_evolution_inworld import _torch_survival_eras  # noqa: E402
 # couverture PARTIELLE (classe E4 — une vérification qui ne peut pas échouer).
 # `["*"]` = instrument sans branches. Ajouter une branche ici EXIGE d'ajouter le cas de test.
 CALIBRATED = {
+    # P2.27 (2026-09-01) : sondage SYSTEMATIQUE des verdicts de sondes sur entree vide. 11 etaient
+    # deja corrects (levee / INDETERMINE / INVALID_TARGET) et sont geles comme tels ; 3 rendaient une
+    # affirmation de FOND, NEGATIVE, sur zero donnee -- dont "AUTEL_MORT" et "N_EMERGE_PAS", deux
+    # conclusions que ce depot a gravees. Les deux dernieres codaient le cas vide EXPLICITEMENT.
+    # ⚠️ Un ZERO MESURE n'est pas une donnee absente : `agri_verdict(0,0)` DOIT trancher.
+    "funnel_verdict": ["empty:refused", "negative:legitimate"],
+    "distress_verdict": ["empty:refused", "positive:distress"],
+    "compute_emergence_verdict": ["empty:refused", "positive:emerge"],
+    "agri_verdict": ["measured-zero:concludes"],
+    "_verdict_tom_emergence": ["measured-zero:concludes"],
+    "_verdict_horizon": ["empty:indeterminate"],
+    "nav_verdict": ["empty:invalid-target"],
+    "energy_verdict": ["empty:invalid-target"],
+    "unresolved_verdicts": ["empty:empty-list"],
+    # P2.26 (2026-09-01) : les 6 verdicts restants de lewis_survival_sweep. Sondage systematique sur
+    # entree vide : 5 sur 6 etaient DEJA corrects (2 levent, 3 rendent INDETERMINE). Seul
+    # `_verdict_evolve_nav` concluait -- et sa docstring documentait le choix (« traj vide ->
+    # SUBSTRAT BLOQUE »), donc c'etait une DECISION, prise dans la seule direction ou un verdict
+    # fabrique passe inapercu. `_verdict_approach` et `_verdict_reach` exigent LA CELLULE dont ils
+    # dependent, pas seulement des donnees : motif de reference, gele comme tel.
+    "_verdict_evolve_nav": ["empty:refused", "progress", "stagnation:legitimate"],
+    "_verdict_landing": ["empty:raises"],
+    "_verdict_forage": ["empty:raises"],
+    "_verdict_approach": ["missing-cell:indeterminate", "thresholds:discriminated"],
+    "_verdict_reach": ["missing-cell:indeterminate", "thresholds:three-zones"],
+    "_verdict_deconfound": ["missing-frozen-cell:indeterminate"],
     # P2.25 (2026-09-01) : les 2 verdicts S2 restants. `verdict_within_subject` portait la MEME
     # cecite au plancher que `s2_verdict` -- et c'est le MARQUEUR DE DEMANDE transversal (4
     # modalites). `verdict_from_survival_cmps` ne PEUT PAS se garder (il ne recoit que p/cliff) :
@@ -2590,3 +2616,136 @@ def test_from_survival_cmps_FAILS_LOUDLY_on_empty_input():
     from src.seed_ai.s2_stats import verdict_from_survival_cmps
     with pytest.raises(ValueError):
         verdict_from_survival_cmps({})
+
+
+# ======================================================================================================
+# P2.26 (2026-09-01) — les 6 verdicts restants de `lewis_survival_sweep`. UN seul etait fautif.
+#
+# Sondage systematique sur entree vide : `_verdict_landing` et `_verdict_forage` LEVENT (correct),
+# `_verdict_approach`, `_verdict_deconfound` et `_verdict_reach` rendent INDETERMINE (correct). Seul
+# `_verdict_evolve_nav` concluait — et sa docstring documentait explicitement ce choix : « traj vide ->
+# SUBSTRAT BLOQUE », soit « le substrat bloque la navigation » affirme sur ZERO generation.
+#
+# C'est instructif justement parce que 5 sur 6 etaient bons : le defaut n'etait pas une negligence de
+# module, c'etait une DECISION, prise dans la seule direction ou un verdict fabrique passe inapercu.
+#
+# ⚠️ `_verdict_approach` et `_verdict_reach` font mieux qu'un test de vide : ils verifient que LA
+# CELLULE dont ils dependent existe (speed=0.0 / oracle=True). C'est le motif que les autres n'avaient
+# pas, et il est gele ici pour servir de reference.
+# ======================================================================================================
+
+def test_evolve_nav_REFUSES_to_blame_the_substrate_on_zero_generation():
+    """⚠️ LE contre-exemple : aucune generation ne peut prouver que le substrat bloque."""
+    from tools.lewis_survival_sweep import _verdict_evolve_nav
+    assert _verdict_evolve_nav([]) == "INDETERMINE_AUCUNE_GENERATION"
+
+
+def test_evolve_nav_still_separates_progress_from_stagnation():
+    """⚠️ SPECIFICITE dans les DEUX sens : la garde ne doit ni empecher le positif, ni empecher le
+    negatif LEGITIME (une trajectoire plate SUR DES DONNEES REELLES est bien un substrat bloque)."""
+    from tools.lewis_survival_sweep import _verdict_evolve_nav
+    assert _verdict_evolve_nav([0.1] * 5 + [0.5] * 5) == "NAVIGATION EVOLUE"
+    assert _verdict_evolve_nav([0.2] * 10) == "SUBSTRAT BLOQUE"
+
+
+def test_landing_and_forage_FAIL_LOUDLY_rather_than_conclude():
+    """Comportement CORRECT a GELER, pas a corriger. Si quelqu'un les « repare » en attrapant
+    l'exception pour renvoyer un verdict par defaut, il fabriquera une conclusion a partir de rien."""
+    from tools.lewis_survival_sweep import _verdict_landing, _verdict_forage
+    with pytest.raises((IndexError, KeyError, ValueError)):
+        _verdict_landing({})
+    with pytest.raises((IndexError, KeyError, ValueError)):
+        _verdict_forage({})
+
+
+def test_approach_and_reach_require_THE_CELL_they_depend_on_not_merely_data():
+    """⚠️ Le motif de reference. Ces deux verdicts sont portes par UNE cellule precise (vitesse figee /
+    oracle). Des donnees ABONDANTES mais sans cette cellule doivent rendre INDETERMINE -- un test de
+    « liste non vide » ne l'aurait pas attrape."""
+    from tools.lewis_survival_sweep import _verdict_approach, _verdict_reach
+    assert _verdict_approach([(1.0, {"p_reach": 0.9}), (2.0, {"p_reach": 0.9})]) == "INDETERMINE"
+    assert _verdict_reach([(False, 0.0, {"p_reach": 0.99})]) == "INDETERMINE"
+
+
+def test_approach_and_reach_discriminate_on_their_frozen_thresholds():
+    """SPECIFICITE : avec la bonne cellule, les seuils pre-enregistres doivent trancher les 3 zones."""
+    from tools.lewis_survival_sweep import _verdict_approach, _verdict_reach
+    assert _verdict_approach([(0.0, {"p_reach": 0.7})]) == "KINEMATIQUE"
+    assert _verdict_approach([(0.0, {"p_reach": 0.3})]) == "POLITIQUE"
+    assert _verdict_reach([(True, 0.0, {"p_reach": 0.95})]) == "PRIMITIVE FERME"
+    assert _verdict_reach([(True, 0.0, {"p_reach": 0.30})]) == "PRIMITIVE NE FERME PAS"
+    assert _verdict_reach([(True, 0.0, {"p_reach": 0.70})]) == "PRIMITIVE PARTIELLE"
+
+
+def test_deconfound_says_INDETERMINE_when_a_frozen_cell_is_missing():
+    """Sa docstring le promet (« INDETERMINE si une des deux cellules figees manque ») : le geler
+    empeche qu'une refonte le remplace par un ratio calcule sur une seule cellule."""
+    from tools.lewis_survival_sweep import _verdict_deconfound
+    assert _verdict_deconfound([]) == "INDETERMINE"
+
+
+# ======================================================================================================
+# P2.27 (2026-09-01) — sondage SYSTEMATIQUE des verdicts de sondes sur entree vide.
+#
+# 17 verdicts purs sondes. ONZE etaient DEJA corrects : `credit_verdict`, `density_verdict`,
+# `_verdict_qd_rescue`, `_verdict_coordination`, `_verdict_craft_wall`, `_verdict_retention` LEVENT ;
+# `_verdict_horizon` rend INDETERMINE ; `energy_verdict`, `nav_verdict`, `readout_verdict` rendent
+# INVALID_TARGET ; `unresolved_verdicts` rend une liste vide (une liste, pas un verdict).
+#
+# TROIS etaient fautifs, et tous trois rendaient une affirmation de FOND, NEGATIVE, sur zero donnee :
+#   funnel_verdict({})            -> "AUTEL_MORT"      (« l'autel est mort »)
+#   distress_verdict([])          -> "NEUTRE"
+#   compute_emergence_verdict([],[]) -> "N_EMERGE_PAS" (« le stockage n'emerge pas »)
+# Les deux derniers codaient le cas vide EXPLICITEMENT : c'etait une decision, pas un oubli.
+#
+# ⚠️ DISTINCTION QUI M'A FAIT SUR-SIGNALER, gelee ici pour qu'on ne « corrige » pas ce qui va bien :
+# passer 0.0 a une fonction qui attend un scalaire MESURE n'est pas « aucune donnee », c'est UNE MESURE
+# VALANT ZERO. `agri_verdict(0, 0)` = « rien n'a ete plante », une observation legitime. La sonde avait
+# annonce SIX defauts ; il y en avait TROIS.
+# ======================================================================================================
+
+def test_probe_verdicts_REFUSE_to_conclude_on_zero_data():
+    """⚠️ Les trois contre-exemples. Aucun agent, aucun seed -> aucune affirmation de fond."""
+    from tools.altar_tool_funnel_probe import funnel_verdict
+    from tools.dream_distress_probe import distress_verdict
+    from tools.famine_storage_probe import compute_emergence_verdict
+    assert funnel_verdict({})["verdict_autel"] == "INDETERMINE_AUCUN_AGENT"
+    assert distress_verdict([])["verdict"] == "INDETERMINE_AUCUN_SEED"
+    assert compute_emergence_verdict([], [])["verdict"] == "INDETERMINE_AUCUN_SEED"
+
+
+def test_probe_verdicts_still_deliver_their_LEGITIMATE_negative_and_positive():
+    """⚠️ SPECIFICITE des deux cotes. « AUTEL_MORT » reste rendu quand un agent REEL n'a rien resolu :
+    c'est un resultat, pas un artefact. Et les positifs doivent survivre a la garde."""
+    from tools.altar_tool_funnel_probe import funnel_verdict
+    from tools.dream_distress_probe import distress_verdict
+    from tools.famine_storage_probe import compute_emergence_verdict
+    inactif = {"s0": [{"preys_eaten": 0, "spears_crafted": 0, "mammoth_kills": 0, "altars_solved": 0}]}
+    assert funnel_verdict(inactif)["verdict_autel"] == "AUTEL_MORT"
+    assert distress_verdict([0.5] * 12)["verdict"] == "DETRESSE"
+    assert compute_emergence_verdict([20.0] * 12, [0.0] * 12)["verdict"] == "EMERGE"
+
+
+def test_a_measured_ZERO_is_not_missing_data():
+    """⚠️ Le piege qui m'a fait sur-signaler, gele. Ces fonctions prennent des scalaires MESURES : zero
+    y est une observation (« rien n'a ete plante », « le delta vaut 0 »), pas une absence. Leur ajouter
+    une garde « entree vide » serait une ERREUR — elles doivent conclure sur un zero mesure."""
+    from tools.agricultural_demand_probe import agri_verdict
+    from tools.tom_probe import _verdict_tom_emergence
+    assert agri_verdict(0, 0) == "AGRICULTURE_COSMETIC", (
+        "aucune plantation OBSERVEE est un resultat : la fonction doit trancher, pas s'abstenir")
+    assert _verdict_tom_emergence(0.5, 0.5, 0.5) == "TOM_INERT", (
+        "trois accuracies egales = aucune elevation : c'est une mesure, pas une absence de mesure")
+
+
+def test_the_eleven_already_correct_verdicts_stay_correct():
+    """Ces onze n'avaient pas besoin d'etre corriges — donc rien ne signalait leur bon comportement.
+    Le geler empeche qu'une refonte les aligne un jour sur les trois fautifs « par coherence »."""
+    from tools.memory_credit_horizon import _verdict_horizon
+    from tools.nav_localization_probe import nav_verdict
+    from tools.energy_readout_probe import energy_verdict
+    from tools.cartography import unresolved_verdicts
+    assert _verdict_horizon([], []) == "INDETERMINE"
+    assert nav_verdict(0.0, 0.0, 0.0, 0.0) == "INVALID_TARGET"
+    assert energy_verdict(0.0, 0.0, 0.0) == "INVALID_TARGET"
+    assert unresolved_verdicts([]) == []

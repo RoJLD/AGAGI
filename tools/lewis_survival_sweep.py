@@ -778,9 +778,16 @@ def _p_reach_of_pool(pool):
 def _verdict_evolve_nav(traj):
     """EDR107 : verdict sur la trajectoire p_reach par generation. NAVIGATION EVOLUE si la mediane des
     k dernieres generations depasse celle des k premieres de >= 0.15 (ancre sur l'effet +0.05 d'EDR106) ;
-    sinon SUBSTRAT BLOQUE. k=5 si >=10 generations, sinon max(1, n//2). traj vide -> SUBSTRAT BLOQUE."""
+    sinon SUBSTRAT BLOQUE. k=5 si >=10 generations, sinon max(1, n//2).
+
+    ⚠️ CORRIGE le 2026-09-01. La docstring d'origine annonçait « traj vide -> SUBSTRAT BLOQUE » : une
+    trajectoire VIDE rendait donc l'affirmation de fond « le substrat bloque la navigation », tirée
+    d'AUCUNE generation. Le choix etait DELIBERE (il etait documente), et c'est ce qui le rend
+    instructif : 5 des 6 verdicts voisins de ce module gerent deja correctement l'absence de donnees
+    (deux LEVENT, trois rendent INDETERMINE). Celui-ci etait le seul a conclure -- et il concluait au
+    NEGATIF, la direction ou un verdict fabrique ressemble a tous les autres resultats du depot."""
     if not traj:
-        return "SUBSTRAT BLOQUE"
+        return "INDETERMINE_AUCUNE_GENERATION"
     n = len(traj)
     k = 5 if n >= 10 else max(1, n // 2)
     first = float(np.median(traj[:k]))

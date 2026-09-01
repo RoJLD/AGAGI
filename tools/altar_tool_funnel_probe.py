@@ -46,7 +46,15 @@ def funnel_verdict(per_seed_agents: Dict, eps: float = 0.02) -> Dict:
     est crédité au GROUPE (chasse coopérative à mains nues, EDR 028, world_1_stoneage.py:715-718) →
     `frac_apex` peut dépasser `frac_craft` (apex atteint SANS lance). Lire la décomposition brute
     (`frac_craft` vs `frac_apex`, par_seed), jamais le label nu."""
+    # ⚠️ ZERO AGENT = ZERO VERDICT (classes E18/E4, 2026-09-01). Sans cette garde, un dictionnaire
+    # vide rendait « AUTEL_MORT » + « GAP_ACQUISITION » -- deux affirmations de FOND tirees d'aucun
+    # agent. « L'autel est mort » est precisement une des conclusions que ce depot a gravees ; la
+    # produire a partir de rien serait la fabriquer.
     all_agents = [a for agents in per_seed_agents.values() for a in agents]
+    if not all_agents:
+        return {"verdict_autel": "INDETERMINE_AUCUN_AGENT", "verdict_funnel": "INDETERMINE_AUCUN_AGENT",
+                "frac_hunt": None, "frac_craft": None, "frac_apex": None, "total_spears": 0,
+                "total_mammoth_kills": 0, "altars_solved_max": 0, "n_agents": 0, "par_seed": {}}
     frac_hunt = _frac(all_agents, "preys_eaten")
     frac_craft = _frac(all_agents, "spears_crafted")
     frac_apex = _frac(all_agents, "mammoth_kills")
