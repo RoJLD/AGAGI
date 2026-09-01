@@ -64,9 +64,14 @@ def fidelity_verdict(ratios) -> dict:
     n_fav = sum(1 for r in ratios if r < 1.0)            # favorable = g meilleur
     eff = [r for r in ratios if r != 1.0]
     sign_p = _sign_p(sum(1 for r in eff if r < 1.0), len(eff))
-    if med < 0.95 and 2 * n_fav > n:
+    # ⚠️ E14 + ASYMETRIE (2026-09-01). Deux defauts ici, pas un :
+    #  (1) `sign_p` etait calcule puis jete, comme chez les deux homologues ;
+    #  (2) `G_INUTILE` n'exigeait NI majorite NI sign_p, alors que sa jumelle `G_FIDELE` exigeait la
+    #      majorite -> un NEGATIF etait structurellement plus facile a obtenir qu'un POSITIF, ce qui
+    #      biaise l'instrument vers « g est inutile ». Les deux branches sont desormais symetriques.
+    if med < 0.95 and 2 * n_fav > n and sign_p < 0.05:
         verdict = "G_FIDELE"
-    elif med > 1.05:
+    elif med > 1.05 and 2 * (n - n_fav) > n and sign_p < 0.05:
         verdict = "G_INUTILE"
     else:
         verdict = "NEUTRE"

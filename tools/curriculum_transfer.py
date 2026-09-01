@@ -47,9 +47,12 @@ def compute_transfer_verdict(ratios: List[float], neutral_band: float = 0.05) ->
     n_fav = sum(1 for r in ratios if r > 1.0)
     effective = [r for r in ratios if r != 1.0]
     sign_p = _sign_test_p(sum(1 for r in effective if r > 1.0), len(effective))
-    if med > 1.0 + neutral_band and 2 * n_fav > n:
+    # ⚠️ E14 (2026-09-01) — `sign_p` etait CALCULE puis JETE : le verdict ne le lisait pas. La garde
+    # de puissance avait ete cablee dans `compute_ab_verdict` et JAMAIS retro-appliquee a ses trois
+    # homologues. C'est la definition meme de la classe E14 (garde jamais retro-appliquee).
+    if med > 1.0 + neutral_band and 2 * n_fav > n and sign_p < 0.05:
         verdict = "TRANSFERE"
-    elif med < 1.0 - neutral_band and 2 * n_fav < n:
+    elif med < 1.0 - neutral_band and 2 * n_fav < n and sign_p < 0.05:
         verdict = "NUIT"
     else:
         verdict = "NEUTRE"

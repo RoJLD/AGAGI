@@ -163,7 +163,7 @@ substrat évolué. **Fix gaté `preserve_dims` livré (PR #49)** → re-mesures 
 
 | Axe | Avant fix (confondu) | **Après fix (powered 8 seeds, vrai substrat 200n)** |
 |---|---|---|
-| **D2** KWTA sparsité (imposée) | no-op | ✅ **EFFICACE** : sparsifier le hidden AMÉLIORE la compétence (+47 %, keep=0.3, sign_p=0.070). Régularisation. |
+| **D2** KWTA sparsité (imposée) | no-op | ⚠️ **SOUS-PUISSANT (révisé le 2026-09-01)** — publié « ✅ EFFICACE, +47 %, keep=0.3, sign_p=0.070 ». Mais **0.070 > 0.05** : par le critère que la ligne D1 juste en dessous applique pour réfuter (« non significatif, sign_p 0.727 »), ce positif ne tient pas non plus. `compute_sweep_verdict` **calculait `sign_p` puis le jetait** — garde câblée depuis, l'instrument rend désormais NEUTRE sur ces chiffres exacts (contre-exemple gelé, classe E14). ⚠️ **L'effet n'est pas RÉFUTÉ, il est NON ÉTABLI** : +47 % sur 7 seeds favorables sur 8 reste compatible avec un vrai effet — il faut plus de seeds pour trancher. |
 | **D1** coût métab. (sparsité sélectionnée) | réfuté | ❌ **TOUJOURS RÉFUTÉ** : `mean_active` PLAT (176–180) à tous les coefs → la taxe ne crée aucune pression de sparsité. +13 % compétence à coef 0.001 NON significatif (sign_p 0.727) ; coef 0.01 effondre la survie. |
 | **A2** MAP-Elites (graines 1 taille) | NEUTRE (cov 3.6/32) | NEUTRE (cov **4/32**) — descripteurs plats (taille à 1 bin) |
 | **A2 v2** MAP-Elites (graines étalées) | — | **coverage RÉSOLUE 4→~24/32** ; mais QD ne bat pas HoF (median_ratio 0.853, sign_p 0.727). Limiteur résiduel = répertoire comportemental (axe palier, EDR 096), pas la recherche. |

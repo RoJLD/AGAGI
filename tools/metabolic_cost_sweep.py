@@ -59,7 +59,11 @@ def compute_sweep_verdict(per_coef: List[Dict], eff_band: float = 0.05,
         collapsed = bool(surv) and statistics.median(surv) < collapse_frac
         if collapsed:
             verdict = "NUIT"
-        elif median_eff > 1.0 + eff_band and 2 * n_fav > n:
+        # ⚠️ E14 (2026-09-01) — `sign_p` etait calcule puis jete. Consequence VIVANTE au moment du
+        # correctif : docs/roadmap/NAS.md:166 publiait « D2 EFFICACE +47 %, sign_p=0.070 » alors que
+        # la ligne 167, JUSTE EN DESSOUS, disqualifiait D1 pour « sign_p 0.727 non significatif ».
+        # Le meme critere, applique a la main, sur deux lignes adjacentes.
+        elif median_eff > 1.0 + eff_band and 2 * n_fav > n and sign_p < 0.05:
             verdict = "EFFICACE"
         else:
             verdict = "NEUTRE"
