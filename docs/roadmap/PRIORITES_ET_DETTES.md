@@ -21,6 +21,24 @@ et le coût estimé.
 
 ### Dans la machinerie de calibration elle-même (le plus grave : l'outil qui compte se trompe)
 
+* **9 appels à `ablation_verdict` ne déclarent AUCUNE borne, dans 7 fichiers — classe E14 littérale.**
+  La garde `_degeneracy` ne s'active que si l'appelant passe `floor=` / `ceiling=` (un plancher n'est
+  pas déductible de deux tableaux). Elle est armée chez 7 appelants et **jamais rétro-appliquée** aux
+  autres : `anticipation_demand_world_probe`, `cognitive_demand_world_probe`,
+  `composition_demand_world_probe`, `memory_demand_world_probe`, `s2_demand_ablation`,
+  `s2_openloop_probe` (×3), `world_demand_marker_probe`.
+  ⚠️ Ce sont les sondes de DEMANDE in-world — celles qui produisent les `X_DEMANDED` alimentant les
+  arêtes de l'AGI-Taxonomy. Un ratio non borné fabrique mécaniquement un `X_DECOY` quand un bras est
+  collé à une borne ; c'est ce qui a produit « le paysage de fitness est PLAT » ([[EDR-WARM-002]],
+  réfuté depuis par [[EDR-WARM-010]]).
+  **Pourquoi ce n'est PAS corrigé ici** : un `floor` est une DÉCLARATION SCIENTIFIQUE
+  (`PLANCHER_COG = 9.0` est « mesuré au régime cognitive_demand »). Inventer un plancher pour cinq
+  régimes non mesurés fabriquerait le genre de chiffre que ce dépôt traque. **Ce qu'il faut** : mesurer
+  le plancher no-capacité de chaque régime, puis le déclarer. Cliquet en place
+  (`tests/sandbox/test_ablation_bounds_ratchet.py`) : dette gelée, tout NOUVEL appel non borné bloqué,
+  et un test refuse que la dette reste gelée si elle est résorbée.
+  *(Relevé par AST : le `grep` en manquait deux — leurs appels sont formatés autrement.)*
+
 * **`ablation_verdict` : la garde de plancher est ASYMÉTRIQUE — elle laisse passer les FAUX POSITIFS.**
   Mesuré : `ablation_verdict([7.0]*12, [3.0]*12, floor=9.0)` rend **`X_DEMANDED`** avec
   `degenerate=True` et `why="bras intact au PLANCHER déclaré (médiane 7 <= floor 9)"`. La

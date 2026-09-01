@@ -39,6 +39,12 @@ NOT_AN_INSTRUMENT = {
 }
 
 CALIBRATED = {
+    # P2.31 (2026-09-01) : deux orchestrateurs FAMINE, par injection. Sur les 24 instruments
+    # « simulant un monde » restants, TREIZE ne simulent pas eux-memes -- ils DELEGUENT par nom de
+    # module, donc sont injectables a cout nul. Cas discriminant du sweep : la MEME table donnee en
+    # ordre DECROISSANT doit rendre le MINIMUM (contrat `min(required)`), pas le premier rencontre.
+    "run_harshness_sweep": ["smallest-cycle", "min-not-first", "none-when-never"],
+    "run_storage_probe": ["imposed-emergence", "no-op-exact", "pairing:cancels-noise"],
     # P2.30 (2026-09-01) : calibre PAR INJECTION (monkeypatch des `*_survival_eras`), sans simuler.
     # Un DEFAUT a ete trouve en le faisant, dans `ablation_verdict` (fichier d'une session
     # PARALLELE en cours -- non modifie) : la branche `collapse` rend X_DEMANDED SANS consulter
@@ -3023,3 +3029,101 @@ def test_the_degeneracy_IS_detected_even_though_the_verdict_ignores_it():
     r = ablation_verdict([7.0] * 12, [3.0] * 12, floor=9.0)
     assert r["degenerate"] is True and "PLANCHER" in (r["why"] or "").upper(), (
         "le detecteur de degenerescence doit continuer a VOIR le plancher")
+
+
+# ======================================================================================================
+# P2.31 (2026-09-01) — deux orchestrateurs FAMINE calibres PAR INJECTION. Aucune simulation.
+#
+# Sur les 24 instruments « simulant un monde » restants, TREIZE ne simulent pas eux-memes : ils
+# DELEGUENT par nom de module, donc ils sont injectables a cout nul. C'est plus de la moitie.
+# ======================================================================================================
+
+def _harshness(monkeypatch, table):
+    """Injecte `measure_regime` -> survie flottante. table[(cache, reserve_active)](cyc_fam) -> float."""
+    import tools.famine_harshness_probe as H
+
+    def faux(genome, cache, cyc_ab, cyc_fam, inject_reserve, **kw):
+        return table[(cache, inject_reserve > 0.0)](cyc_fam)
+
+    monkeypatch.setattr(H, "measure_regime", faux)
+    return H
+
+
+_EXIGE_AU_DELA_DE_40 = {(False, False): lambda c: 10.0, (True, False): lambda c: 10.0,
+                        (True, True): lambda c: 20.0 if c >= 40 else 12.0}
+
+
+def test_harshness_sweep_finds_the_SMALLEST_requiring_cycle(monkeypatch):
+    """Le stockage devient necessaire a partir de 40 : c'est 40 qu'il faut rapporter, pas 60."""
+    H = _harshness(monkeypatch, _EXIGE_AU_DELA_DE_40)
+    r = H.run_harshness_sweep(None, [20, 40, 60])
+    assert r["smallest_required_cycle_famine"] == 40
+
+
+def test_harshness_sweep_returns_the_MINIMUM_not_the_first_encountered(monkeypatch):
+    """⚠️ Le cas discriminant : la MEME table, mais la liste donnee en ordre DECROISSANT. Un code qui
+    rendrait « le premier rencontre » repondrait 60. Le contrat est `min(required)`, et rien ne le
+    testait -- or l'appelant choisit l'ordre de sa liste."""
+    H = _harshness(monkeypatch, _EXIGE_AU_DELA_DE_40)
+    assert H.run_harshness_sweep(None, [60, 40, 20])["smallest_required_cycle_famine"] == 40
+
+
+def test_harshness_sweep_reports_NONE_when_no_regime_requires_storage(monkeypatch):
+    """⚠️ SPECIFICITE : « aucun » doit etre None, jamais 0 ni le premier cycle. Un 0 se lirait comme
+    « le stockage est requis des le cycle 0 », l'exact contraire du resultat."""
+    H = _harshness(monkeypatch, {(False, False): lambda c: 10.0, (True, False): lambda c: 10.0,
+                                 (True, True): lambda c: 11.0})
+    assert H.run_harshness_sweep(None, [20, 40, 60])["smallest_required_cycle_famine"] is None
+
+
+def test_classify_storage_regime_pivots_exactly_on_its_declared_ratio():
+    """Fonction PURE que l'heuristique de nommage ne detecte MEME PAS (ni verdict/measure/run dans son
+    nom) alors qu'elle produit « STORAGE_REQUIRED ». Frontiere gelee : le seuil est INCLUSIF."""
+    from tools.famine_harshness_probe import classify_storage_regime
+    assert classify_storage_regime(10.0, 15.0, 1.5)["verdict"] == "STORAGE_REQUIRED"
+    assert classify_storage_regime(10.0, 14.9, 1.5)["verdict"] == "STORAGE_REDUNDANT"
+    assert classify_storage_regime(0.0, 1.0, 1.5)["verdict"] == "STORAGE_REQUIRED", (
+        "buffer nul -> epsilon, pas de division par zero")
+
+
+def _storage(monkeypatch, table, bruit=None):
+    """Injecte `measure_genome`, `evolve_in_famine` et le champion. table[(evolue, cache)] -> survie."""
+    import tools.famine_storage_probe as S
+    monkeypatch.setattr(S, "load_champion_genome", lambda: "CHAMP")
+    monkeypatch.setattr(S, "evolve_in_famine", lambda seed, *a, **k: f"EVOLVED_{seed}")
+
+    def faux(genome, seed, cache=True, *a, **k):
+        evolue = str(genome).startswith("EVOLVED")
+        return {"median_survival": table[(evolue, cache)] + (bruit or {}).get(seed, 0.0),
+                "fruits_at_transition": 3}
+
+    monkeypatch.setattr(S, "measure_genome", faux)
+    return S
+
+
+_EMERGE = {(True, True): 40.0, (True, False): 10.0, (False, True): 20.0, (False, False): 19.0}
+
+
+def test_storage_probe_detects_an_imposed_emergence(monkeypatch):
+    """Dose imposee : +30 de survie chez l'evolue quand le cache est actif, +1 chez le stoneage."""
+    S = _storage(monkeypatch, _EMERGE)
+    r = S.run_storage_probe(list(range(12)))
+    assert r["median_delta_famine"] == 30.0 and r["median_delta_stoneage"] == 1.0
+    assert r["verdict"] == "EMERGE"
+
+
+def test_storage_probe_invents_NOTHING_when_ablation_changes_nothing(monkeypatch):
+    """⚠️ NO-OP EXACT : ablater le cache ne change rien nulle part -> deltas nuls, aucune emergence.
+    C'est le negatif LEGITIME (donnees reelles sans effet), distinct du refus sur donnees absentes."""
+    S = _storage(monkeypatch, {(True, True): 20.0, (True, False): 20.0,
+                               (False, True): 20.0, (False, False): 20.0})
+    r = S.run_storage_probe(list(range(12)))
+    assert r["median_delta_famine"] == 0.0 and r["verdict"] == "N_EMERGE_PAS"
+
+
+def test_storage_probe_PAIRING_cancels_between_seed_variance(monkeypatch):
+    """⚠️ Le delta est APPARIE (on/off sur le MEME seed). Un bruit de 500 par seed doit s'annuler
+    exactement. S'il ne s'annulait pas, l'effet impose de +30 serait noye."""
+    S = _storage(monkeypatch, _EMERGE, bruit={s: 500.0 * (s % 4) for s in range(12)})
+    r = S.run_storage_probe(list(range(12)))
+    assert r["median_delta_famine"] == 30.0 and r["verdict"] == "EMERGE"
