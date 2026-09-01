@@ -29,6 +29,20 @@ from tools.warmstart_evolution_inworld import _torch_survival_eras  # noqa: E402
 # couverture PARTIELLE (classe E4 — une vérification qui ne peut pas échouer).
 # `["*"]` = instrument sans branches. Ajouter une branche ici EXIGE d'ajouter le cas de test.
 CALIBRATED = {
+    # P2.25 (2026-09-01) : les 2 verdicts S2 restants. `verdict_within_subject` portait la MEME
+    # cecite au plancher que `s2_verdict` -- et c'est le MARQUEUR DE DEMANDE transversal (4
+    # modalites). `verdict_from_survival_cmps` ne PEUT PAS se garder (il ne recoit que p/cliff) :
+    # l'appelant declare. Son levee sur entree vide est GELEE comme comportement CORRECT.
+    "verdict_within_subject": ["floor:refused", "positive:causal-signal"],
+    "verdict_from_survival_cmps": ["declared-degeneracy", "no-declaration:normal", "empty:raises"],
+    # P2.24 (2026-09-01) : les 4 verdicts « a gate » de lewis_survival_sweep. Deux defauts, tous deux
+    # penchant vers le NEGATIF : entree vide -> affirmation de fond ; `zip` tronque silencieusement
+    # -> un "BARREAU TROUVE" devenait "PAS DE RUNG" (verdict INVERSE). La specificite gele que le
+    # negatif LEGITIME (donnees completes, rien ne franchit) reste rendu.
+    "tools/lewis_survival_sweep.py::_verdict": ["empty:refused", "truncated:refused", "negative:legitimate", "positive:rung-found"],
+    "_verdict_apex": ["empty:refused", "truncated:refused", "negative:legitimate"],
+    "_verdict_metab": ["empty:refused", "truncated:refused", "negative:legitimate"],
+    "_verdict_surprise": ["empty:refused", "truncated:refused", "negative:legitimate"],
     # P2.23 (2026-09-01) : famille `disjoint_heads`, 8 verdicts a vote majoritaire calibres EN LOT.
     # Defaut commun corrige : une liste VIDE rendait un verdict DE FOND (`_verdict_disjoint([])`
     # -> "DISJOINT_NEUTRAL", une affirmation sans AUCUNE donnee -- classes E18 + E4). Les seuils
@@ -2460,3 +2474,119 @@ def test_the_frozen_thresholds_of_verdict_lr_are_INCLUSIVE():
     assert _verdict_lr([0.90] * 5) == "LR_CLOSES", "0.90 doit être DANS le camp LR_CLOSES"
     assert _verdict_lr([0.79] * 5) == "LR_INTERCHANGEABLE", "0.79 doit être DANS le camp opposé"
     assert _verdict_lr([0.85] * 5) == "PARTIAL", "le TROU 0.80-0.89 ne conclut ni dans un sens ni l'autre"
+
+
+# ======================================================================================================
+# P2.24 (2026-09-01) — les 4 verdicts « à gate » de `lewis_survival_sweep`, et un biais SYSTÉMATIQUE.
+#
+# DEUX défauts mesurés, et tous deux penchaient dans la MÊME direction — la conclusion NÉGATIVE :
+#   (1) entrée VIDE -> "PAS DE RUNG", "MUR INTRINSEQUE", "PAS LE METABOLISME SEUL", "PAS LE BRAIN_COST".
+#       Quatre affirmations de fond tirées d'AUCUNE donnée (classes E18 + E4).
+#   (2) `zip(levels, medians)` TRONQUE SILENCIEUSEMENT. Avec une médiane manquante, un
+#       **"BARREAU TROUVE" devenait "PAS DE RUNG"** : un verdict INVERSÉ, pas une erreur.
+#
+# ⚠️ C'est l'asymétrie qui rend ces défauts dangereux ici. Des données absentes ou incomplètes ne
+# produisaient pas « inconnu » mais « le mur est intrinsèque ». Dans un dépôt dont la plupart des
+# résultats SONT négatifs, un négatif fabriqué ressemble à tous les autres.
+# ======================================================================================================
+
+_SWEEP_GATE = [
+    ("_verdict", 2, "PAS DE RUNG"),
+    ("_verdict_apex", 2, "MUR INTRINSEQUE"),
+    ("_verdict_metab", 2, "PAS LE METABOLISME SEUL"),
+    ("_verdict_surprise", 3, "PAS LE BRAIN_COST"),
+]
+
+
+def _sweep_call(nom, arite, niveaux, medianes):
+    import tools.lewis_survival_sweep as L
+    f = getattr(L, nom)
+    return f(niveaux, medianes, *([[0.0] * len(medianes)] if arite == 3 else []))
+
+
+@pytest.mark.parametrize("nom,arite,negatif", _SWEEP_GATE)
+def test_sweep_verdicts_REFUSE_to_conclude_without_any_level(nom, arite, negatif):
+    """⚠️ LE contre-exemple : zéro niveau ne peut pas prouver « il n'y a pas de barreau »."""
+    v = _sweep_call(nom, arite, [], [])
+    assert v == "INDETERMINE_AUCUN_NIVEAU", (
+        f"{nom} rend « {v} » sans aucune donnée — une affirmation de fond tirée du vide")
+    assert v != negatif
+
+
+@pytest.mark.parametrize("nom,arite,negatif", _SWEEP_GATE)
+def test_sweep_verdicts_REFUSE_truncated_input_instead_of_INVERTING(nom, arite, negatif):
+    """⚠️ Le défaut le plus dangereux : `zip` tronquait sans un mot, et le niveau qui franchissait
+    disparaissait. Le verdict ne devenait pas faux « au hasard » — il basculait vers le NÉGATIF."""
+    v = _sweep_call(nom, arite, [0, 1, 2, 3], [0.0, 0.0, 0.0])
+    assert v == "INDETERMINE_DONNEES_INCOMPLETES", (
+        f"{nom} conclut « {v} » sur des données incomplètes au lieu de le signaler")
+
+
+@pytest.mark.parametrize("nom,arite,negatif", _SWEEP_GATE)
+def test_sweep_verdicts_still_deliver_their_LEGITIMATE_negative(nom, arite, negatif):
+    """⚠️ SPÉCIFICITÉ, et elle est essentielle ici : le négatif est un résultat SCIENTIFIQUE valide
+    quand il repose sur des données complètes. Une garde qui l'empêcherait détruirait l'instrument."""
+    v = _sweep_call(nom, arite, [0, 1, 2, 3], [0.0, 0.0, 0.0, 0.0])
+    assert v == negatif, f"{nom} ne sait plus rendre son négatif légitime : {v}"
+
+
+def test_sweep_verdict_still_finds_a_rung_when_a_level_crosses():
+    """L'autre bord de la spécificité : un franchissement réel doit toujours donner un POSITIF."""
+    from tools.lewis_survival_sweep import GATE
+    assert _sweep_call("_verdict", 2, [0, 1, 2, 3], [0.0, 0.0, 0.0, GATE + 1.0]) == "BARREAU TROUVE"
+
+
+# ======================================================================================================
+# P2.25 (2026-09-01) — les DEUX verdicts S2 restants. Un chemin non gardé, et le marqueur transversal.
+#
+# `verdict_within_subject` portait EXACTEMENT la même cécité que `s2_verdict` (P2.19) : « tout le monde
+# à 2-3 ticks » rendait CAUSAL-PARTIEL, comme un vrai signal. Or c'est le MARQUEUR DE DEMANDE transversal
+# du dépôt — validé sur perception, communication, généralisation et mémoire. Une cécité au plancher s'y
+# propage donc à quatre modalités d'un coup.
+#
+# `verdict_from_survival_cmps` NE PEUT PAS se garder lui-même : il reçoit des comparaisons déjà calculées
+# ({p, cliff}) et non les distributions. C'était le CHEMIN NON GARDÉ vers le verdict tant que `s2_verdict`
+# était seul protégé. L'appelant, qui a les distributions, lui passe le résultat de `s2_degeneracy`.
+# ======================================================================================================
+
+def _ws_plat(mediane, n=12):
+    return {"survival": [mediane] * 40, "life_score": [float(mediane)] * 40,
+            "era_survival": [mediane] * n, "era_life": [float(mediane)] * n}
+
+
+def _ws_etale(a, b):
+    return {"survival": list(range(a, b)), "life_score": [float(a)] * (b - a),
+            "era_survival": [(a + b) // 2] * 12, "era_life": [float(a)] * 12}
+
+
+def test_within_subject_marker_REFUSES_a_floor_pinned_regime():
+    """⚠️ Le marqueur transversal ne doit pas confondre « ablater effondre » avec « tout est déjà au
+    sol ». Avant la garde : CAUSAL-PARTIEL, le même verdict qu'un vrai signal."""
+    from src.seed_ai.s2_stats import verdict_within_subject
+    r = verdict_within_subject(_ws_plat(3), _ws_plat(2), _ws_plat(1))
+    assert r["verdict"] == "INCONCLUSIVE_DEGENERATE"
+
+
+def test_within_subject_marker_SPARES_a_real_causal_signal():
+    """⚠️ SPÉCIFICITÉ — le marqueur doit continuer à trancher quand les distributions sont réelles."""
+    from src.seed_ai.s2_stats import verdict_within_subject
+    r = verdict_within_subject(_ws_etale(40, 90), _ws_etale(5, 45), _ws_etale(1, 20))
+    assert r["verdict"] != "INCONCLUSIVE_DEGENERATE" and "verdict" in r
+
+
+def test_from_survival_cmps_HONOURS_a_degeneracy_declared_by_its_caller():
+    """Le chemin non gardé : cette fonction n'a pas les distributions, donc l'appelant DÉCLARE."""
+    from src.seed_ai.s2_stats import verdict_from_survival_cmps
+    cmps = {"reflexe": {"p": 0.001, "cliff": 0.9}}
+    assert verdict_from_survival_cmps(cmps, degenerate_why="plancher")["verdict"] == "INCONCLUSIVE_DEGENERATE"
+    assert verdict_from_survival_cmps(cmps)["verdict"] == "EXIGE", (
+        "sans déclaration, le verdict normal doit être rendu — sinon la garde bloque tout")
+
+
+def test_from_survival_cmps_FAILS_LOUDLY_on_empty_input():
+    """⚠️ Comportement CORRECT à GELER, pas à corriger : sans aucune comparaison, la fonction LÈVE au
+    lieu de rendre un verdict. Si quelqu'un « répare » ça un jour en renvoyant VOID ou AMBIGU, il
+    fabriquera un verdict à partir de rien — c'est ce test qui l'en empêchera."""
+    from src.seed_ai.s2_stats import verdict_from_survival_cmps
+    with pytest.raises(ValueError):
+        verdict_from_survival_cmps({})

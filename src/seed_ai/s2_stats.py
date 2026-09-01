@@ -253,7 +253,8 @@ def s2_verdict(champ, baselines, alpha=ALPHA, cliff_thresh=CLIFF_THRESH,
             "survival": cmps}
 
 
-def verdict_from_survival_cmps(survival_cmps, alpha=ALPHA, cliff_thresh=CLIFF_THRESH):
+def verdict_from_survival_cmps(survival_cmps, alpha=ALPHA, cliff_thresh=CLIFF_THRESH,
+                               degenerate_why=None):
     """Re-rend le verdict S2 d'UN monde depuis les comparaisons de SURVIE déjà calculées
     (champion vs chaque baseline : dicts {p, cliff, ratio_lo, ratio_hi}), SANS re-simuler.
 
@@ -268,6 +269,13 @@ def verdict_from_survival_cmps(survival_cmps, alpha=ALPHA, cliff_thresh=CLIFF_TH
     Cohérence (survie) : le champion bat le baseline le plus fort en survie -> p_monde<alpha ET
     tous les Cliff>0 ; sinon VOID. Décision : EXIGE (p<alpha & cliff>=thresh) / ANTI-CORRELE
     (p<alpha & cliff<=-thresh) / AMBIGU sinon."""
+    # ⚠️ CETTE FONCTION NE PEUT PAS SE GARDER ELLE-MÊME. Elle reçoit des comparaisons DÉJÀ
+    # calculées ({p, cliff, ratio}) et non les distributions : la dégénérescence n'y est pas
+    # observable. C'était un CHEMIN NON GARDÉ vers le verdict tant que `s2_verdict` était seul
+    # protégé. L'appelant, qui a les distributions, passe le résultat de `s2_degeneracy`.
+    if degenerate_why:
+        return {"verdict": "INCONCLUSIVE_DEGENERATE", "degenerate": True,
+                "why": degenerate_why, "coherence_basis": "survival"}
     p_monde = float(max(c["p"] for c in survival_cmps.values()))
     strongest = min(survival_cmps, key=lambda k: survival_cmps[k]["cliff"])   # plus dur à battre
     s = survival_cmps[strongest]
@@ -287,7 +295,8 @@ def verdict_from_survival_cmps(survival_cmps, alpha=ALPHA, cliff_thresh=CLIFF_TH
 
 
 def verdict_within_subject(champion, champion_ablated, random_action,
-                           alpha=ALPHA, cliff_thresh=CLIFF_THRESH, equiv_margin=EQUIV_MARGIN):
+                           alpha=ALPHA, cliff_thresh=CLIFF_THRESH, equiv_margin=EQUIV_MARGIN,
+                           floor=None, ceiling=None):
     """Verdict CAUSAL within-subject de « le monde exige la PERCEPTION » (S2-001). Réutilise `_compare`
     (Cliff δ + p apparié par ère). Ablater la perception du MÊME champion (obs décorrélée) doit effondrer
     la survie SI la perception est causalement porteuse.
@@ -302,6 +311,13 @@ def verdict_within_subject(champion, champion_ablated, random_action,
       CAUSAL-CRITIQUE : champion≫ablé ET ablé PIRE que random (Cliff résiduel ≤ −margin) -> agir avec confiance
                         sur une perception corrompue est ACTIVEMENT nuisible -> perception essentielle (preuve la + forte).
     On ne préjuge PAS : NON-CAUSAL est falsifiable (l'edge viendrait d'un autre facteur — corps/génome)."""
+    # ⚠️ MÊME CÉCITÉ que `s2_verdict`, mesurée le 2026-09-01 : « tout le monde à 2-3 ticks »
+    # rendait CAUSAL-PARTIEL, exactement comme un vrai signal. Or cet instrument est le
+    # MARQUEUR DE DEMANDE transversal du dépôt (perception, communication, généralisation,
+    # mémoire) : une cécité au plancher s'y propage à quatre modalités d'un coup.
+    why = s2_degeneracy(champion, champion_ablated, floor=floor, ceiling=ceiling)
+    if why:
+        return {"verdict": "INCONCLUSIVE_DEGENERATE", "degenerate": True, "why": why}
     causal = _compare(champion, champion_ablated, "survival")
     residual = _compare(champion_ablated, random_action, "survival")
     is_causal = (causal["p"] < alpha) and (causal["cliff"] >= cliff_thresh)

@@ -463,6 +463,17 @@ def _verdict(levels, medians, gate=GATE):
     """Mappe (medianes de survie par niveau) -> 3 branches pre-enregistrees. Le 1er niveau qui franchit
     le gate determine le verdict : <=CHEAP_MAX -> barreau trouve ; sinon (seulement 48) -> trop cher ;
     aucun -> pas de rung (la depense est le mur)."""
+    # ⚠️ DONNEES ABSENTES = PAS DE VERDICT (classes E18/E4, ajoute le 2026-09-01). Deux defauts
+    # mesures, et tous deux penchaient vers la conclusion NEGATIVE :
+    #   (1) entree VIDE -> "PAS DE RUNG" / "MUR INTRINSEQUE" / "PAS LE METABOLISME SEUL",
+    #       c'est-a-dire des affirmations de fond tirees d'AUCUNE donnee ;
+    #   (2) `zip(levels, medians)` TRONQUE SILENCIEUSEMENT : avec une mediane manquante, un
+    #       "BARREAU TROUVE" devenait "PAS DE RUNG" -- un verdict INVERSE, pas une erreur.
+    # Dans un depot dont la plupart des resultats sont negatifs, ce biais est le plus dur a voir.
+    if not levels or not medians:
+        return "INDETERMINE_AUCUN_NIVEAU"
+    if len(levels) != len(medians):
+        return "INDETERMINE_DONNEES_INCOMPLETES"
     crossed = [lv for lv, m in zip(levels, medians) if m > gate]
     if not crossed:
         return "PAS DE RUNG"
@@ -474,6 +485,17 @@ def _verdict_apex(levels, medians, gate=GATE):
     Un N_APEX > 0 franchit le gate -> barreau trouve (densite reduite survivable) ; seul N_APEX=0
     franchit -> rung degenere (survie uniquement dans un Lewis vide) ; aucun -> mur intrinseque
     (le drain n'est pas l'environnement)."""
+    # ⚠️ DONNEES ABSENTES = PAS DE VERDICT (classes E18/E4, ajoute le 2026-09-01). Deux defauts
+    # mesures, et tous deux penchaient vers la conclusion NEGATIVE :
+    #   (1) entree VIDE -> "PAS DE RUNG" / "MUR INTRINSEQUE" / "PAS LE METABOLISME SEUL",
+    #       c'est-a-dire des affirmations de fond tirees d'AUCUNE donnee ;
+    #   (2) `zip(levels, medians)` TRONQUE SILENCIEUSEMENT : avec une mediane manquante, un
+    #       "BARREAU TROUVE" devenait "PAS DE RUNG" -- un verdict INVERSE, pas une erreur.
+    # Dans un depot dont la plupart des resultats sont negatifs, ce biais est le plus dur a voir.
+    if not levels or not medians:
+        return "INDETERMINE_AUCUN_NIVEAU"
+    if len(levels) != len(medians):
+        return "INDETERMINE_DONNEES_INCOMPLETES"
     crossed = [lv for lv, m in zip(levels, medians) if m > gate]
     if not crossed:
         return "MUR INTRINSEQUE"
@@ -484,6 +506,17 @@ def _verdict_metab(levels, medians, gate=GATE):
     """Mappe (medianes de survie par niveau de base_metabolism) -> 3 branches pre-enregistrees. Un
     base_metabolism > 0 franchit le gate -> rescale suffit (mur supprimable par config) ; seul 0 franchit ->
     rescale extreme (metabolisme nul requis) ; aucun -> pas le metabolisme seul (la suppression ne sauve pas)."""
+    # ⚠️ DONNEES ABSENTES = PAS DE VERDICT (classes E18/E4, ajoute le 2026-09-01). Deux defauts
+    # mesures, et tous deux penchaient vers la conclusion NEGATIVE :
+    #   (1) entree VIDE -> "PAS DE RUNG" / "MUR INTRINSEQUE" / "PAS LE METABOLISME SEUL",
+    #       c'est-a-dire des affirmations de fond tirees d'AUCUNE donnee ;
+    #   (2) `zip(levels, medians)` TRONQUE SILENCIEUSEMENT : avec une mediane manquante, un
+    #       "BARREAU TROUVE" devenait "PAS DE RUNG" -- un verdict INVERSE, pas une erreur.
+    # Dans un depot dont la plupart des resultats sont negatifs, ce biais est le plus dur a voir.
+    if not levels or not medians:
+        return "INDETERMINE_AUCUN_NIVEAU"
+    if len(levels) != len(medians):
+        return "INDETERMINE_DONNEES_INCOMPLETES"
     crossed = [lv for lv, m in zip(levels, medians) if m > gate]
     if not crossed:
         return "PAS LE METABOLISME SEUL"
@@ -495,6 +528,17 @@ def _verdict_surprise(levels, medians, frac_nonfinite, gate=GATE):
     Un ttc_surprise_scale franchit le gate -> TARIF=SURPRISE (le brain_cost surprise-amplifie est le mur) ;
     aucun ne franchit + une surprise non-finie (overflow) -> OVERFLOW=RACINE ; aucun + surprises finies ->
     PAS LE BRAIN_COST (le drain est ailleurs, ex. throw)."""
+    # ⚠️ DONNEES ABSENTES = PAS DE VERDICT (classes E18/E4, ajoute le 2026-09-01). Deux defauts
+    # mesures, et tous deux penchaient vers la conclusion NEGATIVE :
+    #   (1) entree VIDE -> "PAS DE RUNG" / "MUR INTRINSEQUE" / "PAS LE METABOLISME SEUL",
+    #       c'est-a-dire des affirmations de fond tirees d'AUCUNE donnee ;
+    #   (2) `zip(levels, medians)` TRONQUE SILENCIEUSEMENT : avec une mediane manquante, un
+    #       "BARREAU TROUVE" devenait "PAS DE RUNG" -- un verdict INVERSE, pas une erreur.
+    # Dans un depot dont la plupart des resultats sont negatifs, ce biais est le plus dur a voir.
+    if not levels or not medians:
+        return "INDETERMINE_AUCUN_NIVEAU"
+    if len(levels) != len(medians):
+        return "INDETERMINE_DONNEES_INCOMPLETES"
     crossed = [lv for lv, m in zip(levels, medians) if m > gate]
     if crossed:
         return "TARIF=SURPRISE"
