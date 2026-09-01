@@ -29,6 +29,14 @@ class PreflightError(AssertionError):
     """Échec de pré-vol : le banc ne peut pas répondre à la question posée. NE PAS lancer le run."""
 
 
+class ReferenceCollapsedError(PreflightError):
+    """Sous-verdict distinct de `assert_verdict_invariant_to_optimizer` (P2.21) : le bras de RÉFÉRENCE
+    s'est effondré vers le bras testé, plutôt que le bras testé qui aurait rejoint sa référence. Sous-
+    classe de PreflightError (un `except PreflightError` générique l'attrape toujours) mais un test peut
+    filtrer sur CE type précis : « artefact avéré » et « mesure inconclusive » sont deux conclusions
+    opposées, et les confondre est exactement le motif E3 que cette classe existe pour fermer."""
+
+
 # --------------------------------------------------------------------------- A. les deux issues
 
 def assert_ablation_changes_something(intact, ablated, label="ablation"):
@@ -155,7 +163,7 @@ def assert_predictor_measured_in_situ(predictor_ctx, experiment_ctx, label="pré
 # ------------------------------------------------- A (bis). le verdict survit-il au RÉGLAGE ? (E19)
 
 def assert_verdict_invariant_to_optimizer(measure, lrs=(0.02, 0.002), max_gap_closure=2.0 / 3.0,
-                                          label="verdict comparatif"):
+                                          reference_floor=None, label="verdict comparatif"):
     """Un NUL DE CAPACITÉ doit survivre au balayage du pas d'apprentissage — sinon il mesure le RÉGLAGE.
 
     `measure(lr)` rend le couple `(bras_testé, bras_de_référence)` : deux scalaires (médianes) mesurés AU
@@ -193,13 +201,48 @@ def assert_verdict_invariant_to_optimizer(measure, lrs=(0.02, 0.002), max_gap_cl
 
     Règle d'usage : quand deux bras d'un verdict n'ont pas la même difficulté d'OPTIMISATION (1 pas vs 2
     pas, opérandes co-présents vs portés à travers un tick), le réglage n'est pas une nuisance mais un
-    FACTEUR — le balayer fait partie du contrôle positif."""
+    FACTEUR — le balayer fait partie du contrôle positif.
+
+    --- P2.21 : `reference_floor` (motif E3 DANS la garde elle-même) -----------------------------------
+    Une fermeture d'écart a DEUX causes indiscernables du seul nombre `closure` : (1) le bras TESTÉ monte
+    vers sa référence (l'artefact visé) ; (2) le bras de RÉFÉRENCE s'EFFONDRE vers le testé — closure
+    identique, aucun artefact à dénoncer, les deux bras sont juste morts. `reference_floor=None` (défaut,
+    même convention que `floor=`/`ceiling=` de `ablation_verdict` — PAS de constante magique implicite)
+    désactive le distingo, comportement inchangé. Fourni, la garde exige que le bras de RÉFÉRENCE reste
+    STRICTEMENT AU-DESSUS de `reference_floor` aux DEUX pas qui portent la closure (`lr_max` = écart le
+    plus profond, `lr_min` = écart le plus refermé — les deux seuls points qu'utilise la formule) AVANT
+    de lire quoi que ce soit dans `closure`, fermeture flaguée OU PAS : lire un « pass » avec une
+    référence effondrée serait tout aussi fabriqué qu'un « artefact » avec une référence effondrée. Si
+    elle ne l'est pas, verdict DISTINCT — `ReferenceCollapsedError` (sous-classe de `PreflightError`,
+    tag `INCONCLUSIVE_REFERENCE_COLLAPSED` dans le message) — jamais un refus muet dans la branche
+    d'origine, jamais un `pass` silencieux à la place.
+
+    Aurait attrapé EN ACTE (EDR-DELAYED-COORD, 2026-09-01, la garde elle-même prise en défaut sur son
+    propre record) : bras testé = appris, bras de référence = canal ORACLE (`argmax` du référent perçu au
+    lieu de l'émission apprise), même sonde, même seed — `lr=0.02` : testé 0.141, référence 0.436 (écart
+    0.295) ; `lr=0.08` : testé 0.203, référence 0.194 (écart −0.009). closure = 1 − (−0.009/0.295) =
+    **103.1 %** > 2/3 : AVANT ce correctif, la garde levait « artefact d'hyperparamètre ». Faux : le bras
+    testé n'a JAMAIS bougé (0.141 → 0.203, tous deux dans la bande **0.164–0.206** que le crible publié de
+    ce record mesure pour RETAIN/PRESENT au plancher documenté `1/K = 0.167`, K=6) — c'est la RÉFÉRENCE
+    qui s'est effondrée (0.436 → 0.194, canal oracle noyé à `lr=0.08`). Avec `reference_floor = 1/6+0.15`
+    (même barre que le contrôle BILINEAR ci-dessus, K=6 identique), `0.194 <= reference_floor` à
+    `lr=0.08` -> `ReferenceCollapsedError`, pas « artefact ». Chiffres du couple appris/oracle : notes de
+    session `.superpowers/sdd/2026-09-01-delayed-lewis-retention-edge/task-2-report.md` (mêmes seed et
+    `_params` que le crible publié dans `docs/EDR/EDR-DELAYED-COORD_...md`, dont la table RETAIN/PRESENT
+    corrobore que le bras appris n'a jamais quitté le plancher).
+
+    Ne tire PAS le NOUVEAU distingo (spécificité, positif apparié) : re-testé sur RETAIN-COMPOSE ci-dessus
+    avec `reference_floor = 1/6+0.15` — `oracle` vaut 0.971 puis 0.945 aux deux pas, tous deux largement
+    au-dessus -> `reference_floor` ne change RIEN, la garde lève toujours « artefact d'hyperparamètre ».
+    Sans ce contrôle on remplacerait une garde trop laxiste par une garde trop stricte (même défaut, signe
+    inversé) : `reference_floor` doit épargner une référence VIVANTE, pas juste faire taire la garde."""
     xs = [float(x) for x in lrs]
     if len(set(xs)) < 2:
         raise PreflightError(
             f"{label} : il faut AU MOINS DEUX pas DISTINCTS pour tester l'invariance (reçu {xs}). "
             "Un seul point d'hyperparamètre ne peut pas distinguer un nul de capacité d'un nul de réglage.")
     gaps = {}
+    refs = {}
     for lr in sorted(set(xs)):
         pair = measure(lr)
         try:
@@ -208,13 +251,31 @@ def assert_verdict_invariant_to_optimizer(measure, lrs=(0.02, 0.002), max_gap_cl
             raise PreflightError(
                 f"{label} : `measure({lr:g})` doit rendre le couple (bras_testé, bras_de_référence) "
                 f"mesuré au MÊME pas ; reçu {pair!r}.")
-        gaps[lr] = float(reference) - float(tested)
+        tested, reference = float(tested), float(reference)
+        gaps[lr] = reference - tested
+        refs[lr] = reference
 
     lr_max = max(gaps, key=lambda k: gaps[k])          # pas où le nul est le plus PROFOND
     lr_min = min(gaps, key=lambda k: gaps[k])          # pas où il est le plus REFERMÉ
     g_max, g_min = gaps[lr_max], gaps[lr_min]
     if g_max <= 0.0:
         return True            # le bras testé n'est SOUS sa référence à aucun pas : aucun nul à défendre
+
+    if reference_floor is not None:
+        floor = float(reference_floor)
+        # Les DEUX points qui portent la closure, PAS l'ensemble du balayage : ce sont les seuls que la
+        # formule utilise, et suffisants pour rendre `closure` illisible si l'un d'eux est mort.
+        effondres = {lr: refs[lr] for lr in {lr_max, lr_min} if refs[lr] <= floor}
+        if effondres:
+            detail = ", ".join(f"lr={lr:g} : référence {refs[lr]:.4g}" for lr in sorted(effondres))
+            raise ReferenceCollapsedError(
+                f"{label} : INCONCLUSIVE_REFERENCE_COLLAPSED -- bras de RÉFÉRENCE au PLANCHER déclaré "
+                f"({floor:.4g}) à au moins un des deux pas qui portent la closure ({detail}). Une "
+                "fermeture d'écart a deux causes indiscernables du seul ratio : le bras testé qui monte "
+                "(artefact), OU la référence qui s'effondre (aucun artefact, les deux bras sont morts) — "
+                "ici c'est la référence. Ni un refus d'artefact, ni un `pass` : rejouer à un régime où la "
+                "référence reste vivante aux deux pas avant de conclure quoi que ce soit sur ce nul.")
+
     closure = 1.0 - (g_min / g_max)
     if closure > float(max_gap_closure):
         raise PreflightError(

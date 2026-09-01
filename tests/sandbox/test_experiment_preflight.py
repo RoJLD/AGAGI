@@ -9,7 +9,7 @@ import pytest
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 from tools.experiment_preflight import (  # noqa: E402
-    PreflightError, assert_ablation_changes_something, assert_positive_control,
+    PreflightError, ReferenceCollapsedError, assert_ablation_changes_something, assert_positive_control,
     assert_not_degenerate, assert_selection_nonempty, assert_no_aliasing,
     assert_predictor_measured_in_situ, assert_verdict_invariant_to_optimizer, declare_design)
 
@@ -86,6 +86,67 @@ def test_optimizer_sweep_REFUSES_the_retain_compose_null():
         assert_verdict_invariant_to_optimizer(lambda lr: mesure[lr], lrs=(0.02, 0.002),
                                               label="RETAIN-COMPOSE learned vs oracle")
 
+    # POSITIF APPARIÉ (P2.21, LE PLUS IMPORTANT) — le MÊME cas, mais avec `reference_floor` armé : la
+    # référence oracle (0.971 puis 0.945) est vivante aux DEUX pas -> `reference_floor` ne doit RIEN
+    # changer, la garde doit continuer à lever EXACTEMENT « artefact d'hyperparamètre », PAS
+    # `ReferenceCollapsedError`. Sans ce contrôle on remplace une garde trop laxiste par une garde trop
+    # stricte (P2.21, même défaut, signe inversé) : `reference_floor` doit épargner une référence VIVANTE.
+    with pytest.raises(PreflightError, match="artefact d'hyperparamètre"):
+        assert_verdict_invariant_to_optimizer(lambda lr: mesure[lr], lrs=(0.02, 0.002),
+                                              reference_floor=1 / 6 + 0.15,
+                                              label="RETAIN-COMPOSE learned vs oracle (floor armé)")
+
+
+def test_optimizer_sweep_returns_INCONCLUSIVE_when_the_REFERENCE_collapses():
+    """CONTRE-EXEMPLE GELÉ (P2.21) — motif E3 DANS la garde E19 elle-même, constaté EN ACTE sur
+    EDR-DELAYED-COORD (2026-09-01) : la garde AVANT ce correctif refusait ce nul comme « artefact
+    d'hyperparamètre », alors que le bras TESTÉ n'a jamais bougé — c'est la RÉFÉRENCE qui s'est effondrée.
+
+    Configuration EXACTE qui a produit l'erreur réelle (patron `test_cost_guard`) : bras testé = appris
+    (émission Lewis apprise), bras de référence = canal ORACLE (`argmax` du référent perçu), même sonde,
+    même seed. `lr=0.02` : testé 0.141, référence 0.436 (écart 0.295) ; `lr=0.08` : testé 0.203, référence
+    0.194 (écart −0.009). closure = 1 − (−0.009/0.295) = 103.1 % > 2/3 seuil.
+
+    Le bras testé reste dans **[0.141, 0.203]** tout du long — exactement la bande **0.164–0.206** que le
+    crible PUBLIÉ de ce même record mesure pour RETAIN/PRESENT au plancher documenté `1/K = 0.167` (K=6)
+    dans `docs/EDR/EDR-DELAYED-COORD_Deferred_Referential_Coordination_Demands_Retention.md`. C'est la
+    RÉFÉRENCE (canal oracle) qui s'effondre : 0.436 (vivant) -> 0.194 (au plancher) à `lr=0.08`. Chiffres
+    du couple appris/oracle : notes de session
+    `.superpowers/sdd/2026-09-01-delayed-lewis-retention-edge/task-2-report.md` (mêmes seed et `_params`
+    que le crible publié ; fichier de travail non committé — le record publié acquitte le motif dans sa
+    section « Ce que ça débloque » sans réimprimer le balayage).
+
+    `reference_floor = 1/6 + 0.15` (même barre, même K=6, que le contrôle de spécificité BILINEAR) :
+    0.194 <= floor à `lr=0.08` -> `ReferenceCollapsedError`, PAS `artefact d'hyperparamètre`. Sans
+    `reference_floor`, le comportement D'AVANT ce correctif est préservé EXACTEMENT (aucune régression
+    silencieuse sur les appelants qui n'ont pas encore adopté l'argument) : la garde continue de lever
+    « artefact d'hyperparamètre » sur ce même cas."""
+    mesure = {0.02: (0.141, 0.436), 0.08: (0.203, 0.194)}     # (appris, oracle) au MÊME lr
+
+    # Sans reference_floor (comportement HISTORIQUE inchangé, non corrigé) : tire, et pour la MAUVAISE
+    # raison — documente le bug tel qu'il existait, pour qu'un futur appelant qui oublie l'argument
+    # retrouve le même signal (loud), pas un silence.
+    with pytest.raises(PreflightError, match="artefact d'hyperparamètre"):
+        assert_verdict_invariant_to_optimizer(lambda lr: mesure[lr], lrs=(0.02, 0.08),
+                                              label="DELAYED-COORD appris vs oracle")
+
+    # Avec reference_floor armé (LE CORRECTIF) : verdict DISTINCT, ni refus muet dans l'ancienne branche,
+    # ni pass silencieux -- ReferenceCollapsedError EST une PreflightError (héritage), donc un appelant
+    # qui catch encore `except PreflightError:` reste protégé sans rien changer.
+    with pytest.raises(ReferenceCollapsedError, match="INCONCLUSIVE_REFERENCE_COLLAPSED"):
+        assert_verdict_invariant_to_optimizer(lambda lr: mesure[lr], lrs=(0.02, 0.08),
+                                              reference_floor=1 / 6 + 0.15,
+                                              label="DELAYED-COORD appris vs oracle")
+    try:
+        assert_verdict_invariant_to_optimizer(lambda lr: mesure[lr], lrs=(0.02, 0.08),
+                                              reference_floor=1 / 6 + 0.15,
+                                              label="DELAYED-COORD appris vs oracle")
+    except PreflightError as e:
+        assert isinstance(e, ReferenceCollapsedError), (
+            "un `except PreflightError` générique doit toujours l'attraper (sous-classe)")
+        assert "artefact d'hyperparamètre" not in str(e), (
+            "le verdict DOIT être distinct du message d'artefact -- sinon rien ne les sépare")
+
 
 def test_optimizer_sweep_SPARES_the_bilinear_structural_null():
     """RÉPONSE CONNUE n°2 — NUL STRUCTUREL MESURÉ : le substrat PLAIN ne peut PAS composer (q+key)%K.
@@ -121,6 +182,11 @@ def test_optimizer_sweep_rejects_a_single_step_and_ignores_a_nonexistent_null():
         assert_verdict_invariant_to_optimizer(lambda lr: (0.173, 0.971), lrs=(0.02, 0.02))
     pas_de_nul = {0.02: (0.95, 0.94), 0.002: (0.97, 0.93)}
     assert assert_verdict_invariant_to_optimizer(lambda lr: pas_de_nul[lr], lrs=(0.02, 0.002)) is True
+    # (3) reference_floor (P2.21) ne doit RIEN changer à cette branche « pas de nul à défendre » : la
+    # référence 0.94/0.93 est SOUS un plancher volontairement haut (0.99), et pourtant aucune exception --
+    # `g_max <= 0.0` court-circuite AVANT toute lecture du plancher, exactement comme sans l'argument.
+    assert assert_verdict_invariant_to_optimizer(lambda lr: pas_de_nul[lr], lrs=(0.02, 0.002),
+                                                 reference_floor=0.99) is True
 
 
 def test_declare_design_surfaces_inferred_links():
