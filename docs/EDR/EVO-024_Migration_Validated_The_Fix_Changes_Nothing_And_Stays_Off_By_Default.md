@@ -10,6 +10,8 @@ adopts: [REF-EXPERIMENT-PREFLIGHT]
 extends: [EDR-EVO-023]
 ---
 
+> ⚠️ RÉTRO-AUDIT 2026-09-02 — NUL COMPARÉ À UN NUL, DV AU PLANCHER DANS LES DEUX BRAS. Les deux bras mesurent 0/12 lecteurs (sal max ≤ 0.013) dans un régime où le taux de découverte de base est 0/12 sur tout l'arc (EVO-016/017/018) : la DV primaire n'avait pratiquement aucune marge pour différer entre bras, et p=1.000 était quasi garanti quel que soit le correctif. Le verdict tient (prédiction scellée, puissance déclarée, contrôle de manipulation 38/200→0/200), mais « il n'y a pas de re-mesure à faire » est porté par l'argument d'EVO-023, pas par une mesure ayant la marge de produire l'autre issue. La neutralité du correctif devra être RE-VÉRIFIÉE dans tout régime où des lecteurs apparaissent — le record le dit lui-même : le défaut « redeviendra contraignant dès qu'un levier fera monter le taux de création d'arêtes ».
+
 ## Question
 
 La dette de production ouverte par [[EDR-EVO-021]] : `add_node` **et** `add_meso_gated_unit` insèrent des

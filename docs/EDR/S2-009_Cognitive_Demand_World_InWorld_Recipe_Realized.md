@@ -6,7 +6,10 @@ status: active
 gate: G0
 tests: [SDR-G0]
 adopts: [REF-DEMAND-MARKER]
+corrected_by: [EDR-AUDIT-001]
 ---
+
+> ⚠️ **BORNES DU BRAS PORTEUR (rétro-audit 2026-09-02).** Les deux bras du mode ON sont AUX bornes de l'instrument : intact **200.0 = max_ticks** (censure, déclarée `ceiling=` dans `tools/cognitive_demand_inworld.py`) et ablé **9.0 = plancher no-perception** mesuré par [[EDR-WARM-010]]. Le ratio **22.22 = cap/plancher** est la valeur MAXIMALE que l'instrument peut rendre à ce régime : lire « séparation totale (12/12 ères), amplitude **≥ 22×** », pas « amplitude = 22× » — la censure SOUS-estime le positif, le verdict `X_DEMANDED` tient a fortiori. La sonde crédit (médiane ~7-8 = plancher) conclut sur l'APPRENANT, pas sur le monde : nul au plancher légitime (doctrine AUDIT-001). Frontmatter : ajouter `corrected_by: [EDR-AUDIT-001]` — AUDIT-001 déclare `corrects: [… EDR-S2-009]`, le lien inverse manque.
 
 ## Question
 S2-006 donnait la recette (corps insuffisant + demande structurée + devise de survie) en SIM. Tient-elle

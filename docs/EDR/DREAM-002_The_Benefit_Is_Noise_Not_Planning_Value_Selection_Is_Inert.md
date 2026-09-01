@@ -7,6 +7,7 @@ gate: G0
 tests: [SDR-G0]
 adopts: [REF-EXPERIMENT-PREFLIGHT]
 corrects: [EDR-095]
+corrected_by: [EDR-AUDIT-002]
 ---
 
 ## Question

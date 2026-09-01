@@ -8,6 +8,8 @@ tests: [SDR-G0]
 adopts: [REF-EXPERIMENT-PREFLIGHT]
 ---
 
+> ⚠️ Bandeau rétro-audit (2026-09-02) : dans le tableau du défaut 1, la ligne ag00 [9.0, 9.0, 9.0] est collée au plancher de drain de l'étalon (E0=80, drain ≈ 9.25/tick → ~9 ticks quel que soit le comportement ; ag05, 10.5-11.0, en est proche). À cette borne, « idem » ne démontre PAS que l'aliasing est inerte pour ce génome — la cellule ne peut pas produire l'autre issue. « 3/6 génomes diffèrent » est donc une borne INFÉRIEURE de la prévalence, pas une prévalence. Le verdict (aliasing NON inerte, +37 %) est porté par ag02/ag04/ag06 et n'est pas affecté.
+
 ## Question
 Deux dettes signalées en marge de l'arc WARM-005→009, jamais mesurées : (A) le monde écrit-il réellement
 dans l'état récurrent par aliasing mémoire, et est-ce inerte ? (B) l'instrument de survie respecte-t-il

@@ -9,6 +9,8 @@ tests: [SDR-G0]
 adopts: [REF-EXPERIMENT-PREFLIGHT, REF-DEMAND-MARKER]
 ---
 
+> ⚠️ **RÉGIME D'OPTIMISATION NON BALAYÉ (rétro-audit 2026-09-02) — le verdict NÉGATIF « non mesurable telle que spécifiée » est INCHANGÉ ; seule la clause mécanique du §2 est bornée.** Tous les chiffres du crible et des trois chemins de crédit sont mesurés à `lr=0.05` UNIQUEMENT — du côté divergent de la bascule E19 : [[EDR-RETAIN-COMPOSE-LR]] a mesuré qu'à batch effectif 1 un nul 2-pas à `lr ≥ 0.02` peut être un artefact du pas d'apprentissage (learned 0.173 → 0.923 en passant de 0.02 à 0.002, 0/144, n=12). Le balayage `lr` ≥ 3 points prescrit par la spec (T2, seeds disjoints, critère scellé sur RETAIN intact seul) n'a jamais été atteint : le crible T1 a échoué avant. La phrase « l'ÉCRITURE APPRISE dans le report ne marche pas » doit donc se lire « ...ne marche pas à `lr=0.05` » : les trois chemins de crédit varient le MÉCANISME de crédit, pas le PAS. Avant toute citation de ce mur comme propriété du SUBSTRAT (« c'est là qu'est le mur »), re-mesurer RETAIN (leurre retiré) à `lr=0.002` — coût ~13.2 min par point de `lr` selon la spec. Le pilote `lr=0.02` (RETAIN 0.873-0.946) ne vaut PAS contre-preuve : suspect canal oracle-équivalent (cf. Portée).
+
 ## Question
 
 3ᵉ arête du graphe AGI-Taxonomy, et **première ablation de SUBSTRAT**. La tentative précédente
@@ -112,7 +114,16 @@ nommé, pas conjecturé.
 Deux dettes ouvertes par ce round, inscrites au backlog :
 - la garde `assert_verdict_invariant_to_optimizer` (livrée le 2026-09-01) tire **dégénérément** quand
   c'est le bras de RÉFÉRENCE qui s'effondre : l'écart se referme sans que le bras testé monte. Motif E3
-  dans la garde même qui traque les nuls artefactuels ;
+  dans la garde même qui traque les nuls artefactuels. Balayage mesuré ici (bras testé = émission Lewis
+  apprise, bras de référence = canal ORACLE, même sonde, même seed, `episodes=1200`) : `lr=0.02` → testé
+  **0.141**, référence **0.436** (écart 0.295) ; `lr=0.08` → testé **0.203**, référence **0.194** (écart
+  −0.009) ⇒ closure = 1 − (−0.009/0.295) ≈ **103.1 %**, au-dessus du seuil 2/3 — la garde (avant
+  correctif) lit ça comme un « artefact d'hyperparamètre » alors que le bras testé reste dans la bande
+  du crible publié ci-dessus (0.164-0.206) et que c'est la RÉFÉRENCE qui s'effondre. **Ces quatre chiffres
+  sont la provenance du contre-exemple gelé**
+  `test_optimizer_sweep_returns_INCONCLUSIVE_when_the_REFERENCE_collapses`
+  (`tests/sandbox/test_experiment_preflight.py`) ; corrigé au commit `8d0b959` (paramètre opt-in
+  `reference_floor` + exception `ReferenceCollapsedError`) ;
 - la classe **E10** a récidivé deux fois dans la journée sur `tests/sandbox/test_instrument_calibration.py`
   (fichier partagé à forte contention), dans les deux sens — sa règle de promotion s'applique.
 

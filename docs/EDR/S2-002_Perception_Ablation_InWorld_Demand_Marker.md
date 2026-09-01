@@ -8,6 +8,8 @@ tests: [SDR-G0]
 adopts: [REF-DEMAND-MARKER]
 ---
 
+> ⚠️ COMPTE DES MONDES CORRIGÉ — [[EDR-S2-012]]. « Désaccord unanime sur les 5 mondes » en vaut AU PLUS 4 : `IndustrialWorld` est `class IndustrialWorld(Biosphere3D)` (clone — compteur `pollution` jamais lu par la biologie) et `stoneage` EST `Biosphere3D` ; les lignes stoneage et industrial du tableau (0.99 / 4.67, identiques au chiffre près) sont la même simulation comptée deux fois. Le verdict `INWORLD_PERCEPTION_DECOY` tient par ailleurs : le bras intact vit ~22-29 ticks sur 200 (médianes de S2-003 et S2-012, même champion/config) — loin du plancher no-perception 9.0 (EDR-WARM-010) et du cap — le nul within n'est donc pas fabriqué par une borne. Deux réserves de lecture : (1) ce record ne publie aucune valeur absolue de survie, seulement des ratios (défaut épinglé sur S2-009 par [[EDR-AUDIT-001]]) — les absolus vivent dans S2-003/S2-012 ; (2) le bras between compare à un réflexe au plancher de métrique (~6 ticks, cf. S2-012 : `random_* = 6` constant sur des mondes hétérogènes) — contraste positif, au pire sous-estimé, mais mesuré contre un sol.
+
 ## Question
 Le témoin within-subject (S2-001, proxy) tient-il sur le VRAI monde ? La perception du champion HoF
 est-elle causalement porteuse de sa survie, ou un survivant compétent masque-t-il un leurre (le

@@ -8,6 +8,8 @@ tests: [SDR-G0]
 adopts: [REF-DEMAND-MARKER]
 ---
 
+> ⚠️ CONDITIONS DE NÉCESSITÉ (1) et (3) À LIRE AVEC [[EDR-AUDIT-001]]. Le no-op mesuré sur S2-004 s'applique à l'identique ici : `fit_policy` part de `W = np.zeros` et n'accepte qu'en `sc > best` STRICT (memory_demand_world_probe.py:72,83-84) ; les cellules « corps SUFFISANT + différé + énergie » et « corps INSUFFISANT + différé + devise séparée » publient `|W|mém = 0.000` EXACT — le zéro de départ, jamais un poids entraîné (la première est au cap 300/300, cf. bandeau de S2-006 : « cellules de S2-004/005 où le bras de référence est à 300/300 avec W gelé à son initialisation »). Avec W = 0 la politique est CONSTANTE : ablater m est un no-op littéral et le `ratio 1.00` de ces deux cellules est une identité, pas une mesure. CE QUI TIENT : la cellule POSITIVE (ratio 10.34, |W|mém = 0.999 réellement entraîné) et le contrôle de spécificité « rappel PRÉSENT » (|W| = 0.909 entraîné, ratio 1.00 authentique) — la condition (2) rappel différé est réellement mesurée ; les conditions (1) corps et (3) devise sont héritées de cellules structurellement incapables de produire l'autre issue (classe E1).
+
 ## Question
 S2-004 a donné la recette pour que la survie in-world exige la PERCEPTION. Généralisation : à quelles
 conditions un objectif de survie in-world exige-t-il la MÉMOIRE (rappel différé) ? Pendant constructif de

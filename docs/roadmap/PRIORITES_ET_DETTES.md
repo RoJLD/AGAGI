@@ -266,10 +266,7 @@ ce record affirmerait aujourd'hui une conclusion fabriquée.**
 même croissance coupée — ce sont `mutate_weights` et `prune` seuls qui érodent sur 735 ères. **On ne peut
 pas accumuler des tirages en PROFONDEUR.**
 
-**➡️ D2-bis, la voie qui reste** : accumuler les tirages **en LARGEUR** (beaucoup de lignées courtes en
-parallèle) plutôt qu'en profondeur — la charge mutationnelle ne s'accumule alors pas, et le dénominateur
-reste constant. C'est le seul design qui sépare encore A de B. *Coût : comparable (même total de tirages),
-mais parallélisable et sans dégradation.*
+**➡️ D2-bis : ⛔ ABANDONNÉ (2026-09-02, panel 3 juges + réfutateur — unanimité PROUVÉE).** La largeur à longueur fixe a une puissance discriminante **exactement nulle** : sous A comme sous B, N lignées indépendantes donnent `P(≥1) = 1−(1−p_lignée)^N` — la largeur mesure `p_lignée`, elle n'arbitre rien (information de Fisher A-contre-B nulle). Tout run en largeur est de la **calibration de base** (utile : la limite 0.005-vs-0.02 du sceau EVO-026-bis reste ouverte), jamais un arbitre. Deux designs de remplacement RÉFUTÉS sur pièce par le panel : la dose `add_connection_rate` a DÉJÀ couru ×10 (EVO-019/020, p=0.415, fan-in 0.64→10.05 = dilution mesurée) ; le bras ELITE confond sélection et fenêtre de composition. **La voie qui sépare : [[EDR-EVO-027]]** — forcer le tirage (biais EVO-009, seul levier ayant jamais déplacé le taux : 12/12, p=9.6e-6) et varier sa **POSITION** (fenêtre ères 1-15 vs 21-35, horizon post-fenêtre apparié). La clause discriminante : « la valeur d'un tirage réussi dépend-elle de l'historique accumulé ? » — A dit non, B dit oui. Règle scellée, coût ~13 min, contrôle positif INTERNE (le bras EARLY est le 12/12 d'EVO-009).
 
 **D3 — Changer le MOTEUR, pas la recherche.** Un substrat où la variation ne soit pas un tirage d'arêtes
 isolées. ⚠️ **L'avertissement de doublon est PÉRIMÉ** : ce travail parallèle est LIVRÉ et gravé (`EDR-BILINEAR`, 2026-08-03 — le terme bilinéaire fait passer `(q+key)%K` de nul à appris). D3 doit donc être re-formulé à partir de ce qui existe, pas coordonné avec un chantier fini.
