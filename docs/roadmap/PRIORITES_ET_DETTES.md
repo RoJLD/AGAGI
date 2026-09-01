@@ -793,8 +793,10 @@ donc exécuté que par son fichier pytest. C'est exactement le principe transver
 sans application exécutable finit violée ») appliqué à une garde pourtant déjà ÉCRITE : elle protège le
 travail de qui pense à la lancer. *Correctif : une 3ᵉ porte gatée sur `docs/EDR/*.md` stagés. Coût : ~15 min.*
 
-**P2.21 — ⚠️ OUVERTE (2026-09-02) — la garde E19 a le trou qu'elle traque : `assert_verdict_invariant_to_optimizer`
-tire DÉGÉNÉRÉMENT quand c'est le bras de RÉFÉRENCE qui s'effondre.**
+**P2.21 — ✅ FAIT (2026-09-02) — la garde E19 avait le trou qu'elle traque : `assert_verdict_invariant_to_optimizer`
+tirait DÉGÉNÉRÉMENT quand c'est le bras de RÉFÉRENCE qui s'effondre. Corrigée dans cette même passe (vitalité du
+bras de référence exigée + verdict `INCONCLUSIVE_REFERENCE_COLLAPSED` + contrôle positif apparié) et rattachée
+au registre des erreurs comme occurrence (5) d'**E3** — cf. `docs/REF/REGISTRE_ERREURS.md`.**
 *(numérotée 21 et non 19 : `P2.19`/`P2.20` sont déjà référencés depuis du code COMMITTÉ —
 `tests/sandbox/test_instrument_calibration.py:187,195,2213,2290,2465,2659,3027,3201` — pour la garde de
 dégénérescence de `s2_verdict` et pour `sign_p` calculé-puis-jeté. Le code référençant gagne.)*
@@ -812,8 +814,8 @@ forme du défaut qu'elle corrigeait chez `functional_aliasing` la veille.
   fermeture d'écart, référence vivante, doit continuer à tirer) — sans lui on remplace une garde trop
   laxiste par une garde trop stricte, ce qui est le même défaut de l'autre côté.
 
-**P2.22 — ⚠️ PROMOTION DUE (2026-09-02) — la classe E10 a récidivé DEUX fois dans la même journée, sur le
-MÊME fichier partagé, dans les DEUX sens.**
+**P2.22 — ✅ FAIT (2026-09-02) — la classe E10 avait récidivé DEUX fois dans la même journée, sur le
+MÊME fichier partagé, dans les DEUX sens ; promue.**
 `tests/sandbox/test_instrument_calibration.py` est le point de contention maximal du dépôt. Le 2026-09-01 :
 (a) un commit de cette session a happé ~159 lignes de travail non committé d'une session parallèle
 (P2.19/P2.20 d'alors) via un `git add` path-scopé mais **pas contenu-scopé** ; (b) en sens inverse, des
@@ -825,8 +827,13 @@ dans un fichier partagé**. La règle du registre s'applique : deux occurrences 
   partagé à forte contention, inspecter `git diff --cached <fichier>` **hunk par hunk** et ABANDONNER si un
   hunk n'est pas de son fait. Injectée dans les dispatches de la passe DELAYED-COORD, elle a fonctionné :
   le commit `814a2a6` rapporte « 11 hunks tous vérifiés miens ».
-- *Correctif candidat, plus fort* : un script `tools/check_staged_authorship.py` qui compare le diff stagé
-  d'un fichier à une empreinte prise AVANT l'édition, et refuse tout hunk non attribuable. À évaluer.
+- **Correctif livré (2026-09-02)** : `tools/check_staged_authorship.py` (`snapshot()`/`verify()`) — une
+  empreinte (contenu de l'arbre de travail + blob HEAD) prise AVANT l'édition permet de distinguer, au
+  moment du commit, un hunk stagé écrit par la tâche courante d'un hunk ÉTRANGER (déjà présent dans le
+  snapshot, absent du HEAD capturé au même instant) ; `verify()` NOMME les hunks étrangers et refuse.
+  Calibré sur la FORME gelée du commit `e21c1f3` (dépôt git temporaire) + contrôle positif apparié
+  (`tests/sandbox/test_staged_authorship.py`, 6 tests). Ne couvre que le sens (a) : le sens (b) reste sans
+  garde exécutable, cf. `docs/REF/REGISTRE_ERREURS.md` (E10, occ. 8-9).
 
 ---
 
