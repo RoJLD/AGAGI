@@ -81,8 +81,10 @@ def ablation_verdict(intact, ablated, weight_on_x=None,
       X_DECOY si decoy ET n>=n_floor ; sinon INCONCLUSIVE (le garde-fou n<n_floor bloque les trois
       verdicts, pas seulement le positif).
     - **GARDE DE DÉGÉNÉRESCENCE, ARMÉE PAR DÉFAUT** : un bras de référence sans amplitude ne peut PAS
-      produire de verdict NUL — `X_DECOY` devient `INCONCLUSIVE_DEGENERATE`, avec la raison dans
-      `why`. Cf. `_degeneracy` pour les trois conclusions que l'absence de cette garde a produites.
+      produire de verdict NUL — `X_DECOY` **ET** `INCONCLUSIVE_INVERTED` deviennent tous deux
+      `INCONCLUSIVE_DEGENERATE` quand `why` est posé (même garde pour les deux branches NULLES : un bras
+      intact au PLANCHER déclaré, avec un ablé normal, produit aussi bien un ratio bas — la raison est
+      dans `why`. Cf. `_degeneracy` pour les trois conclusions que l'absence de cette garde a produites.
       `floor=` / `ceiling=` déclarent les bornes connues du régime (fortement recommandé).
     - `intervention_verified=True` : l'appelant atteste avoir vérifié que l'ablation perturbe
       bien l'ENTRÉE. Sans ça, des bras identiques sont bloqués — car « l'intervention ne s'est
@@ -108,7 +110,10 @@ def ablation_verdict(intact, ablated, weight_on_x=None,
     if collapse and n >= n_floor:
         verdict = "X_DEMANDED"            # un positif censuré reste un positif : ratio = borne INF
     elif inverted and n >= n_floor:
-        verdict = "INCONCLUSIVE_INVERTED"  # effet massif mais de SIGNE INVERSE : ni demande, ni inertie
+        # même garde que la branche decoy juste en dessous : un bras intact au PLANCHER déclaré avec un
+        # ablé normal produit lui aussi un ratio bas -- sans `why`, ce cas DÉGÉNÉRÉ serait étiqueté
+        # « inversé » au lieu de dégénéré, masquant exactement ce que `_degeneracy` existe pour attraper.
+        verdict = "INCONCLUSIVE_DEGENERATE" if why else "INCONCLUSIVE_INVERTED"
     elif decoy and n >= n_floor:
         verdict = "INCONCLUSIVE_DEGENERATE" if why else "X_DECOY"
     else:

@@ -29,6 +29,19 @@ from tools.warmstart_evolution_inworld import _torch_survival_eras  # noqa: E402
 # couverture PARTIELLE (classe E4 — une vérification qui ne peut pas échouer).
 # `["*"]` = instrument sans branches. Ajouter une branche ici EXIGE d'ajouter le cas de test.
 CALIBRATED = {
+    # P2.20 (2026-09-01) : E14 -- `sign_p` etait CALCULE puis JETE dans trois verdicts, alors que
+    # `compute_ab_verdict` avait recu la garde. Contre-exemple gele : la configuration PUBLIEE de
+    # D2 (+47 %, 7/8 seeds, sign_p=0.070) bascule EFFICACE -> NEUTRE. Specificite : 12 seeds
+    # unanimes conservent leur verdict. `fidelity_verdict` corrige en plus une ASYMETRIE (G_INUTILE
+    # n'exigeait ni majorite ni sign_p, G_FIDELE exigeait la majorite).
+    "compute_sweep_verdict": ["underpowered:D2-published", "positive:powered"],
+    "compute_transfer_verdict": ["underpowered:both-directions", "positive:powered"],
+    "fidelity_verdict": ["symmetry:both-labels", "underpowered:both-directions"],
+    # P2.19 (2026-09-01) : garde de DÉGÉNÉRESCENCE de l'instrument FONDATEUR de G0. Quatre
+    # branches : les deux cas CERTAINS (plancher et plafond, variance nulle des deux côtés), le
+    # cas DÉCLARÉ (étendue réelle, plancher passé par l'appelant — régime exact de WARM-002), et
+    # la SPÉCIFICITÉ (un vrai signal survit, dont le régime publié d'EDR-112).
+    "s2_verdict": ["floor:certain", "ceiling:certain", "floor:declared", "positive:real-signal"],
     # P2.1 : branche "perception" enfin couverte — inertie à dose 0 (métrique VIVANTE),
     # effondrement à dose 6, monotonie dans la plage NON CENSURÉE (le ratio se compresse
     # dès que le bras intact frôle max_ticks : les chiffres publiés sont des bornes INF).
@@ -765,6 +778,71 @@ def test_ablation_verdict_still_collapses_a_real_demand():
     r = ablation_verdict([0.633, 0.654, 0.621], [0.194, 0.175, 0.177],
                          intervention_verified=True, floor=1 / 6, ceiling=1.0, n_floor=3)
     assert r["verdict"] == "X_DEMANDED", r
+
+
+def test_ablation_verdict_inverted_still_defers_to_degeneracy():
+    """FIX ROUND 1 (revue, Constat 1 Important). La branche `decoy` fait
+    `"INCONCLUSIVE_DEGENERATE" if why else "X_DECOY"` — la branche `inverted` rendait
+    `INCONCLUSIVE_INVERTED` INCONDITIONNELLEMENT, sans jamais relire `why`. Scénario mécanique :
+    un bras intact au PLANCHER déclaré (`why` non-None) avec un ablé normal produit lui aussi un
+    ratio bas -> serait étiqueté « inversé » au lieu de « dégénéré », masquant exactement ce que
+    `_degeneracy` existe pour attraper. Ici l'intact (médiane 0.15) est SOUS le plancher déclaré
+    (0.2) : le verdict doit rester `INCONCLUSIVE_DEGENERATE`, jamais `INCONCLUSIVE_INVERTED`."""
+    from tools.demand_marker import ablation_verdict
+    ci = [0.15, 0.16, 0.14]
+    ca = [0.9, 0.88, 0.92]
+    r = ablation_verdict(ci, ca, intervention_verified=True, floor=0.2, ceiling=1.0, n_floor=3)
+    assert r["ratio"] < 1.0, r                          # bien dans la zone "inverted" en amplitude
+    assert r["verdict"] == "INCONCLUSIVE_DEGENERATE", r  # PAS INCONCLUSIVE_INVERTED : `why` prime
+    assert r["degenerate"] is True and r["why"], r
+
+
+def test_ablation_verdict_replays_the_two_carved_edges_negative_controls():
+    """FIX ROUND 1 (revue, Constat 2 Important). `check_agi_taxonomy.py` ne rappelle JAMAIS
+    `ablation_verdict` : il valide des chaînes FIGÉES dans `data/agi_taxonomy/demands.json`, donc le
+    Step 5 du brief (non-régression via `check_agi_taxonomy.py`) est structurellement AVEUGLE à un
+    changement de la fonction de décision. Ce test rejoue les DEUX contrôles de spécificité
+    (`specificity_control='pass'`) des deux arêtes déjà gravées, avec les accuracies RÉELLES à n=12
+    persistées par les probes, à travers la NOUVELLE borne bilatérale.
+
+    Sources (mêmes params que la production : `intervention_verified=True, floor=1/6, ceiling=1.0`,
+    `tools/perception_coordination_demand_probe.py:130-132` et
+    `tools/memory_perception_demand_probe.py:179-181`, K=6 -> floor=1/6) :
+      - NO-COORD (arête `language -> perception`) : `results/sp2_edge_accuracies.json` champs
+        `nocoord_intact`/`nocoord_ablated` (ratio publié 0.9885,
+        `docs/EDR/EDR-LANG-PERCEPTION_Coordination_Demands_Perception.md:36`).
+      - PRESENT (arête `memory -> perception`) : `results/mem_perception_edge_accuracies.json` champs
+        `present_intact`/`present_ablated` (ratio publié 0.984,
+        `docs/EDR/EDR-MEM-PERCEPTION_Memory_Demands_Perception.md:71`).
+    Les deux ratios (~0.99, ~0.98) sont bien à l'INTÉRIEUR de la nouvelle borne bilatérale
+    [1/1.3≈0.769, 1.3] : ni l'un ni l'autre n'était donc jamais dans la zone `inverted`, et les deux
+    doivent RESTER `X_DECOY` -- sinon la nouvelle borne invaliderait une arête déjà gravée."""
+    from tools.demand_marker import ablation_verdict
+    floor = 1.0 / 6
+
+    nocoord_intact = [0.731249988079071, 0.7328125238418579, 0.7593749761581421, 0.7171875238418579,
+                      0.7281249761581421, 0.739062488079071, 0.7593749761581421, 0.7718750238418579,
+                      0.7093750238418579, 0.753125011920929, 0.7437499761581421, 0.754687488079071]
+    nocoord_ablated = [0.7593749761581421, 0.7281249761581421, 0.7515624761581421, 0.7406250238418579,
+                       0.7515624761581421, 0.768750011920929, 0.737500011920929, 0.770312488079071,
+                       0.721875011920929, 0.7562500238418579, 0.734375, 0.7484375238418579]
+    r_coord = ablation_verdict(nocoord_intact, nocoord_ablated, intervention_verified=True,
+                               floor=floor, ceiling=1.0)
+    assert r_coord["verdict"] == "X_DECOY", (
+        f"NO-COORD (arête language->perception) invalidée par la nouvelle borne : {r_coord}")
+    assert r_coord["ratio"] == pytest.approx(0.9885416428248087, rel=0.02)
+
+    present_intact = [0.47187501192092896, 0.4984374940395355, 0.39531248807907104, 0.4937500059604645,
+                      0.4859375059604645, 0.4859375059604645, 0.550000011920929, 0.453125,
+                      0.4671874940395355, 0.4828124940395355, 0.620312511920929, 0.4781250059604645]
+    present_ablated = [0.49687498807907104, 0.48906248807907104, 0.4281249940395355, 0.53125,
+                       0.46562498807907104, 0.49531251192092896, 0.5406249761581421, 0.4703125059604645,
+                       0.4375, 0.512499988079071, 0.5874999761581421, 0.4453125]
+    r_mem = ablation_verdict(present_intact, present_ablated, intervention_verified=True,
+                             floor=floor, ceiling=1.0)
+    assert r_mem["verdict"] == "X_DECOY", (
+        f"PRESENT (arête memory->perception) invalidée par la nouvelle borne : {r_mem}")
+    assert r_mem["ratio"] == pytest.approx(0.9841269841269841, rel=0.02)
 
 
 # ---------------------------------------------------------------- bundle Lewis (P2.6)
@@ -1950,3 +2028,149 @@ def test_retain_compose_learned_verdict_is_an_lr_artifact():
     assert lo["learned_median"] <= bar < hi["learned_median"], (lo["learned_median"], hi["learned_median"])
     # Séparation par-seed TOTALE : la bascule n'est pas un effet de médiane.
     assert min(hi["per_seed"]["learned"]) > max(lo["per_seed"]["learned"]), (lo["per_seed"], hi["per_seed"])
+
+
+# ======================================================================================================
+# P2.19 (2026-09-01) — GARDE DE DÉGÉNÉRESCENCE de `s2_verdict`, l'instrument FONDATEUR de G0.
+#
+# `s2_verdict` porte EDR-112 (« le monde EXIGE l'intelligence ») et tout le fil S2, marqué FOUNDATIONAL.
+# Défaut MESURÉ avant correctif : il rendait EXIGE avec EXACTEMENT le même p (0.0025261742685023236) et
+# le même Cliff (1.0) sur TROIS régimes incomparables — « 3 vs 2 vs 1 ticks » (tout le monde est mort),
+# « 400 vs 399 vs 398 » (tout le monde est censuré) et un vrai signal « 45 vs 15 ».
+#
+# La cause n'est pas un bug mais une CONSÉQUENCE du design : Cliff et Wilcoxon travaillent sur les RANGS,
+# donc l'amplitude n'entre jamais dans le verdict. L'insensibilité à l'échelle — voulue, la survie étant
+# censurée et asymétrique — devient une cécité à la dégénérescence.
+#
+# Non-régression vérifiée AVANT d'armer : EDR-112 publie « 0 % censure partout » et Cliff +0.92 (donc du
+# chevauchement, donc de l'étendue) — la garde ne peut pas y toucher.
+# ======================================================================================================
+
+def _s2_cond(surv, life, era_s, era_l):
+    """Un dict `run_condition` : individus poolés + médianes par ère (par seed)."""
+    return {"survival": surv, "life_score": life, "era_survival": era_s, "era_life": era_l}
+
+
+def test_s2_verdict_REFUSES_a_floor_pinned_regime():
+    """⚠️ Le cas certain, côté PLANCHER : tout le monde meurt en 1-3 ticks. Avant la garde : EXIGE."""
+    from src.seed_ai.s2_stats import s2_verdict
+    r = s2_verdict(_s2_cond([3] * 40, [3.0] * 40, [3] * 12, [3.0] * 12),
+                   {"reflexe": _s2_cond([2] * 40, [2.0] * 40, [2] * 12, [2.0] * 12),
+                    "aleatoire": _s2_cond([1] * 40, [1.0] * 40, [1] * 12, [1.0] * 12)})
+    assert r["verdict"] == "INCONCLUSIVE_DEGENERATE", (
+        f"un régime où tout le monde meurt à 1-3 ticks ne peut pas rendre {r['verdict']}")
+
+
+def test_s2_verdict_REFUSES_a_ceiling_censored_regime():
+    """Le cas certain, côté PLAFOND : tous les bras collés à max_ticks. La différence est un artefact
+    de troncature, pas un effet."""
+    from src.seed_ai.s2_stats import s2_verdict
+    r = s2_verdict(_s2_cond([400] * 40, [400.0] * 40, [400] * 12, [400.0] * 12),
+                   {"reflexe": _s2_cond([399] * 40, [399.0] * 40, [399] * 12, [399.0] * 12),
+                    "aleatoire": _s2_cond([398] * 40, [398.0] * 40, [398] * 12, [398.0] * 12)})
+    assert r["verdict"] == "INCONCLUSIVE_DEGENERATE"
+
+
+def test_s2_verdict_REFUSES_a_declared_floor_even_with_real_spread():
+    """Le cas NON certain : de l'étendue existe (4-11 ticks), donc aucun détecteur automatique ne peut
+    conclure — c'est l'appelant qui DÉCLARE le plancher. Régime exact de WARM-002 : médiane 7.5 sous le
+    plancher 9.0 établi par WARM-010, d'où était sortie la conclusion réfutée « le paysage est PLAT »."""
+    from src.seed_ai.s2_stats import s2_verdict
+    champ = _s2_cond(list(range(4, 12)), [7.0] * 8, [7] * 12, [7.0] * 12)
+    bases = {"reflexe": _s2_cond(list(range(2, 10)), [5.0] * 8, [5] * 12, [5.0] * 12)}
+    assert s2_verdict(champ, bases)["verdict"] != "INCONCLUSIVE_DEGENERATE", (
+        "sans plancher déclaré, la garde ne DOIT PAS deviner — un plancher n'est pas déductible "
+        "de deux tableaux")
+    r = s2_verdict(champ, bases, floor=9.0)
+    assert r["verdict"] == "INCONCLUSIVE_DEGENERATE" and "PLANCHER" in r["why"]
+
+
+def test_s2_verdict_SPARES_a_real_signal():
+    """⚠️ SPÉCIFICITÉ — sans ce cas, une garde qui refuse TOUT passerait les trois précédents tout en
+    détruisant le verdict fondateur. Signal réel (45 vs 15, étendue des deux côtés) -> EXIGE."""
+    from src.seed_ai.s2_stats import s2_verdict
+    r = s2_verdict(_s2_cond(list(range(30, 70)), [50.0] * 40, [45] * 12, [50.0] * 12),
+                   {"reflexe": _s2_cond(list(range(5, 45)), [20.0] * 40, [15] * 12, [20.0] * 12),
+                    "aleatoire": _s2_cond(list(range(1, 41)), [10.0] * 40, [8] * 12, [10.0] * 12)})
+    assert r["verdict"] == "EXIGE", f"le vrai signal doit survivre à la garde, or : {r['verdict']}"
+
+
+def test_s2_verdict_SPARES_the_EDR112_regime():
+    """Non-régression sur le record FONDATEUR. EDR-112 publie 0 % de censure et Cliff +0.92 avec un
+    ratio ~4× ; reconstruit ici à cette échelle, il doit rester EXIGE même avec plancher ET plafond
+    déclarés (max_ticks=400, plancher de famine 9.0)."""
+    from src.seed_ai.s2_stats import s2_verdict
+    champ = _s2_cond(list(range(60, 140)), [100.0] * 80, [95] * 12, [100.0] * 12)
+    bases = {"reflexe": _s2_cond(list(range(10, 50)), [30.0] * 40, [24] * 12, [30.0] * 12)}
+    r = s2_verdict(champ, bases, floor=9.0, ceiling=400.0)
+    assert r["verdict"] == "EXIGE", (
+        f"le régime publié d'EDR-112 doit passer la garde, or : {r['verdict']} ({r.get('why')})")
+
+
+# ======================================================================================================
+# P2.20 (2026-09-01) — E14 : la garde de PUISSANCE `sign_p` était CALCULÉE puis JETÉE dans trois verdicts.
+#
+# `compute_ab_verdict` avait reçu la garde ; ses trois homologues ne l'ont jamais reçue. C'est la
+# définition littérale de la classe E14 (« garde jamais rétro-appliquée »).
+#
+# CONSÉQUENCE VIVANTE au moment du correctif — le cas le plus net qu'on puisse trouver : sur DEUX LIGNES
+# ADJACENTES de `docs/roadmap/NAS.md`, le même critère est appliqué à la main de façon inconstante.
+#   ligne 167 : D1, +13 %, « NON significatif (sign_p 0.727) » -> RÉFUTÉ
+#   ligne 166 : D2, +47 %, « sign_p=0.070 »                    -> ✅ EFFICACE
+# Or 0.070 > 0.05. Par le critère que le document applique lui-même juste en dessous, D2 n'est pas
+# significatif non plus. L'instrument calculait sign_p, le renvoyait, et laissait le lecteur décider.
+#
+# Second défaut, trouvé dans la même passe : `fidelity_verdict` n'exigeait NI majorité NI sign_p pour
+# `G_INUTILE`, alors que sa jumelle `G_FIDELE` exigeait la majorité -> un NÉGATIF était structurellement
+# plus facile à obtenir qu'un POSITIF. L'instrument penchait vers « g est inutile ».
+# ======================================================================================================
+
+_D2_PUBLIE = [1.47, 1.50, 1.45, 1.60, 1.40, 1.55, 1.42, 0.85]   # 8 seeds, 7 favorables -> sign_p = 0.0703
+
+
+def test_sweep_verdict_REFUSES_the_published_D2_configuration():
+    """⚠️ CONTRE-EXEMPLE GELÉ de la conséquence réelle. La configuration publiée de D2 (+47 %, 8 seeds,
+    sign_p = 0.070) doit rendre NEUTRE, pas EFFICACE : 7 favorables sur 8 ne passent pas le test des
+    signes. Si ce test tombe, la garde de puissance a été redésarmée."""
+    from tools.metabolic_cost_sweep import compute_sweep_verdict
+    # ⚠️ Les clés sont `eff_ratios`/`surv_ratios`. Avec de mauvaises clés, n=0 -> NEUTRE : CE test
+    # serait passé pour une raison entièrement fausse. C'est arrivé en l'écrivant, et seul le test de
+    # spécificité ci-dessous l'a révélé. D'où l'assertion sur `sign_p` : elle prouve que les données
+    # sont bien ARRIVÉES jusqu'au calcul.
+    r = compute_sweep_verdict([{"coef": 0.0, "eff_ratios": _D2_PUBLIE, "surv_ratios": [1.0] * 8}])
+    cell = r["per_coef"][0]
+    assert cell["n"] == 8, f"les données n'ont pas atteint le calcul : n={cell['n']}"
+    assert abs(cell["sign_p"] - 0.0703) < 1e-3, f"sign_p attendu ~0.0703, obtenu {cell['sign_p']}"
+    assert cell["verdict"] == "NEUTRE", (
+        f"+47 % sur 7/8 seeds (sign_p=0.070) ne peut pas être EFFICACE, or : {cell['verdict']}")
+
+
+def test_sweep_verdict_SPARES_a_powered_effect():
+    """⚠️ SPÉCIFICITÉ — sans ce cas, une garde qui refuse TOUT passerait le test précédent tout en
+    rendant l'instrument incapable de jamais conclure. 12 seeds unanimes -> EFFICACE."""
+    from tools.metabolic_cost_sweep import compute_sweep_verdict
+    r = compute_sweep_verdict([{"coef": 0.0, "eff_ratios": [1.5] * 12, "surv_ratios": [1.0] * 12}])
+    assert r["per_coef"][0]["verdict"] == "EFFICACE"
+
+
+def test_transfer_verdict_requires_power_in_BOTH_directions():
+    """La garde doit valoir pour TRANSFERE comme pour NUIT : une garde asymétrique fabrique des négatifs.
+    7/8 dans un sens comme dans l'autre -> NEUTRE ; 12 unanimes -> le verdict correspondant."""
+    from tools.curriculum_transfer import compute_transfer_verdict
+    assert compute_transfer_verdict(_D2_PUBLIE)["verdict"] == "NEUTRE"
+    assert compute_transfer_verdict([1.0 / r for r in _D2_PUBLIE])["verdict"] == "NEUTRE"
+    assert compute_transfer_verdict([1.8] * 12)["verdict"] == "TRANSFERE"
+    assert compute_transfer_verdict([0.55] * 12)["verdict"] == "NUIT"
+
+
+def test_fidelity_verdict_is_SYMMETRIC_between_its_two_labels():
+    """⚠️ Le second défaut : `G_INUTILE` n'exigeait ni majorité ni sign_p, `G_FIDELE` exigeait la
+    majorité. Un négatif était plus facile à obtenir qu'un positif -> l'instrument penchait. Les deux
+    labels doivent maintenant demander la même chose."""
+    from tools.g_fidelity_probe import fidelity_verdict
+    assert fidelity_verdict([0.5] * 12)["verdict"] == "G_FIDELE"
+    assert fidelity_verdict([2.0] * 12)["verdict"] == "G_INUTILE"
+    # sous-puissance : 7/8 des deux côtés -> NEUTRE des deux côtés
+    faible_inutile = [1.47, 1.50, 1.45, 1.60, 1.40, 1.55, 1.42, 0.85]
+    assert fidelity_verdict(faible_inutile)["verdict"] == "NEUTRE"
+    assert fidelity_verdict([1.0 / r for r in faible_inutile])["verdict"] == "NEUTRE"
