@@ -8,6 +8,58 @@ tests: [SDR-G0]
 adopts: [REF-EXPERIMENT-PREFLIGHT, REF-DEMAND-MARKER]
 ---
 
+> ⚠️ **CLAUSE SUSPECTE (2026-09-01)** — ce record reste `active` et son résultat PRINCIPAL est intact ;
+> c'est sa clause SECONDAIRE (le nul 2-pas) qui est bornée ci-dessous. Cf. [[EDR-RETAIN-COMPOSE-LR]].
+>
+> **Ce qui est SUSPECT — tout ce qui repose sur la condition `same_tick=False` (2 pas) mesurée à
+> `lr=0.02`** : la clause du titre (`:4`) « **ne lève PAS, seul, le mur de RÉTENTION ; le nul REINFORCE de
+> la Tâche 2 était [...] dominé par la rétention** », le § « Diagnostic du confond » (`:86-89`), le
+> « second étage RÉTENTION+composition non résolu » (`:104`), la puce de portée `:111-114` et la
+> prescription `:125-128` (« ne rouvre PAS `language→memory` » — numéros de ligne de la version d'AVANT
+> cet encart ; les sections sont nommées ci-dessus, elles font foi). Ces passages viennent tous du bras
+> secondaire mesuré à `lr=0.02`, `n_agents=16`, Adam (`tools/bilinear_composition_probe.py:163`, `:115`).
+> [[EDR-RETAIN-COMPOSE-LR]] a mesuré (n=12, séparation totale 0/144) que dans ce régime EXACT — 2 pas,
+> `n_agents=16` qui n'est PAS un minibatch (batch effectif **1**, `src/agents/backend_torch.py:85-86`) — le
+> nul 2-pas est un **artefact du pas d'apprentissage** : `learned` 0.173 à `lr=0.02` contre **0.923** à
+> `lr=0.002`.
+>
+> **RE-MESURÉ SUR CETTE SONDE-CI (n=12, 2026-09-01)** — pas seulement inféré par analogie. Contre-exemple
+> gelé `test_bilinear_composition_null_under_retention_is_lr_dependent`
+> (`tests/sandbox/test_instrument_calibration.py`), condition INCHANGÉE (`same_tick=False`,
+> `credit_mode="supervised"`, `episodes=300`, `n_agents=16`, `K=6`, `rank=16`), seule variable ajoutée `lr` :
+> · `lr=0.02` → plain 0.2180, bilinéaire **0.1789** (sous plain), `unlocked=False` — **reproduit au chiffre
+> près** le nul publié le 2026-08-03 (0.218 / 0.178) ; · `lr=0.002` → plain 0.1812, bilinéaire **0.3797**
+> (> bar 0.3167), `unlocked=True`. Séparation par-seed **TOTALE** sur le bras bilinéaire :
+> max(lr=0.02)=0.2016 < min(lr=0.002)=0.3500, **0/144**, 12/12 seeds au-dessus de la barre (signe p=2⁻¹²).
+> Donc le nul 2-pas ET le verdict `unlocked` sont des propriétés du **RÉGLAGE**, pas du substrat, et la
+> clause « réparer le crédit SEUL ne débloque rien, le confond dominant était la RÉTENTION » **n'est PAS
+> établie**. Elle est marquée SUSPECTE et **non établie**, mais **pas retirée** : ⚠️ 0.3797 reste très loin
+> du 0.932 du régime 1-pas, et à peine au-dessus d'une barre elle-même douteuse (voir la dette ci-dessous)
+> — cette mesure **ne dit pas** que le 2-pas soit RÉSOLU à `lr=0.002`, seulement que le nul qui fondait la
+> clause ne survit pas au balayage du pas. Les chiffres du 2026-08-03 ne sont pas effacés : ils sont
+> reproduits ci-dessus et restent vrais **à ce pas**.
+>
+> **Ce qui est INTACT — et même RENFORCÉ.** Le résultat phare (condition DÉCISIVE `same_tick=True`, UN
+> SEUL pas, plain 0.271 vs bilinéaire 0.932, 0/144 chevauchement) est hors du régime suspect. Mieux :
+> l'argument de séparabilité est désormais confirmé **QUANTITATIVEMENT** (mesures de sonde sœur,
+> **NON RÉPLIQUÉES**, 3-4 seeds, une passe) : à `H_in=0` la forme close du plain est
+> `logit_j = σ(W_jj)·tanh(W[key,j] + W[K+q,j])`, transformée monotone d'un score **SÉPARABLE** ; son
+> **plafond structurel exact**, obtenu par optimisation directe plein-batch des 36 paires (8 restarts), est
+> **0.3889** — contrôle positif du même optimiseur sur une table libre non séparable : **1.000**. Le
+> plafond est donc une propriété du SUBSTRAT, pas de l'optimiseur. Et la séparation plain/bilinéaire est
+> **totale à TOUT pas testé** (`lr ∈ {0.0005, 0.002, 0.02, 0.05, 0.1, 0.2, 0.5}`) :
+> **max plain 0.3984 < min bilinéaire 0.9594**, écart jamais refermé (0.577 au meilleur pas du plain). La
+> valeur 0.271 du record est simplement le point sous-entraîné d'une courbe qui SATURE à 0.389.
+>
+> **Dette ouverte — MARGE DE DÉCISION, pas réfutation.** La barre `1/K + 0.15 = 0.3167`
+> (`tools/bilinear_composition_probe.py:174`) est **0.072 SOUS** ce plafond structurel 0.3889 : un substrat
+> *prouvablement incapable* de composer PEUT la franchir. Le critère `unlocked = (plain ≤ bar) and
+> (bilinéaire > bar)` (`:174-176`) bascule donc par simple allongement du budget — mesuré (NON RÉPLIQUÉ,
+> 3 seeds) : plain à `lr=0.02`, `episodes=2400` (8× les 300 de ce record) → médiane **0.3703**, **3/3
+> au-dessus de la barre**. C'est une dette de SEUIL à corriger dans la sonde (juger la **séparation entre
+> bras**, ou embarquer le plafond constructif, jamais un seuil absolu), pas une remise en cause de la
+> conclusion.
+
 ## Question
 
 Le finding LANG-MEMORY (`docs/EDR/EDR-LANG-MEMORY_Language_Demands_Memory.md`) et la sonde

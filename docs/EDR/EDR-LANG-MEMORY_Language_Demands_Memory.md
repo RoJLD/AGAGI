@@ -8,6 +8,29 @@ tests: [SDR-G0]
 adopts: [REF-EXPERIMENT-PREFLIGHT, REF-DEMAND-MARKER, REF-AGI-TAXONOMY]
 ---
 
+> ⚠️ **RÉGIME D'OPTIMISATION SUSPECT (2026-09-01) — le verdict de ce record est INCHANGÉ, et doit être
+> RE-MESURÉ avant toute rétractation.** Cf. [[EDR-RETAIN-COMPOSE-LR]].
+>
+> Ce record déclare son régime `K=6`, `n_agents=16`, `lr ∈ {0.02, 0.05}` (§ Portée bornée, `:116` dans la
+> version d'avant cet encart), sur une tâche `D=2` — donc **deux pas récurrents** entre l'encodage de `key`
+> et la quête. C'est exactement le régime dans lequel [[EDR-RETAIN-COMPOSE-LR]] a mesuré (n=12, séparation
+> totale **0/144**) qu'un nul 2-pas peut être un **artefact du pas d'apprentissage** : `n_agents=16` n'est
+> PAS un minibatch — chaque agent porte ses propres paramètres (`src/agents/backend_torch.py:85-86`,
+> `:113-115`) — donc le batch effectif est **1**, et à `lr=0.02` le 2-pas diverge (`learned` 0.173) là où à
+> `lr=0.002` il apprend (**0.923**). Les deux `lr` explorés ici sont tous deux **≥ 0.02**, du mauvais côté
+> de cette bascule.
+>
+> **Rien n'est retiré ni corrigé ici.** Le verdict NÉGATIF (le titre `:4`, le tableau D=2 `:44-57`, l'§
+> « Isolation » `:88-92` — « les trois méthodes de crédit échouent ensemble ») repose sur une sonde
+> DIFFÉRENTE (`tools/language_memory_demand_probe.py`) qui n'a **pas** été re-mesurée à un `lr` plus petit.
+> Étendre le signe d'un autre record par raisonnement serait la classe **E8** du registre (inférence
+> substituée à la mesure). Ce qui est inscrit ici est une **DETTE**, pas une conclusion.
+>
+> **Ce qu'il faut faire avant d'écrire quoi que ce soit de plus** : rejouer `D=2` à `lr=0.002`
+> (3-4 seeds suffisent pour trancher, la bascule mesurée ailleurs est de 0.75 point). Enjeu : ce verdict a
+> servi à REFUSER de graver l'arête `language→memory` du graphe AGI-Taxonomy. S'il tombe, c'est une arête
+> qui se rouvre — un record à part entière, pas une note en marge.
+
 ## Question
 Troisième arête candidate du graphe AGI-Taxonomy : « language demands memory » ? Un agent qui doit
 appliquer un code appris — LANG = `(q+key)%K`, où `key` est encodé puis DOIT être retenu via l'état
