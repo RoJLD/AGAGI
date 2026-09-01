@@ -16,6 +16,7 @@
         "n": {"type": "integer"},
         "functional_aliasing": {"enum": ["pass", "n/a"]},
         "specificity_control": {"enum": ["pass", "fail"]},
+        "ablation_target": {"enum": ["input", "substrate"]},
         "record": {"type": "string"}
       }
     }

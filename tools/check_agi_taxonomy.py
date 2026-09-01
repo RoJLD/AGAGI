@@ -1,9 +1,28 @@
 """Cliquet du graphe AGI-Taxonomy — calqué sur check_record_links / check_instrument_calibration.
 
-Une arête « Y demande X » n'existe que si elle porte sa PREUVE mesurée complète : verdict d'ablation
-X_DEMANDED (demand-marker SP-3), n >= 12 (n_floor), garde d'aliasing fonctionnel `pass` (CALIB-ALIAS) —
-ou `n/a` accompagné de `specificity_control` `pass` (contrôle de demande, ablation inerte hors demande) —,
-et un record docs/EDR existant. Une arête sans preuve est REJETÉE. Baseline gelée (vide en v0).
+Une arête « Y demande X » n'existe que si elle porte sa PREUVE mesurée complète :
+  - `ablation_verdict == "X_DEMANDED"` (demand-marker SP-3) ;
+  - `n >= 12` (n_floor) ;
+  - `specificity_control == "pass"` — **TOUJOURS**, quelle que soit la valeur de `functional_aliasing` ;
+  - `functional_aliasing` dans {`pass`, `n/a`}, `n/a` réservé à `ablation_target == "input"` ;
+  - un record docs/EDR existant.
+
+Pourquoi `specificity_control` est exigé SANS EXCEPTION (durcissement 2026-09-01) : le bras PRINCIPAL
+d'une arête est arithmétiquement forcé — après ablation d'une entrée nécessaire l'agent ne peut plus
+dépasser le plancher 1/K, donc X_DEMANDED est garanti dès que le bras intact est vivant, et ce bras ne
+distingue pas une vraie demande d'une tautologie. Le seul bras dont l'issue négative est RÉELLEMENT
+atteignable est le contrôle de demande (NO-COORD pour language->perception, PRESENT pour
+memory->perception : même ablation, information redondante disponible ailleurs) — c'est lui qui porte
+tout le contenu empirique des arêtes gravées. Preuve que l'issue alternative existe : l'itération 1 de
+MEM-PERCEPTION a ÉCHOUÉ ce contrôle (ratio 4.329) et a dû être corrigée. L'ancienne règle acceptait
+`functional_aliasing == "pass"` SEUL, c.-à-d. gravait une arête sur son seul bras forcé.
+
+`ablation_target` (dans `evidence`, valeurs `input` | `substrate`, **défaut `input` si absent** —
+compatibilité légataire : les deux arêtes gravées ablatent l'ENTRÉE) : couper dans le SUBSTRAT peut
+dégrader du calcul hors-demande, donc `functional_aliasing == "n/a"` y est refusé — la garde CALIB-ALIAS
+doit être `pass`.
+
+Une arête sans preuve est REJETÉE. Baseline gelée (vide en v0).
 
 Le fichier commence par `check_` -> exclu du scan du cliquet de calibration (pas d'auto-référence).
 
@@ -23,6 +42,8 @@ _CAPS = os.path.join(_DATA, "capabilities.json")
 _DEMANDS = os.path.join(_DATA, "demands.json")
 _BASELINE = os.path.join(_ROOT, "tools", "agi_taxonomy_baseline.json")
 _VALID_STRENGTH = {"hard", "soft"}
+_VALID_ABLATION_TARGET = {"input", "substrate"}
+_DEFAULT_ABLATION_TARGET = "input"  # légataire : les 2 arêtes gravées ablatent l'ENTRÉE
 
 
 def _exists(rel):
@@ -61,15 +82,27 @@ def validate_edge(edge, capability_ids):
                  "(exigé X_DEMANDED — demand-marker SP-3)")
     if not isinstance(ev.get("n"), int) or ev.get("n", 0) < 12:
         v.append(f"arête {lbl} : n={ev.get('n')} (exigé entier >= 12, n_floor)")
+    # Contrôle de DEMANDE — exigé TOUJOURS, indépendamment de functional_aliasing. Le bras principal est
+    # arithmétiquement forcé (sous ablation l'agent est plafonné au hasard) : seul ce contrôle a une issue
+    # négative réellement atteignable, donc lui seul rend l'arête non triviale.
+    if ev.get("specificity_control") != "pass":
+        v.append(f"arête {lbl} : specificity_control='{ev.get('specificity_control')}' "
+                 "(exigé 'pass' EN TOUTE CIRCONSTANCE : le bras principal est arithmétiquement forcé — "
+                 "après ablation l'agent est plafonné au hasard, X_DEMANDED est garanti —, seul le "
+                 "contrôle de demande (même ablation, information redondante ailleurs) peut échouer, "
+                 "donc lui seul porte le contenu empirique de l'arête)")
+    target = ev.get("ablation_target", _DEFAULT_ABLATION_TARGET)
+    if target not in _VALID_ABLATION_TARGET:
+        v.append(f"arête {lbl} : ablation_target='{target}' "
+                 "(attendu input|substrate ; absent = 'input' par compatibilité légataire)")
     fa = ev.get("functional_aliasing")
-    if fa == "pass":
-        pass  # garde structurel/comportemental appliqué (CALIB-ALIAS)
-    elif fa == "n/a":
-        if ev.get("specificity_control") != "pass":
-            v.append(f"arête {lbl} : functional_aliasing='n/a' EXIGE specificity_control='pass' "
-                     "(contrôle de demande : ablation inerte là où la capacité n'est pas demandée)")
-    else:
-        v.append(f"arête {lbl} : functional_aliasing='{fa}' (attendu 'pass', ou 'n/a' + specificity_control)")
+    if fa not in ("pass", "n/a"):
+        v.append(f"arête {lbl} : functional_aliasing='{fa}' (attendu 'pass' — garde CALIB-ALIAS —, "
+                 "ou 'n/a' pour une ablation d'ENTRÉE seulement)")
+    elif fa == "n/a" and target == "substrate":
+        v.append(f"arête {lbl} : functional_aliasing='n/a' REFUSÉ avec ablation_target='substrate' "
+                 "(le 'n/a' ne couvre qu'une ablation d'ENTRÉE ; couper dans le substrat peut dégrader "
+                 "du calcul hors-demande, la garde d'aliasing fonctionnel CALIB-ALIAS doit être 'pass')")
     if not _exists(ev.get("record")):
         v.append(f"arête {lbl} : record de preuve manquant/inexistant '{ev.get('record')}'")
     return v
@@ -121,7 +154,8 @@ def main(argv=None):
         print("  [NOUVELLE VIOLATION]", x)
     if nouvelles:
         print("\nUne arête n'existe que si elle porte sa preuve (X_DEMANDED, n>=12, "
-              "aliasing pass (ou n/a + specificity_control pass), record).")
+              "specificity_control pass TOUJOURS, aliasing pass — 'n/a' seulement si "
+              "ablation_target='input' —, record).")
         return 1
     print("OK : aucune nouvelle violation.")
     return 0
