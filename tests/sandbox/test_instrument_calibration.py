@@ -725,6 +725,48 @@ def test_identical_arms_need_the_intervention_to_be_verified():
     assert ablation_verdict(ident, list(ident), intervention_verified=True)["verdict"] == "X_DECOY"
 
 
+# ------------------------------------------------- ablation_verdict borné des DEUX côtés (E3, 2026-09-01)
+# Revue adversariale du graphe AGI-Taxonomy : `decoy := ratio <= decoy_ceiling` était UNILATÉRAL — un
+# ratio 0.596 (le bras de contrôle Lewis MULTIPLIÉ par 1.68 par l'ablation, 0.592 -> 0.994) passait pour
+# X_DECOY (« ablation inerte »), donc `specificity_control='pass'`. `_degeneracy` ne l'attrapait pas :
+# elle ne teste que « intact au plancher » et « les deux bras au plafond », or ici l'intact est VIVANT et
+# seul l'ABLÉ approche le plafond déclaré. ⚠️ `n_floor=3` (au lieu du défaut 12) : les 3 tests ci-dessous
+# portent n=3 points de mesure ; sous le défaut, `n < n_floor` fait tomber les TROIS cas en `INCONCLUSIVE`
+# avant même d'atteindre la branche collapse/decoy/inverted testée — ça ne change ni les données (les
+# accuracies mesurées) ni le sens des cas, seulement la puissance déclarée pour que le test touche la
+# décision qu'il prétend calibrer.
+
+def test_ablation_verdict_REFUSES_an_inverted_effect_as_decoy():
+    """CONTRE-EXEMPLE GELÉ (classe E3) — mesuré le 2026-09-01 sur le bras de contrôle Lewis
+    sous H-reset : l'ablation MULTIPLIE le contrôle par 1.68 (0.592 -> 0.994), donc ratio 0.596.
+    L'ancienne règle `decoy := ratio <= 1.3` classait ça `X_DECOY`, lu « ablation inerte », donc
+    `specificity_control='pass'`. Un effet massif de SIGNE INVERSE n'est pas une inertie."""
+    from tools.demand_marker import ablation_verdict
+    ci = [0.510, 0.658, 0.592]
+    ca = [0.988, 0.994, 0.994]
+    r = ablation_verdict(ci, ca, intervention_verified=True, floor=1 / 6, ceiling=1.0, n_floor=3)
+    assert r["verdict"] != "X_DECOY", r
+    assert r["ratio"] < 1.0, r
+
+
+def test_ablation_verdict_STILL_accepts_a_genuine_decoy():
+    """CONTRÔLE POSITIF — sans lui, une garde qui refuse TOUT serait aussi inutile qu'une garde
+    qui accepte tout. Un vrai decoy (ablation réellement inerte, ratio ~1.0) doit RESTER X_DECOY."""
+    from tools.demand_marker import ablation_verdict
+    ci = [0.592, 0.658, 0.610]
+    ca = [0.590, 0.652, 0.615]
+    r = ablation_verdict(ci, ca, intervention_verified=True, floor=1 / 6, ceiling=1.0, n_floor=3)
+    assert r["verdict"] == "X_DECOY", r
+
+
+def test_ablation_verdict_still_collapses_a_real_demand():
+    """NON-RÉGRESSION du sens principal : une vraie demande reste X_DEMANDED."""
+    from tools.demand_marker import ablation_verdict
+    r = ablation_verdict([0.633, 0.654, 0.621], [0.194, 0.175, 0.177],
+                         intervention_verified=True, floor=1 / 6, ceiling=1.0, n_floor=3)
+    assert r["verdict"] == "X_DEMANDED", r
+
+
 # ---------------------------------------------------------------- bundle Lewis (P2.6)
 # `_verdict_drain` / `_verdict_bio` : mappings PURS (décomposition énergétique -> nom du coupable).
 # Aucun monde, aucun bail. Le test qui compte : peuvent-ils rendre CHAQUE branche, et la bascule

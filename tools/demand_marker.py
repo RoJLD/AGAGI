@@ -71,9 +71,15 @@ def ablation_verdict(intact, ablated, weight_on_x=None,
                      floor=None, ceiling=None, intervention_verified=False):
     """intact, ablated : itérables de fitness appariées (survies par ère/seed). Renvoie le dict verdict.
 
-    - collapse := ratio >= collapse_factor (X porteur)  ; decoy := ratio <= decoy_ceiling (X leurre).
-    - verdict : X_DEMANDED si collapse ET n>=n_floor ; X_DECOY si decoy ET n>=n_floor ; sinon
-      INCONCLUSIVE (le garde-fou n<12 bloque les deux verdicts, pas seulement le positif).
+    - collapse := ratio >= collapse_factor (X porteur) ; decoy := ratio BORNÉ DES DEUX CÔTÉS,
+      `1/decoy_ceiling <= ratio <= decoy_ceiling` (X leurre) ; inverted := ratio < 1/decoy_ceiling
+      (l'ablation AMÉLIORE le bras autant qu'une vraie demande l'effondrerait — E3, 2026-09-01 :
+      l'ancienne borne unilatérale `ratio <= decoy_ceiling` lisait un ratio 0.596, i.e. le contrôle
+      MULTIPLIÉ par 1.68 par l'ablation, comme un leurre inerte).
+    - verdict : X_DEMANDED si collapse ET n>=n_floor ; INCONCLUSIVE_INVERTED si inverted ET n>=n_floor
+      (effet massif mais de SIGNE INVERSE : ni demande, ni inertie — à investiguer, jamais lu `pass`) ;
+      X_DECOY si decoy ET n>=n_floor ; sinon INCONCLUSIVE (le garde-fou n<n_floor bloque les trois
+      verdicts, pas seulement le positif).
     - **GARDE DE DÉGÉNÉRESCENCE, ARMÉE PAR DÉFAUT** : un bras de référence sans amplitude ne peut PAS
       produire de verdict NUL — `X_DECOY` devient `INCONCLUSIVE_DEGENERATE`, avec la raison dans
       `why`. Cf. `_degeneracy` pour les trois conclusions que l'absence de cette garde a produites.
@@ -92,15 +98,21 @@ def ablation_verdict(intact, ablated, weight_on_x=None,
     med_a = statistics.median(ablated) if ablated else 0.0
     ratio = med_i / max(med_a, eps)
     collapse = ratio >= collapse_factor
-    decoy = ratio <= decoy_ceiling
+    # E3 — un effet massif de SIGNE INVERSE n'est pas une inertie. Borne des DEUX côtés :
+    # une ablation qui AMÉLIORE le bras autant qu'une vraie demande l'effondre ne peut pas
+    # être lue « inerte ». Contre-exemple gelé : ratio 0.596 (le contrôle passe de 0.592 à 0.994).
+    decoy = (1.0 / decoy_ceiling) <= ratio <= decoy_ceiling
+    inverted = ratio < (1.0 / decoy_ceiling)
     why = _degeneracy(intact, ablated, med_i, med_a, floor, ceiling, eps, intervention_verified)
     censored = bool(ceiling is not None and med_i >= ceiling and med_a < ceiling)
     if collapse and n >= n_floor:
         verdict = "X_DEMANDED"            # un positif censuré reste un positif : ratio = borne INF
+    elif inverted and n >= n_floor:
+        verdict = "INCONCLUSIVE_INVERTED"  # effet massif mais de SIGNE INVERSE : ni demande, ni inertie
     elif decoy and n >= n_floor:
         verdict = "INCONCLUSIVE_DEGENERATE" if why else "X_DECOY"
     else:
         verdict = "INCONCLUSIVE"          # effet OU nul sous-puissant (n<n_floor), ou zone grise
     return {"ratio": float(ratio), "n": int(n), "collapse": bool(collapse),
             "decoy": bool(decoy), "corroborant": weight_on_x, "verdict": verdict,
-            "degenerate": bool(why), "why": why, "censored": censored}
+            "degenerate": bool(why), "why": why, "censored": censored, "inverted": bool(inverted)}
