@@ -55,16 +55,21 @@ def run_prod(use_gate: bool, episodes: int = 1000, n_agents: int = 128, seed: in
 
     # Flags de classe (restaurés en fin — isolation intra-process). GATE_TARGET = l'action "ends".
     saved = (TorchPopulationModel.CONDITION_GATE, TorchPopulationModel.ANTISAT,
-             TorchPopulationModel.GATE_TARGET, TorchPopulationModel.GATE_MULT)
+             TorchPopulationModel.GATE_TARGET, TorchPopulationModel.GATE_MULT,
+             TorchPopulationModel.BILINEAR)
     TorchPopulationModel.CONDITION_GATE = bool(use_gate)
     TorchPopulationModel.ANTISAT = antisat if use_gate else 0.0
     TorchPopulationModel.GATE_TARGET = target_y if use_gate else None
     TorchPopulationModel.GATE_MULT = bool(gate_mult)              # EDR-160 : gate multiplicatif sigmoïde
+    # P2.27 : substrat EPINGLE -- attribut de CLASSE, sinon herite de l ambiant du
+    # processus. Pose AVANT make_population : U/V/W_bl ne sont crees qu a la construction.
+    TorchPopulationModel.BILINEAR = False
     try:
         agents = [MambaAgent() for _ in range(n_agents)]
         pop = make_population(agents, backend="torch")
         pop.opt = torch.optim.Adam(
-            [p for p in [pop.W, pop.w_gate, pop.b_gate] if p is not None], lr=lr)
+            [p for p in [pop.W, pop.U, pop.V, pop.W_bl, pop.w_gate, pop.b_gate]
+              if p is not None], lr=lr)
         rng = np.random.RandomState(seed + 1)
         I = pop.I
         obs_a = (rng.randn(n_agents, I) * 0.5).astype(np.float32)   # S1 (motif fixe)
@@ -115,7 +120,8 @@ def run_prod(use_gate: bool, episodes: int = 1000, n_agents: int = 128, seed: in
                 "p_x": float(np.mean(did)), "binding_gap": pyx - pynx}
     finally:
         (TorchPopulationModel.CONDITION_GATE, TorchPopulationModel.ANTISAT,
-         TorchPopulationModel.GATE_TARGET, TorchPopulationModel.GATE_MULT) = saved
+         TorchPopulationModel.GATE_TARGET, TorchPopulationModel.GATE_MULT,
+         TorchPopulationModel.BILINEAR) = saved
 
 
 def main():

@@ -4,30 +4,6 @@
     "tools/cognitive_demand_inworld.py": [
       "A"
     ],
-    "tools/compositional_language_probe.py": [
-      "A",
-      "B"
-    ],
-    "tools/compositional_world_probe.py": [
-      "A",
-      "B"
-    ],
-    "tools/craft_specialization_probe.py": [
-      "A",
-      "B"
-    ],
-    "tools/hunif_retention_probe.py": [
-      "A",
-      "B"
-    ],
-    "tools/referential_community_probe.py": [
-      "A",
-      "B"
-    ],
-    "tools/referential_game_probe.py": [
-      "A",
-      "B"
-    ],
     "tools/substrate_ab.py": [
       "A"
     ],
@@ -39,14 +15,6 @@
     ],
     "tools/torch_binary_gate_probe.py": [
       "A"
-    ],
-    "tools/torch_gate_persist_ab.py": [
-      "A",
-      "B"
-    ],
-    "tools/torch_prod_gate_meansends.py": [
-      "A",
-      "B"
     ]
   }
 }

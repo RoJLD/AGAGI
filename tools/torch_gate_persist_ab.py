@@ -40,7 +40,8 @@ def inherit_gate(new_pop, old_pop) -> bool:
 def _new_gated_pop(agents, lr):
     """Construit un pop torch gate-ON depuis des agents (W relu de leur genome) + opt Adam."""
     pop = make_population(agents, backend="torch")
-    pop.opt = torch.optim.Adam([p for p in [pop.W, pop.w_gate, pop.b_gate] if p is not None], lr=lr)
+    pop.opt = torch.optim.Adam([p for p in [pop.W, pop.U, pop.V, pop.W_bl, pop.w_gate, pop.b_gate]
+              if p is not None], lr=lr)
     return pop
 
 
@@ -53,10 +54,14 @@ def run_arm(persist, demand=1.0, episodes=800, rebuild_every=200, n_agents=64,
     np.random.seed(seed)
     torch.manual_seed(seed)
     saved = (TorchPopulationModel.CONDITION_GATE, TorchPopulationModel.ANTISAT,
-             TorchPopulationModel.GATE_TARGET)
+             TorchPopulationModel.GATE_TARGET,
+             TorchPopulationModel.BILINEAR)
     TorchPopulationModel.CONDITION_GATE = True
     TorchPopulationModel.ANTISAT = antisat
     TorchPopulationModel.GATE_TARGET = USE
+    # P2.27 : substrat EPINGLE -- attribut de CLASSE, sinon herite de l ambiant du
+    # processus. Pose AVANT make_population : U/V/W_bl ne sont crees qu a la construction.
+    TorchPopulationModel.BILINEAR = False
     try:
         agents = [MambaAgent() for _ in range(n_agents)]
         pop = _new_gated_pop(agents, lr)
@@ -96,7 +101,8 @@ def run_arm(persist, demand=1.0, episodes=800, rebuild_every=200, n_agents=64,
                 "comp_rate": comp_rate, "n_rebuilds": n_rebuilds}
     finally:
         (TorchPopulationModel.CONDITION_GATE, TorchPopulationModel.ANTISAT,
-         TorchPopulationModel.GATE_TARGET) = saved
+         TorchPopulationModel.GATE_TARGET,
+         TorchPopulationModel.BILINEAR) = saved
 
 
 def compare(seeds=(0, 1, 2, 3), demand=1.0, episodes=800, rebuild_every=200, n_agents=64):

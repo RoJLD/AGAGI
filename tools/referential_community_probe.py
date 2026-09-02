@@ -51,14 +51,20 @@ def run_community(episodes: int = 2000, n_agents: int = 128, K: int = 6, V: int 
     np.random.seed(seed)
     torch.manual_seed(seed)
 
-    saved = (TorchPopulationModel.CONDITION_GATE, TorchPopulationModel.GATE_TARGET)
+    saved = (TorchPopulationModel.CONDITION_GATE, TorchPopulationModel.GATE_TARGET,
+             TorchPopulationModel.BILINEAR)
     TorchPopulationModel.CONDITION_GATE = False
     TorchPopulationModel.GATE_TARGET = None
+    # P2.27 : substrat EPINGLE -- attribut de CLASSE, sinon herite de l ambiant du
+    # processus. Pose AVANT make_population : U/V/W_bl ne sont crees qu a la construction.
+    TorchPopulationModel.BILINEAR = False
     try:
         sender = make_population([MambaAgent() for _ in range(n_agents)], backend="torch")
         receiver = make_population([MambaAgent() for _ in range(n_agents)], backend="torch")
-        sender.opt = torch.optim.Adam([sender.W], lr=lr)
-        receiver.opt = torch.optim.Adam([receiver.W], lr=lr)
+        sender.opt = torch.optim.Adam(
+            [sender.W] + [p for p in (sender.U, sender.V, sender.W_bl) if p is not None], lr=lr)
+        receiver.opt = torch.optim.Adam(
+            [receiver.W] + [p for p in (receiver.U, receiver.V, receiver.W_bl) if p is not None], lr=lr)
         I = sender.I
         rng = np.random.RandomState(seed + 1)
 
@@ -125,7 +131,8 @@ def run_community(episodes: int = 2000, n_agents: int = 128, K: int = 6, V: int 
         return {"seed": int(seed), "K": K, "V": V, "rotate": bool(rotate), "chance": chance,
                 "within": within, "cross": cross, "mi": mi, "learned": bool(learned)}
     finally:
-        (TorchPopulationModel.CONDITION_GATE, TorchPopulationModel.GATE_TARGET) = saved
+        (TorchPopulationModel.CONDITION_GATE, TorchPopulationModel.GATE_TARGET,
+         TorchPopulationModel.BILINEAR) = saved
 
 
 def main():

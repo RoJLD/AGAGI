@@ -954,14 +954,32 @@ entièrement sur `confirm_commit(..., owner=)`, que rien n'oblige à appeler.
   — c'est la règle « ne pas proxifier ce qu'on ne sait pas mesurer ». Toute version qui devine
   l'auteur d'un commit rejoue la forme RÉTROSPECTIVE déjà déclarée non automatisable en occ. 4.
 
-**P2.27 — 🔒 CLIQUET LIVRÉ le 2026-09-02, DETTE ENCORE OUVERTE — le SUBSTRAT mesuré n'est identifiable
-a posteriori dans presque aucune sonde : **13 sondes sur 19** n'épinglent pas `BILINEAR`, et **8 sur 19**
-ont un optimiseur INCOMPLET.**
+**P2.27 — 🔒 DÉFAUT B CLOS, défaut A à 5/19 — le SUBSTRAT mesuré n'était identifiable a posteriori
+dans presque aucune sonde. Point de départ mesuré : **13 sondes sur 19** sans épinglage, **8 sur 19**
+avec un optimiseur incomplet.**
 *Livré : `tools/check_substrate_pinning.py` + baseline gelée + porte 6 du hook pre-commit +
 `tests/sandbox/test_substrate_pinning.py` (16 cas, autant de `spares` que de `fires`). Vérifié en
-acte : la garde TIRE sur une sonde neuve défectueuse et ÉPARGNE une sonde neuve correcte. Ce qui est
-fermé, c'est la RÉCIDIVE — aucune NOUVELLE sonde ne peut plus arriver en défaut. Les 13 sondes
-légataires restent à corriger une par une, et c'est ça qui reste ouvert.*
+acte : la garde TIRE sur une sonde neuve défectueuse et ÉPARGNE une sonde neuve correcte.*
+
+**État au 2026-09-02, après la passe de correction :**
+
+| défaut | départ | reste |
+|---|---|---|
+| **B** — optimiseur incomplet (`U/V/W_bl` gelés à l'init) | 8 | **0 — CLOS** |
+| **A** — substrat non épinglé | 13 | **5** |
+
+B est le plus grave des deux — c'est lui qui **fabrique un nul** dès qu'on active le flag — et il est
+fermé. Les 8 sondes corrigées dans cette passe (13 → 5) le sont par un patch BIT-IDENTIQUE : épinglage en dur à `False` (le
+défaut de classe) et ajout de `U/V/W_bl` à une liste déjà filtrée par `if p is not None`. Aucune
+signature ne change : on ferme le trou d'identifiabilité, on n'ajoute pas un levier que personne ne
+demande.
+
+⚠️ **Les 5 restantes ne sont PAS un reliquat mécanique** — elles n'importent même pas
+`TorchPopulationModel`, et deux d'entre elles (`substrate_ab`, `substrate_ab_compositional`)
+construisent leur population avec un `backend=` variable, donc parfois `legacy`, où épingler un flag
+de classe torch n'a pas de sens. Chacune demande une décision de conception, pas un patch : c'est
+pour ça qu'elles restent. Les autres : `cognitive_demand_inworld`, `torch_binary_gate_probe`,
+`torch_binary_gate_heldout_probe`.
 
 ⚠️ **LE CHIFFRE A ÉTÉ CORRIGÉ, et la correction est la partie intéressante.** L'audit d'origine
 annonçait **16 en défaut A et 11 en défaut B** ; c'était en partie un artefact de mon propre

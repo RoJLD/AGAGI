@@ -50,15 +50,20 @@ def run_spec(capability: bool, episodes: int = 800, n_agents: int = 128, seed: i
     torch.manual_seed(seed)
 
     saved = (TorchPopulationModel.CONDITION_GATE, TorchPopulationModel.ANTISAT,
-             TorchPopulationModel.GATE_TARGET, TorchPopulationModel.GATE_TARGETS)
+             TorchPopulationModel.GATE_TARGET, TorchPopulationModel.GATE_TARGETS,
+             TorchPopulationModel.BILINEAR)
     TorchPopulationModel.CONDITION_GATE = bool(capability)
     TorchPopulationModel.ANTISAT = antisat if capability else 0.0
     TorchPopulationModel.GATE_TARGET = None
     TorchPopulationModel.GATE_TARGETS = [USE_A, USE_B] if capability else None
+    # P2.27 : substrat EPINGLE -- attribut de CLASSE, sinon herite de l ambiant du
+    # processus. Pose AVANT make_population : U/V/W_bl ne sont crees qu a la construction.
+    TorchPopulationModel.BILINEAR = False
     try:
         pop = make_population([MambaAgent() for _ in range(n_agents)], backend="torch")
         pop.opt = torch.optim.Adam(
-            [p for p in [pop.W, pop.w_gate, pop.b_gate] if p is not None], lr=lr)
+            [p for p in [pop.W, pop.U, pop.V, pop.W_bl, pop.w_gate, pop.b_gate]
+              if p is not None], lr=lr)
         rng = np.random.RandomState(seed + 1)
         I = pop.I
         obs_a = (rng.randn(n_agents, I) * 0.5).astype(np.float32)
@@ -103,7 +108,8 @@ def run_spec(capability: bool, episodes: int = 800, n_agents: int = 128, seed: i
                 "frac_A": frac_a}
     finally:
         (TorchPopulationModel.CONDITION_GATE, TorchPopulationModel.ANTISAT,
-         TorchPopulationModel.GATE_TARGET, TorchPopulationModel.GATE_TARGETS) = saved
+         TorchPopulationModel.GATE_TARGET, TorchPopulationModel.GATE_TARGETS,
+         TorchPopulationModel.BILINEAR) = saved
 
 
 def main():
