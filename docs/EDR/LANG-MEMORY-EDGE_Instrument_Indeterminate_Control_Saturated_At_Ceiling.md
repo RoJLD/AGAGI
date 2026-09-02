@@ -9,6 +9,8 @@ tests: [SDR-G0]
 adopts: [REF-DEMAND-MARKER]
 ---
 
+> ✅ REPRISE FAITE LE JOUR MÊME — [[EDR-LANG-MEMORY-EDGE-BIS]] : le correctif retenu n'est PAS un des candidats listés plus bas (tous deux morts sur piège arithmétique mesuré : ca épinglé à 1,0 → leakage>tol forcé) mais un BRUIT D'ENTRÉE À DOSE CONNUE (p=0,15, plafond prédit 0,875, mesuré ≈0,866). Re-run complet n=12 : les 4 branches positives, garde SURGICAL — **l'arête est ÉTABLIE** (4,97×).
+
 ## Question et règle scellée
 
 L'arête « language DEMANDE memory » tient-elle sur le substrat BILINÉAIRE au point-référence S1 —

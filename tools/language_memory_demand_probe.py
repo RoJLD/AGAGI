@@ -210,7 +210,8 @@ def alias_guard_verdict(control_intact, control_ablated, x_response, floor, ceil
 
 
 def _train_and_eval(seed, episodes, n_agents, K, D, lr, memory_mode, control_mode, eval_batches=40,
-                     train_control=True, weight_decay=0.0, bilinear=True):
+                     train_control=True, weight_decay=0.0, bilinear=True, control_train_every=1,
+                     control_input_noise=0.0):
     """Entraîne l'agent (learned) sur LANG+CONTROL interleavés (même tête d'action, même W), puis
     évalue LANG et CONTROL intact vs H-reset. Renvoie (lang_i, lang_a, ctrl_i, ctrl_a) = accuracies.
 
@@ -260,7 +261,7 @@ def _train_and_eval(seed, episodes, n_agents, K, D, lr, memory_mode, control_mod
             # n'aurait jamais appris.
             params = [agent.W] + [p for p in (agent.U, agent.V, agent.W_bl) if p is not None]
             agent.opt = torch.optim.Adam(params, lr=lr, weight_decay=weight_decay)
-            for _ in range(episodes):
+            for _ep in range(episodes):
                 # --- trial LANG : encode(key) + délai + usage(query) -> (q+key)%K ---
                 key = rng.randint(0, K, size=n_agents)
                 q = rng.randint(0, K, size=n_agents)
@@ -280,8 +281,12 @@ def _train_and_eval(seed, episodes, n_agents, K, D, lr, memory_mode, control_mod
                 acts.append([{"move": int(g)} for g in guess])  # crédit du GUESS échantillonné
                 agent.learn_episode(seq, acts, adv, gate_last_only=True)
 
-                if not train_control:
-                    continue  # levier Tâche 2 #1 : isoler l'interférence de tête partagée -> W ne voit que LANG
+                if not train_control or (_ep % max(1, int(control_train_every)) != 0):
+                    # levier Tâche 2 #1 (train_control=False : W ne voit que LANG) + DE-SATURATION -bis
+                    # (2026-09-02, EDR-LANG-MEMORY-EDGE) : control_train_every=N sous-echantillonne
+                    # l'entrainement CONTROL a 1 episode sur N -> le bras vit SOUS le plafond, la garde
+                    # d'alias redevient lisible (DEGENERATE_CONTROL etait force par ci~ca~1.0).
+                    continue
 
                 # --- trial CONTROL : encode(nuisance) + délai + usage(control) -> c (feedforward) ---
                 # ⚠️ CORRIGÉ : entraîner CONTROL sur H=0 pur (reset direct avant le tick unique) désaligne
@@ -294,9 +299,18 @@ def _train_and_eval(seed, episodes, n_agents, K, D, lr, memory_mode, control_mod
                 # qu'à l'éval (carried H).
                 nuisance = rng.randint(0, K, size=n_agents)
                 c = rng.randint(0, K, size=n_agents)
+                # DE-SATURATION -bis (2026-09-02) : bruit d'entree a DOSE CONNUE sur CONTROL --
+                # l'entree montree ment avec prob p (la cible reste c) -> plafond (1-p)+p/K des DEUX
+                # bras. Motivation MESUREE : le sous-echantillonnage seul est un piege arithmetique
+                # (ci<0.95 et ca=1.0 => leakage>tol force ; smoke cte=6 : 0.702 vs 1.000).
+                c_montre = c.copy()
+                if control_input_noise > 0:
+                    flip = rng.random(n_agents) < control_input_noise
+                    if flip.any():
+                        c_montre[flip] = rng.randint(0, K, size=int(flip.sum()))
                 _reset_H(agent)
                 cenc = _slot(nuisance, K, 0, I, n_agents)
-                cseq = [cenc] + [_zeros(I, n_agents) for _ in range(D)] + [_slot(c, K, 2 * K, I, n_agents)]
+                cseq = [cenc] + [_zeros(I, n_agents) for _ in range(D)] + [_slot(c_montre, K, 2 * K, I, n_agents)]
                 clog = None
                 for x in cseq:
                     clog, _ = agent.forward(x)
@@ -330,6 +344,11 @@ def _train_and_eval(seed, episodes, n_agents, K, D, lr, memory_mode, control_mod
             hits = []
             for _ in range(eval_batches):
                 key = rng.randint(0, K, size=n_agents); c = rng.randint(0, K, size=n_agents)
+                c_montre = c.copy()
+                if control_input_noise > 0:
+                    flip = rng.random(n_agents) < control_input_noise
+                    if flip.any():
+                        c_montre[flip] = rng.randint(0, K, size=int(flip.sum()))
                 _carry(agent, key, K, I, n_agents, D, rng)       # même contexte porté que LANG
                 if ablate:
                     _reset_H(agent)
@@ -340,7 +359,7 @@ def _train_and_eval(seed, episodes, n_agents, K, D, lr, memory_mode, control_mod
                     g = c                                        # contrôle feedforward parfait (bypass)
                 # memory_mode="present" tombe sur _control_move : CONTROL est entraine normalement
                 else:
-                    g = _control_move(agent, c, K, I, n_agents)
+                    g = _control_move(agent, c_montre, K, I, n_agents)
                 hits.append((g == c).astype(np.float32))
             return float(np.mean(np.concatenate(hits)))
 
@@ -352,7 +371,8 @@ def _train_and_eval(seed, episodes, n_agents, K, D, lr, memory_mode, control_mod
 
 def run_language_memory_demand_probe(seeds, episodes=1200, n_agents=16, K=6, D=2, lr=0.02,
                                      memory_mode="learned", control_mode="feedforward",
-                                     train_control=True, weight_decay=0.0, bilinear=True):
+                                     train_control=True, weight_decay=0.0, bilinear=True,
+                                     control_train_every=1, control_input_noise=0.0):
     """Mesure « language demands memory ». Par seed : LANG et CONTROL, chacun éval intact/ablé (H-reset).
     LANG -> ablation_verdict (X_DEMANDED) ; CONTROL -> `alias_guard_verdict` (leakage≈0 sur un bras
     VIVANT -> pass ; bras collé à une borne -> DEGENERATE_CONTROL, pas un 'pass' silencieux),
@@ -367,7 +387,9 @@ def run_language_memory_demand_probe(seeds, episodes=1200, n_agents=16, K=6, D=2
     li, la, ci, ca = [], [], [], []
     for s in seeds:
         l_i, l_a, c_i, c_a = _train_and_eval(s, episodes, n_agents, K, D, lr, memory_mode, control_mode,
-                                             train_control=train_control, weight_decay=weight_decay, bilinear=bilinear)
+                                             train_control=train_control, weight_decay=weight_decay, bilinear=bilinear,
+                                             control_train_every=control_train_every,
+                                             control_input_noise=control_input_noise)
         li.append(l_i); la.append(l_a); ci.append(c_i); ca.append(c_a)
 
     floor = 1.0 / K

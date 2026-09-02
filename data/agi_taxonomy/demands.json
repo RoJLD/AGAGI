@@ -1,28 +1,44 @@
 [
-  {
-    "capability": "language",
-    "prerequisite": "perception",
-    "strength": "hard",
-    "evidence": {
-      "ablation_verdict": "X_DEMANDED",
-      "ratio": 2.115,
-      "n": 12,
-      "functional_aliasing": "n/a",
-      "specificity_control": "pass",
-      "record": "docs/EDR/EDR-LANG-PERCEPTION_Coordination_Demands_Perception.md"
-    }
-  },
-  {
-    "capability": "memory",
-    "prerequisite": "perception",
-    "strength": "hard",
-    "evidence": {
-      "ablation_verdict": "X_DEMANDED",
-      "ratio": 3.934,
-      "n": 12,
-      "functional_aliasing": "n/a",
-      "specificity_control": "pass",
-      "record": "docs/EDR/EDR-MEM-PERCEPTION_Memory_Demands_Perception.md"
-    }
+ {
+  "capability": "language",
+  "prerequisite": "perception",
+  "strength": "hard",
+  "evidence": {
+   "ablation_verdict": "X_DEMANDED",
+   "ratio": 2.115,
+   "n": 12,
+   "functional_aliasing": "n/a",
+   "specificity_control": "pass",
+   "record": "docs/EDR/EDR-LANG-PERCEPTION_Coordination_Demands_Perception.md"
   }
+ },
+ {
+  "capability": "memory",
+  "prerequisite": "perception",
+  "strength": "hard",
+  "evidence": {
+   "ablation_verdict": "X_DEMANDED",
+   "ratio": 3.934,
+   "n": 12,
+   "functional_aliasing": "n/a",
+   "specificity_control": "pass",
+   "record": "docs/EDR/EDR-MEM-PERCEPTION_Memory_Demands_Perception.md"
+  }
+ },
+ {
+  "capability": "language",
+  "prerequisite": "memory",
+  "strength": "hard",
+  "evidence": {
+   "ablation_verdict": "X_DEMANDED",
+   "ratio": 4.967,
+   "n": 12,
+   "specificity_control": "pass",
+   "functional_aliasing": "pass",
+   "ablation_target": "substrate",
+   "coord_intact": 0.819,
+   "emergence_bar": 0.5,
+   "record": "docs/EDR/LANG-MEMORY-EDGE_Third_Edge_Established_Language_Demands_Memory_On_Bilinear_Substrate.md"
+  }
+ }
 ]

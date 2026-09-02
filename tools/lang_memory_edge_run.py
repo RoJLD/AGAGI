@@ -26,14 +26,21 @@ from tools.demand_marker import ablation_verdict
 from tools.language_memory_demand_probe import _train_and_eval, alias_guard_verdict
 
 SLICE_S = float(os.environ.get("EDGE_SLICE_S", "500"))
-OUT = os.path.join("results", "lang_memory_edge.json")
+# -bis (2026-09-02) : la regle est parametrable (EDGE_RULE) et chaque regle ecrit dans SON fichier --
+# la premiere mesure (EDR-LANG-MEMORY-EDGE, controle sature) reste intacte, jamais ecrasee.
+RULE_NAME = os.environ.get("EDGE_RULE", "LANG-MEMORY-EDGE")
+_suffix = RULE_NAME.replace("LANG-MEMORY-EDGE", "").replace("-", "_").lower()
+OUT = os.path.join("results", f"lang_memory_edge{_suffix}.json")
 
-rule = verify("LANG-MEMORY-EDGE")
+rule = verify(RULE_NAME)
 pt = rule["point_de_fonctionnement"]
 LR, EP, D, K, N_AGENTS = pt["lr"], pt["episodes"], pt["D"], pt["K"], pt["n_agents"]
+CTE = int(pt.get("control_train_every", 1))     # de-saturation -bis (1 = comportement d'origine)
+CIN = float(pt.get("control_input_noise", 0.0))  # bruit CONTROL a dose connue (-bis)
 SEEDS = list(range(int(rule["n_seeds"])))
-print(f"regle SCELLEE verifiee | lr={LR} ep={EP} D={D} K={K} n={len(SEEDS)} seeds\n")
-
+print(f"regle SCELLEE verifiee ({RULE_NAME}) | lr={LR} ep={EP} D={D} K={K} "
+      f"cte={CTE} n={len(SEEDS)} seeds -> {OUT}")
+print()
 os.makedirs("results", exist_ok=True)
 db = json.load(open(OUT, encoding="utf-8")) if os.path.exists(OUT) else {}
 
@@ -47,7 +54,7 @@ for mode in ("learned", "present"):
             reste.append(k)
             continue
         li, la, ci, ca = _train_and_eval(seed=s, episodes=EP, n_agents=N_AGENTS, K=K, D=D, lr=LR,
-                                         memory_mode=mode, control_mode="feedforward", bilinear=True)
+                                         memory_mode=mode, control_mode="feedforward", bilinear=True, control_train_every=CTE, control_input_noise=CIN)
         db[k] = {"lang_i": li, "lang_a": la, "ctrl_i": ci, "ctrl_a": ca}
         json.dump(db, open(OUT, "w", encoding="utf-8"), indent=1)
         print(f"  {k}: lang_i={li:.3f} lang_a={la:.3f} ctrl_i={ci:.3f} ctrl_a={ca:.3f} "

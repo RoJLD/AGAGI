@@ -48,7 +48,7 @@ jamais faite (S2-009 risque 4).
 
 ## Candidats et décision
 
-- **C1 (LANCÉ)** : établir le point où la référence APPREND (balayage lr×budget, ~13 min/point),
+- **C1 (LANCÉ)** : établir le point où la référence APPREND (balayage lr×budget, ~13 min/point), **→ DÉNOUÉ le soir même** : S1 établi (0,744 à D=0 ; D=2 réfuté 3/3 → 4ᵉ manifestation LOCK-001) ; V1 = INDÉTERMINÉ d'instrument (contrôle saturé, la garde E3 a mordu) ; V2 (-bis, bruit à dose connue p=0,15) = **ARÊTE ÉTABLIE 4,97×, garde SURGICAL** — 3ᵉ arête du graphe, première par ablation substrat.
   puis mettre la sonde à niveau et rejouer la 3ᵉ arête language→memory sous règle scellée.
 - **C5 (LANCÉ)** : M1 (hook) + M4 (coord_intact + contre-exemple) + M6 (promotion E8) — trois
   gardes de classes déjà tombées, ≤ 1 h.

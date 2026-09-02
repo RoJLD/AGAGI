@@ -1,0 +1,32 @@
+{
+  "name": "LANG-MEMORY-EDGE-bis",
+  "rule": {
+    "amendement_bis": "RE-SCELLEMENT prescrit par EDR-LANG-MEMORY-EDGE (branche instrument_indetermine) : la tache CONTROL saturait au plafond -> DEGENERATE_CONTROL force. Correctif : BRUIT D'ENTREE A DOSE CONNUE sur CONTROL (`control_input_noise`=0.15 : l'entree montree ment avec prob 0.15, la cible reste vraie) -> plafond structurel (1-p)+p/K = 0.875 des DEUX bras, entrainement complet (cte=1) donc robuste au H porte. Le sous-echantillonnage SEUL est un piege arithmetique MESURE (smoke cte=6 : ci=0.702, ca=1.000 -> leakage>tol force ; ci>=0.95 -> degenere) : il ne peut JAMAIS passer la garde tant que le bras able est epingle a 1.0. Calibration PREDICTIVE du correctif (smoke seed 0) : plafond predit 0.875, mesure ctrl_i=0.853 / ctrl_a=0.870, leak 0.017 ; LANG inchange (0.811 intact, 0.162 able). RE-RUN COMPLET des 3 bras n=12 (le bruit modifie l'interference de tete partagee pendant l'entrainement -> pas de melange de populations avec la premiere mesure, qui reste gravee : results/lang_memory_edge.json). Toutes les branches de lecture de la regle ORIGINALE s'appliquent inchangees, DANS LE MEME ORDRE.",
+    "confond_declare_AVANT": "Le smoke PRESENT (seed 0) montre une chute residuelle 0.767->0.655 : si elle se confirme au n complet SANS passer sous decoy_ceiling, PRESENT reste X_DECOY et la specificite tient ; si PRESENT descend en zone intermediaire, la branche specificite_absente s'applique -- aucune latitude.",
+    "cout": "24 cellules (2 bras x 12 seeds) x ~220 s = ~90 min, pur torch SANS bail kuzu, tranches resumables <= 500 s (cap Bash), persistance results/lang_memory_edge.json.",
+    "design": "3 bras par seed, n=12 seeds (unite de replication = seed), harnais `tools/lang_memory_edge_run.py` (resumable) sur la sonde a niveau (BILINEAR + optimiseur complet, commit 481117e) : (1) PRINCIPAL memory_mode=learned -- encode(key), use(q), cible (q+key)%K, ablation H-reset entre encode et use ; (2) SPECIFICITY memory_mode=present -- cle RE-MONTREE au tick d'usage, meme ablation, information redondante (analogue du leurre PRESENT de MEM-PERCEPTION ; smoke seed0 : 0.767 intact / 0.655 able) ; (3) CONTROL feedforward -- garde CALIB-ALIAS `alias_guard_verdict` (ablation SUBSTRAT -> 'n/a' interdit par la porte).",
+    "discrimination": {
+      "arete_etablie (PRINCIPAL X_DEMANDED ET PRESENT X_DECOY ET alias pass ET coord_intact >= 0.5)": "GRAVER le record + inserer l'arete language->memory (ablation_target=substrate, coord_intact/emergence_bar renseignes) ; la porte check_agi_taxonomy re-verifie tout.",
+      "instrument_indetermine (alias fail/DEGENERATE_CONTROL ou verdict INCONCLUSIVE_*)": "PAS d'arete ; diagnostiquer l'instrument avant tout re-run.",
+      "reference_sous_barre (coord_intact < 0.5 au n complet)": "PAS d'arete : S1 ne tient pas a n=12 -- graver, et re-etablir le point avant toute reprise.",
+      "specificite_absente (PRINCIPAL X_DEMANDED mais PRESENT s'effondre aussi)": "PAS d'arete : l'ablation H-reset casse plus que la memoire demandee -- graver le negatif tel quel.",
+      "toute autre issue": "rapporter telle quelle, AUCUNE arete, aucun re-run sans re-scellement."
+    },
+    "dv_primaire": "verdict `ablation_verdict` du bras PRINCIPAL (floor=1/K, ceiling=1.0) + `coord_intact` = mediane du bras intact, confrontee a `emergence_bar` (porte M4) ; `alias_guard_verdict` sur CONTROL (avec `leak_seeds` rapporte) ; verdict du bras PRESENT.",
+    "emergence_bar": 0.5,
+    "justification_du_point": "Balayage S1 (results/lang_memory_sweep.json, grille 2x2 complete) : la reference LANG intact apprend a lr=0.002/ep=3600/D=0 (mediane 0.744, 3/3 seeds : 0.74/0.74/0.82) ; lr=0.02 mort partout (~0.16) ; spot-check D=2 au meme point : 3/3 seeds a la chance (0.211/0.183/0.170) ET contrile degrade (~0.55) -> D=2 est HORS du regime d'apprentissage, la portee du record est bornee a la retention 1-tick (D=0). emergence_bar=0.5 est AU-DESSUS du plafond structurel 0.3889 du substrat plain (P2.15) : la barre ne peut pas etre franchie par la forme separable.",
+    "n_seeds": 12,
+    "point_de_fonctionnement": {
+      "D": 0,
+      "K": 6,
+      "control_input_noise": 0.15,
+      "control_train_every": 1,
+      "episodes": 3600,
+      "lr": 0.002,
+      "n_agents": 16
+    },
+    "question": "L'arete « language DEMANDE memory » tient-elle sur le substrat BILINEAIRE au point-reference etabli (S1) -- 3e arete du graphe AGI-Taxonomy, premiere ablation SUBSTRAT (H-reset) ?",
+    "regle_de_lecture_continue": "ORDRE IMPOSE : garde d'alias d'abord, puis PRESENT, puis PRINCIPAL, puis barre -- la premiere branche qui mord ARRETE la lecture. Tous les ratios et medianes se rapportent en absolu quel que soit le verdict ; un negatif se grave au meme titre."
+  },
+  "seal": "f30944188524b21a1d866645bc78868ae2c5d4888f92e5e293e1f0d590856b1d"
+}
