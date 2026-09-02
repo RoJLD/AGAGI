@@ -939,6 +939,35 @@ entièrement sur `confirm_commit(..., owner=)`, que rien n'oblige à appeler.
   — c'est la règle « ne pas proxifier ce qu'on ne sait pas mesurer ». Toute version qui devine
   l'auteur d'un commit rejoue la forme RÉTROSPECTIVE déjà déclarée non automatisable en occ. 4.
 
+**P2.27 — ⚠️ OUVERT — le SUBSTRAT mesuré n'est identifiable a posteriori dans AUCUNE sonde ou presque :
+16 sondes sur 19 n'épinglent pas `BILINEAR`, et 11 sur 19 ont un optimiseur INCOMPLET.**
+Audit exhaustif des 19 fichiers de `tools/` qui construisent une population torch (2026-09-02), né de
+la rencontre de deux correctifs indépendants le même jour : `481117e` (session parallèle, sur
+`language_memory_demand_probe`) et `3b5554a` (sur `delayed_coordination_demand_probe`).
+
+- **Défaut A — substrat NON ÉPINGLÉ (16/19)** : `TorchPopulationModel.BILINEAR` est un attribut de
+  CLASSE lu par `__init__` (`backend_torch.py:111`) et `_step` (`:128`). Une sonde qui ne le pose pas
+  hérite de l'ambiant du processus, et rien ne l'enregistre. Deux sondes mesurant le même jour dans le
+  même interpréteur peuvent donc mesurer des SUBSTRATS DIFFÉRENTS sans qu'aucun `_params` ne l'indique.
+- **Défaut B — optimiseur INCOMPLET (11/19)** : `Adam([pop.W])` laisse `U/V/W_bl` **gelés à leur init**
+  même quand `BILINEAR` est actif. Le terme qui débloque la composition n'apprend jamais. C'est un
+  piège ARMÉ : latent tant que le flag est faux, il rend un nul dès que quelqu'un l'active — et ce nul
+  ne mesure que l'initialisation.
+- ⚠️ **Les deux sondes qui ont GRAVÉ les deux arêtes du graphe AGI-Taxonomy portent A ET B** :
+  `memory_perception_demand_probe.py` et `perception_coordination_demand_probe.py`. Cela n'invalide
+  pas leurs résultats (l'ambiant était vraisemblablement `False`, donc substrat plain — ce qui est
+  publié), mais **rien dans le record ne permet de le VÉRIFIER**, et quiconque activera le flag
+  obtiendra un nul artefactuel.
+- **Divergence à trancher** : les deux sondes déjà corrigées ont fait des choix OPPOSÉS —
+  `language_memory` épingle `bilinear=True` par défaut (au motif que le plain est prouvablement
+  incapable, plafond structurel 0.3889), `delayed_coordination` épingle `False` (pour rester
+  bit-identique à ses propres mesures gravées). Les deux sont défendables ; ce qui ne l'est pas, c'est
+  que la différence soit invisible. Minimum : `_params["substrate"]` dans toutes les sondes.
+- **Reproduire l'audit** : le script de détection tient en 30 lignes (motifs `make_population(`,
+  `TorchPopulationModel.BILINEAR =`, `optim.Adam([...])` sans `U`/`V`/`W_bl`). Candidat naturel à un
+  CLIQUET, sur le modèle de `check_instrument_calibration.py` : le défaut se reforme silencieusement à
+  chaque nouvelle sonde.
+
 ---
 
 ## P3 — Générateurs d'erreur encore sans réponse exécutable
