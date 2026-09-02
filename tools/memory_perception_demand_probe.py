@@ -115,8 +115,18 @@ def _n_agents_of(agent):
     return agent.W.shape[0]
 
 
-def _train_and_eval(seed, condition, episodes, n_agents, K, D, lr, flip_p, memory_mode, eval_batches=40):
-    """Entraîne (learned) puis évalue perception d'encodage INTACTE vs DÉRANGÉE. Renvoie (acc_i, acc_a)."""
+def _train_and_eval(seed, condition, episodes, n_agents, K, D, lr, flip_p, memory_mode,
+                    eval_batches=40, bilinear=False):
+    """Entraîne (learned) puis évalue perception d'encodage INTACTE vs DÉRANGÉE. Renvoie (acc_i, acc_a).
+
+    `bilinear` (défaut `False`) — P2.27 : le substrat est désormais ÉPINGLÉ au lieu d'être hérité de
+    l'ambiant du processus. `TorchPopulationModel.BILINEAR` est un attribut de CLASSE lu par
+    `__init__` (`backend_torch.py:111`) ET par `_step` (`:128`) : non posé, une autre sonde tournant
+    dans le même interpréteur pouvait faire mesurer un AUTRE substrat à celle-ci, sans trace.
+    ⚠️ Le défaut vaut `False` — c'est-à-dire le substrat `plain` — parce que **cette sonde a GRAVÉ
+    l'arête `memory→perception`** : changer son défaut invaliderait silencieusement des chiffres
+    publiés. À `bilinear=False` les params `U/V/W_bl` ne sont pas créés, donc le correctif de
+    l'optimiseur ci-dessous est BIT-IDENTIQUE au comportement d'avant."""
     import torch
     from src.agents.mamba_agent import MambaAgent
     from src.agents.backend import make_population
@@ -124,16 +134,24 @@ def _train_and_eval(seed, condition, episodes, n_agents, K, D, lr, flip_p, memor
 
     np.random.seed(seed)
     torch.manual_seed(seed)
-    saved = (TorchPopulationModel.CONDITION_GATE, TorchPopulationModel.GATE_TARGET)
+    saved = (TorchPopulationModel.CONDITION_GATE, TorchPopulationModel.GATE_TARGET,
+             TorchPopulationModel.BILINEAR)
     TorchPopulationModel.CONDITION_GATE = False
     TorchPopulationModel.GATE_TARGET = None
+    # P2.27 — posé AVANT `make_population` : `U/V/W_bl` ne sont créés qu'à la CONSTRUCTION.
+    TorchPopulationModel.BILINEAR = bool(bilinear)
     try:
         agent = make_population([MambaAgent() for _ in range(n_agents)], backend="torch")
         I = agent.I
         rng = np.random.RandomState(seed + 1)
         learned = memory_mode == "learned"
         if learned:
-            agent.opt = torch.optim.Adam([agent.W], lr=lr)
+            # P2.27 — l'optimiseur doit couvrir le substrat COMPLET. `[agent.W]` seul laissait
+            # `U/V/W_bl` GELÉS à leur init : le terme bilinéaire n'aurait jamais appris, et la sonde
+            # aurait rendu un nul ne mesurant que l'initialisation. Sans BILINEAR ils valent `None`,
+            # donc la liste se réduit à `[agent.W]` — bit-identique.
+            agent.opt = torch.optim.Adam(
+                [agent.W] + [p for p in (agent.U, agent.V, agent.W_bl) if p is not None], lr=lr)
             for _ in range(episodes):
                 cues = rng.randint(0, K, size=n_agents)
                 inputs, _enc = _seq_inputs(cues, condition, False, K, I, n_agents, D, flip_p, rng)
@@ -163,17 +181,23 @@ def _train_and_eval(seed, condition, episodes, n_agents, K, D, lr, flip_p, memor
 
         return _eval(False), _eval(True)
     finally:
-        (TorchPopulationModel.CONDITION_GATE, TorchPopulationModel.GATE_TARGET) = saved
+        (TorchPopulationModel.CONDITION_GATE, TorchPopulationModel.GATE_TARGET,
+         TorchPopulationModel.BILINEAR) = saved
 
 
 def run_memory_perception_demand_probe(seeds, episodes=800, n_agents=16, K=6, D=2, lr=0.05,
-                                       flip_p=0.3, memory_mode="learned"):
+                                       flip_p=0.3, memory_mode="learned", bilinear=False):
     """Mesure « memory demands perception ». Par seed : DELAYED et PRESENT, chacun éval intact/ablé.
-    DELAYED -> ablation_verdict (attendu X_DEMANDED) ; PRESENT -> inerte (specificity_control)."""
+    DELAYED -> ablation_verdict (attendu X_DEMANDED) ; PRESENT -> inerte (specificity_control).
+
+    `bilinear` (défaut `False`, cf. `_train_and_eval`) : le substrat mesuré est ÉPINGLÉ et RENDU
+    LISIBLE dans `substrate` — sans quoi le résultat n'est pas identifiable a posteriori (P2.27)."""
     di, da, pi, pa = [], [], [], []
     for s in seeds:
-        d_i, d_a = _train_and_eval(s, "delayed", episodes, n_agents, K, D, lr, flip_p, memory_mode)
-        p_i, p_a = _train_and_eval(s, "present", episodes, n_agents, K, D, lr, flip_p, memory_mode)
+        d_i, d_a = _train_and_eval(s, "delayed", episodes, n_agents, K, D, lr, flip_p, memory_mode,
+                                   bilinear=bilinear)
+        p_i, p_a = _train_and_eval(s, "present", episodes, n_agents, K, D, lr, flip_p, memory_mode,
+                                   bilinear=bilinear)
         di.append(d_i); da.append(d_a); pi.append(p_i); pa.append(p_a)
 
     floor = 1.0 / K
@@ -184,6 +208,7 @@ def run_memory_perception_demand_probe(seeds, episodes=800, n_agents=16, K=6, D=
     specificity = "pass" if (present["verdict"] == "X_DECOY" and present_alive) else "fail"
     return {"delayed": delayed, "present": present, "present_alive": present_alive,
             "specificity_control": specificity, "functional_aliasing": "n/a", "n": len(seeds),
+            "substrate": {"BILINEAR": bool(bilinear), "CONDITION_GATE": False},   # P2.27
             "delayed_intact": di, "delayed_ablated": da, "present_intact": pi, "present_ablated": pa}
 
 

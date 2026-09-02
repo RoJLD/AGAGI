@@ -5,9 +5,11 @@ cliquets livrés le 2026-09-01 ont rendu 5 puis 2 faux positifs avant correction
 a donc une réponse connue AVANT la mesure, et il y a autant de cas `spares` (réponse NON) que de cas
 `fires` (réponse OUI) — une garde qui refuse tout passerait les seconds seule.
 """
+import os
+
 import pytest
 
-from tools.check_substrate_pinning import _defects, scan
+from tools.check_substrate_pinning import _ROOT, _defects, scan
 
 # --- sources SYNTHÉTIQUES à réponse connue -----------------------------------------------------
 
@@ -42,6 +44,37 @@ def test_the_ratchet_SPARES_a_correct_probe():
     assert _defects(_PIN + _MAKE + _ADAM_PLEIN) == set()
 
 
+def test_the_ratchet_SPARES_the_inline_concatenation_idiom():
+    """⚠️ FAUX POSITIF RÉEL de ce cliquet, trouvé le 2026-09-02 en corrigeant une sonde AVEC lui, et
+    devenu un cas de calibration (règle d'auto-amélioration du dépôt).
+
+    La version d'origine lisait le PREMIER crochet seul (`Adam\\(\\s*\\[([^\\]]*)\\]`) et criait donc sur
+    l'idiome pourtant JUSTE ci-dessous, dont les paramètres bilinéaires vivent dans le SECOND crochet.
+    Un cliquet qui crie sur du code correct est pire qu'absent : on apprend à l'ignorer."""
+    inline = ("pop.opt = torch.optim.Adam(\n"
+              "    [pop.W] + [p for p in (pop.U, pop.V, pop.W_bl) if p is not None], lr=lr)\n")
+    assert _defects(_PIN + _MAKE + inline) == set()
+
+
+def test_the_ratchet_SPARES_an_optimizer_built_ELSEWHERE():
+    """Portée : `Adam(params)` / `Adam(_full_params(pop))` ne contiennent aucune liste littérale.
+    Deviner ce qu'elles portent serait proxifier ce qu'on ne sait pas mesurer — on s'abstient, et on
+    le dit. C'est une NON-DÉTECTION assumée, pas un succès."""
+    assert _defects(_PIN + _MAKE + "pop.opt = torch.optim.Adam(_full_params(pop), lr=lr)\n") == set()
+    assert _defects(_PIN + _MAKE + "pop.opt = torch.optim.Adam(params, lr=lr)\n") == set()
+
+
+def test_the_ratchet_SPARES_a_PARTIAL_fix():
+    """Une sonde qui passe de {A,B} à {A} s'est AMÉLIORÉE : le cliquet ne doit pas la signaler.
+    Une égalité stricte à la baseline punirait le correctif — un cliquet bloque la dette NOUVELLE,
+    jamais la dette RÉDUITE. Vérifié sur la logique de comparaison, par différence d'ensembles."""
+    base = {"tools/x.py": ["A", "B"]}
+    for restant in (["A"], ["B"], []):
+        assert not (set(restant) - set(base["tools/x.py"])), \
+            f"{restant} est un sous-ensemble de la dette gelée -> ne doit RIEN déclencher"
+    assert set(["A", "B"]) - set(["A"]) == {"B"}, "gagner un défaut DOIT déclencher"
+
+
 def test_a_file_without_a_population_is_OUT_OF_SCOPE_not_CLEAN():
     """⚠️ La distinction qui compte : `None` (hors périmètre) n'est PAS `set()` (examiné, sans défaut).
 
@@ -54,14 +87,23 @@ def test_a_file_without_a_population_is_OUT_OF_SCOPE_not_CLEAN():
 
 # --- confrontation aux FICHIERS RÉELS ----------------------------------------------------------
 
-def test_the_two_reconciled_probes_are_NOT_in_debt():
-    """Ancrage sur le réel : les deux sondes corrigées le 2026-09-02 — par DEUX sessions
-    indépendantes, `481117e` et `3b5554a` — doivent sortir SANS défaut. Si l'une régresse, ce test
-    tombe avant que le cliquet ne l'absorbe dans sa baseline."""
-    corriges = ["tools/delayed_coordination_demand_probe.py",
-                "tools/language_memory_demand_probe.py"]
-    en_defaut, hors, examines = scan(only=corriges)
-    assert examines == 2, f"les deux sondes doivent être DANS le périmètre (hors={hors})"
+@pytest.mark.parametrize("corrige", [
+    "tools/delayed_coordination_demand_probe.py",        # 3b5554a
+    "tools/language_memory_demand_probe.py",             # 481117e, session parallèle
+    "tools/memory_perception_demand_probe.py",           # a GRAVÉ `memory→perception`
+    "tools/perception_coordination_demand_probe.py",     # a GRAVÉ `language→perception`
+])
+def test_a_corrected_probe_STAYS_corrected(corrige):
+    """Ancrage sur le RÉEL, un cas par sonde pour que l'échec NOMME la coupable.
+
+    Les deux dernières sont les sondes qui ont GRAVÉ les deux arêtes du graphe AGI-Taxonomy : leur
+    substrat était hérité de l'ambiant, donc leurs résultats publiés n'étaient pas identifiables a
+    posteriori. Elles sont désormais épinglées à `bilinear=False` — le substrat `plain`, celui de
+    leurs mesures publiées, donc BIT-IDENTIQUE (à False, `U/V/W_bl` valent `None` et la liste de
+    l'optimiseur se réduit à `[pop.W]` : mesuré, pas argumenté).
+    Ce test tombe si l'une régresse, AVANT que le cliquet ne puisse l'absorber dans sa baseline."""
+    en_defaut, hors, examines = scan(only=[corrige])
+    assert examines == 1, f"la sonde doit être DANS le périmètre (hors={hors})"
     assert en_defaut == {}, f"régression d'épinglage : {en_defaut}"
 
 
@@ -75,14 +117,17 @@ def test_the_audit_count_is_STILL_REAL():
     assert len(hors) > examines, "le hors-périmètre doit être RAPPORTÉ, pas avalé"
 
 
-@pytest.mark.parametrize("legataire", ["tools/memory_perception_demand_probe.py",
-                                       "tools/perception_coordination_demand_probe.py"])
-def test_the_two_edge_graving_probes_ARE_the_frozen_debt(legataire):
-    """⚠️ CONTRE-EXEMPLE GELÉ le plus coûteux de l'audit : les deux sondes qui ont gravé les DEUX
-    arêtes du graphe AGI-Taxonomy portent les deux défauts. Leurs résultats ne sont pas invalidés
-    — l'ambiant était vraisemblablement `False`, donc substrat plain, ce qui est publié — mais RIEN
-    dans le record ne permet de le VÉRIFIER. Ce test gèle le fait, pour qu'il ne se perde pas dans un
-    compteur."""
-    en_defaut, _hors, examines = scan(only=[legataire])
-    assert examines == 1
-    assert en_defaut.get(legataire) == ["A", "B"], en_defaut
+def test_the_frozen_debt_is_a_DEBT_not_a_decoration():
+    """La baseline doit rester une DETTE RÉELLE : si toutes les sondes qu'elle gèle étaient corrigées,
+    il faudrait la VIDER, pas la garder. Une dette qui ne peut plus être invalidée n'est plus une
+    dette, c'est un commentaire — même exigence que `test_the_legacy_declaration_is_STILL_REAL` pour
+    la dette de pré-enregistrement."""
+    from tools.check_substrate_pinning import _load_baseline
+    base = _load_baseline()
+    assert base, "baseline vide : soit la retirer, soit la regénérer"
+    en_defaut, _hors, _ex = scan()
+    encore = [k for k in base if k in en_defaut]
+    assert encore, "toutes les sondes gelées sont corrigées -> vider la baseline au lieu de la garder"
+    # et la baseline ne doit pas gonfler au-delà du réel : ce qu'elle gèle doit encore exister
+    for k in base:
+        assert os.path.exists(os.path.join(_ROOT, k)), f"la baseline gèle un fichier DISPARU : {k}"

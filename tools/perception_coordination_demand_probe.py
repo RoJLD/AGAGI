@@ -59,7 +59,16 @@ def _signal_from(s_in, sender, sender_mode, V, rng, n_agents):
     return _sample(preds_s, V, rng, n_agents)
 
 
-def _train_and_eval(seed, no_coord, episodes, n_agents, K, V, lr, flip_p, sender_mode, eval_batches=40):
+def _full_params(pop):
+    """P2.27 — l'optimiseur doit couvrir le substrat COMPLET. `[pop.W]` seul laissait `U/V/W_bl`
+    GELÉS à leur init : le terme bilinéaire n'aurait jamais appris, et la sonde aurait rendu un nul
+    qui ne mesure que l'initialisation. Sans BILINEAR ils valent `None` et la liste se réduit à
+    `[pop.W]` — bit-identique au comportement d'avant."""
+    return [pop.W] + [p for p in (pop.U, pop.V, pop.W_bl) if p is not None]
+
+
+def _train_and_eval(seed, no_coord, episodes, n_agents, K, V, lr, flip_p, sender_mode,
+                    eval_batches=40, bilinear=False):
     """Entraîne (learned) puis évalue perception INTACTE vs DÉRANGÉE. Renvoie (acc_intact, acc_ablated)."""
     import torch
     from src.agents.mamba_agent import MambaAgent
@@ -68,9 +77,17 @@ def _train_and_eval(seed, no_coord, episodes, n_agents, K, V, lr, flip_p, sender
 
     np.random.seed(seed)
     torch.manual_seed(seed)
-    saved = (TorchPopulationModel.CONDITION_GATE, TorchPopulationModel.GATE_TARGET)
+    # P2.27 — le substrat est ÉPINGLÉ, pas hérité de l'ambiant : `TorchPopulationModel.BILINEAR` est
+    # un attribut de CLASSE lu par `__init__` (`backend_torch.py:111`) et `_step` (`:128`). Non posé,
+    # une autre sonde du même processus pouvait faire mesurer un AUTRE substrat à celle-ci, sans trace.
+    # ⚠️ Défaut `False` (substrat `plain`) parce que **cette sonde a GRAVÉ l'arête
+    # `language→perception`** : changer le défaut invaliderait silencieusement des chiffres publiés.
+    # Posé AVANT `make_population` — `U/V/W_bl` ne sont créés qu'à la CONSTRUCTION.
+    saved = (TorchPopulationModel.CONDITION_GATE, TorchPopulationModel.GATE_TARGET,
+             TorchPopulationModel.BILINEAR)
     TorchPopulationModel.CONDITION_GATE = False
     TorchPopulationModel.GATE_TARGET = None
+    TorchPopulationModel.BILINEAR = bool(bilinear)
     try:
         sender = make_population([MambaAgent() for _ in range(n_agents)], backend="torch")
         receiver = make_population([MambaAgent() for _ in range(n_agents)], backend="torch")
@@ -78,8 +95,8 @@ def _train_and_eval(seed, no_coord, episodes, n_agents, K, V, lr, flip_p, sender
         rng = np.random.RandomState(seed + 1)
         learned = sender_mode == "learned"
         if learned:
-            sender.opt = torch.optim.Adam([sender.W], lr=lr)
-        receiver.opt = torch.optim.Adam([receiver.W], lr=lr)
+            sender.opt = torch.optim.Adam(_full_params(sender), lr=lr)
+        receiver.opt = torch.optim.Adam(_full_params(receiver), lr=lr)
 
         for _ in range(episodes):
             targets = rng.randint(0, K, size=n_agents)
@@ -114,17 +131,23 @@ def _train_and_eval(seed, no_coord, episodes, n_agents, K, V, lr, flip_p, sender
 
         return _eval(False), _eval(True)
     finally:
-        (TorchPopulationModel.CONDITION_GATE, TorchPopulationModel.GATE_TARGET) = saved
+        (TorchPopulationModel.CONDITION_GATE, TorchPopulationModel.GATE_TARGET,
+         TorchPopulationModel.BILINEAR) = saved
 
 
 def run_perception_coordination_demand_probe(seeds, episodes=1000, n_agents=32, K=6, V=8, lr=0.05,
-                                             flip_p=0.3, sender_mode="learned"):
+                                             flip_p=0.3, sender_mode="learned", bilinear=False):
     """Mesure « coordination demande perception ». Par seed : COORD et NO-COORD, chacun éval intact/ablé.
-    COORD -> ablation_verdict (attendu X_DEMANDED) ; NO-COORD -> inerte (specificity_control)."""
+    COORD -> ablation_verdict (attendu X_DEMANDED) ; NO-COORD -> inerte (specificity_control).
+
+    `bilinear` (défaut `False`, cf. `_train_and_eval`) : le substrat mesuré est ÉPINGLÉ et RENDU
+    LISIBLE dans `substrate` — sans quoi le résultat n'est pas identifiable a posteriori (P2.27)."""
     ci, ca, ni, na = [], [], [], []
     for s in seeds:
-        c_i, c_a = _train_and_eval(s, False, episodes, n_agents, K, V, lr, flip_p, sender_mode)
-        n_i, n_a = _train_and_eval(s, True, episodes, n_agents, K, V, lr, flip_p, sender_mode)
+        c_i, c_a = _train_and_eval(s, False, episodes, n_agents, K, V, lr, flip_p, sender_mode,
+                                   bilinear=bilinear)
+        n_i, n_a = _train_and_eval(s, True, episodes, n_agents, K, V, lr, flip_p, sender_mode,
+                                   bilinear=bilinear)
         ci.append(c_i); ca.append(c_a); ni.append(n_i); na.append(n_a)
 
     floor = 1.0 / K
@@ -135,6 +158,7 @@ def run_perception_coordination_demand_probe(seeds, episodes=1000, n_agents=32, 
     specificity = "pass" if (nocoord["verdict"] == "X_DECOY" and nocoord_alive) else "fail"
     return {"coord": coord, "nocoord": nocoord, "nocoord_alive": nocoord_alive,
             "specificity_control": specificity, "functional_aliasing": "n/a", "n": len(seeds),
+            "substrate": {"BILINEAR": bool(bilinear), "CONDITION_GATE": False},   # P2.27
             "coord_intact": ci, "coord_ablated": ca, "nocoord_intact": ni, "nocoord_ablated": na}
 
 

@@ -44,9 +44,33 @@ _SCAN_DIRS = ("tools", os.path.join("src", "seed_ai"))
 
 _MAKES_POP = re.compile(r"make_population\s*\(")
 _PINS = re.compile(r"TorchPopulationModel\.BILINEAR\s*=")
-_ADAM_LIST = re.compile(r"optim\.Adam\(\s*\[([^\]]*)\]")
+_ADAM_CALL = re.compile(r"optim\.Adam\(")
 # les paramètres du terme bilinéaire, tels que nommés dans `backend_torch.py:113-115`
 _BILINEAR_PARAMS = re.compile(r"\bW_bl\b|\bU\b|\bV\b")
+
+
+def _adam_args(src: str):
+    """Texte des ARGUMENTS de chaque `optim.Adam(...)`, à parenthèses ÉQUILIBRÉES.
+
+    ⚠️ Né d'un FAUX POSITIF de ce cliquet même, le 2026-09-02, sur un correctif CORRECT. La version
+    d'origine lisait `optim\\.Adam\\(\\s*\\[([^\\]]*)\\]` — donc le PREMIER crochet SEUL — et criait sur
+    l'idiome pourtant juste `Adam([pop.W] + [p for p in (pop.U, pop.V, pop.W_bl) if p is not None])`,
+    dont les paramètres bilinéaires vivent dans le SECOND crochet. Un cliquet qui crie à tort est pire
+    qu'absent : on apprend à l'ignorer. Cas de calibration gelé :
+    `test_the_ratchet_SPARES_the_inline_concatenation_idiom`."""
+    out = []
+    for m in _ADAM_CALL.finditer(src):
+        i, depth = m.end(), 1
+        start = i
+        while i < len(src) and depth:
+            c = src[i]
+            if c in "([{":
+                depth += 1
+            elif c in ")]}":
+                depth -= 1
+            i += 1
+        out.append(src[start:i - 1])
+    return out
 
 
 def _defects(src: str):
@@ -57,7 +81,10 @@ def _defects(src: str):
     out = set()
     if not _PINS.search(src):
         out.add("A")
-    if any(not _BILINEAR_PARAMS.search(g) for g in _ADAM_LIST.findall(src)):
+    # Seuls les appels dont les arguments contiennent une LISTE LITTÉRALE sont jugés : `Adam(params)`
+    # ou `Adam(_full_params(pop))` construisent leur liste ailleurs, et deviner ce qu'elle contient
+    # serait proxifier ce qu'on ne sait pas mesurer.
+    if any("[" in a and not _BILINEAR_PARAMS.search(a) for a in _adam_args(src)):
         out.add("B")
     return out
 
@@ -118,8 +145,12 @@ def main(argv=None):
 
     en_defaut, hors, examines = scan(args.only)
     base = _load_baseline()
-    nouveaux = {k: v for k, v in en_defaut.items()
-                if k not in base or sorted(v) != sorted(base.get(k, []))}
+    # ⚠️ On compare par DIFFÉRENCE D'ENSEMBLES, pas par égalité. Une égalité stricte crierait aussi
+    # quand une sonde s'AMÉLIORE partiellement (défauts {A,B} -> {A}) : le cliquet punirait le
+    # correctif. Un cliquet bloque la dette NOUVELLE, jamais la dette RÉDUITE. Cas de calibration
+    # gelé : `test_the_ratchet_SPARES_a_PARTIAL_fix`.
+    nouveaux = {k: sorted(set(v) - set(base.get(k, []))) for k, v in en_defaut.items()}
+    nouveaux = {k: v for k, v in nouveaux.items() if v}
     a = sum(1 for v in en_defaut.values() if "A" in v)
     b = sum(1 for v in en_defaut.values() if "B" in v)
     print(f"sondes examinées : {examines} | en dette : {len(en_defaut)} "
