@@ -72,6 +72,22 @@ _INSTRUMENT_PATTERNS = (
     # 11 deja couvertes par des cas fires+spares -> **zero dette legataire creee**. Un futur faux positif
     # (helper interne nomme `assert_*`) a sa sortie explicite : `NOT_AN_INSTRUMENT`, avec motif.
     re.compile(r"^def\s+(assert_\w+)\s*\(", re.M),
+    # ⚠️ SIXIEME angle mort, mesure le 2026-09-02 (deblocage de la porte SDR-G2). Les motifs
+    # existants n'attrapaient ces verbes que PRECEDES de `run_` (`run_*sweep*`, `run_*probe*`) : un
+    # orchestrateur nomme `sweep_binding_penalty` ou `compare_gate_modes` etait donc INVISIBLE, alors
+    # qu'il PRONONCE les verdicts (`BINDING_FORCED`, `GATE_BINDS`, `ANTISAT_RESCUES`). Consequence
+    # mesuree, pas supposee : la porte G2 declarait un KPI (`binding_gap`) dont AUCUN producteur
+    # n'etait calibre -- 9 fonctions du banc compositionnel, celles-la memes que citent EDR-129/136.
+    # COUT COMPTE AVANT APPLICATION : +22 fonctions (compare_ 9, sweep_ 7, probe_ 6), dont 10
+    # calibrees dans la meme passe (banc compositionnel, injection a dose connue) et 12 par garde
+    # d'arguments en tete. Zero dette legataire creee -- le cliquet reste STRICT.
+    # ⚠️ Ce qui reste OUVERT et MESURE : `run_\w+` generique ajouterait +56 fonctions non calibrees
+    # (`run_condition`, `run_arm`, `run_cell`...). C'est un chantier a part, inscrit au backlog avec
+    # son compte exact -- l'avaler ici aurait force a geler 56 dettes, c.-a-d. a rendre le cliquet
+    # non strict pour la premiere fois depuis sa fermeture.
+    re.compile(r"^def\s+(compare_\w+)\s*\(", re.M),
+    re.compile(r"^def\s+(sweep_\w+)\s*\(", re.M),
+    re.compile(r"^def\s+(probe_\w+)\s*\(", re.M),
 )
 
 

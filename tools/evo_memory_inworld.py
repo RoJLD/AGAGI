@@ -264,6 +264,14 @@ def probe_memory_discrimination(genome, mode, seed, n_trials=40):
     """disc = engage(Mammouth) − engage(Leurre) sur rencontres contrôlées. >0 = discrimine (approche le
     Mammouth, fuit le Leurre) ; ~0 = indiscriminé. Dense (n_trials décisions/type). mode : visible|memory|
     ablate (cf. _approach_rate)."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-02, 6e elargissement du cliquet). Un argument degenere
+    # est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte vide ou un horizon
+    # nul rend 0.0 comme une MESURE, que l'aval lit comme « reste au plancher » / « n'emerge pas ».
+    # Posee AVANT toute construction de monde -> le refus est instantane (teste : < 0.5 s).
+    if int(n_trials) <= 0:
+        raise ValueError(
+            f"probe_memory_discrimination : argument degenere (n_trials={n_trials}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     p_mam = _approach_rate(genome, "Mammouth", mode, seed, n_trials)
     p_leu = _approach_rate(genome, "Leurre", mode, seed + 7, n_trials)
     return {"disc": p_mam - p_leu, "engage_mammouth": p_mam, "engage_leurre": p_leu}
@@ -279,6 +287,14 @@ def probe_navigation_incontext(genome, mode, seed, num_agents=24, ticks=120, zon
     sont passifs). apex_speed>0 : les DEUX types s'approchent à mobilité IDENTIQUE (pas de confond mouvement)
     -> teste la discrimination RÉACTIVE (fuir/engager quand l'apex vient), la « dernière marche » pour un
     verdict propre. `moved_frac` = CONTRÔLE POSITIF de la sonde (agents non figés)."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-02, 6e elargissement du cliquet). Un argument degenere
+    # est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte vide ou un horizon
+    # nul rend 0.0 comme une MESURE, que l'aval lit comme « reste au plancher » / « n'emerge pas ».
+    # Posee AVANT toute construction de monde -> le refus est instantane (teste : < 0.5 s).
+    if int(num_agents) <= 0 or int(ticks) <= 0:
+        raise ValueError(
+            f"probe_navigation_incontext : argument degenere (num_agents={num_agents}, ticks={ticks}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     np.random.seed(seed)
     env = MemoryDemandBiosphere(_cfg())
     env.hide_on_approach = (mode != "visible")
@@ -343,6 +359,14 @@ def probe_attack_logit(genome, mode, seed, num_agents=24, ticks=120, zone=2, ape
     de la direction vers lui. disc = logit_vers(Mammouth) − logit_vers(Leurre) : >0 = la politique INCLINE à
     approcher le Mammouth plus que le Leurre (discrimination par type dans la POLITIQUE, même sans mouvement).
     `logit_std` = contrôle positif (les logits varient ; sinon dégénéré). mode : visible|memory|ablate."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-02, 6e elargissement du cliquet). Un argument degenere
+    # est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte vide ou un horizon
+    # nul rend 0.0 comme une MESURE, que l'aval lit comme « reste au plancher » / « n'emerge pas ».
+    # Posee AVANT toute construction de monde -> le refus est instantane (teste : < 0.5 s).
+    if int(num_agents) <= 0 or int(ticks) <= 0:
+        raise ValueError(
+            f"probe_attack_logit : argument degenere (num_agents={num_agents}, ticks={ticks}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     from src.agents.mamba_agent import MambaBatchModel
     np.random.seed(seed)
     env = MemoryDemandBiosphere(_cfg())

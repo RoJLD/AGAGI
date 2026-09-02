@@ -140,6 +140,14 @@ def compare_debias(seeds=(0, 1, 2, 3), ticks=400, warmup=200, n_agents=32, respa
     Hypothese : biaise -> NEUTRE (repro EDR-172) ; non-biaise -> GRADIENT_GAGNE (1er binding in-world).
     Couche 1 (survie) a neutraliser via energy haute + spear_weight leger + base_metabolism bas, sinon
     la cohorte s'eteint avant que le gate apprenne (confond couche 1 et couche 2)."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-02, 6e elargissement du cliquet). Un argument degenere
+    # est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte vide ou un horizon
+    # nul rend 0.0 comme une MESURE, que l'aval lit comme « reste au plancher » / « n'emerge pas ».
+    # Posee AVANT toute construction de monde -> le refus est instantane (teste : < 0.5 s).
+    if not list(seeds) or int(ticks) <= 0 or int(n_agents) <= 0:
+        raise ValueError(
+            f"compare_debias : argument degenere (seeds={list(seeds)}, ticks={ticks}, n_agents={n_agents}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     biased, unbiased, info = [], [], []
     kw = dict(ticks=ticks, warmup=warmup, n_agents=n_agents, respawn_p=respawn_p, night=False,
               base_metabolism=base_metabolism, forage_payoff=forage_payoff,
@@ -170,6 +178,14 @@ def compare_density(seeds=(0, 1, 2, 3), ticks=400, warmup=200, n_agents=32, resp
     Hypothese (raffine NAV-005) : sparse -> NEUTRE (repro EDR-173, p_success~0.001 < plancher) ; dense ->
     GRADIENT_GAGNE (le shaping remonte le signal au-dessus du plancher NAV-004 -> 1er binding in-world).
     Couche 1 levee (energy/spear_weight/night) — heritee d'EDR-173."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-02, 6e elargissement du cliquet). Un argument degenere
+    # est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte vide ou un horizon
+    # nul rend 0.0 comme une MESURE, que l'aval lit comme « reste au plancher » / « n'emerge pas ».
+    # Posee AVANT toute construction de monde -> le refus est instantane (teste : < 0.5 s).
+    if not list(seeds) or int(ticks) <= 0 or int(n_agents) <= 0:
+        raise ValueError(
+            f"compare_density : argument degenere (seeds={list(seeds)}, ticks={ticks}, n_agents={n_agents}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     sparse, dense, info = [], [], []
     kw = dict(ticks=ticks, warmup=warmup, n_agents=n_agents, respawn_p=respawn_p, night=False,
               base_metabolism=base_metabolism, forage_payoff=forage_payoff,
@@ -259,6 +275,14 @@ def compare_warmstart(seeds=(0, 1, 2, 3), ticks=150, warmup=90, n_agents=30, res
     vs WARM (_throw_w = direction spear-aware). gap mesure en fenetre TARDIVE (apres le REINFORCE
     in-world) : si WARM RETIENT gap>0 la ou COLD reste ~0 => bootstrap-barrier confirmee in-world
     (la loi transversale tient) ; si WARM erode -> les dynamiques in-world detruisent le binding."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-02, 6e elargissement du cliquet). Un argument degenere
+    # est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte vide ou un horizon
+    # nul rend 0.0 comme une MESURE, que l'aval lit comme « reste au plancher » / « n'emerge pas ».
+    # Posee AVANT toute construction de monde -> le refus est instantane (teste : < 0.5 s).
+    if not list(seeds) or int(ticks) <= 0 or int(n_agents) <= 0:
+        raise ValueError(
+            f"compare_warmstart : argument degenere (seeds={list(seeds)}, ticks={ticks}, n_agents={n_agents}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     cold, warm, info = [], [], []
     kw = dict(ticks=ticks, warmup=warmup, n_agents=n_agents, respawn_p=respawn_p, night=False,
               base_metabolism=base_metabolism, forage_payoff=forage_payoff, energy=energy,
@@ -296,6 +320,14 @@ def compare_rp_sweep(seeds=(0, 1, 2, 3), prey_levels=(15, 60, 150), ticks=120, w
     signal, pas l'init). Hypothese (loi retention-167) : le gap bascule ~0/negatif -> POSITIF quand r.P
     franchit le plancher. `kills` = proxy observe de r.P (frequence de payoff). Verdict ON-vs-SHUFFLE
     par niveau ; le niveau ou le gap devient GRADIENT_GAGNE = franchissement du plancher."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-02, 6e elargissement du cliquet). Un argument degenere
+    # est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte vide ou un horizon
+    # nul rend 0.0 comme une MESURE, que l'aval lit comme « reste au plancher » / « n'emerge pas ».
+    # Posee AVANT toute construction de monde -> le refus est instantane (teste : < 0.5 s).
+    if not list(seeds) or not list(prey_levels) or int(ticks) <= 0 or int(n_agents) <= 0:
+        raise ValueError(
+            f"compare_rp_sweep : argument degenere (seeds={list(seeds)}, prey_levels={list(prey_levels)}, ticks={ticks}, n_agents={n_agents}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     import statistics as _st
     out = []
     kw = dict(ticks=ticks, warmup=warmup, n_agents=n_agents, respawn_p=respawn_p, night=False,

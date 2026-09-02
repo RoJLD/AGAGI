@@ -39,6 +39,37 @@ NOT_AN_INSTRUMENT = {
 }
 
 CALIBRATED = {
+    # P2.40 (2026-09-02) : 3e vague de gardes -- les 12 sondes rendues visibles par le 6e
+    # elargissement (verbes compare_/sweep_/probe_ en tete). Garde d'arguments EN TETE, testee
+    # QUE (leve) et OU (refus < 0.5 s, donc avant la construction du monde).
+    "compare_backends": ["empty-cohort:raises", "guard-before-world"],
+    "compare_arms": ["empty-cohort:raises", "guard-before-world"],
+    "sweep_lr_torch": ["empty-cohort:raises", "guard-before-world"],
+    "compare_debias": ["empty-cohort:raises", "guard-before-world"],
+    "compare_density": ["empty-cohort:raises", "guard-before-world"],
+    "compare_warmstart": ["empty-cohort:raises", "guard-before-world"],
+    "compare_rp_sweep": ["empty-cohort:raises", "guard-before-world"],
+    "probe_memory_discrimination": ["empty-cohort:raises", "guard-before-world"],
+    "probe_navigation_incontext": ["empty-cohort:raises", "guard-before-world"],
+    "probe_attack_logit": ["empty-cohort:raises", "guard-before-world"],
+    "probe_genome_free_channels": ["empty-cohort:raises", "guard-before-world"],
+    "probe_substrate_attractor": ["empty-cohort:raises", "guard-before-world"],
+    # P2.39 (2026-09-02) : BANC COMPOSITIONNEL -- les 9 producteurs des verdicts de SDR-G2,
+    # invisibles au cliquet jusqu'au 6e elargissement (verbes compare_/sweep_/probe_ en TETE).
+    # Calibres par INJECTION A DOSE CONNUE : aucun ne simule, on impose les cellules et on verifie
+    # le verdict -- branches NEGATIVES incluses (une dose-reponse qui ne peut pas rendre
+    # SIGNAL_INSUFFICIENT ne prouverait rien). Deblocage : la porte G2 declarait un KPI dont aucun
+    # producteur n'etait calibre.
+    "sweep_binding_penalty": ["forced", "suppression", "signal-insufficient"],
+    "compare_gate_modes": ["binds", "collapses", "intermittent"],
+    "sweep_gate_reliability": ["improved", "no-improvement"],
+    "sweep_gate_warmstart": ["rescue", "no-rescue"],
+    "sweep_gate_readout": ["helps", "neutral"],
+    "sweep_y_saturation": ["rescues", "neutral-vs-ineffective"],
+    "sweep_overtraining_stability": ["robust", "erosion"],
+    "probe_collapse_predictors": ["group-separation-closed-form"],
+    "compare_curriculum": ["warmup-guard", "discovery", "credit"],
+    "compare_curriculum_fade": ["fade-guard", "ceiling-retention", "ceiling-binding"],
     # P2.38 (2026-09-02) : DV mecaniste |logit| d'EVO-027, extraite et REPAREE (H_prev reel,
     # echec bruyant). Le bug d'origine (nan avale) est devenu le cas de calibration.
     "tools/evo_mech_dv.py::logit_median_at_outputs": ["noop-exact", "closed-form-prediction", "loud-failure"],
@@ -3909,3 +3940,284 @@ def test_the_ratchet_SEES_the_assert_guard_family():
     assert not non_calibrees, (
         f"garde(s) `assert_*` sans cas de calibration declare : {non_calibrees} -- ajouter les cas "
         f"(les DEUX issues) puis declarer dans CALIBRATED, ou justifier dans NOT_AN_INSTRUMENT")
+
+
+# ---------------------------------------------------------------------------------------------------
+# P2.39 (2026-09-02) : le BANC COMPOSITIONNEL -- 9 orchestrateurs qui PRONONCENT les verdicts de la
+# porte SDR-G2 (BINDING_FORCED, GATE_BINDS, ANTISAT_RESCUES...) et qui etaient INVISIBLES au cliquet.
+# 6e angle mort de nommage : aucun motif ne couvrait `compare_*`, `sweep_*`, `probe_*` en TETE de nom
+# (seul `run_*sweep*` etc. l'etait). Mesure AVANT elargissement : +22 fonctions, dont ces 9.
+# Consequence directe : la porte G2 declarait un KPI (`binding_gap`) dont AUCUN producteur n'etait
+# calibre -- c'est la raison pour laquelle SDR-G2 bloque tout nouveau run proxy.
+#
+# TECHNIQUE : injection a DOSE CONNUE (celle des 13 orchestrateurs de monde du 2026-09-01). Aucun de
+# ces 9 ne simule : ils appellent `run_curriculum_fade[_gated]` et AGREGENT. On leur impose des
+# cellules factices a valeurs choisies et on verifie que le verdict tombe JUSTE -- y compris ses
+# branches NEGATIVES, sans lesquelles le test ne prouverait rien (E1).
+# ---------------------------------------------------------------------------------------------------
+
+_CELL_DEFAUT = {"binding_gap_end": 0.05, "p_y_given_x_end": 0.50, "p_y_given_not_x_end": 0.45,
+                "y_rate_end": 0.50, "hit_end": 0.20, "compo_didx_end": 0.70,
+                "y_rate_start": 0.60, "binding_gap_start": 0.02, "did_x_auc_early": 0.60,
+                "delta": 0.0, "warmup_didx_end": 0.80,
+                # cle lue par le SEUL sweep_gate_readout (marge de suppression du gate) -- trouvee
+                # PAR l'injection : sans elle, KeyError. C'est ce que ce type de test sert a voir.
+                "gate_bias_margin_end": 0.0}
+
+
+def _cellule(**over):
+    """Cellule factice complete : toutes les cles que les orchestrateurs lisent, surchargeables."""
+    c = dict(_CELL_DEFAUT)
+    c.update(over)
+    return c
+
+
+def _injecte(monkeypatch, nom, fabrique):
+    """Remplace `nom` DANS le module du banc par `fabrique(backend, **kw) -> cellule`."""
+    import tools.substrate_ab_compositional as B
+    monkeypatch.setattr(B, nom, fabrique)
+    return B
+
+
+def test_sweep_binding_penalty_READS_the_dose_response_it_claims(monkeypatch):
+    """Reponse connue x3 : la dose-reponse est IMPOSEE, le verdict doit suivre.
+    BINDING_FORCED (le gap s'ouvre sans suppression) / SUPPRESSION (P(Y|X) s'effondre : l'echec
+    trivial que le gap seul masquerait) / SIGNAL_INSUFFICIENT (gap plat)."""
+    import tools.substrate_ab_compositional as B
+
+    def _forced(backend, seed=0, y_without_x_penalty=0.0, **kw):
+        return _cellule(binding_gap_end=(0.60 if y_without_x_penalty > 0 else 0.05),
+                        p_y_given_x_end=0.80)
+
+    def _suppression(backend, seed=0, y_without_x_penalty=0.0, **kw):
+        return _cellule(binding_gap_end=(0.60 if y_without_x_penalty > 0 else 0.05),
+                        p_y_given_x_end=(0.10 if y_without_x_penalty > 0 else 0.80))
+
+    def _plat(backend, seed=0, y_without_x_penalty=0.0, **kw):
+        return _cellule(binding_gap_end=0.05, p_y_given_x_end=0.80)
+
+    for fab, attendu in ((_forced, "BINDING_FORCED"), (_suppression, "SUPPRESSION"),
+                         (_plat, "SIGNAL_INSUFFICIENT")):
+        monkeypatch.setattr(B, "run_curriculum_fade", fab)
+        r = B.sweep_binding_penalty(seeds=(0, 1, 2), penalties=(0.0, 2.0), backends=("torch",))
+        assert r["verdict"] == attendu, (attendu, r["verdict"])
+
+
+def test_compare_gate_modes_READS_the_per_seed_bimodality(monkeypatch):
+    """Reponse connue x3. ⚠️ Ce que ce test protege : le gate appris est BIMODAL (binde OU collapse) --
+    l'instrument compte `n_bind` PAR SEED, pas la mediane. Une regression vers la mediane rendrait
+    GATE_COLLAPSES sur une distribution 2/5 qui binde reellement."""
+    import tools.substrate_ab_compositional as B
+
+    def _fab(learned_gaps):
+        etat = {"i": 0}
+
+        def _f(backend, seed=0, gate_mode="learned", **kw):
+            if gate_mode == "oracle":
+                return _cellule(binding_gap_end=0.90)
+            if gate_mode == "none":
+                return _cellule(binding_gap_end=0.05)
+            g = learned_gaps[etat["i"] % len(learned_gaps)]
+            etat["i"] += 1
+            return _cellule(binding_gap_end=g)
+        return _f
+
+    cas = (([0.9, 0.9, 0.9, 0.05, 0.05], "GATE_BINDS"),      # majorite binde
+           ([0.0, 0.0, 0.0, 0.0, 0.0], "GATE_COLLAPSES"),     # aucun
+           ([0.9, 0.05, 0.05, 0.05, 0.05], "GATE_INTERMITTENT"))
+    for gaps, attendu in cas:
+        monkeypatch.setattr(B, "run_curriculum_fade_gated", _fab(gaps))
+        r = B.compare_gate_modes(seeds=(0, 1, 2, 3, 4))
+        assert r["verdict"] == attendu, (attendu, r["verdict"], r["per_mode"]["learned"])
+
+
+def test_the_four_gate_sweeps_READ_their_own_improvement_threshold(monkeypatch):
+    """Les 4 balayages `sweep_gate_*` / `sweep_y_saturation` partagent la meme forme : n_bind d'une
+    baseline vs n_bind du meilleur bras, seuil +2. Reponse connue : baseline 5/10 et meilleur 8/10
+    doit tirer le verdict POSITIF de chacun ; baseline 5/10 et meilleur 5/10 le NEGATIF."""
+    import tools.substrate_ab_compositional as B
+
+    def _fab(n_bind_base, n_bind_traite, est_traite):
+        etat = {"i": 0}
+
+        def _f(backend, seed=0, **kw):
+            n = n_bind_traite if est_traite(kw) else n_bind_base
+            i = etat["i"] % 10
+            etat["i"] += 1
+            return _cellule(binding_gap_end=(0.90 if i < n else 0.05))
+        return _f
+
+    seeds = tuple(range(10))
+    # (fonction, est_traite, kwargs, verdict positif, verdict negatif)
+    cas = (
+        (B.sweep_gate_reliability, lambda kw: kw.get("entropy_coef", 0.0) > 0
+         or kw.get("elig_lambda", 0.0) > 0, {}, "RELIABILITY_IMPROVED", "NO_IMPROVEMENT"),
+        (B.sweep_gate_warmstart, lambda kw: kw.get("gate_warmstart_trials", 0) > 0, {},
+         "RESCUE", "NO_RESCUE"),
+        (B.sweep_gate_readout, lambda kw: kw.get("gate_hidden", 0) > 0, {},
+         "READOUT_HELPS", "READOUT_NEUTRAL"),
+    )
+    for fn, est_traite, kwargs, pos, neg in cas:
+        monkeypatch.setattr(B, "run_curriculum_fade_gated", _fab(5, 8, est_traite))
+        assert fn(seeds=seeds, **kwargs)["verdict"] == pos, (fn.__name__, pos)
+        monkeypatch.setattr(B, "run_curriculum_fade_gated", _fab(5, 5, est_traite))
+        assert fn(seeds=seeds, **kwargs)["verdict"] == neg, (fn.__name__, neg)
+
+
+def test_sweep_y_saturation_SEPARATES_neutral_from_ineffective(monkeypatch):
+    """⚠️ LE cas qui compte pour cet instrument : ses deux verdicts nuls ne disent PAS la meme chose.
+    ANTISAT_NEUTRAL = la penalite MORD (y_rate_start chute) et ne rescape pas -> refute l'hypothese
+    saturation. ANTISAT_INEFFECTIVE = la penalite ne mord meme pas -> manip ratee, RIEN n'est refute.
+    Les confondre publierait une refutation la ou il n'y a qu'une manipulation manquee (le motif
+    « donnees absentes -> affirmation NEGATIVE de fond » du depot)."""
+    import tools.substrate_ab_compositional as B
+
+    def _fab(n_bind_traite, y_start_traite):
+        etat = {"i": 0}
+
+        def _f(backend, seed=0, y_saturation_penalty=0.0, **kw):
+            traite = y_saturation_penalty > 0
+            n = n_bind_traite if traite else 5
+            i = etat["i"] % 10
+            etat["i"] += 1
+            return _cellule(binding_gap_end=(0.90 if i < n else 0.05),
+                            y_rate_start=(y_start_traite if traite else 0.60))
+        return _f
+
+    seeds = tuple(range(10))
+    monkeypatch.setattr(B, "run_curriculum_fade_gated", _fab(8, 0.30))
+    assert B.sweep_y_saturation(seeds=seeds, penalties=(0.0, 1.0))["verdict"] == "ANTISAT_RESCUES"
+    monkeypatch.setattr(B, "run_curriculum_fade_gated", _fab(5, 0.30))      # mord, ne rescape pas
+    r = B.sweep_y_saturation(seeds=seeds, penalties=(0.0, 1.0))
+    assert r["verdict"] == "ANTISAT_NEUTRAL" and r["manip_lowered_saturation"] is True
+    monkeypatch.setattr(B, "run_curriculum_fade_gated", _fab(5, 0.60))      # ne mord PAS
+    r = B.sweep_y_saturation(seeds=seeds, penalties=(0.0, 1.0))
+    assert r["verdict"] == "ANTISAT_INEFFECTIVE" and r["manip_lowered_saturation"] is False
+
+
+def test_sweep_overtraining_stability_READS_erosion_across_horizons(monkeypatch):
+    """Reponse connue : n_bind qui CHUTE de 8 a 5 entre le horizon court et le long -> BINDING_EROSION ;
+    n_bind stable -> RECIPE_ROBUST. (Le verdict porte sur la plus forte penalite = la recette 136.)"""
+    import tools.substrate_ab_compositional as B
+
+    def _fab(n_court, n_long):
+        etat = {"i": 0}
+
+        def _f(backend, seed=0, compo_trials=250, **kw):
+            n = n_long if compo_trials >= 1000 else n_court
+            i = etat["i"] % 10
+            etat["i"] += 1
+            return _cellule(binding_gap_end=(0.90 if i < n else 0.05))
+        return _f
+
+    seeds = tuple(range(10))
+    monkeypatch.setattr(B, "run_curriculum_fade_gated", _fab(8, 5))
+    assert B.sweep_overtraining_stability(seeds=seeds, penalties=(6.0,),
+                                          compo_trials_list=(250, 1000))["verdict"] == "BINDING_EROSION"
+    monkeypatch.setattr(B, "run_curriculum_fade_gated", _fab(8, 8))
+    assert B.sweep_overtraining_stability(seeds=seeds, penalties=(6.0,),
+                                          compo_trials_list=(250, 1000))["verdict"] == "RECIPE_ROBUST"
+
+
+def test_probe_collapse_predictors_SEPARATES_the_two_groups_it_compares(monkeypatch):
+    """DIAGNOSTIC (pas de verdict) : il compare la moyenne d'un predicteur chez les BINDEURS vs les
+    COLLAPSES. Reponse connue en forme close : auc 0.90 chez les bindeurs, 0.50 chez les collapses
+    -> separation EXACTEMENT 0.40. Un appariement casse (groupes intervertis) le montrerait."""
+    import tools.substrate_ab_compositional as B
+    etat = {"i": 0}
+
+    def _f(backend, seed=0, **kw):
+        bindeur = etat["i"] < 5
+        etat["i"] += 1
+        return _cellule(binding_gap_end=(0.90 if bindeur else 0.05),
+                        did_x_auc_early=(0.90 if bindeur else 0.50))
+
+    monkeypatch.setattr(B, "run_curriculum_fade_gated", _f)
+    r = B.probe_collapse_predictors(seeds=tuple(range(10)))
+    pred = r["predictors"]["did_x_auc_early"]
+    assert r["n_bind"] == 5 and pred["bind_mean"] == 0.90 and pred["collapse_mean"] == 0.50
+    assert abs(pred["separation"] - 0.40) < 1e-9
+
+
+def test_the_two_curriculum_comparators_READ_their_guard_before_their_claim(monkeypatch):
+    """`compare_curriculum` et `compare_curriculum_fade` portent chacun un GARDE-FOU en tete de leur
+    regle de lecture : si le warmup n'a pas pris (didx <= 0.30) / si le fade n'a pas maintenu X
+    (compo_didx <= 0.40), AUCUNE conclusion de plafond n'est permise. Reponse connue : le garde-fou
+    doit primer meme quand les chiffres AVAL sont ceux d'un beau positif."""
+    import tools.substrate_ab_compositional as B
+
+    monkeypatch.setattr(B, "run_curriculum",
+                        lambda backend, seed=0, **kw: _cellule(warmup_didx_end=0.10, hit_end=0.90))
+    assert B.compare_curriculum(seeds=(0, 1, 2))["verdict_curriculum"] == "WARMUP_FAILED"
+    monkeypatch.setattr(B, "run_curriculum",
+                        lambda backend, seed=0, **kw: _cellule(warmup_didx_end=0.80, hit_end=0.90))
+    assert B.compare_curriculum(seeds=(0, 1, 2))["verdict_curriculum"] == "DISCOVERY"
+    monkeypatch.setattr(B, "run_curriculum",
+                        lambda backend, seed=0, **kw: _cellule(warmup_didx_end=0.80, hit_end=0.10))
+    assert B.compare_curriculum(seeds=(0, 1, 2))["verdict_curriculum"] == "CREDIT"
+
+    monkeypatch.setattr(B, "run_curriculum_fade",
+                        lambda backend, seed=0, **kw: _cellule(compo_didx_end=0.20, hit_end=0.90,
+                                                               p_y_given_x_end=0.90))
+    assert B.compare_curriculum_fade(seeds=(0, 1, 2))["verdict_fade"] == "FADE_INEFFECTIVE"
+    monkeypatch.setattr(B, "run_curriculum_fade",
+                        lambda backend, seed=0, **kw: _cellule(compo_didx_end=0.80, hit_end=0.50,
+                                                               p_y_given_x_end=0.90))
+    assert B.compare_curriculum_fade(seeds=(0, 1, 2))["verdict_fade"] == "CEILING_WAS_RETENTION"
+    monkeypatch.setattr(B, "run_curriculum_fade",
+                        lambda backend, seed=0, **kw: _cellule(compo_didx_end=0.80, hit_end=0.10,
+                                                               p_y_given_x_end=0.50))
+    assert B.compare_curriculum_fade(seeds=(0, 1, 2))["verdict_fade"] == "CEILING_WAS_BINDING"
+
+
+# ======================================================================================================
+# P2.40 (2026-09-02) : TROISIEME VAGUE DE GARDES -- les 12 sondes rendues visibles par le 6e
+# elargissement du detecteur (verbes `compare_`/`sweep_`/`probe_` en TETE de nom). Meme principe et
+# meme justification que P2.34/P2.37 : un argument degenere est une erreur d'APPEL, pas un fait sur le
+# monde. La garde est posee AVANT la construction du monde -> calibration a cout ZERO, et on teste non
+# seulement QU'elle leve mais OU elle est posee (refus < 0.5 s).
+# ======================================================================================================
+
+_MESURES_GARDEES_3 = [
+    ("tools.substrate_world_ab", "compare_backends", dict(k_eval=0)),
+    ("tools.substrate_world_ab", "compare_arms", dict(num_agents=0)),
+    ("tools.substrate_world_ab", "sweep_lr_torch", dict(world_key="stoneage", seed=0, genome=None, lrs=())),
+    ("tools.torch_throw_gate_inworld_ab", "compare_debias", dict(seeds=())),
+    ("tools.torch_throw_gate_inworld_ab", "compare_density", dict(ticks=0)),
+    ("tools.torch_throw_gate_inworld_ab", "compare_warmstart", dict(n_agents=0)),
+    ("tools.torch_throw_gate_inworld_ab", "compare_rp_sweep", dict(prey_levels=())),
+    ("tools.evo_memory_inworld", "probe_memory_discrimination",
+     dict(genome=None, mode="visible", seed=0, n_trials=0)),
+    ("tools.evo_memory_inworld", "probe_navigation_incontext",
+     dict(genome=None, mode="visible", seed=0, num_agents=0)),
+    ("tools.evo_memory_inworld", "probe_attack_logit",
+     dict(genome=None, mode="visible", seed=0, ticks=0)),
+    ("tools.warmstart_evolution_inworld", "probe_genome_free_channels", dict(genome=None, max_ticks=0)),
+    ("tools.substrate_attractor_probe", "probe_substrate_attractor", dict(n=0)),
+]
+
+
+@pytest.mark.parametrize("mod,nom,kw", _MESURES_GARDEES_3)
+def test_third_wave_measures_REFUSE_degenerate_arguments(mod, nom, kw):
+    """⚠️ Ces 12 etaient INVISIBLES au cliquet jusqu'au 2026-09-02 : aucun motif ne couvrait leurs
+    verbes en tete de nom. Elles produisent pourtant des verdicts de monde (GRADIENT_GAGNE,
+    discrimination, logit d'attaque). Sans garde, `seeds=()` / `ticks=0` rendait une agregation VIDE
+    lue en aval comme une mesure -- la forme (a) du biais negatif systematique du depot."""
+    import importlib
+    f = getattr(importlib.import_module(mod), nom)
+    with pytest.raises(ValueError, match="degenere"):
+        f(**kw)
+
+
+@pytest.mark.parametrize("mod,nom,kw", _MESURES_GARDEES_3)
+def test_third_wave_guards_are_placed_BEFORE_the_world(mod, nom, kw):
+    """⚠️ PLACEMENT : plusieurs de ces sondes construisent un monde reel (voire prennent le bail kuzu).
+    Un refus instantane prouve que la garde precede la construction -- une garde posee plus bas
+    couterait une ressource exclusive pour rien."""
+    import importlib
+    import time
+    f = getattr(importlib.import_module(mod), nom)
+    t0 = time.time()
+    with pytest.raises(ValueError):
+        f(**kw)
+    assert time.time() - t0 < 0.5, f"{nom} refuse trop lentement : la garde est posee trop bas"

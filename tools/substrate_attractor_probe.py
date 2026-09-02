@@ -96,6 +96,14 @@ def probe_substrate_attractor(n: int = 12, T: int = 50, seed: int = 0,
                               obs_mode: str = "zero") -> Dict:
     """Orchestration (n'affirme rien que `measure_convergence` ne tranche). Trois bras off/action/H sous
     entrée constante, MÊMES génomes (seed global identique). Renvoie les métriques P1/P2/P3 du record."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-02, 6e elargissement du cliquet). Un argument degenere
+    # est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte vide ou un horizon
+    # nul rend 0.0 comme une MESURE, que l'aval lit comme « reste au plancher » / « n'emerge pas ».
+    # Posee AVANT toute construction de monde -> le refus est instantane (teste : < 0.5 s).
+    if int(n) <= 0 or int(T) <= 0:
+        raise ValueError(
+            f"probe_substrate_attractor : argument degenere (n={n}, T={T}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     H_off, A_off = _drive("off", n, T, seed, sigma_H, sigma_a, obs_mode)
     H_act, A_act = _drive("action", n, T, seed, sigma_H, sigma_a, obs_mode)
     H_H, A_H = _drive("H", n, T, seed, sigma_H, sigma_a, obs_mode)

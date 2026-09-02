@@ -158,6 +158,14 @@ def sweep_lr_torch(world_key: str, seed: int, genome, k_eval: int = 10, num_agen
     Si oui -> migration triviale (régler l'optimiseur). lr=0.0 = pas d'apprentissage, récurrence gardée
     (isole la contribution du gradient vs de la seule récurrence). Sous-classe par lr (pas de mutation
     globale). Repères : legacy-core et legacy-full mesurés sur le MÊME génome."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-02, 6e elargissement du cliquet). Un argument degenere
+    # est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte vide ou un horizon
+    # nul rend 0.0 comme une MESURE, que l'aval lit comme « reste au plancher » / « n'emerge pas ».
+    # Posee AVANT toute construction de monde -> le refus est instantane (teste : < 0.5 s).
+    if not list(lrs) or int(k_eval) <= 0 or int(num_agents) <= 0 or int(max_ticks) <= 0:
+        raise ValueError(
+            f"sweep_lr_torch : argument degenere (lrs={list(lrs)}, k_eval={k_eval}, num_agents={num_agents}, max_ticks={max_ticks}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     from src.agents.torch_batch_model import TorchBatchModel
     from src.agents.mamba_agent import MambaBatchModel, MambaCoreBatchModel
 
@@ -176,6 +184,14 @@ def compare_backends(world_key: str = "stoneage", seed: int = 42, k_eval: int = 
                      num_agents: int = 12, max_ticks: int = 300, genome=None, band: float = 2.0) -> dict:
     """A/B apparié legacy (MambaBatchModel) vs torch (TorchBatchModel) dans un monde -> verdict
     de learnabilité in-world (GRADIENT_GAGNE si torch survit mieux)."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-02, 6e elargissement du cliquet). Un argument degenere
+    # est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte vide ou un horizon
+    # nul rend 0.0 comme une MESURE, que l'aval lit comme « reste au plancher » / « n'emerge pas ».
+    # Posee AVANT toute construction de monde -> le refus est instantane (teste : < 0.5 s).
+    if int(k_eval) <= 0 or int(num_agents) <= 0 or int(max_ticks) <= 0:
+        raise ValueError(
+            f"compare_backends : argument degenere (k_eval={k_eval}, num_agents={num_agents}, max_ticks={max_ticks}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     from src.agents.mamba_agent import MambaBatchModel
     from src.agents.torch_batch_model import TorchBatchModel
 
@@ -213,6 +229,14 @@ def compare_arms(world_key: str = "stoneage", seed: int = 42, k_eval: int = 12,
       * legacy-core vs torch-core  = RÈGLE D'APPRENTISSAGE À PARITÉ D'ORGANES (la question PROPRE
         qu'EDR-134 ne pouvait pas trancher).
     """
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-02, 6e elargissement du cliquet). Un argument degenere
+    # est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte vide ou un horizon
+    # nul rend 0.0 comme une MESURE, que l'aval lit comme « reste au plancher » / « n'emerge pas ».
+    # Posee AVANT toute construction de monde -> le refus est instantane (teste : < 0.5 s).
+    if int(k_eval) <= 0 or int(num_agents) <= 0 or int(max_ticks) <= 0:
+        raise ValueError(
+            f"compare_arms : argument degenere (k_eval={k_eval}, num_agents={num_agents}, max_ticks={max_ticks}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     from src.agents.mamba_agent import MambaBatchModel, MambaCoreBatchModel
     from src.agents.torch_batch_model import TorchBatchModel
 

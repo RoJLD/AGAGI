@@ -46,14 +46,18 @@ hit 0.477).
   `assert_verdict_invariant_to_optimizer` (CALIBRÉ) — née de la rétractation EDR-RETAIN-COMPOSE
   (le « mur de rétention » était un artefact de lr : 0.173→0.923).
 
-**⚠️ Dette d'instrument (BLOQUANTE pour tout nouveau run proxy)** : le banc qui produit
-`binding_gap` (`tools/substrate_ab_compositional.py` : `compare_curriculum`,
-`run_curriculum_fade_gated`, `sweep_y_saturation`) et la sonde monde (`compositional_world_probe.py`)
-ne sont NI au registre CALIBRATED NI même DÉTECTÉS par le cliquet de calibration (verdicts type
-`BINDING_FORCED` invisibles — angle mort consigné au backlog le 2026-09-02). Leurs contrôles vivent
-dans les records (oracle/none 129, permutation 120, décomposition 136) mais pas dans la suite.
-**Tout NOUVEAU run proxy est bloqué tant que le banc n'entre pas au registre** — il n'existe pas
-d'instrument calibré de substitution pour ce KPI.
+**✅ Dette d'instrument LEVÉE le 2026-09-02, le jour même de son constat** — les 10 orchestrateurs
+du banc (`compare_curriculum`, `compare_curriculum_fade`, `compare_gate_modes`, les 5 `sweep_gate_*`
+/ `sweep_y_saturation` / `sweep_overtraining_stability` / `sweep_binding_penalty`,
+`probe_collapse_predictors`) étaient invisibles au cliquet (6ᵉ angle mort : les verbes
+`compare_`/`sweep_`/`probe_` en TÊTE de nom n'étaient couverts que précédés de `run_`). Détecteur
+élargi (+22 fonctions, coût compté avant application) et banc CALIBRÉ par **injection à dose
+connue** : chaque verdict de cette porte est confronté à une réponse connue, branches NÉGATIVES
+incluses (`BINDING_FORCED`/`SUPPRESSION`/`SIGNAL_INSUFFICIENT` · `GATE_BINDS`/`GATE_COLLAPSES`/
+`GATE_INTERMITTENT` · `ANTISAT_RESCUES`/`NEUTRAL`/`INEFFECTIVE` — ces deux derniers ne disent PAS la
+même chose et le test les sépare · `RECIPE_ROBUST`/`BINDING_EROSION` · gardes `WARMUP_FAILED` et
+`FADE_INEFFECTIVE` qui priment sur les chiffres aval). Le cliquet reste STRICT (139 détectés / 138
+calibrés / 0 dette). **Les runs proxy de niveau 1 sont DÉBLOQUÉS.**
 
 ## Niveau 2 — G2-fort (ÉMERGENCE in-loop, non supervisée) : **NON FRANCHI — c'est le mur EDR-LOCK-001**
 
@@ -63,7 +67,7 @@ ratio 8.45 dans la cellule corps-insuffisant + chaîne ≥ 2 + devise-énergie ;
 
 KPI : `comp_rate` (taux de séquences means→ends complétées) du bras SANS capacité fournie (sans
 gate, sans curriculum ciblé, sans oracle), sous sweep de demande `d` — instrument d'EDR-161
-(`compositional_world_probe.py` — même dette de calibration que ci-dessus, même blocage).
+(`compositional_world_probe.py`). ⚠️ **Le niveau 2 reste BLOQUÉ, lui** : son producteur `run_world` appartient à la famille `run_\w+` générique, NON couverte par le détecteur — l'élargir ajouterait +56 fonctions non calibrées (chiffré au backlog). Avant tout run de niveau 2 : calibrer `run_world` (injection à dose connue sur son agrégation `adv`).
 
 **Critère exécutable** :
 - POSITIF : `comp_rate` du bras nu à d ≥ 1 SÉPARÉ du bras nu à d = 0, apparié par seed, jugé par

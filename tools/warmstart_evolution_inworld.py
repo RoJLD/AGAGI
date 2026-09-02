@@ -927,6 +927,14 @@ def probe_genome_free_channels(genome, seed=2026, num_agents=12, max_ticks=200,
     """Sonde les canaux libres d'un génome DÉJÀ entraîné (ex. le génome DAgger persisté de WARM-003)
     avec EXACTEMENT la même sonde que `run_grab_drift_diagnostic` -> point final comparable au bras de
     contrôle (apples-to-apples). Sans cela, comparer à une mesure ad-hoc antérieure serait un confound."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-02, 6e elargissement du cliquet). Un argument degenere
+    # est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte vide ou un horizon
+    # nul rend 0.0 comme une MESURE, que l'aval lit comme « reste au plancher » / « n'emerge pas ».
+    # Posee AVANT toute construction de monde -> le refus est instantane (teste : < 0.5 s).
+    if int(num_agents) <= 0 or int(max_ticks) <= 0:
+        raise ValueError(
+            f"probe_genome_free_channels : argument degenere (num_agents={num_agents}, max_ticks={max_ticks}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     try:
         import torch  # noqa: F401
     except Exception:
