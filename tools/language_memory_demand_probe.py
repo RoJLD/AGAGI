@@ -247,7 +247,13 @@ def _train_and_eval(seed, episodes, n_agents, K, D, lr, memory_mode, control_mod
         agent = make_population([MambaAgent() for _ in range(n_agents)], backend="torch")
         I = agent.I
         rng = np.random.RandomState(seed + 1)
-        learned = memory_mode == "learned"
+        # memory_mode="present" (2026-09-02, bras SPECIFICITY_CONTROL de l'arete language->memory) :
+        # la cle est RE-MONTREE au tick d'usage (slots [0:K] + query [K:2K] simultanes) -> l'information
+        # est redondante, la memoire H inutile -> l'ablation H-reset ne doit PAS effondrer ce bras
+        # (attendu X_DECOY). C'est l'analogue exact du leurre PRESENT de MEM-PERCEPTION : meme ablation,
+        # issue negative REELLEMENT atteignable — le bras qui porte le contenu empirique (porte durcie).
+        learned = memory_mode in ("learned", "present")
+        present = memory_mode == "present"
         if learned:
             # P2.14 : l'optimiseur couvre le substrat COMPLET. `[agent.W]` seul laissait U/V/W_bl
             # geles a leur init meme avec BILINEAR actif -> le terme qui debloque la composition
@@ -260,7 +266,10 @@ def _train_and_eval(seed, episodes, n_agents, K, D, lr, memory_mode, control_mod
                 q = rng.randint(0, K, size=n_agents)
                 _reset_H(agent)
                 enc = _slot(key, K, 0, I, n_agents)
-                seq = [enc] + [_zeros(I, n_agents) for _ in range(D)] + [_slot(q, K, K, I, n_agents)]
+                use = _slot(q, K, K, I, n_agents)
+                if present:
+                    use = use + _slot(key, K, 0, I, n_agents)   # cle re-montree : memoire inutile
+                seq = [enc] + [_zeros(I, n_agents) for _ in range(D)] + [use]
                 logits = None
                 for x in seq:
                     logits, _ = agent.forward(x)                # forward() porte agent.H en interne
@@ -308,6 +317,10 @@ def _train_and_eval(seed, episodes, n_agents, K, D, lr, memory_mode, control_mod
                     g = ((q + key) % K) if not ablate else rng.randint(0, K, size=n_agents)  # key parfait vs perdu
                 elif memory_mode == "random":
                     g = rng.randint(0, K, size=n_agents)
+                elif memory_mode == "present":
+                    use = _slot(q, K, K, I, n_agents) + _slot(key, K, 0, I, n_agents)
+                    logits, _ = agent.forward(use)
+                    g = np.asarray(logits)[:, :K].argmax(axis=1)
                 else:
                     g = _lang_move(agent, q, K, I, n_agents)
                 hits.append((g == ((q + key) % K)).astype(np.float32))
@@ -325,6 +338,7 @@ def _train_and_eval(seed, episodes, n_agents, K, D, lr, memory_mode, control_mod
                     g = c if not ablate else rng.randint(0, K, size=n_agents)
                 elif memory_mode in ("oracle", "random"):
                     g = c                                        # contrôle feedforward parfait (bypass)
+                # memory_mode="present" tombe sur _control_move : CONTROL est entraine normalement
                 else:
                     g = _control_move(agent, c, K, I, n_agents)
                 hits.append((g == c).astype(np.float32))

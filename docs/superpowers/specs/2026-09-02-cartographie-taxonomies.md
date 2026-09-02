@@ -55,4 +55,4 @@ jamais faite (S2-009 risque 4).
 - **C3 (BACKLOG)** : sceller SDR-G2, re-tagger ~5 records compositionnels, warning gate↔tests.
 - **C4 (BACKLOG)** : resynchronisation couche de lecture + trancher le cliquet des synthèses (M5).
 - **C2 (BACKLOG)** : réparer harnais EVO-011 + pré-vol décisif (lecteur câblé main).
-- **En travers (avec C1)** : record court unifiant « les trois noms du même verrou ».
+- **En travers (avec C1)** : record court unifiant « les trois noms du même verrou ». **FAIT** : [[EDR-LOCK-001]] (avec la 4ᵉ manifestation du jour : D=2 à la chance au point-référence même, bilinéaire + lr=0.002, exploratoire n=3).
