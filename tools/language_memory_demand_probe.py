@@ -210,7 +210,7 @@ def alias_guard_verdict(control_intact, control_ablated, x_response, floor, ceil
 
 
 def _train_and_eval(seed, episodes, n_agents, K, D, lr, memory_mode, control_mode, eval_batches=40,
-                     train_control=True, weight_decay=0.0):
+                     train_control=True, weight_decay=0.0, bilinear=True):
     """Entraîne l'agent (learned) sur LANG+CONTROL interleavés (même tête d'action, même W), puis
     évalue LANG et CONTROL intact vs H-reset. Renvoie (lang_i, lang_a, ctrl_i, ctrl_a) = accuracies.
 
@@ -232,16 +232,28 @@ def _train_and_eval(seed, episodes, n_agents, K, D, lr, memory_mode, control_mod
 
     np.random.seed(seed)
     torch.manual_seed(seed)
-    saved = (TorchPopulationModel.CONDITION_GATE, TorchPopulationModel.GATE_TARGET)
+    # ⚠️ P2.14 (2026-09-02) : BILINEAR rejoint le try/finally. La sonde d'origine ne sauvait que
+    # (CONDITION_GATE, GATE_TARGET) -> BILINEAR n'etait JAMAIS active et la sonde mesurait le substrat
+    # PLAIN, prouvablement incapable de (q+key)%K (plafond structurel 0.3889, P2.15). Son negatif etait
+    # correct POUR SON SUBSTRAT — caduc depuis EDR-BILINEAR + EDR-RETAIN-COMPOSE-LR (0.923, 12/12).
+    # Le flag doit etre pose AVANT make_population : les params U/V/W_bl ne sont crees qu'a la
+    # construction (backend_torch.py:111).
+    saved = (TorchPopulationModel.CONDITION_GATE, TorchPopulationModel.GATE_TARGET,
+             TorchPopulationModel.BILINEAR)
     TorchPopulationModel.CONDITION_GATE = False
     TorchPopulationModel.GATE_TARGET = None
+    TorchPopulationModel.BILINEAR = bool(bilinear)
     try:
         agent = make_population([MambaAgent() for _ in range(n_agents)], backend="torch")
         I = agent.I
         rng = np.random.RandomState(seed + 1)
         learned = memory_mode == "learned"
         if learned:
-            agent.opt = torch.optim.Adam([agent.W], lr=lr, weight_decay=weight_decay)
+            # P2.14 : l'optimiseur couvre le substrat COMPLET. `[agent.W]` seul laissait U/V/W_bl
+            # geles a leur init meme avec BILINEAR actif -> le terme qui debloque la composition
+            # n'aurait jamais appris.
+            params = [agent.W] + [p for p in (agent.U, agent.V, agent.W_bl) if p is not None]
+            agent.opt = torch.optim.Adam(params, lr=lr, weight_decay=weight_decay)
             for _ in range(episodes):
                 # --- trial LANG : encode(key) + délai + usage(query) -> (q+key)%K ---
                 key = rng.randint(0, K, size=n_agents)
@@ -320,12 +332,13 @@ def _train_and_eval(seed, episodes, n_agents, K, D, lr, memory_mode, control_mod
 
         return _eval_lang(False), _eval_lang(True), _eval_control(False), _eval_control(True)
     finally:
-        (TorchPopulationModel.CONDITION_GATE, TorchPopulationModel.GATE_TARGET) = saved
+        (TorchPopulationModel.CONDITION_GATE, TorchPopulationModel.GATE_TARGET,
+         TorchPopulationModel.BILINEAR) = saved
 
 
 def run_language_memory_demand_probe(seeds, episodes=1200, n_agents=16, K=6, D=2, lr=0.02,
                                      memory_mode="learned", control_mode="feedforward",
-                                     train_control=True, weight_decay=0.0):
+                                     train_control=True, weight_decay=0.0, bilinear=True):
     """Mesure « language demands memory ». Par seed : LANG et CONTROL, chacun éval intact/ablé (H-reset).
     LANG -> ablation_verdict (X_DEMANDED) ; CONTROL -> `alias_guard_verdict` (leakage≈0 sur un bras
     VIVANT -> pass ; bras collé à une borne -> DEGENERATE_CONTROL, pas un 'pass' silencieux),
@@ -340,7 +353,7 @@ def run_language_memory_demand_probe(seeds, episodes=1200, n_agents=16, K=6, D=2
     li, la, ci, ca = [], [], [], []
     for s in seeds:
         l_i, l_a, c_i, c_a = _train_and_eval(s, episodes, n_agents, K, D, lr, memory_mode, control_mode,
-                                             train_control=train_control, weight_decay=weight_decay)
+                                             train_control=train_control, weight_decay=weight_decay, bilinear=bilinear)
         li.append(l_i); la.append(l_a); ci.append(c_i); ca.append(c_a)
 
     floor = 1.0 / K

@@ -382,7 +382,8 @@ _MEASURED = "measured"
 _INFERRED = "inferred"
 
 
-def declare_design(question, replication_unit, n_independent, links, cost_estimate=None):
+def declare_design(question, replication_unit, n_independent, links, cost_estimate=None,
+                   allow_inferred_reason=None):
     """Force la DÉCLARATION ÉCRITE de ce qu'aucun code ne peut décider : l'unité de réplication, et
     quels maillons sont MESURÉS vs INFÉRÉS. Renvoie un dict à joindre au record.
 
@@ -404,9 +405,23 @@ def declare_design(question, replication_unit, n_independent, links, cost_estima
     if int(n_independent) < 1:
         raise PreflightError("n_independent doit être >= 1")
     inferred = [k for k, v in links.items() if v == _INFERRED]
+    # ⚠️ PROMOTION E8 (2026-09-02, brainstorm taxonomies M6) : 2 occurrences en `documente`
+    # (WARM-008 : maillon final infere, mesure NUL en 28 min ; WARM-002 : seuil importe d'une autre
+    # population, mesure FAUX) -- la 3e est interdite par le rituel du registre. L'avertissement seul
+    # n'a pas empeche la 2e occurrence : un maillon INFERE leve desormais, sauf RAISON ECRITE
+    # (regle « ne pas proxifier : faire DECLARER l'auteur »). La raison est renvoyee dans le design
+    # -> elle atterrit dans le record, ou le lecteur peut la juger.
+    if inferred and not (isinstance(allow_inferred_reason, str) and allow_inferred_reason.strip()):
+        raise PreflightError(
+            f"{len(inferred)} maillon(s) INFERE(S) sans raison declaree : {inferred}. Classe E8 "
+            "(2 occurrences gravees : WARM-008 maillon nul, WARM-002 seuil faux) -- une chaine "
+            "causale transporte son SIGNE, pas son amplitude : reduire le n, jamais supprimer le "
+            "maillon. Pour maintenir l'inference, passer allow_inferred_reason='<pourquoi la mesure "
+            "est impossible ici et ce qui borne le risque>' ; la raison sera publiee dans le design.")
     return {"question": question, "replication_unit": replication_unit,
             "n_independent": int(n_independent), "links": dict(links),
             "inferred_links": inferred, "cost_estimate": cost_estimate,
+            "inferred_reason": (allow_inferred_reason if inferred else None),
             "warning": (f"{len(inferred)} maillon(s) INFÉRÉ(S) : {inferred}. Une chaîne causale "
                         "transporte son signe, pas son amplitude — vérifier que le régime place "
                         "l'effet au-dessus du bruit, ou mesurer à n réduit.") if inferred else None}

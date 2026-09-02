@@ -189,16 +189,16 @@ def test_optimizer_sweep_rejects_a_single_step_and_ignores_a_nonexistent_null():
 
 
 def test_declare_design_surfaces_inferred_links():
-    """WARM-008 : le maillon final était INFÉRÉ pour économiser 7 h ; mesuré NUL par la revue."""
-    d = declare_design(question="aux_off améliore-t-il la survie ?",
-                       replication_unit="seed", n_independent=4,
-                       links={"canal annulé": "measured", "gain de survie": "inferred"})
-    assert d["inferred_links"] == ["gain de survie"]
-    assert "signe" in d["warning"] and "amplitude" in d["warning"]
-    propre = declare_design(question="q", replication_unit="ère", n_independent=12,
-                            links={"tout": "measured"})
-    assert propre["warning"] is None
-
+    """MIS A JOUR (promotion E8, 2026-09-02) : l'ancien contrat (inferred -> simple warning) est
+    remplace -- sans raison ecrite, ca LEVE (cf. test_inferred_link_without_reason_is_REFUSED).
+    Ce test verifie que le chemin LEGITIME (raison declaree) surface toujours le warning : la
+    promotion durcit l'entree, elle ne fait pas taire la sortie."""
+    from tools.experiment_preflight import declare_design
+    d = declare_design(question="q", replication_unit="seed", n_independent=2,
+                       links={"a->b": "measured", "b->c": "inferred"},
+                       allow_inferred_reason="raison de test : mesure hors banc, signe etabli")
+    assert d["inferred_links"] == ["b->c"]
+    assert d["warning"] and "signe" in d["warning"]
 
 def test_declare_design_rejects_malformed_input():
     with pytest.raises(PreflightError, match="invalides"):
@@ -458,3 +458,40 @@ def test_bar_reachability_refuses_a_malformed_resolution():
     with pytest.raises(PreflightError, match="proportion"):
         assert_bar_is_reachable(12.0, 7.0, n_eval=_DC_N_EVAL, label="barre en ticks de survie")
     assert assert_bar_is_reachable(12.0, 7.0, margin=1.0, label="barre en ticks de survie") is True
+
+
+# --------------------------------------------------------------------------------------------------
+# PROMOTION E8 (2026-09-02) : l'inference substituee a la mesure passe de `documente` a `executable`.
+# --------------------------------------------------------------------------------------------------
+
+def test_inferred_link_without_reason_is_REFUSED():
+    """⚠️ CONTRE-EXEMPLE GELE — la configuration EXACTE de WARM-008 : le maillon final (gain de
+    survie) INFERE pour economiser ~7 h, mesure NUL par la revue en 28 min. L'avertissement seul
+    n'a pas empeche la 2e occurrence (WARM-002) ; la 3e est interdite par le rituel du registre."""
+    import pytest
+    from tools.experiment_preflight import declare_design, PreflightError
+    with pytest.raises(PreflightError, match="INFERE"):
+        declare_design(question="le warm-start augmente-t-il la survie ?",
+                       replication_unit="seed", n_independent=4,
+                       links={"warm->retention": "measured", "retention->gain_de_survie": "inferred"})
+
+
+def test_inferred_link_with_written_reason_passes_and_publishes_it():
+    """La sortie declaree : une RAISON ecrite (regle « faire DECLARER l'auteur ») maintient
+    l'inference, ET la raison est publiee dans le design -> elle atterrit dans le record."""
+    from tools.experiment_preflight import declare_design
+    d = declare_design(question="q", replication_unit="seed", n_independent=4,
+                       links={"a->b": "inferred"},
+                       allow_inferred_reason="mesure impossible ici : le banc n'expose pas b ; "
+                                             "risque borne par le signe etabli en amont")
+    assert d["inferred_links"] == ["a->b"]
+    assert "banc n'expose pas" in d["inferred_reason"]
+    assert d["warning"] and "signe" in d["warning"]
+
+
+def test_all_measured_design_is_untouched_by_the_promotion():
+    """Controle positif : un design tout-mesure (les 2 appelants reels du depot) passe inchange."""
+    from tools.experiment_preflight import declare_design
+    d = declare_design(question="q", replication_unit="seed", n_independent=12,
+                       links={"a->b": "measured", "b->c": "measured"})
+    assert d["warning"] is None and d["inferred_reason"] is None

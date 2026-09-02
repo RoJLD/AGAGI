@@ -161,3 +161,46 @@ def test_other_rules_still_fire_independently():
     assert any("record" in x for x in validate_edge(_edge(record="docs/EDR/NOPE.md", **ok), _IDS))
     assert any("functional_aliasing" in x for x in validate_edge(_edge(functional_aliasing="fail",
                                                                       specificity_control="pass"), _IDS))
+
+
+# --------------------------------------------------------------------------------------------------
+# M4 (brainstorm taxonomies, 2026-09-02) : la porte lit desormais le bras INTACT.
+# La paire synthetique historique (memory->perception) est LEGATAIRE (_LEGATAIRES_SANS_COORD) --
+# les cas ci-dessous utilisent une paire NON legataire pour exercer la regle.
+# --------------------------------------------------------------------------------------------------
+
+def _edge_nouvelle(**evidence_over):
+    """Arete NON legataire (language->memory : la 3e arete attendue), conforme partout ailleurs."""
+    ev = {"ablation_verdict": "X_DEMANDED", "ratio": 2.4, "n": 12, "record": _REAL_RECORD,
+          "specificity_control": "pass", "functional_aliasing": "pass",
+          "ablation_target": "substrate", "coord_intact": 0.92, "emergence_bar": 0.55}
+    ev.update(evidence_over)
+    return {"capability": "language", "prerequisite": "memory", "strength": "hard", "evidence": ev}
+
+
+def test_gate_REFUSES_new_edge_without_coord_intact():
+    """⚠️ CONTRE-EXEMPLE GELE — le trou M4 : un bras intact AU PLANCHER passait la porte, car
+    X_DEMANDED est arithmetiquement force des que l'able est plafonne au hasard. Sans coord_intact,
+    l'arete peut mesurer la « demande » d'une competence qui n'a jamais emerge."""
+    e = _edge_nouvelle(); del e["evidence"]["coord_intact"]; del e["evidence"]["emergence_bar"]
+    v = validate_edge(e, _IDS)
+    assert any("coord_intact" in x for x in v), "arete neuve sans bras intact declare : DOIT etre refusee"
+
+
+def test_gate_REFUSES_intact_arm_below_emergence_bar():
+    """Le cas qui motive M4 : intact SOUS la barre declaree -> la competence n'a pas emerge, la
+    demande mesuree est celle d'une competence absente."""
+    v = validate_edge(_edge_nouvelle(coord_intact=0.21, emergence_bar=0.55), _IDS)
+    assert any("SOUS emergence_bar" in x for x in v)
+
+
+def test_gate_accepts_new_edge_with_emerged_intact_arm():
+    """Controle positif : une arete neuve COMPLETE (intact au-dessus de la barre) passe -- la porte
+    n'est pas devenue un refus systematique."""
+    assert validate_edge(_edge_nouvelle(), _IDS) == []
+
+
+def test_legacy_edges_stay_exempt_from_coord_intact():
+    """Semantique legataire GELEE : les 2 aretes gravees (avant M4) restent lisibles sans les champs
+    -- le cliquet interdit la dette NOUVELLE, il ne reecrit pas l'histoire."""
+    assert validate_edge(_edge(functional_aliasing="pass", specificity_control="pass"), _IDS) == []

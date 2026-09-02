@@ -44,6 +44,14 @@ _BASELINE = os.path.join(_ROOT, "tools", "agi_taxonomy_baseline.json")
 _VALID_STRENGTH = {"hard", "soft"}
 _VALID_ABLATION_TARGET = {"input", "substrate"}
 _DEFAULT_ABLATION_TARGET = "input"  # légataire : les 2 arêtes gravées ablatent l'ENTRÉE
+# M4 du brainstorm taxonomies (2026-09-02) : la porte ne lisait JAMAIS le bras intact — une arete dont
+# le bras intact est AU PLANCHER passait (X_DEMANDED est arithmetiquement force des que l'able est
+# plafonne au hasard, mais si l'intact ne depasse pas la barre d'emergence, il n'y a RIEN dont on
+# mesure la demande). Toute NOUVELLE arete declare `coord_intact` (valeur mesuree du bras intact) et
+# `emergence_bar` (la barre, DECLAREE par l'auteur — regle « ne pas proxifier », cf. demand_marker) et
+# doit avoir coord_intact >= emergence_bar. ⚠️ P2.15 reste ouverte (la barre 1/K+0.15 est SOUS le
+# plafond 0.3889 du plain) : la porte verifie la coherence interne, pas le bon placement de la barre.
+_LEGATAIRES_SANS_COORD = frozenset({"language->perception", "memory->perception"})
 
 
 def _exists(rel):
@@ -105,6 +113,16 @@ def validate_edge(edge, capability_ids):
                  "du calcul hors-demande, la garde d'aliasing fonctionnel CALIB-ALIAS doit être 'pass')")
     if not _exists(ev.get("record")):
         v.append(f"arête {lbl} : record de preuve manquant/inexistant '{ev.get('record')}'")
+    # M4 (2026-09-02) : le bras INTACT doit exister et depasser la barre d'emergence declaree.
+    if lbl not in _LEGATAIRES_SANS_COORD:
+        ci, bar = ev.get("coord_intact"), ev.get("emergence_bar")
+        if not isinstance(ci, (int, float)) or not isinstance(bar, (int, float)):
+            v.append(f"arête {lbl} : coord_intact={ci!r} / emergence_bar={bar!r} (exigés NUMERIQUES : "
+                     "sans le bras intact, X_DEMANDED est le bras arithmetiquement force d'un agent "
+                     "qui n'a rien appris — un intact au plancher passait la porte)")
+        elif float(ci) < float(bar):
+            v.append(f"arête {lbl} : coord_intact={ci} SOUS emergence_bar={bar} — le bras intact n'a "
+                     "pas emerge, la demande mesurée est celle d'une competence ABSENTE")
     return v
 
 

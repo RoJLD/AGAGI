@@ -71,5 +71,20 @@ if [ -n "$staged_bl" ]; then
   }
 fi
 
+# 5. FIDELITE PREREG->RECORD (M1 du brainstorm taxonomies, 2026-09-02) — le cliquet anti-DV-substituee
+# (E11 occ.4, EDR-EVO-019) existait depuis le 2026-09-01 mais n'etait PAS branche ici : il ne protegeait
+# que qui pensait a le lancer (P2.16 — E10 appliquee a une garde deja ecrite). Gate sur les regles
+# scellees ET les records : une DV scellee doit apparaitre dans le record qui s'en reclame, et toute
+# NOUVELLE regle sans grandeur backtickee (par famille base+-bis) est refusee.
+staged_pr=$(git diff --cached --name-only --diff-filter=AM | grep -E '^(docs/preregistrations/.*\.json|docs/EDR/.*\.md|tools/check_preregistration_applied\.py)$')
+if [ -n "$staged_pr" ]; then
+  PYTHONIOENCODING=utf-8 python tools/check_preregistration_applied.py || {
+    echo ""
+    echo "-> Backticke les grandeurs de la regle (ou scelle un -bis markup-only), et assure-toi que le"
+    echo "   record MESURE chaque grandeur scellee (ou dit POURQUOI elle est omise)."
+    fail=1
+  }
+fi
+
 [ "$fail" -ne 0 ] && echo "   (urgence : git commit --no-verify)"
 exit $fail
