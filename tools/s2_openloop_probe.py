@@ -29,7 +29,7 @@ if _ROOT not in sys.path:
 from src.agents.mamba_agent import MambaBatchModel
 from tools.demand_marker import ablation_verdict
 from tools.s2_demand import run_condition, WORLDS, load_champion_genome
-from tools.s2_demand_ablation import PerceptionAblatedMamba
+from tools.s2_demand_ablation import PerceptionAblatedMamba, _floor_for
 
 
 class NoiseObsMamba(MambaBatchModel):
