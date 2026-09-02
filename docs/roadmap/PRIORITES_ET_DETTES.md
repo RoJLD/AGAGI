@@ -270,6 +270,23 @@ pas accumuler des tirages en PROFONDEUR.**
 
 **➡️ D2-bis : ⛔ ABANDONNÉ (2026-09-02, panel 3 juges + réfutateur — unanimité PROUVÉE).** La largeur à longueur fixe a une puissance discriminante **exactement nulle** : sous A comme sous B, N lignées indépendantes donnent `P(≥1) = 1−(1−p_lignée)^N` — la largeur mesure `p_lignée`, elle n'arbitre rien (information de Fisher A-contre-B nulle). Tout run en largeur est de la **calibration de base** (utile : la limite 0.005-vs-0.02 du sceau EVO-026-bis reste ouverte), jamais un arbitre. Deux designs de remplacement RÉFUTÉS sur pièce par le panel : la dose `add_connection_rate` a DÉJÀ couru ×10 (EVO-019/020, p=0.415, fan-in 0.64→10.05 = dilution mesurée) ; le bras ELITE confond sélection et fenêtre de composition. **La voie qui sépare : [[EDR-EVO-027]]** — forcer le tirage (biais EVO-009, seul levier ayant jamais déplacé le taux : 12/12, p=9.6e-6) et varier sa **POSITION** (fenêtre ères 1-15 vs 21-35, horizon post-fenêtre apparié). La clause discriminante : « la valeur d'un tirage réussi dépend-elle de l'historique accumulé ? » — A dit non, B dit oui. Règle scellée, coût ~13 min, contrôle positif INTERNE (le bras EARLY est le 12/12 d'EVO-009). **→ TRANCHÉ le 2026-09-02 ([[EDR-EVO-027]]) : MODÈLE A — la dépendance FORTE à la position est RÉFUTÉE** (EARLY 22/24 vs LATE 18/24, p=0,245, les 4 contrôles passent, santé 0,77). Un hit tardif convertit comme un hit précoce : « le verrou est le tirage » se relit **« le verrou est le NOMBRE de tirages »**, et l'échec d'EVO-019/020 reste attribué à la DILUTION. Observation non élevée : 6 porteurs-non-lecteurs LATE vs 2 EARLY — une dépendance FAIBLE reste possible, illisible à ce n (limite scellée). **Dette des DV mécanistes RÉSORBÉE le 2026-09-02** : |logit| extrait, corrigé (`H_prev` réel, échec bruyant) et calibré (`tools/evo_mech_dv.py`, 3 cas dont forme close) ; le runner persiste désormais chaque champion (`data/genomes/evo027/`). Tout replay livrera les deux DV. **→ PANEL EVO-028 RENDU (2026-09-02, spec `docs/superpowers/specs/2026-09-02-evo028-weak-position-design.md`)** : les 3 designs within-seed MORTS sur preuve d'identité (estimand = produit position × carry-over, équivalence observationnelle 0,858) ; retenu = between EVO-027 verbatim n=86/bras (puissance 0,804 au point), bande (0,818;1,0) fermée sur preuve de coût ((1−r)⁻²). Seuils de smoke scellés (`EVO-028-SMOKE`). Dette annexe : taux per-paire d'EVO-027 jamais publiés (ancre externe incommensurable) — rétro-extractibles seulement par replay (champions non persistés à l'époque). **→ RUN FAIT ET TRANCHÉ le jour même ([[EDR-EVO-028]]) : DÉPENDANCE FAIBLE ÉTABLIE** (77/86 vs 50/86, p=3,9×10⁻⁶, ratio 0,649 [0,535;0,788] ; sensibilité anti-déflation 0,769 — l'anomalie best-ever prédite est réelle, 10 déflations LATE, sans renverser). Question position FERMÉE (forte réfutée / faible établie / >0,818 sur coût). **Dettes ouvertes** : (a) DV best-ever déflate les bras longs → tout futur harnais à horizons inégaux mesure au top-1 d'ère FIXE (la lecture secondaire d'EVO-028 devient la DV primaire candidate) ; (b) move (5→2/5→3) ne convertit JAMAIS (0/172) — pourquoi l'arête + argmax ne suffit pas est documenté (E6 dérive d'état) mais la conversion différentielle throw-vs-accept (27/63 vs 42/68) reste inexpliquée ; (c) mécanisme B-M1/M2 : injection post-run possible, champions persistés data/genomes/evo028/.
 * **Flake CI consigné en passant (2026-09-02)** : le job `test-and-build` (docker frontend) a échoué sur `npm run build` → « Cannot find native binding » (bug npm optional-deps, npm/cli#4828) sur un commit purement docs/tools (run 33636235017), alors qu'il passait 3 h plus tôt — aucune modification frontend entre les deux. Si ça récidive : pin des bindings natifs (rollup/esbuild) ou `npm ci` reconstruit sans lockfile dans l'image. À vérifier sur le prochain run.
+* **Brainstorm taxonomies (2026-09-02)** — cartographie complète :
+  `docs/superpowers/specs/2026-09-02-cartographie-taxonomies.md` (5 strates, gaps S1-S7/T1-T4/M1-M7,
+  3 convergences transversales). Décision : C1 (3ᵉ arête, après point-référence) + C5 (M1/M4/M6)
+  lancés le 2026-09-02. **Restent au backlog** :
+  - **C3** : sceller SDR-G2 (critère exécutable de composition), re-tagger ~5 records
+    compositionnels (EDR-BILINEAR, RETAIN-COMPOSE, S2-008…), warning gate↔tests dans
+    check_record_links — ~1 jour, zéro run. Preuve du besoin : 19/19 records d'août-sept en
+    `gate: G0` par défaut.
+  - **C4** : resynchronisation de la couche de LECTURE (EDR-114b invisible
+    `consolidate_records.py:32` ; EDR-124/194 sans frontmatter ; README EDR faux ; REF-DEMAND-MARKER
+    arrêté à WARM-005 et contredit par S2-012/013 ; en-tête backlog auto-contradictoire l.11 vs
+    l.17) + trancher le CLIQUET DES SYNTHÈSES (M5 : une doc qui publie un compte doit le recompter).
+  - **C2** : réparer le harnais EVO-011 (3 défauts localisés : do_throw gaté E2, _throw_did E4,
+    life_score) puis pré-vol décisif (lecteur câblé main) — tranche sans run évolutif.
+  - Gaps différés documentés dans la spec : S3 (demande in-world hors perception), S5 (pas G4
+    dormant), S6 (nécessité S2-006), S7 (nœud generalization orphelin), T4 (EVO-022 sans record),
+    M2 (chiffres non recomputés), M3 (collisions), M7 (rétro-examen 27 records, S2-009 risque 4).
 
 **D3 — Changer le MOTEUR, pas la recherche.** Un substrat où la variation ne soit pas un tirage d'arêtes
 isolées. ⚠️ **L'avertissement de doublon est PÉRIMÉ** : ce travail parallèle est LIVRÉ et gravé (`EDR-BILINEAR`, 2026-08-03 — le terme bilinéaire fait passer `(q+key)%K` de nul à appris). D3 doit donc être re-formulé à partir de ce qui existe, pas coordonné avec un chantier fini.
@@ -897,6 +914,30 @@ confond fatal au design (`lr` pilotant aussi le sender).
 - **Critère d'automatisation** : ça se reforme silencieusement à chaque nouveau script de revue → une note
   ne suffit pas. Correctif : que le script compte les échecs et REFUSE de rendre un verdict global si
   `agents_error > 0`, au lieu de rendre une liste vide.
+
+**P2.26 — ⚠️ OUVERT — `detect_preempted()` (E10 sens B) est exécutable mais NON ATTRIBUTIVE : 2/2 faux
+positifs mesurés. NE PAS la câbler au hook avant d'avoir résolu l'attribution.**
+Le sens B — « une session parallèle commite mon travail avant moi » — a récidivé le 2026-09-02
+(occurrence 14 : P2.23-P2.25 emportées par un commit de l'arc EVO-028). La garde promue le matin même
+pour ce cas exact ne s'est pas déclenchée : **elle n'a jamais été invoquée**, faute d'empreinte prise
+avant édition. Le manque n'est donc pas la détection mais l'**invocation**.
+La promotion apparemment évidente — un balayage automatique de toutes les empreintes, câblé au
+pre-commit — a été **réfutée par la mesure avant d'être livrée** : lancée sur les 8 empreintes réelles
+de `runs/staged_authorship/`, `detect_preempted` rend **2 préemptions sur 2 qui sont FAUSSES**, les
+deux désignant `7de1b54`, le propre commit de l'auteur. Cause : l'exclusion d'un commit « mien » repose
+entièrement sur `confirm_commit(..., owner=)`, que rien n'oblige à appeler.
+
+- **Conséquence opératoire immédiate** : la garde est SAINE EN FLUX (`snapshot` → édite → commite →
+  `confirm --owner`) et TROMPEUSE EN BALAYAGE. Un cliquet qui crie à tort est pire qu'absent — on
+  apprend à l'ignorer, et le dépôt a déjà payé ce prix (deux cliquets à 5 puis 2 faux positifs le
+  2026-09-01).
+- **Ce qu'il faudrait pour promouvoir pour de bon** : rendre l'attribution décidable sans dépendre de
+  la mémoire de l'opérateur. Deux pistes, aucune gratuite — (a) inscrire automatiquement le SHA dans
+  l'empreinte après commit (nécessite un hook `post-commit`, absent du dépôt) ; (b) retirer l'empreinte
+  quand son travail est committé, pour qu'une empreinte SURVIVANTE signifie quelque chose.
+- **Limite de fond, à ne pas contourner par un proxy** : le sens B n'est pas décidable sans DÉCLARATION
+  — c'est la règle « ne pas proxifier ce qu'on ne sait pas mesurer ». Toute version qui devine
+  l'auteur d'un commit rejoue la forme RÉTROSPECTIVE déjà déclarée non automatisable en occ. 4.
 
 ---
 
