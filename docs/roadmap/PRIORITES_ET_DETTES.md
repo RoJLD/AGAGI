@@ -955,13 +955,31 @@ entièrement sur `confirm_commit(..., owner=)`, que rien n'oblige à appeler.
   l'auteur d'un commit rejoue la forme RÉTROSPECTIVE déjà déclarée non automatisable en occ. 4.
 
 **P2.27 — 🔒 CLIQUET LIVRÉ le 2026-09-02, DETTE ENCORE OUVERTE — le SUBSTRAT mesuré n'est identifiable
-a posteriori dans AUCUNE sonde ou presque : 16 sondes sur 19 n'épinglent pas `BILINEAR`, et 11 sur 19
+a posteriori dans presque aucune sonde : **13 sondes sur 19** n'épinglent pas `BILINEAR`, et **8 sur 19**
 ont un optimiseur INCOMPLET.**
-*Livré : `tools/check_substrate_pinning.py` + baseline gelée (16 fichiers) + porte 6 du hook
-pre-commit + `tests/sandbox/test_substrate_pinning.py` (9 cas, autant de `spares` que de `fires`).
-Vérifié en acte : la garde TIRE sur une sonde neuve défectueuse et ÉPARGNE une sonde neuve correcte.
-Ce qui est fermé, c'est la RÉCIDIVE — aucune NOUVELLE sonde ne peut plus arriver en défaut. Les 16
-sondes légataires restent à corriger, une par une, et c'est ça qui reste ouvert.*
+*Livré : `tools/check_substrate_pinning.py` + baseline gelée + porte 6 du hook pre-commit +
+`tests/sandbox/test_substrate_pinning.py` (16 cas, autant de `spares` que de `fires`). Vérifié en
+acte : la garde TIRE sur une sonde neuve défectueuse et ÉPARGNE une sonde neuve correcte. Ce qui est
+fermé, c'est la RÉCIDIVE — aucune NOUVELLE sonde ne peut plus arriver en défaut. Les 13 sondes
+légataires restent à corriger une par une, et c'est ça qui reste ouvert.*
+
+⚠️ **LE CHIFFRE A ÉTÉ CORRIGÉ, et la correction est la partie intéressante.** L'audit d'origine
+annonçait **16 en défaut A et 11 en défaut B** ; c'était en partie un artefact de mon propre
+détecteur. Quatre défauts du cliquet, trouvés en s'en servant pour trier la dette (commit `7df4347`) :
+il ne reconnaissait pas un épinglage fait via un **alias d'import** (`TPM.BILINEAR = …`, sonde déjà
+correcte comptée en dette) ; il jugeait des `Adam([w_throw, b_throw])` qui n'optimisent **aucune
+population** ; il ne lisait que le **premier crochet** d'une liste concaténée ; et il **punissait un
+correctif partiel** en comparant à la baseline par égalité stricte au lieu de différence d'ensembles.
+Deux des « 16 » n'ont jamais été en dette. **Un compteur produit par un détecteur non calibré est un
+résultat, pas une observation** — exactement ce que ce dépôt reproche à ses instruments.
+
+⚠️ **Et un bug FRÔLÉ, qui vaut la leçon** : en corrigeant l'un de ces faux positifs, la regex de
+poids de population a été écrite avec un backslash simple dans une chaîne non brute — `` \b `` y est un
+caractère BACKSPACE, pas une frontière de mot. La détection B était **morte**, et l'outil affichait
+« 0 défaut ». Rattrapé par les **tests de calibration**, pas par la sortie de l'outil : une sortie
+confirme ce qu'on espère, un test à réponse connue non. Vérifier une garde en lisant ce qu'elle
+imprime, c'est ne pas la vérifier.
+
 Audit exhaustif des 19 fichiers de `tools/` qui construisent une population torch (2026-09-02), né de
 la rencontre de deux correctifs indépendants le même jour : `481117e` (session parallèle, sur
 `language_memory_demand_probe`) et `3b5554a` (sur `delayed_coordination_demand_probe`).
