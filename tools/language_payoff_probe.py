@@ -94,6 +94,13 @@ def mi_message_action(demanding, Ws, Wr, K, M, seed, n=3000):
 
 
 def run_world(demanding, K, seed, n_eval=40, ticks=200):
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-02). Ces deux `run_world` etaient INVISIBLES au cliquet
+    # jusqu'a ce que la collision de noms les revele (3 fichiers portent ce nom) : un elargissement
+    # du detecteur revele de la dette REELLE, jamais zero.
+    if int(K) <= 0 or int(n_eval) <= 0 or int(ticks) <= 0:
+        raise ValueError(
+            f"run_world : argument degenere (K={K}, n_eval={n_eval}, ticks={ticks}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     M = K
     Ws, Wr = fit_protocol(demanding, K, M, seed, ticks=ticks)
     ev = np.random.RandomState(seed + 500)

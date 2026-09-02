@@ -50,7 +50,11 @@ _INSTRUMENT_PATTERNS = (
     # Trouvé en y tombant moi-même — `run_linear_sanity` (qui produit oracle/plancher/ratio/verdict) est
     # entré dans le dépôt SANS que le cliquet bronche. Le pire angle mort était `run_cog_demand_map` :
     # c'est la sonde qui a produit le ratio 21.05 publié par EDR-S2-009, invisible depuis le début.
-    re.compile(r"^def\s+(run_\w*(?:sanity|control|oracle|floor|map|sweep)\w*)\s*\(", re.M),
+    re.compile(r"^def\s+(run_\w*(?:sanity|control|oracle|floor|map|sweep|world)\w*)\s*\(", re.M),
+    # `world` ajoute le 2026-09-02 (deblocage du NIVEAU 2 de SDR-G2) : `run_world`
+    # (compositional_world_probe) produit `comp_rate`, le KPI du niveau 2 de la porte, et etait
+    # invisible. Mot-cle CIBLE, mesure avant application : +3 fonctions (run_world,
+    # run_world_era, run_inworld_evolution) -- la ou `run_\w+` generique en ajouterait +56.
     # Élargi le 2026-07-27 : TROISIÈME angle mort de nommage, trouvé en y tombant moi-même (comme les
     # deux précédents). `benchmark_cognitive` (EVO-005) produit LE chiffre du verdict — taux de réponse
     # correcte d'un champion — et était invisible ; `benchmark_discrimination` (EVO-003) l'était depuis

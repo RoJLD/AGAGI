@@ -85,6 +85,13 @@ def fit_policy(demanding, K, seed, iters=400, episodes=6, ticks=200):
 def run_world(demanding, K, seed, n_eval=40, ticks=200):
     """Ajuste une politique, puis mesure les marqueurs : BETWEEN (ajustée vs action aléatoire) et WITHIN
     (ablation de perception : obs vraie vs randomisée). Renvoie survies médianes + |W| (poids sur l'obs)."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-02). Ces deux `run_world` etaient INVISIBLES au cliquet
+    # jusqu'a ce que la collision de noms les revele (3 fichiers portent ce nom) : un elargissement
+    # du detecteur revele de la dette REELLE, jamais zero.
+    if int(K) <= 0 or int(n_eval) <= 0 or int(ticks) <= 0:
+        raise ValueError(
+            f"run_world : argument degenere (K={K}, n_eval={n_eval}, ticks={ticks}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     W, b, _ = fit_policy(demanding, K, seed, ticks=ticks)
     ev = np.random.RandomState(seed + 500)
 

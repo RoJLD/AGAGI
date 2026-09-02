@@ -59,6 +59,13 @@ def run_world(capability: bool, demand: float, episodes: int = 800, n_agents: in
     capability=True : gate additif task-agnostique + learn_episode (crédit épisodique, EDR-158/159).
     capability=False : pop.learn TD(0) 1-pas sans gate (substrat plain, EDR-148).
     Renvoie payoff (énergie moy/épisode, dernier quart), comp_rate (taux de composition réussie)."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-02). Un argument degenere est une erreur d'APPEL, pas
+    # un fait sur le monde : sans elle, 0 episode / 0 agent rend une agregation VIDE que l'aval
+    # lit comme une mesure. Posee avant toute construction -> refus instantane (teste < 0.5 s).
+    if int(episodes) <= 0 or int(n_agents) <= 0:
+        raise ValueError(
+            f"run_world : argument degenere (episodes={episodes}, n_agents={n_agents}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     import numpy as np
     import torch
     from src.agents.mamba_agent import MambaAgent
@@ -128,6 +135,34 @@ def run_world(capability: bool, demand: float, episodes: int = 800, n_agents: in
          TorchPopulationModel.BILINEAR) = saved
 
 
+def capability_payoff_verdict(adv_by_demand: dict, min_gain: float = 0.05,
+                              min_step: float = 0.05) -> dict:
+    """L'avantage de la CAPACITE croit-il avec la DEMANDE de composition ? (KPI du niveau 2, SDR-G2)
+
+    EXTRAIT de `main` le 2026-09-02 : le verdict etait calcule INLINE, donc ni testable ni calibrable
+    -- exactement ce que la porte G2 exige desormais de son KPI. Fonction PURE (aucune simulation) :
+    elle ne prend que {demande: avantage ON-OFF} et rend le verdict.
+
+    Branches (les DEUX issues atteignables, plus un refus explicite) :
+      - CAPABILITY_PAYS_UNDER_COMPOSITION_DEMAND : adv(max) > adv(min) + `min_step` ET adv(max) > `min_gain`
+      - CAPABILITY_NO_PAYOFF : sinon
+      - INDETERMINE_AUCUNE_MESURE : moins de DEUX niveaux de demande, ou un avantage manquant.
+        ⚠️ Cette branche est le correctif du motif dominant du depot (donnees absentes -> affirmation
+        NEGATIVE de fond) : `main` rendait CAPABILITY_NO_PAYOFF sur une seule demande, c.-a-d. la ou
+        AUCUNE pente n'est definissable.
+    """
+    finis = {float(d): float(a) for d, a in (adv_by_demand or {}).items() if a is not None}
+    if len(finis) < 2:
+        return {"verdict": "INDETERMINE_AUCUNE_MESURE", "n_demands": len(finis),
+                "why": "il faut AU MOINS deux niveaux de demande pour lire une pente"}
+    hi, lo = max(finis), min(finis)
+    scales = finis[hi] > finis[lo] + float(min_step) and finis[hi] > float(min_gain)
+    return {"verdict": ("CAPABILITY_PAYS_UNDER_COMPOSITION_DEMAND" if scales
+                        else "CAPABILITY_NO_PAYOFF"),
+            "adv_hi": finis[hi], "adv_lo": finis[lo], "demand_hi": hi, "demand_lo": lo,
+            "n_demands": len(finis)}
+
+
 def main():
     import statistics
     episodes = int(os.environ.get("CWP_EPISODES", "800"))
@@ -144,11 +179,15 @@ def main():
         adv[d] = p_on - p_off
         print(f"demand={d:.2f} : payoff ON={p_on:+.3f} OFF={p_off:+.3f} adv={p_on-p_off:+.3f} | "
               f"comp_rate ON={c_on:.2f} OFF={c_off:.2f}")
-    hi, lo = max(demands), min(demands)
-    scales = adv[hi] > adv[lo] + 0.05 and adv[hi] > 0.05
-    verdict = "CAPABILITY_PAYS_UNDER_COMPOSITION_DEMAND" if scales else "CAPABILITY_NO_PAYOFF"
-    print(f"VERDICT={verdict} : adv(d={hi})={adv[hi]:+.3f} vs adv(d={lo})={adv[lo]:+.3f} -> "
-          f"l'avantage de la capacité {'CROÎT' if scales else 'ne croît PAS'} avec la demande")
+    v = capability_payoff_verdict(adv)                      # couche de verdict PURE et calibree
+    verdict = v["verdict"]
+    if verdict == "INDETERMINE_AUCUNE_MESURE":
+        print(f"VERDICT={verdict} : {v['why']} (n_demands={v['n_demands']})")
+    else:
+        scales = verdict == "CAPABILITY_PAYS_UNDER_COMPOSITION_DEMAND"
+        print(f"VERDICT={verdict} : adv(d={v['demand_hi']})={v['adv_hi']:+.3f} vs "
+              f"adv(d={v['demand_lo']})={v['adv_lo']:+.3f} -> l'avantage de la capacité "
+              f"{'CROÎT' if scales else 'ne croît PAS'} avec la demande")
 
 
 if __name__ == "__main__":

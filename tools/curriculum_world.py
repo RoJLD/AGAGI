@@ -25,6 +25,13 @@ from src.graph_rag.async_logger import logger as async_logger
 
 
 def run_world_era(config, db, target_prey, num_agents=30, max_ticks=200, energy=80.0):
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-02). Un argument degenere est une erreur d'APPEL, pas
+    # un fait sur le monde : sans elle, 0 episode / 0 agent rend une agregation VIDE que l'aval
+    # lit comme une mesure. Posee avant toute construction -> refus instantane (teste < 0.5 s).
+    if int(num_agents) <= 0 or int(max_ticks) <= 0:
+        raise ValueError(
+            f"run_world_era : argument degenere (num_agents={num_agents}, max_ticks={max_ticks}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     env = Biosphere3D(config)
     env.config.target_prey_count = target_prey   # difficulté = rareté alimentaire (capacité de charge)
     genomes, _ = init_primordial_soup(num_agents=num_agents, shared_db=db, config=config)

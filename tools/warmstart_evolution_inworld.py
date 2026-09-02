@@ -262,6 +262,13 @@ def run_inworld_evolution(seed=2026, generations=50, pop_size=24, survival_frac=
     """Évolution W-only : population de MambaAgents (W aléatoire), fitness = survie en cognitive_demand,
     sélection top-k + élitisme + descendance mutée W-seul. Renvoie la trace de survie médiane du top-k
     par génération + le meilleur génome final. L'optimiseur que le SIM utilise (pas le gradient)."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-02). Un argument degenere est une erreur d'APPEL, pas
+    # un fait sur le monde : sans elle, 0 episode / 0 agent rend une agregation VIDE que l'aval
+    # lit comme une mesure. Posee avant toute construction -> refus instantane (teste < 0.5 s).
+    if int(generations) <= 0 or int(pop_size) <= 0 or int(max_ticks) <= 0:
+        raise ValueError(
+            f"run_inworld_evolution : argument degenere (generations={generations}, pop_size={pop_size}, max_ticks={max_ticks}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     from src.agents.mamba_agent import MambaAgent
     from src.seed_ai.harness import seed_at
 

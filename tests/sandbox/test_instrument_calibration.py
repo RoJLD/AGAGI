@@ -39,6 +39,17 @@ NOT_AN_INSTRUMENT = {
 }
 
 CALIBRATED = {
+    # P2.41 (2026-09-02) : niveau 2 de SDR-G2 -- sonde monde compositionnelle. Le verdict, jusque-la
+    # INLINE dans `main`, est extrait en fonction PURE et calibre (dont le refus sur UN seul point
+    # de demande : l'ancien code fabriquait un « ne paie pas » la ou aucune pente n'existe).
+    "capability_payoff_verdict": ["pays", "no-payoff", "refuses-single-point"],
+    # ⚠️ `run_world` est en COLLISION (3 fichiers) -> declarations QUALIFIEES obligatoires. Les DEUX
+    # autres etaient invisibles jusqu'a cet elargissement : dette REELLE revelee, traitee ici.
+    "tools/compositional_world_probe.py::run_world": ["empty-cohort:raises", "guard-before-world"],
+    "tools/language_payoff_probe.py::run_world": ["empty-cohort:raises", "guard-before-world"],
+    "tools/world_demand_marker_probe.py::run_world": ["empty-cohort:raises", "guard-before-world"],
+    "run_inworld_evolution": ["empty-cohort:raises", "guard-before-world"],
+    "run_world_era": ["empty-cohort:raises", "guard-before-world"],
     # P2.40 (2026-09-02) : 3e vague de gardes -- les 12 sondes rendues visibles par le 6e
     # elargissement (verbes compare_/sweep_/probe_ en tete). Garde d'arguments EN TETE, testee
     # QUE (leve) et OU (refus < 0.5 s, donc avant la construction du monde).
@@ -4214,6 +4225,70 @@ def test_third_wave_guards_are_placed_BEFORE_the_world(mod, nom, kw):
     """⚠️ PLACEMENT : plusieurs de ces sondes construisent un monde reel (voire prennent le bail kuzu).
     Un refus instantane prouve que la garde precede la construction -- une garde posee plus bas
     couterait une ressource exclusive pour rien."""
+    import importlib
+    import time
+    f = getattr(importlib.import_module(mod), nom)
+    t0 = time.time()
+    with pytest.raises(ValueError):
+        f(**kw)
+    assert time.time() - t0 < 0.5, f"{nom} refuse trop lentement : la garde est posee trop bas"
+
+
+# ======================================================================================================
+# P2.41 (2026-09-02) : NIVEAU 2 de SDR-G2 -- la sonde monde compositionnelle.
+# `run_world` produit `comp_rate`, le KPI du niveau 2 de la porte, et etait invisible au cliquet
+# (motif CIBLE `world` ajoute : +3 fonctions, la ou `run_\w+` generique en ajouterait +56).
+# Son VERDICT etait calcule INLINE dans `main` -> ni testable ni calibrable : il est EXTRAIT en
+# fonction pure `capability_payoff_verdict`, calibree ici sur reponse connue.
+# ======================================================================================================
+
+def test_capability_payoff_verdict_READS_the_slope_it_claims():
+    """Reponse connue x2 : l'avantage CROIT avec la demande (0.01 -> 0.21, les chiffres d'EDR-161)
+    -> CAPABILITY_PAYS ; l'avantage est PLAT -> CAPABILITY_NO_PAYOFF. Les deux issues sont
+    atteignables sur le meme instrument (E1)."""
+    from tools.compositional_world_probe import capability_payoff_verdict
+    assert capability_payoff_verdict({0.0: 0.009, 1.0: 0.212})["verdict"] ==         "CAPABILITY_PAYS_UNDER_COMPOSITION_DEMAND"
+    assert capability_payoff_verdict({0.0: 0.20, 1.0: 0.21})["verdict"] == "CAPABILITY_NO_PAYOFF"
+    # gain reel mais SANS pente : la clause exige les DEUX (pente ET gain absolu)
+    assert capability_payoff_verdict({0.0: 0.30, 1.0: 0.30})["verdict"] == "CAPABILITY_NO_PAYOFF"
+
+
+def test_capability_payoff_verdict_REFUSES_to_read_a_slope_from_ONE_point():
+    """⚠️ CONTRE-EXEMPLE GELE -- le motif dominant du depot (donnees absentes -> affirmation NEGATIVE
+    de fond). L'ancien code INLINE de `main` rendait CAPABILITY_NO_PAYOFF sur une seule demande,
+    c.-a-d. la ou AUCUNE pente n'est definissable : un « la capacite ne paie pas » fabrique par
+    l'absence de second point. La fonction extraite REFUSE au lieu d'affirmer."""
+    from tools.compositional_world_probe import capability_payoff_verdict
+    for entree in ({1.0: 0.50}, {}, {0.0: None, 1.0: 0.50}):
+        r = capability_payoff_verdict(entree)
+        assert r["verdict"] == "INDETERMINE_AUCUNE_MESURE", (entree, r)
+        assert "deux niveaux" in r["why"]
+
+
+_MESURES_GARDEES_4 = [
+    ("tools.compositional_world_probe", "run_world", dict(capability=True, demand=1.0, episodes=0)),
+    ("tools.curriculum_world", "run_world_era",
+     dict(config=None, db=None, target_prey=10, num_agents=0)),
+    # revelees PAR la collision de noms (3 fichiers portent `run_world`) -- elles etaient invisibles
+    ("tools.language_payoff_probe", "run_world", dict(demanding=True, K=0, seed=0)),
+    ("tools.world_demand_marker_probe", "run_world", dict(demanding=True, K=4, seed=0, n_eval=0)),
+    ("tools.warmstart_evolution_inworld", "run_inworld_evolution", dict(generations=0)),
+]
+
+
+@pytest.mark.parametrize("mod,nom,kw", _MESURES_GARDEES_4)
+def test_world_probes_REFUSE_degenerate_arguments(mod, nom, kw):
+    """Meme principe que les 3 vagues precedentes : 0 episode / 0 agent est une erreur d'APPEL."""
+    import importlib
+    f = getattr(importlib.import_module(mod), nom)
+    with pytest.raises(ValueError, match="degenere"):
+        f(**kw)
+
+
+@pytest.mark.parametrize("mod,nom,kw", _MESURES_GARDEES_4)
+def test_world_probe_guards_are_placed_BEFORE_the_world(mod, nom, kw):
+    """PLACEMENT : `run_world` construit une population torch de 128 agents, `run_world_era` une
+    Biosphere3D -- un refus instantane prouve que la garde precede la construction."""
     import importlib
     import time
     f = getattr(importlib.import_module(mod), nom)

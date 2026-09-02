@@ -67,7 +67,7 @@ ratio 8.45 dans la cellule corps-insuffisant + chaîne ≥ 2 + devise-énergie ;
 
 KPI : `comp_rate` (taux de séquences means→ends complétées) du bras SANS capacité fournie (sans
 gate, sans curriculum ciblé, sans oracle), sous sweep de demande `d` — instrument d'EDR-161
-(`compositional_world_probe.py`). ⚠️ **Le niveau 2 reste BLOQUÉ, lui** : son producteur `run_world` appartient à la famille `run_\w+` générique, NON couverte par le détecteur — l'élargir ajouterait +56 fonctions non calibrées (chiffré au backlog). Avant tout run de niveau 2 : calibrer `run_world` (injection à dose connue sur son agrégation `adv`).
+(`compositional_world_probe.py`). ✅ **Niveau 2 DÉBLOQUÉ le 2026-09-02 également** : `run_world` est désormais détecté (mot-clé CIBLÉ `world` : +3 fonctions mesurées, là où `run_\w+` générique en ajouterait +56) et gardé en tête ; surtout, **son verdict — jusque-là calculé INLINE dans `main`, donc ni testable ni calibrable — est extrait en fonction pure `capability_payoff_verdict`** et calibré sur réponse connue, avec un refus explicite : sur UN seul niveau de demande, l'ancien code rendait `CAPABILITY_NO_PAYOFF` là où aucune pente n'est définissable — un « ne paie pas » fabriqué par l'absence de second point. La collision de noms a par ailleurs révélé 2 autres `run_world` invisibles (`language_payoff_probe`, `world_demand_marker_probe`), traités dans la même passe.
 
 **Critère exécutable** :
 - POSITIF : `comp_rate` du bras nu à d ≥ 1 SÉPARÉ du bras nu à d = 0, apparié par seed, jugé par
