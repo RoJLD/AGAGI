@@ -46,6 +46,77 @@ adopts: [REF-EXPERIMENT-PREFLIGHT, REF-DEMAND-MARKER]
 > Portée de cette mesure : n=3, un seul chemin de crédit, 2 points de `lr` au lieu des ≥3 prescrits,
 > `lr=0.02` non mesuré.
 
+> ## Balayage DÉCONFONDU (2026-09-02) — la clause OPÉRATIONNELLE est RÉFUTÉE, la clause SCIENTIFIQUE en sort RENFORCÉE, et le verdict NÉGATIF tient pour une bien meilleure raison
+>
+> Le balayage a enfin été fait proprement, après avoir levé **deux** confonds — celui que ce record
+> nomme, et un qu'il ne nommait pas.
+>
+> **Le confond non nommé, et il était fatal : `lr` pilotait LES DEUX optimiseurs.** Le baisser ne
+> ralentissait pas seulement l'apprentissage du receiver (l'axe E19 qu'on interroge) : il dégradait
+> l'émergence du code de Lewis chez le **sender**, donc l'INFORMATION DU CANAL. Tout balayage en `lr`
+> changeait la **tâche** en même temps que la vitesse d'apprentissage, et ses points étaient
+> incomparables entre eux. Levier `sender_lr` livré ; **sender fixé à 0.05** dans tout ce qui suit.
+> Le confond nommé (`episodes` × `lr`) est levé par `eval_every` : chaque cellule rend une COURBE, donc
+> « au plancher » et « sous-entraîné » deviennent DISCERNABLES (un bras sous-entraîné MONTE).
+>
+> **1. RETAIN monte quand le pas baisse ; PRESENT descend.** D=2, `flip_p=0`, sans leurre, `bptt`,
+> 1600 ép., 3 seeds, sender fixe :
+>
+> | `lr` receiver | 0.05 | 0.02 | 0.005 | 0.002 |
+> |---|---|---|---|---|
+> | RETAIN (médiane) | 0.2109 | 0.2313 | 0.2453 | **0.2969** |
+> | PRESENT (médiane) | **0.3891** | 0.3562 | 0.3047 | 0.2594 |
+>
+> Monotone dans les deux sens, 3/3 seeds chacun, séparation COMPLÈTE de RETAIN entre les extrêmes
+> (pire seed à 0.002 = 0.2844 > meilleur seed à 0.05 = 0.2406). Test des signes apparié, n=3 : **p=0.125**.
+> ⚠️ **Le confond résiduel a un SIGNE CONNU, et c'est ce qui rend la lecture possible** : à 1600 ép.
+> aucun bras n'est convergé (toutes les pentes > 0, PRESENT fait +0.19 à `lr=0.05`). Or le
+> sous-entraînement pousse une cellule VERS LE BAS quand `lr` baisse — c'est exactement ce que fait
+> PRESENT, dont la chute n'est donc PAS interprétable. RETAIN va à l'INVERSE du confond : celui-ci ne
+> peut pas avoir fabriqué sa montée, seulement l'avoir masquée. **L'effet mesuré est un minorant.**
+>
+> **2. Budget ×3 à `lr=0.002` (4800 ép., mêmes seeds — le budget est la seule variable) : le bras
+> « qui n'a jamais décollé » décolle.** RETAIN `[0.3063, 0.3219, 0.3375]`, ablaté 0.1484, **ratio 2.17**
+> (retirer l'état porté le ramène SOUS le hasard). Et l'axe dominant est identifié : le **pas** a rendu
+> +0.086, le budget ×3 seulement +0.025 — le pas commande d'un facteur **3.4**.
+> ⇒ **La clause opérationnelle du §"Verdict" — « RETAIN au plancher, le bras principal n'a jamais
+> décollé » — est RÉFUTÉE.** Elle était mesurée au point le PLUS DÉFAVORABLE de l'axe `lr`. C'est une
+> récidive de la classe **E19** dans le record écrit pour en borner une.
+>
+> **3. Mais c'est du report PASSIF, et cette fois la comparaison a du CONTENU.** Au régime vivant
+> (`lr=0.002`, 4800 ép., mêmes seeds, le chemin de crédit est la SEULE variable) :
+>
+> | chemin de crédit | RETAIN par seed | médiane | écart intra-seed vs `bptt` |
+> |---|---|---|---|
+> | `reinforce` — `H.detach()` à CHAQUE pas (`backend_torch.py:357`) : apprendre à ÉCRIRE est IMPOSSIBLE | 0.3063 / 0.3125 / 0.3484 | 0.3125 | +0.006 / +0.027 / −0.031 |
+> | `bptt` — le gradient TRAVERSE le report | 0.3063 / 0.3219 / 0.3375 | 0.3219 | — |
+> | `imitate` — BPTT supervisé masqué au dernier pas | 0.2953 / 0.3297 / 0.3453 | 0.3297 | −0.011 / +0.023 / −0.008 |
+>
+> Étendue des médianes **0.017**, soit UNE erreur-type ; signes mêlés sur les deux contrastes.
+> Supprimer la capacité d'apprendre à écrire dans le report **ne coûte rien**.
+> ⇒ **La clause scientifique du §2 est CORROBORÉE, et pour la première fois de façon informative.**
+> Le §2 la fondait sur trois chemins tous AU PLANCHER — or un bras au plancher est insensible à tout,
+> donc cette comparaison ne pouvait rien montrer : c'est le motif **E3**, celui-là même que ce record
+> applique à ses deux critères « non adjudicables ». Refaite sur un bras **VIVANT**, elle donne une
+> réponse qui a du contenu, et c'est la même.
+>
+> **4. Le verdict NÉGATIF tient — mais sa raison change, et la nouvelle est plus forte.** Ce n'était pas
+> « le bras n'a pas décollé » (c'est faux). C'est que **le design ne peut produire AUCUN contrôle de
+> spécificité valide, dans AUCUN de ses deux réglages** : avec leurre tout plancherise (§1) ; sans
+> leurre, l'ablation de PRESENT est un no-op EXACT — mesuré ici, `ablated == intact` au chiffre près
+> (0.3219 = 0.3219) — donc son inertie est **vacuité**. Et l'effondrement de RETAIN sous ablation est
+> arithmétiquement forcé, comme le module le dit lui-même. Un bras vivant NE SUFFIT PAS : la 3ᵉ arête
+> est bloquée par la **CONCEPTION**, pas par la mesure.
+>
+> **Portée — ce qui n'est PAS établi.** n=3 partout : rien de gravable (garde d'évaporation de
+> puissance). ⚠️ **Et la « vitalité » ne doit pas être sur-lue** : RETAIN médian 0.3219 contre barre
+> 0.31667 fait une marge de **0.0052**, soit **0.28 erreur-type** (σ=0.0184 sur `n_eval`=640).
+> `assert_bar_is_reachable`, la garde livrée la veille, exige `> barre + σ` = 0.3351 : **appliquée à ce
+> chiffre, elle REFUSE**. Ce qui survit au recalcul est le **ratio 2.17** (~6.7 σ) et la **montée en
+> `lr`** ; pas le franchissement de barre. Cela renvoie à **P2.15** : tant que `1/K+0.15`, constante
+> importée d'une autre tâche, n'est pas refondée sur une référence INTRA-dispositif, tout verdict lu
+> contre elle est sans contenu.
+
 ## Question
 
 3ᵉ arête du graphe AGI-Taxonomy, et **première ablation de SUBSTRAT**. La tentative précédente
