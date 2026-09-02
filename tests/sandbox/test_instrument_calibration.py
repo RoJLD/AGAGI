@@ -39,6 +39,9 @@ NOT_AN_INSTRUMENT = {
 }
 
 CALIBRATED = {
+    # P2.38 (2026-09-02) : DV mecaniste |logit| d'EVO-027, extraite et REPAREE (H_prev reel,
+    # echec bruyant). Le bug d'origine (nan avale) est devenu le cas de calibration.
+    "tools/evo_mech_dv.py::logit_median_at_outputs": ["noop-exact", "closed-form-prediction", "loud-failure"],
     # P2.37b (2026-09-02) : `_verdict_from`, duplique VOLONTAIREMENT dans les 4 sondes mini-monde
     # (consommation de la garde de degenerescence). Nom en COLLISION -> declarations QUALIFIEES.
     # Comportement calibre sur la copie de reference (anticipation) + test ANTI-DERIVE qui gele
@@ -3783,6 +3786,58 @@ def test_noperc_floors_match_their_measurement():
     from tools.s2_demand_ablation import PLANCHER_NOPERC
     assert PLANCHER_NOPERC == {"soup": 32.0, "stoneage": 24.0, "agricultural": 25.25,
                                "industrial": 24.0, "famine": 21.75}
+
+
+# ---------------------------------------------------------------------------------------------------
+# P2.38 (2026-09-02) : logit_median_at_outputs -- la DV mecaniste d'EVO-027, REPAREE puis calibree.
+# L'ancien helper in-run passait H_prev=None a recurrent_forward (None.copy() leve) et AVALAIT
+# l'echec (except: continue) -> nan muet sur tout le run. Forme (b) canonique du biais negatif
+# (le nan DETECTE puis avale). Regle d'auto-amelioration : le bug devient le cas de calibration.
+# ---------------------------------------------------------------------------------------------------
+
+def _genome_stub(W, num_inputs, num_outputs):
+    from types import SimpleNamespace
+    import numpy as np
+    return SimpleNamespace(W=np.asarray(W, dtype=np.float64), num_inputs=num_inputs,
+                           num_outputs=num_outputs, num_nodes=len(W))
+
+
+def test_logit_median_noop_EXACT_zero():
+    """No-op EXACT : W nulle -> H reste a zero hors bloc d'entree -> mediane 0.0 EXACTEMENT."""
+    import numpy as np
+    from tools.evo_mech_dv import logit_median_at_outputs
+    g = _genome_stub(np.zeros((5, 5)), 2, 2)
+    r = logit_median_at_outputs([g], paires_rel=((0, 1),))
+    assert r["median"] == 0.0 and r["n_ok"] == 1 and r["n_failed"] == 0
+
+
+def test_logit_median_predicts_closed_form():
+    """Reponse connue en FORME CLOSE : une seule arete canal0 -> sortie relative 1 (noeud N-O+1),
+    H0=0, pas d'organe MCTS (T=1), diagonale nulle (delta=sigmoid(0)=0.5) :
+        |logit| = 0.5 * |tanh(w * obs[:, 0])|
+    C'est exactement le cas que l'ancien helper d'EVO-027 rendait nan EN SILENCE."""
+    import numpy as np
+    from tools.evo_mech_dv import logit_median_at_outputs
+    w = 1.7
+    W = np.zeros((5, 5)); W[0, 4] = w              # noeud 4 = sortie relative 1 (N=5, O=2)
+    g = _genome_stub(W, 2, 2)
+    r = logit_median_at_outputs([g], paires_rel=((0, 1),), n_obs=8, seed=12345)
+    obs = np.random.default_rng(12345).standard_normal((8, 2)).astype(np.float32)
+    attendu = float(np.median(0.5 * np.abs(np.tanh(w * obs[:, 0]))))
+    assert r["n_ok"] == 1 and r["n_failed"] == 0
+    assert np.isclose(r["median"], attendu, rtol=1e-5), (r["median"], attendu)
+
+
+def test_logit_median_failure_is_LOUD():
+    """L'echec d'un forward n'est PLUS avale : n_failed et failures le disent, la mediane reste nan
+    mais l'instrument SAIT et LE DIT (l'ancien comportement -- nan muet -- est la classe a bannir)."""
+    import math
+    from types import SimpleNamespace
+    from tools.evo_mech_dv import logit_median_at_outputs
+    casse = SimpleNamespace(num_inputs=2, num_nodes=5)          # pas de num_outputs ni W -> le forward leve
+    r = logit_median_at_outputs([casse], paires_rel=((0, 1),))
+    assert r["n_failed"] == 1 and r["n_ok"] == 0
+    assert math.isnan(r["median"]) and r["failures"], "le nan doit etre ACCOMPAGNE de sa cause"
 
 
 # ------------------------------------------------------------------------------------------------

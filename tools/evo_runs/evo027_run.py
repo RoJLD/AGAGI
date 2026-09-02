@@ -16,6 +16,7 @@ Regle scellee : docs/preregistrations/EVO-027.json (lecture CONTINUE, Fisher cal
 
     PYTHONPATH=. python -u tools/evo_runs/evo027_run.py
 """
+import os
 import statistics
 import time
 from math import comb
@@ -37,7 +38,7 @@ with hold("kuzu", owner="evo027-position", ttl_s=14400):
     import tools.evo_cognitive_objective as M
     import src.seed_ai.mutation as MUT
     from src.seed_ai.mutation import MutationConfig, apply_mutations
-    from src.seed_ai.rl_evolution import recurrent_forward
+    from tools.evo_mech_dv import logit_median_at_outputs
 
     rule = verify("EVO-027")
     print("regle SCELLEE verifiee |", rule["dv_primaire"][:90], "\n")
@@ -85,22 +86,10 @@ with hold("kuzu", owner="evo027-position", ttl_s=14400):
         return any(genome.W[c, o + out] != 0 for c, out in PAIRES_REL
                    if c < genome.num_nodes and o + out < genome.num_nodes)
 
-    def _logit_median(genomes, n_obs=8):
-        """|logit| median aux sorties notees, forward pur sur obs aleatoires (H frais) -- la grandeur
-        d'EVO-012 qui, chez les elites, ecrase un poids ~N(0,1). DV mecaniste, sans poids au verdict."""
-        vals = []
-        rng = np.random.default_rng(12345)
-        for g in genomes:
-            o = g.num_nodes - g.num_outputs
-            obs = rng.standard_normal((n_obs, g.num_inputs)).astype(np.float32)
-            try:
-                out = recurrent_forward(g, obs, None, None, None)[0]
-            except Exception:
-                continue
-            for _, rel in PAIRES_REL:
-                if rel < out.shape[1]:
-                    vals.extend(abs(float(x)) for x in out[:, rel])
-        return float(np.median(vals)) if vals else float("nan")
+    # |logit| : DV mecaniste REPAREE (2026-09-02) -> tools/evo_mech_dv.py, calibree.
+    # L'ancien helper in-run passait H_prev=None a recurrent_forward (None.copy() leve) et
+    # AVALAIT l'echec (except: continue) -> nan muet sur TOUT le run d'EVO-027. Forme (b) du
+    # biais negatif systematique. Le bug est devenu un cas de calibration.
 
     def evolve(seed, bras):
         np.random.seed(seed)
@@ -131,7 +120,10 @@ with hold("kuzu", owner="evo027-position", ttl_s=14400):
                 best_g = pool[0]["model"].genome.clone()
             elites = [ag["model"].genome.clone() for ag in pool[:n_elite]]
             if era == BRAS[bras]["marque_logit"]:
-                logit_med = _logit_median(elites)          # DV mecaniste, in situ sur les elites du run
+                lm = logit_median_at_outputs(elites, PAIRES_REL)   # DV mecaniste reparee, calibree
+                if lm["n_failed"]:
+                    print(f"    ! |logit| : {lm['n_failed']} forward(s) en echec : {lm['failures']}")
+                logit_med = lm["median"]
             if era == max(fen):
                 portage_fin = sum(_porte_arete(g) for g in elites)   # controle (2) : fin de fenetre
             children = []
@@ -150,6 +142,16 @@ with hold("kuzu", owner="evo027-position", ttl_s=14400):
             best = max(best, float(s))
         return best
 
+    PERSIST_DIR = os.path.join("data", "genomes", "evo027")
+
+    def _persist_champion(bras, seed, g):
+        """Dette recurrente « persister les genomes entraines » (CLAUDE.md) : la DV d'injection
+        d'EVO-027 a ete PERDUE faute de champions persistes. W + dimensions suffisent a un forward pur."""
+        os.makedirs(PERSIST_DIR, exist_ok=True)
+        np.savez_compressed(os.path.join(PERSIST_DIR, f"{bras.lower()}_seed{seed}.npz"),
+                            W=g.W, num_inputs=g.num_inputs, num_outputs=g.num_outputs,
+                            num_nodes=g.num_nodes)
+
     # ---- RUN ---------------------------------------------------------------------------------------
     out = {}
     try:
@@ -165,6 +167,7 @@ with hold("kuzu", owner="evo027-position", ttl_s=14400):
                     rows.append({"aborted": True})
                     continue
                 sal = saillance_max(r["genome"], 2000 + s)
+                _persist_champion(bras, s, r["genome"])    # plus jamais un run sans ses champions
                 queue = r["ages"][-max(1, len(r["ages"]) // 10):] if r["ages"] else [0.0]
                 rows.append({"seed": s, "sal": sal, "hits": r["hits"], "N": r["N"],
                              "age_fin": statistics.median(queue), "extinct": r["extinct"],

@@ -89,6 +89,7 @@ plus grand.
   lève) ; et l'injection post-run n'a pas pu être faite, les champions n'étant pas persistés (récidive
   de la dette « persister les génomes » de CLAUDE.md). Les deux étaient scellées **sans poids sur le
   verdict** ; la question mécaniste interne à B (troncature du neutre vs porte gelée) reste ouverte.
+  **RÉPARATION LIVRÉE le 2026-09-02** : la DV |logit| est extraite, corrigée et CALIBRÉE (`tools/evo_mech_dv.py`, 3 cas dont la forme close `0,5·|tanh(w·obs)|` — le bug est devenu le cas de calibration) et le runner persiste désormais chaque champion (`data/genomes/evo027/`). Tout REPLAY livrera les deux DV mécanistes.
 * La santé LATE (0,77) passe la clause mais confirme l'érosion d'EVO-026 : 50 ères coûtent ~23 % de
   survie finale même sans croissance.
 * Mesuré avec le biais à 0,5 sur les paires (SIG_COLS → sorties notées) du jeu mixte ; autres jeux et
