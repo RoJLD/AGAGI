@@ -940,8 +940,14 @@ entièrement sur `confirm_commit(..., owner=)`, que rien n'oblige à appeler.
   — c'est la règle « ne pas proxifier ce qu'on ne sait pas mesurer ». Toute version qui devine
   l'auteur d'un commit rejoue la forme RÉTROSPECTIVE déjà déclarée non automatisable en occ. 4.
 
-**P2.27 — ⚠️ OUVERT — le SUBSTRAT mesuré n'est identifiable a posteriori dans AUCUNE sonde ou presque :
-16 sondes sur 19 n'épinglent pas `BILINEAR`, et 11 sur 19 ont un optimiseur INCOMPLET.**
+**P2.27 — 🔒 CLIQUET LIVRÉ le 2026-09-02, DETTE ENCORE OUVERTE — le SUBSTRAT mesuré n'est identifiable
+a posteriori dans AUCUNE sonde ou presque : 16 sondes sur 19 n'épinglent pas `BILINEAR`, et 11 sur 19
+ont un optimiseur INCOMPLET.**
+*Livré : `tools/check_substrate_pinning.py` + baseline gelée (16 fichiers) + porte 6 du hook
+pre-commit + `tests/sandbox/test_substrate_pinning.py` (9 cas, autant de `spares` que de `fires`).
+Vérifié en acte : la garde TIRE sur une sonde neuve défectueuse et ÉPARGNE une sonde neuve correcte.
+Ce qui est fermé, c'est la RÉCIDIVE — aucune NOUVELLE sonde ne peut plus arriver en défaut. Les 16
+sondes légataires restent à corriger, une par une, et c'est ça qui reste ouvert.*
 Audit exhaustif des 19 fichiers de `tools/` qui construisent une population torch (2026-09-02), né de
 la rencontre de deux correctifs indépendants le même jour : `481117e` (session parallèle, sur
 `language_memory_demand_probe`) et `3b5554a` (sur `delayed_coordination_demand_probe`).
