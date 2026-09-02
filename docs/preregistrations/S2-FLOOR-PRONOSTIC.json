@@ -1,0 +1,17 @@
+{
+  "name": "S2-FLOOR-PRONOSTIC",
+  "rule": {
+    "cout": "15 runs de condition a 12 agents x 200 ticks x 12 eres (~minutes, ancre : campagne planchers 30-60 s pour 10 runs) ; timeout 1800 s ; sous bail kuzu.",
+    "discrimination": {
+      "soup_au_dessus_de_son_plancher (intact_median >= 32.0)": "PRONOSTIC REFUTE : la ligne soup de S2-002 se lit normalement ; l'ecart avec la mediane historique 22-29 se rapporte (variabilite inter-seed 2026 vs 3026 a documenter).",
+      "soup_sous_son_plancher (intact_median < 32.0)": "PRONOSTIC CONFIRME : soup est ILLISIBLE pour le within a ce regime (INDETERMINE_DEGENERATE) ET fait mesure : la politique du champion vaut MOINS que le hasard a corps egal sur soup -> annoter EDR-S2-002 (son argument de lisibilite reposait sur l'ancien plancher 9.0 de WARM-010, remplace par les planchers clones-du-champion).",
+      "toute autre issue (harnais en echec, n < 12, monde manquant)": "AUCUN verdict ; rapporter l'echec."
+    },
+    "dv_primaire": "verdict de run_ablation_map par monde au regime grave + ecart (intact_median - plancher) par monde, en ticks absolus (defaut AUDIT-001 : publier les absolus, pas que les ratios)",
+    "pronostic_scelle": "GRAVE AVANT ce run (cablage E14 du 2026-09-02) : soup intact median ~22-29 (annotation S2-002, medianes S2-003/S2-012 meme config) < plancher soup 32.0 -> l'instrument doit rendre INDETERMINE_DEGENERATE sur soup. Les autres mondes sont proches de leur plancher (stoneage 24.0, agricultural 25.25, industrial 24.0, famine 21.75) : chacun peut basculer, aucun n'est predit.",
+    "question": "Le champion INTACT, au regime GRAVE de S2-002 (12 agents, 200 ticks, K=12, seed 2026), survit-il AU-DESSUS du plancher no-perception mesure sur SES CLONES (PLANCHER_NOPERC, campagne 2026-09-02, seed 3026 decouple) ?",
+    "regle_de_lecture_continue": "Chaque monde se lit intact_median vs SON plancher ; l'ecart se rapporte en absolu pour les 5 mondes, qu'il soit positif ou negatif ; un monde sous plancher rend INDETERMINE_DEGENERATE via l'instrument (jamais de suppression de ligne). Le nombre de mondes degeneres (0-5) se rapporte tel quel.",
+    "unite_de_replication": "l'ere (K=12 eres appariees par monde), design within-subject"
+  },
+  "seal": "0a5d0a437b22486e5b799cef118162e1c46a570f2129a954c904048fc153b2cc"
+}

@@ -102,7 +102,11 @@ def run_ablation_map(worlds=None, seed=2026, K=12, num_agents=20, max_ticks=400)
         between_ratio = _median_survival(intact) / max(_median_survival(reflex), 1e-9)
         verdict = wv["verdict"].replace("X_", "PERCEPTION_")
         out[w] = {"within_ratio": wv["ratio"], "between_ratio": between_ratio,
-                  "verdict": verdict, "n": wv["n"]}
+                  "verdict": verdict, "n": wv["n"],
+                  # 2026-09-02 : absolus publies (defaut AUDIT-001 epingle sur S2-009 -- un record
+                  # qui ne publie que des ratios cache la proximite au plancher) + le plancher consomme
+                  "intact_median": float(np.median(intact["era_survival"])),
+                  "floor": _floor_for(w, num_agents, max_ticks)}
     return out
 
 
