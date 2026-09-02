@@ -64,6 +64,47 @@ PASSIF — `_step` écrit l'obs dans `H[:, :I]` et la porte à δ≈0.5 sans qu'
 readout final apprend à la décoder. C'est ainsi que l'arête gravée `memory→perception` atteint 0.564 à
 D=2 SOUS `learn_episode`. Ce que la troncature interdit, c'est d'APPRENDRE À ÉCRIRE dans le report.
 
+LEVIER `choice_decoy` — le référent-leurre est-il PRÉSENTÉ AU RECEIVER ? (défaut `True` = design d'origine)
+Le leurre traverse le sender : `_emit` produit `sig_first` ET `sig_last`, et le receiver reçoit
+`onehot(...)` des DEUX émissions. « Retirer le leurre » est donc AMBIGU tant qu'on n'a pas dit à quel
+niveau. Choix retenu, et il est CONTRAINT par le contrôle de sanité (cf. plus bas) :
+  * le SENDER est INCHANGÉ — il voit les deux référents, émet aux deux dates, et reçoit les deux
+    `learn_episode` d'émission exactement comme avant. Nombre d'appels, consommation du RNG et crédit du
+    sender sont identiques dans les deux réglages ;
+  * côté RECEIVER, le tick qui portait le leurre devient un vecteur NUL — le MÊME `_zeros` que les ticks
+    de délai. La longueur (D+2) et le nombre de forwards sont INCHANGÉS, dans les deux bras et entre les
+    deux réglages : une seule variable change, le contenu d'un tick. RETAIN `[sym] + D×nul + [nul]` (le
+    choix se lit sur un tick vide -> la rétention est obligatoire — c'est EXACTEMENT la forme de l'arête
+    gravée [[EDR-MEM-PERCEPTION]], `[encode] + D×nul + [test vide]`, d'où « variante fidèle à l'arête
+    gravée ») ; PRESENT `[nul] + D×nul + [sym]` (le choix se lit sur le symbole -> rien à retenir). La
+    symétrie par la DATE, raison d'être du design, est PRÉSERVÉE ; ce qui disparaît est la réponse
+    concurrente injectée dans les logits (EDR-DELAYED-COORD §1 : `logit = (1-δ)·H_prev + δ·tanh(...)`,
+    δ≈0.5, 108 des 113 nœuds portés SONT les readouts).
+ℹ️ Mettre le tick à zéro ou le RETIRER de la séquence sont ÉQUIVALENTS pour PRESENT, à tout D, et c'est
+mesuré (bit-identique) et non pas supposé : depuis H=0, un tick d'entrée nulle laisse H=0 et des logits
+nuls -> forward no-op ET gradient exactement nul (la log-proba de l'action neutre y est constante en W).
+Le zéro est donc l'intervention MINIMALE, et c'est elle qui est implémentée.
+⚠️ CONSÉQUENCE à ne pas ignorer en aval : sous `choice_decoy=False`, le préfixe de PRESENT ne porte AUCUN
+symbole — l'ablation y devient un no-op EXACT (Δ=0 par construction, pas par mesure) et le critère
+« contrôle inerte » y est VACUEUX. Task 3 doit lire l'inertie de PRESENT autrement sous ce réglage. Le
+bras RETAIN, lui, garde son préfixe porteur et son ablation reste informative.
+
+⚠️ `flip_p` — LE CONTRÔLE DE SANITÉ FIXE LE POINT DE FONCTIONNEMENT, et il n'est PAS le défaut du module.
+Contrôle prescrit par le rétro-audit : à D=0, PRESENT sans leurre doit reproduire le Lewis publié
+([[EDR-LANG-PERCEPTION]] `coord_intact` 0.342 ; 0.338 dans EDR-DELAYED-COORD §1). Mesuré ici à
+`episodes=800, n_agents=16, lr=0.05`, seeds 0-2, `credit='bptt'` :
+  * `flip_p=0.3` (défaut du module) : avec leurre [0.167, 0.150, 0.156] · sans leurre [0.230, 0.239,
+    0.292] -> médiane **0.239**, contrôle ÉCHOUÉ ;
+  * `flip_p=0.0` : avec leurre [0.155, 0.150, 0.191] · sans leurre [0.3375, 0.3313, 0.3562] -> médiane
+    **0.3375**, contrôle PASSÉ à 0.0005 du 0.338 du record.
+La raison est structurelle, pas un réglage de confort : la sonde de RÉFÉRENCE montre au sender un one-hot
+PROPRE (`_onehot(targets, ...)`, `perception_coordination_demand_probe.py:86`) — son `flip_p` ne bruite que
+la vue DIRECTE du bras NO-COORD. Ici `_noisy_onehot` bruite la vue du SENDER, donc le canal lui-même :
+à `flip_p=0.3` le bras le plus FACILE possible (PRESENT à D=0, aucune rétention) plafonne à 0.239, SOUS la
+barre de vitalité `1/K+0.15 = 0.317`. À ce réglage la barre est INATTEIGNABLE et un « RETAIN sous la
+barre » ne prouve rien (pré-vol, question 1 : l'instrument doit pouvoir rendre LES DEUX issues).
+Les chiffres du §1 du record (0.170 / 0.338 / RETAIN 0.223) sont donc à lire à `flip_p=0`.
+
 Ce module ne rend PAS de verdict : Task 3 ajoute le bras ALIAS, `ablation_verdict`, `specificity_control`
 et la calibration. Pur torch CPU, aucun bail `kuzu`, aucun monde.
 Usage : python tools/delayed_coordination_demand_probe.py
@@ -136,20 +177,25 @@ def _forward_seq(agent, inputs):
     return preds
 
 
-def _prefix_state(receiver, sig_first, V, I, n_agents, D, deranged, rng):
-    """Rejoue émission + délai et LAISSE `receiver.H` dans l'état porté correspondant (aucun retour).
+def _prefix_state(receiver, prefix, carried_idx, V, I, n_agents, deranged, rng):
+    """Rejoue le PRÉFIXE (tout sauf le tick de choix) et LAISSE `receiver.H` dans l'état porté
+    correspondant (aucun retour). `carried_idx` = index, DANS le préfixe, du tick qui porte un symbole
+    (`None` si le préfixe n'en porte aucun).
 
     `deranged=True` : le symbole du préfixe est remplacé par un tirage UNIFORME sur [0,V) INDÉPENDANT
     -> la distribution marginale de H, sa norme et ses corrélations internes sont préservées ; seule
     l'information sur la cible de CE trial est détruite. Analogue-état de `derange_rows`, l'ablation des
     deux arêtes déjà gravées. Le tirage est UNIFORME, jamais « différent du vrai symbole » : la contrainte
-    biaiserait le plancher (une coïncidence résiduelle de 1/V avec le vrai symbole est ATTENDUE)."""
+    biaiserait le plancher (une coïncidence résiduelle de 1/V avec le vrai symbole est ATTENDUE).
+
+    `carried_idx is None` : rien à substituer -> `deranged` est SANS EFFET (no-op EXACT, le RNG n'est
+    même pas consommé). Ce cas n'apparaît QUE sous `choice_decoy=False` (cf. docstring du module)."""
     import torch
-    s = rng.randint(0, V, size=n_agents) if deranged else sig_first
     receiver.H = torch.zeros((n_agents, receiver.N))
-    receiver.forward(_onehot(s, V, I, n_agents))
-    for _ in range(D):
-        receiver.forward(_zeros(I, n_agents))
+    for k, x in enumerate(prefix):
+        if deranged and k == carried_idx:
+            x = _onehot(rng.randint(0, V, size=n_agents), V, I, n_agents)
+        receiver.forward(x)
     # PAS de reset de H ici : l'appelant enchaîne DIRECTEMENT le tick de choix sur cet état porté.
 
 
@@ -165,11 +211,30 @@ def _trial_draw(arm, K, I, n_agents, flip_p, rng):
             _noisy_onehot(last, K, I, n_agents, flip_p, rng))
 
 
+def _receiver_seq(arm, sig_first, sig_last, V, I, n_agents, D, choice_decoy):
+    """Séquence d'entrées du RECEIVER, et l'index (dans le PRÉFIXE) du tick qui porte un symbole.
+
+    `choice_decoy=True` (défaut) : `[sym(first)] + D×nul + [sym(last)]`, index porté 0 — STRICTEMENT le
+    comportement d'origine.
+    `choice_decoy=False` : le tick qui portait le LEURRE devient un vecteur NUL. La longueur reste D+2 et
+    le nombre de forwards reste identique dans les deux bras et entre les deux réglages — une SEULE
+    variable change, le contenu d'un tick. RETAIN `[sym] + D×nul + [nul]` (choix lu sur un tick vide ->
+    rétention obligatoire, exactement la forme de l'arête gravée [[EDR-MEM-PERCEPTION]]) et PRESENT
+    `[nul] + D×nul + [sym]` (choix lu sur le symbole -> rien à retenir). Cf. docstring du module."""
+    show_first = choice_decoy or arm == "RETAIN"      # RETAIN : `first = target`, jamais le leurre
+    show_last = choice_decoy or arm == "PRESENT"      # PRESENT : `last  = target`, jamais le leurre
+    seq = ([_onehot(sig_first, V, I, n_agents) if show_first else _zeros(I, n_agents)]
+           + [_zeros(I, n_agents) for _ in range(D)]
+           + [_onehot(sig_last, V, I, n_agents) if show_last else _zeros(I, n_agents)])
+    return seq, (0 if show_first else None)           # None -> aucun symbole à substituer (PRESENT sans leurre)
+
+
 def _train_and_eval_arm(seed, arm, D, episodes, n_agents, K, V, lr, flip_p, eval_batches=40,
-                        credit="bptt"):
+                        credit="bptt", choice_decoy=True):
     """Entraîne le couple sender/receiver sur UN bras, puis évalue INTACT vs SUBSTITUÉ sur les MÊMES
     essais (appariement par essai : chaque trial est rejoué deux fois, une fois intact une fois substitué,
-    même agent, mêmes poids). Renvoie (acc_intact, acc_ablated). `credit` : cf. docstring du module."""
+    même agent, mêmes poids). Renvoie (acc_intact, acc_ablated). `credit` : cf. docstring du module.
+    `choice_decoy` : cf. docstring du module (défaut `True` = design d'origine, bit-identique)."""
     import torch
     from src.agents.mamba_agent import MambaAgent
     from src.agents.backend import make_population
@@ -197,11 +262,9 @@ def _train_and_eval_arm(seed, arm, D, episodes, n_agents, K, V, lr, flip_p, eval
 
         for _ in range(episodes):
             target, s_first, s_last = _trial_draw(arm, K, I, n_agents, flip_p, rng)
-            sig_first = _emit(sender, s_first, V, rng, n_agents)
+            sig_first = _emit(sender, s_first, V, rng, n_agents)   # sender INCHANGÉ dans les 2 réglages
             sig_last = _emit(sender, s_last, V, rng, n_agents)
-            inputs = ([_onehot(sig_first, V, I, n_agents)]
-                      + [_zeros(I, n_agents) for _ in range(D)]
-                      + [_onehot(sig_last, V, I, n_agents)])
+            inputs, _carried = _receiver_seq(arm, sig_first, sig_last, V, I, n_agents, D, choice_decoy)
             preds = _forward_seq(receiver, inputs)
             guess = _sample(preds, K, rng, n_agents)
             adv = (guess == target).astype(np.float32)
@@ -232,9 +295,10 @@ def _train_and_eval_arm(seed, arm, D, episodes, n_agents, K, V, lr, flip_p, eval
             target, s_first, s_last = _trial_draw(arm, K, I, n_agents, flip_p, rng)
             sig_first = _emit(sender, s_first, V, rng, n_agents)
             sig_last = _emit(sender, s_last, V, rng, n_agents)
-            choice_in = _onehot(sig_last, V, I, n_agents)       # tick de choix INCHANGÉ par l'ablation
+            seq, carried = _receiver_seq(arm, sig_first, sig_last, V, I, n_agents, D, choice_decoy)
+            choice_in = seq[-1]                                 # tick de choix INCHANGÉ par l'ablation
             for deranged, hits in ((False, hits_i), (True, hits_a)):
-                _prefix_state(receiver, sig_first, V, I, n_agents, D, deranged, rng)
+                _prefix_state(receiver, seq[:-1], carried, V, I, n_agents, deranged, rng)
                 pr, _ = receiver.forward(choice_in)             # enchaîné sur l'état porté du préfixe
                 guess = np.asarray(pr)[:, :K].argmax(axis=1)    # argmax DÉTERMINISTE
                 hits.append((guess == target).astype(np.float32))
@@ -245,7 +309,8 @@ def _train_and_eval_arm(seed, arm, D, episodes, n_agents, K, V, lr, flip_p, eval
 
 
 def run_delayed_coordination_demand_probe(seeds, D=2, episodes=800, n_agents=16, K=6, V=8, lr=0.05,
-                                          flip_p=0.3, arms=ARMS, eval_batches=40, credit="bptt"):
+                                          flip_p=0.3, arms=ARMS, eval_batches=40, credit="bptt",
+                                          choice_decoy=True):
     """Mesure « la coordination référentielle DIFFÉRÉE demande la rétention d'état ».
 
     Par seed et par bras : éval INTACTE vs SUBSTITUTION D'ÉTAT (appariées par essai). Renvoie les
@@ -259,14 +324,16 @@ def run_delayed_coordination_demand_probe(seeds, D=2, episodes=800, n_agents=16,
            "_params": {"D": D, "episodes": episodes, "n_agents": n_agents, "K": K, "V": V, "lr": lr,
                        "flip_p": flip_p, "arms": list(arms), "eval_batches": eval_batches,
                        "seeds": list(seeds), "threads": torch.get_num_threads(),
-                       "credit": credit, "ablation_target": "substrate",
+                       "credit": credit, "choice_decoy": choice_decoy,
+                       "ablation_target": "substrate",
                        "ceiling_bayes": (1.0 - flip_p) + flip_p / K, "floor": 1.0 / K}}
     for arm in arms:
         out[arm + "_intact"], out[arm + "_ablated"] = [], []
     for s in seeds:
         for arm in arms:
             i, a = _train_and_eval_arm(s, arm, D, episodes, n_agents, K, V, lr, flip_p,
-                                       eval_batches=eval_batches, credit=credit)
+                                       eval_batches=eval_batches, credit=credit,
+                                       choice_decoy=choice_decoy)
             out[arm + "_intact"].append(i)
             out[arm + "_ablated"].append(a)
     return out
@@ -282,5 +349,6 @@ if __name__ == "__main__":
         n_agents=int(os.environ.get("DC_AGENTS", "16")),
         lr=float(os.environ.get("DC_LR", "0.05")),
         credit=os.environ.get("DC_CREDIT", "bptt"),
+        choice_decoy=os.environ.get("DC_CHOICE_DECOY", "1") not in ("0", "false", "False"),
     )
     print(json.dumps(r, ensure_ascii=False, indent=2))
