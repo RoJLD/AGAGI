@@ -28,9 +28,6 @@
       "A",
       "B"
     ],
-    "tools/retain_compose_diagnostic_probe.py": [
-      "A"
-    ],
     "tools/substrate_ab.py": [
       "A"
     ],
@@ -38,8 +35,7 @@
       "A"
     ],
     "tools/torch_binary_gate_heldout_probe.py": [
-      "A",
-      "B"
+      "A"
     ],
     "tools/torch_binary_gate_probe.py": [
       "A"

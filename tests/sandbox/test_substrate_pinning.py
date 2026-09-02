@@ -131,3 +131,25 @@ def test_the_frozen_debt_is_a_DEBT_not_a_decoration():
     # et la baseline ne doit pas gonfler au-delà du réel : ce qu'elle gèle doit encore exister
     for k in base:
         assert os.path.exists(os.path.join(_ROOT, k)), f"la baseline gèle un fichier DISPARU : {k}"
+
+
+def test_the_ratchet_SPARES_a_pin_made_through_an_IMPORT_ALIAS():
+    """⚠️ TROISIÈME faux positif réel de ce cliquet (2026-09-02), trouvé en l'utilisant pour trier la
+    dette légataire. `retain_compose_diagnostic_probe` ÉPINGLE bien le substrat — mais via un alias
+    d'import (`from ... import TorchPopulationModel as TPM` puis `TPM.BILINEAR = ...`). Exiger le nom
+    COMPLET de la classe faisait compter comme dette une sonde déjà correcte, et gonflait le compteur
+    de dette d'une unité. On accepte donc l'assignation d'ATTRIBUT quel que soit le porteur."""
+    alias = "TPM.BILINEAR = bool(bilinear)\n"
+    assert _defects(alias + _MAKE + _ADAM_PLEIN) == set()
+    assert "A" in _defects(_MAKE + _ADAM_PLEIN), "sans aucun épinglage, A doit toujours tirer"
+
+
+def test_the_ratchet_SPARES_an_Adam_that_optimizes_NO_population():
+    """⚠️ QUATRIÈME faux positif, même passe. `torch_binary_gate_heldout_probe` fait
+    `Adam([w_throw, b_throw])` : une liste littérale, mais qui n'optimise AUCUNE population — la
+    juger sur `U/V/W_bl` était hors sujet. On n'examine donc que les appels dont la liste porte un
+    POIDS DE POPULATION. La casse compte : `pop.w_gate` n'est pas `pop.W`."""
+    assert _defects(_PIN + _MAKE + "opt = torch.optim.Adam([w_throw, b_throw], lr=lr)\n") == set()
+    assert _defects(_PIN + _MAKE + "opt = torch.optim.Adam([pop.w_gate], lr=lr)\n") == set()
+    # mais une liste qui porte bien le poids de population reste jugée
+    assert _defects(_PIN + _MAKE + "opt = torch.optim.Adam([pop.W, pop.w_gate], lr=lr)\n") == {"B"}

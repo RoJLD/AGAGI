@@ -43,10 +43,16 @@ _BASELINE = os.path.join(_ROOT, "tools", "substrate_pinning_baseline.json")
 _SCAN_DIRS = ("tools", os.path.join("src", "seed_ai"))
 
 _MAKES_POP = re.compile(r"make_population\s*\(")
-_PINS = re.compile(r"TorchPopulationModel\.BILINEAR\s*=")
+# ⚠️ Ne d'un FAUX POSITIF de ce cliquet, 2026-09-02 : `retain_compose_diagnostic_probe`
+# EPINGLE bien le substrat, mais via un ALIAS d'import (`TPM.BILINEAR = ...`). Exiger le nom
+# COMPLET de la classe faisait crier sur du code CORRECT. On accepte donc l'assignation
+# d'ATTRIBUT quel que soit le porteur ; le `(?!=)` evite de confondre `==` avec `=`.
+_PINS = re.compile(r"\.BILINEAR\s*=(?!=)")
 _ADAM_CALL = re.compile(r"optim\.Adam\(")
 # les paramètres du terme bilinéaire, tels que nommés dans `backend_torch.py:113-115`
 _BILINEAR_PARAMS = re.compile(r"\bW_bl\b|\bU\b|\bV\b")
+# Le poids d'une POPULATION (au minimum `pop.W`). Sensible a la casse : `pop.w_gate` n'en est pas.
+_POP_WEIGHT = re.compile(r"\.W\b")
 
 
 def _adam_args(src: str):
@@ -84,7 +90,11 @@ def _defects(src: str):
     # Seuls les appels dont les arguments contiennent une LISTE LITTÉRALE sont jugés : `Adam(params)`
     # ou `Adam(_full_params(pop))` construisent leur liste ailleurs, et deviner ce qu'elle contient
     # serait proxifier ce qu'on ne sait pas mesurer.
-    if any("[" in a and not _BILINEAR_PARAMS.search(a) for a in _adam_args(src)):
+    # ⚠️ Deuxieme FAUX POSITIF corrige le meme jour : `Adam([w_throw, b_throw])` d'une sonde
+    # de gate n'optimise AUCUNE population -- la juger etait hors sujet. On n'examine donc que
+    # les appels dont la liste porte un POIDS DE POPULATION, seuls concernes par `U/V/W_bl`.
+    if any("[" in a and _POP_WEIGHT.search(a) and not _BILINEAR_PARAMS.search(a)
+           for a in _adam_args(src)):
         out.add("B")
     return out
 
