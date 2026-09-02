@@ -4,8 +4,8 @@ type: EDR
 title: "Le mur retain+compose était un ARTEFACT DE PAS D'APPRENTISSAGE — à lr=0.002 le 2-tick appris passe de 0.173 à 0.923 (n=12, séparation totale 0/144)"
 status: active
 verdict: RETAIN_COMPOSE_WALL_IS_A_LEARNING_RATE_ARTIFACT
-gate: G0
-tests: [SDR-G0]
+gate: G2
+tests: [SDR-G2]
 adopts: [REF-EXPERIMENT-PREFLIGHT]
 extends: [EDR-RETAIN-COMPOSE]
 ---

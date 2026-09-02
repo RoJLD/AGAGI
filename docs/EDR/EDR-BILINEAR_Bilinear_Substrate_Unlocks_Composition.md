@@ -3,8 +3,8 @@ id: EDR-BILINEAR
 type: EDR
 title: "POSITIF (borné) : le terme bilinéaire lève le mur REPRÉSENTATIONNEL de (q+key)%K quand key et q sont co-présents (same-tick, crédit supervisé) — mais ne lève PAS, seul, le mur de RÉTENTION ; le nul REINFORCE de la Tâche 2 était confondu, dominé par la rétention plus que par le crédit"
 status: active
-gate: G0
-tests: [SDR-G0]
+gate: G2
+tests: [SDR-G2]
 adopts: [REF-EXPERIMENT-PREFLIGHT, REF-DEMAND-MARKER]
 ---
 

@@ -3,7 +3,8 @@ id: EDR-161
 type: EDR
 title: "Le binding LIVRÉ (158/159) PAIE quand un monde EXIGE la composition : probe standalone craft→consomme, sweep de demande d. L'avantage capacité(gate+learn_episode) vs plain(TD) CROÎT avec la demande (adv +0.009 à d=0 → +0.212 à d=1) via un comp_rate ON qui monte (0.01→0.17) là où OFF reste plat (~0.03). Proxy amont du pari H-unif (crédit épisodique rachète le crédit conditionnel) → dé-risque l'intégration in-world (axe 1). La capacité ATTÉNUE la demande sans la conquérir (payoff d=1 : ON −0.043 vs OFF −0.255). Méthodo : un monde qui laisse une abstention-à-0 sûre ne bootstrappe PAS la composition (v1 réfutée)"
 status: accepted
-gate: null
+gate: G2
+tests: [SDR-G2]
 verdict: CAPABILITY_PAYS_UNDER_COMPOSITION_DEMAND
 ---
 

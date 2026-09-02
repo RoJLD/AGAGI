@@ -14,7 +14,15 @@ fail=0
 # 2026-09-01 : baseline elargie de 19 a 42 orphelins dans l'arbre, sans commit).
 staged_rec=$(git diff --cached --name-only --diff-filter=AM | grep -E '^(docs/(EDR|ADR|SDR|REF)/.*\.md|tools/record_link_baseline\.json)$')
 if [ -n "$staged_rec" ]; then
-  PYTHONIOENCODING=utf-8 python tools/check_record_links.py --only $(echo "$staged_rec" | grep -v record_link_baseline || true) || {
+  # E4 occ.6 (2026-09-02, revue adversariale C3) : si SEULE la baseline est stagee, la liste --only
+  # est VIDE et le checker filtre tout -> le ratchet ne pouvait pas echouer sur ce commit precis
+  # (le trou residuel de l'occ.5). Baseline stagee sans record -> run NON scope (arbre entier).
+  only_rec=$(echo "$staged_rec" | grep -v record_link_baseline || true)
+  if [ -n "$only_rec" ]; then
+    PYTHONIOENCODING=utf-8 python tools/check_record_links.py --only $only_rec
+  else
+    PYTHONIOENCODING=utf-8 python tools/check_record_links.py
+  fi || {
     echo ""
     echo "-> Raccorde le record à une porte (frontmatter 'gate: Gx' et/ou 'tests: [SDR-Gx]'),"
     echo "   ou fais-le adopter par une REF, ou dé-duplique l'id. Puis re-commit."

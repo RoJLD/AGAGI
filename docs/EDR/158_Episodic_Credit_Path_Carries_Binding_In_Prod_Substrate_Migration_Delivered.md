@@ -3,7 +3,8 @@ id: EDR-158
 type: EDR
 title: "Chemin de crédit ÉPISODIQUE dans le substrat prod (learn_episode) : PORTE le binding means→ends là où le TD différé échoue — episodic+gate +0.298 vs td+gate +0.000 (3 seeds), reproduit la recette 147 (+0.30) comme MÉTHODE réutilisable du substrat prod. 2×2 crédit×gate isole : binding = gate ET crédit épisodique (conjonction). Exécute la reco d'EDR-148. ADDITIF/flag-OFF (banc // intact)"
 status: accepted
-gate: null
+gate: G2
+tests: [SDR-G2]
 verdict: EPISODIC_CREDIT_CARRIES_BINDING_IN_PROD
 ---
 

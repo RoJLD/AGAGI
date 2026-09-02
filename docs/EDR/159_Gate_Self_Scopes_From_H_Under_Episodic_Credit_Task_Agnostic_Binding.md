@@ -3,7 +3,8 @@ id: EDR-159
 type: EDR
 title: "Le gate de conditionnement S'AUTO-SCOPE depuis H sous crédit épisodique : le gate UNIFORME (appliqué à tous les pas, sans béquille de phase) binde +0.232 ≈ 77% du gate scopé +0.298 (3 seeds), là où le MÊME gate uniforme sous TD échoue (−0.286, EDR-148). Le gate apprend à conditionner sur l'état récurrent (se déclencher aux états « ends », pas « means ») sans signal de phase → lève la bornage principale d'EDR-158, binding TASK-AGNOSTIQUE prod-ready. Coût résiduel : accomplissement plus bas (contamination S1 résiduelle)"
 status: accepted
-gate: null
+gate: G2
+tests: [SDR-G2]
 verdict: GATE_SELF_SCOPES_FROM_H_UNDER_EPISODIC_CREDIT
 ---
 

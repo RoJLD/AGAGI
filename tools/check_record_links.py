@@ -28,6 +28,14 @@ from tools.consolidate_records import scan_records, build_graph, _GATES
 # Ancres de raccordement tolérées : les 5 portes G0-G4 + « foundational » (infra/NAS/méthodo qui n'appartient
 # légitimement à aucune porte — évite de forcer un rattachement artificiel lors de la dé-orphanisation légataire).
 _ANCHORS = set(_GATES) | {"foundational"}
+# C3 (2026-09-02) : mismatch gate<->tests. `roadmap_state` compte un EDR pour une porte si gate==g
+# OU SDR-Gg dans tests -> un mismatch fait apparaitre le MEME record dans DEUX portes. Semantique
+# tranchee : gate dans _GATES ET tests declare des SDR-Gy ET gate absent des declares ; un gate sans
+# aucun tests = dette `gate_unlinked` (autre chantier) ; `foundational` n'est PAS une porte -> jamais
+# un mismatch (contre-exemple gele). Reponse connue confrontee AVANT de croire le cliquet :
+# l'arbre PRE-retaggage portait exactement {EDR-S2-007 (G4/[SDR-G0]), EDR-S2-008 (G2/[SDR-G0])} --
+# le draft du panel n'en voyait qu'un, le refutateur a trouve le second (F1).
+_SDR_GATE = re.compile(r"^SDR-(G\d)$")
 
 # Baseline dans tools/ (tracké) et non results/ (gitignored) -> la dette gelée est versionnée/portable.
 _BASELINE = os.path.join(_ROOT, "tools", "record_link_baseline.json")
@@ -97,7 +105,7 @@ def analyze(root: str = _ROOT) -> dict:
         by_id.setdefault(r["id"], []).append(r["file"])
     collisions = [{"id": i, "files": sorted(fs)} for i, fs in sorted(by_id.items()) if len(fs) > 1]
 
-    orphans, gate_unlinked = [], []
+    orphans, gate_unlinked, gate_tests_mismatch = [], [], []
     for r in records:
         if r["type"] not in ("EDR", "ADR"):          # SDR/REF = ancrages structurels
             continue
@@ -109,9 +117,16 @@ def analyze(root: str = _ROOT) -> dict:
         tests_sdr = any(str(t).startswith("SDR-") for t in (r.get("tests") or []))
         if r["type"] == "EDR" and not has_gate and not tests_sdr:
             gate_unlinked.append({"id": r["id"], "file": r["file"]})
+        # C3 : mismatch gate<->tests (EDR seulement -- N6 du refutateur)
+        if r["type"] == "EDR":
+            declared = [m.group(1) for t in (r.get("tests") or [])
+                        if (m := _SDR_GATE.match(str(t)))]
+            if r.get("gate") in _GATES and declared and r["gate"] not in declared:
+                gate_tests_mismatch.append({"id": r["id"], "file": r["file"],
+                                            "gate": r["gate"], "tests_gates": declared})
 
     return {"orphans": orphans, "collisions": collisions, "gate_unlinked": gate_unlinked,
-            "n_records": len(records)}
+            "gate_tests_mismatch": gate_tests_mismatch, "n_records": len(records)}
 
 
 def _load_baseline() -> dict:
@@ -138,6 +153,7 @@ def main(argv=None) -> int:
     if args.update_baseline:
         payload = {"orphan_files": sorted(o["file"] for o in st["orphans"]),
                    "collision_ids": sorted(c["id"] for c in st["collisions"]),
+                   "mismatch_files": sorted(m["file"] for m in st["gate_tests_mismatch"]),
                    "_note": "Dette légataire gelée. Le ratchet interdit tout NOUVEL orphelin/collision."}
         os.makedirs(os.path.dirname(_BASELINE), exist_ok=True)
         with open(_BASELINE, "w", encoding="utf-8") as fh:
@@ -164,7 +180,10 @@ def main(argv=None) -> int:
 
     if args.report:
         print(f"records={st['n_records']} orphelins={n_orph} collisions={n_coll} "
-              f"gate_non_raccordés={len(st['gate_unlinked'])}")
+              f"gate_non_raccordés={len(st['gate_unlinked'])} "
+              f"mismatches_gate_tests={len(st['gate_tests_mismatch'])}")
+        for m in st["gate_tests_mismatch"]:
+            print(f"  [mismatch] {m['id']} gate: {m['gate']} vs tests: {m['tests_gates']}")
         for o in st["orphans"]:
             print(f"  [orphelin] {o['id']}  ({o['file']})")
         for c in st["collisions"]:
@@ -176,15 +195,20 @@ def main(argv=None) -> int:
     base_orph, base_coll = set(base.get("orphan_files", [])), set(base.get("collision_ids", []))
     new_orph = [o for o in st["orphans"] if o["file"] not in base_orph]
     new_coll = [c for c in st["collisions"] if c["id"] not in base_coll]
+    base_mism = set(base.get("mismatch_files", []))
+    new_mism = [m for m in st["gate_tests_mismatch"] if m["file"] not in base_mism]
 
     # scope optionnel aux fichiers du commit courant (hook pre-commit) : ne bloque pas sur le travail // non-committé
     if args.only is not None:
         only = {f.replace(os.sep, "/") for f in args.only}
         new_orph = [o for o in new_orph if o["file"] in only]
         new_coll = [c for c in new_coll if any(f in only for f in c["files"])]
+        new_mism = [m for m in new_mism if m["file"] in only]
 
-    if not new_orph and not new_coll:
-        print(f"OK : {n_orph} orphelins / {n_coll} collisions, tous légataires (baseline). Aucun nouveau.")
+    if not new_orph and not new_coll and not new_mism:
+        print(f"OK : {n_orph} orphelins / {n_coll} collisions / "
+              f"{len(st['gate_tests_mismatch'])} mismatches gate<->tests, tous légataires (baseline). "
+              f"Aucun nouveau.")
         return 0
 
     print("ÉCHEC : nouveaux orphelins/collisions détectés (raccorde-les à une porte / dé-duplique l'id) :")
@@ -192,6 +216,9 @@ def main(argv=None) -> int:
         print(f"  [NOUVEL ORPHELIN] {o['id']}  ({o['file']}) — ajoute frontmatter gate:/tests:[SDR-Gx] ou adopt REF")
     for c in new_coll:
         print(f"  [NOUVELLE COLLISION] {c['id']}  ->  {', '.join(c['files'])}")
+    for m in new_mism:
+        print(f"  [NOUVEAU MISMATCH] {m['id']} gate: {m['gate']} mais tests: {m['tests_gates']} "
+              f"-- aligne gate: ou tests: ({m['file']})")
     return 1
 
 

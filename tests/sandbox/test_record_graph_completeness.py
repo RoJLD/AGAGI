@@ -84,3 +84,31 @@ def test_the_real_graph_is_complete_and_coherent():
     rels = {e["rel"] for e in build_graph(scan_records(C._ROOT))["edges"]}
     assert "RETRACTE_PAR" in rels and "CORRIGE" in rels, (
         f"le graphe ne porte plus d'arête de rétractation : {sorted(rels)}")
+
+
+# --------------------------------------------------------------------------------------------------
+# C3 (2026-09-02) : mismatch gate<->tests. Reponse connue confrontee AVANT de croire le cliquet
+# (arbre pre-retaggage : exactement {EDR-S2-007 G4/[SDR-G0], EDR-S2-008 G2/[SDR-G0]} -- le draft du
+# panel n'en voyait qu'UN, le refutateur a trouve le second, F1).
+# --------------------------------------------------------------------------------------------------
+
+def test_a_gate_tests_mismatch_is_DETECTED(tmp_path):
+    """CONTRE-EXEMPLE GELE -- la configuration exacte de S2-008 avant correction (gate d'une porte,
+    tests d'une autre) : roadmap_state compterait le record dans DEUX portes."""
+    root = _record(tmp_path, "id: EDR-999\ntype: EDR\ngate: G0\ntests: [SDR-G2]")
+    mm = C.analyze(root)["gate_tests_mismatch"]
+    assert any(m["id"] == "EDR-999" and m["gate"] == "G0" and m["tests_gates"] == ["G2"]
+               for m in mm), mm
+
+
+def test_a_coherent_gate_and_tests_triggers_NOTHING(tmp_path):
+    """SPECIFICITE : gate et tests alignes -> rien."""
+    root = _record(tmp_path, "id: EDR-999\ntype: EDR\ngate: G2\ntests: [SDR-G2]")
+    assert C.analyze(root)["gate_tests_mismatch"] == []
+
+
+def test_foundational_with_sdr_tests_is_NOT_a_mismatch(tmp_path):
+    """Semantique TRANCHEE et gelee : foundational n'est pas une porte (_ANCHORS) -- un record
+    foundational qui teste une SDR n'est pas un conflit, l'arete tests fait foi."""
+    root = _record(tmp_path, "id: EDR-999\ntype: EDR\ngate: foundational\ntests: [SDR-G1]")
+    assert C.analyze(root)["gate_tests_mismatch"] == []

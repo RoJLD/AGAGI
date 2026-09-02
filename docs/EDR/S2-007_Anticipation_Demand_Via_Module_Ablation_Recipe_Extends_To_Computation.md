@@ -4,7 +4,7 @@ type: EDR
 title: "Demand-marker par ablation de MODULE : l'anticipation (G4) — la recette s'étend aux capacités-calcul"
 status: active
 gate: G4
-tests: [SDR-G0]
+tests: [SDR-G4]
 adopts: [REF-DEMAND-MARKER]
 corrected_by: [EDR-AUDIT-001]
 ---

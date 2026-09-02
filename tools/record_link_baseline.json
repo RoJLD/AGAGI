@@ -13,20 +13,9 @@
     "docs/EDR/113_Rewarding_The_Final_Step_Does_Not_Lift_Navigation_The_Last_World_Lever_Is_Eliminated.md",
     "docs/EDR/113_gamma_sweep_horizon_credit_no_op_issue2.md",
     "docs/EDR/114_Reaching_Primitive_Closes_P_Reach_The_Wall_Is_The_Policy_Reproduction_Pooling_Confounds_The_Metric.md",
-    "docs/EDR/117_Compositional_Learnability_Both_Fail_At_5_Hidden_Issue2_Size.md",
-    "docs/EDR/119_Hidden_Size_Sweep_Compositional_Not_Size_Issue_C.md",
-    "docs/EDR/120_Compositional_Memory_Probe_Memory_Present_Not_The_Lock.md",
-    "docs/EDR/122_Compositional_Curriculum_Discovery_Torch_Credit_Legacy.md",
     "docs/EDR/123_Credit_Horizon_Refuted_Gradient_Advantage_Constant_Not_Widening.md",
     "docs/EDR/124_S2_World_Demands_Intelligence_For_Survival_Not_Lifescore.md",
     "docs/EDR/125_Craft_Wall_The_Tool_Ladder_Inverts_Apex_By_Coop_Not_By_Spear.md",
-    "docs/EDR/127_QD_Selection_Does_Not_Rescue_Dead_Craft_Reached_Not_Retained.md",
-    "docs/EDR/128_Compositional_Binding_Penalty_Signal_Weak_Not_Robust.md",
-    "docs/EDR/131_Compositional_Collapse_Is_Early_Path_Dependence_Not_Representation.md",
-    "docs/EDR/132_Compositional_Warmstart_Does_Not_Rescue_Locus_Is_Memory_Readout.md",
-    "docs/EDR/133_Compositional_Nonlinear_Readout_Does_Not_Unlock_Suppression.md",
-    "docs/EDR/136_Compositional_AntiSaturation_Base_Policy_Rescues_All_Seeds.md",
-    "docs/EDR/149_Compositional_Recipe_Robust_To_Overtraining_InWorld_Destab_Is_Regime_Specific.md",
     "docs/EDR/150_ToM_Gated_Not_Dead_Head_Inert_Reward_Disconnected_From_Fitness.md",
     "docs/EDR/151_ToM_Behavioral_Coordination_Indeterminate_No_Recruitment_Above_Geometric_Baseline.md",
     "docs/EDR/152_Disjoint_Heads_Help_But_Cosine_Zero_Gain_Is_Optimizer_Conditioning_Not_Interference.md",
@@ -52,5 +41,6 @@
     "EDR-129",
     "EDR-130"
   ],
+  "mismatch_files": [],
   "_note": "Dette légataire gelée. Le ratchet interdit tout NOUVEL orphelin/collision."
 }

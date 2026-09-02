@@ -3,7 +3,8 @@ id: EDR-129
 type: EDR
 title: "Levier 2 (gating archi did_x→logits Y) : un gate explicite entraînable DÉBLOQUE le binding compositionnel (7/10 seeds, gap 0.37-0.68) là où le substrat de base ne binde JAMAIS — mais uniquement quand conditionner est incité (pénalité + ¬X fréquent) et de façon intermittente (3/10 collapse en always-Y) ; le verrou est SUBSTANTIELLEMENT la structure de routage (actionnable migration), l'optimisation reste un co-facteur"
 status: validated
-gate: null
+gate: G2
+tests: [SDR-G2]
 verdict: "Levier 2 d'EDR 126 (le binding est-il un problème de ROUTAGE ?). On ajoute un GATE sur le logit Y en phase B, 3 modes : none (baseline), oracle (biais câblé ±selon did_x VRAI = plafond), learned (readout linéaire entraînable de H_S2 → biais Y, REINFORCE sur reward2). ORACLE → gap 1.000 (5/5) : router did_x→Y RÉSOUT la tâche (plafond, valide l'instrument). NONE → gap ~0.09 (jamais >0.2) : le substrat de base ne binde pas (reproduit 126/128). LEARNED sous récompense NON-incitative (fade1.0, pen0) → collapse en always-Y (P(Y)=1.0, gap 0) car always-Y y est optimal (X fait ~92% → confond, pas un échec de routage). LEARNED sous récompense INCITATIVE (fade0.0 → ¬X fréquent ; penalty=2 → silence −1 > Y-sans-X −3) → BINDING sur 7/10 seeds (gap 0.37-0.68, P(Y|X)~1.0 / P(Y|¬X)~0.3-0.6), 3/10 collapse. Conclusion : le verrou du conditionnement est SUBSTANTIELLEMENT la STRUCTURE DE ROUTAGE — donner au substrat un mécanisme explicite qui lit H_S2 (did_x décodable, EDR 120) et module le logit Y DÉBLOQUE un binding que le head de base n'atteint jamais. ACTIONNABLE pour la migration. Les 3/10 collapses → l'optimisation/crédit (levier 3) reste un co-facteur. Recette = gate structurel (levier 2) + régime où conditionner est optimal (insight levier 1/EDR 128)."
 ---
 

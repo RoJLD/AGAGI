@@ -5,8 +5,8 @@ title: "OÙ est le mur retain+compose : diagnostic par oracle de rétention (RÉ
 status: retracted
 verdict: RETIRÉ (ex-RETENTION) — réfuté par EDR-RETAIN-COMPOSE-LR
 retracted_by: [EDR-RETAIN-COMPOSE-LR]
-gate: G0
-tests: [SDR-G0]
+gate: G2
+tests: [SDR-G2]
 adopts: [REF-EXPERIMENT-PREFLIGHT, REF-DEMAND-MARKER]
 ---
 

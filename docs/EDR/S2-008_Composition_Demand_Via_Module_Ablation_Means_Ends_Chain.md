@@ -4,7 +4,7 @@ type: EDR
 title: "Demand-marker par ablation de MODULE : la COMPOSITION means→ends (G2) — la recette couvre input ET calcul"
 status: active
 gate: G2
-tests: [SDR-G0]
+tests: [SDR-G2]
 adopts: [REF-DEMAND-MARKER]
 ---
 
