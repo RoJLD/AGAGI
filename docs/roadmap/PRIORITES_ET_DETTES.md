@@ -268,7 +268,8 @@ ce record affirmerait aujourd'hui une conclusion fabriquée.**
 même croissance coupée — ce sont `mutate_weights` et `prune` seuls qui érodent sur 735 ères. **On ne peut
 pas accumuler des tirages en PROFONDEUR.**
 
-**➡️ D2-bis : ⛔ ABANDONNÉ (2026-09-02, panel 3 juges + réfutateur — unanimité PROUVÉE).** La largeur à longueur fixe a une puissance discriminante **exactement nulle** : sous A comme sous B, N lignées indépendantes donnent `P(≥1) = 1−(1−p_lignée)^N` — la largeur mesure `p_lignée`, elle n'arbitre rien (information de Fisher A-contre-B nulle). Tout run en largeur est de la **calibration de base** (utile : la limite 0.005-vs-0.02 du sceau EVO-026-bis reste ouverte), jamais un arbitre. Deux designs de remplacement RÉFUTÉS sur pièce par le panel : la dose `add_connection_rate` a DÉJÀ couru ×10 (EVO-019/020, p=0.415, fan-in 0.64→10.05 = dilution mesurée) ; le bras ELITE confond sélection et fenêtre de composition. **La voie qui sépare : [[EDR-EVO-027]]** — forcer le tirage (biais EVO-009, seul levier ayant jamais déplacé le taux : 12/12, p=9.6e-6) et varier sa **POSITION** (fenêtre ères 1-15 vs 21-35, horizon post-fenêtre apparié). La clause discriminante : « la valeur d'un tirage réussi dépend-elle de l'historique accumulé ? » — A dit non, B dit oui. Règle scellée, coût ~13 min, contrôle positif INTERNE (le bras EARLY est le 12/12 d'EVO-009). **→ TRANCHÉ le 2026-09-02 ([[EDR-EVO-027]]) : MODÈLE A — la dépendance FORTE à la position est RÉFUTÉE** (EARLY 22/24 vs LATE 18/24, p=0,245, les 4 contrôles passent, santé 0,77). Un hit tardif convertit comme un hit précoce : « le verrou est le tirage » se relit **« le verrou est le NOMBRE de tirages »**, et l'échec d'EVO-019/020 reste attribué à la DILUTION. Observation non élevée : 6 porteurs-non-lecteurs LATE vs 2 EARLY — une dépendance FAIBLE reste possible, illisible à ce n (limite scellée). **Dette des DV mécanistes RÉSORBÉE le 2026-09-02** : |logit| extrait, corrigé (`H_prev` réel, échec bruyant) et calibré (`tools/evo_mech_dv.py`, 3 cas dont forme close) ; le runner persiste désormais chaque champion (`data/genomes/evo027/`). Tout replay livrera les deux DV. **→ PANEL EVO-028 RENDU (2026-09-02, spec `docs/superpowers/specs/2026-09-02-evo028-weak-position-design.md`)** : les 3 designs within-seed MORTS sur preuve d'identité (estimand = produit position × carry-over, équivalence observationnelle 0,858) ; retenu = between EVO-027 verbatim n=86/bras (puissance 0,804 au point), bande (0,818;1,0) fermée sur preuve de coût ((1−r)⁻²). Seuils de smoke scellés (`EVO-028-SMOKE`). Dette annexe : taux per-paire d'EVO-027 jamais publiés (ancre externe incommensurable) — rétro-extractibles seulement par replay (champions non persistés à l'époque).
+**➡️ D2-bis : ⛔ ABANDONNÉ (2026-09-02, panel 3 juges + réfutateur — unanimité PROUVÉE).** La largeur à longueur fixe a une puissance discriminante **exactement nulle** : sous A comme sous B, N lignées indépendantes donnent `P(≥1) = 1−(1−p_lignée)^N` — la largeur mesure `p_lignée`, elle n'arbitre rien (information de Fisher A-contre-B nulle). Tout run en largeur est de la **calibration de base** (utile : la limite 0.005-vs-0.02 du sceau EVO-026-bis reste ouverte), jamais un arbitre. Deux designs de remplacement RÉFUTÉS sur pièce par le panel : la dose `add_connection_rate` a DÉJÀ couru ×10 (EVO-019/020, p=0.415, fan-in 0.64→10.05 = dilution mesurée) ; le bras ELITE confond sélection et fenêtre de composition. **La voie qui sépare : [[EDR-EVO-027]]** — forcer le tirage (biais EVO-009, seul levier ayant jamais déplacé le taux : 12/12, p=9.6e-6) et varier sa **POSITION** (fenêtre ères 1-15 vs 21-35, horizon post-fenêtre apparié). La clause discriminante : « la valeur d'un tirage réussi dépend-elle de l'historique accumulé ? » — A dit non, B dit oui. Règle scellée, coût ~13 min, contrôle positif INTERNE (le bras EARLY est le 12/12 d'EVO-009). **→ TRANCHÉ le 2026-09-02 ([[EDR-EVO-027]]) : MODÈLE A — la dépendance FORTE à la position est RÉFUTÉE** (EARLY 22/24 vs LATE 18/24, p=0,245, les 4 contrôles passent, santé 0,77). Un hit tardif convertit comme un hit précoce : « le verrou est le tirage » se relit **« le verrou est le NOMBRE de tirages »**, et l'échec d'EVO-019/020 reste attribué à la DILUTION. Observation non élevée : 6 porteurs-non-lecteurs LATE vs 2 EARLY — une dépendance FAIBLE reste possible, illisible à ce n (limite scellée). **Dette des DV mécanistes RÉSORBÉE le 2026-09-02** : |logit| extrait, corrigé (`H_prev` réel, échec bruyant) et calibré (`tools/evo_mech_dv.py`, 3 cas dont forme close) ; le runner persiste désormais chaque champion (`data/genomes/evo027/`). Tout replay livrera les deux DV. **→ PANEL EVO-028 RENDU (2026-09-02, spec `docs/superpowers/specs/2026-09-02-evo028-weak-position-design.md`)** : les 3 designs within-seed MORTS sur preuve d'identité (estimand = produit position × carry-over, équivalence observationnelle 0,858) ; retenu = between EVO-027 verbatim n=86/bras (puissance 0,804 au point), bande (0,818;1,0) fermée sur preuve de coût ((1−r)⁻²). Seuils de smoke scellés (`EVO-028-SMOKE`). Dette annexe : taux per-paire d'EVO-027 jamais publiés (ancre externe incommensurable) — rétro-extractibles seulement par replay (champions non persistés à l'époque). **→ RUN FAIT ET TRANCHÉ le jour même ([[EDR-EVO-028]]) : DÉPENDANCE FAIBLE ÉTABLIE** (77/86 vs 50/86, p=3,9×10⁻⁶, ratio 0,649 [0,535;0,788] ; sensibilité anti-déflation 0,769 — l'anomalie best-ever prédite est réelle, 10 déflations LATE, sans renverser). Question position FERMÉE (forte réfutée / faible établie / >0,818 sur coût). **Dettes ouvertes** : (a) DV best-ever déflate les bras longs → tout futur harnais à horizons inégaux mesure au top-1 d'ère FIXE (la lecture secondaire d'EVO-028 devient la DV primaire candidate) ; (b) move (5→2/5→3) ne convertit JAMAIS (0/172) — pourquoi l'arête + argmax ne suffit pas est documenté (E6 dérive d'état) mais la conversion différentielle throw-vs-accept (27/63 vs 42/68) reste inexpliquée ; (c) mécanisme B-M1/M2 : injection post-run possible, champions persistés data/genomes/evo028/.
+* **Flake CI consigné en passant (2026-09-02)** : le job `test-and-build` (docker frontend) a échoué sur `npm run build` → « Cannot find native binding » (bug npm optional-deps, npm/cli#4828) sur un commit purement docs/tools (run 33636235017), alors qu'il passait 3 h plus tôt — aucune modification frontend entre les deux. Si ça récidive : pin des bindings natifs (rollup/esbuild) ou `npm ci` reconstruit sans lockfile dans l'image. À vérifier sur le prochain run.
 
 **D3 — Changer le MOTEUR, pas la recherche.** Un substrat où la variation ne soit pas un tirage d'arêtes
 isolées. ⚠️ **L'avertissement de doublon est PÉRIMÉ** : ce travail parallèle est LIVRÉ et gravé (`EDR-BILINEAR`, 2026-08-03 — le terme bilinéaire fait passer `(q+key)%K` de nul à appris). D3 doit donc être re-formulé à partir de ce qui existe, pas coordonné avec un chantier fini.
@@ -837,6 +838,65 @@ dans un fichier partagé**. La règle du registre s'applique : deux occurrences 
   Calibré sur la FORME gelée du commit `e21c1f3` (dépôt git temporaire) + contrôle positif apparié
   (`tests/sandbox/test_staged_authorship.py`, 6 tests). Ne couvre que le sens (a) : le sens (b) reste sans
   garde exécutable, cf. `docs/REF/REGISTRE_ERREURS.md` (E10, occ. 8-9).
+
+**P2.23 — ✅ FAIT (2026-09-02) — E10 occ.13 : ce n'était PAS un correctif incomplet, c'était une SECONDE
+cause racine. La garde `check_staged_authorship` avait un angle mort de VOL D'ANCRE.**
+Le soupçon inscrit était « correctif incomplet de la fusion de hunks contigus (`e21c1f3` → `cdbc6a2`) ».
+Diagnostic : **faux**, et c'est ce qui rend le cas intéressant. La seconde passe de diff reste un
+**alignement GLOBAL unique** — `SequenceMatcher.get_opcodes()` n'attribue chaque ligne qu'à UN rôle et
+ancre sur le PLUS LONG appariement. Si le travail PROPRE contient un run de lignes recopié de HEAD (motif
+banal : écrire un test en partant d'un test existant) plus long que le bloc étranger, l'ancre bascule sur
+la copie et **le bloc étranger redevient invisible**. Ce n'est donc pas l'adjacence, c'est la COMPÉTITION
+D'ANCRE. Seuil mesuré sur le fichier réel : un bloc étranger de ≤ 41 lignes disparaît face à un run copié
+de 40 lignes, et réapparaît à 60.
+
+- **Contre-exemple gelé** : `test_FORME_occ13_a_long_run_copied_from_HEAD_must_not_STEAL_the_anchor`
+  et son positif apparié `test_POSITIVE_occ13_my_copy_of_HEAD_alone_is_NOT_flagged` (sans lui, on ne
+  saurait pas si le correctif se contente de crier sur tout run recopié de HEAD). Le fichier passe de
+  6 à 8 tests.
+- **Causalité VÉRIFIÉE, pas supposée** : garde remise à sa version HEAD, le contre-exemple rend
+  `DID NOT RAISE` ; garde corrigée, il détecte. Un correctif dont on n'a pas vu échouer le test n'est pas
+  un correctif établi.
+
+**P2.24 — ✅ FAIT (2026-09-02) — quatre défauts d'instrument de `tools/delayed_coordination_demand_probe.py`,
+trouvés par critique adversariale AVANT de payer un run, corrigés en défauts bit-identiques.**
+
+- **Substrat non épinglé** : `TorchPopulationModel.BILINEAR` est un attribut de CLASSE lu par `__init__`
+  (`backend_torch.py:111`) et par `_step` (`:128`), ni forcé ni sauvegardé par la sonde et **absent de
+  `_params`**. Un processus qui l'aurait mis à `True` ailleurs faisait mesurer un AUTRE substrat — celui-là
+  même dont le terme bilinéaire débloque la composition — sans trace. Désormais épinglé au défaut déclaré
+  et publié dans `_params["substrate"]`.
+- **Fuite des RNG globaux (E5)** : `np.random.seed`/`torch.manual_seed` (`:295-296`) écrivaient l'état
+  global du processus sans restauration, alors que le `finally` juste en dessous restaurait scrupuleusement
+  trois flags de classe. La sonde re-seedait silencieusement tout ce qui tournait après elle.
+- **Débit sans provenance** : `torch.set_num_threads(1)` n'était posé que sur le chemin wrapper. Un appel
+  DIRECT à `_train_and_eval_arm` — c'est-à-dire exactement la façon dont on mesure un modèle de coût —
+  tournait au nombre de threads AMBIANT. Le premier modèle de coût de la journée a été mesuré ainsi.
+- **`lr` pilotait DEUX optimiseurs** : le baisser ne ralentissait pas seulement l'apprentissage du
+  RECEIVER (l'axe E19 qu'on veut interroger), il dégradait l'émergence du code de Lewis chez le SENDER,
+  donc **l'information du canal**. Tout balayage en `lr` changeait la TÂCHE en même temps que la vitesse
+  d'apprentissage. Levier `sender_lr` ajouté (`None` = comportement d'avant).
+- Ajouté au passage : `eval_every` (trajectoire d'apprentissage), calibré par un **no-op EXACT** à trois
+  valeurs — deux ne suffiraient pas, un décalage identique passerait inaperçu — et sur les DEUX
+  configurations utilisées (`RETAIN`+leurre, `PRESENT`+sans-leurre : la seconde est celle des balayages,
+  et son préfixe ne porte aucun symbole). Confronté à sa réponse connue dans les deux cas : isolement du
+  RNG cassé → 0.25→0.10 et 0.20→0.25, le test échoue. Aucune des deux n'est vacuité.
+
+**P2.25 — ⚠️ OUVERT — une revue adversariale dont les vérificateurs MEURENT rend « 0 défaut confirmé »,
+c'est-à-dire un VERT indiscernable d'un vrai vert. Motif dominant du dépôt, cette fois dans l'outillage
+de revue lui-même.**
+Le 2026-09-02, une critique du design de déconfondage `episodes × lr` a produit **24 défauts** sur 4
+lentilles, puis ses 24 vérificateurs sont TOUS morts sur une limite de session. Le script post-traitait
+`confirmés = défauts dont le verdict dit réel` et `réfutés = tout le reste` — les 24 sont donc sortis
+classés **`refutes`**, avec `confirmes: []`. Un lecteur pressé y lit « design propre ». Seul le champ
+`pourquoi: "agent mort"` a permis la lecture correcte, et il n'était là que par accident de format.
+Vérification faite à la main ensuite : **au moins quatre des 24 étaient RÉELS** (cf. P2.24), dont un
+confond fatal au design (`lr` pilotant aussi le sender).
+- **La règle** : dans tout post-traitement de fan-out, `non vérifié` est une TROISIÈME catégorie, jamais
+  fusionnée avec `réfuté`. Un agent mort n'a pas réfuté ; il n'a rien dit.
+- **Critère d'automatisation** : ça se reforme silencieusement à chaque nouveau script de revue → une note
+  ne suffit pas. Correctif : que le script compte les échecs et REFUSE de rendre un verdict global si
+  `agents_error > 0`, au lieu de rendre une liste vide.
 
 ---
 

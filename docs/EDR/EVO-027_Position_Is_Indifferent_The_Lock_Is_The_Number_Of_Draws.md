@@ -10,6 +10,8 @@ adopts: [REF-EXPERIMENT-PREFLIGHT]
 extends: [EDR-EVO-026]
 ---
 
+> ⚠️ PRÉCISÉ PAR [[EDR-EVO-028]] (2026-09-02, n=86/bras, puissance 0,804) : la dépendance FAIBLE est ÉTABLIE — un tirage tardif convertit à ~0,65 [0,53 ; 0,79] du taux précoce (77/86 vs 50/86, p=3,9×10⁻⁶ ; sensibilité anti-déflation 0,769). Ce record TIENT dans ses termes scellés (seule la dépendance FORTE était réfutée ; sa règle déclarait la zone faible illisible à n=24, et son observation non élevée 6-vs-2 est précisément ce qu'EVO-028 élève). Mais son TITRE se relit : le verrou est le NOMBRE de tirages ET, faiblement, leur POSITION.
+
 ## Question — lever l'ambiguïté que D2/D2-bis ne pouvaient pas toucher
 
 « Le verrou est le TIRAGE » ([[EDR-EVO-018]]) admettait deux lectures incompatibles :
