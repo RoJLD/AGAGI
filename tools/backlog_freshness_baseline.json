@@ -1,7 +1,6 @@
 {
   "_comment": "Peremptions MECANIQUES legataires du backlog, gelees. Le cliquet refuse toute NOUVELLE entree. Retirer une ligne quand elle est corrigee -- jamais en ajouter pour faire passer le hook.",
   "legataires": {
-    "lien-mort:EDR-EVO-027": "le backlog cite [[EDR-EVO-027]] mais aucun record ne porte cet identifiant",
     "numero-double:P2.0-bis": "P2.0-bis apparaît 2 fois en tête d'entrée : l'une des versions est périmée et rien ne dit laquelle",
     "numero-double:P2.1": "P2.1 apparaît 2 fois en tête d'entrée : l'une des versions est périmée et rien ne dit laquelle"
   }
