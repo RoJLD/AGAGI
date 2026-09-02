@@ -1,0 +1,17 @@
+{
+  "name": "EVO-028-SMOKE",
+  "rule": {
+    "discrimination": {
+      "134 < t_pair <= 155 s": "REPLI n=74/bras -- la regle de lecture d'EVO-028 est reecrite sur les puissances 0,800 (r=0,80) / 0,729 (point) AVANT le run.",
+      "t_pair <= 134 s": "GO run principal n=86/bras (puissance 0,804 au point observe 0,818).",
+      "t_pair > 155 s": "dernier barreau : variante desaturee h=5 (n=66, 2,29x) SEULEMENT si l'operateur a cap de hits est calibre dans la meme passe (no-op exact + compteur par fenetre) ; sinon NO-GO cout, grave avec le tableau de divergence (1-r)^-2 comme preuve.",
+      "toute autre issue (smoke plante, sonde en echec, bail indisponible)": "AUCUNE decision de cout ; diagnostiquer avant de rejouer le smoke."
+    },
+    "mesure": "smoke 1 seed COMPLET par bras (EARLY 30 eres + LATE 50 eres, sondes `saillance_max` + `logit_median_at_outputs` + persistance incluses), chronometre par ere sous bail kuzu. DV du smoke : `t_pair` = t_EARLY + t_LATE en secondes.",
+    "plafond": "80 pourcent du bail 4 h = `11520` s de simulation TOTALE projetee (`t_pair` x n, batching sequentiel autorise, reprise par seed possible via genomes persistes). Projection via `cost_guard` en eres-seeds, jamais en secondes.",
+    "provenance": "panel 3 juges + refutateur du 2026-09-02 (docs/superpowers/specs/2026-09-02-evo028-weak-position-design.md), seuils du #4.",
+    "question": "Le cout wall-clock d'EVO-028 (2 x 86 seeds, harnais EVO-027 verbatim) tient-il sous le plafond de bail ? Seuils SCELLES AVANT le smoke -- la duree d'EVO-027 est perdue, interdiction d'extrapoler d'un prefixe (CLAUDE.md).",
+    "regle_de_lecture_continue": "`t_pair` se lit en secondes sur le continuum entier via les 3 seuils ci-dessus (partition exhaustive de R+) ; le detail par ere se rapporte pour detecter un transitoire d'apprentissage (ne PAS extrapoler d'un prefixe court)."
+  },
+  "seal": "cfe96e0c440188c9f0b762abaa824518c78ebc535abb80123c9ad07b75d391e7"
+}
