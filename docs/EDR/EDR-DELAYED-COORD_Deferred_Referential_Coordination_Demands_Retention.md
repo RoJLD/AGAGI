@@ -11,6 +11,41 @@ adopts: [REF-EXPERIMENT-PREFLIGHT, REF-DEMAND-MARKER]
 
 > ⚠️ **RÉGIME D'OPTIMISATION NON BALAYÉ (rétro-audit 2026-09-02) — le verdict NÉGATIF « non mesurable telle que spécifiée » est INCHANGÉ ; seule la clause mécanique du §2 est bornée.** Tous les chiffres du crible et des trois chemins de crédit sont mesurés à `lr=0.05` UNIQUEMENT — du côté divergent de la bascule E19 : [[EDR-RETAIN-COMPOSE-LR]] a mesuré qu'à batch effectif 1 un nul 2-pas à `lr ≥ 0.02` peut être un artefact du pas d'apprentissage (learned 0.173 → 0.923 en passant de 0.02 à 0.002, 0/144, n=12). Le balayage `lr` ≥ 3 points prescrit par la spec (T2, seeds disjoints, critère scellé sur RETAIN intact seul) n'a jamais été atteint : le crible T1 a échoué avant. La phrase « l'ÉCRITURE APPRISE dans le report ne marche pas » doit donc se lire « ...ne marche pas à `lr=0.05` » : les trois chemins de crédit varient le MÉCANISME de crédit, pas le PAS. Avant toute citation de ce mur comme propriété du SUBSTRAT (« c'est là qu'est le mur »), re-mesurer RETAIN (leurre retiré) à `lr=0.002` — coût ~13.2 min par point de `lr` selon la spec. Le pilote `lr=0.02` (RETAIN 0.873-0.946) ne vaut PAS contre-preuve : suspect canal oracle-équivalent (cf. Portée).
 
+> ## Mesure prescrite par le rétro-audit — EXÉCUTÉE (2026-09-02) : la clause §2 reste BORNÉE
+>
+> Le balayage demandé ci-dessus a été fait (leurre RETIRÉ, D=2, 800 ép., `n_agents=16`, 3 seeds, `flip_p=0`,
+> chemin `bptt`), et **il ne tranche pas** — pour une raison qui est elle-même le sujet de ce record.
+>
+> | bras | `lr` | par seed | médiane | > barre 0.317 |
+> |---|---|---|---|---|
+> | RETAIN | 0.05 | 0.2266 / 0.2406 / 0.2094 | **0.2266** | 0/3 |
+> | RETAIN | 0.002 | 0.1891 / 0.1984 / 0.1734 | **0.1891** | 0/3 |
+> | PRESENT | 0.05 | 0.3375 / 0.3313 / 0.3562 | **0.3375** | **3/3** |
+> | PRESENT | 0.002 | 0.1906 / 0.1297 / 0.2000 | **0.1906** | 0/3 |
+>
+> **Ni confirmation, ni réfutation — la troisième branche.** RETAIN ne franchit la barre à aucun des deux
+> pas : la bascule d'[[EDR-RETAIN-COMPOSE-LR]] **ne se reproduit pas** ici. Mais le nul à `lr=0.002` est
+> **ININTERPRÉTABLE** : le contrôle PRESENT, qui ne demande AUCUNE rétention, s'effondre lui aussi au
+> plancher — à 800 épisodes, ce pas n'apprend rien du tout. C'est exactement le motif E3 que la garde
+> `assert_verdict_invariant_to_optimizer` refuse depuis sa correction du même jour : **quand la RÉFÉRENCE
+> s'effondre, la comparaison est vide**. La clause du §2 ne peut donc PAS être débornée — et elle n'est pas
+> réfutée non plus. Sous-produit solide : le **0.223** du §1 est répliqué (**0.2266**).
+>
+> **Deux défauts d'instrument découverts par cette mesure, et ils débordent ce record :**
+> 1. ⚠️ **Les chiffres du §1 se lisent à `flip_p = 0`, pas au défaut du module (0.3).** Le contrôle de
+>    sanité ne reproduit le 0.338 qu'à bruit nul (0.3375, écart 0.0005) ; à `flip_p=0.3` il rend 0.239.
+>    Cause vérifiée : la sonde de référence montre au sender un one-hot **propre**, alors que `_noisy_onehot`
+>    bruite le **canal**. C'est une RECONSTRUCTION (le seul réglage qui reproduit 0.338 et 0.170), pas une
+>    lecture d'un paramètre déclaré.
+> 2. ⚠️ **À `flip_p=0.3`, la barre `1/K+0.15 = 0.317` est INATTEIGNABLE EN PRINCIPE** — le bras le plus
+>    facile (PRESENT sans leurre) plafonne à 0.239. Toute cellule mesurée au défaut du module et comparée à
+>    cette barre est un **instrument à ISSUE UNIQUE** (classes E1/E2 : un bras qui ne peut pas réussir).
+>
+> **Confond non levé, à inscrire dans tout balayage futur** : `episodes` est **confondu avec `lr`** — « pas
+> bas » et « sous-entraîné » ne sont pas séparés. Un balayage honnête doit AUGMENTER le budget aux pas bas.
+> Portée de cette mesure : n=3, un seul chemin de crédit, 2 points de `lr` au lieu des ≥3 prescrits,
+> `lr=0.02` non mesuré.
+
 ## Question
 
 3ᵉ arête du graphe AGI-Taxonomy, et **première ablation de SUBSTRAT**. La tentative précédente

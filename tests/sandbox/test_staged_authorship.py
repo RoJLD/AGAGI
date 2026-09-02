@@ -6,10 +6,23 @@ la FORME du cas gelé `e21c1f3` (2026-09-01) — un `git add` path-scopé mais p
 travail non committé d'une session parallèle sur `tests/sandbox/test_instrument_calibration.py` — dans un
 dépôt git TEMPORAIRE (jamais le dépôt réel), avec le cas POSITIF apparié : seuls MES hunks stagés doit
 PASSER. Sans le positif, une garde qui refuse tout serait aussi inutile qu'une garde qui accepte tout.
+
+⚠️ SUITE LENTE — MESURÉE À 593 s (16 tests, ~37 s chacun) : chaque cas construit un dépôt git temporaire
+et enchaîne des sous-processus `git`, coûteux sous Windows. Le module entier est donc marqué `slow` :
+laissée dans la suite rapide, elle la ferait passer de quelques minutes à plus de dix, et le registre note
+lui-même qu'« une garde disponible et NON DÉCLENCHÉE vaut zéro » — une suite qu'on cesse de lancer est
+exactement ça. Aucun test individuel ne dépasse le `timeout` de `pytest.ini` (le plus lent ~37 s), donc le
+marquage porte sur le COÛT CUMULÉ, pas sur un risque de hang. Dette ouverte : mutualiser le dépôt-fixture
+entre les cas ferait tomber ce coût d'un ordre de grandeur — à faire avant d'ajouter d'autres cas ici.
 """
 import os
 import subprocess
 import sys
+
+import pytest
+
+# Marque TOUT le module (cf. docstring) : coût cumulé 593 s, désélectionné par `-m "not slow"`.
+pytestmark = pytest.mark.slow
 
 import pytest
 
