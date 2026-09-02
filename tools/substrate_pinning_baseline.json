@@ -1,0 +1,64 @@
+{
+  "_comment": "Dette LÉGATAIRE gelée (P2.27). Tout NOUVEAU défaut bloque.",
+  "legataires": {
+    "tools/cognitive_demand_inworld.py": [
+      "A"
+    ],
+    "tools/compositional_language_probe.py": [
+      "A",
+      "B"
+    ],
+    "tools/compositional_world_probe.py": [
+      "A",
+      "B"
+    ],
+    "tools/craft_specialization_probe.py": [
+      "A",
+      "B"
+    ],
+    "tools/hunif_retention_probe.py": [
+      "A",
+      "B"
+    ],
+    "tools/memory_perception_demand_probe.py": [
+      "A",
+      "B"
+    ],
+    "tools/perception_coordination_demand_probe.py": [
+      "A",
+      "B"
+    ],
+    "tools/referential_community_probe.py": [
+      "A",
+      "B"
+    ],
+    "tools/referential_game_probe.py": [
+      "A",
+      "B"
+    ],
+    "tools/retain_compose_diagnostic_probe.py": [
+      "A"
+    ],
+    "tools/substrate_ab.py": [
+      "A"
+    ],
+    "tools/substrate_ab_compositional.py": [
+      "A"
+    ],
+    "tools/torch_binary_gate_heldout_probe.py": [
+      "A",
+      "B"
+    ],
+    "tools/torch_binary_gate_probe.py": [
+      "A"
+    ],
+    "tools/torch_gate_persist_ab.py": [
+      "A",
+      "B"
+    ],
+    "tools/torch_prod_gate_meansends.py": [
+      "A",
+      "B"
+    ]
+  }
+}

@@ -86,5 +86,26 @@ if [ -n "$staged_pr" ]; then
   }
 fi
 
+# 6. ÉPINGLAGE DU SUBSTRAT (P2.27, 2026-09-02) — une sonde qui construit une population torch doit
+# ÉPINGLER `TorchPopulationModel.BILINEAR` (attribut de CLASSE, sinon hérité de l'ambiant -> record
+# ININTERPRÉTABLE a posteriori) et donner à son optimiseur le substrat COMPLET (`Adam([pop.W])` laisse
+# `U/V/W_bl` GELÉS à l'init -> nul qui ne mesure que l'initialisation). Audit fondateur : 16 sondes
+# sur 19 en défaut A, 11 sur 19 en défaut B — dont les DEUX qui ont gravé les arêtes du graphe.
+# Dette légataire gelée dans tools/substrate_pinning_baseline.json ; seul un NOUVEAU défaut bloque.
+# ⚠️ La baseline elle-même déclenche la garde : sans ça, l'élargir et la committer seule ne
+# vérifierait RIEN (E4 occ.5, faux vert mesuré le 2026-09-01).
+# `--only` sur les fichiers INDEXÉS : l'arbre est PARTAGÉ, une sonde d'une autre session ne doit pas
+# bloquer un commit sans rapport (même principe que les portes 1 et 2).
+staged_sub=$(git diff --cached --name-only --diff-filter=AM | grep -E '^((tools|src/seed_ai)/.*\.py|tools/substrate_pinning_baseline\.json)$')
+if [ -n "$staged_sub" ]; then
+  PYTHONIOENCODING=utf-8 python tools/check_substrate_pinning.py --only $(echo "$staged_sub" | grep -v substrate_pinning_baseline || true) || {
+    echo ""
+    echo "-> Épingle le substrat AVANT make_population (try/finally + _params[\"substrate\"]), et donne"
+    echo "   à l'optimiseur [pop.W] + [p for p in (pop.U, pop.V, pop.W_bl) if p is not None],"
+    echo "   OU déclare la dette : python tools/check_substrate_pinning.py --update-baseline"
+    fail=1
+  }
+fi
+
 [ "$fail" -ne 0 ] && echo "   (urgence : git commit --no-verify)"
 exit $fail

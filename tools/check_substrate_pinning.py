@@ -1,0 +1,145 @@
+"""Cliquet : une sonde qui construit une population torch ÉPINGLE-t-elle le substrat qu'elle mesure,
+et son optimiseur couvre-t-il ce substrat en ENTIER ?
+
+⚠️ Né d'un audit du 2026-09-02 (P2.27), lui-même né de la rencontre de DEUX correctifs INDÉPENDANTS
+le même jour — `481117e` sur `language_memory_demand_probe` et `3b5554a` sur
+`delayed_coordination_demand_probe`. Deux sessions ont corrigé le même défaut sur deux sondes sœurs
+sans le savoir ; l'audit qui a suivi a trouvé **16 sondes sur 19 en défaut A et 11 sur 19 en défaut B**,
+dont les DEUX qui ont gravé les deux arêtes du graphe AGI-Taxonomy.
+
+DEUX DÉFAUTS, et ils sont indépendants :
+
+  [A] SUBSTRAT NON ÉPINGLÉ — `TorchPopulationModel.BILINEAR` est un attribut de CLASSE, lu par
+      `__init__` (`backend_torch.py:111`) ET par `_step` (`:128`). Une sonde qui ne le POSE pas hérite
+      de l'ambiant du processus. Deux sondes tournant dans le même interpréteur peuvent donc mesurer
+      des SUBSTRATS DIFFÉRENTS sans qu'aucun `_params` ne l'indique — et le record devient
+      ininterprétable a posteriori.
+
+  [B] OPTIMISEUR INCOMPLET — `Adam([pop.W])` laisse `U/V/W_bl` GELÉS À LEUR INIT même quand BILINEAR
+      est actif. Le terme qui débloque la composition n'apprend jamais. C'est LATENT tant que le flag
+      est faux, mais c'est un piège ARMÉ : il rend un nul dès que quelqu'un l'active, et ce nul ne
+      mesure que l'initialisation. Un nul artefactuel ressemble à tous les autres nuls du dépôt.
+
+⚠️ PORTÉE HONNÊTE — c'est une vérification LEXICALE, pas sémantique, et elle est faillible dans les
+DEUX sens. Elle ne voit pas un épinglage fait via un helper, et elle peut crier sur un `Adam([...])`
+sans rapport avec une population. C'est pourquoi elle fonctionne en CLIQUET : la dette légataire est
+GELÉE dans une baseline, et seul un NOUVEAU défaut bloque. Même mécanisme que
+`check_instrument_calibration.py`.
+
+Usage :
+    python tools/check_substrate_pinning.py                 # arbre entier
+    python tools/check_substrate_pinning.py --only a.py b.py # scopé (hook : fichiers STAGÉS)
+    python tools/check_substrate_pinning.py --update-baseline
+"""
+import argparse
+import io
+import json
+import os
+import re
+import sys
+
+_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_BASELINE = os.path.join(_ROOT, "tools", "substrate_pinning_baseline.json")
+_SCAN_DIRS = ("tools", os.path.join("src", "seed_ai"))
+
+_MAKES_POP = re.compile(r"make_population\s*\(")
+_PINS = re.compile(r"TorchPopulationModel\.BILINEAR\s*=")
+_ADAM_LIST = re.compile(r"optim\.Adam\(\s*\[([^\]]*)\]")
+# les paramètres du terme bilinéaire, tels que nommés dans `backend_torch.py:113-115`
+_BILINEAR_PARAMS = re.compile(r"\bW_bl\b|\bU\b|\bV\b")
+
+
+def _defects(src: str):
+    """Renvoie l'ensemble des défauts d'un source : sous-ensemble de {'A', 'B'}.
+    Vide si le fichier ne construit pas de population (hors périmètre)."""
+    if not _MAKES_POP.search(src):
+        return None                                    # hors périmètre — PAS « sans défaut »
+    out = set()
+    if not _PINS.search(src):
+        out.add("A")
+    if any(not _BILINEAR_PARAMS.search(g) for g in _ADAM_LIST.findall(src)):
+        out.add("B")
+    return out
+
+
+def scan(only=None):
+    """(en_defaut, hors_perimetre, examines) — `en_defaut` = {chemin relatif: ['A','B']}.
+
+    ⚠️ `hors_perimetre` est RENDU, pas avalé : une liste blanche qui ne rapporte pas ce qu'elle écarte
+    transforme son ignorance en succès. C'est la leçon des trois listes blanches silencieuses trouvées
+    dans ce dépôt en deux jours."""
+    en_defaut, hors, examines = {}, [], 0
+    cibles = []
+    if only:
+        cibles = [os.path.normpath(p) for p in only if p.endswith(".py")]
+    else:
+        for d in _SCAN_DIRS:
+            full = os.path.join(_ROOT, d)
+            if not os.path.isdir(full):
+                continue
+            cibles += [os.path.join(d, f) for f in sorted(os.listdir(full)) if f.endswith(".py")]
+    for rel in cibles:
+        p = rel if os.path.isabs(rel) else os.path.join(_ROOT, rel)
+        if not os.path.isfile(p):
+            continue
+        src = io.open(p, encoding="utf-8", errors="replace").read()
+        d = _defects(src)
+        key = os.path.relpath(p, _ROOT).replace("\\", "/")
+        if d is None:
+            hors.append(key)
+            continue
+        examines += 1
+        if d:
+            en_defaut[key] = sorted(d)
+    return en_defaut, hors, examines
+
+
+def _load_baseline():
+    if not os.path.exists(_BASELINE):
+        return {}
+    with io.open(_BASELINE, encoding="utf-8") as f:
+        return json.load(f).get("legataires", {})
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--only", nargs="*", default=None)
+    ap.add_argument("--update-baseline", action="store_true")
+    args = ap.parse_args(argv)
+
+    if args.update_baseline:
+        en_defaut, hors, examines = scan(None)          # la baseline se gèle sur l'ARBRE ENTIER
+        with io.open(_BASELINE, "w", encoding="utf-8", newline="\n") as f:
+            json.dump({"_comment": "Dette LÉGATAIRE gelée (P2.27). Tout NOUVEAU défaut bloque.",
+                       "legataires": en_defaut}, f, ensure_ascii=False, indent=2, sort_keys=True)
+        print(f"baseline écrite : {len(en_defaut)} fichier(s) en dette, sur {examines} examiné(s)")
+        return 0
+
+    en_defaut, hors, examines = scan(args.only)
+    base = _load_baseline()
+    nouveaux = {k: v for k, v in en_defaut.items()
+                if k not in base or sorted(v) != sorted(base.get(k, []))}
+    a = sum(1 for v in en_defaut.values() if "A" in v)
+    b = sum(1 for v in en_defaut.values() if "B" in v)
+    print(f"sondes examinées : {examines} | en dette : {len(en_defaut)} "
+          f"(A substrat non épinglé : {a} · B optimiseur incomplet : {b}) | "
+          f"hors périmètre (ne construit pas de population) : {len(hors)}")
+    if not nouveaux:
+        print("OK : aucun NOUVEAU défaut d'épinglage de substrat.")
+        return 0
+    for k, v in sorted(nouveaux.items()):
+        quoi = " + ".join({"A": "substrat NON ÉPINGLÉ (BILINEAR hérité de l'ambiant)",
+                           "B": "optimiseur INCOMPLET (U/V/W_bl gelés à l'init)"}[x] for x in v)
+        print(f"  [NOUVEAU] {k} -> {quoi}")
+    print("\nUn substrat non épinglé rend le record ININTERPRÉTABLE a posteriori ; un optimiseur")
+    print("incomplet rend un nul qui ne mesure que l'initialisation. Corriger :")
+    print("  * poser `TorchPopulationModel.BILINEAR = bool(bilinear)` AVANT `make_population`,")
+    print("    dans un try/finally qui le restaure, et le publier dans `_params[\"substrate\"]` ;")
+    print("  * donner à l'optimiseur `[pop.W] + [p for p in (pop.U, pop.V, pop.W_bl) if p is not None]`.")
+    print("OU déclarer la dette : python tools/check_substrate_pinning.py --update-baseline")
+    return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
