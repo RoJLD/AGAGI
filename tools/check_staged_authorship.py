@@ -339,6 +339,38 @@ def _contains_block(haystack, block) -> bool:
     return any(haystack[start:start + m] == block for start in range(n - m + 1))
 
 
+def _runs_present_in(hay_lines, block):
+    """Runs MAXIMAUX de `block` qui apparaissent CONTIGUS dans `hay_lines`, balayés de gauche à droite,
+    le plus long à chaque position : [(offset dans `block`, longueur), ...].
+
+    ⚠️ Pourquoi PAS un `SequenceMatcher` ici (occurrence 13 d'E10, 2026-09-02) : un alignement GLOBAL
+    n'attribue chaque ligne qu'à UN seul rôle, et il ancre sur le PLUS LONG appariement. Un run que la
+    tâche courante a RECOPIÉ depuis HEAD (motif banal : écrire un test en partant d'un test existant),
+    s'il est plus long que le bloc étranger, VOLE l'ancre — le bloc étranger retombe alors dans un
+    opcode non-`equal` et devient INVISIBLE. Mesuré sur le fichier réel de l'incident : un bloc
+    étranger de ≤ 41 lignes disparaît face à un run recopié de 40 lignes, et réapparaît à 60.
+    Ici chaque position est testée POUR ELLE-MÊME : il n'y a plus de concurrence d'ancre, donc aucun
+    run présent dans l'empreinte ne peut être perdu au profit d'un autre."""
+    idx = {}
+    for k, ln in enumerate(hay_lines):
+        idx.setdefault(ln, []).append(k)
+    runs, i, n, m = [], 0, len(block), len(hay_lines)
+    while i < n:
+        best = 0
+        for start in idx.get(block[i], ()):
+            length = 0
+            while start + length < m and i + length < n and hay_lines[start + length] == block[i + length]:
+                length += 1
+            if length > best:
+                best = length
+        if best:
+            runs.append((i, best))
+            i += best
+        else:
+            i += 1
+    return runs
+
+
 def _foreign_hunks(head_lines, snap_lines, staged_lines):
     """Segments de lignes stagées qui sont ÉTRANGERS : absents de HEAD (donc « ajoutés » par CE stage,
     via `_added_blocks`) ET DÉJÀ présents dans le snapshot de départ (donc pas écrits par cette tâche).
@@ -348,21 +380,29 @@ def _foreign_hunks(head_lines, snap_lines, staged_lines):
     le cas dans `e21c1f3` : le hunk étranger et mon propre hunk se suivaient sans ligne HEAD entre les
     deux. Comparer le bloc ENTIER au snapshot (au lieu de le décomposer) le manque : le bloc combiné
     n'est, dans son ENSEMBLE, ni tout à fait dans le snapshot ni tout à fait absent. Il faut donc une
-    SECONDE passe de diff, à l'intérieur du bloc, contre le snapshot : ses runs `equal` sont le contenu
-    étranger, ses runs non-`equal` sont ce que la tâche courante a écrit."""
+    SECONDE passe À L'INTÉRIEUR du bloc, contre le snapshot.
+
+    ⚠️ Cette seconde passe était elle-même un DIFF (`SequenceMatcher`), et c'est ce qui a produit
+    l'occurrence 13 : un alignement global ancre sur le plus long appariement, donc un run recopié de
+    HEAD par la tâche courante pouvait masquer un bloc étranger plus court (cf. `_runs_present_in`).
+    Elle procède désormais par TEST D'APPARTENANCE, position par position — un run étranger ne peut
+    plus être perdu par concurrence d'ancre. Contre-exemple gelé :
+    `test_FORME_occ13_a_long_run_copied_from_HEAD_must_not_STEAL_the_anchor`.
+
+    ⚠️ Contrepartie ASSUMÉE : un run peut chevaucher la frontière (contenu à moi immédiatement suivi,
+    dans l'empreinte, du contenu d'autrui) et alors quelques-unes de mes lignes sont rapportées avec le
+    hunk étranger. Le rapport SUR-couvre, il ne sous-couvre plus : un faux positif se lit et se lève à
+    l'œil, un faux négatif laisse committer le travail d'autrui."""
     foreign = []
     for outer in _added_blocks(head_lines, staged_lines):
         block, base_line = outer["lines"], outer["start_line"]
-        sm = difflib.SequenceMatcher(None, snap_lines, block, autojunk=False)
-        for tag, _i1, _i2, j1, j2 in sm.get_opcodes():
-            if tag != "equal":
-                continue
-            seg = block[j1:j2]
+        for off, length in _runs_present_in(snap_lines, block):
+            seg = block[off:off + length]
             if not seg or all(not ln.strip() for ln in seg):
                 continue                          # segment purement blanc : bruit de diff, pas un signal
             if _contains_block(head_lines, seg):
                 continue                          # coïncide avec HEAD par ailleurs : pas étranger
-            foreign.append({"start_line": base_line + j1, "lines": seg})
+            foreign.append({"start_line": base_line + off, "lines": seg})
     return foreign
 
 

@@ -123,6 +123,76 @@ def test_FORME_e21c1f3_a_foreign_uncommitted_hunk_swept_by_git_add_is_caught(tmp
     assert "parallel_session_uncommitted" in str(exc.value)
 
 
+def test_FORME_occ13_a_long_run_copied_from_HEAD_must_not_STEAL_the_anchor(tmp_path):
+    """⚠️ CONTRE-EXEMPLE GELÉ de l'occurrence 13 d'E10 (2026-09-02) — la SECONDE passe de diff, qui
+    corrigeait la fusion de hunks contigus (`e21c1f3`, correctif `cdbc6a2`), reste un ALIGNEMENT
+    GLOBAL unique : `SequenceMatcher.get_opcodes()` n'attribue chaque ligne qu'à UN rôle, et il
+    ancre sur le PLUS LONG appariement. Si mon propre ajout contient un run de lignes qui figure
+    AUSSI dans l'empreinte (ici : un bloc RECOPIÉ de HEAD, motif banal quand on écrit un test en
+    partant d'un test existant) et que ce run est PLUS LONG que le bloc étranger, l'ancre part sur
+    MA copie et le bloc étranger retombe dans un opcode non-`equal` : il devient INVISIBLE.
+
+    Ce n'est PAS l'adjacence qui casse la garde (le cas contigu pur est couvert par le test
+    `test_FORME_e21c1f3_…` ci-dessus, et le rejeu des artefacts réels de l'occurrence 13 — empreinte
+    `e4-assert-blindspot` + blob stagé `acde3e8` — DÉTECTE bien ses 55 lignes étrangères). C'est la
+    COMPÉTITION D'ANCRE : mesurée sur le fichier réel, un bloc étranger de ≤ 41 lignes disparaît
+    face à un run copié de 40 lignes, et réapparaît à 60.
+
+    Le seuil est ici : HEAD porte un corps de 9 lignes, le bloc étranger en fait 4, ma copie en
+    reprend 9 -> 9 > 4, l'ancre bascule."""
+    repo = _init_repo(tmp_path)
+    snap_dir = str(tmp_path / "snaps")
+
+    # HEAD porte une fonction dont le CORPS servira d'appât d'ancre (9 lignes contiguës).
+    _append(repo, "\n\ndef check_alpha(data):\n    total = 0\n    for item in data:\n"
+                  "        if item is None:\n            continue\n        total += item\n"
+                  "    if total < 0:\n        raise ValueError('negatif')\n    return total\n")
+    _git(["add", _FILE], repo)
+    _git(["commit", "-q", "-m", "HEAD porte check_alpha"], repo)
+
+    # 1. session parallèle : bloc étranger COURT (4 lignes), jamais committé.
+    _append(repo, "\n\ndef parallel_session_uncommitted():\n    return 'foreign'\n")
+
+    # 2. mon empreinte — capture le bloc étranger ci-dessus + le HEAD réel.
+    snapshot([_FILE], owner="ma-tache", snapshot_dir=snap_dir, cwd=repo)
+
+    # 3. MON travail : un nouveau `check_beta` écrit en RECOPIANT le corps de `check_alpha`.
+    #    9 lignes identiques à HEAD, contiguës -> appât d'ancre plus long que les 4 lignes étrangères.
+    _append(repo, "\n\ndef check_beta(data):\n    total = 0\n    for item in data:\n"
+                  "        if item is None:\n            continue\n        total += item\n"
+                  "    if total < 0:\n        raise ValueError('negatif')\n    return total\n")
+
+    _git(["add", _FILE], repo)
+
+    with pytest.raises(ForeignHunkDetected) as exc:
+        verify([_FILE], owner="ma-tache", snapshot_dir=snap_dir, cwd=repo)
+    foreign_text = "\n".join(l for h in exc.value.report[_FILE] for l in h["lines"])
+    assert "parallel_session_uncommitted" in foreign_text, \
+        "l'ancre a été volée par ma propre copie : le bloc étranger est redevenu invisible"
+
+
+def test_POSITIVE_occ13_my_copy_of_HEAD_alone_is_NOT_flagged(tmp_path):
+    """Positif apparié du cas ci-dessus : MÊME copie de HEAD, mais AUCUN travail étranger dans
+    l'arbre au moment de l'empreinte -> la garde doit PASSER. Sans lui, on ne saurait pas si le
+    correctif de l'ancre se contente de crier sur tout run recopié depuis HEAD."""
+    repo = _init_repo(tmp_path)
+    snap_dir = str(tmp_path / "snaps")
+    _append(repo, "\n\ndef check_alpha(data):\n    total = 0\n    for item in data:\n"
+                  "        if item is None:\n            continue\n        total += item\n"
+                  "    if total < 0:\n        raise ValueError('negatif')\n    return total\n")
+    _git(["add", _FILE], repo)
+    _git(["commit", "-q", "-m", "HEAD porte check_alpha"], repo)
+
+    snapshot([_FILE], owner="ma-tache", snapshot_dir=snap_dir, cwd=repo)   # arbre PROPRE
+    _append(repo, "\n\ndef check_beta(data):\n    total = 0\n    for item in data:\n"
+                  "        if item is None:\n            continue\n        total += item\n"
+                  "    if total < 0:\n        raise ValueError('negatif')\n    return total\n")
+    _git(["add", _FILE], repo)
+
+    checked = verify([_FILE], owner="ma-tache", snapshot_dir=snap_dir, cwd=repo)
+    assert checked[_FILE] == 1
+
+
 def test_POSITIVE_only_my_own_hunks_staged_PASSES(tmp_path):
     """Cas positif apparié : AUCUN travail étranger dans l'arbre au moment de l'empreinte -> seul MON
     hunk est stagé -> la garde doit PASSER. Sans ce test, une garde qui refuse tout passerait la revue."""
