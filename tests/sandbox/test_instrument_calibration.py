@@ -444,6 +444,20 @@ CALIBRATED = {
     # `test_the_ratchet_SEES_the_assert_guard_family` (fin de fichier).
     "assert_bar_is_reachable": ["unreachable:fires", "reachable:spares", "illusory-margin:fires",
                                 "too-low-bar:out-of-scope"],
+    # P2.15 (2026-09-02) : l'AUTRE cote de la barre. `assert_bar_is_reachable` la borne par le HAUT
+    # (franchissable par le capable) ; celle-ci la borne par le BAS (INfranchissable par l'incapable).
+    # Les deux gardes partagent les MEMES chiffres geles -- barre 0.3167, plafond `plain` 0.3889 en
+    # forme close -- et rendent des verdicts OPPOSES dessus : la premiere PASSE (la barre est bien
+    # franchissable), la seconde REFUSE (elle ne separe rien). C'est ce couple qui rend impossible de
+    # lire le `True` de l'une comme « la barre est valide ».
+    # ⚠️ `chance-as-ceiling:out-of-scope` gele ce que la garde NE peut PAS faire : passer `1/K` comme
+    # plafond de l'incapable la fait PASSER, et c'est precisement l'erreur P2.15 (l'incapable montait
+    # a 0.3889, pas 0.1667). D'ou `provenance` OBLIGATOIRE : la garde ne verifie pas le plafond, elle
+    # force a ecrire d'ou il vient pour qu'une revue puisse le verifier. Cas dans
+    # `tests/sandbox/test_experiment_preflight.py`, comme toute la famille de pre-vol.
+    "assert_bar_separates_the_incapable": ["p2.15:fires", "above-ceiling:spares",
+                                           "undeclared-provenance:fires",
+                                           "chance-as-ceiling:out-of-scope"],
     # ---- LA FAMILLE DES GARDES, rendue comptable par le motif `assert_*` (2026-09-02) ----------------
     # Ces neuf declarations ne CREENT aucune couverture : elles DECLARENT une couverture qui existait
     # deja et que le cliquet ne savait pas nommer. Verifie fonction par fonction avant de les ecrire --

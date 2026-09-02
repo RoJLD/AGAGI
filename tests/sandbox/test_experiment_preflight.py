@@ -449,6 +449,61 @@ def test_bar_reachability_does_NOT_cover_a_bar_that_is_TOO_LOW():
         "de la portée de cette garde : la reachability est satisfaite, la DISCRIMINATION ne l'est pas")
 
 
+# --------------------------- assert_bar_separates_the_incapable (P2.15, l'autre côté de la barre) ----
+
+_P215_CEIL = 0.3889          # plafond structurel du substrat `plain`, forme close (36 paires, 8 restarts)
+_P215_PROV = "forme close du substrat plain sur les 36 paires (q+key)%K, 8 restarts — cf. P2.15"
+
+
+def test_bar_separation_CATCHES_the_P2_15_bar_that_reachability_SPARES():
+    """CONTRE-EXEMPLE GELÉ de P2.15 — et il est gelé sur les MÊMES chiffres que le test ci-dessus.
+
+    C'est ce qui rend la paire lisible : `assert_bar_is_reachable(0.3889, 0.3167)` PASSE (la barre est
+    franchissable) tandis que `assert_bar_separates_the_incapable(0.3167, 0.3889)` REFUSE (elle ne
+    sépare rien). Deux gardes, deux propriétés, un seul jeu de chiffres — la barre est encadrée des
+    DEUX côtés, et aucun `True` ne peut plus se lire comme « la barre est valide »."""
+    from tools.experiment_preflight import PreflightError, assert_bar_separates_the_incapable
+    with pytest.raises(PreflightError, match="NE SÉPARE RIEN"):
+        assert_bar_separates_the_incapable(_DC_BAR, _P215_CEIL, _P215_PROV, label="P2.15")
+
+
+def test_bar_separation_ACCEPTS_a_bar_ABOVE_the_incapable_ceiling():
+    """POSITIF APPARIÉ — sans lui, une garde qui refuse TOUTE barre serait indiscernable de celle-ci.
+    Même plafond, barre relevée au-dessus : la garde doit passer. Et le `margin=` doit mordre au bon
+    endroit — une barre à peine au-dessus du plafond passe sans marge, échoue avec."""
+    from tools.experiment_preflight import PreflightError, assert_bar_separates_the_incapable
+    assert assert_bar_separates_the_incapable(0.45, _P215_CEIL, _P215_PROV, label="barre relevée") is True
+    assert assert_bar_separates_the_incapable(0.39, _P215_CEIL, _P215_PROV, label="marge nulle") is True
+    with pytest.raises(PreflightError, match="NE SÉPARE RIEN"):
+        assert_bar_separates_the_incapable(0.39, _P215_CEIL, _P215_PROV, margin=0.02, label="marge 0.02")
+
+
+def test_bar_separation_REFUSES_an_UNDECLARED_provenance():
+    """La provenance du plafond est DÉCLARÉE, jamais devinée — et son absence est un REFUS, pas un
+    avertissement. Sans elle, rien ne distingue un plafond ÉTABLI d'un niveau de chance passé par
+    réflexe. C'est la règle « ne pas proxifier ce qu'on ne sait pas mesurer »."""
+    from tools.experiment_preflight import PreflightError, assert_bar_separates_the_incapable
+    for bad in (None, "", "   ", "forme close"):          # trop court pour porter un argument
+        with pytest.raises(PreflightError, match="provenance"):
+            assert_bar_separates_the_incapable(0.45, _P215_CEIL, bad, label="sans provenance")
+
+
+def test_bar_separation_CANNOT_catch_a_CHANCE_level_passed_as_ceiling():
+    """PORTÉE — ce que la garde NE peut PAS faire, gelé pour empêcher la sur-lecture symétrique.
+
+    Passer le niveau de CHANCE (`1/K = 0.1667`) comme plafond de l'incapable est le geste le plus
+    naturel du monde, et c'est EXACTEMENT l'erreur P2.15 : l'incapable y montait à 0.3889, pas à
+    0.1667. Sur cette entrée la garde PASSE — elle ne peut pas savoir que le plafond est faux — et
+    c'est pour cette raison précise que `provenance` est OBLIGATOIRE : la garde ne vérifie pas le
+    plafond, elle force à écrire d'où il vient pour qu'une revue puisse le vérifier."""
+    from tools.experiment_preflight import assert_bar_separates_the_incapable
+    chance = 1.0 / 6
+    assert assert_bar_separates_the_incapable(
+        _DC_BAR, chance, "niveau de chance 1/K — plafond NON établi, exemple du piège P2.15",
+        label="piège") is True, "la garde ne peut pas rattraper un plafond FAUX ; seule la revue le peut"
+    assert chance < _P215_CEIL, "le piège est réel : le vrai plafond de l'incapable est 2.3x la chance"
+
+
 def test_bar_reachability_refuses_a_malformed_resolution():
     """Domaine : `n_eval` doit être un nombre d'essais, et la marge binomiale n'a de sens que sur une
     proportion. Refus EXPLICITE plutôt qu'un `sqrt` de négatif ou une marge silencieusement nulle."""

@@ -190,6 +190,52 @@ def assert_bar_is_reachable(easiest_arm, bar, n_eval=None, margin=0.0, label="ba
     return True
 
 
+def assert_bar_separates_the_incapable(bar, incapable_ceiling, provenance, margin=0.0,
+                                       label="barre de verdict"):
+    """Le défaut SYMÉTRIQUE de `assert_bar_is_reachable` : une barre trop BASSE, que franchit un bras
+    PROUVABLEMENT INCAPABLE. Une telle barre ne SÉPARE rien — la franchir ne dit pas « la capacité est
+    là », seulement « le plancher est bas ». C'est la dette **P2.15**.
+
+    Cas gelé (P2.15) : la barre de vitalité du dépôt `1/K + 0.15 = 0.3167` (K=6) est **0.072 SOUS** le
+    plafond structurel **0.3889** du substrat `plain`, établi en FORME CLOSE et prouvablement incapable
+    de `(q+key)%K`. Un substrat dont on a démontré qu'il ne peut pas faire la tâche franchit donc la
+    barre censée établir qu'il la fait.
+
+    ⚠️ **`incapable_ceiling` DOIT être le plafond de l'INCAPABLE, jamais le niveau de CHANCE** — et c'est
+    tout l'enjeu, parce que passer `1/K` est le geste le plus naturel du monde ET reproduit EXACTEMENT
+    l'erreur P2.15 : l'incapable de P2.15 atteignait **0.3889**, pas 0.1667. Une garde dont l'argument
+    spontané rejoue le défaut qu'elle ferme serait pire qu'absente. Aucun code ne peut décider à la
+    place de l'auteur d'où vient ce plafond : on le fait donc **DÉCLARER** (`provenance`), au lieu de le
+    deviner — même règle que `demand_marker._degeneracy` et `check_guard_negative_cases`.
+
+    `provenance` : d'OÙ vient `incapable_ceiling` — forme close, mesure sur un bras ablaté, autre
+    substrat… Refusé si vide ou trop court pour porter un argument : une provenance non écrite est une
+    provenance non vérifiable.
+
+    Pourquoi ce n'est PAS `assert_bar_is_reachable` à l'envers : cette garde-ci se mesure sur un bras qui
+    doit ÉCHOUER (l'autre, sur celui qui doit RÉUSSIR) ; son plafond s'établit HORS du dispositif (forme
+    close, autre substrat) là où l'autre exige une mesure AU RÉGIME configuré ; et elle se corrige en
+    changeant la BARRE là où l'autre se corrige en changeant le RÉGIME. Les deux ensemble encadrent la
+    barre des deux côtés : franchissable par le capable, infranchissable par l'incapable."""
+    if not isinstance(provenance, str) or len(provenance.strip()) < 20:
+        raise PreflightError(
+            f"{label} : `provenance` du plafond de l'incapable non déclarée (reçu {provenance!r}). "
+            "Écrire d'OÙ vient `incapable_ceiling` — forme close, mesure, autre substrat. Sans elle, "
+            "rien ne distingue un plafond ÉTABLI d'un niveau de CHANCE passé par réflexe, et c'est "
+            "précisément la confusion qui a produit P2.15 (l'incapable y atteignait 0.3889, pas 1/K).")
+    b, ceil = float(bar), float(incapable_ceiling)
+    used = float(margin)
+    if b <= ceil + used:
+        raise PreflightError(
+            f"{label} NE SÉPARE RIEN : la barre vaut {b:.4g}, mais un bras PROUVABLEMENT INCAPABLE "
+            f"atteint déjà {ceil:.4g}" + (f" (marge exigée {used:.4g})" if used else "") + ". "
+            f"Provenance déclarée du plafond : {provenance.strip()}. "
+            "La franchir n'établit donc AUCUNE capacité — seulement que le plancher est bas. "
+            "Relever la barre AU-DESSUS du plafond de l'incapable, ou abandonner le seuil absolu au "
+            "profit d'un écart à un bras de référence mesuré dans le MÊME run.")
+    return True
+
+
 # --------------------------------------------------------------------------- C. mesurer ce qui agit
 
 def assert_no_aliasing(produced, source, label="sortie"):
