@@ -78,13 +78,19 @@ dégénérescence que la garde armée le 2026-09-01 (occurrence 3 d'E3) existe p
 ### 1. Un défaut de CONCEPTION du protocole, mesuré
 
 Le design imposait, au nom de la symétrie des deux bras par la DATE de présentation, un **référent-leurre
-au tick de choix**. C'est lui qui plancherise tout. Mesuré à D=0 :
+au tick de choix**. C'est lui qui plancherise tout. Mesuré à **`D=0`, `flip_p=0`, `episodes=800`,
+`n_agents=16`, `K=6`, 3 seeds** — le régime est inscrit DANS le tableau, et pas seulement dans le texte,
+parce qu'il a fallu le RECONSTRUIRE après coup (§ encart) faute de l'avoir écrit ici la première fois :
 
-| condition | PRESENT |
+| condition (`flip_p=0`, D=0) | PRESENT |
 |---|---|
 | avec leurre (design d'origine) | **0.170** (plancher) |
 | leurre retiré | **0.338** |
 | référence Lewis publiée ([[EDR-LANG-PERCEPTION]]) | 0.342 |
+
+⚠️ Ces trois valeurs ne sont PAS comparables à une cellule mesurée au défaut du module (`flip_p=0.3`) :
+au bruit par défaut, le bras le plus facile plafonne à **0.239**. Voir l'encart en tête pour la conséquence
+— une barre inatteignable fait un instrument à issue unique.
 
 Soit la référence **à 0.004 près**. Mécanisme, et il est ironique : `logit = (1−δ)·H_prev + δ·tanh(…)`
 avec δ médian ≈ 0.5, et **108 des 113 nœuds portés SONT les nœuds de readout**. Un leurre présenté au tick

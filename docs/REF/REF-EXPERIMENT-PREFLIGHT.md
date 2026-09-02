@@ -64,6 +64,18 @@ assert_ablation_changes_something(intact, ablated)                       # A : p
    Erreur commise **trois fois** dans la session, y compris par le record qui la dénonçait.
 6. **Avant de déclarer un défaut « transversal », lire comment le n est constitué** dans ≥2 bancs
    indépendants (un `grep` de 2 min a suffi à rétracter une alerte qui aurait lancé un audit inutile).
+7. **Une BARRE se vérifie ATTEIGNABLE dans le régime où on la lit.** Un seuil importé d'une autre tâche
+   est un seuil dont personne n'a établi la franchissabilité ICI. Trois manifestations le 2026-09-01/02 :
+   un PAS validé sur les conditions faciles puis appliqué à la condition testée (E19, un record rétracté) ;
+   la barre `1/K+0.15` **0.072 SOUS** le plafond structurel du substrat qu'elle déclare nul (P2.15) ; et
+   une barre **inatteignable en principe** au bruit configuré — bras le plus facile 0.239 contre barre
+   0.3167, soit un **instrument à ISSUE UNIQUE**, qui ne peut rendre qu'« échec ». Garde :
+   `assert_bar_is_reachable`. C'est la classe E2 (« un bras qui ne peut pas RÉUSSIR ») déplacée du BRAS
+   vers le SEUIL.
+8. **Un nombre gravé dans un record porte son RÉGIME, pas seulement sa valeur.** Écrire « 0.338 » sans son
+   `flip_p` a obligé, deux jours plus tard, à **reconstruire** le réglage par recherche du seul qui
+   reproduisait la valeur — une reconstruction n'est pas une lecture, et elle introduit un doute que la
+   mesure d'origine ne portait pas. Le régime va **dans le tableau**, pas seulement dans le texte autour.
 
 ## Portée
 Complète [[REF-DEMAND-MARKER]] (l'instrument : ablation within-subject) en amont : REF-DEMAND-MARKER dit
