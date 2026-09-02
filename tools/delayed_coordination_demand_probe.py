@@ -236,12 +236,52 @@ def _receiver_seq(arm, sig_first, sig_last, V, I, n_agents, D, choice_decoy):
     return seq, (0 if show_first else None)           # None -> aucun symbole à substituer (PRESENT sans leurre)
 
 
+def _eval_arm(sender, receiver, arm, D, K, V, I, n_agents, flip_p, eval_batches, choice_decoy, rng):
+    """Évalue le couple courant : INTACT vs SUBSTITUTION D'ÉTAT, appariés par essai (chaque trial est
+    rejoué deux fois, même agent, mêmes poids). AUCUN apprentissage, aucun gradient : `forward` est
+    intégralement sous `torch.no_grad()` (`backend_torch.py:158`) et n'écrit que `H` et `_last` — or
+    `H` est remis à zéro en tête de `_forward_seq`/`_prefix_state`/`_emit`, et `_last` n'est lu que par
+    `learn()`, que cette sonde n'appelle jamais. Appeler cette fonction AU MILIEU de l'entraînement est
+    donc inoffensif POURVU QUE `rng` ne soit pas celui de l'entraînement — c'est le seul canal de
+    perturbation, et c'est ce que `eval_every` isole (cf. `_train_and_eval_arm`)."""
+    hits_i, hits_a = [], []
+    for _ in range(eval_batches):
+        target, s_first, s_last = _trial_draw(arm, K, I, n_agents, flip_p, rng)
+        sig_first = _emit(sender, s_first, V, rng, n_agents)
+        sig_last = _emit(sender, s_last, V, rng, n_agents)
+        seq, carried = _receiver_seq(arm, sig_first, sig_last, V, I, n_agents, D, choice_decoy)
+        choice_in = seq[-1]                                 # tick de choix INCHANGÉ par l'ablation
+        for deranged, hits in ((False, hits_i), (True, hits_a)):
+            _prefix_state(receiver, seq[:-1], carried, V, I, n_agents, deranged, rng)
+            pr, _ = receiver.forward(choice_in)             # enchaîné sur l'état porté du préfixe
+            guess = np.asarray(pr)[:, :K].argmax(axis=1)    # argmax DÉTERMINISTE
+            hits.append((guess == target).astype(np.float32))
+    return float(np.mean(np.concatenate(hits_i))), float(np.mean(np.concatenate(hits_a)))
+
+
 def _train_and_eval_arm(seed, arm, D, episodes, n_agents, K, V, lr, flip_p, eval_batches=40,
-                        credit="bptt", choice_decoy=True):
+                        credit="bptt", choice_decoy=True, eval_every=None, sender_lr=None):
     """Entraîne le couple sender/receiver sur UN bras, puis évalue INTACT vs SUBSTITUÉ sur les MÊMES
     essais (appariement par essai : chaque trial est rejoué deux fois, une fois intact une fois substitué,
-    même agent, mêmes poids). Renvoie (acc_intact, acc_ablated). `credit` : cf. docstring du module.
-    `choice_decoy` : cf. docstring du module (défaut `True` = design d'origine, bit-identique)."""
+    même agent, mêmes poids). Renvoie `(acc_intact, acc_ablated, trajectoire)`. `credit` : cf. docstring
+    du module. `choice_decoy` : cf. docstring du module (défaut `True` = design d'origine, bit-identique).
+
+    `eval_every=N` (défaut `None`) : évalue TOUS LES N ÉPISODES pendant l'entraînement et renvoie la
+    trajectoire `[(épisode, intact, ablated), ...]` (liste VIDE si `None`). Une seule course rend alors la
+    COURBE d'apprentissage au lieu d'un point terminal — ce qui transforme un balayage 2-D `lr × budget`
+    en balayage 1-D `lr`, au coût du plus grand budget SEUL au lieu de leur somme.
+
+    🔒 LA TRAJECTOIRE NE PEUT PAS DÉPLACER LA MESURE, et c'est exact, pas prudentiel. L'entraînement ne
+    consomme QUE `rng` (`RandomState(seed+1)`) ; les évals périodiques ne consomment QUE `eval_rng`
+    (`RandomState(seed+9973)`, jamais `rng`) ; et l'éval FINALE consomme `rng` dans l'état EXACT où
+    l'entraînement l'a laissé. Les trois autres canaux imaginables sont fermés et vérifiés dans le code,
+    pas supposés : `forward` est sous `torch.no_grad()` (`backend_torch.py:158`) donc aucun gradient ne
+    s'accumule — et de toute façon chaque `learn_*` fait `opt.zero_grad()` d'abord (`:224/:257/:329/:385`) ;
+    `H` est remis à zéro en tête de `_forward_seq`/`_prefix_state`/`_emit` donc aucun état ne fuit vers
+    l'épisode suivant ; le RNG global de torch n'est consommé qu'à la CONSTRUCTION des populations
+    (`backend_torch.py:113-115`), jamais dans la boucle. Conséquence testable : à `eval_every` quelconque,
+    `(acc_intact, acc_ablated)` est BIT-IDENTIQUE à `eval_every=None`. C'est la forme « no-op EXACT » de la
+    calibration (spécificité) — cf. `tests/sandbox/test_instrument_calibration.py`."""
     import torch
     from src.agents.mamba_agent import MambaAgent
     from src.agents.backend import make_population
@@ -252,22 +292,52 @@ def _train_and_eval_arm(seed, arm, D, episodes, n_agents, K, V, lr, flip_p, eval
     if credit not in CREDIT_PATHS:
         raise ValueError(f"chemin de crédit inconnu : {credit!r} (attendu parmi {CREDIT_PATHS})")
 
+    # Débit REPRODUCTIBLE quel que soit le point d'entrée. Le wrapper posait déjà `set_num_threads(1)`,
+    # mais un appel DIRECT à `_train_and_eval_arm` (c'est ainsi qu'on mesure un modèle de coût, et c'est
+    # ce qui a été fait le 2026-09-02) tournait au nombre de threads AMBIANT, non déclaré et non
+    # enregistré : le chiffre de coût n'avait alors aucune provenance.
+    torch.set_num_threads(1)
+    # ⚠️ E5 — `np.random.seed`/`torch.manual_seed` écrivent l'état GLOBAL du processus. Sans restauration,
+    # cette sonde re-seede silencieusement tout ce qui tourne après elle dans le même interpréteur (suite
+    # de tests, autre instrument). Le `finally` ci-dessous restaurait scrupuleusement trois flags de classe
+    # et laissait fuir les deux RNG globaux.
+    np_state, torch_state = np.random.get_state(), torch.get_rng_state()
     np.random.seed(seed)
     torch.manual_seed(seed)
+    # ⚠️ Le SUBSTRAT mesuré doit être ÉPINGLÉ, pas hérité de l'ambiant. `BILINEAR` est un attribut de
+    # CLASSE lu par `__init__` (`backend_torch.py:111`) ET par `_step` (`:128`) : s'il a été mis à True
+    # ailleurs dans le processus, cette sonde mesure un AUTRE substrat — celui-là même dont le terme
+    # bilinéaire débloque la composition — sans que rien ne l'enregistre. On épingle au défaut déclaré
+    # de la classe (`False`, `:58`), donc bit-identique au régime des mesures publiées, et on le REND
+    # LISIBLE dans `_params["substrate"]`.
     saved = (TorchPopulationModel.CONDITION_GATE, TorchPopulationModel.GATE_TARGET,
-             TorchPopulationModel.GATE_TARGETS)
+             TorchPopulationModel.GATE_TARGETS, TorchPopulationModel.BILINEAR,
+             TorchPopulationModel.BILINEAR_RANK)
     TorchPopulationModel.CONDITION_GATE = False
     TorchPopulationModel.GATE_TARGET = None
     TorchPopulationModel.GATE_TARGETS = None
+    TorchPopulationModel.BILINEAR = False
     try:
         sender = make_population([MambaAgent() for _ in range(n_agents)], backend="torch")
         receiver = make_population([MambaAgent() for _ in range(n_agents)], backend="torch")
         I = sender.I
         rng = np.random.RandomState(seed + 1)
-        sender.opt = torch.optim.Adam([sender.W], lr=lr)
+        # RNG d'éval SÉPARÉ : c'est LUI qui rend la trajectoire gratuite en termes de perturbation.
+        # Décalage 9973 (premier) et non +2 : `seed+1` est déjà pris et les seeds balayés sont contigus,
+        # donc un petit décalage ferait COÏNCIDER le flux d'éval d'un seed avec celui d'entraînement
+        # d'un autre — les points de la courbe cesseraient d'être indépendants entre seeds.
+        eval_rng = np.random.RandomState(seed + 9973)
+        traj = []
+        # ⚠️ `lr` pilotait LES DEUX optimiseurs. Le baisser ne ralentissait donc pas seulement
+        # l'apprentissage du RECEIVER (l'axe E19 qu'on veut interroger) : il dégradait aussi l'émergence
+        # du code de Lewis chez le SENDER, c'est-à-dire l'INFORMATION DU CANAL. Un balayage en `lr`
+        # changeait la TÂCHE en même temps que la vitesse d'apprentissage — les deux bras devenaient
+        # incomparables entre points du balayage. `sender_lr` fixe le sender pour n'en varier qu'un.
+        # `None` = `lr` pour les deux, donc BIT-IDENTIQUE au comportement d'avant l'ajout.
+        sender.opt = torch.optim.Adam([sender.W], lr=lr if sender_lr is None else sender_lr)
         receiver.opt = torch.optim.Adam([receiver.W], lr=lr)
 
-        for _ in range(episodes):
+        for _ep in range(episodes):
             target, s_first, s_last = _trial_draw(arm, K, I, n_agents, flip_p, rng)
             sig_first = _emit(sender, s_first, V, rng, n_agents)   # sender INCHANGÉ dans les 2 réglages
             sig_last = _emit(sender, s_last, V, rng, n_agents)
@@ -296,23 +366,23 @@ def _train_and_eval_arm(seed, arm, D, episodes, n_agents, K, V, lr, flip_p, eval
                                  gate_last_only=False)
             sender.learn_episode([s_last], [[{"move": int(x)} for x in sig_last]], adv,
                                  gate_last_only=False)
+            if eval_every and (_ep + 1) % eval_every == 0:
+                # `eval_rng`, JAMAIS `rng` : l'entraînement doit rester bit-identique (cf. docstring).
+                ti, ta = _eval_arm(sender, receiver, arm, D, K, V, I, n_agents, flip_p,
+                                   eval_batches, choice_decoy, eval_rng)
+                traj.append((_ep + 1, ti, ta))
 
-        hits_i, hits_a = [], []
-        for _ in range(eval_batches):
-            target, s_first, s_last = _trial_draw(arm, K, I, n_agents, flip_p, rng)
-            sig_first = _emit(sender, s_first, V, rng, n_agents)
-            sig_last = _emit(sender, s_last, V, rng, n_agents)
-            seq, carried = _receiver_seq(arm, sig_first, sig_last, V, I, n_agents, D, choice_decoy)
-            choice_in = seq[-1]                                 # tick de choix INCHANGÉ par l'ablation
-            for deranged, hits in ((False, hits_i), (True, hits_a)):
-                _prefix_state(receiver, seq[:-1], carried, V, I, n_agents, deranged, rng)
-                pr, _ = receiver.forward(choice_in)             # enchaîné sur l'état porté du préfixe
-                guess = np.asarray(pr)[:, :K].argmax(axis=1)    # argmax DÉTERMINISTE
-                hits.append((guess == target).astype(np.float32))
-        return float(np.mean(np.concatenate(hits_i))), float(np.mean(np.concatenate(hits_a)))
+        # Éval FINALE sur `rng` — dans l'état EXACT où l'entraînement l'a laissé, que `eval_every` soit
+        # armé ou non. C'est ce qui rend le couple renvoyé insensible à la trajectoire.
+        acc_i, acc_a = _eval_arm(sender, receiver, arm, D, K, V, I, n_agents, flip_p,
+                                 eval_batches, choice_decoy, rng)
+        return acc_i, acc_a, traj
     finally:
         (TorchPopulationModel.CONDITION_GATE, TorchPopulationModel.GATE_TARGET,
-         TorchPopulationModel.GATE_TARGETS) = saved
+         TorchPopulationModel.GATE_TARGETS, TorchPopulationModel.BILINEAR,
+         TorchPopulationModel.BILINEAR_RANK) = saved
+        np.random.set_state(np_state)                 # E5 : ne pas re-seeder ce qui tourne APRÈS
+        torch.set_rng_state(torch_state)
 
 
 def _easiest_arm_accuracy(seeds, D, episodes, n_agents, K, V, lr, flip_p, eval_batches, credit):
@@ -344,7 +414,8 @@ def _easiest_arm_accuracy(seeds, D, episodes, n_agents, K, V, lr, flip_p, eval_b
 def run_delayed_coordination_demand_probe(seeds, D=2, episodes=800, n_agents=16, K=6, V=8, lr=0.05,
                                           flip_p=0.3, arms=ARMS, eval_batches=40, credit="bptt",
                                           choice_decoy=True, vitality_bar=None,
-                                          easiest_arm_accuracy=None, bar_margin=0.0):
+                                          easiest_arm_accuracy=None, bar_margin=0.0,
+                                          eval_every=None, sender_lr=None):
     """Mesure « la coordination référentielle DIFFÉRÉE demande la rétention d'état ».
 
     Par seed et par bras : éval INTACTE vs SUBSTITUTION D'ÉTAT (appariées par essai). Renvoie les
@@ -374,7 +445,21 @@ def run_delayed_coordination_demand_probe(seeds, D=2, episodes=800, n_agents=16,
     borné (au verdict), pas sa précision.
 
     `bar_margin` : marge ABSOLUE additionnelle. La marge effective est `max(bar_margin, erreur-type
-    binomiale sur n_eval = eval_batches × n_agents)` — cf. `assert_bar_is_reachable`."""
+    binomiale sur n_eval = eval_batches × n_agents)` — cf. `assert_bar_is_reachable`.
+
+    --- `eval_every` : DÉCONFONDRE `episodes` DE `lr` ----------------------------------------------------
+    Armé, ajoute `<ARM>_curve` = une liste (par seed) de `[(épisode, intact, ablated), ...]`. Raison
+    d'être : le record de ce module rapporte un balayage `lr` INCONCLUSIVE parce qu'à `lr=0.002` le bras de
+    RÉFÉRENCE (PRESENT, qui ne demande AUCUNE rétention) s'effondre lui aussi — à 800 épisodes ce pas
+    n'apprend rien. « Pas bas » et « sous-entraîné » n'y sont pas séparés, et c'est le confond que le
+    record laisse explicitement ouvert.
+    La courbe le sépare en RENDANT LE BUDGET OBSERVABLE : on ne lit le bras testé qu'à un budget où le bras
+    de référence est VIVANT — la règle 7 du pré-vol (une barre se vérifie atteignable dans le régime où on
+    la lit) transposée du SEUIL au BUDGET. Le coût d'un balayage `lr × budget` tombe de la SOMME des
+    budgets au PLUS GRAND d'entre eux.
+    ⚠️ La courbe est un OBJET DE DIAGNOSTIC, pas un verdict : lire un seuil de franchissement sur une
+    trajectoire bruitée est un arrêt optionnel, qui BIAISE vers le haut. Le verdict se rend sur une mesure
+    à budget FIXÉ D'AVANCE — que la courbe sert justement à choisir avant de le sceller."""
     import torch
     from tools.experiment_preflight import PreflightError, assert_bar_is_reachable
     torch.set_num_threads(1)                 # FOREGROUND, mono-thread : reproductibilité du débit
@@ -403,17 +488,26 @@ def run_delayed_coordination_demand_probe(seeds, D=2, episodes=800, n_agents=16,
                        "seeds": list(seeds), "threads": torch.get_num_threads(),
                        "credit": credit, "choice_decoy": choice_decoy,
                        "ablation_target": "substrate", "vitality_bar": vitality_bar,
+                       "eval_every": eval_every, "sender_lr": sender_lr,
+                       # substrat ÉPINGLÉ (pas hérité de l'ambiant) -> la mesure est identifiable
+                       # a posteriori, cf. `_train_and_eval_arm`
+                       "substrate": {"BILINEAR": False, "CONDITION_GATE": False},
                        "ceiling_bayes": (1.0 - flip_p) + flip_p / K, "floor": 1.0 / K},
            "_bar_reachability": bar_info}
     for arm in arms:
         out[arm + "_intact"], out[arm + "_ablated"] = [], []
+        if eval_every:
+            out[arm + "_curve"] = []
     for s in seeds:
         for arm in arms:
-            i, a = _train_and_eval_arm(s, arm, D, episodes, n_agents, K, V, lr, flip_p,
-                                       eval_batches=eval_batches, credit=credit,
-                                       choice_decoy=choice_decoy)
+            i, a, traj = _train_and_eval_arm(s, arm, D, episodes, n_agents, K, V, lr, flip_p,
+                                             eval_batches=eval_batches, credit=credit,
+                                             choice_decoy=choice_decoy, eval_every=eval_every,
+                                             sender_lr=sender_lr)
             out[arm + "_intact"].append(i)
             out[arm + "_ablated"].append(a)
+            if eval_every:
+                out[arm + "_curve"].append(traj)
     return out
 
 
@@ -436,5 +530,6 @@ if __name__ == "__main__":
         choice_decoy=os.environ.get("DC_CHOICE_DECOY", "1") not in ("0", "false", "False"),
         vitality_bar=float(_bar) if _bar else None,
         easiest_arm_accuracy=float(_easiest) if _easiest else None,
+        eval_every=int(os.environ["DC_EVAL_EVERY"]) if os.environ.get("DC_EVAL_EVERY") else None,
     )
     print(json.dumps(r, ensure_ascii=False, indent=2))

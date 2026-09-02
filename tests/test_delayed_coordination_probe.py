@@ -60,6 +60,42 @@ def test_choice_decoy_false_zeroes_only_the_decoy_tick(arm, zeroed, kept, carrie
     assert all(not x.any() for x in seq[1:-1])
 
 
+@pytest.mark.parametrize("arm,choice_decoy", [("RETAIN", True), ("PRESENT", False)])
+def test_eval_every_is_an_exact_noop_on_the_measurement(arm, choice_decoy):
+    """CALIBRATION (spécificité, forme « no-op EXACT ») : observer la trajectoire ne doit pas la déplacer.
+
+    ⚠️ DEUX CONFIGURATIONS, et c'est délibéré : `("RETAIN", True)` est le design d'ORIGINE, mais les
+    balayages tournent en `("PRESENT", False)` — où le préfixe ne porte AUCUN symbole, donc où
+    `_prefix_state` ne consomme pas de RNG pour la substitution (`carried is None`). Une garde calibrée
+    sur une seule configuration ne dit rien de celle qu'on utilise réellement : c'est la classe E19
+    (un réglage validé sur le régime FACILE puis appliqué au régime testé) transposée à un test.
+
+    `eval_every` insère des évaluations DANS la boucle d'entraînement. Le seul canal par lequel elles
+    pourraient déplacer la mesure est le RNG — d'où `eval_rng` séparé. La propriété est EXACTE, donc elle
+    se teste exactement : `(intact, ablated)` doit être bit-identique à `eval_every=None`.
+
+    ⚠️ POURQUOI TROIS VALEURS ET PAS DEUX. C'est ce qui rend le test capable d'ÉCHOUER. Si l'éval
+    périodique consommait `rng` (le flux d'entraînement), chaque réglage en consommerait une quantité
+    DIFFÉRENTE — 4 évals à `eval_every=5`, 2 à `eval_every=7`, 0 sans — et les trois résultats
+    divergeraient. Avec deux valeurs seulement, un décalage identique passerait inaperçu.
+    Contre-exemple gelé : remplacer `eval_rng` par `rng` dans `_train_and_eval_arm` fait échouer ce test.
+    """
+    from tools.delayed_coordination_demand_probe import _train_and_eval_arm
+
+    kw = dict(D=1, episodes=20, n_agents=4, K=6, V=8, lr=0.05, flip_p=0.0, eval_batches=5,
+              choice_decoy=choice_decoy)
+    ref_i, ref_a, ref_traj = _train_and_eval_arm(0, arm, eval_every=None, **kw)
+    assert ref_traj == [], "sans `eval_every`, aucune trajectoire n'est produite"
+
+    for every, expected_points in ((5, [5, 10, 15, 20]), (7, [7, 14])):
+        got_i, got_a, traj = _train_and_eval_arm(0, arm, eval_every=every, **kw)
+        assert (got_i, got_a) == (ref_i, ref_a), (
+            f"eval_every={every} a DÉPLACÉ la mesure : {(got_i, got_a)} != {(ref_i, ref_a)} — "
+            "l'éval périodique fuit dans le RNG d'entraînement")
+        assert [p[0] for p in traj] == expected_points, traj
+        assert all(0.0 <= v <= 1.0 for _, i, a in traj for v in (i, a)), traj
+
+
 def test_prefix_ablation_is_exact_noop_without_carried_symbol():
     """`carried_idx is None` -> `deranged` ne change RIEN et ne consomme même pas le RNG.
     C'est la conséquence documentée du levier : sous `choice_decoy=False`, l'ablation de PRESENT est
