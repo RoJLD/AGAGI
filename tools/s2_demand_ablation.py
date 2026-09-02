@@ -53,6 +53,25 @@ def _median_survival(cond):
     return float(np.median(s)) if s else 0.0
 
 
+
+# PLANCHER NO-PERCEPTION par monde (2026-09-02), mesure sous bail kuzu par tools/measure_noperc_floors.py
+# au REGIME GRAVE des records S2-002/S2-003 (12 agents, 200 ticks, K=12, seed 3026 decouple).
+# Construction : max(zero_obs, random_action), les DEUX sur CLONES DU CHAMPION (S2-003 : son edge est
+# corps/metabolisme -- des agents frais sous-garderaient). Les deux constructions CONCORDENT partout
+# (ecart max 1.2x, controle de coherence WARM-010).
+PLANCHER_REGIME = {"num_agents": 12, "max_ticks": 200}
+PLANCHER_NOPERC = {"soup": 32.0, "stoneage": 24.0, "agricultural": 25.25,
+                   "industrial": 24.0, "famine": 21.75}
+
+
+def _floor_for(world, num_agents, max_ticks):
+    """Garde E8 : JAMAIS un plancher d'un AUTRE regime. Hors du point de mesure (12 agents/200 ticks),
+    rendre None -- un plancher importe d'ailleurs fabriquerait la degenerescence qu'il doit detecter."""
+    ok = (int(num_agents) == PLANCHER_REGIME["num_agents"]
+          and int(max_ticks) == PLANCHER_REGIME["max_ticks"])
+    return PLANCHER_NOPERC.get(world) if ok else None
+
+
 def run_ablation_map(worlds=None, seed=2026, K=12, num_agents=20, max_ticks=400):
     """Pour chaque monde : champion INTACT vs champion ABLATÉ (within) + réflexe (between). Renvoie
     {world: {within_ratio, between_ratio, verdict, n}}. n = K ères (unité d'appariement)."""
@@ -77,7 +96,9 @@ def run_ablation_map(worlds=None, seed=2026, K=12, num_agents=20, max_ticks=400)
                                max_ticks=max_ticks, n_eras=K)
         # appariement par ère (seed_at par ère) ; l'ablation consomme des tirages RNG en plus ->
         # tape intra-ère non identique, mais le contraste porte sur la perception
-        wv = ablation_verdict(intact["era_survival"], ablated["era_survival"])
+        wv = ablation_verdict(intact["era_survival"], ablated["era_survival"],
+                              floor=_floor_for(w, num_agents, max_ticks),
+                              ceiling=float(max_ticks))
         between_ratio = _median_survival(intact) / max(_median_survival(reflex), 1e-9)
         verdict = wv["verdict"].replace("X_", "PERCEPTION_")
         out[w] = {"within_ratio": wv["ratio"], "between_ratio": between_ratio,

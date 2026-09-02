@@ -72,12 +72,21 @@ def run_openloop_ladder(worlds=None, seed=2026, K=12, num_agents=12, max_ticks=2
         zero = run_condition(wcls, ZeroObsMamba, champion, seed, num_agents=num_agents,
                              max_ticks=max_ticks, n_eras=K)
 
-        permuted_v = ablation_verdict(intact["era_survival"], permuted["era_survival"])
-        noise_v = ablation_verdict(intact["era_survival"], noise["era_survival"])
-        zero_v = ablation_verdict(intact["era_survival"], zero["era_survival"])
+        # 2026-09-02 : floor MESURE (PLANCHER_NOPERC, regime-gate) + ceiling. Un intact au plancher
+        # rend les TROIS barreaux illisibles, pas seulement `zero`.
+        floor_w = _floor_for(w, num_agents, max_ticks)
+        permuted_v = ablation_verdict(intact["era_survival"], permuted["era_survival"],
+                                      floor=floor_w, ceiling=float(max_ticks))
+        noise_v = ablation_verdict(intact["era_survival"], noise["era_survival"],
+                                   floor=floor_w, ceiling=float(max_ticks))
+        zero_v = ablation_verdict(intact["era_survival"], zero["era_survival"],
+                                  floor=floor_w, ceiling=float(max_ticks))
         rungs = (permuted_v, noise_v, zero_v)
 
-        if all(r["decoy"] for r in rungs):
+        # La garde ne modifie que verdict/degenerate -- lire les booleens bruts la rendrait inerte.
+        if any(r.get("degenerate") for r in rungs):
+            verdict = "INDETERMINE_DEGENERATE"
+        elif all(r["decoy"] for r in rungs):
             verdict = "SURVIVAL_NEUTRAL"
         elif any(r["collapse"] for r in rungs):
             verdict = "SURVIVAL_SENSITIVE"

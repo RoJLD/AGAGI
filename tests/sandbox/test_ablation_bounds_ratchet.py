@@ -30,15 +30,11 @@ _SCAN = (os.path.join(_ROOT, "tools"), os.path.join(_ROOT, "src"))
 # 4 fichiers RESORBES le 2026-09-02 : planchers MESURES (30.0 regime partage, 54.0 composition,
 # mesureur calibre sur forme close E0/(metab-body_gain)=30 exact) et declares aux appels, avec bascule
 # de la consommation sur v["verdict"] -- sans quoi floor= etait inerte.
-_SANS_BORNE_LEGATAIRE = frozenset({
-    "tools/s2_demand_ablation.py",
-    # ⚠️ Ces deux-la n'apparaissaient PAS dans le releve par `grep` : leurs appels sont formates
-    # autrement. Le balayage AST les a trouves. Mesurer, ne pas inferer -- y compris quand on recense.
-    "tools/s2_openloop_probe.py",
-    # world_demand_marker_probe RESORBE le 2026-09-02 : PLANCHER_BLIND mesure (48 vies, forme close
-    # E0/(metab-gain/K)) et declare en DEMANDING ; PAS de ceiling, deliberement -- le nul TRIVIAL au cap
-    # est la verite-terrain qui valide le marqueur.
-})
+# DETTE VIDEE le 2026-09-02 : les 9 appels des 7 fichiers portent desormais une borne MESUREE
+# (planchers mini-mondes par forme close/enumeration ; table PLANCHER_NOPERC par monde sous bail,
+# regime-gate _floor_for -- jamais un plancher d'un autre regime, E8). Le cliquet est STRICT :
+# tout nouvel appel non borne bloque.
+_SANS_BORNE_LEGATAIRE = frozenset()
 
 _BORNES = {"floor", "ceiling"}
 

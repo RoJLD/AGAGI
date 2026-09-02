@@ -3631,3 +3631,20 @@ def test_verdict_from_is_calibrated_via_the_anticipation_copy():
     celle que le test de comportement importe."""
     from tools.anticipation_demand_world_probe import _verdict_from
     assert _verdict_from({"degenerate": True, "verdict": "X", "n": 24}, "S") == "INDETERMINE_DEGENERATE"
+
+
+def test_floor_for_is_REGIME_GATED():
+    """⚠️ Garde E8 : un plancher mesure a 12 agents/200 ticks ne vaut RIEN a 20/400. Hors regime,
+    _floor_for doit rendre None -- importer un plancher d'ailleurs fabriquerait la degenerescence
+    qu'il est cense detecter (l'erreur du seuil ~99 % importe de WARM-001 dans WARM-002)."""
+    from tools.s2_demand_ablation import _floor_for
+    assert _floor_for("stoneage", 12, 200) == 24.0
+    assert _floor_for("stoneage", 20, 400) is None, "hors regime -> None, jamais une valeur importee"
+    assert _floor_for("monde_inconnu", 12, 200) is None
+
+
+def test_noperc_floors_match_their_measurement():
+    """Les constantes declarees = les valeurs MESUREES (campagne du 2026-09-02, seed 3026)."""
+    from tools.s2_demand_ablation import PLANCHER_NOPERC
+    assert PLANCHER_NOPERC == {"soup": 32.0, "stoneage": 24.0, "agricultural": 25.25,
+                               "industrial": 24.0, "famine": 21.75}
