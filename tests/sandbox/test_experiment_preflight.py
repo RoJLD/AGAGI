@@ -343,3 +343,118 @@ def test_n_per_arm_refuses_an_empty_arm():
     from tools.experiment_preflight import PreflightError, assert_n_per_arm
     with pytest.raises(PreflightError, match="VIDE"):
         assert_n_per_arm([], [1.0] * 12)
+
+
+# ------------------------------------------- assert_bar_is_reachable (classe E2 appliquée au SEUIL) ----
+# CALIBRATION DE LA GARDE — COUPLE APPARIÉ, deux réponses CONNUES **mesurées le 2026-09-02 dans ce dépôt**
+# sur le MÊME dispositif, le MÊME bras et la MÊME barre : une seule variable change, le RÉGIME (`flip_p`).
+# C'est ce qui rend le couple probant — sans le second cas, une garde qui refuse TOUT passerait le premier.
+# Chiffres EN DUR (contre-exemples gelés, patron `test_cost_guard`) : ce sont des valeurs de vérité-terrain,
+# les tests sont PUREMENT NUMÉRIQUES (aucun entraînement, < 1 ms).
+#
+# Provenance : `docs/EDR/EDR-DELAYED-COORD_Deferred_Referential_Coordination_Demands_Retention.md`,
+# encart « Mesure prescrite par le rétro-audit », défaut d'instrument n°2 — et docstring de
+# `tools/delayed_coordination_demand_probe.py` (section `flip_p`), qui inline les trois seeds des deux
+# régimes. Bras le plus facile = PRESENT SANS LEURRE (le contrôle qui ne demande AUCUNE rétention) ;
+# barre = `1/K + 0.15` avec K=6, la barre de vitalité du dépôt. `n_eval = eval_batches × n_agents = 640`.
+
+_DC_BAR = 1 / 6 + 0.15                 # 0.3167 — barre de vitalité du dépôt, K=6
+_DC_N_EVAL = 40 * 16                   # 640 essais d'évaluation par seed (eval_batches × n_agents)
+
+
+def test_bar_reachability_REFUSES_the_noisy_default_regime():
+    """RÉPONSE CONNUE n°1 — INATTEIGNABLE MESURÉE : `flip_p=0.3`, le défaut du module.
+
+    Le bras le PLUS FACILE du dispositif (PRESENT sans leurre, D=0, aucune rétention demandée) rend
+    `[0.230, 0.239, 0.292]` -> médiane **0.239**, soit 0.078 SOUS la barre 0.3167. À ce réglage, aucune
+    cellule ne peut rendre autre chose qu'un échec : le « RETAIN sous la barre » du record est un
+    instrument à ISSUE UNIQUE, pas un résultat. La garde doit LEVER — et elle lève déjà sans aucune
+    marge, l'écart valant 50 erreurs-types : ce cas-ci ne dépend pas du réglage de la marge."""
+    from tools.experiment_preflight import PreflightError, assert_bar_is_reachable
+    with pytest.raises(PreflightError, match="INATTEIGNABLE"):
+        assert_bar_is_reachable(0.239, _DC_BAR, n_eval=_DC_N_EVAL, label="DELAYED-COORD flip_p=0.3")
+    with pytest.raises(PreflightError, match="INATTEIGNABLE"):      # sans marge non plus
+        assert_bar_is_reachable(0.239, _DC_BAR, label="DELAYED-COORD flip_p=0.3 (marge nulle)")
+
+
+def test_bar_reachability_SPARES_the_noiseless_regime():
+    """RÉPONSE CONNUE n°2 — ATTEIGNABLE MESURÉE, et c'est LE cas qui empêche la garde d'être un
+    interrupteur : `flip_p=0`, MÊME sonde, MÊME bras, MÊME barre, seul le régime change.
+
+    PRESENT sans leurre rend `[0.3375, 0.3313, 0.3562]` -> médiane **0.3375**, et ce régime est celui qui
+    reproduit le Lewis publié (`coord_intact` 0.338, écart 0.0005). La garde doit PASSER, y compris avec
+    la marge d'erreur-type armée : 0.3375 > 0.3167 + 0.0184 = 0.3351, de 0.0024. C'est serré, et c'est
+    exactement pourquoi le coefficient de marge est PINCÉ à une erreur-type (cf. le cas suivant)."""
+    from tools.experiment_preflight import assert_bar_is_reachable
+    assert assert_bar_is_reachable(0.3375, _DC_BAR, n_eval=_DC_N_EVAL,
+                                   label="DELAYED-COORD flip_p=0") is True
+    assert assert_bar_is_reachable(0.3375, _DC_BAR, label="DELAYED-COORD flip_p=0 (marge nulle)") is True
+
+
+def test_bar_reachability_margin_refuses_an_ILLUSORY_clearance():
+    """LA MARGE FAIT-ELLE QUELQUE CHOSE ? Cas construit, mais dont les DEUX échelles sont celles de la
+    sonde réelle — sans lui, `margin`/`n_eval` seraient des paramètres qui ne changent jamais rien
+    (classe E4 : une vérification qui ne peut pas échouer).
+
+    Un bras à 0.320 contre une barre à 0.3167 « franchit » de 0.0033 : 2.1 pas de quantification
+    (`1/640`), mais **0.18 erreur-type**. Le signe de l'écart n'est pas établi -> la garde doit LEVER
+    quand la résolution est déclarée, et PASSER quand elle ne l'est pas (comportement minimal explicite,
+    jamais une marge implicite). Et la borne haute doit rester lisible : à 2 erreurs-types, le régime
+    FONCTIONNEL du cas précédent (0.3375) serait refusé lui aussi — c'est la mesure qui interdit de
+    durcir le coefficient, pas une préférence."""
+    import math
+
+    from tools.experiment_preflight import PreflightError, assert_bar_is_reachable
+    with pytest.raises(PreflightError, match="INATTEIGNABLE"):
+        assert_bar_is_reachable(0.320, _DC_BAR, n_eval=_DC_N_EVAL, label="marge illusoire")
+    assert assert_bar_is_reachable(0.320, _DC_BAR, label="marge illusoire (résolution non déclarée)")
+    assert assert_bar_is_reachable(0.320, _DC_BAR, margin=0.003, label="marge absolue insuffisante")
+    with pytest.raises(PreflightError, match="INATTEIGNABLE"):       # `max(margin, erreur-type)`
+        assert_bar_is_reachable(0.320, _DC_BAR, n_eval=_DC_N_EVAL, margin=0.003,
+                                label="marge absolue < erreur-type -> l'erreur-type l'emporte")
+
+    se = math.sqrt(_DC_BAR * (1 - _DC_BAR) / _DC_N_EVAL)
+    assert 0.320 < _DC_BAR + se < 0.3375, "prémisse : une erreur-type sépare les deux réponses connues"
+    assert _DC_BAR + 2 * se > 0.3375, (
+        "prémisse du plafonnement du coefficient : à 2 erreurs-types la garde refuserait le SEUL régime "
+        "mesuré comme fonctionnel — une garde qui refuse tout, défaut symétrique de celle qui accepte tout")
+
+
+def test_bar_reachability_does_NOT_cover_a_bar_that_is_TOO_LOW():
+    """PORTÉE — contre-exemple GELÉ (P2.15), et il est là pour EMPÊCHER une sur-lecture de la garde.
+
+    Le défaut symétrique est réel et mesuré : la barre du dépôt `1/K + 0.15 = 0.3167` se situe **0.072
+    SOUS** le plafond structurel du substrat `plain` (**0.3889**, forme close des 36 paires, 8 restarts),
+    donc un substrat PROUVABLEMENT incapable de composer la franchit (0.3719 mesuré à `lr=0.1`).
+    Sur CES chiffres, `assert_bar_is_reachable` passe — et elle a raison de passer : la barre EST
+    franchissable. Elle ne borne le seuil que par le HAUT ; ce test gèle ce que la garde NE dit PAS,
+    pour qu'aucun appelant ne lise son `True` comme « la barre est valide ».
+
+    Pourquoi DEUX propriétés et non deux moitiés d'une seule : (1) l'une se mesure sur le bras qui doit
+    RÉUSSIR, l'autre sur un bras qui doit ÉCHOUER ; (2) l'une est mesurée AU RÉGIME CONFIGURÉ (c'est
+    tout son objet — 0.239 contre 0.3375 pour un seul `flip_p` d'écart), l'autre est établie HORS du
+    dispositif (forme close, autre substrat, autre tâche) et vaut à tout régime ; (3) l'une se corrige en
+    changeant le RÉGIME, l'autre en changeant la BARRE. Les fusionner inviterait à passer le niveau de
+    CHANCE (`1/K = 0.1667`) comme plafond de l'incapable, ce qui EST le défaut P2.15 (l'incapable montait
+    à 0.3889). Le défaut « barre trop basse » est déjà traité, et par un AUTRE mécanisme : l'écart à un
+    bras de référence de `assert_verdict_invariant_to_optimizer` (cf.
+    `test_optimizer_sweep_SPARES_the_bilinear_structural_null`, dont la dernière assertion gèle
+    précisément le fait qu'un seuil absolu se serait trompé ici)."""
+    from tools.experiment_preflight import assert_bar_is_reachable
+    plafond_incapable, franchi_a_lr01 = 0.3889, 0.3719
+    assert assert_bar_is_reachable(plafond_incapable, _DC_BAR, n_eval=_DC_N_EVAL,
+                                   label="P2.15 plain (plafond en forme close)") is True
+    assert franchi_a_lr01 > _DC_BAR, (
+        "le défaut P2.15 EST là — un bras prouvablement incapable franchit la barre — et il est HORS "
+        "de la portée de cette garde : la reachability est satisfaite, la DISCRIMINATION ne l'est pas")
+
+
+def test_bar_reachability_refuses_a_malformed_resolution():
+    """Domaine : `n_eval` doit être un nombre d'essais, et la marge binomiale n'a de sens que sur une
+    proportion. Refus EXPLICITE plutôt qu'un `sqrt` de négatif ou une marge silencieusement nulle."""
+    from tools.experiment_preflight import PreflightError, assert_bar_is_reachable
+    with pytest.raises(PreflightError, match="n_eval"):
+        assert_bar_is_reachable(0.9, _DC_BAR, n_eval=0)
+    with pytest.raises(PreflightError, match="proportion"):
+        assert_bar_is_reachable(12.0, 7.0, n_eval=_DC_N_EVAL, label="barre en ticks de survie")
+    assert assert_bar_is_reachable(12.0, 7.0, margin=1.0, label="barre en ticks de survie") is True

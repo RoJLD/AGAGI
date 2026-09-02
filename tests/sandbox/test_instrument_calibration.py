@@ -403,8 +403,43 @@ CALIBRATED = {
     # ⚠️ NON couvert : le contrôle positif « générateur A » (canal ORACLE -> RETAIN s'effondre, PRESENT
     # inerte) MESURÉ hors-test (0.436 -> 0.148 ; 0.391, Δ 0.026) mais qui exige un paramètre `sender_mode`
     # que la sonde n'expose pas encore — il revient à la tâche qui ajoutera le bras ALIAS et le verdict.
+    # P2.15/E2-au-SEUIL (2026-09-02) : `vitality_bar=` arme `assert_bar_is_reachable` AVANT tout
+    # entrainement. Deux branches, opposees et toutes deux MESURABLES sans entrainer :
+    #  * `bar-unreachable:guard-before-training` — barre inatteignable (bras facile 0.239 injecte contre
+    #    0.3167) : la sonde REFUSE, et le refus est INSTANTANE. Ce n'est pas seulement QUE la garde leve,
+    #    c'est OU elle est posee : refuser apres avoir paye 12 seeds x 800 episodes ne protege de rien.
+    #  * `no-bar:no-op-exact` — sans barre declaree, comportement BIT-IDENTIQUE (aucune verification,
+    #    aucun cout) ; et avec barre MESUREE, les 4 tableaux des bras restent bit-identiques -> mesurer
+    #    le bras facile en tete ne perturbe pas la mesure (chaque `_train_and_eval_arm` re-seede).
+    #    VERIFIE, pas suppose : c'est la classe E5 (etat global) qui rendrait le contraire possible.
     "run_delayed_coordination_demand_probe": ["mute-channel:chance", "mute-channel:arm-symmetry-exact",
-                                              "untrained:floor"],
+                                              "untrained:floor", "bar-unreachable:guard-before-training",
+                                              "no-bar:no-op-exact"],
+    # E2 APPLIQUEE AU SEUIL (et non au bras), garde de pre-vol NEE le 2026-09-02 et calibree dans la
+    # MEME passe (rituel du registre). Quatre branches, dont un COUPLE APPARIE mesure le meme jour sur
+    # le MEME dispositif, le MEME bras et la MEME barre — seul le REGIME change (`flip_p`) :
+    # `unreachable:fires` (flip_p=0.3, bras le plus facile 0.239 < barre 0.3167 -> LEVE) et
+    # `reachable:spares` (flip_p=0, le MEME bras rend 0.3375 -> PASSE). Sans le second, une garde qui
+    # refuse tout passerait le premier. `illusory-margin:fires` gele le role de la marge (0.320 contre
+    # 0.3167 = 2.1 pas de quantification mais 0.18 erreur-type -> signe non etabli). `too-low-bar:
+    # out-of-scope` gele la PORTEE : le defaut symetrique P2.15 (barre 0.072 SOUS le plafond structurel
+    # 0.3889 du substrat plain) n'est PAS couvert, et c'est une propriete DISTINCTE — bras qui doit
+    # ECHOUER vs bras qui doit REUSSIR, etabli hors dispositif vs mesure au regime configure, corrige en
+    # changeant la BARRE vs en changeant le REGIME.
+    # ⚠️ Les quatre cas vivent dans `tests/sandbox/test_experiment_preflight.py`
+    # (`test_bar_reachability_REFUSES_the_noisy_default_regime` / `..._SPARES_the_noiseless_regime` /
+    # `..._margin_refuses_an_ILLUSORY_clearance` / `..._does_NOT_cover_a_bar_that_is_TOO_LOW`), la ou
+    # sont testees toutes les assertions de pre-vol. Purement numeriques.
+    # ⚠️ CINQUIEME ANGLE MORT DU CLIQUET, constate en ecrivant cette ligne : l'heuristique de nommage de
+    # `check_instrument_calibration.py` ne connait AUCUN motif `assert_*`. `assert_verdict_invariant_to_
+    # optimizer` n'est detecte que parce que son nom contient « verdict », par accident ; ni
+    # `assert_n_per_arm` ni `assert_bar_is_reachable` ne le sont. `scan_calibrated()` IGNORE donc cette
+    # declaration (« declaration perimee : ignoree ») et le compteur ne bougera pas. Elle est maintenue
+    # SCIEMMENT et documentaire : elle dit ce qui est couvert et par quels cas. La correction (un motif
+    # `assert_\\w+` dans l'heuristique) touche un fichier hors du perimetre de cette passe et vaut
+    # occurrence a inscrire au registre, pas un contournement silencieux.
+    "assert_bar_is_reachable": ["unreachable:fires", "reachable:spares", "illusory-margin:fires",
+                                "too-low-bar:out-of-scope"],
 }
 
 _GENOMES = os.path.join("results", "warm007_genomes")
@@ -2412,6 +2447,63 @@ def test_delayed_coordination_probe_UNTRAINED_cannot_beat_chance():
     r = run(seeds=[0, 1, 2], D=1, episodes=0, n_agents=8, K=K, V=8, flip_p=0.3, eval_batches=25)
     vals = [v for arm in ("RETAIN", "PRESENT") for v in r[arm + "_intact"] + r[arm + "_ablated"]]
     assert all(abs(v - 1.0 / K) <= 0.09 for v in vals), r
+
+
+def test_delayed_coordination_probe_REFUSES_an_UNREACHABLE_bar_before_training_anything():
+    """⚠️ CONTRE-EXEMPLE GELE aux chiffres REELS du 2026-09-02 (defaut d'instrument n°2 du record).
+
+    Au bruit PAR DEFAUT du module (`flip_p=0.3`), le bras le plus FACILE de la sonde — PRESENT sans
+    leurre, qui ne demande AUCUNE retention — plafonne a **0.239**, sous la barre de vitalite du depot
+    `1/K + 0.15 = 0.3167`. Toute cellule mesuree a ce reglage et comparee a cette barre est un
+    instrument a ISSUE UNIQUE : il ne peut rendre qu'« echec ». Declarer la barre (`vitality_bar=`)
+    doit donc REFUSER ce regime.
+
+    Et ce n'est pas seulement QUE la garde leve, c'est OU elle est posee : la configuration demandee ici
+    est celle du verdict complet (12 seeds x 800 episodes, plusieurs heures). Le refus doit etre
+    INSTANTANE — une garde qui refuse APRES avoir paye le run ne protege de rien. Verifie par le TEMPS.
+
+    Second volet : fournir `easiest_arm_accuracy` SANS `vitality_bar` doit lever, jamais devenir un
+    no-op silencieux — l'appelant qui fournit la mesure croit avoir arme la garde."""
+    import time
+
+    from tools.delayed_coordination_demand_probe import run_delayed_coordination_demand_probe as run
+    from tools.experiment_preflight import PreflightError
+    t0 = time.time()
+    with pytest.raises(PreflightError, match="INATTEIGNABLE"):
+        run(seeds=list(range(12)), D=2, episodes=800, n_agents=16, K=6, flip_p=0.3,
+            vitality_bar=1 / 6 + 0.15, easiest_arm_accuracy=0.239)
+    assert time.time() - t0 < 0.5, (
+        "la garde d'atteignabilite refuse trop lentement : elle est posee APRES l'entrainement")
+
+    # SPECIFICITE : le regime `flip_p=0` (le SEUL que le record mesure comme fonctionnel, 0.3375 et
+    # reproduisant le Lewis publie a 0.0005) doit PASSER la garde -- sinon elle refuserait tout.
+    with pytest.raises(PreflightError, match="SANS `vitality_bar`"):
+        run(seeds=[0], easiest_arm_accuracy=0.3375)
+
+
+def test_delayed_coordination_probe_is_BIT_IDENTICAL_when_the_bar_check_runs():
+    """⚠️ NO-OP EXACT (la forme de test la plus forte). Deux choses a la fois :
+
+    (1) sans `vitality_bar` (defaut), rien n'a change — c'est la condition pour que l'ajout d'une garde
+        ne soit pas lui-meme une intervention sur la mesure ;
+    (2) avec `vitality_bar` MESUREE (le bras facile est reellement entraine EN TETE), les quatre
+        tableaux des bras restent BIT-IDENTIQUES a ceux du meme appel sans barre.
+
+    (2) est la propriete non triviale, et elle est VERIFIEE au lieu d'etre raisonnee : `_train_and_eval_
+    arm` re-seede `np.random` et `torch` a chaque entree, donc une mesure supplementaire en tete ne
+    decale AUCUN tirage en aval. C'est precisement la classe E5 (etat global / RNG partage) qui rendrait
+    le contraire possible -- et dans ce depot elle a deja transforme une sonde en artefact (EVO-008).
+    Barre a 0.0 : la garde s'execute et passe quel que soit le resultat de l'entrainement minuscule,
+    donc le test mesure l'INTERFERENCE, pas l'apprentissage."""
+    from tools.delayed_coordination_demand_probe import run_delayed_coordination_demand_probe as run
+    kw = dict(seeds=[0], D=1, episodes=4, n_agents=4, K=6, V=8, lr=0.05, flip_p=0.3, eval_batches=2)
+    sans = run(**kw)
+    avec = run(vitality_bar=0.0, **kw)
+    assert sans["_bar_reachability"] is None, "sans barre declaree : aucun verdict, aucune verification"
+    assert avec["_bar_reachability"]["easiest_arm_source"] == "PRESENT sans leurre, mesuré"
+    for cle in ("RETAIN_intact", "RETAIN_ablated", "PRESENT_intact", "PRESENT_ablated"):
+        assert sans[cle] == avec[cle], (
+            f"{cle} a BOUGE : mesurer le bras facile en tete decale les tirages en aval (classe E5)")
 
 
 # ======================================================================================================

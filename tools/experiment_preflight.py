@@ -7,6 +7,7 @@ automatise ceux-là ; les deux autres exigent une DÉCLARATION écrite avant le 
     A. L'instrument peut-il produire LES DEUX issues ?   -> assert_ablation_changes_something,
                                                             assert_positive_control, assert_not_degenerate,
                                                             assert_selection_nonempty,
+                                                            assert_bar_is_reachable,
                                                             assert_verdict_invariant_to_optimizer
     C. La grandeur mesurée est-elle celle qui AGIT ?     -> assert_no_aliasing, assert_no_functional_aliasing,
                                                             assert_predictor_measured_in_situ
@@ -99,6 +100,93 @@ def assert_selection_nonempty(n_selected, label="sélection"):
     if n <= 0:
         raise PreflightError(
             f"{label} VIDE (n={n}) : « 0 échec » ne prouve rien. Vérifier le filtre avant de conclure.")
+    return True
+
+
+def assert_bar_is_reachable(easiest_arm, bar, n_eval=None, margin=0.0, label="barre de verdict"):
+    """La BARRE contre laquelle un verdict va être rendu doit être FRANCHISSABLE, au régime configuré,
+    par le bras le PLUS FACILE du dispositif — celui dont on sait qu'il DOIT réussir. Sinon aucune
+    cellule ne peut rendre autre chose qu'« échec » : instrument à ISSUE UNIQUE (classe E2 du registre,
+    appliquée non pas au BRAS mais au SEUIL).
+
+    `easiest_arm` : performance MESURÉE du bras le plus facile, AU RÉGIME CONFIGURÉ (même bruit, même
+    budget, mêmes seeds que les cellules à venir) — c'est tout l'objet de la garde : une barre validée
+    dans un régime et transportée dans un autre. `bar` : le seuil du verdict.
+
+    Aurait attrapé (EDR-DELAYED-COORD, 2026-09-02, mesuré) : au bruit PAR DÉFAUT du module
+    (`flip_p=0.3`), le bras le plus facile de la sonde — PRESENT sans leurre, qui ne demande AUCUNE
+    rétention — plafonne à **0.239**, soit **0.078 SOUS** la barre de vitalité du dépôt
+    `1/K + 0.15 = 0.3167` (K=6). Toute cellule mesurée à ce réglage et comparée à cette barre ne
+    pouvait rendre qu'« échec », et le record en tirait un « RETAIN sous la barre ». À `flip_p=0`, le
+    MÊME bras rend **0.3375** (et reproduit le Lewis publié 0.338 à 0.0005 près) : la barre redevient
+    franchissable. Une seule variable sépare les deux, et ce n'est ni la capacité ni le seuil — c'est
+    le RÉGIME. Cause : `_noisy_onehot` bruite la vue du SENDER, donc le CANAL lui-même, là où la sonde
+    de référence dont la barre est héritée montre au sender un one-hot PROPRE.
+
+    --- LA MARGE, et pourquoi elle n'est pas un ornement ------------------------------------------------
+    « 0.239 < 0.3167 » est net. « 0.320 > 0.3167 » ne l'est pas : c'est un écart de 0.0033 sur une
+    accuracy estimée sur un nombre FINI d'essais. Deux échelles se disputent la lecture, et elles
+    diffèrent d'un facteur 12 — le choix est donc mesuré, pas esthétique :
+      * le PAS DE QUANTIFICATION `1/n_eval` (= 1/640 = 0.00156 aux défauts de la sonde, 40 lots × 16
+        agents) : 0.320 est à 2.1 pas de la barre. Y indexer la marge SOUS-PROTÈGE ;
+      * l'ERREUR-TYPE d'échantillonnage `sqrt(bar·(1−bar)/n_eval)` (= 0.0184, soit ~11.8 pas) : c'est
+        l'échelle sous laquelle le SIGNE de `easiest_arm − bar` n'est pas établi. 0.320 est à 0.18
+        erreur-type de la barre — « franchissable » y est indiscernable d'« infranchissable ».
+    D'où la règle : marge effective = `max(margin, erreur-type)`, l'erreur-type n'étant calculée que si
+    `n_eval` est DÉCLARÉ (mêmes conventions que `floor=`/`ceiling=` d'`ablation_verdict` et que
+    `reference_floor=` ci-dessous : rien d'implicite, `n_eval=None` -> aucune marge dérivée, et la garde
+    se réduit à `easiest_arm > bar` strict). Les deux se combinent par `max` : ajouter une information
+    ne peut que RESSERRER la garde, jamais la relâcher.
+
+    ⚠️ POURQUOI **UNE** erreur-type et pas deux — la contrainte vient du POSITIF APPARIÉ, pas du goût.
+    Le cas `flip_p=0` (0.3375, le seul régime que le record mesure comme FONCTIONNEL) franchit
+    `bar + 1·se` de **0.0024** et échouerait `bar + 2·se` (0.3534 > 0.3375). Une garde à 2 erreurs-types
+    refuserait donc le régime même où l'instrument marche : elle serait aussi inutile qu'une garde qui
+    accepte tout, défaut identique au signe près. Le coefficient est PINCÉ par le couple apparié.
+    ⚠️ Et il faut dire dans quel sens elle est fragile : aux défauts de la sonde, `n_eval = 40 × 16` compte
+    les 16 agents comme indépendants alors qu'ils partagent la boucle d'entraînement et les tirages
+    (chacun porte ses PROPRES `W/U/V`, `src/agents/backend_torch.py:85-86`, mais voit les mêmes cibles).
+    L'erreur-type dérivée est donc une BORNE INFÉRIEURE de la séparation à exiger — `margin=` existe pour
+    en imposer davantage, et l'unité de réplication du dépôt reste le seed (déclarer le n PAR SEED est le
+    choix conservateur quand `easiest_arm` est une médiane sur seeds).
+
+    --- CE QUE CETTE GARDE NE DIT PAS (et qu'il ne faut pas lui faire dire) -----------------------------
+    Elle ne borne la barre que par le HAUT. Le défaut SYMÉTRIQUE — une barre trop BASSE, franchie par un
+    bras PROUVABLEMENT incapable (P2.15 : `1/K + 0.15 = 0.3167` est 0.072 SOUS le plafond structurel
+    0.3889 du substrat `plain`, forme close) — est une propriété DIFFÉRENTE, pas l'autre moitié de
+    celle-ci : elle se mesure sur un bras qui doit ÉCHOUER et non sur celui qui doit RÉUSSIR, elle
+    s'établit hors du dispositif (forme close, un autre substrat, une autre tâche) au lieu d'être
+    mesurée au régime configuré, et elle se corrige en changeant la BARRE là où celle-ci se corrige en
+    changeant le RÉGIME. Les fusionner inviterait surtout à passer le niveau de CHANCE (`1/K`) comme
+    plafond de l'incapable — ce qui EST l'erreur P2.15 (l'incapable atteignait 0.3889, pas 0.1667) :
+    une garde dont l'argument le plus naturel reproduit le défaut qu'elle prétend fermer. Le défaut
+    « barre trop basse » est traité ailleurs, et par un autre mécanisme : `assert_verdict_invariant_to_
+    optimizer` raisonne sur l'ÉCART À UN BRAS DE RÉFÉRENCE précisément parce qu'aucun seuil ABSOLU ne
+    le sépare (cf. le contrôle de spécificité BILINEAR, où plain à 0.3719 franchit la barre)."""
+    got, b = float(easiest_arm), float(bar)
+    derived = 0.0
+    if n_eval is not None:
+        n = int(n_eval)
+        if n <= 0:
+            raise PreflightError(
+                f"{label} : `n_eval={n_eval!r}` invalide — le nombre d'essais d'évaluation derrière "
+                "`easiest_arm` doit être >= 1 (déclarer `n_eval=None` si la résolution est inconnue).")
+        if not 0.0 <= b <= 1.0:
+            raise PreflightError(
+                f"{label} : `n_eval` dérive une marge BINOMIALE, qui n'a de sens que si `bar` est une "
+                f"proportion dans [0,1] (reçu {b:.4g}). Utiliser `margin=` sur une autre échelle.")
+        derived = float(np.sqrt(b * (1.0 - b) / n))
+    used = max(float(margin), derived)
+    if got <= b + used:
+        raise PreflightError(
+            f"{label} INATTEIGNABLE : le bras le PLUS FACILE rend {got:.4g}, la barre vaut {b:.4g} "
+            f"(marge exigée {used:.4g}" + (f", dont erreur-type {derived:.4g} sur n_eval={int(n_eval)}"
+                                           if n_eval is not None else "") + "). "
+            "Aucune cellule de ce dispositif ne peut rendre autre chose qu'un ÉCHEC -> instrument à "
+            "ISSUE UNIQUE (classe E2 appliquée au SEUIL) : un « sous la barre » n'y prouve rien. "
+            "Changer le RÉGIME jusqu'à ce que le bras qui DOIT réussir franchisse la barre, ou "
+            "abandonner le seuil absolu au profit d'un écart à un bras de référence mesuré dans le "
+            "MÊME run (cf. assert_verdict_invariant_to_optimizer).")
     return True
 
 

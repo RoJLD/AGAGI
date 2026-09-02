@@ -105,6 +105,13 @@ barre de vitalité `1/K+0.15 = 0.317`. À ce réglage la barre est INATTEIGNABLE
 barre » ne prouve rien (pré-vol, question 1 : l'instrument doit pouvoir rendre LES DEUX issues).
 Les chiffres du §1 du record (0.170 / 0.338 / RETAIN 0.223) sont donc à lire à `flip_p=0`.
 
+🔒 CE DÉFAUT EST DÉSORMAIS EXÉCUTABLE, PAS SEULEMENT ÉCRIT — `vitality_bar=` (cf.
+`run_delayed_coordination_demand_probe`). Déclarer la barre contre laquelle un verdict sera rendu ARME
+`tools/experiment_preflight.assert_bar_is_reachable` AVANT tout entraînement : la sonde ne peut plus
+produire de chiffres destinés à une barre que son `flip_p` rend infranchissable. Sans `vitality_bar`
+(défaut `None`), aucun verdict n'est rendu, aucune mesure supplémentaire n'est payée et le comportement
+est BIT-IDENTIQUE à celui d'avant l'ajout — la vérification est attachée au VERDICT, pas à l'appel.
+
 Ce module ne rend PAS de verdict : Task 3 ajoute le bras ALIAS, `ablation_verdict`, `specificity_control`
 et la calibration. Pur torch CPU, aucun bail `kuzu`, aucun monde.
 Usage : python tools/delayed_coordination_demand_probe.py
@@ -308,25 +315,96 @@ def _train_and_eval_arm(seed, arm, D, episodes, n_agents, K, V, lr, flip_p, eval
          TorchPopulationModel.GATE_TARGETS) = saved
 
 
+def _easiest_arm_accuracy(seeds, D, episodes, n_agents, K, V, lr, flip_p, eval_batches, credit):
+    """Performance du bras le PLUS FACILE du dispositif, AU RÉGIME PASSÉ : PRESENT SANS LEURRE.
+
+    C'est le bras dont on SAIT qu'il doit réussir — `[nul] + D×nul + [sym(cible)]` : le choix se lit sur
+    le symbole, aucune rétention n'est demandée, aucune réponse concurrente n'est injectée dans les
+    logits. Rien de plus facile n'existe dans cette sonde ; s'il ne franchit pas la barre, rien ne la
+    franchira. Renvoie la MÉDIANE des accuracies INTACTES sur les seeds (l'ablation n'a pas de sens ici :
+    sous `choice_decoy=False` le préfixe de PRESENT ne porte aucun symbole, l'ablation y est un no-op
+    EXACT — cf. docstring du module).
+
+    Mesuré au `D` CONFIGURÉ, sans supposer l'invariance en D — mais celle-ci est CORROBORÉE par le
+    record : le contrôle de sanité à D=0 et le balayage du rétro-audit à D=2 rendent le MÊME triplet
+    `[0.3375, 0.3313, 0.3562]` à `flip_p=0`. Attendu depuis H=0, un tick d'entrée nulle laisse H=0 et
+    des logits nuls (forward no-op, gradient exactement nul).
+
+    ⚠️ COÛT : un entraînement de bras SUPPLÉMENTAIRE par seed (~+50 % sur un appel à deux bras). C'est
+    pourquoi il n'est payé QUE si un verdict va être rendu (`vitality_bar` déclarée), et pourquoi
+    `easiest_arm_accuracy=` permet d'INJECTER une valeur déjà mesurée au même régime au lieu de la
+    re-payer. Aucun cache global : la valeur est reproductible mais l'état global est une classe
+    d'erreur du dépôt (E5) — l'économie est EXPLICITE, à la charge de l'appelant."""
+    vals = [_train_and_eval_arm(s, "PRESENT", D, episodes, n_agents, K, V, lr, flip_p,
+                                eval_batches=eval_batches, credit=credit, choice_decoy=False)[0]
+            for s in seeds]
+    return float(np.median(vals)), vals
+
+
 def run_delayed_coordination_demand_probe(seeds, D=2, episodes=800, n_agents=16, K=6, V=8, lr=0.05,
                                           flip_p=0.3, arms=ARMS, eval_batches=40, credit="bptt",
-                                          choice_decoy=True):
+                                          choice_decoy=True, vitality_bar=None,
+                                          easiest_arm_accuracy=None, bar_margin=0.0):
     """Mesure « la coordination référentielle DIFFÉRÉE demande la rétention d'état ».
 
     Par seed et par bras : éval INTACTE vs SUBSTITUTION D'ÉTAT (appariées par essai). Renvoie les
     accuracies brutes ; le VERDICT (ablation_verdict / specificity_control / functional_aliasing) est
     ajouté par Task 3 avec le bras ALIAS. Attendu : RETAIN s'effondre (`X_DEMANDED`, arithmétiquement
     forcé — ce n'est donc PAS le résultat) ; PRESENT vivant SOUS 0.75 et INERTE (c'est LUI qui porte le
-    contenu empirique)."""
+    contenu empirique).
+
+    --- `vitality_bar` : la barre du verdict doit être ATTEIGNABLE À CE `flip_p` --------------------------
+    `None` (défaut) = aucun verdict n'est rendu -> aucune vérification, aucune mesure supplémentaire,
+    comportement BIT-IDENTIQUE à celui d'avant l'ajout. Dès qu'une barre est DÉCLARÉE (typiquement
+    `1/K + 0.15`), la sonde mesure d'abord son bras le PLUS FACILE (PRESENT sans leurre, `choice_decoy=
+    False`) et passe le couple à `assert_bar_is_reachable` — **AVANT** d'entraîner la moindre cellule
+    (garde-avant-entraînement : refuser après avoir payé le run ne protège de rien).
+
+    Sans cette garde, la sonde a réellement produit des chiffres invalides : à `flip_p=0.3`, le défaut
+    du module, PRESENT sans leurre plafonne à **0.239** contre une barre à **0.3167** — instrument à
+    ISSUE UNIQUE, aucune cellule ne pouvait rendre autre chose qu'« échec ». À `flip_p=0` le même bras
+    rend **0.3375** et la barre redevient franchissable. Cf. le défaut d'instrument n°2 de
+    `docs/EDR/EDR-DELAYED-COORD_...md` et la docstring d'`assert_bar_is_reachable`.
+
+    FORME ÉCONOMIQUE : `easiest_arm_accuracy=` injecte une valeur DÉJÀ mesurée au même régime (par ex.
+    le 0.3375 du record) et supprime entièrement le coût. Aucun plafond ANALYTIQUE ne peut le remplacer :
+    `ceiling_bayes = (1-flip_p) + flip_p/K` vaut 0.75 à `flip_p=0.3`, très AU-DESSUS de la barre — il ne
+    voit donc pas le défaut, car ce qui plafonne réellement le bras facile n'est pas l'information du
+    canal mais l'émergence du code de Lewis. La mesure est nécessaire ; c'est son DÉCLENCHEMENT qui est
+    borné (au verdict), pas sa précision.
+
+    `bar_margin` : marge ABSOLUE additionnelle. La marge effective est `max(bar_margin, erreur-type
+    binomiale sur n_eval = eval_batches × n_agents)` — cf. `assert_bar_is_reachable`."""
     import torch
+    from tools.experiment_preflight import PreflightError, assert_bar_is_reachable
     torch.set_num_threads(1)                 # FOREGROUND, mono-thread : reproductibilité du débit
+    if vitality_bar is None and easiest_arm_accuracy is not None:
+        # Jamais un no-op SILENCIEUX : un appelant qui fournit la mesure croit avoir armé la garde.
+        raise PreflightError(
+            "`easiest_arm_accuracy` fourni SANS `vitality_bar` : il ne servirait à rien et la garde "
+            "d'atteignabilité ne serait PAS armée. Déclarer la barre du verdict, ou retirer l'argument.")
+    bar_info = None
+    if vitality_bar is not None:
+        if easiest_arm_accuracy is None:
+            easiest, per_seed = _easiest_arm_accuracy(seeds, D, episodes, n_agents, K, V, lr, flip_p,
+                                                      eval_batches, credit)
+        else:
+            easiest, per_seed = float(easiest_arm_accuracy), None
+        assert_bar_is_reachable(easiest, vitality_bar, n_eval=eval_batches * n_agents,
+                                margin=bar_margin,
+                                label=f"DELAYED-COORD barre de vitalité (flip_p={flip_p:g})")
+        bar_info = {"bar": float(vitality_bar), "easiest_arm": easiest,
+                    "easiest_arm_per_seed": per_seed, "easiest_arm_source":
+                        "injecté" if easiest_arm_accuracy is not None else "PRESENT sans leurre, mesuré",
+                    "n_eval": eval_batches * n_agents, "bar_margin": float(bar_margin)}
     out = {"n": len(seeds),
            "_params": {"D": D, "episodes": episodes, "n_agents": n_agents, "K": K, "V": V, "lr": lr,
                        "flip_p": flip_p, "arms": list(arms), "eval_batches": eval_batches,
                        "seeds": list(seeds), "threads": torch.get_num_threads(),
                        "credit": credit, "choice_decoy": choice_decoy,
-                       "ablation_target": "substrate",
-                       "ceiling_bayes": (1.0 - flip_p) + flip_p / K, "floor": 1.0 / K}}
+                       "ablation_target": "substrate", "vitality_bar": vitality_bar,
+                       "ceiling_bayes": (1.0 - flip_p) + flip_p / K, "floor": 1.0 / K},
+           "_bar_reachability": bar_info}
     for arm in arms:
         out[arm + "_intact"], out[arm + "_ablated"] = [], []
     for s in seeds:
@@ -342,13 +420,21 @@ def run_delayed_coordination_demand_probe(seeds, D=2, episodes=800, n_agents=16,
 if __name__ == "__main__":
     import json
     seeds = list(range(int(os.environ.get("DC_SEEDS", "3"))))
+    # `DC_BAR` : barre du verdict à venir. Non déclarée -> aucun verdict, aucune vérification, aucun
+    # coût supplémentaire. Déclarée -> la garde d'atteignabilité est armée AVANT tout entraînement
+    # (`DC_EASIEST` injecte une mesure déjà faite au même régime pour ne pas la re-payer).
+    _bar = os.environ.get("DC_BAR")
+    _easiest = os.environ.get("DC_EASIEST")
     r = run_delayed_coordination_demand_probe(
         seeds,
         D=int(os.environ.get("DC_D", "2")),
         episodes=int(os.environ.get("DC_EPISODES", "800")),
         n_agents=int(os.environ.get("DC_AGENTS", "16")),
         lr=float(os.environ.get("DC_LR", "0.05")),
+        flip_p=float(os.environ.get("DC_FLIP_P", "0.3")),
         credit=os.environ.get("DC_CREDIT", "bptt"),
         choice_decoy=os.environ.get("DC_CHOICE_DECOY", "1") not in ("0", "false", "False"),
+        vitality_bar=float(_bar) if _bar else None,
+        easiest_arm_accuracy=float(_easiest) if _easiest else None,
     )
     print(json.dumps(r, ensure_ascii=False, indent=2))
