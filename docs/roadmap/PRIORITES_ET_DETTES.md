@@ -969,6 +969,37 @@ la rencontre de deux correctifs indépendants le même jour : `481117e` (session
   CLIQUET, sur le modèle de `check_instrument_calibration.py` : le défaut se reforme silencieusement à
   chaque nouvelle sonde.
 
+**P2.28 — ⚠️ OUVERT — une FAMILLE de pré-inscriptions peut passer TOUTES les portes de
+`check_preregistration_applied` sans être vérifiée par AUCUNE. Mesuré sur la famille scellée le
+2026-09-02.**
+La sémantique de FAMILLE (base + chaîne `-bis`) — introduite le 2026-09-02 pour qu'une règle amendée
+reste réparable — est appliquée au contrôle « la règle NOMME-t-elle des grandeurs ? » mais **PAS** au
+contrôle « le record les MESURE-t-il ? ». Les deux membres tombent alors chacun dans un trou
+différent, et l'union n'est jamais reformée :
+
+| membre | grandeurs extractibles | record rattaché | sort |
+|---|---|---|---|
+| `DELAYED-COORD-LR-N12` | **0** | non | `scan()` la saute (rien à exiger) |
+| `DELAYED-COORD-LR-N12-bis` | 7 | **non** | `scan()` la saute (rien à quoi comparer) |
+
+Résultat mesuré : ni `nouvelles_sans_grandeur()` ni `scan()` ne signalent la famille — alors que le
+record EXISTE et mentionne bien les 7 grandeurs. La vérification annoncée n'a jamais eu lieu.
+
+- **Cause immédiate** : le rattachement règle→record se fait par **PRÉFIXE DE NOM DE FICHIER**
+  (`fn.startswith(base + "_")`). `DELAYED-COORD-LR-N12` ne préfixe pas
+  `EDR-DELAYED-COORD_Deferred_….md`, donc aucun lien. Et le compteur « sans record écrit » CONFOND
+  deux situations opposées : « la mesure n'est pas encore écrite » (transitoire, légitime) et
+  « le record existe mais n'est pas rattaché » (non-couverture silencieuse).
+- **Correctif de fond, et il suit la règle du dépôt** : faire **DÉCLARER** à la règle le record
+  qu'elle vise (clé `record:`), au lieu de le deviner par convention de nommage. Deviner l'appariement
+  est exactement ce que `_record_text_for` fait aujourd'hui, et c'est ce qui rate.
+- **Correctif minimal, indépendant du précédent** : appliquer la sémantique de FAMILLE au contrôle du
+  record comme elle l'est déjà à celui des grandeurs — une famille dont UN membre nomme des grandeurs
+  et UN AUTRE a un record doit être inspectée sur l'UNION.
+- ⚠️ **Mon propre audit de ce défaut a d'abord rendu « 0 cas »** — sa notion de « record au nom
+  similaire » ne rattrapait pas justement celui-ci. Un audit d'une non-couverture silencieuse peut
+  être silencieusement non couvrant : ne pas le croire sur un seul passage.
+
 ---
 
 ## P3 — Générateurs d'erreur encore sans réponse exécutable
