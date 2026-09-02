@@ -118,3 +118,35 @@ def test_the_legacy_declaration_is_STILL_REAL():
         if C._quantities(rule):
             resorbees.append(name)
     assert not resorbees, f"{resorbees} nomme(nt) desormais des grandeurs -> retirer de la dette"
+
+
+def test_family_with_backticked_bis_is_NOT_flagged(tmp_path):
+    """Semantique de FAMILLE (2026-09-02) : une pre-inscription ne se corrige pas — l'amendement passe
+    par -bis. Si l'original n'a pas de backticks mais que son -bis (markup-only) en a, la famille est
+    verifiable : la flagger a jamais rendrait l'erreur INEPARABLE. Cas reel : S2-FLOOR-PRONOSTIC,
+    mordu par ce cliquet le jour meme de son scellement."""
+    import json
+    pre = tmp_path / "preregistrations"; pre.mkdir()
+    (pre / "EVO-998.json").write_text(json.dumps(
+        {"name": "EVO-998", "rule": {"dv_primaire": "verdict de run_ablation_map par monde"}, "seal": "x"}),
+        encoding="utf-8")
+    (pre / "EVO-998-bis.json").write_text(json.dumps(
+        {"name": "EVO-998-bis", "rule": {"dv_primaire": "verdict de `run_ablation_map` par monde",
+                                         "amendement": "markup uniquement"}, "seal": "x"}),
+        encoding="utf-8")
+    C._PREREG = str(pre)
+    assert C.nouvelles_sans_grandeur() == []
+
+
+def test_family_without_any_backtick_STILL_fails(tmp_path):
+    """⚠️ CONTRE-EXEMPLE GELE de la semantique de famille : le cliquet doit encore pouvoir ECHOUER.
+    Une famille (base + -bis) dont AUCUN membre n'a de grandeur extractible est flaggee — tous ses
+    membres non legataires. Sans ce cas, l'elargissement famille serait un faux vert structurel."""
+    import json
+    pre = tmp_path / "preregistrations"; pre.mkdir()
+    for n in ("EVO-998", "EVO-998-bis"):
+        (pre / f"{n}.json").write_text(json.dumps(
+            {"name": n, "rule": {"dv_primaire": "verdict par monde, sans grandeur nommee"}, "seal": "x"}),
+            encoding="utf-8")
+    C._PREREG = str(pre)
+    assert sorted(C.nouvelles_sans_grandeur()) == ["EVO-998", "EVO-998-bis"]

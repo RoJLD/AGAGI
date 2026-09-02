@@ -113,20 +113,32 @@ def couverture():
 
 
 def nouvelles_sans_grandeur():
-    """Regles NON legataires dont aucune grandeur n'est extractible : la convention n'a pas ete suivie."""
-    out = []
+    """Regles NON legataires dont aucune grandeur n'est extractible : la convention n'a pas ete suivie.
+
+    ⚠️ Semantique de FAMILLE (2026-09-02) : une pre-inscription ne se corrige pas -- un amendement
+    passe par « -bis » et garde les deux fichiers. Juger chaque fichier ISOLEMENT rendait l'original
+    ineparable a jamais (le cliquet a mordu sur S2-FLOOR-PRONOSTIC le jour meme de son scellement,
+    et la voie -bis ne l'aurait pas eteint). L'extractibilite se juge donc sur l'UNION de la famille
+    (base + chaine -bis) ; une famille SANS AUCUN backtick echoue toujours -- contre-exemple gele
+    dans tests/sandbox/test_preregistration_applied.py."""
     if not os.path.isdir(_PREREG):
-        return out
+        return []
+    familles = {}
     for fn in sorted(os.listdir(_PREREG)):
         if not fn.endswith(".json"):
             continue
         name = fn[:-5]
-        if name in _LEGATAIRES_SANS_BACKTICK:
-            continue
         with open(os.path.join(_PREREG, fn), encoding="utf-8") as f:
             rule = json.load(f).get("rule", {})
-        if not _quantities(rule):
-            out.append(name)
+        base = name.split("-bis")[0]
+        familles.setdefault(base, []).append((name, bool(_quantities(rule))))
+    out = []
+    for base, membres in sorted(familles.items()):
+        if any(qty for _, qty in membres):
+            continue                              # au moins un membre est verifiable -> famille OK
+        for name, _ in membres:
+            if name not in _LEGATAIRES_SANS_BACKTICK:
+                out.append(name)
     return out
 
 
