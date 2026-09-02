@@ -117,6 +117,49 @@ adopts: [REF-EXPERIMENT-PREFLIGHT, REF-DEMAND-MARKER]
 > importée d'une autre tâche, n'est pas refondée sur une référence INTRA-dispositif, tout verdict lu
 > contre elle est sans contenu.
 
+> ## VERDICT n=12 PRÉENREGISTRÉ (2026-09-02) — `MONTEE_ETABLIE` : le nul de RETAIN était un artefact du PAS D'APPRENTISSAGE
+>
+> Règle scellée **AVANT** la mesure : `docs/preregistrations/DELAYED-COORD-LR-N12.json` (et son
+> `-bis`, markup-only, qui recopie les clauses dans les champs que la porte
+> `check_preregistration_applied` sait lire). DV scellée `RETAIN_intact`, test des SIGNES apparié,
+> n=12 seeds, branches exhaustives, contrôle interne d'annulation écrit d'avance.
+>
+> Régime scellé : `episodes` = 1600, `sender_lr` = 0.05 **FIXE aux deux niveaux**, `bilinear` = False,
+> D=2, `flip_p`=0, sans leurre, crédit `bptt`, `n_agents`=16, seeds 0-11.
+>
+> | bras | `lr=0.05` (médiane) | `lr=0.002` (médiane) | différences positives |
+> |---|---|---|---|
+> | `RETAIN_intact` | 0.2266 | **0.2836** | **12/12** |
+> | `PRESENT_intact` | 0.3977 | 0.2578 | **0/12** |
+>
+> **Verdict scellé : `MONTEE_ETABLIE`** — 11/12 étaient exigés, 12/12 obtenus. Test des signes apparié
+> unilatéral : p = 1/4096 ≈ **0.00024**. Deltas de +0.0172 à +0.0984.
+>
+> **Le contrôle interne scellé PASSE, et il est fort.** `PRESENT_intact` — qui ne demande AUCUNE
+> rétention, au même `episodes`, au même `sender_lr`, au même `bilinear` — bouge **12/12 dans le sens
+> INVERSE**. Aucun artefact global d'optimisation ne produit les deux à la fois. La clause d'annulation
+> inscrite dans le sceau (« si les deux bras montent ensemble, verdict ANNULÉ ») ne se déclenche pas.
+>
+> ⚠️ **L'appariement n'est pas cosmétique, et c'est mesurable ici.** NON apparié, les deux ensembles de
+> `RETAIN_intact` se CHEVAUCHENT : le max à `lr=0.05` (0.2531) dépasse le min à `lr=0.002` (0.2516).
+> C'est le test APPARIÉ — scellé d'avance — qui rend 12/12. Un critère choisi APRÈS coup aurait pu
+> tomber du mauvais côté, et c'est exactement la latitude que le pré-enregistrement supprime.
+>
+> ⇒ **La clause opérationnelle du § Verdict est RÉFUTÉE À n=12.** « RETAIN au plancher, le bras
+> principal n'a jamais décollé » est un artefact du PAS D'APPRENTISSAGE, mesuré au point le plus
+> défavorable de l'axe `lr`. Classe **E19**, dans le record écrit pour borner une E19.
+>
+> **Ce que ce verdict NE dit PAS — et le sceau l'écrivait d'avance, pas après coup :**
+> - **PAS la vitalité.** Le franchissement de la barre `1/K+0.15` est hors objet. Depuis le 2026-09-02
+>   c'est démontré et non plus soupçonné : `assert_bar_separates_the_incapable` REFUSE cette barre, un
+>   substrat prouvablement incapable atteignant 0.3889 contre une barre à 0.3167 (dette P2.15).
+> - **PAS l'arête AGI-Taxonomy.** Le contrôle de spécificité reste structurellement vacueux dans ce
+>   design — sous `choice_decoy=False`, l'ablation de PRESENT est un no-op EXACT (`ablated == intact`
+>   au chiffre près). C'est la conception qui bloque, pas la mesure.
+> - **PAS l'écriture apprise.** À n=3 au régime vivant, les trois chemins de crédit tiennent dans UNE
+>   erreur-type : le report reste PASSIF. Ce que ce verdict établit, c'est que le bras DÉCOLLE, pas
+>   qu'il apprend à écrire.
+
 ## Question
 
 3ᵉ arête du graphe AGI-Taxonomy, et **première ablation de SUBSTRAT**. La tentative précédente

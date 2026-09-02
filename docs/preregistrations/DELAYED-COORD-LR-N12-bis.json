@@ -1,0 +1,40 @@
+{
+  "name": "DELAYED-COORD-LR-N12-bis",
+  "rule": {
+    "ce_qui_n_est_PAS_teste": "(1) la VITALITE : le franchissement de la barre 1/K+0.15 n'est pas l'objet -- c'est une constante importee dont la marge mesuree vaut 0.28 erreur-type (dette P2.15). (2) l'ARETE AGI-Taxonomy : le controle de specificite est structurellement vacueux dans ce design (sous choice_decoy=False l'ablation de PRESENT est un no-op EXACT).",
+    "contexte": "EDR-DELAYED-COORD grave un nul de RETAIN mesure a lr=0.05. Un balayage deconfondu a n=3 (sender FIXE a 0.05, courbes d'apprentissage) donne RETAIN median 0.2109 -> 0.2969 quand lr passe de 0.05 a 0.002, 3/3 seeds, separation COMPLETE entre les extremes, p=0.125 apparie. Insuffisant pour graver : la garde d'evaporation de puissance du depot interdit tout verdict POSITIF sous n=12.",
+    "controle": "`PRESENT_intact`, mesure aux MEMES niveaux de `lr`, meme `episodes`, meme `sender_lr`, meme `bilinear`. PRESENT ne demande AUCUNE retention : si `RETAIN_intact` et `PRESENT_intact` bougent dans le MEME sens, l'effet est GLOBAL et le verdict positif est ANNULE.",
+    "controle_interne_scelle": "PRESENT_intact est mesure aux MEMES deux niveaux, meme budget, meme sender. PRESENT ne demande AUCUNE retention. Si les DEUX bras bougent dans le MEME sens, l'effet est GLOBAL (artefact d'optimisation) et non specifique a la retention : le verdict MONTEE_ETABLIE est alors ANNULE, quelle que soit la statistique de RETAIN.",
+    "discrimination": {
+      "MONTEE_ETABLIE -- au moins 11 des 12 differences positives (p <= 0.0032)": "l'effet du pas est ETABLI : le nul de RETAIN grave dans EDR-DELAYED-COORD est un artefact d'hyperparametre, classe E19.",
+      "NUL -- au plus 6 des 12 differences positives": "aucun effet du pas ; le nul grave tient, et le resultat n=3 etait du bruit.",
+      "sinon -- entre 7 et 10 differences positives : NON CONCLUANT": "tendance non etablie au seuil scelle. A rapporter comme telle, SANS requalification post-hoc du seuil ni du test."
+    },
+    "dv_primaire": "`RETAIN_intact` -- accuracy INTACTE du bras RETAIN, appariee par seed entre les deux niveaux `lr=0.05` et `lr=0.002` (le `sender_lr` reste a 0.05 aux deux).",
+    "garde_puissance": "n=12 seeds, unite de replication = le seed. `RETAIN_intact` est appariee seed a seed. Aucun verdict POSITIF sous n=12 (garde d'evaporation).",
+    "n": 12,
+    "question": "L'accuracy du bras RETAIN de la sonde DELAYED-COORD monte-t-elle quand le PAS D'APPRENTISSAGE DU RECEIVER baisse, a budget, sender et substrat IDENTIQUES ?",
+    "regime_scelle": {
+      "D": 2,
+      "K": 6,
+      "V": 8,
+      "bilinear": false,
+      "choice_decoy": false,
+      "credit": "bptt",
+      "episodes": 1600,
+      "eval_batches": 40,
+      "flip_p": 0.0,
+      "n_agents": 16,
+      "seeds": "0..11",
+      "sender_lr": 0.05
+    },
+    "regle_de_lecture_continue": "Sur TOUTE l'echelle des 12 differences de `RETAIN_intact` : >= 11 positives -> MONTEE_ETABLIE ; <= 6 positives -> NUL ; 7 a 10 positives -> NON CONCLUANT, rapporte comme tel, sans requalification post-hoc. Le controle `PRESENT_intact` peut ANNULER le seul verdict positif.",
+    "relation_au_sceau_original": "IDENTIQUE a `DELAYED-COORD-LR-N12` au MARKUP et au NOM DES CHAMPS pres. Les clauses de mesure y sont recopiees dans les champs que `check_preregistration_applied` sait lire, grandeurs backtickees. Aucun seuil, aucun test, aucune DV, aucune branche n'a change. Les deux fichiers sont conserves et diffables.",
+    "seuil": "au moins 11 des 12 differences `RETAIN_intact`(`lr=0.002`) - `RETAIN_intact`(`lr=0.05`) strictement positives -- test des signes apparie, unilateral, p <= 0.0032.",
+    "test": "test des SIGNES apparie sur les 12 differences RETAIN_intact(lr=0.002) - RETAIN_intact(lr=0.05), unilateral, H1 : difference positive.",
+    "unite_de_replication": "le SEED (une paire sender/receiver entrainee de bout en bout). Les 16 agents d'un seed partagent l'entrainement et le canal : ils ne sont PAS 16 replicats.",
+    "variable_dependante_scellee": "RETAIN_intact -- accuracy INTACTE du bras RETAIN, appariee par seed entre les deux niveaux de lr.",
+    "variable_independante": "lr du RECEIVER, DEUX niveaux : 0.05 et 0.002. Le sender reste a 0.05 aux deux niveaux -- sans quoi baisser lr degraderait aussi l'information du canal, et changerait la TACHE."
+  },
+  "seal": "6a3834754f7ef089f74c67a9536310a8d2ef83c57beeff986e73cb330d4d9b17"
+}

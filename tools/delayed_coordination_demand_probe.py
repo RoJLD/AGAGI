@@ -260,7 +260,8 @@ def _eval_arm(sender, receiver, arm, D, K, V, I, n_agents, flip_p, eval_batches,
 
 
 def _train_and_eval_arm(seed, arm, D, episodes, n_agents, K, V, lr, flip_p, eval_batches=40,
-                        credit="bptt", choice_decoy=True, eval_every=None, sender_lr=None):
+                        credit="bptt", choice_decoy=True, eval_every=None, sender_lr=None,
+                        bilinear=False):
     """Entraîne le couple sender/receiver sur UN bras, puis évalue INTACT vs SUBSTITUÉ sur les MÊMES
     essais (appariement par essai : chaque trial est rejoué deux fois, une fois intact une fois substitué,
     même agent, mêmes poids). Renvoie `(acc_intact, acc_ablated, trajectoire)`. `credit` : cf. docstring
@@ -316,7 +317,12 @@ def _train_and_eval_arm(seed, arm, D, episodes, n_agents, K, V, lr, flip_p, eval
     TorchPopulationModel.CONDITION_GATE = False
     TorchPopulationModel.GATE_TARGET = None
     TorchPopulationModel.GATE_TARGETS = None
-    TorchPopulationModel.BILINEAR = False
+    # Le flag doit être posé AVANT `make_population` : `U/V/W_bl` ne sont créés qu'à la CONSTRUCTION
+    # (`backend_torch.py:111`). Défaut `False` = substrat PLAIN, bit-identique à tout ce qui a été
+    # mesuré et gravé avec cette sonde. ⚠️ La sonde sœur `language_memory_demand_probe` a fait le
+    # choix INVERSE (`bilinear=True` par défaut, commit 481117e) : les deux sondes ne mesurent donc
+    # PAS le même substrat par défaut, et `_params["substrate"]` est ce qui rend la différence lisible.
+    TorchPopulationModel.BILINEAR = bool(bilinear)
     try:
         sender = make_population([MambaAgent() for _ in range(n_agents)], backend="torch")
         receiver = make_population([MambaAgent() for _ in range(n_agents)], backend="torch")
@@ -334,8 +340,16 @@ def _train_and_eval_arm(seed, arm, D, episodes, n_agents, K, V, lr, flip_p, eval
         # changeait la TÂCHE en même temps que la vitesse d'apprentissage — les deux bras devenaient
         # incomparables entre points du balayage. `sender_lr` fixe le sender pour n'en varier qu'un.
         # `None` = `lr` pour les deux, donc BIT-IDENTIQUE au comportement d'avant l'ajout.
-        sender.opt = torch.optim.Adam([sender.W], lr=lr if sender_lr is None else sender_lr)
-        receiver.opt = torch.optim.Adam([receiver.W], lr=lr)
+        # ⚠️ L'optimiseur doit couvrir le substrat COMPLET. `[pop.W]` seul laisse `U/V/W_bl` GELÉS à
+        # leur init même quand `BILINEAR` est actif — le terme qui débloque la composition
+        # n'apprendrait jamais, et la sonde rendrait un nul qui ne mesure que l'initialisation.
+        # Défaut trouvé sur la sonde SŒUR (`language_memory_demand_probe`, commit 481117e) : il était
+        # ici aussi, latent tant que `bilinear=False`. Sans BILINEAR, `_params` est vide -> identique.
+        def _params_of(pop):
+            return [pop.W] + [p for p in (pop.U, pop.V, pop.W_bl) if p is not None]
+
+        sender.opt = torch.optim.Adam(_params_of(sender), lr=lr if sender_lr is None else sender_lr)
+        receiver.opt = torch.optim.Adam(_params_of(receiver), lr=lr)
 
         for _ep in range(episodes):
             target, s_first, s_last = _trial_draw(arm, K, I, n_agents, flip_p, rng)
@@ -385,7 +399,8 @@ def _train_and_eval_arm(seed, arm, D, episodes, n_agents, K, V, lr, flip_p, eval
         torch.set_rng_state(torch_state)
 
 
-def _easiest_arm_accuracy(seeds, D, episodes, n_agents, K, V, lr, flip_p, eval_batches, credit):
+def _easiest_arm_accuracy(seeds, D, episodes, n_agents, K, V, lr, flip_p, eval_batches, credit,
+                          bilinear=False):
     """Performance du bras le PLUS FACILE du dispositif, AU RÉGIME PASSÉ : PRESENT SANS LEURRE.
 
     C'est le bras dont on SAIT qu'il doit réussir — `[nul] + D×nul + [sym(cible)]` : le choix se lit sur
@@ -406,7 +421,8 @@ def _easiest_arm_accuracy(seeds, D, episodes, n_agents, K, V, lr, flip_p, eval_b
     re-payer. Aucun cache global : la valeur est reproductible mais l'état global est une classe
     d'erreur du dépôt (E5) — l'économie est EXPLICITE, à la charge de l'appelant."""
     vals = [_train_and_eval_arm(s, "PRESENT", D, episodes, n_agents, K, V, lr, flip_p,
-                                eval_batches=eval_batches, credit=credit, choice_decoy=False)[0]
+                                eval_batches=eval_batches, credit=credit, choice_decoy=False,
+                                bilinear=bilinear)[0]
             for s in seeds]
     return float(np.median(vals)), vals
 
@@ -415,7 +431,7 @@ def run_delayed_coordination_demand_probe(seeds, D=2, episodes=800, n_agents=16,
                                           flip_p=0.3, arms=ARMS, eval_batches=40, credit="bptt",
                                           choice_decoy=True, vitality_bar=None,
                                           easiest_arm_accuracy=None, bar_margin=0.0,
-                                          eval_every=None, sender_lr=None):
+                                          eval_every=None, sender_lr=None, bilinear=False):
     """Mesure « la coordination référentielle DIFFÉRÉE demande la rétention d'état ».
 
     Par seed et par bras : éval INTACTE vs SUBSTITUTION D'ÉTAT (appariées par essai). Renvoie les
@@ -472,7 +488,7 @@ def run_delayed_coordination_demand_probe(seeds, D=2, episodes=800, n_agents=16,
     if vitality_bar is not None:
         if easiest_arm_accuracy is None:
             easiest, per_seed = _easiest_arm_accuracy(seeds, D, episodes, n_agents, K, V, lr, flip_p,
-                                                      eval_batches, credit)
+                                                      eval_batches, credit, bilinear=bilinear)
         else:
             easiest, per_seed = float(easiest_arm_accuracy), None
         assert_bar_is_reachable(easiest, vitality_bar, n_eval=eval_batches * n_agents,
@@ -491,7 +507,7 @@ def run_delayed_coordination_demand_probe(seeds, D=2, episodes=800, n_agents=16,
                        "eval_every": eval_every, "sender_lr": sender_lr,
                        # substrat ÉPINGLÉ (pas hérité de l'ambiant) -> la mesure est identifiable
                        # a posteriori, cf. `_train_and_eval_arm`
-                       "substrate": {"BILINEAR": False, "CONDITION_GATE": False},
+                       "substrate": {"BILINEAR": bool(bilinear), "CONDITION_GATE": False},
                        "ceiling_bayes": (1.0 - flip_p) + flip_p / K, "floor": 1.0 / K},
            "_bar_reachability": bar_info}
     for arm in arms:
@@ -503,7 +519,7 @@ def run_delayed_coordination_demand_probe(seeds, D=2, episodes=800, n_agents=16,
             i, a, traj = _train_and_eval_arm(s, arm, D, episodes, n_agents, K, V, lr, flip_p,
                                              eval_batches=eval_batches, credit=credit,
                                              choice_decoy=choice_decoy, eval_every=eval_every,
-                                             sender_lr=sender_lr)
+                                             sender_lr=sender_lr, bilinear=bilinear)
             out[arm + "_intact"].append(i)
             out[arm + "_ablated"].append(a)
             if eval_every:
