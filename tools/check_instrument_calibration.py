@@ -57,6 +57,21 @@ _INSTRUMENT_PATTERNS = (
     # sa création. Un cliquet ne peut pas signaler ce qu'il ne sait pas NOMMER : la leçon récurrente est
     # que l'heuristique doit être élargie à chaque fois qu'un instrument réel passe à travers.
     re.compile(r"^def\s+(benchmark_\w+)\s*\(", re.M),
+    # ⚠️ CINQUIEME angle mort, verifie le 2026-09-02 : aucun motif ne couvrait `assert_*` -- c'est-a-dire
+    # la famille des GARDES du depot elles-memes. Constat mecanique : `assert_bar_is_reachable` (livre en
+    # `f7bd77e` avec ses 5 cas et sa declaration dans `CALIBRATED`) etait ABSENTE du rapport, sa
+    # declaration ignoree en silence par la branche « declaration perimee » de `scan_calibrated`. Et
+    # `assert_verdict_invariant_to_optimizer` n'etait vue que PAR ACCIDENT, son nom contenant « verdict ».
+    # Une garde est un instrument au sens strict : elle PRONONCE une affirmation binaire (« ce nul est un
+    # artefact », « cette barre est inatteignable ») sur laquelle un run entier est engage ou annule --
+    # non calibree, elle produit un verdict comme n'importe quel autre instrument.
+    # PORTEE : tout `_SCAN_DIRS`, PAS seulement `experiment_preflight.py`. Raison MESUREE, pas supposee :
+    # `assert_aux_off_safe` (`tools/warmstart_evolution_inworld.py`, garde EDR-WARM-008) est une vraie
+    # garde du depot vivant HORS du module de pre-vol -- une portee restreinte a ce module aurait
+    # rouvert le trou qu'on ferme. Cout du choix large, compte avant de l'appliquer : 11 fonctions,
+    # 11 deja couvertes par des cas fires+spares -> **zero dette legataire creee**. Un futur faux positif
+    # (helper interne nomme `assert_*`) a sa sortie explicite : `NOT_AN_INSTRUMENT`, avec motif.
+    re.compile(r"^def\s+(assert_\w+)\s*\(", re.M),
 )
 
 

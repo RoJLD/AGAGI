@@ -430,16 +430,59 @@ CALIBRATED = {
     # (`test_bar_reachability_REFUSES_the_noisy_default_regime` / `..._SPARES_the_noiseless_regime` /
     # `..._margin_refuses_an_ILLUSORY_clearance` / `..._does_NOT_cover_a_bar_that_is_TOO_LOW`), la ou
     # sont testees toutes les assertions de pre-vol. Purement numeriques.
-    # ⚠️ CINQUIEME ANGLE MORT DU CLIQUET, constate en ecrivant cette ligne : l'heuristique de nommage de
-    # `check_instrument_calibration.py` ne connait AUCUN motif `assert_*`. `assert_verdict_invariant_to_
-    # optimizer` n'est detecte que parce que son nom contient « verdict », par accident ; ni
-    # `assert_n_per_arm` ni `assert_bar_is_reachable` ne le sont. `scan_calibrated()` IGNORE donc cette
-    # declaration (« declaration perimee : ignoree ») et le compteur ne bougera pas. Elle est maintenue
-    # SCIEMMENT et documentaire : elle dit ce qui est couvert et par quels cas. La correction (un motif
-    # `assert_\\w+` dans l'heuristique) touche un fichier hors du perimetre de cette passe et vaut
-    # occurrence a inscrire au registre, pas un contournement silencieux.
+    # ⚠️ CINQUIEME ANGLE MORT DU CLIQUET, constate en ecrivant cette ligne le 2026-09-02, CORRIGE le
+    # meme jour : l'heuristique de nommage de `check_instrument_calibration.py` ne connaissait AUCUN
+    # motif `assert_*`. `assert_verdict_invariant_to_optimizer` n'etait detecte que parce que son nom
+    # contient « verdict », par accident ; ni `assert_n_per_arm` ni `assert_bar_is_reachable` ne
+    # l'etaient. `scan_calibrated()` IGNORAIT donc la declaration ci-dessous (branche « declaration
+    # perimee : ignoree ») et le compteur ne bougeait pas -- un depot pouvait livrer une garde SANS le
+    # moindre cas de calibration et lire « OK, aucun nouvel instrument non calibre ». Le motif
+    # `assert_\\w+` rend la famille comptable ; le contre-exemple gele est
+    # `test_the_ratchet_SEES_the_assert_guard_family` (fin de fichier).
     "assert_bar_is_reachable": ["unreachable:fires", "reachable:spares", "illusory-margin:fires",
                                 "too-low-bar:out-of-scope"],
+    # ---- LA FAMILLE DES GARDES, rendue comptable par le motif `assert_*` (2026-09-02) ----------------
+    # Ces neuf declarations ne CREENT aucune couverture : elles DECLARENT une couverture qui existait
+    # deja et que le cliquet ne savait pas nommer. Verifie fonction par fonction avant de les ecrire --
+    # chacune a au moins un cas `fires` (reponse connue OUI, rejouant une erreur REELLE du depot) ET au
+    # moins un cas `spares` (reponse connue NON), c'est-a-dire les DEUX issues : une garde qui refuse
+    # tout passerait le premier seule. Aucune n'est en collision de nom -> declarations NUES licites.
+    # ⚠️ Comme pour `assert_verdict_invariant_to_optimizer` et `assert_bar_is_reachable`, les cas vivent
+    # dans `tests/sandbox/test_experiment_preflight.py` (« chaque test rejoue une erreur REELLE »), la ou
+    # sont testees toutes les assertions de pre-vol -- pas dans ce fichier. Purement numeriques.
+    # WARM-007 : 6/8 agents rendaient des tableaux intact/able BIT-IDENTIQUES, comptes comme controle.
+    "assert_ablation_changes_something": ["identical-tables:fires", "changed-tables:spares"],
+    # WARM-009 : bras cense montrer que grabber PAIE, dans un monde sans aucun item `Fruit`.
+    "assert_positive_control": ["incapable-arm:fires", "capable-arm:spares"],
+    # WARM-009 (24 genomes tous a 6.0-7.2 ticks = plancher) et WARM-008 (32/48 deja a move_acc=1.000) :
+    # les DEUX bords degeneres sont couverts, pas seulement le plancher.
+    "assert_not_degenerate": ["floor:fires", "ceiling:fires", "spread:spares"],
+    # `pytest -k` avait deselectionne 1034 tests -> « 0 echec » lu comme un succes (E4 a l'etat pur).
+    "assert_selection_nonempty": ["zero-selected:fires", "nonzero:spares"],
+    # WARM-007, le bug d'aliasing FONDATEUR : `forward` renvoyait une VUE de H (motif exact du backend,
+    # `H[:, 64:172]`), donc ecrire dans les logits mutait l'etat recurrent. `non-array:spares` gele la
+    # PORTEE : les types non-array sont toleres par design, ce qui doit rester un choix visible.
+    "assert_no_aliasing": ["real-view:fires", "copy:spares", "non-array:spares"],
+    # Variante FONCTIONNELLE (l'aliasing qui ne partage pas la memoire mais deplace quand meme le
+    # controle) : cas dans `tests/test_functional_aliasing.py`, sur la fuite mesuree 0.4658 -> 0.7190 a
+    # alpha=1. `under-tolerance:spares` gele le fait qu'une derive de 1e-12 n'est PAS une fuite.
+    "assert_no_functional_aliasing": ["control-moves:fires", "control-unchanged:spares",
+                                      "under-tolerance:spares"],
+    # WARM-007 : predicteur mesure sur la trajectoire ORACLE, intervention operant IN-WORLD.
+    "assert_predictor_measured_in_situ": ["context-mismatch:fires", "context-match:spares"],
+    # EDR-095 aux chiffres REELS : le reve force multipliait `n_lived` par 13-16 entre bras, et la
+    # « chute de 55 % » comparait deux populations differentes. `paired-cohorts:spares` est le controle
+    # de specificite qui compte (n egaux, et desequilibre modere 12 vs 16 sous le seuil 1.5x) -- sans
+    # lui, une garde interdisant TOUTE comparaison passerait le premier cas.
+    "assert_n_per_arm": ["edr095-population-shift:fires", "paired-cohorts:spares", "empty-arm:fires"],
+    # ⚠️ SEULE garde de la famille vivant HORS `experiment_preflight.py`, et la raison pour laquelle la
+    # portee du motif est tout `_SCAN_DIRS` et non ce seul module (EDR-WARM-008 : `aux_off_weight > 0`
+    # ferme un gate DUR du craft et du feu, et sous `explore_eps > 0` le monde force grab/rub hors
+    # logit). Trois voies de refus INDEPENDANTES couvertes, plus la config sure. Cas dans
+    # `tests/sandbox/test_warmstart_evolution_inworld.py::test_assert_aux_off_safe_blocks_craft_and_
+    # throw_and_explore`.
+    "assert_aux_off_safe": ["craft-level:fires", "torch-throw-gate:fires", "explore-eps:fires",
+                            "safe-config:spares"],
 }
 
 _GENOMES = os.path.join("results", "warm007_genomes")
@@ -3740,3 +3783,60 @@ def test_noperc_floors_match_their_measurement():
     from tools.s2_demand_ablation import PLANCHER_NOPERC
     assert PLANCHER_NOPERC == {"soup": 32.0, "stoneage": 24.0, "agricultural": 25.25,
                                "industrial": 24.0, "famine": 21.75}
+
+
+# ------------------------------------------------------------------------------------------------
+# CINQUIEME ANGLE MORT D'E4 (2026-09-02) : le cliquet ne voyait pas la famille des GARDES.
+# ------------------------------------------------------------------------------------------------
+
+def test_the_ratchet_SEES_the_assert_guard_family():
+    """CONTRE-EXEMPLE GELE, tire sur la CONFIGURATION EXACTE qui a produit l'erreur reelle.
+
+    Fait mesure avant correctif : `assert_bar_is_reachable`, livree en `f7bd77e` AVEC ses 5 cas de
+    calibration ET sa declaration dans `CALIBRATED`, etait ABSENTE du rapport du cliquet -- aucun motif
+    de l'heuristique ne connaissait `assert_*`. Sa declaration tombait dans la branche « declaration
+    perimee : ignoree » de `scan_calibrated()`, donc en SILENCE. Corollaire plus grave :
+    `assert_verdict_invariant_to_optimizer` n'etait detecte que PAR ACCIDENT, son nom contenant la
+    sous-chaine « verdict ». La famille de fonctions qui SONT les gardes du depot echappait au cliquet
+    cense garantir qu'elles sont calibrees : une future garde pouvait etre livree sans le moindre cas et
+    le compteur afficher « OK, aucun nouvel instrument non calibre ». C'est E4 (« verification vide :
+    0 echec indiscernable d'un succes ») dans l'outil ecrit pour l'empecher.
+
+    Ce test ECHOUE si l'heuristique redevient aveugle a cette famille -- il ne se contente pas de passer
+    aujourd'hui. Il gele TROIS proprietes distinctes, chacune une facon differente de rouvrir le trou."""
+    import tools.check_instrument_calibration as C
+    instruments = C.scan_instruments()
+
+    # (1) DETECTION -- le cas exact de l'erreur reelle. Casse si le motif `assert_*` disparait.
+    assert "assert_bar_is_reachable" in instruments, (
+        "l'heuristique est redevenue aveugle a `assert_*` : une garde livree sans cas de calibration "
+        "passerait desormais pour « OK »")
+    assert instruments["assert_bar_is_reachable"] == "tools/experiment_preflight.py"
+
+    # (2) PORTEE -- la famille ne vit PAS que dans `experiment_preflight.py`. `assert_aux_off_safe`
+    # (garde EDR-WARM-008) est le contre-exemple MESURE qui interdit de restreindre le motif a ce seul
+    # module : une portee « module de pre-vol uniquement » rouvrirait le trou pour cette garde-la.
+    assert instruments.get("assert_aux_off_safe") == "tools/warmstart_evolution_inworld.py", (
+        "portee retrecie au seul module de pre-vol -> les gardes vivant ailleurs redeviennent invisibles")
+
+    # (3) LA DECLARATION EST HONOREE -- detecter ne suffit pas. Le defaut reel etait un rejet SILENCIEUX
+    # de la declaration ; si `scan_calibrated()` cessait de la reconnaitre, (1) passerait toujours et la
+    # garde compterait comme DETTE au lieu de calibree. On verifie donc l'aller-retour complet.
+    calibrated = C.scan_calibrated()
+    assert "assert_bar_is_reachable" in calibrated, (
+        "la declaration `CALIBRATED` de la garde est de nouveau ignoree en silence")
+    assert "assert_verdict_invariant_to_optimizer" in calibrated
+
+    # (4) AUCUNE de la famille ne doit etre une dette silencieuse : au moment du correctif, les 11
+    # `assert_*` du perimetre etaient TOUTES deja couvertes (fires + spares) -> zero dette legataire
+    # gelee, rien n'a ete fait disparaitre par `--update-baseline`. Ce controle fige ce fait : une
+    # NOUVELLE garde `assert_*` non calibree fera echouer ce test en plus de bloquer le cliquet.
+    famille = {n for n in instruments if n.startswith("assert_")}
+    assert len(famille) >= 11, f"la famille a retreci : {sorted(famille)}"
+    # `NOT_AN_INSTRUMENT` peut etre QUALIFIE (« fichier.py::fonction ») : denuder avant de soustraire,
+    # sinon une exemption legitime ne serait pas reconnue et ce test crierait a tort.
+    faux_positifs = {n.split("::")[-1] for n in C.scan_not_instruments()}
+    non_calibrees = sorted(famille - calibrated - faux_positifs)
+    assert not non_calibrees, (
+        f"garde(s) `assert_*` sans cas de calibration declare : {non_calibrees} -- ajouter les cas "
+        f"(les DEUX issues) puis declarer dans CALIBRATED, ou justifier dans NOT_AN_INSTRUMENT")
