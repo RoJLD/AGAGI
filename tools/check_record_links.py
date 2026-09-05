@@ -154,6 +154,10 @@ def main(argv=None) -> int:
         payload = {"orphan_files": sorted(o["file"] for o in st["orphans"]),
                    "collision_ids": sorted(c["id"] for c in st["collisions"]),
                    "mismatch_files": sorted(m["file"] for m in st["gate_tests_mismatch"]),
+                   # 2026-09-06 : gate_unlinked entre au regime baseline (il etait calcule depuis le
+                   # 2026-07 mais affiche en --report SEULEMENT -> 11 `gate: G2` legataires sans tests
+                   # et 94 EDR non raccordes a une porte pouvaient croitre en silence).
+                   "gate_unlinked_files": sorted(g["file"] for g in st["gate_unlinked"]),
                    "_note": "Dette légataire gelée. Le ratchet interdit tout NOUVEL orphelin/collision."}
         os.makedirs(os.path.dirname(_BASELINE), exist_ok=True)
         with open(_BASELINE, "w", encoding="utf-8") as fh:
@@ -197,6 +201,8 @@ def main(argv=None) -> int:
     new_coll = [c for c in st["collisions"] if c["id"] not in base_coll]
     base_mism = set(base.get("mismatch_files", []))
     new_mism = [m for m in st["gate_tests_mismatch"] if m["file"] not in base_mism]
+    base_gu = set(base.get("gate_unlinked_files", []))
+    new_gu = [g for g in st["gate_unlinked"] if g["file"] not in base_gu]
 
     # scope optionnel aux fichiers du commit courant (hook pre-commit) : ne bloque pas sur le travail // non-committé
     if args.only is not None:
@@ -204,10 +210,12 @@ def main(argv=None) -> int:
         new_orph = [o for o in new_orph if o["file"] in only]
         new_coll = [c for c in new_coll if any(f in only for f in c["files"])]
         new_mism = [m for m in new_mism if m["file"] in only]
+        new_gu = [g for g in new_gu if g["file"] in only]
 
-    if not new_orph and not new_coll and not new_mism:
+    if not new_orph and not new_coll and not new_mism and not new_gu:
         print(f"OK : {n_orph} orphelins / {n_coll} collisions / "
-              f"{len(st['gate_tests_mismatch'])} mismatches gate<->tests, tous légataires (baseline). "
+              f"{len(st['gate_tests_mismatch'])} mismatches gate<->tests / "
+              f"{len(st['gate_unlinked'])} non-raccordés à une porte, tous légataires (baseline). "
               f"Aucun nouveau.")
         return 0
 
@@ -219,6 +227,9 @@ def main(argv=None) -> int:
     for m in new_mism:
         print(f"  [NOUVEAU MISMATCH] {m['id']} gate: {m['gate']} mais tests: {m['tests_gates']} "
               f"-- aligne gate: ou tests: ({m['file']})")
+    for g in new_gu:
+        print(f"  [NOUVEL EDR NON RACCORDÉ À UNE PORTE] {g['id']}  ({g['file']}) — ajoute gate: Gx "
+              f"et/ou tests: [SDR-Gx] (ou gate: foundational)")
     return 1
 
 

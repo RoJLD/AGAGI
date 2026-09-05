@@ -112,3 +112,29 @@ def test_foundational_with_sdr_tests_is_NOT_a_mismatch(tmp_path):
     foundational qui teste une SDR n'est pas un conflit, l'arete tests fait foi."""
     root = _record(tmp_path, "id: EDR-999\ntype: EDR\ngate: foundational\ntests: [SDR-G1]")
     assert C.analyze(root)["gate_tests_mismatch"] == []
+
+
+# --------------------------------------------------------------------------------------------------
+# 2026-09-06 : gate_unlinked entre au regime BASELINE. Il etait calcule (analyze) mais jamais ratchete
+# (affiche en --report seulement) : la dette « EDR sans porte » pouvait croitre en silence.
+# --------------------------------------------------------------------------------------------------
+
+def test_an_edr_without_gate_nor_sdr_tests_is_gate_unlinked(tmp_path):
+    """CONTRE-EXEMPLE GELE : un EDR raccorde par une arete (adopts) mais sans porte ni tests SDR est
+    NON RACCORDE A UNE PORTE -- ce n'est pas un orphelin (il a une arete) mais il n'est compte pour
+    aucune porte dans roadmap_state."""
+    root = _record(tmp_path, "id: EDR-999\ntype: EDR\nadopts: [EDR-112]")
+    gu = C.analyze(root)["gate_unlinked"]
+    assert any(g["id"] == "EDR-999" for g in gu), gu
+
+
+def test_an_edr_with_sdr_tests_but_no_gate_is_NOT_gate_unlinked(tmp_path):
+    """SPECIFICITE : tests: [SDR-Gx] suffit a raccorder (roadmap_state lit aussi tests)."""
+    root = _record(tmp_path, "id: EDR-999\ntype: EDR\ntests: [SDR-G1]")
+    assert all(g["id"] != "EDR-999" for g in C.analyze(root)["gate_unlinked"])
+
+
+def test_a_foundational_edr_is_NOT_gate_unlinked(tmp_path):
+    """foundational est un ancrage (_ANCHORS) : pas une porte, mais un raccord legitime."""
+    root = _record(tmp_path, "id: EDR-999\ntype: EDR\ngate: foundational")
+    assert all(g["id"] != "EDR-999" for g in C.analyze(root)["gate_unlinked"])
