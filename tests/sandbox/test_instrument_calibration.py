@@ -39,6 +39,10 @@ NOT_AN_INSTRUMENT = {
 }
 
 CALIBRATED = {
+    # P2.42 (2026-09-06) : verdict statistique du harnais puissant (EDR 052), en COLLISION de nom
+    # avec is_machine_idle::verdict (non-instrument) -> declaration QUALIFIEE. Forme close : t = d*sqrt(n/2).
+    "src/seed_ai/eval_harness.py::verdict": ["significant", "not-significant", "and-rule:powerless-d",
+                                            "zero-variance:no-verdict"],
     # P2.41 (2026-09-02) : niveau 2 de SDR-G2 -- sonde monde compositionnelle. Le verdict, jusque-la
     # INLINE dans `main`, est extrait en fonction PURE et calibre (dont le refus sur UN seul point
     # de demande : l'ancien code fabriquait un « ne paie pas » la ou aucune pente n'existe).
@@ -4296,3 +4300,56 @@ def test_world_probe_guards_are_placed_BEFORE_the_world(mod, nom, kw):
     with pytest.raises(ValueError):
         f(**kw)
     assert time.time() - t0 < 0.5, f"{nom} refuse trop lentement : la garde est posee trop bas"
+
+
+# ======================================================================================================
+# P2.42 (2026-09-06) : `src/seed_ai/eval_harness.py::verdict` -- le verdict statistique du harnais
+# puissant (EDR 052), en COLLISION de nom avec tools/is_machine_idle.py::verdict (non-instrument) et
+# donc INVISIBLE au cliquet jusqu'ici. Utilise par aligned_selection, confirm_055, fiabiliser,
+# lang_speciation : il PRONONCE « SIGNIFICATIF » / « bruit ». Reponses connues en forme close.
+# ======================================================================================================
+
+def _cond(mean, std, n):
+    return {"mean": float(mean), "std": float(std), "n": int(n), "vals": []}
+
+
+def test_eval_harness_verdict_READS_a_clear_separation_with_the_right_winner():
+    """Reponse connue : 0 vs 1, std 0.1, n=3 -> d = 10, t = 10*sqrt(1.5) = 12.25 -> SIGNIFICATIF, et le
+    gagnant est la condition a la plus haute moyenne (direction preservee dans les deux ordres)."""
+    import math
+    from src.seed_ai.eval_harness import verdict
+    r = {"a": _cond(0.0, 0.1, 3), "b": _cond(1.0, 0.1, 3)}
+    v = verdict("a", "b", r)
+    assert v["significant"] and v["winner"] == "b"
+    assert math.isclose(abs(v["d"]), 10.0, rel_tol=1e-9)
+    assert math.isclose(abs(v["t"]), 10.0 * math.sqrt(1.5), rel_tol=1e-9)
+    assert verdict("b", "a", r)["winner"] == "b"
+
+
+def test_eval_harness_verdict_calls_identical_conditions_NOISE():
+    """Specificite : memes moyennes -> t = d = 0 -> NON significatif, aucun gagnant."""
+    from src.seed_ai.eval_harness import verdict
+    v = verdict("a", "b", {"a": _cond(0.5, 0.2, 3), "b": _cond(0.5, 0.2, 3)})
+    assert not v["significant"] and v["winner"] is None and v["t"] == 0.0 and v["d"] == 0.0
+
+
+def test_eval_harness_verdict_AND_rule_refuses_a_large_effect_measured_without_power():
+    """⚠️ LA clause qui fait l'instrument : |t|>=2.5 ET |d|>=0.8. Forme close pour na=nb=n, sa=sb=s :
+    t = d*sqrt(n/2). A n=2, std 1, moyennes 0 vs 1 : d = 1.0 (grand) mais t = 1.0 (< 2.5) -> le
+    verdict doit etre NON significatif. Lecon d'EDR 051 gelee : un run sous-puissant CLASSE LE BRUIT --
+    un grand effet mesure sur 2 seeds n'est pas un verdict."""
+    import math
+    from src.seed_ai.eval_harness import verdict
+    v = verdict("a", "b", {"a": _cond(0.0, 1.0, 2), "b": _cond(1.0, 1.0, 2)})
+    assert math.isclose(abs(v["d"]), 1.0, rel_tol=1e-9) and math.isclose(abs(v["t"]), 1.0, rel_tol=1e-9)
+    assert not v["significant"] and v["winner"] is None
+
+
+def test_eval_harness_verdict_gives_NO_verdict_on_zero_variance():
+    """Branche GELEE (comportement actuel, documente) : deux conditions a variance NULLE mais moyennes
+    differentes -> se = 0 -> t force a 0 (pas +inf) -> NON significatif. L'instrument refuse de
+    prononcer sans estimation du bruit plutot que de declarer une certitude infinie. Si ce choix change
+    un jour, ce test doit changer EXPLICITEMENT avec sa raison."""
+    from src.seed_ai.eval_harness import verdict
+    v = verdict("a", "b", {"a": _cond(0.0, 0.0, 1), "b": _cond(1.0, 0.0, 1)})
+    assert v["t"] == 0.0 and v["d"] == 0.0 and not v["significant"]
