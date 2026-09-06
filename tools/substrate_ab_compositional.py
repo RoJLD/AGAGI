@@ -27,7 +27,28 @@ if _ROOT not in sys.path:
 
 from src.agents.mamba_agent import MambaAgent
 from src.agents.backend import make_population
+from src.agents.backend_torch import TorchPopulationModel
 from tools.substrate_ab import compute_ab_verdict, _MOVE
+
+
+def _make_pinned_population(agents, backend: str):
+    """Construit la population avec le SUBSTRAT ÉPINGLÉ (P2.27, défaut A du cliquet
+    `check_substrate_pinning`). `TorchPopulationModel.BILINEAR` est un attribut de CLASSE lu par
+    `__init__` (backend_torch.py:111, crée U/V/W_bl) et `_step` (:128, sous `self.W_bl is not None`) :
+    non posé, il est HÉRITÉ de l'ambiant du processus et deux sondes du même interpréteur peuvent
+    mesurer des substrats différents sans trace. Épinglé EN DUR à False = défaut de classe = substrat
+    `plain`, celui de TOUTES les mesures publiées (EDR 117→149) → BIT-IDENTIQUE. Le chemin `legacy`
+    (backend.py:61) ne touche pas backend_torch : le pin n'a de sens que sur `torch` (conditionnel).
+    Posé AVANT la construction (U/V/W_bl ne naissent qu'à `__init__`), restauré dans un finally ; une
+    pop construite à False garde W_bl=None, donc `_step` reste `plain` quel que soit l'ambiant ensuite."""
+    if backend != "torch":
+        return make_population(agents, backend=backend)
+    saved = TorchPopulationModel.BILINEAR
+    TorchPopulationModel.BILINEAR = False
+    try:
+        return make_population(agents, backend=backend)
+    finally:
+        TorchPopulationModel.BILINEAR = saved
 
 
 def compositional_reward(move2: int, target_y: int, did_x: bool) -> float:
@@ -124,7 +145,7 @@ def run_compositional(backend: str, seed: int = 0, trials: int = 100, n_agents: 
     except Exception:
         pass
     agents = _build_agents(n_agents, num_nodes, init_scale)
-    pop = make_population(agents, backend=backend)
+    pop = _make_pinned_population(agents, backend)      # P2.27 : substrat épinglé (plain)
     rng = np.random.RandomState(seed + 1)
     n_in = agents[0].genome.num_inputs
     obs_a = (rng.randn(n_agents, n_in) * 0.5).astype(np.float32)   # état S1 (motif fixe)
@@ -200,7 +221,7 @@ def run_curriculum(backend: str, seed: int = 0, warmup_trials: int = 150, compo_
     except Exception:
         pass
     agents = _build_agents(n_agents, 172, "prod")
-    pop = make_population(agents, backend=backend)
+    pop = _make_pinned_population(agents, backend)      # P2.27 : substrat épinglé (plain)
     rng = np.random.RandomState(seed + 1)
     n_in = agents[0].genome.num_inputs
     obs_a = (rng.randn(n_agents, n_in) * 0.5).astype(np.float32)    # S1 fixe (partagé A/B)
@@ -262,7 +283,7 @@ def run_curriculum_fade(backend: str, seed: int = 0, warmup_trials: int = 150, c
     except Exception:
         pass
     agents = _build_agents(n_agents, 172, "prod")
-    pop = make_population(agents, backend=backend)
+    pop = _make_pinned_population(agents, backend)      # P2.27 : substrat épinglé (plain)
     rng = np.random.RandomState(seed + 1)
     n_in = agents[0].genome.num_inputs
     obs_a = (rng.randn(n_agents, n_in) * 0.5).astype(np.float32)
@@ -380,7 +401,7 @@ def run_curriculum_fade_gated(backend: str, seed: int = 0, warmup_trials: int = 
     np.random.seed(seed)
     torch.manual_seed(seed)
     agents = _build_agents(n_agents, 172, "prod")
-    pop = make_population(agents, backend=backend)
+    pop = _make_pinned_population(agents, backend)      # P2.27 : substrat épinglé (plain)
     rng = np.random.RandomState(seed + 1)
     n_in = agents[0].genome.num_inputs
     obs_a = (rng.randn(n_agents, n_in) * 0.5).astype(np.float32)
@@ -1047,7 +1068,7 @@ def _probe_one(backend: str, seed: int, n_agents: int, trials: int, num_nodes: i
     except Exception:
         pass
     agents = _build_agents(n_agents, num_nodes, "prod")
-    pop = make_population(agents, backend=backend)
+    pop = _make_pinned_population(agents, backend)      # P2.27 : substrat épinglé (plain)
     I = agents[0].genome.num_inputs
     rng = np.random.RandomState(seed + 1)
     obs_b = (rng.randn(n_agents, I) * 0.5).astype(np.float32)         # S2 fixe

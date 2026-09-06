@@ -8,6 +8,7 @@ le monde EXIGE la perception (intact survit, ablé s'effondre), indépendamment 
 Usage : python tools/cognitive_demand_inworld.py  (env: CDI_SEED, CDI_K, CDI_AGENTS, CDI_TICKS, CDI_METAB, CDI_COG)
 REF-DEMAND-MARKER. NE modifie PAS s2_demand.
 """
+import contextlib
 import os
 import sys
 import numpy as np
@@ -22,6 +23,34 @@ from tools.demand_marker import ablation_verdict
 from tools.s2_demand import run_condition
 
 BIT_A, BIT_B = 12, 13                                  # colonnes du signal dans l'obs (world_1 column_stack)
+
+
+@contextlib.contextmanager
+def _pinned_substrate():
+    """P2.27 — le substrat mesuré est ÉPINGLÉ, pas hérité de l'ambiant du processus.
+
+    `TorchPopulationModel.BILINEAR` est un attribut de CLASSE lu par `__init__` (`backend_torch.py:111`,
+    crée U/V/W_bl) et par `_step` (`:128`). Non posé, une autre sonde du même interpréteur pouvait faire
+    mesurer un AUTRE substrat à celle-ci, sans trace dans le résultat (défaut A du cliquet
+    `tools/check_substrate_pinning.py`).
+
+    ⚠️ Pin EN DUR à `False` = défaut de classe = BIT-IDENTIQUE aux chiffres publiés par S2-009/010/011
+    (aucun `torch.randn` supplémentaire, même liste de paramètres SGD, même branche dans `_step`).
+
+    ⚠️ Ici la population torch est construite PAR LE MONDE (`Biosphere3D._get_batch_model`, ssi
+    `use_torch_inworld=True`), PAS par la sonde : construction DIFFÉRÉE (au premier `step()`) et
+    RÉPÉTÉE (reconstruite à chaque changement de B, donc à chaque mort). Le pin doit donc couvrir
+    TOUTE la boucle de simulation, pas seulement la ligne qui précède un `make_population`.
+    Les chemins oracle (`_run_mode`, `run_linear_sanity`) construisent des `BaselineBatchModel` numpy
+    via `run_condition` (use_torch_inworld=False) : ils ne sont PAS concernés et ne sont pas épinglés ;
+    sur le chemin legacy (`use_credit=False`, `MambaBatchModel` numpy) le pin est un no-op."""
+    from src.agents.backend_torch import TorchPopulationModel
+    saved = TorchPopulationModel.BILINEAR
+    TorchPopulationModel.BILINEAR = False
+    try:
+        yield
+    finally:
+        TorchPopulationModel.BILINEAR = saved
 
 
 class CognitiveOracleBatchModel(BaselineBatchModel):
@@ -101,27 +130,30 @@ def run_credit_probe(seed=2026, eras=6, num_agents=12, max_ticks=200, base_metab
     from src.agents.mamba_agent import MambaAgent
 
     trend = []
-    for era in range(eras):
-        seed_at(seed, era)
-        e = Biosphere3D()
-        e.benchmark_mode = True
-        e.night_enabled = False
-        e.current_era = 10_000
-        e.config.cognitive_demand = True
-        e.config.cog_gain = cog_gain
-        e.config.base_metabolism = base_metabolism
-        e.config.forage_payoff = 0.0
-        e.use_torch_inworld = True
-        for _ in range(num_agents):
-            e.add_agent(MambaAgent(), energy=80.0)
-        t = 0
-        while e.agents and t < max_ticks:
-            e.step()
-            t += 1
-        ages = [int(a["age"]) for a in list(e.agents) + list(getattr(e, "dead_agents", []))]
-        trend.append(float(np.median(ages)) if ages else 0.0)
-        if hasattr(e, "memory_retriever"):
-            e.memory_retriever.stop()
+    # P2.27 : substrat EPINGLE sur TOUTE la boucle -- le monde construit (et RECONSTRUIT a chaque mort)
+    # la population torch dans `e.step()`, pas ici. Cf. `_pinned_substrate`.
+    with _pinned_substrate():
+        for era in range(eras):
+            seed_at(seed, era)
+            e = Biosphere3D()
+            e.benchmark_mode = True
+            e.night_enabled = False
+            e.current_era = 10_000
+            e.config.cognitive_demand = True
+            e.config.cog_gain = cog_gain
+            e.config.base_metabolism = base_metabolism
+            e.config.forage_payoff = 0.0
+            e.use_torch_inworld = True
+            for _ in range(num_agents):
+                e.add_agent(MambaAgent(), energy=80.0)
+            t = 0
+            while e.agents and t < max_ticks:
+                e.step()
+                t += 1
+            ages = [int(a["age"]) for a in list(e.agents) + list(getattr(e, "dead_agents", []))]
+            trend.append(float(np.median(ages)) if ages else 0.0)
+            if hasattr(e, "memory_retriever"):
+                e.memory_retriever.stop()
     return trend
 
 
@@ -154,30 +186,33 @@ def run_warmstart_credit_probe(seed=2026, num_agents=12, max_ticks=200, schedule
     schedule = schedule if schedule is not None else CURRICULUM_COG
     agents = [MambaAgent() for _ in range(num_agents)]     # cohorte PERSISTÉE (genome.W accumule)
     trend = []
-    for stage, (metab, cog) in enumerate(schedule):
-        seed_at(seed, stage)
-        e = Biosphere3D()
-        e.benchmark_mode = True
-        e.night_enabled = False
-        e.current_era = 10_000
-        e.config.cognitive_demand = True
-        e.config.cog_gain = cog
-        e.config.base_metabolism = metab
-        e.config.forage_payoff = 0.0
-        e.use_torch_inworld = True
-        if hasattr(e, "memory_retriever"):     # AVANT la boucle : un retriever actif pendant la sim rend
-            e.memory_retriever.stop()          # les runs NON REPRODUCTIBLES (KuzuDB ambiant). Même défaut
-            e.memory_retriever.clear()         # que celui mesuré dans EDR-INFRA-001. Règle projet.
-        for a in agents:
-            e.add_agent(a, energy=80.0)                    # réutilise les objets → genome.W persiste
-        t = 0
-        while e.agents and t < max_ticks:
-            e.step()
-            t += 1
-        ages = [int(a["age"]) for a in list(e.agents) + list(getattr(e, "dead_agents", []))]
-        trend.append((metab, cog, float(np.median(ages)) if ages else 0.0))
-        if hasattr(e, "memory_retriever"):
-            e.memory_retriever.stop()
+    # P2.27 : substrat EPINGLE sur TOUTE la boucle -- le monde construit (et RECONSTRUIT a chaque mort)
+    # la population torch dans `e.step()`, pas ici. Cf. `_pinned_substrate`.
+    with _pinned_substrate():
+        for stage, (metab, cog) in enumerate(schedule):
+            seed_at(seed, stage)
+            e = Biosphere3D()
+            e.benchmark_mode = True
+            e.night_enabled = False
+            e.current_era = 10_000
+            e.config.cognitive_demand = True
+            e.config.cog_gain = cog
+            e.config.base_metabolism = metab
+            e.config.forage_payoff = 0.0
+            e.use_torch_inworld = True
+            if hasattr(e, "memory_retriever"):     # AVANT la boucle : un retriever actif pendant la sim rend
+                e.memory_retriever.stop()          # les runs NON REPRODUCTIBLES (KuzuDB ambiant). Même défaut
+                e.memory_retriever.clear()         # que celui mesuré dans EDR-INFRA-001. Règle projet.
+            for a in agents:
+                e.add_agent(a, energy=80.0)                    # réutilise les objets → genome.W persiste
+            t = 0
+            while e.agents and t < max_ticks:
+                e.step()
+                t += 1
+            ages = [int(a["age"]) for a in list(e.agents) + list(getattr(e, "dead_agents", []))]
+            trend.append((metab, cog, float(np.median(ages)) if ages else 0.0))
+            if hasattr(e, "memory_retriever"):
+                e.memory_retriever.stop()
     final = trend[-1][2]
     return {"trend": trend, "final": final, "learned": final >= 4 * floor}   # 4× plancher = franchi
 
@@ -232,25 +267,28 @@ def _bc_clone_linear(agents, steps=800, seed=0):
     ROLLOUTS réels (séquences obs/H/action de l'oracle in-world), pas `_step` à H=0."""
     import torch
     from src.agents.backend import make_population
-    pop = make_population(agents, backend="torch")
-    I, O, N, B = pop.I, pop.O, pop.N, pop.B
-    rng = np.random.RandomState(seed)
+    # P2.27 : substrat EPINGLE AVANT make_population (U/V/W_bl ne sont crees qu'a la construction) et
+    # pendant les `_step` d'entrainement. Cf. `_pinned_substrate`.
+    with _pinned_substrate():
+        pop = make_population(agents, backend="torch")
+        I, O, N, B = pop.I, pop.O, pop.N, pop.B
+        rng = np.random.RandomState(seed)
 
-    def batch():
-        a = rng.choice([-1.0, 1.0], B)
-        o = np.zeros((B, I), dtype=np.float32)
-        o[:, BIT_A] = a
-        return torch.tensor(o), torch.tensor((a > 0).astype(np.int64))
+        def batch():
+            a = rng.choice([-1.0, 1.0], B)
+            o = np.zeros((B, I), dtype=np.float32)
+            o[:, BIT_A] = a
+            return torch.tensor(o), torch.tensor((a > 0).astype(np.int64))
 
-    for _ in range(steps):
+        for _ in range(steps):
+            o, tg = batch()
+            out = pop._step(o, torch.zeros((B, N)))[:, N - O:N][:, :8]
+            loss = torch.nn.functional.cross_entropy(out, tg)
+            pop.opt.zero_grad(); loss.backward(); pop.opt.step()
         o, tg = batch()
         out = pop._step(o, torch.zeros((B, N)))[:, N - O:N][:, :8]
-        loss = torch.nn.functional.cross_entropy(out, tg)
-        pop.opt.zero_grad(); loss.backward(); pop.opt.step()
-    o, tg = batch()
-    out = pop._step(o, torch.zeros((B, N)))[:, N - O:N][:, :8]
-    acc = float((out.argmax(1) == tg).float().mean())
-    pop._write_back()                                      # sync poids appris → genome.W des agents
+        acc = float((out.argmax(1) == tg).float().mean())
+        pop._write_back()                                      # sync poids appris → genome.W des agents
     return acc
 
 
@@ -315,32 +353,36 @@ def run_credit_linear(seed=2026, warmstart=False, eras=6, num_agents=12, max_tic
     agents = [MambaAgent() for _ in range(num_agents)]
     bc_acc = _bc_clone_linear(agents, steps=bc_steps, seed=seed) if warmstart else None
     trend = []
-    for era in range(eras):
-        seed_at(seed, era)
-        e = Biosphere3D()
-        e.benchmark_mode = True
-        e.night_enabled = False
-        e.current_era = 10_000
-        e.config.cognitive_demand = True
-        e.config.cog_linear = True
-        e.config.cog_gain = cog_gain
-        e.config.base_metabolism = base_metabolism
-        e.config.forage_payoff = 0.0
-        e.use_torch_inworld = bool(use_credit)   # False = bras DIAGNOSTIC (bassin BC, aucun apprentissage)
-        if hasattr(e, "memory_retriever"):       # AVANT la boucle (cf. EDR-INFRA-001, règle projet)
-            e.memory_retriever.stop()
-            e.memory_retriever.clear()
-        for a in agents:
-            e.add_agent(a, energy=80.0)
-        t = 0
-        while e.agents and t < max_ticks:
-            e.step()
-            t += 1
-        ages = [int(a["age"]) for a in list(e.agents) + list(getattr(e, "dead_agents", []))]
-        import numpy as _np
-        trend.append(float(_np.median(ages)) if ages else 0.0)
-        if hasattr(e, "memory_retriever"):
-            e.memory_retriever.stop()
+    # P2.27 : substrat EPINGLE sur TOUTE la boucle -- `use_credit=True` fait construire (et RECONSTRUIRE
+    # a chaque mort) la population torch par le monde dans `e.step()` ; `use_credit=False` = chemin
+    # legacy numpy, ou le pin est un no-op. Cf. `_pinned_substrate`.
+    with _pinned_substrate():
+        for era in range(eras):
+            seed_at(seed, era)
+            e = Biosphere3D()
+            e.benchmark_mode = True
+            e.night_enabled = False
+            e.current_era = 10_000
+            e.config.cognitive_demand = True
+            e.config.cog_linear = True
+            e.config.cog_gain = cog_gain
+            e.config.base_metabolism = base_metabolism
+            e.config.forage_payoff = 0.0
+            e.use_torch_inworld = bool(use_credit)   # False = bras DIAGNOSTIC (bassin BC, aucun apprentissage)
+            if hasattr(e, "memory_retriever"):       # AVANT la boucle (cf. EDR-INFRA-001, règle projet)
+                e.memory_retriever.stop()
+                e.memory_retriever.clear()
+            for a in agents:
+                e.add_agent(a, energy=80.0)
+            t = 0
+            while e.agents and t < max_ticks:
+                e.step()
+                t += 1
+            ages = [int(a["age"]) for a in list(e.agents) + list(getattr(e, "dead_agents", []))]
+            import numpy as _np
+            trend.append(float(_np.median(ages)) if ages else 0.0)
+            if hasattr(e, "memory_retriever"):
+                e.memory_retriever.stop()
     return {"bc_acc": bc_acc, "trend": trend, "final": trend[-1] if trend else 0.0}
 
 

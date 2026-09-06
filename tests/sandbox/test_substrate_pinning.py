@@ -107,31 +107,33 @@ def test_a_corrected_probe_STAYS_corrected(corrige):
     assert en_defaut == {}, f"régression d'épinglage : {en_defaut}"
 
 
-def test_the_audit_count_is_STILL_REAL():
-    """La dette gelée doit rester une DETTE, pas un commentaire. Si l'arbre entier passait sans
-    défaut, la baseline ne protégerait plus rien et il faudrait la vider — même exigence que
-    `test_the_legacy_declaration_is_STILL_REAL` pour la dette de pré-enregistrement."""
+def test_the_perimeter_is_STILL_REAL():
+    """Le PÉRIMÈTRE doit rester réel, même quand la dette est nulle : 19 sondes construisent une
+    population torch, et le hors-périmètre (191 fichiers) est RAPPORTÉ, pas avalé. Si `examines`
+    s'effondrait, un "0 en dette" ne voudrait plus rien dire — c'est le faux vert « 100 % de couverture
+    quand on en fait 35 » que ce dépôt a déjà mesuré sur lui-même."""
     en_defaut, hors, examines = scan()
     assert examines >= 19, f"le périmètre s'est effondré : {examines} sondes examinées"
-    assert len(en_defaut) >= 1, "plus aucune dette : vider la baseline au lieu de la garder"
     assert len(hors) > examines, "le hors-périmètre doit être RAPPORTÉ, pas avalé"
 
 
-def test_the_frozen_debt_is_a_DEBT_not_a_decoration():
-    """La baseline doit rester une DETTE RÉELLE : si toutes les sondes qu'elle gèle étaient corrigées,
-    il faudrait la VIDER, pas la garder. Une dette qui ne peut plus être invalidée n'est plus une
-    dette, c'est un commentaire — même exigence que `test_the_legacy_declaration_is_STILL_REAL` pour
-    la dette de pré-enregistrement."""
+def test_the_debt_is_CLOSED_and_the_baseline_is_CONSISTENT():
+    """⚠️ CLÔTURE GELÉE de P2.27 (2026-09-06) : les 19 sondes sont épinglées, défauts A et B à ZÉRO.
+
+    Deux invariants, et ils portent des sens différents :
+      * la baseline ne gèle JAMAIS une dette qui n'existe plus (`base ⊆ en_defaut`) — une entrée
+        périmée serait une DÉCORATION, pas une dette, et un cliquet qui décore ment sur sa couverture ;
+      * la dette est NULLE, et c'est gelé ici pour qu'une régression soit NOMMÉE : le cliquet `main()`
+        la bloquerait au commit, mais ce test la nomme dès la suite de tests, avant tout commit.
+    Historique : 16 annoncées (dont 4 faux positifs du cliquet) -> 13 réelles -> 5 -> 0."""
     from tools.check_substrate_pinning import _load_baseline
     base = _load_baseline()
-    assert base, "baseline vide : soit la retirer, soit la regénérer"
     en_defaut, _hors, _ex = scan()
-    encore = [k for k in base if k in en_defaut]
-    assert encore, "toutes les sondes gelées sont corrigées -> vider la baseline au lieu de la garder"
-    # et la baseline ne doit pas gonfler au-delà du réel : ce qu'elle gèle doit encore exister
+    assert set(base) <= set(en_defaut), f"la baseline gèle une dette DISPARUE : {set(base) - set(en_defaut)}"
     for k in base:
         assert os.path.exists(os.path.join(_ROOT, k)), f"la baseline gèle un fichier DISPARU : {k}"
-
+    assert en_defaut == {}, f"RÉGRESSION de P2.27 — sonde(s) à nouveau en défaut : {en_defaut}"
+    assert base == {}, f"dette nulle mais baseline non vide : {sorted(base)} — la vider"
 
 def test_the_ratchet_SPARES_a_pin_made_through_an_IMPORT_ALIAS():
     """⚠️ TROISIÈME faux positif réel de ce cliquet (2026-09-02), trouvé en l'utilisant pour trier la

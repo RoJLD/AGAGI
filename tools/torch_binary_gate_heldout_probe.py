@@ -19,6 +19,7 @@ import torch
 
 from src.agents.mamba_agent import MambaAgent
 from src.agents.backend import make_population
+from src.agents.backend_torch import TorchPopulationModel
 from tools.compositional_world_probe import _softmax_np, CRAFT, _MOVE
 from tools.torch_binary_gate_probe import _energy_binary, _binding_gap
 from tools.substrate_ab import compute_ab_verdict
@@ -26,6 +27,29 @@ from tools.substrate_ab import compute_ab_verdict
 
 def run_arm(shuffle_reward=False, train_ep=1200, test_ep=100, n_agents=128, seed=0,
             lr=0.05, antisat=6.0, signal_amp=3.0):
+    """Enveloppe P2.27 : substrat EPINGLE puis delegue a `_run_arm_pinned` (corps inchange).
+    `TorchPopulationModel.BILINEAR` est un attribut de CLASSE lu par `__init__` (`backend_torch.py:111`,
+    cree U/V/W_bl) et `_step` (`:128`) : non pose, il est HERITE de l'ambiant du processus et une autre
+    sonde du meme interpreteur pouvait faire mesurer un AUTRE substrat a celle-ci, sans trace.
+    Pin EN DUR a False = defaut de classe = substrat `plain` des mesures publiees (EDR-171, 2026-07-10,
+    anterieur au terme bilineaire du 2026-08-03) -> BIT-IDENTIQUE. Meme traitement pour les flags de
+    gate (defauts de classe), lus par `forward`. Pose AVANT `make_population`, restaure dans le finally."""
+    saved = (TorchPopulationModel.CONDITION_GATE, TorchPopulationModel.GATE_TARGET,
+             TorchPopulationModel.BILINEAR)
+    TorchPopulationModel.CONDITION_GATE = False
+    TorchPopulationModel.GATE_TARGET = None
+    TorchPopulationModel.BILINEAR = False
+    try:
+        return _run_arm_pinned(shuffle_reward=shuffle_reward, train_ep=train_ep, test_ep=test_ep,
+                               n_agents=n_agents, seed=seed, lr=lr, antisat=antisat,
+                               signal_amp=signal_amp)
+    finally:
+        (TorchPopulationModel.CONDITION_GATE, TorchPopulationModel.GATE_TARGET,
+         TorchPopulationModel.BILINEAR) = saved
+
+
+def _run_arm_pinned(shuffle_reward=False, train_ep=1200, test_ep=100, n_agents=128, seed=0,
+                    lr=0.05, antisat=6.0, signal_amp=3.0):
     """Monde 2-pas a obs VARIABLES. S1 stochastique -> did_craft ; obs_b[:,0]=did*signal_amp (contexte
     dans l'etat). TRAIN : readout w_throw/b_throw entraine par REINFORCE binaire + anti-sat ; le label de
     RECOMPENSE est le vrai did_craft (ON) ou une PERMUTATION FIXE (shuffle_reward -> decorrele du contexte).

@@ -25,6 +25,9 @@ if _ROOT not in sys.path:
 
 from src.agents.mamba_agent import MambaAgent
 from src.agents.backend import make_population
+# Importable SANS torch : `backend_torch.py:27-30` garde `import torch` (torch=None) et la classe
+# n'hérite que de `PopulationModel`. Nécessaire pour ÉPINGLER le substrat (P2.27, voir run_substrate_ab).
+from src.agents.backend_torch import TorchPopulationModel
 
 _MOVE = 8  # logits de déplacement
 
@@ -87,23 +90,37 @@ def run_substrate_ab(backend: str, seed: int = 0, ticks: int = 200,
         torch.manual_seed(seed)
     except Exception:
         pass
-    agents = [MambaAgent() for _ in range(n_agents)]
-    pop = make_population(agents, backend=backend)
-    rng = np.random.RandomState(seed + 1)
-    obs = (rng.randn(n_agents, agents[0].genome.num_inputs) * 0.5).astype(np.float32)  # contingence fixe
+    # P2.27 — le substrat est ÉPINGLÉ, pas hérité de l'ambiant : `TorchPopulationModel.BILINEAR` est
+    # un attribut de CLASSE lu par `__init__` (`backend_torch.py:111`, crée U/V/W_bl et les donne au
+    # SGD) et par `_step` (`:128`). Non posé, une autre sonde du même interpréteur pouvait faire
+    # mesurer à celle-ci un AUTRE substrat, sans trace. Pin EN DUR à `False` = défaut de classe =
+    # chemin `plain` BIT-IDENTIQUE aux mesures publiées (barreau-0 ADR-003). Le pin n'a de sens que
+    # sur le chemin `torch` : `backend` est VARIABLE ici (`compare` passe `legacy` puis `torch`) et le
+    # backend legacy ne lit pas cet attribut. Il couvre TOUT le run (construction ET boucle `_step`)
+    # et le `finally` restaure l'ambiant pour ne pas contaminer à son tour.
+    saved_bilinear = TorchPopulationModel.BILINEAR
+    if backend == "torch":
+        TorchPopulationModel.BILINEAR = False
+    try:
+        agents = [MambaAgent() for _ in range(n_agents)]
+        pop = make_population(agents, backend=backend)
+        rng = np.random.RandomState(seed + 1)
+        obs = (rng.randn(n_agents, agents[0].genome.num_inputs) * 0.5).astype(np.float32)  # contingence fixe
 
-    hits = []
-    for _ in range(ticks):
-        preds, _ = pop.forward(obs)
-        moves = np.asarray(preds)[:, :_MOVE].argmax(axis=1)
-        reward = np.where(moves == target_move, 1.0, -1.0).astype(np.float32)
-        pop.learn(reward, [{"move": int(m), "grab": 0, "rub": 0} for m in moves])
-        hits.append(float(np.mean(moves == target_move)))
+        hits = []
+        for _ in range(ticks):
+            preds, _ = pop.forward(obs)
+            moves = np.asarray(preds)[:, :_MOVE].argmax(axis=1)
+            reward = np.where(moves == target_move, 1.0, -1.0).astype(np.float32)
+            pop.learn(reward, [{"move": int(m), "grab": 0, "rub": 0} for m in moves])
+            hits.append(float(np.mean(moves == target_move)))
 
-    q = max(1, ticks // 4)
-    hit_start, hit_end = float(np.mean(hits[:q])), float(np.mean(hits[-q:]))
-    return {"backend": backend, "seed": int(seed), "ticks": ticks, "n_agents": n_agents,
-            "hit_start": hit_start, "hit_end": hit_end, "delta": hit_end - hit_start}
+        q = max(1, ticks // 4)
+        hit_start, hit_end = float(np.mean(hits[:q])), float(np.mean(hits[-q:]))
+        return {"backend": backend, "seed": int(seed), "ticks": ticks, "n_agents": n_agents,
+                "hit_start": hit_start, "hit_end": hit_end, "delta": hit_end - hit_start}
+    finally:
+        TorchPopulationModel.BILINEAR = saved_bilinear
 
 
 def compare(seeds=(0, 1, 2), ticks: int = 200, n_agents: int = 8) -> dict:

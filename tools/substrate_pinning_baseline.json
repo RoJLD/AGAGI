@@ -1,20 +1,4 @@
 {
   "_comment": "Dette LÉGATAIRE gelée (P2.27). Tout NOUVEAU défaut bloque.",
-  "legataires": {
-    "tools/cognitive_demand_inworld.py": [
-      "A"
-    ],
-    "tools/substrate_ab.py": [
-      "A"
-    ],
-    "tools/substrate_ab_compositional.py": [
-      "A"
-    ],
-    "tools/torch_binary_gate_heldout_probe.py": [
-      "A"
-    ],
-    "tools/torch_binary_gate_probe.py": [
-      "A"
-    ]
-  }
+  "legataires": {}
 }
