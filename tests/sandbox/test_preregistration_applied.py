@@ -150,3 +150,98 @@ def test_family_without_any_backtick_STILL_fails(tmp_path):
             encoding="utf-8")
     C._PREREG = str(pre)
     assert sorted(C.nouvelles_sans_grandeur()) == ["EVO-998", "EVO-998-bis"]
+
+
+# ======================================================================================================
+# 2026-09-06 -- P2.28 : une FAMILLE passait TOUTES les portes en n'etant verifiee par AUCUNE.
+#
+# La semantique de famille (base + -bis) etait appliquee a « la regle NOMME-t-elle des grandeurs ? » mais
+# PAS a « le record les MESURE-t-il ? ». Mesure sur DELAYED-COORD-LR-N12 : la base a 0 grandeur (scan la
+# sautait), la -bis en a 7 mais son record `EDR-DELAYED-COORD_*` ne prefixe aucun des deux noms (scan la
+# sautait aussi) -- alors que le record EXISTE et CITE `docs/preregistrations/DELAYED-COORD-LR-N12.json`.
+# Correctif : scan/couverture jugent par famille (UNION des grandeurs, UNION des records) ; le record se
+# rattache par DECLARATION (`record:`), par CITATION du chemin de la regle, puis par prefixe -- jamais
+# par mention nue du nom.
+# ======================================================================================================
+
+def _fam(tmp_path, rules, records):
+    """rules : {name: payload sans seal} ; records : {nom_de_fichier: texte}. Cumulatif sur tmp_path."""
+    pre = tmp_path / "preregistrations"; pre.mkdir(exist_ok=True)
+    edr = tmp_path / "EDR"; edr.mkdir(exist_ok=True)
+    for name, payload in rules.items():
+        (pre / f"{name}.json").write_text(json.dumps({"name": name, "seal": "x", **payload}),
+                                          encoding="utf-8")
+    for fn, text in records.items():
+        (edr / fn).write_text(text, encoding="utf-8")
+    C._PREREG, C._EDR = str(pre), str(edr)
+
+
+_BASE_PROSE = {"rule": {"variable_dependante_scellee": "RETAIN_intact -- accuracy du bras RETAIN"}}
+_BIS_BACKTICK = {"rule": {"dv_primaire": "`RETAIN_intact` appariee entre `lr=0.05` et `lr=0.002`"}}
+
+
+def test_family_reached_through_a_CITING_record_is_INSPECTED_and_can_FAIL(tmp_path):
+    """⚠️ CONTRE-EXEMPLE GELE de P2.28 (configuration exacte, noms compris) : base sans backtick, -bis
+    avec grandeurs, record dont le NOM ne prefixe aucun membre mais qui CITE la regle. Avant : scan()
+    rendait [] et couverture comptait 1 « sans grandeur » + 1 « sans record » -- verifiee par personne.
+    Apres : la famille est inspectee sur l'UNION, et elle DOIT pouvoir echouer."""
+    rec = "Regle scellee : docs/preregistrations/DELAYED-COORD-LR-N12.json. Verdict MONTEE_ETABLIE.\n"
+    _fam(tmp_path, {"DELAYED-COORD-LR-N12": _BASE_PROSE, "DELAYED-COORD-LR-N12-bis": _BIS_BACKTICK},
+         {"EDR-DELAYED-COORD_Un_Record.md": rec})
+    problems = C.scan()
+    assert problems and problems[0][0] == "DELAYED-COORD-LR-N12", problems
+    assert "RETAIN_intact" in problems[0][2]
+    assert C.couverture() == (1, 0, 0, 1)
+    # le meme record, qui MESURE la grandeur : la famille passe
+    _fam(tmp_path, {}, {"EDR-DELAYED-COORD_Un_Record.md": rec + "`RETAIN_intact` monte 12/12.\n"})
+    assert C.scan() == []
+
+
+def test_repository_DELAYED_COORD_family_is_now_ATTACHED_to_its_record():
+    """Le cas MESURE de P2.28, sur le depot REEL : la famille est rattachee et inspectee, pas sautee."""
+    import importlib
+    importlib.reload(C)
+    par_base = {base: (qty, recs) for base, _, qty, recs, _, _ in C._inspection()}
+    qty, recs = par_base["DELAYED-COORD-LR-N12"]
+    assert qty and any(os.path.basename(r).startswith("EDR-DELAYED-COORD_") for r in recs), recs
+    assert not [p for p in C.scan() if p[0] == "DELAYED-COORD-LR-N12"]
+
+
+def test_prefix_attached_rule_keeps_its_fate(tmp_path):
+    """SPARES : une regle deja rattachee par PREFIXE ne change pas de sort -- detectee si la DV manque,
+    epargnee si le record la mesure, comptee inspectee UNE fois."""
+    rule = {"rule": {"controle_de_manipulation_OBLIGATOIRE": "le plafond doit REDUIRE |logit| median"}}
+    _fam(tmp_path, {"EVO-999": rule}, {"EVO-999_Un_Record.md": "Le fan-in passe de 10 a 3.\n"})
+    problems = C.scan()
+    assert problems and problems[0][0] == "EVO-999" and "logit" in problems[0][2]
+    assert C.couverture() == (1, 0, 0, 1)
+    _fam(tmp_path, {}, {"EVO-999_Un_Record.md": "Le |logit| median passe de 10.2 a 0.5.\n"})
+    assert C.scan() == [] and C.couverture() == (1, 0, 0, 1)
+
+
+def test_a_level_of_a_quantity_is_not_a_quantity():
+    """SPARES : `lr=0.002` nomme la grandeur `lr` a un NIVEAU. L'ancienne normalisation en faisait le
+    token `lr0002`, introuvable dans tout record honnete -> DELAYED-COORD aurait ete flaggee A TORT le
+    jour de son rattachement (mesure : missing=['lr0002', 'lr005'])."""
+    assert C._quantities({"dv_primaire": "`RETAIN_intact` entre `lr=0.05` et `lr=0.002`"}) == {"RETAIN_intact"}
+
+
+def test_a_bare_mention_of_the_name_does_NOT_attach_and_the_family_is_NAMED(tmp_path):
+    """SCOPE : un record qui cite le nom en prose (« comme EVO-999 l'a montre ») ne mesure pas EVO-999.
+    Seuls rattachent : `record:` declare, la citation `docs/preregistrations/<nom>.json`, le prefixe.
+    Et la famille non rattachee est NOMMEE dans la sortie -- pas fondue dans un compteur."""
+    _fam(tmp_path, {"EVO-999": _BIS_BACKTICK}, {"AUTRE_Record.md": "Comme EVO-999 l'a montre, rien.\n"})
+    assert C.scan() == []
+    assert C.couverture() == (0, 0, 1, 1)
+    assert C.familles_sans_record() == ["EVO-999"]
+
+
+def test_declared_record_key_attaches_BEFORE_any_naming_and_a_dangling_one_CRIES(tmp_path):
+    """Regle du depot : declarer, pas deviner. `record:` au niveau du payload (HORS sceau) rattache un
+    record au nom quelconque ; declare mais INTROUVABLE -> probleme, pas silence."""
+    _fam(tmp_path, {"EVO-999": {**_BIS_BACKTICK, "record": "Nom_Quelconque.md"}},
+         {"Nom_Quelconque.md": "`RETAIN_intact` mesuree.\n"})
+    assert C.scan() == [] and C.couverture() == (1, 0, 0, 1)
+    _fam(tmp_path, {"EVO-998": {**_BIS_BACKTICK, "record": "Introuvable.md"}}, {})
+    problems = C.scan()
+    assert any(p[0] == "EVO-998" and p[1] == "Introuvable.md" for p in problems), problems
