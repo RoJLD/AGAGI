@@ -55,6 +55,28 @@ chemin dont le blob contient un bloc écrit APRÈS mon empreinte), et non par si
 Le CLI l'imprime TOUJOURS (stderr, en tête, même quand `verify` va lever) ; `--strict` le rend bloquant
 pour qui veut un hook dur.
 
+--- SENS B, ATTRIBUTION AUTOMATIQUE (P2.26, 2026-09-06) : la déclaration ne dépend plus de l'opérateur ----
+
+Mesuré le 2026-09-02 sur les 8 empreintes réelles : `detect_preempted()` rendait 2 faux positifs + 1 vrai,
+les deux faux désignant un commit de l'auteur LUI-MÊME, non déclaré ; déclarer ces commits les fait
+disparaître et garde le vrai. La précision est donc CONDITIONNÉE À LA DÉCLARATION — et rien n'obligeait
+à appeler `confirm_commit(..., owner=)`. Le hook `tools/hooks/post-commit` appelle désormais `declare`
+après CHAQUE commit (y compris `--no-verify`, qui ne saute que pre-commit/commit-msg).
+
+LA question dure : un post-commit tourne pour TOUTES les sessions du même `.git`. Si le commit de la
+session A inscrivait son SHA dans les empreintes de B, il ANNULERAIT la détection de préemption. Une
+recherche PAR CONTENU ne peut PAS trancher (le contenu ne porte pas d'auteur — c'est le test gelé
+`test_LIMITE_CONNUE_sensB_content_from_another_session_also_alerts`) ; l'arbre est PARTAGÉ, donc rien
+dans l'arbre, l'index ou le cwd ne distingue A de B non plus. La seule grandeur qui sépare les sessions
+est une IDENTITÉ DE SESSION, déclarée par l'environnement : `snapshot()` l'inscrit (`session_id`, lu de
+`$AGAGI_SESSION_ID` puis `$CLAUDE_CODE_SESSION_ID`, ou passé explicitement), et `declare` n'inscrit le
+SHA QUE dans les empreintes dont `session_id` est CELUI du processus qui commite ET dont le chemin est
+porté par le commit. Sans identité (terminal nu, empreinte légataire sans clé) : RIEN n'est déclaré —
+le pire cas est le statu quo (faux positif à lever à la main), jamais une détection annulée. C'est
+« faire DÉCLARER plutôt que deviner », déclaré UNE fois par l'environnement au lieu d'à chaque commit.
+L'unité de « moi » est la SESSION, pas l'owner : toutes les empreintes de la session sur le chemin sont
+déclarées (les 2 faux positifs réels étaient sous un AUTRE owner que le commit).
+
 --- LIMITE 2 : `git add` et `git commit` ne sont PAS atomiques sur un index partagé ------------------
 
 Constaté le 2026-09-01 : une session parallèle a committé le même chemin ENTRE le `git add` et le
@@ -96,6 +118,7 @@ Usage CLI :
   python tools/check_staged_authorship.py snapshot <fichier> [<fichier> ...] [--owner NOM]
   python tools/check_staged_authorship.py verify   <fichier> [<fichier> ...] [--owner NOM] [--strict]
   python tools/check_staged_authorship.py confirm  <sha> <fichier> [<fichier> ...] [--owner NOM]
+  python tools/check_staged_authorship.py declare  [<sha>=HEAD] [--session-id ID]   # hook post-commit
 """
 import argparse
 import difflib
@@ -107,6 +130,18 @@ from datetime import datetime, timezone
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _DEFAULT_SNAPSHOT_DIR = os.path.join(_ROOT, "runs", "staged_authorship")  # `runs/` est gitignored
+# Identité de session (P2.26) : surcharge explicite d'abord, puis celle que Claude Code pose dans
+# l'environnement de CHAQUE session (vérifié propagé à `sh` et `python`, donc aux hooks git).
+_SESSION_ENV_VARS = ("AGAGI_SESSION_ID", "CLAUDE_CODE_SESSION_ID")
+
+
+def _current_session_id():
+    """Identité de la session COURANTE, ou None — et None veut dire « ne rien déclarer », jamais deviner."""
+    for var in _SESSION_ENV_VARS:
+        v = (os.environ.get(var) or "").strip()
+        if v:
+            return v
+    return None
 
 
 class NoSnapshotError(Exception):
@@ -292,7 +327,8 @@ def _load_snapshot(path: str, owner: str, snapshot_dir: str) -> dict:
         return json.load(f)
 
 
-def snapshot(paths, *, owner: str = "default", snapshot_dir: str = None, cwd: str = _ROOT):
+def snapshot(paths, *, owner: str = "default", snapshot_dir: str = None, cwd: str = _ROOT,
+             session_id: str = None):
     """Prend l'empreinte de `paths` — contenu de l'arbre de travail ET blob HEAD, au même instant —
     AVANT toute édition. Renvoie la liste des fichiers d'empreinte écrits."""
     d = snapshot_dir or _DEFAULT_SNAPSHOT_DIR
@@ -307,7 +343,10 @@ def snapshot(paths, *, owner: str = "default", snapshot_dir: str = None, cwd: st
             "working_tree_content": _working_tree_content(path, cwd=cwd),
             "head_content": _head_content(path, cwd=cwd),
             "head_sha": sha,        # borne la recherche du commit préempteur (sens B) à `head_sha..HEAD`
-            "own_commits": [],      # SHA déclarés miens via `confirm_commit(..., owner=...)`
+            "own_commits": [],      # SHA déclarés miens via `confirm_commit(..., owner=...)` ou `declare`
+            # P2.26 : identité de la session qui prend l'empreinte. `declare` (hook post-commit) n'inscrit
+            # un SHA ici QUE si la session qui commite porte la MÊME identité. None = jamais déclaré auto.
+            "session_id": session_id or _current_session_id(),
         }
         p = _snapshot_path(path, owner, d)
         with open(p, "w", encoding="utf-8") as f:
@@ -525,6 +564,49 @@ def _record_own_commit(sha: str, paths, *, owner: str, snapshot_dir: str = None)
             json.dump(snap, f, ensure_ascii=False, indent=2)
 
 
+# --- P2.26 : déclaration AUTOMATIQUE après commit, scopée par identité de session -------------------
+
+def declare_head_commit(sha: str = "HEAD", *, session_id: str = None, snapshot_dir: str = None,
+                        cwd: str = _ROOT):
+    """Appelé par le hook `post-commit` : inscrit `sha` dans `own_commits` de CHAQUE empreinte qui
+    (1) porte l'identité de la session COURANTE (`session_id`, ou `$AGAGI_SESSION_ID` / `$CLAUDE_CODE_
+    SESSION_ID`) ET (2) dont le chemin est PORTÉ par le commit. Renvoie [{"owner","path","commit"}].
+
+    Conservateur par construction : sans identité courante, ou pour une empreinte sans `session_id`
+    (légataire) ou d'une AUTRE session, RIEN n'est déclaré — un post-commit qui inscrirait le commit de
+    la session A dans l'empreinte de B annulerait exactement la détection de préemption (sens B). Le
+    contenu ne peut pas trancher (il ne porte pas d'auteur) ; seule l'identité déclarée le peut.
+    Best-effort : un JSON illisible est sauté, jamais levé — un post-commit ne doit rien casser."""
+    d = snapshot_dir or _DEFAULT_SNAPSHOT_DIR
+    sid = session_id or _current_session_id()
+    if not sid or not os.path.isdir(d):
+        return []
+    r = _run_git(["rev-parse", sha], cwd)
+    if r.returncode != 0:
+        return []
+    resolved = r.stdout.strip()
+    carried = _paths_in_commit(resolved, cwd=cwd)
+    if not carried:
+        return []
+    declared = []
+    for fn in sorted(os.listdir(d)):
+        if not fn.endswith(".json"):
+            continue
+        try:
+            with open(os.path.join(d, fn), encoding="utf-8") as f:
+                snap = json.load(f)
+        except (OSError, ValueError):
+            continue                                  # empreinte illisible : on ne déclare rien dessus
+        if not isinstance(snap, dict) or snap.get("session_id") != sid:
+            continue                                  # AUTRE session, ou légataire sans identité : intact
+        path, owner = snap.get("path"), snap.get("owner") or "default"
+        if not path or _gitpath(path) not in carried:
+            continue                                  # ce commit ne porte pas ce chemin
+        _record_own_commit(resolved, [path], owner=owner, snapshot_dir=d)
+        declared.append({"owner": owner, "path": path, "commit": resolved})
+    return declared
+
+
 # --- CLI ---------------------------------------------------------------------------------------------
 
 def _cli(argv=None):
@@ -536,6 +618,9 @@ def _cli(argv=None):
     sp.add_argument("--owner", default="default")
     sp.add_argument("--dir", default=None)
     sp.add_argument("--cwd", default=None, help="racine du dépôt (défaut : ce dépôt-ci)")
+    sp.add_argument("--session-id", default=None,
+                    help="identité de session inscrite dans l'empreinte (défaut : $AGAGI_SESSION_ID puis"
+                         " $CLAUDE_CODE_SESSION_ID ; sans identité, `declare` ne la touchera jamais)")
 
     vp = sub.add_parser("verify", help="vérifier AVANT commit — sort en erreur si un hunk est étranger")
     vp.add_argument("paths", nargs="+")
@@ -553,12 +638,35 @@ def _cli(argv=None):
     cp.add_argument("--dir", default=None)
     cp.add_argument("--cwd", default=None, help="racine du dépôt (défaut : ce dépôt-ci)")
 
+    dp = sub.add_parser("declare", help="APRÈS commit (hook post-commit) : inscrire le SHA dans les "
+                        "empreintes de LA SESSION COURANTE dont le chemin est porté par le commit")
+    dp.add_argument("sha", nargs="?", default="HEAD")
+    dp.add_argument("--session-id", default=None,
+                    help="identité de session (défaut : $AGAGI_SESSION_ID puis $CLAUDE_CODE_SESSION_ID ;"
+                         " SANS identité, rien n'est déclaré — jamais deviné)")
+    dp.add_argument("--dir", default=None)
+    dp.add_argument("--cwd", default=None, help="racine du dépôt (défaut : ce dépôt-ci)")
+
     args = ap.parse_args(argv)
     cwd = args.cwd or _ROOT
 
     if args.cmd == "snapshot":
-        for p in snapshot(args.paths, owner=args.owner, snapshot_dir=args.dir, cwd=cwd):
+        for p in snapshot(args.paths, owner=args.owner, snapshot_dir=args.dir, cwd=cwd,
+                          session_id=args.session_id):
             print(f"empreinte écrite : {p}")
+        return 0
+
+    if args.cmd == "declare":
+        # Un post-commit ne peut ni bloquer ni faire échouer le commit : sortie 0 QUOI QU'IL ARRIVE, et
+        # une ligne par déclaration seulement (silence = rien à déclarer pour cette session).
+        try:
+            declared = declare_head_commit(args.sha, session_id=args.session_id,
+                                           snapshot_dir=args.dir, cwd=cwd)
+        except Exception as e:  # noqa: BLE001 — best-effort assumé, cf. docstring de declare_head_commit
+            print(f"authorship : déclaration ignorée ({e})", file=sys.stderr)
+            return 0
+        for dcl in declared:
+            print(f"authorship : {dcl['commit'][:8]} déclaré pour owner={dcl['owner']!r} sur {dcl['path']}")
         return 0
 
     if args.cmd == "confirm":

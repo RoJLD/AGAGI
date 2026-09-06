@@ -1,0 +1,23 @@
+#!/bin/sh
+# Déclaration AUTOMATIQUE d'auteur (P2.26, classe E10 sens B) — après CHAQUE commit, inscrit le SHA dans
+# les empreintes `runs/staged_authorship/` de LA SESSION QUI COMMITE, pour les chemins que le commit porte.
+# Motivation mesurée (2026-09-02) : `detect_preempted` rendait 2 faux positifs sur 8 empreintes, les deux
+# étant des commits de l'auteur NON DÉCLARÉS ; déclarer les fait disparaître et garde le vrai positif.
+# La déclaration reposait sur `confirm --owner`, que rien n'obligeait -> elle est ici mécanique.
+#
+# ⚠️ Ce hook tourne pour TOUTES les sessions du même .git. Il ne déclare QUE les empreintes dont le
+# `session_id` est celui du processus courant ($AGAGI_SESSION_ID, sinon $CLAUDE_CODE_SESSION_ID) : sans
+# identité, il ne déclare RIEN (il ne devine jamais) — sinon le commit de la session A désamorcerait la
+# détection de préemption chez B. Cf. §« SENS B, ATTRIBUTION AUTOMATIQUE » de check_staged_authorship.py.
+#
+# Installation : cp tools/hooks/post-commit .git/hooks/post-commit && chmod +x .git/hooks/post-commit
+# Un post-commit ne peut PAS faire échouer le commit (git ignore son code de retour) : best-effort, sort 0.
+# Tourne aussi sous `git commit --no-verify` (qui ne saute que pre-commit et commit-msg).
+# AGAGI_ROOT / AGAGI_AUTHORSHIP_DIR : surcharges pour le test d'intégration (dépôt git temporaire) ;
+# sans effet en production (défauts : toplevel du dépôt, runs/staged_authorship/).
+top=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+root="${AGAGI_ROOT:-$top}"
+[ -f "$root/tools/check_staged_authorship.py" ] || exit 0
+if [ -n "$AGAGI_AUTHORSHIP_DIR" ]; then set -- --dir "$AGAGI_AUTHORSHIP_DIR"; else set --; fi
+PYTHONIOENCODING=utf-8 python "$root/tools/check_staged_authorship.py" declare HEAD --cwd "$top" "$@" || true
+exit 0

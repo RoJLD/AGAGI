@@ -15,7 +15,10 @@ exactement ça. Aucun test individuel ne dépasse le `timeout` de `pytest.ini` (
 marquage porte sur le COÛT CUMULÉ, pas sur un risque de hang. Dette ouverte : mutualiser le dépôt-fixture
 entre les cas ferait tomber ce coût d'un ordre de grandeur — à faire avant d'ajouter d'autres cas ici.
 """
+import json
 import os
+import shutil
+import stat
 import subprocess
 import sys
 
@@ -29,7 +32,7 @@ import pytest
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 from tools.check_staged_authorship import (  # noqa: E402
-    snapshot, verify, confirm_commit, detect_preempted, _cli,
+    snapshot, verify, confirm_commit, detect_preempted, declare_head_commit, _snapshot_path, _cli,
     NoSnapshotError, ForeignHunkDetected, MissingPathsInCommit, WorkPreempted)
 
 _FILE = "shared_module.py"
@@ -458,3 +461,146 @@ def test_check_prefix_is_excluded_from_the_instrument_calibration_ratchet():
     from tools.check_instrument_calibration import scan_instruments
     found = scan_instruments()
     assert all(not path.endswith("check_staged_authorship.py") for path in found.values())
+
+
+# --- P2.26 : DÉCLARATION AUTOMATIQUE (hook post-commit), scopée par IDENTITÉ DE SESSION ----------------
+# Cibler avec : pytest tests/sandbox/test_staged_authorship.py -k P226 -m slow
+
+_SID_VARS = ("AGAGI_SESSION_ID", "CLAUDE_CODE_SESSION_ID")
+_HOOK = os.path.join(os.path.dirname(__file__), "..", "..", "tools", "hooks", "post-commit")
+_REAL_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+
+
+def _no_ambient_session(monkeypatch):
+    """E5 (état global) : la suite tourne ELLE-MÊME dans une session Claude Code, dont l'identité est dans
+    l'environnement. Aucun test ne doit en dépendre : on l'efface, et on passe l'identité EXPLICITEMENT."""
+    for v in _SID_VARS:
+        monkeypatch.delenv(v, raising=False)
+
+
+def _own_commits(path, owner, snap_dir):
+    with open(_snapshot_path(path, owner, snap_dir), encoding="utf-8") as f:
+        return json.load(f)["own_commits"]
+
+
+def test_P226_FIRES_own_commit_is_auto_declared_when_the_session_matches(tmp_path, monkeypatch):
+    """Le faux positif MESURÉ (2/2 sur les empreintes réelles, `7de1b54`) : mon propre commit non déclaré.
+    Avec l'identité de session dans l'empreinte ET au moment du commit, la déclaration est automatique et
+    l'alerte disparaît — pour TOUTES les empreintes de la session sur ce chemin, quel que soit l'owner
+    (l'unité de « moi » est la session : les 2 faux réels étaient sous un AUTRE owner que le commit)."""
+    _no_ambient_session(monkeypatch)
+    repo = _init_repo(tmp_path)
+    snap_dir = str(tmp_path / "snaps")
+    snapshot([_FILE], owner="tache-1", snapshot_dir=snap_dir, cwd=repo, session_id="S-A")
+    snapshot([_FILE], owner="tache-2", snapshot_dir=snap_dir, cwd=repo, session_id="S-A")
+    _append(repo, "\n\ndef my_own_work():\n    return 'mine'\n")
+    _git(["add", _FILE], repo)
+    _git(["commit", "-q", "-m", "mon propre commit", "--", _FILE], repo)
+    mien = _head_sha(repo)
+    # AVANT déclaration : la signature est celle d'une préemption (attendu, c'est le faux positif mesuré)
+    assert _FILE in detect_preempted([_FILE], owner="tache-1", snapshot_dir=snap_dir, cwd=repo)
+
+    declared = declare_head_commit("HEAD", session_id="S-A", snapshot_dir=snap_dir, cwd=repo)
+    assert sorted(d["owner"] for d in declared) == ["tache-1", "tache-2"]
+    assert all(d["commit"] == mien for d in declared)
+    for owner in ("tache-1", "tache-2"):
+        assert _own_commits(_FILE, owner, snap_dir) == [mien]
+        assert detect_preempted([_FILE], owner=owner, snapshot_dir=snap_dir, cwd=repo) == {}
+
+
+def test_P226_SPARES_a_PARALLEL_session_commit_is_NOT_declared_and_detection_SURVIVES(tmp_path, monkeypatch):
+    """LA question dure : le post-commit tourne pour TOUTES les sessions du même .git. Si le commit de la
+    session A inscrivait son SHA dans l'empreinte de B, il ANNULERAIT la détection de préemption. L'identité
+    de session sépare : B prend l'empreinte et édite, A commite -> le hook (côté A) ne déclare RIEN chez B,
+    et `detect_preempted` (côté B) garde le VRAI positif, apparié par contenu (forme de l'occ. 16)."""
+    _no_ambient_session(monkeypatch)
+    repo = _init_repo(tmp_path)
+    snap_dir = str(tmp_path / "snaps")
+    snapshot([_FILE], owner="ma-tache", snapshot_dir=snap_dir, cwd=repo, session_id="S-B")
+    _append(repo, "\n\ndef my_work():\n    return 'mine'\n")                        # B édite
+    _git(["commit", "-q", "-m", "session parallele emporte mon travail", "--", _FILE], repo)  # A commite
+
+    assert declare_head_commit("HEAD", session_id="S-A", snapshot_dir=snap_dir, cwd=repo) == []
+    assert _own_commits(_FILE, "ma-tache", snap_dir) == []
+    rep = detect_preempted([_FILE], owner="ma-tache", snapshot_dir=snap_dir, cwd=repo)
+    assert rep[_FILE]["commit"] == _head_sha(repo) and rep[_FILE]["matched_by_content"]
+
+
+def test_P226_SPARES_without_session_identity_NOTHING_is_declared(tmp_path, monkeypatch):
+    """Sens conservateur, par construction : sans identité (terminal nu) ou pour une empreinte LÉGATAIRE
+    (format d'avant P2.26, sans clé `session_id`), le hook ne DEVINE pas — il ne déclare rien. Le pire cas
+    est le statu quo (faux positif à lever à la main via `confirm --owner`), jamais une détection annulée."""
+    _no_ambient_session(monkeypatch)
+    repo = _init_repo(tmp_path)
+    snap_dir = str(tmp_path / "snaps")
+    [legacy] = snapshot([_FILE], owner="legataire", snapshot_dir=snap_dir, cwd=repo)   # env vide -> None
+    snapshot([_FILE], owner="identifiee", snapshot_dir=snap_dir, cwd=repo, session_id="S-A")
+    with open(legacy, encoding="utf-8") as f:
+        snap = json.load(f)
+    assert snap["session_id"] is None
+    snap.pop("session_id")                                   # empreinte d'AVANT P2.26 : pas de clé du tout
+    with open(legacy, "w", encoding="utf-8") as f:
+        json.dump(snap, f)
+    _append(repo, "\n\ndef w():\n    return 0\n")
+    _git(["add", _FILE], repo)
+    _git(["commit", "-q", "-m", "c", "--", _FILE], repo)
+
+    # (a) commit SANS identité dans l'environnement : rien, pas même l'empreinte identifiée
+    assert declare_head_commit("HEAD", snapshot_dir=snap_dir, cwd=repo) == []
+    # (b) commit AVEC identité : l'empreinte identifiée est déclarée, la légataire reste INTACTE
+    declared = declare_head_commit("HEAD", session_id="S-A", snapshot_dir=snap_dir, cwd=repo)
+    assert [d["owner"] for d in declared] == ["identifiee"]
+    assert _own_commits(_FILE, "legataire", snap_dir) == []
+
+
+def test_P226_SCOPE_only_paths_CARRIED_by_the_commit_are_declared_and_junk_is_skipped(tmp_path, monkeypatch):
+    """Périmètre : même session, empreintes sur DEUX chemins, commit d'UN seul -> une seule déclaration
+    (déclarer l'autre ferait taire une future préemption sur un chemin que ce commit ne porte pas). Et un
+    fichier illisible dans le répertoire d'empreintes est SAUTÉ, pas levé (best-effort post-commit)."""
+    _no_ambient_session(monkeypatch)
+    repo = _init_repo_two_files(tmp_path)
+    snap_dir = str(tmp_path / "snaps")
+    snapshot([_FILE, _OTHER], owner="ma-tache", snapshot_dir=snap_dir, cwd=repo, session_id="S-A")
+    with open(os.path.join(snap_dir, "casse.json"), "w", encoding="utf-8") as f:
+        f.write("{ pas du json")
+    _append(repo, "\n\ndef a():\n    return 1\n", _FILE)
+    _append(repo, "\n\ndef b():\n    return 2\n", _OTHER)
+    _git(["add", _FILE], repo)
+    _git(["commit", "-q", "-m", "seulement FILE", "--", _FILE], repo)
+    mien = _head_sha(repo)
+
+    declared = declare_head_commit("HEAD", session_id="S-A", snapshot_dir=snap_dir, cwd=repo)
+    assert [d["path"] for d in declared] == [_FILE]
+    assert _own_commits(_FILE, "ma-tache", snap_dir) == [mien]
+    assert _own_commits(_OTHER, "ma-tache", snap_dir) == []
+    # et le CLI ne sort JAMAIS non-zéro (sémantique post-commit), même avec le fichier cassé présent
+    assert _cli(["declare", "HEAD", "--dir", snap_dir, "--cwd", repo, "--session-id", "S-A"]) == 0
+
+
+def test_P226_SCOPE_the_post_commit_HOOK_declares_via_git_even_under_no_verify(tmp_path, monkeypatch):
+    """Le hook LUI-MÊME, installé comme en production (`cp tools/hooks/post-commit .git/hooks/`), dans le
+    dépôt temporaire : `git commit --no-verify` (qui saute pre-commit, PAS post-commit) déclare le SHA, via
+    l'identité lue de l'environnement ; et le commit RÉUSSIT même quand le répertoire d'empreintes a
+    disparu (un post-commit ne peut pas faire échouer un commit). `AGAGI_ROOT` pointe l'outil (le dépôt
+    temporaire ne le contient pas), `AGAGI_AUTHORSHIP_DIR` le répertoire d'empreintes."""
+    _no_ambient_session(monkeypatch)
+    repo = _init_repo(tmp_path)
+    snap_dir = str(tmp_path / "snaps")
+    dst = os.path.join(repo, ".git", "hooks", "post-commit")
+    shutil.copy(_HOOK, dst)
+    os.chmod(dst, os.stat(dst).st_mode | stat.S_IEXEC)
+    monkeypatch.setenv("AGAGI_ROOT", _REAL_ROOT)
+    monkeypatch.setenv("AGAGI_AUTHORSHIP_DIR", snap_dir)
+    monkeypatch.setenv("AGAGI_SESSION_ID", "S-A")
+    snapshot([_FILE], owner="ma-tache", snapshot_dir=snap_dir, cwd=repo)      # identité lue de l'env
+    _append(repo, "\n\ndef mine():\n    return 1\n")
+    _git(["add", _FILE], repo)
+    _git(["commit", "-q", "--no-verify", "-m", "mon commit", "--", _FILE], repo)
+    mien = _head_sha(repo)
+    assert _own_commits(_FILE, "ma-tache", snap_dir) == [mien]
+    assert detect_preempted([_FILE], owner="ma-tache", snapshot_dir=snap_dir, cwd=repo) == {}
+
+    shutil.rmtree(snap_dir)                                  # robustesse : plus d'empreintes du tout
+    _append(repo, "\n# encore\n")
+    _git(["add", _FILE], repo)
+    _git(["commit", "-q", "-m", "encore", "--", _FILE], repo)   # `_git` asserte returncode == 0
