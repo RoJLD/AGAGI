@@ -39,7 +39,7 @@ désactivées (`weight_mutate_rate=0`, `add_connection_rate=0`, `prune_rate=0`) 
 | 4 seeds / 10 | +3.00 | **1.000** |
 | **6 seeds / 10** | **+0.00** | **0.000** |
 
-### ⛔ Mécanisme initialement proposé — RÉFUTÉ PAR INTERVENTION (2026-08-04)
+### ⛔ Mécanisme initialement proposé — RÉFUTÉ PAR INTERVENTION (2026-09-01, commit `180b11e` — le record portait « 2026-08-04 »)
 
 La première version de ce record attribuait la destruction au **nœud inséré sans diagonale** (`δ = 0.5`,
 nœud à MÉMOIRE) qui convertirait un chemin réactif en chemin dérivant. C'était une inférence tirée de la
@@ -95,10 +95,11 @@ Le verrou d'[[EDR-EVO-018]] gagne donc une **seconde composante mesurée** : la 
 ~11 000, [[EDR-EVO-014]]) **et** ce qui est découvert est fragile (6/10 détruit par insertion). Les deux
 se multiplient.
 
-⚠️ **Ça ne rouvre PAS la clôture** : la fragilité aggrave le problème, elle ne fournit aucun levier. Un
-opérateur qui préserverait les chemins réactifs (en donnant au nœud inséré une diagonale héritée, par
-exemple) serait testable — et deviendrait le premier candidat agnostique non réfuté depuis
-[[EDR-EVO-017]].
+⚠️ **Ça ne rouvre PAS la clôture** : la fragilité aggrave le problème, elle ne fournit aucun levier. Le
+seul opérateur « préservant les chemins réactifs » proposé (diagonale héritée) a été testé et arrêté au
+pré-vol ([[EDR-EVO-022]] : destruction 13/20 dans les deux bras) ; le levier qui supprime réellement la
+destruction (`preserve_io_blocks`, [[EDR-EVO-024]]) ne change pas le taux de lecteurs (0/12 vs 0/12).
+Aucun candidat agnostique non réfuté depuis [[EDR-EVO-017]].
 
 ## Portée (hedges)
 
@@ -107,8 +108,9 @@ exemple) serait testable — et deviendrait le premier candidat agnostique non r
 * La sonde force `add_node_rate = 1.0` et désactive tout le reste : elle mesure l'effet **par insertion**,
   pas la probabilité par ère dans un run réel (où d'autres mutations coexistent).
 * Le mécanisme (nœud inséré sans réflexe → dérive) est **inféré de la structure du code plus la mesure**,
-  pas isolé par une intervention : donner au nœud inséré une diagonale à +10 et re-mesurer serait le test
-  causal. Non fait.
+  pas isolé par une intervention ; ce record disait « donner au nœud inséré une diagonale héritée serait
+  le test causal. Non fait ». **Il a été fait** ([[EDR-EVO-022]], pré-vol, 20 seeds par bras : 13/20 vs
+  13/20) et il réfute le mécanisme — cf. § ⛔ ci-dessus. La réserve est conservée ici pour l'historique.
 * Le mécanisme retenu (décalage du bloc de sortie) est mesuré sur un lecteur CÂBLÉ. Sur un génome ÉVOLUÉ,
   la distribution de `j` diffère (moins d'auto-boucles) — le taux de désalignement n'y est pas mesuré.
 * ⚠️ **Dette ouverte** : `add_node` ne met à jour ni `num_inputs` ni `num_outputs`. Corriger la production

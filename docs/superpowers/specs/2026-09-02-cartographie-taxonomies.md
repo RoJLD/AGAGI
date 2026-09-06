@@ -36,8 +36,7 @@ avec cellules capables d'échouer · S7 : nœud generalization orphelin d'arête
 
 **Structurels** — T1 : G2 fantôme + gate:G0 par défaut · T2 : 114b invisible, 124/194 sans
 frontmatter, 94 gate_non_raccordés hors cliquet · T3 : couche de lecture périmée (backlog 992
-lignes, README EDR faux, REF-DEMAND-MARKER contredit S2-012/013) · T4 : EVO-022 scellé sans record
-(tiroir à résultats).
+lignes, README EDR faux, REF-DEMAND-MARKER contredit S2-012/013) · T4 : EVO-022 scellé sans record (tiroir à résultats) — **fermé 2026-09-06** : EDR-EVO-022 gravé, arrêté au pré-vol (13/20 vs 13/20), question sans objet depuis EVO-023/024.
 
 **Méthodologiques** — M1 : prereg-applied hors hook · M2 : aucun garde-fou sur les chiffres publiés
 (pas de recompute contre l'artefact-source) · M3 : 10 définitions invisibles (collisions) + registre

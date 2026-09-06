@@ -286,8 +286,17 @@ pas accumuler des tirages en PROFONDEUR.**
   - **C2** : réparer le harnais EVO-011 (3 défauts localisés : do_throw gaté E2, _throw_did E4,
     life_score) puis pré-vol décisif (lecteur câblé main) — tranche sans run évolutif.
   - Gaps différés documentés dans la spec : S3 (demande in-world hors perception), S5 (pas G4
-    dormant), S6 (nécessité S2-006), S7 (nœud generalization orphelin), T4 (EVO-022 sans record),
+    dormant), S6 (nécessité S2-006), S7 (nœud generalization orphelin), T4 (EVO-022 sans record — **CLOS 2026-09-06**, [[EDR-EVO-022]] gravé « arrêté au pré-vol, question sans objet »),
     M2 (chiffres non recomputés), M3 (collisions), M7 (rétro-examen 27 records, S2-009 risque 4).
+  - **Tiroirs de pré-inscription (consigné en fermant T4, 2026-09-06).** `check_preregistration_applied.py`
+    apparie règle→record par PRÉFIXE de nom de fichier (`_record_text_for`) et ne fait JAMAIS échouer une
+    règle sans record : (a) une règle scellée jamais conclue (EVO-022 pendant 5 jours ; EVO-011 depuis le
+    2026-08-03) a la même signature qu'un run à venir ; (b) 6 règles RAPPORTÉES dans un autre record
+    (`EVO-006-REPLICATION`→EVO-006, `EVO-028-SMOKE`→EVO-028, `S2-FLOOR-PRONOSTIC`/`-bis`→S2-013,
+    `DELAYED-COORD-LR-N12`/`-bis`→DELAYED-COORD) sont SAUTÉES au lieu d'être inspectées. Garde proposée :
+    clé optionnelle HORS sceau `"reported_in": "EDR-…"` (`verify` ne hache que `rule`) ; règle sans record
+    ET sans `reported_in` ET plus vieille que 7 jours (date git) = ÉCHEC ; contre-exemple gelé = JSON
+    antidaté sans record.
 
 **D3 — Changer le MOTEUR, pas la recherche.** Un substrat où la variation ne soit pas un tirage d'arêtes
 isolées. ⚠️ **L'avertissement de doublon est PÉRIMÉ** : ce travail parallèle est LIVRÉ et gravé (`EDR-BILINEAR`, 2026-08-03 — le terme bilinéaire fait passer `(q+key)%K` de nul à appris). D3 doit donc être re-formulé à partir de ce qui existe, pas coordonné avec un chantier fini.
