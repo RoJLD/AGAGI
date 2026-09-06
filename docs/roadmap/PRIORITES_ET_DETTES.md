@@ -52,7 +52,7 @@ dose CONNUE teste la couche qui transforme des mesures en affirmation.
 ### Dans la machinerie de calibration elle-même (le plus grave : l'outil qui compte se trompe)
 
 * ✅ **RÉSORBÉE À 7/7 — DETTE CLOSE (2026-09-02)** : table `PLANCHER_NOPERC` mesurée sous bail (campagne `measure_noperc_floors`, constructions concordantes) et câblée avec régime-gate `_floor_for` (E8 : jamais un plancher d'un autre régime). *(État intermédiaire du jour : 5/7.)* — planchers MESURÉS et câblés (30.0 régime partagé, 54.0 composition par énumération, 34.0 world_demand_marker), avec bascule de la consommation sur `v["verdict"]` (sans quoi `floor=` était inerte). **Restent 2 fichiers** (`s2_demand_ablation`, `s2_openloop_probe`) : leur table `PLANCHER_NOPERC` exige une campagne SOUS BAIL kuzu (clones du champion, design prêt). **→ CAMPAGNE FAITE ET PRONOSTIC TRANCHÉ (2026-09-02, [[EDR-S2-013]], règle scellée `S2-FLOOR-PRONOSTIC`)** : soup intact 29,25 < plancher 32,0 → ligne soup ILLISIBLE (annotée sur S2-002) ; les 4 autres mondes tiennent au-dessus (+3,5 à +6,0), leurs DECOY désormais adossés à des bornes mesurées. Reste ouvert (petit) : apparier plancher et intact par SEED pour élever « champion < hasard à corps égal sur soup » au rang d'effet.
-* **Gap (consigné en passant, 2026-09-02)** : `check_preregistration_applied` apparie règle scellée ↔ record par PRÉFIXE DE NOM DE FICHIER seulement (`tools/check_preregistration_applied.py:71`) — la famille `S2-FLOOR-PRONOSTIC` n'est donc jamais confrontée à son record `S2-013_*` (nom différent). Couverture honnête affichée, mais l'appariement par mention du nom de la règle DANS le corps du record élargirait la vérification réelle. À faire avec son contre-exemple gelé (le scan élargi peut révéler de la dette réelle sur les règles existantes : la traiter, pas la baseliner).
+* ✅ **CLOS (2026-09-06, avec P2.28 — S2-FLOOR-PRONOSTIC est désormais confrontée à S2-013, 5/5 grandeurs présentes, aucune dette révélée)** — Gap (consigné en passant, 2026-09-02) : `check_preregistration_applied` appariait règle scellée ↔ record par PRÉFIXE DE NOM DE FICHIER seulement (`tools/check_preregistration_applied.py:71`) — la famille `S2-FLOOR-PRONOSTIC` n'est donc jamais confrontée à son record `S2-013_*` (nom différent). Couverture honnête affichée, mais l'appariement par mention du nom de la règle DANS le corps du record élargirait la vérification réelle. À faire avec son contre-exemple gelé (le scan élargi peut révéler de la dette réelle sur les règles existantes : la traiter, pas la baseliner).
   * **9 appels à `ablation_verdict` ne déclarent AUCUNE borne, dans 7 fichiers — classe E14 littérale.**
   La garde `_degeneracy` ne s'active que si l'appelant passe `floor=` / `ceiling=` (un plancher n'est
   pas déductible de deux tableaux). Elle est armée chez 7 appelants et **jamais rétro-appliquée** aux
@@ -940,8 +940,25 @@ confond fatal au design (`lr` pilotant aussi le sender).
   ne suffit pas. Correctif : que le script compte les échecs et REFUSE de rendre un verdict global si
   `agents_error > 0`, au lieu de rendre une liste vide.
 
-**P2.26 — ⚠️ OUVERT — `detect_preempted()` (E10 sens B) est exécutable mais NON ATTRIBUTIVE : 2/2 faux
-positifs mesurés. NE PAS la câbler au hook avant d'avoir résolu l'attribution.**
+**P2.26 — 🔧 DÉCLARATION AUTOMATISÉE (2026-09-06), balayage PAS ENCORE câblé — `detect_preempted()` (E10
+sens B) est exécutable mais sa précision est CONDITIONNÉE À LA DÉCLARATION : 2 faux positifs mesurés,
+tous deux des commits de l'auteur non déclarés.**
+*Livré : hook `tools/hooks/post-commit` + sous-commande `declare` de `check_staged_authorship.py` —
+après CHAQUE commit (même `--no-verify`), le SHA est inscrit dans les empreintes de LA SESSION QUI
+COMMITE (`session_id` dans l'empreinte, lu de `$AGAGI_SESSION_ID` puis `$CLAUDE_CODE_SESSION_ID`) pour
+les chemins portés. La question dure — le hook tourne pour TOUTES les sessions du même `.git` — est
+tranchée par IDENTITÉ DÉCLARÉE, pas par contenu (le contenu ne porte pas d'auteur : déclarer par contenu
+aurait inscrit le commit préempteur dans l'empreinte de la victime, annulant la détection). Sans
+identité : RIEN n'est déclaré (statu quo, jamais une détection annulée). 5 tests `-k P226` (fires /
+spares / scope, dont le hook réel dans un dépôt temporaire). Installation : `cp tools/hooks/post-commit
+.git/hooks/post-commit`. Reste : (1) les 8 empreintes réelles sont LÉGATAIRES (sans `session_id`) et
+rendent donc encore 2 faux + 1 vrai — réponse connue inchangée = contrôle que le hook ne les touche pas ;
+(2) le câblage du balayage au pre-commit se décide sur une re-mesure après quelques commits déclarés.
+Hook INSTALLÉ dans `.git/hooks/post-commit` le 2026-09-06 (LF, exécutable, identique à sa source).
+Prémisse laissée « non mesurée » par le design, MESURÉE : `CLAUDE_CODE_SESSION_ID` est le même dans la
+session-mère et dans ses shells enfants — `CLAUDE_CODE_CHILD_SESSION` vaut `1`, c'est un drapeau, pas
+un identifiant distinct ; et la variable est bien propagée à un script `sh` lancé par git (mesuré :
+36 caractères dans le hook). La déclaration couvre donc toute une lignée de travail, sans trou.*
 Le sens B — « une session parallèle commite mon travail avant moi » — a récidivé le 2026-09-02
 (occurrence 14 : P2.23-P2.25 emportées par un commit de l'arc EVO-028). La garde promue le matin même
 pour ce cas exact ne s'est pas déclenchée : **elle n'a jamais été invoquée**, faute d'empreinte prise
@@ -1035,7 +1052,7 @@ la rencontre de deux correctifs indépendants le même jour : `481117e` (session
   CLIQUET, sur le modèle de `check_instrument_calibration.py` : le défaut se reforme silencieusement à
   chaque nouvelle sonde.
 
-**P2.28 — ⚠️ OUVERT — une FAMILLE de pré-inscriptions peut passer TOUTES les portes de
+**P2.28 — ✅ CLOSE (2026-09-06) — une FAMILLE de pré-inscriptions POUVAIT passer TOUTES les portes de
 `check_preregistration_applied` sans être vérifiée par AUCUNE. Mesuré sur la famille scellée le
 2026-09-02.**
 La sémantique de FAMILLE (base + chaîne `-bis`) — introduite le 2026-09-02 pour qu'une règle amendée
@@ -1065,6 +1082,25 @@ record EXISTE et mentionne bien les 7 grandeurs. La vérification annoncée n'a 
 - ⚠️ **Mon propre audit de ce défaut a d'abord rendu « 0 cas »** — sa notion de « record au nom
   similaire » ne rattrapait pas justement celui-ci. Un audit d'une non-couverture silencieuse peut
   être silencieusement non couvrant : ne pas le croire sur un seul passage.
+- **CLÔTURE (2026-09-06)** : `scan()`/`couverture()` jugent par FAMILLE (UNION des grandeurs, UNION des
+  records) via une source unique `_inspection()` ; rattachement en trois formes toutes DÉCLARÉES —
+  `record:` d'enveloppe (hors sceau, STRICTE), citation `docs/preregistrations/<nom>.json` dans le record
+  (13 records le faisaient déjà), préfixe de nom. Mention nue du nom = non rattaché (contre-exemple gelé).
+  Sous-produit trouvé en calibrant : `lr=0.002` normalisé en `lr0002` aurait flaggé la famille À TORT le
+  jour de son rattachement → un niveau n'est pas une grandeur (coupure sur `=`). Mesuré après : **14/25**
+  familles inspectées (10 sans grandeur, **1** non rattachée et NOMMÉE : EVO-028-SMOKE, transitoire ;
+  EVO-022 s'est rattachée par un record cite désormais sa règle), `scan()`
+  vide ; S2-FLOOR-PRONOSTIC désormais confrontée à S2-013 (5/5 grandeurs présentes). ⚠️ Séparer « aucun
+  record » de « record existant non rattaché » sans deviner est impossible : le cliquet NOMME les familles
+  non rattachées au lieu de les compter. Tests : 6 cas dans `tests/sandbox/test_preregistration_applied.py`.
+- ⚠️ **DÉFAUT DU DESIGN, trouvé par le test du dépôt réel — son réfutateur était mort** (limite de
+  session) : la clé `record:` COLLISIONNE avec un champ `rule.record` qui existait déjà dans **24 règles
+  scellées**, en PROSE (`"EDR-EVO-006 (replication directe)"`), pas en chemin. Lu strictement, il criait
+  « record déclaré INTROUVABLE » sur 13 familles — incorrigibles, puisque scellées. Correctif par
+  LOCALISATION : l'enveloppe (hors sceau, corrigeable) reste stricte, une valeur qui ne résout pas est
+  un problème visible ; `rule.record` (dans le sceau) n'est utilisé que s'il RÉSOUT vers un fichier et
+  n'est jamais signalé pendant. Leçon P2.25 rejouée : un plan dont le vérificateur est mort n'est pas
+  vérifié — c'est le test sur données réelles qui a tenu lieu de réfutateur.
 
 ---
 
