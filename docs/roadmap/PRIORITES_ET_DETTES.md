@@ -940,7 +940,8 @@ confond fatal au design (`lr` pilotant aussi le sender).
   ne suffit pas. Correctif : que le script compte les échecs et REFUSE de rendre un verdict global si
   `agents_error > 0`, au lieu de rendre une liste vide.
 
-**P2.26 — 🔧 DÉCLARATION AUTOMATISÉE (2026-09-06), balayage PAS ENCORE câblé — `detect_preempted()` (E10
+**P2.26 — ✅ CLOSE (2026-09-07) — déclaration AUTOMATIQUE (post-commit) + balayage CÂBLÉ (porte 7,
+avertissement seul) — `detect_preempted()` (E10
 sens B) est exécutable mais sa précision est CONDITIONNÉE À LA DÉCLARATION : 2 faux positifs mesurés,
 tous deux des commits de l'auteur non déclarés.**
 *Livré : hook `tools/hooks/post-commit` + sous-commande `declare` de `check_staged_authorship.py` —
@@ -953,7 +954,16 @@ identité : RIEN n'est déclaré (statu quo, jamais une détection annulée). 5 
 spares / scope, dont le hook réel dans un dépôt temporaire). Installation : `cp tools/hooks/post-commit
 .git/hooks/post-commit`. Reste : (1) les 8 empreintes réelles sont LÉGATAIRES (sans `session_id`) et
 rendent donc encore 2 faux + 1 vrai — réponse connue inchangée = contrôle que le hook ne les touche pas ;
-(2) le câblage du balayage au pre-commit se décide sur une re-mesure après quelques commits déclarés.
+(2) ✅ **CÂBLÉ le 2026-09-07** — la condition inscrite ici avant de câbler (« une re-mesure après
+quelques commits déclarés ») est REMPLIE : sur les 9 empreintes réelles, **1 seul signalement, et
+c'est le VRAI positif connu** (`bar-reachable`, emporté par `481117e`) — **zéro faux positif**.
+Porte 7 du hook, `scan_own_snapshots` SCOPÉ à la session : un balayage global parlerait à qui
+commite de préemptions subies par d'AUTRES — du bruit adressé à la mauvaise personne. **Jamais
+bloquante**, et l'argument n'est pas la prudence : une préemption n'est pas réparable par celui qui
+commite (son travail est déjà dans HEAD) ; bloquer sur l'irréparable produit un cliquet qu'on
+désactive. Les empreintes LÉGATAIRES restent invisibles à ce balayage — assumé et gelé par un test.
+Vérifié EN PRODUCTION : le post-commit a déclaré `084a676` sur ses 3 empreintes, porte 7 silencieuse.
+4 cas de calibration (`-k SCAN`), 9/9 avec les 5 P226 d'origine.
 Hook INSTALLÉ dans `.git/hooks/post-commit` le 2026-09-06 (LF, exécutable, identique à sa source).
 Prémisse laissée « non mesurée » par le design, MESURÉE : `CLAUDE_CODE_SESSION_ID` est le même dans la
 session-mère et dans ses shells enfants — `CLAUDE_CODE_CHILD_SESSION` vaut `1`, c'est un drapeau, pas
