@@ -797,8 +797,9 @@ hook-seul **skippe** la garde. Le cliquet ne dépend plus de la discipline — p
 (règle documentée sans application exécutable => violée) enfin fermé pour la calibration comme il l'était
 pour les records. *Bypass d'urgence : `git commit --no-verify`.*
 
-**P2.13 — ⚠️ OUVERTE, et c'est la DETTE SCIENTIFIQUE DOMINANTE (état mesuré le 2026-09-07 : 1 arc
-ré-audité sur 4, et il a été RÉTRACTÉ).** Classe E19 : balayer le PAS, et RE-AUDITER au réglage le stock de
+**P2.13 — ✅ CLOSE (2026-09-07) par un ÉCRAN MÉCANIQUE, à coût de simulation NUL — et ma propre
+qualification « dette scientifique dominante », écrite le matin même, était FAUSSE sur 2 des 3
+cibles.** Classe E19 : balayer le PAS, et RE-AUDITER au réglage le stock de
 conclusions de l'arc BILINEAR / LANG-MEMORY / MEM-PERCEPTION / RETAIN-COMPOSE (tous à `lr=0.02`).**
 *Preuve : à protocole identique et n=12, la seule variation de `lr` bascule le verdict d'un record ENTIER*
 — `run_retain_compose_diagnostic_probe`, `episodes=600`, `n_agents=16`, `K=6`, `bar=0.3167` :
@@ -807,25 +808,47 @@ conclusions de l'arc BILINEAR / LANG-MEMORY / MEM-PERCEPTION / RETAIN-COMPOSE (t
 `W/U/V/W_bl`, `src/agents/backend_torch.py:85-86`) → **batch effectif = 1**, toléré par les conditions à un
 `_step` et divergent sur les deux `_step`.
 
-**Où en est le ré-audit, au 2026-09-07 :**
+**Résultat du crible, 2026-09-07 — les 3 arcs restants sont PEU SENSIBLES, et c'est MÉCANIQUE :**
 
-| arc | record | ré-audité au PAS ? | issue |
+E19 n'est pas « un `lr` trop grand » : c'est un pas trop grand **sur un batch effectif 1**, dont l'effet
+n'explose que si le gradient doit traverser une frontière récurrente. La grandeur qui décide n'est donc
+pas la longueur de la séquence mais la **PROFONDEUR DU GRADIENT**. Écran appliqué aux trois :
+
+| arc | `lr` publié | profondeur du gradient | exposé ? |
 |---|---|---|---|
-| RETAIN-COMPOSE | `EDR-RETAIN-COMPOSE` | ✅ oui | **RÉTRACTÉ** — le mur était un artefact de `lr` |
-| DELAYED-COORD | `EDR-DELAYED-COORD` | ✅ oui (n=12 scellé) | clause opérationnelle **réfutée**, clause scientifique corroborée |
-| BILINEAR | `EDR-BILINEAR` | ❌ **non** | porte le déblocage de la composition |
-| MEM-PERCEPTION | `EDR-MEM-PERCEPTION` | ❌ **non** | **porte une arête du graphe** (3.934) |
-| LANG-MEMORY | `EDR-LANG-MEMORY` + `LANG-MEMORY-EDGE` | ❌ **non** | **porte une arête du graphe** (4.967) |
+| BILINEAR (cellule décisive) | 0.02 | **1** — `same_tick=True` ⇒ séquence de longueur 1, `H_in` = zéros littéraux | non |
+| MEM-PERCEPTION | 0.02 | **1, invariante** — `learn_episode` détache EN TÊTE de boucle (`backend_torch.py:357`) | non |
+| LANG-MEMORY (l'arête) | **0.002** | 1 | non — déjà au `lr` correctif |
 
-⚠️ **Deux des trois records non ré-audités PORTENT UNE ARÊTE du graphe AGI-Taxonomy.** Sur les deux arcs
-déjà passés au crible, l'un a été rétracté et l'autre a vu une de ses deux clauses tomber : le taux de
-révision observé est de **2/2**. Ce n'est pas une raison de conclure d'avance — c'est une raison de
-mesurer, et de ne pas citer ces trois records comme acquis d'ici là.
-**Protocole disponible et rodé** (appliqué à DELAYED-COORD) : règle scellée AVANT, DV backtickée,
-test des signes apparié n=12, contrôle interne d'annulation, `sender_lr` fixé pour ne varier qu'un axe,
-`eval_every` pour séparer « pas bas » de « sous-entraîné ». Coût mesuré : ~0,05 s/épisode mono-thread.
-**Premier pas recommandé, et il est bon marché** : établir LESQUELS des trois sont sensibles au pas
-(balayage court, n=3, critère de sensibilité) AVANT d'engager trois re-mesures n=12.
+Trois corrections à ce que j'avais écrit le matin même, toutes vérifiées :
+
+1. **L'arête `language→memory` n'est pas portée par `EDR-LANG-MEMORY`** mais par
+   `LANG-MEMORY-EDGE_Third_Edge_Established_…` (c'est le champ `record` de `demands.json` qui le dit),
+   et elle est scellée à **`lr=0.002`, 3600 ép.** — la valeur correctrice elle-même. Jamais exposée.
+2. **`EDR-BILINEAR` porte déjà son encart de rétro-audit** : sa clause secondaire 2-pas a été
+   re-mesurée (0.1789 à `lr=0.02` → 0.3797 à `lr=0.002`, 0/144, n=12) et sa clause principale est à
+   UN pas, explicitement « hors du régime suspect ».
+3. **Seul `MEM-PERCEPTION` n'a jamais été re-audité** — et son crédit est à 1 pas, le régime que
+   `EDR-RETAIN-COMPOSE-LR` a mesuré comme TOLÉRANT à `lr` élevé.
+
+⚠️ **Et le crible que je proposais était un INSTRUMENT À ISSUE UNIQUE.** « Balayage court n=3 » :
+`ablation_verdict` a `n_floor=12` en dur (`tools/demand_marker.py:70`), et le garde-fou bloque les TROIS
+branches sous ce seuil. Vérifié en exécutant l'instrument sur des formes connues — effondrement net,
+inerte, inversé — **les trois rendent `INCONCLUSIVE` à n=3**, et discriminent à n=12. Ma proposition ne
+pouvait donc rendre qu'une seule issue : c'est la question 1 du pré-vol, ratée sur mon propre design.
+L'écran mécanique l'a remplacée, et il a coûté zéro simulation.
+
+**Ce qui RESTE, et ce n'est pas E19** — le crible a redirigé la dette au lieu de la fermer à blanc :
+
+- **BILINEAR est exposé à P2.15, pas au pas.** Sa barre `1/K+0.15 = 0.3167` est 0.072 SOUS le plafond
+  structurel du plain (0.3889). Corollaire mesuré et contre-intuitif : **allonger `episodes` ne renforce
+  pas cette mesure, il la CASSE** — le plain monte vers son plafond pendant que le bilinéaire est déjà
+  haut, et la séparation se referme par le bas. Un budget plus grand n'est pas ici un budget plus sûr.
+- **MEM-PERCEPTION : les défauts du module ne sont PAS le régime publié** (`episodes=800`, `lr=0.05` en
+  signature contre `1200`, `0.02` gravés). Un « simple re-run » ne reproduirait pas le record.
+- **Signalé par un réfutateur, à instruire séparément** : d'après `test_agi_taxonomy_gate.py:8-11`, le
+  bras DELAYED de MEM-PERCEPTION serait « arithmétiquement FORCÉ » et incapable de produire l'issue
+  négative. Si c'est exact, c'est une E1/E2 sur une arête GRAVÉE — et sans rapport avec le pas.
 - **À faire** : (a) tout probe dont le verdict compare des conditions de **profondeur récurrente
   différente** doit exhiber la stabilité de son verdict sur ≥ 1 décade de `lr` ; le critère porte sur
   l'**écart au bras de référence** (flaguer si le balayage le referme de plus de 2/3), **jamais** sur le
