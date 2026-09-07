@@ -115,5 +115,19 @@ if [ -n "$staged_sub" ]; then
   }
 fi
 
+# 7. PREEMPTION DE MON TRAVAIL (P2.26, E10 sens B) -- AVERTISSEMENT SEUL, JAMAIS BLOQUANT.
+# Signale les empreintes de CETTE SESSION dont le travail est deja porte par le commit de quelqu'un
+# d'autre. Deux raisons de ne pas bloquer : la preemption n'est PAS reparable par celui qui commite
+# (son travail est deja dans HEAD), et un cliquet qui bloque sur l'irreparable est un cliquet qu'on
+# desactive. La reponse juste est d'ETRE AVERTI.
+# Scope par SESSION ($AGAGI_SESSION_ID, sinon $CLAUDE_CODE_SESSION_ID) : un balayage global parlerait
+# a qui commite de preemptions subies par d'AUTRES sessions -- du bruit adresse a la mauvaise personne.
+# Sans identite, ou sans empreinte de cette session : silencieux, cout nul.
+# Condition de cablage, inscrite au backlog AVANT et mesuree le 2026-09-07 : 9 empreintes, 1 seul
+# signalement, et c'est le VRAI positif connu -- zero faux positif.
+PYTHONIOENCODING=utf-8 python tools/check_staged_authorship.py scan >/dev/null 2>/tmp/agagi_scan.err || true
+[ -s /tmp/agagi_scan.err ] && cat /tmp/agagi_scan.err
+rm -f /tmp/agagi_scan.err
+
 [ "$fail" -ne 0 ] && echo "   (urgence : git commit --no-verify)"
 exit $fail

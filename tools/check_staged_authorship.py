@@ -607,6 +607,48 @@ def declare_head_commit(sha: str = "HEAD", *, session_id: str = None, snapshot_d
     return declared
 
 
+def scan_own_snapshots(*, session_id: str = None, snapshot_dir: str = None, cwd: str = _ROOT):
+    """Balaye les empreintes de LA SESSION COURANTE et renvoie {owner: report} des préemptions (sens B).
+
+    ⚠️ SCOPÉ PAR SESSION, et ce n'est pas un détail de confort. Un balayage NON scopé parlerait à qui
+    commite des préemptions subies par D'AUTRES sessions : du bruit adressé à la mauvaise personne, et
+    un cliquet qu'on apprend à ignorer. Ici, on ne signale que TON travail à TOI.
+
+    Une empreinte LÉGATAIRE (sans `session_id`, prises avant P2.26) est SAUTÉE : on ne peut pas
+    l'attribuer, et deviner rejouerait la forme rétrospective déclarée non automatisable (E10 occ. 4).
+    Conséquence assumée et mesurée : le vrai positif légataire de `bar-reachable` reste invisible à ce
+    balayage — il est visible au balayage manuel, qui reste la voie pour les empreintes anciennes.
+
+    Ne lève JAMAIS : la préemption n'est pas réparable par celui qui commite (son travail est déjà dans
+    HEAD). La réponse juste est d'ÊTRE AVERTI, pas d'être bloqué."""
+    d = snapshot_dir or _DEFAULT_SNAPSHOT_DIR
+    sid = session_id or _current_session_id()
+    if not sid or not os.path.isdir(d):
+        return {}
+    par_owner = {}
+    for fn_ in sorted(os.listdir(d)):
+        if not fn_.endswith(".json"):
+            continue
+        try:
+            with open(os.path.join(d, fn_), encoding="utf-8") as f:
+                snap = json.load(f)
+        except (OSError, ValueError):
+            continue
+        if not isinstance(snap, dict) or snap.get("session_id") != sid:
+            continue
+        if snap.get("path"):
+            par_owner.setdefault(snap.get("owner") or "default", []).append(snap["path"])
+    out = {}
+    for owner, paths in sorted(par_owner.items()):
+        try:
+            rep = detect_preempted(paths, owner=owner, snapshot_dir=d, cwd=cwd)
+        except Exception:
+            continue                                  # best-effort : un balayage ne casse rien
+        if rep:
+            out[owner] = rep
+    return out
+
+
 # --- CLI ---------------------------------------------------------------------------------------------
 
 def _cli(argv=None):
@@ -647,6 +689,11 @@ def _cli(argv=None):
     dp.add_argument("--dir", default=None)
     dp.add_argument("--cwd", default=None, help="racine du dépôt (défaut : ce dépôt-ci)")
 
+    kp = sub.add_parser("scan", help="balayer MES empreintes et signaler les préemptions (avertissement)")
+    kp.add_argument("--dir", default=None)
+    kp.add_argument("--cwd", default=None, help="racine du dépôt (défaut : ce dépôt-ci)")
+    kp.add_argument("--session-id", default=None, help="identité explicite (défaut : environnement)")
+
     args = ap.parse_args(argv)
     cwd = args.cwd or _ROOT
 
@@ -655,6 +702,14 @@ def _cli(argv=None):
                           session_id=args.session_id):
             print(f"empreinte écrite : {p}")
         return 0
+
+    if args.cmd == "scan":
+        rapport = scan_own_snapshots(session_id=args.session_id, snapshot_dir=args.dir, cwd=cwd)
+        for owner, rep in rapport.items():
+            print(f"[owner={owner}] {WorkPreempted(rep)}", file=sys.stderr)
+        if not rapport:
+            print("OK : aucune préemption sur les empreintes de cette session.")
+        return 0                                      # JAMAIS bloquant : cf. scan_own_snapshots
 
     if args.cmd == "declare":
         # Un post-commit ne peut ni bloquer ni faire échouer le commit : sortie 0 QUOI QU'IL ARRIVE, et

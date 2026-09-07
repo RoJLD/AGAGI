@@ -17,6 +17,7 @@ entre les cas ferait tomber ce coût d'un ordre de grandeur — à faire avant d
 """
 import json
 import os
+import pathlib
 import shutil
 import stat
 import subprocess
@@ -33,7 +34,8 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 
 from tools.check_staged_authorship import (  # noqa: E402
     snapshot, verify, confirm_commit, detect_preempted, declare_head_commit, _snapshot_path, _cli,
-    NoSnapshotError, ForeignHunkDetected, MissingPathsInCommit, WorkPreempted)
+    NoSnapshotError, ForeignHunkDetected, MissingPathsInCommit, WorkPreempted, scan_own_snapshots,
+)
 
 _FILE = "shared_module.py"
 _OTHER = "other_module.py"
@@ -604,3 +606,83 @@ def test_P226_SCOPE_the_post_commit_HOOK_declares_via_git_even_under_no_verify(t
     _append(repo, "\n# encore\n")
     _git(["add", _FILE], repo)
     _git(["commit", "-q", "-m", "encore", "--", _FILE], repo)   # `_git` asserte returncode == 0
+
+
+# ======================================================================================================
+# 2026-09-07 -- P2.26, second etage : le BALAYAGE des empreintes, SCOPE A LA SESSION COURANTE.
+#
+# La declaration automatique (hook post-commit) supprime les faux positifs ; le balayage les FAIT REMONTER
+# a qui les subit. Re-mesure du 2026-09-07, condition inscrite au backlog AVANT de cabler : 9 empreintes,
+# 1 signalement, et c'est le VRAI positif -- zero faux positif. Le scope par SESSION est ce qui rend le
+# cablage supportable : un balayage global parlerait a qui commite des preemptions subies par d'AUTRES.
+# ======================================================================================================
+
+def test_P226_SCAN_FIRES_on_MY_snapshot_preempted_by_another_session(tmp_path, monkeypatch):
+    """FIRES, reponse connue OUI : mon empreinte (S-A), j'edite, une AUTRE session commite mon travail.
+    Le balayage de MA session doit le signaler -- c'est l'occurrence 16, rendue automatique."""
+    _no_ambient_session(monkeypatch)
+    repo = _init_repo(tmp_path)
+    snap_dir = str(tmp_path / "snaps")
+    snapshot([_FILE], owner="ma-tache", snapshot_dir=snap_dir, cwd=repo, session_id="S-A")
+    _append(repo, "\n\ndef my_work():\n    return 'mine'\n")
+    _git(["commit", "-q", "-m", "une autre session emporte mon travail", "--", _FILE], repo)
+
+    rapport = scan_own_snapshots(session_id="S-A", snapshot_dir=snap_dir, cwd=repo)
+    assert list(rapport) == ["ma-tache"], rapport
+    assert rapport["ma-tache"][_FILE]["matched_by_content"], "apparie PAR CONTENU, pas par voisinage"
+
+
+def test_P226_SCAN_SPARES_once_the_post_commit_hook_has_DECLARED(tmp_path, monkeypatch):
+    """SPARES apparie du precedent, MEME scenario a UNE variable pres : c'est MOI qui commite, donc le
+    hook declare. Sans ce cas, une garde qui signalerait TOUT passerait le test `fires` seule."""
+    _no_ambient_session(monkeypatch)
+    repo = _init_repo(tmp_path)
+    snap_dir = str(tmp_path / "snaps")
+    snapshot([_FILE], owner="ma-tache", snapshot_dir=snap_dir, cwd=repo, session_id="S-A")
+    _append(repo, "\n\ndef my_work():\n    return 'mine'\n")
+    _git(["commit", "-q", "-m", "je commite mon propre travail", "--", _FILE], repo)
+
+    assert scan_own_snapshots(session_id="S-A", snapshot_dir=snap_dir, cwd=repo), "avant declaration : signale"
+    declare_head_commit("HEAD", session_id="S-A", snapshot_dir=snap_dir, cwd=repo)
+    assert scan_own_snapshots(session_id="S-A", snapshot_dir=snap_dir, cwd=repo) == {}
+
+
+def test_P226_SCAN_SCOPE_ignores_ANOTHER_session_and_LEGACY_snapshots(tmp_path, monkeypatch):
+    """SCOPE -- ce que le balayage NE dit PAS, et c'est delibere.
+
+    Deux empreintes preemptees a l'identique : une d'une AUTRE session (S-B), une LEGATAIRE (sans
+    `session_id`). Le balayage de S-A n'en signale AUCUNE : la premiere n'est pas son affaire (du bruit
+    adresse a la mauvaise personne), la seconde n'est pas attribuable (deviner rejouerait la forme
+    retrospective declaree non automatisable, E10 occ. 4). Consequence assumee ET mesuree en production :
+    le vrai positif LEGATAIRE de `bar-reachable` reste invisible a ce balayage -- il l'est au balayage
+    manuel, qui reste la voie pour les empreintes anciennes."""
+    _no_ambient_session(monkeypatch)
+    repo = _init_repo(tmp_path)
+    snap_dir = str(tmp_path / "snaps")
+    snapshot([_FILE], owner="autre-session", snapshot_dir=snap_dir, cwd=repo, session_id="S-B")
+    snapshot([_FILE], owner="legataire", snapshot_dir=snap_dir, cwd=repo)
+    _append(repo, "\n\ndef my_work():\n    return 'mine'\n")
+    _git(["commit", "-q", "-m", "commit d'un tiers", "--", _FILE], repo)
+
+    assert detect_preempted([_FILE], owner="autre-session", snapshot_dir=snap_dir, cwd=repo), (
+        "premisse : ces empreintes SONT preemptees -- sinon le test ne prouverait rien")
+    assert detect_preempted([_FILE], owner="legataire", snapshot_dir=snap_dir, cwd=repo)
+    assert scan_own_snapshots(session_id="S-A", snapshot_dir=snap_dir, cwd=repo) == {}
+
+
+def test_P226_SCAN_SCOPE_never_blocks_and_survives_a_broken_snapshot(tmp_path, monkeypatch):
+    """SCOPE : une preemption n'est pas reparable par celui qui commite -- son travail est DEJA dans HEAD.
+    La reponse juste est d'ETRE AVERTI, pas d'etre bloque : le CLI rend 0 meme quand il signale. Et un
+    JSON illisible est saute, jamais leve : un balayage best-effort ne casse pas un commit."""
+    _no_ambient_session(monkeypatch)
+    repo = _init_repo(tmp_path)
+    snap_dir = str(tmp_path / "snaps")
+    snapshot([_FILE], owner="ma-tache", snapshot_dir=snap_dir, cwd=repo, session_id="S-A")
+    _append(repo, "\n\ndef my_work():\n    return 'mine'\n")
+    _git(["commit", "-q", "-m", "emporte", "--", _FILE], repo)
+    with open(os.path.join(snap_dir, "casse.json"), "w", encoding="utf-8") as f:
+        f.write("{ pas du json")
+
+    assert scan_own_snapshots(session_id="S-A", snapshot_dir=snap_dir, cwd=repo), "signale malgre le JSON casse"
+    monkeypatch.setenv("AGAGI_SESSION_ID", "S-A")
+    assert _cli(["scan", "--dir", snap_dir, "--cwd", repo]) == 0, "un balayage ne bloque JAMAIS un commit"
