@@ -3,7 +3,8 @@ id: EDR-171
 type: EDR
 title: "Gate binaire, test HELD-OUT sans confond (cran 2, Brique B1) : le mécanisme de routage d'une action BINAIRE (throw) sur un contexte PRÉSENT-PROPRE est INTACT et GÉNÉRALISE. Corrige les 3 causes du confond de mémorisation d'EDR-169 (obs VARIABLES par épisode, S1 stochastique, did_craft encodé dans obs_b[:,0]) + HELD-OUT (readout gelé, obs fraîches) + contrôle SHUFFLE (label de récompense permuté). Verdict POSITIF PROPRE : gap_ON 0.72-0.75 vs gap_SHUFFLE ~−0.02 (PLAT), diff médian +0.759, 4/4 seeds, BINDING_REEL_HELDOUT. Revue adversariale VALIDE (held-out réel 0/100 overlap, ablation w[0] → gap 0.74→0.001 = tout le gap dans le canal contexte, scramble canal → gap ~0). BORNE : le décodage est TRIVIAL (readout lit un canal d'obs propre injecté verbatim dans H) — ce n'est PAS 'binding résolu' ; la difficulté de représentation distribuée reste B2 (biosphère)"
 status: accepted
-gate: null
+gate: G2
+tests: [SDR-G2]
 verdict: BINARY_GATE_ROUTES_PRESENT_CONTEXT_HELDOUT_PASSES_SHUFFLE
 ---
 

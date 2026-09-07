@@ -50,6 +50,14 @@ def run_arm(gate_on, episodes=800, n_agents=64, seed=0, lr=0.05, antisat=6.0, sh
     eleve sous ce controle prouverait que le readout memorise n'importe quel label fixe (confond), pas
     qu'il conditionne sur le VRAI craft.
     Renvoie binding_gap (dernier quart) + comp_rate + throw_rate."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06, famille run_* -- 7e elargissement du cliquet). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte
+    # vide / un horizon nul rend 0.0 ou nan comme une MESURE que l'aval lit comme un resultat
+    # (biais negatif systematique du depot). Posee AVANT toute construction -> refus < 0.5 s.
+    if int(n_agents) <= 0 or int(episodes) <= 0:
+        raise ValueError(
+            f"run_arm : argument degenere (n_agents={n_agents} episodes={episodes}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     np.random.seed(seed)
     torch.manual_seed(seed)
     # P2.27 -- substrat EPINGLE, pas herite de l'ambiant : `TorchPopulationModel.BILINEAR` est un

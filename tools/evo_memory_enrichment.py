@@ -278,6 +278,13 @@ def run_experiment(seeds, K, D, generations, pop, eval_trials=32, sep_pairs=64, 
     On rapporte aussi l'accuracy du génome MLESS sur SA PROPRE tâche (a-t-il appris ? -> son échec en
     XEVAL est bien « pas de mémoire », pas « rien appris »). sep(D) : corroboration dynamique SECONDAIRE
     (on documente qu'elle NE tracke PAS la capacité — le signe survit à la contraction)."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06). Orchestrateur : il n'entraine pas lui-meme mais
+    # AGREGE en verdict -- une cohorte/liste de seeds vide produit une agregation VIDE que l'aval
+    # lit comme une mesure (biais negatif systematique). Refus instantane, avant tout appel de run.
+    if not list(seeds) or int(K) <= 0 or int(generations) <= 0 or int(pop) <= 0 or int(eval_trials) <= 0:
+        raise ValueError(
+            f"run_experiment : argument degenere (n_seeds={len(list(seeds))} K={K} generations={generations} pop={pop} eval_trials={eval_trials}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     acc_dd, acc_mx, acc_ff, acc_mm = [], [], [], []
     sep_d, sep_m, sep_f, nodes_d = [], [], [], []
     for s in seeds:

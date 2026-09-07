@@ -109,6 +109,13 @@ def measure_arm(genome, use_3d: bool, seed: int, n_eras: int = 2,
 def run_probe(genome, seeds: List[int], n_eras: int = 2, n_agents: int = 12,
               max_ticks: int = 600) -> Dict:
     """2 bras (2D/3D) sur K seeds appariés. Agrège (médiane survie, moyenne z-usage) et classifie."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06). Cette definition homonyme roulait sur un FAUX VERT :
+    # le cliquet verdissait le nom nu des qu'UN autre fichier etait declare (defaut corrige le meme
+    # jour). Un argument degenere est une erreur d'APPEL, pas un fait sur le monde.
+    if not list(seeds) or int(n_eras) <= 0 or int(n_agents) <= 0 or int(max_ticks) <= 0:
+        raise ValueError(
+            f"run_probe : argument degenere (seeds={list(seeds)} n_eras={n_eras} n_agents={n_agents} max_ticks={max_ticks}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     a2d = [measure_arm(genome, False, s, n_eras, n_agents, max_ticks) for s in seeds]
     a3d = [measure_arm(genome, True, s, n_eras, n_agents, max_ticks) for s in seeds]
     surv_2d = float(statistics.median([r["survival"] for r in a2d]))

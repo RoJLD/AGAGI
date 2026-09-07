@@ -49,6 +49,14 @@ def _seq_score(kind, W_list, models, noise, rng, s, seq, goal, d, K):
 
 def run_depth(d=8, K=4, exec_steps=5, n_test=120, depths=(1, 2, 3, 4), noise=0.15, seed=0, n_fit=3000):
     """Pour chaque modèle et chaque profondeur k, succès du planning MPC depth-k vers des buts jamais vus."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06, famille run_* -- 7e elargissement du cliquet). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte
+    # vide / un horizon nul rend 0.0 ou nan comme une MESURE que l'aval lit comme un resultat
+    # (biais negatif systematique du depot). Posee AVANT toute construction -> refus < 0.5 s.
+    if int(n_test) <= 0 or int(exec_steps) <= 0 or len(tuple(depths)) == 0:
+        raise ValueError(
+            f"run_depth : argument degenere (n_test={n_test}, exec_steps={exec_steps}, depths={depths}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     W_list = _true_dynamics(d, K, seed)
     models = _fit_models(W_list, d, K, n_fit, seed)
     rng = np.random.RandomState(seed + 5)

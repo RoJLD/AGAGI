@@ -1,3 +1,15 @@
+---
+# frontmatter ajouté rétroactivement (T2, 2026-09-06) ; corps d'origine inchangé
+id: EDR-151
+type: EDR
+title: "ToM comportementale : INDÉTERMINÉ formel, aucun recrutement au-dessus du plancher géométrique"
+status: legacy
+gate: G4
+tests: [SDR-G4]
+verdict: INDETERMINE
+extends: [EDR-150]
+---
+
 # EDR 151 — ToM comportementale : verdict formel INDETERMINE, mais AUCUN recrutement au-dessus du plancher géométrique (→ directionnellement INDEPENDENT ; le décode latent d'EDR 150 = contexte partagé)
 
 > **Date** : 2026-07-01. **Verdict pre-enregistre** : `COORDINATED` si `delta = P(attack|>=1 autre) - P(attack|seul) >= 0.10` ; `INDETERMINE` si `n_with<20` OU `n_alone<20` ; sinon `INDEPENDENT`.

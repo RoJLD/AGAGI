@@ -58,6 +58,13 @@ def run_openloop_ladder(worlds=None, seed=2026, K=12, num_agents=12, max_ticks=2
     ablation_verdict (ratio/n/collapse/decoy/verdict) et verdict = lecture world-level (SURVIE) :
     SURVIVAL_NEUTRAL (les 3 barreaux sont des leurres) / SURVIVAL_SENSITIVE (au moins un s'effondre) /
     MIXED. NB : verdict sur la SURVIE, ne conclut pas sur le comportement (voir docstring module)."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06). Orchestrateur : il n'entraine pas lui-meme mais
+    # AGREGE en verdict -- une cohorte/liste de seeds vide produit une agregation VIDE que l'aval
+    # lit comme une mesure (biais negatif systematique). Refus instantane, avant tout appel de run.
+    if int(K) <= 0 or int(num_agents) <= 0 or int(max_ticks) <= 0:
+        raise ValueError(
+            f"run_openloop_ladder : argument degenere (K={K} num_agents={num_agents} max_ticks={max_ticks}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     worlds = worlds if worlds is not None else ["soup", "stoneage", "famine"]
     champion = load_champion_genome()
     out = {}

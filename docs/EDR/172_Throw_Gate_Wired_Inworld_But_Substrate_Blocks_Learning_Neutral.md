@@ -3,7 +3,8 @@ id: EDR-172
 type: EDR
 title: "Throw-gate câblé in-world (cran 2, Brique B2) : le mécanisme de gate binaire validé isolé par EDR-171 (B1) est correctement câblé dans la vraie boucle biosphère (world_1_stoneage.py, sous use_torch_inworld AND torch_throw_gate, non-régressif prouvé, 10 tests, revue adversariale opus = PRÊT À MERGER) — MAIS il ne binde PAS in-world : le binding_gap = P(throw|spear) − P(throw|¬spear) reste du BRUIT, le témoin shuffle binde autant (SHUFFLE_BINDE_PLUS). Le verrou est le SUBSTRAT, à DEUX couches, PAS le mécanisme : (1) la cohorte FRAÎCHE s'éteint avant l'horizon d'apprentissage du gate — NON rescuable par le régime énergétique (alive=0 jusqu'au régime extrême bm=0.1/fp=5.0, sur 3 régimes défaut/sweet/extrême) ; (2) même avec survie prolongée (~920 échantillons), la récompense kill-avec-outil est trop RARE (0-6/300 ticks) pour piloter le REINFORCE. Le monde refuse au throw-gate À LA FOIS la survie de cohorte ET la densité de crédit que le monde-jouet de B1 fournissait. Confirme la thèse substrat-pas-mécanisme (163 survie NEUTRE, 166 gate-persist NEUTRE, famille H-unif)"
 status: accepted
-gate: null
+gate: G2
+tests: [SDR-G2]
 verdict: THROW_GATE_WIRED_INWORLD_BUT_SUBSTRATE_BLOCKS_LEARNING
 ---
 

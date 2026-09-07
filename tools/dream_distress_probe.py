@@ -69,6 +69,13 @@ log = logging.getLogger("AGIseed.DreamDistress")
 def run_distress(seeds, target, num_agents, max_ticks, shared_db) -> Dict:
     """Par seed : une ère organe-ON (organ_fraction=1.0) au sweet spot -> distress_split -> delta.
     Agrège en verdict. Le signal : les court-vivants rêvent-ils plus (détresse) ?"""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06). Orchestrateur : il n'entraine pas lui-meme mais
+    # AGREGE en verdict -- une cohorte/liste de seeds vide produit une agregation VIDE que l'aval
+    # lit comme une mesure (biais negatif systematique). Refus instantane, avant tout appel de run.
+    if not list(seeds) or int(num_agents) <= 0 or int(max_ticks) <= 0:
+        raise ValueError(
+            f"run_distress : argument degenere (n_seeds={len(list(seeds))} num_agents={num_agents} max_ticks={max_ticks}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     per_seed = []
     for seed in seeds:
         stats = run_era_organ(target, seed, 1.0, 0.25, 3.0, num_agents, max_ticks, shared_db)

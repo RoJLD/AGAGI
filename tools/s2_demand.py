@@ -25,6 +25,14 @@ def run_condition(world_cls, batch_model_cls, genome, seed, num_agents=20, max_t
     genome=None -> agents frais (RandomGenome) ; sinon clones du génome (champion). Renvoie la survie
     INDIVIDUELLE (âge de chaque agent, mort OU survivant-censuré) + life_score, agrégée sur les ères.
     config (WorldConfig) fixe le régime à la construction ; None = défaut historique."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06, famille run_* -- 7e elargissement du cliquet). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte
+    # vide / un horizon nul rend 0.0 ou nan comme une MESURE que l'aval lit comme un resultat
+    # (biais negatif systematique du depot). Posee AVANT toute construction -> refus < 0.5 s.
+    if int(num_agents) <= 0 or int(max_ticks) <= 0 or int(n_eras) <= 0:
+        raise ValueError(
+            f"run_condition : argument degenere (num_agents={num_agents}, max_ticks={max_ticks}, n_eras={n_eras}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     from src.agents.mamba_agent import MambaAgent
     survival, life, censored = [], [], 0
     era_survival, era_life = [], []        # médiane PAR ère -> unité d'appariement par seed (spec §8)
@@ -143,6 +151,13 @@ def _run_all_conditions(world_cls, champion_genome, seed, K, num_agents, max_tic
 
 def run_s2(worlds=None, seed=2026, K=None, num_agents=20, max_ticks=400, with_db=False):
     """Grille S2 complète. K=None -> pilote par monde (power analysis). Renvoie le rapport + le sauve."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06). Orchestrateur : il n'entraine pas lui-meme mais
+    # AGREGE en verdict -- une cohorte/liste de seeds vide produit une agregation VIDE que l'aval
+    # lit comme une mesure (biais negatif systematique). Refus instantane, avant tout appel de run.
+    if int(num_agents) <= 0 or int(max_ticks) <= 0 or (K is not None and int(K) <= 0):
+        raise ValueError(
+            f"run_s2 : argument degenere (num_agents={num_agents} max_ticks={max_ticks} K={K}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     worlds = worlds or list(WORLDS)
     champion = load_champion_genome()
     report = {"seed": seed, "commit": _git_short_commit(), "K": {}, "worlds": {}}

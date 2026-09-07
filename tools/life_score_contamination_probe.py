@@ -168,6 +168,14 @@ def _evolve_for(seed, eras, num_agents, max_ticks):
 def run_arm(seed=0, eras=8, num_agents=30, max_ticks=300):
     """Evolue des champions puis mesure leur cohorte fixe. Retourne le roster (liste de
     composants). CRN : evolution seedee par _evolve_champions, mesure re-seedee par seed."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06, famille run_* -- 7e elargissement du cliquet). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte
+    # vide / un horizon nul rend 0.0 ou nan comme une MESURE que l'aval lit comme un resultat
+    # (biais negatif systematique du depot). Posee AVANT toute construction -> refus < 0.5 s.
+    if int(eras) <= 0 or int(num_agents) <= 0 or int(max_ticks) <= 0:
+        raise ValueError(
+            f"run_arm : argument degenere (eras={eras}, num_agents={num_agents}, max_ticks={max_ticks}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     reps = _evolve_for(seed, eras, num_agents, max_ticks)
     return _measure_roster(_make_cfg(), reps, max_ticks, seed=seed) if reps else []
 

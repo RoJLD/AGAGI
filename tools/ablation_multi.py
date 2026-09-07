@@ -21,6 +21,14 @@ from src.graph_rag.async_logger import logger as async_logger
 
 
 def run_condition(config, db, apply_fn, crit_base, n_eras=4, num_agents=30, max_ticks=200):
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06, famille run_* -- 7e elargissement du cliquet). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte
+    # vide / un horizon nul rend 0.0 ou nan comme une MESURE que l'aval lit comme un resultat
+    # (biais negatif systematique du depot). Posee AVANT toute construction -> refus < 0.5 s.
+    if int(n_eras) <= 0 or int(num_agents) <= 0 or int(max_ticks) <= 0:
+        raise ValueError(
+            f"run_condition : argument degenere (n_eras={n_eras} num_agents={num_agents} max_ticks={max_ticks} crit_base={crit_base}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     proies, mammo = [], []
     for _ in range(n_eras):
         env = Biosphere3D(config)

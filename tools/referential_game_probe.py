@@ -38,6 +38,14 @@ def run_lewis(episodes: int = 1500, n_agents: int = 128, K: int = 6, V: int = 8,
               seed: int = 0, lr: float = 0.05):
     """Entraîne sender+receiver (2 pops torch appariées) sur le jeu référentiel. Renvoie accuracy_late
     (signal FIABLE), accuracy_brouille (signal aléatoire à l'éval), chance=1/K, et le gap fiable-brouillé."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06, famille run_* -- 7e elargissement du cliquet). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte
+    # vide / un horizon nul rend 0.0 ou nan comme une MESURE que l'aval lit comme un resultat
+    # (biais negatif systematique du depot). Posee AVANT toute construction -> refus < 0.5 s.
+    if int(episodes) <= 0 or int(n_agents) < 2 or not (2 <= int(K) <= _MOVE) or not (2 <= int(V) <= _MOVE):
+        raise ValueError(
+            f"run_lewis : argument degenere (episodes={episodes}, n_agents={n_agents}, K={K}, V={V}, _MOVE={_MOVE}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     import numpy as np
     import torch
     from src.agents.mamba_agent import MambaAgent

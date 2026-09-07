@@ -45,6 +45,16 @@ def test_parse_record_tolerates_edr_without_frontmatter(tmp_path):
     assert rec["linked"] is False
 
 
+
+def test_parse_record_reads_suffixed_edr_addendum(tmp_path):
+    """T2 (2026-09-06) : `114b_*.md` (addendum d'EDR 114, numero contendu par une session //) etait
+    INVISIBLE au graphe -- ni noeud, ni orphelin, ni collision. ⚠️ Le suffixe DOIT entrer dans l'id :
+    patcher la seule regex aurait fabrique une COLLISION silencieuse (114b -> EDR-114)."""
+    rec = parse_record(_write(tmp_path / "114b_P_Reach_Deconfound.md", "# EDR 114b sans frontmatter"))
+    assert rec is not None and rec["id"] == "EDR-114b" and rec["type"] == "EDR"
+    assert rec["title"] == "P Reach Deconfound"
+    assert parse_record(_write(tmp_path / "114_Reaching.md", "# EDR 114"))["id"] == "EDR-114"
+
 def test_parse_record_returns_none_for_non_record(tmp_path):
     f = _write(tmp_path / "README.md", "# pas un record\n")
     assert parse_record(f) is None

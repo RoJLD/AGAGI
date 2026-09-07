@@ -92,6 +92,14 @@ def run_bench(plan_bias: float, seeds, steps: int = 1000,
                                     "avoided": k, "faced": n,
                                     "mean_G": g}]
     """
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06, famille run_* -- 7e elargissement du cliquet). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte
+    # vide / un horizon nul rend 0.0 ou nan comme une MESURE que l'aval lit comme un resultat
+    # (biais negatif systematique du depot). Posee AVANT toute construction -> refus < 0.5 s.
+    if int(steps) <= 0 or len(seeds) == 0:
+        raise ValueError(
+            f"run_bench : argument degenere (steps={steps} n_seeds={len(seeds)} plan_bias={plan_bias}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     per_seed = []
     for seed in seeds:
         np.random.seed(seed)

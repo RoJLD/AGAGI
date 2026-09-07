@@ -47,6 +47,14 @@ def run_cell(mode: str, use_gate: bool, epochs: int = 1000, n_agents: int = 128,
     S1 -> échantillonne move1 (probs détachées) ; S2 -> logits_Y += gate_bias(H_S2) ; échantillonne
     move2 ; REINFORCE sur les 2 pas (retour épisodique + baseline) + anti-saturation. En `truncated`
     on détache H avant S2 (le crédit final ne remonte PAS la récurrence). Retourne binding_gap etc."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06, famille run_* -- 7e elargissement du cliquet). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte
+    # vide / un horizon nul rend 0.0 ou nan comme une MESURE que l'aval lit comme un resultat
+    # (biais negatif systematique du depot). Posee AVANT toute construction -> refus < 0.5 s.
+    if int(n_agents) <= 0 or int(epochs) <= 0 or mode not in ("bptt", "truncated"):
+        raise ValueError(
+            f"run_cell : argument degenere (n_agents={n_agents} epochs={epochs} mode={mode!r}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     import numpy as np
     import torch
     from src.agents.mamba_agent import MambaAgent

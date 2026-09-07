@@ -71,6 +71,13 @@ def evolve(config, db, eras, max_ticks=200):
 
 
 def measure_mi(config, db, eras=6, max_ticks=200):
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06). Cette definition homonyme roulait sur un FAUX VERT :
+    # le cliquet verdissait le nom nu des qu'UN autre fichier etait declare (defaut corrige le meme
+    # jour). Un argument degenere est une erreur d'APPEL, pas un fait sur le monde.
+    if int(eras) <= 0 or int(max_ticks) <= 0:
+        raise ValueError(
+            f"measure_mi : argument degenere (eras={eras} max_ticks={max_ticks}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     toks, ctxs = [], []
     for _ in range(eras):
         env = _world(config, db)

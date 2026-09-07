@@ -44,6 +44,14 @@ def run_prod(use_gate: bool, episodes: int = 1000, n_agents: int = 128, seed: in
     'episodic' = `pop.learn_episode` (retour épisodique + gate + anti-sat, EDR-158 : le véhicule qui
     PORTE le binding). `stochastic` : échantillonne (exploration) vs argmax. `gate_s2_only` : gate OFF au
     forward de S1 (anti-contamination, EDR-148). Renvoie binding_gap poolé sur le dernier quart."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06, famille run_* -- 7e elargissement du cliquet). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte
+    # vide / un horizon nul rend 0.0 ou nan comme une MESURE que l'aval lit comme un resultat
+    # (biais negatif systematique du depot). Posee AVANT toute construction -> refus < 0.5 s.
+    if int(episodes) <= 0 or int(n_agents) <= 0:
+        raise ValueError(
+            f"run_prod : argument degenere (episodes={episodes}, n_agents={n_agents}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     import numpy as np
     import torch
     from src.agents.mamba_agent import MambaAgent

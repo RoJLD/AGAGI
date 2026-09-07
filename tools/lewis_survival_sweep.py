@@ -211,6 +211,13 @@ def _verdict_capacity(arms):
     delta = plateau(N_max) - plateau(N_min) ; slope = pente du plateau vs log2(N) (lisse l'echelle
     geometrique 5->80). CAPACITE LEVE si delta>=0.10 ET slope>0. CAPACITE INERTE si abs(delta)<0.10
     ET abs(slope)<0.05. CAPACITE AMBIGUE sinon (signal partiel/non-monotone)."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06). Cette definition homonyme roulait sur un FAUX VERT :
+    # le cliquet verdissait le nom nu des qu'UN autre fichier etait declare (defaut corrige le meme
+    # jour). Un argument degenere est une erreur d'APPEL, pas un fait sur le monde.
+    if len(arms) < 2:
+        raise ValueError(
+            f"_verdict_capacity : argument degenere (n_arms={len(arms)}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     arms = sorted(arms, key=lambda a: a["n_hidden"])
     plateaus = [a["plateau"] for a in arms]
     delta = plateaus[-1] - plateaus[0]

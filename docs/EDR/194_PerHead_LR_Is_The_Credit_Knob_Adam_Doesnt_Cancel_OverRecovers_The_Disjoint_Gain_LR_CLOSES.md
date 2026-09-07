@@ -1,3 +1,14 @@
+---
+# frontmatter ajouté rétroactivement (T2, 2026-09-06) ; corps d'origine inchangé
+id: EDR-194
+type: EDR
+title: "Le lr adaptatif par tête est le bouton de crédit qu'Adam n'annule pas : il SUR-récupère le gain disjoint (LR_CLOSES)"
+status: legacy
+gate: foundational
+verdict: LR_CLOSES
+extends: [EDR-154]
+---
+
 # EDR 194 — Le lr adaptatif par-tête est le bouton de crédit qu'Adam n'annule pas : il SUR-récupère le gain des têtes disjointes (LR_CLOSES)
 
 > **Date** : 2026-07-09. **Fil** : têtes disjointes / typologie d'intelligence (extension, bloc 190+).

@@ -819,6 +819,14 @@ def run_bptt_imitation_warmstart(seed=2026, num_agents=12, n_epochs=200, truncat
     torch par imitation récurrente BPTT (imitate_episode_bptt) sur les obs RÉELLES 59-dim. `lr` est
     EXPOSÉ (le run par défaut lr=0.04 sous-entraîne ; la table EDR-WARM-001 balaie lr∈[0.5,0.7]). Renvoie
     le génome warm-starté (agent 0), la trace de perte et l'accuracy d'imitation finale. None si torch absent."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06, famille run_* -- 7e elargissement du cliquet). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte
+    # vide / un horizon nul rend 0.0 ou nan comme une MESURE que l'aval lit comme un resultat
+    # (biais negatif systematique du depot). Posee AVANT toute construction -> refus < 0.5 s.
+    if int(num_agents) <= 0 or int(n_epochs) <= 0 or int(max_ticks) <= 0:
+        raise ValueError(
+            f"run_bptt_imitation_warmstart : argument degenere (num_agents={num_agents}, n_epochs={n_epochs}, max_ticks={max_ticks}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     try:
         import torch  # noqa: F401
     except Exception:
@@ -852,6 +860,14 @@ def run_dagger_warmstart(seed=2026, rounds=6, epochs_per_round=3000, lr=0.5, num
     Rounds suivants : agrège les états que le learner visite lui-même (réétiquetés oracle) et réentraîne
     en BPTT récurrent MASQUÉ (round-robin sur le dataset -> coût borné = epochs_per_round×rounds appels).
     Trace acc_on-policy + survie par round ; attaque le plafond 0.734 de WARM-001. None si torch absent."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06, famille run_* -- 7e elargissement du cliquet). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte
+    # vide / un horizon nul rend 0.0 ou nan comme une MESURE que l'aval lit comme un resultat
+    # (biais negatif systematique du depot). Posee AVANT toute construction -> refus < 0.5 s.
+    if int(rounds) <= 0 or int(epochs_per_round) <= 0 or int(num_agents) <= 0 or int(max_ticks) <= 0 or int(K) <= 0:
+        raise ValueError(
+            f"run_dagger_warmstart : argument degenere (rounds={rounds}, epochs_per_round={epochs_per_round}, num_agents={num_agents}, max_ticks={max_ticks}, K={K}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     try:
         import torch  # noqa: F401
     except Exception:

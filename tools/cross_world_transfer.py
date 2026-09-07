@@ -101,6 +101,13 @@ def run_direction(source_label: str, source_hof: str, target_world: str,
     """Un bras de transfert : champion de `source_hof` (évolué dans source_label) lâché dans
     `target_world`, vs tabula-rasa dans le même monde (appariés seed à seed). tabula_meds réutilisable
     (indépendant du champion source) pour ne pas re-mesurer la baseline à chaque champion."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06). Orchestrateur : il n'entraine pas lui-meme mais
+    # AGREGE en verdict -- une cohorte/liste de seeds vide produit une agregation VIDE que l'aval
+    # lit comme une mesure (biais negatif systematique). Refus instantane, avant tout appel de run.
+    if int(k_eval) <= 0 or int(num_agents) <= 0 or int(max_ticks) <= 0:
+        raise ValueError(
+            f"run_direction : argument degenere (k_eval={k_eval} num_agents={num_agents} max_ticks={max_ticks}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     champ = _load_genome(source_hof)
     champ_meds = measure_in_world(target_world, champ, seed, k_eval, num_agents, max_ticks)
     if tabula_meds is None:

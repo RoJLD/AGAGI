@@ -34,6 +34,14 @@ def run_meansends(mode: str, epochs: int = 600, n_agents: int = 128, seed: int =
                   target_x: int = 3, target_y: int = 5, lr: float = 0.05):
     """Entraîne le substrat torch sur means→ends en régime `mode` ('bptt'|'truncated').
     Retourne les métriques finales (hit_end, p_x, binding_gap = P(Y|X)−P(Y|¬X))."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06, famille run_* -- 7e elargissement du cliquet). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte
+    # vide / un horizon nul rend 0.0 ou nan comme une MESURE que l'aval lit comme un resultat
+    # (biais negatif systematique du depot). Posee AVANT toute construction -> refus < 0.5 s.
+    if int(n_agents) <= 0 or int(epochs) <= 0 or mode not in ("bptt", "truncated"):
+        raise ValueError(
+            f"run_meansends : argument degenere (n_agents={n_agents} epochs={epochs} mode={mode!r}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     import numpy as np
     import torch
     from src.agents.mamba_agent import MambaAgent

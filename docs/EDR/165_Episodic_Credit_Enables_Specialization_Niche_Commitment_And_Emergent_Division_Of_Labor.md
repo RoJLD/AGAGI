@@ -3,7 +3,8 @@ id: EDR-165
 type: EDR
 title: "Le crédit épisodique + gate MULTI-CIBLE PERMET la SPÉCIALISATION (156/157) — 3e proxy H-unif, POSITIF. Monde 2-chaînes symétriques (craft_A→use_A, craft_B→use_B) : capacité ON (gate multi-cible EDR-165 + learn_episode) s'engage sur UNE chaîne (spec_depth 0.213 vs OFF 0.042 ; comp_total≈spec_depth = pas de dispersion) là où le plain reste généraliste (0 spécialiste). BONUS : hétérogénéité de population émergente (frac_A≈0.49 = division du travail ~50/50 depuis l'init). Complète le triptyque H-unif : binding(161)+spécialisation(165) POSITIFS (routage conditionnel), rétention(162) gated par la FORCE du binding. Gate multi-cible ajouté à backend_torch (additif, in-world non cassé)"
 status: accepted
-gate: null
+gate: G2
+tests: [SDR-G2]
 verdict: CAPABILITY_ENABLES_SPECIALIZATION
 ---
 

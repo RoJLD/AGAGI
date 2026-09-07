@@ -3,7 +3,8 @@ id: EDR-128
 type: EDR
 title: "Punir Y-sans-X ne force PAS un binding robuste — signal FAIBLE et régime-dépendant : insuffisant sous maintien de X (¬X rare, gap plat même à 5×), et au mieux gap +0.18 saturant avec ¬X fréquent ; le verrou du conditionnement est un MÉCANISME (gating/crédit), pas le signal de tâche"
 status: validated
-gate: null
+gate: G2
+tests: [SDR-G2]
 verdict: "Levier 1 (signal) d'EDR 126 testé sur le banc compo. On rend Y-sans-X strictement plus punitif que le silence (Y&¬X = −1−p vs ¬Y = −1 ; p=0 ≡ EDR 126). Instrument = binding_gap = P(Y|X) − P(Y|¬X) mesuré DIRECT (p=0 reproduit l'indépendance d'EDR 126). RÉSULTAT régime-dépendant : (1) sous maintien de X (fade1.0, ¬X rare ~6-13%), la pénalité échoue MÊME à 5× (gap plat ~−0.04 à −0.26, y_rate GELÉ 0.722 aux 4 doses) — l'agent fait X PLUS (évite la punition) au lieu de conditionner. (2) Avec ¬X fréquent (fade0.0, ~38%), un gap POSITIF FAIBLE émerge (0.068→0.184 à p=1) mais SATURE (~0.14 à p≥2, jamais fort >0.5) et se dégrade en SUPPRESSION (y_rate 0.73→0.39 à p=5, P(Y|¬X) tombe mais P(Y|X) aussi). Punir Y-sans-X ne force PAS un binding robuste : effets dominants = monter P(X) + supprimer Y, pas conditionner Y sur did_x. Le verrou est un MÉCANISME (gating did_x→logits Y / routage de crédit), pas le signal de tâche. Legacy s'effondre en suppression, ne binde jamais. Élimine le levier 1 comme suffisant → leviers 2 (archi) / 3 (crédit)."
 ---
 

@@ -33,12 +33,95 @@ from tools.warmstart_evolution_inworld import _torch_survival_eras  # noqa: E402
 # qu'elle n'a rien a faire la. Sans ce mecanisme, le baseline confondait « dette reelle » et « faux
 # positif », et le compteur de non-calibres ne disait pas ce qu'il annoncait.
 NOT_AN_INSTRUMENT = {
+    # P2.43 (2026-09-06) : 4 helpers de la famille run_* -- aucune affirmation scientifique.
+    "tools/edr_lenses.py::run_lenses": "outillage d'analyse : boucle des appels au `llm_fn` injecte et rend des textes d'interpretation etiquetes SPECULATIFS (bandeau edr_lenses.py:54-55, « ce sont des PISTES, pas des findings ») ; ne construit aucun monde, ne mesure rien, ne prononce aucun verdict ; aucun record ni backlog ne cite sa sor",
+    "tools/grad_mem.py::run_bptt": "primitive numerique (forward deroule + BPTT manuel, grad_mem.py:19-65) sur W et batch fournis par l'appelant ; renvoie (loss, dW, acc) d'un batch, sans seuil, sans verdict, sans agregation, sans choix de protocole ; l'affirmation publiee (accuracy finale sur 512 tirages frais, EDR 067 tableau / EDR ",
+    "tools/linguist.py::run_linguistic_analysis": "analyse DESCRIPTIVE legataire : lecture de la KuzuDB de prod (data/kuzu_graph.db, meme chemin que AsyncLogger) + K-Means ; sortie = effectifs et centres de clusters imprimes (linguist.py:57-60) ; aucune quantite de decision (ni seuil, ni ratio, ni verdict calcule) ; la « conclusion » :62-65 est un t",
+    "tools/skinner_box.py::run_skinner_test": "audit d'interpretabilite QUALITATIF : une passe forward sur un genome donne, affiche le top-5 des activations cachees et le decodage des sorties, etiquette des neurones dans KuzuDB (NeuronConcept, lu par tools/sociologist.py:113 pour impression) et rend l'etat recurrent brut (H_new[0]). Aucun verdic",
     "tools/is_machine_idle.py::verdict": "decide si la MACHINE est inoccupee (processus biosphere "
                "actifs, age du WAL) pour ordonnancer des jobs. Infrastructure, aucune affirmation "
                "sur le monde ni sur un agent.",
 }
 
 CALIBRATED = {
+    # P2.46 (2026-09-06) : 11 orchestrateurs run_* -- garde d'entree SEULEMENT (branches de
+    # verdict NON couvertes : injection a dose connue = dette declaree au backlog).
+    "tools/cross_world_transfer.py::run_direction": ["empty-cohort:raises", "guard-before-world"],
+    "tools/curriculum_transfer.py::run_transfer_experiment": ["empty-cohort:raises", "guard-before-world"],
+    "tools/dreaming_probe.py::run_q1": ["empty-cohort:raises", "guard-before-world"],
+    "tools/dreaming_probe.py::run_q2": ["empty-cohort:raises", "guard-before-world"],
+    "tools/dream_causal_probe.py::run_causal": ["empty-cohort:raises", "guard-before-world"],
+    "tools/dream_causal_probe.py::run_founder_matched": ["empty-cohort:raises", "guard-before-world"],
+    "tools/dream_distress_probe.py::run_distress": ["empty-cohort:raises", "guard-before-world"],
+    "tools/evo_memory_enrichment.py::run_experiment": ["empty-cohort:raises", "guard-before-world"],
+    "tools/evo_memory_inworld.py::run_contrast": ["empty-cohort:raises", "guard-before-world"],
+    "tools/s2_demand.py::run_s2": ["empty-cohort:raises", "guard-before-world"],
+    "tools/s2_openloop_probe.py::run_openloop_ladder": ["empty-cohort:raises", "guard-before-world"],
+    # P2.45 (2026-09-06) : 6 homonymes reveles par le correctif du faux vert par nom nu -- QUALIFIES.
+    "tools/lewis_world.py::measure_mi": ["empty-cohort:raises", "guard-before-world"],
+    "tools/target_competence_probe.py::run_probe": ["empty-cohort:raises", "guard-before-world"],
+    "tools/vertical_world_probe.py::run_probe": ["empty-cohort:raises", "guard-before-world"],
+    "tools/lethality_curriculum.py::_verdict": ["negatif-profond", "casse-bootstrap", "pas-le-goulot"],
+    "tools/lewis_survival_sweep.py::_verdict_capacity": ["leve", "inerte", "ambigue", "single-arm:raises"],
+    "tools/arc5_alignment.py::_verdict": ["aligned:1bit", "independent:baseline"],
+    # P2.43 (2026-09-06) : famille run_* -- declarations QUALIFIEES par chemin (5 noms en collision).
+    "tools/ablation.py::run_condition": ["empty-cohort:raises", "guard-before-world"],
+    "tools/ablation_multi.py::run_condition": ["empty-cohort:raises", "guard-before-world"],
+    "tools/adaptive_planning_probe.py::run_adaptive": ["empty-cohort:raises", "guard-before-world"],
+    "tools/agricultural_demand_probe.py::run_agricultural": ["empty-cohort:raises", "guard-before-world"],
+    "tools/altar_tool_funnel_probe.py::run_era_funnel": ["empty-cohort:raises", "guard-before-world"],
+    "tools/anticipation_bench.py::run_bench": ["empty-cohort:raises", "guard-before-world"],
+    "tools/s2_demand.py::run_condition": ["empty-cohort:raises", "guard-before-world"],
+    "tools/anticipation_planning_probe.py::run_planning": ["empty-cohort:raises", "guard-before-world"],
+    "tools/arm_act_grad.py::run_bptt_act": ["empty-cohort:raises", "guard-before-world"],
+    "tools/cognitive_demand_inworld.py::run_credit_linear": ["empty-cohort:raises", "guard-before-world"],
+    "tools/comm_lever.py::run_era": ["empty-cohort:raises", "guard-before-world"],
+    "tools/compositional_language_probe.py::run_compositional": ["empty-cohort:raises", "guard-before-world"],
+    "tools/confirm_scramble.py::run_era": ["empty-cohort:raises", "guard-before-world"],
+    "tools/craft_specialization_probe.py::run_spec": ["empty-cohort:raises", "guard-before-world"],
+    "tools/curriculum_2d.py::run_2d_era": ["empty-cohort:raises", "guard-before-world"],
+    "tools/curriculum_developmental.py::run_era": ["empty-cohort:raises", "guard-before-world"],
+    "tools/curriculum_grab.py::run_one_era": ["empty-cohort:raises", "guard-before-world"],
+    "tools/dreaming_probe.py::run_era_organ": ["empty-cohort:raises", "guard-before-world"],
+    "tools/evolve_ceiling_probe.py::run_evolution": ["empty-cohort:raises", "guard-before-world"],
+    "tools/evolve_competence.py::run_era": ["empty-cohort:raises", "guard-before-world"],
+    "tools/func_benefit.py::run_seed": ["empty-cohort:raises", "guard-before-world"],
+    "tools/hcm_analyzer.py::run_hcm_analysis": ["empty-cohort:raises", "guard-before-world"],
+    "tools/hunif_retention_probe.py::run_retention": ["empty-cohort:raises", "guard-before-world"],
+    "tools/lang_speciation.py::run_seed": ["empty-cohort:raises", "guard-before-world"],
+    "tools/life_score_contamination_probe.py::run_arm": ["empty-cohort:raises", "guard-before-world"],
+    "tools/map_elites_compare.py::run_era_pool": ["empty-cohort:raises", "guard-before-world"],
+    "tools/map_elites_compare.py::run_lineage_hof": ["empty-cohort:raises", "guard-before-world"],
+    "tools/map_elites_compare.py::run_lineage_qd": ["empty-cohort:raises", "guard-before-world"],
+    "tools/metabolic_cost_sweep.py::run_lineage": ["empty-cohort:raises", "guard-before-world"],
+    "tools/metabolic_cost_sweep.py::run_era_metab": ["empty-cohort:raises", "guard-before-world"],
+    "tools/nas_memory.py::run_seed": ["empty-cohort:raises", "guard-before-world"],
+    "tools/nas_rich.py::run_seed": ["empty-cohort:raises", "guard-before-world"],
+    "tools/online_world_model_probe.py::run_online": ["empty-cohort:raises", "guard-before-world"],
+    "tools/persistence_test.py::run_era": ["empty-cohort:raises", "guard-before-world"],
+    "tools/planning_depth_probe.py::run_depth": ["empty-cohort:raises", "guard-before-world"],
+    "tools/probe_impasse.py::run_era": ["empty-cohort:raises", "guard-before-world"],
+    "tools/reconfirm_047.py::run_seed": ["empty-cohort:raises", "guard-before-world"],
+    "tools/referential_community_probe.py::run_community": ["empty-cohort:raises", "guard-before-world"],
+    "tools/referential_game_probe.py::run_lewis": ["empty-cohort:raises", "guard-before-world"],
+    "tools/refgame.py::run_refgame": ["empty-cohort:raises", "guard-before-world"],
+    "tools/speciation.py::run_seed": ["empty-cohort:raises", "guard-before-world"],
+    "tools/substrate_ab.py::run_substrate_ab": ["empty-cohort:raises", "guard-before-world"],
+    "tools/substrate_ab_compositional.py::run_compositional": ["empty-cohort:raises", "guard-before-world"],
+    "tools/substrate_ab_compositional.py::run_curriculum": ["empty-cohort:raises", "guard-before-world"],
+    "tools/substrate_ab_compositional.py::run_curriculum_fade": ["empty-cohort:raises", "guard-before-world"],
+    "tools/substrate_ab_compositional.py::run_curriculum_fade_gated": ["empty-cohort:raises", "guard-before-world"],
+    "tools/torch_binary_gate_heldout_probe.py::run_arm": ["empty-cohort:raises", "guard-before-world"],
+    "tools/torch_binary_gate_probe.py::run_arm": ["empty-cohort:raises", "guard-before-world"],
+    "tools/torch_bptt_meansends.py::run_meansends": ["empty-cohort:raises", "guard-before-world"],
+    "tools/torch_gate_bptt_meansends.py::run_cell": ["empty-cohort:raises", "guard-before-world"],
+    "tools/torch_gate_persist_ab.py::run_arm": ["empty-cohort:raises", "guard-before-world"],
+    "tools/torch_inworld_ab.py::run_arm": ["empty-cohort:raises", "guard-before-world"],
+    "tools/torch_prod_gate_meansends.py::run_prod": ["empty-cohort:raises", "guard-before-world"],
+    "tools/torch_throw_gate_inworld_ab.py::run_arm": ["empty-cohort:raises", "guard-before-world"],
+    "tools/warmstart_evolution_inworld.py::run_bptt_imitation_warmstart": ["empty-cohort:raises", "guard-before-world"],
+    "tools/warmstart_evolution_inworld.py::run_dagger_warmstart": ["empty-cohort:raises", "guard-before-world"],
+    "tools/wire_ref_head.py::run_seed": ["empty-cohort:raises", "guard-before-world"],
     # P2.42 (2026-09-06) : verdict statistique du harnais puissant (EDR 052), en COLLISION de nom
     # avec is_machine_idle::verdict (non-instrument) -> declaration QUALIFIEE. Forme close : t = d*sqrt(n/2).
     "src/seed_ai/eval_harness.py::verdict": ["significant", "not-significant", "and-rule:powerless-d",
@@ -4353,3 +4436,222 @@ def test_eval_harness_verdict_gives_NO_verdict_on_zero_variance():
     from src.seed_ai.eval_harness import verdict
     v = verdict("a", "b", {"a": _cond(0.0, 0.0, 1), "b": _cond(1.0, 0.0, 1)})
     assert v["t"] == 0.0 and v["d"] == 0.0 and not v["significant"]
+
+
+# ======================================================================================================
+# P2.43 (2026-09-06) : FAMILLE run_* -- 7e elargissement du cliquet de calibration. Un motif run_\\w+
+# generique etait connu pour ajouter ~56 fonctions non calibrees (mesure le 2026-09-02, delibere-
+# ment NON avale alors). Inventaire refute : 72 fonctions -- 57 simulateurs, 14 orchestrateurs,
+# 4 helpers. Ici : les simulateurs (+ 3 orchestrateurs a garde), par GARDE D'ARGUMENTS EN TETE,
+# testee QUE (leve) et OU (refus < 0.5 s, donc avant la construction du monde). Les 11 autres
+# orchestrateurs ont chacun un test d'INJECTION A DOSE CONNUE (section P2.44).
+# ⚠️ Toutes les declarations sont QUALIFIEES par chemin : 5 noms sont en collision (run_condition,
+# run_era, run_seed, run_arm, run_compositional) et le cliquet ne doit verdir un nom qu'une fois
+# TOUS ses chemins couverts (defaut `out.add(bare)` corrige dans la meme passe).
+# ======================================================================================================
+
+_MESURES_GARDEES_5 = [
+    ("tools.ablation", "run_condition", dict(config=None, db=None, apply_fn=None, num_agents=0)),
+    ("tools.ablation_multi", "run_condition", dict(config=None, db=None, apply_fn=None, crit_base=0.0, num_agents=0)),
+    ("tools.adaptive_planning_probe", "run_adaptive", dict(n_test=0)),
+    ("tools.agricultural_demand_probe", "run_agricultural", dict(genome=None, seed=0, num_agents=0)),
+    ("tools.altar_tool_funnel_probe", "run_era_funnel", dict(seed=0, metab=0.25, payoff=3.0, num_agents=0, max_ticks=40, shared_db=None)),
+    ("tools.anticipation_bench", "run_bench", dict(plan_bias=0.0, seeds=[0], steps=0)),
+    ("tools.s2_demand", "run_condition", dict(world_cls=None, batch_model_cls=None, genome=None, seed=0, num_agents=0)),
+    ("tools.anticipation_planning_probe", "run_planning", dict(n_test=0)),
+    ("tools.arm_act_grad", "run_bptt_act", dict(W=None, K=0, D=10, bits=None, act=None)),
+    ("tools.cognitive_demand_inworld", "run_credit_linear", dict(num_agents=0)),
+    ("tools.comm_lever", "run_era", dict(config=None, db=None, hear_radius=3, num_agents=0)),
+    ("tools.compositional_language_probe", "run_compositional", dict(episodes=0)),
+    ("tools.confirm_scramble", "run_era", dict(config=None, db=None, hear_radius=3, scramble=False, num_agents=0)),
+    ("tools.craft_specialization_probe", "run_spec", dict(capability=True, episodes=0)),
+    ("tools.curriculum_2d", "run_2d_era", dict(config=None, db=None, target_prey=10, num_agents=0)),
+    ("tools.curriculum_developmental", "run_era", dict(config=None, db=None, global_era=0, rarity=10, crit_eras=20, group_eras=20, num_agents=0)),
+    ("tools.curriculum_grab", "run_one_era", dict(config=None, db=None, training=False, num_agents=0)),
+    ("tools.dreaming_probe", "run_era_organ", {"target": "stoneage", "seed": 0, "organ_fraction": 0.5, "metab": 0.25, "payoff": 3.0, "num_agents": 0, "max_ticks": 400, "shared_db": None}),
+    ("tools.evolve_ceiling_probe", "run_evolution", dict(target="stoneage", k_eras=2, num_agents=0, max_ticks=60, shared_db=None, preserve_dims=True, node_cap=512)),
+    ("tools.evolve_competence", "run_era", dict(cfg=None, genomes=[], max_ticks=400)),
+    ("tools.func_benefit", "run_seed", dict(config=None, db=None, seed=0, use_head=True, decode_act=True, num_agents=0)),
+    ("tools.hcm_analyzer", "run_hcm_analysis", dict(num_ticks=0)),
+    ("tools.hunif_retention_probe", "run_retention", dict(capability=True, cost=0.3, n_agents=0)),
+    ("tools.lang_speciation", "run_seed", dict(config=None, db=None, speciate=False, seed=0, eras=0)),
+    ("tools.life_score_contamination_probe", "run_arm", dict(num_agents=0)),
+    ("tools.map_elites_compare", "run_era_pool", dict(cfg=None, genomes=[], max_ticks=0)),
+    ("tools.map_elites_compare", "run_lineage_hof", dict(seed=0, eras=0)),
+    ("tools.map_elites_compare", "run_lineage_qd", dict(seed=0, eras=0)),
+    ("tools.metabolic_cost_sweep", "run_lineage", dict(seed=0, coef=0.0, eras=0)),
+    ("tools.metabolic_cost_sweep", "run_era_metab", dict(cfg=None, genomes=[], max_ticks=0)),
+    ("tools.nas_memory", "run_seed", dict(config=None, db=None, transient=True, seed=0, eras=0)),
+    ("tools.nas_rich", "run_seed", dict(config=None, db=None, transient=True, seed=0, eras=0)),
+    ("tools.online_world_model_probe", "run_online", dict(n_test=0)),
+    ("tools.persistence_test", "run_era", dict(config=None, db=None, global_era=0, num_agents=0)),
+    ("tools.planning_depth_probe", "run_depth", dict(n_test=0)),
+    ("tools.probe_impasse", "run_era", dict(config=None, db=None, num_agents=0)),
+    ("tools.reconfirm_047", "run_seed", dict(config=None, db=None, seed=0, eras=0)),
+    ("tools.referential_community_probe", "run_community", dict(n_agents=0)),
+    ("tools.referential_game_probe", "run_lewis", dict(n_agents=0)),
+    ("tools.refgame", "run_refgame", dict(epochs=0)),
+    ("tools.speciation", "run_seed", dict(config=None, db=None, speciate=False, seed=0, eras=0)),
+    ("tools.substrate_ab", "run_substrate_ab", dict(backend="legacy", ticks=0)),
+    ("tools.substrate_ab_compositional", "run_compositional", dict(backend="legacy", trials=0)),
+    ("tools.substrate_ab_compositional", "run_curriculum", dict(backend="legacy", compo_trials=0)),
+    ("tools.substrate_ab_compositional", "run_curriculum_fade", dict(backend="legacy", compo_trials=0)),
+    ("tools.substrate_ab_compositional", "run_curriculum_fade_gated", {"backend": "torch", "compo_trials": 0}),
+    ("tools.torch_binary_gate_heldout_probe", "run_arm", {"shuffle_reward": False, "train_ep": 0}),
+    ("tools.torch_binary_gate_probe", "run_arm", {"gate_on": True, "n_agents": 0}),
+    ("tools.torch_bptt_meansends", "run_meansends", {"mode": "bptt", "epochs": 0}),
+    ("tools.torch_gate_bptt_meansends", "run_cell", {"mode": "bptt", "use_gate": True, "epochs": 0}),
+    ("tools.torch_gate_persist_ab", "run_arm", {"persist": True, "n_agents": 0}),
+    ("tools.torch_inworld_ab", "run_arm", dict(use_torch=False, seed=0, ticks=4, n_agents=0)),
+    ("tools.torch_prod_gate_meansends", "run_prod", dict(use_gate=True, episodes=20, n_agents=0)),
+    ("tools.torch_throw_gate_inworld_ab", "run_arm", dict(shuffle=False, seed=0, ticks=40, warmup=20, n_agents=0)),
+    ("tools.warmstart_evolution_inworld", "run_bptt_imitation_warmstart", dict(seed=2026, num_agents=4, n_epochs=0)),
+    ("tools.warmstart_evolution_inworld", "run_dagger_warmstart", dict(seed=2026, rounds=0, num_agents=4)),
+    ("tools.wire_ref_head", "run_seed", dict(config=None, db=None, seed=0, use_head=False, num_agents=0)),
+]
+
+
+@pytest.mark.parametrize("mod,nom,kw", _MESURES_GARDEES_5)
+def test_fifth_wave_run_family_REFUSES_degenerate_arguments(mod, nom, kw):
+    """Meme principe que P2.34/P2.37/P2.40/P2.41 : 0 agent / 0 ere / 0 tick est une erreur d'APPEL."""
+    import importlib
+    f = getattr(importlib.import_module(mod), nom)
+    with pytest.raises(ValueError, match="degenere"):
+        f(**kw)
+
+
+@pytest.mark.parametrize("mod,nom,kw", _MESURES_GARDEES_5)
+def test_fifth_wave_guards_are_placed_BEFORE_the_world(mod, nom, kw):
+    """PLACEMENT : le refutateur a verifie pour chacune que, SANS garde, l'appel degenere construit
+    un monde complet (Biosphere3D(None) -> WorldConfig() par defaut) avant d'echouer ailleurs ou de
+    rendre 0.0/nan -- un refus instantane prouve que la garde precede la construction."""
+    import importlib
+    import time
+    f = getattr(importlib.import_module(mod), nom)
+    t0 = time.time()
+    with pytest.raises(ValueError):
+        f(**kw)
+    assert time.time() - t0 < 0.5, f"{nom} refuse trop lentement : la garde est posee trop bas"
+
+
+# ======================================================================================================
+# P2.45 (2026-09-06) : les 6 DEFINITIONS HOMONYMES revelees par le correctif du faux vert par nom nu
+# (`collision_coverage`). Elles etaient comptees calibrees parce qu'UN autre fichier du meme nom
+# l'etait -- exactement le faux vert E4 que le cliquet est cense empecher.
+# ======================================================================================================
+
+_MESURES_GARDEES_6 = [
+    ("tools.lewis_world", "measure_mi", dict(config=None, db=None, eras=0)),
+    ("tools.target_competence_probe", "run_probe",
+     dict(target="stoneage", k=0, num_agents=1, max_ticks=1, shared_db=None)),
+    ("tools.vertical_world_probe", "run_probe", dict(genome=None, seeds=())),
+]
+
+
+@pytest.mark.parametrize("mod,nom,kw", _MESURES_GARDEES_6)
+def test_homonyms_REFUSE_degenerate_arguments(mod, nom, kw):
+    import importlib
+    f = getattr(importlib.import_module(mod), nom)
+    with pytest.raises(ValueError, match="degenere"):
+        f(**kw)
+
+
+@pytest.mark.parametrize("mod,nom,kw", _MESURES_GARDEES_6)
+def test_homonym_guards_are_placed_BEFORE_the_world(mod, nom, kw):
+    import importlib
+    import time
+    f = getattr(importlib.import_module(mod), nom)
+    t0 = time.time()
+    with pytest.raises(ValueError):
+        f(**kw)
+    assert time.time() - t0 < 0.5, f"{nom} refuse trop lentement : la garde est posee trop bas"
+
+
+def test_lethality_verdict_READS_its_three_prewritten_branches():
+    """Regle pre-enregistree (§4 du record) en forme close : sous la porte -> NEGATIF PROFOND ;
+    p<0.05 ET mediane>0 ET borne basse>0 -> CASSE LE BOOTSTRAP ; sinon PAS LE GOULOT."""
+    from tools.lethality_curriculum import _verdict, GATE
+    assert _verdict(GATE, 0.001, 5.0, 1.0) == "NEGATIF PROFOND"          # <= GATE, quoi qu'il arrive
+    assert _verdict(GATE + 1, 0.01, 5.0, 1.0) == "CASSE LE BOOTSTRAP"
+    assert _verdict(GATE + 1, 0.20, 5.0, 1.0) == "PAS LE GOULOT"         # p trop grand
+    assert _verdict(GATE + 1, 0.01, 5.0, -1.0) == "PAS LE GOULOT"        # borne basse <= 0
+
+
+def test_capacity_verdict_READS_delta_and_slope_and_REFUSES_a_single_arm():
+    """EDR110 : LEVE si delta>=0.10 ET pente>0 ; INERTE si |delta|<0.10 ET |pente|<0.05 ; AMBIGUE sinon.
+    ⚠️ Un seul bras rendait INERTE (delta=0, pente=0) -- une affirmation de fond sur ZERO comparaison,
+    le motif « donnees absentes -> negatif » : desormais un refus."""
+    from tools.lewis_survival_sweep import _verdict_capacity
+    A = lambda n, p: {"n_hidden": n, "plateau": p}
+    assert _verdict_capacity([A(5, 0.20), A(20, 0.30), A(80, 0.40)]) == "CAPACITE LEVE"
+    assert _verdict_capacity([A(5, 0.30), A(20, 0.31), A(80, 0.30)]) == "CAPACITE INERTE"
+    # ⚠️ IDENTITE TROUVEE EN CALIBRANT (2026-09-06) : avec 3 bras EQUIDISTANTS en log2 (5/20/80, la
+    # config canonique d'EDR110), la pente des moindres carres vaut EXACTEMENT delta/4 -- le bras du
+    # milieu n'y entre pas. Consequences : (i) delta >= 0.10 => pente >= 0.025 > 0 => LEVE est FORCE,
+    # la clause « ET pente > 0 » n'ajoute rien ; (ii) une non-monotonie pure (bosse : 0.20/0.45/0.20)
+    # est lue INERTE, pas AMBIGUE -- l'instrument ne VOIT pas la bosse ; (iii) AMBIGUE n'est donc
+    # atteignable que par delta <= -0.10, c'est-a-dire quand la capacite NUIT.
+    assert _verdict_capacity([A(5, 0.20), A(20, 0.45), A(80, 0.20)]) == "CAPACITE INERTE"
+    assert _verdict_capacity([A(5, 0.40), A(20, 0.30), A(80, 0.20)]) == "CAPACITE AMBIGUE"  # nuit
+    with pytest.raises(ValueError, match="degenere"):
+        _verdict_capacity([A(5, 0.30)])
+
+
+def test_arc5_alignment_verdict_READS_mutual_information_it_computes(monkeypatch):
+    """Orchestrateur : `collect` simule, `_verdict` agrege en MI vs baseline par permutation.
+    INJECTION a dose connue : tokens parfaitement alignes sur un contexte binaire equilibre ->
+    MI = 1 bit (forme close H(ctx)) et baseline ~0 ; tokens independants du contexte -> MI ~ baseline."""
+    import numpy as np
+    import tools.arc5_alignment as A
+    ctx = [0, 1] * 200
+    monkeypatch.setattr(A, "collect", lambda *a, **k: ([c for c in ctx], list(ctx)))
+    np.random.seed(0)
+    mi, base = A._verdict(None, None, "aligne", 0.0, 0.0)
+    assert abs(mi - 1.0) < 0.05 and base < 0.05, (mi, base)
+    rng = np.random.RandomState(1)
+    monkeypatch.setattr(A, "collect", lambda *a, **k: (rng.randint(0, 2, size=400).tolist(), list(ctx)))
+    mi2, base2 = A._verdict(None, None, "independant", 0.0, 0.0)
+    assert mi2 < 0.05 and abs(mi2 - base2) < 0.05, (mi2, base2)
+
+
+# ======================================================================================================
+# P2.46 (2026-09-06) : les 11 ORCHESTRATEURS de la famille run_* -- dernier verrou avant l'elargissement
+# du detecteur au motif `run_\\w+` generique. Ils n'entrainent pas eux-memes mais AGREGENT en verdict :
+# une liste de seeds vide n'est pas « zero effet mesure », c'est un appel invalide.
+# ⚠️ CE QUE CES CAS NE FONT PAS : ils ne testent AUCUNE branche de verdict. Les tests d'INJECTION a
+# dose connue (monkeypatch de la fonction de run, cellules imposees, branches negatives) restent a
+# ecrire pour ces 11 -- dette DECLAREE au backlog, pas masquee par une garde qui ne couvre que l'entree.
+# ======================================================================================================
+
+_MESURES_GARDEES_7 = [
+    ("tools.cross_world_transfer", "run_direction", dict(source_label="a", source_hof="x.pkl", target_world="stoneage", k_eval=0)),
+    ("tools.curriculum_transfer", "run_transfer_experiment", dict(seeds=())),
+    ("tools.dreaming_probe", "run_q1", dict(seeds=(), target="stoneage", num_agents=4, max_ticks=10, shared_db=None)),
+    ("tools.dreaming_probe", "run_q2", dict(seeds=(0,), target="stoneage", num_agents=0, max_ticks=10, shared_db=None)),
+    ("tools.dream_causal_probe", "run_causal", dict(seeds=(), target="stoneage", num_agents=4, max_ticks=10, shared_db=None)),
+    ("tools.dream_causal_probe", "run_founder_matched", dict(seeds=())),
+    ("tools.dream_distress_probe", "run_distress", dict(seeds=(), target="stoneage", num_agents=4, max_ticks=10, shared_db=None)),
+    ("tools.evo_memory_enrichment", "run_experiment", dict(seeds=(), K=4, D=2, generations=1, pop=4)),
+    ("tools.evo_memory_inworld", "run_contrast", dict(seeds=())),
+    ("tools.s2_demand", "run_s2", dict(num_agents=0)),
+    ("tools.s2_openloop_probe", "run_openloop_ladder", dict(K=0)),
+]
+
+
+@pytest.mark.parametrize("mod,nom,kw", _MESURES_GARDEES_7)
+def test_run_orchestrators_REFUSE_degenerate_arguments(mod, nom, kw):
+    import importlib
+    f = getattr(importlib.import_module(mod), nom)
+    with pytest.raises(ValueError, match="degenere"):
+        f(**kw)
+
+
+@pytest.mark.parametrize("mod,nom,kw", _MESURES_GARDEES_7)
+def test_run_orchestrator_guards_are_placed_BEFORE_the_runs(mod, nom, kw):
+    import importlib
+    import time
+    f = getattr(importlib.import_module(mod), nom)
+    t0 = time.time()
+    with pytest.raises(ValueError):
+        f(**kw)
+    assert time.time() - t0 < 0.5, f"{nom} refuse trop lentement : la garde est posee trop bas"

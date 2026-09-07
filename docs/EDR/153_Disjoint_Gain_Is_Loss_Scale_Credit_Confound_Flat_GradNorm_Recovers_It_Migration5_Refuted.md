@@ -1,3 +1,14 @@
+---
+# frontmatter ajouté rétroactivement (T2, 2026-09-06) ; corps d'origine inchangé
+id: EDR-153
+type: EDR
+title: "Le gain disjoint est un confond d'équilibrage de crédit (CONFOUND_CONFIRMED 5/5, recovery 0.79) — migration #5 réfutée comme levier"
+status: legacy
+gate: foundational
+verdict: CONFOUND_CONFIRMED
+extends: [EDR-152]
+---
+
 # EDR 153 — Le gain des têtes disjointes est un CONFOND D'ÉQUILIBRAGE DE CRÉDIT (CONFOUND_CONFIRMED 5/5, recovery 0.79) : un GradNorm-lite dans le substrat PLAT le recouvre → migration #5 réfutée comme levier
 
 > **Date** : 2026-07-01. **Verdict pré-enregistré** : `recovery_k = (FLAT_k − FLATNORM_k)/(FLAT_k − DISJOINT_k)`

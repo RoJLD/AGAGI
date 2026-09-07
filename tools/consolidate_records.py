@@ -29,7 +29,9 @@ _LIST_KEYS = ("motivates", "triggers", "tests",
               "adopts", "extends", "corroborates",
               # Arêtes de RÉTRACTATION / CORRECTION — les plus importantes du graphe.
               "corrects", "corrected_by", "retracted_by", "supersedes_mechanism_of")
-_EDR_NAME = re.compile(r"^(\d{3})_.+\.md$")
+# Suffixe lettre optionnel : `114b_*.md` (addendum d'EDR 114, numero contendu par une session //)
+# etait INVISIBLE au graphe -- ni noeud, ni orphelin, ni collision (T2, mesure le 2026-09-06).
+_EDR_NAME = re.compile(r"^(\d{3})([a-z]?)_.+\.md$")
 
 
 def _empty_record(file: str) -> dict:
@@ -76,9 +78,10 @@ def parse_record(path: str) -> dict | None:
 
     m = _EDR_NAME.match(name)
     if m:
-        rec["id"] = f"EDR-{int(m.group(1)):03d}"
+        # Le suffixe DOIT entrer dans l'id : sans lui `114b_` -> EDR-114 = COLLISION silencieuse.
+        rec["id"] = f"EDR-{int(m.group(1)):03d}{m.group(2)}"
         rec["type"] = "EDR"
-        rec["title"] = name[4:-3].replace("_", " ")
+        rec["title"] = name[m.end(2) + 1:-3].replace("_", " ")
         return rec
     return None
 

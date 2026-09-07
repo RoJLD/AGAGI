@@ -138,6 +138,14 @@ def run_compositional(backend: str, seed: int = 0, trials: int = 100, n_agents: 
                       num_nodes: int = 172, init_scale: str = "prod") -> dict:
     """Entraîne une pop sur la tâche 2-étapes. Renvoie le taux d'essais PLEINEMENT corrects
     (X-puis-Y) début vs fin (delta = apprentissage compositionnel)."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06, famille run_* -- 7e elargissement du cliquet). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte
+    # vide / un horizon nul rend 0.0 ou nan comme une MESURE que l'aval lit comme un resultat
+    # (biais negatif systematique du depot). Posee AVANT toute construction -> refus < 0.5 s.
+    if int(trials) <= 0 or int(n_agents) <= 0:
+        raise ValueError(
+            f"run_compositional : argument degenere (trials={trials} n_agents={n_agents}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     np.random.seed(seed)
     try:
         import torch
@@ -214,6 +222,14 @@ def run_curriculum(backend: str, seed: int = 0, warmup_trials: int = 150, compo_
     """Curriculum 2 phases (bascule dure). Phase A : enseigner X (reward dense did_x, S1 seul).
     Phase B : compositionnel pur (S1 reward 0, S2 reward Y|X). Trace l'efficacité (warmup did_x),
     le hit compositionnel (phase B) et la rétention de X en phase B. warmup_trials=0 → phase B seule."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06, famille run_* -- 7e elargissement du cliquet). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte
+    # vide / un horizon nul rend 0.0 ou nan comme une MESURE que l'aval lit comme un resultat
+    # (biais negatif systematique du depot). Posee AVANT toute construction -> refus < 0.5 s.
+    if int(compo_trials) <= 0 or int(n_agents) <= 0 or int(warmup_trials) < 0:
+        raise ValueError(
+            f"run_curriculum : argument degenere (compo_trials={compo_trials} warmup_trials={warmup_trials} n_agents={n_agents}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     np.random.seed(seed)
     try:
         import torch
@@ -276,6 +292,14 @@ def run_curriculum_fade(backend: str, seed: int = 0, warmup_trials: int = 150, c
     S2 reward = compositionnel PÉNALISÉ (surcoût y_without_x_penalty sur Y-sans-X → force le
     conditionnement, levier binding par le signal, EDR 126). Mesure le joint `hit`, la rétention
     `compo_didx`, P(Y|X) ET P(Y|¬X) → binding_gap. fade_w0=0 ≡ bascule dure ; penalty=0 ≡ EDR 126."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06, famille run_* -- 7e elargissement du cliquet). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte
+    # vide / un horizon nul rend 0.0 ou nan comme une MESURE que l'aval lit comme un resultat
+    # (biais negatif systematique du depot). Posee AVANT toute construction -> refus < 0.5 s.
+    if int(compo_trials) <= 0 or int(n_agents) <= 0 or int(warmup_trials) < 0:
+        raise ValueError(
+            f"run_curriculum_fade : argument degenere (compo_trials={compo_trials} warmup_trials={warmup_trials} n_agents={n_agents}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     np.random.seed(seed)
     try:
         import torch
@@ -393,6 +417,14 @@ def run_curriculum_fade_gated(backend: str, seed: int = 0, warmup_trials: int = 
         "base" (seul pop.learn ; le gate lit la reward BRUTE → teste si le locus est la politique de
         base), "gate" (seule l'avantage du gate). Décompose l'effet (revue EDR 134).
     Mesure binding_gap = P(Y|X) − P(Y|¬X) en fin de phase B."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06, famille run_* -- 7e elargissement du cliquet). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte
+    # vide / un horizon nul rend 0.0 ou nan comme une MESURE que l'aval lit comme un resultat
+    # (biais negatif systematique du depot). Posee AVANT toute construction -> refus < 0.5 s.
+    if int(n_agents) <= 0 or int(compo_trials) <= 0:
+        raise ValueError(
+            f"run_curriculum_fade_gated : argument degenere (n_agents={n_agents} compo_trials={compo_trials}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     if gate_mode not in ("none", "oracle", "learned"):
         raise ValueError(f"gate_mode inconnu : {gate_mode!r} (attendu none/oracle/learned)")
     if y_saturation_scope not in ("both", "base", "gate"):

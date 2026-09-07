@@ -3,7 +3,8 @@ id: EDR-166
 type: EDR
 title: "Persister le gate de binding à travers le rebuild du pop (prérequis cran 2 identifié par le review d'EDR-163) — VERDICT NEUTRE (4 seeds, monde compositionnel EDR-161, PERSIST vs RESET du gate au rebuild) : median_diff +0.009 <bande, 2/4, sign_p 1.0. L'instrument est VALIDÉ mécaniquement (mini-test d'asymétrie : RESET met w_gate à ~0, PERSIST le porte, W survit via génome) donc le null n'est PAS un bug d'inherit_gate. Lecture : le KPI stationnaire (dernier quart) démarre AU rebuild → RESET a ~200 ép pour RÉ-APPRENDRE le gate avant mesure → le NEUTRE = probable RÉ-APPRENTISSAGE RAPIDE du gate, PAS 'perdre le gate est sans effet'. Conséquence cran 2 : persister le gate au rebuild n'est probablement PAS nécessaire (le gate se reforme vite). SUIVI = métrique de décrochage IMMÉDIAT post-rebuild pour trancher"
 status: accepted
-gate: null
+gate: G2
+tests: [SDR-G2]
 verdict: GATE_PERSIST_NEUTRAL_LIKELY_FAST_RELEARNING
 ---
 

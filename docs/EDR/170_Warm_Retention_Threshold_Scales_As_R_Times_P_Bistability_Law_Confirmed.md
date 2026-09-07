@@ -3,7 +3,8 @@ id: EDR-170
 type: EDR
 title: "Le seuil warm de rétention est une LOI : c_warm = r·P (pas un nombre magique à r=1). Sweep de r∈{0.5,2.0} × c/r : le seuil NORMALISÉ c/r est INVARIANT ≈ P (~0.9-1.0) — warm tient à c/r≤0.9, s'effondre au-dessus, POUR LES DEUX r. Seuil absolu scale avec r (0.45 à r=0.5, 1.80 à r=2.0). À r=2, c=2.4≫r·P → effondrement TOTAL (0.001). Validation la plus forte du modèle de bistabilité d'EDR-164/168 : le seuil warm = rentabilité STATIQUE, mécaniste. Bonus : P monte avec r (0.92→0.99). Clôt la caractérisation de la rétention"
 status: accepted
-gate: null
+gate: G2
+tests: [SDR-G2]
 verdict: WARM_THRESHOLD_SCALES_AS_R_TIMES_P_LAW_CONFIRMED
 ---
 

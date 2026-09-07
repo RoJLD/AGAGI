@@ -34,6 +34,14 @@ def _reproduce(champions, num_agents, mc):
 
 
 def run_era(cfg, genomes, max_ticks=400):
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06, famille run_* -- 7e elargissement du cliquet). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte
+    # vide / un horizon nul rend 0.0 ou nan comme une MESURE que l'aval lit comme un resultat
+    # (biais negatif systematique du depot). Posee AVANT toute construction -> refus < 0.5 s.
+    if genomes is None or len(genomes) == 0 or int(max_ticks) <= 0:
+        raise ValueError(
+            f"run_era : argument degenere (n_genomes={0 if genomes is None else len(genomes)}, max_ticks={max_ticks}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     env = Biosphere3D(cfg)
     for g in genomes:
         a = MambaAgent()

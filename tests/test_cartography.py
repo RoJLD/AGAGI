@@ -81,6 +81,7 @@ TERRS = [
 def test_edr_number_parsing():
     from tools.cartography import _edr_number
     assert _edr_number("EDR-140") == 140
+    assert _edr_number("EDR-114b") == 114   # T2 : un addendum suit le territoire de son EDR
     assert _edr_number("EDR-093") == 93
     assert _edr_number("EDR-SUB-012") is None
     assert _edr_number(None) is None

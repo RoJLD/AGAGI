@@ -73,7 +73,7 @@ def _edr_number(rec_id) -> int | None:
     'EDR-SUB-012' (préfixé) -> None ; None -> None."""
     if not rec_id:
         return None
-    m = re.fullmatch(r"EDR-(\d{1,3})", str(rec_id))
+    m = re.fullmatch(r"EDR-(\d{1,3})[a-z]?", str(rec_id))   # EDR-114b -> 114 : un addendum suit son EDR
     return int(m.group(1)) if m else None
 
 

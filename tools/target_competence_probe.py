@@ -56,6 +56,13 @@ def run_probe(target, k, num_agents, max_ticks, shared_db, mode="tabula"):
     """K ères sur la cible -> par ère : compétence + médianes des signaux bruts.
     mode='tabula' : soupe fraîche (dénominateur réel C_tabula). mode='champion' : clones du
     champion HoF (plafond : le contraste tabula<champion EST le signal de transfert mesurable)."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06). Cette definition homonyme roulait sur un FAUX VERT :
+    # le cliquet verdissait le nom nu des qu'UN autre fichier etait declare (defaut corrige le meme
+    # jour). Un argument degenere est une erreur d'APPEL, pas un fait sur le monde.
+    if int(k) <= 0 or int(num_agents) <= 0 or int(max_ticks) <= 0:
+        raise ValueError(
+            f"run_probe : argument degenere (k={k} num_agents={num_agents} max_ticks={max_ticks}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     comp_fn = competence_for(target)
     config = WorldConfig()
     # Économie d'énergie (EDR 085) : défaut 1.0/1.0 = régime LÉTAL (~50 ticks). Sweet spot

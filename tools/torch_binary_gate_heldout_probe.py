@@ -34,6 +34,14 @@ def run_arm(shuffle_reward=False, train_ep=1200, test_ep=100, n_agents=128, seed
     Pin EN DUR a False = defaut de classe = substrat `plain` des mesures publiees (EDR-171, 2026-07-10,
     anterieur au terme bilineaire du 2026-08-03) -> BIT-IDENTIQUE. Meme traitement pour les flags de
     gate (defauts de classe), lus par `forward`. Pose AVANT `make_population`, restaure dans le finally."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06, famille run_* -- 7e elargissement du cliquet). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte
+    # vide / un horizon nul rend 0.0 ou nan comme une MESURE que l'aval lit comme un resultat
+    # (biais negatif systematique du depot). Posee AVANT toute construction -> refus < 0.5 s.
+    if int(n_agents) <= 0 or int(train_ep) <= 0 or int(test_ep) <= 0:
+        raise ValueError(
+            f"run_arm : argument degenere (n_agents={n_agents} train_ep={train_ep} test_ep={test_ep}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     saved = (TorchPopulationModel.CONDITION_GATE, TorchPopulationModel.GATE_TARGET,
              TorchPopulationModel.BILINEAR)
     TorchPopulationModel.CONDITION_GATE = False

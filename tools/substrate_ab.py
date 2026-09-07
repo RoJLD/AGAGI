@@ -84,6 +84,14 @@ def run_substrate_ab(backend: str, seed: int = 0, ticks: int = 200,
                      n_agents: int = 8, target_move: int = 0) -> dict:
     """Entraîne une population à émettre `target_move` sur une obs fixe. Renvoie le taux
     de bonne action au début vs à la fin (delta = apprentissage)."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06, famille run_* -- 7e elargissement du cliquet). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte
+    # vide / un horizon nul rend 0.0 ou nan comme une MESURE que l'aval lit comme un resultat
+    # (biais negatif systematique du depot). Posee AVANT toute construction -> refus < 0.5 s.
+    if int(ticks) <= 0 or int(n_agents) <= 0 or not (0 <= int(target_move) < _MOVE):
+        raise ValueError(
+            f"run_substrate_ab : argument degenere (ticks={ticks} n_agents={n_agents} target_move={target_move}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     np.random.seed(seed)
     try:
         import torch

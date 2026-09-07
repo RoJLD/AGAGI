@@ -3,7 +3,8 @@ id: EDR-168
 type: EDR
 title: "Boucle d'hystérésis de la rétention CARTOGRAPHIÉE (item a) : seuil cold ≈0.04 (barrière de bootstrap) vs seuil warm ≈ r·P ≈ 0.9 (rentabilité STATIQUE) = hystérésis ~22×, validant la borne r·P d'EDR-164. Au-dessus de 0.9 (crafter net-négatif) le bassin haut est MÉTASTABLE (tient à 600ép, s'érode à 2000ép : craft 0.13→0.05). Profondeur du warm-start : ~50 ép suffisent (levier bon marché). Complète 164/167"
 status: accepted
-gate: null
+gate: G2
+tests: [SDR-G2]
 verdict: RETENTION_HYSTERESIS_LOOP_MAPPED_WARM_THRESHOLD_IS_STATIC_BOUND
 ---
 

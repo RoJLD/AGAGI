@@ -42,6 +42,14 @@ def run_community(episodes: int = 2000, n_agents: int = 128, K: int = 6, V: int 
     """Entraîne 128 senders + 128 receivers (politiques distinctes, batch torch) sur le jeu référentiel,
     en appariant sender_i<->receiver_{i+s}. rotate=False => s=0 (paires figées, LANG-001) ; rotate=True =>
     s aléatoire non-nul par épisode (conventionnalisation). Renvoie within/cross/MI et chance."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06, famille run_* -- 7e elargissement du cliquet). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte
+    # vide / un horizon nul rend 0.0 ou nan comme une MESURE que l'aval lit comme un resultat
+    # (biais negatif systematique du depot). Posee AVANT toute construction -> refus < 0.5 s.
+    if int(episodes) <= 0 or int(n_agents) < 2 or int(eval_shifts) <= 0 or not (2 <= int(K) <= 8) or not (2 <= int(V) <= 8):
+        raise ValueError(
+            f"run_community : argument degenere (episodes={episodes}, n_agents={n_agents}, K={K}, V={V}, eval_shifts={eval_shifts}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     import numpy as np
     import torch
     from src.agents.mamba_agent import MambaAgent

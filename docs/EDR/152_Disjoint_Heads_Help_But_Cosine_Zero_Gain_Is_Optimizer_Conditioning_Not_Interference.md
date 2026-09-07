@@ -1,3 +1,13 @@
+---
+# frontmatter ajouté rétroactivement (T2, 2026-09-06) ; corps d'origine inchangé
+id: EDR-152
+type: EDR
+title: "Têtes disjointes : DISJOINT_HELPS (5/5, +43 %) mais cosinus≈0 — conditionnement d'optimiseur par tête, pas interférence"
+status: legacy
+gate: foundational
+verdict: DISJOINT_HELPS_OPTIMIZER_CONDITIONING_NOT_INTERFERENCE
+---
+
 # EDR 152 — Têtes disjointes : DISJOINT_HELPS formel (5/5, +43 %) MAIS cosinus≈0 → le gain n'est PAS l'isolation d'interférence, c'est le conditionnement d'optimiseur par-tête
 
 > **Date** : 2026-07-01. **Verdict pré-enregistré** : `DISJOINT_HELPS` si l'amélioration relative moyenne (par

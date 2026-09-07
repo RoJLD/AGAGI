@@ -89,6 +89,14 @@ _INSTRUMENT_PATTERNS = (
     # (`run_condition`, `run_arm`, `run_cell`...). C'est un chantier a part, inscrit au backlog avec
     # son compte exact -- l'avaler ici aurait force a geler 56 dettes, c.-a-d. a rendre le cliquet
     # non strict pour la premiere fois depuis sa fermeture.
+    # ⚠️ SEPTIEME elargissement, 2026-09-06 : le motif `run_\w+` GENERIQUE. Il etait connu depuis le
+    # 2026-09-02 (mesure : +56 fonctions non calibrees) et DELIBEREMENT non avale -- l'avaler alors
+    # aurait force a geler 56 dettes, c.-a-d. a rendre le cliquet non strict pour la premiere fois.
+    # Inventaire refute depuis (72 fonctions : 57 simulateurs, 14 orchestrateurs, 4 helpers), toutes
+    # gardees/declarees dans la meme passe -> le motif entre SANS creer un gramme de dette.
+    # Ce que ces gardes NE couvrent PAS : les branches de VERDICT des 11 orchestrateurs (injection a
+    # dose connue) -- dette DECLAREE au backlog, jamais masquee par la garde d'entree.
+    re.compile(r"^def\s+(run_\w+)\s*\(", re.M),
     re.compile(r"^def\s+(compare_\w+)\s*\(", re.M),
     re.compile(r"^def\s+(sweep_\w+)\s*\(", re.M),
     re.compile(r"^def\s+(probe_\w+)\s*\(", re.M),
@@ -179,6 +187,7 @@ def scan_calibrated():
     known = scan_instruments()
     collisions = scan_collisions()
     out, refusees = set(), []
+    qualified_paths = {}                              # {nom nu: {chemins declares calibres}}
     for name, branches in (declared or {}).items():
         # Une déclaration peut être QUALIFIÉE : "tools/foo.py::run_probe" — obligatoire dès que le nom
         # est ambigu, sinon on validerait des homonymes jamais testés (cf. `scan_collisions`).
@@ -189,14 +198,37 @@ def scan_calibrated():
         if bare in collisions and not qualified:
             refusees.append(bare)                     # AMBIGUË : refusée tant qu'elle n'est pas qualifiée
             continue
-        if isinstance(branches, (list, tuple, set)) and branches:
-            out.add(bare)
+        if not (isinstance(branches, (list, tuple, set)) and branches):
+            continue
+        if bare in collisions:
+            # ⚠️ 2026-09-06 (refutateur de la famille run_*) : `out.add(bare)` ici verdissait le NOM NU,
+            # donc TOUS les homonymes des qu'UN chemin etait declare -- declarer tools/ablation.py::
+            # run_condition aurait verdi tools/s2_demand.py::run_condition, jamais garde. Faux vert E4
+            # fabrique par la passe de calibration elle-meme. On memorise le CHEMIN ; la couverture
+            # complete est jugee plus bas (`collision_coverage`), avec les NOT_AN_INSTRUMENT qualifies.
+            qualified_paths.setdefault(bare, set()).add(name.split("::")[0].replace("\\", "/"))
+            continue
+        out.add(bare)
     # ⚠️ NE PAS REFUSER EN SILENCE (2026-09-01). La regle de qualification a REJETE une declaration
     # ecrite le jour meme, et son auteur a rapporte « 81 calibres » sans voir que l'une des trois
     # n'avait pas pris : le compteur monte de 2 au lieu de 3, rien ne le dit. Un rejet muet fait croire
     # a l'auteur qu'il a declare ce qu'il n'a pas declare -- exactement la classe du « drop silencieux »
     # corrigee le matin meme sur la liste blanche de frontmatter.
     scan_calibrated.refusees = sorted(set(refusees))
+    scan_calibrated.qualified_paths = {k: sorted(v) for k, v in qualified_paths.items()}
+    return out
+
+
+def collision_coverage(collisions, calibrated_paths, not_instrument_paths):
+    """Pour chaque nom en collision : (couvert ?, chemins manquants). Un nom n'est CALIBRE que si
+    CHAQUE chemin porte une declaration qualifiee -- calibree OU non-instrument. Fonction PURE,
+    calibree sur reponse connue (tests/sandbox/test_check_instrument_calibration_collisions.py)."""
+    out = {}
+    for nom, chemins in collisions.items():
+        tous = {c.replace("\\", "/") for c in chemins}
+        couverts = {c.replace("\\", "/") for c in calibrated_paths.get(nom, ())}             | {c.replace("\\", "/") for c in not_instrument_paths.get(nom, ())}
+        manquants = sorted(tous - couverts)
+        out[nom] = (not manquants, manquants)
     return out
 
 
@@ -259,7 +291,7 @@ def main(argv=None):
     # `src/seed_ai/eval_harness.py::verdict`, qui en est peut-etre un. Defaut reintroduit puis
     # rattrape le 2026-09-01, dans le mecanisme meme ecrit pour rendre le compteur plus honnete.
     _coll = scan_collisions()
-    faux_positifs = {}
+    faux_positifs, nai_paths = {}, {}
     for n, r in scan_not_instruments().items():
         qualifie = "::" in n
         nu = n.split("::")[-1] if qualifie else n
@@ -267,7 +299,20 @@ def main(argv=None):
             continue
         if nu in _coll and not qualifie:
             continue                       # ambigue : a qualifier « fichier.py::fonction »
+        if nu in _coll:
+            nai_paths.setdefault(nu, set()).add(n.split("::")[0].replace("\\", "/"))
+            continue                       # collision : la couverture par CHEMIN est jugee ci-dessous
         faux_positifs[nu] = r
+    # ⚠️ 2026-09-06 : un nom en COLLISION n'est calibre/exempte que si TOUS ses chemins sont couverts.
+    couverture = collision_coverage(_coll, getattr(scan_calibrated, "qualified_paths", {}), nai_paths)
+    collisions_partielles = {}
+    for nu, (ok, manquants) in couverture.items():
+        if nu not in instruments:
+            continue
+        if ok:
+            calibrated = set(calibrated) | {nu}
+        else:
+            collisions_partielles[nu] = manquants
     uncalibrated = sorted(set(instruments) - calibrated - set(faux_positifs))
 
     if args.update_baseline:
@@ -330,6 +375,9 @@ def main(argv=None):
     for n in hors_portee:
         print(f"  [non calibré, HORS PORTÉE de ce commit] {n}  ({instruments[n]})"
               f"  -> à traiter par la session qui l'a écrit")
+    for nu, manquants in sorted(collisions_partielles.items()):
+        print(f"  [COLLISION PARTIELLEMENT COUVERTE] {nu} : chemins sans declaration qualifiee -> "
+              f"{', '.join(manquants)}")
     for n in nouveaux:
         print(f"  [NOUVEL INSTRUMENT NON CALIBRÉ] {n}  ({instruments[n]})"
               f"  -> ajouter un cas dans tests/sandbox/test_instrument_calibration.py")

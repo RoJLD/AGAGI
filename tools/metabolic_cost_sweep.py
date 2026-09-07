@@ -126,6 +126,14 @@ def run_lineage(seed: int, coef: float, eras: int = 15, num_agents: int = 30,
                 param: str = "metabolic_cost_coef", seed_num_nodes: Optional[int] = None) -> Dict:
     """Une trajectoire évolutive (E ères + cliquet) à coef fixe, seed apparié.
     KPIs sur 5 dernières ères. seed_num_nodes : taille du connectome de graine (None = défaut 172)."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06, famille run_* -- 7e elargissement du cliquet). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte
+    # vide / un horizon nul rend 0.0 ou nan comme une MESURE que l'aval lit comme un resultat
+    # (biais negatif systematique du depot). Posee AVANT toute construction -> refus < 0.5 s.
+    if int(eras) <= 0 or int(num_agents) <= 0:
+        raise ValueError(
+            f"run_lineage : argument degenere (seed={seed} coef={coef} eras={eras} num_agents={num_agents}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     if run_era_fn is None:
         run_era_fn = run_era_metab  # défini en Task 3 dans ce même module
     SeedManager(seed).seed_boundary(0)
@@ -183,6 +191,14 @@ def run_sweep(seeds, coefs, eras: int = 15, num_agents: int = 30, max_ticks: int
 
 def run_era_metab(cfg, genomes, max_ticks: int = 400):
     """Mirror de evolve_competence.run_era + accumulation de mean_active (tool-local, 0 changement cœur)."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06, famille run_* -- 7e elargissement du cliquet). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte
+    # vide / un horizon nul rend 0.0 ou nan comme une MESURE que l'aval lit comme un resultat
+    # (biais negatif systematique du depot). Posee AVANT toute construction -> refus < 0.5 s.
+    if not genomes or int(max_ticks) <= 0:
+        raise ValueError(
+            f"run_era_metab : argument degenere (n_genomes={len(genomes or [])} max_ticks={max_ticks}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     env = Biosphere3D(cfg)
     for g in genomes:
         a = MambaAgent()

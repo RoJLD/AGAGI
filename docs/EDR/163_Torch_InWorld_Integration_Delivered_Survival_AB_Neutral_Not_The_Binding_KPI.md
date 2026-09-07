@@ -3,7 +3,8 @@ id: EDR-163
 type: EDR
 title: "Intégration torch IN-WORLD LIVRÉE (crans 0-1) : le crédit épisodique `learn_episode` tourne dans la boucle biosphère derrière `use_torch_inworld` (pop persistant, buffer glissant K, crédit ALIGNÉ PAR IDENTITÉ d'agent, garde benchmark_mode), non-régression legacy prouvée. Banc A/B survie apparié → VERDICT NEUTRE POWERED (12 seeds, régime very_soft EDR-085, métrique AUC de survie car le monde est létal aux frais → survie finale = plancher EDR-090) : median_diff +0.017 <bande, 7/12, sign_p 0.55 ; le signal 6-seeds (+0.033, 4/6) s'est ÉVAPORÉ sous puissance (piège SCIENCE.md). Établit deux choses : (1) NON-RÉGRESSION in-world à la puissance — torch learn+learn_episode ne dégrade PAS la survie (feu vert sûreté migration) ; (2) la survie brute N'EST PAS le KPI du binding — learn_episode porte la composition (EDR-161), pas la survie que le crédit par-tick apprend déjà. Prochain instrument = brancher une DEMANDE DE COMPOSITION in-world"
 status: accepted
-gate: null
+gate: G2
+tests: [SDR-G2]
 verdict: TORCH_INWORLD_NEUTRAL_ON_SURVIVAL_NON_REGRESSION_CONFIRMED_SURVIVAL_NOT_THE_BINDING_KPI
 ---
 

@@ -3,7 +3,8 @@ id: EDR-167
 type: EDR
 title: "Le WARM-START rescape la rétention du craft — HYSTÉRÉSIS LARGE, preuve causale de la bistabilité d'EDR-164. Pré-entraîner le binding à coût 0 puis monter le coût : le craft est RETENU jusqu'à c=0.30 (warm craft ~0.12, P~0.9) là où un cold-start s'effondre dès c*≈0.04 (~0.05, P~0.3) — soit ~7× le seuil cold. Deux bassins (bistable) : le warm-start place dans le bassin haut qui tolère un coût bien plus grand. Livre le levier ACTIONNABLE pour l'axe 3 in-world (warm-start le binding, converge EDR-132), pas 'renforcer le binding'"
 status: accepted
-gate: null
+gate: G2
+tests: [SDR-G2]
 verdict: WARMSTART_RESCUES_RETENTION_WIDE_HYSTERESIS
 ---
 

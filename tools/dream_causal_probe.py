@@ -86,6 +86,13 @@ def dose_response_verdict(per_arm: Dict, eps: float = 0.02) -> Dict:
 def run_causal(seeds, target, num_agents, max_ticks, shared_db, ks=(1, 4, 8)) -> Dict:
     """Par seed, balaye les bras ["off", *ks] à organe ON (100%) + sweet spot. Pose FORCE_DREAM
     AVANT l'ère, le REMET à None en finally (anti-pollution). Survie appariée par seed -> verdict."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06). Orchestrateur : il n'entraine pas lui-meme mais
+    # AGREGE en verdict -- une cohorte/liste de seeds vide produit une agregation VIDE que l'aval
+    # lit comme une mesure (biais negatif systematique). Refus instantane, avant tout appel de run.
+    if not list(seeds) or not list(ks) or int(num_agents) <= 0 or int(max_ticks) <= 0:
+        raise ValueError(
+            f"run_causal : argument degenere (n_seeds={len(list(seeds))} n_ks={len(list(ks))} num_agents={num_agents} max_ticks={max_ticks}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     arms = ["off", *[int(k) for k in ks]]
     per_arm = {arm: [] for arm in arms}
     for seed in seeds:
@@ -147,6 +154,13 @@ def run_founder_matched(seeds, target="stoneage", num_agents=25, max_ticks=80, k
 
     PERSISTE le résultat : sans artefact, des chiffres publiés ne sont re-dérivables d'aucun fichier —
     le défaut relevé sur `champion_body` (EDR-S2-012)."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06). Orchestrateur : il n'entraine pas lui-meme mais
+    # AGREGE en verdict -- une cohorte/liste de seeds vide produit une agregation VIDE que l'aval
+    # lit comme une mesure (biais negatif systematique). Refus instantane, avant tout appel de run.
+    if not list(seeds) or int(num_agents) <= 0 or int(max_ticks) <= 0 or int(k) <= 0:
+        raise ValueError(
+            f"run_founder_matched : argument degenere (n_seeds={len(list(seeds))} num_agents={num_agents} max_ticks={max_ticks} k={k}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     import json
     from src.seed_ai.s2_stats import wilcoxon_signed_rank
 

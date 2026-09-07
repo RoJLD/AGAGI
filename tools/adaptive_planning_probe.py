@@ -94,6 +94,14 @@ def depth_from_fidelity(recent_mse, depth_max):
 def run_adaptive(d=8, K=4, exec_steps=5, n_test=120, depth_max=4, seed=0, n_fit=3000):
     """Compare, sur une gamme de qualités de modèle : profondeur ADAPTATIVE (choisie via la fidélité mesurée)
     vs FIXE-1 vs FIXE-max, en succès ET en calcul."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06, famille run_* -- 7e elargissement du cliquet). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte
+    # vide / un horizon nul rend 0.0 ou nan comme une MESURE que l'aval lit comme un resultat
+    # (biais negatif systematique du depot). Posee AVANT toute construction -> refus < 0.5 s.
+    if int(d) <= 0 or int(K) < 2 or int(exec_steps) <= 0 or int(n_test) <= 0 or int(depth_max) < 1 or int(n_fit) <= 0:
+        raise ValueError(
+            f"run_adaptive : argument degenere (d={d} K={K} exec_steps={exec_steps} n_test={n_test} depth_max={depth_max} n_fit={n_fit}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     W_list = _true_dynamics(d, K, seed)
     models = _fit_models(W_list, d, K, n_fit, seed)
     rng = np.random.RandomState(seed + 7)

@@ -15,6 +15,14 @@ def run_hcm_analysis(num_ticks=200, n_clusters=4):
     Exécute une analyse 'Hidden Cognition Models' (HCM) sur le meilleur agent.
     Objectif: Découvrir les états cognitifs latents de l'agent (Phylogénèse cognitive).
     """
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06, famille run_* -- 7e elargissement du cliquet). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte
+    # vide / un horizon nul rend 0.0 ou nan comme une MESURE que l'aval lit comme un resultat
+    # (biais negatif systematique du depot). Posee AVANT toute construction -> refus < 0.5 s.
+    if int(num_ticks) <= 0 or int(n_clusters) <= 0:
+        raise ValueError(
+            f"run_hcm_analysis : argument degenere (num_ticks={num_ticks}, n_clusters={n_clusters}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     print("🧠 Démarrage de l'Observatoire HCM (Hidden Cognition Models)")
     
     hof = load_hall_of_fame()

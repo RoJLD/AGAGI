@@ -58,6 +58,14 @@ def _season_of_tick(t):
 # ----------------------------------------------------------------------------- run (impur)
 def run_agricultural(genome, seed, num_agents=20, max_ticks=250, config=None):
     """Cohorte-champion dans AgriculturalWorld. Capture par tick : saison, comptes d'items, agents vivants."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06, famille run_* -- 7e elargissement du cliquet). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte
+    # vide / un horizon nul rend 0.0 ou nan comme une MESURE que l'aval lit comme un resultat
+    # (biais negatif systematique du depot). Posee AVANT toute construction -> refus < 0.5 s.
+    if int(num_agents) <= 0 or int(max_ticks) <= 0:
+        raise ValueError(
+            f"run_agricultural : argument degenere (num_agents={num_agents} max_ticks={max_ticks} seed={seed}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     from src.agents.mamba_agent import MambaAgent
     seed_at(seed, 0)
     env = AgriculturalWorld(config) if config is not None else AgriculturalWorld()

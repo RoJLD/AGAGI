@@ -3,7 +3,8 @@ id: EDR-131
 type: EDR
 title: "Le plafond 7/10 du gate (EDR 129/130) est une PATH-DEPENDENCE PRÉCOCE vers le bassin always-Y, PAS une limite de représentation : did_x est également décodable de H_S2 chez les seeds collapsés et bindeurs (AUC 0.90 vs 0.96, séparation 0.06 = NULLE), mais les collapsés saturent en always-Y dès le premier quart (y_rate 0.95 vs 0.76) → le sort est scellé tôt, avant que le gate n'apprenne à conditionner ; explique pourquoi les interventions tardives d'EDR 130 échouent (le bassin est déjà entré)"
 status: validated
-gate: null
+gate: G2
+tests: [SDR-G2]
 verdict: "Diagnostic du plafond 7/10 (pourquoi les seeds 0,3,4 collapsent déterministiquement). probe_collapse_predictors : gate learned + capture PRÉCOCE (1er quart / 1re moitié) de 3 prédicteurs, corrélés à l'issue bind/collapse. (1) REPRÉSENTATION RÉFUTÉE : did_x_auc_early (décodabilité de did_x depuis H_S2) est ÉLEVÉE chez TOUS — bindeurs 0.956, collapsés 0.895, séparation 0.060 (nulle). La mémoire encode did_x proprement même chez les collapsés (0.82-0.96) → le collapse n'est PAS représentationnel (prolonge EDR 120 aux seeds collapsés). (2) ENTRÉE PRÉCOCE DU BASSIN : y_rate_start collapsés 0.948 (quasi always-Y) vs bindeurs 0.755 → les collapsés SATURENT en always-Y dès le 1er quart ; binding_gap_start collapsés -0.057 vs bindeurs 0.475 (séparation 0.532) → le sort est déterminé tôt. La politique s'enferme dans always-Y avant que le gate n'apprenne à router, alors que l'info did_x EST disponible. → Le plafond n'est pas une limite de représentation mais une PATH-DEPENDENCE d'initialisation/trajectoire précoce ; ça explique pourquoi les leviers TARDIFS d'EDR 130 (entropie/éligibilité) échouent (le bassin est déjà entré). Actionnable : intervenir TÔT (warm-start du gate, récompense différée, freiner la saturation-Y précoce)."
 ---
 

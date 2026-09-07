@@ -1,3 +1,14 @@
+---
+# frontmatter ajouté rétroactivement (T2, 2026-09-06) ; corps d'origine inchangé
+id: EDR-150
+type: EDR
+title: "Theory of Mind : GATÉE, pas morte — tête inerte, récompense déconnectée de la fitness, décodage latent faible"
+status: legacy
+gate: G4
+tests: [SDR-G4]
+verdict: TOM_INERT
+---
+
 # EDR 150 — Theory of Mind : GATEE, pas morte ; tete inerte + recompense DECONNECTEE de la fitness ; decode latent FAIBLE (contexte partage ?)
 
 > **Date** : 2026-07-01. **Verdict pre-enregistre** : `TOM_EMERGES` si `acc_head_tom >= acc_shuffle_tom + 0.10` ET `acc_head_tom >= acc_head_ctrl + 0.10` ; sinon `TOM_INERT`.

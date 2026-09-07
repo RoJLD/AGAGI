@@ -1,3 +1,14 @@
+---
+# frontmatter ajouté rétroactivement (T2, 2026-09-06) ; corps d'origine inchangé
+id: EDR-114b
+type: EDR
+title: "Dé-confond p_reach : baselines forage corrigées — le pooling-reproduction déflate la métrique 2-4x (addendum d'EDR 114)"
+status: legacy
+gate: foundational
+verdict: CONFOUND_CONFIRMED_FORAGE_BASELINES_DEFLATED_2_4X
+extends: [EDR-114]
+---
+
 # EDR 114b — De-confond p_reach : baselines forage corriges (le pooling-reproduction deflate la metrique 2-4x)
 
 > **Date** : 2026-06-30. **Addendum a [EDR 114](114_Reaching_Primitive_Closes_P_Reach_The_Wall_Is_The_Policy_Reproduction_Pooling_Confounds_The_Metric.md)** (pas de numero EDR contendu : 115/116/117 claimes par la session // moteur torch).

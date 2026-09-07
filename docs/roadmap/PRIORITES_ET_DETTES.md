@@ -779,7 +779,32 @@ conclusions de l'arc BILINEAR / LANG-MEMORY / MEM-PERCEPTION / RETAIN-COMPOSE (t
   - ⚠️ **6ᵉ angle mort du cliquet de calibration** : `substrate_ab_compositional.py` et
     `compositional_world_probe.py` rendent des verdicts (`BINDING_FORCED`, `:950,994-995`) et sont
     INVISIBLES au détecteur (117 détectés, 0 signalé) — le KPI de la porte G2 n'a AUCUN instrument
-    au registre. Tout nouveau run proxy G2 est BLOQUÉ tant que le banc n'entre pas au registre. **→ LEVÉ le 2026-09-02 (6ᵉ ÉLARGISSEMENT du détecteur)** : les verbes `compare_`/`sweep_`/`probe_` en TÊTE de nom n'étaient couverts par aucun motif (seul `run_*sweep*` l'était). Coût compté AVANT application : **+22 fonctions** — 10 du banc compositionnel calibrées par INJECTION À DOSE CONNUE (les verdicts `BINDING_FORCED`, `GATE_BINDS`, `ANTISAT_RESCUES`… avec leurs branches NÉGATIVES ; l'injection a d'ailleurs trouvé une clé manquante, `gate_bias_margin_end`) et 12 sondes par garde d'arguments en tête (3ᵉ vague, refus < 0,5 s). **Cliquet toujours STRICT** : 139 détectés / 138 calibrés / 0 dette. ⚠️ **Reste ouvert et MESURÉ** : un motif `run_\w+` générique ajouterait **+56** fonctions non calibrées (`run_condition`, `run_arm`, `run_cell`, `run_era*`…) — chantier à part, délibérément NON avalé ici (l'avaler aurait forcé à geler 56 dettes, c.-à-d. à rendre le cliquet non strict pour la première fois depuis sa fermeture). **Suite immédiate (même soirée)** : le mot-clé CIBLÉ `world` (+3 mesurées, pas +56) débloque le NIVEAU 2 de G2 — `run_world` détecté et gardé, et son verdict EXTRAIT de `main` en fonction pure `capability_payoff_verdict`, calibrée (dont le refus sur un seul point de demande : l'ancien code inline fabriquait un « la capacité ne paie pas » là où aucune pente n'existe). La collision de noms a révélé **2 autres `run_world` invisibles** — dette réelle, traitée. Cliquet : 143 détectés / 142 calibrés / **0 dette**.
+    au registre. Tout nouveau run proxy G2 est BLOQUÉ tant que le banc n'entre pas au registre. **→ LEVÉ le 2026-09-02 (6ᵉ ÉLARGISSEMENT du détecteur)** : les verbes `compare_`/`sweep_`/`probe_` en TÊTE de nom n'étaient couverts par aucun motif (seul `run_*sweep*` l'était). Coût compté AVANT application : **+22 fonctions** — 10 du banc compositionnel calibrées par INJECTION À DOSE CONNUE (les verdicts `BINDING_FORCED`, `GATE_BINDS`, `ANTISAT_RESCUES`… avec leurs branches NÉGATIVES ; l'injection a d'ailleurs trouvé une clé manquante, `gate_bias_margin_end`) et 12 sondes par garde d'arguments en tête (3ᵉ vague, refus < 0,5 s). **Cliquet toujours STRICT** : 139 détectés / 138 calibrés / 0 dette. ⚠️ **Reste ouvert et MESURÉ** : un motif `run_\w+` générique ajouterait **+56** fonctions non calibrées (`run_condition`, `run_arm`, `run_cell`, `run_era*`…) — chantier à part, délibérément NON avalé ici (l'avaler aurait forcé à geler 56 dettes, c.-à-d. à rendre le cliquet non strict pour la première fois depuis sa fermeture).
+* ✅ **DETTE `run_\w+` CLOSE le 2026-09-06 (7ᵉ ÉLARGISSEMENT — le plus gros du dépôt)** : inventaire
+  réfuté = **72 fonctions** (57 simulateurs, 14 orchestrateurs, 4 helpers), toutes gardées/déclarées
+  dans la MÊME passe → le motif générique entre **sans un gramme de dette** : le cliquet passe de
+  143 à **196 détectés / 192 calibrés / 0 dette**, 4 non-instruments motivés.
+  * ⚠️ **DÉFAUT DU CLIQUET trouvé par le réfutateur, et il aurait été FABRIQUÉ PAR CETTE PASSE** :
+    `scan_calibrated` faisait `out.add(bare)` — une déclaration QUALIFIÉE `fichier::fonction`
+    verdissait le NOM NU, donc TOUS les homonymes. Déclarer `ablation.py::run_condition` aurait verdi
+    `s2_demand.py::run_condition`, jamais gardé. Corrigé par `collision_coverage` (fonction pure, un
+    nom en collision n'est couvert que si CHAQUE chemin l'est), 4 contre-exemples gelés dans
+    `tests/sandbox/test_check_instrument_calibration_collisions.py`. **Dette réelle révélée** : 6
+    définitions homonymes roulaient sur ce faux vert (`arc5::_verdict`, `lethality::_verdict`,
+    `lewis_survival_sweep::_verdict_capacity`, `lewis_world::measure_mi`,
+    `target_competence_probe::run_probe`, `vertical_world_probe::run_probe`) — toutes calibrées.
+  * ⚠️ **DETTE RESTANTE, DÉCLARÉE ET NON MASQUÉE** : les 11 orchestrateurs `run_*` n'ont que leur
+    garde d'ENTRÉE ; leurs **branches de verdict** ne sont pas couvertes (injection à dose connue à
+    écrire : `run_s2`, `run_openloop_ladder`, `run_direction`, `run_transfer_experiment`, `run_q1/q2`,
+    `run_causal`, `run_founder_matched`, `run_distress`, `run_experiment`, `run_contrast`).
+  * **Identité trouvée en calibrant** (`lewis_survival_sweep::_verdict_capacity`, EDR110) : avec 3
+    bras ÉQUIDISTANTS en log₂, la pente vaut exactement `delta/4` → la clause « ET pente > 0 » est
+    redondante, une bosse non-monotone est lue INERTE (l'instrument ne la voit pas), et AMBIGUË n'est
+    atteignable que si la capacité NUIT. Gravé dans le test.
+* ✅ **T2 CLOS le 2026-09-06** : `114b_*.md` était INVISIBLE au graphe (regex `^(\d{3})_`) — patchée
+  avec le suffixe DANS l'id (le patcher seule aurait fabriqué une collision silencieuse 114b→EDR-114),
+  `cartography._edr_number` idem, 8 frontmatters rétroactifs (114b, 124, 150-154, 194) et 15
+  `gate: null` → G2. **Orphelins 31→18, non-raccordés 89→67**, 0 mismatch, baseline resserrée. **Suite immédiate (même soirée)** : le mot-clé CIBLÉ `world` (+3 mesurées, pas +56) débloque le NIVEAU 2 de G2 — `run_world` détecté et gardé, et son verdict EXTRAIT de `main` en fonction pure `capability_payoff_verdict`, calibrée (dont le refus sur un seul point de demande : l'ancien code inline fabriquait un « la capacité ne paie pas » là où aucune pente n'existe). La collision de noms a révélé **2 autres `run_world` invisibles** — dette réelle, traitée. Cliquet : 143 détectés / 142 calibrés / **0 dette**.
   - `gate_unlinked` jamais ratcheté : 11 `gate: G2` légataires sans `tests:` (017, 018, 021, 022,
     025, 027, 028, 029, 096, 102, 104) — affiché en `--report` seulement (`check_record_links.py:166`).
   - Trou E4 occ.6 (héritée, réfutateur N7) : baseline stagée SEULE → `--only` vide → le ratchet ne

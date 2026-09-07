@@ -346,6 +346,14 @@ def run_credit_linear(seed=2026, warmstart=False, eras=6, num_agents=12, max_tic
     `use_credit=False` : cohorte warm-startée SANS apprentissage in-world — c'est le bras DIAGNOSTIC que
     S2-011 publiait (« WARM SANS crédit → 8 ») alors que `use_torch_inworld` était codé EN DUR à True :
     la ligne n'avait aucun chemin d'exécution (dette P2.8)."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06, famille run_* -- 7e elargissement du cliquet). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte
+    # vide / un horizon nul rend 0.0 ou nan comme une MESURE que l'aval lit comme un resultat
+    # (biais negatif systematique du depot). Posee AVANT toute construction -> refus < 0.5 s.
+    if int(eras) <= 0 or int(num_agents) <= 0 or int(max_ticks) <= 0 or (warmstart and int(bc_steps) <= 0):
+        raise ValueError(
+            f"run_credit_linear : argument degenere (eras={eras}, num_agents={num_agents}, max_ticks={max_ticks}, warmstart={warmstart}, bc_steps={bc_steps}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     from src.worlds.world_1_stoneage import Biosphere3D
     from src.seed_ai.harness import seed_at
     from src.agents.mamba_agent import MambaAgent

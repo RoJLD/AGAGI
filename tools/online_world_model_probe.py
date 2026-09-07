@@ -72,6 +72,14 @@ def run_online(d=8, K=4, horizon=4, steps=3000, eps=0.4, refit_every=50, goal_pe
     courbe d'apprentissage succès-vs-expérience (couverture auto-générée). reset_period>0 : ré-initialise
     l'état à un point varié tous les reset_period pas (= épisodes/respawns -> couverture au-delà de
     l'attracteur de la dynamique)."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06, famille run_* -- 7e elargissement du cliquet). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte
+    # vide / un horizon nul rend 0.0 ou nan comme une MESURE que l'aval lit comme un resultat
+    # (biais negatif systematique du depot). Posee AVANT toute construction -> refus < 0.5 s.
+    if int(steps) <= 0 or int(n_test) <= 0 or int(horizon) <= 0:
+        raise ValueError(
+            f"run_online : argument degenere (steps={steps}, n_test={n_test}, horizon={horizon}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     W_list = _true_dynamics(d, K, seed)
     rng = np.random.RandomState(seed + 3)
     g = _OnlineBilinear(d, K)

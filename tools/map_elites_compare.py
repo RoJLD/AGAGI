@@ -87,6 +87,14 @@ def _reproduce(champ_genomes, num_agents):
 
 def run_era_pool(cfg, genomes, max_ticks=400):
     """Mirror run_era_metab mais renvoie le POOL COMPLET avec stats (pour MAP-Elites)."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06, famille run_* -- 7e elargissement du cliquet). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte
+    # vide / un horizon nul rend 0.0 ou nan comme une MESURE que l'aval lit comme un resultat
+    # (biais negatif systematique du depot). Posee AVANT toute construction -> refus < 0.5 s.
+    if not genomes or int(max_ticks) <= 0:
+        raise ValueError(
+            f"run_era_pool : argument degenere (n_genomes={len(genomes or [])} max_ticks={max_ticks}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     env = Biosphere3D(cfg)
     for g in genomes:
         a = MambaAgent()
@@ -120,6 +128,14 @@ def _competence(window):
 
 def run_lineage_hof(seed, eras=15, num_agents=30, max_ticks=400, run_era_fn=None):
     """Bras HoF : cliquet top-5 (comme evolve_competence)."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06, famille run_* -- 7e elargissement du cliquet). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte
+    # vide / un horizon nul rend 0.0 ou nan comme une MESURE que l'aval lit comme un resultat
+    # (biais negatif systematique du depot). Posee AVANT toute construction -> refus < 0.5 s.
+    if int(eras) <= 0 or int(num_agents) <= 0:
+        raise ValueError(
+            f"run_lineage_hof : argument degenere (seed={seed} eras={eras} num_agents={num_agents}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     if run_era_fn is None:
         run_era_fn = run_era_pool
     SeedManager(seed).seed_boundary(0)
@@ -137,6 +153,14 @@ def run_lineage_hof(seed, eras=15, num_agents=30, max_ticks=400, run_era_fn=None
 
 def run_lineage_qd(seed, eras=15, num_agents=30, max_ticks=400, run_era_fn=None):
     """Bras QD : archive MAP-Elites, reproduit depuis des niches diverses."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06, famille run_* -- 7e elargissement du cliquet). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte
+    # vide / un horizon nul rend 0.0 ou nan comme une MESURE que l'aval lit comme un resultat
+    # (biais negatif systematique du depot). Posee AVANT toute construction -> refus < 0.5 s.
+    if int(eras) <= 0 or int(num_agents) <= 0:
+        raise ValueError(
+            f"run_lineage_qd : argument degenere (seed={seed} eras={eras} num_agents={num_agents}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     if run_era_fn is None:
         run_era_fn = run_era_pool
     SeedManager(seed).seed_boundary(0)

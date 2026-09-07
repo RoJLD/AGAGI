@@ -47,6 +47,14 @@ def run_arm(shuffle=False, seed=0, ticks=400, warmup=200, n_agents=32, respawn_p
     throw-sans-kill : -0.5 = BIAISE (EDR-172) ; 0.0 = NON-BIAISE (correctif EDR-NAV-005). `energy`
     haute + `spear_weight` leger + base_metabolism bas = neutralise la couche 1 (survie) pour isoler
     la question du credit (analogue base_metab=0.0 d'EDR-WLD-001)."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06, famille run_* -- 7e elargissement du cliquet). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte
+    # vide / un horizon nul rend 0.0 ou nan comme une MESURE que l'aval lit comme un resultat
+    # (biais negatif systematique du depot). Posee AVANT toute construction -> refus < 0.5 s.
+    if int(ticks) <= 0 or int(n_agents) <= 0 or int(warmup) >= int(ticks):
+        raise ValueError(
+            f"run_arm : argument degenere (ticks={ticks}, warmup={warmup}, n_agents={n_agents}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     np.random.seed(seed)
     try:
         import torch

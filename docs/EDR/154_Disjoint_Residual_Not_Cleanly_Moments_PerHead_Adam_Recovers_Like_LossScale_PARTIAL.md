@@ -1,3 +1,14 @@
+---
+# frontmatter ajouté rétroactivement (T2, 2026-09-06) ; corps d'origine inchangé
+id: EDR-154
+type: EDR
+title: "Le résidu ~21 % de 153 n'est pas proprement les moments Adam : l'Adam-par-tête recouvre comme l'échelle de loss (PARTIAL 0.73)"
+status: legacy
+gate: foundational
+verdict: PARTIAL
+extends: [EDR-153]
+---
+
 # EDR 154 (V3) — Le résidu ~21 % d'EDR 153 n'est PAS proprement « les moments Adam séparés » : l'Adam-par-tête recouvre comme l'échelle de loss (PARTIAL, recovery 0.73)
 
 > **Date** : 2026-07-01. **Verdict pré-enregistré** : `recovery_k = (FLAT_k − FLATPERHEAD_k)/(FLAT_k − DISJOINT_k)`

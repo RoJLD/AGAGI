@@ -46,6 +46,14 @@ def run_compositional(episodes: int = 5000, n_agents: int = 16, A: int = 3, V: i
     sender_i<->receiver_{i+s} (décalage aléatoire/épisode). warmstart_fixed>0 (LANG-004) : ce nombre
     d'épisodes INITIAUX est joué en PAIRES FIGÉES (s=0) avant la phase `rotate` -> curriculum dyade->rotation
     (warm-start d'un code compositionnel avant de le partager)."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06, famille run_* -- 7e elargissement du cliquet). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte
+    # vide / un horizon nul rend 0.0 ou nan comme une MESURE que l'aval lit comme un resultat
+    # (biais negatif systematique du depot). Posee AVANT toute construction -> refus < 0.5 s.
+    if int(episodes) + int(warmstart_fixed) + int(warmstart_easy) <= 0 or int(n_agents) < 2 or int(A) < 2 or int(V) < 1:
+        raise ValueError(
+            f"run_compositional : argument degenere (episodes={episodes}, warmstart_fixed={warmstart_fixed}, warmstart_easy={warmstart_easy}, n_agents={n_agents}, A={A}, V={V}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     import numpy as np
     import torch
     from src.agents.mamba_agent import MambaAgent

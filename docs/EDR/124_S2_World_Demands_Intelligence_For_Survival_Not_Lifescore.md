@@ -1,3 +1,15 @@
+---
+# frontmatter ajouté rétroactivement (T2, 2026-09-06) ; corps d'origine inchangé
+id: EDR-124
+type: EDR
+title: "S2 : le monde EXIGE l'intelligence pour SURVIVRE (4 mondes, EXIGE x4 sous FWER), pas pour le life_score"
+status: legacy
+gate: G0
+tests: [SDR-G0]
+verdict: EXIGE_X4_SURVIE
+corrected_by: [EDR-S2-012]
+---
+
 # EDR 124 — S2 : le monde EXIGE l'intelligence pour SURVIVRE (4 mondes), pas pour le life_score
 
 ## Contexte

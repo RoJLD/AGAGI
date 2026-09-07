@@ -19,6 +19,14 @@ def _softmax(x):
 
 def run_refgame(M=8, V=8, H=16, epochs=1500, lr=0.02, seed=0):
     """Entraîne locuteur+auditeur par gradient. -> (accuracy_decode, MI(token;referent) normalisee)."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06, famille run_* -- 7e elargissement du cliquet). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte
+    # vide / un horizon nul rend 0.0 ou nan comme une MESURE que l'aval lit comme un resultat
+    # (biais negatif systematique du depot). Posee AVANT toute construction -> refus < 0.5 s.
+    if int(M) < 2 or int(V) < 2 or int(H) <= 0 or int(epochs) <= 0:
+        raise ValueError(
+            f"run_refgame : argument degenere (M={M}, V={V}, H={H}, epochs={epochs}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     rng = np.random.RandomState(seed)
     sc = 0.4
     P = {  # locuteur (M->H->V) + auditeur (V->H->M)

@@ -71,6 +71,14 @@ def _predict(models, model, s, a, d, K):
 def run_planning(d=8, K=4, n_fit=3000, n_test=500, horizon=4, seed=0):
     """Ajuste g une fois, puis planifie (depth-1 model-predictive) vers des buts aléatoires JAMAIS vus.
     Renvoie, par modèle, la distance normalisée au but atteinte (min sur le rollout) et le taux de succès."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06, famille run_* -- 7e elargissement du cliquet). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte
+    # vide / un horizon nul rend 0.0 ou nan comme une MESURE que l'aval lit comme un resultat
+    # (biais negatif systematique du depot). Posee AVANT toute construction -> refus < 0.5 s.
+    if int(d) <= 0 or int(K) < 2 or int(n_fit) <= 0 or int(n_fit) < int(K) or int(n_test) <= 0 or int(horizon) <= 0:
+        raise ValueError(
+            f"run_planning : argument degenere (d={d}, K={K}, n_fit={n_fit}, n_test={n_test}, horizon={horizon}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     W_list = _true_dynamics(d, K, seed)
     models = _fit_models(W_list, d, K, n_fit, seed)
     rng = np.random.RandomState(seed + 7)

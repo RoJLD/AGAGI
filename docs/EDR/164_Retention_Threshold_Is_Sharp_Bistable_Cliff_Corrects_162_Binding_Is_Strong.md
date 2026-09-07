@@ -3,7 +3,8 @@ id: EDR-164
 type: EDR
 title: "Le seuil de rétention du craft est une FALAISE NETTE (transition de phase bistable) à c*≈0.04, PAS une non-rentabilité graduelle — CORRIGE EDR-162. Sweep fin (2 seeds) : rétention tient à c≤0.03 (P(consume|craft) HAUT 0.77-0.97, un petit coût RENFORCE = régularise) puis s'effondre catastrophiquement à c≥0.05 (P~0.4). Le seuil (0.04) est très loin de la borne statique r·P≈0.9 → effondrement = INSTABILITÉ DYNAMIQUE de bassin (cercle vicieux = bifurcation nœud-selle), pas E[craft]<0. Correction clé : le binding est FORT (P jusqu'à 0.97), PAS 0.25 (162 citait le comp_rate inconditionnel). Levier in-world affiné : warm-start dans le bon bassin (converge 131/132), pas 'renforcer le binding'"
 status: accepted
-gate: null
+gate: G2
+tests: [SDR-G2]
 verdict: RETENTION_THRESHOLD_IS_SHARP_BISTABLE_CLIFF_BINDING_ALREADY_STRONG
 supersedes_mechanism_of: [EDR-162]
 ---

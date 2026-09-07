@@ -21,6 +21,14 @@ def run_arm(use_torch: bool, seed: int = 0, ticks: int = 200, n_agents: int = 16
     """Tourne un monde en cohorte fixe et renvoie la survie mediane (fraction d'agents vivants en fin
     de run). Apparie : meme seed, memes dims, seul le backend change. La memoire KuzuDB ambiante est
     coupee (repro : sinon l'appariement par seed est fausse)."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06, famille run_* -- 7e elargissement du cliquet). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte
+    # vide / un horizon nul rend 0.0 ou nan comme une MESURE que l'aval lit comme un resultat
+    # (biais negatif systematique du depot). Posee AVANT toute construction -> refus < 0.5 s.
+    if int(ticks) <= 0 or int(n_agents) <= 0:
+        raise ValueError(
+            f"run_arm : argument degenere (ticks={ticks}, n_agents={n_agents}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     np.random.seed(seed)
     try:
         import torch

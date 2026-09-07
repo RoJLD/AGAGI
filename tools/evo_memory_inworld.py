@@ -533,6 +533,13 @@ def run_contrast(seeds, eras=15, max_ticks=120, num_agents=30, bench_ticks=150):
     """EXPLORATOIRE : évolue ON vs OFF par seed, benchmarke chaque champion SOUS occultation (transient=ON,
     mémoire requise) ET sous type visible (transient=OFF, contrôle). Le champion ON discrimine-t-il mieux
     sous occultation que le champion OFF ? (n'affirme pas de verdict formel — cheap first)."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06). Orchestrateur : il n'entraine pas lui-meme mais
+    # AGREGE en verdict -- une cohorte/liste de seeds vide produit une agregation VIDE que l'aval
+    # lit comme une mesure (biais negatif systematique). Refus instantane, avant tout appel de run.
+    if not list(seeds) or int(eras) <= 0 or int(max_ticks) <= 0 or int(num_agents) <= 0:
+        raise ValueError(
+            f"run_contrast : argument degenere (n_seeds={len(list(seeds))} eras={eras} max_ticks={max_ticks} num_agents={num_agents}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     rows = []
     for s in seeds:
         rON = evolve_inworld(True, s, eras, max_ticks, num_agents)

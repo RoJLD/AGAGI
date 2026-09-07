@@ -36,6 +36,14 @@ def _stats(vals):
 
 
 def run_seed(config, db, speciate, seed, eras=20, transient=True, add_node=0.6, max_ticks=200):
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06, famille run_* -- 7e elargissement du cliquet). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte
+    # vide / un horizon nul rend 0.0 ou nan comme une MESURE que l'aval lit comme un resultat
+    # (biais negatif systematique du depot). Posee AVANT toute construction -> refus < 0.5 s.
+    if int(eras) <= 0 or int(max_ticks) <= 0:
+        raise ValueError(
+            f"run_seed : argument degenere (eras={eras} max_ticks={max_ticks}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     persistence.SPECIATE = speciate
     np.random.seed(seed)
     _restore()

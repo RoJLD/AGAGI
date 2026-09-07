@@ -78,6 +78,14 @@ def run_era_funnel(seed, metab, payoff, num_agents, max_ticks, shared_db) -> Lis
     """UNE ère stoneage (sweet spot). Renvoie par agent TOUS (vivants + morts, env.agents +
     env.dead_agents, EDR 092) : {age, preys_eaten, spears_crafted, mammoth_kills, altars_solved}.
     Modelé sur run_era_organ (tools/dreaming_probe.py) mais SANS semis d'organe. Déterministe."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06, famille run_* -- 7e elargissement du cliquet). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte
+    # vide / un horizon nul rend 0.0 ou nan comme une MESURE que l'aval lit comme un resultat
+    # (biais negatif systematique du depot). Posee AVANT toute construction -> refus < 0.5 s.
+    if int(num_agents) <= 0 or int(max_ticks) <= 0:
+        raise ValueError(
+            f"run_era_funnel : argument degenere (num_agents={num_agents} max_ticks={max_ticks} seed={seed} metab={metab} payoff={payoff}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     SeedManager(seed).seed_boundary(0)
     config = WorldConfig()
     config.base_metabolism = metab

@@ -41,6 +41,14 @@ def run_retention(capability: bool, cost: float, r: float = 1.0, episodes: int =
     learn_episode (crédit épisodique). False : learn TD 1-pas. `warmstart_episodes` : phase préalable à
     coût 0 (bâtit le bassin haut-craft, EDR-167 test d'hystérésis) AVANT la phase mesurée au coût `cost`.
     Renvoie craft_rate EARLY/LATE (rétention), comp_rate LATE, payoff LATE."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06, famille run_* -- 7e elargissement du cliquet). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte
+    # vide / un horizon nul rend 0.0 ou nan comme une MESURE que l'aval lit comme un resultat
+    # (biais negatif systematique du depot). Posee AVANT toute construction -> refus < 0.5 s.
+    if int(episodes) <= 0 or int(n_agents) <= 0:
+        raise ValueError(
+            f"run_retention : argument degenere (episodes={episodes}, n_agents={n_agents}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     import numpy as np
     import torch
     from src.agents.mamba_agent import MambaAgent

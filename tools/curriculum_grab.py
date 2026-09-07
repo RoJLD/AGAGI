@@ -44,6 +44,14 @@ def _setup_grab_training(env, eps=0.3, n_items=50, keep_prey=False):
 
 def run_one_era(config, db, training, eps=0.3, n_items=50, keep_prey=False,
                 craft_level=0, num_agents=30, max_ticks=200, energy=80.0):
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06, famille run_* -- 7e elargissement du cliquet). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte
+    # vide / un horizon nul rend 0.0 ou nan comme une MESURE que l'aval lit comme un resultat
+    # (biais negatif systematique du depot). Posee AVANT toute construction -> refus < 0.5 s.
+    if int(num_agents) <= 0 or int(max_ticks) <= 0:
+        raise ValueError(
+            f"run_one_era : argument degenere (num_agents={num_agents}, max_ticks={max_ticks}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     env = Biosphere3D(config)
     if training:
         _setup_grab_training(env, eps, n_items, keep_prey)

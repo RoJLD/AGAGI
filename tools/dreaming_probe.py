@@ -81,6 +81,14 @@ def run_era_organ(target: str, seed: int, organ_fraction: float, metab: float, p
     MCTS (les `int(round(organ_fraction*len(genomes)))` premiers). Renvoie par agent (TOUS :
     vivants + morts, cf. EDR 092 — la population s'éteint à 100 %) : {age, total_dreams, has_organ}.
     Déterministe (memory_retriever neutralisé)."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06, famille run_* -- 7e elargissement du cliquet). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte
+    # vide / un horizon nul rend 0.0 ou nan comme une MESURE que l'aval lit comme un resultat
+    # (biais negatif systematique du depot). Posee AVANT toute construction -> refus < 0.5 s.
+    if int(num_agents) <= 0 or int(max_ticks) <= 0 or not (0.0 <= float(organ_fraction) <= 1.0):
+        raise ValueError(
+            f"run_era_organ : argument degenere (num_agents={num_agents} max_ticks={max_ticks} organ_fraction={organ_fraction}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     SeedManager(seed).seed_boundary(0)
     config = WorldConfig()
     config.base_metabolism = metab
@@ -142,6 +150,13 @@ def _prevalence_from_stats(stats: List[Dict]) -> float:
 def run_q1(seeds, target, num_agents, max_ticks, shared_db) -> Dict:
     """Q1 : organe semé à 50%, prévalence de l'organe parmi TOUS les agents (reproduction
     différentielle = sélection) sweet vs létal -> pression énergétique nette sur l'organe (EDR 092)."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06). Orchestrateur : il n'entraine pas lui-meme mais
+    # AGREGE en verdict -- une cohorte/liste de seeds vide produit une agregation VIDE que l'aval
+    # lit comme une mesure (biais negatif systematique). Refus instantane, avant tout appel de run.
+    if not list(seeds) or int(num_agents) <= 0 or int(max_ticks) <= 0:
+        raise ValueError(
+            f"run_q1 : argument degenere (n_seeds={len(list(seeds))} num_agents={num_agents} max_ticks={max_ticks}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     sweet, lethal = [], []
     for seed in seeds:
         s = run_era_organ(target, seed, 0.5, 0.25, 3.0, num_agents, max_ticks, shared_db)
@@ -156,6 +171,13 @@ def run_q1(seeds, target, num_agents, max_ticks, shared_db) -> Dict:
 
 def run_q2(seeds, target, num_agents, max_ticks, shared_db) -> Dict:
     """Q2 : forcé-ON au sweet spot. (a) rêveurs vs non-rêveurs ; (b) apparié ON vs OFF (ratio survie)."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06). Orchestrateur : il n'entraine pas lui-meme mais
+    # AGREGE en verdict -- une cohorte/liste de seeds vide produit une agregation VIDE que l'aval
+    # lit comme une mesure (biais negatif systematique). Refus instantane, avant tout appel de run.
+    if not list(seeds) or int(num_agents) <= 0 or int(max_ticks) <= 0:
+        raise ValueError(
+            f"run_q2 : argument degenere (n_seeds={len(list(seeds))} num_agents={num_agents} max_ticks={max_ticks}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     deltas, ratios, dreams_seen = [], [], 0
     for seed in seeds:
         on = run_era_organ(target, seed, 1.0, 0.25, 3.0, num_agents, max_ticks, shared_db)

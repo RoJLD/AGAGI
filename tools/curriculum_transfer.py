@@ -74,6 +74,13 @@ def run_transfer_experiment(seeds, ladder: Optional[List[str]] = None, target: O
     metric='survival' (défaut) : compétence = survie (gradient réel au sweet spot, EDR 085) ; le
     signal d'autel/outil étant nul tant que le goulot d'exploration (EDR 014) tient. metric='world' :
     métrique par-monde historique (restera au plancher jusqu'à ce que les autels émergent)."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06). Orchestrateur : il n'entraine pas lui-meme mais
+    # AGREGE en verdict -- une cohorte/liste de seeds vide produit une agregation VIDE que l'aval
+    # lit comme une mesure (biais negatif systematique). Refus instantane, avant tout appel de run.
+    if not list(seeds) or int(num_agents) <= 0 or int(max_ticks) <= 0:
+        raise ValueError(
+            f"run_transfer_experiment : argument degenere (n_seeds={len(list(seeds))} num_agents={num_agents} max_ticks={max_ticks}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     ladder = list(ladder) if ladder else list(DEFAULT_LADDER)
     target = target or ladder[-1]
     grad_cfg = grad_cfg or GraduationConfig(max_eras=12)

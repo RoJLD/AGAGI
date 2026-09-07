@@ -51,6 +51,14 @@ def run_arm(persist, demand=1.0, episodes=800, rebuild_every=200, n_agents=64,
     `rebuild_every` episodes. Au rebuild : nouveau pop depuis les MEMES agents (W survit via genome) ;
     persist=True -> inherit_gate (le gate survit), persist=False -> gate neuf (bug actuel). Renvoie le
     comp_rate du dernier quart. Isole PERSIST vs RESET (1 variable = le sort du gate au rebuild)."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06, famille run_* -- 7e elargissement du cliquet). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte
+    # vide / un horizon nul rend 0.0 ou nan comme une MESURE que l'aval lit comme un resultat
+    # (biais negatif systematique du depot). Posee AVANT toute construction -> refus < 0.5 s.
+    if int(n_agents) <= 0 or int(episodes) <= 0 or int(rebuild_every) <= 0 or int(rebuild_every) >= int(episodes):
+        raise ValueError(
+            f"run_arm : argument degenere (n_agents={n_agents} episodes={episodes} rebuild_every={rebuild_every}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     np.random.seed(seed)
     torch.manual_seed(seed)
     saved = (TorchPopulationModel.CONDITION_GATE, TorchPopulationModel.ANTISAT,

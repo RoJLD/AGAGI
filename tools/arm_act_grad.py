@@ -23,6 +23,14 @@ I_DIM, O_DIM = 8, 8
 
 def run_bptt_act(W, K, D, bits, act, h=1e-4):
     """BPTT avec activation PLUGGABLE (dérivée numérique). -> (dW, accuracy)."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06, famille run_* -- 7e elargissement du cliquet). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte
+    # vide / un horizon nul rend 0.0 ou nan comme une MESURE que l'aval lit comme un resultat
+    # (biais negatif systematique du depot). Posee AVANT toute construction -> refus < 0.5 s.
+    if bits is None or int(np.shape(bits)[0]) <= 0 or int(K) <= 0 or int(D) < 0:
+        raise ValueError(
+            f"run_bptt_act : argument degenere (B={None if bits is None else np.shape(bits)[0]}, K={K}, D={D}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     N = W.shape[0]
     B = bits.shape[0]
     I, O = I_DIM, O_DIM

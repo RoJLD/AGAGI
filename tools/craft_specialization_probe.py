@@ -40,6 +40,14 @@ def run_spec(capability: bool, episodes: int = 800, n_agents: int = 128, seed: i
              r: float = 1.0, lr: float = 0.05, antisat: float = 6.0):
     """Entraîne une pop torch sur le monde 2-chaînes. capability=True : gate MULTI-CIBLE + learn_episode.
     False : TD sans gate. Renvoie spec_depth, comp_total, frac_A (hétérogénéité), le tout sur dernier quart."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-06, famille run_* -- 7e elargissement du cliquet). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte
+    # vide / un horizon nul rend 0.0 ou nan comme une MESURE que l'aval lit comme un resultat
+    # (biais negatif systematique du depot). Posee AVANT toute construction -> refus < 0.5 s.
+    if int(episodes) <= 0 or int(n_agents) <= 0:
+        raise ValueError(
+            f"run_spec : argument degenere (episodes={episodes}, n_agents={n_agents}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     import numpy as np
     import torch
     from src.agents.mamba_agent import MambaAgent

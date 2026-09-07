@@ -3,7 +3,8 @@ id: EDR-130
 type: EDR
 title: "Levier 3 (crédit/optimisation du gate) : ni l'entropie ni l'éligibilité ne fiabilisent le binding — le plafond 7/10 d'EDR 129 tient (baseline 7/10, entropie 6/10, éligibilité 5/10) ; les seeds qui collapsent en always-Y collapsent dans TOUTES les configs → la reliabilité résiduelle est une propriété d'INITIALISATION/bassin, pas de la règle de crédit ; l'éligibilité TD(λ) DÉGRADE (inappropriée pour un gate 1-pas)"
 status: validated
-gate: null
+gate: G2
+tests: [SDR-G2]
 verdict: "Levier 3 d'EDR 126 (crédit/optimisation) pour firmer les 3/10 collapses always-Y d'EDR 129. Deux interventions sur le REINFORCE du gate (λ=0/entropy=0 → baseline EDR 129 rétrocompat) : entropy_coef (bonus d'entropie anti-collapse) et elig_lambda (trace d'éligibilité sur le gradient). Sweep {baseline, entropie, éligibilité, les deux} × 10 seeds, régime incitatif (fade0.0/pen2). RÉSULTAT NO_IMPROVEMENT : baseline 7/10, entropie 6/10, éligibilité 5/10, les deux 5/10 — aucune intervention ne monte au-dessus de 7/10, l'éligibilité DÉGRADE (gap médian 0.37→0.18 ; un TD(λ) inter-essais mélange des gradients d'essais indépendants → inapproprié pour un gate 1-pas, comme prévu). Les seeds qui collapsent (0,3,4) collapsent dans TOUTES les configs → la reliabilité résiduelle N'EST PAS un problème de crédit/exploration mais une propriété DÉTERMINISTE d'initialisation/bassin d'attraction. Conclusion des 3 leviers : signal ÉLIMINÉ (128), STRUCTURE de gating = le débloqueur (129, 7/10), crédit/optim NE FIRME PAS (130). Le plafond de fiabilité relève de l'init/paysage, pas de la règle d'apprentissage."
 ---
 
