@@ -118,12 +118,15 @@ def test_gate_REFUSES_an_unknown_ablation_target():
 # 3. NON-RÉGRESSION — les 2 arêtes RÉELLES survivent au durcissement
 # --------------------------------------------------------------------------------------------------
 
-def test_the_two_REAL_edges_remain_valid_after_hardening():
-    """Test de non-régression OBLIGATOIRE : durcir la porte ne doit invalider AUCUNE arête gravée.
-    Les valeurs sont LUES sur disque, jamais recopiées — un futur changement de `demands.json` doit
-    repasser par ici."""
+def test_every_GRAVEN_edge_remains_valid_after_hardening():
+    """Non-régression OBLIGATOIRE : durcir la porte ne doit invalider AUCUNE arête gravée.
+    Les valeurs sont LUES sur disque, jamais recopiées — un changement de `demands.json` repasse ici.
+
+    ⚠️ Le compte n'est PAS assené ici (il l'était : « exactement 2 »). L'ensemble ATTENDU est énuméré
+    dans le test suivant, ce qui est strictement plus fort : un compte laisse passer une arête
+    SUBSTITUÉE. On ne garde ici qu'un plancher, contre un `demands.json` tronqué ou vide."""
     demands = _load("demands.json")
-    assert len(demands) == 2, "le graphe livré porte exactement 2 arêtes mesurées"
+    assert len(demands) >= 2, "graphe tronqué ou vide — la non-régression ne teste plus rien"
     for e in demands:
         lbl = f"{e['capability']}->{e['prerequisite']}"
         assert validate_edge(e, _IDS) == [], f"arête gravée invalidée par le durcissement : {lbl}"
@@ -134,18 +137,28 @@ def test_the_shipped_graph_still_validates_end_to_end():
     assert validate_graph(_load("capabilities.json"), _load("demands.json")) == []
 
 
-def test_the_two_REAL_edges_are_exactly_the_expected_ones():
-    """Ancre la précondition vérifiée par la revue : les 2 arêtes portent DÉJÀ `specificity_control`
-    `pass` (avec `functional_aliasing` `n/a`) — c'est pourquoi le durcissement est gratuit pour elles.
-    Si cette assertion casse, la non-régression ci-dessus ne teste plus ce qu'elle prétend tester."""
+def test_the_REAL_edges_are_exactly_the_expected_ones():
+    """Ancre la précondition vérifiée par la revue : chaque arête gravée porte DÉJÀ
+    `specificity_control='pass'` — c'est pourquoi le durcissement est gratuit pour elles. Si cette
+    assertion casse, la non-régression ci-dessus ne teste plus ce qu'elle prétend tester.
+
+    ⚠️ L'ensemble est ÉNUMÉRÉ, jamais compté : un compte accepterait une arête substituée.
+    ⚠️ Et `functional_aliasing` n'est plus figé à `'n/a'` — la 3ᵉ arête (2026-09-02) est la première
+    par ablation de SUBSTRAT, donc `'pass'`. On assène l'INVARIANT de la porte (l'aliasing dépend de
+    la cible d'ablation) et non la valeur littérale qui se trouvait valoir pour les deux premières :
+    un littéral aurait obligé à ré-éditer ce test à chaque arête, et c'est précisément ce qui l'a
+    laissé ROUGE à HEAD entre le 2026-09-02 et le 2026-09-07 (dette P2.30)."""
     seen = {(e["capability"], e["prerequisite"]): e["evidence"] for e in _load("demands.json")}
-    assert set(seen) == {("language", "perception"), ("memory", "perception")}
-    for ev in seen.values():
-        assert ev["ablation_verdict"] == "X_DEMANDED"
-        assert ev["n"] == 12
-        assert ev["functional_aliasing"] == "n/a"
-        assert ev["specificity_control"] == "pass"
-        assert ev.get("ablation_target", "input") == "input"
+    assert set(seen) == {("language", "perception"), ("memory", "perception"), ("language", "memory")}
+    for lbl, ev in seen.items():
+        assert ev["ablation_verdict"] == "X_DEMANDED", lbl
+        assert ev["n"] >= 12, lbl                      # garde d'évaporation de puissance
+        assert ev["specificity_control"] == "pass", lbl  # le SEUL bras dont l'issue négative est atteignable
+        cible = ev.get("ablation_target", "input")
+        attendu = "n/a" if cible == "input" else "pass"
+        assert ev["functional_aliasing"] == attendu, (
+            f"{lbl} : ablation_target={cible!r} impose functional_aliasing={attendu!r}, "
+            f"trouvé {ev['functional_aliasing']!r}")
 
 
 # --------------------------------------------------------------------------------------------------
