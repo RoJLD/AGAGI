@@ -319,7 +319,14 @@ pas accumuler des tirages en PROFONDEUR.**
       init NON nulle — il dit si le NEUTRE des sondes est robuste (marqueur spécifique) ou un artefact
       de σ=0. Règle réutilisable qui en sort : *une cellule NULLE se déclare avec le plancher « privé
       de X SEULEMENT » ; si ce plancher égale l'intact, c'est une définition, pas une mesure.*
-    * **S5 — CONDITIONNEL** : le design soumis rendait sa branche positive PAR CONSTRUCTION (E1+E2+E8
+    * ✅ **S5 — ÉTAPE 0 FAITE le 2026-09-07 : le fix de persistance est ACTIF sur cette branche**
+      (`tests/test_planner_g_persistence.py` passe, test `slow`, 40 s). `SDR-G4` disait encore « fix
+      recommandé, WIP » : corrigé, et enrichi de la raison pour laquelle son NEUTRE du linéaire est
+      FORCÉ (la variance de ΔH est dominée par le terme état-dépendant `−δ·H`, qu'un `g`
+      delta-constant-par-action ignore → ratio → 1 quel que soit le contenu anticipable ; le plancher
+      `r=1.0` est IMPORTÉ, E8). La phase A peut donc partir sur la BONNE référence : oracle
+      action-AGNOSTIQUE + bras à labels PERMUTÉS, DV sur le nœud 74 (la seule dim que `plan_rollout` lit).
+    * *(diagnostic d'origine)* **S5 — CONDITIONNEL** : le design soumis rendait sa branche positive PAR CONSTRUCTION (E1+E2+E8
       à la fois) — son plancher `r=1.0` (g≡0) est IMPORTÉ, et une carte linéaire-en-H capture la
       relaxation endogène du connectome, donc l'oracle le bat sans aucune anticipation. Corrigé : la
       référence est l'oracle **action-AGNOSTIQUE** + un bras à labels PERMUTÉS ; la DV « ce qui agit »
@@ -849,7 +856,8 @@ L'écran mécanique l'a remplacée, et il a coûté zéro simulation.
 **Ce qui RESTE, et ce n'est pas E19** — le crible a redirigé la dette au lieu de la fermer à blanc :
 
 - **BILINEAR est exposé à P2.15, pas au pas.** Sa barre `1/K+0.15 = 0.3167` est 0.072 SOUS le plafond
-  structurel du plain (0.3889). Corollaire mesuré et contre-intuitif : **allonger `episodes` ne renforce
+  structurel du plain (0.3889 — **SUPERSÉDÉ le 2026-09-07 : 30/36 ≈ 0.833**, cf. P2.15 ; l'écart réel
+  est 0.517, pas 0.072). Corollaire mesuré et contre-intuitif : **allonger `episodes` ne renforce
   pas cette mesure, il la CASSE** — le plain monte vers son plafond pendant que le bilinéaire est déjà
   haut, et la séparation se referme par le bas. Un budget plus grand n'est pas ici un budget plus sûr.
 - **MEM-PERCEPTION : les défauts du module ne sont PAS le régime publié** (`episodes=800`, `lr=0.05` en
@@ -984,7 +992,9 @@ niveau, puis mesure d'arête complète.**
 `tools/language_memory_demand_probe.py:134-137` ne sauvegarde que `(CONDITION_GATE, GATE_TARGET)` —
 **`BILINEAR` n'est jamais activé** — et `:143` construit `Adam([agent.W])`, **`W` SEUL**. La sonde a donc
 mesuré le substrat **PLAIN**, prouvablement incapable de représenter `(q+key)%K` (plafond structurel
-**0.3889**, cf. P2.15). **Son verdict NÉGATIF était CORRECT pour son substrat.**
+**0.3889** — **SUPERSÉDÉ : 30/36 ≈ 0.833**, cf. P2.15). **Son verdict NÉGATIF était CORRECT pour son
+substrat**, mais l'argument « prouvablement incapable » qui le soutenait ne l'est PAS : la séparabilité
+n'implique pas l'incapacité ici (le gain par nœud `σ(W[j,j])` casse l'inférence).
 - ⚠️ **Piège à ne pas tomber dedans** : rejouer sa tâche à `lr=0.002` **sur la sonde telle quelle** rendra
   encore le plancher (plain 2-pas mesuré : **0.2180** @ `lr=0.02`, **0.1812** @ `lr=0.002`) et ce négatif
   ne confirmerait RIEN — baisser le pas ne crée pas une capacité absente. Les deux verrous se lèvent
@@ -1003,27 +1013,65 @@ mesuré le substrat **PLAIN**, prouvablement incapable de représenter `(q+key)%
 - **Enjeu** : ce serait la **3ᵉ arête** du graphe AGI-Taxonomy — la première à avoir été refusée puis
   rouverte par une levée de verrou de substrat.
 
-**P2.15 — ⚠️ OUVERTE — GARDE ÉCRITE, JAMAIS APPELÉE (état 2026-09-07). C'est E10 dans sa définition
-même : une règle exécutable qui n'est branchée nulle part est violée.** DETTE DE SEUIL : la barre
-`1/K+0.15` est MAL PLACÉE, 0.072 SOUS le
-plafond structurel du substrat qu'elle est censée déclarer nul.**
-*Preuve, mesurée en forme close* : à `H_in = 0`, le substrat plain se réduit à
-`logit_j = σ(W_jj)·tanh(W[key,j] + W[K+q,j])` — transformée MONOTONE d'un score **SÉPARABLE**, donc
-prouvablement incapable de représenter `(q+key)%K`. Optimisation directe plein-batch des 36 paires,
-8 restarts → **plafond exact 0.3889** ; contrôle positif du même optimiseur sur une table libre non
-séparable → **1.000 (8/8)**. Or `bar = 1/K + 0.15 = 0.3167`. **Un substrat prouvablement incapable de
-composer peut donc légitimement franchir la barre** : mesuré à `lr ∈ {0.05, 0.1, 0.2}` (0.3625 / 0.3719 /
-0.3391) et même au pas d'origine avec 8× de budget (`lr=0.02`, `episodes=2400` → 0.3703, 3/3 au-dessus).
-- **Sondes qui héritent du défaut** : `tools/bilinear_composition_probe.py:174` (dont le critère
-  `unlocked = plain <= bar and bil > bar` casse par simple allongement du budget) et
-  `tools/retain_compose_diagnostic_probe.py:108`.
-- **Recommandation** : tout nul revendiqué devrait embarquer son **PLAFOND CONSTRUCTIF** (ici ~72 s de fit
-  en forme close) plutôt qu'un seuil absolu — le plafond est invariant au PAS **et** au BUDGET, un seuil
-  ne l'est ni l'un ni l'autre. C'est le vrai contrôle négatif.
-- ✅ **Ce que cette mesure ne remet PAS en cause** : le résultat phare de BILINEAR (same_tick supervisé,
-  plain 0.271 vs bilinéaire 0.932) en sort **RENFORCÉ** — l'argument de séparabilité est confirmé
-  quantitativement, et 0.271 est simplement le point sous-entraîné d'une courbe qui sature à 0.389. Ce qui
-  est à corriger, c'est sa **marge de décision** (0.271 vs 0.3167 = 0.046), pas sa conclusion.
+**P2.15 — ✅ CLOS (2026-09-07) — la garde est branchée, le plafond est MESURÉ, et la mesure a
+RÉVISÉ le chiffre publié d'un facteur 2.1.** État d'origine : `assert_bar_separates_the_incapable`
+existait depuis le 2026-09-02 et n'était **appelée nulle part** — E10 dans sa définition même.
+
+**Ce que la fermeture a livré**
+- `tools/plain_substrate_ceiling.py` — le PLAFOND CONSTRUCTIF, mesuré, avec sa provenance gelée.
+- `assert_bar_separates_the_incapable` **appelée** : `bilinear_composition_probe` (barre dérivée du
+  plafond, garde EN TÊTE de fonction — refus instantané, zéro simulation) et
+  `retain_compose_diagnostic_probe` (déclare-ou-refuse).
+- `tools/check_bar_separation.py` — **PORTE 9** du hook. Détection par AST, jamais par regex : ce dépôt
+  CITE `1/K + 0.15` en prose dans des dizaines de docstrings, y compris dans les fichiers qui dénoncent
+  la dette. Audit fondateur : **8 sondes**, dont les DEUX qui ont gravé `language→perception` et
+  `memory→perception` — le même motif, sur les mêmes fichiers, que l'audit d'épinglage du substrat.
+- Porte du graphe durcie : toute NOUVELLE arête déclarant `emergence_bar` déclare aussi
+  `incapable_ceiling` + `ceiling_provenance`, barre STRICTEMENT au-dessus. 5 réponses connues.
+
+**Le résultat scientifique, et il n'était pas attendu.** Le plafond du substrat plain sur `(q+key)%K`
+(K=6, un seul `_step` depuis `H_in=0`, forme close `σ(W[j,j])·tanh(W[key,j]+W[K+q,j])`) vaut
+**0.8333 (30/36)**, pas 0.3889. Mesuré à 24 restarts × 20 000 pas, **re-vérifié cellule par cellule
+sans autograd**. La barre `1/K+0.15 = 0.3167` n'est donc pas 0.072 sous le plafond de l'incapable mais
+**0.517 sous** — la dette était sous-estimée d'un facteur 7.
+
+⚠️ **La cause de l'erreur d'origine vaut plus que le chiffre corrigé, et elle est GÉNÉRALE.** La mesure
+du 2026-09-02 portait deux contrôles appariés qui PASSAIENT tous les deux — table libre → 1.000, forme
+close sur cible séparable → 1.000 — alors que sa recherche n'avait pas convergé. Ces deux contrôles
+innocentent la FORME et l'OPTIMISEUR ; **ni l'un ni l'autre ne peut dire si l'on a cherché assez
+longtemps sur le problème DUR**, et c'est la seule question qui fixe la valeur d'un plafond. Reproduit
+ici à dessein : à 2 restarts × 60 pas, les deux contrôles valent 1.000 pendant que le plafond lit 0.278.
+D'où un TROISIÈME contrôle, `saturation_control` (moitié budget vs budget plein) — et la règle
+transposable : **un contrôle de CAPACITÉ ne calibre pas un contrôle de BUDGET.** C'est E19 déplacé du
+pas d'apprentissage vers l'effort de recherche.
+
+⚠️ **Ce que ça fait à `EDR-BILINEAR`, dit sans adoucissement.** Sa conclusion TIENT — bilinéaire 0.932
+reste au-dessus du plafond du plain — mais sa marge de capacité passe de **0.543 à 0.084**. Et le
+plafond est un **MINORANT** : il a déjà monté une fois sous recherche plus longue, et rien n'interdit
+qu'il monte encore. Si une recherche le porte au-dessus de 0.932, la séparation de capacité disparaît
+et il ne reste qu'une séparation d'APPRENABILITÉ à budget fixe. **Tâche bornée et prioritaire** :
+pousser la recherche jusqu'à saturation franche et publier l'intervalle, pas le point.
+
+**Ce qui reste ouvert, nommément**
+- `retain_compose_diagnostic_probe` rend `INCONCLUSIVE_BAR_UNVALIDATED` tant que le plafond de sa
+  condition `learned` n'est pas établi. Il n'est PAS égal à `1/K` : `_step` écrit l'observation dans
+  `H[:, :I]`, donc l'agent qui ne sait pas ÉCRIRE reçoit tout de même `key` par report PASSIF. Mesure
+  bornée : le bras `learned` à `BILINEAR=False`, budget saturant.
+- L'arête `language→memory` déclare `emergence_bar: 0.5` sans plafond, et le gel est ÉTROIT et daté.
+  Son bras LANG est une séquence à délai `D` sur substrat bilinéaire : ni la forme close (un seul pas)
+  ni le bras ablé (~`1/K`, le niveau de chance qu'il est justement interdit de passer) ne le fournissent.
+- **6 sondes** restent en dette gelée dans `tools/bar_separation_baseline.json`.
+- **DÉSALIGNEMENT ENTRAÎNEMENT/ÉVAL dans `bilinear_composition_probe`** (trouvé en passant, VÉRIFIÉ dans
+  le code) : `imitate_episode_bptt` supervise `out[:, :_MOVE_LOGITS]` avec `_MOVE_LOGITS = 8`
+  (`src/agents/backend_torch.py:32,304`), alors que l'éval prend `argmax` sur `logits[:, :K]` avec K=6
+  (`tools/bilinear_composition_probe.py:158`). Deux classes distractrices (nœuds 70-71) entrent dans le
+  softmax d'entraînement et sont ignorées à la mesure. Ça ne déplace pas le plafond, mais ça change le
+  GRADIENT et la comparaison au hasard `1/K` — la barre n'est pas celle de la tâche optimisée.
+- **La forme close tient à UN nœud près, et la branche `d1` consomme la marge.** Elle repose sur
+  l'absence de chevauchement entre la fenêtre d'observation `[0:I)` et la fenêtre de readout
+  `[N-O : N-O+K)` = `[64:70)`. À `I=59` (main) la marge est de 5 nœuds ; à **`I=64`** (branche `d1`,
+  divergence déjà connue) elle est **NULLE** — un input de plus et `obs` écraserait le readout `j=0`,
+  changeant la forme close et donc le plafond. À vérifier avant tout portage.
 
 **P2.16 — ✅ CLOS (2026-09-02, commit `481117e`) — le cliquet est la PORTE 5 du hook pre-commit**, gatée
 sur `docs/preregistrations/*.json`, `docs/EDR/*.md` et le cliquet lui-même. Vérifié le 2026-09-07 :
@@ -1279,7 +1327,7 @@ la rencontre de deux correctifs indépendants le même jour : `481117e` (session
   obtiendra un nul artefactuel.
 - **Divergence à trancher** : les deux sondes déjà corrigées ont fait des choix OPPOSÉS —
   `language_memory` épingle `bilinear=True` par défaut (au motif que le plain est prouvablement
-  incapable, plafond structurel 0.3889), `delayed_coordination` épingle `False` (pour rester
+  incapable, plafond structurel 0.3889 — **SUPERSÉDÉ : 30/36 ≈ 0.833**, cf. P2.15), `delayed_coordination` épingle `False` (pour rester
   bit-identique à ses propres mesures gravées). Les deux sont défendables ; ce qui ne l'est pas, c'est
   que la différence soit invisible. Minimum : `_params["substrate"]` dans toutes les sondes.
 - **Reproduire l'audit** : le script de détection tient en 30 lignes (motifs `make_population(`,

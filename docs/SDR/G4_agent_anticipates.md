@@ -20,6 +20,15 @@ mesurables. Mais DEUX blocueurs plus profonds apparaissent : (1) l'organe `g` es
 update perdu chaque tick) ; (2) une fois le bug simulé-corrigé, `g` **linéaire** est **NEUTRE sur obs
 riches** (median_ratio 1.008, 14/44 fav) alors qu'il est G_FIDELE dans la grille-jouet (0.132, 82 %) →
 sa fidélité NE transfère PAS au monde riche (confirme l'« easy-grid caveat »). `SDR-G4` reste `open`.
-Fix de persistance recommandé (1 ligne, `mamba_agent.py` — à coordonner, WIP //) PUIS tester `g`
+✅ **Fix de persistance LIVRÉ et VÉRIFIÉ le 2026-09-07** (`mamba_agent.py` : `planner_G` est
+re-persisté APRÈS `update_transition` ; `tests/test_planner_g_persistence.py` PASSE sur cette branche,
+test `slow`, 40 s). Il n'est donc plus « recommandé, WIP » — l'étape suivante est de tester `g`
 bilinéaire ; mais le NEUTRE du linéaire (qui accumule pourtant) suggère que la forme de `g` n'est pas le
-verrou. Outil `tools/g_fidelity_probe.py` (injection champion + gating KuzuDB).
+verrou. ⚠️ **Et la revue adversariale du 2026-09-06 va plus loin : ce NEUTRE est FORCÉ par la forme du
+mesureur.** Sur les dims non-écrasées par l'obs, la transition exacte est
+`ΔH_j = δ_j·(tanh(e_j − thr_j) − H_j)` : la variance de `ΔH` est dominée par le terme
+ÉTAT-DÉPENDANT `−δ·H`, que tout `g` delta-constant-par-action ignore — le ratio tend vers 1 QUEL QUE
+SOIT le contenu anticipable. Le plancher `r = 1.0` (g≡0) est donc IMPORTÉ (E8), pas mesuré. Le
+plancher MESURÉ in situ est l'oracle **action-AGNOSTIQUE** (une carte linéaire-en-H, qui capture la
+relaxation endogène du connectome sans anticiper quoi que ce soit) et la question honnête devient :
+le `g` PER-ACTION bat-il l'agnostique, contre un bras à labels PERMUTÉS comme plancher de bruit ? Outil `tools/g_fidelity_probe.py` (injection champion + gating KuzuDB).
