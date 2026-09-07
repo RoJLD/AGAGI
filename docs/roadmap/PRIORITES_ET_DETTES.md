@@ -302,7 +302,15 @@ pas accumuler des tirages en PROFONDEUR.**
     câblé / brouillé / témoin, 12 seeds) et son verdict calibré, puis le smoke.
   - **GAPS SCIENTIFIQUES : 6 designs écrits et RÉFUTÉS le 2026-09-06/07** (un concepteur + un
     réfutateur par gap ; aucun run engagé). Verdicts :
-    * **S6 — GO, et son résultat principal est DÉJÀ ACQUIS SANS RUN** : la moitié NÉCESSITÉ de
+    * ✅ **S6 — RUN FAIT ET GRAVÉ le 2026-09-07 ([[EDR-S6-FALLBACK-RATE]])** : k(σ) = **0 / 6 / 8 / 8**
+      sur 12 seeds. Dans la cellule où le CORPS SUFFIT, l'ablation mord sur 8 seeds dès que l'init n'est
+      plus nulle — le NEUTRE de S2-004/005/007/008 était celui de σ=0 SEULEMENT. Gate pré-enregistré
+      PASSÉ (contrôle positif 12/12, ancre 0/12 bit-identique). **Le marqueur mesure une propriété du
+      SUJET, pas du MONDE** ; `REF-DEMAND-MARKER` corrigé. Trouvé en chemin : le barreau `zero` produit
+      des FAUX NÉGATIFS (5 seeds), et le protocole d'origine rend une ÉGALITÉ 6-6 sur ces mêmes données
+      (majorité dépendante de `PYTHONHASHSEED`). Runner `tools/s2_fallback_rate_probe.py`, 29 cas de
+      calibration, 60 points en 360 s, zéro bail.
+    * *(historique)* **S6 — GO, et son résultat principal est DÉJÀ ACQUIS SANS RUN** : la moitié NÉCESSITÉ de
       [[EDR-S2-006]] est **DÉFINITIONNELLE**. Vérifié en forme close : `survive` ne dépend que du SIGNE
       du gain net (métrique-SEUIL) et `fit_policy` part de `W=zeros` avec acceptation STRICTE — dans
       toute cellule à corps suffisant, la politique initiale survit déjà au plafond, rien n'est jamais

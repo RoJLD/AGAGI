@@ -28,9 +28,9 @@ Quatre questions, dont deux ont des assertions exécutables :
 
 **Inventaire au 2026-09-01 : 105 détectés, 104 calibrés, 1 déclaré non-instrument, ZÉRO dette.**
 **État COURANT, recomputé et jamais recopié :**
-**196 détectés** <!-- count:instruments_detectes=196 -->
-· **192 calibrés** <!-- count:instruments_calibres=192 -->
-· **0 non calibré** <!-- count:instruments_non_calibres=0 -->
+**202 détectés** <!-- count:instruments_detectes=202 -->
+· **197 calibrés** <!-- count:instruments_calibres=197 -->
+· **1 non calibré** <!-- count:instruments_non_calibres=1 --> (dette d'une session parallèle, en cours chez elle)
 — la famille `run_*` (72 fonctions) est entrée le 2026-09-06 sans créer de dette. *(Les chiffres datés ci-dessus sont HISTORIQUES : ils restent vrais
 et ne sont donc pas balisés.)*
 *(Point de départ, 2026-07-21 : 71 détectés, 1 calibré.)* Le cliquet est désormais un **cliquet
@@ -175,7 +175,10 @@ explicite, jamais le processus courant ni ses ancêtres, jamais un bail dont le 
 - Arbre de travail **partagé entre sessions parallèles** → commits path-scoped obligatoires.
 - Ne jamais committer sans demande explicite.
 - ⚠️ **Un `grep` de vérification sur du Markdown doit viser un motif SANS mise en forme** (un mot nu) : `grep "empreinte TARDIVE"` ne trouve pas `empreinte **TARDIVE**`. Et **une absence de correspondance n'est jamais une preuve d'absence** tant que le motif n'a pas été validé sur un cas POSITIF connu — mesuré le 2026-09-07 : trois greps faux m'ont fait graver une « forme d'erreur inédite » qui n'existait pas, rétractée le jour même. C'est la faute que le dépôt traque chez ses sondes (absence → affirmation), commise sur l'outil de vérification lui-même.
-- ⚠️ **Pas de backticks dans un message de commit passé en `-m` sous bash** : ils sont interprétés comme SUBSTITUTION DE COMMANDE et le fragment est remplacé par du VIDE — le message part mutilé, sans erreur (mesuré le 2026-09-07 : « mon `git commit` NU » est devenu « mon  NU »). Écrire les commandes sans backticks, ou passer par un fichier de message.
+- ⚠️ **Pas de backticks dans AUCUNE chaîne passée au shell** — `git commit -m`, `python -c`,
+  `echo`… : ils sont interprétés comme SUBSTITUTION DE COMMANDE et le fragment est remplacé par du VIDE — le message part mutilé, sans erreur (mesuré le 2026-09-07 : « mon `git commit` NU » est devenu « mon  NU »). Écrire sans backticks, ou passer par un FICHIER (`git commit -F`, un script `.py` écrit
+  avec l'outil Write). ⚠️ La première version de cette règle ne visait que `git commit -m` : elle a
+  été prise en défaut une heure plus tard par un `python -c` qui a scellé une règle de pré-inscription MUTILÉE (S6-FALLBACK-RATE → re-scellée en `-bis`). **Une règle apprise sur UN cas doit être énoncée sur le MÉCANISME, pas sur le cas.**
 - ⚠️ **Tout commit passe par `git commit -- <chemins>`, JAMAIS nu.** Un `git commit` sans pathspec
   emporte l'index ENTIER — donc le travail non committé d'une session parallèle sur un fichier qu'on
   n'a jamais touché (mesuré le 2026-09-07 : E10 occ. 19). Et avant d'éditer un fichier PARTAGÉ :

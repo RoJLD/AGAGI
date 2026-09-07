@@ -1,0 +1,20 @@
+{
+  "name": "S6-FALLBACK-RATE",
+  "rule": {
+    "contexte_etabli_AVANT": "La moitie NECESSITE de S2-006 est DEFINITIONNELLE (verifie en forme close, grave le 2026-09-07) : survive est une metrique-SEUIL et fit_policy part de W=zeros avec acceptation stricte, donc en corps suffisant la politique INITIALE survit au plafond, rien n'est accepte, |W|=0.0000 est l'INIT et l'ablation est un no-op LITTERAL. Cette regle mesure ce que le protocole d'origine ne POUVAIT pas mesurer.",
+    "controle_de_manipulation_OBLIGATOIRE": "(1) ANCRE : a sigma=0, |W|=0.0000 EXACT, n_accepted=0, et les 4 bras identiques sur 12/12 seeds -- plus une verification BIT-A-BIT contre  d'origine DANS LES DEUX cellules (dont c1-P ou le hill-climb ACCEPTE, sans quoi la comparaison serait vide). (2) CONTROLE POSITIF : c1-P doit mordre sur au moins 10/12 seeds ; sinon AUCUNE lecture de c1-N n'est recevable et le process rend 2. (3) l'ablation perturbe bien l'ENTREE (). (4) plan COMPLET (60/60 points) exige.",
+    "cout": "60 points, ~7 min mesures de bout en bout (434.8 s), resumable par point ; aucun bail, aucun monde.",
+    "design": "Pur numpy, aucun import de monde, aucun bail. Le MESUREUR (, , ) est IMPORTE de cognitive_demand_world_probe ; seul l'ENTRAINEUR est copie () car l'init EST la variable independante. 5 cellules : c1-N (body_gain=1.2 > metab=1.0, CORPS SUFFISANT) x sigma dans {0, 0.1, 0.3, 1.0} + c1-P (body_gain=0.5, corps INSUFFISANT) x sigma=0.3 comme CONTROLE POSITIF. 12 seeds, 24 vies par bras, CRN par vie. Plancher MESURE (politique corps seule, memes RandomState), jamais importe.",
+    "discrimination": {
+      "controle positif c1-P sous 10/12, ou plan incomplet, ou ancre qui a appris": "AUCUN verdict (exit 2) : l instrument est aveugle ou le protocole n est pas celui qui est scelle.",
+      "k(sigma>0) <= 1 sur les trois sigmas": "Le marqueur within-subject est SPECIFIQUE sous indifference (faux positifs <= 1/12) : la lecture « ratio 1.0-1.3 = non demande » garde son sens, et le NEUTRE de S2-004/005/007/008 est robuste a l init.",
+      "k(sigma>0) >= 2 sur au moins un sigma": "Le NEUTRE de ces records etait celui de sigma=0 SEULEMENT. REF-DEMAND-MARKER doit publier un TAUX DE FAUX POSITIFS par sigma, et la recette se reformule : « X est marque demande ssi la politique n a pas de repli survivable sans X » -- un critere sur la POLITIQUE, pas sur le monde.",
+      "toute autre issue": "rapporter telle quelle, aucun verdict."
+    },
+    "dv_primaire": " = nombre de seeds (sur 12) ou le ratio intact/able du barreau  depasse 1.3, compte PAR SEED (unite de replication = le seed). Le DV est  et NON  : mesure sur les 60 points,  rend des FAUX NEGATIFS quand le defaut de la politique constante tombe sur l'action corps (5 seeds ou permuted effondre 2.9x-7.1x pendant que zero annonce 1.00).",
+    "limite_structurelle_DECLAREE": "En corps suffisant le plancher MESURE vaut 300 = le PLAFOND de ticks :  y est structurellement incapable d emettre X_DECOY, tout ratio ~1 devient INCONCLUSIVE_DEGENERATE. La grandeur lisible dans c1-N est donc , compte HORS du verdict.",
+    "question": "Sous une init NON nulle (sigma>0), le NEUTRE des cellules a CORPS SUFFISANT de S2-006 est-il ROBUSTE ? Mesure : k(sigma) = nombre de seeds sur 12 ou l'ablation MORD alors que le corps suffit deja a survivre au plafond.",
+    "regle_de_lecture_continue": "k se lit sur 0..12 par sigma, et les TROIS barreaux (permuted/noise/zero) sont publies pour chaque cellule -- le choix du DV ne se cache pas. ⚠️ Limite DECLAREE d avance : l argmax etant invariant par multiplication positive, sigma ne balaye PAS la « force de lecture » de l init (mesure : init_score identique a sigma=0.1/0.3/1.0) mais le RAPPORT entre l echelle de l init et le pas du hill-climb ; k(0.1) vs k(1.0) ne se lit donc PAS comme une dose-reponse. La seule discontinuite REELLE est sigma=0 vs sigma>0."
+  },
+  "seal": "0e64c90461d81e4b4a13b4a207757516480845b886c4273f29ee1260c2b2b7f9"
+}

@@ -14,6 +14,17 @@ FAUX-POSITIVE : un survivant compétent peut exister dans un monde qui n'exige p
 ## Prédiction validée (vérité-terrain)
 - BETWEEN faux-positive sur les mondes TRIVIAUX (un survivant existe sans que X soit porteur).
 - WITHIN tranche juste : effondrement SSI X est causalement porteur.
+- ⚠️ **CE QUE LE MARQUEUR MESURE (corrigé le 2026-09-07, [[EDR-S6-FALLBACK-RATE]])** : une propriété
+  du **SUJET, pas du MONDE**. L'ablation dit si CETTE politique a un repli survivable sans X — deux
+  politiques également survivantes dans le MÊME monde rendent des verdicts opposés selon leur seule
+  init. Mesuré : dans une cellule où le corps SUFFIT (donc X n'est pas nécessaire), l'ablation mord sur
+  **8 seeds sur 12** dès que l'init n'est plus nulle, contre **0/12** à init nulle. Un `X_DECOY` ne dit
+  donc PAS « le monde n'exige pas X » : il dit « ce sujet a un repli ». Corollaire pratique : publier
+  l'init (ou la provenance du sujet) fait partie du verdict.
+- ⚠️ **Le barreau `zero` produit des FAUX NÉGATIFS** (même record, 5 seeds mesurés) : obs à zéro rend la
+  politique CONSTANTE ; si son action par défaut est le corps, le sujet survit au plafond et le barreau
+  lit 1.00 pendant que `permuted` effondre 2,9× à 7,1×. **Préférer `permuted`** (obs réelle d'un autre
+  tick : même distribution, information détruite) et publier les trois barreaux.
 - **Condition de LISIBILITÉ (E14, [[EDR-AUDIT-001]])** : un within ≈ 1.0 n'est un NUL que si le bras
   intact est AU-DESSUS du plancher no-capacité de SON régime, déclaré par `floor=`. Sous le plancher,
   l'instrument rend `INCONCLUSIVE_DEGENERATE` — « illisible ici », PAS « pas de demande ». Mesuré en

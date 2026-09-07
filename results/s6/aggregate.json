@@ -1,0 +1,424 @@
+{
+ "go": true,
+ "dv_mode": "permuted",
+ "crn_exact": {
+  "permuted": false,
+  "noise": false,
+  "zero": true
+ },
+ "aggregates": [
+  {
+   "cell": "c1-N",
+   "sigma": 0.0,
+   "n_seeds": 12,
+   "floor_measured": 300.0,
+   "ceiling": 300.0,
+   "partial": false,
+   "expect_n": 12,
+   "dv_mode": "permuted",
+   "median_intact": 300.0,
+   "median_obs_weight": 0.0,
+   "median_n_accepted": 0.0,
+   "n_seeds_n_accepted_zero": 12,
+   "n_seeds_arms_identical": 12,
+   "n_seeds_body_default": 12,
+   "secs_total": 36.183422803878784,
+   "original_ladder_majority": "INDETERMINE_DEGENERATE",
+   "original_ladder_tie": false,
+   "original_ladder_counts": {
+    "INDETERMINE_DEGENERATE": 12
+   },
+   "verdicts": {
+    "permuted": {
+     "ratio": 1.0,
+     "n": 12,
+     "collapse": false,
+     "decoy": true,
+     "corroborant": null,
+     "verdict": "INCONCLUSIVE_DEGENERATE",
+     "degenerate": true,
+     "why": "les deux bras sont IDENTIQUES point par point : soit l'ablation ne s'est pas appliqu\u00e9e, soit elle n'a eu aucun effet \u2014 ind\u00e9cidable sans v\u00e9rifier l'ENTR\u00c9E. Passer `intervention_verified=True` si la perturbation du canal est \u00e9tablie.",
+     "censored": false,
+     "inverted": false
+    },
+    "noise": {
+     "ratio": 1.0,
+     "n": 12,
+     "collapse": false,
+     "decoy": true,
+     "corroborant": null,
+     "verdict": "INCONCLUSIVE_DEGENERATE",
+     "degenerate": true,
+     "why": "les deux bras sont IDENTIQUES point par point : soit l'ablation ne s'est pas appliqu\u00e9e, soit elle n'a eu aucun effet \u2014 ind\u00e9cidable sans v\u00e9rifier l'ENTR\u00c9E. Passer `intervention_verified=True` si la perturbation du canal est \u00e9tablie.",
+     "censored": false,
+     "inverted": false
+    },
+    "zero": {
+     "ratio": 1.0,
+     "n": 12,
+     "collapse": false,
+     "decoy": true,
+     "corroborant": null,
+     "verdict": "INCONCLUSIVE_DEGENERATE",
+     "degenerate": true,
+     "why": "les deux bras sont IDENTIQUES point par point : soit l'ablation ne s'est pas appliqu\u00e9e, soit elle n'a eu aucun effet \u2014 ind\u00e9cidable sans v\u00e9rifier l'ENTR\u00c9E. Passer `intervention_verified=True` si la perturbation du canal est \u00e9tablie.",
+     "censored": false,
+     "inverted": false
+    }
+   },
+   "k": {
+    "permuted": 0,
+    "noise": 0,
+    "zero": 0
+   },
+   "k_strict": {
+    "permuted": 0,
+    "noise": 0,
+    "zero": 0
+   },
+   "median_ratio": {
+    "permuted": 1.0,
+    "noise": 1.0,
+    "zero": 1.0
+   },
+   "median_win_frac": {
+    "permuted": 0.0,
+    "noise": 0.0,
+    "zero": 0.0
+   },
+   "k_dv": 0,
+   "k_any": 0
+  },
+  {
+   "cell": "c1-N",
+   "sigma": 0.1,
+   "n_seeds": 12,
+   "floor_measured": 300.0,
+   "ceiling": 300.0,
+   "partial": false,
+   "expect_n": 12,
+   "dv_mode": "permuted",
+   "median_intact": 300.0,
+   "median_obs_weight": 0.8723377568472265,
+   "median_n_accepted": 4.0,
+   "n_seeds_n_accepted_zero": 1,
+   "n_seeds_arms_identical": 2,
+   "n_seeds_body_default": 7,
+   "secs_total": 85.64891576766968,
+   "original_ladder_majority": "INDETERMINE_DEGENERATE",
+   "original_ladder_tie": false,
+   "original_ladder_counts": {
+    "INDETERMINE_DEGENERATE": 7,
+    "SURVIVAL_SENSITIVE": 5
+   },
+   "verdicts": {
+    "permuted": {
+     "ratio": 1.741654571843251,
+     "n": 12,
+     "collapse": true,
+     "decoy": false,
+     "corroborant": null,
+     "verdict": "X_DEMANDED",
+     "degenerate": true,
+     "why": "bras intact au PLANCHER d\u00e9clar\u00e9 (m\u00e9diane 300 <= floor 300)",
+     "censored": true,
+     "inverted": false
+    },
+    "noise": {
+     "ratio": 1.9704433497536946,
+     "n": 12,
+     "collapse": true,
+     "decoy": false,
+     "corroborant": null,
+     "verdict": "X_DEMANDED",
+     "degenerate": true,
+     "why": "bras intact au PLANCHER d\u00e9clar\u00e9 (m\u00e9diane 300 <= floor 300)",
+     "censored": true,
+     "inverted": false
+    },
+    "zero": {
+     "ratio": 1.0,
+     "n": 12,
+     "collapse": false,
+     "decoy": true,
+     "corroborant": null,
+     "verdict": "INCONCLUSIVE_DEGENERATE",
+     "degenerate": true,
+     "why": "bras intact au PLANCHER d\u00e9clar\u00e9 (m\u00e9diane 300 <= floor 300)",
+     "censored": false,
+     "inverted": false
+    }
+   },
+   "k": {
+    "permuted": 6,
+    "noise": 6,
+    "zero": 5
+   },
+   "k_strict": {
+    "permuted": 6,
+    "noise": 6,
+    "zero": 5
+   },
+   "median_ratio": {
+    "permuted": 2.431535855448899,
+    "noise": 2.9505813953488373,
+    "zero": 1.0
+   },
+   "median_win_frac": {
+    "permuted": 0.7916666666666667,
+    "noise": 0.8125,
+    "zero": 0.0
+   },
+   "k_dv": 6,
+   "k_any": 6
+  },
+  {
+   "cell": "c1-N",
+   "sigma": 0.3,
+   "n_seeds": 12,
+   "floor_measured": 300.0,
+   "ceiling": 300.0,
+   "partial": false,
+   "expect_n": 12,
+   "dv_mode": "permuted",
+   "median_intact": 300.0,
+   "median_obs_weight": 0.6666029175401804,
+   "median_n_accepted": 2.5,
+   "n_seeds_n_accepted_zero": 1,
+   "n_seeds_arms_identical": 2,
+   "n_seeds_body_default": 6,
+   "secs_total": 87.72239947319031,
+   "original_ladder_majority": "INDETERMINE_DEGENERATE",
+   "original_ladder_tie": true,
+   "original_ladder_counts": {
+    "INDETERMINE_DEGENERATE": 6,
+    "SURVIVAL_SENSITIVE": 6
+   },
+   "verdicts": {
+    "permuted": {
+     "ratio": 3.7974683544303796,
+     "n": 12,
+     "collapse": true,
+     "decoy": false,
+     "corroborant": null,
+     "verdict": "X_DEMANDED",
+     "degenerate": true,
+     "why": "bras intact au PLANCHER d\u00e9clar\u00e9 (m\u00e9diane 300 <= floor 300)",
+     "censored": true,
+     "inverted": false
+    },
+    "noise": {
+     "ratio": 4.013377926421405,
+     "n": 12,
+     "collapse": true,
+     "decoy": false,
+     "corroborant": null,
+     "verdict": "X_DEMANDED",
+     "degenerate": true,
+     "why": "bras intact au PLANCHER d\u00e9clar\u00e9 (m\u00e9diane 300 <= floor 300)",
+     "censored": true,
+     "inverted": false
+    },
+    "zero": {
+     "ratio": 1.8018018018018018,
+     "n": 12,
+     "collapse": true,
+     "decoy": false,
+     "corroborant": null,
+     "verdict": "X_DEMANDED",
+     "degenerate": true,
+     "why": "bras intact au PLANCHER d\u00e9clar\u00e9 (m\u00e9diane 300 <= floor 300)",
+     "censored": true,
+     "inverted": false
+    }
+   },
+   "k": {
+    "permuted": 8,
+    "noise": 8,
+    "zero": 6
+   },
+   "k_strict": {
+    "permuted": 8,
+    "noise": 8,
+    "zero": 6
+   },
+   "median_ratio": {
+    "permuted": 4.149159663865547,
+    "noise": 4.098135964912281,
+    "zero": 5.045454545454546
+   },
+   "median_win_frac": {
+    "permuted": 0.9791666666666667,
+    "noise": 1.0,
+    "zero": 0.5
+   },
+   "k_dv": 8,
+   "k_any": 8
+  },
+  {
+   "cell": "c1-N",
+   "sigma": 1.0,
+   "n_seeds": 12,
+   "floor_measured": 300.0,
+   "ceiling": 300.0,
+   "partial": false,
+   "expect_n": 12,
+   "dv_mode": "permuted",
+   "median_intact": 300.0,
+   "median_obs_weight": 1.3924085693217367,
+   "median_n_accepted": 5.5,
+   "n_seeds_n_accepted_zero": 1,
+   "n_seeds_arms_identical": 1,
+   "n_seeds_body_default": 6,
+   "secs_total": 103.24272179603577,
+   "original_ladder_majority": "INDETERMINE_DEGENERATE",
+   "original_ladder_tie": true,
+   "original_ladder_counts": {
+    "INDETERMINE_DEGENERATE": 6,
+    "SURVIVAL_SENSITIVE": 6
+   },
+   "verdicts": {
+    "permuted": {
+     "ratio": 5.825242718446602,
+     "n": 12,
+     "collapse": true,
+     "decoy": false,
+     "corroborant": null,
+     "verdict": "X_DEMANDED",
+     "degenerate": true,
+     "why": "bras intact au PLANCHER d\u00e9clar\u00e9 (m\u00e9diane 300 <= floor 300)",
+     "censored": true,
+     "inverted": false
+    },
+    "noise": {
+     "ratio": 6.4171122994652405,
+     "n": 12,
+     "collapse": true,
+     "decoy": false,
+     "corroborant": null,
+     "verdict": "X_DEMANDED",
+     "degenerate": true,
+     "why": "bras intact au PLANCHER d\u00e9clar\u00e9 (m\u00e9diane 300 <= floor 300)",
+     "censored": true,
+     "inverted": false
+    },
+    "zero": {
+     "ratio": 1.8018018018018018,
+     "n": 12,
+     "collapse": true,
+     "decoy": false,
+     "corroborant": null,
+     "verdict": "X_DEMANDED",
+     "degenerate": true,
+     "why": "bras intact au PLANCHER d\u00e9clar\u00e9 (m\u00e9diane 300 <= floor 300)",
+     "censored": true,
+     "inverted": false
+    }
+   },
+   "k": {
+    "permuted": 8,
+    "noise": 9,
+    "zero": 6
+   },
+   "k_strict": {
+    "permuted": 8,
+    "noise": 9,
+    "zero": 6
+   },
+   "median_ratio": {
+    "permuted": 5.8700607902735555,
+    "noise": 6.458669122726226,
+    "zero": 5.045454545454546
+   },
+   "median_win_frac": {
+    "permuted": 1.0,
+    "noise": 0.9583333333333334,
+    "zero": 0.5
+   },
+   "k_dv": 8,
+   "k_any": 9
+  },
+  {
+   "cell": "c1-P",
+   "sigma": 0.3,
+   "n_seeds": 12,
+   "floor_measured": 30.0,
+   "ceiling": 300.0,
+   "partial": false,
+   "expect_n": 12,
+   "dv_mode": "permuted",
+   "median_intact": 300.0,
+   "median_obs_weight": 0.9379248512371077,
+   "median_n_accepted": 5.0,
+   "n_seeds_n_accepted_zero": 0,
+   "n_seeds_arms_identical": 0,
+   "n_seeds_body_default": 2,
+   "secs_total": 81.78560185432434,
+   "original_ladder_majority": "SURVIVAL_SENSITIVE",
+   "original_ladder_tie": false,
+   "original_ladder_counts": {
+    "SURVIVAL_SENSITIVE": 12
+   },
+   "verdicts": {
+    "permuted": {
+     "ratio": 10.169491525423728,
+     "n": 12,
+     "collapse": true,
+     "decoy": false,
+     "corroborant": null,
+     "verdict": "X_DEMANDED",
+     "degenerate": false,
+     "why": null,
+     "censored": true,
+     "inverted": false
+    },
+    "noise": {
+     "ratio": 10.344827586206897,
+     "n": 12,
+     "collapse": true,
+     "decoy": false,
+     "corroborant": null,
+     "verdict": "X_DEMANDED",
+     "degenerate": false,
+     "why": null,
+     "censored": true,
+     "inverted": false
+    },
+    "zero": {
+     "ratio": 10.344827586206897,
+     "n": 12,
+     "collapse": true,
+     "decoy": false,
+     "corroborant": null,
+     "verdict": "X_DEMANDED",
+     "degenerate": false,
+     "why": null,
+     "censored": true,
+     "inverted": false
+    }
+   },
+   "k": {
+    "permuted": 12,
+    "noise": 12,
+    "zero": 12
+   },
+   "k_strict": {
+    "permuted": 12,
+    "noise": 12,
+    "zero": 12
+   },
+   "median_ratio": {
+    "permuted": 10.172413793103448,
+    "noise": 10.344827586206897,
+    "zero": 10.344827586206897
+   },
+   "median_win_frac": {
+    "permuted": 1.0,
+    "noise": 1.0,
+    "zero": 1.0
+   },
+   "k_dv": 12,
+   "k_any": 12
+  }
+ ]
+}

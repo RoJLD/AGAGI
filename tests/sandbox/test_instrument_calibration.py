@@ -44,6 +44,18 @@ NOT_AN_INSTRUMENT = {
 }
 
 CALIBRATED = {
+    # P2.47 (2026-09-07) : runner S6 (taux de faux positifs du marqueur sous init non nulle).
+    # 29 cas de calibration dans tests/sandbox/test_s6_fallback_rate.py -- dont le contre-exemple
+    # construit (corps suffisant + politique lectrice -> l'ablation MORD), la specificite (politique
+    # constante -> bras identiques), l'ancre bit-identique a fit_policy y compris quand le hill-climb
+    # ACCEPTE, et le gate qui REFUSE de conclure si le controle positif ne mord pas.
+    # ⚠️ `run_seed` est en COLLISION (8 fichiers) -> declaration QUALIFIEE.
+    "tools/s2_fallback_rate_probe.py::run_seed": ["cell-sigma-seed", "resumable", "params-in-key"],
+    "tools/s2_fallback_rate_probe.py::run_arms": ["four-rungs", "crn-per-life"],
+    "tools/s2_fallback_rate_probe.py::original_ladder_verdict": ["reproduces-origin", "majority-tie"],
+    "tools/s2_fallback_rate_probe.py::assert_no_world": ["static-imports:raises", "clean:passes"],
+    "tools/s2_fallback_rate_probe.py::assert_intervention_perturbs_input": ["rungs-perturb", "true-is-noop"],
+    "tools/s2_fallback_rate_probe.py::assert_crn_exactness": ["zero-exact", "permuted-shifted"],
     # P2.46 (2026-09-06) : 11 orchestrateurs run_* -- garde d'entree SEULEMENT (branches de
     # verdict NON couvertes : injection a dose connue = dette declaree au backlog).
     "tools/cross_world_transfer.py::run_direction": ["empty-cohort:raises", "guard-before-world"],
