@@ -1026,6 +1026,7 @@ n'implique pas l'incapacité ici (le gain par nœud `σ(W[j,j])` casse l'infére
 **P2.15 — ✅ CLOS (2026-09-07) — la garde est branchée, le plafond est MESURÉ, et la mesure a
 RÉVISÉ le chiffre publié d'un facteur 2.1.** État d'origine : `assert_bar_separates_the_incapable`
 existait depuis le 2026-09-02 et n'était **appelée nulle part** — E10 dans sa définition même.
+<!-- closes_when:grep_present=tools/hooks/pre-commit::check_bar_separation -->
 
 **Ce que la fermeture a livré**
 - `tools/plain_substrate_ceiling.py` — le PLAFOND CONSTRUCTIF, mesuré, avec sa provenance gelée.
@@ -1055,12 +1056,66 @@ D'où un TROISIÈME contrôle, `saturation_control` (moitié budget vs budget pl
 transposable : **un contrôle de CAPACITÉ ne calibre pas un contrôle de BUDGET.** C'est E19 déplacé du
 pas d'apprentissage vers l'effort de recherche.
 
-⚠️ **Ce que ça fait à `EDR-BILINEAR`, dit sans adoucissement.** Sa conclusion TIENT — bilinéaire 0.932
-reste au-dessus du plafond du plain — mais sa marge de capacité passe de **0.543 à 0.084**. Et le
-plafond est un **MINORANT** : il a déjà monté une fois sous recherche plus longue, et rien n'interdit
-qu'il monte encore. Si une recherche le porte au-dessus de 0.932, la séparation de capacité disparaît
-et il ne reste qu'une séparation d'APPRENABILITÉ à budget fixe. **Tâche bornée et prioritaire** :
+**Le chiffre est AUDITABLE et VÉRIFIÉ SUR LE SUBSTRAT.** Témoin gelé (78 coefficients) dans
+`results/plain_ceiling_witness.json` : 30/36 en forme close (Python pur, sans autograd) ET 30/36
+injecté dans le `W` d'un vrai `TorchPopulationModel`, lu par le VRAI `forward`. La dérivation est
+donc exacte — une divergence aurait signé un aliasing au sens d'EDR-WARM-007.
+
+⛔ **RECTIFICATION LE JOUR MÊME — la séparation de CAPACITÉ d'`EDR-BILINEAR` n'est PAS établie, et
+l'erreur est la mienne.** J'ai d'abord écrit ici « la conclusion tient, marge 0.084 » : j'avais adossé
+une conclusion à un MINORANT en le traitant comme un plafond — exactement le défaut P2.15, déplacé d'un
+cran. Trois recherches INDÉPENDANTES sur la MÊME forme close, le même jour, par ordre d'effort
+croissant : **29/36 (0.806) → 34/36 (0.944) → 36/36 (1.000)** ; la mienne atteint 33/36. Un plafond qui
+monte à chaque fois qu'on cherche plus fort est le **plancher de l'optimiseur**, pas un plafond.
+- Le bilinéaire mesure 0.932, les candidats-plafond du plain 0.944 et 1.000 : **la capacité du plain
+  n'est pas inférieure à ce que le bilinéaire atteint**. Ce qui subsiste est une séparation
+  d'**APPRENABILITÉ à budget fixe** (0.271 vs 0.932 à `episodes=300`, séparation par-seed totale) —
+  un résultat réel, mais pas celui qui est écrit dans le record.
+- **La sonde ne certifie plus** : `unlocked=None` et `bar_status="CEILING_IS_MINORANT"` tant qu'aucune
+  borne SUPÉRIEURE PROUVÉE n'est fournie. Une condition nécessaire n'est pas une preuve.
+- **Leçon transposable, et c'est la plus chère de la passe** : un plafond obtenu par RECHERCHE est un
+  minorant, et un minorant ne peut pas fonder une affirmation de la forme « X ne peut pas ». La preuve
+  que la recherche est faible ici est directe : sur la sous-forme additive, dont le MILP donne 0.75,
+  la descente de gradient rend 0.36 — et un des trois chercheurs a REFUSÉ son propre 35/36 après
+  s'être calibré sur cette réponse exacte connue (son pipeline y sous-estimait de 13 cellules). **Tâche bornée et prioritaire** :
 pousser la recherche jusqu'à saturation franche et publier l'intervalle, pas le point.
+
+⚠️ **UNE PISTE DE BORNE SUPÉRIEURE EST RÉFUTÉE, et ça oriente la suivante.** Relaxer `c_j·tanh` en une
+fonction croissante QUELCONQUE par colonne (`argmax_j g_j(a[k,j]+b[q,j])`) rend le problème MILP-able —
+seul compte alors l'ORDRE dans chaque colonne. Mesuré, PROUVÉ optimal, et vérifié indépendamment
+(0 violation d'ordre, argmax recompté hors solveur) : cette relaxation atteint la **PERFECTION** (9/9 à
+K=3, 16/16 à K=4). Elle ne borne donc rien. Conséquence utile : ce qui limite le substrat n'est **ni la
+séparabilité de `a+b`, ni la monotonie par nœud**, mais la **FORME de `tanh`** — une sigmoïde unique,
+seulement remise à l'échelle par nœud. Une borne supérieure devra contraindre cette forme, pas l'ordre.
+
+⚠️ **PREUVE MÉCANIQUE de l'origine du 0.3889, et elle disqualifie un de mes contrôles.** Sur la
+sous-forme ADDITIVE — dont le MILP PROUVE l'optimum à 27/36 = 0.75 — une descente à marge rend,
+par budget croissant : 13/36 · **14/36 = 0.3889** · **14/36 = 0.3889** · 15/36. Le chiffre publié
+se reproduit comme un **PLATEAU STABLE qui TIENT SUR UN DOUBLEMENT DU BUDGET**. Donc
+`saturation_control` (demi-budget vs plein) l'aurait **BÉNI** : les deux rendent 0.3889. Le seul
+contrôle qui le refuse est `dominates_proven_bound` (0.3889 < 0.75), ajouté APRÈS qu'un
+réfutateur me l'ait signalé. **Règle** : un plateau de recherche est indiscernable d'un plafond
+par tout contrôle qui ne dispose pas d'une VÉRITÉ EXACTE de référence.
+
+**Bilan de la revue adversariale (9 agents, 0 mort) — elle a trouvé QUATRE défauts RÉELS, tous à moi.**
+Aucun n'aurait été vu par de la relecture ; chacun est devenu un cas de calibration.
+1. **Deux tests RENDUS ROUGES par mon propre correctif, et je ne les avais pas lancés** :
+   `tests/test_bilinear_composition_probe.py` (`isinstance(None, bool)`) et le test DÉCISIF
+   `test_bilinear_unlocks_composition_same_tick_supervised` (`assert r["unlocked"]`). Les deux gèlent
+   désormais le NOUVEAU contrat — dont un contrôle apparié : le verdict REDEVIENT booléen dès qu'une
+   borne prouvée est déclarée, sinon « ne certifie jamais » serait indiscernable de « ne sait pas ».
+2. **Faux NÉGATIF du cliquet** : il déclarait PROPRE un fichier dès qu'un appel à la garde EXISTAIT, même
+   enfermé dans une branche ÉTEINTE au réglage par défaut (`retain_compose`, `incapable_ceiling=None`).
+   Nouveau code `C` — « la garde existe, rien ne montre qu'elle TOURNE ». *Et mon premier correctif était
+   lui-même faux* (il parcourait le corps du module, où une `FunctionDef` est un statement non
+   conditionnel : tout appel ressortait inconditionnel) — attrapé par sa propre calibration, gelé.
+3. **Trois tests qui PUNISSAIENT LE CORRECTIF** : ils exigeaient que la dette reste non vide et que les
+   deux sondes graveuses restent DANS la baseline. Corriger les 6 sondes — le but même de P2.15 — les
+   aurait fait échouer. C'est le défaut que j'avais explicitement fermé dans la LOGIQUE du cliquet et
+   ré-introduit dans ses TESTS. Le fait historique est gelé ; le périmètre est vérifié ; la dette non.
+4. **Le 4ᵉ contrôle manquant** de l'instrument de plafond (cf. plus haut) : les trois premiers
+   laissaient passer une recherche bloquée, et mon test lent — désélectionné, donc jamais exécuté —
+   assertait `valid is True` sur le budget qui est justement AUTO-INVALIDÉ.
 
 **Ce qui reste ouvert, nommément**
 - `retain_compose_diagnostic_probe` rend `INCONCLUSIVE_BAR_UNVALIDATED` tant que le plafond de sa
@@ -1094,6 +1149,7 @@ celui qui attrape une **DV substituée en silence** dans un record se réclamant
 donc exécuté que par son fichier pytest. C'est exactement le principe transverse n°1 (« règle documentée
 sans application exécutable finit violée ») appliqué à une garde pourtant déjà ÉCRITE : elle protège le
 travail de qui pense à la lancer. *Correctif : une 3ᵉ porte gatée sur `docs/EDR/*.md` stagés. Coût : ~15 min.*
+<!-- closes_when:grep_present=tools/hooks/pre-commit::check_preregistration_applied -->
 
 **P2.21 — ✅ FAIT (2026-09-02) — la garde E19 avait le trou qu'elle traque : `assert_verdict_invariant_to_optimizer`
 tirait DÉGÉNÉRÉMENT quand c'est le bras de RÉFÉRENCE qui s'effondre. Corrigée dans cette même passe (vitalité du
@@ -1260,6 +1316,7 @@ pre-commit — a été **réfutée par la mesure avant d'être livrée** : lanc�
 de `runs/staged_authorship/`, `detect_preempted` rend **2 préemptions sur 2 qui sont FAUSSES**, les
 deux désignant `7de1b54`, le propre commit de l'auteur. Cause : l'exclusion d'un commit « mien » repose
 entièrement sur `confirm_commit(..., owner=)`, que rien n'oblige à appeler.
+<!-- closes_when:grep_present=tools/hooks/pre-commit::check_staged_authorship -->
 
 - **Conséquence opératoire immédiate** : la garde est SAINE EN FLUX (`snapshot` → édite → commite →
   `confirm --owner`) et TROMPEUSE EN BALAYAGE. Un cliquet qui crie à tort est pire qu'absent — on
@@ -1280,6 +1337,7 @@ avec un optimiseur incomplet.**
 *Livré : `tools/check_substrate_pinning.py` + baseline gelée + porte 6 du hook pre-commit +
 `tests/sandbox/test_substrate_pinning.py` (16 cas, autant de `spares` que de `fires`). Vérifié en
 acte : la garde TIRE sur une sonde neuve défectueuse et ÉPARGNE une sonde neuve correcte.*
+<!-- closes_when:grep_present=tools/hooks/pre-commit::check_substrate_pinning -->
 
 **État au 2026-09-02, après la passe de correction :**
 
@@ -1389,8 +1447,20 @@ record EXISTE et mentionne bien les 7 grandeurs. La vérification annoncée n'a 
 
 ---
 
-**P2.29 — ⚠️ OUVERT (2026-09-07) — le cliquet de fraîcheur du backlog est AVEUGLE à la péremption
-SÉMANTIQUE : six entrées annonçaient l'inverse de l'état mesuré, et il rendait « OK ».**
+**P2.29 — ✅ CLOS (2026-09-07) — la clause `closes_when:` est livrée, et c'est le cliquet qui a
+exigé la fermeture de cette entrée-ci.**
+<!-- closes_when:grep_present=tools/check_backlog_freshness.py::closes_when -->
+*Mécanisme : une entrée fermable DÉCLARE sa condition de fermeture ; le cliquet évalue CETTE
+clause, dans les DEUX sens. Le sens le plus utile est le second — « l'entrée s'annonce CLOSE
+mais sa condition ne l'est plus » attrape une fermeture qui a RÉGRESSÉ en silence, ce qu'aucune
+relecture ne voit. Vocabulaire FERMÉ (`path_present`, `path_absent`, `grep_present`,
+`grep_absent`) et prédicats PURS : un backlog est un fichier que toute session édite, et un
+cliquet qui exécuterait ce qu'on y écrit serait une porte d'entrée, pas une garde. Un prédicat
+inconnu est REFUSÉ bruyamment. Les entrées SANS clause restent hors périmètre et sont
+RAPPORTÉES (48 au moment de la livraison) — jamais comptées comme un succès.*
+
+Énoncé d'origine — le cliquet de fraîcheur du backlog était AVEUGLE à la péremption
+SÉMANTIQUE : six entrées annonçaient l'inverse de l'état mesuré, et il rendait « OK ».
 Mesuré en relisant le backlog pour choisir quoi faire — c'est-à-dire au pire moment, celui que
 `check_backlog_freshness` existe précisément pour protéger. Les six : **P2.14** (« ⚠️ OUVERTE, arête à
 mesurer » alors qu'elle est gravée depuis `26ca13d`), **P2.16** (« branché à AUCUNE porte » alors qu'il
@@ -1508,6 +1578,32 @@ DAG de capacités *sans canal de demande in-world* est le piège « proxy 9 / in
   dans le schéma `evidence` de la demande + une vérification dans `validate_edge` contre le plancher
   d'émergence.
 - **SP-3 Calibrer — ✅ MESURÉE ET GRAVÉE (`EDR-CALIB-SP3`, verdict GO), pas seulement spécifiée.** Le demand-marker récupère-t-il un DAG
+
+**P2.31 — ⚠️ OUVERTE (2026-09-07) — un CONTRE-EXEMPLE GELÉ qui ne peut plus s'exécuter est une garde
+qui ne garde rien.** `test_bilinear_composition_null_under_retention_is_lr_dependent`
+(`tests/sandbox/test_instrument_calibration.py`), le contre-exemple gelé de la classe **E19**, **part en
+TIMEOUT** sur son propre plafond de 600 s.
+
+- **Ce n'est PAS une régression de cette passe.** Mesuré des deux côtés, mêmes paramètres, même machine,
+  1 seed = 2 bras : version **modifiée 30.6 s**, version **HEAD 55.1 s**. La version HEAD est la plus
+  lente des deux ; le changement de P2.15 n'ajoute que du O(1) (résolution de plafond + une garde).
+- **L'écart est avec le PASSÉ, pas entre les branches.** Le test documente un wall MESURÉ de **199.7 s**
+  le 2026-09-01 pour 48 exécutions de bras. La projection actuelle est de **740 s à 1300 s** selon la
+  mesure — soit un facteur 4 à 7. La variance entre deux mesures consécutives du MÊME code (30.6 vs
+  55.1 s) est déjà de 1.8×, donc la cause est environnementale, pas algorithmique.
+- **Pourquoi ça compte plus qu'un test lent.** Ce test est le contre-exemple NOMMÉ d'E19 dans le registre.
+  `check_guard_negative_cases.py` vérifie qu'une classe `exécutable` NOMME son test — il ne vérifie pas
+  que le test PEUT tourner. La garde est donc verte alors que la preuve est inaccessible : c'est E1 au
+  méta-niveau (une vérification qui ne peut pas échouer parce qu'elle ne s'exécute jamais).
+- **À faire** : (a) re-mesurer le débit et fixer le plafond sur la mesure du jour, pas sur celle du
+  2026-09-01 — un plafond hérité d'un autre régime est exactement le défaut que `assert_bar_is_reachable`
+  traque sur les barres ; (b) décider si l'unité de réplication du contre-exemple peut descendre sous
+  n=12 (la BASCULE se lit déjà à n=3, la séparation par-seed non) ; (c) faire vérifier au cliquet du
+  registre que le test nommé s'exécute, pas seulement qu'il existe.
+- **Vérifié dans cette passe, à n=3** : les assertions modifiées tiennent (`unlocked is None`,
+  `bar_status == "UNVALIDATED"` aux deux pas, bascule des médianes conservée). Le test gelé n'a PAS été
+  affaibli — il est inexécutable pour une raison indépendante.
+
   de prérequis *imposé* (os-taxonomy comme clé de réponse), en no-opant sur les non-arêtes **corrélées** ?
   Go/no-go de toute la vision. Design : `docs/superpowers/specs/2026-07-23-sp3-prerequisite-recovery-calibration-design.md`.
   *Pur numpy, aucun bail, aucun run long — cheap.*

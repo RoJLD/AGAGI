@@ -217,3 +217,73 @@ def test_legacy_edges_stay_exempt_from_coord_intact():
     """Semantique legataire GELEE : les 2 aretes gravees (avant M4) restent lisibles sans les champs
     -- le cliquet interdit la dette NOUVELLE, il ne reecrit pas l'histoire."""
     assert validate_edge(_edge(functional_aliasing="pass", specificity_control="pass"), _IDS) == []
+
+
+# --------------------------------------------------------------------------------------------------
+# 4. P2.15 (2026-09-07) — LA BARRE DOIT SEPARER, pas seulement etre coherente
+# --------------------------------------------------------------------------------------------------
+# La porte lisait `emergence_bar` sans jamais demander ce qu'elle separe. Une arete pouvait declarer
+# `emergence_bar: 0.3167` — la barre de vitalite historique du depot — et passer, alors qu'un substrat
+# PROUVABLEMENT INCAPABLE de la tache la franchit deja : le bras intact aurait « emerge » sans savoir
+# rien faire. C'est le defaut symetrique de M4 (qui, lui, verifiait que l'intact atteint la barre).
+
+def _edge_hors_gel(**evidence_over):
+    """Arete NON legataire ET hors du gel P2.15 — `_edge_nouvelle` construit `language->memory`, qui
+    est justement l'arete gelee : la regle P2.15 n'y serait JAMAIS eprouvee. Piege reel, trouve en
+    ecrivant ces tests."""
+    ev = {"ablation_verdict": "X_DEMANDED", "ratio": 2.4, "n": 12, "record": _REAL_RECORD,
+          "specificity_control": "pass", "functional_aliasing": "pass",
+          "ablation_target": "substrate", "coord_intact": 0.92, "emergence_bar": 0.55,
+          "incapable_ceiling": 0.3889,
+          "ceiling_provenance": "forme close du substrat plain a H_in=0, mesuree avec controle positif apparie"}
+    ev.update(evidence_over)
+    return {"capability": "memory", "prerequisite": "language", "strength": "hard", "evidence": ev}
+
+
+def test_gate_REFUSES_a_bar_that_separates_NOTHING():
+    """⚠️ CONTRE-EXEMPLE GELE de P2.15 : la barre historique du depot, declaree sur une arete neuve.
+    0.3167 est SOUS le plafond du substrat incapable -> la franchir n'etablit aucune capacite."""
+    v = validate_edge(_edge_hors_gel(emergence_bar=0.3167, coord_intact=0.35), _IDS)
+    assert any("NE SEPARE RIEN" in x for x in v), v
+
+
+def test_gate_REFUSES_a_bar_declared_without_an_incapable_ceiling():
+    """Sans plafond declare, la porte ne PEUT pas savoir si la barre separe. Elle refuse au lieu de
+    deviner : deviner reviendrait a passer le niveau de CHANCE, ce qui EST l'erreur P2.15."""
+    e = _edge_hors_gel(); del e["evidence"]["incapable_ceiling"]
+    assert any("incapable_ceiling" in x for x in validate_edge(e, _IDS))
+
+
+def test_gate_REFUSES_an_undeclared_provenance():
+    """Un plafond sans provenance est invérifiable — rien ne le distingue d'un niveau de chance passe
+    par reflexe. Meme regle que `demand_marker._degeneracy` : on fait DECLARER, on ne devine pas."""
+    e = _edge_hors_gel(ceiling_provenance="1/K")     # trop court ET c'est justement l'erreur
+    assert any("ceiling_provenance" in x for x in validate_edge(e, _IDS))
+
+
+def test_gate_ACCEPTS_a_bar_above_the_incapable_ceiling():
+    """POSITIF APPARIE — sans lui, une porte qui refuserait TOUTE arete passerait les trois tests
+    ci-dessus. Barre 0.55 au-dessus du plafond 0.3889, provenance ecrite : acceptee."""
+    assert validate_edge(_edge_hors_gel(), _IDS) == []
+
+
+def test_the_P215_freeze_is_NARROW_and_does_not_swallow_new_edges():
+    """Le gel ne doit couvrir QUE l'arete datee. Une arete neuve ne doit pas heriter de l'exemption —
+    sinon le cliquet decore au lieu de bloquer, et ce depot a deja mesure ce faux vert sur lui-meme."""
+    from tools.check_agi_taxonomy import _LEGATAIRES_SANS_PLAFOND
+    assert _LEGATAIRES_SANS_PLAFOND == frozenset({"language->memory"}), _LEGATAIRES_SANS_PLAFOND
+    e = _edge_hors_gel(); del e["evidence"]["incapable_ceiling"]
+    assert validate_edge(e, _IDS), "une arete HORS gel sans plafond doit etre refusee"
+
+
+def test_the_graven_graph_STILL_PASSES_the_hardened_gate():
+    """Non-regression sur le REEL : les 3 aretes gravees passent la porte durcie. Si ce test tombe, la
+    porte a rendu ININTERPRETABLE une arete deja publiee — et c'est un probleme de la PORTE."""
+    import json
+    import os
+    from tools.check_agi_taxonomy import _DATA, validate_graph
+    with open(os.path.join(_DATA, "capabilities.json"), encoding="utf-8") as fh:
+        caps = json.load(fh)
+    with open(os.path.join(_DATA, "demands.json"), encoding="utf-8") as fh:
+        dem = json.load(fh)
+    assert validate_graph(caps, dem) == []

@@ -267,11 +267,36 @@ def test_calibration_ratchet_REFUSES_a_bare_declaration_on_an_ambiguous_name(tmp
         f"« {ambigu} » est défini dans {len(collisions[ambigu])} fichiers ; une déclaration nue "
         f"validerait des homonymes JAMAIS testés")
 
-    # SPÉCIFICITÉ 1 — qualifiée « fichier::fonction », elle doit être acceptée : sans ça, les 6 noms
-    # en collision deviendraient incalibrables et la garde bloquerait le travail au lieu de le guider.
+    # SPÉCIFICITÉ 1 — qualifiée « fichier::fonction », elle doit être PRISE EN COMPTE : sans ça, les
+    # noms en collision deviendraient incalibrables et la garde bloquerait le travail au lieu de le
+    # guider.
+    #
+    # ⚠️ Ce test était ROUGE au HEAD depuis le 2026-09-06, réparé le 2026-09-07 (trouvé EN PASSANT, en
+    # câblant P2.15). Il assertait `ambigu in scan_calibrated()`, c'est-à-dire la sémantique d'AVANT le
+    # correctif du réfutateur de la famille `run_*` — lequel a montré que verdir le NOM NU dès QU'UN
+    # chemin est déclaré validait tous les homonymes jamais testés (faux vert E4, fabriqué par la passe
+    # de calibration elle-même). Depuis, une déclaration qualifiée alimente `qualified_paths` et la
+    # couverture se juge par `collision_coverage` : un nom n'est calibré que si CHAQUE chemin porte sa
+    # déclaration. Le test gèle donc désormais la règle CORRIGÉE — et il est resté rouge deux jours
+    # parce qu'un correctif de garde n'entraîne pas la mise à jour des tests qui gelaient l'ancienne.
     faux.write_text(f'CALIBRATED = {{\n    "{collisions[ambigu][0]}::{ambigu}": ["*"],\n}}\n',
                     encoding="utf-8")
-    assert ambigu in C.scan_calibrated(), "une déclaration QUALIFIÉE doit être acceptée"
+    C.scan_calibrated()
+    assert collisions[ambigu][0] in C.scan_calibrated.qualified_paths.get(ambigu, []), (
+        "une déclaration QUALIFIÉE doit être ENREGISTRÉE pour son chemin")
+    assert ambigu not in C.scan_calibrated(), (
+        "…mais UN chemin sur plusieurs ne suffit PAS à verdir le nom : c'est le faux vert du 2026-09-06")
+    couv = C.collision_coverage(collisions, C.scan_calibrated.qualified_paths, {})
+    couvert, manquants = couv[ambigu]
+    assert not couvert and manquants == sorted(collisions[ambigu][1:]), (couvert, manquants)
+
+    # SPÉCIFICITÉ 1-bis — POSITIF APPARIÉ : TOUS les chemins déclarés -> le nom est enfin couvert.
+    # Sans lui, la règle « un chemin ne suffit pas » serait indiscernable d'un refus systématique.
+    lignes = "".join(f'    "{c}::{ambigu}": ["*"],\n' for c in collisions[ambigu])
+    faux.write_text(f"CALIBRATED = {{\n{lignes}}}\n", encoding="utf-8")
+    C.scan_calibrated()
+    couvert, manquants = C.collision_coverage(collisions, C.scan_calibrated.qualified_paths, {})[ambigu]
+    assert couvert and not manquants, (couvert, manquants)
 
     # SPÉCIFICITÉ 2 — un nom NON ambigu reste déclarable nu (aucune régression sur les 36 existants).
     non_ambigu = next(n for n in C.scan_instruments() if n not in collisions)

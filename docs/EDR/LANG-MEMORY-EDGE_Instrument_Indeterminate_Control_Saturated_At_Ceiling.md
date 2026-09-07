@@ -46,7 +46,7 @@ graphe**, malgré trois branches aval positives.
    TROP FACILE au point de fonctionnement qui rend LANG apprenable.
 2. **Ce qui est acquis et REND LA REPRISE COURTE** : la spécificité — le bras dont l'issue négative
    était réellement atteignable — a PASSÉ (PRESENT : même ablation, information redondante,
-   0,773→0,656, X_DECOY net). Le mur de l'ancienne sonde (substrat plain, plafond 0,3889) est bien
+   0,773→0,656, X_DECOY net). Le mur de l'ancienne sonde (substrat plain, plafond 0,3889 — ⚠️ **SUPERSÉDÉ le 2026-09-07** : le plafond réel est **30/36 ≈ 0.833** (et 27/36 = 0.75 PROUVÉ pour la sous-forme séparable) ; 0.3889 était un optimum local banal d'une recherche trop courte — cf. l'encart de correction dans `EDR-BILINEAR`.) est bien
    levé : la référence apprend à 0,750, au-dessus de la barre. Il ne manque QUE un contrôle d'alias
    vivant sous plafond.
 3. **Un négatif d'instrument n'est pas un négatif d'arête** : rien ici ne dit que l'arête est

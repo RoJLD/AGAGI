@@ -50,6 +50,85 @@ _WIKILINK = re.compile(r"\[\[([A-Za-z0-9_.\-]+)\]\]")
 _TASKNUM = re.compile(r"^\*\*(P\d+\.\d+(?:-bis)?)\b", re.M)
 _BACKTICK_PATH = re.compile(r"`([\w][\w./-]*\.(?:py|md|json|yml|yaml))`")
 
+# --- P2.29 : PÉREMPTION SÉMANTIQUE, par CLAUSE DÉCLARÉE ---------------------------------------------
+# Le cliquet ne voyait que du SYNTAXIQUE (liens morts, numéros doubles, chemins disparus). Six entrées
+# ont pu annoncer l'INVERSE de l'état mesuré pendant qu'il rendait « OK » — et elles ont été trouvées en
+# relisant le backlog pour choisir quoi faire, c'est-à-dire au pire moment.
+#
+# Deviner la péremption depuis le TEXTE (dates, mot « OUVERTE ») serait proxifier ce qu'on ne sait pas
+# mesurer — déjà déclaré non automatisable (E10 occ. 4). On fait donc DÉCLARER : une entrée fermable
+# écrit sa CONDITION DE FERMETURE, et le cliquet vérifie CETTE clause.
+#
+#     <!-- closes_when:grep_present=tools/hooks/pre-commit::check_bar_separation -->
+#
+# ⚠️ Vocabulaire FERMÉ et prédicats PURS. Pas d'exécution de commande arbitraire depuis un document :
+# un backlog est un fichier que n'importe quelle session édite, et un cliquet qui lance ce qu'on y écrit
+# est une porte d'entrée, pas une garde. Un prédicat INCONNU est REFUSÉ bruyamment (jamais ignoré :
+# un refus muet ferait croire à l'auteur qu'il a déclaré ce qu'il n'a pas déclaré).
+#
+# Les DEUX sens sont des violations, et le second est le plus utile :
+#   * clause SATISFAITE + entrée déclarée OUVERTE  -> la fermeture est acquise et non enregistrée ;
+#   * clause NON satisfaite + entrée déclarée CLOSE -> la fermeture a RÉGRESSÉ en silence.
+_CLAUSE = re.compile(r"<!--\s*closes_when:([a-z_]+)=(.+?)\s*-->")
+_ENTREE = re.compile(r"^\*\*(P\d+\.\d+(?:-bis)?)\s*[—-]", re.M)
+_CLOSE_MARQUEURS = ("✅", "CLOS", "CLOSE", "FAIT", "PÉRIMÉE", "RETIRÉE", "TERMINÉ")
+
+
+def _entrees(txt):
+    """[(numéro, texte de l'entrée, déclarée close ?)] — une entrée va de son titre au titre suivant."""
+    bornes = [(m.start(), m.group(1)) for m in _ENTREE.finditer(txt)]
+    out = []
+    for i, (deb, num) in enumerate(bornes):
+        fin = bornes[i + 1][0] if i + 1 < len(bornes) else len(txt)
+        bloc = txt[deb:fin]
+        lignes = bloc.split("\n")
+        entete = " ".join(lignes[:2])          # le statut vit sur le titre ou la ligne suivante
+        out.append((num, bloc, any(m in entete for m in _CLOSE_MARQUEURS)))
+    return out
+
+
+def _evalue_clause(pred, arg):
+    """-> (satisfaite ?, raison si le prédicat est REFUSÉ). Prédicats PURS uniquement."""
+    if pred in ("path_present", "path_absent"):
+        existe = os.path.exists(os.path.join(_ROOT, arg))
+        return (existe if pred == "path_present" else not existe), None
+    if pred in ("grep_present", "grep_absent"):
+        if "::" not in arg:
+            return None, f"`{pred}` attend `chemin::motif` (reçu {arg!r})"
+        rel, motif = arg.split("::", 1)
+        chemin = os.path.join(_ROOT, rel)
+        if not os.path.exists(chemin):
+            return None, f"`{pred}` cite {rel!r}, qui n'existe pas — la clause est invérifiable"
+        with open(chemin, encoding="utf-8", errors="ignore") as fh:
+            present = re.search(motif, fh.read()) is not None
+        return (present if pred == "grep_present" else not present), None
+    return None, (f"prédicat `{pred}` INCONNU — vocabulaire fermé : path_present, path_absent, "
+                  "grep_present, grep_absent")
+
+
+def scan_clauses(txt):
+    """-> ({clef: description} des violations, nb d'entrées SANS clause)."""
+    viol, sans = {}, 0
+    for num, bloc, close in _entrees(txt):
+        clauses = _CLAUSE.findall(bloc)
+        if not clauses:
+            sans += 1
+            continue
+        for pred, arg in clauses:
+            ok, refus = _evalue_clause(pred, arg.strip())
+            if refus:
+                viol[f"clause-refusee:{num}:{pred}"] = f"{num} : {refus}"
+            elif ok and not close:
+                viol[f"clause-close:{num}:{pred}"] = (
+                    f"{num} : la condition de fermeture DÉCLARÉE est SATISFAITE "
+                    f"(`{pred}={arg}`) mais l'entrée s'annonce encore ouverte")
+            elif not ok and close:
+                viol[f"clause-rouverte:{num}:{pred}"] = (
+                    f"{num} : l'entrée s'annonce CLOSE mais sa condition de fermeture DÉCLARÉE "
+                    f"n'est plus satisfaite (`{pred}={arg}`) — fermeture régressée en silence")
+    return viol, sans
+
+
 
 def _known_ids():
     """Tous les identifiants de records déclarés en frontmatter, plus les noms de fichiers."""
@@ -115,6 +194,9 @@ def scan():
             trouve[f"chemin-mort:{chemin}"] = (
                 f"le backlog cite `{chemin}`, qui n'existe plus")
 
+    viol, sans = scan_clauses(txt)
+    trouve.update(viol)
+    scan.entrees_sans_clause = sans
     return trouve
 
 
@@ -165,6 +247,10 @@ def main():
         return 1
 
     print(f"OK : {len(trouve)} péremption(s) mécanique(s), toutes légataires (baseline). Aucune nouvelle.")
+    sans = getattr(scan, "entrees_sans_clause", None)
+    if sans:
+        print(f"  ({sans} entrée(s) SANS clause `closes_when:` — hors périmètre sémantique, "
+              "RAPPORTÉ et non compté comme succès)")
     if resorbees:
         print(f"  ({len(resorbees)} résorbée(s) — `--update-baseline` pour resserrer le cliquet)")
     return 0

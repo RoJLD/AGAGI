@@ -35,7 +35,7 @@ hit 0.477).
   (EDR-148) ; BPTT dégrade le gate (EDR-146/147).
 - Le verdict inter-bras passe par `compute_ab_verdict` (`tools/substrate_ab.py`, CALIBRÉ, garde
   `sign_p` — ne pas modifier). ⚠️ **Deux grandeurs à ne pas confondre** : le plafond structurel
-  0.3889 (P2.15) est une ACCURACY de tâche du plain (et la barre `1/K+0.15` est 0.072 dessous —
+  0.3889 (P2.15) est une ACCURACY de tâche du plain (et la barre `1/K+0.15` est 0.072 dessous — ⚠️ **SUPERSÉDÉ le 2026-09-07** : plafond réel **30/36 ≈ 0.833** (27/36 PROUVÉ pour la sous-forme séparable) ; 0.3889 était un optimum local d'une recherche trop courte — cf. P2.15.
   dette de seuil ouverte) ; le 0.30 ci-dessus est un GAP de probabilités conditionnelles —
   incommensurables. Le « plafond » pertinent du gap est le bras `none` (~0.07-0.09) et le mode
   suppression (couvert par la clause `hit_end`).
@@ -56,7 +56,7 @@ connue** : chaque verdict de cette porte est confronté à une réponse connue, 
 incluses (`BINDING_FORCED`/`SUPPRESSION`/`SIGNAL_INSUFFICIENT` · `GATE_BINDS`/`GATE_COLLAPSES`/
 `GATE_INTERMITTENT` · `ANTISAT_RESCUES`/`NEUTRAL`/`INEFFECTIVE` — ces deux derniers ne disent PAS la
 même chose et le test les sépare · `RECIPE_ROBUST`/`BINDING_EROSION` · gardes `WARMUP_FAILED` et
-`FADE_INEFFECTIVE` qui priment sur les chiffres aval). Le cliquet reste STRICT : **202 détectés** <!-- count:instruments_detectes=202 --> / **197 calibrés** <!-- count:instruments_calibres=197 --> / **1 dette** <!-- count:instruments_non_calibres=1 --> (d'une autre session). **Les runs proxy de niveau 1 sont DÉBLOQUÉS.**
+`FADE_INEFFECTIVE` qui priment sur les chiffres aval). Le cliquet reste STRICT : **204 détectés** <!-- count:instruments_detectes=204 --> / **200 calibrés** <!-- count:instruments_calibres=200 --> / **0 dette** <!-- count:instruments_non_calibres=0 -->. **Les runs proxy de niveau 1 sont DÉBLOQUÉS.**
 
 ## Niveau 2 — G2-fort (ÉMERGENCE in-loop, non supervisée) : **NON FRANCHI — c'est le mur EDR-LOCK-001**
 
@@ -101,7 +101,7 @@ graphe PERMETTRAIT de la valider ; ce serait mentir sur ce qui manque.
 - **2026-07/08 (146→149)** : BPTT n'aide pas et dégrade le gate ; TD prod ne porte pas la recette ;
   robuste au sur-entraînement.
 - **2026-08-03 (EDR-BILINEAR)** : mur REPRÉSENTATIONNEL levé — plain 0.271 vs bilinéaire 0.932,
-  0/144 ; plafond plain 0.3889 en forme close.
+  0/144 ; plafond plain 0.3889 en forme close. ⚠️ **SUPERSÉDÉ le 2026-09-07** : plafond réel **30/36 ≈ 0.833** (27/36 PROUVÉ pour la sous-forme séparable) ; 0.3889 était un optimum local d'une recherche trop courte — cf. P2.15.
 - **2026-08-04 (EDR-RETAIN-COMPOSE, rétracté par -LR)** : verdict RETENTION RETIRÉ (artefact de
   lr) ; fonde E19.
 - **2026-08 (158/159/160/161)** : migration prod livrée ; gate auto-scopé depuis H ; l'additif

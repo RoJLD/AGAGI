@@ -49,9 +49,24 @@ _DEFAULT_ABLATION_TARGET = "input"  # légataire : les 2 arêtes gravées ablate
 # plafonne au hasard, mais si l'intact ne depasse pas la barre d'emergence, il n'y a RIEN dont on
 # mesure la demande). Toute NOUVELLE arete declare `coord_intact` (valeur mesuree du bras intact) et
 # `emergence_bar` (la barre, DECLAREE par l'auteur — regle « ne pas proxifier », cf. demand_marker) et
-# doit avoir coord_intact >= emergence_bar. ⚠️ P2.15 reste ouverte (la barre 1/K+0.15 est SOUS le
-# plafond 0.3889 du plain) : la porte verifie la coherence interne, pas le bon placement de la barre.
+# doit avoir coord_intact >= emergence_bar.
+#
+# P2.15 (2026-09-07) — la porte verifiait la coherence INTERNE de la barre, jamais son PLACEMENT. Une
+# arete pouvait declarer `emergence_bar: 0.3167` et passer, alors qu'un substrat prouvablement incapable
+# de la tache franchit deja cette valeur : le bras intact aurait alors « emerge » sans rien savoir faire.
+# Toute NOUVELLE arete qui declare une barre declare donc AUSSI le plafond du bras incapable
+# (`incapable_ceiling`) et d'OU il vient (`ceiling_provenance`), et la barre doit etre STRICTEMENT
+# au-dessus. Le plafond ne peut pas etre devine par la porte : le deviner, c'est passer le niveau de
+# CHANCE, et c'est l'erreur P2.15 elle-meme (l'incapable y atteignait bien plus que 1/K).
 _LEGATAIRES_SANS_COORD = frozenset({"language->perception", "memory->perception"})
+# Gel etroit et DATE : `language->memory` (gravee le 2026-09-02) declare `emergence_bar: 0.5` sans
+# plafond d'incapable. Ce n'est pas un oubli qu'on pourrait combler d'un chiffre : son bras LANG est une
+# sequence a delai D sur substrat BILINEAR, donc ni la forme close du plain (un seul pas) ni le bras
+# able (~1/K, qui EST le niveau de chance qu'il est interdit de passer ici) ne fournissent le plafond.
+# L'etablir est une mesure bornee, inscrite au backlog ; le fabriquer serait rejouer P2.15 dans la garde
+# qui la ferme. Le gel bloque donc la dette NOUVELLE sans falsifier l'ancienne.
+_LEGATAIRES_SANS_PLAFOND = frozenset({"language->memory"})
+_PROVENANCE_MIN = 20
 
 
 def _exists(rel):
@@ -123,6 +138,23 @@ def validate_edge(edge, capability_ids):
         elif float(ci) < float(bar):
             v.append(f"arête {lbl} : coord_intact={ci} SOUS emergence_bar={bar} — le bras intact n'a "
                      "pas emerge, la demande mesurée est celle d'une competence ABSENTE")
+        elif lbl not in _LEGATAIRES_SANS_PLAFOND:
+            # P2.15 : la barre doit SEPARER. Une barre sous le plafond de l'incapable est franchie par
+            # un bras qui ne sait rien faire -> « emergence » vide.
+            ceil, prov = ev.get("incapable_ceiling"), ev.get("ceiling_provenance")
+            if not isinstance(ceil, (int, float)) or isinstance(ceil, bool):
+                v.append(f"arête {lbl} : emergence_bar={bar} declaree sans incapable_ceiling NUMERIQUE "
+                         "(P2.15 : une barre qu'un bras prouvablement incapable franchit ne separe "
+                         "rien — la franchir n'etablit aucune capacite, seulement que le plancher est bas)")
+            elif not isinstance(prov, str) or len(prov.strip()) < _PROVENANCE_MIN:
+                v.append(f"arête {lbl} : ceiling_provenance manquante ou trop courte ({prov!r}) — "
+                         "ecrire d'OU vient incapable_ceiling (forme close, autre substrat, mesure). "
+                         "Sans elle, rien ne distingue un plafond ETABLI d'un niveau de CHANCE passe "
+                         "par reflexe, et c'est exactement la confusion qui a produit P2.15")
+            elif float(bar) <= float(ceil):
+                v.append(f"arête {lbl} : emergence_bar={bar} NE SEPARE RIEN — un bras prouvablement "
+                         f"incapable atteint deja {ceil} (provenance : {str(prov).strip()}). Relever la "
+                         "barre AU-DESSUS du plafond de l'incapable.")
     return v
 
 

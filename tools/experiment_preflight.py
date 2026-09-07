@@ -152,13 +152,13 @@ def assert_bar_is_reachable(easiest_arm, bar, n_eval=None, margin=0.0, label="ba
 
     --- CE QUE CETTE GARDE NE DIT PAS (et qu'il ne faut pas lui faire dire) -----------------------------
     Elle ne borne la barre que par le HAUT. Le défaut SYMÉTRIQUE — une barre trop BASSE, franchie par un
-    bras PROUVABLEMENT incapable (P2.15 : `1/K + 0.15 = 0.3167` est 0.072 SOUS le plafond structurel
-    0.3889 du substrat `plain`, forme close) — est une propriété DIFFÉRENTE, pas l'autre moitié de
+    bras PROUVABLEMENT incapable (P2.15 : `1/K + 0.15 = 0.3167` est **0.517 SOUS** le plafond du substrat
+    `plain`, mesuré 30/36 = 0.8333 — cf. `tools/plain_substrate_ceiling.py`) — est une propriété DIFFÉRENTE, pas l'autre moitié de
     celle-ci : elle se mesure sur un bras qui doit ÉCHOUER et non sur celui qui doit RÉUSSIR, elle
     s'établit hors du dispositif (forme close, un autre substrat, une autre tâche) au lieu d'être
     mesurée au régime configuré, et elle se corrige en changeant la BARRE là où celle-ci se corrige en
     changeant le RÉGIME. Les fusionner inviterait surtout à passer le niveau de CHANCE (`1/K`) comme
-    plafond de l'incapable — ce qui EST l'erreur P2.15 (l'incapable atteignait 0.3889, pas 0.1667) :
+    plafond de l'incapable — ce qui EST l'erreur P2.15 (l'incapable atteignait 0.8333, pas 0.1667) :
     une garde dont l'argument le plus naturel reproduit le défaut qu'elle prétend fermer. Le défaut
     « barre trop basse » est traité ailleurs, et par un autre mécanisme : `assert_verdict_invariant_to_
     optimizer` raisonne sur l'ÉCART À UN BRAS DE RÉFÉRENCE précisément parce qu'aucun seuil ABSOLU ne
@@ -196,14 +196,18 @@ def assert_bar_separates_the_incapable(bar, incapable_ceiling, provenance, margi
     PROUVABLEMENT INCAPABLE. Une telle barre ne SÉPARE rien — la franchir ne dit pas « la capacité est
     là », seulement « le plancher est bas ». C'est la dette **P2.15**.
 
-    Cas gelé (P2.15) : la barre de vitalité du dépôt `1/K + 0.15 = 0.3167` (K=6) est **0.072 SOUS** le
-    plafond structurel **0.3889** du substrat `plain`, établi en FORME CLOSE et prouvablement incapable
-    de `(q+key)%K`. Un substrat dont on a démontré qu'il ne peut pas faire la tâche franchit donc la
+    Cas gelé (P2.15) : la barre de vitalité du dépôt `1/K + 0.15 = 0.3167` (K=6) est **0.517 SOUS** le
+    plafond du substrat `plain` sur `(q+key)%K` — **30/36 = 0.8333**, mesuré et re-vérifié sans autograd
+    (`tools/plain_substrate_ceiling.py`). ⚠️ Le `0.3889` publié le 2026-09-02 était une recherche NON
+    CONVERGÉE : ses deux contrôles appariés (table libre, cible séparable) innocentent la forme et
+    l'optimiseur, aucun ne peut dire si l'on a cherché assez. Corollaire pour l'usage de cette garde :
+    un plafond issu d'une RECHERCHE est un MINORANT, donc la garde est NÉCESSAIRE mais pas SUFFISANTE —
+    seule une borne prouvée la rend suffisante (le MILP donne 27/36 EXACT pour la forme additive). Un substrat dont on a démontré qu'il ne peut pas faire la tâche franchit donc la
     barre censée établir qu'il la fait.
 
     ⚠️ **`incapable_ceiling` DOIT être le plafond de l'INCAPABLE, jamais le niveau de CHANCE** — et c'est
     tout l'enjeu, parce que passer `1/K` est le geste le plus naturel du monde ET reproduit EXACTEMENT
-    l'erreur P2.15 : l'incapable de P2.15 atteignait **0.3889**, pas 0.1667. Une garde dont l'argument
+    l'erreur P2.15 : l'incapable de P2.15 atteignait **0.8333**, pas 0.1667. Une garde dont l'argument
     spontané rejoue le défaut qu'elle ferme serait pire qu'absente. Aucun code ne peut décider à la
     place de l'auteur d'où vient ce plafond : on le fait donc **DÉCLARER** (`provenance`), au lieu de le
     deviner — même règle que `demand_marker._degeneracy` et `check_guard_negative_cases`.
@@ -222,7 +226,7 @@ def assert_bar_separates_the_incapable(bar, incapable_ceiling, provenance, margi
             f"{label} : `provenance` du plafond de l'incapable non déclarée (reçu {provenance!r}). "
             "Écrire d'OÙ vient `incapable_ceiling` — forme close, mesure, autre substrat. Sans elle, "
             "rien ne distingue un plafond ÉTABLI d'un niveau de CHANCE passé par réflexe, et c'est "
-            "précisément la confusion qui a produit P2.15 (l'incapable y atteignait 0.3889, pas 1/K).")
+            "précisément la confusion qui a produit P2.15 (l'incapable y atteignait 0.8333, pas 1/K).")
     b, ceil = float(bar), float(incapable_ceiling)
     used = float(margin)
     if b <= ceil + used:
@@ -308,8 +312,8 @@ def assert_verdict_invariant_to_optimizer(measure, lrs=(0.02, 0.002), max_gap_cl
         gap(lr) = référence(lr) − testé(lr)        closure = 1 − min(gap) / max(gap)
 
     ⚠️ JAMAIS une barre absolue — c'est LE point de conception, et il est mesuré, pas raisonné : la barre
-    du dépôt `1/K + 0.15 = 0.3167` se situe **0.072 SOUS** le plafond structurel du substrat plain
-    (**0.3889**, forme close des 36 paires, 8 restarts ; contrôle positif du même optimiseur sur une table
+    du dépôt `1/K + 0.15 = 0.3167` se situe **0.517 SOUS** le plafond du substrat plain
+    (**30/36 = 0.8333**, forme close des 36 paires, 24 restarts x 20000 pas ; contrôle positif du même optimiseur sur une table
     libre non séparable : 1.000). Un substrat PROUVABLEMENT incapable de composer franchit donc cette barre
     au bon pas (0.3719 à `lr=0.1`) et même au pas d'origine avec plus de budget (0.3703 à
     `episodes=2400`). Réévaluer un SEUIL sous balayage flaguerait ce VRAI négatif ; réévaluer l'ÉCART

@@ -135,7 +135,7 @@ Ce record RETIRE un verdict ; il n'en installe pas un symétrique à sa place.
   aucun n'a le statut de mesure répliquée.
 - **Dette de barre, héritée, mesurée sur la sonde sœur et NON RÉPLIQUÉE** : `bar = 1/K + 0.15 = 0.3167`
   (`tools/retain_compose_diagnostic_probe.py:108`, `tools/bilinear_composition_probe.py:174`) est
-  **0.072 SOUS** le plafond structurel du substrat PLAIN mesuré en forme close (**0.3889**, optimisation
+  **0.517 SOUS** le plafond du substrat PLAIN (**30/36 ≈ 0.833**). ⚠️ **SUPERSÉDÉ le 2026-09-07** : le plafond réel est **30/36 ≈ 0.833** (et 27/36 = 0.75 PROUVÉ pour la sous-forme séparable) ; 0.3889 était un optimum local banal d'une recherche trop courte — cf. l'encart de correction dans `EDR-BILINEAR`. Énoncé d'origine : « 0.072 SOUS … 0.3889, optimisation
   directe plein-batch des 36 paires, 8 restarts ; contrôle positif du même optimiseur sur une table libre
   non séparable : 1.000). Un substrat prouvablement incapable de composer PEUT donc franchir cette barre.
   Cela ne touche pas le résultat ci-dessus (la bascule mesurée est de 0.173 à 0.923, sept fois la largeur

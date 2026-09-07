@@ -60,6 +60,100 @@ adopts: [REF-EXPERIMENT-PREFLIGHT, REF-DEMAND-MARKER]
 > bras**, ou embarquer le plafond constructif, jamais un seuil absolu), pas une remise en cause de la
 > conclusion.
 
+> ### ⚠️ CORRECTIF 2026-09-07 — le plafond du plain valait **0.8333**, pas 0.3889 ; la marge de capacité de ce record passe de 0.543 à 0.099
+>
+> **Ce qui est mesuré.** Même forme close, même tâche, même K : `argmax_j σ(W[j,j])·tanh(W[key,j] +
+> W[K+q,j])` atteint **30/36 = 0.8333** sur les 36 paires — optimisation plein-batch, 24 restarts ×
+> 20 000 pas, **re-vérifiée cellule par cellule sans autograd**. Le `0.3889` publié ci-dessus est
+> SUPERSÉDÉ. Deux faits exacts l'encadrent, prouvés et non plus cherchés :
+> * la sous-forme **purement additive** `argmax_j a[k,j]+b[q,j]` plafonne à **27/36 = 0.75**
+>   EXACTEMENT (MILP, gap 0) — c'est une borne SUPÉRIEURE, pas un minorant ;
+> * la perfection y est **infaisable pour tout K de 3 à 8** (LP). Pour K pair, l'argument est direct :
+>   avec k'=k+K/2 et q'=q+K/2 on a k+q ≡ k'+q' et k+q' ≡ k'+q, et les quatre cellules exigent à la fois
+>   `b_q[j1]+b_q'[j2] > b_q[j2]+b_q'[j1]` et son inverse strict. Une additivité ne porte pas la
+>   structure de groupe. L'écart 30/36 vs 27/36 chiffre donc ce que `σ·tanh` achète : **3 cellules**.
+>
+> **La cause de l'erreur, et elle vaut plus que le chiffre.** La mesure d'origine portait deux contrôles
+> appariés qui PASSAIENT tous les deux (table libre → 1.000 ; forme close sur cible séparable → 1.000).
+> Ils innocentent la FORME et l'OPTIMISEUR ; **ni l'un ni l'autre ne peut dire si la RECHERCHE a
+> convergé** — la seule question qui fixe la valeur d'un plafond. Reproduit à dessein : à 2 restarts ×
+> 60 pas les deux contrôles valent 1.000 pendant que le plafond lit 0.278. Un contrôle de CAPACITÉ ne
+> calibre pas un contrôle de BUDGET (E19, déplacé du pas d'apprentissage vers l'effort de recherche).
+> Preuve directe de la faiblesse de la recherche : sur la forme additive, dont le MILP donne 0.75, la
+> descente de gradient ne trouve que **0.3611** — un facteur 2 SUR UNE FORME DONT ON CONNAÎT LA RÉPONSE.
+>
+> **L'ARGUMENT lui-même était invalide, et c'est plus grave que le chiffre.** Ce record écrit que la
+> forme close est une « transformée MONOTONE d'un score SÉPARABLE », d'où l'incapacité. **L'inférence ne
+> tient pas** : la transformée est **PAR NŒUD** — `c_j = σ(W[j,j])` diffère d'un j à l'autre — et
+> `argmax_j c_j·tanh(x_j)` n'égale `argmax_j x_j` QUE si tous les `c_j` sont égaux. Dès que deux
+> diffèrent, la courbe d'iso-score entre deux colonnes est croissante NON LINÉAIRE ; deux de ses
+> translatées se coupent DEUX fois, donc la même paire de points peut être séparée dans les deux sens —
+> un **XOR 2×2**, impossible à tout score séparable. C'est précisément l'ingrédient qui fait franchir la
+> borne séparable de 27/36 (solution mesurée : `c` de rapport max/min ≈ 1.9, donc NON uniformes).
+> Détail qui explique pourquoi c'est passé inaperçu : `W_off = W*(1-eye)` EXCLUT la diagonale de
+> l'excitation, donc `W[j,j]` n'agit QUE comme ce gain — on l'attend comme une auto-connexion, il est en
+> fait le terme qui casse l'argument.
+>
+> **Où le 0.3889 vient exactement.** Une ascension de coordonnées exacte depuis des départs aléatoires
+> donne une distribution d'optima locaux `{14:1, 15:1, 16:1, 17:3, 18:2, 19:3, 20:2, 21:4, 24:1, 25:4,
+> 26:2, 27:6}` : **14/36 = 0.3889 est un optimum local BANAL** de cette surface, et avec 8 restarts on y
+> tombe typiquement. Le chiffre publié n'était pas faux par accident de calcul — il était le résultat
+> normal d'une recherche trop courte, présenté comme un plafond exact.
+>
+> ### ⛔ RECTIFICATION LE JOUR MÊME — la SÉPARATION DE CAPACITÉ de ce record N'EST PAS ÉTABLIE
+>
+> Le paragraphe ci-dessus a d'abord été écrit « la conclusion tient, marge 0.099 ». **C'était faux, et
+> l'erreur est la mienne : j'ai adossé une conclusion à un MINORANT en le traitant comme un plafond.**
+>
+> Trois recherches INDÉPENDANTES sur la MÊME forme close, le même jour, par ordre d'effort croissant :
+> **29/36 (0.806) → 34/36 (0.944) → 36/36 (1.000)**. Une quatrième, la mienne, atteint 33/36. Un
+> « plafond » qui monte à chaque fois qu'on cherche plus fort **n'est pas un plafond** — c'est le
+> plancher de l'optimiseur. La troisième mesure a d'ailleurs été obtenue par un chercheur qui a REFUSÉ
+> son propre 35/36 après avoir calibré son pipeline sur une réponse exacte connue (le sous-cas additif,
+> 27/36 par MILP, où son gradient ne trouvait que 13-14/36 — 13 cellules d'écart).
+>
+> **PREUVE MÉCANIQUE de l'origine du 0.3889, mesurée le 2026-09-07, et elle disqualifie un contrôle.**
+> Sur la sous-forme purement ADDITIVE — celle dont le MILP PROUVE l'optimum à 27/36 = 0.75 — une
+> descente de gradient à marge rend, par budget croissant : 13/36 · **14/36 = 0.3889** · **14/36 =
+> 0.3889** · 15/36. Le nombre publié se reproduit comme un **PLATEAU STABLE, qui TIENT SUR UN
+> DOUBLEMENT DU BUDGET** (15 000 puis 30 000 pas). Conséquence directe et contre-intuitive : **un
+> contrôle de SATURATION l'aurait BÉNI**, puisque demi-budget et budget plein rendent le même chiffre.
+> Le seul contrôle qui le refuse est celui qui ancre sur la borne PROUVÉE (0.3889 < 0.75). **Un plateau
+> de recherche est indiscernable d'un plafond par tout contrôle qui ne dispose pas d'une VÉRITÉ EXACTE
+> de référence.**
+>
+> **Conséquence, sans adoucissement.** Le bilinéaire mesure 0.932. Le plain atteint **0.9444 —
+> mesuré ICI, re-vérifié en Python pur (victoire STRICTE) ET injecté dans le `W` d'un vrai
+> `TorchPopulationModel` où le VRAI `forward` rend le même 34/36** ; témoin gelé dans
+> `results/plain_ceiling_witness.json`. Deux chercheurs indépendants trouvent 0.944 et 1.000. **La capacité représentationnelle du plain n'est donc PAS inférieure à ce que le
+> bilinéaire atteint** : la thèse « le bilinéaire peut représenter ce que le plain ne peut pas » n'est
+> plus soutenue par ce dispositif. Ce qui SUBSISTE, et qui reste un résultat réel :
+> **une séparation d'APPRENABILITÉ à budget fixe** — plain 0.271 vs bilinéaire 0.932 à `episodes=300`,
+> séparation par-seed totale. Ce n'est pas ce que le record affirme.
+>
+> * **La phrase « une courbe qui SATURE à 0.389 » est FAUSSE.** La forme du plain ne sature pas là ; le
+>   0.271 du record reste vrai comme MESURE, mais il dit le BUDGET, pas la capacité.
+> * **La sonde ne certifie plus.** `run_bilinear_composition_probe` rend désormais `unlocked=None` et
+>   `bar_status="CEILING_IS_MINORANT"` tant qu'aucune borne SUPÉRIEURE PROUVÉE n'est fournie. Une
+>   condition nécessaire n'est pas une preuve, et laisser la sonde conclure sur un minorant était
+>   exactement le défaut P2.15 déplacé d'un cran.
+> * **Ce qui reste à faire, et c'est faisable** : une borne supérieure PROUVÉE pour la forme complète.
+>   Le MILP en a produit une pour la sous-forme additive (27/36, gap 0) ; la relaxation « monotone
+>   quelconque par colonne » est réfutée (elle atteint la perfection, elle ne borne rien) ; ce qui reste
+>   à contraindre est la FORME de `tanh` elle-même.
+>
+> **Le 30/36 est AUDITABLE, et il tient dans le VRAI substrat.** Les 78 coefficients qui l'atteignent
+> sont gelés dans `results/plain_ceiling_witness.json` — il avait fallu 19 restarts sur 24 pour
+> tomber dessus, donc sans témoin chaque re-vérification serait un coup de dés. Recomptés en Python
+> pur sans autograd : **30/36**. Puis injectés dans le `W` d'un vrai `TorchPopulationModel`
+> (`BILINEAR=False`) et lus par le VRAI `forward` sur le chemin d'évaluation exact de la sonde :
+> **30/36** aussi. La forme close EST le substrat — si les deux avaient divergé, ce plafond aurait
+> été un aliasing au sens d'EDR-WARM-007, une grandeur mesurée qui n'est pas celle qui agit.
+>
+> Instrument : `tools/plain_substrate_ceiling.py` (trois contrôles appariés, dont la SATURATION du
+> budget) · garde : `assert_bar_separates_the_incapable`, désormais APPELÉE · cliquet :
+> `tools/check_bar_separation.py` (porte 9 du hook).
+
 ## Question
 
 Le finding LANG-MEMORY (`docs/EDR/EDR-LANG-MEMORY_Language_Demands_Memory.md`) et la sonde

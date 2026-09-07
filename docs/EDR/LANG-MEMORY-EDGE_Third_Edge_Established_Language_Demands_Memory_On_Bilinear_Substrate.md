@@ -48,7 +48,7 @@ lectures positives, dans l'ordre imposé) :
    leakage 0,003). C'est la **3ᵉ arête** du graphe AGI-Taxonomy — la première par ablation de
    SUBSTRAT (`ablation_target=substrate`, `functional_aliasing='pass'` exigé et obtenu) et la
    première refusée-puis-rouverte par levée de verrou (l'ancien refus mesurait le substrat plain,
-   prouvablement incapable — plafond 0,3889).
+   prouvablement incapable — plafond 0,3889). ⚠️ **SUPERSÉDÉ le 2026-09-07** : le plafond réel est **30/36 ≈ 0.833** (et 27/36 = 0.75 PROUVÉ pour la sous-forme séparable) ; 0.3889 était un optimum local banal d'une recherche trop courte — cf. l'encart de correction dans `EDR-BILINEAR`.
 2. **La chaîne de gardes a fait exactement son travail, dans les deux sens** : la V1 a été REFUSÉE
    par la garde de dégénérescence (contrôle saturé) malgré trois branches positives ; la V2 passe
    parce que l'instrument a été réparé par une injection à dose connue et PRÉDICTIVE — pas parce

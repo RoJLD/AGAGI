@@ -45,6 +45,9 @@ if _ROOT not in sys.path:
 
 import numpy as np
 
+from tools.experiment_preflight import assert_bar_separates_the_incapable
+from tools.plain_substrate_ceiling import PLAIN_COMPOSITION_CEILING, PLAIN_COMPOSITION_PROVENANCE
+
 
 def _slot(idx, K, offset, I, n):
     m = np.zeros((n, I), dtype=np.float32)
@@ -160,21 +163,78 @@ def _train_eval_one(seed, bilinear, task, episodes, n_agents, K, lr, rank, eval_
          TorchPopulationModel.BILINEAR, TorchPopulationModel.BILINEAR_RANK) = saved
 
 
+def _resolve_ceiling(incapable_ceiling, ceiling_provenance, task, same_tick, K,
+                     ceiling_is_proven=False):
+    """Plafond du bras PROUVABLEMENT INCAPABLE (ici : le substrat plain), et d'où il vient.
+
+    ⚠️ P2.15 — c'est le cœur de la dette. `"auto"` ne résout QUE le régime où la forme close est EXACTE :
+    `task="composition"` ET `same_tick=True`, un seul `_step` depuis `H_in=0`, donc
+    `logit_j = σ(W[j,j])·tanh(W[key,j] + W[K+q,j])` — un score SÉPARABLE en key et q dont le plafond est
+    mesuré par `tools/plain_substrate_ceiling.py` avec son contrôle positif apparié. Hors de ce régime
+    (2 pas : l'état porte key, la forme n'est plus close ; `task="recall"` : la tâche est séparable donc
+    le plain n'est pas incapable), AUCUN plafond n'est établi et on rend `None` : la sonde REFUSE alors
+    de rendre `unlocked` plutôt que de deviner. Ne pas proxifier ce qu'on ne sait pas mesurer."""
+    if incapable_ceiling == "auto":
+        if task == "composition" and same_tick:
+            # ⚠️ `False` = MINORANT, pas borne prouvée. C'est ce troisième champ qui empêche désormais
+            # la sonde de certifier quoi que ce soit sur ce régime (cf. docstring de `run_*`).
+            return PLAIN_COMPOSITION_CEILING, PLAIN_COMPOSITION_PROVENANCE, False
+        return None, None, False
+    if incapable_ceiling is None:
+        return None, None, False
+    return float(incapable_ceiling), ceiling_provenance, bool(ceiling_is_proven)
+
+
 def run_bilinear_composition_probe(seeds, episodes=1500, n_agents=16, K=6, lr=0.02, rank=16, task="composition",
-                                    same_tick=False, credit_mode="reinforce"):
-    """Compare le substrat PLAIN vs BILINÉAIRE sur la tâche. `unlocked` ssi plain nul (<= 1/K+0.15)
-    ET bilinéaire apprend (> 1/K+0.15). `same_tick`/`credit_mode` (Tâche 3, cf. `_train_eval_one`) : les
-    deux DÉFAUTS reproduisent bit-pour-bit le chemin de calibration de la Tâche 2 (REINFORCE, 2 pas)."""
+                                    same_tick=False, credit_mode="reinforce",
+                                    incapable_ceiling="auto", ceiling_provenance=None, bar=None,
+                                    ceiling_is_proven=False):
+    """Compare le substrat PLAIN vs BILINÉAIRE sur la tâche. `same_tick`/`credit_mode` (Tâche 3, cf.
+    `_train_eval_one`) : les deux DÉFAUTS reproduisent bit-pour-bit le chemin de calibration de la Tâche 2.
+
+    ⚠️ **`unlocked` N'EST PLUS RENDU CONTRE `1/K + 0.15`** (dette P2.15, corrigée le 2026-09-07). Cette
+    barre est SOUS le plafond du substrat que le premier terme du critère déclare nul : un plain qui la
+    franchit ne prouvait donc rien, et `unlocked` mélangeait une affirmation de CAPACITÉ avec une
+    affirmation de BUDGET. La barre est désormais dérivée du PLAFOND DE L'INCAPABLE — invariant au pas
+    ET au budget, là où un seuil absolu ne l'est ni l'un ni l'autre.
+      * plafond résolu (cf. `_resolve_ceiling`) -> `bar = plafond + marge`, validé EN TÊTE de fonction
+        par `assert_bar_separates_the_incapable` (refus INSTANTANÉ, zéro simulation), `bar_status
+        = "SEPARATES"`, et `unlocked` a le sens qu'il annonce : le bilinéaire fait ce que le plain ne
+        PEUT pas faire, pas seulement ce qu'il n'a pas eu le budget de faire ;
+      * aucun plafond établi -> `unlocked=None` et `bar_status="UNVALIDATED"`. La sonde MESURE toujours
+        (les médianes et le per-seed restent rendus, et c'est là que vit la séparation observable) mais
+        elle ne CERTIFIE pas. Un verdict deviné vaut moins qu'un verdict refusé.
+
+    `marge` : erreur-type d'échantillonnage à `n_eval = 40 × n_agents`, même convention que
+    `assert_bar_is_reachable`. ⚠️ Le plafond est un MINORANT (le meilleur trouvé par recherche, contrôle
+    positif apparié à 1.000) : franchir la barre établit « au-dessus de ce que l'incapable atteint de
+    façon démontrée », pas « au-dessus de tout ce que l'incapable pourrait atteindre »."""
+    ceil, prov, prouve = _resolve_ceiling(incapable_ceiling, ceiling_provenance, task, same_tick, K,
+                                          ceiling_is_proven=ceiling_is_proven)
+    if bar is None:
+        bar = (1.0 / K + 0.15) if ceil is None else ceil + float(np.sqrt(
+            max(ceil * (1.0 - ceil), 0.0) / max(40 * n_agents, 1)))
+    bar = float(bar)
+    # GARDE EN TÊTE, avant toute construction de population : un refus doit être INSTANTANÉ, sinon on
+    # paie les seeds avant d'apprendre que le verdict ne voulait rien dire (technique du dépôt, mesurée).
+    if ceil is not None:
+        assert_bar_separates_the_incapable(bar, ceil, prov, label="barre `unlocked` de la composition")
+
     plain, bil = [], []
     for s in seeds:
         plain.append(_train_eval_one(s, False, task, episodes, n_agents, K, lr, rank,
                                       same_tick=same_tick, credit_mode=credit_mode))
         bil.append(_train_eval_one(s, True, task, episodes, n_agents, K, lr, rank,
                                     same_tick=same_tick, credit_mode=credit_mode))
-    bar = 1.0 / K + 0.15
     pm, bm = float(np.median(plain)), float(np.median(bil))
-    unlocked = (pm <= bar) and (bm > bar)
+    # ⚠️ Un MINORANT ne peut pas certifier une séparation — il ne peut que MONTER. Mesuré le 2026-09-07 :
+    # trois recherches indépendantes sur la MÊME forme close ont rendu 29/36, 34/36 et 36/36, par ordre
+    # d'effort croissant. Un « plafond » qui bouge avec l'effort n'est pas un plafond.
+    unlocked = ((pm <= bar) and (bm > bar)) if prouve else None
     return {"plain_median": pm, "bilinear_median": bm, "unlocked": unlocked,
+            "bar": bar, "bar_status": ("SEPARATES_PROVEN" if prouve else
+                                       ("CEILING_IS_MINORANT" if ceil is not None else "UNVALIDATED")),
+            "incapable_ceiling": ceil, "ceiling_is_proven": bool(prouve),
             "per_seed": {"plain": plain, "bilinear": bil}, "task": task, "n": len(seeds),
             "same_tick": same_tick, "credit_mode": credit_mode}
 

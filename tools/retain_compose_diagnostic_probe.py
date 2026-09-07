@@ -123,16 +123,49 @@ def _train_eval_condition(seed, condition, episodes, n_agents, K, lr, eval_batch
 
 
 def run_retain_compose_diagnostic_probe(seeds, episodes=1500, n_agents=16, K=6, lr=0.02,
-                                        conditions=("same_tick", "oracle", "learned")):
-    """Entraîne (q+key)%K sur chaque condition, par seed ; renvoie médianes + gap_verdict."""
+                                        conditions=("same_tick", "oracle", "learned"),
+                                        incapable_ceiling=None, ceiling_provenance=None, bar=None):
+    """Entraîne (q+key)%K sur chaque condition, par seed ; renvoie médianes + gap_verdict.
+
+    ⚠️ **`gap_verdict` NE PEUT PLUS être rendu contre `1/K + 0.15` seule** (dette P2.15, 2026-09-07).
+    Les trois clauses du diagnostic sont des comparaisons à une barre absolue, et la clause qui PORTE
+    le verdict est un NUL — `learned <= bar`, « la rétention apprise échoue ». Un nul n'a de sens que
+    contre le plafond d'un bras dont on a montré qu'il ne peut PAS faire la tâche ; sinon « sous la
+    barre » ne dit rien d'autre que « pas encore appris à ce budget », ce que le contre-exemple gelé de
+    la classe E19 a précisément démontré ici (le même nul bascule au seul changement de `lr`).
+
+    Aucun plafond n'est établi pour ces conditions, et ce n'est pas un oubli : elles tournent toutes
+    `BILINEAR=True`, donc le plafond en forme close du substrat plain (`tools/plain_substrate_ceiling.py`)
+    ne s'y applique pas ; et l'incapable de la condition `learned` n'est pas un agent à l'aveugle mais un
+    agent qui ne sait pas ÉCRIRE dans l'état — lequel reçoit tout de même key par report PASSIF
+    (`_step` écrit l'observation dans `H[:, :I]`). Son plafond est donc STRICTEMENT au-dessus du hasard
+    et n'a jamais été mesuré. `1/K` serait le geste naturel, et ce serait exactement l'erreur P2.15.
+
+    D'où la règle : sans `incapable_ceiling` DÉCLARÉ (+ `ceiling_provenance`), le verdict rendu est
+    `INCONCLUSIVE_BAR_UNVALIDATED` — distinct d'`INCONCLUSIVE`, qui veut dire « mesuré, non tranché ».
+    Les médianes et le per-seed restent rendus : c'est là que vit la mesure, et les contre-exemples
+    gelés s'y appuient. Établir ce plafond (bras `learned` à `BILINEAR=False`, budget saturant) est une
+    tâche bornée et inscrite au backlog ; la deviner ne l'est pas."""
+    ceil = None if incapable_ceiling is None else float(incapable_ceiling)
+    if bar is None:
+        bar = (1.0 / K + 0.15) if ceil is None else ceil + float(np.sqrt(
+            max(ceil * (1.0 - ceil), 0.0) / max(40 * n_agents, 1)))
+    bar = float(bar)
+    # GARDE EN TÊTE, avant toute construction de population : un refus doit être INSTANTANÉ.
+    if ceil is not None:
+        from tools.experiment_preflight import assert_bar_separates_the_incapable
+        assert_bar_separates_the_incapable(bar, ceil, ceiling_provenance,
+                                           label="barre `gap_verdict` du diagnostic retain+compose")
+
     per = {c: [] for c in conditions}
     for s in seeds:
         for c in conditions:
             per[c].append(_train_eval_condition(s, c, episodes, n_agents, K, lr))
-    bar = 1.0 / K + 0.15
     med = {c: float(np.median(per[c])) for c in conditions}
     st, oc, ln = med.get("same_tick"), med.get("oracle"), med.get("learned")
-    if st is not None and oc is not None and ln is not None:
+    if ceil is None:
+        verdict = "INCONCLUSIVE_BAR_UNVALIDATED"
+    elif st is not None and oc is not None and ln is not None:
         if st > bar and oc > bar and ln <= bar:
             verdict = "RETENTION"
         elif st > bar and oc <= bar:
@@ -142,7 +175,9 @@ def run_retain_compose_diagnostic_probe(seeds, episodes=1500, n_agents=16, K=6, 
     else:
         verdict = "INCONCLUSIVE"
     out = {f"{c}_median": med[c] for c in conditions}
-    out.update({"gap_verdict": verdict, "per_seed": per, "n": len(seeds), "bar": bar})
+    out.update({"gap_verdict": verdict, "per_seed": per, "n": len(seeds), "bar": bar,
+                "bar_status": "UNVALIDATED" if ceil is None else "SEPARATES",
+                "incapable_ceiling": ceil})
     return out
 
 

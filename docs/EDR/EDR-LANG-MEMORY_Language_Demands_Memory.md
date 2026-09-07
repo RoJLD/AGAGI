@@ -32,7 +32,7 @@ adopts: [REF-EXPERIMENT-PREFLIGHT, REF-DEMAND-MARKER, REF-AGI-TAXONOMY]
 > JAMAIS activé**, et l'optimiseur est `Adam([agent.W], ...)` (`:143`) — `W` SEUL. Cette sonde a donc
 > mesuré le substrat **PLAIN**. Or [[EDR-BILINEAR]] établit que le plain est **prouvablement incapable** de
 > représenter `(q+key)%K` (excitation séparable en `key` et `q` ; plafond structurel exact en forme close
-> **0.3889**). Le nul de ce record a donc une explication SUFFISANTE et INDÉPENDANTE du pas : le substrat ne
+> **0.3889**). ⚠️ **SUPERSÉDÉ le 2026-09-07** : le plafond réel est **30/36 ≈ 0.833** (et 27/36 = 0.75 PROUVÉ pour la sous-forme séparable) ; 0.3889 était un optimum local banal d'une recherche trop courte — cf. l'encart de correction dans `EDR-BILINEAR`. Le nul de ce record a donc une explication SUFFISANTE et INDÉPENDANTE du pas : le substrat ne
 > peut pas faire la tâche. **Le verdict était CORRECT pour son substrat.**
 >
 > ⚠️ **Piège à éviter** : rejouer `D=2` à `lr=0.002` **sur cette sonde telle quelle** rendra encore le
