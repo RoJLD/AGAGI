@@ -57,9 +57,13 @@ reclassée `non automatisable`. Pas de troisième occurrence tolérée sans chan
 
 ## Lecture du registre
 
-- **19 classes sur 19 ont une garde exécutable ou documentée** (15 exécutables, 3 documentées — E15
-  promue le 2026-09-02) ; **AUCUNE n'est plus sans garde** ; 1 est explicitement non automatisable (E9),
-  et c'est un choix, pas un manque.
+- **Toutes les classes ont une garde exécutable ou documentée** :
+  **16 exécutables** <!-- count:classes_executables=16 --> (E15 et E8 promues le 2026-09-02),
+  **3 documentées** <!-- count:classes_documentees=3 --> ; **AUCUNE n'est plus sans garde** ; 1 est
+  explicitement non automatisable (E9), et c'est un choix, pas un manque.
+  *(Ces deux comptes sont RECOMPUTÉS par `tools/check_synthesis_counts.py` : la phrase « 19 classes
+  sur 19 » qui vivait ici était fausse le jour même de l'ajout d'E20 — c'est ce défaut qui a motivé
+  le cliquet des synthèses.)*
 - **E13 est CLOSE le 2026-07-27** (`tools/cost_guard.py`, P3.2), au prix de deux runs abandonnés de plus
   (5 au total). Comme E11, elle a **corrigé l'énoncé de sa propre dette en se fermant** : le backlog
   réclamait « débit mesuré au smoke + coût projeté » — or le débit mesuré était JUSTE et le run a explosé

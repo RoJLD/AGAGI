@@ -129,5 +129,20 @@ PYTHONIOENCODING=utf-8 python tools/check_staged_authorship.py scan >/dev/null 2
 [ -s /tmp/agagi_scan.err ] && cat /tmp/agagi_scan.err
 rm -f /tmp/agagi_scan.err
 
+# 8. COMPTES PUBLIES DANS LES SYNTHESES (gap M5) -- un chiffre annonce dans la couche de LECTURE
+# (CLAUDE.md, registre, backlog, README EDR, SDR) doit se RECOMPUTER. Motivation MESUREE trois fois :
+# « 19 classes sur 19 » faux le jour de l'ajout d'E20 ; « 5 cliquets tous branches » alors qu'il y en
+# avait 6 ; « 105 detectes / 104 calibres » quand le cliquet en comptait 143. Les ATOMES etaient
+# gardes, les RESUMES -- ce qu'une session future CITE en premier -- ne l'etaient pas.
+staged_syn=$(git diff --cached --name-only --diff-filter=AM | grep -E '^(CLAUDE\.md|docs/REF/REGISTRE_ERREURS\.md|docs/roadmap/PRIORITES_ET_DETTES\.md|docs/EDR/README\.md|docs/SDR/.*\.md|tools/check_synthesis_counts\.py)$')
+if [ -n "$staged_syn" ]; then
+  PYTHONIOENCODING=utf-8 python tools/check_synthesis_counts.py || {
+    echo ""
+    echo "-> Mets la PHRASE a jour (pas seulement la balise), ou retire la balise si le chiffre est"
+    echo "   HISTORIQUE (un chiffre date reste vrai : le baliser le rendrait faux demain)."
+    fail=1
+  }
+fi
+
 [ "$fail" -ne 0 ] && echo "   (urgence : git commit --no-verify)"
 exit $fail

@@ -463,7 +463,9 @@ concurrence (un nombre) ; AGAGI a besoin de **ressources NOMMÉES exclusives** (
 `sim_session.py` est **déprécié**. Reste à câbler : `measure_inworld_grab_rate` et les ~70 autres sondes.
 *(Ancien texte ci-dessous conservé pour la traçabilité de la preuve.)*
 
-**P1.2-bis — ⚠️ LARGEMENT PÉRIMÉ (constaté 2026-07-22).** Les cibles nommées `measure_inworld_grab_rate`
+**P1.2-bis — 🗑️ PÉRIMÉE, RETIRÉE du flux actionnable (re-constaté 2026-09-07).** Elle se déclarait
+elle-même périmée depuis le 2026-07-22 et n'a jamais été sortie : une entrée qui annonce sa propre
+péremption et reste dans la liste est du bruit qui coûte à chaque lecture. Conservée pour l'historique. Les cibles nommées `measure_inworld_grab_rate`
 (`warmstart_evolution_inworld.py:1043`) ET `_torch_survival_eras` tiennent DÉJÀ le VRAI bail
 (`_acquire_kuzu` → `tools.jobs.lease.acquire("kuzu")`, pas un correctif ad hoc). L'entrée décrit un état
 antérieur à leur câblage. De plus, sa motivation « suite en timeout » était en réalité le bug `stop()`
@@ -489,7 +491,8 @@ récurrent par cette voie dans tous les bancs torch. Corriger changerait **toute
 ne pas corriger exige un test qui **épingle** le comportement pour qu'il ne dérive pas silencieusement.
 Décision hors de mon périmètre (code partagé, arbre partagé entre sessions). *Coût : décision.*
 
-**P1.5 — DÉCISION robla : le commit.** Rien n'est committé de cette session (~20 fichiers, tous scopés).
+**P1.5 — 🗑️ PÉRIMÉE (2026-09-07) — décrit l'état non committé d'une session de JUILLET, close depuis.**
+Énoncé d'origine : « Rien n'est committé de cette session (~20 fichiers, tous scopés).
 Trois touchent du code partagé — `src/agents/backend_torch.py` (couvert 28/28), et deux nouveaux outils.
 *Coût : décision + revue.*
 
@@ -734,7 +737,11 @@ DONT ON SAIT qu'elle utilise sa cognition), génomes tous FRAIS (aucun corps à 
   `cliff = 1.000` (plafond). Les deux statistiques SATURENT — elles ne gradueront jamais rien.
 - **Premier instrument de `src/` calibré.** Cliquet : **80 détectés, 6 calibrés**.
 
-**P2.17 — Calibrer les instruments suivants par ordre de citation dans le graphe de records.** *(renumérotée le 2026-09-01 : portait « P2.2 », déjà pris par une tâche DIFFÉRENTE plus haut)*
+**P2.17 — ✅ DÉPASSÉE (2026-09-07) — l'exhaustivité a été atteinte, ce que cette entrée déconseillait.**
+*Mesuré : le cliquet compte **196 détectés / 192 calibrés / 0 dette** (4 non-instruments motivés) ; son
+énoncé parlait de « 70 non calibrés » et de viser les porteurs plutôt que l'exhaustivité. La 7ᵉ vague
+d'élargissement (famille `run_*`, 72 fonctions) a absorbé le reste sans un gramme de dette.*
+Énoncé d'origine — calibrer par ordre de citation dans le graphe de records.** *(renumérotée le 2026-09-01 : portait « P2.2 », déjà pris par une tâche DIFFÉRENTE plus haut)*
 `python tools/check_instrument_calibration.py --report` donne la liste (70 non calibrés). Ne PAS viser
 l'exhaustivité : viser les **porteurs**. *Coût : ~2 h par instrument.*
 
@@ -801,6 +808,19 @@ conclusions de l'arc BILINEAR / LANG-MEMORY / MEM-PERCEPTION / RETAIN-COMPOSE (t
     bras ÉQUIDISTANTS en log₂, la pente vaut exactement `delta/4` → la clause « ET pente > 0 » est
     redondante, une bosse non-monotone est lue INERTE (l'instrument ne la voit pas), et AMBIGUË n'est
     atteignable que si la capacité NUIT. Gravé dans le test.
+* ✅ **M5 CLOS le 2026-09-07 — les SYNTHÈSES sont sous cliquet.** `tools/check_synthesis_counts.py`
+  (porte 8 du hook) : une phrase qui publie un compte porte une balise `<!-- count:nom=valeur -->`,
+  le cliquet RECOMPUTE la grandeur et vérifie aussi que le nombre figure dans le TEXTE VISIBLE — le
+  mode d'échec le plus probable étant de mettre la balise à jour en oubliant la phrase. **14
+  compteurs**, 9 comptes balisés, 7 contre-exemples gelés (`tests/sandbox/test_synthesis_counts.py`,
+  dont la configuration EXACTE des trois péremptions mesurées : « 19 classes sur 19 », « 5 cliquets
+  tous branchés », « 105/104 »). **Il a mordu DEUX fois pendant sa propre pose** : quatre balises
+  posées sur la ligne suivant leur nombre (texte désynchronisé), puis `portes_hook=7` rendu périmé
+  par le branchement de la porte 8 elle-même. ⚠️ **Portée déclarée** : il vérifie ce qu'on lui
+  DÉCLARE, il ne découvre pas les chiffres non balisés (deviner produirait des faux positifs sur
+  toute date et tout chiffre historique) ; la couverture croît par annotation, et `syntheses_balisees`
+  est lui-même un compteur, donc une régression de couverture se voit. **Un chiffre HISTORIQUE daté
+  ne se balise jamais** — « 105 au 2026-09-01 » est vrai pour toujours.
 * ✅ **T2 CLOS le 2026-09-06** : `114b_*.md` était INVISIBLE au graphe (regex `^(\d{3})_`) — patchée
   avec le suffixe DANS l'id (le patcher seule aurait fabriqué une collision silencieuse 114b→EDR-114),
   `cartography._edr_number` idem, 8 frontmatters rétroactifs (114b, 124, 150-154, 194) et 15
@@ -810,7 +830,10 @@ conclusions de l'arc BILINEAR / LANG-MEMORY / MEM-PERCEPTION / RETAIN-COMPOSE (t
   - Trou E4 occ.6 (héritée, réfutateur N7) : baseline stagée SEULE → `--only` vide → le ratchet ne
     peut pas échouer sur ce commit. Corrigé dans le hook le 2026-09-02 (baseline stagée → run NON
     scopé).
-**P2.14 — ⚠️ OUVERTE (2026-09-01) — l'arête `language→memory` est REDEVENUE MESURABLE : sonde à mettre à
+**P2.14 — ✅ CLOSE (2026-09-02, commit `26ca13d`) — l'arête `language→memory` est GRAVÉE : ratio **4.967**,
+n=12, ablation SUBSTRAT (une première), refusée-puis-rouverte. Le graphe AGI-Taxonomy est à **3 arêtes**.
+Correctif d'instrument associé : bruit CONTROL à dose connue (`p=0.15`, prédit 0.875 → mesuré 0.866).**
+Énoncé d'origine — l'arête `language→memory` est REDEVENUE MESURABLE : sonde à mettre à
 niveau, puis mesure d'arête complète.**
 *Diagnostic corrigé le jour même, après inspection du code* : ce n'est **PAS** l'artefact E19.
 `tools/language_memory_demand_probe.py:134-137` ne sauvegarde que `(CONDITION_GATE, GATE_TARGET)` —
@@ -855,7 +878,10 @@ composer peut donc légitimement franchir la barre** : mesuré à `lr ∈ {0.05,
   quantitativement, et 0.271 est simplement le point sous-entraîné d'une courbe qui sature à 0.389. Ce qui
   est à corriger, c'est sa **marge de décision** (0.271 vs 0.3167 = 0.046), pas sa conclusion.
 
-**P2.16 — ⚠️ TROU CONSTATÉ (2026-09-01) — `tools/check_preregistration_applied.py` n'est branché à AUCUNE
+**P2.16 — ✅ CLOS (2026-09-02, commit `481117e`) — le cliquet est la PORTE 5 du hook pre-commit**, gatée
+sur `docs/preregistrations/*.json`, `docs/EDR/*.md` et le cliquet lui-même. Vérifié le 2026-09-07 :
+1 occurrence dans `tools/hooks/pre-commit`.
+Énoncé d'origine — `tools/check_preregistration_applied.py` n'est branché à AUCUNE
 porte du hook.** `tools/hooks/pre-commit` ne contient que **deux** portes (vérifié : `:14`
 `check_record_links.py --only`, gatée sur `docs/(EDR|ADR|SDR|REF)/*.md` ; `:31`
 `check_instrument_calibration.py`, gatée sur `(tools|src/seed_ai)/*.py`). Le cliquet de l'occ. 4 d'E11 —
@@ -1016,7 +1042,8 @@ entièrement sur `confirm_commit(..., owner=)`, que rien n'oblige à appeler.
   — c'est la règle « ne pas proxifier ce qu'on ne sait pas mesurer ». Toute version qui devine
   l'auteur d'un commit rejoue la forme RÉTROSPECTIVE déjà déclarée non automatisable en occ. 4.
 
-**P2.27 — 🔒 DÉFAUT B CLOS, défaut A à 5/19 — le SUBSTRAT mesuré n'était identifiable a posteriori
+**P2.27 — ✅ CLOSE (2026-09-07) — DETTE À ZÉRO : 19 sondes examinées, **0 en défaut A, 0 en défaut B**.
+Le SUBSTRAT mesuré n'était identifiable a posteriori
 dans presque aucune sonde. Point de départ mesuré : **13 sondes sur 19** sans épinglage, **8 sur 19**
 avec un optimiseur incomplet.**
 *Livré : `tools/check_substrate_pinning.py` + baseline gelée + porte 6 du hook pre-commit +

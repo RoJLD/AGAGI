@@ -27,6 +27,12 @@ Quatre questions, dont deux ont des assertions exécutables :
 ## Calibration des instruments — **DETTE CLOSE le 2026-09-01** (104/105, baseline à zéro)
 
 **Inventaire au 2026-09-01 : 105 détectés, 104 calibrés, 1 déclaré non-instrument, ZÉRO dette.**
+**État COURANT, recomputé et jamais recopié :**
+**196 détectés** <!-- count:instruments_detectes=196 -->
+· **192 calibrés** <!-- count:instruments_calibres=192 -->
+· **0 non calibré** <!-- count:instruments_non_calibres=0 -->
+— la famille `run_*` (72 fonctions) est entrée le 2026-09-06 sans créer de dette. *(Les chiffres datés ci-dessus sont HISTORIQUES : ils restent vrais
+et ne sont donc pas balisés.)*
 *(Point de départ, 2026-07-21 : 71 détectés, 1 calibré.)* Le cliquet est désormais un **cliquet
 strict** : sa baseline est vide, donc tout nouvel instrument non calibré bloque le commit.
 
@@ -121,7 +127,11 @@ plutôt que de deviner. Cf. `tools/demand_marker._degeneracy` et `tools/check_gu
 `check_record_links.py` (graphe de records) · `check_instrument_calibration.py` (calibration) ·
 `check_preregistration_applied.py` (DV scellée mesurée) · `check_guard_negative_cases.py` (toute garde
 `exécutable` nomme son contre-exemple) · `check_backlog_freshness.py` (liens morts, numéros dupliqués,
-chemins disparus). Tous branchés sur le hook pre-commit (`tools/hooks/pre-commit`).
+chemins disparus) · `check_agi_taxonomy.py` (preuve complète d'une arête) ·
+`check_synthesis_counts.py` (tout compte publié se recompute) · `check_substrate_pinning.py`.
+**8 gardes** <!-- count:portes_hook=8 --> sont branchées sur le hook pre-commit
+(`tools/hooks/pre-commit`) — compte RECOMPUTÉ depuis le hook lui-même : la phrase « 5 cliquets, tous
+branchés » qui vivait ici était fausse.
 ⚠️ **La baseline d'un cliquet doit elle-même déclencher le hook** — sinon l'élargir et la committer seule
 ne vérifie rien (faux vert mesuré le 2026-09-01, classe E4 occ. 5).
 
