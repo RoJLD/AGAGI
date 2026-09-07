@@ -20,6 +20,30 @@ corrected_by: [EDR-AUDIT-001]
 > 2. **L'exclusion causale « ce n'est ni le substrat ni le crédit » est tirée d'un nul in-world SANS
 >    contrôle positif in-world** — la forme exacte de l'erreur de WARM-002.
 >
+> ⚠️ **TROISIÈME faille, trouvée le 2026-09-07 (revue adversariale du gap S6) : la moitié NÉCESSITÉ du
+> théorème est DÉFINITIONNELLE, pas mesurée.** Vérifié en forme close sur le code, sans aucun run :
+> `survive` fait `E += gain - metab` puis `if E <= 0: return t+1`, sinon `return ticks`
+> (`cognitive_demand_world_probe.py:60-74`) — la survie ne dépend donc que du **SIGNE du gain net**,
+> c'est une **métrique-SEUIL**, pas une mesure graduée. Et `fit_policy` part de `W = zeros`,
+> `b = zeros` (`:81-82`) avec une acceptation **STRICTE** `sc > best` (`:92`) : dans toute cellule à
+> corps suffisant (`body_gain > metab`), la politique INITIALE survit déjà au plafond 300/300, donc
+> **aucune candidate n'est jamais acceptée** — `|W| = 0.0000` est l'**init**, pas un résultat, et
+> l'ablation y est inerte PAR CONSTRUCTION. Une cellule « nulle » de ce théorème ne pouvait pas rendre
+> autre chose que NEUTRE : c'est la classe **E1** (un contrôle qui ne peut pas échouer), appliquée à la
+> moitié « nécessité ».
+>
+> **Ce qui TIENT** : la moitié SUFFISANCE (la cellule à 3 conditions rend SENSIBLE, ratio ~10×) — un
+> positif ne peut pas être fabriqué par cette identité. **Ce qui NE TIENT PLUS** : « chaque condition
+> est NÉCESSAIRE, mesuré sur cinq modalités » — les cellules nulles sont des définitions. **Règle qui en
+> sort, réutilisable** : une cellule NULLE se déclare avec le plancher « privé de X SEULEMENT » ; **si
+> ce plancher égale l'intact, la cellule est une définition, pas une mesure.**
+>
+> Conséquence sur le corollaire in-world (« NEUTRE par construction, ni substrat ni crédit ») : il perd
+> sa base mesurée — le champion à 27,5/200 n'est de toute façon pas dans le régime « corps suffisant »
+> (faille 1). L'explication du gap proxy 9 / in-world 0 revient donc au **CHEMIN** ([[EDR-LOCK-001]],
+> [[EDR-EVO-016]]), pas au contenu de l'objectif. Le design qui MESURERAIT la nécessité (taux de repli
+> `k(σ)` sous init non nulle, pur numpy) est au backlog, gap S6.
+>
 > S'y ajoute l'héritage : les conditions 1 et 3 du « théorème » viennent de cellules de S2-004/005 où le
 > bras de référence est à 300/300 avec `W` **gelé à son initialisation** (voir le bandeau de S2-004).
 >

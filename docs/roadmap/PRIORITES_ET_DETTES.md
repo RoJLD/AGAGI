@@ -300,9 +300,35 @@ pas accumuler des tirages en PROFONDEUR.**
     déplace ni ne riposte → mêlée sans riposte). **Reste** : sceller `EVO-011-PREVOL` (la règle
     d'origine ne se corrige pas), écrire le runner de pré-vol (explicite, sous `tools/evo_runs/` — 3 bras : lecteur
     câblé / brouillé / témoin, 12 seeds) et son verdict calibré, puis le smoke.
-  - Gaps différés documentés dans la spec : S3 (demande in-world hors perception), S5 (pas G4
-    dormant), S6 (nécessité S2-006), S7 (nœud generalization orphelin), T4 (EVO-022 sans record — **CLOS 2026-09-06**, [[EDR-EVO-022]] gravé « arrêté au pré-vol, question sans objet »),
-    M2 (chiffres non recomputés), M3 (collisions), M7 (rétro-examen 27 records, S2-009 risque 4).
+  - **GAPS SCIENTIFIQUES : 6 designs écrits et RÉFUTÉS le 2026-09-06/07** (un concepteur + un
+    réfutateur par gap ; aucun run engagé). Verdicts :
+    * **S6 — GO, et son résultat principal est DÉJÀ ACQUIS SANS RUN** : la moitié NÉCESSITÉ de
+      [[EDR-S2-006]] est **DÉFINITIONNELLE**. Vérifié en forme close : `survive` ne dépend que du SIGNE
+      du gain net (métrique-SEUIL) et `fit_policy` part de `W=zeros` avec acceptation STRICTE — dans
+      toute cellule à corps suffisant, la politique initiale survit déjà au plafond, rien n'est jamais
+      accepté, `|W|=0.0000` est l'INIT et l'ablation est inerte par construction (classe E1). Bandeau
+      posé sur le record. **Reste à mesurer** (pur numpy, zéro bail) : le taux de repli `k(σ)` sous
+      init NON nulle — il dit si le NEUTRE des sondes est robuste (marqueur spécifique) ou un artefact
+      de σ=0. Règle réutilisable qui en sort : *une cellule NULLE se déclare avec le plancher « privé
+      de X SEULEMENT » ; si ce plancher égale l'intact, c'est une définition, pas une mesure.*
+    * **S5 — CONDITIONNEL** : le design soumis rendait sa branche positive PAR CONSTRUCTION (E1+E2+E8
+      à la fois) — son plancher `r=1.0` (g≡0) est IMPORTÉ, et une carte linéaire-en-H capture la
+      relaxation endogène du connectome, donc l'oracle le bat sans aucune anticipation. Corrigé : la
+      référence est l'oracle **action-AGNOSTIQUE** + un bras à labels PERMUTÉS ; la DV « ce qui agit »
+      est la fidélité sur le nœud 74 (seule dim que `plan_rollout` lit). Étape 0 (< 1 min) : vérifier
+      que le fix de persistance est actif sur cette branche.
+    * **S3 (mémoire) — CONDITIONNEL** ; **S3 (langage) — NO-GO STRUCTUREL** : `nnz(W[12:14,:]) = 0` sur
+      le champion — le canal de communication n'a AUCUN chemin vers les actionneurs, l'ablation ne peut
+      rien retirer.
+    * **S7 — NO-GO sur l'arête** : « X demande generalization » a pour principal une identité
+      capacité ≡ prérequis et pour contrôle une tautologie d'échangeabilité ; « generalization demande
+      X » exige d'abord 8 cas de calibration (held-out oracle qui doit rendre 0.0, pas 1/6). Le nœud
+      cesse d'attirer des arêtes fabriquées : sa nature est une PROPRIÉTÉ DE RÉGIME de chaque capacité,
+      à inscrire comme telle.
+    * **Résultat transversal gravé** : la survie à métabolisme fixe est une **métrique-SEUIL** —
+      gradient nul sur tout l'ensemble soutenable. C'est la face « objectif » du mur [[EDR-LOCK-001]] :
+      une fois soutenable, plus rien ne sélectionne la lecture ([[EDR-EVO-016]] voit le même mur côté
+      recherche).
   - **Tiroirs de pré-inscription (consigné en fermant T4, 2026-09-06).** `check_preregistration_applied.py`
     apparie règle→record par PRÉFIXE de nom de fichier (`_record_text_for`) et ne fait JAMAIS échouer une
     règle sans record : (a) une règle scellée jamais conclue (EVO-022 pendant 5 jours ; EVO-011 depuis le
