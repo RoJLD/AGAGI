@@ -283,8 +283,23 @@ pas accumuler des tirages en PROFONDEUR.**
     `consolidate_records.py:32` ; EDR-124/194 sans frontmatter ; README EDR faux ; REF-DEMAND-MARKER
     arrêté à WARM-005 et contredit par S2-012/013 ; en-tête backlog auto-contradictoire l.11 vs
     l.17) + trancher le CLIQUET DES SYNTHÈSES (M5 : une doc qui publie un compte doit le recompter).
-  - **C2** : réparer le harnais EVO-011 (3 défauts localisés : do_throw gaté E2, _throw_did E4,
-    life_score) puis pré-vol décisif (lecteur câblé main) — tranche sans run évolutif.
+  - **C2 — harnais EVO-011 : PARTIELLEMENT RÉPARÉ le 2026-09-07, et il y avait un 4ᵉ défaut.**
+    Le fichier n'est pas `src/environments/` mais `src/worlds/world_1_stoneage.py` ; les 3 défauts du
+    2026-08-03 étaient intacts. **(2) E4 CORRIGÉ** : 4 compteurs de lancer écrits dans TOUS les régimes
+    (`throw_decided` AVANT le gate d'inventaire — c'est ce qui rend le défaut E2 lisible —, `throws`,
+    `throw_hits`, `throw_prey_hits`) ; aucun appel RNG, aucun flux de contrôle changé → runs gravés
+    bit-identiques ; `_throw_did` NON touché (un test de non-régression exige son absence en legacy).
+    4 contre-exemples gelés (`tests/sandbox/test_throw_counters_legacy.py`), 14/14 avec la suite du
+    gate torch. **(1) E2 : aucun patch monde** — le gate `len(inventory) > 0` est une loi physique ;
+    c'est le harnais qui ré-équipera. **(3) life_score** : la formule est saine, l'incohérence venait
+    d'un runner perdu → garde d'IDENTITÉ à poser dans le runner, pas de patch.
+    ⚠️ **(4) DÉFAUT TROUVÉ DANS LA RÈGLE SCELLÉE** (registre E2 occ. 3) : `EVO-011.json` fait peser
+    `mammoth_kills` 400 sur la chaîne obs[4]→throw→kill — **un lancer ne peut pas tuer une proie**
+    (pas de clé `energy` : il ÉTOURDIT ; `mammoth_kills` n'est incrémenté que par la mêlée). La chaîne
+    scellée est coupée par construction ; elle existe par un DÉTOUR mesurable (stun → l'apex ne se
+    déplace ni ne riposte → mêlée sans riposte). **Reste** : sceller `EVO-011-PREVOL` (la règle
+    d'origine ne se corrige pas), écrire le runner de pré-vol (explicite, sous `tools/evo_runs/` — 3 bras : lecteur
+    câblé / brouillé / témoin, 12 seeds) et son verdict calibré, puis le smoke.
   - Gaps différés documentés dans la spec : S3 (demande in-world hors perception), S5 (pas G4
     dormant), S6 (nécessité S2-006), S7 (nœud generalization orphelin), T4 (EVO-022 sans record — **CLOS 2026-09-06**, [[EDR-EVO-022]] gravé « arrêté au pré-vol, question sans objet »),
     M2 (chiffres non recomputés), M3 (collisions), M7 (rétro-examen 27 records, S2-009 risque 4).
@@ -830,6 +845,18 @@ test des signes apparié n=12, contrôle interne d'annulation, `sender_lr` fixé
     bras ÉQUIDISTANTS en log₂, la pente vaut exactement `delta/4` → la clause « ET pente > 0 » est
     redondante, une bosse non-monotone est lue INERTE (l'instrument ne la voit pas), et AMBIGUË n'est
     atteignable que si la capacité NUIT. Gravé dans le test.
+* ✅ **T3 CLOS le 2026-09-07 — la couche de LECTURE est resynchronisée.** `docs/EDR/README.md`
+  (5 collisions annoncées → **7** réelles balisées ; note sur le suffixe lettre ; les arêtes
+  `extends`/`corrects`/`retracted_by` sont lues depuis le 2026-09-01 — **une rétractation DOIT porter
+  `corrects:` pour être visible** ; ce que le hook bloque vraiment, mismatch et `gate_unlinked`
+  inclus) · `REF-DEMAND-MARKER` (**19 adoptants manquants** ajoutés ; **condition de LISIBILITÉ E14**
+  — un within ≈ 1.0 n'est un nul que SI l'intact est au-dessus du plancher de SON régime ; |W|
+  corroborant FAIBLE et ASYMÉTRIQUE, contredit par S2-005 dans le même fichier ; 4 lignes ajoutées :
+  S2-012, WARM-006/007/008, WARM-010, les 3 arêtes) · `FIL_DIRECTEUR_AGI` (north-star
+  `transfer_ratio` **CLOS** — métrique dégénérée, AUDIT-002 ; les 5 portes avec leurs outils RÉELS au
+  lieu de « à créer » ; section « le mur a TROIS NOMS ») · `SCIENCE.md` (strate taxonomy, absente
+  jusqu'ici). **Chaque chiffre est parti en BALISE recomputée** — le périmètre du cliquet des
+  synthèses passe à 8 documents, 15 comptes.
 * ✅ **M5 CLOS le 2026-09-07 — les SYNTHÈSES sont sous cliquet.** `tools/check_synthesis_counts.py`
   (porte 8 du hook) : une phrase qui publie un compte porte une balise `<!-- count:nom=valeur -->`,
   le cliquet RECOMPUTE la grandeur et vérifie aussi que le nombre figure dans le TEXTE VISIBLE — le

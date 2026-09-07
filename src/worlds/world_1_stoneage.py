@@ -376,6 +376,10 @@ class Biosphere3D(BaseWorld):
             "mammoth_kills": 0,
             "altars_solved": 0,
             "spears_crafted": 0,
+            # Compteurs de LANCER, ecrits dans TOUS les regimes (E4 occ.3, EVO-011) : `_throw_did`
+            # n'est ecrit que sous torch+gate, donc « 0 lancer » etait un artefact de compteur, pas
+            # une mesure. Aucun appel RNG, aucun flux de controle change -> runs graves bit-identiques.
+            "throw_decided": 0, "throws": 0, "throw_hits": 0, "throw_prey_hits": 0,
             "last_action": -1,
             "inventory": [],
             "inv_capacity": agent_model.phenotype_inv_capacity,
@@ -1395,7 +1399,10 @@ class Biosphere3D(BaseWorld):
             agent["last_value_pred"] = value_pred
             
             # 4. Throw (Ballistic Physics V14)
+            if do_throw:
+                agent["throw_decided"] = agent.get("throw_decided", 0) + 1   # DECISION, avant le gate d'inventaire (rend E2 lisible)
             if do_throw and len(agent["inventory"]) > 0:
+                agent["throws"] = agent.get("throws", 0) + 1                 # lancer EXECUTE, torch ou non
                 thrown_item = agent["inventory"].pop(0)
                 if isinstance(thrown_item, str):
                     thrown_item = {"type": thrown_item, "weight": 1.0}
@@ -1471,6 +1478,9 @@ class Biosphere3D(BaseWorld):
                     self.items.append(thrown_item)
                 
                 if hit_entity:
+                    agent["throw_hits"] = agent.get("throw_hits", 0) + 1
+                    if any(hit_entity is pr for pr in self.preys):
+                        agent["throw_prey_hits"] = agent.get("throw_prey_hits", 0) + 1
                     damage = energy_spent * weight
                     if "energy" in hit_entity:
                         hit_entity["energy"] -= damage
