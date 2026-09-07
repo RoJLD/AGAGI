@@ -649,6 +649,41 @@ def scan_own_snapshots(*, session_id: str = None, snapshot_dir: str = None, cwd:
     return out
 
 
+def retire_snapshots(paths=None, *, owner: str = None, snapshot_dir: str = None):
+    """Retire des empreintes dont le travail est FINI. Renvoie la liste des fichiers supprimes.
+
+    ⚠️ UNE EMPREINTE EST UNE UNITE DE TRAVAIL, PAS UN ABONNEMENT -- et ne pas la retirer fabrique du
+    bruit. Mesure du 2026-09-07 : l'empreinte `p226-scan` couvrait `tools/hooks/pre-commit`, dont le
+    travail etait committe et DECLARE (`084a676`) ; une session parallele y a ensuite ajoute sa propre
+    porte, et le balayage a signale une preemption. Le contenu ne portant pas d'auteur, la garde ne
+    PEUT pas distinguer « on a committe mon travail en attente » de « quelqu'un a legitimement edite
+    ce chemin apres que le mien fut fini » -- c'est la meme indecidabilite qui interdit de declarer
+    par contenu (cf. le SS SENS B). La seule issue saine est operatoire : refermer l'unite de travail.
+    Une NOUVELLE unite reprend une NOUVELLE empreinte, ce que le module demande deja (snapshot AVANT
+    d'editer). Un cliquet qui crie a tort est pire qu'absent : on apprend a l'ignorer."""
+    d = snapshot_dir or _DEFAULT_SNAPSHOT_DIR
+    if not os.path.isdir(d):
+        return []
+    cibles = {_gitpath(x) for x in (paths or [])}
+    retires = []
+    for fn_ in sorted(os.listdir(d)):
+        if not fn_.endswith(".json"):
+            continue
+        full = os.path.join(d, fn_)
+        try:
+            with open(full, encoding="utf-8") as f:
+                snap = json.load(f)
+        except (OSError, ValueError):
+            continue
+        if owner and snap.get("owner") != owner:
+            continue
+        if cibles and _gitpath(snap.get("path") or "") not in cibles:
+            continue
+        os.remove(full)
+        retires.append(full)
+    return retires
+
+
 # --- CLI ---------------------------------------------------------------------------------------------
 
 def _cli(argv=None):
@@ -694,13 +729,24 @@ def _cli(argv=None):
     kp.add_argument("--cwd", default=None, help="racine du dépôt (défaut : ce dépôt-ci)")
     kp.add_argument("--session-id", default=None, help="identité explicite (défaut : environnement)")
 
+    rp = sub.add_parser("retire", help="refermer une unite de travail : retirer ses empreintes")
+    rp.add_argument("paths", nargs="*")
+    rp.add_argument("--owner", default=None)
+    rp.add_argument("--dir", default=None)
+
     args = ap.parse_args(argv)
-    cwd = args.cwd or _ROOT
+    # `retire` ne touche pas au depot : il n'a pas de `--cwd`, et le lire durement le cassait.
+    cwd = getattr(args, "cwd", None) or _ROOT
 
     if args.cmd == "snapshot":
         for p in snapshot(args.paths, owner=args.owner, snapshot_dir=args.dir, cwd=cwd,
                           session_id=args.session_id):
             print(f"empreinte écrite : {p}")
+        return 0
+
+    if args.cmd == "retire":
+        for f in retire_snapshots(args.paths, owner=args.owner, snapshot_dir=args.dir):
+            print(f"empreinte retiree : {f}")
         return 0
 
     if args.cmd == "scan":

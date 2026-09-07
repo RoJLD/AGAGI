@@ -34,7 +34,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 
 from tools.check_staged_authorship import (  # noqa: E402
     snapshot, verify, confirm_commit, detect_preempted, declare_head_commit, _snapshot_path, _cli,
-    NoSnapshotError, ForeignHunkDetected, MissingPathsInCommit, WorkPreempted, scan_own_snapshots,
+    NoSnapshotError, ForeignHunkDetected, MissingPathsInCommit, WorkPreempted, scan_own_snapshots, retire_snapshots,
 )
 
 _FILE = "shared_module.py"
@@ -686,3 +686,51 @@ def test_P226_SCAN_SCOPE_never_blocks_and_survives_a_broken_snapshot(tmp_path, m
     assert scan_own_snapshots(session_id="S-A", snapshot_dir=snap_dir, cwd=repo), "signale malgre le JSON casse"
     monkeypatch.setenv("AGAGI_SESSION_ID", "S-A")
     assert _cli(["scan", "--dir", snap_dir, "--cwd", repo]) == 0, "un balayage ne bloque JAMAIS un commit"
+
+
+def test_P226_RETIRE_closes_a_work_UNIT_and_silences_its_stale_alert(tmp_path, monkeypatch):
+    """⚠️ FAUX POSITIF REEL du balayage, mesure en production le 2026-09-07, et devenu un cas.
+
+    Une empreinte dont le travail est COMMITTE et DECLARE reste vivante : des qu'une AUTRE session
+    edite legitimement le meme chemin et le commite, le balayage crie « preempte ». La garde ne PEUT
+    pas trancher -- le contenu ne porte pas d'auteur, c'est la meme indecidabilite qui interdit de
+    declarer par contenu. La seule issue saine est operatoire : une empreinte est une UNITE DE
+    TRAVAIL, pas un abonnement. `retire` la referme ; une nouvelle unite reprend une empreinte.
+    Un cliquet qui crie a tort est pire qu'absent -- on apprend a l'ignorer."""
+    _no_ambient_session(monkeypatch)
+    repo = _init_repo(tmp_path)
+    snap_dir = str(tmp_path / "snaps")
+    snapshot([_FILE], owner="fini", snapshot_dir=snap_dir, cwd=repo, session_id="S-A")
+    _append(repo, "\n\ndef mine():\n    return 1\n")
+    _git(["commit", "-q", "-m", "mon travail", "--", _FILE], repo)
+    declare_head_commit("HEAD", session_id="S-A", snapshot_dir=snap_dir, cwd=repo)
+    assert scan_own_snapshots(session_id="S-A", snapshot_dir=snap_dir, cwd=repo) == {}
+
+    # une AUTRE session edite le meme chemin et commite : l'empreinte finie se met a crier
+    _append(repo, "\n\ndef theirs():\n    return 2\n")
+    _git(["commit", "-q", "-m", "travail d'une autre session", "--", _FILE], repo)
+    assert scan_own_snapshots(session_id="S-A", snapshot_dir=snap_dir, cwd=repo), (
+        "premisse du cas : sans retrait, l'empreinte finie produit un faux positif")
+
+    retires = retire_snapshots(owner="fini", snapshot_dir=snap_dir)
+    assert len(retires) == 1
+    assert scan_own_snapshots(session_id="S-A", snapshot_dir=snap_dir, cwd=repo) == {}
+
+
+def test_P226_RETIRE_SPARES_a_snapshot_that_is_NOT_targeted(tmp_path, monkeypatch):
+    """POSITIF APPARIE : `retire` ne doit pas devenir un balai. Sans lui, un `retire` qui viderait TOUT
+    passerait le cas ci-dessus -- et desarmerait la detection pour les unites ENCORE EN COURS."""
+    _no_ambient_session(monkeypatch)
+    repo = _init_repo(tmp_path)
+    snap_dir = str(tmp_path / "snaps")
+    snapshot([_FILE], owner="fini", snapshot_dir=snap_dir, cwd=repo, session_id="S-A")
+    snapshot([_FILE], owner="en-cours", snapshot_dir=snap_dir, cwd=repo, session_id="S-A")
+
+    assert len(retire_snapshots(owner="fini", snapshot_dir=snap_dir)) == 1
+    restantes = [f for f in os.listdir(snap_dir) if f.endswith(".json")]
+    assert len(restantes) == 1 and "en-cours" in restantes[0], restantes
+
+    # et le retrait par CHEMIN ne touche pas un chemin voisin
+    snapshot(["autre.py"], owner="en-cours", snapshot_dir=snap_dir, cwd=repo, session_id="S-A")
+    assert len(retire_snapshots([_FILE], owner="en-cours", snapshot_dir=snap_dir)) == 1
+    assert any("autre.py" in f for f in os.listdir(snap_dir)), "le chemin voisin doit SURVIVRE"

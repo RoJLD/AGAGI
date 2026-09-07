@@ -906,6 +906,16 @@ L'écran mécanique l'a remplacée, et il a coûté zéro simulation.
   lieu de « à créer » ; section « le mur a TROIS NOMS ») · `SCIENCE.md` (strate taxonomy, absente
   jusqu'ici). **Chaque chiffre est parti en BALISE recomputée** — le périmètre du cliquet des
   synthèses passe à 8 documents, 15 comptes.
+* **Observation d'usage sur `check_staged_authorship` (2026-09-07, en l'appliquant à moi-même)** :
+  une empreinte **TARDIVE** (prise APRÈS édition) rend `verify()` inutilisable — il classe VOTRE
+  PROPRE travail comme étranger et refuse le commit. C'est le symétrique exact de la limite déjà
+  documentée (occ. 12 : le travail écrit APRÈS le snapshot lui échappe), mais il produit un FAUX
+  POSITIF au lieu d'un faux négatif. La garde suppose donc un `snapshot()` au DÉMARRAGE de la tâche et
+  **ne dégrade pas gracieusement** si on l'invoque tard. Correctif candidat à coût nul : horodater
+  l'empreinte et AVERTIR quand elle est postérieure à la dernière mtime des fichiers couverts —
+  « empreinte prise après édition, `verify` non concluant » vaut mieux qu'un refus qui ressemble à une
+  détection. *(Constaté en adoptant la garde après l'incident E10 occ. 19 ; le commit a été fait après
+  inspection MANUELLE des hunks, un par fichier, tous à l'emplacement de mes éditions.)*
 * ✅ **M5 CLOS le 2026-09-07 — les SYNTHÈSES sont sous cliquet.** `tools/check_synthesis_counts.py`
   (porte 8 du hook) : une phrase qui publie un compte porte une balise `<!-- count:nom=valeur -->`,
   le cliquet RECOMPUTE la grandeur et vérifie aussi que le nombre figure dans le TEXTE VISIBLE — le
@@ -1102,6 +1112,18 @@ confond fatal au design (`lr` pilotant aussi le sender).
   avec un `rule.record` en prose dans 24 règles scellées), rattrapé seulement par le test sur données
   réelles. **Deuxième occurrence : la règle du registre s'applique — promouvoir ou reclasser.**
   Le correctif reste d'une ligne, et il n'a toujours pas été écrit.
+- ✅ **APPLIQUÉ le 2026-09-07, et RECLASSÉ `non automatisable` au niveau du dépôt.** Le correctif
+  a été écrit dans l'orchestration suivante (crible P2.13) : le script compte les morts, sépare
+  `non vérifié` de `réfuté` en TROISIÈME catégorie, et publie un champ `verdict_global_fiable`
+  qui est faux dès qu'un agent meurt. Résultat mesuré : 3 cibles, 3 vérifiées, 0 mort, verdict
+  déclaré fiable — et la fois d'avant, sur 7 chantiers, 3 réfutateurs morts avaient été
+  correctement signalés comme NON VÉRIFIÉS au lieu de « réfutés ».
+  ⚠️ **Pourquoi `non automatisable` et pas `exécutable`** : un script d'orchestration s'exécute
+  dans un bac à sable JS sans accès au dépôt — il ne peut ni importer un garde-fou d'ici, ni être
+  inspecté par un cliquet pre-commit, car il ne vit pas dans l'arbre. Le remède est un PATRON,
+  démontré des deux côtés (une fois en échec catastrophique, une fois en fonctionnement), pas
+  une garde. C'est le plafond honnête, et le déclarer vaut mieux que proxifier une garde qui ne
+  pourrait pas s'exécuter là où le défaut se produit.
 
 **P2.26 — ✅ CLOSE (2026-09-07) — déclaration AUTOMATIQUE (post-commit) + balayage CÂBLÉ (porte 7,
 avertissement seul) — `detect_preempted()` (E10
@@ -1126,6 +1148,14 @@ bloquante**, et l'argument n'est pas la prudence : une préemption n'est pas ré
 commite (son travail est déjà dans HEAD) ; bloquer sur l'irréparable produit un cliquet qu'on
 désactive. Les empreintes LÉGATAIRES restent invisibles à ce balayage — assumé et gelé par un test.
 Vérifié EN PRODUCTION : le post-commit a déclaré `084a676` sur ses 3 empreintes, porte 7 silencieuse.
+⚠️ **Défaut d'USAGE trouvé le 2026-09-07 en production, et corrigé : une empreinte est une UNITÉ DE
+TRAVAIL, pas un abonnement.** Laissée vivante après que son travail fut committé ET déclaré, elle
+re-crie dès qu'une AUTRE session édite légitimement le même chemin — mesuré sur
+`tools/hooks/pre-commit`, signalé comme préempté par `27dd55b` alors que les lignes en cause
+étaient CELLES DE L'AUTRE SESSION. La garde ne peut pas trancher (le contenu ne porte pas
+d'auteur, même indécidabilité que pour la déclaration), donc l'issue est opératoire :
+sous-commande `retire` (2 cas de calibration, dont le positif apparié qui empêche `retire` de
+devenir un balai). Sans elle, la porte 7 serait devenue du bruit en quelques jours.
 4 cas de calibration (`-k SCAN`), 9/9 avec les 5 P226 d'origine.
 Hook INSTALLÉ dans `.git/hooks/post-commit` le 2026-09-06 (LF, exécutable, identique à sa source).
 Prémisse laissée « non mesurée » par le design, MESURÉE : `CLAUDE_CODE_SESSION_ID` est le même dans la
@@ -1291,8 +1321,15 @@ et `P1.2-bis` (qui se déclare elle-même périmée depuis le 2026-07-22 et n'a 
 - ⚠️ **Ne pas proxifier** : deviner la péremption depuis le texte (dates, mots-clés « OUVERTE ») serait
   exactement la forme rétrospective déjà déclarée non automatisable en E10 occ. 4.
 
-**P2.30 — ⚠️ OUVERT (2026-09-07) — `tests/sandbox/test_agi_taxonomy_gate.py` est ROUGE à HEAD depuis que
-la 3ᵉ arête est entrée : deux tests affirment « exactement DEUX arêtes ».**
+**P2.30 — ✅ CLOSE (2026-09-07, commit `58edefc`) — la suite du graphe repasse au VERT (16 tests).**
+*Correction de fond, au-delà du compte : `functional_aliasing` n'est plus figé à une VALEUR
+LITTÉRALE (`'n/a'`) mais DÉRIVÉ de la cible d'ablation — `n/a` si `input`, `pass` si `substrate` —
+c'est-à-dire l'invariant que la porte applique. Le littéral encodait une COÏNCIDENCE des deux
+premières arêtes, et obligeait à ré-éditer le test à chaque arête : c'est exactement ce qui l'a
+laissé rouge cinq jours. L'ensemble attendu reste ÉNUMÉRÉ (un compte accepterait une arête
+SUBSTITUÉE — vérifié : ce cas fait échouer le test, à compte inchangé). Calibré sur 5 réponses
+connues, en substituant `demands.json` en mémoire sans toucher au dépôt.*
+Énoncé d'origine —
 `test_the_two_REAL_edges_remain_valid_after_hardening` et
 `test_the_two_REAL_edges_are_exactly_the_expected_ones` échouent avec
 `Extra items in the left set: ('language', 'memory')`. Le graphe porte bien 3 arêtes valides
