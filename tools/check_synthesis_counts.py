@@ -23,8 +23,10 @@ phrase, qui est le mode d'échec le plus probable.
 lui a DÉCLARÉ. C'est délibéré et c'est la même règle que partout ici (« ne pas proxifier ce qu'on ne
 sait pas mesurer ») — deviner quels nombres d'une prose sont des comptes vérifiables produirait des
 faux positifs sur toute date, tout ratio et tout chiffre historique. La couverture croît par
-annotation ; le compteur de balises est lui-même publié (et donc balisé), de sorte qu'une régression
-de couverture se voit.
+annotation ; le compteur de balises `syntheses_balisees` est lui-même publié ET BALISÉ
+(`PRIORITES_ET_DETTES.md`), de sorte qu'une régression de couverture se voit. ⚠️ Cette propriété a
+été AFFIRMÉE ici avant d'être tenue (la balise n'existait pas) : auto-audit du 2026-09-07, corrigé
+le jour même — une affirmation non vérifiée dans l'outil qui les traque.
 
 ⚠️ UN CHIFFRE HISTORIQUE NE SE BALISE PAS. « 105 au 2026-09-01 » est vrai pour toujours : le baliser
 le rendrait faux demain. La balise dit « ce nombre décrit l'état COURANT ».

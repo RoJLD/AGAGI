@@ -916,8 +916,14 @@ L'écran mécanique l'a remplacée, et il a coûté zéro simulation.
   posées sur la ligne suivant leur nombre (texte désynchronisé), puis `portes_hook=7` rendu périmé
   par le branchement de la porte 8 elle-même. ⚠️ **Portée déclarée** : il vérifie ce qu'on lui
   DÉCLARE, il ne découvre pas les chiffres non balisés (deviner produirait des faux positifs sur
-  toute date et tout chiffre historique) ; la couverture croît par annotation, et `syntheses_balisees`
-  est lui-même un compteur, donc une régression de couverture se voit. **Un chiffre HISTORIQUE daté
+  toute date et tout chiffre historique) ; la couverture croît par annotation : aujourd'hui
+  **16 comptes balisés** <!-- count:syntheses_balisees=16 --> — et ce nombre-là est balisé LUI AUSSI, donc
+  une régression de couverture se voit. *(Auto-audit du 2026-09-07 : cette phrase AFFIRMAIT cette
+  propriété sans la tenir — la balise n'existait pas. Une affirmation non vérifiée écrite dans le
+  cliquet qui les traque : c'est E10 au méta-niveau, corrigé le jour même. ⚠️ Et ce compteur est
+  AUTO-RÉFÉRENTIEL : la balise se compte elle-même, donc poser « 15 » l'a immédiatement rendu
+  faux — la valeur juste est le POINT FIXE, 16. Le cliquet l'a signalé dans la seconde qui a
+  suivi sa pose.)* **Un chiffre HISTORIQUE daté
   ne se balise jamais** — « 105 au 2026-09-01 » est vrai pour toujours.
 * ✅ **T2 CLOS le 2026-09-06** : `114b_*.md` était INVISIBLE au graphe (regex `^(\d{3})_`) — patchée
   avec le suffixe DANS l'id (le patcher seule aurait fabriqué une collision silencieuse 114b→EDR-114),

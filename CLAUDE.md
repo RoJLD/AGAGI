@@ -174,5 +174,11 @@ explicite, jamais le processus courant ni ses ancêtres, jamais un bail dont le 
 ## Environnement
 - Arbre de travail **partagé entre sessions parallèles** → commits path-scoped obligatoires.
 - Ne jamais committer sans demande explicite.
+- ⚠️ **Tout commit passe par `git commit -- <chemins>`, JAMAIS nu.** Un `git commit` sans pathspec
+  emporte l'index ENTIER — donc le travail non committé d'une session parallèle sur un fichier qu'on
+  n'a jamais touché (mesuré le 2026-09-07 : E10 occ. 19). Et avant d'éditer un fichier PARTAGÉ :
+  `python -c "from tools.check_staged_authorship import snapshot; snapshot([...], owner='ma-tache')"`
+  puis `verify(...)` avant de committer — la garde existe depuis le 2026-09-01, ne pas l'invoquer
+  revient à ne pas l'avoir.
 - ⚠️ **Sous Git Bash, `set -e` N'ARRÊTE PAS une chaîne quand un `python - <<'EOF'` échoue** (mesuré le 2026-09-06 : un patch a levé, la chaîne a continué, et un commit est parti avec un message annonçant un travail absent — rectifié par `b2a6ce3`). Chaîner par `&&` explicite, et faire échouer la chaîne AVANT `git commit`, jamais après.
 - `_disable_kuzu()` / arrêter `memory_retriever` avant les boucles de simulation (contention + non-repro).
