@@ -465,7 +465,8 @@ concurrence (un nombre) ; AGAGI a besoin de **ressources NOMMÉES exclusives** (
 
 **P1.2-bis — 🗑️ PÉRIMÉE, RETIRÉE du flux actionnable (re-constaté 2026-09-07).** Elle se déclarait
 elle-même périmée depuis le 2026-07-22 et n'a jamais été sortie : une entrée qui annonce sa propre
-péremption et reste dans la liste est du bruit qui coûte à chaque lecture. Conservée pour l'historique. Les cibles nommées `measure_inworld_grab_rate`
+péremption et reste dans la liste est du bruit qui coûte à chaque lecture.
+*Corps d'origine, conservé pour l'historique :* Les cibles nommées `measure_inworld_grab_rate`
 (`warmstart_evolution_inworld.py:1043`) ET `_torch_survival_eras` tiennent DÉJÀ le VRAI bail
 (`_acquire_kuzu` → `tools.jobs.lease.acquire("kuzu")`, pas un correctif ad hoc). L'entrée décrit un état
 antérieur à leur câblage. De plus, sa motivation « suite en timeout » était en réalité le bug `stop()`
@@ -755,7 +756,8 @@ hook-seul **skippe** la garde. Le cliquet ne dépend plus de la discipline — p
 (règle documentée sans application exécutable => violée) enfin fermé pour la calibration comme il l'était
 pour les records. *Bypass d'urgence : `git commit --no-verify`.*
 
-**P2.13 — ⚠️ OUVERTE (2026-09-01) — classe E19 : balayer le PAS, et RE-AUDITER au réglage le stock de
+**P2.13 — ⚠️ OUVERTE, et c'est la DETTE SCIENTIFIQUE DOMINANTE (état mesuré le 2026-09-07 : 1 arc
+ré-audité sur 4, et il a été RÉTRACTÉ).** Classe E19 : balayer le PAS, et RE-AUDITER au réglage le stock de
 conclusions de l'arc BILINEAR / LANG-MEMORY / MEM-PERCEPTION / RETAIN-COMPOSE (tous à `lr=0.02`).**
 *Preuve : à protocole identique et n=12, la seule variation de `lr` bascule le verdict d'un record ENTIER*
 — `run_retain_compose_diagnostic_probe`, `episodes=600`, `n_agents=16`, `K=6`, `bar=0.3167` :
@@ -763,6 +765,26 @@ conclusions de l'arc BILINEAR / LANG-MEMORY / MEM-PERCEPTION / RETAIN-COMPOSE (t
 **0/144** chevauchement, 12/12 seeds. Cause : `n_agents` n'est PAS un minibatch (chaque agent a ses propres
 `W/U/V/W_bl`, `src/agents/backend_torch.py:85-86`) → **batch effectif = 1**, toléré par les conditions à un
 `_step` et divergent sur les deux `_step`.
+
+**Où en est le ré-audit, au 2026-09-07 :**
+
+| arc | record | ré-audité au PAS ? | issue |
+|---|---|---|---|
+| RETAIN-COMPOSE | `EDR-RETAIN-COMPOSE` | ✅ oui | **RÉTRACTÉ** — le mur était un artefact de `lr` |
+| DELAYED-COORD | `EDR-DELAYED-COORD` | ✅ oui (n=12 scellé) | clause opérationnelle **réfutée**, clause scientifique corroborée |
+| BILINEAR | `EDR-BILINEAR` | ❌ **non** | porte le déblocage de la composition |
+| MEM-PERCEPTION | `EDR-MEM-PERCEPTION` | ❌ **non** | **porte une arête du graphe** (3.934) |
+| LANG-MEMORY | `EDR-LANG-MEMORY` + `LANG-MEMORY-EDGE` | ❌ **non** | **porte une arête du graphe** (4.967) |
+
+⚠️ **Deux des trois records non ré-audités PORTENT UNE ARÊTE du graphe AGI-Taxonomy.** Sur les deux arcs
+déjà passés au crible, l'un a été rétracté et l'autre a vu une de ses deux clauses tomber : le taux de
+révision observé est de **2/2**. Ce n'est pas une raison de conclure d'avance — c'est une raison de
+mesurer, et de ne pas citer ces trois records comme acquis d'ici là.
+**Protocole disponible et rodé** (appliqué à DELAYED-COORD) : règle scellée AVANT, DV backtickée,
+test des signes apparié n=12, contrôle interne d'annulation, `sender_lr` fixé pour ne varier qu'un axe,
+`eval_every` pour séparer « pas bas » de « sous-entraîné ». Coût mesuré : ~0,05 s/épisode mono-thread.
+**Premier pas recommandé, et il est bon marché** : établir LESQUELS des trois sont sensibles au pas
+(balayage court, n=3, critère de sensibilité) AVANT d'engager trois re-mesures n=12.
 - **À faire** : (a) tout probe dont le verdict compare des conditions de **profondeur récurrente
   différente** doit exhiber la stabilité de son verdict sur ≥ 1 décade de `lr` ; le critère porte sur
   l'**écart au bras de référence** (flaguer si le balayage le referme de plus de 2/3), **jamais** sur le
@@ -858,7 +880,9 @@ mesuré le substrat **PLAIN**, prouvablement incapable de représenter `(q+key)%
 - **Enjeu** : ce serait la **3ᵉ arête** du graphe AGI-Taxonomy — la première à avoir été refusée puis
   rouverte par une levée de verrou de substrat.
 
-**P2.15 — ⚠️ OUVERTE (2026-09-01) — DETTE DE SEUIL : la barre `1/K+0.15` est MAL PLACÉE, 0.072 SOUS le
+**P2.15 — ⚠️ OUVERTE — GARDE ÉCRITE, JAMAIS APPELÉE (état 2026-09-07). C'est E10 dans sa définition
+même : une règle exécutable qui n'est branchée nulle part est violée.** DETTE DE SEUIL : la barre
+`1/K+0.15` est MAL PLACÉE, 0.072 SOUS le
 plafond structurel du substrat qu'elle est censée déclarer nul.**
 *Preuve, mesurée en forme close* : à `H_in = 0`, le substrat plain se réduit à
 `logit_j = σ(W_jj)·tanh(W[key,j] + W[K+q,j])` — transformée MONOTONE d'un score **SÉPARABLE**, donc
@@ -990,6 +1014,12 @@ confond fatal au design (`lr` pilotant aussi le sender).
 - **Critère d'automatisation** : ça se reforme silencieusement à chaque nouveau script de revue → une note
   ne suffit pas. Correctif : que le script compte les échecs et REFUSE de rendre un verdict global si
   `agents_error > 0`, au lieu de rendre une liste vide.
+- ⚠️ **RÉCIDIVE le 2026-09-07, mesurée** : une orchestration à 7 chantiers a perdu **3 réfutateurs sur
+  7** sur une limite de session. Les 3 plans concernés (`P2.26`, `P2.28`, `cognitive_demand_inworld`)
+  sont sortis SANS vérification — et l'un d'eux portait un défaut RÉEL (collision de la clé `record:`
+  avec un `rule.record` en prose dans 24 règles scellées), rattrapé seulement par le test sur données
+  réelles. **Deuxième occurrence : la règle du registre s'applique — promouvoir ou reclasser.**
+  Le correctif reste d'une ligne, et il n'a toujours pas été écrit.
 
 **P2.26 — ✅ CLOSE (2026-09-07) — déclaration AUTOMATIQUE (post-commit) + balayage CÂBLÉ (porte 7,
 avertissement seul) — `detect_preempted()` (E10
@@ -1155,6 +1185,42 @@ record EXISTE et mentionne bien les 7 grandeurs. La vérification annoncée n'a 
   vide ; S2-FLOOR-PRONOSTIC désormais confrontée à S2-013 (5/5 grandeurs présentes). ⚠️ Séparer « aucun
   record » de « record existant non rattaché » sans deviner est impossible : le cliquet NOMME les familles
   non rattachées au lieu de les compter. Tests : 6 cas dans `tests/sandbox/test_preregistration_applied.py`.
+
+---
+
+**P2.29 — ⚠️ OUVERT (2026-09-07) — le cliquet de fraîcheur du backlog est AVEUGLE à la péremption
+SÉMANTIQUE : six entrées annonçaient l'inverse de l'état mesuré, et il rendait « OK ».**
+Mesuré en relisant le backlog pour choisir quoi faire — c'est-à-dire au pire moment, celui que
+`check_backlog_freshness` existe précisément pour protéger. Les six : **P2.14** (« ⚠️ OUVERTE, arête à
+mesurer » alors qu'elle est gravée depuis `26ca13d`), **P2.16** (« branché à AUCUNE porte » alors qu'il
+est la porte 5 depuis `481117e`), **P2.27** (« défaut A à 5/19 » contre 0/19 mesuré), **P2.17**
+(« 70 non calibrés » contre 196/192/0), **P1.5** (décrit l'état non committé d'une session de juillet),
+et `P1.2-bis` (qui se déclare elle-même périmée depuis le 2026-07-22 et n'a jamais été sortie).
+
+- **Ce que le cliquet vérifie** : liens de records morts, numéros de tâche dupliqués, chemins disparus.
+  Trois propriétés SYNTAXIQUES. Aucune ne peut voir qu'une entrée affirme le contraire du réel.
+- **Ce qui rend le cas intéressant** : ces six entrées étaient toutes réfutables MÉCANIQUEMENT, sans
+  jugement — un `grep` dans le hook, un compte rendu par un cliquet, un `git log`. La péremption
+  n'était pas « difficile à voir », elle n'était vérifiée par personne.
+- **Piste, à ne pas sur-promettre** : faire DÉCLARER à une entrée fermable sa condition de fermeture
+  exécutable (`closes_when:` — une commande et sa sortie attendue), et vérifier CETTE clause. Une
+  entrée sans clause reste hors périmètre et le cliquet le RAPPORTE, au lieu de compter son ignorance
+  comme un succès. C'est la règle du dépôt : déclarer, pas deviner.
+- ⚠️ **Ne pas proxifier** : deviner la péremption depuis le texte (dates, mots-clés « OUVERTE ») serait
+  exactement la forme rétrospective déjà déclarée non automatisable en E10 occ. 4.
+
+**P2.30 — ⚠️ OUVERT (2026-09-07) — `tests/sandbox/test_agi_taxonomy_gate.py` est ROUGE à HEAD depuis que
+la 3ᵉ arête est entrée : deux tests affirment « exactement DEUX arêtes ».**
+`test_the_two_REAL_edges_remain_valid_after_hardening` et
+`test_the_two_REAL_edges_are_exactly_the_expected_ones` échouent avec
+`Extra items in the left set: ('language', 'memory')`. Le graphe porte bien 3 arêtes valides
+(`language→perception` 2.115, `memory→perception` 3.934, `language→memory` 4.967, toutes n=12).
+Vérifié que ce n'est pas un effet de bord d'une autre passe : ces tests n'importent que
+`tools.check_agi_taxonomy` et lisent `data/agi_taxonomy/`.
+⚠️ **Une suite rouge à HEAD est un cliquet éteint** : tant qu'elle l'est, plus personne ne distingue une
+NOUVELLE régression de la rougeur connue. Correctif : porter les tests à 3 arêtes, en gardant leur
+propriété — l'ensemble ATTENDU est énuméré, pas compté (un test qui compte laisserait passer une arête
+substituée).
 - ⚠️ **DÉFAUT DU DESIGN, trouvé par le test du dépôt réel — son réfutateur était mort** (limite de
   session) : la clé `record:` COLLISIONNE avec un champ `rule.record` qui existait déjà dans **24 règles
   scellées**, en PROSE (`"EDR-EVO-006 (replication directe)"`), pas en chemin. Lu strictement, il criait
