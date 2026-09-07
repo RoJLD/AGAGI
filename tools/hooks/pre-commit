@@ -134,7 +134,7 @@ rm -f /tmp/agagi_scan.err
 # « 19 classes sur 19 » faux le jour de l'ajout d'E20 ; « 5 cliquets tous branches » alors qu'il y en
 # avait 6 ; « 105 detectes / 104 calibres » quand le cliquet en comptait 143. Les ATOMES etaient
 # gardes, les RESUMES -- ce qu'une session future CITE en premier -- ne l'etaient pas.
-staged_syn=$(git diff --cached --name-only --diff-filter=AM | grep -E '^(CLAUDE\.md|docs/REF/REGISTRE_ERREURS\.md|docs/roadmap/PRIORITES_ET_DETTES\.md|docs/EDR/README\.md|docs/SDR/.*\.md|tools/check_synthesis_counts\.py)$')
+staged_syn=$(git diff --cached --name-only --diff-filter=AM | grep -E '^(CLAUDE\.md|docs/REF/REGISTRE_ERREURS\.md|docs/roadmap/PRIORITES_ET_DETTES\.md|docs/EDR/README\.md|docs/SDR/.*\.md|docs/REF/REF-DEMAND-MARKER\.md|docs/roadmap/(FIL_DIRECTEUR_AGI|SCIENCE)\.md|tools/check_synthesis_counts\.py)$')
 if [ -n "$staged_syn" ]; then
   PYTHONIOENCODING=utf-8 python tools/check_synthesis_counts.py || {
     echo ""

@@ -51,6 +51,10 @@ _DOCS = (
     os.path.join("docs", "roadmap", "PRIORITES_ET_DETTES.md"),
     os.path.join("docs", "EDR", "README.md"),
     os.path.join("docs", "SDR", "G2_agent_composes.md"),
+    # Élargi le 2026-09-07 (T3) : ces trois-là sont la carte que toute session lit AVANT les records.
+    os.path.join("docs", "REF", "REF-DEMAND-MARKER.md"),
+    os.path.join("docs", "roadmap", "FIL_DIRECTEUR_AGI.md"),
+    os.path.join("docs", "roadmap", "SCIENCE.md"),
 )
 
 _TAG = re.compile(r"<!--\s*count:([a-z0-9_]+)\s*=\s*(-?\d+)\s*-->")

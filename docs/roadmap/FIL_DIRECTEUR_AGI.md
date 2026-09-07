@@ -6,7 +6,11 @@
 
 ## Thèse réconciliée
 « Le bon est trouvé si le monde l'EXIGE (010/012) ET si l'agent l'APPREND (067) » — les deux se
-mesurent en un point : la **généralisation zéro-shot** (`transfer_ratio`, north-star).
+mesurent en un point : la **généralisation zéro-shot**, jugée par **ablation within-subject de la
+compétence transférée** (G1-001), et NON par `transfer_ratio` : ce fil est CLOS sur le constat
+« métrique dégénérée » ([[EDR-AUDIT-002]]). État G1 : le NOYAU de survie transfère ([[EDR-156]],
+12/12) mais la compétence world-spécifique n'ÉMERGE pas ([[EDR-157]]) — c'est l'un des trois noms du
+mur [[EDR-LOCK-001]].
 
 ## Moteur (ADR-001, ADR-002)
 GA (recherche de substrat) + gradient (apprentissage intra-vie) + Baldwin. Évolution topologique active.
@@ -14,11 +18,23 @@ GA (recherche de substrat) + gradient (apprentissage intra-vie) + Baldwin. Évol
 ## Les 5 portes (bottom-up par dépendance, capacités stratifiées EDR 075)
 | Porte | Question | KPI | Outil | Record |
 |---|---|---|---|---|
-| **G0** | Le monde exige ? | survival_ratio champion/dummy | à créer | SDR-G0 |
-| **G1** | Ça généralise ? ★ | transfer_ratio | `tools/curriculum_transfer.py` | SDR-G1 |
-| **G2** | Ça compose ? | émergence chaîne non récompensée | à créer | SDR-G2 |
-| **G3** | Le langage paye ? | mammoth_kills ON/OFF | `tools/wire_ref_head.py` | SDR-G3 |
-| **G4** | Ça anticipe ? | anticipation_bench | `tools/anticipation_bench.py` | SDR-G4 |
+| **G0** | Le monde exige ? | ablation within-subject (perception / corps) — le `survival_ratio` between est RÉFUTÉ comme marqueur (S2-001) | `s2_demand_ablation.py`, `s2_cognition_body.py` | SDR-G0 — **verdict : la survie vient du CORPS** (S2-012, BODY 4/5) ; le monde n'exige la cognition que sous la recette S2-006, réalisée in-world (S2-009, 21×) |
+| **G1** | Ça généralise ? ★ | ablation within de la compétence transférée | `cross_world_transfer.py`, G1-001 | SDR-G1 — noyau OUI (156), émergence world-spécifique NON (157) |
+| **G2** | Ça compose ? | N1 proxy `binding_gap > 0.30` + `hit_end` ; N2 fort `comp_rate` du bras NU sous demande | `substrate_ab_compositional.py`, `compositional_world_probe.py` | SDR-G2 (re-scellée 2026-09-02) — **proxy FRANCHI** (EDR-136, 10/10) ; **fort NON FRANCHI = mur [[EDR-LOCK-001]]** |
+| **G3** | Le langage paye ? | ablation du canal + MI(m;a), sous asymétrie d'information | `language_payoff_probe.py` | SDR-G3 — proxy CLOS : paie SSI coordination-demand (LANG-006) ; in-world 087 NÉGATIF |
+| **G4** | Ça anticipe ? | ablation de MODULE forward-model (S2-007) ; fidélité du `g` bilinéaire | `anticipation_demand_world_probe.py`, PLAN-001→004 | SDR-G4 — proxy dé-risqué (bilinéaire) ; in-world DORMANT (EDR-142 : fix de persistance, gap S5) |
+
+## État courant (2026-09-07) : le mur a TROIS NOMS ([[EDR-LOCK-001]])
+
+Le diagnostic de juillet (« représentation OK, conversion en comportement KO, levier = crédit ») est
+DÉPASSÉ par trois faits mesurés : (1) la migration torch est faite et **ne franchit rien seule**
+(163 : survie A/B neutre) ; (2) le mur « rétention 2-pas » était un **artefact de learning-rate**
+([[EDR-RETAIN-COMPOSE-LR]], classe E19) ; (3) le verrou représentationnel est LEVÉ par le terme
+bilinéaire ([[EDR-BILINEAR]], 0/144). Ce qui reste est UN seul mur sous trois noms : « l'écriture
+APPRISE dans le report » (taxonomy), « l'émergence d'une compétence COMPOSÉE » (G1/G2), « le RÉGIME
+DE RECHERCHE » ([[EDR-EVO-016]]) — créer une dépendance nouvelle état-interne→sortie que ni le
+gradient épisodique ni la sélection ne récompensent avant qu'elle soit fonctionnelle. Prédiction
+falsifiable : un levier qui perce l'un doit percer les autres.
 
 > On ne franchit une porte que si la précédente est mesurée (verdict EDR powered).
 > Méthode : Commandement 15 (1 variable, powered, valide-ou-revert). Négatifs = livrables.

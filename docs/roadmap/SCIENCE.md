@@ -8,11 +8,34 @@
 > l'intelligence *trouvée* (connectomes évolués, bottom-up), pas *donnée*.
 >
 > **Cette page = ce qui reste à faire + où on en est.** L'**historique** scientifique :
-> [`../FIL_CONDUCTEUR.md`](../FIL_CONDUCTEUR.md) (récit) + [`../EDR/`](../EDR/) (détail, 93 décisions).
+> [`../FIL_CONDUCTEUR.md`](../FIL_CONDUCTEUR.md) (récit) + [`../EDR/`](../EDR/) (détail — **305 records** <!-- count:records_total=305 --> au graphe).
 > Les **idées futures / aspirationnel** : [`../BACKLOG.md`](../BACKLOG.md). Méthode : **Commandement 15**
 > (1 variable, ≥... mesures, valide ou revert — *powerer avant de conclure*).
 
 ---
+
+
+## Graphe AGI-Taxonomy — les arêtes de PRÉREQUIS mesurées
+
+Strate absente de cette page jusqu'au 2026-09-07. Le graphe (`data/agi_taxonomy/`, porte
+`tools/check_agi_taxonomy.py`) n'accepte une arête « Y demande X » que sur preuve COMPLÈTE : verdict
+`X_DEMANDED`, n ≥ 12, `specificity_control` **en toute circonstance** (le bras principal est
+arithmétiquement forcé — seul le contrôle de demande peut échouer, donc lui seul porte le contenu
+empirique), garde d'aliasing, et `coord_intact ≥ emergence_bar` (le bras intact doit avoir ÉMERGÉ).
+
+**3 arêtes établies** <!-- count:aretes_taxonomy=3 --> :
+
+| arête | ratio | ablation | record |
+|---|---|---|---|
+| language → perception | 2.115 | ENTRÉE | [[EDR-LANG-PERCEPTION]] |
+| memory → perception | 3.934 | ENTRÉE | [[EDR-MEM-PERCEPTION]] |
+| **language → memory** | **4.97** | **SUBSTRAT** (H-reset) | [[EDR-LANG-MEMORY-EDGE-BIS]] |
+
+La 3ᵉ est la première par ablation de SUBSTRAT et la première REFUSÉE puis rouverte : sa V1
+([[EDR-LANG-MEMORY-EDGE]]) a été bloquée par la garde d'alias (contrôle saturé au plafond) malgré
+trois branches positives ; le correctif fut un bruit d'entrée à DOSE CONNUE (plafond prédit 0.875,
+mesuré 0.866), pas un déplacement de seuil. ⚠️ Portée : D=0 — à D=2 la référence n'apprend pas
+([[EDR-LOCK-001]]). Le nœud `generalization` reste ORPHELIN d'arêtes (gap S7).
 
 ## Architecture (V15/V16)
 - **59 entrées / 108 sorties** ; moteur **Liquid Mamba BatchModel** vectorisé + TTC adaptatif ; écologie 9 proies + apex + feu + crafting ; **World Model** (RND), **Actor-Critic TD** intra-vie, **HoF robuste** inter-ère.
