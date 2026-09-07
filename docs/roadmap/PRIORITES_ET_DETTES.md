@@ -916,6 +916,24 @@ L'écran mécanique l'a remplacée, et il a coûté zéro simulation.
   « empreinte prise après édition, `verify` non concluant » vaut mieux qu'un refus qui ressemble à une
   détection. *(Constaté en adoptant la garde après l'incident E10 occ. 19 ; le commit a été fait après
   inspection MANUELLE des hunks, un par fichier, tous à l'emplacement de mes éditions.)*
+* **Observation d'usage sur `check_staged_authorship` (2026-09-07, en l'appliquant à moi-même)** :
+  une empreinte **TARDIVE** (prise APRÈS édition) rend `verify()` inutilisable — il classe VOTRE
+  PROPRE travail comme étranger et refuse le commit. Symétrique exact de la limite déjà documentée
+  (occ. 12 : le travail écrit APRÈS le snapshot lui échappe), mais il produit un FAUX POSITIF au lieu
+  d'un faux négatif : la garde **ne dégrade pas gracieusement**. Correctif candidat à coût nul :
+  horodater l'empreinte et AVERTIR quand elle est postérieure à la dernière mtime des fichiers
+  couverts — « empreinte tardive, `verify` non concluant » vaut mieux qu'un refus qui ressemble à une
+  détection.
+* ⚠️ **E10 sens B, forme ÉCRASEMENT (mesurée le 2026-09-07 sur CE paragraphe même)** : ce texte a été
+  écrit une première fois, puis a DISPARU de l'arbre de travail pendant qu'un commit d'une session
+  parallèle (`d0431be`) touchait ce fichier. Fait vérifié : le texte n'est ni dans l'arbre, ni dans
+  `d0431be`, ni nulle part dans `git log --all -S` — il n'a donc pas été *préempté* (committé par
+  autrui, occ. 9/16) mais **écrasé**, et `detect_preempted` ne peut par construction rien y voir
+  puisqu'aucun commit ne le porte. C'est une TROISIÈME forme, distincte des deux inscrites : sur un
+  arbre partagé, une édition non committée peut être perdue sans trace et sans conflit. **Remède
+  disponible immédiatement** : committer par petits lots (la fenêtre d'exposition est la durée entre
+  l'édition et le commit) ; remède à concevoir : détecter qu'un fichier qu'on a édité a été réécrit
+  sous nos pieds (mtime + empreinte de contenu au moment du `snapshot`).
 * ✅ **M5 CLOS le 2026-09-07 — les SYNTHÈSES sont sous cliquet.** `tools/check_synthesis_counts.py`
   (porte 8 du hook) : une phrase qui publie un compte porte une balise `<!-- count:nom=valeur -->`,
   le cliquet RECOMPUTE la grandeur et vérifie aussi que le nombre figure dans le TEXTE VISIBLE — le

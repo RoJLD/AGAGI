@@ -174,6 +174,7 @@ explicite, jamais le processus courant ni ses ancêtres, jamais un bail dont le 
 ## Environnement
 - Arbre de travail **partagé entre sessions parallèles** → commits path-scoped obligatoires.
 - Ne jamais committer sans demande explicite.
+- ⚠️ **Pas de backticks dans un message de commit passé en `-m` sous bash** : ils sont interprétés comme SUBSTITUTION DE COMMANDE et le fragment est remplacé par du VIDE — le message part mutilé, sans erreur (mesuré le 2026-09-07 : « mon `git commit` NU » est devenu « mon  NU »). Écrire les commandes sans backticks, ou passer par un fichier de message.
 - ⚠️ **Tout commit passe par `git commit -- <chemins>`, JAMAIS nu.** Un `git commit` sans pathspec
   emporte l'index ENTIER — donc le travail non committé d'une session parallèle sur un fichier qu'on
   n'a jamais touché (mesuré le 2026-09-07 : E10 occ. 19). Et avant d'éditer un fichier PARTAGÉ :
