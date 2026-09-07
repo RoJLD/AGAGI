@@ -924,16 +924,21 @@ L'écran mécanique l'a remplacée, et il a coûté zéro simulation.
   horodater l'empreinte et AVERTIR quand elle est postérieure à la dernière mtime des fichiers
   couverts — « empreinte tardive, `verify` non concluant » vaut mieux qu'un refus qui ressemble à une
   détection.
-* ⚠️ **E10 sens B, forme ÉCRASEMENT (mesurée le 2026-09-07 sur CE paragraphe même)** : ce texte a été
-  écrit une première fois, puis a DISPARU de l'arbre de travail pendant qu'un commit d'une session
-  parallèle (`d0431be`) touchait ce fichier. Fait vérifié : le texte n'est ni dans l'arbre, ni dans
-  `d0431be`, ni nulle part dans `git log --all -S` — il n'a donc pas été *préempté* (committé par
-  autrui, occ. 9/16) mais **écrasé**, et `detect_preempted` ne peut par construction rien y voir
-  puisqu'aucun commit ne le porte. C'est une TROISIÈME forme, distincte des deux inscrites : sur un
-  arbre partagé, une édition non committée peut être perdue sans trace et sans conflit. **Remède
-  disponible immédiatement** : committer par petits lots (la fenêtre d'exposition est la durée entre
-  l'édition et le commit) ; remède à concevoir : détecter qu'un fichier qu'on a édité a été réécrit
-  sous nos pieds (mtime + empreinte de contenu au moment du `snapshot`).
+* ⛔ **RÉTRACTÉ le 2026-09-07, le jour même de son écriture — « E10 sens B, forme ÉCRASEMENT » N'EXISTE
+  PAS.** J'avais conclu qu'un texte écrit ici avait DISPARU sans trace pendant un commit parallèle, et
+  j'en avais fait une TROISIÈME forme d'E10. **C'est faux, et la cause est mon INSTRUMENT** : je
+  vérifiais par `grep -c "empreinte TARDIVE"` alors que le texte porte `empreinte **TARDIVE**` — le
+  gras Markdown coupe le motif. Les TROIS vérifications qui « prouvaient » la disparition (arbre,
+  commit d'autrui, `git log --all -S`) portaient le même motif et rendaient donc toutes 0. Refaites
+  avec le motif correct : le texte est dans l'arbre, et il est **dans `d0431be`** — il a été
+  **PRÉEMPTÉ** (committé par la session parallèle), c'est-à-dire le sens B DÉJÀ inscrit (occ. 9/16),
+  pas une forme nouvelle.
+  ⚠️ **Ce que cet épisode vaut vraiment** : j'ai fabriqué une affirmation POSITIVE (« une forme
+  inédite existe ») à partir d'une absence produite par un instrument non calibré — la faute exacte
+  que ce dépôt traque chez ses sondes, commise par moi, dans le paragraphe où je consignais des
+  leçons de méthode. **Règle qui en sort** : un `grep` de vérification sur du Markdown doit viser un
+  motif SANS mise en forme (un mot nu), et une absence de correspondance n'est JAMAIS une preuve
+  d'absence tant que le motif n'a pas été validé sur un cas POSITIF connu.
 * ✅ **M5 CLOS le 2026-09-07 — les SYNTHÈSES sont sous cliquet.** `tools/check_synthesis_counts.py`
   (porte 8 du hook) : une phrase qui publie un compte porte une balise `<!-- count:nom=valeur -->`,
   le cliquet RECOMPUTE la grandeur et vérifie aussi que le nombre figure dans le TEXTE VISIBLE — le

@@ -174,6 +174,7 @@ explicite, jamais le processus courant ni ses ancêtres, jamais un bail dont le 
 ## Environnement
 - Arbre de travail **partagé entre sessions parallèles** → commits path-scoped obligatoires.
 - Ne jamais committer sans demande explicite.
+- ⚠️ **Un `grep` de vérification sur du Markdown doit viser un motif SANS mise en forme** (un mot nu) : `grep "empreinte TARDIVE"` ne trouve pas `empreinte **TARDIVE**`. Et **une absence de correspondance n'est jamais une preuve d'absence** tant que le motif n'a pas été validé sur un cas POSITIF connu — mesuré le 2026-09-07 : trois greps faux m'ont fait graver une « forme d'erreur inédite » qui n'existait pas, rétractée le jour même. C'est la faute que le dépôt traque chez ses sondes (absence → affirmation), commise sur l'outil de vérification lui-même.
 - ⚠️ **Pas de backticks dans un message de commit passé en `-m` sous bash** : ils sont interprétés comme SUBSTITUTION DE COMMANDE et le fragment est remplacé par du VIDE — le message part mutilé, sans erreur (mesuré le 2026-09-07 : « mon `git commit` NU » est devenu « mon  NU »). Écrire les commandes sans backticks, ou passer par un fichier de message.
 - ⚠️ **Tout commit passe par `git commit -- <chemins>`, JAMAIS nu.** Un `git commit` sans pathspec
   emporte l'index ENTIER — donc le travail non committé d'une session parallèle sur un fichier qu'on
