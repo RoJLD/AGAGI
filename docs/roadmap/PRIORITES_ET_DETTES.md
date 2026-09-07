@@ -302,6 +302,16 @@ pas accumuler des tirages en PROFONDEUR.**
     câblé / brouillé / témoin, 12 seeds) et son verdict calibré, puis le smoke.
   - **GAPS SCIENTIFIQUES : 6 designs écrits et RÉFUTÉS le 2026-09-06/07** (un concepteur + un
     réfutateur par gap ; aucun run engagé). Verdicts :
+    * **➡️ SUITE DIRECTE DE S6, design écrit le 2026-09-07** (`docs/superpowers/specs/2026-09-07-inworld-subject-variance-design.md`, prêt à sceller) :
+      **le verdict du marqueur varie-t-il avec le SUJET, dans le MÊME monde ?** C'est l'analogue
+      in-world exact de `k(σ)` — σ y était l'init, ici c'est l'ORIGINE du sujet. 7 sujets (champion
+      HoF, soupe fraîche, champion bruité ×2, réflexe câblé, lecteur câblé) dans le régime GRAVÉ de
+      S2-002/003, instrument et plancher inchangés. **Les DEUX issues informent** : verdicts
+      DIFFÉRENTS → S6 se transporte et « le monde n'exige pas X » se relit « CE sujet a un repli »
+      (bandeau sur tout record concluant sur LE MONDE depuis un sujet unique) ; verdicts IDENTIQUES →
+      S6 est borné au jouet et les records tiennent, renforcés. Apport annexe : ce serait le premier
+      **contrôle positif in-world** d'un marqueur de demande hors du gabarit S2-009 — ce qui manquait
+      à WARM-002 et à S2-006. Coût ~15-25 min sous bail, smoke 1 sujet obligatoire avant engagement.
     * ✅ **S6 — RUN FAIT ET GRAVÉ le 2026-09-07 ([[EDR-S6-FALLBACK-RATE]])** : k(σ) = **0 / 6 / 8 / 8**
       sur 12 seeds. Dans la cellule où le CORPS SUFFIT, l'ablation mord sur 8 seeds dès que l'init n'est
       plus nulle — le NEUTRE de S2-004/005/007/008 était celui de σ=0 SEULEMENT. Gate pré-enregistré
