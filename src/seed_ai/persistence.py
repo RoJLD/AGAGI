@@ -125,18 +125,38 @@ def save_to_hall_of_fame(agent, score=None) -> Optional[str]:
     return state_path
 
 def load_hall_of_fame() -> Tuple[int, list]:
-    """Charge HoF. Returns (version, entries)."""
-    if os.path.exists(HALL_OF_FAME_PATH):
-        try:
-            with open(HALL_OF_FAME_PATH, "rb") as f:
-                loaded = pickle.load(f)
-                if isinstance(loaded, dict) and 'version' in loaded:
-                    return loaded['version'], loaded.get('entries', [])
-                elif isinstance(loaded, list):
-                    return 1, loaded
-        except:
-            pass
-    return 1, []
+    """Charge HoF. Returns (version, entries).
+
+    ⚠️ CORRIGE le 2026-09-08. L'implementation precedente avalait TOUTE exception (`except: pass`) et
+    rendait `(1, [])` : un fichier ABSENT (cas legitime, pas encore d'evolution), un fichier
+    CORROMPU, et un HoF reellement VIDE devenaient INDISCERNABLES. Consequence mesuree le jour meme :
+    `HOF_PATH` etant repointe vers un chemin inexistant par un import (cf. `tools/evo_memory_inworld`),
+    `load_champion_genome` annoncait « HoF vide : evoluer d'abord » -- un diagnostic FAUX, qui envoie
+    chercher le probleme a l'oppose de sa cause. Et `tools/arm_nas` en tirait la MESURE `(0, 0)`.
+
+    Contrat desormais : fichier absent -> `(1, [])`, silencieusement, c'est le cas nominal du depot
+    neuf. Fichier PRESENT mais illisible -> l'exception REMONTE, avec le chemin. On ne fabrique pas
+    un « vide » depuis une panne."""
+    # (Le format pickle est PRE-EXISTANT et l'artefact est un fichier LOCAL du depot, produit par
+    # `save_hall_of_fame` ; ce correctif ne change que la gestion d'exception, pas la
+    # deserialisation. Migrer le format serait une autre tache, a inscrire au backlog.)
+    if not os.path.exists(HALL_OF_FAME_PATH):
+        return 1, []
+    try:
+        with open(HALL_OF_FAME_PATH, "rb") as f:
+            loaded = pickle.load(f)
+    except Exception as e:
+        raise RuntimeError(
+            "Hall of Fame ILLISIBLE : %s (%s: %s). Ce n'est PAS un HoF vide -- ne pas le lire comme "
+            "tel. Verifier HOF_PATH (une variable d'environnement, que certains modules posent A "
+            "L'IMPORT) et l'integrite du fichier." % (HALL_OF_FAME_PATH, type(e).__name__, e)) from e
+    if isinstance(loaded, dict) and 'version' in loaded:
+        return loaded['version'], loaded.get('entries', [])
+    if isinstance(loaded, list):
+        return 1, loaded
+    raise RuntimeError(
+        "Hall of Fame de forme INATTENDUE (%s) dans %s : ni dict versionne, ni liste. Rendre « vide » "
+        "ici masquerait une corruption silencieuse." % (type(loaded).__name__, HALL_OF_FAME_PATH))
 
 def save_epoch_state(agents: list, epoch: int, save_dir: str = "data/epoch_states/") -> dict:
     """Sauvegarde état de tous les agents à la fin d'une ère."""

@@ -47,8 +47,29 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
-# HoF vide AVANT tout import de persistence -> init_primordial_soup rend une soupe FRAÎCHE (tabula rasa).
-os.environ.setdefault("HOF_PATH", os.path.join(os.environ.get("TMPDIR", "/tmp"), "evo003_empty_hof.pkl"))
+# HoF vide AVANT tout import de persistence -> init_primordial_soup rend une soupe FRAÎCHE
+# (tabula rasa). C'est le DESIGN d'EVO-003 : le bras évolue depuis rien, pas depuis le champion.
+#
+# ⚠️ MAIS c'est une mutation d'état GLOBAL AU PROCESSUS, posée à l'IMPORT (classe E5). Tout script qui
+# importe ce module — même pour un helper sans rapport, comme `_cfg` ou `N_APEX` — voit ensuite
+# `load_champion_genome()` échouer sur « HoF vide », et le diagnostic envoie chercher le problème à
+# l'opposé de sa cause. Mesuré le 2026-09-08 : une sonde de saillance importait ce module en tête et
+# annonçait « HoF vide : évoluer d'abord » alors que `data/hall_of_fame.pkl` contenait ses 10 entrées.
+# On garde la redirection (c'est le design) mais elle CRIE désormais : une mesure faite sur le mauvais
+# sujet ne doit pas pouvoir passer inaperçue.
+_HOF_TABULA = os.path.join(os.environ.get("TMPDIR", "/tmp"), "evo003_empty_hof.pkl")
+if os.environ.get("HOF_PATH") is None:
+    os.environ["HOF_PATH"] = _HOF_TABULA
+    if "src.seed_ai.persistence" in sys.modules:
+        # persistence a DEJA lu HOF_PATH : la redirection n'aura AUCUN effet, et le bras croira
+        # partir de zero alors qu'il partira du champion. Silencieux = mesure fausse.
+        print("[evo_memory_inworld] ATTENTION : `src.seed_ai.persistence` est deja importe, la "
+              "redirection HOF_PATH vers un HoF VIDE est SANS EFFET -- ce processus lira le VRAI "
+              "Hall of Fame.", file=sys.stderr)
+    else:
+        print("[evo_memory_inworld] HOF_PATH redirige vers un HoF VIDE (%s) : tabula rasa pour "
+              "EVO-003. Tout appel a load_champion_genome() dans CE processus verra un HoF vide."
+              % _HOF_TABULA, file=sys.stderr)
 
 
 def _disable_kuzu():
@@ -536,10 +557,30 @@ def run_contrast(seeds, eras=15, max_ticks=120, num_agents=30, bench_ticks=150):
     # GARDE D'ARGUMENTS, EN TETE (2026-09-06). Orchestrateur : il n'entraine pas lui-meme mais
     # AGREGE en verdict -- une cohorte/liste de seeds vide produit une agregation VIDE que l'aval
     # lit comme une mesure (biais negatif systematique). Refus instantane, avant tout appel de run.
-    if not list(seeds) or int(eras) <= 0 or int(max_ticks) <= 0 or int(num_agents) <= 0:
+    # ⚠️ Corrige le 2026-09-07 : `list(seeds)` CONSOMMAIT un iterateur -- la boucle qui suit ne
+    # voyait plus rien, `rows` restait vide et l'aval lisait « n/a (n=0) ». La garde ecrite POUR
+    # empecher un negatif fabrique le fabriquait donc elle-meme. On materialise AVANT de tester.
+    seeds = list(seeds)
+    if not seeds or int(eras) <= 0 or int(max_ticks) <= 0 or int(num_agents) <= 0:
         raise ValueError(
-            f"run_contrast : argument degenere (n_seeds={len(list(seeds))} eras={eras} max_ticks={max_ticks} num_agents={num_agents}) -- aucune mesure possible ; "
+            f"run_contrast : argument degenere (n_seeds={len(seeds)} eras={eras} max_ticks={max_ticks} num_agents={num_agents}) -- aucune mesure possible ; "
             "ne pas confondre avec une mesure nulle OBSERVEE.")
+    # PSEUDO-REPLICATION (2026-09-08, defaut expose par injection). Le seed determine ENTIEREMENT
+    # le point de tirage des deux bras : `evolve_inworld` fait `np.random.seed(seed)` en tete et
+    # `benchmark_discrimination` `np.random.seed(1000 + seed)`. Deux occurrences du MEME seed sont
+    # donc le MEME point de tirage -- pas un second replicat -- et elles gonflaient le `n` que la
+    # synthese publie (unite de replication DECLAREE de ce module = le SEED, cf. docstring d'entete).
+    # On DEDUPLIQUE en le DISANT, et AVANT toute evolution : un seed duplique ne doit pas non plus
+    # couter un run. Ordre de premiere apparition preserve (reproductibilite de la trace).
+    uniques = list(dict.fromkeys(seeds))
+    n_dup = len(seeds) - len(uniques)
+    if n_dup:
+        # (message volontairement sans symbole hors-cp1252 : la console Windows par defaut ne sait
+        #  pas encoder « ⚠️ » et le print leverait UnicodeEncodeError la ou « é » passe.)
+        print(f"  ATTENTION run_contrast : {n_dup} seed(s) DUPLIQUE(S) ecarte(s) -- {len(seeds)} fournis, "
+              f"{len(uniques)} points de tirage DISTINCTS retenus {uniques} ; un seed repete est le "
+              "MEME tirage (np.random.seed), pas un replicat de plus.")
+        seeds = uniques
     rows = []
     for s in seeds:
         rON = evolve_inworld(True, s, eras, max_ticks, num_agents)
@@ -558,6 +599,30 @@ def run_contrast(seeds, eras=15, max_ticks=120, num_agents=30, bench_ticks=150):
     return rows
 
 
+def _paired_occlusion_discs(rows):
+    """APPARIEMENT PAR SEED de la discrimination sous occultation (2026-09-08, defaut expose par
+    injection). Ce module DECLARE le seed comme unite de replication et le contraste comme
+    within-subject (docstring d'entete : « Unite de replication = SEED »). La synthese filtrait
+    pourtant les `nan` BRAS PAR BRAS -- elle comparait donc des medianes calculees sur des SEEDS
+    DIFFERENTS. Cas limite qui le rend visible : seed 0 mesurable seulement en ON (0.90), seed 1
+    seulement en OFF (0.10) -> ZERO paire, et l'ancienne synthese affirmait pourtant un ecart de
+    0.80 fabrique de rien (biais negatif/positif de fond a partir d'une ABSENCE de mesure).
+
+    Renvoie {'on': [...], 'off': [...], 'seeds': [...], 'n_ecartes': int, 'seeds_ecartes': [...]}.
+    Un seed n'est retenu QUE si ses DEUX bras sont mesurables ; sinon il est ECARTE et compte.
+    Aucune valeur de remplacement n'est fabriquee : n=0 -> les deux listes sont vides, et l'aval
+    doit dire « n/a », jamais 0.00."""
+    gardes, ecartes = [], []
+    for r in rows:
+        on, off = r["on_occ"]["disc"], r["off_occ"]["disc"]
+        (ecartes if (_isnan(on) or _isnan(off)) else gardes).append(r)
+    return {"on": [r["on_occ"]["disc"] for r in gardes],
+            "off": [r["off_occ"]["disc"] for r in gardes],
+            "seeds": [r["seed"] for r in gardes],
+            "n_ecartes": len(ecartes),
+            "seeds_ecartes": [r["seed"] for r in ecartes]}
+
+
 def main():
     seeds = list(range(int(os.environ.get("EVO3_SEEDS", "3"))))
     eras = int(os.environ.get("EVO3_ERAS", "15"))
@@ -566,9 +631,11 @@ def main():
     print(f"EVO-003a (EXPLORATOIRE) : évolution in-world ON vs OFF | {len(seeds)} seeds x {eras} ères x {ticks} ticks x {agents} agents")
     print("Question : le champion évolué SOUS occultation (transient=ON) discrimine-t-il Mammouth/Leurre mieux que le champion évolué SANS ?")
     rows = run_contrast(seeds, eras, ticks, agents)
-    occ_on = [r["on_occ"]["disc"] for r in rows if not _isnan(r["on_occ"]["disc"])]
-    occ_off = [r["off_occ"]["disc"] for r in rows if not _isnan(r["off_occ"]["disc"])]
+    app = _paired_occlusion_discs(rows)           # APPARIEMENT PAR SEED (within-subject déclaré)
+    occ_on, occ_off = app["on"], app["off"]
     print("\n=== SYNTHÈSE EXPLORATOIRE (discrimination sous occultation, mémoire requise) ===")
+    print(f"  appariement PAR SEED : {len(occ_on)} seed(s) apparié(s) {app['seeds']} | "
+          f"{app['n_ecartes']} écarté(s) {app['seeds_ecartes']} (un bras au moins non mesurable)")
     print(f"  champion ÉVOLUÉ-ON  : disc méd={_med(occ_on)} (n={len(occ_on)})")
     print(f"  champion ÉVOLUÉ-OFF : disc méd={_med(occ_off)} (n={len(occ_off)})")
     print("  (si ON > OFF nettement -> l'évolution sous demande a bâti de la mémoire in-world -> formaliser verdict+calibration.)")

@@ -58,7 +58,14 @@ def evolve(config, db, add_node_rate, eras, num_agents=30, max_ticks=200):
 def hof_stats():
     _, hof = load_hall_of_fame()
     sizes = [(e.genome if hasattr(e, "genome") else e[1]).num_nodes for e in hof]
-    return (float(np.mean(sizes)), int(max(sizes))) if sizes else (0, 0)
+    # ⚠️ CORRIGE le 2026-09-08 : `else (0, 0)` rendait une taille de genome moyenne MESUREE a ZERO
+    # depuis un HoF vide -- forme (a) du biais systematique du depot (donnee absente -> affirmation
+    # chiffree). Un HoF vide n'est pas une population de taille nulle : c'est une absence de mesure.
+    if not sizes:
+        raise RuntimeError(
+            "Hall of Fame VIDE : aucune taille de genome a mesurer. Ce n'est pas « taille moyenne = 0 » "
+            "-- verifier HOF_PATH (certains modules le repointent A L'IMPORT) avant de conclure.")
+    return (float(np.mean(sizes)), int(max(sizes)))
 
 
 def main(eras=18):
