@@ -1,0 +1,35 @@
+{
+  "name": "evolve_ceiling_probe",
+  "seed": 0,
+  "commit": "61c6109",
+  "git_dirty": true,
+  "data": {
+    "target": "stoneage",
+    "preserve_dims": true,
+    "k_eras": 1,
+    "node_cap": 512,
+    "select": "elitist",
+    "n_carry": 12,
+    "pop_cap": 40,
+    "per_era": [
+      {
+        "era": 0,
+        "frac_apex": 0.4054,
+        "frac_tool": 0.0,
+        "median_competence": 0.4527,
+        "mean_nodes": 172.32,
+        "max_nodes": 174,
+        "n": 37,
+        "ticks": 40,
+        "cap_hits": 0,
+        "genome_diversity": 0.0005,
+        "behavioral_diversity": 0.2651,
+        "bdiv_preys": 0.2809,
+        "bdiv_mammoth": 0.491,
+        "bdiv_spears": 0.0,
+        "bdiv_age": 0.2885
+      }
+    ]
+  },
+  "config_hash": "fa6f6ff765fb"
+}

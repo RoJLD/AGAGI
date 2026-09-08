@@ -1,0 +1,35 @@
+{
+  "ladder": [
+    "stoneage",
+    "agricultural"
+  ],
+  "champions": [
+    "58ff197f",
+    "256413b9"
+  ],
+  "matrix": [
+    [
+      0.0,
+      0.08000000000000002
+    ],
+    [
+      null,
+      0.0075
+    ]
+  ],
+  "forgetting": {
+    "stoneage": {
+      "mastery": 0.0,
+      "final": 0.08000000000000002,
+      "forgetting": -0.08000000000000002,
+      "retention_ratio": NaN
+    },
+    "agricultural": {
+      "mastery": 0.0075,
+      "final": 0.0075,
+      "forgetting": 0.0,
+      "retention_ratio": 1.0
+    }
+  },
+  "mean_forgetting": -0.04000000000000001
+}

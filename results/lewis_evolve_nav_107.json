@@ -1,0 +1,32 @@
+{
+  "name": "lewis_evolve_nav",
+  "seed": 107,
+  "commit": "a1a3dd2",
+  "git_dirty": true,
+  "data": {
+    "knob": "generation",
+    "generations": 2,
+    "num_agents": 6,
+    "max_ticks": 12,
+    "traj": [
+      0.5,
+      0.36363636363636365
+    ],
+    "first_median": 0.5,
+    "last_median": 0.36363636363636365,
+    "slope": -0.1363636363636362,
+    "verdict": "SUBSTRAT BLOQUE",
+    "stats": [
+      {
+        "ticks": 12,
+        "eaten": 8,
+        "p_reach": 0.5
+      },
+      {
+        "ticks": 12,
+        "eaten": 6,
+        "p_reach": 0.36363636363636365
+      }
+    ]
+  }
+}

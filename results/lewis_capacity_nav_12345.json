@@ -1,0 +1,67 @@
+{
+  "name": "lewis_capacity_nav",
+  "seed": 12345,
+  "commit": "a1a3dd2",
+  "git_dirty": true,
+  "data": {
+    "knob": "n_hidden",
+    "hidden_levels": [
+      5,
+      20
+    ],
+    "generations": 2,
+    "num_agents": 6,
+    "max_ticks": 40,
+    "slope_vs_log2N": 0.0023923444976076064,
+    "delta": 0.0047846889952152805,
+    "verdict": "CAPACITE INERTE",
+    "arms": [
+      {
+        "n_hidden": 5,
+        "num_nodes": 172,
+        "traj": [
+          0.35714285714285715,
+          0.36363636363636365
+        ],
+        "gen0": 0.35714285714285715,
+        "first": 0.35714285714285715,
+        "plateau": 0.36363636363636365,
+        "stats": [
+          {
+            "ticks": 40,
+            "eaten": 17,
+            "p_reach": 0.35714285714285715
+          },
+          {
+            "ticks": 40,
+            "eaten": 12,
+            "p_reach": 0.36363636363636365
+          }
+        ]
+      },
+      {
+        "n_hidden": 20,
+        "num_nodes": 187,
+        "traj": [
+          0.36363636363636365,
+          0.3684210526315789
+        ],
+        "gen0": 0.36363636363636365,
+        "first": 0.36363636363636365,
+        "plateau": 0.3684210526315789,
+        "stats": [
+          {
+            "ticks": 40,
+            "eaten": 8,
+            "p_reach": 0.36363636363636365
+          },
+          {
+            "ticks": 40,
+            "eaten": 14,
+            "p_reach": 0.3684210526315789
+          }
+        ]
+      }
+    ]
+  }
+}

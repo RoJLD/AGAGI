@@ -1,0 +1,57 @@
+{
+  "name": "s2_demand",
+  "seed": 2026,
+  "commit": "a1a3dd2",
+  "git_dirty": true,
+  "data": {
+    "seed": 2026,
+    "commit": "a1a3dd2",
+    "K": {
+      "stoneage": 2
+    },
+    "worlds": {
+      "stoneage": {
+        "verdict": "VOID",
+        "coherence_basis": "survival",
+        "p_monde": 1.0,
+        "strongest_baseline": "random_action",
+        "cliff": -0.4444444444444444,
+        "ratio_lo": 0.8333333333333334,
+        "ratio_hi": 0.8333333333333334,
+        "survival": {
+          "random_action": {
+            "p": 0.3710933695226979,
+            "cliff": -0.4444444444444444,
+            "cliff_lo": -0.9166666666666666,
+            "cliff_hi": 0.1111111111111111,
+            "ratio": 0.8333333333333334,
+            "ratio_lo": 0.8333333333333334,
+            "ratio_hi": 0.8333333333333334
+          },
+          "random_genome": {
+            "p": 1.0,
+            "cliff": -0.2222222222222222,
+            "cliff_lo": -0.7777777777777778,
+            "cliff_hi": 0.3611111111111111,
+            "ratio": 1.0,
+            "ratio_lo": 1.0,
+            "ratio_hi": 1.0
+          },
+          "reflex": {
+            "p": 1.0,
+            "cliff": -0.4444444444444444,
+            "cliff_lo": -0.9166666666666666,
+            "cliff_hi": 0.1111111111111111,
+            "ratio": 0.8333333333333334,
+            "ratio_lo": 0.8333333333333334,
+            "ratio_hi": 1.0
+          }
+        },
+        "life_p": 1.0,
+        "coherence_ok_lifescore": false,
+        "censored_frac_champion": 0.16666666666666666,
+        "p_monde_holm": 1.0
+      }
+    }
+  }
+}

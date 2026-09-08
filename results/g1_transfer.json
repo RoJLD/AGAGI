@@ -1,0 +1,86 @@
+{
+  "n": 8,
+  "median_ratio": 1.0259615384615386,
+  "n_favorable": 4,
+  "sign_p": 1.0,
+  "verdict": "NEUTRE",
+  "per_seed": [
+    {
+      "seed": 0,
+      "C_curr": 0.18,
+      "C_tabula": 0.12,
+      "total_eras": 16,
+      "ratio": 1.5
+    },
+    {
+      "seed": 1,
+      "C_curr": 0.1325,
+      "C_tabula": 0.105,
+      "total_eras": 16,
+      "ratio": 1.261904761904762
+    },
+    {
+      "seed": 2,
+      "C_curr": 0.1075,
+      "C_tabula": 0.195,
+      "total_eras": 16,
+      "ratio": 0.5512820512820512
+    },
+    {
+      "seed": 3,
+      "C_curr": 0.14,
+      "C_tabula": 0.13,
+      "total_eras": 16,
+      "ratio": 1.076923076923077
+    },
+    {
+      "seed": 4,
+      "C_curr": 0.21,
+      "C_tabula": 0.17,
+      "total_eras": 16,
+      "ratio": 1.2352941176470587
+    },
+    {
+      "seed": 5,
+      "C_curr": 0.13,
+      "C_tabula": 0.14,
+      "total_eras": 16,
+      "ratio": 0.9285714285714285
+    },
+    {
+      "seed": 6,
+      "C_curr": 0.105,
+      "C_tabula": 0.16,
+      "total_eras": 16,
+      "ratio": 0.65625
+    },
+    {
+      "seed": 7,
+      "C_curr": 0.0975,
+      "C_tabula": 0.1,
+      "total_eras": 16,
+      "ratio": 0.975
+    }
+  ],
+  "config": {
+    "ladder": [
+      "soup",
+      "stoneage"
+    ],
+    "target": "stoneage",
+    "metric": "survival",
+    "num_agents": 20,
+    "max_ticks": 150,
+    "max_eras": 8,
+    "seeds_done": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ]
+  }
+}

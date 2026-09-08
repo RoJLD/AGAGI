@@ -1,0 +1,65 @@
+{
+  "name": "lewis_landing_nav",
+  "seed": 88113,
+  "commit": "a1a3dd2",
+  "git_dirty": true,
+  "data": {
+    "knob": "scaffold_land",
+    "land_levels": [
+      0.0,
+      5.0
+    ],
+    "generations": 2,
+    "num_agents": 6,
+    "max_ticks": 40,
+    "slope": 0.01714285714285712,
+    "delta": 0.08571428571428574,
+    "verdict": "AFFORDANCE AMBIGUE",
+    "arms": [
+      {
+        "scaffold_land": 0.0,
+        "traj": [
+          0.4166666666666667,
+          0.7
+        ],
+        "gen0": 0.4166666666666667,
+        "first": 0.4166666666666667,
+        "plateau": 0.7,
+        "stats": [
+          {
+            "ticks": 40,
+            "eaten": 16,
+            "p_reach": 0.4166666666666667
+          },
+          {
+            "ticks": 40,
+            "eaten": 10,
+            "p_reach": 0.7
+          }
+        ]
+      },
+      {
+        "scaffold_land": 5.0,
+        "traj": [
+          0.6428571428571429,
+          0.7857142857142857
+        ],
+        "gen0": 0.6428571428571429,
+        "first": 0.6428571428571429,
+        "plateau": 0.7857142857142857,
+        "stats": [
+          {
+            "ticks": 40,
+            "eaten": 15,
+            "p_reach": 0.6428571428571429
+          },
+          {
+            "ticks": 40,
+            "eaten": 26,
+            "p_reach": 0.7857142857142857
+          }
+        ]
+      }
+    ]
+  }
+}

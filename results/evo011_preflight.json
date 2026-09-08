@@ -1,0 +1,6030 @@
+{
+ "preregistration": "EVO-011-PREVOL",
+ "rule_hash": null,
+ "design": {
+  "question": "PRE-VOL DECISIF d'EVO-011 : un LECTEUR CABLE A LA MAIN du canal de type obs[4] survit-il MIEUX in-world qu'un TEMOIN identique sans l'arete ? Si le lecteur ne paie pas, la question \u00ab la survie seule garde-t-elle une cognition ATTEIGNABLE sur ce canal ? \u00bb tombe SANS run evolutif.",
+  "replication_unit": "seed (les 24 agents d'un bras-seed sont des CLONES partageant le monde)",
+  "n_independent": 12,
+  "links": {
+   "obs[4] -> logits[8]": "measured",
+   "logits[8] -> lancer execute": "measured",
+   "lancer -> proie stunned": "measured",
+   "stun -> proie immobilisee": "measured",
+   "stun -> melee sans riposte": "measured",
+   "melee -> survie": "measured"
+  },
+  "inferred_links": [],
+  "cost_estimate": "<= 4800 agent-ticks par bras-seed, plafond 150 s/seed",
+  "inferred_reason": null,
+  "warning": null
+ },
+ "regime": {
+  "seeds": 12,
+  "n_agents": 24,
+  "ticks": 200,
+  "energy0": 80.0,
+  "ballast": true,
+  "freeze": true,
+  "insitu_h0": false,
+  "smoke": false
+ },
+ "elapsed_s": 32.218135356903076,
+ "verdict": {
+  "verdict": "INDETERMINE-HARNAIS",
+  "r": NaN,
+  "sign_p": NaN,
+  "n_seeds": 12,
+  "ratios": null,
+  "discrimination": null,
+  "r_disc": NaN,
+  "sign_p_disc": NaN,
+  "raisons": [
+   "seed 9: (i) in situ BROUILLE P(throw|-1)=0.800 hors (0.25, 0.75)"
+  ]
+ },
+ "rows": [
+  {
+   "seed": 0,
+   "control_failures": [],
+   "detail": {
+    "sal": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 1.0,
+     "BROUILLE": 1.0
+    },
+    "decision_mismatch": {
+     "TEMOIN": [],
+     "LECTEUR": [],
+     "BROUILLE": []
+    },
+    "e6": {
+     "TEMOIN": {
+      "gap": 0.0,
+      "n": 240,
+      "sign_agree": 1.0
+     },
+     "LECTEUR": {
+      "gap": 6.996999621391296,
+      "n": 240,
+      "sign_agree": 1.0
+     },
+     "BROUILLE": {
+      "gap": 6.996999621391296,
+      "n": 219,
+      "sign_agree": 1.0
+     }
+    },
+    "profile_seen": {
+     "TEMOIN": {
+      "+1": 0.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.0
+     },
+     "LECTEUR": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.03854389721627409
+     },
+     "BROUILLE": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": NaN
+     }
+    },
+    "edges": {
+     "TEMOIN": [
+      0.0
+     ],
+     "LECTEUR": [
+      8.0
+     ],
+     "BROUILLE": [
+      8.0
+     ]
+    },
+    "w_drift": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 0.0,
+     "BROUILLE": 0.0
+    },
+    "phenotype_insitu": {
+     "TEMOIN": [
+      [
+       1220.0,
+       50,
+       18.2
+      ]
+     ],
+     "LECTEUR": [
+      [
+       1220.0,
+       50,
+       18.2
+      ]
+     ],
+     "BROUILLE": [
+      [
+       1220.0,
+       50,
+       18.2
+      ]
+     ]
+    },
+    "throw_prey_hits": {
+     "TEMOIN": 0,
+     "LECTEUR": 19,
+     "BROUILLE": 34
+    },
+    "censure": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 0.0,
+     "BROUILLE": 0.0
+    },
+    "age_at_cap": {
+     "TEMOIN": 0,
+     "LECTEUR": 0,
+     "BROUILLE": 0
+    },
+    "life_score_max_dev": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 0.0,
+     "BROUILLE": 0.0
+    },
+    "carry_lifetime": {
+     "TEMOIN": 0.8317,
+     "LECTEUR": 0.8458,
+     "BROUILLE": 0.6612
+    },
+    "carry_matched": {
+     "TEMOIN": [
+      0.5832375024772839,
+      120
+     ],
+     "LECTEUR": [
+      0.5416666666666666,
+      120
+     ],
+     "BROUILLE": [
+      0.5333333333333333,
+      120
+     ]
+    },
+    "carry_gap_energy_frac": 0.00137,
+    "fingerprint": {
+     "TEMOIN": "a32ac313e51ad929",
+     "LECTEUR": "a32ac313e51ad929",
+     "BROUILLE": "a32ac313e51ad929"
+    }
+   },
+   "res": {
+    "TEMOIN": {
+     "arm": "TEMOIN",
+     "seed": 0,
+     "n": 24,
+     "ticks_run": 43,
+     "agent_ticks": 494,
+     "med_age": 16.5,
+     "ages": [
+      11.0,
+      11.0,
+      12.0,
+      12.0,
+      13.0,
+      14.0,
+      14.0,
+      14.0,
+      15.0,
+      15.0,
+      15.0,
+      15.0,
+      18.0,
+      19.0,
+      19.0,
+      19.0,
+      19.0,
+      21.0,
+      28.0,
+      35.0,
+      36.0,
+      36.0,
+      40.0,
+      43.0
+     ],
+     "alive_end": 0,
+     "censure": 0.0,
+     "age_at_cap": 0,
+     "throw_decided": 0,
+     "throws": 0,
+     "throw_hits": 0,
+     "throw_prey_hits": 0,
+     "throw_agent_hits": 0,
+     "preys_eaten": 24,
+     "mammoth_kills": 9,
+     "big_kills": 6,
+     "leurre_hits": 5,
+     "apex0": 11,
+     "apex_end": 1,
+     "kills_by_type": {
+      "Lapin": 6,
+      "Mammouth": 6,
+      "Sanglier": 4,
+      "Cerf": 5,
+      "Leurre": 5
+     },
+     "stunned_by_type": {},
+     "riposte_hp": 980.0,
+     "hp_start": 1320.0,
+     "died_energy": 24,
+     "died_hp": 0,
+     "equips": 24,
+     "n_scrambled": 0,
+     "carry_mean": 0.8316514145400711,
+     "carry_matched": [
+      0.5832375024772839,
+      120
+     ],
+     "energy_phases": {
+      "brain": 8.7,
+      "action": 4.3,
+      "biologie": 1626.7,
+      "mouvement": 460.0
+     },
+     "energy_action_per_throw": NaN,
+     "drain": 18.2,
+     "decision_mismatch": [],
+     "e6_gap": 0.0,
+     "e6_n": 240,
+     "e6_sign_agree": 1.0,
+     "profile": {
+      "+1": 0.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.0
+     },
+     "n_by_type": {
+      "0": 442,
+      "-1": 29,
+      "+1": 23
+     },
+     "profile_seen": {
+      "+1": 0.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.0
+     },
+     "n_by_type_seen": {
+      "0": 442,
+      "-1": 29,
+      "+1": 23
+     },
+     "edges": "{0.0}",
+     "w_intact": true,
+     "w_drift": 0.0,
+     "life_score_max_dev": 0.0,
+     "phenotype": {
+      "hp_bonus": 1220.0,
+      "inv_capacity": 50,
+      "energy_drain": 18.2
+     },
+     "phenotype_insitu": "{(1220.0, 50, 18.2)}",
+     "fingerprint": "a32ac313e51ad929"
+    },
+    "LECTEUR": {
+     "arm": "LECTEUR",
+     "seed": 0,
+     "n": 24,
+     "ticks_run": 49,
+     "agent_ticks": 516,
+     "med_age": 19.0,
+     "ages": [
+      10.0,
+      10.0,
+      11.0,
+      11.0,
+      12.0,
+      12.0,
+      13.0,
+      13.0,
+      14.0,
+      14.0,
+      15.0,
+      19.0,
+      19.0,
+      20.0,
+      20.0,
+      23.0,
+      27.0,
+      28.0,
+      28.0,
+      29.0,
+      31.0,
+      43.0,
+      45.0,
+      49.0
+     ],
+     "alive_end": 0,
+     "censure": 0.0,
+     "age_at_cap": 0,
+     "throw_decided": 39,
+     "throws": 39,
+     "throw_hits": 27,
+     "throw_prey_hits": 19,
+     "throw_agent_hits": 8,
+     "preys_eaten": 33,
+     "mammoth_kills": 8,
+     "big_kills": 6,
+     "leurre_hits": 5,
+     "apex0": 11,
+     "apex_end": 1,
+     "kills_by_type": {
+      "Lapin": 10,
+      "Mammouth": 6,
+      "Sanglier": 8,
+      "Leurre": 5,
+      "Cerf": 7
+     },
+     "stunned_by_type": {
+      "Mammouth": 5,
+      "Leurre": 2,
+      "Sanglier": 1,
+      "Lapin": 1
+     },
+     "riposte_hp": 550.0,
+     "hp_start": 1320.0,
+     "died_energy": 24,
+     "died_hp": 0,
+     "equips": 70,
+     "n_scrambled": 0,
+     "carry_mean": 0.845753143307147,
+     "carry_matched": [
+      0.5416666666666666,
+      120
+     ],
+     "energy_phases": {
+      "brain": 9.2,
+      "action": 409.0,
+      "biologie": 1176.7,
+      "mouvement": 482.0
+     },
+     "energy_action_per_throw": 10.487054557807074,
+     "drain": 18.2,
+     "decision_mismatch": [],
+     "e6_gap": 6.996999621391296,
+     "e6_n": 240,
+     "e6_sign_agree": 1.0,
+     "profile": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.03854389721627409
+     },
+     "n_by_type": {
+      "0": 467,
+      "+1": 21,
+      "-1": 28
+     },
+     "profile_seen": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.03854389721627409
+     },
+     "n_by_type_seen": {
+      "0": 467,
+      "+1": 21,
+      "-1": 28
+     },
+     "edges": "{8.0}",
+     "w_intact": true,
+     "w_drift": 0.0,
+     "life_score_max_dev": 0.0,
+     "phenotype": {
+      "hp_bonus": 1220.0,
+      "inv_capacity": 50,
+      "energy_drain": 18.2
+     },
+     "phenotype_insitu": "{(1220.0, 50, 18.2)}",
+     "fingerprint": "a32ac313e51ad929"
+    },
+    "BROUILLE": {
+     "arm": "BROUILLE",
+     "seed": 0,
+     "n": 24,
+     "ticks_run": 27,
+     "agent_ticks": 281,
+     "med_age": 10.0,
+     "ages": [
+      7.0,
+      7.0,
+      7.0,
+      8.0,
+      8.0,
+      8.0,
+      8.0,
+      9.0,
+      9.0,
+      9.0,
+      9.0,
+      10.0,
+      10.0,
+      11.0,
+      11.0,
+      11.0,
+      12.0,
+      13.0,
+      15.0,
+      16.0,
+      17.0,
+      19.0,
+      20.0,
+      27.0
+     ],
+     "alive_end": 0,
+     "censure": 0.0,
+     "age_at_cap": 0,
+     "throw_decided": 148,
+     "throws": 148,
+     "throw_hits": 87,
+     "throw_prey_hits": 34,
+     "throw_agent_hits": 53,
+     "preys_eaten": 18,
+     "mammoth_kills": 8,
+     "big_kills": 6,
+     "leurre_hits": 5,
+     "apex0": 11,
+     "apex_end": 1,
+     "kills_by_type": {
+      "Lapin": 3,
+      "Cerf": 5,
+      "Mammouth": 6,
+      "Sanglier": 2,
+      "Leurre": 5
+     },
+     "stunned_by_type": {
+      "Lapin": 5,
+      "Cerf": 6,
+      "Sanglier": 2,
+      "Mammouth": 2,
+      "Leurre": 7
+     },
+     "riposte_hp": 450.0,
+     "hp_start": 1320.0,
+     "died_energy": 24,
+     "died_hp": 0,
+     "equips": 162,
+     "n_scrambled": 281,
+     "carry_mean": 0.661188197687629,
+     "carry_matched": [
+      0.5333333333333333,
+      120
+     ],
+     "energy_phases": {
+      "brain": 4.5,
+      "action": 1260.1,
+      "biologie": 552.8,
+      "mouvement": 210.0
+     },
+     "energy_action_per_throw": 8.514302903077741,
+     "drain": 18.2,
+     "decision_mismatch": [],
+     "e6_gap": 6.996999621391296,
+     "e6_n": 219,
+     "e6_sign_agree": 1.0,
+     "profile": {
+      "+1": 0.5,
+      "+0.5": NaN,
+      "-1": 0.5384615384615384,
+      "0": 0.5281385281385281
+     },
+     "n_by_type": {
+      "0": 231,
+      "-1": 26,
+      "+1": 24
+     },
+     "profile_seen": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": NaN
+     },
+     "n_by_type_seen": {
+      "+1": 148,
+      "-1": 133
+     },
+     "edges": "{8.0}",
+     "w_intact": true,
+     "w_drift": 0.0,
+     "life_score_max_dev": 0.0,
+     "phenotype": {
+      "hp_bonus": 1220.0,
+      "inv_capacity": 50,
+      "energy_drain": 18.2
+     },
+     "phenotype_insitu": "{(1220.0, 50, 18.2)}",
+     "fingerprint": "a32ac313e51ad929"
+    }
+   },
+   "sal": {
+    "TEMOIN": 0.0,
+    "LECTEUR": 1.0,
+    "BROUILLE": 1.0
+   },
+   "saturation": [
+    "PLAFOND : la population d'apex est EPUISEE dans les TROIS bras (11 -> [1, 1, 1]) -> `big_kills` et `leurre_hits` sont SATURES ; leur egalite entre bras ([6, 6, 6] / [5, 5, 5]) n'est PAS une absence d'effet, c'est un epuisement de la ressource. Ces DV secondaires ne discriminent RIEN dans ce regime : ne pas les lire comme un nul.",
+    "MAILLON FAIBLE : riposte encaissee = 41 hp/agent au pire des bras, pour hp de depart 1320 (3.1%) -> le maillon scelle \u00ab melee SANS riposte \u00bb ne peut pas porter l'effet ; morts par energie/hp = [(24, 0), (24, 0), (24, 0)]."
+   ],
+   "elapsed_s": 2.3964059352874756,
+   "age_TEMOIN": 16.5,
+   "age_LECTEUR": 19.0,
+   "age_BROUILLE": 10.0
+  },
+  {
+   "seed": 1,
+   "control_failures": [],
+   "detail": {
+    "sal": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 1.0,
+     "BROUILLE": 1.0
+    },
+    "decision_mismatch": {
+     "TEMOIN": [],
+     "LECTEUR": [],
+     "BROUILLE": []
+    },
+    "e6": {
+     "TEMOIN": {
+      "gap": 0.0,
+      "n": 240,
+      "sign_agree": 1.0
+     },
+     "LECTEUR": {
+      "gap": 6.996999621391296,
+      "n": 239,
+      "sign_agree": 1.0
+     },
+     "BROUILLE": {
+      "gap": 6.996999621391296,
+      "n": 224,
+      "sign_agree": 1.0
+     }
+    },
+    "profile_seen": {
+     "TEMOIN": {
+      "+1": 0.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.0
+     },
+     "LECTEUR": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.1134020618556701
+     },
+     "BROUILLE": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": NaN
+     }
+    },
+    "edges": {
+     "TEMOIN": [
+      0.0
+     ],
+     "LECTEUR": [
+      8.0
+     ],
+     "BROUILLE": [
+      8.0
+     ]
+    },
+    "w_drift": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 0.0,
+     "BROUILLE": 0.0
+    },
+    "phenotype_insitu": {
+     "TEMOIN": [
+      [
+       1220.0,
+       50,
+       18.2
+      ]
+     ],
+     "LECTEUR": [
+      [
+       1220.0,
+       50,
+       18.2
+      ]
+     ],
+     "BROUILLE": [
+      [
+       1220.0,
+       50,
+       18.2
+      ]
+     ]
+    },
+    "throw_prey_hits": {
+     "TEMOIN": 0,
+     "LECTEUR": 19,
+     "BROUILLE": 38
+    },
+    "censure": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 0.0,
+     "BROUILLE": 0.0
+    },
+    "age_at_cap": {
+     "TEMOIN": 0,
+     "LECTEUR": 0,
+     "BROUILLE": 0
+    },
+    "life_score_max_dev": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 0.0,
+     "BROUILLE": 0.0
+    },
+    "carry_lifetime": {
+     "TEMOIN": 1.5394,
+     "LECTEUR": 1.6515,
+     "BROUILLE": 1.0438
+    },
+    "carry_matched": {
+     "TEMOIN": [
+      0.5,
+      120
+     ],
+     "LECTEUR": [
+      0.818984788098511,
+      120
+     ],
+     "BROUILLE": [
+      0.5375,
+      120
+     ]
+    },
+    "carry_gap_energy_frac": 0.00876,
+    "fingerprint": {
+     "TEMOIN": "b0f3c25372e75455",
+     "LECTEUR": "b0f3c25372e75455",
+     "BROUILLE": "b0f3c25372e75455"
+    }
+   },
+   "res": {
+    "TEMOIN": {
+     "arm": "TEMOIN",
+     "seed": 1,
+     "n": 24,
+     "ticks_run": 75,
+     "agent_ticks": 562,
+     "med_age": 20.5,
+     "ages": [
+      11.0,
+      12.0,
+      14.0,
+      14.0,
+      15.0,
+      15.0,
+      15.0,
+      16.0,
+      16.0,
+      16.0,
+      17.0,
+      20.0,
+      21.0,
+      21.0,
+      22.0,
+      22.0,
+      23.0,
+      27.0,
+      27.0,
+      28.0,
+      32.0,
+      34.0,
+      49.0,
+      75.0
+     ],
+     "alive_end": 0,
+     "censure": 0.0,
+     "age_at_cap": 0,
+     "throw_decided": 0,
+     "throws": 0,
+     "throw_hits": 0,
+     "throw_prey_hits": 0,
+     "throw_agent_hits": 0,
+     "preys_eaten": 39,
+     "mammoth_kills": 12,
+     "big_kills": 8,
+     "leurre_hits": 5,
+     "apex0": 11,
+     "apex_end": 0,
+     "kills_by_type": {
+      "Lapin": 10,
+      "Leurre": 5,
+      "Mammouth": 8,
+      "Sanglier": 10,
+      "Cerf": 7
+     },
+     "stunned_by_type": {},
+     "riposte_hp": 1380.0,
+     "hp_start": 1320.0,
+     "died_energy": 24,
+     "died_hp": 0,
+     "equips": 24,
+     "n_scrambled": 0,
+     "carry_mean": 1.5394447477329067,
+     "carry_matched": [
+      0.5,
+      120
+     ],
+     "energy_phases": {
+      "brain": 10.0,
+      "action": -16.3,
+      "biologie": 1793.2,
+      "mouvement": 306.0
+     },
+     "energy_action_per_throw": NaN,
+     "drain": 18.2,
+     "decision_mismatch": [],
+     "e6_gap": 0.0,
+     "e6_n": 240,
+     "e6_sign_agree": 1.0,
+     "profile": {
+      "+1": 0.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.0
+     },
+     "n_by_type": {
+      "0": 510,
+      "-1": 24,
+      "+1": 28
+     },
+     "profile_seen": {
+      "+1": 0.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.0
+     },
+     "n_by_type_seen": {
+      "0": 510,
+      "-1": 24,
+      "+1": 28
+     },
+     "edges": "{0.0}",
+     "w_intact": true,
+     "w_drift": 0.0,
+     "life_score_max_dev": 0.0,
+     "phenotype": {
+      "hp_bonus": 1220.0,
+      "inv_capacity": 50,
+      "energy_drain": 18.2
+     },
+     "phenotype_insitu": "{(1220.0, 50, 18.2)}",
+     "fingerprint": "b0f3c25372e75455"
+    },
+    "LECTEUR": {
+     "arm": "LECTEUR",
+     "seed": 1,
+     "n": 24,
+     "ticks_run": 36,
+     "agent_ticks": 427,
+     "med_age": 16.5,
+     "ages": [
+      9.0,
+      11.0,
+      11.0,
+      11.0,
+      11.0,
+      12.0,
+      12.0,
+      13.0,
+      14.0,
+      14.0,
+      14.0,
+      16.0,
+      17.0,
+      18.0,
+      19.0,
+      20.0,
+      20.0,
+      21.0,
+      21.0,
+      21.0,
+      22.0,
+      28.0,
+      36.0,
+      36.0
+     ],
+     "alive_end": 0,
+     "censure": 0.0,
+     "age_at_cap": 0,
+     "throw_decided": 64,
+     "throws": 64,
+     "throw_hits": 57,
+     "throw_prey_hits": 19,
+     "throw_agent_hits": 38,
+     "preys_eaten": 30,
+     "mammoth_kills": 10,
+     "big_kills": 6,
+     "leurre_hits": 5,
+     "apex0": 11,
+     "apex_end": 1,
+     "kills_by_type": {
+      "Lapin": 10,
+      "Leurre": 5,
+      "Mammouth": 6,
+      "Sanglier": 6,
+      "Cerf": 4
+     },
+     "stunned_by_type": {
+      "Mammouth": 4,
+      "Leurre": 2,
+      "Cerf": 2,
+      "Lapin": 2,
+      "Sanglier": 1
+     },
+     "riposte_hp": 620.0,
+     "hp_start": 1320.0,
+     "died_energy": 24,
+     "died_hp": 0,
+     "equips": 87,
+     "n_scrambled": 0,
+     "carry_mean": 1.6514868605187205,
+     "carry_matched": [
+      0.818984788098511,
+      120
+     ],
+     "energy_phases": {
+      "brain": 7.4,
+      "action": 614.0,
+      "biologie": 1158.0,
+      "mouvement": 248.0
+     },
+     "energy_action_per_throw": 9.594415654798794,
+     "drain": 18.2,
+     "decision_mismatch": [],
+     "e6_gap": 6.996999621391296,
+     "e6_n": 239,
+     "e6_sign_agree": 1.0,
+     "profile": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.1134020618556701
+     },
+     "n_by_type": {
+      "0": 388,
+      "+1": 20,
+      "-1": 19
+     },
+     "profile_seen": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.1134020618556701
+     },
+     "n_by_type_seen": {
+      "0": 388,
+      "+1": 20,
+      "-1": 19
+     },
+     "edges": "{8.0}",
+     "w_intact": true,
+     "w_drift": 0.0,
+     "life_score_max_dev": 0.0,
+     "phenotype": {
+      "hp_bonus": 1220.0,
+      "inv_capacity": 50,
+      "energy_drain": 18.2
+     },
+     "phenotype_insitu": "{(1220.0, 50, 18.2)}",
+     "fingerprint": "b0f3c25372e75455"
+    },
+    "BROUILLE": {
+     "arm": "BROUILLE",
+     "seed": 1,
+     "n": 24,
+     "ticks_run": 32,
+     "agent_ticks": 333,
+     "med_age": 11.5,
+     "ages": [
+      7.0,
+      7.0,
+      8.0,
+      8.0,
+      8.0,
+      8.0,
+      9.0,
+      9.0,
+      10.0,
+      11.0,
+      11.0,
+      11.0,
+      12.0,
+      12.0,
+      14.0,
+      14.0,
+      14.0,
+      14.0,
+      14.0,
+      20.0,
+      22.0,
+      29.0,
+      29.0,
+      32.0
+     ],
+     "alive_end": 0,
+     "censure": 0.0,
+     "age_at_cap": 0,
+     "throw_decided": 159,
+     "throws": 159,
+     "throw_hits": 123,
+     "throw_prey_hits": 38,
+     "throw_agent_hits": 85,
+     "preys_eaten": 29,
+     "mammoth_kills": 10,
+     "big_kills": 7,
+     "leurre_hits": 5,
+     "apex0": 11,
+     "apex_end": 2,
+     "kills_by_type": {
+      "Lapin": 9,
+      "Leurre": 5,
+      "Mammouth": 7,
+      "Sanglier": 5,
+      "Cerf": 5
+     },
+     "stunned_by_type": {
+      "Lapin": 5,
+      "Mammouth": 7,
+      "Leurre": 5,
+      "Cerf": 5,
+      "Sanglier": 2
+     },
+     "riposte_hp": 480.0,
+     "hp_start": 1320.0,
+     "died_energy": 24,
+     "died_hp": 0,
+     "equips": 179,
+     "n_scrambled": 333,
+     "carry_mean": 1.043790355901327,
+     "carry_matched": [
+      0.5375,
+      120
+     ],
+     "energy_phases": {
+      "brain": 4.0,
+      "action": 1309.9,
+      "biologie": 522.7,
+      "mouvement": 132.0
+     },
+     "energy_action_per_throw": 8.238268564191653,
+     "drain": 18.2,
+     "decision_mismatch": [],
+     "e6_gap": 6.996999621391296,
+     "e6_n": 224,
+     "e6_sign_agree": 1.0,
+     "profile": {
+      "+1": 0.5483870967741935,
+      "+0.5": NaN,
+      "-1": 0.43478260869565216,
+      "0": 0.4731182795698925
+     },
+     "n_by_type": {
+      "0": 279,
+      "+1": 31,
+      "-1": 23
+     },
+     "profile_seen": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": NaN
+     },
+     "n_by_type_seen": {
+      "+1": 159,
+      "-1": 174
+     },
+     "edges": "{8.0}",
+     "w_intact": true,
+     "w_drift": 0.0,
+     "life_score_max_dev": 0.0,
+     "phenotype": {
+      "hp_bonus": 1220.0,
+      "inv_capacity": 50,
+      "energy_drain": 18.2
+     },
+     "phenotype_insitu": "{(1220.0, 50, 18.2)}",
+     "fingerprint": "b0f3c25372e75455"
+    }
+   },
+   "sal": {
+    "TEMOIN": 0.0,
+    "LECTEUR": 1.0,
+    "BROUILLE": 1.0
+   },
+   "saturation": [
+    "PLAFOND : la population d'apex est EPUISEE dans les TROIS bras (11 -> [0, 1, 2]) -> `big_kills` et `leurre_hits` sont SATURES ; leur egalite entre bras ([8, 6, 7] / [5, 5, 5]) n'est PAS une absence d'effet, c'est un epuisement de la ressource. Ces DV secondaires ne discriminent RIEN dans ce regime : ne pas les lire comme un nul.",
+    "MAILLON FAIBLE : riposte encaissee = 58 hp/agent au pire des bras, pour hp de depart 1320 (4.4%) -> le maillon scelle \u00ab melee SANS riposte \u00bb ne peut pas porter l'effet ; morts par energie/hp = [(24, 0), (24, 0), (24, 0)]."
+   ],
+   "elapsed_s": 2.3622825145721436,
+   "age_TEMOIN": 20.5,
+   "age_LECTEUR": 16.5,
+   "age_BROUILLE": 11.5
+  },
+  {
+   "seed": 2,
+   "control_failures": [],
+   "detail": {
+    "sal": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 1.0,
+     "BROUILLE": 1.0
+    },
+    "decision_mismatch": {
+     "TEMOIN": [],
+     "LECTEUR": [],
+     "BROUILLE": []
+    },
+    "e6": {
+     "TEMOIN": {
+      "gap": 0.0,
+      "n": 240,
+      "sign_agree": 1.0
+     },
+     "LECTEUR": {
+      "gap": 6.996999621391296,
+      "n": 233,
+      "sign_agree": 1.0
+     },
+     "BROUILLE": {
+      "gap": 6.996999621391296,
+      "n": 223,
+      "sign_agree": 1.0
+     }
+    },
+    "profile_seen": {
+     "TEMOIN": {
+      "+1": 0.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.0
+     },
+     "LECTEUR": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.18181818181818182
+     },
+     "BROUILLE": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": NaN
+     }
+    },
+    "edges": {
+     "TEMOIN": [
+      0.0
+     ],
+     "LECTEUR": [
+      8.0
+     ],
+     "BROUILLE": [
+      8.0
+     ]
+    },
+    "w_drift": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 0.0,
+     "BROUILLE": 0.0
+    },
+    "phenotype_insitu": {
+     "TEMOIN": [
+      [
+       1220.0,
+       50,
+       18.2
+      ]
+     ],
+     "LECTEUR": [
+      [
+       1220.0,
+       50,
+       18.2
+      ]
+     ],
+     "BROUILLE": [
+      [
+       1220.0,
+       50,
+       18.2
+      ]
+     ]
+    },
+    "throw_prey_hits": {
+     "TEMOIN": 0,
+     "LECTEUR": 20,
+     "BROUILLE": 26
+    },
+    "censure": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 0.0,
+     "BROUILLE": 0.0
+    },
+    "age_at_cap": {
+     "TEMOIN": 0,
+     "LECTEUR": 0,
+     "BROUILLE": 0
+    },
+    "life_score_max_dev": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 0.0,
+     "BROUILLE": 0.0
+    },
+    "carry_lifetime": {
+     "TEMOIN": 1.1107,
+     "LECTEUR": 1.2951,
+     "BROUILLE": 0.7165
+    },
+    "carry_matched": {
+     "TEMOIN": [
+      0.5169885405385393,
+      120
+     ],
+     "LECTEUR": [
+      0.6860460057446668,
+      120
+     ],
+     "BROUILLE": [
+      0.5797154048511424,
+      120
+     ]
+    },
+    "carry_gap_energy_frac": 0.00464,
+    "fingerprint": {
+     "TEMOIN": "591dd092503cecd3",
+     "LECTEUR": "591dd092503cecd3",
+     "BROUILLE": "591dd092503cecd3"
+    }
+   },
+   "res": {
+    "TEMOIN": {
+     "arm": "TEMOIN",
+     "seed": 2,
+     "n": 24,
+     "ticks_run": 51,
+     "agent_ticks": 659,
+     "med_age": 26.5,
+     "ages": [
+      11.0,
+      11.0,
+      13.0,
+      14.0,
+      19.0,
+      19.0,
+      20.0,
+      20.0,
+      21.0,
+      22.0,
+      26.0,
+      26.0,
+      27.0,
+      28.0,
+      29.0,
+      29.0,
+      29.0,
+      36.0,
+      36.0,
+      39.0,
+      41.0,
+      42.0,
+      50.0,
+      51.0
+     ],
+     "alive_end": 0,
+     "censure": 0.0,
+     "age_at_cap": 0,
+     "throw_decided": 0,
+     "throws": 0,
+     "throw_hits": 0,
+     "throw_prey_hits": 0,
+     "throw_agent_hits": 0,
+     "preys_eaten": 42,
+     "mammoth_kills": 16,
+     "big_kills": 10,
+     "leurre_hits": 5,
+     "apex0": 11,
+     "apex_end": 0,
+     "kills_by_type": {
+      "Leurre": 5,
+      "Mammouth": 10,
+      "Sanglier": 7,
+      "Lapin": 10,
+      "Cerf": 9
+     },
+     "stunned_by_type": {},
+     "riposte_hp": 1240.0,
+     "hp_start": 1320.0,
+     "died_energy": 24,
+     "died_hp": 0,
+     "equips": 24,
+     "n_scrambled": 0,
+     "carry_mean": 1.110719598761327,
+     "carry_matched": [
+      0.5169885405385393,
+      120
+     ],
+     "energy_phases": {
+      "brain": 12.0,
+      "action": -73.0,
+      "biologie": 1869.7,
+      "mouvement": 390.0
+     },
+     "energy_action_per_throw": NaN,
+     "drain": 18.2,
+     "decision_mismatch": [],
+     "e6_gap": 0.0,
+     "e6_n": 240,
+     "e6_sign_agree": 1.0,
+     "profile": {
+      "+1": 0.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.0
+     },
+     "n_by_type": {
+      "0": 580,
+      "+1": 57,
+      "-1": 22
+     },
+     "profile_seen": {
+      "+1": 0.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.0
+     },
+     "n_by_type_seen": {
+      "0": 580,
+      "+1": 57,
+      "-1": 22
+     },
+     "edges": "{0.0}",
+     "w_intact": true,
+     "w_drift": 0.0,
+     "life_score_max_dev": 0.0,
+     "phenotype": {
+      "hp_bonus": 1220.0,
+      "inv_capacity": 50,
+      "energy_drain": 18.2
+     },
+     "phenotype_insitu": "{(1220.0, 50, 18.2)}",
+     "fingerprint": "591dd092503cecd3"
+    },
+    "LECTEUR": {
+     "arm": "LECTEUR",
+     "seed": 2,
+     "n": 24,
+     "ticks_run": 48,
+     "agent_ticks": 411,
+     "med_age": 14.0,
+     "ages": [
+      7.0,
+      8.0,
+      9.0,
+      9.0,
+      10.0,
+      10.0,
+      10.0,
+      11.0,
+      11.0,
+      12.0,
+      12.0,
+      13.0,
+      15.0,
+      16.0,
+      16.0,
+      16.0,
+      16.0,
+      16.0,
+      19.0,
+      19.0,
+      29.0,
+      34.0,
+      45.0,
+      48.0
+     ],
+     "alive_end": 0,
+     "censure": 0.0,
+     "age_at_cap": 0,
+     "throw_decided": 94,
+     "throws": 94,
+     "throw_hits": 66,
+     "throw_prey_hits": 20,
+     "throw_agent_hits": 46,
+     "preys_eaten": 30,
+     "mammoth_kills": 10,
+     "big_kills": 6,
+     "leurre_hits": 5,
+     "apex0": 11,
+     "apex_end": 0,
+     "kills_by_type": {
+      "Leurre": 5,
+      "Sanglier": 6,
+      "Lapin": 7,
+      "Mammouth": 6,
+      "Cerf": 7
+     },
+     "stunned_by_type": {
+      "Mammouth": 8,
+      "Lapin": 1,
+      "Cerf": 2,
+      "Sanglier": 1,
+      "Leurre": 1
+     },
+     "riposte_hp": 330.0,
+     "hp_start": 1320.0,
+     "died_energy": 24,
+     "died_hp": 0,
+     "equips": 123,
+     "n_scrambled": 0,
+     "carry_mean": 1.295051207971353,
+     "carry_matched": [
+      0.6860460057446668,
+      120
+     ],
+     "energy_phases": {
+      "brain": 7.1,
+      "action": 772.2,
+      "biologie": 1030.9,
+      "mouvement": 208.0
+     },
+     "energy_action_per_throw": 8.215406164841012,
+     "drain": 18.2,
+     "decision_mismatch": [],
+     "e6_gap": 6.996999621391296,
+     "e6_n": 233,
+     "e6_sign_agree": 1.0,
+     "profile": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.18181818181818182
+     },
+     "n_by_type": {
+      "0": 352,
+      "+1": 30,
+      "-1": 29
+     },
+     "profile_seen": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.18181818181818182
+     },
+     "n_by_type_seen": {
+      "0": 352,
+      "+1": 30,
+      "-1": 29
+     },
+     "edges": "{8.0}",
+     "w_intact": true,
+     "w_drift": 0.0,
+     "life_score_max_dev": 0.0,
+     "phenotype": {
+      "hp_bonus": 1220.0,
+      "inv_capacity": 50,
+      "energy_drain": 18.2
+     },
+     "phenotype_insitu": "{(1220.0, 50, 18.2)}",
+     "fingerprint": "591dd092503cecd3"
+    },
+    "BROUILLE": {
+     "arm": "BROUILLE",
+     "seed": 2,
+     "n": 24,
+     "ticks_run": 34,
+     "agent_ticks": 313,
+     "med_age": 12.0,
+     "ages": [
+      6.0,
+      7.0,
+      7.0,
+      8.0,
+      8.0,
+      9.0,
+      9.0,
+      9.0,
+      10.0,
+      10.0,
+      10.0,
+      12.0,
+      12.0,
+      12.0,
+      12.0,
+      13.0,
+      14.0,
+      14.0,
+      14.0,
+      14.0,
+      15.0,
+      23.0,
+      31.0,
+      34.0
+     ],
+     "alive_end": 0,
+     "censure": 0.0,
+     "age_at_cap": 0,
+     "throw_decided": 151,
+     "throws": 151,
+     "throw_hits": 105,
+     "throw_prey_hits": 26,
+     "throw_agent_hits": 79,
+     "preys_eaten": 24,
+     "mammoth_kills": 12,
+     "big_kills": 8,
+     "leurre_hits": 5,
+     "apex0": 11,
+     "apex_end": 2,
+     "kills_by_type": {
+      "Lapin": 7,
+      "Leurre": 5,
+      "Mammouth": 8,
+      "Cerf": 3,
+      "Sanglier": 2
+     },
+     "stunned_by_type": {
+      "Lapin": 4,
+      "Sanglier": 1,
+      "Leurre": 3,
+      "Mammouth": 6,
+      "Cerf": 3
+     },
+     "riposte_hp": 610.0,
+     "hp_start": 1320.0,
+     "died_energy": 24,
+     "died_hp": 0,
+     "equips": 168,
+     "n_scrambled": 313,
+     "carry_mean": 0.7164780144710735,
+     "carry_matched": [
+      0.5797154048511424,
+      120
+     ],
+     "energy_phases": {
+      "brain": 2.2,
+      "action": 1201.1,
+      "biologie": 581.4,
+      "mouvement": 184.0
+     },
+     "energy_action_per_throw": 7.954583448860326,
+     "drain": 18.2,
+     "decision_mismatch": [],
+     "e6_gap": 6.996999621391296,
+     "e6_n": 223,
+     "e6_sign_agree": 1.0,
+     "profile": {
+      "+1": 0.45,
+      "+0.5": NaN,
+      "-1": 0.56,
+      "0": 0.4798387096774194
+     },
+     "n_by_type": {
+      "0": 248,
+      "-1": 25,
+      "+1": 40
+     },
+     "profile_seen": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": NaN
+     },
+     "n_by_type_seen": {
+      "+1": 151,
+      "-1": 162
+     },
+     "edges": "{8.0}",
+     "w_intact": true,
+     "w_drift": 0.0,
+     "life_score_max_dev": 0.0,
+     "phenotype": {
+      "hp_bonus": 1220.0,
+      "inv_capacity": 50,
+      "energy_drain": 18.2
+     },
+     "phenotype_insitu": "{(1220.0, 50, 18.2)}",
+     "fingerprint": "591dd092503cecd3"
+    }
+   },
+   "sal": {
+    "TEMOIN": 0.0,
+    "LECTEUR": 1.0,
+    "BROUILLE": 1.0
+   },
+   "saturation": [
+    "PLAFOND : la population d'apex est EPUISEE dans les TROIS bras (11 -> [0, 0, 2]) -> `big_kills` et `leurre_hits` sont SATURES ; leur egalite entre bras ([10, 6, 8] / [5, 5, 5]) n'est PAS une absence d'effet, c'est un epuisement de la ressource. Ces DV secondaires ne discriminent RIEN dans ce regime : ne pas les lire comme un nul.",
+    "MAILLON FAIBLE : riposte encaissee = 52 hp/agent au pire des bras, pour hp de depart 1320 (3.9%) -> le maillon scelle \u00ab melee SANS riposte \u00bb ne peut pas porter l'effet ; morts par energie/hp = [(24, 0), (24, 0), (24, 0)]."
+   ],
+   "elapsed_s": 2.628307342529297,
+   "age_TEMOIN": 26.5,
+   "age_LECTEUR": 14.0,
+   "age_BROUILLE": 12.0
+  },
+  {
+   "seed": 3,
+   "control_failures": [],
+   "detail": {
+    "sal": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 1.0,
+     "BROUILLE": 1.0
+    },
+    "decision_mismatch": {
+     "TEMOIN": [],
+     "LECTEUR": [],
+     "BROUILLE": []
+    },
+    "e6": {
+     "TEMOIN": {
+      "gap": 0.0,
+      "n": 240,
+      "sign_agree": 1.0
+     },
+     "LECTEUR": {
+      "gap": 6.996999621391296,
+      "n": 239,
+      "sign_agree": 1.0
+     },
+     "BROUILLE": {
+      "gap": 6.996999621391296,
+      "n": 218,
+      "sign_agree": 1.0
+     }
+    },
+    "profile_seen": {
+     "TEMOIN": {
+      "+1": 0.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.0
+     },
+     "LECTEUR": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.15743440233236153
+     },
+     "BROUILLE": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": NaN
+     }
+    },
+    "edges": {
+     "TEMOIN": [
+      0.0
+     ],
+     "LECTEUR": [
+      8.0
+     ],
+     "BROUILLE": [
+      8.0
+     ]
+    },
+    "w_drift": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 0.0,
+     "BROUILLE": 0.0
+    },
+    "phenotype_insitu": {
+     "TEMOIN": [
+      [
+       1220.0,
+       50,
+       18.2
+      ]
+     ],
+     "LECTEUR": [
+      [
+       1220.0,
+       50,
+       18.2
+      ]
+     ],
+     "BROUILLE": [
+      [
+       1220.0,
+       50,
+       18.2
+      ]
+     ]
+    },
+    "throw_prey_hits": {
+     "TEMOIN": 0,
+     "LECTEUR": 27,
+     "BROUILLE": 56
+    },
+    "censure": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 0.0,
+     "BROUILLE": 0.0
+    },
+    "age_at_cap": {
+     "TEMOIN": 0,
+     "LECTEUR": 0,
+     "BROUILLE": 0
+    },
+    "life_score_max_dev": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 0.0,
+     "BROUILLE": 0.0
+    },
+    "carry_lifetime": {
+     "TEMOIN": 1.6392,
+     "LECTEUR": 0.6163,
+     "BROUILLE": 0.7561
+    },
+    "carry_matched": {
+     "TEMOIN": [
+      0.6700263016881906,
+      120
+     ],
+     "LECTEUR": [
+      0.5166666666666667,
+      120
+     ],
+     "BROUILLE": [
+      0.5041666666666667,
+      120
+     ]
+    },
+    "carry_gap_energy_frac": 0.00456,
+    "fingerprint": {
+     "TEMOIN": "658dd0ddf7cda632",
+     "LECTEUR": "658dd0ddf7cda632",
+     "BROUILLE": "658dd0ddf7cda632"
+    }
+   },
+   "res": {
+    "TEMOIN": {
+     "arm": "TEMOIN",
+     "seed": 3,
+     "n": 24,
+     "ticks_run": 57,
+     "agent_ticks": 563,
+     "med_age": 21.0,
+     "ages": [
+      11.0,
+      12.0,
+      12.0,
+      12.0,
+      12.0,
+      12.0,
+      12.0,
+      12.0,
+      12.0,
+      13.0,
+      14.0,
+      20.0,
+      22.0,
+      24.0,
+      25.0,
+      28.0,
+      29.0,
+      29.0,
+      30.0,
+      30.0,
+      31.0,
+      48.0,
+      56.0,
+      57.0
+     ],
+     "alive_end": 0,
+     "censure": 0.0,
+     "age_at_cap": 0,
+     "throw_decided": 0,
+     "throws": 0,
+     "throw_hits": 0,
+     "throw_prey_hits": 0,
+     "throw_agent_hits": 0,
+     "preys_eaten": 36,
+     "mammoth_kills": 12,
+     "big_kills": 6,
+     "leurre_hits": 5,
+     "apex0": 11,
+     "apex_end": 0,
+     "kills_by_type": {
+      "Lapin": 13,
+      "Sanglier": 6,
+      "Mammouth": 6,
+      "Cerf": 5,
+      "Leurre": 5
+     },
+     "stunned_by_type": {},
+     "riposte_hp": 990.0,
+     "hp_start": 1320.0,
+     "died_energy": 24,
+     "died_hp": 0,
+     "equips": 24,
+     "n_scrambled": 0,
+     "carry_mean": 1.6392028415899196,
+     "carry_matched": [
+      0.6700263016881906,
+      120
+     ],
+     "energy_phases": {
+      "brain": 10.1,
+      "action": -28.6,
+      "biologie": 1777.7,
+      "mouvement": 404.0
+     },
+     "energy_action_per_throw": NaN,
+     "drain": 18.2,
+     "decision_mismatch": [],
+     "e6_gap": 0.0,
+     "e6_n": 240,
+     "e6_sign_agree": 1.0,
+     "profile": {
+      "+1": 0.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.0
+     },
+     "n_by_type": {
+      "0": 494,
+      "+1": 33,
+      "-1": 36
+     },
+     "profile_seen": {
+      "+1": 0.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.0
+     },
+     "n_by_type_seen": {
+      "0": 494,
+      "+1": 33,
+      "-1": 36
+     },
+     "edges": "{0.0}",
+     "w_intact": true,
+     "w_drift": 0.0,
+     "life_score_max_dev": 0.0,
+     "phenotype": {
+      "hp_bonus": 1220.0,
+      "inv_capacity": 50,
+      "energy_drain": 18.2
+     },
+     "phenotype_insitu": "{(1220.0, 50, 18.2)}",
+     "fingerprint": "658dd0ddf7cda632"
+    },
+    "LECTEUR": {
+     "arm": "LECTEUR",
+     "seed": 3,
+     "n": 24,
+     "ticks_run": 42,
+     "agent_ticks": 403,
+     "med_age": 13.5,
+     "ages": [
+      9.0,
+      11.0,
+      12.0,
+      12.0,
+      12.0,
+      12.0,
+      12.0,
+      12.0,
+      12.0,
+      12.0,
+      12.0,
+      13.0,
+      14.0,
+      14.0,
+      14.0,
+      16.0,
+      18.0,
+      19.0,
+      21.0,
+      21.0,
+      25.0,
+      27.0,
+      31.0,
+      42.0
+     ],
+     "alive_end": 0,
+     "censure": 0.0,
+     "age_at_cap": 0,
+     "throw_decided": 89,
+     "throws": 89,
+     "throw_hits": 70,
+     "throw_prey_hits": 27,
+     "throw_agent_hits": 43,
+     "preys_eaten": 27,
+     "mammoth_kills": 14,
+     "big_kills": 8,
+     "leurre_hits": 5,
+     "apex0": 11,
+     "apex_end": 0,
+     "kills_by_type": {
+      "Lapin": 6,
+      "Sanglier": 3,
+      "Mammouth": 8,
+      "Cerf": 4,
+      "Leurre": 5
+     },
+     "stunned_by_type": {
+      "Mammouth": 7,
+      "Leurre": 2,
+      "Cerf": 3,
+      "Lapin": 1
+     },
+     "riposte_hp": 410.0,
+     "hp_start": 1320.0,
+     "died_energy": 24,
+     "died_hp": 0,
+     "equips": 109,
+     "n_scrambled": 0,
+     "carry_mean": 0.6162786339094102,
+     "carry_matched": [
+      0.5166666666666667,
+      120
+     ],
+     "energy_phases": {
+      "brain": 6.9,
+      "action": 838.3,
+      "biologie": 1014.0,
+      "mouvement": 326.0
+     },
+     "energy_action_per_throw": 9.419245840370548,
+     "drain": 18.2,
+     "decision_mismatch": [],
+     "e6_gap": 6.996999621391296,
+     "e6_n": 239,
+     "e6_sign_agree": 1.0,
+     "profile": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.15743440233236153
+     },
+     "n_by_type": {
+      "0": 343,
+      "+1": 35,
+      "-1": 25
+     },
+     "profile_seen": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.15743440233236153
+     },
+     "n_by_type_seen": {
+      "0": 343,
+      "+1": 35,
+      "-1": 25
+     },
+     "edges": "{8.0}",
+     "w_intact": true,
+     "w_drift": 0.0,
+     "life_score_max_dev": 0.0,
+     "phenotype": {
+      "hp_bonus": 1220.0,
+      "inv_capacity": 50,
+      "energy_drain": 18.2
+     },
+     "phenotype_insitu": "{(1220.0, 50, 18.2)}",
+     "fingerprint": "658dd0ddf7cda632"
+    },
+    "BROUILLE": {
+     "arm": "BROUILLE",
+     "seed": 3,
+     "n": 24,
+     "ticks_run": 46,
+     "agent_ticks": 370,
+     "med_age": 9.5,
+     "ages": [
+      7.0,
+      7.0,
+      8.0,
+      8.0,
+      8.0,
+      8.0,
+      8.0,
+      8.0,
+      9.0,
+      9.0,
+      9.0,
+      9.0,
+      10.0,
+      10.0,
+      11.0,
+      14.0,
+      15.0,
+      18.0,
+      24.0,
+      26.0,
+      26.0,
+      34.0,
+      38.0,
+      46.0
+     ],
+     "alive_end": 0,
+     "censure": 0.0,
+     "age_at_cap": 0,
+     "throw_decided": 193,
+     "throws": 193,
+     "throw_hits": 126,
+     "throw_prey_hits": 56,
+     "throw_agent_hits": 70,
+     "preys_eaten": 37,
+     "mammoth_kills": 11,
+     "big_kills": 6,
+     "leurre_hits": 5,
+     "apex0": 11,
+     "apex_end": 0,
+     "kills_by_type": {
+      "Lapin": 8,
+      "Sanglier": 8,
+      "Mammouth": 6,
+      "Cerf": 10,
+      "Leurre": 5
+     },
+     "stunned_by_type": {
+      "Mammouth": 8,
+      "Leurre": 2,
+      "Cerf": 5,
+      "Lapin": 5,
+      "Sanglier": 6
+     },
+     "riposte_hp": 320.0,
+     "hp_start": 1320.0,
+     "died_energy": 24,
+     "died_hp": 0,
+     "equips": 205,
+     "n_scrambled": 370,
+     "carry_mean": 0.7561344816419794,
+     "carry_matched": [
+      0.5041666666666667,
+      120
+     ],
+     "energy_phases": {
+      "brain": 6.3,
+      "action": 1623.3,
+      "biologie": 269.5,
+      "mouvement": 242.0
+     },
+     "energy_action_per_throw": 8.411007677892087,
+     "drain": 18.2,
+     "decision_mismatch": [],
+     "e6_gap": 6.996999621391296,
+     "e6_n": 218,
+     "e6_sign_agree": 1.0,
+     "profile": {
+      "+1": 0.47368421052631576,
+      "+0.5": NaN,
+      "-1": 0.6,
+      "0": 0.5224358974358975
+     },
+     "n_by_type": {
+      "0": 312,
+      "+1": 38,
+      "-1": 20
+     },
+     "profile_seen": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": NaN
+     },
+     "n_by_type_seen": {
+      "+1": 193,
+      "-1": 177
+     },
+     "edges": "{8.0}",
+     "w_intact": true,
+     "w_drift": 0.0,
+     "life_score_max_dev": 0.0,
+     "phenotype": {
+      "hp_bonus": 1220.0,
+      "inv_capacity": 50,
+      "energy_drain": 18.2
+     },
+     "phenotype_insitu": "{(1220.0, 50, 18.2)}",
+     "fingerprint": "658dd0ddf7cda632"
+    }
+   },
+   "sal": {
+    "TEMOIN": 0.0,
+    "LECTEUR": 1.0,
+    "BROUILLE": 1.0
+   },
+   "saturation": [
+    "PLAFOND : la population d'apex est EPUISEE dans les TROIS bras (11 -> [0, 0, 0]) -> `big_kills` et `leurre_hits` sont SATURES ; leur egalite entre bras ([6, 8, 6] / [5, 5, 5]) n'est PAS une absence d'effet, c'est un epuisement de la ressource. Ces DV secondaires ne discriminent RIEN dans ce regime : ne pas les lire comme un nul.",
+    "MAILLON FAIBLE : riposte encaissee = 41 hp/agent au pire des bras, pour hp de depart 1320 (3.1%) -> le maillon scelle \u00ab melee SANS riposte \u00bb ne peut pas porter l'effet ; morts par energie/hp = [(24, 0), (24, 0), (24, 0)]."
+   ],
+   "elapsed_s": 2.4111714363098145,
+   "age_TEMOIN": 21.0,
+   "age_LECTEUR": 13.5,
+   "age_BROUILLE": 9.5
+  },
+  {
+   "seed": 4,
+   "control_failures": [],
+   "detail": {
+    "sal": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 1.0,
+     "BROUILLE": 1.0
+    },
+    "decision_mismatch": {
+     "TEMOIN": [],
+     "LECTEUR": [],
+     "BROUILLE": []
+    },
+    "e6": {
+     "TEMOIN": {
+      "gap": 0.0,
+      "n": 240,
+      "sign_agree": 1.0
+     },
+     "LECTEUR": {
+      "gap": 6.996999621391296,
+      "n": 236,
+      "sign_agree": 1.0
+     },
+     "BROUILLE": {
+      "gap": 6.996999621391296,
+      "n": 221,
+      "sign_agree": 1.0
+     }
+    },
+    "profile_seen": {
+     "TEMOIN": {
+      "+1": 0.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.0
+     },
+     "LECTEUR": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.23544973544973544
+     },
+     "BROUILLE": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": NaN
+     }
+    },
+    "edges": {
+     "TEMOIN": [
+      0.0
+     ],
+     "LECTEUR": [
+      8.0
+     ],
+     "BROUILLE": [
+      8.0
+     ]
+    },
+    "w_drift": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 0.0,
+     "BROUILLE": 0.0
+    },
+    "phenotype_insitu": {
+     "TEMOIN": [
+      [
+       1220.0,
+       50,
+       18.2
+      ]
+     ],
+     "LECTEUR": [
+      [
+       1220.0,
+       50,
+       18.2
+      ]
+     ],
+     "BROUILLE": [
+      [
+       1220.0,
+       50,
+       18.2
+      ]
+     ]
+    },
+    "throw_prey_hits": {
+     "TEMOIN": 0,
+     "LECTEUR": 27,
+     "BROUILLE": 23
+    },
+    "censure": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 0.0,
+     "BROUILLE": 0.0
+    },
+    "age_at_cap": {
+     "TEMOIN": 0,
+     "LECTEUR": 0,
+     "BROUILLE": 0
+    },
+    "life_score_max_dev": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 0.0,
+     "BROUILLE": 0.0
+    },
+    "carry_lifetime": {
+     "TEMOIN": 1.3622,
+     "LECTEUR": 1.9991,
+     "BROUILLE": 0.8109
+    },
+    "carry_matched": {
+     "TEMOIN": [
+      0.5,
+      120
+     ],
+     "LECTEUR": [
+      0.8148306801115321,
+      120
+     ],
+     "BROUILLE": [
+      0.7731004360123261,
+      120
+     ]
+    },
+    "carry_gap_energy_frac": 0.00865,
+    "fingerprint": {
+     "TEMOIN": "9846af1dab021e8d",
+     "LECTEUR": "9846af1dab021e8d",
+     "BROUILLE": "9846af1dab021e8d"
+    }
+   },
+   "res": {
+    "TEMOIN": {
+     "arm": "TEMOIN",
+     "seed": 4,
+     "n": 24,
+     "ticks_run": 77,
+     "agent_ticks": 659,
+     "med_age": 18.5,
+     "ages": [
+      12.0,
+      12.0,
+      12.0,
+      14.0,
+      14.0,
+      14.0,
+      14.0,
+      16.0,
+      16.0,
+      17.0,
+      18.0,
+      18.0,
+      19.0,
+      20.0,
+      21.0,
+      22.0,
+      29.0,
+      31.0,
+      32.0,
+      39.0,
+      55.0,
+      68.0,
+      69.0,
+      77.0
+     ],
+     "alive_end": 0,
+     "censure": 0.0,
+     "age_at_cap": 0,
+     "throw_decided": 0,
+     "throws": 0,
+     "throw_hits": 0,
+     "throw_prey_hits": 0,
+     "throw_agent_hits": 0,
+     "preys_eaten": 47,
+     "mammoth_kills": 16,
+     "big_kills": 10,
+     "leurre_hits": 5,
+     "apex0": 11,
+     "apex_end": 0,
+     "kills_by_type": {
+      "Sanglier": 7,
+      "Mammouth": 10,
+      "Cerf": 14,
+      "Lapin": 10,
+      "Leurre": 5
+     },
+     "stunned_by_type": {},
+     "riposte_hp": 1110.0,
+     "hp_start": 1320.0,
+     "died_energy": 24,
+     "died_hp": 0,
+     "equips": 24,
+     "n_scrambled": 0,
+     "carry_mean": 1.362161279428017,
+     "carry_matched": [
+      0.5,
+      120
+     ],
+     "energy_phases": {
+      "brain": 12.0,
+      "action": -41.6,
+      "biologie": 1895.9,
+      "mouvement": 288.0
+     },
+     "energy_action_per_throw": NaN,
+     "drain": 18.2,
+     "decision_mismatch": [],
+     "e6_gap": 0.0,
+     "e6_n": 240,
+     "e6_sign_agree": 1.0,
+     "profile": {
+      "+1": 0.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.0
+     },
+     "n_by_type": {
+      "0": 588,
+      "+1": 46,
+      "-1": 25
+     },
+     "profile_seen": {
+      "+1": 0.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.0
+     },
+     "n_by_type_seen": {
+      "0": 588,
+      "+1": 46,
+      "-1": 25
+     },
+     "edges": "{0.0}",
+     "w_intact": true,
+     "w_drift": 0.0,
+     "life_score_max_dev": 0.0,
+     "phenotype": {
+      "hp_bonus": 1220.0,
+      "inv_capacity": 50,
+      "energy_drain": 18.2
+     },
+     "phenotype_insitu": "{(1220.0, 50, 18.2)}",
+     "fingerprint": "9846af1dab021e8d"
+    },
+    "LECTEUR": {
+     "arm": "LECTEUR",
+     "seed": 4,
+     "n": 24,
+     "ticks_run": 75,
+     "agent_ticks": 440,
+     "med_age": 13.0,
+     "ages": [
+      7.0,
+      9.0,
+      10.0,
+      11.0,
+      11.0,
+      11.0,
+      12.0,
+      12.0,
+      12.0,
+      13.0,
+      13.0,
+      13.0,
+      13.0,
+      14.0,
+      14.0,
+      15.0,
+      15.0,
+      17.0,
+      22.0,
+      22.0,
+      26.0,
+      27.0,
+      46.0,
+      75.0
+     ],
+     "alive_end": 0,
+     "censure": 0.0,
+     "age_at_cap": 0,
+     "throw_decided": 125,
+     "throws": 125,
+     "throw_hits": 100,
+     "throw_prey_hits": 27,
+     "throw_agent_hits": 73,
+     "preys_eaten": 43,
+     "mammoth_kills": 14,
+     "big_kills": 8,
+     "leurre_hits": 5,
+     "apex0": 11,
+     "apex_end": 1,
+     "kills_by_type": {
+      "Sanglier": 7,
+      "Mammouth": 8,
+      "Cerf": 8,
+      "Lapin": 14,
+      "Leurre": 5
+     },
+     "stunned_by_type": {
+      "Mammouth": 7,
+      "Leurre": 2,
+      "Cerf": 2,
+      "Lapin": 3
+     },
+     "riposte_hp": 410.0,
+     "hp_start": 1320.0,
+     "died_energy": 24,
+     "died_hp": 0,
+     "equips": 163,
+     "n_scrambled": 0,
+     "carry_mean": 1.9990747082380487,
+     "carry_matched": [
+      0.8148306801115321,
+      120
+     ],
+     "energy_phases": {
+      "brain": 5.6,
+      "action": 1146.3,
+      "biologie": 757.5,
+      "mouvement": 284.0
+     },
+     "energy_action_per_throw": 9.170634272559434,
+     "drain": 18.2,
+     "decision_mismatch": [],
+     "e6_gap": 6.996999621391296,
+     "e6_n": 236,
+     "e6_sign_agree": 1.0,
+     "profile": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.23544973544973544
+     },
+     "n_by_type": {
+      "+1": 36,
+      "0": 378,
+      "-1": 26
+     },
+     "profile_seen": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.23544973544973544
+     },
+     "n_by_type_seen": {
+      "+1": 36,
+      "0": 378,
+      "-1": 26
+     },
+     "edges": "{8.0}",
+     "w_intact": true,
+     "w_drift": 0.0,
+     "life_score_max_dev": 0.0,
+     "phenotype": {
+      "hp_bonus": 1220.0,
+      "inv_capacity": 50,
+      "energy_drain": 18.2
+     },
+     "phenotype_insitu": "{(1220.0, 50, 18.2)}",
+     "fingerprint": "9846af1dab021e8d"
+    },
+    "BROUILLE": {
+     "arm": "BROUILLE",
+     "seed": 4,
+     "n": 24,
+     "ticks_run": 40,
+     "agent_ticks": 303,
+     "med_age": 10.0,
+     "ages": [
+      7.0,
+      7.0,
+      8.0,
+      8.0,
+      8.0,
+      8.0,
+      9.0,
+      9.0,
+      9.0,
+      9.0,
+      9.0,
+      10.0,
+      10.0,
+      10.0,
+      12.0,
+      12.0,
+      12.0,
+      13.0,
+      13.0,
+      13.0,
+      15.0,
+      16.0,
+      36.0,
+      40.0
+     ],
+     "alive_end": 0,
+     "censure": 0.0,
+     "age_at_cap": 0,
+     "throw_decided": 150,
+     "throws": 150,
+     "throw_hits": 97,
+     "throw_prey_hits": 23,
+     "throw_agent_hits": 74,
+     "preys_eaten": 27,
+     "mammoth_kills": 13,
+     "big_kills": 8,
+     "leurre_hits": 5,
+     "apex0": 11,
+     "apex_end": 0,
+     "kills_by_type": {
+      "Sanglier": 2,
+      "Mammouth": 8,
+      "Cerf": 5,
+      "Lapin": 7,
+      "Leurre": 5
+     },
+     "stunned_by_type": {
+      "Mammouth": 6,
+      "Leurre": 3,
+      "Lapin": 4,
+      "Cerf": 3
+     },
+     "riposte_hp": 320.0,
+     "hp_start": 1320.0,
+     "died_energy": 23,
+     "died_hp": 0,
+     "equips": 163,
+     "n_scrambled": 303,
+     "carry_mean": 0.8109215621717552,
+     "carry_matched": [
+      0.7731004360123261,
+      120
+     ],
+     "energy_phases": {
+      "brain": 1.5,
+      "action": 1317.6,
+      "biologie": 582.6,
+      "mouvement": 226.0
+     },
+     "energy_action_per_throw": 8.783740487931048,
+     "drain": 18.2,
+     "decision_mismatch": [],
+     "e6_gap": 6.996999621391296,
+     "e6_n": 221,
+     "e6_sign_agree": 1.0,
+     "profile": {
+      "+1": 0.42857142857142855,
+      "+0.5": NaN,
+      "-1": 0.34615384615384615,
+      "0": 0.5206611570247934
+     },
+     "n_by_type": {
+      "0": 242,
+      "-1": 26,
+      "+1": 35
+     },
+     "profile_seen": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": NaN
+     },
+     "n_by_type_seen": {
+      "+1": 150,
+      "-1": 153
+     },
+     "edges": "{8.0}",
+     "w_intact": true,
+     "w_drift": 0.0,
+     "life_score_max_dev": 0.0,
+     "phenotype": {
+      "hp_bonus": 1220.0,
+      "inv_capacity": 50,
+      "energy_drain": 18.2
+     },
+     "phenotype_insitu": "{(1220.0, 50, 18.2)}",
+     "fingerprint": "9846af1dab021e8d"
+    }
+   },
+   "sal": {
+    "TEMOIN": 0.0,
+    "LECTEUR": 1.0,
+    "BROUILLE": 1.0
+   },
+   "saturation": [
+    "PLAFOND : la population d'apex est EPUISEE dans les TROIS bras (11 -> [0, 1, 0]) -> `big_kills` et `leurre_hits` sont SATURES ; leur egalite entre bras ([10, 8, 8] / [5, 5, 5]) n'est PAS une absence d'effet, c'est un epuisement de la ressource. Ces DV secondaires ne discriminent RIEN dans ce regime : ne pas les lire comme un nul.",
+    "MAILLON FAIBLE : riposte encaissee = 46 hp/agent au pire des bras, pour hp de depart 1320 (3.5%) -> le maillon scelle \u00ab melee SANS riposte \u00bb ne peut pas porter l'effet ; morts par energie/hp = [(24, 0), (24, 0), (23, 0)]."
+   ],
+   "elapsed_s": 2.651214838027954,
+   "age_TEMOIN": 18.5,
+   "age_LECTEUR": 13.0,
+   "age_BROUILLE": 10.0
+  },
+  {
+   "seed": 5,
+   "control_failures": [],
+   "detail": {
+    "sal": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 1.0,
+     "BROUILLE": 1.0
+    },
+    "decision_mismatch": {
+     "TEMOIN": [],
+     "LECTEUR": [],
+     "BROUILLE": []
+    },
+    "e6": {
+     "TEMOIN": {
+      "gap": 0.0,
+      "n": 240,
+      "sign_agree": 1.0
+     },
+     "LECTEUR": {
+      "gap": 6.996999621391296,
+      "n": 238,
+      "sign_agree": 1.0
+     },
+     "BROUILLE": {
+      "gap": 6.996999621391296,
+      "n": 222,
+      "sign_agree": 1.0
+     }
+    },
+    "profile_seen": {
+     "TEMOIN": {
+      "+1": 0.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.0
+     },
+     "LECTEUR": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.20068027210884354
+     },
+     "BROUILLE": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": NaN
+     }
+    },
+    "edges": {
+     "TEMOIN": [
+      0.0
+     ],
+     "LECTEUR": [
+      8.0
+     ],
+     "BROUILLE": [
+      8.0
+     ]
+    },
+    "w_drift": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 0.0,
+     "BROUILLE": 0.0
+    },
+    "phenotype_insitu": {
+     "TEMOIN": [
+      [
+       1220.0,
+       50,
+       18.2
+      ]
+     ],
+     "LECTEUR": [
+      [
+       1220.0,
+       50,
+       18.2
+      ]
+     ],
+     "BROUILLE": [
+      [
+       1220.0,
+       50,
+       18.2
+      ]
+     ]
+    },
+    "throw_prey_hits": {
+     "TEMOIN": 0,
+     "LECTEUR": 20,
+     "BROUILLE": 49
+    },
+    "censure": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 0.0,
+     "BROUILLE": 0.0
+    },
+    "age_at_cap": {
+     "TEMOIN": 0,
+     "LECTEUR": 0,
+     "BROUILLE": 0
+    },
+    "life_score_max_dev": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 0.0,
+     "BROUILLE": 0.0
+    },
+    "carry_lifetime": {
+     "TEMOIN": 1.3755,
+     "LECTEUR": 1.2186,
+     "BROUILLE": 1.1204
+    },
+    "carry_matched": {
+     "TEMOIN": [
+      0.9850094319037189,
+      120
+     ],
+     "LECTEUR": [
+      0.7957282997672961,
+      120
+     ],
+     "BROUILLE": [
+      0.5744362539577527,
+      120
+     ]
+    },
+    "carry_gap_energy_frac": 0.01128,
+    "fingerprint": {
+     "TEMOIN": "f78ca28fc8445e1d",
+     "LECTEUR": "f78ca28fc8445e1d",
+     "BROUILLE": "f78ca28fc8445e1d"
+    }
+   },
+   "res": {
+    "TEMOIN": {
+     "arm": "TEMOIN",
+     "seed": 5,
+     "n": 24,
+     "ticks_run": 69,
+     "agent_ticks": 652,
+     "med_age": 21.0,
+     "ages": [
+      11.0,
+      12.0,
+      14.0,
+      14.0,
+      14.0,
+      15.0,
+      15.0,
+      15.0,
+      15.0,
+      16.0,
+      21.0,
+      21.0,
+      21.0,
+      22.0,
+      22.0,
+      24.0,
+      25.0,
+      27.0,
+      32.0,
+      46.0,
+      53.0,
+      62.0,
+      66.0,
+      69.0
+     ],
+     "alive_end": 0,
+     "censure": 0.0,
+     "age_at_cap": 0,
+     "throw_decided": 0,
+     "throws": 0,
+     "throw_hits": 0,
+     "throw_prey_hits": 0,
+     "throw_agent_hits": 0,
+     "preys_eaten": 45,
+     "mammoth_kills": 13,
+     "big_kills": 7,
+     "leurre_hits": 5,
+     "apex0": 11,
+     "apex_end": 0,
+     "kills_by_type": {
+      "Sanglier": 7,
+      "Lapin": 13,
+      "Cerf": 12,
+      "Leurre": 5,
+      "Mammouth": 7
+     },
+     "stunned_by_type": {},
+     "riposte_hp": 1050.0,
+     "hp_start": 1320.0,
+     "died_energy": 24,
+     "died_hp": 0,
+     "equips": 24,
+     "n_scrambled": 0,
+     "carry_mean": 1.3754813622418696,
+     "carry_matched": [
+      0.9850094319037189,
+      120
+     ],
+     "energy_phases": {
+      "brain": 11.9,
+      "action": -42.5,
+      "biologie": 1881.6,
+      "mouvement": 330.0
+     },
+     "energy_action_per_throw": NaN,
+     "drain": 18.2,
+     "decision_mismatch": [],
+     "e6_gap": 0.0,
+     "e6_n": 240,
+     "e6_sign_agree": 1.0,
+     "profile": {
+      "+1": 0.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.0
+     },
+     "n_by_type": {
+      "0": 585,
+      "+1": 40,
+      "-1": 27
+     },
+     "profile_seen": {
+      "+1": 0.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.0
+     },
+     "n_by_type_seen": {
+      "0": 585,
+      "+1": 40,
+      "-1": 27
+     },
+     "edges": "{0.0}",
+     "w_intact": true,
+     "w_drift": 0.0,
+     "life_score_max_dev": 0.0,
+     "phenotype": {
+      "hp_bonus": 1220.0,
+      "inv_capacity": 50,
+      "energy_drain": 18.2
+     },
+     "phenotype_insitu": "{(1220.0, 50, 18.2)}",
+     "fingerprint": "f78ca28fc8445e1d"
+    },
+    "LECTEUR": {
+     "arm": "LECTEUR",
+     "seed": 5,
+     "n": 24,
+     "ticks_run": 26,
+     "agent_ticks": 357,
+     "med_age": 13.0,
+     "ages": [
+      9.0,
+      9.0,
+      10.0,
+      12.0,
+      12.0,
+      12.0,
+      12.0,
+      13.0,
+      13.0,
+      13.0,
+      13.0,
+      13.0,
+      13.0,
+      13.0,
+      13.0,
+      14.0,
+      14.0,
+      16.0,
+      17.0,
+      20.0,
+      22.0,
+      22.0,
+      26.0,
+      26.0
+     ],
+     "alive_end": 0,
+     "censure": 0.0,
+     "age_at_cap": 0,
+     "throw_decided": 91,
+     "throws": 91,
+     "throw_hits": 61,
+     "throw_prey_hits": 20,
+     "throw_agent_hits": 41,
+     "preys_eaten": 22,
+     "mammoth_kills": 11,
+     "big_kills": 6,
+     "leurre_hits": 5,
+     "apex0": 11,
+     "apex_end": 1,
+     "kills_by_type": {
+      "Sanglier": 2,
+      "Lapin": 5,
+      "Cerf": 4,
+      "Leurre": 5,
+      "Mammouth": 6
+     },
+     "stunned_by_type": {
+      "Mammouth": 7,
+      "Lapin": 2,
+      "Sanglier": 1,
+      "Leurre": 2,
+      "Cerf": 1
+     },
+     "riposte_hp": 400.0,
+     "hp_start": 1320.0,
+     "died_energy": 24,
+     "died_hp": 0,
+     "equips": 111,
+     "n_scrambled": 0,
+     "carry_mean": 1.2186412674323412,
+     "carry_matched": [
+      0.7957282997672961,
+      120
+     ],
+     "energy_phases": {
+      "brain": 6.0,
+      "action": 775.7,
+      "biologie": 1186.3,
+      "mouvement": 200.0
+     },
+     "energy_action_per_throw": 8.524425477397394,
+     "drain": 18.2,
+     "decision_mismatch": [],
+     "e6_gap": 6.996999621391296,
+     "e6_n": 238,
+     "e6_sign_agree": 1.0,
+     "profile": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.20068027210884354
+     },
+     "n_by_type": {
+      "+1": 32,
+      "0": 294,
+      "-1": 31
+     },
+     "profile_seen": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.20068027210884354
+     },
+     "n_by_type_seen": {
+      "+1": 32,
+      "0": 294,
+      "-1": 31
+     },
+     "edges": "{8.0}",
+     "w_intact": true,
+     "w_drift": 0.0,
+     "life_score_max_dev": 0.0,
+     "phenotype": {
+      "hp_bonus": 1220.0,
+      "inv_capacity": 50,
+      "energy_drain": 18.2
+     },
+     "phenotype_insitu": "{(1220.0, 50, 18.2)}",
+     "fingerprint": "f78ca28fc8445e1d"
+    },
+    "BROUILLE": {
+     "arm": "BROUILLE",
+     "seed": 5,
+     "n": 24,
+     "ticks_run": 47,
+     "agent_ticks": 378,
+     "med_age": 13.0,
+     "ages": [
+      5.0,
+      6.0,
+      7.0,
+      8.0,
+      8.0,
+      8.0,
+      11.0,
+      11.0,
+      11.0,
+      12.0,
+      13.0,
+      13.0,
+      13.0,
+      14.0,
+      15.0,
+      16.0,
+      16.0,
+      17.0,
+      18.0,
+      19.0,
+      26.0,
+      30.0,
+      34.0,
+      47.0
+     ],
+     "alive_end": 0,
+     "censure": 0.0,
+     "age_at_cap": 0,
+     "throw_decided": 202,
+     "throws": 202,
+     "throw_hits": 138,
+     "throw_prey_hits": 49,
+     "throw_agent_hits": 89,
+     "preys_eaten": 38,
+     "mammoth_kills": 12,
+     "big_kills": 6,
+     "leurre_hits": 5,
+     "apex0": 11,
+     "apex_end": 0,
+     "kills_by_type": {
+      "Sanglier": 9,
+      "Lapin": 10,
+      "Cerf": 7,
+      "Leurre": 5,
+      "Mammouth": 6
+     },
+     "stunned_by_type": {
+      "Lapin": 12,
+      "Cerf": 6,
+      "Leurre": 3,
+      "Mammouth": 3,
+      "Sanglier": 2
+     },
+     "riposte_hp": 370.0,
+     "hp_start": 1320.0,
+     "died_energy": 24,
+     "died_hp": 0,
+     "equips": 216,
+     "n_scrambled": 378,
+     "carry_mean": 1.1204132282678216,
+     "carry_matched": [
+      0.5744362539577527,
+      120
+     ],
+     "energy_phases": {
+      "brain": 4.3,
+      "action": 1654.8,
+      "biologie": 254.8,
+      "mouvement": 184.0
+     },
+     "energy_action_per_throw": 8.191901817343817,
+     "drain": 18.2,
+     "decision_mismatch": [],
+     "e6_gap": 6.996999621391296,
+     "e6_n": 222,
+     "e6_sign_agree": 1.0,
+     "profile": {
+      "+1": 0.5555555555555556,
+      "+0.5": NaN,
+      "-1": 0.48148148148148145,
+      "0": 0.5370370370370371
+     },
+     "n_by_type": {
+      "0": 324,
+      "-1": 27,
+      "+1": 27
+     },
+     "profile_seen": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": NaN
+     },
+     "n_by_type_seen": {
+      "+1": 202,
+      "-1": 176
+     },
+     "edges": "{8.0}",
+     "w_intact": true,
+     "w_drift": 0.0,
+     "life_score_max_dev": 0.0,
+     "phenotype": {
+      "hp_bonus": 1220.0,
+      "inv_capacity": 50,
+      "energy_drain": 18.2
+     },
+     "phenotype_insitu": "{(1220.0, 50, 18.2)}",
+     "fingerprint": "f78ca28fc8445e1d"
+    }
+   },
+   "sal": {
+    "TEMOIN": 0.0,
+    "LECTEUR": 1.0,
+    "BROUILLE": 1.0
+   },
+   "saturation": [
+    "PLAFOND : la population d'apex est EPUISEE dans les TROIS bras (11 -> [0, 1, 0]) -> `big_kills` et `leurre_hits` sont SATURES ; leur egalite entre bras ([7, 6, 6] / [5, 5, 5]) n'est PAS une absence d'effet, c'est un epuisement de la ressource. Ces DV secondaires ne discriminent RIEN dans ce regime : ne pas les lire comme un nul.",
+    "MAILLON FAIBLE : riposte encaissee = 44 hp/agent au pire des bras, pour hp de depart 1320 (3.3%) -> le maillon scelle \u00ab melee SANS riposte \u00bb ne peut pas porter l'effet ; morts par energie/hp = [(24, 0), (24, 0), (24, 0)]."
+   ],
+   "elapsed_s": 2.7255098819732666,
+   "age_TEMOIN": 21.0,
+   "age_LECTEUR": 13.0,
+   "age_BROUILLE": 13.0
+  },
+  {
+   "seed": 6,
+   "control_failures": [],
+   "detail": {
+    "sal": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 1.0,
+     "BROUILLE": 1.0
+    },
+    "decision_mismatch": {
+     "TEMOIN": [],
+     "LECTEUR": [],
+     "BROUILLE": []
+    },
+    "e6": {
+     "TEMOIN": {
+      "gap": 0.0,
+      "n": 240,
+      "sign_agree": 1.0
+     },
+     "LECTEUR": {
+      "gap": 6.996999621391296,
+      "n": 225,
+      "sign_agree": 1.0
+     },
+     "BROUILLE": {
+      "gap": 6.996999621391296,
+      "n": 224,
+      "sign_agree": 1.0
+     }
+    },
+    "profile_seen": {
+     "TEMOIN": {
+      "+1": 0.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.0
+     },
+     "LECTEUR": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.4258064516129032
+     },
+     "BROUILLE": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": NaN
+     }
+    },
+    "edges": {
+     "TEMOIN": [
+      0.0
+     ],
+     "LECTEUR": [
+      8.0
+     ],
+     "BROUILLE": [
+      8.0
+     ]
+    },
+    "w_drift": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 0.0,
+     "BROUILLE": 0.0
+    },
+    "phenotype_insitu": {
+     "TEMOIN": [
+      [
+       1220.0,
+       50,
+       18.2
+      ]
+     ],
+     "LECTEUR": [
+      [
+       1220.0,
+       50,
+       18.2
+      ]
+     ],
+     "BROUILLE": [
+      [
+       1220.0,
+       50,
+       18.2
+      ]
+     ]
+    },
+    "throw_prey_hits": {
+     "TEMOIN": 0,
+     "LECTEUR": 39,
+     "BROUILLE": 38
+    },
+    "censure": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 0.0,
+     "BROUILLE": 0.0
+    },
+    "age_at_cap": {
+     "TEMOIN": 0,
+     "LECTEUR": 0,
+     "BROUILLE": 0
+    },
+    "life_score_max_dev": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 0.0,
+     "BROUILLE": 0.0
+    },
+    "carry_lifetime": {
+     "TEMOIN": 1.6502,
+     "LECTEUR": 1.2872,
+     "BROUILLE": 0.813
+    },
+    "carry_matched": {
+     "TEMOIN": [
+      0.9123298380329132,
+      120
+     ],
+     "LECTEUR": [
+      0.5732247081200297,
+      120
+     ],
+     "BROUILLE": [
+      0.7821088642913218,
+      120
+     ]
+    },
+    "carry_gap_energy_frac": 0.00932,
+    "fingerprint": {
+     "TEMOIN": "63ecec8bda834e28",
+     "LECTEUR": "63ecec8bda834e28",
+     "BROUILLE": "63ecec8bda834e28"
+    }
+   },
+   "res": {
+    "TEMOIN": {
+     "arm": "TEMOIN",
+     "seed": 6,
+     "n": 24,
+     "ticks_run": 70,
+     "agent_ticks": 622,
+     "med_age": 20.0,
+     "ages": [
+      12.0,
+      12.0,
+      13.0,
+      14.0,
+      15.0,
+      16.0,
+      17.0,
+      17.0,
+      19.0,
+      19.0,
+      19.0,
+      20.0,
+      20.0,
+      21.0,
+      21.0,
+      21.0,
+      23.0,
+      25.0,
+      28.0,
+      36.0,
+      36.0,
+      63.0,
+      65.0,
+      70.0
+     ],
+     "alive_end": 0,
+     "censure": 0.0,
+     "age_at_cap": 0,
+     "throw_decided": 0,
+     "throws": 0,
+     "throw_hits": 0,
+     "throw_prey_hits": 0,
+     "throw_agent_hits": 0,
+     "preys_eaten": 47,
+     "mammoth_kills": 14,
+     "big_kills": 9,
+     "leurre_hits": 5,
+     "apex0": 11,
+     "apex_end": 0,
+     "kills_by_type": {
+      "Lapin": 9,
+      "Cerf": 18,
+      "Sanglier": 6,
+      "Mammouth": 9,
+      "Leurre": 5
+     },
+     "stunned_by_type": {},
+     "riposte_hp": 1510.0,
+     "hp_start": 1320.0,
+     "died_energy": 24,
+     "died_hp": 0,
+     "equips": 24,
+     "n_scrambled": 0,
+     "carry_mean": 1.6501624362778737,
+     "carry_matched": [
+      0.9123298380329132,
+      120
+     ],
+     "energy_phases": {
+      "brain": 11.3,
+      "action": -20.3,
+      "biologie": 1757.8,
+      "mouvement": 412.0
+     },
+     "energy_action_per_throw": NaN,
+     "drain": 18.2,
+     "decision_mismatch": [],
+     "e6_gap": 0.0,
+     "e6_n": 240,
+     "e6_sign_agree": 1.0,
+     "profile": {
+      "+1": 0.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.0
+     },
+     "n_by_type": {
+      "0": 564,
+      "-1": 20,
+      "+1": 38
+     },
+     "profile_seen": {
+      "+1": 0.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.0
+     },
+     "n_by_type_seen": {
+      "0": 564,
+      "-1": 20,
+      "+1": 38
+     },
+     "edges": "{0.0}",
+     "w_intact": true,
+     "w_drift": 0.0,
+     "life_score_max_dev": 0.0,
+     "phenotype": {
+      "hp_bonus": 1220.0,
+      "inv_capacity": 50,
+      "energy_drain": 18.2
+     },
+     "phenotype_insitu": "{(1220.0, 50, 18.2)}",
+     "fingerprint": "63ecec8bda834e28"
+    },
+    "LECTEUR": {
+     "arm": "LECTEUR",
+     "seed": 6,
+     "n": 24,
+     "ticks_run": 46,
+     "agent_ticks": 373,
+     "med_age": 12.0,
+     "ages": [
+      5.0,
+      7.0,
+      8.0,
+      8.0,
+      9.0,
+      9.0,
+      9.0,
+      10.0,
+      10.0,
+      11.0,
+      12.0,
+      12.0,
+      12.0,
+      12.0,
+      12.0,
+      13.0,
+      13.0,
+      17.0,
+      20.0,
+      22.0,
+      26.0,
+      33.0,
+      37.0,
+      46.0
+     ],
+     "alive_end": 0,
+     "censure": 0.0,
+     "age_at_cap": 0,
+     "throw_decided": 182,
+     "throws": 182,
+     "throw_hits": 128,
+     "throw_prey_hits": 39,
+     "throw_agent_hits": 89,
+     "preys_eaten": 33,
+     "mammoth_kills": 12,
+     "big_kills": 9,
+     "leurre_hits": 5,
+     "apex0": 11,
+     "apex_end": 0,
+     "kills_by_type": {
+      "Lapin": 8,
+      "Cerf": 8,
+      "Sanglier": 5,
+      "Mammouth": 9,
+      "Leurre": 5
+     },
+     "stunned_by_type": {
+      "Mammouth": 6,
+      "Leurre": 2,
+      "Sanglier": 2,
+      "Cerf": 4,
+      "Lapin": 4
+     },
+     "riposte_hp": 890.0,
+     "hp_start": 1320.0,
+     "died_energy": 24,
+     "died_hp": 0,
+     "equips": 199,
+     "n_scrambled": 0,
+     "carry_mean": 1.2871794896708766,
+     "carry_matched": [
+      0.5732247081200297,
+      120
+     ],
+     "energy_phases": {
+      "brain": 2.4,
+      "action": 1539.8,
+      "biologie": 256.5,
+      "mouvement": 262.0
+     },
+     "energy_action_per_throw": 8.460514831994486,
+     "drain": 18.2,
+     "decision_mismatch": [],
+     "e6_gap": 6.996999621391296,
+     "e6_n": 225,
+     "e6_sign_agree": 1.0,
+     "profile": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.4258064516129032
+     },
+     "n_by_type": {
+      "0": 310,
+      "+1": 50,
+      "-1": 13
+     },
+     "profile_seen": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.4258064516129032
+     },
+     "n_by_type_seen": {
+      "0": 310,
+      "+1": 50,
+      "-1": 13
+     },
+     "edges": "{8.0}",
+     "w_intact": true,
+     "w_drift": 0.0,
+     "life_score_max_dev": 0.0,
+     "phenotype": {
+      "hp_bonus": 1220.0,
+      "inv_capacity": 50,
+      "energy_drain": 18.2
+     },
+     "phenotype_insitu": "{(1220.0, 50, 18.2)}",
+     "fingerprint": "63ecec8bda834e28"
+    },
+    "BROUILLE": {
+     "arm": "BROUILLE",
+     "seed": 6,
+     "n": 24,
+     "ticks_run": 41,
+     "agent_ticks": 321,
+     "med_age": 11.5,
+     "ages": [
+      6.0,
+      7.0,
+      8.0,
+      8.0,
+      8.0,
+      8.0,
+      9.0,
+      10.0,
+      11.0,
+      11.0,
+      11.0,
+      11.0,
+      12.0,
+      12.0,
+      12.0,
+      13.0,
+      14.0,
+      14.0,
+      14.0,
+      14.0,
+      17.0,
+      24.0,
+      26.0,
+      41.0
+     ],
+     "alive_end": 0,
+     "censure": 0.0,
+     "age_at_cap": 0,
+     "throw_decided": 155,
+     "throws": 155,
+     "throw_hits": 102,
+     "throw_prey_hits": 38,
+     "throw_agent_hits": 64,
+     "preys_eaten": 27,
+     "mammoth_kills": 13,
+     "big_kills": 8,
+     "leurre_hits": 5,
+     "apex0": 11,
+     "apex_end": 0,
+     "kills_by_type": {
+      "Lapin": 7,
+      "Cerf": 4,
+      "Sanglier": 3,
+      "Mammouth": 8,
+      "Leurre": 5
+     },
+     "stunned_by_type": {
+      "Mammouth": 7,
+      "Leurre": 2,
+      "Cerf": 5,
+      "Lapin": 5,
+      "Sanglier": 3
+     },
+     "riposte_hp": 580.0,
+     "hp_start": 1320.0,
+     "died_energy": 23,
+     "died_hp": 0,
+     "equips": 172,
+     "n_scrambled": 321,
+     "carry_mean": 0.8130192414209368,
+     "carry_matched": [
+      0.7821088642913218,
+      120
+     ],
+     "energy_phases": {
+      "brain": 5.3,
+      "action": 1311.9,
+      "biologie": 566.1,
+      "mouvement": 194.0
+     },
+     "energy_action_per_throw": 8.46410322085554,
+     "drain": 18.2,
+     "decision_mismatch": [],
+     "e6_gap": 6.996999621391296,
+     "e6_n": 224,
+     "e6_sign_agree": 1.0,
+     "profile": {
+      "+1": 0.4888888888888889,
+      "+0.5": NaN,
+      "-1": 0.4090909090909091,
+      "0": 0.4881889763779528
+     },
+     "n_by_type": {
+      "0": 254,
+      "-1": 22,
+      "+1": 45
+     },
+     "profile_seen": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": NaN
+     },
+     "n_by_type_seen": {
+      "+1": 155,
+      "-1": 166
+     },
+     "edges": "{8.0}",
+     "w_intact": true,
+     "w_drift": 0.0,
+     "life_score_max_dev": 0.0,
+     "phenotype": {
+      "hp_bonus": 1220.0,
+      "inv_capacity": 50,
+      "energy_drain": 18.2
+     },
+     "phenotype_insitu": "{(1220.0, 50, 18.2)}",
+     "fingerprint": "63ecec8bda834e28"
+    }
+   },
+   "sal": {
+    "TEMOIN": 0.0,
+    "LECTEUR": 1.0,
+    "BROUILLE": 1.0
+   },
+   "saturation": [
+    "PLAFOND : la population d'apex est EPUISEE dans les TROIS bras (11 -> [0, 0, 0]) -> `big_kills` et `leurre_hits` sont SATURES ; leur egalite entre bras ([9, 9, 8] / [5, 5, 5]) n'est PAS une absence d'effet, c'est un epuisement de la ressource. Ces DV secondaires ne discriminent RIEN dans ce regime : ne pas les lire comme un nul.",
+    "MAILLON FAIBLE : riposte encaissee = 63 hp/agent au pire des bras, pour hp de depart 1320 (4.8%) -> le maillon scelle \u00ab melee SANS riposte \u00bb ne peut pas porter l'effet ; morts par energie/hp = [(24, 0), (24, 0), (23, 0)]."
+   ],
+   "elapsed_s": 2.6793887615203857,
+   "age_TEMOIN": 20.0,
+   "age_LECTEUR": 12.0,
+   "age_BROUILLE": 11.5
+  },
+  {
+   "seed": 7,
+   "control_failures": [],
+   "detail": {
+    "sal": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 1.0,
+     "BROUILLE": 1.0
+    },
+    "decision_mismatch": {
+     "TEMOIN": [],
+     "LECTEUR": [],
+     "BROUILLE": []
+    },
+    "e6": {
+     "TEMOIN": {
+      "gap": 0.0,
+      "n": 240,
+      "sign_agree": 1.0
+     },
+     "LECTEUR": {
+      "gap": 6.996999621391296,
+      "n": 238,
+      "sign_agree": 1.0
+     },
+     "BROUILLE": {
+      "gap": 6.996999621391296,
+      "n": 222,
+      "sign_agree": 1.0
+     }
+    },
+    "profile_seen": {
+     "TEMOIN": {
+      "+1": 0.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.0
+     },
+     "LECTEUR": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.17827298050139276
+     },
+     "BROUILLE": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": NaN
+     }
+    },
+    "edges": {
+     "TEMOIN": [
+      0.0
+     ],
+     "LECTEUR": [
+      8.0
+     ],
+     "BROUILLE": [
+      8.0
+     ]
+    },
+    "w_drift": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 0.0,
+     "BROUILLE": 0.0
+    },
+    "phenotype_insitu": {
+     "TEMOIN": [
+      [
+       1220.0,
+       50,
+       18.2
+      ]
+     ],
+     "LECTEUR": [
+      [
+       1220.0,
+       50,
+       18.2
+      ]
+     ],
+     "BROUILLE": [
+      [
+       1220.0,
+       50,
+       18.2
+      ]
+     ]
+    },
+    "throw_prey_hits": {
+     "TEMOIN": 0,
+     "LECTEUR": 27,
+     "BROUILLE": 29
+    },
+    "censure": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 0.0,
+     "BROUILLE": 0.0
+    },
+    "age_at_cap": {
+     "TEMOIN": 0,
+     "LECTEUR": 0,
+     "BROUILLE": 0
+    },
+    "life_score_max_dev": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 0.0,
+     "BROUILLE": 0.0
+    },
+    "carry_lifetime": {
+     "TEMOIN": 1.34,
+     "LECTEUR": 0.7562,
+     "BROUILLE": 0.6315
+    },
+    "carry_matched": {
+     "TEMOIN": [
+      0.5,
+      120
+     ],
+     "LECTEUR": [
+      0.5939336799737638,
+      120
+     ],
+     "BROUILLE": [
+      0.5041666666666667,
+      120
+     ]
+    },
+    "carry_gap_energy_frac": 0.00258,
+    "fingerprint": {
+     "TEMOIN": "10e0ef22ff3ec032",
+     "LECTEUR": "10e0ef22ff3ec032",
+     "BROUILLE": "10e0ef22ff3ec032"
+    }
+   },
+   "res": {
+    "TEMOIN": {
+     "arm": "TEMOIN",
+     "seed": 7,
+     "n": 24,
+     "ticks_run": 49,
+     "agent_ticks": 536,
+     "med_age": 20.0,
+     "ages": [
+      12.0,
+      12.0,
+      12.0,
+      13.0,
+      13.0,
+      14.0,
+      15.0,
+      18.0,
+      19.0,
+      19.0,
+      20.0,
+      20.0,
+      20.0,
+      24.0,
+      24.0,
+      25.0,
+      25.0,
+      27.0,
+      27.0,
+      28.0,
+      29.0,
+      35.0,
+      36.0,
+      49.0
+     ],
+     "alive_end": 0,
+     "censure": 0.0,
+     "age_at_cap": 0,
+     "throw_decided": 0,
+     "throws": 0,
+     "throw_hits": 0,
+     "throw_prey_hits": 0,
+     "throw_agent_hits": 0,
+     "preys_eaten": 31,
+     "mammoth_kills": 10,
+     "big_kills": 6,
+     "leurre_hits": 5,
+     "apex0": 11,
+     "apex_end": 0,
+     "kills_by_type": {
+      "Lapin": 10,
+      "Cerf": 7,
+      "Leurre": 5,
+      "Sanglier": 4,
+      "Mammouth": 6
+     },
+     "stunned_by_type": {},
+     "riposte_hp": 1030.0,
+     "hp_start": 1320.0,
+     "died_energy": 24,
+     "died_hp": 0,
+     "equips": 24,
+     "n_scrambled": 0,
+     "carry_mean": 1.3399985449063423,
+     "carry_matched": [
+      0.5,
+      120
+     ],
+     "energy_phases": {
+      "brain": 9.5,
+      "action": -74.7,
+      "biologie": 1688.4,
+      "mouvement": 420.0
+     },
+     "energy_action_per_throw": NaN,
+     "drain": 18.2,
+     "decision_mismatch": [],
+     "e6_gap": 0.0,
+     "e6_n": 240,
+     "e6_sign_agree": 1.0,
+     "profile": {
+      "+1": 0.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.0
+     },
+     "n_by_type": {
+      "0": 480,
+      "-1": 29,
+      "+1": 27
+     },
+     "profile_seen": {
+      "+1": 0.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.0
+     },
+     "n_by_type_seen": {
+      "0": 480,
+      "-1": 29,
+      "+1": 27
+     },
+     "edges": "{0.0}",
+     "w_intact": true,
+     "w_drift": 0.0,
+     "life_score_max_dev": 0.0,
+     "phenotype": {
+      "hp_bonus": 1220.0,
+      "inv_capacity": 50,
+      "energy_drain": 18.2
+     },
+     "phenotype_insitu": "{(1220.0, 50, 18.2)}",
+     "fingerprint": "10e0ef22ff3ec032"
+    },
+    "LECTEUR": {
+     "arm": "LECTEUR",
+     "seed": 7,
+     "n": 24,
+     "ticks_run": 41,
+     "agent_ticks": 420,
+     "med_age": 15.0,
+     "ages": [
+      8.0,
+      10.0,
+      10.0,
+      10.0,
+      12.0,
+      12.0,
+      12.0,
+      13.0,
+      14.0,
+      14.0,
+      14.0,
+      15.0,
+      15.0,
+      15.0,
+      16.0,
+      17.0,
+      17.0,
+      20.0,
+      21.0,
+      23.0,
+      23.0,
+      32.0,
+      36.0,
+      41.0
+     ],
+     "alive_end": 0,
+     "censure": 0.0,
+     "age_at_cap": 0,
+     "throw_decided": 96,
+     "throws": 96,
+     "throw_hits": 71,
+     "throw_prey_hits": 27,
+     "throw_agent_hits": 44,
+     "preys_eaten": 26,
+     "mammoth_kills": 9,
+     "big_kills": 7,
+     "leurre_hits": 5,
+     "apex0": 11,
+     "apex_end": 0,
+     "kills_by_type": {
+      "Lapin": 8,
+      "Cerf": 6,
+      "Leurre": 5,
+      "Sanglier": 3,
+      "Mammouth": 7
+     },
+     "stunned_by_type": {
+      "Mammouth": 6,
+      "Cerf": 2,
+      "Lapin": 3
+     },
+     "riposte_hp": 720.0,
+     "hp_start": 1320.0,
+     "died_energy": 24,
+     "died_hp": 0,
+     "equips": 119,
+     "n_scrambled": 0,
+     "carry_mean": 0.7561623009223968,
+     "carry_matched": [
+      0.5939336799737638,
+      120
+     ],
+     "energy_phases": {
+      "brain": 7.3,
+      "action": 790.0,
+      "biologie": 893.7,
+      "mouvement": 306.0
+     },
+     "energy_action_per_throw": 8.229166722275162,
+     "drain": 18.2,
+     "decision_mismatch": [],
+     "e6_gap": 6.996999621391296,
+     "e6_n": 238,
+     "e6_sign_agree": 1.0,
+     "profile": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.17827298050139276
+     },
+     "n_by_type": {
+      "0": 359,
+      "+1": 32,
+      "-1": 29
+     },
+     "profile_seen": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.17827298050139276
+     },
+     "n_by_type_seen": {
+      "0": 359,
+      "+1": 32,
+      "-1": 29
+     },
+     "edges": "{8.0}",
+     "w_intact": true,
+     "w_drift": 0.0,
+     "life_score_max_dev": 0.0,
+     "phenotype": {
+      "hp_bonus": 1220.0,
+      "inv_capacity": 50,
+      "energy_drain": 18.2
+     },
+     "phenotype_insitu": "{(1220.0, 50, 18.2)}",
+     "fingerprint": "10e0ef22ff3ec032"
+    },
+    "BROUILLE": {
+     "arm": "BROUILLE",
+     "seed": 7,
+     "n": 24,
+     "ticks_run": 25,
+     "agent_ticks": 293,
+     "med_age": 10.0,
+     "ages": [
+      7.0,
+      7.0,
+      8.0,
+      8.0,
+      8.0,
+      8.0,
+      8.0,
+      9.0,
+      9.0,
+      10.0,
+      10.0,
+      10.0,
+      10.0,
+      11.0,
+      13.0,
+      13.0,
+      14.0,
+      14.0,
+      14.0,
+      18.0,
+      19.0,
+      20.0,
+      20.0,
+      25.0
+     ],
+     "alive_end": 0,
+     "censure": 0.0,
+     "age_at_cap": 0,
+     "throw_decided": 143,
+     "throws": 143,
+     "throw_hits": 77,
+     "throw_prey_hits": 29,
+     "throw_agent_hits": 48,
+     "preys_eaten": 21,
+     "mammoth_kills": 12,
+     "big_kills": 7,
+     "leurre_hits": 5,
+     "apex0": 11,
+     "apex_end": 1,
+     "kills_by_type": {
+      "Lapin": 3,
+      "Cerf": 4,
+      "Leurre": 5,
+      "Sanglier": 2,
+      "Mammouth": 7
+     },
+     "stunned_by_type": {
+      "Cerf": 2,
+      "Leurre": 3,
+      "Mammouth": 7,
+      "Lapin": 2
+     },
+     "riposte_hp": 470.0,
+     "hp_start": 1320.0,
+     "died_energy": 24,
+     "died_hp": 0,
+     "equips": 154,
+     "n_scrambled": 293,
+     "carry_mean": 0.6315245323721534,
+     "carry_matched": [
+      0.5041666666666667,
+      120
+     ],
+     "energy_phases": {
+      "brain": 3.8,
+      "action": 1058.6,
+      "biologie": 722.8,
+      "mouvement": 264.0
+     },
+     "energy_action_per_throw": 7.403034002665637,
+     "drain": 18.2,
+     "decision_mismatch": [],
+     "e6_gap": 6.996999621391296,
+     "e6_n": 222,
+     "e6_sign_agree": 1.0,
+     "profile": {
+      "+1": 0.4473684210526316,
+      "+0.5": NaN,
+      "-1": 0.3225806451612903,
+      "0": 0.5178571428571429
+     },
+     "n_by_type": {
+      "0": 224,
+      "-1": 31,
+      "+1": 38
+     },
+     "profile_seen": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": NaN
+     },
+     "n_by_type_seen": {
+      "+1": 143,
+      "-1": 150
+     },
+     "edges": "{8.0}",
+     "w_intact": true,
+     "w_drift": 0.0,
+     "life_score_max_dev": 0.0,
+     "phenotype": {
+      "hp_bonus": 1220.0,
+      "inv_capacity": 50,
+      "energy_drain": 18.2
+     },
+     "phenotype_insitu": "{(1220.0, 50, 18.2)}",
+     "fingerprint": "10e0ef22ff3ec032"
+    }
+   },
+   "sal": {
+    "TEMOIN": 0.0,
+    "LECTEUR": 1.0,
+    "BROUILLE": 1.0
+   },
+   "saturation": [
+    "PLAFOND : la population d'apex est EPUISEE dans les TROIS bras (11 -> [0, 0, 1]) -> `big_kills` et `leurre_hits` sont SATURES ; leur egalite entre bras ([6, 7, 7] / [5, 5, 5]) n'est PAS une absence d'effet, c'est un epuisement de la ressource. Ces DV secondaires ne discriminent RIEN dans ce regime : ne pas les lire comme un nul.",
+    "MAILLON FAIBLE : riposte encaissee = 43 hp/agent au pire des bras, pour hp de depart 1320 (3.3%) -> le maillon scelle \u00ab melee SANS riposte \u00bb ne peut pas porter l'effet ; morts par energie/hp = [(24, 0), (24, 0), (24, 0)]."
+   ],
+   "elapsed_s": 2.6270182132720947,
+   "age_TEMOIN": 20.0,
+   "age_LECTEUR": 15.0,
+   "age_BROUILLE": 10.0
+  },
+  {
+   "seed": 8,
+   "control_failures": [],
+   "detail": {
+    "sal": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 1.0,
+     "BROUILLE": 1.0
+    },
+    "decision_mismatch": {
+     "TEMOIN": [],
+     "LECTEUR": [],
+     "BROUILLE": []
+    },
+    "e6": {
+     "TEMOIN": {
+      "gap": 0.0,
+      "n": 240,
+      "sign_agree": 1.0
+     },
+     "LECTEUR": {
+      "gap": 6.996999621391296,
+      "n": 229,
+      "sign_agree": 1.0
+     },
+     "BROUILLE": {
+      "gap": 6.996999621391296,
+      "n": 232,
+      "sign_agree": 1.0
+     }
+    },
+    "profile_seen": {
+     "TEMOIN": {
+      "+1": 0.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.0
+     },
+     "LECTEUR": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.28342245989304815
+     },
+     "BROUILLE": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": NaN
+     }
+    },
+    "edges": {
+     "TEMOIN": [
+      0.0
+     ],
+     "LECTEUR": [
+      8.0
+     ],
+     "BROUILLE": [
+      8.0
+     ]
+    },
+    "w_drift": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 0.0,
+     "BROUILLE": 0.0
+    },
+    "phenotype_insitu": {
+     "TEMOIN": [
+      [
+       1220.0,
+       50,
+       18.2
+      ]
+     ],
+     "LECTEUR": [
+      [
+       1220.0,
+       50,
+       18.2
+      ]
+     ],
+     "BROUILLE": [
+      [
+       1220.0,
+       50,
+       18.2
+      ]
+     ]
+    },
+    "throw_prey_hits": {
+     "TEMOIN": 0,
+     "LECTEUR": 28,
+     "BROUILLE": 35
+    },
+    "censure": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 0.0,
+     "BROUILLE": 0.0
+    },
+    "age_at_cap": {
+     "TEMOIN": 0,
+     "LECTEUR": 0,
+     "BROUILLE": 0
+    },
+    "life_score_max_dev": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 0.0,
+     "BROUILLE": 0.0
+    },
+    "carry_lifetime": {
+     "TEMOIN": 1.3088,
+     "LECTEUR": 1.8255,
+     "BROUILLE": 0.8804
+    },
+    "carry_matched": {
+     "TEMOIN": [
+      0.8659288084641,
+      120
+     ],
+     "LECTEUR": [
+      0.8203278730382545,
+      120
+     ],
+     "BROUILLE": [
+      0.8619945397049212,
+      120
+     ]
+    },
+    "carry_gap_energy_frac": 0.00125,
+    "fingerprint": {
+     "TEMOIN": "2084b913a99a85d7",
+     "LECTEUR": "2084b913a99a85d7",
+     "BROUILLE": "2084b913a99a85d7"
+    }
+   },
+   "res": {
+    "TEMOIN": {
+     "arm": "TEMOIN",
+     "seed": 8,
+     "n": 24,
+     "ticks_run": 72,
+     "agent_ticks": 619,
+     "med_age": 20.5,
+     "ages": [
+      10.0,
+      11.0,
+      13.0,
+      14.0,
+      14.0,
+      15.0,
+      15.0,
+      16.0,
+      16.0,
+      16.0,
+      17.0,
+      20.0,
+      21.0,
+      21.0,
+      26.0,
+      28.0,
+      29.0,
+      30.0,
+      34.0,
+      36.0,
+      40.0,
+      43.0,
+      62.0,
+      72.0
+     ],
+     "alive_end": 0,
+     "censure": 0.0,
+     "age_at_cap": 0,
+     "throw_decided": 0,
+     "throws": 0,
+     "throw_hits": 0,
+     "throw_prey_hits": 0,
+     "throw_agent_hits": 0,
+     "preys_eaten": 49,
+     "mammoth_kills": 12,
+     "big_kills": 8,
+     "leurre_hits": 5,
+     "apex0": 11,
+     "apex_end": 0,
+     "kills_by_type": {
+      "Lapin": 15,
+      "Cerf": 11,
+      "Sanglier": 11,
+      "Mammouth": 8,
+      "Leurre": 5
+     },
+     "stunned_by_type": {},
+     "riposte_hp": 1240.0,
+     "hp_start": 1320.0,
+     "died_energy": 24,
+     "died_hp": 0,
+     "equips": 24,
+     "n_scrambled": 0,
+     "carry_mean": 1.3088120171376005,
+     "carry_matched": [
+      0.8659288084641,
+      120
+     ],
+     "energy_phases": {
+      "brain": 11.2,
+      "action": -51.4,
+      "biologie": 1773.3,
+      "mouvement": 320.0
+     },
+     "energy_action_per_throw": NaN,
+     "drain": 18.2,
+     "decision_mismatch": [],
+     "e6_gap": 0.0,
+     "e6_n": 240,
+     "e6_sign_agree": 1.0,
+     "profile": {
+      "+1": 0.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.0
+     },
+     "n_by_type": {
+      "0": 555,
+      "+1": 41,
+      "-1": 23
+     },
+     "profile_seen": {
+      "+1": 0.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.0
+     },
+     "n_by_type_seen": {
+      "0": 555,
+      "+1": 41,
+      "-1": 23
+     },
+     "edges": "{0.0}",
+     "w_intact": true,
+     "w_drift": 0.0,
+     "life_score_max_dev": 0.0,
+     "phenotype": {
+      "hp_bonus": 1220.0,
+      "inv_capacity": 50,
+      "energy_drain": 18.2
+     },
+     "phenotype_insitu": "{(1220.0, 50, 18.2)}",
+     "fingerprint": "2084b913a99a85d7"
+    },
+    "LECTEUR": {
+     "arm": "LECTEUR",
+     "seed": 8,
+     "n": 24,
+     "ticks_run": 50,
+     "agent_ticks": 430,
+     "med_age": 13.5,
+     "ages": [
+      7.0,
+      7.0,
+      8.0,
+      9.0,
+      9.0,
+      9.0,
+      10.0,
+      11.0,
+      11.0,
+      13.0,
+      13.0,
+      13.0,
+      14.0,
+      14.0,
+      14.0,
+      17.0,
+      18.0,
+      22.0,
+      26.0,
+      28.0,
+      30.0,
+      30.0,
+      47.0,
+      50.0
+     ],
+     "alive_end": 0,
+     "censure": 0.0,
+     "age_at_cap": 0,
+     "throw_decided": 137,
+     "throws": 137,
+     "throw_hits": 102,
+     "throw_prey_hits": 28,
+     "throw_agent_hits": 74,
+     "preys_eaten": 37,
+     "mammoth_kills": 10,
+     "big_kills": 6,
+     "leurre_hits": 5,
+     "apex0": 11,
+     "apex_end": 0,
+     "kills_by_type": {
+      "Lapin": 8,
+      "Cerf": 13,
+      "Sanglier": 6,
+      "Mammouth": 6,
+      "Leurre": 5
+     },
+     "stunned_by_type": {
+      "Mammouth": 5,
+      "Cerf": 8,
+      "Leurre": 1,
+      "Lapin": 2,
+      "Sanglier": 1
+     },
+     "riposte_hp": 750.0,
+     "hp_start": 1320.0,
+     "died_energy": 24,
+     "died_hp": 0,
+     "equips": 156,
+     "n_scrambled": 0,
+     "carry_mean": 1.8255460720296652,
+     "carry_matched": [
+      0.8203278730382545,
+      120
+     ],
+     "energy_phases": {
+      "brain": 4.5,
+      "action": 1132.1,
+      "biologie": 683.2,
+      "mouvement": 188.0
+     },
+     "energy_action_per_throw": 8.263687486591865,
+     "drain": 18.2,
+     "decision_mismatch": [],
+     "e6_gap": 6.996999621391296,
+     "e6_n": 229,
+     "e6_sign_agree": 1.0,
+     "profile": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.28342245989304815
+     },
+     "n_by_type": {
+      "0": 374,
+      "+1": 31,
+      "-1": 25
+     },
+     "profile_seen": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.28342245989304815
+     },
+     "n_by_type_seen": {
+      "0": 374,
+      "+1": 31,
+      "-1": 25
+     },
+     "edges": "{8.0}",
+     "w_intact": true,
+     "w_drift": 0.0,
+     "life_score_max_dev": 0.0,
+     "phenotype": {
+      "hp_bonus": 1220.0,
+      "inv_capacity": 50,
+      "energy_drain": 18.2
+     },
+     "phenotype_insitu": "{(1220.0, 50, 18.2)}",
+     "fingerprint": "2084b913a99a85d7"
+    },
+    "BROUILLE": {
+     "arm": "BROUILLE",
+     "seed": 8,
+     "n": 24,
+     "ticks_run": 32,
+     "agent_ticks": 360,
+     "med_age": 11.5,
+     "ages": [
+      7.0,
+      8.0,
+      9.0,
+      9.0,
+      9.0,
+      10.0,
+      10.0,
+      10.0,
+      11.0,
+      11.0,
+      11.0,
+      11.0,
+      12.0,
+      14.0,
+      14.0,
+      16.0,
+      20.0,
+      20.0,
+      22.0,
+      22.0,
+      22.0,
+      23.0,
+      27.0,
+      32.0
+     ],
+     "alive_end": 0,
+     "censure": 0.0,
+     "age_at_cap": 0,
+     "throw_decided": 171,
+     "throws": 171,
+     "throw_hits": 123,
+     "throw_prey_hits": 35,
+     "throw_agent_hits": 88,
+     "preys_eaten": 32,
+     "mammoth_kills": 12,
+     "big_kills": 7,
+     "leurre_hits": 5,
+     "apex0": 11,
+     "apex_end": 0,
+     "kills_by_type": {
+      "Lapin": 10,
+      "Cerf": 6,
+      "Sanglier": 4,
+      "Mammouth": 7,
+      "Leurre": 5
+     },
+     "stunned_by_type": {
+      "Mammouth": 5,
+      "Leurre": 2,
+      "Cerf": 7,
+      "Lapin": 6,
+      "Sanglier": 2
+     },
+     "riposte_hp": 720.0,
+     "hp_start": 1320.0,
+     "died_energy": 24,
+     "died_hp": 0,
+     "equips": 188,
+     "n_scrambled": 360,
+     "carry_mean": 0.8803614675688193,
+     "carry_matched": [
+      0.8619945397049212,
+      120
+     ],
+     "energy_phases": {
+      "brain": 4.8,
+      "action": 1361.6,
+      "biologie": 445.9,
+      "mouvement": 158.0
+     },
+     "energy_action_per_throw": 7.962520266404125,
+     "drain": 18.2,
+     "decision_mismatch": [],
+     "e6_gap": 6.996999621391296,
+     "e6_n": 232,
+     "e6_sign_agree": 1.0,
+     "profile": {
+      "+1": 0.5135135135135135,
+      "+0.5": NaN,
+      "-1": 0.32,
+      "0": 0.48322147651006714
+     },
+     "n_by_type": {
+      "0": 298,
+      "-1": 25,
+      "+1": 37
+     },
+     "profile_seen": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": NaN
+     },
+     "n_by_type_seen": {
+      "-1": 189,
+      "+1": 171
+     },
+     "edges": "{8.0}",
+     "w_intact": true,
+     "w_drift": 0.0,
+     "life_score_max_dev": 0.0,
+     "phenotype": {
+      "hp_bonus": 1220.0,
+      "inv_capacity": 50,
+      "energy_drain": 18.2
+     },
+     "phenotype_insitu": "{(1220.0, 50, 18.2)}",
+     "fingerprint": "2084b913a99a85d7"
+    }
+   },
+   "sal": {
+    "TEMOIN": 0.0,
+    "LECTEUR": 1.0,
+    "BROUILLE": 1.0
+   },
+   "saturation": [
+    "PLAFOND : la population d'apex est EPUISEE dans les TROIS bras (11 -> [0, 0, 0]) -> `big_kills` et `leurre_hits` sont SATURES ; leur egalite entre bras ([8, 6, 7] / [5, 5, 5]) n'est PAS une absence d'effet, c'est un epuisement de la ressource. Ces DV secondaires ne discriminent RIEN dans ce regime : ne pas les lire comme un nul.",
+    "MAILLON FAIBLE : riposte encaissee = 52 hp/agent au pire des bras, pour hp de depart 1320 (3.9%) -> le maillon scelle \u00ab melee SANS riposte \u00bb ne peut pas porter l'effet ; morts par energie/hp = [(24, 0), (24, 0), (24, 0)]."
+   ],
+   "elapsed_s": 2.784515857696533,
+   "age_TEMOIN": 20.5,
+   "age_LECTEUR": 13.5,
+   "age_BROUILLE": 11.5
+  },
+  {
+   "seed": 9,
+   "control_failures": [
+    "(i) in situ BROUILLE P(throw|-1)=0.800 hors (0.25, 0.75)"
+   ],
+   "detail": {
+    "sal": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 1.0,
+     "BROUILLE": 1.0
+    },
+    "decision_mismatch": {
+     "TEMOIN": [],
+     "LECTEUR": [],
+     "BROUILLE": []
+    },
+    "e6": {
+     "TEMOIN": {
+      "gap": 0.0,
+      "n": 240,
+      "sign_agree": 1.0
+     },
+     "LECTEUR": {
+      "gap": 6.996999621391296,
+      "n": 239,
+      "sign_agree": 1.0
+     },
+     "BROUILLE": {
+      "gap": 6.996999621391296,
+      "n": 226,
+      "sign_agree": 1.0
+     }
+    },
+    "profile_seen": {
+     "TEMOIN": {
+      "+1": 0.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.0
+     },
+     "LECTEUR": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.12958963282937366
+     },
+     "BROUILLE": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": NaN
+     }
+    },
+    "edges": {
+     "TEMOIN": [
+      0.0
+     ],
+     "LECTEUR": [
+      8.0
+     ],
+     "BROUILLE": [
+      8.0
+     ]
+    },
+    "w_drift": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 0.0,
+     "BROUILLE": 0.0
+    },
+    "phenotype_insitu": {
+     "TEMOIN": [
+      [
+       1220.0,
+       50,
+       18.2
+      ]
+     ],
+     "LECTEUR": [
+      [
+       1220.0,
+       50,
+       18.2
+      ]
+     ],
+     "BROUILLE": [
+      [
+       1220.0,
+       50,
+       18.2
+      ]
+     ]
+    },
+    "throw_prey_hits": {
+     "TEMOIN": 0,
+     "LECTEUR": 21,
+     "BROUILLE": 36
+    },
+    "censure": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 0.0,
+     "BROUILLE": 0.0
+    },
+    "age_at_cap": {
+     "TEMOIN": 0,
+     "LECTEUR": 0,
+     "BROUILLE": 0
+    },
+    "life_score_max_dev": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 0.0,
+     "BROUILLE": 0.0
+    },
+    "carry_lifetime": {
+     "TEMOIN": 1.5779,
+     "LECTEUR": 0.9766,
+     "BROUILLE": 1.2401
+    },
+    "carry_matched": {
+     "TEMOIN": [
+      1.0118478413021228,
+      120
+     ],
+     "LECTEUR": [
+      0.9294368464006924,
+      120
+     ],
+     "BROUILLE": [
+      0.6471140511307546,
+      120
+     ]
+    },
+    "carry_gap_energy_frac": 0.01002,
+    "fingerprint": {
+     "TEMOIN": "f16dc3cbaf56e878",
+     "LECTEUR": "f16dc3cbaf56e878",
+     "BROUILLE": "f16dc3cbaf56e878"
+    }
+   },
+   "res": {
+    "TEMOIN": {
+     "arm": "TEMOIN",
+     "seed": 9,
+     "n": 24,
+     "ticks_run": 116,
+     "agent_ticks": 856,
+     "med_age": 24.5,
+     "ages": [
+      11.0,
+      13.0,
+      13.0,
+      14.0,
+      15.0,
+      15.0,
+      16.0,
+      16.0,
+      19.0,
+      20.0,
+      21.0,
+      22.0,
+      27.0,
+      29.0,
+      30.0,
+      39.0,
+      41.0,
+      45.0,
+      45.0,
+      50.0,
+      51.0,
+      83.0,
+      105.0,
+      116.0
+     ],
+     "alive_end": 0,
+     "censure": 0.0,
+     "age_at_cap": 0,
+     "throw_decided": 0,
+     "throws": 0,
+     "throw_hits": 0,
+     "throw_prey_hits": 0,
+     "throw_agent_hits": 0,
+     "preys_eaten": 75,
+     "mammoth_kills": 25,
+     "big_kills": 13,
+     "leurre_hits": 5,
+     "apex0": 11,
+     "apex_end": 1,
+     "kills_by_type": {
+      "Cerf": 14,
+      "Mammouth": 13,
+      "Sanglier": 10,
+      "Lapin": 26,
+      "Leurre": 5
+     },
+     "stunned_by_type": {},
+     "riposte_hp": 1590.0,
+     "hp_start": 1320.0,
+     "died_energy": 24,
+     "died_hp": 0,
+     "equips": 24,
+     "n_scrambled": 0,
+     "carry_mean": 1.5778535595656116,
+     "carry_matched": [
+      1.0118478413021228,
+      120
+     ],
+     "energy_phases": {
+      "brain": 15.9,
+      "action": -163.3,
+      "biologie": 1964.0,
+      "mouvement": 406.0
+     },
+     "energy_action_per_throw": NaN,
+     "drain": 18.2,
+     "decision_mismatch": [],
+     "e6_gap": 0.0,
+     "e6_n": 240,
+     "e6_sign_agree": 1.0,
+     "profile": {
+      "+1": 0.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.0
+     },
+     "n_by_type": {
+      "0": 769,
+      "+1": 62,
+      "-1": 25
+     },
+     "profile_seen": {
+      "+1": 0.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.0
+     },
+     "n_by_type_seen": {
+      "0": 769,
+      "+1": 62,
+      "-1": 25
+     },
+     "edges": "{0.0}",
+     "w_intact": true,
+     "w_drift": 0.0,
+     "life_score_max_dev": 0.0,
+     "phenotype": {
+      "hp_bonus": 1220.0,
+      "inv_capacity": 50,
+      "energy_drain": 18.2
+     },
+     "phenotype_insitu": "{(1220.0, 50, 18.2)}",
+     "fingerprint": "f16dc3cbaf56e878"
+    },
+    "LECTEUR": {
+     "arm": "LECTEUR",
+     "seed": 9,
+     "n": 24,
+     "ticks_run": 95,
+     "agent_ticks": 519,
+     "med_age": 15.0,
+     "ages": [
+      9.0,
+      11.0,
+      11.0,
+      12.0,
+      12.0,
+      12.0,
+      13.0,
+      14.0,
+      14.0,
+      14.0,
+      14.0,
+      15.0,
+      15.0,
+      15.0,
+      15.0,
+      16.0,
+      18.0,
+      19.0,
+      19.0,
+      19.0,
+      29.0,
+      48.0,
+      60.0,
+      95.0
+     ],
+     "alive_end": 0,
+     "censure": 0.0,
+     "age_at_cap": 0,
+     "throw_decided": 85,
+     "throws": 85,
+     "throw_hits": 62,
+     "throw_prey_hits": 21,
+     "throw_agent_hits": 41,
+     "preys_eaten": 42,
+     "mammoth_kills": 12,
+     "big_kills": 7,
+     "leurre_hits": 5,
+     "apex0": 11,
+     "apex_end": 0,
+     "kills_by_type": {
+      "Cerf": 11,
+      "Mammouth": 7,
+      "Sanglier": 10,
+      "Lapin": 9,
+      "Leurre": 5
+     },
+     "stunned_by_type": {
+      "Leurre": 1,
+      "Mammouth": 3,
+      "Lapin": 2,
+      "Cerf": 3,
+      "Sanglier": 2
+     },
+     "riposte_hp": 810.0,
+     "hp_start": 1320.0,
+     "died_energy": 24,
+     "died_hp": 0,
+     "equips": 104,
+     "n_scrambled": 0,
+     "carry_mean": 0.9765721136471012,
+     "carry_matched": [
+      0.9294368464006924,
+      120
+     ],
+     "energy_phases": {
+      "brain": 9.2,
+      "action": 613.1,
+      "biologie": 1104.1,
+      "mouvement": 300.0
+     },
+     "energy_action_per_throw": 7.212950792819042,
+     "drain": 18.2,
+     "decision_mismatch": [],
+     "e6_gap": 6.996999621391296,
+     "e6_n": 239,
+     "e6_sign_agree": 1.0,
+     "profile": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.12958963282937366
+     },
+     "n_by_type": {
+      "0": 463,
+      "-1": 31,
+      "+1": 25
+     },
+     "profile_seen": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.12958963282937366
+     },
+     "n_by_type_seen": {
+      "0": 463,
+      "-1": 31,
+      "+1": 25
+     },
+     "edges": "{8.0}",
+     "w_intact": true,
+     "w_drift": 0.0,
+     "life_score_max_dev": 0.0,
+     "phenotype": {
+      "hp_bonus": 1220.0,
+      "inv_capacity": 50,
+      "energy_drain": 18.2
+     },
+     "phenotype_insitu": "{(1220.0, 50, 18.2)}",
+     "fingerprint": "f16dc3cbaf56e878"
+    },
+    "BROUILLE": {
+     "arm": "BROUILLE",
+     "seed": 9,
+     "n": 24,
+     "ticks_run": 40,
+     "agent_ticks": 364,
+     "med_age": 10.5,
+     "ages": [
+      7.0,
+      8.0,
+      8.0,
+      8.0,
+      8.0,
+      9.0,
+      9.0,
+      9.0,
+      10.0,
+      10.0,
+      10.0,
+      10.0,
+      11.0,
+      11.0,
+      12.0,
+      14.0,
+      14.0,
+      15.0,
+      17.0,
+      24.0,
+      28.0,
+      35.0,
+      37.0,
+      40.0
+     ],
+     "alive_end": 0,
+     "censure": 0.0,
+     "age_at_cap": 0,
+     "throw_decided": 173,
+     "throws": 173,
+     "throw_hits": 134,
+     "throw_prey_hits": 36,
+     "throw_agent_hits": 98,
+     "preys_eaten": 34,
+     "mammoth_kills": 15,
+     "big_kills": 9,
+     "leurre_hits": 5,
+     "apex0": 11,
+     "apex_end": 1,
+     "kills_by_type": {
+      "Cerf": 6,
+      "Mammouth": 9,
+      "Lapin": 8,
+      "Sanglier": 5,
+      "Leurre": 5
+     },
+     "stunned_by_type": {
+      "Lapin": 5,
+      "Sanglier": 3,
+      "Leurre": 6,
+      "Mammouth": 3,
+      "Cerf": 4
+     },
+     "riposte_hp": 580.0,
+     "hp_start": 1320.0,
+     "died_energy": 24,
+     "died_hp": 0,
+     "equips": 190,
+     "n_scrambled": 364,
+     "carry_mean": 1.2401134691149434,
+     "carry_matched": [
+      0.6471140511307546,
+      120
+     ],
+     "energy_phases": {
+      "brain": 4.7,
+      "action": 1347.7,
+      "biologie": 511.8,
+      "mouvement": 190.0
+     },
+     "energy_action_per_throw": 7.7902629328201485,
+     "drain": 18.2,
+     "decision_mismatch": [],
+     "e6_gap": 6.996999621391296,
+     "e6_n": 226,
+     "e6_sign_agree": 1.0,
+     "profile": {
+      "+1": 0.5357142857142857,
+      "+0.5": NaN,
+      "-1": 0.8,
+      "0": 0.43462897526501765
+     },
+     "n_by_type": {
+      "0": 283,
+      "-1": 25,
+      "+1": 56
+     },
+     "profile_seen": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": NaN
+     },
+     "n_by_type_seen": {
+      "+1": 173,
+      "-1": 191
+     },
+     "edges": "{8.0}",
+     "w_intact": true,
+     "w_drift": 0.0,
+     "life_score_max_dev": 0.0,
+     "phenotype": {
+      "hp_bonus": 1220.0,
+      "inv_capacity": 50,
+      "energy_drain": 18.2
+     },
+     "phenotype_insitu": "{(1220.0, 50, 18.2)}",
+     "fingerprint": "f16dc3cbaf56e878"
+    }
+   },
+   "sal": {
+    "TEMOIN": 0.0,
+    "LECTEUR": 1.0,
+    "BROUILLE": 1.0
+   },
+   "saturation": [
+    "PLAFOND : la population d'apex est EPUISEE dans les TROIS bras (11 -> [1, 0, 1]) -> `big_kills` et `leurre_hits` sont SATURES ; leur egalite entre bras ([13, 7, 9] / [5, 5, 5]) n'est PAS une absence d'effet, c'est un epuisement de la ressource. Ces DV secondaires ne discriminent RIEN dans ce regime : ne pas les lire comme un nul.",
+    "MAILLON FAIBLE : riposte encaissee = 66 hp/agent au pire des bras, pour hp de depart 1320 (5.0%) -> le maillon scelle \u00ab melee SANS riposte \u00bb ne peut pas porter l'effet ; morts par energie/hp = [(24, 0), (24, 0), (24, 0)]."
+   ],
+   "elapsed_s": 3.5179085731506348,
+   "age_TEMOIN": 24.5,
+   "age_LECTEUR": 15.0,
+   "age_BROUILLE": 10.5
+  },
+  {
+   "seed": 10,
+   "control_failures": [],
+   "detail": {
+    "sal": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 1.0,
+     "BROUILLE": 1.0
+    },
+    "decision_mismatch": {
+     "TEMOIN": [],
+     "LECTEUR": [],
+     "BROUILLE": []
+    },
+    "e6": {
+     "TEMOIN": {
+      "gap": 0.0,
+      "n": 240,
+      "sign_agree": 1.0
+     },
+     "LECTEUR": {
+      "gap": 6.996999621391296,
+      "n": 236,
+      "sign_agree": 1.0
+     },
+     "BROUILLE": {
+      "gap": 6.996999621391296,
+      "n": 217,
+      "sign_agree": 1.0
+     }
+    },
+    "profile_seen": {
+     "TEMOIN": {
+      "+1": 0.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.0
+     },
+     "LECTEUR": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.17892156862745098
+     },
+     "BROUILLE": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": NaN
+     }
+    },
+    "edges": {
+     "TEMOIN": [
+      0.0
+     ],
+     "LECTEUR": [
+      8.0
+     ],
+     "BROUILLE": [
+      8.0
+     ]
+    },
+    "w_drift": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 0.0,
+     "BROUILLE": 0.0
+    },
+    "phenotype_insitu": {
+     "TEMOIN": [
+      [
+       1220.0,
+       50,
+       18.2
+      ]
+     ],
+     "LECTEUR": [
+      [
+       1220.0,
+       50,
+       18.2
+      ]
+     ],
+     "BROUILLE": [
+      [
+       1220.0,
+       50,
+       18.2
+      ]
+     ]
+    },
+    "throw_prey_hits": {
+     "TEMOIN": 0,
+     "LECTEUR": 22,
+     "BROUILLE": 51
+    },
+    "censure": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 0.0,
+     "BROUILLE": 0.0
+    },
+    "age_at_cap": {
+     "TEMOIN": 0,
+     "LECTEUR": 0,
+     "BROUILLE": 0
+    },
+    "life_score_max_dev": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 0.0,
+     "BROUILLE": 0.0
+    },
+    "carry_lifetime": {
+     "TEMOIN": 0.9506,
+     "LECTEUR": 0.7753,
+     "BROUILLE": 0.726
+    },
+    "carry_matched": {
+     "TEMOIN": [
+      0.5,
+      120
+     ],
+     "LECTEUR": [
+      0.5643802427595547,
+      120
+     ],
+     "BROUILLE": [
+      0.5208333333333334,
+      120
+     ]
+    },
+    "carry_gap_energy_frac": 0.00177,
+    "fingerprint": {
+     "TEMOIN": "8c2dcc451f9be3b2",
+     "LECTEUR": "8c2dcc451f9be3b2",
+     "BROUILLE": "8c2dcc451f9be3b2"
+    }
+   },
+   "res": {
+    "TEMOIN": {
+     "arm": "TEMOIN",
+     "seed": 10,
+     "n": 24,
+     "ticks_run": 64,
+     "agent_ticks": 690,
+     "med_age": 25.0,
+     "ages": [
+      11.0,
+      13.0,
+      14.0,
+      14.0,
+      15.0,
+      16.0,
+      16.0,
+      19.0,
+      21.0,
+      22.0,
+      24.0,
+      24.0,
+      26.0,
+      26.0,
+      28.0,
+      29.0,
+      33.0,
+      38.0,
+      39.0,
+      46.0,
+      47.0,
+      50.0,
+      55.0,
+      64.0
+     ],
+     "alive_end": 0,
+     "censure": 0.0,
+     "age_at_cap": 0,
+     "throw_decided": 0,
+     "throws": 0,
+     "throw_hits": 0,
+     "throw_prey_hits": 0,
+     "throw_agent_hits": 0,
+     "preys_eaten": 46,
+     "mammoth_kills": 15,
+     "big_kills": 9,
+     "leurre_hits": 5,
+     "apex0": 11,
+     "apex_end": 0,
+     "kills_by_type": {
+      "Lapin": 10,
+      "Mammouth": 9,
+      "Leurre": 5,
+      "Sanglier": 10,
+      "Cerf": 11
+     },
+     "stunned_by_type": {},
+     "riposte_hp": 1470.0,
+     "hp_start": 1320.0,
+     "died_energy": 24,
+     "died_hp": 0,
+     "equips": 24,
+     "n_scrambled": 0,
+     "carry_mean": 0.9505649126336243,
+     "carry_matched": [
+      0.5,
+      120
+     ],
+     "energy_phases": {
+      "brain": 12.6,
+      "action": -130.8,
+      "biologie": 1869.3,
+      "mouvement": 352.0
+     },
+     "energy_action_per_throw": NaN,
+     "drain": 18.2,
+     "decision_mismatch": [],
+     "e6_gap": 0.0,
+     "e6_n": 240,
+     "e6_sign_agree": 1.0,
+     "profile": {
+      "+1": 0.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.0
+     },
+     "n_by_type": {
+      "0": 637,
+      "-1": 21,
+      "+1": 32
+     },
+     "profile_seen": {
+      "+1": 0.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.0
+     },
+     "n_by_type_seen": {
+      "0": 637,
+      "-1": 21,
+      "+1": 32
+     },
+     "edges": "{0.0}",
+     "w_intact": true,
+     "w_drift": 0.0,
+     "life_score_max_dev": 0.0,
+     "phenotype": {
+      "hp_bonus": 1220.0,
+      "inv_capacity": 50,
+      "energy_drain": 18.2
+     },
+     "phenotype_insitu": "{(1220.0, 50, 18.2)}",
+     "fingerprint": "8c2dcc451f9be3b2"
+    },
+    "LECTEUR": {
+     "arm": "LECTEUR",
+     "seed": 10,
+     "n": 24,
+     "ticks_run": 48,
+     "agent_ticks": 460,
+     "med_age": 14.0,
+     "ages": [
+      7.0,
+      9.0,
+      10.0,
+      10.0,
+      11.0,
+      12.0,
+      12.0,
+      12.0,
+      13.0,
+      13.0,
+      14.0,
+      14.0,
+      14.0,
+      15.0,
+      15.0,
+      17.0,
+      19.0,
+      23.0,
+      26.0,
+      28.0,
+      36.0,
+      38.0,
+      44.0,
+      48.0
+     ],
+     "alive_end": 0,
+     "censure": 0.0,
+     "age_at_cap": 0,
+     "throw_decided": 104,
+     "throws": 104,
+     "throw_hits": 84,
+     "throw_prey_hits": 22,
+     "throw_agent_hits": 62,
+     "preys_eaten": 39,
+     "mammoth_kills": 13,
+     "big_kills": 7,
+     "leurre_hits": 5,
+     "apex0": 11,
+     "apex_end": 0,
+     "kills_by_type": {
+      "Lapin": 12,
+      "Mammouth": 7,
+      "Leurre": 5,
+      "Sanglier": 8,
+      "Cerf": 6
+     },
+     "stunned_by_type": {
+      "Mammouth": 5,
+      "Leurre": 3,
+      "Lapin": 2,
+      "Sanglier": 1,
+      "Cerf": 1
+     },
+     "riposte_hp": 600.0,
+     "hp_start": 1320.0,
+     "died_energy": 24,
+     "died_hp": 0,
+     "equips": 122,
+     "n_scrambled": 0,
+     "carry_mean": 0.7752534089027083,
+     "carry_matched": [
+      0.5643802427595547,
+      120
+     ],
+     "energy_phases": {
+      "brain": 8.1,
+      "action": 877.0,
+      "biologie": 890.4,
+      "mouvement": 298.0
+     },
+     "energy_action_per_throw": 8.4327684868865,
+     "drain": 18.2,
+     "decision_mismatch": [],
+     "e6_gap": 6.996999621391296,
+     "e6_n": 236,
+     "e6_sign_agree": 1.0,
+     "profile": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.17892156862745098
+     },
+     "n_by_type": {
+      "+1": 31,
+      "0": 408,
+      "-1": 21
+     },
+     "profile_seen": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.17892156862745098
+     },
+     "n_by_type_seen": {
+      "+1": 31,
+      "0": 408,
+      "-1": 21
+     },
+     "edges": "{8.0}",
+     "w_intact": true,
+     "w_drift": 0.0,
+     "life_score_max_dev": 0.0,
+     "phenotype": {
+      "hp_bonus": 1220.0,
+      "inv_capacity": 50,
+      "energy_drain": 18.2
+     },
+     "phenotype_insitu": "{(1220.0, 50, 18.2)}",
+     "fingerprint": "8c2dcc451f9be3b2"
+    },
+    "BROUILLE": {
+     "arm": "BROUILLE",
+     "seed": 10,
+     "n": 24,
+     "ticks_run": 70,
+     "agent_ticks": 339,
+     "med_age": 10.0,
+     "ages": [
+      6.0,
+      6.0,
+      7.0,
+      8.0,
+      8.0,
+      8.0,
+      8.0,
+      9.0,
+      9.0,
+      9.0,
+      9.0,
+      10.0,
+      10.0,
+      10.0,
+      11.0,
+      12.0,
+      13.0,
+      14.0,
+      15.0,
+      16.0,
+      17.0,
+      18.0,
+      36.0,
+      70.0
+     ],
+     "alive_end": 0,
+     "censure": 0.0,
+     "age_at_cap": 0,
+     "throw_decided": 172,
+     "throws": 172,
+     "throw_hits": 121,
+     "throw_prey_hits": 51,
+     "throw_agent_hits": 70,
+     "preys_eaten": 33,
+     "mammoth_kills": 15,
+     "big_kills": 11,
+     "leurre_hits": 5,
+     "apex0": 11,
+     "apex_end": 1,
+     "kills_by_type": {
+      "Lapin": 8,
+      "Mammouth": 11,
+      "Leurre": 5,
+      "Cerf": 6,
+      "Sanglier": 4
+     },
+     "stunned_by_type": {
+      "Cerf": 10,
+      "Lapin": 6,
+      "Leurre": 5,
+      "Mammouth": 8,
+      "Sanglier": 3
+     },
+     "riposte_hp": 770.0,
+     "hp_start": 1320.0,
+     "died_energy": 24,
+     "died_hp": 0,
+     "equips": 184,
+     "n_scrambled": 339,
+     "carry_mean": 0.7260318819130703,
+     "carry_matched": [
+      0.5208333333333334,
+      120
+     ],
+     "energy_phases": {
+      "brain": 1.1,
+      "action": 1465.6,
+      "biologie": 369.0,
+      "mouvement": 212.0
+     },
+     "energy_action_per_throw": 8.520921704320552,
+     "drain": 18.2,
+     "decision_mismatch": [],
+     "e6_gap": 6.996999621391296,
+     "e6_n": 217,
+     "e6_sign_agree": 1.0,
+     "profile": {
+      "+1": 0.5384615384615384,
+      "+0.5": NaN,
+      "-1": 0.6538461538461539,
+      "0": 0.48905109489051096
+     },
+     "n_by_type": {
+      "0": 274,
+      "-1": 26,
+      "+1": 39
+     },
+     "profile_seen": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": NaN
+     },
+     "n_by_type_seen": {
+      "+1": 172,
+      "-1": 167
+     },
+     "edges": "{8.0}",
+     "w_intact": true,
+     "w_drift": 0.0,
+     "life_score_max_dev": 0.0,
+     "phenotype": {
+      "hp_bonus": 1220.0,
+      "inv_capacity": 50,
+      "energy_drain": 18.2
+     },
+     "phenotype_insitu": "{(1220.0, 50, 18.2)}",
+     "fingerprint": "8c2dcc451f9be3b2"
+    }
+   },
+   "sal": {
+    "TEMOIN": 0.0,
+    "LECTEUR": 1.0,
+    "BROUILLE": 1.0
+   },
+   "saturation": [
+    "PLAFOND : la population d'apex est EPUISEE dans les TROIS bras (11 -> [0, 0, 1]) -> `big_kills` et `leurre_hits` sont SATURES ; leur egalite entre bras ([9, 7, 11] / [5, 5, 5]) n'est PAS une absence d'effet, c'est un epuisement de la ressource. Ces DV secondaires ne discriminent RIEN dans ce regime : ne pas les lire comme un nul.",
+    "MAILLON FAIBLE : riposte encaissee = 61 hp/agent au pire des bras, pour hp de depart 1320 (4.6%) -> le maillon scelle \u00ab melee SANS riposte \u00bb ne peut pas porter l'effet ; morts par energie/hp = [(24, 0), (24, 0), (24, 0)]."
+   ],
+   "elapsed_s": 2.689856767654419,
+   "age_TEMOIN": 25.0,
+   "age_LECTEUR": 14.0,
+   "age_BROUILLE": 10.0
+  },
+  {
+   "seed": 11,
+   "control_failures": [],
+   "detail": {
+    "sal": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 1.0,
+     "BROUILLE": 1.0
+    },
+    "decision_mismatch": {
+     "TEMOIN": [],
+     "LECTEUR": [],
+     "BROUILLE": []
+    },
+    "e6": {
+     "TEMOIN": {
+      "gap": 0.0,
+      "n": 240,
+      "sign_agree": 1.0
+     },
+     "LECTEUR": {
+      "gap": 6.996999621391296,
+      "n": 229,
+      "sign_agree": 1.0
+     },
+     "BROUILLE": {
+      "gap": 6.996999621391296,
+      "n": 218,
+      "sign_agree": 1.0
+     }
+    },
+    "profile_seen": {
+     "TEMOIN": {
+      "+1": 0.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.0
+     },
+     "LECTEUR": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.2770780856423174
+     },
+     "BROUILLE": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": NaN
+     }
+    },
+    "edges": {
+     "TEMOIN": [
+      0.0
+     ],
+     "LECTEUR": [
+      8.0
+     ],
+     "BROUILLE": [
+      8.0
+     ]
+    },
+    "w_drift": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 0.0,
+     "BROUILLE": 0.0
+    },
+    "phenotype_insitu": {
+     "TEMOIN": [
+      [
+       1220.0,
+       50,
+       18.2
+      ]
+     ],
+     "LECTEUR": [
+      [
+       1220.0,
+       50,
+       18.2
+      ]
+     ],
+     "BROUILLE": [
+      [
+       1220.0,
+       50,
+       18.2
+      ]
+     ]
+    },
+    "throw_prey_hits": {
+     "TEMOIN": 0,
+     "LECTEUR": 34,
+     "BROUILLE": 31
+    },
+    "censure": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 0.0,
+     "BROUILLE": 0.0
+    },
+    "age_at_cap": {
+     "TEMOIN": 0,
+     "LECTEUR": 0,
+     "BROUILLE": 0
+    },
+    "life_score_max_dev": {
+     "TEMOIN": 0.0,
+     "LECTEUR": 0.0,
+     "BROUILLE": 0.0
+    },
+    "carry_lifetime": {
+     "TEMOIN": 1.7608,
+     "LECTEUR": 1.6033,
+     "BROUILLE": 1.3153
+    },
+    "carry_matched": {
+     "TEMOIN": [
+      1.151157459985662,
+      120
+     ],
+     "LECTEUR": [
+      0.7648525994862593,
+      120
+     ],
+     "BROUILLE": [
+      1.0465865508564483,
+      120
+     ]
+    },
+    "carry_gap_energy_frac": 0.01061,
+    "fingerprint": {
+     "TEMOIN": "fd6b31ceca890e9c",
+     "LECTEUR": "fd6b31ceca890e9c",
+     "BROUILLE": "fd6b31ceca890e9c"
+    }
+   },
+   "res": {
+    "TEMOIN": {
+     "arm": "TEMOIN",
+     "seed": 11,
+     "n": 24,
+     "ticks_run": 71,
+     "agent_ticks": 676,
+     "med_age": 23.5,
+     "ages": [
+      11.0,
+      11.0,
+      12.0,
+      12.0,
+      14.0,
+      15.0,
+      16.0,
+      17.0,
+      17.0,
+      18.0,
+      20.0,
+      23.0,
+      24.0,
+      24.0,
+      26.0,
+      31.0,
+      34.0,
+      37.0,
+      39.0,
+      43.0,
+      51.0,
+      54.0,
+      56.0,
+      71.0
+     ],
+     "alive_end": 0,
+     "censure": 0.0,
+     "age_at_cap": 0,
+     "throw_decided": 0,
+     "throws": 0,
+     "throw_hits": 0,
+     "throw_prey_hits": 0,
+     "throw_agent_hits": 0,
+     "preys_eaten": 48,
+     "mammoth_kills": 18,
+     "big_kills": 10,
+     "leurre_hits": 5,
+     "apex0": 11,
+     "apex_end": 0,
+     "kills_by_type": {
+      "Sanglier": 8,
+      "Lapin": 12,
+      "Mammouth": 10,
+      "Leurre": 5,
+      "Cerf": 10
+     },
+     "stunned_by_type": {},
+     "riposte_hp": 1360.0,
+     "hp_start": 1320.0,
+     "died_energy": 24,
+     "died_hp": 0,
+     "equips": 24,
+     "n_scrambled": 0,
+     "carry_mean": 1.7607685935672757,
+     "carry_matched": [
+      1.151157459985662,
+      120
+     ],
+     "energy_phases": {
+      "brain": 12.3,
+      "action": -203.8,
+      "biologie": 2011.2,
+      "mouvement": 348.0
+     },
+     "energy_action_per_throw": NaN,
+     "drain": 18.2,
+     "decision_mismatch": [],
+     "e6_gap": 0.0,
+     "e6_n": 240,
+     "e6_sign_agree": 1.0,
+     "profile": {
+      "+1": 0.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.0
+     },
+     "n_by_type": {
+      "0": 594,
+      "+1": 58,
+      "-1": 24
+     },
+     "profile_seen": {
+      "+1": 0.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.0
+     },
+     "n_by_type_seen": {
+      "0": 594,
+      "+1": 58,
+      "-1": 24
+     },
+     "edges": "{0.0}",
+     "w_intact": true,
+     "w_drift": 0.0,
+     "life_score_max_dev": 0.0,
+     "phenotype": {
+      "hp_bonus": 1220.0,
+      "inv_capacity": 50,
+      "energy_drain": 18.2
+     },
+     "phenotype_insitu": "{(1220.0, 50, 18.2)}",
+     "fingerprint": "fd6b31ceca890e9c"
+    },
+    "LECTEUR": {
+     "arm": "LECTEUR",
+     "seed": 11,
+     "n": 24,
+     "ticks_run": 79,
+     "agent_ticks": 462,
+     "med_age": 12.0,
+     "ages": [
+      7.0,
+      7.0,
+      8.0,
+      9.0,
+      9.0,
+      9.0,
+      10.0,
+      10.0,
+      11.0,
+      11.0,
+      11.0,
+      12.0,
+      12.0,
+      12.0,
+      13.0,
+      14.0,
+      15.0,
+      17.0,
+      20.0,
+      22.0,
+      23.0,
+      58.0,
+      63.0,
+      79.0
+     ],
+     "alive_end": 0,
+     "censure": 0.0,
+     "age_at_cap": 0,
+     "throw_decided": 154,
+     "throws": 154,
+     "throw_hits": 115,
+     "throw_prey_hits": 34,
+     "throw_agent_hits": 81,
+     "preys_eaten": 43,
+     "mammoth_kills": 11,
+     "big_kills": 7,
+     "leurre_hits": 5,
+     "apex0": 11,
+     "apex_end": 1,
+     "kills_by_type": {
+      "Sanglier": 9,
+      "Lapin": 11,
+      "Mammouth": 7,
+      "Leurre": 5,
+      "Cerf": 12
+     },
+     "stunned_by_type": {
+      "Mammouth": 7,
+      "Leurre": 1,
+      "Lapin": 3,
+      "Cerf": 3,
+      "Sanglier": 3
+     },
+     "riposte_hp": 660.0,
+     "hp_start": 1320.0,
+     "died_energy": 23,
+     "died_hp": 0,
+     "equips": 196,
+     "n_scrambled": 0,
+     "carry_mean": 1.6032993192809388,
+     "carry_matched": [
+      0.7648525994862593,
+      120
+     ],
+     "energy_phases": {
+      "brain": 7.0,
+      "action": 1215.8,
+      "biologie": 458.7,
+      "mouvement": 224.0
+     },
+     "energy_action_per_throw": 7.894701233858799,
+     "drain": 18.2,
+     "decision_mismatch": [],
+     "e6_gap": 6.996999621391296,
+     "e6_n": 229,
+     "e6_sign_agree": 1.0,
+     "profile": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.2770780856423174
+     },
+     "n_by_type": {
+      "+1": 44,
+      "0": 397,
+      "-1": 21
+     },
+     "profile_seen": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": 0.2770780856423174
+     },
+     "n_by_type_seen": {
+      "+1": 44,
+      "0": 397,
+      "-1": 21
+     },
+     "edges": "{8.0}",
+     "w_intact": true,
+     "w_drift": 0.0,
+     "life_score_max_dev": 0.0,
+     "phenotype": {
+      "hp_bonus": 1220.0,
+      "inv_capacity": 50,
+      "energy_drain": 18.2
+     },
+     "phenotype_insitu": "{(1220.0, 50, 18.2)}",
+     "fingerprint": "fd6b31ceca890e9c"
+    },
+    "BROUILLE": {
+     "arm": "BROUILLE",
+     "seed": 11,
+     "n": 24,
+     "ticks_run": 29,
+     "agent_ticks": 332,
+     "med_age": 11.5,
+     "ages": [
+      6.0,
+      6.0,
+      7.0,
+      8.0,
+      8.0,
+      8.0,
+      8.0,
+      9.0,
+      9.0,
+      9.0,
+      10.0,
+      10.0,
+      13.0,
+      14.0,
+      15.0,
+      15.0,
+      16.0,
+      18.0,
+      21.0,
+      22.0,
+      22.0,
+      24.0,
+      25.0,
+      29.0
+     ],
+     "alive_end": 0,
+     "censure": 0.0,
+     "age_at_cap": 0,
+     "throw_decided": 168,
+     "throws": 168,
+     "throw_hits": 119,
+     "throw_prey_hits": 31,
+     "throw_agent_hits": 88,
+     "preys_eaten": 25,
+     "mammoth_kills": 9,
+     "big_kills": 7,
+     "leurre_hits": 5,
+     "apex0": 11,
+     "apex_end": 0,
+     "kills_by_type": {
+      "Sanglier": 5,
+      "Lapin": 6,
+      "Mammouth": 7,
+      "Leurre": 5,
+      "Cerf": 5
+     },
+     "stunned_by_type": {
+      "Lapin": 4,
+      "Cerf": 4,
+      "Leurre": 2,
+      "Mammouth": 5,
+      "Sanglier": 5
+     },
+     "riposte_hp": 520.0,
+     "hp_start": 1320.0,
+     "died_energy": 24,
+     "died_hp": 0,
+     "equips": 184,
+     "n_scrambled": 332,
+     "carry_mean": 1.3152954882495982,
+     "carry_matched": [
+      1.0465865508564483,
+      120
+     ],
+     "energy_phases": {
+      "brain": -1.2,
+      "action": 1320.8,
+      "biologie": 390.8,
+      "mouvement": 188.0
+     },
+     "energy_action_per_throw": 7.862044569545514,
+     "drain": 18.2,
+     "decision_mismatch": [],
+     "e6_gap": 6.996999621391296,
+     "e6_n": 218,
+     "e6_sign_agree": 1.0,
+     "profile": {
+      "+1": 0.5454545454545454,
+      "+0.5": NaN,
+      "-1": 0.7,
+      "0": 0.4874551971326165
+     },
+     "n_by_type": {
+      "-1": 20,
+      "0": 279,
+      "+1": 33
+     },
+     "profile_seen": {
+      "+1": 1.0,
+      "+0.5": NaN,
+      "-1": 0.0,
+      "0": NaN
+     },
+     "n_by_type_seen": {
+      "+1": 168,
+      "-1": 164
+     },
+     "edges": "{8.0}",
+     "w_intact": true,
+     "w_drift": 0.0,
+     "life_score_max_dev": 0.0,
+     "phenotype": {
+      "hp_bonus": 1220.0,
+      "inv_capacity": 50,
+      "energy_drain": 18.2
+     },
+     "phenotype_insitu": "{(1220.0, 50, 18.2)}",
+     "fingerprint": "fd6b31ceca890e9c"
+    }
+   },
+   "sal": {
+    "TEMOIN": 0.0,
+    "LECTEUR": 1.0,
+    "BROUILLE": 1.0
+   },
+   "saturation": [
+    "PLAFOND : la population d'apex est EPUISEE dans les TROIS bras (11 -> [0, 1, 0]) -> `big_kills` et `leurre_hits` sont SATURES ; leur egalite entre bras ([10, 7, 7] / [5, 5, 5]) n'est PAS une absence d'effet, c'est un epuisement de la ressource. Ces DV secondaires ne discriminent RIEN dans ce regime : ne pas les lire comme un nul.",
+    "MAILLON FAIBLE : riposte encaissee = 57 hp/agent au pire des bras, pour hp de depart 1320 (4.3%) -> le maillon scelle \u00ab melee SANS riposte \u00bb ne peut pas porter l'effet ; morts par energie/hp = [(24, 0), (23, 0), (24, 0)]."
+   ],
+   "elapsed_s": 2.1637070178985596,
+   "age_TEMOIN": 23.5,
+   "age_LECTEUR": 12.0,
+   "age_BROUILLE": 11.5
+  }
+ ]
+}

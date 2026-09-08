@@ -1,0 +1,811 @@
+{
+  "rows": [
+    {
+      "seed": 0,
+      "off": {
+        "n_lived": 96,
+        "med_founder_age": 38.0,
+        "n_at_ceiling": 2,
+        "n_founders": 25,
+        "preys": 176,
+        "dreams": 0
+      },
+      "s0.0": {
+        "n_lived": 157,
+        "med_founder_age": 41.0,
+        "n_at_ceiling": 4,
+        "n_founders": 25,
+        "preys": 252,
+        "dreams": 35496
+      },
+      "s0.0125": {
+        "n_lived": 1817,
+        "med_founder_age": 80.0,
+        "n_at_ceiling": 14,
+        "n_founders": 25,
+        "preys": 396,
+        "dreams": 256408
+      },
+      "s0.05": {
+        "n_lived": 1532,
+        "med_founder_age": 61.0,
+        "n_at_ceiling": 8,
+        "n_founders": 25,
+        "preys": 370,
+        "dreams": 224144
+      },
+      "s0.2": {
+        "n_lived": 1135,
+        "med_founder_age": 44.0,
+        "n_at_ceiling": 9,
+        "n_founders": 25,
+        "preys": 323,
+        "dreams": 156760
+      },
+      "s0.8": {
+        "n_lived": 982,
+        "med_founder_age": 25.0,
+        "n_at_ceiling": 9,
+        "n_founders": 25,
+        "preys": 334,
+        "dreams": 124736
+      }
+    },
+    {
+      "seed": 1,
+      "off": {
+        "n_lived": 56,
+        "med_founder_age": 48.0,
+        "n_at_ceiling": 0,
+        "n_founders": 25,
+        "preys": 84,
+        "dreams": 0
+      },
+      "s0.0": {
+        "n_lived": 61,
+        "med_founder_age": 26.0,
+        "n_at_ceiling": 2,
+        "n_founders": 25,
+        "preys": 62,
+        "dreams": 13712
+      },
+      "s0.0125": {
+        "n_lived": 1151,
+        "med_founder_age": 80.0,
+        "n_at_ceiling": 15,
+        "n_founders": 25,
+        "preys": 318,
+        "dreams": 173232
+      },
+      "s0.05": {
+        "n_lived": 802,
+        "med_founder_age": 53.0,
+        "n_at_ceiling": 9,
+        "n_founders": 25,
+        "preys": 290,
+        "dreams": 110144
+      },
+      "s0.2": {
+        "n_lived": 602,
+        "med_founder_age": 42.0,
+        "n_at_ceiling": 8,
+        "n_founders": 25,
+        "preys": 245,
+        "dreams": 80224
+      },
+      "s0.8": {
+        "n_lived": 922,
+        "med_founder_age": 42.0,
+        "n_at_ceiling": 8,
+        "n_founders": 25,
+        "preys": 281,
+        "dreams": 123304
+      }
+    },
+    {
+      "seed": 2,
+      "off": {
+        "n_lived": 41,
+        "med_founder_age": 22.0,
+        "n_at_ceiling": 1,
+        "n_founders": 25,
+        "preys": 40,
+        "dreams": 0
+      },
+      "s0.0": {
+        "n_lived": 76,
+        "med_founder_age": 31.0,
+        "n_at_ceiling": 3,
+        "n_founders": 25,
+        "preys": 110,
+        "dreams": 18784
+      },
+      "s0.0125": {
+        "n_lived": 517,
+        "med_founder_age": 15.0,
+        "n_at_ceiling": 5,
+        "n_founders": 25,
+        "preys": 202,
+        "dreams": 64552
+      },
+      "s0.05": {
+        "n_lived": 1077,
+        "med_founder_age": 80.0,
+        "n_at_ceiling": 14,
+        "n_founders": 25,
+        "preys": 308,
+        "dreams": 155720
+      },
+      "s0.2": {
+        "n_lived": 1248,
+        "med_founder_age": 50.0,
+        "n_at_ceiling": 7,
+        "n_founders": 25,
+        "preys": 298,
+        "dreams": 173176
+      },
+      "s0.8": {
+        "n_lived": 1058,
+        "med_founder_age": 68.0,
+        "n_at_ceiling": 11,
+        "n_founders": 25,
+        "preys": 275,
+        "dreams": 141792
+      }
+    },
+    {
+      "seed": 3,
+      "off": {
+        "n_lived": 69,
+        "med_founder_age": 29.0,
+        "n_at_ceiling": 4,
+        "n_founders": 25,
+        "preys": 81,
+        "dreams": 0
+      },
+      "s0.0": {
+        "n_lived": 100,
+        "med_founder_age": 32.0,
+        "n_at_ceiling": 4,
+        "n_founders": 25,
+        "preys": 126,
+        "dreams": 21064
+      },
+      "s0.0125": {
+        "n_lived": 1714,
+        "med_founder_age": 41.0,
+        "n_at_ceiling": 10,
+        "n_founders": 25,
+        "preys": 336,
+        "dreams": 243224
+      },
+      "s0.05": {
+        "n_lived": 1547,
+        "med_founder_age": 55.0,
+        "n_at_ceiling": 11,
+        "n_founders": 25,
+        "preys": 361,
+        "dreams": 236320
+      },
+      "s0.2": {
+        "n_lived": 916,
+        "med_founder_age": 60.0,
+        "n_at_ceiling": 9,
+        "n_founders": 25,
+        "preys": 261,
+        "dreams": 128960
+      },
+      "s0.8": {
+        "n_lived": 954,
+        "med_founder_age": 44.0,
+        "n_at_ceiling": 8,
+        "n_founders": 25,
+        "preys": 285,
+        "dreams": 131760
+      }
+    },
+    {
+      "seed": 4,
+      "off": {
+        "n_lived": 103,
+        "med_founder_age": 36.0,
+        "n_at_ceiling": 5,
+        "n_founders": 25,
+        "preys": 166,
+        "dreams": 0
+      },
+      "s0.0": {
+        "n_lived": 155,
+        "med_founder_age": 26.0,
+        "n_at_ceiling": 3,
+        "n_founders": 25,
+        "preys": 224,
+        "dreams": 31736
+      },
+      "s0.0125": {
+        "n_lived": 1261,
+        "med_founder_age": 54.0,
+        "n_at_ceiling": 10,
+        "n_founders": 25,
+        "preys": 279,
+        "dreams": 171712
+      },
+      "s0.05": {
+        "n_lived": 2100,
+        "med_founder_age": 56.0,
+        "n_at_ceiling": 8,
+        "n_founders": 25,
+        "preys": 372,
+        "dreams": 297776
+      },
+      "s0.2": {
+        "n_lived": 1439,
+        "med_founder_age": 28.0,
+        "n_at_ceiling": 6,
+        "n_founders": 25,
+        "preys": 334,
+        "dreams": 199968
+      },
+      "s0.8": {
+        "n_lived": 779,
+        "med_founder_age": 23.0,
+        "n_at_ceiling": 8,
+        "n_founders": 25,
+        "preys": 311,
+        "dreams": 98544
+      }
+    },
+    {
+      "seed": 5,
+      "off": {
+        "n_lived": 68,
+        "med_founder_age": 29.0,
+        "n_at_ceiling": 1,
+        "n_founders": 25,
+        "preys": 82,
+        "dreams": 0
+      },
+      "s0.0": {
+        "n_lived": 104,
+        "med_founder_age": 21.0,
+        "n_at_ceiling": 4,
+        "n_founders": 25,
+        "preys": 121,
+        "dreams": 16952
+      },
+      "s0.0125": {
+        "n_lived": 1004,
+        "med_founder_age": 53.0,
+        "n_at_ceiling": 10,
+        "n_founders": 25,
+        "preys": 241,
+        "dreams": 152952
+      },
+      "s0.05": {
+        "n_lived": 1037,
+        "med_founder_age": 51.0,
+        "n_at_ceiling": 11,
+        "n_founders": 25,
+        "preys": 291,
+        "dreams": 148200
+      },
+      "s0.2": {
+        "n_lived": 1571,
+        "med_founder_age": 66.0,
+        "n_at_ceiling": 8,
+        "n_founders": 25,
+        "preys": 375,
+        "dreams": 206352
+      },
+      "s0.8": {
+        "n_lived": 447,
+        "med_founder_age": 65.0,
+        "n_at_ceiling": 11,
+        "n_founders": 25,
+        "preys": 147,
+        "dreams": 64752
+      }
+    },
+    {
+      "seed": 6,
+      "off": {
+        "n_lived": 44,
+        "med_founder_age": 44.0,
+        "n_at_ceiling": 3,
+        "n_founders": 25,
+        "preys": 46,
+        "dreams": 0
+      },
+      "s0.0": {
+        "n_lived": 95,
+        "med_founder_age": 26.0,
+        "n_at_ceiling": 3,
+        "n_founders": 25,
+        "preys": 141,
+        "dreams": 22728
+      },
+      "s0.0125": {
+        "n_lived": 710,
+        "med_founder_age": 33.0,
+        "n_at_ceiling": 6,
+        "n_founders": 25,
+        "preys": 253,
+        "dreams": 90024
+      },
+      "s0.05": {
+        "n_lived": 1886,
+        "med_founder_age": 74.0,
+        "n_at_ceiling": 12,
+        "n_founders": 25,
+        "preys": 377,
+        "dreams": 276592
+      },
+      "s0.2": {
+        "n_lived": 1386,
+        "med_founder_age": 80.0,
+        "n_at_ceiling": 16,
+        "n_founders": 25,
+        "preys": 318,
+        "dreams": 190152
+      },
+      "s0.8": {
+        "n_lived": 65,
+        "med_founder_age": 19.0,
+        "n_at_ceiling": 0,
+        "n_founders": 25,
+        "preys": 37,
+        "dreams": 9080
+      }
+    },
+    {
+      "seed": 7,
+      "off": {
+        "n_lived": 57,
+        "med_founder_age": 35.0,
+        "n_at_ceiling": 2,
+        "n_founders": 25,
+        "preys": 69,
+        "dreams": 0
+      },
+      "s0.0": {
+        "n_lived": 79,
+        "med_founder_age": 18.0,
+        "n_at_ceiling": 1,
+        "n_founders": 25,
+        "preys": 106,
+        "dreams": 14912
+      },
+      "s0.0125": {
+        "n_lived": 64,
+        "med_founder_age": 20.0,
+        "n_at_ceiling": 1,
+        "n_founders": 25,
+        "preys": 57,
+        "dreams": 9624
+      },
+      "s0.05": {
+        "n_lived": 66,
+        "med_founder_age": 16.0,
+        "n_at_ceiling": 2,
+        "n_founders": 25,
+        "preys": 34,
+        "dreams": 9216
+      },
+      "s0.2": {
+        "n_lived": 1272,
+        "med_founder_age": 51.0,
+        "n_at_ceiling": 10,
+        "n_founders": 25,
+        "preys": 319,
+        "dreams": 174896
+      },
+      "s0.8": {
+        "n_lived": 75,
+        "med_founder_age": 15.0,
+        "n_at_ceiling": 0,
+        "n_founders": 25,
+        "preys": 48,
+        "dreams": 8928
+      }
+    },
+    {
+      "seed": 8,
+      "off": {
+        "n_lived": 38,
+        "med_founder_age": 40.0,
+        "n_at_ceiling": 2,
+        "n_founders": 25,
+        "preys": 24,
+        "dreams": 0
+      },
+      "s0.0": {
+        "n_lived": 131,
+        "med_founder_age": 31.0,
+        "n_at_ceiling": 4,
+        "n_founders": 25,
+        "preys": 202,
+        "dreams": 29184
+      },
+      "s0.0125": {
+        "n_lived": 1741,
+        "med_founder_age": 57.0,
+        "n_at_ceiling": 9,
+        "n_founders": 25,
+        "preys": 409,
+        "dreams": 227528
+      },
+      "s0.05": {
+        "n_lived": 919,
+        "med_founder_age": 49.0,
+        "n_at_ceiling": 8,
+        "n_founders": 25,
+        "preys": 166,
+        "dreams": 139936
+      },
+      "s0.2": {
+        "n_lived": 1128,
+        "med_founder_age": 61.0,
+        "n_at_ceiling": 10,
+        "n_founders": 25,
+        "preys": 212,
+        "dreams": 177008
+      },
+      "s0.8": {
+        "n_lived": 2168,
+        "med_founder_age": 80.0,
+        "n_at_ceiling": 14,
+        "n_founders": 25,
+        "preys": 329,
+        "dreams": 302776
+      }
+    },
+    {
+      "seed": 9,
+      "off": {
+        "n_lived": 58,
+        "med_founder_age": 30.0,
+        "n_at_ceiling": 3,
+        "n_founders": 25,
+        "preys": 66,
+        "dreams": 0
+      },
+      "s0.0": {
+        "n_lived": 139,
+        "med_founder_age": 30.0,
+        "n_at_ceiling": 5,
+        "n_founders": 25,
+        "preys": 192,
+        "dreams": 29632
+      },
+      "s0.0125": {
+        "n_lived": 629,
+        "med_founder_age": 20.0,
+        "n_at_ceiling": 6,
+        "n_founders": 25,
+        "preys": 250,
+        "dreams": 89856
+      },
+      "s0.05": {
+        "n_lived": 490,
+        "med_founder_age": 16.0,
+        "n_at_ceiling": 3,
+        "n_founders": 25,
+        "preys": 221,
+        "dreams": 58432
+      },
+      "s0.2": {
+        "n_lived": 655,
+        "med_founder_age": 19.0,
+        "n_at_ceiling": 7,
+        "n_founders": 25,
+        "preys": 276,
+        "dreams": 90560
+      },
+      "s0.8": {
+        "n_lived": 1299,
+        "med_founder_age": 80.0,
+        "n_at_ceiling": 14,
+        "n_founders": 25,
+        "preys": 327,
+        "dreams": 172968
+      }
+    },
+    {
+      "seed": 10,
+      "off": {
+        "n_lived": 45,
+        "med_founder_age": 46.0,
+        "n_at_ceiling": 1,
+        "n_founders": 25,
+        "preys": 77,
+        "dreams": 0
+      },
+      "s0.0": {
+        "n_lived": 60,
+        "med_founder_age": 20.0,
+        "n_at_ceiling": 0,
+        "n_founders": 25,
+        "preys": 65,
+        "dreams": 11976
+      },
+      "s0.0125": {
+        "n_lived": 510,
+        "med_founder_age": 66.0,
+        "n_at_ceiling": 10,
+        "n_founders": 25,
+        "preys": 201,
+        "dreams": 71928
+      },
+      "s0.05": {
+        "n_lived": 1403,
+        "med_founder_age": 80.0,
+        "n_at_ceiling": 15,
+        "n_founders": 25,
+        "preys": 308,
+        "dreams": 188728
+      },
+      "s0.2": {
+        "n_lived": 1283,
+        "med_founder_age": 59.0,
+        "n_at_ceiling": 10,
+        "n_founders": 25,
+        "preys": 330,
+        "dreams": 183232
+      },
+      "s0.8": {
+        "n_lived": 337,
+        "med_founder_age": 25.0,
+        "n_at_ceiling": 6,
+        "n_founders": 25,
+        "preys": 152,
+        "dreams": 44224
+      }
+    },
+    {
+      "seed": 11,
+      "off": {
+        "n_lived": 53,
+        "med_founder_age": 29.0,
+        "n_at_ceiling": 1,
+        "n_founders": 25,
+        "preys": 51,
+        "dreams": 0
+      },
+      "s0.0": {
+        "n_lived": 59,
+        "med_founder_age": 22.0,
+        "n_at_ceiling": 0,
+        "n_founders": 25,
+        "preys": 60,
+        "dreams": 13488
+      },
+      "s0.0125": {
+        "n_lived": 598,
+        "med_founder_age": 26.0,
+        "n_at_ceiling": 7,
+        "n_founders": 25,
+        "preys": 189,
+        "dreams": 88200
+      },
+      "s0.05": {
+        "n_lived": 891,
+        "med_founder_age": 80.0,
+        "n_at_ceiling": 13,
+        "n_founders": 25,
+        "preys": 217,
+        "dreams": 134408
+      },
+      "s0.2": {
+        "n_lived": 1580,
+        "med_founder_age": 80.0,
+        "n_at_ceiling": 13,
+        "n_founders": 25,
+        "preys": 234,
+        "dreams": 239608
+      },
+      "s0.8": {
+        "n_lived": 162,
+        "med_founder_age": 18.0,
+        "n_at_ceiling": 3,
+        "n_founders": 25,
+        "preys": 62,
+        "dreams": 26632
+      }
+    }
+  ],
+  "config": {
+    "seeds": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "agents": 25,
+    "ticks": 80,
+    "K": 8,
+    "doses": [
+      null,
+      0.0,
+      0.0125,
+      0.05,
+      0.2,
+      0.8
+    ]
+  },
+  "design": {
+    "question": "l'amplitude du bruit sur H est-elle le levier, ou est-ce la recurrence supplementaire ?",
+    "replication_unit": "ere",
+    "n_independent": 12,
+    "links": {
+      "sigma change la trajectoire de H": "measured",
+      "effet sur la survie/reproduction": "measured"
+    },
+    "inferred_links": [],
+    "cost_estimate": null,
+    "warning": null
+  },
+  "cmp": {
+    "n_lived:off->s0.0": {
+      "med_a": 56.5,
+      "med_b": 97.5,
+      "ratio": 1.7256637168141593,
+      "fav": 12,
+      "n": 12,
+      "sign_p": 0.00048828125,
+      "wilcoxon_p": 0.0025261742685023236
+    },
+    "n_lived:off->s0.0125": {
+      "med_a": 56.5,
+      "med_b": 857.0,
+      "ratio": 15.168141592920353,
+      "fav": 12,
+      "n": 12,
+      "sign_p": 0.00048828125,
+      "wilcoxon_p": 0.0025261742685023236
+    },
+    "n_lived:off->s0.05": {
+      "med_a": 56.5,
+      "med_b": 1057.0,
+      "ratio": 18.707964601769913,
+      "fav": 12,
+      "n": 12,
+      "sign_p": 0.00048828125,
+      "wilcoxon_p": 0.0025261742685023236
+    },
+    "n_lived:off->s0.2": {
+      "med_a": 56.5,
+      "med_b": 1260.0,
+      "ratio": 22.300884955752213,
+      "fav": 12,
+      "n": 12,
+      "sign_p": 0.00048828125,
+      "wilcoxon_p": 0.0025261742685023236
+    },
+    "n_lived:off->s0.8": {
+      "med_a": 56.5,
+      "med_b": 850.5,
+      "ratio": 15.053097345132743,
+      "fav": 12,
+      "n": 12,
+      "sign_p": 0.00048828125,
+      "wilcoxon_p": 0.0025261742685023236
+    },
+    "med_founder_age:off->s0.0": {
+      "med_a": 35.5,
+      "med_b": 26.0,
+      "ratio": 0.7323943661971831,
+      "fav": 3,
+      "n": 12,
+      "sign_p": 0.2265625,
+      "wilcoxon_p": 0.03285421992864368
+    },
+    "med_founder_age:off->s0.0125": {
+      "med_a": 35.5,
+      "med_b": 47.0,
+      "ratio": 1.323943661971831,
+      "fav": 7,
+      "n": 12,
+      "sign_p": 0.7744140625,
+      "wilcoxon_p": 0.0775561667436655
+    },
+    "med_founder_age:off->s0.05": {
+      "med_a": 35.5,
+      "med_b": 55.5,
+      "ratio": 1.5633802816901408,
+      "fav": 10,
+      "n": 12,
+      "sign_p": 0.03857421875,
+      "wilcoxon_p": 0.01347119701821331
+    },
+    "med_founder_age:off->s0.2": {
+      "med_a": 35.5,
+      "med_b": 55.0,
+      "ratio": 1.5492957746478873,
+      "fav": 9,
+      "n": 12,
+      "sign_p": 0.14599609375,
+      "wilcoxon_p": 0.018602929901135656
+    },
+    "med_founder_age:off->s0.8": {
+      "med_a": 35.5,
+      "med_b": 33.5,
+      "ratio": 0.9436619718309859,
+      "fav": 5,
+      "n": 12,
+      "sign_p": 0.7744140625,
+      "wilcoxon_p": 0.5562984612747348
+    },
+    "preys:off->s0.0": {
+      "med_a": 73.0,
+      "med_b": 123.5,
+      "ratio": 1.6917808219178083,
+      "fav": 10,
+      "n": 12,
+      "sign_p": 0.03857421875,
+      "wilcoxon_p": 0.00858995725118561
+    },
+    "preys:off->s0.0125": {
+      "med_a": 73.0,
+      "med_b": 251.5,
+      "ratio": 3.4452054794520546,
+      "fav": 11,
+      "n": 12,
+      "sign_p": 0.00634765625,
+      "wilcoxon_p": 0.003263716901670266
+    },
+    "preys:off->s0.05": {
+      "med_a": 73.0,
+      "med_b": 299.5,
+      "ratio": 4.102739726027397,
+      "fav": 11,
+      "n": 12,
+      "sign_p": 0.00634765625,
+      "wilcoxon_p": 0.003263716901670266
+    },
+    "preys:off->s0.2": {
+      "med_a": 73.0,
+      "med_b": 308.0,
+      "ratio": 4.219178082191781,
+      "fav": 12,
+      "n": 12,
+      "sign_p": 0.00048828125,
+      "wilcoxon_p": 0.0025261742685023236
+    },
+    "preys:off->s0.8": {
+      "med_a": 73.0,
+      "med_b": 278.0,
+      "ratio": 3.808219178082192,
+      "fav": 10,
+      "n": 12,
+      "sign_p": 0.03857421875,
+      "wilcoxon_p": 0.006801651812875509
+    }
+  },
+  "censure": {
+    "at_ceiling": {
+      "off": 25,
+      "s0.0": 33,
+      "s0.0125": 103,
+      "s0.05": 114,
+      "s0.2": 113,
+      "s0.8": 92
+    },
+    "n_founders": {
+      "off": 300,
+      "s0.0": 300,
+      "s0.0125": 300,
+      "s0.05": 300,
+      "s0.2": 300,
+      "s0.8": 300
+    },
+    "max_ticks": 80
+  }
+}

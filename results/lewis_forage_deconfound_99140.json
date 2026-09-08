@@ -1,0 +1,44 @@
+{
+  "name": "lewis_forage_deconfound",
+  "seed": 99140,
+  "commit": "a1a3dd2",
+  "git_dirty": true,
+  "data": {
+    "knob": "disable_repro x prey_speed_scale",
+    "R": 1,
+    "n_eval": 2,
+    "verdict": "CONFOND NEGLIGEABLE",
+    "table": [
+      {
+        "disable_repro": false,
+        "speed": 0.0,
+        "p_reach": 0.4444444444444444,
+        "p_cap": 0.9166666666666666,
+        "income_t": 0.0,
+        "drain_t": 0.5640835908110087,
+        "mean_captures": 0.691358024691358,
+        "mean_contacts": 1.0740740740740742,
+        "mean_min_dist": 0.8271604938271605,
+        "cap_lapin": 0.2716049382716049,
+        "cap_cerf": 0.2222222222222222,
+        "cap_sanglier": 0.16049382716049382,
+        "n_agents": 81
+      },
+      {
+        "disable_repro": true,
+        "speed": 0.0,
+        "p_reach": 0.6041666666666666,
+        "p_cap": 0.9310344827586207,
+        "income_t": 0.516,
+        "drain_t": 1.734034419534744,
+        "mean_captures": 0.75,
+        "mean_contacts": 1.2916666666666667,
+        "mean_min_dist": 0.6041666666666666,
+        "cap_lapin": 0.3125,
+        "cap_cerf": 0.22916666666666666,
+        "cap_sanglier": 0.16666666666666666,
+        "n_agents": 48
+      }
+    ]
+  }
+}

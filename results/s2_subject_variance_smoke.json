@@ -1,0 +1,94 @@
+{
+ "preregistration": "S2-SUBJECT-VARIANCE",
+ "design": {
+  "question": "Le verdict du marqueur de demande (`ablation_verdict` sur l'ablation de perception within-subject) varie-t-il avec le SUJET, dans le MEME monde et sous le MEME protocole ? Consequence directe d'EDR-S6-FALLBACK-RATE, qui a montre en mini-monde que le marqueur mesure si CE sujet a un repli survivable sans X -- une propriete du sujet, pas du monde. Si S6 se transporte, des sujets d'origines differentes doivent rendre des verdicts differents ; sinon la propriete est celle du monde et S6 est borne au regime jouet, ce qui RENFORCE les records existants.",
+  "replication_unit": "\u00e8re pour chaque cellule (K appari\u00e9es) ; SUJET pour le contraste",
+  "n_independent": 4,
+  "links": {
+   "sujet -> verdict du marqueur": "measured",
+   "bruit de mesure -> divergence des verdicts": "measured"
+  },
+  "inferred_links": [],
+  "cost_estimate": "4 cellules x 3 conditions x 12 eres x 12 agents x 200 ticks",
+  "inferred_reason": null,
+  "control_family": {
+   "cells": 4,
+   "alpha_family": 0.05,
+   "alpha_cell": 0.05,
+   "method": "none",
+   "reason": "les contr\u00f4les sont des gardes de DOMAINE (le sujet est-il au-dessus du plancher MESUR\u00c9 du monde ?), pas des tests d'hypoth\u00e8se : leur \u00e9chec rend INCONCLUSIVE_DEGENERATE pour cette cellule seule, issue d\u00e9clar\u00e9e d'avance. La multiplicit\u00e9 qui COMPTE ici est celle du crit\u00e8re de lecture, et elle n'est pas corrig\u00e9e mais MESUR\u00c9E par le bras de r\u00e9plication du m\u00eame sujet (d_intra).",
+   "fwer_bound": 0.2
+  },
+  "warning": null
+ },
+ "world": "stoneage",
+ "regime": {
+  "num_agents": 12,
+  "max_ticks": 200
+ },
+ "K": 12,
+ "elapsed_s": 122.33193016052246,
+ "verdict": {
+  "verdict": "INDETERMINE-INSTRUMENT",
+  "d_inter": null,
+  "d_intra": null,
+  "n_sujets": 0,
+  "n_replicats": 0,
+  "degeneres": [],
+  "controles": {
+   "pos": "INCONCLUSIVE_DEGENERATE (\u00c9CHEC)",
+   "neg": "INCONCLUSIVE_DEGENERATE (\u00c9CHEC)"
+  },
+  "raisons": [
+   "contr\u00f4le pos attendu PERCEPTION_DEMANDED, obtenu INCONCLUSIVE_DEGENERATE",
+   "contr\u00f4le neg attendu PERCEPTION_DECOY, obtenu INCONCLUSIVE_DEGENERATE"
+  ],
+  "corps": null
+ },
+ "rows": [
+  {
+   "name": "champion_hof",
+   "role": "sujet",
+   "world_seed": 2026,
+   "within_ratio": 0.990990990990991,
+   "between_ratio": 4.666666666666667,
+   "verdict": "PERCEPTION_DECOY",
+   "n": 12,
+   "intact_median": 27.5,
+   "floor": 24.0
+  },
+  {
+   "name": "replicat_0",
+   "role": "replicat",
+   "world_seed": 3026,
+   "within_ratio": 0.9238095238095239,
+   "between_ratio": 3.5714285714285716,
+   "verdict": "PERCEPTION_DECOY",
+   "n": 12,
+   "intact_median": 24.25,
+   "floor": 24.0
+  },
+  {
+   "name": "reflexe_cable",
+   "role": "neg",
+   "world_seed": 2026,
+   "within_ratio": 0.9696969696969697,
+   "between_ratio": 1.3333333333333333,
+   "verdict": "INCONCLUSIVE_DEGENERATE",
+   "n": 12,
+   "intact_median": 8.0,
+   "floor": 24.0
+  },
+  {
+   "name": "lecteur_cable",
+   "role": "pos",
+   "world_seed": 2026,
+   "within_ratio": 1.0,
+   "between_ratio": 1.0,
+   "verdict": "INCONCLUSIVE_DEGENERATE",
+   "n": 12,
+   "intact_median": 6.0,
+   "floor": 24.0
+  }
+ ]
+}

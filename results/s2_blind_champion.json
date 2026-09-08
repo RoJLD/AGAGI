@@ -1,0 +1,202 @@
+{
+ "preregistration": "S2-BLIND-CHAMPION",
+ "design": {
+  "question": "Un champion RENDU AVEUGLE (les lignes d'entree de W mises a zero : l'observation n'entre plus dans le calcul) survit-il MIEUX que le champion intact, dans le monde `stoneage` ? Observation d'origine, n=1 seed, faite en cherchant un CONTROLE NEGATIF pour S2-SUBJECT-VARIANCE : 38.2 contre 27.5 ticks, soit +39 %. A n=1 ce n'est pas un resultat -- cette regle le met a l'epreuve a n=7 seeds appariees.",
+  "replication_unit": "seed de monde (K \u00e8res appari\u00e9es par cellule)",
+  "n_independent": 7,
+  "links": {
+   "lignes d'entree a zero -> l'observation n'entre plus": "measured",
+   "l'observation n'entre plus -> survie": "measured"
+  },
+  "inferred_links": [],
+  "cost_estimate": "14 cellules x 3 conditions x 12 eres, ~29 s/cellule mesure",
+  "inferred_reason": null,
+  "control_family": {
+   "cells": 7,
+   "alpha_family": 0.05,
+   "alpha_cell": 0.0071428571428571435,
+   "method": "bonferroni",
+   "reason": null,
+   "fwer_bound": 0.05
+  },
+  "warning": null
+ },
+ "world": "stoneage",
+ "regime": {
+  "num_agents": 12,
+  "max_ticks": 200
+ },
+ "K": 12,
+ "seeds": [
+  2026,
+  3026,
+  3027,
+  3028,
+  3029,
+  3030,
+  3031
+ ],
+ "floor": 24.0,
+ "elapsed_s": 508.29152941703796,
+ "verdict": {
+  "verdict": "INDETERMINE-HARNAIS",
+  "r_blind": NaN,
+  "sign_p": NaN,
+  "n": 0,
+  "ratios": [],
+  "echecs": [
+   "seed 2026 : (ii) l'AVEUGLE reste sensible \u00e0 l'ablation de perception (within_ratio=0.9329268292682927) \u2014 il voit encore",
+   "seed 3026 : (ii) l'AVEUGLE reste sensible \u00e0 l'ablation de perception (within_ratio=0.896551724137931) \u2014 il voit encore",
+   "seed 3027 : (ii) l'AVEUGLE reste sensible \u00e0 l'ablation de perception (within_ratio=0.896551724137931) \u2014 il voit encore",
+   "seed 3029 : (ii) l'AVEUGLE reste sensible \u00e0 l'ablation de perception (within_ratio=0.9407894736842105) \u2014 il voit encore",
+   "seed 3031 : (ii) l'AVEUGLE reste sensible \u00e0 l'ablation de perception (within_ratio=1.0592592592592593) \u2014 il voit encore"
+  ],
+  "ecartes": [
+   3027,
+   3028,
+   3030
+  ]
+ },
+ "rows": [
+  {
+   "seed": 2026,
+   "intact": {
+    "within_ratio": 0.990990990990991,
+    "between_ratio": 4.666666666666667,
+    "verdict": "PERCEPTION_DECOY",
+    "n": 12,
+    "intact_median": 27.5,
+    "floor": 24.0
+   },
+   "blind": {
+    "within_ratio": 0.9329268292682927,
+    "between_ratio": 6.75,
+    "verdict": "PERCEPTION_DECOY",
+    "n": 12,
+    "intact_median": 38.25,
+    "floor": 24.0,
+    "w_ok": true
+   }
+  },
+  {
+   "seed": 3026,
+   "intact": {
+    "within_ratio": 0.9238095238095239,
+    "between_ratio": 3.5714285714285716,
+    "verdict": "PERCEPTION_DECOY",
+    "n": 12,
+    "intact_median": 24.25,
+    "floor": 24.0
+   },
+   "blind": {
+    "within_ratio": 0.896551724137931,
+    "between_ratio": 5.071428571428571,
+    "verdict": "PERCEPTION_DECOY",
+    "n": 12,
+    "intact_median": 39.0,
+    "floor": 24.0,
+    "w_ok": true
+   }
+  },
+  {
+   "seed": 3027,
+   "intact": {
+    "within_ratio": 0.8640776699029126,
+    "between_ratio": 4.166666666666667,
+    "verdict": "INCONCLUSIVE_DEGENERATE",
+    "n": 12,
+    "intact_median": 22.25,
+    "floor": 24.0
+   },
+   "blind": {
+    "within_ratio": 0.896551724137931,
+    "between_ratio": 6.333333333333333,
+    "verdict": "PERCEPTION_DECOY",
+    "n": 12,
+    "intact_median": 39.0,
+    "floor": 24.0,
+    "w_ok": true
+   }
+  },
+  {
+   "seed": 3028,
+   "intact": {
+    "within_ratio": 0.8725490196078431,
+    "between_ratio": 4.0,
+    "verdict": "INCONCLUSIVE_DEGENERATE",
+    "n": 12,
+    "intact_median": 22.25,
+    "floor": 24.0
+   },
+   "blind": {
+    "within_ratio": 1.0129870129870129,
+    "between_ratio": 6.166666666666667,
+    "verdict": "PERCEPTION_DECOY",
+    "n": 12,
+    "intact_median": 39.0,
+    "floor": 24.0,
+    "w_ok": true
+   }
+  },
+  {
+   "seed": 3029,
+   "intact": {
+    "within_ratio": 1.0196078431372548,
+    "between_ratio": 4.333333333333333,
+    "verdict": "PERCEPTION_DECOY",
+    "n": 12,
+    "intact_median": 26.0,
+    "floor": 24.0
+   },
+   "blind": {
+    "within_ratio": 0.9407894736842105,
+    "between_ratio": 5.916666666666667,
+    "verdict": "PERCEPTION_DECOY",
+    "n": 12,
+    "intact_median": 35.75,
+    "floor": 24.0,
+    "w_ok": true
+   }
+  },
+  {
+   "seed": 3030,
+   "intact": {
+    "within_ratio": 0.8725490196078431,
+    "between_ratio": 4.0,
+    "verdict": "INCONCLUSIVE_DEGENERATE",
+    "n": 12,
+    "intact_median": 22.25,
+    "floor": 24.0
+   },
+   "blind": {
+    "within_ratio": 0.9662162162162162,
+    "between_ratio": 6.333333333333333,
+    "verdict": "PERCEPTION_DECOY",
+    "n": 12,
+    "intact_median": 35.75,
+    "floor": 24.0,
+    "w_ok": true
+   }
+  },
+  {
+   "seed": 3031,
+   "intact": {
+    "within_ratio": 0.9423076923076923,
+    "between_ratio": 4.166666666666667,
+    "verdict": "PERCEPTION_DECOY",
+    "n": 12,
+    "intact_median": 24.5,
+    "floor": 24.0
+   },
+   "blind": {
+    "within_ratio": 1.0592592592592593,
+    "between_ratio": 6.166666666666667,
+    "verdict": "PERCEPTION_DECOY",
+    "n": 12,
+    "intact_median": 35.75,
+    "floor": 24.0,
+    "w_ok": true
+   }
+  }
+ ]
+}

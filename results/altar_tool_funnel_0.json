@@ -1,0 +1,108 @@
+{
+  "name": "altar_tool_funnel",
+  "seed": 0,
+  "commit": "ac1ba48",
+  "git_dirty": true,
+  "data": {
+    "verdict_autel": "AUTEL_MORT",
+    "verdict_funnel": "GAP_ACQUISITION",
+    "frac_hunt": 0.5045351473922902,
+    "frac_craft": 0.015873015873015872,
+    "frac_apex": 0.2165532879818594,
+    "total_spears": 16,
+    "total_mammoth_kills": 232,
+    "altars_solved_max": 0,
+    "n_agents": 882,
+    "par_seed": {
+      "0": {
+        "n": 126,
+        "frac_hunt": 0.5158730158730159,
+        "frac_craft": 0.023809523809523808,
+        "frac_apex": 0.15079365079365079,
+        "total_spears": 4,
+        "total_mammoth_kills": 25,
+        "altars_solved_max": 0
+      },
+      "1": {
+        "n": 106,
+        "frac_hunt": 0.5188679245283019,
+        "frac_craft": 0.02830188679245283,
+        "frac_apex": 0.22641509433962265,
+        "total_spears": 3,
+        "total_mammoth_kills": 31,
+        "altars_solved_max": 0
+      },
+      "2": {
+        "n": 143,
+        "frac_hunt": 0.48951048951048953,
+        "frac_craft": 0.006993006993006993,
+        "frac_apex": 0.2937062937062937,
+        "total_spears": 1,
+        "total_mammoth_kills": 51,
+        "altars_solved_max": 0
+      },
+      "3": {
+        "n": 102,
+        "frac_hunt": 0.46078431372549017,
+        "frac_craft": 0.0,
+        "frac_apex": 0.10784313725490197,
+        "total_spears": 0,
+        "total_mammoth_kills": 15,
+        "altars_solved_max": 0
+      },
+      "4": {
+        "n": 141,
+        "frac_hunt": 0.5035460992907801,
+        "frac_craft": 0.02127659574468085,
+        "frac_apex": 0.2765957446808511,
+        "total_spears": 4,
+        "total_mammoth_kills": 49,
+        "altars_solved_max": 0
+      },
+      "5": {
+        "n": 83,
+        "frac_hunt": 0.4939759036144578,
+        "frac_craft": 0.024096385542168676,
+        "frac_apex": 0.18072289156626506,
+        "total_spears": 2,
+        "total_mammoth_kills": 17,
+        "altars_solved_max": 0
+      },
+      "6": {
+        "n": 90,
+        "frac_hunt": 0.5222222222222223,
+        "frac_craft": 0.0,
+        "frac_apex": 0.24444444444444444,
+        "total_spears": 0,
+        "total_mammoth_kills": 23,
+        "altars_solved_max": 0
+      },
+      "7": {
+        "n": 91,
+        "frac_hunt": 0.5384615384615384,
+        "frac_craft": 0.02197802197802198,
+        "frac_apex": 0.2087912087912088,
+        "total_spears": 2,
+        "total_mammoth_kills": 21,
+        "altars_solved_max": 0
+      }
+    },
+    "config": {
+      "seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "num_agents": 40,
+      "max_ticks": 300,
+      "metab": 0.25,
+      "payoff": 3.0
+    }
+  },
+  "config_hash": "45823750c986"
+}

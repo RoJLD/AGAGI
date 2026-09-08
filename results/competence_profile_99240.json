@@ -1,0 +1,25 @@
+{
+  "name": "competence_profile",
+  "seed": 99240,
+  "commit": "d7557ec",
+  "git_dirty": true,
+  "data": {
+    "R": 1,
+    "verdict": "CRAFT_WALL CONFIRME",
+    "mean_fracs": {
+      "frac_forage": 0.5,
+      "frac_craft": 0.0,
+      "frac_apex": 0.1
+    },
+    "per_seed": [
+      {
+        "frac_forage": 0.5,
+        "frac_craft": 0.0,
+        "frac_apex": 0.1,
+        "n": 10,
+        "seed": 99240
+      }
+    ]
+  },
+  "config_hash": "cda5b71929ba"
+}

@@ -1,0 +1,40 @@
+{
+  "name": "tom_probe",
+  "seed": 99280,
+  "commit": "a1a3dd2",
+  "git_dirty": true,
+  "data": {
+    "R": 1,
+    "verdict": "TOM_INERT",
+    "n_ctrl": 0.0,
+    "n_tom": 0.0,
+    "mean_ctrl": {
+      "acc_head": 0.0,
+      "acc_shuffle": 0.0,
+      "probe_true": 0.0,
+      "probe_shuffle": 0.0
+    },
+    "mean_tom": {
+      "acc_head": 0.0,
+      "acc_shuffle": 0.0
+    },
+    "per_seed": [
+      {
+        "seed": 99280,
+        "ctrl": {
+          "acc_head": 0.0,
+          "acc_shuffle": 0.0,
+          "probe_true": 0.0,
+          "probe_shuffle": 0.0,
+          "n": 0
+        },
+        "tom": {
+          "acc_head": 0.0,
+          "acc_shuffle": 0.0,
+          "n": 0
+        }
+      }
+    ]
+  },
+  "config_hash": "cda5b71929ba"
+}

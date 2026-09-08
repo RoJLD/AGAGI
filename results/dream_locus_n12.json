@@ -1,0 +1,628 @@
+{
+  "rows": [
+    {
+      "seed": 0,
+      "off": {
+        "n_lived": 96,
+        "med_founder_age": 38.0,
+        "n_at_ceiling": 2,
+        "n_founders": 25,
+        "preys": 176
+      },
+      "H_0.2": {
+        "n_lived": 1135,
+        "med_founder_age": 44.0,
+        "n_at_ceiling": 9,
+        "n_founders": 25,
+        "preys": 323
+      },
+      "act_2": {
+        "n_lived": 138,
+        "med_founder_age": 34.0,
+        "n_at_ceiling": 5,
+        "n_founders": 25,
+        "preys": 214
+      },
+      "act_8": {
+        "n_lived": 158,
+        "med_founder_age": 43.0,
+        "n_at_ceiling": 1,
+        "n_founders": 25,
+        "preys": 258
+      },
+      "act_32": {
+        "n_lived": 200,
+        "med_founder_age": 34.0,
+        "n_at_ceiling": 5,
+        "n_founders": 25,
+        "preys": 291
+      }
+    },
+    {
+      "seed": 1,
+      "off": {
+        "n_lived": 56,
+        "med_founder_age": 48.0,
+        "n_at_ceiling": 0,
+        "n_founders": 25,
+        "preys": 84
+      },
+      "H_0.2": {
+        "n_lived": 602,
+        "med_founder_age": 42.0,
+        "n_at_ceiling": 8,
+        "n_founders": 25,
+        "preys": 245
+      },
+      "act_2": {
+        "n_lived": 66,
+        "med_founder_age": 26.0,
+        "n_at_ceiling": 2,
+        "n_founders": 25,
+        "preys": 92
+      },
+      "act_8": {
+        "n_lived": 155,
+        "med_founder_age": 37.0,
+        "n_at_ceiling": 6,
+        "n_founders": 25,
+        "preys": 257
+      },
+      "act_32": {
+        "n_lived": 188,
+        "med_founder_age": 30.0,
+        "n_at_ceiling": 2,
+        "n_founders": 25,
+        "preys": 256
+      }
+    },
+    {
+      "seed": 2,
+      "off": {
+        "n_lived": 41,
+        "med_founder_age": 22.0,
+        "n_at_ceiling": 1,
+        "n_founders": 25,
+        "preys": 40
+      },
+      "H_0.2": {
+        "n_lived": 1248,
+        "med_founder_age": 50.0,
+        "n_at_ceiling": 7,
+        "n_founders": 25,
+        "preys": 298
+      },
+      "act_2": {
+        "n_lived": 125,
+        "med_founder_age": 34.0,
+        "n_at_ceiling": 5,
+        "n_founders": 25,
+        "preys": 179
+      },
+      "act_8": {
+        "n_lived": 157,
+        "med_founder_age": 42.0,
+        "n_at_ceiling": 5,
+        "n_founders": 25,
+        "preys": 238
+      },
+      "act_32": {
+        "n_lived": 189,
+        "med_founder_age": 30.0,
+        "n_at_ceiling": 5,
+        "n_founders": 25,
+        "preys": 285
+      }
+    },
+    {
+      "seed": 3,
+      "off": {
+        "n_lived": 69,
+        "med_founder_age": 29.0,
+        "n_at_ceiling": 4,
+        "n_founders": 25,
+        "preys": 81
+      },
+      "H_0.2": {
+        "n_lived": 916,
+        "med_founder_age": 60.0,
+        "n_at_ceiling": 9,
+        "n_founders": 25,
+        "preys": 261
+      },
+      "act_2": {
+        "n_lived": 188,
+        "med_founder_age": 52.0,
+        "n_at_ceiling": 7,
+        "n_founders": 25,
+        "preys": 287
+      },
+      "act_8": {
+        "n_lived": 114,
+        "med_founder_age": 49.0,
+        "n_at_ceiling": 3,
+        "n_founders": 25,
+        "preys": 139
+      },
+      "act_32": {
+        "n_lived": 174,
+        "med_founder_age": 31.0,
+        "n_at_ceiling": 2,
+        "n_founders": 25,
+        "preys": 258
+      }
+    },
+    {
+      "seed": 4,
+      "off": {
+        "n_lived": 103,
+        "med_founder_age": 36.0,
+        "n_at_ceiling": 5,
+        "n_founders": 25,
+        "preys": 166
+      },
+      "H_0.2": {
+        "n_lived": 1439,
+        "med_founder_age": 28.0,
+        "n_at_ceiling": 6,
+        "n_founders": 25,
+        "preys": 334
+      },
+      "act_2": {
+        "n_lived": 149,
+        "med_founder_age": 34.0,
+        "n_at_ceiling": 4,
+        "n_founders": 25,
+        "preys": 236
+      },
+      "act_8": {
+        "n_lived": 148,
+        "med_founder_age": 29.0,
+        "n_at_ceiling": 3,
+        "n_founders": 25,
+        "preys": 238
+      },
+      "act_32": {
+        "n_lived": 90,
+        "med_founder_age": 29.0,
+        "n_at_ceiling": 2,
+        "n_founders": 25,
+        "preys": 109
+      }
+    },
+    {
+      "seed": 5,
+      "off": {
+        "n_lived": 68,
+        "med_founder_age": 29.0,
+        "n_at_ceiling": 1,
+        "n_founders": 25,
+        "preys": 82
+      },
+      "H_0.2": {
+        "n_lived": 1571,
+        "med_founder_age": 66.0,
+        "n_at_ceiling": 8,
+        "n_founders": 25,
+        "preys": 375
+      },
+      "act_2": {
+        "n_lived": 158,
+        "med_founder_age": 27.0,
+        "n_at_ceiling": 3,
+        "n_founders": 25,
+        "preys": 220
+      },
+      "act_8": {
+        "n_lived": 116,
+        "med_founder_age": 32.0,
+        "n_at_ceiling": 3,
+        "n_founders": 25,
+        "preys": 153
+      },
+      "act_32": {
+        "n_lived": 180,
+        "med_founder_age": 29.0,
+        "n_at_ceiling": 2,
+        "n_founders": 25,
+        "preys": 266
+      }
+    },
+    {
+      "seed": 6,
+      "off": {
+        "n_lived": 44,
+        "med_founder_age": 44.0,
+        "n_at_ceiling": 3,
+        "n_founders": 25,
+        "preys": 46
+      },
+      "H_0.2": {
+        "n_lived": 1386,
+        "med_founder_age": 80.0,
+        "n_at_ceiling": 16,
+        "n_founders": 25,
+        "preys": 318
+      },
+      "act_2": {
+        "n_lived": 63,
+        "med_founder_age": 34.0,
+        "n_at_ceiling": 2,
+        "n_founders": 25,
+        "preys": 71
+      },
+      "act_8": {
+        "n_lived": 44,
+        "med_founder_age": 33.0,
+        "n_at_ceiling": 1,
+        "n_founders": 25,
+        "preys": 37
+      },
+      "act_32": {
+        "n_lived": 137,
+        "med_founder_age": 30.0,
+        "n_at_ceiling": 4,
+        "n_founders": 25,
+        "preys": 181
+      }
+    },
+    {
+      "seed": 7,
+      "off": {
+        "n_lived": 57,
+        "med_founder_age": 35.0,
+        "n_at_ceiling": 2,
+        "n_founders": 25,
+        "preys": 69
+      },
+      "H_0.2": {
+        "n_lived": 1272,
+        "med_founder_age": 51.0,
+        "n_at_ceiling": 10,
+        "n_founders": 25,
+        "preys": 319
+      },
+      "act_2": {
+        "n_lived": 179,
+        "med_founder_age": 32.0,
+        "n_at_ceiling": 3,
+        "n_founders": 25,
+        "preys": 260
+      },
+      "act_8": {
+        "n_lived": 168,
+        "med_founder_age": 38.0,
+        "n_at_ceiling": 6,
+        "n_founders": 25,
+        "preys": 276
+      },
+      "act_32": {
+        "n_lived": 165,
+        "med_founder_age": 50.0,
+        "n_at_ceiling": 4,
+        "n_founders": 25,
+        "preys": 271
+      }
+    },
+    {
+      "seed": 8,
+      "off": {
+        "n_lived": 38,
+        "med_founder_age": 40.0,
+        "n_at_ceiling": 2,
+        "n_founders": 25,
+        "preys": 24
+      },
+      "H_0.2": {
+        "n_lived": 1128,
+        "med_founder_age": 61.0,
+        "n_at_ceiling": 10,
+        "n_founders": 25,
+        "preys": 212
+      },
+      "act_2": {
+        "n_lived": 95,
+        "med_founder_age": 31.0,
+        "n_at_ceiling": 5,
+        "n_founders": 25,
+        "preys": 146
+      },
+      "act_8": {
+        "n_lived": 178,
+        "med_founder_age": 25.0,
+        "n_at_ceiling": 5,
+        "n_founders": 25,
+        "preys": 290
+      },
+      "act_32": {
+        "n_lived": 94,
+        "med_founder_age": 30.0,
+        "n_at_ceiling": 4,
+        "n_founders": 25,
+        "preys": 112
+      }
+    },
+    {
+      "seed": 9,
+      "off": {
+        "n_lived": 58,
+        "med_founder_age": 30.0,
+        "n_at_ceiling": 3,
+        "n_founders": 25,
+        "preys": 66
+      },
+      "H_0.2": {
+        "n_lived": 655,
+        "med_founder_age": 19.0,
+        "n_at_ceiling": 7,
+        "n_founders": 25,
+        "preys": 276
+      },
+      "act_2": {
+        "n_lived": 149,
+        "med_founder_age": 31.0,
+        "n_at_ceiling": 2,
+        "n_founders": 25,
+        "preys": 235
+      },
+      "act_8": {
+        "n_lived": 138,
+        "med_founder_age": 28.0,
+        "n_at_ceiling": 6,
+        "n_founders": 25,
+        "preys": 177
+      },
+      "act_32": {
+        "n_lived": 181,
+        "med_founder_age": 54.0,
+        "n_at_ceiling": 9,
+        "n_founders": 25,
+        "preys": 277
+      }
+    },
+    {
+      "seed": 10,
+      "off": {
+        "n_lived": 45,
+        "med_founder_age": 46.0,
+        "n_at_ceiling": 1,
+        "n_founders": 25,
+        "preys": 77
+      },
+      "H_0.2": {
+        "n_lived": 1283,
+        "med_founder_age": 59.0,
+        "n_at_ceiling": 10,
+        "n_founders": 25,
+        "preys": 330
+      },
+      "act_2": {
+        "n_lived": 93,
+        "med_founder_age": 24.0,
+        "n_at_ceiling": 0,
+        "n_founders": 25,
+        "preys": 125
+      },
+      "act_8": {
+        "n_lived": 171,
+        "med_founder_age": 51.0,
+        "n_at_ceiling": 4,
+        "n_founders": 25,
+        "preys": 266
+      },
+      "act_32": {
+        "n_lived": 162,
+        "med_founder_age": 28.0,
+        "n_at_ceiling": 0,
+        "n_founders": 25,
+        "preys": 253
+      }
+    },
+    {
+      "seed": 11,
+      "off": {
+        "n_lived": 53,
+        "med_founder_age": 29.0,
+        "n_at_ceiling": 1,
+        "n_founders": 25,
+        "preys": 51
+      },
+      "H_0.2": {
+        "n_lived": 1580,
+        "med_founder_age": 80.0,
+        "n_at_ceiling": 13,
+        "n_founders": 25,
+        "preys": 234
+      },
+      "act_2": {
+        "n_lived": 106,
+        "med_founder_age": 29.0,
+        "n_at_ceiling": 5,
+        "n_founders": 25,
+        "preys": 140
+      },
+      "act_8": {
+        "n_lived": 98,
+        "med_founder_age": 37.0,
+        "n_at_ceiling": 2,
+        "n_founders": 25,
+        "preys": 118
+      },
+      "act_32": {
+        "n_lived": 127,
+        "med_founder_age": 26.0,
+        "n_at_ceiling": 3,
+        "n_founders": 25,
+        "preys": 165
+      }
+    }
+  ],
+  "config": {
+    "seeds": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "agents": 25,
+    "ticks": 80,
+    "K": 8
+  },
+  "design": {
+    "question": "le benefice de DREAM-003 exige-t-il un bruit PORTE (echappement) ou un bruit d'action TRANSITOIRE suffit-il (exploration) ?",
+    "replication_unit": "ere",
+    "n_independent": 12,
+    "links": {
+      "le bruit d'action perturbe le comportement": "measured",
+      "effet sur reproduction/survie": "measured"
+    },
+    "inferred_links": [],
+    "cost_estimate": null,
+    "warning": null
+  },
+  "cmp": {
+    "n_lived:off->H_0.2": {
+      "med_a": 56.5,
+      "med_b": 1260.0,
+      "ratio": 22.300884955752213,
+      "fav": 12,
+      "n": 12,
+      "sign_p": 0.00048828125,
+      "wilcoxon_p": 0.0025261742685023236
+    },
+    "n_lived:off->act_2": {
+      "med_a": 56.5,
+      "med_b": 131.5,
+      "ratio": 2.327433628318584,
+      "fav": 12,
+      "n": 12,
+      "sign_p": 0.00048828125,
+      "wilcoxon_p": 0.0025261742685023236
+    },
+    "n_lived:off->act_8": {
+      "med_a": 56.5,
+      "med_b": 151.5,
+      "ratio": 2.6814159292035398,
+      "fav": 11,
+      "n": 12,
+      "sign_p": 0.0009765625,
+      "wilcoxon_p": 0.0038572928299425158
+    },
+    "n_lived:off->act_32": {
+      "med_a": 56.5,
+      "med_b": 169.5,
+      "ratio": 3.0,
+      "fav": 11,
+      "n": 12,
+      "sign_p": 0.00634765625,
+      "wilcoxon_p": 0.003263716901670266
+    },
+    "n_lived:act_32->H_0.2": {
+      "med_a": 169.5,
+      "med_b": 1260.0,
+      "ratio": 7.433628318584071,
+      "fav": 12,
+      "n": 12,
+      "sign_p": 0.00048828125,
+      "wilcoxon_p": 0.0025261742685023236
+    },
+    "preys:off->H_0.2": {
+      "med_a": 73.0,
+      "med_b": 308.0,
+      "ratio": 4.219178082191781,
+      "fav": 12,
+      "n": 12,
+      "sign_p": 0.00048828125,
+      "wilcoxon_p": 0.0025261742685023236
+    },
+    "preys:off->act_2": {
+      "med_a": 73.0,
+      "med_b": 196.5,
+      "ratio": 2.691780821917808,
+      "fav": 12,
+      "n": 12,
+      "sign_p": 0.00048828125,
+      "wilcoxon_p": 0.0025261742685023236
+    },
+    "preys:off->act_8": {
+      "med_a": 73.0,
+      "med_b": 238.0,
+      "ratio": 3.26027397260274,
+      "fav": 11,
+      "n": 12,
+      "sign_p": 0.00634765625,
+      "wilcoxon_p": 0.003263716901670266
+    },
+    "preys:off->act_32": {
+      "med_a": 73.0,
+      "med_b": 257.0,
+      "ratio": 3.5205479452054793,
+      "fav": 11,
+      "n": 12,
+      "sign_p": 0.00634765625,
+      "wilcoxon_p": 0.003263716901670266
+    },
+    "preys:act_32->H_0.2": {
+      "med_a": 257.0,
+      "med_b": 308.0,
+      "ratio": 1.198443579766537,
+      "fav": 10,
+      "n": 12,
+      "sign_p": 0.03857421875,
+      "wilcoxon_p": 0.006801651812875509
+    },
+    "med_founder_age:off->H_0.2": {
+      "med_a": 35.5,
+      "med_b": 55.0,
+      "ratio": 1.5492957746478873,
+      "fav": 9,
+      "n": 12,
+      "sign_p": 0.14599609375,
+      "wilcoxon_p": 0.018602929901135656
+    },
+    "med_founder_age:off->act_2": {
+      "med_a": 35.5,
+      "med_b": 31.5,
+      "ratio": 0.8873239436619719,
+      "fav": 3,
+      "n": 12,
+      "sign_p": 0.2265625,
+      "wilcoxon_p": 0.266402424640499
+    },
+    "med_founder_age:off->act_8": {
+      "med_a": 35.5,
+      "med_b": 37.0,
+      "ratio": 1.0422535211267605,
+      "fav": 7,
+      "n": 12,
+      "sign_p": 0.7744140625,
+      "wilcoxon_p": 0.7240816609153895
+    },
+    "med_founder_age:off->act_32": {
+      "med_a": 35.5,
+      "med_b": 30.0,
+      "ratio": 0.8450704225352113,
+      "fav": 4,
+      "n": 12,
+      "sign_p": 0.548828125,
+      "wilcoxon_p": 0.5048798738340916
+    },
+    "med_founder_age:act_8->H_0.2": {
+      "med_a": 37.0,
+      "med_b": 55.0,
+      "ratio": 1.4864864864864864,
+      "fav": 10,
+      "n": 12,
+      "sign_p": 0.03857421875,
+      "wilcoxon_p": 0.015022338553107861
+    }
+  }
+}

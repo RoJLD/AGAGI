@@ -1,0 +1,25 @@
+{
+  "name": "memory_credit_horizon",
+  "seed": 99167,
+  "commit": "a1a3dd2",
+  "git_dirty": true,
+  "data": {
+    "K": 1,
+    "R": 1,
+    "verdict": "HORIZON REFUTE",
+    "table": [
+      {
+        "D": 1,
+        "acc_bptt": 1.0,
+        "acc_mut": 0.4921875,
+        "gap": 0.5078125
+      },
+      {
+        "D": 6,
+        "acc_bptt": 1.0,
+        "acc_mut": 0.4921875,
+        "gap": 0.5078125
+      }
+    ]
+  }
+}

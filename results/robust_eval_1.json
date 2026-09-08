@@ -1,0 +1,11 @@
+{
+  "name": "robust_eval",
+  "seed": 1,
+  "commit": "0f46bab",
+  "data": {
+    "true_noisy": 67.0,
+    "true_robust": 42.5,
+    "eras": 2,
+    "robust_K": 2
+  }
+}

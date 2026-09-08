@@ -11,7 +11,12 @@ venv/
 dump.txt
 dump2.txt
 dump*.txt
-results/
+# Les JSON de results/ sont l'EVIDENCE que les records citent (« persistees et versionnees ») :
+# 825 Ko au total, ils sont donc VERSIONNES. Le reste (logs, .npy, warm007_genomes/, ~59 Mo)
+# reste ignore. `results/*` et non `results/` : git ne sait pas re-inclure un fichier dont le
+# REPERTOIRE PARENT est exclu.
+results/*
+!results/*.json
 
 # Artefacts de récupération (à ne jamais réintroduire à la racine)
 *_full.tsx
@@ -23,6 +28,11 @@ data/*.db
 data/*.db.wal
 data/*.wal
 data/*.pkl
+# EXCEPTION : le Hall of Fame (1,2 Mo) est le STORE DU CHAMPION -- sujet de tout l'arc S2,
+# d'EDR-124 et d'EDR-HOF-IO-OVERLAP. Sans lui, un clone n'a AUCUN champion et
+# load_champion_genome() leve « HoF vide : evoluer d'abord » : le depot n'est pas reprenable
+# sur une autre machine.
+!data/hall_of_fame.pkl
 data/kuzu_db/
 data/kuzudb/
 data/test_kuzudb/

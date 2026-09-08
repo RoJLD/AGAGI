@@ -1,0 +1,53 @@
+{
+  "name": "s2_demand",
+  "seed": 7,
+  "commit": "48914aa",
+  "git_dirty": true,
+  "data": {
+    "seed": 7,
+    "commit": "48914aa",
+    "K": {
+      "famine": 12
+    },
+    "worlds": {
+      "famine": {
+        "verdict": "EXIGE",
+        "coherence_ok": true,
+        "life_p": 0.0053552635898095335,
+        "p_monde": 0.0025261742685023236,
+        "strongest_baseline": "reflex",
+        "survival": {
+          "random_action": {
+            "p": 0.0025261742685023236,
+            "cliff": 0.930625,
+            "cliff_lo": 0.8877065972222222,
+            "cliff_hi": 0.9670190972222221,
+            "ratio": 5.5,
+            "ratio_lo": 4.541666666666667,
+            "ratio_hi": 5.6
+          },
+          "random_genome": {
+            "p": 0.0025261742685023236,
+            "cliff": 0.9344444444444444,
+            "cliff_lo": 0.8921328125,
+            "cliff_hi": 0.9702300347222221,
+            "ratio": 5.5,
+            "ratio_lo": 4.416666666666667,
+            "ratio_hi": 5.5
+          },
+          "reflex": {
+            "p": 0.0025261742685023236,
+            "cliff": 0.9239756944444445,
+            "cliff_lo": 0.8794435763888889,
+            "cliff_hi": 0.9621006944444445,
+            "ratio": 4.583333333333333,
+            "ratio_lo": 4.083333333333333,
+            "ratio_hi": 4.958333333333333
+          }
+        },
+        "censored_frac_champion": 0.0,
+        "p_monde_holm": 0.0025261742685023236
+      }
+    }
+  }
+}

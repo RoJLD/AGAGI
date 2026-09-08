@@ -1,0 +1,74 @@
+{
+  "name": "lewis_reach_oracle",
+  "seed": 88114,
+  "commit": "a1a3dd2",
+  "git_dirty": true,
+  "data": {
+    "knob": "reach_oracle x prey_speed_scale",
+    "R": 1,
+    "n_eval": 2,
+    "verdict": "PRIMITIVE PARTIELLE",
+    "table": [
+      {
+        "oracle": false,
+        "speed": 1.0,
+        "p_reach": 0.5542168674698795,
+        "p_cap": 0.9347826086956522,
+        "income_t": 0.5649635036496351,
+        "drain_t": 0.9482334031284415,
+        "mean_captures": 1.5180722891566265,
+        "mean_contacts": 2.1204819277108435,
+        "mean_min_dist": 0.6506024096385542,
+        "cap_lapin": 0.6265060240963856,
+        "cap_cerf": 0.4578313253012048,
+        "cap_sanglier": 0.37349397590361444,
+        "n_agents": 166
+      },
+      {
+        "oracle": false,
+        "speed": 0.0,
+        "p_reach": 0.47863247863247865,
+        "p_cap": 0.9642857142857143,
+        "income_t": 0.0,
+        "drain_t": 0.6719388046557375,
+        "mean_captures": 0.8632478632478633,
+        "mean_contacts": 1.3333333333333333,
+        "mean_min_dist": 0.7350427350427351,
+        "cap_lapin": 0.3418803418803419,
+        "cap_cerf": 0.23076923076923078,
+        "cap_sanglier": 0.23931623931623933,
+        "n_agents": 117
+      },
+      {
+        "oracle": true,
+        "speed": 1.0,
+        "p_reach": 0.7471264367816092,
+        "p_cap": 0.7292307692307692,
+        "income_t": 0.6304347826086957,
+        "drain_t": 0.4642361490917142,
+        "mean_captures": 1.8091954022988506,
+        "mean_contacts": 3.1264367816091956,
+        "mean_min_dist": 0.30114942528735633,
+        "cap_lapin": 0.6919540229885057,
+        "cap_cerf": 0.5655172413793104,
+        "cap_sanglier": 0.38850574712643676,
+        "n_agents": 435
+      },
+      {
+        "oracle": true,
+        "speed": 0.0,
+        "p_reach": 0.7653276955602537,
+        "p_cap": 0.8093922651933702,
+        "income_t": 0.9675,
+        "drain_t": 0.5716926932739826,
+        "mean_captures": 1.864693446088795,
+        "mean_contacts": 3.251585623678647,
+        "mean_min_dist": 0.25158562367864695,
+        "cap_lapin": 0.7272727272727273,
+        "cap_cerf": 0.5771670190274841,
+        "cap_sanglier": 0.40169133192389006,
+        "n_agents": 473
+      }
+    ]
+  }
+}

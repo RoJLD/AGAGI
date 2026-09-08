@@ -1,0 +1,26 @@
+{
+  "name": "tom_coordination",
+  "seed": 99300,
+  "commit": "a1a3dd2",
+  "git_dirty": true,
+  "data": {
+    "R": 1,
+    "verdict": "INDETERMINE",
+    "delta": -0.1875,
+    "p_with": 0.3125,
+    "p_alone": 0.5,
+    "n_with_min": 16,
+    "n_alone_min": 12,
+    "per_seed": [
+      {
+        "p_with": 0.3125,
+        "p_alone": 0.5,
+        "delta": -0.1875,
+        "n_with": 16,
+        "n_alone": 12,
+        "seed": 99300
+      }
+    ]
+  },
+  "config_hash": "cda5b71929ba"
+}

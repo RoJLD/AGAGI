@@ -1,0 +1,47 @@
+{
+  "name": "qd_tier_rescue",
+  "seed": 99260,
+  "commit": "a1a3dd2",
+  "git_dirty": true,
+  "data": {
+    "R": 1,
+    "verdict": "QD_NEUTRE",
+    "d_craft": 0.0,
+    "n_confirme_seeds": 0,
+    "craft_cell_share": 0.0,
+    "mean_hof": {
+      "frac_forage": 0.3,
+      "frac_craft": 0.0,
+      "frac_apex": 0.1
+    },
+    "mean_qd": {
+      "frac_forage": 0.1,
+      "frac_craft": 0.0,
+      "frac_apex": 0.0
+    },
+    "per_seed": [
+      {
+        "seed": 99260,
+        "hof": {
+          "frac_forage": 0.3,
+          "frac_craft": 0.0,
+          "frac_apex": 0.1,
+          "n": 10
+        },
+        "qd": {
+          "frac_forage": 0.1,
+          "frac_craft": 0.0,
+          "frac_apex": 0.0,
+          "n": 10
+        },
+        "coverage": {
+          "cells_tier0": 1,
+          "cells_tier1": 1,
+          "cells_tier2": 0,
+          "cells_tier3": 0
+        }
+      }
+    ]
+  },
+  "config_hash": "cda5b71929ba"
+}
