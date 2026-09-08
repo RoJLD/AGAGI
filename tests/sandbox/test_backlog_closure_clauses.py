@@ -114,3 +114,38 @@ def test_the_hook_gates_claimed_CLOSED_are_STILL_wired():
     for garde in ("check_bar_separation", "check_preregistration_applied",
                   "check_staged_authorship", "check_substrate_pinning"):
         assert garde in hook, f"{garde} n'est plus branche : une entree CLOSE du backlog est devenue fausse"
+
+
+# --- `holds_when:` : un FAIT qui doit rester vrai, dans une entree encore ouverte -------------------
+
+_OUVERTE2 = "**P9.2 - OUVERTE - il reste du travail.**\n"
+_H_VRAI = "<!-- holds_when:path_present=tools/check_backlog_freshness.py -->\n"
+_H_FAUX = "<!-- holds_when:path_present=tools/il_nexiste_pas.py -->\n"
+
+
+def test_holds_when_FIRES_only_when_the_fact_STOPS_being_true():
+    """SECOND predicat, ajoute le 2026-09-08 apres que le premier a MAL VISE -- defaut mesure en
+    production, pas hypothetique.
+
+    `closes_when:` decrit la fermeture de l'ENTREE. Pose sur un SOUS-ITEM, il est mal attribue : en
+    fermant le sous-item « SP-2 dette » de P4.3, le cliquet a reclame la fermeture de P4.3 TOUT
+    ENTIERE, qui reste ouverte a juste titre (elle porte une vision en cinq sous-projets).
+
+    `holds_when:` dit autre chose : « cette affirmation doit RESTER vraie ». Une SEULE direction est une
+    violation -- la clause cesse d'etre satisfaite --, quel que soit l'etat de l'entree. C'est le cas
+    tres frequent d'un fait ETABLI cite dans une entree encore OUVERTE."""
+    viol, _ = scan_clauses(_OUVERTE2 + _H_VRAI)
+    assert viol == {}, ("un fait VRAI dans une entree OUVERTE doit passer en silence", viol)
+    viol, _ = scan_clauses(_OUVERTE2 + _H_FAUX)
+    assert any(k.startswith("holds-rompue:P9.2") for k in viol), viol
+    # LE CONTRASTE, c'est le defaut mesure : meme entree, meme fait vrai, mais `closes_when`
+    viol, _ = scan_clauses(_OUVERTE2 + "<!-- closes_when:path_present=tools/check_backlog_freshness.py -->\n")
+    assert any(k.startswith("clause-close:P9.2") for k in viol), (
+        "c'est exactement la mauvaise visee qui a motive `holds_when`", viol)
+
+
+def test_a_holds_when_entry_is_IN_scope_not_counted_as_missing():
+    """Une entree qui porte un `holds_when:` n'est pas « sans clause » : la compter comme hors perimetre
+    ferait sous-declarer la couverture semantique du cliquet."""
+    _viol, sans = scan_clauses(_OUVERTE2 + _H_VRAI)
+    assert sans == 0, sans

@@ -126,3 +126,40 @@ def test_the_real_registry_is_and_stays_clean():
     assert creuses == {}, (
         f"garde(s) `exécutable` sans contre-exemple nommé : {creuses}. "
         f"Nommer le test discriminant dans la colonne « Garde » du registre.")
+
+
+# --- COLLECTIBILITE du contre-exemple nomme (2026-09-08) --------------------------------------------
+
+def test_a_named_test_must_be_COLLECTIBLE_not_merely_PRESENT():
+    """⚠️ Trou PROSPECTIF ferme le 2026-09-08, alors qu'AUCUNE classe n'etait concernee -- meme moment,
+    meme raison que le trou des collisions de noms ferme le 2026-09-01.
+
+    `_exists` cherchait `def <nom>(` n'importe ou sous tools/, src/ ou tests/. Un test DEFINI DANS UNE
+    AUTRE FONCTION, ou pose dans un fichier que pytest ne collecte pas (`helpers.py`), y passait donc
+    pour present alors qu'il ne s'executera JAMAIS. Une classe `executable` nommerait un contre-exemple
+    FANTOME -- indiscernable d'une garde absente, c.-a-d. exactement E1 au meta-niveau, dans l'outil
+    ecrit pour la fermer.
+
+    Ce que le cliquet NE verifie toujours pas, et c'est DECLARE : que le test PASSE, ni qu'il tienne dans
+    son plafond de temps. La premiere est une propriete d'execution, la seconde depend de la CHARGE de la
+    machine -- mesure du 2026-09-08 : le meme test, meme code, va de 11.7 s a 55.1 s par seed selon que
+    la machine est calme ou charge par 9 agents. Un wall-clock n'est pas attribuable au code seul."""
+    from tools.check_guard_negative_cases import _collectibles, _exists
+
+    coll = _collectibles()
+    assert len(coll) > 500, f"le detecteur ne voit plus les tests du depot ({len(coll)})"
+    # POSITIF : ce test-ci est evidemment collectible
+    assert "test_a_named_test_must_be_COLLECTIBLE_not_merely_PRESENT" in coll
+    # NEGATIF : un nom inexistant n'est ni present ni collectible
+    assert not _exists("test_fantome_qui_n_existe_pas") and "test_fantome_qui_n_existe_pas" not in coll
+    # ...et TOUS les contre-exemples nommes par le registre sont collectibles (mesure : 0 fantome)
+    from tools.check_guard_negative_cases import _is_test_artifact, _named_artifacts, _PATH, _rows
+    fantomes = []
+    for classe, statut, cell in _rows():
+        if "exécutable" not in statut:
+            continue
+        tests = [a for a in _named_artifacts(cell) if _is_test_artifact(a) and not _PATH.match(a)]
+        if tests and not any(t in coll for t in tests):
+            fantomes.append((classe, tests))
+    assert not fantomes, f"contre-exemple(s) FANTOME(s) : {fantomes}"
+

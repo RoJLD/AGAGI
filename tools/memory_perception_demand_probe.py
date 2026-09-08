@@ -44,6 +44,7 @@ if _ROOT not in sys.path:
 import numpy as np
 
 from tools.demand_marker import ablation_verdict
+from tools.experiment_preflight import assert_bar_separates_the_incapable
 from tools.s2_demand_ablation import derange_rows
 
 
@@ -185,6 +186,32 @@ def _train_and_eval(seed, condition, episodes, n_agents, K, D, lr, flip_p, memor
          TorchPopulationModel.BILINEAR) = saved
 
 
+def _untrained_ceiling(seeds, evaluer, n_eval):
+    """PLAFOND DE L'INCAPABLE pour la barre de VITALITÉ, mesuré DANS LE DISPOSITIF, à coût nul (P2.15).
+
+    La barre `1/K + 0.05` était posée à l'estime. Mesuré le 2026-09-08 : un agent qui n'a RIEN APPRIS
+    (mêmes seeds, même monde, même éval, ZÉRO épisode) atteint jusqu'à 0.2172 sur le bras leurre de
+    MEM-PERCEPTION et 0.2039 sur celui de LANG-PERCEPTION, contre une barre à 0.2167. Elle ne séparait
+    donc rien de façon démontrée — dans un cas l'incapable la FRANCHIT (1 seed sur 12), dans l'autre il
+    la manque de 0.013, soit MOINS d'une erreur-type (0.016). Un seuil arbitraire ne peut pas savoir
+    cela ; une mesure, oui.
+
+    Un plafond est un MAXIMUM, pas une médiane : on relève le max sur les seeds, plus une erreur-type
+    d'échantillonnage (même convention que `assert_bar_is_reachable`). Le résultat est le plafond de
+    « ce qu'atteint un agent sans compétence », mesuré AU RÉGIME CONFIGURÉ — donc transportable nulle
+    part ailleurs, et c'est voulu : transposer un plafond d'un autre régime EST l'erreur P2.15.
+
+    ⚠️ Ce que ça ne change PAS : les valeurs publiées (0.4844 et ~0.74) dépassent ce plafond d'un
+    facteur 2 à 3. La vitalité des deux arêtes gravées est établie PAR LA MESURE, et elle l'était déjà —
+    ce qui manquait était la démonstration que la barre séparait quelque chose."""
+    import numpy as np
+
+    vals = [evaluer(s) for s in seeds]
+    plafond = float(np.max(vals))
+    se = float(np.sqrt(max(plafond * (1.0 - plafond), 0.0) / max(int(n_eval), 1)))
+    return plafond, se, [float(v) for v in vals]
+
+
 def run_memory_perception_demand_probe(seeds, episodes=800, n_agents=16, K=6, D=2, lr=0.05,
                                        flip_p=0.3, memory_mode="learned", bilinear=False):
     """Mesure « memory demands perception ». Par seed : DELAYED et PRESENT, chacun éval intact/ablé.
@@ -192,6 +219,19 @@ def run_memory_perception_demand_probe(seeds, episodes=800, n_agents=16, K=6, D=
 
     `bilinear` (défaut `False`, cf. `_train_and_eval`) : le substrat mesuré est ÉPINGLÉ et RENDU
     LISIBLE dans `substrate` — sans quoi le résultat n'est pas identifiable a posteriori (P2.27)."""
+    # GARDE EN TÊTE : le plafond de l'incapable se mesure AVANT tout entraînement (aucun épisode), donc
+    # un refus de barre coûte zéro seed. Cf. `_untrained_ceiling`.
+    plafond, se, bruts = _untrained_ceiling(
+        seeds, lambda sd: _train_and_eval(sd, "present", 0, n_agents, K, D, lr, flip_p, memory_mode,
+                                          bilinear=bilinear)[0], 40 * n_agents)
+    vitality_bar = plafond + se
+    assert_bar_separates_the_incapable(
+        vitality_bar, plafond,
+        "plafond d un agent NON ENTRAINE (zero episode) sur le bras leurre, mesure DANS CE DISPOSITIF "
+        "au regime configure, MAX sur les seeds : la barre 1/K+0.05 posee a l estime ne separait "
+        "rien de facon demontree (P2.15, mesure du 2026-09-08)",
+        label="barre de vitalité du bras leurre PRESENT")
+
     di, da, pi, pa = [], [], [], []
     for s in seeds:
         d_i, d_a = _train_and_eval(s, "delayed", episodes, n_agents, K, D, lr, flip_p, memory_mode,
@@ -204,9 +244,13 @@ def run_memory_perception_demand_probe(seeds, episodes=800, n_agents=16, K=6, D=
     delayed = ablation_verdict(di, da, intervention_verified=True, floor=floor, ceiling=1.0)
     present = ablation_verdict(pi, pa, intervention_verified=True, floor=floor, ceiling=1.0)
     present_med = float(np.median(pi))
-    present_alive = floor + 0.05 < present_med < 0.9              # VIVANT (ni plancher ni plafond)
+    # ⚠️ P2.15 : la borne BASSE n'est plus `floor + 0.05` (arbitraire) mais le PLAFOND MESURÉ de
+    # l'incapable, plus une erreur-type. La borne HAUTE reste 0.9 (saturation), qui est une autre
+    # propriété — un bras au plafond ne peut plus bouger sous ablation.
+    present_alive = vitality_bar < present_med < 0.9              # VIVANT (ni plancher ni plafond)
     specificity = "pass" if (present["verdict"] == "X_DECOY" and present_alive) else "fail"
     return {"delayed": delayed, "present": present, "present_alive": present_alive,
+            "vitality_bar": vitality_bar, "untrained_ceiling": plafond, "untrained_per_seed": bruts,
             "specificity_control": specificity, "functional_aliasing": "n/a", "n": len(seeds),
             "substrate": {"BILINEAR": bool(bilinear), "CONDITION_GATE": False},   # P2.27
             "delayed_intact": di, "delayed_ablated": da, "present_intact": pi, "present_ablated": pa}

@@ -37,6 +37,7 @@ Usage :
   python tools/check_guard_negative_cases.py --update-baseline  # gèle l'état courant comme dette légataire
 """
 import argparse
+import ast
 import json
 import os
 import re
@@ -100,6 +101,42 @@ def _walk(dirs, suffix=".py"):
                     yield os.path.join(root, f)
 
 
+def _collectibles():
+    """Noms de tests que pytest COLLECTERAIT vraiment : `def test*` au niveau MODULE (ou methode d'une
+    classe `Test*`), dans un fichier `tests/**/test_*.py` ou `*_test.py`.
+
+    ⚠️ Pourquoi ce n'est pas la meme chose que « le nom existe » (2026-09-08). `_exists` cherche
+    `^ *def <nom>(` n'importe ou sous tools/, src/ ou tests/ : un test DEFINI DANS UNE AUTRE FONCTION,
+    ou pose dans un fichier que pytest ne collecte pas (`helpers.py`, `conftest_old.py`), y passe pour
+    present alors qu'il ne s'executera JAMAIS. Une classe `executable` nommerait alors un contre-exemple
+    FANTOME -- indiscernable d'une garde absente, ce qui est exactement le defaut que ce cliquet ferme
+    (E1 au meta-niveau).
+
+    ⚠️ Le trou est PROSPECTIF : mesure le 2026-09-08, ZERO classe du registre est concernee. C'est
+    precisement le moment de le fermer -- meme situation que le trou des collisions de noms, ferme le
+    2026-09-01 alors qu'aucun faux vert n'existait encore."""
+    out = {}
+    for root, _dirs, files in os.walk(_TESTS_DIR):
+        if "__pycache__" in root:
+            continue
+        for f in files:
+            if not (f.endswith(".py") and (f.startswith("test_") or f.endswith("_test.py"))):
+                continue
+            chemin = os.path.join(root, f)
+            try:
+                tree = ast.parse(open(chemin, encoding="utf-8").read())
+            except (SyntaxError, OSError):
+                continue
+            for n in tree.body:
+                if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name.startswith("test"):
+                    out.setdefault(n.name, []).append(chemin)
+                elif isinstance(n, ast.ClassDef) and n.name.startswith("Test"):
+                    for meth in n.body:
+                        if isinstance(meth, (ast.FunctionDef, ast.AsyncFunctionDef))                                 and meth.name.startswith("test"):
+                            out.setdefault(meth.name, []).append(chemin)
+    return out
+
+
 def _exists(name):
     """Fichier présent, ou fonction définie dans tools/, src/ ou tests/.
 
@@ -135,7 +172,15 @@ def scan():
         # ⚠️ Exiger que TOUS les termes backtickés existent produisait des faux positifs en masse :
         # la colonne cite aussi de la PROSE technique (`argmax`, `throw`, `lr`, `pass`) qui n'est pas
         # un artefact. Le critère est donc « au moins un artefact réel », pas « aucun terme inconnu ».
-        existants = [a for a in arts if _exists(a)]
+        # Un artefact de TEST doit etre COLLECTIBLE par pytest, pas seulement present quelque part.
+        coll = _collectibles()
+
+        def _ok(a):
+            if _is_test_artifact(a) and not _PATH.match(a):
+                return a in coll
+            return _exists(a)
+
+        existants = [a for a in arts if _ok(a)]
         if not existants:
             creuses[classe] = (f"INTROUVABLE : aucun des termes nommes {arts} n'existe dans tools/, "
                                f"src/ ou tests/ -- la garde a ete renommee, supprimee, ou n'est que "

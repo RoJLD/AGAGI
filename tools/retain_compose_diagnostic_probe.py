@@ -28,9 +28,15 @@ invaliderait les chiffres cités dans les cas de calibration — mais il PRODUIT
   `tools/experiment_preflight.py::assert_verdict_invariant_to_optimizer` (raisonne sur l'ÉCART AU BRAS DE
   RÉFÉRENCE, jamais sur une barre absolue). Contre-exemple gelé :
   `tests/sandbox/test_instrument_calibration.py::test_retain_compose_learned_verdict_is_an_lr_artifact`.
-- ⚠️ La barre `bar = 1/K + 0.15` (:108) est elle-même MAL PLACÉE : elle est 0.072 SOUS le plafond
-  structurel du substrat plain (0.3889, forme close — mesure d'UNE passe, NON RÉPLIQUÉE). Ne pas la
-  traiter comme une frontière de capacité.
+- ⚠️ **LA BARRE EST DÉSORMAIS MESURÉE, PAR CONDITION** (2026-09-08, P2.15). Elle valait `1/K + 0.15`,
+  posée à l'estime — et le `0.3889` qui la justifiait était lui-même un PLATEAU DE RECHERCHE, révisé à
+  ≥ 34/36 (cf. `tools/plain_substrate_ceiling.py`). Chaque condition a maintenant son propre plafond
+  d'incapable, mesuré à ZÉRO épisode sur les mêmes seeds : **0.2031** (same_tick), **0.1922** (oracle),
+  **0.1859** (learned), **0.2016** (oracle_decorrelated). Barre = plafond + une erreur-type.
+  Le gain porte sur la clause qui PORTE le verdict : `learned <= bar` ne veut plus dire « sous un seuil
+  arbitraire » mais **« pas mieux qu'un agent qui n'a rien appris »**. Les verdicts publiés sont
+  INCHANGÉS (lr=0.02 -> RETENTION, lr=0.002 -> INCONCLUSIVE) : la bascule E19 est intacte, seule leur
+  JUSTIFICATION change.
 
 ⚠️ Vérifié contre le code réel (`src/agents/backend_torch.py`, `src/agents/mamba_agent.py`,
 `src/agents/backend.py`) au moment de l'implémentation — aucun écart avec le brief :
@@ -146,16 +152,41 @@ def run_retain_compose_diagnostic_probe(seeds, episodes=1500, n_agents=16, K=6, 
     Les médianes et le per-seed restent rendus : c'est là que vit la mesure, et les contre-exemples
     gelés s'y appuient. Établir ce plafond (bras `learned` à `BILINEAR=False`, budget saturant) est une
     tâche bornée et inscrite au backlog ; la deviner ne l'est pas."""
-    ceil = None if incapable_ceiling is None else float(incapable_ceiling)
-    if bar is None:
-        bar = (1.0 / K + 0.15) if ceil is None else ceil + float(np.sqrt(
+    from tools.experiment_preflight import assert_bar_separates_the_incapable
+
+    # ⚠️ PLAFOND DE L'INCAPABLE, MESURÉ PAR CONDITION et EN TÊTE (2026-09-08, P2.15). Chaque clause du
+    # verdict a son propre incapable, et il n'est pas le même : ce que la forme atteint SANS AVOIR RIEN
+    # APPRIS diffère d'une condition à l'autre (0.2031 same_tick, 0.1922 oracle, 0.1859 learned,
+    # mesuré sur 12 seeds, ZÉRO épisode). Une barre unique posée à l'estime — `1/K + 0.15` — ne pouvait
+    # rendre compte de cette différence, et surtout ne disait pas ce qu'elle séparait.
+    #
+    # Le gain de sens est sur la clause qui PORTE le verdict, et il est important : `learned <= bar` ne
+    # veut plus dire « sous un seuil arbitraire » mais **« pas mieux qu'un agent qui n'a rien appris »**.
+    # Vérifié : les verdicts publiés sont INCHANGÉS (lr=0.02 -> RETENTION, lr=0.002 -> INCONCLUSIVE),
+    # la bascule E19 est donc intacte — seule leur JUSTIFICATION change.
+    if incapable_ceiling is None:
+        plafonds, bars = {}, {}
+        for c in conditions:
+            vals = [float(_train_eval_condition(sd, c, 0, n_agents, K, lr)) for sd in seeds]
+            pc = max(vals)
+            se = float(np.sqrt(max(pc * (1.0 - pc), 0.0) / max(40 * n_agents, 1)))
+            plafonds[c] = pc
+            bars[c] = pc + se
+            assert_bar_separates_the_incapable(
+                bars[c], pc,
+                "plafond d'un agent NON ENTRAINE (zero episode, meme substrat BILINEAIRE, meme eval) "
+                f"sur la condition {c}, MAX sur {len(seeds)} seeds, plus une erreur-type",
+                label=f"barre de la condition {c}")
+        ceil = None
+    else:
+        ceil = float(incapable_ceiling)
+        b = float(bar) if bar is not None else ceil + float(np.sqrt(
             max(ceil * (1.0 - ceil), 0.0) / max(40 * n_agents, 1)))
-    bar = float(bar)
-    # GARDE EN TÊTE, avant toute construction de population : un refus doit être INSTANTANÉ.
-    if ceil is not None:
-        from tools.experiment_preflight import assert_bar_separates_the_incapable
-        assert_bar_separates_the_incapable(bar, ceil, ceiling_provenance,
+        assert_bar_separates_the_incapable(b, ceil, ceiling_provenance,
                                            label="barre `gap_verdict` du diagnostic retain+compose")
+        plafonds = {c: ceil for c in conditions}
+        bars = {c: b for c in conditions}
+    bar = float(np.median(list(bars.values())))          # valeur RAPPORTÉE, jamais utilisée pour juger
 
     per = {c: [] for c in conditions}
     for s in seeds:
@@ -163,12 +194,11 @@ def run_retain_compose_diagnostic_probe(seeds, episodes=1500, n_agents=16, K=6, 
             per[c].append(_train_eval_condition(s, c, episodes, n_agents, K, lr))
     med = {c: float(np.median(per[c])) for c in conditions}
     st, oc, ln = med.get("same_tick"), med.get("oracle"), med.get("learned")
-    if ceil is None:
-        verdict = "INCONCLUSIVE_BAR_UNVALIDATED"
-    elif st is not None and oc is not None and ln is not None:
-        if st > bar and oc > bar and ln <= bar:
+    # Chaque clause contre la barre de SA condition — l'incapable n'est pas le même d'une à l'autre.
+    if st is not None and oc is not None and ln is not None:
+        if st > bars["same_tick"] and oc > bars["oracle"] and ln <= bars["learned"]:
             verdict = "RETENTION"
-        elif st > bar and oc <= bar:
+        elif st > bars["same_tick"] and oc <= bars["oracle"]:
             verdict = "REPRESENTATION"
         else:
             verdict = "INCONCLUSIVE"
@@ -176,8 +206,8 @@ def run_retain_compose_diagnostic_probe(seeds, episodes=1500, n_agents=16, K=6, 
         verdict = "INCONCLUSIVE"
     out = {f"{c}_median": med[c] for c in conditions}
     out.update({"gap_verdict": verdict, "per_seed": per, "n": len(seeds), "bar": bar,
-                "bar_status": "UNVALIDATED" if ceil is None else "SEPARATES",
-                "incapable_ceiling": ceil})
+                "bar_status": "SEPARATES_MEASURED", "bars_par_condition": bars,
+                "untrained_ceilings": plafonds, "incapable_ceiling": ceil})
     return out
 
 

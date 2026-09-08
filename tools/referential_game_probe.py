@@ -126,12 +126,19 @@ def run_lewis(episodes: int = 1500, n_agents: int = 128, K: int = 6, V: int = 8,
 
 
 def main():
+    import math
     import statistics
+
+    from tools.experiment_preflight import assert_bar_separates_the_incapable
+
     episodes = int(os.environ.get("RGP_EPISODES", "1500"))
     seeds = list(range(int(os.environ.get("RGP_SEEDS", "3"))))
     K = int(os.environ.get("RGP_K", "6"))
     V = int(os.environ.get("RGP_V", "8"))
-    rows = [run_lewis(episodes=episodes, K=K, V=V, seed=s) for s in seeds]
+    # `n_agents` etait implicite (defaut 128 de `run_lewis`) ; il est desormais EXPLICITE parce que la
+    # barre d'emergence en depend (erreur-type d'echantillonnage). Meme valeur par defaut : rien ne bouge.
+    n_agents = int(os.environ.get("RGP_AGENTS", "128"))
+    rows = [run_lewis(episodes=episodes, n_agents=n_agents, K=K, V=V, seed=s) for s in seeds]
     chance = 1.0 / K
     af = statistics.median(r["acc_fiable"] for r in rows)
     ab = statistics.median(r["acc_brouille"] for r in rows)
@@ -139,11 +146,32 @@ def main():
     print(f"K={K} V={V} chance={chance:.2f}")
     print(f"acc_late (train) median={al:.3f}  |  FIABLE median={af:.3f}  BROUILLE median={ab:.3f}  "
           f"per-seed fiable={['%.2f' % r['acc_fiable'] for r in rows]}")
-    emerges = af > chance + 0.10
+    # ⚠️ P2.15 (2026-09-08) — la barre d'ÉMERGENCE était `chance + 0.10`, posée à l'estime. Cette sonde
+    # porte pourtant SON PROPRE INCAPABLE : le bras BROUILLÉ est un agent ENTRAÎNÉ dont le canal ne
+    # transporte RIEN. C'est le meilleur plafond possible — mesuré dans le MÊME run, au MÊME régime,
+    # sur les MÊMES seeds — et il n'y avait aucune raison d'aller chercher un seuil ailleurs.
+    # Un plafond est un MAX, pas une médiane : on prend le max sur les seeds, plus une erreur-type.
+    # Vérifié sur les valeurs publiées (LANG-001) : BROUILLÉ 0.17 -> barre 0.203, contre `chance + 0.10
+    # = 0.267` ; FIABLE 0.767 franchit les deux, le verdict publié est INCHANGÉ. L'ancienne barre
+    # séparait donc bien — mais personne ne l'avait montré, et c'est cela que P2.15 corrige.
+    plafond_incapable = max(r["acc_brouille"] for r in rows)
+    # ⚠️ `n_eval` = nombre d'AGENTS, pas combos x agents. C'est DELIBERE et conservateur : l'erreur-type
+    # en est SUR-estimee, donc la barre est plus HAUTE, donc plus dure a franchir. L'unite de replication
+    # du depot est le seed, pas l'agent (les agents d'un seed partagent entrainement et tirages) ;
+    # compter combos x agents comme independants serait le choix OPTIMISTE, celui qui abaisse la barre.
+    se = math.sqrt(max(plafond_incapable * (1.0 - plafond_incapable), 0.0) / max(n_agents, 1))
+    bar_emergence = plafond_incapable + se
+    assert_bar_separates_the_incapable(
+        bar_emergence, plafond_incapable,
+        "plafond du bras BROUILLE (agent ENTRAINE dont le canal ne transporte rien), MAX sur les seeds "
+        "du MEME run, plus une erreur-type -- incapable mesure DANS le dispositif, au regime configure",
+        label="barre d'emergence de la signalisation")
+    emerges = af > bar_emergence
     content = af > ab + 0.10
     verdict = ("FUNCTIONAL_REFERENTIAL_SIGNALING" if emerges and content else
                "SIGNALING_BUT_CONTENT_FREE" if emerges else "NO_SIGNALING_EMERGES")
-    print(f"VERDICT={verdict} : emerge={emerges} (FIABLE {af:.2f} vs chance {chance:.2f}), "
+    print(f"VERDICT={verdict} : emerge={emerges} (FIABLE {af:.2f} vs barre MESUREE "
+          f"{bar_emergence:.3f} = plafond BROUILLE {plafond_incapable:.3f} + 1 erreur-type), "
           f"content_porteur={content} (FIABLE {af:.2f} vs BROUILLE {ab:.2f})")
 
 

@@ -178,12 +178,14 @@ def plain_readout_ceiling(K=6, restarts=8, steps=4000, lr=0.05, temp=20.0, seed=
     return best
 
 
-def additive_argmax_exact_ceiling(K=6, marge=1.0, borne=50.0, time_limit=900, target="modular"):
+def additive_argmax_exact_ceiling(K=6, marge=1.0, borne=50.0, time_limit=900, target="modular",
+                                  circulant=False):
     """Maximum EXACT de cellules correctes pour la forme PUREMENT ADDITIVE `argmax_j a[k,j] + b[q,j]`,
     par programmation en nombres entiers (HiGHS, gap 0). Ce n'est PAS un minorant de recherche : le
     solveur PROUVE l'optimalité, et c'est ce qui le rend bien plus fort qu'une descente multi-restart.
 
     -> (n_correct, K*K, accuracy). Mesuré : K=4 -> 12/16, K=5 -> 19/25, K=6 -> **27/36 = 0.75**.
+    Avec `circulant=True` (a[k,j]=f[j-k], b[q,j]=g[j-q]) : **6/36 = 0.1667 a K=6, le HASARD**.
 
     Cette forme est le substrat plain PRIVÉ de son échelle par nœud et de sa saturation : le comparer au
     plafond mesuré de la forme COMPLÈTE (30/36) chiffre ce que `σ(W[j,j])·tanh(·)` achète — 3 cellules.
@@ -206,10 +208,22 @@ def additive_argmax_exact_ceiling(K=6, marge=1.0, borne=50.0, time_limit=900, ta
     import numpy as np
     from scipy.optimize import Bounds, LinearConstraint, milp
 
-    nab, nz = 2 * K * K, K * K
+    # `circulant=True` : a[k,j] = f[(j-k) mod K], b[q,j] = g[(j-q) mod K] -- 2K parametres au lieu de
+    # 2K*K. C'est la forme « naturelle » qu'on ecrit spontanement pour une tache modulaire, et le MILP
+    # montre qu'elle ne vaut RIEN : 6/36 = 0.1667 a K=6, soit EXACTEMENT le hasard (contre 27/36 pour
+    # l'additif general). Mesure faite le 2026-09-08 pour calibrer un chemin de REPLICATION qui s'y
+    # restreignait -- sans elle, on aurait accuse l'optimiseur global, qui trouvait deja 3/36 et 6/36,
+    # c'est-a-dire l'optimum de cet espace. Une reference EXACTE separe « recherche faible » de
+    # « forme pauvre » ; c'est tout l'enjeu de P2.15, applique ici a l'instrument de replication.
+    nab = 2 * K if circulant else 2 * K * K
+    nz = K * K
     nv = nab + nz
-    ia = lambda k, j: k * K + j                                          # noqa: E731
-    ib = lambda q, j: K * K + q * K + j                                  # noqa: E731
+    if circulant:
+        ia = lambda k, j: (j - k) % K                                    # noqa: E731
+        ib = lambda q, j: K + ((j - q) % K)                              # noqa: E731
+    else:
+        ia = lambda k, j: k * K + j                                      # noqa: E731
+        ib = lambda q, j: K * K + q * K + j                              # noqa: E731
     iz = lambda k, q: nab + k * K + q                                    # noqa: E731
     M = 4 * borne + marge
     rows, lo = [], []

@@ -21,6 +21,7 @@ FIXED (paires figées) vs ROTATION (partenaire aléatoire/épisode) sur le gap z
 
 Usage : python tools/compositional_language_probe.py  (env: CLP_EPISODES, CLP_SEEDS, CLP_A, CLP_V, CLP_AGENTS)
 """
+import math
 import os
 import sys
 
@@ -182,13 +183,25 @@ def run_compositional(episodes: int = 5000, n_agents: int = 16, A: int = 3, V: i
                                      snd_rew - snd_rew.mean(), gate_last_only=False)
 
         # --- éval greedy : within/zeroshot en paire d'origine (shift=0) ; cross-MI en partenaire décalé ---
-        def _acc_over(comboset, shift=0):
+        # ⚠️ `scramble=True` (P2.15, 2026-09-08) : le message est REMPLACÉ par des symboles ALÉATOIRES,
+        # décorrélés du sens. Tout le reste est identique — mêmes agents ENTRAÎNÉS, même décodeur, même
+        # jeu de combinaisons. C'est donc « ce qu'atteint un récepteur dont le canal ne transporte
+        # RIEN », c.-à-d. le PLAFOND DE L'INCAPABLE, mesuré DANS le dispositif et au régime configuré.
+        # Sans lui, la généralisation zéro-shot se jugeait contre `chance + 0.12`, un seuil posé à
+        # l'estime dont personne n'avait montré ce qu'il séparait. Coût : ÉVAL SEULE, zéro épisode
+        # d'entraînement supplémentaire. Même dispositif que le bras BROUILLÉ de LANG-001.
+        rng_scr = np.random.RandomState(seed + 4242)
+
+        def _acc_over(comboset, shift=0, scramble=False):
             accs = []
             for (a0v, a1v) in comboset:
                 a0 = np.full(n_agents, a0v)
                 a1 = np.full(n_agents, a1v)
                 s0, s1, _, _ = _message(a0, a1, greedy=True, independent=independent)
                 rs0, rs1 = np.roll(s0, shift), np.roll(s1, shift)  # receiver_j décode le msg de sender_{j-shift}
+                if scramble:
+                    rs0 = rng_scr.randint(0, V, size=n_agents)
+                    rs1 = rng_scr.randint(0, V, size=n_agents)
                 ra0, ra1 = np.roll(a0, shift), np.roll(a1, shift)
                 g0, g1, _, _ = _decode(rs0, rs1, greedy=True, independent=independent)
                 accs.append(0.5 * (g0 == ra0) + 0.5 * (g1 == ra1))
@@ -196,6 +209,11 @@ def run_compositional(episodes: int = 5000, n_agents: int = 16, A: int = 3, V: i
 
         within = _acc_over(train, 0)
         zeroshot = _acc_over(heldout, 0)
+        # PLAFONDS de l'incapable, ÉVAL SEULE : le même récepteur entraîné, mais canal vide. Un par
+        # grandeur jugée — `within` et `zeroshot` n'ont pas le même incapable (l'un porte sur des
+        # combinaisons VUES, l'autre sur des combinaisons TENUES À L'ÉCART).
+        zeroshot_scrambled = _acc_over(heldout, 0, scramble=True)
+        within_scrambled = _acc_over(train, 0, scramble=True)
         # intelligibilité mutuelle croisée (LANG-002 porté au 2-attributs) : un partenaire jamais co-apparié
         # décode-t-il le message ? code partagé -> cross ~ within ; code privé -> cross ~ chance.
         cross_shifts = sorted({max(1, (j * n_agents) // 4) for j in range(1, 4)})
@@ -231,17 +249,26 @@ def run_compositional(episodes: int = 5000, n_agents: int = 16, A: int = 3, V: i
         topsim = float(_st.median(rhos))
 
         chance = 1.0 / A
-        cross_mi = max(-1.0, min(2.0, (cross - chance) / (within - chance))) if within > chance + 0.05 else float("nan")
+        # ⚠️ P2.15 : le denominateur du MI n'est defini que si le regime a APPRIS — jugé désormais contre
+        # le PLAFOND MESURÉ d'un récepteur à canal vide, plus que contre `chance + 0.05` posé à l'estime.
+        # Ce `nan` est une NON-MESURE assumée, jamais un zéro : le confondre fabriquerait un négatif.
+        _appris = within > within_scrambled + math.sqrt(
+            max(within_scrambled * (1.0 - within_scrambled), 0.0) / max(n_agents, 1))
+        cross_mi = max(-1.0, min(2.0, (cross - chance) / (within - chance))) if _appris else float("nan")
         return {"seed": int(seed), "A": A, "V": V, "rotate": bool(rotate), "chance": chance,
                 "within": within, "zeroshot": zeroshot, "gen_gap": zeroshot - chance, "topsim": topsim,
-                "cross": cross, "cross_mi": cross_mi}
+                "zeroshot_scrambled": zeroshot_scrambled, "within_scrambled": within_scrambled,
+                "learned": bool(_appris), "cross": cross, "cross_mi": cross_mi}
     finally:
         (TorchPopulationModel.CONDITION_GATE, TorchPopulationModel.GATE_TARGET,
          TorchPopulationModel.BILINEAR) = saved
 
 
 def main():
+    import math
     import statistics
+
+    from tools.experiment_preflight import assert_bar_separates_the_incapable
     episodes = int(os.environ.get("CLP_EPISODES", "5000"))
     seeds = list(range(int(os.environ.get("CLP_SEEDS", "2"))))
     A = int(os.environ.get("CLP_A", "3"))
@@ -251,23 +278,52 @@ def main():
     def _cell(rotate):
         rows = [run_compositional(episodes=episodes, n_agents=M, A=A, V=V, seed=s, rotate=rotate)
                 for s in seeds]
+        # le PLAFOND de l'incapable est un MAX sur les seeds, pas une mediane (cf. `_acc_over(scramble)`)
         return (statistics.median(r["within"] for r in rows),
                 statistics.median(r["zeroshot"] for r in rows),
-                statistics.median(r["topsim"] for r in rows))
+                statistics.median(r["topsim"] for r in rows),
+                max(r["zeroshot_scrambled"] for r in rows),
+                max(r["within_scrambled"] for r in rows))
 
     chance = 1.0 / A
-    fw, fz, ft = _cell(False)
-    rw, rz, rt = _cell(True)
+    fw, fz, ft, f_scr, f_within_scr = _cell(False)
+    rw, rz, rt, r_scr, r_within_scr = _cell(True)
     print(f"A={A} V={V} chance={chance:.2f} episodes={episodes} seeds={len(seeds)} agents={M}")
     print(f"FIXED     within={fw:.3f} zeroshot={fz:.3f} gen_gap={fz - chance:+.3f} topsim={ft:+.3f}")
     print(f"ROTATION  within={rw:.3f} zeroshot={rz:.3f} gen_gap={rz - chance:+.3f} topsim={rt:+.3f}")
-    # compositionnel = généralise zéro-shot bien au-dessus de la chance (corroboré par topsim>0)
-    fixed_comp = fz > chance + 0.12 and ft > 0.15
-    rot_learned = rw > chance + 0.08
+    # ⚠️ P2.15 (2026-09-08) — la généralisation zéro-shot se jugeait contre `chance + 0.12`, un seuil
+    # posé à l'estime. Le PLAFOND DE L'INCAPABLE est désormais MESURÉ dans le run : mêmes agents
+    # ENTRAÎNÉS, même décodeur, même jeu tenu à l'écart, mais MESSAGE BROUILLÉ — donc « ce qu'atteint un
+    # récepteur dont le canal ne transporte rien ». Coût : ÉVAL SEULE. Même dispositif que LANG-001.
+    # Mesure de contrôle (budget réduit, A=4) : brouillé 0.281 contre un hasard de 0.250 — le plafond de
+    # l'incapable est bien AU-DESSUS du hasard, ce qu'un seuil ancré sur `chance` ne pouvait pas voir.
+    # ⚠️ `n_eval` = nombre d'AGENTS, pas combos x agents. C'est DELIBERE et conservateur : l'erreur-type
+    # en est SUR-estimee, donc la barre est plus HAUTE, donc plus dure a franchir. L'unite de replication
+    # du depot est le seed, pas l'agent (les agents d'un seed partagent entrainement et tirages) ;
+    # compter combos x agents comme independants serait le choix OPTIMISTE, celui qui abaisse la barre.
+    _se = math.sqrt(max(f_scr * (1.0 - f_scr), 0.0) / max(M, 1))
+    bar_gen = f_scr + _se
+    assert_bar_separates_the_incapable(
+        bar_gen, f_scr,
+        "zero-shot a MESSAGE BROUILLE : memes agents entraines, meme decodeur, meme jeu tenu a l'ecart, "
+        "message remplace par des symboles aleatoires -- plafond d'un recepteur dont le canal ne "
+        "transporte rien, MAX sur les seeds du MEME run",
+        label="barre de generalisation zero-shot")
+    fixed_comp = fz > bar_gen and ft > 0.15
+    # ⚠️ P2.15 : « ROTATION a convergé » se jugeait contre `chance + 0.08`. Même correctif : le plafond
+    # d'un récepteur à canal vide sur les combinaisons VUES, mesuré dans le run.
+    _bar_rot = r_within_scr + math.sqrt(max(r_within_scr * (1.0 - r_within_scr), 0.0) / max(M, 1))
+    assert_bar_separates_the_incapable(
+        _bar_rot, r_within_scr,
+        "within a MESSAGE BROUILLE sous ROTATION : plafond d'un recepteur dont le canal ne transporte "
+        "rien sur les combinaisons VUES, MAX sur les seeds du MEME run",
+        label="barre de convergence de la rotation")
+    rot_learned = rw > _bar_rot
     verdict = ("COMPOSITIONAL_PROTOCOL_EMERGES" if fixed_comp else
-               "COMPOSITIONAL_ONLY_MARGINAL" if fz > chance + 0.06 else
+               "COMPOSITIONAL_ONLY_MARGINAL" if fz > f_scr else
                "HOLISTIC_NO_GENERALIZATION")
-    print(f"VERDICT={verdict} : FIXED généralise={fz > chance + 0.12} (zeroshot {fz:.2f} vs chance {chance:.2f}, "
+    print(f"VERDICT={verdict} : FIXED généralise={fixed_comp} (zeroshot {fz:.2f} vs barre MESUREE "
+          f"{bar_gen:.3f} = brouillé {f_scr:.3f} + 1 erreur-type ; chance {chance:.2f}), "
           f"topsim {ft:+.2f}) ; ROTATION {'convergé' if rot_learned else 'NON-convergé (goulot consensus LANG-002)'}")
 
 

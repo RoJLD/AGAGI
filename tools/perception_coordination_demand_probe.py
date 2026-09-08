@@ -19,6 +19,7 @@ if _ROOT not in sys.path:
 import numpy as np
 
 from tools.demand_marker import ablation_verdict
+from tools.experiment_preflight import assert_bar_separates_the_incapable
 from tools.s2_demand_ablation import derange_rows
 
 
@@ -135,6 +136,32 @@ def _train_and_eval(seed, no_coord, episodes, n_agents, K, V, lr, flip_p, sender
          TorchPopulationModel.BILINEAR) = saved
 
 
+def _untrained_ceiling(seeds, evaluer, n_eval):
+    """PLAFOND DE L'INCAPABLE pour la barre de VITALITÉ, mesuré DANS LE DISPOSITIF, à coût nul (P2.15).
+
+    La barre `1/K + 0.05` était posée à l'estime. Mesuré le 2026-09-08 : un agent qui n'a RIEN APPRIS
+    (mêmes seeds, même monde, même éval, ZÉRO épisode) atteint jusqu'à 0.2172 sur le bras leurre de
+    MEM-PERCEPTION et 0.2039 sur celui de LANG-PERCEPTION, contre une barre à 0.2167. Elle ne séparait
+    donc rien de façon démontrée — dans un cas l'incapable la FRANCHIT (1 seed sur 12), dans l'autre il
+    la manque de 0.013, soit MOINS d'une erreur-type (0.016). Un seuil arbitraire ne peut pas savoir
+    cela ; une mesure, oui.
+
+    Un plafond est un MAXIMUM, pas une médiane : on relève le max sur les seeds, plus une erreur-type
+    d'échantillonnage (même convention que `assert_bar_is_reachable`). Le résultat est le plafond de
+    « ce qu'atteint un agent sans compétence », mesuré AU RÉGIME CONFIGURÉ — donc transportable nulle
+    part ailleurs, et c'est voulu : transposer un plafond d'un autre régime EST l'erreur P2.15.
+
+    ⚠️ Ce que ça ne change PAS : les valeurs publiées (0.4844 et ~0.74) dépassent ce plafond d'un
+    facteur 2 à 3. La vitalité des deux arêtes gravées est établie PAR LA MESURE, et elle l'était déjà —
+    ce qui manquait était la démonstration que la barre séparait quelque chose."""
+    import numpy as np
+
+    vals = [evaluer(s) for s in seeds]
+    plafond = float(np.max(vals))
+    se = float(np.sqrt(max(plafond * (1.0 - plafond), 0.0) / max(int(n_eval), 1)))
+    return plafond, se, [float(v) for v in vals]
+
+
 def run_perception_coordination_demand_probe(seeds, episodes=1000, n_agents=32, K=6, V=8, lr=0.05,
                                              flip_p=0.3, sender_mode="learned", bilinear=False):
     """Mesure « coordination demande perception ». Par seed : COORD et NO-COORD, chacun éval intact/ablé.
@@ -142,6 +169,18 @@ def run_perception_coordination_demand_probe(seeds, episodes=1000, n_agents=32, 
 
     `bilinear` (défaut `False`, cf. `_train_and_eval`) : le substrat mesuré est ÉPINGLÉ et RENDU
     LISIBLE dans `substrate` — sans quoi le résultat n'est pas identifiable a posteriori (P2.27)."""
+    # GARDE EN TÊTE : plafond de l'incapable mesuré AVANT tout entraînement (aucun épisode).
+    plafond, se, bruts = _untrained_ceiling(
+        seeds, lambda sd: _train_and_eval(sd, True, 0, n_agents, K, V, lr, flip_p, sender_mode,
+                                          bilinear=bilinear)[0], 40 * n_agents)
+    vitality_bar = plafond + se
+    assert_bar_separates_the_incapable(
+        vitality_bar, plafond,
+        "plafond d un agent NON ENTRAINE (zero episode) sur le bras leurre, mesure DANS CE DISPOSITIF "
+        "au regime configure, MAX sur les seeds : la barre 1/K+0.05 posee a l estime ne separait "
+        "rien de facon demontree (P2.15, mesure du 2026-09-08)",
+        label="barre de vitalité du bras leurre NO-COORD")
+
     ci, ca, ni, na = [], [], [], []
     for s in seeds:
         c_i, c_a = _train_and_eval(s, False, episodes, n_agents, K, V, lr, flip_p, sender_mode,
@@ -154,9 +193,11 @@ def run_perception_coordination_demand_probe(seeds, episodes=1000, n_agents=32, 
     coord = ablation_verdict(ci, ca, intervention_verified=True, floor=floor, ceiling=1.0)
     nocoord = ablation_verdict(ni, na, intervention_verified=True, floor=floor, ceiling=1.0)
     nocoord_med = float(np.median(ni))
-    nocoord_alive = floor + 0.05 < nocoord_med < 0.9              # VIVANT (ni plancher ni plafond)
+    # ⚠️ P2.15 : borne BASSE = plafond MESURÉ de l'incapable + une erreur-type, plus `floor + 0.05`.
+    nocoord_alive = vitality_bar < nocoord_med < 0.9              # VIVANT (ni plancher ni plafond)
     specificity = "pass" if (nocoord["verdict"] == "X_DECOY" and nocoord_alive) else "fail"
     return {"coord": coord, "nocoord": nocoord, "nocoord_alive": nocoord_alive,
+            "vitality_bar": vitality_bar, "untrained_ceiling": plafond, "untrained_per_seed": bruts,
             "specificity_control": specificity, "functional_aliasing": "n/a", "n": len(seeds),
             "substrate": {"BILINEAR": bool(bilinear), "CONDITION_GATE": False},   # P2.27
             "coord_intact": ci, "coord_ablated": ca, "nocoord_intact": ni, "nocoord_ablated": na}

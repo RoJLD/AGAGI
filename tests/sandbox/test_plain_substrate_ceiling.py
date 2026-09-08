@@ -211,3 +211,59 @@ def test_a_SATURATION_control_would_have_BLESSED_the_published_0_3889():
     assert plateau_stable, "deux budgets au meme plateau passent la saturation"
     assert not (publie > prouve), "et pourtant la domination REFUSE — c'est le seul controle qui porte"
 
+
+def test_aggregating_estimates_of_an_EXTREMUM_by_CONSENSUS_is_WRONG():
+    """⚠️ CONTRE-EXEMPLE GELE — E19 occurrence 5, au niveau de l'AGREGATION (mesure du 2026-09-08).
+
+    Sept dérivations INDEPENDANTES du MEME plafond, chacune par sa propre methode (3 agents de
+    derivation, 3 refutateurs, moi) :
+        0.8056 · 0.8333 · 0.8611 · 0.9444 · 0.9444 · 1.000 · 1.000
+    soit 29/36 a 36/36 -- SEPT cellules d'etendue sur une question a reponse unique.
+
+    La grandeur cherchee est un EXTREMUM (un maximum sur un espace de recherche). Chaque estimation est
+    donc un MINORANT, et chaque recherche sous-dimensionnee tire le consensus VERS LE BAS. Prendre la
+    mediane rend 0.9444 -- au moins deux cellules SOUS le meilleur resultat obtenu -- et le presente
+    avec l'assurance d'un accord entre sept sources.
+
+    REGLE : un extremum s'agrege par EXTREMUM, jamais par consensus. Ce test est purement numerique
+    (aucune simulation) : il gele les sept valeurs et la propriete qui les separe."""
+    estimations = [0.8056, 0.8333, 0.8611, 0.9444, 0.9444, 1.000, 1.000]
+    tri = sorted(estimations)
+    mediane = tri[len(tri) // 2]
+    maximum = max(estimations)
+    assert mediane == 0.9444, mediane
+    assert maximum == 1.000, maximum
+    # le consensus SOUS-ESTIME, et d'au moins deux cellules sur 36
+    assert (maximum - mediane) * 36 >= 2.0, (maximum, mediane)
+    # ...et il sous-estime meme le MEILLEUR resultat individuel, ce qui est le point : agreger des
+    # minorants par consensus ne peut QUE degrader la meilleure information disponible.
+    assert mediane < maximum, "un consensus d'estimations d'extremum est toujours <= au max"
+    # POSITIF APPARIE : pour une grandeur qui N'EST PAS un extremum (une moyenne de population, par
+    # exemple), le consensus est au contraire le bon agregateur -- la regle est SPECIFIQUE, pas generale.
+    mesures_bruitees = [0.48, 0.50, 0.52, 0.49, 0.51]
+    assert abs(sorted(mesures_bruitees)[2] - 0.50) < 1e-9, "la mediane reste juste pour une moyenne"
+
+
+def test_the_CIRCULANT_construction_is_WORTHLESS_and_that_is_why_ANCHORS_matter():
+    """⚠️ VALEUR GELEE, et elle a sauve une conclusion (2026-09-08).
+
+    La forme CIRCULANTE `a[k,j]=f[j-k]`, `b[q,j]=g[j-q]` est celle qu'on ecrit spontanement pour une
+    tache modulaire : elle a la bonne symetrie, 2K parametres au lieu de 2K*K, et une solution y serait
+    un certificat lisible a la main. Le MILP prouve qu'elle ne vaut RIEN : **6/36 = 0.1667 a K=6, soit
+    EXACTEMENT le hasard** (et 5/25 a K=5 -- le hasard aussi). Contre 27/36 pour l'additif general.
+
+    POURQUOI C'EST LE CAS QUI COMPTE : cette forme servait de chemin de REPLICATION independant pour
+    P3.3. Un optimiseur global y trouvait 3/36 puis 6/36, et sans reference EXACTE j'aurais conclu
+    « l'optimiseur est trop faible » -- alors qu'il avait DEJA trouve l'optimum de cet espace. Une
+    reference exacte est la seule chose qui separe « recherche faible » de « forme pauvre », et c'est
+    tout l'enjeu de P2.15 applique a l'instrument de replication lui-meme.
+
+    Controle positif de la FORMULATION : le meme MILP circulant sur une cible SEPARABLE rend 36/36 --
+    le 6/36 n'est donc pas un artefact d'encodage."""
+    assert additive_argmax_exact_ceiling(6, circulant=True) == (6, 36, 1 / 6)
+    assert additive_argmax_exact_ceiling(5, circulant=True) == (5, 25, 1 / 5)
+    assert additive_argmax_exact_ceiling(6, circulant=True, target="separable") == (36, 36, 1.0)
+    # ...et la forme GENERALE domine strictement : la restriction est ce qui coute, pas l'additivite
+    n_gen, _tot, _acc = additive_argmax_exact_ceiling(6)
+    assert n_gen == 27 and n_gen > 6, n_gen
+

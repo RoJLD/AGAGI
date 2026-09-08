@@ -17,7 +17,7 @@ Quatre questions, dont deux ont des assertions exécutables :
 1. **L'instrument peut-il produire LES DEUX issues ?** Un contrôle qui ne peut pas échouer, ou un bras
    qui ne peut pas réussir, ne prouve rien. → `assert_ablation_changes_something`,
    `assert_positive_control`, `assert_not_degenerate`, `assert_selection_nonempty`
-2. **La grandeur mesurée est-elle celle qui agit ?** → `assert_no_aliasing` (⚠️ `forward` renvoie des
+2. **La grandeur mesurée est-elle celle qui agit ?** ⚠️ Et le CHEMIN qu'on croit couper est-il le seul ? Mesuré le 2026-09-08 : le **champion HoF** déclare 64 entrées + 126 sorties dans **172 nœuds** — ses blocs d'entrée et de sortie se chevauchent sur **18**, donc 18 de ses logits d'action SONT l'observation, sans traverser un poids. Annuler `W[:num_inputs, :]` ne l'aveugle pas : on ne supprime pas un chemin d'IDENTITÉ en annulant des poids. `max_H` devient négatif **en silence** ; `assert_no_io_overlap` le chiffre désormais (classe E24). → `assert_no_aliasing` (⚠️ `forward` renvoie des
    VUES de l'état : écrire dans une sortie mute l'état récurrent), `assert_predictor_measured_in_situ`
 3. **Quelle est l'unité de réplication ?** Dans ce dépôt c'est l'**ère/le seed**, pas l'agent — les
    agents d'un seed partagent entraînement, optimiseur et monde. → `declare_design`
@@ -28,9 +28,9 @@ Quatre questions, dont deux ont des assertions exécutables :
 
 **Inventaire au 2026-09-01 : 105 détectés, 104 calibrés, 1 déclaré non-instrument, ZÉRO dette.**
 **État COURANT, recomputé et jamais recopié :**
-**202 détectés** <!-- count:instruments_detectes=202 -->
-· **197 calibrés** <!-- count:instruments_calibres=197 -->
-· **1 non calibré** <!-- count:instruments_non_calibres=1 --> (dette d'une session parallèle, en cours chez elle)
+**210 détectés** <!-- count:instruments_detectes=210 -->
+· **206 calibrés** <!-- count:instruments_calibres=206 -->
+· **0 non calibré** <!-- count:instruments_non_calibres=0 -->
 — la famille `run_*` (72 fonctions) est entrée le 2026-09-06 sans créer de dette. *(Les chiffres datés ci-dessus sont HISTORIQUES : ils restent vrais
 et ne sont donc pas balisés.)*
 *(Point de départ, 2026-07-21 : 71 détectés, 1 calibré.)* Le cliquet est désormais un **cliquet
@@ -69,8 +69,25 @@ contrôle négatif cohérents, qui ont tenu une passe entière.
   phase `action` pèse 5× plus), et l'étalon s'est trompé avant l'instrument.
 - **Trois formes de test** : no-op EXACT (spécificité) · prédiction (linéarité en la dose imposée) ·
   monotonie (direction). Cf. `tests/sandbox/test_instrument_calibration.py`.
+- ⚠️ **Le no-op EXACT vaut aussi pour l'INSTRUMENT LUI-MÊME, pas seulement pour ses tests** — et son
+  résultat est un **PLANCHER DE BRUIT à publier à côté de chaque ratio**. Mesuré le 2026-09-08 :
+  `run_ablation_map` (qui porte les verdicts `PERCEPTION_DEMANDED`/`DECOY` de S2-002/003 et d'EDR-124)
+  rend **1,058 et 0,922** sur un no-op où *aucune observation n'a changé* — l'ablation consomme des
+  tirages du flux global (`derange_rows`, boucle de rejet) et DÉSYNCHRONISE la bande RNG. Le
+  commentaire « tape intra-ère non identique » existait depuis le début ; personne ne l'avait CHIFFRÉ.
+  Le champion publié est à **0,991**, donc DEDANS. Conséquences opératoires : (a) un contraste dont le
+  ratio est dans la bande du no-op n'est pas distinguable de zéro — le dire dans le record ;
+  (b) apparier la BANDE (faire consommer les mêmes tirages au bras de référence) divise ce bruit par
+  6 ; (c) `noop_control=True` est disponible sur `run_ablation_map`. Un instrument de contraste sans
+  plancher de bruit mesuré ne sait pas ce qu'il ne peut pas voir.
 - **Cliquet** : `tools/check_instrument_calibration.py` — dette légataire gelée, **aucun NOUVEL
-  instrument non calibré**. Même mécanisme que `check_record_links.py`.
+  instrument non calibré**. ⚠️ **Il vérifie qu'une DÉCLARATION existe, jamais que ses cas
+  PASSENT** — et rien ne les exécute : mesuré le 2026-09-08, **1937 tests sur 2059 (94 %) ne sont
+  lancés par aucun job de CI** (`ci.yml` prend une liste NOMMÉE de 16 fichiers, jamais un répertoire).
+  La suite `tests/sandbox/` lancée en entier ce jour-là a rendu **18 rouges pré-existants**, dont huit
+  d'une seule garde de puissance jamais rétro-appliquée (E14) et un qui exigeait qu'une cohorte VIDE
+  rende `AUTEL_MORT`. Un compteur d'instruments « calibrés » n'a de sens que si ses cas TOURNENT ;
+  la suite complète coûte **30 min** sur machine au repos, donc la CI PEUT la lancer — ⚠️ une première mesure avait donné 8 h 30, prise pendant que seize agents tournaient sur la même machine : **un chiffre de coût se mesure sur une machine dont on connaît la charge**, sinon c'est la classe E12 appliquée au coût, et ici elle inversait la décision. Même mécanisme que `check_record_links.py`.
 - **Auto-amélioration** : tout bug d'instrument trouvé en revue **devient un cas de calibration**. La
   suite croît de façon monotone ; un bug corrigé ne peut plus repasser silencieusement.
 - Le monde expose `trace_energy_sinks` (EDR-099/100) : l'utiliser pour diagnostiquer un bilan
@@ -127,9 +144,19 @@ plutôt que de deviner. Cf. `tools/demand_marker._degeneracy` et `tools/check_gu
 `check_record_links.py` (graphe de records) · `check_instrument_calibration.py` (calibration) ·
 `check_preregistration_applied.py` (DV scellée mesurée) · `check_guard_negative_cases.py` (toute garde
 `exécutable` nomme son contre-exemple) · `check_backlog_freshness.py` (liens morts, numéros dupliqués,
-chemins disparus) · `check_agi_taxonomy.py` (preuve complète d'une arête) ·
-`check_synthesis_counts.py` (tout compte publié se recompute) · `check_substrate_pinning.py`.
-**8 gardes** <!-- count:portes_hook=8 --> sont branchées sur le hook pre-commit
+chemins disparus — **et péremption SÉMANTIQUE par clause DÉCLARÉE** `<!-- closes_when:pred=arg -->` :
+vocabulaire fermé, prédicats PURS, les deux sens vérifiés — dont « l'entrée s'annonce CLOSE mais sa
+condition ne l'est plus », qui attrape une fermeture régressée en silence ; les entrées SANS clause
+sont hors périmètre et RAPPORTÉES, jamais comptées comme un succès) · `check_agi_taxonomy.py` (preuve complète d'une arête) ·
+`check_synthesis_counts.py` (tout compte publié se recompute) · `check_substrate_pinning.py` ·
+`check_bar_separation.py` (toute barre de verdict `chance + marge` confrontée au PLAFOND DE
+L'INCAPABLE — P2.15 : `1/K+0.15` était franchie par un substrat prouvablement incapable) ·
+`check_test_census.py` (un test qui DISPARAÎT rend la suite plus verte — aucun signal habituel ne
+peut alerter ; porte 10, session parallèle) ·
+`check_control_family.py` (tout runner d'une règle SCELLÉE déclare son design, donc le NOMBRE de
+cellules de sa famille de contrôles — porte 11 ; à seuil de test unique, une famille de 24 cellules
+donnait 0,216 de fausse alarme sur un harnais PARFAIT).
+**11 gardes** <!-- count:portes_hook=11 --> sont branchées sur le hook pre-commit
 (`tools/hooks/pre-commit`) — compte RECOMPUTÉ depuis le hook lui-même : la phrase « 5 cliquets, tous
 branchés » qui vivait ici était fausse.
 ⚠️ **La baseline d'un cliquet doit elle-même déclencher le hook** — sinon l'élargir et la committer seule

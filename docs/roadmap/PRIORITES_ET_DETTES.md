@@ -1117,6 +1117,136 @@ Aucun n'aurait été vu par de la relecture ; chacun est devenu un cas de calibr
    laissaient passer une recherche bloquée, et mon test lent — désélectionné, donc jamais exécuté —
    assertait `valid is True` sur le budget qui est justement AUTO-INVALIDÉ.
 
+**SUITE DU 2026-09-08 — les barres de VITALITÉ des DEUX arêtes gravées sont désormais MESURÉES, et
+l'exemption légataire de la porte du graphe est LEVÉE.** C'est la conséquence la plus lourde de P2.15,
+et elle se termine bien — mais pour une raison qu'il faut dire exactement.
+
+- **La barre était `1/K + 0.05 = 0.2167`, posée à l'estime.** Mesuré, agent NON ENTRAÎNÉ (zéro épisode,
+  même monde, même éval, **régime PUBLIÉ `flip_p=0.3`**, MAX sur 12 seeds) : plafond **0.2266**
+  (MEM-PERCEPTION delayed), **0.2109** (present), **0.1836** (coord), **0.1906** (nocoord). La barre
+  était donc SOUS le plafond du bras principal de MEM-PERCEPTION, et à moins d'une erreur-type
+  (0.016) des trois autres. **Elle ne séparait rien de démontré, dans aucun des deux sens.**
+- **Les arêtes ne tombent pas, et ce n'est pas de la chance** : les valeurs publiées dépassent leur
+  plafond d'incapable d'un facteur **1.87 à 3.88**. La vitalité était établie PAR LA MESURE ; ce qui
+  manquait était la preuve que la barre séparait quelque chose.
+- ⚠️ **Un réfutateur avait conclu l'inverse** (« à une barre de 0.75 les deux arêtes tombent ») en
+  transposant le plafond de `(q+key)%K` sur un autre régime et une autre tâche. C'est exactement la
+  faute que P2.15 corrige, commise dans le rapport qui l'analyse. Le plafond se mesure DANS le
+  dispositif, au régime configuré — jamais importé.
+- **Livré** : `_untrained_ceiling` dans les deux sondes (garde EN TÊTE, avant tout entraînement, coût
+  nul) ; barre = plafond + une erreur-type ; `assert_bar_separates_the_incapable` appelée sans
+  condition ; `data/agi_taxonomy/demands.json` porte les trois champs pour les deux arêtes ;
+  `_LEGATAIRES_SANS_COORD` est **vide** — une exemption qui survit à la mesure qui pourrait la lever
+  devient une décoration. 6 cas de calibration, 23 tests de porte.
+- **Effet de bord mesuré** : les deux sondes SORTENT du périmètre de `check_bar_separation` — elles
+  n'ont plus AUCUNE barre `chance + constante`. C'est l'issue idéale, et elle a fait rougir mon propre
+  test qui assertait `examines >= 8`. **Troisième fois** que ce fichier punit un correctif : une
+  assertion sur un COMPTE VIVANT punit le progrès. Règle appliquée depuis : geler le FAIT HISTORIQUE,
+  asserter l'INVARIANT.
+
+**LE GRAPHE AGI-TAXONOMY EST INTÉGRALEMENT DÉCLARÉ (2026-09-08) — les DEUX ensembles d'exemption sont
+VIDES.** La dernière, `language→memory`, disait : « ni la forme close du plain ni le bras ablé (~`1/K`)
+ne fournissent le plafond ». C'était vrai des deux candidats que j'avais envisagés, et **faux de la
+question**. Le plafond pertinent est celui d'un agent qui n'a RIEN APPRIS, mesurable à coût nul dans le
+dispositif. Mesuré au régime publié (D=0, K=6, bilinéaire, 12 seeds) : **0.1859** — au-dessus du hasard
+`1/K = 0.1667`, donc ce n'est pas le niveau de chance passé par réflexe. La barre déclarée 0.5 sépare
+(marge 0.30) et le bras intact 0.819 la franchit d'un facteur **4.40**.
+
+| arête | plafond de l'incapable | barre | bras intact | marge |
+|---|---|---|---|---|
+| `language→perception` | 0.1836 | 0.1989 | 0.3438 | 1.87× |
+| `memory→perception` | 0.2266 | 0.2431 | 0.6547 | 2.89× |
+| `language→memory` | 0.1859 | 0.5 | 0.819 | 4.40× |
+
+⚠️ **Ce que j'en retiens sur ma propre méthode.** J'avais écrit noir sur blanc qu'établir ce plafond
+était « une mesure bornée, inscrite au backlog », puis gelé l'exemption. La mesure a coûté **zéro
+entraînement** et douze forward. J'avais confondu « je ne vois pas quel candidat convient » avec « ce
+n'est pas mesurable » — la forme exacte du biais que ce dépôt traque chez ses sondes : une donnée
+absente devenue affirmation de fond. Une exemption qui survit à la mesure qui pourrait la lever est une
+DÉCORATION, et un cliquet qui décore ment sur sa couverture ; un test l'interdit désormais de revenir.
+
+**RETAIN-COMPOSE : une barre PAR CONDITION, mesurée (2026-09-08).** Sa clause décisive était un NUL
+(`learned <= bar`), et un nul n'a de sens que contre le plafond d'un bras dont on a montré qu'il ne
+peut pas faire la tâche. Le plafond de chaque condition est désormais mesuré à ZÉRO épisode, et **ils
+diffèrent** : `same_tick` 0.2031 · `oracle` 0.1922 · `learned` 0.1859 · `oracle_decorrelated` 0.2016.
+Une barre unique ne pouvait pas en rendre compte.
+
+Le gain porte sur la clause qui PORTE le verdict : **`learned <= bar` ne veut plus dire « sous un seuil
+arbitraire » mais « pas mieux qu'un agent qui n'a rien appris »**. Et recâbler ne réécrit PAS le passé —
+vérifié : les chiffres publiés rendent les MÊMES verdicts (`lr=0.02` → RETENTION, `lr=0.002` →
+INCONCLUSIVE). La bascule E19 est intacte ; seule sa justification change, et elle se renforce.
+La sonde ne rend donc plus `INCONCLUSIVE_BAR_UNVALIDATED` : `bar_status = SEPARATES_MEASURED`.
+
+**Dette de barre : 8 → 5 sondes.** Sorties du périmètre parce qu'elles n'ont plus AUCUNE barre
+`chance + constante` : `memory_perception`, `perception_coordination`, `retain_compose`. Restent
+`bilinear_composition` (code `C` — structurel : aucune borne SUPÉRIEURE PROUVÉE n'existe pour sa forme,
+donc sa garde ne peut pas s'exécuter, et la sonde refuse de certifier) et **4 sondes de langage**
+(`referential_game`, `referential_community`, `compositional_language`, `compositional_curriculum`),
+dont les barres valent `chance + 0.10` / `+ 0.12`. ⚠️ Leur plafond d'incapable n'est PAS celui mesuré
+ici : il se mesure dans LEUR dispositif, à LEUR régime. Le transposer serait rejouer P2.15.
+
+**SONDES DE LANGAGE — LANG-001 et LANG-002 recâblées sur LEUR PROPRE incapable (2026-09-08).**
+Aucune des trois n'accepte `episodes=0` : elles portent toutes une garde de dégénérescence qui refuse
+l'argument (« ne pas confondre avec une mesure nulle OBSERVÉE »). Elle a raison, et elle m'a empêché de
+plaquer une technique là où elle ne s'appliquait pas. L'incapable devait donc venir d'un **bras de
+référence du même run** — et deux sondes en portaient déjà un.
+
+- **LANG-001** (`referential_game`) : le bras **BROUILLÉ** est un agent ENTRAÎNÉ dont le canal ne
+  transporte rien. Barre = son MAX sur les seeds + une erreur-type. Vérifié sur le publié : BROUILLÉ
+  0.17 → barre 0.203 contre `chance + 0.10 = 0.267` ; FIABLE 0.767 franchit les deux. **L'ancienne barre
+  séparait bien — mais personne ne l'avait montré.** C'est exactement ce que P2.15 corrige.
+- **LANG-002** (`referential_community`) : le bras **FIXED** EST le régime à code privé, donc son
+  `cross` est « ce qu'atteint un protocole NON partagé ». ⚠️ **Et là, la barre ne séparait PAS** : FIXED
+  cross vaut **0.54**, soit 3.2× le hasard et bien au-dessus de `chance + 0.10 = 0.267`. La conception
+  postulait « code privé → cross ~ chance » ; la mesure dit le contraire. Le verdict publié
+  (`NO_SHARED_PROTOCOL`) est INCHANGÉ — il reposait sur `d_cross ≈ 0`, pas sur cette barre.
+
+⚠️ **QUATRIÈME défaut du cliquet, et je l'ai FABRIQUÉ en corrigeant.** En validant UNE des deux barres de
+LANG-002, le cliquet — qui jugeait au FICHIER — a aussitôt déclaré le fichier propre, rendant INVISIBLE
+la seconde (`learned = within > chance + 0.05`) **dans le geste même qui corrigeait la première**.
+Nouveau code `P` (partiel), étroit à dessein : signalé seulement quand `0 < gardes < barres`, c.-à-d.
+l'auteur a COMMENCÉ à valider sans finir. Exiger un appel PAR expression punirait une garde qui en couvre
+plusieurs (boucle sur conditions) et compterait comme barres des expressions qui n'en sont pas — mesuré :
+`compositional_language_probe` porte 5 expressions pour 2 verdicts réels.
+
+**Dette de barre : 8 → 4.** Reste `bilinear_composition` (`C`, structurel), `referential_community`
+(`P`, une barre sur deux), et `compositional_language` + `compositional_curriculum` (`S`). Ces deux
+dernières jugent une généralisation ZÉRO-SHOT contre `chance + 0.12` et **n'ont aucun bras de référence
+interne**. Ce qui les fermerait est identifié et borné : ajouter une évaluation zéro-shot à MESSAGE
+BROUILLÉ — le même dispositif que LANG-001, en éval seule, sans entraînement supplémentaire.
+
+**DETTE DE BARRE : 8 → 1 (2026-09-08). Sept fermetures, sept MESURES, aucun gel.**
+
+| sonde | incapable mesuré | comment |
+|---|---|---|
+| `memory_perception` | agent NON ENTRAÎNÉ, régime publié | zéro épisode |
+| `perception_coordination` | idem | zéro épisode |
+| `retain_compose` | une barre PAR CONDITION | les incapables diffèrent |
+| `referential_game` | bras **BROUILLÉ** déjà présent | aucun ajout |
+| `referential_community` | bras **FIXED** = code privé + bras brouillé | éval seule |
+| `compositional_language` | **message BROUILLÉ** zéro-shot ET within | éval seule |
+| `compositional_curriculum` | idem (moteur partagé) | éval seule |
+
+Les trois sondes de langage **refusaient** `episodes=0` — une garde de dégénérescence qui m'a empêché de
+plaquer la technique du non-entraîné là où elle ne s'appliquait pas, et m'a forcé à chercher l'incapable
+DANS le dispositif. Deux l'avaient déjà ; pour les deux dernières j'ai ajouté un bras à **message
+brouillé** (mêmes agents entraînés, même décodeur, même jeu tenu à l'écart, symboles aléatoires) — en
+**éval seule**, sans un épisode d'entraînement de plus.
+
+**Ce que la mesure a appris, au-delà du câblage** : le plafond de l'incapable n'est PAS le hasard.
+Mesuré à A=4 : brouillé **0.281** contre un hasard de 0.250. Toute barre ancrée sur `chance` était donc
+aveugle à cet écart, par construction.
+
+**Ce qui reste est STRUCTUREL et doit le rester** : `bilinear_composition_probe` porte `C` parce
+qu'AUCUNE borne SUPÉRIEURE PROUVÉE n'existe pour sa forme — sa garde ne peut pas s'exécuter, et la sonde
+REFUSE de certifier (`unlocked=None`). Un `C` gelé y décrit l'état des connaissances, pas une dette
+remise à plus tard.
+
+⚠️ **Choix DÉCLARÉ, pas silencieux** : `n_eval` est le nombre d'AGENTS, pas combos × agents. C'est
+conservateur — l'erreur-type en est sur-estimée, donc la barre plus HAUTE, donc plus dure à franchir.
+L'unité de réplication du dépôt est le seed ; compter combos × agents comme indépendants serait le choix
+OPTIMISTE, celui qui abaisse la barre.
+
 **Ce qui reste ouvert, nommément**
 - `retain_compose_diagnostic_probe` rend `INCONCLUSIVE_BAR_UNVALIDATED` tant que le plafond de sa
   condition `learned` n'est pas établi. Il n'est PAS égal à `1/K` : `_step` écrit l'observation dans
@@ -1459,6 +1589,14 @@ cliquet qui exécuterait ce qu'on y écrit serait une porte d'entrée, pas une g
 inconnu est REFUSÉ bruyamment. Les entrées SANS clause restent hors périmètre et sont
 RAPPORTÉES (48 au moment de la livraison) — jamais comptées comme un succès.*
 
+⚠️ **SECOND PRÉDICAT `holds_when:` (2026-09-08), ajouté après que le premier a MAL VISÉ — défaut mesuré
+en production.** `closes_when:` décrit la fermeture de l'ENTRÉE. Posé sur un SOUS-ITEM il est mal
+attribué : en fermant le sous-item « SP-2 dette » de P4.3, le cliquet a réclamé la fermeture de **P4.3
+tout entière**, qui reste ouverte à juste titre (elle porte une vision en cinq sous-projets).
+`holds_when:` dit autre chose — « cette affirmation doit RESTER vraie » — et une SEULE direction est une
+violation : la clause cesse d'être satisfaite, quel que soit l'état de l'entrée. C'est le cas très
+fréquent d'un fait ÉTABLI cité dans une entrée encore OUVERTE, et il n'avait pas de véhicule.
+
 Énoncé d'origine — le cliquet de fraîcheur du backlog était AVEUGLE à la péremption
 SÉMANTIQUE : six entrées annonçaient l'inverse de l'état mesuré, et il rendait « OK ».
 Mesuré en relisant le backlog pour choisir quoi faire — c'est-à-dire au pire moment, celui que
@@ -1510,9 +1648,310 @@ substituée).
 
 ---
 
+**P2.32 — ✅ LIVRÉE (2026-09-07) — les CINQ orchestrateurs prioritaires sont calibrés PAR BRANCHE DE
+VERDICT, pas seulement à l'entrée.** `tests/sandbox/test_orchestrator_injection.py` — 43 cas, aucun
+monde construit (injection à DOSE CONNUE de l'attribut de module appelé), contrôle **E1 par MUTATION**
+(6/6 des tests concernés meurent sur un orchestrateur rendu aveugle à la dose). Couvre `run_s2`,
+`run_openloop_ladder`, `run_causal`, `run_q1`, `run_contrast`.
+**Trois défauts CORRIGÉS dans la foulée**, chacun avec son test de non-régression :
+- `tools/s2_demand.py::run_s2` itérait `worlds` DEUX FOIS → en itérateur, **la correction de Holm
+  disparaissait en silence** (registre **E23** occ. 1) ; et `worlds or list(WORLDS)` lançait la grille
+  COMPLÈTE (5 mondes × 6 conditions) quand on demandait ZÉRO monde — le run le plus cher du dépôt ;
+- `tools/s2_openloop_probe.py::run_openloop_ladder` rendait `{}` sur une famille vide **sans lever**,
+  et `main()` en tirait DEUX affirmations de fond depuis zéro mesure ;
+- `tools/evo_memory_inworld.py::run_contrast` faisait `list(seeds)` dans sa garde, **consommant
+  l'itérateur** : la garde écrite pour empêcher un négatif fabriqué le fabriquait elle-même.
+
+**P2.33 — ✅ CLOSE (2026-09-08) — les 11 défauts réels sont CORRIGÉS, et la réfutation
+adversariale en a trouvé 11 de plus.** Cinq correcteurs (un par fichier, aucun conflit) suivis chacun
+de son réfuteur, qui lançait ses propres sondes. Les 11 `xfail(strict)` sont devenus des tests de
+non-régression : `tests/sandbox/test_orchestrator_injection.py` passe **43/43**, sans qu'un seul test
+ait disparu (vérifié par recompte — classe E22).
+
+**Ce que les RÉFUTEURS ont trouvé, et que les correcteurs avaient laissé** — c'est là que la revue
+adversariale paie, et le bilan du dépôt reste intact (toute revue trouve quelque chose) :
+- `s2_demand` : **la MÊME `KeyError`, 12 lignes plus bas**. `_print_table` lisait `wi["causal_cmp"]`
+  et `wi["residual_cmp"]` sans garde, alors que `verdict_within_subject` porte EXACTEMENT la même
+  garde de dégénérescence que `s2_verdict` et rend alors un dict SANS ces clés. Le correcteur avait
+  gardé la tête de boucle et laissé le sous-bloc causal ouvert ;
+- `s2_openloop` : **TROIS gardes DÉCORATIVES** (classe E1). Le fichier de calibration restait 15/15
+  vert quand on cassait la garde à la main — parce que les 15 cas tournaient tous à `num_agents=13`,
+  c.-à-d. **hors du régime où `_floor_for` rend un plancher**. La clause centrale du correctif
+  n'était exercée par AUCUN cas ;
+- `dream_causal` : **le dénominateur publié ne correspondait pas au test qui l'utilise** (le test de
+  signe jette les ex aequo), des **seeds/K dupliqués** passaient la garde et fabriquaient un verdict
+  causal depuis UN tirage, et `run_founder_matched._pair` fabriquait un **ratio 0,0 depuis deux bras
+  éteints** — à 40 lignes de la garde qui l'interdit ;
+- `dreaming` : `run_q2` portait le MÊME défaut que `run_q1` (garde consommant l'itérateur, défauts de
+  fond `else 0.0` / `else 1.0` sur les médianes) ;
+- `evo_memory` : **deux tests non discriminants** (classe E1) — celui qui prétendait graver
+  l'appariement ne vérifiait que le CONTENU des listes, jamais l'alignement POSITIONNEL ; celui qui
+  prétendait graver l'ordre utilisait une fixture où première et dernière occurrence sont
+  **indistinguables**.
+
+Aucune régression silencieuse : chaque réfuteur a rejoué les artefacts de records archivés
+(`results/dream_causal_0.json`, `dream_founder_matched_n20.json`, les rapports S2) et vérifié qu'aucun
+verdict publié ne change de valeur.
+
+**P2.34 — ✅ CLOSE (2026-09-08) — les 11 orchestrateurs sont calibrés SUR LEURS BRANCHES, plus
+seulement sur leur entrée.** Les 6 restants (`run_direction`, `run_transfer_experiment`, `run_q2`,
+`run_founder_matched`, `run_distress`, `run_experiment`) ont reçu leur injection à dose connue :
+**83 cas** dans `tests/sandbox/test_inj_run_*.py`, aucun monde construit, contrôle **E1 par mutation**
+sur chacun. Déposés en six fichiers SÉPARÉS et non fusionnés : la garde de fusion a détecté une
+collision de helpers homonymes (`_inj6_injecte`) qui aurait fait disparaître des définitions en
+silence — exactement la classe E22, évitée cette fois par une assertion et non par la chance.
+
+**P2.44 — ⚠️ OUVERTE (2026-09-08) — 25 défauts RÉELS de plus, tenus en `xfail(strict=True)`.**
+Trouvés par l'injection des 6 derniers orchestrateurs et NON corrigés. Les trois plus graves sont de
+la forme (a) du biais du dépôt — une entrée vide devient une affirmation de FOND **publiée** :
+`run_direction` publie **NEUTRE** sur une baseline VIDE, publie **NUIT** sur une extinction totale, et
+**TRONQUE EN SILENCE** quand la baseline n'a pas la longueur du bras mesuré. Cet orchestrateur porte
+le KPI `transfer_ratio` de la spec SDR-G1, publié par EDR-156/129. Liste complète :
+`python -m pytest tests/sandbox/test_inj_run_*.py -rx`.
+
+**P2.35 — ✅ LIVRÉE (2026-09-07) — cliquet de RECENSEMENT DES TESTS (porte 10), classe E22 ouverte.**
+`tools/check_test_census.py` + baseline `tools/test_census_baseline.json` (221 fichiers, 1785 tests) +
+15 cas dans `tests/sandbox/test_test_census.py`, dont le contre-exemple GELÉ : la réécriture regex non
+ancrée qui a supprimé QUATRE tests **sans lever**, faisant passer la suite de « 28 passés / 15 xfail » à
+« 32 / 7 » — plus verte qu'avant. Un test disparu est une garde désarmée en silence, et c'est le seul
+défaut du dépôt dont le signal habituel s'AMÉLIORE. Les 4 tests ont été récupérés depuis les
+transcripts d'agents puis re-vérifiés.
+
+**P2.36 — ✅ LIVRÉE (2026-09-07) — 8ᵉ angle mort du cliquet de calibration : le PÉRIMÈTRE était PLAT.**
+`scan_instruments` parcourait `os.listdir`, donc **tout sous-répertoire de `tools/` était invisible** —
+à commencer par `tools/evo_runs/` (les scripts qui ont produit EVO-022 → EVO-028) et `tools/jobs/`.
+Rendu récursif ; dette RÉELLE révélée : 2 instruments (`verdict_evo011_prevol`, `classify_leases`),
+tous deux calibrés dans la même passe (202 → 204 détectés, 200 calibrés, **baseline toujours à ZÉRO**).
+Confirme la règle : chaque élargissement du cliquet révèle de la dette réelle.
+
+**P2.37 — ✅ LIVRÉE (2026-09-07) — `check_preregistration_applied.py` normalisait de façon ASYMÉTRIQUE.**
+Les grandeurs de la règle passaient par `re.sub(r"[^A-Za-z0-9_\[\]]", "", ...)` (`env.big_kills` →
+`envbig_kills`) mais le record était confronté en texte BRUT : un record écrivant honnêtement
+`env.big_kills` ne pouvait JAMAIS satisfaire le cliquet, et le seul moyen de passer était d'y coller le
+token MUTILÉ — l'outil dégradait les records qu'il est censé protéger. Normalisation symétrique + deux
+cas appariés dans `tests/sandbox/test_preregistration_applied.py`.
+
+**P2.38 — ✅ CLOSE (2026-09-07) — E23 est automatisée, par DÉCLARATION et non par proxy.**
+Première tentative REFUSÉE par la mesure : un détecteur syntaxique « seuil littéral dans une boucle »
+trouve **2 sites dans tout le dépôt, et aucune des deux occurrences réelles** — dans les deux, la
+famille se forme ENTRE les appels, pas dans une boucle. Un tel cliquet aurait été vert en permanence
+(classe E4, « vérification vide »). On fait donc DÉCLARER le seul nombre que l'auteur connaît :
+- `tools/experiment_preflight.py::assert_control_family` — rend le seuil par cellule, REFUSE un seuil
+  non corrigé **en nommant la borne de fausse alarme**, et exige une raison écrite pour
+  `method='none'` (mêmes formes que la garde E8) ;
+- `declare_design(..., control_family=...)` REFUSE tout run à `n_independent > 1` sans famille
+  déclarée, et PUBLIE la déclaration dans le design — donc dans le record ;
+- **rétro-appliqué** aux 3 runners à n > 1 (E14 : une garde jamais rétro-appliquée est une garde
+  absente). EVO-011 déclare la famille que son sceau `-bis` contenait déjà, et une assertion vérifie
+  que le seuil DÉCLARÉ est celui APPLIQUÉ — sans quoi la déclaration serait décorative (E10) ;
+- `tools/check_control_family.py` (porte 11, AST) ferme le trou mesuré : **9 runners scellés sur 12
+  ne déclaraient AUCUN design**, donc n'étaient jamais interrogés — dont `tools/lang_memory_edge_run.py`,
+  qui a produit la 3ᵉ arête établie du graphe. 20 cas de calibration.
+
+**P2.40 — ⚠️ OUVERTE — dette légataire de la porte 11 : 9 runners scellés ne déclarent aucun design.**
+`tools/control_family_baseline.json` : `evo022`, `evo023`, `evo024`, `evo026`, `evo026bis`, `evo027`,
+`evo028`, `lang_memory_edge_run`, `s2_floor_pronostic_run`. Aucun n'a été interrogé sur sa famille de
+contrôles ; **leurs verdicts sont publiés**. Coût de résorption : une ligne par runner, plus la
+question qu'elle force à se poser. Commencer par `lang_memory_edge_run.py` (3ᵉ arête établie) et
+`evo027_run.py` (le plus récent). Un test de fraîcheur vérifie déjà que cette dette reste RÉELLE :
+`test_la_dette_legataire_est_REELLE_et_pas_un_commentaire`.
+
+**P2.39 — ✅ CLOSE (2026-09-07) — EVO-011 est FERMÉE, sans run évolutif.**
+[`EDR-EVO-011`](../EDR/EVO-011_Reading_The_Type_Costs_Survival_The_Enabled_Act_Is_Net_Negative.md) :
+un lecteur CÂBLÉ À LA MAIN du canal de type survit **37 % moins longtemps** que le témoin
+(r = 0,631, `sign_p` = 0,0064, 11/12 seeds sous 1, 12/12 contrôles passés). La dose-réponse est
+monotone sur les trois bras (lancers 0 / 95 / 164 → âge 20,8 / 13,8 / 11,0) et les agents meurent de
+FAIM, pas de riposte. **L'acte que la lecture débloque est net-négatif en énergie**, donc la survie ne
+peut pas sélectionner cette lecture — quelle que soit sa découvrabilité. Le pré-vol a répondu pour
+29 s de calcul là où un run évolutif complet était prévu.
+
+**P2.41 — ⚠️ OUVERTE (2026-09-08) — le PLANCHER DE BRUIT de `run_ablation_map` vaut ±6-8 %, et
+aucun record ne le mentionne.** Mesuré par no-op exact (`NullAblatedMamba`, livré) : 1,058 sur le
+champion, 0,922 sur un champion aveuglé, *perception intacte dans les deux cas*. Le `within_ratio`
+publié du champion vaut 0,991 — DEDANS. Aucun faux `DEMANDED` n'en découle (du bruit ne crée pas de
+demande), mais la résolution de tout l'arc S2 est bornée : `PERCEPTION_DECOY` doit se lire « aucun
+effet détectable au-dessus de 8 % ». **Deux actions** : (a) bandeau de résolution sur les records qui
+lisent cet instrument ([EDR-124], S2-002/003, S2-013) ; (b) passer la référence à `NullAblatedMamba`
+(bande APPARIÉE), ce qui divise le bruit par 6 — mesuré : 1,0122 sur un sujet aveuglé contre 0,897-1,059
+à bande non appariée. Preuve : [`EDR-S2-BLIND-CHAMPION`](../EDR/S2-BLIND-CHAMPION_Stopped_At_Control_The_Ablation_Instrument_Has_An_8_Percent_RNG_Noise_Floor.md).
+
+**P2.42 — ⚠️ OUVERTE (2026-09-08) — `S2-BLIND-CHAMPION` à re-sceller en `-bis` : l'intervention n'est
+pas celle que le sceau décrit.** Annuler `W[:num_inputs, :]` coupe le chemin POLITIQUE, mais
+l'observation continue d'entrer par `H[:, :max_I] = x` et par
+`world_model.observe_batch(..., x_obs, train=True)` (surprise → curiosité → récompense intrinsèque).
+Classe **E8**, commise dans la formulation d'une règle scellée. Le `-bis` doit (a) décrire
+l'intervention pour ce qu'elle est, (b) ajouter un bras coupant AUSSI le monde-modèle, (c) mesurer à
+bande appariée. La DV observée — `r` = 1,375 à 1,753, **7 seeds sur 7 dans le même sens** — n'est PAS
+lue tant que ce n'est pas fait.
+
+**P2.43 — ⚠️ OUVERTE (2026-09-08) — le marqueur de demande in-world n'a TOUJOURS pas de contrôle
+POSITIF, et l'amplification ne peut pas en fabriquer un.** Dose-réponse mesurée dans `stoneage` :
+couplage `obs → action` ×1 / ×3 / ×8 → survie 27,5 / 13,8 / 6,2, les deux derniers SOUS le plancher
+24,0. Il n'existe donc pas par cette voie de sujet à la fois survivable et perception-dépendant. Trois
+pistes, par coût croissant : câbler un comportement obs-dirigé BÉNÉFIQUE ; changer de monde (les 5
+planchers sont mesurés) ; **jamais** abaisser le plancher après coup. Preuve :
+[`EDR-S2-SUBJECT-VARIANCE`](../EDR/S2-SUBJECT-VARIANCE_Stopped_At_Smoke_No_Positive_Control_Is_Constructible_By_Amplification.md).
+
+**P1.x / P2.45 — 🔴 OUVERTE ET GRAVE (2026-09-08) — « CI VERTE » couvre 6 % de la suite : 1937 tests
+sur 2059 ne sont exécutés par AUCUN job.** Mesuré en parsant `.github/workflows/ci.yml` : les deux
+invocations `pytest` prennent une **liste NOMMÉE de fichiers** (16 au total), jamais un répertoire.
+`tests/sandbox/` — 220 fichiers — n'est donc jamais lancé en entier.
+
+**Ce n'est pas théorique** : trouvé parce que la suite sandbox complète, lancée à la main ce jour-là,
+a rendu un **rouge PRÉ-EXISTANT dans HEAD** —
+`tests/sandbox/test_altar_tool_funnel_probe.py::test_funnel_empty_no_crash` exigeait qu'une cohorte
+VIDE produise `AUTEL_MORT` et `GAP_ACQUISITION`, c.-à-d. deux affirmations de fond fabriquées depuis
+une absence de mesure (`AUTEL MORT` est l'exemple que CLAUDE.md cite en tête de cette classe).
+L'instrument avait été corrigé — il rend `INDETERMINE_AUCUN_AGENT` — mais **son test était resté sur
+l'ancien contrat**, donc rouge, invisible, indéfiniment. Corrigé, avec sa branche négative appariée
+(une cohorte RÉELLE à zéro doit publier `0.0`, pas `None` : c'est toute la différence que la
+correction achète).
+
+**Pourquoi c'est le gap le plus grave de la journée** : tout l'édifice méthodologique du dépôt —
+instruments « calibrés », gardes « exécutables », contre-exemples « gelés » — repose sur des tests
+dont **94 % ne sont exécutés par aucun gate automatique**. Un contre-exemple gelé qui ne s'exécute
+jamais est indiscernable d'une garde absente ; c'est la classe **E1** appliquée à l'infrastructure de
+test elle-même, et c'est déjà l'objet de P2.31 (« un contre-exemple gelé qui ne peut plus s'exécuter »),
+dont ceci est la forme SYSTÉMIQUE.
+
+**Trois actions, par ordre de valeur** :
+1. faire lancer `tests/sandbox/` EN ENTIER par la CI (mesurer d'abord le temps mur — la suite tourne
+   localement en quelques minutes ; les tests qui simulent un monde ont déjà leur garde de bail) ;
+2. si le coût est prohibitif, un cliquet `check_ci_coverage.py` : baseline gelée des fichiers non
+   couverts, aucun NOUVEAU fichier non couvert — même patron que les portes 1, 2, 10 et 11 ;
+3. dans les deux cas, **cesser de citer « CI VERTE » comme un signal de santé de la suite** tant que
+   le périmètre n'est pas écrit à côté du mot.
+
+⚠️ Le hook pre-commit, lui, exécute bien ses 11 gardes — cette dette porte sur la SUITE, pas sur les
+cliquets.
+
+**Ce que la première exécution complète a rendu (2026-09-08, 8 h 30 de mur)** : **18 rouges,
+1992 verts, 3 sautés, 26 xfail**. Neuf rouges ont pu être identifiés et **tous corrigés** (la sortie
+des neuf autres a été tronquée ; une seconde passe avec `--tb=no -rf` est en cours) :
+- **huit** venaient d'UNE SEULE garde de puissance ajoutée le 2026-09-01 et jamais rétro-appliquée à
+  ses fixtures — classe **E14**, occurrence gravée ;
+- un test exigeait qu'une cohorte VIDE rende `AUTEL_MORT` ;
+- `test_s6_aucun_monde_aucun_bail_kuzu` portait `assert "kuzu" not in sys.modules` : **vert seul,
+  rouge en suite**, une assertion sur l'état du PROCESSUS et non sur la sonde ;
+- `run_aux_off_validation` écrivait son compteur de mesures manquantes **DANS la carte des bras**, et
+  inconditionnellement : tout consommateur qui itérait les bras voyait des bras FANTÔMES
+  (`0.0__mesures_manquantes`). Corrigé en sortant le compteur dans sa propre carte — avec l'assertion
+  appariée qui interdit de « faire passer le test » en supprimant le compteur, lequel EST le correctif
+  du 2026-09-01 (« un refus n'est pas un non »).
+
+⚠️ **CORRECTION (2026-09-08) — le chiffre de 8 h 30 était FAUX, et il inversait la décision.**
+Cette mesure a été prise pendant que **seize agents d'un workflow** tournaient sur la même machine,
+dont plusieurs simulations de monde. Seconde passe, machine au repos : **30 min 40 s**, soit un
+facteur 17. Un chiffre de coût se mesure sur une machine dont on connaît la charge — c'est la classe
+**E12** appliquée au coût, et ici elle faisait conclure « la CI ne peut pas », alors qu'elle peut.
+
+**Décision revue** : l'action 1 (faire lancer `tests/sandbox/` en entier par la CI) est TENABLE à
+30 min et doit être préférée — un cliquet de couverture ne vérifie que la présence d'un fichier dans
+une liste, jamais qu'il PASSE. Les deux restent complémentaires (le cliquet attrape le fichier ajouté
+hors CI ; la CI attrape le rouge), mais l'ordre de priorité s'inverse.
+
+**Seconde passe (machine au repos) : 8 rouges, 2008 verts, 3 sautés, 26 xfail — les 8 CORRIGÉS.**
+Trois étaient de MOI : la garde E23 posée le matin, rétro-appliquée aux 3 runners et **oubliée sur ses
+propres tests** — j'ai commis E14 le jour où je gravais une occurrence d'E14. Les cinq autres étaient
+pré-existants, dans les deux mêmes familles : trois de plancher de puissance (`curriculum_transfer`),
+et deux qui **EXIGEAIENT** qu'une entrée vide rende un verdict de fond (`distress_verdict([])` →
+« NEUTRE », `_verdict_evolve_nav([])` → « SUBSTRAT BLOQUE »). Chaque correction porte sa branche
+négative appariée : un zéro MESURÉ doit rester un verdict.
+
+**Bilan des deux passes : 17 rouges pré-existants trouvés et corrigés, plus 3 introduits et corrigés
+le même jour.** Aucun n'aurait été vu sans lancer la suite entière.
+
+**P2.46 — 🔴 OUVERTE (2026-09-08) — 18 des 126 logits d'action du champion SONT l'observation.**
+Son génome déclare **64 entrées + 126 sorties dans 172 nœuds** : les blocs se chevauchent sur 18, et
+`forward` écrit l'observation dans `H[:, :max_I]` puis lit les logits à partir de `max_I + max_H`
+= 46. Vérifié composante par composante (écart 0,0025, qui est la mise à jour récurrente). Un agent
+FRAIS n'a pas le défaut (59+108 = 167 ≤ 172) : c'est la lignée du champion. Garde posée
+(`assert_no_io_overlap`, classe **E24**), mais **la dette de lecture reste entière** :
+1. **[EDR-EVO-004]** conclut « saillance action/canal au PLANCHER sur TOUS les canaux » sur ce
+   champion. Une saillance nulle mesurée sur une politique dont un dixième des sorties EST l'entrée
+   n'a pas le même sens — il faut RE-LIRE la mesure en séparant les 18 logits partagés des 108 autres.
+   C'est peu coûteux (la sonde de saillance existe et est calibrée) et cela peut changer une
+   conclusion citée par tout l'arc S2.
+2. Les verdicts `PERCEPTION_DECOY` publiés ne sont PAS invalidés (`PerceptionAblatedMamba` permute à
+   l'ENTRÉE, donc ablate les deux chemins) — mais les records qui les lisent doivent porter la mention.
+3. Ouvrir la question amont : **combien de génomes persistés ont ce chevauchement ?** 348 `.npz` sous
+   `data/genomes/` ; le compte est un balayage de trois entiers par fichier.
+
+
+**P2.47 — ✅ CLOSE (2026-09-08) — le chargement du champion pouvait pointer, en silence, sur un Hall
+of Fame VIDE.** Chaîne à trois maillons, tous mesurés, tous corrigés, avec 7 cas de calibration
+(`tests/sandbox/test_hall_of_fame_loading.py`) :
+1. `tools/evo_memory_inworld.py:51` pose `HOF_PATH` vers un HoF vide **à l'import** — intention
+   légitime (tabula rasa d'EVO-003), effet processus-global. Elle CRIE désormais, et signale aussi le
+   cas où elle arrive **trop tard** (`persistence` déjà importé) : la redirection est alors sans
+   effet, et le bras croit partir de zéro **en partant du champion** ;
+2. `load_hall_of_fame` avalait toute exception et rendait « vide » : ABSENT, CORROMPU et VIDE étaient
+   indiscernables. Distingue désormais — absent → silencieux (cas nominal du dépôt neuf), illisible →
+   lève, en nommant le chemin ET `HOF_PATH` ;
+3. `tools/arm_nas` rendait `(0, 0)` — une taille de génome moyenne MESURÉE à zéro. Refuse désormais.
+
+Symptôme qui a mis sur la piste : une sonde annonçait « HoF vide : évoluer d'abord » alors que
+`data/hall_of_fame.pkl` contenait ses 10 entrées, **intactes depuis juillet**.
+
+**P2.48 — ⚠️ OUVERTE (2026-09-08) — le Hall of Fame est un `pickle`, et son format n'est pas versionné
+au-delà d'un entier.** Trouvé en durcissant son chargement : `pickle.load` sur un artefact local n'est
+pas un risque de sécurité ici, mais c'est un format qui **casse silencieusement** quand une classe est
+renommée ou déplacée — et l'ancien `except: pass` transformait exactement cela en « HoF vide ». Migrer
+vers un format à schéma (les génomes sont déjà persistés en `.npz` ailleurs, 348 fichiers) fermerait
+la classe entière. Coût non estimé ; à faire avant toute refonte de `src/seed_ai/mutation.Genome`.
+
+
 ## P3 — Générateurs d'erreur encore sans réponse exécutable
 
 *(⚠️ **BLOC PÉRIMÉ** : E13 est CLOSE depuis le 2026-07-28 — `tools/cost_guard.py` + `tests/sandbox/test_cost_guard.py`. Le registre n'a plus aucune classe sans garde exécutable. Conservé pour l'historique.)*
+
+
+**P2.31 — ⛔ RÉTRACTÉE le 2026-09-08. La dette n'existait pas, et elle était à moi.**
+`test_bilinear_composition_null_under_retention_is_lr_dependent` **PASSE en 205 s**, sous son plafond de
+600 s et à 3 % des 199.7 s documentés le 2026-09-01. Rien n'avait ralenti.
+
+**Ce qui s'est passé, et c'est la seule chose à retenir.** J'ai observé DEUX timeouts consécutifs et j'ai
+conclu, la première fois « c'est la contention que je crée », la seconde « non, ce n'est pas la
+contention puisque ça retimeoute sur CPU libre » — alors que le CPU n'était PAS libre : trois agents de
+revue tournaient encore. Mesures successives du MÊME code, même machine, même paramètres :
+
+| charge | wall par seed |
+|---|---|
+| 9 agents de revue actifs | **30.6 s** puis **55.1 s** |
+| machine calme | **11.7 s** |
+
+Soit un facteur **2.6 à 4.7**, du même ordre que la variance de 2.7× que ce dépôt DOCUMENTE déjà dans
+`test_instrument_calibration.py`. Je l'avais lue, citée, et je ne l'ai pas appliquée à moi-même.
+
+⚠️ **Règle : une observation de WALL-CLOCK n'est pas attribuable sans la CHARGE de la machine.** Un
+timeout n'est pas une propriété du code ; c'est une mesure de l'ensemble (code, machine, charge), au même
+titre qu'un plafond de recherche est une mesure de l'ensemble (forme, optimiseur, budget) — c'est la
+MÊME faute que P2.15, sur une autre grandeur. Et j'ai en plus publié le diagnostic AVANT de mesurer sur
+machine calme, deux fois, dans deux directions opposées.
+
+**P2.45 — ✅ LIVRÉE (2026-09-08) — le cliquet du registre exige un contre-exemple COLLECTIBLE,
+pas seulement PRÉSENT.**
+<!-- closes_when:grep_present=tools/check_guard_negative_cases.py::_collectibles -->
+`_exists` cherchait `def <nom>(` n'importe où sous `tools/`, `src/` ou `tests/`. Un test défini DANS une
+autre fonction, ou posé dans un fichier que pytest ne collecte pas (`helpers.py`), y passait donc pour
+présent alors qu'il ne s'exécutera JAMAIS : une classe `exécutable` aurait nommé un contre-exemple
+**FANTÔME**, indiscernable d'une garde absente — E1 au méta-niveau, dans l'outil écrit pour la fermer.
+La détection porte désormais sur ce que pytest collecterait réellement (AST, `def test*` au niveau
+module ou méthode d'une classe `Test*`, dans `test_*.py` / `*_test.py`).
+
+⚠️ **Fermé alors que ZÉRO classe est concernée** — mesuré. C'est le bon moment, et c'est la même
+situation que le trou des collisions de noms, fermé le 2026-09-01 sans qu'aucun faux vert n'existe
+encore. Un trou prospectif se ferme quand on le voit, pas quand il coûte.
+
+⚠️ **Ce que le cliquet ne vérifie TOUJOURS pas, et c'est DÉCLARÉ** : que le test PASSE, ni qu'il tienne
+dans son plafond de temps. La première est une propriété d'exécution ; la seconde dépend de la CHARGE
+de la machine et n'est donc pas une propriété du test — cf. la rétractation de P2.31 juste au-dessus.
+
+**Ce qui reste vrai et utile de l'entrée d'origine** : le cliquet du registre vérifie qu'une classe
+`exécutable` NOMME son test, jamais qu'il PEUT tourner. Le trou est réel mais PROSPECTIF (mesuré : 0
+classe concernée aujourd'hui), et il se ferme par une vérification de COLLECTIBILITÉ — cf. l'entrée
+suivante. Le contre-exemple gelé, lui, s'exécute et passe : vérifié à n=12, plein budget.
+
 
 **P3.1 — Pré-enregistrement du plan d'analyse. ✅ CLOSE (2026-07-27).** `tools/preregister.py` +
 `tests/sandbox/test_preregistration_guard.py` (6 tests). Scelle *statistique + seuil + critère + **liste
@@ -1535,21 +1974,131 @@ plus WARM-009 nul et un run de 1,8 h sur une question sans objet.* Exiger un dé
 coût projeté avant tout run long, et **ne pas extrapoler une tendance depuis un préfixe court** (un
 transitoire d'apprentissage y ressemble — erreur commise sur la dérive du grab). *Coût : ~1 h.*
 
-**P3.3 — Indépendance des revues.** Les 7 revues ont trouvé du réel, mais ce sont des agents de même
-architecture avec les mêmes priors : c'est de l'auto-critique outillée, **pas une réplication**. Piste :
-faire re-dériver un résultat porteur depuis les données brutes par un chemin indépendant. *Coût : à cadrer.*
+**P3.3 — ✅ MESURÉE (2026-09-08), et la réponse est en DEUX MORCEAUX de signes opposés.**
+Énoncé d'origine : les 7 revues ont trouvé du réel, mais ce sont des agents de même architecture avec
+les mêmes priors — de l'auto-critique outillée, pas une réplication. La piste demandée était « faire
+re-dériver un résultat porteur depuis les données brutes par un chemin indépendant ». C'est exactement
+ce qui s'est produit le 2026-09-07, sans que ce soit le but : **SEPT dérivations indépendantes de la
+même grandeur** (le plafond du substrat plain), chacune par sa propre méthode.
+
+**0.8056 · 0.8333 · 0.8611 · 0.9444 · 0.9444 · 1.000 · 1.000** — soit **29/36 à 36/36, une étendue de
+SEPT cellules sur 36** pour une question à réponse unique.
+
+**Sur la MESURE, la divergence est massive — mais elle ne relève PAS l'inquiétude de P3.3.** Cette
+dispersion n'est pas de l'indépendance de jugement : c'est la variance d'une recherche stochastique.
+Mêmes agents, mêmes priors, tirages différents. La grandeur est limitée par l'optimiseur, donc toute
+estimation par recherche varie — ce qui est le sujet de P2.15, pas de P3.3.
+
+**Sur le JUGEMENT, l'inquiétude est CONFIRMÉE :** 3 réfutateurs sur 3 ont conclu `refute=False`, tous
+avec `confiance=haute`. Unanimité parfaite, corrélation totale — exactement ce que l'entrée redoutait.
+
+⚠️ **Ce qui a produit la valeur de la revue n'est donc PAS l'indépendance des agents : c'est
+l'ORCHESTRATION.** Les quatre défauts réels ont été trouvés par des agents DIFFÉRENTS, sur des axes
+DIFFÉRENTS, aucun deux fois — mais ces axes leur avaient été ASSIGNÉS dans le prompt (fidélité de la
+forme · fiabilité de la mesure · cohérence avec le publié). La complémentarité était **conçue, pas
+émergente**. Conséquence pratique : ne pas payer N agents pour le même angle en espérant de la
+diversité — la diversité se prescrit.
+
+⚠️ **RÈGLE MÉTHODOLOGIQUE, et c'est le vrai produit de cette mesure.** La grandeur cherchée était un
+**EXTREMUM** (un maximum sur un espace de recherche). **Agréger des estimations d'un extremum par
+CONSENSUS est faux : il faut agréger par EXTREMUM.** Ici la médiane des sept vaut 0.9444 et sous-estime
+d'au moins deux cellules ; chaque estimation sous-cherchée tire le consensus vers le bas, et le
+présente avec l'assurance d'un accord. C'est l'erreur P2.15 déplacée au niveau de l'AGRÉGATION — un
+minorant, habillé en consensus.
+
+**RÉPLICATION INDÉPENDANTE — tentative du 2026-09-08, et son premier chemin était INVALIDE.**
+Chemin v1 : restreindre l'espace aux constructions **CIRCULANTES** (`a[k,j]=f[j-k]`, `b[q,j]=g[j-q]`),
+18 paramètres au lieu de 78, avec un optimiseur SANS gradient (`differential_evolution` + `SLSQP`) —
+indépendant sur l'espace, l'optimiseur ET l'objectif, et dont une solution serait un certificat lisible.
+
+⚠️ **L'ancrage l'a tué, et c'est le résultat le plus utile de la tentative.** À `c_j` uniforme
+l'instrument devait retrouver 27/36 (MILP, gap 0) ; il rendait 3/36. MILP sur la forme circulante :
+**6/36 = 0.1667 à K=6, EXACTEMENT le hasard** (et 5/25 à K=5 — le hasard aussi), contre 27/36 pour
+l'additif général. La forme circulante est celle qu'on écrit *spontanément* pour une tâche modulaire —
+bonne symétrie, peu de paramètres — et elle **ne vaut rien**.
+
+**Sans la référence exacte, j'aurais accusé l'optimiseur** et passé des heures à le régler : il avait
+déjà trouvé 6/36, c'est-à-dire l'optimum de cet espace. Une référence EXACTE est la seule chose qui
+sépare « recherche faible » de « forme pauvre » — c'est P2.15 appliquée à l'instrument de réplication
+lui-même. Contrôle positif de la formulation : le même MILP circulant sur une cible SÉPARABLE rend
+36/36, donc le 6/36 n'est pas un artefact d'encodage. Gelé dans
+`test_the_CIRCULANT_construction_is_WORTHLESS_and_that_is_why_ANCHORS_matter`.
+
+**Chemin v2 — ⛔ INSTRUMENT INVALIDE, et il s'est ARRÊTÉ TOUT SEUL.** Espace COMPLET (78 paramètres),
+indépendant sur le seul axe OPTIMISEUR : `differential_evolution` (population, sans gradient) + `SLSQP`.
+Ancrage obligatoire AVANT tout rapport. Résultat après **8814 s (2 h 27)** : **11/36** contre 27/36
+PROUVÉ. La sonde a refusé de mesurer la vraie forme et l'a écrit.
+
+⚠️ **C'EST LE RÉSULTAT LE PLUS UTILE DE TOUTE LA TENTATIVE.** Sans l'ancrage, j'aurais rapporté « un
+chemin indépendant trouve 11/36 » — et ce chiffre aurait été lu comme une CORROBORATION que le plafond
+est bas, c'est-à-dire l'exact contraire de la vérité, et une résurrection du `0.3889` que je venais de
+rétracter. **L'ancrage a empêché une corroboration FABRIQUÉE d'un résultat déjà retiré.**
+
+⚠️ **Et il apprend quelque chose de plus grave sur TOUTES les estimations, la mienne comprise.** Sur la
+sous-forme dont l'optimum EXACT est connu (27/36) :
+
+| méthode | trouve | vérité |
+|---|---|---|
+| descente de gradient (Adam + CE) | **14/36** | 27/36 |
+| `differential_evolution` + `SLSQP`, 2 h 27 | **11/36** | 27/36 |
+| MILP (HiGHS, gap 0) | 27/36 | 27/36 |
+
+**AUCUNE méthode numérique testée n'atteint l'optimum exact du cas le PLUS FACILE** — toutes
+sous-trouvent d'environ la moitié. Or les SEPT estimations du plafond de la forme complète viennent
+toutes de méthodes numériques. Le minorant gelé (34/36, vérifié in situ) est donc très probablement
+LARGEMENT sous-estimé, et le 36/36 rapporté par un des chercheurs est plausible.
+
+**Conséquence pour `EDR-BILINEAR`, énoncée sans adoucissement** : la séparation de capacité n'est pas
+seulement « non établie » — les éléments disponibles suggèrent qu'elle est **fausse**. Le plafond est
+≥ 0.9444 (mesuré, vérifié dans le substrat), le bilinéaire mesure 0.932, et toutes les méthodes qui ont
+produit ces plafonds sous-trouvent d'un facteur ~2 là où la vérité est connue.
+
+En résumé sur la réplication indépendante — **ÉCHEC INSTRUCTIF, pas abandon.** Les deux chemins tentés ont été
+recalés par leur propre ancrage (v1 : espace au niveau du hasard ; v2 : optimiseur trop faible). Ce qui
+est désormais SU : le problème est une optimisation globale dure où les méthodes « naturellement
+indépendantes » sont nettement PLUS faibles que celle qu'on voulait répliquer. Le seul chemin qui a
+jamais atteint une réponse exacte ici est **exact** (MILP), pas numérique — et il ne s'applique qu'aux
+sous-formes linéarisables. **La voie restante est donc une BORNE PROUVÉE pour la forme complète, pas une
+réplication numérique.**
+
+**Ce qui reste ouvert, et c'est plus étroit qu'avant** : une réplication par un chemin VRAIMENT
+indépendant (autre architecture, autres priors) reste non faite. Ce qui est désormais mesuré, c'est que
+la variance INTRA-architecture suffit à disperser une mesure, mais pas à disperser un JUGEMENT.
 
 ---
 
 ## P4 — Science
 
-**P4.1 — Expérience famine (spécifiée, prête).** Seule question ouverte sur quatre records : « le grab
-nuit-il quand grabber NOURRIT ? ». Matériel vérifié : `FamineWorld` hérite de `Biosphere3D` (donc porte la
-taxe de portage) à `forage_payoff = 3.0` ; **30 champions déjà entraînés** dans
-`data/hof_famine_harsh_s{42,43,44}.pkl`. Obstacle identifié : backend **legacy**, donc écrire un
-`GrabOffMamba` sur le patron de `PerceptionAblatedMamba` — avec vérification d'aliasing obligatoire et
-découplage des DEUX bras. Garde-fous posés : réplication sur les **ères**, contrôle négatif = manipulation
-**INVERSE**, `gi` mesuré *in situ*, portée bornée au régime famine dure. *Coût : ~2 h + ~1 h de calcul.*
+**P4.1 — ⏳ PRÉ-VOL PASSÉ (2026-09-08), matériel VÉRIFIÉ PAR LA MESURE, une question reste avant le run.**
+<!-- holds_when:path_present=data/hof_famine_harsh_s42.pkl -->
+Question : « le grab NUIT-il quand grabber NOURRIT ? » (régime famine dure, `forage_payoff = 3.0`).
+
+**Ce que le pré-vol a établi, en mesurant au lieu de croire l'annonce :**
+- **Matériel** : 30 champions (10 par seed × s42/s43/s44), **0 fichier d'état manquant** sur 30
+  références vérifiées, génomes présents (`W` de forme 172×172). Les `state_path` encodent l'ÈRE :
+  s42 porte les ères 16, 21, 24, 28, 29, 30, 52, 57, 64, 68.
+- **Unité de réplication** : l'**ÈRE**, donc **n = 30** — au-dessus du `n_floor = 12` du marqueur de
+  demande. ⚠️ Déclaré, pas caché : les ères d'un même run sont SÉRIELLEMENT dépendantes (l'ère 68
+  descend de l'ère 21) ; la lecture conservatrice donnerait n = 3 seeds, **sous le plancher**. Le choix
+  suit la convention du dépôt (« l'unité est l'ère/le seed, pas l'agent ») et doit être écrit dans le
+  record, pas supposé.
+- **Design DÉCLARÉ** via `declare_design` : aucun maillon INFÉRÉ, famille de contrôles de **6 cellules**
+  (3 seeds × 2 bras) avec Bonferroni `alpha_cell = 0.0083` — la garde E23 de la session parallèle est
+  satisfaite d'emblée.
+- **L'ablation est RNG-NEUTRE**, contrairement à sa sœur : `do_grab = float(logits[24])` seuillé à `> 0`
+  (`src/worlds/world_1_stoneage.py:1523`), donc un `GrabOffMamba` force un logit sans consommer le
+  moindre tirage — là où `PerceptionAblatedMamba` appelle `derange_rows` et DÉPLACE la bande.
+
+⚠️ **CE QUI RESTE À MESURER AVANT LE RUN, et c'est la question 1 du pré-vol.** La session parallèle a
+chiffré le jour même le plancher de bruit du patron d'ablation voisin : `NullAblatedMamba` (no-op EXACT)
+rend **1.058 et 0.922**, soit une bande **[0.92 ; 1.06]** — et le champion publié est à **0.991, DEDANS**.
+Un effet inférieur à ~8 % y est indétectable. Le `GrabOff` étant RNG-neutre, son plancher DEVRAIT être
+plus bas — mais « devrait » n'est pas une mesure. **Écrire d'abord un `NullGrabOffMamba` (même lecture
+du logit 24, valeur inchangée) et mesurer SA bande**, avant d'engager l'heure de calcul : sans ce
+chiffre, un « le grab ne nuit pas » serait indiscernable d'un effet masqué par le bruit — exactement le
+défaut que ce dépôt a payé le plus cher.
+
+*Coût restant : ~2 h de harnais + ~1 h de calcul, la mesure du plancher venant EN PREMIER.*
 
 **P4.2 — Reste du backlog WARM** (cf. `SCIENCE.md`, fil WARM) : incidence du canal né-ON sur ≥6 agents et
 ≥2 seeds ; hypothèse du **canal porteur** (corrélation coût ↔ poids de W autour du nœud 88) ; bras à
@@ -1569,41 +2118,25 @@ DAG de capacités *sans canal de demande in-world* est le piège « proxy 9 / in
 - **SP-2 Peupler** — convertir gates G0→G4 + arc EDR + tétralogie G4 en nœuds/arêtes v0 (force = force de
   preuve empirique). Rend le records-graph **prédictif** au lieu de descriptif. *Dépend de SP-1 ; suppose
   la forme validée par SP-3.*
-- **SP-2 dette — barre d'émergence NON vérifiée par un validateur (à fermer en itération 2, avant
-  accumulation d'arêtes).** La barre « intact VIVANT » (`coord_intact` médian > `1/K + 0.15`), qui distingue
-  une capacité réellement émergente d'un artefact de plancher, n'est appliquée par AUCUN outil :
-  `ablation_verdict` ne pose que le plancher de dégénérescence `1/K` (plus lâche), et
-  `check_agi_taxonomy.validate_edge` ne lit pas du tout `coord_intact`. Chaque future arête dépend donc
-  d'un humain relisant les médianes persistées à l'œil. Fix proposé : champ optionnel `coord_intact_median`
-  dans le schéma `evidence` de la demande + une vérification dans `validate_edge` contre le plancher
-  d'émergence.
+- **SP-2 dette — ✅ CLOSE (2026-09-02 puis DURCIE le 2026-09-08), et l'entrée était PÉRIMÉE depuis six
+  jours.** Elle décrivait un état où `validate_edge` « ne lit pas du tout `coord_intact` ». Vérifié :
+  la porte lit `coord_intact`, `emergence_bar`, `incapable_ceiling` ET `ceiling_provenance`, et les
+  **trois** arêtes du graphe les déclarent :
+  <!-- holds_when:grep_present=tools/check_agi_taxonomy.py::incapable_ceiling -->
+
+  | arête | bras intact | barre | plafond de l'incapable |
+  |---|---|---|---|
+  | `language→perception` | 0.34375 | 0.1989 | 0.1836 |
+  | `memory→perception` | 0.6547 | 0.2431 | 0.2266 |
+  | `language→memory` | 0.819 | 0.5 | 0.1859 |
+
+  Deux inexactitudes de l'énoncé d'origine, mesurées : la barre des sondes valait `1/K + 0.05`, pas
+  `1/K + 0.15` ; et le fix proposé (« champ optionnel `coord_intact_median` ») est en-deçà de ce qui a
+  été livré — la barre n'est pas seulement LUE, elle doit désormais SÉPARER un plafond d'incapable
+  MESURÉ, et aucune arête n'est exemptée. **Trouvée en allant chercher quoi faire dans P4** : c'est le
+  scénario exact que `check_backlog_freshness` était censé couvrir, et qu'il ne voyait pas — la clause
+  `closes_when:` ci-dessus le ferme, dans les deux sens.
 - **SP-3 Calibrer — ✅ MESURÉE ET GRAVÉE (`EDR-CALIB-SP3`, verdict GO), pas seulement spécifiée.** Le demand-marker récupère-t-il un DAG
-
-**P2.31 — ⚠️ OUVERTE (2026-09-07) — un CONTRE-EXEMPLE GELÉ qui ne peut plus s'exécuter est une garde
-qui ne garde rien.** `test_bilinear_composition_null_under_retention_is_lr_dependent`
-(`tests/sandbox/test_instrument_calibration.py`), le contre-exemple gelé de la classe **E19**, **part en
-TIMEOUT** sur son propre plafond de 600 s.
-
-- **Ce n'est PAS une régression de cette passe.** Mesuré des deux côtés, mêmes paramètres, même machine,
-  1 seed = 2 bras : version **modifiée 30.6 s**, version **HEAD 55.1 s**. La version HEAD est la plus
-  lente des deux ; le changement de P2.15 n'ajoute que du O(1) (résolution de plafond + une garde).
-- **L'écart est avec le PASSÉ, pas entre les branches.** Le test documente un wall MESURÉ de **199.7 s**
-  le 2026-09-01 pour 48 exécutions de bras. La projection actuelle est de **740 s à 1300 s** selon la
-  mesure — soit un facteur 4 à 7. La variance entre deux mesures consécutives du MÊME code (30.6 vs
-  55.1 s) est déjà de 1.8×, donc la cause est environnementale, pas algorithmique.
-- **Pourquoi ça compte plus qu'un test lent.** Ce test est le contre-exemple NOMMÉ d'E19 dans le registre.
-  `check_guard_negative_cases.py` vérifie qu'une classe `exécutable` NOMME son test — il ne vérifie pas
-  que le test PEUT tourner. La garde est donc verte alors que la preuve est inaccessible : c'est E1 au
-  méta-niveau (une vérification qui ne peut pas échouer parce qu'elle ne s'exécute jamais).
-- **À faire** : (a) re-mesurer le débit et fixer le plafond sur la mesure du jour, pas sur celle du
-  2026-09-01 — un plafond hérité d'un autre régime est exactement le défaut que `assert_bar_is_reachable`
-  traque sur les barres ; (b) décider si l'unité de réplication du contre-exemple peut descendre sous
-  n=12 (la BASCULE se lit déjà à n=3, la séparation par-seed non) ; (c) faire vérifier au cliquet du
-  registre que le test nommé s'exécute, pas seulement qu'il existe.
-- **Vérifié dans cette passe, à n=3** : les assertions modifiées tiennent (`unlocked is None`,
-  `bar_status == "UNVALIDATED"` aux deux pas, bascule des médianes conservée). Le test gelé n'a PAS été
-  affaibli — il est inexécutable pour une raison indépendante.
-
   de prérequis *imposé* (os-taxonomy comme clé de réponse), en no-opant sur les non-arêtes **corrélées** ?
   Go/no-go de toute la vision. Design : `docs/superpowers/specs/2026-07-23-sp3-prerequisite-recovery-calibration-design.md`.
   *Pur numpy, aucun bail, aucun run long — cheap.*

@@ -70,6 +70,14 @@ _BACKTICK_PATH = re.compile(r"`([\w][\w./-]*\.(?:py|md|json|yml|yaml))`")
 #   * clause SATISFAITE + entrée déclarée OUVERTE  -> la fermeture est acquise et non enregistrée ;
 #   * clause NON satisfaite + entrée déclarée CLOSE -> la fermeture a RÉGRESSÉ en silence.
 _CLAUSE = re.compile(r"<!--\s*closes_when:([a-z_]+)=(.+?)\s*-->")
+# `holds_when:` — SECOND predicat, ajoute le 2026-09-08 apres que le premier a mal vise.
+# `closes_when:` decrit la fermeture de l'ENTREE ; pose sur un SOUS-ITEM il est mal attribue,
+# et le cliquet reclame alors la fermeture de toute l'entree (mesure : P4.3, dont le sous-item
+# SP-2 etait clos pendant que l'entree restait ouverte a juste titre).
+# `holds_when:` dit autre chose : « cette affirmation doit RESTER vraie ». Une seule direction est
+# une violation -- la clause CESSE d'etre satisfaite --, quel que soit l'etat de l'entree. C'est
+# ce qu'il faut pour un fait etabli cite dans une entree encore ouverte, cas tres frequent.
+_HOLDS = re.compile(r"<!--\s*holds_when:([a-z_]+)=(.+?)\s*-->")
 _ENTREE = re.compile(r"^\*\*(P\d+\.\d+(?:-bis)?)\s*[—-]", re.M)
 _CLOSE_MARQUEURS = ("✅", "CLOS", "CLOSE", "FAIT", "PÉRIMÉE", "RETIRÉE", "TERMINÉ")
 
@@ -110,9 +118,18 @@ def scan_clauses(txt):
     """-> ({clef: description} des violations, nb d'entrées SANS clause)."""
     viol, sans = {}, 0
     for num, bloc, close in _entrees(txt):
+        for pred, arg in _HOLDS.findall(bloc):
+            ok, refus = _evalue_clause(pred, arg.strip())
+            if refus:
+                viol[f"holds-refusee:{num}:{pred}"] = f"{num} : {refus}"
+            elif not ok:
+                viol[f"holds-rompue:{num}:{pred}"] = (
+                    f"{num} : une affirmation declaree PERMANENTE a cesse d'etre vraie "
+                    f"(`{pred}={arg}`) -- l'entree cite un fait qui n'est plus etabli")
         clauses = _CLAUSE.findall(bloc)
         if not clauses:
-            sans += 1
+            if not _HOLDS.findall(bloc):
+                sans += 1
             continue
         for pred, arg in clauses:
             ok, refus = _evalue_clause(pred, arg.strip())

@@ -19,6 +19,7 @@ croisée = partage, cf. LANG-002). Win = CURRICULUM compositionnel (zeroshot>>ch
 
 Usage : python tools/compositional_curriculum_probe.py  (env: CCP_W, CCP_E, CCP_SEEDS, CCP_A, CCP_V, CCP_AGENTS)
 """
+import math
 import os
 import sys
 
@@ -30,6 +31,7 @@ if _ROOT not in sys.path:
 def main():
     import statistics
     from tools.compositional_language_probe import run_compositional
+    from tools.experiment_preflight import assert_bar_separates_the_incapable
 
     W = int(os.environ.get("CCP_W", "4000"))
     E = int(os.environ.get("CCP_E", "4000"))
@@ -45,7 +47,11 @@ def main():
         def med(key):
             vals = [r[key] for r in rows if not (r[key] != r[key])]   # ignore NaN
             return statistics.median(vals) if vals else float("nan")
-        return {k: med(k) for k in ("within", "zeroshot", "topsim", "cross_mi")}
+        out = {k: med(k) for k in ("within", "zeroshot", "topsim", "cross_mi")}
+        # ⚠️ Le PLAFOND de l'incapable est un MAX sur les seeds, pas une médiane — et il vient du bras à
+        # MESSAGE BROUILLÉ de `run_compositional` (mêmes agents entraînés, canal vide, éval seule).
+        out["zeroshot_scrambled_max"] = max(r["zeroshot_scrambled"] for r in rows)
+        return out
 
     conds = {
         "FIXED      ": _cell(False, 0, W + E),        # budget apparié : W+E en paires figées
@@ -60,13 +66,29 @@ def main():
 
     cur = conds["CURRICULUM "]
     fix = conds["FIXED      "]
-    comp = cur["zeroshot"] > chance + 0.12 and cur["topsim"] > 0.15   # compositionnel retenu
+    # ⚠️ P2.15 (2026-09-08) — `chance + 0.12` était posé à l'estime. Le plafond de l'incapable est
+    # désormais MESURÉ dans le run : même récepteur ENTRAÎNÉ, même jeu tenu à l'écart, MESSAGE BROUILLÉ.
+    # Il n'est pas égal au hasard — mesuré 0.281 contre 0.250 sur un contrôle à A=4 — et c'est
+    # précisément ce qu'un seuil ancré sur `chance` ne pouvait pas voir.
+    _scr = cur["zeroshot_scrambled_max"]
+    # ⚠️ `n_eval` = nombre d'AGENTS, pas combos x agents. C'est DELIBERE et conservateur : l'erreur-type
+    # en est SUR-estimee, donc la barre est plus HAUTE, donc plus dure a franchir. L'unite de replication
+    # du depot est le seed, pas l'agent (les agents d'un seed partagent entrainement et tirages) ;
+    # compter combos x agents comme independants serait le choix OPTIMISTE, celui qui abaisse la barre.
+    bar_gen = _scr + math.sqrt(max(_scr * (1.0 - _scr), 0.0) / max(M, 1))
+    assert_bar_separates_the_incapable(
+        bar_gen, _scr,
+        "zero-shot a MESSAGE BROUILLE du bras CURRICULUM : memes agents entraines, meme decodeur, meme "
+        "jeu tenu a l'ecart, message remplace par des symboles aleatoires -- plafond d'un recepteur dont "
+        "le canal ne transporte rien, MAX sur les seeds du MEME run",
+        label="barre de generalisation zero-shot du curriculum")
+    comp = cur["zeroshot"] > bar_gen and cur["topsim"] > 0.15        # compositionnel retenu
     shared = (cur["cross_mi"] == cur["cross_mi"]) and cur["cross_mi"] > 0.5   # partagé (non-NaN)
     fixed_private = (fix["cross_mi"] != fix["cross_mi"]) or fix["cross_mi"] < 0.3
     verdict = ("CURRICULUM_YIELDS_SHARED_COMPOSITIONAL" if comp and shared else
                "CURRICULUM_COMPOSITIONAL_NOT_SHARED" if comp else
                "CURRICULUM_FAILS_LIKE_SCRATCH")
-    print(f"VERDICT={verdict} : CURRICULUM compositionnel={comp} partagé={shared} "
+    print(f"VERDICT={verdict} : CURRICULUM compositionnel={comp} (zeroshot {cur['zeroshot']:.3f} vs barre MESUREE {bar_gen:.3f} = brouillé {_scr:.3f} + 1 erreur-type) partagé={shared} "
           f"(cross_mi {cur['cross_mi']:+.2f}) ; FIXED privé={fixed_private} (cross_mi {fix['cross_mi']:+.2f})")
 
 

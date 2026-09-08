@@ -59,6 +59,25 @@ def test_the_ratchet_DISTINGUISHES_a_guard_that_may_never_RUN():
     assert _defects(_BAR + _VERDICT) == {"S"}, "aucun appel du tout reste `S`"
 
 
+def test_the_ratchet_FIRES_on_a_PARTIAL_validation():
+    """⚠️ QUATRIEME defaut reel de ce cliquet, et je l'ai FABRIQUE moi-meme le 2026-09-08.
+
+    En recablant `referential_community_probe` sur son bras FIXED, j'ai valide UNE de ses deux barres.
+    Le cliquet, qui jugeait au FICHIER, l'a aussitot declaree PROPRE -- rendant INVISIBLE la seconde
+    (`learned = within > chance + 0.05`), dans le geste meme qui corrigeait la premiere. Un correctif
+    partiel ne doit pas effacer ce qui reste.
+
+    La regle est ETROITE a dessein : on ne signale que `0 < appels < barres`. Exiger un appel PAR
+    expression punirait les fichiers ou une meme garde en couvre plusieurs (boucle sur des conditions)
+    et compterait comme barres des expressions qui n'en sont pas -- un `print`, une garde de
+    denominateur. Mesure a l'appui : `compositional_language_probe` porte 5 expressions pour 2 verdicts
+    reels."""
+    deux_barres = "a = 1.0 / K + 0.15\nb = 1.0 / K + 0.05\n"
+    assert _defects(deux_barres + _GUARD) == {"P"}, "une barre validee sur deux = PARTIEL"
+    assert _defects(deux_barres) == {"S"}, "aucune validee = S, pas P (l'auteur n'a pas commence)"
+    assert _defects(_BAR + _GUARD) == set(), "une seule barre, validee = PROPRE"
+
+
 def test_the_FIRST_FIX_of_that_hole_was_ITSELF_WRONG():
     """⚠️ Et le correctif a d'abord ete FAUX, attrape par cette calibration meme. Il parcourait le corps
     du MODULE, ou une `FunctionDef` est un statement non conditionnel : tout appel, meme profondement
@@ -154,8 +173,18 @@ def test_the_perimeter_is_REAL():
     """Le perimetre doit rester reel : des sondes rendent VRAIMENT un verdict contre une barre de cette
     forme, et le hors-perimetre est RAPPORTE, pas avale. Si `examines` s'effondrait, un « 0 en dette »
     ne voudrait plus rien dire."""
+    # ⚠️ TROISIEME fois que ce fichier punit un correctif, et le motif est desormais nomme :
+    # UNE ASSERTION SUR UN COMPTE VIVANT PUNIT LE PROGRES. `examines >= 8` etait vrai a l'audit
+    # fondateur ; corriger deux sondes les a fait SORTIR du perimetre (elles n'ont plus AUCUNE barre
+    # `chance + constante`), donc le compte est tombe a 6 et le test a rougi sur une AMELIORATION.
+    # Regle : geler le FAIT HISTORIQUE, asserter l'INVARIANT. L'invariant est que le cliquet voit
+    # encore quelque chose de reel et rapporte son hors-perimetre.
+    _AUDIT_FONDATEUR_TAILLE = 8          # 2026-09-07, gele : ne bouge plus jamais
     en_defaut, hors, examines = scan()
-    assert examines >= 8, f"le perimetre s'est effondre : {examines} fichier(s) examine(s)"
+    assert examines >= 1, "le cliquet ne voit plus AUCUNE barre : detecteur casse ou perimetre vide"
+    assert examines <= _AUDIT_FONDATEUR_TAILLE, (
+        f"{examines} sondes en perimetre pour {_AUDIT_FONDATEUR_TAILLE} a l'audit fondateur : "
+        "le perimetre ne peut que se REDUIRE par correction, jamais grandir sans nouvelle dette")
     assert len(hors) > examines, "le hors-perimetre doit etre RAPPORTE, pas avale"
     # ⚠️ Ce test assertait `en_defaut` NON VIDE. Un refutateur a montre que c'etait un test qui PUNIT
     # LE CORRECTIF : corriger les 6 sondes restantes -- le but meme de P2.15 -- l'aurait fait echouer.
@@ -182,12 +211,40 @@ def test_the_two_edge_carving_probes_are_IN_the_founding_audit():
     # -- les sortait de la dette et faisait echouer le test cense la faire corriger. On gele donc le
     # FAIT HISTORIQUE (elles etaient dans l'audit fondateur du 2026-09-07) et on verifie qu'elles sont
     # dans le PERIMETRE, ce qui reste vrai apres correction.
+    # 2026-09-08 : les DEUX sondes graveuses sont CORRIGEES (barre derivee d'un plafond mesure), donc
+    # sorties du perimetre. Le fait HISTORIQUE reste gele ; l'etat courant est verifie par l'invariant.
     _AUDIT_FONDATEUR = ("tools/memory_perception_demand_probe.py",
                         "tools/perception_coordination_demand_probe.py")
     base = _load_baseline()
     for sonde in _AUDIT_FONDATEUR:
         assert os.path.exists(os.path.join(_ROOT, sonde)), sonde
         _d = _defects(open(os.path.join(_ROOT, sonde), encoding="utf-8").read())
-        assert _d is not None, f"{sonde} doit rester DANS le perimetre du cliquet"
-        assert sonde in base or _d == set(), (
-            f"{sonde} : ni en dette gelee, ni corrigee -- etat impossible")
+        # ⚠️ Trois etats sont LEGITIMES apres correction, et le troisieme est le MEILLEUR :
+        #   `{"S"}`/`{"C"}` = encore en dette (doit alors etre gelee) ; `set()` = barre validee par la
+        #   garde ; `None` = HORS PERIMETRE, c.-a-d. plus AUCUNE barre `chance + constante` -- la sonde
+        #   derive desormais sa barre d'une MESURE. C'est ce qui est arrive a ces deux sondes le
+        #   2026-09-08 : leur barre vient du plafond d'un agent NON ENTRAINE, mesure dans le dispositif.
+        # Ce qui reste interdit : etre en dette SANS etre gelee.
+        assert _d in (None, set()) or sonde in base, (
+            f"{sonde} : en dette ({_d}) sans etre gelee dans la baseline")
+
+
+def test_the_founding_debt_is_ALMOST_CLOSED_and_what_REMAINS_is_STRUCTURAL():
+    """CLOTURE MESUREE de P2.15 cote barres : 8 sondes a l'audit fondateur (2026-09-07) -> 1 le
+    2026-09-08. Les sept fermetures se sont faites par une MESURE de l'incapable, jamais par un gel :
+      * plafond d'un agent NON ENTRAINE, au regime publie (memory_perception, perception_coordination) ;
+      * une barre PAR CONDITION, les incapables differant (retain_compose) ;
+      * le bras BROUILLE deja present dans le run (referential_game) ;
+      * le bras FIXED = code prive (referential_community) ;
+      * un bras a MESSAGE BROUILLE ajoute en EVAL SEULE (compositional_language, _curriculum).
+
+    Ce qui RESTE est structurel et doit le rester : `bilinear_composition_probe` porte `C` parce
+    qu'AUCUNE borne SUPERIEURE PROUVEE n'existe pour sa forme -- sa garde ne peut donc pas s'executer,
+    et la sonde REFUSE de certifier (`unlocked=None`). Un `C` gele y est la description exacte de
+    l'etat des connaissances, pas une dette qu'on remettrait a plus tard."""
+    base = _load_baseline()
+    assert set(base) == {"tools/bilinear_composition_probe.py"}, sorted(base)
+    assert base["tools/bilinear_composition_probe.py"] == ["C"], base
+    en_defaut, _hors, _ex = scan()
+    assert set(en_defaut) <= set(base), f"dette NOUVELLE : {set(en_defaut) - set(base)}"
+

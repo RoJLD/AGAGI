@@ -42,7 +42,13 @@ def _load(name):
 def _edge(**evidence_over):
     """Arête synthétique conforme sur TOUS les autres axes (verdict, n, record, ids). Chaque test
     n'écrase que le champ dont il éprouve la règle."""
-    ev = {"ablation_verdict": "X_DEMANDED", "ratio": 2.4, "n": 12, "record": _REAL_RECORD}
+    # ⚠️ 2026-09-08 : `coord_intact` + la declaration P2.15 font desormais partie du socle CONFORME.
+    # Elles etaient absentes tant que les 2 aretes gravees etaient EXEMPTEES ; l'exemption a ete LEVEE
+    # PAR LA MESURE (plafond d'un agent non entraine, au regime publie), donc plus aucune arete n'y
+    # echappe. Un helper qui garderait l'ancien socle testerait un contrat qui n'existe plus.
+    ev = {"ablation_verdict": "X_DEMANDED", "ratio": 2.4, "n": 12, "record": _REAL_RECORD,
+          "coord_intact": 0.6547, "emergence_bar": 0.2431, "incapable_ceiling": 0.2266,
+          "ceiling_provenance": "plafond d un agent NON ENTRAINE au regime publie, MAX sur 12 seeds"}
     ev.update(evidence_over)
     return {"capability": "memory", "prerequisite": "perception", "strength": "hard", "evidence": ev}
 
@@ -186,7 +192,11 @@ def _edge_nouvelle(**evidence_over):
     """Arete NON legataire (language->memory : la 3e arete attendue), conforme partout ailleurs."""
     ev = {"ablation_verdict": "X_DEMANDED", "ratio": 2.4, "n": 12, "record": _REAL_RECORD,
           "specificity_control": "pass", "functional_aliasing": "pass",
-          "ablation_target": "substrate", "coord_intact": 0.92, "emergence_bar": 0.55}
+          "ablation_target": "substrate", "coord_intact": 0.92, "emergence_bar": 0.55,
+          # 2026-09-08 : `language->memory` n'est plus exemptee -- le socle CONFORME porte donc aussi
+          # la declaration P2.15. Son plafond REEL a ete mesure (0.1859, agent non entraine, D=0).
+          "incapable_ceiling": 0.1859,
+          "ceiling_provenance": "plafond d un agent NON ENTRAINE au regime publie D=0, MAX 12 seeds"}
     ev.update(evidence_over)
     return {"capability": "language", "prerequisite": "memory", "strength": "hard", "evidence": ev}
 
@@ -213,10 +223,49 @@ def test_gate_accepts_new_edge_with_emerged_intact_arm():
     assert validate_edge(_edge_nouvelle(), _IDS) == []
 
 
-def test_legacy_edges_stay_exempt_from_coord_intact():
-    """Semantique legataire GELEE : les 2 aretes gravees (avant M4) restent lisibles sans les champs
-    -- le cliquet interdit la dette NOUVELLE, il ne reecrit pas l'histoire."""
+def test_the_legacy_exemption_is_LIFTED_by_MEASUREMENT():
+    """⚠️ L'exemption legataire n'existe plus, et elle a ete levee PAR LA MESURE, pas par decret.
+
+    Les 2 aretes gravees avant M4 etaient lisibles sans `coord_intact` ni barre : personne ne savait ce
+    que leur barre de vitalite separait. Mesure du 2026-09-08, agent NON ENTRAINE (zero episode) au
+    REGIME PUBLIE (flip_p=0.3), MAX sur 12 seeds : plafond 0.1836 (coord) et 0.2266 (delayed), contre
+    des valeurs publiees de 0.3438 et 0.6547 -- des marges de 1.87x et 2.89x. Les deux aretes declarent
+    donc desormais leur barre, DERIVEE de ce plafond.
+
+    Une exemption qui survit a la mesure qui pourrait la lever devient une DECORATION : l'ensemble doit
+    rester VIDE."""
+    from tools.check_agi_taxonomy import _LEGATAIRES_SANS_COORD
+    assert _LEGATAIRES_SANS_COORD == frozenset(), _LEGATAIRES_SANS_COORD
+    # socle complet (le helper porte desormais la declaration P2.15) -> accepte
     assert validate_edge(_edge(functional_aliasing="pass", specificity_control="pass"), _IDS) == []
+    # ...et une arete SANS `coord_intact` n'est plus exemptee, meme sur un label legataire
+    e = _edge(functional_aliasing="pass", specificity_control="pass")
+    del e["evidence"]["coord_intact"]
+    assert any("coord_intact" in x for x in validate_edge(e, _IDS)), "plus AUCUNE arete n'est exemptee"
+
+
+def test_the_REAL_graph_declares_a_MEASURED_bar_on_every_edge():
+    """Ancrage sur le reel : les 3 aretes gravees portent une barre, et pour les 2 anciennes cette barre
+    vient d'une mesure d'incapable au regime publie. Si quelqu'un retirait ces champs, l'arete
+    redeviendrait ininterpretable et la porte le dirait."""
+    import json
+    import os
+
+    from tools.check_agi_taxonomy import _DATA
+    with open(os.path.join(_DATA, "demands.json"), encoding="utf-8") as fh:
+        dem = json.load(fh)
+    for e in dem:
+        lbl = f"{e['capability']}->{e['prerequisite']}"
+        ev = e["evidence"]
+        assert isinstance(ev.get("coord_intact"), (int, float)), lbl
+        assert isinstance(ev.get("emergence_bar"), (int, float)), lbl
+        assert ev["coord_intact"] > ev["emergence_bar"], lbl
+        # 2026-09-08 : plus AUCUNE exception -- les 3 aretes declarent leur plafond d'incapable.
+        assert ev["emergence_bar"] > ev["incapable_ceiling"], lbl
+        assert len(ev["ceiling_provenance"].strip()) >= 20, lbl
+        assert ev["coord_intact"] / ev["incapable_ceiling"] > 1.5, (
+            f"{lbl} : le bras intact doit dominer NETTEMENT le plafond de l'incapable "
+            f"({ev['coord_intact']} / {ev['incapable_ceiling']})")
 
 
 # --------------------------------------------------------------------------------------------------
@@ -267,13 +316,25 @@ def test_gate_ACCEPTS_a_bar_above_the_incapable_ceiling():
     assert validate_edge(_edge_hors_gel(), _IDS) == []
 
 
-def test_the_P215_freeze_is_NARROW_and_does_not_swallow_new_edges():
-    """Le gel ne doit couvrir QUE l'arete datee. Une arete neuve ne doit pas heriter de l'exemption —
-    sinon le cliquet decore au lieu de bloquer, et ce depot a deja mesure ce faux vert sur lui-meme."""
-    from tools.check_agi_taxonomy import _LEGATAIRES_SANS_PLAFOND
-    assert _LEGATAIRES_SANS_PLAFOND == frozenset({"language->memory"}), _LEGATAIRES_SANS_PLAFOND
-    e = _edge_hors_gel(); del e["evidence"]["incapable_ceiling"]
-    assert validate_edge(e, _IDS), "une arete HORS gel sans plafond doit etre refusee"
+def test_NO_edge_escapes_the_proof_anymore():
+    """⚠️ LES DEUX ENSEMBLES D'EXEMPTION SONT VIDES depuis le 2026-09-08, et ils l'ont ete PAR LA MESURE.
+
+    Le gel de `language->memory` disait : « ni la forme close du plain ni le bras able (~1/K) ne
+    fournissent le plafond ». C'etait vrai des deux candidats envisages, et faux de la QUESTION : le
+    plafond pertinent est celui d'un agent qui n'a RIEN APPRIS, mesurable a COUT NUL (zero episode).
+    Mesure au regime publie (D=0, K=6, bilineaire) : 0.1859 sur 12 seeds -- au-dessus du hasard 1/K,
+    donc ce n'est pas le niveau de chance passe par reflexe.
+
+    Une exemption qui survit a la mesure qui pourrait la lever est une DECORATION, et un cliquet qui
+    decore ment sur sa couverture. Ce test interdit qu'elles reviennent en silence."""
+    from tools.check_agi_taxonomy import _LEGATAIRES_SANS_COORD, _LEGATAIRES_SANS_PLAFOND
+    assert _LEGATAIRES_SANS_COORD == frozenset(), _LEGATAIRES_SANS_COORD
+    assert _LEGATAIRES_SANS_PLAFOND == frozenset(), _LEGATAIRES_SANS_PLAFOND
+    # POSITIF APPARIE : la porte refuse toujours une arete sans plafond, sur n'importe quel label
+    for e in (_edge_hors_gel(), _edge_nouvelle()):
+        del e["evidence"]["incapable_ceiling"]
+        assert any("incapable_ceiling" in x for x in validate_edge(e, _IDS)), (
+            f"{e['capability']}->{e['prerequisite']} sans plafond doit etre REFUSEE")
 
 
 def test_the_graven_graph_STILL_PASSES_the_hardened_gate():

@@ -112,6 +112,34 @@ adopts: [REF-EXPERIMENT-PREFLIGHT, REF-DEMAND-MARKER]
 > son propre 35/36 après avoir calibré son pipeline sur une réponse exacte connue (le sous-cas additif,
 > 27/36 par MILP, où son gradient ne trouvait que 13-14/36 — 13 cellules d'écart).
 >
+> ### ⛔ AGGRAVATION 2026-09-08 — toutes les méthodes numériques SOUS-TROUVENT d'un facteur ~2
+>
+> Deux chemins de RÉPLICATION indépendants du plafond ont été tentés, chacun avec un ancrage
+> OBLIGATOIRE sur une réponse EXACTE connue (27/36 pour la sous-forme additive, MILP gap 0), évalué
+> AVANT tout rapport. **Les deux ont été recalés par leur propre ancrage** : l'espace circulant plafonne
+> à 6/36 = le HASARD ; `differential_evolution` + `SLSQP` (78 dimensions, 2 h 27) rend **11/36**.
+>
+> | méthode, sur la sous-forme dont l'optimum EXACT vaut 27/36 | trouve |
+> |---|---|
+> | descente de gradient (Adam + entropie croisée) | 14/36 |
+> | `differential_evolution` + `SLSQP`, 2 h 27 | 11/36 |
+> | MILP (HiGHS, gap 0) | **27/36** |
+>
+> **AUCUNE méthode numérique testée n'atteint l'optimum exact du cas le PLUS FACILE.** Or les SEPT
+> estimations du plafond de la forme complète (0.806 à 1.000) sont TOUTES numériques. Le minorant gelé
+> — 34/36 = 0.9444, vérifié sans autograd ET dans le substrat — est donc très probablement LARGEMENT
+> sous-estimé, et le 36/36 rapporté par un chercheur indépendant est plausible.
+>
+> **Ce que ça fait à ce record, sans adoucissement** : la séparation de capacité n'est plus seulement
+> « non établie », les éléments disponibles suggèrent qu'elle est **fausse**. Plafond ≥ 0.9444 mesuré,
+> bilinéaire 0.932, et toutes les méthodes qui ont produit ces plafonds sous-trouvent d'un facteur ~2
+> là où la vérité est connue. Ce qui subsiste du record reste la séparation d'APPRENABILITÉ à budget
+> fixe (0.271 vs 0.932, séparation par-seed totale) — un résultat réel, et le seul.
+>
+> ⚠️ **Sans l'ancrage, v2 aurait rapporté « un chemin indépendant trouve 11/36 »** — lu comme une
+> corroboration que le plafond est bas, c'est-à-dire l'exact contraire de la vérité, et une
+> résurrection du `0.3889` rétracté la veille. Un refus de rapporter vaut mieux qu'un chiffre.
+>
 > **PREUVE MÉCANIQUE de l'origine du 0.3889, mesurée le 2026-09-07, et elle disqualifie un contrôle.**
 > Sur la sous-forme purement ADDITIVE — celle dont le MILP PROUVE l'optimum à 27/36 = 0.75 — une
 > descente de gradient à marge rend, par budget croissant : 13/36 · **14/36 = 0.3889** · **14/36 =

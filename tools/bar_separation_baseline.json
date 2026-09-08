@@ -1,26 +1,5 @@
 {
  "tools/bilinear_composition_probe.py": [
   "C"
- ],
- "tools/compositional_curriculum_probe.py": [
-  "S"
- ],
- "tools/compositional_language_probe.py": [
-  "S"
- ],
- "tools/memory_perception_demand_probe.py": [
-  "S"
- ],
- "tools/perception_coordination_demand_probe.py": [
-  "S"
- ],
- "tools/referential_community_probe.py": [
-  "S"
- ],
- "tools/referential_game_probe.py": [
-  "S"
- ],
- "tools/retain_compose_diagnostic_probe.py": [
-  "C"
  ]
 }

@@ -22,6 +22,7 @@ Prédiction : FIXED -> MI~0 (privé) ; ROTATION -> MI eleve (partagé). La rotat
 
 Usage : python tools/referential_community_probe.py   (env: RCP_EPISODES, RCP_SEEDS, RCP_K, RCP_V)
 """
+import math
 import os
 import sys
 
@@ -112,13 +113,21 @@ def run_community(episodes: int = 2000, n_agents: int = 128, K: int = 6, V: int 
                                  snd_reward - snd_reward.mean(), gate_last_only=False)
 
         # --- éval greedy : WITHIN (s=0) vs CROSS (partenaires jamais appariés directement) ---
-        def _eval_shift(s):
+        # ⚠️ `scramble=True` (P2.15, 2026-09-08) : le SIGNAL est remplacé par des symboles ALÉATOIRES,
+        # décorrélés de la cible. Mêmes agents ENTRAÎNÉS, même récepteur, même protocole d'éval : c'est
+        # donc « ce qu'atteint un récepteur dont le canal ne transporte RIEN » — le PLAFOND DE
+        # L'INCAPABLE, mesuré DANS le dispositif. Coût : ÉVAL SEULE, aucun épisode supplémentaire.
+        rng_scr = np.random.RandomState(seed + 4242)
+
+        def _eval_shift(s, scramble=False):
             hits = []
             for _ in range(30):
                 targets = rng.randint(0, K, size=n_agents)
                 sender.H = torch.zeros((n_agents, sender.N))
                 ps, _ = sender.forward(_onehot(targets, K))
                 sig = np.asarray(ps)[:, :V].argmax(axis=1)
+                if scramble:
+                    sig = rng_scr.randint(0, V, size=n_agents)
                 recv_sig = np.roll(sig, s)
                 recv_tgt = np.roll(targets, s)
                 receiver.H = torch.zeros((n_agents, receiver.N))
@@ -128,23 +137,32 @@ def run_community(episodes: int = 2000, n_agents: int = 128, K: int = 6, V: int 
             return float(np.mean(np.concatenate(hits)))
 
         within = _eval_shift(0)
+        within_scrambled = _eval_shift(0, scramble=True)      # PLAFOND de l'incapable, éval seule
         # décalages non-nuls répartis sur la communauté (partenaires distincts jamais co-appariés en FIXED)
         shifts = sorted({max(1, (j * n_agents) // (eval_shifts + 1)) for j in range(1, eval_shifts + 1)})
         cross = float(np.mean([_eval_shift(s) for s in shifts]))
         chance = 1.0 / K
         # MI = fraction du skill within qui transfère à un partenaire neuf. Défini seulement si le régime
         # a APPRIS (within nettement > chance) ; sinon le dénominateur ~0 rend le ratio ininterprétable.
-        learned = within > chance + 0.05
+        # ⚠️ P2.15 : `chance + 0.05` était posé à l'estime. Le régime a APPRIS s'il fait mieux qu'un
+        # récepteur à canal vide — plafond MESURÉ ci-dessus, plus une erreur-type. Le `nan` reste une
+        # NON-MESURE assumée, jamais un zéro : les confondre fabriquerait un négatif.
+        _se_w = math.sqrt(max(within_scrambled * (1.0 - within_scrambled), 0.0) / max(n_agents, 1))
+        learned = within > within_scrambled + _se_w
         mi = max(-1.0, min(2.0, (cross - chance) / (within - chance))) if learned else float("nan")
         return {"seed": int(seed), "K": K, "V": V, "rotate": bool(rotate), "chance": chance,
-                "within": within, "cross": cross, "mi": mi, "learned": bool(learned)}
+                "within": within, "within_scrambled": within_scrambled,
+                "cross": cross, "mi": mi, "learned": bool(learned)}
     finally:
         (TorchPopulationModel.CONDITION_GATE, TorchPopulationModel.GATE_TARGET,
          TorchPopulationModel.BILINEAR) = saved
 
 
 def main():
+    import math
     import statistics
+
+    from tools.experiment_preflight import assert_bar_separates_the_incapable
     episodes = int(os.environ.get("RCP_EPISODES", "3000"))
     seeds = list(range(int(os.environ.get("RCP_SEEDS", "2"))))
     K = int(os.environ.get("RCP_K", "6"))
@@ -171,7 +189,28 @@ def main():
     # Le discriminant robuste = le CROSS (accuracy à un partenaire jamais co-appraié) : code privé -> cross
     # ~chance ; protocole partagé -> cross >> chance. La rotation doit le hisser bien au-dessus du fixed.
     d_cross = rc - fc
-    shared = rc > chance + 0.10 and d_cross > 0.15 and (rmi == rmi and rmi > 0.5)
+    # ⚠️ P2.15 (2026-09-08) — `rc > chance + 0.10` était une barre ABSOLUE posée à l'estime, alors que
+    # cette sonde porte SON PROPRE INCAPABLE : le bras FIXED est, par construction, le régime à code
+    # PRIVÉ, et son `cross` est donc exactement « ce qu'atteint un protocole NON partagé » — mesuré dans
+    # le MÊME run, au MÊME régime, sur les MÊMES seeds. Un plafond ne s'importe pas ; celui-là était déjà
+    # là. La clause devient une exigence de SÉPARATION (au-dessus du plafond du privé), distincte de la
+    # suivante qui est une exigence de TAILLE D'EFFET.
+    # ⚠️ Mesuré sur les valeurs publiées (LANG-002) : FIXED cross 0.54 — soit 3.2x le hasard, TRÈS loin
+    # du « cross ~ chance » que la conception postulait. La barre `chance + 0.10 = 0.267` était donc
+    # franchie par le code PRIVÉ lui-même : elle ne séparait rien. Le verdict publié
+    # (NO_SHARED_PROTOCOL, porté par `d_cross ≈ 0`) est INCHANGÉ — il ne reposait déjà pas sur elle.
+    # ⚠️ `n_eval` = nombre d'AGENTS, pas combos x agents. C'est DELIBERE et conservateur : l'erreur-type
+    # en est SUR-estimee, donc la barre est plus HAUTE, donc plus dure a franchir. L'unite de replication
+    # du depot est le seed, pas l'agent (les agents d'un seed partagent entrainement et tirages) ;
+    # compter combos x agents comme independants serait le choix OPTIMISTE, celui qui abaisse la barre.
+    _se_fc = math.sqrt(max(fc * (1.0 - fc), 0.0) / max(M, 1))
+    _bar_partage = fc + _se_fc
+    assert_bar_separates_the_incapable(
+        _bar_partage, fc,
+        "cross du bras FIXED = accuracy a un partenaire jamais co-appraie sous code PRIVE, mesuree dans "
+        "le MEME run et au MEME regime : c'est le plafond de ce qu'atteint un protocole NON partage",
+        label="barre de partage du protocole")
+    shared = rc > _bar_partage and d_cross > 0.15 and (rmi == rmi and rmi > 0.5)
     verdict = ("PARTNER_ROTATION_YIELDS_SHARED_PROTOCOL" if shared else
                "ROTATION_HELPS_PARTIAL" if d_cross > 0.08 else
                "NO_SHARED_PROTOCOL_FIXED_STAYS_PRIVATE")

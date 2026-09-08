@@ -17,7 +17,7 @@ CE QUE LE CLIQUET CHERCHE (par AST, jamais par regex — les docstrings de ce de
 prose, et un regex les compterait comme dette) : une expression `<1 ou 1.0>/<x> + <constante dans ]0,1[>`
 ou `chance|floor + <constante>`. Si le fichier en contient au moins une et n'APPELLE jamais
 `assert_bar_separates_the_incapable`, il porte le defaut `S`. Si l'appel EXISTE mais vit
-uniquement dans une branche conditionnelle -- donc rien ne montre qu'il TOURNE -- il porte `C`.
+uniquement dans une branche conditionnelle -- donc rien ne montre qu'il TOURNE -- il porte `C`. S'il en valide certaines et pas toutes, il porte `P`.
 
 CE QU'IL NE VOIT PAS, et c'est ASSUME (non-detection declaree, pas succes) :
   * un fichier qui appelle la garde sur UNE barre et pose la suivante a l'estime -> juge propre. La
@@ -66,6 +66,11 @@ def _bar_lines(tree):
                 out.append(n.lineno)
                 break
     return sorted(set(out))
+
+
+def _nom_appel(call):
+    f = call.func
+    return f.id if isinstance(f, ast.Name) else (f.attr if isinstance(f, ast.Attribute) else None)
 
 
 def _guard_calls(tree):
@@ -122,6 +127,18 @@ def _defects(src):
         return None
     inconditionnel, conditionnel = _guard_calls(tree)
     if inconditionnel:
+        # ⚠️ GRANULARITE (2026-09-08) : la version d'avant jugeait au FICHIER -- un appel suffisait a
+        # declarer propre un fichier portant PLUSIEURS barres. Le defaut n'est pas hypothetique : en
+        # recablant `referential_community_probe` sur son bras FIXED, la SECONDE barre du fichier
+        # (`learned = within > chance + 0.05`) est devenue INVISIBLE au cliquet, dans le geste meme qui
+        # corrigeait la premiere. Un correctif partiel ne doit pas effacer ce qui reste.
+        # La regle est etroite A DESSEIN : on ne signale que `0 < appels < barres`, c.-a-d. l'auteur a
+        # COMMENCE a valider sans finir. Exiger un appel PAR expression punirait les fichiers ou une
+        # meme garde en couvre plusieurs (boucle sur des conditions), et compterait comme barres des
+        # expressions qui n'en sont pas (un `print`, une garde de denominateur).
+        n_appels = sum(1 for n in ast.walk(tree) if isinstance(n, ast.Call) and _nom_appel(n) == _GUARD)
+        if 0 < n_appels < len(_bar_lines(tree)):
+            return {"P"}      # PARTIEL : des barres restent non validees dans un fichier deja garde
         return set()
     if conditionnel:
         return {"C"}          # la garde EXISTE mais rien ne montre qu'elle TOURNE

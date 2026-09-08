@@ -8,6 +8,27 @@ tests: [SDR-G0]
 adopts: [REF-EXPERIMENT-PREFLIGHT, REF-DEMAND-MARKER, REF-AGI-TAXONOMY]
 ---
 
+
+> ### ⚠️ 2026-09-08 — la barre de VITALITÉ est désormais MESURÉE, et l'arête en sort RENFORCÉE
+>
+> Le `specificity_control` de cette arête — le seul bras dont l'issue négative soit réellement
+> atteignable, donc le seul qui porte son contenu empirique — exige que le bras LEURRE soit VIVANT.
+> Cette vitalité se jugeait contre `1/K + 0.05 = 0.2167`, **un seuil posé à l'estime**. Personne ne
+> savait ce qu'il séparait.
+>
+> Mesuré (P2.15) : un agent qui n'a **RIEN APPRIS** — zéro épisode, même monde, même éval, au **RÉGIME
+> PUBLIÉ** `flip_p=0.3`, MAX sur 12 seeds — atteint **0.1906** sur le bras leurre NO-COORD (et 0.1836 sur le bras COORD). La barre historique était donc posée
+> 0.026 AU-DESSUS de ce plafond, soit à peine plus d'une erreur-type (0.0155) — une séparation non démontrée. Elle est remplacée par `plafond mesuré + une erreur-type` = **0.2062 (leurre) / 0.1989 (principal)**, calculée
+> DANS le dispositif avant tout entraînement (coût nul, refus instantané).
+>
+> **Ce que ça change pour l'arête : rien, et c'est le résultat.** La valeur publiée **~0.74 (leurre) et 0.3438 (principal)** dépasse
+> le plafond de l'incapable d'un facteur **3.88 et 1.87**. La vitalité était établie par la mesure, et
+> l'est toujours ; ce qui manquait était la preuve que la barre séparait quelque chose. L'exemption
+> légataire de cette arête dans `tools/check_agi_taxonomy.py` est **levée** — par la mesure, pas par
+> décret : `emergence_bar`, `incapable_ceiling` et `ceiling_provenance` sont déclarés dans
+> `data/agi_taxonomy/demands.json`.
+
+
 ## Question
 SP-1 a livré le graphe capability-demand (vide). Première arête MESURÉE : « language/coordination demande
 perception » ? On l'établit sur le proxy bon marché du jeu de Lewis, par ablation d'ENTRÉE within-subject.

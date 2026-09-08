@@ -58,14 +58,21 @@ _DEFAULT_ABLATION_TARGET = "input"  # légataire : les 2 arêtes gravées ablate
 # (`incapable_ceiling`) et d'OU il vient (`ceiling_provenance`), et la barre doit etre STRICTEMENT
 # au-dessus. Le plafond ne peut pas etre devine par la porte : le deviner, c'est passer le niveau de
 # CHANCE, et c'est l'erreur P2.15 elle-meme (l'incapable y atteignait bien plus que 1/K).
-_LEGATAIRES_SANS_COORD = frozenset({"language->perception", "memory->perception"})
-# Gel etroit et DATE : `language->memory` (gravee le 2026-09-02) declare `emergence_bar: 0.5` sans
-# plafond d'incapable. Ce n'est pas un oubli qu'on pourrait combler d'un chiffre : son bras LANG est une
-# sequence a delai D sur substrat BILINEAR, donc ni la forme close du plain (un seul pas) ni le bras
-# able (~1/K, qui EST le niveau de chance qu'il est interdit de passer ici) ne fournissent le plafond.
-# L'etablir est une mesure bornee, inscrite au backlog ; le fabriquer serait rejouer P2.15 dans la garde
-# qui la ferme. Le gel bloque donc la dette NOUVELLE sans falsifier l'ancienne.
-_LEGATAIRES_SANS_PLAFOND = frozenset({"language->memory"})
+# ⚠️ EXEMPTION LEVEE le 2026-09-08, PAR LA MESURE et non par le gel. Les deux aretes gravees avant
+# M4 declarent desormais leur bras intact ET une barre d'emergence DERIVEE DU PLAFOND MESURE d'un
+# agent NON ENTRAINE, au regime PUBLIE (flip_p=0.3), MAX sur 12 seeds. Marges : language->perception
+# 0.3438 contre 0.1989 (1.87x) ; memory->perception 0.6547 contre 0.2431 (2.89x). L'ensemble reste
+# VIDE et doit le rester : une exemption qui survit a la mesure devient une decoration.
+_LEGATAIRES_SANS_COORD = frozenset()
+# ⚠️ DERNIER GEL LEVE le 2026-09-08, PAR LA MESURE. `language->memory` declarait `emergence_bar:
+# 0.5` sans plafond d'incapable, et le gel disait : « ni la forme close du plain ni le bras able
+# (~1/K) ne le fournissent ». C'etait vrai des DEUX candidats envisages, et faux de la question :
+# le plafond pertinent est celui d'un agent qui n'a RIEN APPRIS, mesurable a COUT NUL dans le
+# dispositif (zero episode). Mesure au regime publie (D=0, K=6, bilineaire) : 0.1859 sur 12 seeds
+# -- au-dessus du hasard 1/K=0.1667, donc ce n'est PAS le niveau de chance passe par reflexe.
+# La barre 0.5 separe (marge 0.30) et le bras intact 0.819 la franchit d'un facteur 4.40.
+# LES DEUX ENSEMBLES SONT DESORMAIS VIDES : aucune arete du graphe n'echappe a la preuve.
+_LEGATAIRES_SANS_PLAFOND = frozenset()
 _PROVENANCE_MIN = 20
 
 
