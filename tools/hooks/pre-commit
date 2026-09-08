@@ -144,5 +144,73 @@ if [ -n "$staged_syn" ]; then
   }
 fi
 
+# 9. SEPARATION DE LA BARRE (P2.15, 2026-09-07) -- une barre de verdict batie sur le niveau de CHANCE
+# (`1/K + marge`, `chance + marge`) doit avoir ete confrontee au PLAFOND DE L'INCAPABLE. Le defaut
+# fondateur : `1/K + 0.15 = 0.3167` est SOUS le plafond du substrat `plain` qu'elle declare nul -- la
+# franchir n'etablit alors AUCUNE capacite, seulement que le plancher est bas. La garde
+# `assert_bar_separates_the_incapable` existait depuis le 2026-09-02 et n'etait APPELEE NULLE PART :
+# E10 dans sa definition meme (une regle executable non branchee est violee).
+# Dette legataire gelee dans tools/bar_separation_baseline.json (audit fondateur : 8 sondes, dont les
+# DEUX qui ont grave `language->perception` et `memory->perception`) ; seul un NOUVEAU defaut bloque.
+# La baseline elle-meme declenche la garde (E4 occ.5) ; `--only` sur les fichiers INDEXES (arbre partage).
+staged_bar=$(git diff --cached --name-only --diff-filter=AM | grep -E '^((tools|src/seed_ai)/.*\.py|tools/bar_separation_baseline\.json)$')
+if [ -n "$staged_bar" ]; then
+  PYTHONIOENCODING=utf-8 python tools/check_bar_separation.py --only $(echo "$staged_bar" | grep -v bar_separation_baseline || true) || {
+    echo ""
+    echo "-> Confronte la barre au plafond de l'INCAPABLE (jamais au niveau de chance : c'est l'erreur"
+    echo "   P2.15 elle-meme) via assert_bar_separates_the_incapable(bar, plafond, provenance),"
+    echo "   OU declare la dette : python tools/check_bar_separation.py --update-baseline"
+    fail=1
+  }
+fi
+
+# 10. RECENSEMENT DES TESTS (P2.49, 2026-09-07) -- un test qui DISPARAIT rend la suite PLUS VERTE, donc
+# aucun signal habituel ne peut alerter. Defaut mesure le jour meme : une reecriture regex non ancree a
+# efface QUATRE tests sans lever, faisant passer la suite de "28 passes / 15 xfail" a "32 / 7". Un test
+# supprime est une garde DESARMEE en silence -- le pendant, pour la suite, de ce que les portes 1, 2 et
+# 3 font pour les records, les instruments et les gardes du registre.
+# Baseline gelee dans tools/test_census_baseline.json ; elle declenche la garde elle-meme (E4 occ.5).
+# `--only` sur les fichiers INDEXES (arbre PARTAGE) ; le filtre inclut D, sinon une SUPPRESSION de
+# fichier -- le cas le plus grave -- serait justement le seul a ne pas etre vu.
+staged_tests=$(git diff --cached --name-only --diff-filter=AMD | grep -E '^(tests/.*\.py|tools/test_census_baseline\.json)$')
+if [ -n "$staged_tests" ]; then
+  only_tests=$(echo "$staged_tests" | grep -v test_census_baseline || true)
+  if [ -n "$only_tests" ]; then
+    PYTHONIOENCODING=utf-8 python tools/check_test_census.py --only $only_tests
+  else
+    PYTHONIOENCODING=utf-8 python tools/check_test_census.py
+  fi || {
+    echo ""
+    echo "-> Un test a DISPARU. Si c'est voulu (fusion, renommage, decoupe), gele-le explicitement :"
+    echo "   python tools/check_test_census.py --update-baseline"
+    fail=1
+  }
+fi
+
+# 11. FAMILLE DE CONTROLES DECLAREE (P2.40, 2026-09-07) -- un controle applique a CHAQUE replicat est
+# une FAMILLE de tests ; a seuil de test unique, son taux de fausse alarme est celui de la famille.
+# Mesure : le controle (i) d'EVO-011 appliquait une bande fixe a 24 cellules -> un harnais PARFAIT
+# echouait 0.216 du temps, et le premier run a bien rendu INDETERMINE-HARNAIS (classe E23).
+# La garde vit dans `declare_design` (elle REFUSE n>1 sans famille declaree) -- mais une garde d'appel
+# ne protege que ceux qui l'appellent : 9 runners scelles sur 12 ne declaraient AUCUN design, dont
+# celui qui a produit la 3e arete etablie. Ce cliquet ferme ce trou (classe E10).
+# Dette legataire gelee dans tools/control_family_baseline.json ; seul un NOUVEAU runner nu bloque.
+staged_cf=$(git diff --cached --name-only --diff-filter=AM | grep -E '^((tools|src/seed_ai)/.*\.py|tools/control_family_baseline\.json)$')
+if [ -n "$staged_cf" ]; then
+  only_cf=$(echo "$staged_cf" | grep -v control_family_baseline || true)
+  if [ -n "$only_cf" ]; then
+    PYTHONIOENCODING=utf-8 python tools/check_control_family.py --only $only_cf
+  else
+    PYTHONIOENCODING=utf-8 python tools/check_control_family.py
+  fi || {
+    echo ""
+    echo "-> Ce runner execute une regle SCELLEE sans declarer son design, donc sans jamais dire"
+    echo "   combien de cellules forment sa famille de controles. Ajouter :"
+    echo "     design = declare_design(..., control_family=assert_control_family(cells=N))"
+    echo "   OU declarer la dette : python tools/check_control_family.py --update-baseline"
+    fail=1
+  }
+fi
+
 [ "$fail" -ne 0 ] && echo "   (urgence : git commit --no-verify)"
 exit $fail
