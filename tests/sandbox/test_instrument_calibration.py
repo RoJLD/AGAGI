@@ -718,6 +718,13 @@ CALIBRATED = {
     # recherche BLOQUEE. Le 4e ancre sur la seule borne PROUVEE du dossier (MILP de la sous-forme
     # additive, 27/36) : la forme complete la CONTIENT, donc doit la DOMINER. L'EGALITE dit que la
     # recherche n'a rien trouve au-dela — c'est le regime qui a produit le 0.3889 du 2026-09-02.
+    # P4.1 (2026-09-08) : les trois classes d'ablation du GRAB. `NullGrabOffMamba` est le controle
+    # NEGATIF apparie et son plancher est mesure BIT-IDENTIQUE (30 eres) ; `GrabForcedMamba` est la
+    # manipulation INVERSE, qui REFUTE « toute perturbation de la colonne 24 aide ». Cas dans
+    # tests/sandbox/test_grab_cost.py.
+    "tools/s2_demand_ablation.py::GrabOffMamba": ["ablation:fires", "aliasing:garde"],
+    "tools/s2_demand_ablation.py::NullGrabOffMamba": ["noop:bit-identique", "aliasing:garde"],
+    "tools/s2_demand_ablation.py::GrabForcedMamba": ["inverse:refute-perturbation", "aliasing:garde"],
     "measure_plain_composition_ceiling": ["free-table:positive", "separable-target:specificity",
                                           "budget-saturation:fires", "dominates-proven-bound:fires",
                                           "modular-target:below-one", "above-chance:fires"],
@@ -2470,9 +2477,12 @@ def test_bilinear_unlocks_composition_same_tick_supervised():
     assert r["plain_median"] <= bar, r                                        # plain reste au plancher
     assert r["bilinear_median"] > bar, r                                      # bilinéaire décolle nettement
     assert min(r["per_seed"]["bilinear"]) > max(r["per_seed"]["plain"]), r    # séparation TOTALE par-seed
-    assert r["unlocked"] is None and r["bar_status"] == "CEILING_IS_MINORANT", (
-        "la sonde ne doit PAS certifier une séparation de capacité contre un MINORANT : "
-        f"{r['unlocked']} / {r['bar_status']}")
+    assert r["unlocked"] is None and r["bar_status"] == "UNVALIDATED", (
+        "⛔ 2026-09-08 : `bar_status` valait `CEILING_IS_MINORANT` tant que `\"auto\"` résolvait un "
+        "« plafond de l'incapable » pour le plain. Il n'en résout plus AUCUN, et c'est la conséquence "
+        "logique de la RÉFUTATION : le plain n'est pas incapable, sa forme close compose PARFAITEMENT "
+        "(9/9 à K=3, 16/16 à K=4, vérifiés in situ). Un plafond d'incapable n'existe pas pour un bras "
+        f"qui atteint le maximum. Obtenu : {r['unlocked']} / {r['bar_status']}")
 
 
 @pytest.mark.slow          # wall MESURÉ 199.7s (call) / 204.8s (session) > 120s (pytest.ini) ;

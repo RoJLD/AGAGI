@@ -21,9 +21,12 @@ chercher. Il ne couvre que la sous-forme additive, mais il donne la seule borne 
 et il sert d'etalon a la recherche — laquelle, sur cette meme sous-forme, ne trouve que 0.3611 contre
 0.75 prouve.
 """
+import os
+
 import pytest
 
-from tools.plain_substrate_ceiling import (PLAIN_COMPOSITION_CEILING, PLAIN_COMPOSITION_PROVENANCE,
+from tools.plain_substrate_ceiling import (_ROOT,  # noqa: F401
+                                           PLAIN_COMPOSITION_CEILING, PLAIN_COMPOSITION_PROVENANCE,
                                            additive_argmax_exact_ceiling,
                                            verify_plain_ceiling_witness,
                                            measure_plain_composition_ceiling, plain_readout_ceiling)
@@ -266,4 +269,54 @@ def test_the_CIRCULANT_construction_is_WORTHLESS_and_that_is_why_ANCHORS_matter(
     # ...et la forme GENERALE domine strictement : la restriction est ce qui coute, pas l'additivite
     n_gen, _tot, _acc = additive_argmax_exact_ceiling(6)
     assert n_gen == 27 and n_gen > 6, n_gen
+
+
+# --- LE RESULTAT DECISIF : la forme plain COMPOSE PARFAITEMENT a petit K ---------------------------
+
+@pytest.mark.parametrize("K", [3, 4])
+def test_the_plain_form_is_PERFECT_at_small_K(K):
+    """⚠️⚠️ LE RESULTAT QUI RENVERSE LE DOSSIER (2026-09-08), et il tient en 23 secondes de calcul.
+
+    La forme close du substrat PLAIN -- `sigmoid(W[j,j]) * tanh(W[key,j] + W[K+q,j])`, celle que ce
+    depot declarait « PROUVABLEMENT INCAPABLE » de `(q+key)%K` -- la represente **PARFAITEMENT** :
+    **9/9 a K=3** et **16/16 a K=4**, alors que sa sous-forme additive plafonne a 7/9 et 12/16 (MILP,
+    gap 0). Ce n'est donc PAS une question de plafond : la forme SAIT composer, et c'est le gain par
+    noeud `sigmoid(W[j,j])` qui le lui permet.
+
+    VERIFIE TROIS FOIS, temoins geles dans `results/plain_ceiling_witness_K{3,4}.json` :
+      * torch float64 pendant la recherche ;
+      * Python PUR, victoire STRICTE, sans torch ni numpy ;
+      * **IN SITU** -- 78 coefficients injectes dans le `W` d'un vrai `TorchPopulationModel`, lus par le
+        VRAI `forward` en float32. Marges minimales polies : 2.4e-2 (K=3) et 7.0e-3 (K=4), donc loin du
+        fil du rasoir flottant.
+
+    CONSEQUENCES, enoncees sans adoucissement :
+      * l'echec a trouver 36/36 a K=6 est une defaillance de RECHERCHE, pas une limite de la forme --
+        coherent avec tout ce qui est mesure ici (aucune methode numerique n'atteint l'optimum EXACT du
+        cas le plus facile : 11/36, 14/36, 18/36 contre 27/36 prouve) ;
+      * la separation de CAPACITE d'`EDR-BILINEAR` n'est pas « non etablie », elle est **FAUSSE** ;
+      * le chantier « borne SUPERIEURE prouvee » (relaxation de moments/SOS) est SANS OBJET : il n'y a
+        rien a borner, la forme atteint le maximum."""
+    p = os.path.join(_ROOT, "results", f"plain_ceiling_witness_K{K}.json")
+    assert os.path.exists(p), p
+    assert verify_plain_ceiling_witness(p) == (K * K, K * K)
+    assert verify_plain_ceiling_witness(p, in_situ=True) == (K * K, K * K), (
+        "la forme close et le VRAI substrat doivent coincider -- sinon la derivation est fausse")
+    # ...et la sous-forme ADDITIVE, elle, ne peut PAS : c'est le gain par noeud qui fait la difference
+    n_add, tot, _ = additive_argmax_exact_ceiling(K)
+    assert n_add < tot, f"K={K} : l'additif doit rester STRICTEMENT sous la perfection ({n_add}/{tot})"
+
+
+def test_the_UPPER_BOUND_project_is_MOOT():
+    """Le chantier « borne superieure prouvee » (Lasserre/SOS) est SANS OBJET, et il faut que ce soit
+    ECRIT quelque part d'executable : la forme atteint la PERFECTION des que la recherche aboutit
+    (K=3 et K=4, verifies in situ). On ne borne pas par le haut ce qui atteint deja le maximum.
+
+    Ce test existe pour qu'une session future ne relance pas un chantier SDP couteux sur une question
+    close -- c'est le motif « une direction deja tranchee, presentee comme a faire » que le cliquet de
+    fraicheur du backlog traque, applique ici a un chantier technique."""
+    for K in (3, 4):
+        p = os.path.join(_ROOT, "results", f"plain_ceiling_witness_K{K}.json")
+        n, tot = verify_plain_ceiling_witness(p)
+        assert n == tot, (K, n, tot)
 

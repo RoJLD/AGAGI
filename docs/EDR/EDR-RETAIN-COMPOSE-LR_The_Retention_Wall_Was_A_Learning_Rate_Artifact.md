@@ -138,6 +138,7 @@ Ce record RETIRE un verdict ; il n'en installe pas un symétrique à sa place.
   **0.517 SOUS** le plafond du substrat PLAIN (**30/36 ≈ 0.833**). ⚠️ **SUPERSÉDÉ le 2026-09-07** : le plafond réel est **30/36 ≈ 0.833** (et 27/36 = 0.75 PROUVÉ pour la sous-forme séparable) ; 0.3889 était un optimum local banal d'une recherche trop courte — cf. l'encart de correction dans `EDR-BILINEAR`. Énoncé d'origine : « 0.072 SOUS … 0.3889, optimisation
   directe plein-batch des 36 paires, 8 restarts ; contrôle positif du même optimiseur sur une table libre
   non séparable : 1.000). Un substrat prouvablement incapable de composer PEUT donc franchir cette barre.
+⛔ **RÉFUTÉ le 2026-09-08** : la forme close du plain compose PARFAITEMENT — 9/9 à K=3, 16/16 à K=4, vérifié en Python pur ET in situ (témoins `results/plain_ceiling_witness_K{3,4}.json`). L'incapacité est FAUSSE, pas seulement mal chiffrée.
   Cela ne touche pas le résultat ci-dessus (la bascule mesurée est de 0.173 à 0.923, sept fois la largeur
   de la zone douteuse), mais toute sonde utilisant cette barre hérite du défaut.
 - **Un seul substrat, un seul proxy, deux points de `lr`** — pas un balayage. Rien ici ne dit où est
@@ -164,6 +165,7 @@ mesurer est exactement la classe E8 du registre.
   `(CONDITION_GATE, GATE_TARGET)` (`tools/language_memory_demand_probe.py:134-137`) — **`BILINEAR` n'est
   jamais activé** — et son optimiseur est `Adam([agent.W])`, `W` SEUL (`:143`). Elle a donc mesuré le
   substrat **PLAIN**, prouvablement incapable de représenter `(q+key)%K`. **Son verdict était CORRECT pour
+⛔ **RÉFUTÉ le 2026-09-08** : la forme close du plain compose PARFAITEMENT — 9/9 à K=3, 16/16 à K=4, vérifié en Python pur ET in situ (témoins `results/plain_ceiling_witness_K{3,4}.json`). L'incapacité est FAUSSE, pas seulement mal chiffrée.
   son substrat** ; ce n'est PAS le même artefact. ⚠️ Corollaire : rejouer sa tâche à `lr=0.002` **sur cette
   sonde telle quelle** rendrait encore le plancher (plain 2-pas mesuré : 0.2180 @ `lr=0.02`, 0.1812 @
   `lr=0.002`) et ce négatif ne confirmerait rien — baisser le pas ne crée pas une capacité absente.

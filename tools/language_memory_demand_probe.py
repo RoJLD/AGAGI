@@ -235,7 +235,7 @@ def _train_and_eval(seed, episodes, n_agents, K, D, lr, memory_mode, control_mod
     torch.manual_seed(seed)
     # ⚠️ P2.14 (2026-09-02) : BILINEAR rejoint le try/finally. La sonde d'origine ne sauvait que
     # (CONDITION_GATE, GATE_TARGET) -> BILINEAR n'etait JAMAIS active et la sonde mesurait le substrat
-    # PLAIN, prouvablement incapable de (q+key)%K (plafond structurel 0.3889, P2.15). Son negatif etait
+    # PLAIN, que le depot croyait incapable de (q+key)%K -- ⛔ REFUTE le 2026-09-08 : la forme close du plain compose PARFAITEMENT (9/9 a K=3, 16/16 a K=4, verifies in situ). Son negatif etait
     # correct POUR SON SUBSTRAT — caduc depuis EDR-BILINEAR + EDR-RETAIN-COMPOSE-LR (0.923, 12/12).
     # Le flag doit etre pose AVANT make_population : les params U/V/W_bl ne sont crees qu'a la
     # construction (backend_torch.py:111).

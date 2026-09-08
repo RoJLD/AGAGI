@@ -1002,6 +1002,7 @@ niveau, puis mesure d'arête complète.**
 `tools/language_memory_demand_probe.py:134-137` ne sauvegarde que `(CONDITION_GATE, GATE_TARGET)` —
 **`BILINEAR` n'est jamais activé** — et `:143` construit `Adam([agent.W])`, **`W` SEUL**. La sonde a donc
 mesuré le substrat **PLAIN**, prouvablement incapable de représenter `(q+key)%K` (plafond structurel
+⛔ **RÉFUTÉ le 2026-09-08** : la forme close du plain compose PARFAITEMENT — 9/9 à K=3, 16/16 à K=4, vérifié en Python pur ET in situ (témoins `results/plain_ceiling_witness_K{3,4}.json`). L'incapacité est FAUSSE, pas seulement mal chiffrée.
 **0.3889** — **SUPERSÉDÉ : 30/36 ≈ 0.833**, cf. P2.15). **Son verdict NÉGATIF était CORRECT pour son
 substrat**, mais l'argument « prouvablement incapable » qui le soutenait ne l'est PAS : la séparabilité
 n'implique pas l'incapacité ici (le gain par nœud `σ(W[j,j])` casse l'inférence).
@@ -2053,6 +2054,54 @@ seulement « non établie » — les éléments disponibles suggèrent qu'elle e
 ≥ 0.9444 (mesuré, vérifié dans le substrat), le bilinéaire mesure 0.932, et toutes les méthodes qui ont
 produit ces plafonds sous-trouvent d'un facteur ~2 là où la vérité est connue.
 
+⛔⛔ **CHANTIER CLOS AVANT D'AVOIR COMMENCÉ (2026-09-08) — il n'y a RIEN à borner.**
+<!-- holds_when:path_present=results/plain_ceiling_witness_K3.json -->
+Le cadrage de la relaxation de moments demandait de mesurer le plus petit cas. La réponse a supprimé le
+chantier : **la forme close du plain atteint la PERFECTION** — **9/9 à K=3**, **16/16 à K=4** — là où sa
+sous-forme additive plafonne à 7/9 et 12/16 (MILP, gap 0). En 23 secondes de calcul.
+
+Vérifié TROIS fois : torch float64 · Python PUR en victoire STRICTE · **IN SITU dans un vrai
+`TorchPopulationModel`, en float32**, marges polies 2.4e-2 et 7.0e-3. Témoins gelés dans
+`results/plain_ceiling_witness_K{3,4}.json`, et un test interdit de relancer le chantier
+(`test_the_UPPER_BOUND_project_is_MOOT`).
+
+**Trois conséquences, sans adoucissement :**
+1. **Le substrat plain n'est PAS incapable de composer.** L'échec à trouver 36/36 à K=6 est une
+   défaillance de RECHERCHE — cohérent avec le fait qu'aucune méthode numérique testée n'atteint
+   l'optimum EXACT du cas le plus facile (11, 14, 18 contre 27 prouvé).
+2. **On ne majore pas ce qui atteint déjà le maximum.** Le chantier SDP/SOS est sans objet.
+3. **La séparation de CAPACITÉ d'`EDR-BILINEAR` est FAUSSE**, pas seulement non établie. Ce qui subsiste
+   est une séparation d'**APPRENABILITÉ à budget fixe** (0.271 vs 0.932, 0/144) — un résultat réel, et
+   le seul. Gravé dans le record.
+
+⚠️ **La méthode qui a produit ça vaut d'être retenue : mesurer le PLUS PETIT cas AVANT de dimensionner
+le grand.** Le cadrage exigeait de savoir ce que vaut K=3 ; la réponse a rendu le chantier caduc. Même
+économie que le pré-vol sur les runs, et que le test de viabilité à K=3/K=4 qui a réfuté les deux
+relaxations.
+
+**LA VOIE RESTANTE — une REFORMULATION acquise, deux relaxations RÉFUTÉES (2026-09-08).**
+L'actif : `α = tanh(a)`, `β = tanh(b)` donne `tanh(a+b) = (α+β)/(1+αβ)`, donc un système d'inégalités
+**POLYNOMIALES de degré 4 sur une BOÎTE BORNÉE**. Plus de réels non bornés, plus de saturation de `tanh`.
+
+| méthode, sur l'ancrage dont l'optimum EXACT vaut 27/36 | trouve |
+|---|---|
+| `differential_evolution` + `SLSQP` (2 h 27) | 11/36 |
+| gradient, paramétrisation NON bornée | 14/36 |
+| **gradient sur la BOÎTE bornée** | **18/36** |
+| MILP (HiGHS, gap 0) | **27/36** |
+
+La boîte est la meilleure méthode numérique testée — et reste **33 % sous la vérité**. Elle s'est
+arrêtée elle-même sur son ancrage, comme les deux précédentes.
+
+**Deux relaxations réfutées, chacune pour un coût nul en testant à petit K d'abord** : « monotone
+quelconque par colonne » atteint la PERFECTION (9/9, 16/16) ; **McCormick** sur la forme polynomiale
+rend une borne duale TRIVIALE (9/9, 16/16). Tester la viabilité à K=3/K=4 AVANT d'investir a économisé
+deux chantiers — c'est la même économie que le pré-vol fait sur les runs.
+
+**Candidat restant, nommé et NON entamé** : relaxation de MOMENTS (Lasserre/SOS), le seul outil qui
+donne des bornes serrées sur un système polynomial. `cvxpy` est présent ; `z3`, `SumOfSquares`, `picos`
+non. Chantier à part entière, à cadrer avant d'être commencé.
+
 En résumé sur la réplication indépendante — **ÉCHEC INSTRUCTIF, pas abandon.** Les deux chemins tentés ont été
 recalés par leur propre ancrage (v1 : espace au niveau du hasard ; v2 : optimiseur trop faible). Ce qui
 est désormais SU : le problème est une optimisation globale dure où les méthodes « naturellement
@@ -2069,36 +2118,35 @@ la variance INTRA-architecture suffit à disperser une mesure, mais pas à dispe
 
 ## P4 — Science
 
-**P4.1 — ⏳ PRÉ-VOL PASSÉ (2026-09-08), matériel VÉRIFIÉ PAR LA MESURE, une question reste avant le run.**
-<!-- holds_when:path_present=data/hof_famine_harsh_s42.pkl -->
-Question : « le grab NUIT-il quand grabber NOURRIT ? » (régime famine dure, `forage_payoff = 3.0`).
+**P4.1 — ✅ MESURÉE ET GRAVÉE (2026-09-08) — [`EDR-GRAB-COST`](../EDR/EDR-GRAB-COST_Grabbing_Costs_Survival_Even_When_Grabbing_Feeds.md).**
+<!-- holds_when:path_present=results/p41_grab_famine.json -->
+**Le grab NUIT, même quand grabber NOURRIT.** Retirer l'action améliore la survie médiane de **+39 %**
+(40.75 contre 29.25), sur **30 ères APPARIÉES** (3 champions × 10 ères, même seed de monde par paire) :
+**28+ / 2−**, médiane des différences **+10.75**, sign **p = 8.7e-07**. Cohérent sur les 3 seeds
+(1.29× · 1.39× · 1.50×). 184 s de calcul sous bail `kuzu`.
 
-**Ce que le pré-vol a établi, en mesurant au lieu de croire l'annonce :**
-- **Matériel** : 30 champions (10 par seed × s42/s43/s44), **0 fichier d'état manquant** sur 30
-  références vérifiées, génomes présents (`W` de forme 172×172). Les `state_path` encodent l'ÈRE :
-  s42 porte les ères 16, 21, 24, 28, 29, 30, 52, 57, 64, 68.
-- **Unité de réplication** : l'**ÈRE**, donc **n = 30** — au-dessus du `n_floor = 12` du marqueur de
-  demande. ⚠️ Déclaré, pas caché : les ères d'un même run sont SÉRIELLEMENT dépendantes (l'ère 68
-  descend de l'ère 21) ; la lecture conservatrice donnerait n = 3 seeds, **sous le plancher**. Le choix
-  suit la convention du dépôt (« l'unité est l'ère/le seed, pas l'agent ») et doit être écrit dans le
-  record, pas supposé.
-- **Design DÉCLARÉ** via `declare_design` : aucun maillon INFÉRÉ, famille de contrôles de **6 cellules**
-  (3 seeds × 2 bras) avec Bonferroni `alpha_cell = 0.0083` — la garde E23 de la session parallèle est
-  satisfaite d'emblée.
-- **L'ablation est RNG-NEUTRE**, contrairement à sa sœur : `do_grab = float(logits[24])` seuillé à `> 0`
-  (`src/worlds/world_1_stoneage.py:1523`), donc un `GrabOffMamba` force un logit sans consommer le
-  moindre tirage — là où `PerceptionAblatedMamba` appelle `derange_rows` et DÉPLACE la bande.
+**Ce qui rend le résultat lisible, et c'est le pré-vol qui l'a obtenu** : le contrôle no-op
+`NullGrabOffMamba` est **BIT-IDENTIQUE** au bras intact sur les 30 ères — plancher de bruit
+**EXACTEMENT NUL**. Différence structurelle avec la sonde sœur : `derange_rows` CONSOMME des tirages et
+déplace la bande (bande mesurée [0.92 ; 1.06], dans laquelle son propre résultat publié 0.991 TOMBE) ;
+écrire une constante dans une sortie n'en consomme aucun. L'effet est donc lu contre 0, pas contre ±8 %.
 
-⚠️ **CE QUI RESTE À MESURER AVANT LE RUN, et c'est la question 1 du pré-vol.** La session parallèle a
-chiffré le jour même le plancher de bruit du patron d'ablation voisin : `NullAblatedMamba` (no-op EXACT)
-rend **1.058 et 0.922**, soit une bande **[0.92 ; 1.06]** — et le champion publié est à **0.991, DEDANS**.
-Un effet inférieur à ~8 % y est indétectable. Le `GrabOff` étant RNG-neutre, son plancher DEVRAIT être
-plus bas — mais « devrait » n'est pas une mesure. **Écrire d'abord un `NullGrabOffMamba` (même lecture
-du logit 24, valeur inchangée) et mesurer SA bande**, avant d'engager l'heure de calcul : sans ce
-chiffre, un « le grab ne nuit pas » serait indiscernable d'un effet masqué par le bruit — exactement le
-défaut que ce dépôt a payé le plus cher.
+⚠️ **Ce qui n'est PAS établi, et doit être lu tel quel** : la manipulation INVERSE (`GrabForcedMamba`,
+grab forcé à chaque tick) va dans le bon sens mais **n'est pas significative** (10+ / 18−, p = 0.185).
+La dose-réponse n'est donc pas montrée, et l'explication naturelle — le champion grabbe déjà souvent —
+est **plausible et NON MESURÉE**. ⚠️ **Mais le bras inverse fait ce pour quoi il existait** : il RÉFUTE
+« toute perturbation de la colonne 24 améliore la survie ». Sans lui, l'effet resterait compatible avec
+un artefact d'ablation.
 
-*Coût restant : ~2 h de harnais + ~1 h de calcul, la mesure du plancher venant EN PREMIER.*
+**Portée déclarée** : famine dure seulement, `night_enabled=False`, `benchmark_mode=True`. Unité = l'ÈRE
+(les 10 ères d'un champion sont sériellement dépendantes ; la lecture à n=3 seeds garde le signe, 3/3,
+mais tombe sous le `n_floor=12`). **Mécanisme OUVERT** : on sait que le grab coûte, pas par quel canal —
+le taux de grab in situ et `trace_energy_sinks` restent à mesurer.
+
+Livré : `tools/s2_demand_ablation.py::{GrabOffMamba, NullGrabOffMamba, GrabForcedMamba}` (copie
+défensive + `assert_no_aliasing` à chaque appel), 6 cas dans `tests/sandbox/test_grab_cost.py` dont un
+qui vérifie que l'ablation vise bien l'indice que le MONDE lit — sans quoi le record deviendrait faux
+en silence si le monde changeait d'indice.
 
 **P4.2 — Reste du backlog WARM** (cf. `SCIENCE.md`, fil WARM) : incidence du canal né-ON sur ≥6 agents et
 ≥2 seeds ; hypothèse du **canal porteur** (corrélation coût ↔ poids de W autour du nœud 88) ; bras à

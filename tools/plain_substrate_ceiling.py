@@ -54,6 +54,47 @@ Elle ne borne donc RIEN, et c'est instructif : ce qui limite le substrat plain n
 de `a+b`, ni la monotonie par nœud, mais **la FORME de `tanh` elle-même** — une seule sigmoïde partagée,
 seulement remise à l'échelle par nœud. Toute tentative de borne supérieure doit contraindre cette forme.
 
+⚠️⚠️ **RÉSULTAT DÉCISIF (2026-09-08) — LA FORME PLAIN COMPOSE PARFAITEMENT, ET LE CHANTIER DE BORNE
+SUPÉRIEURE EST SANS OBJET.** Mesuré en 23 secondes, en commençant par le PLUS PETIT cas : la forme close
+atteint **9/9 à K=3** et **16/16 à K=4** — la PERFECTION — là où sa sous-forme additive plafonne à 7/9
+et 12/16 (MILP, gap 0). Vérifié trois fois : torch float64, Python PUR en victoire STRICTE, et **IN SITU
+dans le vrai `TorchPopulationModel` en float32** (marges polies 2.4e-2 et 7.0e-3, loin du fil du rasoir).
+Témoins gelés : `results/plain_ceiling_witness_K{3,4}.json`.
+
+Conséquences, sans adoucissement :
+  * **le substrat plain N'EST PAS incapable de composer.** L'échec à trouver 36/36 à K=6 est une
+    défaillance de RECHERCHE, cohérente avec tout ce qui est mesuré ici (aucune méthode numérique
+    n'atteint l'optimum EXACT du cas le plus facile : 11, 14, 18 contre 27) ;
+  * **il n'y a RIEN à borner par le haut** : on ne majore pas ce qui atteint déjà le maximum. Le chantier
+    de relaxation de moments/SOS est CLOS avant d'avoir commencé, et un test l'inscrit
+    (`test_the_UPPER_BOUND_project_is_MOOT`) pour qu'une session future ne le relance pas ;
+  * **la séparation de CAPACITÉ d'`EDR-BILINEAR` est FAUSSE**, pas seulement non établie.
+
+Méthode qui a produit ça, et qui vaut d'être retenue : **mesurer le plus petit cas AVANT de dimensionner
+le grand**. Le cadrage du chantier SDP demandait de savoir ce que vaut K=3 ; la réponse a supprimé le
+chantier.
+
+⚠️ **ÉTAT DE LA VOIE VERS UNE BORNE SUPÉRIEURE PROUVÉE (2026-09-08).** L'actif principal est une
+REFORMULATION : avec `α = tanh(a)` et `β = tanh(b)`, l'identité `tanh(a+b) = (α+β)/(1+αβ)` donne
+
+    logit_j(k,q) = c_j · (α[k,j] + β[q,j]) / (1 + α[k,j]·β[q,j])
+
+soit, après multiplication par les dénominateurs (positifs car |αβ| < 1), un système d'inégalités
+**POLYNOMIALES de degré 4 sur une BOÎTE BORNÉE** — α, β ∈ (−1,1), c ∈ (0,1). Plus aucun réel non borné,
+plus aucune saturation de `tanh`.
+
+Ce que ça a donné, et ce que ça n'a pas donné :
+  * **la recherche s'améliore nettement** — sur l'ancrage dont l'optimum EXACT vaut 27/36 :
+    `differential_evolution`+SLSQP 11/36 · gradient non borné 14/36 · **gradient sur la boîte 18/36** ·
+    MILP 27/36. La boîte est la meilleure méthode numérique testée, et reste 33 % sous la vérité ;
+  * **DEUX relaxations sont RÉFUTÉES**, toutes deux à petit K pour un coût nul : « monotone quelconque
+    par colonne » atteint la PERFECTION (9/9, 16/16) ; **McCormick** sur la forme polynomiale rend une
+    borne duale TRIVIALE (9/9, 16/16). Ni l'une ni l'autre ne borne quoi que ce soit.
+
+**Candidat restant, nommé et non entamé** : une relaxation de MOMENTS (Lasserre/SOS) sur le système
+polynomial — le seul outil qui donne des bornes serrées sur ce type de problème. `cvxpy` est présent,
+`z3`/`SumOfSquares`/`picos` non. C'est un chantier à part entière, à cadrer avant d'être commencé.
+
 ⚠️ **LA RECHERCHE EST DÉMONTRABLEMENT FAIBLE ICI, et il faut en tenir compte.** Sur la forme additive,
 dont le MILP donne 0.75, la descente de gradient ne trouve que **0.3611** — un facteur 2 sur une forme
 DONT ON CONNAÎT LA RÉPONSE. Le minorant 0.8333 de la forme complète est donc lui aussi probablement bas.

@@ -29,8 +29,13 @@ GA (recherche de substrat) + gradient (apprentissage intra-vie) + Baldwin. Évol
 Le diagnostic de juillet (« représentation OK, conversion en comportement KO, levier = crédit ») est
 DÉPASSÉ par trois faits mesurés : (1) la migration torch est faite et **ne franchit rien seule**
 (163 : survie A/B neutre) ; (2) le mur « rétention 2-pas » était un **artefact de learning-rate**
-([[EDR-RETAIN-COMPOSE-LR]], classe E19) ; (3) le verrou représentationnel est LEVÉ par le terme
-bilinéaire ([[EDR-BILINEAR]], 0/144). Ce qui reste est UN seul mur sous trois noms : « l'écriture
+([[EDR-RETAIN-COMPOSE-LR]], classe E19) ; (3) ~~le verrou représentationnel est LEVÉ par le terme
+bilinéaire~~ ([[EDR-BILINEAR]], 0/144) — ⛔ **RECTIFIÉ le 2026-09-08 : il n'y avait PAS de verrou
+représentationnel.** La forme close du substrat plain compose PARFAITEMENT (9/9 à K=3, 16/16 à
+K=4, vérifiés en Python pur ET in situ dans un vrai `TorchPopulationModel` ; témoins gelés dans
+`results/plain_ceiling_witness_K{3,4}.json`). Ce que le terme bilinéaire lève est un verrou
+d'**APPRENABILITÉ à budget fixe** (0.271 vs 0.932, 0/144), pas de représentation — la séparation
+de CAPACITÉ annoncée par ce record est FAUSSE. Cf. son encart de réfutation. Ce qui reste est UN seul mur sous trois noms : « l'écriture
 APPRISE dans le report » (taxonomy), « l'émergence d'une compétence COMPOSÉE » (G1/G2), « le RÉGIME
 DE RECHERCHE » ([[EDR-EVO-016]]) — créer une dépendance nouvelle état-interne→sortie que ni le
 gradient épisodique ni la sélection ne récompensent avant qu'elle soit fonctionnelle. Prédiction

@@ -175,10 +175,12 @@ def _resolve_ceiling(incapable_ceiling, ceiling_provenance, task, same_tick, K,
     le plain n'est pas incapable), AUCUN plafond n'est établi et on rend `None` : la sonde REFUSE alors
     de rendre `unlocked` plutôt que de deviner. Ne pas proxifier ce qu'on ne sait pas mesurer."""
     if incapable_ceiling == "auto":
-        if task == "composition" and same_tick:
-            # ⚠️ `False` = MINORANT, pas borne prouvée. C'est ce troisième champ qui empêche désormais
-            # la sonde de certifier quoi que ce soit sur ce régime (cf. docstring de `run_*`).
-            return PLAIN_COMPOSITION_CEILING, PLAIN_COMPOSITION_PROVENANCE, False
+        # ⛔ 2026-09-08 — `"auto"` ne résout PLUS rien, et c'est la conséquence logique de la
+        # RÉFUTATION. Ce mode rendait `PLAIN_COMPOSITION_CEILING` en le nommant « plafond de
+        # l'INCAPABLE ». Or le plain n'est PAS incapable : sa forme close compose PARFAITEMENT
+        # (9/9 à K=3, 16/16 à K=4, vérifiés in situ — `results/plain_ceiling_witness_K{3,4}.json`).
+        # Un « plafond de l'incapable » pour un bras qui atteint le maximum n'existe pas. La sonde
+        # refuse donc de certifier, sauf si l'appelant DÉCLARE un plafond et le prouve.
         return None, None, False
     if incapable_ceiling is None:
         return None, None, False

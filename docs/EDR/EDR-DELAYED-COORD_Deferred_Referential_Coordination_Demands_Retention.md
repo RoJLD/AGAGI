@@ -152,7 +152,7 @@ adopts: [REF-EXPERIMENT-PREFLIGHT, REF-DEMAND-MARKER]
 > **Ce que ce verdict NE dit PAS — et le sceau l'écrivait d'avance, pas après coup :**
 > - **PAS la vitalité.** Le franchissement de la barre `1/K+0.15` est hors objet. Depuis le 2026-09-02
 >   c'est démontré et non plus soupçonné : `assert_bar_separates_the_incapable` REFUSE cette barre, un
->   substrat prouvablement incapable atteignant 0.3889 contre une barre à 0.3167 (dette P2.15). ⚠️ **SUPERSÉDÉ le 2026-09-07** : le plafond réel est **30/36 ≈ 0.833** (et 27/36 = 0.75 PROUVÉ pour la sous-forme séparable) ; 0.3889 était un optimum local banal d'une recherche trop courte — cf. l'encart de correction dans `EDR-BILINEAR`.
+>   substrat prouvablement incapable atteignant 0.3889 contre une barre à 0.3167 (dette P2.15). ⛔ **RÉFUTÉ le 2026-09-08** : la forme close du plain compose PARFAITEMENT — **9/9 à K=3**, **16/16 à K=4**, vérifié en Python pur ET in situ dans un vrai `TorchPopulationModel` (témoins `results/plain_ceiling_witness_K{3,4}.json`). L'incapacité n'est pas seulement mal chiffrée, elle est FAUSSE ; l'échec à K=6 est une défaillance de RECHERCHE. Cf. l'encart de réfutation d'`EDR-BILINEAR`. ⚠️ **SUPERSÉDÉ le 2026-09-07** : le plafond réel est **30/36 ≈ 0.833** (et 27/36 = 0.75 PROUVÉ pour la sous-forme séparable) ; 0.3889 était un optimum local banal d'une recherche trop courte — cf. l'encart de correction dans `EDR-BILINEAR`.
 > - **PAS l'arête AGI-Taxonomy.** Le contrôle de spécificité reste structurellement vacueux dans ce
 >   design — sous `choice_decoy=False`, l'ablation de PRESENT est un no-op EXACT (`ablated == intact`
 >   au chiffre près). C'est la conception qui bloque, pas la mesure.

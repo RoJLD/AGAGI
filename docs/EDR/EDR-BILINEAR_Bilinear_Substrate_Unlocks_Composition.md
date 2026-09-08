@@ -53,7 +53,7 @@ adopts: [REF-EXPERIMENT-PREFLIGHT, REF-DEMAND-MARKER]
 >
 > **Dette ouverte — MARGE DE DÉCISION, pas réfutation.** La barre `1/K + 0.15 = 0.3167`
 > (`tools/bilinear_composition_probe.py:174`) est **0.072 SOUS** ce plafond structurel 0.3889 : un substrat
-> *prouvablement incapable* de composer PEUT la franchir. Le critère `unlocked = (plain ≤ bar) and
+> *prouvablement incapable* de composer PEUT la franchir. ⛔ **RÉFUTÉ le 2026-09-08** : la forme close du plain compose PARFAITEMENT — **9/9 à K=3**, **16/16 à K=4**, vérifié en Python pur ET in situ dans un vrai `TorchPopulationModel` (témoins `results/plain_ceiling_witness_K{3,4}.json`). L'incapacité n'est pas seulement mal chiffrée, elle est FAUSSE ; l'échec à K=6 est une défaillance de RECHERCHE. Cf. l'encart de réfutation d'`EDR-BILINEAR`. Le critère `unlocked = (plain ≤ bar) and
 > (bilinéaire > bar)` (`:174-176`) bascule donc par simple allongement du budget — mesuré (NON RÉPLIQUÉ,
 > 3 seeds) : plain à `lr=0.02`, `episodes=2400` (8× les 300 de ce record) → médiane **0.3703**, **3/3
 > au-dessus de la barre**. C'est une dette de SEUIL à corriger dans la sonde (juger la **séparation entre
@@ -111,6 +111,30 @@ adopts: [REF-EXPERIMENT-PREFLIGHT, REF-DEMAND-MARKER]
 > plancher de l'optimiseur. La troisième mesure a d'ailleurs été obtenue par un chercheur qui a REFUSÉ
 > son propre 35/36 après avoir calibré son pipeline sur une réponse exacte connue (le sous-cas additif,
 > 27/36 par MILP, où son gradient ne trouvait que 13-14/36 — 13 cellules d'écart).
+>
+> ### ⛔⛔ RÉFUTATION 2026-09-08 — le substrat PLAIN COMPOSE PARFAITEMENT ; la séparation de CAPACITÉ de ce record est FAUSSE
+>
+> La forme close du plain — `σ(W[j,j])·tanh(W[key,j] + W[K+q,j])`, celle que ce record déclare
+> « prouvablement incapable » de `(q+key)%K` — la représente **PARFAITEMENT** :
+>
+> | K | forme close du plain | sa sous-forme ADDITIVE (MILP, gap 0) |
+> |---|---|---|
+> | 3 | **9/9** | 7/9 |
+> | 4 | **16/16** | 12/16 |
+>
+> Vérifié TROIS fois : torch float64 · Python PUR en victoire STRICTE · **IN SITU dans un vrai
+> `TorchPopulationModel`, lu par le VRAI `forward` en float32**, marges polies 2.4e-2 et 7.0e-3.
+> Témoins gelés dans `results/plain_ceiling_witness_K{3,4}.json`, re-vérifiables à coût nul.
+>
+> **Ce n'est donc pas une question de plafond.** La forme SAIT composer, et c'est le gain par nœud
+> `σ(W[j,j])` qui le lui permet — le terme que l'argument de séparabilité de ce record ignorait. L'échec
+> à trouver 36/36 à K=6 est une défaillance de RECHERCHE, cohérente avec tout le reste : aucune méthode
+> numérique testée n'atteint l'optimum EXACT du cas le plus facile (11, 14, 18 contre 27 prouvé).
+>
+> **Ce qui subsiste de ce record, et c'est réel** : une séparation d'**APPRENABILITÉ à budget fixe** —
+> plain 0.271 vs bilinéaire 0.932 à `episodes=300`, séparation par-seed totale, 0/144. Le terme
+> bilinéaire rend la composition APPRENABLE là où le plain ne l'apprend pas dans ce budget. Ce n'est pas
+> ce que le titre annonce, et c'est ce qui reste vrai.
 >
 > ### ⛔ AGGRAVATION 2026-09-08 — toutes les méthodes numériques SOUS-TROUVENT d'un facteur ~2
 >

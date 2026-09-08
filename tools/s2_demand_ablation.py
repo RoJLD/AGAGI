@@ -21,6 +21,7 @@ if _ROOT not in sys.path:
 from src.agents.mamba_agent import MambaBatchModel
 from tools.demand_marker import ablation_verdict
 from tools.s2_demand import run_condition, WORLDS, load_champion_genome
+from tools.experiment_preflight import assert_no_aliasing
 from src.agents.baseline_models import ReflexBatchModel
 
 
@@ -70,6 +71,80 @@ class NullAblatedMamba(MambaBatchModel):
     def forward(self, batch_obs, env_surprise_batch=None):
         derange_rows(batch_obs)                # consomme la bande ; le résultat est délibérément jeté
         return super().forward(batch_obs, env_surprise_batch)
+
+
+_GRAB_LOGIT = 24          # `do_grab = float(logits[24])`, seuille a `> 0` (world_1_stoneage.py:1523)
+
+
+class GrabOffMamba(MambaBatchModel):
+    """Champion a genome INTACT dont l'action GRAB est neutralisee : le logit 24 est force negatif.
+
+    P4.1 -- « le grab NUIT-il quand grabber NOURRIT ? » (famine dure, `forage_payoff = 3.0`).
+
+    ⚠️ DIFFERENCE ESSENTIELLE avec `PerceptionAblatedMamba`, et c'est ce qui rend l'instrument
+    utilisable : cette ablation est **RNG-NEUTRE**. `derange_rows` consomme des tirages du flux global
+    (boucle de rejet comprise) et DEPLACE la bande aleatoire -- d'ou le plancher de bruit mesure a
+    +-6-8 % par `NullAblatedMamba`, dans lequel le resultat publie (0,991) tombe. Ici on ecrit une
+    constante dans une sortie : AUCUN tirage n'est consomme.
+
+    ⚠️ COPIE DEFENSIVE OBLIGATOIRE. Ecrire dans une sortie de `forward` peut muter l'etat recurrent
+    quand cette sortie est une VUE -- c'est le bug d'aliasing d'EDR-WARM-007, qui avait produit
+    dose-reponse, correlations et controle negatif coherents pendant une passe entiere. Mesure ici
+    (backend legacy, 2026-09-08) : `preds.base is None` et aucun partage memoire avec les 16 tableaux
+    internes du modele. On copie quand meme, et `assert_no_aliasing` le VERIFIE a chaque appel."""
+
+    def forward(self, batch_obs, env_surprise_batch=None):
+        preds, spent = super().forward(batch_obs, env_surprise_batch)
+        arr = np.asarray(preds)
+        if arr.size and arr.ndim == 2 and arr.shape[1] > _GRAB_LOGIT:
+            arr = arr.copy()
+            assert_no_aliasing(arr, preds, label="sortie de GrabOffMamba")
+            arr[:, _GRAB_LOGIT] = -1.0          # do_grab <= 0 -> grab DESACTIVE
+            return arr, spent
+        return preds, spent
+
+
+class NullGrabOffMamba(MambaBatchModel):
+    """NO-OP EXACT de `GrabOffMamba` -- le controle negatif apparie, et il doit etre BIT-IDENTIQUE.
+
+    Il fait EXACTEMENT le meme travail (copie, garde d'aliasing, ecriture dans la colonne 24) mais
+    REECRIT LA VALEUR QU'IL VIENT DE LIRE. Ce que sa comparaison au bras intact mesure est donc le
+    plancher de bruit de l'INSTRUMENT, et rien d'autre.
+
+    ⚠️ Attendu : **zero** ecart, exactement -- contrairement a `NullAblatedMamba`, dont la bande
+    [0,92 ; 1,06] vient de tirages RNG consommes. Si un ecart apparaissait ici, il faudrait le
+    comprendre AVANT de lire quoi que ce soit du bras ablate."""
+
+    def forward(self, batch_obs, env_surprise_batch=None):
+        preds, spent = super().forward(batch_obs, env_surprise_batch)
+        arr = np.asarray(preds)
+        if arr.size and arr.ndim == 2 and arr.shape[1] > _GRAB_LOGIT:
+            arr = arr.copy()
+            assert_no_aliasing(arr, preds, label="sortie de NullGrabOffMamba")
+            arr[:, _GRAB_LOGIT] = arr[:, _GRAB_LOGIT]      # meme ecriture, valeur INCHANGEE
+            return arr, spent
+        return preds, spent
+
+
+class GrabForcedMamba(MambaBatchModel):
+    """MANIPULATION INVERSE de `GrabOffMamba` -- le controle negatif exige par le design de P4.1.
+
+    Si retirer le grab AMELIORE la survie, alors le FORCER doit la degrader : c'est la dose-reponse, et
+    c'est ce qui distingue un effet CAUSAL d'un artefact d'ablation. Sans ce bras, « grab-off survit
+    mieux » resterait compatible avec « toute perturbation de la sortie 24 aide », qui est une tout
+    autre affirmation.
+
+    Meme forme, meme copie, meme garde d'aliasing, meme neutralite RNG : seule la CONSTANTE change."""
+
+    def forward(self, batch_obs, env_surprise_batch=None):
+        preds, spent = super().forward(batch_obs, env_surprise_batch)
+        arr = np.asarray(preds)
+        if arr.size and arr.ndim == 2 and arr.shape[1] > _GRAB_LOGIT:
+            arr = arr.copy()
+            assert_no_aliasing(arr, preds, label="sortie de GrabForcedMamba")
+            arr[:, _GRAB_LOGIT] = 1.0           # do_grab > 0 -> grab FORCE a chaque tick
+            return arr, spent
+        return preds, spent
 
 
 def _median_survival(cond):

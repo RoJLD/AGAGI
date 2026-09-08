@@ -30,7 +30,7 @@ adopts: [REF-EXPERIMENT-PREFLIGHT, REF-DEMAND-MARKER, REF-AGI-TAXONOMY]
 > et le test qu'il prescrivait aurait induit en erreur.** `_train_and_eval` ne sauvegarde/restaure que
 > `(CONDITION_GATE, GATE_TARGET)` (`tools/language_memory_demand_probe.py:134-137`) : **`BILINEAR` n'est
 > JAMAIS activé**, et l'optimiseur est `Adam([agent.W], ...)` (`:143`) — `W` SEUL. Cette sonde a donc
-> mesuré le substrat **PLAIN**. Or [[EDR-BILINEAR]] établit que le plain est **prouvablement incapable** de
+> mesuré le substrat **PLAIN**. Or [[EDR-BILINEAR]] établit que le plain est **prouvablement incapable** ⛔ **RÉFUTÉ le 2026-09-08** : la forme close du plain compose PARFAITEMENT — **9/9 à K=3**, **16/16 à K=4**, vérifié en Python pur ET in situ dans un vrai `TorchPopulationModel` (témoins `results/plain_ceiling_witness_K{3,4}.json`). L'incapacité n'est pas seulement mal chiffrée, elle est FAUSSE ; l'échec à K=6 est une défaillance de RECHERCHE. Cf. l'encart de réfutation d'`EDR-BILINEAR`. Ce paragraphe neutralisait la dette E19 posée juste au-dessus ; il ne la neutralise plus. de
 > représenter `(q+key)%K` (excitation séparable en `key` et `q` ; plafond structurel exact en forme close
 > **0.3889**). ⚠️ **SUPERSÉDÉ le 2026-09-07** : le plafond réel est **30/36 ≈ 0.833** (et 27/36 = 0.75 PROUVÉ pour la sous-forme séparable) ; 0.3889 était un optimum local banal d'une recherche trop courte — cf. l'encart de correction dans `EDR-BILINEAR`. Le nul de ce record a donc une explication SUFFISANTE et INDÉPENDANTE du pas : le substrat ne
 > peut pas faire la tâche. **Le verdict était CORRECT pour son substrat.**
