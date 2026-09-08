@@ -8,7 +8,7 @@
 > l'intelligence *trouvée* (connectomes évolués, bottom-up), pas *donnée*.
 >
 > **Cette page = ce qui reste à faire + où on en est.** L'**historique** scientifique :
-> [`../FIL_CONDUCTEUR.md`](../FIL_CONDUCTEUR.md) (récit) + [`../EDR/`](../EDR/) (détail — **306 records** <!-- count:records_total=306 --> au graphe).
+> [`../FIL_CONDUCTEUR.md`](../FIL_CONDUCTEUR.md) (récit) + [`../EDR/`](../EDR/) (détail — **310 records** <!-- count:records_total=310 --> au graphe).
 > Les **idées futures / aspirationnel** : [`../BACKLOG.md`](../BACKLOG.md). Méthode : **Commandement 15**
 > (1 variable, ≥... mesures, valide ou revert — *powerer avant de conclure*).
 

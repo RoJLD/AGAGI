@@ -44,6 +44,67 @@ NOT_AN_INSTRUMENT = {
 }
 
 CALIBRATED = {
+    # P2.46 (2026-09-08) : garde E24 -- les blocs ENTREE et SORTIE du genome se CHEVAUCHENT, et 18
+    # logits d'action du champion SONT l'observation. 4 cas dans tests/sandbox/test_control_family.py,
+    # dont le contre-exemple gele (le champion, refuse avec son chiffre) apparie a son no-op (un
+    # genome frais passe) ET au cas LIMITE (zero noeud cache mais aucun slot partage : la garde porte
+    # sur le chevauchement, pas sur la platitude du connectome).
+    "tools/experiment_preflight.py::assert_no_io_overlap": [
+        "champion:refuse-et-chiffre", "frais:passe", "limite-exact:passe", "pas-un-genome:refuse"],
+    # P2.42 (2026-09-08) : S2-BLIND-CHAMPION -- un champion RENDU AVEUGLE survit-il MIEUX ?
+    # 14 cas dans tests/sandbox/test_s2_blind_champion.py, aucun monde construit (map_fn injectee).
+    # La branche qui compte est PAS_DE_COUT : l'observation d'origine (+39 %) est POSITIVE et a n=1,
+    # donc un dispositif qui ne saurait pas la RETRACTER ne prouverait rien (classe E1).
+    "tools/evo_runs/s2_blind_champion.py::blind_champion_verdict": [
+        "aveugle-survit-mieux", "pas-de-cout:retracte", "indetermine:bande",
+        "indetermine:signe-incoherent", "aveugle-encore-sensible:harnais",
+        "intervention-non-minimale:harnais", "bras-manquant!=bras-nul",
+        "sous-plancher:ecarte-et-nomme", "moins-de-2-seeds", "entree-vide:pas-de-fond"],
+    "tools/evo_runs/s2_blind_champion.py::run_blind_champion": [
+        "plan-vide:raises", "regime-degenere:raises", "guard-before-world",
+        "appariement-meme-seed", "aveuglement-pose-et-verifie"],
+    # P2.41 (2026-09-08) : S2-SUBJECT-VARIANCE -- le verdict du marqueur varie-t-il avec le SUJET ?
+    # 14 cas dans tests/sandbox/test_s2_subject_variance.py, aucun monde construit (map_fn injectee).
+    # La branche qui COMPTE est INDETERMINE-BRUIT : sans le bras de replication du MEME sujet, le
+    # critere << >= 2 sujets divergent >> pouvait etre franchi par le seul bruit sur 21 paires
+    # (classe E23, trouvee AVANT le run en appliquant `assert_control_family`).
+    "tools/evo_runs/s2_subject_variance.py::subject_variance_verdict": [
+        "controle-absent!=passe", "positif-echoue:instrument", "negatif-mord:instrument",
+        "subject-bound", "indetermine-bruit", "world-bound:exige-stabilite",
+        "sans-replicat:refuse", "degenere:ecarte-et-nomme", "moins-de-2-sujets",
+        "corps-confondu:rapporte", "entree-vide:pas-de-fond"],
+    "tools/evo_runs/s2_subject_variance.py::run_subject_variance": [
+        "plan-vide:raises", "regime-degenere:raises", "guard-before-world",
+        "meme-regime-partout", "graine-de-monde-par-cellule", "sujet-de-la-cellule"],
+    # P2.40 (2026-09-07) : garde E23 -- « une FAMILLE de controles n'est pas traitee comme une
+    # famille ». 20 cas dans tests/sandbox/test_control_family.py, dont le CONTRE-EXEMPLE GELE (la
+    # bande fixe d'EVO-011 rejouee en forme close : 0.216 de fausse alarme sur un harnais PARFAIT)
+    # apparie a son no-op EXACT (le seuil du sceau -bis, 0.05/24, doit passer sans bruit).
+    "tools/experiment_preflight.py::assert_control_family": [
+        "bonferroni:seuil-exact", "cells=1:no-op", "seuil-trop-large:refuse",
+        "plus-strict:accepte", "none:exige-raison", "entrees-degenerees:refuse",
+        "contre-exemple-evo011:refuse", "reglage-bis:accepte"],
+    # P2.50 (2026-09-07) : pre-vol EVO-011 (`tools/evo_runs/evo011_preflight.py`). 22 cas dans
+    # tests/sandbox/test_evo011_preflight.py. `verdict_evo011_prevol` est l'instrument PUR (aucun
+    # monde) ; `run_arm` / `run_seed` construisent le monde -- leurs CABLAGES sont calibres sans
+    # simulation (arete exacte du sceau, saillance, specificite de canal, logit NUL du temoin,
+    # ballast bit-identique, gel de la plasticite), le reste est couvert par les controles du sceau.
+    # ⚠️ `run_seed` (9 fichiers) et `run_arm` (7 fichiers) sont en COLLISION -> declarations QUALIFIEES.
+    # Ces trois entrees sont apparues quand le perimetre du cliquet est devenu RECURSIF (8e angle
+    # mort : `tools/evo_runs/` etait invisible) -- l'elargissement a revele de la dette REELLE, comme
+    # les sept precedents.
+    "tools/evo_runs/evo011_preflight.py::verdict_evo011_prevol": [
+        "ne-paie-pas", "paie:3-sous-lectures", "indetermine:deux-trous", "harnais-prime-sur-dv",
+        "degenere:pas-de-negatif", "controles-absents!=passes", "sous-puissance:refuse"],
+    "tools/evo_runs/evo011_preflight.py::run_arm": [
+        "arete-exacte-du-sceau", "temoin:logit-nul-exact", "lecteur-suit-le-signe",
+        "ballast:bit-identique", "gel-plasticite", "saturation:plafond", "saturation:maillon-inerte"],
+    "tools/evo_runs/evo011_preflight.py::run_seed": [
+        "carry-matched:causalite-inversee", "phenotype-formule-du-monde", "sans-ballast:phenotype-bouge"],
+    # P2.50 (2026-09-07) : `tools/jobs/doctor.py` -- meme elargissement recursif. Deux branches
+    # ajoutees dans tests/sandbox/test_jobs.py (un seul cas existait, celui de la branche `dead` :
+    # une classification degeneree « tout est mort » le passait, et `--kill` en depend).
+    "tools/jobs/doctor.py::classify_leases": ["live", "dead", "repertoire-vide"],
     # P2.47 (2026-09-07) : runner S6 (taux de faux positifs du marqueur sous init non nulle).
     # 29 cas de calibration dans tests/sandbox/test_s6_fallback_rate.py -- dont le contre-exemple
     # construit (corps suffisant + politique lectrice -> l'ablation MORD), la specificite (politique
@@ -56,23 +117,65 @@ CALIBRATED = {
     "tools/s2_fallback_rate_probe.py::assert_no_world": ["static-imports:raises", "clean:passes"],
     "tools/s2_fallback_rate_probe.py::assert_intervention_perturbs_input": ["rungs-perturb", "true-is-noop"],
     "tools/s2_fallback_rate_probe.py::assert_crn_exactness": ["zero-exact", "permuted-shifted"],
-    # P2.46 (2026-09-06) : 11 orchestrateurs run_* -- garde d'entree SEULEMENT (branches de
-    # verdict NON couvertes : injection a dose connue = dette declaree au backlog).
-    "tools/cross_world_transfer.py::run_direction": ["empty-cohort:raises", "guard-before-world"],
-    "tools/curriculum_transfer.py::run_transfer_experiment": ["empty-cohort:raises", "guard-before-world"],
+    # P2.46 (2026-09-06) : 11 orchestrateurs run_* -- garde d'entree.
+    # P2.44 (2026-09-08) : les SIX derniers passent a leur tour de « garde d'entree SEULEMENT » a
+    # « garde + BRANCHES DE VERDICT », par injection a dose connue (tests/sandbox/test_inj_run_*.py,
+    # 83 cas, controle E1 PAR MUTATION sur chacun). Les 11 orchestrateurs sont desormais calibres
+    # sur leurs branches, pas seulement sur leur entree. 25 xfail STRICTS y tiennent la dette des
+    # defauts REELS trouves au passage et non corriges -- dont trois affirmations de FOND publiees
+    # depuis une entree vide (`empty-baseline:NEUTRE`, `total-extinction:NUIT`, troncature
+    # silencieuse d'un baseline de longueur differente).
+    # P2.48 (2026-09-07) : les CINQ prioritaires ont en plus leurs BRANCHES DE VERDICT calibrees par
+    # injection a dose connue (tests/sandbox/test_orchestrator_injection.py, 43 cas, controle E1 par
+    # mutation 6/6). Les 6 restants n'ont toujours QUE leur garde d'entree -- dette au backlog.
+    "tools/cross_world_transfer.py::run_direction": ["empty-cohort:raises", "guard-before-world",
+        "guard-position:before-hof", "reads-transfer-dose", "neutral-band-load-bearing",
+        "sign-p-gates-power", "majority-not-only-median", "pairs-seed-by-seed-not-aggregate",
+        "regime-wired-to-both-arms", "baseline-reused-once"],
+    "tools/curriculum_transfer.py::run_transfer_experiment": ["empty-cohort:raises",
+        "guard-before-world", "verdict-transfere-reads-dose", "verdict-nuit-reads-dose",
+        "neutral-band-blocks-small-effect", "power-guard-E14-is-read", "seeds-disagree-neutral",
+        "median-ratio-follows-dose", "both-arms-same-seed", "equal-era-budget",
+        "tabula-arm-runs-target-only", "replication-unit-is-seed", "ratio-pairs-within-seed",
+        "regime-wired-to-engine", "metric-world-not-survival", "injected-era-fn-builds-no-world",
+        "logger-released-on-raise"],
     "tools/dreaming_probe.py::run_q1": ["empty-cohort:raises", "guard-before-world",
         "pressure-reads-dose", "feeds-dreaming-verdict", "median-not-mean",
         "pairs-regimes-within-seed"],
-    "tools/dreaming_probe.py::run_q2": ["empty-cohort:raises", "guard-before-world"],
+    "tools/dreaming_probe.py::run_q2": ["empty-cohort:raises", "guard-before-world",
+        "ratio-reads-dose:pos-neg-null", "feeds-dreaming-verdict:pay_eps-bracketed",
+        "ratio-cap:asymmetric", "pairing:within-seed", "regime:sweet-spot-both-arms",
+        "dreams-counted:ON-arm-only", "split:both-directions", "split:strict-threshold",
+        "median-not-mean", "replication-unit:seed", "founder-control:no-explosion",
+        "intra-pop-delta:contrast-when-reference-exists"],
     "tools/dream_causal_probe.py::run_causal": ["empty-cohort:raises", "guard-before-world",
         "dose-response-read", "poses-intervention-anchors-deepest", "restores-global-on-raise",
         "default-seeds-cannot-conclude"],
-    "tools/dream_causal_probe.py::run_founder_matched": ["empty-cohort:raises", "guard-before-world"],
-    "tools/dream_distress_probe.py::run_distress": ["empty-cohort:raises", "guard-before-world"],
-    "tools/evo_memory_enrichment.py::run_experiment": ["empty-cohort:raises", "guard-before-world"],
-    "tools/evo_memory_inworld.py::run_contrast": ["empty-cohort:raises", "guard-before-world"],
-    "tools/s2_demand.py::run_s2": ["empty-cohort:raises", "guard-before-world"],
-    "tools/s2_openloop_probe.py::run_openloop_ladder": ["empty-cohort:raises", "guard-before-world"],
+    "tools/dream_causal_probe.py::run_founder_matched": ["empty-cohort:raises",
+        "guard-before-world", "dose-fondateurs:forme-close", "confond-E15:med_all-vs-med_founder",
+        "issue-negative:no-op-exact", "issue-negative:dose-inverse",
+        "appariement:signature-par-seed", "unite-de-replication:seeds-pas-agents",
+        "journal-appels:ordre-off-on", "cablage-regime:k-int-aux-deux-bras",
+        "cablage-regime:parametres-identiques",
+        "etat-global:FORCE_DREAM-restaure-meme-sur-exception", "persistance:json==objet",
+        "seam:attribut-de-module"],
+    "tools/dream_distress_probe.py::run_distress": ["empty-cohort:raises", "guard-before-world",
+        "reads-dream-rate-dose", "five-seed-boundary", "seeds-not-agents-as-replicates",
+        "pairs-split-with-seed", "sweet-spot-regime-wired", "no-world-built"],
+    "tools/evo_memory_enrichment.py::run_experiment": ["empty-cohort:raises", "guard-before-world",
+        "reads-recall-dose", "reversed-contrast", "one-value-per-seed-paired",
+        "three-seeds-cannot-conclude", "wires-task-and-oos-seed", "sep-does-not-move-verdict"],
+    "tools/evo_memory_inworld.py::run_contrast": ["empty-cohort:raises", "guard-before-world",
+        "per-seed-dose", "reversed-contrast", "synthesis-both-directions",
+        "zero-encounters-not-null", "n-equals-one", "consumed-iterator:raises"],
+    "tools/s2_demand.py::run_s2": ["empty-cohort:raises", "guard-before-world",
+        "reads-survival-dose", "lifescore-gate-no-void", "reflex-high-bound",
+        "within-only-if-not-void", "holm-over-whole-family", "holm-survives-iterator",
+        "pilot-K-wired", "empty-world-list:raises"],
+    "tools/s2_openloop_probe.py::run_openloop_ladder": ["empty-cohort:raises",
+        "guard-before-world", "three-rung-ladder", "intact-on-floor:refused",
+        "rung-identical:refused", "per-world-independent", "same-champion-four-arms",
+        "empty-world-family:raises"],
     # P2.45 (2026-09-06) : 6 homonymes reveles par le correctif du faux vert par nom nu -- QUALIFIES.
     "tools/lewis_world.py::measure_mi": ["empty-cohort:raises", "guard-before-world"],
     "tools/target_competence_probe.py::run_probe": ["empty-cohort:raises", "guard-before-world"],
@@ -603,6 +706,33 @@ CALIBRATED = {
     "assert_bar_separates_the_incapable": ["p2.15:fires", "above-ceiling:spares",
                                            "undeclared-provenance:fires",
                                            "chance-as-ceiling:out-of-scope"],
+    # ---- P2.15, le PLAFOND lui-meme (2026-09-07) -----------------------------------------------------
+    # `assert_bar_separates_the_incapable` force a DECLARER un plafond ; encore faut-il que quelqu'un le
+    # MESURE, sinon la garde deplace la devinette au lieu de la supprimer. C'est ce que fait
+    # `tools/plain_substrate_ceiling.py`, et il porte lui-meme DEUX controles apparies parce qu'un
+    # plafond bas a deux causes indiscernables sans eux : un optimiseur trop faible (innocente par
+    # `free-table:positive`, forme LIBRE, meme cible -> 1.000) ou une forme mal paramétrée (innocentee
+    # par `separable-target:specificity`, MEME forme, cible separable -> 1.000). Cas dans
+    # `tests/sandbox/test_plain_substrate_ceiling.py`.
+    # ⚠️ QUATRE controles, et il en a fallu quatre : les trois premiers laissaient encore passer une
+    # recherche BLOQUEE. Le 4e ancre sur la seule borne PROUVEE du dossier (MILP de la sous-forme
+    # additive, 27/36) : la forme complete la CONTIENT, donc doit la DOMINER. L'EGALITE dit que la
+    # recherche n'a rien trouve au-dela — c'est le regime qui a produit le 0.3889 du 2026-09-02.
+    "measure_plain_composition_ceiling": ["free-table:positive", "separable-target:specificity",
+                                          "budget-saturation:fires", "dominates-proven-bound:fires",
+                                          "modular-target:below-one", "above-chance:fires"],
+    "plain_readout_ceiling": ["free-table:positive", "separable-target:specificity",
+                              "unknown-target:refuses"],
+    # La BORNE PROUVEE (MILP, gap 0) — d'une autre nature que le minorant de recherche : elle se calibre
+    # sur des valeurs EXACTES (K=4 -> 12/16, K=6 -> 27/36) et sur un controle positif de la FORMULATION
+    # elle-meme (cible separable -> 36/36), qui attrape un « grand M » trop petit — une formulation qui
+    # fabriquerait le negatif avec le meme air d'exactitude.
+    "additive_argmax_exact_ceiling": ["exact-K4-K6:frozen", "separable-target:positive",
+                                      "infeasible-perfection:fires", "unknown-target:refuses"],
+    # Le TEMOIN GELE : la valeur centrale du dossier P2.15 ne repose plus sur « une recherche l'a trouvee
+    # une fois » (19 restarts sur 24 avaient ete necessaires). `in_situ=True` boucle la derivation sur le
+    # VRAI substrat — si forme close et forward divergeaient, ce serait l'aliasing d'EDR-WARM-007.
+    "verify_plain_ceiling_witness": ["closed-form:frozen", "in-situ:agrees"],
     # ---- LA FAMILLE DES GARDES, rendue comptable par le motif `assert_*` (2026-09-02) ----------------
     # Ces neuf declarations ne CREENT aucune couverture : elles DECLARENT une couverture qui existait
     # deja et que le cliquet ne savait pas nommer. Verifie fonction par fonction avant de les ecrire --
@@ -634,33 +764,6 @@ CALIBRATED = {
     "assert_predictor_measured_in_situ": ["context-mismatch:fires", "context-match:spares"],
     # EDR-095 aux chiffres REELS : le reve force multipliait `n_lived` par 13-16 entre bras, et la
     # « chute de 55 % » comparait deux populations differentes. `paired-cohorts:spares` est le controle
-    # ---- P2.15, le PLAFOND lui-meme (2026-09-07) -----------------------------------------------------
-    # `assert_bar_separates_the_incapable` force a DECLARER un plafond ; encore faut-il que quelqu'un le
-    # MESURE, sinon la garde deplace la devinette au lieu de la supprimer. C'est ce que fait
-    # `tools/plain_substrate_ceiling.py`, et il porte lui-meme DEUX controles apparies parce qu'un
-    # plafond bas a deux causes indiscernables sans eux : un optimiseur trop faible (innocente par
-    # `free-table:positive`, forme LIBRE, meme cible -> 1.000) ou une forme mal paramétrée (innocentee
-    # par `separable-target:specificity`, MEME forme, cible separable -> 1.000). Cas dans
-    # `tests/sandbox/test_plain_substrate_ceiling.py`.
-    # ⚠️ QUATRE controles, et il en a fallu quatre : les trois premiers laissaient encore passer une
-    # recherche BLOQUEE. Le 4e ancre sur la seule borne PROUVEE du dossier (MILP de la sous-forme
-    # additive, 27/36) : la forme complete la CONTIENT, donc doit la DOMINER. L'EGALITE dit que la
-    # recherche n'a rien trouve au-dela — c'est le regime qui a produit le 0.3889 du 2026-09-02.
-    "measure_plain_composition_ceiling": ["free-table:positive", "separable-target:specificity",
-                                          "budget-saturation:fires", "dominates-proven-bound:fires",
-                                          "modular-target:below-one", "above-chance:fires"],
-    "plain_readout_ceiling": ["free-table:positive", "separable-target:specificity",
-                              "unknown-target:refuses"],
-    # La BORNE PROUVEE (MILP, gap 0) — d'une autre nature que le minorant de recherche : elle se calibre
-    # sur des valeurs EXACTES (K=4 -> 12/16, K=6 -> 27/36) et sur un controle positif de la FORMULATION
-    # elle-meme (cible separable -> 36/36), qui attrape un « grand M » trop petit — une formulation qui
-    # fabriquerait le negatif avec le meme air d'exactitude.
-    "additive_argmax_exact_ceiling": ["exact-K4-K6:frozen", "separable-target:positive",
-                                      "infeasible-perfection:fires", "unknown-target:refuses"],
-    # Le TEMOIN GELE : la valeur centrale du dossier P2.15 ne repose plus sur « une recherche l'a trouvee
-    # une fois » (19 restarts sur 24 avaient ete necessaires). `in_situ=True` boucle la derivation sur le
-    # VRAI substrat — si forme close et forward divergeaient, ce serait l'aliasing d'EDR-WARM-007.
-    "verify_plain_ceiling_witness": ["closed-form:frozen", "in-situ:agrees"],
     # de specificite qui compte (n egaux, et desequilibre modere 12 vs 16 sous le seuil 1.5x) -- sans
     # lui, une garde interdisant TOUTE comparaison passerait le premier cas.
     "assert_n_per_arm": ["edr095-population-shift:fires", "paired-cohorts:spares", "empty-arm:fires"],
@@ -2355,10 +2458,21 @@ def test_bilinear_unlocks_composition_same_tick_supervised():
     from tools.bilinear_composition_probe import run_bilinear_composition_probe
     r = run_bilinear_composition_probe(seeds=list(range(12)), episodes=300, n_agents=16, K=6, rank=16,
                                         task="composition", same_tick=True, credit_mode="supervised")
+    # ⚠️ P2.15, RECTIFIÉ le 2026-09-07 — ce test assertait `r["unlocked"]` contre `bar = 1/6 + 0.15`.
+    # Il ne le peut plus, et c'est un DURCISSEMENT : le plafond du substrat plain sur cette tâche vaut
+    # AU MOINS 34/36 = 0.9444 (mesuré, re-vérifié sans autograd ET in situ dans le vrai
+    # `TorchPopulationModel` ; deux chercheurs indépendants trouvent 0.944 et 1.000). Il DÉPASSE donc le
+    # 0.932 du bilinéaire : la séparation de CAPACITÉ n'est pas établie, et la sonde REFUSE désormais de
+    # certifier `unlocked` tant qu'aucune borne SUPÉRIEURE PROUVÉE n'est déclarée.
+    # Ce qui est gelé ici reste ENTIER et c'était déjà tout le contenu empirique : la séparation
+    # d'APPRENABILITÉ à budget fixe, médianes ET séparation par-seed totale (0/144).
     bar = 1 / 6 + 0.15
     assert r["plain_median"] <= bar, r                                        # plain reste au plancher
     assert r["bilinear_median"] > bar, r                                      # bilinéaire décolle nettement
     assert min(r["per_seed"]["bilinear"]) > max(r["per_seed"]["plain"]), r    # séparation TOTALE par-seed
+    assert r["unlocked"] is None and r["bar_status"] == "CEILING_IS_MINORANT", (
+        "la sonde ne doit PAS certifier une séparation de capacité contre un MINORANT : "
+        f"{r['unlocked']} / {r['bar_status']}")
 
 
 @pytest.mark.slow          # wall MESURÉ 199.7s (call) / 204.8s (session) > 120s (pytest.ini) ;
@@ -2386,21 +2500,10 @@ def test_bilinear_composition_null_under_retention_is_lr_dependent():
     effectif 1 (`n_agents` n'est pas un minibatch — `src/agents/backend_torch.py:85-86`) que
     EDR-RETAIN-COMPOSE. Les chiffres du 2026-08-03 ne sont pas effacés : ils sont REPRODUITS ci-dessus et
     restent vrais À CE PAS.
-    # ⚠️ P2.15, RECTIFIÉ le 2026-09-07 — ce test assertait `r["unlocked"]` contre `bar = 1/6 + 0.15`.
-    # Il ne le peut plus, et c'est un DURCISSEMENT : le plafond du substrat plain sur cette tâche vaut
-    # AU MOINS 34/36 = 0.9444 (mesuré, re-vérifié sans autograd ET in situ dans le vrai
-    # `TorchPopulationModel` ; deux chercheurs indépendants trouvent 0.944 et 1.000). Il DÉPASSE donc le
-    # 0.932 du bilinéaire : la séparation de CAPACITÉ n'est pas établie, et la sonde REFUSE désormais de
-    # certifier `unlocked` tant qu'aucune borne SUPÉRIEURE PROUVÉE n'est déclarée.
-    # Ce qui est gelé ici reste ENTIER et c'était déjà tout le contenu empirique : la séparation
-    # d'APPRENABILITÉ à budget fixe, médianes ET séparation par-seed totale (0/144).
 
     ⚠️ Ce que ce test n'affirme PAS : que le 2-pas soit RÉSOLU à lr=0.002. 0.3797 reste très loin du 0.932
     obtenu à opérandes co-présents ; il franchit une barre (0.3167) elle-même mal placée — 0.072 SOUS le
     plafond structurel mesuré du substrat plain (0.3889). Ce qui est gelé, c'est la BASCULE, pas un
-    assert r["unlocked"] is None and r["bar_status"] == "CEILING_IS_MINORANT", (
-        "la sonde ne doit PAS certifier une séparation de capacité contre un MINORANT : "
-        f"{r['unlocked']} / {r['bar_status']}")
     verdict de capacité."""
     from tools.bilinear_composition_probe import run_bilinear_composition_probe
     bar = 1 / 6 + 0.15
@@ -2417,6 +2520,15 @@ def test_bilinear_composition_null_under_retention_is_lr_dependent():
     assert hi["bilinear_median"] > bar, hi
     # Séparation TOTALE par-seed sur le bras testé : la bascule n'est pas un effet de médiane.
     assert min(hi["per_seed"]["bilinear"]) > max(lo["per_seed"]["bilinear"]), (lo, hi)
+    # ⚠️ P2.15 (2026-09-07) — ce test assertait AUSSI `not lo["unlocked"]` et `hi["unlocked"]`. Il ne
+    # le peut plus, et c'est un DURCISSEMENT, pas une perte : à 2 pas AUCUN plafond d'incapable n'est
+    # établi (la forme close ne vaut que pour un `_step` depuis H_in=0), donc la sonde REFUSE désormais
+    # de rendre `unlocked` plutôt que de le rendre contre une barre qui ne sépare rien. Le franchissement
+    # de 0.3167 par `hi` (0.3797) était d'ailleurs SOUS le plafond mesuré du substrat plain : il ne
+    # pouvait pas établir de capacité, ce que la docstring signalait déjà en prose. Ce qui est gelé —
+    # la BASCULE, sur les médianes et le per-seed — est intact, et c'était déjà tout le contenu du test.
+    assert lo["unlocked"] is None and hi["unlocked"] is None, (lo["unlocked"], hi["unlocked"])
+    assert lo["bar_status"] == "UNVALIDATED" and hi["bar_status"] == "UNVALIDATED", (lo, hi)
 
 
 def test_bilinear_noop_on_recall():
@@ -2448,15 +2560,6 @@ def test_retain_compose_same_tick_composes():
 
 def test_retain_compose_decorrelated_oracle_is_floor():
     """NÉGATIF : un key ALÉATOIRE injecté en état (décorrélé de la cible) ne permet PAS (q+key)%K -> plancher.
-    # ⚠️ P2.15 (2026-09-07) — ce test assertait AUSSI `not lo["unlocked"]` et `hi["unlocked"]`. Il ne
-    # le peut plus, et c'est un DURCISSEMENT, pas une perte : à 2 pas AUCUN plafond d'incapable n'est
-    # établi (la forme close ne vaut que pour un `_step` depuis H_in=0), donc la sonde REFUSE désormais
-    # de rendre `unlocked` plutôt que de le rendre contre une barre qui ne sépare rien. Le franchissement
-    # de 0.3167 par `hi` (0.3797) était d'ailleurs SOUS le plafond mesuré du substrat plain : il ne
-    # pouvait pas établir de capacité, ce que la docstring signalait déjà en prose. Ce qui est gelé —
-    # la BASCULE, sur les médianes et le per-seed — est intact, et c'était déjà tout le contenu du test.
-    assert lo["unlocked"] is None and hi["unlocked"] is None, (lo["unlocked"], hi["unlocked"])
-    assert lo["bar_status"] == "UNVALIDATED" and hi["bar_status"] == "UNVALIDATED", (lo, hi)
     Prouve que l'oracle mesure la LECTURE de l'état retenu, pas un artefact d'injection.
     Mesuré (2026-08-04) : oracle_decorrelated_median=0.162, 4 seeds dans [0.152, 0.178], tous <= bar≈0.317."""
     from tools.retain_compose_diagnostic_probe import run_retain_compose_diagnostic_probe
