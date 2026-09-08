@@ -61,24 +61,27 @@ def test_ratios_masked_isolates_dims():
 
 def test_verdict_encoding_artifact():
     # FULL fidele (both), HIDDEN neutre (both >=0.95) -> ARTIFACT
-    fid = [0.4, 0.5, 0.3, 0.45, 0.5]
-    neu = [1.0, 1.01, 0.99, 1.0, 1.0]
+    # ⚠️ n=8 : `_verdict_decomposition` COMPOSE `fidelity_verdict`, donc il hérite de son
+    # plancher de puissance (`sign_p < 0.05`, correctif E14). À n=5 tous ces verdicts
+    # retombaient sur PARTIAL, et ces trois tests étaient rouges dans HEAD.
+    fid = [0.4, 0.5, 0.3, 0.45, 0.5, 0.35, 0.42, 0.48]
+    neu = [1.0, 1.01, 0.99, 1.0, 1.0, 0.99, 1.01, 1.0]
     assert _verdict_decomposition(fid, fid, neu, neu) == "ENCODING_ARTIFACT"
 
 
 def test_verdict_latent_bilinear():
     # HIDDEN : bilin fidele ET bat learned -> LATENT_BILINEAR
-    learned_h = [0.9, 0.85, 0.92, 0.88, 0.9]
-    bilin_h = [0.4, 0.5, 0.3, 0.45, 0.5]
-    fid = [0.5, 0.5, 0.5, 0.5, 0.5]
+    learned_h = [0.9, 0.85, 0.92, 0.88, 0.9, 0.87, 0.91, 0.89]
+    bilin_h = [0.4, 0.5, 0.3, 0.45, 0.5, 0.35, 0.42, 0.48]
+    fid = [0.5] * 8
     assert _verdict_decomposition(fid, fid, learned_h, bilin_h) == "LATENT_BILINEAR"
 
 
 def test_verdict_latent_linear():
     # HIDDEN : learned fidele, bilin NE bat PAS -> LATENT_LINEAR
-    learned_h = [0.4, 0.5, 0.3, 0.45, 0.5]
-    bilin_h = [0.6, 0.65, 0.55, 0.6, 0.6]
-    fid = [0.5, 0.5, 0.5, 0.5, 0.5]
+    learned_h = [0.4, 0.5, 0.3, 0.45, 0.5, 0.35, 0.42, 0.48]
+    bilin_h = [0.6, 0.65, 0.55, 0.6, 0.6, 0.58, 0.62, 0.6]
+    fid = [0.5] * 8
     assert _verdict_decomposition(fid, fid, learned_h, bilin_h) == "LATENT_LINEAR"
 
 
@@ -89,3 +92,13 @@ def test_smoke_decomposition_returns_verdict():
     res = main_bilinear_check(seeds=(0,), warmup=30, measure=90, _return=True)
     assert res["verdict"] in {"ENCODING_ARTIFACT", "LATENT_BILINEAR", "LATENT_LINEAR", "PARTIAL", "NO_DATA"}
     assert "med_learned_hidden" in res and "med_bilin_hidden" in res
+
+
+def test_le_verdict_retombe_sur_PARTIAL_sous_le_plancher_de_puissance():
+    """Le plancher, GRAVÉ. `_verdict_decomposition` compose `fidelity_verdict` : à n=5, aucune de ses
+    sous-décisions ne peut atteindre G_FIDELE (`sign_p` = 0.0625), donc TOUS ses verdicts retombent
+    sur PARTIAL quelle que soit la dose. C'est exactement l'état dans lequel les trois cas ci-dessus
+    étaient rouges, invisibles, dans HEAD."""
+    fid5 = [0.4, 0.5, 0.3, 0.45, 0.5]
+    neu5 = [1.0, 1.01, 0.99, 1.0, 1.0]
+    assert _verdict_decomposition(fid5, fid5, neu5, neu5) == "PARTIAL"

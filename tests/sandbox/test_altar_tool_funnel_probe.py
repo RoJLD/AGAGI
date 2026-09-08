@@ -45,9 +45,28 @@ def test_autel_vivant_when_any_solved():
 
 
 def test_funnel_empty_no_crash():
+    """⚠️ ROUGE PRÉ-EXISTANT corrigé le 2026-09-08. Ce test EXIGEAIT que zéro agent produise
+    `AUTEL_MORT` et `GAP_ACQUISITION` — c.-à-d. deux affirmations de FOND fabriquées depuis une
+    absence de mesure. `AUTEL MORT` est l'exemple que CLAUDE.md cite en tête de cette classe de
+    défaut. L'instrument a été corrigé (il rend `INDETERMINE_AUCUN_AGENT` et `None` pour les trois
+    fractions) mais SON TEST est resté sur l'ancien contrat, donc rouge : personne ne l'avait vu
+    parce qu'il faut lancer la suite ENTIÈRE pour le voir. Le test grave désormais le bon contrat."""
     v = funnel_verdict({})
-    assert v["n_agents"] == 0 and v["verdict_autel"] == "AUTEL_MORT"
-    assert v["verdict_funnel"] == "GAP_ACQUISITION" and v["par_seed"] == {}
+    assert v["n_agents"] == 0 and v["par_seed"] == {}
+    assert v["verdict_autel"] == "INDETERMINE_AUCUN_AGENT"
+    assert v["verdict_funnel"] == "INDETERMINE_AUCUN_AGENT"
+    # les fractions sont `None`, pas 0.0 : 0.0 se lirait comme « mesuré et nul »
+    assert v["frac_hunt"] is None and v["frac_craft"] is None and v["frac_apex"] is None
+
+
+def test_funnel_empty_is_DISTINCT_from_a_measured_zero():
+    """Branche NÉGATIVE appariée, sans laquelle le test précédent ne prouverait rien : une cohorte
+    RÉELLE dont aucun agent n'a rien fait est une MESURE, et doit rendre un verdict de fond — pas le
+    même `INDETERMINE` que l'absence de cohorte. C'est toute la différence que la correction achète."""
+    v = funnel_verdict({0: [_ag() for _ in range(5)]})
+    assert v["n_agents"] == 5
+    assert v["verdict_autel"] != "INDETERMINE_AUCUN_AGENT"
+    assert v["frac_hunt"] == 0.0, "une cohorte mesurée à zéro doit publier 0.0, pas None"
 
 
 def test_par_seed_carries_decomposition():

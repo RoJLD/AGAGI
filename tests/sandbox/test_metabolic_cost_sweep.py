@@ -13,12 +13,27 @@ def test_sign_test_p_bounds():
 
 
 def test_verdict_efficace():
+    # ⚠️ n=8, PAS 3. Le correctif E14 du 2026-09-01 a ajouté `sign_p < 0.05` à cette branche ; à n=3
+    # `sign_p` vaut 0.25 AU MIEUX, donc EFFICACE était devenu INATTEIGNABLE et ce test rouge depuis.
+    # C'est la classe E14 elle-même — une garde exécutable jamais rétro-appliquée à ses propres tests.
     per_coef = [{"coef": 0.01,
-                 "eff_ratios": [1.2, 1.3, 1.15],   # efficacité en hausse
-                 "surv_ratios": [0.98, 1.0, 0.95]}] # survie OK
+                 "eff_ratios": [1.2, 1.3, 1.15, 1.25, 1.1, 1.35, 1.18, 1.22],   # efficacité en hausse
+                 "surv_ratios": [0.98, 1.0, 0.95, 0.99, 1.0, 0.97, 0.98, 1.0]}]  # survie OK
     out = compute_sweep_verdict(per_coef)["per_coef"][0]
     assert out["verdict"] == "EFFICACE"
     assert out["median_eff"] > 1.05
+    assert out["sign_p"] < 0.05, "la puissance est la CONDITION du verdict, pas un detail"
+
+
+def test_verdict_EFFICACE_est_INATTEIGNABLE_sous_le_plancher_de_puissance():
+    """Le plancher, GRAVÉ. La MÊME dose (tous les ratios favorables, médiane identique) sur 3 seeds ne
+    peut PAS rendre EFFICACE : `sign_p` vaut 0.25 par construction. Sans ce cas, la prochaine garde
+    ajoutée re-cassera les fixtures en silence — c'est exactement ce qui vient de se produire."""
+    petit = [{"coef": 0.01, "eff_ratios": [1.2, 1.3, 1.15], "surv_ratios": [0.98, 1.0, 0.95]}]
+    out = compute_sweep_verdict(petit)["per_coef"][0]
+    assert out["median_eff"] > 1.05 and out["n_favorable"] == 3      # la DOSE est là
+    assert out["sign_p"] == 0.25                                     # la PUISSANCE ne l'est pas
+    assert out["verdict"] == "NEUTRE"
 
 
 def test_verdict_nuit_on_collapse():
@@ -78,8 +93,10 @@ def test_run_lineage_paired_reproducible():
 
 
 def test_run_sweep_structure_and_verdict():
-    out = run_sweep(seeds=[0, 1], coefs=[0.0, 0.01], eras=2, num_agents=6, max_ticks=50,
-                    run_era_fn=_fake_run_era_fn)
+    # 8 seeds et non 2 : sous le plancher de puissance (`sign_p < 0.05`) le verdict
+    # EFFICACE est inatteignable quelle que soit la dose -- cf. le cas dédié ci-dessus.
+    out = run_sweep(seeds=[0, 1, 2, 3, 4, 5, 6, 7], coefs=[0.0, 0.01], eras=2,
+                    num_agents=6, max_ticks=50, run_era_fn=_fake_run_era_fn)
     assert "per_coef" in out and "per_lineage" in out
     coef_entry = [c for c in out["per_coef"] if abs(c["coef"] - 0.01) < 1e-9][0]
     assert coef_entry["verdict"] == "EFFICACE"        # efficacité ↑, survie constante
@@ -94,8 +111,9 @@ def _fake_kwta_runner(cfg, genomes, max_ticks):
 
 
 def test_run_sweep_generalized_param_and_baseline():
-    out = run_sweep(seeds=[0, 1], coefs=[1.0, 0.5], eras=2, num_agents=6, max_ticks=50,
-                    run_era_fn=_fake_kwta_runner, param="kwta_keep_frac", baseline=1.0)
+    out = run_sweep(seeds=[0, 1, 2, 3, 4, 5, 6, 7], coefs=[1.0, 0.5], eras=2,
+                    num_agents=6, max_ticks=50, run_era_fn=_fake_kwta_runner,
+                    param="kwta_keep_frac", baseline=1.0)   # 8 seeds : cf. plancher
     assert out["config"]["param"] == "kwta_keep_frac"
     assert out["config"]["baseline"] == 1.0
     entry = [c for c in out["per_coef"] if abs(c["coef"] - 0.5) < 1e-9][0]

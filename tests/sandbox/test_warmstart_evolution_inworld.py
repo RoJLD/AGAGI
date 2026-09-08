@@ -408,11 +408,22 @@ def test_run_aux_off_validation_smoke(tmp_path):
     out = run_aux_off_validation(seeds=(2026,), epochs=3, num_agents=4, max_ticks=12, gi_ticks=8,
                                  weights=(0.0, 1.0), out_path=str(tmp_path / "w8.json"))
     arms = out["seeds"]["2026"]
+    # ⚠️ NON-RÉGRESSION (2026-09-08) : le compte de mesures manquantes était écrit DANS cette carte,
+    # inconditionnellement, sous une clé `0.0__mesures_manquantes` qui ressemble à un bras. Tout
+    # consommateur qui itère les bras voyait donc des bras FANTÔMES — et ce test était rouge dans HEAD
+    # sans que personne le voie (la CI ne lance pas ce fichier).
     assert set(arms) == {"0.0", "1.0"}
     for w, recs in arms.items():
         assert len(recs) == 4
         for r in recs:
             assert 0.0 <= r["gi"] <= 1.0 and 0.0 <= r["move_acc"] <= 1.0
+
+    # ...et le compte n'a PAS été supprimé pour faire passer le test : il est publié à part. Sans
+    # cette assertion appariée, « effacer le compteur » satisferait la précédente — or ce compteur EST
+    # le correctif du 2026-09-01 (« un refus n'est pas un non » : `nan > 0.5` valait False, donc une
+    # mesure ABSENTE était comptée comme une preuve que le grab est annulé — le chiffre de WARM-008).
+    assert set(out["mesures_manquantes"]["2026"]) == {"0.0", "1.0"}
+    assert all(isinstance(v, int) and v >= 0 for v in out["mesures_manquantes"]["2026"].values())
 
 
 def test_aux_off_weight_drives_grab_logit_down():

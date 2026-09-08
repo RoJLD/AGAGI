@@ -28,14 +28,28 @@ def test_transition_error_zero_g_equals_baseline():
 
 
 def test_fidelity_verdict_faithful():
-    out = fidelity_verdict([0.3, 0.4, 0.2, 0.5, 0.35])       # g bat nettement la baseline
+    # ⚠️ n=8, PAS 5. Le correctif E14 a ajouté `sign_p < 0.05` aux DEUX branches ; à n=5 `sign_p` vaut
+    # 0.0625 AU MIEUX, donc G_FIDELE comme G_INUTILE étaient INATTEIGNABLES et ces tests rouges depuis.
+    out = fidelity_verdict([0.3, 0.4, 0.2, 0.5, 0.35, 0.28, 0.45, 0.33])   # g bat nettement la baseline
     assert out["verdict"] == "G_FIDELE"
-    assert out["n_favorable"] == 5 and out["n"] == 5
+    assert out["n_favorable"] == 8 and out["n"] == 8
+    assert out["sign_p"] < 0.05
 
 
 def test_fidelity_verdict_useless():
-    out = fidelity_verdict([1.3, 1.2, 1.5, 1.1])
+    out = fidelity_verdict([1.3, 1.2, 1.5, 1.1, 1.25, 1.4, 1.15, 1.35])
     assert out["verdict"] == "G_INUTILE"
+    assert out["sign_p"] < 0.05
+
+
+def test_les_DEUX_verdicts_sont_INATTEIGNABLES_sous_le_plancher_de_puissance():
+    """Le plancher, GRAVÉ, et dans les DEUX sens : la même dose sur 5 seeds ne peut rendre ni
+    G_FIDELE ni G_INUTILE (`sign_p` = 0.0625 par construction). Sans ce cas, la prochaine garde
+    ajoutée re-cassera les fixtures en silence."""
+    fidele = fidelity_verdict([0.3, 0.4, 0.2, 0.5, 0.35])
+    inutile = fidelity_verdict([1.3, 1.2, 1.5, 1.1, 1.25])
+    assert fidele["n_favorable"] == 5 and fidele["sign_p"] == 0.0625
+    assert fidele["verdict"] == "NEUTRE" and inutile["verdict"] == "NEUTRE"
 
 
 def test_fidelity_verdict_neutral_and_no_nan():

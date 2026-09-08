@@ -42,7 +42,19 @@ def test_verdict_evolve_nav_boundary():
 
 
 def test_verdict_evolve_nav_empty():
-    assert _verdict_evolve_nav([]) == "SUBSTRAT BLOQUE"
+    """⚠️ CORRIGÉ le 2026-09-08. Ce test EXIGEAIT qu'une trajectoire VIDE rende « SUBSTRAT BLOQUE » —
+    l'affirmation de fond la plus forte de l'instrument, fabriquée depuis ZÉRO génération mesurée.
+    L'instrument a été corrigé, son test est resté sur l'ancien contrat, donc rouge et invisible."""
+    v = _verdict_evolve_nav([])
+    assert v.startswith("INDETERMINE"), f"une absence de mesure ne doit pas verdicter : {v}"
+
+
+def test_verdict_evolve_nav_mesure_PLATE_reste_un_verdict():
+    """Branche NÉGATIVE appariée, sans laquelle la précédente ne prouverait rien : une trajectoire
+    RÉELLEMENT plate est une MESURE et doit rendre un verdict de fond, pas le même INDETERMINE que
+    l'absence de trajectoire."""
+    v = _verdict_evolve_nav([0.20] * 10)
+    assert not v.startswith("INDETERMINE"), f"un plateau MESURE doit verdicter, reçu {v}"
 
 
 def test_evolve_nav_gen_smoke():

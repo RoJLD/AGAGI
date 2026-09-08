@@ -1177,7 +1177,7 @@ def run_aux_off_validation(seeds=(2026, 7, 13, 42), epochs=1500, lr=0.5, num_age
         if not o0:
             continue
         mask = [np.ones(len(t), dtype=np.float32) for t in t0]
-        per_arm = {}
+        per_arm, manquants_par_arm = {}, {}
         for w in weights:
             seed_at(seed, 1)                       # MÊME init pour les deux bras : appariement strict
             agents = [MambaAgent() for _ in range(num_agents)]
@@ -1202,7 +1202,12 @@ def run_aux_off_validation(seeds=(2026, 7, 13, 42), epochs=1500, lr=0.5, num_age
             finis = [g for g in gis if np.isfinite(g)]
             n_manquants = len(gis) - len(finis)
             n_au_dessus = sum(1 for g in finis if g > 0.5)
-            per_arm[str(w) + "__mesures_manquantes"] = n_manquants
+            # ⚠️ CORRIGE le 2026-09-08. Ce compteur etait ecrit DANS `per_arm`, qui est une carte
+            # bras -> enregistrements : tout consommateur qui itere les bras y voyait donc des
+            # bras FANTOMES (`0.0__mesures_manquantes`), et ce INCONDITIONNELLEMENT -- meme a
+            # zero manquant. Le compte reste PUBLIE (c'est tout le sens du correctif du
+            # 2026-09-01 : un refus n'est pas un non), mais dans sa PROPRE carte.
+            manquants_par_arm[str(w)] = n_manquants
             print("  seed=%-5s w=%-4s gi_median=%s  gi>0.5: %d/%d  manquants=%d  move_acc_median=%.3f"
                   % (seed, w,
                      ("%.3f" % float(np.median(finis))) if finis else "AUCUNE MESURE",
@@ -1212,6 +1217,7 @@ def run_aux_off_validation(seeds=(2026, 7, 13, 42), epochs=1500, lr=0.5, num_age
                 print("     ⚠️ %d agent(s) SANS occasion de grab : mesure MANQUANTE, pas 'grab annule'."
                       % n_manquants)
         out["seeds"][str(seed)] = per_arm
+        out.setdefault("mesures_manquantes", {})[str(seed)] = manquants_par_arm
 
     if out_path:
         os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
