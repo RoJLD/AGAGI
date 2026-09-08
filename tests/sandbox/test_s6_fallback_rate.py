@@ -548,6 +548,7 @@ def test_s6_agregation_refuse_de_melanger_cellules_sigmas_ou_PARAMETRES():
     """Une agregation qui melange (cellule, sigma) produirait un k(sigma) qui n'est le k de rien ;
     melanger des iters/n_eval differents comparerait deux protocoles sous un seul intitule."""
     import pytest
+
     P = _s6_probe()
     with pytest.raises(ValueError):
         P.aggregate([_s6_record(cell="c1-N", sigma=0.0), _s6_record(cell="c1-P", sigma=0.3)])
@@ -603,12 +604,24 @@ def test_s6_persistance_est_resumable_et_ne_recalcule_pas():
 
 
 def test_s6_aucun_monde_aucun_bail_kuzu():
-    """Le runner est pur numpy : s'il chargeait le monde ou `tools.jobs`, il faudrait un bail
-    exclusif et la mesure serait contaminable par une sonde concurrente."""
-    import sys
+    """Le runner est pur numpy : s'il chargeait le monde ou `tools.jobs`, il faudrait un bail exclusif
+    et la mesure serait contaminable par une sonde concurrente.
+
+    ⚠️ CORRIGÉ le 2026-09-08. Ce test portait `assert "kuzu" not in sys.modules` — une assertion sur
+    l'ÉTAT DU PROCESSUS, pas sur la sonde. Elle passait en isolation et ÉCHOUAIT en suite complète, dès
+    qu'un AUTRE module de test importait kuzu : le test était donc vert seul, rouge ensemble, et rouge
+    dans HEAD sans que personne le voie (la CI ne lance pas ce fichier). C'est le résidu exact du
+    défaut corrigé la veille dans `assert_no_world`, qui inspectait lui aussi `sys.modules` global.
+    On vérifie désormais ce qui est vraiment en cause : la SOURCE du runner, statiquement."""
+    import io
+    import re
+
     P = _s6_probe()
     assert P.assert_no_world() is True
-    assert "kuzu" not in sys.modules
+    src = io.open(P.__file__, encoding="utf-8").read()
+    interdits = re.findall(r"^\s*(?:from|import)\s+(src\.worlds[\w.]*|tools\.jobs[\w.]*|kuzu)",
+                           src, re.M)
+    assert not interdits, f"le runner importe {interdits} : il exigerait un bail exclusif"
 
 
 def test_s6_le_plan_est_borne_et_connu_d_avance():
@@ -618,3 +631,21 @@ def test_s6_le_plan_est_borne_et_connu_d_avance():
     assert len(pts) == 60
     assert sorted({(c, s) for c, s, _ in pts}) == [("c1-N", 0.0), ("c1-N", 0.1), ("c1-N", 0.3),
                                                    ("c1-N", 1.0), ("c1-P", 0.3)]
+
+
+def test_plan_REFUSE_une_selection_de_cellules_VIDE():
+    """NON-RÉGRESSION (2026-09-07). `cells = cells or list(CELLS)` : la sélection VIDE était traitée
+    comme une absence de choix, donc demander ZÉRO cellule rendait le plan COMPLET (4 cellules × σ ×
+    seeds). Défaut écrit ICI le jour même où il était corrigé dans `run_s2` — recensé ensuite par AST
+    sur tout le dépôt (3 sites de cette forme). `None` = pas de choix ; `[]` = un choix vide."""
+    import pytest as _p
+
+    from tools.s2_fallback_rate_probe import CELLS, plan
+
+    with _p.raises(ValueError, match="degenere"):
+        plan(cells=[])
+    # branche NÉGATIVE appariée : `None` doit toujours rendre le plan complet, et une sélection
+    # explicite ne doit rendre QUE ce qui est demandé.
+    assert len(plan(cells=None)) == len(plan(cells=list(CELLS)))
+    une = list(CELLS)[:1]
+    assert {c for c, _, _ in plan(cells=une)} == set(une)

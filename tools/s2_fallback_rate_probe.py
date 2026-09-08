@@ -547,7 +547,16 @@ def load_or_run(outdir, cell, sigma, seed, iters=300, episodes=5, n_eval=N_EVAL,
 
 
 def plan(cells=None, seeds=N_SEEDS):
-    cells = cells or list(CELLS)
+    # Corrige le 2026-09-07 : meme defaut que `run_s2`, ecrit ici le jour meme ou il y etait corrige.
+    # `cells=[]` (selection vide) rendait le plan COMPLET au lieu d'un plan vide -- un run demande
+    # sur ZERO cellule lancait les 4. `None` = pas de choix ; `[]` = un choix vide.
+    if cells is None:
+        cells = list(CELLS)
+    cells = list(cells)
+    if not cells:
+        raise ValueError(
+            "plan : argument degenere (selection de cellules VIDE) -- aucun plan possible ; ne pas "
+            "confondre avec un plan nul OBSERVE. (cells=None pour toutes les cellules.)")
     return [(c, s, seed) for c in cells for s in CELLS[c]["sigmas"] for seed in range(seeds)]
 
 

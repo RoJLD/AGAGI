@@ -38,7 +38,22 @@ def cognition_body_study(worlds=None, seed=2026, K=12, num_agents=20, max_ticks=
     """Déroule les 4 cellules du 2x2 par monde et rend `verdict_cognition_body`. run_fn/champion_genome
     injectables (tests). Holm sur les p de l'effet POLITIQUE (famille des mondes). RAG-off = appelant."""
     run_fn = run_fn or run_condition
-    worlds = worlds or list(WORLDS)
+    # DEUX defauts corriges le 2026-09-07 (retro-application du correctif de `run_s2`) :
+    # (a) `worlds or list(WORLDS)` traitait une liste VIDE comme « pas de choix » -> demander ZERO
+    #     monde lancait la grille COMPLETE. `None` = pas de choix ; `[]` = un choix vide, donc une
+    #     erreur d'appel.
+    # (b) `worlds` est ITERE DEUX FOIS : la boucle de mesure (plus bas) puis la famille Holm. Passe
+    #     en ITERATEUR, la seconde passe etait VIDE -> `decided` vide, aucun `policy_p_holm` ecrit,
+    #     et l'affichage retombait EN SILENCE sur `pc["p"]` NON corrige. La correction FWER de la
+    #     famille des mondes disparaissait sans un mot -- classe E23, 3e occurrence, ici dans
+    #     l'instrument qui porte le verdict FONDATEUR S2-012.
+    if worlds is None:
+        worlds = list(WORLDS)
+    worlds = list(worlds)                      # materialise : deux passes sont faites plus bas
+    if not worlds:
+        raise ValueError(
+            "cognition_body_study : argument degenere (famille de mondes VIDE) -- aucune mesure "
+            "possible ; ne pas confondre avec une mesure nulle OBSERVEE. (worlds=None pour tout.)")
     champion = champion_genome if champion_genome is not None else load_champion_genome()
     report = {"seed": seed, "K": K, "worlds": {}}
     with Harness(seed=seed, name="s2_cogbody", with_db=False):

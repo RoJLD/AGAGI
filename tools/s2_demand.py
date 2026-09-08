@@ -11,7 +11,8 @@ from src.seed_ai.harness import seed_at, Harness, _git_short_commit
 from src.seed_ai.persistence import calculate_life_score, load_hall_of_fame
 from src.agents.baseline_models import RandomActionBatchModel, ReflexBatchModel
 from src.agents.ablation_models import ObsAblatedMambaBatchModel
-from src.seed_ai.s2_stats import s2_verdict, verdict_from_survival_cmps, holm, verdict_within_subject
+from src.seed_ai.s2_stats import (s2_verdict, verdict_from_survival_cmps, holm,
+                                  verdict_within_subject, s2_degeneracy)
 from src.worlds.world_1_stoneage import Biosphere3D
 from src.worlds.world_0_soup import SoupWorld
 from src.worlds.world_2_agricultural import AgriculturalWorld
@@ -158,7 +159,21 @@ def run_s2(worlds=None, seed=2026, K=None, num_agents=20, max_ticks=400, with_db
         raise ValueError(
             f"run_s2 : argument degenere (num_agents={num_agents} max_ticks={max_ticks} K={K}) -- aucune mesure possible ; "
             "ne pas confondre avec une mesure nulle OBSERVEE.")
-    worlds = worlds or list(WORLDS)
+    # ⚠️ DEUX defauts corriges le 2026-09-07 (trouves par injection a dose connue) :
+    # (a) `worlds or list(WORLDS)` traitait une liste VIDE comme « pas de choix » -> demander ZERO
+    #     monde lancait la grille COMPLETE (5 mondes x 6 conditions x K eres), le run le plus cher
+    #     du depot. `None` = pas de choix ; `[]` = un choix vide, donc une erreur d'appel.
+    # (b) `worlds` etait ITERE DEUX FOIS (la boucle de mesure, puis la famille Holm plus bas). Passe
+    #     en ITERATEUR, la 2e passe etait VIDE : aucun `p_monde_holm` n'etait ecrit et `_print_table`
+    #     retombait en silence sur le `p_monde` NON corrige -- la correction FWER disparaissait sans
+    #     un mot, c.-a-d. exactement le p-hacking que le commentaire du code interdit.
+    if worlds is None:
+        worlds = list(WORLDS)
+    worlds = list(worlds)                      # materialise : deux passes sont faites plus bas
+    if not worlds:
+        raise ValueError(
+            "run_s2 : argument degenere (famille de mondes VIDE) -- aucune mesure possible ; ne pas "
+            "confondre avec une mesure nulle OBSERVEE. (Passer `worlds=None` pour la grille complete.)")
     champion = load_champion_genome()
     report = {"seed": seed, "commit": _git_short_commit(), "K": {}, "worlds": {}}
 
@@ -180,6 +195,55 @@ def run_s2(worlds=None, seed=2026, K=None, num_agents=20, max_ticks=400, with_db
             # edge life_score est noyé par des événements rares/chanceux. s2_verdict calcule déjà les
             # cmps de survie (dans les 2 branches) + life_p -> on re-rend le verdict SANS re-simuler.
             v = s2_verdict(conds["champion"], baselines)
+            # ⚠️ RÉGIME ILLISIBLE — défaut corrigé le 2026-09-08 (classe E3, deux portes d'entrée).
+            # `s2_verdict` pose sa garde de dégénérescence AVANT tout le reste et rend alors
+            # {'verdict': 'INCONCLUSIVE_DEGENERATE', 'degenerate': True, 'why': ...} SANS clé
+            # 'survival' ni 'life_p'. L'appel INCONDITIONNEL à `verdict_from_survival_cmps(v["survival"])`
+            # levait donc un KeyError : l'orchestrateur DÉTRUISAIT le seul verdict d'indétermination
+            # de toute la chaîne. Deux régimes réels y menaient — (a) les deux bras constants (tout le
+            # monde meurt au même tick : Cliff δ vaut ±1 MÉCANIQUEMENT, cas mesuré le 2026-09-01) et
+            # (b) la cohorte champion VIDE (extinction totale), que la garde d'ARGUMENTS posée en tête
+            # ne couvre PAS puisqu'elle refuse `num_agents<=0` À L'APPEL, pas une extinction MESURÉE.
+            # Dans les deux cas la grille S2 entière s'arrêtait sur une trace de clé.
+            # On PROPAGE l'indétermination, on ne la remplace pas : ce monde reçoit
+            # INCONCLUSIVE_DEGENERATE + la RAISON, la grille CONTINUE sur les mondes suivants, et rien
+            # n'est fabriqué depuis une absence de mesure — pas de p_monde (donc HORS de la famille
+            # Holm, il n'y a rien à corriger), pas de Cliff, pas de life_p, et pas de bloc `within`
+            # (un verdict causal calculé sous un régime illisible serait fabriqué, exactement comme
+            # sous un champion VOID). `verdict_from_survival_cmps` a précisément un paramètre
+            # `degenerate_why` pour ça : elle ne peut pas se garder elle-même (elle ne reçoit que des
+            # comparaisons déjà calculées), c'est l'appelant qui détient les distributions.
+            # ⚠️ 2e DÉFAUT, trouvé en RÉFUTATION le 2026-09-08 : `s2_verdict` n'examine QU'UNE paire —
+            # (champion, baseline de plus haute médiane). Or le verdict de survie est un IUT
+            # CONJONCTIF : p_monde = MAX des p sur les TROIS baselines, donc N'IMPORTE LAQUELLE des
+            # trois peut décider seule. Une paire illisible ailleurs que sur la plus forte traversait
+            # donc la garde intacte et allait fabriquer un verdict.
+            # Aggravant MESURÉ : `max(..., key=np.median)` est AVEUGLE aux bras vides — `np.median([])`
+            # vaut nan, et nan ne gagne JAMAIS une comparaison `>`, donc un bras vide n'est élu « le
+            # plus fort » QUE s'il est PREMIER dans le dict. Le même bras vide rendait
+            # INCONCLUSIVE_DEGENERATE en 1re position et, en 2e ou 3e,
+            # « VOID (survie incohérente : random_genome domine, p_monde=1.000, Cliff d=+0.00) » —
+            # avec ratio_lo/ratio_hi = nan PUBLIÉS. Le verdict dépendait de l'ordre d'insertion d'un
+            # dict, et une absence totale de mesure devenait l'affirmation de FOND « un baseline
+            # domine le champion » (forme (a) du biais systématique du dépôt), Holm inclus — donc
+            # gonflant la multiplicité m au détriment des mondes réellement mesurés.
+            # On interroge donc `s2_degeneracy` sur CHAQUE membre de la famille IUT, avec les mêmes
+            # distributions que celles qui entrent dans le test. Elle ne déclenche que sur les cas
+            # CERTAINS (bras vide / bras identiques point par point / les deux constants) : un
+            # baseline simplement PLAT face à un champion étalé reste lisible et n'est PAS refusé.
+            why = v["why"] if v.get("degenerate") else None
+            if why is None:
+                for _k in baselines:                       # ordre déterministe -> raison déterministe
+                    _why_k = s2_degeneracy(conds["champion"], baselines[_k])
+                    if _why_k:
+                        why = f"comparaison champion vs {_k} (membre de l'IUT) : {_why_k}"
+                        break
+            if why:
+                sv = verdict_from_survival_cmps({}, degenerate_why=why)
+                sv["strongest_baseline"] = v.get("strongest_baseline")
+                sv["censored_frac_champion"] = conds["champion"]["censored_frac"]
+                report["worlds"][w] = sv
+                continue
             sv = verdict_from_survival_cmps(v["survival"])
             sv["survival"] = v["survival"]
             sv["life_p"] = v["life_p"]                          # corroborant NON-bloquant (rapporté)
@@ -207,6 +271,13 @@ def _print_table(report):
     print(f"\n=== S2 — Le monde exige-t-il l'intelligence ? (seed={report['seed']}, commit={report['commit']}) ===")
     print("    cohérence basée SURVIE (addendum 2026-06-30, EDR 124) ; life_p = corroborant non-bloquant")
     for w, v in report["worlds"].items():
+        if v.get("degenerate"):
+            # Régime illisible : il n'y a NI p-value NI Cliff à imprimer — seulement la raison du
+            # refus. Le monde reste dans le tableau (la grille a bien tourné) mais hors famille Holm.
+            print(f"  {w:12s} : {v['verdict']} ({v['why']}) "
+                  f"| aucune p-value -> HORS de la famille Holm "
+                  f"| censuré={v['censored_frac_champion']*100:.0f}%")
+            continue
         s = v["survival"][v["strongest_baseline"]]
         if v["verdict"] == "VOID":
             # base survie : VOID = un baseline domine le champion en survie (vraie incohérence)
@@ -218,7 +289,24 @@ def _print_table(report):
               f"| vs {v['strongest_baseline']}: Cliff d={s['cliff']:+.2f}, ratio[{s['ratio_lo']:.2f},{s['ratio_hi']:.2f}] "
               f"| censuré={v['censored_frac_champion']*100:.0f}% | life_p={v['life_p']:.3f} (ancien gate: {gate})")
         wi = v.get("within")
-        if wi is not None:
+        if wi is not None and wi.get("degenerate"):
+            # ⚠️ MÊME DÉFAUT, MÊME FONCTION, 12 LIGNES PLUS BAS — trouvé en RÉFUTATION du correctif
+            # du 2026-09-08 (classe E3, 3e porte d'entrée). `verdict_within_subject` porte EXACTEMENT
+            # la même garde de dégénérescence que `s2_verdict` et rend alors
+            # {'verdict': 'INCONCLUSIVE_DEGENERATE', 'degenerate': True, 'why': ...} SANS 'causal_cmp'
+            # ni 'residual_cmp' -> `cc = wi["causal_cmp"]` levait KeyError. La garde posée en tête de
+            # boucle ne couvre PAS ce sous-bloc : le monde a un verdict de survie parfaitement lisible,
+            # c'est le bloc CAUSAL qui ne l'est pas.
+            # Régime qui y mène, et c'est le plus banal du dépôt : le champion ET sa version obs-ablée
+            # censurés au MÊME tick (max_ticks atteint des deux côtés, variance nulle des deux côtés)
+            # pendant que les baselines meurent -> le monde est tranché EXIGE, `within` est attaché,
+            # et l'impression lève APRÈS le `h.save` : la grille est mesurée, archivée... et AUCUN des
+            # mondes suivants n'est imprimé, `run_s2` ne rend jamais son rapport. C'est le comportement
+            # que le correctif du jour prétendait avoir supprimé, par une troisième porte.
+            # On dit la RAISON, on n'imprime NI Cliff NI p : il n'y en a pas.
+            print(f"      within (ablation-perception): {wi['verdict']} ({wi['why']}) "
+                  f"| aucune comparaison lisible -> ni Cliff ni p")
+        elif wi is not None:
             cc = wi["causal_cmp"]; rc = wi["residual_cmp"]
             print(f"      within (ablation-perception): {wi['verdict']:14s} "
                   f"| champion vs ablaté: Cliff d={cc['cliff']:+.2f} p={cc['p']:.4f} "

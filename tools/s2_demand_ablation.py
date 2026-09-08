@@ -47,6 +47,31 @@ class PerceptionAblatedMamba(MambaBatchModel):
         return super().forward(derange_rows(batch_obs), env_surprise_batch)
 
 
+class NullAblatedMamba(MambaBatchModel):
+    """NO-OP EXACT de `PerceptionAblatedMamba` — le contrôle négatif qui manquait à cet instrument.
+
+    Il appelle `derange_rows` (donc consomme EXACTEMENT les mêmes tirages du flux global, boucle de
+    rejet comprise) puis **jette** le résultat : la perception reste INTACTE, seule la bande RNG du
+    monde est déplacée. Ce que son `within_ratio` mesure est donc le **plancher de bruit de
+    l'instrument**, et rien d'autre.
+
+    ⚠️ MESURÉ le 2026-09-08, `stoneage`, régime gravé (12 agents, 200 ticks, K=12, seed 2026) :
+    **1,058 sur le champion et 0,922 sur un champion aveuglé**, soit ±6-8 % alors qu'aucune
+    information perceptive n'a bougé. Le commentaire « l'ablation consomme des tirages RNG en plus ->
+    tape intra-ère non identique » existait depuis le début ; personne ne l'avait CHIFFRÉ.
+
+    Conséquence pour la lecture de cet instrument, à écrire dans tout record qui s'en sert : un
+    `within_ratio` dans la bande [0,92 ; 1,06] n'est PAS distinguable de zéro effet. Le champion
+    publié est à **0,991** — donc à l'intérieur. Cela ne fabrique pas de faux `DEMANDED` (le bruit ne
+    crée pas de demande), mais cela MASQUE toute demande inférieure à ~8 % : `PERCEPTION_DECOY` doit
+    se lire « aucun effet DÉTECTABLE au-dessus d'un plancher de bruit de 8 % », jamais « aucun effet ».
+    """
+
+    def forward(self, batch_obs, env_surprise_batch=None):
+        derange_rows(batch_obs)                # consomme la bande ; le résultat est délibérément jeté
+        return super().forward(batch_obs, env_surprise_batch)
+
+
 def _median_survival(cond):
     """Survie médiane globale d'une condition run_condition (liste 'survival')."""
     s = cond.get("survival") or []
@@ -72,7 +97,8 @@ def _floor_for(world, num_agents, max_ticks):
     return PLANCHER_NOPERC.get(world) if ok else None
 
 
-def run_ablation_map(worlds=None, seed=2026, K=12, num_agents=20, max_ticks=400):
+def run_ablation_map(worlds=None, seed=2026, K=12, num_agents=20, max_ticks=400,
+                     subject=None, noop_control=False):
     """Pour chaque monde : champion INTACT vs champion ABLATÉ (within) + réflexe (between). Renvoie
     {world: {within_ratio, between_ratio, verdict, n}}. n = K ères (unité d'appariement)."""
     # ⚠️ GARDE D'ARGUMENTS, EN TETE (2026-09-01). Meme raison que pour les autres mesures : sans
@@ -83,8 +109,20 @@ def run_ablation_map(worlds=None, seed=2026, K=12, num_agents=20, max_ticks=400)
         raise ValueError(
             f"run_ablation_map : argument degenere (K={K}, num_agents={num_agents}, max_ticks={max_ticks}) -- "
             "aucune mesure possible ; ne pas confondre avec une mesure nulle OBSERVEE.")
-    worlds = worlds or list(WORLDS)
-    champion = load_champion_genome()
+    # Corrige le 2026-09-07 (retro-application du correctif de `run_s2`) : une famille VIDE lancait
+    # la grille COMPLETE. `None` = pas de choix ; `[]` = un choix vide, donc une erreur d'appel.
+    if worlds is None:
+        worlds = list(WORLDS)
+    worlds = list(worlds)
+    if not worlds:
+        raise ValueError(
+            "run_ablation_map : argument degenere (famille de mondes VIDE) -- aucune mesure "
+            "possible ; ne pas confondre avec une mesure nulle OBSERVEE. (worlds=None pour tout.)")
+    # `subject` (2026-09-07) : le SUJET dont on mesure la demande. None = le champion publie, donc
+    # bit-identique pour tous les appelants existants. Rendu injectable parce que S6 a montre que le
+    # verdict du marqueur est une propriete du SUJET, pas du monde -- et qu'on ne peut pas le tester
+    # avec un instrument qui ne sait mesurer qu'UN sujet.
+    champion = load_champion_genome() if subject is None else subject
     out = {}
     for w in worlds:
         wcls = WORLDS[w]
@@ -100,13 +138,26 @@ def run_ablation_map(worlds=None, seed=2026, K=12, num_agents=20, max_ticks=400)
                               floor=_floor_for(w, num_agents, max_ticks),
                               ceiling=float(max_ticks))
         between_ratio = _median_survival(intact) / max(_median_survival(reflex), 1e-9)
+        # NO-OP EXACT (2026-09-08), optionnel : mesure le PLANCHER DE BRUIT de cet instrument sur CE
+        # sujet et CE seed, au lieu de le supposer nul. `False` par defaut -> bit-identique pour tous
+        # les appelants existants ; aucun record ne bouge.
+        noop = None
+        if noop_control:
+            nul = run_condition(wcls, NullAblatedMamba, champion, seed, num_agents=num_agents,
+                                max_ticks=max_ticks, n_eras=K)
+            nv = ablation_verdict(intact["era_survival"], nul["era_survival"],
+                                  floor=_floor_for(w, num_agents, max_ticks),
+                                  ceiling=float(max_ticks))
+            noop = {"ratio": nv["ratio"], "verdict": nv["verdict"].replace("X_", "PERCEPTION_"),
+                    "median": float(np.median(nul["era_survival"]))}
         verdict = wv["verdict"].replace("X_", "PERCEPTION_")
         out[w] = {"within_ratio": wv["ratio"], "between_ratio": between_ratio,
                   "verdict": verdict, "n": wv["n"],
                   # 2026-09-02 : absolus publies (defaut AUDIT-001 epingle sur S2-009 -- un record
                   # qui ne publie que des ratios cache la proximite au plancher) + le plancher consomme
                   "intact_median": float(np.median(intact["era_survival"])),
-                  "floor": _floor_for(w, num_agents, max_ticks)}
+                  "floor": _floor_for(w, num_agents, max_ticks),
+                  "noop": noop}
     return out
 
 
