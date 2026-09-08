@@ -102,3 +102,27 @@ def test_run_succeeds_and_returns_output(tmp_path):
 def test_kill_tree_is_tolerant_of_dead_pid():
     """Idempotence : tuer un PID déjà mort n'est pas une erreur."""
     assert kill_tree(999_999) == 0
+
+
+# --------------------------------------------------------------------------------------------------
+# CALIBRATION de `classify_leases` (2026-09-07). Révélée par l'élargissement RÉCURSIF du périmètre du
+# cliquet (8e angle mort : `tools/jobs/` était invisible). Un seul cas existait -- la branche `dead`.
+# Une classification qui rendrait TOUT mort passait ce cas, et le doctor `--kill` en dépend.
+# --------------------------------------------------------------------------------------------------
+
+def test_classify_leases_met_un_bail_VIVANT_du_bon_cote(tmp_path):
+    """Branche `live`, appariée à `test_doctor_never_kills_a_live_holder` (qui ne couvre que `dead`).
+    Sans elle, une classification dégénérée « tout est mort » passerait la suite -- et le doctor
+    `--kill` réaperait un bail parfaitement sain."""
+    L.acquire("kuzu", owner="vivant", ttl_s=3600.0, leases_dir=tmp_path, pid=os.getpid())
+    cls = D.classify_leases(leases_dir=tmp_path)
+    assert len(cls["live"]) == 1 and cls["dead"] == []
+    assert cls["live"][0].resource == "kuzu"    # `Lease` est un objet, pas un dict
+
+
+def test_classify_leases_sur_un_repertoire_VIDE_ne_classe_RIEN(tmp_path):
+    """Spécificité : aucune entrée -> les deux listes sont vides. C'est la forme (a) du biais du dépôt
+    (entrée absente -> affirmation de fond) : ici, rendre un bail « mort » depuis zéro donnée
+    autoriserait un kill sans détenteur."""
+    cls = D.classify_leases(leases_dir=tmp_path)
+    assert cls == {"live": [], "dead": []}
