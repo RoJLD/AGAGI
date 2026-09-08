@@ -39,6 +39,7 @@ pression de survie — est tenu CONSTANT.
 ⚠️ `calculate_life_score` (fitness de PROD, partagée par toutes les sessions //) n'est JAMAIS mutée :
 la pondération se fait dans une fonction LOCALE (leçon de blast-radius d'EDR-WLD-002).
 """
+import sys as _sys
 import os
 import statistics
 import sys
@@ -422,6 +423,20 @@ def measure_decision_saliency(genome, seed, channel, out_idx, num_agents=24, tic
     # Detecte le 2026-07-28 par un cas a REPONSE CONNUE : le seed 0, lecteur avere (4 reproductions),
     # rendait une courbe de saillance PLATE. Sans ce temoin, l'artefact se lisait comme un resultat.
     # L'etat est donc restaure a la sortie : la valeur rendue est inchangee, le flux de l'appelant intact.
+    # GARDE E24 BRANCHEE (2026-09-08). Le genome peut avoir ses blocs d'ENTREE et de SORTIE qui se
+    # CHEVAUCHENT : `num_inputs + num_outputs > num_nodes` rend `max_H` negatif EN SILENCE, et alors
+    # `logits[k]` EST `obs[(N - num_outputs) + k]` pour les k partages. Mesure du 2026-09-08 : les 10
+    # entrees du Hall of Fame ont 18 slots partages. Sur une telle paire, la saillance vaut 1.0 PAR
+    # IDENTITE -- c'est un controle positif gratuit, pas une mesure de la politique. On ne LEVE pas
+    # (cela interdirait toute mesure sur le champion) : on le DIT, la ou la confusion se produirait.
+    _deb = int(getattr(genome, "num_nodes", 0)) - int(getattr(genome, "num_outputs", 0))
+    if 0 <= _deb <= int(channel) < int(getattr(genome, "num_inputs", 0)) and int(out_idx) == int(channel) - _deb:
+        print("[measure_decision_saliency] ATTENTION : canal %d -> logit %d est une paire d'IDENTITE "
+              "(chevauchement entree/sortie de %d slots). La saillance y vaut 1.0 par construction : "
+              "c'est un CONTROLE POSITIF, pas une mesure de la politique."
+              % (int(channel), int(out_idx),
+                 int(genome.num_inputs) + int(genome.num_outputs) - int(genome.num_nodes)),
+              file=_sys.stderr)
     _rng_state = np.random.get_state()
     np.random.seed(seed)
     env = _make_env(_cfg(), inject=True, benchmark=True, K=K, tasks=tasks)

@@ -40,6 +40,40 @@ CIN = float(pt.get("control_input_noise", 0.0))  # bruit CONTROL a dose connue (
 SEEDS = list(range(int(rule["n_seeds"])))
 print(f"regle SCELLEE verifiee ({RULE_NAME}) | lr={LR} ep={EP} D={D} K={K} "
       f"cte={CTE} n={len(SEEDS)} seeds -> {OUT}")
+
+# ---- GARDE E23 (porte 11) : la FAMILLE de controles est DECLAREE, avant toute mesure -------------
+# COMBIEN de cellules ? TROIS, chacune evaluee UNE SEULE FOIS, sur des medianes deja AGREGEES sur les
+# {n_seeds} seeds -- jamais une bande par seed. Elles sont toutes les trois dans le bloc LECTURE plus
+# bas, et ce sont exactement les trois conjonctions NON-DV de la ligne `ok = (...)` :
+#   (1) garde CALIB-ALIAS sur le bras CONTROL feedforward   -> `guard = alias_guard_verdict(...)`
+#   (2) bras PRESENT = SPECIFICITY_CONTROL (cle re-montree) -> `present = ablation_verdict(pi, pa)`
+#   (3) barre d'EMERGENCE du point-reference                -> `coord_intact >= bar`
+# Le bras PRINCIPAL (`lang`) est la DV primaire scellee, pas un controle : il n'entre pas dans la famille.
+from tools.experiment_preflight import assert_control_family, declare_design   # noqa: E402
+
+FAMILLE_CELLULES = 3
+_famille = assert_control_family(
+    cells=FAMILLE_CELLULES, alpha_family=0.05, method="none",
+    reason="Multiplicite SANS OBJET ici, et la raison est structurelle : les 3 cellules sont des "
+           "DECISIONS DETERMINISTES prises sur des medianes deja agregees sur les seeds (bandes de "
+           "`ablation_verdict` / `alias_guard_verdict`, comparaison `coord_intact >= emergence_bar`). "
+           "AUCUN seuil de test statistique n'est applique, donc il n'y a pas d'alpha a corriger et "
+           "une Bonferroni serait DECORATIVE. Surtout, AUCUNE bande n'est appliquee PAR SEED -- c'est "
+           "exactement la forme qui donnait 0.216 de fausse alarme sur EVO-011 (24 cellules). "
+           "`leak_seeds` EST per-seed mais N'ENTRE PAS dans la decision (choix documente dans la "
+           "docstring de `alias_guard_verdict`, faute de seuil par seed etalonne) : il est RAPPORTE.")
+design = declare_design(
+    question=rule["question"],
+    replication_unit=f"seed ({len(SEEDS)} seeds scelles ; les {N_AGENTS} agents d'un seed partagent "
+                     f"entrainement, optimiseur et tirages -- ils ne sont PAS des replicats)",
+    n_independent=len(SEEDS),
+    links={"H-reset entre encode et use -> chute du bras PRINCIPAL (learned)": "measured",
+           "MEME H-reset -> bras CONTROL feedforward inerte (chirurgie)": "measured",
+           "cle RE-MONTREE au tick d'usage (present) -> ablation inerte (specificite)": "measured"},
+    control_family=_famille,
+    cost_estimate=rule.get("cout"))
+print(f"[design] unite = {design['replication_unit']} | famille = {_famille['cells']} cellules, "
+      f"method={_famille['method']} (raison publiee dans le design)")
 print()
 os.makedirs("results", exist_ok=True)
 db = json.load(open(OUT, encoding="utf-8")) if os.path.exists(OUT) else {}

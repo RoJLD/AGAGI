@@ -239,8 +239,15 @@ def scan():
             problems.append((base, d, ["RECORD DECLARE (`record:`) INTROUVABLE sous docs/EDR"]))
         if not qty or not recs:
             continue      # rien a exiger, ou aucun record ne se reclame encore de la famille (transitoire)
+        # ⚠️ Corrige le 2026-09-07 : la NORMALISATION etait ASYMETRIQUE. Les grandeurs de la regle
+        # passent par `re.sub(r"[^A-Za-z0-9_\[\]]", "", ...)` (`env.big_kills` -> `envbig_kills`,
+        # `W[4, o+8]` -> `W[4o8]`), mais le record etait confronte en texte BRUT. Un record ecrivant
+        # honnetement `env.big_kills` ne pouvait donc JAMAIS satisfaire le cliquet : le seul moyen de
+        # passer etait d'y coller le token MUTILE. On normalise les DEUX cotes, et on garde aussi le
+        # texte brut (une grandeur peut etre nommee sans ponctuation).
         low = text.lower()
-        missing = sorted(q for q in qty if q.lower() not in low)
+        low_norm = re.sub(r"[^A-Za-z0-9_\[\]]", "", text).lower()
+        missing = sorted(q for q in qty if q.lower() not in low and q.lower() not in low_norm)
         if missing:
             problems.append((base, os.path.basename(recs[0]), missing))
     return problems

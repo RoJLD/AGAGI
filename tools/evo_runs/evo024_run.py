@@ -1,20 +1,23 @@
-"""EVO-024 -- la conclusion centrale de l'arc est-elle en partie un ARTEFACT d'un defaut du code ?
+"""EVO-024 -- MIGRATION : activer le correctif d'indices change-t-il les conclusions de l'arc ?
 
-EVO-021 a mesure que `add_node` DESALIGNE 56 % des aretes cablees : il n'ajuste pas `num_outputs`, donc
-inserer dans le bloc de sortie re-mappe quelle decision chaque noeud pilote. Le taux de decouverte observe
-dans tout l'arc est donc un PRODUIT : creation de l'arete x survie a add_node.
+EVO-021 a mesure que `add_node` DESALIGNE 56 % des aretes cablees : il n'ajuste ni `num_inputs` ni
+`num_outputs`, donc inserer dans le bloc de sortie re-mappe quelle decision chaque noeud pilote. Le
+taux de decouverte observe dans tout l'arc est donc un PRODUIT : creation de l'arete x survie a add_node.
 
-Levier : desactiver add_node (`add_node_rate = 0`). Si les lecteurs deviennent nettement plus frequents,
-une part du verrou etait la DESTRUCTION par un bug, pas la rarete du tirage.
+Levier (celui de la regle SCELLEE EVO-024, et celui que le code applique) : le flag `preserve_io_blocks`,
+DESACTIVE par defaut (off = bit-identique aux runs historiques). Les deux bras gardent
+`add_node_rate = 0.4` -- la croissance N'EST PAS coupee ici, c'est EVO-023 qui la coupait. Seul le
+correctif d'indices bouge : historique (off) vs corrige (on), 2 bras x 12 seeds.
 
-⚠️ CONFOND DECLARE AVANT LE RUN (regle scellee) : desactiver add_node retire AUSSI la croissance
-architecturale. Un positif ne trancherait donc pas entre "stabilite des indices" et "absence de
-croissance" -- il appellerait un second test.
+⚠️ Le pre-vol est le controle de manipulation SCELLE : le taux de DECALAGE du bloc de sortie doit etre
+NON NUL en historique et NUL en corrige. Ses deux assertions sont APPARIEES et de sens oppose (E1) :
+si `off` ne reproduit plus le defaut, les records EVO-005..023 sont incomparables et il faut les
+RE-MESURER, pas continuer.
 
 Regle scellee : docs/preregistrations/EVO-024.json (lecture CONTINUE, Fisher calcule ici).
 Plafond de cout DETERMINISTE en agent-ticks (E13) -- surtout pas budget_s.
 
-    PYTHONPATH=. python -u tools/evo_runs/evo023_run.py
+    PYTHONPATH=. python -u tools/evo_runs/evo024_run.py
 """
 import statistics
 from math import comb
@@ -36,6 +39,38 @@ with hold("kuzu", owner="evo024-migration", ttl_s=14400):
 
     rule = verify("EVO-024")
     print("regle SCELLEE verifiee |", rule["dv_primaire"], "\n")
+
+    # ---- GARDE E23 (porte 11) : la FAMILLE de controles est DECLAREE, avant la premiere mesure ----
+    # COMBIEN de cellules ? DEUX seuils de controle, tous deux dans le PRE-VOL ci-dessous, chacun
+    # applique UNE SEULE FOIS a un compte agrege sur 200 tirages a graines FIXES (0..199) :
+    #   (a) bras corrige  : `flag and shifted != 0`  -> ARRET (le correctif supprime-t-il le decalage ?)
+    #   (b) bras temoin   : `not flag and shifted == 0` -> ARRET (le defaut historique est-il reproduit ?)
+    # Ces deux cellules sont APPARIEES et de SENS OPPOSE (une garde qui ne sait pas se taire est aussi
+    # inutilisable qu'une garde qui ne sait pas crier, classe E1). Aucun autre seuil de controle n'est
+    # applique apres le run : le Fisher exact bilateral est la DV, unique, hors famille.
+    from tools.experiment_preflight import assert_control_family, declare_design
+
+    FAMILLE_CELLULES = 2
+    _famille = assert_control_family(
+        cells=FAMILLE_CELLULES, alpha_family=0.05, method="none",
+        reason="Multiplicite SANS OBJET ici : les 2 cellules sont des assertions DETERMINISTES "
+               "(compte de decalages sur 200 tirages a graines FIXES 0..199, donc REPRODUCTIBLE bit "
+               "a bit) evaluees UNE FOIS chacune, sur des donnees agregees et hors du monde simule. "
+               "Aucun alpha n'est applique a une cellule de controle : il n'y a rien a corriger, et "
+               "une Bonferroni serait DECORATIVE. La forme d'E23 (bande fixe appliquee a CHAQUE "
+               "replicat, 24 cellules -> 0.216 de fausse alarme sur un harnais parfait) est absente "
+               "par construction. Le seul test a p-value du run est la DV (Fisher exact), unique.")
+    design = declare_design(
+        question=rule["question"],
+        replication_unit=f"seed ({N_SEEDS} seeds par bras ; une lignee evolutive par seed -- les 30 "
+                         "genomes d'une lignee partagent monde, elite et tirages)",
+        n_independent=N_SEEDS,
+        links={"preserve_io_blocks -> le bloc de sortie n'est plus DECALE par add_node (pre-vol)": "measured",
+               "stabilite des indices -> seed LECTEUR (measure_decision_saliency > 0.5)": "measured"},
+        control_family=_famille,
+        cost_estimate=rule.get("garde_cout") or rule.get("cout"))
+    print(f"[design] unite = {design['replication_unit']} | famille = {_famille['cells']} cellules, "
+          f"method={_famille['method']} (raison publiee dans le design)\n")
 
     SIG = M.SIG_COLS[0]
 

@@ -43,6 +43,41 @@ with hold("kuzu", owner="evo027-position", ttl_s=14400):
     rule = verify("EVO-027")
     print("regle SCELLEE verifiee |", rule["dv_primaire"][:90], "\n")
 
+    # ---- GARDE E23 (porte 11) : la FAMILLE de controles est DECLAREE, avant la premiere mesure ----
+    # COMBIEN de cellules ? QUATRE seuils de controle, chacun applique UNE SEULE FOIS, a une MEDIANE
+    # deja agregee sur les 24 seeds d'un bras -- jamais une bande par seed. Enumeration, chaque ligne
+    # verifiable dans le bloc CONTROLES / lecture plus bas :
+    #   (1) hits delivres : `0.7 <= hl/he <= 1.4` (+ he>0, hl>0)          -> 1 application
+    #   (3) N median      : `|ne_ - nl| <= 2`                             -> 1 application
+    #   (4) sante lignee  : `al >= 0.70 * ae`                             -> 1 application
+    #  (0b) controle positif interne : `a >= 8` sur le bras EARLY         -> 1 application
+    # Le controle (2) PORTAGE est evalue mais RAPPORTE SANS CLAUSE (aucun seuil) : il ne peut pas
+    # produire de fausse alarme, il n'entre donc pas dans la famille. Le Fisher exact est la DV.
+    from tools.experiment_preflight import assert_control_family, declare_design
+
+    FAMILLE_CELLULES = 4
+    _famille = assert_control_family(
+        cells=FAMILLE_CELLULES, alpha_family=0.05, method="none",
+        reason="Multiplicite SANS OBJET ici : les 4 cellules sont des BANDES FIXES appliquees UNE "
+               "FOIS chacune a une MEDIANE (ou a un compte) deja agregee sur les 24 seeds du bras, "
+               "pas a chaque seed. Aucun seuil de test statistique (alpha) n'est applique a une "
+               "cellule de controle -- il n'y a donc rien a corriger, et une Bonferroni serait "
+               "DECORATIVE. La forme d'E23 (bande fixe appliquee a CHAQUE replicat, 24 cellules -> "
+               "0.216 de fausse alarme sur un harnais parfait) est absente par construction. Le seul "
+               "test a p-value du run est la DV (Fisher exact bilateral), unique, hors famille.")
+    design = declare_design(
+        question=rule["question"],
+        replication_unit=f"seed ({N_SEEDS} seeds par bras ; une lignee evolutive par seed -- les "
+                         f"{POP} genomes d'une lignee partagent monde, elite et tirages)",
+        n_independent=N_SEEDS,
+        links={"operateur biaise -> hits cibles DELIVRES dans la fenetre (compteur in situ)": "measured",
+               "hits -> arete cible PRESENTE en fin de fenetre (portage, lecture numpy)": "measured",
+               "arete -> seed LECTEUR (measure_decision_saliency > 0.5)": "measured"},
+        control_family=_famille,
+        cost_estimate=rule.get("garde_cout"))
+    print(f"[design] unite = {design['replication_unit']} | famille = {_famille['cells']} cellules, "
+          f"method={_famille['method']} (raison publiee dans le design)\n")
+
     TASKS = M.TASKS_EVO006
     # Paires cibles = cablage canonique de synthetic_reader pour (move, throw, accept) :
     # SIG_COLS[0]=5 -> {ACT_POS, ACT_NEG} (move exige de gagner l'argmax), SIG_COLS[1]=10 -> THROW_IDX,

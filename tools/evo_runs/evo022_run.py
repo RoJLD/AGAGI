@@ -34,6 +34,33 @@ with hold("kuzu", owner="evo022-inherit-diag", ttl_s=14400):
     rule = verify("EVO-022")
     print("regle SCELLEE verifiee |", rule["dv_primaire"], "\n")
 
+    # ---- GARDE E23 (porte 11) : la FAMILLE de controles est DECLAREE, avant la premiere mesure ----
+    # COMBIEN de cellules ? UNE SEULE. Le seul seuil de controle du run est la comparaison APPARIEE
+    # du PRE-VOL ci-dessous : `prevol["diag heritee"] >= prevol["origine"]` -> ARRET. Elle est
+    # evaluee UNE FOIS, sur deux COMPTES deja agreges (destruction sur 20 graines FIXES 300..319 par
+    # bras) ; les 20 graines ne sont PAS 20 cellules, aucun seuil ne leur est applique individuellement.
+    # Aucun autre controle apres le run : le Fisher exact bilateral est la DV, unique, hors famille.
+    from tools.experiment_preflight import assert_control_family, declare_design
+
+    FAMILLE_CELLULES = 1
+    _famille = assert_control_family(
+        cells=FAMILLE_CELLULES, alpha_family=0.05, method="none",
+        reason="Une seule cellule : la multiplicite n'existe pas. Le seuil du pre-vol est une "
+               "comparaison DETERMINISTE entre deux comptes agreges (20 graines FIXES par bras), "
+               "evaluee UNE FOIS ; aucun seuil n'est applique graine par graine. Le seul test a "
+               "p-value du run est la DV (Fisher exact bilateral), unique.")
+    design = declare_design(
+        question=rule["question"],
+        replication_unit=f"seed ({N_SEEDS} seeds par bras ; une lignee evolutive par seed -- les 30 "
+                         "genomes d'une lignee partagent monde, elite et tirages)",
+        n_independent=N_SEEDS,
+        links={"diagonale HERITEE -> un add_node detruit moins souvent un lecteur cable (pre-vol)": "measured",
+               "moindre destruction -> seed LECTEUR (measure_decision_saliency > 0.5)": "measured"},
+        control_family=_famille,
+        cost_estimate=rule.get("garde_cout"))
+    print(f"[design] unite = {design['replication_unit']} | famille = {_famille['cells']} cellule, "
+          f"method={_famille['method']} (raison publiee dans le design)\n")
+
     _orig_add_node = MUT.add_node
 
     def inherit_add_node(genome, config):

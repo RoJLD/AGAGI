@@ -432,8 +432,108 @@ _MEASURED = "measured"
 _INFERRED = "inferred"
 
 
+
+_CORRECTIONS = ("bonferroni", "holm", "none")
+
+
+def assert_no_io_overlap(genome, label="genome"):
+    """Générateur E24 — **les blocs d'ENTRÉE et de SORTIE du génome se chevauchent**, et alors une
+    partie des logits d'action EST l'observation, sans traverser un seul poids.
+
+    `MambaBatchModel` dispose les nœuds en [entrées | cachés | sorties] et calcule
+    `max_H = max_N - max_I - max_O`. Rien ne vérifie que `max_H >= 0` : si le génome déclare plus
+    d'entrées + sorties que de nœuds, `max_H` devient simplement NÉGATIF, en silence. Or `forward`
+    écrit l'observation dans `H[:, :max_I]` et lit les logits d'action à partir de `max_I + max_H` :
+    les `-max_H` premiers logits sont donc l'observation, à la mise à jour récurrente près.
+
+    Aurait attrapé (mesuré le 2026-09-08) : le **champion HoF** déclare 64 entrées et 126 sorties dans
+    172 nœuds — chevauchement de **18**, et ses 18 premiers logits d'action égalent les composantes
+    46 à 63 de l'observation à 0,0025 près, vérifié composante par composante. Un agent FRAIS n'a pas
+    le défaut (59 + 108 = 167 ≤ 172) : c'est propre à cette lignée. Conséquence directe : la sonde
+    S2-BLIND-CHAMPION croyait « aveugler » le champion en annulant `W[:num_inputs, :]` — on ne
+    supprime pas un chemin d'IDENTITÉ en annulant des poids, et son contrôle a échoué sans que la
+    cause soit lisible.
+
+    À appeler par toute sonde qui prétend mesurer si une politique LIT l'observation (saillance,
+    ablation de perception, aveuglement). Rend le nombre de slots partagés ; LÈVE si > 0, car dans ce
+    cas la question « la politique lit-elle ? » n'a pas la même réponse pour les logits partagés et
+    pour les autres."""
+    for attr in ("num_inputs", "num_outputs", "num_nodes"):
+        if not hasattr(genome, attr):
+            raise PreflightError(
+                "assert_no_io_overlap : %r n'expose pas %s -- passer un genome, pas un modele" %
+                (label, attr))
+    n_in, n_out, n = int(genome.num_inputs), int(genome.num_outputs), int(genome.num_nodes)
+    overlap = n_in + n_out - n
+    if overlap > 0:
+        raise PreflightError(
+            "%s : les blocs d'ENTREE et de SORTIE se CHEVAUCHENT sur %d noeud(s) "
+            "(num_inputs=%d + num_outputs=%d = %d > num_nodes=%d). Les %d premiers logits d'action "
+            "SONT l'observation, sans traverser un seul poids -- toute mesure de « la politique "
+            "lit-elle l'observation ? » est confondue sur ces slots, et on ne peut pas aveugler ce "
+            "sujet en annulant des poids. Classe E24, mesuree le 2026-09-08 sur le champion HoF "
+            "(64+126 dans 172). Si le chevauchement est ASSUME, mesurer separement les logits "
+            "partages et les autres, et le DIRE dans le record." %
+            (label, overlap, n_in, n_out, n_in + n_out, n, overlap))
+    return overlap
+
+
+def assert_control_family(cells, alpha_family=0.05, alpha_cell=None, method="bonferroni",
+                          reason=None):
+    """Générateur E23 — **une famille de contrôles n'est pas traitée comme une famille.**
+
+    Un contrôle de manipulation appliqué à CHAQUE réplicat (chaque seed, chaque cellule, chaque bras)
+    est une FAMILLE de tests. Si son seuil est celui d'un test unique, son taux de fausse alarme est
+    celui de la famille — et un dispositif PARFAITEMENT CORRECT échoue régulièrement.
+
+    Aurait attrapé (mesure du 2026-09-07, EVO-011-PREVOL) : le contrôle (i) appliquait une bande fixe
+    (0,25 ; 0,75) à une proportion par seed, sur **24 cellules** (2 types × 12 seeds). Calcul exact aux
+    n observés, sous un brouillage PARFAIT : **P(au moins une cellule hors bande) = 0,216**. Le premier
+    run a donc rendu `INDÉTERMINÉ-HARNAIS` sur un harnais correct. Re-scellé en `-bis` avec Bonferroni
+    0,05/24 — et la contrainte que le contrôle sache ENCORE refuser un brouilleur cassé, sans quoi
+    corriger une fausse alarme fabrique un contrôle increvable (classe E1).
+
+    L'autre sens du même défaut, le même jour : `run_s2` itérait sa famille de mondes DEUX FOIS, donc
+    en itérateur la correction de Holm **disparaissait en silence** — la multiplicité n'était plus
+    corrigée du tout. C'est pourquoi cette garde ne demande pas « as-tu corrigé ? » mais « COMBIEN de
+    cellules ? » : le nombre est la seule chose que l'auteur sait et que le code ne peut pas deviner.
+
+    Renvoie le seuil PAR CELLULE et la borne de fausse alarme de la famille, à joindre au record.
+    `method='none'` reste possible — mais exige une RAISON ÉCRITE, qui sera publiée."""
+    n = int(cells)
+    if n < 1:
+        raise PreflightError("cells doit être >= 1 (une famille vide n'est pas une famille)")
+    if method not in _CORRECTIONS:
+        raise PreflightError("method=%r inconnue (attendu %s)" % (method, _CORRECTIONS))
+    if not (0.0 < float(alpha_family) < 1.0):
+        raise PreflightError("alpha_family=%s hors (0, 1)" % (alpha_family,))
+
+    if method == "none":
+        if n > 1 and not (isinstance(reason, str) and reason.strip()):
+            borne = min(1.0, n * float(alpha_cell if alpha_cell else alpha_family))
+            raise PreflightError(
+                "famille de %d cellules SANS correction et SANS raison declaree. Classe E23 "
+                "(mesuree le 2026-09-07 : un harnais PARFAIT echouait 1 fois sur 5). Le taux de "
+                "fausse alarme de la famille vaut ici jusqu'a %.3f. Pour l'assumer, passer "
+                "reason='<pourquoi la multiplicite est sans objet ici>' ; la raison sera publiee "
+                "avec le design." % (n, borne))
+        cell = float(alpha_cell if alpha_cell is not None else alpha_family)
+    else:
+        cible = float(alpha_family) / n          # Bonferroni ; Holm est PLUS puissant, donc valide
+        cell = cible if alpha_cell is None else float(alpha_cell)
+        if cell > cible + 1e-12:
+            raise PreflightError(
+                "seuil par cellule alpha_cell=%.6g TROP LARGE pour une famille de %d cellules a "
+                "alpha_family=%s (methode %s exige <= %.6g). Fausse alarme de la famille : jusqu'a "
+                "%.3f -- classe E23. Soit corriger le seuil, soit declarer method='none' avec une "
+                "raison ecrite." % (cell, n, alpha_family, method, cible, min(1.0, n * cell)))
+    return {"cells": n, "alpha_family": float(alpha_family), "alpha_cell": cell,
+            "method": method, "reason": (reason if method == "none" else None),
+            "fwer_bound": min(1.0, n * cell) if method == "none" else float(alpha_family)}
+
+
 def declare_design(question, replication_unit, n_independent, links, cost_estimate=None,
-                   allow_inferred_reason=None):
+                   allow_inferred_reason=None, control_family=None):
     """Force la DÉCLARATION ÉCRITE de ce qu'aucun code ne peut décider : l'unité de réplication, et
     quels maillons sont MESURÉS vs INFÉRÉS. Renvoie un dict à joindre au record.
 
@@ -468,10 +568,32 @@ def declare_design(question, replication_unit, n_independent, links, cost_estima
             "causale transporte son SIGNE, pas son amplitude : reduire le n, jamais supprimer le "
             "maillon. Pour maintenir l'inference, passer allow_inferred_reason='<pourquoi la mesure "
             "est impossible ici et ce qui borne le risque>' ; la raison sera publiee dans le design.")
+    # GARDE E23 (2026-09-07) : des qu'il y a PLUS D'UN replicat, tout controle applique a chaque
+    # replicat forme une FAMILLE -- et le nombre de cellules est la seule chose que l'auteur sait et
+    # que le code ne peut pas deviner. Meme forme que la garde E8 juste au-dessus : on ne proxifie
+    # pas, on REFUSE tant que ce n'est pas ecrit. Un run a n=1 n'a pas de famille : rien n'est exige.
+    if int(n_independent) > 1 and control_family is None:
+        raise PreflightError(
+            "n_independent=%d > 1 et AUCUNE famille de controles declaree. Classe E23 : un controle "
+            "applique a chaque replicat est une FAMILLE de tests ; a seuil de test unique, son taux "
+            "de FAUSSE ALARME est celui de la famille. Mesure du 2026-09-07 (EVO-011) : bande fixe "
+            "sur 24 cellules -> un harnais PARFAIT echouait 0.216 du temps, et le premier run a bien "
+            "rendu INDETERMINE-HARNAIS. Passer control_family=assert_control_family("
+            "cells=<nb de cellules de controle>, alpha_family=0.05) ; si la multiplicite est sans "
+            "objet, assert_control_family(cells=1), ou method='none' avec une raison ecrite."
+            % int(n_independent))
+    if control_family is not None and not (isinstance(control_family, dict)
+                                           and "cells" in control_family
+                                           and "alpha_cell" in control_family):
+        # Une declaration AMBIGUE est refusee en CRIANT, jamais avalee (lecon des cliquets 2026-09-01).
+        raise PreflightError(
+            "control_family=%r n'est pas une declaration valide : passer le dict rendu par "
+            "assert_control_family(...), pas une valeur libre." % (control_family,))
     return {"question": question, "replication_unit": replication_unit,
             "n_independent": int(n_independent), "links": dict(links),
             "inferred_links": inferred, "cost_estimate": cost_estimate,
             "inferred_reason": (allow_inferred_reason if inferred else None),
+            "control_family": (dict(control_family) if control_family else None),
             "warning": (f"{len(inferred)} maillon(s) INFÉRÉ(S) : {inferred}. Une chaîne causale "
                         "transporte son signe, pas son amplitude — vérifier que le régime place "
                         "l'effet au-dessus du bruit, ou mesurer à n réduit.") if inferred else None}

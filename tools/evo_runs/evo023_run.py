@@ -37,6 +37,38 @@ with hold("kuzu", owner="evo023-no-addnode", ttl_s=14400):
     rule = verify("EVO-023")
     print("regle SCELLEE verifiee |", rule["dv_primaire"], "\n")
 
+    # ---- GARDE E23 (porte 11) : la FAMILLE de controles est DECLAREE, avant la premiere mesure ----
+    # COMBIEN de cellules ? DEUX seuils de controle, tous deux dans le PRE-VOL ci-dessous, chacun
+    # applique UNE SEULE FOIS a une lignee de 200 mutations a graine FIXE (np.random.seed(0)) :
+    #   (a) bras sans croissance : `rate == 0.0 and g0.num_nodes != n0`  -> ARRET (desactivation prise ?)
+    #   (b) bras temoin          : `rate == 0.4 and g0.num_nodes == n0`  -> ARRET (contraste present ?)
+    # Deux cellules APPARIEES et de SENS OPPOSE (classe E1 : une garde qui ne sait pas se taire est
+    # aussi inutilisable qu'une garde qui ne sait pas crier). Aucun autre seuil de controle apres le
+    # run : le Fisher exact bilateral est la DV, unique, hors famille.
+    from tools.experiment_preflight import assert_control_family, declare_design
+
+    FAMILLE_CELLULES = 2
+    _famille = assert_control_family(
+        cells=FAMILLE_CELLULES, alpha_family=0.05, method="none",
+        reason="Multiplicite SANS OBJET ici : les 2 cellules sont des assertions DETERMINISTES "
+               "(num_nodes apres 200 mutations a graine FIXE, donc REPRODUCTIBLE bit a bit) evaluees "
+               "UNE FOIS chacune, hors du monde simule. Aucun alpha n'est applique a une cellule de "
+               "controle : il n'y a rien a corriger, et une Bonferroni serait DECORATIVE. La forme "
+               "d'E23 (bande fixe appliquee a CHAQUE replicat, 24 cellules -> 0.216 de fausse alarme "
+               "sur un harnais parfait) est absente par construction. Le seul test a p-value du run "
+               "est la DV (Fisher exact), unique.")
+    design = declare_design(
+        question=rule["question"],
+        replication_unit=f"seed ({N_SEEDS} seeds par bras ; une lignee evolutive par seed -- les 30 "
+                         "genomes d'une lignee partagent monde, elite et tirages)",
+        n_independent=N_SEEDS,
+        links={"add_node_rate=0 (+ meso) -> num_nodes CONSTANT, aucune croissance (pre-vol)": "measured",
+               "absence de croissance -> seed LECTEUR (measure_decision_saliency > 0.5)": "measured"},
+        control_family=_famille,
+        cost_estimate=rule.get("garde_cout"))
+    print(f"[design] unite = {design['replication_unit']} | famille = {_famille['cells']} cellules, "
+          f"method={_famille['method']} (raison publiee dans le design)\n")
+
     SIG = M.SIG_COLS[0]
 
     # ---- PRE-VOL : controle de manipulation OBLIGATOIRE ------------------------------------------

@@ -193,8 +193,9 @@ def test_declare_design_surfaces_inferred_links():
     remplace -- sans raison ecrite, ca LEVE (cf. test_inferred_link_without_reason_is_REFUSED).
     Ce test verifie que le chemin LEGITIME (raison declaree) surface toujours le warning : la
     promotion durcit l'entree, elle ne fait pas taire la sortie."""
-    from tools.experiment_preflight import declare_design
+    from tools.experiment_preflight import assert_control_family, declare_design
     d = declare_design(question="q", replication_unit="seed", n_independent=2,
+                       control_family=assert_control_family(cells=1),
                        links={"a->b": "measured", "b->c": "inferred"},
                        allow_inferred_reason="raison de test : mesure hors banc, signe etabli")
     assert d["inferred_links"] == ["b->c"]
@@ -559,8 +560,9 @@ def test_inferred_link_without_reason_is_REFUSED():
 def test_inferred_link_with_written_reason_passes_and_publishes_it():
     """La sortie declaree : une RAISON ecrite (regle « faire DECLARER l'auteur ») maintient
     l'inference, ET la raison est publiee dans le design -> elle atterrit dans le record."""
-    from tools.experiment_preflight import declare_design
+    from tools.experiment_preflight import assert_control_family, declare_design
     d = declare_design(question="q", replication_unit="seed", n_independent=4,
+                       control_family=assert_control_family(cells=1),
                        links={"a->b": "inferred"},
                        allow_inferred_reason="mesure impossible ici : le banc n'expose pas b ; "
                                              "risque borne par le signe etabli en amont")
@@ -571,7 +573,8 @@ def test_inferred_link_with_written_reason_passes_and_publishes_it():
 
 def test_all_measured_design_is_untouched_by_the_promotion():
     """Controle positif : un design tout-mesure (les 2 appelants reels du depot) passe inchange."""
-    from tools.experiment_preflight import declare_design
+    from tools.experiment_preflight import assert_control_family, declare_design
     d = declare_design(question="q", replication_unit="seed", n_independent=12,
+                       control_family=assert_control_family(cells=1),
                        links={"a->b": "measured", "b->c": "measured"})
     assert d["warning"] is None and d["inferred_reason"] is None

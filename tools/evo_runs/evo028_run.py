@@ -52,6 +52,48 @@ with hold("kuzu", owner="evo028-smoke" if SMOKE else "evo028-position-faible", t
     print(f"regle SCELLEE verifiee ({'EVO-028-SMOKE' if SMOKE else 'EVO-028'}) |",
           str(rule.get("dv_primaire") or rule.get("mesure"))[:90], "\n")
 
+    # ---- GARDE E23 (porte 11) : la FAMILLE de controles est DECLAREE, avant la premiere mesure ----
+    # COMBIEN de cellules ? Le run PRINCIPAL applique SIX seuils de controle. Enumeration, chaque
+    # ligne verifiable dans le bloc CONTROLES / la lecture plus bas :
+    #   (1) hits delivres          : `0.7 <= hl/he <= 1.4` (+ he>0, hl>0)      -> 1 application
+    #   (3) N median               : `|ne_ - nl| <= 2`                          -> 1 application
+    #   (4) sante lignee           : `al >= 0.70 * ae`                          -> 1 application
+    #   (5) controle positif interne : `a >= round(29/86 * N_SEEDS)`            -> 1 application
+    #   no-op de calibration best-ever/last : `div > 3`, DANS la boucle par bras -> 2 applications
+    # Les cinq premieres portent sur des MEDIANES/COMPTES deja agreges sur les N_SEEDS d'un bras ; la
+    # derniere est la seule appliquee deux fois (une par bras) -- elle est donc COMPTEE deux fois.
+    # Le controle (2) PORTAGE est evalue mais RAPPORTE SANS CLAUSE : sans seuil, pas de fausse alarme
+    # possible, il n'entre pas dans la famille. Le Fisher exact est la DV, hors famille.
+    # En SMOKE la lecture s'ARRETE avant tout controle : la seule decision est le seuil de COUT
+    # (`t_pair` vs 134/155 s) sur UNE paire de lignees -- une cellule, un replicat.
+    from tools.experiment_preflight import assert_control_family, declare_design
+
+    FAMILLE_CELLULES = 1 if SMOKE else 6
+    _famille = assert_control_family(
+        cells=FAMILLE_CELLULES, alpha_family=0.05, method="none",
+        reason=("SMOKE : une seule cellule (le seuil de cout `t_pair`), la multiplicite n'existe pas."
+                if SMOKE else
+                "Multiplicite SANS OBJET ici : 4 des 6 cellules sont des BANDES FIXES appliquees UNE "
+                "FOIS chacune a une MEDIANE/un COMPTE deja agrege sur les N_SEEDS du bras, et les 2 "
+                "dernieres sont le no-op de calibration best-ever/last, une fois par BRAS (jamais par "
+                "seed). Aucun seuil de test statistique (alpha) n'est applique a une cellule de "
+                "controle : il n'y a rien a corriger et une Bonferroni serait DECORATIVE. La forme "
+                "d'E23 (bande fixe appliquee a CHAQUE replicat -- 24 cellules, 0.216 de fausse alarme "
+                "sur un harnais parfait) est absente par construction. Le seul test a p-value est la "
+                "DV (Fisher exact bilateral), unique."))
+    design = declare_design(
+        question=rule["question"],
+        replication_unit=f"seed ({N_SEEDS} seeds par bras ; une lignee evolutive par seed -- les "
+                         f"{POP} genomes d'une lignee partagent monde, elite et tirages)",
+        n_independent=N_SEEDS,
+        links={"operateur biaise -> hits cibles DELIVRES dans la fenetre (compteur in situ)": "measured",
+               "hits -> arete cible PRESENTE en fin de fenetre (portage, lecture numpy)": "measured",
+               "arete -> seed LECTEUR (max des 4 paires, measure_decision_saliency > 0.5)": "measured"},
+        control_family=_famille,
+        cost_estimate=str(rule.get("cout_scelle") or rule.get("plafond")))
+    print(f"[design] unite = {design['replication_unit']} | famille = {_famille['cells']} cellules, "
+          f"method={_famille['method']} (raison publiee dans le design)\n")
+
     if not SMOKE:
         # E13 AVANT : la projection utilise le t_pair MESURE par le smoke (jamais extrapole d'un prefixe).
         t_pair = float(os.environ["EVO028_TPAIR_S"])   # KeyError volontaire : pas de smoke, pas de run

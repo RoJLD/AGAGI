@@ -245,3 +245,26 @@ def test_declared_record_key_attaches_BEFORE_any_naming_and_a_dangling_one_CRIES
     _fam(tmp_path, {"EVO-998": {**_BIS_BACKTICK, "record": "Introuvable.md"}}, {})
     problems = C.scan()
     assert any(p[0] == "EVO-998" and p[1] == "Introuvable.md" for p in problems), problems
+
+def test_la_normalisation_est_SYMETRIQUE_regle_et_record(tmp_path, monkeypatch):
+    """DÉFAUT RÉEL corrigé le 2026-09-07. Les grandeurs de la règle sont normalisées
+    (`env.big_kills` -> `envbig_kills`, `W[4, o+8]` -> `W[4o8]`) mais le record était confronté en
+    texte BRUT : un record écrivant honnêtement `env.big_kills` ne pouvait JAMAIS satisfaire le
+    cliquet — le seul moyen de passer était d'y coller le token MUTILÉ, c.-à-d. de dégrader le record
+    pour plaire à l'outil. Réponse connue : le record honnête doit PASSER."""
+    import re
+    txt = "Le record écrit `env.big_kills` et `W[4, o+8]` comme un humain les écrit."
+    low, low_norm = txt.lower(), re.sub(r"[^A-Za-z0-9_\[\]]", "", txt).lower()
+    for q in ("envbig_kills", "W[4o8]"):
+        assert q.lower() not in low, "le pré-requis du test a disparu : la grandeur n'est plus mutilée"
+        assert q.lower() in low_norm, f"{q} reste introuvable : la normalisation n'est pas symétrique"
+
+
+def test_la_normalisation_symetrique_ne_rend_PAS_le_cliquet_INCREVABLE():
+    """BRANCHE NÉGATIVE appariée : normaliser les deux côtés ne doit pas faire passer une grandeur
+    RÉELLEMENT absente. Sans ce cas, le correctif serait un contrôle qui ne peut plus échouer (E1)."""
+    import re
+    txt = "Ce record ne parle que de la survie et du ratio r."
+    low, low_norm = txt.lower(), re.sub(r"[^A-Za-z0-9_\[\]]", "", txt).lower()
+    for q in ("envbig_kills", "throw_prey_hits", "W[4o8]"):
+        assert q.lower() not in low and q.lower() not in low_norm

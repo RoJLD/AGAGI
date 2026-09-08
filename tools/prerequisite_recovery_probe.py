@@ -55,11 +55,24 @@ def main():
     import numpy as np
     from tools.experiment_preflight import (declare_design, assert_positive_control,
                                             assert_not_degenerate, assert_ablation_changes_something,
-                                            assert_no_aliasing, PreflightError)
+                                            assert_no_aliasing, assert_control_family,
+                                            PreflightError)
     sg, world = fixture_subgraph(), fixture_world()
     seeds = list(range(12))
 
+    # GARDE E23 : les 4 controles ci-dessous sont evalues UNE seule fois, sur les vecteurs AGREGES
+    # (intact / ablated sur tous les seeds), et aucun n'est un test statistique : degenerescence,
+    # aliasing et « l'ablation change quelque chose » sont DETERMINISTES, et le controle positif
+    # compare un ratio de medianes a 1.5, pas une p-value. Il n'y a donc aucune fausse alarme
+    # d'echantillonnage a corriger -- ce qui doit etre DIT, pas suppose.
+    famille = assert_control_family(
+        cells=4, method="none",
+        reason="les 4 controles sont DETERMINISTES et evalues une seule fois sur les vecteurs "
+               "agreges (pas par seed) : aucun n'a de distribution d'echantillonnage, donc la "
+               "multiplicite est sans objet. Si un controle statistique PAR SEED est ajoute ici, "
+               "cette declaration devient fausse et doit etre refaite.")
     design = declare_design(
+        control_family=famille,
         question="L'ablation within-subject récupère-t-elle un DAG de prérequis imposé, sans "
                  "faux-positiver sur un non-prérequis corrélé ?",
         replication_unit="seed", n_independent=len(seeds),

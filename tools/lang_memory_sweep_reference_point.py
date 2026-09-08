@@ -19,7 +19,7 @@ import numpy as np
 import torch
 
 torch.set_num_threads(1)
-from tools.experiment_preflight import declare_design
+from tools.experiment_preflight import declare_design, assert_control_family
 from tools.language_memory_demand_probe import _train_and_eval
 
 SLICE_S = float(os.environ.get("SWEEP_SLICE_S", "520"))
@@ -29,7 +29,12 @@ K, N_AGENTS = 6, 16
 # (lr, episodes, D) ordonnes par promesse ; D=0 = tache de l'ancre 0.923 ; D=2 seulement au point gagnant
 CELLULES = [(0.002, 3600, 0), (0.002, 1200, 0), (0.02, 1200, 0), (0.02, 3600, 0)]
 
+# GARDE E23 : ce runner est un BALAYAGE exploratoire ; il n'applique AUCUN controle de manipulation
+# (aucun `assert_*`), donc il n'existe pas de famille de controles a corriger. Declare a 1 -- si un
+# controle par seed est ajoute, cette ligne devient fausse et la garde doit etre refaite.
+famille = assert_control_family(cells=1)
 design = declare_design(
+    control_family=famille,
     question="A quel point (lr, episodes) le bras LANG intact (bilineaire, REINFORCE) apprend-il "
              "(q+key)%K a D=0 ?",
     replication_unit="seed", n_independent=len(SEEDS),

@@ -49,6 +49,41 @@ with hold("kuzu", owner="evo026bis-horizon", ttl_s=28800):
     rule = verify("EVO-026-bis")
     print("regle SCELLEE verifiee |", rule["dv_primaire"], "\n")
 
+    # ---- GARDE E23 (porte 11) : la FAMILLE de controles est DECLAREE, avant la premiere mesure ----
+    # COMBIEN de cellules ? QUATRE seuils de controle, chacun applique UNE SEULE FOIS. Enumeration,
+    # chaque ligne verifiable dans le bloc CONTROLES / la lecture plus bas :
+    #   (1) compteur de tirages > 0 dans les deux bras (`ds <= 0 or dl <= 0`)   -> 1 application
+    #   (2) ratio des tirages medians : `15 <= dl/ds <= 27`                     -> 1 application
+    #   (3) N median identique : `|ns - nl| <= 2`                               -> 1 application
+    #   (c) dv_sante_lignee : `hl >= 0.70 * hs`, lue SEULEMENT si p >= 0.05     -> 1 application
+    # Les quatre portent sur des MEDIANES deja agregees sur les 24 seeds d'un bras, jamais sur un
+    # seed. Le Fisher exact bilateral est la DV, unique, hors famille.
+    from tools.experiment_preflight import assert_control_family, declare_design
+
+    FAMILLE_CELLULES = 4
+    _famille = assert_control_family(
+        cells=FAMILLE_CELLULES, alpha_family=0.05, method="none",
+        reason="Multiplicite SANS OBJET ici : les 4 cellules sont des seuils DETERMINISTES appliques "
+               "UNE FOIS chacun a une MEDIANE deja agregee sur les 24 seeds du bras, pas a chaque "
+               "seed. Aucun alpha n'est applique a une cellule de controle : il n'y a rien a "
+               "corriger, et une Bonferroni serait DECORATIVE. La forme d'E23 (bande fixe appliquee "
+               "a CHAQUE replicat, 24 cellules -> 0.216 de fausse alarme sur un harnais parfait) est "
+               "absente par construction. Le seul test a p-value du run est la DV (Fisher exact "
+               "bilateral), unique.")
+    design = declare_design(
+        question=rule["question"],
+        replication_unit=f"seed ({N_SEEDS} seeds par bras ; une lignee evolutive par seed -- les "
+                         f"{POP} genomes d'une lignee partagent monde, elite et tirages)",
+        n_independent=N_SEEDS,
+        links={"horizon x21 -> tirages `add_connection` REELLEMENT delivres (compteur in situ)": "measured",
+               "croissance coupee -> N median CONSTANT (denominateur fixe)": "measured",
+               "tirages -> seed LECTEUR (measure_decision_saliency > 0.5)": "measured",
+               "horizon -> sante de lignee (age median de fin), desambiguisateur du confond": "measured"},
+        control_family=_famille,
+        cost_estimate=rule.get("garde_cout"))
+    print(f"[design] unite = {design['replication_unit']} | famille = {_famille['cells']} cellules, "
+          f"method={_famille['method']} (raison publiee dans le design)\n")
+
     SIG = M.SIG_COLS[0]
 
     # --- instrumentation du TIRAGE : compter les appels reels a add_connection -----------------------

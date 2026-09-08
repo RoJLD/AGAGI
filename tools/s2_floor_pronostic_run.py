@@ -26,6 +26,37 @@ def main():
     rule = verify("S2-FLOOR-PRONOSTIC")
     print("règle SCELLÉE vérifiée |", rule["dv_primaire"][:80], "\n")
 
+    # ---- GARDE E23 (porte 11) : la FAMILLE de contrôles est DÉCLARÉE, AVANT toute mesure ---------
+    # COMBIEN de cellules ? CINQ — le garde-fou de dégénérescence de `ablation_verdict` (plancher
+    # `PLANCHER_NOPERC[w]` / plafond `max_ticks`) est appliqué une fois PAR MONDE, et le runner le
+    # relit ligne à ligne (`if "DEGENERATE" in r["verdict"]`). C'est la seule forme de la famille ici :
+    # 5 mondes × 1 contrôle. Chaque cellule porte sur la médiane des K=12 ères appariées de SON monde.
+    from tools.experiment_preflight import assert_control_family, declare_design
+    from tools.s2_demand_ablation import WORLDS
+
+    famille = assert_control_family(
+        cells=len(WORLDS), alpha_family=0.05, method="none",
+        reason="Multiplicité SANS OBJET ici, et la raison est dans la règle scellée elle-même : les "
+               "5 cellules sont RAPPORTÉES (« le nombre de mondes dégénérés (0-5) se rapporte tel "
+               "quel », lecture CONTINUE, jamais de suppression de ligne) et ne sont JAMAIS agrégées "
+               "en un « au moins une cellule hors bande » — c'est précisément l'agrégation qui "
+               "fabriquait 0,216 de fausse alarme sur EVO-011. La branche discriminante scellée "
+               "porte sur UN monde NOMMÉ D'AVANCE (soup vs son plancher 32.0), donc sur une seule "
+               "cellule pré-désignée : la multiplicité ne peut pas la gonfler. Et aucune de ces "
+               "comparaisons n'est un test à p-value (médiane vs constante mesurée hors run) : il "
+               "n'y a pas d'alpha à corriger, une Bonferroni serait DÉCORATIVE.")
+    design = declare_design(
+        question=rule["question"],
+        replication_unit=rule["unite_de_replication"],
+        n_independent=K,
+        links={"champion INTACT -> survie médiane par monde (K ères appariées)": "measured",
+               "clones du champion sans perception -> plancher PLANCHER_NOPERC": "measured",
+               "intact vs SON plancher -> verdict de dégénérescence par monde": "measured"},
+        control_family=famille,
+        cost_estimate=rule.get("cout"))
+    print(f"[design] unité = {design['replication_unit']} | famille = {famille['cells']} cellules "
+          f"(1 par monde), method={famille['method']} — raison publiée dans le design\n")
+
     with hold("kuzu", owner="s2-floor-pronostic", ttl_s=1800):
         from tools.s2_demand_ablation import run_ablation_map, PLANCHER_NOPERC
         m = run_ablation_map(seed=SEED, K=K, num_agents=AGENTS, max_ticks=TICKS)

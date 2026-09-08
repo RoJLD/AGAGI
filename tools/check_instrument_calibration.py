@@ -110,25 +110,43 @@ _INSTRUMENT_PATTERNS = (
 # trouvé le même jour (le premier était le motif de nommage) — l'heuristique est faillible sur DEUX axes :
 # ce qu'elle cherche, et OÙ elle le cherche.
 _SCAN_DIRS = ("tools", os.path.join("src", "seed_ai"))
+_SCAN_SKIP = ("__pycache__",)
+
+
+def _iter_sources():
+    """(chemin relatif POSIX, source) sur le périmètre — RÉCURSIF.
+
+    ⚠️ **HUITIÈME angle mort du cliquet**, mesuré le 2026-09-07. Le parcours était `os.listdir`, donc
+    PLAT : tout sous-répertoire de `tools/` était invisible, à commencer par `tools/evo_runs/` (les
+    scripts de run qui ont produit EVO-022 → EVO-028) et `tools/jobs/`. Le compteur affichait 202 là
+    où il y en avait 204 — et surtout, un instrument déposé dans un sous-dossier n'aurait JAMAIS
+    déclenché le cliquet, quel que soit son contenu. Même famille que les angles morts 1 à 7 : ce que
+    le cliquet cherche, OÙ il cherche, comment il identifie, sous quels verbes.
+    Dette RÉELLE révélée par cet élargissement : 2 instruments (`verdict_evo011_prevol`,
+    `classify_leases`), tous deux traités dans la même passe — la baseline reste à ZÉRO."""
+    for rel in _SCAN_DIRS:
+        d = os.path.join(_ROOT, rel)
+        if not os.path.isdir(d):
+            continue
+        for dirpath, dirnames, filenames in os.walk(d):
+            dirnames[:] = sorted(x for x in dirnames if x not in _SCAN_SKIP)
+            for fn in sorted(filenames):
+                if not fn.endswith(".py") or fn.startswith("check_"):
+                    continue
+                try:
+                    src = open(os.path.join(dirpath, fn), encoding="utf-8").read()
+                except OSError:
+                    continue
+                yield os.path.relpath(os.path.join(dirpath, fn), _ROOT).replace("\\", "/"), src
 
 
 def scan_instruments():
     """{nom_instrument: chemin_relatif} sur les répertoires de `_SCAN_DIRS`."""
     found = {}
-    for rel in _SCAN_DIRS:
-        d = os.path.join(_ROOT, rel)
-        if not os.path.isdir(d):
-            continue
-        for fn in sorted(os.listdir(d)):
-            if not fn.endswith(".py") or fn.startswith("check_"):
-                continue
-            try:
-                src = open(os.path.join(d, fn), encoding="utf-8").read()
-            except OSError:
-                continue
-            for pat in _INSTRUMENT_PATTERNS:
-                for name in pat.findall(src):
-                    found.setdefault(name, os.path.join(rel, fn).replace("\\", "/"))
+    for path, src in _iter_sources():
+        for pat in _INSTRUMENT_PATTERNS:
+            for name in pat.findall(src):
+                found.setdefault(name, path)
     return found
 
 
@@ -144,21 +162,10 @@ def scan_collisions():
     Vérifié au moment du correctif : aucune collision n'était déclarée calibrée, donc aucun faux vert
     n'existait — le risque était PROSPECTIF, et il est désormais bloqué."""
     seen = {}
-    for rel in _SCAN_DIRS:
-        d = os.path.join(_ROOT, rel)
-        if not os.path.isdir(d):
-            continue
-        for fn in sorted(os.listdir(d)):
-            if not fn.endswith(".py") or fn.startswith("check_"):
-                continue
-            try:
-                src = open(os.path.join(d, fn), encoding="utf-8").read()
-            except OSError:
-                continue
-            path = os.path.join(rel, fn).replace("\\", "/")
-            for pat in _INSTRUMENT_PATTERNS:
-                for name in pat.findall(src):
-                    seen.setdefault(name, set()).add(path)
+    for path, src in _iter_sources():
+        for pat in _INSTRUMENT_PATTERNS:
+            for name in pat.findall(src):
+                seen.setdefault(name, set()).add(path)
     return {n: sorted(p) for n, p in seen.items() if len(p) > 1}
 
 
