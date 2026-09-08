@@ -83,3 +83,42 @@ un smoke 1 sujet AVANT engagement** (règle E13 : ne jamais extrapoler d'un pré
 * `VERDICT_IS_WORLD_BOUND` : S6 est borné au jouet, les records tiennent, et on sait pourquoi le
   transport échoue (métrique-seuil vs survie graduée) — ce qui referme proprement une question qui
   resterait sinon ouverte.
+
+---
+
+## ⚠️ AMENDEMENT (2026-09-08) — le critère de lecture était lui-même une FAMILLE non contrôlée
+
+Trouvé en appliquant à ce design la garde **E23** livrée le même jour (`assert_control_family`), avant
+tout run. Le défaut est dans la règle de lecture, pas dans le dispositif :
+
+> « **≥ 2 sujets rendent des verdicts DIFFÉRENTS** → `VERDICT_IS_SUBJECT_BOUND` »
+
+Sur **7 sujets**, ce critère est franchi dès qu'UNE paire diverge. Si `ablation_verdict` a la moindre
+variabilité d'échantillonnage — et il en a : il lit une médiane sur K=12 ères —, alors la probabilité
+qu'au moins deux verdicts diffèrent **alors que tous les sujets sont identiques** croît avec le nombre
+de sujets. Sept sujets, c'est 21 paires. Le critère aurait donc pu rendre `VERDICT_IS_SUBJECT_BOUND`
+sur un monde où le sujet ne change rien — exactement le symétrique du défaut mesuré sur EVO-011
+(0,216 de fausse alarme), et exactement ce que la garde exige de chiffrer AVANT.
+
+**Correctif, et il ne coûte presque rien** : ajouter un **8ᵉ bras de RÉPLICATION DU MÊME SUJET** — le
+champion mesuré 7 fois, avec 7 graines de monde différentes et tout le reste identique. Ce bras
+mesure DIRECTEMENT le taux de désaccord attendu sous « le sujet ne change rien », au lieu de le
+supposer. La règle de lecture devient :
+
+* `d_intra` = nombre de verdicts distincts parmi les 7 réplicats du MÊME sujet ;
+* `d_inter` = nombre de verdicts distincts parmi les 7 sujets différents ;
+* **`VERDICT_IS_SUBJECT_BOUND`** exige `d_inter > d_intra` — la divergence doit dépasser celle que
+  produit le seul bruit de mesure. Si `d_intra >= d_inter`, le verdict est **`INDÉTERMINÉ-BRUIT`** :
+  l'instrument ne discrimine pas les sujets à ce n, et c'est un résultat sur l'INSTRUMENT ;
+* **`VERDICT_IS_WORLD_BOUND`** exige en plus `d_inter == 1` (tous les sujets d'accord) **et**
+  `d_intra == 1` (l'instrument est stable) — sinon on ne peut pas distinguer « le monde décide » de
+  « l'instrument ne voit rien ».
+
+Le bras de réplication est le **contrôle négatif apparié** du dispositif : sans lui, le design ne peut
+rendre qu'une seule issue informative, ce qui est la classe E1. Coût : +7 cellules, soit 8/7 du budget
+initial — de l'ordre de quelques minutes.
+
+**Famille de contrôles à déclarer** (`assert_control_family`) : les 7 planchers par sujet, plus les
+2 contrôles câblés. Ce sont des gardes de DOMAINE, pas des tests d'hypothèse — leur échec rend
+`INCONCLUSIVE_DEGENERATE` pour ce sujet, issue légitime déclarée d'avance. Cela se **déclare**
+(`method='none'` avec la raison), cela ne se suppose pas.
