@@ -46,6 +46,11 @@ jobs:
       - name: AGI-Taxonomy (toute arete ETABLIE porte sa preuve complete)
         run: PYTHONIOENCODING=utf-8 python tools/check_agi_taxonomy.py
 
+      # 2026-09-09 (P2.49) : une agregation qui rend une CONSTANTE sur une collection VIDE rend une
+      # cohorte vide indiscernable d'une cohorte qui a survecu 0 tick. 121 sites legataires geles.
+      - name: Defauts FABRIQUES (une collection vide n'est pas une mesure a zero)
+        run: PYTHONIOENCODING=utf-8 python tools/check_fabricated_defaults.py
+
       # 2026-09-09 (P2.49) : ces 4 fichiers etaient ROUGES depuis l'armement de la garde de
       # degenerescence (2026-07-21) -- 8 tests affirmaient SURVIVAL_NEUTRAL la ou l'instrument rend
       # (a juste titre) INDETERMINE_DEGENERATE. Personne ne l'a su : aucun job de CI ne les lancait.
@@ -71,6 +76,7 @@ jobs:
           tests/sandbox/test_mutation_index_invariants.py
           tests/sandbox/test_agi_taxonomy_gate.py
           tests/sandbox/test_perimeter_widening.py
+          tests/sandbox/test_fabricated_defaults.py
 
   test-and-build:
     runs-on: ubuntu-latest

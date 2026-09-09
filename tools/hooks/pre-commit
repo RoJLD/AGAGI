@@ -258,5 +258,30 @@ if [ -n "$staged_tax" ]; then
   }
 fi
 
+# 14. DEFAUTS FABRIQUES (2026-09-09, P2.49) -- une agregation qui rend une CONSTANTE sur une
+# collection VIDE. `float(np.median(ages)) if ages else 0.0` : une cohorte vide n'est PAS une cohorte
+# qui a survecu 0 tick. C'est la forme (a) des trois documentees dans CLAUDE.md (entree vide ->
+# verdict de fond), et elle a deja produit des conclusions gravees (PAS DE RUNG, AUTEL MORT).
+# ⚠️ Le pire cas mesure est un defaut a 1.0 sur un RATIO (g_fidelity_probe.py) : l'absence y prend
+# EXACTEMENT la valeur du resultat nul -- « l'ablation n'a rien fait ».
+# `None` et `float("nan")` sont ACCEPTES : ils DISENT « je ne sais pas ».
+# Detection par AST (121 sites) et non par regex, qui en ratait 23 (formes multi-lignes, np.std).
+# Dette legataire gelee dans tools/fabricated_defaults_baseline.json ; la baseline declenche la garde.
+staged_fd=$(git diff --cached --name-only --diff-filter=AM | grep -E '^((tools|src|backend)/.*\.py|tools/fabricated_defaults_baseline\.json)$')
+if [ -n "$staged_fd" ]; then
+  only_fd=$(echo "$staged_fd" | grep -v fabricated_defaults_baseline || true)
+  if [ -n "$only_fd" ]; then
+    PYTHONIOENCODING=utf-8 python tools/check_fabricated_defaults.py --only $only_fd
+  else
+    PYTHONIOENCODING=utf-8 python tools/check_fabricated_defaults.py
+  fi || {
+    echo ""
+    echo "-> Une collection VIDE n'est pas une mesure a zero. Rendre None / float('nan'), ou LEVER"
+    echo "   si l'etat est impossible (cf. tools/ablation.py::run_condition, 2026-09-09)."
+    echo "   OU declare la dette : python tools/check_fabricated_defaults.py --update-baseline"
+    fail=1
+  }
+fi
+
 [ "$fail" -ne 0 ] && echo "   (urgence : git commit --no-verify)"
 exit $fail

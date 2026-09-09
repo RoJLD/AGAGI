@@ -156,10 +156,15 @@ peut alerter ; porte 10, session parallèle) ·
 `check_data_paths.py` (aucun NOUVEAU chemin de données écrit en dur — inventaire : 57 littéraux
 dans 26 fichiers et UNE seule variable d'environnement, donc héberger les données sur un NAS
 demandait d'éditer 26 fichiers ; `src/paths.py` porte l'indirection, porte 12) ·
+`check_fabricated_defaults.py` (aucune NOUVELLE agrégation ne rend une CONSTANTE sur une
+collection vide — porte 14 : `float(np.median(ages)) if ages else 0.0` rend une cohorte VIDE
+indiscernable d'une cohorte qui a survécu 0 tick ; **121 sites légataires** gelés, dont un défaut à
+**1.0 sur un RATIO** où l'absence prend exactement la valeur du résultat nul. `None` et `nan` sont
+acceptés : ils DISENT « je ne sais pas ») ·
 `check_control_family.py` (tout runner d'une règle SCELLÉE déclare son design, donc le NOMBRE de
 cellules de sa famille de contrôles — porte 11 ; à seuil de test unique, une famille de 24 cellules
 donnait 0,216 de fausse alarme sur un harnais PARFAIT).
-**13 gardes** <!-- count:portes_hook=13 --> sont branchées sur le hook pre-commit
+**14 gardes** <!-- count:portes_hook=14 --> sont branchées sur le hook pre-commit
 (`tools/hooks/pre-commit`) — compte RECOMPUTÉ depuis le hook lui-même : la phrase « 5 cliquets, tous
 branchés » qui vivait ici était fausse.
 ⚠️ **La baseline d'un cliquet doit elle-même déclencher le hook** — sinon l'élargir et la committer seule

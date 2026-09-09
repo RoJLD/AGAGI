@@ -2040,6 +2040,38 @@ dans `ci.yml` pour que le silence ne se reforme pas.
 
 ---
 
+**P2.52 — 🔴 OUVERTE (2026-09-09) — 121 agrégations rendent une CONSTANTE sur une collection VIDE :
+une cohorte vide y est indiscernable d'une cohorte qui a survécu 0 tick.**
+<!-- holds_when:path_present=tools/fabricated_defaults_baseline.json -->
+Trouvé en appliquant la leçon d'E23 (chercher la **forme**, pas l'instance) après avoir corrigé
+`ablation.py::run_condition` : le motif `float(np.median(ages)) if ages else 0.0` est **systémique**.
+Mesure sur l'arbre entier hors tests : **147 sites**, dont **49 HONNÊTES** (`None` / `nan` — ils
+DISENT « je ne sais pas ») et **98 qui FABRIQUENT** une constante. ⚠️ La détection **AST** en trouve
+en réalité **121** — 23 de plus que la regex, qui ratait les formes multi-lignes et `np.std`. C'est
+la huitième fois dans ce dépôt qu'un détecteur syntaxique promet plus que ce qu'il voit.
+
+⚠️ **LE PIRE CAS MESURÉ est un défaut à `1.0` sur un RATIO** (`tools/g_fidelity_probe.py`, 3 sites) :
+l'absence de donnée y prend **exactement la valeur du résultat nul** — « l'ablation n'a rien fait ».
+L'absence n'y devient pas seulement un chiffre, elle devient **la conclusion**. C'est la forme (a) des
+trois documentées dans `CLAUDE.md`, et elle a déjà produit des conclusions gravées (`PAS DE RUNG`,
+`AUTEL MORT`, `N_EMERGE_PAS`).
+
+**Ce qui est fait** : le 99ᵉ site ne peut plus apparaître. `tools/check_fabricated_defaults.py`
+(**porte 14** du hook + étape de CI, baseline gelée à 121, comparaison par **différence d'ensembles**
+donc corriger un site ne fait jamais échouer le cliquet), **12 cas** de calibration dont autant de
+`spares` que de `fires` — `sum([])` est épargné parce que la somme d'un ensemble vide **est**
+arithmétiquement zéro, et un booléen aussi (`bool` est une sous-classe d'`int`, il serait passé pour
+une constante numérique sans exclusion explicite).
+
+**Ce qui reste** : les 121 légataires. Ils ne se corrigent pas en masse — chacun demande de décider
+entre `None`/`nan` (« je ne sais pas ») et **lever** (si l'état est impossible, comme tranché pour
+`ablation.py`). **Ordre** : (a) les 5 défauts à `1.0` sur des ratios, les plus dangereux ;
+(b) les sites dans des instruments dont un record publie le chiffre ; (c) le reste.
+Précédent à suivre : `tools/s2_openloop_probe.py`, corrigé avant cette passe, dont le commentaire
+explique déjà la faute — ce cliquet généralise ce correctif au lieu de le laisser isolé.
+
+---
+
 ## P3 — Générateurs d'erreur encore sans réponse exécutable
 
 *(⚠️ **BLOC PÉRIMÉ** : E13 est CLOSE depuis le 2026-07-28 — `tools/cost_guard.py` + `tests/sandbox/test_cost_guard.py`. Le registre n'a plus aucune classe sans garde exécutable. Conservé pour l'historique.)*
