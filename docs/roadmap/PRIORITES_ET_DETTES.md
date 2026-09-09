@@ -2134,7 +2134,29 @@ DÉCLARER l'auteur plutôt que deviner** (comme `NOT_AN_INSTRUMENT`). Une décla
 refaisaient le filtre à la main et voyaient donc le site déclaré comme NOUVEAU — un filtre dupliqué
 est un filtre qui divergera.
 
-**Ce qui reste** : les 108 légataires. Ils ne se corrigent pas en masse — chacun demande de décider
+✅ **(b) POURSUIVI — les DEUX gros volumes, 108 → 85.**
+
+- **`substrate_ab_compositional` (15 records, 17 sites), qui porte le KPI de la porte G2.** Trois
+  familles, lues dans le CODE et non décidées au jugé. ⚠️ **7 des 17 étaient du CODE MORT** :
+  `qb = max(1, compo_trials // 4) if compo_trials else 0` et la garde d'en-tête exige
+  `compo_trials > 0`, donc `qb ≥ 1` **toujours** — le `else 0.0` y est inatteignable. Les retirer
+  plutôt que d'y écrire `None` compte : **maquiller du code mort en dette résorbée serait un faux
+  vert**, et la dette réelle de ce fichier était de **10**, pas 17. Les 4 branches `qa` sont bien
+  vivantes (la docstring dit *« warmup_trials=0 → phase B seule »*, donc l'absence de warmup est une
+  configuration SUPPORTÉE, et `0.0` y affirmait un indice de discrimination pour une phase
+  INEXISTANTE) ; elles rendent `None`, avec les 6 branches gardées par `.size`. Le fichier
+  **anticipait déjà** ce `None` en deux endroits (`if c["compo_didx_end"] is not None`) : on
+  généralise **son propre idiome**, et les deux agrégations qui manquaient sont gardées.
+- **`lewis_survival_sweep` (13 records) — 6 sites sur 16, ceux qui alimentent un VERDICT.** Le plus
+  dangereux était `medians`, qui entre dans `verdict_fn` : un `0.0` fabriqué y devient une **survie
+  médiane nulle dans un verdict de TENDANCE**, capable d'en **inverser le sens**. ⚠️ Plutôt que cinq
+  `None` disséminés, **UNE garde en tête** qui NOMME le niveau fautif rend les cinq branches
+  inatteignables. Et le pool suit la décision déjà prise deux fois — **lever** —, d'autant qu'il
+  corrompait **déjà** le sweep en silence : `ticks.extend(...)` n'ajoutait rien pour l'ère perdue,
+  donc la médiane du niveau se calculait sur moins d'ères sans que personne ne le sache.
+
+**Ce qui reste** : **85 légataires**, dont **10 statistiques de rapport** dans
+`lewis_survival_sweep` — aucune n'alimente un verdict, d'où leur report assumé. Ils ne se corrigent pas en masse — chacun demande de décider
 entre `None`/`nan` (« je ne sais pas ») et **lever** (si l'état est impossible, comme tranché pour
 `ablation.py`). **Prochaines cibles de (b)**, par poids mesuré : `s2_demand.py` (10 records, 3 sites),
 `src/swarm/consensus.py` (10 records, 1 site), `substrate_world_ab.py` (6 records, 6 sites), puis les

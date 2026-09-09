@@ -85,6 +85,14 @@ def _apply_y_saturation_penalty(reward2, move2, target_y: int, coef: float, y_ta
     return reward2 - (coef * excess) * (move2 == target_y).astype(reward2.dtype)
 
 
+
+def _median_ou_none(vals):
+    """Mediane des valeurs NON NULLES, ou `None` si aucune. Une cellule sans phase mesuree rend
+    `None` (P2.52) : `statistics.median` LEVERAIT dessus, et la compter comme un zero serait
+    exactement la fabrication qu'on vient de retirer."""
+    finis = [v for v in vals if v is not None]
+    return statistics.median(finis) if finis else None
+
 def _init_factor(num_nodes: int, init_scale: str) -> float:
     """Facteur d'échelle d'init des poids. `normalized` = sqrt(171/(N-1)) → maintient la variance
     d'excitation (Σ_{k≠j} H_k W_kj ∝ (N-1)·Var(W)) ≈ invariante à N, calibrée sur N_ref=172.
@@ -253,8 +261,11 @@ def run_curriculum(backend: str, seed: int = 0, warmup_trials: int = 150, compo_
         pop.learn(reward, [{"move": int(m), "grab": 0, "rub": 0} for m in move1])
         warm.append(float(np.mean(did_x)))
     qa = max(1, warmup_trials // 4) if warmup_trials else 0
-    warmup_didx_start = float(np.mean(warm[:qa])) if qa else 0.0
-    warmup_didx_end = float(np.mean(warm[-qa:])) if qa else 0.0
+    # ⚠️ P2.52 : `None` et non 0.0. `warmup_trials=0` est une configuration SUPPORTEE (« phase B seule »,
+    # dit la docstring) : rendre 0.0 affirmerait « l'indice de discrimination du warmup vaut 0 »
+    # pour une phase qui N'EXISTE PAS. Le fichier anticipe deja ce `None` en aval.
+    warmup_didx_start = float(np.mean(warm[:qa])) if qa else None
+    warmup_didx_end = float(np.mean(warm[-qa:])) if qa else None
 
     # --- Phase B : compositionnel pur (bascule dure) ---
     hit, bx = [], []
@@ -272,10 +283,10 @@ def run_curriculum(backend: str, seed: int = 0, warmup_trials: int = 150, compo_
         hit.append(float(np.mean((move2 == target_y) & did_x)))
         bx.append(float(np.mean(did_x)))
     qb = max(1, compo_trials // 4) if compo_trials else 0
-    hit_start = float(np.mean(hit[:qb])) if qb else 0.0
-    hit_end = float(np.mean(hit[-qb:])) if qb else 0.0
-    compo_didx_start = float(np.mean(bx[:qb])) if qb else 0.0
-    compo_didx_end = float(np.mean(bx[-qb:])) if qb else 0.0
+    hit_start = float(np.mean(hit[:qb]))
+    hit_end = float(np.mean(hit[-qb:]))
+    compo_didx_start = float(np.mean(bx[:qb]))
+    compo_didx_end = float(np.mean(bx[-qb:]))
     return {"backend": backend, "seed": int(seed), "warmup_trials": warmup_trials,
             "compo_trials": compo_trials, "n_agents": n_agents,
             "warmup_didx_start": warmup_didx_start, "warmup_didx_end": warmup_didx_end,
@@ -322,7 +333,7 @@ def run_curriculum_fade(backend: str, seed: int = 0, warmup_trials: int = 150, c
         reward = np.array([_warmup_reward(int(m), target_x) for m in move1], dtype=np.float32)
         pop.learn(reward, [{"move": int(m), "grab": 0, "rub": 0} for m in move1])
     qa = max(1, warmup_trials // 4) if warmup_trials else 0
-    warmup_didx_end = float(np.mean(warm[-qa:])) if qa else 0.0
+    warmup_didx_end = float(np.mean(warm[-qa:])) if qa else None
 
     # --- Phase B : compositionnel + fade linéaire du maintien de X ---
     hit, bx, yc = [], [], []
@@ -344,14 +355,14 @@ def run_curriculum_fade(backend: str, seed: int = 0, warmup_trials: int = 150, c
         bx.append(did_x)
         yc.append(y_correct)
     qb = max(1, compo_trials // 4) if compo_trials else 0
-    hit_start = float(np.mean(hit[:qb])) if qb else 0.0
-    hit_end = float(np.mean(hit[-qb:])) if qb else 0.0
+    hit_start = float(np.mean(hit[:qb]))
+    hit_end = float(np.mean(hit[-qb:]))
     didx_end = np.concatenate(bx[-qb:]) if qb else np.array([], dtype=bool)
     didx_start = np.concatenate(bx[:qb]) if qb else np.array([], dtype=bool)
     yc_end = np.concatenate(yc[-qb:]) if qb else np.array([], dtype=bool)
     yc_start = np.concatenate(yc[:qb]) if qb else np.array([], dtype=bool)
-    compo_didx_start = float(np.mean(didx_start)) if didx_start.size else 0.0
-    compo_didx_end = float(np.mean(didx_end)) if didx_end.size else 0.0
+    compo_didx_start = float(np.mean(didx_start)) if didx_start.size else None
+    compo_didx_end = float(np.mean(didx_end)) if didx_end.size else None
     p_yx_end = _p_y_given_x(yc_end, didx_end)
     p_ynotx_end = _p_y_given_not_x(yc_end, didx_end)
     binding_gap_end = (p_yx_end - p_ynotx_end) if (p_yx_end is not None and p_ynotx_end is not None) else None
@@ -365,7 +376,7 @@ def run_curriculum_fade(backend: str, seed: int = 0, warmup_trials: int = 150, c
             "p_y_given_x_end": p_yx_end,
             "p_y_given_not_x_end": p_ynotx_end,
             "binding_gap_end": binding_gap_end,
-            "y_rate_end": float(np.mean(yc_end)) if yc_end.size else 0.0,
+            "y_rate_end": float(np.mean(yc_end)) if yc_end.size else None,
             "delta": hit_end - hit_start}
 
 
@@ -448,7 +459,7 @@ def run_curriculum_fade_gated(backend: str, seed: int = 0, warmup_trials: int = 
         reward = np.array([_warmup_reward(int(m), target_x) for m in move1], dtype=np.float32)
         pop.learn(reward, [{"move": int(m), "grab": 0, "rub": 0} for m in move1])
     qa = max(1, warmup_trials // 4) if warmup_trials else 0
-    warmup_didx_end = float(np.mean(warm[-qa:])) if qa else 0.0
+    warmup_didx_end = float(np.mean(warm[-qa:])) if qa else None
 
     # --- Gate appris : params + optim (créés seulement pour learned) ---
     # gate_hidden=0 → readout LINÉAIRE (biais_Y = w·H_S2 + b), init zéros = rétrocompat EDR 129-132.
@@ -564,10 +575,10 @@ def run_curriculum_fade_gated(backend: str, seed: int = 0, warmup_trials: int = 
         yc.append(y_correct)
 
     qb = max(1, compo_trials // 4) if compo_trials else 0
-    hit_end = float(np.mean(hit[-qb:])) if qb else 0.0
+    hit_end = float(np.mean(hit[-qb:]))
     didx_end = np.concatenate(bx[-qb:]) if qb else np.array([], dtype=bool)
     yc_end = np.concatenate(yc[-qb:]) if qb else np.array([], dtype=bool)
-    compo_didx_end = float(np.mean(didx_end)) if didx_end.size else 0.0
+    compo_didx_end = float(np.mean(didx_end)) if didx_end.size else None
     p_yx = _p_y_given_x(yc_end, didx_end)
     p_ynx = _p_y_given_not_x(yc_end, didx_end)
     gap = (p_yx - p_ynx) if (p_yx is not None and p_ynx is not None) else None
@@ -591,9 +602,9 @@ def run_curriculum_fade_gated(backend: str, seed: int = 0, warmup_trials: int = 
            "warmup_didx_end": warmup_didx_end, "hit_end": hit_end,
            "compo_didx_end": compo_didx_end, "p_y_given_x_end": p_yx,
            "p_y_given_not_x_end": p_ynx, "binding_gap_end": gap,
-           "y_rate_end": float(np.mean(yc_end)) if yc_end.size else 0.0,
+           "y_rate_end": float(np.mean(yc_end)) if yc_end.size else None,
            "binding_gap_start": gap_start,
-           "y_rate_start": float(np.mean(yc_start)) if yc_start.size else 0.0}
+           "y_rate_start": float(np.mean(yc_start)) if yc_start.size else None}
     if capture_probe:
         # Décodabilité de did_x depuis H_S2 précoce (pooled agents×trials) : la mémoire encode-t-elle
         # did_x proprement chez ce seed ? (hypothèse REPRÉSENTATION du collapse)
@@ -693,7 +704,10 @@ def compare_gate_modes(seeds=(0, 1, 2, 3, 4), modes=("none", "learned", "oracle"
             "n_bind": sum(1 for g in gaps if g > bind_thresh),
             "n_seeds": len(gaps),
             "p_y_given_x_median": statistics.median(pyx_vals) if pyx_vals else None,
-            "y_rate_median": statistics.median([c["y_rate_end"] for c in cells])}
+            # ⚠️ P2.52 : filtre les `None` comme le font deja les lignes homologues plus bas.
+            # `statistics.median` LEVE sur un `None`, et une cellule sans phase mesuree ne doit
+            # ni faire tomber le rapport ni etre comptee comme un zero.
+            "y_rate_median": _median_ou_none([c["y_rate_end"] for c in cells])}
 
     verdict = "AMBIGU"
     if "learned" in per_mode:
@@ -870,7 +884,8 @@ def sweep_y_saturation(seeds=tuple(range(10)), penalties=(0.0, 1.0, 3.0), fade_w
                      "hit_end": c["hit_end"], "y_rate_end": c["y_rate_end"]}
                     for s, c in zip(seeds, cells)]
         gaps = [r["gap"] for r in per_seed if r["gap"] is not None]
-        yrs = [r["y_rate_start"] for r in per_seed]
+        # ⚠️ P2.52 : meme filtre -- une cellule sans phase mesuree rend `None`.
+        yrs = [r["y_rate_start"] for r in per_seed if r["y_rate_start"] is not None]
         hits = [r["hit_end"] for r in per_seed if r["hit_end"] is not None]
         bound_seeds = [r["seed"] for r in per_seed if r["gap"] is not None and r["gap"] > bind_thresh]
         rows.append({"penalty": float(pen), "n_bind": len(bound_seeds), "n_seeds": len(gaps),

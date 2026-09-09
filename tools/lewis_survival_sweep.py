@@ -313,7 +313,16 @@ def _measure_survival(cfg, seeds, leurre_frac=0.0, n_apex=N_APEX, num_agents=NUM
         ticks.extend(int(ag.get("age", 0)) for ag in pool)
         famine += sum(1 for ag in pool if ag.get("energy", 1.0) <= 0)
         combat += sum(1 for ag in pool if ag.get("hp", 1.0) <= 0 and ag.get("energy", 1.0) > 0)
-        kills.append(float(np.mean([ag.get("mammoth_kills", 0) for ag in pool])) if pool else 0.0)
+        # ⚠️ P2.52, 2026-09-09 : MEME decision que pour `ablation.py::run_condition` et
+        # `substrate_world_ab::measure_survival`. Un pool vide n'est pas « zero kill par agent »,
+        # c'est une anomalie de HARNAIS -- et elle corrompait DEJA le sweep en silence, puisque
+        # `ticks.extend(...)` juste au-dessus n'ajoutait rien pour cette ere : la mediane du niveau
+        # se calculait alors sur moins d'eres, sans que personne ne le sache.
+        if not pool:
+            raise ValueError(
+                "_measure_survival : cohorte INTROUVABLE a la fin de l'ere (ni vivants ni morts) -- "
+                "ce n'est PAS zero kill par agent, c'est une anomalie de harnais.")
+        kills.append(float(np.mean([ag.get("mammoth_kills", 0) for ag in pool])))
         if collect_surprise:
             surprise.append(_surprise_stats(pool))
     result = {"ticks": ticks, "famine": famine, "combat": combat, "kills": kills}
@@ -603,11 +612,26 @@ def _report(h, levels, groups, R, n_eval, _return, knob="forage_payoff", verdict
     """Medianes par niveau + Jonckheere-Terpstra (tendance) + verdict + provenance.
     knob = nom du parametre balaye ; verdict_fn = mapping medianes->verdict. Si les groupes portent une
     cle 'surprise' (EDR098), ajoute une colonne surprise et appelle verdict_fn(levels, medians, frac_nf)."""
-    medians = [float(np.median(g["ticks"])) if g["ticks"] else 0.0 for g in groups]
+    # ⚠️ GARDE EN TETE (P2.52, 2026-09-09), et elle remplace CINQ fabrications par une seule
+    # verification. `medians` alimente `verdict_fn` : un 0.0 fabrique y devient une SURVIE MEDIANE
+    # NULLE entrant dans un verdict de TENDANCE, et peut donc en INVERSER le sens -- un niveau non
+    # mesure se lirait comme un niveau ou l'on ne survit pas. Un niveau de sweep sans donnee ne se
+    # rapporte pas ; on NOMME lequel plutot que de le remplir.
+    vides = [lv for lv, g in zip(levels, groups) if not g["ticks"]]
+    if vides:
+        raise ValueError(
+            f"_report : le(s) niveau(x) {vides} de `{knob}` n'ont AUCUNE mesure -- ce n'est pas une "
+            "survie nulle, c'est une absence. Une tendance ne se calcule pas sur un niveau manquant.")
+    medians = [float(np.median(g["ticks"])) for g in groups]
     jt = st.jonckheere_terpstra([g["ticks"] for g in groups])
     has_surprise = all("surprise" in g for g in groups)
     if has_surprise:
-        frac_nf = [float(np.mean([s["frac_nonfinite"] for s in g["surprise"]])) if g["surprise"] else 0.0
+        vides_s = [lv for lv, g in zip(levels, groups) if not g["surprise"]]
+        if vides_s:
+            raise ValueError(
+                f"_report : le(s) niveau(x) {vides_s} n'ont aucune mesure de SURPRISE alors que la "
+                "colonne est demandee -- `frac_nonfinite` entre dans le verdict, on ne le fabrique pas.")
+        frac_nf = [float(np.mean([s["frac_nonfinite"] for s in g["surprise"]]))
                    for g in groups]
         verdict = verdict_fn(levels, medians, frac_nf)
     else:
@@ -615,14 +639,14 @@ def _report(h, levels, groups, R, n_eval, _return, knob="forage_payoff", verdict
     table = {}
     print(f"\n=== EDR sweep {knob} : survie mediane (gate >{GATE:.0f}) ===")
     for lv, g, med in zip(levels, groups, medians):
-        mk = float(np.mean(g["kills"])) if g["kills"] else 0.0
+        mk = float(np.mean(g["kills"]))   # garde en tete : `ticks` non vide => `kills` non vide
         n = len(g["ticks"])
         row = {"median": med, "famine": g["famine"], "combat": g["combat"], "mean_kills": mk, "n": n}
         line = (f"  {knob}={lv:<4} | survie mediane={med:6.1f} | famine={g['famine']:<4} "
                 f"combat={g['combat']:<4} | kills/agent~{mk:.2f} | n={n}")
         if has_surprise:
-            ms = float(np.mean([s["mean_abs_finite"] for s in g["surprise"]])) if g["surprise"] else 0.0
-            fnf = float(np.mean([s["frac_nonfinite"] for s in g["surprise"]])) if g["surprise"] else 0.0
+            ms = float(np.mean([s["mean_abs_finite"] for s in g["surprise"]]))
+            fnf = float(np.mean([s["frac_nonfinite"] for s in g["surprise"]]))
             row["mean_surprise"] = ms
             row["frac_nonfinite"] = fnf
             line += f" | surprise~{ms:.1f} nonfini={fnf:.2f}"
