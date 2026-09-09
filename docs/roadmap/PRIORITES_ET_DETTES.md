@@ -2118,39 +2118,75 @@ la variance INTRA-architecture suffit à disperser une mesure, mais pas à dispe
 
 ## P4 — Science
 
-**P4.1 — ✅ MESURÉE ET GRAVÉE (2026-09-08) — [`EDR-GRAB-COST`](../EDR/EDR-GRAB-COST_Grabbing_Costs_Survival_Even_When_Grabbing_Feeds.md).**
+**P4.1 — ✅ VERDICT + MÉCANISME FERMÉS (mécanisme le 2026-09-09) — [`EDR-GRAB-COST`](../EDR/EDR-GRAB-COST_Carry_Tax_On_Unchosen_Rocks_And_The_Feeding_Premise_Is_Refuted.md).**
 <!-- holds_when:path_present=results/p41_grab_famine.json -->
-**Le grab NUIT, même quand grabber NOURRIT.** Retirer l'action améliore la survie médiane de **+39 %**
-(40.75 contre 29.25), sur **30 ères APPARIÉES** (3 champions × 10 ères, même seed de monde par paire) :
-**28+ / 2−**, médiane des différences **+10.75**, sign **p = 8.7e-07**. Cohérent sur les 3 seeds
-(1.29× · 1.39× · 1.50×). 184 s de calcul sous bail `kuzu`.
+<!-- holds_when:path_present=results/p41_grab_mechanism.json -->
+**Le grab NUIT** : retirer l'action améliore la survie médiane de **+39 %** (40.75 contre 29.25), sur
+**30 ères APPARIÉES** (3 champions × 10 ères, même seed de monde par paire) : **28+ / 2−**, médiane des
+différences **+10.75**, sign **p = 8.7e-07**, cohérent sur les 3 seeds (1.29× · 1.39× · 1.50×).
 
-**Ce qui rend le résultat lisible, et c'est le pré-vol qui l'a obtenu** : le contrôle no-op
-`NullGrabOffMamba` est **BIT-IDENTIQUE** au bras intact sur les 30 ères — plancher de bruit
-**EXACTEMENT NUL**. Différence structurelle avec la sonde sœur : `derange_rows` CONSOMME des tirages et
-déplace la bande (bande mesurée [0.92 ; 1.06], dans laquelle son propre résultat publié 0.991 TOMBE) ;
-écrire une constante dans une sortie n'en consomme aucun. L'effet est donc lu contre 0, pas contre ±8 %.
+**Ce qui rend le résultat lisible** : le contrôle no-op `NullGrabOffMamba` est **BIT-IDENTIQUE** au bras
+intact — plancher de bruit **EXACTEMENT NUL**. Différence structurelle avec la sonde sœur :
+`derange_rows` CONSOMME des tirages et déplace la bande ([0.92 ; 1.06], dans laquelle son propre
+résultat publié 0.991 TOMBE) ; écrire une constante dans une sortie n'en consomme aucun.
 
-⚠️ **Ce qui n'est PAS établi, et doit être lu tel quel** : la manipulation INVERSE (`GrabForcedMamba`,
-grab forcé à chaque tick) va dans le bon sens mais **n'est pas significative** (10+ / 18−, p = 0.185).
-La dose-réponse n'est donc pas montrée, et l'explication naturelle — le champion grabbe déjà souvent —
-est **plausible et NON MESURÉE**. ⚠️ **Mais le bras inverse fait ce pour quoi il existait** : il RÉFUTE
-« toute perturbation de la colonne 24 améliore la survie ». Sans lui, l'effet resterait compatible avec
-un artefact d'ablation.
+**LE CANAL, mesuré (2026-09-09) : la TAXE DE PORTAGE.** `carry` vaut **0.6418 / agent-tick** à l'intact
+contre **0.0000** en `grab_off`, quand le différentiel énergétique TOTAL vaut **0.6262** — soit **102 %**,
+tout le reste se compensant. Elle pèse **34.2 % du métabolisme de base**. Le bouclage comptable
+(`carry` du moteur = 0.5 × poids recensé) tient à **2.3e-16**.
+**Cause structurelle** : `_spawn_rocks` pose des rochers de poids `uniform(1,10)` (moyenne 5.5) **à
+l'initialisation**, donc en tête de `self.items` ; le grab prend `nearby_items[0]`, **le premier de la
+liste, jamais le meilleur**. Le grab est un ramasse-rochers par ordre de liste, pas un choix.
 
-**Portée déclarée** : famine dure seulement, `night_enabled=False`, `benchmark_mode=True`. Unité = l'ÈRE
-(les 10 ères d'un champion sont sériellement dépendantes ; la lecture à n=3 seeds garde le signe, 3/3,
-mais tombe sous le `n_floor=12`). **Mécanisme OUVERT** : on sait que le grab coûte, pas par quel canal —
-le taux de grab in situ et `trace_energy_sinks` restent à mesurer.
+⚠️ **RECTIFICATION — la prémisse de la v1 était fausse TROIS fois** (classe **E8 occ. 4**). Elle
+annonçait « `forage_payoff = 3.0`, ramasser un fruit RAPPORTE » : (a) la valeur réelle est **1.0**
+(`run_condition` construit avec `config=None`) ; (b) `forage_payoff` ne multiplie que `prey_reward` sur
+une mise à mort — il ne touche **jamais** `do_grab` ; (c) le grab nourrit **exactement 0 fois** sur
+20 776 agent-ticks, par les DEUX chemins (revenu moteur +20, cache de famine). Le champion ne porte
+aucun aliment : 4 549 `rock`, 1 166 `Spark`, 663 `stick`, 513 `Spear`… **zéro `Fruit`**.
+**Pourquoi** — fait sur le MONDE, pas sur la politique : **25 ères sur 30 n'ont AUCUN arbre fruitier**, et
+dans les 5 autres le cooldown initial (139-140, décrémenté seulement pendant l'abondance) place la
+première récolte vers le tick **219** quand l'agent le plus âgé du dispositif meurt au tick **198**.
+Le record est renommé et rectifié ; **les chiffres de survie tiennent intégralement**.
 
-Livré : `tools/s2_demand_ablation.py::{GrabOffMamba, NullGrabOffMamba, GrabForcedMamba}` (copie
-défensive + `assert_no_aliasing` à chaque appel), 6 cas dans `tests/sandbox/test_grab_cost.py` dont un
-qui vérifie que l'ablation vise bien l'indice que le MONDE lit — sans quoi le record deviendrait faux
-en silence si le monde changeait d'indice.
+⚠️ **Deux bornes qui doivent être lues avec le résultat.** (1) **L'intervention n'est PAS minimale** :
+l'inventaire conditionne aussi le **lancer** (`world_1_stoneage.py:1404`), donc le bras ablaté ne peut
+jamais lancer — les +39 % sont le net de (taxe retirée) − (lancer retiré), le poste `autres` plus
+favorable de 0.18/tick à l'intact en étant la trace. Le signe n'est pas en cause, la surgicalité l'est.
+(2) **Ce record entre DANS la borne de portée déclarée par [`EDR-WARM-008`](../EDR/WARM-008_Aux_Off_Zeroes_Grab_But_Survival_Gain_Is_Null_And_Channel_Is_Load_Bearing.md)** :
+« le grab nuit » n'est établi que dans un monde où grabber n'a aucun avantage possible. La borne est
+donc **répliquée sur un troisième banc**, et la question « grabber paie-t-il quand grabber nourrit ? »
+reste OUVERTE — aucun banc du dépôt ne peut y répondre.
+
+**Ce que ça APPORTE à WARM-008** : le point de dose ÉLEVÉE qui lui manquait. `carry`/métabolisme
+2.4-9.5 % → gain **NUL** (WARM-008) ; **34.2 % → +39 %** (ici). WARM-008 avait prédit la condition
+(« le ×2.06 de WARM-005 venait d'un génome à inventaire lourd ») : c'est ce génome qui est mesuré.
+
+**Contrôles supplémentaires** : *ancrage* — la boucle recensée rend une survie **exactement égale** à
+`run_condition` (E19 occ. 6), ce qui établit aussi que `trace_energy_sinks=True` est un no-op sur la
+dynamique ; *hypothèse du scaffold RÉFUTÉE* — le banc annule la prime de ramassage (`current_era=10 000`
+→ `anneal=0`) alors qu'elle valait ~0.967 à l'évolution ; testé à prime **0.9667**, `grab_off` gagne
+encore **46 contre 31** et l'écart s'élargit ; *taux de grab in situ* = **0.5547** (la v1 le déclarait
+« plausible et NON MESURÉ »), cohérent avec l'asymétrie `grab_off` (p=8.7e-07) / `grab_force` (p=0.185).
+
+Livré : `tools/grab_mechanism_probe.py` (`GrabCensusMamba`, `GrabCensusWorld`, `run_census_arm`,
+`anchor_against_run_condition`) + **14 cas** dans `tests/sandbox/test_grab_mechanism.py` dont **12 sans
+aucune simulation** ; `tools/s2_demand_ablation.py::{GrabOffMamba, NullGrabOffMamba, GrabForcedMamba}` +
+6 cas dans `tests/sandbox/test_grab_cost.py`. Bruts : `results/p41_grab_mechanism{,_era1}.json`.
 
 **P4.2 — Reste du backlog WARM** (cf. `SCIENCE.md`, fil WARM) : incidence du canal né-ON sur ≥6 agents et
-≥2 seeds ; hypothèse du **canal porteur** (corrélation coût ↔ poids de W autour du nœud 88) ; bras à
-revenu d'inventaire réel ; termes résiduels du bilan énergétique. *Coût : variable.*
+≥2 seeds ; hypothèse du **canal porteur** (corrélation coût ↔ poids de W autour du nœud 88).
+*Coût : variable.*
+
+✅ **Deux sous-items FERMÉS le 2026-09-09 par P4.1-mécanisme** : les *termes résiduels du bilan
+énergétique* sont décomposés (`trace_energy_sinks`, 7 postes, bouclage à 2.3e-16, cf. P4.1) ; et le
+**bras à revenu d'inventaire réel** cesse d'être une intention pour devenir une **spécification
+chiffrée** — il exige TROIS conditions simultanées, chacune mesurée manquante :
+(a) `fruit_tree_ratio` garantissant au moins un arbre fruitier (**25/30 ères n'en ont aucun**) ;
+(b) un premier cooldown inférieur à l'espérance de vie (**219 contre 198 ticks**) ;
+(c) un grab qui puisse **choisir** sa cible (`nearby_items[0]` prend le premier de la liste, et les
+rochers y sont posés à l'initialisation). Tant que les trois manquent, « grabber nuit » restera vrai et
+sans portée — c'est la borne que WARM-008 avait déclarée et que P4.1 réplique sur un troisième banc.
 
 **P4.3 — AGI-Taxonomy : graphe de prérequis vers un world-model, dans le format `os-taxonomy`.**
 Vision : construire, dans le format de `withmarbleapp/os-taxonomy` (DAG de prérequis à arêtes taggées

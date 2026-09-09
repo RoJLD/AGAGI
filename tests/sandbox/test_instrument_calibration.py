@@ -44,6 +44,20 @@ NOT_AN_INSTRUMENT = {
 }
 
 CALIBRATED = {
+    # P4.1-MECANISME (2026-09-09) : par quel CANAL le grab coute-t-il 39 % de survie ?
+    # 14 cas dans tests/sandbox/test_grab_mechanism.py, dont 12 SANS aucune simulation (gardes en
+    # tete, compteur calibre par injection a dose connue, mecanisme verifie sur le CODE).
+    # Les deux cas qui comptent : (1) l'ANCRAGE -- la boucle refaite doit rendre la survie EXACTEMENT
+    # egale a `run_condition`, l'instrument audite qui a produit le record, sans quoi le bilan
+    # energetique decrirait un autre monde (E19 occ. 6) ; (2) le BOUCLAGE -- le poste `carry` du
+    # moteur doit valoir 0.5 x le poids recense au MEME instant. La premiere version recensait
+    # l'inventaire en tete de tick, donc AVANT le grab : bilan coherent avec lui-meme, facteur 3,7
+    # d'ecart avec le moteur. Un recensement qui ne boucle pas produit une attribution de canal.
+    "tools/grab_mechanism_probe.py::run_census_arm": [
+        "regime-degenere:raises", "guard-before-world", "ancrage-egal-run_condition",
+        "observateur-bit-identique", "bouclage-carry-vs-moteur", "dose-connue:3-doses",
+        "census-vide:None-pas-zero", "compteur-remis-a-zero", "regime-mesure!=regime-annonce",
+        "revenu-fruit-etrangle:code", "recensement-avant-masquage"],
     # P2.46 (2026-09-08) : garde E24 -- les blocs ENTREE et SORTIE du genome se CHEVAUCHENT, et 18
     # logits d'action du champion SONT l'observation. 4 cas dans tests/sandbox/test_control_family.py,
     # dont le contre-exemple gele (le champion, refuse avec son chiffre) apparie a son no-op (un

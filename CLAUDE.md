@@ -183,6 +183,16 @@ Nouveau record → frontmatter `gate:` / `tests:[SDR-Gx]` / `adopts:` ou `founda
 `tools/check_record_links.py` le signale comme orphelin (le hook pre-commit bloque les nouveaux).
 Les résultats NÉGATIFS et les auto-réfutations se gravent au même titre que les positifs.
 
+⚠️ **Une PRÉMISSE est une mesure, pas un décor.** Toute valeur de configuration citée dans un record
+doit être PUBLIÉE par le runner (bloc `regime` du JSON de résultats), jamais recopiée de mémoire.
+Mesuré le 2026-09-09 (**E8 occ. 4**) : `EDR-GRAB-COST` s'ouvrait sur « le régime porte
+`forage_payoff = 3.0` » alors que (a) `run_condition` construit avec `config=None`, donc le défaut
+**1.0**, (b) ce paramètre ne multiplie que la récompense de mise à mort — il ne touche **jamais**
+l'action ablatée, et (c) le fait annoncé (« grabber nourrit ») était mesurable et **faux**. La garde
+E8 existante ne pouvait rien voir : `declare_design(links=…)` couvre les liens CAUSAUX inférés, pas la
+description du RÉGIME. Balayage de la forme : **56 affirmations de paramètre** dans la prose des
+records, aucune vérifiable avant ce bloc.
+
 ## Jobs & ressources exclusives
 
 **`tools/jobs/`** — bail sur ressource NOMMÉE, run gouverné, doctor. Toute simulation de monde doit
