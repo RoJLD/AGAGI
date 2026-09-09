@@ -4,8 +4,14 @@ import numpy as np
 from typing import Optional, Tuple, Dict, Any
 from dataclasses import dataclass
 
-HALL_OF_FAME_PATH = os.environ.get("HOF_PATH", "data/hall_of_fame.pkl")
-AGENT_STATE_DIR = "data/agent_states/"
+from src import paths
+
+# ⚠️ `HOF_PATH` PRIME sur la racine, et ce n'est pas un detail : EVO-003 s'en sert pour imposer
+# une tabula rasa (cf. tools/evo_memory_inworld.py). L'ignorer changerait SILENCIEUSEMENT le
+# sujet d'un bras de mesure. Sans elle, le chemin vient de `src/paths.py` -- donc d'une racine
+# configurable (AGAGI_DATA_ROOT), ce qui rend le NAS possible sans toucher a ce fichier.
+HALL_OF_FAME_PATH = os.environ.get("HOF_PATH") or paths.hall_of_fame()
+AGENT_STATE_DIR = paths.agent_states() + os.sep
 HOF_VERSION = 2
 
 @dataclass
@@ -158,8 +164,11 @@ def load_hall_of_fame() -> Tuple[int, list]:
         "Hall of Fame de forme INATTENDUE (%s) dans %s : ni dict versionne, ni liste. Rendre « vide » "
         "ici masquerait une corruption silencieuse." % (type(loaded).__name__, HALL_OF_FAME_PATH))
 
-def save_epoch_state(agents: list, epoch: int, save_dir: str = "data/epoch_states/") -> dict:
+def save_epoch_state(agents: list, epoch: int, save_dir: str = None) -> dict:
     """Sauvegarde état de tous les agents à la fin d'une ère."""
+    # Resolu A L'APPEL et non a l'import : une racine posee par un runner APRES
+    # l'import doit etre entendue (le defaut fige a l'import est la classe E5).
+    save_dir = save_dir if save_dir is not None else paths.epoch_states() + os.sep
     os.makedirs(save_dir, exist_ok=True)
     saved_paths = {}
     for i, agent in enumerate(agents):
@@ -171,8 +180,11 @@ def save_epoch_state(agents: list, epoch: int, save_dir: str = "data/epoch_state
         json.dump({'epoch': epoch, 'num_agents': len(agents), 'state_files': saved_paths}, f)
     return saved_paths
 
-def load_epoch_state(epoch: int, save_dir: str = "data/epoch_states/") -> list:
+def load_epoch_state(epoch: int, save_dir: str = None) -> list:
     """Charge état de tous les agents d'une ère."""
+    # Resolu A L'APPEL et non a l'import : une racine posee par un runner APRES
+    # l'import doit etre entendue (le defaut fige a l'import est la classe E5).
+    save_dir = save_dir if save_dir is not None else paths.epoch_states() + os.sep
     from src.agents.mamba_agent import MambaAgent
     meta_path = os.path.join(save_dir, f"epoch_{epoch}_meta.json")
     if not os.path.exists(meta_path):

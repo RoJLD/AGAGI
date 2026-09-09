@@ -28,8 +28,8 @@ Quatre questions, dont deux ont des assertions exécutables :
 
 **Inventaire au 2026-09-01 : 105 détectés, 104 calibrés, 1 déclaré non-instrument, ZÉRO dette.**
 **État COURANT, recomputé et jamais recopié :**
-**210 détectés** <!-- count:instruments_detectes=210 -->
-· **206 calibrés** <!-- count:instruments_calibres=206 -->
+**211 détectés** <!-- count:instruments_detectes=211 -->
+· **207 calibrés** <!-- count:instruments_calibres=207 -->
 · **0 non calibré** <!-- count:instruments_non_calibres=0 -->
 — la famille `run_*` (72 fonctions) est entrée le 2026-09-06 sans créer de dette. *(Les chiffres datés ci-dessus sont HISTORIQUES : ils restent vrais
 et ne sont donc pas balisés.)*
@@ -153,10 +153,13 @@ sont hors périmètre et RAPPORTÉES, jamais comptées comme un succès) · `che
 L'INCAPABLE — P2.15 : `1/K+0.15` était franchie par un substrat prouvablement incapable) ·
 `check_test_census.py` (un test qui DISPARAÎT rend la suite plus verte — aucun signal habituel ne
 peut alerter ; porte 10, session parallèle) ·
+`check_data_paths.py` (aucun NOUVEAU chemin de données écrit en dur — inventaire : 57 littéraux
+dans 26 fichiers et UNE seule variable d'environnement, donc héberger les données sur un NAS
+demandait d'éditer 26 fichiers ; `src/paths.py` porte l'indirection, porte 12) ·
 `check_control_family.py` (tout runner d'une règle SCELLÉE déclare son design, donc le NOMBRE de
 cellules de sa famille de contrôles — porte 11 ; à seuil de test unique, une famille de 24 cellules
 donnait 0,216 de fausse alarme sur un harnais PARFAIT).
-**11 gardes** <!-- count:portes_hook=11 --> sont branchées sur le hook pre-commit
+**12 gardes** <!-- count:portes_hook=12 --> sont branchées sur le hook pre-commit
 (`tools/hooks/pre-commit`) — compte RECOMPUTÉ depuis le hook lui-même : la phrase « 5 cliquets, tous
 branchés » qui vivait ici était fausse.
 ⚠️ **La baseline d'un cliquet doit elle-même déclencher le hook** — sinon l'élargir et la committer seule

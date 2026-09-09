@@ -1,0 +1,99 @@
+{
+ "_comment": "Chemins de donnees ECRITS EN DUR, geles comme dette legataire. Aucun NOUVEAU (tools/check_data_paths.py). Migrer un site vers src/paths.py ne declenche RIEN : c'est le but.",
+ "fichiers": {
+  "backend/app/services/data_service.py": [
+   "/app/data/kuzu_graph.db",
+   "data/kuzu_graph.db"
+  ],
+  "src/graph_rag/async_logger.py": [
+   "data/kuzu_graph.db",
+   "data/pending_article.json"
+  ],
+  "src/graph_rag/database.py": [
+   "./data/kuzudb/kuzu.db"
+  ],
+  "src/graph_rag/experiment_tracker.py": [
+   "data/kuzu_graph.db"
+  ],
+  "src/graph_rag/hcm_analyzer.py": [
+   "data/experiment_graph.db"
+  ],
+  "src/graph_rag/librarian_agent.py": [
+   "data/kuzu_graph.db"
+  ],
+  "src/graph_rag/supervisor.py": [
+   "data/experiment_graph.db",
+   "data/kuzu_graph.db",
+   "data/pending_article.json"
+  ],
+  "src/graph_rag/visualize_hcm.py": [
+   "data/experiment_graph.db"
+  ],
+  "tools/confirm_b.py": [
+   "data/agent_states/hall_of_fame",
+   "data/agent_states/hall_of_fame.bak_confirmb",
+   "data/hall_of_fame.pkl",
+   "data/hall_of_fame.pkl.bak_confirmb"
+  ],
+  "tools/cross_world_transfer.py": [
+   "data/hall_of_fame.pkl",
+   "data/hall_of_fame_famine.pkl,data/hall_of_fame_famine_s43.pkl,data/hall_of_fame_famine_s44.pkl"
+  ],
+  "tools/curriculum_craft.py": [
+   "data/agent_states/hall_of_fame",
+   "data/hall_of_fame.pkl",
+   "data/hall_of_fame.pkl.bak_pre_craft"
+  ],
+  "tools/curriculum_grab.py": [
+   "data/agent_states/hall_of_fame",
+   "data/hall_of_fame.pkl",
+   "data/hall_of_fame.pkl.bak_pre_curriculum"
+  ],
+  "tools/dream_analyzer.py": [
+   "data/kuzu_graph_v16.db"
+  ],
+  "tools/dream_evolution_tracker.py": [
+   "data/kuzu_graph.db"
+  ],
+  "tools/famine_harshness_probe.py": [
+   "data/hall_of_fame_famine.pkl"
+  ],
+  "tools/grab_mechanism_probe.py": [
+   "data/hof_famine_harsh_s",
+   "results/p41_grab_mechanism"
+  ],
+  "tools/kuzu_sociologist.py": [
+   "data/experiment_graph.db",
+   "data/kuzu_graph.db",
+   "data/kuzudb/kuzu.db"
+  ],
+  "tools/life_score_contamination_probe.py": [
+   "results/life_score_contamination_"
+  ],
+  "tools/retention_map.py": [
+   "results/retention_map.json"
+  ],
+  "tools/skinner_box.py": [
+   "data/hall_of_fame.pkl",
+   "data/kuzu_graph.db"
+  ],
+  "tools/substrate_world_ab.py": [
+   "data/hall_of_fame.pkl"
+  ],
+  "tools/torch_parity_probe.py": [
+   "data/hall_of_fame.pkl"
+  ],
+  "tools/tribe_sociologist.py": [
+   "data/kuzu_graph.db"
+  ],
+  "tools/vertical_world_probe.py": [
+   "data/hall_of_fame.pkl"
+  ],
+  "tools/warmstart_evolution_inworld.py": [
+   "results/warm003_dagger_genome.npz",
+   "results/warm007_genomes",
+   "results/warm007_incidence.json",
+   "results/warm008_aux_off.json"
+  ]
+ }
+}

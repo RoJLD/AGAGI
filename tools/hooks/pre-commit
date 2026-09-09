@@ -212,5 +212,28 @@ if [ -n "$staged_cf" ]; then
   }
 fi
 
+# 12. CHEMINS DE DONNEES (2026-09-09) -- aucun NOUVEAU chemin de donnees ecrit en dur. Inventaire :
+# 57 litteraux dans 26 fichiers, 16 constantes de module, et UNE SEULE variable d'environnement liee
+# aux donnees. Heberger les donnees ailleurs -- un NAS, un autre disque, une autre machine --
+# demandait donc d'editer 26 fichiers : le stockage etait une propriete du CODE alors que c'est une
+# propriete du DEPLOIEMENT. `src/paths.py` fournit l'indirection (AGAGI_DATA_ROOT /
+# AGAGI_RESULTS_ROOT / AGAGI_DB_ROOT, defauts = l'existant), ce cliquet empeche la dette de se
+# reformer. Migrer un site vers src/paths.py ne declenche RIEN : c'est le but.
+# Dette legataire gelee dans tools/data_paths_baseline.json ; la baseline declenche la garde.
+staged_dp=$(git diff --cached --name-only --diff-filter=AM | grep -E '^((tools|src|backend|scripts)/.*\.py|tools/data_paths_baseline\.json)$')
+if [ -n "$staged_dp" ]; then
+  only_dp=$(echo "$staged_dp" | grep -v data_paths_baseline || true)
+  if [ -n "$only_dp" ]; then
+    PYTHONIOENCODING=utf-8 python tools/check_data_paths.py --only $only_dp
+  else
+    PYTHONIOENCODING=utf-8 python tools/check_data_paths.py
+  fi || {
+    echo ""
+    echo "-> Passer par src/paths.py : hall_of_fame(), agent_states(), results_file(), kuzu_graph()."
+    echo "   OU declarer la dette : python tools/check_data_paths.py --update-baseline"
+    fail=1
+  }
+fi
+
 [ "$fail" -ne 0 ] && echo "   (urgence : git commit --no-verify)"
 exit $fail
