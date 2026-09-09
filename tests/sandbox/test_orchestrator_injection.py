@@ -1871,3 +1871,104 @@ def test_compositional_sweep_DEDUPLICATES_the_cell_that_is_LITERALLY_the_same(mo
     out2 = mod.sweep(hiddens=(distincts[0],), inits=("prod", "normalized"), seeds=(0, 1),
                      trials=2, n_agents=2)
     assert len(out2["cells"]) == 2, ("facteurs DIFFERENTS -> aucune dedup", out2["cells"])
+
+
+# ======================================================================================================
+# P2.49 (2026-09-09) : `tools/s2_demand.py::run_condition` -- 10 records, et la MEILLEURE couture du
+# depot : `world_cls` est un PARAMETRE. Aucun monkeypatch n'est necessaire, on passe un monde factice.
+#
+# C'est le harnais partage que traversent s2_demand_ablation, s2_openloop_probe,
+# cognitive_demand_inworld et warmstart -- donc la couche d'APPARIEMENT sur laquelle repose tout
+# contraste within-subject du fil S2. Sa calibration ne couvrait que la garde d'arguments.
+# ======================================================================================================
+
+class _MondeFactice:
+    """Monde minimal, parametrable par age de mort. Enregistre le regime qu'on lui impose."""
+
+    construits = []          # trace de CLASSE : combien de mondes, et avec quel regime
+
+    def __init__(self, config=None):
+        self.config = config
+        self.agents, self.dead_agents = [], []
+        self.benchmark_mode = None
+        self.night_enabled = None
+        self.current_era = None
+        self._t = 0
+        _MondeFactice.construits.append(self)
+
+    def add_agent(self, a, energy=0.0):
+        # `calculate_life_score` lit age / preys_eaten / altars_solved : un agent factice doit porter
+        # le CONTRAT du vrai, sinon on ne teste pas le harnais mais la pauvrete du bouchon.
+        self.agents.append({"age": 0, "preys_eaten": 0, "altars_solved": 0})
+
+    def step(self):
+        self._t += 1
+        for a in self.agents:
+            a["age"] = self._t
+        if self._t >= self.mort_a:
+            self.dead_agents = self.agents
+            self.agents = []
+
+    mort_a = 3
+
+
+def _monde_qui_meurt(mort_a):
+    return type("M", (_MondeFactice,), {"mort_a": mort_a})
+
+
+def test_s2_run_condition_PAIRS_every_arm_on_the_SAME_world_per_era(monkeypatch):
+    """⚠️ L'APPARIEMENT EST LE DISPOSITIF de tout le fil S2. `seed_at(seed, i)` doit etre appele une
+    fois PAR ERE, avec l'indice de l'ere : c'est ce qui garantit que l'ere i de CHAQUE bras voit le
+    MEME monde. Si l'appel manquait, ou n'utilisait pas `i`, les bras compareraient des mondes
+    differents et le contraste within-subject deviendrait un contraste between -- le faux-positif que
+    S2-001 existe precisement pour ecarter."""
+    import tools.s2_demand as mod
+    vus = []
+    monkeypatch.setattr(mod, "seed_at", lambda s, i: vus.append((s, i)), raising=True)
+    _MondeFactice.construits = []
+    mod.run_condition(_monde_qui_meurt(2), None, None, 2026, num_agents=3, max_ticks=5, n_eras=4)
+    assert vus == [(2026, 0), (2026, 1), (2026, 2), (2026, 3)], (
+        "un `seed_at(seed, i)` par ere, avec l'indice de l'ere", vus)
+
+
+def test_s2_run_condition_IMPOSES_the_regime_the_records_DECLARE(monkeypatch):
+    """Les records declarent `benchmark_mode=True`, `night_enabled=False` et scaffolds ANNELES
+    (`current_era` tres grand). Ce n'est pas de la decoration : `benchmark_mode` fige la cohorte (ni
+    reproduction, ni mutation, ni HGT) et sans lui la population derive PENDANT la mesure. On verifie
+    que le harnais l'impose VRAIMENT a chaque monde, et pas seulement dans sa docstring."""
+    import tools.s2_demand as mod
+    monkeypatch.setattr(mod, "seed_at", lambda s, i: None, raising=True)
+    _MondeFactice.construits = []
+    mod.run_condition(_monde_qui_meurt(2), None, None, 7, num_agents=2, max_ticks=4, n_eras=3)
+    assert len(_MondeFactice.construits) == 3, "un monde NEUF par ere, jamais recycle"
+    for m in _MondeFactice.construits:
+        assert m.benchmark_mode is True, "cohorte non figee : la population derive pendant la mesure"
+        assert m.night_enabled is False
+        assert m.current_era >= 10_000, "les scaffolds doivent etre anneles a zero"
+
+
+def test_s2_run_condition_counts_the_DEAD_and_takes_the_MEDIAN_per_era(monkeypatch):
+    """DOSE CONNUE. Les agents meurent au tick 2 : chaque age vaut 2, donc la mediane de l'ere vaut
+    2.0 et la survie individuelle est [2, 2, 2] par ere. L'unite de replication du depot est l'ERE
+    (spec §8) : si `era_survival` prenait la moyenne des bras ou le dernier agent, ce chiffre ne
+    tomberait pas -- et c'est lui que les records apparient."""
+    import tools.s2_demand as mod
+    monkeypatch.setattr(mod, "seed_at", lambda s, i: None, raising=True)
+    _MondeFactice.construits = []
+    r = mod.run_condition(_monde_qui_meurt(2), None, None, 0, num_agents=3, max_ticks=5, n_eras=2)
+    assert r["era_survival"] == [2.0, 2.0], r["era_survival"]
+    assert sorted(r["survival"]) == [2, 2, 2, 2, 2, 2], r["survival"]
+    assert r["censored_frac"] == 0.0, "aucun survivant : rien n'est censure"
+
+
+def test_s2_run_condition_reports_CENSORING_when_the_cohort_SURVIVES(monkeypatch):
+    """CONTROLE APPARIE de l'issue INVERSE : si la cohorte survit a `max_ticks`, les ages sont
+    CENSURES par le haut et `censored_frac` doit le dire. Sans ce compte, une survie plafonnee se
+    lirait comme une survie MESUREE -- et un ratio calcule sur deux bras plafonnes ne mesure rien
+    (c'est la garde de degenerescence, vue ici du cote du harnais)."""
+    import tools.s2_demand as mod
+    monkeypatch.setattr(mod, "seed_at", lambda s, i: None, raising=True)
+    _MondeFactice.construits = []
+    r = mod.run_condition(_monde_qui_meurt(999), None, None, 0, num_agents=4, max_ticks=3, n_eras=1)
+    assert r["censored_frac"] == 1.0, ("toute la cohorte est CENSUREE au plafond", r)
+    assert r["era_survival"] == [3.0], "l'age plafonne vaut max_ticks"

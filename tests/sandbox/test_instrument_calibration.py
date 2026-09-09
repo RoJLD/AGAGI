@@ -298,7 +298,14 @@ CALIBRATED = {
     "tools/agricultural_demand_probe.py::run_agricultural": ["empty-cohort:raises", "guard-before-world"],
     "tools/altar_tool_funnel_probe.py::run_era_funnel": ["empty-cohort:raises", "guard-before-world"],
     "tools/anticipation_bench.py::run_bench": ["empty-cohort:raises", "guard-before-world"],
-    "tools/s2_demand.py::run_condition": ["empty-cohort:raises", "guard-before-world"],
+    # P2.49 (2026-09-09) : le HARNAIS PARTAGE du fil S2 (10 records) -- il porte la couche
+    # d'APPARIEMENT que traversent s2_demand_ablation, s2_openloop_probe, cognitive_demand_inworld
+    # et warmstart. Meilleure couture du depot : `world_cls` est un PARAMETRE, donc aucun
+    # monkeypatch. 4 cas dans test_orchestrator_injection.py, aucun monde reel construit.
+    "tools/s2_demand.py::run_condition": [
+        "empty-cohort:raises", "guard-before-world",
+        "CORPS-ATTEINT:seed_at(seed,i)-une-fois-PAR-ERE", "CORPS-ATTEINT:regime-impose",
+        "CORPS-ATTEINT:mediane-par-ere-morts-compris", "CORPS-ATTEINT:censure-rapportee"],
     "tools/anticipation_planning_probe.py::run_planning": ["empty-cohort:raises", "guard-before-world"],
     "tools/arm_act_grad.py::run_bptt_act": ["empty-cohort:raises", "guard-before-world"],
     "tools/cognitive_demand_inworld.py::run_credit_linear": ["empty-cohort:raises", "guard-before-world"],
