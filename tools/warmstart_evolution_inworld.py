@@ -1146,7 +1146,8 @@ def assert_aux_off_safe(env):
 
 def run_aux_off_validation(seeds=(2026, 7, 13, 42), epochs=1500, lr=0.5, num_agents=12,
                            max_ticks=200, gi_ticks=100, metab=METAB_DEFAULT, cog=COG_DEFAULT,
-                           weights=(0.0, 1.0), out_path="results/warm008_aux_off.json"):
+                           weights=(0.0, 1.0), out_path="results/warm008_aux_off.json",
+                           genome_dir="AUTO"):
     """WARM-008 : `aux_off_weight` annule-t-il le grab IN-WORLD, et à quel prix pour le mouvement ?
 
     Ce que WARM-005 avait montré : la BCE pousse le logit `grab` de −0.032 à −0.986 **sur la trajectoire
@@ -1184,6 +1185,33 @@ def run_aux_off_validation(seeds=(2026, 7, 13, 42), epochs=1500, lr=0.5, num_age
             pop = TorchPopulationModel(agents, lr=lr)
             for _ in range(epochs):
                 pop.imitate_episode_bptt(o0, t0, truncate_window=25, mask_seq=mask, aux_off_weight=w)
+            # PERSISTANCE DES POIDS (P4.2, 2026-09-09) -- reprend l'idiome de
+            # `run_grab_incidence_and_ablation` : « ne JAMAIS re-payer l'entrainement ».
+            # ⚠️ POURQUOI CE PATCH EXISTE. Ce banc ne sauvait que des SCALAIRES (gi, move_acc,
+            # grab_logit, rub_logit). Or c'est SA population -- bootstrap-oracle -- qui porte le
+            # cout collateral sur lequel [[EDR-WARM-008]] enonce sa prediction falsifiable du
+            # « canal porteur » : « le cout devrait correler au poids de W entrant/sortant du
+            # noeud 88 ». Les W n'ayant jamais ete persistes, tester cette prediction exigeait un
+            # RE-ENTRAINEMENT complet (~75 min pour 4 seeds) -- pour des poids qui existaient
+            # deja en memoire au moment de la mesure. Un cout evitable, paye deux fois.
+            # ⚠️ Le bras EST une dimension : les deux valeurs de `aux_off_weight` produisent des
+            # populations DIFFERENTES a partir de la meme init. Le nom de fichier porte donc le
+            # poids, sans quoi le second bras ecraserait le premier en silence.
+            # ⚠️ Le chemin passe par `src/paths.py` (porte 12) : le stockage est une propriete du
+            # DEPLOIEMENT, pas du code. Sentinelle "AUTO" et non un litteral en defaut d'argument --
+            # un defaut serait fige a l'IMPORT, alors que `results_root()` relit sa variable
+            # d'environnement a CHAQUE appel ; et `None` doit rester « ne persiste pas ».
+            if genome_dir == "AUTO":
+                from src.paths import results_file
+                genome_dir = results_file("warm008_genomes")
+            if genome_dir:
+                os.makedirs(genome_dir, exist_ok=True)
+                for i, a in enumerate(agents):
+                    g = a.genome
+                    np.savez(os.path.join(genome_dir, f"seed{seed}_w{w}_agent{i:02d}.npz"),
+                             W=np.asarray(g.W, dtype=np.float32),
+                             num_inputs=g.num_inputs, num_outputs=g.num_outputs,
+                             aux_off_weight=float(w), seed=int(seed), agent=int(i))
             probe = _probe_free_channels_by_agent(pop, o0, t0)
             recs = []
             for i, a in enumerate(agents):

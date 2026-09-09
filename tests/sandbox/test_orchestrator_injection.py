@@ -1520,3 +1520,116 @@ def test_peut_conclure_separates_a_MEASURED_null_from_an_UNDECIDABLE_design():
 
     egalites = compute_ab_verdict([{"diff": 0.0}] * 12, band=0.02)
     assert egalites["peut_conclure"] is False, "12 egalites strictes = n effectif nul"
+
+
+# ======================================================================================================
+# P4.2 (2026-09-09) : PERSISTANCE DES POIDS de `run_aux_off_validation`.
+#
+# Ce banc ne sauvait que des SCALAIRES. Or c'est SA population -- bootstrap-oracle -- qui porte le
+# cout collateral sur lequel EDR-WARM-008 enonce sa prediction falsifiable du « canal porteur » :
+# « le cout devrait correler au poids de W entrant/sortant du noeud 88 ». Les W n'ayant jamais ete
+# persistes, tester cette prediction exigeait un RE-ENTRAINEMENT complet (~75 min, 4 seeds) -- pour
+# des poids qui existaient DEJA en memoire au moment de la mesure.
+#
+# Le patch reprend l'idiome de `run_grab_incidence_and_ablation` (« ne JAMAIS re-payer
+# l'entrainement »). Il est calibre ICI par injection : aucune trajectoire oracle, aucun BPTT, aucun
+# monde -- on ne teste que la couche de PERSISTANCE, qui est tout ce que le patch ajoute.
+# ======================================================================================================
+
+def _stub_aux_off(monkeypatch, mod, n_agents=3):
+    """Neutralise tout ce qui coute : trajectoire oracle, entrainement, sondes, mesure in-world."""
+    import numpy as np
+
+    monkeypatch.setattr(mod, "_collect_oracle_trajectory",
+                        lambda *a, **k: ([np.zeros((2, 4), dtype=np.float32)],
+                                         [np.zeros(2, dtype=np.int64)]), raising=True)
+    monkeypatch.setattr(mod, "_probe_free_channels_by_agent",
+                        lambda *a, **k: {"grab": np.zeros(n_agents), "rub": np.zeros(n_agents),
+                                         "grab_on_frac": np.zeros(n_agents),
+                                         "move_acc": np.ones(n_agents)}, raising=True)
+    monkeypatch.setattr(mod, "measure_inworld_grab_rate", lambda *a, **k: 0.5, raising=True)
+
+    class _Pop:                       # l'entrainement devient un no-op : le patch n'en depend pas
+        def __init__(self, agents, **k):
+            self.agents = agents
+
+        def imitate_episode_bptt(self, *a, **k):
+            return None
+
+    return _Pop
+
+
+def test_the_aux_off_bench_PERSISTS_the_weights_it_trained(tmp_path, monkeypatch):
+    """⚠️ LE CAS QUI JUSTIFIE LE PATCH. Apres le banc, les W doivent etre sur disque -- un par
+    (seed, BRAS, agent). Le bras EST une dimension : les deux valeurs d'`aux_off_weight` produisent
+    des populations differentes a partir de la MEME init, donc un nom de fichier sans le poids
+    ferait ecraser le premier bras par le second, en silence."""
+    import sys
+    import types
+
+    import numpy as np
+    import pytest as _pt
+    _pt.importorskip("torch")
+
+    import tools.warmstart_evolution_inworld as mod
+    Pop = _stub_aux_off(monkeypatch, mod)
+    # `TorchPopulationModel` est importe DANS la fonction : on intercepte a la SOURCE.
+    import src.agents.backend_torch as bt
+    monkeypatch.setattr(bt, "TorchPopulationModel", Pop, raising=True)
+
+    gdir = tmp_path / "genomes"
+    out = mod.run_aux_off_validation(seeds=(42,), epochs=1, num_agents=3, max_ticks=5, gi_ticks=5,
+                                     weights=(0.0, 1.0), out_path=None, genome_dir=str(gdir))
+    assert out is not None, "le banc a ete saute (torch absent ?)"
+    fichiers = sorted(p.name for p in gdir.glob("*.npz"))
+    assert len(fichiers) == 6, ("3 agents x 2 BRAS = 6 fichiers attendus", fichiers)
+    assert any("w0.0_" in f for f in fichiers) and any("w1.0_" in f for f in fichiers), (
+        "le nom de fichier doit porter le BRAS, sinon le second ecrase le premier", fichiers)
+
+    z = np.load(gdir / fichiers[0])
+    for cle in ("W", "num_inputs", "num_outputs", "aux_off_weight", "seed", "agent"):
+        assert cle in z, (cle, list(z))
+    assert z["W"].ndim == 2 and z["W"].shape[0] == z["W"].shape[1], z["W"].shape
+
+
+def test_the_persisted_weights_are_READABLE_by_the_idiom_that_already_exists(tmp_path, monkeypatch):
+    """ANCRAGE : les fichiers doivent se relire par l'idiome deja utilise pour WARM-007
+    (`Genome(d['W'], int(d['num_inputs']), int(d['num_outputs']))`). Un format que le depot ne sait
+    pas relire ne serait pas une persistance, seulement des octets."""
+    import numpy as np
+    import pytest as _pt
+    _pt.importorskip("torch")
+
+    import tools.warmstart_evolution_inworld as mod
+    Pop = _stub_aux_off(monkeypatch, mod)
+    import src.agents.backend_torch as bt
+    monkeypatch.setattr(bt, "TorchPopulationModel", Pop, raising=True)
+
+    gdir = tmp_path / "g"
+    mod.run_aux_off_validation(seeds=(7,), epochs=1, num_agents=2, max_ticks=5, gi_ticks=5,
+                               weights=(1.0,), out_path=None, genome_dir=str(gdir))
+    from src.seed_ai.mutation import Genome
+    for p in sorted(gdir.glob("*.npz")):
+        d = np.load(p)
+        g = Genome(d["W"], int(d["num_inputs"]), int(d["num_outputs"]))
+        assert g.W.shape == d["W"].shape
+        # le noeud du grab, celui que la prediction de WARM-008 designe
+        noeud = (g.W.shape[0] - int(d["num_outputs"])) + 24
+        assert 0 <= noeud < g.W.shape[0], (noeud, g.W.shape)
+
+
+def test_persistence_is_OPTIONAL_and_writes_NOTHING_when_disabled(tmp_path, monkeypatch):
+    """CONTROLE APPARIE : `genome_dir=None` ne doit RIEN ecrire. Sans lui, un patch qui ecrirait
+    inconditionnellement passerait les deux cas precedents -- et polluerait tout appelant existant."""
+    import pytest as _pt
+    _pt.importorskip("torch")
+
+    import tools.warmstart_evolution_inworld as mod
+    Pop = _stub_aux_off(monkeypatch, mod)
+    import src.agents.backend_torch as bt
+    monkeypatch.setattr(bt, "TorchPopulationModel", Pop, raising=True)
+
+    vide = tmp_path / "rien"
+    mod.run_aux_off_validation(seeds=(1,), epochs=1, num_agents=2, max_ticks=5, gi_ticks=5,
+                               weights=(0.0,), out_path=None, genome_dir=None)
+    assert not vide.exists() and not list(tmp_path.glob("*.npz"))

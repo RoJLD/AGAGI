@@ -2323,10 +2323,33 @@ indépendantes** (DAgger warm-start ; champion HoF évolué), **deux mondes** (b
 **même mécanisme**. C'est le troisième point de la dose-réponse `carry`/métabolisme, après les
 2.4-9.5 % → nul de WARM-008 et les 34 % → +39 % de P4.1.
 
-**Reste réellement ouvert, et par ordre de coût :** (a) déclarer le critère d'incidence — gratuit ;
-(b) persister les W de `run_aux_off_validation` pour que la prédiction devienne testable un jour —
-un patch ; (c) le ré-entraînement lui-même — ~75 min, et à ne lancer qu'après (b), sans quoi il
-faudra le refaire. *Coût : (a) nul, (b) faible, (c) ~75 min.*
+**Avancement du 2026-09-09 — (a) et (b) FERMÉS, (c) reste seul.**
+
+✅ **(a) CRITÈRE D'INCIDENCE DÉCLARÉ.** Le critère opératoire est **`final_on_frac > 0.5`**, et la
+raison n'est pas conventionnelle : c'est le seuil que le MONDE applique — il exécute le grab ssi
+`logits[24] > 0` ([`world_1_stoneage.py:1523`](../../src/worlds/world_1_stoneage.py)). L'incidence
+vaut donc **3/12** sous seed 2026. Le second chiffre (**1/12**, WARM-006) reste vrai et mesure une
+**autre grandeur** : `|grab| > 0.9`, c'est-à-dire « le canal est-il ÉPINGLÉ au plafond de `tanh` ? ».
+Les deux coexistent désormais sous des noms distincts — *né-ON* (le monde agirait) et *SATURÉ* (le
+canal ne peut plus bouger) — et l'ambiguïté qui les confondait est levée sans aucun run.
+
+✅ **(b) LES W SONT PERSISTÉS.** `run_aux_off_validation` ne sauvait que des scalaires, alors que
+c'est SA population — bootstrap-oracle — qui porte le coût collatéral sur lequel `EDR-WARM-008`
+énonce sa prédiction. Tester celle-ci exigeait donc un ré-entraînement complet **pour des poids qui
+existaient déjà en mémoire au moment de la mesure** : un coût évitable, payé deux fois. Le patch
+reprend l'idiome de `run_grab_incidence_and_ablation` (« ne JAMAIS re-payer l'entraînement »).
+⚠️ **Le BRAS est une dimension** : les deux valeurs d'`aux_off_weight` produisent des populations
+différentes à partir de la MÊME init, donc le nom de fichier porte le poids — sans quoi le second
+bras écraserait le premier **en silence**. Calibré par injection (aucune trajectoire oracle, aucun
+BPTT, aucun monde) : 3 cas, dont l'ancrage sur l'idiome de relecture déjà utilisé pour WARM-007 et
+le contrôle apparié `genome_dir=None` → **rien n'est écrit**.
+
+**Reste (c), et lui seul** : le ré-entraînement (~75 min, 4 seeds) qui produira les W du bras
+bootstrap-oracle. ⚠️ **À ne lancer qu'en connaissant le pilote** : le prédicteur littéral de la
+prédiction (`Σ|W[:, 88]|`) est déjà mesuré **NUL** sur la population DAgger (rho = −0.016, CV = 6 %),
+et ce qui prédit y est **fonctionnel** (`final_on_frac`, rho = +0.598). Le ré-entraînement teste la
+prédiction *telle qu'écrite* — sur l'autre population et l'autre variable dépendante — mais il part
+avec une présomption défavorable, et c'est le pilote gratuit qui l'a établie. *Coût : ~75 min.*
 
 **P4.3 — AGI-Taxonomy : graphe de prérequis vers un world-model, dans le format `os-taxonomy`.**
 Vision : construire, dans le format de `withmarbleapp/os-taxonomy` (DAG de prérequis à arêtes taggées
