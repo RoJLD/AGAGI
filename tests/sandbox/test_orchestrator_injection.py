@@ -1268,3 +1268,255 @@ def test_run_contrast_REFUSES_duplicate_seeds(monkeypatch):
     _inj4_injecte(monkeypatch, _evolue, lambda g, r, s, **k: _inj4_disc(0.5))
     rows = M.run_contrast([5, 5])
     assert len(rows) == 1, f"pseudo-replication : {len(rows)} lignes pour 1 seul seed distinct"
+
+
+# ======================================================================================================
+# P2.49 (2026-09-09) : LES TROIS SONDES DE DEMANDE IN-WORLD -- `anticipation` / `composition` /
+# `memory`. Elles portent les chiffres publies par S2-007 (ratio 16.23) et S2-008 (8.45), et leurs
+# declarations de calibration etaient de la famille GARDE-SEULE : aucun de leurs cas n'atteignait le
+# corps. Or leur corps est precisement la couche qui transforme des survies en AFFIRMATION --
+# `ablation_verdict` puis `_verdict_from`, avec un plancher de puissance `n_floor=12`.
+#
+# Les trois sont structurellement IDENTIQUES (meme `probe(...)`, meme paire `fit_policy`/`survive`,
+# meme `_verdict_from`, seule l'etiquette SENSIBLE change) : une seule technique les calibre toutes.
+# On monkeypatche `fit_policy` (entrainement) et `survive` (mesure) -> aucun monde, aucun gradient.
+#
+# ⚠️ La branche qui COMPTE est le PLANCHER DE PUISSANCE : a ratio ENORME mais n < n_floor, le verdict
+# doit rester non-sensible. C'est la garde que ce depot a deja vue neutralisee par une
+# pseudo-replication (n=900 ticks au lieu de 3 seeds), le jour meme ou elle avait ete posee.
+# ======================================================================================================
+
+_SONDES = [
+    ("tools.anticipation_demand_world_probe", "SURVIVAL_ANTICIPATION_SENSITIVE", 1),
+    ("tools.composition_demand_world_probe", "SURVIVAL_COMPOSITION_SENSITIVE", 2),
+    ("tools.memory_demand_world_probe", "SURVIVAL_MEMORY_SENSITIVE", "delayed"),
+]
+
+
+def _injecte(monkeypatch, mod, intact, ablate):
+    """Impose une DOSE CONNUE. `intact` / `ablate` sont un scalaire (bras constant) ou une SEQUENCE
+    parcourue cycliquement (bras a variance). `fit_policy` est neutralise -- aucun entrainement.
+
+    ⚠️ La distinction scalaire/sequence n'est pas cosmetique : `_degeneracy` declenche sur des bras
+    LITTERALEMENT IDENTIQUES (`intact == ablated`), et non sur l'absence de variance. Deux bras
+    constants a la MEME valeur sont donc degeneres, deux bras constants a des valeurs differentes ne
+    le sont pas. Ma premiere version confondait les deux et attendait le mauvais verdict : c'est
+    l'instrument qui avait raison."""
+    import itertools
+
+    import numpy as np
+    monkeypatch.setattr(mod, "fit_policy",
+                        lambda *a, **k: (np.zeros((4, 8)), np.zeros(4)), raising=True)
+    cyc = {"intact": itertools.cycle(intact if isinstance(intact, (list, tuple)) else [intact]),
+           "ablate": itertools.cycle(ablate if isinstance(ablate, (list, tuple)) else [ablate])}
+    monkeypatch.setattr(mod, "survive",
+                        lambda W, b, mode, *a, **k: float(next(cyc["intact"] if mode == "intact" else cyc["ablate"])),
+                        raising=True)
+
+
+@pytest.mark.parametrize("modnom,sensible,quatrieme", _SONDES)
+def test_demand_probes_READ_the_dose_of_survival_they_claim(monkeypatch, modnom, sensible, quatrieme):
+    """DOSE CONNUE, reponse en forme close. intact=200 / ablate=100 -> ratio EXACTEMENT 2.0, donc
+    `collapse` (>= 1.5) ; n = n_eval = 24 >= n_floor = 12 -> `X_DEMANDED` -> etiquette SENSIBLE.
+    Si l'agregation lisait la mauvaise moitie, inversait les bras ou moyennait de travers, le ratio
+    ne vaudrait pas 2.0 -- et c'est le ratio qui est PUBLIE."""
+    import importlib
+    mod = importlib.import_module(modnom)
+    _injecte(monkeypatch, mod, 200.0, 100.0)
+    r = mod.probe(1.0, 2.0, "energy", quatrieme, 5, 0, n_eval=24, ticks=300)
+    assert r["ratio"] == pytest.approx(2.0, rel=1e-9), r
+    assert r["verdict"] == sensible, r
+
+
+@pytest.mark.parametrize("modnom,sensible,quatrieme", _SONDES)
+def test_demand_probes_REFUSE_a_huge_ratio_measured_WITHOUT_POWER(monkeypatch, modnom, sensible, quatrieme):
+    """⚠️ LA BRANCHE QUI COMPTE. Meme dose ecrasante (ratio 2.0) mais n_eval = 6 < n_floor = 12 : le
+    verdict ne DOIT PAS etre sensible. Un run sous-puissant CLASSE LE BRUIT -- et ce plancher a deja
+    ete neutralise en silence dans ce depot par une pseudo-replication. Sans ce cas, une sonde qui
+    aurait perdu son `n_floor` continuerait de passer sa calibration."""
+    import importlib
+    mod = importlib.import_module(modnom)
+    _injecte(monkeypatch, mod, 200.0, 100.0)
+    r = mod.probe(1.0, 2.0, "energy", quatrieme, 5, 0, n_eval=6, ticks=300)
+    assert r["ratio"] == pytest.approx(2.0, rel=1e-9), "le ratio se mesure quand meme"
+    assert r["verdict"] != sensible, (
+        "un ratio de 2.0 sur 6 evaluations ne peut pas etablir une demande : le plancher de "
+        "puissance a saute", r)
+
+
+@pytest.mark.parametrize("modnom,sensible,quatrieme", _SONDES)
+def test_demand_probes_call_the_module_a_DECOY_when_ablation_changes_NOTHING(monkeypatch, modnom, sensible, quatrieme):
+    """CONTROLE APPARIE, et il est indispensable : sans lui, une sonde qui rendrait SENSIBLE quoi
+    qu'il arrive passerait le cas precedent. intact = ablate -> ratio 1.0, donc `decoy` (borne des
+    DEUX cotes) -> `X_DECOY` -> SURVIVAL_NEUTRAL, jamais l'etiquette sensible."""
+    import importlib
+    mod = importlib.import_module(modnom)
+    # Bras DISTINCTS (les valeurs alternent en opposition de phase) mais de MEME mediane : ratio 1.0
+    # sans declencher la garde de bras identiques. C'est le seul chemin vers un X_DECOY legitime.
+    _injecte(monkeypatch, mod, [118.0, 122.0], [122.0, 118.0])
+    r = mod.probe(1.0, 2.0, "energy", quatrieme, 5, 0, n_eval=24, ticks=300)
+    assert r["ratio"] == pytest.approx(1.0, rel=1e-9), r
+    assert r["verdict"] == "SURVIVAL_NEUTRAL", r
+
+
+@pytest.mark.parametrize("modnom,sensible,quatrieme", _SONDES)
+def test_demand_probes_do_NOT_read_an_INVERTED_ratio_as_a_demand(monkeypatch, modnom, sensible, quatrieme):
+    """Bras ablate qui survit MIEUX (ratio 0.5) : la borne du decoy est bilaterale depuis 2026-09-02,
+    donc ce n'est ni une demande ni un leurre. Il ne doit surtout pas ressortir SENSIBLE -- c'est
+    l'erreur symetrique de celle qu'une borne unilaterale avait laissee passer (ratio 0.596 lu comme
+    un controle sain)."""
+    import importlib
+    mod = importlib.import_module(modnom)
+    _injecte(monkeypatch, mod, 100.0, 200.0)
+    r = mod.probe(1.0, 2.0, "energy", quatrieme, 5, 0, n_eval=24, ticks=300)
+    assert r["ratio"] == pytest.approx(0.5, rel=1e-9), r
+    assert r["verdict"] not in (sensible, "SURVIVAL_NEUTRAL"), r
+
+
+@pytest.mark.parametrize("modnom,sensible,quatrieme", _SONDES)
+def test_demand_probes_report_DEGENERATE_when_the_two_arms_are_LITERALLY_IDENTICAL(monkeypatch, modnom, sensible, quatrieme):
+    """La regle EXACTE de `_degeneracy`, et elle m'a repris : le declencheur certain est
+    `intact == ablated` -- deux tableaux LITTERALEMENT identiques --, pas « constants » ni « au
+    plafond ». Deux bras identiques ont deux causes opposees qu'aucune paire de sorties ne separe :
+    l'intervention ne s'est PAS appliquee (S2-007, matrice identite ; S2-004, politique gelee), ou
+    elle s'est appliquee et n'a rien fait (X_DECOY legitime). L'instrument refuse de trancher, et
+    c'est la bonne reponse : ce serait une affirmation de fond tiree d'une donnee absente.
+
+    ⚠️ Cette garde ne s'applique qu'aux branches `decoy` et `inverted`, JAMAIS a `collapse` -- « un
+    positif censure reste un positif : le ratio est une borne INFERIEURE ». L'asymetrie est
+    deliberee, et elle est sans danger ici : des bras identiques donnent toujours un ratio de 1.0,
+    donc ne peuvent jamais atteindre la branche `collapse`."""
+    import importlib
+    mod = importlib.import_module(modnom)
+    _injecte(monkeypatch, mod, 300.0, 300.0)
+    r = mod.probe(1.0, 2.0, "energy", quatrieme, 5, 0, n_eval=24, ticks=300)
+    assert r["verdict"] == "INDETERMINE_DEGENERATE", (
+        "deux bras identiques ne sont pas un leurre, ce sont des donnees absentes", r)
+
+
+# ======================================================================================================
+# P2.49 (2026-09-09) : LA FAMILLE `compare` -> `run_arm` -> `compute_ab_verdict`. Cinq bancs A/B
+# apparies (torch in-world, gate binaire, gate held-out, gate persist, throw-gate in-world) qui ne
+# simulent PAS : ils appellent `run_arm` deux fois par seed et AGREGENT. Leurs declarations etaient
+# de la famille GARDE-SEULE.
+#
+# ⚠️ CE QUE LA CALIBRATION A TROUVE, et c'est structurel. `compute_ab_verdict` exige la bande ET le
+# test de signe (`sign_p < sign_alpha`, defaut 0.1). En separation PARFAITE, `sign_p = 2 x 0.5^n` :
+# il faut donc **n >= 5** pour qu'un verdict positif soit seulement POSSIBLE. Or **6 des 7** fonctions
+# `compare` du depot tournent par defaut a **4 seeds** (`substrate_ab` a 3) -- SOUS ce plancher. A ces
+# reglages, aucune amplitude ne peut produire autre chose que NEUTRE : c'est un bras qui ne peut pas
+# reussir (classe E2), symetrique du controle qui ne peut pas echouer.
+#
+# ⚠️ ET CE QUI INNOCENTE LES RECORDS, verifie fichier par fichier : EDR-163 a fait le power-up
+# (12 seeds, sign_p 0.55), EDR-166 declare ses 4 seeds comme « sous-puissant » dans ses limites, et
+# EDR-172 declare sa fenetre VIDE. Aucun negatif fabrique n'a ete publie -- les auteurs ont declare
+# leur n a la main. L'instrument, lui, ne le disait pas ; d'ou le champ `peut_conclure` ajoute le
+# 2026-09-09, qui porte sur le DESIGN et non sur les donnees.
+# ======================================================================================================
+
+_BANCS = [
+    # (module, arg-positionnel-du-BON-bras, cle lue, kwargs de compare)
+    ("tools.torch_inworld_ab", True, "survival", dict(ticks=10, n_agents=2)),
+    ("tools.torch_binary_gate_heldout_probe", False, "binding_gap_heldout", dict(train_ep=2, test_ep=2, n_agents=2)),
+    ("tools.torch_gate_persist_ab", True, "comp_rate", dict(episodes=2, n_agents=2)),
+]
+
+
+def _stub_arm(bon, valeurs):
+    """Rend un `run_arm` factice : toutes les cles a la meme valeur, choisie selon que le premier
+    argument positionnel (ou `shuffle=`) designe le BON bras. Aucune simulation."""
+    def f(*a, **k):
+        if "shuffle" in k:
+            arm = not k["shuffle"]
+        elif a:
+            arm = bool(a[0])
+        else:
+            arm = True
+        v = valeurs[0] if arm == bon else valeurs[1]
+        return {c: v for c in ("survival", "binding_gap_heldout", "comp_rate_heldout", "comp_rate",
+                               "binding_gap_inworld", "n_rebuilds")}
+    return f
+
+
+@pytest.mark.parametrize("modnom,bon,cle,kw", _BANCS)
+def test_ab_benches_READ_the_dose_and_CONCLUDE_above_the_power_floor(monkeypatch, modnom, bon, cle, kw):
+    """DOSE CONNUE au-dessus du plancher : 6 seeds, separation parfaite de +0.5 par seed.
+    `median_diff` doit valoir EXACTEMENT +0.5 et le verdict etre positif. Si l'appariement inversait
+    les bras ou si l'agregation lisait la mauvaise cle, la mediane ne serait pas celle-la."""
+    import importlib
+    mod = importlib.import_module(modnom)
+    monkeypatch.setattr(mod, "run_arm", _stub_arm(bon, (0.6, 0.1)), raising=True)
+    out = mod.compare(seeds=(0, 1, 2, 3, 4, 5), **kw)
+    v = out["verdict"]
+    assert v["median_diff"] == pytest.approx(0.5, rel=1e-9), v
+    assert v["verdict"] == "GRADIENT_GAGNE", v
+    assert v["peut_conclure"] is True, v
+
+
+@pytest.mark.parametrize("modnom,bon,cle,kw", _BANCS)
+def test_ab_benches_CANNOT_conclude_at_their_DEFAULT_seed_count(monkeypatch, modnom, bon, cle, kw):
+    """⚠️ LE CAS QUI COMPTE, et c'est un fait sur le DESIGN, pas sur les donnees. A 4 seeds -- le
+    DEFAUT de ces bancs -- une separation PARFAITE donne `sign_p = 0.125 > 0.1` : le verdict reste
+    NEUTRE quelle que soit l'amplitude. Un bras qui ne peut pas reussir (E2).
+
+    Les deux drapeaux doivent le dire : `underpowered` (l'effet franchit la bande sans la puissance)
+    et `peut_conclure=False` (le design lui-meme etait incapable de conclure)."""
+    import importlib
+    mod = importlib.import_module(modnom)
+    monkeypatch.setattr(mod, "run_arm", _stub_arm(bon, (0.6, 0.1)), raising=True)
+    out = mod.compare(seeds=(0, 1, 2, 3), **kw)
+    v = out["verdict"]
+    assert v["median_diff"] == pytest.approx(0.5, rel=1e-9), "l'effet est ENORME et pourtant..."
+    assert v["verdict"] == "NEUTRE", "...le verdict ne peut pas etre positif a 4 seeds"
+    assert v["underpowered"] is True, v
+    assert v["peut_conclure"] is False, v
+
+
+@pytest.mark.parametrize("modnom,bon,cle,kw", _BANCS)
+def test_ab_benches_stay_NEUTRAL_when_the_two_arms_are_EQUAL(monkeypatch, modnom, bon, cle, kw):
+    """CONTROLE APPARIE : sans lui, un banc qui rendrait GRADIENT_GAGNE quoi qu'il arrive passerait
+    le premier cas. Bras egaux -> mediane 0 -> NEUTRE, et `underpowered` reste FAUX (il n'y a aucun
+    effet a manquer)."""
+    import importlib
+    mod = importlib.import_module(modnom)
+    monkeypatch.setattr(mod, "run_arm", _stub_arm(bon, (0.3, 0.3)), raising=True)
+    out = mod.compare(seeds=(0, 1, 2, 3, 4, 5), **kw)
+    v = out["verdict"]
+    assert v["median_diff"] == pytest.approx(0.0, abs=1e-12), v
+    assert v["verdict"] == "NEUTRE" and v["underpowered"] is False, v
+
+
+def test_the_POWER_FLOOR_of_compute_ab_verdict_is_frozen_in_CLOSED_FORM():
+    """⚠️ CONTRE-EXEMPLE GELE, en forme close et sans aucune donnee. `sign_p = 2 x 0.5^n` en
+    separation parfaite, et le seuil est `sign_alpha = 0.1` : le plus petit n conclusif est 5.
+    Ce test fige la frontiere DES DEUX COTES -- a n=4 aucun verdict positif n'est atteignable, a n=5
+    il l'est. Sans le second cote, une garde qui refuserait TOUT le passerait."""
+    from tools.substrate_ab import compute_ab_verdict
+    for n, attendu in ((3, "NEUTRE"), (4, "NEUTRE"), (5, "GRADIENT_GAGNE"), (6, "GRADIENT_GAGNE")):
+        v = compute_ab_verdict([{"diff": 0.5}] * n, band=0.02)
+        assert v["verdict"] == attendu, (n, v)
+        assert v["n_min_positif"] == 5, v
+        assert v["peut_conclure"] is (n >= 5), (n, v)
+
+
+def test_peut_conclure_separates_a_MEASURED_null_from_an_UNDECIDABLE_design():
+    """La raison d'etre du champ, et la seule qui le justifie. `underpowered` attrapait deja le cas
+    dangereux (effet FRANCHISSANT la bande sans puissance). Restait indiscernable : un effet
+    MINUSCULE a n=4 rendait exactement le meme triplet qu'un vrai nul mesure. `peut_conclure` les
+    separe -- il porte sur le DISPOSITIF, donc il est faux meme quand l'effet observe est nul.
+
+    ⚠️ Le nul EXACT (que des egalites strictes) rend lui aussi `peut_conclure=False`, et c'est
+    CORRECT : le test de signe ECARTE les egalites, donc n effectif = 0. Des egalites exactes ne
+    prouvent pas plus l'absence que la presence."""
+    from tools.substrate_ab import compute_ab_verdict
+    minuscule = compute_ab_verdict([{"diff": 0.001}] * 4, band=0.02)
+    assert minuscule["verdict"] == "NEUTRE" and minuscule["underpowered"] is False
+    assert minuscule["peut_conclure"] is False, "un design a 4 seeds ne pouvait rien conclure"
+
+    reel = compute_ab_verdict([{"diff": 0.003 if i % 2 else -0.004} for i in range(12)], band=0.02)
+    assert reel["verdict"] == "NEUTRE" and reel["peut_conclure"] is True, (
+        "12 seeds a signes melanges : le verdict positif etait ATTEIGNABLE, il n'a pas ete atteint -- "
+        "c'est un nul MESURE, et il ne doit pas se lire comme le precedent")
+
+    egalites = compute_ab_verdict([{"diff": 0.0}] * 12, band=0.02)
+    assert egalites["peut_conclure"] is False, "12 egalites strictes = n effectif nul"

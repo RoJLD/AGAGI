@@ -46,6 +46,18 @@ jobs:
       - name: AGI-Taxonomy (toute arete ETABLIE porte sa preuve complete)
         run: PYTHONIOENCODING=utf-8 python tools/check_agi_taxonomy.py
 
+      # 2026-09-09 (P2.49) : ces 4 fichiers etaient ROUGES depuis l'armement de la garde de
+      # degenerescence (2026-07-21) -- 8 tests affirmaient SURVIVAL_NEUTRAL la ou l'instrument rend
+      # (a juste titre) INDETERMINE_DEGENERATE. Personne ne l'a su : aucun job de CI ne les lancait.
+      # Rectifies puis branches ici, pour que le silence ne se reforme pas.
+      - name: Cellules de CONTROLE des sondes de demande in-world
+        run: >-
+          PYTHONIOENCODING=utf-8 python -m pytest -q --timeout=600
+          tests/test_cognitive_demand_world_probe.py
+          tests/test_anticipation_demand_world_probe.py
+          tests/test_composition_demand_world_probe.py
+          tests/test_memory_demand_world_probe.py
+
       - name: Gardes-de-gardes (chaque cliquet doit pouvoir ECHOUER)
         run: >-
           PYTHONIOENCODING=utf-8 python -m pytest -q --timeout=300

@@ -60,11 +60,25 @@ def compute_ab_verdict(rows, band: float = 0.02, sign_alpha: float = 0.1) -> dic
     ⚠️ Portée du changement : il ne peut que TRANSFORMER UN POSITIF EN NEUTRE, jamais l'inverse. Les
     conclusions NEUTRES du graphe sont donc intactes par construction, et les affirmations positives
     appliquaient déjà `sign_p` à la main."""
+    # PLANCHER DE PUISSANCE DU DESIGN (2026-09-09, P2.49). `underpowered` ci-dessous attrape deja le
+    # cas dangereux -- un effet qui FRANCHIT la bande sans atteindre le seuil de signe. Restait un
+    # trou plus etroit : a effet MINUSCULE et petit n, le verdict NEUTRE est indiscernable d'un nul
+    # mesure sous puissance, alors que le design ne pouvait de toute facon rien conclure.
+    # En separation PARFAITE, `sign_p` vaut 2 x 0.5^n : il faut donc n >= `n_min_positif` pour qu'un
+    # verdict positif soit seulement POSSIBLE. Mesure du 2026-09-09 : 6 des 7 fonctions `compare` du
+    # depot tournent par defaut a 4 seeds (une a 3), soit SOUS ce plancher -- a ces reglages, aucune
+    # amplitude ne peut produire autre chose que NEUTRE. Les records concernes (163, 166, 172) avaient
+    # declare leur n a la main ; l'instrument, lui, ne le disait pas. C'est `assert_bar_is_reachable`
+    # applique au NOMBRE DE REPLICATS au lieu de la barre.
+    n_min_positif = 1
+    while 2.0 * (0.5 ** n_min_positif) >= sign_alpha:
+        n_min_positif += 1
     diffs = [r["diff"] for r in rows]
     n = len(diffs)
     if n == 0:
         return {"n": 0, "median_diff": 0.0, "n_gradient_favorable": 0, "sign_p": 1.0,
-                "verdict": "NEUTRE", "underpowered": False}
+                "verdict": "NEUTRE", "underpowered": False,
+                "n_min_positif": n_min_positif, "peut_conclure": False}
     med = float(statistics.median(diffs))
     eff = [d for d in diffs if abs(d) > 1e-12]
     n_grad = sum(1 for d in eff if d > 0)
@@ -77,7 +91,12 @@ def compute_ab_verdict(rows, band: float = 0.02, sign_alpha: float = 0.1) -> dic
     else:
         verdict = "NEUTRE"
     return {"n": n, "median_diff": med, "n_gradient_favorable": n_grad, "sign_p": sign_p,
-            "verdict": verdict, "underpowered": bool(abs(med) > band and not powered)}
+            "verdict": verdict, "underpowered": bool(abs(med) > band and not powered),
+            # `peut_conclure` porte sur le DESIGN, pas sur les donnees : il dit si un verdict positif
+            # etait ATTEIGNABLE, et il est faux meme quand l'effet observe est minuscule. Un NEUTRE
+            # rendu avec `peut_conclure=False` n'est PAS un nul mesure -- c'est une absence de
+            # dispositif, et les deux ne doivent pas se lire pareil.
+            "n_min_positif": n_min_positif, "peut_conclure": bool(len(eff) >= n_min_positif)}
 
 
 def run_substrate_ab(backend: str, seed: int = 0, ticks: int = 200,
