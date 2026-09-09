@@ -37,6 +37,7 @@ Usage :
 import argparse
 import collections
 import json
+import re
 import os
 import re
 import sys
@@ -224,11 +225,61 @@ def _load_baseline():
         return json.load(f).get("legataires", {})
 
 
+def _charger_plancher():
+    """Plancher d'entrees, lu sur le JSON COMPLET.
+
+    ⚠️ La premiere version de la garde lisait `_load_baseline().get("plancher_entrees", 0)` -- or
+    `_load_baseline()` rend le SOUS-DICTIONNAIRE `legataires`, donc le plancher valait TOUJOURS 0 et
+    la garde etait INERTE. Elle a passe son propre contre-exemple : backlog vide, exit 0. C'est la
+    classe E1 (un controle qui ne peut pas echouer), commise en armant une garde contre exactement
+    ca. Seul le contre-exemple gele l'a dit ; la relecture ne l'avait pas vu."""
+    if not os.path.exists(_BASELINE):
+        return 0
+    with open(_BASELINE, encoding="utf-8") as f:
+        return int(json.load(f).get("plancher_entrees", 0))
+
+
+def compter_entrees(txt=None):
+    """Nombre d'ENTREES de backlog (lignes commencant par `**Pn.m`). Garde d'AMPUTATION.
+
+    ⚠️ ARMEE SUR UN INCIDENT REEL du 2026-09-09. Une reecriture programmatique a VIDE
+    `PRIORITES_ET_DETTES.md` -- 2352 lignes -> 0 -- sans lever :
+    `io.open(p, "w").write(io.open(p).read().replace(...))` evalue ses arguments de GAUCHE A DROITE,
+    donc le mode "w" TRONQUE le fichier AVANT que le `read()` interne ne le lise ; le read rend "",
+    le replace rend "", et le fichier est ecrase par du vide.
+
+    Ce cliquet a alors rendu **exit 0 et « OK »** sur un backlog VIDE -- et pire, il a INVITE a
+    resserrer sa baseline (« 2 resorbee(s) -> --update-baseline »), ce qui aurait fige l'amputation.
+    C'est le biais que ce depot traque chez ses sondes, commis par une GARDE : entree vide ->
+    succes. Meme famille qu'E22 (une suppression rend le signal plus vert), avec un mecanisme neuf :
+    l'ORDRE D'EVALUATION DES ARGUMENTS.
+
+    Le plancher est un CLIQUET : il ne peut que MONTER. Une baisse est une amputation, et une
+    amputation ne se declare pas -- elle se refuse."""
+    if txt is None:
+        with open(os.path.join(_ROOT, "docs", "roadmap", "PRIORITES_ET_DETTES.md"),
+                  encoding="utf-8") as f:
+            txt = f.read()
+    return sum(1 for ln in txt.splitlines() if re.match(r"\*\*P\d+\.\d+", ln.strip()))
+
+
 def main():
     ap = argparse.ArgumentParser(description="Cliquet de fraicheur du backlog.")
     ap.add_argument("--report", action="store_true", help="état complet, exit 0")
     ap.add_argument("--update-baseline", action="store_true", help="gèle l'état courant")
     args = ap.parse_args()
+
+    # GARDE D'AMPUTATION, EN TETE et AVANT `--update-baseline` : geler une baseline contre un
+    # backlog ampute FIGERAIT l'amputation. Le plancher vit dans la baseline et ne peut que monter.
+    n_entrees = compter_entrees()
+    plancher = _charger_plancher()
+    if n_entrees < plancher:
+        print(f"ECHEC : le backlog est passe de {plancher} a {n_entrees} entrees.\n")
+        print("  Une entree de backlog ne DISPARAIT pas : on la marque CLOSE, on ne l'efface pas.")
+        print("  Cause la plus probable : une reecriture programmatique a tronque le fichier sans")
+        print("  lever. Le 2026-09-09, la forme open(p,'w').write(open(p).read()...) l'a vide de")
+        print("  2352 lignes a 0, et ce cliquet a rendu OK. Restaurer depuis git AVANT tout le reste.")
+        return 1
 
     trouve = scan()
 
@@ -239,6 +290,9 @@ def main():
                              "toute NOUVELLE entree. Retirer une ligne quand elle est corrigee -- "
                              "jamais en ajouter pour faire passer le hook."),
                 "legataires": trouve,
+                # Plancher d'entrees : ne peut que MONTER (max avec l'ancien). Geler un plancher plus
+                # BAS reviendrait a enteriner une amputation, ce que la garde existe pour empecher.
+                "plancher_entrees": max(n_entrees, plancher),
             }, f, ensure_ascii=False, indent=2, sort_keys=True)
         print(f"baseline gelé : {len(trouve)} péremption(s) mécanique(s) légataire(s)")
         return 0

@@ -220,6 +220,16 @@ explicite, jamais le processus courant ni ses ancêtres, jamais un bail dont le 
   ⚠️ **Et ça ne fait pas que MUTILER : ça ÉCRIT.** Récidive mesurée le 2026-09-08, la règle étant déjà écrite ici : un `python -c` contenant un fragment backtické a fait exécuter par bash `learned = within > chance + 0.05` — d'où `learned: command not found`, le fragment remplacé par du vide dans la sortie, **et la création silencieuse d'un fichier vide nommé `chance`** (le `>` a redirigé). Le fichier a survécu plusieurs heures dans l'arbre PARTAGÉ avant d'être vu par un `git status`. Une substitution de commande ratée peut donc laisser des DÉCHETS dans l'arbre, pas seulement un texte tronqué.
   avec l'outil Write). ⚠️ La première version de cette règle ne visait que `git commit -m` : elle a
   été prise en défaut une heure plus tard par un `python -c` qui a scellé une règle de pré-inscription MUTILÉE (S6-FALLBACK-RATE → re-scellée en `-bis`). **Une règle apprise sur UN cas doit être énoncée sur le MÉCANISME, pas sur le cas.**
+- ⚠️ **Ne JAMAIS imbriquer une lecture dans l'appel qui ouvre le même fichier en ÉCRITURE.**
+  `open(p, "w").write(open(p).read().replace(a, b))` évalue ses arguments de **gauche à droite** : le
+  mode `"w"` TRONQUE le fichier **avant** que le `read()` interne ne le lise. Le read rend `""`, le
+  replace rend `""`, le fichier est écrasé par du vide — **sans exception, sans avertissement**.
+  Mesuré le 2026-09-09 : `PRIORITES_ET_DETTES.md` est passé de **2352 lignes à 0** et a été committé.
+  Forme correcte : **LIRE dans une variable, transformer, puis ÉCRIRE** — et faire porter à toute
+  réécriture de fichier une **assertion de TAILLE avant d'écrire**. ⚠️ Et l'aval n'a rien dit : les
+  **12 portes** du hook sont passées sur le fichier vide, `check_backlog_freshness` a rendu `exit 0`
+  et a *invité* à resserrer sa baseline dessus. Seul le `2372 deletions` de la sortie de `git commit`
+  l'a révélé — **lire le compte de suppressions de chaque commit** (classe E22 occ. 2).
 - ⚠️ **Tout commit passe par `git commit -- <chemins>`, JAMAIS nu.** Un `git commit` sans pathspec
   emporte l'index ENTIER — donc le travail non committé d'une session parallèle sur un fichier qu'on
   n'a jamais touché (mesuré le 2026-09-07 : E10 occ. 19). Et avant d'éditer un fichier PARTAGÉ :

@@ -100,3 +100,71 @@ def test_a_path_CITED_AS_EXISTING_is_still_detected(tmp_path, monkeypatch):
     _backlog(tmp_path, monkeypatch,
              "La garde vit dans `tools/ce_fichier_a_ete_supprime.py` et bloque les commits.\n")
     assert any(k.startswith("chemin-mort:") for k in B.scan())
+
+
+# --- GARDE D'AMPUTATION (2026-09-09) : le cliquet rendait OK sur un backlog VIDE ---------------------
+#
+# ⚠️ ARMEE SUR UN INCIDENT REEL, subi par la session qui ecrit ces lignes. Une reecriture
+# programmatique a vide `PRIORITES_ET_DETTES.md` -- 2352 lignes -> 0 -- SANS LEVER :
+#     io.open(p, "w").write(io.open(p).read().replace(old, new))
+# Python evalue les arguments de GAUCHE A DROITE : le mode "w" TRONQUE le fichier avant que le
+# `read()` interne ne le lise. Le read rend "", le replace rend "", le fichier est ecrase par du vide.
+# Meme famille qu'E22 (une suppression rend le signal plus vert) avec un mecanisme NEUF : l'ordre
+# d'evaluation des arguments.
+#
+# Ce cliquet a alors rendu `exit 0` et « OK » -- et il a INVITE a resserrer sa baseline
+# (« 2 resorbee(s) -> --update-baseline »), ce qui aurait fige l'amputation. Entree vide -> succes,
+# commis par une GARDE : exactement le biais que ce depot traque chez ses sondes.
+#
+# ⚠️ ET LA PREMIERE VERSION DE LA GARDE ETAIT ELLE-MEME INERTE : elle lisait
+# `_load_baseline().get("plancher_entrees")`, or `_load_baseline()` rend le sous-dictionnaire
+# `legataires`, donc le plancher valait TOUJOURS 0. Elle a passe son propre contre-exemple. Classe E1,
+# commise en armant une garde contre exactement ca -- seul le contre-exemple GELE l'a dit.
+
+def test_the_ratchet_REFUSES_an_amputated_backlog(monkeypatch):
+    """CONTRE-EXEMPLE GELE : l'incident rejoue. Un backlog vide doit faire ECHOUER le cliquet."""
+    import sys
+
+    import tools.check_backlog_freshness as m
+    # `main()` lit `sys.argv` : sous pytest il y trouverait les arguments de pytest et argparse
+    # sortirait en erreur. On lui donne un argv NU.
+    monkeypatch.setattr(sys, "argv", ["check_backlog_freshness.py"])
+    monkeypatch.setattr(m, "compter_entrees", lambda txt=None: 0)
+    monkeypatch.setattr(m, "_charger_plancher", lambda: 68)
+    assert m.main() == 1, "un backlog AMPUTE doit faire echouer le cliquet, pas passer"
+
+
+def test_the_ratchet_SPARES_an_intact_backlog(monkeypatch):
+    """NO-OP APPARIE, indispensable : une garde qui refuserait TOUT passerait le cas precedent
+    sans rien mesurer. Au plancher exact, le cliquet doit se taire."""
+    import sys
+
+    import tools.check_backlog_freshness as m
+    # `main()` lit `sys.argv` : sous pytest il y trouverait les arguments de pytest et argparse
+    # sortirait en erreur. On lui donne un argv NU.
+    monkeypatch.setattr(sys, "argv", ["check_backlog_freshness.py"])
+    monkeypatch.setattr(m, "compter_entrees", lambda txt=None: 68)
+    monkeypatch.setattr(m, "_charger_plancher", lambda: 68)
+    assert m.main() == 0, "un backlog au plancher exact ne doit pas etre refuse"
+
+
+def test_the_FLOOR_can_only_go_UP():
+    """Le plancher est un CLIQUET. Geler une baseline contre un backlog ampute figerait l'amputation :
+    `--update-baseline` prend donc le MAX de l'ancien et du courant. Verifie sur le code, car c'est
+    une propriete du chemin `--update-baseline` qu'aucun appel normal n'exerce."""
+    import inspect
+    import tools.check_backlog_freshness as m
+    src = inspect.getsource(m.main)
+    assert "max(n_entrees, plancher)" in src, (
+        "le plancher doit etre gele au MAX -- sinon une amputation devient la nouvelle norme")
+    assert src.index("if n_entrees < plancher") < src.index("if args.update_baseline"), (
+        "la garde doit passer AVANT --update-baseline, sinon on gele l'amputation qu'on refuse")
+
+
+def test_the_REAL_backlog_is_ABOVE_its_frozen_floor():
+    """Ancrage sur le reel : le fichier vivant doit etre au-dessus de son plancher, et le plancher
+    doit etre non nul (un plancher a zero serait une garde desarmee)."""
+    import tools.check_backlog_freshness as m
+    plancher = m._charger_plancher()
+    assert plancher > 0, "plancher a zero = garde desarmee"
+    assert m.compter_entrees() >= plancher
