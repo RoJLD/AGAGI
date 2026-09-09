@@ -2446,7 +2446,15 @@ DAG de capacités *sans canal de demande in-world* est le piège « proxy 9 / in
   *Pur numpy, aucun bail, aucun run long — cheap.*
 - **SP-4 Forker/publier** — `agi-taxonomy` en fork-schéma, contribuer les critères within-subject en
   retour. *Dépend de SP-1→3.*
-- **SP-4 — 🔧 DÉBLOQUÉ le 2026-09-09, et il ne reste qu'une DÉCISION, pas un chantier.**
+- **SP-4 — ✅ CLOS le 2026-09-09 PAR DÉCISION : pas de contribution en amont.** La question a été
+  posée au propriétaire du dépôt et tranchée — ces arêtes ne sont **PAS** contribuées à
+  `withmarbleapp/os-taxonomy`, parce que le faire placerait la contribution sous ODbL/CC BY-SA, qui
+  n'est pas la licence de ce dépôt (MIT). ⚠️ **C'est un CHOIX, pas un blocage** : les quatre
+  obligations techniques sont remplies, et si la décision était révisée, rien ne serait à
+  reconstruire. L'export reste comme artefact LOCAL — il prouve la convertibilité du fork vers le
+  format d'origine, vérifiée par aller-retour. Le durcissement qui avait une valeur de contribution
+  (critère d'évidence within-subject) reste documenté dans `data/agi_taxonomy/NOTICE` et
+  `REF-AGI-TAXONOMY`. *Détail de ce qui a été livré avant la décision :*
   Les trois obligations techniques sont remplies : l'**exporteur** existe (SP-1 (c)), le champ
   **`reason`** est posé, le **schéma** est resynchronisé et portant. La quatrième — le **NOTICE** —
   est écrite : `data/agi_taxonomy/NOTICE` déclare que les données sont MESURÉES ici (donc MIT, comme

@@ -39,10 +39,22 @@ arêtes RÉFUTÉES ne sont pas exportées du tout — le format ne sait pas les 
 Pour qu'une arête exportée ne perde pas toute trace de ce qui l'établit, la provenance (record,
 ratio, n) est réinjectée dans le champ `reason`.
 
-⚠️ AVANT TOUTE PUBLICATION EFFECTIVE
-------------------------------------
-Contribuer ces arêtes EN AMONT placerait la contribution sous la licence du projet d'accueil
-(ODbL/CC BY-SA), ce qui n'est pas la licence de ce dépôt. C'est une décision du propriétaire du
-dépôt, pas une propriété du code : rien ici ne publie quoi que ce soit, l'export écrit seulement
-des fichiers locaux. Cette note existe pour que la question soit posée AVANT, et non découverte
-après.
+DÉCISION PRISE : PAS DE CONTRIBUTION EN AMONT (2026-09-09)
+----------------------------------------------------------
+La question a été posée et TRANCHÉE par le propriétaire du dépôt : **ces arêtes ne sont PAS
+contribuées à `withmarbleapp/os-taxonomy`**. Motif structurant : contribuer en amont placerait la
+contribution sous la licence du projet d'accueil (ODbL 1.0 / CC BY-SA 4.0), qui n'est pas celle de
+ce dépôt (MIT).
+
+Ce que cela change, et ce que cela ne change pas :
+  * l'export RESTE — `data/agi_taxonomy/export/` est un artefact LOCAL, utile en soi : il prouve que
+    le fork est convertible vers le format d'origine, et cette convertibilité est vérifiée par un
+    aller-retour (le lecteur os-taxonomy du dépôt relit l'export) ;
+  * rien dans le code ne publie quoi que ce soit, et rien ne doit être ajouté qui le ferait ;
+  * la partie du fork qui avait une valeur de contribution — le critère d'évidence WITHIN-SUBJECT,
+    plus strict que les critères humains du format d'origine — reste documentée ICI, dans ce NOTICE
+    et dans `docs/REF/REF-AGI-TAXONOMY`. Elle n'est pas perdue, elle n'est pas exportée.
+
+⚠️ Cette décision est un CHOIX, pas un obstacle technique : les quatre obligations (exporteur, champ
+`reason`, schéma resynchronisé, NOTICE) sont toutes remplies. Si elle était un jour révisée, rien
+n'est à reconstruire — seule la question de licence serait à rouvrir.

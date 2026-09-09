@@ -604,13 +604,42 @@ def test_the_REFUTED_edges_are_NOT_exported_because_the_format_cannot_express_th
     assert len(lignes) == len(demands), "l'export ne porte que les aretes ETABLIES"
 
 
-def test_the_FORK_declares_its_provenance_and_its_licence_question():
+def test_the_FORK_declares_its_provenance_AND_the_licence_DECISION():
     """SP-4 : publier en amont placerait la contribution sous la licence du projet d'accueil
-    (ODbL/CC BY-SA), qui n'est pas celle de ce depot (MIT). Le NOTICE doit poser la question AVANT,
-    et dire ce que l'export PERD. Un fork qui ne declare pas sa provenance n'est pas publiable."""
+    (ODbL/CC BY-SA), qui n'est pas celle de ce depot (MIT).
+
+    ⚠️ RESSERRE le 2026-09-09, apres que la question a ete TRANCHEE. La premiere version exigeait
+    seulement que le NOTICE POSE la question -- elle serait donc passee sur une note qui ne decide
+    jamais, c'est-a-dire sur le statu quo. Maintenant qu'il y a une decision (PAS de contribution en
+    amont), le test exige qu'elle soit ECRITE : une decision non gravee se re-discute a chaque
+    relecture, et le cout de la re-discussion est paye a chaque fois."""
     import os as _os
     p = _os.path.join(_ROOT, "data", "agi_taxonomy", "NOTICE")
     assert _os.path.exists(p), "le fork doit porter un NOTICE"
     txt = open(p, encoding="utf-8").read()
     for attendu in ("os-taxonomy", "ODbL", "CC BY-SA", "MIT", "LOSSY", "refuted.json"):
         assert attendu in txt, f"le NOTICE ne mentionne pas '{attendu}'"
+    assert "PAS DE CONTRIBUTION EN AMONT" in txt, (
+        "la decision de SP-4 doit etre GRAVEE, pas seulement la question posee")
+
+
+def test_NOTHING_in_the_code_can_PUBLISH_upstream():
+    """⚠️ LA GARDE QUI TIENT LA DECISION. « Pas de contribution en amont » est une decision, donc elle
+    peut etre violee par du code ajoute plus tard sans que personne ne s'en apercoive. Aucun module de
+    la taxonomie ne doit contenir d'appel reseau ni d'URL de depot distant : l'export ecrit des
+    fichiers LOCAUX, et c'est tout ce qu'il doit savoir faire.
+
+    Motif valide sur un cas POSITIF connu (`open(` est present) avant de conclure a l'absence du
+    reste -- une absence de correspondance n'est une preuve que si le motif sait trouver."""
+    import os as _os
+    import re as _re
+    cibles = [_os.path.join(_ROOT, "tools", "os_taxonomy_adapter.py"),
+              _os.path.join(_ROOT, "tools", "check_agi_taxonomy.py")]
+    interdits = _re.compile(r"requests\.|urllib|http[s]?://|git\s+push|subprocess|urlopen")
+    for c in cibles:
+        src = open(c, encoding="utf-8").read()
+        assert "open(" in src, f"CONTROLE POSITIF en echec sur {c} : le motif ne sait pas lire"
+        trouve = interdits.findall(src)
+        assert not trouve, (
+            f"{_os.path.basename(c)} contient de quoi PUBLIER ({trouve}) — la decision SP-4 dit que "
+            "l'export reste LOCAL")
