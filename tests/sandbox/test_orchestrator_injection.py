@@ -1633,3 +1633,205 @@ def test_persistence_is_OPTIONAL_and_writes_NOTHING_when_disabled(tmp_path, monk
     mod.run_aux_off_validation(seeds=(1,), epochs=1, num_agents=2, max_ticks=5, gi_ticks=5,
                                weights=(0.0,), out_path=None, genome_dir=None)
     assert not vide.exists() and not list(tmp_path.glob("*.npz"))
+
+
+# ======================================================================================================
+# P2.49 (2026-09-09) : `tools/ablation.py::run_condition` -- L'INSTRUMENT LE PLUS PORTEUR DU DEPOT
+# parmi ceux calibres GARDE-SEULE. Mesure : son module est cite par **61 records**, trois fois plus
+# que le suivant. Il ne simule pas lui-meme au sens ou il n'ecrit aucune mecanique : il construit un
+# monde par ere, applique `apply_fn` (l'ABLATION), fait tourner, et AGREGE en (proies_moy, mammouths).
+#
+# Sa calibration ne couvrait que la garde d'arguments. Or c'est le corps qui porte les 61 records, et
+# c'est le corps qui contient la question dont TOUT depend : `apply_fn` est-il REELLEMENT applique a
+# chaque ere ? S'il ne l'etait pas, chaque record d'ablation comparerait un bras intact a un bras
+# intact -- et rendrait sereinement « ce mecanisme ne contribue pas ».
+# ======================================================================================================
+
+class _EnvFactice:
+    """Monde minimal : il compte les ticks, expose les attributs que `run_condition` lit, et
+    enregistre si l'ablation lui a ete appliquee."""
+
+    def __init__(self, config=None, proies=3.0, kills=2):
+        self.config = config
+        self.agents, self.dead_agents = [], []
+        self.big_kills = kills
+        self.current_era = 0
+        self.ablate = False
+        self._proies = proies
+        self._ticks = 0
+
+    def add_agent(self, a, energy=0.0):
+        self.agents.append({"preys_eaten": self._proies})
+
+    def step(self):
+        self._ticks += 1
+        if self._ticks >= 2:                    # la cohorte meurt : on sort de la boucle
+            self.dead_agents = self.agents
+            self.agents = []
+
+
+def _injecte_ablation(monkeypatch, envs):
+    """Impose une SUITE de mondes factices (un par ere) et neutralise tout le reste."""
+    import tools.ablation as mod
+    it = iter(envs)
+    monkeypatch.setattr(mod, "Biosphere3D", lambda config=None: next(it), raising=True)
+    monkeypatch.setattr(mod, "_setup", lambda env: None, raising=True)
+    monkeypatch.setattr(mod, "init_primordial_soup",
+                        lambda num_agents=0, shared_db=None, config=None: ([object()] * num_agents, None),
+                        raising=True)
+    monkeypatch.setattr(mod, "MambaAgent", lambda: type("A", (), {"from_genome": lambda s, g: None})(),
+                        raising=True)
+    return mod
+
+
+def test_run_condition_APPLIES_the_ablation_to_EVERY_era(monkeypatch):
+    """⚠️ LE CAS DONT LES 61 RECORDS DEPENDENT. Si `apply_fn` n'etait pas appele -- ou appele une
+    seule fois pour trois eres -- l'instrument comparerait un bras intact a un bras intact et
+    rendrait « ce mecanisme ne contribue pas », le verdict le plus courant de la famille.
+    Aucune relecture ne distingue ces deux mondes ; un compte les separe."""
+    envs = [_EnvFactice() for _ in range(3)]
+    mod = _injecte_ablation(monkeypatch, envs)
+    vus = []
+    mod.run_condition(None, None, lambda e: vus.append(e) or setattr(e, "ablate", True),
+                      n_eras=3, num_agents=2, max_ticks=5)
+    assert len(vus) == 3, ("l'ablation doit etre appliquee a CHAQUE ere", len(vus))
+    assert all(e.ablate for e in envs), "chaque monde doit avoir recu l'ablation"
+    assert vus == envs, "chaque ere doit recevoir SON monde, pas trois fois le meme"
+
+
+def test_run_condition_AGGREGATES_by_MEAN_over_eras_at_a_known_dose(monkeypatch):
+    """DOSE CONNUE, reponse en forme close. Trois eres a 2, 4 et 6 proies -> moyenne EXACTEMENT 4.0 ;
+    kills 1, 2, 3 -> 2.0. Si l'agregation prenait le dernier, le max ou la somme, aucun de ces
+    chiffres ne tomberait -- et ce sont eux que les records publient."""
+    envs = [_EnvFactice(proies=p, kills=k) for p, k in ((2.0, 1), (4.0, 2), (6.0, 3))]
+    mod = _injecte_ablation(monkeypatch, envs)
+    proies, mammo = mod.run_condition(None, None, lambda e: None,
+                                      n_eras=3, num_agents=2, max_ticks=5)
+    assert proies == pytest.approx(4.0, rel=1e-12), proies
+    assert mammo == pytest.approx(2.0, rel=1e-12), mammo
+
+
+def test_run_condition_reads_the_pool_as_ALIVE_PLUS_DEAD(monkeypatch):
+    """Le pool est `agents + dead_agents`. Ne compter que les VIVANTS biaiserait vers les cohortes
+    qui survivent -- exactement le bras que l'ablation est censee degrader. Ici la cohorte meurt
+    entierement avant la fin, et la mesure doit quand meme la voir."""
+    envs = [_EnvFactice(proies=5.0)]
+    mod = _injecte_ablation(monkeypatch, envs)
+    proies, _ = mod.run_condition(None, None, lambda e: None, n_eras=1, num_agents=4, max_ticks=5)
+    assert envs[0].agents == [] and len(envs[0].dead_agents) == 4, "la cohorte doit etre MORTE"
+    assert proies == pytest.approx(5.0), ("les morts comptent : sinon on ne mesure que les survivants",
+                                          proies)
+
+
+def test_run_condition_RETURNS_ZERO_on_an_EMPTY_pool_and_that_is_a_FABRICATED_negative(monkeypatch):
+    """⚠️ DEFAUT REEL, GELE PLUTOT QUE MASQUE. La ligne est
+    `np.mean([...]) if pool else 0.0` : un pool VIDE ne rend pas « inconnu » mais **0.0 proie**, que
+    l'aval lit comme « l'ablation a supprime le foraging » -- la forme (a) des trois documentees dans
+    CLAUDE.md (entree vide -> verdict de fond).
+
+    Le cas est RARE (il faut `agents` ET `dead_agents` vides a la fin), ce qui explique qu'il ait
+    survecu : il ne se produit pas dans les 61 records existants, ou la cohorte est toujours peuplee.
+    Ce test FIGE le comportement actuel et le NOMME, pour qu'un futur lecteur sache que ce 0.0 n'est
+    pas une mesure. Le corriger changerait la signature de retour de l'instrument le plus cite du
+    depot -- c'est une decision, pas un detail : inscrite au backlog plutot que prise ici."""
+    class _Vide(_EnvFactice):
+        def step(self):
+            self.agents, self.dead_agents = [], []      # cohorte EVAPOREE : pool vide
+
+    envs = [_Vide()]
+    mod = _injecte_ablation(monkeypatch, envs)
+    proies, _ = mod.run_condition(None, None, lambda e: None, n_eras=1, num_agents=3, max_ticks=2)
+    assert proies == 0.0, "comportement ACTUEL fige"
+    # ... et c'est bien indiscernable d'une vraie mesure a zero proie :
+    envs2 = [_EnvFactice(proies=0.0)]
+    mod = _injecte_ablation(monkeypatch, envs2)
+    vraie_mesure, _ = mod.run_condition(None, None, lambda e: None, n_eras=1, num_agents=3, max_ticks=5)
+    assert vraie_mesure == proies, (
+        "un pool VIDE et une cohorte qui n'a VRAIMENT rien mange rendent le MEME chiffre : "
+        "l'instrument ne peut pas les distinguer, et son appelant non plus")
+
+
+# ======================================================================================================
+# P2.49 (2026-09-09) : LA FAMILLE `substrate_ab` -- 16 records pour `substrate_ab.py`, 15 pour
+# `substrate_ab_compositional.py`, qui porte le KPI `binding_gap`/`comp_rate` de la porte G2.
+# Trois orchestrateurs, trois couches d'agregation differentes, aucun monde construit ici.
+# ======================================================================================================
+
+def _stub_delegue(monkeypatch, mod, nom, valeurs):
+    """Remplace le delegue (`run_substrate_ab` / `run_compositional`) par une DOSE CONNUE indexee
+    par le backend. Renvoie la liste des appels, pour verifier l'APPARIEMENT par seed."""
+    appels = []
+
+    def f(backend, seed=0, **k):
+        appels.append((backend, seed))
+        return {"delta": valeurs[backend], "hit_end": valeurs[backend]}
+
+    monkeypatch.setattr(mod, nom, f, raising=True)
+    return appels
+
+
+def test_substrate_ab_compare_PAIRS_the_two_backends_on_the_SAME_seed(monkeypatch):
+    """⚠️ L'APPARIEMENT EST LE DISPOSITIF. `compare` doit appeler les DEUX backends sur CHAQUE seed :
+    si un bras tournait sur d'autres seeds que l'autre, la difference par ligne melangerait des
+    mondes differents et le test de signe porterait sur du bruit. Un compte le verifie, pas une
+    relecture."""
+    import tools.substrate_ab as mod
+    appels = _stub_delegue(monkeypatch, mod, "run_substrate_ab", {"legacy": 0.1, "torch": 0.6})
+    out = mod.compare(seeds=(0, 1, 2, 3, 4, 5), ticks=5, n_agents=2)
+    assert sorted(appels) == sorted([(b, s) for s in range(6) for b in ("legacy", "torch")]), appels
+    assert out["median_diff"] == pytest.approx(0.5, rel=1e-12), out
+    assert out["verdict"] == "GRADIENT_GAGNE" and out["peut_conclure"] is True, out
+
+
+def test_substrate_ab_compare_at_its_DEFAULT_3_seeds_can_conclude_NOTHING(monkeypatch):
+    """⚠️ `substrate_ab.compare` a le DEFAUT LE PLUS BAS du depot : 3 seeds. En separation parfaite
+    `sign_p` y vaut 0.25, tres au-dessus du seuil 0.1 -- aucune amplitude ne peut y produire un
+    verdict positif. C'est le meme defaut de DESIGN que la famille `compare -> run_arm`, en pire."""
+    import tools.substrate_ab as mod
+    _stub_delegue(monkeypatch, mod, "run_substrate_ab", {"legacy": 0.1, "torch": 0.9})
+    out = mod.compare(ticks=5, n_agents=2)                      # seeds par DEFAUT
+    assert len(out["per_seed"]) == 3, "le defaut est bien de 3 seeds"
+    assert out["median_diff"] == pytest.approx(0.8, rel=1e-12), "l'effet est ENORME..."
+    assert out["verdict"] == "NEUTRE", "...et le verdict ne peut pas etre positif a 3 seeds"
+    assert out["peut_conclure"] is False and out["underpowered"] is True, out
+
+
+def test_compositional_compare_reads_the_dose_and_keeps_per_seed(monkeypatch):
+    """Le banc compositionnel porte le KPI de la porte G2. Sa docstring promet « jamais de scalaire
+    nu : per_seed conserve » -- on le verifie, car un verdict sans ses lignes n'est pas re-lisible."""
+    import tools.substrate_ab_compositional as mod
+    _stub_delegue(monkeypatch, mod, "run_compositional", {"legacy": 0.2, "torch": 0.7})
+    out = mod.compare(seeds=(0, 1, 2, 3, 4), trials=2, n_agents=2)
+    assert out["median_diff"] == pytest.approx(0.5, rel=1e-12), out
+    assert len(out["per_seed"]) == 5 and all("legacy" in r and "torch" in r for r in out["per_seed"])
+    assert out["verdict"] == "GRADIENT_GAGNE", out
+
+
+def test_compositional_sweep_DEDUPLICATES_the_cell_that_is_LITERALLY_the_same(monkeypatch):
+    """⚠️ LA COUCHE QUI PEUT FAIRE DISPARAITRE DES CELLULES. `sweep` deduplique par (hidden, facteur
+    d'init) : `normalized` a l'ancrage vaut EXACTEMENT `prod` (facteur 1.0), donc la cellule serait
+    comptee deux fois. La dedup est LEGITIME -- mais elle doit retirer la cellule IDENTIQUE, et elle
+    seule. Un `seen` trop large avalerait des cellules distinctes en silence, et la grille publiee
+    aurait des trous que personne ne verrait.
+
+    Les deux issues sont donc verifiees : dedup quand les facteurs coincident, AUCUNE dedup quand ils
+    different."""
+    import tools.substrate_ab_compositional as mod
+    _stub_delegue(monkeypatch, mod, "run_compositional", {"legacy": 0.1, "torch": 0.2})
+
+    facteurs = {}
+    for h in (5, 100):
+        n = 167 + h
+        facteurs[h] = {i: round(mod._init_factor(n, i), 6) for i in ("prod", "normalized")}
+
+    identiques = [h for h, f in facteurs.items() if f["prod"] == f["normalized"]]
+    distincts = [h for h, f in facteurs.items() if f["prod"] != f["normalized"]]
+    assert identiques and distincts, ("il faut UN cas de chaque pour que ce test discrimine", facteurs)
+
+    out = mod.sweep(hiddens=(identiques[0],), inits=("prod", "normalized"), seeds=(0, 1),
+                    trials=2, n_agents=2)
+    assert len(out["cells"]) == 1, ("facteurs IDENTIQUES -> une seule cellule", out["cells"])
+
+    out2 = mod.sweep(hiddens=(distincts[0],), inits=("prod", "normalized"), seeds=(0, 1),
+                     trials=2, n_agents=2)
+    assert len(out2["cells"]) == 2, ("facteurs DIFFERENTS -> aucune dedup", out2["cells"])

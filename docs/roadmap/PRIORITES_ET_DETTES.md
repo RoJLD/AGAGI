@@ -1928,11 +1928,38 @@ un chiffre ; (c) le reste, ou déclaration explicite que la garde d'entrée suff
 aucun monde et délèguent à une fonction de module patchable — injection à coût nul), **38 des
 SIMULATEURS** (un cas atteignant le corps y coûte un monde), 6 restent à classer.
 
-**Avancement — 6 déclarations sorties de la famille (114 → 108) :** les **trois sondes de demande
-in-world** (`anticipation`/`composition`/`memory`, qui portent les chiffres de S2-007 et S2-008) et
-**trois bancs A/B** (`torch_inworld_ab`, `torch_binary_gate_heldout_probe`, `torch_gate_persist_ab`),
-avec 26 cas atteignant le corps. Deux défauts réels trouvés au passage — le plancher de puissance
-structurel des bancs A/B (ci-dessous) et P2.51.
+**Avancement — 10 déclarations sorties de la famille (114 → 104), 34 cas atteignant le corps.**
+*Premier lot* : les **trois sondes de demande in-world** (`anticipation`/`composition`/`memory`, qui
+portent les chiffres de S2-007 et S2-008) et **trois bancs A/B** (`torch_inworld_ab`,
+`torch_binary_gate_heldout_probe`, `torch_gate_persist_ab`).
+*Second lot, choisi par la PRIORITÉ (b)* — mesure du nombre de records citant chaque module, plutôt
+qu'un ordre de découverte :
+
+- ⭐ **`tools/ablation.py::run_condition` — cité par 61 records**, trois fois plus que le suivant.
+  Son corps porte la question dont TOUT dépend : `apply_fn` est-il appliqué à **chaque ère** ? S'il
+  ne l'était pas, chaque record d'ablation comparerait un bras intact à un bras intact et rendrait
+  sereinement « ce mécanisme ne contribue pas » — le verdict le plus courant de la famille. Aucune
+  relecture ne distingue ces deux mondes ; un **compte** les sépare. Vérifié aussi : l'agrégation est
+  une moyenne sur les ères (dose connue 2/4/6 → 4.0 exact) et le pool est bien *vivants **et** morts*
+  (ne compter que les survivants biaiserait vers le bras que l'ablation est censée dégrader).
+  ⚠️ **DÉFAUT RÉEL GELÉ plutôt que masqué** : la ligne `np.mean([...]) if pool else 0.0` fait rendre
+  **0.0 proie** sur un pool VIDE — que l'aval lit comme « l'ablation a supprimé le foraging ». C'est
+  la forme (a) des trois documentées (entrée vide → verdict de fond), et le test montre qu'un pool
+  vide et une cohorte qui n'a **vraiment** rien mangé rendent le **même chiffre**. Le cas est rare
+  (il faut `agents` ET `dead_agents` vides), ce qui explique sa survie. **Le corriger changerait la
+  signature de retour de l'instrument le plus cité du dépôt — c'est une décision, pas un détail** :
+  inscrite ici, non prise unilatéralement.
+- **`substrate_ab.py::compare` (16 records)** — l'appariement est le dispositif : les DEUX backends
+  doivent tourner sur CHAQUE seed, sans quoi la différence par ligne mélangerait des mondes
+  différents. ⚠️ Et il porte le **défaut de design le plus sévère de la famille** : son défaut est de
+  **3 seeds**, où `sign_p = 0,25` — plus du double du seuil. Aucune amplitude n'y produit un verdict
+  positif.
+- **`substrate_ab_compositional.py::compare` et `::sweep` (15 records chacun)** — le banc qui porte le
+  KPI `binding_gap`/`comp_rate` de la porte G2. `sweep` déduplique par (hidden, facteur d'init), car
+  `normalized` à l'ancrage vaut **exactement** `prod`. La dédup est légitime, mais un `seen` trop
+  large avalerait des cellules distinctes **en silence** et la grille publiée aurait des trous que
+  personne ne verrait : les **deux** issues sont gelées — dédup quand les facteurs coïncident,
+  **aucune** dédup quand ils diffèrent.
 
 ⚠️ **DÉFAUT STRUCTUREL TROUVÉ PAR CETTE CALIBRATION.** `compute_ab_verdict` exige la bande **ET**
 le test de signe (`sign_p < 0.1`). En séparation PARFAITE `sign_p = 2·0,5ⁿ`, donc **n ≥ 5** est

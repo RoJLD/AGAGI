@@ -65,9 +65,17 @@ CALIBRATED = {
     "tools/anticipation_bench.py::compare": ["cohorte-vide:raises", "guard-before-world"],
     "tools/life_score_contamination_probe.py::compare": ["cohorte-vide:raises", "guard-before-world"],
     "tools/map_elites_compare.py::compare": ["cohorte-vide:raises", "guard-before-world"],
-    "tools/substrate_ab.py::compare": ["cohorte-vide:raises", "guard-before-world"],
-    "tools/substrate_ab_compositional.py::compare": ["cohorte-vide:raises", "guard-before-world"],
-    "tools/substrate_ab_compositional.py::sweep": ["cohorte-vide:raises", "guard-before-world"],
+    "tools/substrate_ab.py::compare": [
+        "cohorte-vide:raises", "guard-before-world",
+        "CORPS-ATTEINT:appariement-des-DEUX-backends-par-seed",
+        "CORPS-ATTEINT:defaut-3-seeds-ne-peut-RIEN-conclure"],
+    "tools/substrate_ab_compositional.py::compare": [
+        "cohorte-vide:raises", "guard-before-world",
+        "CORPS-ATTEINT:dose-connue", "CORPS-ATTEINT:per_seed-conserve"],
+    "tools/substrate_ab_compositional.py::sweep": [
+        "cohorte-vide:raises", "guard-before-world",
+        "CORPS-ATTEINT:dedup-quand-facteurs-IDENTIQUES",
+        "CORPS-ATTEINT:AUCUNE-dedup-quand-facteurs-DIFFERENTS"],
     "tools/torch_binary_gate_heldout_probe.py::compare": ["cohorte-vide:raises", "guard-before-world",
         "CORPS-ATTEINT:dose-connue-mediane-0.5", "CORPS-ATTEINT:plancher-de-puissance-au-defaut",
         "CORPS-ATTEINT:bras-egaux-neutre"],
@@ -275,7 +283,16 @@ CALIBRATED = {
     "tools/lewis_survival_sweep.py::_verdict_capacity": ["leve", "inerte", "ambigue", "single-arm:raises"],
     "tools/arc5_alignment.py::_verdict": ["aligned:1bit", "independent:baseline"],
     # P2.43 (2026-09-06) : famille run_* -- declarations QUALIFIEES par chemin (5 noms en collision).
-    "tools/ablation.py::run_condition": ["empty-cohort:raises", "guard-before-world"],
+    # P2.49 (2026-09-09) : l'instrument GARDE-SEULE le plus PORTEUR du depot -- son module est
+    # cite par 61 records, trois fois plus que le suivant. Le corps porte la question dont tout
+    # depend : `apply_fn` est-il applique a CHAQUE ere ? Sinon chaque record d'ablation
+    # comparerait un bras intact a un bras intact. 4 cas dans test_orchestrator_injection.py,
+    # aucun monde construit -- dont un DEFAUT REEL gele (pool vide -> 0.0 proie, indiscernable
+    # d'une vraie mesure a zero).
+    "tools/ablation.py::run_condition": [
+        "empty-cohort:raises", "guard-before-world",
+        "CORPS-ATTEINT:ablation-appliquee-a-CHAQUE-ere", "CORPS-ATTEINT:moyenne-dose-connue",
+        "CORPS-ATTEINT:pool-vivants-ET-morts", "DEFAUT-GELE:pool-vide-rend-0.0"],
     "tools/ablation_multi.py::run_condition": ["empty-cohort:raises", "guard-before-world"],
     "tools/adaptive_planning_probe.py::run_adaptive": ["empty-cohort:raises", "guard-before-world"],
     "tools/agricultural_demand_probe.py::run_agricultural": ["empty-cohort:raises", "guard-before-world"],
