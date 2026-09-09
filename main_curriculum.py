@@ -171,6 +171,18 @@ def run_curriculum(
     manage_logger=False : suppose que async_logger est déjà démarré (utile pour
     le harnais Ratio de Transfert qui enchaîne plusieurs runs sans cycler la DB).
     """
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-09, 9e elargissement du cliquet -- perimetre RACINE). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte vide
+    # ou un horizon nul rend une liste vide que l'aval lit comme une MESURE (biais negatif
+    # systematique du depot). Posee AVANT toute construction de monde -> refus instantane.
+    if int(num_agents) <= 0 or int(max_ticks) <= 0:
+        raise ValueError(
+            f"run_curriculum : argument degenere (num_agents={num_agents}, max_ticks={max_ticks}) -- "
+            "aucune mesure possible ; ne pas confondre avec un transcript VIDE observe.")
+    if ladder is not None and not list(ladder):
+        raise ValueError(
+            "run_curriculum : `ladder` VIDE -- une echelle sans barreau ne peut produire aucun "
+            "transcript ; ne pas confondre avec un curriculum qui echoue.")
     ladder = ladder or DEFAULT_LADDER
     if keep_memory is None:
         keep_memory = os.getenv("KEEP_MEMORY", "0") == "1"

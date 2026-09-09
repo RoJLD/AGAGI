@@ -549,9 +549,14 @@ class Biosphere3D:
                 
             if agent["x"] == self.treasure_x and agent["y"] == self.treasure_y and agent["z"] == self.treasure_z:
                 if agent["out_accept"] > 0:
-                    hof = load_hall_of_fame()
-                    if len(hof) > 0:
-                        best_genome = hof[0][1]
+                    # ⚠️ CORRIGE le 2026-09-09. `load_hall_of_fame()` rend `(version, entries)` :
+                    # `len(hof)` valait donc TOUJOURS 2, la garde ne pouvait pas proteger, et
+                    # `hof[0][1]` levait `TypeError` sur l'entier de version. Chemin ATTEIGNABLE
+                    # (agent sur le tresor avec `out_accept > 0`), donc un plantage latent du
+                    # moteur, pas du code mort. Une entree est un `AgentSnapshot` : `.genome`.
+                    _version, entries = load_hall_of_fame()
+                    if entries:
+                        best_genome = entries[0].genome
                         min_N = min(agent["genome"].num_nodes, best_genome.num_nodes)
                         agent["genome"].W[:min_N, :min_N] = 0.5 * agent["genome"].W[:min_N, :min_N] + 0.5 * best_genome.W[:min_N, :min_N]
                         agent["energy"] += 30.0

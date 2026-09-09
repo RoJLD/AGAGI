@@ -14,6 +14,15 @@ from src.graph_rag.experiment_tracker import ExperimentGraph
 
 def run_world_era(args):
     world_id, seed_population_genomes, max_ticks = args
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-09, 9e elargissement du cliquet -- perimetre RACINE). Un
+    # argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une cohorte vide
+    # ou un horizon nul rend une liste vide que l'aval lit comme une MESURE (biais negatif
+    # systematique du depot). Posee AVANT toute construction de monde -> refus instantane.
+    if int(max_ticks) <= 0 or not list(seed_population_genomes):
+        raise ValueError(
+            f"run_world_era : argument degenere (max_ticks={max_ticks}, "
+            f"n_genomes={len(list(seed_population_genomes))}) -- aucune mesure possible ; "
+            "ne pas confondre avec une ere ou tout le monde meurt.")
     np.random.seed((os.getpid() * int(1e5) + world_id) % (2**31 - 1))
     
     world = Biosphere3D(size=10)
@@ -42,17 +51,25 @@ def init_primordial_genomes(num_agents=100) -> list:
     print("🧬 Initialisation de la Soupe Primordiale (Génomes)...")
     genomes = []
     
+    # ⚠️ CORRIGE le 2026-09-09. Deux defauts du contrat, plus un troisieme qui les rendait
+    # invisibles. (1) `load_hall_of_fame()` rend `(version, entries)`, pas une liste : iterer le
+    # 2-uplet donnait l'entier de version, d'ou `TypeError: 'int' object is not subscriptable`.
+    # (2) une entree est un `AgentSnapshot`, non indexable : `g[1]` echouait aussi. (3) le
+    # `except Exception` avalait la TypeError en imprimant « Erreur lors du chargement de KuzuDB »
+    # -- un diagnostic FAUX qui envoie chercher le probleme a l'oppose de sa cause, exactement le
+    # defaut que la docstring de `load_hall_of_fame` decrit et corrige. Resultat : la soupe partait
+    # SANS ancetre, silencieusement, en accusant la base de donnees.
     try:
-        hof = load_hall_of_fame()
-        valid_hof = [g for g in hof if g[1].num_inputs == 35]
+        _version, entries = load_hall_of_fame()
+        valid_hof = [e for e in entries if e.genome.num_inputs == 35]
     except Exception as e:
-        print(f"Erreur lors du chargement de KuzuDB: {e}")
+        print(f"Erreur lors du chargement du Hall of Fame ({type(e).__name__}): {e}")
         valid_hof = []
     
     if valid_hof:
         print(f"🧬 Chargement de {len(valid_hof)} ancêtres compatibles (V14) depuis le Hall of Fame...")
         for _ in range(num_agents):
-            parent = valid_hof[np.random.randint(len(valid_hof))][1]
+            parent = valid_hof[np.random.randint(len(valid_hof))].genome
             agent = MambaAgent(num_inputs=35, num_outputs=59, num_nodes=96)
             agent.from_genome(parent)
             agent.mutate()

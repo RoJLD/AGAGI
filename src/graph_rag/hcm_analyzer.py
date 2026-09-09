@@ -35,19 +35,33 @@ def extract_h_history(genome, num_ticks=200):
 
 def run_hcm_analysis(n_clusters=5):
     """Analyse les génomes du Hall of Fame et extrait des États Cognitifs."""
-    hof = load_hall_of_fame()
-    if not hof:
-        print("❌ Hall of Fame vide. Lancez d'abord la simulation.")
-        return
-        
-    print(f"🧠 Analyse HCM sur le meilleur génome (Score: {hof[0][0]:.1f})")
-    best_genome = hof[0][1]
-    
+    # GARDE D'ARGUMENTS, EN TETE, avant toute construction de monde : un argument degenere est une
+    # erreur d'APPEL, pas un fait sur la cognition.
+    if int(n_clusters) <= 0:
+        raise ValueError(f"run_hcm_analysis : n_clusters={n_clusters} degenere -- aucune mesure possible.")
+
+    # ⚠️ CORRIGE le 2026-09-09. Deux defauts qui rendaient cette fonction INEXECUTABLE, et que le
+    # cliquet de calibration ne pouvait pas voir : son perimetre etait ("tools", "src/seed_ai"),
+    # donc `src/graph_rag/` etait hors champ (NEUVIEME angle mort).
+    #   (1) `if not hof` sur `(version, entries)` : un 2-uplet est TOUJOURS vrai, donc la garde de
+    #       cohorte vide ne pouvait PAS lever -- un controle incapable d'echouer (classe E1) ;
+    #   (2) `hof[0][0]` visait l'entier de version -> `TypeError: 'int' object is not subscriptable`,
+    #       leve a chaque appel, sans exception.
+    _version, entries = load_hall_of_fame()
+    if not entries:
+        raise ValueError(
+            "run_hcm_analysis : Hall of Fame VIDE -- ce n'est pas un resultat sur la cognition. "
+            "Verifier HOF_PATH ; un fichier absent rend legitimement (1, []).")
+
+    print(f"🧠 Analyse HCM sur le meilleur génome (Score: {entries[0].score:.1f})")
+    best_genome = entries[0].genome
+
     h_series, actions, surprises = extract_h_history(best_genome)
-    
+
     if len(h_series) < 10:
-        print("❌ La simulation n'a pas duré assez longtemps pour extraire un HCM.")
-        return
+        raise ValueError(
+            f"run_hcm_analysis : seulement {len(h_series)} tick(s) survecu(s), il en faut 10 pour "
+            "extraire un HCM -- horizon insuffisant, PAS une absence d'etats cognitifs.")
         
     # Applatir H_history pour le clustering
     h_flat = h_series.reshape(h_series.shape[0], -1)

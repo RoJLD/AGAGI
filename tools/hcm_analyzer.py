@@ -25,13 +25,22 @@ def run_hcm_analysis(num_ticks=200, n_clusters=4):
             "ne pas confondre avec une mesure nulle OBSERVEE.")
     print("🧠 Démarrage de l'Observatoire HCM (Hidden Cognition Models)")
     
-    hof = load_hall_of_fame()
-    valid_hof = [g for g in hof if g[1].num_inputs == 32]
+    # ⚠️ CORRIGE le 2026-09-09, et c'est le defaut le plus instructif de la passe : cette fonction
+    # etait DECLAREE CALIBREE (`empty-cohort:raises`, `guard-before-world`) et ne pouvait pas
+    # s'executer. Ses deux cas n'exercent que la garde d'arguments ci-dessus, qui leve AVANT
+    # d'atteindre cette ligne -- la calibration passait sans jamais entrer dans le corps.
+    # Trois defauts de contrat : `load_hall_of_fame()` rend `(version, entries)` et non une liste ;
+    # une entree est un `AgentSnapshot` non indexable (`.genome`, `.score`) ; et le deballage
+    # `best_score, best_genome, stats = ...` supposait un triplet.
+    _version, entries = load_hall_of_fame()
+    valid_hof = [e for e in entries if e.genome.num_inputs == 32]
     if not valid_hof:
-        print("❌ Aucun génome V13 (32 entrées) trouvé dans le Hall of Fame.")
-        return
-        
-    best_score, best_genome, stats = valid_hof[0]
+        raise ValueError(
+            "run_hcm_analysis : aucun genome a 32 entrees dans le Hall of Fame "
+            f"({len(entries)} entree(s) chargee(s)) -- ce n'est PAS un resultat sur la cognition, "
+            "c'est une cohorte vide ; verifier HOF_PATH et la compatibilite de version.")
+
+    best_score, best_genome = valid_hof[0].score, valid_hof[0].genome
     print(f"✅ Chargement du Champion. Score: {best_score}")
     print(f"📊 Taille du Cerveau (N): {best_genome.num_nodes}, Entrées: {best_genome.num_inputs}, Sorties: {best_genome.num_outputs}")
     

@@ -33,6 +33,10 @@ from tools.warmstart_evolution_inworld import _torch_survival_eras  # noqa: E402
 # qu'elle n'a rien a faire la. Sans ce mecanisme, le baseline confondait « dette reelle » et « faux
 # positif », et le compteur de non-calibres ne disait pas ce qu'il annoncait.
 NOT_AN_INSTRUMENT = {
+    # 9e ELARGISSEMENT DU PERIMETRE (2026-09-09) : `src` entier + les .py de la RACINE.
+    "src/metaprog/secure_sandbox.py::run_sandboxed": "infrastructure d'execution : valide du code par une passe AST puis l'execute dans un dossier temporaire hors-repo (subprocess `python -I -S`, env scrube, timeout) et rend (ok, raison) sur la VALIDITE DU CODE. Aucune construction de monde, aucun agent, aucune grandeur mesuree ; l'affirmation porte sur du texte source, pas sur la nature. Meme justification que `is_machine_idle.py::verdict`.",
+    "test_fixes.py::run_all_tests": "script de verification ad hoc a la racine : imprime PASS/FAIL sur cinq correctifs de code et rend un booleen d'agregation. C'est un harnais de test, du meme genre que ce que contient `tests/` (deja hors perimetre) ; il n'affirme rien sur le monde ni sur un agent.",
+    "test_fixes_simple.py::run_all_tests": "variante allegee de `test_fixes.py`, meme nature : harnais de test a la racine, aucune affirmation scientifique.",
     # P2.43 (2026-09-06) : 4 helpers de la famille run_* -- aucune affirmation scientifique.
     "tools/edr_lenses.py::run_lenses": "outillage d'analyse : boucle des appels au `llm_fn` injecte et rend des textes d'interpretation etiquetes SPECULATIFS (bandeau edr_lenses.py:54-55, « ce sont des PISTES, pas des findings ») ; ne construit aucun monde, ne mesure rien, ne prononce aucun verdict ; aucun record ni backlog ne cite sa sor",
     "tools/grad_mem.py::run_bptt": "primitive numerique (forward deroule + BPTT manuel, grad_mem.py:19-65) sur W et batch fournis par l'appelant ; renvoie (loss, dW, acc) d'un batch, sans seuil, sans verdict, sans agregation, sans choix de protocole ; l'affirmation publiee (accuracy finale sur 512 tirages frais, EDR 067 tableau / EDR ",
@@ -44,6 +48,30 @@ NOT_AN_INSTRUMENT = {
 }
 
 CALIBRATED = {
+    # 9e ELARGISSEMENT DU PERIMETRE (2026-09-09) : `_SCAN_DIRS` passe de ("tools", "src/seed_ai") a
+    # ("tools", "src") + un balayage PLAT de la racine. Dette REELLE revelee, comme aux huit
+    # elargissements precedents -- et cette fois elle vise le CLIQUET LUI-MEME :
+    # `tools/hcm_analyzer.py::run_hcm_analysis` etait DECLARE CALIBRE et ne pouvait pas s'executer
+    # (TypeError ligne 29 sur le contrat de `load_hall_of_fame`). Ses deux cas -- `empty-cohort:raises`
+    # et `guard-before-world` -- n'exercent que la garde d'arguments, qui leve AVANT le corps.
+    # Mesure de l'exposition : 92 des 248 declarations (37 %) sont dans ce cas. Les cas ci-dessous
+    # ATTEIGNENT le corps ; c'est la difference qui compte, pas leur nombre.
+    # 12 cas dans tests/sandbox/test_perimeter_widening.py, aucun monde construit.
+    "src/paths.py::assert_roots_exist": [
+        "racine-absente:leve-en-NOMMANT-la-variable", "verification-CIBLEE:ne-crie-pas",
+        "aucune-racine-demandee:rend-True"],
+    "src/graph_rag/hcm_analyzer.py::run_hcm_analysis": [
+        "hof-vide:raises-pas-None", "garde-inerte-CORRIGEE:2-uplet-toujours-vrai",
+        "n_clusters-degenere:raises", "guard-before-world"],
+    "tools/hcm_analyzer.py::run_hcm_analysis": [
+        "empty-cohort:raises", "guard-before-world",
+        "CORPS-ATTEINT:contrat-du-HoF", "aucun-genome-compatible:raises-en-chiffrant"],
+    "main_curriculum.py::run_curriculum": [
+        "regime-degenere:raises", "echelle-vide:raises", "guard-before-world"],
+    "multiverse_runner.py::run_world_era": [
+        "regime-degenere:raises", "cohorte-vide:raises", "guard-before-world"],
+    "tools/curriculum_world.py::run_world_era": ["empty-cohort:raises", "guard-before-world"],
+    "tools/substrate_ab_compositional.py::run_curriculum": ["empty-cohort:raises", "guard-before-world"],
     # P4.1-MECANISME (2026-09-09) : par quel CANAL le grab coute-t-il 39 % de survie ?
     # 14 cas dans tests/sandbox/test_grab_mechanism.py, dont 12 SANS aucune simulation (gardes en
     # tete, compteur calibre par injection a dose connue, mecanisme verifie sur le CODE).
@@ -269,7 +297,6 @@ CALIBRATED = {
     "tools/language_payoff_probe.py::run_world": ["empty-cohort:raises", "guard-before-world"],
     "tools/world_demand_marker_probe.py::run_world": ["empty-cohort:raises", "guard-before-world"],
     "run_inworld_evolution": ["empty-cohort:raises", "guard-before-world"],
-    "run_world_era": ["empty-cohort:raises", "guard-before-world"],
     # P2.40 (2026-09-02) : 3e vague de gardes -- les 12 sondes rendues visibles par le 6e
     # elargissement (verbes compare_/sweep_/probe_ en tete). Garde d'arguments EN TETE, testee
     # QUE (leve) et OU (refus < 0.5 s, donc avant la construction du monde).

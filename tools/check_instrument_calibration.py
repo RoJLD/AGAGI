@@ -109,7 +109,19 @@ _INSTRUMENT_PATTERNS = (
 # FONDATEUR `champion_body` sur lequel repose la §2 de SPECIFICATION_10ANS. Second angle mort du cliquet
 # trouvé le même jour (le premier était le motif de nommage) — l'heuristique est faillible sur DEUX axes :
 # ce qu'elle cherche, et OÙ elle le cherche.
-_SCAN_DIRS = ("tools", os.path.join("src", "seed_ai"))
+# ⚠️ NEUVIEME elargissement, 2026-09-09 : `src` ENTIER (et non le seul `src/seed_ai`), plus les .py
+# de la RACINE du depot. Les deux etaient des angles morts de PERIMETRE, et les deux cachaient de la
+# dette REELLE -- comme les huit fois precedentes.
+#   * `src/` : 3 fonctions, dont `src/graph_rag/hcm_analyzer.py::run_hcm_analysis`, qui ne pouvait pas
+#     s'executer (garde `if not hof` inerte sur un 2-uplet -- classe E1 -- puis `TypeError` a chaque
+#     appel), et `src/paths.py::assert_roots_exist`, une garde deposee le jour meme et invisible.
+#   * RACINE : 4 fonctions, dont `multiverse_runner.py::run_world_era`. C'est dans ce meme fichier
+#     racine qu'un `except Exception` avalait la TypeError du contrat du HoF en imprimant « Erreur
+#     lors du chargement de KuzuDB » -- diagnostic FAUX, cause a l'oppose.
+# La racine est balayee A PLAT (pas de `os.walk`) : y descendre recursivement avalerait `frontend/`,
+# `docs/`, `.git/` et les worktrees.
+_SCAN_DIRS = ("tools", "src")
+_SCAN_ROOT_FLAT = True
 _SCAN_SKIP = ("__pycache__",)
 
 
@@ -138,6 +150,15 @@ def _iter_sources():
                 except OSError:
                     continue
                 yield os.path.relpath(os.path.join(dirpath, fn), _ROOT).replace("\\", "/"), src
+    if _SCAN_ROOT_FLAT:
+        for fn in sorted(os.listdir(_ROOT)):
+            if not fn.endswith(".py") or fn.startswith("check_"):
+                continue
+            try:
+                src = open(os.path.join(_ROOT, fn), encoding="utf-8").read()
+            except OSError:
+                continue
+            yield fn, src
 
 
 def scan_instruments():

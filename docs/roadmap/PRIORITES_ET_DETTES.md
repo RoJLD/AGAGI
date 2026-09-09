@@ -1902,6 +1902,46 @@ vers un format à schéma (les génomes sont déjà persistés en `.npz` ailleur
 la classe entière. Coût non estimé ; à faire avant toute refonte de `src/seed_ai/mutation.Genome`.
 
 
+**P2.49 — 🔴 OUVERTE (2026-09-09) — 92 des 248 instruments « calibrés » n'ont AUCUN cas qui atteigne
+leur corps : leur certification ne porte que sur leur garde d'entrée.**
+<!-- holds_when:grep_present=tests/sandbox/test_perimeter_widening.py::test_the_measured_EXPOSURE_of_head_guard_only_calibration_is_PUBLISHED -->
+Mesuré, pas supposé : `tools/hcm_analyzer.py::run_hcm_analysis` était **déclaré CALIBRÉ** et **ne
+pouvait pas s'exécuter** — `TypeError` à la ligne 29 sur le contrat de `load_hall_of_fame`, à chaque
+appel. Ses deux cas (`empty-cohort:raises`, `guard-before-world`) n'exercent que la garde d'arguments,
+qui lève AVANT. Le recompte donne **92/248 (37 %)** de déclarations dans ce cas, toutes issues de la
+**7ᵉ passe d'élargissement** (famille `run_*`, 72 fonctions, fermée « par garde d'en-tête »).
+
+Ce n'est pas dire que les 92 sont cassées — c'est dire qu'on **ne sait pas**, et que le compteur vert
+ne le dit pas. Classe **E19** (un contrôle d'une région ne calibre pas une autre région), transposée du
+RÉGIME à la RÉGION DE CODE.
+
+**Ce qu'il faudrait, et son coût.** Un cas CORPS-ATTEINT par instrument, c'est-à-dire un appel à
+arguments valides dont la réponse est connue. Pour les 57 simulateurs, cela coûte un monde (cher) ;
+pour les 14 orchestrateurs, l'**injection à dose connue** le rend gratuit — c'est la technique qui a
+déjà fermé 13 des 24 « instruments de monde ». Chantier à découper, pas à avaler d'un coup.
+**Ordre proposé** : (a) les orchestrateurs, par injection ; (b) les instruments dont un record publie
+un chiffre ; (c) le reste, ou déclaration explicite que la garde d'entrée suffit, avec sa raison.
+
+⚠️ **À ne pas confondre avec un simple manque de tests** : un instrument non calibré ne se contente pas
+d'échouer, il **PRODUIT un résultat**. Ici il n'en produisait aucun — il levait — mais l'appelant
+(`multiverse_runner`) avalait la levée dans un `except Exception` et **imprimait une cause fausse**,
+donc l'absence devenait un diagnostic.
+
+**P2.50 — ⚠️ OUVERTE (2026-09-09) — deux `hcm_analyzer` et deux `Biosphere3D` cohabitent, et les
+doublons divergent.**
+<!-- holds_when:path_present=src/graph_rag/hcm_analyzer.py -->
+`tools/hcm_analyzer.py` (2026-09-06, calibré, garde d'arguments) et `src/graph_rag/hcm_analyzer.py`
+(2026-06-04, sans garde jusqu'à ce jour) définissent tous deux `run_hcm_analysis` ; de même
+`src/environments/biosphere.py` et `src/worlds/world_1_stoneage.py` définissent tous deux
+`Biosphere3D`. Les deux `hcm_analyzer` portaient **le même défaut de contrat** et ont dû être corrigés
+séparément — c'est le coût de la duplication, payé deux fois dans la même passe. En outre
+`tools/hcm_analyzer.py` filtre sur `num_inputs == 32` (format « V13 ») alors que le HoF courant ne
+contient que du 59/64 : **il ne peut plus rien analyser**, ce que son nouveau refus chiffre désormais
+au lieu de le taire. Décision à prendre (suppression du doublon de juin, ou fusion) — non prise ici
+parce qu'une suppression dans un arbre PARTAGÉ se demande.
+
+---
+
 ## P3 — Générateurs d'erreur encore sans réponse exécutable
 
 *(⚠️ **BLOC PÉRIMÉ** : E13 est CLOSE depuis le 2026-07-28 — `tools/cost_guard.py` + `tests/sandbox/test_cost_guard.py`. Le registre n'a plus aucune classe sans garde exécutable. Conservé pour l'historique.)*
