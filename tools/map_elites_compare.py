@@ -179,6 +179,14 @@ def run_lineage_qd(seed, eras=15, num_agents=30, max_ticks=400, run_era_fn=None)
 
 
 def compare(seeds, eras=15, num_agents=30, max_ticks=400, run_era_fn=None) -> Dict:
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-09, 10e elargissement du cliquet -- le VERBE NU).
+    # Un argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une
+    # cohorte vide ou un horizon nul rend 0.0 / nan / {} que l'aval lit comme une MESURE.
+    # Posee AVANT toute construction de monde -> le refus est instantane.
+    if not list(seeds) or int(eras) <= 0 or int(num_agents) <= 0 or int(max_ticks) <= 0:
+        raise ValueError(
+            f"compare : argument degenere (seeds={seeds!r}, eras={eras}, num_agents={num_agents}, max_ticks={max_ticks}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     per_seed = []
     for seed in seeds:
         c_hof = run_lineage_hof(seed, eras, num_agents, max_ticks, run_era_fn)

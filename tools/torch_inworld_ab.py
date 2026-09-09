@@ -56,6 +56,14 @@ def run_arm(use_torch: bool, seed: int = 0, ticks: int = 200, n_agents: int = 16
 
 def compare(seeds=(0, 1, 2, 3), ticks: int = 200, n_agents: int = 16) -> dict:
     """A/B apparie legacy vs torch in-world par seed -> verdict de survie."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-09, 10e elargissement du cliquet -- le VERBE NU).
+    # Un argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une
+    # cohorte vide ou un horizon nul rend 0.0 / nan / {} que l'aval lit comme une MESURE.
+    # Posee AVANT toute construction de monde -> le refus est instantane.
+    if not list(seeds) or int(ticks) <= 0 or int(n_agents) <= 0:
+        raise ValueError(
+            f"compare : argument degenere (seeds={seeds!r}, ticks={ticks}, n_agents={n_agents}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     rows = []
     for s in seeds:
         leg = run_arm(False, seed=s, ticks=ticks, n_agents=n_agents)

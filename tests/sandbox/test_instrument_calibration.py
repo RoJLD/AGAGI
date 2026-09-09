@@ -33,6 +33,9 @@ from tools.warmstart_evolution_inworld import _torch_survival_eras  # noqa: E402
 # qu'elle n'a rien a faire la. Sans ce mecanisme, le baseline confondait « dette reelle » et « faux
 # positif », et le compteur de non-calibres ne disait pas ce qu'il annoncait.
 NOT_AN_INSTRUMENT = {
+    # 10e ELARGISSEMENT (2026-09-09) : le VERBE NU. Deux faux positifs, avec leur motif.
+    "tools/jobs/run.py::run": "primitive d'ORDONNANCEMENT : lance une commande externe en tenant un bail sur des ressources nommees, avec timeout et kill de l'arbre de processus. Elle rapporte un code de sortie et des chronos, jamais une grandeur du monde ni un verdict sur un agent. Meme justification que `is_machine_idle.py::verdict` : infrastructure.",
+    "tools/parity_check.py::classify": "classe un COMMIT (liste de fichiers + message) en EXPERIENCE / DOC / DEV a partir de chemins et d'expressions regulieres. L'affirmation porte sur l'etat du DEPOT, pas sur la nature : aucune simulation, aucun agent, aucune grandeur mesuree. Outillage de discipline de commit.",
     # 9e ELARGISSEMENT DU PERIMETRE (2026-09-09) : `src` entier + les .py de la RACINE.
     "src/metaprog/secure_sandbox.py::run_sandboxed": "infrastructure d'execution : valide du code par une passe AST puis l'execute dans un dossier temporaire hors-repo (subprocess `python -I -S`, env scrube, timeout) et rend (ok, raison) sur la VALIDITE DU CODE. Aucune construction de monde, aucun agent, aucune grandeur mesuree ; l'affirmation porte sur du texte source, pas sur la nature. Meme justification que `is_machine_idle.py::verdict`.",
     "test_fixes.py::run_all_tests": "script de verification ad hoc a la racine : imprime PASS/FAIL sur cinq correctifs de code et rend un booleen d'agregation. C'est un harnais de test, du meme genre que ce que contient `tests/` (deja hors perimetre) ; il n'affirme rien sur le monde ni sur un agent.",
@@ -48,6 +51,37 @@ NOT_AN_INSTRUMENT = {
 }
 
 CALIBRATED = {
+    # 10e ELARGISSEMENT DU PERIMETRE (2026-09-09) : le VERBE NU. Les motifs exigeaient tous un
+    # SOUFFIXE, donc le verbe seul passait : +7 noms / +22 definitions. `compare` NU vit dans 10
+    # fichiers et rend `compute_ab_verdict` -- deux de ses docstrings disent litteralement
+    # « verdict de learnabilite » et « verdict de survie ». Dans substrate_ab_compositional.py il
+    # coexistait avec `compare_gate_modes` CAPTURE, dans le meme fichier, depuis le 6e elargissement.
+    # 20 gardes d'en-tete posees, 40 cas dans _MESURES_GARDEES_8 (fires + emplacement).
+    # ⚠️ HONNETETE REQUISE, et elle est chiffree en P2.49 : ces 20 declarations sont de la famille
+    # GARDE-SEULE -- aucun de leurs cas n'atteint le corps. Elles GROSSISSENT donc la dette que la
+    # meme passe vient de mesurer, au lieu de la reduire. Les compter comme « calibrees » sans le
+    # dire serait exactement le faux vert qu'on denonce. Un cas CORPS-ATTEINT y coute un monde ;
+    # l'ordre de resorption est ecrit en P2.49.
+    "tools/anticipation_bench.py::compare": ["cohorte-vide:raises", "guard-before-world"],
+    "tools/life_score_contamination_probe.py::compare": ["cohorte-vide:raises", "guard-before-world"],
+    "tools/map_elites_compare.py::compare": ["cohorte-vide:raises", "guard-before-world"],
+    "tools/substrate_ab.py::compare": ["cohorte-vide:raises", "guard-before-world"],
+    "tools/substrate_ab_compositional.py::compare": ["cohorte-vide:raises", "guard-before-world"],
+    "tools/substrate_ab_compositional.py::sweep": ["cohorte-vide:raises", "guard-before-world"],
+    "tools/torch_binary_gate_heldout_probe.py::compare": ["cohorte-vide:raises", "guard-before-world"],
+    "tools/torch_binary_gate_probe.py::compare": ["cohorte-vide:raises", "guard-before-world"],
+    "tools/torch_gate_persist_ab.py::compare": ["cohorte-vide:raises", "guard-before-world"],
+    "tools/torch_inworld_ab.py::compare": ["cohorte-vide:raises", "guard-before-world"],
+    "tools/torch_throw_gate_inworld_ab.py::compare": ["cohorte-vide:raises", "guard-before-world"],
+    "tools/lexicon.py::measure": ["argument-degenere:raises", "guard-before-world"],
+    "tools/speaker_incentive.py::measure": ["argument-degenere:raises", "guard-before-world"],
+    "tools/transfer_ratio.py::measure": ["argument-degenere:raises", "guard-before-world"],
+    "tools/anticipation_demand_world_probe.py::probe": ["argument-degenere:raises", "guard-before-world"],
+    "tools/composition_demand_world_probe.py::probe": ["argument-degenere:raises", "guard-before-world"],
+    "tools/memory_demand_world_probe.py::probe": ["argument-degenere:raises", "guard-before-world"],
+    "tools/generalization_transfer_probe.py::run": ["argument-degenere:raises", "guard-before-world"],
+    "tools/memory_payoff_probe.py::run": ["argument-degenere:raises", "guard-before-world"],
+    "tools/s2_fallback_rate_probe.py::measured_floor": ["argument-degenere:raises", "guard-before-world"],
     # 9e ELARGISSEMENT DU PERIMETRE (2026-09-09) : `_SCAN_DIRS` passe de ("tools", "src/seed_ai") a
     # ("tools", "src") + un balayage PLAT de la racine. Dette REELLE revelee, comme aux huit
     # elargissements precedents -- et cette fois elle vise le CLIQUET LUI-MEME :
@@ -4863,6 +4897,65 @@ def test_run_orchestrators_REFUSE_degenerate_arguments(mod, nom, kw):
 
 @pytest.mark.parametrize("mod,nom,kw", _MESURES_GARDEES_7)
 def test_run_orchestrator_guards_are_placed_BEFORE_the_runs(mod, nom, kw):
+    import importlib
+    import time
+    f = getattr(importlib.import_module(mod), nom)
+    t0 = time.time()
+    with pytest.raises(ValueError):
+        f(**kw)
+    assert time.time() - t0 < 0.5, f"{nom} refuse trop lentement : la garde est posee trop bas"
+
+
+# --- 10e ELARGISSEMENT DU CLIQUET (2026-09-09) : le VERBE NU ----------------------------------------
+# Tous les motifs exigeaient un SOUFFIXE (`run_\w+`, `compare_\w+`...), donc le verbe seul passait.
+# Cout mesure AVANT application : +7 noms / +22 definitions. Ce que ca fait entrer n'est pas
+# anecdotique : `compare` NU vit dans 10 fichiers, et deux de ses docstrings disent litteralement
+# « verdict de learnabilite » (tools/substrate_ab.py) et « verdict de survie » (tools/torch_inworld_ab.py) --
+# ils rendent `compute_ab_verdict`. Pire : dans `tools/substrate_ab_compositional.py`, `compare` nu
+# coexistait avec `compare_gate_modes` CAPTURE, dans le meme fichier, depuis le 6e elargissement.
+# 20 gardes posees dans la meme passe -> le cliquet reste STRICT, baseline a zero.
+_MESURES_GARDEES_8 = [
+    ("tools.anticipation_bench", "compare", dict(seeds=())),
+    ("tools.life_score_contamination_probe", "compare", dict(seeds=())),
+    ("tools.map_elites_compare", "compare", dict(seeds=())),
+    ("tools.substrate_ab", "compare", dict(seeds=())),
+    ("tools.substrate_ab_compositional", "compare", dict(seeds=())),
+    ("tools.substrate_ab_compositional", "sweep", dict(seeds=())),
+    ("tools.torch_binary_gate_heldout_probe", "compare", dict(seeds=())),
+    ("tools.torch_binary_gate_probe", "compare", dict(seeds=())),
+    ("tools.torch_gate_persist_ab", "compare", dict(seeds=())),
+    ("tools.torch_inworld_ab", "compare", dict(seeds=())),
+    ("tools.torch_throw_gate_inworld_ab", "compare", dict(seeds=())),
+    ("tools.lexicon", "measure", dict(config=None, db=None, eras=0)),
+    ("tools.speaker_incentive", "measure", dict(config=None, db=None, eras=0)),
+    ("tools.transfer_ratio", "measure", dict(prev=None, target=None, repeats=0)),
+    ("tools.anticipation_demand_world_probe", "probe",
+     dict(body_gain=0.0, cog_gain=0.0, currency="survival", shift=1, K=0, seed=0)),
+    ("tools.composition_demand_world_probe", "probe",
+     dict(body_gain=0.0, cog_gain=0.0, currency="survival", chain_len=2, K=0, seed=0)),
+    ("tools.memory_demand_world_probe", "probe",
+     dict(body_gain=0.0, cog_gain=0.0, currency="survival", recall=1, K=0, seed=0)),
+    ("tools.generalization_transfer_probe", "run", dict(K=0, seed=0)),
+    ("tools.memory_payoff_probe", "run", dict(K=0, delay=1, lam=0.0, seed=0)),
+    ("tools.s2_fallback_rate_probe", "measured_floor", dict(cell=None, seed=0, n_eval=0)),
+]
+
+
+@pytest.mark.parametrize("mod,nom,kw", _MESURES_GARDEES_8)
+def test_the_BARE_VERB_instruments_REFUSE_a_degenerate_argument(mod, nom, kw):
+    """Ils prononcent des verdicts (learnabilite, survie, binding_gap, comp_rate, plancher) et
+    n'avaient AUCUNE garde : une cohorte vide leur faisait rendre 0.0 / nan / {} que l'aval lit comme
+    une mesure. C'est la direction CONSTANTE des defauts de ce depot : absence -> negatif de fond."""
+    import importlib
+    f = getattr(importlib.import_module(mod), nom)
+    with pytest.raises(ValueError, match="degenere"):
+        f(**kw)
+
+
+@pytest.mark.parametrize("mod,nom,kw", _MESURES_GARDEES_8)
+def test_the_BARE_VERB_guards_are_placed_BEFORE_any_world(mod, nom, kw):
+    """On ne teste pas QUE la garde leve, on teste OU elle est posee : un refus doit etre instantane.
+    Sans ce second cas, une garde placee apres la construction du monde passerait le premier."""
     import importlib
     import time
     f = getattr(importlib.import_module(mod), nom)

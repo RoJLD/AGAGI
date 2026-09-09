@@ -42,6 +42,14 @@ def _eras_to_master(ladder, keep_memory, grad_cfg, **kw):
 
 
 def measure(prev, target, repeats=1, keep_memory=True, **kw):
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-09, 10e elargissement du cliquet -- le VERBE NU).
+    # Un argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une
+    # cohorte vide ou un horizon nul rend 0.0 / nan / {} que l'aval lit comme une MESURE.
+    # Posee AVANT toute construction de monde -> le refus est instantane.
+    if int(repeats) <= 0:
+        raise ValueError(
+            f"measure : argument degenere (repeats={repeats}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     grad_cfg = GraduationConfig()
     curric, control = [], []
 

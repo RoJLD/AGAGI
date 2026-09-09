@@ -130,6 +130,14 @@ def compare(seeds=(0, 1, 2, 3), episodes=800, n_agents=64):
     Le VRAI test de binding est diff_vs_shuffle (ON vrai vs ON avec label permute fixe) : si le readout
     memorise n'importe quel label fixe (confond, revue finale C1/I1), gap_ON ~= gap_shuffle et
     diff_vs_shuffle ~= 0 malgre un diff (ON vs OFF) positif."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-09, 10e elargissement du cliquet -- le VERBE NU).
+    # Un argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une
+    # cohorte vide ou un horizon nul rend 0.0 / nan / {} que l'aval lit comme une MESURE.
+    # Posee AVANT toute construction de monde -> le refus est instantane.
+    if not list(seeds) or int(episodes) <= 0 or int(n_agents) <= 0:
+        raise ValueError(
+            f"compare : argument degenere (seeds={seeds!r}, episodes={episodes}, n_agents={n_agents}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     rows = []
     for s in seeds:
         on = run_arm(True, episodes=episodes, n_agents=n_agents, seed=s)

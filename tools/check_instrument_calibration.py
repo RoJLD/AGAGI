@@ -35,9 +35,16 @@ _BASELINE = os.path.join(_ROOT, "tools", "instrument_calibration_baseline.json")
 _CALIB_TESTS = os.path.join(_ROOT, "tests", "sandbox", "test_instrument_calibration.py")
 
 # Heuristique de nommage : formes qui produisent une affirmation scientifique.
+# ⚠️ DIXIEME elargissement, 2026-09-09 : le VERBE NU. Tous les motifs exigeaient un SOUFFIXE
+# (`run_\w+`, `compare_\w+`...), donc le verbe seul passait -- `_` est devenu `\w*`. Cout mesure
+# AVANT application : +7 noms / +22 definitions. Ce que ca fait entrer n'est pas anecdotique :
+# `compare` NU vit dans 10 fichiers, et deux de ses docstrings disent litteralement « verdict de
+# learnabilite » (tools/substrate_ab.py:135) et « verdict de survie » (tools/torch_inworld_ab.py:58) --
+# ils rendent `compute_ab_verdict`. Pire : dans `tools/substrate_ab_compositional.py`, `compare` nu
+# coexistait avec `compare_gate_modes` CAPTURE, dans le meme fichier, depuis le 6e elargissement.
 _INSTRUMENT_PATTERNS = (
     re.compile(r"^def\s+(\w*verdict\w*)\s*\(", re.M),
-    re.compile(r"^def\s+(measure_\w+)\s*\(", re.M),
+    re.compile(r"^def\s+(measure\w*)\s*\(", re.M),
     re.compile(r"^def\s+(\w+_survival_eras)\s*\(", re.M),
     re.compile(r"^def\s+(run_\w*(?:probe|diagnostic|ablation|validation)\w*)\s*\(", re.M),
     # ⚠️ QUATRIEME angle mort, trouve le 2026-09-01 : aucun motif ne couvrait `classify_*`. Or ce sont
@@ -45,7 +52,7 @@ _INSTRUMENT_PATTERNS = (
     # l'instrument detecte qui l'appelle ne fait que le relayer. Elles etaient donc ni calibrees, ni
     # meme comptees comme dette. L'heuristique est faillible sur QUATRE axes desormais connus : ce
     # qu'elle cherche, OU elle cherche, comment elle IDENTIFIE (collisions), et sous quels VERBES.
-    re.compile(r"^def\s+(classify_\w+)\s*\(", re.M),
+    re.compile(r"^def\s+(classify\w*)\s*\(", re.M),
     # Élargi le 2026-07-21 : le motif précédent ratissait moins large que sa docstring ne le promettait.
     # Trouvé en y tombant moi-même — `run_linear_sanity` (qui produit oracle/plancher/ratio/verdict) est
     # entré dans le dépôt SANS que le cliquet bronche. Le pire angle mort était `run_cog_demand_map` :
@@ -60,7 +67,7 @@ _INSTRUMENT_PATTERNS = (
     # correcte d'un champion — et était invisible ; `benchmark_discrimination` (EVO-003) l'était depuis
     # sa création. Un cliquet ne peut pas signaler ce qu'il ne sait pas NOMMER : la leçon récurrente est
     # que l'heuristique doit être élargie à chaque fois qu'un instrument réel passe à travers.
-    re.compile(r"^def\s+(benchmark_\w+)\s*\(", re.M),
+    re.compile(r"^def\s+(benchmark\w*)\s*\(", re.M),
     # ⚠️ CINQUIEME angle mort, verifie le 2026-09-02 : aucun motif ne couvrait `assert_*` -- c'est-a-dire
     # la famille des GARDES du depot elles-memes. Constat mecanique : `assert_bar_is_reachable` (livre en
     # `f7bd77e` avec ses 5 cas et sa declaration dans `CALIBRATED`) etait ABSENTE du rapport, sa
@@ -96,10 +103,10 @@ _INSTRUMENT_PATTERNS = (
     # gardees/declarees dans la meme passe -> le motif entre SANS creer un gramme de dette.
     # Ce que ces gardes NE couvrent PAS : les branches de VERDICT des 11 orchestrateurs (injection a
     # dose connue) -- dette DECLAREE au backlog, jamais masquee par la garde d'entree.
-    re.compile(r"^def\s+(run_\w+)\s*\(", re.M),
-    re.compile(r"^def\s+(compare_\w+)\s*\(", re.M),
-    re.compile(r"^def\s+(sweep_\w+)\s*\(", re.M),
-    re.compile(r"^def\s+(probe_\w+)\s*\(", re.M),
+    re.compile(r"^def\s+(run\w*)\s*\(", re.M),
+    re.compile(r"^def\s+(compare\w*)\s*\(", re.M),
+    re.compile(r"^def\s+(sweep\w*)\s*\(", re.M),
+    re.compile(r"^def\s+(probe\w*)\s*\(", re.M),
 )
 
 

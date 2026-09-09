@@ -127,6 +127,14 @@ def compare(seeds=(0, 1, 2, 3), ticks=400, warmup=200, n_agents=32,
     throw-gate route sur la VRAIE presence-spear et generalise (pas artefact : le shuffle est plat).
     base_metabolism/forage_payoff : regime energetique (defaut 1.0/1.0 = letal ; sweet EDR-085 =
     0.25/3.0 = survivable, laisse le temps au gate d'apprendre)."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-09, 10e elargissement du cliquet -- le VERBE NU).
+    # Un argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une
+    # cohorte vide ou un horizon nul rend 0.0 / nan / {} que l'aval lit comme une MESURE.
+    # Posee AVANT toute construction de monde -> le refus est instantane.
+    if not list(seeds) or int(ticks) <= 0 or int(n_agents) <= 0:
+        raise ValueError(
+            f"compare : argument degenere (seeds={seeds!r}, ticks={ticks}, n_agents={n_agents}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     rows = []
     for s in seeds:
         on = run_arm(shuffle=False, seed=s, ticks=ticks, warmup=warmup, n_agents=n_agents,

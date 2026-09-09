@@ -253,6 +253,14 @@ def compare(seeds=(0,), eras=8, num_agents=30, max_ticks=300, frac_topk=0.25):
     KuzuDB ambiante cumulative (non byte-reproductible, cf. hazard connu) ; la MESURE, elle,
     re-seede + clear la memoire donc est deterministe. Un assert dur ici tuerait un run de
     plusieurs heures pour un artefact d'ambient memory -> on enregistre le statut a la place."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-09, 10e elargissement du cliquet -- le VERBE NU).
+    # Un argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une
+    # cohorte vide ou un horizon nul rend 0.0 / nan / {} que l'aval lit comme une MESURE.
+    # Posee AVANT toute construction de monde -> le refus est instantane.
+    if not list(seeds) or int(eras) <= 0 or int(num_agents) <= 0 or int(max_ticks) <= 0:
+        raise ValueError(
+            f"compare : argument degenere (seeds={seeds!r}, eras={eras}, num_agents={num_agents}, max_ticks={max_ticks}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     rosters = {}
     per_seed = []
     reps0 = None

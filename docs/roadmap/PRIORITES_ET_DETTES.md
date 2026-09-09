@@ -1902,14 +1902,17 @@ vers un format à schéma (les génomes sont déjà persistés en `.npz` ailleur
 la classe entière. Coût non estimé ; à faire avant toute refonte de `src/seed_ai/mutation.Genome`.
 
 
-**P2.49 — 🔴 OUVERTE (2026-09-09) — 92 des 248 instruments « calibrés » n'ont AUCUN cas qui atteigne
+**P2.49 — 🔴 OUVERTE (2026-09-09) — 114 des 272 instruments « calibrés » n'ont AUCUN cas qui atteigne
 leur corps : leur certification ne porte que sur leur garde d'entrée.**
 <!-- holds_when:grep_present=tests/sandbox/test_perimeter_widening.py::test_the_measured_EXPOSURE_of_head_guard_only_calibration_is_PUBLISHED -->
 Mesuré, pas supposé : `tools/hcm_analyzer.py::run_hcm_analysis` était **déclaré CALIBRÉ** et **ne
 pouvait pas s'exécuter** — `TypeError` à la ligne 29 sur le contrat de `load_hall_of_fame`, à chaque
 appel. Ses deux cas (`empty-cohort:raises`, `guard-before-world`) n'exercent que la garde d'arguments,
-qui lève AVANT. Le recompte donne **92/248 (37 %)** de déclarations dans ce cas, toutes issues de la
-**7ᵉ passe d'élargissement** (famille `run_*`, 72 fonctions, fermée « par garde d'en-tête »).
+qui lève AVANT. Le recompte donne **114/272 (42 %)** de déclarations dans ce cas — 92/248 à la découverte, puis
+**+22 que le 10ᵉ élargissement (le VERBE NU) a ajoutées le jour même**, faute d'un cas CORPS-ATTEINT
+abordable : il y coûterait un monde. La dette s'AGGRAVE donc pendant qu'on la mesure, et c'est écrit
+ici plutôt que masqué. Origine commune : la **7ᵉ passe** (famille `run_*`, 72 fonctions) puis la
+**10ᵉ** (verbe nu, 20 fonctions), toutes deux fermées « par garde d'en-tête ».
 
 Ce n'est pas dire que les 92 sont cassées — c'est dire qu'on **ne sait pas**, et que le compteur vert
 ne le dit pas. Classe **E19** (un contrôle d'une région ne calibre pas une autre région), transposée du

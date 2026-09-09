@@ -133,6 +133,14 @@ def run_substrate_ab(backend: str, seed: int = 0, ticks: int = 200,
 
 def compare(seeds=(0, 1, 2), ticks: int = 200, n_agents: int = 8) -> dict:
     """A/B apparié legacy vs torch par seed -> verdict de learnabilité."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-09, 10e elargissement du cliquet -- le VERBE NU).
+    # Un argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une
+    # cohorte vide ou un horizon nul rend 0.0 / nan / {} que l'aval lit comme une MESURE.
+    # Posee AVANT toute construction de monde -> le refus est instantane.
+    if not list(seeds) or int(ticks) <= 0 or int(n_agents) <= 0:
+        raise ValueError(
+            f"compare : argument degenere (seeds={seeds!r}, ticks={ticks}, n_agents={n_agents}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     rows = []
     for s in seeds:
         leg = run_substrate_ab("legacy", seed=s, ticks=ticks, n_agents=n_agents)

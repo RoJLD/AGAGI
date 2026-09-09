@@ -53,6 +53,14 @@ def evolve(config, db, speaker_reward, eras, max_ticks=200):
 
 
 def measure(config, db, eras=6, max_ticks=200):
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-09, 10e elargissement du cliquet -- le VERBE NU).
+    # Un argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une
+    # cohorte vide ou un horizon nul rend 0.0 / nan / {} que l'aval lit comme une MESURE.
+    # Posee AVANT toute construction de monde -> le refus est instantane.
+    if int(eras) <= 0 or int(max_ticks) <= 0:
+        raise ValueError(
+            f"measure : argument degenere (eras={eras}, max_ticks={max_ticks}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     toks, ctxs, silent, total = [], [], 0, 0
     for _ in range(eras):
         env = _world(config, db, 0.0)        # mesure : prime off, on lit les politiques évoluées

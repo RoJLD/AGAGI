@@ -112,6 +112,14 @@ def fit_policy(body_gain, cog_gain, currency, recall, K, seed, iters=300, episod
 def probe(body_gain, cog_gain, currency, recall, K, seed, n_eval=24, ticks=300, floor=None):
     """Entraîne, puis ablate la MÉMOIRE (m→0) → verdict SURVIE. mem_weight = poids que la politique met
     sur la moitié mémoire de l'entrée."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-09, 10e elargissement du cliquet -- le VERBE NU).
+    # Un argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une
+    # cohorte vide ou un horizon nul rend 0.0 / nan / {} que l'aval lit comme une MESURE.
+    # Posee AVANT toute construction de monde -> le refus est instantane.
+    if int(K) <= 0:
+        raise ValueError(
+            f"probe : argument degenere (K={K}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     W, b = fit_policy(body_gain, cog_gain, currency, recall, K, seed, ticks=ticks)
     ev = np.random.RandomState(seed + 777)
 

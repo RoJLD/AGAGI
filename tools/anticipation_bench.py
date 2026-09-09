@@ -198,6 +198,14 @@ def compare(seeds, steps: int = 1000, verbose: bool = False) -> dict:
     Verdict : PLAN_GAGNE si médiane > 1.05 ET majorité favorable ;
               PLAN_PERD si médiane < 0.95 ; sinon NEUTRE.
     """
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-09, 10e elargissement du cliquet -- le VERBE NU).
+    # Un argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une
+    # cohorte vide ou un horizon nul rend 0.0 / nan / {} que l'aval lit comme une MESURE.
+    # Posee AVANT toute construction de monde -> le refus est instantane.
+    if not list(seeds) or int(steps) <= 0:
+        raise ValueError(
+            f"compare : argument degenere (seeds={seeds!r}, steps={steps}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     ratios = []
     for seed in seeds:
         plan = run_bench(0.5, [seed], steps, verbose=verbose)["avoidance_mean"]

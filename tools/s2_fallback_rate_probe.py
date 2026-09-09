@@ -289,6 +289,14 @@ def measured_floor(cell, seed, n_eval=N_EVAL):
     """Plancher MESURE : la politique corps-seul, meme mesureur, memes RandomState, AVANT training.
     Renvoie (mediane, les 24 vies) -- les vies servent a PROUVER que le plancher est deterministe,
     pas a l'affirmer."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-09, 10e elargissement du cliquet -- le VERBE NU).
+    # Un argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une
+    # cohorte vide ou un horizon nul rend 0.0 / nan / {} que l'aval lit comme une MESURE.
+    # Posee AVANT toute construction de monde -> le refus est instantane.
+    if int(n_eval) <= 0:
+        raise ValueError(
+            f"measured_floor : argument degenere (n_eval={n_eval}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     W0, b0 = body_only_policy(cell["K"])
     lives = [int(survive(W0, b0, "true", cell["body_gain"], cell["cog_gain"], cell["currency"],
                          cell["K"], np.random.RandomState(ls), cell["ticks"]))

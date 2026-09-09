@@ -1199,6 +1199,14 @@ def sweep(hiddens=(5, 20, 50, 100), inits=("prod", "normalized"),
     """Grille A/B legacy↔torch par cellule (hidden, init). Déduplique normalized@5 == prod@5
     (même facteur 1.0). Renvoie {cells, curve} ; curve = hit_end médian par taille et backend
     (lecture décisive A/B/C). Jamais de scalaire nu : per_seed conservé par cellule."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-09, 10e elargissement du cliquet -- le VERBE NU).
+    # Un argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une
+    # cohorte vide ou un horizon nul rend 0.0 / nan / {} que l'aval lit comme une MESURE.
+    # Posee AVANT toute construction de monde -> le refus est instantane.
+    if not list(hiddens) or not list(inits) or not list(seeds) or int(trials) <= 0 or int(n_agents) <= 0:
+        raise ValueError(
+            f"sweep : argument degenere (hiddens={hiddens!r}, inits={inits!r}, seeds={seeds!r}, trials={trials}, n_agents={n_agents}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     cells = []
     curve = {"legacy": [], "torch": []}
     seen = set()
@@ -1231,6 +1239,14 @@ def sweep(hiddens=(5, 20, 50, 100), inits=("prod", "normalized"),
 
 def compare(seeds=(0, 1, 2, 3, 4), trials: int = 100, n_agents: int = 8) -> dict:
     """A/B apparié legacy vs torch par seed -> verdict de learnabilité compositionnelle."""
+    # GARDE D'ARGUMENTS, EN TETE (2026-09-09, 10e elargissement du cliquet -- le VERBE NU).
+    # Un argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une
+    # cohorte vide ou un horizon nul rend 0.0 / nan / {} que l'aval lit comme une MESURE.
+    # Posee AVANT toute construction de monde -> le refus est instantane.
+    if not list(seeds) or int(trials) <= 0 or int(n_agents) <= 0:
+        raise ValueError(
+            f"compare : argument degenere (seeds={seeds!r}, trials={trials}, n_agents={n_agents}) -- aucune mesure possible ; "
+            "ne pas confondre avec une mesure nulle OBSERVEE.")
     rows = []
     for s in seeds:
         leg = run_compositional("legacy", seed=s, trials=trials, n_agents=n_agents)
