@@ -40,6 +40,7 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _DATA = os.path.join(_ROOT, "data", "agi_taxonomy")
 _CAPS = os.path.join(_DATA, "capabilities.json")
 _DEMANDS = os.path.join(_DATA, "demands.json")
+_REFUTED = os.path.join(_ROOT, "data", "agi_taxonomy", "refuted.json")
 _BASELINE = os.path.join(_ROOT, "tools", "agi_taxonomy_baseline.json")
 _VALID_STRENGTH = {"hard", "soft"}
 _VALID_ABLATION_TARGET = {"input", "substrate"}
@@ -195,14 +196,68 @@ def validate_against_schema(demands):
     return v
 
 
-def validate_graph(capabilities, demands):
-    """Toutes les violations du graphe (nœuds, arêtes, puis SCHÉMA publiable)."""
+_VERDICTS_REFUTES = ("NEGATIVE_NOT_MEASURABLE", "INDETERMINATE_INSTRUMENT",
+                     "NEGATIVE_NO_DEMAND", "INDETERMINATE_UNDERPOWERED")
+
+
+def validate_refuted(entree, capability_ids):
+    """Valide une arête TENTÉE ET NON ÉTABLIE (`refuted.json`).
+
+    ⚠️ POURQUOI CE FICHIER EXISTE (SP-2, 2026-09-09). `validate_edge` exige `X_DEMANDED` : le graphe
+    ne pouvait donc loger QUE du positif. Or `CLAUDE.md` prescrit l'inverse — « les résultats NÉGATIFS
+    et les auto-réfutations se gravent au même titre que les positifs » — et un record entier
+    (`EDR-LANG-MEMORY`, verdict NÉGATIF/NON-MESURABLE, qui `adopts: REF-AGI-TAXONOMY`) n'avait aucun
+    logement. La conséquence est OPÉRATOIRE : le graphe montrait trois arêtes propres et aucune trace
+    que `language←memory` a été tentée DEUX FOIS et refusée avant d'aboutir sur un AUTRE substrat.
+    Rien n'empêchait de relancer une arête déjà réfutée.
+
+    Les exigences sont symétriques de celles d'une arête établie, à une inversion près : le verdict
+    doit être un verdict de NON-ÉTABLISSEMENT. Une entrée `X_DEMANDED` est REFUSÉE ici — sa place est
+    dans `demands.json`, et l'accepter des deux côtés laisserait le graphe se contredire."""
+    v = []
+    lbl = f"{entree.get('capability')}<-{entree.get('prerequisite')}"
+    for f in ("capability", "prerequisite", "verdict", "reason", "evidence"):
+        if entree.get(f) in (None, ""):
+            v.append(f"réfutation {lbl} : champ requis manquant '{f}'")
+    if entree.get("verdict") == "X_DEMANDED":
+        v.append(f"réfutation {lbl} : verdict 'X_DEMANDED' — une arête ÉTABLIE appartient à "
+                 "demands.json, pas à refuted.json")
+    elif entree.get("verdict") not in _VERDICTS_REFUTES:
+        v.append(f"réfutation {lbl} : verdict '{entree.get('verdict')}' hors vocabulaire "
+                 f"{list(_VERDICTS_REFUTES)}")
+    for ref in ("capability", "prerequisite"):
+        if entree.get(ref) and entree[ref] not in capability_ids:
+            v.append(f"réfutation {lbl} : {ref} '{entree[ref]}' absent de capabilities.json")
+    if not isinstance(entree.get("reason"), str) or len(entree.get("reason", "").strip()) < 40:
+        v.append(f"réfutation {lbl} : `reason` manquante ou trop courte — une réfutation sans motif "
+                 "écrit ne dit pas CE QUI a échoué, donc n'empêche pas de recommencer")
+    ev = entree.get("evidence") or {}
+    if not _exists(ev.get("record")):
+        v.append(f"réfutation {lbl} : record de preuve manquant/inexistant '{ev.get('record')}'")
+    sup = entree.get("superseded_by")
+    if sup is not None and not _exists(sup):
+        v.append(f"réfutation {lbl} : `superseded_by` pointe sur un record inexistant '{sup}'")
+    return v
+
+
+def validate_graph(capabilities, demands, refuted=None):
+    """Toutes les violations du graphe (nœuds, arêtes, réfutations, puis SCHÉMA publiable)."""
     ids = {c.get("id") for c in capabilities}
     out = []
     for c in capabilities:
         out += validate_node(c)
     for e in demands:
         out += validate_edge(e, ids)
+    for r in (refuted or []):
+        out += validate_refuted(r, ids)
+    # ⚠️ Une paire ne peut pas être ÉTABLIE et RÉFUTÉE sans que la réfutation soit DÉPASSÉE : sinon
+    # le graphe se contredit en silence, et le lecteur ne sait pas laquelle des deux est à jour.
+    etablies = {(e.get("capability"), e.get("prerequisite")) for e in demands}
+    for r in (refuted or []):
+        paire = (r.get("capability"), r.get("prerequisite"))
+        if paire in etablies and not r.get("superseded_by"):
+            out.append(f"réfutation {paire[0]}<-{paire[1]} : la paire est ÉTABLIE dans demands.json "
+                       "et cette réfutation ne déclare aucun `superseded_by` — le graphe se contredit")
     out += validate_against_schema(demands)
     return out
 
@@ -222,7 +277,8 @@ def main(argv=None):
 
     caps = _load(_CAPS, [])
     demands = _load(_DEMANDS, [])
-    violations = validate_graph(caps, demands)
+    refuted = _load(_REFUTED, [])
+    violations = validate_graph(caps, demands, refuted)
 
     if args.update_baseline:
         with open(_BASELINE, "w", encoding="utf-8") as fh:
@@ -232,8 +288,9 @@ def main(argv=None):
 
     known = set(_load(_BASELINE, {"violations": []}).get("violations", []))
     nouvelles = [x for x in violations if x not in known]
-    print(f"AGI-Taxonomy : {len(caps)} capacités, {len(demands)} arêtes | "
-          f"{len(violations)} violations (dont {len(nouvelles)} NOUVELLES)")
+    print(f"AGI-Taxonomy : {len(caps)} capacités, {len(demands)} arêtes ÉTABLIES, "
+          f"{len(refuted)} RÉFUTÉES | {len(violations)} violations "
+          f"(dont {len(nouvelles)} NOUVELLES)")
     if args.report:
         for x in violations:
             print("  -", x)

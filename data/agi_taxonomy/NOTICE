@@ -1,0 +1,48 @@
+AGI-Taxonomy — provenance, licence, et ce que l'export perd
+===========================================================
+
+CE QUE CONTIENT CE RÉPERTOIRE
+-----------------------------
+`capabilities.json`, `demands.json` et `refuted.json` sont des données MESURÉES DANS CE DÉPÔT.
+Aucune ligne n'est copiée d'une base externe. Chaque arête pointe un record de ce dépôt qui porte
+sa mesure ; le cliquet `tools/check_agi_taxonomy.py` vérifie que le record EXISTE sur disque.
+Elles sont donc couvertes par la licence du dépôt (MIT, cf. `LICENSE` à la racine).
+
+CE QUI EST EMPRUNTÉ
+-------------------
+Le FORMAT — et lui seul. La forme des arêtes (`topicId` / `prerequisiteId` / `strength` / `reason`)
+et l'idée d'un DAG de prérequis à arêtes taggées viennent de `withmarbleapp/os-taxonomy`
+(Marble Skill Taxonomy), en double licence ODbL 1.0 (base) + CC BY-SA 4.0 (contenu).
+Le répertoire voisin `data/os_taxonomy/` contient une FIXTURE SYNTHÉTIQUE écrite ici, pas un extrait
+de leur base — cf. son propre NOTICE.
+
+EN QUOI CE FORK DIFFÈRE, ET POURQUOI
+------------------------------------
+os-taxonomy porte QUATRE champs par arête. Une arête d'AGI-Taxonomy en porte QUATORZE, parce qu'elle
+n'est ÉTABLIE que sous un critère d'évidence WITHIN-SUBJECT plus strict que les critères humains du
+format d'origine : ablation de la capacité prérequise CHEZ LE MÊME SUJET, verdict `X_DEMANDED`,
+n >= 12, contrôle de spécificité PASSÉ, et une barre d'émergence STRICTEMENT au-dessus du plafond
+MESURÉ d'un substrat prouvablement incapable — plafond dont la provenance doit être écrite.
+C'est ce durcissement qui est la contribution en retour envisagée (SP-4), pas les données.
+
+Le fork ajoute aussi `refuted.json`, que le format d'origine n'a pas : les arêtes TENTÉES ET NON
+ÉTABLIES y sont gravées avec leur motif et leur record. Un graphe qui ne montrerait que ses succès
+laisserait relancer indéfiniment une arête déjà réfutée — ici, `language <- memory` a été tentée
+deux fois et refusée avant d'aboutir sur un AUTRE substrat, et le graphe le dit.
+
+CE QUE L'EXPORT PERD — projection LOSSY, assumée
+------------------------------------------------
+`data/agi_taxonomy/export/` est produit par `tools/os_taxonomy_adapter.py::export_os_taxonomy`.
+Il ne conserve que les quatre champs d'os-taxonomy : TOUT le bloc `evidence` disparaît (verdict
+d'ablation, ratio, n, contrôle de spécificité, plafond de l'incapable et sa provenance), et les
+arêtes RÉFUTÉES ne sont pas exportées du tout — le format ne sait pas les exprimer.
+Pour qu'une arête exportée ne perde pas toute trace de ce qui l'établit, la provenance (record,
+ratio, n) est réinjectée dans le champ `reason`.
+
+⚠️ AVANT TOUTE PUBLICATION EFFECTIVE
+------------------------------------
+Contribuer ces arêtes EN AMONT placerait la contribution sous la licence du projet d'accueil
+(ODbL/CC BY-SA), ce qui n'est pas la licence de ce dépôt. C'est une décision du propriétaire du
+dépôt, pas une propriété du code : rien ici ne publie quoi que ce soit, l'export écrit seulement
+des fichiers locaux. Cette note existe pour que la question soit posée AVANT, et non découverte
+après.

@@ -1,0 +1,24 @@
+[
+  {
+    "capability": "language",
+    "prerequisite": "memory",
+    "verdict": "NEGATIVE_NOT_MEASURABLE",
+    "reason": "Tentative sur substrat AFFINE : la capacité `language` elle-même (composition (q+key)%K) n'émerge pas de façon fiable sur ce substrat, donc l'antécédent de l'arête est ABSENT — on ne peut pas ablater la mémoire d'une capacité qui n'existe pas. Le verdict porte sur le SUBSTRAT, pas sur l'arête : il ne dit pas que le langage n'exige pas la mémoire, il dit que ce dispositif ne pouvait pas le mesurer.",
+    "evidence": {
+      "n": 12,
+      "record": "docs/EDR/EDR-LANG-MEMORY_Language_Demands_Memory.md"
+    },
+    "superseded_by": "docs/EDR/LANG-MEMORY-EDGE_Third_Edge_Established_Language_Demands_Memory_On_Bilinear_Substrate.md"
+  },
+  {
+    "capability": "language",
+    "prerequisite": "memory",
+    "verdict": "INDETERMINATE_INSTRUMENT",
+    "reason": "Seconde tentative : les DEUX bras porteurs passent, mais le contrôle d'aliasing sature au plafond — le cas calibré E3 occ. 3 a tiré en production. Un contrôle saturé ne peut pas discriminer, donc le verdict est indéterminé d'INSTRUMENT et non de monde. Repris le jour même avec un bruit d'entrée à dose connue (p=0,15, plafond prédit 0,875, mesuré ≈0,866).",
+    "evidence": {
+      "n": 12,
+      "record": "docs/EDR/LANG-MEMORY-EDGE_Instrument_Indeterminate_Control_Saturated_At_Ceiling.md"
+    },
+    "superseded_by": "docs/EDR/LANG-MEMORY-EDGE_Third_Edge_Established_Language_Demands_Memory_On_Bilinear_Substrate.md"
+  }
+]

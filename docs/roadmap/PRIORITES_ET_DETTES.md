@@ -2380,6 +2380,25 @@ DAG de capacités *sans canal de demande in-world* est le piège « proxy 9 / in
 - **SP-2 Peupler** — convertir gates G0→G4 + arc EDR + tétralogie G4 en nœuds/arêtes v0 (force = force de
   preuve empirique). Rend le records-graph **prédictif** au lieu de descriptif. *Dépend de SP-1 ; suppose
   la forme validée par SP-3.*
+- **SP-2 — ✅ AVANCÉE le 2026-09-09 : le graphe peut enfin loger ce qu'il a RÉFUTÉ.**
+  `validate_edge` exigeait `X_DEMANDED` : le graphe ne pouvait contenir **que du positif**. Or
+  `CLAUDE.md` prescrit l'inverse — *« les résultats NÉGATIFS et les auto-réfutations se gravent au
+  même titre que les positifs »* — et un record entier ([`EDR-LANG-MEMORY`](../EDR/EDR-LANG-MEMORY_Language_Demands_Memory.md),
+  verdict NÉGATIF/NON-MESURABLE, qui `adopts: REF-AGI-TAXONOMY`) n'avait aucun logement.
+  **La conséquence était opératoire, pas esthétique** : le graphe montrait trois arêtes propres et
+  **aucune trace** que `language ← memory` a été tentée **deux fois** et refusée avant d'aboutir sur
+  un AUTRE substrat — rien n'empêchait de relancer une arête déjà réfutée.
+  Livré : `data/agi_taxonomy/refuted.json` (2 entrées, les deux tentatives) + `validate_refuted`
+  branchée sur la porte, aux exigences **symétriques** de celles d'une arête établie, à une inversion
+  près : un verdict `X_DEMANDED` y est **REFUSÉ** (sa place est `demands.json`). ⚠️ Et une paire à la
+  fois ÉTABLIE et RÉFUTÉE doit déclarer `superseded_by`, sinon le graphe **se contredit en silence**
+  et le lecteur ne sait pas laquelle des deux est à jour — contre-exemple gelé. La porte annonce
+  désormais « 3 arêtes ÉTABLIES, 2 RÉFUTÉES ».
+  **Reste ouvert** : les ~9 autres demandes within-subject mesurées sont des demandes
+  **TÂCHE→capacité**, que le schéma ne peut structurellement pas exprimer (aucun type de nœud
+  « tâche ») ; et deux nœuds mesurés manquent (anticipation 16,23×, composition 8,45×) mais à
+  **8 seeds**, sous le plancher `n ≥ 12` des arêtes. Les inscrire exigerait soit un type de nœud
+  nouveau, soit un power-up — aucun des deux n'est gratuit.
 - **SP-2 dette — ✅ CLOSE (2026-09-02 puis DURCIE le 2026-09-08), et l'entrée était PÉRIMÉE depuis six
   jours.** Elle décrivait un état où `validate_edge` « ne lit pas du tout `coord_intact` ». Vérifié :
   la porte lit `coord_intact`, `emergence_bar`, `incapable_ceiling` ET `ceiling_provenance`, et les
@@ -2404,6 +2423,19 @@ DAG de capacités *sans canal de demande in-world* est le piège « proxy 9 / in
   *Pur numpy, aucun bail, aucun run long — cheap.*
 - **SP-4 Forker/publier** — `agi-taxonomy` en fork-schéma, contribuer les critères within-subject en
   retour. *Dépend de SP-1→3.*
+- **SP-4 — 🔧 DÉBLOQUÉ le 2026-09-09, et il ne reste qu'une DÉCISION, pas un chantier.**
+  Les trois obligations techniques sont remplies : l'**exporteur** existe (SP-1 (c)), le champ
+  **`reason`** est posé, le **schéma** est resynchronisé et portant. La quatrième — le **NOTICE** —
+  est écrite : `data/agi_taxonomy/NOTICE` déclare que les données sont MESURÉES ici (donc MIT, comme
+  le dépôt), que seul le **FORMAT** est emprunté à `withmarbleapp/os-taxonomy` (ODbL 1.0 + CC BY-SA
+  4.0), que `data/os_taxonomy/` est une fixture SYNTHÉTIQUE et non un extrait de leur base, et ce que
+  l'export **PERD** (14 champs → 4 ; les arêtes réfutées ne sont pas exportables, le format ne sait
+  pas les exprimer).
+  ⚠️ **CE QUI RESTE N'EST PAS DU CODE.** Contribuer en amont placerait la contribution sous la
+  licence du projet d'accueil (ODbL/CC BY-SA), qui **n'est pas** celle de ce dépôt. C'est une
+  décision du propriétaire du dépôt : rien ici ne publie quoi que ce soit, l'export écrit des
+  fichiers **locaux**. Le NOTICE existe pour que la question soit posée AVANT, et non découverte
+  après.
 
 ---
 

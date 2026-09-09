@@ -24,7 +24,7 @@ import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
-from tools.check_agi_taxonomy import validate_edge, validate_graph  # noqa: E402
+from tools.check_agi_taxonomy import validate_edge, validate_graph, validate_refuted  # noqa: E402
 
 _ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 _DATA = os.path.join(_ROOT, "data", "agi_taxonomy")
@@ -526,3 +526,91 @@ def test_the_EXPORTER_REFUSES_an_EMPTY_graph(tmp_path):
     with _pt.raises(ValueError, match="VIDE"):
         export_os_taxonomy(dest_dir=str(tmp_path / "out"), agi_dir=str(vide))
     assert not (tmp_path / "out").exists(), "rien ne doit etre ECRIT avant le refus"
+
+
+# --- SP-2 (2026-09-09) : le graphe ne pouvait loger QUE du positif ---------------------------------
+#
+# `validate_edge` exige `X_DEMANDED` : une arete TENTEE ET NON ETABLIE n'avait aucun logement. Or
+# CLAUDE.md prescrit l'inverse -- « les resultats NEGATIFS et les auto-refutations se gravent au meme
+# titre que les positifs » -- et un record entier (`EDR-LANG-MEMORY`, verdict NEGATIF/NON-MESURABLE,
+# qui `adopts: REF-AGI-TAXONOMY`) restait dehors.
+# La consequence est OPERATOIRE : le graphe montrait trois aretes propres et AUCUNE trace que
+# `language<-memory` a ete tentee DEUX FOIS et refusee avant d'aboutir sur un AUTRE substrat.
+
+def _refutations():
+    import json
+    import os as _os
+    with open(_os.path.join(_ROOT, "data", "agi_taxonomy", "refuted.json"), encoding="utf-8") as fh:
+        return json.load(fh)
+
+
+def test_the_REFUTED_edges_are_recorded_and_VALID():
+    """NO-OP APPARIE : les refutations reelles doivent passer. Sans lui, une garde qui refuserait
+    tout passerait les contre-exemples ci-dessous sans rien mesurer."""
+    ids = {"language", "memory", "perception", "generalization"}
+    ref = _refutations()
+    assert len(ref) >= 2, "les deux tentatives de `language<-memory` doivent etre gravees"
+    for r in ref:
+        assert validate_refuted(r, ids) == [], (r["verdict"], validate_refuted(r, ids))
+
+
+def test_an_ESTABLISHED_verdict_is_REFUSED_in_the_refuted_file():
+    """⚠️ L'INVERSION QUI COMPTE. Une entree `X_DEMANDED` dans `refuted.json` ferait dire au graphe
+    une chose et son contraire ; sa place est `demands.json`. Le refus est explicite."""
+    mauvaise = dict(_refutations()[0])
+    mauvaise["verdict"] = "X_DEMANDED"
+    v = validate_refuted(mauvaise, {"language", "memory", "perception", "generalization"})
+    assert any("demands.json" in x for x in v), v
+
+
+def test_a_refutation_WITHOUT_a_written_reason_is_REFUSED():
+    """Une refutation sans motif ecrit ne dit pas CE QUI a echoue -- elle n'empeche donc pas de
+    recommencer, ce qui est sa seule raison d'etre."""
+    mauvaise = dict(_refutations()[0])
+    mauvaise["reason"] = "trop court"
+    v = validate_refuted(mauvaise, {"language", "memory", "perception", "generalization"})
+    assert any("reason" in x for x in v), v
+
+
+def test_a_pair_ESTABLISHED_and_REFUTED_must_declare_which_one_SUPERSEDES():
+    """⚠️ CONTRE-EXEMPLE GELE de la contradiction silencieuse. `language<-memory` est a la fois
+    ETABLIE (sur substrat bilineaire) et REFUTEE (sur substrat affine) : c'est LEGITIME, mais
+    seulement si la refutation declare `superseded_by`. Sans cette declaration, un lecteur du graphe
+    ne peut pas savoir laquelle des deux est a jour."""
+    import json
+    import os as _os
+    with open(_os.path.join(_ROOT, "data", "agi_taxonomy", "demands.json"), encoding="utf-8") as fh:
+        demands = json.load(fh)
+    with open(_os.path.join(_ROOT, "data", "agi_taxonomy", "capabilities.json"), encoding="utf-8") as fh:
+        caps = json.load(fh)
+    sans_sup = dict(_refutations()[0])
+    sans_sup.pop("superseded_by", None)
+    v = validate_graph(caps, demands, [sans_sup])
+    assert any("contredit" in x for x in v), v
+    # ... et AVEC la declaration, le graphe est coherent : c'est le no-op apparie.
+    assert validate_graph(caps, demands, _refutations()) == []
+
+
+def test_the_REFUTED_edges_are_NOT_exported_because_the_format_cannot_express_them():
+    """os-taxonomy n'a pas de notion d'arete refutee. L'export ne doit donc contenir QUE les aretes
+    etablies -- exporter une refutation comme une arete ordinaire inverserait son sens."""
+    import json
+    import os as _os
+
+    from tools.os_taxonomy_adapter import to_os_dependencies
+    with open(_os.path.join(_ROOT, "data", "agi_taxonomy", "demands.json"), encoding="utf-8") as fh:
+        demands = json.load(fh)
+    lignes = to_os_dependencies(demands)
+    assert len(lignes) == len(demands), "l'export ne porte que les aretes ETABLIES"
+
+
+def test_the_FORK_declares_its_provenance_and_its_licence_question():
+    """SP-4 : publier en amont placerait la contribution sous la licence du projet d'accueil
+    (ODbL/CC BY-SA), qui n'est pas celle de ce depot (MIT). Le NOTICE doit poser la question AVANT,
+    et dire ce que l'export PERD. Un fork qui ne declare pas sa provenance n'est pas publiable."""
+    import os as _os
+    p = _os.path.join(_ROOT, "data", "agi_taxonomy", "NOTICE")
+    assert _os.path.exists(p), "le fork doit porter un NOTICE"
+    txt = open(p, encoding="utf-8").read()
+    for attendu in ("os-taxonomy", "ODbL", "CC BY-SA", "MIT", "LOSSY", "refuted.json"):
+        assert attendu in txt, f"le NOTICE ne mentionne pas '{attendu}'"
