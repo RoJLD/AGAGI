@@ -96,6 +96,11 @@ def ablation_verdict(intact, ablated, weight_on_x=None,
     intact = [float(x) for x in intact]
     ablated = [float(x) for x in ablated]
     n = min(len(intact), len(ablated))
+    # ⚠️ P2.52 (2026-09-09). Les deux medianes rendaient 0.0 sur un bras VIDE : un ratio etait alors
+    # calcule et PUBLIE alors qu'aucune comparaison n'avait eu lieu. Le verdict, lui, est protege par
+    # le plancher de puissance (n = min(...) = 0 < n_floor -> INCONCLUSIVE) -- mais le RATIO, non.
+    # On rend donc les deux comptes VISIBLES plutot que de fabriquer une mediane sur du vide.
+    n_intact, n_ablated = len(intact), len(ablated)
     med_i = statistics.median(intact) if intact else 0.0
     med_a = statistics.median(ablated) if ablated else 0.0
     ratio = med_i / max(med_a, eps)
@@ -118,6 +123,22 @@ def ablation_verdict(intact, ablated, weight_on_x=None,
         verdict = "INCONCLUSIVE_DEGENERATE" if why else "X_DECOY"
     else:
         verdict = "INCONCLUSIVE"          # effet OU nul sous-puissant (n<n_floor), ou zone grise
+    # ⚠️ AMPLITUDE FABRIQUEE PAR LE PLANCHER EPSILON (P2.52, 2026-09-09). Quand le DENOMINATEUR est
+    # eteint -- bras ablate a mediane nulle, cohorte qui s'eteint -- le ratio vaut `med_i / eps`, soit
+    # 5e10 pour un intact a 50. Le SIGNE est REEL (c'est le contraste le plus tranche qui soit, et le
+    # verdict qui ne lit qu'un SEUIL reste valide) mais l'AMPLITUDE ne veut plus rien dire : elle est
+    # fixee par `eps`, pas par le monde. Mesure : `ablation_verdict([50]*12, [0]*12)` rend X_DEMANDED
+    # avec ratio = 5.0e10 et `degenerate=False`.
+    # On ne le corrige pas en silence, on l'ANNONCE -- meme remede que
+    # `cross_world_transfer` (`n_denominateurs_eteints`), qui avait deja tranche ce cas exact. Un
+    # record qui cite un ratio doit pouvoir savoir si ce ratio est une BORNE ou une mesure.
+    denominateur_eteint = bool(n_ablated and med_a <= eps)
+    bras_vide = bool(n_intact == 0 or n_ablated == 0)
     return {"ratio": float(ratio), "n": int(n), "collapse": bool(collapse),
             "decoy": bool(decoy), "corroborant": weight_on_x, "verdict": verdict,
-            "degenerate": bool(why), "why": why, "censored": censored, "inverted": bool(inverted)}
+            "degenerate": bool(why), "why": why, "censored": censored, "inverted": bool(inverted),
+            "n_intact": int(n_intact), "n_ablated": int(n_ablated),
+            "denominateur_eteint": denominateur_eteint, "bras_vide": bras_vide,
+            # `ratio_est_une_borne` : le ratio n'est pas une mesure mais une borne INFERIEURE (ou un
+            # artefact d'epsilon). A publier A COTE du ratio, jamais a la place -- le verdict tient.
+            "ratio_est_une_borne": bool(denominateur_eteint or bras_vide or censored)}

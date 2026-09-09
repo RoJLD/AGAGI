@@ -2038,6 +2038,18 @@ bras positifs.
 demande n'est détectée ») de ce qui ne tient plus (« donc c'est neutre »), et les 4 fichiers sont
 dans `ci.yml` pour que le silence ne se reforme pas.
 
+⚠️ **NEUVIÈME ROUGE de la même famille, trouvé le même jour** — `tests/test_openloop_probe.py::test_ladder_wiring`,
+lui aussi absent de la CI. Sa fixture était irréaliste sur **DEUX axes**, et le second n'a été vu
+qu'en corrigeant le premier : (1) elle rendait le **même tableau** pour l'intact et les bras ablés,
+donc des listes littéralement identiques que `_degeneracy` refuse de trancher ; (2) elle rendait des
+survies de **100** alors que le test passe `max_ticks=10` — or le module déclare `ceiling=max_ticks`,
+et la garde refusait « les DEUX bras au PLAFOND déclaré », **à juste titre** : survivre 100 ticks
+quand l'horizon en compte 10 est impossible.
+⚠️ **Correction par la FIXTURE, pas par l'attente.** L'intention des deux cas — « 3 barreaux plats →
+neutre », « un barreau s'effondre → sensible » — est valide et vaut d'être testée ; changer l'attente
+en `INDETERMINE_DEGENERATE` l'aurait perdue. Les bras diffèrent désormais légèrement à médiane égale
+(ce qu'on observe sur des flottants réels) et restent sous le plafond. Fichier branché sur la CI.
+
 ---
 
 **P2.52 — 🔴 OUVERTE (2026-09-09) — 121 agrégations rendent une CONSTANTE sur une collection VIDE :
@@ -2082,10 +2094,31 @@ désarmé, ce que son propre test affirmait déjà. Clé stabilisée en `chemin:
 cas gelés (survie au décalage, distinction de deux sites d'une même fonction, nommage de la fonction
 englobante).
 
+🔧 **(b) ENTAMÉ le 2026-09-09 par la cible de meilleur rapport records/site : `demand_marker`.**
+**11 records** citent ce module pour **2 sites** seulement — l'instrument FONDATIONNEL du dépôt, celui
+que traverse tout verdict de demande within-subject. Mesure : `ablation_verdict([50]*12, [0]*12)`
+rend **`X_DEMANDED` avec un ratio de 5,0 × 10¹⁰** et `degenerate = False`.
+
+⚠️ **Ce n'est PAS un faux verdict, et c'est ce qui rend le cas subtil.** Une cohorte ablatée qui
+s'éteint face à un intact qui survit **est** le contraste le plus tranché qui soit : le signe est
+réel, et le verdict — qui ne lit qu'un seuil — reste valide. C'est l'**AMPLITUDE** qui est fabriquée :
+`50 / 1e-9`, fixée par `eps` et non par le monde. Un record qui citerait « ratio = 5e10 » citerait un
+artefact d'epsilon comme une mesure.
+**Remède : celui que le dépôt avait DÉJÀ tranché** dans `cross_world_transfer`
+(`n_denominateurs_eteints`) — *« on ne le corrige pas en silence, on l'ANNONCE »*. L'instrument
+fondationnel, lui, ne l'avait pas. `ablation_verdict` publie désormais `denominateur_eteint`,
+`bras_vide`, `n_intact`, `n_ablated` et surtout **`ratio_est_une_borne`**, qui réunit les trois cas où
+le ratio n'est pas une mesure — dénominateur éteint, bras vide, intact censuré. Ce dernier cas était
+déjà connu (« le ratio est une borne INFÉRIEURE », dit sa docstring) : le drapeau **rejoint** ce
+savoir au lieu de le dupliquer. 4 cas gelés, dont le **no-op apparié** — sur un contraste ordinaire
+(50 vs 25) le drapeau reste FAUX, sans quoi un drapeau levé en permanence ne distinguerait rien.
+
 **Ce qui reste** : les 115 légataires. Ils ne se corrigent pas en masse — chacun demande de décider
 entre `None`/`nan` (« je ne sais pas ») et **lever** (si l'état est impossible, comme tranché pour
-`ablation.py`). **Ordre** : (b) les sites dans des instruments dont un record publie le chiffre ;
-(c) le reste.
+`ablation.py`). **Prochaines cibles de (b)**, par poids mesuré : `s2_demand.py` (10 records, 3 sites),
+`src/swarm/consensus.py` (10 records, 1 site), `substrate_world_ab.py` (6 records, 6 sites), puis les
+deux gros volumes `substrate_ab_compositional.py` (15 records, 17 sites) et `lewis_survival_sweep.py`
+(13 records, 16 sites). **(c)** le reste.
 Précédent à suivre : `tools/s2_openloop_probe.py`, corrigé avant cette passe, dont le commentaire
 explique déjà la faute — ce cliquet généralise ce correctif au lieu de le laisser isolé.
 

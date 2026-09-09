@@ -4995,3 +4995,58 @@ def test_the_BARE_VERB_guards_are_placed_BEFORE_any_world(mod, nom, kw):
     with pytest.raises(ValueError):
         f(**kw)
     assert time.time() - t0 < 0.5, f"{nom} refuse trop lentement : la garde est posee trop bas"
+
+
+# ======================================================================================================
+# P2.52 (b) (2026-09-09) : `tools/demand_marker.py::ablation_verdict` -- L'INSTRUMENT FONDATIONNEL.
+# 11 records citent ce module, pour DEUX sites de defaut fabrique seulement : le meilleur rapport
+# records/site du depot, donc la premiere cible de l'item (b).
+#
+# MESURE : `ablation_verdict([50]*12, [0]*12)` rend **X_DEMANDED avec ratio = 5.0e10** et
+# `degenerate=False`. Le SIGNE est REEL -- une cohorte ablatee qui s'eteint face a un intact qui
+# survit EST le contraste le plus tranche qui soit, et le verdict, qui ne lit qu'un SEUIL, reste
+# valide. Mais l'AMPLITUDE est fixee par `eps`, pas par le monde : 50 / 1e-9.
+#
+# Le depot avait DEJA tranche ce cas exact dans `cross_world_transfer` -- « on ne le corrige pas en
+# silence, on l'ANNONCE » (`n_denominateurs_eteints`). L'instrument FONDATIONNEL ne l'avait pas.
+# ======================================================================================================
+
+def test_ablation_verdict_ANNOUNCES_that_an_extinct_denominator_makes_the_ratio_a_BOUND():
+    """⚠️ LE CAS QUI COMPTE. Bras ablate ETEINT : le verdict tient (le signe est reel), mais le ratio
+    doit etre annonce comme une BORNE. Un record qui cite « ratio = 5e10 » citerait sinon un artefact
+    d'epsilon comme une mesure du monde."""
+    from tools.demand_marker import ablation_verdict
+    v = ablation_verdict([50.0] * 12, [0.0] * 12)
+    assert v["verdict"] == "X_DEMANDED", "le SIGNE est reel : le verdict ne doit PAS etre annule"
+    assert v["denominateur_eteint"] is True
+    assert v["ratio_est_une_borne"] is True, (
+        "le ratio vaut med_i/eps : il est fixe par epsilon, pas par le monde")
+
+
+def test_ablation_verdict_does_NOT_cry_bound_on_an_ORDINARY_contrast():
+    """NO-OP APPARIE, indispensable : un drapeau leve en permanence ne distingue rien, et serait
+    ignore des la premiere lecture. Sur un contraste ordinaire (50 vs 25), le ratio EST une mesure."""
+    from tools.demand_marker import ablation_verdict
+    v = ablation_verdict([50.0] * 12, [25.0] * 12)
+    assert v["verdict"] == "X_DEMANDED" and v["ratio"] == pytest.approx(2.0)
+    assert v["denominateur_eteint"] is False and v["ratio_est_une_borne"] is False
+
+
+def test_ablation_verdict_makes_an_EMPTY_arm_VISIBLE():
+    """Un bras VIDE produisait une mediane de 0.0, donc un ratio PUBLIE alors qu'aucune comparaison
+    n'avait eu lieu. Le VERDICT etait deja protege -- `n = min(len, len) = 0 < n_floor` -- mais le
+    ratio, non. Les comptes par bras rendent l'absence visible au lieu de la laisser deviner."""
+    from tools.demand_marker import ablation_verdict
+    v = ablation_verdict([50.0] * 12, [])
+    assert v["verdict"] == "INCONCLUSIVE", "le plancher de puissance protege deja le verdict"
+    assert v["n_intact"] == 12 and v["n_ablated"] == 0
+    assert v["bras_vide"] is True and v["ratio_est_une_borne"] is True
+
+
+def test_the_CENSORED_case_is_also_a_BOUND_and_was_already_known():
+    """Le depot savait deja qu'un intact CENSURE au plafond rend le ratio sous-estime -- « le ratio
+    est une borne INFERIEURE », dit sa docstring. Ce cas verifie que le nouveau drapeau REJOINT ce
+    savoir au lieu de le dupliquer : censure => borne, sans exception."""
+    from tools.demand_marker import ablation_verdict
+    v = ablation_verdict([300.0] * 12, [100.0] * 12, ceiling=300.0)
+    assert v["censored"] is True and v["ratio_est_une_borne"] is True

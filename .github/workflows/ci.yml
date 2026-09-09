@@ -62,6 +62,7 @@ jobs:
           tests/test_anticipation_demand_world_probe.py
           tests/test_composition_demand_world_probe.py
           tests/test_memory_demand_world_probe.py
+          tests/test_openloop_probe.py
 
       - name: Gardes-de-gardes (chaque cliquet doit pouvoir ECHOUER)
         run: >-
