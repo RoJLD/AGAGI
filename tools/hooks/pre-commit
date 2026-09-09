@@ -235,5 +235,28 @@ if [ -n "$staged_dp" ]; then
   }
 fi
 
+# 13. AGI-TAXONOMY (2026-09-09) -- la porte la plus STRICTE du depot ne tirait a AUCUN moment.
+# `check_agi_taxonomy.py` exige, pour toute arete declaree ETABLIE : un verdict `X_DEMANDED`
+# (jamais `X_DECOY`), un `incapable_ceiling` NUMERIQUE avec sa provenance ecrite (>= 20 car.), et
+# `emergence_bar > incapable_ceiling`. Ses DEUX ensembles d'exemption legataire ont ete VIDES le
+# 2026-09-08 -- elle ne tolere donc plus rien. Et elle etait branchee NULLE PART : mesure du
+# 2026-09-09, `grep -c check_agi_taxonomy tools/hooks/pre-commit` = 0 (controle positif :
+# check_bar_separation = 2), 0 dans la CI, et `tools/agi_taxonomy_baseline.json` n'existait pas.
+# Consequence : `data/agi_taxonomy/demands.json` etait editable et committable SANS controle, et la
+# non-regression des 3 aretes etablies n'etait jamais executee. Meme scenario que
+# `check_record_links` et `check_test_census` : une regression y serait SILENCIEUSE.
+# La baseline declenche la garde elle-meme (classe E4 occ. 5 : l'elargir et la committer seule ne
+# verifierait rien).
+staged_tax=$(git diff --cached --name-only --diff-filter=AMD | grep -E '^(data/agi_taxonomy/.*\.json|tools/check_agi_taxonomy\.py|tools/agi_taxonomy_baseline\.json)$')
+if [ -n "$staged_tax" ]; then
+  PYTHONIOENCODING=utf-8 python tools/check_agi_taxonomy.py || {
+    echo ""
+    echo "-> Une arete de l'AGI-Taxonomy ne porte pas sa preuve COMPLETE : verdict X_DEMANDED,"
+    echo "   incapable_ceiling numerique, ceiling_provenance ecrite, emergence_bar au-dessus du plafond."
+    echo "   OU declare la dette : python tools/check_agi_taxonomy.py --update-baseline"
+    fail=1
+  }
+fi
+
 [ "$fail" -ne 0 ] && echo "   (urgence : git commit --no-verify)"
 exit $fail

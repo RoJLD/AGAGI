@@ -40,6 +40,12 @@ jobs:
       - name: Fraicheur du backlog (liens morts, numeros doubles, chemins disparus)
         run: PYTHONIOENCODING=utf-8 python tools/check_backlog_freshness.py
 
+      # 2026-09-09 : la porte la plus STRICTE du depot (verdict X_DEMANDED obligatoire, plafond de
+      # l'incapable numerique + provenance ecrite, barre au-dessus du plafond) ne tirait NULLE PART --
+      # ni hook, ni CI, baseline inexistante. demands.json etait committable sans aucun controle.
+      - name: AGI-Taxonomy (toute arete ETABLIE porte sa preuve complete)
+        run: PYTHONIOENCODING=utf-8 python tools/check_agi_taxonomy.py
+
       - name: Gardes-de-gardes (chaque cliquet doit pouvoir ECHOUER)
         run: >-
           PYTHONIOENCODING=utf-8 python -m pytest -q --timeout=300
@@ -51,6 +57,8 @@ jobs:
           tests/sandbox/test_record_graph_completeness.py
           tests/sandbox/test_mutation_block_invariants.py
           tests/sandbox/test_mutation_index_invariants.py
+          tests/sandbox/test_agi_taxonomy_gate.py
+          tests/sandbox/test_perimeter_widening.py
 
   test-and-build:
     runs-on: ubuntu-latest

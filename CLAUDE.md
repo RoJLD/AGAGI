@@ -159,7 +159,7 @@ demandait d'éditer 26 fichiers ; `src/paths.py` porte l'indirection, porte 12) 
 `check_control_family.py` (tout runner d'une règle SCELLÉE déclare son design, donc le NOMBRE de
 cellules de sa famille de contrôles — porte 11 ; à seuil de test unique, une famille de 24 cellules
 donnait 0,216 de fausse alarme sur un harnais PARFAIT).
-**12 gardes** <!-- count:portes_hook=12 --> sont branchées sur le hook pre-commit
+**13 gardes** <!-- count:portes_hook=13 --> sont branchées sur le hook pre-commit
 (`tools/hooks/pre-commit`) — compte RECOMPUTÉ depuis le hook lui-même : la phrase « 5 cliquets, tous
 branchés » qui vivait ici était fausse.
 ⚠️ **La baseline d'un cliquet doit elle-même déclencher le hook** — sinon l'élargir et la committer seule

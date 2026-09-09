@@ -2214,19 +2214,60 @@ Livré : `tools/grab_mechanism_probe.py` (`GrabCensusMamba`, `GrabCensusWorld`, 
 aucune simulation** ; `tools/s2_demand_ablation.py::{GrabOffMamba, NullGrabOffMamba, GrabForcedMamba}` +
 6 cas dans `tests/sandbox/test_grab_cost.py`. Bruts : `results/p41_grab_mechanism{,_era1}.json`.
 
-**P4.2 — Reste du backlog WARM** (cf. `SCIENCE.md`, fil WARM) : incidence du canal né-ON sur ≥6 agents et
-≥2 seeds ; hypothèse du **canal porteur** (corrélation coût ↔ poids de W autour du nœud 88).
-*Coût : variable.*
+**P4.2 — 🔧 RÉÉCRITE le 2026-09-09 après cartographie et un PILOTE À COÛT ZÉRO. Les deux items tels
+qu'ils étaient écrits ne sont pas à lancer : l'un est périmé, l'autre a son prédicteur littéral
+mesuré NUL.**
+<!-- holds_when:path_present=results/warm007_incidence.json -->
 
-✅ **Deux sous-items FERMÉS le 2026-09-09 par P4.1-mécanisme** : les *termes résiduels du bilan
-énergétique* sont décomposés (`trace_energy_sinks`, 7 postes, bouclage à 2.3e-16, cf. P4.1) ; et le
-**bras à revenu d'inventaire réel** cesse d'être une intention pour devenir une **spécification
-chiffrée** — il exige TROIS conditions simultanées, chacune mesurée manquante :
-(a) `fruit_tree_ratio` garantissant au moins un arbre fruitier (**25/30 ères n'en ont aucun**) ;
-(b) un premier cooldown inférieur à l'espérance de vie (**219 contre 198 ticks**) ;
-(c) un grab qui puisse **choisir** sa cible (`nearby_items[0]` prend le premier de la liste, et les
-rochers y sont posés à l'initialisation). Tant que les trois manquent, « grabber nuit » restera vrai et
-sans portée — c'est la borne que WARM-008 avait déclarée et que P4.1 réplique sur un troisième banc.
+**Item (1) « incidence du canal né-ON sur ≥6 agents et ≥2 seeds » — PÉRIMÉ DANS SA LETTRE.**
+La mesure existe : `results/warm007_incidence.json`, **12 agents × 2 seeds**, avec `birth_grab`,
+`birth_on_frac`, `final_on_frac` et le ratio de survie par agent. Ce qui reste ouvert n'est pas un run
+mais une **définition** : pour le MÊME seed 2026, l'incidence vaut **3/12** au critère « le monde
+exécuterait le grab » (`on_frac > 0.5`, champ `n_born_on`) et **1/12** au critère « saturé au plafond
+de tanh » (`|grab| > 0.9`, chiffre publié par [`WARM-006`](../EDR/WARM-006_No_Grab_Drift_Unit_Of_Analysis_Artefact.md):45).
+Les deux sont exacts et répondent à deux questions différentes ; l'item ne disait pas laquelle.
+**→ à faire : déclarer le critère, pas relancer la mesure.**
+
+**Item (2) « canal porteur : corrélation coût ↔ poids de W autour du nœud 88 » — PRÉDICTEUR LITTÉRAL
+MESURÉ NUL, à coût zéro.** Le nœud est identifié et vérifié : `N=172`, `num_outputs=108`, donc
+`logits = H[N−O:]` et le logit 24 (grab) EST l'unité récurrente **88**. Sur les 24 génomes persistés
+(`results/warm007_genomes/*.npz`), contre le ratio de survie grab-off/intact :
+
+| prédicteur | rho de Spearman | p | CV entre agents |
+|---|---|---|---|
+| `Σ\|W[:, 88]\|` (entrant) — **le prédicteur littéral de WARM-008** | **−0.016** | 0.942 | **0.059** |
+| `Σ\|W[88, :]\|` (sortant) | +0.347 | 0.097 | 0.064 |
+| `Σ\|W[88, mouvement]\|` | −0.106 | 0.622 | 0.239 |
+| **`final_on_frac`** (ce que l'agent FAIT) | **+0.598** | **0.0020** | — |
+
+Deux lectures, et la seconde compte plus que la première. (a) Le prédicteur **structurel** ne prédit
+rien — et son **CV de 6 %** dit pourquoi : il ne varie presque pas d'un agent à l'autre, donc il ne
+peut quasiment pas discriminer. (b) Ce qui prédit, c'est la grandeur **fonctionnelle** : plus l'agent
+grabbe effectivement, plus lui retirer le grab paie. Signe conservé dans les DEUX seeds
+(**+0.866** p=0.0003 ; **+0.397** p=0.201), donc lisible ; **n indépendant = 2 seeds**, sous le
+`n_floor=12` — le SIGNE se lit, l'AMPLITUDE non, exactement la leçon de WARM-008.
+
+⚠️ **CE QUE CE PILOTE NE RÉFUTE PAS, et il faut le dire.** La prédiction de WARM-008 porte sur le
+**coût collatéral en `move_acc`** dans la population **bootstrap-oracle** ; ce pilote porte sur le
+**ratio de survie** dans la population **DAgger** de WARM-007. Ce ne sont ni la même variable
+dépendante ni les mêmes génomes — et les W de la population bootstrap-oracle **n'ont jamais été
+persistés** (`run_aux_off_validation` ne sauve que des scalaires). Tester la prédiction *telle
+qu'écrite* exige donc un **ré-entraînement** (~75 min pour 4 seeds) plus un patch de persistance.
+La prédiction souffre en outre d'un défaut de forme signalé dans le record lui-même : « corréler …
+chez `ag04` » — une corrélation demande des agents, pas un agent.
+
+**Ce que le pilote CONVERGE avec, et qui vaut plus que les deux items** : `final_on_frac` prédisant le
+bénéfice du grab-off est la **même dose-réponse** que la taxe de portage de
+[`EDR-GRAB-COST`](../EDR/EDR-GRAB-COST_Carry_Tax_On_Unchosen_Rocks_And_The_Feeding_Premise_Is_Refuted.md) —
+plus on ramasse, plus on porte, plus la taxe pèse, plus la retirer paie. **Deux populations
+indépendantes** (DAgger warm-start ; champion HoF évolué), **deux mondes** (banc WARM ; FamineWorld),
+**même mécanisme**. C'est le troisième point de la dose-réponse `carry`/métabolisme, après les
+2.4-9.5 % → nul de WARM-008 et les 34 % → +39 % de P4.1.
+
+**Reste réellement ouvert, et par ordre de coût :** (a) déclarer le critère d'incidence — gratuit ;
+(b) persister les W de `run_aux_off_validation` pour que la prédiction devienne testable un jour —
+un patch ; (c) le ré-entraînement lui-même — ~75 min, et à ne lancer qu'après (b), sans quoi il
+faudra le refaire. *Coût : (a) nul, (b) faible, (c) ~75 min.*
 
 **P4.3 — AGI-Taxonomy : graphe de prérequis vers un world-model, dans le format `os-taxonomy`.**
 Vision : construire, dans le format de `withmarbleapp/os-taxonomy` (DAG de prérequis à arêtes taggées
@@ -2239,6 +2280,29 @@ DAG de capacités *sans canal de demande in-world* est le piège « proxy 9 / in
 
 - **SP-1 Schéma** — transposer `schema/` + validateurs os-taxonomy en un « capability-demand graph ».
   *Socle réutilisable, faible coût, documentaire.*
+- **SP-1 branchement — ✅ CLOS le 2026-09-09, et le trou était ACTIF.** `check_agi_taxonomy.py` est
+  la porte la plus **stricte** du dépôt — verdict `X_DEMANDED` obligatoire, `incapable_ceiling`
+  numérique avec provenance écrite (≥ 20 car.), `emergence_bar > incapable_ceiling`, et ses **deux**
+  ensembles d'exemption légataire vidés le 2026-09-08. Elle ne tirait **nulle part** : mesuré,
+  `grep -c check_agi_taxonomy tools/hooks/pre-commit` = **0** (contrôle positif :
+  `check_bar_separation` = 2), **0** dans `ci.yml`, et `tools/agi_taxonomy_baseline.json`
+  **n'existait pas**. Donc `data/agi_taxonomy/demands.json` était éditable et committable **sans
+  aucun contrôle**, et la non-régression des 3 arêtes établies — pourtant écrite dans
+  `test_every_GRAVEN_edge_remains_valid_after_hardening` — n'était exécutée par rien. Même scénario
+  que `check_record_links` et `check_test_census` : une régression y aurait été **silencieuse**
+  (classe E10). Livré : **porte 13** du hook (déclencheur couvrant les données, le cliquet ET sa
+  propre baseline, classe E4 occ. 5), étape dédiée dans `ci.yml` + `test_agi_taxonomy_gate.py` et
+  `test_perimeter_widening.py` ajoutés à la liste nommée, baseline gelée à **0 violation**, et
+  **3 cas** de garde-de-la-garde (dont un contrôle POSITIF sur une porte connue branchée — sans lui,
+  un motif de grep faux rendrait le test vert par absence de correspondance).
+  <!-- holds_when:grep_present=tools/hooks/pre-commit::check_agi_taxonomy -->
+- **SP-1 résiduel — ⚠️ OUVERT.** Trois écarts mesurés restent, tous à coût de run nul :
+  (a) `data/agi_taxonomy/schema/demand.schema.json` est en retard de plusieurs durcissements sur
+  `validate_edge` et **n'est chargé par aucun code** — publier un contrat de forme que la porte
+  refuserait est pire que ne rien publier ; le resynchroniser OU l'assumer décoratif et le retirer ;
+  (b) le champ `reason` d'os-taxonomy (arêtes taggées `strength`+`reason`) n'existe nulle part ;
+  (c) `tools/os_taxonomy_adapter.py` sait **LIRE** le format, il n'existe aucun **exporteur**
+  (`capability`/`prerequisite` → `topicId`/`prerequisiteId`) — c'est lui qui débloque SP-4.
 - **SP-2 Peupler** — convertir gates G0→G4 + arc EDR + tétralogie G4 en nœuds/arêtes v0 (force = force de
   preuve empirique). Rend le records-graph **prédictif** au lieu de descriptif. *Dépend de SP-1 ; suppose
   la forme validée par SP-3.*

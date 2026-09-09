@@ -348,3 +348,63 @@ def test_the_graven_graph_STILL_PASSES_the_hardened_gate():
     with open(os.path.join(_DATA, "demands.json"), encoding="utf-8") as fh:
         dem = json.load(fh)
     assert validate_graph(caps, dem) == []
+
+
+# --- GARDE DE LA GARDE (2026-09-09) : la porte la plus stricte du depot ne tirait NULLE PART -------
+#
+# Les 23 cas ci-dessus testent la LOGIQUE de la porte, et ils la testent bien. Aucun ne testait si
+# elle est BRANCHEE. Mesure du 2026-09-09 : `grep -c check_agi_taxonomy tools/hooks/pre-commit` = 0,
+# 0 dans la CI, et `tools/agi_taxonomy_baseline.json` n'existait pas. Consequence :
+# `data/agi_taxonomy/demands.json` etait editable et committable SANS aucun controle, et la
+# non-regression des 3 aretes etablies -- verifiee par `test_every_GRAVEN_edge_remains_valid_after
+# _hardening` -- n'etait executee par rien. Meme scenario que `check_record_links` et
+# `check_test_census` : une regression y serait SILENCIEUSE. C'est la classe E10 (une regle
+# documentee sans application executable est violee).
+
+def test_the_gate_is_WIRED_into_the_pre_commit_hook():
+    """⚠️ LE CAS QUI MANQUAIT. Une porte non branchee est une porte documentee, pas une porte.
+
+    Le controle POSITIF est indispensable : sans lui, un motif de grep faux rendrait ce test vert par
+    absence de correspondance -- l'erreur exacte que ce depot traque chez ses sondes, et qu'il a
+    commise sur son propre outil de verification le 2026-09-07."""
+    import os
+    with open(os.path.join(_ROOT, "tools", "hooks", "pre-commit"), encoding="utf-8") as fh:
+        hook = fh.read()
+    assert "check_bar_separation" in hook, (
+        "CONTROLE POSITIF EN ECHEC : une porte connue comme branchee est introuvable -> le motif de "
+        "recherche est faux, et l'assertion suivante ne prouverait rien")
+    assert "check_agi_taxonomy" in hook, (
+        "la porte AGI-Taxonomy n'est plus branchee sur le hook : demands.json redevient committable "
+        "sans controle, et la non-regression des aretes etablies cesse d'etre executee")
+
+
+def test_the_BASELINE_itself_triggers_the_gate():
+    """⚠️ E4 occ. 5, mesuree sur ce depot : si la baseline d'un cliquet ne fait pas partie de son
+    declencheur, l'elargir et la committer SEULE ne verifie rien -- c'est un faux vert.
+
+    Le declencheur du hook doit donc nommer les TROIS chemins : les donnees, le cliquet, et sa
+    propre baseline."""
+    import os
+    with open(os.path.join(_ROOT, "tools", "hooks", "pre-commit"), encoding="utf-8") as fh:
+        hook = fh.read()
+    decl = [l for l in hook.splitlines() if "staged_tax=" in l]
+    assert len(decl) == 1, decl
+    for chemin in ("data/agi_taxonomy/", "check_agi_taxonomy", "agi_taxonomy_baseline"):
+        assert chemin in decl[0], f"{chemin} absent du declencheur de la porte : {decl[0]}"
+
+
+def test_the_baseline_is_FROZEN_at_zero_and_the_gate_can_still_FAIL():
+    """La baseline gelee doit valoir ZERO violation -- sinon la porte tolererait une dette dont
+    personne n'a decide. Et elle doit encore pouvoir REFUSER : un cliquet increvable est la classe E1.
+    Les deux issues sont donc verifiees dans le meme cas, sur la MEME fonction."""
+    import json
+    import os
+    p = os.path.join(_ROOT, "tools", "agi_taxonomy_baseline.json")
+    assert os.path.exists(p), "la baseline n'est pas gelee sur disque : rien ne borne la dette"
+    with open(p, encoding="utf-8") as fh:
+        base = json.load(fh)
+    assert base.get("violations") == [], f"la baseline tolere une dette non decidee : {base}"
+    # ... et la porte sait ENCORE refuser : une arete DECOY est rejetee.
+    ok = _edge(ablation_verdict="X_DECOY")
+    assert validate_edge(ok, {ok["capability"], ok["prerequisite"]}), (
+        "la porte accepte une arete DECOY : elle ne peut plus echouer (classe E1)")
