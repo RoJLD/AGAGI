@@ -1,0 +1,20 @@
+[
+  {
+    "topicId": "language",
+    "prerequisiteId": "perception",
+    "strength": "hard",
+    "reason": "Ablation within-subject de la perception sur la tache de COORDINATION : la coordination s'effondre d'un facteur 2,115 (n=12). Un locuteur qui ne lit pas l'observation ne peut pas signaler ce qu'il voit — le canal reste porteur, le message devient sans referent. [AGI-Taxonomy : ablation within-subject, ratio 2.115, n=12, docs/EDR/EDR-LANG-PERCEPTION_Coordination_Demands_Perception.md]"
+  },
+  {
+    "topicId": "memory",
+    "prerequisiteId": "perception",
+    "strength": "hard",
+    "reason": "Ablation within-subject de la perception sur la tache de RAPPEL DIFFERE : le rappel s'effondre d'un facteur 3,934 (n=12). On ne peut pas retenir ce qu'on n'a pas lu ; la memoire n'a d'objet que ce que la perception lui livre. [AGI-Taxonomy : ablation within-subject, ratio 3.934, n=12, docs/EDR/EDR-MEM-PERCEPTION_Memory_Demands_Perception.md]"
+  },
+  {
+    "topicId": "language",
+    "prerequisiteId": "memory",
+    "strength": "hard",
+    "reason": "Ablation SUBSTRAT de la memoire sur la tache de coordination : effondrement d'un facteur 4,967 (n=12), premiere arete etablie par ablation du substrat et non de l'entree. Coordonner exige de tenir l'etat du partenaire entre deux tours — sans retention, chaque tour repart de zero et le protocole ne se forme pas. [AGI-Taxonomy : ablation within-subject, ratio 4.967, n=12, docs/EDR/LANG-MEMORY-EDGE_Third_Edge_Established_Language_Demands_Memory_On_Bilinear_Substrate.md]"
+  }
+]

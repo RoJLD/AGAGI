@@ -408,3 +408,121 @@ def test_the_baseline_is_FROZEN_at_zero_and_the_gate_can_still_FAIL():
     ok = _edge(ablation_verdict="X_DECOY")
     assert validate_edge(ok, {ok["capability"], ok["prerequisite"]}), (
         "la porte accepte une arete DECOY : elle ne peut plus echouer (classe E1)")
+
+
+# --- SP-1 RESIDUEL (2026-09-09) : le schema publiable etait DECORATIF, l'export n'existait pas ------
+#
+# Trois ecarts mesures, tous a cout de run nul :
+#   (a) `data/agi_taxonomy/schema/demand.schema.json` etait en retard de QUATRE champs sur
+#       `validate_edge` (coord_intact, emergence_bar, incapable_ceiling, ceiling_provenance) et
+#       n'etait charge par AUCUN code -- motif de recherche valide sur un cas positif avant de
+#       conclure a l'absence. Publier un contrat de forme que la porte REFUSERAIT est pire que ne
+#       rien publier (classe E10) ;
+#   (b) le champ `reason` d'os-taxonomy n'existait nulle part ;
+#   (c) `tools/os_taxonomy_adapter.py` savait LIRE le format, pas l'ECRIRE -- donc SP-4 (forker et
+#       contribuer en retour) etait bloque en amont.
+
+def test_the_SCHEMA_is_now_LOAD_BEARING_and_can_REFUSE():
+    """Le schema est branche sur la porte. Contre-exemples GELES des deux formes qu'il attrape, et
+    NO-OP APPARIE sur les aretes reelles -- sans lui, un schema qui refuserait tout passerait."""
+    import json
+    import os as _os
+
+    from tools.check_agi_taxonomy import validate_against_schema
+    with open(_os.path.join(_ROOT, "data", "agi_taxonomy", "demands.json"), encoding="utf-8") as fh:
+        reelles = json.load(fh)
+    assert validate_against_schema(reelles) == [], "NO-OP : les aretes reelles doivent passer"
+
+    sans_reason = [dict(reelles[0])]
+    sans_reason[0].pop("reason")
+    assert any("reason" in v for v in validate_against_schema(sans_reason)), (
+        "le champ os-taxonomy `reason` doit etre EXIGE")
+
+    mauvaise_force = [dict(reelles[0])]
+    mauvaise_force[0]["strength"] = "tres_dur"
+    assert any("strength" in v for v in validate_against_schema(mauvaise_force))
+
+
+def test_the_SCHEMA_does_not_DRIFT_from_the_validator():
+    """⚠️ LE CLIQUET DE DERIVE, et c'est lui qui empeche le defaut de se reformer. Tout champ que
+    `validate_edge` LIT doit etre DECLARE dans le schema. Le schema avait derive de quatre champs
+    justement parce que rien ne comparait les deux ; une resynchronisation ponctuelle sans ce test
+    re-diverge a la premiere evolution."""
+    import inspect
+    import json
+    import os as _os
+    import re as _re
+
+    import tools.check_agi_taxonomy as m
+    src = inspect.getsource(m.validate_edge)
+    lus = set(_re.findall(r'(?:edge|ev)\.get\("([a-z_]+)"', src))
+    with open(_os.path.join(_ROOT, "data", "agi_taxonomy", "schema", "demand.schema.json"),
+              encoding="utf-8") as fh:
+        sch = json.load(fh)
+    declares = set(sch["properties"]) | set(sch["properties"]["evidence"]["properties"])
+    manquants = lus - declares
+    assert not manquants, (
+        f"le schema publiable a DERIVE du validateur : {sorted(manquants)} sont lus par "
+        "validate_edge et absents du schema -- publier un contrat que la porte refuserait")
+
+
+def test_the_EXPORT_to_os_taxonomy_round_trips_through_our_OWN_reader():
+    """L'export doit etre relisible par le lecteur du format que le depot possede deja. C'est
+    l'ancrage : un exporteur qui produirait un format que notre propre `subgraph_for` ne sait pas
+    lire ne serait pas un export os-taxonomy, quelles que soient ses cles."""
+    from tools.os_taxonomy_adapter import subgraph_for, to_os_dependencies, to_os_topics
+    import json
+    import os as _os
+    with open(_os.path.join(_ROOT, "data", "agi_taxonomy", "demands.json"), encoding="utf-8") as fh:
+        dem = json.load(fh)
+    with open(_os.path.join(_ROOT, "data", "agi_taxonomy", "capabilities.json"), encoding="utf-8") as fh:
+        caps = json.load(fh)
+
+    lignes = to_os_dependencies(dem)
+    assert {k for l in lignes for k in l} == {"topicId", "prerequisiteId", "strength", "reason"}, (
+        "les cles doivent etre EXACTEMENT celles d'os-taxonomy")
+    sg = subgraph_for(lignes, "language")
+    assert sorted(sg["hard"]) == ["memory", "perception"], (
+        "notre propre lecteur doit retrouver les deux aretes DURES de `language`", sg)
+
+    topics = to_os_topics(caps)
+    assert {k for t in topics for k in t} == {"id", "title"}
+    assert {t["id"] for t in topics} >= {l["topicId"] for l in lignes} | {l["prerequisiteId"] for l in lignes}, (
+        "toute arete exportee doit pointer sur un topic exporte")
+
+
+def test_the_EXPORT_carries_its_PROVENANCE_because_the_projection_is_LOSSY():
+    """os-taxonomy porte 4 champs par arete, l'AGI-Taxonomy en porte 14 : l'export PERD tout le bloc
+    `evidence`. C'est le sens meme du fork -- notre critere est plus strict que celui du format
+    cible. La provenance (record + ratio + n) est donc reinjectee dans `reason`, sinon une arete
+    exportee perdrait toute trace de ce qui l'etablit."""
+    import json
+    import os as _os
+
+    from tools.os_taxonomy_adapter import to_os_dependencies
+    with open(_os.path.join(_ROOT, "data", "agi_taxonomy", "demands.json"), encoding="utf-8") as fh:
+        dem = json.load(fh)
+    avec = to_os_dependencies(dem, with_provenance=True)
+    sans = to_os_dependencies(dem, with_provenance=False)
+    for a, s, e in zip(avec, sans, dem):
+        assert e["evidence"]["record"] in a["reason"], "le record doit survivre a la projection"
+        assert str(e["evidence"]["n"]) in a["reason"]
+        assert len(a["reason"]) > len(s["reason"]), "la provenance doit AJOUTER, jamais remplacer"
+
+
+def test_the_EXPORTER_REFUSES_an_EMPTY_graph(tmp_path):
+    """GARDE EN TETE. Un graphe vide n'est pas un export, c'est une PERTE -- et deux fichiers JSON
+    vides se lisent en aval comme « la taxonomie ne contient rien ». C'est la direction constante des
+    defauts de ce depot : absence -> affirmation NEGATIVE."""
+    import json
+
+    import pytest as _pt
+
+    from tools.os_taxonomy_adapter import export_os_taxonomy
+    vide = tmp_path / "agi"
+    vide.mkdir()
+    (vide / "capabilities.json").write_text("[]", encoding="utf-8")
+    (vide / "demands.json").write_text("[]", encoding="utf-8")
+    with _pt.raises(ValueError, match="VIDE"):
+        export_os_taxonomy(dest_dir=str(tmp_path / "out"), agi_dir=str(vide))
+    assert not (tmp_path / "out").exists(), "rien ne doit etre ECRIT avant le refus"

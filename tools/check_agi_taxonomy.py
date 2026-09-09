@@ -165,14 +165,45 @@ def validate_edge(edge, capability_ids):
     return v
 
 
+_SCHEMA = os.path.join(_ROOT, "data", "agi_taxonomy", "schema", "demand.schema.json")
+
+
+def validate_against_schema(demands):
+    """Confronte chaque arête au SCHÉMA PUBLIABLE, en plus des règles de `validate_edge`.
+
+    ⚠️ Pourquoi ce branchement existe (SP-1 résiduel, 2026-09-09). Le schéma était en retard de
+    QUATRE champs sur le validateur (`coord_intact`, `emergence_bar`, `incapable_ceiling`,
+    `ceiling_provenance`) et **n'était chargé par AUCUN code** — mesuré, motif de recherche validé
+    sur un cas positif. Publier un contrat de forme que la porte refuserait est pire que ne rien
+    publier : c'est exactement la classe E10 (une règle documentée sans application exécutable est
+    violée). Le schéma est maintenant PORTANT, et sa parité avec `validate_edge` est elle-même testée.
+
+    `jsonschema` absent -> on le DIT et on ne valide pas, plutôt que de rendre une liste vide qu'un
+    appelant lirait comme « le schéma est respecté »."""
+    try:
+        import jsonschema
+    except ImportError:
+        return ["schéma NON vérifié : `jsonschema` absent — ce n'est PAS un schéma respecté"]
+    with open(_SCHEMA, encoding="utf-8") as fh:
+        sch = json.load(fh)
+    v = []
+    for e in demands:
+        lbl = f"{e.get('capability')}<-{e.get('prerequisite')}"
+        for err in sorted(jsonschema.Draft7Validator(sch).iter_errors(e), key=str):
+            chemin = "/".join(str(x) for x in err.absolute_path) or "(racine)"
+            v.append(f"arête {lbl} : schéma violé en '{chemin}' — {err.message}")
+    return v
+
+
 def validate_graph(capabilities, demands):
-    """Toutes les violations du graphe (nœuds puis arêtes)."""
+    """Toutes les violations du graphe (nœuds, arêtes, puis SCHÉMA publiable)."""
     ids = {c.get("id") for c in capabilities}
     out = []
     for c in capabilities:
         out += validate_node(c)
     for e in demands:
         out += validate_edge(e, ids)
+    out += validate_against_schema(demands)
     return out
 
 

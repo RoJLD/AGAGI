@@ -1,54 +1,57 @@
 [
- {
-  "capability": "language",
-  "prerequisite": "perception",
-  "strength": "hard",
-  "evidence": {
-   "ablation_verdict": "X_DEMANDED",
-   "ratio": 2.115,
-   "n": 12,
-   "functional_aliasing": "n/a",
-   "specificity_control": "pass",
-   "record": "docs/EDR/EDR-LANG-PERCEPTION_Coordination_Demands_Perception.md",
-   "coord_intact": 0.34375,
-   "emergence_bar": 0.1989,
-   "incapable_ceiling": 0.1836,
-   "ceiling_provenance": "plafond d'un agent NON ENTRAINE (zero episode, meme monde, meme eval) sur ce bras, mesure au REGIME PUBLIE (flip_p=0.3, K=6), MAX sur 12 seeds, plus une erreur-type d'echantillonnage (n_eval=640) : tools/perception_coordination_demand_probe.py::_untrained_ceiling, mesure du 2026-09-08"
+  {
+    "capability": "language",
+    "prerequisite": "perception",
+    "strength": "hard",
+    "evidence": {
+      "ablation_verdict": "X_DEMANDED",
+      "ratio": 2.115,
+      "n": 12,
+      "functional_aliasing": "n/a",
+      "specificity_control": "pass",
+      "record": "docs/EDR/EDR-LANG-PERCEPTION_Coordination_Demands_Perception.md",
+      "coord_intact": 0.34375,
+      "emergence_bar": 0.1989,
+      "incapable_ceiling": 0.1836,
+      "ceiling_provenance": "plafond d'un agent NON ENTRAINE (zero episode, meme monde, meme eval) sur ce bras, mesure au REGIME PUBLIE (flip_p=0.3, K=6), MAX sur 12 seeds, plus une erreur-type d'echantillonnage (n_eval=640) : tools/perception_coordination_demand_probe.py::_untrained_ceiling, mesure du 2026-09-08"
+    },
+    "reason": "Ablation within-subject de la perception sur la tache de COORDINATION : la coordination s'effondre d'un facteur 2,115 (n=12). Un locuteur qui ne lit pas l'observation ne peut pas signaler ce qu'il voit — le canal reste porteur, le message devient sans referent."
+  },
+  {
+    "capability": "memory",
+    "prerequisite": "perception",
+    "strength": "hard",
+    "evidence": {
+      "ablation_verdict": "X_DEMANDED",
+      "ratio": 3.934,
+      "n": 12,
+      "functional_aliasing": "n/a",
+      "specificity_control": "pass",
+      "record": "docs/EDR/EDR-MEM-PERCEPTION_Memory_Demands_Perception.md",
+      "coord_intact": 0.6547,
+      "emergence_bar": 0.2431,
+      "incapable_ceiling": 0.2266,
+      "ceiling_provenance": "plafond d'un agent NON ENTRAINE (zero episode, meme monde, meme eval) sur ce bras, mesure au REGIME PUBLIE (flip_p=0.3, K=6), MAX sur 12 seeds, plus une erreur-type d'echantillonnage (n_eval=640) : tools/memory_perception_demand_probe.py::_untrained_ceiling, mesure du 2026-09-08"
+    },
+    "reason": "Ablation within-subject de la perception sur la tache de RAPPEL DIFFERE : le rappel s'effondre d'un facteur 3,934 (n=12). On ne peut pas retenir ce qu'on n'a pas lu ; la memoire n'a d'objet que ce que la perception lui livre."
+  },
+  {
+    "capability": "language",
+    "prerequisite": "memory",
+    "strength": "hard",
+    "evidence": {
+      "ablation_verdict": "X_DEMANDED",
+      "ratio": 4.967,
+      "n": 12,
+      "specificity_control": "pass",
+      "functional_aliasing": "pass",
+      "ablation_target": "substrate",
+      "coord_intact": 0.819,
+      "emergence_bar": 0.5,
+      "record": "docs/EDR/LANG-MEMORY-EDGE_Third_Edge_Established_Language_Demands_Memory_On_Bilinear_Substrate.md",
+      "incapable_ceiling": 0.1859,
+      "ceiling_provenance": "plafond d'un agent NON ENTRAINE (zero episode, meme monde, meme eval) sur le bras LANG, mesure au REGIME PUBLIE (D=0, K=6, substrat BILINEAIRE, 16 agents), MAX sur 12 seeds : 0.1859 (mediane 0.1648). Ce n'est PAS le niveau de chance 1/K=0.1667 mais ce qu'atteint REELLEMENT un agent sans competence a ce regime. tools/language_memory_demand_probe.py, mesure du 2026-09-08"
+    },
+    "reason": "Ablation SUBSTRAT de la memoire sur la tache de coordination : effondrement d'un facteur 4,967 (n=12), premiere arete etablie par ablation du substrat et non de l'entree. Coordonner exige de tenir l'etat du partenaire entre deux tours — sans retention, chaque tour repart de zero et le protocole ne se forme pas."
   }
- },
- {
-  "capability": "memory",
-  "prerequisite": "perception",
-  "strength": "hard",
-  "evidence": {
-   "ablation_verdict": "X_DEMANDED",
-   "ratio": 3.934,
-   "n": 12,
-   "functional_aliasing": "n/a",
-   "specificity_control": "pass",
-   "record": "docs/EDR/EDR-MEM-PERCEPTION_Memory_Demands_Perception.md",
-   "coord_intact": 0.6547,
-   "emergence_bar": 0.2431,
-   "incapable_ceiling": 0.2266,
-   "ceiling_provenance": "plafond d'un agent NON ENTRAINE (zero episode, meme monde, meme eval) sur ce bras, mesure au REGIME PUBLIE (flip_p=0.3, K=6), MAX sur 12 seeds, plus une erreur-type d'echantillonnage (n_eval=640) : tools/memory_perception_demand_probe.py::_untrained_ceiling, mesure du 2026-09-08"
-  }
- },
- {
-  "capability": "language",
-  "prerequisite": "memory",
-  "strength": "hard",
-  "evidence": {
-   "ablation_verdict": "X_DEMANDED",
-   "ratio": 4.967,
-   "n": 12,
-   "specificity_control": "pass",
-   "functional_aliasing": "pass",
-   "ablation_target": "substrate",
-   "coord_intact": 0.819,
-   "emergence_bar": 0.5,
-   "record": "docs/EDR/LANG-MEMORY-EDGE_Third_Edge_Established_Language_Demands_Memory_On_Bilinear_Substrate.md",
-   "incapable_ceiling": 0.1859,
-   "ceiling_provenance": "plafond d'un agent NON ENTRAINE (zero episode, meme monde, meme eval) sur le bras LANG, mesure au REGIME PUBLIE (D=0, K=6, substrat BILINEAIRE, 16 agents), MAX sur 12 seeds : 0.1859 (mediane 0.1648). Ce n'est PAS le niveau de chance 1/K=0.1667 mais ce qu'atteint REELLEMENT un agent sans competence a ce regime. tools/language_memory_demand_probe.py, mesure du 2026-09-08"
-  }
- }
 ]

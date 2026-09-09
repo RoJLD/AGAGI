@@ -1,0 +1,18 @@
+[
+  {
+    "id": "perception",
+    "title": "Perception (lecture de l'observation)"
+  },
+  {
+    "id": "memory",
+    "title": "Mémoire (rappel différé)"
+  },
+  {
+    "id": "language",
+    "title": "Langage référentiel / coordination"
+  },
+  {
+    "id": "generalization",
+    "title": "Généralisation (compétence causale)"
+  }
+]

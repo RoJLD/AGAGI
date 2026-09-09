@@ -1,23 +1,103 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "AGI-Taxonomy demand edge (Y demands X)",
+  "description": "Arete de PREREQUIS entre capacites-demandes in-world. Fork du format os-taxonomy (topicId/prerequisiteId/strength/reason), durci par un critere d'evidence WITHIN-SUBJECT : une arete n'est ETABLIE que si l'ablation de la capacite prerequise effondre la capacite dependante CHEZ LE MEME SUJET. Chaque champ requis ici correspond a une regle EXECUTEE par tools/check_agi_taxonomy.py::validate_edge ; la parite entre les deux est elle-meme testee (tests/sandbox/test_agi_taxonomy_gate.py), sans quoi ce fichier redeviendrait decoratif.",
   "type": "object",
-  "required": ["capability", "prerequisite", "strength", "evidence"],
+  "additionalProperties": false,
+  "required": [
+    "capability",
+    "prerequisite",
+    "strength",
+    "reason",
+    "evidence"
+  ],
   "properties": {
-    "capability": {"type": "string"},
-    "prerequisite": {"type": "string"},
-    "strength": {"enum": ["hard", "soft"]},
+    "capability": {
+      "type": "string",
+      "description": "id de la capacite DEPENDANTE (os-taxonomy : topicId)"
+    },
+    "prerequisite": {
+      "type": "string",
+      "description": "id de la capacite PREREQUISE (os-taxonomy : prerequisiteId)"
+    },
+    "strength": {
+      "enum": [
+        "hard",
+        "soft"
+      ]
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 40,
+      "description": "POURQUOI le prerequis tient, en langue naturelle (champ os-taxonomy)"
+    },
     "evidence": {
       "type": "object",
-      "required": ["ablation_verdict", "ratio", "n", "functional_aliasing", "record"],
+      "additionalProperties": false,
+      "required": [
+        "ablation_verdict",
+        "ratio",
+        "n",
+        "functional_aliasing",
+        "specificity_control",
+        "record",
+        "coord_intact",
+        "emergence_bar",
+        "incapable_ceiling",
+        "ceiling_provenance"
+      ],
       "properties": {
-        "ablation_verdict": {"type": "string"},
-        "ratio": {"type": "number"},
-        "n": {"type": "integer"},
-        "functional_aliasing": {"enum": ["pass", "n/a"]},
-        "specificity_control": {"enum": ["pass", "fail"]},
-        "ablation_target": {"enum": ["input", "substrate"]},
-        "record": {"type": "string"}
+        "ablation_verdict": {
+          "const": "X_DEMANDED",
+          "description": "seul X_DEMANDED etablit une arete ; X_DECOY est un LEURRE"
+        },
+        "ratio": {
+          "type": "number",
+          "exclusiveMinimum": 1.0
+        },
+        "n": {
+          "type": "integer",
+          "minimum": 12,
+          "description": "plancher de puissance du depot (n_floor) : sous 12, un effet CLASSE LE BRUIT"
+        },
+        "functional_aliasing": {
+          "enum": [
+            "pass",
+            "n/a"
+          ],
+          "description": "'n/a' est REFUSE quand ablation_target vaut 'substrate'"
+        },
+        "specificity_control": {
+          "const": "pass"
+        },
+        "ablation_target": {
+          "enum": [
+            "input",
+            "substrate"
+          ],
+          "default": "input"
+        },
+        "record": {
+          "type": "string",
+          "description": "chemin d'un record EXISTANT : la porte verifie sa presence sur disque"
+        },
+        "coord_intact": {
+          "type": "number",
+          "description": "performance du bras INTACT ; doit etre >= emergence_bar"
+        },
+        "emergence_bar": {
+          "type": "number",
+          "description": "barre d'emergence ; doit etre STRICTEMENT au-dessus de incapable_ceiling"
+        },
+        "incapable_ceiling": {
+          "type": "number",
+          "description": "plafond MESURE d'un substrat prouvablement incapable de la tache"
+        },
+        "ceiling_provenance": {
+          "type": "string",
+          "minLength": 20,
+          "description": "d'ou vient le plafond : sans provenance ecrite, une barre ne separe rien"
+        }
       }
     }
   }

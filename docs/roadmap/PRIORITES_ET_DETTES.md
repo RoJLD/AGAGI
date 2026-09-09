@@ -2355,13 +2355,28 @@ DAG de capacités *sans canal de demande in-world* est le piège « proxy 9 / in
   **3 cas** de garde-de-la-garde (dont un contrôle POSITIF sur une porte connue branchée — sans lui,
   un motif de grep faux rendrait le test vert par absence de correspondance).
   <!-- holds_when:grep_present=tools/hooks/pre-commit::check_agi_taxonomy -->
-- **SP-1 résiduel — ⚠️ OUVERT.** Trois écarts mesurés restent, tous à coût de run nul :
-  (a) `data/agi_taxonomy/schema/demand.schema.json` est en retard de plusieurs durcissements sur
-  `validate_edge` et **n'est chargé par aucun code** — publier un contrat de forme que la porte
-  refuserait est pire que ne rien publier ; le resynchroniser OU l'assumer décoratif et le retirer ;
-  (b) le champ `reason` d'os-taxonomy (arêtes taggées `strength`+`reason`) n'existe nulle part ;
-  (c) `tools/os_taxonomy_adapter.py` sait **LIRE** le format, il n'existe aucun **exporteur**
-  (`capability`/`prerequisite` → `topicId`/`prerequisiteId`) — c'est lui qui débloque SP-4.
+- **SP-1 résiduel — ✅ CLOS le 2026-09-09, les trois écarts fermés à coût de run nul.**
+  (a) **Schéma resynchronisé ET rendu PORTANT.** Il était en retard de **quatre** champs sur
+  `validate_edge` (`coord_intact`, `emergence_bar`, `incapable_ceiling`, `ceiling_provenance`) et
+  **n'était chargé par aucun code** — motif de recherche validé sur un cas positif avant de conclure
+  à l'absence. Publier un contrat de forme que la porte refuserait est pire que ne rien publier
+  (classe **E10**). `validate_against_schema` est branchée dans `validate_graph` (jsonschema, présent),
+  et refuse effectivement une arête sans `reason` ou à `strength` invalide. ⚠️ Surtout, un **cliquet
+  de dérive** (`test_the_SCHEMA_does_not_DRIFT_from_the_validator`) exige que tout champ lu par
+  `validate_edge` soit déclaré au schéma : sans lui, une resynchronisation ponctuelle re-diverge à la
+  première évolution — c'est exactement ce qui s'était produit.
+  (b) **Champ `reason` posé sur les 3 arêtes**, en langue naturelle, disant POURQUOI le prérequis
+  tient (et non seulement qu'il est mesuré). Requis par le schéma.
+  (c) **Exporteur écrit** : `to_os_topics`, `to_os_dependencies`, `export_os_taxonomy` produisent
+  `data/agi_taxonomy/export/{topics,dependencies}.json` aux clés EXACTES d'os-taxonomy. **Ancrage** :
+  l'export est relu par le lecteur du format que le dépôt possédait déjà (`subgraph_for`), qui
+  retrouve `['memory', 'perception']` comme prérequis durs de `language`.
+  ⚠️ **La projection est LOSSY, et c'est le sens du fork** : os-taxonomy porte 4 champs par arête,
+  l'AGI-Taxonomy en porte 14 — tout le bloc `evidence` (verdict d'ablation, ratio, n, contrôle de
+  spécificité, plafond de l'incapable et sa provenance) disparaît à l'export. La provenance est donc
+  réinjectée dans `reason`, sinon une arête exportée perdrait toute trace de ce qui l'établit.
+  Garde en tête de l'exporteur : un graphe VIDE est **refusé** — deux JSON vides se liraient en aval
+  comme « la taxonomie ne contient rien ». **9 cas** ajoutés (31 au total sur la porte).
 - **SP-2 Peupler** — convertir gates G0→G4 + arc EDR + tétralogie G4 en nœuds/arêtes v0 (force = force de
   preuve empirique). Rend le records-graph **prédictif** au lieu de descriptif. *Dépend de SP-1 ; suppose
   la forme validée par SP-3.*
