@@ -121,12 +121,19 @@ def run_arm(shuffle=False, seed=0, ticks=400, warmup=200, n_agents=32, respawn_p
             "throw_rate": float((spear_thr + nospear_thr) / tot_n) if tot_n else 0.0}
 
 
-def compare(seeds=(0, 1, 2, 3), ticks=400, warmup=200, n_agents=32,
+def compare(seeds=(0, 1, 2, 3, 4), ticks=400, warmup=200, n_agents=32,
             base_metabolism=1.0, forage_payoff=1.0):
     """A/B apparie ON vs SHUFFLE par seed -> verdict. diff = gap_ON - gap_SHUFFLE. diff>0 = le
     throw-gate route sur la VRAIE presence-spear et generalise (pas artefact : le shuffle est plat).
     base_metabolism/forage_payoff : regime energetique (defaut 1.0/1.0 = letal ; sweet EDR-085 =
     0.25/3.0 = survivable, laisse le temps au gate d'apprendre)."""
+    # ⚠️ DEFAUT RELEVE A 5 le 2026-09-09 (P2.49). `compute_ab_verdict` exige la bande ET le
+    # test de signe ; en separation PARFAITE `sign_p = 2 x 0.5^n`, donc n >= 5 est NECESSAIRE
+    # pour qu'un verdict positif soit seulement POSSIBLE. Le defaut precedent etait SOUS ce
+    # plancher : quelle que soit l'amplitude, il ne pouvait rendre que NEUTRE -- un bras qui
+    # ne peut pas reussir (classe E2). Depenser 3 ou 4 seeds pour n'apprendre RIEN coute plus
+    # cher que 5 pour apprendre quelque chose : ce relevement est cout-POSITIF.
+    # Les appelants qui passent leurs seeds explicitement sont inchanges (les records le font).
     # GARDE D'ARGUMENTS, EN TETE (2026-09-09, 10e elargissement du cliquet -- le VERBE NU).
     # Un argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une
     # cohorte vide ou un horizon nul rend 0.0 / nan / {} que l'aval lit comme une MESURE.
@@ -149,7 +156,7 @@ def compare(seeds=(0, 1, 2, 3), ticks=400, warmup=200, n_agents=32,
     return {"rows": rows, "verdict": compute_ab_verdict(rows, band=0.02)}
 
 
-def compare_debias(seeds=(0, 1, 2, 3), ticks=400, warmup=200, n_agents=32, respawn_p=0.5,
+def compare_debias(seeds=(0, 1, 2, 3, 4), ticks=400, warmup=200, n_agents=32, respawn_p=0.5,
                    base_metabolism=0.25, forage_payoff=3.0, energy=80.0, spear_weight=2.0):
     """EDR-NAV-005 in-world : experience APPARIEE biaise (-0.5, EDR-172) vs non-biaise (0.0). Pour
     chaque bras, verdict ON-vs-SHUFFLE via compute_ab_verdict (le shuffle est le temoin d'artefact).
@@ -186,7 +193,7 @@ def compare_debias(seeds=(0, 1, 2, 3), ticks=400, warmup=200, n_agents=32, respa
             "info": info}
 
 
-def compare_density(seeds=(0, 1, 2, 3), ticks=400, warmup=200, n_agents=32, respawn_p=0.5,
+def compare_density(seeds=(0, 1, 2, 3, 4), ticks=400, warmup=200, n_agents=32, respawn_p=0.5,
                     base_metabolism=0.25, forage_payoff=3.0, energy=250.0, spear_weight=2.0,
                     antisat=None):
     """EDR-173-suite in-world : experience APPARIEE credit SPARSE (hit binaire, EDR-173) vs DENSE
@@ -284,7 +291,7 @@ def _collect_warm_direction(seed=0, ticks=40, n_agents=30, respawn_p=0.06, base_
     return (d / nrm * scale), b.detach()
 
 
-def compare_warmstart(seeds=(0, 1, 2, 3), ticks=150, warmup=90, n_agents=30, respawn_p=0.06,
+def compare_warmstart(seeds=(0, 1, 2, 3, 4), ticks=150, warmup=90, n_agents=30, respawn_p=0.06,
                       base_metabolism=0.05, forage_payoff=3.0, energy=250.0, spear_weight=2.0,
                       antisat=0.3, scale=3.0, collect_ticks=40):
     """Warm-start in-world (test de retention/hysteresis, analogue 167). COLD (_throw_w=0, EDR-173)
@@ -328,7 +335,7 @@ def compare_warmstart(seeds=(0, 1, 2, 3), ticks=150, warmup=90, n_agents=30, res
             "info": info}
 
 
-def compare_rp_sweep(seeds=(0, 1, 2, 3), prey_levels=(15, 60, 150), ticks=120, warmup=30, n_agents=30,
+def compare_rp_sweep(seeds=(0, 1, 2, 3, 4), prey_levels=(15, 60, 150), ticks=120, warmup=30, n_agents=30,
                      respawn_p=0.06, base_metabolism=0.05, forage_payoff=3.0, energy=250.0,
                      spear_weight=2.0, antisat=0.3):
     """CONTROLE POSITIF de l'arc 172-175 : dose-reponse densite de proies (=> P(hit) => r.P) -> binding.

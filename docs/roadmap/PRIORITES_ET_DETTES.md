@@ -1942,18 +1942,30 @@ qu'un ordre de découverte :
   relecture ne distingue ces deux mondes ; un **compte** les sépare. Vérifié aussi : l'agrégation est
   une moyenne sur les ères (dose connue 2/4/6 → 4.0 exact) et le pool est bien *vivants **et** morts*
   (ne compter que les survivants biaiserait vers le bras que l'ablation est censée dégrader).
-  ⚠️ **DÉFAUT RÉEL GELÉ plutôt que masqué** : la ligne `np.mean([...]) if pool else 0.0` fait rendre
-  **0.0 proie** sur un pool VIDE — que l'aval lit comme « l'ablation a supprimé le foraging ». C'est
-  la forme (a) des trois documentées (entrée vide → verdict de fond), et le test montre qu'un pool
-  vide et une cohorte qui n'a **vraiment** rien mangé rendent le **même chiffre**. Le cas est rare
-  (il faut `agents` ET `dead_agents` vides), ce qui explique sa survie. **Le corriger changerait la
-  signature de retour de l'instrument le plus cité du dépôt — c'est une décision, pas un détail** :
-  inscrite ici, non prise unilatéralement.
+  ✅ **DÉFAUT CORRIGÉ le 2026-09-09 (décision prise).** La ligne `np.mean([...]) if pool else 0.0`
+  rendait **0.0 proie** sur un pool VIDE — que l'aval lit comme « l'ablation a supprimé le foraging »,
+  forme (a) des trois documentées. Le test montrait qu'un pool vide et une cohorte qui n'a **vraiment**
+  rien mangé rendaient le **même chiffre**. **Décision : LEVER**, et voici pourquoi c'est la bonne et
+  non `nan` ni une moyenne sur les ères restantes — `dead_agents` est initialisé à `[]` puis alimenté
+  à **chaque mort**, et `num_agents` est déjà gardé en tête : un pool vide est donc une **anomalie de
+  harnais, impossible en fonctionnement normal**, pas un état du monde. Pour un état qui ne peut pas
+  se produire, l'échec bruyant est la bonne réponse — et les **trois** appelants dépaquettent un
+  2-uplet, donc lever **ne change aucune signature**. Le no-op apparié est gelé : une cohorte qui n'a
+  vraiment rien mangé se mesure **encore** à zéro.
 - **`substrate_ab.py::compare` (16 records)** — l'appariement est le dispositif : les DEUX backends
   doivent tourner sur CHAQUE seed, sans quoi la différence par ligne mélangerait des mondes
-  différents. ⚠️ Et il porte le **défaut de design le plus sévère de la famille** : son défaut est de
-  **3 seeds**, où `sign_p = 0,25` — plus du double du seuil. Aucune amplitude n'y produit un verdict
-  positif.
+  différents.
+  ✅ **DÉFAUT DE DESIGN CORRIGÉ le 2026-09-09 (décision prise), sur les SIX fonctions concernées.**
+  `substrate_ab.compare` était à **3 seeds** (`sign_p = 0,25`, plus du double du seuil) et cinq autres
+  à **4**. Tous relevés à **5**, le plus petit n conclusif. ⚠️ **Le relèvement est coût-POSITIF** :
+  dépenser 3 ou 4 seeds pour n'apprendre **rien** coûte plus cher que 5 pour apprendre quelque chose.
+  Les appelants qui passent leurs seeds explicitement sont inchangés — et les records le font tous.
+  Indice qui a guidé la décision : `substrate_ab_compositional` était **déjà à 5**, donc quelqu'un
+  l'avait su sans le généraliser. **Cliquet posé** :
+  `test_EVERY_ab_bench_DEFAULT_is_AT_OR_ABOVE_its_own_power_floor` lit le plancher **à la source**
+  (`compute_ab_verdict` le calcule en forme close), donc il suivra un changement de `sign_alpha` ;
+  et le fait historique est gelé à part, pour qu'il continue de dire **pourquoi** la correction était
+  nécessaire — sans punir la correction.
 - **`substrate_ab_compositional.py::compare` et `::sweep` (15 records chacun)** — le banc qui porte le
   KPI `binding_gap`/`comp_rate` de la porte G2. `sweep` déduplique par (hidden, facteur d'init), car
   `normalized` à l'ancrage vaut **exactement** `prod`. La dédup est légitime, mais un `seen` trop

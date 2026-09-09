@@ -150,8 +150,15 @@ def run_substrate_ab(backend: str, seed: int = 0, ticks: int = 200,
         TorchPopulationModel.BILINEAR = saved_bilinear
 
 
-def compare(seeds=(0, 1, 2), ticks: int = 200, n_agents: int = 8) -> dict:
+def compare(seeds=(0, 1, 2, 3, 4), ticks: int = 200, n_agents: int = 8) -> dict:
     """A/B apparié legacy vs torch par seed -> verdict de learnabilité."""
+    # ⚠️ DEFAUT RELEVE A 5 le 2026-09-09 (P2.49). `compute_ab_verdict` exige la bande ET le
+    # test de signe ; en separation PARFAITE `sign_p = 2 x 0.5^n`, donc n >= 5 est NECESSAIRE
+    # pour qu'un verdict positif soit seulement POSSIBLE. Le defaut precedent etait SOUS ce
+    # plancher : quelle que soit l'amplitude, il ne pouvait rendre que NEUTRE -- un bras qui
+    # ne peut pas reussir (classe E2). Depenser 3 ou 4 seeds pour n'apprendre RIEN coute plus
+    # cher que 5 pour apprendre quelque chose : ce relevement est cout-POSITIF.
+    # Les appelants qui passent leurs seeds explicitement sont inchanges (les records le font).
     # GARDE D'ARGUMENTS, EN TETE (2026-09-09, 10e elargissement du cliquet -- le VERBE NU).
     # Un argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une
     # cohorte vide ou un horizon nul rend 0.0 / nan / {} que l'aval lit comme une MESURE.

@@ -54,8 +54,15 @@ def run_arm(use_torch: bool, seed: int = 0, ticks: int = 200, n_agents: int = 16
             "n_agents": n0, "survival": float(survival)}
 
 
-def compare(seeds=(0, 1, 2, 3), ticks: int = 200, n_agents: int = 16) -> dict:
+def compare(seeds=(0, 1, 2, 3, 4), ticks: int = 200, n_agents: int = 16) -> dict:
     """A/B apparie legacy vs torch in-world par seed -> verdict de survie."""
+    # ⚠️ DEFAUT RELEVE A 5 le 2026-09-09 (P2.49). `compute_ab_verdict` exige la bande ET le
+    # test de signe ; en separation PARFAITE `sign_p = 2 x 0.5^n`, donc n >= 5 est NECESSAIRE
+    # pour qu'un verdict positif soit seulement POSSIBLE. Le defaut precedent etait SOUS ce
+    # plancher : quelle que soit l'amplitude, il ne pouvait rendre que NEUTRE -- un bras qui
+    # ne peut pas reussir (classe E2). Depenser 3 ou 4 seeds pour n'apprendre RIEN coute plus
+    # cher que 5 pour apprendre quelque chose : ce relevement est cout-POSITIF.
+    # Les appelants qui passent leurs seeds explicitement sont inchanges (les records le font).
     # GARDE D'ARGUMENTS, EN TETE (2026-09-09, 10e elargissement du cliquet -- le VERBE NU).
     # Un argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une
     # cohorte vide ou un horizon nul rend 0.0 / nan / {} que l'aval lit comme une MESURE.
@@ -75,7 +82,7 @@ def compare(seeds=(0, 1, 2, 3), ticks: int = 200, n_agents: int = 16) -> dict:
 
 
 if __name__ == "__main__":
-    seeds = tuple(int(x) for x in os.environ.get("TIA_SEEDS", "0,1,2,3").split(","))
+    seeds = tuple(int(x) for x in os.environ.get("TIA_SEEDS", "0,1,2,3,4").split(","))
     ticks = int(os.environ.get("TIA_TICKS", "200"))
     agents = int(os.environ.get("TIA_AGENTS", "16"))
     out = compare(seeds=seeds, ticks=ticks, n_agents=agents)

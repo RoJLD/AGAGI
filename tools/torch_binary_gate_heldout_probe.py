@@ -116,10 +116,17 @@ def _run_arm_pinned(shuffle_reward=False, train_ep=1200, test_ep=100, n_agents=1
             "throw_rate_heldout": float(np.mean(th))}
 
 
-def compare(seeds=(0, 1, 2, 3), train_ep=1200, test_ep=100, n_agents=128):
+def compare(seeds=(0, 1, 2, 3, 4), train_ep=1200, test_ep=100, n_agents=128):
     """A/B apparie held-out : gap(ON vrai) vs gap(SHUFFLE label de recompense) par seed -> verdict.
     diff>0 sur held-out = le gate binaire binde un contexte PRESENT, generalise, et est SPECIFIQUE
     (pas de memorisation, distinct du shuffle)."""
+    # ⚠️ DEFAUT RELEVE A 5 le 2026-09-09 (P2.49). `compute_ab_verdict` exige la bande ET le
+    # test de signe ; en separation PARFAITE `sign_p = 2 x 0.5^n`, donc n >= 5 est NECESSAIRE
+    # pour qu'un verdict positif soit seulement POSSIBLE. Le defaut precedent etait SOUS ce
+    # plancher : quelle que soit l'amplitude, il ne pouvait rendre que NEUTRE -- un bras qui
+    # ne peut pas reussir (classe E2). Depenser 3 ou 4 seeds pour n'apprendre RIEN coute plus
+    # cher que 5 pour apprendre quelque chose : ce relevement est cout-POSITIF.
+    # Les appelants qui passent leurs seeds explicitement sont inchanges (les records le font).
     # GARDE D'ARGUMENTS, EN TETE (2026-09-09, 10e elargissement du cliquet -- le VERBE NU).
     # Un argument degenere est une erreur d'APPEL, pas un fait sur le monde : sans elle, une
     # cohorte vide ou un horizon nul rend 0.0 / nan / {} que l'aval lit comme une MESURE.

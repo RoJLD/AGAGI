@@ -1723,33 +1723,36 @@ def test_run_condition_reads_the_pool_as_ALIVE_PLUS_DEAD(monkeypatch):
                                           proies)
 
 
-def test_run_condition_RETURNS_ZERO_on_an_EMPTY_pool_and_that_is_a_FABRICATED_negative(monkeypatch):
-    """⚠️ DEFAUT REEL, GELE PLUTOT QUE MASQUE. La ligne est
-    `np.mean([...]) if pool else 0.0` : un pool VIDE ne rend pas « inconnu » mais **0.0 proie**, que
-    l'aval lit comme « l'ablation a supprime le foraging » -- la forme (a) des trois documentees dans
-    CLAUDE.md (entree vide -> verdict de fond).
+def test_run_condition_REFUSES_an_EMPTY_pool_instead_of_FABRICATING_a_zero(monkeypatch):
+    """⚠️ DEFAUT REEL CORRIGE le 2026-09-09, sur l'instrument le plus cite du depot (61 records).
 
-    Le cas est RARE (il faut `agents` ET `dead_agents` vides a la fin), ce qui explique qu'il ait
-    survecu : il ne se produit pas dans les 61 records existants, ou la cohorte est toujours peuplee.
-    Ce test FIGE le comportement actuel et le NOMME, pour qu'un futur lecteur sache que ce 0.0 n'est
-    pas une mesure. Le corriger changerait la signature de retour de l'instrument le plus cite du
-    depot -- c'est une decision, pas un detail : inscrite au backlog plutot que prise ici."""
+    AVANT : `np.mean([...]) if pool else 0.0` -- un pool VIDE rendait **0.0 proie**, que l'aval lit
+    comme « l'ablation a supprime le foraging ». Forme (a) des trois documentees dans CLAUDE.md
+    (entree vide -> verdict de fond), et INDISCERNABLE d'une cohorte qui n'a vraiment rien mange :
+    les deux rendaient le meme chiffre.
+
+    POURQUOI LEVER, et pas rendre `nan` ni moyenner sur les eres restantes : `dead_agents` est
+    initialise a [] puis alimente a CHAQUE mort, et `num_agents` est deja garde en tete. Un pool vide
+    est donc une ANOMALIE DE HARNAIS, impossible en fonctionnement normal -- pas un etat du monde.
+    Pour un etat qui ne peut pas se produire, l'echec bruyant est la bonne reponse ; et les trois
+    appelants depaquettent un 2-uplet, donc lever ne change aucune signature."""
     class _Vide(_EnvFactice):
         def step(self):
             self.agents, self.dead_agents = [], []      # cohorte EVAPOREE : pool vide
 
-    envs = [_Vide()]
-    mod = _injecte_ablation(monkeypatch, envs)
-    proies, _ = mod.run_condition(None, None, lambda e: None, n_eras=1, num_agents=3, max_ticks=2)
-    assert proies == 0.0, "comportement ACTUEL fige"
-    # ... et c'est bien indiscernable d'une vraie mesure a zero proie :
-    envs2 = [_EnvFactice(proies=0.0)]
-    mod = _injecte_ablation(monkeypatch, envs2)
-    vraie_mesure, _ = mod.run_condition(None, None, lambda e: None, n_eras=1, num_agents=3, max_ticks=5)
-    assert vraie_mesure == proies, (
-        "un pool VIDE et une cohorte qui n'a VRAIMENT rien mange rendent le MEME chiffre : "
-        "l'instrument ne peut pas les distinguer, et son appelant non plus")
+    mod = _injecte_ablation(monkeypatch, [_Vide()])
+    with pytest.raises(ValueError, match="INTROUVABLE"):
+        mod.run_condition(None, None, lambda e: None, n_eras=1, num_agents=3, max_ticks=2)
 
+
+def test_a_cohort_that_TRULY_ate_nothing_is_STILL_measured_as_zero(monkeypatch):
+    """NO-OP APPARIE, et il est indispensable : une garde qui refuserait TOUT pool ecraserait un vrai
+    zero, qui est une mesure LEGITIME. La correction doit distinguer les deux -- c'est tout son
+    objet."""
+    envs = [_EnvFactice(proies=0.0)]
+    mod = _injecte_ablation(monkeypatch, envs)
+    proies, _ = mod.run_condition(None, None, lambda e: None, n_eras=1, num_agents=3, max_ticks=5)
+    assert proies == 0.0, "une cohorte qui n'a VRAIMENT rien mange se mesure encore a zero"
 
 # ======================================================================================================
 # P2.49 (2026-09-09) : LA FAMILLE `substrate_ab` -- 16 records pour `substrate_ab.py`, 15 pour
@@ -1783,17 +1786,50 @@ def test_substrate_ab_compare_PAIRS_the_two_backends_on_the_SAME_seed(monkeypatc
     assert out["verdict"] == "GRADIENT_GAGNE" and out["peut_conclure"] is True, out
 
 
-def test_substrate_ab_compare_at_its_DEFAULT_3_seeds_can_conclude_NOTHING(monkeypatch):
-    """⚠️ `substrate_ab.compare` a le DEFAUT LE PLUS BAS du depot : 3 seeds. En separation parfaite
-    `sign_p` y vaut 0.25, tres au-dessus du seuil 0.1 -- aucune amplitude ne peut y produire un
-    verdict positif. C'est le meme defaut de DESIGN que la famille `compare -> run_arm`, en pire."""
-    import tools.substrate_ab as mod
-    _stub_delegue(monkeypatch, mod, "run_substrate_ab", {"legacy": 0.1, "torch": 0.9})
-    out = mod.compare(ticks=5, n_agents=2)                      # seeds par DEFAUT
-    assert len(out["per_seed"]) == 3, "le defaut est bien de 3 seeds"
-    assert out["median_diff"] == pytest.approx(0.8, rel=1e-12), "l'effet est ENORME..."
-    assert out["verdict"] == "NEUTRE", "...et le verdict ne peut pas etre positif a 3 seeds"
-    assert out["peut_conclure"] is False and out["underpowered"] is True, out
+def test_the_HISTORICAL_defect_is_frozen_a_3_seed_design_can_conclude_NOTHING():
+    """⚠️ FAIT HISTORIQUE GELE, en forme close et sans dependre d'aucun defaut courant.
+    Jusqu'au 2026-09-09, `substrate_ab.compare` tournait par defaut a 3 SEEDS -- ou `sign_p` vaut
+    0,25, plus du DOUBLE du seuil 0,1. Aucune amplitude n'y produisait un verdict positif : un bras
+    qui ne peut pas reussir (classe E2). Cinq autres `compare` etaient a 4.
+
+    Ce test fige le FAIT, pas le defaut : il ne lit aucun defaut d'argument, donc il ne punit pas la
+    correction -- il continuera de dire pourquoi elle etait necessaire."""
+    from tools.substrate_ab import compute_ab_verdict
+    for n in (3, 4):
+        v = compute_ab_verdict([{"diff": 0.9}] * n, band=0.02)   # separation PARFAITE, effet ENORME
+        assert v["verdict"] == "NEUTRE", (n, v)
+        assert v["peut_conclure"] is False and v["underpowered"] is True, (n, v)
+
+
+def test_EVERY_ab_bench_DEFAULT_is_AT_OR_ABOVE_its_own_power_floor():
+    """⚠️ LE CLIQUET, et c'est lui qui empeche le defaut de revenir. Un defaut d'argument SOUS le
+    plancher de puissance de sa propre fonction de verdict est un piege : l'appelant qui accepte le
+    defaut obtient un NEUTRE garanti, et depense du calcul pour n'apprendre RIEN.
+
+    On lit le plancher a la SOURCE (`compute_ab_verdict` le calcule en forme close) plutot que de
+    l'ecrire en dur : si `sign_alpha` changeait, le plancher suivrait et ce test avec lui."""
+    import importlib
+    import inspect
+
+    from tools.substrate_ab import compute_ab_verdict
+    plancher = compute_ab_verdict([{"diff": 1.0}], band=0.02)["n_min_positif"]
+    assert plancher >= 2, plancher
+
+    bancs = [("tools.substrate_ab", "compare"), ("tools.substrate_ab_compositional", "compare"),
+             ("tools.substrate_ab_compositional", "sweep"), ("tools.torch_inworld_ab", "compare"),
+             ("tools.torch_binary_gate_probe", "compare"),
+             ("tools.torch_binary_gate_heldout_probe", "compare"),
+             ("tools.torch_gate_persist_ab", "compare"),
+             ("tools.torch_throw_gate_inworld_ab", "compare")]
+    fautifs = []
+    for m, n in bancs:
+        f = getattr(importlib.import_module(m), n)
+        d = inspect.signature(f).parameters["seeds"].default
+        if d is inspect.Parameter.empty or len(d) < plancher:
+            fautifs.append((f"{m}.{n}", d, plancher))
+    assert not fautifs, (
+        "des bancs A/B ont un defaut de seeds SOUS leur propre plancher de puissance : a ces "
+        "reglages, aucune amplitude ne peut produire un verdict positif", fautifs)
 
 
 def test_compositional_compare_reads_the_dose_and_keeps_per_seed(monkeypatch):

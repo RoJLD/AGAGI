@@ -56,7 +56,23 @@ def run_condition(config, db, apply_fn, n_eras=5, num_agents=30, max_ticks=200):
             env.step()
             t += 1
         pool = env.agents + env.dead_agents          # PAS de save HoF : mesure pure, pop fixe
-        proies.append(np.mean([a.get("preys_eaten", 0) for a in pool]) if pool else 0.0)
+        # ⚠️ DECISION du 2026-09-09 (P2.49), sur l'instrument le plus cite du depot (61 records).
+        # La ligne rendait `0.0` sur un pool VIDE -- que l'aval lit comme « l'ablation a supprime le
+        # foraging ». C'est la forme (a) des trois documentees dans CLAUDE.md : entree vide ->
+        # verdict de fond. Et c'etait INDISCERNABLE d'une cohorte qui n'a vraiment rien mange : les
+        # deux rendaient le meme chiffre, pour l'instrument comme pour son appelant.
+        # POURQUOI LEVER plutot que rendre `nan` ou moyenner sur les eres restantes : `dead_agents`
+        # est initialise a [] puis alimente a CHAQUE mort (world_1_stoneage.py:1633), et `num_agents`
+        # est deja garde en tete. Un pool vide est donc une ANOMALIE DE HARNAIS, impossible en
+        # fonctionnement normal -- pas un etat du monde. Pour un etat qui ne peut pas se produire,
+        # l'echec bruyant est la bonne reponse ; et les 3 appelants depaquettent un 2-uplet, donc
+        # lever ne change AUCUNE signature.
+        if not pool:
+            raise ValueError(
+                f"run_condition : cohorte INTROUVABLE a la fin de l'ere (ni vivants ni morts, "
+                f"num_agents={num_agents}) -- ce n'est PAS une mesure a zero proie, c'est une "
+                "anomalie de harnais ; ne pas confondre avec une ablation qui supprime le foraging.")
+        proies.append(np.mean([a.get("preys_eaten", 0) for a in pool]))
         mammo.append(env.big_kills)
         if hasattr(env, "memory_retriever"):
             env.memory_retriever.stop()

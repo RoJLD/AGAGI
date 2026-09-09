@@ -226,7 +226,14 @@ explicite, jamais le processus courant ni ses ancêtres, jamais un bail dont le 
   replace rend `""`, le fichier est écrasé par du vide — **sans exception, sans avertissement**.
   Mesuré le 2026-09-09 : `PRIORITES_ET_DETTES.md` est passé de **2352 lignes à 0** et a été committé.
   Forme correcte : **LIRE dans une variable, transformer, puis ÉCRIRE** — et faire porter à toute
-  réécriture de fichier une **assertion de TAILLE avant d'écrire**. ⚠️ Et l'aval n'a rien dit : les
+  réécriture de fichier une **assertion de TAILLE avant d'écrire**.
+  ⚠️ **ET L'ASSERTION DE TAILLE NE SUFFIT PAS** — récidive le jour même, 3 h plus tard, sur un
+  autre mécanisme : `s = s[:i] + NOUVEAU` lit bien dans une variable, puis **jette toute la
+  queue du fichier**. Quatre tests ont disparu et la suite est restée VERTE (77 passés) parce
+  qu'elle ne compte pas ce qui manque. Ce qu'il faut asserter n'est pas la taille mais un
+  **COMPTE DE L'ENTITÉ** — nombre de `def test`, d'entrées de backlog, d'arêtes — et il doit
+  être **>= au compte d'AVANT**, pris **hors de l'artefact modifié** (`git show HEAD:fichier`).
+  Un découpage par index est la forme la plus dangereuse : il ne lève jamais. ⚠️ Et l'aval n'a rien dit : les
   **12 portes** du hook sont passées sur le fichier vide, `check_backlog_freshness` a rendu `exit 0`
   et a *invité* à resserrer sa baseline dessus. Seul le `2372 deletions` de la sortie de `git commit`
   l'a révélé — **lire le compte de suppressions de chaque commit** (classe E22 occ. 2).
