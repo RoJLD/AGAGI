@@ -160,6 +160,35 @@ def scan(only=None):
     return trouve
 
 
+# ⚠️ SITES DECLARES NON-MESURE (2026-09-09, trouve en UTILISANT le cliquet). Toutes les agregations
+# a defaut constant ne fabriquent pas une mesure : certaines sont des VALEURS DE REMPLISSAGE dans un
+# assainisseur numerique. Le cliquet ne sait pas distinguer les deux -- et un cliquet a faux positifs
+# finit desarme, ce que son propre test affirme.
+# La doctrine du depot s'applique : « ne pas proxifier ce qu'on ne sait pas mesurer -- faire DECLARER
+# l'auteur plutot que de deviner » (cf. `NOT_AN_INSTRUMENT` du cliquet de calibration). Une
+# declaration exige un MOTIF ECRIT, elle est RAPPORTEE, et elle sort du compte de dette -- jamais
+# en silence.
+_MOTIF_MIN = 60
+
+NOT_A_MEASURE = {
+    "src/swarm/consensus.py::_safe_softmax#0": (
+        "valeur de REMPLISSAGE d'un assainisseur numerique, pas une mesure : "
+        "`np.nan_to_num(x, nan=nanmean(x) if not all-nan else 0.0)` remplace les NaN d'un vecteur de "
+        "logits AVANT le softmax. Quand TOUT est NaN, remplir par 0.0 rend le softmax UNIFORME -- "
+        "c'est-a-dire aucune preference, la reponse correcte d'un vote sans information. Aucune "
+        "grandeur du monde n'est affirmee ici, et le resultat n'est publie dans aucun record."),
+}
+
+
+def sites_a_corriger(only=None):
+    """Les sites qui comptent comme DETTE : tout ce que `scan` trouve, MOINS les declares non-mesure.
+
+    Source UNIQUE de verite. Sans elle, chaque appelant refait le filtre a la main -- et deux de mes
+    propres tests l'ont oublie a la premiere passe, faisant apparaitre le site DECLARE comme NOUVEAU.
+    Un filtre duplique est un filtre qui divergera."""
+    return {k: v for k, v in scan(only).items() if k not in NOT_A_MEASURE}
+
+
 def _load_baseline():
     if not os.path.exists(_BASELINE):
         return {}
@@ -175,7 +204,10 @@ def main(argv=None):
     args = ap.parse_args(argv)
 
     if args.update_baseline:
-        trouve = scan()                     # le gel porte TOUJOURS sur l'arbre entier
+        # Le gel porte TOUJOURS sur l'arbre entier -- et il EXCLUT les sites declares non-mesure,
+        # sinon la baseline et le scan divergeraient a chaque passe (un declare y apparaitrait
+        # eternellement comme « resorbe »).
+        trouve = sites_a_corriger()
         with open(_BASELINE, "w", encoding="utf-8") as f:
             json.dump({"_comment": ("Sites LEGATAIRES ou une agregation fabrique une constante sur "
                                     "une collection vide. Le cliquet refuse tout NOUVEAU site. "
@@ -186,6 +218,15 @@ def main(argv=None):
         return 0
 
     trouve = scan(args.only)
+    # Les declarations NON-MESURE sortent du perimetre, mais leur MOTIF doit exister et etre ECRIT :
+    # une exemption sans raison est une exemption qu'on ne peut pas relire.
+    for cle, motif in NOT_A_MEASURE.items():
+        if len(motif.strip()) < _MOTIF_MIN:
+            print(f"ECHEC : declaration NON-MESURE sans motif suffisant pour {cle} "
+                  f"({len(motif.strip())} car. < {_MOTIF_MIN}).")
+            return 1
+    declares = {k: v for k, v in trouve.items() if k in NOT_A_MEASURE}
+    trouve = {k: v for k, v in trouve.items() if k not in NOT_A_MEASURE}   # == sites_a_corriger
     base = _load_baseline()
     # DIFFERENCE D'ENSEMBLES, jamais egalite : corriger un site ne doit pas faire echouer le cliquet.
     nouveaux = {k: v for k, v in trouve.items() if k not in base}
@@ -210,6 +251,8 @@ def main(argv=None):
         return 1
 
     print(f"OK : {len(trouve)} defaut(s) fabrique(s), tous legataires (baseline). Aucun nouveau.")
+    if declares:
+        print(f"  ({len(declares)} site(s) DECLARE(S) non-mesure -- rapportes, jamais avales)")
     if resorbes:
         print(f"  ({len(resorbes)} resorbe(s) -- `--update-baseline` pour resserrer le cliquet)")
     return 0

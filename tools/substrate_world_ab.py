@@ -90,7 +90,17 @@ def measure_survival(world_key: str, seed: int, backend_cls, genome=None, k_eval
             env.step()
             t += 1
         ages = [int(a["age"]) for a in env.agents + list(getattr(env, "dead_agents", []))]
-        meds.append(float(np.median(ages)) if ages else 0.0)
+        # ⚠️ DECISION du 2026-09-09 (P2.52), la MEME que pour `ablation.py::run_condition`. Rendre
+        # 0.0 sur une cohorte INTROUVABLE la rendait indiscernable d'une cohorte morte au tick 0.
+        # On LEVE plutot que d'inventer : `dead_agents` est alimente a chaque mort et `num_agents`
+        # est garde en tete, donc un pool vide est une anomalie de HARNAIS, pas un etat du monde --
+        # et pour un etat qui ne peut pas se produire, l'echec bruyant est la bonne reponse.
+        if not ages:
+            raise ValueError(
+                f"measure_survival : cohorte INTROUVABLE a la fin de l'ere (ni vivants ni morts, "
+                f"num_agents={num_agents}) -- ce n'est PAS une survie mediane nulle, c'est une "
+                "anomalie de harnais.")
+        meds.append(float(np.median(ages)))
     return meds
 
 
@@ -169,7 +179,9 @@ def sweep_lr_torch(world_key: str, seed: int, genome, k_eval: int = 10, num_agen
     from src.agents.torch_batch_model import TorchBatchModel
     from src.agents.mamba_agent import MambaBatchModel, MambaCoreBatchModel
 
-    med = lambda xs: float(statistics.median(xs)) if xs else 0.0
+    # ⚠️ P2.52 : `None` et non 0.0 -- une mediane de liste VIDE n'est pas une survie nulle.
+    def med(xs):
+        return float(statistics.median(xs)) if xs else None
     rows = []
     for lr in lrs:
         cls = type("TorchLR", (TorchBatchModel,), {"LR": float(lr)})
@@ -199,8 +211,11 @@ def compare_backends(world_key: str = "stoneage", seed: int = 42, k_eval: int = 
     torch_meds = measure_survival(world_key, seed, TorchBatchModel, genome, k_eval, num_agents, max_ticks)
     res = _ab_from_meds(legacy, torch_meds, band)
     res["world"] = world_key
-    res["legacy_median"] = float(statistics.median(legacy)) if legacy else 0.0
-    res["torch_median"] = float(statistics.median(torch_meds)) if torch_meds else 0.0
+    # ⚠️ P2.52 : champs de RAPPORT. `None` et non 0.0 -- une mediane de bras VIDE n'est pas une
+    # survie nulle, et « le nan avale, le None crie » (precedent `cross_world_transfer`). Le VERDICT,
+    # lui, est calcule par `_ab_from_meds` et n'est pas touche.
+    res["legacy_median"] = float(statistics.median(legacy)) if legacy else None
+    res["torch_median"] = float(statistics.median(torch_meds)) if torch_meds else None
     return res
 
 
@@ -244,7 +259,9 @@ def compare_arms(world_key: str = "stoneage", seed: int = 42, k_eval: int = 12,
     core = measure_survival(world_key, seed, MambaCoreBatchModel, genome, k_eval, num_agents, max_ticks)
     torch_meds = measure_survival(world_key, seed, TorchBatchModel, genome, k_eval, num_agents, max_ticks)
 
-    med = lambda xs: float(statistics.median(xs)) if xs else 0.0
+    # ⚠️ P2.52 : `None` et non 0.0 -- une mediane de liste VIDE n'est pas une survie nulle.
+    def med(xs):
+        return float(statistics.median(xs)) if xs else None
     return {
         "world": world_key,
         "legacy_median": med(legacy), "core_median": med(core), "torch_median": med(torch_meds),
@@ -278,7 +295,9 @@ def main():
         ev_ticks = int(os.environ.get("SWA_EVOTICKS", "1500"))
         warm = os.environ.get("SWA_WARMSTART") == "1"
         seed_g = _load_champion(os.environ.get("SWA_HOF", "data/hall_of_fame.pkl")) if warm else None
-        med = lambda xs: float(statistics.median(xs)) if xs else 0.0
+        # ⚠️ P2.52 : `None` et non 0.0 -- une mediane de liste VIDE n'est pas une survie nulle.
+    def med(xs):
+        return float(statistics.median(xs)) if xs else None
         seed_torch = med(measure_survival(world, seed, TorchBatchModel, seed_g, k_eval, num_agents, max_ticks)) if warm else 0.0
         r = evolve_native(world, seed, TorchBatchModel, max_ticks=ev_ticks, num_agents=num_agents,
                           pop_cap=int(os.environ.get("SWA_POPCAP", "120")), seed_genome=seed_g)

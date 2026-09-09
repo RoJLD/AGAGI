@@ -17,7 +17,8 @@ import io
 import json
 import os
 
-from tools.check_fabricated_defaults import _BASELINE, _load_baseline, scan, sites_dans
+from tools.check_fabricated_defaults import (_BASELINE, _load_baseline, scan, sites_a_corriger,
+                                             sites_dans)
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -93,7 +94,10 @@ def test_the_REAL_tree_has_NO_new_site_and_a_NON_EMPTY_baseline():
     la premiere correction, c'est-a-dire punir le progres."""
     base = _load_baseline()
     assert len(base) >= 100, ("la dette legataire mesuree etait de 121, ramenee a 115", len(base))
-    nouveaux = {k for k in scan() if k not in base}
+    # ⚠️ `sites_a_corriger` et non `scan` : la SOURCE UNIQUE, qui retire les declares non-mesure.
+    # Mes deux premieres versions appelaient `scan` et voyaient donc le site DECLARE comme NOUVEAU --
+    # un filtre duplique est un filtre qui divergera.
+    nouveaux = {k for k in sites_a_corriger() if k not in base}
     assert not nouveaux, f"nouveaux defauts fabriques : {sorted(nouveaux)[:5]}"
 
 
@@ -103,7 +107,7 @@ def test_correcting_a_site_does_NOT_break_the_ratchet():
     baseline plus LARGE que le reel doit passer -- corriger un site est un progres, pas un echec."""
     base = dict(_load_baseline())
     base["fichier/inexistant.py:1"] = "site corrige depuis le gel"
-    reel = scan()
+    reel = sites_a_corriger()
     nouveaux = {k for k in reel if k not in base}
     assert not nouveaux, "une baseline elargie ne doit JAMAIS produire de nouveau"
 
@@ -167,3 +171,54 @@ def test_the_KEY_names_the_ENCLOSING_function_not_just_the_file():
     src = ("def alpha(v):\n    return float(np.mean(v)) if v else 0.0\n\n"
            "def beta(v):\n    return float(np.mean(v)) if v else 0.0\n")
     assert set(sites_dans(src, "f.py")) == {"f.py::alpha#0", "f.py::beta#0"}
+
+
+# --- DECLARATIONS NON-MESURE (2026-09-09) : trouve en UTILISANT le cliquet --------------------------
+#
+# Toutes les agregations a defaut constant ne fabriquent pas une mesure. `src/swarm/consensus.py`
+# remplit les NaN d'un vecteur de logits AVANT un softmax : quand TOUT est NaN, remplir par 0.0 rend
+# le softmax UNIFORME, c'est-a-dire aucune preference -- la reponse correcte d'un vote sans
+# information. Aucune grandeur du monde n'y est affirmee.
+#
+# Le cliquet ne sait pas distinguer « agregation qui MESURE » de « agregation qui REMPLIT », et un
+# cliquet a faux positifs finit desarme (c'est ecrit plus haut dans ce fichier). La doctrine du depot
+# tranche : faire DECLARER l'auteur plutot que deviner -- comme `NOT_AN_INSTRUMENT`.
+
+def test_a_DECLARED_non_measure_leaves_the_debt_but_is_REPORTED():
+    """Un site declare sort du COMPTE de dette -- sinon le chiffre publie serait faux -- mais il est
+    RAPPORTE. Une exemption avalee en silence ferait croire a une couverture qu'on n'a pas : c'est le
+    faux vert « 100 % quand on en fait 35 » que ce depot a deja mesure sur lui-meme."""
+    from tools.check_fabricated_defaults import NOT_A_MEASURE, scan
+    assert NOT_A_MEASURE, "le mecanisme doit etre UTILISE, pas seulement disponible"
+    reel = scan()
+    for cle in NOT_A_MEASURE:
+        assert cle in reel, (
+            f"{cle} est declare non-mesure mais n'existe plus : une declaration MORTE donne "
+            "l'illusion d'une exemption utile", sorted(reel)[:3])
+
+
+def test_a_DECLARATION_without_a_written_MOTIVE_is_REFUSED():
+    """⚠️ UNE EXEMPTION SANS RAISON EST UNE EXEMPTION QU'ON NE PEUT PAS RELIRE. Le cliquet exige un
+    motif d'au moins 60 caracteres et ECHOUE sinon -- il ne se contente pas de l'ignorer, ce qui
+    laisserait l'auteur croire qu'il a declare ce qu'il n'a pas declare."""
+    import sys
+
+    import tools.check_fabricated_defaults as m
+    ancien = dict(m.NOT_A_MEASURE)
+    argv = list(sys.argv)
+    try:
+        m.NOT_A_MEASURE["src/swarm/consensus.py::_safe_softmax#0"] = "trop court"
+        sys.argv = ["check_fabricated_defaults.py"]
+        assert m.main([]) == 1, "un motif indigent doit faire ECHOUER le cliquet"
+    finally:
+        m.NOT_A_MEASURE.clear()
+        m.NOT_A_MEASURE.update(ancien)
+        sys.argv = argv
+
+
+def test_an_UNDECLARED_site_still_FIRES():
+    """NO-OP APPARIE du mecanisme : declarer un site ne doit pas desarmer le cliquet pour les autres.
+    Sans ce cas, une exemption trop large passerait inapercue."""
+    from tools.check_fabricated_defaults import NOT_A_MEASURE, sites_dans
+    trouve = sites_dans("def f(v):\n    return float(np.mean(v)) if v else 0.0\n", "neuf.py")
+    assert trouve and not any(k in NOT_A_MEASURE for k in trouve)

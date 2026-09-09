@@ -2113,7 +2113,28 @@ déjà connu (« le ratio est une borne INFÉRIEURE », dit sa docstring) : le d
 savoir au lieu de le dupliquer. 4 cas gelés, dont le **no-op apparié** — sur un contraste ordinaire
 (50 vs 25) le drapeau reste FAUX, sans quoi un drapeau levé en permanence ne distinguerait rien.
 
-**Ce qui reste** : les 115 légataires. Ils ne se corrigent pas en masse — chacun demande de décider
+✅ **(b) POURSUIVI le 2026-09-09 : `substrate_world_ab` (6 records, 6 sites) — 114 → 108.**
+Appliqué le **partage déjà tranché** pour `ablation.py` plutôt qu'un jugement au cas par cas :
+**LEVER** là où l'état est impossible, **`None`** pour un champ de rapport. `measure_survival` lève
+désormais sur une cohorte introuvable (mêmes raisons : `dead_agents` alimenté à chaque mort,
+`num_agents` gardé en tête → anomalie de harnais, pas état du monde) ; les cinq médianes de rapport
+rendent `None`. ⚠️ Conséquence **assumée et voulue** : un `None` formaté par `:.1f` lèvera — c'est
+précisément *« le nan avale, le None crie »*, et c'est préférable à imprimer `med=0.0`.
+
+🔧 **MÉCANISME AJOUTÉ AU CLIQUET, trouvé en l'UTILISANT : `NOT_A_MEASURE`.**
+`src/swarm/consensus.py` remplit les NaN d'un vecteur de logits **avant un softmax** : quand tout est
+NaN, remplir par `0.0` rend le softmax **uniforme** — aucune préférence, la réponse correcte d'un vote
+sans information. Ce n'est pas une mesure fabriquée, c'est une **valeur de remplissage**. Le cliquet
+ne sait pas distinguer « agrégation qui MESURE » de « agrégation qui REMPLIT », et un cliquet à faux
+positifs finit désarmé — c'est écrit dans son propre test. Doctrine du dépôt appliquée : **faire
+DÉCLARER l'auteur plutôt que deviner** (comme `NOT_AN_INSTRUMENT`). Une déclaration exige un **motif
+écrit ≥ 60 caractères** — le cliquet **échoue** sinon plutôt que d'ignorer, ce qui laisserait croire
+à l'auteur qu'il a déclaré ce qu'il n'a pas déclaré — sort du **compte** de dette, et reste
+**RAPPORTÉE**. ⚠️ Et une `sites_a_corriger()` expose la **source unique** : mes deux premiers tests
+refaisaient le filtre à la main et voyaient donc le site déclaré comme NOUVEAU — un filtre dupliqué
+est un filtre qui divergera.
+
+**Ce qui reste** : les 108 légataires. Ils ne se corrigent pas en masse — chacun demande de décider
 entre `None`/`nan` (« je ne sais pas ») et **lever** (si l'état est impossible, comme tranché pour
 `ablation.py`). **Prochaines cibles de (b)**, par poids mesuré : `s2_demand.py` (10 records, 3 sites),
 `src/swarm/consensus.py` (10 records, 1 site), `substrate_world_ab.py` (6 records, 6 sites), puis les
