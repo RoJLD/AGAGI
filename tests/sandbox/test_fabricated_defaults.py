@@ -25,7 +25,7 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__
 # --- cas FIRES (reponse connue : OUI, c'est un defaut fabrique) --------------------------------------
 
 def test_it_FIRES_on_a_zero_default_over_an_empty_cohort():
-    """Le cas nominal, et le plus frequent : 88 des 121 sites legataires sont a `0.0`."""
+    """Le cas nominal, et de loin le plus frequent parmi les sites legataires."""
     assert sites_dans("x = float(np.median(ages)) if ages else 0.0", "f.py")
 
 
@@ -88,9 +88,11 @@ def test_it_SPARES_a_boolean_which_is_not_a_measurement():
 
 def test_the_REAL_tree_has_NO_new_site_and_a_NON_EMPTY_baseline():
     """Ancrage. La baseline doit etre gelee et NON VIDE (une baseline a zero serait une garde
-    desarmee sur un depot qui compte 121 sites), et l'arbre courant ne doit contenir aucun NOUVEAU."""
+    desarmee sur un depot qui en compte plus de cent), et l'arbre courant ne doit contenir aucun
+    NOUVEAU. Le seuil est un PLANCHER et non le compte exact : figer 115 ferait ECHOUER ce test a
+    la premiere correction, c'est-a-dire punir le progres."""
     base = _load_baseline()
-    assert len(base) >= 100, ("la dette legataire mesuree est de 121 sites", len(base))
+    assert len(base) >= 100, ("la dette legataire mesuree etait de 121, ramenee a 115", len(base))
     nouveaux = {k for k in scan() if k not in base}
     assert not nouveaux, f"nouveaux defauts fabriques : {sorted(nouveaux)[:5]}"
 
@@ -129,4 +131,39 @@ def test_the_baseline_file_is_readable_and_shaped_as_expected():
     with io.open(_BASELINE, encoding="utf-8") as fh:
         d = json.load(fh)
     assert isinstance(d.get("legataires"), dict) and d["legataires"], d.keys()
-    assert all(":" in k for k in d["legataires"]), "les cles sont `chemin:ligne`"
+    assert all("::" in k and "#" in k for k in d["legataires"]), (
+        "les cles sont `chemin::fonction#rang` -- STABLES sous decalage de ligne")
+
+
+# --- LA CLE DOIT SURVIVRE AUX DECALAGES DE LIGNE (defaut mesure sur le cliquet LUI-MEME) ------------
+
+def test_the_KEY_survives_an_insertion_ABOVE_the_site():
+    """⚠️ DEFAUT MESURE SUR CE CLIQUET, LE JOUR DE SA LIVRAISON. Keye par NUMERO DE LIGNE, il a
+    signale TROIS faux NOUVEAUX apres qu'on eut corrige six sites dans le meme fichier : les
+    legataires situes plus bas s'etaient simplement DECALES.
+
+    Un cliquet qui crie sur une edition sans rapport finit desarme -- c'est ecrit dans ce fichier meme
+    (`test_it_SPARES_sum_...`), et il a fallu qu'il se le fasse a lui-meme pour que ce soit corrige.
+    La cle est desormais `chemin::fonction#rang`."""
+    src = "def f(v):\n    return float(np.mean(v)) if v else 0.0\n"
+    avant = set(sites_dans(src, "f.py"))
+    apres = set(sites_dans("# une ligne ajoutee\n# et une autre\n" + src, "f.py"))
+    assert avant == apres == {"f.py::f#0"}, (avant, apres)
+
+
+def test_the_KEY_distinguishes_TWO_sites_in_the_SAME_function():
+    """NO-OP APPARIE de la stabilite : une cle trop grossiere confondrait deux sites de la meme
+    fonction, et corriger l'un ferait croire que l'autre a disparu. Le rang les separe."""
+    src = ("def f(a, b):\n"
+           "    x = float(np.mean(a)) if a else 0.0\n"
+           "    y = float(np.median(b)) if b else 1.0\n"
+           "    return x, y\n")
+    assert set(sites_dans(src, "f.py")) == {"f.py::f#0", "f.py::f#1"}
+
+
+def test_the_KEY_names_the_ENCLOSING_function_not_just_the_file():
+    """Deux fonctions du meme fichier ne doivent pas se confondre : la cle porte le nom de la
+    fonction englobante, ce qui la rend aussi plus LISIBLE qu'un numero dans un rapport."""
+    src = ("def alpha(v):\n    return float(np.mean(v)) if v else 0.0\n\n"
+           "def beta(v):\n    return float(np.mean(v)) if v else 0.0\n")
+    assert set(sites_dans(src, "f.py")) == {"f.py::alpha#0", "f.py::beta#0"}

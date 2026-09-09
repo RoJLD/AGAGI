@@ -2063,10 +2063,29 @@ donc corriger un site ne fait jamais échouer le cliquet), **12 cas** de calibra
 arithmétiquement zéro, et un booléen aussi (`bool` est une sous-classe d'`int`, il serait passé pour
 une constante numérique sans exclusion explicite).
 
-**Ce qui reste** : les 121 légataires. Ils ne se corrigent pas en masse — chacun demande de décider
+✅ **(a) FAIT le 2026-09-09 — les défauts à `1.0` sur des RATIOS sont corrigés : 121 → 115.**
+Six sites dans `tools/g_fidelity_probe.py`, et le mécanisme est démontré et non supposé. Un `1.0`
+fabriqué est **exclu du test de signe** (`eff = [r for r in ratios if r != 1.0]` — les égalités sont
+écartées, correctement), **mais il entre dans `n` et dans la médiane** : il durcit la majorité
+`2·n_fav > n` **dans les deux sens** et tire la médiane vers 1.0. Un seed sans mesure votait donc
+« aucun effet » **deux fois**, et la direction est mécaniquement **vers NEUTRE**.
+Corrigé en suivant le précédent déjà établi par `cross_world_transfer` — *« on ne le corrige pas en
+silence, on l'ANNONCE »* : un seed sans ratio **ne vote plus** et son absence est **comptée**
+(`seeds_sans_mesure`) puisque l'unité de réplication est le seed ; `fidelity_verdict([])` rend
+`median_ratio: None` et le verdict `INDETERMINE_SANS_MESURE` ; le diagnostic par tick rend `None`.
+**`None` et non `nan`** pour la raison que ce précédent donne : *le nan avale, le None crie*.
+
+⚠️ **ET LE CLIQUET S'EST PRIS EN DÉFAUT LUI-MÊME, le jour de sa livraison.** Keyé par **numéro de
+ligne**, corriger six sites en a fait apparaître **trois faux NOUVEAUX** — les légataires situés plus
+bas dans le même fichier, simplement décalés. Un cliquet qui crie sur une édition sans rapport finit
+désarmé, ce que son propre test affirmait déjà. Clé stabilisée en `chemin::fonction#rang`, avec trois
+cas gelés (survie au décalage, distinction de deux sites d'une même fonction, nommage de la fonction
+englobante).
+
+**Ce qui reste** : les 115 légataires. Ils ne se corrigent pas en masse — chacun demande de décider
 entre `None`/`nan` (« je ne sais pas ») et **lever** (si l'état est impossible, comme tranché pour
-`ablation.py`). **Ordre** : (a) les 5 défauts à `1.0` sur des ratios, les plus dangereux ;
-(b) les sites dans des instruments dont un record publie le chiffre ; (c) le reste.
+`ablation.py`). **Ordre** : (b) les sites dans des instruments dont un record publie le chiffre ;
+(c) le reste.
 Précédent à suivre : `tools/s2_openloop_probe.py`, corrigé avant cette passe, dont le commentaire
 explique déjà la faute — ce cliquet généralise ce correctif au lieu de le laisser isolé.
 

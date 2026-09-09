@@ -24,9 +24,11 @@ CE QUI EST ACCEPTÉ, et ce n'est pas une tolérance mais la bonne réponse : `No
 (`tools/s2_openloop_probe.py`, dont le commentaire explique la faute) : ce cliquet généralise ce
 correctif au lieu de le laisser isolé.
 
-INVENTAIRE AU GEL (2026-09-09) : 147 sites hors tests — **49 honnêtes** (nan/None) et **98 qui
-FABRIQUENT** une constante (88 à `0.0`, 5 à `1.0`). Les 98 sont gelés comme dette légataire : ce
-cliquet ne les corrige pas, il empêche le 99ᵉ.
+INVENTAIRE (2026-09-09). Une regex trouvait 98 sites fabriquants ; **l'AST en trouve 121** — 23 de
+plus, formes multi-lignes et `np.std` comprises. Les **6 pires** ont été corrigés dans la même passe
+(les défauts à `1.0` sur des RATIOS de `g_fidelity_probe`), donc **115** restent gelés comme dette
+légataire : ce cliquet ne les corrige pas, il empêche le 116ᵉ. Les 49 sites HONNÊTES (`nan`/`None`)
+ne sont pas comptés — ils disent ce qu'ils savent.
 
 ⚠️ DÉTECTION PAR AST, jamais par regex : un `if ... else` peut s'écrire sur plusieurs lignes, et une
 regex y verrait moins que ce que sa docstring promet — l'angle mort qui a coûté huit élargissements
@@ -83,12 +85,33 @@ def _est_constante_numerique(noeud):
 
 
 def sites_dans(src, chemin):
-    """{clé: description} des agrégations à défaut FABRIQUÉ dans une source."""
+    """{clé: description} des agrégations à défaut FABRIQUÉ dans une source.
+
+    ⚠️ LA CLÉ N'EST PAS LE NUMÉRO DE LIGNE, et le défaut a été mesuré sur ce cliquet lui-même le jour
+    de sa livraison : keyée par ligne, la correction de six sites en a fait apparaître **trois
+    faux NOUVEAUX** — les sites légataires situés PLUS BAS dans le même fichier, décalés par
+    l'insertion. Un cliquet qui crie sur une édition sans rapport finit désarmé ; c'est écrit dans
+    son propre test, et il a fallu qu'il se le fasse à lui-même pour que ce soit corrigé.
+
+    La clé est donc `chemin::fonction#rang` — stable sous toute insertion au-dessus, et plus
+    informative qu'un numéro. Le numéro de ligne reste dans la DESCRIPTION, où il aide sans lier."""
     try:
         arbre = ast.parse(src)
     except SyntaxError:
         return {}
-    out = {}
+    # portée englobante de chaque nœud : on descend l'arbre en portant le nom de la fonction
+    portee = {}
+
+    def _descend(noeud, nom):
+        for enfant in ast.iter_child_nodes(noeud):
+            n2 = enfant.name if isinstance(enfant, (ast.FunctionDef, ast.AsyncFunctionDef)) else nom
+            portee[id(enfant)] = n2
+            _descend(enfant, n2)
+
+    portee[id(arbre)] = "<module>"
+    _descend(arbre, "<module>")
+
+    out, rangs = {}, {}
     for n in ast.walk(arbre):
         if not isinstance(n, ast.IfExp):
             continue
@@ -98,9 +121,11 @@ def sites_dans(src, chemin):
         cst = _est_constante_numerique(n.orelse)
         if cst is None:
             continue                        # None / nan / expression : HONNÊTE, on passe
-        cle = f"{chemin}:{n.lineno}"
-        out[cle] = (f"{chemin}:{n.lineno} — `{agg}(...) if ... else {cst}` : une collection VIDE y "
-                    f"devient {cst}, indiscernable d'une mesure")
+        fn = portee.get(id(n), "<module>")
+        rangs[fn] = rangs.get(fn, -1) + 1
+        cle = f"{chemin}::{fn}#{rangs[fn]}"
+        out[cle] = (f"{chemin}:{n.lineno} ({fn}) — `{agg}(...) if ... else {cst}` : une collection "
+                    f"VIDE y devient {cst}, indiscernable d'une mesure")
     return out
 
 

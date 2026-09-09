@@ -59,7 +59,17 @@ def fidelity_verdict(ratios) -> dict:
     ratios = [float(r) for r in ratios]
     n = len(ratios)
     if n == 0:
-        return {"median_ratio": 1.0, "n_favorable": 0, "n": 0, "sign_p": 1.0, "verdict": "NEUTRE"}
+        # ⚠️ CORRIGE le 2026-09-09 (P2.52). Rendre `median_ratio = 1.0` sur une entree VIDE fabriquait
+        # EXACTEMENT le resultat nul -- « g ne bat pas la baseline » -- sans qu'aucune transition ait
+        # ete comparee. L'absence n'y devenait pas un chiffre, elle devenait LA CONCLUSION.
+        # `None` et pas `nan`/`1.0` pour toute grandeur qui n'existe pas : serialisable en JSON, et
+        # une arithmetique faite dessus par megarde LEVE au lieu de se propager -- le nan avale, le
+        # None crie. Meme remede que `cross_world_transfer.compute_transfer_verdict`, qui avait deja
+        # tranche ce cas exact ; on generalise son correctif au lieu de le laisser isole.
+        return {"median_ratio": None, "n_favorable": None, "n": 0, "sign_p": None,
+                "verdict": "INDETERMINE_SANS_MESURE",
+                "why": ("aucun ratio fourni : aucune transition n'a ete comparee. Ce n'est PAS une "
+                        "egalite observee entre g et la baseline.")}
     med = st.median(ratios)
     n_fav = sum(1 for r in ratios if r < 1.0)            # favorable = g meilleur
     eff = [r for r in ratios if r != 1.0]
@@ -132,14 +142,22 @@ def collect_ratios(seed: int, warmup: int = 300, measure: int = 300):
 
 def run_probe(seeds, warmup: int = 300, measure: int = 300) -> dict:
     """Agrège collect_ratios sur plusieurs seeds. Retourne le verdict + diagnostics action."""
-    all_ratios, par_seed = [], []
+    all_ratios, par_seed, seeds_sans_mesure = [], [], []
     # accumulate mean|G[a]| per action across seeds
     n_actions = MambaBatchModel.PLAN_A
     action_abs_accum: dict = {a_idx: [] for a_idx in range(n_actions)}
     for s in seeds:
         ratios, action_abs = collect_ratios(int(s), warmup, measure)
         all_ratios.extend(ratios)
-        par_seed.append(float(np.median(ratios)) if ratios else 1.0)
+        # ⚠️ CORRIGE le 2026-09-09 (P2.52). Un seed SANS ratio votait `1.0`. Ce vote est exclu du
+        # test de signe (les egalites sont ecartees) mais il COMPTE dans `n` et dans la mediane :
+        # il durcit la majorite `2*n_fav > n` dans les DEUX sens ET tire la mediane vers 1.0.
+        # Direction : vers NEUTRE. L'unite de replication etant le SEED, un seed sans mesure ne doit
+        # pas voter -- mais son ABSENCE doit etre COMPTEE, sinon le n change en silence.
+        if ratios:
+            par_seed.append(float(np.median(ratios)))
+        else:
+            seeds_sans_mesure.append(int(s))
         for a_idx in range(n_actions):
             action_abs_accum[a_idx].extend(action_abs[a_idx])
     # ⚠️ UNITE DE REPLICATION (2026-09-01). `all_ratios` poolait UN RATIO PAR TICK sur tous les seeds :
@@ -155,7 +173,9 @@ def run_probe(seeds, warmup: int = 300, measure: int = 300) -> dict:
     # prend sur UNE valeur par seed. Le pool par tick reste rapporte comme DIAGNOSTIC.
     result = fidelity_verdict(par_seed)
     result["n_ticks_pooles"] = len(all_ratios)
-    result["median_ratio_ticks"] = float(np.median(all_ratios)) if all_ratios else 1.0
+    # Diagnostic par tick : `None` et non 1.0 -- un pool vide n'est pas une egalite observee.
+    result["median_ratio_ticks"] = float(np.median(all_ratios)) if all_ratios else None
+    result["seeds_sans_mesure"] = list(seeds_sans_mesure)
     result["ratios_par_seed"] = par_seed
     result["mean_G_abs_by_action"] = {
         a_idx: float(np.mean(vals)) if vals else 0.0
@@ -264,12 +284,20 @@ def collect_ratios_env(seed: int, warmup: int = 300, measure: int = 300):
 
 def run_probe_env(seeds, warmup: int = 300, measure: int = 300) -> dict:
     """Agrège collect_ratios_env sur plusieurs seeds. Mesure CAUSALE (env réel)."""
-    all_ratios, par_seed = [], []
+    all_ratios, par_seed, seeds_sans_mesure = [], [], []
     action_abs_accum: dict = {a_idx: [] for a_idx in range(_N_MOVES)}
     for s in seeds:
         ratios, action_abs = collect_ratios_env(int(s), warmup, measure)
         all_ratios.extend(ratios)
-        par_seed.append(float(np.median(ratios)) if ratios else 1.0)
+        # ⚠️ CORRIGE le 2026-09-09 (P2.52). Un seed SANS ratio votait `1.0`. Ce vote est exclu du
+        # test de signe (les egalites sont ecartees) mais il COMPTE dans `n` et dans la mediane :
+        # il durcit la majorite `2*n_fav > n` dans les DEUX sens ET tire la mediane vers 1.0.
+        # Direction : vers NEUTRE. L'unite de replication etant le SEED, un seed sans mesure ne doit
+        # pas voter -- mais son ABSENCE doit etre COMPTEE, sinon le n change en silence.
+        if ratios:
+            par_seed.append(float(np.median(ratios)))
+        else:
+            seeds_sans_mesure.append(int(s))
         for a_idx in range(_N_MOVES):
             action_abs_accum[a_idx].extend(action_abs[a_idx])
     # ⚠️ UNITE DE REPLICATION (2026-09-01). `all_ratios` poolait UN RATIO PAR TICK sur tous les seeds :
@@ -285,7 +313,9 @@ def run_probe_env(seeds, warmup: int = 300, measure: int = 300) -> dict:
     # prend sur UNE valeur par seed. Le pool par tick reste rapporte comme DIAGNOSTIC.
     result = fidelity_verdict(par_seed)
     result["n_ticks_pooles"] = len(all_ratios)
-    result["median_ratio_ticks"] = float(np.median(all_ratios)) if all_ratios else 1.0
+    # Diagnostic par tick : `None` et non 1.0 -- un pool vide n'est pas une egalite observee.
+    result["median_ratio_ticks"] = float(np.median(all_ratios)) if all_ratios else None
+    result["seeds_sans_mesure"] = list(seeds_sans_mesure)
     result["ratios_par_seed"] = par_seed
     result["mean_G_abs_by_action"] = {
         a_idx: float(np.mean(vals)) if vals else 0.0
@@ -453,7 +483,7 @@ def collect_ratios_stoneage(seed, num_agents=30, warmup=150, measure=150, genome
 def run_probe_stoneage(seeds, warmup=150, measure=150, num_agents=30, genome=None, benchmark=False) -> dict:
     """Agrege collect_ratios_stoneage sur plusieurs seeds. Retourne le verdict + diagnostics.
     genome fourni -> cohorte de champions (leve le blocueur n=0) ; benchmark -> cohorte fixe."""
-    all_ratios, par_seed = [], []
+    all_ratios, par_seed, seeds_sans_mesure = [], [], []
     action_abs_accum = {a_idx: [] for a_idx in range(MambaBatchModel.PLAN_A)}
     total_transitions = 0
     notes = []
@@ -462,7 +492,15 @@ def run_probe_stoneage(seeds, warmup=150, measure=150, num_agents=30, genome=Non
         res = collect_ratios_stoneage(int(s), num_agents=num_agents, warmup=warmup, measure=measure,
                                       genome=genome, benchmark=benchmark)
         all_ratios.extend(res["ratios"])
-        par_seed.append(float(np.median(res["ratios"])) if res["ratios"] else 1.0)
+        # ⚠️ CORRIGE le 2026-09-09 (P2.52). Un seed SANS ratio votait `1.0`. Ce vote est exclu du
+        # test de signe (les egalites sont ecartees) mais il COMPTE dans `n` et dans la mediane :
+        # il durcit la majorite `2*n_fav > n` dans les DEUX sens ET tire la mediane vers 1.0.
+        # Direction : vers NEUTRE. L'unite de replication etant le SEED, un seed sans mesure ne doit
+        # pas voter -- mais son ABSENCE doit etre COMPTEE, sinon le n change en silence.
+        if res["ratios"]:
+            par_seed.append(float(np.median(res["ratios"])))
+        else:
+            seeds_sans_mesure.append(int(s))
         total_transitions += res["n_transitions"]
         for a_idx, vals in res["action_abs_by_action"].items():
             action_abs_accum.setdefault(a_idx, []).extend(vals)
@@ -482,7 +520,9 @@ def run_probe_stoneage(seeds, warmup=150, measure=150, num_agents=30, genome=Non
     # prend sur UNE valeur par seed. Le pool par tick reste rapporte comme DIAGNOSTIC.
     result = fidelity_verdict(par_seed)
     result["n_ticks_pooles"] = len(all_ratios)
-    result["median_ratio_ticks"] = float(np.median(all_ratios)) if all_ratios else 1.0
+    # Diagnostic par tick : `None` et non 1.0 -- un pool vide n'est pas une egalite observee.
+    result["median_ratio_ticks"] = float(np.median(all_ratios)) if all_ratios else None
+    result["seeds_sans_mesure"] = list(seeds_sans_mesure)
     result["ratios_par_seed"] = par_seed
     result["mean_G_abs_by_action"] = {
         a_idx: float(np.mean(vals)) if vals else 0.0
