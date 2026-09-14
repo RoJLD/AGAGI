@@ -1006,6 +1006,9 @@ CALIBRATED = {
     # Cas dans tests/sandbox/test_s2_credit_retention.py (reponses connues sur lignes synthetiques).
     "credit_retention_verdict": ["missing:raises", "incomplet", "harnais", "dose", "retenu_etendu", "erode",
                                  "retenu_neutre", "appris_froid", "pas_appris_froid"],
+    # `run_arm` est un nom en COLLISION (3 autres fichiers) : la declaration DOIT etre qualifiee. Cas :
+    # tests/sandbox/test_s2_credit_retention.py::test_run_arm_refuses_degenerate_args_before_any_world.
+    "tools/evo_runs/s2_credit_retention.py::run_arm": ["guard-before-world"],
 }
 
 _GENOMES = os.path.join("results", "warm007_genomes")

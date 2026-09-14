@@ -56,7 +56,7 @@ connue** : chaque verdict de cette porte est confronté à une réponse connue, 
 incluses (`BINDING_FORCED`/`SUPPRESSION`/`SIGNAL_INSUFFICIENT` · `GATE_BINDS`/`GATE_COLLAPSES`/
 `GATE_INTERMITTENT` · `ANTISAT_RESCUES`/`NEUTRAL`/`INEFFECTIVE` — ces deux derniers ne disent PAS la
 même chose et le test les sépare · `RECIPE_ROBUST`/`BINDING_EROSION` · gardes `WARMUP_FAILED` et
-`FADE_INEFFECTIVE` qui priment sur les chiffres aval). Le cliquet reste STRICT : **225 détectés** <!-- count:instruments_detectes=225 --> / **219 calibrés** <!-- count:instruments_calibres=219 --> / **0 dette** <!-- count:instruments_non_calibres=0 -->. **Les runs proxy de niveau 1 sont DÉBLOQUÉS.**
+`FADE_INEFFECTIVE` qui priment sur les chiffres aval). Le cliquet reste STRICT : **226 détectés** <!-- count:instruments_detectes=226 --> / **220 calibrés** <!-- count:instruments_calibres=220 --> / **0 dette** <!-- count:instruments_non_calibres=0 -->. **Les runs proxy de niveau 1 sont DÉBLOQUÉS.**
 
 ## Niveau 2 — G2-fort (ÉMERGENCE in-loop, non supervisée) : **NON FRANCHI — c'est le mur EDR-LOCK-001**
 

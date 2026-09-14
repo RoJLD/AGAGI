@@ -90,7 +90,9 @@ et le coût estimé.
   non-cognitif ; [[EDR-EVO-016]] : 0/12 même quand lire double la vie ; seul le CIBLAGE marche, et il
   fournit la réponse). **B → mémoire / écriture** (D ≥ 1) est l'axe cognitif primaire des trois mois.
   **C** : warm-start = régime standard pour le BOOTSTRAP (6 fils), rétention in-world jamais testée à
-  récompense dense — c'est ce que P4.4 mesure, avec le froid comme témoin. **D** est périmé : la métrique
+  récompense dense — c'est ce que P4.4 mesure, avec le froid comme témoin. **→ TRANCHÉ le 2026-09-14,
+  sens défavorable ([[EDR-S2-CREDIT-RETENTION]]) : le crédit publié EFFACE le bassin (36 → 8, 12/12) et ne
+  construit rien à froid. Le levier suivant est la RÉCOMPENSE (P4.8), pas le warm-start.** **D** est périmé : la métrique
   de verdict existe et est calibrée (ratio within-subject, plancher chiffré) ; comme FITNESS elle est
   testée et insuffisante (EVO-005). Ce n'est pas le premier chantier.
 - **Règle des portes** : « on ne franchit une porte que si la précédente est mesurée » est satisfaite à
@@ -247,7 +249,7 @@ lit comme fixture ; (d) `git worktree prune` + retrait des worktrees PROPRES (fa
 sont CONSERVÉS. *Coût : agent 1,5-2 h ; calcul 0.* Dépend de : rien.
 <!-- closes_when:grep_present=tools/check_backlog_freshness.py::_tracked_by_git -->
 
-**P4.4 — rang 4 — LE run in-world re-spécifié : `S2-CREDIT-RETENTION` — bassin DAgger persisté ×
+**P4.4 — ✅ CLOSE (2026-09-14, [[EDR-S2-CREDIT-RETENTION]] : ERODE + PAS_APPRIS_FROID) — rang 4 — LE run in-world re-spécifié : `S2-CREDIT-RETENTION` — bassin DAgger persisté ×
 {gelé / crédit calibré / froid à dose publiée} dans le monde S2-009, n = 12.**
 Quoi : sujet = `results/warm003_dagger_genome.npz` (UNE lignée, `n_lineage = 1` DÉCLARÉ ; bassin
 PARTIEL : 35,2 / 200 selon [[EDR-WARM-003]], à citer tel quel — S2-011 posait « survit ~200 sans crédit »
@@ -265,7 +267,16 @@ seul maillon jamais mesuré de la chaîne warm-start in-world (tous les verdicts
 `tools/warmstart_evolution_inworld.py:150,169`). Contrôle positif in-world de P2.43 : un sujet qui
 survit EN LISANT, s'il existe à l'issue. *Coût : agent 4-6 h ; calcul 0,5-1,5 h.* Dépend de : P1.6,
 P1.7, P1.8.
-<!-- closes_when:path_present=docs/preregistrations/S2-CREDIT-RETENTION.json -->
+→ **VERDICT SCELLÉ, LU (2026-09-14)** : règles `S2-CREDIT-RETENTION` (+ `-bis` markup, `-ter` budget), n = 12,
+phase 1 IMMORTELLE 2000 ticks (dose 1999 TD/agent, résurrections publiées), phase 2 MORTELLE 200 ticks à poids
+gelés. **Bassin gelé 36,0** (WARM-003 : 35,2 — harnais sain) ; **bassin + crédit 8,0** (`d_ba` médiane −28,25,
+12/12 négatifs) ; **froid + crédit 7,5** (< plancher 9,0, 0/12 au-dessus de 2×). Le crédit publié EFFACE une
+compétence de survie qu'il n'a pas construite et n'en construit aucune à froid : il apprend (CALIB-LEARNER),
+et ce qu'il apprend n'est pas la survie. Pari C tranché (défavorable) ; P4.6 (IW-1) CADUQUE (exigeait un bassin
+non érodé). Coût : première projection REFUSÉE (unité 675 s vs 136 extrapolés — E12 sur le coût), budget relevé
+par sceau `-ter`, réel 190 min ; le runner sauve désormais l'unité AVANT la garde (11 min perdues sinon).
+Réserve E6 : entraînement en distribution « bien nourri », test en distribution naturelle.
+<!-- closes_when:path_present=docs/EDR/S2-CREDIT-RETENTION_The_Published_Credit_Erases_The_DAgger_Bassin_And_Builds_Nothing_Cold.md -->
 
 **Rang 5 — amendement de P2.43 (2026-09-14)** : re-smoke SUBJECT-VARIANCE à CORPS APPARIÉ (ballast de
 P1.7) — 4 cellules × 30 s. C'est le premier contrôle positif possible de `run_ablation_map` sur une
@@ -404,7 +415,7 @@ l'amorçage rejoint les leviers réfutés. *Coût : agent 4-6 h (dont instrument
 Dépend de : rien (parallèle à A).
 <!-- closes_when:path_present=docs/preregistrations/LOCK-001-PROXY.json -->
 
-**P4.6 — rang 18 — Porte IW-1 (CONDITIONNELLE) : le crédit calibré ÉTEND-il un demi-lecteur warm vers
+**P4.6 — 🗑️ CADUQUE (2026-09-14 : P4.4 rend ERODE, le bassin non érodé qu'elle exigeait n'existe pas) — rang 18 — Porte IW-1 (CONDITIONNELLE) : le crédit calibré ÉTEND-il un demi-lecteur warm vers
 le bit non donné ?**
 Ne s'ouvre qu'après P1.6 (variante d'apprenant scellée) ET P4.4 (bassin non ÉRODÉ). Re-spécifier avant
 toute règle : demi-oracle p = 1/3 (prédiction [[EDR-WARM-010]] : 13-14 ticks, pas 17,5), DAgger (pas
@@ -412,6 +423,20 @@ BPTT : plafond 0,734 on-policy), volume enseignant APPARIÉ entre warms, DV `acc
 le bit non donné = instrument neuf calibré, no-op torch construit. IW-2 (transfert zéro-shot) exige un
 paramètre-monde θ qui VARIE réellement (G1-001) — famine hérite du flag `cognitive_demand`, donc même
 tâche : ne pas lancer sans θ. *Coût : agent 3-5 j ; calcul 12-18 h.* Dépend de : P1.6, P4.4.
+
+**P4.8 — rang 4 bis (PROCHAIN RUN) — Ablation de la RÉCOMPENSE : le crédit poursuit-il la curiosité et la
+nouveauté plutôt que l'énergie ?**
+Quoi : même dispositif que P4.4 (bassin DAgger, phase immortelle 2000 ticks puis test mortel 200 ticks, n = 12,
+bras appariés), bras (b) décliné sur la récompense de `world_1_stoneage.py:1713` : `Δénergie` seule ;
+`Δénergie + curiosité` ; `Δénergie + nouveauté` ; récompense complète (réplique P4.4 = contrôle). DV `S_b`
+par bras, `d_ba` apparié ; même règle de lecture (signe 10/12, ±5). Deux issues : l'érosion DISPARAÎT sans les
+termes intrinsèques → le mur est une récompense mal alignée (levier : la récompense, pas le crédit) ; elle
+RESTE avec `Δénergie` seule → le mécanisme TD(0) sur critic saturé (56 % des `value_pred` < −0,99 loggés,
+P1.6) devient la cible. Pré-vol : le seam de récompense doit exister (curiosity_scale, novelty_scale à 0 —
+vérifier qu'ils sont des paramètres, sinon en faire un). Coût : 4 bras × 12 seeds × ~10 min = projeter par
+type de bras et sceller le budget sur MESURE (leçon P4.4). Pourquoi : [[EDR-S2-CREDIT-RETENTION]].
+*Coût : agent 3-4 h ; calcul ~4-6 h sous bail.* Dépend de : rien.
+<!-- closes_when:path_present=docs/preregistrations/S2-REWARD-ABLATION.json -->
 
 **P4.7 — rang 19 — S5 / G4 phase A : `g` PER-ACTION vs agnostique vs labels PERMUTÉS (nœud 74).**
 Sonde livrée (fix de persistance ACTIF depuis le 2026-09-07, voir le bloc S5 plus bas et
