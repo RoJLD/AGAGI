@@ -202,8 +202,19 @@ Dépend de : rien. **Décision robla à prendre APRÈS le verdict** : quelle var
 (recommandation : TD coupé d'abord ; ×0,05 seulement si TD coupé n'apprend pas à n = 12).
 <!-- closes_when:grep_present=tests/sandbox/test_instrument_calibration.py::td_calls -->
 
-**P1.7 — rang 2 — Classe neuve du registre + `assert_phenotype_matched` / ballast : toute édition de
+**P1.7 — ✅ CLOSE (2026-09-14) — rang 2 — Classe neuve du registre + `assert_phenotype_matched` / ballast : toute édition de
 W est AUSSI une intervention métabolique.**
+→ **LIVRÉ le 2026-09-14** : classe **E26** au registre (`exécutable`, contre-exemple gelé) ;
+`phenotype_of` (formule du monde, promue depuis le pré-vol d'EVO-011 — une seule définition),
+`assert_phenotype_matched` (tol EXPLICITE sur le drain, `inv_capacity` exigé égal) et
+`ballast_phenotype` (lest EXACT par la diagonale des nœuds d'entrée — canal inerte sur la politique,
+prouvé BIT-IDENTIQUE sur 4 ticks du forward legacy ; REFUSE le chevauchement E24, donc le champion HoF
+tel quel, et tout corps à réduire) dans `tools/experiment_preflight.py` ; `make_blind` dit désormais
+la vérité et `make_blind_ballasted` fournit le sujet du `-bis` (P2.42). 7 tests, TDD
+(`tests/sandbox/test_phenotype_guard.py`). **(c) re-lue** : le seul contraste entre sujets de
+`run_ablation_map` (réflexe) partage déjà le génome, donc le corps — le confond vit dans les runners
+qui passent un sujet ÉDITÉ (`subject=make_blind(...)`) : la garde s'applique là, sur le sujet passé,
+pas dans `run_ablation_map`. Résidu rattaché à P2.42/P2.43 : rejouer les deux cellules à corps lesté.
 Quoi : (a) classe neuve dans `docs/REF/REGISTRE_ERREURS.md` (prochain numéro libre), énoncée sur le
 MÉCANISME (le monde dérive le CORPS des mêmes paramètres que la POLITIQUE) — statut `exécutable`, garde
 ET contre-exemples dans la même passe ; (b) promouvoir `phenotype_of` d'`evo011_preflight` dans

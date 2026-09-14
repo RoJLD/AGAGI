@@ -299,12 +299,11 @@ def build_genome(arm: str, ballast: bool = True):
 
 def phenotype_of(genome):
     """Les trois grandeurs que le monde derive de `W[0:5]`/`W[5:10]` (mamba_agent.py:47-50). PUR.
-    ⚠️ REFERENCE seulement : le controle (ii-bis) lit le phenotype SUR L'AGENT VIVANT."""
-    hp = float(np.sum(np.abs(np.nan_to_num(genome.W[0:5]))) * 10.0)
-    inv = max(3, int(np.sum(np.abs(np.nan_to_num(genome.W[5:10])))))
-    organ = getattr(genome, "organ_genes", None)
-    mcts = 0.5 if (organ is not None and organ[0]) else 0.0
-    return {"hp_bonus": hp, "inv_capacity": inv, "energy_drain": 1.0 + hp / 100.0 + inv * 0.1 + mcts}
+    ⚠️ REFERENCE seulement : le controle (ii-bis) lit le phenotype SUR L'AGENT VIVANT.
+    PROMUE le 2026-09-14 (P1.7) dans `tools.experiment_preflight.phenotype_of` — une seule
+    definition, calibree sur reponse exacte (`tests/sandbox/test_phenotype_guard.py`)."""
+    from tools.experiment_preflight import phenotype_of as _promoted
+    return _promoted(genome)
 
 
 def decision_flip_rate_pure(genome, obs_rows, out_idx=THROW_IDX, channel=TYPE_COL):

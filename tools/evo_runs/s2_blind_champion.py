@@ -126,12 +126,28 @@ def blind_champion_verdict(rows, bar_high=BAR_HIGH, bar_low=BAR_LOW, alpha=ALPHA
 # ==================================================================================================
 def make_blind(genome):
     """Copie PROFONDE du génome dont les LIGNES d'entrée de W sont annulées : l'observation n'entre
-    plus nulle part. Rien d'autre n'est touché — corps, biais et récurrence restent identiques."""
+    plus nulle part. Biais et récurrence restent identiques — ⚠️ PAS le corps : le monde dérive
+    `hp_bonus`, `inv_capacity` et `energy_drain` de `Σ|W[0:5]|` et `Σ|W[5:10]|`
+    (`mamba_agent.py:47-50`), donc annuler les lignes d'entrée fait TOMBER le drain (champion : 2,40 →
+    1,30, −46 %, mesuré le 2026-09-14). Ce contraste est confondu par le métabolisme — classe E26,
+    P1.7. Pour un aveugle à corps identique, utiliser `make_blind_ballasted`."""
     g = copy.deepcopy(genome)
     W = g.W.copy()
     W[:g.num_inputs, :] = 0.0
     g.W = W
     return g
+
+
+def make_blind_ballasted(genome):
+    """Aveugle À CORPS IDENTIQUE : `make_blind` puis lest exact sur la diagonale des nœuds d'entrée
+    (`tools.experiment_preflight.ballast_phenotype`, canal inerte sur la politique — prouvé par
+    `tests/sandbox/test_phenotype_guard.py`). REFUSE le champion HoF tel quel (sorties chevauchant les
+    entrées, E24) : là, aucun lest n'est inerte. C'est le sujet que le `-bis` de S2-BLIND-CHAMPION
+    (P2.42) doit passer à `run_ablation_map`."""
+    from tools.experiment_preflight import assert_phenotype_matched, ballast_phenotype
+    b = ballast_phenotype(make_blind(genome), reference=genome)
+    assert_phenotype_matched(b, genome, label="aveugle lesté vs champion")
+    return b
 
 
 def check_blind(blind, ref):

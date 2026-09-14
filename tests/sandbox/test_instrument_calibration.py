@@ -997,6 +997,11 @@ CALIBRATED = {
         "guard-before-world", "oracle:hit=1.0", "dose-counted", "lr0-reference:dW=0",
         "reproducible", "variant-published"],
     "learner_verdict": ["missing:raises", "harness:indeterminate", "inert", "learns:during_run", "learns:early"],
+    # P1.7 (2026-09-14) -- le CORPS est derive de W[0:10] (classe E26). Cas dans
+    # tests/sandbox/test_phenotype_guard.py : formule du monde exacte, make_blind REFUSE, tolerance
+    # explicite sur le DRAIN et inv_capacity exige EGAL, lest exact et bit-identique sur la politique.
+    "assert_phenotype_matched": ["matched:passes", "make_blind:refuses", "tol-on-drain:explicit",
+                                 "inv-capacity:exact"],
 }
 
 _GENOMES = os.path.join("results", "warm007_genomes")

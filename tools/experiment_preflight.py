@@ -478,6 +478,106 @@ def assert_no_io_overlap(genome, label="genome"):
     return overlap
 
 
+# ------------------------------------------------- E26. le CORPS est dérivé des mêmes paramètres que la POLITIQUE
+
+class PhenotypeMismatch(PreflightError):
+    """Deux sujets d'un contraste ENTRE sujets n'ont pas le même corps (classe E26)."""
+
+
+def phenotype_of(genome):
+    """Les trois grandeurs que le monde dérive de `W` — la formule de `src/agents/mamba_agent.py:47-50`,
+    mot pour mot, PURE (aucun monde, aucun RNG) :
+
+        hp_bonus     = 10 · Σ|W[0:5]|
+        inv_capacity = max(3, int(Σ|W[5:10]|))
+        energy_drain = 1 + hp_bonus/100 + 0,1 · inv_capacity (+0,5 si l'organe MCTS est actif)
+
+    ⚠️ Les MÊMES lignes 0-9 de `W` portent l'observation dans le réseau : toute édition des lignes
+    d'entrée (annuler, dérangér, amplifier) est AUSSI une intervention métabolique. C'est le fait neuf
+    n° 2 du bloc « 🧭 2026-09-14 » du backlog (P1.7) : `make_blind` annonçait « corps identiques » et
+    faisait tomber le drain de 46 % ; les contrôles câblés de S2-SUBJECT-VARIANCE sont morts de leur
+    corps, pas de leur couplage."""
+    W = np.nan_to_num(np.asarray(genome.W))
+    hp = float(np.sum(np.abs(W[0:5]))) * 10.0
+    inv = max(3, int(np.sum(np.abs(W[5:10]))))
+    organ = getattr(genome, "organ_genes", None)
+    mcts = 0.5 if (organ is not None and len(organ) > 0 and bool(organ[0])) else 0.0
+    return {"hp_bonus": hp, "inv_capacity": inv, "energy_drain": 1.0 + hp / 100.0 + inv * 0.1 + mcts}
+
+
+def assert_phenotype_matched(subject, reference, tol=0.0, label="contraste entre sujets"):
+    """Générateur E26 — un contraste ENTRE sujets (aveugle vs champion, câblé vs champion, sujet
+    amplifié vs sujet) n'est lisible comme un contraste de POLITIQUE que si les deux corps sont
+    identiques : sinon la survie compare des métabolismes. `tol` est EXPLICITE (défaut 0 : exact) —
+    une tolérance implicite serait une constante fabriquée. Le within-subject (un sujet contre
+    lui-même, obs dérangée) n'est PAS concerné : même génome, même corps."""
+    a, b = phenotype_of(subject), phenotype_of(reference)
+    # `tol` borne l'écart de DRAIN (la grandeur métabolique qui agit à chaque tick ; hp_bonus y entre
+    # par hp/100). `inv_capacity` est un ENTIER qui gate le craft et le portage : exigé ÉGAL.
+    if (abs(float(a["energy_drain"]) - float(b["energy_drain"])) > float(tol)
+            or int(a["inv_capacity"]) != int(b["inv_capacity"])):
+        raise PhenotypeMismatch(
+            f"{label} : les deux sujets n'ont PAS le même corps (classe E26) — "
+            f"drain {a['energy_drain']:.4g} vs {b['energy_drain']:.4g}, hp_bonus {a['hp_bonus']:.4g} vs "
+            f"{b['hp_bonus']:.4g}, inv_capacity {a['inv_capacity']} vs {b['inv_capacity']} (tol={tol}). "
+            "Le monde dérive le corps des lignes 0-9 de W (mamba_agent.py:47-50) : éditer l'entrée édite "
+            "le métabolisme. Lester le sujet (ballast_phenotype) ou comparer within-subject.")
+    return True
+
+
+def ballast_phenotype(genome, reference):
+    """Rend à `genome` (typiquement un sujet ÉDITÉ : aveuglé) le corps EXACT de `reference`, par un
+    canal INERTE sur la politique : la DIAGONALE des nœuds d'entrée. Pourquoi c'est inerte : l'état des
+    nœuds d'entrée est écrasé par l'observation à chaque tick AVANT l'excitation
+    (`mamba_agent.py:562`, `H[:, :max_I] = x`) et la diagonale ne nourrit jamais l'excitation
+    (`W_no_diag`) ; `W[i, i]` pour `i < 10` ne change donc que l'état post-tick d'un nœud d'entrée, que
+    personne ne lit — SAUF si une sortie chevauche une entrée (E24, cas du champion HoF) : REFUSÉ.
+
+    Ne peut qu'AJOUTER du corps : si le sujet a déjà plus de corps que la référence, il faudrait
+    retirer du poids hors diagonale, c'est-à-dire toucher la politique — REFUSÉ. Exactitude : sur un
+    sujet dont les lignes 0-9 sont nulles hors diagonale (aveuglé), le résultat est EXACT (une seule
+    entrée non nulle par bloc, aucune erreur d'arrondi) ; sinon l'égalité est VÉRIFIÉE après coup et
+    refusée au-delà de 1e-6. Bit-identité sur la politique : `tests/sandbox/test_phenotype_guard.py`."""
+    import copy as _copy
+    g = _copy.deepcopy(genome)
+    N = int(g.num_nodes)
+    if int(g.num_inputs) + int(g.num_outputs) > N:
+        raise PreflightError(
+            f"ballast_phenotype : {g.num_inputs} entrées + {g.num_outputs} sorties dans {N} nœuds — les "
+            "sorties CHEVAUCHENT les entrées (classe E24, cf. assert_no_io_overlap) : la diagonale d'un "
+            "nœud d'entrée est alors un LOGIT, pas un canal inerte. Aucun lest possible sur ce génome.")
+    if N < 10:
+        raise PreflightError(f"ballast_phenotype : {N} nœuds < 10, le corps n'est pas défini sur ce génome.")
+    ref_org = getattr(reference, "organ_genes", None); sub_org = getattr(g, "organ_genes", None)
+    ref_mcts = bool(ref_org is not None and len(ref_org) > 0 and ref_org[0])
+    sub_mcts = bool(sub_org is not None and len(sub_org) > 0 and sub_org[0])
+    if ref_mcts != sub_mcts:
+        raise PreflightError("ballast_phenotype : les organes MCTS diffèrent — le drain d'organe ne se leste pas.")
+    Wr = np.nan_to_num(np.asarray(reference.W))
+    W = np.nan_to_num(np.asarray(g.W)).copy()
+    target = (float(np.sum(np.abs(Wr[0:5]))), float(np.sum(np.abs(Wr[5:10]))))
+    current = (float(np.sum(np.abs(W[0:5]))), float(np.sum(np.abs(W[5:10]))))
+    for blk, (t, c) in enumerate(zip(target, current)):
+        if c > t + 1e-9:
+            raise PreflightError(
+                f"ballast_phenotype : le sujet a DÉJÀ plus de corps que la référence sur les lignes "
+                f"{'0-4' if blk == 0 else '5-9'} (Σ|W| {c:.6g} > {t:.6g}) : il faudrait le réduire, donc "
+                "retirer du poids hors diagonale, donc toucher la politique. Refusé — choisir une autre "
+                "référence ou lester la référence.")
+    for blk, (t, c) in enumerate(zip(target, current)):
+        i = 0 if blk == 0 else 5
+        d = t - c
+        if d > 0.0:
+            W[i, i] = W[i, i] + d if W[i, i] >= 0.0 else W[i, i] - d
+    g.W = W.astype(g.W.dtype, copy=False)
+    got, want = phenotype_of(g), phenotype_of(reference)
+    if any(abs(float(got[k]) - float(want[k])) > 1e-6 for k in got):
+        raise PreflightError(
+            f"ballast_phenotype : lest posé mais corps NON reproduit (obtenu {got}, voulu {want}) — "
+            "arrondi flottant sur un sujet non aveuglé ; ne pas publier ce contraste.")
+    return g
+
+
 def assert_control_family(cells, alpha_family=0.05, alpha_cell=None, method="bonferroni",
                           reason=None):
     """Générateur E23 — **une famille de contrôles n'est pas traitée comme une famille.**
