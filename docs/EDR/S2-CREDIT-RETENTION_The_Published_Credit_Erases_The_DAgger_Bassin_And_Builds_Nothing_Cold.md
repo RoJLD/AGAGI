@@ -8,7 +8,16 @@ gate: G0
 tests: [SDR-G0]
 adopts: [REF-EXPERIMENT-PREFLIGHT]
 extends: [EDR-CALIB-LEARNER, EDR-WARM-003, EDR-175, EDR-S2-010, EDR-S2-011]
+corrected_by: [EDR-S2-REWARD-ABLATION]
 ---
+
+> ⚠️ **Corrigé le 2026-09-15 par [[EDR-S2-REWARD-ABLATION]]** (le verdict ERODE + PAS_APPRIS_FROID TIENT et
+> se réplique bit-identiquement ; ce qui tombe est l'hypothèse mécaniste et la description de la récompense) :
+> (1) le terme de **curiosité est MORT sous le backend torch** — `backend_torch.py` n'écrit jamais
+> `model.surprise`, seul le forward legacy le pose — donc la récompense que ce run a réellement optimisée est
+> `Δénergie + nouveauté`, pas « Δénergie + curiosité + nouveauté » ; (2) **Δénergie SEULE érode autant**
+> (−28,5 vs −28,25, 12/12, différence appariée médiane 0,0) : l'érosion ne vient d'aucun terme intrinsèque,
+> elle vient du mécanisme de crédit lui-même.
 
 ## Question (backlog, bloc « 🧭 2026-09-14 », rang 4 — P4.4 ; règle scellée AVANT toute cellule)
 
@@ -69,6 +78,8 @@ chose n'est pas la survie.** La récompense qu'il optimise est `Δénergie + cur
 (`world_1_stoneage.py:1713`) ; un agent immortel dont le drain est constant reçoit surtout les deux
 termes de droite. Hypothèse mécaniste NON testée ici, et c'est le prochain run : **le crédit poursuit
 la curiosité et la nouveauté, pas l'énergie** (ablation des deux termes, même dispositif).
+⚠️ **RÉFUTÉE le 2026-09-15 par [[EDR-S2-REWARD-ABLATION]]** : Δénergie seule érode autant ; et la curiosité
+n'a jamais été dans cette récompense (surprise jamais écrite sous torch).
 
 ## Portée (hedges)
 

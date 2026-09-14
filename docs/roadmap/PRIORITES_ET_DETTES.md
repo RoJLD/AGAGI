@@ -436,9 +436,14 @@ le bit non donné = instrument neuf calibré, no-op torch construit. IW-2 (trans
 paramètre-monde θ qui VARIE réellement (G1-001) — famine hérite du flag `cognitive_demand`, donc même
 tâche : ne pas lancer sans θ. *Coût : agent 3-5 j ; calcul 12-18 h.* Dépend de : P1.6, P4.4.
 
-**P4.8 — ✅ SCELLÉE ET LANCÉE (2026-09-14) — rang 4 bis — Ablation de la RÉCOMPENSE : le crédit poursuit-il
-la curiosité et la nouveauté plutôt que l'énergie ?**
-État : règle `S2-REWARD-ABLATION` scellée (cinq bras, 8 branches ordonnées) PUIS réduite en `-bis` à TROIS bras
+**P4.8 — ✅ CLOSE (2026-09-15, [[EDR-S2-REWARD-ABLATION]] : CREDIT_ERODE_SEUL, PLEIN) — rang 4 bis — Ablation
+de la RÉCOMPENSE : le crédit poursuit-il la curiosité et la nouveauté plutôt que l'énergie ?**
+Résultat : **Δénergie SEULE érode le bassin exactement autant que la récompense complète** (36,0 → 8,0 dans les
+deux bras ; `d_energy` −28,5 vs `d_full` −28,25, 12/12 seeds ; différence appariée médiane 0,0, 3/12). Aucun terme
+intrinsèque n'est nécessaire à l'érosion : le mur est le MÉCANISME DE CRÉDIT (TD(0) + REINFORCE, lr 0,04) sur
+Δénergie, pas la récompense. Réplication de P4.4 bit-identique (b_full importé pour 11/12 seeds sur preuve) ;
+réel 40 min. Suite : P4.9 (ablation du CRÉDIT).
+État à la préparation : règle `S2-REWARD-ABLATION` scellée (cinq bras, 8 branches ordonnées) PUIS réduite en `-bis` à TROIS bras
 (gelé / complète / Δénergie seule, budget 12 h dérivé des mesures P4.4) sur un fait de PRÉ-VOL trouvé au smoke
 et qui valait ~10 h de calcul : **la curiosité (EDR 014) est MORTE sous le backend torch** — `backend_torch.py`
 n'écrit jamais `model.surprise` (seul le forward legacy numpy le pose, `mamba_agent.py:824`), donc le terme
@@ -461,6 +466,23 @@ vérifier qu'ils sont des paramètres, sinon en faire un). Coût : 4 bras × 12 
 type de bras et sceller le budget sur MESURE (leçon P4.4). Pourquoi : [[EDR-S2-CREDIT-RETENTION]].
 *Coût : agent 3-4 h ; calcul ~4-6 h sous bail.* Dépend de : rien.
 <!-- closes_when:path_present=docs/preregistrations/S2-REWARD-ABLATION.json -->
+
+**P4.9 — rang 4 ter (PROCHAIN RUN) — Ablation du CRÉDIT : l'érosion vient-elle du SIGNE du signal, du PAS, ou
+du TD par tick ?**
+Quoi : même dispositif que P4.4/P4.8 (bassin DAgger cloné ×12, phase immortelle 2000 ticks, test mortel 200
+ticks poids gelés, n = 12, mêmes seeds, `a_frozen` re-mesuré, `b_full` importé sur réplication bit-identique),
+bras (b) décliné sur le CRÉDIT via `count_learning_events` — seams déjà calibrés par P1.6 : (b_zero)
+`reward_scale = 0` (dérive du critic seul, aucun signal) ; (b_lr) `lr = 0,004` (E19, le premier suspect
+depuis EDR-LOCK-002 — record de la session parallèle, à lier une fois committé) ; (b_td_off) `td_enabled = False` (épisodique seul). Issues nommées d'avance :
+b_zero ERODE → le pas lui-même détruit à dose égale (bruit d'estimation) → cible = pas/optimiseur ; b_zero NEUTRE
+et b_lr ERODE → le signe de l'avantage détruit (critic tanh saturé : 56 % des `value_pred` < −0,99) → cible =
+centrer la récompense ; b_td_off NEUTRE → le TD par tick est le destructeur. Attention E2 : b_lr à dose égale
+(1999 TD) déplace 10× moins — publier `Σ|ΔW|` par bras et lire « NEUTRE » à lr 0,004 comme « pas assez bougé »
+si `Σ|ΔW|` < 10 % du bras complet. Pré-vol : le no-op `reward_scale = 1` est bit-identique (P1.6) ; le seam
+`reward_scale = 0` doit rendre une trace de récompense nulle (à vérifier à réponse connue comme P4.8). Coût :
+~50-370 s par bras et par seed mesuré en P4.8 → 3 bras × 12 seeds ≈ 1-2 h ; sceller le budget sur MESURE.
+Pourquoi : [[EDR-S2-REWARD-ABLATION]]. *Coût : agent 2-3 h ; calcul 1-2 h sous bail.* Dépend de : rien.
+<!-- closes_when:path_present=docs/preregistrations/S2-CREDIT-ABLATION.json -->
 
 **P4.7 — rang 19 — S5 / G4 phase A : `g` PER-ACTION vs agnostique vs labels PERMUTÉS (nœud 74).**
 Sonde livrée (fix de persistance ACTIF depuis le 2026-09-07, voir le bloc S5 plus bas et
