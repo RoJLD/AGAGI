@@ -65,6 +65,69 @@ def test_an_existing_file_path_is_SPARED(tmp_path, monkeypatch):
     assert not any(k.startswith("chemin-mort:") for k in B.scan())
 
 
+def _git_repo_with_one_tracked_file(tmp_path):
+    """Un dépôt git minimal : `suivi.txt` committé, `local.txt` présent mais JAMAIS ajouté."""
+    import subprocess
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    # ⚠️ Un GIT_INDEX_FILE / GIT_DIR herite (commit depuis un index temporaire, hook pre-commit) ferait
+    # ecrire ce depot jouet DANS L'INDEX DU VRAI DEPOT (mesure le 2026-09-14 : le harnais de mutation
+    # a vu ce temoin rougir sous le hook). Le depot jouet vit dans un environnement git VIERGE.
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+
+    def git(*args):
+        subprocess.run(["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@t", *args],
+                       check=True, capture_output=True, env=env)
+    git("init", "-q")
+    (repo / "suivi.txt").write_text("x", encoding="utf-8")
+    git("add", "suivi.txt")
+    git("commit", "-q", "-m", "init")
+    (repo / "local.txt").write_text("y", encoding="utf-8")
+    return repo
+
+
+def test_a_path_clause_on_an_UNTRACKED_existing_file_is_REFUSED(tmp_path, monkeypatch):
+    """P1.8 (b) — DÉFAUT MESURÉ : la CI est restée ROUGE trois pushes (2026-09-07 → 09-09) sur une clause
+    `holds_when:path_present=data/hof_famine_harsh_s42.pkl` — un fichier IGNORÉ par git, donc présent
+    ici et absent sur tout clone. Le cliquet passait en local et mentait sur ce que la CI verrait.
+    Une clause de chemin dont le fichier existe localement SANS être suivi est INVÉRIFIABLE sur un
+    clone : elle est REFUSÉE (bruyamment), jamais évaluée. Un fichier suivi passe ; un fichier absent
+    n'est pas concerné (la clause est simplement non satisfaite)."""
+    # L'outil INTERROGE git en heritant de l'environnement (c'est voulu : sous le hook, l'index en cours
+    # de commit est celui que GIT_INDEX_FILE designe). Ici le depot est un JOUET : un GIT_INDEX_FILE
+    # herite designerait l'index d'un AUTRE depot et rendrait `suivi.txt` invisible (mesure sous le hook,
+    # 2026-09-14). Le test tient son environnement.
+    for k in ("GIT_INDEX_FILE", "GIT_DIR", "GIT_WORK_TREE"):
+        monkeypatch.delenv(k, raising=False)
+    repo = _git_repo_with_one_tracked_file(tmp_path)
+    monkeypatch.setattr(B, "_ROOT", str(repo))
+    _backlog(tmp_path, monkeypatch,
+             "**P9.1 — ✅ CLOSE — cite un fichier présent mais non suivi.**\n"
+             "<!-- closes_when:path_present=local.txt -->\n\n"
+             "**P9.2 — ✅ CLOSE — cite un fichier suivi.**\n"
+             "<!-- closes_when:path_present=suivi.txt -->\n\n"
+             "**P9.3 — ouverte, cite un fichier absent.**\n"
+             "<!-- closes_when:path_present=futur.txt -->\n")
+    trouve = B.scan()
+    assert "clause-refusee:P9.1:path_present" in trouve, trouve
+    assert "clone" in trouve["clause-refusee:P9.1:path_present"].lower()
+    assert not any(k.endswith(":P9.2:path_present") for k in trouve), trouve
+    assert not any(k.endswith(":P9.3:path_present") for k in trouve), trouve
+
+
+def test_a_path_clause_outside_any_git_repo_is_NOT_refused(tmp_path, monkeypatch):
+    """Spécificité : hors dépôt git (les autres tests de ce fichier), le suivi est indécidable — on
+    n'invente pas un refus, la clause s'évalue comme avant."""
+    for k in ("GIT_INDEX_FILE", "GIT_DIR", "GIT_WORK_TREE"):
+        monkeypatch.delenv(k, raising=False)
+    (tmp_path / "present.txt").write_text("z", encoding="utf-8")
+    monkeypatch.setattr(B, "_ROOT", str(tmp_path))
+    _backlog(tmp_path, monkeypatch,
+             "**P9.4 — ✅ CLOSE — hors dépôt.**\n<!-- closes_when:path_present=present.txt -->\n")
+    assert not any(k.startswith("clause-refusee:") for k in B.scan())
+
+
 def test_a_clean_backlog_triggers_NOTHING(tmp_path, monkeypatch):
     """⚠️ Sans ce test, un détecteur qui signale TOUT passerait tous les autres."""
     _backlog(tmp_path, monkeypatch,

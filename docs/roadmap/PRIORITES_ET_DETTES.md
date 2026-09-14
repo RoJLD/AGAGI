@@ -226,18 +226,26 @@ ENTRE sujets (jamais au within, qui compare un sujet à lui-même) ; (d) corrige
 candidats. *Coût : agent 2,5-3 h ; calcul 0 (réponses exactes).* Dépend de : rien.
 <!-- closes_when:grep_present=tools/experiment_preflight.py::assert_phenotype_matched -->
 
-**P1.8 — rang 3 — Hygiène minimale qui conditionne la LECTURE du prochain run.**
+**P1.8 — ✅ CLOSE (2026-09-14) — rang 3 — Hygiène minimale qui conditionne la LECTURE du prochain run.**
+→ **LIVRÉ le 2026-09-14** : (a) 18 commits poussés le matin, push après chaque commit depuis ; (b) le cliquet
+REFUSE toute clause `path_present`/`path_absent` dont le fichier existe ICI sans être SUIVI par git
+(`_tracked_by_git`, `git ls-files --error-unmatch` ; hors dépôt : indécidable, pas de refus) — deux
+contre-exemples gelés (`test_a_path_clause_on_an_UNTRACKED_existing_file_is_REFUSED`, spécificité hors dépôt) ;
+(c) data/articles.json, data/state.json, `tests/test_kuzudb` retirés de l'index et ignorés — écrits par
+l'app ou par `test_memory_sync.py`, jamais lus comme fixtures (le backend rend un état par défaut) ;
+`frontend/package-lock.json` reste suivi (vrai verrou de dépendances) ; (d) 9 worktrees propres retirés,
+`reconcile` (MERGE_HEAD) et `wld-lifescore` conservés, tags `keep/` posés.
 Quoi : (a) pousser (18 commits non poussés au 2026-09-14 ; fait le jour même) et pousser après chaque
 commit ; (b) `tools/check_backlog_freshness.py` REFUSE toute clause `path_present` dont le chemin est
 ignoré par `.gitignore` ou non suivi (`git check-ignore` / `git ls-files`) — contre-exemple gelé : la
 clause exacte de `5b0025e` (`data/hof_famine_harsh_s42.pkl`) qui a tenu la CI ROUGE trois pushes
 (09-07 → 09-09) pendant que le cliquet passait en local ; (c) `.gitignore` des artefacts RUNTIME suivis
-et mutés par l'app et les tests (`data/articles.json` : +1902 lignes de « Rapport d'Observation » en une
-journée ; `data/state.json` ; le binaire `tests/test_kuzudb`) — après vérification qu'aucun test ne les
+et mutés par l'app et les tests (data/articles.json : +1902 lignes de « Rapport d'Observation » en une
+journée ; data/state.json ; le binaire `tests/test_kuzudb`) — après vérification qu'aucun test ne les
 lit comme fixture ; (d) `git worktree prune` + retrait des worktrees PROPRES (fait le 2026-09-14, voir
 « Décisions ») ; le worktree `reconcile` (170 fichiers sales + MERGE_HEAD) et `wld-lifescore` (1 sale)
 sont CONSERVÉS. *Coût : agent 1,5-2 h ; calcul 0.* Dépend de : rien.
-<!-- closes_when:grep_present=tools/check_backlog_freshness.py::check-ignore -->
+<!-- closes_when:grep_present=tools/check_backlog_freshness.py::_tracked_by_git -->
 
 **P4.4 — rang 4 — LE run in-world re-spécifié : `S2-CREDIT-RETENTION` — bassin DAgger persisté ×
 {gelé / crédit calibré / froid à dose publiée} dans le monde S2-009, n = 12.**

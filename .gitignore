@@ -22,6 +22,13 @@ results/*
 *_full.tsx
 *_recovered.*
 data/*.bak_*
+# Artefacts RUNTIME (P1.8, 2026-09-14) : ecrits par l'app ou par la suite de tests a chaque run,
+# ils etaient SUIVIS et churnaient a chaque lancement (+1902 lignes de rapports generes en un jour,
+# un binaire kuzu de 2,9 Mo mute par tests/sandbox/test_memory_sync.py). Regeneres, jamais lus
+# comme fixtures : le backend rend un etat par defaut si state.json manque.
+data/articles.json
+data/state.json
+tests/test_kuzudb
 
 # Data directory: ignore DB files, states, pickes
 data/*.db

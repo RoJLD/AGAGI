@@ -40,6 +40,7 @@ import json
 import re
 import os
 import re
+import subprocess
 import sys
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -96,10 +97,31 @@ def _entrees(txt):
     return out
 
 
+def _tracked_by_git(rel):
+    """True/False si `rel` est SUIVI par git dans `_ROOT` ; None si `_ROOT` n'est pas un depot (ou git absent) :
+    indecidable, on ne refuse rien. P1.8 (b) : un fichier present ICI mais ignore ou non ajoute est ABSENT sur
+    tout clone -- la CI est restee ROUGE trois pushes (2026-09-07 -> 09-09, `5b0025e`) sur une clause qui passait
+    en local ; le cliquet mentait sur ce que la CI verrait."""
+    try:
+        r = subprocess.run(["git", "-C", _ROOT, "ls-files", "--error-unmatch", "--", rel],
+                           capture_output=True)
+    except OSError:
+        return None
+    if r.returncode == 0:
+        return True
+    if b"not a git repository" in r.stderr.lower():
+        return None
+    return False
+
+
 def _evalue_clause(pred, arg):
     """-> (satisfaite ?, raison si le prédicat est REFUSÉ). Prédicats PURS uniquement."""
     if pred in ("path_present", "path_absent"):
         existe = os.path.exists(os.path.join(_ROOT, arg))
+        if existe and _tracked_by_git(arg) is False:
+            return None, (f"`{pred}` cite {arg!r}, qui existe ICI mais n'est PAS SUIVI par git (ignore ou non" 
+                          "ajoute) : la clause est INVERIFIABLE sur un clone -- c'est la CI rouge du 2026-09-07" 
+                          "(`5b0025e`, un .pkl gitignore). Committer le fichier, ou ne pas le citer.")
         return (existe if pred == "path_present" else not existe), None
     if pred in ("grep_present", "grep_absent"):
         if "::" not in arg:
