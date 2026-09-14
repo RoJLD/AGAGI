@@ -28,8 +28,8 @@ Quatre questions, dont deux ont des assertions exécutables :
 
 **Inventaire au 2026-09-01 : 105 détectés, 104 calibrés, 1 déclaré non-instrument, ZÉRO dette.**
 **État COURANT, recomputé et jamais recopié :**
-**226 détectés** <!-- count:instruments_detectes=226 -->
-· **220 calibrés** <!-- count:instruments_calibres=220 -->
+**227 détectés** <!-- count:instruments_detectes=227 -->
+· **221 calibrés** <!-- count:instruments_calibres=221 -->
 · **0 non calibré** <!-- count:instruments_non_calibres=0 -->
 — la famille `run_*` (72 fonctions) est entrée le 2026-09-06 sans créer de dette. *(Les chiffres datés ci-dessus sont HISTORIQUES : ils restent vrais
 et ne sont donc pas balisés.)*

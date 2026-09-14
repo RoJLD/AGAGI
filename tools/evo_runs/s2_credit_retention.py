@@ -63,7 +63,10 @@ def load_bassin():
     return g
 
 
-def _world(seed, era):
+def _world(seed, era, curiosity_scale=None, novelty_scale=None):
+    """Le monde du run. `curiosity_scale` / `novelty_scale` (P4.8, S2-REWARD-ABLATION) : `None` laisse
+    l'échelle du MONDE (`Biosphere3D.__init__`, attributs d'instance lus par la seule ligne de récompense
+    `world_1_stoneage.py:1713`) -- chemin BIT-IDENTIQUE à P4.4 ; un flottant la remplace (0.0 = terme COUPÉ)."""
     from src.seed_ai.harness import seed_at
     from src.worlds.world_1_stoneage import Biosphere3D
     seed_at(seed, era)
@@ -76,6 +79,10 @@ def _world(seed, era):
     e.config.base_metabolism = METAB_DEFAULT
     e.config.forage_payoff = 0.0
     e.use_torch_inworld = True
+    if curiosity_scale is not None:
+        e.curiosity_scale = float(curiosity_scale)
+    if novelty_scale is not None:
+        e.novelty_scale = float(novelty_scale)
     if hasattr(e, "memory_retriever"):
         e.memory_retriever.stop()
         e.memory_retriever.clear()
@@ -89,13 +96,14 @@ REGIME = {"cognitive_demand": True, "cog_linear": False, "cog_gain": float(COG_D
 
 
 def phase1_learn_immortal(agents, seed, ticks, lr=None, refill_below=30.0, refill_to=80.0,
-                          hp_refill_below=50.0):
+                          hp_refill_below=50.0, curiosity_scale=None, novelty_scale=None):
     """Le crédit publié s'applique à `agents` (objets persistés : genome.W accumule) dans le monde
     cognitif, cohorte IMMORTELLE (même recette que run_learner_probe, prouvée complète 12/12 sur 2000
-    ticks par EDR-CALIB-LEARNER). Renvoie la dose (summary de count_learning_events) et `resurrections`."""
+    ticks par EDR-CALIB-LEARNER). Renvoie la dose (summary de count_learning_events) et `resurrections`.
+    `curiosity_scale` / `novelty_scale` : voir `_world` (None = échelle du monde, bit-identique à P4.4)."""
     resurrections = 0
     with _pinned_substrate(), count_learning_events(lr=lr) as ev:
-        e = _world(seed, 0)
+        e = _world(seed, 0, curiosity_scale=curiosity_scale, novelty_scale=novelty_scale)
         for a in agents:
             e.add_agent(a, energy=80.0)
         t = 0

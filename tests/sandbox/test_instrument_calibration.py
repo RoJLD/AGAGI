@@ -1009,6 +1009,17 @@ CALIBRATED = {
     # `run_arm` est un nom en COLLISION (3 autres fichiers) : la declaration DOIT etre qualifiee. Cas :
     # tests/sandbox/test_s2_credit_retention.py::test_run_arm_refuses_degenerate_args_before_any_world.
     "tools/evo_runs/s2_credit_retention.py::run_arm": ["guard-before-world"],
+    # P4.8 (2026-09-14) -- lecture de la regle scellee S2-REWARD-ABLATION(-bis), branches dans l'ORDRE impose
+    # (INCOMPLET -> HARNAIS -> DOSE -> REPLICATION -> lecture). Cas dans tests/sandbox/test_s2_reward_ablation.py
+    # (reponses connues sur lignes synthetiques). Le SEAM de recompense y est calibre a reponse connue
+    # (decomposition exacte Δenergie / 2·surprise / 3/√count au tick 1) et la CURIOSITE MORTE sous torch
+    # (surprise jamais ecrite par backend_torch) y est gelee avec son contre-exemple (pre-vol qui LEVE).
+    "reward_ablation_verdict": ["missing:raises", "incomplet", "harnais", "dose", "replication",
+                                "mal_alignee:nouveaute", "mal_alignee:energy_etendu",
+                                "credit_erode_seul:plein", "credit_erode_seul:attenue", "sign-and-delta",
+                                "curiosity-dead:measured", "curiosity-dead:refuses-live"],
+    # Cas : tests/sandbox/test_s2_reward_ablation.py::test_run_arm_refuses_degenerate_args_before_any_world.
+    "tools/evo_runs/s2_reward_ablation.py::run_arm": ["guard-before-world"],
 }
 
 _GENOMES = os.path.join("results", "warm007_genomes")

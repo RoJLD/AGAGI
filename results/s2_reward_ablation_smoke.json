@@ -1,0 +1,371 @@
+{
+ "preregistration": [
+  "S2-REWARD-ABLATION",
+  "S2-REWARD-ABLATION-bis"
+ ],
+ "design": {
+  "question": "Le crédit in-world tel que publié (Actor-Critic TD(0) par tick + REINFORCE épisodique k=8, lr 0,04) EFFACE le bassin DAgger de WARM-003 quand il apprend sans être borné par la mort (EDR-S2-CREDIT-RETENTION : ERODE, survie 36,0 -> 8,0, 12/12 seeds, dose 1999 TD/agent). La récompense qu'il optimise est Δénergie + curiosity_scale·surprise + novelty_scale/√count (src/worlds/world_1_stoneage.py:1713, échelles d'instance 2,0 et 3,0). L'érosion vient-elle des deux termes INTRINSÈQUES (curiosité, nouveauté) ou du crédit lui-même sur Δénergie seule ?",
+  "replication_unit": "seed (une cohorte de 12 clones du bassin par bras, un monde par seed ; 3 bras appariés)",
+  "n_independent": 1,
+  "links": {
+   "seam_recompense": "measured",
+   "curiosite_morte": "measured",
+   "dose_de_credit": "measured",
+   "resurrections": "measured",
+   "survie_mortelle_poids_geles": "measured",
+   "bassin_transfere_S_a": "measured",
+   "replication_b_full": "measured"
+  },
+  "inferred_links": [],
+  "cost_estimate": "Coût : unité = UN SEED COMPLET (trois bras), chaque bras MESURÉ sur le premier seed, projetée par project_cost (marge ×3) sur 12 seeds, b_full retiré de l'unité projetée s'il est importé (prévol 3). Budget 43200 s (12 h) DÉRIVÉ DE MESURES : P4.4 a mesuré 536 s pour un bras bassin + crédit (2000 ticks immortels + 200 mortels, seed 2026) et 8 s pour le bras gelé -> unité projetée 8 + 536 = 544 s (import) à 1080 s (sans import) ; ×12 ×3 = 19 600 à 38 900 s. Réel attendu 2,5 à 5 h (P4.4 : réel = 0,47 × projeté). Le bras Δénergie seule peut coûter autrement (le coût suit le comportement) : si la garde refuse, on re-scelle un -ter sur mesure sans toucher n, dose ni cohorte. Reprise par seed (JSON réécrit après chaque bras, et AVANT la garde de coût).",
+  "inferred_reason": null,
+  "control_family": {
+   "cells": 1,
+   "alpha_family": 0.05,
+   "alpha_cell": 0.05,
+   "method": "bonferroni",
+   "reason": null,
+   "fwer_bound": 0.05
+  },
+  "warning": null
+ },
+ "provenance": {
+  "git_sha": "1fffb0a010ba47c03148278353671dc83972a6a5",
+  "dirty": true
+ },
+ "regime": {
+  "cognitive_demand": true,
+  "cog_linear": false,
+  "cog_gain": 12.0,
+  "base_metabolism": 0.75,
+  "forage_payoff": 0.0,
+  "benchmark_mode": true,
+  "night_enabled": false,
+  "energy_start": 80.0,
+  "immortal_phase1": true,
+  "refill_below": 30.0,
+  "refill_to": 80.0,
+  "hp_refill_below": 50.0,
+  "frozen_phase2_lr": 0.0,
+  "reward_defaults": {
+   "curiosity_scale": 2.0,
+   "novelty_scale": 3.0
+  },
+  "arms_reward_declared": {
+   "b_full": [
+    null,
+    null
+   ],
+   "b_energy": [
+    0.0,
+    0.0
+   ]
+  },
+  "arms_reward_effective": {
+   "b_full": {
+    "curiosity_scale": 2.0,
+    "novelty_scale": 3.0
+   },
+   "b_energy": {
+    "curiosity_scale": 0.0,
+    "novelty_scale": 0.0
+   }
+  }
+ },
+ "params": {
+  "seeds": [
+   2026
+  ],
+  "ticks_learn": 200,
+  "ticks_test": 100,
+  "agents": 12,
+  "budget_s": 43200.0,
+  "smoke": true,
+  "full_all": false
+ },
+ "arms": {
+  "a_frozen": {
+   "2026": {
+    "seed": 2026,
+    "arm": "a_frozen",
+    "num_agents": 12,
+    "ticks_learn": 200,
+    "ticks_test": 100,
+    "lr": null,
+    "reward": null,
+    "reward_declared": null,
+    "learning": null,
+    "survival": {
+     "survival_median": 31.5,
+     "ages": [
+      100,
+      4,
+      10,
+      14,
+      19,
+      20,
+      30,
+      33,
+      40,
+      71,
+      84,
+      86
+     ],
+     "censored": 1,
+     "ticks": 100
+    },
+    "elapsed_s": 0.8315944671630859
+   }
+  },
+  "b_full": {
+   "2026": {
+    "seed": 2026,
+    "arm": "b_full",
+    "num_agents": 12,
+    "ticks_learn": 200,
+    "ticks_test": 100,
+    "lr": null,
+    "reward": {
+     "curiosity_scale": 2.0,
+     "novelty_scale": 3.0
+    },
+    "reward_declared": [
+     null,
+     null
+    ],
+    "learning": {
+     "td_calls": 200,
+     "td_updates": 199,
+     "episode_calls": 25,
+     "episode_updates": 25,
+     "skips": {},
+     "dW_abs_sum": 1738.9083148241043,
+     "reward_scale": 1.0,
+     "td_enabled": true,
+     "lr": null,
+     "resurrections": 0,
+     "ticks": 200
+    },
+    "survival": {
+     "survival_median": 8.0,
+     "ages": [
+      3,
+      4,
+      7,
+      7,
+      7,
+      8,
+      8,
+      9,
+      10,
+      11,
+      12,
+      14
+     ],
+     "censored": 0,
+     "ticks": 14
+    },
+    "elapsed_s": 8.550480365753174
+   }
+  },
+  "b_energy": {
+   "2026": {
+    "seed": 2026,
+    "arm": "b_energy",
+    "num_agents": 12,
+    "ticks_learn": 200,
+    "ticks_test": 100,
+    "lr": null,
+    "reward": {
+     "curiosity_scale": 0.0,
+     "novelty_scale": 0.0
+    },
+    "reward_declared": [
+     0.0,
+     0.0
+    ],
+    "learning": {
+     "td_calls": 200,
+     "td_updates": 199,
+     "episode_calls": 25,
+     "episode_updates": 25,
+     "skips": {},
+     "dW_abs_sum": 1442.820298075676,
+     "reward_scale": 1.0,
+     "td_enabled": true,
+     "lr": null,
+     "resurrections": 1,
+     "ticks": 200
+    },
+    "survival": {
+     "survival_median": 9.5,
+     "ages": [
+      6,
+      7,
+      7,
+      8,
+      8,
+      9,
+      10,
+      11,
+      11,
+      12,
+      14,
+      17
+     ],
+     "censored": 0,
+     "ticks": 17
+    },
+    "elapsed_s": 2.8929338455200195
+   }
+  }
+ },
+ "cost": {
+  "unit_a_frozen_s": 0.8315944671630859,
+  "unit_b_full_s": 8.550480365753174,
+  "unit_b_energy_s": 2.8929338455200195,
+  "unit_s": 12.27500867843628,
+  "b_full_imported": false,
+  "projected_s": 36.82502603530884,
+  "elapsed_total_s": 20.75342583656311
+ },
+ "preflight": {
+  "seam": {
+   "seed": 2026,
+   "num_agents": 4,
+   "reward_defaults": {
+    "curiosity_scale": 2.0,
+    "novelty_scale": 3.0
+   },
+   "max_abs_residual": 1.1920928955078125e-07,
+   "residuals_max_abs": {
+    "energy_vs_delta": 0.0,
+    "curiosity_term": 0.0,
+    "novelty_term": 1.1920928955078125e-07,
+    "additivity_full": 1.1920928955078125e-07
+   },
+   "intrinsic_share_full": 0.7662955194276648,
+   "r_full": [
+    2.7238006591796875,
+    2.845120906829834,
+    2.505854606628418,
+    2.2738037109375
+   ],
+   "r_energy": [
+    -0.2761993408203125,
+    0.7238006591796875,
+    0.7738037109375,
+    0.7738037109375
+   ],
+   "delta_energy": [
+    -0.2761993408203125,
+    0.7238006591796875,
+    0.7738037109375,
+    0.7738037109375
+   ],
+   "surprise": [
+    0.0,
+    0.0,
+    0.0,
+    0.0
+   ],
+   "novelty_count": [
+    1,
+    2,
+    3,
+    4
+   ]
+  },
+  "curiosity_dead": {
+   "seed": 2026,
+   "num_agents": 4,
+   "ticks": 50,
+   "learn_calls": 50,
+   "max_abs_surprise": 0.0,
+   "rewards_identical_curiosity_0_vs_default": true,
+   "curiosity_scale_default": 2.0,
+   "n_rewards_compared": 200
+  }
+ },
+ "replication": {
+  "seed": 2026,
+  "identical": false,
+  "reason": "parametres differents",
+  "p44_ages": [
+   5,
+   6,
+   6,
+   7,
+   7,
+   7,
+   7,
+   8,
+   8,
+   9,
+   9,
+   11
+  ],
+  "measured_ages": [
+   3,
+   4,
+   7,
+   7,
+   7,
+   8,
+   8,
+   9,
+   10,
+   11,
+   12,
+   14
+  ],
+  "p44_S": 7.0,
+  "measured_S": 8.0,
+  "p44_dW_abs_sum": 18242.03954219818,
+  "measured_dW_abs_sum": 1738.9083148241043,
+  "p44_git_sha": "05cf8888a47e2101a8402536f8867a60b3d661b8"
+ },
+ "rows": [
+  {
+   "seed": 2026,
+   "S_a": 31.5,
+   "S_full": 8.0,
+   "dose_full": 199,
+   "resurrections_full": 0,
+   "imported_full": false,
+   "S_energy": 9.5,
+   "dose_energy": 199,
+   "resurrections_energy": 1,
+   "imported_energy": false
+  }
+ ],
+ "verdict": {
+  "n": 1,
+  "thresholds": {
+   "harness_min": 20.0,
+   "dose_min": 1000,
+   "sign_min": 10,
+   "delta_min": 5.0,
+   "n_min": 12
+  },
+  "terme": null,
+  "attenuation": null,
+  "S_a_median": 31.5,
+  "S_full_median": 8.0,
+  "S_energy_median": 9.5,
+  "dose_full_median": 199.0,
+  "dose_energy_median": 199.0,
+  "d_full_median": -23.5,
+  "d_full_positive": "0/1",
+  "d_full_negative": "1/1",
+  "arm_full": "NEUTRE",
+  "d_energy_median": -22.0,
+  "d_energy_positive": "0/1",
+  "d_energy_negative": "1/1",
+  "arm_energy": "NEUTRE",
+  "d_energy_vs_full_median": 1.5,
+  "d_energy_vs_full_positive": "1/1",
+  "verdict": "INCOMPLET",
+  "why": "1 seeds < 12 : reprise, aucune lecture"
+ }
+}

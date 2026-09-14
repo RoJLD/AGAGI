@@ -341,6 +341,18 @@ qu'il ne dérive pas en silence ; la correction (qui change TOUTES les baselines
 après le run P4.4, sur décision. *Coût : agent 1-1,5 h.* Dépend de : rien.
 <!-- closes_when:path_present=tests/sandbox/test_infra001_aliasing_pinned.py -->
 
+**P2.65 — rang 13 bis — La CURIOSITÉ (EDR 014) est MORTE sous le backend torch : la brancher ou la déclarer.**
+Quoi : `Biosphere3D` publie `curiosity_scale = 2.0` et additionne `curiosity_scale · model.surprise` à la
+récompense (`world_1_stoneage.py:1713`), mais `backend_torch.py` n'écrit jamais `surprise` — seul le forward
+legacy numpy le pose (`mamba_agent.py:824`). Sous le chemin PUBLIÉ (`use_torch_inworld`), le terme vaut 0 à
+chaque tick (mesuré P4.8 : 50 ticks, 200 récompenses bit-identiques à échelle 0 vs 2 ; deux bras sur cinq d'un
+design scellé ne pouvaient rien changer, E16 occ. 2 au registre). Toute prose qui invoque la « curiosité »
+in-world depuis EDR 014 décrit le chemin legacy. Deux issues : (a) porter la surprise du World Model dans le
+forward torch — c'est une EXPÉRIENCE, elle change la récompense du crédit publié ; (b) la déclarer morte sous
+torch dans `docs/REF` et retirer le terme de la ligne de récompense (bit-identique). Garde en place :
+`preflight_curiosity_dead` (`tools/evo_runs/s2_reward_ablation.py`). Clause de fermeture à poser avec la
+décision (a)/(b). *Coût : agent 1 h (b) ; (a) = un run.* Dépend de : P4.8 (résultat).
+
 **P3.4 — rang 14 — Cas de calibration de l'apprenant LEGACY.**
 Quoi : `MambaBatchModel.compute_policy_gradient` (le chemin actif pendant tout l'arc EVO), mêmes bras
 que P1.6 (oracle / apprenant / apprenant coupé), cohorte immortelle, n = 12. Le panel l'a mesuré à n = 1
@@ -424,9 +436,21 @@ le bit non donné = instrument neuf calibré, no-op torch construit. IW-2 (trans
 paramètre-monde θ qui VARIE réellement (G1-001) — famine hérite du flag `cognitive_demand`, donc même
 tâche : ne pas lancer sans θ. *Coût : agent 3-5 j ; calcul 12-18 h.* Dépend de : P1.6, P4.4.
 
-**P4.8 — rang 4 bis (PROCHAIN RUN) — Ablation de la RÉCOMPENSE : le crédit poursuit-il la curiosité et la
-nouveauté plutôt que l'énergie ?**
-Quoi : même dispositif que P4.4 (bassin DAgger, phase immortelle 2000 ticks puis test mortel 200 ticks, n = 12,
+**P4.8 — ✅ SCELLÉE ET LANCÉE (2026-09-14) — rang 4 bis — Ablation de la RÉCOMPENSE : le crédit poursuit-il
+la curiosité et la nouveauté plutôt que l'énergie ?**
+État : règle `S2-REWARD-ABLATION` scellée (cinq bras, 8 branches ordonnées) PUIS réduite en `-bis` à TROIS bras
+(gelé / complète / Δénergie seule, budget 12 h dérivé des mesures P4.4) sur un fait de PRÉ-VOL trouvé au smoke
+et qui valait ~10 h de calcul : **la curiosité (EDR 014) est MORTE sous le backend torch** — `backend_torch.py`
+n'écrit jamais `model.surprise` (seul le forward legacy numpy le pose, `mamba_agent.py:824`), donc le terme
+`curiosity_scale·surprise` vaut 0 à chaque tick et les bras « +curiosité » étaient BIT-IDENTIQUES à leurs jumeaux
+(dW 1442,82 = 1442,82 sur 200 ticks). La récompense EFFECTIVE du crédit publié est `Δénergie + nouveauté`.
+Runner `tools/evo_runs/s2_reward_ablation.py` : SEAM vérifié à réponse connue (décomposition exacte au tick 1,
+`preflight_reward_seam`), curiosité morte MESURÉE avant chaque run (`preflight_curiosity_dead`, refuse un réveil),
+`b_full` importé de P4.4 seulement sur réplication bit-identique constatée, verdict calibré 12 cas. Résultat →
+record `EDR-S2-REWARD-ABLATION` (results/s2_reward_ablation.json, committé avec le record). Ce qu'il ne tranche pas : le contrôle à
+récompense NULLE (dérive du critic seul) — à inscrire si l'issue est CREDIT_ERODE_SEUL ; et ce que ferait une
+curiosité VIVANTE (voir P2.65).
+Quoi (design initial) : même dispositif que P4.4 (bassin DAgger, phase immortelle 2000 ticks puis test mortel 200 ticks, n = 12,
 bras appariés), bras (b) décliné sur la récompense de `world_1_stoneage.py:1713` : `Δénergie` seule ;
 `Δénergie + curiosité` ; `Δénergie + nouveauté` ; récompense complète (réplique P4.4 = contrôle). DV `S_b`
 par bras, `d_ba` apparié ; même règle de lecture (signe 10/12, ±5). Deux issues : l'érosion DISPARAÎT sans les
