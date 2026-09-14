@@ -1,0 +1,25 @@
+{
+  "name": "S2-CREDIT-RETENTION-bis",
+  "rule": {
+    "ce_que_ce_run_ne_tranche_pas": "Ni LOCK-001 (tâche RÉACTIVE, pas de dépendance état-interne -> sortie), ni le pari A2 (déjà mesuré : EVO-005, EVO-016), ni le pari C hors tâche réactive. Il tranche le seul maillon jamais mesuré : bassin DAgger x crédit in-world à dose non bornée.",
+    "discrimination": {
+      "1. n < 12 seeds complets": "INCOMPLET -- reprise par seed, aucune lecture.",
+      "2. médiane(`S_a`) < 20": "INDETERMINE_HARNAIS -- le bassin ne transfère pas dans ce harnais (WARM-003 : 35,2 ; moitié = 17,6 ; 20 déclaré) : rien à retenir.",
+      "3. médiane(`dose_b`) < 1000 OU médiane(`dose_c`) < 1000": "INDETERMINE_DOSE -- le crédit ne s'est pas appliqué (P1.6 mesure 1999/2000) ; bras qui ne peut pas réussir (E2).",
+      "4a. `d_ba` > 0 sur >= 10/12 seeds ET médiane(`d_ba`) >= +5": "RETENU_ETENDU -- le crédit RETIENT et AMÉLIORE le bassin.",
+      "4b. `d_ba` < 0 sur >= 10/12 seeds ET médiane(`d_ba`) <= -5": "ERODE -- le crédit DÉTRUIT le bassin (loi r·P, EDR-175).",
+      "4c. sinon": "RETENU_NEUTRE -- le bassin tient à ±5 ticks ou sans signe 10/12.",
+      "5a. `S_c` > 18 (2 x plancher 9,0 de EDR-WARM-010, même régime) sur >= 10/12 seeds ET médiane(`S_c`) >= 18": "APPRIS_FROID.",
+      "5b. sinon": "PAS_APPRIS_FROID (la médiane de `S_c` est publiée face au plancher)."
+    },
+    "dv_primaire": "`S_a`, `S_b`, `S_c` = survie médiane des 12 agents par seed en phase 2 MORTELLE (poids gelés) ; `d_ba` = `S_b` - `S_a` apparié par seed ; `dose_b`, `dose_c` = médiane des mises à jour TD par agent en phase 1 ; `resurrections` = morts intra-tick ressuscitées en phase 1.",
+    "instruments_autorises": "tools/evo_runs/s2_credit_retention.py (phase1_learn_immortal, phase2_survive_mortal, credit_retention_verdict), tools/learning_events.py, tools/experiment_preflight.py (assert_no_io_overlap, declare_design, assert_control_family), tools/cost_guard.py.",
+    "mesure": "Par seed (2026..2037, n=12, unité de réplication = le seed), trois bras appariés (même monde, même seed) : (a) bassin DAgger cloné ×12, W GELÉ ; (b) bassin cloné ×12 + crédit publié ; (c) cohorte FRAÎCHE ×12 + crédit publié. Phase 1, IMMORTELLE (énergie et hp rechargés, morts intra-tick ressuscitées, 2000 ticks, monde cognitive_demand 2-bits au régime S2-009 metab 0,75 / cog_gain 12 / forage_payoff 0) : bras (b) et (c) apprennent, dose comptée par count_learning_events -> `dose_b`, `dose_c` (médiane des mises à jour TD par agent) et `resurrections`. Phase 2, MORTELLE (200 ticks, mêmes objets-agents, poids GELÉS lr=0, forward torch identique à la phase 1) : `S_a`, `S_b`, `S_c` = survie médiane des 12 agents (âge à la mort, censuré à 200) ; `d_ba` = `S_b` - `S_a` apparié par seed.",
+    "plafond": "Coût : unité = un seed du bras (b) (phase 1 2000 ticks + phase 2 200 ticks), MESURÉE sur le premier seed puis projetée par project_cost (marge x3) sur 3 bras x 12 seeds sous un budget de 7200 s de simulation ; reprise par seed (JSON réécrit après chaque bras).",
+    "provenance": "Backlog bloc 2026-09-14 rang 4 (P4.4), décision robla du 2026-09-14 (variante = apprenant publié ; règle publie la dose et sépare apprend / meurt en apprenant) ; EDR-CALIB-LEARNER ; WARM-003 ; WARM-010 ; EDR-175.",
+    "question": "Le crédit in-world tel que publié (Actor-Critic TD(0) par tick + REINFORCE épisodique k=8, lr 0,04 ; calibré par EDR-CALIB-LEARNER : il apprend à dose non bornée par la mort) RETIENT-il ou ÉTEND-il le bassin DAgger persisté de WARM-003 (results/warm003_dagger_genome.npz, survie publiée 35,2/200 dans le monde cognitive_demand de S2-009), et construit-il de la survie à FROID, quand l'apprentissage se fait sans être borné par la mort ?",
+    "regle_de_lecture_continue": "Branches dans l'ORDRE IMPOSÉ 1 -> 2 -> 3 -> 4 -> 5 ; 4 et 5 sont lues toutes les deux dès que 1-3 passent. Seuils : signe 10/12 (binomial unilatéral P >= 10/12 | p=0,5 = 0,019) ; ±5 ticks = plus de 2 x le pas par round de DAgger (+2/round, WARM-003) et ~15 % du bassin ; 2 x plancher = le plus petit ratio jamais tenu pour un effet dans ce dépôt.",
+    "relation_au_sceau_original": "MARKUP SEULEMENT (2026-09-14, scellé AVANT toute cellule) : identique à S2-CREDIT-RETENTION, plus `dv_primaire` pour que la porte 5 inspecte les grandeurs."
+  },
+  "seal": "1ab2be6d00e27b2e62907b9158951262ddf0aaec696adaa4ef48ad2dfb637d9f"
+}

@@ -1002,6 +1002,10 @@ CALIBRATED = {
     # explicite sur le DRAIN et inv_capacity exige EGAL, lest exact et bit-identique sur la politique.
     "assert_phenotype_matched": ["matched:passes", "make_blind:refuses", "tol-on-drain:explicit",
                                  "inv-capacity:exact"],
+    # P4.4 (2026-09-14) -- lecture de la regle scellee S2-CREDIT-RETENTION, branches dans l'ORDRE impose.
+    # Cas dans tests/sandbox/test_s2_credit_retention.py (reponses connues sur lignes synthetiques).
+    "credit_retention_verdict": ["missing:raises", "incomplet", "harnais", "dose", "retenu_etendu", "erode",
+                                 "retenu_neutre", "appris_froid", "pas_appris_froid"],
 }
 
 _GENOMES = os.path.join("results", "warm007_genomes")
