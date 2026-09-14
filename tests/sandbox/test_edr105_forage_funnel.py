@@ -25,6 +25,48 @@ def test_verdict_forage_suffisant():
     assert _verdict_forage(_agg(0.9, 0.9, 2.0, 1.0)) == "FORAGE SUFFISANT"
 
 
+# --------------------------------------------------------------------------------------------------
+# P2.49 (2026-09-10) — DEFAUT REEL, mesure avant correctif, et il est du genre RARE dans ce depot :
+# un POSITIF fabrique. `_verdict_forage` sur une agregation dont les quatre grandeurs valent `nan`
+# rendait "FORAGE SUFFISANT" — parce que `nan < 0.5` vaut False, donc les trois tests de la cascade
+# tombent et le verdict de QUEUE sort : « l'entonnoir tient, le mur est ailleurs ».
+# ⚠️ Ce qui rend ce cas plus dangereux que les negatifs fabriques que le depot traque : il ne
+# RESSEMBLE pas aux autres resultats. Un « PAS DE RUNG » fabrique se noie dans un depot plein de
+# negatifs ; un « FORAGE SUFFISANT » fabrique se remarquerait — s'il etait faux dans l'autre sens.
+# ⚠️ Et `nan` en ENTREE est precisement ce que le depot demande de RENDRE en cas d'absence (porte 14).
+# Le consommer comme une mesure annule tout le benefice de l'avoir rendu : la chaine casse au
+# maillon suivant.
+# --------------------------------------------------------------------------------------------------
+
+def test_verdict_forage_REFUSE_une_agregation_NON_FINIE():
+    """CONTRE-EXEMPLE GELE : l'incident rejoue tel quel."""
+    import math
+
+    import pytest
+    nan = float("nan")
+    with pytest.raises(ValueError, match="NON FINIES"):
+        _verdict_forage(_agg(nan, nan, nan, nan))
+    # une SEULE grandeur non finie suffit : la cascade s'arrete au premier etage evaluable
+    with pytest.raises(ValueError, match="NON FINIES"):
+        _verdict_forage(_agg(0.9, 0.9, math.inf, 1.0))
+
+
+def test_verdict_forage_REFUSE_une_agregation_INCOMPLETE():
+    """Une grandeur ABSENTE levait deja (KeyError), mais sans dire laquelle ni pourquoi — et un
+    `KeyError` accidentel n'est pas une garde : il disparait au premier refactor qui met un defaut."""
+    import pytest
+    with pytest.raises(ValueError, match="ABSENTES"):
+        _verdict_forage({"p_reach": 0.9, "p_cap": 0.9})
+
+
+def test_verdict_forage_ACCEPTE_les_valeurs_FINIES_extremes():
+    """NO-OP APPARIE de la garde : elle ne doit refuser que le NON FINI, pas les bornes legitimes.
+    Sans ce cas, une garde qui refuserait 0.0 ou 1.0 passerait les deux tests precedents tout en
+    rendant l'instrument inutilisable sur les regimes qui l'interessent le plus."""
+    assert _verdict_forage(_agg(0.0, 1.0, 0.0, 0.0)) == "GOULOT=APPROCHE"
+    assert _verdict_forage(_agg(1.0, 1.0, 0.0, 0.0)) == "FORAGE SUFFISANT"
+
+
 def _mk_env(trace_forage):
     cfg = WorldConfig()
     cfg.base_metabolism = 0.25

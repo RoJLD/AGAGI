@@ -38,8 +38,20 @@ def _valid_edge(**evidence_over):
     contrôle de demande est désormais exigé TOUJOURS, pas seulement dans la branche `n/a`. Le trou
     fermé (fa='pass' seul) est gelé comme contre-exemple dans
     `tests/sandbox/test_agi_taxonomy_gate.py`."""
+    # ⚠️ FIXTURE RESYNCHRONISEE le 2026-09-09. Elle datait d'avant DEUX durcissements de la porte et
+    # etait donc devenue invalide-de-forme : M4 (2026-09-02) exige `coord_intact >= emergence_bar`
+    # -- sans le bras intact, `X_DEMANDED` peut etre le bras arithmetiquement force d'un agent qui
+    # n'a rien appris -- et P2.15 exige que la barre SEPARE, c.-a-d. depasse strictement un
+    # `incapable_ceiling` NUMERIQUE dont la provenance est ECRITE. Trois tests etaient ROUGES depuis,
+    # sans qu'aucun signal ne le dise : aucun job de CI ne lancait ce fichier.
+    # ⚠️ CORRIGE PAR LA FIXTURE, PAS PAR L'ATTENTE. L'intention des trois cas -- « une arete bien
+    # formee est ACCEPTEE » -- est valide et vaut d'etre testee ; affaiblir l'attente aurait retire
+    # du dépôt les seuls tests qui verifient que la porte sait dire OUI.
     ev = {"ablation_verdict": "X_DEMANDED", "ratio": 2.4, "n": 12, "functional_aliasing": "pass",
           "specificity_control": "pass",
+          "coord_intact": 0.62, "emergence_bar": 0.45, "incapable_ceiling": 0.3889,
+          "ceiling_provenance": "forme close du substrat plain sur (q+key)%K : plafond structurel "
+                                "0.3889, cf. EDR bilineaire du 2026-08-03",
           "record": "docs/EDR/S2-001_Within_Subject_Perception_Ablation_Is_The_Sound_Demand_Marker.md"}
     ev.update(evidence_over)
     ev = {k: val for k, val in ev.items() if val is not _ABSENT}

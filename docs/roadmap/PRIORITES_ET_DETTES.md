@@ -14,6 +14,422 @@ et le coût estimé.
 
 ---
 
+## 🧭 2026-09-14 — AUDIT GLOBAL + BRAINSTORM : où nous en sommes, où aller, dans quel ordre
+
+> **Provenance.** Audit du dépôt le 2026-09-08 (16 cliquets verts sur l'arbre entier, suite complète
+> 2407 verts / 13 rouges pré-existants — corrigés le 09-09 par P2.54 —, doctor 0 bail / 0 fantôme),
+> puis **panel de 7 lentilles indépendantes** (stratège scientifique, réfutateur dédié, débit, instruments
+> in-world, ingénierie du dépôt, chercheur extérieur, north-star), **24 candidats** fusionnés, **72
+> réfutations** à trois lentilles (périmé-ou-doublon / coût-et-méthode / valeur), 3 juges à pondérations
+> opposées, synthèse. **14 candidats sur 24 réfutés à la majorité — dont la recommandation initiale de
+> l'orchestrateur** (deux prémisses fausses, cf. « Deux faits neufs »). Direction et décisions validées
+> avec robla le 2026-09-14. Ce bloc REMPLACE la lecture stratégique de
+> [`SPECIFICATION_10ANS.md`](SPECIFICATION_10ANS.md) (un seul commit, 2026-07-21), archivée de fait ;
+> le document vivant reste [`FIL_DIRECTEUR_AGI.md`](FIL_DIRECTEUR_AGI.md).
+
+### État, mesuré
+
+- **La méthodologie est saturée, la science in-world n'avance plus.** Depuis le 2026-09-01 (mesuré le
+  09-08) : 26 commits « science » contre 78 « méthodo / fix / docs ». 16 portes, 25 classes d'erreur,
+  221 instruments. Le chiffre directeur est INCHANGÉ : **proxy 9 / in-world 0**.
+- **Les deux derniers records S2 sont des ARRÊTS** (au contrôle, [[EDR-S2-BLIND-CHAMPION]] ; au smoke,
+  [[EDR-S2-SUBJECT-VARIANCE]]). Avec [[EDR-S2-012]] (survie = corps), [[EDR-EVO-004]] (la politique ne
+  lit pas l'observation) et [[EDR-HOF-IO-OVERLAP]] (18 logits SONT l'observation), **le champion prod
+  stoneage ne peut plus servir de sujet pour mesurer la cognition.**
+- **Le point d'appui in-world existe** : [[EDR-S2-009]] a réalisé la recette à trois conditions (oracle 21×
+  vs ablé). Mais le crédit n'y « apprend pas à froid » ([[EDR-S2-010]], [[EDR-S2-011]]) — et ce nul est
+  le premier des deux faits neufs ci-dessous.
+- **Les quatre paris** de SPECIFICATION_10ANS (A tâche-vs-sélection, B modalité, C warm-start, D
+  métrique) n'avaient AUCUNE entrée ici depuis le 2026-07-21 ; le doc les appelait « pari central de la
+  décennie » et « premier chantier ». Tranchés ci-dessous.
+
+### Deux faits NEUFS (vérifiés dans le code le 2026-09-14 ; écrits nulle part avant)
+
+1. **L'apprenant in-world n'a AUCUN contrôle positif, et les nuls « le crédit n'apprend pas » sont des
+   nuls à dose infime.** Le crédit publié passe par un **TD(0) par tick** (`src/worlds/world_1_stoneage.py:1717`,
+   `batch_model.learn` à chaque tick ; `src/agents/backend_torch.py:12`, Actor-Critic TD(0)) que S2-010
+   §Portée ne nomme pas ; le critic vit sur un nœud `tanh` (`src/agents/backend_torch.py:132`) face à des
+   récompenses ≈ −18/tick ; `torch_episode_k = 8` (`src/worlds/world_1_stoneage.py:52`) sur des agents
+   qui meurent à 7-9 ticks ; `lr = 0.04` fixe (`src/agents/backend_torch.py:61`), jamais balayé ; et la
+   cohorte est RECRÉÉE à chaque ère (`tools/cognitive_demand_inworld.py:147-148`). Le panel a compté
+   (scripts de scratchpad, n = 1, NON versionnés — à re-mesurer avant tout record) **≈ 48 mises à jour
+   par agent** sur le bras COLD de S2-011, et un apprenant **PLAT** sur 2000 ticks là où deux variantes
+   triviales (récompense ×0,05, TD coupé) apprennent. Toute la chaîne « verrou = crédit » (S2-009 §crédit
+   → S2-010 → S2-011 → SPÉC §2) repose sur cet apprenant sans réponse connue : classes **E2** (bras qui
+   ne peut pas réussir) et **E19** (réglage validé sur le cas facile) candidates. La garde existe déjà
+   (`tools/experiment_preflight.py:303`, `assert_verdict_invariant_to_optimizer`) : elle n'a jamais été
+   appliquée à l'in-world.
+2. **Le CORPS est dérivé des lignes 0-9 de W.** `src/agents/mamba_agent.py:47-50` : `hp_bonus = 10·Σ|W[0:5]|`,
+   `inv_capacity = max(3, Σ|W[5:10]|)`, `drain = 1 + hp_bonus/100 + 0,1·inv_capacity`. Donc **toute
+   annulation, édition ou amplification de lignes de W est AUSSI une intervention métabolique.**
+   `make_blind` (`tools/evo_runs/s2_blind_champion.py:127-131`) annonce « corps, biais et récurrence
+   restent identiques » — c'est FAUX par construction : annuler `W[:num_inputs, :]` fait tomber le drain
+   (panel, numpy pur : 2,40 → 1,30, −46 %), et les contrôles câblés de SUBJECT-VARIANCE sont morts de
+   leur corps (drain 11,0 / 15,0), pas de leur couplage. **Le « +39 % 7/7 seeds » de S2-BLIND et le
+   « aucun contrôle positif constructible » de SUBJECT-VARIANCE sont des ARTEFACTS CANDIDATS.** Vérifiable
+   à ZÉRO simulation (réponses exactes par la formule) ; `phenotype_of`
+   (`tools/evo_runs/evo011_preflight.py:300`) existe déjà et n'est appelé que par EVO-011.
+
+### Direction (décidée le 2026-09-14) — A + B en parallèle, C en réserve
+
+- **A — Calibrer l'apprenant et le corps, PUIS un seul run in-world dont chaque branche a une suite.**
+  Pari : « proxy 9 / in-world 0 » est d'abord un défaut d'INSTRUMENT (apprenant sans contrôle positif,
+  corps confondu avec la politique), pas un mur. ≈ 15 h d'agent, < 1 h de calcul, puis le run P4.4.
+  Sa règle dit explicitement ce qu'il NE tranche PAS : ni LOCK-001 (tâche réactive), ni le pari A2, ni
+  le pari C hors tâche réactive.
+- **B — Attaquer [[EDR-LOCK-001]] là où il a de la marge : proxy mémoire D = 2, sans monde ni bail.**
+  La seule manifestation du mur avec de la marge (D = 0 : 0,744 ; D = 2 : 0,17-0,21 ; contrôle 0,54-0,57).
+  Teste directement la prédiction falsifiable de LOCK-001 (amorçage court puis REINFORCE). Tourne en
+  fond pendant que A tient le bail `kuzu`. → P4.5.
+- **C — Porte IW-1 / IW-2 (demi-lecteur étendu par le crédit, puis transfert zéro-shot avec DV
+  cognitive).** Seul livrable lisible de l'extérieur, mais RÉFUTÉ tel qu'écrit par trois lentilles
+  (bras pré-mesuré inerte, pré-vol tautologique, IW-2 tautologique par G1-001). Réserve conditionnelle,
+  re-spécifiée seulement après les verdicts de P1.6 et P4.4. → P4.6.
+- **Les paris, tranchés sur pièces** : **A** est mal posé — ni la tâche ni la sélection ne décident, la
+  PORTÉE de l'optimiseur décide ([[EDR-EVO-005]] : un fitness cognitif dense s'arrête sous le plafond
+  non-cognitif ; [[EDR-EVO-016]] : 0/12 même quand lire double la vie ; seul le CIBLAGE marche, et il
+  fournit la réponse). **B → mémoire / écriture** (D ≥ 1) est l'axe cognitif primaire des trois mois.
+  **C** : warm-start = régime standard pour le BOOTSTRAP (6 fils), rétention in-world jamais testée à
+  récompense dense — c'est ce que P4.4 mesure, avec le froid comme témoin. **D** est périmé : la métrique
+  de verdict existe et est calibrée (ratio within-subject, plancher chiffré) ; comme FITNESS elle est
+  testée et insuffisante (EVO-005). Ce n'est pas le premier chantier.
+- **Règle des portes** : « on ne franchit une porte que si la précédente est mesurée » est satisfaite à
+  la lettre et vide — G0 est `validated` sur un marqueur between réfuté depuis (S2-001), et G1-G4 ont été
+  tentées in-world sur un sujet sans contenu cognitif. La re-sceller (within-subject, contrôle positif
+  co-exécuté, plancher de bruit publié) fait partie de P3.5.
+
+### Ce qu'on ARRÊTE (chacun avec sa raison)
+
+- **Lire la cognition du champion prod stoneage pour elle-même** (reprise du plan complet
+  SUBJECT-VARIANCE par amplification ; question « le chevauchement HoF a-t-il été sélectionné ? » sans règle
+  scellée) : la survie y vaut ≈ énergie / drain phénotypique, et [[EDR-EVO-011]] a mesuré que lire COÛTE.
+- **Tout run in-world à crédit sans dose publiée ni contrôle positif de l'APPRENANT** : un NON y est
+  indiscernable d'un apprenant inerte (fait neuf n° 1).
+- **Inférer « NON → pari A2 rationnel »** : A2 est déjà mesuré in-world et échoue (EVO-005, EVO-016).
+- **Poser des bandeaux ou des rétractations AVANT le verdict mesuré** (E8) : un bandeau est une
+  affirmation, il se grave après la mesure (→ P3.6, subordonnée à P1.6).
+- **Nouveaux leviers de sélection agnostiques** (lexicase, QD, POET/UED, spéciation, nouveauté) : cinq
+  réfutés (EVO-010/013/014/017/019-020), prédits inertes par l'argument arithmétique EVO-014/018.
+- **Baldwin-avec-essais dans le harnais EVO** : bras « Baldwin pur » non constructible (le write-back
+  vit dans `forward` à chaque tick), coût réel 24-30 h de calcul. **Iterated learning contre le plafond
+  LANG-005** : cible close par le record lui-même, prémisse à `lr = 0,05` jamais balayé (E19).
+- **Outillage de boucle et refontes documentaires AVANT le run** (harnais de run en une commande,
+  générateur de record, worktree par session, réécriture de SPECIFICATION_10ANS) : le facteur 2 de débit
+  est ailleurs (voir leviers) et chaque brique existe déjà (`tools/preregister.py`, `tools/cost_guard.py`,
+  `tools/jobs/`, `src/seed_ai/harness.py`).
+- **Un RNG dédié pour le no-op de `run_ablation_map`** : un no-op bit-identique ne mesure que le
+  déterminisme du harnais ; le plancher RÉEL contre une ablation qui change les actions reste ±8 %. Garder
+  P2.41a (bande no-op PUBLIÉE à côté de chaque ratio) — c'est une règle de lecture, pas un instrument.
+- **Citer « CI verte » sans périmètre ni `gh run list`** ; committer nu ; emporter le travail non relu
+  d'une session parallèle ; recopier un compte au lieu de le recomputer.
+
+### Leviers « plus loin, plus vite, mieux » (mesurés ou déduits du panel)
+
+- **La garde E19 comme test standard de tout NUL sous gradient** — `assert_verdict_invariant_to_optimizer`
+  avec la référence oracle du même run, AVANT toute recommandation « le crédit n'apprend pas ». Un nul se
+  conteste en ≤ 10 min de calcul au lieu d'un arc de rétractation (RETAIN-COMPOSE-LR : des jours).
+- **L'injection à dose connue étendue aux APPRENANTS** (pas seulement aux orchestrateurs) : compteurs
+  d'événements d'apprentissage en context manager + variante d'apprenant à effet connu (TD coupé, ×0,05).
+  Même technique que P2.44/P2.48 : calibre la couche « mesures → affirmation » à coût nul.
+- **Vérification de phénotype en numpy pur AVANT tout sujet W-édité** : `phenotype_of(genome)` en < 5 s,
+  sans monde. Aurait évité les deux records arrêtés du 2026-09-08.
+- **Réutiliser le bassin persisté** `results/warm003_dagger_genome.npz` (2026-07-19, 59 + 108 dans
+  172 : sans chevauchement E24) au lieu de re-DAgger (≈ 90 min/seed ; 12 rounds > 8 h abandonnés).
+- **Paralléliser proxy (CPU, sans bail) et in-world (bail `kuzu`)** : deux fils de résultats par semaine
+  au lieu d'un — charge machine mesurée avant de citer un coût (E12).
+- **Mesurer le coût sur un smoke PAR TYPE d'unité** (torch gelé / torch apprenant / évolution mamba),
+  borner en agent-ticks, jamais en secondes.
+- **Pousser après chaque commit** et citer « CI verte » avec périmètre : une CI rouge est restée invisible
+  deux jours (09-07 → 09-09).
+- **Le débit se perd HORS calcul** : scellement → record = 85-114 min pour 9-13 min de run (EVO-026/028),
+  23 des 26 `fix` du 09-01 → 09-08 tombent moins d'une heure après le `feat` qu'ils réparent. Ce n'est pas
+  le hook (≤ 16 s) ni le calcul.
+
+### Liste PRIORISÉE (rang = ordre d'exécution ; le P dit la nature : P1 avant tout run, P2 dette ou instrument, P3 méthodo, P4 science)
+
+**P1.6 — ✅ CLOSE (2026-09-14, [[EDR-CALIB-LEARNER]]) — rang 1 — Contrôle positif IN-WORLD de l'apprenant torch à dose PUBLIÉE, via la garde E19
+existante. PRÉREQUIS scellé du run P4.4.** *(Résidus (i)-(iii) ci-dessous restent ouverts, rattachés à cette entrée.)*
+→ **INSTRUMENT LIVRÉ le 2026-09-14, run n = 12 en cours.** `tools/learning_events.py`
+(`count_learning_events` : patch de CLASSE restauré en `finally`, bit-identique par défaut — prouvé par
+`tests/sandbox/test_learning_events.py`, 9 cas) ; les trois sondes crédit publient leur dose
+(`learning`, branche `learning-dose:published`) ; `run_learner_probe` (cohorte IMMORTELLE, DV = taux de
+coups par bloc, oracle câblé à 1,0 EXACT, bras `lr=0` sans aucun poids déplacé = plafond de l'incapable
+mesuré dans le dispositif, dose = un TD par tick + un épisode tous les 8 ticks, reproductible) et
+`learner_verdict` (lève sur entrée absente, `INDETERMINE_HARNAIS` si l'oracle ou la référence sont hors
+bornes) sont calibrés (13 cas). Runner `tools/learner_calibration.py` : 6 bras appariés par seed
+(oracle / lr0 / natural / lr 0,004 / TD coupé / ×0,05), `declare_design` (unité = seed, famille 2n),
+`project_cost` sur une unité MESURÉE, reprise par seed, provenance git, balayage E19 natural-vs-lr_low.
+→ **✅ VERDICT GRAVÉ le 2026-09-14 — [[EDR-CALIB-LEARNER]] : l'apprenant tel que publié APPREND à dose
+non bornée par la mort.** n = 12 seeds, cohorte immortelle, 2000 ticks : `natural` 0,227 → 0,277 contre
+référence lr=0 à 0,126 (= chance), **12/12 seeds au-dessus de la référence appariée, +0,156 (min
++0,068)**, courbe monotone, écart à l'oracle (1,0) INVARIANT au pas (E19). Aucune variante n'est
+fiablement meilleure : `lr_low` +0,028 (10/12), `x0.05` +0,024 (8/12), **`td_off` PIRE (−0,046, 2/12)** —
+le TD par tick contribue ; l'hypothèse « critic tanh saturé » n'a pas d'effet mesurable. **Les deux
+issues nommées d'avance : c'est la première** — S2-010 et S2-011 sont ROUVERTS (bandeaux posés APRÈS
+mesure, `corrected_by`), leurs nuls étaient des nuls de DOSE (≈ 48 mises à jour contre 2250 ici).
+Deux faits de méthode payés sur ce run : (a) le v1 à recharge d'énergie seule
+(`results/learner_calibration_v1_energy_only.json`) perdait la moitié des cohortes apprenantes dès le
+bloc 1 (le monde tue DANS le tick) et donnait `x0.05` à 0,390 — **tout l'avantage des variantes était un
+biais de survivants** ; v2 = énergie + hp + résurrection intra-tick, cohorte 12/12 dans tous les blocs,
+cellule gelée en test (seed 2027) ; (b) **un apprenant meurt ~100× plus qu'un non-apprenant** (126
+résurrections par seed pour `natural`, 1 pour lr=0, 0 pour l'oracle) — mécanisme NON établi (candidats :
+canaux grab/rub mis à jour par BCE → taxe de portage, lancers entre pairs, riposte du gibier).
+**Décision robla (recommandation)** : sceller pour P4.4 l'apprenant tel que publié (`natural`, bit-identique
+aux records) ; `lr_low` en bras de sensibilité si le budget le permet ; ×0,05 et TD coupé écartés.
+**Résidus (ouverts, rattachés ici)** : (i) mesurer le mécanisme de la létalité des apprenants — ablation
+par canal (grab/rub/throw coupés) à cohorte immortelle, 4 cellules × 30 s ; (ii) le garde-fou de bail
+de `tests/conftest.py` s'évalue à la COLLECTE : un run lancé après la collecte fait échouer les tests
+monde en `ResourceBusy` (5 rouges visibles le 2026-09-14, aucune contamination) — l'évaluer au SETUP
+fermerait l'angle mort ; (iii) la sonde ne publie pas la valeur du critic : 56 % des `value_pred`
+loggés sous −0,99 pendant le run, bras mélangés — à publier par bras avant de citer.
+**Conséquence pour P4.4** : la règle scellée doit PUBLIER la dose (`learning`) et TRAITER la létalité
+des apprenants — phase d'apprentissage immortelle puis test de survie mortel, ou DV qui ne confond pas
+« apprend » et « meurt en apprenant ». **P3.6 partiellement faite** : bandeaux S2-010/S2-011 posés.
+<!-- closes_when:path_present=docs/EDR/CALIB-LEARNER_InWorld_Learner_Learns_At_Unbounded_Dose_The_Published_Nulls_Were_Dose_Bounded.md -->
+Quoi : (a) les trois sondes de `tools/cognitive_demand_inworld.py` (`run_credit_probe`,
+`run_credit_linear`, `run_warmstart_credit_probe`) publient `n_learn_calls` (TD), `n_episode_calls`,
+`n_skip` par raison et ‖ΔW‖ — compteur en context manager posé sur le backend, restauré en `finally` ;
+(b) `assert_verdict_invariant_to_optimizer` appliquée à `run_credit_linear` sur la cohorte immortelle
+`cog_linear` (déjà outillée : 12-46 s par bras), avec deux variantes d'apprenant derrière flag
+bit-identique par défaut : TD coupé (REINFORCE épisodique seul) et récompense ×0,05 (TD conservé,
+centré) ; n = 12 seeds, DV = taux de coups et survie, contrôle positif = oracle du même run
+(`run_linear_sanity`, déjà calibré). (c) Les deux issues nommées d'avance : une variante apprend → S2-010
+/ S2-011 sont ROUVERTS (bandeau APRÈS mesure, P3.6) et « in-world 0 » peut bouger ; aucune n'apprend à
+n = 12 → S2-010 / S2-011 sont RENFORCÉS, le run P4.4 devient légitime, et le chantier suivant est le
+crédit lui-même (BPTT tronqué, critic centré — fichier partagé). Pourquoi : fait neuf n° 1 ; le pré-vol
+(question 1 : les DEUX issues) l'exige pour tout run à crédit. *Coût : agent 4-6 h ; calcul ≤ 10 min.*
+Dépend de : rien. **Décision robla à prendre APRÈS le verdict** : quelle variante sceller pour P4.4
+(recommandation : TD coupé d'abord ; ×0,05 seulement si TD coupé n'apprend pas à n = 12).
+<!-- closes_when:grep_present=tests/sandbox/test_instrument_calibration.py::td_calls -->
+
+**P1.7 — rang 2 — Classe neuve du registre + `assert_phenotype_matched` / ballast : toute édition de
+W est AUSSI une intervention métabolique.**
+Quoi : (a) classe neuve dans `docs/REF/REGISTRE_ERREURS.md` (prochain numéro libre), énoncée sur le
+MÉCANISME (le monde dérive le CORPS des mêmes paramètres que la POLITIQUE) — statut `exécutable`, garde
+ET contre-exemples dans la même passe ; (b) promouvoir `phenotype_of` d'`evo011_preflight` dans
+`tools/experiment_preflight.py` en `assert_phenotype_matched(subject, reference, tol)` + `ballast(genome,
+reference)` (compensation exacte du drain), avec trois cas de calibration à réponse EXACTE par la
+formule (champion, `make_blind`, ×3) ; (c) l'appliquer dans `run_ablation_map` UNIQUEMENT aux contrastes
+ENTRE sujets (jamais au within, qui compare un sujet à lui-même) ; (d) corriger la docstring de
+`make_blind`. Pourquoi : fait neuf n° 2 — deux records arrêtés le 2026-09-08 sont des artefacts
+candidats. *Coût : agent 2,5-3 h ; calcul 0 (réponses exactes).* Dépend de : rien.
+<!-- closes_when:grep_present=tools/experiment_preflight.py::assert_phenotype_matched -->
+
+**P1.8 — rang 3 — Hygiène minimale qui conditionne la LECTURE du prochain run.**
+Quoi : (a) pousser (18 commits non poussés au 2026-09-14 ; fait le jour même) et pousser après chaque
+commit ; (b) `tools/check_backlog_freshness.py` REFUSE toute clause `path_present` dont le chemin est
+ignoré par `.gitignore` ou non suivi (`git check-ignore` / `git ls-files`) — contre-exemple gelé : la
+clause exacte de `5b0025e` (`data/hof_famine_harsh_s42.pkl`) qui a tenu la CI ROUGE trois pushes
+(09-07 → 09-09) pendant que le cliquet passait en local ; (c) `.gitignore` des artefacts RUNTIME suivis
+et mutés par l'app et les tests (`data/articles.json` : +1902 lignes de « Rapport d'Observation » en une
+journée ; `data/state.json` ; le binaire `tests/test_kuzudb`) — après vérification qu'aucun test ne les
+lit comme fixture ; (d) `git worktree prune` + retrait des worktrees PROPRES (fait le 2026-09-14, voir
+« Décisions ») ; le worktree `reconcile` (170 fichiers sales + MERGE_HEAD) et `wld-lifescore` (1 sale)
+sont CONSERVÉS. *Coût : agent 1,5-2 h ; calcul 0.* Dépend de : rien.
+<!-- closes_when:grep_present=tools/check_backlog_freshness.py::check-ignore -->
+
+**P4.4 — rang 4 — LE run in-world re-spécifié : `S2-CREDIT-RETENTION` — bassin DAgger persisté ×
+{gelé / crédit calibré / froid à dose publiée} dans le monde S2-009, n = 12.**
+Quoi : sujet = `results/warm003_dagger_genome.npz` (UNE lignée, `n_lineage = 1` DÉCLARÉ ; bassin
+PARTIEL : 35,2 / 200 selon [[EDR-WARM-003]], à citer tel quel — S2-011 posait « survit ~200 sans crédit »
+comme précondition, elle est mesurée fausse par [[EDR-WARM-001]] et WARM-003) ; bras appariés par seed :
+(a) warm + W gelé (réplique WARM-003 = contrôle positif co-exécuté), (b) warm + crédit CALIBRÉ (variante
+scellée par P1.6, cohorte PERSISTÉE entre ères, dose ≥ 300 mises à jour par agent DÉCLARÉE dans la
+règle), (c) froid + même crédit, mêmes seeds ; bras optionnel (d) bassin DÉGRADÉ à dose connue + crédit
+(contrôle positif du chemin lr > 0). DV = survie médiane par ère (unité = ère/seed), plancher 9,0 (pas
+7,0), bande no-op PUBLIÉE (P2.41a), `project_cost` SÉPARÉ par type d'unité, `rounds` plafonné DUR à 6.
+Branches nommées d'avance : RETENU / ÉRODÉ (→ échelle de lr, [[EDR-175]] : érosion quand r·P < coût) /
+INERTE (→ garde E2 : la fenêtre de 8 ticks ne se déclenche pas sur des agents qui meurent tôt — P1.6 le
+vérifie avant). **Ce que ce run ne tranche PAS, écrit dans la règle** : ni LOCK-001 (tâche RÉACTIVE, pas
+de dépendance état-interne → sortie), ni le pari A2, ni C hors tâche réactive. Ce qu'il tranche : le
+seul maillon jamais mesuré de la chaîne warm-start in-world (tous les verdicts WARM gèlent `lr = 0,0` :
+`tools/warmstart_evolution_inworld.py:150,169`). Contrôle positif in-world de P2.43 : un sujet qui
+survit EN LISANT, s'il existe à l'issue. *Coût : agent 4-6 h ; calcul 0,5-1,5 h.* Dépend de : P1.6,
+P1.7, P1.8.
+<!-- closes_when:path_present=docs/preregistrations/S2-CREDIT-RETENTION.json -->
+
+**Rang 5 — amendement de P2.43 (2026-09-14)** : re-smoke SUBJECT-VARIANCE à CORPS APPARIÉ (ballast de
+P1.7) — 4 cellules × 30 s. C'est le premier contrôle positif possible de `run_ablation_map` sur une
+politique qui LIT. Voir l'annotation sous l'entrée P2.43. Dépend de : P1.7.
+
+**P2.59 — rang 6 — Seam de politique sur `run_ablation_map` + réponses connues PAR IDENTITÉ sur le
+corps du champion.**
+Quoi : `run_ablation_map` accepte un `batch_model_cls` (comme `run_condition` dans `tools/s2_demand.py`)
+et se calibre sur son CHEMIN RÉEL génome → politique → monde (aujourd'hui `CALIBRATED` ne contient que
+`empty-cohort` et `guard-before-world`, `tests/sandbox/test_instrument_calibration.py`) : un réflexe
+câblé sur le corps exact du champion (DECOY attendu), un lecteur câblé sur le même corps (DEMANDED
+attendu), no-op publié. *Coût : agent ~3 h ; calcul ≤ 5 min.* Dépend de : P1.7.
+<!-- closes_when:grep_present=tools/s2_demand_ablation.py::assert_phenotype_matched -->
+
+**Rang 7 — amendement de P2.46 (2026-09-14)** : câbler `assert_no_io_overlap` (E24) dans les sondes qui
+lisent la perception, relire [[EDR-EVO-004]] paire par paire (18 partagées vs 108), bandeau sur les
+records `PERCEPTION_DECOY`. Voir l'annotation sous l'entrée P2.46. Dépend de : rien.
+
+**Rang 8 — CI complète : FAIT** par P2.54 (2026-09-09, job `suite-complete` par répertoire, 2597 verts,
+25 min 44 s). Reste : mesurer le temps mur sur runner à charge connue avant tout shard.
+
+**P2.60 — rang 9 — Porter EDR-177 / EDR-178 dans HEAD.**
+Quoi : fusion propre de `chantier/factorial-regime-sweep` (3 fichiers EDR/tools uniques ; `merge-tree`
+à blanc sans conflit mesuré le 09-08) et `chantier/throw-gate-factorial` (1 fichier), puis calibration
+des instruments qu'ils apportent (le cliquet est strict : baseline vide). Les deux branches sont taguées
+`keep/...` le 2026-09-14, leurs worktrees retirés. Pourquoi : deux records de juillet (« la CONSOMMATION
+est le verrou maître », « robustesse aux régimes ») sont cités par la mémoire de projet et absents du
+graphe. *Coût : agent 1-2 h.* Dépend de : P1.8.
+<!-- closes_when:grep_present=results/records_graph.json::EDR-177 -->
+
+**P2.61 — rang 10 — Provenance minimale : une évidence citée ne se réécrit plus en silence.**
+Quoi : `src/seed_ai/harness.py` — `Harness.__init__` (pas `save`, appelé en FIN de run : E13 fabriqué par
+la garde) détourne vers un chemin `_rerun` tout `results/<name>_<seed>.json` existant ET suivi par git ;
+les tests qui écrivent sous `results/` passent `tmp_path` (10 fichiers, `grep -rln 'results/' tests`) ;
+tout runner SCELLÉ tamponne `git_sha` + `dirty` + sceau de règle dans son JSON. Pourquoi : 11 fichiers
+`results/*.json` cités par des records sont MODIFIÉS par la suite de tests à chaque passe (git status du
+2026-09-14). *Coût : agent ~3 h ; calcul 0.* Dépend de : rien.
+<!-- closes_when:grep_present=src/seed_ai/harness.py::results_dir -->
+
+**P2.62 — rang 11 — Les APPRENANTS sont des instruments hors périmètre du cliquet.**
+Quoi : `learn`, `learn_episode`, `compute_policy_gradient` (legacy, actif pendant TOUT l'arc EVO) entrent
+au périmètre de `tools/check_instrument_calibration.py` (11ᵉ élargissement, verbe `learn*`), baseline
+gelée pour les légataires, puis un cas par apprenant (P1.6 en fournit deux). Pourquoi : une fonction qui
+transforme des récompenses en poids produit une affirmation (« a appris / n'a pas appris ») ; 0 cas à ce
+jour. *Coût : agent 2 h (périmètre + baseline), puis 1-2 h par apprenant.* Dépend de : P1.6.
+<!-- closes_when:grep_present=tools/check_instrument_calibration.py::learn_episode -->
+
+**P2.63 — rang 12 — DÉCIDÉ : basculer `preserve_io_blocks=True` par défaut.**
+Quoi : `src/seed_ai/mutation.py:28` passe de `False` à `True` **quand aucun run n'est en vol**
+(`python -m tools.jobs.doctor` : 0 bail) ; les baselines qui en dépendent (EVO-023/024 le déclarent déjà
+explicitement) sont vérifiées bit-identiques ; test de non-régression. Pourquoi : correctif prêt et validé
+neutre depuis le 2026-08-04 (voir « DETTE DE PRODUCTION RÉGLÉE ») ; l'attente était une décision, prise
+le 2026-09-14. *Coût : agent 1 h.* Dépend de : doctor à 0 bail.
+<!-- closes_when:grep_present=src/seed_ai/mutation.py::preserve_io_blocks: bool = True -->
+
+**P2.64 — rang 13 — DÉCIDÉ (P1.4) : ÉPINGLER l'aliasing de production par un test, corriger APRÈS
+P4.4.**
+Quoi : un test nommé tests/sandbox/test_infra001_aliasing_pinned.py (à créer) qui gèle le comportement
+de [[EDR-INFRA-001]] (`world_1_stoneage.py` écrit dans l'état récurrent par la pénalité anti-répétition
+et le consensus social) sur les 3 génomes qui diffèrent, avec l'écart mesuré (+37 % sur `agent02`) — pour
+qu'il ne dérive pas en silence ; la correction (qui change TOUTES les baselines torch) est reportée
+après le run P4.4, sur décision. *Coût : agent 1-1,5 h.* Dépend de : rien.
+<!-- closes_when:path_present=tests/sandbox/test_infra001_aliasing_pinned.py -->
+
+**P3.4 — rang 14 — Cas de calibration de l'apprenant LEGACY.**
+Quoi : `MambaBatchModel.compute_policy_gradient` (le chemin actif pendant tout l'arc EVO), mêmes bras
+que P1.6 (oracle / apprenant / apprenant coupé), cohorte immortelle, n = 12. Le panel l'a mesuré à n = 1
+comme NON plat (OFF 0,13 = chance 1/8, naturel 0,35) — à confirmer ou infirmer. *Coût : agent 1-1,5 h ;
+calcul ~5 min.* Dépend de : P1.6.
+<!-- closes_when:grep_present=tests/sandbox/test_instrument_calibration.py::compute_policy_gradient -->
+
+**P3.5 — rang 15 — Hygiène de backlog CIBLÉE (pas de refonte) + re-scellage de la règle des portes.**
+Quoi : (a) `_ENTREE` de `tools/check_backlog_freshness.py` ne voit pas `**P1.x / P2.45 —` (le `x`) : les
+titres composites échappent au compte de doublons ; (b) les entrées « ✅ CLOSE » qui portent un « Ce qui
+reste » avec du travail réel (P2.13, P2.15, P2.26, P2.28, P2.29, P3.3, SP-2) : extraire le reste en
+entrée OUVERTE ou le déclarer abandonné ; (c) l'en-tête l.11 (« le déficit reste dominant ») contredit
+le titre l.17 (« DETTE CLOSE ») ; (d) `## P3` se dit « BLOC PÉRIMÉ » et contient P3.3, mesurée le 09-08 ;
+(e) la puce `check_staged_authorship` « empreinte TARDIVE » est en double (bloc 2026-09-07) ;
+(f) re-sceller la règle des portes dans `docs/roadmap/FIL_DIRECTEUR_AGI.md` : within-subject, contrôle
+positif co-exécuté, plancher de bruit publié, et le statut RÉEL de G0 (validée sur un marqueur réfuté).
+*Coût : agent 1,5-2 h.* Dépend de : rien.
+
+**P3.6 — rang 16 — Bandeaux de portée posés APRÈS le verdict de P1.6 (jamais avant : E8).**
+Quoi : S2-010 §Portée (le TD par tick n'est pas nommé ; dose de crédit ≈ 48 mises à jour / agent),
+S2-011 (« prochain pas » déjà exécuté par WARM-001 / WARM-003 ; précondition « survit ~200 » mesurée
+fausse), S2-BLIND-CHAMPION et SUBJECT-VARIANCE (corps non apparié, P1.7), SPÉCIFICATION_10ANS (bandeau
+« 1 sur 71 » périmé, §2 conditionnelle à P1.6). Chaque bandeau cite la mesure qui le fonde.
+*Coût : agent 1 h.* Dépend de : P1.6, P1.7.
+<!-- closes_when:grep_present=docs/EDR/S2-010_InWorld_Credit_Does_Not_Bootstrap_Perception_Even_Under_Curriculum.md::TD par tick -->
+
+**P4.5 — rang 17 — Test de la prédiction de LOCK-001 en PROXY : `LOCK-001-PROXY` — mémoire D = 2,
+dans l'ordre déjà prescrit par le dépôt.**
+> ✅ **BARREAU 1 MESURÉ le 2026-09-14 (75 min CPU réels, majorant projeté 105) : branche `PERCE_PAR_LR`.**
+> À D = 2, 14 400 épisodes : **`lr = 0,002` reste à la chance** (0,178 / 0,167 / 0,156) **et son contrôle
+> est DÉGRADÉ** (ctrl_i 0,29–0,31) ; **`lr = 0,0005` apprend : 0,837 / 0,781 / 0,784** (médiane 0,784),
+> bras ablaté à la chance (0,19 / 0,16 / 0,17), contrôle sain (0,998 / 0,981 / 0,997). À 7 200 épisodes et
+> `lr = 0,002` : chance aussi (0,15–0,19). **Le « mur D = 2 » du point-référence était un artefact de pas
+> d'apprentissage — E19, le motif exact de RETAIN-COMPOSE-LR (0,02 → 0,173 / 0,002 → 0,923)** — et c'est la
+> clause E19 scellée AVANT le run qui l'a attrapé : sans le second `lr`, la branche eût été `NE_PERCE_PAS`
+> et le levier « épisodes plus longs » déclaré épuisé. ⚠️ n = 3, indicatif seulement : la règle interdit
+> tout record et impose le barreau 1b.
+> 🔄 **BARREAU 1b EN COURS — lancé le 2026-09-14 ~16:20 (même session, fil B, fond CPU sans bail).**
+> Règle scellée `docs/preregistrations/LANG-MEMORY-EDGE-D2.json` : harnais `lang_memory_edge_run.py`
+> (`EDGE_RULE=LANG-MEMORY-EDGE-D2`), protocole `-bis` (bruit de contrôle 0,15 — le contrôle saturait à
+> 1,0/1,0 au barreau 1, donc la garde d'alias eût rendu DEGENERATE_CONTROL), 2 bras × **12 seeds**, D = 2,
+> `lr = 0,0005`, 14 400 épisodes, barre d'émergence 0,5. Branches : `mur_perce` → record
+> LOCK-001-PROXY-R1b + bandeaux de portée sur LOCK-001 et DELAYED-COORD APRÈS (P3.6), aucune arête neuve ;
+> `reference_sous_barre` → négatif gravé puis barreau 1d (lr 0,0002 / 0,001) ; `instrument_indetermine` /
+> `specificite_absente` / autre → tel quel. Coût projeté ~4 h (majorant).
+> Résultats à écrire dans `results/lang_memory_edge_d2.json` (naît à la première cellule). **Question cheap laissée ouverte** : `lr = 0,0005` suffit-il déjà
+> à 3 600 épisodes (le point-référence) ? — 3 seeds, ~9 min, à mesurer après 1b pour ne pas concurrencer
+> son CPU.
+> *(Trace du lancement du barreau 1 :)*
+> Règle scellée AVANT toute cellule : `docs/preregistrations/LOCK-001-PROXY-R1.json` (branches
+> INCOMPLET / PERCE_INDICATIF / PERCE_PAR_LR / TENDANCE / NE_PERCE_PAS / AUTRE, ordre imposé ; clause
+> E19 par un second `lr` = 0,0005 sur le barreau du haut ; `AUTRE` prouvé VIDE sur le continuum des
+> médianes par `tests/sandbox/test_lock001_proxy_r1.py`). Runner résumable `tools/lock001_proxy_r1.py`
+> (design déclaré, famille de 9 cellules), résultats à écrire dans `results/lock001_proxy_r1.json`
+> (le fichier naît à la première cellule, ~12 min après le lancement). Cellules : D = 2,
+> lr 0,002 × {7200, 14400} et lr 0,0005 × 14400, seeds 0-2. **Coût mesuré à charge connue** (un job
+> in-world tenait `kuzu`) : ~97 s / 1000 épisodes → ~105 min, majorant. n = 3 est EXPLORATOIRE : un
+> PERCE déclenche le barreau 1b (n = 12), jamais un record. ⚠️ Re-scellé une fois avant toute cellule
+> (grandeurs backtickées, porte 5) — noté dans la règle. Lecture : `python tools/lock001_proxy_r1.py --lecture`.
+
+Quoi : dispositif = `tools/language_memory_demand_probe.py` au point-référence (bilinéaire, `lr = 0,002`,
+3600 épisodes, D = 0 apprend à 0,744 ; D = 2 à la chance 3/3). Ordre des options, du moins cher au plus
+cher (`tools/lang_memory_sweep_reference_point.py:101-103`) : épisodes plus longs → curriculum D = 0 → 1
+→ 2 → **amorçage supervisé COURT du canal d'écriture, puis REINFORCE** (le test que LOCK-001 nomme
+lui-même). Instrument NEUF à construire et calibrer d'abord : DV « écriture apprise » = dérangement
+within-subject du canal PORTÉ + sender oracle ; no-op = fraction d'amorçage 0 ≡ froid bit-identique ;
+famille déclarée (`assert_control_family`) ; `assert_verdict_invariant_to_optimizer` obligatoire sur tout
+nul 2-pas (E19, RETAIN-COMPOSE-LR). Coût projeté ~22 s / cellule à 800 épisodes → ~14 h avec marge ×3,
+CPU, sans bail : tourne EN FOND pendant P4.4. Deux issues : PERCE → premier levier sur le mur, à
+transporter in-world (P4.6) ; NE PERCE PAS → la « quatrième manifestation » de LOCK-001 tient, et
+l'amorçage rejoint les leviers réfutés. *Coût : agent 4-6 h (dont instrument) ; calcul ~14 h CPU fond.*
+Dépend de : rien (parallèle à A).
+<!-- closes_when:path_present=docs/preregistrations/LOCK-001-PROXY.json -->
+
+**P4.6 — rang 18 — Porte IW-1 (CONDITIONNELLE) : le crédit calibré ÉTEND-il un demi-lecteur warm vers
+le bit non donné ?**
+Ne s'ouvre qu'après P1.6 (variante d'apprenant scellée) ET P4.4 (bassin non ÉRODÉ). Re-spécifier avant
+toute règle : demi-oracle p = 1/3 (prédiction [[EDR-WARM-010]] : 13-14 ticks, pas 17,5), DAgger (pas
+BPTT : plafond 0,734 on-policy), volume enseignant APPARIÉ entre warms, DV `accuracy` conditionnée sur
+le bit non donné = instrument neuf calibré, no-op torch construit. IW-2 (transfert zéro-shot) exige un
+paramètre-monde θ qui VARIE réellement (G1-001) — famine hérite du flag `cognitive_demand`, donc même
+tâche : ne pas lancer sans θ. *Coût : agent 3-5 j ; calcul 12-18 h.* Dépend de : P1.6, P4.4.
+
+**P4.7 — rang 19 — S5 / G4 phase A : `g` PER-ACTION vs agnostique vs labels PERMUTÉS (nœud 74).**
+Sonde livrée (fix de persistance ACTIF depuis le 2026-09-07, voir le bloc S5 plus bas et
+`docs/SDR/G4_agent_anticipates.md`). Rang bas parce que G4 in-world est dormant tant que le sujet est
+le champion prod ; à relancer sur le sujet issu de P4.4. *Coût : agent ~2 h ; calcul ~1 h.*
+<!-- closes_when:path_present=docs/preregistrations/S5-G4-PHASE-A.json -->
+
+**Rang 20 — amendement de P2.42 (2026-09-14)** : le `-bis` de S2-BLIND se fait à CORPS APPARIÉ (ballast
+P1.7) et apprenant GELÉ, pour lire ou rétracter la DV 7/7 (+39 %). Voir l'annotation sous l'entrée
+P2.42. Dépend de : P1.7.
+
+### Décisions tranchées le 2026-09-14 (robla : « ce qu'il y a de mieux pour l'avenir »)
+
+- **P1.1 → FERMÉE** : `pytest-timeout` est installé et imposé par la CI (`.github/workflows/ci.yml`).
+- **`preserve_io_blocks=True` par défaut → OUI**, quand aucun run n'est en vol (P2.63).
+- **P1.4 → ÉPINGLER** par un test maintenant, corriger après P4.4 (P2.64).
+- **P2.27 (défaut bilinéaire divergent) → pas de défaut global** : chaque sonde DÉCLARE `bilinear=` et
+  l'écrit dans `_params["substrate"]` (la porte 6 l'exige déjà).
+- **Git** : les 18 commits sont poussés ; PR vers `main` APRÈS le record de P4.4, pas de protection de
+  branche pour l'instant ; branches `chantier/factorial-regime-sweep` et `chantier/throw-gate-factorial`
+  taguées `keep/...` ; worktrees PROPRES retirés (branches conservées) ; `reconcile` (MERGE_HEAD, 170 sales)
+  et `wld-lifescore` (1 sale) conservés ; jamais `gc --prune=now`.
+- **Pari B → mémoire / écriture** comme axe cognitif primaire des trois mois.
+
+### Péremptions constatées EN PASSANT (annotées sur place, pas ré-écrites)
+
+- **P2.44** se disait OUVERTE : ses 25 défauts sont corrigés depuis `d7557ec` (172 cas d'injection,
+  zéro `xfail`) — fermée.
+- **P1.x / P2.45** (CI à 6 %) est close par P2.54 — annotée ; le titre composite échappe au cliquet des
+  doublons (P3.5 a).
+- **C2** (harnais EVO-011) : EVO-011 est FERMÉE par pré-vol (P2.39) — le « reste » est fait.
+- **C4** (couche de lecture + M5) : M5 et T3 sont CLOS depuis le 2026-09-06/07.
+- Les 13 rouges de la suite complète du 09-08 étaient tous dans `tests/` racine (hors CI d'alors), tous
+  corrigés par P2.54.
+
+---
+
 ## ✅ 2026-09-01 — DETTE DE CALIBRATION CLOSE (32 → 104/105, baseline à ZÉRO)
 
 Le déficit que `CLAUDE.md` désignait comme **dominant** est refermé. 238 tests de calibration passent
@@ -200,6 +616,7 @@ précoce validé : N=172 exactement, ~450 tirages/lignée.
 1. **Basculer `preserve_io_blocks=True` par défaut.** Le correctif est prêt, testé, validé neutre. Mais
    `src/seed_ai/mutation.py` est partagé avec une session parallèle : changer le comportement sous les
    pieds d'un run en vol est exactement la contamination que le bail `kuzu` interdit pour les mondes.
+   → **DÉCIDÉ le 2026-09-14 : OUI**, quand le doctor rend 0 bail — tâche P2.63.
 2. **Commit du travail D2** (préinscriptions EVO-026/-bis, runners, smoke de débit, backlog, registre).
 
 **Deux occurrences ajoutées au registre**, trouvées en faisant et non en relisant :
@@ -233,6 +650,7 @@ contraignant).
 pas fait ici parce que `mutation.py` est partagé avec des sessions parallèles et que changer le
 comportement sous les pieds d'un run en vol est exactement la contamination que le bail `kuzu` empêche
 pour les mondes. **Critère proposé** : quand aucun run n'est en vol, sur décision explicite.
+→ **DÉCIDÉ le 2026-09-14** (cf. P2.63).
 
 **Anti-récidive, automatisé** : `tests/sandbox/test_mutation_block_invariants.py` ne teste pas une liste
 d'opérateurs, **il la DÉCOUVRE** — toute fonction de `mutation.py` qui fait grandir `num_nodes` est
@@ -283,7 +701,12 @@ pas accumuler des tirages en PROFONDEUR.**
     `consolidate_records.py:32` ; EDR-124/194 sans frontmatter ; README EDR faux ; REF-DEMAND-MARKER
     arrêté à WARM-005 et contredit par S2-012/013 ; en-tête backlog auto-contradictoire l.11 vs
     l.17) + trancher le CLIQUET DES SYNTHÈSES (M5 : une doc qui publie un compte doit le recompter).
+    → ⚠️ **PÉRIMÉE (constaté le 2026-09-14)** : M5 est CLOS (porte 8, `check_synthesis_counts.py`) et T3
+    (couche de lecture) est CLOS depuis le 2026-09-06/07. Rien à faire ici ; l'en-tête l.11 vs l.17 est
+    repris par P3.5 (c).
   - **C2 — harnais EVO-011 : PARTIELLEMENT RÉPARÉ le 2026-09-07, et il y avait un 4ᵉ défaut.**
+    → ⚠️ **PÉRIMÉE (constaté le 2026-09-14)** : EVO-011 est FERMÉE par pré-vol, sans run évolutif
+    (P2.39, [[EDR-EVO-011]]) ; le « reste » de cette entrée est fait.
     Le fichier n'est pas `src/environments/` mais `src/worlds/world_1_stoneage.py` ; les 3 défauts du
     2026-08-03 étaient intacts. **(2) E4 CORRIGÉ** : 4 compteurs de lancer écrits dans TOUS les régimes
     (`throw_decided` AVANT le gate d'inventaire — c'est ce qui rend le défaut E2 lisible —, `throws`,
@@ -495,7 +918,8 @@ fix, 0 xfail, suite VERTE (43 passed / 0 xfailed / 0 failed sur les 4 fichiers) 
 
 ## P1 — Dettes ouvertes
 
-**P1.1 — ⏳ RACINE #1 CORRIGÉE (2026-07-22), accumulation profonde restante.**
+**P1.1 — ✅ CLOSE (décision du 2026-09-14) : `pytest-timeout` est installé et IMPOSÉ par la CI (`.github/workflows/ci.yml`, `--timeout`) ; racine #1 corrigée le 2026-07-22, le résidu « timeout par test » est fait.**
+<!-- closes_when:grep_present=.github/workflows/ci.yml::pytest-timeout -->
 Le hang `async_logger.stop() → time.sleep` est ÉLUCIDÉ par la démarche systématique (faulthandler →
 `async_logger.py:80`) : `stop()` faisait `while not queue.empty()` **SANS BORNE** ; si le worker meurt
 (échec de connexion KuzuDB, 5 retries → `return`), la queue ne se vide jamais → boucle infinie. **Fix
@@ -553,7 +977,7 @@ PAS wirer en masse (morts, risque > valeur). *Coût résiduel : ~30 min pour les
   survie de l'arc ont tourné ainsi. Corrigé ; reproductibilité désormais vérifiée (`run1 == run2` exact).
 *Coût : ~1 h.*
 
-**P1.4 — DÉCISION robla : corriger l'aliasing en production, ou l'épingler ?** Le monde écrit dans l'état
+**P1.4 — ✅ DÉCIDÉ le 2026-09-14 : ÉPINGLER par un test maintenant (→ P2.64), corriger APRÈS le run P4.4.** *(Question d'origine : corriger l'aliasing en production, ou l'épingler ?)* Le monde écrit dans l'état
 récurrent par cette voie dans tous les bancs torch. Corriger changerait **toutes les baselines torch** ;
 ne pas corriger exige un test qui **épingle** le comportement pour qu'il ne dérive pas silencieusement.
 Décision hors de mon périmètre (code partagé, arbre partagé entre sessions). *Coût : décision.*
@@ -1529,6 +1953,9 @@ la rencontre de deux correctifs indépendants le même jour : `481117e` (session
   incapable, plafond structurel 0.3889 — **SUPERSÉDÉ : 30/36 ≈ 0.833**, cf. P2.15), `delayed_coordination` épingle `False` (pour rester
   bit-identique à ses propres mesures gravées). Les deux sont défendables ; ce qui ne l'est pas, c'est
   que la différence soit invisible. Minimum : `_params["substrate"]` dans toutes les sondes.
+  → **TRANCHÉ le 2026-09-14** : PAS de défaut global. Chaque sonde DÉCLARE `bilinear=` explicitement à
+  l'appel et l'écrit dans `_params["substrate"]` ; la porte 6 l'exige déjà pour l'épinglage, il n'y a
+  rien à harmoniser — seulement à rendre la déclaration obligatoire là où elle manque encore.
 - **Reproduire l'audit** : le script de détection tient en 30 lignes (motifs `make_population(`,
   `TorchPopulationModel.BILINEAR =`, `optim.Adam([...])` sans `U`/`V`/`W_bl`). Candidat naturel à un
   CLIQUET, sur le modèle de `check_instrument_calibration.py` : le défaut se reforme silencieusement à
@@ -1702,7 +2129,8 @@ sur chacun. Déposés en six fichiers SÉPARÉS et non fusionnés : la garde de 
 collision de helpers homonymes (`_inj6_injecte`) qui aurait fait disparaître des définitions en
 silence — exactement la classe E22, évitée cette fois par une assertion et non par la chance.
 
-**P2.44 — ⚠️ OUVERTE (2026-09-08) — 25 défauts RÉELS de plus, tenus en `xfail(strict=True)`.**
+**P2.44 — ✅ CLOSE (corrigée le 2026-09-08 par `d7557ec` — 172 cas d'injection, ZÉRO `xfail` ; le titre était resté OUVERT jusqu'au 2026-09-14) — 25 défauts RÉELS de plus, tenus en `xfail(strict=True)`.**
+<!-- closes_when:grep_absent=tests/sandbox/test_inj_run_direction.py::mark\.xfail -->
 Trouvés par l'injection des 6 derniers orchestrateurs et NON corrigés. Les trois plus graves sont de
 la forme (a) du biais du dépôt — une entrée vide devient une affirmation de FOND **publiée** :
 `run_direction` publie **NEUTRE** sur une baseline VIDE, publie **NUIT** sur une extinction totale, et
@@ -1785,6 +2213,11 @@ l'intervention pour ce qu'elle est, (b) ajouter un bras coupant AUSSI le monde-m
 bande appariée. La DV observée — `r` = 1,375 à 1,753, **7 seeds sur 7 dans le même sens** — n'est PAS
 lue tant que ce n'est pas fait.
 
+→ **P2.42, amendement du 2026-09-14 (panel, rang 20).** Le `-bis` se fait à CORPS APPARIÉ (ballast de
+P1.7 : `make_blind` fait tomber le drain de 2,40 à 1,30, −46 %, panel en numpy pur — à re-mesurer) et à
+apprenant GELÉ, en aveuglant à l'ENTRÉE. Tant que ce n'est pas fait, la DV 7/7 (+39 %) se lit comme un
+effet métabolique candidat, pas comme un effet de la cécité.
+
 **P2.43 — ⚠️ OUVERTE (2026-09-08) — le marqueur de demande in-world n'a TOUJOURS pas de contrôle
 POSITIF, et l'amplification ne peut pas en fabriquer un.** Dose-réponse mesurée dans `stoneage` :
 couplage `obs → action` ×1 / ×3 / ×8 → survie 27,5 / 13,8 / 6,2, les deux derniers SOUS le plancher
@@ -1793,8 +2226,15 @@ pistes, par coût croissant : câbler un comportement obs-dirigé BÉNÉFIQUE ; 
 planchers sont mesurés) ; **jamais** abaisser le plancher après coup. Preuve :
 [`EDR-S2-SUBJECT-VARIANCE`](../EDR/S2-SUBJECT-VARIANCE_Stopped_At_Smoke_No_Positive_Control_Is_Constructible_By_Amplification.md).
 
-**P1.x / P2.45 — 🔴 OUVERTE ET GRAVE (2026-09-08) — « CI VERTE » couvre 6 % de la suite : 1937 tests
-sur 2059 ne sont exécutés par AUCUN job.** Mesuré en parsant `.github/workflows/ci.yml` : les deux
+→ **P2.43, amendement du 2026-09-14 (panel, rang 5).** Les deux contrôles câblés du smoke sont morts
+de leur CORPS, pas de leur couplage : le drain est dérivé de `W[0:10]` (`src/agents/mamba_agent.py:47-50`),
+et amplifier `obs → action` ×3 / ×8 a multiplié le drain (11,0 / 15,0 en numpy pur, panel — à re-mesurer).
+« Aucun contrôle positif constructible par amplification » est donc un ARTEFACT CANDIDAT. À faire, après
+P1.7 : re-smoke à corps APPARIÉ (ballast exact), 4 cellules × 30 s ; si le lecteur câblé ballasté survit
+ET rend DEMANDED, c'est le premier contrôle positif de `run_ablation_map` sur une politique qui lit.
+
+**P1.x / P2.45 — ✅ CLOSE par P2.54 (2026-09-09 ; titre laissé OUVERT jusqu'au 2026-09-14) — « CI VERTE » couvrait 6 % de la suite : 1937 tests
+sur 2059 n'étaient exécutés par AUCUN job.** Mesuré en parsant `.github/workflows/ci.yml` : les deux
 invocations `pytest` prennent une **liste NOMMÉE de fichiers** (16 au total), jamais un répertoire.
 `tests/sandbox/` — 220 fichiers — n'est donc jamais lancé en entier.
 
@@ -1863,6 +2303,13 @@ négative appariée : un zéro MESURÉ doit rester un verdict.
 le même jour.** Aucun n'aurait été vu sans lancer la suite entière.
 
 **P2.46 — 🔴 OUVERTE (2026-09-08) — 18 des 126 logits d'action du champion SONT l'observation.**
+→ **Amendement du 2026-09-14 (panel, rang 7)** : (a) câbler `assert_no_io_overlap` en TÊTE des sondes qui
+lisent la perception (`tools/s2_demand_ablation.py`, `tools/cognitive_demand_inworld.py`, sondes de
+saillance), refus instantané ; (b) relire [[EDR-EVO-004]] paire par paire (18 partagées vs 108) avant de
+citer « plancher sur TOUS les canaux » ; (c) bandeau sur les records `PERCEPTION_DECOY` qui ont lu le
+champion HoF ; (d) balayer les 348 `.npz` de `data/genomes/` (0/348 au 2026-09-08 — à refaire à chaque
+nouveau lot). Ne PAS ouvrir la question « le chevauchement a-t-il été SÉLECTIONNÉ ? » sans règle scellée
+(cf. « Ce qu'on ARRÊTE »).
 Son génome déclare **64 entrées + 126 sorties dans 172 nœuds** : les blocs se chevauchent sur 18, et
 `forward` écrit l'observation dans `H[:, :max_I]` puis lit les logits à partir de `max_I + max_H`
 = 46. Vérifié composante par composante (écart 0,0025, qui est la mise à jour récurrente). Un agent
@@ -2009,8 +2456,22 @@ parce qu'une suppression dans un arbre PARTAGÉ se demande.
 
 ---
 
-**P2.51 — 🔴 OUVERTE (2026-09-09) — les cellules de CONTRÔLE de quatre records S2 sont publiées
-`SURVIVAL_NEUTRAL`, alors que l'instrument les rend INDÉCIDABLES.**
+**P2.51 — ✅ CLOSE (2026-09-14) — les cellules de CONTRÔLE de quatre records S2 étaient publiées
+`SURVIVAL_NEUTRAL` alors que l'instrument les rend INDÉCIDABLES ; les quatre portent désormais la rectification.**
+
+**Décision (a)/(b) tranchée par la docstring de `_degeneracy` elle-même** : ces cellules sont son cas
+**(a)** — l'intervention ne s'est PAS appliquée (`W = np.zeros` jamais quitté, politique constante) —
+et non son cas (b). `intervention_verified=True` y serait un mensonge. Donc **(b)** : rectifier la
+lecture de spécificité, sans toucher aux bras positifs.
+**État trouvé** : S2-004 et S2-007 étaient déjà rectifiés par [[EDR-AUDIT-001]] (bandeau +
+`corrected_by`) ; S2-005 avait le bandeau mais **pas l'arête** dans le graphe ; S2-008 n'avait
+**rien**. Mécanisme de S2-008 vérifié dans la sonde (`composition_demand_world_probe.py:103,114`,
+même idiome). **Livré** : bandeau + `corrected_by` sur S2-008, `corrected_by` sur S2-005, `corrects`
+d'AUDIT-001 étendu à 005 et 008 avec un addendum daté qui dit aussi ce que l'extension ne dit PAS.
+La seule cellule de contrôle authentique de la famille reste « rappel PRÉSENT » de S2-005
+(`|W| = 0.909` entraîné) — modèle pour ré-établir la spécificité de S2-008, si un run l'exige un jour.
+
+*Texte d'origine :*
 <!-- holds_when:grep_present=.github/workflows/ci.yml::test_cognitive_demand_world_probe -->
 Trouvé en calibrant les sondes de demande in-world (P2.49). **Huit tests** de
 `tests/test_{cognitive,anticipation,composition,memory}_demand_world_probe.py` affirmaient
@@ -2164,6 +2625,238 @@ deux gros volumes `substrate_ab_compositional.py` (15 records, 17 sites) et `lew
 (13 records, 16 sites). **(c)** le reste.
 Précédent à suivre : `tools/s2_openloop_probe.py`, corrigé avant cette passe, dont le commentaire
 explique déjà la faute — ce cliquet généralise ce correctif au lieu de le laisser isolé.
+
+**P2.56 — 🟠 P2.49 RAFFINEE (2026-09-10) : la dette de 103 se scinde en 62 DECLARATIVES + 39 MUETTES**
+
+La dette « garde-seule » etait lue dans les DECLARATIONS de `CALIBRATED`, pas dans les tests. Elle
+melangeait donc deux choses dont **le prix differe d'un facteur enorme** :
+
+* **62 declarations SOUS-DECLAREES** — un test AILLEURS importe le symbole DEPUIS SON MODULE et
+  atteint son corps. Exemple fondateur : `_verdict_forage` etait declare `["empty:raises"]` alors
+  que ses QUATRE branches etaient confrontees a des reponses connues dans
+  `tests/sandbox/test_edr105_forage_funnel.py` depuis des mois. **Coût de resorption : une ligne.**
+* **39 declarations REELLEMENT MUETTES** — aucun test n'importe le symbole. **Coût : un monde**,
+  ou une injection d'orchestrateur.
+
+⚠️ **L'instrument qui mesure cette dette a failli publier un chiffre FAUX, du defaut que ce depot
+connait le mieux.** La premiere version appariait par NOM NU : les trois declarations `compare`
+(defini dans 10 fichiers) pointaient les DEUX MEMES fichiers de test, qui n'en testent qu'un. Corrige
+par analyse AST des IMPORTS (`from tools.x import nom`, ou `import tools.x`), seule facon de savoir
+QUEL `compare` un test importe. Le script vit dans le scratchpad ; **le porter dans le depot est la
+suite naturelle** — la scission 62/39 devrait etre RECOMPUTEE et non recopiee (cf. porte 8).
+
+**AVANCEMENT 2026-09-14 (tick 3) : 103 → 80.** ⚠️ **La scission 62/39 était encore surcomptée** :
+la v2 créditait `import tools.x` de TOUS les symboles de `x`, même jamais appelés (elle comptait
+SIX fonctions de `warmstart_evolution_inworld` pour un test qui en appelle une). Mesure STRICTE
+(v3 : le symbole doit être APPELÉ, par AST — `nom(` après `from m import nom`, ou `y.nom(` après
+`import m as y`) : **48 déclaratives / 48 muettes** à 96 ; **35 / 45 à 80**. Treize re-déclarées
+d'après ce que leurs témoins AFFIRMENT (dont `run_ablation_map`, 15 records : une injection à dose
+connue — within 5.0, between 10.0, `PERCEPTION_DEMANDED` — que la déclaration taisait) ; trois
+orchestrateurs de `substrate_world_ab` (11 records) dont les seuls témoins étaient des tests de
+SIGNATURE reçoivent une **injection à dose connue** (`compare_backends` : +20 → GRADIENT_GAGNE,
+apparié même seed ; `compare_arms` : trois verdicts en forme close + no-op NEUTRE ×3 ;
+`sweep_lr_torch` : une sous-classe par lr, dose lue). `measure_survival` reste muet : c'est le
+maillon qui simule.
+
+**AVANCEMENT antérieur : 103 → 96.** Le banc G2 (`substrate_ab_compositional`, 31 records) était
+déclaratif pour ses QUATRE fonctions — dont un vrai contrôle positif à dose connue
+(`gate_mode="oracle", oracle_bias=8.0` → `binding_gap_end > 0.5`) que la déclaration taisait. Et
+**deux clés en DOUBLE dans `CALIBRATED`** : `run_hcm_analysis` déclaré riche (CORPS-ATTEINT, 4 cas)
+puis, 220 lignes plus bas, pauvre — dans un dict littéral la DERNIÈRE gagne, donc l'instrument
+comptait garde-seule à tort. Garde gelée : `test_CALIBRATED_n_a_AUCUNE_cle_en_double` (AST : le
+dict évalué ne peut plus voir le doublon).
+
+**PREMIERE RESORPTION, et elle rapporte plus que son compte** : `tools/lewis_survival_sweep.py`
+(49 records, le module le plus cite du lot) — 2 declarations re-declarees, **103 -> 101**, et DEUX
+DEFAUTS REELS trouves dans les corps enfin regardes :
+* `_verdict_landing` sur **UN SEUL bras** rendait `AFFORDANCE INERTE` — `delta` vaut 0 par
+  construction et `slope` etait FABRIQUE a `0.0`. Un verdict de fond, negatif, tire d'un point.
+  **Classe E14** : le jumeau structurel `_verdict_capacity` porte cette garde depuis le 2026-09-06 et
+  elle n'avait jamais ete retro-appliquee a ses DEUX freres.
+* `_verdict_forage` sur une agregation **TOUT NAN** rendait `FORAGE SUFFISANT` — `nan < 0.5` vaut
+  False, donc les trois etages de la cascade tombent et le verdict de QUEUE sort. C'est un **positif**
+  fabrique : plus rare dans ce depot, donc **plus dangereux**, parce qu'il ne ressemble pas aux
+  autres resultats. Et le `nan` en entree est exactement ce que la porte 14 demande de RENDRE en cas
+  d'absence : le consommer comme une mesure casse la chaine au maillon suivant.
+
+**ORDRE DE TRAVAIL, par poids de records mesure** : `substrate_ab_compositional.py` (31 records,
+4 declarations), `substrate_ab.py` (17, 1), `evolve_ceiling_probe.py` (16, 1), `map_elites_compare.py`
+(15, 4), `s2_demand_ablation.py` (15, 1), `warmstart_evolution_inworld.py` (11, 6),
+`substrate_world_ab.py` (11, 4), `anticipation_bench.py` (11, 2). Commencer par verifier si la dette
+est DECLARATIVE (une ligne) avant d'ecrire un test.
+
+**P2.57 — ✅ CLOSE (2026-09-14) : 2e élargissement de la porte 14, sur l'IDENTIFICATION — 26 révélés, 16 réglés, 10 gelés**
+
+Trouve en resorbant P2.56. `check_fabricated_defaults` detecte
+`agregation if collection else CONSTANTE` — la veracite d'une collection. Il ne voit NI
+`float(np.polyfit(x, y, 1)[0]) if len(arms) >= 2 else 0.0` (une COMPARAISON DE LONGUEUR), NI une
+cascade de comparaisons sur `nan` (aucune agregation en vue). Les deux defauts de
+`lewis_survival_sweep.py` etaient donc **structurellement invisibles** a la porte qui existe pour ca.
+
+**MESURÉ le 2026-09-14, et le diagnostic du 09-10 était FAUX sur la cause** : le cas Lewis
+échappait au cliquet non pas à cause de la condition (`len(...) >= 2`, que le détecteur ne regarde
+jamais) mais parce que `np.polyfit(...)[0]` n'était pas une agrégation LISTÉE. Mesure large :
+**167 sites `<appel> if … else <constante>`, 86 vus, 81 non vus** — et parmi les non vus, ~25
+étaient EXACTEMENT l'agrégation cherchée, cachée par la façon dont le cliquet l'IDENTIFIAIT :
+module aliasé (`import statistics as st` → `st.mean`, `_np.median`), MÉTHODE numpy (`a.std()`,
+`cons[m].mean()`), nom NU (`stdev`), INDEXAGE d'un appel (`polyfit(...)[0]`). C'est l'angle mort
+« comment il identifie » payé trois fois par le cliquet-frère, reproduit à l'identique.
+
+**Élargi sur l'identification ; 26 sites révélés, 0 glissement de rang ; 16 réglés dans la passe :**
+* **la FAMILLE `eval_harness`** — `powered_eval` + HUIT copies du même `_stats`
+  (`aligned_selection`, `fiabiliser`, `lang_speciation`, `mem_nas`, `nas_memory`, `nas_rich`,
+  `reconfirm_047`, `speciation`), toutes vers `verdict`. Avec UN réplicat, `std = 0` → Welch
+  `t = 0, d = 0` → « NON significatif (bruit) » : **un nul fabriqué depuis n = 1, sur neuf outils**.
+  `std` rend `None`, `welch` REFUSE l'indéfini en nommant la condition et son n, les 8 copies
+  reçoivent la même substitution (chercher la FORME, pas l'instance). 3 témoins gelés.
+* **`lewis_survival_sweep`** — `_verdict_evolve_nav` gardait le VIDE mais pas UNE génération
+  (`first == last` → « SUBSTRAT BLOQUÉ », un négatif de fond tiré d'un point ; `slope` fabriquée à
+  0 et PUBLIÉE dans le JSON) ; deux branches mortes derrière les gardes de `_verdict_landing` /
+  `_verdict_capacity` retirées.
+* **`anticipation_bench`** (11 records) — 3 branches MORTES derrière les gardes d'en-tête
+  existantes (`run_bench` lève sur `len(seeds) == 0`), retirées.
+* `mamba_agent.forward` — borne de boucle, déclarée `NOT_A_MEASURE` avec son motif.
+
+**Baseline 85 → 95** (10 gelés) **→ 89 le 2026-09-14 (tick 2)**. Les six sites de BINDING sont
+RÉGLÉS, et ils cachaient une découverte : **le contrôle NUL de `craft_or_starve_edr` est MORT**.
+`null_metronome_gap` (métronome open-loop, borne nulle du binding) à `T = 200` — la valeur par
+défaut de `Params` — n'a **0 vivant sur 64** au dernier quart, pour E0 = 16, 32 et 64. Ses deux
+masques étaient vides, `p1 = p0 = 0.0` par défaut, et « gap ≈ 0 » était `0 − 0` ; le test
+`test_null_metronome_gap_is_low` gelait ce zéro. Un contrôle qui ne survit pas jusqu'à la mesure
+n'est pas un contrôle (E1). Aucun record ne s'en réclame (grep `metronome` sur `docs/EDR` : vide) ;
+`recalibrate_learner` est un diagnostic SUPERSÉDÉ. Le nul n'est mesurable qu'à T ≤ 40, où il vaut
+0 **pour de vrai** (p1 = p0 = 1 : le métronome consomme à chaque S2).
+Remède, celui d'`ablation_verdict` : **annoncer sans altérer le verdict**. Les probabilités
+conditionnelles indéfinies rendent `None`, le gap `None` ; chaque agrégation applique la règle de
+l'auteur (kchain L386, « indéfini = ne compose pas ») **explicitement** via `_gaps_pour_verdict`
+et publie `n_gap_indefini` ; `null_metronome_gap` lève sur un métronome mort et
+`recalibrate_learner` publie `null_mesure: False` au lieu d'avaler. Seul changement numérique : là
+où l'ancien gap valait `−p0` (conditionnement jamais observé), il vaut 0 pour le verdict — l'ancienne
+valeur n'était pas une mesure. `_gaps_pour_verdict` est un instrument (la porte 2 l'a vu, en
+collision ×3) : calibré à réponse connue, un jeu par exemplaire + identité des trois.
+
+Avant ce tick, la liste des six :
+`craft_or_starve_edr::_binding_from_log` ×2, `kchain_edr::binding_gap` ×2,
+`torch_binary_gate_probe::_binding_gap` ×2 — `cons[m1].mean() if m1.any() else 0.0` : une
+probabilité conditionnelle sans aucun événement conditionnant devient 0 (« jamais Y sachant X »), et
+`binding_gap = p1 − p0` en hérite. **Cibles prioritaires de P2.52 (b)** : le gap devrait rendre
+`None` et l'aval le refuser — mais l'aval est un verdict d'EDR, donc à lire avant de toucher.
+
+**FORME RATIO MESURÉE (tick 3, 2026-09-14) : 27 sites `a / b if … else CONSTANTE` dans 15
+fichiers — 21 à `0.0`, 6 à `1.0`.** Les six à 1.0 sont la pire forme et sont RÉGLÉS, tous lus :
+* `life_score_contamination_probe` — tau-b `else 1.0` (dénominateur nul = tau INDÉFINI, pas
+  « corrélation parfaite »), jaccard `else 1.0` (union vide), part de masse `else 0.0`. ⚠️
+  L'agrégation lisait `med_t == 1.0 and med_j == 1.0 → METRIQUE_INERTE` : un tau fabriqué aurait
+  CONCLU. Les None sont filtrés et comptés (`n_indefini`), un lot entièrement indéfini rend
+  `INDETERMINE_METRIQUE_NON_MESUREE`.
+* `s2_regime_diagnostic` — `lift = 1.0` quand les DEUX régimes sont au plancher : 0/0 n'est pas
+  « aucun lift ». None ; `lift_ok` reste False ; verdict inchangé.
+* `prerequisite_recovery_probe` — précision 1.0 sans AUCUNE arête récupérée, rappel 1.0 sans
+  aucune imposée, et le go/no-go SP-3 lisait `== 1.0` : **un PASS fabriqué sur zéro arête**. None.
+* **`eval_harness.welch`** (9 outils) — `t = 0 si se ≤ 1e-12` : deux échantillons CONSTANTS et
+  DIFFÉRENTS (A = [1,1,1], B = [2,2,2]) rendaient « NON significatif (bruit) ». Une décision GELÉE
+  par un test qui disait « l'instrument refuse de prononcer » — mais « NON significatif » n'est pas
+  un refus, c'est un prononcé. Séparé en deux, et les deux gelés : n < 2 → REFUS (levée) ; n ≥ 2 à
+  variance nulle et moyennes distinctes → séparation parfaite (±inf, significatif).
+* ⚠️ **Forme (b) trouvée en passant** : `backend/runs_service._welch` faisait `except Exception`
+  autour de l'import de la source — la ValueError que `welch` lève sur n < 2 y était AVALÉE et le
+  repli fabricant reprenait. `except ImportError` seulement, repli aligné.
+
+**Les 21 ratios à `0.0` restent NON DÉTECTÉS par la porte 14** (le détecteur ne voit pas les
+divisions). Un élargissement flaguerait ~10 sites légitimes (mémoire RSS dans `doctor.py`,
+combinatoire dans `data_service.py`, moyenne dans `ground_truth_worlds.py`) : à faire avec
+`NOT_A_MEASURE` dès le départ, ou pas du tout. Mesuré, pas encore décidé.
+
+**RESTE HORS PÉRIMÈTRE, chiffré et différé** : `max` (16), `min` (7), `np.argmax` (13) —
+`max(xs) if xs else 0` est discutable au cas par cas (clamp ? borne ? mesure ?) et les compter sans
+les lire fabriquerait des faux positifs en masse. **Troisième forme vue en passant, non mesurée** :
+le RATIO `a / b if b > 0 else 0.0` (`avoidance = avoided / faced if faced > 0 else 0.0` dans
+`anticipation_bench.run_bench`) — « 0 danger affronté sur 0 » devient « 0 % d'évitement ». Le
+détecteur ne voit pas les divisions. À MESURER avant d'élargir, comme cette fois.
+
+**Avant d'elargir, MESURER** : chaque elargissement du cliquet-frere (calibration) a revele de la
+dette REELLE, et celui-ci en revelera. La forme `... if len(<nom>) <op> <entier> else <constante>`
+est detectable par AST au meme prix que l'existante. ⚠️ Attention au faux positif legitime : une
+comparaison de longueur peut garder un CALCUL et non une MESURE (un `[:n]`, un pas de boucle) —
+prevoir `NOT_A_MEASURE` des le depart, comme la porte 14 l'a appris en tirant sur un assainisseur de
+softmax.
+
+**P2.58 — 🟡 OUVERTE (2026-09-10, vue en passant) : une redirection de HoF SANS EFFET, et elle le DIT**
+
+`tests/sandbox/test_evo_memory_inworld.py` (ou son module) imprime a l'import :
+« ATTENTION : `src.seed_ai.persistence` est deja importe, la redirection HOF_PATH vers un HoF VIDE est
+SANS EFFET -- ce processus lira le VRAI Hall of Fame. » Le message apparait des qu'on importe
+`tests.sandbox.test_instrument_calibration` dans le meme processus. **Le garde-fou fait son travail**
+(il ANNONCE au lieu de se taire, ce qui est exactement la bonne conception) mais la consequence n'est
+pas suivie : un test qui croit tourner sur un HoF vide tourne sur le vrai. A verifier : quels tests
+sont concernes, et si l'un d'eux publie un verdict.
+
+**P2.53 — ✅ CLOSE (2026-09-09) : le CLIQUET DES CLIQUETS, et ce qu'il reste a en tirer**
+
+`tools/check_gate_mutation.py` (porte 15) casse chaque porte du hook d'UNE ligne, **en mémoire**
+(l'arbre est partagé : jamais sur disque), et exige qu'au moins un témoin ROUGISSE. C'est la mesure
+que **deux cliquets déclaraient hors de portée** — `check_guard_negative_cases` et `check_test_census`
+écrivent tous deux « ce test discrimine-t-il ? […] demanderait du test de mutation, qu'on ne proxifie
+pas ». La décision de ne pas proxifier était juste ; l'impossibilité, non.
+
+**Mesure de livraison : 14 portes, 17 mutations, 4 défauts RÉELS au premier tir.** Trois portes dont
+le verdict BLOQUANT n'avait aucun contre-exemple (`orphans` porte 1, `scan_collisions` porte 2, le
+report de la porte 6) et un test qui PUNISSAIT son propre correctif (porte 14). Détail dans
+`docs/REF/REGISTRE_ERREURS.md`, E1 occurrence méta et classe neuve **E25**.
+
+**CE QUI RESTE OUVERT, et c'est écrit dans le module lui-même :**
+1. **Une porte est couverte par les mutations DÉCLARÉES, pas par une exploration de son espace de
+   sabotage.** 17 mutations pour 14 portes : la plupart n'en ont qu'UNE. Une seconde mutation par
+   porte, visant une autre branche décisive, est du travail à coût de run nul — et le premier tir
+   suggère qu'il paierait (c'est en rendant les témoins de la porte 14 verts qu'un SECOND survivant
+   est apparu, sur la fonction centrale du cliquet écrit le jour même).
+2. **La mutation vit en MÉMOIRE, donc un témoin qui lit le SOURCE SUR DISQUE ne peut pas la voir.**
+   Les témoins « le cliquet est-il branché dans le hook ? » sont structurellement incapables de tuer
+   un mutant. Conservateur dans le bon sens (le harnais crie au lieu de se taire) mais à savoir en
+   lisant un verdict `SURVECUE`.
+3. **Coût** : ~15 s par porte, ~4 min pour les 14. Le hook n'appelle QUE les portes dont le cliquet ou
+   les témoins sont stagés (`--pour-fichiers`) ; la CI les fait toutes.
+
+**P2.54 — ✅ CLOSE (2026-09-09) : la CI lance la suite PAR REPERTOIRE, 6 rouges legataires en sont sortis**
+
+`ci.yml` prenait une **liste NOMMÉE de 16 fichiers**, jamais un répertoire : **1937 tests sur 2059
+(94 %)** n'étaient lancés par aucun job. Le job `suite-complete` lance `tests/`.
+
+**Coût MESURÉ sur machine à charge connue : 2611 collectés, 2597 passés, 7 skips, 25 min 44 s** — et
+la mesure a été prise PENDANT le harnais de mutation, donc c'est un MAJORANT. ⚠️ Une première mesure
+du 2026-09-08 avait rendu **8 h 30**, prise pendant que seize agents tournaient sur la même machine :
+E12 appliquée au COÛT, et elle inversait la décision (« impossible en CI » → « 26 minutes »).
+
+**Les six rouges trouvés en branchant, tous corrigés dans la même passe** : trois fixtures
+d'`tests/test_agi_taxonomy.py` périmées par deux durcissements de la porte (M4 puis P2.15, corrigées
+par la FIXTURE et non par l'attente) ; `test_verdict_empty` qui exigeait `N_EMERGE_PAS` sur **zéro
+seed** — un négatif FABRIQUÉ gelé par le test censé l'attraper, rouge depuis huit jours ;
+`test_run_curriculum_warmup0_is_compositional` et le seuil de la porte 14, tous deux rendus rouges
+par un correctif de la veille sans que rien ne le dise pendant 24 h. Classe **E25**.
+
+**RESTE À VÉRIFIER, et ce n'est pas vérifiable d'ici** : la parité d'ENVIRONNEMENT du runner GitHub
+(torch, kuzu, dépendances lourdes). Le premier run de CI est lui-même la mesure. Si des tests échouent
+pour cause d'environnement et non de code, la réponse juste est un `-m "not slow"` DÉCLARÉ avec sa
+raison écrite — jamais un retour à la liste nommée, qui est la maladie et non le remède.
+
+**P2.55 — ✅ CLOSE (2026-09-10) : E22 generalisee au MECANISME (porte 16)**
+
+Le dépôt répondait à deux des trois occurrences d'E22 par des cliquets liés à **UN artefact** : la
+porte 10 compte les TESTS, la porte 4 les entrées du BACKLOG. Le mécanisme, lui, est indifférent au
+fichier qu'il détruit — le même accident sur `tools/ablation.py`, sur un record d'EDR, sur `ci.yml` ou
+sur une baseline JSON n'était couvert par **RIEN**.
+
+`tools/check_amputation.py` BLOQUE l'**anéantissement** (compte d'ENTITÉ tombé à zéro sur un fichier
+CONSERVÉ, statut `M`) et SIGNALE, sans bloquer, toute baisse partielle. ⚠️ **Le choix de ne pas
+bloquer les baisses est délibéré** : retirer du code mort est légitime et fréquent (sept branches
+mortes retirées le 2026-09-09 même), et « un cliquet qui bloque sur le légitime est un cliquet qu'on
+désactive ». Ce qui manquait n'était pas un refus mais **le chiffre sous les yeux** au moment du
+commit — celui-là même (`2372 deletions`) qui a révélé l'anéantissement du backlog.
+
+**LIMITE ASSUMÉE ET ÉCRITE** : l'amputation PARTIELLE d'un fichier quelconque reste non bloquée. La
+bloquer demanderait de savoir ce que le fichier compte, ce que seuls les cliquets d'entité dédiés
+savent. Ouvrir un cliquet d'entité pour une troisième famille de fichiers (les records ? les
+baselines JSON ?) est la suite naturelle, **si** une occurrence l'exige — pas avant.
 
 ---
 

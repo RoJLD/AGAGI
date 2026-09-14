@@ -138,3 +138,37 @@ def test_a_foundational_edr_is_NOT_gate_unlinked(tmp_path):
     """foundational est un ancrage (_ANCHORS) : pas une porte, mais un raccord legitime."""
     root = _record(tmp_path, "id: EDR-999\ntype: EDR\ngate: foundational")
     assert all(g["id"] != "EDR-999" for g in C.analyze(root)["gate_unlinked"])
+
+
+# --------------------------------------------------------------------------------------------------
+# 2026-09-09 — TROU TROUVE PAR `tools/check_gate_mutation.py`, et il portait sur le verdict CENTRAL.
+# `orphans` est ce sur quoi la PORTE 1 du hook BLOQUE, et il n'avait AUCUN contre-exemple : remplacer
+# `if not has_gate and not has_edge:` par `if False:` dans `analyze` laissait ce fichier ENTIEREMENT
+# VERT. Les 11 tests couvraient les cles d'aretes, `gate_unlinked` et le mismatch gate<->tests --
+# c'est-a-dire tout SAUF la detection d'orphelin elle-meme.
+# ⚠️ Ce que ce cas apprend, et qui vaut au-dela de lui : un fichier de temoins peut etre FOURNI,
+# DETAILLE, exact, et laisser sans contre-exemple precisement le verdict qui bloque. Aucune relecture
+# ne l'avait vu en deux mois ; la mutation le dit en trois secondes.
+# --------------------------------------------------------------------------------------------------
+
+def test_an_UNLINKED_record_is_an_ORPHAN(tmp_path):
+    """CONTRE-EXEMPLE GELE de la porte 1 : ni porte, ni arete -> orphelin, et le cliquet le dit."""
+    root = _record(tmp_path, "id: EDR-999\ntype: EDR")
+    orph = C.analyze(root)["orphans"]
+    assert any(o["id"] == "EDR-999" for o in orph), (
+        f"un record sans porte NI arete doit etre un orphelin, or : {orph}")
+
+
+def test_a_record_with_a_GATE_is_NOT_an_orphan(tmp_path):
+    """SPECIFICITE (no-op apparie). Sans lui, un detecteur qui declare TOUT orphelin passerait le
+    test precedent tout en etant inutilisable -- la paire fires/spares que le depot exige."""
+    root = _record(tmp_path, "id: EDR-999\ntype: EDR\ngate: G0")
+    assert all(o["id"] != "EDR-999" for o in C.analyze(root)["orphans"])
+
+
+def test_a_record_with_an_EDGE_but_no_gate_is_NOT_an_orphan(tmp_path):
+    """La SECONDE voie de raccord. Un record adopte par un autre n'est pas orphelin meme sans porte :
+    c'est ce qui distingue `orphans` de `gate_unlinked`, et les confondre rendrait l'un des deux
+    verdicts muet sans que rien ne rougisse (le meme fichier teste deja l'autre sens juste au-dessus)."""
+    root = _record(tmp_path, "id: EDR-999\ntype: EDR\nadopts: [EDR-112]")
+    assert all(o["id"] != "EDR-999" for o in C.analyze(root)["orphans"])

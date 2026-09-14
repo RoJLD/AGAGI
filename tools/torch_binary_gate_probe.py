@@ -29,14 +29,27 @@ def _energy_binary(throw, did_craft, hunger=-0.3):
     return 1.0 if (throw and did_craft) else hunger
 
 
+
+def _gaps_pour_verdict(gaps):
+    """Regle de l'auteur (kchain_edr L386), rendue EXPLICITE et COMPTEE : un gap INDEFINI -- le
+    conditionnement n'a jamais ete observe dans le dernier quart -- compte comme 0.0, c.-a-d. « ne
+    compose pas », dans le verdict compose. Rend (gaps numeriques, n_indefini). Le compte est PUBLIE
+    a cote de la mediane : une mediane de gaps dont la moitie sont des zeros de convention ne dit pas
+    la meme chose qu'une mediane de gaps mesures (P2.52, 2026-09-14)."""
+    return [0.0 if g is None else g for g in gaps], sum(1 for g in gaps if g is None)
+
 def _binding_gap(throws, did_crafts):
     """Instrument de binding direct (EDR-126) : P(throw|did_craft) - P(throw|¬did_craft). >0 = throw
     conditionne sur le craft ; ~0 = throw independant du craft (pas de binding)."""
     throws = np.asarray(throws, dtype=np.float32)
     dc = np.asarray(did_crafts, dtype=bool)
-    p_given = float(throws[dc].mean()) if dc.any() else 0.0
-    p_notgiven = float(throws[~dc].mean()) if (~dc).any() else 0.0
-    return p_given - p_notgiven
+    # P2.52 (2026-09-14) : `None` et non 0.0. Sans un seul craft dans le dernier quart, l'ancien gap
+    # valait -throw_rate -- « lancer est MOINS probable sachant le craft », sans un seul craft observe.
+    # Le gap est INDEFINI ; `compare` applique la regle « indefini = pas de binding » (0.0) au
+    # niveau du verdict, explicitement, et publie combien de bras y sont passes.
+    p_given = float(throws[dc].mean()) if dc.any() else None
+    p_notgiven = float(throws[~dc].mean()) if (~dc).any() else None
+    return (p_given - p_notgiven) if (p_given is not None and p_notgiven is not None) else None
 
 
 def run_arm(gate_on, episodes=800, n_agents=64, seed=0, lr=0.05, antisat=6.0, shuffle_label=False):
@@ -146,17 +159,23 @@ def compare(seeds=(0, 1, 2, 3, 4), episodes=800, n_agents=64):
             f"compare : argument degenere (seeds={seeds!r}, episodes={episodes}, n_agents={n_agents}) -- aucune mesure possible ; "
             "ne pas confondre avec une mesure nulle OBSERVEE.")
     rows = []
+    n_gap_indefini = 0
     for s in seeds:
         on = run_arm(True, episodes=episodes, n_agents=n_agents, seed=s)
         off = run_arm(False, episodes=episodes, n_agents=n_agents, seed=s)
         shuf = run_arm(True, shuffle_label=True, episodes=episodes, n_agents=n_agents, seed=s)
-        rows.append({"seed": s, "on": on["binding_gap"], "off": off["binding_gap"],
-                     "shuffle": shuf["binding_gap"], "on_comp": on["comp_rate"],
-                     "diff": on["binding_gap"] - off["binding_gap"],
-                     "diff_vs_shuffle": on["binding_gap"] - shuf["binding_gap"]})
+        # P2.52 : un gap INDEFINI (aucun craft dans le dernier quart) compte 0.0 -- « pas de
+        # binding » -- pour le verdict, explicitement, et il est COMPTE. Avant, il valait
+        # -throw_rate, une valeur qui n'etait pas une mesure.
+        (g_on, g_off, g_sh), n_ind = _gaps_pour_verdict(
+            [on["binding_gap"], off["binding_gap"], shuf["binding_gap"]])
+        n_gap_indefini += n_ind
+        rows.append({"seed": s, "on": g_on, "off": g_off, "shuffle": g_sh, "on_comp": on["comp_rate"],
+                     "gaps_indefinis": n_ind,
+                     "diff": g_on - g_off, "diff_vs_shuffle": g_on - g_sh})
     verdict_vs_shuffle = compute_ab_verdict([{"diff": r["diff_vs_shuffle"]} for r in rows], band=0.02)
     return {"rows": rows, "verdict": compute_ab_verdict(rows, band=0.02),
-            "verdict_vs_shuffle": verdict_vs_shuffle}
+            "verdict_vs_shuffle": verdict_vs_shuffle, "n_gap_indefini": n_gap_indefini}
 
 
 if __name__ == "__main__":

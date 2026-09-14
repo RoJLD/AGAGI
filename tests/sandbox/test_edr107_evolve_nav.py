@@ -49,6 +49,20 @@ def test_verdict_evolve_nav_empty():
     assert v.startswith("INDETERMINE"), f"une absence de mesure ne doit pas verdicter : {v}"
 
 
+def test_verdict_evolve_nav_UNE_SEULE_generation_ne_verdicte_PAS():
+    """⚠️ P2.57 (2026-09-14) -- la garde du VIDE ne couvrait pas UNE generation. Avec n = 1,
+    `first == last` par construction et la fonction rendait « SUBSTRAT BLOQUE » : un negatif de fond
+    tire d'UN point, la ou une tendance demande deux. Revele par le 2e elargissement de la porte 14
+    (`np.polyfit(...)[0] if n >= 2 else 0.0` dans le rapport voisin, qui PUBLIAIT cette pente nulle
+    dans le JSON). Meme famille que `_verdict_landing`, corrige quatre jours plus tot -- la garde du
+    frere n'avait pas ete retro-appliquee (E14)."""
+    v = _verdict_evolve_nav([0.3])
+    assert v.startswith("INDETERMINE"), f"un seul point n'est pas une tendance : {v}"
+    # NO-OP APPARIE : deux generations SUFFISENT, la garde porte sur < 2 et non sur « peu »
+    assert _verdict_evolve_nav([0.3, 0.3]) == "SUBSTRAT BLOQUE"
+    assert _verdict_evolve_nav([0.3, 0.6]) == "NAVIGATION EVOLUE"
+
+
 def test_verdict_evolve_nav_mesure_PLATE_reste_un_verdict():
     """Branche NÉGATIVE appariée, sans laquelle la précédente ne prouverait rien : une trajectoire
     RÉELLEMENT plate est une MESURE et doit rendre un verdict de fond, pas le même INDETERMINE que

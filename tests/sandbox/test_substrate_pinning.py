@@ -155,3 +155,36 @@ def test_the_ratchet_SPARES_an_Adam_that_optimizes_NO_population():
     assert _defects(_PIN + _MAKE + "opt = torch.optim.Adam([pop.w_gate], lr=lr)\n") == set()
     # mais une liste qui porte bien le poids de population reste jugée
     assert _defects(_PIN + _MAKE + "opt = torch.optim.Adam([pop.W, pop.w_gate], lr=lr)\n") == {"B"}
+
+
+# --------------------------------------------------------------------------------------------------
+# 2026-09-09 — TROU TROUVE PAR `tools/check_gate_mutation.py`. Quatorze tests confrontaient `_defects`
+# — le JUGE, sur des sources synthétiques — à des réponses connues, et deux confrontaient `scan` à
+# l'arbre RÉEL en attendant qu'il ne trouve RIEN (dette close). Aucun ne demandait à `scan` de
+# TROUVER quelque chose : neutraliser son report (`if d:` -> `if False:`) laissait le fichier vert,
+# et le cliquet ne pouvait plus signaler une seule sonde non épinglée.
+# ⚠️ La forme est générale et vaut d'être retenue : quand la dette d'un cliquet est CLOSE, tous ses
+# tests d'arbre réel attendent le VIDE — donc un report cassé leur donne exactement ce qu'ils
+# attendent. Une dette à zéro rend la couche de report structurellement intestable SUR LE RÉEL ; il
+# faut un défaut FABRIQUÉ pour la mesurer.
+# --------------------------------------------------------------------------------------------------
+
+def test_scan_REPORTS_a_FABRICATED_defective_probe(tmp_path):
+    """CONTRE-EXEMPLE GELE de la porte 6, à DOSE CONNUE : une sonde dont on SAIT qu'elle est en
+    défaut A (aucun épinglage), écrite hors du dépôt pour ne rien laisser dans un arbre partagé.
+    `scan` accepte un chemin ABSOLU, ce qui permet de la lui soumettre sans l'installer."""
+    p = tmp_path / "sonde_non_epinglee.py"
+    p.write_text(_MAKE + _ADAM_PLEIN, encoding="utf-8")
+    en_defaut, hors, examines = scan(only=[str(p)])
+    assert examines == 1, f"la sonde fabriquee doit etre EXAMINEE (hors={hors})"
+    assert list(en_defaut.values()) == [["A"]], (
+        "scan doit RAPPORTER le defaut que `_defects` sait deja voir", en_defaut)
+
+
+def test_scan_is_SILENT_on_a_FABRICATED_correct_probe(tmp_path):
+    """SPECIFICITE (no-op apparié), sur le MEME chemin de code : même sonde, épinglée. Sans lui, un
+    `scan` qui rapporterait TOUT passerait le test précédent."""
+    p = tmp_path / "sonde_epinglee.py"
+    p.write_text(_PIN + _MAKE + _ADAM_PLEIN, encoding="utf-8")
+    en_defaut, _hors, examines = scan(only=[str(p)])
+    assert examines == 1 and en_defaut == {}, (examines, en_defaut)

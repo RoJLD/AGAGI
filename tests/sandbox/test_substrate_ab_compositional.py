@@ -187,8 +187,15 @@ def test_run_curriculum_warmup0_is_compositional():
     for k in ("warmup_didx_end", "hit_start", "hit_end", "compo_didx_end", "delta"):
         assert k in r
     assert 0.0 <= r["hit_end"] <= 1.0
-    assert r["warmup_didx_start"] == 0.0
-    assert r["warmup_didx_end"] == 0.0
+    # ⚠️ CONTRAT CHANGE le 2026-09-09 (P2.52), et ce test l'a suivi le lendemain seulement -- il est
+    # reste ROUGE une journee entiere sans qu'aucun signal ne le dise, ce fichier n'etant lance par
+    # aucun job de CI. Ce qui TIENT : `warmup_trials=0` est une configuration SUPPORTEE et les cles
+    # existent. Ce qui NE TIENT PLUS : leur valeur. Rendre 0.0 affirmait « l'indice de discrimination
+    # du warmup vaut zero » pour une phase qui N'A PAS EU LIEU -- une absence deguisee en mesure,
+    # exactement la forme (a) que la porte 14 ferme. `None` DIT qu'on ne sait pas.
+    assert r["warmup_didx_start"] is None, (
+        "phase de warmup ABSENTE : l'indice ne vaut pas zero, il n'existe pas", r["warmup_didx_start"])
+    assert r["warmup_didx_end"] is None, r["warmup_didx_end"]
 
 
 @pytest.mark.slow

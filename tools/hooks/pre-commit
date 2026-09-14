@@ -283,5 +283,48 @@ if [ -n "$staged_fd" ]; then
   }
 fi
 
+# 15. LE CLIQUET DES CLIQUETS (2026-09-09) -- une porte doit prouver qu'elle sait ENCORE refuser.
+# Les portes 1 a 14 verifient le depot ; rien ne verifiait qu'elles en sont toujours CAPABLES. Deux
+# des trois faux verts du 2026-09-09 sont de cette forme exacte : `check_backlog_freshness` a rendu
+# `exit 0` sur un backlog VIDE, et la garde d'amputation ecrite pour ca etait elle-meme INERTE (elle
+# lisait le mauvais dictionnaire) -- elle a passe son propre contre-exemple. Une garde qui ne peut
+# plus rien refuser est indiscernable, DEPUIS SES SORTIES, d'une garde qui n'a rien a refuser.
+# `check_gate_mutation.py` casse chaque porte d'UNE ligne, en MEMOIRE (l'arbre est PARTAGE : jamais
+# sur disque), et exige qu'un temoin rougisse. Mesure de livraison : 13 portes, 16 mutations, et
+# QUATRE defauts reels trouves du premier coup, dont trois verdicts de porte sans aucun
+# contre-exemple.
+# `--pour-fichiers` : ne reveille QUE les portes dont le cliquet ou les temoins sont stages (~15 s
+# pour une porte). Muter les treize a chaque commit couterait 4 min -- un cliquet qu'on desactive.
+staged_gm=$(git diff --cached --name-only --diff-filter=AM | grep -E '^(tools/check_\w+\.py|tests/sandbox/test_\w+\.py|tools/check_gate_mutation\.py|tools/_mutation_plugin\.py)$')
+if [ -n "$staged_gm" ]; then
+  PYTHONIOENCODING=utf-8 python tools/check_gate_mutation.py --pour-fichiers $staged_gm || {
+    echo ""
+    echo "-> Une porte du hook ne prouve plus qu'elle sait refuser : sa mutation SURVIT, donc son"
+    echo "   contre-exemple est DECORATIF (il existe, il est nomme, il ne distingue rien)."
+    echo "   Ajouter le test qui rougit quand la garde est cassee -- pas retirer la mutation."
+    fail=1
+  }
+fi
+
+# 16. ANEANTISSEMENT D'UN FICHIER CONSERVE (2026-09-10) -- classe E22, generalisee au MECANISME.
+# Le depot repondait deja a deux des trois occurrences, mais par des cliquets SPECIFIQUES A UN
+# ARTEFACT : la porte 10 compte les TESTS, la porte 4 compte les entrees du BACKLOG. Le mecanisme,
+# lui, est indifferent au fichier qu'il detruit -- le meme accident sur `tools/ablation.py`, sur un
+# record d'EDR, sur `ci.yml` ou sur une baseline JSON n'etait couvert par RIEN.
+# BLOQUE uniquement l'ANEANTISSEMENT : un fichier encore present (statut M) dont le COMPTE D'ENTITE
+# tombe a ZERO alors que HEAD en portait. Aucun commit legitime ne vide un fichier qu'il garde ;
+# supprimer pour de bon se fait par `git rm` (statut D, hors perimetre).
+# SIGNALE, sans bloquer, toute baisse partielle -- retirer du code mort est legitime et frequent, et
+# ce qui manquait n'etait pas un refus mais le CHIFFRE SOUS LES YEUX : c'est en lisant
+# « 2372 deletions » dans la sortie de git que l'occurrence (2) a ete decouverte, par reflexe.
+# Le compte est celui de l'ENTITE et non de la TAILLE : un decoupage par index peut retirer quatre
+# tests sans changer notablement la taille (occurrence 3), et il ne leve jamais.
+PYTHONIOENCODING=utf-8 python tools/check_amputation.py || {
+  echo ""
+  echo "-> Un fichier CONSERVE a perdu TOUT son contenu. Restaurer depuis HEAD (git checkout HEAD --"
+  echo "   <chemin>), ou le supprimer POUR DE BON avec git rm si c'est l'intention."
+  fail=1
+}
+
 [ "$fail" -ne 0 ] && echo "   (urgence : git commit --no-verify)"
 exit $fail

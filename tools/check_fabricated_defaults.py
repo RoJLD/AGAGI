@@ -48,22 +48,47 @@ _SCAN_SKIP = ("__pycache__", "node_modules")
 
 # Les agrégateurs qui résument une COLLECTION en un scalaire. `sum`/`len` sont exclus à dessein :
 # `sum([])` vaut 0 et c'est ARITHMÉTIQUEMENT juste, alors que `median([])` n'a pas de valeur.
-_AGREGATEURS = {"mean", "median", "average", "nanmean", "nanmedian", "std", "var", "max", "min"}
+_AGREGATEURS = {"mean", "median", "average", "nanmean", "nanmedian", "std", "var", "max", "min",
+                # 2e ELARGISSEMENT (2026-09-14, P2.57) : ecarts-types de `statistics`, et les
+                # AJUSTEMENTS -- `np.polyfit(x, y, 1)[0]` est une PENTE, c.-a-d. une mesure, et
+                # `... if len(arms) >= 2 else 0.0` la fabriquait a zero sur UN point (lewis).
+                "stdev", "pstdev", "nanstd", "polyfit", "corrcoef", "percentile", "quantile"}
+# Les memes, appelees par leur nom NU (`from statistics import mean, stdev`).
+_AGREGATEURS_NUS = {"mean", "median", "stdev", "pstdev", "fmean", "variance", "pvariance",
+                    "nanmean", "nanmedian"}
 
 
 def _est_agregation(noeud):
-    """Le nœud est-il un appel d'agrégation sur une collection ? (np.mean, statistics.median, …)"""
-    while isinstance(noeud, ast.Call) and isinstance(noeud.func, ast.Name) and \
-            noeud.func.id in ("float", "int", "round") and noeud.args:
-        noeud = noeud.args[0]              # `float(np.median(...))` → on descend
+    """Le nœud est-il un appel d'agrégation sur une collection ? (np.mean, statistics.median, …)
+
+    ⚠️ 2e ELARGISSEMENT (2026-09-14, P2.57), sur l'IDENTIFICATION et non sur la forme. Mesure
+    avant : 81 sites `<appel> if ... else <constante>` echappaient au cliquet, dont ~25 etaient
+    EXACTEMENT l'agregation qu'il cherche, cachee par la facon dont il la reconnaissait :
+      * le module ALIASE -- `import statistics as st` puis `st.mean(...)` (anticipation_bench,
+        11 records), `_np.median(...)` ;
+      * la METHODE numpy -- `a.std(ddof=1) if len(a) > 1 else 0.0`, `cons[m].mean() if m.any()` ;
+      * le nom NU -- `from statistics import stdev` puis `stdev(xs) if ... else 0.0` ;
+      * l'INDEXAGE d'un appel -- `float(np.polyfit(x, y, 1)[0]) if len(arms) >= 2 else 0.0`.
+    C'est l'angle mort « comment il IDENTIFIE » que le cliquet-frere de calibration a paye trois
+    fois (motif, perimetre, collisions). La base n'est plus restreinte a np/statistics : une
+    methode `.mean()`/`.std()` est une agregation quel que soit son receveur."""
+    while True:
+        if isinstance(noeud, ast.Call) and isinstance(noeud.func, ast.Name) and \
+                noeud.func.id in ("float", "int", "round", "abs") and noeud.args:
+            noeud = noeud.args[0]          # `float(np.median(...))` → on descend
+        elif isinstance(noeud, ast.Subscript):
+            noeud = noeud.value            # `np.polyfit(...)[0]` → on descend jusqu'a l'appel
+        else:
+            break
     if not isinstance(noeud, ast.Call):
         return None
     f = noeud.func
     if isinstance(f, ast.Attribute) and f.attr in _AGREGATEURS:
         base = f.value
-        nom = base.id if isinstance(base, ast.Name) else getattr(base, "attr", "")
-        if nom in ("np", "numpy", "statistics", "stat"):
-            return f"{nom}.{f.attr}"
+        nom = base.id if isinstance(base, ast.Name) else getattr(base, "attr", "<expr>")
+        return f"{nom}.{f.attr}"
+    if isinstance(f, ast.Name) and f.id in _AGREGATEURS_NUS:
+        return f.id
     return None
 
 
@@ -177,6 +202,12 @@ NOT_A_MEASURE = {
         "logits AVANT le softmax. Quand TOUT est NaN, remplir par 0.0 rend le softmax UNIFORME -- "
         "c'est-a-dire aucune preference, la reponse correcte d'un vote sans information. Aucune "
         "grandeur du monde n'est affirmee ici, et le resultat n'est publie dans aucun record."),
+    # Revele par le 2e elargissement (2026-09-14, P2.57) -- `K_individual.max()` est une methode numpy.
+    "src/agents/mamba_agent.py::forward#0": (
+        "BORNE DE BOUCLE, pas une mesure : `T_max = int(K_individual.max()) if is_dreaming.any() "
+        "else 0` fixe le nombre de pas de reve a simuler dans la passe avant. Quand AUCUN agent ne "
+        "reve, zero pas est exactement le bon nombre de pas -- c'est du controle de flux, et rien "
+        "de ce qui en sort n'est publie comme une grandeur observee."),
 }
 
 

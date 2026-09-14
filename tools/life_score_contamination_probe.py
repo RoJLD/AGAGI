@@ -47,7 +47,10 @@ def kendall_tau(a, b):
             else:
                 D += 1
     denom = math.sqrt((C + D + Tx) * (C + D + Ty))
-    return (C - D) / denom if denom else 1.0
+    # P2.57 (2026-09-14) : `None` et non 1.0. Un denominateur nul (toutes les paires a egalite dans
+    # un classement, ou n < 2) rend tau INDEFINI -- pas « correlation parfaite ». L'agregation
+    # lisait `med_t == 1.0` comme METRIQUE_INERTE : ce 1.0 aurait CONCLU.
+    return (C - D) / denom if denom else None
 
 
 def _topk_indices(scores, k):
@@ -61,14 +64,15 @@ def topk_jaccard(scores_full, scores_var, k):
     a = _topk_indices(scores_full, k)
     b = _topk_indices(scores_var, k)
     union = a | b
-    return len(a & b) / len(union) if union else 1.0
+    return len(a & b) / len(union) if union else None   # P2.57 : deux top-k VIDES ne sont pas « identiques »
 
 
 def term_mass_share(roster, weights):
     """Part de la masse totale de life_score venant de chaque terme (magnitude de contamination)."""
     terms = {k: sum(c[k] * weights[k] for c in roster) for k in weights}
     total = sum(terms.values())
-    return {k: (terms[k] / total if total else 0.0) for k in terms}
+    # P2.57 : une masse totale NULLE ne se partage pas -- « 0 % de rien » n'est pas une part.
+    return {k: (terms[k] / total if total else None) for k in terms}
 
 
 from src.seed_ai.persistence import REF_FITNESS_WEIGHT
@@ -198,8 +202,17 @@ def aggregate(per_seed, k_seeds, effect_thresh=0.10):
     names = list(per_seed[0]["variants"]) if per_seed else []
     per_variant = {}
     for name in names:
-        jac = [s["variants"][name]["topk_jaccard"] for s in per_seed]
-        tau = [s["variants"][name]["kendall_tau"] for s in per_seed]
+        jac_tous = [s["variants"][name]["topk_jaccard"] for s in per_seed]
+        tau_tous = [s["variants"][name]["kendall_tau"] for s in per_seed]
+        # P2.57 : les mesures INDEFINIES (None) sont filtrees et COMPTEES, jamais lues comme 1.0.
+        jac = [x for x in jac_tous if x is not None]
+        tau = [x for x in tau_tous if x is not None]
+        n_indefini = (len(jac_tous) - len(jac)) + (len(tau_tous) - len(tau))
+        if not jac or not tau:
+            per_variant[name] = {"median_jaccard": None, "median_tau": None, "n_changed": 0,
+                                 "effect": None, "n_indefini": n_indefini,
+                                 "verdict": "INDETERMINE_METRIQUE_NON_MESUREE"}
+            continue
         med_j = _median(jac)
         med_t = _median(tau)
         n_changed = sum(1 for x in jac if x < 1.0)
@@ -211,7 +224,8 @@ def aggregate(per_seed, k_seeds, effect_thresh=0.10):
         else:
             verdict = "AMBIGU"
         per_variant[name] = {"median_jaccard": med_j, "median_tau": med_t,
-                             "n_changed": n_changed, "effect": effect, "verdict": verdict}
+                             "n_changed": n_changed, "effect": effect, "n_indefini": n_indefini,
+                             "verdict": verdict}
     global_verdict = max((v["verdict"] for v in per_variant.values()),
                          key=lambda x: _RANK[x], default="METRIQUE_INERTE")
     return {"per_variant": per_variant, "global_verdict": global_verdict}
@@ -240,8 +254,11 @@ def hof_decomposition():
         if not shares:
             return None
         keys = list(shares[0])
-        return {"n_champions": len(shares),
-                "mean_share": {k: sum(s[k] for s in shares) / len(shares) for k in keys}}
+        # P2.57 : une part INDEFINIE (masse totale nulle) est ecartee et comptee, pas lue comme 0.
+        definis = [s for s in shares if all(s[k] is not None for k in keys)]
+        return {"n_champions": len(shares), "n_parts_indefinies": len(shares) - len(definis),
+                "mean_share": ({k: sum(s[k] for s in definis) / len(definis) for k in keys}
+                               if definis else None)}
     except Exception:
         return None
 

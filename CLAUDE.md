@@ -28,8 +28,8 @@ Quatre questions, dont deux ont des assertions exécutables :
 
 **Inventaire au 2026-09-01 : 105 détectés, 104 calibrés, 1 déclaré non-instrument, ZÉRO dette.**
 **État COURANT, recomputé et jamais recopié :**
-**221 détectés** <!-- count:instruments_detectes=221 -->
-· **215 calibrés** <!-- count:instruments_calibres=215 -->
+**224 détectés** <!-- count:instruments_detectes=224 -->
+· **218 calibrés** <!-- count:instruments_calibres=218 -->
 · **0 non calibré** <!-- count:instruments_non_calibres=0 -->
 — la famille `run_*` (72 fonctions) est entrée le 2026-09-06 sans créer de dette. *(Les chiffres datés ci-dessus sont HISTORIQUES : ils restent vrais
 et ne sont donc pas balisés.)*
@@ -82,12 +82,36 @@ contrôle négatif cohérents, qui ont tenu une passe entière.
   plancher de bruit mesuré ne sait pas ce qu'il ne peut pas voir.
 - **Cliquet** : `tools/check_instrument_calibration.py` — dette légataire gelée, **aucun NOUVEL
   instrument non calibré**. ⚠️ **Il vérifie qu'une DÉCLARATION existe, jamais que ses cas
-  PASSENT** — et rien ne les exécute : mesuré le 2026-09-08, **1937 tests sur 2059 (94 %) ne sont
-  lancés par aucun job de CI** (`ci.yml` prend une liste NOMMÉE de 16 fichiers, jamais un répertoire).
+  PASSENT** — et jusqu'au 2026-09-09 rien ne les exécutait : **1937 tests sur 2059 (94 %) n'étaient
+  lancés par aucun job de CI** (`ci.yml` prenait une liste NOMMÉE de 16 fichiers, jamais un
+  répertoire). **CLOS le 2026-09-09** : le job `suite-complete` lance `tests/` PAR RÉPERTOIRE.
+  Coût mesuré sur machine à charge connue, et il inverse la décision qu'on croyait tranchée :
+  **2597 passés, 0 rouge, 25 min 44 s** — la mesure ayant été prise PENDANT le harnais de mutation,
+  c'est un MAJORANT. Les six rouges légataires trouvés en branchant sont corrigés (trois fixtures
+  d'AGI-Taxonomy périmées par deux durcissements de la porte, un test exigeant `N_EMERGE_PAS` sur
+  ZÉRO seed — un négatif FABRIQUÉ gelé par le test censé l'attraper —, et deux contrats changés la
+  veille dont personne n'a su qu'ils rougissaient).
   La suite `tests/sandbox/` lancée en entier ce jour-là a rendu **18 rouges pré-existants**, dont huit
   d'une seule garde de puissance jamais rétro-appliquée (E14) et un qui exigeait qu'une cohorte VIDE
   rende `AUTEL_MORT`. Un compteur d'instruments « calibrés » n'a de sens que si ses cas TOURNENT ;
   la suite complète coûte **30 min** sur machine au repos, donc la CI PEUT la lancer — ⚠️ une première mesure avait donné 8 h 30, prise pendant que seize agents tournaient sur la même machine : **un chiffre de coût se mesure sur une machine dont on connaît la charge**, sinon c'est la classe E12 appliquée au coût, et ici elle inversait la décision. Même mécanisme que `check_record_links.py`.
+- ⚠️ **L'APPRENANT est un instrument : sa DOSE se publie à côté de tout nul, et il a un contrôle
+  positif.** Mesuré le 2026-09-14 ([[EDR-CALIB-LEARNER]], P1.6) : trois records disaient « le crédit
+  in-world n'apprend pas à froid » sans compter la dose reçue — quelques dizaines de mises à jour avant
+  la mort à 7-9 ticks. À dose non bornée (cohorte IMMORTELLE, ≈ 2000 TD + 250 épisodes par agent),
+  l'apprenant tel que publié apprend la tâche linéaire de S2-011, **12/12 seeds** au-dessus de la
+  référence lr=0 appariée (+0,156) — lentement (0,28 vs oracle 1,0), et l'écart résiduel est
+  **invariant au pas** (garde E19). Outils : `tools/learning_events.py::count_learning_events`
+  (compteur en context manager, bit-identique par défaut, variantes `td_enabled` / `reward_scale` /
+  `lr`), `run_learner_probe` + `learner_verdict` (barre = référence lr=0 du MÊME dispositif + 0,05,
+  jamais « chance + marge »). Deux leçons de méthode payées sur ce run : (a) **immortel veut dire
+  immortel** — une recharge d'énergie seule laissait les bras APPRENANTS perdre la moitié de leur
+  cohorte dès le premier bloc (le monde tue DANS le tick : projectile d'un pair, riposte du gibier) et
+  tout l'avantage apparent des variantes (×0,05 : 0,39 → 0,26 à cohorte complète) était un **biais de
+  survivants corrélé au bras** ; publier `n_agents` par bloc et `resurrections` ; (b) un apprenant
+  **meurt ~100× plus** qu'un non-apprenant (126 résurrections par seed contre 1) — dans le monde mortel,
+  sa dose est bornée par sa propre létalité, et une DV de survie confond « apprend » et « meurt en
+  apprenant ».
 - **Auto-amélioration** : tout bug d'instrument trouvé en revue **devient un cas de calibration**. La
   suite croît de façon monotone ; un bug corrigé ne peut plus repasser silencieusement.
 - Le monde expose `trace_energy_sinks` (EDR-099/100) : l'utiliser pour diagnostiquer un bilan
@@ -163,8 +187,25 @@ indiscernable d'une cohorte qui a survécu 0 tick ; **121 sites légataires** ge
 acceptés : ils DISENT « je ne sais pas ») ·
 `check_control_family.py` (tout runner d'une règle SCELLÉE déclare son design, donc le NOMBRE de
 cellules de sa famille de contrôles — porte 11 ; à seuil de test unique, une famille de 24 cellules
-donnait 0,216 de fausse alarme sur un harnais PARFAIT).
-**14 gardes** <!-- count:portes_hook=14 --> sont branchées sur le hook pre-commit
+donnait 0,216 de fausse alarme sur un harnais PARFAIT) ·
+`check_gate_mutation.py` (**le cliquet DES cliquets**, porte 15 — chaque porte est cassée d'UNE
+ligne, EN MÉMOIRE (l'arbre est partagé : jamais sur disque), et au moins un témoin doit ROUGIR.
+C'est la mesure que deux cliquets déclaraient impossible : « ce test discrimine-t-il ? […]
+demanderait du test de mutation ». Elle ne l'était pas — elle n'avait pas été faite. Livraison :
+13 portes, 16 mutations, **quatre défauts réels du premier tir** — les verdicts `orphans` (porte 1),
+`scan_collisions` (porte 2) et le report de la porte 6 n'avaient **aucun** contre-exemple, et un test
+de la porte 14 PUNISSAIT son propre correctif. ⚠️ Un contrôle INTACT précède chaque mutation :
+sans lui, des témoins déjà rouges « tueraient » tous les mutants et le harnais annoncerait une
+couverture parfaite en ne mesurant rien).
+`check_amputation.py` (porte 16 — **E22 généralisée au MÉCANISME**. Le dépôt répondait déjà à deux
+de ses trois occurrences, mais par des cliquets liés à UN artefact : la porte 10 compte les TESTS,
+la porte 4 les entrées du BACKLOG. Le mécanisme, lui, est indifférent au fichier qu'il détruit — le
+même accident sur `tools/ablation.py`, sur un record ou sur une baseline JSON n'était couvert par
+RIEN. BLOQUE l'**anéantissement** : un fichier encore présent dont le compte d'ENTITÉ tombe à zéro
+alors que HEAD en portait. SIGNALE, sans bloquer, toute baisse partielle — retirer du code mort est
+légitime, et ce qui manquait n'était pas un refus mais **le chiffre sous les yeux** : c'est en lisant
+« 2372 deletions » par réflexe que l'anéantissement du backlog a été découvert).
+**16 gardes** <!-- count:portes_hook=16 --> sont branchées sur le hook pre-commit
 (`tools/hooks/pre-commit`) — compte RECOMPUTÉ depuis le hook lui-même : la phrase « 5 cliquets, tous
 branchés » qui vivait ici était fausse.
 ⚠️ **La baseline d'un cliquet doit elle-même déclencher le hook** — sinon l'élargir et la committer seule

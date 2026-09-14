@@ -173,15 +173,34 @@ def test_evaluate_learner_contract():
     res = evaluate_learner(learner, "inesc", Params(E0=16.0, T=200), seed=99, M=32)
     assert set(res) >= {"survival", "binding_gap", "p_c_inv1", "p_c_inv0", "craft_rate"}
     assert 0.0 <= res["survival"] <= 1.0
-    assert -1.0 <= res["binding_gap"] <= 1.0
-    # binding_gap == p_c_inv1 - p_c_inv0
-    assert res["binding_gap"] == pytest.approx(res["p_c_inv1"] - res["p_c_inv0"], abs=1e-9)
+    # P2.52 (2026-09-14) : un learner de 8 episodes evalue sur T = 200 est MORT au dernier quart ->
+    # gap INDEFINI, et le contrat le DIT (`binding_defini`). Ce qui TIENT : quand le gap existe, il
+    # vaut p1 - p0 et vit dans [-1, 1].
+    assert "binding_defini" in res and res["binding_defini"] == (res["binding_gap"] is not None)
+    if res["binding_gap"] is not None:
+        assert -1.0 <= res["binding_gap"] <= 1.0
+        assert res["binding_gap"] == pytest.approx(res["p_c_inv1"] - res["p_c_inv0"], abs=1e-9)
+    else:
+        assert res["p_c_inv1"] is None or res["p_c_inv0"] is None
 
 
 def test_null_metronome_gap_is_low():
-    # l'horloge open-loop ne conditionne pas sur inv -> gap ~0 (borne null). Materiau stochastique p_mat=0.5.
-    g = null_metronome_gap(Params(E0=16.0, T=200), seed=5, M=64)
+    """⚠️ CE TEST GELAIT UN ZERO FABRIQUE (trouve le 2026-09-14, P2.52). A `T = 200`, le metronome nul
+    est MORT au dernier quart -- mesure : 0 vivant sur 64, pour E0 = 16, 32 et 64 -- donc ses deux
+    masques etaient vides, `p1 = p0 = 0.0` par defaut, et « gap ~ 0 » etait `0 - 0`. Un controle qui
+    ne survit pas jusqu'a la mesure n'est pas un controle (E1). Ce qui TIENT : l'intention -- une
+    horloge open-loop ne conditionne pas sur inv, donc gap ~ 0. Ce qui change : on le MESURE, a un
+    horizon ou le metronome survit (T = 40 : p1 = p0 = 1.0, gap = 0 pour de vrai)."""
+    g = null_metronome_gap(Params(E0=16.0, T=40), seed=5, M=64)
     assert abs(g) < 0.15
+
+
+def test_null_metronome_REFUSES_a_DEAD_cohort():
+    """CONTRE-EXEMPLE GELE : la configuration exacte du test d'origine. Le metronome y est mort ;
+    l'instrument doit le DIRE, pas rendre 0."""
+    import pytest
+    with pytest.raises(RuntimeError, match="jamais observe"):
+        null_metronome_gap(Params(E0=16.0, T=200), seed=5, M=64)
 
 
 # === Phase B1a Task 3 : re-calibration apprenant + GATE DUR ===
@@ -232,7 +251,10 @@ def test_curriculum_binds_where_cold_fails():
     ew = evaluate_learner(warm, "inesc", P, seed=6000, M=32)
     ec = evaluate_learner(cold, "inesc", P, seed=6000, M=32)
     assert ew["binding_gap"] >= 0.5 and ew["survival"] >= 0.5   # curriculum : compose
-    assert ec["binding_gap"] < 0.5                               # cold : echoue a binder
+    # P2.52 (2026-09-14) : ce qui TIENT -- le cold ne compose pas. Ce qui est PRECISE : soit il ne
+    # binde pas (gap mesure < 0.5), soit il ne SURVIT pas au dernier quart (gap INDEFINI, None) --
+    # avant, ce second cas rendait un 0.0 fabrique que l'assertion lisait comme « ne binde pas ».
+    assert ec["binding_gap"] is None or ec["binding_gap"] < 0.5   # cold : echoue a binder
 
 
 def test_ladder_verdict_contract():
@@ -291,4 +313,4 @@ def test_decomp_sanity_known_cells():
     e2 = evaluate_learner(l2, "inesc", P, seed=6000, M=32)
     e0 = evaluate_learner(l0, "inesc", P, seed=6000, M=32)
     assert e2["binding_gap"] >= 0.5 and e2["survival"] >= 0.5   # L2 compose
-    assert e0["binding_gap"] < 0.5                               # L0 ne binde pas
+    assert e0["binding_gap"] is None or e0["binding_gap"] < 0.5   # L0 ne binde pas (ou meurt : indefini)

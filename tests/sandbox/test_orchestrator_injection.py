@@ -1972,3 +1972,79 @@ def test_s2_run_condition_reports_CENSORING_when_the_cohort_SURVIVES(monkeypatch
     r = mod.run_condition(_monde_qui_meurt(999), None, None, 0, num_agents=4, max_ticks=3, n_eras=1)
     assert r["censored_frac"] == 1.0, ("toute la cohorte est CENSUREE au plafond", r)
     assert r["era_survival"] == [3.0], "l'age plafonne vaut max_ticks"
+
+
+# ==================================================================================================
+# P2.56 (2026-09-14) -- `tools/substrate_world_ab.py`, 11 records : TROIS orchestrateurs de
+# `measure_survival` dont les seuls temoins etaient des tests de SIGNATURE (`inspect.signature`),
+# donc MUETS. Le smoke reel etait « differe a la fenetre KuzuDB calme », c.-a-d. jamais. L'injection
+# rend la couche d'agregation testable a DOSE CONNUE, sans monde : on remplace `measure_survival` par
+# une table (nom_du_backend -> medianes), et on lit les verdicts en forme close.
+# ==================================================================================================
+
+def _stub_survie_par_backend(monkeypatch, mod, table):
+    """Remplace `measure_survival` ; journalise (backend, seed) pour verifier l'APPARIEMENT."""
+    appels = []
+
+    def faux(world_key, seed, backend_cls, genome, k_eval, num_agents, max_ticks):
+        appels.append((backend_cls.__name__, seed))
+        return list(table[backend_cls.__name__])
+    monkeypatch.setattr(mod, "measure_survival", faux)
+    return appels
+
+
+def test_substrate_world_ab_compare_backends_PAIRS_and_reads_the_DOSE(monkeypatch):
+    """Dose : torch survit 20 ticks de plus que legacy sur 6 eres -> GRADIENT_GAGNE, diff = +20 par
+    ligne, medianes publiees 20 et 40. L'appariement : les DEUX backends sur le MEME seed."""
+    import tools.substrate_world_ab as mod
+    appels = _stub_survie_par_backend(monkeypatch, mod,
+                                      {"MambaBatchModel": [20] * 6, "TorchBatchModel": [40] * 6})
+    out = mod.compare_backends("stoneage", seed=7, k_eval=6, num_agents=4, max_ticks=50)
+    assert out["verdict"] == "GRADIENT_GAGNE", out
+    assert [r["diff"] for r in out["per_seed"]] == [20.0] * 6
+    assert out["legacy_median"] == 20.0 and out["torch_median"] == 40.0
+    assert appels == [("MambaBatchModel", 7), ("TorchBatchModel", 7)], appels
+
+
+def test_substrate_world_ab_compare_arms_reads_THREE_verdicts_from_ONE_dose(monkeypatch):
+    """Dose : core 30, legacy-full 40, torch-core 35 (6 eres). Trois lectures en forme close :
+    organes = legacy - core = +10 -> les organes AIDENT ; regle a parite = torch - core = +5 ->
+    GRADIENT_GAGNE ; confound complet = torch - legacy = -5 -> HEBBIEN_GAGNE. Un stub qui rendrait
+    la MEME chose aux trois bras (le no-op) donnerait NEUTRE partout -- verifie juste apres."""
+    import tools.substrate_world_ab as mod
+    _stub_survie_par_backend(monkeypatch, mod, {"MambaCoreBatchModel": [30] * 6,
+                                                 "MambaBatchModel": [40] * 6,
+                                                 "TorchBatchModel": [35] * 6})
+    out = mod.compare_arms("stoneage", seed=1, k_eval=6, num_agents=4, max_ticks=50, band=2.0)
+    assert out["organs_contribution"]["verdict"] == "GRADIENT_GAGNE", out["organs_contribution"]
+    assert out["rule_at_parity"]["verdict"] == "GRADIENT_GAGNE", out["rule_at_parity"]
+    assert out["full_confound"]["verdict"] == "HEBBIEN_GAGNE", out["full_confound"]
+    assert (out["core_median"], out["legacy_median"], out["torch_median"]) == (30.0, 40.0, 35.0)
+
+
+def test_substrate_world_ab_compare_arms_NOOP_gives_NEUTRE_everywhere(monkeypatch):
+    """NO-OP EXACT : trois bras identiques -> aucune difference -> NEUTRE x3. Sans lui, un
+    orchestrateur qui declarerait GRADIENT_GAGNE quoi qu'il arrive passerait le test precedent."""
+    import tools.substrate_world_ab as mod
+    _stub_survie_par_backend(monkeypatch, mod, {k: [33] * 6 for k in
+                             ("MambaCoreBatchModel", "MambaBatchModel", "TorchBatchModel")})
+    out = mod.compare_arms("stoneage", seed=1, k_eval=6, num_agents=4, max_ticks=50)
+    assert all(out[k]["verdict"] == "NEUTRE" for k in ("organs_contribution", "rule_at_parity", "full_confound"))
+
+
+def test_substrate_world_ab_sweep_lr_torch_builds_ONE_subclass_PER_lr_and_keeps_the_references(monkeypatch):
+    """Le balayage doit produire une ligne par lr, chacune mesuree par une SOUS-CLASSE dont `LR` vaut
+    ce lr (pas de mutation globale : EDR-139), et les deux reperes legacy sur le MEME seed."""
+    import tools.substrate_world_ab as mod
+    vus = []
+
+    def faux(world_key, seed, backend_cls, genome, k_eval, num_agents, max_ticks):
+        vus.append((backend_cls.__name__, getattr(backend_cls, "LR", None), seed))
+        return [10 + 100 * float(getattr(backend_cls, "LR", 0.0))] * 4
+    monkeypatch.setattr(mod, "measure_survival", faux)
+    out = mod.sweep_lr_torch("stoneage", seed=3, genome=None, k_eval=4, num_agents=4, max_ticks=20,
+                             lrs=(0.0, 0.01, 0.04))
+    assert [r["lr"] for r in out["lr_rows"]] == [0.0, 0.01, 0.04]
+    assert [r["median"] for r in out["lr_rows"]] == [10.0, 11.0, 14.0]     # dose lue en forme close
+    assert [v[1] for v in vus[:3]] == [0.0, 0.01, 0.04] and all(v[2] == 3 for v in vus)
+    assert vus[3][0] == "MambaCoreBatchModel" and vus[4][0] == "MambaBatchModel"

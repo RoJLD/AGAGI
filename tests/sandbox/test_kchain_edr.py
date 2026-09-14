@@ -90,7 +90,9 @@ def test_window_credit_shapes():
     assert lr.W_out.shape == (NA, N_H)
     ev = evaluate_chain(lr, 'inesc', 3, P, seed=99, M=8)
     assert set(ev) >= {"survival", "binding_gap", "consume_rate"}
-    assert -1.0 <= ev["binding_gap"] <= 1.0
+    # P2.52 (2026-09-14) : un learner de 3 episodes peut etre MORT au dernier quart -> gap INDEFINI
+    # (None), plus jamais un 0.0 fabrique. Le contrat : soit une mesure dans [-1, 1], soit None.
+    assert ev["binding_gap"] is None or -1.0 <= ev["binding_gap"] <= 1.0
     assert 0.0 <= ev["survival"] <= 1.0
 
 

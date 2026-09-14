@@ -387,6 +387,15 @@ def _run_frozen(policy_act, arm, params, seed, M):
     return alive_matrix, (np.array(s2_inv), np.array(s2_cons), np.array(s2_alive))
 
 
+
+def _gaps_pour_verdict(gaps):
+    """Regle de l'auteur (kchain_edr L386), rendue EXPLICITE et COMPTEE : un gap INDEFINI -- le
+    conditionnement n'a jamais ete observe dans le dernier quart -- compte comme 0.0, c.-a-d. « ne
+    compose pas », dans le verdict compose. Rend (gaps numeriques, n_indefini). Le compte est PUBLIE
+    a cote de la mediane : une mediane de gaps dont la moitie sont des zeros de convention ne dit pas
+    la meme chose qu'une mediane de gaps mesures (P2.52, 2026-09-14)."""
+    return [0.0 if g is None else g for g in gaps], sum(1 for g in gaps if g is None)
+
 def _binding_from_log(s2):
     """P(CONSUME|inv=1) - P(CONSUME|inv=0) sur les transitions S2 des agents VIVANTS, dernier quart."""
     inv, cons, al = s2                      # chacun [T, M]
@@ -395,8 +404,13 @@ def _binding_from_log(s2):
     inv, cons, al = inv[q:], cons[q:], al[q:]
     m1 = al & inv
     m0 = al & ~inv
-    p1 = float(cons[m1].mean()) if m1.any() else 0.0
-    p0 = float(cons[m0].mean()) if m0.any() else 0.0
+    # P2.52 (2026-09-14) : `None` et non 0.0. Une probabilite CONDITIONNELLE sans un seul evenement
+    # conditionnant n'est pas « jamais » -- elle n'existe pas. Avant, sans aucun craft dans le dernier
+    # quart, p1 valait 0 et le gap -p0 : « consommer est MOINS probable sachant l'inventaire »,
+    # affirme sans avoir observe un seul inventaire. La regle « indefini = ne compose pas » reste
+    # appliquee dans les AGREGATIONS, explicitement et comptee (`_gaps_pour_verdict`).
+    p1 = float(cons[m1].mean()) if m1.any() else None
+    p0 = float(cons[m0].mean()) if m0.any() else None
     craft_rate = float(inv.mean())
     return p1, p0, craft_rate
 
@@ -414,7 +428,9 @@ def evaluate_learner(learner, arm, params, seed, M):
         return a, Hn
     am, s2 = _run_frozen(act, arm, params, seed, M)
     p1, p0, craft_rate = _binding_from_log(s2)
-    return {"survival": survival_auc(am), "binding_gap": p1 - p0,
+    gap = (p1 - p0) if (p1 is not None and p0 is not None) else None
+    return {"survival": survival_auc(am), "binding_gap": gap,
+            "binding_defini": gap is not None,
             "p_c_inv1": p1, "p_c_inv0": p0, "craft_rate": craft_rate}
 
 
@@ -426,6 +442,10 @@ def null_metronome_gap(params, seed, M):
         return a, H
     _, s2 = _run_frozen(act, "inesc", params, seed, M)
     p1, p0, _ = _binding_from_log(s2)
+    if p1 is None or p0 is None:
+        # Le metronome CRAFT en S1 par construction : un gap indefini ici est une anomalie de HARNAIS.
+        raise RuntimeError("null_metronome_gap : conditionnement jamais observe pour un metronome qui "
+                           "crafte a chaque S1 -- le journal S2 est vide ou tous les agents sont morts")
     return p1 - p0
 
 
@@ -441,19 +461,34 @@ def recalibrate_learner(seeds=PILOT_SEEDS, e0_grid=(8.0, 12.0, 16.0, 24.0, 32.0)
     ok_e0 = None
     for e0 in e0_grid:
         P = replace(Params(), E0=e0)
-        head, adv = [], []
+        head, adv, nulls = [], [], []
         for s in seeds:
             li = rollout_learn(NpReinforceLearner(seed=int(s), arm="inesc"), "inesc", P, seed=int(s), M=M, n_episodes=n_episodes)
             la = rollout_learn(NpReinforceLearner(seed=int(s), arm="absent"), "absent", P, seed=int(s), M=M, n_episodes=n_episodes)
             ei = evaluate_learner(li, "inesc", P, seed=int(s) + 5000, M=M)
             ea = evaluate_learner(la, "absent", P, seed=int(s) + 5000, M=M)
-            ng = null_metronome_gap(P, seed=int(s) + 5000, M=M)
+            # P2.52 (2026-09-14) : le metronome nul MEURT avant le dernier quart a T = 200 (mesure :
+            # 0 vivant sur 64, pour E0 = 16, 32 et 64). Son gap valait donc 0 - 0 = 0 FABRIQUE, et
+            # `binding_adv` etait le gap brut. On ne leve pas ici (diagnostic SUPERSEDE, aucun record
+            # ne s'en reclame) : on ANNONCE. `null_gap` vaut None et `null_mesure` False dans la
+            # grille ; l'avantage est alors calcule contre 0.0 EXPLICITEMENT, comme avant, mais
+            # plus personne ne peut lire ce 0 comme une mesure du metronome.
+            try:
+                ng = null_metronome_gap(P, seed=int(s) + 5000, M=M)
+            except RuntimeError:
+                ng = None
+            nulls.append(ng)
             head.append(ea["survival"])
-            adv.append(ei["binding_gap"] - ng)
+            adv.append(None if ei["binding_gap"] is None
+                       else ei["binding_gap"] - (ng if ng is not None else 0.0))
         g4 = float(np.median(head))
-        badv = float(np.median(adv))
+        adv_num, n_ind = _gaps_pour_verdict(adv)
+        badv = float(np.median(adv_num))
+        n_null_non_mesure = sum(1 for g in nulls if g is None)
         passed = bool((0.4 <= g4 <= 0.85) and (badv >= 0.15))
-        grid.append({"E0": e0, "g4_headroom": g4, "binding_adv": badv, "pass": passed})
+        grid.append({"E0": e0, "g4_headroom": g4, "binding_adv": badv, "pass": passed,
+                     "n_gap_indefini": n_ind, "n_null_non_mesure": n_null_non_mesure,
+                     "null_mesure": n_null_non_mesure == 0})
         if passed and ok_e0 is None:
             ok_e0 = e0
     return {"ok": ok_e0 is not None, "E0_learner": ok_e0, "grid": grid,
@@ -606,8 +641,10 @@ def ladder_verdict(seeds=PILOT_SEEDS, E0=16.0, M=32, n_episodes=120, n_warm=80, 
             ev = evaluate_learner(lr, "inesc", P, seed=int(s) + 5000, M=M)
             binds.append(ev["binding_gap"])
             survs.append(ev["survival"])
-        b, sv = float(np.median(binds)), float(np.median(survs))
-        rungs[name] = {"binding": b, "survival": sv, "composes": _rung_composes(b, sv)}
+        binds_num, n_ind = _gaps_pour_verdict(binds)
+        b, sv = float(np.median(binds_num)), float(np.median(survs))
+        rungs[name] = {"binding": b, "survival": sv, "composes": _rung_composes(b, sv),
+                       "n_gap_indefini": n_ind}
     l0, l1, l2 = rungs["L0"]["composes"], rungs["L1"]["composes"], rungs["L2"]["composes"]
     # ⚠️ ZERO SEED = ZERO VERDICT (2026-09-01). Avec `seeds=()`, `binds`/`survs` restent vides,
     # `np.median([])` rend nan, `_rung_composes(nan, nan)` est False, `not l2` est vrai -> l'instrument
@@ -703,8 +740,10 @@ def decompose_2x2(seeds=PILOT_SEEDS[:3], E0=16.0, M=32, n_episodes=120, n_warm=8
             ev = evaluate_learner(lr, "inesc", P, seed=int(s) + 5000, M=M)
             binds.append(ev["binding_gap"])
             survs.append(ev["survival"])
-        b, sv = float(np.median(binds)), float(np.median(survs))
-        cells[(credit, curr)] = {"binding": b, "survival": sv, "composes": _rung_composes(b, sv)}
+        binds_num, n_ind = _gaps_pour_verdict(binds)
+        b, sv = float(np.median(binds_num)), float(np.median(survs))
+        cells[(credit, curr)] = {"binding": b, "survival": sv, "composes": _rung_composes(b, sv),
+                                 "n_gap_indefini": n_ind}
     return {"cells": cells, "verdict": _decomp_verdict(cells), "E0": E0}
 
 

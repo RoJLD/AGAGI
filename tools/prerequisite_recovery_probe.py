@@ -45,8 +45,11 @@ def prerequisite_recovery_verdict(edges, imposed_hard):
     recovered = sorted(e["prereq"] for e in edges if e["verdict"] == "X_DEMANDED")
     imposed = sorted(set(imposed_hard))
     tp = len(set(recovered) & set(imposed))
-    precision = tp / len(recovered) if recovered else 1.0
-    recall = tp / len(imposed) if imposed else 1.0
+    # P2.57 (2026-09-14) : `None` et non 1.0. Une precision « parfaite » sans AUCUNE arete recuperee,
+    # un rappel « parfait » sans aucune arete imposee : le go/no-go SP-3 lisait `== 1.0` et rendait
+    # PASS sur ZERO arete -- « la specificite tient » fabrique par l'absence de donnee.
+    precision = tp / len(recovered) if recovered else None
+    recall = tp / len(imposed) if imposed else None
     return {"precision": precision, "recall": recall, "recovered": recovered, "imposed_hard": imposed}
 
 

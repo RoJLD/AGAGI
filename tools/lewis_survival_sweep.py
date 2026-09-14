@@ -6,6 +6,7 @@ mort par FAMINE (actions -10 x densite apex >> forage), pas letalite.
 Pre-enregistrement : docs/superpowers/specs/2026-06-24-EDR093-Lewis-Survival-Sweep-design.md
 """
 import sys
+import math
 import numpy as np
 
 from src.environments.config import WorldConfig
@@ -147,11 +148,20 @@ def _verdict_landing(arms):
     plateau de navigation. delta = plateau(max) - plateau(0) ; slope = pente du plateau vs scaffold_land
     (echelle lineaire 0-10). AFFORDANCE LEVE si delta>=0.10 ET slope>0. AFFORDANCE INERTE si
     abs(delta)<0.10 ET abs(slope)<0.01. AFFORDANCE AMBIGUE sinon (signal partiel/non-monotone)."""
+    # GARDE D'ARGUMENTS, EN TETE (P2.49, 2026-09-10) -- classe E14 : le jumeau structurel
+    # `_verdict_capacity` porte cette garde depuis le 2026-09-06, et elle n'avait jamais ete
+    # RETRO-APPLIQUEE ici. Mesure avant correctif : sur UN SEUL bras, `delta` vaut 0 (p[-1] == p[0])
+    # et `slope` etait FABRIQUE a 0.0 -- donc la fonction rendait "AFFORDANCE INERTE", c.-a-d. une
+    # affirmation de FOND, negative, sur l'effet du scaffold, tiree d'UN SEUL POINT.
+    if len(arms) < 2:
+        raise ValueError(
+            f"_verdict_landing : argument degenere (n_arms={len(arms)}) -- une PENTE demande au moins "
+            "deux niveaux ; ne pas confondre avec une affordance INERTE observee.")
     arms = sorted(arms, key=lambda a: a["scaffold_land"])
     plateaus = [a["plateau"] for a in arms]
     delta = plateaus[-1] - plateaus[0]
     x = [a["scaffold_land"] for a in arms]
-    slope = float(np.polyfit(x, plateaus, 1)[0]) if len(arms) >= 2 else 0.0
+    slope = float(np.polyfit(x, plateaus, 1)[0])   # garde en tete : len(arms) >= 2 TOUJOURS
     if delta >= 0.10 and slope > 0:
         return "AFFORDANCE LEVE"
     if abs(delta) < 0.10 and abs(slope) < 0.01:
@@ -167,7 +177,7 @@ def _report_landing(h, arms, generations, num_agents, max_ticks, _return):
     base_plateau = arms_sorted[0]["plateau"]
     plateaus = [a["plateau"] for a in arms_sorted]
     x = [a["scaffold_land"] for a in arms_sorted]
-    slope = float(np.polyfit(x, plateaus, 1)[0]) if len(arms_sorted) >= 2 else 0.0
+    slope = float(np.polyfit(x, plateaus, 1)[0])   # `_verdict_landing` a deja LEVE si < 2 bras
     print("\n=== EDR113 scaffold_land (recompense pas final) -> plafond navigation Lewis ===")
     print("  land | gen0  first plateau | delta_vs_base")
     for a in arms_sorted:
@@ -222,7 +232,7 @@ def _verdict_capacity(arms):
     plateaus = [a["plateau"] for a in arms]
     delta = plateaus[-1] - plateaus[0]
     x = [float(np.log2(a["n_hidden"])) for a in arms]
-    slope = float(np.polyfit(x, plateaus, 1)[0]) if len(arms) >= 2 else 0.0
+    slope = float(np.polyfit(x, plateaus, 1)[0])   # garde en tete : len(arms) >= 2 TOUJOURS
     if delta >= 0.10 and slope > 0:
         return "CAPACITE LEVE"
     if abs(delta) < 0.10 and abs(slope) < 0.05:
@@ -238,7 +248,7 @@ def _report_capacity_nav(h, arms, generations, num_agents, max_ticks, _return):
     base_plateau = arms_sorted[0]["plateau"]
     plateaus = [a["plateau"] for a in arms_sorted]
     x = [float(np.log2(a["n_hidden"])) for a in arms_sorted]
-    slope = float(np.polyfit(x, plateaus, 1)[0]) if len(arms_sorted) >= 2 else 0.0
+    slope = float(np.polyfit(x, plateaus, 1)[0])   # `_verdict_capacity` a deja LEVE si < 2 bras
     print("\n=== EDR110 capacite cachee -> plafond navigation Lewis ===")
     print("  n_hidden | num_nodes | gen0  first plateau | delta_vs_base")
     for a in arms_sorted:
@@ -599,6 +609,23 @@ def _verdict_forage(agg):
     sur l'agg de metab=0. p_reach<0.5 -> APPROCHE (navigation) ; sinon p_cap<0.5 -> CAPTURE (atteint
     mais ne tue pas) ; sinon income_t<drain_t -> REVENU (tue mais ne couvre pas le cout structurel) ;
     sinon FORAGE SUFFISANT (l'entonnoir tient, le mur est ailleurs)."""
+    # GARDE D'ARGUMENTS, EN TETE (P2.49, 2026-09-10). Mesure avant correctif : sur une agregation
+    # dont les quatre grandeurs valent `nan`, la fonction rendait "FORAGE SUFFISANT" -- parce que
+    # `nan < 0.5` vaut False, donc les trois tests de la cascade tombent et le verdict de QUEUE sort.
+    # C'est un positif FABRIQUE (« l'entonnoir tient, le mur est ailleurs »), et il est plus dangereux
+    # que les negatifs fabriques que ce depot traque : il ne ressemble pas aux autres resultats.
+    # ⚠️ `nan` en ENTREE dit « je ne sais pas » -- c'est la valeur que le depot demande de rendre en
+    # cas d'absence. La consommer comme une mesure annule tout le benefice de l'avoir rendue.
+    manquantes = [k for k in ("p_reach", "p_cap", "income_t", "drain_t") if k not in agg]
+    if manquantes:
+        raise ValueError(f"_verdict_forage : grandeurs ABSENTES de l'agregation {manquantes} -- "
+                         "aucun etage de l'entonnoir n'est evaluable.")
+    non_finies = [k for k in ("p_reach", "p_cap", "income_t", "drain_t")
+                  if agg[k] is None or not math.isfinite(float(agg[k]))]
+    if non_finies:
+        raise ValueError(f"_verdict_forage : grandeurs NON FINIES {non_finies} -- `nan` DIT « je ne "
+                         "sais pas » ; le comparer rend silencieusement le verdict de queue "
+                         "(FORAGE SUFFISANT), c.-a-d. un positif fabrique par l'absence de mesure.")
     if agg["p_reach"] < 0.5:
         return "GOULOT=APPROCHE"
     if agg["p_cap"] < 0.5:
@@ -819,6 +846,13 @@ def _verdict_evolve_nav(traj):
     NEGATIF, la direction ou un verdict fabrique ressemble a tous les autres resultats du depot."""
     if not traj:
         return "INDETERMINE_AUCUNE_GENERATION"
+    # ⚠️ P2.57 (2026-09-14) : la garde du VIDE ne couvrait pas UNE SEULE generation. Avec n = 1,
+    # `first == last` par construction, donc la fonction rendait "SUBSTRAT BLOQUE" -- un negatif de
+    # fond (« le substrat bloque la navigation ») tire d'UN point, la ou une tendance demande deux.
+    # Meme famille que `_verdict_landing` corrige le 2026-09-10 : la garde d'un frere jamais
+    # retro-appliquee (E14). Coherent avec le cas vide : INDETERMINE, pas une levee.
+    if len(traj) < 2:
+        return "INDETERMINE_UNE_SEULE_GENERATION"
     n = len(traj)
     k = 5 if n >= 10 else max(1, n // 2)
     first = float(np.median(traj[:k]))
@@ -1037,13 +1071,15 @@ def _report_evolve_nav(h, traj, stats_hist, generations, num_agents, max_ticks, 
     k = 5 if n >= 10 else max(1, n // 2)
     first = float(np.median(traj[:k]))
     last = float(np.median(traj[-k:]))
-    slope = float(np.polyfit(range(1, n + 1), traj, 1)[0]) if n >= 2 else 0.0
+    # ⚠️ P2.57 : `None` et non 0.0 -- une pente sur moins de deux points n'existe pas, et ce
+    # `slope` est PUBLIE dans le JSON de resultats : un 0.0 y serait lu comme « aucune evolution ».
+    slope = float(np.polyfit(range(1, n + 1), traj, 1)[0]) if n >= 2 else None
     print("\n=== EDR107 evolution navigation Lewis : trajectoire p_reach ===")
     print("  gen | p_reach | ticks eaten")
     for i, (p, sd) in enumerate(zip(traj, stats_hist), 1):
         print(f"  {i:3d} | {p:7.3f} | {sd['ticks']:5d} {sd['eaten']:5d}")
     print(f"  first-{k} median={first:.3f}  last-{k} median={last:.3f}  delta={last - first:+.3f} (gate +0.15)")
-    print(f"  pente lineaire p_reach/gen = {slope:+.4f}")
+    print("  pente lineaire p_reach/gen = " + (f"{slope:+.4f}" if slope is not None else "n/a (< 2 generations)"))
     print("=== VERDICT (pre-enregistre) ===")
     print(f"  -> {verdict}")
     h.save({"knob": "generation", "generations": generations, "num_agents": num_agents,

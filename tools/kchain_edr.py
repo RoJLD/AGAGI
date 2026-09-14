@@ -184,6 +184,15 @@ def _run_chain_logged(policy_act, arm, K, params, seed, M):
     return alive_matrix, (np.array(prog_log), np.array(cons_log), np.array(alive_log))
 
 
+
+def _gaps_pour_verdict(gaps):
+    """Regle de l'auteur (kchain_edr L386), rendue EXPLICITE et COMPTEE : un gap INDEFINI -- le
+    conditionnement n'a jamais ete observe dans le dernier quart -- compte comme 0.0, c.-a-d. « ne
+    compose pas », dans le verdict compose. Rend (gaps numeriques, n_indefini). Le compte est PUBLIE
+    a cote de la mediane : une mediane de gaps dont la moitie sont des zeros de convention ne dit pas
+    la meme chose qu'une mediane de gaps mesures (P2.52, 2026-09-14)."""
+    return [0.0 if g is None else g for g in gaps], sum(1 for g in gaps if g is None)
+
 def binding_gap(s2):
     """P(CONSUME|prog==K-1) - P(CONSUME|prog<K-1) sur les sous-pas des agents VIVANTS, dernier quart. s2=(prog,cons,alive,K)."""
     prog, cons, al, K = s2
@@ -192,9 +201,12 @@ def binding_gap(s2):
     prog, cons, al = prog[q:], cons[q:], al[q:]
     m1 = al & (prog == K - 1)
     m0 = al & (prog < K - 1)
-    p1 = float(cons[m1].mean()) if m1.any() else 0.0
-    p0 = float(cons[m0].mean()) if m0.any() else 0.0
-    return p1 - p0
+    # P2.52 (2026-09-14) : `None` et non 0.0 -- voir `_gaps_pour_verdict`. La regle de la docstring
+    # de `evaluate_chain` (« masque vide -> ne compose pas ») reste appliquee, EXPLICITEMENT et
+    # COMPTEE, la ou l'on agrege ; la grandeur brute, elle, ne fabrique plus un « jamais ».
+    p1 = float(cons[m1].mean()) if m1.any() else None
+    p0 = float(cons[m0].mean()) if m0.any() else None
+    return (p1 - p0) if (p1 is not None and p0 is not None) else None
 
 
 def _median_surv(policy_factory, arm, K, params, seeds, M):
@@ -483,9 +495,10 @@ def generality_curve(seeds, K_grid=(2, 3, 4, 5), M=64, n_stage=40, calib_fn=None
             learner = _train_full_lever(int(s), 'inesc', K, calib_fn, M, n_stage, P0)
             ev = evaluate_chain(learner, 'inesc', K, Peval, seed=int(s) + 5000, M=M)
             binds.append(ev["binding_gap"]); survs.append(ev["survival"])
-        b, sv = float(np.median(binds)), float(np.median(survs))
+        binds_num, n_ind = _gaps_pour_verdict(binds)
+        b, sv = float(np.median(binds_num)), float(np.median(survs))
         comp = _composes(b, sv)
-        grid.append({"K": K, "binding": b, "survival": sv, "composes": comp})
+        grid.append({"K": K, "binding": b, "survival": sv, "composes": comp, "n_gap_indefini": n_ind})
         if not comp and first_break is None:
             first_break = K
     verdict = "GENERIQUE" if first_break is None else "COS-SPECIFIQUE(%d)" % first_break
@@ -523,8 +536,10 @@ def decompose_2x2_chain(seeds, K=3, M=64, n_stage=40, calib_fn=None, params_base
             for s in seeds:
                 c = _train_cell_chain(W_mode, curr, K, calib_fn, int(s), M, n_stage, P0)
                 binds.append(c["binding"]); survs.append(c["survival"])
-            b, sv = float(np.median(binds)), float(np.median(survs))
-            cells[(W_mode, curr)] = {"binding": b, "survival": sv, "composes": _composes(b, sv)}
+            binds_num, n_ind = _gaps_pour_verdict(binds)
+            b, sv = float(np.median(binds_num)), float(np.median(survs))
+            cells[(W_mode, curr)] = {"binding": b, "survival": sv, "composes": _composes(b, sv),
+                                     "n_gap_indefini": n_ind}
     long_on = cells[('long', True)]["composes"]
     short_on = cells[('short', True)]["composes"]
     long_off = cells[('long', False)]["composes"]

@@ -69,5 +69,16 @@ def test_verdict_n_emerge_pas_when_deltas_match():
 
 
 def test_verdict_empty():
+    """⚠️ CE TEST GELAIT LE DEFAUT QU'IL AURAIT DU ATTRAPER. Il exigeait `N_EMERGE_PAS` sur ZERO
+    seed -- c'est-a-dire une affirmation de FOND, et negative, tiree d'aucune donnee : la forme (a)
+    documentee dans CLAUDE.md (« entree vide -> verdict de fond »), et le biais systematique que ce
+    depot a mesure sur une trentaine de ses instruments. La garde a ete posee dans
+    `famine_storage_probe.py` le 2026-09-01 (classes E18/E4) ; le test, lui, est reste ROUGE depuis,
+    invisible parce qu'aucun job de CI ne lancait ce fichier.
+    Ce qui TIENT : zero seed doit produire `n = 0`. Ce qui NE TIENT PLUS : que ce soit un verdict.
+    Le no-op apparie vit juste au-dessus (`test_verdict_n_emerge_pas_when_deltas_match`) : sur des
+    donnees REELLES sans avantage, `N_EMERGE_PAS` reste bien la reponse."""
     v = compute_emergence_verdict([], [])
-    assert v["verdict"] == "N_EMERGE_PAS" and v["n"] == 0
+    assert v["verdict"] == "INDETERMINE_AUCUN_SEED" and v["n"] == 0
+    assert v["sign_p"] is None and v["median_paired"] is None, (
+        "aucune grandeur ne doit etre fabriquee sur une cohorte vide", v)

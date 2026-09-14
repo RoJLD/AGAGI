@@ -62,9 +62,14 @@ CALIBRATED = {
     # meme passe vient de mesurer, au lieu de la reduire. Les compter comme « calibrees » sans le
     # dire serait exactement le faux vert qu'on denonce. Un cas CORPS-ATTEINT y coute un monde ;
     # l'ordre de resorption est ecrit en P2.49.
-    "tools/anticipation_bench.py::compare": ["cohorte-vide:raises", "guard-before-world"],
+    # P2.56 (2026-09-14) : re-declare d'apres tests/sandbox/test_anticipation_bench.py (corps atteint).
+    "tools/anticipation_bench.py::compare": ["cohorte-vide:raises", "guard-before-world",
+                                             "corps-atteint:verdict-dans-ensemble:smoke"],
     "tools/life_score_contamination_probe.py::compare": ["cohorte-vide:raises", "guard-before-world"],
-    "tools/map_elites_compare.py::compare": ["cohorte-vide:raises", "guard-before-world"],
+    # P2.56 : INJECTION d'orchestrateur (`run_era_fn=_fake_pool_runner`) -- la couche d'agregation
+    # est testee sans monde ; plus un smoke reel (test_compare_smoke_real).
+    "tools/map_elites_compare.py::compare": ["cohorte-vide:raises", "guard-before-world",
+                                             "injection:structure-et-verdict", "reel:smoke-coverage>=1"],
     "tools/substrate_ab.py::compare": [
         "cohorte-vide:raises", "guard-before-world",
         "CORPS-ATTEINT:appariement-des-DEUX-backends-par-seed",
@@ -128,7 +133,9 @@ CALIBRATED = {
     "multiverse_runner.py::run_world_era": [
         "regime-degenere:raises", "cohorte-vide:raises", "guard-before-world"],
     "tools/curriculum_world.py::run_world_era": ["empty-cohort:raises", "guard-before-world"],
-    "tools/substrate_ab_compositional.py::run_curriculum": ["empty-cohort:raises", "guard-before-world"],
+    # `tools/substrate_ab_compositional.py::run_curriculum` etait declare ICI ET plus bas (clé en
+    # DOUBLE dans un dict litteral : la seconde ecrase la premiere sans un mot). Retire le 2026-09-14 ;
+    # la declaration qui fait foi est celle du bloc G2, plus bas, qui nomme les cas reels.
     # P4.1-MECANISME (2026-09-09) : par quel CANAL le grab coute-t-il 39 % de survie ?
     # 14 cas dans tests/sandbox/test_grab_mechanism.py, dont 12 SANS aucune simulation (gardes en
     # tete, compteur calibre par injection a dose connue, mecanisme verifie sur le CODE).
@@ -281,6 +288,39 @@ CALIBRATED = {
     "tools/vertical_world_probe.py::run_probe": ["empty-cohort:raises", "guard-before-world"],
     "tools/lethality_curriculum.py::_verdict": ["negatif-profond", "casse-bootstrap", "pas-le-goulot"],
     "tools/lewis_survival_sweep.py::_verdict_capacity": ["leve", "inerte", "ambigue", "single-arm:raises"],
+    # P2.49 (2026-09-10) : les DEUX FRERES de `_verdict_capacity`, traites dans la meme passe.
+    # ⚠️ Leur declaration disait `["empty:raises"]` -- donc GARDE-SEULE, donc comptee dans la dette --
+    # alors que leurs QUATRE et TROIS branches etaient DEJA confrontees a des reponses connues dans
+    # `tests/sandbox/test_edr105_forage_funnel.py` et `tests/sandbox/test_edr113_landing.py`. La
+    # dette etait DECLARATIVE, pas testimoniale : elle coutait une ligne, pas un monde. Mesure de la
+    # meme forme sur tout le lot : 64 des 103 declarations garde-seule ont un test qui IMPORTE le
+    # symbole DEPUIS SON MODULE (analyse AST : apparier par nom NU rendait un chiffre FAUX, trois
+    # `compare` differents pointant les deux memes fichiers -- l'angle mort des collisions, reproduit
+    # par l'instrument qui mesurait la dette).
+    # ⚠️ Et la passe qui re-declare a trouve DEUX defauts reels dans les corps enfin regardes :
+    # `_verdict_landing` rendait AFFORDANCE INERTE sur UN SEUL bras (negatif fabrique, classe E14 --
+    # la garde du jumeau jamais retro-appliquee) et `_verdict_forage` rendait FORAGE SUFFISANT sur
+    # une agregation TOUT NAN (positif fabrique, plus rare donc plus dangereux). Les deux gardes sont
+    # posees EN TETE, les deux incidents sont geles comme contre-exemples, chacun apparie a son no-op.
+    "tools/lewis_survival_sweep.py::_verdict_landing":
+        ["leve", "inerte", "ambigue", "single-arm:raises", "empty:raises", "deux-bras:limite-acceptee"],
+    # P2.52 (2026-09-14) : `_gaps_pour_verdict`, trois exemplaires IDENTIQUES -- la regle « gap
+    # indefini = ne compose pas » rendue explicite ET comptee. Six sites de binding-gap fabriquaient
+    # un « jamais Y sachant X » sans un seul X observe ; et le metronome NUL de craft_or_starve etait
+    # MORT au dernier quart (0 vivant sur 64 a T = 200), son « gap ~ 0 » etait 0 - 0.
+    # Cas dans tests/sandbox/test_gaps_pour_verdict.py, un jeu par exemplaire + identite des trois.
+    "tools/craft_or_starve_edr.py::_gaps_pour_verdict":
+        ["dose-connue:2-indefinis-sur-4", "noop:aucun-indefini", "tous-indefinis:comptes",
+         "zero-mesure:pas-un-indefini"],
+    "tools/kchain_edr.py::_gaps_pour_verdict":
+        ["dose-connue:2-indefinis-sur-4", "noop:aucun-indefini", "tous-indefinis:comptes",
+         "zero-mesure:pas-un-indefini"],
+    "tools/torch_binary_gate_probe.py::_gaps_pour_verdict":
+        ["dose-connue:2-indefinis-sur-4", "noop:aucun-indefini", "tous-indefinis:comptes",
+         "zero-mesure:pas-un-indefini"],
+    "tools/lewis_survival_sweep.py::_verdict_forage":
+        ["approche", "capture", "revenu", "suffisant", "nan:raises", "cle-absente:raises",
+         "bornes-finies:acceptees"],
     "tools/arc5_alignment.py::_verdict": ["aligned:1bit", "independent:baseline"],
     # P2.43 (2026-09-06) : famille run_* -- declarations QUALIFIEES par chemin (5 noms en collision).
     # P2.49 (2026-09-09) : l'instrument GARDE-SEULE le plus PORTEUR du depot -- son module est
@@ -297,7 +337,8 @@ CALIBRATED = {
     "tools/adaptive_planning_probe.py::run_adaptive": ["empty-cohort:raises", "guard-before-world"],
     "tools/agricultural_demand_probe.py::run_agricultural": ["empty-cohort:raises", "guard-before-world"],
     "tools/altar_tool_funnel_probe.py::run_era_funnel": ["empty-cohort:raises", "guard-before-world"],
-    "tools/anticipation_bench.py::run_bench": ["empty-cohort:raises", "guard-before-world"],
+    "tools/anticipation_bench.py::run_bench": ["empty-cohort:raises", "guard-before-world",
+                                               "corps-atteint:avoidance-dans-[0,1]:smoke"],
     # P2.49 (2026-09-09) : le HARNAIS PARTAGE du fil S2 (10 records) -- il porte la couche
     # d'APPARIEMENT que traversent s2_demand_ablation, s2_openloop_probe, cognitive_demand_inworld
     # et warmstart. Meilleure couture du depot : `world_cls` est un PARAMETRE, donc aucun
@@ -308,7 +349,8 @@ CALIBRATED = {
         "CORPS-ATTEINT:mediane-par-ere-morts-compris", "CORPS-ATTEINT:censure-rapportee"],
     "tools/anticipation_planning_probe.py::run_planning": ["empty-cohort:raises", "guard-before-world"],
     "tools/arm_act_grad.py::run_bptt_act": ["empty-cohort:raises", "guard-before-world"],
-    "tools/cognitive_demand_inworld.py::run_credit_linear": ["empty-cohort:raises", "guard-before-world"],
+    "tools/cognitive_demand_inworld.py::run_credit_linear": ["empty-cohort:raises", "guard-before-world",
+                                                           "learning-dose:published"],   # P1.6
     "tools/comm_lever.py::run_era": ["empty-cohort:raises", "guard-before-world"],
     "tools/compositional_language_probe.py::run_compositional": ["empty-cohort:raises", "guard-before-world"],
     "tools/confirm_scramble.py::run_era": ["empty-cohort:raises", "guard-before-world"],
@@ -317,16 +359,26 @@ CALIBRATED = {
     "tools/curriculum_developmental.py::run_era": ["empty-cohort:raises", "guard-before-world"],
     "tools/curriculum_grab.py::run_one_era": ["empty-cohort:raises", "guard-before-world"],
     "tools/dreaming_probe.py::run_era_organ": ["empty-cohort:raises", "guard-before-world"],
-    "tools/evolve_ceiling_probe.py::run_evolution": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 : corps atteint par test_behavioral_diversity (2 eres, 5 cles de diversite dans [0,1],
+    # median_competence dans [0,1]) et test_credit_assignment_gamma (gamma se propage au TD).
+    "tools/evolve_ceiling_probe.py::run_evolution": ["empty-cohort:raises", "guard-before-world",
+                                                     "2-eres:diversite-decomposee-dans-[0,1]",
+                                                     "gamma:propage-au-TD"],
     "tools/evolve_competence.py::run_era": ["empty-cohort:raises", "guard-before-world"],
     "tools/func_benefit.py::run_seed": ["empty-cohort:raises", "guard-before-world"],
-    "tools/hcm_analyzer.py::run_hcm_analysis": ["empty-cohort:raises", "guard-before-world"],
+    # `tools/hcm_analyzer.py::run_hcm_analysis` etait declare ICI, en version PAUVRE, ET plus haut en
+    # version riche (CORPS-ATTEINT, 4 cas). Dans un dict litteral la DERNIERE cle gagne : c'est donc
+    # la version pauvre qui faisait foi, et l'instrument comptait comme GARDE-SEULE dans la dette
+    # P2.49 alors qu'il etait calibre. Retire le 2026-09-14 ; garde gelee :
+    # `test_CALIBRATED_n_a_AUCUNE_cle_en_double`.
     "tools/hunif_retention_probe.py::run_retention": ["empty-cohort:raises", "guard-before-world"],
     "tools/lang_speciation.py::run_seed": ["empty-cohort:raises", "guard-before-world"],
     "tools/life_score_contamination_probe.py::run_arm": ["empty-cohort:raises", "guard-before-world"],
     "tools/map_elites_compare.py::run_era_pool": ["empty-cohort:raises", "guard-before-world"],
-    "tools/map_elites_compare.py::run_lineage_hof": ["empty-cohort:raises", "guard-before-world"],
-    "tools/map_elites_compare.py::run_lineage_qd": ["empty-cohort:raises", "guard-before-world"],
+    "tools/map_elites_compare.py::run_lineage_hof": ["empty-cohort:raises", "guard-before-world",
+                                                     "injection:apparie-reproductible(a==b)"],
+    "tools/map_elites_compare.py::run_lineage_qd": ["empty-cohort:raises", "guard-before-world",
+                                                    "injection:archive-peuplee(cov>=1)"],
     "tools/metabolic_cost_sweep.py::run_lineage": ["empty-cohort:raises", "guard-before-world"],
     "tools/metabolic_cost_sweep.py::run_era_metab": ["empty-cohort:raises", "guard-before-world"],
     "tools/nas_memory.py::run_seed": ["empty-cohort:raises", "guard-before-world"],
@@ -340,11 +392,32 @@ CALIBRATED = {
     "tools/referential_game_probe.py::run_lewis": ["empty-cohort:raises", "guard-before-world"],
     "tools/refgame.py::run_refgame": ["empty-cohort:raises", "guard-before-world"],
     "tools/speciation.py::run_seed": ["empty-cohort:raises", "guard-before-world"],
-    "tools/substrate_ab.py::run_substrate_ab": ["empty-cohort:raises", "guard-before-world"],
-    "tools/substrate_ab_compositional.py::run_compositional": ["empty-cohort:raises", "guard-before-world"],
-    "tools/substrate_ab_compositional.py::run_curriculum": ["empty-cohort:raises", "guard-before-world"],
-    "tools/substrate_ab_compositional.py::run_curriculum_fade": ["empty-cohort:raises", "guard-before-world"],
-    "tools/substrate_ab_compositional.py::run_curriculum_fade_gated": ["empty-cohort:raises", "guard-before-world"],
+    "tools/substrate_ab.py::run_substrate_ab": ["empty-cohort:raises", "guard-before-world",
+                                                "legacy:hit-dans-[0,1]:smoke", "torch:hit-dans-[0,1]:smoke"],
+    # P2.49 / P2.56 (2026-09-14) : le banc G2 (31 records, 2e module le plus cite du lot). Les quatre
+    # etaient declares GARDE-SEULE alors que `tests/sandbox/test_substrate_ab_compositional.py`
+    # atteint chaque corps -- dette DECLARATIVE, une ligne chacune. Ce que les cas VALENT est ecrit
+    # tel quel, sans surdeclarer :
+    #   * `run_curriculum_fade_gated` porte un vrai CONTROLE POSITIF a dose connue
+    #     (`gate_mode="oracle", oracle_bias=8.0` -> `binding_gap_end > 0.5`,
+    #     `test_gated_oracle_opens_binding_gap`) et un refus de mode inconnu ;
+    #   * `run_curriculum` : `warmup_trials=0` -> `warmup_didx_* is None` (reponse STRUCTURELLE
+    #     connue, contrat P2.52) + orchestration par `compare_curriculum` ;
+    #   * `run_curriculum_fade` : cles et bornes (`fade_w0=0`, penalite -> `binding_gap_end`) --
+    #     du SMOKE, pas une reponse connue ;
+    #   * `run_compositional` : atteint INDIRECTEMENT par `compare(seeds=(0,), trials=30)`, verdict
+    #     dans un ensemble -- le plus faible des quatre. Une reponse connue lui couterait un monde.
+    "tools/substrate_ab_compositional.py::run_compositional":
+        ["empty-cohort:raises", "guard-before-world", "corps-atteint-via-compare:smoke"],
+    "tools/substrate_ab_compositional.py::run_curriculum":
+        ["empty-cohort:raises", "guard-before-world", "warmup0:phase-absente=None",
+         "corps-atteint-via-compare_curriculum:smoke"],
+    "tools/substrate_ab_compositional.py::run_curriculum_fade":
+        ["empty-cohort:raises", "guard-before-world", "fade_w0=0:cles-et-bornes",
+         "penalite:binding_gap_end-present"],
+    "tools/substrate_ab_compositional.py::run_curriculum_fade_gated":
+        ["empty-cohort:raises", "guard-before-world", "oracle-bias-8:gap>0.5:controle-positif",
+         "gate_mode-inconnu:raises", "learned:gap-borne"],
     "tools/torch_binary_gate_heldout_probe.py::run_arm": ["empty-cohort:raises", "guard-before-world"],
     "tools/torch_binary_gate_probe.py::run_arm": ["empty-cohort:raises", "guard-before-world"],
     "tools/torch_bptt_meansends.py::run_meansends": ["empty-cohort:raises", "guard-before-world"],
@@ -353,8 +426,12 @@ CALIBRATED = {
     "tools/torch_inworld_ab.py::run_arm": ["empty-cohort:raises", "guard-before-world"],
     "tools/torch_prod_gate_meansends.py::run_prod": ["empty-cohort:raises", "guard-before-world"],
     "tools/torch_throw_gate_inworld_ab.py::run_arm": ["empty-cohort:raises", "guard-before-world"],
-    "tools/warmstart_evolution_inworld.py::run_bptt_imitation_warmstart": ["empty-cohort:raises", "guard-before-world"],
-    "tools/warmstart_evolution_inworld.py::run_dagger_warmstart": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 : tests/sandbox/test_warmstart_evolution_inworld.py -- la perte DECROIT (direction connue),
+    # DAgger rend 2 tendances + un genome + un verdict bien forme.
+    "tools/warmstart_evolution_inworld.py::run_bptt_imitation_warmstart":
+        ["empty-cohort:raises", "guard-before-world", "loss_trend[-1]<=loss_trend[0]:direction"],
+    "tools/warmstart_evolution_inworld.py::run_dagger_warmstart":
+        ["empty-cohort:raises", "guard-before-world", "2-rounds:tendances-et-verdict-formes:smoke"],
     "tools/wire_ref_head.py::run_seed": ["empty-cohort:raises", "guard-before-world"],
     # P2.42 (2026-09-06) : verdict statistique du harnais puissant (EDR 052), en COLLISION de nom
     # avec is_machine_idle::verdict (non-instrument) -> declaration QUALIFIEE. Forme close : t = d*sqrt(n/2).
@@ -369,13 +446,19 @@ CALIBRATED = {
     "tools/compositional_world_probe.py::run_world": ["empty-cohort:raises", "guard-before-world"],
     "tools/language_payoff_probe.py::run_world": ["empty-cohort:raises", "guard-before-world"],
     "tools/world_demand_marker_probe.py::run_world": ["empty-cohort:raises", "guard-before-world"],
-    "run_inworld_evolution": ["empty-cohort:raises", "guard-before-world"],
+    "run_inworld_evolution": ["empty-cohort:raises", "guard-before-world", "2-generations:trend-et-best:smoke"],
     # P2.40 (2026-09-02) : 3e vague de gardes -- les 12 sondes rendues visibles par le 6e
     # elargissement (verbes compare_/sweep_/probe_ en tete). Garde d'arguments EN TETE, testee
     # QUE (leve) et OU (refus < 0.5 s, donc avant la construction du monde).
-    "compare_backends": ["empty-cohort:raises", "guard-before-world"],
-    "compare_arms": ["empty-cohort:raises", "guard-before-world"],
-    "sweep_lr_torch": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 (2026-09-14) : INJECTION a dose connue dans tests/sandbox/test_orchestrator_injection.py --
+    # les seuls temoins etaient des tests de SIGNATURE (le smoke reel etait « differe », c.-a-d.
+    # jamais). `measure_survival`, lui, reste MUET : c'est le maillon qui simule.
+    "compare_backends": ["empty-cohort:raises", "guard-before-world",
+                         "injection:diff=+20:GRADIENT_GAGNE:apparie-meme-seed"],
+    "compare_arms": ["empty-cohort:raises", "guard-before-world",
+                     "injection:3-verdicts-en-forme-close", "noop:3-bras-identiques:NEUTRE"],
+    "sweep_lr_torch": ["empty-cohort:raises", "guard-before-world",
+                       "injection:une-sous-classe-par-lr:dose-lue", "reperes:meme-seed"],
     "compare_debias": ["empty-cohort:raises", "guard-before-world"],
     "compare_density": ["empty-cohort:raises", "guard-before-world"],
     "compare_warmstart": ["empty-cohort:raises", "guard-before-world"],
@@ -427,12 +510,18 @@ CALIBRATED = {
     # donc comme une preuve du resultat cherche -- le chiffre du titre de WARM-008.
     "ladder_verdict": ["zero-seed:refused"],
     "run_aux_off_validation": ["missing-is-not-negative"],
-    "run_warmstart_credit_probe": ["empty-cohort:raises", "guard-before-world"],
-    "measure_action_pipeline": ["empty-cohort:raises", "guard-before-world"],
-    "measure_inworld_grab_rate": ["empty-cohort:raises", "guard-before-world"],
+    "run_warmstart_credit_probe": ["empty-cohort:raises", "guard-before-world",
+                                  "learning-dose:published"],   # P1.6
+    "measure_action_pipeline": ["empty-cohort:raises", "guard-before-world", "taux-dans-[0,1]:n>0:smoke"],
+    # no-op EXACT : un genome qui ne grabbe JAMAIS rend 0.0 (reponse connue).
+    "measure_inworld_grab_rate": ["empty-cohort:raises", "guard-before-world", "genome-sans-grab:0.0:noop-exact"],
     "tools/arm_language.py::measure_mi": ["empty-cohort:raises", "guard-before-world"],
     "run_retention_map": ["empty-cohort:raises", "guard-before-world"],
-    "run_ablation_map": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 : INJECTION a DOSE CONNUE (tests/test_s2_ablation_wiring.py) -- within 100/20 = 5.0,
+    # between 100/10 = 10.0, verdict PERCEPTION_DEMANDED, n = 12 : la couche d'appariement est
+    # calibree en forme close. L'instrument porte 15 records ; sa declaration disait « garde seule ».
+    "run_ablation_map": ["empty-cohort:raises", "guard-before-world",
+                         "injection:within=5.0:between=10.0:PERCEPTION_DEMANDED:n=12", "reel:smoke"],
     # P2.34 (2026-09-01) : gardes d'arguments EN TETE des mesures de monde -- le geste qui rend le
     # lot gratuit. Une cohorte vide ou un horizon nul produisait une MESURE (0.0 rendu comme survie
     # observee), lue en aval comme « reste au plancher » / « n'emerge pas » / « les deux se valent ».
@@ -443,7 +532,7 @@ CALIBRATED = {
     "measure_in_world": ["empty-cohort:raises", "guard-before-world"],
     "measure_survival": ["empty-cohort:raises", "guard-before-world"],
     "measure_arm": ["empty-cohort:raises", "guard-before-world"],
-    "run_credit_probe": ["empty-cohort:raises", "guard-before-world"],
+    "run_credit_probe": ["empty-cohort:raises", "guard-before-world", "learning-dose:published"],   # P1.6
     "run_diagnostic": ["empty-cohort:raises", "guard-before-world"],
     # P2.33 (2026-09-01) : QUATRIEME angle mort du cliquet -- aucun motif ne couvrait `classify_*`,
     # alors que ce sont ELLES qui PRONONCENT le verdict (l'instrument detecte qui les appelle ne
@@ -512,9 +601,12 @@ CALIBRATED = {
     # SUBSTRAT BLOQUE »), donc c'etait une DECISION, prise dans la seule direction ou un verdict
     # fabrique passe inapercu. `_verdict_approach` et `_verdict_reach` exigent LA CELLULE dont ils
     # dependent, pas seulement des donnees : motif de reference, gele comme tel.
-    "_verdict_evolve_nav": ["empty:refused", "progress", "stagnation:legitimate"],
-    "_verdict_landing": ["empty:raises"],
-    "_verdict_forage": ["empty:raises"],
+    "_verdict_evolve_nav": ["empty:refused", "single-generation:refused", "progress",
+                            "stagnation:legitimate", "deux-generations:limite-acceptee"],
+    # `_verdict_landing` / `_verdict_forage` : declarations NUES retirees le 2026-09-10, remplacees
+    # plus haut par des declarations QUALIFIEES par chemin qui nomment les cas REELS (P2.49). En
+    # garder deux ferait diverger la source de verite -- et c'est la version nue, plus pauvre, qui
+    # aurait continue d'alimenter le compte de dette.
     "_verdict_approach": ["missing-cell:indeterminate", "thresholds:discriminated"],
     "_verdict_reach": ["missing-cell:indeterminate", "thresholds:three-zones"],
     "_verdict_deconfound": ["missing-frozen-cell:indeterminate"],
@@ -896,6 +988,15 @@ CALIBRATED = {
     # throw_and_explore`.
     "assert_aux_off_safe": ["craft-level:fires", "torch-throw-gate:fires", "explore-eps:fires",
                             "safe-config:spares"],
+    # P1.6 (2026-09-14) -- l'APPRENANT in-world est un instrument : contrôle positif à DOSE PUBLIÉE.
+    # Cas `test_run_learner_probe_*` et `test_learner_verdict_*` (fin de ce fichier) : oracle câblé à
+    # 1.0 exact, dose comptée = mécanique du monde, bras lr=0 sans aucun poids déplacé (le plafond de
+    # l'incapable mesuré DANS le dispositif), reproductibilité, variante publiée ; verdict qui LÈVE sur
+    # entrée absente et refuse de conclure quand l'oracle ou la référence sont hors bornes.
+    "tools/cognitive_demand_inworld.py::run_learner_probe": [
+        "guard-before-world", "oracle:hit=1.0", "dose-counted", "lr0-reference:dW=0",
+        "reproducible", "variant-published"],
+    "learner_verdict": ["missing:raises", "harness:indeterminate", "inert", "learns:during_run", "learns:early"],
 }
 
 _GENOMES = os.path.join("results", "warm007_genomes")
@@ -4717,13 +4818,24 @@ def test_eval_harness_verdict_AND_rule_refuses_a_large_effect_measured_without_p
 
 
 def test_eval_harness_verdict_gives_NO_verdict_on_zero_variance():
-    """Branche GELEE (comportement actuel, documente) : deux conditions a variance NULLE mais moyennes
-    differentes -> se = 0 -> t force a 0 (pas +inf) -> NON significatif. L'instrument refuse de
-    prononcer sans estimation du bruit plutot que de declarer une certitude infinie. Si ce choix change
-    un jour, ce test doit changer EXPLICITEMENT avec sa raison."""
+    """⚠️ CHANGE EXPLICITEMENT le 2026-09-14 (P2.57), comme la version precedente l'exigeait.
+    Elle gelait : « variance NULLE -> t force a 0 -> NON significatif ; l'instrument refuse de
+    prononcer sans estimation du bruit ». Mais « NON significatif » N'EST PAS un refus de prononcer :
+    `summary` l'ecrit « NON significatif (bruit) » et neuf outils le lisent comme un nul. C'etait un
+    negatif fabrique, et la docstring le disait sans le voir.
+    Le choix est desormais SEPARE en deux cas, et les deux sont geles ici :
+      * n < 2 : il n'y a PAS d'estimation du bruit -> l'instrument REFUSE (leve), il ne rend rien ;
+      * n >= 2 a variance nulle et moyennes DISTINCTES : c'est une mesure (dispersion zero,
+        difference deterministe) -> separation PARFAITE, t = +-inf, significatif. Moyennes EGALES
+        a variance nulle -> t = 0, la seule lecture nulle qui reste."""
+    import pytest
     from src.seed_ai.eval_harness import verdict
-    v = verdict("a", "b", {"a": _cond(0.0, 0.0, 1), "b": _cond(1.0, 0.0, 1)})
-    assert v["t"] == 0.0 and v["d"] == 0.0 and not v["significant"]
+    with pytest.raises(ValueError, match="INDEFINI"):
+        verdict("a", "b", {"a": _cond(0.0, 0.0, 1), "b": _cond(1.0, 0.0, 1)})   # n = 1 : REFUS
+    v = verdict("a", "b", {"a": _cond(0.0, 0.0, 3), "b": _cond(1.0, 0.0, 3)})
+    assert v["t"] == float("-inf") and v["significant"] and v["winner"] == "b"
+    v0 = verdict("a", "b", {"a": _cond(1.0, 0.0, 3), "b": _cond(1.0, 0.0, 3)})
+    assert v0["t"] == 0.0 and not v0["significant"]
 
 
 # ======================================================================================================
@@ -5057,3 +5169,199 @@ def test_the_CENSORED_case_is_also_a_BOUND_and_was_already_known():
     from tools.demand_marker import ablation_verdict
     v = ablation_verdict([300.0] * 12, [100.0] * 12, ceiling=300.0)
     assert v["censored"] is True and v["ratio_est_une_borne"] is True
+
+
+# ==================================================================================================
+# P2.56 (2026-09-14) -- une cle en DOUBLE dans `CALIBRATED` est une declaration ECRASEE sans un mot
+# ==================================================================================================
+
+def _cles_litterales(nom_variable):
+    """Les cles TELLES QU'ECRITES dans le source, par AST -- le dict a l'execution ne peut plus les
+    voir : Python garde la DERNIERE et jette les autres en silence."""
+    import ast
+    import io
+    src = io.open(__file__, encoding="utf-8").read()
+    for n in ast.walk(ast.parse(src)):
+        if (isinstance(n, ast.Assign) and any(isinstance(x, ast.Name) and x.id == nom_variable
+                                              for x in n.targets)):
+            conteneur = n.value
+            noeuds = conteneur.keys if isinstance(conteneur, ast.Dict) else conteneur.elts
+            return [k.value for k in noeuds if isinstance(k, ast.Constant)]
+    raise AssertionError(f"{nom_variable} introuvable dans {__file__}")
+
+
+def test_CALIBRATED_n_a_AUCUNE_cle_en_double():
+    """CONTRE-EXEMPLE MESURE le 2026-09-14 : `tools/hcm_analyzer.py::run_hcm_analysis` etait declare
+    DEUX fois -- une version RICHE (CORPS-ATTEINT, 4 cas) puis, 220 lignes plus bas, une version
+    PAUVRE (`["empty-cohort:raises", "guard-before-world"]`). Dans un dict litteral la derniere cle
+    gagne : c'est la version pauvre qui faisait foi, et l'instrument comptait comme GARDE-SEULE dans
+    la dette P2.49 alors qu'il etait calibre. Un second doublon (`run_curriculum` du banc G2) avait
+    des valeurs identiques, donc aucun effet -- jusqu'a ce que quelqu'un en mette une a jour et pas
+    l'autre. Deux doublons sur 273 cles, trouves parce qu'on en avait cherche UN.
+    ⚠️ Aucun cliquet ne pouvait le voir : `scan_calibrated` lit le dict EVALUE, ou le doublon n'existe
+    plus. Seul le SOURCE le porte, d'ou l'AST."""
+    from collections import Counter
+    for nom in ("CALIBRATED", "NOT_AN_INSTRUMENT"):
+        cles = _cles_litterales(nom)
+        doubles = {k: v for k, v in Counter(cles).items() if v > 1}
+        assert not doubles, (
+            f"{nom} : cle(s) declaree(s) PLUSIEURS fois -- seule la DERNIERE compte, les autres "
+            f"sont jetees sans un mot : {doubles}")
+        assert len(cles) > 0, f"{nom} vide : le detecteur d'AST n'a rien lu"
+
+
+# ======================================================================================================
+# P1.6 (2026-09-14) — L'APPRENANT IN-WORLD EST UN INSTRUMENT : contrôle positif à DOSE PUBLIÉE.
+#
+# Les nuls « le crédit n'apprend pas à froid » (S2-009 §crédit, S2-010, S2-011) ont été publiés sans
+# compter la dose reçue (≈ 48 mises à jour par agent, panel du 2026-09-14) et sans contrôle positif de
+# l'apprenant lui-même. `run_learner_probe` mesure, sur une cohorte IMMORTELLE (l'énergie est remise à
+# 80 sous 30 : la récompense n'est jamais écrêtée par la mort), le taux de coups d'une politique sur la
+# tâche linéaire 1-bit de S2-011, par blocs de ticks, avec la dose comptée par
+# `tools/learning_events.count_learning_events`. Ses réponses connues : l'ORACLE câblé touche à 1.0
+# exactement ; le bras `lr=0` ne bouge AUCUN poids (c'est le plafond de l'incapable, mesuré dans le
+# même dispositif — jamais importé, jamais « chance + marge ») ; la dose délivrée est exactement celle
+# que la mécanique du monde prévoit (un TD par tick, un épisode tous les `torch_episode_k` ticks).
+# `learner_verdict` lit ces mesures et REFUSE de conclure quand le contrôle positif ou la référence
+# sont hors bornes — jamais une affirmation de fond sur une entrée absente (porte 14).
+# ======================================================================================================
+
+def _learner(**kw):
+    from tools.cognitive_demand_inworld import run_learner_probe
+    base = dict(seed=2026, num_agents=6, ticks=40, block=20)
+    base.update(kw)
+    return run_learner_probe(**base)
+
+
+def test_run_learner_probe_refuses_degenerate_args_before_any_world():
+    import time
+    from tools.cognitive_demand_inworld import run_learner_probe
+    t0 = time.time()
+    with pytest.raises(ValueError):
+        run_learner_probe(seed=1, num_agents=0, ticks=40, block=20)
+    with pytest.raises(ValueError):
+        run_learner_probe(seed=1, num_agents=6, ticks=0, block=20)
+    with pytest.raises(ValueError):
+        run_learner_probe(seed=1, num_agents=6, ticks=40, block=0)
+    assert time.time() - t0 < 0.5, "la garde doit refuser AVANT de construire un monde"
+
+
+def test_run_learner_probe_oracle_is_the_positive_control_of_the_dv():
+    r = _learner(policy="oracle")
+    assert [b["hit_rate"] for b in r["blocks"]] == [1.0, 1.0], "l'oracle câblé touche à 1.0 EXACTEMENT"
+    assert r["hit_first"] == 1.0 and r["hit_last"] == 1.0
+    assert r["learning"]["td_calls"] == 0 and r["learning"]["episode_calls"] == 0, "aucune population torch"
+
+
+def test_run_learner_probe_counts_the_dose_the_world_delivers():
+    r = _learner(policy="torch")
+    lrn = r["learning"]
+    assert lrn["td_calls"] == 40, "un TD par tick sur une cohorte immortelle (population constante)"
+    assert lrn["td_updates"] == 39, "le premier learn d'une vie est différé"
+    assert lrn["episode_calls"] + sum(lrn["skips"].values()) == 40 // 8, "un épisode tous les torch_episode_k ticks"
+    assert r["chance"] == pytest.approx(1.0 / 8.0)
+    assert all(b["n_agents"] == 6 for b in r["blocks"]), "immortelle : personne ne meurt"
+
+
+def test_run_learner_probe_immortal_cohort_stays_complete_under_learning():
+    """Mesuré sur le run P1.6 v1 (2026-09-14, 12 seeds) : avec une recharge d'ÉNERGIE seule, les bras
+    APPRENANTS perdaient jusqu'à la moitié de leur cohorte dès le premier bloc (seed 2027 : 12 -> 9 à 400
+    ticks, 3 à 800) alors que les bras lr=0 et oracle en gardaient 11 — le taux de coups des blocs tardifs
+    portait donc un biais de SURVIVANTS corrélé au bras. Immortel veut dire immortel : l'énergie ET les hp
+    sont rechargés, et la cohorte reste COMPLÈTE sous apprentissage. Ce cas rejoue la cellule qui a révélé
+    le défaut (seed 2027, apprenant naturel, 400 ticks)."""
+    r = _learner(seed=2027, num_agents=12, ticks=400, block=200, policy="torch")
+    assert [b["n_agents"] for b in r["blocks"]] == [12, 12], r["blocks"]
+    assert r["resurrections"] >= 1, "sur cette cellule le monde TUE (v1 : 12 -> 9) ; l'immortalité doit avoir agi"
+    assert r["learning"]["td_calls"] == 400 and r["learning"]["td_updates"] <= 399
+
+
+def test_run_learner_probe_lr0_reference_moves_no_weight():
+    r = _learner(policy="torch", lr=0.0)
+    assert r["learning"]["dW_abs_sum"] == 0.0, "lr=0 : le plafond de l'incapable, mesuré dans le dispositif"
+    assert r["learning"]["td_updates"] > 0, "…mais les updates ont bien eu lieu (ce n'est pas TD coupé)"
+
+
+def test_run_learner_probe_is_reproducible_at_fixed_seed():
+    a = _learner(policy="torch")
+    b = _learner(policy="torch")
+    assert a["blocks"] == b["blocks"]
+    assert a["learning"] == b["learning"]
+
+
+def test_run_learner_probe_publishes_its_variant():
+    r = _learner(policy="torch", reward_scale=0.05, td_enabled=False, lr=0.004)
+    assert r["learning"]["reward_scale"] == 0.05
+    assert r["learning"]["td_enabled"] is False
+    assert r["learning"]["lr"] == 0.004
+    assert r["learning"]["td_updates"] == 0 and r["learning"]["skips"].get("td_disabled") == 40
+    assert r["policy"] == "torch" and r["immortal"] is True
+
+
+def test_learner_verdict_refuses_missing_inputs():
+    from tools.cognitive_demand_inworld import learner_verdict
+    for bad in (None, float("nan")):
+        with pytest.raises(ValueError):
+            learner_verdict(learner_first=bad, learner_last=0.3, reference_last=0.2, oracle_last=1.0)
+        with pytest.raises(ValueError):
+            learner_verdict(learner_first=0.2, learner_last=0.3, reference_last=bad, oracle_last=1.0)
+
+
+def test_learner_verdict_indeterminate_when_harness_controls_fail():
+    from tools.cognitive_demand_inworld import learner_verdict
+    v = learner_verdict(learner_first=0.2, learner_last=0.6, reference_last=0.2, oracle_last=0.7)
+    assert v["verdict"] == "INDETERMINE_HARNAIS" and "oracle" in v["why"]
+    v = learner_verdict(learner_first=0.2, learner_last=0.6, reference_last=0.55, oracle_last=1.0)
+    assert v["verdict"] == "INDETERMINE_HARNAIS" and "reference" in v["why"]
+
+
+def test_learner_verdict_inert_and_learns_are_separated_by_the_paired_reference_only():
+    """Le critère est la SÉPARATION à la référence lr=0 du MÊME seed (mêmes génomes initiaux : `seed_at`
+    précède la création des agents, et l'override `lr` ne consomme aucun tirage). Une cohorte FRAÎCHE ne
+    peut être « déjà au-dessus au départ » que parce qu'elle a APPRIS dans le premier bloc : le gain
+    intra-run ne décide donc pas du verdict, il date seulement l'apprentissage (`onset`). Règle corrigée
+    le 2026-09-14 après le seed 1/12 du run P1.6 (lr=0,004 à 0,32 dès le bloc 1 contre 0,15 pour lr=0) —
+    déclaré ici, pas caché : la version d'origine rendait INDETERMINATE dans ce cas."""
+    from tools.cognitive_demand_inworld import learner_verdict
+    inert = learner_verdict(learner_first=0.20, learner_last=0.21, reference_last=0.20, oracle_last=1.0)
+    assert inert["verdict"] == "LEARNER_INERT"
+    learns = learner_verdict(learner_first=0.20, learner_last=0.45, reference_last=0.20, oracle_last=1.0)
+    assert learns["verdict"] == "LEARNER_LEARNS" and learns["sep"] == pytest.approx(0.25)
+    assert learns["onset"] == "during_run"
+    early = learner_verdict(learner_first=0.44, learner_last=0.45, reference_last=0.20, oracle_last=1.0)
+    assert early["verdict"] == "LEARNER_LEARNS" and early["onset"] == "early", "appris dans le premier bloc"
+    assert "LEARNER_INDETERMINATE" not in (inert["verdict"], learns["verdict"], early["verdict"])
+
+
+# Les TROIS sondes crédit publiées (S2-009 §crédit, S2-010, S2-011) publient désormais leur DOSE. Le
+# chemin par défaut est bit-identique (prouvé au niveau du modèle dans test_learning_events.py) : ici
+# on vérifie seulement que la dose est PUBLIÉE et cohérente avec la mécanique (un TD par tick vivant,
+# un update de moins par population construite — le premier learn d'une vie est différé).
+
+def _dose_is_coherent(lrn, max_ticks_total):
+    assert 1 <= lrn["td_calls"] <= max_ticks_total, lrn
+    assert 0 <= lrn["td_updates"] < lrn["td_calls"], lrn
+    assert lrn["episode_calls"] + sum(lrn["skips"].values()) <= lrn["td_calls"] // 8 + 1, lrn
+    assert lrn["reward_scale"] == 1.0 and lrn["td_enabled"] is True and lrn["lr"] is None, "variante par défaut publiée"
+
+
+def test_run_credit_linear_publishes_its_learning_dose():
+    from tools.cognitive_demand_inworld import run_credit_linear
+    r = run_credit_linear(seed=2026, eras=1, num_agents=3, max_ticks=20)
+    assert isinstance(r["trend"], list) and len(r["trend"]) == 1
+    _dose_is_coherent(r["learning"], 20)
+
+
+def test_run_credit_probe_publishes_its_learning_dose_without_changing_its_return():
+    from tools.cognitive_demand_inworld import run_credit_probe
+    out = {}
+    trend = run_credit_probe(seed=2026, eras=1, num_agents=3, max_ticks=20, learning_out=out)
+    assert isinstance(trend, list) and len(trend) == 1, "le type de retour publié (liste) est INCHANGÉ"
+    _dose_is_coherent(out, 20)
+
+
+def test_run_warmstart_credit_probe_publishes_its_learning_dose():
+    from tools.cognitive_demand_inworld import run_warmstart_credit_probe
+    r = run_warmstart_credit_probe(seed=2026, num_agents=3, max_ticks=20, schedule=[(0.25, 12.0)])
+    assert len(r["trend"]) == 1 and "learned" in r
+    _dose_is_coherent(r["learning"], 20)

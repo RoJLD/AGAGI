@@ -80,7 +80,10 @@ def regime_diagnostic_verdict(cells, max_ticks=400):
     md, ms = per.get("defaut", {}), per.get("sweet", {})
     md_med, ms_med = md.get("champ_median", 0.0), ms.get("champ_median", 0.0)
     floored_lift = (md_med <= 0.0 and ms_med > 0.0)   # défaut au plancher (médiane 0) : lift "infini" -> None (JSON strict)
-    lift = None if floored_lift else ((ms_med / md_med) if md_med > 0.0 else 1.0)
+    # P2.57 (2026-09-14) : `None` et non 1.0 quand les DEUX regimes sont au plancher -- un lift
+    # sweet/defaut de 0/0 n'est pas « aucun lift », il n'existe pas. `lift_ok` reste False (aucune
+    # preuve de lift), donc le verdict est inchange ; seule la grandeur publiee cesse de mentir.
+    lift = None if floored_lift else ((ms_med / md_med) if md_med > 0.0 else None)
     lift_ok = floored_lift or (lift is not None and lift >= LIFT_RATIO)
 
     if md.get("beats"):
@@ -92,7 +95,8 @@ def regime_diagnostic_verdict(cells, max_ticks=400):
     else:
         verdict, reco = "AMBIGU", None
 
-    return {"verdict": verdict, "regime_recommande": reco, "lift": lift, "per_regime": per,
+    return {"verdict": verdict, "regime_recommande": reco, "lift": lift, "floored_lift": floored_lift,
+            "per_regime": per,
             "thresholds": {"ALPHA": ALPHA, "CLIFF_THRESH": CLIFF_THRESH,
                            "SURV_FLOOR_FRAC": SURV_FLOOR_FRAC, "CENSORED_SURV": CENSORED_SURV,
                            "LIFT_RATIO": LIFT_RATIO}}
@@ -166,7 +170,8 @@ def _print_table(report):
         print(f"  {regime:7s} : survivable={str(r['survivable']):5s} | mediane_champ={r['champ_median']:6.1f} "
               f"| censure={r['censored_frac']*100:3.0f}% | vs {r['strongest_baseline']:13s} "
               f"p={r['p']:.3f} Cliff d={r['cliff']:+.2f} bat={r['beats']}")
-    lift_str = "inf(plancher)" if report["lift"] is None else f"{report['lift']:.2f}"
+    lift_str = ("inf(plancher)" if report.get("floored_lift") else "indefini(0/0)") \
+        if report["lift"] is None else f"{report['lift']:.2f}"
     print(f"  -> VERDICT : {report['verdict']} (lift sweet/défaut={lift_str})")
     print(f"  -> {_ACTION.get(report['verdict'], '')}")
     if report["regime_recommande"]:

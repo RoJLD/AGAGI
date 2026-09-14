@@ -64,6 +64,13 @@ jobs:
           tests/test_memory_demand_world_probe.py
           tests/test_openloop_probe.py
 
+      # 2026-09-09 : le CLIQUET DES CLIQUETS. Les portes verifient le depot ; rien ne verifiait
+      # qu'elles en sont toujours CAPABLES. Chaque porte est cassee d'UNE ligne, en memoire, et un
+      # temoin doit rougir. ~4 min pour 13 portes / 16 mutations -- le seul job de ce workflow qui
+      # lance des sous-processus pytest, d'ou sa place a la fin du portail.
+      - name: Cliquet DES CLIQUETS (chaque porte prouve qu'elle sait ENCORE refuser)
+        run: PYTHONIOENCODING=utf-8 python tools/check_gate_mutation.py
+
       - name: Gardes-de-gardes (chaque cliquet doit pouvoir ECHOUER)
         run: >-
           PYTHONIOENCODING=utf-8 python -m pytest -q --timeout=300
@@ -78,6 +85,40 @@ jobs:
           tests/sandbox/test_agi_taxonomy_gate.py
           tests/sandbox/test_perimeter_widening.py
           tests/sandbox/test_fabricated_defaults.py
+
+  # ------------------------------------------------------------------------------------------------
+  # LA SUITE COMPLETE, PAR REPERTOIRE (2026-09-09). Tous les autres jobs prennent une LISTE NOMMEE de
+  # fichiers -- 16 au total -- ce qui laissait 1937 tests sur 2059 (94 %) hors de toute CI. La
+  # consequence n'est pas theorique : NEUF tests rouges dormaient dans ces fichiers, dont trois
+  # fixtures d'AGI-Taxonomy perimees depuis deux durcissements de la porte, un test qui exigeait
+  # `N_EMERGE_PAS` sur ZERO seed (un negatif FABRIQUE, gele par le test cense l'attraper), et un test
+  # rendu rouge par un correctif du jour meme sans que rien ne le dise pendant 24 h.
+  # Un test qui rougit sans temoin est une garde desarmee en silence -- E22 applique a la CI.
+  #
+  # COUT MESURE, machine dont la charge est connue : 2611 tests collectes, 2597 passes, 7 skips,
+  # 25 min 44 s -- et la mesure a ete prise PENDANT que le harnais de mutation tournait, donc c'est
+  # un MAJORANT. ⚠️ Une premiere mesure du 2026-09-08 avait rendu 8 h 30 : elle avait ete prise
+  # pendant que seize agents tournaient sur la meme machine. Un chiffre de cout se mesure sur une
+  # machine dont on connait la charge, sinon c'est la classe E12 appliquee au cout -- et ici elle
+  # INVERSAIT la decision (« impossible en CI » devient « 26 minutes »).
+  #
+  # `--timeout=900` par test (pytest-timeout) : une simulation qui pend ne doit pas manger le job.
+  # ------------------------------------------------------------------------------------------------
+  suite-complete:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install pytest pytest-timeout
+      - name: Suite COMPLETE (repertoire, pas liste nommee)
+        run: PYTHONIOENCODING=utf-8 PYTHONPATH=. python -m pytest tests/ -q --timeout=900 -p no:cacheprovider
 
   test-and-build:
     runs-on: ubuntu-latest

@@ -30,16 +30,26 @@ def _welch(a: dict, b: dict) -> tuple[float, float]:
     """Welch t + Cohen d. Tente eval_harness (source unique) ; sinon repli identique."""
     try:
         from src.seed_ai.eval_harness import welch as _w  # noqa: WPS433
-
+    except ImportError:
+        # ⚠️ P2.57 (2026-09-14) : c'etait `except Exception` -- la ValueError que la SOURCE leve sur
+        # un ecart-type INDEFINI (n < 2) etait AVALEE, et le repli reprenait avec le calcul
+        # fabricant (t = 0). Forme (b) : l'instrument SAIT et l'appelant le fait taire. Le repli ne
+        # couvre plus que l'ABSENCE de la source (deploiement backend seul), et il est aligne.
+        _w = None
+    if _w is not None:
         return _w(a, b)
-    except Exception:  # noqa: BLE001
-        ma, sa, na = a["mean"], a["std"], a["n"]
-        mb, sb, nb = b["mean"], b["std"], b["n"]
-        se = ((sa ** 2) / max(na, 1) + (sb ** 2) / max(nb, 1)) ** 0.5
-        t = (ma - mb) / se if se > 1e-12 else 0.0
-        pooled = (((sa ** 2) + (sb ** 2)) / 2.0) ** 0.5
-        d = (ma - mb) / pooled if pooled > 1e-12 else 0.0
-        return t, d
+    import math
+    ma, sa, na = a["mean"], a["std"], a["n"]
+    mb, sb, nb = b["mean"], b["std"], b["n"]
+    if sa is None or sb is None:
+        raise ValueError("welch : ecart-type INDEFINI (n < 2) -- ne pas confondre avec une "
+                         "difference nulle OBSERVEE.")
+    se = ((sa ** 2) / max(na, 1) + (sb ** 2) / max(nb, 1)) ** 0.5
+    pooled = (((sa ** 2) + (sb ** 2)) / 2.0) ** 0.5
+    delta = ma - mb
+    t = delta / se if se > 1e-12 else (0.0 if delta == 0 else math.copysign(math.inf, delta))
+    d = delta / pooled if pooled > 1e-12 else (0.0 if delta == 0 else math.copysign(math.inf, delta))
+    return t, d
 
 
 class RunsService:

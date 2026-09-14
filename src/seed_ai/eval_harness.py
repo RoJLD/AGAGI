@@ -8,6 +8,7 @@ Ce harnais transforme une mesure bruitée en **verdict honnête** :
   - SIGNIFICATION : statistique de Welch + taille d'effet de Cohen -> « réel » vs « bruit ».
 Sans dépendance externe (pas de scipy). Réutilisable par toute expérience (NAS, langage, #8…).
 """
+import math
 import numpy as np
 
 
@@ -24,7 +25,12 @@ def powered_eval(conditions, run_seed_fn, seeds=(0, 1, 2)):
         a = np.array(vals, dtype=float)
         out[name] = {
             "mean": float(a.mean()),
-            "std": float(a.std(ddof=1)) if len(a) > 1 else 0.0,
+            # ⚠️ P2.57 (2026-09-14) : `None` et non 0.0. Avec UN replicat, un ecart-type a 0 faisait
+            # rendre a `welch` t = 0 et d = 0 (ses gardes de denominateur), donc a `verdict`
+            # « NON significatif (bruit) » -- un NUL fabrique depuis n = 1, et huit outils portent une
+            # COPIE de cette ligne (aligned_selection, fiabiliser, lang_speciation, mem_nas,
+            # nas_memory, nas_rich, reconfirm_047, speciation), corrigees dans la meme passe.
+            "std": float(a.std(ddof=1)) if len(a) > 1 else None,
             "vals": vals,
             "n": len(a),
         }
@@ -35,10 +41,25 @@ def welch(a, b):
     """Statistique de Welch (t) + taille d'effet de Cohen (d, écart-type poolé). -> (t, d)."""
     ma, sa, na = a["mean"], a["std"], a["n"]
     mb, sb, nb = b["mean"], b["std"], b["n"]
+    # GARDE EN TETE (P2.57) : un ecart-type INDEFINI (n < 2) ne se compare pas. Avant, il valait 0.0
+    # et la statistique rendait t = 0, d = 0 -- « aucune difference », depuis un seul replicat.
+    indefinis = [(nom, r["n"]) for nom, r in (("a", a), ("b", b))
+                 if r["std"] is None or r["std"] != r["std"] or int(r.get("n", 0)) < 2]
+    if indefinis:
+        raise ValueError(
+            f"welch : ecart-type INDEFINI pour {indefinis} (n < 2) -- un test de Welch demande deux "
+            "echantillons de variance definie ; ne pas confondre avec une difference nulle OBSERVEE.")
     se = ((sa ** 2) / max(na, 1) + (sb ** 2) / max(nb, 1)) ** 0.5
-    t = (ma - mb) / se if se > 1e-12 else 0.0
     pooled = (((sa ** 2) + (sb ** 2)) / 2.0) ** 0.5
-    d = (ma - mb) / pooled if pooled > 1e-12 else 0.0
+    # ⚠️ P2.57 (2026-09-14) : `else 0.0` disait « aucune difference » quand la VARIANCE est nulle.
+    # Deux echantillons CONSTANTS et DIFFERENTS (A = [1,1,1], B = [2,2,2]) ont se = 0, et la
+    # statistique rendait t = d = 0 -> « NON significatif (bruit) » -- une separation PARFAITE lue
+    # comme un nul. A variance nulle, des moyennes distinctes sont separees a l'infini ; seules des
+    # moyennes EGALES valent 0. (`inf` se serialise en JSON par defaut ; un appelant en mode strict
+    # doit le traiter, comme il traite deja `None`.)
+    delta = ma - mb
+    t = delta / se if se > 1e-12 else (0.0 if delta == 0 else math.copysign(math.inf, delta))
+    d = delta / pooled if pooled > 1e-12 else (0.0 if delta == 0 else math.copysign(math.inf, delta))
     return t, d
 
 

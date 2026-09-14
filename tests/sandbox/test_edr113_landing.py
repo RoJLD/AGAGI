@@ -139,6 +139,35 @@ def test_verdict_ambigue_on_descending_plateaus():
     assert _verdict_landing(arms) == "AFFORDANCE AMBIGUE"
 
 
+# --------------------------------------------------------------------------------------------------
+# P2.49 (2026-09-10) — CLASSE E14 : une garde exécutable jamais RÉTRO-APPLIQUÉE. Le jumeau structurel
+# `_verdict_capacity` (même fichier, même forme delta+pente) porte sa garde d'arguments depuis le
+# 2026-09-06 ; ni `_verdict_landing` ni `_verdict_forage` ne l'avaient reçue.
+# Mesure AVANT correctif : sur UN SEUL bras, `delta = plateaus[-1] - plateaus[0]` vaut 0 par
+# construction et `slope` était FABRIQUÉ à 0.0 par `... if len(arms) >= 2 else 0.0` — donc la
+# fonction rendait "AFFORDANCE INERTE", une affirmation de fond, négative, sur l'effet du scaffold,
+# tirée d'UN SEUL POINT. C'est la forme (a) documentée dans CLAUDE.md.
+# ⚠️ La porte 14 (défauts fabriqués) ne pouvait PAS le voir : elle cherche
+# `agrégation if collection else CONSTANTE`, et ici la condition est une COMPARAISON DE LONGUEUR,
+# pas une véracité de collection. Gap consigné au backlog.
+# --------------------------------------------------------------------------------------------------
+
+def test_verdict_landing_REFUSE_un_seul_bras():
+    """CONTRE-EXEMPLE GELE : l'incident rejoué tel quel. Une PENTE demande deux niveaux."""
+    import pytest
+    with pytest.raises(ValueError, match="argument degenere"):
+        _verdict_landing([_arm(5, 0.42)])
+    with pytest.raises(ValueError, match="argument degenere"):
+        _verdict_landing([])
+
+
+def test_verdict_landing_ACCEPTE_le_cas_LIMITE_de_DEUX_bras():
+    """NO-OP APPARIE : la garde porte sur `< 2`, pas sur « peu de bras ». Sans ce cas, une garde
+    posée à `< 3` ou `< 4` passerait le test précédent en amputant le périmètre légitime."""
+    assert _verdict_landing([_arm(0, 0.36), _arm(10, 0.58)]) == "AFFORDANCE LEVE"
+    assert _verdict_landing([_arm(0, 0.36), _arm(10, 0.36)]) == "AFFORDANCE INERTE"
+
+
 def test_main_landing_nav_smoke_and_determinism():
     r1 = main_landing_nav(land_levels=(0.0, 5.0), generations=2, num_agents=6,
                           max_ticks=40, seed=88113, _return=True)

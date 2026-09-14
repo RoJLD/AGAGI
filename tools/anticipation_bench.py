@@ -182,9 +182,11 @@ def run_bench(plan_bias: float, seeds, steps: int = 1000,
 
     avoidances = [r["avoidance"] for r in per_seed]
     return {
-        "avoidance_mean": float(st.mean(avoidances)) if avoidances else 0.0,
+        # P2.57 (2026-09-14) : la branche `if avoidances else 0.0` etait MORTE -- la garde d'en-tete
+        # LEVE sur `len(seeds) == 0` et `per_seed` porte une entree par seed. Retiree, pas maquillee.
+        "avoidance_mean": float(st.mean(avoidances)),
         # Clé de compatibilité v2 (survival_mean) — identique à avoidance_mean
-        "survival_mean": float(st.mean(avoidances)) if avoidances else 0.0,
+        "survival_mean": float(st.mean(avoidances)),
         "per_seed": per_seed,
     }
 
@@ -214,7 +216,7 @@ def compare(seeds, steps: int = 1000, verbose: bool = False) -> dict:
     eff = [r for r in ratios if r != 1.0]
     n_fav = sum(1 for r in ratios if r > 1.0)
     p = _sign_p(sum(1 for r in eff if r > 1.0), len(eff))
-    med = st.median(ratios) if ratios else 1.0
+    med = st.median(ratios)   # garde en tete sur `seeds` : un ratio par seed, jamais vide
     verdict = "PLAN_GAGNE" if (med > 1.05 and 2 * n_fav > len(ratios)) else \
               ("PLAN_PERD" if med < 0.95 else "NEUTRE")
     return {"verdict": verdict, "median_ratio": float(med), "sign_p": float(p),

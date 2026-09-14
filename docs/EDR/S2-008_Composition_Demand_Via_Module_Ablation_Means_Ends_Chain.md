@@ -6,7 +6,26 @@ status: active
 gate: G2
 tests: [SDR-G2]
 adopts: [REF-DEMAND-MARKER]
+corrected_by: [EDR-AUDIT-001]
 ---
+
+> ⚠️ **LECTURE DES CELLULES DE CONTRÔLE CORRIGÉE le 2026-09-14 — [[EDR-AUDIT-001]], étendu (P2.51).**
+> **Ce qui TIENT** : la cellule POSITIVE (corps INSUFFISANT + chaîne2 + énergie, ratio **8.45**,
+> `SURVIVAL_COMPOSITION_SENSITIVE`) — une demande de composition réellement mesurée, à 8 seeds.
+> **Ce qui NE TIENT PAS** : les trois cellules publiées `SURVIVAL_NEUTRAL` ne sont pas neutres, elles
+> sont **INDÉCIDABLES**. Même mécanisme que S2-004 (AUDIT-001) : `fit_policy` part de `W = np.zeros`
+> et n'accepte qu'en `sc > best` STRICT (`composition_demand_world_probe.py:103,114`) ; quand le
+> score de départ atteint déjà le cap, W ne quitte jamais son initialisation, la politique est
+> CONSTANTE, et ablater le module est un no-op littéral — les deux bras sont **identiques point par
+> point**. Mesuré le 2026-09-09 : l'instrument (`ablation_verdict`, garde de dégénérescence armée le
+> 2026-07-21) rend `INDETERMINE_DEGENERATE` sur ces cellules, et
+> `tests/test_composition_demand_world_probe.py` le gèle (deux cas, branchés sur la CI).
+> **Conséquence sur la lecture** : « le contrôle est neutre, donc la demande est SPÉCIFIQUE à la
+> chaîne à 2 pas » n'est pas établi par ces cellules. Ce qu'elles disent : *aucun effondrement n'y
+> est détectable*, ce qui est compatible avec « pas de demande » ET avec « l'ablation ne s'est pas
+> appliquée ». La spécificité de la demande de composition reste **À ÉTABLIR** par une cellule de
+> contrôle dont le W est entraîné (`|W| > 0` mesuré), comme S2-005 en possède une (rappel PRÉSENT,
+> `|W| = 0.909`). Le tableau ci-dessous est conservé tel que publié.
 
 ## Question
 S2-007 a instrumenté l'anticipation (G4) par ablation de MODULE. Cet EDR réalise le 2e jalon de l'arc

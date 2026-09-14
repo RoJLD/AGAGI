@@ -48,3 +48,33 @@ def test_rank_orders_by_mean():
     vals = {"hi": {0: 0.9}, "mid": {0: 0.5}, "lo": {0: 0.1}}
     res = powered_eval({"hi": "hi", "mid": "mid", "lo": "lo"}, _const(vals), seeds=(0,))
     assert [n for n, _, _ in rank(res)] == ["hi", "mid", "lo"]
+
+
+# --------------------------------------------------------------------------------------------------
+# P2.57 (2026-09-14) -- UN replicat ne fabrique plus un NUL. Avant : `std = 0.0` pour n = 1, donc
+# `welch` rendait t = 0 et d = 0 (ses gardes de denominateur), donc `verdict` disait « NON
+# significatif (bruit) » -- une affirmation d'absence d'effet tiree d'UN point. Huit outils portent
+# une COPIE de la meme ligne `_stats` (aligned_selection, fiabiliser, lang_speciation, mem_nas,
+# nas_memory, nas_rich, reconfirm_047, speciation) : famille corrigee d'un bloc (E23). Revele par le
+# 2e elargissement de la porte 14 (`a.std(...)` -- une METHODE numpy, invisible au motif d'avant).
+# --------------------------------------------------------------------------------------------------
+
+def test_powered_eval_std_is_UNDEFINED_not_zero_for_a_single_replicate():
+    """CONTRE-EXEMPLE GELE. `None` DIT « pas d'ecart-type » ; 0.0 disait « aucune dispersion »."""
+    r = powered_eval({"A": 1.0}, lambda cfg, s: float(cfg), seeds=[0])
+    assert r["A"]["n"] == 1 and r["A"]["std"] is None
+
+
+def test_welch_REFUSES_an_undefined_std_instead_of_calling_it_no_difference():
+    """L'aval doit CRIER, pas avaler : c'est ce qui distingue `None` de `nan` dans ce depot."""
+    import pytest
+    r = powered_eval({"A": 1.0, "B": 2.0}, lambda cfg, s: float(cfg), seeds=[0])
+    with pytest.raises(ValueError, match="INDEFINI"):
+        verdict("A", "B", r)
+
+
+def test_welch_still_works_at_the_LIMIT_of_two_replicates():
+    """NO-OP APPARIE : la garde porte sur n < 2, pas sur « peu de seeds ». Deux suffisent."""
+    r = powered_eval({"A": 1.0, "B": 2.0}, lambda cfg, s: float(cfg) + 0.01 * s, seeds=[0, 1])
+    v = verdict("A", "B", r)
+    assert v["t"] != 0.0 and v["d"] != 0.0

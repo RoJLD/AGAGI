@@ -30,7 +30,7 @@ from tools.confirm_b import _backup, _restore, BAK_PKL, BAK_DIR
 
 def _stats(vals):
     a = np.array(vals, dtype=float)
-    return {"mean": float(a.mean()), "std": float(a.std(ddof=1)) if len(a) > 1 else 0.0,
+    return {"mean": float(a.mean()), "std": float(a.std(ddof=1)) if len(a) > 1 else None,   # P2.57 : n < 2 -> INDEFINI, pas 0
             "vals": [float(v) for v in vals], "n": len(a)}
 
 

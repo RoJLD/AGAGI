@@ -6,7 +6,7 @@ status: active
 gate: G0
 tests: [SDR-G0]
 adopts: [REF-EXPERIMENT-PREFLIGHT, REF-DEMAND-MARKER]
-corrects: [EDR-S2-004, EDR-S2-006, EDR-S2-007, EDR-S2-009]
+corrects: [EDR-S2-004, EDR-S2-005, EDR-S2-006, EDR-S2-007, EDR-S2-008, EDR-S2-009]
 ---
 
 ## Question
@@ -167,6 +167,22 @@ corrigé.
 * **Un corroborant peut être un artefact d'optimiseur.** `|W| = 0.000 EXACT` lisait comme « la politique
   ne pèse pas l'obs » ; c'était « l'optimiseur n'a jamais accepté un pas ». Vérifier qu'un poids déclaré
   nul a été **entraîné** avant de le citer comme témoin.
+
+## Addendum du 2026-09-14 — l'audit s'étend à S2-005 et S2-008 (P2.51)
+
+Le mécanisme documenté ici pour S2-004 — `fit_policy` part de `W = np.zeros`, n'accepte qu'en
+`sc > best` STRICT, et un score de départ déjà au cap laisse W à son initialisation — est **le même**
+dans les sondes de S2-005 (`memory_demand_world_probe.py:72,83-84`, que son bandeau décrivait déjà
+sans porter l'arête) et de S2-008 (`composition_demand_world_probe.py:103,114`, qui ne portait
+rien). **Mesuré, pas inféré** : le 2026-09-09, huit tests de `tests/test_{cognitive,anticipation,
+composition,memory}_demand_world_probe.py` affirmaient `SURVIVAL_NEUTRAL` sur ces cellules de
+contrôle et rougissaient depuis l'armement de la garde (sept semaines, aucun job de CI ne les
+lançait) — l'instrument y rend `INDETERMINE_DEGENERATE`, bras identiques point par point. Les deux
+records reçoivent `corrected_by: [EDR-AUDIT-001]` ; S2-008 reçoit le bandeau qui lui manquait.
+⚠️ Ce que l'extension ne dit PAS : que `intervention_verified=True` serait légitime sur ces
+cellules — c'est le cas (a) de `_degeneracy` (l'intervention ne s'est **pas** appliquée), pas le cas
+(b). La seule cellule de contrôle authentique de la famille reste « rappel PRÉSENT » de S2-005,
+dont le W est entraîné (`|W| = 0.909`).
 
 Converge [[EDR-WARM-010]], [[EDR-WARM-002]], [[EDR-S2-009]], REF-DEMAND-MARKER,
 [[floor-pinned-verdict-and-retroactive-gap]], [[instrument-calibration-ratchet]].

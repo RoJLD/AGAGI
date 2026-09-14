@@ -55,7 +55,19 @@ def test_term_mass_share_sums_to_one():
 
 
 def test_term_mass_share_zero_total_safe():
-    assert term_mass_share([_c()], W)["preys_eaten"] == 0.0  # pas de division par zero
+    """Ce qui TIENT : pas de division par zero. Ce qui change (P2.57, 2026-09-14) : la part d'une
+    masse totale NULLE est INDEFINIE (None), pas 0.0 -- « 0 % de rien » n'est pas une part."""
+    assert term_mass_share([_c()], W)["preys_eaten"] is None
+
+
+def test_kendall_tau_b_is_UNDEFINED_when_every_pair_is_tied():
+    """P2.57 : `else 1.0` disait « correlation parfaite » quand le denominateur est nul -- et
+    l'agregation lisait `med_t == 1.0` comme METRIQUE_INERTE, c.-a-d. concluait. Un tau indefini
+    rend None ; un tau mesure reste dans [-1, 1]."""
+    from tools.life_score_contamination_probe import kendall_tau as kendall_tau_b
+    assert kendall_tau_b([1.0, 1.0, 1.0], [0.1, 0.2, 0.3]) is None      # toutes paires a egalite en a
+    assert kendall_tau_b([1.0, 2.0, 3.0], [1.0, 2.0, 3.0]) == 1.0        # mesure : identique
+    assert kendall_tau_b([1.0, 2.0, 3.0], [3.0, 2.0, 1.0]) == -1.0       # mesure : inverse
 
 
 from tools.life_score_contamination_probe import WEIGHTS_FULL, variants, analyze_roster
