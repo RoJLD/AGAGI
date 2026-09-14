@@ -44,6 +44,21 @@ falsifiable : un levier qui perce l'un doit percer les autres.
 > On ne franchit une porte que si la précédente est mesurée (verdict EDR powered).
 > Méthode : Commandement 15 (1 variable, powered, valide-ou-revert). Négatifs = livrables.
 
+## Direction courante (décidée le 2026-09-14) — où nous allons, et dans quel ordre
+
+La direction opérationnelle, la liste priorisée (20 rangs) et les paris tranchés vivent dans
+[`PRIORITES_ET_DETTES.md`](PRIORITES_ET_DETTES.md), bloc **« 🧭 2026-09-14 — AUDIT GLOBAL +
+BRAINSTORM »** en tête du fichier. Résumé : **A** — calibrer l'APPRENANT in-world (aucun contrôle
+positif à ce jour ; les nuls « le crédit n'apprend pas à froid » valent < 50 mises à jour par agent) et
+le CORPS (dérivé des lignes 0-9 de `W` : tout édit de `W` est aussi une intervention métabolique), PUIS
+un seul run scellé dans le monde S2-009 qui dit ce qu'il ne tranche pas ; **B**, en parallèle sans
+bail — la prédiction falsifiable de [[EDR-LOCK-001]] en proxy mémoire D = 2 ; **C** (porte IW-1 /
+IW-2, le north-star en forme minimale) en réserve conditionnelle. Axe cognitif primaire des trois
+mois : **mémoire / écriture**. Le champion prod stoneage n'est plus un sujet pour mesurer la
+cognition (survie = corps, logits = observation, plancher de bruit 8 %).
+[`SPECIFICATION_10ANS.md`](SPECIFICATION_10ANS.md) est archivé de fait : ses quatre paris sont
+tranchés dans le bloc 🧭.
+
 ## État courant : le verrou convergent (2026-07)
 
 Une décennie d'EDR converge sur un même diagnostic, ré-confirmé territoire par territoire : **le substrat

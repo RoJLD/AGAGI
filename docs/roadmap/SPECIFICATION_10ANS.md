@@ -1,11 +1,13 @@
 # Spécification long-horizon — ce que 232 records ferment, imposent, et laissent ouvert
 
-> ⚠️ **CONDITIONNEL À LA CALIBRATION (P2.1).** Ce document dérive une stratégie de findings produits par
-> des instruments dont **1 sur 71** a été confronté à une vérité-terrain. Le seul instrument calibré à ce
-> jour avait produit un résultat complet et cohérent — dose-réponse, corrélations, contrôle négatif —
-> **entièrement faux** avant correction d'un bug d'aliasing. Les six contraintes de la §2 reposent
-> principalement sur `ablation_verdict`, non calibré. **Calibrer avant de s'engager.**
-> Cf. [`PRIORITES_ET_DETTES.md`](PRIORITES_ET_DETTES.md) P2.1.
+> ⚠️ **DOCUMENT ARCHIVÉ DE FAIT (2026-09-14).** Écrit le 2026-07-21 sous la condition « 1 instrument
+> calibré sur 71 » ; la dette de calibration est CLOSE depuis le 2026-09-01 (baseline à zéro) et les
+> quatre paris de la §3 sont **tranchés** dans [`PRIORITES_ET_DETTES.md`](PRIORITES_ET_DETTES.md),
+> bloc « 🧭 2026-09-14 » : A mal posé (la PORTÉE de l'optimiseur décide), B → mémoire / écriture,
+> C mesuré par le run P4.4, D périmé (la métrique de verdict existe et est calibrée). La §2 reste
+> conditionnelle à P1.6 : l'apprenant in-world qui fonde « verrou = crédit » n'a pas encore de contrôle
+> positif. Le document vivant est [`FIL_DIRECTEUR_AGI.md`](FIL_DIRECTEUR_AGI.md).
+> *(Bandeau d'origine : « CONDITIONNEL À LA CALIBRATION (P2.1) … Calibrer avant de s'engager. »)*
 
 État au 2026-07-21 : 232 records EDR, 85 rattachés à une porte (G0 30 · G1 17 · G2 12 · G3 23 · **G4 3**).
 Chiffre directeur : **proxy 9 / in-world 0** — neuf capacités démontrées en banc, aucune in-world.

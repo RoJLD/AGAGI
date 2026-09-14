@@ -21,6 +21,7 @@ from src.agents.baseline_models import BaselineBatchModel
 from tools.s2_demand_ablation import derange_rows
 from tools.demand_marker import ablation_verdict
 from tools.s2_demand import run_condition
+from tools.learning_events import count_learning_events
 
 BIT_A, BIT_B = 12, 13                                  # colonnes du signal dans l'obs (world_1 column_stack)
 
@@ -109,7 +110,8 @@ def run_cog_demand_map(seed=2026, K=12, num_agents=12, max_ticks=200, base_metab
     }
 
 
-def run_credit_probe(seed=2026, eras=6, num_agents=12, max_ticks=200, base_metabolism=0.75, cog_gain=12.0):
+def run_credit_probe(seed=2026, eras=6, num_agents=12, max_ticks=200, base_metabolism=0.75, cog_gain=12.0,
+                     learning_out=None):
     """Sonde crédit intra-vie (Task 4) : une cohorte FRAÎCHE use_torch_inworld (REINFORCE) apprend-elle la
     nourriture cognitive ? Le monde EXIGE la perception (oracle : survie 200 vs plancher ~7). Si le crédit
     apprend, la survie médiane MONTE sur les ères ; sinon elle reste au plancher (= verrou = crédit, pas le
@@ -132,7 +134,9 @@ def run_credit_probe(seed=2026, eras=6, num_agents=12, max_ticks=200, base_metab
     trend = []
     # P2.27 : substrat EPINGLE sur TOUTE la boucle -- le monde construit (et RECONSTRUIT a chaque mort)
     # la population torch dans `e.step()`, pas ici. Cf. `_pinned_substrate`.
-    with _pinned_substrate():
+    # P1.6 : la DOSE de credit est COMPTEE (tools/learning_events) et publiee dans learning_out --
+    # le type de retour publie (liste des survies medianes) est INCHANGE, le chemin est bit-identique.
+    with _pinned_substrate(), count_learning_events() as ev:
         for era in range(eras):
             seed_at(seed, era)
             e = Biosphere3D()
@@ -154,6 +158,8 @@ def run_credit_probe(seed=2026, eras=6, num_agents=12, max_ticks=200, base_metab
             trend.append(float(np.median(ages)) if ages else 0.0)
             if hasattr(e, "memory_retriever"):
                 e.memory_retriever.stop()
+    if learning_out is not None:
+        learning_out.update(ev.summary())
     return trend
 
 
@@ -188,7 +194,7 @@ def run_warmstart_credit_probe(seed=2026, num_agents=12, max_ticks=200, schedule
     trend = []
     # P2.27 : substrat EPINGLE sur TOUTE la boucle -- le monde construit (et RECONSTRUIT a chaque mort)
     # la population torch dans `e.step()`, pas ici. Cf. `_pinned_substrate`.
-    with _pinned_substrate():
+    with _pinned_substrate(), count_learning_events() as ev:      # P1.6 : dose comptee
         for stage, (metab, cog) in enumerate(schedule):
             seed_at(seed, stage)
             e = Biosphere3D()
@@ -214,7 +220,8 @@ def run_warmstart_credit_probe(seed=2026, num_agents=12, max_ticks=200, schedule
             if hasattr(e, "memory_retriever"):
                 e.memory_retriever.stop()
     final = trend[-1][2]
-    return {"trend": trend, "final": final, "learned": final >= 4 * floor}   # 4× plancher = franchi
+    return {"trend": trend, "final": final, "learned": final >= 4 * floor,
+            "learning": ev.summary()}   # 4× plancher = franchi
 
 
 class LinearCognitiveOracle(BaselineBatchModel):
@@ -364,7 +371,7 @@ def run_credit_linear(seed=2026, warmstart=False, eras=6, num_agents=12, max_tic
     # P2.27 : substrat EPINGLE sur TOUTE la boucle -- `use_credit=True` fait construire (et RECONSTRUIRE
     # a chaque mort) la population torch par le monde dans `e.step()` ; `use_credit=False` = chemin
     # legacy numpy, ou le pin est un no-op. Cf. `_pinned_substrate`.
-    with _pinned_substrate():
+    with _pinned_substrate(), count_learning_events() as ev:      # P1.6 : dose comptee
         for era in range(eras):
             seed_at(seed, era)
             e = Biosphere3D()
@@ -391,7 +398,181 @@ def run_credit_linear(seed=2026, warmstart=False, eras=6, num_agents=12, max_tic
             trend.append(float(_np.median(ages)) if ages else 0.0)
             if hasattr(e, "memory_retriever"):
                 e.memory_retriever.stop()
-    return {"bc_acc": bc_acc, "trend": trend, "final": trend[-1] if trend else 0.0}
+    return {"bc_acc": bc_acc, "trend": trend, "final": trend[-1] if trend else 0.0,
+            "learning": ev.summary()}
+
+
+_LEARNER_POLICIES = ("torch", "oracle")
+
+
+def run_learner_probe(seed=2026, num_agents=12, ticks=2000, block=400, policy="torch",
+                      reward_scale=1.0, td_enabled=True, lr=None,
+                      base_metabolism=0.75, cog_gain=12.0, immortal=True,
+                      refill_below=30.0, refill_to=80.0, hp_refill_below=50.0):
+    """P1.6 — CONTRÔLE POSITIF de l'APPRENANT in-world, à DOSE PUBLIÉE (backlog, bloc « 🧭 2026-09-14 »).
+
+    Ce que ce dépôt appelait « le crédit n'apprend pas à froid » (S2-009 §crédit, S2-010, S2-011) était
+    un nul mesuré sur des agents morts à 7-9 ticks — une dose de quelques dizaines de mises à jour, jamais
+    comptée. Ici la cohorte est IMMORTELLE : après chaque tick, l'énergie est remise à `refill_to` sous
+    `refill_below` (la récompense `cog_gain` n'est jamais écrêtée par la faim), les `hp` sont remis à
+    leur plafond sous `hp_refill_below`, et un agent MORT DANS LE TICK est RESSUSCITÉ (même objet, même
+    génome, énergie et hp rechargés) — le monde tue à l'intérieur d'un tick : un projectile lancé par un
+    pair retire `energy_spent × poids` d'un coup (`world_1_stoneage.py`, phase de lancer), donc aucune
+    recharge entre deux ticks ne suffit. `resurrections` est PUBLIÉ : c'est la létalité du monde, un
+    chiffre, pas un biais. ⚠️ La version v1 (2026-09-14) ne rechargeait que l'énergie :
+    le monde tue aussi par `hp` — la RIPOSTE du gibier frappe l'agent qui se place sur sa case
+    (`world_1_stoneage.py`, phase prédateurs) — et les bras APPRENANTS, qui se déplacent vers la
+    récompense, y perdaient jusqu'à la moitié de leur cohorte dès le premier bloc (seed 2027 : 12 → 9
+    à 400 ticks, 3 à 800) contre 11/12 pour lr=0 et l'oracle : un biais de SURVIVANTS corrélé au bras.
+    `deaths` et `n_agents` par bloc sont publiés pour que ce biais ne puisse plus passer inaperçu ;
+    la DV est le TAUX DE COUPS
+    sur la tâche linéaire 1-bit de S2-011 (`move == int(bit_a > 0)`), par blocs de `block` ticks, avec la
+    dose comptée par `tools.learning_events.count_learning_events` — donc publiée à côté du résultat.
+
+    `policy="oracle"` : `LinearCognitiveOracle` câblé, réponse connue 1.0 EXACTEMENT (contrôle positif de
+    la DV). `policy="torch"` : l'apprenant tel que le monde le construit (`use_torch_inworld`), avec ses
+    variantes déclarées : `reward_scale`, `td_enabled`, `lr` (`lr=0.0` = le bras qui ne peut RIEN
+    apprendre — le plafond de l'incapable, mesuré dans CE dispositif, jamais importé).
+
+    Renvoie un dict publiable : `blocks` (tick, n_agents, hit_rate, n_decisions), `hit_first`, `hit_last`,
+    `chance` (1/8 : 8 logits de déplacement), `learning` (dose et variante), `regime` (les valeurs de
+    configuration RÉELLEMENT posées — jamais recopiées d'un record, E8 occ. 4)."""
+    # GARDE D'ARGUMENTS, EN TÊTE, AVANT toute construction (refus < 0.5 s).
+    if (int(num_agents) <= 0 or int(ticks) <= 0 or int(block) <= 0
+            or policy not in _LEARNER_POLICIES):
+        raise ValueError(
+            f"run_learner_probe : argument degenere (num_agents={num_agents}, ticks={ticks}, block={block}, "
+            f"policy={policy!r}) -- aucune mesure possible ; ne pas confondre avec une mesure nulle OBSERVEE.")
+    from src.worlds.world_1_stoneage import Biosphere3D
+    from src.seed_ai.harness import seed_at
+    from src.agents.mamba_agent import MambaAgent
+    from tools.learning_events import count_learning_events
+
+    regime = {"cognitive_demand": True, "cog_linear": True, "cog_gain": float(cog_gain),
+              "base_metabolism": float(base_metabolism), "forage_payoff": 0.0,
+              "benchmark_mode": True, "night_enabled": False, "immortal": bool(immortal),
+              "refill_below": float(refill_below), "refill_to": float(refill_to),
+              "hp_refill_below": float(hp_refill_below), "energy_start": 80.0}
+    lz = _acquire_kuzu("learner-probe")
+    try:
+        with _pinned_substrate(), count_learning_events(reward_scale=reward_scale,
+                                                        td_enabled=td_enabled, lr=lr) as ev:
+            seed_at(seed, 0)
+            e = Biosphere3D()
+            e.benchmark_mode = True
+            e.night_enabled = False
+            e.current_era = 10_000
+            e.config.cognitive_demand = True
+            e.config.cog_linear = True
+            e.config.cog_gain = cog_gain
+            e.config.base_metabolism = base_metabolism
+            e.config.forage_payoff = 0.0
+            if policy == "oracle":
+                e.batch_model_cls = LinearCognitiveOracle
+                e.use_torch_inworld = False
+            else:
+                e.use_torch_inworld = True
+            if hasattr(e, "memory_retriever"):       # AVANT la boucle (EDR-INFRA-001)
+                e.memory_retriever.stop()
+                e.memory_retriever.clear()
+            for _ in range(int(num_agents)):
+                e.add_agent(MambaAgent(), energy=80.0)
+            regime["torch_episode_k"] = int(getattr(e, "torch_episode_k", -1))
+            hits, n, blocks, t, resurrections = 0, 0, [], 0, 0
+            while e.agents and t < int(ticks):
+                e.step()
+                for a in e.agents:
+                    sig = a.get("_cog_sig")
+                    mv = (a.get("_pg") or {}).get("move")
+                    if sig is not None and mv is not None and int(mv) >= 0:
+                        hits += int(int(mv) == int(sig[0] > 0))
+                        n += 1
+                    if immortal:
+                        if a["energy"] < refill_below:
+                            a["energy"] = refill_to
+                        if a["hp"] < hp_refill_below:      # riposte du gibier : jusqu'a 50 hp en un tick
+                            a["hp"] = 100.0 + float(getattr(a["model"], "phenotype_hp_bonus", 0.0))
+                if immortal:
+                    dead = list(getattr(e, "dead_agents", []))
+                    for a in dead:                     # mort DANS le tick : ressuscite, meme objet
+                        a["energy"] = refill_to
+                        a["hp"] = 100.0 + float(getattr(a["model"], "phenotype_hp_bonus", 0.0))
+                        e.agents.append(a)
+                        resurrections += 1
+                    if dead:
+                        e.dead_agents.clear()          # ressuscites : jamais comptes deux fois
+                t += 1
+                if t % int(block) == 0 or t == int(ticks):
+                    if n == 0:
+                        raise ValueError(
+                            f"run_learner_probe : bloc se terminant au tick {t} SANS aucune decision -- "
+                            "la DV n'est pas mesurable (cohorte eteinte ?), aucun taux n'est fabrique.")
+                    blocks.append({"tick": t, "n_agents": len(e.agents),
+                                   "hit_rate": hits / n, "n_decisions": int(n)})
+                    hits, n = 0, 0
+            deaths = int(num_agents) - len(e.agents)
+            if hasattr(e, "memory_retriever"):
+                e.memory_retriever.stop()
+    finally:
+        _release_kuzu(lz)
+    if not blocks:
+        raise ValueError("run_learner_probe : aucun bloc mesure (cohorte eteinte avant le premier bloc).")
+    return {"policy": policy, "immortal": bool(immortal), "seed": int(seed), "ticks": int(ticks),
+            "block": int(block), "num_agents": int(num_agents), "chance": 1.0 / 8.0, "deaths": deaths,
+            "resurrections": int(resurrections),
+            "blocks": blocks, "hit_first": blocks[0]["hit_rate"], "hit_last": blocks[-1]["hit_rate"],
+            "learning": ev.summary(), "regime": regime}
+
+
+def learner_verdict(learner_first, learner_last, reference_last, oracle_last,
+                    min_sep=0.05, min_gain=0.05, oracle_min=0.9, reference_max=0.5):
+    """Lit les taux de coups de `run_learner_probe` et REFUSE de conclure hors bornes.
+
+    `reference_last` est le bras `lr=0` du MÊME dispositif (le plafond de ce qu'un agent qui ne peut rien
+    apprendre atteint) ; la barre est `reference_last + min_sep` — jamais « chance + marge » (P2.15).
+    `oracle_last` est le contrôle positif de la DV (câblé, attendu 1.0).
+
+      INDETERMINE_HARNAIS     l'oracle rate (< `oracle_min`) ou la référence touche trop haut
+                              (> `reference_max`) : la DV ne lit pas ce qu'on croit, on ne lit rien.
+      LEARNER_INERT           l'apprenant finit à moins de `min_sep` au-dessus de la référence.
+      LEARNER_LEARNS          au-dessus de la barre. `onset` date l'apprentissage : "during_run" si le
+                              gain intra-run >= `min_gain`, "early" sinon (appris dans le premier bloc).
+
+    ⚠️ Le gain intra-run ne DÉCIDE pas : une cohorte FRAÎCHE appariée par seed à sa référence lr=0
+    (mêmes génomes initiaux) ne peut être au-dessus de la barre que parce qu'elle a appris. Règle
+    corrigée le 2026-09-14 après le seed 1/12 du run P1.6 (lr=0,004 à 0,32 dès le premier bloc contre
+    0,15 pour lr=0) ; la version d'origine rendait « INDETERMINATE » dans ce cas — dit ici, pas caché.
+
+    Toute entrée absente ou non finie LÈVE : une donnée manquante ne devient jamais un verdict."""
+    vals = {"learner_first": learner_first, "learner_last": learner_last,
+            "reference_last": reference_last, "oracle_last": oracle_last}
+    for k, v in vals.items():
+        if v is None or not np.isfinite(float(v)):
+            raise ValueError(
+                f"learner_verdict : {k}={v!r} -- entree absente ou non finie, aucun verdict possible ; "
+                "ne pas confondre avec une mesure nulle OBSERVEE.")
+    lf, ll = float(learner_first), float(learner_last)
+    rl, ol = float(reference_last), float(oracle_last)
+    sep, gain, bar = ll - rl, ll - lf, rl + float(min_sep)
+    out = {"learner_first": lf, "learner_last": ll, "reference_last": rl, "oracle_last": ol,
+           "sep": sep, "gain": gain, "bar": bar, "min_sep": float(min_sep), "min_gain": float(min_gain)}
+    if ol < float(oracle_min):
+        out.update(verdict="INDETERMINE_HARNAIS",
+                   why=f"oracle {ol:.3f} < {oracle_min} : le controle positif de la DV echoue")
+    elif rl > float(reference_max):
+        out.update(verdict="INDETERMINE_HARNAIS",
+                   why=f"reference lr=0 {rl:.3f} > {reference_max} : le bras qui ne peut rien apprendre "
+                       "touche trop haut, la DV ne lit pas l'apprentissage")
+    elif sep <= float(min_sep):
+        out.update(verdict="LEARNER_INERT", why=f"sep {sep:.3f} <= {min_sep} au-dessus de la reference")
+    elif gain >= float(min_gain):
+        out.update(verdict="LEARNER_LEARNS", onset="during_run",
+                   why=f"sep {sep:.3f} au-dessus de la reference, gain {gain:.3f} pendant le run")
+    else:
+        out.update(verdict="LEARNER_LEARNS", onset="early",
+                   why=f"sep {sep:.3f} au-dessus de la reference, gain {gain:.3f} < {min_gain} : "
+                       "appris dans le premier bloc")
+    return out
 
 
 def main():

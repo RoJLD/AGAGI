@@ -6,7 +6,19 @@ status: active
 gate: G0
 tests: [SDR-G0]
 adopts: [REF-DEMAND-MARKER]
+corrected_by: [EDR-CALIB-LEARNER]
 ---
+
+> ⚠️ **PORTÉE CORRIGÉE le 2026-09-14, APRÈS mesure ([[EDR-CALIB-LEARNER]], n = 12).** Le nul de ce
+> record est un nul de **DOSE** : ses agents meurent à 7-9 ticks, soit quelques dizaines de mises à
+> jour de crédit — jamais comptées ici (le TD(0) par tick, `world_1_stoneage.py:1717`, n'est pas nommé
+> dans la §Portée). À dose non bornée par la mort (≈ 2000 TD + 250 épisodes par agent, cohorte
+> immortelle), l'apprenant tel que publié APPREND la tâche linéaire de S2-011 (12/12 seeds au-dessus de
+> la référence lr=0 appariée, +0,156), lentement (0,28 vs oracle 1,0 à 2000 ticks). Les mesures de ce
+> record restent vraies à leur dose ; sa conclusion « le verrou isolé de bout en bout » ne l'est plus :
+> le verrou est d'abord que **l'apprenant meurt en apprenant** (126 morts par seed contre 1 pour lr=0),
+> donc n'accumule jamais la dose. Classes E2 (bras qui ne peut pas réussir) et E19 (réglage validé sur le
+> cas facile) — la dose est un réglage.
 
 ## Question
 S2-009 a RÉALISÉ la recette in-world : l'oracle prouve que le monde `cognitive_demand` EXIGE la perception

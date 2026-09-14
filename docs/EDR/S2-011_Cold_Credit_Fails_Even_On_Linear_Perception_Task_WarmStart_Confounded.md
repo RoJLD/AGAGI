@@ -6,7 +6,19 @@ status: active
 gate: G0
 tests: [SDR-G0]
 adopts: [REF-DEMAND-MARKER]
+corrected_by: [EDR-CALIB-LEARNER]
 ---
+
+> ⚠️ **PORTÉE CORRIGÉE le 2026-09-14, APRÈS mesure ([[EDR-CALIB-LEARNER]], n = 12).** Le finding (1)
+> « le crédit à froid échoue même sur la tâche linéaire » est un nul de **DOSE** : le bras COLD reçoit
+> quelques dizaines de mises à jour par agent avant de mourir. Sur la MÊME tâche, le MÊME apprenant, à
+> dose non bornée par la mort (cohorte immortelle, ≈ 2000 TD + 250 épisodes par agent), il apprend :
+> 12/12 seeds au-dessus de la référence lr=0 appariée (+0,156, min +0,068), courbe monotone sur cinq
+> blocs, écart résiduel à l'oracle invariant au pas d'apprentissage (E19). Ce record avait raison
+> d'isoler le crédit de la représentation ; ce qu'il mesurait n'était pas la capacité du crédit mais la
+> dose que la mort lui laisse. Le « prochain pas précis » (§ ci-dessous) avait déjà été exécuté par
+> [[EDR-WARM-001]] (BPTT) et [[EDR-WARM-003]] (DAgger) ; le bassin persisté est
+> `results/warm003_dagger_genome.npz`. Le test warm-start de ce record reste CONFONDU, comme il le dit.
 
 ## Question
 S2-010 : le crédit in-world n'apprend pas la nourriture cognitive (tâche 2-bits). Mais le décode 2-bits
