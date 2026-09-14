@@ -1,0 +1,33 @@
+{
+  "name": "LANG-MEMORY-EDGE-D2",
+  "rule": {
+    "clause_E19": "Ce barreau EST la clause E19 du barreau 1 executee a puissance : le lr qui perce y est teste seul. Un NUL ici ne se lit pas « le mur tient » sans balayer lr = 0,0002 et 0,001 (barreau 1d) -- la regle le dit AVANT le run.",
+    "confond_declare_AVANT": "Le bras PRESENT a D = 2 re-montre la cle au tick d'usage ; s'il apprend MOINS bien que le PRINCIPAL (information redondante mais deux delais de plus dans la tache), sa chute sous ablation peut etre partielle : la branche specificite_absente s'applique alors, sans latitude.",
+    "cout": "24 cellules (2 bras x 12 seeds) x ~600 s (mesure au barreau 1, machine partageant un job in-world) -> ~4 h CPU, majorant ; SANS bail kuzu ; tranches resumables (EDGE_SLICE_S) ; persistance results/lang_memory_edge_d2.json.",
+    "design": "Harnais `tools/lang_memory_edge_run.py` (resumable), DEUX bras par seed, n = 12 seeds (unite de replication = seed) : (1) PRINCIPAL memory_mode=learned -- encode(key), DEUX delais, use(q), cible (q+key)%K, ablation H-reset entre encode et use ; (2) SPECIFICITY memory_mode=present -- cle RE-MONTREE au tick d'usage, meme ablation, information redondante ; (3) CONTROL feedforward avec BRUIT D'ENTREE a dose connue (`control_input_noise` = 0,15, plafond structurel 0,875 des deux bras -- le remede de LANG-MEMORY-EDGE-bis, sans lequel le controle sature a 1,0/1,0 et la garde d'alias rend DEGENERATE_CONTROL : mesure au barreau 1, ctrl_i 0,98-1,0 / ctrl_a 1,0). ⚠️ Le bruit change la population d'entrainement : les 12 seeds sont une population NEUVE, jamais melangee aux 3 du barreau 1.",
+    "discrimination": {
+      "instrument_indetermine (alias fail / DEGENERATE_CONTROL / verdict INCONCLUSIVE_*)": "PAS de record de fond ; diagnostiquer l'instrument avant tout re-run.",
+      "mur_perce (PRINCIPAL X_DEMANDED ET PRESENT X_DECOY ET alias pass ET coord_intact >= 0,5)": "GRAVER le record LOCK-001-PROXY-R1b : la retention a 2 delais s'apprend sous REINFORCE au bon pas ; la 4e manifestation de LOCK-001 est un artefact E19 ; bandeau de portee sur LOCK-001 et sur DELAYED-COORD APRES ce verdict (P3.6), jamais avant. AUCUNE nouvelle arete (language->memory existe deja) : le record ETEND l'evidence de la meme arete.",
+      "reference_sous_barre (coord_intact < 0,5 au n complet)": "le PERCE du barreau 1 ne tient pas a n = 12 : graver le NEGATIF tel quel, puis barreau 1d (lr 0,0002 / 0,001) avant toute conclusion sur le mur.",
+      "specificite_absente (PRINCIPAL X_DEMANDED mais PRESENT s'effondre aussi)": "l'ablation H-reset casse plus que la memoire demandee a D = 2 : graver le negatif, instrument a revoir (le bras PRESENT est-il encore un leurre a deux delais ?).",
+      "toute autre issue": "rapporter telle quelle, aucun re-run sans re-scellement."
+    },
+    "dv_primaire": "verdict `ablation_verdict` du bras PRINCIPAL (`lang_i` vs `lang_a`, floor = 1/K, ceiling = 1,0, n = 12) + `coord_intact` = mediane de `lang_i`, confrontee a `emergence_bar` ; `alias_guard_verdict` sur CONTROL (`ctrl_i`, `ctrl_a`, `leak_seeds` rapporte) ; verdict du bras PRESENT.",
+    "emergence_bar": 0.5,
+    "justification_du_point": "emergence_bar = 0,5 est AU-DESSUS du plafond structurel 0,3889 du substrat plain (P2.15) : la barre ne peut pas etre franchie par la forme separable ; identique a LANG-MEMORY-EDGE-bis pour que D = 0 et D = 2 se lisent a la meme barre.",
+    "n_seeds": 12,
+    "point_de_fonctionnement": {
+      "D": 2,
+      "K": 6,
+      "control_input_noise": 0.15,
+      "control_train_every": 1,
+      "episodes": 14400,
+      "lr": 0.0005,
+      "n_agents": 16
+    },
+    "provenance_du_point": "Barreau 1 (docs/preregistrations/LOCK-001-PROXY-R1.json, results/lock001_proxy_r1.json, 2026-09-14) : branche PERCE_PAR_LR -- a 14400 episodes, lr = 0,002 reste a la chance (0,178/0,167/0,156, controle DEGRADE 0,29-0,31) et lr = 0,0005 apprend (0,837/0,781/0,784, bras able 0,19/0,16/0,17, controle 0,998/0,981/0,997). n = 3 : indicatif seulement, d'ou ce barreau.",
+    "question": "BARREAU 1b de LOCK-001-PROXY (P4.5) : la retention a DEUX delais (D = 2) sous credit REINFORCE est-elle APPRISE au point ou le barreau 1 a perce (bilineaire, lr = 0,0005, 14400 episodes) -- a n = 12, avec le protocole -bis de LANG-MEMORY-EDGE (controle rendu lisible) ? Si oui, la « quatrieme manifestation » de LOCK-001 (D = 2 a la chance a lr = 0,002) etait un artefact de pas d'apprentissage (E19).",
+    "regle_de_lecture_continue": "ORDRE IMPOSE : garde d'alias d'abord, puis PRESENT, puis PRINCIPAL, puis barre -- la premiere branche qui mord ARRETE la lecture. Tous les ratios et medianes se rapportent en absolu quel que soit le verdict."
+  },
+  "seal": "50ad5e268770b1653d7fe5744f92356f2fe5a4fb14fc04c25b800d4266fe053b"
+}

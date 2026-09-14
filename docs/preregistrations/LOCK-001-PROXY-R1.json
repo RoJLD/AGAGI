@@ -1,0 +1,37 @@
+{
+  "name": "LOCK-001-PROXY-R1",
+  "rule": {
+    "ce_que_ce_barreau_ne_tranche_pas": "ni LOCK-001 lui-meme (n = 3, un seul levier), ni l'identite des trois murs, ni rien in-world. Il dit seulement si le levier le moins cher de l'escalier est epuise.",
+    "clause_E19": "Tout NUL a lr = 0,002 est confronte a lr = 0,0005 sur le barreau du haut (14400) : un nul 2-pas a pas FIXE s'est deja retourne une fois (RETAIN-COMPOSE-LR, 0,02 -> 0,173 / 0,002 -> 0,923). Si 0,0005 perce la ou 0,002 ne perce pas, la branche est PERCE_PAR_LR, pas NE_PERCE_PAS.",
+    "cout": "9 cellules x ~97 s / 1000 episodes (mesure 2026-09-14 a charge connue : un job in-world tenait le bail kuzu) -> ~105 min CPU, majorant ; SANS bail kuzu ; tranches <= 540 s.",
+    "design": "Sonde `tools/language_memory_demand_probe._train_and_eval` au MEME point que la reference (K = 6, n_agents = 16, bilineaire, memory_mode = learned, control_mode = feedforward, control_input_noise = 0), D = 2. Cellules : (lr 0,002, 7200 ep), (lr 0,002, 14400 ep), (lr 0,0005, 14400 ep) x seeds 0, 1, 2. Unite de replication = seed ; n = 3 par cellule -- EXPLORATOIRE (sous n_floor = 12), donc aucune branche ne grave un record : un PERCE declenche le barreau 1b a n = 12. Runner resumable `tools/lock001_proxy_r1.py`, persistance results/lock001_proxy_r1.json.",
+    "discrimination": {
+      "AUTRE (toute autre configuration)": "rapporter telle quelle, aucune inference, aucun re-run sans re-scellement.",
+      "INCOMPLET (une cellule manque)": "aucune lecture ; relancer le runner.",
+      "NE_PERCE_PAS (mediane < 0,30 aux DEUX lr a 14400)": "barreau 1 REFUTE : les episodes ne suffisent pas ; passer au barreau 2 (curriculum D 0 -> 1 -> 2) sans re-scellement de celui-ci.",
+      "PERCE_INDICATIF (14400/0,002 : mediane >= 0,40 ET 3/3 seeds > 0,30)": "barreau 1b : MEMES cellules a n = 12 seeds AVANT toute citation ; jamais un record a n = 3.",
+      "PERCE_PAR_LR (14400/0,002 nul mais 14400/0,0005 : mediane >= 0,40 ET 3/3 > 0,30)": "E19 confirmee sur ce mur : meme suite que PERCE_INDICATIF, sur le lr qui perce.",
+      "TENDANCE (max des medianes a 14400 >= reference_3600 + 0,10, sans atteindre 0,40)": "barreau 1c : 28800 episodes sur les 3 seeds AVANT le curriculum (le levier n'est pas epuise)."
+    },
+    "dv_primaire": "`lang_i` (accuracy du bras INTACT a D = 2) par seed ; `mediane_14400_lr0002`, `mediane_14400_lr00005`, `mediane_7200` = medianes sur les 3 seeds par cellule, confrontees a `reference_3600`. `lang_a`, `ctrl_i`, `ctrl_a` rapportes en absolu.",
+    "note_de_scellement": "Scelle une premiere fois le 2026-09-14 sans backticks sur les grandeurs ; la porte 5 (check_preregistration_applied) l'a refuse. Re-scelle AVANT toute cellule : results/lock001_proxy_r1.json n'existait pas, aucune donnee lue.",
+    "question": "Barreau 1 de LOCK-001-PROXY (P4.5) : a D = 2, au point-reference ou D = 0 apprend (bilineaire, lr = 0,002, 3600 episodes, mediane 0,744), des episodes PLUS LONGS (7200, 14400) font-ils sortir lang_i de la chance ?",
+    "reference_3600": {
+      "mediane_lang_i_D2": 0.183,
+      "seeds": [
+        0.211,
+        0.183,
+        0.17
+      ],
+      "source": "results/lang_memory_sweep.json (lr=0.002|ep=3600|D=2)"
+    },
+    "regle_de_lecture_continue": "ORDRE IMPOSE : INCOMPLET, PERCE_INDICATIF, PERCE_PAR_LR, TENDANCE, NE_PERCE_PAS, AUTRE -- la premiere branche qui mord ARRETE la lecture. Toutes les medianes se rapportent en absolu quel que soit le verdict.",
+    "seuils": {
+      "delta_tendance": 0.1,
+      "justification": "chance = 1/K = 0,167 ; plafond du substrat plain 0,3889 (P2.15) : seuil_perce = 0,40 est AU-DESSUS du plafond du separable, donc un PERCE ne peut pas etre la forme separable ; seuil_seed = 0,30 exige que CHAQUE seed soit nettement au-dessus de la chance ; delta_tendance = 0,10 est le double de l'ecart inter-seeds observe a 3600 (0,04).",
+      "seuil_perce": 0.4,
+      "seuil_seed": 0.3
+    }
+  },
+  "seal": "9da5bc77245de60b4a18d19d206755ff99330230c7164e520082c4c4ad017b97"
+}
