@@ -1,0 +1,539 @@
+{
+ "preregistration": [
+  "S2-CREDIT-ABLATION"
+ ],
+ "design": {
+  "question": "Le crédit in-world publié (Actor-Critic TD(0) par tick + REINFORCE épisodique k=8, lr 0,04) EFFACE le bassin DAgger de WARM-003 quand il apprend sans être borné par la mort, à Δénergie SEULE autant qu'à récompense complète (EDR-S2-REWARD-ABLATION : CREDIT_ERODE_SEUL, PLEIN ; 36,0 -> 8,0, 12/12 seeds). D'où vient l'érosion : du SIGNE du signal (avantage constant négatif sous critic tanh saturé — 56 % des value_pred < -0,99 en P1.6), du PAS (toute mise à jour à lr 0,04 détruit, signal ou pas), ou du TD par tick ?",
+  "replication_unit": "seed (une cohorte de 12 clones du bassin par bras, un monde par seed ; 6 bras appariés)",
+  "n_independent": 1,
+  "links": {
+   "seams_credit": "measured",
+   "dose_de_credit": "measured",
+   "mouvement_dW": "measured",
+   "resurrections": "measured",
+   "survie_mortelle_poids_geles": "measured",
+   "bassin_transfere_S_a": "measured",
+   "replication_b_full": "measured"
+  },
+  "inferred_links": [],
+  "cost_estimate": "Coût : unité = UN SEED COMPLET (six bras), chaque bras MESURÉ sur le premier seed, projetée par project_cost (marge ×3) sur 12 seeds, b_full retiré de l'unité projetée s'il est importé. Budget 57600 s (16 h) DÉRIVÉ DES MESURES P4.8 : un bras bassin + crédit coûte 50 à 373 s selon le comportement appris (Δénergie seule 50-373 s, complète 283 s) -> 4 nouveaux bras ≈ 200 à 1500 s par seed ; ×12 ×3 = 7 200 à 54 000 s. Réel attendu 2 à 5 h (P4.8 : réel = 1,3 × projeté/3). ⚠️ Le coût est mesuré pendant qu'une passe d'agents parallèles charge la machine (six worktrees, tests) : la charge est CONNUE et publiée avec le chiffre, qui est donc un MAJORANT ; si la garde refuse, on re-scelle un -bis sur mesure sans toucher n, dose ni cohorte. Reprise par seed.",
+  "inferred_reason": null,
+  "control_family": {
+   "cells": 1,
+   "alpha_family": 0.05,
+   "alpha_cell": 0.05,
+   "method": "bonferroni",
+   "reason": null,
+   "fwer_bound": 0.05
+  },
+  "warning": null
+ },
+ "provenance": {
+  "git_sha": "9de2b3bca732894fcf88ec9e989e9d1bfb8ce8fd",
+  "dirty": true
+ },
+ "regime": {
+  "cognitive_demand": true,
+  "cog_linear": false,
+  "cog_gain": 12.0,
+  "base_metabolism": 0.75,
+  "forage_payoff": 0.0,
+  "benchmark_mode": true,
+  "night_enabled": false,
+  "energy_start": 80.0,
+  "immortal_phase1": true,
+  "refill_below": 30.0,
+  "refill_to": 80.0,
+  "hp_refill_below": 50.0,
+  "frozen_phase2_lr": 0.0,
+  "arms_credit": {
+   "b_full": {
+    "reward_scale": 1.0,
+    "td_enabled": true,
+    "lr": null
+   },
+   "b_zero": {
+    "reward_scale": 0.0,
+    "td_enabled": true,
+    "lr": null
+   },
+   "b_neg": {
+    "reward_scale": -1.0,
+    "td_enabled": true,
+    "lr": null
+   },
+   "b_lr": {
+    "reward_scale": 1.0,
+    "td_enabled": true,
+    "lr": 0.004
+   },
+   "b_tdoff": {
+    "reward_scale": 1.0,
+    "td_enabled": false,
+    "lr": null
+   }
+  },
+  "lr_low": 0.004,
+  "lr_published": 0.04
+ },
+ "params": {
+  "seeds": [
+   2026
+  ],
+  "ticks_learn": 200,
+  "ticks_test": 100,
+  "agents": 12,
+  "budget_s": 57600.0,
+  "smoke": true,
+  "full_all": false
+ },
+ "arms": {
+  "a_frozen": {
+   "2026": {
+    "seed": 2026,
+    "arm": "a_frozen",
+    "num_agents": 12,
+    "ticks_learn": 200,
+    "ticks_test": 100,
+    "lr": null,
+    "credit": null,
+    "learning": null,
+    "survival": {
+     "survival_median": 31.5,
+     "ages": [
+      100,
+      4,
+      10,
+      14,
+      19,
+      20,
+      30,
+      33,
+      40,
+      71,
+      84,
+      86
+     ],
+     "censored": 1,
+     "ticks": 100
+    },
+    "elapsed_s": 0.8275067806243896
+   }
+  },
+  "b_full": {
+   "2026": {
+    "seed": 2026,
+    "arm": "b_full",
+    "num_agents": 12,
+    "ticks_learn": 200,
+    "ticks_test": 100,
+    "lr": null,
+    "credit": {
+     "reward_scale": 1.0,
+     "td_enabled": true,
+     "lr": null
+    },
+    "learning": {
+     "td_calls": 200,
+     "td_updates": 199,
+     "episode_calls": 25,
+     "episode_updates": 25,
+     "skips": {},
+     "dW_abs_sum": 1738.9083148241043,
+     "reward_scale": 1.0,
+     "td_enabled": true,
+     "lr": null,
+     "resurrections": 0,
+     "ticks": 200
+    },
+    "survival": {
+     "survival_median": 8.0,
+     "ages": [
+      3,
+      4,
+      7,
+      7,
+      7,
+      8,
+      8,
+      9,
+      10,
+      11,
+      12,
+      14
+     ],
+     "censored": 0,
+     "ticks": 14
+    },
+    "elapsed_s": 4.648724794387817
+   }
+  },
+  "b_zero": {
+   "2026": {
+    "seed": 2026,
+    "arm": "b_zero",
+    "num_agents": 12,
+    "ticks_learn": 200,
+    "ticks_test": 100,
+    "lr": null,
+    "credit": {
+     "reward_scale": 0.0,
+     "td_enabled": true,
+     "lr": null
+    },
+    "learning": {
+     "td_calls": 200,
+     "td_updates": 199,
+     "episode_calls": 25,
+     "episode_updates": 25,
+     "skips": {},
+     "dW_abs_sum": 34.72334408760071,
+     "reward_scale": 0.0,
+     "td_enabled": true,
+     "lr": null,
+     "resurrections": 16,
+     "ticks": 200
+    },
+    "survival": {
+     "survival_median": 36.0,
+     "ages": [
+      4,
+      10,
+      14,
+      20,
+      20,
+      36,
+      36,
+      57,
+      60,
+      61,
+      66,
+      99
+     ],
+     "censored": 0,
+     "ticks": 99
+    },
+    "elapsed_s": 3.062711715698242
+   }
+  },
+  "b_neg": {
+   "2026": {
+    "seed": 2026,
+    "arm": "b_neg",
+    "num_agents": 12,
+    "ticks_learn": 200,
+    "ticks_test": 100,
+    "lr": null,
+    "credit": {
+     "reward_scale": -1.0,
+     "td_enabled": true,
+     "lr": null
+    },
+    "learning": {
+     "td_calls": 200,
+     "td_updates": 199,
+     "episode_calls": 25,
+     "episode_updates": 25,
+     "skips": {},
+     "dW_abs_sum": 735.1249337866902,
+     "reward_scale": -1.0,
+     "td_enabled": true,
+     "lr": null,
+     "resurrections": 6,
+     "ticks": 200
+    },
+    "survival": {
+     "survival_median": 9.0,
+     "ages": [
+      6,
+      6,
+      7,
+      9,
+      9,
+      9,
+      9,
+      9,
+      10,
+      10,
+      11,
+      11
+     ],
+     "censored": 0,
+     "ticks": 11
+    },
+    "elapsed_s": 2.983369827270508
+   }
+  },
+  "b_lr": {
+   "2026": {
+    "seed": 2026,
+    "arm": "b_lr",
+    "num_agents": 12,
+    "ticks_learn": 200,
+    "ticks_test": 100,
+    "lr": 0.004,
+    "credit": {
+     "reward_scale": 1.0,
+     "td_enabled": true,
+     "lr": 0.004
+    },
+    "learning": {
+     "td_calls": 200,
+     "td_updates": 199,
+     "episode_calls": 25,
+     "episode_updates": 25,
+     "skips": {},
+     "dW_abs_sum": 265.94159492105246,
+     "reward_scale": 1.0,
+     "td_enabled": true,
+     "lr": 0.004,
+     "resurrections": 2,
+     "ticks": 200
+    },
+    "survival": {
+     "survival_median": 13.5,
+     "ages": [
+      4,
+      4,
+      10,
+      10,
+      12,
+      13,
+      14,
+      19,
+      21,
+      37,
+      53,
+      67
+     ],
+     "censored": 0,
+     "ticks": 67
+    },
+    "elapsed_s": 4.658919095993042
+   }
+  },
+  "b_tdoff": {
+   "2026": {
+    "seed": 2026,
+    "arm": "b_tdoff",
+    "num_agents": 12,
+    "ticks_learn": 200,
+    "ticks_test": 100,
+    "lr": null,
+    "credit": {
+     "reward_scale": 1.0,
+     "td_enabled": false,
+     "lr": null
+    },
+    "learning": {
+     "td_calls": 200,
+     "td_updates": 0,
+     "episode_calls": 25,
+     "episode_updates": 25,
+     "skips": {
+      "td_disabled": 200
+     },
+     "dW_abs_sum": 836.9512414932251,
+     "reward_scale": 1.0,
+     "td_enabled": false,
+     "lr": null,
+     "resurrections": 8,
+     "ticks": 200
+    },
+    "survival": {
+     "survival_median": 7.0,
+     "ages": [
+      6,
+      6,
+      6,
+      7,
+      7,
+      7,
+      7,
+      8,
+      8,
+      11,
+      12,
+      14
+     ],
+     "censored": 0,
+     "ticks": 14
+    },
+    "elapsed_s": 3.3096377849578857
+   }
+  }
+ },
+ "cost": {
+  "unit_a_frozen_s": 0.8275067806243896,
+  "unit_b_full_s": 4.648724794387817,
+  "unit_b_zero_s": 3.062711715698242,
+  "unit_b_neg_s": 2.983369827270508,
+  "unit_b_lr_s": 4.658919095993042,
+  "unit_b_tdoff_s": 3.3096377849578857,
+  "unit_s": 19.490869998931885,
+  "b_full_imported": false,
+  "projected_s": 58.472609996795654,
+  "elapsed_total_s": 28.571320056915283
+ },
+ "preflight": {
+  "seed": 2026,
+  "num_agents": 4,
+  "ticks": 32,
+  "zero_all_rewards_null": true,
+  "zero_still_updates": true,
+  "neg_first_tick_exact_negation": true,
+  "tdoff_td_never_called": true,
+  "tdoff_episodes_alive": true,
+  "lr_published_and_lower": true,
+  "lr_moves_less": true,
+  "full_updates": true,
+  "tdoff_episode_updates": 4,
+  "lr_effective": {
+   "full": 0.04,
+   "lr": 0.004
+  },
+  "dW_abs_sum": {
+   "full": 185.50076726078987,
+   "zero": 4.059942370280623,
+   "neg": 156.57922744750977,
+   "lr": 36.1725159548223,
+   "tdoff": 230.7373275756836
+  },
+  "td_updates": {
+   "full": 31,
+   "zero": 31,
+   "neg": 31,
+   "lr": 31,
+   "tdoff": 0
+  },
+  "first_td_rewards_full": [
+   2.7238006591796875,
+   2.845120906829834,
+   2.505854606628418,
+   2.2738037109375
+  ]
+ },
+ "replication": {
+  "seed": 2026,
+  "identical": false,
+  "reason": "parametres differents",
+  "p44_ages": [
+   5,
+   6,
+   6,
+   7,
+   7,
+   7,
+   7,
+   8,
+   8,
+   9,
+   9,
+   11
+  ],
+  "measured_ages": [
+   3,
+   4,
+   7,
+   7,
+   7,
+   8,
+   8,
+   9,
+   10,
+   11,
+   12,
+   14
+  ],
+  "p44_S": 7.0,
+  "measured_S": 8.0,
+  "p44_dW_abs_sum": 18242.03954219818,
+  "measured_dW_abs_sum": 1738.9083148241043,
+  "p44_git_sha": "05cf8888a47e2101a8402536f8867a60b3d661b8"
+ },
+ "rows": [
+  {
+   "seed": 2026,
+   "S_a": 31.5,
+   "S_full": 8.0,
+   "dose_full": 199,
+   "dW_full": 1738.9083148241043,
+   "resurrections_full": 0,
+   "imported_full": false,
+   "S_zero": 36.0,
+   "dose_zero": 199,
+   "dW_zero": 34.72334408760071,
+   "resurrections_zero": 16,
+   "imported_zero": false,
+   "S_neg": 9.0,
+   "dose_neg": 199,
+   "dW_neg": 735.1249337866902,
+   "resurrections_neg": 6,
+   "imported_neg": false,
+   "S_lr": 13.5,
+   "dose_lr": 199,
+   "dW_lr": 265.94159492105246,
+   "resurrections_lr": 2,
+   "imported_lr": false,
+   "S_tdoff": 7.0,
+   "dose_tdoff": 25,
+   "dW_tdoff": 836.9512414932251,
+   "resurrections_tdoff": 8,
+   "imported_tdoff": false
+  }
+ ],
+ "verdict": {
+  "n": 1,
+  "mecanisme": null,
+  "voie_td": null,
+  "pas": null,
+  "neg_etend": null,
+  "thresholds": {
+   "harness_min": 20.0,
+   "dose_min": 1000,
+   "dose_episodic_min": 100,
+   "sign_min": 10,
+   "delta_min": 5.0,
+   "n_min": 12
+  },
+  "S_a_median": 31.5,
+  "S_full_median": 8.0,
+  "S_zero_median": 36.0,
+  "S_neg_median": 9.0,
+  "S_lr_median": 13.5,
+  "S_tdoff_median": 7.0,
+  "dose_full_median": 199.0,
+  "dose_zero_median": 199.0,
+  "dose_neg_median": 199.0,
+  "dose_lr_median": 199.0,
+  "dose_tdoff_median": 25.0,
+  "d_full_median": -23.5,
+  "d_full_positive": "0/1",
+  "d_full_negative": "1/1",
+  "arm_full": "NEUTRE",
+  "d_zero_median": 4.5,
+  "d_zero_positive": "1/1",
+  "d_zero_negative": "0/1",
+  "arm_zero": "NEUTRE",
+  "d_neg_median": -22.5,
+  "d_neg_positive": "0/1",
+  "d_neg_negative": "1/1",
+  "arm_neg": "NEUTRE",
+  "d_lr_median": -18.0,
+  "d_lr_positive": "0/1",
+  "d_lr_negative": "1/1",
+  "arm_lr": "NEUTRE",
+  "d_tdoff_median": -24.5,
+  "d_tdoff_positive": "0/1",
+  "d_tdoff_negative": "1/1",
+  "arm_tdoff": "NEUTRE",
+  "dW_ratio_median": {
+   "zero": 0.019968473203323015,
+   "neg": 0.42275083023054627,
+   "lr": 0.15293594990254172,
+   "tdoff": 0.48130843607926804
+  },
+  "verdict": "INCOMPLET",
+  "why": "1 seeds < 12 : reprise, aucune lecture"
+ }
+}

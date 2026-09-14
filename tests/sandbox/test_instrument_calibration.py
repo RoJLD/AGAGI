@@ -1020,6 +1020,17 @@ CALIBRATED = {
                                 "curiosity-dead:measured", "curiosity-dead:refuses-live"],
     # Cas : tests/sandbox/test_s2_reward_ablation.py::test_run_arm_refuses_degenerate_args_before_any_world.
     "tools/evo_runs/s2_reward_ablation.py::run_arm": ["guard-before-world"],
+    # P4.9 (2026-09-15) -- lecture de la regle scellee S2-CREDIT-ABLATION, branches dans l'ORDRE impose
+    # (INCOMPLET -> HARNAIS -> DOSE (TD et episodique) -> REPLICATION -> mecanisme PAS_OU_BRUIT /
+    # SIGNAL_QUELCONQUE / SIGNE_NEGATIF + lectures secondaires voie_td / pas / ratios dW). Cas dans
+    # tests/sandbox/test_s2_credit_ablation.py ; les quatre SEAMS de credit y sont calibres a reponse connue
+    # (ce qui ATTEINT le learner d'origine : zeros, negation exacte, TD jamais appele, pas lu sur l'optimiseur)
+    # et le pre-vol a son contre-exemple (seam qui fuit -> leve).
+    "credit_ablation_verdict": ["missing:raises", "incomplet", "harnais", "dose:td", "dose:episodic", "replication",
+                                "pas_ou_bruit", "signal_quelconque", "signe_negatif", "neg_etend", "voie_td",
+                                "pas", "dW-ratio", "sign-and-delta", "seams:known-answer", "seams:refuses-leak"],
+    # Cas : tests/sandbox/test_s2_credit_ablation.py::test_run_arm_refuses_degenerate_args_before_any_world.
+    "tools/evo_runs/s2_credit_ablation.py::run_arm": ["guard-before-world"],
 }
 
 _GENOMES = os.path.join("results", "warm007_genomes")

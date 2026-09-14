@@ -95,33 +95,44 @@ REGIME = {"cognitive_demand": True, "cog_linear": False, "cog_gain": float(COG_D
           "refill_below": 30.0, "refill_to": 80.0, "hp_refill_below": 50.0, "frozen_phase2_lr": 0.0}
 
 
+def immortal_refill(e, refill_below=30.0, refill_to=80.0, hp_refill_below=50.0):
+    """Un tick d'IMMORTALITÉ après `e.step()` : énergie remise à `refill_to` sous `refill_below`, hp au
+    plafond sous `hp_refill_below`, morts intra-tick RESSUSCITÉES (rendues à `e.agents`). Renvoie le nombre
+    de résurrections de ce tick. Recette de run_learner_probe, prouvée complète 12/12 sur 2000 ticks par
+    EDR-CALIB-LEARNER ; extraite de phase1_learn_immortal (P4.9) sans changer une ligne de son effet."""
+    for a in e.agents:
+        if a["energy"] < refill_below:
+            a["energy"] = refill_to
+        if a["hp"] < hp_refill_below:
+            a["hp"] = 100.0 + float(getattr(a["model"], "phenotype_hp_bonus", 0.0))
+    dead = list(getattr(e, "dead_agents", []))
+    for a in dead:
+        a["energy"] = refill_to
+        a["hp"] = 100.0 + float(getattr(a["model"], "phenotype_hp_bonus", 0.0))
+        e.agents.append(a)
+    if dead:
+        e.dead_agents.clear()
+    return len(dead)
+
+
 def phase1_learn_immortal(agents, seed, ticks, lr=None, refill_below=30.0, refill_to=80.0,
-                          hp_refill_below=50.0, curiosity_scale=None, novelty_scale=None):
+                          hp_refill_below=50.0, curiosity_scale=None, novelty_scale=None,
+                          reward_scale=1.0, td_enabled=True):
     """Le crédit publié s'applique à `agents` (objets persistés : genome.W accumule) dans le monde
     cognitif, cohorte IMMORTELLE (même recette que run_learner_probe, prouvée complète 12/12 sur 2000
     ticks par EDR-CALIB-LEARNER). Renvoie la dose (summary de count_learning_events) et `resurrections`.
-    `curiosity_scale` / `novelty_scale` : voir `_world` (None = échelle du monde, bit-identique à P4.4)."""
+    `curiosity_scale` / `novelty_scale` : voir `_world` (None = échelle du monde, bit-identique à P4.4).
+    `reward_scale` / `td_enabled` / `lr` (P4.9, S2-CREDIT-ABLATION) : variantes de count_learning_events ;
+    les défauts (1.0, True, None) sont le chemin PUBLIÉ, bit-identique à P4.4/P4.8."""
     resurrections = 0
-    with _pinned_substrate(), count_learning_events(lr=lr) as ev:
+    with _pinned_substrate(), count_learning_events(reward_scale=reward_scale, td_enabled=td_enabled, lr=lr) as ev:
         e = _world(seed, 0, curiosity_scale=curiosity_scale, novelty_scale=novelty_scale)
         for a in agents:
             e.add_agent(a, energy=80.0)
         t = 0
         while e.agents and t < int(ticks):
             e.step()
-            for a in e.agents:
-                if a["energy"] < refill_below:
-                    a["energy"] = refill_to
-                if a["hp"] < hp_refill_below:
-                    a["hp"] = 100.0 + float(getattr(a["model"], "phenotype_hp_bonus", 0.0))
-            dead = list(getattr(e, "dead_agents", []))
-            for a in dead:
-                a["energy"] = refill_to
-                a["hp"] = 100.0 + float(getattr(a["model"], "phenotype_hp_bonus", 0.0))
-                e.agents.append(a)
-                resurrections += 1
-            if dead:
-                e.dead_agents.clear()
+            resurrections += immortal_refill(e, refill_below, refill_to, hp_refill_below)
             t += 1
         if hasattr(e, "memory_retriever"):
             e.memory_retriever.stop()

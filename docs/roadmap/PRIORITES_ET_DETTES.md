@@ -467,9 +467,17 @@ type de bras et sceller le budget sur MESURE (leçon P4.4). Pourquoi : [[EDR-S2-
 *Coût : agent 3-4 h ; calcul ~4-6 h sous bail.* Dépend de : rien.
 <!-- closes_when:path_present=docs/preregistrations/S2-REWARD-ABLATION.json -->
 
-**P4.9 — rang 4 ter (PROCHAIN RUN) — Ablation du CRÉDIT : l'érosion vient-elle du SIGNE du signal, du PAS, ou
-du TD par tick ?**
-Quoi : même dispositif que P4.4/P4.8 (bassin DAgger cloné ×12, phase immortelle 2000 ticks, test mortel 200
+**P4.9 — ✅ SCELLÉE ET LANCÉE (2026-09-15) — rang 4 ter — Ablation du CRÉDIT : l'érosion vient-elle du SIGNE du
+signal, du PAS, ou du TD par tick ?**
+État : règle `S2-CREDIT-ABLATION` scellée (10 branches ordonnées, budget 16 h dérivé des coûts P4.8, charge machine
+connue et publiée : agents parallèles), runner `tools/evo_runs/s2_credit_ablation.py` (six bras : gelé / complète
+importée sur réplication / `reward_scale` 0 / `reward_scale` −1 / `lr` 0,004 / TD coupé), quatre seams vérifiés à
+réponse connue avant le run (`preflight_credit_seams` : ce qui ATTEINT le learner d'origine), verdict calibré 16 cas.
+Pré-vol publié (32 ticks) : le bras sans signal bouge à ~2 % du complet (Σ|ΔW| 4 vs 186), le signe inversé à 84 %,
+l'épisodique seul à 124 % — la discrimination signe/pas repose donc sur le bras à signe inversé, et un NEUTRE du bras
+nul se lit avec son ratio de mouvement (règle, branche 7). Résultat → record `EDR-S2-CREDIT-ABLATION`
+(results/s2_credit_ablation.json, committé avec le record).
+Quoi (design initial) : même dispositif que P4.4/P4.8 (bassin DAgger cloné ×12, phase immortelle 2000 ticks, test mortel 200
 ticks poids gelés, n = 12, mêmes seeds, `a_frozen` re-mesuré, `b_full` importé sur réplication bit-identique),
 bras (b) décliné sur le CRÉDIT via `count_learning_events` — seams déjà calibrés par P1.6 : (b_zero)
 `reward_scale = 0` (dérive du critic seul, aucun signal) ; (b_lr) `lr = 0,004` (E19, le premier suspect
