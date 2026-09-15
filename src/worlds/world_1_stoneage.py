@@ -1282,6 +1282,13 @@ class Biosphere3D(BaseWorld):
             surprise_scale = 1.0 + surprise_val * getattr(self.config, "ttc_surprise_scale", 1.0)
 
             brain_cost = base_cost * (1.0 + np.log2(1.0 + compute_spent[i])) * night_mult * surprise_scale
+            # E28 (2026-09-15) : `max(0.0, nan)` vaut 0.0 en Python -- un brain_cost NON FINI (surprise NaN d'un
+            # World Model qui a diverge) mettait l'energie a ZERO et tuait l'agent, sans exception ni trace ;
+            # 669/669 morts d'une cohorte immortelle venaient de la. Un cout inconnu n'est pas facture : il est
+            # COMPTE (`nan_brain_cost`, publiable par les sondes) et ce tick ne coute rien au cerveau.
+            if not np.isfinite(brain_cost):
+                self.nan_brain_cost = int(getattr(self, "nan_brain_cost", 0)) + 1
+                brain_cost = 0.0
             agent["energy"] = max(0.0, agent["energy"] - float(brain_cost))
             if getattr(self.config, "trace_energy_sinks", False):
                 agent["_e_brain"] = agent["energy"]            # EDR099 : apres brain_cost

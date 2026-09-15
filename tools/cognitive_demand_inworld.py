@@ -402,13 +402,48 @@ def run_credit_linear(seed=2026, warmstart=False, eras=6, num_agents=12, max_tic
             "learning": ev.summary()}
 
 
-_LEARNER_POLICIES = ("torch", "oracle")
+_LEARNER_POLICIES = ("torch", "oracle", "legacy")
+
+
+def _cause_de_mort(agent):
+    """P2.72 (b), 2026-09-15 — la CAUSE de mort d'un agent que la cohorte immortelle ressuscite. Le monde tue
+    ssi `energy <= 0` OU `hp <= 0` (`world_1_stoneage.py`, phase de survie) ; l'énergie tombe par drain, par
+    projectile d'un pair (`energy_spent × poids`) ; les hp par la riposte du gibier et par l'attrition
+    (−1/tick sous 20 d'énergie ou de confort). Trois classes, exhaustives sur un agent mort ; un agent qui
+    n'est ni l'un ni l'autre n'est pas mort -> `AUCUNE` (crie au lieu d'inventer)."""
+    e, hp = float(agent.get("energy", 1.0)), float(agent.get("hp", 1.0))
+    if e <= 0.0 and hp <= 0.0:
+        return "les_deux"
+    if e <= 0.0:
+        return "energie_epuisee"
+    if hp <= 0.0:
+        return "hp_epuise"
+    return "AUCUNE"
+
+
+class _NoThrowMamba(object):
+    """Fabrique (P2.72 c, 2026-09-15) : sous-classe de MambaBatchModel dont `forward` force le logit de
+    LANCER (index 8, lu par le monde comme `float(logits[8]) > 0`) sous le seuil, sur la COPIE `preds` que
+    `forward` renvoie (tableau frais, jamais une vue de H) ; le crédit lit `H_prev_batch`, pas `preds`, donc
+    seule l'ACTION disparaît. Ablation chirurgicale du projectile -- même geste que `_GrabOffTorchPop`."""
+
+    @staticmethod
+    def make():
+        from src.agents.mamba_agent import MambaBatchModel
+
+        class NoThrowMamba(MambaBatchModel):
+            def forward(self, batch_obs, env_surprise_batch=None):
+                preds, spent = MambaBatchModel.forward(self, batch_obs, env_surprise_batch)
+                if getattr(preds, "ndim", 0) == 2 and preds.shape[1] > 8:
+                    preds[:, 8] = -1.0
+                return preds, spent
+        return NoThrowMamba
 
 
 def run_learner_probe(seed=2026, num_agents=12, ticks=2000, block=400, policy="torch",
                       reward_scale=1.0, td_enabled=True, lr=None,
                       base_metabolism=0.75, cog_gain=12.0, immortal=True,
-                      refill_below=30.0, refill_to=80.0, hp_refill_below=50.0):
+                      refill_below=30.0, refill_to=80.0, hp_refill_below=50.0, no_throw=False):
     """P1.6 — CONTRÔLE POSITIF de l'APPRENANT in-world, à DOSE PUBLIÉE (backlog, bloc « 🧭 2026-09-14 »).
 
     Ce que ce dépôt appelait « le crédit n'apprend pas à froid » (S2-009 §crédit, S2-010, S2-011) était
@@ -433,13 +468,19 @@ def run_learner_probe(seed=2026, num_agents=12, ticks=2000, block=400, policy="t
     la DV). `policy="torch"` : l'apprenant tel que le monde le construit (`use_torch_inworld`), avec ses
     variantes déclarées : `reward_scale`, `td_enabled`, `lr` (`lr=0.0` = le bras qui ne peut RIEN
     apprendre — le plafond de l'incapable, mesuré dans CE dispositif, jamais importé).
+    `policy="legacy"` (P3.4, 2026-09-15) : l'apprenant LEGACY, `MambaBatchModel.compute_policy_gradient`
+    (Actor-Critic TD(0) numpy, `use_torch_inworld=False`, modèle recréé à chaque tick) — le chemin actif
+    pendant tout l'arc EVO ; mêmes variantes, même compteur (`legacy_calls` / `legacy_updates`).
+    `no_throw=True` (P2.72 c, legacy seulement) : le logit de LANCER est forcé sous le seuil sur la copie de
+    sortie -> aucun projectile, rien d'autre ne change. Sert à départager « tué par un pair » de « tué par le
+    drain » : la cause de mort est l'énergie à 100 % (LEGACY-CAUSE-DE-MORT-R1).
 
     Renvoie un dict publiable : `blocks` (tick, n_agents, hit_rate, n_decisions), `hit_first`, `hit_last`,
     `chance` (1/8 : 8 logits de déplacement), `learning` (dose et variante), `regime` (les valeurs de
     configuration RÉELLEMENT posées — jamais recopiées d'un record, E8 occ. 4)."""
     # GARDE D'ARGUMENTS, EN TÊTE, AVANT toute construction (refus < 0.5 s).
     if (int(num_agents) <= 0 or int(ticks) <= 0 or int(block) <= 0
-            or policy not in _LEARNER_POLICIES):
+            or policy not in _LEARNER_POLICIES or (no_throw and policy != "legacy")):
         raise ValueError(
             f"run_learner_probe : argument degenere (num_agents={num_agents}, ticks={ticks}, block={block}, "
             f"policy={policy!r}) -- aucune mesure possible ; ne pas confondre avec une mesure nulle OBSERVEE.")
@@ -448,12 +489,22 @@ def run_learner_probe(seed=2026, num_agents=12, ticks=2000, block=400, policy="t
     from src.agents.mamba_agent import MambaAgent
     from tools.learning_events import count_learning_events
 
-    regime = {"cognitive_demand": True, "cog_linear": True, "cog_gain": float(cog_gain),
+    regime = {"cognitive_demand": True, "cog_linear": True, "cog_gain": float(cog_gain), "no_throw": bool(no_throw),
               "base_metabolism": float(base_metabolism), "forage_payoff": 0.0,
               "benchmark_mode": True, "night_enabled": False, "immortal": bool(immortal),
               "refill_below": float(refill_below), "refill_to": float(refill_to),
               "hp_refill_below": float(hp_refill_below), "energy_start": 80.0}
     lz = _acquire_kuzu("learner-probe")
+    # E12/E13 (2026-09-16) : l'async_logger poussait UN AGENT_THOUGHT par agent et par tick dans KuzuDB (210 243
+    # emissions sur un run de 60 cellules) ; une cellule a tourne > 3 h a 1,7 Go la ou ses soeurs prenaient
+    # 2-3 min. Le logger ne nourrit PAS le monde (memory_retriever arrete -> in_mem = 0) : il est neutralise
+    # AVANT la creation du monde, comme le fait `tools.evo_memory_inworld._disable_kuzu` (regle CLAUDE.md).
+    # `count_learning_events` enveloppe `emit` APRES ce point et continue de compter TORCH_EPISODE_SKIP.
+    from src.graph_rag.async_logger import logger as _al
+    _al._running = False
+    _al.start = lambda *a, **k: None
+    _al.emit = lambda *a, **k: None
+    _al.emit_sync = lambda *a, **k: False
     try:
         with _pinned_substrate(), count_learning_events(reward_scale=reward_scale,
                                                         td_enabled=td_enabled, lr=lr) as ev:
@@ -470,6 +521,10 @@ def run_learner_probe(seed=2026, num_agents=12, ticks=2000, block=400, policy="t
             if policy == "oracle":
                 e.batch_model_cls = LinearCognitiveOracle
                 e.use_torch_inworld = False
+            elif policy == "legacy":
+                e.use_torch_inworld = False           # MambaBatchModel, recree a chaque tick
+                if no_throw:
+                    e.batch_model_cls = _NoThrowMamba.make()
             else:
                 e.use_torch_inworld = True
             if hasattr(e, "memory_retriever"):       # AVANT la boucle (EDR-INFRA-001)
@@ -479,7 +534,13 @@ def run_learner_probe(seed=2026, num_agents=12, ticks=2000, block=400, policy="t
                 e.add_agent(MambaAgent(), energy=80.0)
             regime["torch_episode_k"] = int(getattr(e, "torch_episode_k", -1))
             hits, n, blocks, t, resurrections = 0, 0, [], 0, 0
+            from src.agents.world_model import WorldModel as _WM
+            _wm_resets0 = int(getattr(_WM, "nonfinite_resets", 0))     # E28 : remises a zero du World Model
+            cause_de_mort = {"energie_epuisee": 0, "hp_epuise": 0, "les_deux": 0, "AUCUNE": 0}
+            morts_w_non_fini = 0                          # E28 : morts d'agents dont W n'est plus fini
+            pertes_a_la_mort = []                      # P2.72 c : energie au debut du tick - energie a la mort
             while e.agents and t < int(ticks):
+                _avant = {id(a): float(a["energy"]) for a in e.agents}
                 e.step()
                 for a in e.agents:
                     sig = a.get("_cog_sig")
@@ -495,6 +556,11 @@ def run_learner_probe(seed=2026, num_agents=12, ticks=2000, block=400, policy="t
                 if immortal:
                     dead = list(getattr(e, "dead_agents", []))
                     for a in dead:                     # mort DANS le tick : ressuscite, meme objet
+                        cause_de_mort[_cause_de_mort(a)] += 1     # P2.72 (b) : compte AVANT la recharge
+                        if not np.all(np.isfinite(np.asarray(a["model"].genome.W, dtype=np.float64))):
+                            morts_w_non_fini += 1
+                        if id(a) in _avant:
+                            pertes_a_la_mort.append(round(_avant[id(a)] - float(a["energy"]), 2))
                         a["energy"] = refill_to
                         a["hp"] = 100.0 + float(getattr(a["model"], "phenotype_hp_bonus", 0.0))
                         e.agents.append(a)
@@ -511,6 +577,7 @@ def run_learner_probe(seed=2026, num_agents=12, ticks=2000, block=400, policy="t
                                    "hit_rate": hits / n, "n_decisions": int(n)})
                     hits, n = 0, 0
             deaths = int(num_agents) - len(e.agents)
+            nan_skips = int(sum(int(getattr(a["model"], "_td_nan_skips", 0)) for a in list(e.agents) + list(getattr(e, "dead_agents", []))))
             if hasattr(e, "memory_retriever"):
                 e.memory_retriever.stop()
     finally:
@@ -519,7 +586,14 @@ def run_learner_probe(seed=2026, num_agents=12, ticks=2000, block=400, policy="t
         raise ValueError("run_learner_probe : aucun bloc mesure (cohorte eteinte avant le premier bloc).")
     return {"policy": policy, "immortal": bool(immortal), "seed": int(seed), "ticks": int(ticks),
             "block": int(block), "num_agents": int(num_agents), "chance": 1.0 / 8.0, "deaths": deaths,
-            "resurrections": int(resurrections),
+            "resurrections": int(resurrections), "cause_de_mort": cause_de_mort,
+            "morts_w_non_fini": int(morts_w_non_fini), "nan_skips": nan_skips,      # E28
+            "wm_resets": int(getattr(_WM, "nonfinite_resets", 0)) - _wm_resets0,
+            "nan_brain_cost": int(getattr(e, "nan_brain_cost", 0)),                   # E28, garde du monde
+            "pertes_a_la_mort": {"n": len(pertes_a_la_mort),
+                                 "mediane": (float(np.median(pertes_a_la_mort)) if pertes_a_la_mort else None),
+                                 "min": (min(pertes_a_la_mort) if pertes_a_la_mort else None),
+                                 "max": (max(pertes_a_la_mort) if pertes_a_la_mort else None)},
             "blocks": blocks, "hit_first": blocks[0]["hit_rate"], "hit_last": blocks[-1]["hit_rate"],
             "learning": ev.summary(), "regime": regime}
 

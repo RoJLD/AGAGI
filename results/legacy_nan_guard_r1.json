@@ -1,0 +1,1039 @@
+{
+ "_design": {
+  "question": "Diagnostic n=1 (2026-09-15, 200 ticks, seed 2026, natural lr 0,04) : 669/669 morts de la cohorte immortelle avaient un surprise_momentum NON FINI et 663/669 un W NON FINI ; le puits 'brain' portait 71 % de l'energie perdue (0 % a lr=0) ; le monde fait energy = max(0.0, energy - brain_cost) et max(0.0, nan) = 0.0. Avec la garde E28 (un dW non fini est COMPTE et SAUTE, W reste fini), la letalite et l'instabilite du pas publie disparaissent-elles a n=12 ?",
+  "replication_unit": "seed (une cohorte immortelle de 12 agents, un monde par seed)",
+  "n_independent": 12,
+  "links": {
+   "resurrections_avec_garde": "measured",
+   "nan_skips": "measured",
+   "morts_w_non_fini": "measured",
+   "resurrections_sans_garde": "inferred",
+   "plafond_incapable_lr0": "inferred"
+  },
+  "inferred_links": [
+   "resurrections_sans_garde",
+   "plafond_incapable_lr0"
+  ],
+  "cost_estimate": "12 cellules x 25-80 s -> ~10 min sous bail ; results/legacy_nan_guard_r1.json",
+  "inferred_reason": "les cellules SANS garde (natural, lr0) sont IMPORT\u00c9ES du JSON de P3.4 : m\u00eames seeds, m\u00eame monde, bit-identiques par construction (d\u00e9terminisme par seed v\u00e9rifi\u00e9 par LEGACY-CAUSE-DE-MORT-R1) ; le risque est born\u00e9 par l'appariement",
+  "control_family": {
+   "cells": 12,
+   "alpha_family": 0.05,
+   "alpha_cell": 0.004166666666666667,
+   "method": "bonferroni",
+   "reason": null,
+   "fwer_bound": 0.05
+  },
+  "warning": "2 maillon(s) INF\u00c9R\u00c9(S) : ['resurrections_sans_garde', 'plafond_incapable_lr0']. Une cha\u00eene causale transporte son signe, pas son amplitude \u2014 v\u00e9rifier que le r\u00e9gime place l'effet au-dessus du bruit, ou mesurer \u00e0 n r\u00e9duit."
+ },
+ "seed=2026": {
+  "policy": "legacy",
+  "immortal": true,
+  "seed": 2026,
+  "ticks": 2000,
+  "block": 400,
+  "num_agents": 12,
+  "chance": 0.125,
+  "deaths": 0,
+  "resurrections": 15006,
+  "cause_de_mort": {
+   "energie_epuisee": 15006,
+   "hp_epuise": 0,
+   "les_deux": 0,
+   "AUCUNE": 0
+  },
+  "morts_w_non_fini": 0,
+  "nan_skips": 15005,
+  "pertes_a_la_mort": {
+   "n": 15006,
+   "mediane": 92.88,
+   "min": 43.52,
+   "max": 94.3
+  },
+  "blocks": [
+   {
+    "tick": 400,
+    "n_agents": 12,
+    "hit_rate": 0.3562066306861989,
+    "n_decisions": 2594
+   },
+   {
+    "tick": 800,
+    "n_agents": 12,
+    "hit_rate": 0.47125,
+    "n_decisions": 1600
+   },
+   {
+    "tick": 1200,
+    "n_agents": 12,
+    "hit_rate": 0.504375,
+    "n_decisions": 1600
+   },
+   {
+    "tick": 1600,
+    "n_agents": 12,
+    "hit_rate": 0.515625,
+    "n_decisions": 1600
+   },
+   {
+    "tick": 2000,
+    "n_agents": 12,
+    "hit_rate": 0.506875,
+    "n_decisions": 1600
+   }
+  ],
+  "hit_first": 0.3562066306861989,
+  "hit_last": 0.506875,
+  "learning": {
+   "td_calls": 0,
+   "td_updates": 0,
+   "episode_calls": 0,
+   "episode_updates": 0,
+   "legacy_calls": 2000,
+   "legacy_updates": 1999,
+   "skips": {},
+   "dW_abs_sum": 126415.66995989578,
+   "reward_scale": 1.0,
+   "td_enabled": true,
+   "lr": null
+  },
+  "regime": {
+   "cognitive_demand": true,
+   "cog_linear": true,
+   "cog_gain": 12.0,
+   "no_throw": false,
+   "base_metabolism": 0.75,
+   "forage_payoff": 0.0,
+   "benchmark_mode": true,
+   "night_enabled": false,
+   "immortal": true,
+   "refill_below": 30.0,
+   "refill_to": 80.0,
+   "hp_refill_below": 50.0,
+   "energy_start": 80.0,
+   "torch_episode_k": 8
+  },
+  "elapsed_s": 21.865395307540894
+ },
+ "_provenance": [
+  {
+   "git_sha": "02958d955d462cb7414ef5f2457b6a4816270e72",
+   "dirty": true,
+   "rule": "LEGACY-NAN-GUARD-R1",
+   "seal": "9dad0765fdb97acf17e2dd58b3e3a6810e5d791998703495e8f7a98e76c64ea1"
+  }
+ ],
+ "seed=2027": {
+  "policy": "legacy",
+  "immortal": true,
+  "seed": 2027,
+  "ticks": 2000,
+  "block": 400,
+  "num_agents": 12,
+  "chance": 0.125,
+  "deaths": 0,
+  "resurrections": 20198,
+  "cause_de_mort": {
+   "energie_epuisee": 20198,
+   "hp_epuise": 0,
+   "les_deux": 0,
+   "AUCUNE": 0
+  },
+  "morts_w_non_fini": 0,
+  "nan_skips": 20174,
+  "pertes_a_la_mort": {
+   "n": 20198,
+   "mediane": 92.88,
+   "min": 40.28,
+   "max": 135.26
+  },
+  "blocks": [
+   {
+    "tick": 400,
+    "n_agents": 12,
+    "hit_rate": 0.2073170731707317,
+    "n_decisions": 2132
+   },
+   {
+    "tick": 800,
+    "n_agents": 12,
+    "hit_rate": 0.0851063829787234,
+    "n_decisions": 470
+   },
+   {
+    "tick": 1200,
+    "n_agents": 12,
+    "hit_rate": 0.0,
+    "n_decisions": 400
+   },
+   {
+    "tick": 1600,
+    "n_agents": 12,
+    "hit_rate": 0.0,
+    "n_decisions": 400
+   },
+   {
+    "tick": 2000,
+    "n_agents": 12,
+    "hit_rate": 0.0,
+    "n_decisions": 400
+   }
+  ],
+  "hit_first": 0.2073170731707317,
+  "hit_last": 0.0,
+  "learning": {
+   "td_calls": 0,
+   "td_updates": 0,
+   "episode_calls": 0,
+   "episode_updates": 0,
+   "legacy_calls": 2000,
+   "legacy_updates": 1999,
+   "skips": {},
+   "dW_abs_sum": 313512.8583263904,
+   "reward_scale": 1.0,
+   "td_enabled": true,
+   "lr": null
+  },
+  "regime": {
+   "cognitive_demand": true,
+   "cog_linear": true,
+   "cog_gain": 12.0,
+   "no_throw": false,
+   "base_metabolism": 0.75,
+   "forage_payoff": 0.0,
+   "benchmark_mode": true,
+   "night_enabled": false,
+   "immortal": true,
+   "refill_below": 30.0,
+   "refill_to": 80.0,
+   "hp_refill_below": 50.0,
+   "energy_start": 80.0,
+   "torch_episode_k": 8
+  },
+  "elapsed_s": 19.971482753753662
+ },
+ "seed=2028": {
+  "policy": "legacy",
+  "immortal": true,
+  "seed": 2028,
+  "ticks": 2000,
+  "block": 400,
+  "num_agents": 12,
+  "chance": 0.125,
+  "deaths": 0,
+  "resurrections": 18265,
+  "cause_de_mort": {
+   "energie_epuisee": 18265,
+   "hp_epuise": 0,
+   "les_deux": 0,
+   "AUCUNE": 0
+  },
+  "morts_w_non_fini": 0,
+  "nan_skips": 18238,
+  "pertes_a_la_mort": {
+   "n": 18265,
+   "mediane": 93.11,
+   "min": 38.61,
+   "max": 150.45
+  },
+  "blocks": [
+   {
+    "tick": 400,
+    "n_agents": 12,
+    "hit_rate": 0.1599501454092231,
+    "n_decisions": 2407
+   },
+   {
+    "tick": 800,
+    "n_agents": 12,
+    "hit_rate": 0.15583333333333332,
+    "n_decisions": 1200
+   },
+   {
+    "tick": 1200,
+    "n_agents": 12,
+    "hit_rate": 0.16083333333333333,
+    "n_decisions": 1200
+   },
+   {
+    "tick": 1600,
+    "n_agents": 12,
+    "hit_rate": 0.16440422322775264,
+    "n_decisions": 663
+   },
+   {
+    "tick": 2000,
+    "n_agents": 12,
+    "hit_rate": 0.0037735849056603774,
+    "n_decisions": 265
+   }
+  ],
+  "hit_first": 0.1599501454092231,
+  "hit_last": 0.0037735849056603774,
+  "learning": {
+   "td_calls": 0,
+   "td_updates": 0,
+   "episode_calls": 0,
+   "episode_updates": 0,
+   "legacy_calls": 2000,
+   "legacy_updates": 1864,
+   "skips": {},
+   "dW_abs_sum": 271553.18500541896,
+   "reward_scale": 1.0,
+   "td_enabled": true,
+   "lr": null
+  },
+  "regime": {
+   "cognitive_demand": true,
+   "cog_linear": true,
+   "cog_gain": 12.0,
+   "no_throw": false,
+   "base_metabolism": 0.75,
+   "forage_payoff": 0.0,
+   "benchmark_mode": true,
+   "night_enabled": false,
+   "immortal": true,
+   "refill_below": 30.0,
+   "refill_to": 80.0,
+   "hp_refill_below": 50.0,
+   "energy_start": 80.0,
+   "torch_episode_k": 8
+  },
+  "elapsed_s": 19.692913055419922
+ },
+ "seed=2029": {
+  "policy": "legacy",
+  "immortal": true,
+  "seed": 2029,
+  "ticks": 2000,
+  "block": 400,
+  "num_agents": 12,
+  "chance": 0.125,
+  "deaths": 0,
+  "resurrections": 19906,
+  "cause_de_mort": {
+   "energie_epuisee": 19906,
+   "hp_epuise": 0,
+   "les_deux": 0,
+   "AUCUNE": 0
+  },
+  "morts_w_non_fini": 0,
+  "nan_skips": 19901,
+  "pertes_a_la_mort": {
+   "n": 19906,
+   "mediane": 92.31,
+   "min": 35.26,
+   "max": 104.31
+  },
+  "blocks": [
+   {
+    "tick": 400,
+    "n_agents": 12,
+    "hit_rate": 0.13714285714285715,
+    "n_decisions": 2450
+   },
+   {
+    "tick": 800,
+    "n_agents": 12,
+    "hit_rate": 0.04279279279279279,
+    "n_decisions": 444
+   },
+   {
+    "tick": 1200,
+    "n_agents": 12,
+    "hit_rate": 0.0,
+    "n_decisions": 400
+   },
+   {
+    "tick": 1600,
+    "n_agents": 12,
+    "hit_rate": 0.0,
+    "n_decisions": 400
+   },
+   {
+    "tick": 2000,
+    "n_agents": 12,
+    "hit_rate": 0.0,
+    "n_decisions": 400
+   }
+  ],
+  "hit_first": 0.13714285714285715,
+  "hit_last": 0.0,
+  "learning": {
+   "td_calls": 0,
+   "td_updates": 0,
+   "episode_calls": 0,
+   "episode_updates": 0,
+   "legacy_calls": 2000,
+   "legacy_updates": 1999,
+   "skips": {},
+   "dW_abs_sum": 148665.62430850975,
+   "reward_scale": 1.0,
+   "td_enabled": true,
+   "lr": null
+  },
+  "regime": {
+   "cognitive_demand": true,
+   "cog_linear": true,
+   "cog_gain": 12.0,
+   "no_throw": false,
+   "base_metabolism": 0.75,
+   "forage_payoff": 0.0,
+   "benchmark_mode": true,
+   "night_enabled": false,
+   "immortal": true,
+   "refill_below": 30.0,
+   "refill_to": 80.0,
+   "hp_refill_below": 50.0,
+   "energy_start": 80.0,
+   "torch_episode_k": 8
+  },
+  "elapsed_s": 21.46483564376831
+ },
+ "seed=2030": {
+  "policy": "legacy",
+  "seed": 2030,
+  "erreur": "run_learner_probe : bloc se terminant au tick 800 SANS aucune decision -- la DV n'est pas mesurable (cohorte eteinte ?), aucun taux n'est fabrique.",
+  "hit_first": null,
+  "hit_last": null,
+  "blocks": [],
+  "learning": null,
+  "elapsed_s": 9.727915525436401
+ },
+ "seed=2031": {
+  "policy": "legacy",
+  "immortal": true,
+  "seed": 2031,
+  "ticks": 2000,
+  "block": 400,
+  "num_agents": 12,
+  "chance": 0.125,
+  "deaths": 0,
+  "resurrections": 15448,
+  "cause_de_mort": {
+   "energie_epuisee": 15448,
+   "hp_epuise": 0,
+   "les_deux": 0,
+   "AUCUNE": 0
+  },
+  "morts_w_non_fini": 0,
+  "nan_skips": 15441,
+  "pertes_a_la_mort": {
+   "n": 15448,
+   "mediane": 92.95,
+   "min": 52.04,
+   "max": 96.97
+  },
+  "blocks": [
+   {
+    "tick": 400,
+    "n_agents": 12,
+    "hit_rate": 0.3786440677966102,
+    "n_decisions": 2950
+   },
+   {
+    "tick": 800,
+    "n_agents": 12,
+    "hit_rate": 0.48875,
+    "n_decisions": 1600
+   },
+   {
+    "tick": 1200,
+    "n_agents": 12,
+    "hit_rate": 0.495,
+    "n_decisions": 1600
+   },
+   {
+    "tick": 1600,
+    "n_agents": 12,
+    "hit_rate": 0.5241264559068219,
+    "n_decisions": 1202
+   },
+   {
+    "tick": 2000,
+    "n_agents": 12,
+    "hit_rate": 0.5125,
+    "n_decisions": 1200
+   }
+  ],
+  "hit_first": 0.3786440677966102,
+  "hit_last": 0.5125,
+  "learning": {
+   "td_calls": 0,
+   "td_updates": 0,
+   "episode_calls": 0,
+   "episode_updates": 0,
+   "legacy_calls": 2000,
+   "legacy_updates": 1999,
+   "skips": {},
+   "dW_abs_sum": 101405.05734178948,
+   "reward_scale": 1.0,
+   "td_enabled": true,
+   "lr": null
+  },
+  "regime": {
+   "cognitive_demand": true,
+   "cog_linear": true,
+   "cog_gain": 12.0,
+   "no_throw": false,
+   "base_metabolism": 0.75,
+   "forage_payoff": 0.0,
+   "benchmark_mode": true,
+   "night_enabled": false,
+   "immortal": true,
+   "refill_below": 30.0,
+   "refill_to": 80.0,
+   "hp_refill_below": 50.0,
+   "energy_start": 80.0,
+   "torch_episode_k": 8
+  },
+  "elapsed_s": 20.76915979385376
+ },
+ "seed=2032": {
+  "policy": "legacy",
+  "immortal": true,
+  "seed": 2032,
+  "ticks": 2000,
+  "block": 400,
+  "num_agents": 12,
+  "chance": 0.125,
+  "deaths": 0,
+  "resurrections": 20518,
+  "cause_de_mort": {
+   "energie_epuisee": 20518,
+   "hp_epuise": 0,
+   "les_deux": 0,
+   "AUCUNE": 0
+  },
+  "morts_w_non_fini": 0,
+  "nan_skips": 20484,
+  "pertes_a_la_mort": {
+   "n": 20518,
+   "mediane": 92.91,
+   "min": 31.63,
+   "max": 160.95
+  },
+  "blocks": [
+   {
+    "tick": 400,
+    "n_agents": 12,
+    "hit_rate": 0.13336875664187034,
+    "n_decisions": 1882
+   },
+   {
+    "tick": 800,
+    "n_agents": 12,
+    "hit_rate": 0.0,
+    "n_decisions": 400
+   },
+   {
+    "tick": 1200,
+    "n_agents": 12,
+    "hit_rate": 0.0,
+    "n_decisions": 400
+   },
+   {
+    "tick": 1600,
+    "n_agents": 12,
+    "hit_rate": 0.0,
+    "n_decisions": 400
+   },
+   {
+    "tick": 2000,
+    "n_agents": 12,
+    "hit_rate": 0.0,
+    "n_decisions": 400
+   }
+  ],
+  "hit_first": 0.13336875664187034,
+  "hit_last": 0.0,
+  "learning": {
+   "td_calls": 0,
+   "td_updates": 0,
+   "episode_calls": 0,
+   "episode_updates": 0,
+   "legacy_calls": 2000,
+   "legacy_updates": 1999,
+   "skips": {},
+   "dW_abs_sum": 161223.89185873233,
+   "reward_scale": 1.0,
+   "td_enabled": true,
+   "lr": null
+  },
+  "regime": {
+   "cognitive_demand": true,
+   "cog_linear": true,
+   "cog_gain": 12.0,
+   "no_throw": false,
+   "base_metabolism": 0.75,
+   "forage_payoff": 0.0,
+   "benchmark_mode": true,
+   "night_enabled": false,
+   "immortal": true,
+   "refill_below": 30.0,
+   "refill_to": 80.0,
+   "hp_refill_below": 50.0,
+   "energy_start": 80.0,
+   "torch_episode_k": 8
+  },
+  "elapsed_s": 21.196475982666016
+ },
+ "seed=2033": {
+  "policy": "legacy",
+  "immortal": true,
+  "seed": 2033,
+  "ticks": 2000,
+  "block": 400,
+  "num_agents": 12,
+  "chance": 0.125,
+  "deaths": 0,
+  "resurrections": 15067,
+  "cause_de_mort": {
+   "energie_epuisee": 15067,
+   "hp_epuise": 0,
+   "les_deux": 0,
+   "AUCUNE": 0
+  },
+  "morts_w_non_fini": 0,
+  "nan_skips": 14822,
+  "pertes_a_la_mort": {
+   "n": 15067,
+   "mediane": 82.16,
+   "min": 36.9,
+   "max": 94.16
+  },
+  "blocks": [
+   {
+    "tick": 400,
+    "n_agents": 12,
+    "hit_rate": 0.26460859977949286,
+    "n_decisions": 2721
+   },
+   {
+    "tick": 800,
+    "n_agents": 12,
+    "hit_rate": 0.2950290510006456,
+    "n_decisions": 1549
+   },
+   {
+    "tick": 1200,
+    "n_agents": 12,
+    "hit_rate": 0.29419354838709677,
+    "n_decisions": 1550
+   },
+   {
+    "tick": 1600,
+    "n_agents": 12,
+    "hit_rate": 0.289002557544757,
+    "n_decisions": 1564
+   },
+   {
+    "tick": 2000,
+    "n_agents": 12,
+    "hit_rate": 0.2956746287927695,
+    "n_decisions": 1549
+   }
+  ],
+  "hit_first": 0.26460859977949286,
+  "hit_last": 0.2956746287927695,
+  "learning": {
+   "td_calls": 0,
+   "td_updates": 0,
+   "episode_calls": 0,
+   "episode_updates": 0,
+   "legacy_calls": 2000,
+   "legacy_updates": 1999,
+   "skips": {},
+   "dW_abs_sum": 2062450.8438894693,
+   "reward_scale": 1.0,
+   "td_enabled": true,
+   "lr": null
+  },
+  "regime": {
+   "cognitive_demand": true,
+   "cog_linear": true,
+   "cog_gain": 12.0,
+   "no_throw": false,
+   "base_metabolism": 0.75,
+   "forage_payoff": 0.0,
+   "benchmark_mode": true,
+   "night_enabled": false,
+   "immortal": true,
+   "refill_below": 30.0,
+   "refill_to": 80.0,
+   "hp_refill_below": 50.0,
+   "energy_start": 80.0,
+   "torch_episode_k": 8
+  },
+  "elapsed_s": 22.358336925506592
+ },
+ "seed=2034": {
+  "policy": "legacy",
+  "immortal": true,
+  "seed": 2034,
+  "ticks": 2000,
+  "block": 400,
+  "num_agents": 12,
+  "chance": 0.125,
+  "deaths": 0,
+  "resurrections": 16949,
+  "cause_de_mort": {
+   "energie_epuisee": 16949,
+   "hp_epuise": 0,
+   "les_deux": 0,
+   "AUCUNE": 0
+  },
+  "morts_w_non_fini": 0,
+  "nan_skips": 16939,
+  "pertes_a_la_mort": {
+   "n": 16949,
+   "mediane": 93.27,
+   "min": 31.58,
+   "max": 114.83
+  },
+  "blocks": [
+   {
+    "tick": 400,
+    "n_agents": 12,
+    "hit_rate": 0.22834295868502888,
+    "n_decisions": 2251
+   },
+   {
+    "tick": 800,
+    "n_agents": 12,
+    "hit_rate": 0.3283333333333333,
+    "n_decisions": 1200
+   },
+   {
+    "tick": 1200,
+    "n_agents": 12,
+    "hit_rate": 0.3225,
+    "n_decisions": 1200
+   },
+   {
+    "tick": 1600,
+    "n_agents": 12,
+    "hit_rate": 0.35,
+    "n_decisions": 1200
+   },
+   {
+    "tick": 2000,
+    "n_agents": 12,
+    "hit_rate": 0.3016666666666667,
+    "n_decisions": 1200
+   }
+  ],
+  "hit_first": 0.22834295868502888,
+  "hit_last": 0.3016666666666667,
+  "learning": {
+   "td_calls": 0,
+   "td_updates": 0,
+   "episode_calls": 0,
+   "episode_updates": 0,
+   "legacy_calls": 2000,
+   "legacy_updates": 1999,
+   "skips": {},
+   "dW_abs_sum": 954410.9150881134,
+   "reward_scale": 1.0,
+   "td_enabled": true,
+   "lr": null
+  },
+  "regime": {
+   "cognitive_demand": true,
+   "cog_linear": true,
+   "cog_gain": 12.0,
+   "no_throw": false,
+   "base_metabolism": 0.75,
+   "forage_payoff": 0.0,
+   "benchmark_mode": true,
+   "night_enabled": false,
+   "immortal": true,
+   "refill_below": 30.0,
+   "refill_to": 80.0,
+   "hp_refill_below": 50.0,
+   "energy_start": 80.0,
+   "torch_episode_k": 8
+  },
+  "elapsed_s": 22.428356885910034
+ },
+ "seed=2035": {
+  "policy": "legacy",
+  "immortal": true,
+  "seed": 2035,
+  "ticks": 2000,
+  "block": 400,
+  "num_agents": 12,
+  "chance": 0.125,
+  "deaths": 0,
+  "resurrections": 20337,
+  "cause_de_mort": {
+   "energie_epuisee": 20337,
+   "hp_epuise": 0,
+   "les_deux": 0,
+   "AUCUNE": 0
+  },
+  "morts_w_non_fini": 0,
+  "nan_skips": 20320,
+  "pertes_a_la_mort": {
+   "n": 20337,
+   "mediane": 93.07,
+   "min": 36.12,
+   "max": 121.74
+  },
+  "blocks": [
+   {
+    "tick": 400,
+    "n_agents": 12,
+    "hit_rate": 0.27529923830250275,
+    "n_decisions": 1838
+   },
+   {
+    "tick": 800,
+    "n_agents": 12,
+    "hit_rate": 0.4656,
+    "n_decisions": 625
+   },
+   {
+    "tick": 1200,
+    "n_agents": 12,
+    "hit_rate": 0.4925,
+    "n_decisions": 400
+   },
+   {
+    "tick": 1600,
+    "n_agents": 12,
+    "hit_rate": 0.4975,
+    "n_decisions": 400
+   },
+   {
+    "tick": 2000,
+    "n_agents": 12,
+    "hit_rate": 0.4875,
+    "n_decisions": 400
+   }
+  ],
+  "hit_first": 0.27529923830250275,
+  "hit_last": 0.4875,
+  "learning": {
+   "td_calls": 0,
+   "td_updates": 0,
+   "episode_calls": 0,
+   "episode_updates": 0,
+   "legacy_calls": 2000,
+   "legacy_updates": 1999,
+   "skips": {},
+   "dW_abs_sum": 245810.42629101127,
+   "reward_scale": 1.0,
+   "td_enabled": true,
+   "lr": null
+  },
+  "regime": {
+   "cognitive_demand": true,
+   "cog_linear": true,
+   "cog_gain": 12.0,
+   "no_throw": false,
+   "base_metabolism": 0.75,
+   "forage_payoff": 0.0,
+   "benchmark_mode": true,
+   "night_enabled": false,
+   "immortal": true,
+   "refill_below": 30.0,
+   "refill_to": 80.0,
+   "hp_refill_below": 50.0,
+   "energy_start": 80.0,
+   "torch_episode_k": 8
+  },
+  "elapsed_s": 21.551666259765625
+ },
+ "seed=2036": {
+  "policy": "legacy",
+  "immortal": true,
+  "seed": 2036,
+  "ticks": 2000,
+  "block": 400,
+  "num_agents": 12,
+  "chance": 0.125,
+  "deaths": 0,
+  "resurrections": 18801,
+  "cause_de_mort": {
+   "energie_epuisee": 18801,
+   "hp_epuise": 0,
+   "les_deux": 0,
+   "AUCUNE": 0
+  },
+  "morts_w_non_fini": 0,
+  "nan_skips": 18778,
+  "pertes_a_la_mort": {
+   "n": 18801,
+   "mediane": 93.35,
+   "min": 35.4,
+   "max": 137.08
+  },
+  "blocks": [
+   {
+    "tick": 400,
+    "n_agents": 12,
+    "hit_rate": 0.14989939637826963,
+    "n_decisions": 1988
+   },
+   {
+    "tick": 800,
+    "n_agents": 12,
+    "hit_rate": 0.25770653514180025,
+    "n_decisions": 811
+   },
+   {
+    "tick": 1200,
+    "n_agents": 12,
+    "hit_rate": 0.25375,
+    "n_decisions": 800
+   },
+   {
+    "tick": 1600,
+    "n_agents": 12,
+    "hit_rate": 0.26375,
+    "n_decisions": 800
+   },
+   {
+    "tick": 2000,
+    "n_agents": 12,
+    "hit_rate": 0.24875,
+    "n_decisions": 800
+   }
+  ],
+  "hit_first": 0.14989939637826963,
+  "hit_last": 0.24875,
+  "learning": {
+   "td_calls": 0,
+   "td_updates": 0,
+   "episode_calls": 0,
+   "episode_updates": 0,
+   "legacy_calls": 2000,
+   "legacy_updates": 1999,
+   "skips": {},
+   "dW_abs_sum": 243265.05899730138,
+   "reward_scale": 1.0,
+   "td_enabled": true,
+   "lr": null
+  },
+  "regime": {
+   "cognitive_demand": true,
+   "cog_linear": true,
+   "cog_gain": 12.0,
+   "no_throw": false,
+   "base_metabolism": 0.75,
+   "forage_payoff": 0.0,
+   "benchmark_mode": true,
+   "night_enabled": false,
+   "immortal": true,
+   "refill_below": 30.0,
+   "refill_to": 80.0,
+   "hp_refill_below": 50.0,
+   "energy_start": 80.0,
+   "torch_episode_k": 8
+  },
+  "elapsed_s": 22.763445615768433
+ },
+ "seed=2037": {
+  "policy": "legacy",
+  "immortal": true,
+  "seed": 2037,
+  "ticks": 2000,
+  "block": 400,
+  "num_agents": 12,
+  "chance": 0.125,
+  "deaths": 0,
+  "resurrections": 16507,
+  "cause_de_mort": {
+   "energie_epuisee": 16507,
+   "hp_epuise": 0,
+   "les_deux": 0,
+   "AUCUNE": 0
+  },
+  "morts_w_non_fini": 0,
+  "nan_skips": 16499,
+  "pertes_a_la_mort": {
+   "n": 16507,
+   "mediane": 92.9,
+   "min": 47.94,
+   "max": 102.46
+  },
+  "blocks": [
+   {
+    "tick": 400,
+    "n_agents": 12,
+    "hit_rate": 0.15155038759689923,
+    "n_decisions": 2580
+   },
+   {
+    "tick": 800,
+    "n_agents": 12,
+    "hit_rate": 0.13861386138613863,
+    "n_decisions": 1313
+   },
+   {
+    "tick": 1200,
+    "n_agents": 12,
+    "hit_rate": 0.1625,
+    "n_decisions": 1200
+   },
+   {
+    "tick": 1600,
+    "n_agents": 12,
+    "hit_rate": 0.16083333333333333,
+    "n_decisions": 1200
+   },
+   {
+    "tick": 2000,
+    "n_agents": 12,
+    "hit_rate": 0.16083333333333333,
+    "n_decisions": 1200
+   }
+  ],
+  "hit_first": 0.15155038759689923,
+  "hit_last": 0.16083333333333333,
+  "learning": {
+   "td_calls": 0,
+   "td_updates": 0,
+   "episode_calls": 0,
+   "episode_updates": 0,
+   "legacy_calls": 2000,
+   "legacy_updates": 1999,
+   "skips": {},
+   "dW_abs_sum": 188297.92814698035,
+   "reward_scale": 1.0,
+   "td_enabled": true,
+   "lr": null
+  },
+  "regime": {
+   "cognitive_demand": true,
+   "cog_linear": true,
+   "cog_gain": 12.0,
+   "no_throw": false,
+   "base_metabolism": 0.75,
+   "forage_payoff": 0.0,
+   "benchmark_mode": true,
+   "night_enabled": false,
+   "immortal": true,
+   "refill_below": 30.0,
+   "refill_to": 80.0,
+   "hp_refill_below": 50.0,
+   "energy_start": 80.0,
+   "torch_episode_k": 8
+  },
+  "elapsed_s": 22.11587643623352
+ },
+ "_cout_s": 247.3066828250885,
+ "_lecture": {
+  "resurrections": 18265.0,
+  "reference_resurrections": 18265.0,
+  "ratio_resurrections": 1.0,
+  "effondres": 4,
+  "non_mesures": 1,
+  "nan_skips": 18238.0,
+  "morts_w_non_fini": 0.0,
+  "mediane_hit_last": 0.24875,
+  "seeds_au_dessus": 6,
+  "branche": "PAS_NAN"
+ }
+}

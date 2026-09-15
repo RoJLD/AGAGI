@@ -1,0 +1,59 @@
+{
+  "name": "LEGACY-LR-CURVE-R2",
+  "rule": {
+    "cellule": {
+      "block": 400,
+      "gardes": [
+        "world_model.py::observe_batch E28",
+        "mamba_agent.py::compute_policy_gradient E28"
+      ],
+      "lr": [
+        0.0,
+        0.04,
+        0.01,
+        0.004,
+        0.001
+      ],
+      "num_agents": 12,
+      "policy": "legacy",
+      "seeds": [
+        2026,
+        2027,
+        2028,
+        2029,
+        2030,
+        2031,
+        2032,
+        2033,
+        2034,
+        2035,
+        2036,
+        2037
+      ],
+      "ticks": 2000
+    },
+    "controles": {
+      "famille": "60 cellules via assert_control_family",
+      "gardes": "tests/sandbox/test_world_model_nonfinite_guard.py + test_compute_policy_gradient_SKIPS_and_COUNTS_a_non_finite_update_instead_of_poisoning_W",
+      "reference": "lr 0,0 RE-MESURE sous garde dans la meme grille (meme monde, meme seed)"
+    },
+    "cout": "60 cellules x 20-120 s -> ~40 min sous bail ; results/legacy_lr_curve_r2.json",
+    "discrimination": {
+      "APPREND_QUELQUE_PART (au moins un lr > 0 avec seeds_au_dessus >= 11 ET effondres + non_mesures = 0)": "l'apprenant legacy apprend la tache lineaire sous garde a ce(s) pas ; rapporter la courbe, nommer le meilleur pas ; relire CALIB-LEGACY-LEARNER (titre et points 2-3).",
+      "AUTRE (le reste)": "rapporter tel quel.",
+      "INCOMPLET": "moins de 5 x 12 cellules : aucune lecture.",
+      "INERTE_PARTOUT (aucun lr > 0 avec seeds_au_dessus >= 11)": "sous garde, l'apprenant legacy n'apprend a AUCUN des quatre pas a 2000 ticks : le LEARNER_LEARNS de CALIB-LEGACY-LEARNER etait porte par l'artefact ; correction du record (bandeau + verdict retire), E19/E28."
+    },
+    "dv_primaire": "par lr : `mediane_hit_last`, `seeds_au_dessus` (hit_last > lr0 sous garde du MEME seed + 0,05), `effondres`, `non_mesures`, `resurrections` (mediane), `wm_resets` (mediane) ; le lr 0,0 est la reference RE-MESUREE sous garde.",
+    "provenance": "results/legacy_learner_calibration.json, results/legacy_lr_curve_r1.json (sans garde) ; results/legacy_wm_guard_r1.json (0,04 sous garde : 0,197 mediane, 8/12). La reference lr0 de P3.4 divergeait aussi (1 717 resurrections) : elle est RE-MESUREE ici, sous garde, comme cellule lr=0,0 de la grille.",
+    "question": "Sous la garde E28 du World Model (LEGACY-WM-GUARD-R1 : ARTEFACT_WM, 18 265 -> 139 resurrections a lr 0,04, hit_last 0,197), que vaut la courbe de pas de l'apprenant legacy ? Les points 0,04 / 0,01 / 0,004 / 0,001 mesures SANS garde (0,249 / 0,303 / 0,446 / 0,518) sont a relire : apprend-il encore, et ou ?",
+    "regle_de_lecture_continue": "ORDRE IMPOSE : INCOMPLET, APPREND_QUELQUE_PART, INERTE_PARTOUT, AUTRE.",
+    "seuils": {
+      "effondrement": 0.01,
+      "justification": "conventions P1.6/P3.4 (learner_verdict, test des signes p <= 0,0032).",
+      "min_sep": 0.05,
+      "seeds_min": 11
+    }
+  },
+  "seal": "b9051e874ba8df766f6964d1cbd7f99ab195bf4fb5413704015a20af64a8be50"
+}

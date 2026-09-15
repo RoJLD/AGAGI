@@ -11,6 +11,14 @@ extends: [EDR-S2-009, EDR-S2-010, EDR-S2-011]
 corrects: [EDR-S2-010, EDR-S2-011]
 ---
 
+> ℹ️ **Note E28 (2026-09-15, P2.73 d) — ce record n'est PAS touché par l'artefact du World Model.** L'apprenant
+> LEGACY meurt par un NaN du World Model par agent (`observe_batch` diverge → `surprise` NaN → `brain_cost` NaN →
+> `max(0.0, nan)` = 0, cf. E28 et [[EDR-CALIB-LEGACY-LEARNER]]). Le backend torch mesuré ici **n'entraîne pas ce World
+> Model** (`backend_torch.py` ne l'appelle jamais, `surprise` n'y est pas écrite — c'est aussi pourquoi la curiosité y est
+> morte, `REF-RND-2018`) : ses 126 résurrections par seed ne sont pas cet artefact. Leur mécanisme reste NON MESURÉ
+> (candidats inchangés : projectiles entre pairs, riposte du gibier) — la sonde publie désormais `cause_de_mort`,
+> `pertes_a_la_mort` et `nan_brain_cost`, qui le trancheront au prochain run torch.
+
 ## Question (backlog, bloc « 🧭 2026-09-14 », rang 1 — P1.6)
 
 Trois records ont publié « le crédit in-world n'apprend pas à froid » ([[EDR-S2-009]] §crédit,

@@ -383,6 +383,8 @@ class MambaBatchModel:
     PLAN_BIAS = 0.0   # poids du biais des logits d'action par le plan (0 = planificateur désactivé)
     PLAN_LR = 0.05    # taux d'apprentissage en ligne de g
     TD_GAMMA = 0.9    # EDR 112/113 : facteur d'escompte du crédit temporel (Actor-Critic TD). Défaut 0.9
+    LR_ACTOR = 0.04   # P3.4 (2026-09-15) : pas de l'acteur du TD(0) legacy -- knob de classe, pour que
+    LR_CRITIC = 0.05  # le bras lr=0 (plafond de l'incapable) soit le MEME code a pas nul, pas un no-op
                       # = comportement historique ; relevé (0.99/0.999) étend l'horizon craft->apex.
     PLAN_A = 8        # nombre d'actions planifiées (= logits de déplacement 0..7)
 
@@ -889,7 +891,7 @@ class MambaBatchModel:
         #   δ = r + γ·V(s') − V(s)  sert d'avantage (actor) ET d'erreur du critic.
         # -> une action coûteuse mais qui mène à un bon état (crafter -> pouvoir chasser)
         #    reçoit un avantage positif. _td est stocké sur le modèle (robuste au re-batch).
-        lr_actor, lr_critic = 0.04, 0.05
+        lr_actor, lr_critic = MambaBatchModel.LR_ACTOR, MambaBatchModel.LR_CRITIC   # defauts 0.04 / 0.05
         gamma = MambaBatchModel.TD_GAMMA          # EDR 112/113 : horizon de crédit (knob, défaut 0.9)
         for i in range(self.B):
             N_i = self.agents[i].genome.num_nodes
@@ -910,6 +912,14 @@ class MambaBatchModel:
                 vn = prev["v_node"]
                 if 0 <= vn < prev["h"].shape[0]:
                     dW[:, vn] += lr_critic * delta * prev["h"]                 # CRITIC (vers r + γV')
+                # E28 (2026-09-15) : un dW NON FINI (δ NaN : récompense NaN <- surprise NaN <- H débordé)
+                # traversait `np.clip` intact -- clip ne retire PAS les NaN -- et W devenait NaN pour toujours ;
+                # le monde transformait ensuite ce NaN en MORT à chaque tick (`max(0.0, nan)` = 0.0). Mesuré :
+                # 663/669 morts d'une cohorte immortelle à lr 0,04 avaient un W non fini. Ici on COMPTE et on
+                # SAUTE : W reste fini, le compteur est publié (`_td_nan_skips`), rien n'est avalé.
+                if not np.all(np.isfinite(dW)):
+                    self.agents[i]._td_nan_skips = int(getattr(self.agents[i], "_td_nan_skips", 0)) + 1
+                    dW = np.zeros_like(dW)
                 W_block = np.clip(self.W_batch[i][map_idx[:, None], map_idx[None, :]] + dW, -5.0, 5.0)
                 self.W_batch[i][map_idx[:, None], map_idx[None, :]] = W_block
                 self.agents[i].genome.W = W_block.copy()

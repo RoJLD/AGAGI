@@ -532,8 +532,18 @@ CALIBRATED = {
     # P2.56 : INJECTION a DOSE CONNUE (tests/test_s2_ablation_wiring.py) -- within 100/20 = 5.0,
     # between 100/10 = 10.0, verdict PERCEPTION_DEMANDED, n = 12 : la couche d'appariement est
     # calibree en forme close. L'instrument porte 15 records ; sa declaration disait « garde seule ».
+    # P2.59 (2026-09-15) : le CHEMIN REEL, via le seam de politique `batch_model_cls`
+    # (tests/sandbox/test_s2_ablation_real_path.py). DECOY connu par CONSTRUCTION (politique aveugle,
+    # within 1,000 exact, no-op 1,000) ; INVERSE connu par MESURE (lecteur-chasseur sous corps
+    # insuffisant : 0,66 hors de la bande no-op 0,88 -- lire coute, EVO-011) ; garde E26
+    # (`reference_body`) qui LEVE avant tout monde. ⚠️ DEMANDED n'a PAS de reponse connue sur le chemin
+    # reel de stoneage (aucune lecture cablee net-positive : c'est le fil S2) : il reste calibre par
+    # INJECTION seulement, et c'est ecrit.
     "run_ablation_map": ["empty-cohort:raises", "guard-before-world",
-                         "injection:within=5.0:between=10.0:PERCEPTION_DEMANDED:n=12", "reel:smoke"],
+                         "injection:within=5.0:between=10.0:PERCEPTION_DEMANDED:n=12", "reel:smoke",
+                         "reel:aveugle-sur-corps-champion:DECOY:within=1.000:noop=1.000",
+                         "reel:chasseur-corps-insuffisant:INVERSE-hors-bande-noop",
+                         "reference_body:PhenotypeMismatch-avant-monde", "E26:meme-corps:passe"],
     # P2.34 (2026-09-01) : gardes d'arguments EN TETE des mesures de monde -- le geste qui rend le
     # lot gratuit. Une cohorte vide ou un horizon nul produisait une MESURE (0.0 rendu comme survie
     # observee), lue en aval comme « reste au plancher » / « n'emerge pas » / « les deux se valent ».
@@ -1066,12 +1076,30 @@ CALIBRATED = {
     # defaut, restaures en `finally` (exception comprise), dW nul quand aucun update n'a lieu.
     "tools/learning_events.py::learn": ["default:bit-identical", "td-off:dW=0", "restored:on-exception"],
     "tools/learning_events.py::learn_episode": ["episode:counted", "restored"],
+    # P3.4 (2026-09-15) : l'apprenant LEGACY, chemin actif pendant tout l'arc EVO. Cas unitaires ici
+    # (signe de l'update PREDIT, lr=0 = meme code a pas nul, 1er appel differe) + cas du compteur dans
+    # `test_learning_events.py` ; sa reponse connue in-world (n=12, cohorte immortelle) est dans
+    # `results/legacy_learner_calibration.json` (runner `tools/legacy_learner_calibration.py`).
+    # P2.72 (b), 2026-09-15 : classe de mort d'un agent ressuscite -- trois classes exhaustives + AUCUNE qui crie
+    "_cause_de_mort": ["energy:<=0", "hp:<=0", "both", "alive:AUCUNE-never-fabricated"],
+    "src/agents/mamba_agent.py::compute_policy_gradient": [
+        "first-call:deferred", "update:sign-predicted-on-chosen-move", "lr0:same-code-null-step",
+        "knobs:default-0.04-0.05", "inworld:legacy-policy-counted"],
     # RESTE GELE dans tools/instrument_calibration_baseline.json (dette legataire, PAS masquee) :
     #   `learn` (src/agents/backend.py : abstrait + LegacyPopulationModel qui delegue au legacy ;
     #   tools/evo_runs/s2_reward_ablation.py : deux seams de CAPTURE), `learn_episode_bptt`
-    #   (src/agents/backend_torch.py, hors chemin in-world), et le gradient de politique legacy de
-    #   MambaBatchModel (arc EVO, src/agents/mamba_agent.py ; torch_batch_model.py ; baseline_models.py
-    #   no-op ; ablation_models.py delegue) -- son nom exact est dans la baseline, c'est l'objet de P3.4.
+    #   (src/agents/backend_torch.py, hors chemin in-world). Le gradient de politique legacy en est
+    #   SORTI le 2026-09-15 (P3.4) : ses CINQ definitions sont declarees ci-dessous, qualifiees.
+    # P3.4 : les quatre homonymes du legacy. torch_batch_model : cas de `test_torch_batch_model.py`
+    # (V monte et W bouge sous recompense positive ; apprend et porte H a travers le rebuild par tick).
+    # baseline_models : no-op PROUVE (W bit-identique apres appel). ablation_models : delegation
+    # PROUVEE (l'interne recoit l'appel). Le wrapper du compteur : cas de `test_learning_events.py`.
+    "src/agents/torch_batch_model.py::compute_policy_gradient": ["actor-critic:learns", "rebuild:carries-H"],
+    "src/agents/baseline_models.py::compute_policy_gradient": ["noop:W-bit-identical"],
+    "src/agents/ablation_models.py::compute_policy_gradient": ["delegates:inner-called"],
+    "tools/learning_events.py::compute_policy_gradient": [
+        "first:deferred-counted", "default:bit-identical", "td-off:skips", "lr0:same-code",
+        "lr:critic-ratio-kept", "restored"],
     # P1.7 (2026-09-14) -- le CORPS est derive de W[0:10] (classe E26). Cas dans
     # tests/sandbox/test_phenotype_guard.py : formule du monde exacte, make_blind REFUSE, tolerance
     # explicite sur le DRAIN et inv_capacity exige EGAL, lest exact et bit-identique sur la politique.
@@ -5478,3 +5506,147 @@ def test_run_warmstart_credit_probe_publishes_its_learning_dose():
     r = run_warmstart_credit_probe(seed=2026, num_agents=3, max_ticks=20, schedule=[(0.25, 12.0)])
     assert len(r["trend"]) == 1 and "learned" in r
     _dose_is_coherent(r["learning"], 20)
+
+
+# ==================================================================================================
+# P3.4 (2026-09-15) -- calibration de l'apprenant LEGACY `MambaBatchModel.compute_policy_gradient`.
+# Actor-Critic TD(0) numpy : au tick t+1, delta = r + gamma*V(s') - V(s) credite l'action CHOISIE au
+# tick t. Le monde recree le modele a chaque tick : W est persiste dans `agent.genome.W`.
+# ==================================================================================================
+
+def _legacy_one(seed=5, move=2):
+    from src.agents.mamba_agent import MambaAgent, MambaBatchModel
+    np.random.seed(seed)
+    a = MambaAgent()
+    m = MambaBatchModel([a])
+    obs = np.random.RandomState(seed).uniform(-1.0, 1.0, (1, a.genome.num_inputs)).astype(np.float32)
+    act = [{"move": move, "grab": 0, "rub": 0}]
+    return a, m, obs, act
+
+
+def test_compute_policy_gradient_first_call_is_deferred_and_second_call_updates():
+    a, m, obs, act = _legacy_one()
+    W0 = np.array(a.genome.W, copy=True)
+    m.forward(obs); m.compute_policy_gradient(np.array([1.0], dtype=np.float32), act)
+    assert np.array_equal(a.genome.W, W0), "tick 1 : V(s') inconnu, aucune mise a jour"
+    m.forward(obs); m.compute_policy_gradient(np.array([1.0], dtype=np.float32), act)
+    assert not np.array_equal(a.genome.W, W0), "tick 2 : la transition differee est creditee"
+
+
+def test_compute_policy_gradient_update_sign_is_predicted_by_the_TD_error():
+    """PREDICTION : la colonne du logit de l'action CHOISIE bouge dans le sens de sign(delta * h) pour
+    tout noeud presynaptique h != 0 (REINFORCE : grad = (1 - pi[move]) > 0 sur l'action jouee). On
+    impose delta > 0 avec une grosse recompense, puis delta < 0 avec une grosse penalite : les deux
+    signes sont produits (l'instrument peut rendre les DEUX issues), et chacun est celui predit."""
+    from src.agents.mamba_agent import MambaBatchModel
+    for reward, sign in ((50.0, +1.0), (-50.0, -1.0)):
+        a, m, obs, act = _legacy_one(move=2)
+        m.forward(obs); m.compute_policy_gradient(np.array([reward], dtype=np.float32), act)
+        W0 = np.array(a.genome.W, copy=True)
+        h = np.asarray(a._td["h"], dtype=np.float64)
+        N_i, O_i = a.genome.num_nodes, a.genome.num_outputs
+        col = N_i - O_i + 2                                   # noeud de sortie du move 2
+        m.forward(obs); m.compute_policy_gradient(np.array([reward], dtype=np.float32), act)
+        dcol = np.asarray(a.genome.W, dtype=np.float64)[:, col] - W0[:, col]
+        live = np.abs(h) > 1e-6
+        assert live.sum() >= 3, "il faut des presynaptiques actifs pour lire un signe"
+        # sur les noeuds actifs dont le poids n'est pas au CLIP (+-5), le signe est exactement predit
+        unclipped = live & (np.abs(W0[:, col]) < 4.9)
+        assert unclipped.sum() >= 3
+        assert np.all(np.sign(dcol[unclipped]) == sign * np.sign(h[unclipped])), (reward, dcol[unclipped][:5])
+    assert (MambaBatchModel.LR_ACTOR, MambaBatchModel.LR_CRITIC) == (0.04, 0.05)
+
+
+def test_compute_policy_gradient_lr_zero_is_the_same_code_at_null_step():
+    """Le plafond de l'incapable (bras `lr0_reference` de P3.4) : meme chemin, pas nul, W bit-identique
+    et transition tout de meme enregistree."""
+    from src.agents.mamba_agent import MambaBatchModel
+    a, m, obs, act = _legacy_one()
+    W0 = np.array(a.genome.W, copy=True)
+    MambaBatchModel.LR_ACTOR, MambaBatchModel.LR_CRITIC = 0.0, 0.0
+    try:
+        for _ in range(3):
+            m.forward(obs); m.compute_policy_gradient(np.array([7.0], dtype=np.float32), act)
+    finally:
+        MambaBatchModel.LR_ACTOR, MambaBatchModel.LR_CRITIC = 0.04, 0.05
+    assert np.array_equal(a.genome.W, W0)
+    assert getattr(a, "_td", None) is not None
+
+
+def test_run_learner_probe_accepts_the_legacy_policy_and_counts_its_dose():
+    """Le seam `policy=\"legacy\"` de `run_learner_probe` : la dose legacy est COMPTEE (un appel par tick,
+    un update par tick apres le premier) et le chemin torch n'est PAS touche. Fumee courte (20 ticks)."""
+    from tools.cognitive_demand_inworld import run_learner_probe
+    r = run_learner_probe(seed=2026, num_agents=3, ticks=20, block=10, policy="legacy")
+    assert r["policy"] == "legacy"
+    L = r["learning"]
+    assert L["legacy_calls"] == 20, L
+    assert L["legacy_updates"] >= 18, L
+    assert L["td_calls"] == 0 and L["episode_calls"] == 0, "le chemin torch ne doit pas etre appele"
+    assert L["dW_abs_sum"] > 0.0
+    assert len(r["blocks"]) == 2 and 0.0 <= r["hit_last"] <= 1.0
+
+
+def test_baseline_compute_policy_gradient_is_a_proven_noop():
+    """P3.4 : `BaselineBatchModel.compute_policy_gradient` est un no-op -- W bit-identique, pas seulement
+    « ne leve pas » (le seul cas existant, test_baseline_models.py)."""
+    from src.agents.baseline_models import ReflexBatchModel
+    from src.agents.mamba_agent import MambaAgent
+    np.random.seed(9)
+    a = MambaAgent()
+    bm = ReflexBatchModel([a])
+    W0 = np.array(a.genome.W, copy=True)
+    obs = np.zeros((1, a.genome.num_inputs), dtype=np.float32)
+    bm.forward(obs)
+    bm.compute_policy_gradient(np.array([50.0], dtype=np.float32), [{"move": 1, "grab": 1, "rub": 0}])
+    assert np.array_equal(a.genome.W, W0)
+
+
+def test_ablation_compute_policy_gradient_delegates_to_the_inner_model():
+    """P3.4 : `PerceptionAblatedMamba.compute_policy_gradient` DELEGUE a l'interne, arguments intacts."""
+    import src.agents.ablation_models as am
+    cls = [c for c in vars(am).values() if isinstance(c, type) and c.__module__ == am.__name__
+           and "compute_policy_gradient" in vars(c)]          # classes DEFINIES la, pas importees
+    assert cls, "aucune classe d'ablation ne definit compute_policy_gradient"
+    calls = []
+
+    class _Inner:
+        def compute_policy_gradient(self, *a, **k):
+            calls.append((a, k)); return "delegue"
+
+    obj = object.__new__(cls[0])
+    obj._inner = _Inner()
+    r = cls[0].compute_policy_gradient(obj, "R", "A", extra=1)
+    assert r == "delegue" and calls == [(("R", "A"), {"extra": 1})]
+
+
+def test_cause_de_mort_classifies_energy_hp_both_and_REFUSES_to_name_a_cause_for_a_living_agent():
+    """P2.72 (b) : la cause de mort compte AVANT la recharge ; un agent vivant rend AUCUNE, jamais une cause."""
+    from tools.cognitive_demand_inworld import _cause_de_mort
+    assert _cause_de_mort({"energy": -3.0, "hp": 40.0}) == "energie_epuisee"
+    assert _cause_de_mort({"energy": 12.0, "hp": 0.0}) == "hp_epuise"
+    assert _cause_de_mort({"energy": 0.0, "hp": -5.0}) == "les_deux"
+    assert _cause_de_mort({"energy": 30.0, "hp": 60.0}) == "AUCUNE"
+
+
+def test_compute_policy_gradient_SKIPS_and_COUNTS_a_non_finite_update_instead_of_poisoning_W():
+    """E28 (2026-09-15) : un dW non fini traversait `np.clip` (qui ne retire PAS les NaN) et W devenait NaN
+    pour toujours ; le monde convertissait ensuite ce NaN en mort a chaque tick (`max(0.0, nan)` = 0.0) —
+    663/669 morts d'une cohorte immortelle a lr 0,04 avaient un W non fini. Desormais : compte + saut.
+    NO-OP apparie : une recompense finie met a jour W exactement comme avant."""
+    from src.agents.mamba_agent import MambaBatchModel
+    a, m, obs, act = _legacy_one(seed=7)
+    MambaBatchModel.ABLATE_NTM = True          # W n'a plus qu'UN auteur ici : le gradient (cf. E8 occ. 5)
+    try:
+        # la transition memorisee au tick t est creditee au tick t+1 : une recompense NaN au tick t donne
+        # un delta NaN au tick t+1
+        m.forward(obs); m.compute_policy_gradient(np.array([np.nan], dtype=np.float32), act)
+        W0 = np.array(a.genome.W, copy=True)
+        m.forward(obs); m.compute_policy_gradient(np.array([1.0], dtype=np.float32), act)   # delta = NaN ici
+        assert np.array_equal(a.genome.W, W0), "un dW non fini ne doit PAS toucher W"
+        assert np.isfinite(a.genome.W).all() and getattr(a, "_td_nan_skips", 0) == 1
+        m.forward(obs); m.compute_policy_gradient(np.array([1.0], dtype=np.float32), act)   # delta fini
+        assert not np.array_equal(a.genome.W, W0) and np.isfinite(a.genome.W).all()
+        assert a._td_nan_skips == 1
+    finally:
+        MambaBatchModel.ABLATE_NTM = False

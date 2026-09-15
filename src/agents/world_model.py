@@ -20,6 +20,9 @@ import numpy as np
 
 
 class WorldModel:
+    # E28 : compteur de remises a zero pour non-fini (publie par les sondes ; jamais remis a zero ici)
+    nonfinite_resets = 0
+
     def __init__(self, input_dim: int, out_dim: int = 8, lr: float = 0.01, seed: int = 1234):
         self.input_dim = int(input_dim)
         self.out_dim = int(out_dim)
@@ -65,6 +68,17 @@ class WorldModel:
         if train and prev.shape[0] > 0:
             grad = np.einsum('bi,bo->bio', prev, diff)   # (B, input_dim, out)
             Wp_batch = Wp_batch - self.lr * grad
+        # E28 (2026-09-15) : ce SGD brut sur l'observation (energie jusqu'a 100, lr 0,01) DIVERGE -- mesure :
+        # 669/669 morts d'une cohorte immortelle avaient un Wp non fini, des le tick 51. Le NaN qui en sort
+        # devient `surprise` NaN, puis `brain_cost` NaN, puis `energy = max(0.0, nan)` = 0.0 : une MORT par
+        # tick, sans exception. Ici on ne laisse pas sortir un non-fini : Wp de l'agent remis a zero (il
+        # repart de son etat initial), err = 1.0 (surprise MAXIMALE, bornee comme le clip aval), et
+        # l'evenement est COMPTE. Bit-identique tant que tout est fini.
+        mauvais = ~(np.isfinite(err) & np.isfinite(Wp_batch).all(axis=(1, 2)))
+        if np.any(mauvais):
+            WorldModel.nonfinite_resets += int(mauvais.sum())
+            Wp_batch = np.where(mauvais[:, None, None], 0.0, Wp_batch).astype(Wp_batch.dtype, copy=False)
+            err = np.where(mauvais, 1.0, err).astype(err.dtype, copy=False)
         return err, Wp_batch
 
     def observe(self, prev_obs: np.ndarray, next_obs: np.ndarray, train: bool = True) -> np.ndarray:

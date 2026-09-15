@@ -1,0 +1,52 @@
+{
+  "name": "LEGACY-NAN-GUARD-R1",
+  "rule": {
+    "cellule": {
+      "block": 400,
+      "garde": "src/agents/mamba_agent.py::compute_policy_gradient E28 (dW non fini -> saut compte)",
+      "lr": null,
+      "num_agents": 12,
+      "policy": "legacy",
+      "seeds": [
+        2026,
+        2027,
+        2028,
+        2029,
+        2030,
+        2031,
+        2032,
+        2033,
+        2034,
+        2035,
+        2036,
+        2037
+      ],
+      "ticks": 2000
+    },
+    "controles": {
+      "famille": "12 cellules via assert_control_family",
+      "garde": "test_compute_policy_gradient_SKIPS_and_COUNTS_a_non_finite_update_instead_of_poisoning_W (no-op apparie : delta fini inchange)",
+      "reference": "bras natural SANS garde = results/legacy_learner_calibration.json (memes seeds, meme monde)"
+    },
+    "cout": "12 cellules x 25-80 s -> ~10 min sous bail ; results/legacy_nan_guard_r1.json",
+    "discrimination": {
+      "ARTEFACT_NAN (resurrections <= 0,2 x 18 265 ET effondres + non_mesures = 0)": "la letalite ET l'instabilite du pas publie etaient la cascade NaN : bandeau correctif sur CALIB-LEGACY-LEARNER (le verdict 'instable a 0,04' devient 'W diverge en NaN a 0,04, et le monde en fait une mort'), classe E28 au registre.",
+      "GARDE_INACTIVE (nan_skips mediane = 0)": "la garde n'a rien vu : le NaN ne passe pas par dW, chercher ailleurs ; aucune lecture sur la letalite.",
+      "INCOMPLET": "moins de 12 cellules : aucune lecture.",
+      "PARTIEL (resurrections <= 0,5 x 18 265 OU effondres + non_mesures = 0)": "une partie seulement : rapporter les deux grandeurs, la lecture du record est a nuancer, pas a retirer.",
+      "PAS_NAN (le reste)": "la garde n'explique ni la letalite ni l'instabilite : les deux sont d'un autre mecanisme ; rapporter."
+    },
+    "dv_primaire": "`resurrections` (mediane par seed) confrontee a `reference_resurrections` = 18 265 ; `effondres` (hit_last <= 0,01) + `non_mesures` ; `nan_skips` (mediane) ; `morts_w_non_fini` (mediane) ; `mediane_hit_last` et `seeds_au_dessus` (> lr0_reference apparie + 0,05, importe de P3.4) rapportes.",
+    "provenance": "results/legacy_learner_calibration.json (natural : 18 265 resurrections mediane, 4 effondres a 0,000, 1 NaN, hit_last 0,249, 6/12) ; results/legacy_cause_de_mort.json (part_energie 1,000) ; mesures n=1 ci-dessus, exploratoires, non scellees.",
+    "question": "Diagnostic n=1 (2026-09-15, 200 ticks, seed 2026, natural lr 0,04) : 669/669 morts de la cohorte immortelle avaient un surprise_momentum NON FINI et 663/669 un W NON FINI ; le puits 'brain' portait 71 % de l'energie perdue (0 % a lr=0) ; le monde fait energy = max(0.0, energy - brain_cost) et max(0.0, nan) = 0.0. Avec la garde E28 (un dW non fini est COMPTE et SAUTE, W reste fini), la letalite et l'instabilite du pas publie disparaissent-elles a n=12 ?",
+    "regle_de_lecture_continue": "ORDRE IMPOSE : INCOMPLET, GARDE_INACTIVE, ARTEFACT_NAN, PARTIEL, PAS_NAN.",
+    "seuils": {
+      "artefact_max_ratio": 0.2,
+      "effondrement": 0.01,
+      "justification": "0,2 = cinq fois moins de morts qu'avant est un autre regime ; 0,5 = la moitie ; les autres = conventions P3.4.",
+      "min_sep": 0.05,
+      "partiel_max_ratio": 0.5
+    }
+  },
+  "seal": "9dad0765fdb97acf17e2dd58b3e3a6810e5d791998703495e8f7a98e76c64ea1"
+}

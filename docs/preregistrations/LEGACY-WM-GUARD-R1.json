@@ -1,0 +1,55 @@
+{
+  "name": "LEGACY-WM-GUARD-R1",
+  "rule": {
+    "cellule": {
+      "block": 400,
+      "gardes": [
+        "src/agents/world_model.py::observe_batch E28 (Wp/err non fini -> reset compte)",
+        "src/agents/mamba_agent.py::compute_policy_gradient E28 (dW non fini -> saut compte)"
+      ],
+      "lr": null,
+      "num_agents": 12,
+      "policy": "legacy",
+      "seeds": [
+        2026,
+        2027,
+        2028,
+        2029,
+        2030,
+        2031,
+        2032,
+        2033,
+        2034,
+        2035,
+        2036,
+        2037
+      ],
+      "ticks": 2000
+    },
+    "controles": {
+      "famille": "12 cellules via assert_control_family",
+      "garde_wm": "tests/sandbox/test_world_model_nonfinite_guard.py (no-op exact, reset compte, voisins intacts, err NaN seul)",
+      "reference": "bras natural SANS gardes = results/legacy_learner_calibration.json (memes seeds, deterministe par seed)"
+    },
+    "cout": "12 cellules x 25-120 s -> ~10 min sous bail ; results/legacy_wm_guard_r1.json",
+    "discrimination": {
+      "ARTEFACT_WM (resurrections <= 0,2 x 18 265 ET effondres + non_mesures = 0)": "la letalite ET l'instabilite du pas publie etaient la divergence du World Model : bandeau correctif sur CALIB-LEGACY-LEARNER et CALIB-LEARNER (la these 'un apprenant meurt 100x plus' est a relire), classe E28 au registre avec cette garde.",
+      "GARDE_INACTIVE (wm_resets mediane = 0)": "le World Model n'a pas diverge sous garde : chercher ailleurs ; aucune lecture.",
+      "INCOMPLET": "moins de 12 cellules : aucune lecture.",
+      "PARTIEL (resurrections <= 0,5 x 18 265 OU effondres + non_mesures = 0)": "une partie seulement : rapporter les deux grandeurs.",
+      "PAS_WM (le reste)": "la garde n'explique ni la letalite ni l'instabilite : rapporter, chercher le puits suivant (bilan EDR-099 par phase)."
+    },
+    "dv_primaire": "`resurrections` (mediane) confrontee a `reference_resurrections` = 18 265 ; `effondres` + `non_mesures` ; `wm_resets` (mediane, doit etre > 0 sinon la garde n'a rien vu) ; `nan_skips` ; `mediane_hit_last` et `seeds_au_dessus` (> lr0_reference apparie + 0,05) rapportes.",
+    "provenance": "results/legacy_nan_guard_r1.json (PAS_NAN, nan_skips 18 238 mediane, ratio 1,00) ; results/legacy_learner_calibration.json (natural : 18 265 resurrections mediane, 4 effondres, 1 NaN, hit_last 0,249, 6/12).",
+    "question": "LEGACY-NAN-GUARD-R1 a rendu PAS_NAN : garder W fini ne change ni la letalite (ratio 1,00) ni l'instabilite. Diagnostic n=1 : 669/669 morts avaient un Wp (World Model par agent, SGD brut lr 0,01 sur l'observation) NON FINI des le tick 51, et H_prev non fini dans 663 cas. Avec la garde E28 a la SOURCE (Wp non fini -> remis a zero, err = 1,0, compte), la letalite et l'instabilite du pas publie disparaissent-elles a n=12 ?",
+    "regle_de_lecture_continue": "ORDRE IMPOSE : INCOMPLET, GARDE_INACTIVE, ARTEFACT_WM, PARTIEL, PAS_WM.",
+    "seuils": {
+      "artefact_max_ratio": 0.2,
+      "effondrement": 0.01,
+      "justification": "memes seuils que LEGACY-NAN-GUARD-R1.",
+      "min_sep": 0.05,
+      "partiel_max_ratio": 0.5
+    }
+  },
+  "seal": "7d416843dae5f1ca195ebbb7ef0b2f178d9030a07488eaa61274baa49160fb21"
+}
