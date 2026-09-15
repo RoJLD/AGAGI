@@ -577,7 +577,9 @@ CALIBRATED = {
     # verifie qu'il la RETROUVE (calibration par PREDICTION, celle que CLAUDE.md prefere). Le cas
     # decisif est l'APPARIEMENT : bruit de 161x entre seeds, dose de +50 % retrouvee a 1.5000
     # EXACTEMENT -- personne ne testait que le design apparie fait ce pour quoi il existe.
-    "run_sweep": ["no-op-exact", "prediction:dose-recovered", "pairing:cancels-noise",
+    # QUALIFIE le 2026-09-15 (P2.60) : `run_sweep` est en COLLISION depuis le portage de
+    # tools/factorial_regime_sweep.py (EDR-178) -- une declaration NUE est REFUSEE par le cliquet.
+    "tools/metabolic_cost_sweep.py::run_sweep": ["no-op-exact", "prediction:dose-recovered", "pairing:cancels-noise",
                   "specificity:efficiency-not-competence"],
     # P2.28 (2026-09-01) : les 8 derniers verdicts PURS. AUCUN defaut -- c'est le resultat. Trois
     # sont exemplaires et gardent chacun une chose DIFFERENTE : la TAILLE D'ECHANTILLON
@@ -1009,6 +1011,33 @@ CALIBRATED = {
         "guard-before-world", "oracle:hit=1.0", "dose-counted", "lr0-reference:dW=0",
         "reproducible", "variant-published"],
     "learner_verdict": ["missing:raises", "harness:indeterminate", "inert", "learns:during_run", "learns:early"],
+    # P2.60 (2026-09-15) -- banc factoriel 2^4 d'EDR-177 et driver d'EDR-178, portes dans HEAD par FUSION
+    # 3-voies du tag keep/edr-177-178-factorial-regime-sweep (merge-tree sans conflit, gardes de HEAD
+    # conservees). Deux ORCHESTRATEURS calibres PAR INJECTION a dose connue, AUCUN monde construit
+    # (tests/sandbox/test_edr177_178_calibration.py, 28 cas) : `run_arm` remplace par une sentinelle qui LEVE
+    # s'il est atteint (la garde est EN TETE), puis par un `run_arm` factice dont les gaps suivent un modele
+    # additif connu -- 16 cellules DISTINCTES avec la cellule tout-propre, densite mappee sur `prey_count`,
+    # les 3 flags de chaque cellule transmis 2 x K fois (ON puis SHUFFLE, meme seed, penalty=0, night
+    # transmis), no-op EXACT sous un bruit par seed (l'appariement l'annule : diffs == 0.0, NEUTRE, effets
+    # 0.0), dose additive RETROUVEE exactement par cellule et en effets principaux, cellule-0 GRADIENT_GAGNE
+    # atteignable a K=5 (E1). Defaut de seeds releve de 4 a 5 (plancher de `compute_ab_verdict`, P2.49).
+    "compare_factorial": ["empty-cohort:raises", "guard-before-world", "injection:16-cellules-distinctes",
+                          "injection:prey_count-mappe", "injection:flags->run_arm:apparie-meme-seed",
+                          "no-op-exact:bruit-annule", "prediction:dose-recovered", "positive:reachable",
+                          "seeds-default:5"],
+    # Nom QUALIFIE : `run_sweep` est en COLLISION avec tools/metabolic_cost_sweep.py::run_sweep (declare
+    # plus haut, qualifie dans la meme passe). Knobs de CHAQUE regime transmis intacts au banc, no-op EXACT
+    # (dose 0 -> effets 0.0), dose RETROUVEE en forme close du plan 2^4 (effet principal = dose, interaction
+    # = gamma/2), regimes non melanges, chemin par DEFAUT verifie : c'est `compare_factorial` du banc qui est
+    # appele (sinon l'injection serait un controle qui ne peut pas echouer, E1).
+    "tools/factorial_regime_sweep.py::run_sweep": [
+        "guard-before-world", "passthrough:regime-knobs", "no-op-exact", "prediction:dose-recovered",
+        "pairing:regimes-isolated", "default:bench-called"],
+    # Verdict de la cellule tout-propre sorti du bloc __main__ vers une fonction PURE : garde de puissance
+    # STRICTE a n=12 (11 -> NON-CONCLUANT), les trois etiquettes, un NUL sous le plancher dit NON-CONCLUANT
+    # (pas un nul mesure), etiquette hors vocabulaire / verdict absent / n degenere -> leve.
+    "_cell0_verdict": ["positive:powered", "positive:underpowered", "neutral", "hebbian",
+                       "underpowered-null:non-conclusive", "unknown:raises"],
     # P2.62 (2026-09-15) -- les APPRENANTS entrent au perimetre du cliquet (11e elargissement : motif
     # `learn*` + le gradient de politique legacy, tolerants a l'INDENTATION puisque ce sont des METHODES).
     # ⚠️ Le nom du gradient legacy n'est PAS ecrit ici : la clause de fermeture de P3.4 est un
@@ -4753,6 +4782,10 @@ _MESURES_GARDEES_3 = [
     ("tools.torch_throw_gate_inworld_ab", "compare_density", dict(ticks=0)),
     ("tools.torch_throw_gate_inworld_ab", "compare_warmstart", dict(n_agents=0)),
     ("tools.torch_throw_gate_inworld_ab", "compare_rp_sweep", dict(prey_levels=())),
+    # P2.60 (2026-09-15) : banc factoriel EDR-177 + driver EDR-178, portes par fusion 3-voies -- meme
+    # garde, meme forme, meme test de placement.
+    ("tools.torch_throw_gate_inworld_ab", "compare_factorial", dict(seeds=())),
+    ("tools.factorial_regime_sweep", "run_sweep", dict(regimes={})),
     ("tools.evo_memory_inworld", "probe_memory_discrimination",
      dict(genome=None, mode="visible", seed=0, n_trials=0)),
     ("tools.evo_memory_inworld", "probe_navigation_incontext",

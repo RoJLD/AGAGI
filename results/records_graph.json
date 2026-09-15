@@ -2472,6 +2472,32 @@
         "maturity": null
       },
       {
+        "id": "EDR-177",
+        "type": "EDR",
+        "title": "Factoriel 2^4 des confounds — la CONSOMMATION est le verrou maître du binding in-world (pas multi-causal égal) ; la cellule tout-propre BINDE → substrat capable in-world",
+        "status": "accepted",
+        "gate": "G1",
+        "verdict": "CONSOMMATION_VERROU_MAITRE_CELLULE_PROPRE_BINDE_CONFIRME_K12",
+        "linked": true,
+        "url": null,
+        "method": null,
+        "lib": null,
+        "maturity": null
+      },
+      {
+        "id": "EDR-178",
+        "type": "EDR",
+        "title": "Robustesse aux régimes — la consommation est le verrou maître INVARIANT ; F2/F4 n'émergent PAS sous stress ; le binding in-world exige DEUX conditions (consommation-retirée ET r·P suffisant) — unifie EDR-176+177",
+        "status": "accepted",
+        "gate": "G1",
+        "verdict": "CONSOMMATION_INVARIANTE_F2F4_INERTES_BINDING_A_DEUX_CONDITIONS",
+        "linked": true,
+        "url": null,
+        "method": null,
+        "lib": null,
+        "maturity": null
+      },
+      {
         "id": "EDR-190",
         "type": "EDR",
         "title": "Correlated Teachers Do Not Induce Trunk Interference Readout Absorbs Sign NOT INDUCED",
@@ -2569,6 +2595,19 @@
         "status": "active",
         "gate": "G2",
         "verdict": null,
+        "linked": true,
+        "url": null,
+        "method": null,
+        "lib": null,
+        "maturity": null
+      },
+      {
+        "id": "EDR-CALIB-LEARNER",
+        "type": "EDR",
+        "title": "L'apprenant in-world tel que publié APPREND quand la dose de crédit n'est plus bornée par la mort (12/12 seeds au-dessus de la référence lr=0 appariée, +0,156) — les nuls « le crédit n'apprend pas à froid » de S2-010/S2-011 étaient des nuls de DOSE ; et les apprenants meurent 100× plus que les non-apprenants",
+        "status": "active",
+        "gate": "G0",
+        "verdict": "LEARNER_LEARNS_AT_UNBOUNDED_DOSE_PUBLISHED_NULLS_WERE_DOSE_BOUNDED",
         "linked": true,
         "url": null,
         "method": null,
@@ -2836,6 +2875,19 @@
         "maturity": null
       },
       {
+        "id": "EDR-EVO-011",
+        "type": "EDR",
+        "title": "Le pré-vol RÉPOND et ferme EVO-011 sans run évolutif : lire le canal de type COÛTE la survie (r=0,63, sign_p=0,006, 12/12 contrôles) — parce que l'ACTE que la lecture débloque est net-négatif en énergie",
+        "status": "active",
+        "gate": "G0",
+        "verdict": "READING_COSTS_SURVIVAL_ENABLED_ACT_IS_NET_NEGATIVE",
+        "linked": true,
+        "url": null,
+        "method": null,
+        "lib": null,
+        "maturity": null
+      },
+      {
         "id": "EDR-EVO-012",
         "type": "EDR",
         "title": "Le POINT DE FONCTIONNEMENT sépare le lecteur du porteur d'arête : R = |w_signal| / |logit| — 20 chez le lecteur, 0.01-0.07 chez les porteurs",
@@ -3037,6 +3089,32 @@
         "status": "active",
         "gate": "G0",
         "verdict": "WEAK_POSITION_DEPENDENCE_ESTABLISHED",
+        "linked": true,
+        "url": null,
+        "method": null,
+        "lib": null,
+        "maturity": null
+      },
+      {
+        "id": "EDR-GRAB-COST",
+        "type": "EDR",
+        "title": "Le GRAB coûte la survie (+39 %, 28+/2−, p = 8.7e-07) et le CANAL est la TAXE DE PORTAGE sur des rochers que l'agent ne choisit pas : 34 % du métabolisme, 102 % du différentiel par tick. ⚠️ La prémisse « grabber NOURRIT » est RÉFUTÉE — le monde n'offre AUCUN fruit atteignable (0 sur 20 776 agent-ticks), ce qui replace ce record DANS la borne de portée déjà déclarée par EDR-WARM-008",
+        "status": "active",
+        "gate": "G0",
+        "verdict": null,
+        "linked": true,
+        "url": null,
+        "method": null,
+        "lib": null,
+        "maturity": null
+      },
+      {
+        "id": "EDR-HOF-IO-OVERLAP",
+        "type": "EDR",
+        "title": "Les blocs d'ENTRÉE et de SORTIE se chevauchent : 18 des 126 logits d'action de CHAQUE champion du Hall of Fame SONT l'observation — sans traverser un seul poids (10/10 entrées ; 0/348 génomes persistés)",
+        "status": "active",
+        "gate": "G0",
+        "verdict": "HOF_GENOMES_HAVE_18_SLOT_IO_OVERLAP_ACTION_LOGITS_ARE_OBSERVATION",
         "linked": true,
         "url": null,
         "method": null,
@@ -3388,6 +3466,71 @@
         "status": "active",
         "gate": "G0",
         "verdict": "SOUP_FLOOR_PRONOSTIC_CONFIRMED",
+        "linked": true,
+        "url": null,
+        "method": null,
+        "lib": null,
+        "maturity": null
+      },
+      {
+        "id": "EDR-S2-BLIND-CHAMPION",
+        "type": "EDR",
+        "title": "ARRÊTÉ AU CONTRÔLE, et le contrôle a rapporté plus que la DV : l'instrument d'ablation de perception a un PLANCHER DE BRUIT de ±6-8 % dû à la DÉSYNCHRONISATION DE BANDE RNG — le champion publié est à 0,991, donc DEDANS",
+        "status": "active",
+        "gate": "G0",
+        "verdict": "INDETERMINE_HARNAIS_ABLATION_INSTRUMENT_HAS_8PCT_RNG_NOISE_FLOOR",
+        "linked": true,
+        "url": null,
+        "method": null,
+        "lib": null,
+        "maturity": null
+      },
+      {
+        "id": "EDR-S2-CREDIT-RETENTION",
+        "type": "EDR",
+        "title": "Le crédit in-world publié, à dose NON bornée par la mort, EFFACE le bassin DAgger de WARM-003 (survie 36,0 → 8,0, 12/12 seeds, écart médian −28) et ne construit RIEN à froid (7,5 < plancher 9,0) — il apprend, et ce qu'il apprend tue",
+        "status": "active",
+        "gate": "G0",
+        "verdict": "ERODE_AND_PAS_APPRIS_FROID_THE_CREDIT_LEARNS_SOMETHING_THAT_IS_NOT_SURVIVAL",
+        "linked": true,
+        "url": null,
+        "method": null,
+        "lib": null,
+        "maturity": null
+      },
+      {
+        "id": "EDR-S2-REWARD-ABLATION",
+        "type": "EDR",
+        "title": "Δénergie SEULE érode le bassin DAgger exactement autant que la récompense complète (survie 36,0 → 8,0 dans les deux bras, écart médian −28,5 vs −28,25, 12/12 seeds, différence appariée 0,0) — le mur est le MÉCANISME DE CRÉDIT, pas la récompense ; et la curiosité de la récompense in-world est MORTE sous torch depuis toujours (pré-vol)",
+        "status": "active",
+        "gate": "G0",
+        "verdict": "CREDIT_ERODE_SEUL_PLEIN_THE_WALL_IS_THE_CREDIT_MECHANISM_NOT_THE_REWARD_AND_CURIOSITY_WAS_DEAD",
+        "linked": true,
+        "url": null,
+        "method": null,
+        "lib": null,
+        "maturity": null
+      },
+      {
+        "id": "EDR-S2-SUBJECT-VARIANCE",
+        "type": "EDR",
+        "title": "ARRÊTÉ AU SMOKE : aucun contrôle POSITIF in-world n'est constructible par amplification dans `stoneage` — plus on couple la politique à l'observation, moins on survit (27,5 → 13,8 → 6,2)",
+        "status": "active",
+        "gate": "G0",
+        "verdict": "STOPPED_AT_SMOKE_NO_INWORLD_POSITIVE_CONTROL_BY_AMPLIFICATION",
+        "linked": true,
+        "url": null,
+        "method": null,
+        "lib": null,
+        "maturity": null
+      },
+      {
+        "id": "EDR-S6-FALLBACK-RATE",
+        "type": "EDR",
+        "title": "Le marqueur within-subject mesure une propriété de la POLITIQUE, pas du MONDE — dans une cellule où le corps SUFFIT, l'ablation mord sur 8 seeds sur 12 dès que l'init n'est plus nulle",
+        "status": "active",
+        "gate": "G0",
+        "verdict": "MARKER_READS_THE_POLICY_NOT_THE_WORLD",
         "linked": true,
         "url": null,
         "method": null,
@@ -4240,12 +4383,22 @@
       },
       {
         "from": "EDR-AUDIT-001",
+        "to": "EDR-S2-005",
+        "rel": "CORRIGE"
+      },
+      {
+        "from": "EDR-AUDIT-001",
         "to": "EDR-S2-006",
         "rel": "CORRIGE"
       },
       {
         "from": "EDR-AUDIT-001",
         "to": "EDR-S2-007",
+        "rel": "CORRIGE"
+      },
+      {
+        "from": "EDR-AUDIT-001",
+        "to": "EDR-S2-008",
         "rel": "CORRIGE"
       },
       {
@@ -4287,6 +4440,41 @@
         "from": "EDR-BILINEAR",
         "to": "REF-DEMAND-MARKER",
         "rel": "ADOPTE"
+      },
+      {
+        "from": "EDR-CALIB-LEARNER",
+        "to": "SDR-G0",
+        "rel": "TESTE"
+      },
+      {
+        "from": "EDR-CALIB-LEARNER",
+        "to": "REF-EXPERIMENT-PREFLIGHT",
+        "rel": "ADOPTE"
+      },
+      {
+        "from": "EDR-CALIB-LEARNER",
+        "to": "EDR-S2-009",
+        "rel": "ETEND"
+      },
+      {
+        "from": "EDR-CALIB-LEARNER",
+        "to": "EDR-S2-010",
+        "rel": "ETEND"
+      },
+      {
+        "from": "EDR-CALIB-LEARNER",
+        "to": "EDR-S2-011",
+        "rel": "ETEND"
+      },
+      {
+        "from": "EDR-CALIB-LEARNER",
+        "to": "EDR-S2-010",
+        "rel": "CORRIGE"
+      },
+      {
+        "from": "EDR-CALIB-LEARNER",
+        "to": "EDR-S2-011",
+        "rel": "CORRIGE"
       },
       {
         "from": "EDR-DELAYED-COORD",
@@ -4589,6 +4777,26 @@
         "rel": "ETEND"
       },
       {
+        "from": "EDR-EVO-011",
+        "to": "SDR-G0",
+        "rel": "TESTE"
+      },
+      {
+        "from": "EDR-EVO-011",
+        "to": "REF-EXPERIMENT-PREFLIGHT",
+        "rel": "ADOPTE"
+      },
+      {
+        "from": "EDR-EVO-011",
+        "to": "REF-DEMAND-MARKER",
+        "rel": "ADOPTE"
+      },
+      {
+        "from": "EDR-EVO-011",
+        "to": "EDR-EVO-004",
+        "rel": "ETEND"
+      },
+      {
         "from": "EDR-EVO-012",
         "to": "SDR-G0",
         "rel": "TESTE"
@@ -4829,6 +5037,41 @@
         "rel": "ETEND"
       },
       {
+        "from": "EDR-GRAB-COST",
+        "to": "SDR-G0",
+        "rel": "TESTE"
+      },
+      {
+        "from": "EDR-GRAB-COST",
+        "to": "REF-EXPERIMENT-PREFLIGHT",
+        "rel": "ADOPTE"
+      },
+      {
+        "from": "EDR-GRAB-COST",
+        "to": "REF-DEMAND-MARKER",
+        "rel": "ADOPTE"
+      },
+      {
+        "from": "EDR-GRAB-COST",
+        "to": "EDR-WARM-008",
+        "rel": "ETEND"
+      },
+      {
+        "from": "EDR-HOF-IO-OVERLAP",
+        "to": "SDR-G0",
+        "rel": "TESTE"
+      },
+      {
+        "from": "EDR-HOF-IO-OVERLAP",
+        "to": "REF-EXPERIMENT-PREFLIGHT",
+        "rel": "ADOPTE"
+      },
+      {
+        "from": "EDR-HOF-IO-OVERLAP",
+        "to": "EDR-S2-BLIND-CHAMPION",
+        "rel": "ETEND"
+      },
+      {
         "from": "EDR-INFRA-001",
         "to": "SDR-G0",
         "rel": "TESTE"
@@ -5029,6 +5272,11 @@
         "rel": "ADOPTE"
       },
       {
+        "from": "EDR-S2-005",
+        "to": "EDR-AUDIT-001",
+        "rel": "CORRIGE_PAR"
+      },
+      {
         "from": "EDR-S2-006",
         "to": "SDR-G0",
         "rel": "TESTE"
@@ -5069,6 +5317,11 @@
         "rel": "ADOPTE"
       },
       {
+        "from": "EDR-S2-008",
+        "to": "EDR-AUDIT-001",
+        "rel": "CORRIGE_PAR"
+      },
+      {
         "from": "EDR-S2-009",
         "to": "SDR-G0",
         "rel": "TESTE"
@@ -5094,6 +5347,11 @@
         "rel": "ADOPTE"
       },
       {
+        "from": "EDR-S2-010",
+        "to": "EDR-CALIB-LEARNER",
+        "rel": "CORRIGE_PAR"
+      },
+      {
         "from": "EDR-S2-011",
         "to": "SDR-G0",
         "rel": "TESTE"
@@ -5102,6 +5360,11 @@
         "from": "EDR-S2-011",
         "to": "REF-DEMAND-MARKER",
         "rel": "ADOPTE"
+      },
+      {
+        "from": "EDR-S2-011",
+        "to": "EDR-CALIB-LEARNER",
+        "rel": "CORRIGE_PAR"
       },
       {
         "from": "EDR-S2-012",
@@ -5132,6 +5395,136 @@
         "from": "EDR-S2-013",
         "to": "EDR-S2-002",
         "rel": "ETEND"
+      },
+      {
+        "from": "EDR-S2-BLIND-CHAMPION",
+        "to": "SDR-G0",
+        "rel": "TESTE"
+      },
+      {
+        "from": "EDR-S2-BLIND-CHAMPION",
+        "to": "REF-EXPERIMENT-PREFLIGHT",
+        "rel": "ADOPTE"
+      },
+      {
+        "from": "EDR-S2-BLIND-CHAMPION",
+        "to": "REF-DEMAND-MARKER",
+        "rel": "ADOPTE"
+      },
+      {
+        "from": "EDR-S2-BLIND-CHAMPION",
+        "to": "EDR-EVO-011",
+        "rel": "ETEND"
+      },
+      {
+        "from": "EDR-S2-CREDIT-RETENTION",
+        "to": "SDR-G0",
+        "rel": "TESTE"
+      },
+      {
+        "from": "EDR-S2-CREDIT-RETENTION",
+        "to": "REF-EXPERIMENT-PREFLIGHT",
+        "rel": "ADOPTE"
+      },
+      {
+        "from": "EDR-S2-CREDIT-RETENTION",
+        "to": "EDR-CALIB-LEARNER",
+        "rel": "ETEND"
+      },
+      {
+        "from": "EDR-S2-CREDIT-RETENTION",
+        "to": "EDR-WARM-003",
+        "rel": "ETEND"
+      },
+      {
+        "from": "EDR-S2-CREDIT-RETENTION",
+        "to": "EDR-175",
+        "rel": "ETEND"
+      },
+      {
+        "from": "EDR-S2-CREDIT-RETENTION",
+        "to": "EDR-S2-010",
+        "rel": "ETEND"
+      },
+      {
+        "from": "EDR-S2-CREDIT-RETENTION",
+        "to": "EDR-S2-011",
+        "rel": "ETEND"
+      },
+      {
+        "from": "EDR-S2-CREDIT-RETENTION",
+        "to": "EDR-S2-REWARD-ABLATION",
+        "rel": "CORRIGE_PAR"
+      },
+      {
+        "from": "EDR-S2-REWARD-ABLATION",
+        "to": "SDR-G0",
+        "rel": "TESTE"
+      },
+      {
+        "from": "EDR-S2-REWARD-ABLATION",
+        "to": "REF-EXPERIMENT-PREFLIGHT",
+        "rel": "ADOPTE"
+      },
+      {
+        "from": "EDR-S2-REWARD-ABLATION",
+        "to": "EDR-S2-CREDIT-RETENTION",
+        "rel": "ETEND"
+      },
+      {
+        "from": "EDR-S2-REWARD-ABLATION",
+        "to": "EDR-CALIB-LEARNER",
+        "rel": "ETEND"
+      },
+      {
+        "from": "EDR-S2-REWARD-ABLATION",
+        "to": "EDR-WARM-003",
+        "rel": "ETEND"
+      },
+      {
+        "from": "EDR-S2-REWARD-ABLATION",
+        "to": "EDR-S2-CREDIT-RETENTION",
+        "rel": "CORRIGE"
+      },
+      {
+        "from": "EDR-S2-SUBJECT-VARIANCE",
+        "to": "SDR-G0",
+        "rel": "TESTE"
+      },
+      {
+        "from": "EDR-S2-SUBJECT-VARIANCE",
+        "to": "REF-EXPERIMENT-PREFLIGHT",
+        "rel": "ADOPTE"
+      },
+      {
+        "from": "EDR-S2-SUBJECT-VARIANCE",
+        "to": "REF-DEMAND-MARKER",
+        "rel": "ADOPTE"
+      },
+      {
+        "from": "EDR-S2-SUBJECT-VARIANCE",
+        "to": "EDR-S2-BLIND-CHAMPION",
+        "rel": "ETEND"
+      },
+      {
+        "from": "EDR-S6-FALLBACK-RATE",
+        "to": "SDR-G0",
+        "rel": "TESTE"
+      },
+      {
+        "from": "EDR-S6-FALLBACK-RATE",
+        "to": "REF-DEMAND-MARKER",
+        "rel": "ADOPTE"
+      },
+      {
+        "from": "EDR-S6-FALLBACK-RATE",
+        "to": "REF-EXPERIMENT-PREFLIGHT",
+        "rel": "ADOPTE"
+      },
+      {
+        "from": "EDR-S6-FALLBACK-RATE",
+        "to": "EDR-S2-006",
+        "rel": "CORRIGE"
       },
       {
         "from": "EDR-WARM-001",
@@ -5325,6 +5718,16 @@
       },
       {
         "from": "REF-DEMAND-MARKER",
+        "to": "EDR-S2-012",
+        "rel": "A_ADOPTER_POUR"
+      },
+      {
+        "from": "REF-DEMAND-MARKER",
+        "to": "EDR-S2-013",
+        "rel": "A_ADOPTER_POUR"
+      },
+      {
+        "from": "REF-DEMAND-MARKER",
         "to": "EDR-WARM-001",
         "rel": "A_ADOPTER_POUR"
       },
@@ -5346,6 +5749,91 @@
       {
         "from": "REF-DEMAND-MARKER",
         "to": "EDR-WARM-005",
+        "rel": "A_ADOPTER_POUR"
+      },
+      {
+        "from": "REF-DEMAND-MARKER",
+        "to": "EDR-WARM-006",
+        "rel": "A_ADOPTER_POUR"
+      },
+      {
+        "from": "REF-DEMAND-MARKER",
+        "to": "EDR-WARM-007",
+        "rel": "A_ADOPTER_POUR"
+      },
+      {
+        "from": "REF-DEMAND-MARKER",
+        "to": "EDR-WARM-008",
+        "rel": "A_ADOPTER_POUR"
+      },
+      {
+        "from": "REF-DEMAND-MARKER",
+        "to": "EDR-WARM-010",
+        "rel": "A_ADOPTER_POUR"
+      },
+      {
+        "from": "REF-DEMAND-MARKER",
+        "to": "EDR-LANG-PERCEPTION",
+        "rel": "A_ADOPTER_POUR"
+      },
+      {
+        "from": "REF-DEMAND-MARKER",
+        "to": "EDR-MEM-PERCEPTION",
+        "rel": "A_ADOPTER_POUR"
+      },
+      {
+        "from": "REF-DEMAND-MARKER",
+        "to": "EDR-LANG-MEMORY",
+        "rel": "A_ADOPTER_POUR"
+      },
+      {
+        "from": "REF-DEMAND-MARKER",
+        "to": "EDR-LANG-MEMORY-EDGE",
+        "rel": "A_ADOPTER_POUR"
+      },
+      {
+        "from": "REF-DEMAND-MARKER",
+        "to": "EDR-LANG-MEMORY-EDGE-BIS",
+        "rel": "A_ADOPTER_POUR"
+      },
+      {
+        "from": "REF-DEMAND-MARKER",
+        "to": "EDR-DELAYED-COORD",
+        "rel": "A_ADOPTER_POUR"
+      },
+      {
+        "from": "REF-DEMAND-MARKER",
+        "to": "EDR-BILINEAR",
+        "rel": "A_ADOPTER_POUR"
+      },
+      {
+        "from": "REF-DEMAND-MARKER",
+        "to": "EDR-RETAIN-COMPOSE",
+        "rel": "A_ADOPTER_POUR"
+      },
+      {
+        "from": "REF-DEMAND-MARKER",
+        "to": "EDR-AUDIT-001",
+        "rel": "A_ADOPTER_POUR"
+      },
+      {
+        "from": "REF-DEMAND-MARKER",
+        "to": "EDR-DREAM-001",
+        "rel": "A_ADOPTER_POUR"
+      },
+      {
+        "from": "REF-DEMAND-MARKER",
+        "to": "EDR-EVO-002",
+        "rel": "A_ADOPTER_POUR"
+      },
+      {
+        "from": "REF-DEMAND-MARKER",
+        "to": "EDR-EVO-005",
+        "rel": "A_ADOPTER_POUR"
+      },
+      {
+        "from": "REF-DEMAND-MARKER",
+        "to": "CALIB-SP3",
         "rel": "A_ADOPTER_POUR"
       },
       {
@@ -5804,6 +6292,7 @@
         "EDR-124",
         "EDR-AUDIT-001",
         "EDR-AUDIT-002",
+        "EDR-CALIB-LEARNER",
         "EDR-COG-001",
         "EDR-DELAYED-COORD",
         "EDR-DREAM-001",
@@ -5823,6 +6312,7 @@
         "EDR-EVO-008",
         "EDR-EVO-009",
         "EDR-EVO-010",
+        "EDR-EVO-011",
         "EDR-EVO-012",
         "EDR-EVO-013",
         "EDR-EVO-014",
@@ -5839,6 +6329,8 @@
         "EDR-EVO-026",
         "EDR-EVO-027",
         "EDR-EVO-028",
+        "EDR-GRAB-COST",
+        "EDR-HOF-IO-OVERLAP",
         "EDR-INFRA-001",
         "EDR-LANG-MEMORY",
         "EDR-LANG-MEMORY-EDGE",
@@ -5861,6 +6353,11 @@
         "EDR-S2-011",
         "EDR-S2-012",
         "EDR-S2-013",
+        "EDR-S2-BLIND-CHAMPION",
+        "EDR-S2-CREDIT-RETENTION",
+        "EDR-S2-REWARD-ABLATION",
+        "EDR-S2-SUBJECT-VARIANCE",
+        "EDR-S6-FALLBACK-RATE",
         "EDR-WARM-001",
         "EDR-WARM-002",
         "EDR-WARM-003",
@@ -5895,6 +6392,8 @@
         "EDR-174",
         "EDR-175",
         "EDR-176",
+        "EDR-177",
+        "EDR-178",
         "EDR-CRAFT-001",
         "EDR-LOCK-001",
         "G1-001"
@@ -5988,13 +6487,16 @@
   },
   "problems": [],
   "prefix_counts": {
-    "LEGACY": 226,
+    "LEGACY": 233,
     "AUDIT": 2,
+    "CALIB": 1,
     "COG": 1,
     "CRAFT": 1,
     "DELAYED": 1,
     "DREAM": 7,
-    "EVO": 26,
+    "EVO": 27,
+    "GRAB": 1,
+    "HOF": 1,
     "INFRA": 1,
     "LANG": 4,
     "LOCK": 1,
