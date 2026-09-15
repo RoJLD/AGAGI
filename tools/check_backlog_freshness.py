@@ -19,7 +19,8 @@ CE QUE CE CLIQUET VÉRIFIE — trois propriétés DÉCIDABLES, et rien d'autre :
 
 1. **Liens morts** — un `[[EDR-XXX]]` cité dans le backlog dont aucun record ne porte l'id.
 2. **Numéros dupliqués** — un même `P<n>.<m>` en tête de deux entrées : l'une des deux est forcément
-   périmée, et rien ne dit laquelle.
+   périmée, et rien ne dit laquelle. Une tête COMPOSITE (`**P1.x / P2.45 —`) vote pour chacun de
+   ses numéros ; `P1.x` est un substitut (« à numéroter »), pas un numéro.
 3. **Chemins morts** — un `chemin/fichier.py` cité entre backticks qui n'existe plus.
 
 CE QU'IL NE VÉRIFIE PAS. Il ne juge pas si une entrée « ouverte » a été tranchée par un record : ça
@@ -49,7 +50,14 @@ _BASELINE = os.path.join(_ROOT, "tools", "backlog_freshness_baseline.json")
 _DOCS = os.path.join(_ROOT, "docs")
 
 _WIKILINK = re.compile(r"\[\[([A-Za-z0-9_.\-]+)\]\]")
-_TASKNUM = re.compile(r"^\*\*(P\d+\.\d+(?:-bis)?)\b", re.M)
+# P3.5 (a), 2026-09-15 : TITRES COMPOSITES. `**P1.x / P2.45 — ...` porte DEUX numeros et un `x` de
+# substitution (« a numeroter »). L'ancien motif exigeait `P\d+\.\d+` et le titre ENTIER lui
+# echappait : ni entree (son bloc etait avale par la precedente), ni numero (P2.45 est en tete d'une
+# SECONDE entree, l.2981, et le compte de doublons rendait OK). Un titre que le cliquet ne lit pas ne
+# peut pas etre en double : entree invisible -> succes, la forme (a) de CLAUDE.md, commise par une garde.
+_NUM = r"P\d+\.(?:\d+|x)(?:-bis)?"
+_TETE = rf"^\*\*({_NUM}(?:\s*/\s*{_NUM})*)"
+_TASKNUM = re.compile(_TETE + r"\b", re.M)
 _BACKTICK_PATH = re.compile(r"`([\w][\w./-]*\.(?:py|md|json|yml|yaml))`")
 
 # --- P2.29 : PÉREMPTION SÉMANTIQUE, par CLAUSE DÉCLARÉE ---------------------------------------------
@@ -80,7 +88,7 @@ _CLAUSE = re.compile(r"<!--\s*closes_when:([a-z_]+)=(.+?)\s*-->")
 # une violation -- la clause CESSE d'etre satisfaite --, quel que soit l'etat de l'entree. C'est
 # ce qu'il faut pour un fait etabli cite dans une entree encore ouverte, cas tres frequent.
 _HOLDS = re.compile(r"<!--\s*holds_when:([a-z_]+)=(.+?)\s*-->")
-_ENTREE = re.compile(r"^\*\*(P\d+\.\d+(?:-bis)?)\s*[—-]", re.M)
+_ENTREE = re.compile(_TETE + r"\s*[—-]", re.M)
 _CLOSE_MARQUEURS = ("✅", "CLOS", "CLOSE", "FAIT", "PÉRIMÉE", "RETIRÉE", "TERMINÉ")
 
 
@@ -209,7 +217,10 @@ def scan():
         trouve[f"lien-mort:{cible}"] = (
             f"le backlog cite [[{cible}]] mais aucun record ne porte cet identifiant")
 
-    compte = collections.Counter(_TASKNUM.findall(txt))
+    # Une tete composite vote pour CHACUN de ses numeros ; `P1.x` est un substitut, pas un numero :
+    # deux entrees « a numeroter » ne sont pas deux versions d'une meme tache, ne pas le fabriquer.
+    compte = collections.Counter(
+        num for tete in _TASKNUM.findall(txt) for num in re.findall(_NUM, tete) if ".x" not in num)
     for num, n in sorted(compte.items()):
         if n > 1:
             trouve[f"numero-double:{num}"] = (
@@ -282,7 +293,8 @@ def compter_entrees(txt=None):
         with open(os.path.join(_ROOT, "docs", "roadmap", "PRIORITES_ET_DETTES.md"),
                   encoding="utf-8") as f:
             txt = f.read()
-    return sum(1 for ln in txt.splitlines() if re.match(r"\*\*P\d+\.\d+", ln.strip()))
+    # Meme TETE que `_ENTREE` : une entree invisible au compte serait effacable sans que le plancher bouge.
+    return sum(1 for ln in txt.splitlines() if re.match(_TETE, ln.strip()))
 
 
 def main():

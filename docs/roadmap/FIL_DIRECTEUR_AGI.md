@@ -18,7 +18,7 @@ GA (recherche de substrat) + gradient (apprentissage intra-vie) + Baldwin. Évol
 ## Les 5 portes (bottom-up par dépendance, capacités stratifiées EDR 075)
 | Porte | Question | KPI | Outil | Record |
 |---|---|---|---|---|
-| **G0** | Le monde exige ? | ablation within-subject (perception / corps) — le `survival_ratio` between est RÉFUTÉ comme marqueur (S2-001) | `s2_demand_ablation.py`, `s2_cognition_body.py` | SDR-G0 — **verdict : la survie vient du CORPS** (S2-012, BODY 4/5) ; le monde n'exige la cognition que sous la recette S2-006, réalisée in-world (S2-009, 21×) |
+| **G0** | Le monde exige ? | ablation within-subject (perception / corps) — le `survival_ratio` between est RÉFUTÉ comme marqueur (S2-001) | `s2_demand_ablation.py`, `s2_cognition_body.py` | SDR-G0 — **verdict : la survie vient du CORPS** (S2-012, BODY 4/5) ; le monde n'exige la cognition que sous la recette S2-006, réalisée in-world (S2-009, ≥ 22× = cap/plancher) |
 | **G1** | Ça généralise ? ★ | ablation within de la compétence transférée | `cross_world_transfer.py`, G1-001 | SDR-G1 — noyau OUI (156), émergence world-spécifique NON (157) |
 | **G2** | Ça compose ? | N1 proxy `binding_gap > 0.30` + `hit_end` ; N2 fort `comp_rate` du bras NU sous demande | `substrate_ab_compositional.py`, `compositional_world_probe.py` | SDR-G2 (re-scellée 2026-09-02) — **proxy FRANCHI** (EDR-136, 10/10) ; **fort NON FRANCHI = mur [[EDR-LOCK-001]]** |
 | **G3** | Le langage paye ? | ablation du canal + MI(m;a), sous asymétrie d'information | `language_payoff_probe.py` | SDR-G3 — proxy CLOS : paie SSI coordination-demand (LANG-006) ; in-world 087 NÉGATIF |
@@ -43,6 +43,8 @@ falsifiable : un levier qui perce l'un doit percer les autres.
 
 > On ne franchit une porte que si la précédente est mesurée (verdict EDR powered).
 > Méthode : Commandement 15 (1 variable, powered, valide-ou-revert). Négatifs = livrables.
+> ⚠️ **Re-scellée le 2026-09-15** — ce que « mesurée » exige est fixé dans la sous-section
+> « Règle des portes — re-scellée » ci-dessous ; cette formule seule était satisfaite à la lettre et vide.
 
 ## Direction courante (décidée le 2026-09-14) — où nous allons, et dans quel ordre
 
@@ -58,6 +60,60 @@ mois : **mémoire / écriture**. Le champion prod stoneage n'est plus un sujet p
 cognition (survie = corps, logits = observation, plancher de bruit 8 %).
 [`SPECIFICATION_10ANS.md`](SPECIFICATION_10ANS.md) est archivé de fait : ses quatre paris sont
 tranchés dans le bloc 🧭.
+
+### Règle des portes — re-scellée le 2026-09-15 (P3.5 f)
+
+**Pourquoi re-sceller.** « On ne franchit une porte que si la précédente est mesurée » était satisfaite à
+la lettre et vide (bloc 🧭 du backlog) : G0 est `validated` dans `SDR-G0` sur le KPI
+`survival_ratio(champion)/survival_ratio(dummy)` — un marqueur BETWEEN-subject que [[S2-001]] a RÉFUTÉ
+depuis (faux positif 5-7× sur un monde TRIVIAL à vérité-terrain, où l'observation est un leurre), et
+G1-G4 ont été tentées in-world sur un sujet sans contenu cognitif ([[EDR-S2-012]]). Une porte « mesurée »
+par un instrument réfuté n'est pas mesurée. Quatre clauses, chacune fondée sur un record ; **une porte ne
+se dit « mesurée » que si son verdict les satisfait toutes.**
+
+1. **Le marqueur de demande est l'ablation WITHIN-subject de la capacité — jamais « un survivant
+   existe ».** [[S2-001]] : sur TRIVIAL (obs inutile), BETWEEN rend 5,1-7,1× et WITHIN 1,0× ; sur DEMANDING
+   les deux rendent ~5×. Le gabarit est [[REF-DEMAND-MARKER]] (`ablation_verdict`, barreau `permuted`
+   de préférence à `zero`, plancher `floor=` DÉCLARÉ du régime — sous le plancher, `INCONCLUSIVE_DEGENERATE`
+   et non « pas de demande », [[EDR-AUDIT-001]]). Ce que le marqueur mesure est une propriété du SUJET
+   (a-t-il un repli survivable sans X ?), pas du monde ([[EDR-S6-FALLBACK-RATE]] : 8/12 vs 0/12 selon la
+   seule init) : publier l'init ou la provenance du sujet fait partie du verdict.
+
+2. **Contrôle positif CO-EXÉCUTÉ, dans le même dispositif et le même régime que le nul.** Un nul sans
+   contrôle positif est ininterprétable : WARM-002 et S2-006 n'en avaient pas ; [[EDR-S2-012]] en a un
+   (oracle sur génomes FRAIS dans le régime `cognitive_demand` : 200,0 vs 7,0, verdict `COGNITION`), et
+   c'est ce qui rend son nul lisible — « on aurait vu s'il y avait eu ». In-world, la recette S2-006
+   réalisée par [[EDR-S2-009]] est le seul contrôle positif de G0 (ON : 200,0 → 9,0 en médianes
+   re-mesurées par [[EDR-AUDIT-001]], ratio 22,22 = cap/plancher, à lire **≥ 22×** — les deux bras sont
+   AUX BORNES de l'instrument : intact censuré à max_ticks, ablé au plancher no-perception ; le run
+   d'origine rendait 21,05, d'où le « 21× » du verdict du record — 12/12 ères) ; son bras OFF
+   (7,0 = 7,0) est un no-op LITTÉRAL — métrique morte — et ne
+   prouve PAS la spécificité, établie ailleurs (S2-001, LANG-006, MEM-001 ; [[EDR-AUDIT-001]]).
+
+3. **Plancher de bruit PUBLIÉ à côté de chaque ratio.** [[EDR-S2-BLIND-CHAMPION]] (2026-09-08) : le
+   no-op EXACT de `run_ablation_map` — aucune observation changée, seule la bande RNG bouge — rend
+   **1,058** sur le champion et **0,922** sur le champion aveuglé ; le `within_ratio` publié du champion
+   vaut **0,991**, donc DEDANS. Conséquences opératoires : un ratio dans la bande [0,922 ; 1,058] n'est pas
+   distinguable de zéro et le record le dit ; `PERCEPTION_DECOY` se lit « rien de détectable au-dessus de
+   ~8 % », jamais « rien » ; `noop_control=True` publie ce plancher ; l'appariement de bande le divise par
+   6 (~1 %). CLAUDE.md §Calibration en fait une règle générale : un instrument de contraste sans plancher
+   de bruit mesuré ne sait pas ce qu'il ne peut pas voir.
+
+4. **Statut RÉEL de G0.** `SDR-G0 : validated` par [[EDR-112]] / [[EDR-118]] (champion vs dummy,
+   3,7-4,7×) : la porte a été franchie sur le marqueur BETWEEN, réfuté depuis par S2-001 ; ce statut est
+   l'état HISTORIQUE du SDR, pas un franchissement au sens de cette règle. Ce que le dépôt sait depuis :
+   la survie du champion prod vient du CORPS ([[EDR-S2-012]] — BODY sur 4 mondes et non 5, `industrial`
+   étant un clone de `stoneage` ; `champion_body` bat le champion complet ; le bras `body` est lui-même
+   between, n effectif 1 sur le génome) ; [[EDR-124]] (EXIGE ×4 en survie) est `legacy`,
+   `corrected_by: EDR-S2-012`, et ses verdicts d'ablation sont bornés par le plancher de 8 % ; le
+   champion n'est plus un sujet pour mesurer la cognition (18 de ses logits d'action SONT l'observation).
+   G0 est donc **mesurée in-world uniquement sous la recette S2-006** ([[EDR-S2-009]]), sur un sujet
+   (l'oracle) qui n'est pas le champion prod — et c'est la ligne du tableau ci-dessus qui fait foi.
+
+Pour les portes G1-G4 : aucun verdict « franchi » sans (1) within-subject, (2) contrôle positif
+co-exécuté, (3) plancher de bruit publié — la ligne « proxy FRANCHI » de G2 ([[EDR-136]]) et les
+arêtes taxonomy en satisfont (1) ; (2) et (3) restent à publier record par record, ce que P3.6
+(bandeaux de portée) fait APRÈS le verdict de P1.6, jamais avant (E8).
 
 ## État courant : le verrou convergent (2026-07)
 

@@ -366,6 +366,7 @@ le titre l.17 (« DETTE CLOSE ») ; (d) `## P3` se dit « BLOC PÉRIMÉ » et co
 (f) re-sceller la règle des portes dans `docs/roadmap/FIL_DIRECTEUR_AGI.md` : within-subject, contrôle
 positif co-exécuté, plancher de bruit publié, et le statut RÉEL de G0 (validée sur un marqueur réfuté).
 *Coût : agent 1,5-2 h.* Dépend de : rien.
+**(a) et (f) LIVRÉES le 2026-09-15.** (a) `_NUM`/`_TETE` dans `tools/check_backlog_freshness.py` : une tête composite vote pour chacun de ses numéros, `P1.x` est un substitut (jamais un numéro), et `_ENTREE`, `_TASKNUM` et `compter_entrees` lisent la MÊME tête (une entrée invisible au compte serait effaçable sans que le plancher bouge) ; 4 contre-exemples gelés dans `tests/sandbox/test_backlog_freshness.py` (3 ROUGES contre HEAD + 1 no-op de spécificité) ; mutation « les titres COMPOSITES redeviennent invisibles » déclarée à la porte 15 (porte 4 : 3/3 TUÉES). Le cliquet élargi a révélé un VRAI doublon — P2.45 en tête de l.2326 et l.2981 — résolu en renommant l.2326 en `P1.x` (jamais gelé en baseline). (f) règle des portes re-scellée dans `docs/roadmap/FIL_DIRECTEUR_AGI.md` § « Règle des portes — re-scellée le 2026-09-15 » : within-subject, contrôle positif co-exécuté, plancher de bruit publié, statut RÉEL de G0 ; ratio S2-009 harmonisé (≥ 22× = cap/plancher, 21,05 au run d'origine). **Restent (b), (c), (d), (e).** Vu en passant : `compter_entrees()` ré-épelle le chemin du backlog au lieu de lire `_BACKLOG` — un test qui monkeypatche `_BACKLOG` vers un jouet ne fait pas compter ce jouet par le plancher (sans effet aujourd'hui, les tests du plancher monkeypatchent `compter_entrees` ; à aligner quand on touche (b)).
 
 **P3.6 — ✅ CLOSE (2026-09-15) — rang 16 — Bandeaux de portée posés APRÈS le verdict de P1.6 (jamais avant : E8).**
 → **LIVRÉ le 2026-09-15** (worktree isolé, 5 fichiers, +114 lignes, 0 suppression ; tests GREEN 8/8, sept portes OK).
@@ -544,8 +545,8 @@ P2.42. Dépend de : P1.7.
 
 - **P2.44** se disait OUVERTE : ses 25 défauts sont corrigés depuis `d7557ec` (172 cas d'injection,
   zéro `xfail`) — fermée.
-- **P1.x / P2.45** (CI à 6 %) est close par P2.54 — annotée ; le titre composite échappe au cliquet des
-  doublons (P3.5 a).
+- **P1.x** (ex-« P1.x / P2.45 », CI à 6 %) est close par P2.54 — annotée ; depuis P3.5 (a) (2026-09-15) le titre
+  composite n'échappe plus au cliquet des doublons, qui a révélé que P2.45 désignait DEUX entrées : renommée P1.x.
 - **C2** (harnais EVO-011) : EVO-011 est FERMÉE par pré-vol (P2.39) — le « reste » est fait.
 - **C4** (couche de lecture + M5) : M5 et T3 sont CLOS depuis le 2026-09-06/07.
 - Les 13 rouges de la suite complète du 09-08 étaient tous dans `tests/` racine (hors CI d'alors), tous
@@ -2356,7 +2357,7 @@ et amplifier `obs → action` ×3 / ×8 a multiplié le drain (11,0 / 15,0 en nu
 P1.7 : re-smoke à corps APPARIÉ (ballast exact), 4 cellules × 30 s ; si le lecteur câblé ballasté survit
 ET rend DEMANDED, c'est le premier contrôle positif de `run_ablation_map` sur une politique qui lit.
 
-**P1.x / P2.45 — ✅ CLOSE par P2.54 (2026-09-09 ; titre laissé OUVERT jusqu'au 2026-09-14) — « CI VERTE » couvrait 6 % de la suite : 1937 tests
+**P1.x — ✅ CLOSE par P2.54 (2026-09-09 ; titre laissé OUVERT jusqu'au 2026-09-14) — « CI VERTE » couvrait 6 % de la suite : 1937 tests
 sur 2059 n'étaient exécutés par AUCUN job.** Mesuré en parsant `.github/workflows/ci.yml` : les deux
 invocations `pytest` prennent une **liste NOMMÉE de fichiers** (16 au total), jamais un répertoire.
 `tests/sandbox/` — 220 fichiers — n'est donc jamais lancé en entier.

@@ -231,3 +231,48 @@ def test_the_REAL_backlog_is_ABOVE_its_frozen_floor():
     plancher = m._charger_plancher()
     assert plancher > 0, "plancher a zero = garde desarmee"
     assert m.compter_entrees() >= plancher
+
+# --- P3.5 (a) : TITRES COMPOSITES (2026-09-15) ------------------------------------------------------
+#
+# ⚠️ DEFAUT MESURE. `**P1.x / P2.45 — ...` (l.2326 du backlog) porte DEUX numeros et un `x` de
+# substitution (« a numeroter »). `_ENTREE` et `_TASKNUM` exigeaient `P\d+\.\d+` : le titre ENTIER
+# etait invisible -- ni entree (son bloc etait avale par l'entree precedente), ni numero (P2.45 est en
+# tete d'une SECONDE entree, l.2981, et le compte de doublons rendait OK). Un titre que le cliquet ne
+# lit pas ne peut pas etre en double : entree invisible -> succes, la forme (a) de CLAUDE.md.
+
+def test_a_COMPOSITE_title_duplicating_a_number_is_DETECTED(tmp_path, monkeypatch):
+    """CONTRE-EXEMPLE GELE : le cas reel, en jouet. `P2.45` en tete d'un titre composite ET d'un
+    titre simple doit etre signale comme numero double."""
+    _backlog(tmp_path, monkeypatch,
+             "**P1.x / P2.45 — ✅ CLOSE par P2.54 — premiere version (composite).**\n\n"
+             "**P2.45 — ✅ LIVRÉE — deuxieme version, une autre tache.**\n")
+    trouve = B.scan()
+    assert "numero-double:P2.45" in trouve, trouve
+
+
+def test_a_PLACEHOLDER_shared_by_two_composites_is_NOT_a_duplicate(tmp_path, monkeypatch):
+    """SPECIFICITE de l'elargissement : `P1.x` est un SUBSTITUT, pas un numero. Deux entrees qui le
+    partagent ne sont pas deux versions d'une meme tache -- le signaler FABRIQUERAIT un doublon."""
+    _backlog(tmp_path, monkeypatch,
+             "**P1.x / P2.45 — une tache.**\n\n**P1.x / P2.46 — une autre.**\n")
+    trouve = B.scan()
+    assert not any(k.startswith("numero-double:") for k in trouve), trouve
+
+
+def test_a_COMPOSITE_title_is_an_ENTRY_and_owns_its_clause(tmp_path, monkeypatch):
+    """Le bloc d'un titre composite lui appartient : sa clause `closes_when:` se juge contre SON
+    statut, pas contre celui de l'entree precedente -- qui l'avalait, et rendait OK sur une
+    fermeture REGRESSEE."""
+    _backlog(tmp_path, monkeypatch,
+             "**P9.1 — ouverte, sans clause.**\n\n"
+             "**P1.x / P9.2 — ✅ CLOSE — mais sa condition n'est plus vraie.**\n"
+             "<!-- closes_when:path_present=tools/ce_fichier_nexiste_pas.py -->\n")
+    trouve = B.scan()
+    assert "clause-rouverte:P1.x / P9.2:path_present" in trouve, trouve
+    assert not any(":P9.1:" in k for k in trouve), trouve
+
+
+def test_a_COMPOSITE_title_COUNTS_as_an_entry_for_the_amputation_floor():
+    """Le plancher d'amputation compte les MEMES entrees que le reste du cliquet : une entree
+    invisible au compte est une entree qu'on peut effacer sans que le plancher bouge."""
+    assert B.compter_entrees("**P1.x / P2.45 — a.**\n\n**P2.46 — b.**\n") == 2

@@ -143,6 +143,14 @@ PORTES = {
                 "apres": "    if False:",
                 "motif": "la comparaison elle-même — un backlog passé de 2652 à 0 entrées sortirait OK",
             },
+            {
+                "nom": "les titres COMPOSITES redeviennent invisibles (P3.5 a)",
+                "avant": r'_NUM = r"P\d+\.(?:\d+|x)(?:-bis)?"',
+                "apres": r'_NUM = r"P\d+\.\d+(?:-bis)?"',
+                "motif": ("la lecture des têtes composites `**P1.x / P2.45 —` : un numéro porté par un "
+                          "titre composite échapperait de nouveau au compte de doublons — P2.45 était en "
+                          "tête de DEUX entrées (l.2326 et l.2981) et le cliquet rendait OK (2026-09-15)"),
+            },
         ],
     },
     "5": {
