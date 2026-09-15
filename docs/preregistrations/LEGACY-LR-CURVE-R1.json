@@ -1,0 +1,53 @@
+{
+  "name": "LEGACY-LR-CURVE-R1",
+  "rule": {
+    "cellule": {
+      "block": 400,
+      "lr": [
+        0.01,
+        0.001
+      ],
+      "num_agents": 12,
+      "policy": "legacy",
+      "regime": "identique a P3.4 (cog_gain 12, metab 0,75, immortel)",
+      "seeds": [
+        2026,
+        2027,
+        2028,
+        2029,
+        2030,
+        2031,
+        2032,
+        2033,
+        2034,
+        2035,
+        2036,
+        2037
+      ],
+      "ticks": 2000
+    },
+    "controles": {
+      "famille": "24 cellules (2 lr x 12 seeds) declarees via assert_control_family ; une cellule refusee est PUBLIEE (learning=None)",
+      "reference": "lr0_reference de P3.4, importee par seed (meme graine, meme monde, pas nul) ; oracle 1,000 deja mesure au meme dispositif"
+    },
+    "cout": "24 cellules x ~80 s -> ~35 min sous bail kuzu ; results/legacy_lr_curve_r1.json",
+    "discrimination": {
+      "AUTRE (le reste)": "rapporter tel quel, nommer la cellule qui empeche la lecture.",
+      "INCOMPLET": "moins de 2 x 12 cellules : aucune lecture.",
+      "SEUIL_AU_DESSUS_DE_001 (lr 0,01 : seeds_au_dessus >= 11 ET effondres + non_mesures = 0)": "l'instabilite commence entre 0,01 et 0,04 : le pas publie est le seul instable des quatre ; rapporter la courbe.",
+      "SEUIL_ENTRE_0001_ET_001 (lr 0,01 : effondres + non_mesures >= 1 ; lr 0,001 : seeds_au_dessus >= 11)": "l'instabilite commence sous 0,01 ; 0,004 et 0,001 apprennent : rapporter la courbe, nommer la bande stable.",
+      "TROP_BAS_A_0001 (lr 0,001 : seeds_au_dessus < 11, effondres + non_mesures = 0)": "a 0,001 et 2000 ticks la dose ne suffit plus : pas x duree, comme LOCK-002 ; rapporter, ne pas conclure sur la capacite."
+    },
+    "dv_primaire": "par lr : `mediane_hit_last`, `seeds_au_dessus` (hit_last > lr0_reference_apparie + 0,05, seed non mesure = NON au-dessus), `effondres` (hit_last <= 0,01), `non_mesures` (NaN / aucune decision) ; `legacy_updates` et `dW_abs_sum` medians publies.",
+    "provenance": "results/legacy_learner_calibration.json (n=12) : lr0_reference hit_last par seed (IMPORTE, meme seed = meme monde, bras deterministe) ; natural 0,249 med. (6/12) ; lr_low 0,446 (11/12).",
+    "question": "EDR-CALIB-LEGACY-LEARNER : l'apprenant legacy est instable a lr=0,04 (4 seeds a 0,000 + 1 NaN, 6/12) et apprend a lr=0,004 (11/12, 0,446). Entre les deux, OU commence l'instabilite ? Deux points supplementaires (lr 0,01 et 0,001), meme dispositif, memes 12 seeds.",
+    "regle_de_lecture_continue": "ORDRE IMPOSE : INCOMPLET, SEUIL_AU_DESSUS_DE_001, SEUIL_ENTRE_0001_ET_001, TROP_BAS_A_0001, AUTRE.",
+    "seuils": {
+      "effondrement": 0.01,
+      "justification": "min_sep et 11/12 = conventions de P1.6/P3.4 (learner_verdict, test des signes p <= 0,0032) ; 0,01 = SOUS la chance 1/8, une reponse deterministe fausse.",
+      "min_sep": 0.05,
+      "seeds_min": 11
+    }
+  },
+  "seal": "6e90c9ee3ea9896c1c95d7ec531e732fd5b236b7f39d4aa8f543ebb290338344"
+}

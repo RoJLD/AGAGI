@@ -1,0 +1,57 @@
+{
+  "name": "BILINEAR-ALIGNED-R1",
+  "rule": {
+    "cellule": {
+      "K": 6,
+      "align_train_eval": true,
+      "credit_mode": "supervised",
+      "episodes": 300,
+      "lr": [
+        0.02,
+        0.002
+      ],
+      "n_agents": 16,
+      "rank": 16,
+      "same_tick": true,
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12
+      ]
+    },
+    "controles": {
+      "defaut_bit_identique": "test_n_classes_default_is_bit_identical_to_the_historical_8",
+      "distracteurs_sans_gradient": "test_n_classes_K_removes_the_gradient_from_the_two_distractor_logits_and_only_them",
+      "famille": "48 cellules (12 seeds x 2 substrats x 2 lr) declarees via assert_control_family"
+    },
+    "cout": "48 cellules x 2-8 s -> ~5 min CPU, sans bail kuzu ; results/bilinear_aligned_r1.json",
+    "discrimination": {
+      "AUTRE (le reste)": "rapporter tel quel, sans inference ; nommer la cellule qui empeche la lecture.",
+      "BILINEAIRE_SOUS_SEUIL (mediane_bilineaire_002 < 0,5 aux DEUX lr)": "le bilineaire ne compose plus une fois aligne : correction d'EDR-BILINEAR (clause E19 : les deux pas rapportes).",
+      "INCOMPLET": "moins de 12 seeds x 2 substrats x 2 lr : aucune lecture.",
+      "SEPARATION_TIENT (mediane_bilineaire_002 >= 0,5 ET mediane_plain_002 <= 0,3889 ET separation_par_seed >= 11)": "l'alignement ne change pas la conclusion d'EDR-BILINEAR : addendum sur le record (chiffres alignes publies), P2.70 close par ALIGNEMENT.",
+      "SEPARATION_TOMBE (mediane_plain_002 > 0,3889 OU separation_par_seed < 11 apres alignement)": "le desalignement portait une partie de la separation : bandeau correctif sur EDR-BILINEAR, re-mesure des records qui citent 0,271 / 0,932."
+    },
+    "dv_primaire": "`plain_aligne` et `bilineaire_aligne` : accuracy eval par seed et par substrat a lr=0,02 (le regime publie) ; `mediane_plain_002`, `mediane_bilineaire_002` ; a lr=0,002 (clause E19) `mediane_plain_0002`, `mediane_bilineaire_0002` ; `separation_par_seed` = nombre de seeds ou bilineaire > plain + 0,10.",
+    "provenance": "Desalignement verifie dans le code (backend_torch.py:_MOVE_LOGITS=8 vs bilinear_composition_probe.py argmax[:K]) ; fumee seed 0 (exclu de la lecture) : plain aligne 0,289, bilineaire aligne 0,944 ; defaut bit-identique (0,2703 / 0,9328 = chiffres publies).",
+    "question": "EDR-BILINEAR (2026-08-03) a mesure plain 0,271 vs bilineaire 0,932 sur (q+key)%K same-tick supervise avec un softmax d'entrainement sur 8 logits alors que l'eval prend argmax sur K=6 (P2.70) : la SEPARATION plain / bilineaire tient-elle quand l'entrainement est ALIGNE sur l'eval (n_classes=K), au meme regime et a n=12 ?",
+    "regle_de_lecture_continue": "ORDRE IMPOSE : INCOMPLET, SEPARATION_TIENT, SEPARATION_TOMBE, BILINEAIRE_SOUS_SEUIL, AUTRE.",
+    "seuils": {
+      "justification": "0,5 = le milieu entre le plafond du plain en forme close (0,3889, tools/plain_substrate_ceiling.py, MINORANT) et 1 ; 0,3889 = ce que la forme separable atteint SANS composer ; 11/12 = convention de puissance du depot (signe, p <= 0,0032).",
+      "marge_seed": 0.1,
+      "seeds_min": 11,
+      "seuil_bilineaire": 0.5,
+      "seuil_plain_max": 0.3889
+    }
+  },
+  "seal": "3e4b01792821aa7dcbed39ab63b4bc54933e714843e5c34888ca6e10a07ee8fa"
+}

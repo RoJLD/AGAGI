@@ -1,0 +1,105 @@
+{
+ "_design": {
+  "question": "EDR-BILINEAR (2026-08-03) a mesure plain 0,271 vs bilineaire 0,932 sur (q+key)%K same-tick supervise avec un softmax d'entrainement sur 8 logits alors que l'eval prend argmax sur K=6 (P2.70) : la SEPARATION plain / bilineaire tient-elle quand l'entrainement est ALIGNE sur l'eval (n_classes=K), au meme regime et a n=12 ?",
+  "replication_unit": "seed (une population de 16 agents par cellule ; 4 bras appari\u00e9s par seed)",
+  "n_independent": 12,
+  "links": {
+   "accuracy_plain_alignee": "measured",
+   "accuracy_bilineaire_alignee": "measured",
+   "bit_identite_du_defaut": "measured",
+   "plafond_plain_forme_close": "inferred"
+  },
+  "inferred_links": [
+   "plafond_plain_forme_close"
+  ],
+  "cost_estimate": "48 cellules x 2-8 s -> ~5 min CPU, sans bail kuzu ; results/bilinear_aligned_r1.json",
+  "inferred_reason": "le plafond 0,3889 du plain est un MINORANT en forme close (tools/plain_substrate_ceiling.py, 34/36), pas une mesure de cette sonde : il sert de seuil scelle, et un plain qui le depasse ne fait que rendre la branche SEPARATION_TOMBE -- le risque est borne par la regle",
+  "control_family": {
+   "cells": 48,
+   "alpha_family": 0.05,
+   "alpha_cell": 0.0010416666666666667,
+   "method": "bonferroni",
+   "reason": null,
+   "fwer_bound": 0.05
+  },
+  "warning": "1 maillon(s) INF\u00c9R\u00c9(S) : ['plafond_plain_forme_close']. Une cha\u00eene causale transporte son signe, pas son amplitude \u2014 v\u00e9rifier que le r\u00e9gime place l'effet au-dessus du bruit, ou mesurer \u00e0 n r\u00e9duit."
+ },
+ "_regime": {
+  "K": 6,
+  "align_train_eval": true,
+  "credit_mode": "supervised",
+  "episodes": 300,
+  "lr": [
+   0.02,
+   0.002
+  ],
+  "n_agents": 16,
+  "rank": 16,
+  "same_tick": true
+ },
+ "plain|lr=0.02|seed=1": 0.2718749940395355,
+ "_provenance": [
+  {
+   "git_sha": "02958d955d462cb7414ef5f2457b6a4816270e72",
+   "dirty": true,
+   "rule": "BILINEAR-ALIGNED-R1",
+   "seal": "3e4b01792821aa7dcbed39ab63b4bc54933e714843e5c34888ca6e10a07ee8fa"
+  }
+ ],
+ "bilinear|lr=0.02|seed=1": 0.949999988079071,
+ "plain|lr=0.02|seed=2": 0.26249998807907104,
+ "bilinear|lr=0.02|seed=2": 0.9437500238418579,
+ "plain|lr=0.02|seed=3": 0.28593748807907104,
+ "bilinear|lr=0.02|seed=3": 0.918749988079071,
+ "plain|lr=0.02|seed=4": 0.28125,
+ "bilinear|lr=0.02|seed=4": 0.901562511920929,
+ "plain|lr=0.02|seed=5": 0.2906250059604645,
+ "bilinear|lr=0.02|seed=5": 0.9312499761581421,
+ "plain|lr=0.02|seed=6": 0.24531249701976776,
+ "bilinear|lr=0.02|seed=6": 0.9125000238418579,
+ "plain|lr=0.02|seed=7": 0.3062500059604645,
+ "bilinear|lr=0.02|seed=7": 0.9453125,
+ "plain|lr=0.02|seed=8": 0.2874999940395355,
+ "bilinear|lr=0.02|seed=8": 0.9296875,
+ "plain|lr=0.02|seed=9": 0.2828125059604645,
+ "bilinear|lr=0.02|seed=9": 0.9390624761581421,
+ "plain|lr=0.02|seed=10": 0.2750000059604645,
+ "bilinear|lr=0.02|seed=10": 0.957812488079071,
+ "plain|lr=0.02|seed=11": 0.2890625,
+ "bilinear|lr=0.02|seed=11": 0.9453125,
+ "plain|lr=0.02|seed=12": 0.2984375059604645,
+ "bilinear|lr=0.02|seed=12": 0.948437511920929,
+ "plain|lr=0.002|seed=1": 0.19062499701976776,
+ "bilinear|lr=0.002|seed=1": 0.43281251192092896,
+ "plain|lr=0.002|seed=2": 0.19062499701976776,
+ "bilinear|lr=0.002|seed=2": 0.43281251192092896,
+ "plain|lr=0.002|seed=3": 0.16718749701976776,
+ "bilinear|lr=0.002|seed=3": 0.4281249940395355,
+ "plain|lr=0.002|seed=4": 0.1796875,
+ "bilinear|lr=0.002|seed=4": 0.4140625,
+ "plain|lr=0.002|seed=5": 0.18593749403953552,
+ "bilinear|lr=0.002|seed=5": 0.42500001192092896,
+ "plain|lr=0.002|seed=6": 0.14218750596046448,
+ "bilinear|lr=0.002|seed=6": 0.37031251192092896,
+ "plain|lr=0.002|seed=7": 0.19218750298023224,
+ "bilinear|lr=0.002|seed=7": 0.4281249940395355,
+ "plain|lr=0.002|seed=8": 0.17812499403953552,
+ "bilinear|lr=0.002|seed=8": 0.42656248807907104,
+ "plain|lr=0.002|seed=9": 0.1953125,
+ "bilinear|lr=0.002|seed=9": 0.40156251192092896,
+ "plain|lr=0.002|seed=10": 0.18437500298023224,
+ "bilinear|lr=0.002|seed=10": 0.4140625,
+ "plain|lr=0.002|seed=11": 0.16249999403953552,
+ "bilinear|lr=0.002|seed=11": 0.3921875059604645,
+ "plain|lr=0.002|seed=12": 0.19843749701976776,
+ "bilinear|lr=0.002|seed=12": 0.46406251192092896,
+ "_cout_s": 94.16198182106018,
+ "_lecture": {
+  "mediane_plain_002": 0.28437499701976776,
+  "mediane_bilineaire_002": 0.94140625,
+  "mediane_plain_0002": 0.18515624850988388,
+  "mediane_bilineaire_0002": 0.42578125,
+  "separation_par_seed": "12/12",
+  "branche": "SEPARATION_TIENT"
+ }
+}

@@ -86,7 +86,7 @@ def _make_seq(key, q, task, K, I, n, same_tick):
 
 
 def _train_eval_one(seed, bilinear, task, episodes, n_agents, K, lr, rank, eval_batches=40,
-                     same_tick=False, credit_mode="reinforce"):
+                     same_tick=False, credit_mode="reinforce", align_train_eval=False):
     """Entraîne la tâche (composition (q+key)%K OU recall=key) avec BILINEAR on/off ; renvoie l'accuracy éval.
 
     `same_tick` (défaut False = comportement Tâche 2 inchangé) : lève le confond de RÉTENTION (cf.
@@ -94,7 +94,16 @@ def _train_eval_one(seed, bilinear, task, episodes, n_agents, K, lr, rank, eval_
     H détaché à CHAQUE pas -> le crédit ne traverse PAS la frontière encode->usage) | "supervised" (BPTT
     via `agent.imitate_episode_bptt` — cross-entropy sur la cible au pas RÉPONSE, gradient NON tronqué
     entre pas -> lève le confond de CRÉDIT). Les deux défauts préservent EXACTEMENT le chemin de calibration
-    de la Tâche 2 (mêmes seeds -> mêmes résultats)."""
+    de la Tâche 2 (mêmes seeds -> mêmes résultats).
+    `align_train_eval` (P2.70, 2026-09-15 ; défaut False = bit-identique) : en mode supervisé, le softmax
+    d'entraînement porte sur K classes (`n_classes=K`) au lieu des 8 logits de mouvement — l'éval prend
+    `argmax` sur `[:K]`, donc sans ce flag deux classes distractrices (nœuds 70-71) entrent dans la perte et
+    sont ignorées à la mesure. Ce que ça change se MESURE (règle scellée BILINEAR-ALIGNED-R1).
+    DESALIGNEMENT_TRAIN_EVAL — mesuré le 2026-09-15 (`results/bilinear_aligned_r1.json`, seeds 1-12, régime
+    publié) : branche `SEPARATION_TIENT` — aligné, plain 0,284 [0,245-0,306] vs bilinéaire 0,941 [0,902-0,958],
+    12/12 seeds séparés (publié non aligné : 0,271 / 0,932). À lr=0,002 et 300 épisodes : 0,185 / 0,426. Le
+    désalignement était INERTE pour la conclusion d'EDR-BILINEAR ; le défaut reste False (bit-identique aux
+    chiffres publiés et aux cas de calibration), et l'alignement est disponible pour toute mesure NEUVE."""
     import torch
     from src.agents.mamba_agent import MambaAgent
     from src.agents.backend import make_population
@@ -131,7 +140,8 @@ def _train_eval_one(seed, bilinear, task, episodes, n_agents, K, lr, rank, eval_
                     target_moves_seq = [tgt]
                 else:
                     target_moves_seq = [np.zeros(n_agents, dtype=np.int64), tgt]
-                agent.imitate_episode_bptt(seq, target_moves_seq, mask_seq=mask_seq)
+                agent.imitate_episode_bptt(seq, target_moves_seq, mask_seq=mask_seq,
+                                           n_classes=(K if align_train_eval else None))
             else:
                 agent.H = torch.zeros((n_agents, agent.N))
                 logits = None
@@ -190,7 +200,7 @@ def _resolve_ceiling(incapable_ceiling, ceiling_provenance, task, same_tick, K,
 def run_bilinear_composition_probe(seeds, episodes=1500, n_agents=16, K=6, lr=0.02, rank=16, task="composition",
                                     same_tick=False, credit_mode="reinforce",
                                     incapable_ceiling="auto", ceiling_provenance=None, bar=None,
-                                    ceiling_is_proven=False):
+                                    ceiling_is_proven=False, align_train_eval=False):
     """Compare le substrat PLAIN vs BILINÉAIRE sur la tâche. `same_tick`/`credit_mode` (Tâche 3, cf.
     `_train_eval_one`) : les deux DÉFAUTS reproduisent bit-pour-bit le chemin de calibration de la Tâche 2.
 
@@ -225,9 +235,11 @@ def run_bilinear_composition_probe(seeds, episodes=1500, n_agents=16, K=6, lr=0.
     plain, bil = [], []
     for s in seeds:
         plain.append(_train_eval_one(s, False, task, episodes, n_agents, K, lr, rank,
-                                      same_tick=same_tick, credit_mode=credit_mode))
+                                      same_tick=same_tick, credit_mode=credit_mode,
+                                      align_train_eval=align_train_eval))
         bil.append(_train_eval_one(s, True, task, episodes, n_agents, K, lr, rank,
-                                    same_tick=same_tick, credit_mode=credit_mode))
+                                    same_tick=same_tick, credit_mode=credit_mode,
+                                    align_train_eval=align_train_eval))
     pm, bm = float(np.median(plain)), float(np.median(bil))
     # ⚠️ Un MINORANT ne peut pas certifier une séparation — il ne peut que MONTER. Mesuré le 2026-09-07 :
     # trois recherches indépendantes sur la MÊME forme close ont rendu 29/36, 34/36 et 36/36, par ordre
@@ -238,7 +250,8 @@ def run_bilinear_composition_probe(seeds, episodes=1500, n_agents=16, K=6, lr=0.
                                        ("CEILING_IS_MINORANT" if ceil is not None else "UNVALIDATED")),
             "incapable_ceiling": ceil, "ceiling_is_proven": bool(prouve),
             "per_seed": {"plain": plain, "bilinear": bil}, "task": task, "n": len(seeds),
-            "same_tick": same_tick, "credit_mode": credit_mode}
+            "same_tick": same_tick, "credit_mode": credit_mode,
+            "align_train_eval": bool(align_train_eval)}
 
 
 if __name__ == "__main__":

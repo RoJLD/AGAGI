@@ -1,0 +1,53 @@
+{
+  "name": "LEGACY-CAUSE-DE-MORT-R1",
+  "rule": {
+    "cellule": {
+      "block": 400,
+      "bras": {
+        "lr0_reference": 0.0,
+        "lr_low": 0.004,
+        "natural": null
+      },
+      "num_agents": 12,
+      "policy": "legacy",
+      "seeds": [
+        2026,
+        2027,
+        2028,
+        2029,
+        2030,
+        2031,
+        2032,
+        2033,
+        2034,
+        2035,
+        2036,
+        2037
+      ],
+      "ticks": 2000
+    },
+    "controles": {
+      "classifieur": "test_cause_de_mort_classifies_energy_hp_both_and_REFUSES_to_name_a_cause_for_a_living_agent",
+      "famille": "36 cellules (3 bras x 12 seeds) via assert_control_family",
+      "non_apprenant": "lr0_reference = meme monde, pas nul : la part de chaque canal SANS apprentissage"
+    },
+    "cout": "36 cellules (25-80 s) -> ~27 min sous bail ; results/legacy_cause_de_mort.json",
+    "discrimination": {
+      "ENERGIE (part_energie >= 0,8 sur natural)": "les apprenants meurent par l'ENERGIE : drain ou projectile d'un pair (a departager ensuite) ; rapporter les parts des trois bras.",
+      "HP (part_hp >= 0,8 sur natural)": "les apprenants meurent par les HP : riposte du gibier ou attrition ; rapporter.",
+      "INCOMPLET": "moins de 3 x 12 cellules : aucune lecture.",
+      "INSTRUMENT (aucune > 0 sur un bras)": "un ressuscite n'etait pas mort : defaut de la sonde, aucune lecture sur le canal.",
+      "MIXTE (le reste)": "aucun canal ne domine a 0,8 : rapporter les parts telles quelles, sans inference."
+    },
+    "dv_primaire": "par bras : `part_energie` = energie_epuisee / (total des morts), `part_hp`, `part_les_deux`, `aucune` (medianes par seed) ; `resurrections` mediane ; le taux de coups `hit_last` est rapporte mais n'est pas la DV.",
+    "provenance": "run_learner_probe publie `cause_de_mort` depuis le 2026-09-15 (P2.72 b), compte AVANT la recharge : energie_epuisee / hp_epuise / les_deux / AUCUNE (un vivant ressuscite = defaut d'instrument). Calibre a reponse connue (4 cas).",
+    "question": "CALIB-LEGACY-LEARNER : le bras natural (lr 0,04) ressuscite 18 265 fois par seed, lr_low (0,004) 10 206, lr0 1 717, l'oracle 0. Par QUEL canal le monde tue-t-il ces apprenants : l'energie (drain, projectile d'un pair) ou les hp (riposte du gibier, attrition) ? Et le canal differe-t-il entre l'apprenant et le non-apprenant ?",
+    "regle_de_lecture_continue": "ORDRE IMPOSE : INCOMPLET, INSTRUMENT, ENERGIE, HP, MIXTE.",
+    "seuils": {
+      "aucune_max": 0,
+      "dominant": 0.8,
+      "justification": "0,8 = un canal qui porte quatre morts sur cinq est LE canal ; AUCUNE > 0 = l'instrument compte un vivant comme mort, la lecture est refusee."
+    }
+  },
+  "seal": "3155a313ab1fadb4daf7d43bf7edf8ebd690145c0e315cafdfb9ec6c0b4b33ec"
+}

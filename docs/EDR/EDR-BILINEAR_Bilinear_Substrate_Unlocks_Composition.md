@@ -8,6 +8,15 @@ tests: [SDR-G2]
 adopts: [REF-EXPERIMENT-PREFLIGHT, REF-DEMAND-MARKER]
 ---
 
+> ✅ **Contrôle d'instrument, 2026-09-15 (P2.70, règle scellée `BILINEAR-ALIGNED-R1`) — la séparation TIENT une fois
+> l'entraînement ALIGNÉ sur l'évaluation.** La sonde évaluait `argmax` sur `[:K]` (K=6) mais supervisait un softmax sur
+> les 8 logits de mouvement (`_MOVE_LOGITS`) : deux classes distractrices recevaient du gradient et étaient ignorées à la
+> mesure. Re-mesuré au régime du bras décisif avec `n_classes=K` (`results/bilinear_aligned_r1.json`, seeds 1-12) :
+> **plain 0,284** [0,245-0,306] vs **bilinéaire 0,941** [0,902-0,958], 12/12 seeds séparés de plus de 0,10 — contre
+> 0,271 / 0,932 publiés ici. À lr=0,002 (clause E19) et 300 épisodes : 0,185 / 0,426. Le désalignement était donc
+> INERTE pour la conclusion ; le défaut de la sonde reste le chemin historique (bit-identique), l'alignement est
+> disponible (`align_train_eval=True`) pour toute mesure neuve.
+
 > ⚠️ **CLAUSE SUSPECTE (2026-09-01)** — ce record reste `active` et son résultat PRINCIPAL est intact ;
 > c'est sa clause SECONDAIRE (le nul 2-pas) qui est bornée ci-dessous. Cf. [[EDR-RETAIN-COMPOSE-LR]].
 >

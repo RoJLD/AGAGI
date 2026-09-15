@@ -261,7 +261,7 @@ class TorchPopulationModel(PopulationModel):
         return float(loss.item())
 
     def imitate_episode_bptt(self, obs_seq, target_moves_seq, truncate_window=None, mask_seq=None,
-                             aux_off_weight=0.0, aux_off_margin=0.2):
+                             aux_off_weight=0.0, aux_off_margin=0.2, n_classes=None):
         """IMITATION récurrente supervisée (BPTT) — distincte de learn_episode_bptt (REINFORCE). Rejoue
         obs_seq depuis H=0 en RETENANT le graphe récurrent ; perte = cross-entropy des move-logits vs
         l'action-enseignant par pas ; backprop unique -> _write_back. ADDITIF (ne touche pas forward/
@@ -271,6 +271,10 @@ class TorchPopulationModel(PopulationModel):
         truncate_window=W : détache H tous les W pas (stabilité longue fenêtre).
         mask_seq (optionnel) : liste de (B,) ∈ {0,1} par pas -> perte CE PONDÉRÉE, normalisée par Σmask
         (exclut les pas post-mortem des agents). None -> moyenne uniforme (comportement INCHANGÉ).
+        n_classes (P2.70, 2026-09-15) : largeur du softmax supervisé. None -> `_MOVE_LOGITS` = 8, le
+        comportement HISTORIQUE (bit-identique). Une sonde à K classes qui évalue `argmax` sur `[:K]`
+        entraînait jusqu'ici un softmax sur 8 logits : les 8-K distracteurs recevaient du gradient et
+        étaient ignorés à la mesure — passer `n_classes=K` aligne l'entraînement sur l'évaluation.
 
         aux_off_weight (EDR-WARM-005/007/008) : ne superviser QUE les 8 logits de mouvement laisse les
         canaux d'ACTION AUXILIAIRES libres ; `grab` (nœud 24) peut rester ON et coûter de la survie —
@@ -301,7 +305,7 @@ class TorchPopulationModel(PopulationModel):
                 H = H.detach()
             H = self._step(obs_t, H)
             out = H[:, self.N - self.O:self.N]
-            move_logits = out[:, :_MOVE_LOGITS]
+            move_logits = out[:, :(int(n_classes) if n_classes else _MOVE_LOGITS)]
             tgt = torch.tensor(np.asarray(target_moves_seq[t]), dtype=torch.long, device=self.device)
             m = None
             if mask_seq is None:
