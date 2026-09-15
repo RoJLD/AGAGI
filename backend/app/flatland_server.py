@@ -259,6 +259,11 @@ class FlatlandServer:
                     try:
                         self.loop = asyncio.get_event_loop()
                     except RuntimeError:
+                        self.loop = None
+                    # 2026-09-16 : `get_event_loop()` peut rendre une boucle FERMEE par un test precedent du
+                    # meme processus (flake d'ordre de la suite complete : « Event loop is closed » sur
+                    # test_flatland_runs_crud, vert en isolation). Une boucle fermee n'est pas une boucle.
+                    if self.loop is None or self.loop.is_closed():
                         self.loop = asyncio.new_event_loop()
                         asyncio.set_event_loop(self.loop)
             self.queue = asyncio.Queue(maxsize=1)

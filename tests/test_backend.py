@@ -371,3 +371,33 @@ def test_list_decompositions_extracts_phases(tmp_path, monkeypatch) -> None:
     resp = client.get("/api/runs/decompositions")
     assert resp.status_code == 200
     assert resp.json()[0]["name"] == "lewis_drain_decompose"
+
+
+def test_flatland_server_does_not_reuse_a_CLOSED_event_loop() -> None:
+    """Flake d'ordre de la suite complète (2026-09-16) : un test précédent laisse une boucle FERMÉE comme boucle
+    courante ; `asyncio.get_event_loop()` la rend, et le serveur mourait sur « Event loop is closed ». Gelé :
+    boucle courante fermée -> le serveur en crée une neuve ; boucle ouverte -> il la garde (no-op apparié).
+    Le thread de simulation n'est PAS lancé (patch de `threading.Thread.start`) : on teste le CHOIX de boucle."""
+    import asyncio
+    import threading
+    from backend.app.flatland_server import FlatlandServer
+    orig_start = threading.Thread.start
+    threading.Thread.start = lambda self: None            # pas de simulation : seul le choix de boucle compte
+    try:
+        fermee = asyncio.new_event_loop()
+        fermee.close()
+        asyncio.set_event_loop(fermee)
+        srv = FlatlandServer(pop_size=1, config_overrides={"size": 16})
+        srv.start()
+        assert srv.loop is not fermee and not srv.loop.is_closed()
+        srv.stop()
+        ouverte = asyncio.new_event_loop()
+        asyncio.set_event_loop(ouverte)
+        srv2 = FlatlandServer(pop_size=1, config_overrides={"size": 16})
+        srv2.start()
+        assert srv2.loop is ouverte
+        srv2.stop()
+        ouverte.close()
+    finally:
+        threading.Thread.start = orig_start
+        asyncio.set_event_loop(asyncio.new_event_loop())
