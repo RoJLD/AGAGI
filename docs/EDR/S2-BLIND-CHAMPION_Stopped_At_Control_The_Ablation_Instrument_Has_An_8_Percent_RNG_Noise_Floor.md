@@ -15,6 +15,27 @@ extends: [EDR-EVO-011]
 > et **ne pas lire la suite**. Le contrôle a échoué. Ce qui suit est un résultat sur l'INSTRUMENT —
 > et il vaut plus que la DV qu'il empêche de lire.
 
+> ⚠️ **PORTÉE BORNÉE le 2026-09-15 (P3.6), APRÈS la mesure de P1.7 — classe E26 du registre
+> (`docs/REF/REGISTRE_ERREURS.md`) : CORPS NON APPARIÉ.** Le monde dérive le CORPS des mêmes lignes de
+> `W` que la politique : `hp_bonus = 10·Σ|W[0:5]|`, `inv_capacity = max(3, Σ|W[5:10]|)`,
+> `drain = 1 + hp/100 + 0,1·inv` (`src/agents/mamba_agent.py:47-50`). `make_blind` annule
+> `W[:num_inputs, :]`, donc AUSSI les lignes 0-9 : le drain du champion tombe de **2,40 à 1,30 (−46 %)**
+> (mesuré le 2026-09-14, P1.7 ; docstring de `make_blind`, `tools/evo_runs/s2_blind_champion.py`). Le
+> contrôle (i) « reste bit-identique » est vrai de `W` et faux du corps. Conséquences : (1) la DV
+> rapportée et NON LUE (`r` 1,375-1,753, 7/7 seeds, l'observation « +39 % ») est un effet MÉTABOLIQUE
+> candidat avant d'être un effet de la cécité — un sujet dont le drain est inférieur de 46 % survit plus
+> longtemps sans rien lire ; (2) le contrôle négatif « dérivé du champion » qui a ouvert ce record est
+> lui-même à corps différent ; (3) ce qui ne bouge PAS : le verdict scellé (`INDETERMINE-HARNAIS`), le
+> plancher de bruit RNG de ±6-8 % (no-op EXACT, within-subject : même génome, même corps) et le
+> chevauchement E24 (18 nœuds, structure du génome). Tout contraste ENTRE sujets de ce record se relit
+> avec `assert_phenotype_matched(subject, reference, tol=0)` ; le lest EXACT `ballast_phenotype`
+> (`tools/experiment_preflight.py`, canal inerte sur la politique, prouvé bit-identique dans
+> `tests/sandbox/test_phenotype_guard.py`) existe mais REFUSE ce champion HoF tel quel (64 + 126 > 172 :
+> E24, `make_blind_ballasted`) — le `-bis` (P2.42, rang 20 du bloc 2026-09-14) aveugle à l'ENTRÉE, à
+> corps apparié et apprenant gelé, sur un sujet sans chevauchement. Aucun `corrected_by:` : nul record
+> ne porte cette mesure (elle vit dans le registre, la garde et son test), et le verdict scellé n'a pas
+> changé.
+
 ## Ce qui était demandé
 
 Un champion dont on annule les lignes d'entrée de `W` survit-il mieux que le champion intact, dans

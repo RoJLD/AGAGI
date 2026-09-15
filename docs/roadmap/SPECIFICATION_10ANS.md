@@ -9,6 +9,29 @@
 > positif. Le document vivant est [`FIL_DIRECTEUR_AGI.md`](FIL_DIRECTEUR_AGI.md).
 > *(Bandeau d'origine : « CONDITIONNEL À LA CALIBRATION (P2.1) … Calibrer avant de s'engager. »)*
 
+> ⚠️ **COMPLÉMENT du 2026-09-15 (P3.6) — la condition « §2 conditionnelle à P1.6 » est LEVÉE par la
+> mesure, et la §2 en sort BORNÉE, pas confirmée.** (1) L'apprenant in-world a désormais un contrôle
+> positif (oracle câblé à 1,000) et une référence appariée (`lr = 0`, 0,126 = chance) DANS son propre
+> dispositif, et il APPREND quand la mort ne borne plus sa dose : 12/12 seeds, +0,156, lentement (0,28 à
+> 2000 ticks), écart résiduel invariant au pas (E19) — [[EDR-CALIB-LEARNER]]. Les nuls « verrou =
+> crédit » de S2-009/010/011 étaient des nuls de DOSE (≈ 48 mises à jour par agent,
+> [[EDR-S2-CREDIT-RETENTION]]) ; le verrou change de nom : l'apprenant meurt ~100× plus qu'un
+> non-apprenant (126 résurrections par seed contre 1). (2) La contrainte 6 de la §2 (« bassin pré-formé
+> pour franchir la barrière de bootstrap ») est mesurée in-world et n'est que NÉCESSAIRE : le bassin
+> DAgger de [[EDR-WARM-003]] transfère (36,0 à poids gelés) et le crédit publié l'EFFACE (36,0 → 8,0,
+> 12/12 seeds, `ERODE`) sans rien construire à froid (7,5 < 9,0) — [[EDR-S2-CREDIT-RETENTION]] ;
+> l'érosion est PLEINE à Δénergie seule (−28,5 vs −28,25, différence appariée 0,0) et la curiosité de la
+> récompense in-world est MORTE sous torch depuis S2-009 — [[EDR-S2-REWARD-ABLATION]]. Le pari C (§3)
+> est tranché dans son sens défavorable : « warm-start + ce crédit » est une érosion à dose contrôlée,
+> quelle que soit la récompense. (3) La §4 (« à réviser après P2.1 ») et la §5, point 1 : P2.1 est CLOSE
+> (2026-09-01, cliquet strict, baseline à zéro ; le « 1 sur 71 » du bandeau d'origine ne décrit plus
+> rien — état recomputé dans `CLAUDE.md`, § Calibration), et l'instrument d'ablation within-subject
+> (`run_ablation_map`, qui porte les verdicts `X_DEMANDED` / `X_DECOY`) a un plancher de bruit MESURÉ de
+> ±6-8 % (no-op exact, [[EDR-S2-BLIND-CHAMPION]]) : `X_DECOY` se lit « rien de détectable au-dessus de
+> 8 % ». Tout contraste ENTRE sujets à `W` édité compare des corps avant des politiques (classe E26,
+> `assert_phenotype_matched`, P1.7) ; `champion_body` (§2) n'édite pas `W`, il n'est pas concerné.
+> Rien ici ne rouvre les directions fermées de la §1.
+
 État au 2026-07-21 : 232 records EDR, 85 rattachés à une porte (G0 30 · G1 17 · G2 12 · G3 23 · **G4 3**).
 Chiffre directeur : **proxy 9 / in-world 0** — neuf capacités démontrées en banc, aucune in-world.
 

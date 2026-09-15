@@ -14,6 +14,25 @@ extends: [EDR-S2-BLIND-CHAMPION]
 > règle (`docs/preregistrations/S2-SUBJECT-VARIANCE.json`) impose alors `INDETERMINE-INSTRUMENT` sans
 > lire la suite. Ce record grave la règle, le résultat du smoke, et les deux mesures qu'il a produites.
 
+> ⚠️ **PORTÉE BORNÉE le 2026-09-15 (P3.6), APRÈS la mesure de P1.7 — classe E26 du registre
+> (`docs/REF/REGISTRE_ERREURS.md`) : CORPS NON APPARIÉ.** Les contrôles câblés de ce smoke (réflexe 8,0 ;
+> lecteur 6,0) et les sujets à couplage amplifié (×3 → 13,8 ; ×8 → 6,2) éditent les lignes d'entrée de
+> `W`, dont le monde dérive le corps (`src/agents/mamba_agent.py:47-50`) : leurs drains valent **11,0 /
+> 15,0** contre 2,40 pour le champion (registre, classe E26, mesure du 2026-09-14 : « morts de leur
+> corps, pas de leur couplage »). La phrase du titre — « plus on couple la politique à l'observation,
+> moins on survit » — est donc un ARTEFACT CANDIDAT : elle compare des métabolismes avant de comparer
+> des politiques, et « aucun contrôle positif n'est constructible par amplification » n'est établi que
+> pour une amplification qui ALOURDIT le corps. Ce qui ne bouge pas : le verdict scellé
+> (`INDETERMINE-INSTRUMENT`), les `within_ratio` du champion et de son réplicat (0,991 / 0,924 —
+> within-subject, même génome, même corps) et le fait que les deux contrôles sont SOUS le plancher 24,0
+> (la raison en change : le corps). La mesure 1 (contrôle négatif dérivé du champion, 38,2) tombe sous le
+> même bandeau que [[EDR-S2-BLIND-CHAMPION]] (drain 2,40 → 1,30). La reprise (amendement de P2.43, rang 5
+> du bloc 2026-09-14 : re-smoke à corps apparié, 4 cellules × 30 s) passe par
+> `assert_phenotype_matched(subject, reference, tol=0)` et un sujet LESTÉ par `ballast_phenotype`
+> (`tools/experiment_preflight.py`) — lest REFUSÉ sur le champion HoF tel quel (E24, 64 + 126 > 172),
+> donc sur un sujet sans chevauchement. Aucun `corrected_by:` : nul record ne porte la mesure E26, et le
+> verdict scellé n'a pas été lu.
+
 ## La question, et l'amendement qui l'a précédée
 
 `EDR-S6-FALLBACK-RATE` a montré en mini-monde que le marqueur de demande mesure si **CE sujet** a un

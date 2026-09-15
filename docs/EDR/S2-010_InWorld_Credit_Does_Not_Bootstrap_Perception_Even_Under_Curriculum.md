@@ -19,6 +19,20 @@ corrected_by: [EDR-CALIB-LEARNER]
 > le verrou est d'abord que **l'apprenant meurt en apprenant** (126 morts par seed contre 1 pour lr=0),
 > donc n'accumule jamais la dose. Classes E2 (bras qui ne peut pas réussir) et E19 (réglage validé sur le
 > cas facile) — la dose est un réglage.
+>
+> ⚠️ **PORTÉE BORNÉE le 2026-09-15 (P3.6), APRÈS les mesures de [[EDR-S2-CREDIT-RETENTION]] et de
+> [[EDR-S2-REWARD-ABLATION]] (n = 12 seeds chacune).** Le « prochain test décisif » de la §Portée —
+> warm-start des POIDS, « puis laisser le crédit RETENIR/affiner » — a été exécuté : le bassin DAgger de
+> [[EDR-WARM-003]] TRANSFÈRE (survie 36,0 à poids gelés, min 17,0, max 50,0 ; WARM-003 publiait 35,2 —
+> même chiffre, deux harnais : [[EDR-S2-CREDIT-RETENTION]], bras a) et le crédit publié, à dose 1999 TD
+> par agent, l'EFFACE : 36,0 → 8,0, 12/12 seeds, écart apparié médian −28,25 (`ERODE`), sans rien
+> construire à froid (7,5 < plancher 9,0, `PAS_APPRIS_FROID`). L'érosion ne tient pas à la récompense :
+> Δénergie seule érode autant (−28,5 vs −28,25, différence appariée médiane 0,0, `CREDIT_ERODE_SEUL` —
+> [[EDR-S2-REWARD-ABLATION]]), et le terme de curiosité de la récompense in-world est MORT sous le
+> backend torch (surprise jamais écrite ; récompense effective = Δénergie + nouveauté depuis S2-009).
+> Lecture qui reste : à la dose que la mort permet (≈ 48 mises à jour par agent,
+> [[EDR-S2-CREDIT-RETENTION]]), le crédit n'apprend rien ; à dose non bornée, il apprend
+> ([[EDR-CALIB-LEARNER]]) quelque chose qui n'est pas la survie ([[EDR-S2-CREDIT-RETENTION]]).
 
 ## Question
 S2-009 a RÉALISÉ la recette in-world : l'oracle prouve que le monde `cognitive_demand` EXIGE la perception
@@ -55,6 +69,21 @@ ne convertit pas la structure de tâche en comportement. Réalisation in-world d
 « verrou = crédit means→ends » ([[decisive-substrate-thesis-test]]).
 
 ## Portée & limites — et le prochain test décisif
+> ⚠️ **Bandeau de portée du 2026-09-15 (P3.6) — le TD par tick n'était pas nommé, la dose n'était pas
+> comptée.** L'apprenant de ce record n'est pas « REINFORCE 1-pas `learn_episode` » seul : le chemin
+> réel est un Actor-Critic **TD par tick** (`src/worlds/world_1_stoneage.py:1717`) PLUS le crédit
+> épisodique tous les `torch_episode_k = 8` ticks ([[EDR-CALIB-LEARNER]], § Question). Ce TD par tick
+> CONTRIBUE : le couper donne la PIRE variante (2/12 seeds au-dessus de l'apprenant publié, −0,046 —
+> [[EDR-CALIB-LEARNER]]). La dose de crédit reçue par les cohortes de ce record n'a jamais été comptée :
+> agents morts à 7-9 ticks, soit **≈ 48 mises à jour par agent** ([[EDR-S2-CREDIT-RETENTION]], § Verdict :
+> « 1999 mises à jour, contre ~48 dans S2-010/S2-011 »), contre ≈ 2000 TD + 250 épisodes là où le MÊME
+> apprenant apprend la tâche linéaire (12/12 seeds, +0,156, [[EDR-CALIB-LEARNER]]). Les trois pistes
+> ci-dessous ont un statut MESURÉ : warm-start des poids → bassin transféré (36,0) puis ÉRODÉ par le
+> crédit (8,0, 12/12 — [[EDR-S2-CREDIT-RETENTION]]) ; épisodes plus longs pour accumuler des pas →
+> c'est la dose, et elle n'est pas le verrou ([[EDR-CALIB-LEARNER]]) ; crédit dense (shaping) → non
+> mesuré, mais l'ablation de la RÉCOMPENSE dit que le levier n'est pas la récompense
+> ([[EDR-S2-REWARD-ABLATION]] : Δénergie seule érode autant que la récompense complète).
+
 Les curricula testés sont des SCHEDULES de tâche (varier metab/cog), PAS un bassin de POIDS pré-formé. La
 loi warm-start ([[warm-start-transversal-law]]) prédit qu'un **warm-start des POIDS** (initialiser `genome.W`
 vers une politique signal-suiveuse, p.ex. copier l'oracle, puis laisser le crédit RETENIR/affiner) —

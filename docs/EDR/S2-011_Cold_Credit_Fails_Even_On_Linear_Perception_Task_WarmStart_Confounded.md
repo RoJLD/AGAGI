@@ -19,6 +19,18 @@ corrected_by: [EDR-CALIB-LEARNER]
 > dose que la mort lui laisse. Le « prochain pas précis » (§ ci-dessous) avait déjà été exécuté par
 > [[EDR-WARM-001]] (BPTT) et [[EDR-WARM-003]] (DAgger) ; le bassin persisté est
 > `results/warm003_dagger_genome.npz`. Le test warm-start de ce record reste CONFONDU, comme il le dit.
+>
+> ⚠️ **PORTÉE BORNÉE le 2026-09-15 (P3.6), APRÈS mesure.** Le « prochain pas précis » (§ ci-dessous)
+> posait une précondition — « vérifier d'abord que le warm-start transfère (survit SANS crédit ~200) » —
+> qui est mesurée FAUSSE : l'imitation BPTT plafonne à ~15 (acc on-policy 0,734, [[EDR-WARM-001]]) et le
+> bassin DAgger, le suiveur-de-signal appris le plus fort de l'arc, survit **35,2**/200 (marqueur 5,04,
+> `PERCEPTION_DEMANDED`, [[EDR-WARM-003]]) et **36,0** à poids gelés dans le harnais de
+> [[EDR-S2-CREDIT-RETENTION]] (bras a, 12 seeds, min 17,0, max 50,0). La seconde étape — « PUIS activer
+> le crédit → retient/dégrade ? » — est mesurée aussi : le crédit publié DÉGRADE, 36,0 → 8,0, 12/12
+> seeds, écart apparié médian −28,25 (`ERODE`, [[EDR-S2-CREDIT-RETENTION]]), et Δénergie seule dégrade
+> autant (−28,5, différence appariée médiane 0,0 — [[EDR-S2-REWARD-ABLATION]]). La question (2) de ce
+> record (« un bassin de POIDS pré-formé est-il retenu ? ») a donc sa réponse HORS de ce record ; son
+> propre test warm-start reste confondu, comme il le dit, et n'est pas ré-interprété.
 
 ## Question
 S2-010 : le crédit in-world n'apprend pas la nourriture cognitive (tâche 2-bits). Mais le décode 2-bits
@@ -87,6 +99,16 @@ transfère pas au forward RÉCURRENT du monde (H accumulé sur les ticks + gate 
 ne mesure donc PAS « le crédit retient-il un bassin ». Question OUVERTE.
 
 ## Prochain pas précis (le vrai test warm-start)
+> ⚠️ **EXÉCUTÉ, et la précondition est fausse (bandeau du 2026-09-15, P3.6).** Cloner l'oracle sur des
+> ROLLOUTS réels = [[EDR-WARM-001]] (BPTT récurrent : acc enseignant 1,000, acc on-policy 0,734, survie
+> ~15) ; corriger on-policy = [[EDR-WARM-003]] (DAgger : acc on-policy 0,988, survie **35,2**, marqueur
+> 5,04). « Survit SANS crédit ~200 » n'est jamais atteint : 35,2 ([[EDR-WARM-003]]) et **36,0**
+> ([[EDR-S2-CREDIT-RETENTION]], bras a, poids gelés, 12 seeds). « PUIS activer le crédit » : ÉRODE,
+> 36,0 → 8,0 sur 12/12 seeds ([[EDR-S2-CREDIT-RETENTION]]), et autant à Δénergie seule
+> ([[EDR-S2-REWARD-ABLATION]]). Les deux alternatives listées ici ne sont plus à faire : « évolution
+> courte in-world » = [[EDR-WARM-002]] (échec réel ; son mécanisme « paysage plat » réfuté par
+> [[EDR-WARM-010]]) ; « init directe de `genome.W` validée in-world » = le bassin DAgger lui-même.
+
 Warm-starter avec un BC qui MATCHE le forward récurrent : cloner l'oracle sur des ROLLOUTS réels (séquences
 (obs_t, H_t, action_t) générées par l'oracle in-world), pas sur `_step` à H=0. Vérifier d'abord que le
 warm-start transfère (survit SANS crédit ~200), PUIS activer le crédit → retient/dégrade ? Alt : warm-start

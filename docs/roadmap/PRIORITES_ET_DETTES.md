@@ -371,8 +371,37 @@ le titre l.17 (« DETTE CLOSE ») ; (d) `## P3` se dit « BLOC PÉRIMÉ » et co
 positif co-exécuté, plancher de bruit publié, et le statut RÉEL de G0 (validée sur un marqueur réfuté).
 *Coût : agent 1,5-2 h.* Dépend de : rien.
 
-**P3.6 — rang 16 — Bandeaux de portée posés APRÈS le verdict de P1.6 (jamais avant : E8).**
-Quoi : S2-010 §Portée (le TD par tick n'est pas nommé ; dose de crédit ≈ 48 mises à jour / agent),
+**P3.6 — ✅ CLOSE (2026-09-15) — rang 16 — Bandeaux de portée posés APRÈS le verdict de P1.6 (jamais avant : E8).**
+→ **LIVRÉ le 2026-09-15** (worktree isolé, 5 fichiers, +114 lignes, 0 suppression ; tests GREEN 8/8, sept portes OK).
+Bandeaux de PORTÉE datés 2026-09-15, chaque phrase citant la mesure et le record :
+(1) S2-010 — complément du bandeau du 09-14 (le « prochain test décisif » a été exécuté : bassin DAgger 36,0 → 8,0,
+12/12, `ERODE`, S2-CREDIT-RETENTION ; Δénergie seule érode autant, −28,5 vs −28,25, différence appariée 0,0, et
+curiosité MORTE sous torch, S2-REWARD-ABLATION) + bandeau §Portée qui nomme le **TD par tick**
+(`src/worlds/world_1_stoneage.py:1717`, il CONTRIBUE : TD coupé = pire variante, 2/12, CALIB-LEARNER) et la dose
+≈ 48 mises à jour / agent (S2-CREDIT-RETENTION § Verdict) ; (2) S2-011 — complément + bandeau sous « Prochain pas
+précis » : exécuté par WARM-001 (acc on-policy 0,734, survie ~15) et WARM-003 (35,2/200, marqueur 5,04) ; la
+précondition « survit SANS crédit ~200 » est mesurée FAUSSE (35,2 WARM-003 ; 36,0 bras a de S2-CREDIT-RETENTION)
+et « PUIS activer le crédit » = ÉRODE 12/12 ; (3) S2-BLIND-CHAMPION et S2-SUBJECT-VARIANCE — corps NON apparié
+(classe E26 : `make_blind` fait tomber le drain de 2,40 à 1,30, −46 % ; câblés / amplifiés à drain 11,0 / 15,0),
+tout contraste ENTRE sujets à relire avec `assert_phenotype_matched(subject, reference, tol=0)`, lest
+`ballast_phenotype` disponible mais REFUSÉ sur le champion HoF tel quel (E24, 64 + 126 > 172) ;
+(4) SPECIFICATION_10ANS — bandeau d'archive COMPLÉTÉ, pas écrasé : « §2 conditionnelle à P1.6 » levée par la
+mesure (CALIB-LEARNER : contrôle positif oracle 1,000, référence lr=0 à 0,126, 12/12, +0,156), contrainte 6
+(bassin pré-formé) NÉCESSAIRE et non suffisante, pari C tranché défavorable, « 1 sur 71 » périmé, plancher de bruit
+±6-8 % de l'instrument d'ablation (S2-BLIND-CHAMPION). **Frontmatter — choix et raison** : S2-010 / S2-011 GARDENT
+`corrected_by: [EDR-CALIB-LEARNER]` (une seule occurrence, pas de doublon ; S2-CREDIT-RETENTION déclare `extends`,
+pas `corrects`, donc aucune arête inverse ajoutée) ; S2-BLIND-CHAMPION / S2-SUBJECT-VARIANCE : bandeau SEUL, sans
+`corrected_by:` — nul record ne porte la mesure E26 (elle vit dans le registre, la garde et
+tests/sandbox/test_phenotype_guard.py), les verdicts scellés (`INDETERMINE-HARNAIS` / `INDETERMINE-INSTRUMENT`) ne
+changent pas et n'ont jamais lu leur DV ; seules les lectures secondaires (+39 % ; dose-réponse ×3 / ×8, phrase du
+titre de SUBJECT-VARIANCE) deviennent des ARTEFACTS CANDIDATS jusqu'aux `-bis` à corps lesté (P2.42 rang 20,
+P2.43 rang 5). Gelé par tests/sandbox/test_p36_scope_banners.py (8 cas : littéral « TD par tick », chiffres
+35,2 / 36,0 / 2,40 / 1,30 / 11,0 / 15,0, non-duplication du bandeau du 09-14, `corrected_by` conservé, bandeau
+d'archive conservé, tout record cité par un bandeau du 09-15 EXISTE — garde E8 sur le bandeau lui-même).
+Résidu consigné, non bloquant : le bandeau du 09-14 de S2-011 cite `results/warm003_dagger_genome.npz`, que
+`tools/evo_runs/s2_credit_retention.py::BASSIN_PATH` charge, et ce fichier n'est PAS suivi par git (absent d'un
+clone : même forme que la CI rouge du 2026-09-07) — à persister ou à documenter comme artefact local.
+Quoi (tel que posé) : S2-010 §Portée (le TD par tick n'est pas nommé ; dose de crédit ≈ 48 mises à jour / agent),
 S2-011 (« prochain pas » déjà exécuté par WARM-001 / WARM-003 ; précondition « survit ~200 » mesurée
 fausse), S2-BLIND-CHAMPION et SUBJECT-VARIANCE (corps non apparié, P1.7), SPÉCIFICATION_10ANS (bandeau
 « 1 sur 71 » périmé, §2 conditionnelle à P1.6). Chaque bandeau cite la mesure qui le fonde.

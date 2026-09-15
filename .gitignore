@@ -17,6 +17,9 @@ dump*.txt
 # REPERTOIRE PARENT est exclu.
 results/*
 !results/*.json
+# Genomes PERSISTES que des runners scelles chargent (CLAUDE.md § Cout des runs : « persister les genomes
+# entraines ») : le bassin DAgger de WARM-003 etait ignore et donc ABSENT de tout clone (E10 occ. 21, 2026-09-15).
+!results/warm003_dagger_genome.npz
 
 # Artefacts de récupération (à ne jamais réintroduire à la racine)
 *_full.tsx
