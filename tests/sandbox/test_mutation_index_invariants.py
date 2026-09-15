@@ -62,6 +62,32 @@ def test_output_semantics_shift_on_insertion_inside_the_output_block():
 
     Le taux mesuré est ~56 % sur 200 insertions ; on l'épingle ici dans une fourchette large pour ne pas
     dépendre du RNG, tout en garantissant que le phénomène est MAJEUR et non marginal."""
+    # P2.63 (2026-09-15) : le defaut est passe a `preserve_io_blocks=True` (bascule validee neutre par
+    # EDR-EVO-024, 0/12 des deux cotes). Le contre-exemple HISTORIQUE se rejoue sous `False` EXPLICITE ;
+    # le test suivant epingle que le defaut, lui, ne desaligne plus.
+    historique = MutationConfig()
+    historique.preserve_io_blocks = False
+    desaligne = 0
+    TRIALS = 200
+    for s in range(TRIALS):
+        np.random.seed(1000 + s)
+        g = _wired().clone()
+        add_node(g, historique)
+        col = _edge_column(g)
+        attendu = g.num_nodes - g.num_outputs + OUT_IDX
+        if col is None or col != attendu:
+            desaligne += 1
+    taux = desaligne / TRIALS
+    assert 0.35 < taux < 0.75, (
+        f"taux de désalignement mesuré {taux:.2f}, attendu ~0.56. "
+        "S'il s'effondre vers 0, `add_node` a été corrigé -> MIGRATION : re-mesurer EVO-005..022. "
+        "S'il explose vers 1, le régime de génome a changé et les records doivent être relus.")
+
+
+def test_the_default_config_no_longer_shifts_output_semantics_P2_63():
+    """NO-OP APPARIE de la bascule P2.63 : sur le MEME regime de genome (cable, auto-boucles) et les MEMES
+    200 seeds, un `MutationConfig()` nu ne desaligne plus AUCUNE arete cablee. Sans ce cas, le
+    contre-exemple precedent pourrait etre satisfait par un flag ignore."""
     desaligne = 0
     TRIALS = 200
     for s in range(TRIALS):
@@ -72,11 +98,7 @@ def test_output_semantics_shift_on_insertion_inside_the_output_block():
         attendu = g.num_nodes - g.num_outputs + OUT_IDX
         if col is None or col != attendu:
             desaligne += 1
-    taux = desaligne / TRIALS
-    assert 0.35 < taux < 0.75, (
-        f"taux de désalignement mesuré {taux:.2f}, attendu ~0.56. "
-        "S'il s'effondre vers 0, `add_node` a été corrigé -> MIGRATION : re-mesurer EVO-005..022. "
-        "S'il explose vers 1, le régime de génome a changé et les records doivent être relus.")
+    assert desaligne == 0, f"{desaligne}/{TRIALS} desalignements avec le defaut ON"
 
 
 def test_a_fresh_soup_genome_hides_the_defect():

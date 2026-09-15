@@ -338,5 +338,21 @@ PYTHONIOENCODING=utf-8 python tools/check_amputation.py || {
   fail=1
 }
 
+# 17. GENOME PERSISTE A CHEVAUCHEMENT ENTREE/SORTIE (2026-09-15) -- classe E24, P2.46 (d).
+# Le champion HoF declare 64 entrees + 126 sorties dans 172 noeuds : 18 de ses logits d'action SONT
+# l'observation, sans traverser un poids, et aucune sonde de perception ne peut le lire correctement.
+# `assert_no_io_overlap` protege les SONDES ; cette porte protege le DEPOT DE GENOMES : un lot persiste
+# avec chevauchement (evolution topologique, preserve_io_blocks=False) entrerait sinon en silence.
+# Cout nul (trois entiers par fichier, jamais les poids : 378 sujets en 0,5 s). Ne tourne que si des
+# genomes, un Hall of Fame ou sa baseline sont stages -- la baseline stagee seule declenche (E4 occ. 5).
+if git diff --cached --name-only --diff-filter=ACMR | grep -Eq "^(data/genomes/.*\.npz|data/hall_of_fame.*\.pkl|tools/io_overlap_baseline\.json)$"; then
+  PYTHONIOENCODING=utf-8 python tools/check_io_overlap.py || {
+    echo ""
+    echo "-> Un genome persiste a des blocs entree/sortie qui se chevauchent (E24) : le regenerer avec"
+    echo "   preserve_io_blocks=True, ou geler EN CONNAISSANCE : python tools/check_io_overlap.py --update-baseline"
+    fail=1
+  }
+fi
+
 [ "$fail" -ne 0 ] && echo "   (urgence : git commit --no-verify)"
 exit $fail

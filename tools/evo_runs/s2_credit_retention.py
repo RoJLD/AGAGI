@@ -22,7 +22,6 @@ Usage : python tools/evo_runs/s2_credit_retention.py   (env : SCR_SEEDS=12 SCR_T
 """
 import json
 import os
-import subprocess
 import sys
 import time
 
@@ -255,12 +254,8 @@ def credit_retention_verdict(rows, floor=FLOOR, harness_min=HARNESS_MIN, dose_mi
 
 
 def _git_provenance():
-    try:
-        sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=_ROOT, text=True).strip()
-        dirty = bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=_ROOT, text=True).strip())
-        return {"git_sha": sha, "dirty": dirty}
-    except Exception as exc:                        # noqa: BLE001
-        return {"git_sha": None, "dirty": None, "error": str(exc)}
+    from tools.preregister import provenance        # P2.68 : un seul site de provenance
+    return provenance()
 
 
 def _save(path, data):

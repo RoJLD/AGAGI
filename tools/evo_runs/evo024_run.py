@@ -38,6 +38,8 @@ with hold("kuzu", owner="evo024-migration", ttl_s=14400):
     from tools.lewis_world import _setup_lewis
 
     rule = verify("EVO-024")
+    from tools.preregister import provenance
+    print("[provenance]", provenance("EVO-024"))   # P2.68 : git_sha / dirty / seal, dans l'evidence (stdout)
     print("regle SCELLEE verifiee |", rule["dv_primaire"], "\n")
 
     # ---- GARDE E23 (porte 11) : la FAMILLE de controles est DECLAREE, avant la premiere mesure ----

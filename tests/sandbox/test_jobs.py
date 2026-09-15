@@ -126,3 +126,70 @@ def test_classify_leases_sur_un_repertoire_VIDE_ne_classe_RIEN(tmp_path):
     autoriserait un kill sans détenteur."""
     cls = D.classify_leases(leases_dir=tmp_path)
     assert cls == {"live": [], "dead": []}
+
+
+# --------------------------------------------------------------------------------------------------
+# P2.69 (i), 2026-09-15 — le bail est ANCRÉ AU DÉPÔT (parent du `.git` commun), plus au cwd : un
+# worktree voit le bail tenu dans l'arbre principal. Sans git : le cwd, comme avant.
+# --------------------------------------------------------------------------------------------------
+
+def test_default_leases_dir_is_anchored_to_the_repository_root_not_the_cwd():
+    import subprocess
+    from pathlib import Path
+    L._reset_repo_root_cache()
+    try:
+        d = L._dir(None)
+        assert d.is_absolute()
+        racine = subprocess.check_output(["git", "rev-parse", "--show-toplevel"], text=True).strip()
+        assert d.resolve() == (Path(racine) / L.DEFAULT_LEASES_DIR).resolve()
+    finally:
+        L._reset_repo_root_cache()
+
+
+class _FauxGit:
+    """Remplace `subprocess.run` pour les seuls appels `git rev-parse` ; tout le reste passe."""
+
+    def __init__(self, returncode, stdout):
+        import subprocess
+        self.orig = subprocess.run
+        self.returncode, self.stdout = returncode, stdout
+
+    def __call__(self, cmd, **kw):
+        if list(cmd[:2]) == ["git", "rev-parse"]:
+            rc, out = self.returncode, self.stdout
+
+            class R:
+                returncode = rc
+                stdout = out
+                stderr = ""
+            return R()
+        return self.orig(cmd, **kw)
+
+
+def test_repo_root_from_a_worktree_is_the_MAIN_tree(tmp_path):
+    """Simule un worktree : un cwd ailleurs, dont `git rev-parse --git-common-dir` rend le `.git` ABSOLU
+    de l'arbre principal -> la racine est le parent de ce `.git`, pas le cwd."""
+    import subprocess
+    principal = tmp_path / "principal"
+    (principal / ".git").mkdir(parents=True)
+    wt = tmp_path / "wt"
+    wt.mkdir()
+    faux = _FauxGit(0, str(principal / ".git") + "\n")
+    subprocess.run = faux
+    try:
+        assert L._repo_root(cwd=wt).resolve() == principal.resolve()
+    finally:
+        subprocess.run = faux.orig
+
+
+def test_repo_root_without_git_falls_back_to_the_cwd(tmp_path):
+    """NO-OP apparié : hors dépôt (git rend un code non nul), la racine est le cwd — l'ancien comportement."""
+    import subprocess
+    hors = tmp_path / "hors_depot"
+    hors.mkdir()
+    faux = _FauxGit(128, "")
+    subprocess.run = faux
+    try:
+        assert L._repo_root(cwd=hors).resolve() == hors.resolve()
+    finally:
+        subprocess.run = faux.orig

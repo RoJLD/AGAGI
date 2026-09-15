@@ -152,8 +152,9 @@ class ForeignHunkDetected(Exception):
     """Le stage contient un bloc de lignes déjà présent dans le snapshot de départ, absent de HEAD à ce
     moment — donc du travail non committé d'une AUTRE session, happé par ce commit."""
 
-    def __init__(self, report: dict):
+    def __init__(self, report: dict, dirty_at_snapshot=()):
         self.report = report                      # {chemin: [{"start_line": int, "lines": [str, ...]}]}
+        self.dirty_at_snapshot = tuple(dirty_at_snapshot)
         lignes = ["hunks ÉTRANGERS détectés dans le stage (travail non committé d'une autre session) :"]
         for path, hunks in report.items():
             lignes.append(f"  {path} :")
@@ -165,6 +166,13 @@ class ForeignHunkDetected(Exception):
                 if len(h["lines"]) > 5:
                     lignes.append(f"      ... (+{len(h['lines']) - 5} lignes)")
         lignes.append("Abandonner le commit, ou `git restore --staged` ces lignes avant de recommitter.")
+        if self.dirty_at_snapshot:
+            # P2.71 (2026-09-15) : une empreinte prise APRÈS avoir édité classe VOTRE travail comme
+            # étranger (observé le 2026-09-07). La garde ne peut pas trancher — elle le DIT.
+            lignes.append("⚠️ EMPREINTE_TARDIVE possible pour : " + ", ".join(self.dirty_at_snapshot)
+                          + " — l'empreinte a été prise sur un fichier DÉJÀ modifié. Si ces hunks sont les "
+                          "vôtres, cette vérification est NON CONCLUANTE : inspecter les hunks un par un, "
+                          "puis committer par chemin ; la prochaine fois, snapshot() AVANT la première édition.")
         super().__init__("\n".join(lignes))
 
 
@@ -336,10 +344,14 @@ def snapshot(paths, *, owner: str = "default", snapshot_dir: str = None, cwd: st
     written = []
     sha = _head_sha(cwd)
     for path in paths:
+        # P2.71 : une empreinte prise sur un fichier DÉJÀ modifié classera ses hunks comme étrangers.
+        # Décidable ici, à coût nul ; mémorisé pour que `verify` puisse dire « non concluant ».
+        dirty = _has_uncommitted_change(path, cwd=cwd)
         payload = {
             "owner": owner,
             "path": path,
             "taken_at": datetime.now(timezone.utc).isoformat(),
+            "dirty_at_snapshot": bool(dirty),
             "working_tree_content": _working_tree_content(path, cwd=cwd),
             "head_content": _head_content(path, cwd=cwd),
             "head_sha": sha,        # borne la recherche du commit préempteur (sens B) à `head_sha..HEAD`
@@ -352,6 +364,10 @@ def snapshot(paths, *, owner: str = "default", snapshot_dir: str = None, cwd: st
         with open(p, "w", encoding="utf-8") as f:
             json.dump(payload, f, ensure_ascii=False, indent=2)
         written.append(p)
+        if dirty:
+            print(f"[check_staged_authorship] ⚠️ EMPREINTE_TARDIVE possible : {path} est déjà modifié par "
+                  f"rapport à HEAD au moment du snapshot ; ses hunks présents seront classés ÉTRANGERS. "
+                  f"Si c'est votre travail, verify() sera NON CONCLUANT sur ce chemin.", file=sys.stderr)
     return written
 
 
@@ -453,7 +469,7 @@ def verify(paths, *, owner: str = "default", snapshot_dir: str = None, cwd: str 
     dans le HEAD capturé au même instant (travail non committé d'une autre session). Renvoie
     {chemin: nombre de hunks vérifiés} si tout est attribuable."""
     d = snapshot_dir or _DEFAULT_SNAPSHOT_DIR
-    report, checked = {}, {}
+    report, checked, tardives = {}, {}, []
     for path in paths:
         snap = _load_snapshot(path, owner, d)
         staged = _index_content(path, cwd=cwd)
@@ -465,10 +481,12 @@ def verify(paths, *, owner: str = "default", snapshot_dir: str = None, cwd: str 
         foreign = _foreign_hunks(head_lines, snap_lines, staged_lines)
         if foreign:
             report[path] = foreign
+            if snap.get("dirty_at_snapshot"):
+                tardives.append(path)
         else:
             checked[path] = len(_added_blocks(head_lines, staged_lines))
     if report:
-        raise ForeignHunkDetected(report)
+        raise ForeignHunkDetected(report, dirty_at_snapshot=tardives)
     return checked
 
 

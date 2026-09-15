@@ -150,3 +150,98 @@ def test_summary_is_complete_and_serialisable():
               "reward_scale", "td_enabled", "lr"):
         assert k in s, k
     json.dumps(s)                                             # publiable tel quel dans un results/*.json
+
+
+# ==================================================================================================
+# P3.4 (2026-09-15) -- l'apprenant LEGACY (`MambaBatchModel.compute_policy_gradient`, Actor-Critic TD(0)
+# numpy, le chemin actif pendant TOUT l'arc EVO) passe sous le MEME compteur. Le monde recree ce modele
+# a chaque tick : W vit dans `agent.genome.W`, la transition differee dans `agent._td`. Ici : un seul
+# modele, un seul agent, un tick = forward + compute_policy_gradient.
+# ==================================================================================================
+from src.agents.mamba_agent import MambaBatchModel  # noqa: E402
+
+
+def _legacy(seed=3):
+    np.random.seed(seed)
+    a = MambaAgent()
+    m = MambaBatchModel([a])
+    obs = np.random.RandomState(seed).uniform(-1.0, 1.0, (1, a.genome.num_inputs)).astype(np.float32)
+    return a, m, obs
+
+
+def _drive_legacy(m, obs, n=3, reward=1.0, move=2):
+    for _ in range(n):
+        m.forward(obs)
+        m.compute_policy_gradient(np.array([reward], dtype=np.float32), [{"move": move, "grab": 0, "rub": 0}])
+
+
+def test_legacy_first_update_is_deferred_then_counted_and_the_class_is_restored():
+    a, m, obs = _legacy()
+    orig = MambaBatchModel.compute_policy_gradient
+    with count_learning_events() as ev:
+        W0 = np.array(a.genome.W, copy=True)
+        m.forward(obs)
+        m.compute_policy_gradient(np.array([1.0], dtype=np.float32), [{"move": 2, "grab": 0, "rub": 0}])
+        assert np.array_equal(a.genome.W, W0), "1er appel : pas de V(s') connu -> aucune mise a jour"
+        assert ev.legacy_calls == 1 and ev.legacy_updates == 0
+        _drive_legacy(m, obs, n=2)
+        assert ev.legacy_calls == 3 and ev.legacy_updates == 2 and ev.dW_abs_sum > 0.0
+    assert MambaBatchModel.compute_policy_gradient is orig
+    assert (MambaBatchModel.LR_ACTOR, MambaBatchModel.LR_CRITIC) == (0.04, 0.05)
+
+
+def test_legacy_default_flags_are_bit_identical_to_the_bare_learner():
+    a1, m1, obs = _legacy()
+    _drive_legacy(m1, obs)
+    a2, m2, _ = _legacy()
+    with count_learning_events():
+        _drive_legacy(m2, obs)
+    assert np.array_equal(a1.genome.W, a2.genome.W)
+
+
+def test_legacy_td_disabled_skips_every_update_and_says_why():
+    a, m, obs = _legacy()
+    W0 = np.array(a.genome.W, copy=True)
+    with count_learning_events(td_enabled=False) as ev:
+        _drive_legacy(m, obs)
+    assert np.array_equal(a.genome.W, W0)
+    assert ev.legacy_calls == 3 and ev.legacy_updates == 0 and ev.dW_abs_sum == 0.0
+    assert ev.skips == {"td_disabled": 3}
+
+
+def test_legacy_lr_zero_is_the_same_code_at_null_step_and_lr_is_restored():
+    """Le plafond de l'incapable de P3.4 : `lr=0` traverse le MEME chemin (clip, ecriture de genome.W,
+    bookkeeping _td) -- W ne bouge pas d'un bit, et les appels sont COMPTES comme des appels."""
+    a, m, obs = _legacy()
+    W0 = np.array(a.genome.W, copy=True)
+    with count_learning_events(lr=0.0) as ev:
+        assert (MambaBatchModel.LR_ACTOR, MambaBatchModel.LR_CRITIC) == (0.0, 0.0)
+        _drive_legacy(m, obs)
+    assert np.array_equal(a.genome.W, W0)
+    assert ev.legacy_calls == 3 and ev.legacy_updates == 0
+    assert getattr(a, "_td", None) is not None, "le bookkeeping de la transition a bien eu lieu"
+    assert (MambaBatchModel.LR_ACTOR, MambaBatchModel.LR_CRITIC) == (0.04, 0.05)
+
+
+def test_legacy_lr_override_keeps_the_published_critic_ratio_and_scales_dW():
+    """`lr` pose l'acteur et garde le ratio critic/acteur publie (0.05/0.04) ; a pas dix fois plus petit,
+    la PREMIERE mise a jour (meme h, meme delta) est dix fois plus petite -- prediction, pas monotonie."""
+    a1, m1, obs = _legacy()
+    with count_learning_events(lr=0.04) as ev1:
+        assert abs(MambaBatchModel.LR_CRITIC - 0.05) < 1e-12
+        _drive_legacy(m1, obs, n=2)
+    a2, m2, _ = _legacy()
+    with count_learning_events(lr=0.004) as ev2:
+        assert abs(MambaBatchModel.LR_CRITIC - 0.005) < 1e-12
+        _drive_legacy(m2, obs, n=2)
+    assert ev1.dW_abs_sum > 0.0 and ev2.dW_abs_sum > 0.0
+    assert abs(ev2.dW_abs_sum / ev1.dW_abs_sum - 0.1) < 0.02, (ev1.dW_abs_sum, ev2.dW_abs_sum)
+
+
+def test_legacy_summary_publishes_its_counters():
+    with count_learning_events() as ev:
+        pass
+    s = ev.summary()
+    assert s["legacy_calls"] == 0 and s["legacy_updates"] == 0
+    import json
+    json.dumps(s)

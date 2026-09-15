@@ -49,6 +49,8 @@ with hold("kuzu", owner="evo028-smoke" if SMOKE else "evo028-position-faible", t
     from tools.cost_guard import project_cost, CostGuard, CostExceeded
 
     rule = verify("EVO-028-SMOKE" if SMOKE else "EVO-028")
+    from tools.preregister import provenance
+    print("[provenance]", provenance("EVO-028-SMOKE" if SMOKE else "EVO-028"))   # P2.68 : git_sha / dirty / seal, dans l'evidence (stdout)
     print(f"regle SCELLEE verifiee ({'EVO-028-SMOKE' if SMOKE else 'EVO-028'}) |",
           str(rule.get("dv_primaire") or rule.get("mesure"))[:90], "\n")
 

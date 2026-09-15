@@ -147,11 +147,11 @@ def run_retain_compose_diagnostic_probe(seeds, episodes=1500, n_agents=16, K=6, 
     (`_step` écrit l'observation dans `H[:, :I]`). Son plafond est donc STRICTEMENT au-dessus du hasard
     et n'a jamais été mesuré. `1/K` serait le geste naturel, et ce serait exactement l'erreur P2.15.
 
-    D'où la règle : sans `incapable_ceiling` DÉCLARÉ (+ `ceiling_provenance`), le verdict rendu est
-    `INCONCLUSIVE_BAR_UNVALIDATED` — distinct d'`INCONCLUSIVE`, qui veut dire « mesuré, non tranché ».
-    Les médianes et le per-seed restent rendus : c'est là que vit la mesure, et les contre-exemples
-    gelés s'y appuient. Établir ce plafond (bras `learned` à `BILINEAR=False`, budget saturant) est une
-    tâche bornée et inscrite au backlog ; la deviner ne l'est pas."""
+    Contrat du 2026-09-07 (HISTORIQUE, remplacé le lendemain) : sans `incapable_ceiling` déclaré, le
+    verdict était un statut « barre non validée », distinct d'`INCONCLUSIVE`. Depuis le 2026-09-08 (P2.15),
+    le plafond est MESURÉ par condition, en tête, à zéro épisode (voir le bloc ci-dessous) : la sonde ne
+    rend plus jamais ce statut, `bar_status` vaut `SEPARATES_MEASURED`. Les médianes et le per-seed
+    restent rendus : c'est là que vit la mesure, et les contre-exemples gelés s'y appuient."""
     from tools.experiment_preflight import assert_bar_separates_the_incapable
 
     # ⚠️ PLAFOND DE L'INCAPABLE, MESURÉ PAR CONDITION et EN TÊTE (2026-09-08, P2.15). Chaque clause du

@@ -27,7 +27,6 @@ Usage : python tools/learner_calibration.py   (env : LC_SEEDS=12 LC_TICKS=2000 L
 """
 import json
 import os
-import subprocess
 import sys
 import time
 
@@ -56,12 +55,8 @@ MIN_GAIN = 0.05
 
 
 def _git_provenance():
-    try:
-        sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=_ROOT, text=True).strip()
-        dirty = bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=_ROOT, text=True).strip())
-        return {"git_sha": sha, "dirty": dirty}
-    except Exception as exc:                        # noqa: BLE001 — provenance absente, jamais inventée
-        return {"git_sha": None, "dirty": None, "error": str(exc)}
+    from tools.preregister import provenance        # P2.68 : un seul site de provenance
+    return provenance()
 
 
 def _load(path):
@@ -86,28 +81,36 @@ def _median(xs):
     return float(np.median(xs))
 
 
-def summarize(arms):
+def summarize(arms, learner_arms=LEARNER_ARMS):
     """Médianes par bras (unité = seed), verdicts appariés à la référence lr=0 et à l'oracle du MÊME run,
-    signe par seed, et balayage E19 (natural @0.04 vs lr_low @0.004)."""
+    signe par seed, et balayage E19 (natural @0.04 vs lr_low @0.004). `learner_arms` : les bras jugés
+    (défaut : les quatre de P1.6 ; P3.4 passe ceux du legacy, mêmes noms, autre politique)."""
     med = {}
     for arm, rec in arms.items():
         per = rec["per_seed"]
-        med[arm] = {"n": len(per),
-                    "hit_first": _median([r["hit_first"] for r in per.values()]),
-                    "hit_last": _median([r["hit_last"] for r in per.values()]),
-                    "td_updates": _median([r["learning"]["td_updates"] for r in per.values()]),
-                    "episode_updates": _median([r["learning"]["episode_updates"] for r in per.values()]),
-                    "dW_abs_sum": _median([r["learning"]["dW_abs_sum"] for r in per.values()])}
+        # P3.4 (2026-09-15) : une cellule NON MESURÉE (`erreur` posée par le runner : l'apprenant a divergé
+        # et la cohorte n'a plus pris AUCUNE décision, `run_learner_probe` a refusé de fabriquer un taux)
+        # est comptée dans `n` et publiée dans `non_mesures`, jamais avalée par la médiane.
+        ok = [r for r in per.values() if r.get("learning") is not None]
+        med[arm] = {"n": len(per), "non_mesures": len(per) - len(ok),
+                    "hit_first": _median([r["hit_first"] for r in ok]),
+                    "hit_last": _median([r["hit_last"] for r in ok]),
+                    "td_updates": _median([r["learning"]["td_updates"] for r in ok]),
+                    "episode_updates": _median([r["learning"]["episode_updates"] for r in ok]),
+                    "dW_abs_sum": _median([r["learning"]["dW_abs_sum"] for r in ok])}
     ref, orc = med["lr0_reference"], med["oracle"]
     verdicts = {}
-    for arm in LEARNER_ARMS:
+    for arm in learner_arms:
         v = learner_verdict(learner_first=med[arm]["hit_first"], learner_last=med[arm]["hit_last"],
                             reference_last=ref["hit_last"], oracle_last=orc["hit_last"],
                             min_sep=MIN_SEP, min_gain=MIN_GAIN)
         seeds = sorted(set(arms[arm]["per_seed"]) & set(arms["lr0_reference"]["per_seed"]))
         above = sum(1 for s in seeds
-                    if arms[arm]["per_seed"][s]["hit_last"] > arms["lr0_reference"]["per_seed"][s]["hit_last"] + MIN_SEP)
-        v["seeds_above_reference"] = f"{above}/{len(seeds)}"
+                    if arms[arm]["per_seed"][s].get("hit_last") is not None
+                    and arms["lr0_reference"]["per_seed"][s].get("hit_last") is not None
+                    and arms[arm]["per_seed"][s]["hit_last"] > arms["lr0_reference"]["per_seed"][s]["hit_last"] + MIN_SEP)
+        v["seeds_above_reference"] = f"{above}/{len(seeds)}"     # un seed NON MESURÉ compte au dénominateur
+        v["seeds_non_mesures"] = med[arm]["non_mesures"]
         verdicts[arm] = v
 
     def measure(lr):

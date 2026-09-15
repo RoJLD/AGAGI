@@ -734,3 +734,40 @@ def test_P226_RETIRE_SPARES_a_snapshot_that_is_NOT_targeted(tmp_path, monkeypatc
     snapshot(["autre.py"], owner="en-cours", snapshot_dir=snap_dir, cwd=repo, session_id="S-A")
     assert len(retire_snapshots([_FILE], owner="en-cours", snapshot_dir=snap_dir)) == 1
     assert any("autre.py" in f for f in os.listdir(snap_dir)), "le chemin voisin doit SURVIVRE"
+
+
+# --------------------------------------------------------------------------------------------------
+# P2.71 (2026-09-15) — l'EMPREINTE TARDIVE. Observé le 2026-09-07 : une empreinte prise APRÈS avoir
+# édité classe VOTRE propre travail comme étranger, et la garde refusait sans dire qu'elle ne pouvait
+# pas trancher. Elle ne peut toujours pas (sens B : indécidable sans déclaration) — mais elle le DIT :
+# `dirty_at_snapshot` décidé au snapshot, « EMPREINTE_TARDIVE possible » au verify.
+# --------------------------------------------------------------------------------------------------
+
+def test_P271_a_LATE_snapshot_is_flagged_and_verify_SAYS_it_is_inconclusive(tmp_path, capsys):
+    repo = _init_repo(tmp_path)
+    snap_dir = str(tmp_path / "snaps")
+    _append(repo, "\n\ndef my_work_written_BEFORE_the_snapshot():\n    return 'mine'\n")   # trop tard
+    written = snapshot([_FILE], owner="ma-tache", snapshot_dir=snap_dir, cwd=repo)
+    assert "EMPREINTE_TARDIVE" in capsys.readouterr().err
+    import json
+    assert json.load(open(written[0], encoding="utf-8"))["dirty_at_snapshot"] is True
+    _git(["add", _FILE], repo)
+    with pytest.raises(ForeignHunkDetected) as exc:
+        verify([_FILE], owner="ma-tache", snapshot_dir=snap_dir, cwd=repo)
+    assert exc.value.dirty_at_snapshot == (_FILE,)
+    assert "EMPREINTE_TARDIVE" in str(exc.value) and "NON CONCLUANTE" in str(exc.value)
+
+
+def test_P271_a_timely_snapshot_is_NOT_flagged_and_a_real_foreign_hunk_stays_a_plain_detection(tmp_path, capsys):
+    """NO-OP apparié : empreinte prise sur un fichier PROPRE -> pas de drapeau ; et le cas fondateur
+    (hunk étranger présent au snapshot) reste signalé — avec le drapeau, puisque la garde ne peut PAS
+    distinguer « étranger » de « mien, écrit trop tôt » : c'est exactement ce qu'elle doit avouer."""
+    repo = _init_repo(tmp_path)
+    snap_dir = str(tmp_path / "snaps")
+    written = snapshot([_FILE], owner="ma-tache", snapshot_dir=snap_dir, cwd=repo)
+    assert "EMPREINTE_TARDIVE" not in capsys.readouterr().err
+    import json
+    assert json.load(open(written[0], encoding="utf-8"))["dirty_at_snapshot"] is False
+    _append(repo, "\n\ndef my_own_work():\n    return 'mine'\n")
+    _git(["add", _FILE], repo)
+    assert verify([_FILE], owner="ma-tache", snapshot_dir=snap_dir, cwd=repo) == {_FILE: 1}

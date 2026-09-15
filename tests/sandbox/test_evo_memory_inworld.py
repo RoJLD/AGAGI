@@ -260,3 +260,54 @@ def test_run_contrast_still_REFUSES_degenerate_arguments_before_deduplicating(mo
 
     _compteur_evolutions(monkeypatch)
     assert len(M.run_contrast(iter([0, 1]))) == 2
+
+
+# --------------------------------------------------------------------------------------------------
+# P2.46 rang 7 (2026-09-15) -- garde E24 en TETE de la sonde de saillance, et les canaux PARTAGES en
+# forme close. Mesure du jour sur le champion HoF, dans SON monde (stoneage, obs completee a 64 comme
+# le fait MambaBatchModel.forward) : canaux partages 46-53 bascule mediane 0,51 (in_mem0 0,90,
+# in_confort 0,86) ; les 56 autres mediane 0,003 -- MAIS lidar_n 0,83, adj_energy 0,74, ax 0,62 sont
+# LUS a travers des poids ; argmax(logits[:8]) == argmax(obs[46:54]) sur 71 % des decisions
+# (results/evo004_relecture_e24_champion.json). L'identite n'est qu'approximative avec l'etat
+# recurrent en marche (ecart median 0,43).
+# --------------------------------------------------------------------------------------------------
+
+def test_shared_decision_channels_est_en_forme_close():
+    from types import SimpleNamespace as NS
+    from tools.evo_memory_inworld import shared_decision_channels
+    champ = NS(num_inputs=64, num_outputs=126, num_nodes=172)     # le champion HoF : chevauchement 18
+    assert shared_decision_channels(champ, n_out=8) == list(range(46, 54))
+    assert shared_decision_channels(champ, n_out=20) == list(range(46, 64)), "borne par num_inputs"
+    frais = NS(num_inputs=59, num_outputs=108, num_nodes=172)     # 167 <= 172 : pas de chevauchement
+    assert shared_decision_channels(frais) == []
+
+
+def test_la_sonde_de_saillance_REFUSE_un_sujet_a_chevauchement_AVANT_tout_monde():
+    """CONTRE-EXEMPLE GELE : le champion HoF (64 + 126 dans 172). Le refus precede la construction du
+    monde -- il ne coute rien et ne prend aucun bail."""
+    import time
+    import pytest
+    from types import SimpleNamespace as NS
+    from tools.experiment_preflight import PreflightError
+    from tools.evo_memory_inworld import measure_channel_saliency
+    faux_champion = NS(num_inputs=64, num_outputs=126, num_nodes=172)
+    t0 = time.time()
+    with pytest.raises(PreflightError, match="CHEVAUCHENT"):
+        measure_channel_saliency(faux_champion, seed=0, channels=[0], num_agents=1, ticks=1)
+    assert time.time() - t0 < 2.0, "le refus doit etre instantane (aucun monde construit)"
+
+
+def test_allow_overlap_est_le_seul_passage_et_il_est_EXPLICITE(monkeypatch):
+    """NO-OP APPARIE : avec `allow_overlap=True` la garde ne leve pas -- on verifie que c'est bien elle
+    qui decidait, sans construire de monde (le monde est court-circuite par un stub qui leve autre chose)."""
+    import pytest
+    from tools import evo_memory_inworld as M
+    from types import SimpleNamespace as NS
+
+    class _Stop(Exception):
+        pass
+
+    monkeypatch.setattr(M, "MemoryDemandBiosphere", lambda cfg: (_ for _ in ()).throw(_Stop()))
+    faux_champion = NS(num_inputs=64, num_outputs=126, num_nodes=172)
+    with pytest.raises(_Stop):          # la garde a laisse passer, le monde (stub) est atteint
+        M.measure_channel_saliency(faux_champion, seed=0, channels=[0], allow_overlap=True)

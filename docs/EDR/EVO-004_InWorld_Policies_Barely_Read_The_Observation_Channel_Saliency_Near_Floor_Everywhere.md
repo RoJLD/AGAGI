@@ -9,6 +9,8 @@ adopts: [REF-EXPERIMENT-PREFLIGHT]
 extends: [EDR-EVO-003]
 ---
 
+> ⚠️ **PORTÉE PRÉCISÉE le 2026-09-15 (P2.46 rang 7).** Ce record a été cité (P2.46, [[EDR-HOF-IO-OVERLAP]]) comme concluant « plancher sur TOUS les canaux » *sur le champion HoF*. Ses sujets sont les **quatre champions évolués in-world** ci-dessous, sans chevauchement entrée/sortie (E24) : la conclusion tient sur EUX et n'est pas confondue. Le champion HoF (64 + 126 dans 172, 18 slots partagés) n'y est pas mesurable tel quel (monde à 59 entrées) ; mesuré le 2026-09-15 dans son monde avec la même sonde en mode décision, il **lit** ~8 canaux hors partage (`lidar_n` 0,83, `adj_energy` 0,74…) et bouge par identité des canaux 46-53 dans 71 % des décisions — voir [[EDR-HOF-IO-OVERLAP]]. « Plancher partout » ne s'étend donc PAS au champion prod. La sonde refuse désormais un sujet à chevauchement sans `allow_overlap=True` (`shared_decision_channels` sépare).
+
 ## Question
 [[EDR-EVO-003]] a montré que la politique in-world ignore causalement UN canal cognitif (le type d'apex,
 obs[4]). L'outil — perturber un canal d'obs, mesurer Δ sur les logits d'action — **généralise** : pour

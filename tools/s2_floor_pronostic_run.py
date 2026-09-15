@@ -24,6 +24,8 @@ SEED, K, AGENTS, TICKS = 2026, 12, 12, 200          # le régime GRAVÉ de S2-00
 
 def main():
     rule = verify("S2-FLOOR-PRONOSTIC")
+    from tools.preregister import provenance
+    print("[provenance]", provenance("S2-FLOOR-PRONOSTIC"))   # P2.68 : git_sha / dirty / seal, dans l'evidence (stdout)
     print("règle SCELLÉE vérifiée |", rule["dv_primaire"][:80], "\n")
 
     # ---- GARDE E23 (porte 11) : la FAMILLE de contrôles est DÉCLARÉE, AVANT toute mesure ---------

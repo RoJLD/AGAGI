@@ -246,7 +246,9 @@ def main(argv=None):
         out = out or os.path.join("results", "s2_blind_champion.json")
         os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
         with open(out, "w", encoding="utf-8") as fh:
-            json.dump({"preregistration": PREREG, "design": design, "world": WORLD,
+            from tools.preregister import provenance
+            json.dump({"preregistration": PREREG, "provenance": provenance(PREREG),   # P2.68
+                       "design": design, "world": WORLD,
                        "regime": REGIME, "K": args.k, "seeds": seeds, "floor": FLOOR,
                        "elapsed_s": elapsed, "verdict": v, "rows": rows}, fh, indent=1, default=str)
         print(f"  persiste -> {out}")

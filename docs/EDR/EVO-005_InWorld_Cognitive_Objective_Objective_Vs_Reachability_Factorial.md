@@ -10,6 +10,15 @@ adopts: [REF-EXPERIMENT-PREFLIGHT, REF-DEMAND-MARKER]
 extends: [EDR-EVO-004]
 ---
 
+> ⚠️ **Prémisse corrigée en amont — bandeau posé le 2026-09-15, verdict INTACT.** L'argument de
+> convergence de ce record (« le CRÉDIT échoue sur la même carte signal→action [[EDR-S2-010]] ET la SÉLECTION
+> échoue → le verrou est le PAYSAGE ») a perdu sa jambe « crédit », deux fois : [[EDR-CALIB-LEARNER]] a montré
+> que le nul du crédit torch était un nul de DOSE (12/12 seeds apprennent à dose non bornée par la mort), et
+> [[EDR-CALIB-LEGACY-LEARNER]] que l'apprenant de l'arc EVO lui-même (`compute_policy_gradient`) apprend la
+> tâche linéaire à un dixième de son pas publié (11/12, +0,318) et s'effondre ou diverge au pas publié (5/12).
+> Le résultat de SÉLECTION mesuré ici (plafond 0,500, saillance 0) tient tel quel ; la lecture « deux
+> optimiseurs indépendants échouent identiquement » n'a plus qu'un optimiseur.
+
 ## Question
 
 Le dépôt porte **deux verdicts incompatibles** sur le même levier, jamais confrontés :

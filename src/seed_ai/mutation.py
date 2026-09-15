@@ -20,12 +20,14 @@ class MutationConfig:
     # 56 % des aretes cablees sont DESALIGNEES par une insertion (EDR-EVO-021), ce qui detruit un
     # lecteur ~65 % du temps. Ils utilisent aussi l'ANCIEN `i` apres le decalage des lignes (off-by-one
     # pour i >= point d'insertion).
-    # ⚠️ DESACTIVE PAR DEFAUT : off = BIT-IDENTIQUE a l'historique. Les records EVO-005..023 ont ete
-    # mesures avec le defaut ; l'activer change le comportement et exige de les RE-MESURER.
-    # Mesure rassurante (EDR-EVO-023) : supprimer toute croissance donne 0/12 comme le temoin, donc le
-    # defaut n'est PAS contraignant pour les conclusions de l'arc -- il le redeviendra des qu'un levier
-    # fera monter le taux de creation d'aretes.
-    preserve_io_blocks: bool = False
+    # ⚠️ ACTIVE PAR DEFAUT depuis le 2026-09-15 (P2.63, decision prise le 2026-09-14). Les records
+    # EVO-005..023 ont ete mesures avec l'ANCIEN defaut (off) : `preserve_io_blocks=False` EXPLICITE
+    # reste bit-identique a l'historique (contre-exemple gele : test_flag_OFF_reproduces_the_legacy_defect).
+    # Validation de neutralite (EDR-EVO-024) : 2 bras x 12 seeds, 0/12 des deux cotes, Fisher p = 1.000 --
+    # le correctif ne change aucune conclusion de l'arc. Mesure rassurante (EDR-EVO-023) : supprimer toute
+    # croissance donne 0/12 comme le temoin ; le defaut redeviendra contraignant des qu'un levier fera
+    # monter le taux de creation d'aretes -- et c'est precisement pour cela qu'il est ferme par defaut.
+    preserve_io_blocks: bool = True
 
 @dataclass
 class Genome:

@@ -59,14 +59,19 @@ if _ROOT not in sys.path:
 # sujet ne doit pas pouvoir passer inaperçue.
 _HOF_TABULA = os.path.join(os.environ.get("TMPDIR", "/tmp"), "evo003_empty_hof.pkl")
 if os.environ.get("HOF_PATH") is None:
-    os.environ["HOF_PATH"] = _HOF_TABULA
     if "src.seed_ai.persistence" in sys.modules:
         # persistence a DEJA lu HOF_PATH : la redirection n'aura AUCUN effet, et le bras croira
         # partir de zero alors qu'il partira du champion. Silencieux = mesure fausse.
+        # ⚠️ P2.58 (2026-09-14) : on ne POSE PLUS la variable dans ce cas. Elle etait ecrite quand
+        # meme -- sans effet ici, mais HERITEE par tout sous-processus lance ensuite (pytest du
+        # harnais de mutation, jobs), qui aurait alors lu un HoF VIDE en croyant lire le vrai :
+        # le defaut exact que l'avertissement denonce, deplace d'un processus.
         print("[evo_memory_inworld] ATTENTION : `src.seed_ai.persistence` est deja importe, la "
               "redirection HOF_PATH vers un HoF VIDE est SANS EFFET -- ce processus lira le VRAI "
-              "Hall of Fame.", file=sys.stderr)
+              "Hall of Fame (et HOF_PATH n'est PAS pose, pour ne pas l'imposer aux sous-processus).",
+              file=sys.stderr)
     else:
+        os.environ["HOF_PATH"] = _HOF_TABULA
         print("[evo_memory_inworld] HOF_PATH redirige vers un HoF VIDE (%s) : tabula rasa pour "
               "EVO-003. Tout appel a load_champion_genome() dans CE processus verra un HoF vide."
               % _HOF_TABULA, file=sys.stderr)
@@ -497,7 +502,21 @@ def measure_type_sensitivity(genome, seed, num_agents=24, ticks=120, zone=2):
             "logit_std": float(np.std(logits_all)) if logits_all else 0.0, "n": len(deltas)}
 
 
-def measure_channel_saliency(genome, seed, channels, num_agents=24, ticks=80, n_out=8, decision=False):
+def shared_decision_channels(genome, n_out=8):
+    """E24 -- les canaux d'observation dont le SLOT est aussi un logit de DECISION (argmax des `n_out`
+    premiers logits) : `[num_inputs + max_H, num_inputs)` intersecte les logits `[0, n_out)`. Vide si
+    les blocs ne se chevauchent pas. Pour le champion HoF (64 + 126 dans 172) : canaux 46-53 --
+    `in_mem[0..4]`, `in_confort`, `is_night`, `fire_nearby` (world_1_stoneage.py:618). Leur saillance est
+    en partie une IDENTITE, pas une lecture : les rapporter SEPAREMENT."""
+    overlap = int(genome.num_inputs) + int(genome.num_outputs) - int(genome.num_nodes)
+    if overlap <= 0:
+        return []
+    debut = int(genome.num_inputs) - overlap          # premier slot partage = premier logit
+    return list(range(debut, min(debut + n_out, int(genome.num_inputs))))
+
+
+def measure_channel_saliency(genome, seed, channels, num_agents=24, ticks=80, n_out=8, decision=False,
+                             allow_overlap=False):
     """EDR-EVO-004 — SAILLANCE par canal d'obs (généralise measure_type_sensitivity à tous les canaux) :
     de combien la DÉCISION (logits d'action [:n_out]) change-t-elle quand on met obs[k]=+1 vs −1 ? In-contexte
     (obs réelles), forward NON destructif (`recurrent_forward` sur le H courant). Renvoie {k: mean |Δlogits|}.
@@ -510,6 +529,13 @@ def measure_channel_saliency(genome, seed, channels, num_agents=24, ticks=80, n_
     (world_1_stoneage.py:1291), le taux de bascule d'argmax est la grandeur qui AGIT.
     Révèle quels canaux la politique évoluée LIT vs IGNORE. Contrôle positif intrinsèque : au moins un canal de
     SURVIE (direction proie 0-3, hp) doit s'allumer, sinon la politique/sonde est dégénérée."""
+    # GARDE E24, EN TETE (P2.46 rang 7, 2026-09-15) : sur un genome dont les blocs d'entree et de sortie
+    # se CHEVAUCHENT, « la politique lit-elle ce canal ? » n'a pas la meme reponse pour les canaux
+    # partages (identite) et les autres (poids). Refus par defaut ; `allow_overlap=True` mesure quand
+    # meme, et l'appelant SEPARE avec `shared_decision_channels(genome, n_out)`.
+    from tools.experiment_preflight import assert_no_io_overlap
+    if not allow_overlap:
+        assert_no_io_overlap(genome, label="measure_channel_saliency : sujet")
     from src.seed_ai.rl_evolution import recurrent_forward
     np.random.seed(seed)
     env = MemoryDemandBiosphere(_cfg())

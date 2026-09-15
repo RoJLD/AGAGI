@@ -1040,8 +1040,10 @@ def main(argv=None):
             out = os.path.join("results", "evo011_preflight%s.json" % ("_smoke" if args.smoke else ""))
         os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
         with open(out, "w", encoding="utf-8") as fh:
+            from tools.preregister import provenance
             json.dump({
                 "preregistration": PREREG,
+                "provenance": provenance(PREREG),          # P2.68 : quel code, quelle regle
                 "rule_hash": rule.get("_hash") or rule.get("hash"),
                 "design": design,
                 "regime": {"seeds": n, "n_agents": args.agents, "ticks": args.ticks,

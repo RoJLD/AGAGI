@@ -47,6 +47,8 @@ with hold("kuzu", owner="evo026bis-horizon", ttl_s=28800):
     from tools.lewis_world import _setup_lewis
 
     rule = verify("EVO-026-bis")
+    from tools.preregister import provenance
+    print("[provenance]", provenance("EVO-026-bis"))   # P2.68 : git_sha / dirty / seal, dans l'evidence (stdout)
     print("regle SCELLEE verifiee |", rule["dv_primaire"], "\n")
 
     # ---- GARDE E23 (porte 11) : la FAMILLE de controles est DECLAREE, avant la premiere mesure ----

@@ -11,8 +11,9 @@ ajouté demain est donc couvert sans que personne y pense — c'est le seul moye
 reforme ailleurs. Le défaut d'origine avait justement DEUX porteurs (`add_node` ET `add_meso_gated_unit`),
 et je n'avais vu que le premier : le pré-vol d'[[EDR-EVO-023]] a dû m'apprendre l'existence du second.
 
-`preserve_io_blocks` est **désactivé par défaut** : off = bit-identique à l'historique, parce que les
-records EVO-005→023 ont été mesurés avec le défaut ([[EDR-EVO-024]]).
+`preserve_io_blocks` est **activé par défaut depuis le 2026-09-15** (P2.63) ; `False` EXPLICITE reste
+bit-identique à l'historique, parce que les records EVO-005→023 ont été mesurés avec l'ancien défaut
+([[EDR-EVO-024]] : bascule validée neutre, 0/12 des deux côtés).
 """
 import inspect
 import os
@@ -139,8 +140,8 @@ def test_flag_OFF_reproduces_the_legacy_defect(op_name):
     Les records EVO-005→023 ont été mesurés avec le défaut. Si ce test tombe, `off` n'est plus
     bit-identique et **tout l'arc devient incomparable** : il faut alors re-mesurer, pas ajuster le test."""
     fn = dict(_growth_operators())[op_name]
-    cfg = MutationConfig()          # flag absent -> comportement historique
-    assert cfg.preserve_io_blocks is False, "le flag DOIT rester désactivé par défaut"
+    cfg = MutationConfig()
+    cfg.preserve_io_blocks = False  # OFF EXPLICITE -> comportement historique (le défaut est ON depuis P2.63)
     desaligne = 0
     TRIALS = 120
     for s in range(TRIALS):
@@ -153,3 +154,17 @@ def test_flag_OFF_reproduces_the_legacy_defect(op_name):
         f"{op_name} : le défaut historique a DISPARU alors que le flag est off. "
         f"`off` n'est plus bit-identique -> les records EVO-005..023 sont incomparables, "
         f"il faut les RE-MESURER (cf. EDR-EVO-024).")
+
+
+def test_the_DEFAULT_is_ON_since_P2_63_and_a_fresh_config_never_misaligns():
+    """P2.63 (2026-09-15) : la bascule. Un `MutationConfig()` NU préserve les blocs — et le test d'à côté
+    garde le contre-exemple historique sous `False` EXPLICITE, pour que l'arc EVO-005→023 reste
+    re-mesurable à l'identique."""
+    cfg = MutationConfig()
+    assert cfg.preserve_io_blocks is True, "P2.63 : le défaut est ON ; le rebasculer demande une DÉCISION écrite"
+    for op_name, fn in _growth_operators():
+        for s in range(60):
+            g = _genome()
+            np.random.seed(s)
+            fn(g, cfg)
+            assert _outputs_still_themselves(g), f"{op_name} : désalignement avec le défaut (seed {s})"

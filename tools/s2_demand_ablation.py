@@ -21,8 +21,8 @@ if _ROOT not in sys.path:
 from src.agents.mamba_agent import MambaBatchModel
 from tools.demand_marker import ablation_verdict
 from tools.s2_demand import run_condition, WORLDS, load_champion_genome
-from tools.experiment_preflight import assert_no_aliasing
-from src.agents.baseline_models import ReflexBatchModel
+from tools.experiment_preflight import assert_no_aliasing, assert_phenotype_matched, phenotype_of
+from src.agents.baseline_models import BaselineBatchModel, ReflexBatchModel
 
 
 def derange_rows(batch_obs, rng=None):
@@ -147,6 +147,62 @@ class GrabForcedMamba(MambaBatchModel):
         return preds, spent
 
 
+def perception_ablated_variant(cls):
+    """Sous-classe de `cls` dont `forward` DERANGE les lignes de `batch_obs` avant d'appeler `cls`.
+    Pour `MambaBatchModel` c'est EXACTEMENT `PerceptionAblatedMamba` (rendue telle quelle, pour que
+    tous les appelants existants restent bit-identiques). Pour toute autre politique -- un reflexe,
+    une politique aveugle -- c'est la MEME ablation appliquee au MEME point : l'entree. C'est ce qui
+    permet de calibrer `run_ablation_map` sur son chemin reel avec une politique a reponse CONNUE
+    (P2.59, 2026-09-15)."""
+    if cls is MambaBatchModel:
+        return PerceptionAblatedMamba
+    if getattr(cls, "_perception_ablated_of", None) is not None:
+        return cls                        # deja une variante ablatee : idempotent
+    def forward(self, batch_obs, env_surprise_batch=None):
+        return cls.forward(self, derange_rows(batch_obs), env_surprise_batch)
+    variante = type("PerceptionAblated" + cls.__name__, (cls,), {"forward": forward})
+    variante._perception_ablated_of = cls
+    return variante
+
+
+def perception_null_variant(cls):
+    """Le NO-OP EXACT de `perception_ablated_variant(cls)` : consomme les MEMES tirages du flux global
+    (`derange_rows` appele, resultat jete) sans deranger l'entree. Pour `MambaBatchModel` c'est
+    `NullAblatedMamba`. ⚠️ Sans cette variante, le no-op de `run_ablation_map` restait une politique
+    MAMBA quand la politique intacte etait cablee -- il comparait DEUX POLITIQUES et rendait 0,68
+    (mesure 2026-09-15) : un « plancher de bruit » qui n'en etait pas un."""
+    if cls is MambaBatchModel:
+        return NullAblatedMamba
+    if getattr(cls, "_perception_null_of", None) is not None:
+        return cls
+    def forward(self, batch_obs, env_surprise_batch=None):
+        derange_rows(batch_obs)            # consomme la bande ; resultat jete
+        return cls.forward(self, batch_obs, env_surprise_batch)
+    variante = type("PerceptionNull" + cls.__name__, (cls,), {"forward": forward})
+    variante._perception_null_of = cls
+    return variante
+
+
+class ObsBlindOnBody(BaselineBatchModel):
+    """Politique AVEUGLE a l'observation, sur le CORPS du genome qu'on lui donne : logits CONSTANTS
+    (avance au nord, tente de ramasser), quelle que soit l'obs. Deranger l'obs ne peut RIEN changer a
+    ses decisions -> reponse connue de `run_ablation_map` : PERCEPTION_DECOY (ratio dans la bande du
+    no-op). Le corps (hp_bonus, inv_capacity, drain) vient du genome via le monde, pas d'ici."""
+
+    def _logits(self, batch_obs):
+        logits = np.zeros((self.B, self.O), dtype=np.float32)
+        logits[:, 0] = 1.0                   # move N
+        logits[:, 24] = 1.0                  # do_grab
+        return logits
+
+
+class ObsReaderOnBody(ReflexBatchModel):
+    """Politique qui LIT l'observation (poursuite de la proie la plus proche, direction lue dans
+    l'obs), sur le CORPS du genome qu'on lui donne. Deranger l'obs decorrèle sa direction de sa
+    realite -> reponse connue : PERCEPTION_DEMANDED, si la lecture paie dans ce monde. C'est le
+    `ReflexBatchModel` du depot, nomme pour ce qu'il est ici : un LECTEUR cable."""
+
+
 def _median_survival(cond):
     """Survie médiane globale d'une condition run_condition (liste 'survival')."""
     s = cond.get("survival") or []
@@ -173,9 +229,23 @@ def _floor_for(world, num_agents, max_ticks):
 
 
 def run_ablation_map(worlds=None, seed=2026, K=12, num_agents=20, max_ticks=400,
-                     subject=None, noop_control=False):
+                     subject=None, noop_control=False, batch_model_cls=None, reference_body=None,
+                     between_same_body=False):
     """Pour chaque monde : champion INTACT vs champion ABLATÉ (within) + réflexe (between). Renvoie
-    {world: {within_ratio, between_ratio, verdict, n}}. n = K ères (unité d'appariement)."""
+    {world: {within_ratio, between_ratio, verdict, n}}. n = K ères (unité d'appariement).
+
+    P2.59 (2026-09-15), trois seams -- tous a defaut BIT-IDENTIQUE pour les appelants existants :
+      * `batch_model_cls` : la POLITIQUE du bras intact (None = MambaBatchModel, le moteur normal) ;
+        le bras able est `perception_ablated_variant(batch_model_cls)`, la MEME ablation au MEME
+        point. C'est ce qui permet de calibrer l'instrument sur son chemin reel avec une politique a
+        reponse CONNUE : `ObsBlindOnBody` -> DECOY, `ObsReaderOnBody` -> DEMANDED.
+      * `reference_body` : un genome dont `subject` doit avoir le CORPS EXACT (E26 : le monde derive
+        hp_bonus / inv_capacity / drain des lignes 0-9 de W). Si le corps differe, on LEVE avant tout
+        monde : un contraste entre sujets de corps differents compare des metabolismes.
+      * `between_same_body` : le reflexe du contraste between tourne sur le genome du SUJET (meme
+        corps) au lieu d'un genome frais. Mesure du 2026-09-15 (stoneage, 6 agents, 60 ticks) :
+        reflexe sur le corps du champion 7,5 / 24,5 ticks d'ere, sur genome frais 6,0 / 7,5 -- le
+        between publie compare un champion a un AUTRE corps. Defaut False : les records ne bougent pas."""
     # ⚠️ GARDE D'ARGUMENTS, EN TETE (2026-09-01). Meme raison que pour les autres mesures : sans
     # elle, une cohorte vide ou un horizon nul produit une MESURE (0.0 rendu comme observation),
     # que l'aval lit comme un resultat. On LEVE : un argument degenere est une erreur d'appel, pas
@@ -198,15 +268,21 @@ def run_ablation_map(worlds=None, seed=2026, K=12, num_agents=20, max_ticks=400,
     # verdict du marqueur est une propriete du SUJET, pas du monde -- et qu'on ne peut pas le tester
     # avec un instrument qui ne sait mesurer qu'UN sujet.
     champion = load_champion_genome() if subject is None else subject
+    if reference_body is not None:
+        # E26, AVANT toute construction de monde : le refus ne coute rien, et un sujet au corps edite
+        # (aveugle, amplifie) ne peut pas passer pour une variante de POLITIQUE du champion.
+        assert_phenotype_matched(champion, reference_body, label="run_ablation_map : sujet vs corps de reference")
+    intact_cls = MambaBatchModel if batch_model_cls is None else batch_model_cls
+    ablated_cls = perception_ablated_variant(intact_cls)
     out = {}
     for w in worlds:
         wcls = WORLDS[w]
-        intact = run_condition(wcls, None, champion, seed, num_agents=num_agents,
-                               max_ticks=max_ticks, n_eras=K)
-        ablated = run_condition(wcls, PerceptionAblatedMamba, champion, seed, num_agents=num_agents,
+        intact = run_condition(wcls, None if batch_model_cls is None else intact_cls, champion, seed,
+                               num_agents=num_agents, max_ticks=max_ticks, n_eras=K)
+        ablated = run_condition(wcls, ablated_cls, champion, seed, num_agents=num_agents,
                                 max_ticks=max_ticks, n_eras=K)
-        reflex = run_condition(wcls, ReflexBatchModel, None, seed, num_agents=num_agents,
-                               max_ticks=max_ticks, n_eras=K)
+        reflex = run_condition(wcls, ReflexBatchModel, champion if between_same_body else None, seed,
+                               num_agents=num_agents, max_ticks=max_ticks, n_eras=K)
         # appariement par ère (seed_at par ère) ; l'ablation consomme des tirages RNG en plus ->
         # tape intra-ère non identique, mais le contraste porte sur la perception
         wv = ablation_verdict(intact["era_survival"], ablated["era_survival"],
@@ -218,8 +294,8 @@ def run_ablation_map(worlds=None, seed=2026, K=12, num_agents=20, max_ticks=400,
         # les appelants existants ; aucun record ne bouge.
         noop = None
         if noop_control:
-            nul = run_condition(wcls, NullAblatedMamba, champion, seed, num_agents=num_agents,
-                                max_ticks=max_ticks, n_eras=K)
+            nul = run_condition(wcls, perception_null_variant(intact_cls), champion, seed,
+                                num_agents=num_agents, max_ticks=max_ticks, n_eras=K)
             nv = ablation_verdict(intact["era_survival"], nul["era_survival"],
                                   floor=_floor_for(w, num_agents, max_ticks),
                                   ceiling=float(max_ticks))
@@ -228,6 +304,11 @@ def run_ablation_map(worlds=None, seed=2026, K=12, num_agents=20, max_ticks=400,
         verdict = wv["verdict"].replace("X_", "PERCEPTION_")
         out[w] = {"within_ratio": wv["ratio"], "between_ratio": between_ratio,
                   "verdict": verdict, "n": wv["n"],
+                  # P2.59 : le CORPS du sujet, publie (E26) -- et le nom de la politique mesuree
+                  # (un sujet INJECTE sans `W` -- harnais d'injection -- n'a pas de corps : None)
+                  "phenotype": phenotype_of(champion) if hasattr(champion, "W") else None,
+                  "policy": intact_cls.__name__,
+                  "between_same_body": bool(between_same_body),
                   # 2026-09-02 : absolus publies (defaut AUDIT-001 epingle sur S2-009 -- un record
                   # qui ne publie que des ratios cache la proximite au plancher) + le plancher consomme
                   "intact_median": float(np.median(intact["era_survival"])),

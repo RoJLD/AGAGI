@@ -100,3 +100,51 @@ def test_the_holder_detector_ignores_our_own_process():
         return                                    # aucun bail vivant : rien à vérifier
     pid = int(detenteur.rsplit("pid=", 1)[1].rstrip(")"))
     assert pid not in protege, f"le détenteur signalé {pid} est nous-même ou un ancêtre"
+
+
+# --------------------------------------------------------------------------------------------------
+# P2.69 (ii), 2026-09-15 — le FILET RUNTIME : la garde textuelle laissait passer 58 fichiers qui
+# simulent un monde par import indirect. Ici : bail tenu par un tiers -> CONSTRUIRE un monde saute
+# le test, au point exact, avec la raison ; sans bail -> le constructeur est celui d'origine.
+# --------------------------------------------------------------------------------------------------
+
+def test_the_runtime_net_SKIPS_at_world_construction_when_a_lease_is_held(monkeypatch):
+    C = _load_conftest()
+    from src.worlds.world_1_stoneage import Biosphere3D
+    orig = Biosphere3D.__init__
+    C._arm_runtime_net("un-run (pid=4242) tient kuzu")
+    try:
+        assert Biosphere3D.__init__ is not orig
+        with pytest.raises(pytest.skip.Exception) as exc:
+            Biosphere3D()
+        assert "4242" in str(exc.value)
+    finally:
+        C._disarm_runtime_net()
+    assert Biosphere3D.__init__ is orig, "le filet doit se retirer sans trace"
+
+
+def test_the_runtime_net_is_NOT_armed_when_no_lease_is_held(tmp_path, monkeypatch):
+    """NO-OP apparié : sans bail, `pytest_collection_modifyitems` rend avant d'armer quoi que ce soit."""
+    C = _load_conftest()
+    monkeypatch.setattr(C, "_foreign_kuzu_holder", lambda: None)
+    from src.worlds.world_1_stoneage import Biosphere3D
+    orig = Biosphere3D.__init__
+    C.pytest_collection_modifyitems(None, _items(tmp_path, monde=True))
+    assert Biosphere3D.__init__ is orig and not C._NET["armed"]
+
+
+def test_the_runtime_net_is_armed_by_the_collection_hook_when_a_lease_is_held(tmp_path, monkeypatch):
+    """Le chemin RÉEL : détenteur étranger -> le hook de collecte arme le filet (pas seulement les
+    marqueurs textuels). C'est ce qui couvre les 58 fichiers sans indice."""
+    C = _load_conftest()
+    monkeypatch.setattr(C, "_foreign_kuzu_holder", lambda: "un-run (pid=4242)")
+    from src.worlds.world_1_stoneage import Biosphere3D
+    orig = Biosphere3D.__init__
+    try:
+        C.pytest_collection_modifyitems(None, _items(tmp_path, monde=False))   # aucun indice textuel
+        assert C._NET["armed"] and Biosphere3D.__init__ is not orig
+        with pytest.raises(pytest.skip.Exception):
+            Biosphere3D()
+    finally:
+        C._disarm_runtime_net()
+    assert Biosphere3D.__init__ is orig

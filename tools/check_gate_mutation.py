@@ -290,6 +290,23 @@ PORTES = {
                       "serait de nouveau committable"),
         }],
     },
+    "17": {
+        "module": "tools.check_io_overlap",
+        "titre": "génome persisté à chevauchement entrée/sortie (E24)",
+        "temoins": ["tests/sandbox/test_io_overlap_gate.py"],
+        "mutations": [{
+            "nom": "le chevauchement est toujours nul",
+            "avant": "    return max(0, int(num_inputs) + int(num_outputs) - int(num_nodes))",
+            "apres": "    return 0",
+            "motif": ("la mesure elle-même — le champion HoF (64 + 126 dans 172) passerait pour sain, et "
+                      "tout nouveau lot chevauchant entrerait en silence"),
+        }, {
+            "nom": "un sujet nouveau n'est plus distingué d'un sujet connu",
+            "avant": "    nouveaux = sorted(k for k in chev if k not in baseline)",
+            "apres": "    nouveaux = []",
+            "motif": "le cliquet ne cliquerait plus : tout chevauchant hors baseline passerait",
+        }],
+    },
 }
 
 # ⚠️ Clé = NOM DE MODULE, et non numéro de porte : c'est ce qui permet à

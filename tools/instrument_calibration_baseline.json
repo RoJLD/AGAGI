@@ -1,6 +1,5 @@
 {
   "uncalibrated": [
-    "compute_policy_gradient",
     "learn",
     "learn_episode_bptt"
   ]

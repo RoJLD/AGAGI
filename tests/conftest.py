@@ -120,3 +120,41 @@ def pytest_collection_modifyitems(config, items):  # noqa: F811 — complète le
             n += 1
     if n:
         print(f"\n⚠️  GARDE DE BAIL : {n} test(s) simulant un monde SAUTÉS — {detenteur} tient « kuzu ».")
+    _arm_runtime_net(raison)
+
+
+_NET = {"armed": False, "orig": None}
+
+
+def _arm_runtime_net(raison):
+    """P2.69 (ii), 2026-09-15 — FILET RUNTIME de la garde de bail. L'heuristique textuelle ci-dessus
+    devine ; mesuré ce jour : **58 fichiers** de tests importent un module qui construit un monde SANS
+    porter un indice (`test_p_reach_deconfound.py` via `_measure_forage`, `test_s2_ablation_real_path.py`
+    via `run_ablation_map`, …) — pendant le run P4.9, 503 tests simulant un monde ont TOURNÉ. Ajouter un
+    indice de plus ne ferme pas la classe ; intercepter le MÉCANISME la ferme : quand un bail étranger
+    est détenu, la CONSTRUCTION d'un monde (`Biosphere3D.__init__`, dont héritent soup / agricultural /
+    industrial / famine / ground-truth, et sur lequel Lewis est monté) SAUTE le test qui la tente — au
+    point exact, avec la même raison. Importé ici seulement quand un bail est pris (sinon rien n'est
+    touché, et le coût est nul). Restaurable par `_disarm_runtime_net()` (tests de la garde)."""
+    if _NET["armed"]:
+        return
+    try:
+        from src.worlds.world_1_stoneage import Biosphere3D
+    except Exception:                               # noqa: BLE001 — monde inimportable : rien à filtrer
+        return
+    orig = Biosphere3D.__init__
+
+    def __init__(self, *a, **k):
+        pytest.skip("[filet runtime] " + raison)
+
+    __init__._lease_net = True
+    Biosphere3D.__init__ = __init__
+    _NET.update(armed=True, orig=orig)
+
+
+def _disarm_runtime_net():
+    if not _NET["armed"]:
+        return
+    from src.worlds.world_1_stoneage import Biosphere3D
+    Biosphere3D.__init__ = _NET["orig"]
+    _NET.update(armed=False, orig=None)

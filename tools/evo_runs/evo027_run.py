@@ -41,6 +41,8 @@ with hold("kuzu", owner="evo027-position", ttl_s=14400):
     from tools.evo_mech_dv import logit_median_at_outputs
 
     rule = verify("EVO-027")
+    from tools.preregister import provenance
+    print("[provenance]", provenance("EVO-027"))   # P2.68 : git_sha / dirty / seal, dans l'evidence (stdout)
     print("regle SCELLEE verifiee |", rule["dv_primaire"][:90], "\n")
 
     # ---- GARDE E23 (porte 11) : la FAMILLE de controles est DECLAREE, avant la premiere mesure ----

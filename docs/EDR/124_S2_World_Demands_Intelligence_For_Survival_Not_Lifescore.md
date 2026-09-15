@@ -10,6 +10,8 @@ verdict: EXIGE_X4_SURVIE
 corrected_by: [EDR-S2-012]
 ---
 
+> ⚠️ **E24, mention posée le 2026-09-15 (P2.46 rang 7) — [[EDR-HOF-IO-OVERLAP]].** Le sujet de ce record, le champion HoF, a **18 logits d'action qui SONT l'observation** (64 + 126 dans 172 nœuds). **Le verdict `PERCEPTION_DECOY` TIENT** : `PerceptionAblatedMamba` permute à l'ENTRÉE, donc ablate les deux chemins (identité et poids). **Sa lecture est précisée** : ce champion LIT l'observation — bascule de décision 0,51 sur les canaux partagés 46-53 et 0,50-0,83 sur `lidar_n`, `adj_energy`, `ax`, `terrain_4`, `in_surprise`, `age` (mesure 2026-09-15, n = 1 seed) — et *DECOY* signifie « lire ne paie pas la survie », non « ne lit pas » (P2.59 : aucune lecture câblée n'est net-positive sur stoneage ; EVO-011 : lire coûte). `run_ablation_map` publie désormais `io_overlap`.
+
 # EDR 124 — S2 : le monde EXIGE l'intelligence pour SURVIVRE (4 mondes), pas pour le life_score
 
 ## Contexte

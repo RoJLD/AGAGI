@@ -50,8 +50,46 @@ class Lease:
     last_heartbeat: float
 
 
+_REPO_ROOT: Optional[Path] = None
+
+
+def _repo_root(cwd: Optional[Path] = None) -> Path:
+    """P2.69 (i), 2026-09-15 — la racine du DÉPÔT, pas du worktree. Avant : `runs/leases` relatif au cwd,
+    donc un worktree (`.claude/worktrees/...`) ne voyait pas le bail tenu dans l'arbre principal — pendant
+    le run P4.9, 503 tests simulant un monde ont TOURNÉ dans un worktree (sautés dans l'arbre principal) ;
+    la charge machine est partagée (E12 sur tout coût mesuré pendant). `git rev-parse --git-common-dir`
+    rend le `.git` COMMUN à tous les worktrees : son parent est l'arbre principal. Sans git (ou hors dépôt) :
+    le cwd, comme avant. Mis en cache par processus (`_reset_repo_root_cache()` pour les tests)."""
+    global _REPO_ROOT
+    if _REPO_ROOT is not None and cwd is None:
+        return _REPO_ROOT
+    base = Path(cwd) if cwd is not None else Path.cwd()
+    root = base
+    try:
+        import subprocess
+        out = subprocess.run(["git", "rev-parse", "--git-common-dir"], cwd=str(base), capture_output=True,
+                             text=True, timeout=10)
+        if out.returncode == 0 and out.stdout.strip():
+            common = Path(out.stdout.strip())
+            if not common.is_absolute():
+                common = base / common
+            root = common.resolve().parent
+    except Exception:                               # noqa: BLE001 — git absent : racine = cwd, comme avant
+        root = base
+    if cwd is None:
+        _REPO_ROOT = root
+    return root
+
+
+def _reset_repo_root_cache() -> None:
+    global _REPO_ROOT
+    _REPO_ROOT = None
+
+
 def _dir(leases_dir: Optional[Path]) -> Path:
-    return Path(leases_dir) if leases_dir is not None else DEFAULT_LEASES_DIR
+    if leases_dir is not None:
+        return Path(leases_dir)
+    return _repo_root() / DEFAULT_LEASES_DIR
 
 
 def _path(resource: str, leases_dir: Optional[Path]) -> Path:
