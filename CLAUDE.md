@@ -29,8 +29,8 @@ Quatre questions, dont deux ont des assertions exécutables :
 **Inventaire au 2026-09-01 : 105 détectés, 104 calibrés, 1 déclaré non-instrument, ZÉRO dette.**
 **État COURANT, recomputé et jamais recopié :**
 **234 détectés** <!-- count:instruments_detectes=234 -->
-· **225 calibrés** <!-- count:instruments_calibres=225 -->
-· **3 non calibrés** <!-- count:instruments_non_calibres=3 -->
+· **226 calibrés** <!-- count:instruments_calibres=226 -->
+· **2 non calibrés** <!-- count:instruments_non_calibres=2 -->
 — la famille `run_*` (72 fonctions) est entrée le 2026-09-06 sans créer de dette. *(Les chiffres datés ci-dessus sont HISTORIQUES : ils restent vrais
 et ne sont donc pas balisés.)*
 *(Point de départ, 2026-07-21 : 71 détectés, 1 calibré.)* Le cliquet est désormais un **cliquet
@@ -209,7 +209,13 @@ RIEN. BLOQUE l'**anéantissement** : un fichier encore présent dont le compte d
 alors que HEAD en portait. SIGNALE, sans bloquer, toute baisse partielle — retirer du code mort est
 légitime, et ce qui manquait n'était pas un refus mais **le chiffre sous les yeux** : c'est en lisant
 « 2372 deletions » par réflexe que l'anéantissement du backlog a été découvert).
-**16 gardes** <!-- count:portes_hook=16 --> sont branchées sur le hook pre-commit
+`check_io_overlap.py` (porte 17 — **E24 au dépôt de génomes** : aucun NOUVEAU génome persisté dont les
+blocs d'entrée et de sortie se chevauchent. `assert_no_io_overlap` protège les SONDES ; rien ne protégeait
+les 348 `.npz` de `data/genomes/` ni les Hall of Fame. Coût nul — trois entiers par fichier, 378 sujets en
+0,5 s ; les 10 entrées du HoF principal (64 + 126 dans 172 = 18, une seule lignée) sont gelées, les deux HoF
+famine et les 348 `.npz` sont à 0. Un fichier illisible est RAPPORTÉ, jamais compté 0 ; deux mutations
+tuées par ses témoins).
+**17 gardes** <!-- count:portes_hook=17 --> sont branchées sur le hook pre-commit
 (`tools/hooks/pre-commit`) — compte RECOMPUTÉ depuis le hook lui-même : la phrase « 5 cliquets, tous
 branchés » qui vivait ici était fausse.
 ⚠️ **La baseline d'un cliquet doit elle-même déclencher le hook** — sinon l'élargir et la committer seule
@@ -270,6 +276,12 @@ explicite, jamais le processus courant ni ses ancêtres, jamais un bail dont le 
   ⚠️ **Et ça ne fait pas que MUTILER : ça ÉCRIT.** Récidive mesurée le 2026-09-08, la règle étant déjà écrite ici : un `python -c` contenant un fragment backtické a fait exécuter par bash `learned = within > chance + 0.05` — d'où `learned: command not found`, le fragment remplacé par du vide dans la sortie, **et la création silencieuse d'un fichier vide nommé `chance`** (le `>` a redirigé). Le fichier a survécu plusieurs heures dans l'arbre PARTAGÉ avant d'être vu par un `git status`. Une substitution de commande ratée peut donc laisser des DÉCHETS dans l'arbre, pas seulement un texte tronqué.
   avec l'outil Write). ⚠️ La première version de cette règle ne visait que `git commit -m` : elle a
   été prise en défaut une heure plus tard par un `python -c` qui a scellé une règle de pré-inscription MUTILÉE (S6-FALLBACK-RATE → re-scellée en `-bis`). **Une règle apprise sur UN cas doit être énoncée sur le MÉCANISME, pas sur le cas.**
+- ⚠️ **Un patch qui contient des BACKSLASHS (`
+`, `\`) ou des backticks ne passe PAS par un heredoc `python - <<'EOF'`** :
+  mesuré deux fois le 2026-09-15, la séquence `"\n"` d'un motif de remplacement est arrivée à Python comme un SAUT DE
+  LIGNE réel — le motif ne correspondait plus, l'assertion a levé (heureusement AVANT l'écriture). Même mécanisme que la
+  règle des backticks : le canal shell transforme la chaîne. Écrire le script avec l'outil Write dans le scratchpad et
+  l'exécuter par son chemin ; réserver le heredoc aux patches sans aucune séquence d'échappement.
 - ⚠️ **Ne JAMAIS imbriquer une lecture dans l'appel qui ouvre le même fichier en ÉCRITURE.**
   `open(p, "w").write(open(p).read().replace(a, b))` évalue ses arguments de **gauche à droite** : le
   mode `"w"` TRONQUE le fichier **avant** que le `read()` interne ne le lise. Le read rend `""`, le

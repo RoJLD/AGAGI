@@ -8,7 +8,7 @@ Ordre de priorité **décroissant**. Chaque entrée porte : ce qu'il faut faire,
 et le coût estimé.
 
 > Contexte chiffré qui justifie l'ordre : sur cet arc, **7 revues adversariales → 7 erreurs réelles**, et
-> **71 instruments détectés, 1 calibré** *(chiffre d'origine, 2026-07-21 ; au 2026-09-01 : **101 détectés, 32 calibrés**, 69 restants — le déficit reste dominant mais il a bougé)*. Le déficit dominant n'est pas l'honnêteté du compte-rendu
+> **71 instruments détectés, 1 calibré** *(chiffre d'origine, 2026-07-21 ; au 2026-09-01 : **101 détectés, 32 calibrés**, 69 restants — puis CLOS le jour même à 104/105 ; au 2026-09-15 : 234 détectés, 226 calibrés, 2 dettes NOMMÉES — le déficit dominant de ce contexte est donc HISTORIQUE, cf. CLAUDE.md « DETTE CLOSE »)*. Le déficit dominant n'est pas l'honnêteté du compte-rendu
 > (négatifs consignés, auto-réfutations écrites, portées bornées) mais l'**absence de calibration** et
 > l'**absence d'application exécutable** des règles déjà documentées.
 
@@ -99,6 +99,99 @@ et le coût estimé.
   la lettre et vide — G0 est `validated` sur un marqueur between réfuté depuis (S2-001), et G1-G4 ont été
   tentées in-world sur un sujet sans contenu cognitif. La re-sceller (within-subject, contrôle positif
   co-exécuté, plancher de bruit publié) fait partie de P3.5.
+
+### 🧭 2026-09-15 — LA FOURCHE STRATÉGIQUE (à trancher par robla) et le north-star déclaré
+
+> **North-star déclaré par robla le 2026-09-15** : « donner au modèle directement un jeu de logique, un
+> nouveau monde, un WSL, un corps robot — et qu'il apprenne tout seul ». C'est l'apprenant ouvert
+> général. Ce bloc mesure la distance entre ce but et le VÉHICULE actuel, et inscrit la décision que
+> le dépôt ne peut pas prendre seul.
+
+**Distance mesurée par le dépôt lui-même.** Le véhicule = un connectome de ~172 nœuds, REINFORCE
+épisodique + TD(0) sans BPTT, UN monde construit à la main. Le graphe dit : la survie seule n'a aucun
+gradient cognitif ([[EDR-EVO-016]] : 0/12 même quand lire double la vie) ; le crédit publié EFFACE un
+bassin pré-formé ([[EDR-S2-CREDIT-RETENTION]] : 36 → 8, 12/12) et le mur est le MÉCANISME de crédit,
+pas la récompense (P4.8) ; cinq leviers de sélection agnostiques réfutés ; **proxy 9 / in-world 0**
+inchangé depuis le 2026-07-10. Les résultats POSITIFS les plus forts pointent tous dans la même
+direction : **un a priori pré-formé + du gradient** (loi warm-start sur 6 fils, bilinéaire, DAgger) —
+c'est la route que prend le champ vers le north-star (pré-entraînement + RL + modèles du monde,
+[`REF-DreamerV3-2023`](../REF/DreamerV3_2023.md)), pas celle du connectome évolué sous survie. Sur le
+« marché » : AGAGI n'est pas sur celui des modèles de fondation ; il est dans la niche open-endedness /
+vie artificielle (lignée NEAT → POET → OMNI-EPIC, dont les REF existent), où les acteurs dotés
+travaillent 3-6 ordres de grandeur au-dessus et **avec un LLM dans la boucle** — ici `LLMProposer` est
+armable mais son périmètre est **5 paramètres bornés** (`src/metaprog/rsi_loop.py:96`). Visibilité
+externe : **zéro preprint** (`grep -rIl "arxiv|publication|paper" docs/*.md docs/roadmap/*.md` ne
+touche que ce fichier). Débit : 26 commits science contre 78 méthodo depuis le 09-01.
+
+**P3.7 — ✅ CLOSE (2026-09-16, [`ADR-004`](../ADR/004_fourche_strategique_demande_generee_ou_concue.md)
+`status: accepted`) — la fourche : « le monde EXIGE » (thèse fondatrice) vs « la demande est CONÇUE ».**
+Tranchée par robla sur sept questions : **branche (b) avec (a) dedans** — AGAGI devient un HARNAIS (génère
+des environnements ET des architectures, mesure l'acquisition) pointé sur un modèle À POIDS que robla possède ;
+espace d'architectures ouvert sous règle d'entrée (contrôle positif par famille, E2) ; première famille = jeux
+de logique VÉRIFIABLES générés par Claude Code sous sandbox + revue humaine ; deux fils (S2 continue sur `kuzu`,
+harnais CPU pur) ; preprint MÉTHODO maintenant ; critère à 3 mois = record à trois conditions — sans (ii),
+l'ADR est amendé et cette entrée ROUVERTE. Spec : `docs/superpowers/specs/2026-09-16-harness-contracts-design.md`
+(contrats Task/Learner, registre de pièces artificiel↔biologique, cellule, premier contrôle positif, plan
+12 semaines). Un fait corrigé en conception : le plafond gelé du plain (34/36 = 0,944) DÉPASSE le bilinéaire
+(0,932) — la nécessité de `bilinear` ne peut être qu'une nécessité d'ACQUISITION à dose. *(Une session parallèle
+avait rédigé un ADR-004 `proposed` le 09-15 ; sa version a été écrasée dans l'arbre par celle-ci — signalé,
+fusion à faire si elle est re-fournie.)* *Les trois branches telles qu'elles étaient posées :*
+- **(a) Garder la thèse, changer la méthode : la demande est GÉNÉRÉE.** Un LLM propose des mondes/tâches
+  (POET/OMNI-EPIC), le marqueur within-subject dit lesquels EXIGENT réellement une capacité. C'est la seule
+  branche où « pas dit mais trouvé » reste testable. → P2.66 puis P4.10. Coût : durcir le conteneur
+  EDR 044 (jamais livré) + un run multi-seed par proposition.
+- **(b) Accepter que la demande est conçue à la main → graver que la thèse est RÉFUTÉE pour ce monde,
+  et réorienter AGAGI comme INSTRUMENT** (marqueur de demande within-subject, cliquet de calibration,
+  pré-inscription) pointé sur un apprenant CAPABLE, externe au dépôt (modèle pré-entraîné, agent de
+  classe Dreamer, ou un agent Claude Code dans un WSL — le cas « WSL » du north-star). Le connectome
+  cesse d'être le sujet. Coût : un record de réfutation + une interface `learner` agnostique.
+- **(c) Statu quo : continuer les ablations sur le connectome (P4.9…).** Valeur attendue bornée par les
+  293 records : la réponse sera « pourquoi REINFORCE sans BPTT n'apprend pas », déjà connue du champ.
+**Trois conditions pour qu'UNE branche porte ses fruits (aucune satisfaite aujourd'hui)** : (1) PUBLIER
+— l'objet publiable est le cliquet de calibration + le graphe de négatifs contrôlés (ALIFE / GECCO /
+ateliers open-endedness), pas un checkpoint ; (2) un LLM dans la boucle comme GÉNÉRATEUR, pas comme
+échantillonneur de 5 boutons ; (3) cesser d'élargir le cliquet (saturé) — un commit méthodo seulement
+quand un run le demande. Se ferme par un ADR qui nomme la branche.
+<!-- closes_when:grep_absent=docs/ADR/004_fourche_strategique_demande_generee_ou_concue.md::status: proposed -->
+
+**P2.66 — `claude_code_llm_fn` : un terminal Claude Code comme `llm_fn` du #8.** Quoi : une quatrième
+fonction dans `src/metaprog/llm_proposer_fn.py`, même contrat `str -> str` que `anthropic_llm_fn`
+(`:13`, clé + conteneur jetable) et `local_llm_fn` (`:33`, LM Studio) : `subprocess.run(["claude", "-p",
+prompt, "--output-format", "text"], timeout=...)`, outils désactivés côté proposition (`--allowedTools`
+vide) ; sortie parsée par `parse_demand_response` → `sanitize_demand_params` inchangés. Test : un faux
+exécutable `claude` scripté posé sur le `PATH` du test (aucun appel réel en CI), cas « JSON valide »,
+« hors allow-list rejeté », « timeout ». Pourquoi : le terminal est déjà sur la machine, authentifié, et
+peut LIRE le dépôt — `context["recent"]` (`rsi_loop.py:69`) devient le graphe entier de records au lieu
+des dernières lignes. Sûreté : le périmètre reste des PARAMÈTRES JSON (`rsi_loop.py:96`), aucun code
+exécuté → le raisonnement d'[[EDR-065]] tient, pas de conteneur requis. ⚠️ Tant que l'allow-list a 5
+entrées, c'est un échantillonneur d'hyperparamètres avec un bon prior — la valeur est dans P4.10.
+Coût ≈ 1 h. Preuve : `tools/rsi_demand_loop.py:8` (« ARMER = une seule ligne »).
+<!-- closes_when:grep_present=src/metaprog/llm_proposer_fn.py::def claude_code_llm_fn -->
+
+**P4.10 — Élargir le proposeur de 5 paramètres à l'ÉCRITURE d'une TÂCHE (OMNI-EPIC), sous sandbox + revue
+humaine, évaluée par le harnais à trois conditions.** *(Re-spécifié le 2026-09-16 par ADR-004 / spec
+`2026-09-16-harness-contracts-design.md` : la première famille est « jeux de logique vérifiables », pas des
+mondes ; la génération vit dans `tools/harness/propose.py`, pas dans `rsi_loop.ALLOWED_KINDS` ; pas de
+conteneur en v1.)* Dépend de P2.66. Quoi : `claude -p --allowedTools ""` reçoit le contrat Task en prose
+(`REF-HARNESS-CONTRACTS`), un gabarit qui passe `assert_task_contract`, les demandes déjà couvertes et les
+refus passés ; il rend UN module numpy-only qui passe `validate_code` (AST : `np.random.*`, `global`,
+`try/except`, `import src`, `torch` refusés) puis `run_sandboxed` avec un smoke à réponse connue (oracle 1,0 ;
+chaque `must_bite` → 1/K ; chaque `must_bite=False` > 0,9 ; oracle décalé → 0,0 — le contrôle positif de
+l'INSTRUMENT, zéro entraînement) ; puis **revue humaine** (`accept.py`, seul écrivain du registre, cap 5 en
+attente). Chaque Task acceptée est mesurée par `run_harness_cell` (n ≥ 12 seeds, famille E23, plancher de
+bruit MESURÉ par second rng d'éval, dose publiée) : elle ne « compte » pour Q7 que si (i) une ablation
+`must_bite` sort de la bande de bruit ET (ii) ≥ 1 famille acquiert au-dessus de sa référence lr=0 ET (iii)
+une pièce est nécessaire à l'acquisition. Règle à sceller AVANT (`HARNESS-GEN-1`) : sur 20 propositions, ≥ 1
+Task qui passe (i)+(ii) sur une capacité ∉ {composition, retention_D1} ou avec des ablations ≠
+{permute_key, permute_query} (fuite de réponse : le proposeur peut relire les tâches portées). Les deux
+issues nommées : aucune → « un générateur LLM ne trouve pas de tâche exigeante plus vite que la main »
+([[EDR-090]] s'étend) ; ≥ 1 → première demande GÉNÉRÉE et non conçue, la thèse survit sous forme générée.
+Démarre à la semaine 5, APRÈS la revue adversariale de `HARNESS-R1` (aucune génération sur un instrument non
+revu). Learners générés (style ADAS, torch) : HORS v1 — la sandbox ne laisse passer que numpy ; élargir est
+une décision de sûreté à part (EDR 044), inscrite comme dette, jamais glissée. Preuves :
+[`REF-POET-2019`](../REF/POET_2019.md) ; [`REF-ELM-2022`](../REF/ELM_2022.md) ;
+`src/metaprog/secure_sandbox.py:23` (`ALLOWED_MODULES = {"numpy", "math"}`).
+<!-- closes_when:path_present=tools/harness/propose.py -->
 
 ### Ce qu'on ARRÊTE (chacun avec sa raison)
 
@@ -282,8 +375,26 @@ Réserve E6 : entraînement en distribution « bien nourri », test en distribut
 P1.7) — 4 cellules × 30 s. C'est le premier contrôle positif possible de `run_ablation_map` sur une
 politique qui LIT. Voir l'annotation sous l'entrée P2.43. Dépend de : P1.7.
 
-**P2.59 — rang 6 — Seam de politique sur `run_ablation_map` + réponses connues PAR IDENTITÉ sur le
-corps du champion.**
+**P2.59 — ✅ CLOSE (2026-09-15) — rang 6 — Seam de politique sur `run_ablation_map` + réponses connues
+sur le corps du champion — et l'attente « lecteur câblé → DEMANDED » est RÉFUTÉE par la mesure.**
+**Livré** : `batch_model_cls` (politique du bras intact ; le bras ablaté est
+`perception_ablated_variant(cls)`, le no-op `perception_null_variant(cls)` — la MÊME ablation, le MÊME
+no-op, au MÊME point, pour n'importe quelle politique ; pour Mamba ce sont les classes historiques,
+bit-identiques), `reference_body` (garde E26 `assert_phenotype_matched`, LÈVE avant tout monde),
+`between_same_body` (le réflexe du between sur le corps du SUJET — mesuré : réflexe sur corps champion
+7,5 / 24,5 ticks d'ère contre 6,0 / 7,5 sur génome frais, le between publié comparait deux CORPS),
+`phenotype` et `policy` publiés. Deux politiques câblées sur le corps du champion (`ObsBlindOnBody`,
+`ObsReaderOnBody`). **Mesuré, K = 12, stoneage** : aveugle → DECOY, within **1,000 exact**, no-op 1,000
+(réponse par construction) ; lecteur-chasseur → DECOY 0,86 *dans* la bande no-op 0,88 ; sous corps
+insuffisant (metab 0,5, payoff 3) → **`INCONCLUSIVE_INVERTED` 0,66, hors bande** : lire pour poursuivre
+COÛTE la survie (EVO-011 retrouvé par le chemin réel) ; lecteur prudent = chasseur (le signal hostile ne
+se présente pas), fuyard = inerte. ⚠️ **Aucune lecture câblée n'est net-positive sur stoneage : le
+DEMANDED du chemin réel n'existe pas dans ce monde par défaut** — c'est S2-002/S2-012 par une autre
+voie. DEMANDED reste calibré par injection, et la déclaration le dit. ⚠️ Défaut trouvé en calibrant :
+le no-op restait une politique MAMBA quand la politique intacte était câblée (0,68 « de bruit » qui
+comparait deux politiques) — corrigé par la variante nulle générique. 6 cas gelés
+(`tests/sandbox/test_s2_ablation_real_path.py`), 52 s.
+*Énoncé d'origine :*
 Quoi : `run_ablation_map` accepte un `batch_model_cls` (comme `run_condition` dans `tools/s2_demand.py`)
 et se calibre sur son CHEMIN RÉEL génome → politique → monde (aujourd'hui `CALIBRATED` ne contient que
 `empty-cohort` et `guard-before-world`, `tests/sandbox/test_instrument_calibration.py`) : un réflexe
@@ -315,24 +426,40 @@ la suite de tests à chaque passe (git status du 2026-09-14). *Coût : agent ~3 
 Fait : 11ᵉ élargissement de `tools/check_instrument_calibration.py` — motifs `learn*` et `compute_policy_gradient`, **tolérants à l'INDENTATION** : les apprenants sont TOUS des méthodes de classe et tous les motifs précédents sont ancrés `^def` (un motif `^def learn` aurait rendu 0 hit) — 5ᵉ axe de faillibilité de l'heuristique après « ce qu'elle cherche / où / comment elle identifie / sous quels verbes » : à quelle PROFONDEUR. Mesuré avant/après : **227 → 231 détectés** (+4 noms / +12 définitions : `learn` ×5 dans 4 fichiers, `learn_episode` ×2, `learn_episode_bptt` ×1, `compute_policy_gradient` ×4), **221 → 222 calibrés**, collisions 22 → 25 (total réel 295). **4 déclarations CALIBRATED qualifiées** (noms en collision) : `src/agents/backend_torch.py::learn` (7 branches — cas P1.6 de `tests/sandbox/test_learning_events.py` : 1ᵉʳ learn différé, un update par tick, no-op EXACT par défaut, TD coupé → dW=0, dose-réponse ×0,05, lr override ; + `test_run_learner_probe_lr0_reference_moves_no_weight`), `src/agents/backend_torch.py::learn_episode` (3 branches), et les deux wrappers du compteur `tools/learning_events.py::learn` / `::learn_episode` → `learn_episode` ENTIÈREMENT couvert. **3 dettes gelées** dans `tools/instrument_calibration_baseline.json` — la baseline n'est plus vide, première fois depuis le 2026-09-01, et ce n'est PAS masqué : `compute_policy_gradient` (`src/agents/mamba_agent.py` legacy = objet de P3.4 ; `torch_batch_model.py` ; `baseline_models.py` no-op ; `ablation_models.py` délégué), `learn` (`src/agents/backend.py` abstrait + Legacy qui délègue au legacy ; `tools/evo_runs/s2_reward_ablation.py` 2 seams de capture), `learn_episode_bptt`. Témoin : `tests/sandbox/test_check_instrument_calibration_learners.py` (5 cas, RED 4/5 avant, GREEN après) ; porte 2 de `check_gate_mutation.py` : +2 mutations (retrait de chaque motif), **3/3 TUÉES**. Trouvé EN PASSANT et corrigé dans `tools/hooks/pre-commit` : la porte 2 ne se déclenchait **ni** sur sa propre baseline (pas un `.py` — E4 occ.5 rejouée sur une autre porte, invisible tant que la baseline était VIDE) **ni** sur `src/` hors `src/seed_ai` (le 9ᵉ élargissement du checker n'avait jamais été répercuté dans le hook) → regex élargi à `^((tools|src)/.*\.py|tools/instrument_calibration_baseline\.json)$`, baseline stagée seule = run non scopé (modèle porte 1). Ce qui reste OUVERT et MESURÉ : (a) **P3.4** (calibrer le legacy, inchangé) ; (b) étendre les 10 autres motifs aux méthodes = **+12 définitions / 7 noms** (`measure` ×3, `sweep` ×2, `run_seed` ×2, `run` ×2, `run_once`, `run_era`, `assert_isolated`) — chantier à part ; (c) ⚠️ la clause `closes_when:grep_present=tests/sandbox/test_instrument_calibration.py::compute_policy_gradient` de P3.4 se satisfait d'une simple MENTION du nom dans un commentaire — constaté : mon commentaire de CALIBRATED l'a fermée À TORT (rattrapé par `check_backlog_freshness`, commentaire reformulé sans le nom) ; une clause de fermeture par nom nu dans un fichier de tests ne distingue pas « calibré » de « cité » → à durcir (P3.5 hygiène : exiger `::nom` comme CLÉ du dict CALIBRATED, pas comme sous-chaîne).
 <!-- closes_when:grep_present=tools/check_instrument_calibration.py::learn_episode -->
 
-**P2.63 — rang 12 — DÉCIDÉ : basculer `preserve_io_blocks=True` par défaut.**
+**P2.63 — rang 12 — ✅ CLOSE le 2026-09-15 — DÉCIDÉ : basculer `preserve_io_blocks=True` par défaut.**
 Quoi : `src/seed_ai/mutation.py:28` passe de `False` à `True` **quand aucun run n'est en vol**
 (`python -m tools.jobs.doctor` : 0 bail) ; les baselines qui en dépendent (EVO-023/024 le déclarent déjà
 explicitement) sont vérifiées bit-identiques ; test de non-régression. Pourquoi : correctif prêt et validé
 neutre depuis le 2026-08-04 (voir « DETTE DE PRODUCTION RÉGLÉE ») ; l'attente était une décision, prise
 le 2026-09-14. *Coût : agent 1 h.* Dépend de : doctor à 0 bail.
+Fait : bascule à **doctor 0 bail** (après le run P3.4). `False` EXPLICITE reste bit-identique à l'historique :
+les deux contre-exemples gelés (`test_flag_OFF_reproduces_the_legacy_defect` × opérateurs découverts,
+`test_output_semantics_shift_on_insertion_inside_the_output_block` ~56 %) se rejouent sous `False` ; deux
+no-op appariés épinglent que le défaut ON ne désaligne plus rien (0/200 sur le génome câblé, 0/60 par
+opérateur). Les runners EVO-024/026/026bis/027/028 le posaient déjà explicitement. 51 tests touchant
+`MutationConfig` verts. ⚠️ Toute évolution lancée après ce jour (main_biosphere, evolve_inworld, NAS) tourne
+avec l'insertion contrainte à la région cachée — la porte 17 ne verra donc plus de nouveau chevauchement
+par cette voie.
 <!-- closes_when:grep_present=src/seed_ai/mutation.py::preserve_io_blocks: bool = True -->
 
-**P2.64 — rang 13 — DÉCIDÉ (P1.4) : ÉPINGLER l'aliasing de production par un test, corriger APRÈS
+**P2.64 — rang 13 — ✅ CLOSE le 2026-09-15 — DÉCIDÉ (P1.4) : ÉPINGLER l'aliasing de production par un test, corriger APRÈS
 P4.4.**
 Quoi : un test nommé tests/sandbox/test_infra001_aliasing_pinned.py (à créer) qui gèle le comportement
 de [[EDR-INFRA-001]] (`world_1_stoneage.py` écrit dans l'état récurrent par la pénalité anti-répétition
 et le consensus social) sur les 3 génomes qui diffèrent, avec l'écart mesuré (+37 % sur `agent02`) — pour
 qu'il ne dérive pas en silence ; la correction (qui change TOUTES les baselines torch) est reportée
 après le run P4.4, sur décision. *Coût : agent 1-1,5 h.* Dépend de : rien.
+Fait : `tests/sandbox/test_infra001_aliasing_pinned.py` (4 tests, 16 s, bail libre). ⚠️ Les 6 génomes
+d'INFRA-001 (ag00…ag09) ne sont PAS versionnés : l'écart +37 % n'est pas rejouable tel quel — on rejoue le
+MÊME dispositif (`_torch_survival_eras`, étalon `GroundTruthCarryWorld`, W gelé, pop nue vs
+`_DecoupledTorchPop`) sur des génomes FRAIS seedés : 4 mesurés, **2 diffèrent** (seeds 101 : [50,5 ; 44,5] vs
+[47,0 ; 45,5] ; 102 : [14,0 ; 13,5] vs [14,5 ; 12,5]), 2 idem dont un au plancher 9,0. Gelé : le FAIT (survies
+différentes sur ces deux génomes), les deux sites d'écriture du monde (pénalité anti-répétition, consensus),
+et un no-op apparié (deux passes découplées bit-identiques → l'écart n'est pas du bruit). S'il rougit, c'est
+que l'aliasing a été corrigé : mettre à jour INFRA-001 et re-mesurer les baselines torch, en le disant.
 <!-- closes_when:path_present=tests/sandbox/test_infra001_aliasing_pinned.py -->
 
-**P2.65 — rang 13 bis — La CURIOSITÉ (EDR 014) est MORTE sous le backend torch : la brancher ou la déclarer.**
+**P2.65 — rang 13 bis — ✅ CLOSE le 2026-09-15 (décision (b) : DÉCLARÉE, `docs/REF/RND_2018.md`) — La CURIOSITÉ (EDR 014) est MORTE sous le backend torch : la brancher ou la déclarer.**
 Quoi : `Biosphere3D` publie `curiosity_scale = 2.0` et additionne `curiosity_scale · model.surprise` à la
 récompense (`world_1_stoneage.py:1713`), mais `backend_torch.py` n'écrit jamais `surprise` — seul le forward
 legacy numpy le pose (`mamba_agent.py:824`). Sous le chemin PUBLIÉ (`use_torch_inworld`), le terme vaut 0 à
@@ -343,12 +470,138 @@ forward torch — c'est une EXPÉRIENCE, elle change la récompense du crédit p
 torch dans `docs/REF` et retirer le terme de la ligne de récompense (bit-identique). Garde en place :
 `preflight_curiosity_dead` (`tools/evo_runs/s2_reward_ablation.py`). Clause de fermeture à poser avec la
 décision (a)/(b). *Coût : agent 1 h (b) ; (a) = un run.* Dépend de : P4.8 (résultat).
+Fait : (b) **déclarée** dans `docs/REF/RND_2018.md` (la REF qui fonde le terme), section « État dans le dépôt ».
+⚠️ Correction de l'énoncé : « retirer le terme de la ligne de récompense (bit-identique) » était FAUX — c'est
+bit-identique sous torch seulement ; sous le legacy (`MambaBatchModel.forward` écrit `a.surprise`, ~L826) le terme
+vaut jusqu'à +2/tick et TOUT l'arc EVO tourne dessus (P3.4 l'a vu vivre : débordements `surprise[m] = err`). La
+ligne reste ; (a) reste une expérience non ouverte, subordonnée au verdict de P4.9.
+<!-- closes_when:grep_present=docs/REF/RND_2018.md::MORTE sous le backend torch -->
 
-**P2.68 — rang 14 — 14 runners SCELLÉS sur 15 n'écrivent ni `git_sha` ni `dirty` dans leur JSON : leur règle est scellée par hash, leur code ne l'est pas.**
+**P2.70 — rang 21 — ✅ CLOSE le 2026-09-15 (MESURÉ : `SEPARATION_TIENT`, règle `BILINEAR-ALIGNED-R1`) — Reste de P2.15, extrait en entrée OUVERTE (P3.5 b) : le désalignement entraînement/éval de `bilinear_composition_probe`.**
+Quoi : `tools/bilinear_composition_probe.py` supervise `out[:, :8]` (`_MOVE_LOGITS`, `src/agents/backend_torch.py:32`,
+`:304`) et évalue `argmax` sur `logits[:, :K]` avec K=6 (`:158`) — deux classes distractrices (nœuds 70-71) entrent
+dans le softmax d'entraînement et sont ignorées à la mesure : ça ne déplace pas le plafond, mais ça change le
+GRADIENT et la comparaison au hasard `1/K` (la barre n'est pas celle de la tâche optimisée). Aligner (softmax sur K)
+change les chiffres publiés d'EDR-BILINEAR (plain 0,271 / bilinéaire 0,932) → c'est une RE-MESURE, à décider ; sinon
+DÉCLARER l'écart dans la docstring de la sonde (marqueur `DESALIGNEMENT_TRAIN_EVAL`). ⚠️ Vérifié le 2026-09-15 en
+extrayant : les deux autres « restes » listés par P2.15 étaient PÉRIMÉS par P2.15 elle-même — (1) le plafond de
+`retain_compose_diagnostic_probe` est mesuré par condition depuis le 09-08 (`bar_status = SEPARATES_MEASURED` ;
+sa docstring décrivait encore l'ancien contrat, corrigée en HISTORIQUE), (2) l'arête `language→memory` déclare son
+plafond 0,1859 depuis le 09-08 (`_LEGATAIRES_SANS_PLAFOND` vide, `tools/check_agi_taxonomy.py`). *Coût : décision ;
+si re-mesure, ~1 h CPU.* Dépend de : rien.
+Fait : ni décision à l'aveugle ni déclaration seule — MESURÉ. Seam `n_classes` sur `imitate_episode_bptt` (défaut
+bit-identique, prouvé : W identique à `n_classes=8` ; à `n_classes=K` les colonnes des deux distracteurs ne reçoivent
+PLUS de gradient et seulement elles) et `align_train_eval` sur la sonde ; règle scellée AVANT les cellules (seed 0 =
+fumée, exclu), runner `tools/bilinear_aligned_run.py` (design déclaré, famille 48 cellules, tampon de provenance),
+**94 s CPU**. Résultat (`results/bilinear_aligned_r1.json`) : aligné, plain **0,284** vs bilinéaire **0,941**, 12/12 —
+contre 0,271 / 0,932 publiés ; à lr=0,002 : 0,185 / 0,426. Le désalignement était INERTE pour EDR-BILINEAR ; bandeau
+posé sur le record (verdict intact), marqueur `DESALIGNEMENT_TRAIN_EVAL` dans la docstring de la sonde, défaut inchangé.
+<!-- closes_when:grep_present=tools/bilinear_composition_probe.py::DESALIGNEMENT_TRAIN_EVAL -->
+
+**P2.71 — rang 22 — ✅ CLOSE le 2026-09-15 — Restes de P2.26, extraits en entrée OUVERTE (P3.5 b) : l'empreinte d'autorat survit à son commit.**
+Quoi : `tools/check_staged_authorship` — (a) inscrire le SHA dans l'empreinte après commit (exige un hook `post-commit`,
+absent du dépôt) ; (b) retirer l'empreinte quand son travail est committé, pour qu'une empreinte SURVIVANTE signifie
+quelque chose ; (c) horodater l'empreinte et AVERTIR quand elle est postérieure à la dernière mtime des fichiers
+couverts (« empreinte tardive, `verify` non concluant » — observation du 2026-09-07, bloc ci-dessous). Limite de fond à
+ne PAS contourner : le sens B n'est pas décidable sans déclaration. *Coût : agent 1 h.* Dépend de : rien.
+Fait : (c) `snapshot()` décide `dirty_at_snapshot` (le fichier diffère déjà de HEAD — décidable, coût nul), l'écrit dans
+l'empreinte et AVERTIT sur stderr ; `verify()` qui rougit sur une telle empreinte ajoute « EMPREINTE_TARDIVE possible …
+NON CONCLUANTE » et expose `ForeignHunkDetected.dirty_at_snapshot`. La garde ne tranche toujours pas (elle ne le PEUT
+pas : « étranger » et « mien, écrit trop tôt » sont le même contenu) — elle l'avoue au lieu de refuser comme si elle
+savait. 2 tests appariés (tardive → drapeau + message ; propre → aucun drapeau, verify passe) ; 31/31.
+(a) était PÉRIMÉ en l'extrayant : le hook `post-commit` existe (`tools/hooks/post-commit`, P2.26, `declare_head_commit`)
+et inscrit le SHA dans `own_commits` quand la session correspond. (b) déclaré INUTILE : une empreinte survivante avec
+`own_commits` renseigné signifie déjà « travail committé par moi » ; la retirer effacerait cette information.
+<!-- closes_when:grep_present=tools/check_staged_authorship.py::EMPREINTE_TARDIVE -->
+
+**P2.72 — rang 23 — ✅ CLOSE le 2026-09-15 (deux règles scellées, deux addenda dans [[EDR-CALIB-LEGACY-LEARNER]]) — Restes de P3.4 : la courbe de pas du legacy n'est pas tracée, et ce qui TUE ses apprenants n'est pas mesuré.**
+Quoi : (a) deux points seulement (lr 0,04 instable : 4 seeds à 0,000 + 1 NaN ; 0,004 : 11/12, 0,446) — ajouter 0,01 et
+0,001 au même dispositif (`tools/legacy_learner_calibration.py`, bras `lr_low` paramétrable), 12 seeds, pour dire OÙ
+l'instabilité commence (~80 s/cellule → 2 × 12 × 80 s ≈ 32 min sous bail) ; (b) le bras `natural` ressuscite **18 265**
+fois par seed (0,76 mort/agent/tick ; lr_low 10 206 ; lr0 1 717 ; oracle 0) — instrumenter la CAUSE de mort dans
+`run_learner_probe` (énergie ≤ 0 vs hp ≤ 0 ; projectile d'un pair vs riposte du gibier vs drain), à dose connue par
+injection avant tout run (CALIB-LEARNER nomme les mêmes candidats sans les avoir mesurés). Pourquoi : un run MORTEL de
+l'arc EVO sous cet apprenant a une dose bornée par sa propre létalité — sans la cause, « meurt en apprenant » reste une
+phrase. *Coût : (a) ~35 min calcul ; (b) agent 1,5 h + ~10 min.* Dépend de : rien.
+*(Trace :)* (a) lancé le 2026-09-15 ~16:55 — règle `docs/preregistrations/LEGACY-LR-CURVE-R1.json` (lr 0,01 et 0,001 ×
+12 seeds, référence lr0 IMPORTÉE par seed de P3.4, quatre branches nommées), runner `tools/legacy_lr_curve.py` (lecture
+calibrée sur 6 cas synthétiques, `tests/sandbox/test_legacy_lr_curve.py`), résultats à écrire dans
+`results/legacy_lr_curve_r1.json` ; ~35 min sous bail.
+✅ **(a) MESURÉ le 2026-09-15 (30 min) : `SEUIL_ENTRE_0001_ET_001`** — lr 0,01 : 0,303, 8/12, 1 effondré ; **lr 0,001 :
+0,518 [0,40-0,74], 12/12, 0 effondré, 0 NaN** — mieux que 0,004 (0,446). La courbe est MONOTONE dans le sens du pas
+jusqu'au point le plus bas mesuré (0,04 → 0,249 ; 0,01 → 0,303 ; 0,004 → 0,446 ; 0,001 → 0,518), les effondrements
+s'éteignent (4 → 1 → 0 → 0) et la létalité aussi (18 265 → 16 067 → 10 206 → 5 817 résurrections) ; le seed NaN de
+0,04 apprend à 0,591 à 0,001. Ce n'est pas un seuil, c'est une pente — et le plafond n'est pas atteint (sous 0,001 non
+mesuré). Addendum gravé dans [[EDR-CALIB-LEGACY-LEARNER]] ; `results/legacy_lr_curve_r1.json`.
+**(b) instrumenté le 2026-09-15** : `_cause_de_mort(agent)` (énergie ≤ 0 / hp ≤ 0 / les deux / `AUCUNE` qui crie sur un
+vivant — projectile et drain tuent par l'énergie, riposte du gibier et attrition par les hp) compté AVANT la recharge et
+publié dans `run_learner_probe` (`cause_de_mort`) ; cas de calibration à réponse connue. ⚠️ Le run (a) en vol avait chargé
+le module AVANT ce patch : il ne porte pas `cause_de_mort` — la mesure viendra du prochain run de la sonde (ou d'un
+re-run ciblé de `natural`, ~15 min, à écrire dans `results/legacy_cause_de_mort.json`).
+✅ **(b) MESURÉ le 2026-09-15 (`LEGACY-CAUSE-DE-MORT-R1`, 3 bras × 12 seeds, 22,5 min) : `ENERGIE`** — `part_energie` **1,000**
+(natural), 0,99994 (lr_low), 1,000 (lr0) ; `part_hp` 0 / 0,00006 / 0 ; `AUCUNE` = 0/36 (instrument sain) ; résurrections
+bit-identiques au run principal (déterminisme par seed). La riposte du gibier et l'attrition sont HORS DE CAUSE ; drain vs
+projectile d'un pair non départagés (inférence « un drain de 0,75/tick ne tue pas en un tick sous recharge à 30 » notée
+comme telle, E8). Reste ouvert, non chiffré : compter les lancers reçus par agent pour départager — nouvelle entrée si
+quelqu'un en a besoin. Lecture calibrée : `tests/sandbox/test_legacy_cause_de_mort.py` (5 cas).
+<!-- closes_when:path_present=results/legacy_cause_de_mort.json -->
+
+**P2.73 — rang 1 — ✅ CLOSE le 2026-09-15 (a-d faits ; l'arc EVO n'est PAS touché : `wm_resets` = 0 à son régime) — E28 : le World Model par agent DIVERGE et le monde en fait une MORT (`max(0.0, nan)`) — relire tout le legacy du jour sous garde, puis auditer l'arc EVO.**
+Quoi : mesuré le 2026-09-15 (`LEGACY-NAN-GUARD-R1` : PAS_NAN ; `LEGACY-WM-GUARD-R1` : **ARTEFACT_WM**, résurrections 18 265 → 139,
+0 effondré, 0 NaN, hit_last médian 0,197 à lr 0,04). Gardes posées (`observe_batch`, `compute_policy_gradient`), E28 au
+registre, bandeau sur CALIB-LEGACY-LEARNER. À faire : (a) **re-mesurer la courbe de pas sous garde** — règle
+`LEGACY-LR-CURVE-R2` (0,04 / 0,01 / 0,004 / 0,001 × 12 seeds), résultats à écrire dans `results/legacy_lr_curve_r2.json`
+(~30 min) ; relire les addenda a/b du record et le titre si la lecture change ; (b) le monde fait encore
+`max(0.0, energy - brain_cost)` sans vérifier `brain_cost` — poser une garde qui COMPTE (`nan_brain_cost`) au lieu de tuer ;
+(c) **auditer l'arc EVO** : tout run legacy avec World Model actif portait cette divergence — quantifier `wm_resets` sur un
+run évolutif court (EVO-001/005 régime) avant de relire « les apprenants meurent / l'évolution élague » ; (d) CALIB-LEARNER
+(torch) n'est pas touché (torch n'écrit pas `surprise`) — le dire dans son texte. *Coût : (a) 30 min ; (b) 30 min ;
+(c) 1 h ; (d) 10 min.* Dépend de : rien.
+✅ **(a) MESURÉ (60 cellules, ~45 min + reprise) : `APPREND_QUELQUE_PART`, pas 0,001** — lr 0 → 0,126 (référence sous garde,
+6 résurrections) ; 0,04 → 0,197 (9/12) ; 0,01 → 0,209 (8/12) ; 0,004 → 0,310 (9/12) ; **0,001 → 0,449, 12/12, 0 effondré**.
+Bandeau correctif final sur CALIB-LEGACY-LEARNER (ce qui tient / ce qui tombe). ⚠️ E13 en passant : la cellule
+`lr=0.001|seed=2036` du runner a tourné > 3 h (1,7 Go) avant d'être tuée ; re-mesurée isolément sous `timeout 900`
+(`tools/_r2_cellule.py`) en 416 s — le dépassement n'était pas intrinsèque (logger asynchrone ? non tranché) ; règle :
+borner CHAQUE cellule dans le runner, pas seulement le total. ✅ **(b)** garde du monde posée (`nan_brain_cost`, compté,
+pas facturé ; `tests/sandbox/test_world_nan_brain_cost_guard.py`). ✅ **(d)** note sur CALIB-LEARNER. **Reste (c)** : audit de
+l'arc EVO. ✅ **(c) MESURÉ** : `evolve_cognitive` (régime EVO-005, monde MORTEL, legacy) — 3 ères × 30 agents × 120 ticks,
+5 ères × 300 ticks, 3 ères × 12 agents × 1000 ticks : **`wm_resets` = 0 dans les trois** (seeds 0 et 1). Le World Model ne
+diverge qu'avec des agents qui VIVENT longtemps sous récompense d'énergie accumulée (cohorte immortelle, `cog_gain` +12/tick,
+divergence dès le tick ~51) ; au régime évolutif les agents meurent à 7-9 ticks et l'obs ne s'emballe pas. **L'arc EVO n'est
+pas touché** ; l'artefact était confiné aux mesures legacy à cohorte immortelle du 2026-09-15 (P3.4, P2.72), toutes relues.
+n = 2 seeds, 3 régimes : c'est un audit, pas une preuve d'absence — le compteur `WorldModel.nonfinite_resets` reste publié par
+les sondes pour que toute récidive se voie.
+<!-- closes_when:path_present=results/legacy_lr_curve_r2.json -->
+
+**P2.74 — ✅ CLOSE le 2026-09-16 — Flake d'ORDRE de la suite complète : `test_flatland_runs_crud` mourait sur « Event loop is closed » (vert en isolation).**
+Quoi : la suite complète relancée à bail libre (2 589 passés, 116 sautés, 35 min 41 s, machine à charge non contrôlée — E12 sur le
+coût) rendait UN rouge : `backend/app/flatland_server.py::start` prenait `asyncio.get_event_loop()`, qui rend une boucle FERMÉE par un
+test précédent du même processus. Fait : une boucle fermée n'est pas une boucle — `is_closed()` → boucle neuve ; témoin
+`test_flatland_server_does_not_reuse_a_CLOSED_event_loop` (fermée → neuve ; ouverte → gardée ; thread de simulation non lancé),
+vérifié ROUGE sur le mutant sans `is_closed()`. Suite : 33/33 sur `test_backend.py`. Porte 15 le même soir : 15 portes, 22/22
+mutants tués. En passant (E12/E13) : `run_learner_probe` poussait un `AGENT_THOUGHT` par agent et par tick dans KuzuDB
+(210 243 émissions sur 60 cellules) — logger neutralisé avant la création du monde, comme `_disable_kuzu`. **Bit-identité
+VÉRIFIÉE** (seed 2026, lr 0,001, bloc 400 : `hit_rate` 0,20635… et `n_decisions` 4 754 identiques avec et sans logger) et coût
+divisé par ~3 (400 ticks : 8 s au lieu de ~25).
+<!-- closes_when:grep_present=backend/app/flatland_server.py::is_closed -->
+
+**P2.68 — rang 14 — ✅ CLOSE le 2026-09-15 — 14 runners SCELLÉS sur 15 n'écrivent ni `git_sha` ni `dirty` dans leur JSON : leur règle est scellée par hash, leur code ne l'est pas.**
+Fait : **un seul site**, `tools/preregister.py::provenance(name)` → `{git_sha, dirty, rule, seal}` (le sceau de la
+règle voyage avec le code ; sans git → `None` + `error`, jamais une valeur) et `stamp(db, name)` pour les runners
+REPRIS par cellules (un tampon par provenance DISTINCTE, dans l'ordre : un run repris sur trois commits porte
+trois tampons). Les deux copies existantes (`learner_calibration`, `s2_credit_retention` → donc `s2_reward_ablation`)
+délèguent. Portage : 6 runners à JSON (`evo011_preflight`, `s2_blind_champion`, `s2_subject_variance`,
+`lang_memory_edge_run`, `lock001_proxy_r1`, `lock001_pred2_r1`) tamponnent leur JSON ; 8 runners dont l'ÉVIDENCE est
+le stdout (`evo022`→`evo028`, `s2_floor_pronostic_run` — ils n'écrivent AUCUN JSON, seulement des `.npz` de génomes et
+une lecture imprimée que les records transcrivent) impriment `[provenance] {...}` juste après `verify`. Témoin :
+`test_every_sealed_runner_carries_the_provenance_stamp` (AST, sur les runners que la porte 11 reconnaît comme
+SCELLÉS ; vérifié qu'il rougit sur un mutant sans l'appel) + 4 cas de `provenance`/`stamp`. Ce qui reste : les 8
+runners à stdout devraient écrire un JSON de lecture (leur mesure n'est durable que dans le transcript du record) —
+chantier à part, non ouvert ici.
 Quoi : tamponner `{"git_sha": rev-parse HEAD, "dirty": bool(status --porcelain)}` (le bloc `provenance` de `tools/evo_runs/s2_credit_retention.py:248-252`, seul runner qui le fait) dans les 14 restants : `tools/evo_runs/evo011_preflight.py`, `evo022_run.py`, `evo023_run.py`, `evo024_run.py`, `evo026_run.py`, `evo026bis_run.py`, `evo027_run.py`, `evo028_run.py`, `s2_blind_champion.py`, `s2_subject_variance.py`, `tools/lang_memory_edge_run.py`, `tools/lock001_proxy_r1.py`, `tools/s2_floor_pronostic_run.py` (AUCUN tampon, aucun `commit` non plus) et `tools/evo_runs/s2_reward_ablation.py` (n'IMPORTE que le `git_sha` de P4.4 — `imported_git_sha` — sans tamponner le sien). Mesuré le 2026-09-15 en fermant P2.61 (P2.61 (3)), par `scan_runners` + grep `git_sha` / `dirty` sur chaque module. Pourquoi : un record qui cite l'un de ces JSON ne peut pas dire QUEL code a produit la mesure ; `Harness.save` le fait depuis juin, ces runners n'y passent pas. Extension naturelle : faire porter le tampon par `tools/preregister.py::verify` (un seul site) plutôt que 14 copies. *Coût : agent 1 h (tampon commun) ; calcul 0.* Dépend de : rien.
 <!-- closes_when:grep_present=tools/evo_runs/evo028_run.py::git_sha -->
 
-**P2.69 — rang 14 bis — Angles morts de la GARDE DE BAIL, trouvés par les vérificateurs du 2026-09-15.**
+**P2.69 — rang 14 bis — ✅ CLOSE le 2026-09-15 — Angles morts de la GARDE DE BAIL, trouvés par les vérificateurs du 2026-09-15 : (i) bail ancré au dépôt, (ii) filet runtime, (iii) vert à bail libre.**
 Quoi : (i) le bail `kuzu` vit dans `runs/leases` RELATIF au cwd (`tools/jobs/lease.py`) : un worktree ne voit pas le
 bail tenu dans l'arbre principal — pendant le run P4.9, 503 tests simulant un monde ont TOURNÉ dans un worktree
 (sautés dans l'arbre principal) ; les chemins `data/` étant relatifs eux aussi (`src/paths.py`), la KuzuDB n'est pas
@@ -358,16 +611,55 @@ partagée, mais la CHARGE l'est (E12 sur tout coût mesuré pendant) → ancrer 
 pas pendant un run en vol → ajouter l'indice ou déclarer le fichier ; (iii) rouge PRÉ-EXISTANT dans ce même fichier
 (`p_reach` 0,4479 vs 0,51 attendu, bit-identique à HEAD) : lire ou geler. Pourquoi : une garde qui ne voit pas
 l'arbre partagé ne garde rien (E10). *Coût : agent 1-1,5 h.* Dépend de : rien.
-<!-- closes_when:grep_present=tests/conftest.py::p_reach_deconfound -->
+Fait (ii), 2026-09-15 : pas un indice de plus — un **FILET RUNTIME**. Mesuré avant : **58 fichiers** de tests
+importent un module qui construit un monde SANS porter d'indice (balayage AST à un niveau d'import), et
+`test_p_reach_deconfound.py` a TOURNÉ 62 s de monde pendant le run P3.4, deux fois. `tests/conftest.py::_arm_runtime_net`
+— armé par le hook de collecte quand un bail étranger est détenu — remplace `Biosphere3D.__init__` (dont héritent soup,
+agricultural, industrial, famine, ground-truth ; Lewis est monté dessus) par un `pytest.skip` portant la même raison :
+le test est sauté **au point de construction**. Même fichier après : 2 purs passés, 3 mondes sautés, 0,76 s.
+Témoins : 3 cas dans `test_lease_guard.py` (saute à la construction, non armé sans bail, armé par le hook réel sans
+indice textuel), restauration vérifiée. **Fait (i)**, à bail libre : `tools/jobs/lease._repo_root()` — `git rev-parse
+--git-common-dir`, parent du `.git` COMMUN, mis en cache par processus ; sans git → cwd (ancien comportement) ;
+vérifié RÉELLEMENT depuis `.claude/worktrees/wf_…-1` : le bail se résout sur `AGAGI/runs/leases` ; 3 tests
+(`test_jobs.py` : ancré à la racine, worktree simulé → arbre principal, hors dépôt → cwd). ⚠️ Les worktrees existants
+portent l'ANCIEN code tant qu'ils ne sont pas rebasés. **(iii)** : `test_p_reach_deconfound.py` **5/5 vert** à bail libre le
+2026-09-15 (deux runs, bail libre) — le rouge signalé le matin a été vu pendant le run P4.9 ; la contention KuzuDB
+est la cause DOCUMENTÉE d'une mesure de monde contaminée, mais elle n'est pas prouvée ici (pas reproduite) ; s'il
+revient à bail libre, le lire ou geler à ce moment-là.
+<!-- closes_when:grep_present=tests/conftest.py::_arm_runtime_net -->
 
-**P3.4 — rang 14 — Cas de calibration de l'apprenant LEGACY.**
+**P3.4 — rang 14 — ✅ CLOSE le 2026-09-15 ([[EDR-CALIB-LEGACY-LEARNER]], `results/legacy_learner_calibration.json`) — Cas de calibration de l'apprenant LEGACY.**
 Quoi : `MambaBatchModel.compute_policy_gradient` (le chemin actif pendant tout l'arc EVO), mêmes bras
 que P1.6 (oracle / apprenant / apprenant coupé), cohorte immortelle, n = 12. Le panel l'a mesuré à n = 1
 comme NON plat (OFF 0,13 = chance 1/8, naturel 0,35) — à confirmer ou infirmer. *Coût : agent 1-1,5 h ;
 calcul ~5 min.* Dépend de : P1.6.
+Fait : (a) `LR_ACTOR = 0.04` / `LR_CRITIC = 0.05` deviennent des **knobs de classe** de `MambaBatchModel`
+(forme de `TD_GAMMA`, bit-identiques) — le bras de référence `lr=0` est le **même code à pas nul** (clip,
+écriture de `genome.W`, bookkeeping `_td`), jamais un no-op patché ; (b) `count_learning_events` couvre le
+legacy (`legacy_calls` / `legacy_updates`, ΔW mesuré sur les GÉNOMES avant/après — le monde recrée le modèle
+à chaque tick ; `td_enabled=False` saute, `reward_scale` multiplie, `lr` pose l'acteur et garde le ratio
+critic 1,25) ; (c) `run_learner_probe(policy="legacy")` ; (d) `tools/legacy_learner_calibration.py`, mêmes
+quatre bras que P1.6 (`oracle` / `lr0_reference` / `natural` / `lr_low`), `summarize(learner_arms=…)` ;
+(e) la collision `compute_policy_gradient` est couverte **5/5, qualifiée** (mamba_agent : 1ᵉʳ appel différé,
+**signe de l'update PRÉDIT** sur la colonne du move choisi, `sign(ΔW[:, col]) == sign(δ·h)` pour les deux
+signes de δ, lr=0 bit-identique, knobs par défaut ; torch_batch_model par ses tests ; baseline no-op PROUVÉ ;
+ablation délégation PROUVÉE ; wrapper du compteur 6 cas) — baseline `instrument_calibration_baseline.json`
+**3 → 2** ; CLAUDE.md / SDR G2 226 calibrés / 2 dettes. Coût réel du run : unité **78 s** (legacy 2000
+ticks × 12 agents), 48 cellules ≈ 50 min — l'estimation « ~5 min » du panel était fausse d'un ordre de
+grandeur — mesuré au final **37,8 min** de cellules. **VERDICT n = 12 GRAVÉ** : `lr_low` (0,004) apprend
+**11/12**, +0,318 vs lr=0 apparié (0,446 contre 0,277 pour le torch de P1.6) ; `natural` (0,04, tel que publié)
+est **INSTABLE** — 2 seeds à 0,51, **4 seeds effondrés à 0,000** (sous la chance, politique bang-bang au clip),
+**1 seed NaN** (cellule non mesurée, PUBLIÉE avec sa raison, comptée au dénominateur), 6/12 ; létalité 18 265
+résurrections/seed contre 0 pour l'oracle. Trouvé EN PASSANT et attrapé par le COMPTEUR : à `lr=0` W bouge
+quand même (180 updates/2000 ticks ; 299/300 hors monde) — le compilateur NTM (`compile_and_apply` dans
+`forward`) écrit W_batch, persisté par l'appel de gradient ; `ABLATE_NTM=True` → 0/300. **W a deux auteurs**
+(E8 occ. 5 au registre). Bandeau sur EVO-005 (sa convergence « crédit ET sélection » perd la jambe crédit,
+verdict intact). Le runner publie une cellule refusée au lieu de tomber (`summarize` tolère `learning=None`,
+`non_mesures` et `seeds_non_mesures` publiés, 2 tests). Ce qui reste (ouvert, non chiffré) : la courbe de pas
+n'est pas tracée (deux points) ; ce qui TUE les apprenants legacy (0,76 mort/agent/tick) n'est pas mesuré.
 <!-- closes_when:grep_present=tests/sandbox/test_instrument_calibration.py::compute_policy_gradient -->
 
-**P3.5 — rang 15 — Hygiène de backlog CIBLÉE (pas de refonte) + re-scellage de la règle des portes.**
+**P3.5 — rang 15 — ✅ CLOSE le 2026-09-15 — Hygiène de backlog CIBLÉE (pas de refonte) + re-scellage de la règle des portes.**
 Quoi : (a) `_ENTREE` de `tools/check_backlog_freshness.py` ne voit pas `**P1.x / P2.45 —` (le `x`) : les
 titres composites échappent au compte de doublons ; (b) les entrées « ✅ CLOSE » qui portent un « Ce qui
 reste » avec du travail réel (P2.13, P2.15, P2.26, P2.28, P2.29, P3.3, SP-2) : extraire le reste en
@@ -377,7 +669,7 @@ le titre l.17 (« DETTE CLOSE ») ; (d) `## P3` se dit « BLOC PÉRIMÉ » et co
 (f) re-sceller la règle des portes dans `docs/roadmap/FIL_DIRECTEUR_AGI.md` : within-subject, contrôle
 positif co-exécuté, plancher de bruit publié, et le statut RÉEL de G0 (validée sur un marqueur réfuté).
 *Coût : agent 1,5-2 h.* Dépend de : rien.
-**(a) et (f) LIVRÉES le 2026-09-15.** (a) `_NUM`/`_TETE` dans `tools/check_backlog_freshness.py` : une tête composite vote pour chacun de ses numéros, `P1.x` est un substitut (jamais un numéro), et `_ENTREE`, `_TASKNUM` et `compter_entrees` lisent la MÊME tête (une entrée invisible au compte serait effaçable sans que le plancher bouge) ; 4 contre-exemples gelés dans `tests/sandbox/test_backlog_freshness.py` (3 ROUGES contre HEAD + 1 no-op de spécificité) ; mutation « les titres COMPOSITES redeviennent invisibles » déclarée à la porte 15 (porte 4 : 3/3 TUÉES). Le cliquet élargi a révélé un VRAI doublon — P2.45 en tête de l.2326 et l.2981 — résolu en renommant l.2326 en `P1.x` (jamais gelé en baseline). (f) règle des portes re-scellée dans `docs/roadmap/FIL_DIRECTEUR_AGI.md` § « Règle des portes — re-scellée le 2026-09-15 » : within-subject, contrôle positif co-exécuté, plancher de bruit publié, statut RÉEL de G0 ; ratio S2-009 harmonisé (≥ 22× = cap/plancher, 21,05 au run d'origine). **Restent (b), (c), (d), (e).** Vu en passant : `compter_entrees()` ré-épelle le chemin du backlog au lieu de lire `_BACKLOG` — un test qui monkeypatche `_BACKLOG` vers un jouet ne fait pas compter ce jouet par le plancher (sans effet aujourd'hui, les tests du plancher monkeypatchent `compter_entrees` ; à aligner quand on touche (b)).
+**(a) à (f) LIVRÉES le 2026-09-15.** (b) : P2.13 → reste RÉGLÉ le 09-06 (famille `run_*`), annoté ; P2.15 → extrait en **P2.70** ; P2.26 → extrait en **P2.71** ; P2.28, P2.29 → aucun reste actionnable (limites de conception déclarées) ; P3.3 → reste DÉCLARÉ NON PLANIFIÉ (direction de recherche) ; SP-2 → son reste (type de nœud « tâche », power-up à n ≥ 12) est structurel, laissé en place. (c) l'en-tête l.10 porte désormais l'état au 09-15 et renvoie à « DETTE CLOSE » ; (d) `## P3` est « BLOC HISTORIQUE, sauf P3.3 » ; (e) la seconde puce « empreinte TARDIVE » retirée (compte d'entrées inchangé, −8 lignes signalées par la porte 16). (a) `_NUM`/`_TETE` dans `tools/check_backlog_freshness.py` : une tête composite vote pour chacun de ses numéros, `P1.x` est un substitut (jamais un numéro), et `_ENTREE`, `_TASKNUM` et `compter_entrees` lisent la MÊME tête (une entrée invisible au compte serait effaçable sans que le plancher bouge) ; 4 contre-exemples gelés dans `tests/sandbox/test_backlog_freshness.py` (3 ROUGES contre HEAD + 1 no-op de spécificité) ; mutation « les titres COMPOSITES redeviennent invisibles » déclarée à la porte 15 (porte 4 : 3/3 TUÉES). Le cliquet élargi a révélé un VRAI doublon — P2.45 en tête de l.2326 et l.2981 — résolu en renommant l.2326 en `P1.x` (jamais gelé en baseline). (f) règle des portes re-scellée dans `docs/roadmap/FIL_DIRECTEUR_AGI.md` § « Règle des portes — re-scellée le 2026-09-15 » : within-subject, contrôle positif co-exécuté, plancher de bruit publié, statut RÉEL de G0 ; ratio S2-009 harmonisé (≥ 22× = cap/plancher, 21,05 au run d'origine). **Restent (b), (c), (d), (e).** Vu en passant : `compter_entrees()` ré-épelle le chemin du backlog au lieu de lire `_BACKLOG` — un test qui monkeypatche `_BACKLOG` vers un jouet ne fait pas compter ce jouet par le plancher (sans effet aujourd'hui, les tests du plancher monkeypatchent `compter_entrees` ; à aligner quand on touche (b)).
 
 **P3.6 — ✅ CLOSE (2026-09-15) — rang 16 — Bandeaux de portée posés APRÈS le verdict de P1.6 (jamais avant : E8).**
 → **LIVRÉ le 2026-09-15** (worktree isolé, 5 fichiers, +114 lignes, 0 suppression ; tests GREEN 8/8, sept portes OK).
@@ -416,8 +708,11 @@ fausse), S2-BLIND-CHAMPION et SUBJECT-VARIANCE (corps non apparié, P1.7), SPÉC
 *Coût : agent 1 h.* Dépend de : P1.6, P1.7.
 <!-- closes_when:grep_present=docs/EDR/S2-010_InWorld_Credit_Does_Not_Bootstrap_Perception_Even_Under_Curriculum.md::TD par tick -->
 
-**P4.5 — rang 17 — Test de la prédiction de LOCK-001 en PROXY : `LOCK-001-PROXY` — mémoire D = 2,
+**P4.5 — rang 17 — ✅ CLOSE le 2026-09-15 ([[EDR-LOCK-002]], [[EDR-LOCK-003]]) — Test de la prédiction de LOCK-001 en PROXY : `LOCK-001-PROXY` — mémoire D = 2,
 dans l'ordre déjà prescrit par le dépôt.**
+> **Clôture** : les sept barreaux scellés (`LOCK-001-PROXY-R1`, `-R1c`, `LOCK-001-PRED2-R1`…`-R4`, `-N12`) sont mesurés,
+> deux records gravés, bandeaux posés après verdict. Reste OUVERT, non chiffré et hors de cette entrée : le troisième fil
+> (régime de recherche, EVO-016), 28 800 épisodes, et la question du substrat favorable (bilinéaire / plain).
 > ✅ **BARREAU 1 MESURÉ le 2026-09-14 (75 min CPU réels, majorant projeté 105) : branche `PERCE_PAR_LR`.**
 > À D = 2, 14 400 épisodes : **`lr = 0,002` reste à la chance** (0,178 / 0,167 / 0,156) **et son contrôle
 > est DÉGRADÉ** (ctrl_i 0,29–0,31) ; **`lr = 0,0005` apprend : 0,837 / 0,781 / 0,784** (médiane 0,784),
@@ -427,7 +722,77 @@ dans l'ordre déjà prescrit par le dépôt.**
 > clause E19 scellée AVANT le run qui l'a attrapé : sans le second `lr`, la branche eût été `NE_PERCE_PAS`
 > et le levier « épisodes plus longs » déclaré épuisé. ⚠️ n = 3, indicatif seulement : la règle interdit
 > tout record et impose le barreau 1b.
-> 🔄 **BARREAU 1b EN COURS — lancé le 2026-09-14 ~16:20 (même session, fil B, fond CPU sans bail).**
+> ✅ **BARREAU 1b MESURÉ le 2026-09-14 (24/24 cellules, ~5 h à charge partagée) : branche `mur_perce`.**
+> PRINCIPAL `X_DEMANDED` **4,85×** (0,814 / 0,168, n = 12), PRESENT `X_DECOY` (0,941 / 0,859), garde
+> d'alias `SURGICAL` (fuite 0,028, 0 seed), barre 0,814 ≥ 0,5. **Record gravé : [[EDR-LOCK-002]]** ;
+> bandeaux posés APRÈS le verdict : LOCK-001 (`corrected_by`, 4ᵉ manifestation retirée — E19) et
+> DELAYED-COORD (sa re-mesure à `lr = 0,002` n'est pas un balayage suffisant : 0,002 est encore trop
+> haut pour D = 2 sur la tâche mémoire). Aucune arête neuve (language→memory existe) : son evidence
+> s'étend d'un délai à deux. **Suite, dans l'ordre** : (1c) `lr = 0,0005` à 3 600 épisodes, 3 seeds,
+> ~9 min — « le pas seul ? » ; (2) **la prédiction n° 2 de LOCK-001 est devenue testable** : le pas
+> perce le fil mémoire ; perce-t-il DELAYED-COORD à `lr = 0,0005` ? Si non, l'identité des trois murs
+> est réfutée par sa propre clause — c'est le prochain run du fil B, à sceller. Le curriculum et
+> l'amorçage (barreaux 2-3) ne sont PLUS nécessaires pour ce fil : le mur y est tombé au barreau 1.
+> ✅ **1c MESURÉ (7,5 min) : `PAS_SEUL`** — à 3 600 épisodes, `lr = 0,0005` donne 0,523 / 0,503 / 0,420
+> (médiane 0,503 > plafond 0,389 du séparable) contre 0,18 à 0,002 : le pas SEUL débloque, la durée
+> amplifie (0,78 à 14 400). Règle `docs/preregistrations/LOCK-001-PROXY-R1c.json`, résultats
+> `results/lock_001_proxy_r1c.json`, addendum dans EDR-LOCK-002.
+> ✅ **PRÉDICTION N° 2, barreau 1 MESURÉ (2026-09-14, 23:15, ~1 h 10) : `SANS_REFERENCE`** — PRESENT
+> (référence sans rétention) reste sous 0,30 aux trois points (0,270 / 0,245 / 0,259), RETAIN 0,195 /
+> 0,256 / 0,245 : la clause E19 refuse la lecture. **Ni soutien ni réfutation.** Fait utile : sur cette
+> tâche la référence apprend à `lr` ÉLEVÉ (0,40 à 0,05, plain, n = 12) et pas à 0,0005 — l'inverse de
+> la tâche mémoire. **Barreau 2 (à sceller) : balayage `lr` de la référence sur bilinéaire (0,05 /
+> 0,01 / 0,002 / 0,0005, 3 600 ép., RETAIN + PRESENT, 3 seeds) ; tester RETAIN là où PRESENT ≥ 0,30.**
+> ✅ **Barreau 2 MESURÉ (23:40, 30 min) : `SANS_REFERENCE` aux QUATRE pas** — sur bilinéaire, PRESENT reste
+> à 0,245–0,270 partout (0,05 : 0,269 ; 0,01 : 0,269 ; 0,002 : 0,270 ; 0,0005 : 0,245), RETAIN 0,17–0,26.
+> Le fait neuf est le SUBSTRAT, pas le pas : sur plain la référence atteignait 0,40 (n = 12, 1 600 ép.) ;
+> le bilinéaire qui débloque la mémoire semble nuire à la coordination. **Barreau 3 : même grille sur
+> PLAIN à 3 600 ép.** — sépare substrat et durée ; si PRESENT y apprend, RETAIN se lit enfin.
+> ✅ **Barreau 3 MESURÉ (2026-09-15, 00:20, ~35 min) : `AUTRE`** — sur PLAIN à 3 600 ép., la référence
+> apprend à pas élevé (PRESENT 0,480 à 0,05 ; 0,439 à 0,01) et RETAIN y reste à 0,21–0,22 ; à 0,002
+> PRESENT est exactement au seuil (0,303) et RETAIN à 0,331 (zone nommée AUTRE : entre 0,30 et 0,35) ;
+> à 0,0005 PRESENT 0,278 (non interprétable), RETAIN 0,320. Rapporté tel quel, sans inférence, comme
+> la règle l'impose. Faits bruts : (a) le SUBSTRAT est en cause — même grille, PRESENT ≈ 0,26 partout
+> sur bilinéaire vs 0,48 sur plain ; (b) les deux bras tirent en sens INVERSE du pas (réplique le
+> 12/12 du n = 12) ; (c) RETAIN à pas bas MONTE avec la durée : 0,284 (1 600) → 0,331 (3 600).
+> **Barreau 4 : la durée à pas bas sur plain** — 0,002 et 0,0005 × 14 400 ép. × 2 bras × 3 seeds.
+> ✅ **Barreau 4 MESURÉ (2026-09-15, ~01:40) : `PERCE`** — plain, 14 400 ép. : à 0,0005, RETAIN **0,422 /
+> 0,438 / 0,439** (médiane 0,438 ≥ 0,40, 3/3 > 0,30), PRESENT 0,347 (référence OK) ; à 0,002, RETAIN
+> 0,353 (`MONTE`), PRESENT 0,447. **Le même levier (pas bas + durée) perce le second fil** : la
+> prédiction n° 2 de LOCK-001 est SOUTENUE — l'identité survit à son propre test. n = 3 : la règle
+> impose n = 12 sur ce point avant de graver → **barreau N12 scellé et lancé** (voir ci-dessous).
+> Chemin complet du fil coordination : 1 600 ép. 0,284 (n = 12, lr 0,002) → 3 600 : 0,331 → 14 400 :
+> 0,353 (0,002) / **0,438** (0,0005). Règle `docs/preregistrations/LOCK-001-PRED2-R4.json`, résultats
+> `results/lock_001_pred2_r4.json`.
+> ✅ **N = 12 MESURÉ (2026-09-15, 13:20, 2,6 h CPU) : `PERCE`** — RETAIN médiane **0,420** [0,400–0,439],
+> **12/12 > 0,30**, ablaté 0,170 (chance), référence PRESENT 0,334 (tient, sous RETAIN : pas d'effet global).
+> **Record gravé : [[EDR-LOCK-003]]** — le même levier (pas bas ET durée) perce les deux fils ; la
+> prédiction n° 2 de LOCK-001 TIENT à puissance. Bandeaux APRÈS verdict : LOCK-001 (prédiction testée),
+> DELAYED-COORD (« ne marche pas à 0,05 » → « apprend à 0,0005 / 14 400 »), LOCK-002 (justification
+> de la barre 0,40 corrigée : le plafond 0,3889 cité est RÉFUTÉ depuis le 09-08). Aucune arête.
+> **Ce que le fil B laisse ouvert** : le troisième fil (régime de recherche, EVO-016) n'est pas testé ;
+> 28 800 ép. non mesurés ; le substrat favorable diffère entre les deux fils (bilinéaire / plain) —
+> une identité de LEVIER, pas de réglage. **Fil B : objectif atteint, à mettre en pause au profit du
+> fil A (P1.6/P4.4) sauf décision contraire.**
+> *(Trace :)* N = 12 lancé le 2026-09-15 ~10:55 — règle `docs/preregistrations/LOCK-001-PRED2-N12.json` (seeds 0-11,
+> population neuve, PERCE exige ≥ 11/12 seeds > 0,30 : convention de puissance du n = 12 de DELAYED-COORD ;
+> branche PERCE → record LOCK-003 « le levier commun » + bandeau DELAYED-COORD ; NE_PERCE_PAS → identité
+> réfutée), résultats à écrire dans `results/lock_001_pred2_n12.json` ; ~3 h 20.
+> *(Trace :)* Barreau 3 lancé le 2026-09-14 ~23:45 — règle `docs/preregistrations/LOCK-001-PRED2-R3.json`
+> (`fixe_override: bilinear=False`, lu par le runner), résultats à écrire dans `results/lock_001_pred2_r3.json` ; ~50 min.
+> *(Trace :)* Barreau 2 lancé le 2026-09-14 ~23:35 — règle `docs/preregistrations/LOCK-001-PRED2-R2.json` (les deux
+> points bas importés du barreau 1, les deux hauts mesurés), même runner (`--regle LOCK-001-PRED2-R2`),
+> résultats à écrire dans `results/lock_001_pred2_r2.json` ; ~40 min.
+> *(Trace du lancement du barreau 1 :)*
+> 🔄 PRÉDICTION N° 2 — lancée le 2026-09-14 ~22:05 : règle `docs/preregistrations/LOCK-001-PRED2-R1.json`,
+> runner `tools/lock001_pred2_r1.py` (lecture calibrée, 8 cas + continuum), DELAYED-COORD au point de
+> LOCK-002 (bilinéaire, D = 2, `sender_lr` 0,05 fixe) : (0,002 ; 3 600), (0,0005 ; 3 600), (0,0005 ;
+> 14 400) × {RETAIN, PRESENT} × 3 seeds, PRESENT = référence E19 (un point ne se lit que si PRESENT y
+> apprend). Branches : PERCE (l'identité survit à son test) / MONTE / **NE_PERCE_PAS (la clause n° 2
+> de LOCK-001 réfute l'identité des trois murs)** / SANS_REFERENCE / AUTRE — n = 12 avant de graver
+> dans les deux sens. Coût mesuré machine libre : ~2 h ; résultats à écrire dans `results/lock001_pred2_r1.json`.
+> *(Trace du lancement de 1b :)*
+> 🔄 BARREAU 1b — lancé le 2026-09-14 ~16:20 (même session, fil B, fond CPU sans bail).
 > Règle scellée `docs/preregistrations/LANG-MEMORY-EDGE-D2.json` : harnais `lang_memory_edge_run.py`
 > (`EDGE_RULE=LANG-MEMORY-EDGE-D2`), protocole `-bis` (bruit de contrôle 0,15 — le contrôle saturait à
 > 1,0/1,0 au barreau 1, donc la garde d'alias eût rendu DEGENERATE_CONTROL), 2 bras × **12 seeds**, D = 2,
@@ -462,7 +827,7 @@ CPU, sans bail : tourne EN FOND pendant P4.4. Deux issues : PERCE → premier le
 transporter in-world (P4.6) ; NE PERCE PAS → la « quatrième manifestation » de LOCK-001 tient, et
 l'amorçage rejoint les leviers réfutés. *Coût : agent 4-6 h (dont instrument) ; calcul ~14 h CPU fond.*
 Dépend de : rien (parallèle à A).
-<!-- closes_when:path_present=docs/preregistrations/LOCK-001-PROXY.json -->
+<!-- closes_when:path_present=docs/preregistrations/LOCK-001-PROXY-R1.json -->
 
 **P4.6 — 🗑️ CADUQUE (2026-09-14 : P4.4 rend ERODE, le bassin non érodé qu'elle exigeait n'existe pas) — rang 18 — Porte IW-1 (CONDITIONNELLE) : le crédit calibré ÉTEND-il un demi-lecteur warm vers
 le bit non donné ?**
@@ -1457,7 +1822,7 @@ L'écran mécanique l'a remplacée, et il a coûté zéro simulation.
   - ⚠️ **6ᵉ angle mort du cliquet de calibration** : `substrate_ab_compositional.py` et
     `compositional_world_probe.py` rendent des verdicts (`BINDING_FORCED`, `:950,994-995`) et sont
     INVISIBLES au détecteur (117 détectés, 0 signalé) — le KPI de la porte G2 n'a AUCUN instrument
-    au registre. Tout nouveau run proxy G2 est BLOQUÉ tant que le banc n'entre pas au registre. **→ LEVÉ le 2026-09-02 (6ᵉ ÉLARGISSEMENT du détecteur)** : les verbes `compare_`/`sweep_`/`probe_` en TÊTE de nom n'étaient couverts par aucun motif (seul `run_*sweep*` l'était). Coût compté AVANT application : **+22 fonctions** — 10 du banc compositionnel calibrées par INJECTION À DOSE CONNUE (les verdicts `BINDING_FORCED`, `GATE_BINDS`, `ANTISAT_RESCUES`… avec leurs branches NÉGATIVES ; l'injection a d'ailleurs trouvé une clé manquante, `gate_bias_margin_end`) et 12 sondes par garde d'arguments en tête (3ᵉ vague, refus < 0,5 s). **Cliquet toujours STRICT** : 139 détectés / 138 calibrés / 0 dette. ⚠️ **Reste ouvert et MESURÉ** : un motif `run_\w+` générique ajouterait **+56** fonctions non calibrées (`run_condition`, `run_arm`, `run_cell`, `run_era*`…) — chantier à part, délibérément NON avalé ici (l'avaler aurait forcé à geler 56 dettes, c.-à-d. à rendre le cliquet non strict pour la première fois depuis sa fermeture).
+    au registre. Tout nouveau run proxy G2 est BLOQUÉ tant que le banc n'entre pas au registre. **→ LEVÉ le 2026-09-02 (6ᵉ ÉLARGISSEMENT du détecteur)** : les verbes `compare_`/`sweep_`/`probe_` en TÊTE de nom n'étaient couverts par aucun motif (seul `run_*sweep*` l'était). Coût compté AVANT application : **+22 fonctions** — 10 du banc compositionnel calibrées par INJECTION À DOSE CONNUE (les verdicts `BINDING_FORCED`, `GATE_BINDS`, `ANTISAT_RESCUES`… avec leurs branches NÉGATIVES ; l'injection a d'ailleurs trouvé une clé manquante, `gate_bias_margin_end`) et 12 sondes par garde d'arguments en tête (3ᵉ vague, refus < 0,5 s). **Cliquet toujours STRICT** : 139 détectés / 138 calibrés / 0 dette. ⚠️ **Reste ouvert et MESURÉ — puis RÉGLÉ le 2026-09-06 (la famille `run_*`, 72 fonctions, est entrée au périmètre sans créer de dette ; cf. CLAUDE.md)** : un motif `run_\w+` générique ajouterait **+56** fonctions non calibrées (`run_condition`, `run_arm`, `run_cell`, `run_era*`…) — chantier à part, délibérément NON avalé ici (l'avaler aurait forcé à geler 56 dettes, c.-à-d. à rendre le cliquet non strict pour la première fois depuis sa fermeture).
 * ✅ **DETTE `run_\w+` CLOSE le 2026-09-06 (7ᵉ ÉLARGISSEMENT — le plus gros du dépôt)** : inventaire
   réfuté = **72 fonctions** (57 simulateurs, 14 orchestrateurs, 4 helpers), toutes gardées/déclarées
   dans la MÊME passe → le motif générique entre **sans un gramme de dette** : le cliquet passe de
@@ -1501,14 +1866,6 @@ L'écran mécanique l'a remplacée, et il a coûté zéro simulation.
   « empreinte prise après édition, `verify` non concluant » vaut mieux qu'un refus qui ressemble à une
   détection. *(Constaté en adoptant la garde après l'incident E10 occ. 19 ; le commit a été fait après
   inspection MANUELLE des hunks, un par fichier, tous à l'emplacement de mes éditions.)*
-* **Observation d'usage sur `check_staged_authorship` (2026-09-07, en l'appliquant à moi-même)** :
-  une empreinte **TARDIVE** (prise APRÈS édition) rend `verify()` inutilisable — il classe VOTRE
-  PROPRE travail comme étranger et refuse le commit. Symétrique exact de la limite déjà documentée
-  (occ. 12 : le travail écrit APRÈS le snapshot lui échappe), mais il produit un FAUX POSITIF au lieu
-  d'un faux négatif : la garde **ne dégrade pas gracieusement**. Correctif candidat à coût nul :
-  horodater l'empreinte et AVERTIR quand elle est postérieure à la dernière mtime des fichiers
-  couverts — « empreinte tardive, `verify` non concluant » vaut mieux qu'un refus qui ressemble à une
-  détection.
 * ⛔ **RÉTRACTÉ le 2026-09-07, le jour même de son écriture — « E10 sens B, forme ÉCRASEMENT » N'EXISTE
   PAS.** J'avais conclu qu'un texte écrit ici avait DISPARU sans trace pendant un commit parallèle, et
   j'en avais fait une TROISIÈME forme d'E10. **C'est faux, et la cause est mon INSTRUMENT** : je
@@ -2437,7 +2794,28 @@ négative appariée : un zéro MESURÉ doit rester un verdict.
 **Bilan des deux passes : 17 rouges pré-existants trouvés et corrigés, plus 3 introduits et corrigés
 le même jour.** Aucun n'aurait été vu sans lancer la suite entière.
 
-**P2.46 — 🔴 OUVERTE (2026-09-08) — 18 des 126 logits d'action du champion SONT l'observation.**
+**P2.46 — ✅ CLOSE le 2026-09-15 (rang 7) : (a)(b)(c) livrés, (d) en CLIQUET (porte 17) — 18 des 126 logits d'action du champion SONT l'observation.**
+**(a) câblé** : `measure_channel_saliency` REFUSE un sujet à chevauchement avant tout monde
+(`allow_overlap=True` explicite ; `shared_decision_channels(genome, n_out)` en forme close, 46-53 pour le
+champion) ; `run_ablation_map` PUBLIE `io_overlap` (annonce, pas refus : l'ablation à l'entrée couvre les
+deux chemins). 3 témoins gelés. **(b) relu, et l'attribution était FAUSSE** : les sujets d'EVO-004 sont
+quatre champions évolués in-world sans chevauchement (0/348) — sa conclusion tient sur eux ; le champion
+HoF n'y était pas mesurable (monde à 59 entrées). Mesuré le 2026-09-15 dans son monde, obs complétée à 64
+comme en production (`results/evo004_relecture_e24_champion.json`, n = 1 seed) : canaux partagés 46-53
+bascule 0,51 (identité, `argmax(obs[46:54])` = mouvement dans 71 % des cas — `in_mem`, `in_confort`,
+`is_night`, `fire_nearby`, avec le retriever ARRÊTÉ en S2 donc `in_mem` = 0) ; **8 canaux hors partage
+lus par poids** (`lidar_n` 0,83, `adj_energy` 0,74, `ax` 0,62…) ; 48 au plancher. « Plancher partout » ne
+s'étend PAS au champion prod. **(c) bandeaux** sur S2-002, S2-003, 124 (le verdict DECOY tient ; sa lecture
+= « lire ne paie pas la survie », P2.59/EVO-011), HOF-IO-OVERLAP (attribution corrigée + mesure), EVO-004
+(portée). **(d) FAIT le 2026-09-15 — porte 17, `tools/check_io_overlap.py`** : balayage des trois entiers de
+chaque `.npz` de `data/genomes/` ET de chaque entrée des trois Hall of Fame (378 sujets, 0,5 s, jamais les
+poids) ; baseline `tools/io_overlap_baseline.json` = les 10 entrées du HoF principal à 18 (une lignée), les
+348 `.npz` et les deux HoF famine à 0 ; bloque tout NOUVEAU chevauchant et tout connu AGGRAVÉ ; un fichier
+illisible est rapporté, jamais compté 0. Branché sur le hook (génomes / HoF / baseline stagés, la baseline
+seule déclenche), enregistré à la porte 15 (**2/2 mutations tuées**), 6 témoins dans
+`tests/sandbox/test_io_overlap_gate.py` (l'invariant « tout chevauchant est gelé », pas le nombre de génomes — E25). ⚠️ Vu en passant : `recurrent_forward` ne complète pas l'obs alors que
+`MambaBatchModel.forward` le fait — deux voies, deux contrats pour le même génome (à consigner, P2.69 ?).
+*Texte d'origine :*
 → **Amendement du 2026-09-14 (panel, rang 7)** : (a) câbler `assert_no_io_overlap` en TÊTE des sondes qui
 lisent la perception (`tools/s2_demand_ablation.py`, `tools/cognitive_demand_inworld.py`, sondes de
 saillance), refus instantané ; (b) relire [[EDR-EVO-004]] paire par paire (18 partagées vs 108) avant de
@@ -2916,7 +3294,20 @@ comparaison de longueur peut garder un CALCUL et non une MESURE (un `[:n]`, un p
 prevoir `NOT_A_MEASURE` des le depart, comme la porte 14 l'a appris en tirant sur un assainisseur de
 softmax.
 
-**P2.58 — 🟡 OUVERTE (2026-09-10, vue en passant) : une redirection de HoF SANS EFFET, et elle le DIT**
+**P2.58 — ✅ CLOSE (2026-09-14) : la redirection de HoF inopérante ne FUIT plus vers les sous-processus**
+
+**Mesuré** : seul, `tests/sandbox/test_evo_memory_inworld.py` redirige bien (message « redirigé ») ; dans
+la suite complète (ou via `test_instrument_calibration`, qui importe `persistence` avant), la
+redirection est inopérante et l'avertissement crie — comme prévu — mais **aucun test n'y lit le HoF**
+(injections et monkeypatch partout ; `test_hall_of_fame_loading` impose son chemin explicitement).
+Aucun verdict n'en dépend. **Défaut réel trouvé en lisant** : dans le cas inopérant, le module POSAIT
+quand même `HOF_PATH` dans l'environnement — sans effet ici, mais **hérité par tout sous-processus**
+(pytest du harnais de mutation, jobs), qui aurait lu un HoF VIDE en croyant lire le vrai : le défaut
+que l'avertissement dénonce, déplacé d'un processus. Corrigé (la variable n'est posée que si la
+redirection s'applique) ; paire gelée en sous-processus, seule façon d'avoir un interprète frais par
+ordre d'import (`test_la_redirection_INOPERANTE_ne_pose_PAS_HOF_PATH` / `..._OPERANTE_pose_...`).
+
+*Texte d'origine :*
 
 `tests/sandbox/test_evo_memory_inworld.py` (ou son module) imprime a l'import :
 « ATTENTION : `src.seed_ai.persistence` est deja importe, la redirection HOF_PATH vers un HoF VIDE est
@@ -2997,7 +3388,7 @@ baselines JSON ?) est la suite naturelle, **si** une occurrence l'exige — pas 
 
 ## P3 — Générateurs d'erreur encore sans réponse exécutable
 
-*(⚠️ **BLOC PÉRIMÉ** : E13 est CLOSE depuis le 2026-07-28 — `tools/cost_guard.py` + `tests/sandbox/test_cost_guard.py`. Le registre n'a plus aucune classe sans garde exécutable. Conservé pour l'historique.)*
+*(⚠️ **BLOC HISTORIQUE** : E13 est CLOSE depuis le 2026-07-28 — `tools/cost_guard.py` + `tests/sandbox/test_cost_guard.py`. Le registre n'a plus aucune classe sans garde exécutable. Conservé pour l'historique — SAUF P3.3, qui n'est pas périmée : mesurée le 2026-09-08, réponse en deux morceaux de signes opposés, et ses entrées vivantes (P3.4-P3.7) sont dans le bloc 🧭 du 2026-09-14.)*
 
 
 **P2.31 — ⛔ RÉTRACTÉE le 2026-09-08. La dette n'existait pas, et elle était à moi.**
@@ -3203,7 +3594,7 @@ jamais atteint une réponse exacte ici est **exact** (MILP), pas numérique — 
 sous-formes linéarisables. **La voie restante est donc une BORNE PROUVÉE pour la forme complète, pas une
 réplication numérique.**
 
-**Ce qui reste ouvert, et c'est plus étroit qu'avant** : une réplication par un chemin VRAIMENT
+**Ce qui reste ouvert, et c'est plus étroit qu'avant — DÉCLARÉ NON PLANIFIÉ le 2026-09-15 (P3.5 b : une direction de recherche, pas une tâche ; aucune entrée ouverte ne la porte)** : une réplication par un chemin VRAIMENT
 indépendant (autre architecture, autres priors) reste non faite. Ce qui est désormais mesuré, c'est que
 la variance INTRA-architecture suffit à disperser une mesure, mais pas à disperser un JUGEMENT.
 

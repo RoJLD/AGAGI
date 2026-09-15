@@ -3200,6 +3200,19 @@
         "maturity": null
       },
       {
+        "id": "EDR-LOCK-002",
+        "type": "EDR",
+        "title": "La rétention à DEUX délais s'apprend sous REINFORCE au bon pas (4,85×, n=12, garde d'alias SURGICAL) — la « quatrième manifestation » de LOCK-001 était un nul à pas fixe (E19), pas un mur",
+        "status": "active",
+        "gate": "G1",
+        "verdict": "D2_RETENTION_LEARNED_FOURTH_MANIFESTATION_WAS_E19",
+        "linked": true,
+        "url": null,
+        "method": null,
+        "lib": null,
+        "maturity": null
+      },
+      {
         "id": "EDR-MEM-PERCEPTION",
         "type": "EDR",
         "title": "Deuxième arête MESURÉE du graphe AGI-Taxonomy : la mémoire APPRISE demande la perception au rappel (DELAYED X_DEMANDED, ratio 3.93, n=12) — contrôle de spécificité PASSE après correction du confond d'entraînement du bras PRESENT (leurre découplé, ratio 0.98, inerte)",
@@ -5172,6 +5185,31 @@
         "rel": "ETEND"
       },
       {
+        "from": "EDR-LOCK-001",
+        "to": "EDR-LOCK-002",
+        "rel": "CORRIGE_PAR"
+      },
+      {
+        "from": "EDR-LOCK-002",
+        "to": "SDR-G1",
+        "rel": "TESTE"
+      },
+      {
+        "from": "EDR-LOCK-002",
+        "to": "REF-DEMAND-MARKER",
+        "rel": "ADOPTE"
+      },
+      {
+        "from": "EDR-LOCK-002",
+        "to": "EDR-LANG-MEMORY-EDGE-BIS",
+        "rel": "ETEND"
+      },
+      {
+        "from": "EDR-LOCK-002",
+        "to": "EDR-LOCK-001",
+        "rel": "CORRIGE"
+      },
+      {
         "from": "EDR-MEM-PERCEPTION",
         "to": "SDR-G0",
         "rel": "TESTE"
@@ -6396,6 +6434,7 @@
         "EDR-178",
         "EDR-CRAFT-001",
         "EDR-LOCK-001",
+        "EDR-LOCK-002",
         "G1-001"
       ],
       "triggered_adr": []
@@ -6499,7 +6538,7 @@
     "HOF": 1,
     "INFRA": 1,
     "LANG": 4,
-    "LOCK": 1,
+    "LOCK": 2,
     "MEM": 1,
     "NAV": 6,
     "RETAIN": 2,
