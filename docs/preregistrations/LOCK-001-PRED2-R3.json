@@ -1,0 +1,54 @@
+{
+  "name": "LOCK-001-PRED2-R3",
+  "rule": {
+    "cellules": [
+      {
+        "episodes": 3600,
+        "lr": 0.05
+      },
+      {
+        "episodes": 3600,
+        "lr": 0.01
+      },
+      {
+        "episodes": 3600,
+        "lr": 0.002
+      },
+      {
+        "episodes": 3600,
+        "lr": 0.0005
+      }
+    ],
+    "clause_E19": "identique a LOCK-001-PRED2-R1 : aucun point ne se lit sans que PRESENT y apprenne.",
+    "cout": "24 cellules x ~2 min (plain, machine libre) -> ~50 min CPU, sans bail kuzu.",
+    "design": "Meme sonde, meme point fixe que LOCK-001-PRED2-R1/R2 SAUF bilinear = False (plain), 3 600 episodes, lr du receiver dans {0,05 ; 0,01 ; 0,002 ; 0,0005} x {RETAIN, PRESENT} x seeds 0-2, tout mesure ici (rien d'importe : le substrat change). Unite = seed, n = 3 exploratoire. Runner `tools/lock001_pred2_r1.py --regle LOCK-001-PRED2-R3`, persistance results/lock_001_pred2_r3.json.",
+    "discrimination": {
+      "AUTRE": "rapporter tel quel.",
+      "INCOMPLET": "aucune lecture.",
+      "MONTE (un point interpretable : RETAIN >= 0,35 sans percer)": "prolonger sur ce point.",
+      "NE_PERCE_PAS (RETAIN < 0,30 sur TOUS les points interpretables)": "la reference apprend, RETAIN non, a aucun pas : le levier qui perce le fil memoire ne perce pas celui-ci -- clause n 2 de LOCK-001 -> identite REFUTEE, n = 12 sur le meilleur point de reference avant de graver.",
+      "PERCE (un point interpretable : RETAIN >= 0,40 ET 3/3 > 0,30)": "prediction n 2 SOUTENUE sur plain -- n = 12 sur ce point avant de graver.",
+      "SANS_REFERENCE (PRESENT < 0,30 aux quatre lr)": "a 3 600 ep. la reference n'apprend plus meme sur plain : la DUREE (ou son interaction avec le pas) est en cause, pas le substrat -- re-mesurer a 1 600 ep. (le regime du n = 12) avant toute lecture."
+    },
+    "dv_primaire": "`RETAIN_intact` par seed, mediane par point ; `PRESENT_intact` = reference E19 au meme point ; `ablated` rapporte en absolu.",
+    "fixe_override": {
+      "bilinear": false
+    },
+    "question": "PREDICTION N 2 de LOCK-001, barreau 3 : sur le substrat PLAIN (celui du n = 12 de DELAYED-COORD), a 3 600 episodes, ou la reference PRESENT apprend-elle, et RETAIN y perce-t-il ? Le barreau 2 a rendu SANS_REFERENCE aux quatre pas sur bilineaire (PRESENT 0,245-0,270), la ou plain atteignait 0,40 a lr 0,05 / 1 600 ep. : separer SUBSTRAT et DUREE.",
+    "reference_n12": {
+      "PRESENT_intact_lr005": 0.3977,
+      "RETAIN_intact_lr0002": 0.2836,
+      "RETAIN_intact_lr005": 0.2266,
+      "regime": "plain, 1600 ep., n=12 (EDR-DELAYED-COORD)"
+    },
+    "regle_de_lecture_continue": "ORDRE IMPOSE : INCOMPLET, SANS_REFERENCE, PERCE, MONTE, NE_PERCE_PAS, AUTRE.",
+    "seuils": {
+      "justification": "identiques a LOCK-001-PRED2-R1.",
+      "seuil_monte": 0.35,
+      "seuil_perce": 0.4,
+      "seuil_reference": 0.3,
+      "seuil_seed": 0.3
+    }
+  },
+  "seal": "8c221b7afdad7545ac94d7bc5e292371ee4ec3c55801e9e1525bdeb7c2d1603c"
+}

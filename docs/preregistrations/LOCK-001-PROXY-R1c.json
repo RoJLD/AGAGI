@@ -1,0 +1,35 @@
+{
+  "name": "LOCK-001-PROXY-R1c",
+  "rule": {
+    "cellule": {
+      "episodes": 3600,
+      "lr": 0.0005,
+      "seeds": [
+        0,
+        1,
+        2
+      ]
+    },
+    "cout": "3 cellules x ~350 s -> ~18 min CPU (majorant), sans bail kuzu ; results/lock_001_proxy_r1c.json",
+    "discrimination": {
+      "INCOMPLET": "aucune lecture.",
+      "INTERMEDIAIRE (le reste)": "rapporter tel quel, aucune inference.",
+      "PAS_ET_DUREE (mediane < 0,30)": "a 3 600 episodes le bon pas ne suffit pas encore : le levier est pas x duree ; rapporter.",
+      "PAS_SEUL (mediane >= 0,40 ET 3/3 > 0,30)": "le pas seul suffit au point-reference : la 4e manifestation de LOCK-001 tenait a UN parametre ; rapporter, n = 3 indicatif."
+    },
+    "dv_primaire": "`lang_i` par seed ; `mediane_3600_lr00005` confrontee a `reference_14400_lr00005` ; `lang_a`, `ctrl_i`, `ctrl_a` rapportes en absolu.",
+    "provenance": "EDR-LOCK-002 : a 14 400 episodes, lr = 0,0005 apprend (0,814, n = 12) et lr = 0,002 non. Le pas est confondu avec la duree tant que 0,0005 n'a pas ete mesure a 3 600.",
+    "question": "Barreau 1c de LOCK-001-PROXY : le PAS SEUL suffit-il ? A D = 2, lr = 0,0005 et 3 600 episodes (le nombre d'episodes du point-reference), lang_i sort-il de la chance ?",
+    "reference_14400": {
+      "mediane_lang_i_D2": 0.784,
+      "source": "results/lock001_proxy_r1.json (n=3)"
+    },
+    "regle_de_lecture_continue": "ORDRE IMPOSE : INCOMPLET, PAS_SEUL, PAS_ET_DUREE, INTERMEDIAIRE.",
+    "seuils": {
+      "justification": "memes seuils que LOCK-001-PROXY-R1 (au-dessus du plafond 0,3889 du separable)",
+      "seuil_perce": 0.4,
+      "seuil_seed": 0.3
+    }
+  },
+  "seal": "f7521035714e7438ed7e5948eb3216f797c496076d87583db727482fee35a71a"
+}

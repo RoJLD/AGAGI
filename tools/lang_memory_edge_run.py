@@ -21,7 +21,7 @@ import numpy as np
 import torch
 
 torch.set_num_threads(1)
-from tools.preregister import verify
+from tools.preregister import stamp, verify
 from tools.demand_marker import ablation_verdict
 from tools.language_memory_demand_probe import _train_and_eval, alias_guard_verdict
 
@@ -90,7 +90,7 @@ for mode in ("learned", "present"):
         li, la, ci, ca = _train_and_eval(seed=s, episodes=EP, n_agents=N_AGENTS, K=K, D=D, lr=LR,
                                          memory_mode=mode, control_mode="feedforward", bilinear=True, control_train_every=CTE, control_input_noise=CIN)
         db[k] = {"lang_i": li, "lang_a": la, "ctrl_i": ci, "ctrl_a": ca}
-        json.dump(db, open(OUT, "w", encoding="utf-8"), indent=1)
+        json.dump(stamp(db, RULE_NAME), open(OUT, "w", encoding="utf-8"), indent=1)   # P2.68
         print(f"  {k}: lang_i={li:.3f} lang_a={la:.3f} ctrl_i={ci:.3f} ctrl_a={ca:.3f} "
               f"[{time.time()-t0:.0f}s]")
 

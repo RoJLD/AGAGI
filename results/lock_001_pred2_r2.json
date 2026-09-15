@@ -1,0 +1,62 @@
+{
+ "RETAIN|lr=0.05|ep=3600|seed=0": {
+  "intact": 0.18437500298023224,
+  "ablated": 0.17499999701976776,
+  "secondes": 141.4
+ },
+ "RETAIN|lr=0.05|ep=3600|seed=1": {
+  "intact": 0.18125000596046448,
+  "ablated": 0.1796875,
+  "secondes": 116.7
+ },
+ "RETAIN|lr=0.05|ep=3600|seed=2": {
+  "intact": 0.14687499403953552,
+  "ablated": 0.14531250298023224,
+  "secondes": 103.8
+ },
+ "PRESENT|lr=0.05|ep=3600|seed=0": {
+  "intact": 0.28593748807907104,
+  "ablated": 0.28593748807907104,
+  "secondes": 81.0
+ },
+ "PRESENT|lr=0.05|ep=3600|seed=1": {
+  "intact": 0.24375000596046448,
+  "ablated": 0.24375000596046448,
+  "secondes": 76.7
+ },
+ "PRESENT|lr=0.05|ep=3600|seed=2": {
+  "intact": 0.26875001192092896,
+  "ablated": 0.26875001192092896,
+  "secondes": 76.8
+ },
+ "RETAIN|lr=0.01|ep=3600|seed=0": {
+  "intact": 0.16562500596046448,
+  "ablated": 0.16249999403953552,
+  "secondes": 80.7
+ },
+ "RETAIN|lr=0.01|ep=3600|seed=1": {
+  "intact": 0.15625,
+  "ablated": 0.16093750298023224,
+  "secondes": 85.0
+ },
+ "RETAIN|lr=0.01|ep=3600|seed=2": {
+  "intact": 0.17656250298023224,
+  "ablated": 0.18593749403953552,
+  "secondes": 87.0
+ },
+ "PRESENT|lr=0.01|ep=3600|seed=0": {
+  "intact": 0.26875001192092896,
+  "ablated": 0.26875001192092896,
+  "secondes": 78.4
+ },
+ "PRESENT|lr=0.01|ep=3600|seed=1": {
+  "intact": 0.3140625059604645,
+  "ablated": 0.3140625059604645,
+  "secondes": 83.4
+ },
+ "PRESENT|lr=0.01|ep=3600|seed=2": {
+  "intact": 0.25468748807907104,
+  "ablated": 0.25468748807907104,
+  "secondes": 97.2
+ }
+}

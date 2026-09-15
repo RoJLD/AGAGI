@@ -1,0 +1,34 @@
+{
+  "name": "LOCK-001-PRED2-R1",
+  "rule": {
+    "clause_E19": "Aucun point n'est lu sans que PRESENT y apprenne (mediane >= 0,30). Un NE_PERCE_PAS n'est prononce que sur des points ou la reference apprend -- sinon SANS_REFERENCE.",
+    "cout": "18 cellules ; RETAIN ~61 s / 1000 ep., PRESENT ~43 s (mesure 2026-09-14, machine libre) -> ~2 h CPU, sans bail kuzu ; results/lock001_pred2_r1.json.",
+    "design": "Sonde `tools/delayed_coordination_demand_probe._train_and_eval_arm`, D = 2, K = 6, V = 8, n_agents = 16, flip_p = 0, credit bptt, choice_decoy = False, sender_lr = 0,05 FIXE, bilinear = True (le substrat de LOCK-002). Cellules : (lr 0,002, 3 600 ep.), (lr 0,0005, 3 600), (lr 0,0005, 14 400) x bras {RETAIN, PRESENT} x seeds 0, 1, 2. Unite = seed ; n = 3 EXPLORATOIRE : toute branche tranchante declenche n = 12 avant de graver. Runner resumable `tools/lock001_pred2_r1.py`, persistance results/lock001_pred2_r1.json.",
+    "discrimination": {
+      "AUTRE": "rapporter tel quel, aucune inference, aucun re-run sans re-scellement.",
+      "INCOMPLET": "aucune lecture.",
+      "MONTE (sur un point interpretable : RETAIN mediane >= 0,35, sans percer)": "le levier agit sans percer : prolonger (episodes) avant toute lecture -- ni soutien ni refutation.",
+      "NE_PERCE_PAS (RETAIN mediane < 0,30 sur TOUS les points interpretables)": "le levier perce le fil memoire (LOCK-002) et PAS celui-ci : la clause n 2 de LOCK-001 REFUTE l'identite des trois murs -- n = 12 sur le meilleur point avant de graver, puis bandeau sur LOCK-001.",
+      "PERCE (sur un point interpretable : RETAIN mediane >= 0,40 ET 3/3 > 0,30)": "le MEME levier perce le second fil : la prediction n 2 est SOUTENUE, l'identite des trois murs survit a son propre test -- n = 12 sur ce point avant de graver.",
+      "SANS_REFERENCE (PRESENT < 0,30 a tous les points)": "aucun point interpretable : le regime n'apprend pas ; rapporter, prolonger les episodes AVANT de conclure quoi que ce soit."
+    },
+    "dv_primaire": "`RETAIN_intact` (accuracy INTACTE du bras RETAIN) par seed, mediane par point (lr, ep) ; `PRESENT_intact` = reference E19 au meme point ; `ablated` rapporte en absolu.",
+    "question": "PREDICTION N 2 de EDR-LOCK-001 (« un levier qui perce UN fil sans effet sur les autres REFUTE l'identite ») : le PAS d'apprentissage, qui perce le fil memoire (EDR-LOCK-002 : D = 2, bilineaire, lr = 0,0005, 0,50 a 3 600 ep., 0,78 a 14 400, n = 12), perce-t-il le fil coordination referentielle differee (EDR-DELAYED-COORD, bras RETAIN) au MEME point ?",
+    "reference_n12": {
+      "PRESENT_intact_lr0002": 0.2578,
+      "RETAIN_intact_lr0002": 0.2836,
+      "RETAIN_intact_lr005": 0.2266,
+      "regime": "plain (bilinear=False), 1600 ep., n=12",
+      "source": "EDR-DELAYED-COORD, verdict n=12 MONTEE_ETABLIE (2026-09-02)"
+    },
+    "regle_de_lecture_continue": "ORDRE IMPOSE : INCOMPLET, SANS_REFERENCE, PERCE, MONTE, NE_PERCE_PAS, AUTRE. Toutes les medianes se rapportent en absolu.",
+    "seuils": {
+      "justification": "chance 1/K = 0,167 ; plafond du separable 0,389 (P2.15). seuil_perce = 0,40 = celui de LOCK-002 (au-dessus du separable) ; seuil_reference = 0,30 : PRESENT a deja atteint 0,40 (n = 12, plain, lr 0,05) et 0,34 (n = 3, flip_p = 0) -- sous 0,30 la reference n'apprend pas et le point est vide (E19, motif de la re-mesure du 2026-09-02 a lr 0,002 / 800 ep.) ; seuil_monte = 0,35 depasse le meilleur RETAIN connu (0,284) de plus de l'ecart inter-seeds du n = 12 (deltas 0,017-0,098).",
+      "seuil_monte": 0.35,
+      "seuil_perce": 0.4,
+      "seuil_reference": 0.3,
+      "seuil_seed": 0.3
+    }
+  },
+  "seal": "dc3b8cdf8ad2884e8f5379e0e50ced27d3b7b46fb9bedb0c1ed424aeed08037d"
+}

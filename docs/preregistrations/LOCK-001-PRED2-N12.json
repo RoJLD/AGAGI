@@ -1,0 +1,59 @@
+{
+  "name": "LOCK-001-PRED2-N12",
+  "rule": {
+    "cellules": [
+      {
+        "episodes": 14400,
+        "lr": 0.0005
+      }
+    ],
+    "clause_E19": "Le point n'est lu que si PRESENT (sans retention) y apprend (mediane >= 0,30). Un NE_PERCE_PAS a reference effondree est SANS_REFERENCE, pas un nul.",
+    "controle_interne": "`PRESENT_intact` au meme point : si PRESENT >= RETAIN de plus de 0,10, l'ecart est un effet GLOBAL d'optimisation et non une retention apprise -> rapporte dans la branche AUTRE (aucun verdict positif).",
+    "cout": "24 cellules x ~8 min (plain, 14 400 ep., machine libre) -> ~3 h 20 CPU, sans bail kuzu.",
+    "design": "Meme sonde et meme point fixe (plain, D = 2, K = 6, V = 8, n_agents = 16, flip_p = 0, bptt, choice_decoy = False, sender_lr = 0,05 fixe), lr = 0,0005, 14 400 episodes, {RETAIN, PRESENT} x seeds 0-11 -- population NEUVE (les seeds 0-2 sont re-mesures sous cette regle, jamais importes). Unite = seed, n = 12. Runner `tools/lock001_pred2_r1.py --regle LOCK-001-PRED2-N12`, persistance results/lock_001_pred2_n12.json.",
+    "discrimination": {
+      "AUTRE": "rapporter tel quel, aucune inference.",
+      "INCOMPLET": "aucune lecture.",
+      "MONTE (RETAIN mediane >= 0,35 sans percer)": "tendance a n = 12 : prolonger (28 800) avant toute gravure ; rapporter.",
+      "NE_PERCE_PAS (RETAIN mediane < 0,30, PRESENT >= 0,30)": "le PERCE de n = 3 etait du bruit : clause n 2 de LOCK-001 -> identite REFUTEE a n = 12 -> graver le negatif, bandeau sur LOCK-001.",
+      "PERCE (RETAIN mediane >= 0,40 ET >= 11/12 seeds > 0,30, PRESENT >= 0,30)": "MUR PERCE sur le fil coordination par le MEME levier que le fil memoire : la prediction n 2 de LOCK-001 est ETABLIE a n = 12 -> GRAVER le record LOCK-003 (le levier commun), bandeau de portee sur DELAYED-COORD (« ne marche pas a lr = 0,05 » devient « marche a 0,0005 / 14 400 »), aucune arete AGI-Taxonomy (controle de specificite vacueux dans ce design, cf. DELAYED-COORD).",
+      "SANS_REFERENCE (PRESENT < 0,30)": "la reference ne tient pas a n = 12 : aucun verdict ; rapporter."
+    },
+    "dv_primaire": "`RETAIN_intact` par seed (n = 12), mediane ; `PRESENT_intact` = reference E19 au meme point, mediane ; `ablated` rapporte en absolu (RETAIN able attendu a la chance ~0,17 : ablation within-subject).",
+    "fixe_override": {
+      "bilinear": false
+    },
+    "provenance_du_point": "Barreau 4 (LOCK-001-PRED2-R4, n = 3) : RETAIN 0,422 / 0,438 / 0,439, PRESENT 0,358 / 0,347 / 0,298 -> PERCE indicatif. Chemin : 1 600 ep. 0,284 (n = 12, lr 0,002, EDR-DELAYED-COORD) -> 3 600 : 0,331 -> 14 400 : 0,438 (0,0005).",
+    "question": "PREDICTION N 2 de LOCK-001, a PUISSANCE (n = 12) : au point ou le barreau 4 a perce (plain, D = 2, lr = 0,0005, 14 400 episodes), le bras RETAIN de la coordination referentielle differee est-il APPRIS -- le meme levier (pas bas + duree) qui a perce le fil memoire (EDR-LOCK-002) perce-t-il le fil coordination ?",
+    "reference_n12": {
+      "PRESENT_intact_lr005": 0.3977,
+      "RETAIN_intact_lr0002": 0.2836,
+      "RETAIN_intact_lr005": 0.2266,
+      "regime": "plain, 1600 ep., n=12 (EDR-DELAYED-COORD)"
+    },
+    "regle_de_lecture_continue": "ORDRE IMPOSE : INCOMPLET, SANS_REFERENCE, PERCE, MONTE, NE_PERCE_PAS, AUTRE.",
+    "seeds": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "seuils": {
+      "justification": "seuils identiques aux barreaux 1-4 ; seeds_min = 11/12 au-dessus de 0,30 = test des signes unilateral p <= 0,0032, la convention de puissance du n = 12 de DELAYED-COORD ; aucun verdict POSITIF sous n = 12 (garde d'evaporation).",
+      "seeds_min": 11,
+      "seuil_monte": 0.35,
+      "seuil_perce": 0.4,
+      "seuil_reference": 0.3,
+      "seuil_seed": 0.3
+    }
+  },
+  "seal": "8de74ed9aef8c57496c15a21f21f85d693650f0971842dcc71943cb2ce861da0"
+}

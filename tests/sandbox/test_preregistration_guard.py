@@ -110,3 +110,62 @@ def test_rule_without_discrimination_is_untouched(tmp_path):
     """La garde ne doit pas gener une regle qui ne declare aucune branche (pas de faux positif)."""
     preregister("nodisc", {"dv": "taux", "seuil": 0.5}, _dir=str(tmp_path))
     assert verify("nodisc", _dir=str(tmp_path))["seuil"] == 0.5
+
+
+# ==================================================================================================
+# P2.68 (2026-09-15) -- la PROVENANCE d'un run (git_sha / dirty / seal de la regle) a UN seul site :
+# `tools.preregister.provenance` ; `stamp` tamponne un dict de resultats repris entre sessions. 14
+# runners scelles sur 15 n'ecrivaient ni l'un ni l'autre : leur regle etait scellee par hash, leur code
+# ne l'etait pas. Aucune valeur n'est inventee : sans git, `git_sha` et `dirty` valent None.
+# ==================================================================================================
+from tools.preregister import provenance, stamp  # noqa: E402
+
+
+def test_provenance_reads_HEAD_and_the_seal_of_the_named_rule(tmp_path):
+    import subprocess
+    p = preregister("PROV-X", _RULE, _dir=str(tmp_path))
+    prov = provenance("PROV-X", _dir=str(tmp_path))
+    head = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+    assert prov["git_sha"] == head and isinstance(prov["dirty"], bool)
+    assert prov["rule"] == "PROV-X" and prov["seal"] == json.load(open(p, encoding="utf-8"))["seal"]
+
+
+def test_provenance_without_git_publishes_None_never_a_value(tmp_path):
+    """Un depot sans git : la provenance est ABSENTE et le dit -- forme (a) de CLAUDE.md, pas de valeur
+    de fond fabriquee."""
+    prov = provenance(_root=str(tmp_path))
+    assert prov["git_sha"] is None and prov["dirty"] is None and "error" in prov
+
+
+def test_provenance_of_an_unsealed_rule_says_seal_None(tmp_path):
+    prov = provenance("JAMAIS-SCELLEE", _dir=str(tmp_path))
+    assert prov["rule"] == "JAMAIS-SCELLEE" and prov["seal"] is None
+
+
+def test_stamp_appends_once_per_distinct_provenance_and_keeps_cells_intact(tmp_path):
+    preregister("PROV-Y", _RULE, _dir=str(tmp_path))
+    db = {"lr=0.002|ep=100|seed=0": {"lang_i": 0.5}}
+    stamp(db, "PROV-Y", _dir=str(tmp_path))
+    stamp(db, "PROV-Y", _dir=str(tmp_path))
+    assert len(db["_provenance"]) == 1 and db["lr=0.002|ep=100|seed=0"] == {"lang_i": 0.5}
+    db["_provenance"][-1]["git_sha"] = "autre-commit"           # reprise apres un commit
+    stamp(db, "PROV-Y", _dir=str(tmp_path))
+    assert len(db["_provenance"]) == 2 and db["_provenance"][0]["git_sha"] == "autre-commit"
+
+
+def test_every_sealed_runner_carries_the_provenance_stamp():
+    """TEMOIN de P2.68 : tout runner que la porte 11 reconnait comme SCELLE (`verify` importe et
+    appele -- analyse AST) appelle `provenance(` ou `stamp(`. La liste des exceptions est VIDE et doit
+    le rester : un runner scelle sans tampon ne sait pas dire quel code a produit sa mesure."""
+    import ast as _ast
+    from tools.check_control_family import scan_runners
+    sans = []
+    for path, etat in scan_runners().items():
+        if not etat["scelle"]:
+            continue
+        src = open(path, encoding="utf-8").read()
+        appels = {getattr(n.func, "id", None) or getattr(n.func, "attr", None)
+                  for n in _ast.walk(_ast.parse(src)) if isinstance(n, _ast.Call)}
+        if not ({"provenance", "stamp", "_git_provenance"} & appels):
+            sans.append(path)
+    assert sans == [], f"runners scelles SANS tampon de provenance : {sans}"

@@ -1,0 +1,53 @@
+{
+  "name": "LOCK-001-PRED2-R4",
+  "rule": {
+    "cellules": [
+      {
+        "episodes": 14400,
+        "lr": 0.002
+      },
+      {
+        "episodes": 14400,
+        "lr": 0.0005
+      }
+    ],
+    "clause_E19": "identique a LOCK-001-PRED2-R1.",
+    "cout": "12 cellules x ~8 min (plain, 14 400 ep.) -> ~1 h 40 CPU, sans bail kuzu.",
+    "design": "Meme sonde et meme point fixe que LOCK-001-PRED2-R3 (plain, D = 2, K = 6, V = 8, n_agents = 16, flip_p = 0, bptt, choice_decoy = False, sender_lr = 0,05 fixe), 14 400 episodes, lr dans {0,002 ; 0,0005} x {RETAIN, PRESENT} x seeds 0-2. Unite = seed, n = 3 exploratoire. Runner `tools/lock001_pred2_r1.py --regle LOCK-001-PRED2-R4`, persistance results/lock_001_pred2_r4.json.",
+    "discrimination": {
+      "AUTRE": "rapporter tel quel.",
+      "INCOMPLET": "aucune lecture.",
+      "MONTE (un point interpretable : RETAIN >= 0,35 sans percer)": "tendance : n = 12 a 14 400 ou prolonger a 28 800 ; rapporter.",
+      "NE_PERCE_PAS (RETAIN < 0,30 sur tous les points interpretables)": "la duree ne fait rien : clause n 2 de LOCK-001 -> identite REFUTEE, n = 12 avant de graver.",
+      "PERCE (un point interpretable : RETAIN >= 0,40 ET 3/3 > 0,30)": "la duree a pas bas perce le second fil comme le premier : prediction n 2 SOUTENUE -- n = 12 sur ce point avant de graver.",
+      "SANS_REFERENCE (PRESENT < 0,30 aux deux lr)": "a pas bas la reference ne suit pas la duree : le point de lecture est ailleurs (pas 0,01, ou reference relue a sa propre barre) ; rapporter."
+    },
+    "dv_primaire": "`RETAIN_intact` par seed, mediane par point ; `PRESENT_intact` = reference E19 au meme point ; `ablated` rapporte en absolu.",
+    "fixe_override": {
+      "bilinear": false
+    },
+    "question": "PREDICTION N 2 de LOCK-001, barreau 4 : sur PLAIN, a pas BAS (0,002 ; 0,0005), la DUREE (14 400 episodes -- celle qui a fini le travail sur le fil memoire) fait-elle passer RETAIN au-dessus de 0,40 ? Barreau 3 : RETAIN 0,331 / 0,320 a 3 600 ep. (0,284 a 1 600, n = 12), reference PRESENT 0,303 / 0,278 -- a la limite d'interpretabilite.",
+    "reference_n12": {
+      "PRESENT_intact_lr005": 0.3977,
+      "RETAIN_intact_lr0002": 0.2836,
+      "RETAIN_intact_lr005": 0.2266,
+      "regime": "plain, 1600 ep., n=12 (EDR-DELAYED-COORD)"
+    },
+    "reference_r3": {
+      "PRESENT_intact_lr00005_3600": 0.278,
+      "PRESENT_intact_lr0002_3600": 0.303,
+      "RETAIN_intact_lr00005_3600": 0.32,
+      "RETAIN_intact_lr0002_3600": 0.331,
+      "source": "results/lock_001_pred2_r3.json (LOCK-001-PRED2-R3, branche AUTRE)"
+    },
+    "regle_de_lecture_continue": "ORDRE IMPOSE : INCOMPLET, SANS_REFERENCE, PERCE, MONTE, NE_PERCE_PAS, AUTRE.",
+    "seuils": {
+      "justification": "identiques a LOCK-001-PRED2-R1.",
+      "seuil_monte": 0.35,
+      "seuil_perce": 0.4,
+      "seuil_reference": 0.3,
+      "seuil_seed": 0.3
+    }
+  },
+  "seal": "9e6c9b3fb519d0a6bd9c9d1c898f5013fc27231ec3c6b783302ba7aa462cc00d"
+}

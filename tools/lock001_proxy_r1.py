@@ -28,7 +28,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from tools.experiment_preflight import assert_control_family, declare_design  # noqa: E402
-from tools.preregister import verify  # noqa: E402
+from tools.preregister import stamp, verify  # noqa: E402
 
 NOM_REGLE = "LOCK-001-PROXY-R1"
 OUT = os.path.join("results", "lock001_proxy_r1.json")
@@ -104,20 +104,52 @@ def _lecture_r1(db, regle):
     return out
 
 
+def _lecture_r1c(db, regle):
+    """LECTURE du barreau 1c (« le pas seul suffit-il a 3600 episodes ? »). PURE, calibree.
+    Branches, ORDRE IMPOSE : INCOMPLET ; PAS_SEUL (mediane >= seuil_perce ET 3/3 > seuil_seed) ;
+    PAS_ET_DUREE (mediane < seuil_seed) ; INTERMEDIAIRE (le reste, rapporte tel quel)."""
+    seuils = regle["seuils"]
+    lr, ep = regle["cellule"]["lr"], regle["cellule"]["episodes"]
+    seeds = regle["cellule"]["seeds"]
+    manquantes = [cle(lr, ep, s) for s in seeds if cle(lr, ep, s) not in db]
+    if manquantes:
+        return {"branche": "INCOMPLET", "manquantes": manquantes}
+    vals = [db[cle(lr, ep, s)]["lang_i"] for s in seeds]
+    m = statistics.median(vals)
+    out = {"mediane_3600_lr00005": m, "seeds_3600_lr00005": vals,
+           "reference_14400_lr00005": regle["reference_14400"]["mediane_lang_i_D2"]}
+    if m >= seuils["seuil_perce"] and all(v > seuils["seuil_seed"] for v in vals):
+        out["branche"] = "PAS_SEUL"
+    elif m < seuils["seuil_seed"]:
+        out["branche"] = "PAS_ET_DUREE"
+    else:
+        out["branche"] = "INTERMEDIAIRE"
+    return out
+
+
+_LECTURES = {"LOCK-001-PROXY-R1": _lecture_r1, "LOCK-001-PROXY-R1c": _lecture_r1c}
+
+
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
-    regle = verify(NOM_REGLE)          # lève si la règle a été retouchée après scellement
-    db = json.load(open(OUT, encoding="utf-8")) if os.path.exists(OUT) else {}
+    nom = NOM_REGLE
+    if "--regle" in argv:
+        nom = argv[argv.index("--regle") + 1]
+    regle = verify(nom)                # lève si la règle a été retouchée après scellement
+    out_path = OUT if nom == NOM_REGLE else os.path.join("results", nom.lower().replace("-", "_") + ".json")
+    cellules = [(c["lr"], c["episodes"]) for c in [regle["cellule"]]] if "cellule" in regle else CELLULES
+    seeds = tuple(regle["cellule"]["seeds"]) if "cellule" in regle else SEEDS
+    db = json.load(open(out_path, encoding="utf-8")) if os.path.exists(out_path) else {}
     if "--lecture" in argv:
-        print(json.dumps(_lecture_r1(db, regle), indent=1, ensure_ascii=False))
+        print(json.dumps(_LECTURES[nom](db, regle), indent=1, ensure_ascii=False))
         return 0
     from tools.language_memory_demand_probe import _train_and_eval
     d = design()
-    print(f"design : {d.get('replication_unit')} x {d.get('n_independent')} ; famille "
-          f"{len(CELLULES) * len(SEEDS)} cellules ; {len(db)} cellule(s) deja mesuree(s)")
+    print(f"regle {nom} | design : {d.get('replication_unit')} x {d.get('n_independent')} ; "
+          f"{len(cellules) * len(seeds)} cellules ; {len(db)} deja mesuree(s) -> {out_path}")
     t0 = time.time()
-    for lr, ep in CELLULES:
-        for s in SEEDS:
+    for lr, ep in cellules:
+        for s in seeds:
             k = cle(lr, ep, s)
             if k in db:
                 continue
@@ -130,7 +162,7 @@ def main(argv=None):
                                              bilinear=True)
             db[k] = {"lang_i": li, "lang_a": la, "ctrl_i": ci, "ctrl_a": ca,
                      "secondes": round(time.time() - tc, 1)}
-            json.dump(db, open(OUT, "w", encoding="utf-8"), indent=1)
+            json.dump(stamp(db, nom), open(out_path, "w", encoding="utf-8"), indent=1)   # P2.68
             print(f"  {k}: lang_i={li:.3f} lang_a={la:.3f} ctrl_i={ci:.3f} ctrl_a={ca:.3f} "
                   f"({db[k]['secondes']} s)")
     print("toutes les cellules sont mesurees -> --lecture")

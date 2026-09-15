@@ -113,3 +113,38 @@ def test_arm_nas_MESURE_quand_il_y_a_de_quoi_mesurer(monkeypatch):
 
     monkeypatch.setattr(A, "load_hall_of_fame", lambda: (1, [_E(10), _E(20)]))
     assert A.hof_stats() == (15.0, 20)
+
+
+# --------------------------------------------------------------------------------------------------
+# P2.58 (2026-09-14) -- la redirection inoperante ne doit PAS fuir vers les sous-processus.
+# Quand `persistence` est deja importe, repointer HOF_PATH n'a aucun effet ICI (la constante est lue
+# a l'import) ; mais la variable etait POSEE quand meme, donc HERITEE par tout sous-processus lance
+# ensuite, qui aurait lu un HoF VIDE en croyant lire le vrai. L'ordre d'import se teste en
+# sous-processus : c'est la seule facon d'avoir un interprete FRAIS pour chaque ordre.
+# --------------------------------------------------------------------------------------------------
+
+def _hof_path_apres(ordre):
+    import os
+    import subprocess
+    import sys
+    env = {k: v for k, v in os.environ.items() if k != "HOF_PATH"}
+    env["PYTHONPATH"] = os.getcwd()
+    code = ordre + "; import os; print(repr(os.environ.get('HOF_PATH')))"
+    p = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, env=env,
+                       cwd=os.getcwd(), encoding="utf-8", errors="replace")
+    assert p.returncode == 0, p.stderr[-800:]
+    return p.stdout.strip().splitlines()[-1], p.stderr
+
+
+def test_la_redirection_INOPERANTE_ne_pose_PAS_HOF_PATH():
+    """persistence d'abord -> l'avertissement CRIE et HOF_PATH reste ABSENT de l'environnement."""
+    valeur, err = _hof_path_apres("import src.seed_ai.persistence; import tools.evo_memory_inworld")
+    assert valeur == "None", ("HOF_PATH pose alors que la redirection est sans effet : un "
+                              "sous-processus lirait un HoF VIDE", valeur)
+    assert "SANS EFFET" in err
+
+
+def test_la_redirection_OPERANTE_pose_HOF_PATH_vers_la_tabula_rasa():
+    """NO-OP APPARIE : evo_memory_inworld d'abord -> la redirection s'applique et HOF_PATH est pose."""
+    valeur, err = _hof_path_apres("import tools.evo_memory_inworld")
+    assert "evo003_empty_hof" in valeur and "redirige" in err

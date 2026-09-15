@@ -1,0 +1,92 @@
+{
+ "RETAIN|lr=0.002|ep=3600|seed=0": {
+  "intact": 0.20000000298023224,
+  "ablated": 0.16875000298023224,
+  "secondes": 155.6
+ },
+ "RETAIN|lr=0.002|ep=3600|seed=1": {
+  "intact": 0.1953125,
+  "ablated": 0.14374999701976776,
+  "secondes": 158.0
+ },
+ "RETAIN|lr=0.002|ep=3600|seed=2": {
+  "intact": 0.19062499701976776,
+  "ablated": 0.140625,
+  "secondes": 667.3
+ },
+ "PRESENT|lr=0.002|ep=3600|seed=0": {
+  "intact": 0.2562499940395355,
+  "ablated": 0.2562499940395355,
+  "secondes": 158.1
+ },
+ "PRESENT|lr=0.002|ep=3600|seed=1": {
+  "intact": 0.2718749940395355,
+  "ablated": 0.2718749940395355,
+  "secondes": 153.7
+ },
+ "PRESENT|lr=0.002|ep=3600|seed=2": {
+  "intact": 0.27031248807907104,
+  "ablated": 0.27031248807907104,
+  "secondes": 141.7
+ },
+ "RETAIN|lr=0.0005|ep=3600|seed=0": {
+  "intact": 0.23593750596046448,
+  "ablated": 0.16562500596046448,
+  "secondes": 89.6
+ },
+ "RETAIN|lr=0.0005|ep=3600|seed=1": {
+  "intact": 0.28437501192092896,
+  "ablated": 0.1640625,
+  "secondes": 75.5
+ },
+ "RETAIN|lr=0.0005|ep=3600|seed=2": {
+  "intact": 0.2562499940395355,
+  "ablated": 0.16249999403953552,
+  "secondes": 146.1
+ },
+ "PRESENT|lr=0.0005|ep=3600|seed=0": {
+  "intact": 0.24531249701976776,
+  "ablated": 0.24531249701976776,
+  "secondes": 143.0
+ },
+ "PRESENT|lr=0.0005|ep=3600|seed=1": {
+  "intact": 0.21250000596046448,
+  "ablated": 0.21250000596046448,
+  "secondes": 140.9
+ },
+ "PRESENT|lr=0.0005|ep=3600|seed=2": {
+  "intact": 0.27031248807907104,
+  "ablated": 0.27031248807907104,
+  "secondes": 128.2
+ },
+ "RETAIN|lr=0.0005|ep=14400|seed=0": {
+  "intact": 0.24531249701976776,
+  "ablated": 0.1796875,
+  "secondes": 589.7
+ },
+ "RETAIN|lr=0.0005|ep=14400|seed=1": {
+  "intact": 0.20000000298023224,
+  "ablated": 0.17812499403953552,
+  "secondes": 559.9
+ },
+ "RETAIN|lr=0.0005|ep=14400|seed=2": {
+  "intact": 0.26875001192092896,
+  "ablated": 0.15000000596046448,
+  "secondes": 554.4
+ },
+ "PRESENT|lr=0.0005|ep=14400|seed=0": {
+  "intact": 0.2578125,
+  "ablated": 0.2578125,
+  "secondes": 573.4
+ },
+ "PRESENT|lr=0.0005|ep=14400|seed=1": {
+  "intact": 0.2593750059604645,
+  "ablated": 0.2593750059604645,
+  "secondes": 386.6
+ },
+ "PRESENT|lr=0.0005|ep=14400|seed=2": {
+  "intact": 0.29218751192092896,
+  "ablated": 0.29218751192092896,
+  "secondes": 371.6
+ }
+}

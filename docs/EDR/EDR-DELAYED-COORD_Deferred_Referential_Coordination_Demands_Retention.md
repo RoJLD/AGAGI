@@ -11,6 +11,19 @@ adopts: [REF-EXPERIMENT-PREFLIGHT, REF-DEMAND-MARKER]
 
 > ⚠️ **RÉGIME D'OPTIMISATION NON BALAYÉ (rétro-audit 2026-09-02) — le verdict NÉGATIF « non mesurable telle que spécifiée » est INCHANGÉ ; seule la clause mécanique du §2 est bornée.** Tous les chiffres du crible et des trois chemins de crédit sont mesurés à `lr=0.05` UNIQUEMENT — du côté divergent de la bascule E19 : [[EDR-RETAIN-COMPOSE-LR]] a mesuré qu'à batch effectif 1 un nul 2-pas à `lr ≥ 0.02` peut être un artefact du pas d'apprentissage (learned 0.173 → 0.923 en passant de 0.02 à 0.002, 0/144, n=12). Le balayage `lr` ≥ 3 points prescrit par la spec (T2, seeds disjoints, critère scellé sur RETAIN intact seul) n'a jamais été atteint : le crible T1 a échoué avant. La phrase « l'ÉCRITURE APPRISE dans le report ne marche pas » doit donc se lire « ...ne marche pas à `lr=0.05` » : les trois chemins de crédit varient le MÉCANISME de crédit, pas le PAS. Avant toute citation de ce mur comme propriété du SUBSTRAT (« c'est là qu'est le mur »), re-mesurer RETAIN (leurre retiré) à `lr=0.002` — coût ~13.2 min par point de `lr` selon la spec. Le pilote `lr=0.02` (RETAIN 0.873-0.946) ne vaut PAS contre-preuve : suspect canal oracle-équivalent (cf. Portée).
 
+> ⚠️ **PORTÉE DU BALAYAGE `lr`, resserrée le 2026-09-14 par [[EDR-LOCK-002]].** Sur la tâche mémoire
+> analogue (`(q+key)%K`, bilinéaire, REINFORCE), D=2 est resté à la chance à **`lr=0.002`** — le pas
+> auquel la mesure ci-dessous a re-testé RETAIN — et n'a appris qu'à **`lr=0.0005`** (12/12 seeds,
+> 4,85×). Un nul à 0,002 sur une tâche à deux délais n'est donc PAS une contre-preuve suffisante : le
+> balayage ≥ 3 points prescrit par la spec doit descendre à 0,0005 avant toute citation de ce mur
+> comme propriété du substrat. La prédiction n° 2 de LOCK-001 en dépend directement.
+> ✅ **MESURÉ le 2026-09-15 — [[EDR-LOCK-003]], n=12** : à `lr=0.0005` et **14 400 épisodes** (plain, même
+> régime que le n=12 ci-dessous sauf pas et durée), `RETAIN_intact` = **0,420** [0,400–0,439], 12/12 seeds,
+> ablation H-reset à la chance (0,170), référence PRESENT 0,334. « L'ÉCRITURE APPRISE dans le report ne
+> marche pas » se lit désormais : *ne marche pas à `lr=0.05`, décolle à 0,002, apprend à 0,0005 avec la
+> durée*. Le verdict d'ARÊTE (« non mesurable telle que spécifiée ») est INCHANGÉ : le contrôle de
+> spécificité reste vacueux dans ce design.
+
 > ## Mesure prescrite par le rétro-audit — EXÉCUTÉE (2026-09-02) : la clause §2 reste BORNÉE
 >
 > Le balayage demandé ci-dessus a été fait (leurre RETIRÉ, D=2, 800 ép., `n_agents=16`, 3 seeds, `flip_p=0`,

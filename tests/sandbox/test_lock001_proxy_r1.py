@@ -83,3 +83,28 @@ def test_le_runner_declare_son_design_et_sa_famille():
     d = design()
     assert d["replication_unit"] == "seed" and d["n_independent"] == 3
     assert len(CELLULES) * len(SEEDS) == 9
+
+
+# --- barreau 1c : la lecture « le pas seul ? », calibree a reponse connue ---------------------------
+
+def _db_1c(vals):
+    from tools.lock001_proxy_r1 import cle
+    return {cle(0.0005, 3600, s): {"lang_i": v, "lang_a": 0.16, "ctrl_i": 0.9, "ctrl_a": 1.0}
+            for s, v in zip((0, 1, 2), vals)}
+
+
+def test_1c_INCOMPLET_prime():
+    from tools.lock001_proxy_r1 import _lecture_r1c
+    regle = verify("LOCK-001-PROXY-R1c")
+    db = _db_1c([0.8, 0.8, 0.8]); db.pop(next(iter(db)))
+    assert _lecture_r1c(db, regle)["branche"] == "INCOMPLET"
+
+
+def test_1c_les_trois_branches_a_reponse_connue():
+    from tools.lock001_proxy_r1 import _lecture_r1c
+    regle = verify("LOCK-001-PROXY-R1c")
+    assert _lecture_r1c(_db_1c([0.8, 0.7, 0.75]), regle)["branche"] == "PAS_SEUL"
+    assert _lecture_r1c(_db_1c([0.17, 0.2, 0.18]), regle)["branche"] == "PAS_ET_DUREE"
+    assert _lecture_r1c(_db_1c([0.35, 0.3, 0.33]), regle)["branche"] == "INTERMEDIAIRE"
+    # un seed sous 0,30 avec une mediane haute n'est PAS un PAS_SEUL
+    assert _lecture_r1c(_db_1c([0.8, 0.8, 0.2]), regle)["branche"] == "INTERMEDIAIRE"

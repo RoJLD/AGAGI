@@ -7,7 +7,23 @@ verdict: SYNTHESIS_ONE_WALL_THREE_NAMES
 gate: G1
 tests: [SDR-G1]
 extends: [EDR-EVO-016, EDR-DELAYED-COORD, EDR-156, EDR-157]
+corrected_by: [EDR-LOCK-002]
 ---
+
+> ⚠️ **QUATRIÈME MANIFESTATION RETIRÉE le 2026-09-14 — [[EDR-LOCK-002]] (verdict à n=12, règle scellée
+> avant le run).** Elle était un **nul à pas fixe** (E19) : à `lr=0.002`, D=2 reste à la chance quel que
+> soit le nombre d'épisodes (3 600, 7 200, 14 400) et son contrôle est dégradé ; à **`lr=0.0005`**,
+> 12/12 seeds apprennent la rétention à deux délais (0,814 intact / 0,168 ablaté, ratio **4,85**,
+> spécificité X_DECOY, garde d'alias SURGICAL). « Ni la capacité, ni le pas ne suffisent » était faux
+> sur le pas — il n'avait pas été balayé. **Ce qui TIENT** : les trois premières manifestations et
+> l'identité de structure qu'elles suggèrent — ce record n'y touche pas. **Ce qui change** : la
+> prédiction n° 2 devient testable — le PAS perce le fil mémoire ; perce-t-il DELAYED-COORD à
+> `lr=0.0005` ? S'il ne perce que celui-ci, l'identité est réfutée par sa propre clause.
+> ✅ **TESTÉ le 2026-09-15 — [[EDR-LOCK-003]], n=12 : le même levier (pas bas ET durée) perce AUSSI le
+> fil coordination** (RETAIN 0,284 → **0,420**, 12/12 seeds, ablation à la chance). La clause n° 2 ne
+> s'applique pas : l'identité survit à son premier test falsifiable (deux fils sur trois). Nuance
+> mesurée : le substrat favorable diffère (bilinéaire pour la mémoire, plain pour la coordination) —
+> une identité de *levier*, pas de *réglage*.
 
 ## Pourquoi ce record existe
 
@@ -36,7 +52,7 @@ interne et une sortie, que ni le gradient épisodique ni la sélection ne récom
 soit déjà fonctionnelle. C'est la forme générale du résultat S2 (« le gradient de sélection pour la
 cognition est nul ») et la raison structurale du « proxy 9 / in-world 0 ».
 
-## Quatrième manifestation (2026-09-02, EXPLORATOIRE — n=3, pas un verdict)
+## Quatrième manifestation (2026-09-02, EXPLORATOIRE — n=3, pas un verdict) — ⛔ RETIRÉE le 2026-09-14 par [[EDR-LOCK-002]] : artefact de pas (E19), voir le bandeau
 
 Le bandeau de rétro-audit de [[EDR-DELAYED-COORD]] bornait son mur à `lr=0.05` (mauvais côté de la
 bascule E19). Le balayage S1 du point-référence (`results/lang_memory_sweep.json`) fournit la

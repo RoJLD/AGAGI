@@ -1,0 +1,67 @@
+{
+  "name": "LOCK-001-PRED2-R2",
+  "rule": {
+    "cellules": [
+      {
+        "episodes": 3600,
+        "lr": 0.05
+      },
+      {
+        "episodes": 3600,
+        "lr": 0.01
+      },
+      {
+        "episodes": 3600,
+        "lr": 0.002
+      },
+      {
+        "episodes": 3600,
+        "lr": 0.0005
+      }
+    ],
+    "clause_E19": "identique a LOCK-001-PRED2-R1 : aucun point ne se lit sans que PRESENT y apprenne.",
+    "cout": "12 cellules mesurees (+ 12 importees) x ~2,5-3,5 min -> ~40 min CPU, sans bail kuzu.",
+    "design": "Meme sonde et meme point fixe que LOCK-001-PRED2-R1 (bilineaire, D = 2, K = 6, V = 8, n_agents = 16, flip_p = 0, bptt, choice_decoy = False, sender_lr = 0,05 FIXE), 3 600 episodes, lr du receiver dans {0,05 ; 0,01 ; 0,002 ; 0,0005} x {RETAIN, PRESENT} x seeds 0-2. Les deux points bas sont IMPORTES du barreau 1 ; les deux hauts sont mesures ici. Unite = seed, n = 3 exploratoire. Runner `tools/lock001_pred2_r1.py --regle LOCK-001-PRED2-R2`, persistance results/lock_001_pred2_r2.json.",
+    "discrimination": {
+      "AUTRE": "rapporter tel quel.",
+      "INCOMPLET": "aucune lecture.",
+      "MONTE (un point interpretable : RETAIN >= 0,35 sans percer)": "prolonger les episodes sur ce point.",
+      "NE_PERCE_PAS (RETAIN < 0,30 sur TOUS les points interpretables)": "la reference apprend, RETAIN non, au meme pas et au meme substrat ou le fil memoire perce : clause n 2 de LOCK-001 -> identite REFUTEE -- n = 12 sur le meilleur point de reference avant de graver, puis bandeau sur LOCK-001.",
+      "PERCE (un point interpretable : RETAIN >= 0,40 ET 3/3 > 0,30)": "le levier perce le second fil : prediction n 2 SOUTENUE -- n = 12 sur ce point avant de graver.",
+      "SANS_REFERENCE (PRESENT < 0,30 aux QUATRE lr)": "la reference n'apprend a AUCUN pas sur bilineaire a 3 600 ep. : la tache est hors regime ici ; comparer a plain avant tout (le substrat, pas le pas)."
+    },
+    "dv_primaire": "`RETAIN_intact` par seed, mediane par point ; `PRESENT_intact` = reference E19 au meme point ; `ablated` rapporte en absolu.",
+    "points_importes": [
+      {
+        "cellules": [
+          {
+            "episodes": 3600,
+            "lr": 0.002
+          },
+          {
+            "episodes": 3600,
+            "lr": 0.0005
+          }
+        ],
+        "fichier": "results/lock001_pred2_r1.json",
+        "raison": "mesures sous LOCK-001-PRED2-R1, memes seeds, meme point fixe ; lus tels quels, jamais re-mesures"
+      }
+    ],
+    "question": "PREDICTION N 2 de LOCK-001, barreau 2 : ou la REFERENCE (PRESENT, sans retention) apprend-elle la tache de coordination differee sur le substrat BILINEAIRE, et RETAIN y perce-t-il ? Le barreau 1 (LOCK-001-PRED2-R1) a rendu SANS_REFERENCE a lr 0,002 et 0,0005 : la reference n'y apprend pas. Sur plain, elle atteint 0,40 a lr = 0,05.",
+    "reference_n12": {
+      "PRESENT_intact_lr005": 0.3977,
+      "RETAIN_intact_lr0002": 0.2836,
+      "RETAIN_intact_lr005": 0.2266,
+      "regime": "plain, 1600 ep., n=12 (EDR-DELAYED-COORD)"
+    },
+    "regle_de_lecture_continue": "ORDRE IMPOSE : INCOMPLET, SANS_REFERENCE, PERCE, MONTE, NE_PERCE_PAS, AUTRE.",
+    "seuils": {
+      "justification": "identiques a LOCK-001-PRED2-R1 (voir sa justification).",
+      "seuil_monte": 0.35,
+      "seuil_perce": 0.4,
+      "seuil_reference": 0.3,
+      "seuil_seed": 0.3
+    }
+  },
+  "seal": "452e729ed097c26a27a7dfec3e4494fcf96be0ab41ad2d87adc0ab1af47f6352"
+}

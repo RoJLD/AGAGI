@@ -31,6 +31,7 @@ DÉTECTABLE (il n'est pas dans le fichier scellé), pas impossible.
 import hashlib
 import json
 import os
+import subprocess
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _DIR = os.path.join(_ROOT, "docs", "preregistrations")
@@ -108,6 +109,45 @@ def preregister(name: str, rule: dict, *, _dir=None) -> str:
     with open(p, "w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False, indent=2, sort_keys=True)
     return p
+
+
+def provenance(name=None, *, _dir=None, _root=None) -> dict:
+    """P2.68 (2026-09-15) — le TAMPON de provenance d'un run : `git_sha` de HEAD, `dirty` (arbre modifié),
+    et, si `name` est donné, le `seal` de la règle scellée — pour qu'un JSON de résultats dise QUEL code et
+    QUELLE règle ont produit la mesure. 14 runners scellés sur 15 n'écrivaient ni l'un ni l'autre : leur
+    règle était scellée par hash, leur code ne l'était pas. Une provenance ABSENTE est publiée `None`,
+    jamais inventée (dépôt sans git, git absent)."""
+    root = _root or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    out = {"git_sha": None, "dirty": None}
+    try:
+        out["git_sha"] = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=root, text=True).strip()
+        out["dirty"] = bool(subprocess.check_output(["git", "status", "--porcelain"], cwd=root, text=True).strip())
+    except Exception as exc:                        # noqa: BLE001 — provenance absente, jamais inventée
+        out["error"] = str(exc)
+    if name is not None:
+        p = os.path.join(_dir or _DIR, f"{name}.json")
+        out["rule"] = name
+        if os.path.exists(p):
+            with open(p, encoding="utf-8") as f:
+                out["seal"] = json.load(f).get("seal")
+        else:
+            out["seal"] = None
+    return out
+
+
+def stamp(container: dict, name=None, key="_provenance", **kw) -> dict:
+    """Tamponne un dict de résultats REPRIS entre plusieurs sessions (runners par cellules) : ajoute un
+    tampon sous `key` seulement si le dernier tampon diffère (autre commit, ou arbre devenu sale/propre) —
+    un run repris sur trois commits porte trois tampons, dans l'ordre. Renvoie `container`."""
+    cur = provenance(name, **kw)
+    stamps = container.get(key)
+    if not isinstance(stamps, list):
+        stamps = []
+    last = stamps[-1] if stamps else None
+    if last is None or any(last.get(k) != cur.get(k) for k in ("git_sha", "dirty", "seal")):
+        stamps.append(cur)
+    container[key] = stamps
+    return container
 
 
 def verify(name: str, *, _dir=None) -> dict:
