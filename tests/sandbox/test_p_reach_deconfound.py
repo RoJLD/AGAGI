@@ -43,7 +43,10 @@ def test_verdict_deconfound_branches():
     assert _verdict_deconfound([(False, 1.0, _agg(0.2)), (True, 1.0, _agg(0.4))]) == "INDETERMINE"
 
 
-def test_main_forage_deconfound_smoke():
+def test_main_forage_deconfound_smoke(tmp_path, monkeypatch):
+    # P2.61 : la fumée rejoue le runner au seed de la mesure PUBLIÉE -> le JSON part sous tmp_path,
+    # jamais sur l'évidence `results/lewis_forage_deconfound_99140.json` citée par le record.
+    monkeypatch.setenv("AGAGI_RESULTS_ROOT", str(tmp_path))
     r = main_forage_deconfound(speeds=(0.0,), n_eval=2, R=1, seed=99140, _return=True)
     assert r["verdict"] in ("CONFOND CONFIRME", "CONFOND NEGLIGEABLE", "INDETERMINE")
     assert len(r["table"]) == 2   # 2 cellules : {repro on/off} x {1 vitesse}

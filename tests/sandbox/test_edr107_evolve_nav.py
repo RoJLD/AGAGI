@@ -105,7 +105,10 @@ def test_report_evolve_nav_verdict_and_save():
     assert h.saved["traj"] == traj
 
 
-def test_main_evolve_nav_smoke():
+def test_main_evolve_nav_smoke(tmp_path, monkeypatch):
+    # P2.61 : la fumée rejoue le runner au seed de la mesure PUBLIÉE -> le JSON part sous tmp_path,
+    # jamais sur l'évidence `results/lewis_evolve_nav_107.json` citée par le record.
+    monkeypatch.setenv("AGAGI_RESULTS_ROOT", str(tmp_path))
     out = main_evolve_nav(generations=2, num_agents=6, max_ticks=12, seed=107, _return=True)
     assert "verdict" in out
     assert len(out["traj"]) == 2

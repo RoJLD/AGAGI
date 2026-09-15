@@ -88,8 +88,11 @@ def test_verdict_ambigue_on_descending_plateaus():
     assert _verdict_capacity(arms) == "CAPACITE AMBIGUE"
 
 
-def test_main_capacity_nav_smoke_and_determinism():
+def test_main_capacity_nav_smoke_and_determinism(tmp_path, monkeypatch):
     # Seed DISTINCT de 110 (le run reel) pour ne pas ecraser la provenance.
+    # P2.61 : ... et pourtant `results/lewis_capacity_nav_12345.json` a ETE commite comme evidence, puis
+    # reecrit a chaque passe -> le JSON part sous tmp_path, jamais sur un fichier suivi par git.
+    monkeypatch.setenv("AGAGI_RESULTS_ROOT", str(tmp_path))
     r1 = main_capacity_nav(hidden_levels=(5, 20), generations=2, num_agents=6,
                            max_ticks=40, seed=12345, _return=True)
     assert r1["verdict"] in ("CAPACITE LEVE", "CAPACITE INERTE", "CAPACITE AMBIGUE")

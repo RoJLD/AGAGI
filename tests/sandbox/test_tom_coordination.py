@@ -58,7 +58,10 @@ def test_verdict_coordination_three_branches():
 from tools.tom_coordination import main_tom_coordination
 
 
-def test_smoke_main_tom_coordination_returns_verdict():
+def test_smoke_main_tom_coordination_returns_verdict(tmp_path, monkeypatch):
+    # P2.61 : la fumée rejoue le runner au seed de la mesure PUBLIÉE -> le JSON part sous tmp_path,
+    # jamais sur l'évidence `results/tom_coordination_99300.json` citée par le record.
+    monkeypatch.setenv("AGAGI_RESULTS_ROOT", str(tmp_path))
     res = main_tom_coordination(R=1, eras=2, num_agents=16, max_ticks=120, seed=99300, _return=True)
     assert res["verdict"] in {"COORDINATED", "INDEPENDENT", "INDETERMINE"}
     assert len(res["per_seed"]) == 1

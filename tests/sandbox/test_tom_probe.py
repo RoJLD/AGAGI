@@ -100,7 +100,10 @@ def test_agent_latent_shape_and_none_guard():
     assert _agent_latent(empty).shape == (68,)
 
 
-def test_smoke_main_tom_probe_returns_verdict():
+def test_smoke_main_tom_probe_returns_verdict(tmp_path, monkeypatch):
+    # P2.61 : la fumée rejoue le runner au seed de la mesure PUBLIÉE -> le JSON part sous tmp_path,
+    # jamais sur l'évidence `results/tom_probe_99280.json` citée par le record.
+    monkeypatch.setenv("AGAGI_RESULTS_ROOT", str(tmp_path))
     res = main_tom_probe(R=1, eras=2, num_agents=12, max_ticks=80, seed=99280, _return=True)
     assert res["verdict"] in {"TOM_EMERGES", "TOM_INERT"}
     assert len(res["per_seed"]) == 1

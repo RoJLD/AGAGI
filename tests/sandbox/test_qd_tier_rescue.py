@@ -65,7 +65,10 @@ def test_evolve_qd_champions_populates_craft_cell_with_fake_runner():
     assert isinstance(champs, list)
 
 
-def test_smoke_main_qd_tier_rescue_returns_verdict():
+def test_smoke_main_qd_tier_rescue_returns_verdict(tmp_path, monkeypatch):
+    # P2.61 : la fumée rejoue le runner au seed de la mesure PUBLIÉE -> le JSON part sous tmp_path,
+    # jamais sur l'évidence `results/qd_tier_rescue_99260.json` citée par le record.
+    monkeypatch.setenv("AGAGI_RESULTS_ROOT", str(tmp_path))
     res = main_qd_tier_rescue(R=1, eras=2, num_agents=10, max_ticks=80, seed=99260, _return=True)
     assert res["verdict"] in {"QD_RESCUE_CRAFT CONFIRME", "QD_NEUTRE", "QD_NUIT"}
     assert "d_craft" in res

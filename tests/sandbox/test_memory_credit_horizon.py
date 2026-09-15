@@ -23,7 +23,10 @@ def test_verdict_horizon_branches():
     assert _verdict_horizon({1: 0.9}, {}) == "INDETERMINE"
 
 
-def test_main_credit_horizon_smoke():
+def test_main_credit_horizon_smoke(tmp_path, monkeypatch):
+    # P2.61 : la fumée rejoue le runner au seed de la mesure PUBLIÉE -> le JSON part sous tmp_path,
+    # jamais sur l'évidence `results/memory_credit_horizon_99167.json` citée par le record.
+    monkeypatch.setenv("AGAGI_RESULTS_ROOT", str(tmp_path))
     r = main_credit_horizon(K=1, Ds=(1, 6), R=1, epochs=20, seed=99167, _return=True)
     assert r["verdict"] in ("HORIZON CONFIRME", "HORIZON REFUTE", "INDETERMINE")
     assert len(r["table"]) == 2   # 2 valeurs de D

@@ -168,7 +168,10 @@ def test_verdict_landing_ACCEPTE_le_cas_LIMITE_de_DEUX_bras():
     assert _verdict_landing([_arm(0, 0.36), _arm(10, 0.36)]) == "AFFORDANCE INERTE"
 
 
-def test_main_landing_nav_smoke_and_determinism():
+def test_main_landing_nav_smoke_and_determinism(tmp_path, monkeypatch):
+    # P2.61 : la fumée rejoue le runner au seed de la mesure PUBLIÉE -> le JSON part sous tmp_path,
+    # jamais sur l'évidence `results/lewis_landing_nav_88113.json` citée par le record.
+    monkeypatch.setenv("AGAGI_RESULTS_ROOT", str(tmp_path))
     r1 = main_landing_nav(land_levels=(0.0, 5.0), generations=2, num_agents=6,
                           max_ticks=40, seed=88113, _return=True)
     assert r1["verdict"] in ("AFFORDANCE LEVE", "AFFORDANCE INERTE", "AFFORDANCE AMBIGUE")

@@ -58,8 +58,12 @@ def test_required_k_grows_with_noise():
 from tools.s2_demand import run_s2
 
 
-def test_run_s2_smoke_one_world(monkeypatch):
+def test_run_s2_smoke_one_world(tmp_path, monkeypatch):
     # Smoke : 1 monde, K=2, peu d'agents/ticks -> structure du rapport correcte, sans crash.
+    # P2.61 : c'est le SEUL cas de ce fichier qui passe par le VRAI Harness (les autres injectent
+    # `_HarnaisFactice`), au seed 2026 de la mesure PUBLIÉE -> le JSON part sous tmp_path, jamais sur
+    # l'évidence `results/s2_demand_2026.json` citée par le record le plus cité du fil S2.
+    monkeypatch.setenv("AGAGI_RESULTS_ROOT", str(tmp_path))
     import tools.s2_demand as s2
     monkeypatch.setattr(s2, "load_champion_genome", lambda: __import__(
         "src.agents.mamba_agent", fromlist=["MambaAgent"]).MambaAgent().genome)

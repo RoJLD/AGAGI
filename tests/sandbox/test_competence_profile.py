@@ -12,7 +12,10 @@ def test_measure_profile_fixed_cohort_no_repro():
     assert all(k in stats[0] for k in ("age", "preys_eaten", "spears_crafted", "mammoth_kills"))
 
 
-def test_main_competence_profile_smoke():
+def test_main_competence_profile_smoke(tmp_path, monkeypatch):
+    # P2.61 : la fumée rejoue le runner au seed de la mesure PUBLIÉE -> le JSON part sous tmp_path,
+    # jamais sur l'évidence `results/competence_profile_99240.json` citée par le record.
+    monkeypatch.setenv("AGAGI_RESULTS_ROOT", str(tmp_path))
     from tools.competence_profile import main_competence_profile
     r = main_competence_profile(R=1, eras=2, num_agents=10, max_ticks=80, seed=99240, _return=True)
     assert r["verdict"] in ("CRAFT_WALL CONFIRME", "ECHELLE MONOTONE", "INDETERMINE")

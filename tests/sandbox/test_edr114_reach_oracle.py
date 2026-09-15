@@ -122,7 +122,10 @@ def test_verdict_reach_branches():
 
 
 @pytest.mark.slow
-def test_main_reach_oracle_smoke_and_determinism():
+def test_main_reach_oracle_smoke_and_determinism(tmp_path, monkeypatch):
+    # P2.61 : la fumée rejoue le runner au seed de la mesure PUBLIÉE -> le JSON part sous tmp_path,
+    # jamais sur l'évidence `results/lewis_reach_oracle_88114.json` citée par le record.
+    monkeypatch.setenv("AGAGI_RESULTS_ROOT", str(tmp_path))
     # LENT (~135 s x2 = ~270 s, mesure 2026-07-22) : lance main_reach_oracle DEUX fois (determinisme),
     # chaque appel = 4 cellules x 2 seeds x 150 ticks, avec dreaming naturel a chaque tick (le world
     # model diverge en regime oracle -> surprise sature a 1.0, cf. mamba_agent:549). Fini, pas infini

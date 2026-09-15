@@ -307,13 +307,13 @@ est le verrou maître », « robustesse aux régimes ») sont cités par la mém
 graphe. *Coût : agent 1-2 h.* Dépend de : P1.8.
 <!-- closes_when:grep_present=results/records_graph.json::EDR-177 -->
 
-**P2.61 — rang 10 — Provenance minimale : une évidence citée ne se réécrit plus en silence.**
-Quoi : `src/seed_ai/harness.py` — `Harness.__init__` (pas `save`, appelé en FIN de run : E13 fabriqué par
+**P2.61 — ✅ CLOSE (2026-09-15) — rang 10 — Provenance minimale : une évidence citée ne se réécrit plus en silence.**
+→ **LIVRÉ le 2026-09-15** : (1) `src/seed_ai/harness.py` — `Harness.__init__` lit la racine par `src/paths.py::results_root()` (`self.results_dir`, porte 12 : zéro nouveau littéral) et DÉCIDE `self.results_path` : si `<results_dir>/<name>_<seed>.json` EXISTE et est SUIVI par git (`_tracked_by_git`, `git ls-files --error-unmatch` interrogé depuis le répertoire DU FICHIER, pas du cwd ; hors dépôt ou git absent = indécidable = chemin nominal), l'écriture part vers `<name>_<seed>_rerun.json` — puis `_rerun2`… si le rerun est lui-même committé, sinon le défaut se reformerait là où on l'a déplacé — et le JSON porte `rerun_of`. `save` n'interroge plus rien : la décision est prise AVANT le run (pas d'E13 fabriqué par la garde). Huit contre-exemples gelés dans `tests/sandbox/test_harness_provenance.py` (dépôt git JOUET dans `tmp_path`, `GIT_*` purgés) : suivi → détourné et évidence bit-identique ; non suivi → écrasé (comportement historique) ; hors dépôt → nominal ; absent → nominal SANS sous-processus ; décision à l'init (git INTERDIT au save) ; rerun suivi → `_rerun2` ; racine absolue `AGAGI_RESULTS_ROOT` interrogée depuis SON dépôt ; `AGAGI_RESULTS_ROOT=tmp_path` sort l'écriture de l'arbre. RED 8/8 avant le correctif — et le dernier cas RED a RÉÉCRIT `results/competence_profile_99240.json` dans le worktree : le défaut, reproduit en direct par son propre test. (2) **11 fichiers de tests basculés** — pas 10 : le `grep -rln 'results/' tests` annoncé ne rend que des commentaires et docstrings, AUCUN de ses 13 fichiers n'écrit ; les vrais écrivains, retrouvés par AST sur les constructions de `Harness(`, sont les tests de fumée qui rejouent le runner RÉEL au seed PUBLIÉ, et ce sont exactement les 11 JSON du git status du 2026-09-14 : `test_competence_profile` (99240), `test_edr107_evolve_nav` (107), `test_edr110_capacity_nav` (12345), `test_edr113_landing` (88113), `test_edr114_reach_oracle` (88114), `test_memory_credit_horizon` (99167), `test_p_reach_deconfound` (99140), `test_qd_tier_rescue` (99260), `test_tom_coordination` (99300), `test_tom_probe` (99280), `test_s2_demand::test_run_s2_smoke_one_world` (2026, le seul cas du fichier sur le VRAI Harness). Chacun pose `AGAGI_RESULTS_ROOT=tmp_path` (un `chdir` casserait leurs chargements relatifs de `data/`) ; les cinq autres appelants de `main()` à sortie suivie (`altar_tool_funnel_0`, `curriculum_transfer_0`, `dream_causal_0`, `dream_distress_0`, `dreaming_probe_0`) faisaient déjà `chdir(tmp_path)`. (3) **Runners SCELLÉS sans tampon `git_sha` + `dirty` : 14 sur 15** (liste par `tools/check_control_family.py::scan_runners`, puis grep) — RAPPORTÉS, non édités → **P2.68**. Portes : calibration, fabricated_defaults, test_census, guard_negative_cases, data_paths, control_family toutes vertes ; backlog_freshness ne signalait que cette fermeture.
+Quoi (énoncé d'origine) : `src/seed_ai/harness.py` — `Harness.__init__` (pas `save`, appelé en FIN de run : E13 fabriqué par
 la garde) détourne vers un chemin `_rerun` tout `results/<name>_<seed>.json` existant ET suivi par git ;
-les tests qui écrivent sous `results/` passent `tmp_path` (10 fichiers, `grep -rln 'results/' tests`) ;
-tout runner SCELLÉ tamponne `git_sha` + `dirty` + sceau de règle dans son JSON. Pourquoi : 11 fichiers
-`results/*.json` cités par des records sont MODIFIÉS par la suite de tests à chaque passe (git status du
-2026-09-14). *Coût : agent ~3 h ; calcul 0.* Dépend de : rien.
+les tests qui écrivent sous `results/` passent `tmp_path` ; tout runner SCELLÉ tamponne `git_sha` + `dirty` +
+sceau de règle dans son JSON. Pourquoi : 11 fichiers `results/*.json` cités par des records sont MODIFIÉS par
+la suite de tests à chaque passe (git status du 2026-09-14). *Coût : agent ~3 h ; calcul 0.* Dépend de : rien.
 <!-- closes_when:grep_present=src/seed_ai/harness.py::results_dir -->
 
 **P2.62 — rang 11 — ✅ CLOSE le 2026-09-15 — Les APPRENANTS sont des instruments hors périmètre du cliquet.**
@@ -348,6 +348,22 @@ forward torch — c'est une EXPÉRIENCE, elle change la récompense du crédit p
 torch dans `docs/REF` et retirer le terme de la ligne de récompense (bit-identique). Garde en place :
 `preflight_curiosity_dead` (`tools/evo_runs/s2_reward_ablation.py`). Clause de fermeture à poser avec la
 décision (a)/(b). *Coût : agent 1 h (b) ; (a) = un run.* Dépend de : P4.8 (résultat).
+
+**P2.68 — rang 14 — 14 runners SCELLÉS sur 15 n'écrivent ni `git_sha` ni `dirty` dans leur JSON : leur règle est scellée par hash, leur code ne l'est pas.**
+Quoi : tamponner `{"git_sha": rev-parse HEAD, "dirty": bool(status --porcelain)}` (le bloc `provenance` de `tools/evo_runs/s2_credit_retention.py:248-252`, seul runner qui le fait) dans les 14 restants : `tools/evo_runs/evo011_preflight.py`, `evo022_run.py`, `evo023_run.py`, `evo024_run.py`, `evo026_run.py`, `evo026bis_run.py`, `evo027_run.py`, `evo028_run.py`, `s2_blind_champion.py`, `s2_subject_variance.py`, `tools/lang_memory_edge_run.py`, `tools/lock001_proxy_r1.py`, `tools/s2_floor_pronostic_run.py` (AUCUN tampon, aucun `commit` non plus) et `tools/evo_runs/s2_reward_ablation.py` (n'IMPORTE que le `git_sha` de P4.4 — `imported_git_sha` — sans tamponner le sien). Mesuré le 2026-09-15 en fermant P2.61 (P2.61 (3)), par `scan_runners` + grep `git_sha` / `dirty` sur chaque module. Pourquoi : un record qui cite l'un de ces JSON ne peut pas dire QUEL code a produit la mesure ; `Harness.save` le fait depuis juin, ces runners n'y passent pas. Extension naturelle : faire porter le tampon par `tools/preregister.py::verify` (un seul site) plutôt que 14 copies. *Coût : agent 1 h (tampon commun) ; calcul 0.* Dépend de : rien.
+<!-- closes_when:grep_present=tools/evo_runs/evo028_run.py::git_sha -->
+
+**P2.69 — rang 14 bis — Angles morts de la GARDE DE BAIL, trouvés par les vérificateurs du 2026-09-15.**
+Quoi : (i) le bail `kuzu` vit dans `runs/leases` RELATIF au cwd (`tools/jobs/lease.py`) : un worktree ne voit pas le
+bail tenu dans l'arbre principal — pendant le run P4.9, 503 tests simulant un monde ont TOURNÉ dans un worktree
+(sautés dans l'arbre principal) ; les chemins `data/` étant relatifs eux aussi (`src/paths.py`), la KuzuDB n'est pas
+partagée, mais la CHARGE l'est (E12 sur tout coût mesuré pendant) → ancrer le bail au dépôt (`git rev-parse
+--git-common-dir`) ou le déclarer par worktree ; (ii) `tests/sandbox/test_p_reach_deconfound.py` simule un monde
+(`_measure_forage` → `env.step`) sans AUCUN des `_WORLD_HINTS` de `tests/conftest.py` : la garde de bail ne le saute
+pas pendant un run en vol → ajouter l'indice ou déclarer le fichier ; (iii) rouge PRÉ-EXISTANT dans ce même fichier
+(`p_reach` 0,4479 vs 0,51 attendu, bit-identique à HEAD) : lire ou geler. Pourquoi : une garde qui ne voit pas
+l'arbre partagé ne garde rien (E10). *Coût : agent 1-1,5 h.* Dépend de : rien.
+<!-- closes_when:grep_present=tests/conftest.py::p_reach_deconfound -->
 
 **P3.4 — rang 14 — Cas de calibration de l'apprenant LEGACY.**
 Quoi : `MambaBatchModel.compute_policy_gradient` (le chemin actif pendant tout l'arc EVO), mêmes bras

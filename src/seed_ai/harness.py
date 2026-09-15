@@ -64,6 +64,25 @@ def _git_dirty():
         return False
 
 
+def _tracked_by_git(path):
+    """True/False si `path` est SUIVI par git ; None si son répertoire n'est pas un dépôt (ou git absent) :
+    INDÉCIDABLE, et l'indécidable ne détourne rien. Même motif que
+    `tools/check_backlog_freshness.py::_tracked_by_git`. Git est interrogé depuis le répertoire DU FICHIER,
+    jamais depuis le cwd : une racine posée par `AGAGI_RESULTS_ROOT` peut vivre dans un autre dépôt que
+    celui d'où l'on lance (P2.61)."""
+    d, base = os.path.split(os.path.abspath(path))
+    try:
+        import subprocess
+        r = subprocess.run(["git", "-C", d, "ls-files", "--error-unmatch", "--", base], capture_output=True)
+    except OSError:
+        return None
+    if r.returncode == 0:
+        return True
+    if b"not a git repository" in r.stderr.lower():
+        return None
+    return False
+
+
 def _config_view(config):
     """Vue sérialisable d'une config : pydantic (model_dump/dict) -> dataclass (asdict) -> __dict__."""
     for attr in ("model_dump", "dict"):
@@ -122,6 +141,33 @@ class Harness:
         self.db = None
         self._logger_started = False
         self._config = config          # provenance : config du run (hashée dans save / RUN_START)
+        # Provenance minimale (P2.61). La racine vient de `src/paths.py` (porte 12), relue à CHAQUE
+        # construction ; et le chemin de sortie est DÉCIDÉ ICI, jamais dans `save` — `save` est appelé en
+        # FIN de run, et une garde qui parle là fabrique un E13 (le run est déjà payé).
+        from src.paths import results_root
+        self.results_dir = results_root()
+        self.rerun_of = None           # chemin nominal si l'écriture est détournée, sinon None
+        self.results_path = self._chemin_de_sortie()
+
+    def _chemin_de_sortie(self):
+        """`<results_dir>/<name>_<seed>.json` — ou `..._rerun.json` (puis `_rerun2`, …) si ce nominal
+        EXISTE et est SUIVI par git. Mesuré le 2026-09-14 : 11 fichiers `results/*.json` cités par des
+        records étaient RÉÉCRITS à chaque passe de la suite de tests (un test de fumée rejoue le runner
+        au seed de la mesure publiée), et l'évidence sur disque n'était plus celle du record. Absent,
+        non suivi, ou hors dépôt (suivi INDÉCIDABLE) -> nominal, comportement historique. Le `_rerun`
+        est lui-même un `.json` sous `results/` : committé, il devient une évidence, et la garde le
+        protège de la même façon — sinon le défaut se reformerait là où on l'a déplacé."""
+        from src.paths import results_file
+        nominal = results_file(f"{self.name}_{self.seed}.json")
+        candidat, k = nominal, 0
+        while os.path.exists(candidat) and _tracked_by_git(candidat) is True:
+            k += 1
+            candidat = results_file(f"{self.name}_{self.seed}_rerun{k if k > 1 else ''}.json")
+        if candidat != nominal:
+            self.rerun_of = nominal
+            log.warning(f"[HARNESS] {self.name}: {nominal} est une ÉVIDENCE suivie par git -> "
+                        f"écriture détournée vers {candidat} (P2.61)")
+        return candidat
 
     def __enter__(self):
         self.seeds.seed_boundary(0)
@@ -191,15 +237,18 @@ class Harness:
         return Progress(total, label=label or self.name)
 
     def save(self, data, config=None):
-        """Écrit results/<name>_<seed>.json avec provenance (seed + commit + git_dirty [+ config_hash]).
+        """Écrit `self.results_path` — `<results_dir>/<name>_<seed>.json`, décidé à l'__init__ (P2.61) — avec
+        provenance (seed + commit + git_dirty [+ config_hash] [+ rerun_of si l'écriture est détournée]).
         config explicite > self._config ; sans config -> config_hash omis (run sans config inchangé)."""
-        os.makedirs("results", exist_ok=True)
+        os.makedirs(self.results_dir, exist_ok=True)
         cfg = config if config is not None else self._config
         out = {"name": self.name, "seed": self.seed, "commit": _git_short_commit(),
                "git_dirty": _git_dirty(), "data": data}
         if cfg is not None:
             out["config_hash"] = _config_hash(cfg)
-        path = os.path.join("results", f"{self.name}_{self.seed}.json")
+        if self.rerun_of is not None:
+            out["rerun_of"] = self.rerun_of
+        path = self.results_path
         with open(path, "w", encoding="utf-8") as f:
             json.dump(out, f, indent=2, default=_json_default)
         return path
