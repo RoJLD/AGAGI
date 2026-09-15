@@ -81,15 +81,37 @@ PORTES = {
     "2": {
         "module": "tools.check_instrument_calibration",
         "titre": "calibration des instruments",
-        "temoins": ["tests/sandbox/test_check_instrument_calibration_collisions.py"],
-        "mutations": [{
-            "nom": "les COLLISIONS de noms redeviennent invisibles",
-            "avant": "    return {n: sorted(p) for n, p in seen.items() if len(p) > 1}",
-            "apres": "    return {}",
-            "motif": ("la détection des noms définis dans PLUSIEURS fichiers — déclarer calibré "
-                      "`run_probe` verdirait alors deux instruments jamais testés (angle mort du "
-                      "2026-09-01)"),
-        }],
+        "temoins": ["tests/sandbox/test_check_instrument_calibration_collisions.py",
+                    "tests/sandbox/test_check_instrument_calibration_learners.py"],
+        "mutations": [
+            {
+                "nom": "les COLLISIONS de noms redeviennent invisibles",
+                "avant": "    return {n: sorted(p) for n, p in seen.items() if len(p) > 1}",
+                "apres": "    return {}",
+                "motif": ("la détection des noms définis dans PLUSIEURS fichiers — déclarer calibré "
+                          "`run_probe` verdirait alors deux instruments jamais testés (angle mort du "
+                          "2026-09-01)"),
+            },
+            # P2.62 (2026-09-15) : les deux motifs du 11e élargissement, retirés UN PAR UN. Ce sont les
+            # seuls motifs tolérants à l'indentation : les retirer rend les MÉTHODES d'apprentissage
+            # invisibles, exactement l'état du cliquet avant P2.62 (« 0 non calibré » sur un dépôt dont
+            # les quatre fonctions qui apprennent n'avaient jamais été comptées).
+            {
+                "nom": "les APPRENANTS redeviennent invisibles (motif learn* retiré)",
+                "avant": r'    re.compile(r"^[ \t]*def\s+(learn\w*)\s*\(", re.M),',
+                "apres": "    # (motif learn* retiré par la mutation)",
+                "motif": ("le motif `learn*` du 11e élargissement — `learn`, `learn_episode` et "
+                          "`learn_episode_bptt` du backend torch, l'apprenant que P1.6 a calibré, "
+                          "sortiraient du périmètre sans qu'aucun compteur ne bouge"),
+            },
+            {
+                "nom": "le legacy compute_policy_gradient redevient invisible",
+                "avant": r'    re.compile(r"^[ \t]*def\s+(compute_policy_gradient)\s*\(", re.M),',
+                "apres": "    # (motif compute_policy_gradient retiré par la mutation)",
+                "motif": ("le motif `compute_policy_gradient` — l'apprenant legacy de MambaBatchModel, "
+                          "actif pendant tout l'arc EVO, ne serait plus ni calibré ni compté comme dette"),
+            },
+        ],
     },
     "3": {
         "module": "tools.check_guard_negative_cases",

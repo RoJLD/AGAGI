@@ -48,6 +48,18 @@ NOT_AN_INSTRUMENT = {
     "tools/is_machine_idle.py::verdict": "decide si la MACHINE est inoccupee (processus biosphere "
                "actifs, age du WAL) pour ordonnancer des jobs. Infrastructure, aucune affirmation "
                "sur le monde ni sur un agent.",
+    # 11e ELARGISSEMENT (P2.62, 2026-09-15) : motifs `learn*` tolerants a l'INDENTATION. Trois faux positifs
+    # de PROFONDEUR : des wrappers de CAPTURE imbriques dans des fonctions de pre-vol (P4.8 / P4.9), qui
+    # interceptent ce qui atteint le learner d'origine et le lui repassent tel quel -- ils n'apprennent
+    # rien et n'affirment rien ; l'instrument est le pre-vol qui les lit (preflight_reward_seam,
+    # preflight_credit_seams), calibre a reponse connue.
+    "tools/evo_runs/s2_reward_ablation.py::learn": "wrapper de CAPTURE imbrique (first_tick_reward, "
+               "_ticks_reward_trace) : copie les recompenses recues puis appelle l'original ; aucune mise a "
+               "jour propre, aucune affirmation.",
+    "tools/evo_runs/s2_credit_ablation.py::learn": "wrapper de CAPTURE imbrique (_learning_trace) : lit le "
+               "pas sur l'optimiseur et copie les recompenses recues, puis appelle l'original.",
+    "tools/evo_runs/s2_credit_ablation.py::learn_episode": "wrapper de CAPTURE imbrique (_learning_trace) : "
+               "copie les recompenses episodiques recues puis appelle l'original.",
 }
 
 CALIBRATED = {
@@ -997,6 +1009,40 @@ CALIBRATED = {
         "guard-before-world", "oracle:hit=1.0", "dose-counted", "lr0-reference:dW=0",
         "reproducible", "variant-published"],
     "learner_verdict": ["missing:raises", "harness:indeterminate", "inert", "learns:during_run", "learns:early"],
+    # P2.62 (2026-09-15) -- les APPRENANTS entrent au perimetre du cliquet (11e elargissement : motif
+    # `learn*` + le gradient de politique legacy, tolerants a l'INDENTATION puisque ce sont des METHODES).
+    # ⚠️ Le nom du gradient legacy n'est PAS ecrit ici : la clause de fermeture de P3.4 est un
+    # `grep_present` de ce nom dans CE fichier, et une simple mention la satisferait a tort.
+    # Les deux apprenants du backend torch etaient DEJA calibres par P1.6, sans etre comptes. `learn` et
+    # `learn_episode` sont des noms en COLLISION (4 et 2 fichiers) : declarations QUALIFIEES.
+    # `src/agents/backend_torch.py::learn` (TD par tick) -- cas dans tests/sandbox/test_learning_events.py :
+    #   test_counter_counts_td_and_episode_calls_and_restores_the_class (1er learn d'une vie DIFFERE, puis
+    #   un update par tick), test_default_flags_are_bit_identical_to_the_bare_backend (no-op EXACT sur W),
+    #   test_td_disabled_skips_every_update_and_says_why (TD coupe : aucun poids ne bouge, skips nommes),
+    #   test_reward_scale_changes_the_update_and_is_published (dose-reponse : ×0,05 change l'update),
+    #   test_lr_override_reaches_the_optimizer_and_is_restored, test_dW_accumulates_only_when_an_update_happens ;
+    #   et in-world, tests/sandbox/test_instrument_calibration.py::test_run_learner_probe_lr0_reference_moves_no_weight
+    #   (lr=0 -> dW_abs_sum == 0.0, le plafond de l'incapable mesure DANS le dispositif).
+    "src/agents/backend_torch.py::learn": ["first-learn:deferred", "td:one-update-per-tick",
+                                           "default:bit-identical", "td-off:dW=0", "reward-scale:dose-response",
+                                           "lr-override:reaches-optimizer", "lr0:dW=0"],
+    # `src/agents/backend_torch.py::learn_episode` (REINFORCE episodique) -- cas :
+    #   tests/sandbox/test_learning_events.py::test_counter_counts_td_and_episode_calls_and_restores_the_class
+    #   (un appel = un episode compte), tests/sandbox/test_instrument_calibration.py::
+    #   test_run_learner_probe_counts_the_dose_the_world_delivers (un episode tous les `torch_episode_k`
+    #   ticks, skips comptes) et test_run_learner_probe_lr0_reference_moves_no_weight (lr=0 -> dW == 0).
+    "src/agents/backend_torch.py::learn_episode": ["episode:counted", "dose:torch_episode_k", "lr0:dW=0"],
+    # Les wrappers du COMPTEUR (`tools/learning_events.py::learn` / `::learn_episode`, installes par
+    # `count_learning_events`) sont ce que test_learning_events.py exerce DIRECTEMENT : bit-identiques par
+    # defaut, restaures en `finally` (exception comprise), dW nul quand aucun update n'a lieu.
+    "tools/learning_events.py::learn": ["default:bit-identical", "td-off:dW=0", "restored:on-exception"],
+    "tools/learning_events.py::learn_episode": ["episode:counted", "restored"],
+    # RESTE GELE dans tools/instrument_calibration_baseline.json (dette legataire, PAS masquee) :
+    #   `learn` (src/agents/backend.py : abstrait + LegacyPopulationModel qui delegue au legacy ;
+    #   tools/evo_runs/s2_reward_ablation.py : deux seams de CAPTURE), `learn_episode_bptt`
+    #   (src/agents/backend_torch.py, hors chemin in-world), et le gradient de politique legacy de
+    #   MambaBatchModel (arc EVO, src/agents/mamba_agent.py ; torch_batch_model.py ; baseline_models.py
+    #   no-op ; ablation_models.py delegue) -- son nom exact est dans la baseline, c'est l'objet de P3.4.
     # P1.7 (2026-09-14) -- le CORPS est derive de W[0:10] (classe E26). Cas dans
     # tests/sandbox/test_phenotype_guard.py : formule du monde exacte, make_blind REFUSE, tolerance
     # explicite sur le DRAIN et inv_capacity exige EGAL, lest exact et bit-identique sur la politique.

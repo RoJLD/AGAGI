@@ -28,13 +28,17 @@ Quatre questions, dont deux ont des assertions exécutables :
 
 **Inventaire au 2026-09-01 : 105 détectés, 104 calibrés, 1 déclaré non-instrument, ZÉRO dette.**
 **État COURANT, recomputé et jamais recopié :**
-**228 détectés** <!-- count:instruments_detectes=228 -->
-· **222 calibrés** <!-- count:instruments_calibres=222 -->
-· **0 non calibré** <!-- count:instruments_non_calibres=0 -->
+**232 détectés** <!-- count:instruments_detectes=232 -->
+· **223 calibrés** <!-- count:instruments_calibres=223 -->
+· **3 non calibrés** <!-- count:instruments_non_calibres=3 -->
 — la famille `run_*` (72 fonctions) est entrée le 2026-09-06 sans créer de dette. *(Les chiffres datés ci-dessus sont HISTORIQUES : ils restent vrais
 et ne sont donc pas balisés.)*
 *(Point de départ, 2026-07-21 : 71 détectés, 1 calibré.)* Le cliquet est désormais un **cliquet
-strict** : sa baseline est vide, donc tout nouvel instrument non calibré bloque le commit.
+strict** : tout NOUVEL instrument non calibré bloque le commit ; sa baseline, vide du 2026-09-01 au
+2026-09-15, gèle depuis P2.62 **3 dettes NOMMÉES** (`compute_policy_gradient` legacy = P3.4, `learn` legacy,
+`learn_episode_bptt`) — les apprenants sont entrés au périmètre (motifs `learn*` tolérants à l'INDENTATION :
+tous les motifs précédents étaient ancrés `^def`, or les apprenants sont des MÉTHODES — 5ᵉ axe de
+faillibilité de l'heuristique, la PROFONDEUR).
 
 ⚠️ **Ce que la fermeture a appris, et qui vaut plus que le compte.** Sur ~40 instruments
 examinés, une trentaine de défauts réels — et la direction est **CONSTANTE** : des données

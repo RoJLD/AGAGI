@@ -37,13 +37,25 @@ fi
 # des commits de docs seuls. Motivation : un instrument non calibré ne se contente pas d'échouer, il
 # PRODUIT un résultat (aliasing EDR-WARM-007). Sans ce hook, le cliquet dépendait de la discipline —
 # ce que la session-mère a montré insuffisant (règle documentée sans application exécutable => violée).
-staged_py=$(git diff --cached --name-only --diff-filter=AM | grep -E '^(tools|src/seed_ai)/.*\.py$')
+# ⚠️ P2.62 (2026-09-15), MESURÉ et non supposé : cette porte ne se déclenchait NI sur sa propre
+# baseline (`tools/instrument_calibration_baseline.json` n'est pas un .py — l'élargir et la committer
+# seule ne vérifiait RIEN, classe E4 occ.5, la même faille que la porte 1 avait fermée le 2026-09-01),
+# NI sur `src/` hors `src/seed_ai` (le 9e élargissement du 2026-09-09 balaye `src` ENTIER, le hook
+# n'avait pas suivi : un apprenant non calibré dans `src/agents/` était committable sans que la porte
+# tire). Le jour où la baseline est passée de 0 à 3 dettes gelées, les deux trous comptaient.
+staged_py=$(git diff --cached --name-only --diff-filter=AM | grep -E '^((tools|src)/.*\.py|tools/instrument_calibration_baseline\.json)$')
 if [ -n "$staged_py" ]; then
   # ⚠️ `--only` sur les fichiers INDEXÉS : l'arbre est PARTAGÉ entre sessions parallèles, et un
   # instrument non suivi écrit par une autre session bloquait des commits sans rapport (mesuré
   # le 2026-09-01). L'état de l'arbre reste imprimé ; seul le BLOCAGE est restreint. Même
-  # principe que la porte 1, qui scope déjà avec `--only`.
-  PYTHONIOENCODING=utf-8 python tools/check_instrument_calibration.py --only $staged_py || {
+  # principe que la porte 1, qui scope déjà avec `--only`. Baseline stagée SEULE -> run NON scopé
+  # (arbre entier), sinon la liste --only serait vide et le cliquet ne pourrait pas échouer (E4 occ.6).
+  only_py=$(echo "$staged_py" | grep -v instrument_calibration_baseline || true)
+  if [ -n "$only_py" ]; then
+    PYTHONIOENCODING=utf-8 python tools/check_instrument_calibration.py --only $only_py
+  else
+    PYTHONIOENCODING=utf-8 python tools/check_instrument_calibration.py
+  fi || {
     echo ""
     echo "-> Un NOUVEL instrument (fonction produisant un verdict/ratio/survie/taux) n'est pas calibré."
     echo "   Ajoute un cas dans tests/sandbox/test_instrument_calibration.py (déclaration CALIBRATED),"

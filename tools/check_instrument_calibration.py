@@ -107,6 +107,23 @@ _INSTRUMENT_PATTERNS = (
     re.compile(r"^def\s+(compare\w*)\s*\(", re.M),
     re.compile(r"^def\s+(sweep\w*)\s*\(", re.M),
     re.compile(r"^def\s+(probe\w*)\s*\(", re.M),
+    # ⚠️ ONZIEME elargissement, 2026-09-15 (P2.62) : les APPRENANTS. CLAUDE.md le dit depuis P1.6 --
+    # « l'APPRENANT est un instrument : sa DOSE se publie a cote de tout nul, et il a un controle
+    # positif » -- et pourtant `learn`, `learn_episode`, `learn_episode_bptt` (backend torch) et
+    # `compute_policy_gradient` (legacy MambaBatchModel, actif pendant TOUT l'arc EVO) n'etaient ni
+    # calibres ni comptes. Deux causes, et la seconde est un CINQUIEME axe de faillibilite de
+    # l'heuristique (apres : ce qu'elle cherche, OU, comment elle identifie, sous quels verbes) :
+    # aucun motif ne nommait ces verbes, ET tous les motifs sont ancres `^def` -- une METHODE (indentee)
+    # etait invisible quel que soit son nom. Or les apprenants sont TOUS des methodes de classe.
+    # Ces deux motifs tolerent donc l'indentation. Cout compte AVANT application : +4 noms / +12
+    # definitions (`learn` ×5 dans 4 fichiers, `learn_episode` ×2, `learn_episode_bptt` ×1,
+    # `compute_policy_gradient` ×4). Ce qui reste OUVERT et MESURE : etendre les DIX motifs
+    # precedents aux methodes ajouterait +12 definitions / 7 noms (`measure` ×3, `sweep` ×2, `run_seed`
+    # ×2, `run` ×2, `run_once`, `run_era`, `assert_isolated`) -- chantier a part, au backlog avec son
+    # compte. Temoin : tests/sandbox/test_check_instrument_calibration_learners.py ; mutation declaree
+    # dans tools/check_gate_mutation.py (porte 2).
+    re.compile(r"^[ \t]*def\s+(learn\w*)\s*\(", re.M),
+    re.compile(r"^[ \t]*def\s+(compute_policy_gradient)\s*\(", re.M),
 )
 
 
