@@ -91,7 +91,11 @@ def test_cell_B_known_answer_is_NECESSARY():
     assert out["verdict"] == "DEMANDED_ACQUIRED_NECESSARY"
     assert out["necessity"]["recurrent_state"]["verdict"] == "NECESSARY"
     assert out["necessity"]["recurrent_state"]["without_clears_bar"] is False
-    assert out["e19"]["status"] == "SKIPPED_NECESSARY"   # CRITICAL 2 : NECESSARY ne teste jamais la robustesse
+    # CRITICAL, re-ruling fix round 2 : l'E19 tourne aussi sur NECESSARY (le nul qu'elle défend, « D
+    # échoue à rejoindre A », existe des DEUX côtés du contraste) -- ici l'écart (0,75 -> 0,70) tient au
+    # pas, la garde passe : ROBUST, jamais un statut « sauté ».
+    assert out["e19"]["status"] == "ROBUST"
+    assert out["e19"]["condition"] == "necessity"
 
 
 def test_ablated_equal_to_intact_is_NOT_DEMANDED():
@@ -118,6 +122,8 @@ def test_grey_zone_ratio_is_DEMAND_INCONCLUSIVE_not_a_claim():
     assert out["demand"]["permute_key"]["verdict"] == "INCONCLUSIVE"
     assert out["verdict"] == "DEMAND_INCONCLUSIVE"
     assert "INCONCLUSIVE" in out["why"]
+    # MINOR (fix round 2) : le `why` doit porter le RATIO, pas juste le nom du verdict.
+    assert f"{out['demand']['permute_key']['ratio']:.3f}" in out["why"]
 
 
 def test_ablation_that_improves_the_arm_is_DEMAND_INCONCLUSIVE_not_a_claim():
@@ -180,6 +186,50 @@ def test_intact_collapsed_at_the_second_lr_is_INDETERMINE_HARNAIS():
 def test_acquisition_null_that_vanishes_at_the_second_lr_is_LR_ARTIFACT():
     # inerte à sweep[0] (0,18 ~ référence) mais acquiert au second pas (0,90 sur 12/12) : nul d'acquisition NON robuste au pas
     assert harness_verdict_lecture(_db(A=0.18, A2=0.90, D=0.17, D2=0.30, first=0.17), _rule())["verdict"] == "LR_ARTIFACT"
+
+
+def test_necessary_side_gap_that_closes_at_the_second_lr_is_LR_ARTIFACT():
+    """CRITICAL (re-ruling, fix round 2) : D à la référence au 1er pas (0,18, donc NECESSARY) mais collée
+    à A au 2e (0,88) -- écart 0,75 -> 0,01, closure ~98 %. Avant le re-ruling, NECESSARY sautait l'E19 :
+    ce cas rendait DEMANDED_ACQUIRED_NECESSARY, l'affirmation la plus forte, fabriquée depuis un artefact
+    de pas. Probe du contrôleur, reproduit ici."""
+    out = harness_verdict_lecture(_db(D=0.18, D2=0.88), _rule())
+    assert out["necessity"]["bilinear"]["verdict"] == "NECESSARY"   # tel quel au 1er pas, AVANT l'E19
+    assert out["verdict"] == "LR_ARTIFACT"
+    assert out["e19"]["condition"] == "necessity"
+    assert out["e19"]["status"] == "LR_ARTIFACT"
+
+
+def test_necessary_side_reference_collapsed_at_the_second_lr_is_INDETERMINE_HARNAIS():
+    """CRITICAL (re-ruling) : même forme, mais l'intact (A2=0,18) s'effondre AUSSI au 2e pas -- la
+    fermeture d'écart n'a plus de référence vivante pour trancher artefact vs capacité. Probe du
+    contrôleur, reproduit ici."""
+    out = harness_verdict_lecture(_db(D=0.18, D2=0.17, A2=0.18), _rule())
+    assert out["verdict"] == "INDETERMINE_HARNAIS"
+    assert out["e19"]["status"] == "REFERENCE_COLLAPSED"
+    assert out["e19"]["condition"] == "necessity"
+
+
+def test_necessity_and_e19_run_before_demand_on_the_acquired_path():
+    """IMPORTANT (re-ruling, fix round 2) : LR_ARTIFACT (index 3) est plus sévère que NOT_DEMANDED
+    (index 5) dans l'ORDRE 2.3-b -- calculer la demande AVANT nécessité+E19 laissait un artefact de pas
+    se faire préempter par un verdict de demande. Probe du contrôleur : avant le fix, ce cas rendait
+    NOT_DEMANDED avec `necessity`/`e19` encore à None."""
+    out = harness_verdict_lecture(_db(abl_key=0.80, D=0.27, D2=0.88), _rule())
+    assert out["verdict"] == "LR_ARTIFACT"
+    assert out["necessity"] is not None
+    assert out["e19"] is not None
+
+
+def test_three_step_sweep_raises_ValueError_not_KeyError():
+    """MINOR (fix round 2) : `_e19` n'indexe que `lrs[0]`/`lrs[1]` (la db ne porte qu'un second pas,
+    A2/D2) -- avant le durcissement à « exactement deux », un sweep à 3 pas passait `_validate_rule` puis
+    mourait plus loin d'un `KeyError` illisible quand `assert_verdict_invariant_to_optimizer` appelait
+    `measure(lrs[2])`."""
+    rule = _rule()
+    rule["sweep"] = [{"lr": 0.02}, {"lr": 0.008}, {"lr": 0.002}]
+    with pytest.raises(ValueError, match="EXACTEMENT deux"):
+        harness_verdict_lecture(_db(), rule)
 
 
 def test_gap_below_resolution_floor_is_PIECE_NOT_NECESSARY_not_LR_ARTIFACT():
@@ -263,6 +313,10 @@ def test_necessity_uses_the_band_of_the_WEAK_arm_not_only_A():
     assert out["noise_floor"]["D"]["band"][1] > 1.5
     assert out["necessity"]["bilinear"]["verdict"] == "NOT_NECESSARY"
     assert out["necessity"]["bilinear"]["in_noise_band"] is True and out["verdict"] == "PIECE_NOT_NECESSARY"
+    # MINOR (fix round 2) : jamais une négation NUE -- le `why` doit dire QUOI a été regardé (la bande)
+    # et pourquoi ça ne conclut rien.
+    why = out["necessity"]["bilinear"]["why"]
+    assert "DANS la bande de bruit" in why and "DÉTECTABLE au-dessus du plancher" in why
 
 
 def test_mutating_necessity_threshold_to_strict_flips_the_boundary_case():

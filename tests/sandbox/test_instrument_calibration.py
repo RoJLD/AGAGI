@@ -1316,6 +1316,13 @@ CALIBRATED = {
     # -> ValueError en tete, 2 cas), IMPORTANT 3 (demande publiee mais IGNOREE sur un sujet qui n'a rien
     # acquis -- pas de nouveau cas, verifie par l'existant), IMPORTANT 4 (controle positif de la garde de
     # barre + incapable_ceiling=None, 2 cas).
+    # Fix round 2/5 (re-revue contrôleur, 2026-09-16) -- deux regressions du fix round 1, dont une causee
+    # par le ruling du controleur lui-meme (corrigee ici) : CRITICAL re-ruling (l'E19 defend le nul du
+    # CONTRASTE quel que soit le cote -- sauter NECESSARY laissait passer un artefact de pas cote
+    # NECESSARY, fabriquant DEMANDED_ACQUIRED_NECESSARY depuis un ecart qui se referme, 2 cas) ; IMPORTANT
+    # re-ruling (necessite+E19 doivent tourner AVANT la demande sur le chemin ACQUIS -- LR_ARTIFACT/
+    # INDETERMINE_HARNAIS sont plus severes que toute branche de demande dans l'ORDRE 2.3-b, 1 cas) ;
+    # MINOR (sweep a 3 pas -> ValueError au lieu d'un KeyError illisible, 1 cas).
     "src/seed_ai/harness_verdict.py::harness_verdict_lecture": [
         "branch-order",                             # test_branch_order_is_the_sealed_one
         "cellA:PIECE_PARTIAL",                       # test_cell_A_known_answer_is_PARTIAL_with_ceiling_above_bar
@@ -1332,6 +1339,10 @@ CALIBRATED = {
         "LR_ARTIFACT:necessity",                     # test_piece_gap_that_closes_at_the_second_lr_is_LR_ARTIFACT
         "INDETERMINE_HARNAIS:reference-collapsed",   # test_intact_collapsed_at_the_second_lr_is_INDETERMINE_HARNAIS
         "LR_ARTIFACT:acquisition",                   # test_acquisition_null_that_vanishes_at_the_second_lr_is_LR_ARTIFACT
+        "LR_ARTIFACT:necessary-side",                # test_necessary_side_gap_that_closes_at_the_second_lr_is_LR_ARTIFACT
+        "INDETERMINE_HARNAIS:necessary-side-reference-collapsed",  # test_necessary_side_reference_collapsed_at_the_second_lr_is_INDETERMINE_HARNAIS
+        "order:necessity-e19-before-demand",         # test_necessity_and_e19_run_before_demand_on_the_acquired_path
+        "rule:three-step-sweep:raises",              # test_three_step_sweep_raises_ValueError_not_KeyError
         "necessity:gap-below-resolution",            # test_gap_below_resolution_floor_is_PIECE_NOT_NECESSARY_not_LR_ARTIFACT
         "PIECE_NOT_NECESSARY:both-at-ceiling",       # test_D_equal_to_A_is_PIECE_NOT_NECESSARY_and_both_at_ceiling_is_not_degenerate
         "necessity:unverified-intervention:degenerate",  # test_missing_intervention_flag_with_D_equal_to_A_is_PIECE_INCONCLUSIVE_not_NOT_NECESSARY

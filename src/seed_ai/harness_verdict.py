@@ -20,6 +20,20 @@ IMPORTANT 1/2/3 : `intervention_verified` de la nécessité se LIT depuis `db["r
 deux défauts de RÈGLE (lrs dupliqués, provenance non déclarée) LÈVENT `ValueError` en tête au lieu de se
 relire comme un verdict scientifique (LR_ARTIFACT / CEILING_ABOVE_BAR) ; un sujet qui n'acquiert RIEN
 n'a pas de marqueur de demande interprétable — la demande est publiée pour information, jamais lue.
+
+Fix round 2/5 (re-revue contrôleur, 2026-09-16) — deux régressions introduites par le fix round 1, dont
+une causée par le ruling du contrôleur lui-même (corrigé ici) :
+CRITICAL (re-ruling) : l'E19 défend le nul du CONTRASTE, quel que soit le côté où il tombe — pas
+seulement « nécessité ». En sautant l'E19 sur NECESSARY, le fix round 1 laissait passer un artefact de
+pas côté NECESSARY (`_db(D=0.18, D2=0.88)` rendait DEMANDED_ACQUIRED_NECESSARY, l'affirmation la plus
+forte, fabriquée depuis un écart qui se referme de 0,75 à 0,02 entre les deux pas). L'E19 tourne
+maintenant après CHAQUE nécessité, y compris NECESSARY ; le plancher `GAP_BELOW_RESOLUTION` (le vrai
+correctif du CRITICAL 2 original) neutralise déjà le cas sous-résolution — le gate par verdict était en
+trop, jamais nécessaire.
+IMPORTANT (re-ruling) : nécessité + E19 doivent s'exécuter AVANT la demande sur le chemin ACQUIS, sinon
+un artefact de pas (LR_ARTIFACT, index 3) ou une référence effondrée (INDETERMINE_HARNAIS, index 2) —
+tous deux plus sévères dans l'ORDRE 2.3-b qu'une branche de demande — pouvaient se faire préempter par
+un verdict de demande de priorité plus faible.
 """
 import statistics
 
@@ -92,9 +106,14 @@ def _validate_rule(rule):
     FAIT publié (le `except PreflightError` de `_acquisition` ne distinguait pas « la garde refuse de
     juger » de « la garde a jugé et le plafond dépasse la barre »)."""
     lrs = [float(h["lr"]) for h in rule["sweep"]]
-    if len(set(lrs)) < 2:
-        raise ValueError(f"rule.sweep : il faut au moins deux pas de lr distincts (reçu {lrs}) -- un "
-                         "seul point ne peut pas distinguer un nul de capacité d'un nul de réglage")
+    # MINOR (fix round 2) : EXACTEMENT deux, pas « au moins deux » -- `_e19` n'indexe que `lrs[0]`/`lrs[1]`
+    # (la db ne porte que A2/D2, un SEUL second pas), donc un sweep à 3 pas passait ce garde-fou puis
+    # mourait plus loin d'un `KeyError` illisible quand `assert_verdict_invariant_to_optimizer` appelait
+    # `measure(lrs[2])` sur une clé que `table` ne porte jamais.
+    if len(set(lrs)) != 2:
+        raise ValueError(f"rule.sweep : il faut EXACTEMENT deux pas de lr distincts (reçu {lrs}) -- la "
+                         "db ne porte qu'un second pas (A2/D2) ; un pas unique ne distingue pas un nul de "
+                         "capacité d'un nul de réglage, un sweep à 3+ pas n'a nulle part où se lire")
     ceil = rule.get("incapable_ceiling")
     if ceil is not None:
         prov = ceil.get("provenance")
@@ -155,8 +174,11 @@ def _demand(db, rule, seeds, last_A, band):
                 else:
                     _bump("NOT_DEMANDED", f"{name} : X_DECOY hors bande de bruit (ratio {raw['ratio']:.3f})")
             else:   # INCONCLUSIVE, INCONCLUSIVE_INVERTED, INCONCLUSIVE_DEGENERATE
+                # MINOR (fix round 2) : le ratio est TOUJOURS dans le message, même sans dégénérescence
+                # (`raw['why']` est None dans le cas GRIS pur -- ni collapse ni decoy) -- sinon le message
+                # ne dit rien de quantitatif sur POURQUOI le verdict est inconclusif.
                 why_suffix = f" -- {raw['why']}" if raw.get("why") else ""
-                _bump("DEMAND_INCONCLUSIVE", f"{name} : {raw['verdict']}{why_suffix}")
+                _bump("DEMAND_INCONCLUSIVE", f"{name} : {raw['verdict']} (ratio {raw['ratio']:.3f}){why_suffix}")
             if entry["alias"] is not None and entry["alias"]["alias_verdict"] != "SURGICAL":
                 _bump("INCONCLUSIVE_ALIAS", f"{name} : alias {entry['alias']['alias_verdict']}")
         elif raw["verdict"] != "X_DECOY":
@@ -229,13 +251,24 @@ def _necessity(db, rule, seeds, last_A, last_D, ref, band):
     if raw["verdict"] == "X_DEMANDED":
         if in_band:
             verdict = "NOT_NECESSARY"
+            # MINOR (fix round 2) : jamais une négation NUE -- dire QUOI a été regardé (la bande) et
+            # pourquoi ça ne conclut rien (rien au-dessus du plancher de bruit mesuré).
+            why = (f"contraste DANS la bande de bruit [{band[0]:.3f}, {band[1]:.3f}] : aucune nécessité "
+                  "DÉTECTABLE au-dessus du plancher")
         else:
-            verdict = "NECESSARY" if med_D <= ref + min_sep else "PIECE_PARTIAL"
+            if med_D <= ref + min_sep:
+                verdict, why = "NECESSARY", f"med(D) {med_D:.3f} <= barre {ref + min_sep:.3f} (référence + min_sep)"
+            else:
+                verdict = "PIECE_PARTIAL"
+                why = f"med(D) {med_D:.3f} > barre {ref + min_sep:.3f}, ratio {raw['ratio']:.2f}x hors bande"
     elif raw["verdict"] in ("X_DECOY", "INCONCLUSIVE_INVERTED"):
         verdict = "NOT_NECESSARY"
+        why = f"{raw['verdict']} (ratio {raw['ratio']:.3f}) : aucun effet de l'ablation détecté"
     else:   # INCONCLUSIVE, INCONCLUSIVE_DEGENERATE
         verdict = "INCONCLUSIVE"
-    return {"verdict": verdict, "ratio": raw["ratio"], "in_noise_band": in_band, "med_without": med_D,
+        why_suffix = f" -- {raw['why']}" if raw.get("why") else ""
+        why = f"{raw['verdict']} (ratio {raw['ratio']:.3f}){why_suffix}"
+    return {"verdict": verdict, "why": why, "ratio": raw["ratio"], "in_noise_band": in_band, "med_without": med_D,
             "per_seed_diff": [a - d for a, d in zip(last_A, last_D)], "raw": raw,
             "sham": ("DECLARED" if rule.get("matched_sham") else "PARAMS_NON_APPARIES"),
             # Décision contrôleur (fix round 1) : PAS de `assert_bar_separates_the_incapable(bar, med_D)`
@@ -246,13 +279,24 @@ def _necessity(db, rule, seeds, last_A, last_D, ref, band):
 
 
 def _e19(rule, last_A, last_A2, last_D, last_D2, bar, band_AD, condition):
-    """E19 de NÉCESSITÉ (invariance de l'écart intact/sans-pièce au pas d'apprentissage). CRITICAL 2
-    (fix round 1) : avant de lire une fermeture d'écart comme artefact, compare le pire écart mesuré à
-    une RÉSOLUTION -- `max(min_sep, med_A * (band_AD[1]-1))`, le plus GRAND des deux planchers de bruit
-    déjà mesurés (le minimum de séparation scientifique déclaré, et la largeur de bande de bruit mise à
-    l'échelle de A). Un écart sous cette résolution est BRUIT DE LECTURE, jamais un signal dont la
-    fermeture prouve quoi que ce soit -- un `both-at-ceiling` synthétique (bruit ~1e-3) rendait
-    LR_ARTIFACT sur 119/200 seeds avant ce plancher."""
+    """E19 défend le nul du CONTRASTE intact/sans-pièce au pas d'apprentissage -- QUEL QUE SOIT LE CÔTÉ
+    où ce nul tombe. `table[lr] = (med_D, med_A)` : le bras « testé » est TOUJOURS D, le bras de
+    « référence » est TOUJOURS A -- ce que la garde défend est donc le nul « D échoue à rejoindre A »,
+    c'est-à-dire NECESSARY autant que NOT_NECESSARY/PARTIAL/INCONCLUSIVE. Re-ruling (fix round 2,
+    2026-09-16) : le fix round 1 avait câblé « seuls NOT_NECESSARY/PARTIAL/INCONCLUSIVE passent par
+    l'E19 », en pensant protéger uniquement le nul de nécessité -- mais un `both-at-ceiling` REVERSED
+    (D à la référence au 1er pas puis collée à A au 2e, écart 0,75 -> 0,02) produit la MÊME fermeture
+    d'artefact côté NECESSARY, et sautait la garde : `_db(D=0.18, D2=0.88)` rendait
+    DEMANDED_ACQUIRED_NECESSARY, l'affirmation la plus forte, fabriquée depuis un artefact de pas.
+    `_e19` tourne donc maintenant après TOUTE nécessité, y compris NECESSARY.
+
+    Avant de lire une fermeture d'écart comme artefact, compare le pire écart mesuré à une RÉSOLUTION --
+    `max(min_sep, med_A * (band_AD[1]-1))`, le plus GRAND des deux planchers de bruit déjà mesurés (le
+    minimum de séparation scientifique déclaré, et la largeur de bande de bruit mise à l'échelle de A).
+    Un écart sous cette résolution est BRUIT DE LECTURE, jamais un signal dont la fermeture prouve quoi
+    que ce soit -- un `both-at-ceiling` synthétique (bruit ~1e-3) rendait LR_ARTIFACT sur 119/200 seeds
+    avant ce plancher (c'était le vrai défaut CRITICAL 2 ; le gate par verdict du fix round 1 était en
+    trop, jamais nécessaire au correctif)."""
     from tools.experiment_preflight import PreflightError, ReferenceCollapsedError, assert_verdict_invariant_to_optimizer
     min_sep = float(rule["min_sep"])
     lrs = [float(h["lr"]) for h in rule["sweep"]]
@@ -262,10 +306,13 @@ def _e19(rule, last_A, last_A2, last_D, last_D2, bar, band_AD, condition):
     g = list(gaps.values())
     closure = None if max(g) <= 0 else 1.0 - min(g) / max(g)
     resolution = max(min_sep, med_A * (band_AD[1] - 1.0))
+    # IMPORTANT (fix round 2) : "why" TOUJOURS présente (jamais une clé manquante), None seulement quand
+    # rien n'a besoin d'être expliqué (ROBUST : la garde passe sans rien signaler de particulier).
     out = {"lrs": lrs, "gaps_by_lr": gaps, "closure": closure, "status": "ROBUST",
-           "condition": condition, "resolution": resolution}
+           "condition": condition, "resolution": resolution, "why": None}
     if max(g) <= resolution:
-        out.update(status="GAP_BELOW_RESOLUTION")
+        out.update(status="GAP_BELOW_RESOLUTION",
+                   why=f"écart max {max(g):.4f} <= résolution {resolution:.4f} : bruit de lecture, jamais un signal")
         return out
     try:
         assert_verdict_invariant_to_optimizer(lambda lr: table[lr], lrs=lrs, reference_floor=bar, label="nécessité de la pièce")
@@ -282,10 +329,12 @@ def harness_verdict_lecture(db: dict, rule: dict) -> dict:
     bras/éval absent ; INCONCLUSIVE_N si un bras a moins de n_floor seeds ; rend toujours `branch` ∈
     BRANCHES.
 
-    Ordre (fix round 1) : acquisition -> [si non acquis] E19-acquisition -> demande PUBLIÉE mais IGNORÉE
+    Ordre (fix round 2) : acquisition -> [si non acquis] E19-acquisition -> demande PUBLIÉE mais IGNORÉE
     (IMPORTANT 3 : un marqueur de demande within-subject sur un sujet qui n'a rien acquis n'a pas de sens)
-    -> NOT_ACQUIRED ; [si acquis] demande -> nécessité -> [si nul/PARTIAL] E19-nécessité (CRITICAL 2 :
-    jamais sur NECESSARY) -> verdict final = celui de la nécessité, sauf artefact/référence effondrée."""
+    -> NOT_ACQUIRED ; [si acquis] nécessité -> E19-nécessité (TOUJOURS, y compris NECESSARY -- CRITICAL,
+    re-ruling fix round 2) -> [si artefact/référence effondrée] LR_ARTIFACT/INDETERMINE_HARNAIS (index
+    3/2, plus sévères que toute branche de demande, donc vérifiés AVANT elle) -> demande -> verdict final
+    = celui de la nécessité, sauf artefact/référence effondrée détecté par l'E19."""
     _validate_rule(rule)
     seeds = [int(s) for s in db.get("seeds", [])]
     n_floor = int(rule["n_floor"])
@@ -330,7 +379,7 @@ def harness_verdict_lecture(db: dict, rule: dict) -> dict:
         # E19 sur l'ACQUISITION : le nul tient-il au pas ? (l'intact acquiert-il au second pas du sweep ?)
         above2 = sum(1 for a, r in zip(last["A2"], last["A0"]) if a > r + min_sep)
         out["e19"] = {"lrs": [float(h["lr"]) for h in rule["sweep"]], "gaps_by_lr": None, "closure": None,
-                      "condition": "acquisition",
+                      "resolution": None, "condition": "acquisition",
                       "status": ("LR_ARTIFACT" if (_med(last["A2"]) > bar and above2 == len(kept)) else "ACQUISITION_NULL_ROBUST"),
                       "why": f"A2 (second pas) médiane {_med(last['A2']):.3f}, {above2}/{len(kept)} seeds au-dessus de la référence"}
         if out["e19"]["status"] == "LR_ARTIFACT":
@@ -341,32 +390,32 @@ def harness_verdict_lecture(db: dict, rule: dict) -> dict:
         # NOT_ACQUIRED quel que soit `worst`.
         out["demand"], _worst_ignored, _why_ignored = _demand(db, rule, kept, last["A"], band)
         return _done("NOT_ACQUIRED", out["acquisition"]["why"])
-    out["demand"], worst, demand_why = _demand(db, rule, kept, last["A"], band)
-    if worst is not None:
-        return _done(worst, demand_why)
+    # IMPORTANT (re-ruling, fix round 2) : nécessité + E19 s'exécutent AVANT la demande sur le chemin
+    # ACQUIS -- LR_ARTIFACT (index 3) et INDETERMINE_HARNAIS (index 2) sont plus sévères que toute
+    # branche de demande (index >= 5) dans l'ORDRE 2.3-b ; les calculer APRÈS la demande les laissait se
+    # faire préempter par un verdict de priorité plus faible (probe : `_db(abl_key=0.80, D=0.27,
+    # D2=0.88)` rendait NOT_DEMANDED avec `necessity`/`e19` encore à None).
     piece = rule["piece"]
     nec = _necessity(db, rule, kept, last["A"], last["D"], out["acquisition"]["reference_last"], band_AD)
     out["necessity"] = {piece: nec}
-    # CRITICAL 2 (fix round 1) : la nécessité est calculée EN PREMIER ; l'E19 ne tourne QUE sur un
-    # nul/PARTIAL (spec : « tout nul ou PARTIAL passe » E19) -- une pièce NECESSARY n'a besoin d'AUCUN
-    # test de robustesse au pas.
-    if nec["verdict"] in ("NOT_NECESSARY", "PIECE_PARTIAL", "INCONCLUSIVE"):
-        out["e19"] = _e19(rule, last["A"], last["A2"], last["D"], last["D2"], bar, band_AD, "necessity")
-        if out["e19"]["status"] == "REFERENCE_COLLAPSED":
-            return _done("INDETERMINE_HARNAIS", out["e19"]["why"])
-        if out["e19"]["status"] == "LR_ARTIFACT":
-            return _done("LR_ARTIFACT", out["e19"]["why"])
-        # ROBUST ou GAP_BELOW_RESOLUTION : le nul/PARTIAL tient au pas -> le verdict final reste celui de
-        # la nécessité elle-même, JAMAIS LR_ARTIFACT.
-    else:
-        out["e19"] = {"status": "SKIPPED_NECESSARY", "condition": "necessity",
-                      "why": "NECESSARY ne demande aucun test de robustesse au pas (spec : « tout nul ou PARTIAL passe » E19)"}
+    # CRITICAL (re-ruling, fix round 2) : l'E19 tourne après TOUTE nécessité, y compris NECESSARY -- le
+    # nul qu'elle défend est « D échoue à rejoindre A », des DEUX côtés du contraste (cf. docstring de
+    # `_e19`). Le plancher GAP_BELOW_RESOLUTION (le vrai correctif CRITICAL 2 original) neutralise déjà
+    # le bruit sous-résolution ; gater par verdict était en trop.
+    out["e19"] = _e19(rule, last["A"], last["A2"], last["D"], last["D2"], bar, band_AD, "necessity")
+    if out["e19"]["status"] == "REFERENCE_COLLAPSED":
+        return _done("INDETERMINE_HARNAIS", out["e19"]["why"])
+    if out["e19"]["status"] == "LR_ARTIFACT":
+        return _done("LR_ARTIFACT", out["e19"]["why"])
+    out["demand"], worst, demand_why = _demand(db, rule, kept, last["A"], band)
+    if worst is not None:
+        return _done(worst, demand_why)
     if nec["verdict"] == "NOT_NECESSARY":
-        return _done("PIECE_NOT_NECESSARY")
+        return _done("PIECE_NOT_NECESSARY", nec["why"])
     if nec["verdict"] == "INCONCLUSIVE":
-        return _done("PIECE_INCONCLUSIVE", "ratio A/D dans la zone grise [1,3 ; 1,5[ ou bras dégénéré (voir necessity.raw)")
+        return _done("PIECE_INCONCLUSIVE", nec["why"])
     if nec["verdict"] == "PIECE_PARTIAL":
         return _done("PIECE_PARTIAL", f"la variante sans {piece} chute ({nec['ratio']:.2f}x) mais franchit la barre d'acquisition ({nec['med_without']:.3f} > {bar:.3f})")
     if nec["verdict"] == "NECESSARY":
-        return _done("DEMANDED_ACQUIRED_NECESSARY")
+        return _done("DEMANDED_ACQUIRED_NECESSARY", nec["why"])
     return _done("AUTRE", f"nécessité inattendue : {nec['verdict']}")
