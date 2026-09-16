@@ -59,6 +59,9 @@ def read_registry(registry_dir=None):
         except (OSError, ValueError):
             out.append({"illisible": os.path.basename(f)})
             continue
+        if not isinstance(r, dict):
+            out.append({"illisible": os.path.basename(f)})
+            continue
         out.append({"pid": r.get("pid"), "session_id": r.get("sessionId"), "name": r.get("name"),
                     "cwd": r.get("cwd"), "kind": r.get("kind"),
                     "started_at": _ms(r.get("startedAt")), "updated_at": _ms(r.get("updatedAt"))})
@@ -73,9 +76,14 @@ def read_bulletins(sessions_dir=None):
     for f in sorted(glob.glob(os.path.join(d, "*.json"))):
         try:
             with open(f, encoding="utf-8") as fh:
-                out.append(json.load(fh))
+                b = json.load(fh)
         except (OSError, ValueError):
             out.append({"illisible": os.path.basename(f)})
+            continue
+        if not isinstance(b, dict):
+            out.append({"illisible": os.path.basename(f)})
+            continue
+        out.append(b)
     return out
 
 
@@ -187,17 +195,19 @@ def read_backlog_paths(repo_root):
         return None
     from tools.check_backlog_freshness import _BACKTICK_PATH, _TETE
     tete = re.compile(_TETE)
-    out, courant = {}, None
+    out, courants = {}, []
     for ligne in txt.splitlines():
         m = tete.match(ligne.strip())
         if m:
-            courant = m.group(1).split("/")[0].strip()
-            out.setdefault(courant, set())
+            courants = [p.strip() for p in m.group(1).split("/")]
+            for p in courants:
+                out.setdefault(p, set())
             continue
-        if courant is not None:
+        if courants:
             for c in _BACKTICK_PATH.findall(ligne):
                 if "/" in c:
-                    out[courant].add(c)
+                    for p in courants:
+                        out[p].add(c)
     return {k: sorted(v) for k, v in out.items()}
 
 

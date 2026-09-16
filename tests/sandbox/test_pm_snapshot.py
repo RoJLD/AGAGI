@@ -47,6 +47,20 @@ def test_registry_lit_les_champs_natifs_et_convertit_les_millisecondes(tmp_path)
     assert [r for r in reg if "illisible" in r][0]["illisible"] == "casse.json"
 
 
+def test_registry_JSON_non_dict_est_rapporte_illisible_pas_une_exception(tmp_path):
+    d = tmp_path / "sessions"
+    d.mkdir()
+    (d / "valide.json").write_text(json.dumps({"pid": 1, "sessionId": "s", "name": "n"}), encoding="utf-8")
+    (d / "liste.json").write_text(json.dumps([1, 2]), encoding="utf-8")
+    (d / "nul.json").write_text(json.dumps(None), encoding="utf-8")
+    reg = S.read_registry(str(d))
+    assert len(reg) == 3
+    illisibles = {r["illisible"] for r in reg if "illisible" in r}
+    assert illisibles == {"liste.json", "nul.json"}
+    ok = [r for r in reg if "illisible" not in r][0]
+    assert ok["name"] == "n" and ok["pid"] == 1
+
+
 def test_bulletins_ABSENTS_rend_None_et_presents_sont_lus(tmp_path):
     assert S.read_bulletins(str(tmp_path / "rien")) is None
     d = tmp_path / "sessions"
@@ -94,6 +108,25 @@ def test_backlog_paths_associe_chaque_P_item_aux_chemins_qu_il_cite(tmp_path):
     assert bp["P4.9"] == ["results/x.json", "tools/evo_runs/s2_credit_ablation.py"]
     assert bp["P2.78"] == []
     assert S.read_backlog_paths(str(tmp_path / "ailleurs")) is None
+
+
+def test_backlog_paths_en_tete_composite_attribue_a_CHAQUE_P_item(tmp_path):
+    d = tmp_path / "docs" / "roadmap"
+    d.mkdir(parents=True)
+    (d / "PRIORITES_ET_DETTES.md").write_text(
+        "**P1.x / P2.45 — titre.**\nQuoi : `tools/a.py`.\n", encoding="utf-8")
+    bp = S.read_backlog_paths(str(tmp_path))
+    assert bp["P1.x"] == ["tools/a.py"]
+    assert bp["P2.45"] == ["tools/a.py"]
+
+
+def test_processes_et_cpu_sans_psutil_rendent_None_et_snapshot_le_declare(tmp_path, repo, monkeypatch):
+    monkeypatch.setattr(S, "_psutil", lambda: None)
+    assert S.read_processes() is None
+    assert S.read_cpu_5min() is None
+    snap = S.snapshot(str(repo), registry_dir=str(tmp_path / "r"), sessions_dir=str(tmp_path / "s"),
+                      leases_dir=tmp_path / "l", now=1000.0)
+    assert snap["psutil"] is False
 
 
 def test_snapshot_porte_toutes_les_cles_et_ne_leve_pas_sans_sources(tmp_path, repo):
