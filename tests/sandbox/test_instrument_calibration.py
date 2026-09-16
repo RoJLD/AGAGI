@@ -1255,6 +1255,11 @@ CALIBRATED = {
         "guard-before-world", "oracle:hit=1.0", "dose-counted", "lr0-reference:dW=0",
         "reproducible", "variant-published"],
     "learner_verdict": ["missing:raises", "harness:indeterminate", "inert", "learns:during_run", "learns:early"],
+    # Harnais ADR-004 (2026-09-16). Cas dans tests/sandbox/test_harness_task.py.
+    "src/seed_ai/harness_task.py::assert_task_contract": [
+        "toy:passes", "no-nobite:raises", "biting-control:raises", "verifier-is-oracle:raises",
+        "aliased-ablation:raises", "chance-as-ceiling:raises", "short-provenance:raises",
+        "non-reproducible:raises", "state-without-control:raises"],
     # P2.60 (2026-09-15) -- banc factoriel 2^4 d'EDR-177 et driver d'EDR-178, portes dans HEAD par FUSION
     # 3-voies du tag keep/edr-177-178-factorial-regime-sweep (merge-tree sans conflit, gardes de HEAD
     # conservees). Deux ORCHESTRATEURS calibres PAR INJECTION a dose connue, AUCUN monde construit
