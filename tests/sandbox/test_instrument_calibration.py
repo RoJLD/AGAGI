@@ -67,6 +67,8 @@ NOT_AN_INSTRUMENT = {
                "reward_const de credit_variant : copie ou substitue les recompenses puis appelle l'original.",
     "tools/evo_runs/s2_credit_ablation_2.py::learn_episode": "wrapper de CAPTURE imbrique (_learning_trace_2) et "
                "seams episode_enabled / reward_const de credit_variant : rend None ou substitue puis appelle l'original.",
+    # Harnais ADR-004, tache 2 (2026-09-16).
+    "src/seed_ai/harness_learner.py::learn": "stub de PROTOCOL (LearnerInstance.learn, corps `...`) : declare la signature du contrat, n'apprend rien, ne rend rien ; les implementations (tools/harness/learners/*.py::learn) sont declarees CALIBRATED.",
 }
 
 CALIBRATED = {
@@ -1265,6 +1267,15 @@ CALIBRATED = {
         "aliased-ablation:raises", "chance-as-ceiling:raises", "short-provenance:raises",
         "non-reproducible:raises", "state-without-control:raises",
         "t2-mask-seq:content-diff-control:passes", "t2-mask-seq:mask-only-control:not-bit-identical"],
+    # Cas dans tests/sandbox/test_harness_learner.py.
+    "src/seed_ai/harness_learner.py::assert_learner_contract": [
+        "counter:passes-L0-L7", "L0:max_K", "L2:REFERENCE_LEARNS", "L3:DEAD_LEARNER", "L4:VACUOUS_PIECE",
+        "L4:pieces-scoped", "L5:aliasing", "L7:single-sweep"],
+    # `run_episode` (motif `run\w*`) : instrument PARTAGE par la garde et le futur runner -- il tourne
+    # une politique sur un episode et rend (actions, hits) via task.score (le VERIFIEUR, jamais l'oracle,
+    # E1). Cas dans tests/sandbox/test_harness_learner.py::test_run_episode_scores_with_the_task_verifier
+    # -- forme des sorties ET hits bornes dans task.score({0.0, 1.0}).
+    "src/seed_ai/harness_learner.py::run_episode": ["counter:actions-hits-shape", "counter:hits-via-task-score"],
     # P2.60 (2026-09-15) -- banc factoriel 2^4 d'EDR-177 et driver d'EDR-178, portes dans HEAD par FUSION
     # 3-voies du tag keep/edr-177-178-factorial-regime-sweep (merge-tree sans conflit, gardes de HEAD
     # conservees). Deux ORCHESTRATEURS calibres PAR INJECTION a dose connue, AUCUN monde construit
