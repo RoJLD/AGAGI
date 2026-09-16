@@ -1281,6 +1281,17 @@ CALIBRATED = {
     "src/seed_ai/harness_learner.py::run_episode": [
         "counter:hits-via-task-score",           # test_run_episode_scores_with_the_task_verifier
         "ablate:applied-at-last-step"],           # test_run_episode_applies_ablate_only_before_the_last_step
+    # Tache 4 (2026-09-16) -- `_TabularInstance.learn` (verite-terrain, table de comptes indexee par
+    # la cle de l'observation cumulee). `learn` est en COLLISION (`src/agents/backend.py::learn` entre
+    # autres) : declaration QUALIFIEE obligatoire. Un libelle par fonction de test REELLE de
+    # `tests/sandbox/test_harness_tabular.py` (meme discipline que `run_episode` ci-dessus, apres la
+    # revue fix-round-1 qui a corrige la sur-affirmation de couverture) : les 4 fonctions du fichier
+    # appellent toutes `learn`, directement (`_train`) ou via `assert_learner_contract` (L2/L3/L4).
+    "tools/harness/learners/tabular.py::learn": [
+        "contract:passes-both-regimes",          # test_honest_tabular_passes_the_contract_on_both_regimes
+        "decoy:refused-after-learn",              # test_decoy_piece_is_refused_by_L4_not_judged_dispensable
+        "table:learns-reference-chance",          # test_table_learns_composition_and_reference_stays_at_chance
+        "without-table:chance-state-reset:chance"],  # test_without_table_falls_to_chance_and_state_reset_kills_two_step
     # P2.60 (2026-09-15) -- banc factoriel 2^4 d'EDR-177 et driver d'EDR-178, portes dans HEAD par FUSION
     # 3-voies du tag keep/edr-177-178-factorial-regime-sweep (merge-tree sans conflit, gardes de HEAD
     # conservees). Deux ORCHESTRATEURS calibres PAR INJECTION a dose connue, AUCUN monde construit
