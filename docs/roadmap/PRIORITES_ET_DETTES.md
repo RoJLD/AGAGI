@@ -2837,13 +2837,14 @@ famille se forme ENTRE les appels, pas dans une boucle. Un tel cliquet aurait é
   ne déclaraient AUCUN design**, donc n'étaient jamais interrogés — dont `tools/lang_memory_edge_run.py`,
   qui a produit la 3ᵉ arête établie du graphe. 20 cas de calibration.
 
-**P2.40 — ⚠️ OUVERTE — dette légataire de la porte 11 : 9 runners scellés ne déclarent aucun design.**
-`tools/control_family_baseline.json` : `evo022`, `evo023`, `evo024`, `evo026`, `evo026bis`, `evo027`,
-`evo028`, `lang_memory_edge_run`, `s2_floor_pronostic_run`. Aucun n'a été interrogé sur sa famille de
-contrôles ; **leurs verdicts sont publiés**. Coût de résorption : une ligne par runner, plus la
-question qu'elle force à se poser. Commencer par `lang_memory_edge_run.py` (3ᵉ arête établie) et
-`evo027_run.py` (le plus récent). Un test de fraîcheur vérifie déjà que cette dette reste RÉELLE :
-`test_la_dette_legataire_est_REELLE_et_pas_un_commentaire`.
+**P2.40 — ✅ CLOSE le 2026-09-08 (commit `5969d08b`, « la dette légataire d'E23 résorbée dans la foulée, 9 runners, baseline à ZÉRO ») — entrée laissée OUVERTE par oubli, péremption vue EN PASSANT le 2026-09-16 (session loop 766eabae).**
+Énoncé d'origine : dette légataire de la porte 11, 9 runners scellés sans `declare_design` (`evo022`, `evo023`, `evo024`,
+`evo026`, `evo026bis`, `evo027`, `evo028`, `lang_memory_edge_run`, `s2_floor_pronostic_run`), verdicts publiés. Preuve de
+la fermeture, recomputée : `tools/control_family_baseline.json` porte `"runners_nus": []`, et la porte 11 rend
+« runners scellés : 24 | sans design : 0 (dont 0 NOUVEAUX) | légataires gelés : 0 ». ⚠️ Le test de fraîcheur `test_la_dette_legataire_est_REELLE_et_pas_un_commentaire`
+passe désormais À VIDE (aucun gelé → aucun disparu) : il ne garde plus rien, ce qui est le sort normal d'un test de
+péremption dont la dette a disparu — pas une E4, car il ne PORTE aucun verdict.
+<!-- closes_when:grep_absent=tools/control_family_baseline.json::evo027 -->
 
 **P2.39 — ✅ CLOSE (2026-09-07) — EVO-011 est FERMÉE, sans run évolutif.**
 [`EDR-EVO-011`](../EDR/EVO-011_Reading_The_Type_Costs_Survival_The_Enabled_Act_Is_Net_Negative.md) :
