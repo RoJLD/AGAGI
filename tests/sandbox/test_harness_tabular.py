@@ -31,6 +31,20 @@ def _accuracy(inst, task, rng, batches=40, n=16, ablate=None):
     return float(np.mean(np.concatenate(hits)))
 
 
+def _accuracy_input_ablated(inst, task, rng, ablation, batches=40, n=16):
+    """Comme `_accuracy`, mais applique une ablation D'ENTRÉE (site="input", ex. `inject_distractor_slot`,
+    `permute_key`) à chaque lot AVANT run_episode -- distincte de `ablate=` de `_accuracy`, qui vise
+    `inst.ablate_state` (site="state"). `rng` tire les épisodes en CONTINUATION (jamais réinitialisé
+    entre appels) ; l'ablation elle-même consomme un flux SÉPARÉ (`RandomState(31)`, dédié)."""
+    abl_rng = np.random.RandomState(31)
+    hits = []
+    for _ in range(batches):
+        ep = task.episodes(rng, n)
+        ep_a = ablation.apply(ep, abl_rng)
+        hits.append(run_episode(inst, ep_a, task)[1])
+    return float(np.mean(np.concatenate(hits)))
+
+
 def test_honest_tabular_passes_the_contract_on_both_regimes():
     for same_tick in (True, False):
         assert_learner_contract(TabularLearner(honest=True), CompositionTask(K=6, same_tick=same_tick), seed=0)
@@ -67,3 +81,26 @@ def test_without_table_falls_to_chance_and_state_reset_kills_two_step():
     off = lrn.build(0, 16, task.obs_dim, task.K, {"lr": 1.0}, without={"table": True})
     rng_o = _train(off, task, 0, 600)
     assert abs(_accuracy(off, task, rng_o) - 1 / 6) < 0.1
+
+
+def test_specificity_control_spares_the_reader_but_permute_key_bites():
+    """Revue (fix round 1) : `_keys` hachait TOUTE la ligne d'observation -- sous `inject_distractor_slot`
+    (contrôle de spécificité must_bite=False, l'oracle reste à 1.0), le bit du slot distracteur, jamais
+    actif à l'entraînement, faisait diverger la clé vers une entrée jamais peuplée : chute à la chance,
+    un artefact de HACHAGE plein-ligne, pas une lecture du canal decoy -- le runner aurait lu X_DECOY
+    comme INCONCLUSIVE_SPECIFICITY sur le learner de vérité-terrain lui-même. Après le fix (`seen_cols`
+    filtre `act` aux colonnes VUES à l'entraînement), le contrôle ne mord plus ; `permute_key`
+    (must_bite=True, change une colonne DÉJÀ vue) continue de mordre."""
+    task = CompositionTask(K=6, same_tick=True)
+    lrn = TabularLearner(honest=True)
+    inst = lrn.build(0, 16, task.obs_dim, task.K, {"lr": 1.0})
+    rng = _train(inst, task, 0, 300)
+    acc_intact = _accuracy(inst, task, rng)
+    inject = next(a for a in task.demand.ablations if a.name == "inject_distractor_slot")
+    permute = next(a for a in task.demand.ablations if a.name == "permute_key")
+    assert inject.must_bite is False and permute.must_bite is True
+    acc_decoy = _accuracy_input_ablated(inst, task, rng, inject)
+    acc_bite = _accuracy_input_ablated(inst, task, rng, permute)
+    assert acc_intact > 0.95
+    assert acc_decoy > 0.95, f"le controle de specificite MORD ({acc_decoy:.3f}) : artefact de hachage"
+    assert acc_bite < 0.30, f"l'ablation must_bite ne mord plus ({acc_bite:.3f})"
