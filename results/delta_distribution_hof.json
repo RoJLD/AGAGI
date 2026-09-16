@@ -1,0 +1,365 @@
+{
+ "_regime": {
+  "variantes_presentes": [
+   "hall_of_fame.pkl",
+   "hall_of_fame_famine.pkl",
+   "hall_of_fame_famine_s43.pkl"
+  ],
+  "bornes": {
+   "gele": 0.01,
+   "instantane": 0.99
+  },
+  "clip": 10.0,
+  "formule": "delta_j = sigmoid(clip(W_jj, -10, 10))"
+ },
+ "genomes": {
+  "hall_of_fame.pkl#0": {
+   "n": 172,
+   "n_non_fini": 0,
+   "min": 0.3295850951308662,
+   "mediane": 0.5,
+   "max": 0.6559650288475171,
+   "part_gele": 0.0,
+   "part_instantane": 0.0,
+   "part_diag_nulle": 0.936046511627907,
+   "score": 3003.8
+  },
+  "hall_of_fame.pkl#1": {
+   "n": 172,
+   "n_non_fini": 0,
+   "min": 0.3986033176497686,
+   "mediane": 0.5,
+   "max": 0.8115495088716579,
+   "part_gele": 0.0,
+   "part_instantane": 0.0,
+   "part_diag_nulle": 0.936046511627907,
+   "score": 2402.7
+  },
+  "hall_of_fame.pkl#2": {
+   "n": 172,
+   "n_non_fini": 0,
+   "min": 0.0363857928320952,
+   "mediane": 0.5,
+   "max": 0.5,
+   "part_gele": 0.0,
+   "part_instantane": 0.0,
+   "part_diag_nulle": 0.936046511627907,
+   "score": 2103.4
+  },
+  "hall_of_fame.pkl#3": {
+   "n": 172,
+   "n_non_fini": 0,
+   "min": 0.01928695602481272,
+   "mediane": 0.5,
+   "max": 0.6021207863565076,
+   "part_gele": 0.0,
+   "part_instantane": 0.0,
+   "part_diag_nulle": 0.936046511627907,
+   "score": 1953.0
+  },
+  "hall_of_fame.pkl#4": {
+   "n": 172,
+   "n_non_fini": 0,
+   "min": 0.19142515539756177,
+   "mediane": 0.5,
+   "max": 0.9933066703826046,
+   "part_gele": 0.0,
+   "part_instantane": 0.005813953488372093,
+   "part_diag_nulle": 0.936046511627907,
+   "score": 1855.1
+  },
+  "hall_of_fame.pkl#5": {
+   "n": 172,
+   "n_non_fini": 0,
+   "min": 0.0066928509242848554,
+   "mediane": 0.5,
+   "max": 0.9933071490757153,
+   "part_gele": 0.01744186046511628,
+   "part_instantane": 0.005813953488372093,
+   "part_diag_nulle": 0.936046511627907,
+   "score": 1854.9
+  },
+  "hall_of_fame.pkl#6": {
+   "n": 172,
+   "n_non_fini": 0,
+   "min": 0.33425423642715096,
+   "mediane": 0.5,
+   "max": 0.5722510010829682,
+   "part_gele": 0.0,
+   "part_instantane": 0.0,
+   "part_diag_nulle": 0.936046511627907,
+   "score": 1853.0
+  },
+  "hall_of_fame.pkl#7": {
+   "n": 172,
+   "n_non_fini": 0,
+   "min": 0.027733472142082858,
+   "mediane": 0.5,
+   "max": 0.5,
+   "part_gele": 0.0,
+   "part_instantane": 0.0,
+   "part_diag_nulle": 0.936046511627907,
+   "score": 1755.5
+  },
+  "hall_of_fame.pkl#8": {
+   "n": 172,
+   "n_non_fini": 0,
+   "min": 0.0066928509242848554,
+   "mediane": 0.5,
+   "max": 0.9933071490757153,
+   "part_gele": 0.011627906976744186,
+   "part_instantane": 0.005813953488372093,
+   "part_diag_nulle": 0.936046511627907,
+   "score": 1709.0
+  },
+  "hall_of_fame.pkl#9": {
+   "n": 172,
+   "n_non_fini": 0,
+   "min": 0.0066928509242848554,
+   "mediane": 0.5,
+   "max": 0.8817399863878098,
+   "part_gele": 0.005813953488372093,
+   "part_instantane": 0.0,
+   "part_diag_nulle": 0.936046511627907,
+   "score": 1655.8
+  },
+  "hall_of_fame_famine.pkl#0": {
+   "n": 172,
+   "n_non_fini": 0,
+   "min": 0.09600564332184772,
+   "mediane": 0.5,
+   "max": 0.5,
+   "part_gele": 0.0,
+   "part_instantane": 0.0,
+   "part_diag_nulle": 0.936046511627907,
+   "score": 1332.075
+  },
+  "hall_of_fame_famine.pkl#1": {
+   "n": 172,
+   "n_non_fini": 0,
+   "min": 0.10346358814246148,
+   "mediane": 0.5,
+   "max": 0.5,
+   "part_gele": 0.0,
+   "part_instantane": 0.0,
+   "part_diag_nulle": 0.936046511627907,
+   "score": 1154.975
+  },
+  "hall_of_fame_famine.pkl#2": {
+   "n": 172,
+   "n_non_fini": 0,
+   "min": 0.00747346828413898,
+   "mediane": 0.5,
+   "max": 0.5,
+   "part_gele": 0.005813953488372093,
+   "part_instantane": 0.0,
+   "part_diag_nulle": 0.936046511627907,
+   "score": 1092.0
+  },
+  "hall_of_fame_famine.pkl#3": {
+   "n": 172,
+   "n_non_fini": 0,
+   "min": 0.006769343769182481,
+   "mediane": 0.5,
+   "max": 0.5,
+   "part_gele": 0.005813953488372093,
+   "part_instantane": 0.0,
+   "part_diag_nulle": 0.936046511627907,
+   "score": 1067.9
+  },
+  "hall_of_fame_famine.pkl#4": {
+   "n": 172,
+   "n_non_fini": 0,
+   "min": 0.02314099027586499,
+   "mediane": 0.5,
+   "max": 0.5,
+   "part_gele": 0.0,
+   "part_instantane": 0.0,
+   "part_diag_nulle": 0.936046511627907,
+   "score": 1029.625
+  },
+  "hall_of_fame_famine.pkl#5": {
+   "n": 172,
+   "n_non_fini": 0,
+   "min": 0.10363918369584328,
+   "mediane": 0.5,
+   "max": 0.5,
+   "part_gele": 0.0,
+   "part_instantane": 0.0,
+   "part_diag_nulle": 0.936046511627907,
+   "score": 1004.95
+  },
+  "hall_of_fame_famine.pkl#6": {
+   "n": 172,
+   "n_non_fini": 0,
+   "min": 0.023804870376674815,
+   "mediane": 0.5,
+   "max": 0.5,
+   "part_gele": 0.0,
+   "part_instantane": 0.0,
+   "part_diag_nulle": 0.936046511627907,
+   "score": 1003.95
+  },
+  "hall_of_fame_famine.pkl#7": {
+   "n": 172,
+   "n_non_fini": 0,
+   "min": 0.036124108830057684,
+   "mediane": 0.5,
+   "max": 0.5,
+   "part_gele": 0.0,
+   "part_instantane": 0.0,
+   "part_diag_nulle": 0.936046511627907,
+   "score": 980.575
+  },
+  "hall_of_fame_famine.pkl#8": {
+   "n": 172,
+   "n_non_fini": 0,
+   "min": 0.09754224187892103,
+   "mediane": 0.5,
+   "max": 0.5,
+   "part_gele": 0.0,
+   "part_instantane": 0.0,
+   "part_diag_nulle": 0.936046511627907,
+   "score": 980.2749999999999
+  },
+  "hall_of_fame_famine.pkl#9": {
+   "n": 172,
+   "n_non_fini": 0,
+   "min": 0.008480590877871542,
+   "mediane": 0.5,
+   "max": 0.5788604926368445,
+   "part_gele": 0.005813953488372093,
+   "part_instantane": 0.0,
+   "part_diag_nulle": 0.936046511627907,
+   "score": 979.775
+  },
+  "hall_of_fame_famine_s43.pkl#0": {
+   "n": 172,
+   "n_non_fini": 0,
+   "min": 0.007196880904250824,
+   "mediane": 0.5,
+   "max": 0.5026913779688363,
+   "part_gele": 0.005813953488372093,
+   "part_instantane": 0.0,
+   "part_diag_nulle": 0.936046511627907,
+   "score": 1167.6
+  },
+  "hall_of_fame_famine_s43.pkl#1": {
+   "n": 172,
+   "n_non_fini": 0,
+   "min": 0.006772720548718081,
+   "mediane": 0.5,
+   "max": 0.5071090544288848,
+   "part_gele": 0.005813953488372093,
+   "part_instantane": 0.0,
+   "part_diag_nulle": 0.936046511627907,
+   "score": 1104.9
+  },
+  "hall_of_fame_famine_s43.pkl#2": {
+   "n": 172,
+   "n_non_fini": 0,
+   "min": 0.11603154319918982,
+   "mediane": 0.5,
+   "max": 0.5,
+   "part_gele": 0.0,
+   "part_instantane": 0.0,
+   "part_diag_nulle": 0.936046511627907,
+   "score": 1042.8
+  },
+  "hall_of_fame_famine_s43.pkl#3": {
+   "n": 172,
+   "n_non_fini": 0,
+   "min": 0.12732736113241383,
+   "mediane": 0.5,
+   "max": 0.5,
+   "part_gele": 0.0,
+   "part_instantane": 0.0,
+   "part_diag_nulle": 0.936046511627907,
+   "score": 1042.0249999999999
+  },
+  "hall_of_fame_famine_s43.pkl#4": {
+   "n": 172,
+   "n_non_fini": 0,
+   "min": 0.006847567362807692,
+   "mediane": 0.5,
+   "max": 0.5106105388346235,
+   "part_gele": 0.011627906976744186,
+   "part_instantane": 0.0,
+   "part_diag_nulle": 0.936046511627907,
+   "score": 979.0249999999999
+  },
+  "hall_of_fame_famine_s43.pkl#5": {
+   "n": 172,
+   "n_non_fini": 0,
+   "min": 0.007297712027397607,
+   "mediane": 0.5,
+   "max": 0.5216237700152655,
+   "part_gele": 0.011627906976744186,
+   "part_instantane": 0.0,
+   "part_diag_nulle": 0.936046511627907,
+   "score": 954.125
+  },
+  "hall_of_fame_famine_s43.pkl#6": {
+   "n": 172,
+   "n_non_fini": 0,
+   "min": 0.0066928509242848554,
+   "mediane": 0.5,
+   "max": 0.5028830565894971,
+   "part_gele": 0.011627906976744186,
+   "part_instantane": 0.0,
+   "part_diag_nulle": 0.936046511627907,
+   "score": 942.625
+  },
+  "hall_of_fame_famine_s43.pkl#7": {
+   "n": 172,
+   "n_non_fini": 0,
+   "min": 0.019978582917417415,
+   "mediane": 0.5,
+   "max": 0.5128671395539169,
+   "part_gele": 0.0,
+   "part_instantane": 0.0,
+   "part_diag_nulle": 0.936046511627907,
+   "score": 942.4
+  },
+  "hall_of_fame_famine_s43.pkl#8": {
+   "n": 172,
+   "n_non_fini": 0,
+   "min": 0.0066928509242848554,
+   "mediane": 0.5,
+   "max": 0.8455054372283874,
+   "part_gele": 0.011627906976744186,
+   "part_instantane": 0.0,
+   "part_diag_nulle": 0.936046511627907,
+   "score": 941.625
+  },
+  "hall_of_fame_famine_s43.pkl#9": {
+   "n": 172,
+   "n_non_fini": 0,
+   "min": 0.0069380204089647774,
+   "mediane": 0.5,
+   "max": 0.5091192127030769,
+   "part_gele": 0.011627906976744186,
+   "part_instantane": 0.0,
+   "part_diag_nulle": 0.936046511627907,
+   "score": 929.6
+  }
+ },
+ "illisibles": [],
+ "_agrege": {
+  "n_genomes": 30,
+  "n_sans_stat": 0,
+  "n_non_fini_total": 0,
+  "min_mediane_des_genomes": 0.021559786596641203,
+  "mediane_mediane_des_genomes": 0.5,
+  "max_mediane_des_genomes": 0.5049960555091909,
+  "part_gele_mediane_des_genomes": 0.0,
+  "part_instantane_mediane_des_genomes": 0.0,
+  "part_diag_nulle_mediane_des_genomes": 0.936046511627907
+ },
+ "_provenance": [
+  {
+   "git_sha": "3e2a9f830810d14f56cf2fe7a7132d3b6c16172b",
+   "dirty": true
+  }
+ ]
+}

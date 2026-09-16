@@ -6,6 +6,36 @@ def count_active_nodes(H, eps):
     """Nb de nœuds dont l'activation dépasse eps, par ligne du batch. H (B,N) -> (B,) int.
     Le padding du batch (zéros) est < eps donc non compté. NAS Axe D-1."""
     return np.sum(np.abs(H) > eps, axis=1).astype(int)
+
+
+DELTA_GELE, DELTA_INSTANTANE = 0.01, 0.99      # P4.13 : bornes de lecture de δ (publiées, pas un verdict)
+
+
+def delta_distribution(genome_or_W):
+    """P4.13 (a) (ADR-005 item 3, 2026-09-16) — la « constante de temps » de chaque nœud, δ_j = σ(clip(W_jj, ±10)),
+    EXACTEMENT comme `MambaBatchModel.forward` (diagonale de W, clip ±10, sigmoïde) et `TorchPopulationModel._step`
+    la calculent. Publie sa distribution sur un génome : `n`, `min`, `mediane`, `max`, `part_gele` (δ < 0,01 : le
+    nœud ne bouge presque plus), `part_instantane` (δ > 0,99 : aucune mémoire), `part_diag_nulle` (W_jj == 0
+    EXACTEMENT, donc δ = 0,5 : la diagonale n'a jamais été écrite — ni par mutation ni par crédit), `n_non_fini`
+    (W_jj nan/inf, EXCLUS des statistiques et COMPTÉS — jamais avalés). Aucune diagonale finie -> statistiques None, pas 0.
+    Prend un `Genome` (attribut `W`) ou une matrice carrée. Lecture seule : 0 simulation."""
+    W = getattr(genome_or_W, "W", genome_or_W)
+    W = np.asarray(W, dtype=np.float64)
+    if W.ndim != 2 or W.shape[0] != W.shape[1]:
+        raise ValueError(f"W doit être carrée (N,N) : reçu {W.shape}")
+    diag = np.diagonal(W)
+    fini = np.isfinite(diag)
+    delta = 1.0 / (1.0 + np.exp(-np.clip(diag[fini], -10.0, 10.0)))
+    out = {"n": int(diag.size), "n_non_fini": int((~fini).sum())}
+    if delta.size == 0:
+        out.update({"min": None, "mediane": None, "max": None, "part_gele": None, "part_instantane": None,
+                    "part_diag_nulle": None})
+        return out
+    out.update({"min": float(delta.min()), "mediane": float(np.median(delta)), "max": float(delta.max()),
+                "part_gele": float(np.mean(delta < DELTA_GELE)),
+                "part_instantane": float(np.mean(delta > DELTA_INSTANTANE)),
+                "part_diag_nulle": float(np.mean(diag[fini] == 0.0))})
+    return out
 from src.seed_ai.mutation import Genome, apply_mutations, MutationConfig
 from src.seed_ai.rl_evolution import recurrent_forward
 from src.metaprog.ntm_compiler import NTMProgramCompiler

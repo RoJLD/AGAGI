@@ -700,7 +700,7 @@ deux rétractations du plain déjà payées — P2.77). Le contrôle qui manque 
 Fait : `TorchPopulationModel.BILINEAR_SHAM` (défaut False = bit-identique ; ON = `((H·U)+(H·V))·W_bl`, MÊMES tenseurs U/V/W_bl, même init, même optimiseur — pas un `W_sh` séparé : le compte est égal PAR CONSTRUCTION), couture `bilinear_sham` dans `_train_eval_one`, 3 cas de calibration (no-op exact OFF, compte ÉGAL et sortie différente ON, drapeau restauré). Règle scellée `BILINEAR-SHAM-R1` AVANT toute cellule, le smoke seed 0 (sham 0,309) DÉCLARÉ dans la règle et EXCLU (seeds 1-12) ; runner `tools/bilinear_sham_run.py` (design déclaré, famille 72 cellules = 3 bras × 2 pas × 12 seeds, tampon de provenance), `results/bilinear_sham_r1.json`, 209 s. Compte de paramètres par agent ASSERTÉ puis publié dans `_regime` : plain 29,584, bilinéaire 37,840, sham 37,840. Bit-identité des bras plain/bilinéaire seeds 1-11 contre le JSON d'EDR-BILINEAR : **22/22**. Lecture scellée : **`SHAM_PARTIEL`** — à lr 0,02 : plain **0,270**, sham **0,315**, bilinéaire **0,934** ; à lr 0,002 (E19) : 0,180 / 0,189 / 0,413 ; sham ≤ plain + 0,05 sur 8/12 seeds (la branche `SHAM_INERTE` exigeait 11/12). La règle impose de RAPPORTER sans inférer : c'est fait. Faits POST-HOC, hors verdict, publiés pour qu'on puisse les chiffrer : sham ≥ barre 0,5 sur **0/24** cellules ; sham sous le plafond affine 0,3889 du plain sur **12/12** à 0,02 (la somme `H·(U+V)·W_bl` reste AFFINE en H — le sham est un terme linéaire de rang 16 ajouté à W) ; sham > plain sur 12/12 à 0,02 (+0,045 : de la capacité LINÉAIRE, pas de la composition) ; bilinéaire > sham + 0,05 sur 12/12 et 12/12. Le critère scellé « sham ≤ plain + 0,05 par seed » était un mauvais mètre pour « ne compose pas » ; le bon (distance à la barre) est vu APRÈS coup — une `BILINEAR-SHAM-R2` qui le scellerait doit le déclarer (E11), décision laissée à robla. Pour le registre de pièces (agagi-c9) : `matched_sham = {"bilinear_sham": True}` est désormais DÉCLARABLE (le contrôle existe et est mesuré) ; la nécessité de la multiplication n'est pas ÉTABLIE par la lecture scellée. Bandeau en tête d'EDR-BILINEAR.
 <!-- closes_when:grep_present=src/agents/backend_torch.py::BILINEAR_SHAM -->
 
-**P4.13 — rang 8 — OUVERTE (ADR-005, item 3) — « Hormone » = δ_j = σ(W_jj), le seul levier de constante de temps à
+**P4.13 — rang 8 — OUVERTE (partie (a) mesurée le 2026-09-16, session loop 766eabae ; reste (b)) (ADR-005, item 3) — « Hormone » = δ_j = σ(W_jj), le seul levier de constante de temps à
 une ligne : PUBLIER sa distribution sur le HoF (0 run), puis un facteur par agent sous garde E19.**
 Quoi : (a) 0 run — `mamba_agent.delta_distribution(genome)` + un runner qui l'applique à chaque génome du HoF principal et des HoF famine (JSON sous `results/`, nom fixé par le runner) :
 la distribution de δ_j = σ(clip(W_jj, ±10)) (min / médiane / max / part de nœuds à δ < 0,01 et > 0,99) — trois
@@ -710,7 +710,19 @@ absent de torch), flag OFF bit-identique, publié dans `regime`, jugé par `asse
 DEUX réglages du gate. Lire d'abord EDR-194 (LR_CLOSES, lr∝1/EMA(loss) sur le tronc) et COG-001 (LR_INSUFFICIENT sur
 les readouts) : « le LIEU de la modulation décide ». ⚠️ La diagonale a DEUX écrivains (TD `mamba_agent.py:923-924`
 n'exclut pas la diagonale ; mutation) — un facteur posé sur δ doit dire lequel il module.
-<!-- closes_when:grep_present=src/agents/mamba_agent.py::def delta_distribution -->
+Fait (a), 0 run : `mamba_agent.delta_distribution(genome)` (même formule que `MambaBatchModel.forward` et `_step` :
+σ(clip(W_jj, ±10)) ; nan COMPTÉ et exclu ; aucune diagonale finie → None), runner `tools/delta_distribution_hof.py`
+→ `results/delta_distribution_hof.json` (tampon de provenance), 7 cas de calibration (`tests/sandbox/test_delta_distribution.py`).
+Mesuré sur les **30** génomes des trois HoF présents (principal, famine, famine_s43 ; 0 illisible, 0 non fini) :
+**la diagonale est EXACTEMENT nulle sur 0,936 des nœuds de CHAQUE génome** (161/172, la même fraction sur les 30 —
+deux jeux d'indices quasi identiques : nœuds 46-53, 70, 71, 74 ; 30 jeux de valeurs), donc **δ = 0,5 (médiane des médianes 0,500)
+est GELÉ sur 161 nœuds** ; sur les 11 restants δ va de 0,007 à 0,993 ; part gelée (δ < 0,01) ≤ 0,017, part
+instantanée (δ > 0,99) ≤ 0,006. Un agent FRAIS a 172/172 diagonales non nulles : la sparsification a mis la diagonale à
+zéro, et `mutate_weights` ne touche que les poids NON NULS (EVO-009) — **l'évolution n'a AUCUN écrivain sur δ** ; seul le crédit
+TD (`mamba_agent.py:923-924`) peut l'écrire, et il n'a jamais tourné sur ces champions. Conséquence pour (b) : un facteur par agent
+sur δ multiplierait une CONSTANTE 0,5 sur 161/172 nœuds — c'est un bouton GLOBAL de constante de temps, pas une modulation
+par nœud ; le design de (b) doit le dire et se mesurer contre ce plancher (sinon E8). Clause déplacée sur (b).
+<!-- closes_when:grep_present=src/agents/backend_torch.py::DELTA_MODULATION -->
 
 **P4.14 — rang 9 — ✅ CLOSE le 2026-09-16 (session loop 766eabae) — « Glia » réduit à une PUBLICATION : `compute_spent` / `brain_cost`
 comme prix à côté de toute dose d'apprentissage.**
