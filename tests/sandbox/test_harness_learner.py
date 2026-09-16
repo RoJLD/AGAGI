@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 from src.seed_ai.harness_learner import Dose, Piece, assert_learner_contract, run_episode  # noqa: E402
 from src.seed_ai.harness_task import Ablation, DemandDeclaration, Episode  # noqa: E402
 from tools.experiment_preflight import PreflightError  # noqa: E402
-from tests.sandbox.test_harness_task import ToyParity  # noqa: E402
+from tests.sandbox.test_harness_task import ToyParity, ToyParityT2  # noqa: E402
 
 
 class _CounterInstance:
@@ -131,6 +131,83 @@ def test_run_episode_scores_with_the_task_verifier():
     ep = task.episodes(np.random.RandomState(0), 8)
     actions, hits = run_episode(inst, ep, task)
     assert actions.shape == (8,) and hits.shape == (8,) and set(np.unique(hits)) <= {0.0, 1.0}
+
+
+class _StatefulInstance:
+    """Learner jouet à ÉTAT RÉCURRENT (T=2) : `act` ADDITIONNE obs_t à l'état porté puis rend
+    `état @ W` comme logits ; `ablate_state("state_reset")` le REMET À None. Sert à distinguer, dans
+    `run_episode`, le pas où l'ablation d'ÉTAT est appliquée — revue fix-round-1 (2026-09-16) :
+    `run_episode` compare S1 ; le nouveau case le compare (finding : la branche
+    `if ablate is not None and t == last: ...` de run_episode n'avait AUCUN cas)."""
+    def __init__(self, K, obs_dim):
+        self.K, self.obs_dim = K, obs_dim
+        # colonne 0 lit UNIQUEMENT l'indice 0 (poids fort), colonne 1 lit UNIQUEMENT l'indice 3
+        # (poids plus faible) : la classe gagnante DEPEND de QUEL indice est porté par l'état au
+        # moment du dernier pas -- pas seulement de sa norme.
+        self.W = np.array([[10.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 5.0]], dtype=np.float64)
+        self.act_calls = 0
+        self.ablate_log = []   # [(act_calls avant cet appel, snapshot de l'état recu)]
+
+    def init_state(self):
+        return None
+
+    def act(self, obs_t, state):
+        carried = np.zeros_like(obs_t, dtype=np.float64) if state is None else state
+        new_state = carried + obs_t.astype(np.float64)
+        self.act_calls += 1
+        logits = new_state @ self.W
+        return np.array(logits, dtype=np.float32, copy=True), new_state
+
+    def ablate_state(self, state, name):
+        self.ablate_log.append((self.act_calls, None if state is None else np.array(state, copy=True)))
+        return None if name == "state_reset" else state
+
+    def learn(self, ep, actions, hits):
+        return Dose()
+
+    def state_dict(self):
+        return {}
+
+    def dose(self):
+        return Dose()
+
+    def close(self):
+        pass
+
+
+def test_run_episode_applies_ablate_only_before_the_last_step():
+    # Episode T=2 CONSTRUIT A LA MAIN (deterministe, pas de RNG) : obs0 porte UNIQUEMENT l'indice 0,
+    # obs1 UNIQUEMENT l'indice 3. `_StatefulInstance` accumule l'etat au fil des pas. Intact : l'etat
+    # au pas de reponse porte obs0+obs1 -> logits [10, 5] -> classe 0 pour tout le lot. Ablate
+    # "state_reset" AVANT le dernier pas remet l'etat a None -> le pas de reponse ne voit QUE obs1 ->
+    # logits [0, 5] -> classe 1 pour tout le lot : les deux bras DIVERGENT completement, sans aleatoire.
+    task = ToyParityT2()
+    n = 4
+    obs0 = np.zeros((n, task.obs_dim), dtype=np.float32)
+    obs0[:, 0] = 1.0
+    obs1 = np.zeros((n, task.obs_dim), dtype=np.float32)
+    obs1[:, 3] = 1.0
+    mask0 = np.zeros(n, dtype=np.float32)
+    mask1 = np.ones(n, dtype=np.float32)
+    target = np.zeros(n, dtype=np.int64)
+    ep = Episode((obs0, obs1), target, (mask0, mask1), {})
+
+    inst_intact = _StatefulInstance(task.K, task.obs_dim)
+    actions_intact, _ = run_episode(inst_intact, ep, task)
+    assert np.array_equal(actions_intact, np.zeros(n, dtype=np.int64))
+    assert inst_intact.ablate_log == []                       # jamais appelé sans `ablate=`
+
+    inst_ablated = _StatefulInstance(task.K, task.obs_dim)
+    actions_ablated, _ = run_episode(inst_ablated, ep, task, ablate="state_reset")
+    assert np.array_equal(actions_ablated, np.ones(n, dtype=np.int64))
+    assert not np.array_equal(actions_intact, actions_ablated)
+
+    # Appliqué UNE SEULE fois, et juste AVANT le DERNIER pas de réponse : au moment de l'appel,
+    # exactement 1 `act()` a déjà eu lieu (le pas 0), et l'état reçu ne porte QUE obs0 (pas encore obs1).
+    assert len(inst_ablated.ablate_log) == 1
+    act_calls_before, state_seen = inst_ablated.ablate_log[0]
+    assert act_calls_before == 1
+    assert np.array_equal(state_seen, obs0.astype(np.float64))
 
 
 def test_L4_pieces_kwarg_scopes_which_pieces_must_be_non_vacuous():

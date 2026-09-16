@@ -1273,9 +1273,13 @@ CALIBRATED = {
         "L4:pieces-scoped", "L5:aliasing", "L7:single-sweep"],
     # `run_episode` (motif `run\w*`) : instrument PARTAGE par la garde et le futur runner -- il tourne
     # une politique sur un episode et rend (actions, hits) via task.score (le VERIFIEUR, jamais l'oracle,
-    # E1). Cas dans tests/sandbox/test_harness_learner.py::test_run_episode_scores_with_the_task_verifier
-    # -- forme des sorties ET hits bornes dans task.score({0.0, 1.0}).
-    "src/seed_ai/harness_learner.py::run_episode": ["counter:actions-hits-shape", "counter:hits-via-task-score"],
+    # E1). Revue fix-round-1 (2026-09-16) : la declaration initiale listait DEUX libelles portes par
+    # une SEULE fonction de test (sur-affirmation de couverture), et la branche `ablate` (site="state",
+    # appliquee au DERNIER pas seulement) n'avait AUCUN cas -- un libelle par fonction de test reelle,
+    # desormais.
+    "src/seed_ai/harness_learner.py::run_episode": [
+        "counter:hits-via-task-score",           # test_run_episode_scores_with_the_task_verifier
+        "ablate:applied-at-last-step"],           # test_run_episode_applies_ablate_only_before_the_last_step
     # P2.60 (2026-09-15) -- banc factoriel 2^4 d'EDR-177 et driver d'EDR-178, portes dans HEAD par FUSION
     # 3-voies du tag keep/edr-177-178-factorial-regime-sweep (merge-tree sans conflit, gardes de HEAD
     # conservees). Deux ORCHESTRATEURS calibres PAR INJECTION a dose connue, AUCUN monde construit

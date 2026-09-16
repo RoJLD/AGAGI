@@ -12,7 +12,7 @@ CRÉDIT ne change rien à l'init. La variante « sans » subit donc les MÊMES n
 MÊMES épisodes, que l'intact — via `run_episode` + `learn`, exactement comme la boucle qui calibre (L2)/(L3).
 """
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Optional, Protocol
 
 import numpy as np
@@ -179,8 +179,10 @@ def assert_learner_contract(learner, task, seed=0, n_probe=8, n_learn=5, pieces=
     la_trained, _ = _logits_of(inst_a, ep)
     inst_a.close()
     if dose_a is None or not isinstance(dose_a, Dose) or dose_a.calls != n_learn:
+        inst_c.close()
         _fail(f"(L3) learn doit rendre la Dose cumulée (calls == {n_learn}), reçu {dose_a}")
     if dose_a.dparam_abs_sum is not None and not (dose_a.dparam_abs_sum > 0.0):
+        inst_c.close()
         _fail(f"(L3) DEAD_LEARNER : {n_learn} appels de learn et dparam_abs_sum == {dose_a.dparam_abs_sum} — l'apprenant est INERTE (cas « curiosité morte », P4.8)")
     # (L1) no-op exact APRÈS apprentissage : build(without={}) subit la même trace, doit rester bit-identique
     dose_c = _learn_n_steps(inst_c, ep, task, n_learn)
