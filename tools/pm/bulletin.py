@@ -72,12 +72,16 @@ def appliquer(event, payload, bul, *, now, branche_fn):
         b["branch"], b["worktree"] = branche_fn(cwd)
     elif event == "tool":
         b["last_tool_at"] = now
+        if b.get("cwd") is None and cwd:
+            # cwd découvert tardivement (start manqué ou sans cwd) : fixé DÈS CE tool, pour lui et tous les suivants
+            b["cwd"] = norm(cwd)
         fp = (payload.get("tool_input") or {}).get("file_path")
         if fp:
             rel = norm(fp)
-            base = b.get("cwd") or (norm(cwd) if cwd else None)
+            base = b.get("cwd")
             if base and rel.startswith(base + "/"):
                 rel = rel[len(base) + 1:]
+            # aucun cwd connu (ni bulletin ni payload) : chemin ABSOLU gardé tel quel -- valeur honnête, jamais laissé tomber
             files = [f for f in b["files_touched"] if f != rel] + [rel]
             b["files_touched"] = files[-PLAFOND_FICHIERS:]
     elif event == "stop":
@@ -164,7 +168,11 @@ def main(argv=None):
     ap.add_argument("event", choices=EVENTS + ("claim",))
     ap.add_argument("p_item", nargs="?", default=None)
     ap.add_argument("--session", default=None)
-    args = ap.parse_args(argv)
+    try:
+        args = ap.parse_args(argv)
+    except SystemExit as exc:                           # argv mal formé (event inconnu, positionnel manquant) : un hook
+        _journal("argv", exc)                            # sort TOUJOURS 0 -- argparse a déjà imprimé l'usage sur stderr
+        return 0
     try:                                                # Windows : stdout cp1252 -> les accents du résumé lèveraient
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     except (AttributeError, ValueError):

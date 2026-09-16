@@ -43,6 +43,19 @@ def test_tool_sans_file_path_ne_change_rien():
     assert b1["files_touched"] == [] and b1["last_tool_at"] == NOW + 1
 
 
+def test_tool_sur_bulletin_vide_fixe_le_cwd_des_le_premier_evenement():
+    b = BU.appliquer("tool", _payload("PostToolUse", tool_name="Edit", tool_input={"file_path": "c:/x/agagi/f0.py"}),
+                     {}, now=NOW, branche_fn=lambda c: (None, None))
+    assert b["cwd"] == "c:/x/agagi" and b["files_touched"] == ["f0.py"]
+
+
+def test_tool_sans_cwd_connu_garde_le_chemin_absolu():
+    b = BU.appliquer("tool", _payload("PostToolUse", cwd=None, tool_name="Edit", tool_input={"file_path": "c:/x/agagi/f0.py"}),
+                     {}, now=NOW, branche_fn=lambda c: (None, None))
+    assert b["cwd"] is None
+    assert b["files_touched"] == [BU.norm("c:/x/agagi/f0.py")]
+
+
 def test_stop_met_le_heartbeat_et_la_branche_et_end_la_fin():
     b = BU.appliquer("start", _payload("SessionStart"), {}, now=NOW, branche_fn=lambda c: ("a", "w"))
     b = BU.appliquer("stop", _payload("Stop"), b, now=NOW + 60, branche_fn=lambda c: ("feat/y", "c:/x/agagi/.worktrees/w"))
@@ -111,3 +124,10 @@ def test_main_claim_sans_session_resolue_sort_0_et_l_ecrit(tmp_path, monkeypatch
     monkeypatch.setattr(BU, "REGISTRY_DIR", str(tmp_path / "reg"))         # registre absent -> aucune session
     assert BU.main(["claim", "P4.9"]) == 0
     assert "session introuvable" in capsys.readouterr().out
+
+
+def test_main_avec_argv_malforme_sort_0_et_journalise_argv(tmp_path, monkeypatch):
+    monkeypatch.setenv("AGAGI_DATA_ROOT", str(tmp_path).replace("\\", "/"))
+    assert BU.main(["bogus"]) == 0
+    log = (tmp_path / "pm" / "hook_errors.log").read_text(encoding="utf-8")
+    assert "argv" in log
