@@ -50,7 +50,7 @@ PIECES: dict = {
                              "fonctionnellement, aucune correspondance au mécanisme",
         analogue_solidity="solide",
         bio_lesion_prediction="dlPFC abolit le rappel différé, pas l'immédiat",
-        capacity_served="rétention D >= 1",
+        capacity_served="rétention D ≥ 1",
         without={"feedforward": True},
         dose_matched=True,
         matched_sham=None,
@@ -71,7 +71,7 @@ PIECES: dict = {
         without={"truncate": True},
         dose_matched=True,
         matched_sham=None,
-        in_repo_today="RETAIN-COMPOSE-LR : 0,173 -> 0,923 au seul lr (E19) ; nécessité NON établie",
+        in_repo_today="RETAIN-COMPOSE-LR : 0,173 → 0,923 au seul lr (E19) ; nécessité NON établie",
     ),
     "td_critic": Piece(
         name="td_critic",
@@ -83,7 +83,7 @@ PIECES: dict = {
         without={"td_enabled": False},
         dose_matched=True,
         matched_sham=None,
-        in_repo_today="CALIB-LEARNER : td_off -0,046 (2/12) ; P4.9 en cours",
+        in_repo_today="CALIB-LEARNER : td_off -0,046 (2/12) ; P4.9 en cours — attend une Task à récompense scalaire",
     ),
     "condition_gate": Piece(
         name="condition_gate",
@@ -107,7 +107,7 @@ PIECES: dict = {
         without={"init": "random"},
         dose_matched=True,
         matched_sham=None,
-        in_repo_today="loi warm-start (6 fils) ; S2-CREDIT-RETENTION : le crédit érode 36 -> 8, 12/12",
+        in_repo_today="loi warm-start (6 fils) ; S2-CREDIT-RETENTION : le crédit érode 36 → 8, 12/12",
     ),
     "neuromod_plasticity": Piece(
         name="neuromod_plasticity",
@@ -116,7 +116,7 @@ PIECES: dict = {
         biological_analogue="plasticité hebbienne gatée par DA/ACh — solide comme phénomène, moyenne "
                              "comme règle",
         analogue_solidity="moyenne",
-        bio_lesion_prediction="nucleus basalis -> déficit sous NOUVEAUTÉ, ancien préservé",
+        bio_lesion_prediction="nucleus basalis → déficit sous NOUVEAUTÉ, ancien préservé",
         capacity_served='rétention sous changement de distribution (split "shift")',
         without={"modulator": "constant"},
         dose_matched=True,
@@ -152,7 +152,7 @@ PIECES: dict = {
     ),
     "curiosity_intrinsic": Piece(
         name="curiosity_intrinsic",
-        artificial_form="surprise du modèle du monde -> bonus",
+        artificial_form="surprise du modèle du monde → bonus",
         biological_analogue="dopamine de nouveauté",
         analogue_solidity="moyenne",
         bio_lesion_prediction=None,
@@ -172,7 +172,7 @@ PIECES: dict = {
         without={"variation": "uniform"},
         dose_matched=True,
         matched_sham=None,
-        in_repo_today="EVO-009 : 1/12 -> 12/12, p = 9,6e-6 ; dose en generations",
+        in_repo_today="EVO-009 : 1/12 → 12/12, p = 9,6e-6 ; dose en generations",
     ),
     "eligibility_trace_credit": Piece(
         name="eligibility_trace_credit",
@@ -182,7 +182,7 @@ PIECES: dict = {
         analogue_solidity="moyenne",
         bio_lesion_prediction="blocage du tagging synaptique abolit l'association à délai, pas "
                                "l'immédiate (maillon inferred)",
-        capacity_served="crédit temporel par pas à délai D>=1",
+        capacity_served="crédit temporel par pas à délai D≥1",
         without={"trace_lambda": 0.0},
         dose_matched=True,
         matched_sham=None,

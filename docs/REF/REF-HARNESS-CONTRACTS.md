@@ -89,12 +89,21 @@ TÊTE, sur une petite population et quelques épisodes d'apprentissage, avant to
 - **(L3) DEAD_LEARNER.** Le bras intact soumis à `n_learn` appels de `learn` DOIT bouger
   (`dparam_abs_sum > 0`) — c'est le cas « curiosité morte » (P4.8) : un apprenant inerte ne peut rendre
   aucun verdict d'acquisition interprétable, quelle que soit la tâche.
-- **(L4) VACUOUS_PIECE.** Pour chaque pièce en portée, `build(without=p.without)` — soumise aux MÊMES
+- **(L4) VACUOUS_PIECE.** Pour chaque pièce EN PORTÉE, `build(without=p.without)` — soumise aux MÊMES
   `n_learn` pas d'apprentissage que l'intact, sur les MÊMES épisodes — doit rendre des logits qui diffèrent
   de l'intact sur au moins un logit, APRÈS ce même entraînement (jamais comparée à l'init : un apprenant
   non entraîné rend des zéros avec ou sans sa table, ce qui rendrait toute pièce du chemin de crédit
   invisible à cette clause). Une variante « sans » qui ne change RIEN dit que la pièce déclarée n'existe
-  pas, opérationnellement, dans ce learner.
+  pas, opérationnellement, dans ce learner. La signature complète est
+  `assert_learner_contract(learner, task, seed=0, n_probe=8, n_learn=5, pieces=None)` : le paramètre
+  `pieces` fixe la PORTÉE de (L4) — `None` (le défaut) juge TOUTES les pièces de `learner.pieces`, une
+  liste de noms restreint le jugement à ces noms-là, et un nom absent de `learner.pieces` lève « (L4)
+  pièce inconnue ». Le runner d'une cellule (`run_harness_cell`) appelle toujours le contrat avec
+  `pieces=[rule["piece"]]` : seule la pièce CIBLÉE par la cellule est jugée non-vacueuse à ce moment-là. Ce
+  n'est pas un relâchement arbitraire — une pièce peut être légitimement inerte sur une tâche où elle n'a
+  rien à faire sans que la CELLULE elle-même (qui cible une AUTRE pièce) doive être refusée pour autant ;
+  (L4) sans portée sur toutes les pièces à la fois exigerait qu'une tâche fasse déjà appel à des pièces
+  qu'elle n'a pas vocation à exercer.
 - **(L5) Aucune vue de l'état dans la sortie.** Les logits rendus par `act()` ne partagent aucune mémoire
   avec l'état récurrent (`assert_no_aliasing`) — sinon écrire dans une sortie muterait l'état porté, et un
   chemin d'IDENTITÉ non tracé par des poids fausserait toute mesure de saillance ou d'ablation (classe E24).
@@ -138,7 +147,18 @@ des instruments déjà calibrés) :
    variante franchit quand même la barre d'acquisition ; `NOT_NECESSARY` sinon. Tout verdict nul ou partiel
    — et, depuis la revue du 2026-09-16, tout verdict `NECESSARY` aussi — passe par la garde E19
    (`assert_verdict_invariant_to_optimizer`) : l'écart entre les deux bras doit survivre au second pas du
-   sweep, sinon c'est un artefact de PAS, pas de capacité.
+   sweep, sinon c'est un artefact de PAS, pas de capacité. **Chaque verdict de nécessité publie aussi un
+   statut de sham** : `"sham": "DECLARED"` si `rule.get("matched_sham")` est renseigné, sinon
+   `"PARAMS_NON_APPARIES"`. Un sham APPARIÉ est une variante à MÊME nombre de paramètres et MÊME init que
+   l'intact, où la pièce est rendue inerte par construction plutôt que retirée (`bilinear_sham`, par
+   exemple : mêmes tenseurs `U`, `V`, `W_bl`, même optimiseur, mais la combinaison passe du produit de
+   Hadamard `(H·U)⊙(H·V)` à la somme `H·U + H·V` — la capacité de calcul de la pièce est neutralisée sans
+   changer le nombre de poids ni l'espace de recherche de l'optimiseur). Sans lui, un verdict `NECESSARY`
+   ou `PIECE_PARTIAL` ne distingue pas la NÉCESSITÉ DE LA PIÈCE de la nécessité d'avoir SIMPLEMENT PLUS DE
+   PARAMÈTRES : `without` retire à la fois la pièce et sa capacité, jamais l'une sans l'autre.
+   `PARAMS_NON_APPARIES` reste le statut de 12 des 13 pièces du registre aujourd'hui (REF-HARNESS-PIECES,
+   recompté depuis `PIECES` : seule `bilinear` déclare `matched_sham`) — et c'est PUBLIÉ dans chaque record
+   de nécessité qui les cite, jamais tu.
 
 Les quinze branches possibles, dans l'ORDRE de sévérité imposé (`BRANCHES` de `src/seed_ai/harness_verdict.py`,
 la plus sévère d'abord) : `INCOMPLET`, `INCONCLUSIVE_N`, `INDETERMINE_HARNAIS`, `LR_ARTIFACT`,
