@@ -1298,6 +1298,39 @@ CALIBRATED = {
         "table:learns-reference-chance",          # test_table_learns_composition_and_reference_stays_at_chance
         "without-table:chance-state-reset:chance",  # test_without_table_falls_to_chance_and_state_reset_kills_two_step
         "specificity-control:decoy"],             # test_specificity_control_spares_the_reader_but_permute_key_bites
+    # Tache 5 (2026-09-16) -- harness_verdict_lecture : lecture PURE (ADR-004 §2.3-6) qui COMPOSE trois
+    # instruments deja calibres (ablation_verdict pour demande/necessite, alias_guard_verdict pour l'etat,
+    # learner_verdict pour l'acquisition, import paresseux) et publie l'E19 (assert_verdict_invariant_to_
+    # optimizer) sur les DEUX conditions -- acquisition (le nul tient-il au pas ?) ET necessite (l'ecart
+    # tient-il aux deux pas ?). Un libelle par fonction de test REELLE de tests/sandbox/test_harness_
+    # verdict.py (meme discipline que run_episode / tabular.py::learn ci-dessus).
+    # test_missing_arm_is_INCOMPLET_and_n11_is_INCONCLUSIVE_N porte DEUX libelles (deux assertions
+    # distinctes dans le meme corps) ; test_nan_and_empty_raise_instead_of_fabricating est PARTAGEE avec
+    # measure_noise_floor ci-dessous (elle leve sur les deux instruments dans le meme corps de test).
+    "src/seed_ai/harness_verdict.py::harness_verdict_lecture": [
+        "branch-order",                             # test_branch_order_is_the_sealed_one
+        "cellA:PIECE_PARTIAL",                       # test_cell_A_known_answer_is_PARTIAL_with_ceiling_above_bar
+        "cellB:NECESSARY",                           # test_cell_B_known_answer_is_NECESSARY
+        "NOT_DEMANDED",                              # test_ablated_equal_to_intact_is_NOT_DEMANDED
+        "DEMAND_WITHIN_NOISE",                       # test_ratio_inside_the_measured_noise_band_is_DEMAND_WITHIN_NOISE_never_decoy
+        "INCONCLUSIVE_SPECIFICITY",                  # test_a_biting_control_is_INCONCLUSIVE_SPECIFICITY
+        "NOT_ACQUIRED:dose+saturation",              # test_learner_at_reference_is_NOT_ACQUIRED_with_dose_and_saturation
+        "INDETERMINE_HARNAIS:prior-solves",          # test_reference_above_prior_max_is_INDETERMINE_HARNAIS_PRIOR_SOLVES
+        "INDETERMINE_HARNAIS:oracle",                # test_oracle_below_min_is_INDETERMINE_HARNAIS
+        "LR_ARTIFACT:necessity",                     # test_piece_gap_that_closes_at_the_second_lr_is_LR_ARTIFACT
+        "INDETERMINE_HARNAIS:reference-collapsed",   # test_intact_collapsed_at_the_second_lr_is_INDETERMINE_HARNAIS
+        "LR_ARTIFACT:acquisition",                   # test_acquisition_null_that_vanishes_at_the_second_lr_is_LR_ARTIFACT
+        "PIECE_NOT_NECESSARY:both-at-ceiling",       # test_D_equal_to_A_is_PIECE_NOT_NECESSARY_and_both_at_ceiling_is_not_degenerate
+        "INCOMPLET",                                 # test_missing_arm_is_INCOMPLET_and_n11_is_INCONCLUSIVE_N
+        "INCONCLUSIVE_N",                            # test_missing_arm_is_INCOMPLET_and_n11_is_INCONCLUSIVE_N
+        "nan:raises",                                # test_nan_and_empty_raise_instead_of_fabricating
+        "boundary:<=-is-necessary"],                 # test_mutating_necessity_threshold_to_strict_flips_the_boundary_case
+    "src/seed_ai/harness_verdict.py::measure_noise_floor": [
+        "band:min-max",                              # test_noise_floor_band_is_min_max_of_paired_ratios
+        "empty:raises",                              # test_nan_and_empty_raise_instead_of_fabricating
+        "per-arm:weak-arm-band"],                    # test_necessity_uses_the_band_of_the_WEAK_arm_not_only_A
+    "src/seed_ai/harness_verdict.py::measure_ablated_bayes_ceiling": [
+        "composition:certified-1/K"],                # test_measure_ablated_bayes_ceiling_certifies_the_declared_floor
     # P2.60 (2026-09-15) -- banc factoriel 2^4 d'EDR-177 et driver d'EDR-178, portes dans HEAD par FUSION
     # 3-voies du tag keep/edr-177-178-factorial-regime-sweep (merge-tree sans conflit, gardes de HEAD
     # conservees). Deux ORCHESTRATEURS calibres PAR INJECTION a dose connue, AUCUN monde construit
