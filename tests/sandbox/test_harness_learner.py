@@ -143,8 +143,11 @@ class _StatefulInstance:
         self.K, self.obs_dim = K, obs_dim
         # colonne 0 lit UNIQUEMENT l'indice 0 (poids fort), colonne 1 lit UNIQUEMENT l'indice 3
         # (poids plus faible) : la classe gagnante DEPEND de QUEL indice est porté par l'état au
-        # moment du dernier pas -- pas seulement de sa norme.
-        self.W = np.array([[10.0, 0.0], [0.0, 0.0], [0.0, 0.0], [0.0, 5.0]], dtype=np.float64)
+        # moment du dernier pas -- pas seulement de sa norme. Dimensionné sur obs_dim (>= 4) : les
+        # colonnes au-delà de 3 (ex. la colonne 4 "inutilisée" de ToyParityT2) restent à poids nul.
+        self.W = np.zeros((obs_dim, 2), dtype=np.float64)
+        self.W[0, 0] = 10.0
+        self.W[3, 1] = 5.0
         self.act_calls = 0
         self.ablate_log = []   # [(act_calls avant cet appel, snapshot de l'état recu)]
 

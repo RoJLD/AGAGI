@@ -15,19 +15,22 @@ from tools.experiment_preflight import PreflightError  # noqa: E402
 
 
 class ToyParity:
-    """Tâche jouet : obs (n, 4) one-hot de a dans [0,2) sur [0:2) et b sur [2:4) ; cible (a + b) % 2 ; T == 1."""
-    name, version, K, obs_dim, T = "toy_parity", "1", 2, 4, 1
+    """Tâche jouet : obs (n, 5) one-hot de a dans [0,2) sur [0:2) et b sur [2:4) ; cible (a + b) % 2 ; T == 1.
+    La colonne 4 est INUTILISÉE (ni codée en entrée, ni lue par l'oracle qui lit `ep.meta`) : c'est le canal
+    que `inject_noise` perturbe -- un contrôle de spécificité qui CHANGE réellement l'observation (REVIEW-01
+    R1, classe E1 : un contrôle qui ne change rien ne peut jamais échouer, et ne prouve donc rien)."""
+    name, version, K, obs_dim, T = "toy_parity", "1", 2, 5, 1
 
     def __init__(self, bite_key=True, with_nobite=True, ceiling=(0.75, "plafond jouet declare pour le test, minorant", False)):
         abls = [Ablation("permute_a", "input", bite_key, apply=self._permute_a, bayes_floor=0.5)]
         if with_nobite:
-            abls.append(Ablation("permute_nothing", "input", False, apply=self._permute_nothing))
+            abls.append(Ablation("inject_noise", "input", False, apply=self._inject_noise))
         self.demand = DemandDeclaration("parity", tuple(abls), incapable_ceiling=ceiling)
 
     def episodes(self, rng, n, split="train"):
         a = rng.randint(0, 2, size=n)
         b = rng.randint(0, 2, size=n)
-        obs = np.zeros((n, 4), dtype=np.float32)
+        obs = np.zeros((n, 5), dtype=np.float32)
         obs[np.arange(n), a] = 1.0
         obs[np.arange(n), 2 + b] = 1.0
         return Episode((obs,), ((a + b) % 2).astype(np.int64), None, {"a": a, "b": b})
@@ -39,8 +42,10 @@ class ToyParity:
         obs[np.arange(ep.n), 2 + ep.meta["b"]] = 1.0
         return Episode((obs,), ep.target.copy(), None, {"a": a2, "b": ep.meta["b"]})
 
-    def _permute_nothing(self, ep, rng):
-        return Episode((ep.obs_seq[0].copy(),), ep.target.copy(), None, dict(ep.meta))
+    def _inject_noise(self, ep, rng):
+        obs = ep.obs_seq[0].copy()
+        obs[:, 4] = 1.0                       # colonne inutilisee : change l'observation, l'oracle l'ignore
+        return Episode((obs,), ep.target.copy(), None, dict(ep.meta))
 
     def score(self, actions, ep):
         if ep.n == 0:
@@ -65,13 +70,13 @@ class ToyParityT2:
     `control_variant` choisit COMMENT le split "control" (exigé par l'ablation site="state")
     diffère du split "train" : "represent_a_twice" ré-présente a au pas 2 (obs diffère) ;
     "mask_only" ne change QUE le pas noté (obs et target restent identiques bit à bit)."""
-    name, version, K, obs_dim, T = "toy_parity_t2", "1", 2, 4, 2
+    name, version, K, obs_dim, T = "toy_parity_t2", "1", 2, 5, 2
 
     def __init__(self, control_variant="represent_a_twice"):
         self.control_variant = control_variant
         abls = (
             Ablation("state_reset", "state", True, bayes_floor=0.5),
-            Ablation("permute_nothing", "input", False, apply=self._permute_nothing),
+            Ablation("inject_noise", "input", False, apply=self._inject_noise),
         )
         self.demand = DemandDeclaration(
             "parity_memory", abls,
@@ -80,9 +85,9 @@ class ToyParityT2:
     def episodes(self, rng, n, split="train"):
         a = rng.randint(0, 2, size=n)
         b = rng.randint(0, 2, size=n)
-        obs0 = np.zeros((n, 4), dtype=np.float32)
+        obs0 = np.zeros((n, 5), dtype=np.float32)
         obs0[np.arange(n), a] = 1.0
-        obs1 = np.zeros((n, 4), dtype=np.float32)
+        obs1 = np.zeros((n, 5), dtype=np.float32)
         obs1[np.arange(n), 2 + b] = 1.0
         mask0 = np.zeros(n, dtype=np.float32)
         mask1 = np.ones(n, dtype=np.float32)
@@ -93,8 +98,10 @@ class ToyParityT2:
                 mask0, mask1 = mask1, mask0   # même contenu, seul le pas noté change
         return Episode((obs0, obs1), ((a + b) % 2).astype(np.int64), (mask0, mask1), {"a": a, "b": b})
 
-    def _permute_nothing(self, ep, rng):
-        return Episode(tuple(o.copy() for o in ep.obs_seq), ep.target.copy(),
+    def _inject_noise(self, ep, rng):
+        obs = [o.copy() for o in ep.obs_seq]
+        obs[-1][:, 4] = 1.0                   # colonne inutilisee, dernier pas : change l'obs, cible intacte
+        return Episode(tuple(obs), ep.target.copy(),
                         tuple(m.copy() for m in ep.mask_seq), dict(ep.meta))
 
     def score(self, actions, ep):
@@ -126,9 +133,9 @@ def test_contract_refuses_a_task_without_a_non_biting_ablation():
 
 def test_contract_refuses_a_biting_ablation_that_does_not_bite():
     task = ToyParity()
-    task.demand = DemandDeclaration("parity", (Ablation("permute_nothing", "input", True, apply=task._permute_nothing),
-                                               Ablation("nobite", "input", False, apply=task._permute_nothing)))
-    with pytest.raises(PreflightError, match="permute_nothing"):
+    task.demand = DemandDeclaration("parity", (Ablation("inject_noise", "input", True, apply=task._inject_noise),
+                                               Ablation("nobite", "input", False, apply=task._inject_noise)))
+    with pytest.raises(PreflightError, match="inject_noise"):
         assert_task_contract(task)
 
 
@@ -143,8 +150,38 @@ def test_contract_refuses_an_aliased_ablation():
     task = ToyParity()
     task.demand = DemandDeclaration("parity", (
         Ablation("alias", "input", True, apply=lambda ep, rng: Episode(ep.obs_seq, ep.target, None, dict(ep.meta)), bayes_floor=0.5),
-        Ablation("nobite", "input", False, apply=task._permute_nothing)))
+        Ablation("nobite", "input", False, apply=task._inject_noise)))
     with pytest.raises(PreflightError, match="shares_memory|VUE"):
+        assert_task_contract(task)
+
+
+def test_contract_refuses_a_control_that_does_not_change_the_observation():
+    # REVIEW-01 R1 (classe E1) : un contrôle qui rend une COPIE (pas de shares_memory, donc pas
+    # attrapé par la garde d'aliasing) mais dont les VALEURS sont identiques à l'intact ne peut
+    # jamais échouer -- il ne prouve rien. La garde doit lever, et nommer E1.
+    task = ToyParity()
+    task.demand = DemandDeclaration("parity", (
+        Ablation("permute_a", "input", True, apply=task._permute_a, bayes_floor=0.5),
+        Ablation("no_change", "input", False,
+                 apply=lambda ep, rng: Episode((ep.obs_seq[0].copy(),), ep.target.copy(), None, dict(ep.meta)))))
+    with pytest.raises(PreflightError, match="E1"):
+        assert_task_contract(task)
+
+
+def test_contract_refuses_an_ablation_that_changes_the_target():
+    # (d) : sous ablation, la VÉRITÉ (target) ne doit jamais changer -- c'est ce qui fait tomber
+    # l'oracle au plancher de Bayes, pas une cible mouvante qui masquerait une non-morsure.
+    task = ToyParity()
+
+    def _bump_target(ep, rng):
+        obs = ep.obs_seq[0].copy()
+        obs[:, 4] = 1.0
+        return Episode((obs,), (ep.target + 1) % 2, None, dict(ep.meta))
+
+    task.demand = DemandDeclaration("parity", (
+        Ablation("permute_a", "input", True, apply=task._permute_a, bayes_floor=0.5),
+        Ablation("target_bump", "input", False, apply=_bump_target)))
+    with pytest.raises(PreflightError, match=r"\(d\)"):
         assert_task_contract(task)
 
 
@@ -168,7 +205,7 @@ def test_contract_refuses_non_reproducible_episodes():
 def test_state_ablation_requires_a_control_split():
     task = ToyParity()
     task.demand = DemandDeclaration("parity", (Ablation("state_reset", "state", True, bayes_floor=0.5),
-                                               Ablation("nobite", "input", False, apply=task._permute_nothing)))
+                                               Ablation("nobite", "input", False, apply=task._inject_noise)))
     with pytest.raises(PreflightError, match="control"):
         assert_task_contract(task)
 

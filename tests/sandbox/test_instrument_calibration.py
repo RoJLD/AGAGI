@@ -1266,7 +1266,8 @@ CALIBRATED = {
         "toy:passes", "no-nobite:raises", "biting-control:raises", "verifier-is-oracle:raises",
         "aliased-ablation:raises", "chance-as-ceiling:raises", "short-provenance:raises",
         "non-reproducible:raises", "state-without-control:raises",
-        "t2-mask-seq:content-diff-control:passes", "t2-mask-seq:mask-only-control:not-bit-identical"],
+        "t2-mask-seq:content-diff-control:passes", "t2-mask-seq:mask-only-control:not-bit-identical",
+        "no-change-control:raises", "target-changed:raises"],
     # Cas dans tests/sandbox/test_harness_learner.py.
     "src/seed_ai/harness_learner.py::assert_learner_contract": [
         "counter:passes-L0-L7", "L0:max_K", "L2:REFERENCE_LEARNS", "L3:DEAD_LEARNER", "L4:VACUOUS_PIECE",
