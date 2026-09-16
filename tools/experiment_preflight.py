@@ -314,7 +314,7 @@ def assert_verdict_invariant_to_optimizer(measure, lrs=(0.02, 0.002), max_gap_cl
     ⚠️ JAMAIS une barre absolue — c'est LE point de conception, et il est mesuré, pas raisonné : la barre
     du dépôt `1/K + 0.15 = 0.3167` se situe **0.517 SOUS** le plafond du substrat plain
     (**30/36 = 0.8333**, forme close des 36 paires, 24 restarts x 20000 pas ; contrôle positif du même optimiseur sur une table
-    libre non séparable : 1.000). Un substrat PROUVABLEMENT incapable de composer franchit donc cette barre
+    libre non séparable : 1.000). Un substrat qui n'a PAS appris à composer (« prouvablement incapable » du 2026-09-02, RÉTRACTÉ le 2026-09-08 : le plain compose, 34/36 MINORANT) franchit donc cette barre
     au bon pas (0.3719 à `lr=0.1`) et même au pas d'origine avec plus de budget (0.3703 à
     `episodes=2400`). Réévaluer un SEUIL sous balayage flaguerait ce VRAI négatif ; réévaluer l'ÉCART
     ENTRE BRAS le laisse passer. Corollaire : un verdict à UN SEUL bras et seuil absolu n'est pas

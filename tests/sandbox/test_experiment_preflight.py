@@ -148,19 +148,29 @@ def test_optimizer_sweep_returns_INCONCLUSIVE_when_the_REFERENCE_collapses():
 
 
 def test_optimizer_sweep_SPARES_the_bilinear_structural_null():
-    """RÉPONSE CONNUE n°2 — NUL STRUCTUREL MESURÉ : le substrat PLAIN ne peut PAS composer (q+key)%K.
+    """RÉPONSE CONNUE n°2 — NUL D'APPRENABILITÉ MESURÉ : le substrat PLAIN n'APPREND pas (q+key)%K au
+    budget donné, quel que soit le pas.
 
     Spécificité : sans elle la garde serait un interrupteur qui refuse tous les négatifs. Bras testé =
     plain, bras de référence = bilinéaire (0.966), opérandes co-présents, episodes=600, 4 seeds :
     lr=0.02 -> 0.3141 (écart 0.652) ; lr=0.1 -> 0.3719 (écart 0.594). closure = 1 − 0.594/0.652 =
-    **0.089** << 2/3 -> la garde ÉPARGNE ce nul. Il est structurel au sens FORT : le plafond exact du
-    plain en forme close vaut 0.3889 (8 restarts ; contrôle positif du même optimiseur sur une table libre
-    non séparable : 1.000), et baisser le pas DÉGRADE vers le hasard (0.1906 à lr=0.002, 1/K = 0.1667).
+    **0.089** << 2/3 -> la garde ÉPARGNE ce nul. Baisser le pas DÉGRADE vers le hasard (0.1906 à
+    lr=0.002, 1/K = 0.1667) : le nul ne se referme sur AUCUN pas du balayage — c'est ce que la garde
+    mesure, et c'est tout ce qu'elle mesure.
+
+    ⚠️ CORRECTION 2026-09-16 (E19 occ. 4 relue) : la première version de ce docstring disait « nul
+    STRUCTUREL, plafond exact du plain 0.3889 en forme close, PROUVABLEMENT incapable ». Ce plafond
+    était un optimum local (8 restarts) — supersédé le 2026-09-07 (30/36 = 0.8333, 24 restarts) puis
+    RÉFUTÉ le 2026-09-08 : le plain COMPOSE parfaitement à K=3 (9/9) et K=4 (16/16) et atteint
+    34/36 = 0.944 à K=6, AU-DESSUS du bilinéaire (EDR-BILINEAR, encarts CORRECTIF/RÉFUTATION ;
+    `tools/plain_substrate_ceiling.py`, statut MINORANT). Les CHIFFRES de ce test (0.3141 / 0.3719 /
+    0.966) sont des MESURES et restent vrais ; leur LECTURE change : un nul d'APPRENABILITÉ à budget
+    fixe, jamais un nul de capacité. La garde n'a jamais eu besoin de la capacité pour rendre son verdict.
 
     CONTRASTE qui justifie le design — un critère de SEUIL ABSOLU se serait trompé ICI : à lr=0.1 le plain
-    (0.3719) franchit la barre du dépôt 1/K+0.15 = 0.3167, alors qu'il est PROUVABLEMENT incapable de
-    composer. La barre est 0.072 SOUS le plafond structurel. Seul l'ÉCART AU BRAS DE RÉFÉRENCE sépare les
-    deux réponses connues.
+    (0.3719) franchit la barre du dépôt 1/K+0.15 = 0.3167 sans avoir APPRIS la composition (0.37 est loin
+    sous son propre plafond 0.944 et sous la référence 0.966). Seul l'ÉCART AU BRAS DE RÉFÉRENCE sépare
+    les deux réponses connues.
 
     ⚠️ PROVENANCE : ces chiffres de spécificité viennent d'UNE seule passe (4 seeds), NON RÉPLIQUÉE — là
     où le cas artefact ci-dessus est établi à n=12. Ce test gèle donc la DIRECTION (un nul structurel ne
@@ -449,9 +459,13 @@ def test_bar_reachability_margin_refuses_an_ILLUSORY_clearance():
 def test_bar_reachability_does_NOT_cover_a_bar_that_is_TOO_LOW():
     """PORTÉE — contre-exemple GELÉ (P2.15), et il est là pour EMPÊCHER une sur-lecture de la garde.
 
-    Le défaut symétrique est réel et mesuré : la barre du dépôt `1/K + 0.15 = 0.3167` se situe **0.072
-    SOUS** le plafond structurel du substrat `plain` (**0.3889**, forme close des 36 paires, 8 restarts),
-    donc un substrat PROUVABLEMENT incapable de composer la franchit (0.3719 mesuré à `lr=0.1`).
+    Le défaut symétrique est réel et mesuré : la barre du dépôt `1/K + 0.15 = 0.3167` est franchie
+    (0.3719 mesuré à `lr=0.1`, 600 épisodes) par un substrat `plain` qui n'a PAS appris la composition
+    — 0.37 est loin sous la référence bilinéaire 0.966 ET sous le plafond du plain lui-même.
+    ⚠️ CORRECTION 2026-09-16 : la première version disait « 0.072 SOUS le plafond structurel 0.3889,
+    substrat PROUVABLEMENT incapable ». Ce plafond a été rétracté deux fois (0.8333 le 2026-09-07,
+    puis 34/36 = 0.944 MINORANT le 2026-09-08 : le plain compose, il ne l'APPREND pas au budget) —
+    l'argument tient SANS lui : ce qui franchit la barre est un bras qui n'a pas acquis la capacité.
     Sur CES chiffres, `assert_bar_is_reachable` passe — et elle a raison de passer : la barre EST
     franchissable. Elle ne borne le seuil que par le HAUT ; ce test gèle ce que la garde NE dit PAS,
     pour qu'aucun appelant ne lise son `True` comme « la barre est valide ».
@@ -471,13 +485,15 @@ def test_bar_reachability_does_NOT_cover_a_bar_that_is_TOO_LOW():
     assert assert_bar_is_reachable(plafond_incapable, _DC_BAR, n_eval=_DC_N_EVAL,
                                    label="P2.15 plain (plafond en forme close)") is True
     assert franchi_a_lr01 > _DC_BAR, (
-        "le défaut P2.15 EST là — un bras prouvablement incapable franchit la barre — et il est HORS "
+        "le défaut P2.15 EST là — un bras qui n'a PAS appris la composition franchit la barre — et il est HORS "
         "de la portée de cette garde : la reachability est satisfaite, la DISCRIMINATION ne l'est pas")
 
 
 # --------------------------- assert_bar_separates_the_incapable (P2.15, l'autre côté de la barre) ----
 
-_P215_CEIL = 0.3889          # plafond structurel du substrat `plain`, forme close (36 paires, 8 restarts)
+_P215_CEIL = 0.3889          # FIXTURE HISTORIQUE (2026-09-02, 8 restarts) — RÉTRACTÉE le 2026-09-08 (plain : 34/36 = 0.944
+                             # MINORANT). Gardée telle quelle : la garde ne vérifie pas la VALEUR du plafond, elle exige sa
+                             # provenance ; les deux verdicts opposés du couple de tests tiennent à tout plafond > barre.
 _P215_PROV = "forme close du substrat plain sur les 36 paires (q+key)%K, 8 restarts — cf. P2.15"
 
 
@@ -518,7 +534,8 @@ def test_bar_separation_CANNOT_catch_a_CHANCE_level_passed_as_ceiling():
     """PORTÉE — ce que la garde NE peut PAS faire, gelé pour empêcher la sur-lecture symétrique.
 
     Passer le niveau de CHANCE (`1/K = 0.1667`) comme plafond de l'incapable est le geste le plus
-    naturel du monde, et c'est EXACTEMENT l'erreur P2.15 : l'incapable y montait à 0.3889, pas à
+    naturel du monde, et c'est EXACTEMENT l'erreur P2.15 : l'incapable y montait à 0.3889 (chiffre de
+    l'époque, depuis rétracté — le plain non entraîné monte bien plus haut encore), pas à
     0.1667. Sur cette entrée la garde PASSE — elle ne peut pas savoir que le plafond est faux — et
     c'est pour cette raison précise que `provenance` est OBLIGATOIRE : la garde ne vérifie pas le
     plafond, elle force à écrire d'où il vient pour qu'une revue puisse le vérifier."""

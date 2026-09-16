@@ -924,7 +924,8 @@ CALIBRATED = {
                                 "too-low-bar:out-of-scope"],
     # P2.15 (2026-09-02) : l'AUTRE cote de la barre. `assert_bar_is_reachable` la borne par le HAUT
     # (franchissable par le capable) ; celle-ci la borne par le BAS (INfranchissable par l'incapable).
-    # Les deux gardes partagent les MEMES chiffres geles -- barre 0.3167, plafond `plain` 0.3889 en
+    # Les deux gardes partagent les MEMES chiffres geles -- barre 0.3167, plafond `plain` 0.3889 (HISTORIQUE,
+    # retracte le 2026-09-08 : 34/36 MINORANT ; garde comme fixture, la garde exige la provenance) en
     # forme close -- et rendent des verdicts OPPOSES dessus : la premiere PASSE (la barre est bien
     # franchissable), la seconde REFUSE (elle ne separe rien). C'est ce couple qui rend impossible de
     # lire le `True` de l'une comme « la barre est valide ».
@@ -2865,7 +2866,8 @@ def test_bilinear_composition_null_under_retention_is_lr_dependent():
 
     ⚠️ Ce que ce test n'affirme PAS : que le 2-pas soit RÉSOLU à lr=0.002. 0.3797 reste très loin du 0.932
     obtenu à opérandes co-présents ; il franchit une barre (0.3167) elle-même mal placée — 0.072 SOUS le
-    plafond structurel mesuré du substrat plain (0.3889). Ce qui est gelé, c'est la BASCULE, pas un
+    plafond structurel mesuré du substrat plain (0.3889 — chiffre de l'époque, rétracté le 2026-09-08 :
+    le plain atteint 0.944 sans apprendre). Ce qui est gelé, c'est la BASCULE, pas un
     verdict de capacité."""
     from tools.bilinear_composition_probe import run_bilinear_composition_probe
     bar = 1 / 6 + 0.15

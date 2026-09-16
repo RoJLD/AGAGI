@@ -48,8 +48,15 @@ def _pinned_substrate():
     from src.agents.backend_torch import TorchPopulationModel
     saved = TorchPopulationModel.BILINEAR
     TorchPopulationModel.BILINEAR = False
+    # E29 (2026-09-16) : l'activation LEGACY (`generated_ops.py`, non versionnée, rechargée à chaud à
+    # chaque pas) est GELÉE au hash présent à l'entrée — un run ne peut plus changer d'activation en
+    # cours de route, et un clone sans le fichier tourne en builtin DÉCLARÉ (publié par
+    # `activation_provenance()` dans le bloc `regime`), jamais en tanh silencieux. `pin=None` = le
+    # hash présent : BIT-IDENTIQUE aux records legacy du 2026-09-15 tant que le fichier ne change pas.
+    from src.agents.mamba_agent import pinned_activation
     try:
-        yield
+        with pinned_activation():
+            yield
     finally:
         TorchPopulationModel.BILINEAR = saved
 
@@ -494,6 +501,11 @@ def run_learner_probe(seed=2026, num_agents=12, ticks=2000, block=400, policy="t
               "benchmark_mode": True, "night_enabled": False, "immortal": bool(immortal),
               "refill_below": float(refill_below), "refill_to": float(refill_to),
               "hp_refill_below": float(hp_refill_below), "energy_start": 80.0}
+    # E29 : l'activation legacy EN VIGUEUR est une prémisse mesurée, pas un décor (E8) — publiée pour
+    # TOUTE politique (le chemin torch ne la lit pas, mais le lecteur saura sous quelle activation le
+    # bras legacy comparé a tourné). Posée ici, AVANT le pin de `_pinned_substrate`, donc = l'ambiant.
+    from src.agents.mamba_agent import activation_provenance
+    regime["legacy_activation"] = activation_provenance()
     lz = _acquire_kuzu("learner-probe")
     # E12/E13 (2026-09-16) : l'async_logger poussait UN AGENT_THOUGHT par agent et par tick dans KuzuDB (210 243
     # emissions sur un run de 60 cellules) ; une cellule a tourne > 3 h a 1,7 Go la ou ses soeurs prenaient

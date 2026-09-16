@@ -175,7 +175,10 @@ def _train_eval_one(seed, bilinear, task, episodes, n_agents, K, lr, rank, eval_
 
 def _resolve_ceiling(incapable_ceiling, ceiling_provenance, task, same_tick, K,
                      ceiling_is_proven=False):
-    """Plafond du bras PROUVABLEMENT INCAPABLE (ici : le substrat plain), et d'où il vient.
+    """Plafond du bras de référence INCAPABLE AU RÉGIME (ici : le substrat plain), et d'où il vient.
+    ⚠️ 2026-09-08 : le « PROUVABLEMENT incapable » est RÉTRACTÉ — le plain COMPOSE (9/9 à K=3, 16/16 à K=4,
+    34/36 à K=6, statut MINORANT) ; ce qu'il ne fait pas, c'est l'APPRENDRE au budget. Le plafond rendu ici
+    est donc un plafond de RÉGIME (ce que le bras atteint sans acquérir), jamais de capacité.
 
     ⚠️ P2.15 — c'est le cœur de la dette. `"auto"` ne résout QUE le régime où la forme close est EXACTE :
     `task="composition"` ET `same_tick=True`, un seul `_step` depuis `H_in=0`, donc

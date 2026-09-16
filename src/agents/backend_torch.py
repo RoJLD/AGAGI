@@ -63,6 +63,7 @@ class TorchPopulationModel(PopulationModel):
             raise NotImplementedError("backend 'torch' : PyTorch non installé (requirements-torch.txt)")
         self.agents = agents
         self.B = len(agents)
+        self.lr = float(lr)                 # nominal ; le pas PAR AGENT est `effective_lr_per_agent`
         self.world_model = world_model
         self.device = torch.device(device)
         self._last = None
@@ -115,6 +116,15 @@ class TorchPopulationModel(PopulationModel):
             self.W_bl = (0.1 * torch.randn(self.B, r, self.N, device=self.device)).detach().requires_grad_(True)
             params += [self.U, self.V, self.W_bl]
         self.opt = torch.optim.SGD(params, lr=lr)
+        # E19 (occ. lr/B, 2026-09-16) : W est DISJOINT par agent mais `_td_update` MOYENNE la perte
+        # sur B et l'optimiseur est SGD (le 1/B ne s'annule pas, il s'annulerait sous Adam) — chaque
+        # agent reçoit donc lr/B. « 0,04 » à B=12 vaut 0,0033 par agent. Publié, jamais déduit ;
+        # prédiction vérifiée à 12,000 dans tests/sandbox/test_torch_effective_step.py.
+
+    @property
+    def effective_lr_per_agent(self):
+        """Pas RÉELLEMENT appliqué au W d'un agent par `_td_update` : lr / B (SGD, perte moyennée)."""
+        return self.lr / self.B if self.B else None
 
     def _step(self, obs_t, H_in):
         """Une étape LTC différentiable. obs_t (B,I), H_in (B,N) -> H_new (B,N).

@@ -134,6 +134,24 @@ bras rendent `LEARNER_LEARNS` à la médiane. Mais le test des signes les sépar
 * Ce que la calibration a coûté à croire : « ~5 min de calcul » (backlog) — l'unité mesurée était de
   78 s et le run de 37,8 min ; et « lr=0 ⇒ W figé », attrapée par le compteur, pas par moi.
 
+> ⚠️ **BANDEAU DE PORTÉE, posé le 2026-09-16 APRÈS le verdict — deux prémisses de ce record étaient des
+> décors, pas des mesures (E8), et elles sont désormais publiées par le runner.**
+> **(1) lr/B — E19 occ. 7.** Le bras `torch` comparé ici tourne sous `TorchPopulationModel` : W disjoint par
+> agent, perte MOYENNÉE sur B = 12, SGD (`backend_torch.py:117, 219-221`) — le pas RÉELLEMENT appliqué à un agent
+> est **lr/12**. « Torch à 0,04 » vaut donc **0,0033 par agent**, et la phrase « le legacy à 0,004 bat torch à
+> 0,04 » compare 0,004 à 0,0033 : à pas effectif quasi ÉGAL, le legacy (+0,318) et torch (+0,156, CALIB-LEARNER)
+> sont deux règles différentes au même pas, pas une règle à un pas dix fois plus petit. Vérifié par PRÉDICTION
+> (`tests/sandbox/test_torch_effective_step.py` : ΔW(B=1) = 12,000 · ΔW(B=12)) ; `count_learning_events` publie
+> désormais `lr_effective_per_agent` à côté de `lr`. Les chiffres de ce record sont inchangés ; leur LECTURE
+> comparative l'est.
+> **(2) Activation — E29 occ. 1.** Le legacy a tourné sous **Swish** (`src/metaprog/sandbox/generated_ops.py`,
+> écrit par la boucle métaprog, ignoré par git, ABSENT de HEAD, rechargé à chaque pas) — pas sous `tanh`. Un
+> clone qui rejoue R1/R2 sans ce fichier tourne en tanh et n'est PAS bit-identique. Le runner publie désormais
+> `regime.legacy_activation` (source / nom / sha256 / `versioned: False`) et `_pinned_substrate` gèle le hash
+> présent pour la durée du run (`mamba_agent.pinned_activation`). Le sha256 sous lequel R1/R2 ont tourné n'a
+> pas été enregistré à l'époque — il est INCONNU ; le fichier présent le 2026-09-16 (mtime 01:07, réécrit par
+> un run cette nuit) est Swish, comme celui d'EDR-139. Dette : décider si le fichier est versionné (backlog).
+
 ## Addendum (2026-09-15, P2.72 a) — la courbe de pas : l'instabilité n'est pas un seuil, c'est une pente
 
 Règle scellée avant toute cellule (`docs/preregistrations/LEGACY-LR-CURVE-R1.json`), même dispositif, mêmes 12

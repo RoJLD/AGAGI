@@ -273,7 +273,8 @@ def test_the_REAL_graph_declares_a_MEASURED_bar_on_every_edge():
 # --------------------------------------------------------------------------------------------------
 # La porte lisait `emergence_bar` sans jamais demander ce qu'elle separe. Une arete pouvait declarer
 # `emergence_bar: 0.3167` — la barre de vitalite historique du depot — et passer, alors qu'un substrat
-# PROUVABLEMENT INCAPABLE de la tache la franchit deja : le bras intact aurait « emerge » sans savoir
+# qui n'a PAS APPRIS la tache (dit « prouvablement incapable » a l'epoque, retracte le 2026-09-08) la
+# franchit deja : le bras intact aurait « emerge » sans savoir
 # rien faire. C'est le defaut symetrique de M4 (qui, lui, verifiait que l'intact atteint la barre).
 
 def _edge_hors_gel(**evidence_over):

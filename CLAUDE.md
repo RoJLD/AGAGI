@@ -178,7 +178,8 @@ condition ne l'est plus », qui attrape une fermeture régressée en silence ; l
 sont hors périmètre et RAPPORTÉES, jamais comptées comme un succès) · `check_agi_taxonomy.py` (preuve complète d'une arête) ·
 `check_synthesis_counts.py` (tout compte publié se recompute) · `check_substrate_pinning.py` ·
 `check_bar_separation.py` (toute barre de verdict `chance + marge` confrontée au PLAFOND DE
-L'INCAPABLE — P2.15 : `1/K+0.15` était franchie par un substrat prouvablement incapable) ·
+L'INCAPABLE — P2.15 : `1/K+0.15` était franchie par un substrat qui n'avait pas appris la tâche ; le
+« prouvablement incapable » de l'époque est rétracté depuis le 2026-09-08 — le plafond du plain est 0,944 MINORANT) ·
 `check_test_census.py` (un test qui DISPARAÎT rend la suite plus verte — aucun signal habituel ne
 peut alerter ; porte 10, session parallèle) ·
 `check_data_paths.py` (aucun NOUVEAU chemin de données écrit en dur — inventaire : 57 littéraux

@@ -241,14 +241,92 @@ class MambaAgent(BaseAgent):
 _cached_activation = np.tanh
 _cached_mtime = 0.0
 
+# ---------------------------------------------------------------------------------------------
+# E29 (2026-09-16) — l'activation du substrat legacy dépend d'un fichier NON VERSIONNÉ chargé À CHAUD.
+# `generated_ops.py` est écrit par la boucle métaprog (`compiler.py`), ignoré par git, absent de HEAD,
+# et rechargé ici à CHAQUE pas dès que son mtime change : Swish sur cette machine, tanh sur un clone,
+# et une activation qui peut CHANGER en cours de run. Le pin rend ça visible et contrôlable :
+#   ACTIVATION_PIN = None       -> comportement historique (bit-identique aux records publiés)
+#   ACTIVATION_PIN = "builtin"  -> jamais de chargement (np.tanh)
+#   ACTIVATION_PIN = "<sha256>" -> charge SSI le fichier présent a CE hash, sinon ActivationPinMismatch
+# `activation_provenance()` publie ce qui est en vigueur (à mettre dans tout bloc `regime` legacy) ;
+# `pinned_activation()` gèle l'activation PRÉSENTE pour la durée d'un run et restaure l'ambiant.
+# Contre-exemples : tests/sandbox/test_activation_pin.py.
+ACTIVATION_PIN = None
+
+
+class ActivationPinMismatch(RuntimeError):
+    """Le fichier d'activation présent n'a pas le hash épinglé (ou est absent) — refus, jamais tanh."""
+
+
+def _ops_file():
+    import os
+    sandbox_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "metaprog", "sandbox")
+    return os.path.join(sandbox_dir, "generated_ops.py")
+
+
+def _ops_sha256(path):
+    """sha256 du CONTENU, fins de ligne normalisées (CRLF -> LF) : le même fichier vaut le même hash sur une
+    machine autocrlf et sur un clone LF — sinon le pin d'un record ne serait reproductible que sur SA machine."""
+    import hashlib
+    import os
+    if not os.path.exists(path):
+        return None
+    with open(path, "rb") as f:
+        return hashlib.sha256(f.read().replace(b"\r\n", b"\n")).hexdigest()
+
+
+def activation_provenance():
+    """Ce qui est EN VIGUEUR pour le prochain pas legacy : source, nom, hash, pin. `versioned` est
+    toujours False pour le fichier généré (il n'est pas dans HEAD) — publié tel quel, jamais déduit."""
+    fn = _get_activation_function()
+    path = _ops_file()
+    from_file = fn is not np.tanh
+    return {
+        "pin": ACTIVATION_PIN,
+        "source": "generated_ops.py" if from_file else "builtin",
+        "name": getattr(fn, "__name__", repr(fn)),
+        "sha256": _ops_sha256(path) if from_file else None,
+        "versioned": False if from_file else True,
+    }
+
+
+import contextlib as _contextlib
+
+
+@_contextlib.contextmanager
+def pinned_activation(pin=None):
+    """Gèle l'activation pour un run : `pin=None` -> le hash du fichier PRÉSENT (ou "builtin" s'il
+    n'existe pas) ; sinon la valeur donnée. Rend le pin posé ; restaure l'ambiant en sortie."""
+    global ACTIVATION_PIN
+    if pin is None:
+        pin = _ops_sha256(_ops_file()) or "builtin"
+    saved = ACTIVATION_PIN
+    ACTIVATION_PIN = pin
+    try:
+        yield pin
+    finally:
+        ACTIVATION_PIN = saved
+
+
 def _get_activation_function():
     global _cached_activation, _cached_mtime
     import importlib.util
     import os
-    
-    sandbox_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "metaprog", "sandbox")
-    ops_file = os.path.join(sandbox_dir, "generated_ops.py")
-    
+
+    ops_file = _ops_file()
+
+    # --- pin (E29) : décidé AVANT le try/except historique, qui avale toute exception ---
+    pin = ACTIVATION_PIN
+    if pin == "builtin":
+        return np.tanh
+    if pin is not None:
+        present = _ops_sha256(ops_file)
+        if present != pin:
+            raise ActivationPinMismatch(
+                f"activation legacy épinglée sur sha256={pin[:12]}… mais le fichier présent vaut "
+                f"{(present or 'ABSENT')[:12]} ({ops_file}) — record non reproductible sans ce fichier")
+
     if os.path.exists(ops_file):
         try:
             mtime = os.path.getmtime(ops_file)

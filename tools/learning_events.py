@@ -66,6 +66,11 @@ class LearningEvents:
         self.legacy_updates = 0
         self.skips = {}
         self.dW_abs_sum = 0.0
+        # E19 (occ. lr/B) : le pas REELLEMENT applique au W d'un agent, lu sur le modele au moment
+        # ou il apprend — torch : lr/B (SGD, perte moyennee sur B) ; legacy : LR_ACTOR tel quel.
+        # None tant qu'aucune population n'a appris. Publie a cote de `lr` (nominal), jamais a sa place.
+        self.lr_effective_per_agent = None
+        self.lr_effective_unit = None
 
     def _skip(self, reason):
         self.skips[reason] = self.skips.get(reason, 0) + 1
@@ -83,6 +88,8 @@ class LearningEvents:
             "reward_scale": self.reward_scale,
             "td_enabled": self.td_enabled,
             "lr": self.lr,
+            "lr_effective_per_agent": self.lr_effective_per_agent,
+            "lr_effective_unit": self.lr_effective_unit,
         }
 
 
@@ -147,6 +154,8 @@ def count_learning_events(reward_scale=1.0, td_enabled=True, lr=None):
         if out is not None:
             ev.td_updates += 1
             ev.dW_abs_sum += _delta_W(self, w0)
+            ev.lr_effective_per_agent = getattr(self, "effective_lr_per_agent", None)
+            ev.lr_effective_unit = "torch: lr/B (SGD, perte moyennée sur B, W disjoint par agent)"
         return out
 
     def learn_episode(self, obs_seq, actions_seq, rewards, gamma=1.0, gate_last_only=True):
@@ -174,6 +183,8 @@ def count_learning_events(reward_scale=1.0, td_enabled=True, lr=None):
         if d > 0.0:
             ev.legacy_updates += 1
             ev.dW_abs_sum += d
+            ev.lr_effective_per_agent = float(type(self).LR_ACTOR)
+            ev.lr_effective_unit = "legacy: LR_ACTOR par agent (pas de moyenne sur B)"
         return out
 
     def emit(*args, **kwargs):
