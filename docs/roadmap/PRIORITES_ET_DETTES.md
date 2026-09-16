@@ -671,24 +671,47 @@ portaient déjà la rétractation. 103 tests des fichiers touchés passent (12,8
 
 **P4.11 — rang 5 — OUVERTE ([`ADR-005`](../ADR/005_mecanismes_biomimetiques_pieces_familles_prerequis.md), item 1) —
 Trace d'éligibilité de politique TD(λ) dans `TorchPopulationModel._td_update` : le crédit local SANS BPTT, calibré à
-0 simulation, puis proxy D=2 AVANT P1.6.**
-Quoi : flag de classe `CREDIT_TRACE_LAMBDA` (0,0 = bit-identique à TD(0)), traces e_a ← γλ·e_a + ∂logπ/∂W et
-e_v ← γλ·e_v + ∂V/∂W (un backward de logp.sum() / v.sum(), W disjoint par agent), ΔW = lr·(δ·e_a − (v−cible)·e_v)/B,
-pas lu sur `self.opt.param_groups[0]["lr"]`, aucun tirage RNG ; 4ᵉ kwarg `trace_lambda` de `count_learning_events`,
-restauré en `finally`, inscrit dans `regime` ; épinglé dans `_pinned_substrate`. Calibration à 0 run (5 cas,
-déclaration CALIBRATED qualifiée `backend_torch.py::learn`) : λ=0 → W bit-identique à HEAD après 3 ticks ; ΔW exact
-prédit ; décroissance λ^k mesurée ; lr=0 → dW=0. Bras (règle scellée, deux issues nommées) : `tdlam_0` (doit répliquer
-bit à bit `natural`), `tdlam_0.9` aux DEUX pas (E19 — ⚠️ pas EFFECTIF lr/B, P2.76), `hebb_delta` (Hebb×δ, prédit INERTE
-par EDR-020), `lr0_reference`, `oracle` ; `assert_control_family(cells=n_bras×12)`. Issues : LEARNER_INERT, TRACE_NUIT
-(précédent EDR-130 : λ=0,7 dégrade sur du 1-pas), TRACE_NEUTRE (lu avec le ratio Σ|ΔW|), TRACE_AIDE (≥ +0,05, ≥ 10/12,
-invariant aux deux pas). **Scellé d'avance** : sur P1.6 (same-tick i.i.d.) la trace n'a rien à transporter — le run y
-QUALIFIE l'implémentation ; l'issue positive n'est productible que sur une tâche DIFFÉRÉE → proxy D=2
-(`tools/lang_memory_edge_run.py`, LOCK-002, CPU pur, ≈ 1 h) AVANT P1.6 (≈ 50 min, bail kuzu). Motivation : EDR-148
-(TD(λ) nommé, jamais tenté) ; P4.9 (le bras SANS signal n'érode pas ; érosion portée par la voie ÉPISODIQUE — une
-trace dans `_td_update` ne peut PAS la changer sans couper/remplacer l'épisodique : c'est le run n°3, pas le n°1).
-⚠️ Le modulateur δ vient d'un critic saturé (56 % < −0,99, S2-REWARD-ABLATION) — NAV-005 : un modulateur biaisé
-effondre le crédit ; publier la distribution de δ à côté du verdict.
-<!-- closes_when:grep_present=src/agents/backend_torch.py::CREDIT_TRACE_LAMBDA -->
+0 simulation ; l'issue positive se mesure sur un PILOTE TD PAR PAS (`CompositionTask(same_tick=False)`), pas sur le
+proxy D=2.**
+⚠️ **CORRECTION 2026-09-16 (mesurée)** : la première version de cette entrée envoyait le run positif sur le proxy D=2 de
+LOCK-002 (`tools/lang_memory_edge_run.py`). Or `language_memory_demand_probe._train_and_eval` apprend par
+`agent.learn_episode(...)` (l.282, l.321) — la voie ÉPISODIQUE, jamais `learn()`/`_td_update` : une trace dans `_td_update`
+n'y serait JAMAIS exercée, le run aurait été un no-op. `_td_update` ne tourne aujourd'hui qu'in-world, tick par tick, sur une
+tâche same-tick. Le lieu correct = un pilote TD par pas sur `CompositionTask(same_tick=False)` (key t0, q t1, récompense
+t1) : forward par pas, `learn(rewards_t, actions_t)` par pas, CPU pur, sans monde — c'est le billet `credit="td"` de
+l'ADR-005, et c'est accepté par la session harnais comme MODE `credit="td"` de `ConnectomeLearner` en R2 (la Dose compte
+les T mises à jour, la trace = kwarg `trace_lambda` de `build`).
+**État au 2026-09-16 (session loop 766eabae / agagi-b0, non committé)** : trace posée dans `_td_update` — drapeaux de
+classe `CREDIT_TRACE_LAMBDA` (0,0 = chemin d'ORIGINE pris tel quel : bit-identique par construction) et
+`CREDIT_TRACE_BYPASS_OPTIMIZER` (sous un optimiseur autre que SGD sans momentum, λ>0 REFUSE sauf contournement DEMANDÉ
+par kwarg, publié dans `regime`) ; chemin `_td_update_trace` : e ← γλ·e + ∇ sur TOUS les paramètres de l'optimiseur
+(`_trace_params` = W, U, V, W_bl — listes alignées), ΔW = lr·(δ·e_a − (v−cible)·e_v)/B (mêmes signes et même /B que
+−(δ·logp).mean() et 0,5·((v−cible)²).mean() ; ⚠️ pas EFFECTIF lr/B, P2.76) ; refus explicite sous `CONDITION_GATE` /
+`ANTISAT` ; `reset_traces(mask)` option COMPTÉE (résurrection : pas de reset par défaut — immortel veut dire immortel ;
+rebuild à changement de B perd la trace, dit dans le docstring) ; `trace_updates` / `trace_resets` publiés ;
+`count_learning_events(trace_lambda=, trace_bypass_optimizer=)` publié dans `regime` ; pin 0,0 dans `_pinned_substrate`.
+Cellule de référence de la session harnais re-mesurée APRÈS le patch : 0,932812511920929 / 0,27031248807907104,
+bit-identiques. 9 cas `tests/sandbox/test_credit_trace_lambda.py`, contrôle POSITIF en premier (la formule rejouée hors du
+modèle prédit W à 1e-6 sur deux mises à jour et sur les quatre paramètres, et prédit AUTRE CHOSE à λ=0,5) ; déclaration
+CALIBRATED qualifiée `backend_torch.py::_td_update`.
+**Pilote `tools/td_step_pilot.py`, règle `TD-STEP-PILOT-R0` scellée, 144 cellules en cours.** Deux fumées seed 0 (déclarées
+dans la règle, seed 0 EXCLU) ont changé le design AVANT scellement — la question A du pré-vol : (1) le contrôle positif
+« BPTT 0,923 » est BILINÉAIRE ; en plain, BPTT 2 pas rend 0,21/0,27 à 600 ép. → un bras TD plain ne pouvait pas réussir
+(E1) : substrat bilinéaire sur tous les bras, trace généralisée aux 4 paramètres ; (2) il manquait un contrôle positif du
+CHEMIN de crédit : TD par pas à D=0 n'apprend RIEN à lr 0,04-0,4 même à 4000 ép. (0,18 vs 0,17 réf.), apprend à lr 4,0
+(0,25/agent) : 0,30 à 1500 ép., 0,52 à 3000 ; 8,0 → 0,38 ; 40 diverge → bras `td0_d0` + `lr0_reference_d0`, branche
+`CONTROLE_CHEMIN_ECHOUE` avant toute lecture de D=1. Régime scellé : 3000 ép., lr {4,0 ; 8,0} (E19), λ=0,9, reset des
+traces par épisode (publié) ; 6 bras × 2 pas × 12 seeds. Fumée D=1 seed 0 (1500 ép., lr 4) : td0 0,189, λ=0,9 0,178,
+réf. 0,145. Branches, dans l'ordre : INCOMPLET ; CONTROLE_SUBSTRAT_ECHOUE ; CONTROLE_CHEMIN_ECHOUE ;
+TD0_{APPREND|INERTE} | TRACE_{AIDE|NUIT|NEUTRE}. Réponse connue positive sur la même Task = `bptt_credit` (bilinéaire).
+Le bras `hebb_delta` (Hebb×δ, prédit INERTE par EDR-020) SORT de R1 — à sceller à part, R1 ne mesure qu'une chose.
+P1.6 = QUALIFICATION seulement (no-op exact, non inerte, non dégradante — précédent EDR-130 —, E19), pas le lieu de
+l'issue positive. Motivation : EDR-148 (TD(λ) nommé, jamais tenté) ; P4.9 (l'érosion est portée par la voie ÉPISODIQUE — une
+trace dans `_td_update` ne peut PAS la changer sans couper/remplacer l'épisodique : run n°3, pas n°1). ⚠️ Le modulateur δ
+vient d'un critic saturé (56 % < −0,99, S2-REWARD-ABLATION) — NAV-005 : publier la distribution de δ à côté du verdict.
+**Se ferme** avec le record `EDR-TD-STEP-PILOT-R0` (verdict lu dans `results/td_step_pilot_r0.json`, committé) — la clause
+ci-dessous est un motif d'auto-clôture ancré (vérifiable sur un clone ; `grep_present` sur le JSON non suivi ne l'était pas).
+<!-- closes_when:grep_present=docs/roadmap/PRIORITES_ET_DETTES.md::\n\*\*P4\.11 — ✅ CLOSE -->
 
 **P4.12 — rang 6 — ✅ CLOSE le 2026-09-16 (session loop 766eabae, accord agagi-c9 sur l'interface) — Sham LINÉAIRE à paramètres APPARIÉS pour la pièce `bilinear` : le contrôle EXISTE, est mesuré, et sa lecture scellée est `SHAM_PARTIEL`.**
 Quoi : `(H·U + H·V)·W_sh` à MÊME nombre de paramètres que `((H·U)⊙(H·V))·W_bl` (rang 16), flag `BILINEAR_SHAM`,
