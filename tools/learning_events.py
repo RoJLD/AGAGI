@@ -64,6 +64,8 @@ class LearningEvents:
         self.episode_updates = 0
         self.legacy_calls = 0
         self.legacy_updates = 0
+        self.compute_spent_total = 0.0      # P4.14 « glia » : Σ compute_spent rendu par forward (legacy ET torch)
+        self.forward_calls = 0
         self.skips = {}
         self.dW_abs_sum = 0.0
         # E19 (occ. lr/B) : le pas REELLEMENT applique au W d'un agent, lu sur le modele au moment
@@ -83,6 +85,8 @@ class LearningEvents:
             "episode_updates": int(self.episode_updates),
             "legacy_calls": int(self.legacy_calls),
             "legacy_updates": int(self.legacy_updates),
+            "compute_spent_total": float(self.compute_spent_total),
+            "forward_calls": int(self.forward_calls),
             "skips": dict(self.skips),
             "dW_abs_sum": float(self.dW_abs_sum),
             "reward_scale": self.reward_scale,
@@ -140,6 +144,8 @@ def count_learning_events(reward_scale=1.0, td_enabled=True, lr=None):
     orig_episode = _TPM.learn_episode
     orig_init = _TPM.__init__
     orig_legacy = _MBM.compute_policy_gradient
+    orig_fwd_legacy = _MBM.forward
+    orig_fwd_torch = _TPM.forward
     orig_lr_actor, orig_lr_critic = _MBM.LR_ACTOR, _MBM.LR_CRITIC
     had_emit = "emit" in _logger.__dict__
     orig_emit = _logger.emit
@@ -187,6 +193,24 @@ def count_learning_events(reward_scale=1.0, td_enabled=True, lr=None):
             ev.lr_effective_unit = "legacy: LR_ACTOR par agent (pas de moyenne sur B)"
         return out
 
+    def _compte_compute(out):
+        # P4.14 : le second retour de forward est `compute_spent` (B,) -- legacy : branches de reve par agent ;
+        # torch : 0 (backend_torch.py, aucun calcul allouable). Publie, jamais interprete ici (E2 : une
+        # grandeur qui n'agit pas ne s'instrumente pas -- ici on la MESURE pour pouvoir le dire).
+        ev.forward_calls += 1
+        try:
+            cs = out[1]
+            ev.compute_spent_total += float(np.sum(np.asarray(cs, dtype=np.float64))) if np.ndim(cs) else float(cs)
+        except Exception:                               # noqa: BLE001 -- forme inattendue : compte l'appel, pas la valeur
+            pass
+        return out
+
+    def fwd_legacy(self, batch_obs, env_surprise_batch=None):
+        return _compte_compute(orig_fwd_legacy(self, batch_obs, env_surprise_batch))
+
+    def fwd_torch(self, batch_obs, env_surprise_batch=None):
+        return _compte_compute(orig_fwd_torch(self, batch_obs, env_surprise_batch))
+
     def emit(*args, **kwargs):
         name = args[0] if args else kwargs.get("event_type", kwargs.get("name"))
         if name == "TORCH_EPISODE_SKIP":
@@ -197,6 +221,8 @@ def count_learning_events(reward_scale=1.0, td_enabled=True, lr=None):
     _TPM.learn = learn
     _TPM.learn_episode = learn_episode
     _MBM.compute_policy_gradient = compute_policy_gradient
+    _MBM.forward = fwd_legacy
+    _TPM.forward = fwd_torch
     if ev.lr is not None:
         _TPM.__init__ = __init__
         _MBM.LR_ACTOR = ev.lr
@@ -209,6 +235,8 @@ def count_learning_events(reward_scale=1.0, td_enabled=True, lr=None):
         _TPM.learn_episode = orig_episode
         _TPM.__init__ = orig_init
         _MBM.compute_policy_gradient = orig_legacy
+        _MBM.forward = orig_fwd_legacy
+        _TPM.forward = orig_fwd_torch
         _MBM.LR_ACTOR, _MBM.LR_CRITIC = orig_lr_actor, orig_lr_critic
         if had_emit:
             _logger.emit = orig_emit

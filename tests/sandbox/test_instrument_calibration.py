@@ -5652,3 +5652,17 @@ def test_compute_policy_gradient_SKIPS_and_COUNTS_a_non_finite_update_instead_of
         assert a._td_nan_skips == 1
     finally:
         MambaBatchModel.ABLATE_NTM = False
+
+
+def test_run_learner_probe_publishes_the_price_of_computation_next_to_the_dose():
+    """P4.14 (ADR-005 item 4) : « glia » = une publication -- `compute_spent_total` (compteur) et `brain_cost_total`
+    (puits `brain` d'EDR-099, lu sur le monde avec trace_energy_sinks) a cote de la dose, plus la part du cerveau
+    dans l'energie perdue. Fumee : 20 ticks, 3 agents. Le monde ne change pas (bit-identite de la DV verifiee
+    hors test sur 400 ticks : hit_rate 0,20635..., n_decisions 4 754, seed 2026 lr 0,001)."""
+    from tools.cognitive_demand_inworld import run_learner_probe
+    r = run_learner_probe(seed=2026, num_agents=3, ticks=20, block=10, policy="legacy")
+    g = r["glia"]
+    assert set(g) == {"compute_spent_total", "brain_cost_total", "energie_perdue_total", "brain_share"}
+    assert g["brain_cost_total"] >= 0.0 and g["energie_perdue_total"] > 0.0
+    assert 0.0 <= g["brain_share"] < 0.05, "le cerveau coute ~0,1 % du drain (EDR-099) ; ici un plafond large"
+    assert r["learning"]["forward_calls"] == 20 and r["learning"]["compute_spent_total"] >= 0.0

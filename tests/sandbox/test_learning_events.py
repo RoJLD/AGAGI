@@ -245,3 +245,36 @@ def test_legacy_summary_publishes_its_counters():
     assert s["legacy_calls"] == 0 and s["legacy_updates"] == 0
     import json
     json.dumps(s)
+
+
+# ==================================================================================================
+# P4.14 (ADR-005 item 4, 2026-09-16) -- « glia » = une PUBLICATION : le compteur somme `compute_spent` rendu par
+# forward (legacy : branches de reve par agent ; torch : 0), sans toucher a la sortie. 0 ligne de moteur.
+# ==================================================================================================
+
+def test_glia_compute_spent_is_summed_from_forward_and_is_zero_when_no_dreaming():
+    a, m, obs = _legacy()
+    orig = MambaBatchModel.forward
+    with count_learning_events() as ev:
+        for _ in range(3):
+            m.forward(obs)
+        assert ev.forward_calls == 3 and ev.compute_spent_total == 0.0     # aucun reve force : 0 branche
+    assert MambaBatchModel.forward is orig, "forward restaure"
+    assert "compute_spent_total" in ev.summary()
+
+
+def test_glia_compute_spent_counts_forced_dream_branches_and_leaves_the_output_untouched():
+    saved = MambaBatchModel.FORCE_DREAM
+    MambaBatchModel.FORCE_DREAM = 4                        # K = 4 branches de reve forcees par PORTEUR d'organe
+    try:
+        a, m, obs = _legacy()
+        a.genome.organ_genes[0] = True                     # porteur de l'organe (sinon personne ne reve)
+        a2, m2, _ = _legacy()
+        a2.genome.organ_genes[0] = True
+        np.random.seed(11); p_ref, cs_ref = m2.forward(obs)          # sans compteur (le reve tire du RNG global)
+        with count_learning_events() as ev:
+            np.random.seed(11); p, cs = m.forward(obs)               # memes tirages : seule difference = le compteur
+        assert np.array_equal(p, p_ref) and np.array_equal(cs, cs_ref), "pass-through bit-identique"
+        assert ev.compute_spent_total == float(np.sum(cs)) and ev.compute_spent_total > 0.0
+    finally:
+        MambaBatchModel.FORCE_DREAM = saved

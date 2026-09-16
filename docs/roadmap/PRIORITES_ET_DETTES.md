@@ -712,7 +712,7 @@ les readouts) : « le LIEU de la modulation décide ». ⚠️ La diagonale a DE
 n'exclut pas la diagonale ; mutation) — un facteur posé sur δ doit dire lequel il module.
 <!-- closes_when:grep_present=src/agents/mamba_agent.py::def delta_distribution -->
 
-**P4.14 — rang 9 — OUVERTE (ADR-005, item 4) — « Glia » réduit à une PUBLICATION : `compute_spent` / `brain_cost`
+**P4.14 — rang 9 — ✅ CLOSE le 2026-09-16 (session loop 766eabae) — « Glia » réduit à une PUBLICATION : `compute_spent` / `brain_cost`
 comme prix à côté de toute dose d'apprentissage.**
 Quoi : `count_learning_events().summary()` publie `compute_spent_total` et `brain_cost_total` lus sur le monde (champs
 existants : `world_1_stoneage.py:1284`, `mamba_agent.py:281-296`) — 0 ligne de moteur. Aucune pièce
@@ -720,6 +720,13 @@ existants : `world_1_stoneage.py:1284`, `mamba_agent.py:281-296`) — 0 ligne de
 et tant que le calcul ne coûte rien in-world (brain = −0,1 % du drain, EDR-099 ; un acte cognitif RAPPORTE +0,1) : une
 grandeur qui n'agit pas ne s'instrumente pas (E2). L'allocateur legacy existant (rêve TTC, K∈[1,8] par agent) est OFF
 sur 60/60 génomes HoF et son bénéfice est du BRUIT d'état (DREAM-002, sham = dream).
+Fait, 0 ligne de moteur : `count_learning_events` enveloppe `forward` (legacy ET torch, pass-through bit-identique) et publie
+`compute_spent_total` + `forward_calls` ; `run_learner_probe` pose `trace_energy_sinks` (DV **bit-identique** vérifiée : bloc
+400, seed 2026, lr 0,001 — `hit_rate` 0,20635… / 4 754 décisions, identiques à R2) et publie `glia = {compute_spent_total,
+brain_cost_total, energie_perdue_total, brain_share}`. Première mesure (legacy sous garde E28, 400 ticks) : `compute_spent`
+**0** (aucun rêve), `brain_share` **0,11 %** — EDR-099 (« −0,1 % du drain ») reproduit à la sonde. 3 tests (compteur à 0,
+rêve forcé K=4 chez un porteur d'organe → Σ = 4 avec sortie bit-identique à RNG apparié, sonde). Conclusion tenue : une
+grandeur qui n'agit pas ne s'instrumente pas comme PIÈCE — elle est désormais publiée pour qu'on puisse le dire chiffré.
 <!-- closes_when:grep_present=tools/learning_events.py::compute_spent -->
 
 **P4.15 — rang 3 — OUVERTE (propriétaire : la session P4.9) — Graver `EDR-S2-CREDIT-ABLATION` : P4.9 est FINI et
