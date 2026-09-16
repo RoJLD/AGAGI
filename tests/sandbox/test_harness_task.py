@@ -57,6 +57,61 @@ class ToyParity:
         return {"K": 2, "T": 1}
 
 
+class ToyParityT2:
+    """Variante T=2 de ToyParity : a présenté au pas 0, b au pas 1 (mask_seq=(0,1) note le pas de
+    réponse) ; cible (a + b) % 2. Calibre le chemin T>1 / mask_seq d'assert_task_contract, laissé
+    hors couverture par ToyParity (T==1 partout) : la sonde de lot vide de la clause (f) et la
+    bit-identité de (a)/(d) doivent tenir compte de mask_seq, pas seulement de obs_seq/target.
+    `control_variant` choisit COMMENT le split "control" (exigé par l'ablation site="state")
+    diffère du split "train" : "represent_a_twice" ré-présente a au pas 2 (obs diffère) ;
+    "mask_only" ne change QUE le pas noté (obs et target restent identiques bit à bit)."""
+    name, version, K, obs_dim, T = "toy_parity_t2", "1", 2, 4, 2
+
+    def __init__(self, control_variant="represent_a_twice"):
+        self.control_variant = control_variant
+        abls = (
+            Ablation("state_reset", "state", True, bayes_floor=0.5),
+            Ablation("permute_nothing", "input", False, apply=self._permute_nothing),
+        )
+        self.demand = DemandDeclaration(
+            "parity_memory", abls,
+            incapable_ceiling=(0.75, "plafond jouet declare pour le test T2, minorant", False))
+
+    def episodes(self, rng, n, split="train"):
+        a = rng.randint(0, 2, size=n)
+        b = rng.randint(0, 2, size=n)
+        obs0 = np.zeros((n, 4), dtype=np.float32)
+        obs0[np.arange(n), a] = 1.0
+        obs1 = np.zeros((n, 4), dtype=np.float32)
+        obs1[np.arange(n), 2 + b] = 1.0
+        mask0 = np.zeros(n, dtype=np.float32)
+        mask1 = np.ones(n, dtype=np.float32)
+        if split == "control":
+            if self.control_variant == "represent_a_twice":
+                obs1[np.arange(n), a] = 1.0   # a ré-présenté au pas 2 : le control ne charge plus l'état retenu
+            elif self.control_variant == "mask_only":
+                mask0, mask1 = mask1, mask0   # même contenu, seul le pas noté change
+        return Episode((obs0, obs1), ((a + b) % 2).astype(np.int64), (mask0, mask1), {"a": a, "b": b})
+
+    def _permute_nothing(self, ep, rng):
+        return Episode(tuple(o.copy() for o in ep.obs_seq), ep.target.copy(),
+                        tuple(m.copy() for m in ep.mask_seq), dict(ep.meta))
+
+    def score(self, actions, ep):
+        if ep.n == 0:
+            raise ValueError("score : episode vide")
+        return (np.asarray(actions) == ep.target).astype(np.float32)
+
+    def oracle(self, ep):
+        return (ep.meta["a"] + ep.meta["b"]) % 2
+
+    def enumerate_states(self):
+        return 4
+
+    def regime(self):
+        return {"K": 2, "T": 2}
+
+
 def test_toy_task_passes_the_contract_and_reports_bayes_floors():
     out = assert_task_contract(ToyParity(), seed=0, n=64)
     assert out["certified"] is True
@@ -116,3 +171,18 @@ def test_state_ablation_requires_a_control_split():
                                                Ablation("nobite", "input", False, apply=task._permute_nothing)))
     with pytest.raises(PreflightError, match="control"):
         assert_task_contract(task)
+
+
+def test_t2_task_with_masked_steps_and_a_content_differing_control_passes():
+    out = assert_task_contract(ToyParityT2(control_variant="represent_a_twice"), seed=0, n=64)
+    assert out["certified"] is True
+    assert out["bayes_floors"] == {"state_reset": 0.5}
+
+
+def test_control_split_differing_from_train_only_by_its_mask_is_not_bit_identical():
+    # Avant le correctif de _episodes_bit_identical, obs_seq et target identiques suffisaient à
+    # déclarer "control" bit-identique à "train" (mask_seq ignoré) : le contrat refusait à tort
+    # une tâche T>1 valide. Ici le contrat doit PASSER (pas lever "control").
+    out = assert_task_contract(ToyParityT2(control_variant="mask_only"), seed=0, n=64)
+    assert out["certified"] is True
+    assert out["bayes_floors"] == {"state_reset": 0.5}

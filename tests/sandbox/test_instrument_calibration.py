@@ -1256,10 +1256,15 @@ CALIBRATED = {
         "reproducible", "variant-published"],
     "learner_verdict": ["missing:raises", "harness:indeterminate", "inert", "learns:during_run", "learns:early"],
     # Harnais ADR-004 (2026-09-16). Cas dans tests/sandbox/test_harness_task.py.
+    # Revue fix-round-1 (2026-09-16) : la sonde de lot vide (f) et _episodes_bit_identical (a)/(d)
+    # ignoraient mask_seq -- probe malformee (mask non tronque) et deux episodes differant SEULEMENT
+    # par leur mask juges bit-identiques a tort. Corrige + 2 cas T=2 ajoutes (bug trouve en revue ->
+    # cas de calibration, jamais une simple note).
     "src/seed_ai/harness_task.py::assert_task_contract": [
         "toy:passes", "no-nobite:raises", "biting-control:raises", "verifier-is-oracle:raises",
         "aliased-ablation:raises", "chance-as-ceiling:raises", "short-provenance:raises",
-        "non-reproducible:raises", "state-without-control:raises"],
+        "non-reproducible:raises", "state-without-control:raises",
+        "t2-mask-seq:content-diff-control:passes", "t2-mask-seq:mask-only-control:not-bit-identical"],
     # P2.60 (2026-09-15) -- banc factoriel 2^4 d'EDR-177 et driver d'EDR-178, portes dans HEAD par FUSION
     # 3-voies du tag keep/edr-177-178-factorial-regime-sweep (merge-tree sans conflit, gardes de HEAD
     # conservees). Deux ORCHESTRATEURS calibres PAR INJECTION a dose connue, AUCUN monde construit

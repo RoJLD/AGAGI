@@ -98,7 +98,15 @@ def _check_episode_shape(task, ep, n, label):
 def _episodes_bit_identical(a: Episode, b: Episode) -> bool:
     if a.T != b.T or not np.array_equal(a.target, b.target):
         return False
-    return all(np.array_equal(x, y) for x, y in zip(a.obs_seq, b.obs_seq))
+    if not all(np.array_equal(x, y) for x, y in zip(a.obs_seq, b.obs_seq)):
+        return False
+    if (a.mask_seq is None) != (b.mask_seq is None):
+        return False
+    if a.mask_seq is None:
+        return True
+    if len(a.mask_seq) != len(b.mask_seq):
+        return False
+    return all(np.array_equal(x, y) for x, y in zip(a.mask_seq, b.mask_seq))
 
 
 def assert_task_contract(task, seed=0, n=64) -> dict:
@@ -140,7 +148,8 @@ def assert_task_contract(task, seed=0, n=64) -> dict:
     if acc_shift != 0.0:
         _fail(f"(b) oracle décalé noté {acc_shift:.4f}, attendu 0.0 : le vérifieur n'est pas indépendant de l'oracle (E1)")
     try:
-        task.score(np.zeros(0, dtype=np.int64), Episode(tuple(o[:0] for o in ep.obs_seq), ep.target[:0], ep.mask_seq, {}))
+        mask0 = None if ep.mask_seq is None else tuple(m[:0] for m in ep.mask_seq)
+        task.score(np.zeros(0, dtype=np.int64), Episode(tuple(o[:0] for o in ep.obs_seq), ep.target[:0], mask0, {}))
     except Exception:
         pass
     else:
