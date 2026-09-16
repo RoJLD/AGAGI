@@ -17,6 +17,8 @@ adopts: [REF-EXPERIMENT-PREFLIGHT, REF-DEMAND-MARKER]
 > INERTE pour la conclusion ; le défaut de la sonde reste le chemin historique (bit-identique), l'alignement est
 > disponible (`align_train_eval=True`) pour toute mesure neuve.
 
+> ✅ **Contrôle à paramètres APPARIÉS, 2026-09-16 (P4.12, ADR-005 item 2, règle scellée `BILINEAR-SHAM-R1`) — lecture `SHAM_PARTIEL`.** Le sham `((H·U)+(H·V))·W_bl` (MÊMES tenseurs U/V/W_bl que le bilinéaire, même init, même optimiseur ; paramètres par agent ASSERTÉS : plain 29,584, bilinéaire 37,840, sham 37,840) au régime du bras décisif, seeds 1-12 (seed 0 = fumée déclarée dans la règle), `results/bilinear_sham_r1.json` : à lr 0,02 plain **0,270** / sham **0,315** / bilinéaire **0,934** ; à lr 0,002 (E19) 0,180 / 0,189 / 0,413. Les bras plain et bilinéaire RE-MESURÉS sont bit-identiques aux chiffres de ce record (22/22). La branche scellée `SHAM_INERTE` exigeait sham ≤ plain + 0,05 sur 11/12 seeds : 8/12 — la règle impose donc de RAPPORTER sans inférer. Faits post-hoc, hors verdict : sham ≥ 0,5 sur 0/24 cellules, sous le plafond affine 0,3889 sur 12/12 (la somme est `H·(U+V)·W_bl`, encore affine en H), bilinéaire > sham + 0,05 sur 12/12 et 12/12. Ce record n'est PAS modifié : le contrôle qui lui manquait existe, et la multiplication reste le seul des deux bras à composer — sans que la règle scellée l'ait ÉTABLI.
+
 > ⚠️ **CLAUSE SUSPECTE (2026-09-01)** — ce record reste `active` et son résultat PRINCIPAL est intact ;
 > c'est sa clause SECONDAIRE (le nul 2-pas) qui est bornée ci-dessous. Cf. [[EDR-RETAIN-COMPOSE-LR]].
 >

@@ -1,0 +1,151 @@
+{
+ "_design": {
+  "question": "P4.12 (ADR-005 item 2) : la piece `bilinear` doit son effet (plain 0,271 vs bilineaire 0,932, EDR-BILINEAR) a la MULTIPLICATION ((H.U)*(H.V)).W_bl ou a la CAPACITE ajoutee (U, V, W_bl : memes parametres) ? Le sham lineaire a parametres APPARIES ((H.U)+(H.V)).W_bl, meme init, meme optimiseur, tranche.",
+  "replication_unit": "seed (une population de 16 agents par cellule ; 3 bras x 2 pas appari\u00e9s par seed)",
+  "n_independent": 12,
+  "links": {
+   "accuracy_plain": "measured",
+   "accuracy_bilineaire": "measured",
+   "accuracy_sham": "measured",
+   "bit_identite_plain_bilineaire": "measured",
+   "compte_de_parametres": "measured",
+   "plafond_plain_forme_close": "inferred"
+  },
+  "inferred_links": [
+   "plafond_plain_forme_close"
+  ],
+  "cost_estimate": "72 cellules x 2-8 s -> ~6 min CPU, sans bail ; results/bilinear_sham_r1.json",
+  "inferred_reason": "le plafond 0,3889 du plain (tools/plain_substrate_ceiling.py) n'entre dans aucune branche : il justifie seulement la barre scellee 0,5 (milieu entre ce plafond et 1) ; les trois bras sont MESURES ici, et plain/bilineaire sont confrontes bit a bit au JSON publie",
+  "control_family": {
+   "cells": 72,
+   "alpha_family": 0.05,
+   "alpha_cell": 0.0006944444444444445,
+   "method": "bonferroni",
+   "reason": null,
+   "fwer_bound": 0.05
+  },
+  "warning": "1 maillon(s) INF\u00c9R\u00c9(S) : ['plafond_plain_forme_close']. Une cha\u00eene causale transporte son signe, pas son amplitude \u2014 v\u00e9rifier que le r\u00e9gime place l'effet au-dessus du bruit, ou mesurer \u00e0 n r\u00e9duit."
+ },
+ "_regime": {
+  "K": 6,
+  "bras": [
+   "plain",
+   "bilinear",
+   "sham"
+  ],
+  "credit_mode": "supervised",
+  "episodes": 300,
+  "lr": [
+   0.02,
+   0.002
+  ],
+  "n_agents": 16,
+  "rank": 16,
+  "same_tick": true,
+  "n_params_par_agent": {
+   "plain": 29584,
+   "bilinear": 37840,
+   "sham": 37840
+  }
+ },
+ "plain|lr=0.02|seed=1": 0.26875001192092896,
+ "_provenance": [
+  {
+   "git_sha": "3e2a9f830810d14f56cf2fe7a7132d3b6c16172b",
+   "dirty": true,
+   "rule": "BILINEAR-SHAM-R1",
+   "seal": "003013f2767152bd189c9ee8e04ec85bcc6b0c3f265ae8c2e8c3dda76576bc97"
+  }
+ ],
+ "bilinear|lr=0.02|seed=1": 0.925000011920929,
+ "sham|lr=0.02|seed=1": 0.32343751192092896,
+ "plain|lr=0.02|seed=2": 0.25312501192092896,
+ "bilinear|lr=0.02|seed=2": 0.9375,
+ "sham|lr=0.02|seed=2": 0.296875,
+ "plain|lr=0.02|seed=3": 0.27812498807907104,
+ "bilinear|lr=0.02|seed=3": 0.901562511920929,
+ "sham|lr=0.02|seed=3": 0.328125,
+ "plain|lr=0.02|seed=4": 0.2750000059604645,
+ "bilinear|lr=0.02|seed=4": 0.890625,
+ "sham|lr=0.02|seed=4": 0.33125001192092896,
+ "plain|lr=0.02|seed=5": 0.27656251192092896,
+ "bilinear|lr=0.02|seed=5": 0.925000011920929,
+ "sham|lr=0.02|seed=5": 0.3187499940395355,
+ "plain|lr=0.02|seed=6": 0.23281249403953552,
+ "bilinear|lr=0.02|seed=6": 0.9375,
+ "sham|lr=0.02|seed=6": 0.29374998807907104,
+ "plain|lr=0.02|seed=7": 0.3031249940395355,
+ "bilinear|lr=0.02|seed=7": 0.9312499761581421,
+ "sham|lr=0.02|seed=7": 0.3453125059604645,
+ "plain|lr=0.02|seed=8": 0.2718749940395355,
+ "bilinear|lr=0.02|seed=8": 0.9468749761581421,
+ "sham|lr=0.02|seed=8": 0.2796874940395355,
+ "plain|lr=0.02|seed=9": 0.2796874940395355,
+ "bilinear|lr=0.02|seed=9": 0.9234374761581421,
+ "sham|lr=0.02|seed=9": 0.31718748807907104,
+ "plain|lr=0.02|seed=10": 0.26093751192092896,
+ "bilinear|lr=0.02|seed=10": 0.942187488079071,
+ "sham|lr=0.02|seed=10": 0.2906250059604645,
+ "plain|lr=0.02|seed=11": 0.2671875059604645,
+ "bilinear|lr=0.02|seed=11": 0.96875,
+ "sham|lr=0.02|seed=11": 0.2953124940395355,
+ "plain|lr=0.02|seed=12": 0.26875001192092896,
+ "bilinear|lr=0.02|seed=12": 0.940625011920929,
+ "sham|lr=0.02|seed=12": 0.3125,
+ "plain|lr=0.002|seed=1": 0.17812499403953552,
+ "bilinear|lr=0.002|seed=1": 0.43437498807907104,
+ "sham|lr=0.002|seed=1": 0.19843749701976776,
+ "plain|lr=0.002|seed=2": 0.19062499701976776,
+ "bilinear|lr=0.002|seed=2": 0.41718751192092896,
+ "sham|lr=0.002|seed=2": 0.18906250596046448,
+ "plain|lr=0.002|seed=3": 0.16249999403953552,
+ "bilinear|lr=0.002|seed=3": 0.44843751192092896,
+ "sham|lr=0.002|seed=3": 0.18906250596046448,
+ "plain|lr=0.002|seed=4": 0.17499999701976776,
+ "bilinear|lr=0.002|seed=4": 0.4046874940395355,
+ "sham|lr=0.002|seed=4": 0.17656250298023224,
+ "plain|lr=0.002|seed=5": 0.19062499701976776,
+ "bilinear|lr=0.002|seed=5": 0.4375,
+ "sham|lr=0.002|seed=5": 0.20937499403953552,
+ "plain|lr=0.002|seed=6": 0.14218750596046448,
+ "bilinear|lr=0.002|seed=6": 0.3515625,
+ "sham|lr=0.002|seed=6": 0.15625,
+ "plain|lr=0.002|seed=7": 0.19374999403953552,
+ "bilinear|lr=0.002|seed=7": 0.40312498807907104,
+ "sham|lr=0.002|seed=7": 0.203125,
+ "plain|lr=0.002|seed=8": 0.18281249701976776,
+ "bilinear|lr=0.002|seed=8": 0.4078125059604645,
+ "sham|lr=0.002|seed=8": 0.18437500298023224,
+ "plain|lr=0.002|seed=9": 0.19687500596046448,
+ "bilinear|lr=0.002|seed=9": 0.4234375059604645,
+ "sham|lr=0.002|seed=9": 0.17499999701976776,
+ "plain|lr=0.002|seed=10": 0.17656250298023224,
+ "bilinear|lr=0.002|seed=10": 0.3843750059604645,
+ "sham|lr=0.002|seed=10": 0.20468750596046448,
+ "plain|lr=0.002|seed=11": 0.15312500298023224,
+ "bilinear|lr=0.002|seed=11": 0.4078125059604645,
+ "sham|lr=0.002|seed=11": 0.17656250298023224,
+ "plain|lr=0.002|seed=12": 0.20156249403953552,
+ "bilinear|lr=0.002|seed=12": 0.45781248807907104,
+ "sham|lr=0.002|seed=12": 0.19843749701976776,
+ "_cout_s": 209.3005130290985,
+ "_controles": {
+  "bit_identite": {
+   "n_egal": 22,
+   "n_attendu": 22,
+   "ecarts": []
+  },
+  "reference": "bilinear_composition.json"
+ },
+ "_lecture": {
+  "mediane_plain_002": 0.27031250298023224,
+  "mediane_bilineaire_002": 0.934374988079071,
+  "mediane_sham_002": 0.3148437440395355,
+  "mediane_plain_0002": 0.18046874552965164,
+  "mediane_bilineaire_0002": 0.4125000089406967,
+  "mediane_sham_0002": 0.18906250596046448,
+  "sham_sous_plain_plus_marge": "8/12",
+  "bit_identite": "22/22",
+  "branche": "SHAM_PARTIEL"
+ }
+}

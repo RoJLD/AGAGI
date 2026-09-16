@@ -57,6 +57,12 @@ class TorchPopulationModel(PopulationModel):
     # --- Terme bilinéaire low-rank optionnel (attaque le mur de composition/binding) ---
     BILINEAR = False         # terme d'interaction bilinéaire low-rank dans _step (débloque la composition).
     BILINEAR_RANK = 16       # rang r du bilinéaire ((H·U)⊙(H·V))·W_bl ; params créés SEULEMENT si BILINEAR.
+    # P4.12 (ADR-005 item 2, 2026-09-16) : SHAM LINÉAIRE À PARAMÈTRES APPARIÉS. Quand BILINEAR et BILINEAR_SHAM sont
+    # vrais, le terme devient ((H·U) + (H·V))·W_bl -- MÊMES tenseurs U, V, W_bl (donc exactement le même nombre de
+    # paramètres, par construction), même init, même optimiseur ; seule la COMBINAISON change : additive au lieu du
+    # produit de Hadamard. C'est le contrôle qui manquait à la pièce `bilinear` (PARAMS_NON_APPARIES) : si le sham
+    # compose aussi, ce n'est pas la multiplication qui débloque, c'est la capacité. Défaut False = bit-identique.
+    BILINEAR_SHAM = False
 
     def __init__(self, agents, world_model=None, lr=0.04, device="cpu"):
         if torch is None:
@@ -138,7 +144,9 @@ class TorchPopulationModel(PopulationModel):
         if type(self).BILINEAR and self.W_bl is not None:
             hu = torch.bmm(H.unsqueeze(1), self.U).squeeze(1)      # (B,r)
             hv = torch.bmm(H.unsqueeze(1), self.V).squeeze(1)      # (B,r)
-            excitation = excitation + torch.bmm((hu * hv).unsqueeze(1), self.W_bl).squeeze(1)  # (B,N)
+            # P4.12 : sham linéaire apparié -- somme au lieu du produit, mêmes paramètres (voir BILINEAR_SHAM)
+            inter = (hu + hv) if type(self).BILINEAR_SHAM else (hu * hv)
+            excitation = excitation + torch.bmm(inter.unsqueeze(1), self.W_bl).squeeze(1)  # (B,N)
         return (1.0 - delta) * H + delta * torch.tanh(excitation)
 
     def _gate_value(self, H):

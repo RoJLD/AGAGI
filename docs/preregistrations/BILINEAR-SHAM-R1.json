@@ -1,0 +1,59 @@
+{
+  "name": "BILINEAR-SHAM-R1",
+  "rule": {
+    "cellule": {
+      "K": 6,
+      "bras": [
+        "plain",
+        "bilinear",
+        "sham"
+      ],
+      "credit_mode": "supervised",
+      "episodes": 300,
+      "lr": [
+        0.02,
+        0.002
+      ],
+      "n_agents": 16,
+      "rank": 16,
+      "same_tick": true,
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12
+      ]
+    },
+    "controles": {
+      "bit_identite": "plain et bilineaire seeds 1-11 doivent egaler results/bilinear_composition.json (references re-mesurees, pas importees)",
+      "calibration": "tests/test_bilinear_composition_probe.py : sham OFF no-op exact, ON parametres EGAUX et sortie differente, drapeau restaure",
+      "famille": "72 cellules (3 bras x 2 lr x 12 seeds) via assert_control_family"
+    },
+    "cout": "72 cellules x 2-8 s -> ~6 min CPU, sans bail ; results/bilinear_sham_r1.json",
+    "discrimination": {
+      "INCOMPLET": "moins de 3 bras x 2 lr x 12 seeds : aucune lecture.",
+      "SHAM_COMPOSE (mediane_sham_002 >= 0,5 OU mediane_sham_0002 >= 0,5)": "c'est la CAPACITE (trois tenseurs de plus), pas la multiplication : bandeau correctif sur EDR-BILINEAR, `bilinear` tombe a NOT_NECESSARY dans le registre de pieces.",
+      "SHAM_INERTE (mediane_sham_002 <= mediane_plain_002 + 0,05 ET sham_sous_plain_plus_marge >= 11 ET mediane_sham_0002 < 0,5)": "la MULTIPLICATION debloque, pas la capacite : la piece `bilinear` obtient son matched_sham (PARAMS_NON_APPARIES ferme) et sa necessite se lit « necessite de la combinaison multiplicative a dose D » ; addendum EDR-BILINEAR.",
+      "SHAM_PARTIEL (le reste)": "le sham apprend un peu sans composer : rapporter les trois medianes aux deux pas, sans inference."
+    },
+    "dv_primaire": "accuracy eval par seed et par bras aux DEUX pas ; `mediane_sham_002`, `mediane_bilineaire_002`, `mediane_plain_002` (pas publie) et `mediane_sham_0002` (clause E19) ; `sham_sous_plain_plus_marge` = seeds ou sham <= plain + 0,05 ; `n_params` par bras (compte ASSERTE des tenseurs, publie dans regime).",
+    "provenance": "Smoke VU AVANT scellement, declare ici : seed 0, lr 0,02, meme regime -> sham 0,30937498807907104 (plain 0,27031248807907104, bilineaire 0,932812511920929, bit-identiques a results/bilinear_composition.json). Le seed 0 est EXCLU de la lecture (seeds 1-12) ; les branches ci-dessous ont ete ecrites en connaissant ce seul point, ce qui est dit.",
+    "question": "P4.12 (ADR-005 item 2) : la piece `bilinear` doit son effet (plain 0,271 vs bilineaire 0,932, EDR-BILINEAR) a la MULTIPLICATION ((H.U)*(H.V)).W_bl ou a la CAPACITE ajoutee (U, V, W_bl : memes parametres) ? Le sham lineaire a parametres APPARIES ((H.U)+(H.V)).W_bl, meme init, meme optimiseur, tranche.",
+    "regle_de_lecture_continue": "ORDRE IMPOSE : INCOMPLET, SHAM_INERTE, SHAM_COMPOSE, SHAM_PARTIEL.",
+    "seuils": {
+      "barre": 0.5,
+      "justification": "0,05 = min_sep du depot ; 0,5 = seuil BILINEAR-ALIGNED-R1 (milieu entre le plafond du plain 0,3889 et 1) ; 11/12 = convention de puissance.",
+      "marge": 0.05,
+      "seeds_min": 11
+    }
+  },
+  "seal": "003013f2767152bd189c9ee8e04ec85bcc6b0c3f265ae8c2e8c3dda76576bc97"
+}
