@@ -1559,6 +1559,7 @@ def ajouter(path, lignes):
 
 
 def compteurs(journal, now, fenetre_s=30 * 86400, delai_suivi_s=48 * 3600):
+    journal = [l for l in journal if l["ts"] <= now]           # un compteur évalué à `now` ne voit pas l'avenir
     debut = now - fenetre_s
     emissions = [l for l in journal if l["statut"] in ("emise", "repetee") and l["ts"] >= debut]
     suivis = {}
