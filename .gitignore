@@ -69,7 +69,9 @@ Thumbs.db
 # Artefacts metaprog generes (EDR 035) — ne jamais committer/exécuter dans le repo
 tests/sandbox/generated_op.py
 tests/sandbox/test_generated_op.py
-src/metaprog/sandbox/generated_ops.py
+# src/metaprog/sandbox/generated_ops.py -- VERSIONNE depuis le 2026-09-16 (E29, P2.75) : l'activation du legacy
+# (Swish) est chargee a chaud par MambaBatchModel ; un clone doit l'avoir, et toute reecriture par la boucle
+# metaprog doit se VOIR dans git status. Ne pas re-ignorer sans decision (ADR-005).
 
 # Artefacts d'execution (gestionnaire de jobs, sorties de sondes) — ajoutes le 2026-07-21
 runs/

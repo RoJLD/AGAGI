@@ -123,7 +123,7 @@ aux deux pas) et TRACE_NUIT / TRACE_NEUTRE / LEARNER_INERT.
   `Piece.matched_sham = {"bilinear_sham": True}` (kwargs de `build()`, forme `(H·U + H·V)·W_sh` à MÊME nombre de
   paramètres, compte asserté et non lu) sur la ligne `bilinear` — P4.12.
 
-- Backlog : P2.75 (E29, décision OUVERTE : versionner ou publier le sha), P2.76 (lr/B, CLOSE), P2.77 (fixtures, CLOSE),
+- Backlog : P2.75 (E29 — CLOSE : le fichier est VERSIONNÉ, `versioned` mesuré, sha normalisé CRLF→LF), P2.76 (lr/B, CLOSE), P2.77 (fixtures, CLOSE),
   P4.11–P4.15 (la file). Registre : E29 (nouvelle classe, garde exécutable, 12 contre-exemples), E19 occ. 7.
 - Records : bandeau de portée sur [[EDR-CALIB-LEGACY-LEARNER]] (lr/B et activation) ; aucun verdict modifié.
 - **Critère de révision** : si l'item 1 rend TRACE_AIDE sur le proxy D=2 ET NEUTRE/NUIT sur P1.6, la pièce

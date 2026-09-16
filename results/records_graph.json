@@ -41,6 +41,32 @@
         "maturity": null
       },
       {
+        "id": "ADR-004",
+        "type": "ADR",
+        "title": "Fourche strategique P3.7 -- AGAGI devient un HARNAIS (demande GENEREE + mesure) pointe sur un apprenant a poids que robla possede ; le connectome cesse d'etre le sujet",
+        "status": "accepted",
+        "gate": "foundational",
+        "verdict": null,
+        "linked": true,
+        "url": null,
+        "method": null,
+        "lib": null,
+        "maturity": null
+      },
+      {
+        "id": "ADR-005",
+        "type": "ADR",
+        "title": "Les mecanismes biomimetiques entrent dans AGAGI comme PIECES du registre, comme FAMILLES sous controle positif, ou comme PREREQUIS a cout nul -- jamais comme architecture ; la file reformulee par la revue du 2026-09-16",
+        "status": "proposed",
+        "gate": "foundational",
+        "verdict": null,
+        "linked": true,
+        "url": null,
+        "method": null,
+        "lib": null,
+        "maturity": null
+      },
+      {
         "id": "CALIB-ALIAS",
         "type": "EDR",
         "title": "L'ablation within-subject est chirurgicale sur un substrat DISJOINT (no-op exact) mais fuit sur un substrat PARTAGÉ — nouveau garde assert_no_functional_aliasing, aveugle-point de np.shares_memory comblé",
@@ -2615,6 +2641,19 @@
         "maturity": null
       },
       {
+        "id": "EDR-CALIB-LEGACY-LEARNER",
+        "type": "EDR",
+        "title": "L'apprenant LEGACY de l'arc EVO (`MambaBatchModel.compute_policy_gradient`) APPREND la tâche linéaire à un DIXIÈME de son pas publié (11/12 seeds, +0,318 vs lr=0 apparié) et s'EFFONDRE ou DIVERGE à son pas publié (4 seeds à 0,000, 1 seed NaN, 6/12) ; et son W a DEUX auteurs — le gradient et le compilateur NTM, qui survit à un pas nul",
+        "status": "active",
+        "gate": "G0",
+        "verdict": "LEGACY_LEARNS_AT_LOW_STEP_UNSTABLE_AT_PUBLISHED_STEP_W_HAS_TWO_AUTHORS",
+        "linked": true,
+        "url": null,
+        "method": null,
+        "lib": null,
+        "maturity": null
+      },
+      {
         "id": "EDR-COG-001",
         "type": "EDR",
         "title": "lr-par-tête (readouts seuls) NE recouvre PAS le gain disjoint — l'équilibrage de crédit vit dans le TRONC partagé, pas les têtes de lecture",
@@ -3206,6 +3245,19 @@
         "status": "active",
         "gate": "G1",
         "verdict": "D2_RETENTION_LEARNED_FOURTH_MANIFESTATION_WAS_E19",
+        "linked": true,
+        "url": null,
+        "method": null,
+        "lib": null,
+        "maturity": null
+      },
+      {
+        "id": "EDR-LOCK-003",
+        "type": "EDR",
+        "title": "Le MÊME levier perce les deux fils — pas bas ET durée font apprendre la rétention différée du fil coordination (0,42 vs 0,17, 12/12 seeds, n=12) comme celle du fil mémoire : la prédiction n° 2 de LOCK-001 tient à puissance",
+        "status": "active",
+        "gate": "G1",
+        "verdict": "SAME_LEVER_PIERCES_BOTH_THREADS_PREDICTION_2_HOLDS",
         "linked": true,
         "url": null,
         "method": null,
@@ -4125,6 +4177,41 @@
     ],
     "edges": [
       {
+        "from": "ADR-004",
+        "to": "REF-DEMAND-MARKER",
+        "rel": "ADOPTE"
+      },
+      {
+        "from": "ADR-004",
+        "to": "REF-EXPERIMENT-PREFLIGHT",
+        "rel": "ADOPTE"
+      },
+      {
+        "from": "ADR-004",
+        "to": "REF-POET-2019",
+        "rel": "ADOPTE"
+      },
+      {
+        "from": "ADR-004",
+        "to": "REF-ELM-2022",
+        "rel": "ADOPTE"
+      },
+      {
+        "from": "ADR-005",
+        "to": "ADR-004",
+        "rel": "ADOPTE"
+      },
+      {
+        "from": "ADR-005",
+        "to": "REF-EXPERIMENT-PREFLIGHT",
+        "rel": "ADOPTE"
+      },
+      {
+        "from": "ADR-005",
+        "to": "REF-DEMAND-MARKER",
+        "rel": "ADOPTE"
+      },
+      {
         "from": "CALIB-ALIAS",
         "to": "SDR-G0",
         "rel": "TESTE"
@@ -4488,6 +4575,26 @@
         "from": "EDR-CALIB-LEARNER",
         "to": "EDR-S2-011",
         "rel": "CORRIGE"
+      },
+      {
+        "from": "EDR-CALIB-LEGACY-LEARNER",
+        "to": "SDR-G0",
+        "rel": "TESTE"
+      },
+      {
+        "from": "EDR-CALIB-LEGACY-LEARNER",
+        "to": "REF-EXPERIMENT-PREFLIGHT",
+        "rel": "ADOPTE"
+      },
+      {
+        "from": "EDR-CALIB-LEGACY-LEARNER",
+        "to": "EDR-CALIB-LEARNER",
+        "rel": "ETEND"
+      },
+      {
+        "from": "EDR-CALIB-LEGACY-LEARNER",
+        "to": "EDR-S2-011",
+        "rel": "ETEND"
       },
       {
         "from": "EDR-DELAYED-COORD",
@@ -5208,6 +5315,31 @@
         "from": "EDR-LOCK-002",
         "to": "EDR-LOCK-001",
         "rel": "CORRIGE"
+      },
+      {
+        "from": "EDR-LOCK-003",
+        "to": "SDR-G1",
+        "rel": "TESTE"
+      },
+      {
+        "from": "EDR-LOCK-003",
+        "to": "REF-DEMAND-MARKER",
+        "rel": "ADOPTE"
+      },
+      {
+        "from": "EDR-LOCK-003",
+        "to": "EDR-LOCK-002",
+        "rel": "ETEND"
+      },
+      {
+        "from": "EDR-LOCK-003",
+        "to": "EDR-LOCK-001",
+        "rel": "ETEND"
+      },
+      {
+        "from": "EDR-LOCK-003",
+        "to": "EDR-DELAYED-COORD",
+        "rel": "ETEND"
       },
       {
         "from": "EDR-MEM-PERCEPTION",
@@ -6331,6 +6463,7 @@
         "EDR-AUDIT-001",
         "EDR-AUDIT-002",
         "EDR-CALIB-LEARNER",
+        "EDR-CALIB-LEGACY-LEARNER",
         "EDR-COG-001",
         "EDR-DELAYED-COORD",
         "EDR-DREAM-001",
@@ -6435,6 +6568,7 @@
         "EDR-CRAFT-001",
         "EDR-LOCK-001",
         "EDR-LOCK-002",
+        "EDR-LOCK-003",
         "G1-001"
       ],
       "triggered_adr": []
@@ -6526,9 +6660,9 @@
   },
   "problems": [],
   "prefix_counts": {
-    "LEGACY": 233,
+    "LEGACY": 235,
     "AUDIT": 2,
-    "CALIB": 1,
+    "CALIB": 2,
     "COG": 1,
     "CRAFT": 1,
     "DELAYED": 1,
@@ -6538,7 +6672,7 @@
     "HOF": 1,
     "INFRA": 1,
     "LANG": 4,
-    "LOCK": 2,
+    "LOCK": 3,
     "MEM": 1,
     "NAV": 6,
     "RETAIN": 2,

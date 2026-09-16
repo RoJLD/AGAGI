@@ -170,3 +170,26 @@ def test_le_hash_du_pin_ignore_les_fins_de_ligne(ops):
     assert lf == crlf
     ops.write_bytes(_SWISH_SRC.replace("np.exp(-x)", "np.exp(-2.0 * x)").encode("utf-8"))
     assert ma._ops_sha256(str(ops)) != lf
+
+
+def test_le_fichier_d_activation_du_depot_est_VERSIONNE():
+    """Cliquet de P2.75 : `src/metaprog/sandbox/generated_ops.py` est SUIVI par git depuis le 2026-09-16.
+    Le re-ignorer (ou le supprimer de l'index) rougit ici — un clone perdrait l'activation de tous les
+    records legacy. `None` (git absent) est toléré : on ne fabrique pas un verdict sans instrument."""
+    real = ma._ops_file()
+    assert os.path.exists(real), "le fichier d'activation legacy a disparu de l'arbre"
+    tracked = ma._tracked_by_git(real)
+    if tracked is None:
+        pytest.skip("git indisponible : versionnement non mesurable ici")
+    assert tracked is True
+
+
+def test_provenance_du_depot_publie_versioned_True_et_le_sha_swish():
+    """Le fichier versionné rend `versioned: True` et le sha normalisé de Swish — le lecteur d'un record
+    peut vérifier qu'il tourne sous la même activation que la machine des records."""
+    p = ma.activation_provenance()
+    if p["source"] != "generated_ops.py":
+        pytest.skip("aucun fichier d'activation chargé (clone sans le fichier ?)")
+    assert p["versioned"] in (True, None)
+    assert p["sha256"] == ma._ops_sha256(ma._ops_file())
+    assert p["name"] == "custom_activation"

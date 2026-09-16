@@ -150,7 +150,9 @@ bras rendent `LEARNER_LEARNS` à la médiane. Mais le test des signes les sépar
 > `regime.legacy_activation` (source / nom / sha256 / `versioned: False`) et `_pinned_substrate` gèle le hash
 > présent pour la durée du run (`mamba_agent.pinned_activation`). Le sha256 sous lequel R1/R2 ont tourné n'a
 > pas été enregistré à l'époque — il est INCONNU ; le fichier présent le 2026-09-16 (mtime 01:07, réécrit par
-> un run cette nuit) est Swish, comme celui d'EDR-139. Dette : décider si le fichier est versionné (backlog).
+> un run cette nuit) est Swish, comme celui d'EDR-139, et IDENTIQUE au contenu supprimé en juillet. **Décision P2.75
+> (même jour) : le fichier est VERSIONNÉ**, sha normalisé `ce499410b9b2de518c1cb18de0a64cd8657f459eda320e2060a1834c7643a230` —
+> un clone tourne désormais sous la même activation que cette machine.
 
 ## Addendum (2026-09-15, P2.72 a) — la courbe de pas : l'instabilité n'est pas un seuil, c'est une pente
 

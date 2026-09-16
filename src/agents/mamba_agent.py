@@ -276,9 +276,22 @@ def _ops_sha256(path):
         return hashlib.sha256(f.read().replace(b"\r\n", b"\n")).hexdigest()
 
 
+def _tracked_by_git(path):
+    """True / False si git répond, None si git est absent — jamais un False fabriqué (E29 : le fichier a été
+    non versionné de juillet au 2026-09-16 ; depuis P2.75 il l'est, et ce champ le MESURE)."""
+    import os
+    import subprocess
+    try:
+        r = subprocess.run(["git", "ls-files", "--error-unmatch", "--", os.path.basename(path)],
+                           cwd=os.path.dirname(path), capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return r.returncode == 0
+
+
 def activation_provenance():
-    """Ce qui est EN VIGUEUR pour le prochain pas legacy : source, nom, hash, pin. `versioned` est
-    toujours False pour le fichier généré (il n'est pas dans HEAD) — publié tel quel, jamais déduit."""
+    """Ce qui est EN VIGUEUR pour le prochain pas legacy : source, nom, hash (CRLF normalisé), pin, et si le
+    fichier chargé est SUIVI par git (mesuré, pas supposé)."""
     fn = _get_activation_function()
     path = _ops_file()
     from_file = fn is not np.tanh
@@ -287,7 +300,7 @@ def activation_provenance():
         "source": "generated_ops.py" if from_file else "builtin",
         "name": getattr(fn, "__name__", repr(fn)),
         "sha256": _ops_sha256(path) if from_file else None,
-        "versioned": False if from_file else True,
+        "versioned": _tracked_by_git(path) if from_file else True,
     }
 
 

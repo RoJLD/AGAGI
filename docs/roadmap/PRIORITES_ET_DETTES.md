@@ -616,6 +616,124 @@ VÉRIFIÉE** (seed 2026, lr 0,001, bloc 400 : `hit_rate` 0,20635… et `n_decisi
 divisé par ~3 (400 ticks : 8 s au lieu de ~25).
 <!-- closes_when:grep_present=backend/app/flatland_server.py::is_closed -->
 
+**P2.75 — ✅ CLOSE le 2026-09-16 (décision par délégation de robla, accord agagi-c9 : le fichier est VERSIONNÉ, sha normalisé ce499410b9b2…) — E29 : l'activation du substrat LEGACY est un fichier NON VERSIONNÉ,
+réécrit par la boucle métaprog et rechargé à chaque pas — Swish ici, tanh sur un clone, et un sha INCONNU pour
+tous les records legacy.**
+Quoi (mesuré le 2026-09-16, critique de complétude de la piste biomimétique) : `src/metaprog/sandbox/generated_ops.py`
+(Swish x·σ(x)) est écrit par `src/metaprog/compiler.py:35`, ignoré (`.gitignore:72`), supprimé de l'index à d4982b0
+(EDR 035), absent de HEAD (`git cat-file -e HEAD:src/metaprog/sandbox/generated_ops.py` échoue), et
+`MambaBatchModel.forward` le recharge à CHAQUE pas dès que son mtime bouge (`mamba_agent.py::_get_activation_function`,
+appelée aux lignes 575 et 667, dans un `try/except Exception: pass`). Le fichier a été réécrit cette nuit (mtime 01:07).
+Fait : (a) EDR-139, l'arc EVO, EDR-135, CALIB-LEGACY R1/R2 ont tourné sous une activation qu'un clone n'a pas ;
+(b) un run peut changer d'activation EN COURS ; (c) `check_substrate_pinning` ne connaît que `BILINEAR`.
+**Livré dans la même passe** : `mamba_agent.ACTIVATION_PIN` (None = historique bit-identique / "builtin" / sha256
+→ `ActivationPinMismatch`), `activation_provenance()` publié dans `regime.legacy_activation` de `run_learner_probe`,
+`pinned_activation()` câblé dans `_pinned_substrate` (gèle le hash présent pour la durée du run) ; 13 contre-exemples
+`tests/sandbox/test_activation_pin.py` ; classe E29 au registre ; bandeau sur [[EDR-CALIB-LEGACY-LEARNER]].
+**DÉCISION (1) prise et livrée** : le fichier est sorti de `.gitignore` et committé — son contenu est IDENTIQUE
+(fins de ligne près) à celui supprimé en juillet (d4982b0) : la boucle métaprog réécrit le MÊME Swish depuis EDR-035,
+donc versionner ne fige rien qui bougeait, et toute dérive future se VOIT dans `git status`. `versioned` est désormais
+MESURÉ par `activation_provenance()` (git ls-files ; `None` si git absent, jamais un False fabriqué) ; le sha du pin
+normalise CRLF→LF (le même fichier vaut le même hash sur cette machine autocrlf et sur un clone LF) ; cliquet :
+`test_le_fichier_d_activation_du_depot_est_VERSIONNE` rougit si quelqu'un le re-ignore. `ACTIVATION_PIN` reste `None`
+par défaut (bit-identité avec les records du 2026-09-15). Le sha sous lequel R1/R2 ont tourné n'avait pas été
+enregistré ; celui du fichier versionné est ce499410b9b2de518c1cb18de0a64cd8657f459eda320e2060a1834c7643a230.
+Reste hors périmètre (dette, pas décision) : faire publier `legacy_activation` par les runners `evo_runs/`.
+<!-- closes_when:grep_absent=.gitignore::\nsrc/metaprog/sandbox/generated_ops\.py\n -->
+
+**P2.76 — ✅ CLOSE le 2026-09-16 — E19 occ. 7 : sous torch in-world le pas EFFECTIF par agent est lr/B — « 0,04 »
+à B = 12 vaut 0,0033 ; aucun record ne le disait, et deux backends étaient comparés « à lr égal » avec un facteur 12.**
+Quoi : `TorchPopulationModel` porte un W (B, N, N) DISJOINT par agent, `_td_update` MOYENNE la perte sur B
+(`backend_torch.py:219-221`), SGD (`:117`) — le 1/B ne s'annule pas (il s'annulerait sous Adam). `count_learning_events`
+posait `LR_ACTOR = lr` legacy (par agent) ↔ SGD `lr` torch (/B) comme équivalents (`learning_events.py:189-192`) :
+le couple E19 {0,04 ; 0,004} de P1.6 vaut {0,0033 ; 0,00033} par agent, et « le legacy à 0,004 bat torch à 0,04 »
+(CALIB-LEGACY) compare 0,004 à 0,0033. **Vérifié par PRÉDICTION, pas par lecture** : le même agent, en population
+de 1 et de 12 copies, sous la même transition, bouge 12,000× moins à B = 12 (`tests/sandbox/test_torch_effective_step.py`,
+4 cas ; un `.sum()` ou Adam le rougit). Livré : `TorchPopulationModel.effective_lr_per_agent`,
+`summary()["lr_effective_per_agent"]` + `lr_effective_unit` publiés à côté du `lr` nominal dans tout bloc `learning` ;
+registre E19 occ. 7 ; bandeau sur [[EDR-CALIB-LEGACY-LEARNER]] (chiffres inchangés, lecture comparative changée).
+Ce que ça NE dit pas : quel pas est « bon » — seulement que deux règles comparées « au même lr » ne l'étaient pas.
+<!-- closes_when:grep_present=tools/learning_events.py::lr_effective_per_agent -->
+
+**P2.77 — ✅ CLOSE le 2026-09-16 — Les fixtures et docstrings gravaient encore « plafond 0.3889 / substrat PROUVABLEMENT
+incapable », rétracté deux fois (0,8333 le 2026-09-07, puis 34/36 = 0,944 MINORANT le 2026-09-08).**
+Quoi : 7 sites hors records affirmaient encore la version du 2026-09-02 comme un fait —
+`tests/sandbox/test_experiment_preflight.py` (3 : la réponse connue n°2 de la garde E19 décrite comme « nul STRUCTUREL »,
+la fixture `_P215_CEIL`, le contre-exemple P2.15), `tests/sandbox/test_instrument_calibration.py` (2),
+`tests/sandbox/test_agi_taxonomy_gate.py` (1), `tools/experiment_preflight.py` (1), `tools/bilinear_composition_probe.py`
+(docstring de `_resolve_ceiling`), `CLAUDE.md` (description de `check_bar_separation`). Les CHIFFRES (0,3141 / 0,3719 /
+0,966 ; barre 0,3167 ; fixture 0,3889) sont des mesures ou des fixtures et restent tels quels — les gardes n'ont jamais
+vérifié la VALEUR du plafond, elles exigent sa provenance ; leur LECTURE change : un nul d'APPRENABILITÉ à budget
+fixe, jamais un nul de capacité ; « un bras qui n'a pas appris franchit la barre », jamais « un bras prouvablement
+incapable ». Les records gardent leur texte d'époque (historique) ; `plain_substrate_ceiling.py` et le backlog
+portaient déjà la rétractation. 103 tests des fichiers touchés passent (12,8 s).
+<!-- closes_when:grep_present=tests/sandbox/test_experiment_preflight.py::CORRECTION 2026-09-16 -->
+
+**P4.11 — rang 5 — OUVERTE ([`ADR-005`](../ADR/005_mecanismes_biomimetiques_pieces_familles_prerequis.md), item 1) —
+Trace d'éligibilité de politique TD(λ) dans `TorchPopulationModel._td_update` : le crédit local SANS BPTT, calibré à
+0 simulation, puis proxy D=2 AVANT P1.6.**
+Quoi : flag de classe `CREDIT_TRACE_LAMBDA` (0,0 = bit-identique à TD(0)), traces e_a ← γλ·e_a + ∂logπ/∂W et
+e_v ← γλ·e_v + ∂V/∂W (un backward de logp.sum() / v.sum(), W disjoint par agent), ΔW = lr·(δ·e_a − (v−cible)·e_v)/B,
+pas lu sur `self.opt.param_groups[0]["lr"]`, aucun tirage RNG ; 4ᵉ kwarg `trace_lambda` de `count_learning_events`,
+restauré en `finally`, inscrit dans `regime` ; épinglé dans `_pinned_substrate`. Calibration à 0 run (5 cas,
+déclaration CALIBRATED qualifiée `backend_torch.py::learn`) : λ=0 → W bit-identique à HEAD après 3 ticks ; ΔW exact
+prédit ; décroissance λ^k mesurée ; lr=0 → dW=0. Bras (règle scellée, deux issues nommées) : `tdlam_0` (doit répliquer
+bit à bit `natural`), `tdlam_0.9` aux DEUX pas (E19 — ⚠️ pas EFFECTIF lr/B, P2.76), `hebb_delta` (Hebb×δ, prédit INERTE
+par EDR-020), `lr0_reference`, `oracle` ; `assert_control_family(cells=n_bras×12)`. Issues : LEARNER_INERT, TRACE_NUIT
+(précédent EDR-130 : λ=0,7 dégrade sur du 1-pas), TRACE_NEUTRE (lu avec le ratio Σ|ΔW|), TRACE_AIDE (≥ +0,05, ≥ 10/12,
+invariant aux deux pas). **Scellé d'avance** : sur P1.6 (same-tick i.i.d.) la trace n'a rien à transporter — le run y
+QUALIFIE l'implémentation ; l'issue positive n'est productible que sur une tâche DIFFÉRÉE → proxy D=2
+(`tools/lang_memory_edge_run.py`, LOCK-002, CPU pur, ≈ 1 h) AVANT P1.6 (≈ 50 min, bail kuzu). Motivation : EDR-148
+(TD(λ) nommé, jamais tenté) ; P4.9 (le bras SANS signal n'érode pas ; érosion portée par la voie ÉPISODIQUE — une
+trace dans `_td_update` ne peut PAS la changer sans couper/remplacer l'épisodique : c'est le run n°3, pas le n°1).
+⚠️ Le modulateur δ vient d'un critic saturé (56 % < −0,99, S2-REWARD-ABLATION) — NAV-005 : un modulateur biaisé
+effondre le crédit ; publier la distribution de δ à côté du verdict.
+<!-- closes_when:grep_present=src/agents/backend_torch.py::CREDIT_TRACE_LAMBDA -->
+
+**P4.12 — rang 6 — OUVERTE (ADR-005, item 2) — Sham LINÉAIRE de même rang pour la pièce `bilinear` : ferme
+`PARAMS_NON_APPARIES` de la cellule R1 du harnais (ADR-004).**
+Quoi : `(H·U + H·V)·W_sh` à MÊME nombre de paramètres que `((H·U)⊙(H·V))·W_bl` (rang 16), flag `BILINEAR_SHAM`,
+~30 lignes dans `backend_torch.py::_step`, 1 cas de calibration (no-op exact quand OFF ; compte de paramètres ÉGAL au
+bilinéaire quand ON — asserté, pas lu), puis 12 seeds × 300 épisodes de `bilinear_composition_probe` (CPU pur, minutes).
+Remplace l'item « calcul dendritique multi-compartiments contre une tâche où le bilinéaire est prouvablement
+incapable » : ce prérequis est IMPOSSIBLE en l'état (aucune borne supérieure prouvée sur la forme complète de `_step`,
+deux rétractations du plain déjà payées — P2.77). Le contrôle qui manque n'est pas une tâche plus dure, c'est le sham.
+<!-- closes_when:grep_present=src/agents/backend_torch.py::BILINEAR_SHAM -->
+
+**P4.13 — rang 8 — OUVERTE (ADR-005, item 3) — « Hormone » = δ_j = σ(W_jj), le seul levier de constante de temps à
+une ligne : PUBLIER sa distribution sur le HoF (0 run), puis un facteur par agent sous garde E19.**
+Quoi : (a) 0 run — `mamba_agent.delta_distribution(genome)` + un runner qui l'applique à chaque génome du HoF principal et des HoF famine (JSON sous `results/`, nom fixé par le runner) :
+la distribution de δ_j = σ(clip(W_jj, ±10)) (min / médiane / max / part de nœuds à δ < 0,01 et > 0,99) — trois
+entiers par nœud ; (b) ensuite seulement, un facteur par agent sur δ piloté par un signal qui EXISTE sous torch
+(EMA|δ| ou Δénergie — jamais `surprise`, morte sous torch P4.8 ; jamais `W_router`, None sur tout agent frais et
+absent de torch), flag OFF bit-identique, publié dans `regime`, jugé par `assert_verdict_invariant_to_optimizer` à
+DEUX réglages du gate. Lire d'abord EDR-194 (LR_CLOSES, lr∝1/EMA(loss) sur le tronc) et COG-001 (LR_INSUFFICIENT sur
+les readouts) : « le LIEU de la modulation décide ». ⚠️ La diagonale a DEUX écrivains (TD `mamba_agent.py:923-924`
+n'exclut pas la diagonale ; mutation) — un facteur posé sur δ doit dire lequel il module.
+<!-- closes_when:grep_present=src/agents/mamba_agent.py::def delta_distribution -->
+
+**P4.14 — rang 9 — OUVERTE (ADR-005, item 4) — « Glia » réduit à une PUBLICATION : `compute_spent` / `brain_cost`
+comme prix à côté de toute dose d'apprentissage.**
+Quoi : `count_learning_events().summary()` publie `compute_spent_total` et `brain_cost_total` lus sur le monde (champs
+existants : `world_1_stoneage.py:1284`, `mamba_agent.py:281-296`) — 0 ligne de moteur. Aucune pièce
+`compute_allocation` tant que le backend torch ne porte pas de calcul allouable (`compute_spent = 0`, `backend_torch.py:155,172`)
+et tant que le calcul ne coûte rien in-world (brain = −0,1 % du drain, EDR-099 ; un acte cognitif RAPPORTE +0,1) : une
+grandeur qui n'agit pas ne s'instrumente pas (E2). L'allocateur legacy existant (rêve TTC, K∈[1,8] par agent) est OFF
+sur 60/60 génomes HoF et son bénéfice est du BRUIT d'état (DREAM-002, sham = dream).
+<!-- closes_when:grep_present=tools/learning_events.py::compute_spent -->
+
+**P4.15 — rang 3 — OUVERTE (propriétaire : la session P4.9) — Graver `EDR-S2-CREDIT-ABLATION` : P4.9 est FINI et
+son verdict change la lecture du crédit, mais il n'a ni record ni commit.**
+Quoi (mesuré le 2026-09-16, sceptique C10) : `results/s2_credit_ablation.json` (non suivi, 74 977 o, 15 sept 12:04)
+porte un bloc `verdict` complet — n=12, `SIGNAL_QUELCONQUE` / `EPISODIQUE_SUFFIT` / `ATTENUE_A_PETIT_PAS` ; S_a 36,0 /
+S_full 8,0 / **S_zero 33,25** / S_neg 7,25 / S_lr 21,5 / S_tdoff 7,5 ; d_full −28,25, 12/12 négatifs ; 40 758 s
+(≈ 11,3 h) ; `replication.identical = True` ; provenance git_sha 9de2b3b dirty. Lecture : le bras SANS signal n'érode
+PAS (33,25 ≈ 36,0) ; le signe inversé érode autant que le complet ; TD coupé érode aussi (b_tdoff −29,0 à dW 0,08×) ;
+l'érosion est portée par la voie ÉPISODIQUE seule et n'est PAS proportionnelle à Σ|ΔW| (0,08× érode autant que 1×).
+Ce record est le prérequis de P4.11 (run n°3) et le backlog dit encore « SCELLÉE ET LANCÉE ». Je ne touche pas à
+l'entrée P4.9 ni au JSON : ils appartiennent à la session qui a lancé le run.
+<!-- closes_when:grep_present=docs/roadmap/PRIORITES_ET_DETTES.md::\n\*\*P4\.9 — ✅ CLOSE -->
+
 **P2.68 — rang 14 — ✅ CLOSE le 2026-09-15 — 14 runners SCELLÉS sur 15 n'écrivent ni `git_sha` ni `dirty` dans leur JSON : leur règle est scellée par hash, leur code ne l'est pas.**
 Fait : **un seul site**, `tools/preregister.py::provenance(name)` → `{git_sha, dirty, rule, seal}` (le sceau de la
 règle voyage avec le code ; sans git → `None` + `error`, jamais une valeur) et `stamp(db, name)` pour les runners
