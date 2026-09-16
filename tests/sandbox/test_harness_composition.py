@@ -14,7 +14,7 @@ from tools.bilinear_composition_probe import _make_seq  # noqa: E402
 from tools.harness.tasks.composition import CompositionTask  # noqa: E402
 
 
-@pytest.mark.parametrize("same_tick,kind", [(True, "composition"), (False, "composition"), (True, "recall")])
+@pytest.mark.parametrize("same_tick,kind", [(True, "composition"), (False, "composition"), (True, "recall"), (False, "recall")])
 def test_episodes_are_bit_identical_to_make_seq(same_tick, kind):
     task = CompositionTask(K=6, same_tick=same_tick, kind=kind)
     rng = np.random.RandomState(1)
@@ -30,12 +30,17 @@ def test_episodes_are_bit_identical_to_make_seq(same_tick, kind):
     assert rng.randint(0, 6) == ref.randint(0, 6)     # même position de rng après l'appel
 
 
-@pytest.mark.parametrize("same_tick", [True, False])
-def test_contract_passes_and_names_bayes_floors(same_tick):
-    out = assert_task_contract(CompositionTask(K=6, same_tick=same_tick), seed=0, n=256)
+@pytest.mark.parametrize("same_tick,kind", [(True, "composition"), (False, "composition"), (True, "recall"), (False, "recall")])
+def test_contract_passes_and_names_bayes_floors(same_tick, kind):
+    # (False, "recall") est le chemin exact du fix round-1 (revue) : _permute_query, 2-pas, kind=recall --
+    # _make_seq n'encode jamais q ; sans l'ecriture explicite du slot dans _permute_query, ce cas leve E1.
+    out = assert_task_contract(CompositionTask(K=6, same_tick=same_tick, kind=kind), seed=0, n=256)
     assert out["certified"] is True
     assert out["bayes_floors"]["permute_key"] == pytest.approx(1 / 6)
-    assert out["bayes_floors"]["permute_query"] == pytest.approx(1 / 6)
+    if kind == "composition":
+        assert out["bayes_floors"]["permute_query"] == pytest.approx(1 / 6)
+    else:
+        assert "permute_query" not in out["bayes_floors"]   # non-mordante : absente, jamais a 1/K
     if not same_tick:
         assert out["bayes_floors"]["state_reset"] == pytest.approx(1 / 6)
 

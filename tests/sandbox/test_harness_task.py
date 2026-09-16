@@ -155,6 +155,23 @@ def test_contract_refuses_an_aliased_ablation():
         assert_task_contract(task)
 
 
+def test_contract_refuses_an_ablation_that_aliases_the_mask_seq():
+    # Fix round 1 (revue coordinateur) : l'aliasing d'obs_seq était déjà attrapé (test ci-dessus), mais
+    # mask_seq ne l'était pas -- une ablation qui COPIE obs_seq mais RÉ-UTILISE le même objet mask_seq
+    # que l'intact passait le contrat (défaut réel trouvé dans CompositionTask._inject_distractor,
+    # tools/harness/tasks/composition.py). Nécessite T > 1 (mask_seq is None sinon) : ToyParityT2.
+    task = ToyParityT2()
+
+    def _alias_mask(ep, rng):
+        return Episode(tuple(o.copy() for o in ep.obs_seq), ep.target.copy(), ep.mask_seq, dict(ep.meta))
+
+    task.demand = DemandDeclaration("parity_memory", (
+        Ablation("state_reset", "state", True, bayes_floor=0.5),
+        Ablation("alias_mask", "input", False, apply=_alias_mask)))
+    with pytest.raises(PreflightError, match="shares_memory|VUE"):
+        assert_task_contract(task)
+
+
 def test_contract_refuses_a_control_that_does_not_change_the_observation():
     # REVIEW-01 R1 (classe E1) : un contrôle qui rend une COPIE (pas de shares_memory, donc pas
     # attrapé par la garde d'aliasing) mais dont les VALEURS sont identiques à l'intact ne peut

@@ -77,8 +77,10 @@ class CompositionTask:
         # permuter q laisserait l'observation bit-identique -- un controle qui ne peut pas echouer ne
         # prouve rien (REVIEW-01 R1, E1). Ecrire le slot q explicitement, au pas de reponse, sur une
         # COPIE : meme convention que la ou "composition" le placerait ; l'oracle recall (= key) et la
-        # cible en restent independants.
-        seq = [np.array(x, copy=True) for x in ep2.obs_seq]
+        # cible en restent independants. ep2.obs_seq vient deja de _build (memoire fraiche, jamais
+        # partagee avec ep) : pas de copie supplementaire, seul le dernier pas est REMPLACE (+ rend un
+        # tableau NEUF, jamais une mutation en place).
+        seq = list(ep2.obs_seq)
         seq[-1] = seq[-1] + _slot(q2, self.K, self.K, self.obs_dim, ep.n)
         return Episode(tuple(seq), ep2.target, ep2.mask_seq, ep2.meta)
 
@@ -86,11 +88,14 @@ class CompositionTask:
         """Controle de SPECIFICITE : ecrit un one-hot aleatoire dans le slot distracteur [2K:3K) du DERNIER pas de
         la copie ablatee. L'observation CHANGE (le contrat (c) l'exige : un controle qui ne change rien ne peut pas
         echouer, E1), l'information utile a la cible ne change pas (oracle 1,0), et un learner dont le readout est
-        sensible a ces noeuds d'entree PEUT y perdre — c'est ce qui rend l'issue DECOY informative."""
+        sensible a ces noeuds d'entree PEUT y perdre — c'est ce qui rend l'issue DECOY informative. mask_seq est
+        COPIE (pas juste re-reference) : le contrat (d) verifie l'aliasing sur mask_seq aussi, pas seulement
+        obs_seq — fix round 1 (revue), le meme defaut que Task 1 avait deja ferme sur obs_seq."""
         seq = [np.array(x, copy=True) for x in ep.obs_seq]
         d = rng.randint(0, self.K, size=ep.n)
         seq[-1][np.arange(ep.n), 2 * self.K + d] = 1.0
-        return Episode(tuple(seq), ep.target.copy(), ep.mask_seq, dict(ep.meta, distractor=d))
+        mask = None if ep.mask_seq is None else tuple(np.array(m, copy=True) for m in ep.mask_seq)
+        return Episode(tuple(seq), ep.target.copy(), mask, dict(ep.meta, distractor=d))
 
     def score(self, actions, ep):
         if ep.n == 0:

@@ -116,8 +116,9 @@ def assert_task_contract(task, seed=0, n=64) -> dict:
     (c) TOUTE ablation d'entrée change l'observation sur >= 1 pas (sinon E1 : un contrôle qui ne peut
     pas échouer ne prouve rien) ; must_bite=True : score(oracle, apply(ep)) dans [bayes_floor ± 2 se] ;
     must_bite=False : > 0.9 ;
-    (d) deux appels episodes(rng même état) bit-identiques ; apply(ep) ne partage aucune mémoire avec ep ;
-    apply(ep) ne change JAMAIS target (la vérité est invariante à l'ablation) ;
+    (d) deux appels episodes(rng même état) bit-identiques ; apply(ep) ne partage aucune mémoire avec ep,
+    ni sur obs_seq ni sur mask_seq (np.shares_memory) ; apply(ep) ne change JAMAIS target (la vérité est
+    invariante à l'ablation) ;
     (e) incapable_ceiling : provenance >= 20 caractères, valeur dans ]0, 1], != 1/K ;
     (f) regime() non vide ; score sur n == 0 lève.
     Rend {"bayes_floors": {ablation: float}, "certified": enumerate_states() is not None, "elapsed_ms": float}."""
@@ -170,6 +171,10 @@ def assert_task_contract(task, seed=0, n=64) -> dict:
         for o, oa in zip(ep.obs_seq, ep_a.obs_seq):
             if np.shares_memory(o, oa):
                 _fail(f"(d) ablation {a.name!r} rend une VUE de l'épisode intact (np.shares_memory) : écrire dedans muterait la source")
+        if ep.mask_seq is not None and ep_a.mask_seq is not None:
+            for m, ma in zip(ep.mask_seq, ep_a.mask_seq):
+                if np.shares_memory(m, ma):
+                    _fail(f"(d) ablation {a.name!r} rend une VUE du mask_seq intact (np.shares_memory) : écrire dedans muterait la source")
         if not any(not np.array_equal(o, oa) for o, oa in zip(ep.obs_seq, ep_a.obs_seq)):
             _fail(f"(c) ablation {a.name!r} ne change PAS l'observation : un contrôle qui ne peut pas échouer ne prouve rien (E1)")
         if not np.array_equal(ep_a.target, ep.target):
