@@ -97,14 +97,18 @@ def measure_ablated_bayes_ceiling(task, ablation, n=4096, seed=0) -> dict:
     return {"declared": declared, "measured": measured, "se": se, "certified": bool(certified)}
 
 
-def _validate_rule(rule):
+def validate_rule(rule):
     """Défauts de RÈGLE (jamais un verdict scientifique) : LÈVENT `ValueError` avant tout calcul, pour ne
     JAMAIS se faire relire comme un verdict de `_e19`/`_acquisition` -- deux `PreflightError` internes
     détournées en verdict si on les laissait remonter (IMPORTANT 2, fix round 1) : un sweep à lrs
     dupliqués lisait LR_ARTIFACT (la garde de `_e19` refuse « un seul point », mais `_e19` transformait
     ce refus en un statut scientifique) ; une provenance non déclarée lisait CEILING_ABOVE_BAR comme un
     FAIT publié (le `except PreflightError` de `_acquisition` ne distinguait pas « la garde refuse de
-    juger » de « la garde a jugé et le plafond dépasse la barre »)."""
+    juger » de « la garde a jugé et le plafond dépasse la barre »).
+
+    Exposée PUBLIQUEMENT (tâche 6, revue contrôleur fix round 1, 2026-09-16) : un runner de cellule doit
+    pouvoir l'appeler EN TÊTE, avant `assert_task_contract`, pour refuser une règle mal formée avant tout
+    build -- `_validate_rule` reste un alias privé pour les appels internes de ce module."""
     lrs = [float(h["lr"]) for h in rule["sweep"]]
     # MINOR (fix round 2) : EXACTEMENT deux, pas « au moins deux » -- `_e19` n'indexe que `lrs[0]`/`lrs[1]`
     # (la db ne porte que A2/D2, un SEUL second pas), donc un sweep à 3 pas passait ce garde-fou puis
@@ -123,6 +127,9 @@ def _validate_rule(rule):
                              "CEILING_ABOVE_BAR serait publié comme un fait plutôt qu'un défaut de règle")
     if int(rule["n_floor"]) < 1:
         raise ValueError(f"rule.n_floor doit être >= 1 (reçu {rule['n_floor']})")
+
+
+_validate_rule = validate_rule   # alias privé : appels internes de ce module (harness_verdict_lecture)
 
 
 def _demand(db, rule, seeds, last_A, band):

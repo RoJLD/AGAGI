@@ -2,12 +2,17 @@
 tools/harness/cell.py — UNE cellule du harnais (ADR-004, spec §2.3) : (Task acceptée, Learner accepté, n seeds,
 règle scellée) -> db -> verdict à trois conditions -> JSON via Harness.save.
 
-Tout ce qui refuse refuse AVANT le premier entraînement : règle scellée (verify), sélection non vide, contrat de
-tâche (assert_task_contract), coût projeté sur une unité DONNÉE (project_cost) s'il y en a une, contrat du
-learner (assert_learner_contract) -- DANS CET ORDRE. Le contrat du learner appelle lui-même `learner.build`
-plusieurs fois (c'est SA façon de vérifier L0-L7) : le placer APRÈS le refus de coût à unité donnée est ce qui
-permet à `test_cost_projection_refuses_before_any_build` de lever `CostTooHighToStart` avant qu'un `build`
-quelconque n'ait lieu, y compris ceux internes à la garde du learner.
+Tout ce qui est DÉCIDABLE SANS builder un learner refuse EN TÊTE, dans cet ordre : règle altérée
+(PreregistrationTampered) · clé de `rule_path` absente (KeyError) · défauts de règle intrinsèques
+(`validate_rule` : lrs dupliqués, provenance courte, n_floor<1 -- ValueError) · seeds dupliqués (ValueError)
+· sélection vide (PreflightError) · episodes<2 (ValueError, "mid" serait lu à i==0, politique jamais
+entraînée) · n_floor > len(seeds) (ValueError, instrument à issue unique -- E2) · ablation/bayes_floor de la
+règle absente de la tâche (KeyError) · contrat de tâche (PreflightError) · pièce absente du learner
+(KeyError) · L4 vérifiée à un hyper différent de celui du bras A (ValueError) · coût projeté À UNITÉ DONNÉE
+(CostTooHighToStart). Le contrat du learner (`assert_learner_contract`, qui appelle `learner.build` en
+interne pour vérifier L0-L7 -- c'est SA façon de tester le contrat) ne s'exécute qu'APRÈS ce refus de coût
+à unité donnée : sinon un learner sentinelle dont le SEUL contact avec `build` doit lever serait atteint par
+le contrat avant que `CostTooHighToStart` n'ait la moindre chance de refuser.
 
 Bras par seed, tous sur les MÊMES tirages : A (sweep[0]) · A0 (référence lr=0, même nombre d'épisodes) ·
 A2 (sweep[1]) · D (sans la pièce, sweep[0]) · D2 (sans la pièce, sweep[1]). Le bras A porte l'éval : `last` sur
@@ -18,6 +23,19 @@ bail, aucun monde.
 `piece_removed_verified` (lu par harness_verdict_lecture depuis db["regime"]) n'est publié True qu'APRÈS
 `assert_learner_contract(learner, task, pieces=[piece])` ait effectivement passé (L4 : la variante "sans" la
 pièce change bien les logits après apprentissage) -- jamais câblé.
+
+Revue contrôleur, fix round 1 (2026-09-16) : trois défauts réels, tous corrigés ici.
+(1) `_tick` tickait `guard.tick()` une fois PAR AGENT -- un gonfleur d'appels d'horloge sur un lot
+    VECTORISÉ, pas une mesure par agent. Un seul `guard.tick()` par unité de travail (un lot d'éval, un
+    épisode d'entraînement) : le placement était déjà correct, seul le multiplicateur ne l'était pas.
+(2) Trois refus DÉCIDABLES en tête ne tombaient qu'au verdict, après jusqu'à 65 builds, sans rien
+    sauvegarder : une règle nommant une ablation absente de la tâche (`KeyError 'ablated:...'` profond
+    dans `_demand`), un sweep à lrs dupliqués (`ValueError` de `validate_rule`, mais jamais appelée avant
+    la fin), `n_floor > len(seeds)` (cellule complète puis `INCONCLUSIVE_N` garanti -- instrument à issue
+    unique, E2). Les trois sont maintenant vérifiés EN TÊTE, avant `assert_task_contract`.
+(3) `cost.unit_s_measured` portait la valeur DONNÉE quand `unit_s` était fourni (E8, une grandeur qui dit
+    ce qu'elle n'est pas) ; `rule_path` et la sous-règle effectivement lue n'étaient pas publiés dans
+    `data["preregistration"]`.
 """
 import os
 import sys
@@ -32,7 +50,8 @@ if _ROOT not in sys.path:
 from src.seed_ai.harness import Harness  # noqa: E402
 from src.seed_ai.harness_learner import assert_learner_contract, run_episode  # noqa: E402
 from src.seed_ai.harness_task import assert_task_contract  # noqa: E402
-from src.seed_ai.harness_verdict import harness_verdict_lecture, measure_ablated_bayes_ceiling  # noqa: E402
+from src.seed_ai.harness_verdict import (  # noqa: E402
+    harness_verdict_lecture, measure_ablated_bayes_ceiling, validate_rule)
 from tools.cost_guard import CostExceeded, CostGuard, project_cost  # noqa: E402
 from tools.experiment_preflight import assert_control_family, assert_selection_nonempty, declare_design  # noqa: E402
 from tools.preregister import provenance, verify  # noqa: E402
@@ -40,15 +59,15 @@ from tools.preregister import provenance, verify  # noqa: E402
 ARMS = ("A", "A0", "A2", "D", "D2")
 
 
-def _tick(guard, n):
-    """`guard.tick()` (PENDANT, cf. tools/cost_guard.py) une fois par agent traité -- pas une fois par lot :
-    sur cette cellule jouet (quelques dizaines de lots), une fois par lot ne produit jamais assez d'appels
-    d'horloge pour qu'un abandon soit même OBSERVABLE sous une horloge injectée qui ne devient chère qu'après
-    des milliers d'appels (test_abandoned_seed_is_counted_and_yields_INCONCLUSIVE_N). `guard=None` -> no-op
-    (mesure de coût de la toute première unité, avant qu'aucun CostGuard n'existe)."""
-    if guard is None:
-        return
-    for _ in range(int(n)):
+def _tick(guard):
+    """`guard.tick()` (PENDANT, cf. tools/cost_guard.py) une fois par UNITÉ DE TRAVAIL -- un lot d'éval
+    dans `_accuracy`/`_accuracy_ablated`, un épisode d'entraînement dans `_run_arm`. PAS une fois par
+    agent : le lot est VECTORISÉ (un seul appel numpy traite les `n` agents), et ticker par agent
+    gonflerait le nombre d'appels d'horloge sans qu'aucun travail supplémentaire n'ait eu lieu entre deux
+    appels -- une garde de coût, pas une mesure par réplicat statistique (l'unité de réplication reste le
+    SEED, cf. CLAUDE.md). `guard=None` -> no-op (mesure de coût de la toute première unité, avant qu'aucun
+    CostGuard n'existe)."""
+    if guard is not None:
         guard.tick()
 
 
@@ -60,7 +79,7 @@ def _accuracy(inst, task, rng, batches, n, ablate=None, split="train", oracle=Fa
             hits.append(np.asarray(task.score(np.asarray(task.oracle(ep)), ep), dtype=np.float32))
         else:
             hits.append(run_episode(inst, ep, task, ablate=ablate)[1])
-        _tick(guard, n)
+        _tick(guard)
     if not hits:
         raise ValueError("_accuracy : aucun lot évalué")
     return float(np.mean(np.concatenate(hits)))
@@ -72,7 +91,7 @@ def _accuracy_ablated(inst, task, rng, batches, n, ablation, rng_abl, guard=None
         ep = task.episodes(rng, n, "train")
         ep_a = ablation.apply(ep, rng_abl)
         hits.append(run_episode(inst, ep_a, task)[1])
-        _tick(guard, n)
+        _tick(guard)
     return float(np.mean(np.concatenate(hits)))
 
 
@@ -80,8 +99,8 @@ def _run_arm(task, learner, seed, n, K, hyper, episodes, eval_batches, *, withou
             full_eval=False, guard=None):
     """Un bras : entraîne `episodes` lots puis évalue `last` sur le rng continué. full_eval (bras A seulement)
     ajoute first/mid (rng de courbe), noop (second rng, TOUS les bras -- R3), ablations, contrôles, oracle.
-    `guard` (CostGuard ou None) est tické une fois par agent traité, training ET éval confondus : c'est ce qui
-    permet à la garde PENDANT d'attraper une unité qui dérape avant la fin du run entier."""
+    `guard` (CostGuard ou None) est tické une fois par UNITÉ (lot d'éval ou épisode d'entraînement) : c'est
+    ce qui permet à la garde PENDANT d'attraper une unité qui dérape avant la fin du run entier."""
     inst = learner.build(seed, n, task.obs_dim, K, hyper, without=without or {}, reference=reference)
     try:
         rng = np.random.RandomState(seed + 1)                       # opérandes : key PUIS q par épisode
@@ -95,7 +114,7 @@ def _run_arm(task, learner, seed, n, K, hyper, episodes, eval_batches, *, withou
             ep = task.episodes(rng, n, "train")
             actions, hits = run_episode(inst, ep, task)
             inst.learn(ep, actions, hits)
-            _tick(guard, n)
+            _tick(guard)
         if full_eval and "mid" not in out:
             out["mid"] = out["first"]
         state = rng.get_state()
@@ -125,20 +144,38 @@ def _run_arm(task, learner, seed, n, K, hyper, episodes, eval_batches, *, withou
 
 def run_harness_cell(task, learner, rule_name, *, seeds, episodes, out_name, n_agents=16, eval_batches=40,
                      budget_s=3600.0, unit_s=None, rule_path=None, prereg_dir=None, save=True, clock=None):
-    """Voir docstring de module. Rend {"db", "verdict", "path", "cost"}. Refus EN TÊTE, dans l'ORDRE :
-    règle altérée (PreregistrationTampered) · clé de `rule_path` absente (KeyError) · sélection vide
-    (PreflightError) · contrat de tâche (PreflightError) · coût projeté À UNITÉ DONNÉE (CostTooHighToStart)
-    · contrat du learner (PreflightError). `rule_path` (liste de clés, ex. ["cellules", "B"]) descend dans la
-    règle scellée -- `verify` vérifie le sceau sur la règle ENTIÈRE ; la sélection d'une sous-cellule est un
-    indexage PUR, donc une clé absente lève KeyError avant tout le reste."""
+    """Voir docstring de module. Rend {"db", "verdict", "path", "cost"}. `rule_path` (liste de clés, ex.
+    ["cellules", "B"]) descend dans la règle scellée -- `verify` vérifie le sceau sur la règle ENTIÈRE ; la
+    sélection d'une sous-cellule est un indexage PUR, donc une clé absente lève KeyError avant tout le reste."""
     whole = verify(rule_name, _dir=prereg_dir)
     rule = whole
     if rule_path:
         for k in rule_path:
             rule = rule[k]
+    validate_rule(rule)                                     # lrs dupliqués / provenance courte / n_floor<1
     prov = provenance(rule_name, _dir=prereg_dir)
     seeds = [int(s) for s in seeds]
+    if len(seeds) != len(set(seeds)):
+        dupes = sorted({s for s in seeds if seeds.count(s) > 1})
+        raise ValueError(f"seeds contient des doublons : {dupes} -- l'unité de réplication est le SEED "
+                         "(CLAUDE.md), un doublon compterait deux fois la MÊME unité")
     assert_selection_nonempty(len(seeds), label="seeds")
+    if int(episodes) < 2:
+        raise ValueError(f"episodes={episodes} < 2 : 'mid' est lu à i == episodes//2 == 0, sur une "
+                         "politique qui n'a encore subi AUCUN pas d'entraînement")
+    if int(rule["n_floor"]) > len(seeds):
+        raise ValueError(f"rule.n_floor={rule['n_floor']} > len(seeds)={len(seeds)} : la cellule ne peut "
+                         "JAMAIS réunir n_floor seeds complètes -- instrument à issue unique (E2), tout "
+                         "run rendrait INCONCLUSIVE_N après coup, quel que soit le résultat mesuré")
+    abl_names_task = {a.name for a in task.demand.ablations}
+    abl_names_rule = {a["name"] for a in rule["ablations"]}
+    if not abl_names_rule <= abl_names_task:
+        raise KeyError(f"rule.ablations nomme {sorted(abl_names_rule - abl_names_task)}, absente(s) de "
+                       f"la tâche {task.name!r} ({sorted(abl_names_task)})")
+    bayes_keys_rule = set(rule.get("bayes_floors", {}))
+    if not bayes_keys_rule <= abl_names_task:
+        raise KeyError(f"rule.bayes_floors nomme {sorted(bayes_keys_rule - abl_names_task)}, absente(s) "
+                       f"de la tâche {task.name!r} ({sorted(abl_names_task)})")
     contract_task = assert_task_contract(task, seed=seeds[0], n=64)
     K = int(task.K)
     sweep = [dict(h) for h in rule["sweep"]]
@@ -147,15 +184,17 @@ def run_harness_cell(task, learner, rule_name, *, seeds, episodes, out_name, n_a
     if piece not in pieces:
         raise KeyError(f"la règle cible la pièce {piece!r}, absente de {learner.name} ({sorted(pieces)})")
     without = dict(pieces[piece].without)
+    # L4 (VACUOUS_PIECE) de assert_learner_contract est vérifiée à learner.sweep()[0], pas à rule.sweep[0]
+    # (la signature n'accepte pas de hyper explicite) : si les deux diffèrent, le contrat valide la pièce à
+    # un réglage DIFFÉRENT de celui du bras A de cette cellule -- refuser plutôt que publier une nécessité
+    # vérifiée hors du régime réellement mesuré.
+    learner_sweep0 = dict(learner.sweep()[0])
+    if learner_sweep0 != sweep[0]:
+        raise ValueError(f"learner.sweep()[0]={learner_sweep0} != rule.sweep[0]={sweep[0]} : le contrat L4 "
+                         "(VACUOUS_PIECE) serait vérifié à un hyperparamètre différent de celui du bras A "
+                         "de cette cellule -- assert_learner_contract n'accepte pas de hyper explicite")
     n_abl = len(task.demand.ablations)
     family = assert_control_family(cells=n_abl * 1 * len(sweep))
-    design = declare_design(
-        question=rule.get("question", rule_name), replication_unit="seed", n_independent=len(seeds),
-        links={"ablation->chute": "measured", "dose->acquisition": "measured", "sans_piece->chute": "measured",
-               "analogue_bio": "inferred"},
-        allow_inferred_reason="l'analogue biologique d'une pièce est une hypothèse portée par le registre "
-                              "(spec §2.6), jamais mesurée ici",
-        cost_estimate=None, control_family=family)
     bayes = {a.name: measure_ablated_bayes_ceiling(task, a, n=4096, seed=seeds[0])
              for a in task.demand.ablations if a.site == "input"}
     clock = clock or time.monotonic
@@ -163,6 +202,7 @@ def run_harness_cell(task, learner, rule_name, *, seeds, episodes, out_name, n_a
     # utilise une sentinelle dont le SEUL contact avec `build` doit lever ; le placer ici, avant le contrat du
     # learner (qui appelle `build` en interne pour vérifier L0-L7), est ce qui le garantit.
     projected = None
+    unit_measured = None                    # E8 : ne PUBLIE une valeur "mesurée" que si elle l'est réellement
     if unit_s is not None:
         unit = float(unit_s)
         projected = project_cost(unit, n_units=len(seeds) * len(ARMS), budget_s=float(budget_s), safety=3.0,
@@ -175,8 +215,16 @@ def run_harness_cell(task, learner, rule_name, *, seeds, episodes, out_name, n_a
     first_arm = _run_arm(task, learner, seeds[0], n_agents, K, sweep[0], episodes, eval_batches, full_eval=True)
     if unit_s is None:
         unit = max(clock() - t0, 1e-6)
+        unit_measured = unit
         projected = project_cost(unit, n_units=len(seeds) * len(ARMS), budget_s=float(budget_s), safety=3.0,
                                  label=out_name)
+    design = declare_design(
+        question=rule.get("question", rule_name), replication_unit="seed", n_independent=len(seeds),
+        links={"ablation->chute": "measured", "dose->acquisition": "measured", "sans_piece->chute": "measured",
+               "analogue_bio": "inferred"},
+        allow_inferred_reason="l'analogue biologique d'une pièce est une hypothèse portée par le registre "
+                              "(spec §2.6), jamais mesurée ici",
+        cost_estimate=projected, control_family=family)
     regime = {"task": task.regime(), "learner_name": learner.name, "learner_family": learner.family,
               "sweep": sweep, "piece": piece, "without": without, "n_agents": n_agents, "episodes": episodes,
               "eval_batches": eval_batches, "seeds": seeds, "bayes_floors": bayes, "contract_task": contract_task,
@@ -222,9 +270,10 @@ def run_harness_cell(task, learner, rule_name, *, seeds, episodes, out_name, n_a
                 print(f"  seed {seed:>2} bras {arm}: ABANDONNE (cout wall-clock) : {e}")
     verdict = harness_verdict_lecture(db, rule)
     data = {"regime": regime, "design": design, "control_family": family,
-            "preregistration": {"name": rule_name, "seal": prov.get("seal")}, "provenance": prov,
-            "db": db, "verdict": verdict,
-            "cost": {"unit_s_measured": unit, "unit_s_given": unit_s, "projected_s": projected,
+            "preregistration": {"name": rule_name, "seal": prov.get("seal"), "rule_path": rule_path,
+                                "rule": rule},
+            "provenance": prov, "db": db, "verdict": verdict,
+            "cost": {"unit_s_measured": unit_measured, "unit_s_given": unit_s, "projected_s": projected,
                      "actual_s": clock() - t0, "machine_load_note": "charge machine a noter dans le record (E12)"}}
     path = None
     if save:
