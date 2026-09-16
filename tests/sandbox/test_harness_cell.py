@@ -13,7 +13,16 @@ qu'au verdict avant ce fix (ablation inconnue, lrs dupliqués, n_floor > seeds),
 dupliqués, episodes < 2) ; le seuil de l'horloge factice de `test_abandoned_seed_is_counted_and_yields_
 INCONCLUSIVE_N` est corrigé (`< 5` -> `< 0.5`) pour rester calibré après le retrait du gonfleur d'appels de
 `_tick` (un seul `guard.tick()` par lot/épisode, plus un par agent) -- c'est le TEST qui porte cette
-constante, pas le runner."""
+constante, pas le runner.
+
+Tâche 8 (consolidation semaine 1) : trois gardes n'avaient encore AUCUN contre-exemple -- `rule.bayes_floors`
+nommant une ablation absente de la tâche (`sealed_bad_bayes_floor`, sœur de `sealed_bad_ablation`),
+`learner.sweep()[0]` divergent de `rule.sweep[0]` (`_SentinelWrongSweep`, `build` toujours JAMAIS atteint),
+et `unit_s` DONNÉ (E8 : `cost.unit_s_measured` doit rester `None`, jamais recevoir la valeur donnée).
+Le second `guard.tick()`, tické EN TÊTE de la boucle `for arm in ARMS` sur une unité de travail qui n'avait
+pas encore eu lieu, est retiré de `run_harness_cell` -- il ne changeait pas la conclusion de
+`test_abandoned_seed_is_counted_and_yields_INCONCLUSIVE_N` (le nombre total d'appels d'horloge reste très
+au-dessus du seuil de 500 qui déclenche l'abandon), seulement le compte exact."""
 import json
 import os
 import sys
@@ -99,9 +108,30 @@ def sealed_n_floor_too_high(tmp_path):
     return str(tmp_path)
 
 
+def _rule_with_bad_bayes_floor():
+    # tâche 8 (revue) : `bayes_floors` nomme une ablation absente de la TÂCHE (pas de `rule.ablations`,
+    # déjà couvert par `sealed_bad_ablation`) -- garde distincte, cell.py:175-178.
+    r = _rule()
+    r["bayes_floors"] = {"phlogiston": 0.5}
+    return r
+
+
+@pytest.fixture
+def sealed_bad_bayes_floor(tmp_path):
+    preregister("HARNESS-TOY-BAD-BAYES", _rule_with_bad_bayes_floor(), _dir=str(tmp_path))
+    return str(tmp_path)
+
+
 class _Sentinel(CounterLearner):
     def build(self, *a, **k):
         raise AssertionError("CORPS ATTEINT : build appelé avant les gardes")
+
+
+class _SentinelWrongSweep(_Sentinel):
+    """tâche 8 (revue) : `sweep()[0]` diffère de `rule.sweep[0]` -- `build` doit rester ATTEINT JAMAIS
+    (la garde de cell.py:191-195 lève avant `assert_learner_contract`, qui est ce qui appelle `build`)."""
+    def sweep(self):
+        return [{"lr": 0.7}, {"lr": 0.5}]
 
 
 def test_task_contract_refuses_before_any_build(sealed, tmp_path, monkeypatch):
@@ -155,6 +185,16 @@ def test_rule_naming_an_unknown_ablation_refuses_before_any_build(sealed_bad_abl
                          out_name="toy_bad_abl", prereg_dir=sealed_bad_ablation)
 
 
+def test_rule_naming_an_unknown_bayes_floor_ablation_refuses_before_any_build(sealed_bad_bayes_floor, tmp_path,
+                                                                               monkeypatch):
+    # tâche 8 (revue) : garde SŒUR de celle ci-dessus (cell.py:175-178, `rule.bayes_floors` plutôt que
+    # `rule.ablations`) -- pas de cas à réponse connue avant cette passe.
+    monkeypatch.setenv("AGAGI_RESULTS_ROOT", str(tmp_path / "res"))
+    with pytest.raises(KeyError, match="phlogiston"):
+        run_harness_cell(ToyParity(), _Sentinel(), "HARNESS-TOY-BAD-BAYES", seeds=SEEDS, episodes=5,
+                         out_name="toy_bad_bayes", prereg_dir=sealed_bad_bayes_floor)
+
+
 def test_rule_with_duplicate_lrs_refuses_before_any_build(sealed_dup_lrs, tmp_path, monkeypatch):
     monkeypatch.setenv("AGAGI_RESULTS_ROOT", str(tmp_path / "res"))
     with pytest.raises(ValueError, match="deux pas"):
@@ -167,6 +207,15 @@ def test_rule_with_n_floor_above_seeds_refuses_before_any_build(sealed_n_floor_t
     with pytest.raises(ValueError, match="n_floor"):
         run_harness_cell(ToyParity(), _Sentinel(), "HARNESS-TOY-NFLOOR", seeds=SEEDS, episodes=5,
                          out_name="toy_nfloor", prereg_dir=sealed_n_floor_too_high)
+
+
+def test_learner_sweep_mismatching_rule_refuses_before_any_build(sealed, tmp_path, monkeypatch):
+    # tâche 8 (revue) : garde cell.py:191-195 -- `learner.sweep()[0]` != `rule.sweep[0]` doit lever AVANT
+    # `assert_learner_contract` (qui appelle `learner.build`) ; `_SentinelWrongSweep.build` lève si atteint.
+    monkeypatch.setenv("AGAGI_RESULTS_ROOT", str(tmp_path / "res"))
+    with pytest.raises(ValueError, match="VACUOUS_PIECE"):
+        run_harness_cell(ToyParity(), _SentinelWrongSweep(), "HARNESS-TOY", seeds=SEEDS, episodes=5,
+                         out_name="toy_sweep_mismatch", prereg_dir=sealed)
 
 
 def test_duplicate_seeds_refuse_before_any_build(sealed, tmp_path, monkeypatch):
@@ -201,6 +250,19 @@ def test_unit_is_the_seed_and_reference_is_dose_matched(sealed, tmp_path, monkey
     # décision 3 (revue) : le coût de la mesure NON fournie doit être publié comme MESURÉ, jamais comme donné.
     assert saved["data"]["cost"]["unit_s_given"] is None and saved["data"]["cost"]["unit_s_measured"] > 0.0
     assert saved["data"]["design"]["cost_estimate"] == saved["data"]["cost"]["projected_s"]
+
+
+def test_unit_s_given_is_published_and_never_measured(sealed, tmp_path, monkeypatch):
+    # tâche 8 (revue) : symétrique du test ci-dessus (E8) -- quand `unit_s` est DONNÉ, le run entier
+    # saute la branche qui mesure le premier bras (cell.py:216-220) ; `unit_s_measured` doit rester
+    # `None` jusqu'au JSON sauvegardé, jamais recevoir la valeur donnée par accident.
+    monkeypatch.setenv("AGAGI_RESULTS_ROOT", str(tmp_path / "res"))
+    out = run_harness_cell(ToyParity(), TabularLearner(honest=True), "HARNESS-TOY", seeds=SEEDS, episodes=10,
+                           out_name="toy_unit_given", prereg_dir=sealed, n_agents=8, eval_batches=5,
+                           unit_s=0.01, budget_s=3600.0)
+    saved = json.load(open(out["path"], encoding="utf-8"))
+    assert saved["data"]["cost"]["unit_s_measured"] is None
+    assert saved["data"]["cost"]["unit_s_given"] == 0.01
 
 
 def test_abandoned_seed_is_counted_and_yields_INCONCLUSIVE_N(sealed, tmp_path, monkeypatch):

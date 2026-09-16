@@ -36,6 +36,16 @@ Revue contrôleur, fix round 1 (2026-09-16) : trois défauts réels, tous corrig
 (3) `cost.unit_s_measured` portait la valeur DONNÉE quand `unit_s` était fourni (E8, une grandeur qui dit
     ce qu'elle n'est pas) ; `rule_path` et la sous-règle effectivement lue n'étaient pas publiés dans
     `data["preregistration"]`.
+
+Consolidation semaine 1 (tâche 8, 2026-09-16) : un second `guard.tick()`, EN TÊTE de la boucle
+`for arm in ARMS` (avant même `_run_arm`), tickait la garde de coût sur une unité de travail qui n'a
+PAS ENCORE EU LIEU -- du bruit d'horloge, pas une mesure (les ticks PENDANT restent ceux, déjà
+corrects, à l'intérieur de `_run_arm`/`_accuracy`, cf. `_tick` ci-dessous). Retiré ; la construction du
+`CostGuard` par seed est inchangée. Trois refus supplémentaires n'avaient aucun cas à réponse
+connue -- `rule.bayes_floors` nommant une ablation absente de la tâche, `learner.sweep()[0]` divergent
+de `rule.sweep[0]` (les deux lèvent AVANT tout `learner.build`) -- et `unit_s` donné n'avait pas de cas
+vérifiant que `cost.unit_s_measured` reste `None` (E8) : les trois sont désormais couverts par
+tests/sandbox/test_harness_cell.py.
 """
 import os
 import sys
@@ -259,7 +269,6 @@ def run_harness_cell(task, learner, rule_name, *, seeds, episodes, out_name, n_a
             if seed == seeds[0] and arm == "A":
                 continue
             try:
-                guard.tick()
                 hyper = sweep[0] if arm in ("A", "A0", "D") else sweep[1]
                 res = _run_arm(task, learner, seed, n_agents, K, hyper, episodes, eval_batches,
                                without=(without if arm in ("D", "D2") else None), reference=(arm == "A0"),

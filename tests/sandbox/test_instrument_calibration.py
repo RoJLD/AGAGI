@@ -1372,17 +1372,23 @@ CALIBRATED = {
     # Revue controleur, fix round 1 (2026-09-16) : 3 nouveaux cas pour des refus DECIDABLES qui ne
     # tombaient qu'au verdict, apres jusqu'a 65 builds (ablation de regle absente de la tache, sweep a lrs
     # dupliques, n_floor > len(seeds)), 2 pour les minors (seeds dupliques, episodes < 2) -- 6 -> 11.
+    # Tache 8 (consolidation semaine 1, 2026-09-16) : 3 gardes sans AUCUN contre-exemple -- bayes_floors
+    # nommant une ablation absente de la tache, sweep du learner divergent de celui de la regle, unit_s
+    # DONNE (E8 : unit_s_measured doit rester None) -- 11 -> 14.
     "tools/harness/cell.py::run_harness_cell": [
         "guard-before-world:task-contract",       # test_task_contract_refuses_before_any_build
         "guard-before-world:tampered",            # test_tampered_rule_refuses_before_any_build
         "guard-before-world:cost",                # test_cost_projection_refuses_before_any_build
         "guard-before-world:rule_path",           # test_rule_path_selects_a_sub_rule_and_missing_key_raises_before_any_build
         "guard-before-world:unknown-ablation",    # test_rule_naming_an_unknown_ablation_refuses_before_any_build
+        "guard-before-world:unknown-bayes-floor-ablation",  # test_rule_naming_an_unknown_bayes_floor_ablation_refuses_before_any_build
         "guard-before-world:duplicate-lrs",       # test_rule_with_duplicate_lrs_refuses_before_any_build
         "guard-before-world:n_floor-above-seeds", # test_rule_with_n_floor_above_seeds_refuses_before_any_build
+        "guard-before-world:sweep-mismatch",      # test_learner_sweep_mismatching_rule_refuses_before_any_build
         "guard-before-world:duplicate-seeds",     # test_duplicate_seeds_refuse_before_any_build
         "guard-before-world:episodes-min",        # test_episodes_below_two_refuses_before_any_build
         "injection:unite=seed+reference-dose-matched",  # test_unit_is_the_seed_and_reference_is_dose_matched
+        "unit_s:given-not-measured",              # test_unit_s_given_is_published_and_never_measured
         "abandon:INCONCLUSIVE_N"],                # test_abandoned_seed_is_counted_and_yields_INCONCLUSIVE_N
     # P2.60 (2026-09-15) -- banc factoriel 2^4 d'EDR-177 et driver d'EDR-178, portes dans HEAD par FUSION
     # 3-voies du tag keep/edr-177-178-factorial-regime-sweep (merge-tree sans conflit, gardes de HEAD
