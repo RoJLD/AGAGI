@@ -1362,6 +1362,20 @@ CALIBRATED = {
         "composition:certified-1/K",                 # test_measure_ablated_bayes_ceiling_certifies_the_declared_floor
         "wrong-declared-floor:uncertified",          # test_measure_ablated_bayes_ceiling_flags_a_wrong_declared_floor
         "not-enumerable:uncertified"],                # test_measure_ablated_bayes_ceiling_uncertified_when_state_space_not_enumerable
+    # Tache 6 (2026-09-16) -- run_harness_cell : runner de CELLULE (ADR-004 S2.3). Compose les cinq
+    # instruments deja calibres des taches 1-5 (assert_task_contract, assert_learner_contract, run_episode,
+    # harness_verdict_lecture, measure_ablated_bayes_ceiling) + preregister/verify/provenance,
+    # declare_design/assert_control_family/assert_selection_nonempty, project_cost/CostGuard. Un libelle par
+    # fonction de test REELLE de tests/sandbox/test_harness_cell.py (meme discipline que harness_verdict_
+    # lecture ci-dessus) ; `_run_arm`, `_accuracy`, `_accuracy_ablated`, `_tick` (prefixe `_`) ne sont pas
+    # detectees par le motif `run\w*` du cliquet.
+    "tools/harness/cell.py::run_harness_cell": [
+        "guard-before-world:task-contract",       # test_task_contract_refuses_before_any_build
+        "guard-before-world:tampered",            # test_tampered_rule_refuses_before_any_build
+        "guard-before-world:cost",                # test_cost_projection_refuses_before_any_build
+        "guard-before-world:rule_path",           # test_rule_path_selects_a_sub_rule_and_missing_key_raises_before_any_build
+        "injection:unite=seed+reference-dose-matched",  # test_unit_is_the_seed_and_reference_is_dose_matched
+        "abandon:INCONCLUSIVE_N"],                # test_abandoned_seed_is_counted_and_yields_INCONCLUSIVE_N
     # P2.60 (2026-09-15) -- banc factoriel 2^4 d'EDR-177 et driver d'EDR-178, portes dans HEAD par FUSION
     # 3-voies du tag keep/edr-177-178-factorial-regime-sweep (merge-tree sans conflit, gardes de HEAD
     # conservees). Deux ORCHESTRATEURS calibres PAR INJECTION a dose connue, AUCUN monde construit
