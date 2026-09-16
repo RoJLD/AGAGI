@@ -1307,12 +1307,24 @@ CALIBRATED = {
     # test_missing_arm_is_INCOMPLET_and_n11_is_INCONCLUSIVE_N porte DEUX libelles (deux assertions
     # distinctes dans le meme corps) ; test_nan_and_empty_raise_instead_of_fabricating est PARTAGEE avec
     # measure_noise_floor ci-dessous (elle leve sur les deux instruments dans le meme corps de test).
+    # Fix round 1/5 (revue contrôleur, 2026-09-16) -- trois defauts REELS trouves par des sondes mesurees
+    # (jamais une relecture) : CRITICAL 1 (les trois INCONCLUSIVE* de ablation_verdict devenaient une
+    # affirmation NEGATIVE -> nouvelle branche DEMAND_INCONCLUSIVE, 3 cas), CRITICAL 2 (l'E19 de necessite
+    # lisait du bruit sous-resolution comme un artefact de pas -> plancher de resolution, 1 cas dedie +
+    # jitter independant restaure sur le cas both-at-ceiling), IMPORTANT 1 (intervention_verified cablee
+    # -> lue depuis db.regime, 1 cas), IMPORTANT 2 (deux defauts de REGLE relus comme verdict scientifique
+    # -> ValueError en tete, 2 cas), IMPORTANT 3 (demande publiee mais IGNOREE sur un sujet qui n'a rien
+    # acquis -- pas de nouveau cas, verifie par l'existant), IMPORTANT 4 (controle positif de la garde de
+    # barre + incapable_ceiling=None, 2 cas).
     "src/seed_ai/harness_verdict.py::harness_verdict_lecture": [
         "branch-order",                             # test_branch_order_is_the_sealed_one
         "cellA:PIECE_PARTIAL",                       # test_cell_A_known_answer_is_PARTIAL_with_ceiling_above_bar
         "cellB:NECESSARY",                           # test_cell_B_known_answer_is_NECESSARY
         "NOT_DEMANDED",                              # test_ablated_equal_to_intact_is_NOT_DEMANDED
         "DEMAND_WITHIN_NOISE",                       # test_ratio_inside_the_measured_noise_band_is_DEMAND_WITHIN_NOISE_never_decoy
+        "DEMAND_INCONCLUSIVE:grey-zone",             # test_grey_zone_ratio_is_DEMAND_INCONCLUSIVE_not_a_claim
+        "DEMAND_INCONCLUSIVE:inverted",              # test_ablation_that_improves_the_arm_is_DEMAND_INCONCLUSIVE_not_a_claim
+        "DEMAND_INCONCLUSIVE:degenerate-floor",      # test_intact_at_the_bayes_floor_is_DEMAND_INCONCLUSIVE_never_a_negative_claim
         "INCONCLUSIVE_SPECIFICITY",                  # test_a_biting_control_is_INCONCLUSIVE_SPECIFICITY
         "NOT_ACQUIRED:dose+saturation",              # test_learner_at_reference_is_NOT_ACQUIRED_with_dose_and_saturation
         "INDETERMINE_HARNAIS:prior-solves",          # test_reference_above_prior_max_is_INDETERMINE_HARNAIS_PRIOR_SOLVES
@@ -1320,17 +1332,25 @@ CALIBRATED = {
         "LR_ARTIFACT:necessity",                     # test_piece_gap_that_closes_at_the_second_lr_is_LR_ARTIFACT
         "INDETERMINE_HARNAIS:reference-collapsed",   # test_intact_collapsed_at_the_second_lr_is_INDETERMINE_HARNAIS
         "LR_ARTIFACT:acquisition",                   # test_acquisition_null_that_vanishes_at_the_second_lr_is_LR_ARTIFACT
+        "necessity:gap-below-resolution",            # test_gap_below_resolution_floor_is_PIECE_NOT_NECESSARY_not_LR_ARTIFACT
         "PIECE_NOT_NECESSARY:both-at-ceiling",       # test_D_equal_to_A_is_PIECE_NOT_NECESSARY_and_both_at_ceiling_is_not_degenerate
+        "necessity:unverified-intervention:degenerate",  # test_missing_intervention_flag_with_D_equal_to_A_is_PIECE_INCONCLUSIVE_not_NOT_NECESSARY
         "INCOMPLET",                                 # test_missing_arm_is_INCOMPLET_and_n11_is_INCONCLUSIVE_N
         "INCONCLUSIVE_N",                            # test_missing_arm_is_INCOMPLET_and_n11_is_INCONCLUSIVE_N
         "nan:raises",                                # test_nan_and_empty_raise_instead_of_fabricating
-        "boundary:<=-is-necessary"],                 # test_mutating_necessity_threshold_to_strict_flips_the_boundary_case
+        "boundary:<=-is-necessary",                  # test_mutating_necessity_threshold_to_strict_flips_the_boundary_case
+        "rule:duplicate-lrs:raises",                 # test_duplicate_lrs_in_sweep_raises_ValueError_not_LR_ARTIFACT
+        "rule:short-provenance:raises",              # test_short_provenance_raises_ValueError_not_CEILING_ABOVE_BAR
+        "acquisition:bar-separates",                 # test_incapable_ceiling_below_the_bar_is_SEPARATES
+        "acquisition:ceiling-unvalidated"],          # test_incapable_ceiling_none_is_CEILING_UNVALIDATED
     "src/seed_ai/harness_verdict.py::measure_noise_floor": [
         "band:min-max",                              # test_noise_floor_band_is_min_max_of_paired_ratios
         "empty:raises",                              # test_nan_and_empty_raise_instead_of_fabricating
         "per-arm:weak-arm-band"],                    # test_necessity_uses_the_band_of_the_WEAK_arm_not_only_A
     "src/seed_ai/harness_verdict.py::measure_ablated_bayes_ceiling": [
-        "composition:certified-1/K"],                # test_measure_ablated_bayes_ceiling_certifies_the_declared_floor
+        "composition:certified-1/K",                 # test_measure_ablated_bayes_ceiling_certifies_the_declared_floor
+        "wrong-declared-floor:uncertified",          # test_measure_ablated_bayes_ceiling_flags_a_wrong_declared_floor
+        "not-enumerable:uncertified"],                # test_measure_ablated_bayes_ceiling_uncertified_when_state_space_not_enumerable
     # P2.60 (2026-09-15) -- banc factoriel 2^4 d'EDR-177 et driver d'EDR-178, portes dans HEAD par FUSION
     # 3-voies du tag keep/edr-177-178-factorial-regime-sweep (merge-tree sans conflit, gardes de HEAD
     # conservees). Deux ORCHESTRATEURS calibres PAR INJECTION a dose connue, AUCUN monde construit
