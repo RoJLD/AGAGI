@@ -1298,6 +1298,21 @@ CALIBRATED = {
         "table:learns-reference-chance",          # test_table_learns_composition_and_reference_stays_at_chance
         "without-table:chance-state-reset:chance",  # test_without_table_falls_to_chance_and_state_reset_kills_two_step
         "specificity-control:decoy"],             # test_specificity_control_spares_the_reader_but_permute_key_bites
+    # Tache 9 (2026-09-16) -- ConnectomeLearner.learn (adaptateur UNIQUE vers make_population(backend=
+    # "torch"), torch.optim.Adam sur [W]+[U,V,W_bl si presents], imitate_episode_bptt). `learn` est en
+    # COLLISION (src/agents/backend.py::learn, tools/harness/learners/tabular.py::learn entre autres) :
+    # declaration QUALIFIEE obligatoire. Un libelle par assertion REELLE de tests/sandbox/
+    # test_harness_connectome.py qui EXERCE `learn` -- test_two_open_instances_with_different_flags_
+    # are_refused n'appelle jamais learn (seul build/les drapeaux de classe sont exerces) et ne porte
+    # donc aucun libelle ici, meme discipline que tabular.py::learn ci-dessus. Le test de bit-identite
+    # porte DEUX libelles (deux groupes d'assertions distincts dans le meme corps -- le contraste
+    # bilineaire/plain PUIS la reference lr=0 a dose appariee), meme motif que harness_verdict_lecture
+    # ci-dessous.
+    "tools/harness/learners/connectome.py::learn": [
+        "contract:L0-L7",                  # test_connectome_passes_the_learner_contract
+        "cellA:bit-identical",             # test_cell_A_seed0_is_bit_identical_to_the_published_json
+        "reference:dparam=0",              # test_cell_A_seed0_is_bit_identical_to_the_published_json
+        "cellB:regime-n_classes=6"],       # test_cell_B_regime_reproduces_retain_compose_at_seed0
     # Tache 5 (2026-09-16) -- harness_verdict_lecture : lecture PURE (ADR-004 §2.3-6) qui COMPOSE trois
     # instruments deja calibres (ablation_verdict pour demande/necessite, alias_guard_verdict pour l'etat,
     # learner_verdict pour l'acquisition, import paresseux) et publie l'E19 (assert_verdict_invariant_to_
