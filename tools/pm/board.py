@@ -27,8 +27,12 @@ def _nom(s):
 
 
 def _sessions(snap):
-    """Sessions DU DÉPÔT : registre natif dont le cwd est la racine ou un worktree, joint aux bulletins."""
-    racines = {snap["repo_root"]} | {w["path"] for w in (snap.get("worktrees") or [])}
+    """Sessions DU DÉPÔT : registre natif dont le cwd est la racine ou un worktree, joint aux bulletins.
+
+    `compute` tient l'invariant « norm des deux côtés » elle-même : `repo_root` et chaque `w["path"]`
+    sont re-normalisés ici, sans supposer que le snapshot les a déjà normalisés (un registre natif
+    peut écrire un `cwd` à BACKSLASHES sur Windows)."""
+    racines = {norm(snap["repo_root"])} | {norm(w["path"]) for w in (snap.get("worktrees") or [])}
     bull = {b.get("session_id"): b for b in (snap.get("bulletins") or []) if b.get("session_id")}
     out = []
     for r in (snap.get("registry") or []):
@@ -129,11 +133,12 @@ def _alertes(snap, sessions, now):
         if len(noms) >= 2:
             add("A6", c, "alerte", f"{c} revendiqué par {', '.join(sorted(noms))}", {"p_item": c, "sessions": sorted(noms)})
 
+    backlog_ok = snap.get("backlog_paths") is not None          # A7 dépend de l'inférence : aveugle si backlog absent
     for s in sessions:                                          # A7 / A8 — informations
         if not s["bulletin"]:
             continue
         age_h = _h(now - s["started_at"]) if s.get("started_at") else None
-        if age_h is not None and age_h > SEUILS["sans_claim_h"] and not s["claims"] and not s["claims_inferes"]:
+        if age_h is not None and age_h > SEUILS["sans_claim_h"] and not s["claims"] and not s["claims_inferes"] and backlog_ok:
             add("A7", _nom(s), "info", f"{_nom(s)} active depuis {age_h:.1f} h sans P-item revendiqué ni inféré", {"session": _nom(s)})
         hb = s.get("heartbeat_at")
         if hb is not None and _h(now - hb) > SEUILS["heartbeat_h"]:

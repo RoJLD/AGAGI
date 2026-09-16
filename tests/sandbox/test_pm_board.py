@@ -1,11 +1,8 @@
 """Tableau PM : `compute` est PUR — chaque alerte a son cas positif et son no-op, chaque source absente rend
 un AVEUGLEMENT visible et jamais un « 0 alerte »."""
-import copy
 import json
 import os
 import sys
-
-import pytest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
@@ -45,6 +42,23 @@ def test_NOOP_exact_un_etat_sain_ne_leve_AUCUNE_alerte_ni_aveuglement():
     b = B.compute(_snap())
     assert b["alertes"] == [] and b["aveugle"] == []
     assert [s["name"] for s in b["sessions"]] == ["agagi-11", "agagi-52"]     # elysium hors dépôt
+
+
+def test_compute_normalise_repo_root_et_worktrees_pas_seulement_cwd():
+    """`_sessions` doit tenir l'invariant « norm des deux côtés » ELLE-MÊME : `cwd` était déjà normalisé
+    avant ce correctif, mais `repo_root`/`worktrees` ne l'étaient pas — un `cwd` de registre natif à
+    BACKSLASHES (Windows) doit apparier une session au dépôt même sans overlap de worktree fortuit.
+    Backslashes vs slashes est indépendant de la plateforme (le `.replace` de `norm` est un remplacement
+    textuel, pas une résolution de chemin) ; on ne teste PAS une différence de CASSE, `normcase` est
+    l'identité sur Linux."""
+    reg = [_reg("agagi-11", "s1", cwd="c:\\x\\agagi")]
+    b = B.compute(_snap(registry=reg, bulletins=[_bul("s1")]))
+    assert [s["name"] for s in b["sessions"]] == ["agagi-11"]
+    # discriminant réel du correctif (repo_root lui-même non normalisé côté appelant, sans worktree
+    # qui masquerait le défaut par coïncidence) :
+    b2 = B.compute(_snap(registry=[_reg("agagi-11", "s1", cwd=ROOT)], bulletins=[_bul("s1")],
+                          worktrees=[], repo_root="c:\\x\\agagi"))
+    assert [s["name"] for s in b2["sessions"]] == ["agagi-11"]
 
 
 def test_A1_deux_sessions_sur_le_meme_fichier_et_pas_une_seule():
@@ -116,6 +130,15 @@ def test_A7_session_active_plus_d_une_heure_sans_claim_ni_inference_est_une_INFO
     assert [x["cle"] for x in a] == ["A7:agagi-11"] and a[0]["gravite"] == "info"
     s2 = [s for s in b["sessions"] if s["name"] == "agagi-52"][0]
     assert s2["claims_inferes"] == ["P4.9"]                     # inféré des fichiers touchés, marqué comme tel
+
+
+def test_A7_supprimee_quand_le_backlog_est_AVEUGLE_et_pas_fabriquee():
+    """A7 dépend de l'inférence de claims (backlog_paths) : si cette source est AVEUGLE, l'alerte doit
+    disparaître elle aussi (porte 14) plutôt que d'affirmer à tort « sans P-item […] ni inféré »."""
+    reg = [_reg("agagi-11", "s1", started=NOW - 2 * 3600)]
+    b = B.compute(_snap(registry=reg, bulletins=[_bul("s1")], backlog_paths=None))
+    assert _ids(b, "A7") == []
+    assert any("backlog" in a for a in b["aveugle"])
 
 
 def test_A8_heartbeat_vieux_de_plus_de_deux_heures_est_une_INFO():
