@@ -187,13 +187,14 @@ PIECES: dict = {
         dose_matched=True,
         matched_sham=None,
         in_repo_today=(
-            "BILLET PAYÉ (TD-STEP-PILOT-R0, EDR-TD-STEP-PILOT-R0, non commité au 2026-09-16) : "
-            "CompositionTask(same_tick=False) D=1, bilinéaire, TD par pas, lr 4,0, 3000 ép, 12 seeds — "
-            "réf lr=0 0,163 ; td0 0,190 (1/12 au-dessus de réf+0,05 : TD(0) par pas N'APPREND PAS) ; "
-            "tdlam 0,9 0,253 > td0+0,05 sur 12/12, séparation totale ; contrôles chemin td0_d0 0,503 et "
-            "substrat bptt 0,807. RÉSERVES : effet FAIBLE (0,25 vs 0,81 BPTT) ; pas d'invariance E19 "
-            "(pas 8,0 inerte contrôles compris ; 3e pas + balayage lambda = R1) ; un substrat, un délai, "
-            "traces remises à zéro par épisode, aucune extrapolation in-world"
+            "attend : réponse connue NÉGATIVE ÉTABLIE — TD(0) par pas n'apprend pas la composition "
+            "différée (td0 0,190, 1/12 au-dessus de réf+0,05 ; réf lr=0 0,163), inerte aux trois pas "
+            "(2,0 / 4,0 / 8,0), avec ses deux contrôles (chemin td0_d0 0,503, substrat bptt 0,807) ; "
+            "réponse POSITIVE observée à UN SEUL point de fonctionnement (lr 4,0, lambda 0,9 : 0,253 > "
+            "td0 sur 12/12, R0) et NON INVARIANTE (R1 : lr 2,0 → 0/12 ; lambda 0,5 → 0/12) — classe "
+            "E19 ; billet PAYABLE par un balayage lr x lambda SCELLÉ (EDR-TD-STEP-PILOT-R0 avec "
+            "bandeau, R1). Réserves : effet faible, un substrat, un délai, traces remises à zéro par "
+            "épisode, aucune extrapolation in-world"
         ),
     ),
     "time_constant_modulation": Piece(
