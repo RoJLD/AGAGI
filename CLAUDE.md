@@ -216,7 +216,7 @@ les 348 `.npz` de `data/genomes/` ni les Hall of Fame. Coût nul — trois entie
 0,5 s ; les 10 entrées du HoF principal (64 + 126 dans 172 = 18, une seule lignée) sont gelées, les deux HoF
 famine et les 348 `.npz` sont à 0. Un fichier illisible est RAPPORTÉ, jamais compté 0 ; deux mutations
 tuées par ses témoins).
-**17 gardes** <!-- count:portes_hook=17 --> sont branchées sur le hook pre-commit
+**18 gardes** <!-- count:portes_hook=18 --> sont branchées sur le hook pre-commit
 (`tools/hooks/pre-commit`) — compte RECOMPUTÉ depuis le hook lui-même : la phrase « 5 cliquets, tous
 branchés » qui vivait ici était fausse.
 ⚠️ **La baseline d'un cliquet doit elle-même déclencher le hook** — sinon l'élargir et la committer seule
