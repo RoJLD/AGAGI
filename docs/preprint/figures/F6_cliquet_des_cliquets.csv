@@ -1,0 +1,19 @@
+porte,verdict,mutation
+porte 1,TUEE,un record SANS porte ni arête n'est plus un orphelin
+porte 2,TUEE,les COLLISIONS de noms redeviennent invisibles
+porte 2,TUEE,les APPRENANTS redeviennent invisibles (motif learn* retiré)
+porte 2,TUEE,le legacy compute_policy_gradient redevient invisible
+porte 3,TUEE,plus aucune classe n'est jugée `exécutable`
+porte 5,TUEE,une grandeur scellée ABSENTE du record ne remonte plus
+porte 6,TUEE,une sonde en défaut n'est plus rapportée
+porte 9,TUEE,une barre SANS aucune garde devient « propre »
+porte 10,TUEE,des tests SUPPRIMÉS ne sont plus une régression
+porte 10,TUEE,le compte de tests devient une CONSTANTE
+porte 11,TUEE,un runner SCELLÉ sans design n'est plus nu
+porte 12,TUEE,un littéral NON GELÉ n'est plus nouveau
+porte 13,TUEE,une barre SOUS le plafond de l'incapable est acceptée
+porte 13,TUEE,un bras intact SOUS sa propre barre est accepté
+porte 14,TUEE,plus aucun site n'est de la dette
+porte 16,TUEE,l'anéantissement redevient une simple baisse
+porte 17,TUEE,le chevauchement est toujours nul
+porte 17,TUEE,un sujet nouveau n'est plus distingué d'un sujet connu

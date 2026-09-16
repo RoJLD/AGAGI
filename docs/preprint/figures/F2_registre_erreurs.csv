@@ -1,0 +1,30 @@
+classe,titre,dates_distinctes,premiere,derniere,garde
+E1,Contrôle qui ne peut pas ÉCHOUER (no-op analytique présenté comme cont,5,2026-09-01,2026-09-14,`exécutable`
+E2,Bras qui ne peut pas RÉUSSIR (l'issue cherchée est structurellement in,4,2026-09-02,2026-09-15,`exécutable`
+E3,Métrique dégénérée (plancher/plafond) lue comme « pas d'effet »,2,2026-07-21,2026-09-01,`exécutable`
+E4,"Vérification vide (« 0 échec » indiscernable d'un succès) (2026-09-06,",6,2026-07-27,2026-09-15,"`exécutable` **(3, 2026-08-03, EVO-011)**"
+E5,Aliasing — l'acte de MESURER mute le système mesuré (portée élargie le,1,2026-09-08,2026-09-08,`exécutable`
+E6,Prédicteur — ou POLITIQUE — mesuré hors du RÉGIME où il opère (portée ,1,2026-09-01,2026-09-01,`exécutable`
+E7,Mauvaise unité de réplication (pseudo-réplication),0,,,`documenté`
+E8,Inférence substituée à la mesure pour économiser du calcul,4,2026-09-08,2026-09-15,"`exécutable` **(promu le 2026-09-02 — 2 occurrences en `documenté`, la 3ᵉ est interdite)**"
+E9,Généralisation depuis un échantillon saillant,2,2026-07-27,2026-08-04,**`non automatisable`**
+E10,Règle documentée sans application exécutable,7,2026-07-27,2026-09-15,"`exécutable` (occ. 1-3 : `tools/jobs/` ; occ. 7 : garde de bail `tests/conftest.py` ; occ. 8 : `tools/check_staged_authorship.py`, sens A ; **occ. 9-11, PROMUES le 2026-09-02** : sens B par `detect_preempted()` — avertissement non bloquant, `--strict` pour bloquer — et course add/commit par `confirm_commit(sha, paths)`) · **`non automatisable`** (occ. 4, reclassée le 2026-09-02 pour sa forme RÉTROSPECTIVE — reconstruire l'auteur d'un hunk depuis l'historique SEUL, après coup, exige de comprendre une INTENTION, même limite déclarée que E9/E14 ; **occ. 8 ne contredit pas ce constat** : sa forme est PROSPECTIVE — une empreinte prise AVANT l'édition ne devine rien, elle COMPARE)"
+E11,Choix d'analyse post-hoc (jardin aux sentiers qui bifurquent),2,2026-07-27,2026-08-04,`exécutable` **(2026-07-27)**
+E12,Extrapolation depuis un préfixe court,2,2026-09-08,2026-09-14,`documenté`
+E13,Dépassement de coût non borné au design,2,2026-07-27,2026-08-04,`exécutable` **(2026-07-27)**
+E14,Garde exécutable jamais RÉTRO-APPLIQUÉE — le cliquet protège le travai,4,2026-09-01,2026-09-14,`exécutable` **(triage seul)**
+E15,Statistique de POPULATION comparée entre populations de compositions d,0,,,`exécutable` *(promue le 2026-09-02 — la règle « pas de troisième fois » l'exigeait : seule classe dont la garde restait une phrase adressée à un humain alors qu'elle est trivialement exécutable)*
+E16,Métrique nommée pour un mécanisme MORT — une compétence agrégée dont u,1,2026-09-14,2026-09-14,`exécutable`
+E17,AMPLITUDE mesurée là où le mécanisme lit le SIGNE ou le RANG — l'instr,0,,,`exécutable`
+E18,Estimateur qui récompense l'ABSENCE DE PREUVE — un score par agent lis,0,,,`exécutable`
+E19,NUL DE CAPACITÉ produit par un RÉGLAGE D'OPTIMISATION validé sur les c,7,2026-08-03,2026-09-16,`exécutable`
+E20,Crossover à ordre fixe : l'estimand est le PRODUIT facteur × carry-ove,1,2026-09-02,2026-09-02,`documenté`
+E21,"Le SHELL a mutilé le texte, et l'outil a scellé/committé la version mu",1,2026-09-07,2026-09-07,`documenté`
+E22,Une suppression de test rend la suite PLUS VERTE — une réécriture prog,2,2026-09-07,2026-09-09,`exécutable`
+E23,Une FAMILLE de tests n'est pas traitée comme une famille — et le défau,1,2026-09-07,2026-09-07,`exécutable`
+E24,Une partie des SORTIES du réseau EST l'entrée — les blocs d'entrée et ,1,2026-09-08,2026-09-08,`exécutable`
+E25,Le test gèle une VALEUR historique au lieu d'un INVARIANT — l'assertio,2,2026-09-01,2026-09-09,`exécutable`
+E26,Le monde dérive le CORPS des mêmes paramètres que la POLITIQUE — `hp_b,2,2026-09-08,2026-09-14,`exécutable`
+E27,La VÉRIFICATION réécrit l'ÉVIDENCE — un test de fumée rejoue le runner,2,2026-09-14,2026-09-15,`exécutable`
+E28,Un NON-FINI transformé en ISSUE DE FOND par une opération qui ne le pr,1,2026-09-15,2026-09-15,exécutable
+E29,Le SUBSTRAT dépend d'un fichier NON VERSIONNÉ chargé À CHAUD — une com,1,2026-09-16,2026-09-16,exécutable

@@ -168,6 +168,37 @@ entrées, c'est un échantillonneur d'hyperparamètres avec un bon prior — la 
 Coût ≈ 1 h. Preuve : `tools/rsi_demand_loop.py:8` (« ARMER = une seule ligne »).
 <!-- closes_when:grep_present=src/metaprog/llm_proposer_fn.py::def claude_code_llm_fn -->
 
+**P5.1 — Preprint MÉTHODO (ADR-004 (i) « preprint maintenant ») — plan, figures F1-F6 et brouillon v0 livrés le 2026-09-16 ; relecture, F7, traduction et soumission à faire.**
+Quoi : `docs/preprint/PLAN.md` — titre de travail, thèse (les erreurs qui comptent sont des affirmations produites SANS
+mesure, et elles ont une direction : le négatif), six objets publiables avec leur chiffre RECOMPUTÉ et sa commande
+(297 EDR dont 2 rétractés et 39 verdicts négatifs ; 234/226 instruments ; 28 classes d'erreur, 23 exécutables ; 17 portes,
+22/22 mutants tués ; 58 règles scellées ; plancher de bruit 1,058/0,922), cinq résultats de méthode (biais directionnel,
+E19, dose E2, E28, E24) chacun avec record + chiffre + garde, sept figures depuis les artefacts existants, plan des
+sections. Fait : `tools/preprint/figures.py` — F1 (dette gelée par commit de la baseline, via `git show`), F3 (bascule E19
+sur trois instruments), F4 (dose vs nul, six bras), F5 (E28 avec/sans garde), F6 (cliquet des cliquets, parsé depuis le
+rapport), F2 (occurrences DATÉES par classe du registre — jours distincts, première et dernière) → `docs/preprint/figures/*.csv|png` ;
+aucune valeur en dur, une source absente est RAPPORTÉE (2 tests). `docs/preprint/DRAFT.md` (v0, ~3 pages, français) : résumé,
+trois mécanismes, le registre comme objet, cinq cas (biais directionnel, E19, dose, E28, E24), coût/rendement, limites,
+suite — chaque chiffre avec sa source. F7 livrée (per-seed `within_ratio` intact/aveugle de `results/s2_blind_champion.json`
++ bande du no-op exact LUE dans le tableau du record — 4/7 seeds intacts SOUS la bande). Reste : relecture
+adversariale du brouillon (les chiffres BOUGENT : recompute le jour J), choix de la cible (atelier open-endedness / ALIFE /
+GECCO) et de la langue, annexe = registre. *Coût : agent 1 j ; calcul 0.*
+<!-- closes_when:grep_present=docs/preprint/DRAFT.md::status: submitted -->
+
+**P5.2 — Revue adversariale n° 1 de la spec du harnais (lecture seule, sondes rejouées) — trois corrections à porter dans la spec / les contrats avant la semaine 2.**
+Quoi : `docs/superpowers/specs/2026-09-16-harness-contracts-REVIEW-01.md`. **R1 (E1)** : le contrôle de spécificité de la
+cellule A, `permute_distractor_slot`, permute des ZÉROS (sonde : colonnes 12..58 de l'obs same_tick toutes nulles) — `DECOY`
+et « > 0,9 » sont obtenus par construction ; il faut un slot distracteur PORTEUR (one-hot tiré du rng) et une clause de contrat
+« l'ablation non mordante change l'observation ». **R2** : la spec ne dit pas qui porte `meta` après `apply` — écrire que
+`meta` décrit l'obs ablatée et `target` reste celui de l'intact (sinon (c) refuse toute Task). **R5 (E4)** : `PRIOR_SOLVES
+si référence > barre` avec barre = référence + 0,05 ne peut jamais se déclencher (le tabular `oracle_init` ne rendra pas
+PRIOR_SOLVES) — comparer à `incapable_ceiling + 2 se`. **R3** chiffré : la bande de bruit d'un ratio à n_eval 640 vaut ±3 %
+à p = 0,93 mais ±18 % à 0,27 et ±25 % à la chance — la publier PAR BRAS. **R4, R6** vérifiés sans correction (référence
+lr=0 mesurée 0,161 ≈ 1/K ; cellule A → PARTIAL, annoncé). ⚠️ Lu contre le plan d'implémentation de l'autre session (`docs/superpowers/plans/2026-09-16-harness-r1-weeks-1-3.md`, non
+versionné au moment de la lecture, 07:00) : R2 et R5 y sont RÉGLÉS ; **R1 y est CODÉ tel quel** (Task 3, `_permute_distractor` sur le slot `[2K:3K]` avec le
+commentaire « le slot distracteur est vide : rien n'est détruit ») — à corriger avant la Task 3. *Coût : agent 1 h.* Dépend de : rien.
+<!-- closes_when:grep_present=docs/superpowers/specs/2026-09-16-harness-contracts-design.md::REVIEW-01 -->
+
 **P4.10 — Élargir le proposeur de 5 paramètres à l'ÉCRITURE d'une TÂCHE (OMNI-EPIC), sous sandbox + revue
 humaine, évaluée par le harnais à trois conditions.** *(Re-spécifié le 2026-09-16 par ADR-004 / spec
 `2026-09-16-harness-contracts-design.md` : la première famille est « jeux de logique vérifiables », pas des
