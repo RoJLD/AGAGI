@@ -190,7 +190,7 @@ entrées, c'est un échantillonneur d'hyperparamètres avec un bon prior — la 
 Coût ≈ 1 h. Preuve : `tools/rsi_demand_loop.py:8` (« ARMER = une seule ligne »).
 <!-- closes_when:grep_present=src/metaprog/llm_proposer_fn.py::def claude_code_llm_fn -->
 
-**P5.1 — Preprint MÉTHODO (ADR-004 (i) « preprint maintenant ») — plan, figures F1-F6 et brouillon v0 livrés le 2026-09-16 ; relecture, F7, traduction et soumission à faire.**
+**P5.1 — Preprint MÉTHODO (ADR-004 (i) « preprint maintenant ») — plan, figures F1-F7 et brouillon v0 livrés le 2026-09-16 ; relecture adversariale, cible/langue, annexe et soumission à faire (décision robla).**
 Quoi : `docs/preprint/PLAN.md` — titre de travail, thèse (les erreurs qui comptent sont des affirmations produites SANS
 mesure, et elles ont une direction : le négatif), six objets publiables avec leur chiffre RECOMPUTÉ et sa commande
 (297 EDR dont 2 rétractés et 39 verdicts négatifs ; 234/226 instruments ; 28 classes d'erreur, 23 exécutables ; 17 portes,
@@ -3062,6 +3062,15 @@ et amplifier `obs → action` ×3 / ×8 a multiplié le drain (11,0 / 15,0 en nu
 « Aucun contrôle positif constructible par amplification » est donc un ARTEFACT CANDIDAT. À faire, après
 P1.7 : re-smoke à corps APPARIÉ (ballast exact), 4 cellules × 30 s ; si le lecteur câblé ballasté survit
 ET rend DEMANDED, c'est le premier contrôle positif de `run_ablation_map` sur une politique qui lit.
+→ **P2.43, note du 2026-09-22 (session loop 766eabae, en passant).** Le re-smoke à corps apparié est RÉPONDU par P2.59
+(2026-09-15) : `ObsReaderOnBody` lit l'obs SUR le corps du champion (aucun poids touché, corps apparié par construction)
+et rend **DECOY 0,86** (lire pour poursuivre COÛTE ; `INCONCLUSIVE_INVERTED` 0,66 sous corps insuffisant). L'artefact
+candidat du panel (mort par le corps) est écarté : à corps apparié, aucune lecture câblée n'est net-positive sur stoneage.
+Depuis P2.41 (b) la RÉSOLUTION n'est plus l'obstacle (`paired_band=True` : no-op 1,000 exact sur 14/14 cellules, -ter/DECOMP)
+— l'obstacle est le MONDE : l'obs de stoneage n'encode que la direction de la proie la plus proche (+ type d'apex adjacent,
+lidar, énergies, inventaire), et poursuivre la proie ne paie pas (EVO-011, S2-012). Un contrôle positif exige soit un
+comportement obs-dirigé dont le PAYOFF est positif dans ce monde (aucun candidat câblable identifié), soit un monde où
+lire paie (les 5 planchers sont mesurés). Entrée laissée OUVERTE ; décision robla.
 
 **P1.x — ✅ CLOSE par P2.54 (2026-09-09 ; titre laissé OUVERT jusqu'au 2026-09-14) — « CI VERTE » couvrait 6 % de la suite : 1937 tests
 sur 2059 n'étaient exécutés par AUCUN job.** Mesuré en parsant `.github/workflows/ci.yml` : les deux
