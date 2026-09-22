@@ -26,6 +26,7 @@ def wired_reader():
 
 def main():
     cfg = MutationConfig()
+    cfg.preserve_io_blocks = False  # sonde du DEFAUT historique (EVO-021, 56 %) ; ON par defaut depuis P2.63
     apres_j0 = intact_recalc = intact_absolu = ligne_glissee = 0
     TRIALS = 200
     for s in range(TRIALS):

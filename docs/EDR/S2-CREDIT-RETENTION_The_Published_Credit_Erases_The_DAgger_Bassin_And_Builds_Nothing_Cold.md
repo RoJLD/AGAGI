@@ -22,7 +22,8 @@ corrected_by: [EDR-S2-REWARD-ABLATION]
 ## Question (backlog, bloc « 🧭 2026-09-14 », rang 4 — P4.4 ; règle scellée AVANT toute cellule)
 
 Règles : `docs/preregistrations/S2-CREDIT-RETENTION.json` (contenu), `-bis` (markup `dv_primaire`),
-`-ter` (budget de coût relevé sur mesure, voir § Coût). [[EDR-CALIB-LEARNER]] a établi que l'apprenant
+`docs/preregistrations/S2-CREDIT-RETENTION-ter.json` (budget de coût relevé sur mesure, voir § Coût).
+[[EDR-CALIB-LEARNER]] a établi que l'apprenant
 in-world tel que publié (Actor-Critic TD(0) par tick + REINFORCE épisodique k = 8, lr 0,04) APPREND la
 tâche linéaire quand la mort ne borne plus sa dose, et qu'un apprenant meurt ~100× plus qu'un
 non-apprenant. Restait le seul maillon jamais mesuré de la chaîne warm-start in-world (tous les verdicts

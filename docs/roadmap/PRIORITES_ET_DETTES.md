@@ -668,6 +668,18 @@ fixe, jamais un nul de capacité ; « un bras qui n'a pas appris franchit la bar
 incapable ». Les records gardent leur texte d'époque (historique) ; `plain_substrate_ceiling.py` et le backlog
 portaient déjà la rétractation. 103 tests des fichiers touchés passent (12,8 s).
 <!-- closes_when:grep_present=tests/sandbox/test_experiment_preflight.py::CORRECTION 2026-09-16 -->
+**P2.78 — rang 14 ter — `project_cost` / `CostGuard` mesurent du temps MUR : une cellule de P4.9 a duré 33 060 s
+(9,2 h) sans qu'on puisse dire si la machine calculait ou dormait.**
+Quoi : `results/s2_credit_ablation.json` → `arms.b_zero.2029.elapsed_s` = 33 060 s contre 26 à 3885 s pour les 59
+autres cellules (total hors cellule 7699 s, DANS la projection de 20 007 s ; réel publié 40 759 s = 11,3 h, sous le
+budget scellé de 16 h). Le run a traversé la nuit du 15 au 16 : suspension de la machine ou contention, le chiffre
+ne le dit pas. `tools/cost_guard.py` (`project_cost`, `CostGuard`) et les runners (`elapsed_s` = `time.time()`)
+ne publient que du temps mur. Faire publier À CÔTÉ le temps CPU du processus (`time.process_time()`) par bras et
+par run (`elapsed_cpu_s`), et faire porter la garde de QUEUE (`CostGuard.tick`) sur le temps CPU, pas sur le mur —
+une suspension ne doit ni tuer un run ni gonfler un coût publié. Un chiffre de coût mesuré sur une machine dont on
+ne connaît pas l'état est la classe E12 appliquée au coût (CLAUDE.md § Calibration). *Coût : agent 1 h ; calcul
+0.* Dépend de : rien.
+<!-- closes_when:grep_present=tools/cost_guard.py::process_time -->
 
 **P4.11 — rang 5 — OUVERTE ([`ADR-005`](../ADR/005_mecanismes_biomimetiques_pieces_familles_prerequis.md), item 1) —
 Trace d'éligibilité de politique TD(λ) dans `TorchPopulationModel._td_update` : le crédit local SANS BPTT, calibré à
@@ -764,7 +776,8 @@ rêve forcé K=4 chez un porteur d'organe → Σ = 4 avec sortie bit-identique �
 grandeur qui n'agit pas ne s'instrumente pas comme PIÈCE — elle est désormais publiée pour qu'on puisse le dire chiffré.
 <!-- closes_when:grep_present=tools/learning_events.py::compute_spent -->
 
-**P4.15 — rang 3 — OUVERTE (propriétaire : la session P4.9) — Graver `EDR-S2-CREDIT-ABLATION` : P4.9 est FINI et
+**P4.15 — ✅ CLOSE (2026-09-22, par la session P4.9 : record [[EDR-S2-CREDIT-ABLATION]] + `results/s2_credit_ablation.json`
+committés, P4.9 CLOSE) — rang 3 — Graver `EDR-S2-CREDIT-ABLATION` : P4.9 est FINI et
 son verdict change la lecture du crédit, mais il n'a ni record ni commit.**
 Quoi (mesuré le 2026-09-16, sceptique C10) : `results/s2_credit_ablation.json` (non suivi, 74 977 o, 15 sept 12:04)
 porte un bloc `verdict` complet — n=12, `SIGNAL_QUELCONQUE` / `EPISODIQUE_SUFFIT` / `ATTENUE_A_PETIT_PAS` ; S_a 36,0 /
@@ -1060,9 +1073,20 @@ type de bras et sceller le budget sur MESURE (leçon P4.4). Pourquoi : [[EDR-S2-
 *Coût : agent 3-4 h ; calcul ~4-6 h sous bail.* Dépend de : rien.
 <!-- closes_when:path_present=docs/preregistrations/S2-REWARD-ABLATION.json -->
 
-**P4.9 — ✅ SCELLÉE ET LANCÉE (2026-09-15) — rang 4 ter — Ablation du CRÉDIT : l'érosion vient-elle du SIGNE du
-signal, du PAS, ou du TD par tick ?**
-État : règle `S2-CREDIT-ABLATION` scellée (10 branches ordonnées, budget 16 h dérivé des coûts P4.8, charge machine
+**P4.9 — ✅ CLOSE (2026-09-22, [[EDR-S2-CREDIT-ABLATION]] : SIGNAL_QUELCONQUE / EPISODIQUE_SUFFIT /
+ATTENUE_A_PETIT_PAS) — rang 4 ter — Ablation du CRÉDIT : l'érosion vient-elle du SIGNE du signal, du PAS, ou
+du TD par tick ?**
+Résultat (n = 12, mêmes seeds, `b_full` importé sur réplication bit-identique) : sans signal (`reward_scale` 0) le
+crédit ne bouge presque pas (Σ|ΔW| 2,5 % du complet) et n'érode pas (`S_zero` 33,25 vs `S_a` 36,0, NEUTRE) ; le
+signal INVERSÉ (`reward_scale` −1) efface le bassin autant que le vrai (`S_neg` 7,25 vs `S_full` 8,0, 12/12) ; la
+voie ÉPISODIQUE seule (TD coupé) suffit (`S_tdoff` 7,5, 12/12, à 8 % du mouvement) ; le pas 0,004 atténue sans
+retenir (`S_lr` 21,5, 9/12 érodés, mais 12/12 mieux que le pas publié). **Les deux mécanismes candidats de P4.8
+(avantage constant négatif ; pas trop grand) sont RÉFUTÉS : l'érosion exige un signal, ignore son signe, n'est pas
+proportionnelle au mouvement, et le destructeur est la mise à jour épisodique (REINFORCE k = 8) elle-même.**
+Coût : réel 11,3 h dont 9,2 h sur UNE cellule (b_zero seed 2029 ; les 59 autres = 2,1 h, dans la projection) →
+P2.78 (temps mur vs CPU). Suite : P4.16 (TD seul / retour constant / épisodique à petit pas, puis ancre au bassin).
+État à la préparation :
+règle `S2-CREDIT-ABLATION` scellée (10 branches ordonnées, budget 16 h dérivé des coûts P4.8, charge machine
 connue et publiée : agents parallèles), runner `tools/evo_runs/s2_credit_ablation.py` (six bras : gelé / complète
 importée sur réplication / `reward_scale` 0 / `reward_scale` −1 / `lr` 0,004 / TD coupé), quatre seams vérifiés à
 réponse connue avant le run (`preflight_credit_seams` : ce qui ATTEINT le learner d'origine), verdict calibré 16 cas.
@@ -1084,6 +1108,25 @@ si `Σ|ΔW|` < 10 % du bras complet. Pré-vol : le no-op `reward_scale = 1` est 
 ~50-370 s par bras et par seed mesuré en P4.8 → 3 bras × 12 seeds ≈ 1-2 h ; sceller le budget sur MESURE.
 Pourquoi : [[EDR-S2-REWARD-ABLATION]]. *Coût : agent 2-3 h ; calcul 1-2 h sous bail.* Dépend de : rien.
 <!-- closes_when:path_present=docs/preregistrations/S2-CREDIT-ABLATION.json -->
+
+**P4.16 — rang 4 quater (PROCHAIN RUN) — Ablation du CRÉDIT, seconde passe : la voie ÉPISODIQUE détruit-elle
+quel que soit le CONTENU du signal, et le TD seul détruit-il ?**
+Quoi : même dispositif (bassin DAgger cloné ×12, phase immortelle 2000 ticks, test mortel 200 ticks poids gelés,
+n = 12, mêmes seeds, `a_frozen` re-mesuré, `b_full` importé sur réplication bit-identique), trois bras sur le
+crédit : (b_tdonly) épisodique COUPÉ, TD seul — seam `episode_enabled=False` à AJOUTER à `count_learning_events`
+et à calibrer à réponse connue (learn_episode d'origine jamais appelé, TD vivant) ; (b_const) retour CONSTANT +1
+partout — seam `reward_const` à ajouter (signal non nul, contenu nul : si ça érode, c'est la dérive de politique
+de REINFORCE, indépendante du contenu) ; (b_ep_lr) épisodique seul à `lr` 0,004 (dose de mouvement de
+`b_tdoff`, 10× moins). Issues nommées d'avance : b_const ERODE → le destructeur est l'opérateur épisodique
+lui-même → remède candidat = ANCRE au bassin (perte d'imitation / KL vers la politique DAgger pendant le crédit,
+forme DAgger + RL) à sceller ensuite ; b_const NEUTRE → le contenu compte (magnitude / variance du retour) →
+cible = normalisation du retour ; b_tdonly ERODE → le TD par tick suffit AUSSI (deux destructeurs) ; b_tdonly
+NEUTRE → un seul destructeur, `learn_episode` (`gate_last_only=True` : ce qu'il déplace devient la question).
+Pré-vol : les deux nouveaux seams à réponse connue (ce qui ATTEINT le learner d'origine, comme P4.9). Coût
+mesuré P4.9 (charge connue) : 26-713 s par bras-seed → ~1-3 h ; sceller le budget sur MESURE ; publier le temps
+CPU à côté du temps mur (P2.78). Pourquoi : [[EDR-S2-CREDIT-ABLATION]]. *Coût : agent 2-3 h ; calcul 1-3 h
+sous bail.* Dépend de : P2.78 (souhaitable, non bloquant).
+<!-- closes_when:path_present=docs/preregistrations/S2-CREDIT-ABLATION-2.json -->
 
 **P4.7 — rang 19 — S5 / G4 phase A : `g` PER-ACTION vs agnostique vs labels PERMUTÉS (nœud 74).**
 Sonde livrée (fix de persistance ACTIF depuis le 2026-09-07, voir le bloc S5 plus bas et

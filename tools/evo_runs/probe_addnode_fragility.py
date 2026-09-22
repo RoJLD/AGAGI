@@ -54,6 +54,7 @@ with hold("kuzu", owner="probe-addnode", ttl_s=1800):
         W[SIG, N - O + M.THROW_IDX] = 3.0
         return Genome(W, I, O)
     mc = MutationConfig(); mc.add_node_rate = 1.0; mc.weight_mutate_rate = 0.0
+    mc.preserve_io_blocks = False   # sonde du DEFAUT historique (EVO-021/022) ; ON par defaut depuis P2.63
     mc.add_connection_rate = 0.0; mc.prune_rate = 0.0; mc.meso_skip_rate = 0.0; mc.meso_gate_rate = 0.0
     print(f"\n  saillance d'un LECTEUR cable apres k add_node (rien d'autre ne mute) :")
     for k in (0, 1, 3, 10):

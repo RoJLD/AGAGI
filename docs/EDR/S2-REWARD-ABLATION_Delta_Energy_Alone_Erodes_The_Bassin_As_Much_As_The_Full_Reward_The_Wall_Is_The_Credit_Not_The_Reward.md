@@ -93,6 +93,11 @@ lui-même — Actor-Critic TD(0) par tick + REINFORCE épisodique (k = 8, lr 0,0
 
 ## Portée (hedges)
 
+> **Précisé le 2026-09-22 par [[EDR-S2-CREDIT-ABLATION]] (P4.9)** : les DEUX mécanismes candidats ci-dessous sont
+> RÉFUTÉS — sans signal le crédit ne bouge ni n'érode (33,25 ≈ 36,0, contre la prédiction de (ii)), le signal
+> INVERSÉ érode autant que le vrai (7,25 vs 8,0, 12/12, contre la prédiction de (i)), et la voie épisodique seule
+> suffit. Le verdict de ce record (CREDIT_ERODE_SEUL, PLEIN) tient et se réplique bit-identiquement.
+
 * Ce run ne dit pas POURQUOI le crédit sur Δénergie érode. Deux mécanismes candidats, discriminables par le
   prochain run (P4.9, « ablation du CRÉDIT ») : **(i) dérive à avantage constant** — sous immortalité,
   Δénergie par tick est dominé par le drain métabolique (négatif, quasi constant), le critic tanh sature

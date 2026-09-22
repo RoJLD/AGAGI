@@ -43,6 +43,7 @@ with hold("kuzu", owner="evo025-throughput-smoke", ttl_s=3600):
     np.random.seed(0)
     cfg = M._cfg()
     mc = MutationConfig()
+    mc.preserve_io_blocks = False   # debit publie sous l'HISTORIQUE ; ON par defaut depuis P2.63
     genomes = M._fresh_soup(POP, cfg, 0.4)
 
     print(f"  ere | s/ere | ticks-agent | tirages cumules | survivants | N med")
