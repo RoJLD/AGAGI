@@ -154,7 +154,29 @@ ateliers open-endedness), pas un checkpoint ; (2) un LLM dans la boucle comme G�
 quand un run le demande. Se ferme par un ADR qui nomme la branche.
 <!-- closes_when:grep_absent=docs/ADR/004_fourche_strategique_demande_generee_ou_concue.md::status: proposed -->
 
-**P2.66 — `claude_code_llm_fn` : un terminal Claude Code comme `llm_fn` du #8.** Quoi : une quatrième
+**P2.66 — ✅ CLOSE (2026-09-22) — `claude_code_llm_fn` : un terminal Claude Code comme `llm_fn` du #8.**
+Fait : `src/metaprog/llm_proposer_fn.py::claude_code_llm_fn(binary=None, timeout_s=600, allowed_tools="")
+-> llm_fn(prompt) -> str`, quatrième fonction à côté de `anthropic_llm_fn` / `local_llm_fn` /
+`scripted_llm_fn`, même contrat. Interface fixée par c9, consommée par propose.py en semaine 5. Prompt
+par STDIN (jamais en argument : limite de ligne de commande sous Windows) ; commande `[bin, "-p",
+"--output-format", "text", "--allowedTools", allowed_tools]` ; `bin` = `binary`, sinon
+`AGAGI_CLAUDE_BIN`, sinon `"claude"` — résolu par `shutil.which` (⚠️ mesuré : sous Windows
+`subprocess.run(["claude", …])` ne consulte pas PATHEXT, le shim `claude.cmd` d'npm est invisible sous
+le nom nu, 6/8 cas rouges avec la forme littérale) ; `subprocess.run(input=prompt, capture_output=True,
+text=True, encoding="utf-8", timeout=timeout_s)` ; timeout -> `TimeoutExpired` REMONTÉE ; exit != 0 ->
+`RuntimeError` portant le stderr ; sortie = stdout BRUT (`parse_demand_response` /
+`sanitize_demand_params` inchangés) ; aucun secret ; périmètre = PARAMÈTRES JSON (`rsi_loop.py:96`),
+aucun code exécuté, raisonnement d'[[EDR-065]]. Tests : `tests/sandbox/test_claude_code_llm_fn.py`
+(8 cas, TDD RED->GREEN, faux exécutable = script Python derrière un shim `claude.cmd` / `claude` sh,
+PATH RÉDUIT au tmp_path — aucun appel réel, jamais) : texte OK via PATH nu · texte OK via
+`AGAGI_CLAUDE_BIN` (avec contraste `FileNotFoundError` sans la variable) · `binary=` prime · exit 3 ->
+`RuntimeError` avec stderr · timeout remonté · stdin intact (é/ç/€, plusieurs lignes, égalité exacte) ·
+argv exact (`-p`, `--output-format text`, `--allowedTools ""`, prompt ABSENT) · `allowed_tools`
+transmis tel quel. Pas un instrument (nom non capté par le cliquet, vérifié : 234 détectés, rien
+déclaré). NON branché dans `tools/rsi_demand_loop.py` (semaine 5 de c9). ⚠️ Tant que l'allow-list a
+5 entrées, c'est un échantillonneur d'hyperparamètres — la valeur est dans P4.10.
+*Brique libre livrée le 2026-09-22 : `proposals_root()` / `proposals_file(*parties)` dans `src/paths.py` — variable `AGAGI_PROPOSALS_ROOT`, défaut `proposals`, jointure `/`, relue à chaque appel, exposée dans `__all__` et `describe()` ; 6 cas dans `tests/sandbox/test_paths.py` (11 → 17 def test), porte `check_data_paths` verte SANS toucher la baseline (44 gelés / 0 nouveau : `src/paths.py` est hors périmètre et le motif ne vise que `data/`, `results/`, `/app/data/`). ⚠️ Ce même motif ne couvre PAS `proposals/` : un littéral `"proposals/x.json"` écrit en dur chez un consommateur passerait la porte — élargir `_EST_DONNEE` impose de re-geler la baseline par un acte explicite, à faire quand la racine porte des fichiers réels.*
+Quoi (énoncé d'origine) : une quatrième
 fonction dans `src/metaprog/llm_proposer_fn.py`, même contrat `str -> str` que `anthropic_llm_fn`
 (`:13`, clé + conteneur jetable) et `local_llm_fn` (`:33`, LM Studio) : `subprocess.run(["claude", "-p",
 prompt, "--output-format", "text"], timeout=...)`, outils désactivés côté proposition (`--allowedTools`
