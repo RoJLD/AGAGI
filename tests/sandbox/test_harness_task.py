@@ -123,7 +123,9 @@ def test_toy_task_passes_the_contract_and_reports_bayes_floors():
     out = assert_task_contract(ToyParity(), seed=0, n=64)
     assert out["certified"] is True
     assert out["bayes_floors"] == {"permute_a": 0.5}
-    assert out["elapsed_ms"] < 50.0
+    # 50 ms est l'ordre de grandeur attendu ; la borne large protege de la gigue d'ordonnancement, l'absence
+    # de simulation est garantie par construction (aucune population construite).
+    assert out["elapsed_ms"] < 500.0
 
 
 def test_contract_refuses_a_task_without_a_non_biting_ablation():

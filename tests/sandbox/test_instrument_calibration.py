@@ -1303,8 +1303,10 @@ CALIBRATED = {
     # COLLISION (src/agents/backend.py::learn, tools/harness/learners/tabular.py::learn entre autres) :
     # declaration QUALIFIEE obligatoire. Un libelle par assertion REELLE de tests/sandbox/
     # test_harness_connectome.py qui EXERCE `learn` -- test_two_open_instances_with_different_flags_
-    # are_refused n'appelle jamais learn (seul build/les drapeaux de classe sont exerces) et ne porte
-    # donc aucun libelle ici, meme discipline que tabular.py::learn ci-dessus. Le test de bit-identite
+    # are_refused, test_a_failing_build_never_leaks_class_flags (fix round 1, CRITICAL 1) et
+    # test_bilinear_sham_without_bilinear_is_refused (fix round 1, IMPORTANT 2) n'appellent jamais learn
+    # (seul build/les drapeaux de classe sont exerces) et ne portent donc aucun libelle ici, meme
+    # discipline que tabular.py::learn ci-dessus. Le test de bit-identite
     # porte DEUX libelles (deux groupes d'assertions distincts dans le meme corps -- le contraste
     # bilineaire/plain PUIS la reference lr=0 a dose appariee), meme motif que harness_verdict_lecture
     # ci-dessous.
