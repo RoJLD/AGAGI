@@ -75,3 +75,16 @@ def test_charger_et_ajouter_font_l_aller_retour_et_comptent_les_lignes_illisible
     j = AL.charger(p)
     assert j == lignes and AL.charger.illisibles == 1
     assert AL.charger(str(tmp_path / "absent.jsonl")) == []
+
+
+def test_charger_survit_a_des_OCTETS_NON_UTF8_et_les_compte_illisibles(tmp_path):
+    """Un journal append-only ecrit par un processus tue au milieu d'une ligne porte des octets
+    invalides : sans `errors='replace'`, la lecture levait UnicodeDecodeError DEPUIS le tick — une
+    ligne corrompue tuait tout le journal, silencieusement remplace par « aucune alerte »."""
+    p = tmp_path / "alerts.jsonl"
+    lignes = AL.diff(_board("A1:x.py"), [], T0)["lignes"]
+    AL.ajouter(str(p), lignes)
+    with open(p, "ab") as fh:
+        fh.write(b'{"cle": "A2:\xff\xfe tronquee\n')          # octets invalides ET JSON incomplet
+    j = AL.charger(str(p))
+    assert [l["cle"] for l in j] == ["A1:x.py"] and AL.charger.illisibles == 1

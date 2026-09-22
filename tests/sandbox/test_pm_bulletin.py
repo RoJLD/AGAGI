@@ -94,7 +94,7 @@ def test_main_start_avec_BOARD_en_cache_imprime_le_resume_du_tableau(tmp_path, m
     monkeypatch.setattr(BU, "REGISTRY_DIR", str(tmp_path / "reg"))
     (tmp_path / "pm").mkdir()
     (tmp_path / "pm" / "BOARD.json").write_text(json.dumps({"generated_at": NOW, "aveugle": ["bails (tools/jobs)"], "sessions": [],
-                                                           "alertes": [], "charge_connue": {"sims_en_vol": 0, "cpu_5min_pct": 1.0, "bails_vivants": []}}),
+                                                           "alertes": [], "charge_connue": {"sims_en_vol": 0, "cpu_pct": 1.0, "bails_vivants": []}}),
                                                 encoding="utf-8")
     monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(_payload("SessionStart"))))
     assert BU.main(["start"]) == 0
@@ -131,3 +131,36 @@ def test_main_avec_argv_malforme_sort_0_et_journalise_argv(tmp_path, monkeypatch
     assert BU.main(["bogus"]) == 0
     log = (tmp_path / "pm" / "hook_errors.log").read_text(encoding="utf-8")
     assert "argv" in log
+
+
+def test_main_HELP_sort_0_et_n_est_PAS_journalise_comme_un_echec(tmp_path, monkeypatch, capsys):
+    """`--help` lève SystemExit(0) : le journaliser inventait un échec de hook, qu'A9 aurait fini par
+    signaler. Un code de sortie 0 n'est pas une erreur."""
+    monkeypatch.setenv("AGAGI_DATA_ROOT", str(tmp_path).replace("\\", "/"))
+    assert BU.main(["--help"]) == 0
+    capsys.readouterr()
+    assert not (tmp_path / "pm" / "hook_errors.log").exists()
+
+
+def test_journal_des_hooks_TOURNE_au_dela_du_plafond_et_garde_la_QUEUE(tmp_path, monkeypatch):
+    """Un hook cassé écrit ~2 ko à CHAQUE outil : sans rotation, le journal grossit sans borne dans
+    `data/`. La QUEUE est ce qu'on garde — `read_hook_errors` ne regarde que 24 h."""
+    monkeypatch.setenv("AGAGI_DATA_ROOT", str(tmp_path).replace("\\", "/"))
+    monkeypatch.setattr(BU, "MAX_JOURNAL_O", 4000)
+    monkeypatch.setattr(BU, "GARDE_JOURNAL_O", 1000)
+    p = tmp_path / "pm" / "hook_errors.log"
+    p.parent.mkdir(parents=True)
+    p.write_bytes(b"VIEILLE LIGNE A JETER\n" + b"x" * 5000 + b"\nDERNIERE LIGNE AVANT ROTATION\n")
+    avant = p.stat().st_size
+    BU._journal("stop", ValueError("boum"))
+    txt = p.read_text(encoding="utf-8", errors="replace")
+    assert p.stat().st_size < avant
+    assert "DERNIERE LIGNE AVANT ROTATION" in txt and "VIEILLE LIGNE A JETER" not in txt
+    assert "stop ValueError: boum" in txt                       # l'échec courant est bien ajouté APRÈS
+    assert not (tmp_path / "pm" / "hook_errors.log.tmp").exists()
+
+    # no-op EXACT : sous le plafond, le journal n'est PAS touché (rien de perdu par excès de zèle)
+    petit = tmp_path / "pm" / "petit.log"
+    petit.write_text("une ligne\n", encoding="utf-8")
+    BU._rotation(str(petit), max_o=4000, garde_o=1000)
+    assert petit.read_text(encoding="utf-8") == "une ligne\n"

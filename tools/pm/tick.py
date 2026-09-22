@@ -19,7 +19,7 @@ from tools.pm import alerts as AL
 from tools.pm import roles_counts as RC
 from tools.pm.board import compute, render_md
 from tools.pm.bulletin import session_id_courant
-from tools.pm.snapshot import read_registry, snapshot
+from tools.pm.snapshot import ancrer_data_root, read_registry, snapshot
 
 TTL_PM_S = 7200.0
 
@@ -46,10 +46,18 @@ def _identite(registry_dir):
     return None, None
 
 
-def digest(board, d, counts):
+def digest(board, d, counts, illisibles=0):
     L_ = [f"[PM] AVEUGLE SUR {a}" for a in board["aveugle"]]
+    # Deux aveuglements étaient DÉTECTÉS par la couche du dessous puis AVALÉS ici : le journal des
+    # alertes compte ses lignes illisibles (`AL.charger.illisibles`) et `fichiers_modifies` rend None
+    # quand git est muet. Sans ces deux lignes, le digest affichait des compteurs incomplets
+    # exactement comme des compteurs complets.
+    if illisibles:
+        L_.append(f"[PM] journal des alertes : {illisibles} ligne(s) illisible(s)")
+    if counts.get("fichiers_disponibles") is False:
+        L_.append("[PM] AVEUGLE SUR git (fichiers modifiés non mesurés)")
     c = board["charge_connue"]
-    L_.append(f"[PM] charge connue : sims={c['sims_en_vol']} cpu5={c['cpu_5min_pct']} bails={c['bails_vivants']}")
+    L_.append(f"[PM] charge connue : sims={c['sims_en_vol']} cpu={c['cpu_pct']} bails={c['bails_vivants']}")
     for a in d["nouvelles"]:
         L_.append(f"[PM] NOUVELLE {a['cle']} ({a['gravite']}) — {a['message']} -> décider : message ciblé / investigation / note")
     for a in d["repetees"]:
@@ -66,6 +74,7 @@ def digest(board, d, counts):
 
 
 def main(argv=None):
+    ancrer_data_root()                                  # AVANT tout paths.* : le tableau du PM vit dans le dépôt COMMUN
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--owner", default=None)
     ap.add_argument("--pid", type=int, default=None)
@@ -93,12 +102,13 @@ def main(argv=None):
     with open(paths.pm_dir("BOARD.md"), "w", encoding="utf-8") as fh:
         fh.write(render_md(board))
     journal = AL.charger(paths.pm_dir("alerts.jsonl"))
+    illisibles = AL.charger.illisibles                  # capturé TOUT DE SUITE : un autre `charger` le remettrait à 0
     d = AL.diff(board, journal, now)
     AL.ajouter(paths.pm_dir("alerts.jsonl"), d["lignes"])
-    counts = RC.compute_counts(journal + d["lignes"], RC.fichiers_modifies(args.repo_root), now)
+    counts = RC.compute_counts(journal + d["lignes"], RC.fichiers_modifies(args.repo_root, now=now), now)
     with open(paths.pm_dir("ROLES_COUNTS.json"), "w", encoding="utf-8") as fh:
         json.dump(counts, fh, ensure_ascii=False, indent=1)
-    print(digest(board, d, counts))
+    print(digest(board, d, counts, illisibles=illisibles))
     return 0
 
 

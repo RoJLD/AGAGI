@@ -12,7 +12,7 @@ import sys
 import time
 
 from src import paths
-from tools.pm.snapshot import norm, snapshot
+from tools.pm.snapshot import ancrer_data_root, norm, snapshot
 
 SEUILS = {"suppressions": 500, "cpu_pct": 80.0, "sims_max": 1, "worktree_jours": 7,
           "sans_claim_h": 1.0, "heartbeat_h": 2.0}
@@ -29,17 +29,25 @@ def _nom(s):
 def _sessions(snap):
     """Sessions DU DÉPÔT : registre natif dont le cwd est la racine ou un worktree, joint aux bulletins.
 
+    Rend `(sessions VIVANTES, noms des MORTES, états de vie observés)`. Le registre natif n'efface pas
+    l'entrée d'une session terminée : sans le filtre `alive`, le tableau opposait des fantômes à des
+    vivants (A1, A6) et comptait des sessions qui n'existent plus.
+
     `compute` tient l'invariant « norm des deux côtés » elle-même : `repo_root` et chaque `w["path"]`
     sont re-normalisés ici, sans supposer que le snapshot les a déjà normalisés (un registre natif
     peut écrire un `cwd` à BACKSLASHES sur Windows)."""
     racines = {norm(snap["repo_root"])} | {norm(w["path"]) for w in (snap.get("worktrees") or [])}
     bull = {b.get("session_id"): b for b in (snap.get("bulletins") or []) if b.get("session_id")}
-    out = []
+    out, mortes, vies = [], [], []
     for r in (snap.get("registry") or []):
         if "illisible" in r or not r.get("cwd"):
             continue
         cwd = norm(r["cwd"])
         if not any(cwd == x or cwd.startswith(x + "/") for x in racines):
+            continue
+        vies.append(r.get("alive"))
+        if r.get("alive") is False:
+            mortes.append(r.get("name") or r.get("session_id") or "?")
             continue
         b = bull.get(r.get("session_id"), {})
         out.append({"name": r.get("name"), "session_id": r.get("session_id"), "pid": r.get("pid"), "cwd": cwd,
@@ -47,18 +55,18 @@ def _sessions(snap):
                     "claims": list(b.get("claims") or []), "claims_inferes": [],
                     "files_touched": list(b.get("files_touched") or []),
                     "heartbeat_at": b.get("heartbeat_at"), "bulletin": bool(b)})
-    return out
+    return out, mortes, vies
 
 
-def _inferer_claims(sessions, backlog_paths):
-    if backlog_paths is None:
+def _inferer_claims(sessions, backlog_paths, backlog_ok):
+    if not backlog_ok:
         return
     for s in sessions:
         touches = set(s["files_touched"])
         s["claims_inferes"] = sorted(p for p, chemins in backlog_paths.items() if touches & set(chemins))
 
 
-def _alertes(snap, sessions, now):
+def _alertes(snap, sessions, now, backlog_ok):
     A, aveugle = [], []
 
     def add(id_, cle, gravite, message, preuve):
@@ -69,14 +77,18 @@ def _alertes(snap, sessions, now):
     if snap.get("bulletins") is None:
         aveugle.append("bulletins de session (paths.sessions_dir)")
     else:                                                       # A1 — un fichier, deux sessions vivantes
+        # Clé = cwd + chemin RELATIF. Deux sessions travaillant dans deux worktreeS différents sur
+        # `src/paths.py` éditent DEUX fichiers distincts : les apparier était un faux positif — et
+        # c'est le cas NORMAL de ce dépôt, qui multiplie les worktrees.
         par_fichier = {}
         for s in sessions:
             for f in s["files_touched"]:
-                par_fichier.setdefault(f, set()).add(_nom(s))
-        for f, noms in sorted(par_fichier.items()):
+                par_fichier.setdefault((s["cwd"], f), set()).add(_nom(s))
+        for (cwd, f), noms in sorted(par_fichier.items()):
             if len(noms) >= 2:
-                add("A1", f, "alerte", f"{f} touché par {len(noms)} sessions vivantes : {', '.join(sorted(noms))}",
-                    {"fichier": f, "sessions": sorted(noms)})
+                add("A1", f"{cwd}/{f}", "alerte",
+                    f"{f} touché par {len(noms)} sessions vivantes dans {cwd} : {', '.join(sorted(noms))}",
+                    {"fichier": f, "cwds": [cwd], "sessions": sorted(noms)})
 
     leases = snap.get("leases")                                 # A2 — bails
     if leases is None:
@@ -98,7 +110,9 @@ def _alertes(snap, sessions, now):
     else:
         cwds = {s["cwd"] for s in sessions}
         for w in wts:
-            if w["path"] == snap["repo_root"] or w["path"] in cwds:
+            # VERROUILLÉ = gardé DÉLIBÉRÉMENT (git refuse de le supprimer) : le signaler chaque tick
+            # est du bruit qu'aucune action n'éteint.
+            if w["path"] == snap["repo_root"] or w["path"] in cwds or w.get("locked"):
                 continue
             vieux = w.get("head_time") is not None and (now - w["head_time"]) > SEUILS["worktree_jours"] * 86400
             if w.get("merged") or vieux:
@@ -121,9 +135,21 @@ def _alertes(snap, sessions, now):
     if procs is not None and len(sims) > SEUILS["sims_max"]:
         add("A5", "sims", "alerte", f"{len(sims)} simulations en vol : pas une de plus (contention kuzu, coût contaminé E12)",
             {"pids": [p["pid"] for p in sims], "cmds": [p["cmd"] for p in sims]})
-    cpu = snap.get("cpu_5min_pct")
+    cpu = snap.get("cpu_pct")
     if cpu is not None and cpu > SEUILS["cpu_pct"]:
-        add("A5", "cpu", "alerte", f"charge CPU 5 min = {cpu:.0f} % > {SEUILS['cpu_pct']:.0f} %", {"cpu_5min_pct": cpu})
+        add("A5", "cpu", "alerte", f"charge CPU instantanée (1 s) = {cpu:.0f} % > {SEUILS['cpu_pct']:.0f} %",
+            {"cpu_pct": cpu})
+
+    hooks = snap.get("hook_errors")                             # A9 — un hook qui échoue DEUX fois (spec §5)
+    if hooks is None:
+        aveugle.append("journal des hooks (hook_errors.log)")
+    else:
+        for ev, n in sorted(hooks.items()):
+            if n >= 2:
+                add("A9", f"hook:{ev}", "alerte",
+                    f"le hook {ev} a échoué {n} fois en 24 h : la cause est dans hook_errors.log "
+                    f"(un hook sort 0 quoi qu'il arrive — son échec ne se voit NULLE PART ailleurs)",
+                    {"event": ev, "erreurs": n})
 
     par_claim = {}                                              # A6 — même P-item
     for s in sessions:
@@ -133,8 +159,7 @@ def _alertes(snap, sessions, now):
         if len(noms) >= 2:
             add("A6", c, "alerte", f"{c} revendiqué par {', '.join(sorted(noms))}", {"p_item": c, "sessions": sorted(noms)})
 
-    backlog_ok = snap.get("backlog_paths") is not None          # A7 dépend de l'inférence : aveugle si backlog absent
-    for s in sessions:                                          # A7 / A8 — informations
+    for s in sessions:                                          # A7 / A8 — informations (A7 dépend de `backlog_ok`)
         if not s["bulletin"]:
             continue
         age_h = _h(now - s["started_at"]) if s.get("started_at") else None
@@ -148,17 +173,32 @@ def _alertes(snap, sessions, now):
 
 def compute(snap, now=None):
     now = float(snap.get("now")) if now is None else float(now)
-    sessions = _sessions(snap)
-    _inferer_claims(sessions, snap.get("backlog_paths"))
-    alertes, aveugle = _alertes(snap, sessions, now)
-    if snap.get("backlog_paths") is None:
+    backlog_ok = snap.get("backlog_paths") is not None          # prédicat UNIQUE : A7 et l'inférence le partagent
+    sessions, mortes, vies = _sessions(snap)
+    _inferer_claims(sessions, snap.get("backlog_paths"), backlog_ok)
+    alertes, aveugle = _alertes(snap, sessions, now, backlog_ok)
+    if not backlog_ok:
         aveugle.append("backlog (chemins cités par les entrées)")
+    if vies and all(v is None for v in vies):
+        aveugle.append("vie des sessions (psutil absent)")
+    n_ill = sum(1 for r in (snap.get("registry") or []) if "illisible" in r)
+    if n_ill:                                                   # DÉTECTÉ par le lecteur, et jusqu'ici AVALÉ ici
+        aveugle.append(f"{n_ill} entrée(s) de registre illisible(s)")
+    n_bul = sum(1 for b in (snap.get("bulletins") or []) if "illisible" in b or not b.get("session_id"))
+    if n_bul:
+        aveugle.append(f"{n_bul} bulletin(s) sans session_id ou illisible(s)")
+    sans_bulletin = [_nom(s) for s in sessions if not s["bulletin"]]
+    if sans_bulletin:
+        # Une session sans bulletin n'a NI fichiers en vol NI claims NI heartbeat : A1, A6, A7 et A8
+        # sont muettes sur elle. Zéro alerte y ressemble à « rien à signaler ».
+        aveugle.append(f"bulletin absent pour {len(sans_bulletin)} session(s) : {', '.join(sans_bulletin)}")
     procs, leases = snap.get("processes"), snap.get("leases")
     charge = {"sims_en_vol": (sum(1 for p in procs if p.get("simulation")) if procs is not None else None),
-              "cpu_5min_pct": snap.get("cpu_5min_pct"),
+              "cpu_pct": snap.get("cpu_pct"),
               "bails_vivants": ([l["resource"] for l in leases["live"]] if leases is not None else None)}
     return {"generated_at": now, "repo_root": snap["repo_root"], "aveugle": aveugle, "sessions": sessions,
-            "alertes": alertes, "charge_connue": charge, "worktrees": snap.get("worktrees"), "bails": leases}
+            "sessions_mortes": mortes, "alertes": alertes, "charge_connue": charge,
+            "worktrees": snap.get("worktrees"), "bails": leases}
 
 
 def render_md(board):
@@ -167,12 +207,15 @@ def render_md(board):
         L.append(f"AVEUGLE SUR {a}")
     c = board["charge_connue"]
     L += ["", "## Charge connue",
-          f"simulations en vol : {c['sims_en_vol']} · CPU 5 min : {c['cpu_5min_pct']} % · bails vivants : {c['bails_vivants']}",
+          f"simulations en vol : {c['sims_en_vol']} · CPU instantané (1 s) : {c['cpu_pct']} % · bails vivants : {c['bails_vivants']}",
           "", "## Sessions", "| session | branche | P-items | inférés | fichiers en vol | heartbeat |", "| --- | --- | --- | --- | --- | --- |"]
     for s in board["sessions"]:
         hb = f"{_h(board['generated_at'] - s['heartbeat_at']):.1f} h" if s.get("heartbeat_at") else "—"
         L.append(f"| {_nom(s)} | {s.get('branch') or '—'} | {', '.join(s['claims']) or '—'} | "
                  f"{', '.join(s['claims_inferes']) or '—'} | {len(s['files_touched'])} | {hb} |")
+    if board.get("sessions_mortes"):
+        L.append(f"\nsessions MORTES écartées du tableau (PID disparu, entrée encore au registre) : "
+                 f"{', '.join(board['sessions_mortes'])}")
     L += ["", f"## Alertes ({len(board['alertes'])})"]
     for a in board["alertes"]:
         L.append(f"- [{a['gravite']}] {a['cle']} — {a['message']}")
@@ -187,7 +230,9 @@ def summary(board, max_lines=25):
     L = [f"[PM] tableau du {time.strftime('%Y-%m-%d %H:%M', time.localtime(board['generated_at']))} — {len(board['sessions'])} sessions AGAGI"]
     L += [f"[PM] AVEUGLE SUR {a}" for a in board["aveugle"]]
     c = board["charge_connue"]
-    L.append(f"[PM] charge : sims={c['sims_en_vol']} cpu5={c['cpu_5min_pct']} bails={c['bails_vivants']}")
+    L.append(f"[PM] charge : sims={c['sims_en_vol']} cpu={c['cpu_pct']} bails={c['bails_vivants']}")
+    if board.get("sessions_mortes"):
+        L.append(f"[PM] sessions MORTES écartées : {', '.join(board['sessions_mortes'])}")
     for s in board["sessions"]:
         L.append(f"[PM] {_nom(s)} : {', '.join(s['claims'] or s['claims_inferes']) or 'sans P-item'} — {len(s['files_touched'])} fichiers en vol")
     for a in board["alertes"]:
@@ -198,6 +243,7 @@ def summary(board, max_lines=25):
 
 
 def main(argv=None):
+    ancrer_data_root()                                  # AVANT tout appel à paths.* : un worktree écrirait son PROPRE tableau
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--repo-root", default=os.getcwd())
     ap.add_argument("--registry-dir", default=None)

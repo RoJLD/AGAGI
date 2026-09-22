@@ -12,8 +12,8 @@ NOW = 1_800_000_000.0
 ROOT = "c:/x/agagi"
 
 
-def _reg(name, sid, cwd=ROOT, started=NOW - 600):
-    return {"pid": 1, "session_id": sid, "name": name, "cwd": cwd, "kind": "interactive",
+def _reg(name, sid, cwd=ROOT, started=NOW - 600, alive=True):
+    return {"pid": 1, "session_id": sid, "name": name, "cwd": cwd, "kind": "interactive", "alive": alive,
             "started_at": started, "updated_at": NOW}
 
 
@@ -26,9 +26,10 @@ def _snap(**kw):
     base = {"now": NOW, "repo_root": ROOT, "psutil": True,
             "registry": [_reg("agagi-11", "s1"), _reg("agagi-52", "s2"), _reg("elysium-d4", "e1", cwd="c:/x/elysium")],
             "bulletins": [_bul("s1"), _bul("s2")],
-            "worktrees": [{"path": ROOT, "branch": "main", "head": "abc", "merged": True, "head_time": NOW}],
+            "worktrees": [{"path": ROOT, "branch": "main", "head": "abc", "merged": False, "locked": False,
+                           "head_time": NOW}],
             "commits": [{"sha": "abc1234567", "sujet": "ok", "insertions": 3, "deletions": 2, "amputations": []}],
-            "leases": {"live": [], "dead": []}, "processes": [], "cpu_5min_pct": 12.0,
+            "leases": {"live": [], "dead": []}, "processes": [], "cpu_pct": 12.0, "hook_errors": {},
             "backlog_paths": {"P4.9": ["tools/evo_runs/s2_credit_ablation.py"], "P2.78": []}}
     base.update(kw)
     return base
@@ -64,9 +65,27 @@ def test_compute_normalise_repo_root_et_worktrees_pas_seulement_cwd():
 def test_A1_deux_sessions_sur_le_meme_fichier_et_pas_une_seule():
     b = B.compute(_snap(bulletins=[_bul("s1", files=["src/paths.py"]), _bul("s2", files=["src/paths.py", "x.py"])]))
     a = _ids(b, "A1")
-    assert len(a) == 1 and a[0]["preuve"] == {"fichier": "src/paths.py", "sessions": ["agagi-11", "agagi-52"]}
-    assert a[0]["cle"] == "A1:src/paths.py" and a[0]["gravite"] == "alerte"
+    assert len(a) == 1 and a[0]["preuve"] == {"fichier": "src/paths.py", "cwds": [ROOT],
+                                              "sessions": ["agagi-11", "agagi-52"]}
+    assert a[0]["cle"] == "A1:" + ROOT + "/src/paths.py" and a[0]["gravite"] == "alerte"
+    assert "src/paths.py" in a[0]["message"] and ROOT in a[0]["message"]
     assert _ids(B.compute(_snap(bulletins=[_bul("s1", files=["x.py"]), _bul("s2", files=["y.py"])])), "A1") == []
+
+
+def test_A1_le_MEME_chemin_relatif_dans_DEUX_worktrees_n_est_PAS_une_collision():
+    """CONTRE-EXEMPLE GELE (I7) : la cle d'A1 etait le chemin RELATIF, donc deux sessions editant
+    chacune `src/paths.py` dans SON worktree etaient appariees -- alors qu'elles editent deux
+    fichiers distincts. C'est le cas NORMAL d'un depot qui multiplie les worktrees : un faux positif
+    permanent, donc du bruit qui fait desarmer le tableau."""
+    wts = [{"path": ROOT, "branch": "main", "head": "a", "merged": False, "locked": False, "head_time": NOW},
+           {"path": ROOT + "/.worktrees/w2", "branch": "chantier/w2", "head": "b", "merged": False,
+            "locked": False, "head_time": NOW}]
+    reg = [_reg("agagi-11", "s1"), _reg("agagi-52", "s2", cwd=ROOT + "/.worktrees/w2")]
+    ailleurs = B.compute(_snap(registry=reg, worktrees=wts,
+                               bulletins=[_bul("s1", files=["src/paths.py"]), _bul("s2", files=["src/paths.py"])]))
+    assert _ids(ailleurs, "A1") == []
+    ensemble = B.compute(_snap(bulletins=[_bul("s1", files=["src/paths.py"]), _bul("s2", files=["src/paths.py"])]))
+    assert len(_ids(ensemble, "A1")) == 1                      # meme cwd : la collision REELLE est toujours vue
 
 
 def test_A2_bail_orphelin_ALERTE_et_ttl_expire_detenteur_vivant_INFO():
@@ -86,15 +105,37 @@ def test_A2_sans_psutil_l_identite_des_detenteurs_est_AVEUGLE_pas_fausse():
 
 
 def test_A3_worktree_sans_session_fusionne_ou_inactif_et_pas_celui_d_une_session():
-    wts = [{"path": ROOT, "branch": "main", "head": "a", "merged": True, "head_time": NOW},
-           {"path": ROOT + "/.claude/worktrees/wf-1", "branch": "wf-1", "head": "b", "merged": True, "head_time": NOW},
+    wts = [{"path": ROOT, "branch": "main", "head": "a", "merged": False, "locked": False, "head_time": NOW},
+           {"path": ROOT + "/.claude/worktrees/wf-1", "branch": "wf-1", "head": "b", "merged": True,
+            "locked": False, "head_time": NOW},
            {"path": ROOT + "/.worktrees/vieux", "branch": "chantier/vieux", "head": "c", "merged": False,
-            "head_time": NOW - 8 * 86400},
+            "locked": False, "head_time": NOW - 8 * 86400},
            {"path": ROOT + "/.worktrees/actif", "branch": "chantier/actif", "head": "d", "merged": False,
-            "head_time": NOW - 8 * 86400}]
+            "locked": False, "head_time": NOW - 8 * 86400}]
     reg = [_reg("agagi-11", "s1"), _reg("agagi-52", "s2", cwd=ROOT + "/.worktrees/actif")]
     b = B.compute(_snap(worktrees=wts, registry=reg))
     assert sorted(a["cle"] for a in _ids(b, "A3")) == ["A3:" + ROOT + "/.claude/worktrees/wf-1", "A3:" + ROOT + "/.worktrees/vieux"]
+
+
+def test_A3_ne_vise_NI_la_branche_de_BASE_NI_un_worktree_VERROUILLE():
+    """CONTRE-EXEMPLE GELE (I1) : `git branch --merged main` liste TOUJOURS `main`, donc un second
+    worktree pose sur la branche de base etait A3 a chaque tick -- une alerte qu'aucune action ne
+    peut eteindre. Et un worktree VERROUILLE est garde deliberement (git refuse de le supprimer) :
+    le signaler est du bruit.
+
+    Le `merged=False` du worktree pose sur `main` n'est PAS une commodite de fixture : c'est ce que
+    `read_worktrees` produit desormais (gele dans `test_pm_snapshot.py`). Ici on verifie l'autre
+    moitie de la paire — que le tableau n'en fait plus une alerte."""
+    wts = [{"path": ROOT, "branch": "main", "head": "a", "merged": False, "locked": False, "head_time": NOW},
+           {"path": ROOT + "/.worktrees/sur-main", "branch": "main", "head": "b", "merged": False,
+            "locked": False, "head_time": NOW},
+           {"path": ROOT + "/.worktrees/verrouille", "branch": "chantier/garde", "head": "c", "merged": True,
+            "locked": True, "head_time": NOW - 30 * 86400}]
+    b = B.compute(_snap(worktrees=wts))
+    assert _ids(b, "A3") == []
+    # controle positif : le MEME worktree, deverrouille, EST une A3 -- la garde ne neutralise pas l'alerte
+    wts[2]["locked"] = False
+    assert [a["cle"] for a in _ids(B.compute(_snap(worktrees=wts)), "A3")] == ["A3:" + ROOT + "/.worktrees/verrouille"]
 
 
 def test_A4_commit_a_grosse_suppression_OU_amputation_et_pas_un_commit_ordinaire():
@@ -111,9 +152,23 @@ def test_A5_deux_simulations_en_vol_ou_cpu_sature_et_ni_l_un_ni_l_autre_sinon():
              {"pid": 3, "age_min": 5, "rss_mb": 10, "cmd": "python -m pytest", "simulation": False}]
     b = B.compute(_snap(processes=procs))
     assert [a["cle"] for a in _ids(b, "A5")] == ["A5:sims"] and b["charge_connue"]["sims_en_vol"] == 2
-    b2 = B.compute(_snap(cpu_5min_pct=91.0))
-    assert [a["cle"] for a in _ids(b2, "A5")] == ["A5:cpu"]
-    assert _ids(B.compute(_snap(processes=procs[:1], cpu_5min_pct=79.9)), "A5") == []
+    b2 = B.compute(_snap(cpu_pct=91.0))
+    assert [a["cle"] for a in _ids(b2, "A5")] == ["A5:cpu"] and _ids(b2, "A5")[0]["preuve"] == {"cpu_pct": 91.0}
+    assert b2["charge_connue"]["cpu_pct"] == 91.0
+    assert _ids(B.compute(_snap(processes=procs[:1], cpu_pct=79.9)), "A5") == []
+
+
+def test_A9_un_hook_qui_echoue_DEUX_fois_est_une_alerte_pas_UNE_fois():
+    """Spec §5 : un hook sort 0 quoi qu'il arrive, son echec ne se voit NULLE PART sauf ici."""
+    assert _ids(B.compute(_snap(hook_errors={"stop": 1, "start": 1})), "A9") == []
+    a = _ids(B.compute(_snap(hook_errors={"stop": 2, "start": 1})), "A9")
+    assert [x["cle"] for x in a] == ["A9:hook:stop"]
+    assert a[0]["gravite"] == "alerte" and a[0]["preuve"] == {"event": "stop", "erreurs": 2}
+
+
+def test_A9_journal_des_hooks_ILLISIBLE_est_un_AVEUGLEMENT_pas_zero_echec():
+    b = B.compute(_snap(hook_errors=None))
+    assert _ids(b, "A9") == [] and any("hook_errors.log" in x for x in b["aveugle"])
 
 
 def test_A6_meme_P_item_revendique_par_deux_sessions():
@@ -148,12 +203,53 @@ def test_A8_heartbeat_vieux_de_plus_de_deux_heures_est_une_INFO():
 
 def test_chaque_source_ABSENTE_est_nommee_AVEUGLE_et_ses_alertes_sont_supprimees():
     b = B.compute(_snap(registry=None, bulletins=None, worktrees=None, commits=None, leases=None, processes=None,
-                        cpu_5min_pct=None, backlog_paths=None))
+                        cpu_pct=None, backlog_paths=None, hook_errors=None))
     assert b["alertes"] == [] and b["sessions"] == []
-    assert len(b["aveugle"]) == 7
-    assert b["charge_connue"] == {"sims_en_vol": None, "cpu_5min_pct": None, "bails_vivants": None}
+    assert len(b["aveugle"]) == 8
+    assert b["charge_connue"] == {"sims_en_vol": None, "cpu_pct": None, "bails_vivants": None}
     md = B.render_md(b)
     assert md.splitlines()[2].startswith("AVEUGLE SUR")          # en tête, avant toute autre ligne
+
+
+def test_une_session_SANS_BULLETIN_est_un_AVEUGLEMENT_nomme_pas_une_session_calme():
+    """C2.2 : sans bulletin, la session n'a ni fichiers en vol, ni claims, ni heartbeat — A1, A6, A7
+    et A8 sont MUETTES sur elle. Zéro alerte y ressemble exactement à « rien à signaler »."""
+    b = B.compute(_snap(bulletins=[_bul("s1")]))                 # agagi-52 (s2) n'a pas de bulletin
+    ligne = [a for a in b["aveugle"] if a.startswith("bulletin absent")]
+    assert len(ligne) == 1 and "agagi-52" in ligne[0] and "1 session" in ligne[0]
+    assert "agagi-11" not in ligne[0]
+    assert [a for a in B.compute(_snap())["aveugle"] if a.startswith("bulletin absent")] == []
+
+
+def test_une_entree_de_registre_ILLISIBLE_est_COMPTEE_et_nommee_pas_avalee():
+    """I3 : `read_registry` DÉTECTAIT l'entrée illisible, `_sessions` la sautait en silence."""
+    reg = [_reg("agagi-11", "s1"), {"illisible": "casse.json"}, {"illisible": "autre.json"}]
+    b = B.compute(_snap(registry=reg, bulletins=[_bul("s1")]))
+    assert [a for a in b["aveugle"] if "registre illisible" in a] == ["2 entrée(s) de registre illisible(s)"]
+
+
+def test_un_bulletin_SANS_session_id_ou_illisible_est_COMPTE_et_nomme():
+    bul = [_bul("s1"), _bul("s2"), {"illisible": "x.json"}, {"claims": ["P4.9"]}]
+    b = B.compute(_snap(bulletins=bul))
+    assert [a for a in b["aveugle"] if "bulletin(s) sans session_id" in a] == \
+        ["2 bulletin(s) sans session_id ou illisible(s)"]
+
+
+def test_une_session_MORTE_est_ECARTEE_du_tableau_et_LISTEE():
+    """I4 : le registre natif n'efface pas l'entrée d'une session terminée — sans `alive`, le tableau
+    opposait des fantômes à des vivants (A1, A6)."""
+    reg = [_reg("agagi-11", "s1"), _reg("agagi-52", "s2", alive=False)]
+    b = B.compute(_snap(registry=reg, bulletins=[_bul("s1", files=["a.py"]), _bul("s2", files=["a.py"])]))
+    assert [s["name"] for s in b["sessions"]] == ["agagi-11"] and b["sessions_mortes"] == ["agagi-52"]
+    assert _ids(b, "A1") == []                                   # la collision avec un MORT n'en est pas une
+    assert "agagi-52" in B.render_md(b) and "agagi-52" in B.summary(b)
+
+
+def test_sans_psutil_la_VIE_des_sessions_est_AVEUGLE_et_aucune_n_est_ecartee():
+    reg = [_reg("agagi-11", "s1", alive=None), _reg("agagi-52", "s2", alive=None)]
+    b = B.compute(_snap(registry=reg))
+    assert [s["name"] for s in b["sessions"]] == ["agagi-11", "agagi-52"] and b["sessions_mortes"] == []
+    assert any("vie des sessions" in a for a in b["aveugle"])
 
 
 def test_render_et_summary_portent_les_alertes_et_la_charge():

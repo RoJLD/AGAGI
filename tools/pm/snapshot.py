@@ -34,6 +34,45 @@ def _psutil():
         return None
 
 
+def racine_commune(cwd=None):
+    """Racine du dépôt COMMUN à tous les worktrees, ou `None` si git est muet / hors dépôt.
+
+    Même logique que `tools/jobs/lease.py::_repo_root` : `git rev-parse --git-common-dir` rend le
+    `.git` PARTAGÉ par l'arbre principal et tous ses worktrees, son parent est donc l'arbre principal.
+    Sans cache, contrairement au bail : un hook est un processus court, et le PM doit pouvoir être
+    relancé depuis n'importe quel arbre."""
+    base = os.path.abspath(cwd) if cwd else os.getcwd()
+    try:
+        out = subprocess.run(["git", "rev-parse", "--git-common-dir"], cwd=base, capture_output=True,
+                             encoding="utf-8", errors="replace", timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if out.returncode != 0 or not out.stdout.strip():
+        return None
+    commun = out.stdout.strip()
+    if not os.path.isabs(commun):
+        commun = os.path.join(base, commun)
+    return os.path.dirname(os.path.realpath(commun)).replace("\\", "/")
+
+
+def ancrer_data_root(cwd=None):
+    """Ancre `AGAGI_DATA_ROOT` sur le dépôt COMMUN quand l'environnement ne l'a pas déjà fixé.
+
+    Sans cela, un processus PM lancé depuis un worktree écrit bulletins, tableau et journal dans
+    `<worktree>/data/` : chaque worktree tient SON tableau, le PM de l'arbre principal ne voit pas
+    ces sessions — et il ne le dit pas, puisque son propre répertoire existe. C'est la forme
+    « aveuglement invisible » que ce module combat partout ailleurs, appliquée à sa propre racine.
+    `src/paths.py` n'est PAS modifié : l'ancrage est une décision des processus PM, pas du dépôt.
+
+    Rend la racine effective, ou `None` si git est muet (on laisse alors le défaut relatif agir)."""
+    if not os.environ.get("AGAGI_DATA_ROOT"):
+        r = racine_commune(cwd)
+        if r is None:
+            return None
+        os.environ["AGAGI_DATA_ROOT"] = r + "/data"
+    return os.environ["AGAGI_DATA_ROOT"]
+
+
 def _git(repo_root, *args, timeout=20):
     try:
         out = subprocess.run(["git", *args], cwd=repo_root, capture_output=True, encoding="utf-8",
@@ -47,10 +86,24 @@ def _ms(v):
     return (float(v) / 1000.0) if v else None
 
 
+def _vivant(ps, pid):
+    """`True`/`False` si on peut le savoir, `None` sans psutil ou sur un PID inexploitable.
+
+    Le registre natif n'EFFACE pas l'entrée d'une session morte : sans cette mesure, le tableau
+    compte des sessions qui n'existent plus et A1/A6 opposent des fantômes à des vivants."""
+    if ps is None or not pid:
+        return None
+    try:
+        return bool(ps.pid_exists(int(pid)))
+    except (OSError, ValueError, TypeError):
+        return None
+
+
 def read_registry(registry_dir=None):
     d = registry_dir or REGISTRY_DIR_DEFAULT
     if not os.path.isdir(d):
         return None
+    ps = _psutil()
     out = []
     for f in sorted(glob.glob(os.path.join(d, "*.json"))):
         try:
@@ -63,7 +116,7 @@ def read_registry(registry_dir=None):
             out.append({"illisible": os.path.basename(f)})
             continue
         out.append({"pid": r.get("pid"), "session_id": r.get("sessionId"), "name": r.get("name"),
-                    "cwd": r.get("cwd"), "kind": r.get("kind"),
+                    "cwd": r.get("cwd"), "kind": r.get("kind"), "alive": _vivant(ps, r.get("pid")),
                     "started_at": _ms(r.get("startedAt")), "updated_at": _ms(r.get("updatedAt"))})
     return out
 
@@ -102,13 +155,19 @@ def read_worktrees(repo_root):
             continue
         cle, _, val = ligne.partition(" ")
         if cle == "worktree":
-            cur = {"path": norm(val), "branch": None, "head": None}
+            cur = {"path": norm(val), "branch": None, "head": None, "locked": False}
         elif cle == "HEAD":
             cur["head"] = val
         elif cle == "branch":
             cur["branch"] = val.replace("refs/heads/", "")
+        elif cle == "locked":
+            cur["locked"] = True                        # `locked` nu OU `locked <raison>` : les deux comptent
     for w in out:
-        w["merged"] = (w["branch"] in fusionnees) if (fusionnees is not None and w["branch"]) else None
+        # `main` est FUSIONNÉE DANS `main` par définition : compter la branche de base comme
+        # « fusionnée » faisait d'un worktree légitimement posé sur main une A3 permanente —
+        # une alerte qu'aucune action ne peut éteindre, donc du bruit qui fait désarmer le tableau.
+        w["merged"] = (w["branch"] != "main" and w["branch"] in fusionnees) \
+            if (fusionnees is not None and w["branch"]) else None
         t = _git(repo_root, "log", "-1", "--format=%ct", w["head"]) if w["head"] else None
         w["head_time"] = float(t.strip()) if t and t.strip().isdigit() else None
     return out
@@ -176,14 +235,54 @@ def read_processes():
     return procs
 
 
-def read_cpu_5min():
+def read_cpu_pct():
+    """Charge CPU INSTANTANÉE, mesurée sur 1 s — la grandeur que tout coût mesuré doit citer (E12).
+
+    ⚠️ `psutil.getloadavg()` est un PIÈGE ici, mesuré le 2026-09-16 : sur Windows psutil l'ÉMULE
+    depuis un thread interne qui doit avoir tourné ~5 min, donc un processus court — un tick PM, un
+    hook — lit **0.0** pendant que `cpu_percent(interval=1.0)` rendait **84.9**. Un ZÉRO FABRIQUÉ
+    sur la mesure de charge, c'est-à-dire exactement la faute que ce module traque ailleurs : une
+    source absente qui ressemble à une source saine. Coût : 1 s par tick, assumé."""
     ps = _psutil()
     if ps is None:
         return None
     try:
-        return 100.0 * ps.getloadavg()[1] / float(ps.cpu_count() or 1)
-    except (OSError, AttributeError):
+        return float(ps.cpu_percent(interval=1.0))
+    except Exception:                                   # noqa: BLE001 — dégradé déclaré : None, jamais 0.0
         return None
+
+
+_HOOK_ERR = re.compile(r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}) (\S+) (\w+):")
+
+
+def read_hook_errors(pm_dir=None, now=None, fenetre_s=86400):
+    """{événement: nombre d'échecs dans la fenêtre} lu de `hook_errors.log` (spec §5 : « le PM lit ce
+    fichier à chaque tick et lève une alerte si le même hook échoue deux fois »).
+
+    Fichier ABSENT -> `{}` : un hook qui n'a jamais échoué est une MESURE, pas une lacune.
+    Fichier illisible -> `None` : aveuglement RAPPORTÉ. Les lignes de traceback écrites par
+    `bulletin._journal` ne portent pas d'horodatage en tête et sont ignorées sans bruit."""
+    p = os.path.join(pm_dir or paths.pm_dir(), "hook_errors.log")
+    if not os.path.exists(p):
+        return {}
+    try:
+        with open(p, encoding="utf-8", errors="replace") as fh:
+            lignes = fh.read().splitlines()
+    except OSError:
+        return None
+    t0 = (time.time() if now is None else float(now)) - float(fenetre_s)
+    out = {}
+    for ligne in lignes:
+        m = _HOOK_ERR.match(ligne)
+        if not m:
+            continue
+        try:                                            # `_journal` écrit en heure LOCALE : relu pareil
+            ts = time.mktime(time.strptime(m.group(1), "%Y-%m-%dT%H:%M:%S"))
+        except (ValueError, OverflowError):
+            continue
+        if ts >= t0:
+            out[m.group(2)] = out.get(m.group(2), 0) + 1
+    return out
 
 
 def read_backlog_paths(repo_root):
@@ -208,14 +307,21 @@ def read_backlog_paths(repo_root):
                 if "/" in c:
                     for p in courants:
                         out[p].add(c)
+    if txt.strip() and not out:
+        # Un backlog NON VIDE dont AUCUNE entête ne matche : le format a changé sous l'instrument.
+        # Rendre `{}` ferait dire au tableau « aucune entrée ne cite de chemin » — une affirmation de
+        # fond fabriquée à partir d'une lecture ratée. `None` dit « je ne sais pas » (porte 14).
+        return None
     return {k: sorted(v) for k, v in out.items()}
 
 
-def snapshot(repo_root, *, registry_dir=None, sessions_dir=None, leases_dir=None, now=None,
-             since="24 hours ago"):
-    return {"now": time.time() if now is None else float(now), "repo_root": norm(repo_root),
+def snapshot(repo_root, *, registry_dir=None, sessions_dir=None, leases_dir=None, pm_dir=None,
+             now=None, since="24 hours ago"):
+    now = time.time() if now is None else float(now)
+    return {"now": now, "repo_root": norm(repo_root),
             "psutil": _psutil() is not None,
             "registry": read_registry(registry_dir), "bulletins": read_bulletins(sessions_dir),
             "worktrees": read_worktrees(repo_root), "commits": read_recent_commits(repo_root, since),
             "leases": read_leases(leases_dir), "processes": read_processes(),
-            "cpu_5min_pct": read_cpu_5min(), "backlog_paths": read_backlog_paths(repo_root)}
+            "cpu_pct": read_cpu_pct(), "backlog_paths": read_backlog_paths(repo_root),
+            "hook_errors": read_hook_errors(pm_dir, now=now)}

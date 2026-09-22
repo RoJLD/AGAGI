@@ -16,11 +16,13 @@ import time
 import traceback
 
 from src import paths
-from tools.pm.snapshot import REGISTRY_DIR_DEFAULT, norm, read_registry
+from tools.pm.snapshot import REGISTRY_DIR_DEFAULT, ancrer_data_root, norm, read_registry
 
 EVENTS = ("start", "tool", "stop", "end")
 PLAFOND_FICHIERS = 200
 REGISTRY_DIR = REGISTRY_DIR_DEFAULT              # monkeypatchable par les tests
+MAX_JOURNAL_O = 1_000_000                        # au-delà : on garde la QUEUE
+GARDE_JOURNAL_O = 200_000
 
 
 def _vide(session_id):
@@ -126,9 +128,35 @@ def resume_tableau(pm_dir=None):
     return summary(board)
 
 
+def _rotation(p, max_o=None, garde_o=None):
+    """Un hook cassé écrit ~2 ko à CHAQUE outil : sans rotation, le journal grossit sans borne dans
+    `data/` et finit par coûter plus cher à lire qu'il ne rapporte. On garde la QUEUE — les échecs
+    récents sont les seuls que `read_hook_errors` regarde (fenêtre 24 h). Écriture tmp + `os.replace`,
+    comme le bulletin : jamais de fichier à moitié réécrit.
+
+    Les plafonds sont résolus à l'APPEL, pas figés en valeurs par défaut : une valeur par défaut
+    capturée à la définition rend la constante de module immuable, donc le mécanisme intestable."""
+    max_o = MAX_JOURNAL_O if max_o is None else max_o
+    garde_o = GARDE_JOURNAL_O if garde_o is None else garde_o
+    try:
+        if os.path.getsize(p) <= max_o:
+            return
+        with open(p, "rb") as fh:
+            fh.seek(-garde_o, os.SEEK_END)
+            queue = fh.read()
+        tmp = p + ".tmp"
+        with open(tmp, "wb") as fh:
+            fh.write(queue)
+        os.replace(tmp, p)
+    except OSError:
+        pass                                            # rotation impossible : on écrit quand même l'échec
+
+
 def _journal(event, exc):
     try:
         os.makedirs(paths.pm_dir(), exist_ok=True)
+        if os.path.exists(paths.pm_dir("hook_errors.log")):
+            _rotation(paths.pm_dir("hook_errors.log"))
         with open(paths.pm_dir("hook_errors.log"), "a", encoding="utf-8") as fh:
             fh.write(f"{time.strftime('%Y-%m-%dT%H:%M:%S')} {event} {type(exc).__name__}: {exc}\n")
             fh.write("".join(traceback.format_exception(type(exc), exc, exc.__traceback__))[-2000:] + "\n")
@@ -164,6 +192,7 @@ def _claim(p_item, session):
 
 
 def main(argv=None):
+    ancrer_data_root()                                  # AVANT tout paths.* : sinon un worktree tient SON propre data/
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("event", choices=EVENTS + ("claim",))
     ap.add_argument("p_item", nargs="?", default=None)
@@ -171,7 +200,8 @@ def main(argv=None):
     try:
         args = ap.parse_args(argv)
     except SystemExit as exc:                           # argv mal formé (event inconnu, positionnel manquant) : un hook
-        _journal("argv", exc)                            # sort TOUJOURS 0 -- argparse a déjà imprimé l'usage sur stderr
+        if exc.code not in (0, None):                   # sort TOUJOURS 0 -- argparse a déjà imprimé l'usage sur stderr
+            _journal("argv", exc)                       # `--help` sort 0 : ce n'est PAS un échec, ne pas le journaliser
         return 0
     try:                                                # Windows : stdout cp1252 -> les accents du résumé lèveraient
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")

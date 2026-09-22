@@ -1,10 +1,12 @@
 """Le tick PM : un seul PM vivant (bail pm porte par le PID de la session), un tableau ecrit, un journal tenu."""
+import json
 import os
 import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 from tools.jobs import lease as L  # noqa: E402
+from tools.pm import alerts as AL  # noqa: E402
 from tools.pm import tick as TK  # noqa: E402
 
 
@@ -33,25 +35,46 @@ def test_un_bail_pris_entre_la_lecture_et_l_acquisition_est_un_refus_propre_pas_
     assert r["ok"] is False and isinstance(r["detenteur"], str)
 
 
+def _counts(**kw):
+    c = {"alertes": {"emises": 3, "suivies_48h": 1, "fausses_ou_ignorees": 0, "repetees": 1, "ouvertes": 2},
+         "fichiers": {"science": 1, "methodo": 2, "autre": 0}, "ratio_science_methodo": 0.5,
+         "fichiers_disponibles": True}
+    c.update(kw)
+    return c
+
+
 def test_digest_nomme_les_repetees_comme_cliquets_a_inscrire():
-    board = {"aveugle": ["bails (tools/jobs)"], "charge_connue": {"sims_en_vol": 0, "cpu_5min_pct": 3.0, "bails_vivants": []},
+    board = {"aveugle": ["bails (tools/jobs)"], "charge_connue": {"sims_en_vol": 0, "cpu_pct": 3.0, "bails_vivants": []},
              "alertes": [], "sessions": []}
     d = {"nouvelles": [{"cle": "A1:x.py", "message": "m1", "gravite": "alerte"}],
          "repetees": [{"cle": "A2:kuzu", "message": "m2", "gravite": "alerte"}], "disparues": ["A4:abc"], "lignes": []}
-    counts = {"alertes": {"emises": 3, "suivies_48h": 1, "fausses_ou_ignorees": 0, "repetees": 1, "ouvertes": 2},
-              "fichiers": {"science": 1, "methodo": 2, "autre": 0}, "ratio_science_methodo": 0.5}
-    t = TK.digest(board, d, counts)
+    t = TK.digest(board, d, _counts())
     assert "AVEUGLE SUR bails" in t and "NOUVELLE A1:x.py" in t and "REPETEE A2:kuzu" in t and "cliquet" in t
     assert "suivie A4:abc" in t and "science/méthodo = 0.5" in t
 
 
 def test_digest_dit_rien_de_nouveau_quand_rien_n_a_bouge():
-    board = {"aveugle": [], "charge_connue": {"sims_en_vol": 0, "cpu_5min_pct": 0.0, "bails_vivants": []},
+    board = {"aveugle": [], "charge_connue": {"sims_en_vol": 0, "cpu_pct": 0.0, "bails_vivants": []},
              "alertes": [], "sessions": []}
     d = {"nouvelles": [], "repetees": [], "disparues": [], "lignes": []}
-    counts = {"alertes": {"emises": 0, "suivies_48h": 0, "fausses_ou_ignorees": 0, "repetees": 0, "ouvertes": 0},
-              "fichiers": {"science": 0, "methodo": 0, "autre": 0}, "ratio_science_methodo": 0.0}
+    counts = _counts(alertes={"emises": 0, "suivies_48h": 0, "fausses_ou_ignorees": 0, "repetees": 0, "ouvertes": 0},
+                     fichiers={"science": 0, "methodo": 0, "autre": 0}, ratio_science_methodo=0.0)
     assert "rien de nouveau (noop)" in TK.digest(board, d, counts)
+
+
+def test_digest_DIT_les_lignes_illisibles_du_journal_et_l_aveuglement_sur_git():
+    """I2 : les deux etaient DETECTES par la couche du dessous (`AL.charger.illisibles`,
+    `fichiers_modifies -> None`) puis AVALES par le digest — des compteurs incomplets s'y
+    affichaient exactement comme des compteurs complets."""
+    board = {"aveugle": [], "charge_connue": {"sims_en_vol": 0, "cpu_pct": 1.0, "bails_vivants": []},
+             "alertes": [], "sessions": []}
+    d = {"nouvelles": [], "repetees": [], "disparues": [], "lignes": []}
+    muet = TK.digest(board, d, _counts(fichiers_disponibles=False), illisibles=3)
+    assert "journal des alertes : 3 ligne(s) illisible(s)" in muet
+    assert "[PM] AVEUGLE SUR git (fichiers modifiés non mesurés)" in muet
+    # no-op EXACT : rien d'illisible, git disponible -> aucune des deux lignes
+    sain = TK.digest(board, d, _counts())
+    assert "illisible" not in sain and "AVEUGLE SUR git" not in sain
 
 
 def test_main_ecrit_tableau_journal_compteurs_et_sort_0(tmp_path, monkeypatch):
@@ -61,7 +84,13 @@ def test_main_ecrit_tableau_journal_compteurs_et_sort_0(tmp_path, monkeypatch):
                     "--leases-dir", str(tmp_path / "leases")])
     assert code == 0
     assert (tmp_path / "pm" / "BOARD.json").exists() and (tmp_path / "pm" / "ROLES_COUNTS.json").exists()
-    assert (tmp_path / "pm" / "alerts.jsonl").exists() or True     # aucune alerte sur un registre absent : journal vide admis
+    # `assert ....exists() or True` ne pouvait PAS echouer, donc ne mesurait rien. Ce qui est
+    # verifiable ici sans dependre de l'etat de la machine : au PREMIER tick, le journal relu porte
+    # exactement les alertes du tableau, toutes au statut `emise` -- y compris s'il n'y en a aucune.
+    journal = AL.charger(str(tmp_path / "pm" / "alerts.jsonl"))
+    board = json.loads((tmp_path / "pm" / "BOARD.json").read_text(encoding="utf-8"))
+    assert [l["cle"] for l in journal] == [a["cle"] for a in board["alertes"]]
+    assert all(l["statut"] == "emise" for l in journal) and AL.charger.illisibles == 0
 
 
 def test_main_refuse_quand_un_autre_PM_vit_et_n_ecrit_RIEN(tmp_path, monkeypatch):

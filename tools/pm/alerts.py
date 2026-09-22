@@ -10,10 +10,16 @@ import os
 
 
 def charger(path):
+    """Lignes JSON du journal ; `charger.illisibles` compte celles qui ne l'étaient pas.
+
+    ⚠️ `errors="replace"` ET un `except ValueError` autour de l'ITÉRATION : le décodage d'un journal
+    partiellement binaire (append interrompu, écriture concurrente) lève AU MOMENT de lire la ligne,
+    pas à l'ouverture. Sans cette garde, une seule ligne corrompue faisait remonter une exception
+    depuis le tick — ou pire, la rendait invisible en n'étant comptée nulle part."""
     charger.illisibles = 0
     out = []
     try:
-        with open(path, encoding="utf-8") as fh:
+        with open(path, encoding="utf-8", errors="replace") as fh:
             for ligne in fh:
                 ligne = ligne.strip()
                 if not ligne:
@@ -24,6 +30,8 @@ def charger(path):
                     charger.illisibles += 1
     except OSError:
         return []
+    except ValueError:                  # décodage impossible MALGRÉ errors="replace" : la queue est perdue, et c'est DIT
+        charger.illisibles += 1
     return out
 
 
