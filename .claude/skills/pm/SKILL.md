@@ -27,6 +27,21 @@ Tu ne tiens aucun état en contexte — tout est relu par le tick.
    `RÉTRACTÉ`/`-bis`, run nul — sinon ignorer ce point.
 5. `ScheduleWakeup` 1200-1800 s ; `noop=true` si le digest dit `rien de nouveau`.
 
+## Contrat des hooks (ce que `.claude/settings.json` garantit, et ce qu'il ne garantit pas)
+
+- Les quatre commandes (`python -m tools.pm.bulletin start|tool|stop|end`) tournent avec **cwd = la
+  racine du dépôt OU d'un worktree** — jamais un chemin arbitraire : elles doivent donc être lançables
+  depuis n'importe lequel des deux. `tests/sandbox/test_pm_hooks_config.py` les EXÉCUTE réellement
+  depuis la racine et exige `returncode == 0` ET l'absence de `hook_errors.log` : vérifier que la
+  chaîne est présente dans settings.json ne prouve rien, puisqu'un hook sort 0 même quand il échoue.
+- La **racine de données du PM est ancrée sur le dépôt COMMUN** (`snapshot.ancrer_data_root`, premier
+  appel de chaque `main`) : bulletins, tableau et journal vivent dans `<arbre principal>/data/`, même
+  quand le hook tourne dans un worktree. Sans cet ancrage, chaque worktree tiendrait SON tableau et le
+  PM serait aveugle sur ces sessions sans le dire. `AGAGI_DATA_ROOT` posée dans l'environnement gagne
+  toujours (tests, NAS) ; `src/paths.py` n'est pas modifié.
+- Un hook qui échoue deux fois en 24 h remonte en **A9** au tableau (`hook_errors.log`). C'est la SEULE
+  façon dont un échec de hook devient visible.
+
 ## Interdits
 
 - Envoyer deux fois le même message ; demander à une session une action que ta propre session ne pourrait pas

@@ -5,6 +5,8 @@ Cinq colonnes obligatoires pour un rôle instancié (porte 21, `tools/check_role
 est une règle documentée (E10), pas un rôle. Les compteurs VIVANTS (alertes émises / suivies 48 h / fausses,
 ratio science/méthodo par chemins) sont recomputés par `python -m tools.pm.roles_counts` dans
 `data/pm/ROLES_COUNTS.json` ; ce fichier ne porte en balise que les comptes structurels.
+⚠️ Le point de départ 26 / 78 (2026-09-08) comptait des COMMITS ; le ratio publié ici compte des FICHIERS
+modifiés sur 30 jours glissants — deux unités, non comparables.
 
 **3 rôles instanciés** <!-- count:roles_instancies=3 --> · **7 candidats** <!-- count:roles_candidats=7 --> ·
 dernier bilan : aucun (premier bilan à la première revue des rôles, 30 jours ou 20 records).
