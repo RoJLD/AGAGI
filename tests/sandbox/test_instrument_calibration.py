@@ -220,6 +220,14 @@ CALIBRATED = {
     # `compute_policy_gradient` de FrozenCreditMamba (tools/evo_runs/s2_blind_champion_bis.py) : no-op EXACT
     # (W bit-identique), confronte au credit de base qui bouge W -- test_frozen_credit_leaves_W_untouched_...
     "tools/evo_runs/s2_blind_champion_bis.py::compute_policy_gradient": ["noop:W-bit-identical", "base:moves-W"],
+    # S2-002-PAIRED-R1 (2026-09-22, P2.41 b -> decision robla) : carte d'ablation-perception a bande APPARIEE. Runner
+    # tools/evo_runs/s2_002_paired.py ; 8 cas dans tests/sandbox/test_s2_002_paired.py, 0 monde : injection de map_fn
+    # (paired_band ET noop_control DEMANDES par cellule, cles (monde, seed), reprise respectee, garde en tete) ; la lecture
+    # s2_paired_lecture atteint chaque branche dans l'ordre impose (INCOMPLET, HARNAIS par monde, CARTE_INCHANGEE,
+    # CARTE_MODIFIEE, MIXTE) et publie le signe post-hoc hors verdict.
+    "tools/evo_runs/s2_002_paired.py::run_s2_paired": ["plan-vide:raises", "guard-before-world",
+                                                        "bande-appariee-et-noop:demandes", "reprise:respectee",
+                                                        "lecture:branches-ordre-impose", "signe-post-hoc:hors-verdict"],
     # DECOMP-R1 (2026-09-16) : decomposer le +61 % -- entree du reseau coupee (identites gardees) vs 18 identites
     # coupees. 6 cas dans tests/sandbox/test_s2_blind_champion_bis.py, 0 monde : masques EXACTS (tranche annoncee a
     # zero, le reste intact, entree non mutee), complementaires ; branches dans l'ordre impose ; no-op EXACTEMENT 1
