@@ -32,6 +32,7 @@ if _ROOT not in sys.path:
 import numpy as np
 
 from src.agents.mamba_agent import MambaBatchModel
+from tools.cost_guard import Stopwatch          # P2.78 : mur ET CPU
 from tools.evo_runs.s2_blind_champion import (FLOOR, K, REGIME, SEEDS, WORLD, blind_champion_verdict)
 
 PREREG = "S2-BLIND-CHAMPION-bis"
@@ -249,14 +250,15 @@ def main(argv=None):
                "controle_ii_within_aveugle": "measured", "genome_identique": "measured"},
         cost_estimate=rule["cout"],
         control_family=assert_control_family(cells=len(seeds), alpha_family=0.05))
-    t0 = time.time()
+    sw = Stopwatch()
     with hold("kuzu", owner="s2-blind-champion-" + ("ter" if ter else "bis"), ttl_s=5400):
         rows, verdict = run_blind_champion_bis(seeds=seeds, verdict_fn=blind_champion_verdict_ter if ter else blind_champion_verdict)
     out = {"_design": design, "_regime": {"world": WORLD, **REGIME, "K": K, "seeds": list(seeds), "floor": FLOOR,
                                             "clause_iii": "ter : ecarte si les DEUX bras <= plancher" if ter else "bis : ecarte si intact < plancher",
                                             "blinding": "entree (obs = 0)", "learner": "legacy credit gele, NTM non gele",
                                             "reference": "paired_band", "noop_control": True},
-           "rows": rows, "verdict": verdict, "_cout_s": time.time() - t0}
+           "rows": rows, "verdict": verdict, "_cout_s": sw.elapsed()["elapsed_s"],
+           "_cout_cpu_s": sw.elapsed()["elapsed_cpu_s"]}        # P2.78 : le mur seul ne dit pas si la machine dormait
     json.dump(stamp(out, prereg), open(out_path, "w", encoding="utf-8"), indent=1)
     print(json.dumps(verdict, indent=1, ensure_ascii=False))
     print("->", out_path)
@@ -280,7 +282,7 @@ def main_decomp():
                "survie_intact_et_aveugle_ref": "measured", "noop_par_bras": "measured"},
         cost_estimate=rule["cout"],
         control_family=assert_control_family(cells=2 * len(SEEDS_TER), alpha_family=0.05))
-    t0 = time.time()
+    sw = Stopwatch()
     with hold("kuzu", owner="s2-blind-champion-decomp", ttl_s=5400):
         rows, verdict = run_decomp()
     out = {"_design": design, "_regime": {"world": WORLD, **REGIME, "K": K, "seeds": list(SEEDS_TER), "floor": FLOOR,
@@ -288,7 +290,8 @@ def main_decomp():
                                                      "identity_zeroed": "x[:, max_N-max_O:max_I] = 0 (18 identites coupees, 46 entrees gardees)"},
                                             "reference": "paired_band", "noop_control": True, "learner": "legacy credit gele, NTM non gele",
                                             "references_importees": "-ter (intact et aveugle total), lu via results_file(s2_blind_champion_ter.json)"},
-           "rows": rows, "verdict": verdict, "_cout_s": time.time() - t0}
+           "rows": rows, "verdict": verdict, "_cout_s": sw.elapsed()["elapsed_s"],
+           "_cout_cpu_s": sw.elapsed()["elapsed_cpu_s"]}        # P2.78 : le mur seul ne dit pas si la machine dormait
     json.dump(stamp(out, prereg), open(out_path, "w", encoding="utf-8"), indent=1)
     print(json.dumps(verdict, indent=1, ensure_ascii=False))
     print("->", out_path)

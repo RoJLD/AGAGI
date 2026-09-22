@@ -25,6 +25,7 @@ import numpy as np
 from tools.bilinear_composition_probe import _train_eval_one
 from tools.experiment_preflight import assert_control_family, declare_design
 from tools.preregister import stamp, verify
+from tools.cost_guard import Stopwatch          # P2.78 : mur ET CPU
 from src.paths import results_file   # noqa: E402  (porte 12)
 
 RULE = "BILINEAR-SHAM-R1"
@@ -133,7 +134,7 @@ def main(argv=None):
         assert n["sham"] == n["bilinear"] > n["plain"], n      # contrôle à paramètres APPARIÉS, asserté puis publié
         regime["n_params_par_agent"] = n
         db["_regime"] = regime
-    t0 = time.time()
+    sw = Stopwatch()
     for lr in c["lr"]:
         for s in c["seeds"]:
             for sub, bil, sham in BRAS:
@@ -147,7 +148,9 @@ def main(argv=None):
                 db[k] = float(acc)
                 json.dump(stamp(db, RULE), open(out_path, "w", encoding="utf-8"), indent=1)
                 print(f"  {k}: {acc:.3f} ({time.time() - tc:.1f} s)", flush=True)
-    db["_cout_s"] = db.get("_cout_s", 0.0) + (time.time() - t0)
+    el = sw.elapsed()                                        # P2.78 : mur et CPU, accumules (run reprenable)
+    db["_cout_s"] = db.get("_cout_s", 0.0) + el["elapsed_s"]
+    db["_cout_cpu_s"] = db.get("_cout_cpu_s", 0.0) + el["elapsed_cpu_s"]
     ref_path = str(results_file("bilinear_composition.json"))
     reference = json.load(open(ref_path, encoding="utf-8"))
     db["_controles"] = {"bit_identite": _bit_identite(db, regle, reference), "reference": os.path.basename(ref_path)}

@@ -690,8 +690,24 @@ fixe, jamais un nul de capacité ; « un bras qui n'a pas appris franchit la bar
 incapable ». Les records gardent leur texte d'époque (historique) ; `plain_substrate_ceiling.py` et le backlog
 portaient déjà la rétractation. 103 tests des fichiers touchés passent (12,8 s).
 <!-- closes_when:grep_present=tests/sandbox/test_experiment_preflight.py::CORRECTION 2026-09-16 -->
-**P2.78 — rang 14 ter — `project_cost` / `CostGuard` mesurent du temps MUR : une cellule de P4.9 a duré 33 060 s
-(9,2 h) sans qu'on puisse dire si la machine calculait ou dormait.**
+**P2.78 — rang 14 ter — ✅ CLOSE le 2026-09-22 (session loop 766eabae ; entrée ouverte par la session P4.9) — la garde de QUEUE porte sur le temps CPU du processus  le temps mur est publié À CÔTÉ  jamais à la place ; `Stopwatch` pour les runners.**
+Fait : `tools/cost_guard.py` — `CostGuard(clock=time.process_time  wall_clock=time.monotonic)` : `tick()` lève sur le CPU
+(`clock` reste l'horloge GATÉE  injectable : les cas existants sont inchangés)  `spent_wall_s` et `report()` publient le mur
+et `wall_over_cpu` (machine endormie ou contention = ratio ≫ 1  LISIBLE  plus tueur) ; `CostExceeded` dit le mur à côté du CPU ;
+`Stopwatch().elapsed()` rend `elapsed_s` ET `elapsed_cpu_s` (+ ratio  `None` à CPU nul — pas de ratio fabriqué). 4 cas neufs
+(`tests/sandbox/test_cost_guard.py`) : défaut = `process_time` ; une suspension (mur 5000 s  CPU 5 s) ne tue PAS l'unité et se lit
+dans le rapport ; ratio seulement sur une garde CPU ; `Stopwatch` prédit le ratio exactement. Seconde occurrence mesurée le
+jour même  qui a motivé la fermeture : `results/s2_blind_champion_decomp_r1.json` publie `_cout_s` = 510 334 s (5 9 jours de mur
+à travers une veille machine) pour 14 cellules que le `-ter` a faites en 1 039 s — annoté dans le JSON (`_cout_note`)  le coût CPU
+n'est pas mesuré. ⚠️ Deux limites dites dans le module : `process_time` ne compte que CE processus (un parent de pool de workers
+a un CPU ~0 → garde qui ne peut pas échouer, E1 : passer `clock=time.monotonic`) ; une contention gonfle le mur sans le CPU et
+n'est plus attrapée par la garde de queue — elle se lit ; (c) `process_time` somme TOUS les threads : un run torch multi-thread publie
+`_cout_cpu_s` 2 142 s pour `_cout_s` 1 191 s (TD-STEP-PILOT-R2, mesuré), donc `wall_over_cpu` < 1 — le budget CPU d'une unité vaut
+~ threads × mur, à connaître avant de fixer `budget_s`. **Reste, par runner (recommandation, pas une clause)** : publier
+`elapsed_cpu_s` à côté de `elapsed_s` via `Stopwatch` dans les 9 runners qui n'écrivent que `time.time()` (les trois miens compris :
+`td_step_pilot`, `bilinear_sham_run`, `s2_blind_champion_bis`).
+Énoncé d'origine : `project_cost` / `CostGuard` mesurent du temps MUR : une cellule de P4.9 a duré 33 060 s (9,2 h) sans qu'on
+puisse dire si la machine calculait ou dormait.
 Quoi : `results/s2_credit_ablation.json` → `arms.b_zero.2029.elapsed_s` = 33 060 s contre 26 à 3885 s pour les 59
 autres cellules (total hors cellule 7699 s, DANS la projection de 20 007 s ; réel publié 40 759 s = 11,3 h, sous le
 budget scellé de 16 h). Le run a traversé la nuit du 15 au 16 : suspension de la machine ou contention, le chiffre
