@@ -8,6 +8,7 @@
 La session PM ne tient aucun état en contexte : tout est relu d'ici à chaque tick.
 """
 import argparse
+import json
 import os
 import sys
 import time
@@ -27,7 +28,12 @@ def prendre_bail_pm(owner, pid, *, leases_dir=None, ttl_s=TTL_PM_S):
     cur = L.read("pm", leases_dir=leases_dir)
     if cur is not None and L.is_live(cur) and cur.pid != pid:
         return {"ok": False, "detenteur": f"{cur.owner or '?'} (pid={cur.pid}, expire dans {cur.expires_at - time.time():.0f} s)"}
-    L.acquire("pm", owner=owner, ttl_s=ttl_s, pid=pid, leases_dir=leases_dir)
+    try:
+        L.acquire("pm", owner=owner, ttl_s=ttl_s, pid=pid, leases_dir=leases_dir)
+    except L.ResourceBusy:
+        cur = L.read("pm", leases_dir=leases_dir)
+        return {"ok": False, "detenteur": f"{cur.owner or '?'} (pid={cur.pid}, expire dans {cur.expires_at - time.time():.0f} s)"
+                if cur else "inconnu (bail pris entre la lecture et l'acquisition)"}
     return {"ok": True, "detenteur": None}
 
 
@@ -82,7 +88,6 @@ def main(argv=None):
     board = compute(snapshot(args.repo_root, registry_dir=args.registry_dir, sessions_dir=args.sessions_dir,
                              leases_dir=args.leases_dir, now=now))
     os.makedirs(paths.pm_dir(), exist_ok=True)
-    import json
     with open(paths.pm_dir("BOARD.json"), "w", encoding="utf-8") as fh:
         json.dump(board, fh, ensure_ascii=False, indent=1, default=str)
     with open(paths.pm_dir("BOARD.md"), "w", encoding="utf-8") as fh:

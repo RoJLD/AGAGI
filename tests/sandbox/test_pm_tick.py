@@ -1,5 +1,4 @@
 """Le tick PM : un seul PM vivant (bail pm porte par le PID de la session), un tableau ecrit, un journal tenu."""
-import json
 import os
 import sys
 
@@ -28,6 +27,12 @@ def test_un_bail_pm_dont_le_detenteur_est_mort_est_reprenable(tmp_path):
     assert TK.prendre_bail_pm("agagi-11", os.getpid(), leases_dir=tmp_path)["ok"] is True
 
 
+def test_un_bail_pris_entre_la_lecture_et_l_acquisition_est_un_refus_propre_pas_une_exception(tmp_path, monkeypatch):
+    monkeypatch.setattr(TK.L, "acquire", lambda *a, **k: (_ for _ in ()).throw(TK.L.ResourceBusy("pris")))
+    r = TK.prendre_bail_pm("agagi-52", os.getpid(), leases_dir=tmp_path)
+    assert r["ok"] is False and isinstance(r["detenteur"], str)
+
+
 def test_digest_nomme_les_repetees_comme_cliquets_a_inscrire():
     board = {"aveugle": ["bails (tools/jobs)"], "charge_connue": {"sims_en_vol": 0, "cpu_5min_pct": 3.0, "bails_vivants": []},
              "alertes": [], "sessions": []}
@@ -38,6 +43,15 @@ def test_digest_nomme_les_repetees_comme_cliquets_a_inscrire():
     t = TK.digest(board, d, counts)
     assert "AVEUGLE SUR bails" in t and "NOUVELLE A1:x.py" in t and "REPETEE A2:kuzu" in t and "cliquet" in t
     assert "suivie A4:abc" in t and "science/méthodo = 0.5" in t
+
+
+def test_digest_dit_rien_de_nouveau_quand_rien_n_a_bouge():
+    board = {"aveugle": [], "charge_connue": {"sims_en_vol": 0, "cpu_5min_pct": 0.0, "bails_vivants": []},
+             "alertes": [], "sessions": []}
+    d = {"nouvelles": [], "repetees": [], "disparues": [], "lignes": []}
+    counts = {"alertes": {"emises": 0, "suivies_48h": 0, "fausses_ou_ignorees": 0, "repetees": 0, "ouvertes": 0},
+              "fichiers": {"science": 0, "methodo": 0, "autre": 0}, "ratio_science_methodo": 0.0}
+    assert "rien de nouveau (noop)" in TK.digest(board, d, counts)
 
 
 def test_main_ecrit_tableau_journal_compteurs_et_sort_0(tmp_path, monkeypatch):
