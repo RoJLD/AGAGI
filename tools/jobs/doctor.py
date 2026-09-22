@@ -48,8 +48,30 @@ def _protected_pids():
     return pids
 
 
+def _works_in_project(p) -> bool:
+    """Le processus travaille-t-il DANS le dépôt ? — lu sur son `cwd`, pas sur sa ligne de commande.
+
+    E4 (occ. doctor, 2026-09-22) : `PROJECT_MARKERS` cherche le nom du projet dans la LIGNE DE COMMANDE,
+    or la forme canonique prescrite par CLAUDE.md — `python -m tools.…` lancé depuis la racine — ne le
+    porte pas. Un run RÉEL de six jours (pid 54476, `-m tools.evo_runs.s2_blind_champion_bis --decomp`,
+    623 Mo) était donc rapporté comme « 0 processus du projet ». Les worktrees vivent SOUS la racine :
+    un run en worktree est bien du projet. Inaccessible (droits, processus disparu) -> False, jamais une
+    exception qui viderait l'inventaire."""
+    try:
+        cwd = p.cwd()
+    except Exception:
+        return False
+    if not cwd:
+        return False
+    try:
+        racine = os.path.realpath(_ROOT)
+        return os.path.commonpath([os.path.realpath(cwd), racine]) == racine
+    except Exception:                     # disques différents sous Windows -> commonpath lève
+        return False
+
+
 def project_processes(older_min: float = 0.0):
-    """Processus python dont la ligne de commande référence le projet, hors protégés."""
+    """Processus python du projet, hors protégés : ligne de commande marquée OU cwd DANS le dépôt."""
     try:
         import psutil
     except Exception:
@@ -61,7 +83,7 @@ def project_processes(older_min: float = 0.0):
             if i["pid"] in prot or not i["name"] or "python" not in i["name"].lower():
                 continue
             cl = " ".join(i["cmdline"] or "")
-            if not any(m in cl for m in PROJECT_MARKERS):
+            if not (any(m in cl for m in PROJECT_MARKERS) or _works_in_project(p)):
                 continue
             age = (now - i["create_time"]) / 60.0
             if age < older_min:
@@ -74,12 +96,26 @@ def project_processes(older_min: float = 0.0):
 
 
 def classify_leases(*, leases_dir=None, now=None):
-    """{vivants, morts} — un bail MORT est expiré OU son détenteur a disparu (PID absent, ou réutilisé
-    par un autre processus, détecté via `proc_create_time`)."""
-    live, dead = [], []
+    """{live, expired_alive, orphan, dead} — TROIS états, parce que « pas vivant » en recouvrait deux
+    que rien ne distinguait dans le rapport (E4, occ. doctor du 2026-09-22) :
+
+      * `live`          : non expiré ET détenteur en vie ;
+      * `expired_alive` : TTL dépassé mais le détenteur TOURNE (heartbeat manquant — machine en veille,
+                          run très long). **Ce n'est pas un orphelin** : il ne se réape pas ;
+      * `orphan`        : détenteur disparu (PID absent ou réattribué, via `proc_create_time`).
+
+    `dead` reste l'UNION des deux derniers : les appelants existants (dont `--kill`, qui refuse déjà de
+    tuer un détenteur vivant) gardent leur sémantique."""
+    live, expired_alive, orphan = [], [], []
     for lz in _lease.read_all(leases_dir=leases_dir):
-        (live if _lease.is_live(lz, now=now) else dead).append(lz)
-    return {"live": live, "dead": dead}
+        if _lease.is_live(lz, now=now):
+            live.append(lz)
+        elif _lease.is_holder_alive(lz):
+            expired_alive.append(lz)
+        else:
+            orphan.append(lz)
+    return {"live": live, "expired_alive": expired_alive, "orphan": orphan,
+            "dead": expired_alive + orphan}
 
 
 def main(argv=None) -> int:
@@ -91,12 +127,15 @@ def main(argv=None) -> int:
     cls = classify_leases()
     procs = project_processes(args.older_min)
 
-    print(f"bails : {len(cls['live'])} vivant(s), {len(cls['dead'])} mort(s)")
+    print(f"bails : {len(cls['live'])} vivant(s), {len(cls['expired_alive'])} expiré(s) à détenteur "
+          f"VIVANT, {len(cls['orphan'])} orphelin(s)")
     for lz in cls["live"]:
-        print(f"  VIVANT  {lz.resource:<12} pid={lz.pid:<7} owner={lz.owner!r}")
-    for lz in cls["dead"]:
-        raison = "détenteur disparu" if not _lease.is_holder_alive(lz) else "TTL expiré (heartbeat manquant)"
-        print(f"  MORT    {lz.resource:<12} pid={lz.pid:<7} owner={lz.owner!r}  [{raison}]")
+        print(f"  VIVANT   {lz.resource:<12} pid={lz.pid:<7} owner={lz.owner!r}")
+    for lz in cls["expired_alive"]:
+        print(f"  EXPIRÉ   {lz.resource:<12} pid={lz.pid:<7} owner={lz.owner!r}  "
+              "[détenteur VIVANT — heartbeat manquant, PAS un orphelin : ne pas réaper]")
+    for lz in cls["orphan"]:
+        print(f"  ORPHELIN {lz.resource:<12} pid={lz.pid:<7} owner={lz.owner!r}  [détenteur disparu]")
 
     print(f"\nprocessus python du projet (hors moi et mes ancêtres) : {len(procs)}")
     for p in procs[:15]:
@@ -104,14 +143,16 @@ def main(argv=None) -> int:
 
     if not args.kill:
         if cls["dead"] or procs:
-            print("\n(lecture seule — `--kill` pour réaper les bails MORTS)")
+            print("\n(lecture seule — `--kill` ne réape que les ORPHELINS)")
         return 0
 
     n_l = n_p = 0
-    for lz in cls["dead"]:
-        if _lease.is_holder_alive(lz):
-            print(f"  REFUS  {lz.resource} : détenteur VIVANT malgré un TTL expiré -> heartbeat manquant, "
-                  "pas un orphelin. Signalé, non tué.")
+    for lz in cls["expired_alive"]:
+        print(f"  REFUS  {lz.resource} : détenteur VIVANT malgré un TTL expiré -> heartbeat manquant, "
+              "pas un orphelin. Signalé, non tué.")
+    for lz in cls["orphan"]:
+        if _lease.is_holder_alive(lz):       # course : il a pu revivre entre la lecture et ici
+            print(f"  REFUS  {lz.resource} : détenteur redevenu VIVANT depuis la lecture. Non tué.")
             continue
         _lease.release(lz)
         n_l += 1
