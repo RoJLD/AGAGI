@@ -1,0 +1,234 @@
+{
+  "name": "HARNESS-R1",
+  "rule": {
+    "budget_s": 2363.9909220160916,
+    "cellules": {
+      "A": {
+        "ablations": [
+          {
+            "must_bite": true,
+            "name": "permute_key",
+            "site": "input"
+          },
+          {
+            "must_bite": true,
+            "name": "permute_query",
+            "site": "input"
+          },
+          {
+            "must_bite": false,
+            "name": "inject_distractor_slot",
+            "site": "input"
+          }
+        ],
+        "alive_margin": 0.05,
+        "bayes_floors": {
+          "permute_key": 0.16666666666666666,
+          "permute_query": 0.16666666666666666
+        },
+        "collapse_factor": 1.5,
+        "episodes": 300,
+        "incapable_ceiling": {
+          "proven": false,
+          "provenance": "forme close plain 34/36, tools/plain_substrate_ceiling.py:155, MINORANT jamais PROUVE",
+          "value": 0.9444444444444444
+        },
+        "learner": "connectome_torch",
+        "matched_sham": {
+          "bilinear_sham": true
+        },
+        "min_sep": 0.05,
+        "n_floor": 12,
+        "oracle_min": 0.9,
+        "piece": "bilinear",
+        "prior_max": 0.5,
+        "sweep": [
+          {
+            "credit": "supervised",
+            "lr": 0.02,
+            "n_classes": null,
+            "rank": 16
+          },
+          {
+            "credit": "supervised",
+            "lr": 0.002,
+            "n_classes": null,
+            "rank": 16
+          }
+        ],
+        "task": "composition_same_tick_K6"
+      },
+      "Aprime": {
+        "ablations": [
+          {
+            "must_bite": true,
+            "name": "permute_key",
+            "site": "input"
+          },
+          {
+            "must_bite": false,
+            "name": "permute_query",
+            "site": "input"
+          },
+          {
+            "must_bite": false,
+            "name": "inject_distractor_slot",
+            "site": "input"
+          }
+        ],
+        "alive_margin": 0.05,
+        "bayes_floors": {
+          "permute_key": 0.16666666666666666
+        },
+        "collapse_factor": 1.5,
+        "episodes": 150,
+        "incapable_ceiling": null,
+        "learner": "connectome_torch",
+        "matched_sham": {
+          "bilinear_sham": true
+        },
+        "min_sep": 0.05,
+        "n_floor": 12,
+        "oracle_min": 0.9,
+        "piece": "bilinear",
+        "prior_max": 0.5,
+        "sweep": [
+          {
+            "credit": "supervised",
+            "lr": 0.02,
+            "n_classes": null,
+            "rank": 16
+          },
+          {
+            "credit": "supervised",
+            "lr": 0.002,
+            "n_classes": null,
+            "rank": 16
+          }
+        ],
+        "task": "recall_same_tick_K6"
+      },
+      "B": {
+        "ablations": [
+          {
+            "must_bite": true,
+            "name": "permute_key",
+            "site": "input"
+          },
+          {
+            "must_bite": true,
+            "name": "permute_query",
+            "site": "input"
+          },
+          {
+            "must_bite": false,
+            "name": "inject_distractor_slot",
+            "site": "input"
+          },
+          {
+            "must_bite": true,
+            "name": "state_reset",
+            "site": "state"
+          }
+        ],
+        "alive_margin": 0.05,
+        "bayes_floors": {
+          "permute_key": 0.16666666666666666,
+          "permute_query": 0.16666666666666666,
+          "state_reset": 0.16666666666666666
+        },
+        "collapse_factor": 1.5,
+        "episodes": 600,
+        "incapable_ceiling": null,
+        "learner": "connectome_torch",
+        "matched_sham": null,
+        "min_sep": 0.05,
+        "n_floor": 12,
+        "oracle_min": 0.9,
+        "piece": "recurrent_state",
+        "prior_max": 0.5,
+        "sweep": [
+          {
+            "credit": "supervised",
+            "lr": 0.002,
+            "n_classes": 6,
+            "rank": 16
+          },
+          {
+            "credit": "supervised",
+            "lr": 0.001,
+            "n_classes": 6,
+            "rank": 16
+          }
+        ],
+        "task": "composition_two_step_K6"
+      }
+    },
+    "clause_E19": "toute cellule non NECESSARY passe assert_verdict_invariant_to_optimizer sur les deux pas du sweep ; closure > 2/3 = LR_ARTIFACT, pas un verdict",
+    "cout": "unites mesurees au smoke (s/bras) : {'A': 3.2664363000076264, 'Aprime': 1.6708537999074906, 'B': 8.195992800174281} ; budget = 3 x somme x 12 seeds x 5 bras = 39 min ; sans bail kuzu",
+    "design": {
+      "control_family": {
+        "alpha_cell": 0.008333333333333333,
+        "alpha_family": 0.05,
+        "cells": 6,
+        "fwer_bound": 0.05,
+        "method": "bonferroni",
+        "reason": null
+      },
+      "cost_estimate": null,
+      "inferred_links": [
+        "analogue_bio"
+      ],
+      "inferred_reason": "l'analogue biologique d'une pièce est une hypothèse portée par le registre (spec §2.6), jamais mesurée ici",
+      "links": {
+        "ablation->chute": "measured",
+        "analogue_bio": "inferred",
+        "dose->acquisition": "measured",
+        "sans_piece->chute": "measured"
+      },
+      "n_independent": 12,
+      "question": "Le harnais à trois conditions rend-il, sur les trois cellules PORTÉES à réponse connue, PARTIAL (A), NOT_NECESSARY (A') et NECESSARY (B) ?",
+      "replication_unit": "seed",
+      "warning": "1 maillon(s) INFÉRÉ(S) : ['analogue_bio']. Une chaîne causale transporte son signe, pas son amplitude — vérifier que le régime place l'effet au-dessus du bruit, ou mesurer à n réduit."
+    },
+    "design_note": "unite = seed, n = 12 (seeds 0-11), 5 bras apparies par seed (A, A0, A2, D, D2), eval du meme sujet, plancher de bruit par second rng",
+    "discrimination": {
+      "AUTRE": "voir src/seed_ai/harness_verdict.py::BRANCHES, ordre impose",
+      "DEMANDED_ACQUIRED_NECESSARY": "voir src/seed_ai/harness_verdict.py::BRANCHES, ordre impose",
+      "DEMAND_INCONCLUSIVE": "voir src/seed_ai/harness_verdict.py::BRANCHES, ordre impose",
+      "DEMAND_WITHIN_NOISE": "voir src/seed_ai/harness_verdict.py::BRANCHES, ordre impose",
+      "INCOMPLET": "voir src/seed_ai/harness_verdict.py::BRANCHES, ordre impose",
+      "INCONCLUSIVE_ALIAS": "voir src/seed_ai/harness_verdict.py::BRANCHES, ordre impose",
+      "INCONCLUSIVE_N": "voir src/seed_ai/harness_verdict.py::BRANCHES, ordre impose",
+      "INCONCLUSIVE_SPECIFICITY": "voir src/seed_ai/harness_verdict.py::BRANCHES, ordre impose",
+      "INDETERMINE_HARNAIS": "voir src/seed_ai/harness_verdict.py::BRANCHES, ordre impose",
+      "LR_ARTIFACT": "voir src/seed_ai/harness_verdict.py::BRANCHES, ordre impose",
+      "NOT_ACQUIRED": "voir src/seed_ai/harness_verdict.py::BRANCHES, ordre impose",
+      "NOT_DEMANDED": "voir src/seed_ai/harness_verdict.py::BRANCHES, ordre impose",
+      "PIECE_INCONCLUSIVE": "voir src/seed_ai/harness_verdict.py::BRANCHES, ordre impose",
+      "PIECE_NOT_NECESSARY": "voir src/seed_ai/harness_verdict.py::BRANCHES, ordre impose",
+      "PIECE_PARTIAL": "voir src/seed_ai/harness_verdict.py::BRANCHES, ordre impose"
+    },
+    "dv_primaire": "`hits` par seed et par bras ; `ratio_within` par ablation ; `sep_ref` (mediane A - mediane A0) ; `dose.updates` par bras ; `noise_band` ; `closure` (E19)",
+    "predictions_chiffrees_AVANT_le_run": {
+      "A": "PIECE_PARTIAL : chute >= 3x hors bande, plain ~0,27 > barre ~0,22 (billet publié, results/bilinear_composition.json) ; bit-identite seed 0 (0,9328125 / 0,2703125, connu publié) ; bar_status CEILING_ABOVE_BAR (0,944 = 34/36 forme close, publiée > barre ref+0,05) ; sham DECLARED ({\"bilinear_sham\": True}, registre PIECES) ; e19 ROBUST attendu",
+      "Aprime": "PIECE_NOT_NECESSARY : plain = bilineaire = 1,0 (same_tick supervise 150 ep., MESURE seeds 0-2 au present smoke, cf. Aprime/Aprime_plain) ; acquisition ACQUIRED",
+      "B": "DEMANDED_ACQUIRED_NECESSARY : intact ~0,92 a lr 0,002 (MESURE au present smoke) ; state_reset -> ~1/6 (plancher de Bayes K=6, connu) ; sans recurrent_state (feedforward, entraine sans etat porte) -> ~1/6 (meme plancher) ; second pas de lr 0.001 (mediane MESUREE au present smoke 0.656) ; e19 ROBUST attendu"
+    },
+    "question": "Le harnais à trois conditions rend-il, sur les trois cellules PORTÉES à réponse connue, PARTIAL (A), NOT_NECESSARY (A') et NECESSARY (B) ?",
+    "regle_de_lecture_continue": "ORDRE IMPOSE : INCOMPLET -> INCONCLUSIVE_N -> INDETERMINE_HARNAIS -> LR_ARTIFACT -> NOT_ACQUIRED -> NOT_DEMANDED -> DEMAND_WITHIN_NOISE -> DEMAND_INCONCLUSIVE -> INCONCLUSIVE_SPECIFICITY -> INCONCLUSIVE_ALIAS -> PIECE_NOT_NECESSARY -> PIECE_INCONCLUSIVE -> PIECE_PARTIAL -> DEMANDED_ACQUIRED_NECESSARY -> AUTRE",
+    "smoke": {
+      "B_medians_by_lr": {
+        "0.0005": 0.30156248807907104,
+        "0.001": 0.65625
+      },
+      "B_ref_median": 0.16249999403953552,
+      "unit_s": {
+        "A": 3.2664363000076264,
+        "Aprime": 1.6708537999074906,
+        "B": 8.195992800174281
+      }
+    }
+  },
+  "seal": "35450ac66b86c901f801372b5f09aa4edfe738ae2b5bc10d899471026bfcfd9e"
+}
