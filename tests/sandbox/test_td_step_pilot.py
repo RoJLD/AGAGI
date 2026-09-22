@@ -11,6 +11,8 @@ import pytest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
+_LEASE_GUARD_EXEMPT = True          # torch pur, aucun monde : la garde de bail n'a rien a proteger ici
+
 from tools.preregister import verify  # noqa: E402
 from tools.td_step_pilot import _flush_terminal, _lecture, _train_eval_td_step  # noqa: E402
 
@@ -190,3 +192,63 @@ def test_r1_published_result_rereads_to_its_sealed_branch_with_imported_cells_eq
     imp = _import_r0(RULE1)
     assert all(db[k] == v for k, v in imp.items()), "les cellules importees ne sont plus celles de R0"
     assert _lecture_r1(db, RULE1)["branche"] == db["_lecture"]["branche"] != "INCOMPLET"
+
+
+# ---- R2 (P4.17) : grille lr x lambda ---------------------------------------------------------------------------
+from tools.td_step_pilot import _cellules_r2, _lecture_r2  # noqa: E402
+
+RULE2 = verify("TD-STEP-PILOT-R2")
+C2 = RULE2["cellule"]
+
+
+def _db2(aide_at=(), lisible_at=None, per=None, coupe=()):
+    """Base synthetique : par lr, lam0 0,19 ; lam09 = 0,26 si lr in aide_at sinon 0,19 ; td0_d0 0,52 si lisible sinon 0,18."""
+    lisible_at = C2["lr"] if lisible_at is None else lisible_at
+    db = {"_regime": {"coupe": {"cles": [k for k in _cellules_r2(RULE2) if any(f"|lr={lr}|" in k for lr in coupe)]}}}
+    for sd in C2["seeds"]:
+        db[f"lr0_reference|seed={sd}"] = 0.16
+        db[f"lr0_reference_d0|seed={sd}"] = 0.17
+        for lr in C2["lr"]:
+            if lr in coupe:
+                continue
+            v = {"lam0": 0.19, "lam05": 0.20, "lam09": 0.26 if lr in aide_at else 0.19, "lam099": 0.21,
+                 "td0_d0": 0.52 if lr in lisible_at else 0.18}
+            if per:
+                v.update(per(lr, sd))
+            for b_, x in v.items():
+                db[f"{b_}|lr={lr}|seed={sd}"] = x
+    return db
+
+
+def test_r2_rule_declares_the_imports_and_the_dropped_lrs():
+    assert "IMPORTEES" in RULE2["provenance"] and "ECARTE" in RULE2["provenance"] and 0.5 not in C2["lr"] and 8.0 not in C2["lr"]
+    assert len(_cellules_r2(RULE2)) == 5 * 3 * 12
+
+
+def test_r2_incomplete_then_branches_in_the_imposed_order():
+    db = _db2(aide_at=(4.0, 2.0))
+    del db["lam099|lr=1.0|seed=5"]
+    assert _lecture_r2(db, RULE2) == {"branche": "INCOMPLET", "manquantes": 1}
+    assert _lecture_r2(_db2(aide_at=(4.0, 2.0)), RULE2)["branche"] == "AIDE_INVARIANTE"          # deux lr adjacents
+    assert _lecture_r2(_db2(aide_at=(4.0,)), RULE2)["branche"] == "AIDE_A_UN_POINT"
+    assert _lecture_r2(_db2(aide_at=(4.0, 1.0)), RULE2)["branche"] == "AIDE_A_UN_POINT"          # non adjacents
+    assert _lecture_r2(_db2(aide_at=()), RULE2)["branche"] == "PAS_D_AIDE"
+    lec = _lecture_r2(_db2(aide_at=(4.0, 2.0), lisible_at=()), RULE2)
+    assert lec["branche"] == "CONTROLE_CHEMIN_ECHOUE" and lec["lr_lisibles"] == []
+
+
+def test_r2_an_unreadable_lr_does_not_count_even_if_the_trace_helps_there():
+    lec = _lecture_r2(_db2(aide_at=(4.0, 2.0), lisible_at=(4.0,)), RULE2)
+    assert lec["branche"] == "AIDE_A_UN_POINT" and lec["lr_aide09"] == [4.0] and lec["par_lr"]["2.0"]["lisible"] is False
+
+
+def test_r2_eleven_seeds_convention_and_published_lambda_facts():
+    db = _db2(aide_at=(4.0, 2.0), per=lambda lr, sd: ({"lam09": 0.19} if (lr == 2.0 and sd in (1, 2)) else {}))
+    lec = _lecture_r2(db, RULE2)
+    assert lec["par_lr"]["2.0"]["aide09"] == "10/12" and lec["branche"] == "AIDE_A_UN_POINT"
+    assert lec["par_lr"]["4.0"]["meilleur_lambda"] == "lam09" and lec["par_lr"]["4.0"]["aide099"] == "0/12"
+
+
+def test_r2_a_cut_lr_line_is_neither_missing_nor_readable_and_is_published():
+    lec = _lecture_r2(_db2(aide_at=(4.0, 2.0), coupe=(1.0,)), RULE2)
+    assert lec["branche"] == "AIDE_INVARIANTE" and lec["lr_coupes"] == ["1.0"] and lec["par_lr"]["1.0"] == {"coupe": True}

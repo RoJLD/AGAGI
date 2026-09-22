@@ -29,6 +29,7 @@ import numpy as np
 from tools.bilinear_composition_probe import _make_seq, _sample, _train_eval_one
 from tools.experiment_preflight import assert_control_family, declare_design
 from tools.preregister import stamp, verify
+from tools.cost_guard import Stopwatch          # P2.78 : mur ET CPU
 from src.paths import results_file   # noqa: E402  (porte 12)
 
 RULE = "TD-STEP-PILOT-R0"
@@ -180,7 +181,7 @@ def main(argv=None):
     db.setdefault("_design", design)
     db.setdefault("_regime", {k: v for k, v in c.items() if k != "seeds"})
     db.setdefault("_dose", {})
-    t0 = time.time()
+    sw = Stopwatch()
     for i in range(2):
         for sd in c["seeds"]:
             for b in c["bras"]:
@@ -193,7 +194,9 @@ def main(argv=None):
                 db["_dose"][k] = dose
                 json.dump(stamp(db, RULE), open(out_path, "w", encoding="utf-8"), indent=1)
                 print(f"  {k}: {acc:.3f} ({time.time() - tc:.1f} s) {dose}", flush=True)
-    db["_cout_s"] = db.get("_cout_s", 0.0) + (time.time() - t0)
+    el = sw.elapsed()                                        # P2.78 : mur et CPU, accumules (run reprenable)
+    db["_cout_s"] = db.get("_cout_s", 0.0) + el["elapsed_s"]
+    db["_cout_cpu_s"] = db.get("_cout_cpu_s", 0.0) + el["elapsed_cpu_s"]
     db["_lecture"] = _lecture(db, regle)
     json.dump(stamp(db, RULE), open(out_path, "w", encoding="utf-8"), indent=1)
     print(json.dumps(db["_lecture"], indent=1, ensure_ascii=False))
@@ -273,7 +276,7 @@ def main_r1(argv=None):
     db.setdefault("_dose", {})
     spec = {"td0@2": (0.0, c["lr_nouveau"]), "tdlam09@2": (c["lambda_importe"], c["lr_nouveau"]),
             "lr0_reference@2": (0.0, 0.0), "tdlam05@4": (c["lambda_nouveau"], c["lr_importe"])}
-    t0 = time.time()
+    sw = Stopwatch()
     for sd in c["seeds"]:
         for b in c["bras_nouveaux"]:
             k = f"{b}|seed={sd}"
@@ -286,7 +289,9 @@ def main_r1(argv=None):
             db[k], db["_dose"][k] = acc, dose
             json.dump(stamp(db, RULE_R1), open(out_path, "w", encoding="utf-8"), indent=1)
             print(f"  {k}: {acc:.3f} ({time.time() - tc:.1f} s)", flush=True)
-    db["_cout_s"] = db.get("_cout_s", 0.0) + (time.time() - t0)
+    el = sw.elapsed()                                        # P2.78 : mur et CPU, accumules (run reprenable)
+    db["_cout_s"] = db.get("_cout_s", 0.0) + el["elapsed_s"]
+    db["_cout_cpu_s"] = db.get("_cout_cpu_s", 0.0) + el["elapsed_cpu_s"]
     db["_lecture"] = _lecture_r1(db, regle)
     json.dump(stamp(db, RULE_R1), open(out_path, "w", encoding="utf-8"), indent=1)
     print(json.dumps(db["_lecture"], indent=1, ensure_ascii=False))
@@ -294,5 +299,170 @@ def main_r1(argv=None):
     return db
 
 
+# ----------------------------------------------------------------------------------------------------------------------
+# R2 (TD-STEP-PILOT-R2, P4.17) : grille lr x lambda sur le meme dispositif. Les cellules deja mesurees par R0/R1 sont
+# IMPORTEES (relues, jamais re-mesurees, sceaux verifies) ; le garde de cout mesure l'unite sur la premiere cellule
+# neuve et COUPE la ligne lr la plus basse si la projection depasse le budget scelle (coupe publiee dans _regime).
+RULE_R2 = "TD-STEP-PILOT-R2"
+_BRAS_R2 = ("lam0", "lam05", "lam09", "lam099", "td0_d0")
+
+
+def _import_r2(regle):
+    """Cellules importees de R0/R1 sous les cles de R2 (`<bras>|lr=<lr>|seed=<sd>` ; references sans lr)."""
+    verify(RULE)
+    verify(RULE_R1)
+    r0 = json.load(open(str(results_file("td_step_pilot_r0.json")), encoding="utf-8"))
+    r1 = json.load(open(str(results_file("td_step_pilot_r1.json")), encoding="utf-8"))
+    assert r0["_regime"]["lr_td"][0] == 4.0 and r0["_regime"]["lambda"] == 0.9 and r1["_regime"]["lr_nouveau"] == 2.0
+    out = {}
+    for sd in regle["cellule"]["seeds"]:
+        out[f"lam0|lr=4.0|seed={sd}"] = r0[f"td0|lr0|seed={sd}"]
+        out[f"lam05|lr=4.0|seed={sd}"] = r1[f"tdlam05@4|seed={sd}"]
+        out[f"lam09|lr=4.0|seed={sd}"] = r0[f"tdlam|lr0|seed={sd}"]
+        out[f"td0_d0|lr=4.0|seed={sd}"] = r0[f"td0_d0|lr0|seed={sd}"]
+        out[f"lam0|lr=2.0|seed={sd}"] = r1[f"td0@2|seed={sd}"]
+        out[f"lam09|lr=2.0|seed={sd}"] = r1[f"tdlam09@2|seed={sd}"]
+        out[f"lr0_reference|seed={sd}"] = r0[f"lr0_reference|lr0|seed={sd}"]
+        out[f"lr0_reference_d0|seed={sd}"] = r0[f"lr0_reference_d0|lr0|seed={sd}"]
+    return out
+
+
+def _cellules_r2(regle):
+    """Toutes les cles de la grille (bras x lr x seed), dans l'ordre de mesure : lr HAUTS d'abord."""
+    c = regle["cellule"]
+    return [f"{b}|lr={lr}|seed={sd}" for lr in c["lr"] for sd in c["seeds"] for b in _BRAS_R2]
+
+
+def _lecture_r2(db, regle):
+    """Par lr : lisible (chemin), aide09/05/099 (comptes /12), medianes, meilleur lambda ; puis la branche, ORDRE IMPOSE."""
+    c, s = regle["cellule"], regle["seuils"]
+    seeds, lrs = c["seeds"], c["lr"]
+    attendu = _cellules_r2(regle) + [f"{r}|seed={sd}" for r in c["references"] for sd in seeds]
+    coupe = set(db.get("_regime", {}).get("coupe", {}).get("cles", []))
+    manquantes = [k for k in attendu if k not in db and k not in coupe]
+    if manquantes:
+        return {"branche": "INCOMPLET", "manquantes": len(manquantes)}
+
+    def med(k):
+        return float(np.median([db[f"{k}|seed={sd}"] for sd in seeds]))
+
+    def n_sup(a, b, marge):
+        return sum(1 for sd in seeds if db[f"{a}|seed={sd}"] > db[f"{b}|seed={sd}"] + marge)
+    out, lisibles, aides = {"par_lr": {}, "lr_coupes": sorted({k.split("|")[1][3:] for k in coupe})}, [], []
+    for lr in lrs:
+        if any(k in coupe for k in _cellules_r2(regle) if f"|lr={lr}|" in k):
+            out["par_lr"][str(lr)] = {"coupe": True}
+            continue
+        t = f"lr={lr}"
+        lisible = n_sup(f"td0_d0|{t}", "lr0_reference_d0", s["marge"]) >= s["seeds_chemin"]
+        meds = {lam: med(f"{lam}|{t}") for lam in ("lam0", "lam05", "lam09", "lam099")}
+        row = {"lisible": lisible, "td0_d0_sup_ref_d0": f"{n_sup(f'td0_d0|{t}', 'lr0_reference_d0', s['marge'])}/{len(seeds)}",
+               "aide09": f"{n_sup(f'lam09|{t}', f'lam0|{t}', s['marge'])}/{len(seeds)}",
+               "aide05": f"{n_sup(f'lam05|{t}', f'lam0|{t}', s['marge'])}/{len(seeds)}",
+               "aide099": f"{n_sup(f'lam099|{t}', f'lam0|{t}', s['marge'])}/{len(seeds)}",
+               "lam0_sup_ref": f"{n_sup(f'lam0|{t}', 'lr0_reference', s['marge'])}/{len(seeds)}",
+               "medianes": meds, "meilleur_lambda": max(meds, key=meds.get)}
+        out["par_lr"][str(lr)] = row
+        if lisible:
+            lisibles.append(lr)
+            if n_sup(f"lam09|{t}", f"lam0|{t}", s["marge"]) >= s["seeds_aide"]:
+                aides.append(lr)
+    out["lr_lisibles"], out["lr_aide09"] = lisibles, aides
+    if not lisibles:
+        out["branche"] = "CONTROLE_CHEMIN_ECHOUE"
+        return out
+    ordre = [lr for lr in lrs if lr in lisibles]
+    adjacents = any(ordre[i] in aides and ordre[i + 1] in aides for i in range(len(ordre) - 1))
+    if adjacents:
+        out["branche"] = "AIDE_INVARIANTE"
+    elif aides:
+        out["branche"] = "AIDE_A_UN_POINT"
+    else:
+        out["branche"] = "PAS_D_AIDE"
+    return out
+
+
+def main_r2(argv=None):
+    argv = list(sys.argv[1:] if argv is None else argv)
+    from tools.cost_guard import CostTooHighToStart, project_cost
+    regle = verify(RULE_R2)
+    out_path = str(results_file("td_step_pilot_r2.json"))
+    c, s = regle["cellule"], regle["seuils"]
+    db = json.load(open(out_path, encoding="utf-8")) if os.path.exists(out_path) else {}
+    db.update(_import_r2(regle))                                   # relues a chaque appel
+    if "--lecture" in argv:
+        print(json.dumps(_lecture_r2(db, regle), indent=1, ensure_ascii=False))
+        return db
+    n_neuves = sum(1 for k in _cellules_r2(regle) if k not in db)
+    design = declare_design(
+        question=regle["question"],
+        replication_unit="seed (une population de %d agents par cellule ; 5 bras x 3 lr appariés par seed)" % c["n_agents"],
+        n_independent=len(c["seeds"]),
+        links={"accuracy_par_lambda_et_lr": "measured", "controle_chemin_td0_d0_par_lr": "measured",
+               "cellules_importees_R0_R1": "measured", "cout_unite": "measured"},
+        cost_estimate=regle["cout"],
+        control_family=assert_control_family(cells=len(_cellules_r2(regle)) + 2 * len(c["seeds"]), alpha_family=0.05))
+    db.setdefault("_design", design)
+    db.setdefault("_regime", {k: v for k, v in c.items() if k != "seeds"})
+    db.setdefault("_dose", {})
+    sw = Stopwatch()
+    if "--relever-coupe" in argv and db["_regime"].get("coupe"):
+        # E13, reprise DECLAREE : la coupe a ete decidee sur une unite mesuree sous contention ; on la releve, on
+        # garde son historique, et on re-mesure l'unite sur la premiere cellule coupee AVANT de re-projeter.
+        hist = db["_regime"].setdefault("coupes_precedentes", [])
+        hist.append({"unite_s": db["_regime"].get("unite_s"), "projection_s": db["_regime"].get("projection_s"),
+                     "coupe": db["_regime"]["coupe"], "relevee_a": time.strftime("%Y-%m-%d %H:%M")})
+        db["_regime"]["coupe"] = {"cles": [], "raison": "relevee (--relever-coupe) : unite re-mesuree machine libre"}
+        db["_regime"].pop("unite_s", None)
+        db["_regime"].pop("projection_s", None)
+    restantes = [k for k in _cellules_r2(regle) if k not in db and k not in set(db["_regime"].get("coupe", {}).get("cles", []))]
+
+    def _mesure(k):
+        bras, lr_s, sd_s = k.split("|")
+        lr, sd = float(lr_s[3:]), int(sd_s[5:])
+        lam = {"lam0": 0.0, "lam05": 0.5, "lam09": 0.9, "lam099": 0.99, "td0_d0": 0.0}[bras]
+        tc = time.time()
+        acc, dose = _train_eval_td_step(sd, lam, c["episodes_td"], c["n_agents"], c["K"], lr,
+                                        trace_reset_per_episode=c["trace_reset_per_episode"], same_tick=(bras == "td0_d0"))
+        db[k], db["_dose"][k] = acc, dose
+        json.dump(stamp(db, RULE_R2), open(out_path, "w", encoding="utf-8"), indent=1)
+        print(f"  {k}: {acc:.3f} ({time.time() - tc:.1f} s)", flush=True)
+        return time.time() - tc
+    if restantes and "unite_s" not in db["_regime"]:
+        # garde de cout E13 : l'unite est MESUREE sur la premiere cellule neuve, jamais supposee
+        unite = _mesure(restantes.pop(0))
+        db["_regime"]["unite_s"] = unite
+        while True:
+            try:
+                proj = project_cost(unit_s=unite, n_units=len(restantes), budget_s=s["budget_s"], safety=s["safety"], label=RULE_R2)
+                db["_regime"]["projection_s"] = proj
+                break
+            except CostTooHighToStart as exc:
+                lr_bas = min(float(k.split("|")[1][3:]) for k in restantes)
+                coupees = [k for k in restantes if float(k.split("|")[1][3:]) == lr_bas]
+                restantes = [k for k in restantes if k not in coupees]
+                cp = db["_regime"].setdefault("coupe", {"cles": [], "raison": str(exc)})
+                cp["cles"] = sorted(set(cp["cles"]) | set(coupees))
+                print(f"  COUPE (E13) : ligne lr={lr_bas} ({len(coupees)} cellules) -- {exc}", flush=True)
+                if not restantes:
+                    break
+        json.dump(stamp(db, RULE_R2), open(out_path, "w", encoding="utf-8"), indent=1)
+    for k in restantes:
+        _mesure(k)
+    el = sw.elapsed()
+    db["_cout_s"] = db.get("_cout_s", 0.0) + el["elapsed_s"]
+    db["_cout_cpu_s"] = db.get("_cout_cpu_s", 0.0) + el["elapsed_cpu_s"]
+    db["_lecture"] = _lecture_r2(db, regle)
+    json.dump(stamp(db, RULE_R2), open(out_path, "w", encoding="utf-8"), indent=1)
+    print(json.dumps(db["_lecture"], indent=1, ensure_ascii=False))
+    print("->", out_path)
+    return db
+
+
 if __name__ == "__main__":
-    main_r1() if "--r1" in sys.argv else main()
+    if "--r2" in sys.argv:
+        main_r2()
+    elif "--r1" in sys.argv:
+        main_r1()
+    else:
+        main()

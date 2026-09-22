@@ -1176,6 +1176,31 @@ CPU à côté du temps mur (P2.78). Pourquoi : [[EDR-S2-CREDIT-ABLATION]]. *Coû
 sous bail.* Dépend de : P2.78 (souhaitable, non bloquant).
 <!-- closes_when:path_present=docs/preregistrations/S2-CREDIT-ABLATION-2.json -->
 
+**P4.17 — rang 4 quinquies — OUVERTE (2026-09-22, décision robla déléguée via agagi-52 ; session loop 766eabae) — Balayage
+lr × λ sur le pilote TD PAR PAS : où la trace d'éligibilité vit-elle, et jusqu'où descend-elle en lr ? Le billet à deux issues de
+la ligne `eligibility_trace_credit` (ADR-005) se joue ici, PAS in-world (P4.16-bis refusé : 0,0033/agent in-world = 75× sous le
+seul point où la trace ait jamais marché).**
+Motivation : R0 (`TD-STEP-PILOT-R0`, EDR-TD-STEP-PILOT-R0) — à lr 4,0 (0,25/agent), λ 0,9 déplace de +0,063, 12/12, séparation
+totale ; R1 (`TD-STEP-PILOT-R1`) — rien à lr 2,0 (0/12), λ 0,5 sous la marge (0/12) : un effet à UN point n'est pas une pièce.
+Quoi : règle `TD-STEP-PILOT-R2` scellée le 2026-09-22 (`docs/preregistrations/TD-STEP-PILOT-R2.json`), R0/R1 déclarés (E11) :
+grille lr {4,0 ; 2,0 ; 1,0} × λ {0 ; 0,5 ; 0,9 ; 0,99} + contrôle CHEMIN `td0_d0` à chaque lr + références lr = 0 (D=1, D=0),
+12 seeds, 3000 épisodes, substrat bilinéaire ; 96 cellules IMPORTÉES de R0/R1 (mêmes seeds, même code, sceaux vérifiés, relues à
+chaque appel), 108 neuves. Écarts déclarés au design proposé : lr 0,5 ÉCARTÉ (R1 a déjà rendu 0/12 à 0,125/agent ; « jusqu'où »
+est répondu par 1,0 si 1,0 est nul ; 60 cellules), lr 8,0 aussi (R0 : contrôles inertes). Branches, ordre imposé : INCOMPLET ;
+CONTROLE_CHEMIN_ECHOUE (aucun lr lisible) ; AIDE_INVARIANTE (λ 0,9 > λ 0 + 0,05 sur ≥ 11/12 à DEUX lr lisibles ADJACENTS) ;
+AIDE_A_UN_POINT ; PAS_D_AIDE — aide05 / aide099 publiés (dose en λ) hors verdict. Garde E13 : unité MESURÉE sur la première
+cellule neuve, `project_cost(budget 14 400 s, marge 1,5)`, coupe des lr BAS d'abord, publiée. Runner : `tools/td_step_pilot.py --r2`
+(reprenable, `_cout_s` ET `_cout_cpu_s`), 5 cas de lecture (`tests/sandbox/test_td_step_pilot.py`, 22 verts).
+**État** : run n°1 lancé à 21:50 EN PARALLÈLE du run kuzu de d7 — première cellule neuve **217 s** contre 75-90 s pour la même cellule en R0 (contention machine, pas coût de la cellule) ; la garde a projeté 34 800 s > budget
+et COUPÉ lr 1.0 puis lr 2.0 (96 cellules, publiées dans `_regime.coupe`), projection restante 3588 s ; les 11 cellules λ 0,99 à lr 4,0 tournent à 74-97 s (l'unité mesurée était un transitoire). Décision
+déclarée : REPRISE `--relever-coupe` dès que la machine est libre — rien d'effacé, historique des coupes conservé
+(`_regime.coupes_precedentes`), unité RE-MESURÉE sur la première cellule coupée, MÊME budget scellé ; relever la marge aurait été le
+mauvais correctif (E12 sur le coût : une unité mesurée pendant qu'un autre job tourne n'est pas une unité — même classe que la
+mesure « 8 h 30 pendant que seize agents tournaient »). Pas en parallèle de S2-002-PAIRED-R1 (les deux veulent une machine libre).
+**Se ferme** avec le record `EDR-TD-STEP-PILOT-R2` (verdict lu dans `results/td_step_pilot_r2.json`, committé avec ses artefacts) —
+clause ancrée, vérifiable sur un clone.
+<!-- closes_when:grep_present=docs/roadmap/PRIORITES_ET_DETTES.md::\n\*\*P4\.17 — ✅ CLOSE -->
+
 **P4.7 — rang 19 — S5 / G4 phase A : `g` PER-ACTION vs agnostique vs labels PERMUTÉS (nœud 74).**
 Sonde livrée (fix de persistance ACTIF depuis le 2026-09-07, voir le bloc S5 plus bas et
 `docs/SDR/G4_agent_anticipates.md`). Rang bas parce que G4 in-world est dormant tant que le sujet est
