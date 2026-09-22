@@ -28,8 +28,8 @@ Quatre questions, dont deux ont des assertions exécutables :
 
 **Inventaire au 2026-09-01 : 105 détectés, 104 calibrés, 1 déclaré non-instrument, ZÉRO dette.**
 **État COURANT, recomputé et jamais recopié :**
-**239 détectés** <!-- count:instruments_detectes=239 -->
-· **231 calibrés** <!-- count:instruments_calibres=231 -->
+**240 détectés** <!-- count:instruments_detectes=240 -->
+· **232 calibrés** <!-- count:instruments_calibres=232 -->
 · **2 non calibrés** <!-- count:instruments_non_calibres=2 -->
 — la famille `run_*` (72 fonctions) est entrée le 2026-09-06 sans créer de dette. *(Les chiffres datés ci-dessus sont HISTORIQUES : ils restent vrais
 et ne sont donc pas balisés.)*
@@ -270,6 +270,22 @@ explicite, jamais le processus courant ni ses ancêtres, jamais un bail dont le 
 
 ## Environnement
 - Arbre de travail **partagé entre sessions parallèles** → commits path-scoped obligatoires.
+- ⚠️ **Une CITATION et son ARTEFACT partent dans le MÊME commit — stager ne suffit pas.** Mesuré le
+  2026-09-22, sur trois sessions bloquées coup sur coup : un `git commit -- <chemins>` (et la méthode
+  d'index temporaire `git read-tree HEAD` + `git add`) construit un index qui contient **HEAD plus les
+  chemins du commit, rien d'autre** — vérifié : un fichier stagé par une AUTRE session y rend `0`
+  occurrence à `git ls-files` alors que l'index partagé le voit. Donc un fichier cité (clause
+  `closes_when:path_present`, ou simple citation en prose depuis le durcissement de la porte 4) et
+  seulement STAGÉ reste « non suivi » pour la porte, qui a raison : elle juge ce qu'un CLONE verra
+  après CE commit. ⚠️ La conséquence en chaîne qui a bloqué TROIS sessions le même soir : la porte lisait
+  le backlog et les fichiers cibles des clauses SUR DISQUE — où traînent les hunks en vol de tout le
+  monde — et les jugeait contre l'index TEMPORAIRE du commit ; le travail non committé de B rendait rouge
+  le commit de A (chemins « non suivis », clause de P2.66 « satisfaite » par une fonction écrite sur disque
+  par une autre session), et la porte 15 refusait alors tout commit touchant une porte. **Corrigé le jour
+  même** : sous `GIT_INDEX_FILE`, la porte 4 lit le texte du backlog, l'existence des chemins ET le contenu
+  des cibles `grep_*` depuis l'INDEX — elle juge exactement ce qui sera committé. Hors commit, elle lit le
+  disque (ce qu'un auteur veut voir en écrivant). La règle « même commit » reste : c'est elle qui rend un
+  commit vert par lui-même et un clone cohérent.
 - Ne jamais committer sans demande explicite.
 - ⚠️ **Un `grep` de vérification sur du Markdown doit viser un motif SANS mise en forme** (un mot nu) : `grep "empreinte TARDIVE"` ne trouve pas `empreinte **TARDIVE**`. Et **une absence de correspondance n'est jamais une preuve d'absence** tant que le motif n'a pas été validé sur un cas POSITIF connu — mesuré le 2026-09-07 : trois greps faux m'ont fait graver une « forme d'erreur inédite » qui n'existait pas, rétractée le jour même. C'est la faute que le dépôt traque chez ses sondes (absence → affirmation), commise sur l'outil de vérification lui-même.
 - ⚠️ **Pas de backticks dans AUCUNE chaîne passée au shell** — `git commit -m`, `python -c`,

@@ -3471,6 +3471,37 @@ par analyse AST des IMPORTS (`from tools.x import nom`, ou `import tools.x`), se
 QUEL `compare` un test importe. Le script vit dans le scratchpad ; **le porter dans le depot est la
 suite naturelle** — la scission 62/39 devrait etre RECOMPUTEE et non recopiee (cf. porte 8).
 
+**AVANCEMENT 2026-09-22 (session loop 766eabae) : l'instrument v3 est DANS LE DÉPÔT, et les deux comptes sont recomputés à
+chaque appel.** `tools/check_calibration_reach.py` (AST strict : `nom(` après `from m import nom [as a]`, `y.nom(` après
+`import m [as y]` / `from p import m` ; un appel INDIRECT ne compte pas — choix déclaré ; une clé NUE en collision est
+NON RÉSOLUE, rapportée, jamais comptée d'un côté) ; même expression « garde-seule » que `test_perimeter_widening` (égalité
+gelée par un test). Mesuré à la livraison : **305 déclarations, 81 garde-seule = 38 DÉCLARATIVES + 43 MUETTES + 0 non résolue** (284 fichiers de tests balayés). Baseline gelée dans la même passe (`tools/calibration_reach_baseline.json` : la liste des 43 muettes ; toute NOUVELLE muette
+bloque, une résorbée est rapportée) ; 7 cas (`tests/sandbox/test_calibration_reach.py`) dont le verdict du cliquet à réponse connue.
+⚠️ Pas encore branché sur le hook (porte 18 candidate) : brancher une porte exige son témoin de mutation (porte 15) et touche
+`tools/hooks/pre-commit` + le compte `portes_hook` — à faire dans une passe dédiée, coordonnée (le hook est partagé).
+**Même jour, (b) entamé** : six orchestrateurs muets de la famille throw-gate (`compare`, `compare_debias`, `compare_density`,
+`compare_warmstart`, `compare_rp_sweep` de `torch_throw_gate_inworld_ab`, `compare` de `torch_binary_gate_probe`) reçoivent une
+injection à dose connue (`tests/sandbox/test_torch_gate_orchestrators_injection.py`, 8 cas, 0 monde : ON +0,30 vs SHUFFLE +0,05 sur
+5 seeds → `GRADIENT_GAGNE`, no-op EXACT → `NEUTRE`, n = 3 → `NEUTRE` + `underpowered`, bras séparés par `penalty` / `shaping` /
+`warm_w` / `prey_count`, label mémorisé → `verdict_vs_shuffle` NEUTRE, gap indéfini COMPTÉ). Puis trois autres (`tests/sandbox/test_mute_orchestrators_injection_2.py`, 6 cas, 0 monde) :
+`run_diagnostic` (grille 2 régimes × 3 agents — la sentinelle `run_condition` journalise politique, génome, config du régime, K,
+seed ; E8 : la config de CHAQUE régime est celle de la grille), `probe_substrate_attractor` (trajectoires connues, `measure_convergence`
+RÉEL : P1 {off n, action n, H 0}, P2 = n, P3 {1, 1, T/2}), `run_probe` vertical (Z_UTILISE / Z_INERTE prédits, `survival_ratio` 1,2).
+Puis trois instruments (`tests/sandbox/test_mute_orchestrators_injection_3.py`, 4 cas, 0 monde) : `transfer_ratio.measure` (ratio 2,0
+prédit, bras invalide ignoré et compté, aucun bras valide → `None`), `measured_floor` (24 vies = seed + 5 : médiane et vies
+prédites exactement, politique corps-seul de K), `probe_genome_free_channels` (clones à lr = 0, trajectoire transmise, trajectoire
+vide → `None`). Recomputé après : **81 garde-seule = 50 déclaratives + 31 muettes**, baseline resserrée trois fois
+(43 → 37 → 34 → 31 ; la porte a rapporté chaque résorption avant qu'on la gèle). Leurs douze déclarations restent à ré-écrire
+(fenêtre sur le fichier partagé), avec celle du nouvel instrument `run_s2_paired`. **Fait le 2026-09-22, 22:30** (fenêtre
+ouverte par agagi-52 après d7) : les 12 déclarations sont RÉ-ÉCRITES d'après ce que leurs témoins affirment (cas nommés :
+dose → verdict, no-op exact, n = 3 → underpowered, label mémorisé, gap indéfini compté, bras séparés par paramètre, grille
+complète + E8, P1/P2/P3, Z_UTILISE / Z_INERTE, ratio 2,0 / None, vies prédites, clones à lr 0) et `run_s2_paired` déclaré
+(6 cas). Recomputé après : **306 déclarations, 69 garde-seule = 38 déclaratives + 31 muettes** — les 12 ont quitté
+le périmètre garde-seule ; cliquet de calibration : 240 détectés / 232 calibrés / 2 légataires.
+**Suite** : (a) les 38 déclaratives — re-déclarer d'après ce que leurs témoins AFFIRMENT (une ligne chacune, dans
+`test_instrument_calibration.py`, fichier à trois auteurs ce jour : fenêtre à convenir) ; (b) les 31 muettes — injection
+à dose connue pour les orchestrateurs, un monde pour les simulateurs, ou déclaration explicite que la garde suffit.
+
 **AVANCEMENT 2026-09-14 (tick 3) : 103 → 80.** ⚠️ **La scission 62/39 était encore surcomptée** :
 la v2 créditait `import tools.x` de TOUS les symboles de `x`, même jamais appelés (elle comptait
 SIX fonctions de `warmstart_evolution_inworld` pour un test qui en appelle une). Mesure STRICTE

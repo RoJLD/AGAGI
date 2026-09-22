@@ -103,17 +103,29 @@ CALIBRATED = {
     "tools/torch_binary_gate_heldout_probe.py::compare": ["cohorte-vide:raises", "guard-before-world",
         "CORPS-ATTEINT:dose-connue-mediane-0.5", "CORPS-ATTEINT:plancher-de-puissance-au-defaut",
         "CORPS-ATTEINT:bras-egaux-neutre"],
-    "tools/torch_binary_gate_probe.py::compare": ["cohorte-vide:raises", "guard-before-world"],
+    # P2.56 (b) 2026-09-16/22 : injection a dose connue de run_arm (tests/sandbox/test_torch_gate_orchestrators_injection.py) --
+    # ON 0,40 / OFF 0,10 / SHUFFLE 0,10 -> GRADIENT_GAGNE ET verdict_vs_shuffle GRADIENT_GAGNE ; label MEMORISE (ON == SHUFFLE) ->
+    # verdict positif mais verdict_vs_shuffle NEUTRE (confond C1/I1 vu) ; gap INDEFINI (None) compte 0,0 ET compte (n_gap_indefini).
+    "tools/torch_binary_gate_probe.py::compare": ["cohorte-vide:raises", "guard-before-world",
+                                                  "dose:GRADIENT_GAGNE+vs_shuffle", "label-memorise:vs_shuffle-NEUTRE",
+                                                  "gap-indefini:0-et-compte"],
     "tools/torch_gate_persist_ab.py::compare": ["cohorte-vide:raises", "guard-before-world",
         "CORPS-ATTEINT:dose-connue-mediane-0.5", "CORPS-ATTEINT:plancher-de-puissance-au-defaut",
         "CORPS-ATTEINT:bras-egaux-neutre"],
     "tools/torch_inworld_ab.py::compare": ["cohorte-vide:raises", "guard-before-world",
         "CORPS-ATTEINT:dose-connue-mediane-0.5", "CORPS-ATTEINT:plancher-de-puissance-au-defaut",
         "CORPS-ATTEINT:bras-egaux-neutre"],
-    "tools/torch_throw_gate_inworld_ab.py::compare": ["cohorte-vide:raises", "guard-before-world"],
+    # P2.56 (b) : injection de run_arm -- ON +0,30 vs SHUFFLE +0,05 sur 5 seeds -> GRADIENT_GAGNE (diff 0,25, rows apparies par
+    # seed, ON puis SHUFFLE) ; no-op EXACT (SHUFFLE == ON) -> NEUTRE ; n = 3 -> NEUTRE + underpowered (la garde de puissance dit).
+    "tools/torch_throw_gate_inworld_ab.py::compare": ["cohorte-vide:raises", "guard-before-world",
+                                                      "dose:GRADIENT_GAGNE", "noop-exact:NEUTRE", "n=3:NEUTRE+underpowered",
+                                                      "apparie-par-seed:ON-puis-SHUFFLE"],
     "tools/lexicon.py::measure": ["argument-degenere:raises", "guard-before-world"],
     "tools/speaker_incentive.py::measure": ["argument-degenere:raises", "guard-before-world"],
-    "tools/transfer_ratio.py::measure": ["argument-degenere:raises", "guard-before-world"],
+    # P2.56 (b) : injection de _eras_to_master (tests/sandbox/test_mute_orchestrators_injection_3.py) -- curriculum 5 eres /
+    # controle 10 -> ratio 2,0 ; egaux -> 1,0 ; un run invalide est IGNORE (moyenne sur les valides) ; aucun valide -> None.
+    "tools/transfer_ratio.py::measure": ["argument-degenere:raises", "guard-before-world", "dose:ratio-2.0",
+                                         "egaux:ratio-1.0", "run-invalide:ignore", "aucun-valide:None-pas-un-nombre"],
     "tools/anticipation_demand_world_probe.py::probe": ["argument-degenere:raises", "guard-before-world",
         "CORPS-ATTEINT:dose-connue-ratio-2.0", "CORPS-ATTEINT:plancher-de-puissance-n<12",
         "CORPS-ATTEINT:decoy-medianes-egales", "CORPS-ATTEINT:ratio-inverse",
@@ -128,7 +140,10 @@ CALIBRATED = {
         "CORPS-ATTEINT:bras-identiques-degenere"],
     "tools/generalization_transfer_probe.py::run": ["argument-degenere:raises", "guard-before-world"],
     "tools/memory_payoff_probe.py::run": ["argument-degenere:raises", "guard-before-world"],
-    "tools/s2_fallback_rate_probe.py::measured_floor": ["argument-degenere:raises", "guard-before-world"],
+    # P2.56 (b) : injection de survive / life_seeds -- vie = seed + 5 : mediane ET les vies publiees predites exactement ;
+    # la politique corps-seul est celle de K (body_only_policy(K)).
+    "tools/s2_fallback_rate_probe.py::measured_floor": ["argument-degenere:raises", "guard-before-world",
+                                                        "vies-connues:mediane-exacte", "vies-publiees:toutes", "corps-seul:K"],
     # 9e ELARGISSEMENT DU PERIMETRE (2026-09-09) : `_SCAN_DIRS` passe de ("tools", "src/seed_ai") a
     # ("tools", "src") + un balayage PLAT de la racine. Dette REELLE revelee, comme aux huit
     # elargissements precedents -- et cette fois elle vise le CLIQUET LUI-MEME :
@@ -336,7 +351,10 @@ CALIBRATED = {
     # P2.45 (2026-09-06) : 6 homonymes reveles par le correctif du faux vert par nom nu -- QUALIFIES.
     "tools/lewis_world.py::measure_mi": ["empty-cohort:raises", "guard-before-world"],
     "tools/target_competence_probe.py::run_probe": ["empty-cohort:raises", "guard-before-world"],
-    "tools/vertical_world_probe.py::run_probe": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 (b) : injection de measure_arm (tests/sandbox/test_mute_orchestrators_injection_2.py) -- survies 100 / 120 ->
+    # survival_ratio 1,2 ; z_range 2,0 + updown 0,5 -> Z_UTILISE ; z 0,1 -> Z_INERTE ; updown 0,2 (sous 0,25 x 1,2) -> Z_INERTE.
+    "tools/vertical_world_probe.py::run_probe": ["empty-cohort:raises", "guard-before-world", "dose:Z_UTILISE",
+                                                 "z-inerte:Z_INERTE", "updown-sous-seuil:Z_INERTE", "survival_ratio:predit"],
     "tools/lethality_curriculum.py::_verdict": ["negatif-profond", "casse-bootstrap", "pas-le-goulot"],
     "tools/lewis_survival_sweep.py::_verdict_capacity": ["leve", "inerte", "ambigue", "single-arm:raises"],
     # P2.49 (2026-09-10) : les DEUX FRERES de `_verdict_capacity`, traites dans la meme passe.
@@ -510,15 +528,30 @@ CALIBRATED = {
                      "injection:3-verdicts-en-forme-close", "noop:3-bras-identiques:NEUTRE"],
     "sweep_lr_torch": ["empty-cohort:raises", "guard-before-world",
                        "injection:une-sous-classe-par-lr:dose-lue", "reperes:meme-seed"],
-    "compare_debias": ["empty-cohort:raises", "guard-before-world"],
-    "compare_density": ["empty-cohort:raises", "guard-before-world"],
-    "compare_warmstart": ["empty-cohort:raises", "guard-before-world"],
-    "compare_rp_sweep": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 (b) : injection de run_arm -- bras separes par penalty : biaise (-0,5) -> NEUTRE, non biaise (0,0) -> GRADIENT_GAGNE ;
+    # info publie kills et gaps ; 20 appels (4 par seed).
+    "compare_debias": ["empty-cohort:raises", "guard-before-world", "biaise:NEUTRE", "non-biaise:GRADIENT_GAGNE", "info:kills+gaps"],
+    # P2.56 (b) : injection de run_arm -- bras separes par shaping : sparse -> NEUTRE, dense -> GRADIENT_GAGNE ; info publie.
+    "compare_density": ["empty-cohort:raises", "guard-before-world", "sparse:NEUTRE", "dense:GRADIENT_GAGNE", "info:gaps"],
+    # P2.56 (b) : injection de run_arm + _collect_warm_direction -- warm_w present : cold NEUTRE, warm GRADIENT_GAGNE,
+    # warm_vs_cold GRADIENT_GAGNE ; direction WARM introuvable (None) : warm devient froid ET warm_ok le DIT.
+    "compare_warmstart": ["empty-cohort:raises", "guard-before-world", "cold:NEUTRE", "warm:GRADIENT_GAGNE",
+                          "warm_vs_cold:GRADIENT_GAGNE", "direction-absente:warm_ok-False"],
+    # P2.56 (b) : injection de run_arm -- dose-reponse par prey_count : 15 -> NEUTRE, 60 et 150 -> GRADIENT_GAGNE ; medianes
+    # (diff, gap_on, kills) publiees par niveau ; 30 appels.
+    "compare_rp_sweep": ["empty-cohort:raises", "guard-before-world", "niveau-bas:NEUTRE", "niveaux-hauts:GRADIENT_GAGNE",
+                         "medianes-par-niveau:publiees"],
     "probe_memory_discrimination": ["empty-cohort:raises", "guard-before-world"],
     "probe_navigation_incontext": ["empty-cohort:raises", "guard-before-world"],
     "probe_attack_logit": ["empty-cohort:raises", "guard-before-world"],
-    "probe_genome_free_channels": ["empty-cohort:raises", "guard-before-world"],
-    "probe_substrate_attractor": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 (b) : injection de _collect_oracle_trajectory / _probe_free_channels -- la population torch porte num_agents
+    # clones du genome (W egal) a lr = 0 (jamais entrainee par la sonde), trajectoire transmise ; trajectoire vide -> None.
+    "probe_genome_free_channels": ["empty-cohort:raises", "guard-before-world", "clones:lr0-W-egal",
+                                   "trajectoire:transmise", "trajectoire-vide:None"],
+    # P2.56 (b) : injection de _drive avec measure_convergence REEL -- constantes (off/action) convergent et sont bit-identiques,
+    # marche aleatoire (H) ne converge pas : P1 {off n, action n, H 0}, P2 = n, div_action 0, P3 {1, 1, T/2}.
+    "probe_substrate_attractor": ["empty-cohort:raises", "guard-before-world", "P1:converge-off-action-pas-H",
+                                  "P2:bit-identique-n", "P3:diversite-1-1-T/2"],
     # P2.39 (2026-09-02) : BANC COMPOSITIONNEL -- les 9 producteurs des verdicts de SDR-G2,
     # invisibles au cliquet jusqu'au 6e elargissement (verbes compare_/sweep_/probe_ en TETE).
     # Calibres par INJECTION A DOSE CONNUE : aucun ne simule, on impose les cellules et on verifie
@@ -594,7 +627,10 @@ CALIBRATED = {
     "measure_survival": ["empty-cohort:raises", "guard-before-world"],
     "measure_arm": ["empty-cohort:raises", "guard-before-world"],
     "run_credit_probe": ["empty-cohort:raises", "guard-before-world", "learning-dose:published"],   # P1.6
-    "run_diagnostic": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 (b) : injection de run_condition (sentinelle qui journalise) -- grille COMPLETE 2 regimes x 3 agents ; config de
+    # CHAQUE regime = celle de la grille (E8) ; champion porte le genome, bras cables partent frais ; seed/K/agents/ticks transmis.
+    "run_diagnostic": ["empty-cohort:raises", "guard-before-world", "grille:complete", "config-par-regime:E8",
+                       "genome:champion-vs-frais", "arguments:transmis"],
     # P2.33 (2026-09-01) : QUATRIEME angle mort du cliquet -- aucun motif ne couvrait `classify_*`,
     # alors que ce sont ELLES qui PRONONCENT le verdict (l'instrument detecte qui les appelle ne
     # fait que relayer). Trois etaient ni calibrees ni comptees comme dette.
