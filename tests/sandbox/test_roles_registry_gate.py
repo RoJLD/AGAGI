@@ -13,6 +13,7 @@ CREUSE = "| **Stratège** | instancié | workflow figé | témoin périmé tué 
 CANDIDAT_OK = "| **Régisseur des runs** | candidat | — | — | — | — | deux runs abandonnés en 30 j |\n"
 CANDIDAT_NU = "| **Intégrateur** | candidat | — | — | — | — | |\n"
 STATUT_INCONNU = "| **X** | en cours | a | b | c | d | e |\n"
+SANS_GRAS = "| PM | instancié | a | b | c | d | e |\n"
 
 
 def test_lignes_lit_role_statut_et_sept_cellules():
@@ -38,6 +39,17 @@ def test_un_candidat_doit_porter_son_critere_de_naissance_et_rien_d_autre():
 def test_un_statut_hors_vocabulaire_est_un_defaut():
     d = R.defauts(R.lignes(ENTETE + STATUT_INCONNU))
     assert len(d) == 1 and "statut" in d[0]["raison"]
+
+
+def test_CONTRE_EXEMPLE_GELE_une_ligne_sans_nom_en_gras_est_NON_RECONNUE_pas_ignoree():
+    """Avant ce correctif, une ligne de tableau qui ne matche pas `_ROW` (pas de nom en GRAS, suffixe
+    après le gras, `*` dans le nom) disparaissait en silence de `lignes()` : ni vérifiée, ni comptée
+    (E10). Elle doit désormais produire un défaut NOMMÉ, avant même la vérification du vocabulaire de
+    statut — `STATUTS` reste inchangé, `non_reconnu` n'en fait jamais partie."""
+    L = R.lignes(ENTETE + SANS_GRAS)
+    assert len(L) == 1 and L[0]["statut"] == "non_reconnu"
+    d = R.defauts(L)
+    assert len(d) == 1 and "non reconnue" in d[0]["raison"]
 
 
 def test_le_registre_REEL_du_depot_passe_la_porte():

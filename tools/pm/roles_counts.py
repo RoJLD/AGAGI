@@ -27,9 +27,13 @@ def bucket(chemin):
 
 
 def fichiers_modifies(repo_root, depuis=DEBUT):
+    """⚠️ Une DATE NUE (`--since=2026-09-16`) est lue par git à l'HEURE COURANTE de cette date-là : le
+    2026-09-16, ça vaut « depuis maintenant », donc ZÉRO commit (mesuré : 0 contre 44 avec l'heure
+    fixée à minuit) et la fenêtre DÉRIVE avec l'horloge au lieu d'être ancrée au jour. Toujours fixer
+    l'heure."""
     try:
-        out = subprocess.run(["git", "log", "--all", f"--since={depuis}", "--name-only", "--format="], cwd=repo_root,
-                             capture_output=True, encoding="utf-8", errors="replace", timeout=60)
+        out = subprocess.run(["git", "log", "--all", f"--since={depuis} 00:00", "--name-only", "--format="],
+                             cwd=repo_root, capture_output=True, encoding="utf-8", errors="replace", timeout=60)
     except (OSError, subprocess.SubprocessError):
         return None
     if out.returncode != 0:

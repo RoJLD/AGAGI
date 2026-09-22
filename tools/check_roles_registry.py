@@ -20,15 +20,32 @@ STATUTS = ("instancié", "candidat", "dissous")
 _VIDE = ("", "—", "-")
 
 
+def _est_separateur(cellules):
+    """La ligne `| --- | --- | ... |` sous l'en-tête markdown : chaque cellule faite de tirets, et
+    rien d'autre."""
+    return bool(cellules) and all(cel and set(cel) == {"-"} for cel in cellules)
+
+
 def lignes(txt):
     out = []
     for i, ligne in enumerate(txt.splitlines(), start=1):
-        m = _ROW.match(ligne.strip())
-        if not m:
+        s = ligne.strip()
+        m = _ROW.match(s)
+        if m:
+            cellules = [c.strip() for c in s.strip("|").split(" | ")]
+            out.append({"role": m.group(1).strip(), "statut": cellules[1].strip() if len(cellules) > 1 else "",
+                        "cellules": cellules, "ligne": i})
             continue
-        cellules = [c.strip() for c in ligne.strip().strip("|").split(" | ")]
-        out.append({"role": m.group(1).strip(), "statut": cellules[1].strip() if len(cellules) > 1 else "",
-                    "cellules": cellules, "ligne": i})
+        if not s.startswith("|"):
+            continue
+        cellules = [c.strip() for c in s.strip("|").split(" | ")]
+        premiere = cellules[0] if cellules else ""
+        if premiere == COLONNES[0] or _est_separateur(cellules):
+            continue  # en-tête ou ligne de séparation markdown : pas une ligne de rôle
+        # ⚠️ Une ligne de tableau qui n'est ni l'en-tête, ni le séparateur, ni un `| **Nom** | …` ne
+        # doit PAS disparaître en silence (elle passait inaperçue avant ce correctif — E10 : ni
+        # vérifiée, ni comptée). Un nom qui n'est pas en GRAS n'est pas un rôle déclaré.
+        out.append({"role": "?", "statut": "non_reconnu", "cellules": cellules, "ligne": i})
     return out
 
 
@@ -36,6 +53,10 @@ def defauts(L):
     out = []
     for l in L:
         c = l["cellules"]
+        if l["statut"] == "non_reconnu":
+            out.append({"role": l["role"], "ligne": l["ligne"],
+                        "raison": "ligne de tableau non reconnue (nom en gras attendu)"})
+            continue
         if len(c) != len(COLONNES):
             out.append({"role": l["role"], "ligne": l["ligne"], "raison": f"{len(c)} cellules au lieu de {len(COLONNES)}"})
             continue

@@ -357,7 +357,7 @@ fi
 # 21. REGISTRE DES ROLES (2026-09-16) -- spec pm-stratege-refutateur section 3.6 : toute ligne de
 # docs/roadmap/ROLES.md porte ses cinq colonnes (instrument, controle positif, cout, compteurs, dissolution).
 # Une ligne creuse est une regle documentee (E10). Pas de baseline : le registre nait complet.
-staged_roles=$(git diff --cached --name-only --diff-filter=AM | grep -E '^docs/roadmap/ROLES\.md$')
+staged_roles=$(git diff --cached --name-only --diff-filter=AM | grep -E '^(docs/roadmap/ROLES\.md|tools/check_roles_registry\.py)$')
 if [ -n "$staged_roles" ]; then
   PYTHONIOENCODING=utf-8 python tools/check_roles_registry.py || {
     echo ""
