@@ -2921,8 +2921,19 @@ FAIM, pas de riposte. **L'acte que la lecture débloque est net-négatif en éne
 peut pas sélectionner cette lecture — quelle que soit sa découvrabilité. Le pré-vol a répondu pour
 29 s de calcul là où un run évolutif complet était prévu.
 
-**P2.41 — ⚠️ OUVERTE (2026-09-08) — le PLANCHER DE BRUIT de `run_ablation_map` vaut ±6-8 %, et
-aucun record ne le mentionne.** Mesuré par no-op exact (`NullAblatedMamba`, livré) : 1,058 sur le
+**P2.41 — ✅ CLOSE le 2026-09-16 (session loop 766eabae) — le PLANCHER DE BRUIT de `run_ablation_map` (±6-8 %) est désormais ANNONCÉ sur les quatre records qui le lisent, et la référence à bande APPARIÉE est une couture de l'instrument.**
+Fait : (a) bandeau « RÉSOLUTION DE L'INSTRUMENT » en tête d'EDR-124, S2-002, S2-003, S2-013 (chiffres d'EDR-S2-BLIND-CHAMPION
+vérifiés avant écriture ; par record, ce qui est DANS la bande — 0,991 ; ≈ 1,00 ; 0,99/0,99/1,07 — et ce qui en sort : 1,19
+agricultural ; aucun verdict modifié) ; (b) `run_ablation_map(paired_band=True)` : le bras INTACT devient
+`perception_null_variant(intact_cls)` (mêmes tirages que l'ablation, perception intacte), `reference` publié (`paired_band` /
+`bare`), défaut False bit-identique, 1 cas d'injection à 0 monde (classes passées à `run_condition` = Null, Ablated, Reflex ;
+défaut = None ; politique injectée → SA variante nulle). ⚠️ Ce que la bande appariée a DÉJÀ mesuré (EDR-S2-BLIND-CHAMPION, 2026-09-08,
+stoneage) : champion aveuglé 1,0122 (bruit résiduel 1,2 %), **champion 0,9369** — dérangé, le champion survit 6,7 % de PLUS, hors du
+bruit apparié : un signal que la bande nue masquait sous ses 8 %. **Recommandation (décision robla, run ~1 h avec bail kuzu,
+peut déplacer des verdicts)** : re-mesurer la carte S2-002 sur les 4 mondes à `paired_band=True` + `noop_control=True`, sous une
+règle scellée `S2-002-PAIRED-R1` (branches : plancher apparié publié par monde ; `PERCEPTION_HURTS` si intact < nul − bruit sur
+≥ K−1 ères ; `DECOY` dans la bande ; `DEMANDED`), avant toute réécriture de S2-002/S2-013.
+Énoncé d'origine : le PLANCHER DE BRUIT de `run_ablation_map` vaut ±6-8 %, et aucun record ne le mentionne. Mesuré par no-op exact (`NullAblatedMamba`, livré) : 1,058 sur le
 champion, 0,922 sur un champion aveuglé, *perception intacte dans les deux cas*. Le `within_ratio`
 publié du champion vaut 0,991 — DEDANS. Aucun faux `DEMANDED` n'en découle (du bruit ne crée pas de
 demande), mais la résolution de tout l'arc S2 est bornée : `PERCEPTION_DECOY` doit se lire « aucun
@@ -2930,6 +2941,7 @@ effet détectable au-dessus de 8 % ». **Deux actions** : (a) bandeau de résolu
 lisent cet instrument ([EDR-124], S2-002/003, S2-013) ; (b) passer la référence à `NullAblatedMamba`
 (bande APPARIÉE), ce qui divise le bruit par 6 — mesuré : 1,0122 sur un sujet aveuglé contre 0,897-1,059
 à bande non appariée. Preuve : [`EDR-S2-BLIND-CHAMPION`](../EDR/S2-BLIND-CHAMPION_Stopped_At_Control_The_Ablation_Instrument_Has_An_8_Percent_RNG_Noise_Floor.md).
+<!-- closes_when:grep_present=tools/s2_demand_ablation.py::paired_band -->
 
 **P2.42 — ⚠️ OUVERTE (2026-09-08) — `S2-BLIND-CHAMPION` à re-sceller en `-bis` : l'intervention n'est
 pas celle que le sceau décrit.** Annuler `W[:num_inputs, :]` coupe le chemin POLITIQUE, mais

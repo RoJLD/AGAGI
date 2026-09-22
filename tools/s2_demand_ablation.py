@@ -230,7 +230,7 @@ def _floor_for(world, num_agents, max_ticks):
 
 def run_ablation_map(worlds=None, seed=2026, K=12, num_agents=20, max_ticks=400,
                      subject=None, noop_control=False, batch_model_cls=None, reference_body=None,
-                     between_same_body=False):
+                     between_same_body=False, paired_band=False):
     """Pour chaque monde : champion INTACT vs champion ABLATÉ (within) + réflexe (between). Renvoie
     {world: {within_ratio, between_ratio, verdict, n}}. n = K ères (unité d'appariement).
 
@@ -245,7 +245,14 @@ def run_ablation_map(worlds=None, seed=2026, K=12, num_agents=20, max_ticks=400,
       * `between_same_body` : le reflexe du contraste between tourne sur le genome du SUJET (meme
         corps) au lieu d'un genome frais. Mesure du 2026-09-15 (stoneage, 6 agents, 60 ticks) :
         reflexe sur le corps du champion 7,5 / 24,5 ticks d'ere, sur genome frais 6,0 / 7,5 -- le
-        between publie compare un champion a un AUTRE corps. Defaut False : les records ne bougent pas."""
+        between publie compare un champion a un AUTRE corps. Defaut False : les records ne bougent pas.
+      * `paired_band` (P2.41 b, 2026-09-16) : le bras INTACT est `perception_null_variant(intact_cls)` --
+        il consomme les MEMES tirages du flux global que le bras ablate (derange_rows appele, resultat
+        jete), perception intacte. Le contraste within porte alors sur la perception SEULE, a bande RNG
+        APPARIEE : mesure du 2026-09-08 (EDR-S2-BLIND-CHAMPION), no-op a bande appariee 1,0122 contre
+        0,897-1,059 a bande non appariee -- le plancher de bruit de l'instrument divise par ~6. Le
+        no-op `noop_control` reste mesurable (il compare alors nul vs nul : ~1,0 attendu). Defaut False :
+        bit-identique pour tous les appelants existants ; la reference employee est PUBLIEE (`reference`)."""
     # ⚠️ GARDE D'ARGUMENTS, EN TETE (2026-09-01). Meme raison que pour les autres mesures : sans
     # elle, une cohorte vide ou un horizon nul produit une MESURE (0.0 rendu comme observation),
     # que l'aval lit comme un resultat. On LEVE : un argument degenere est une erreur d'appel, pas
@@ -274,10 +281,12 @@ def run_ablation_map(worlds=None, seed=2026, K=12, num_agents=20, max_ticks=400,
         assert_phenotype_matched(champion, reference_body, label="run_ablation_map : sujet vs corps de reference")
     intact_cls = MambaBatchModel if batch_model_cls is None else batch_model_cls
     ablated_cls = perception_ablated_variant(intact_cls)
+    # P2.41 b : reference a bande APPARIEE (le nul consomme les memes tirages que l'ablation) ou nue (historique)
+    reference_cls = perception_null_variant(intact_cls) if paired_band else (None if batch_model_cls is None else intact_cls)
     out = {}
     for w in worlds:
         wcls = WORLDS[w]
-        intact = run_condition(wcls, None if batch_model_cls is None else intact_cls, champion, seed,
+        intact = run_condition(wcls, reference_cls, champion, seed,
                                num_agents=num_agents, max_ticks=max_ticks, n_eras=K)
         ablated = run_condition(wcls, ablated_cls, champion, seed, num_agents=num_agents,
                                 max_ticks=max_ticks, n_eras=K)
@@ -309,6 +318,7 @@ def run_ablation_map(worlds=None, seed=2026, K=12, num_agents=20, max_ticks=400,
                   "phenotype": phenotype_of(champion) if hasattr(champion, "W") else None,
                   "policy": intact_cls.__name__,
                   "between_same_body": bool(between_same_body),
+                  "reference": "paired_band" if paired_band else "bare",     # P2.41 b : publie, jamais deduit
                   # 2026-09-02 : absolus publies (defaut AUDIT-001 epingle sur S2-009 -- un record
                   # qui ne publie que des ratios cache la proximite au plancher) + le plancher consomme
                   "intact_median": float(np.median(intact["era_survival"])),
