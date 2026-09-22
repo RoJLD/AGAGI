@@ -1,0 +1,66 @@
+{
+  "name": "TD-STEP-PILOT-R1",
+  "rule": {
+    "cellule": {
+      "K": 6,
+      "bras_importes": [
+        "td0@4",
+        "tdlam09@4",
+        "lr0_reference@4"
+      ],
+      "bras_nouveaux": [
+        "td0@2",
+        "tdlam09@2",
+        "lr0_reference@2",
+        "tdlam05@4"
+      ],
+      "episodes_td": 3000,
+      "lambda_importe": 0.9,
+      "lambda_nouveau": 0.5,
+      "lr_importe": 4.0,
+      "lr_nouveau": 2.0,
+      "lr_nouveau_par_agent": 0.125,
+      "n_agents": 16,
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12
+      ],
+      "substrat": "bilinear rang 16, W/U/V/W_bl traces",
+      "trace_reset_per_episode": true
+    },
+    "controles": {
+      "calibration": "tests/sandbox/test_td_step_pilot.py (lecture R1 ajoutee)",
+      "famille": "84 cellules (48 nouvelles + 36 importees) via assert_control_family",
+      "importation": "les 36 cellules importees sont RELUES depuis R0 et leur sceau est verifie (verify) ; aucune n'est re-mesuree"
+    },
+    "cout": "48 cellules x 45-90 s -> ~50 min CPU, sans bail ; results/td_step_pilot_r1.json",
+    "discrimination": {
+      "AIDE_INVARIANTE (tdlam09@2 > td0@2 + 0,05 sur >= 10/12)": "le transport par la trace tient a deux pas distincts (2,0 et 4,0) : E19 satisfaite pour cette clause.",
+      "AIDE_NON_INVARIANTE (sinon, ET td0@2 vs lr0_reference@2 : le dispositif est-il en regime ?)": "si tdlam09@2 <= td0@2 + 0,05 sur > 2 seeds : l'effet du pas 4,0 n'est pas reproduit au pas 2,0 -- il reste une observation a un pas, a graver comme telle (bandeau sur EDR-TD-STEP-PILOT-R0) ; publier si le pas 2,0 est hors regime (td0@2 vs reference).",
+      "DOSE_LAMBDA_ABSENTE (sinon)": "lambda 0,5 n'aide pas : l'effet exige une trace longue, ou n'est pas gradue -- rapporte sans inference.",
+      "DOSE_LAMBDA_MONOTONE (tdlam05@4 > td0@4 + 0,05 sur >= 10/12 ET tdlam09@4 > tdlam05@4 sur >= 10/12, marge 0)": "la trace agit de facon graduee en lambda : mecanisme, pas accident.",
+      "DOSE_LAMBDA_SATUREE (tdlam05@4 > td0@4 + 0,05 sur >= 10/12 mais pas de monotonie 0,5 -> 0,9)": "lambda 0,5 suffit ; la dose sature.",
+      "INCOMPLET": "moins de 4 bras nouveaux x 12 seeds, ou cellules importees absentes de R0 : aucune lecture."
+    },
+    "dv_primaire": "accuracy eval argmax par seed ; comptes : tdlam09@2 > td0@2 + 0,05 ; td0@2 > lr0_reference@2 + 0,05 ; tdlam05@4 > td0@4 + 0,05 ; tdlam09@4 > tdlam05@4 + 0,05 (monotonie en lambda) ; medianes.",
+    "provenance": "Ecrite en connaissant R0 (results/td_step_pilot_r0.json, sceau ea2c8d856dc86d82...) : les cellules td0, tdlam (lambda 0,9) et lr0_reference au pas 4,0 sont IMPORTEES de R0 (memes seeds 1-12, meme code, meme regime) et declarees telles ; aucune fumee supplementaire n'a ete faite. Le pas 2,0 et lambda 0,5 n'ont JAMAIS ete mesures.",
+    "question": "TD-STEP-PILOT-R0 a rendu TD0_INERTE|TRACE_AIDE a UN seul pas (lr 4,0 : tdlam 0,253 vs td0 0,190, 12/12) -- l'autre pas scelle (8,0) etant hors regime (controles inertes). Le TRACE_AIDE est-il INVARIANT a un troisieme pas (2,0, 0,125/agent) et la trace a-t-elle une DOSE-REPONSE en lambda (0 = td0, 0,5, 0,9) au pas 4,0 ?",
+    "regle_de_lecture_continue": "ORDRE IMPOSE : INCOMPLET ; puis DEUX lectures INDEPENDANTES publiees ensemble : (1) invariance au pas {AIDE_INVARIANTE | AIDE_NON_INVARIANTE} ; (2) dose en lambda {MONOTONE | SATUREE | ABSENTE}. Branche = '(1)|(2)'.",
+    "seuils": {
+      "justification": "memes seuils que R0",
+      "marge": 0.05,
+      "seeds_min": 10
+    }
+  },
+  "seal": "260470cca474e86a7fc918c030d6505b6e0d9d0f10424dca78506e781b8545f3"
+}

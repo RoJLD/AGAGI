@@ -1066,6 +1066,21 @@ CALIBRATED = {
     "src/agents/backend_torch.py::learn": ["first-learn:deferred", "td:one-update-per-tick",
                                            "default:bit-identical", "td-off:dW=0", "reward-scale:dose-response",
                                            "lr-override:reaches-optimizer", "lr0:dW=0"],
+    # P4.11 (2026-09-16, ADR-005 item 1) -- la trace d'eligibilite TD(lambda) de `_td_update` (chemin
+    # `_td_update_trace`, drapeau CREDIT_TRACE_LAMBDA, 0.0 = chemin d'origine). Cas dans
+    # tests/sandbox/test_credit_trace_lambda.py, le CONTROLE POSITIF en premier (cond. iv de la revue c9) :
+    #   test_CONTROLE_POSITIF_delta_W_is_EXACTLY_the_sealed_formula_at_lambda_0_9_over_two_updates (la formule
+    #   rejouee HORS du modele predit W a 1e-6 sur deux mises a jour, et predit AUTRE chose a lambda=0,5),
+    #   test_lambda_zero_is_BIT_IDENTICAL_to_the_original_TD0_path (no-op EXACT, aucune trace allouee),
+    #   test_trace_path_forced_at_vanishing_lambda_matches_TD0_closely_but_is_declared_NOT_bit_identical,
+    #   test_trace_decays_as_gamma_lambda_to_the_k_when_gradients_vanish, test_lr_zero_leaves_W_untouched_while_
+    #   the_trace_still_advances, test_refusals_are_explicit_gate_bilinear_and_non_sgd_optimizer (Adam REFUSE sauf
+    #   contournement DEMANDE), test_reset_traces_is_an_option_counted_never_a_default,
+    #   test_counter_adapter_sets_and_restores_the_flags_and_publishes_them.
+    "src/agents/backend_torch.py::_td_update": ["positive-control:formula-predicts-W", "lambda0:bit-identical",
+                                                 "lambda->0:allclose-not-bit-identical", "decay:(gamma*lambda)^k",
+                                                 "lr0:dW=0-trace-advances", "refusals:explicit", "reset:option-counted",
+                                                 "adapter:restored-published"],
     # `src/agents/backend_torch.py::learn_episode` (REINFORCE episodique) -- cas :
     #   tests/sandbox/test_learning_events.py::test_counter_counts_td_and_episode_calls_and_restores_the_class
     #   (un appel = un episode compte), tests/sandbox/test_instrument_calibration.py::

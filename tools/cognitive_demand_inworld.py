@@ -48,6 +48,10 @@ def _pinned_substrate():
     from src.agents.backend_torch import TorchPopulationModel
     saved = TorchPopulationModel.BILINEAR
     TorchPopulationModel.BILINEAR = False
+    # P4.11 : le crédit épinglé est TD(0) d'origine ; `count_learning_events(trace_lambda=...)` le pose
+    # APRÈS ce pin (ordre du `with`) et le restaure AVANT -- même schéma que `lr`.
+    saved_trace = TorchPopulationModel.CREDIT_TRACE_LAMBDA
+    TorchPopulationModel.CREDIT_TRACE_LAMBDA = 0.0
     # E29 (2026-09-16) : l'activation LEGACY (`generated_ops.py`, non versionnée, rechargée à chaud à
     # chaque pas) est GELÉE au hash présent à l'entrée — un run ne peut plus changer d'activation en
     # cours de route, et un clone sans le fichier tourne en builtin DÉCLARÉ (publié par
@@ -59,6 +63,7 @@ def _pinned_substrate():
             yield
     finally:
         TorchPopulationModel.BILINEAR = saved
+        TorchPopulationModel.CREDIT_TRACE_LAMBDA = saved_trace
 
 
 class CognitiveOracleBatchModel(BaselineBatchModel):

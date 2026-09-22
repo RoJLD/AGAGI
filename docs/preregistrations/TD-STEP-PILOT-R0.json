@@ -1,0 +1,74 @@
+{
+  "name": "TD-STEP-PILOT-R0",
+  "rule": {
+    "cellule": {
+      "K": 6,
+      "bras": [
+        "td0",
+        "tdlam",
+        "lr0_reference",
+        "td0_d0",
+        "lr0_reference_d0",
+        "bptt"
+      ],
+      "episodes_bptt": 600,
+      "episodes_td": 3000,
+      "lambda": 0.9,
+      "lr_bptt": [
+        0.002,
+        0.02
+      ],
+      "lr_td": [
+        4.0,
+        8.0
+      ],
+      "lr_td_par_agent": [
+        0.25,
+        0.5
+      ],
+      "n_agents": 16,
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12
+      ],
+      "substrat": "bilinear rang 16, W/U/V/W_bl traces",
+      "trace_reset_per_episode": true
+    },
+    "controles": {
+      "calibration": "tests/sandbox/test_credit_trace_lambda.py (9 cas, controle positif = formule rejouee a 1e-6 sur W/U/V/W_bl) ; tests/sandbox/test_td_step_pilot.py (lecture)",
+      "chemin": "td0_d0 vs lr0_reference_d0 (meme dispositif, D=0)",
+      "famille": "144 cellules (6 bras x 2 pas x 12 seeds) via assert_control_family",
+      "substrat": "bptt (BPTT supervise bilineaire 2 pas, Adam) >= 0,5"
+    },
+    "cout": "TD 3000 ep ~30-60 s/cellule x 96 + bptt ~8 s x 24 + references -> ~70 min CPU, sans bail ; results/td_step_pilot_r0.json",
+    "discrimination": {
+      "<TRACE> = TRACE_AIDE (tdlam > td0 + 0,05 sur >= 10/12 a l'un des deux pas), sinon TRACE_NUIT (tdlam < td0 - 0,05 sur >= 10/12 a l'un des deux pas), sinon TRACE_NEUTRE": "AIDE : la trace transporte du credit vers le pas encode -> issue positive de la ligne eligibility_trace_credit ; NUIT : precedent EDR-130 ; NEUTRE : la trace credite des ACTIONS, pas la representation -> negatif GRAVE pour la ligne, sans inference.",
+      "CONTROLE_CHEMIN_ECHOUE (td0_d0 > lr0_reference_d0 + 0,05 sur < 10/12 seeds aux DEUX pas)": "le chemin TD par pas n'apprend pas meme SANS delai a cette dose : un nul a D=1 ne dirait rien du delai (E1) ; aucune lecture de D=1.",
+      "CONTROLE_SUBSTRAT_ECHOUE (mediane bptt < 0,5 aux DEUX pas)": "le substrat n'apprend pas la tache a ce budget : aucune lecture des bras TD.",
+      "INCOMPLET": "moins de 6 bras x 2 pas x 12 seeds : aucune lecture.",
+      "TD0_APPREND|<TRACE> (td0 > lr0_reference + 0,05 sur >= 10/12 seeds a l'un des deux pas)": "la lecture de l'etat porte (projection de key par W) suffit a D=1 : le verrou 'ecriture apprise' n'est pas liant a D=1 a cette dose.",
+      "TD0_INERTE|<TRACE> (sinon)": "TD(0) par pas n'apprend pas a D=1 : la reponse connue negative est MESUREE."
+    },
+    "dv_primaire": "accuracy eval argmax (40 lots x 16 agents) par seed, bras et pas ; comptes par seed : td0 > lr0_reference + 0,05 (D=1) ; tdlam > td0 + 0,05 et tdlam < td0 - 0,05 ; td0_d0 > lr0_reference_d0 + 0,05 (D=0) ; medianes de bptt. Dose publiee par cellule (updates, trace_updates, trace_resets, lr effectif par agent).",
+    "provenance": "Fumees VUES AVANT scellement, seed 0 SEUL, declarees ici et EXCLUES (seeds 1-12). Plain, BPTT 2 pas 600 ep : 0,21 (Adam 0,002) / 0,27 (0,02) -> le substrat plain n'atteint pas 0,5 a ce budget, d'ou le choix du BILINEAIRE (BPTT 2 pas bilineaire 600 ep Adam 0,002 seed 0 : 0,798). TD par pas same-tick (D=0), 1500 ep : lr 0,04 -> 0,18, 0,4 -> 0,18, 1,0 -> 0,23, 4,0 -> 0,30, 8,0 -> 0,38, 40 -> 0,16 (diverge) ; lr 4,0 a 3000 ep -> 0,52 ; lr 0,4 a 4000 ep -> 0,23 ; reference lr=0 same-tick 0,173. D=1, 1500 ep lr 4,0 : td0 0,189, lambda 0,9 0,178 ; 600 ep lr 0,04/0,4 : 0,14-0,17, reference 0,145. Les seuils et la dose (3000 ep, lr {4,0 ; 8,0}) ont ete choisis en connaissant ces points : c'est dit, et seed 0 ne compte pas.",
+    "question": "P4.11 (ADR-005 item 1) : le credit TD PAR PAS (forward + learn a chaque pas, recompense 0 puis +-1 au dernier pas, TorchPopulationModel._td_update, substrat bilineaire) apprend-il la composition DIFFEREE (q+key)%K a D=1 (key au pas 0, q au pas 1) ? La trace d'eligibilite TD(lambda) (CREDIT_TRACE_LAMBDA=0,9, traces remises a zero a chaque episode) change-t-elle la reponse ? Le lieu correct de l'issue positive de P4.11 (correction (A) d'agagi-52).",
+    "regle_de_lecture_continue": "ORDRE IMPOSE : INCOMPLET, CONTROLE_SUBSTRAT_ECHOUE, CONTROLE_CHEMIN_ECHOUE, puis la branche composite TD0_{APPREND|INERTE}|TRACE_{AIDE|NUIT|NEUTRE} (AIDE testee avant NUIT).",
+    "seuils": {
+      "barre_controle_positif": 0.5,
+      "justification": "0,05 = min_sep du depot ; 10/12 = convention de l'entree P4.11 ; 0,5 = barre de BILINEAR-ALIGNED-R1",
+      "marge": 0.05,
+      "seeds_min": 10
+    }
+  },
+  "seal": "ea2c8d856dc86d8260642076200b855f9e2b6f7b0530991705417d0730db0ac3"
+}
