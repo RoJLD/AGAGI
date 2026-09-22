@@ -1109,9 +1109,19 @@ si `Σ|ΔW|` < 10 % du bras complet. Pré-vol : le no-op `reward_scale = 1` est 
 Pourquoi : [[EDR-S2-REWARD-ABLATION]]. *Coût : agent 2-3 h ; calcul 1-2 h sous bail.* Dépend de : rien.
 <!-- closes_when:path_present=docs/preregistrations/S2-CREDIT-ABLATION.json -->
 
-**P4.16 — rang 4 quater (PROCHAIN RUN) — Ablation du CRÉDIT, seconde passe : la voie ÉPISODIQUE détruit-elle
-quel que soit le CONTENU du signal, et le TD seul détruit-il ?**
-Quoi : même dispositif (bassin DAgger cloné ×12, phase immortelle 2000 ticks, test mortel 200 ticks poids gelés,
+**P4.16 — ✅ SCELLÉE ET LANCÉE (2026-09-22) — rang 4 quater — Ablation du CRÉDIT, seconde passe : la voie
+ÉPISODIQUE détruit-elle quel que soit le CONTENU du signal, et le TD seul détruit-il ?**
+État : règle `S2-CREDIT-ABLATION-2` scellée (12 branches ordonnées, budget 16 h dérivé des coûts P4.9, charge
+déclarée : deux agents en worktrees + sessions parallèles), runner `tools/evo_runs/s2_credit_ablation_2.py`
+(cinq bras : gelé / complète importée sur réplication / TD seul / retour constant +1 / épisodique seul à 0,004) ;
+les seams `episode_enabled` / `reward_const` vivent dans le runner (`credit_variant`, sous `count_learning_events`,
+fichier en cours d'édition par b0) et sont vérifiés à réponse connue avant le run (`preflight_credit_seams_2` :
+no-op EXACT contre la trace de P4.9, épisodique jamais appelé, constante seule reçue, pas lu sur l'optimiseur) ;
+verdict calibré 16 cas ; temps CPU publié à côté du temps mur (P2.78, côté runner). Pré-vol (32 ticks) : Σ|ΔW|
+complet 186, TD seul 100, constante 25, épisodique 0,004 → 20. Résultat → record `EDR-S2-CREDIT-ABLATION-2`
+(results/s2_credit_ablation_2.json, committé avec le record). À replier ensuite : les deux seams dans
+`count_learning_events` quand `tools/learning_events.py` sera libre.
+Quoi (design initial) : même dispositif (bassin DAgger cloné ×12, phase immortelle 2000 ticks, test mortel 200 ticks poids gelés,
 n = 12, mêmes seeds, `a_frozen` re-mesuré, `b_full` importé sur réplication bit-identique), trois bras sur le
 crédit : (b_tdonly) épisodique COUPÉ, TD seul — seam `episode_enabled=False` à AJOUTER à `count_learning_events`
 et à calibrer à réponse connue (learn_episode d'origine jamais appelé, TD vivant) ; (b_const) retour CONSTANT +1

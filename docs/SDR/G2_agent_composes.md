@@ -56,7 +56,7 @@ connue** : chaque verdict de cette porte est confronté à une réponse connue, 
 incluses (`BINDING_FORCED`/`SUPPRESSION`/`SIGNAL_INSUFFICIENT` · `GATE_BINDS`/`GATE_COLLAPSES`/
 `GATE_INTERMITTENT` · `ANTISAT_RESCUES`/`NEUTRAL`/`INEFFECTIVE` — ces deux derniers ne disent PAS la
 même chose et le test les sépare · `RECIPE_ROBUST`/`BINDING_EROSION` · gardes `WARMUP_FAILED` et
-`FADE_INEFFECTIVE` qui priment sur les chiffres aval). Le cliquet bloque tout NOUVEAU non calibré : **238 détectés** <!-- count:instruments_detectes=238 --> / **230 calibrés** <!-- count:instruments_calibres=230 --> / **2 dettes** <!-- count:instruments_non_calibres=2 --> gelées et NOMMÉES (P2.62, 2026-09-15 : `learn` hors backend torch, `learn_episode_bptt` ; `compute_policy_gradient` en est sorti le jour même, P3.4 — la baseline n'est plus vide, et elle est déclenchante pour le hook). **Les runs proxy de niveau 1 sont DÉBLOQUÉS.**
+`FADE_INEFFECTIVE` qui priment sur les chiffres aval). Le cliquet bloque tout NOUVEAU non calibré : **239 détectés** <!-- count:instruments_detectes=239 --> / **231 calibrés** <!-- count:instruments_calibres=231 --> / **2 dettes** <!-- count:instruments_non_calibres=2 --> gelées et NOMMÉES (P2.62, 2026-09-15 : `learn` hors backend torch, `learn_episode_bptt` ; `compute_policy_gradient` en est sorti le jour même, P3.4 — la baseline n'est plus vide, et elle est déclenchante pour le hook). **Les runs proxy de niveau 1 sont DÉBLOQUÉS.**
 
 ## Niveau 2 — G2-fort (ÉMERGENCE in-loop, non supervisée) : **NON FRANCHI — c'est le mur EDR-LOCK-001**
 

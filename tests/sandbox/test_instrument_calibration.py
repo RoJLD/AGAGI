@@ -60,6 +60,13 @@ NOT_AN_INSTRUMENT = {
                "pas sur l'optimiseur et copie les recompenses recues, puis appelle l'original.",
     "tools/evo_runs/s2_credit_ablation.py::learn_episode": "wrapper de CAPTURE imbrique (_learning_trace) : "
                "copie les recompenses episodiques recues puis appelle l'original.",
+    # P4.16 (2026-09-22) : memes wrappers de capture (_learning_trace_2) + les deux seams de credit_variant
+    # (coupe l'episodique / substitue une constante) -- aucune mise a jour propre, aucune affirmation ;
+    # l'instrument est preflight_credit_seams_2, calibre a reponse connue.
+    "tools/evo_runs/s2_credit_ablation_2.py::learn": "wrapper de CAPTURE imbrique (_learning_trace_2) et seam "
+               "reward_const de credit_variant : copie ou substitue les recompenses puis appelle l'original.",
+    "tools/evo_runs/s2_credit_ablation_2.py::learn_episode": "wrapper de CAPTURE imbrique (_learning_trace_2) et "
+               "seams episode_enabled / reward_const de credit_variant : rend None ou substitue puis appelle l'original.",
 }
 
 CALIBRATED = {
@@ -1176,6 +1183,17 @@ CALIBRATED = {
                                 "pas", "dW-ratio", "sign-and-delta", "seams:known-answer", "seams:refuses-leak"],
     # Cas : tests/sandbox/test_s2_credit_ablation.py::test_run_arm_refuses_degenerate_args_before_any_world.
     "tools/evo_runs/s2_credit_ablation.py::run_arm": ["guard-before-world"],
+    # P4.16 (2026-09-22) -- lecture de la regle scellee S2-CREDIT-ABLATION-2, branches dans l'ORDRE impose
+    # (INCOMPLET -> HARNAIS -> DOSE (TD et episodique par voie) -> REPLICATION -> contenu / voie / pas episodique
+    # + ratios dW). Cas dans tests/sandbox/test_s2_credit_ablation_2.py ; les seams episode_enabled / reward_const
+    # (credit_variant, empiles SOUS count_learning_events) y sont calibres a reponse connue avec un no-op EXACT
+    # contre la trace de P4.9 et un contre-exemple (seam qui fuit -> le pre-vol LEVE).
+    "credit_ablation_2_verdict": ["missing:raises", "incomplet", "harnais", "dose:td", "dose:episodic", "replication",
+                                  "contenu_indifferent", "contenu_compte", "td_suffit_aussi", "episodique_seul",
+                                  "pas_episodique", "sign-and-delta", "dW-ratio", "seams:noop-exact",
+                                  "seams:known-answer", "seams:refuses-leak"],
+    # Cas : tests/sandbox/test_s2_credit_ablation_2.py::test_run_arm_refuses_degenerate_args_before_any_world.
+    "tools/evo_runs/s2_credit_ablation_2.py::run_arm": ["guard-before-world"],
 }
 
 _GENOMES = os.path.join("results", "warm007_genomes")
