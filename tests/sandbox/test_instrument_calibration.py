@@ -255,7 +255,13 @@ CALIBRATED = {
     # P2.50 (2026-09-07) : `tools/jobs/doctor.py` -- meme elargissement recursif. Deux branches
     # ajoutees dans tests/sandbox/test_jobs.py (un seul cas existait, celui de la branche `dead` :
     # une classification degeneree « tout est mort » le passait, et `--kill` en depend).
-    "tools/jobs/doctor.py::classify_leases": ["live", "dead", "repertoire-vide"],
+    # 2026-09-22 (E4 occ. doctor, 8a64b0d7) : « dead » recouvrait DEUX états que le rapport ne distinguait
+    # pas -- un détenteur VIVANT à TTL expiré (machine en veille, run long) était titré « mort ». Trois états
+    # désormais, chacun confronté à un VRAI processus dans tests/sandbox/test_doctor_visibility.py :
+    # expired-alive (ne se réape pas), orphan (détenteur parti, contrôle apparié), et le TEXTE du rapport.
+    "tools/jobs/doctor.py::classify_leases": ["live", "dead", "repertoire-vide",
+                                              "expired-alive:detenteur-vivant", "orphan:detenteur-parti",
+                                              "rapport-sans-mot-mort"],
     # P2.47 (2026-09-07) : runner S6 (taux de faux positifs du marqueur sous init non nulle).
     # 29 cas de calibration dans tests/sandbox/test_s6_fallback_rate.py -- dont le contre-exemple
     # construit (corps suffisant + politique lectrice -> l'ablation MORD), la specificite (politique
