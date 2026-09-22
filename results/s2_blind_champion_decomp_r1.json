@@ -1,0 +1,433 @@
+{
+ "_design": {
+  "question": "Le +61 % de survie du champion aveugle a l'ENTREE (S2-BLIND-CHAMPION-ter) confond DEUX mecanismes : (a) l'entree du reseau recurrent est coupee (moins d'excitation) ; (b) les 18 noeuds d'IDENTITE (max_N-max_O .. max_I : leur valeur d'observation est directement un logit d'action, EDR-HOF-IO-OVERLAP) sont mis a zero. Lequel porte l'effet ? Deux bras partiels : except_identity (x[:, :46] = 0, 18 identites gardees) et identity_zeroed (x[:, 46:64] = 0, 46 entrees gardees), meme dispositif que le -ter.",
+  "replication_unit": "seed de monde (m\u00eames 7 seeds que le -ter ; intact et aveugle total IMPORT\u00c9S du -ter, appari\u00e9s par seed)",
+  "n_independent": 7,
+  "links": {
+   "survie_sans_entree_sauf_identite": "measured",
+   "survie_identite_coupee": "measured",
+   "survie_intact_et_aveugle_ref": "measured",
+   "noop_par_bras": "measured"
+  },
+  "inferred_links": [],
+  "cost_estimate": "2 bras x 7 seeds = 14 cellules x 4 conditions ; -ter : 1039 s pour 14 cellules -> ~17 min sous bail kuzu ; results/s2_blind_champion_decomp_r1.json",
+  "inferred_reason": null,
+  "control_family": {
+   "cells": 14,
+   "alpha_family": 0.05,
+   "alpha_cell": 0.0035714285714285718,
+   "method": "bonferroni",
+   "reason": null,
+   "fwer_bound": 0.05
+  },
+  "warning": null
+ },
+ "_regime": {
+  "world": "stoneage",
+  "num_agents": 12,
+  "max_ticks": 200,
+  "K": 12,
+  "seeds": [
+   3032,
+   3033,
+   3034,
+   3035,
+   3036,
+   3037,
+   3038
+  ],
+  "floor": 24.0,
+  "bras": {
+   "except_identity": "x[:, :max_N-max_O] = 0 (46 entrees coupees, 18 identites gardees)",
+   "identity_zeroed": "x[:, max_N-max_O:max_I] = 0 (18 identites coupees, 46 entrees gardees)"
+  },
+  "reference": "paired_band",
+  "noop_control": true,
+  "learner": "legacy credit gele, NTM non gele",
+  "references_importees": "results/s2_blind_champion_ter.json (intact, aveugle total)"
+ },
+ "rows": [
+  {
+   "seed": 3032,
+   "intact_median_ref": 21.0,
+   "blind_median_ref": 35.25,
+   "except_identity": {
+    "within_ratio": 1.0,
+    "between_ratio": 3.1666666666666665,
+    "verdict": "INCONCLUSIVE_DEGENERATE",
+    "n": 12,
+    "phenotype": {
+     "hp_bonus": 0.0,
+     "inv_capacity": 14,
+     "energy_drain": 2.4000000000000004
+    },
+    "policy": "BlindExceptIdentityFrozenMamba",
+    "between_same_body": false,
+    "reference": "paired_band",
+    "intact_median": 19.0,
+    "floor": 24.0,
+    "noop": {
+     "ratio": 1.0,
+     "verdict": "INCONCLUSIVE_DEGENERATE",
+     "median": 19.0
+    },
+    "w_ok": true
+   },
+   "identity_zeroed": {
+    "within_ratio": 0.9885057471264368,
+    "between_ratio": 3.3333333333333335,
+    "verdict": "INCONCLUSIVE_DEGENERATE",
+    "n": 12,
+    "phenotype": {
+     "hp_bonus": 0.0,
+     "inv_capacity": 14,
+     "energy_drain": 2.4000000000000004
+    },
+    "policy": "IdentityZeroedFrozenMamba",
+    "between_same_body": false,
+    "reference": "paired_band",
+    "intact_median": 21.5,
+    "floor": 24.0,
+    "noop": {
+     "ratio": 1.0,
+     "verdict": "INCONCLUSIVE_DEGENERATE",
+     "median": 21.5
+    },
+    "w_ok": true
+   }
+  },
+  {
+   "seed": 3033,
+   "intact_median_ref": 22.0,
+   "blind_median_ref": 33.25,
+   "except_identity": {
+    "within_ratio": 1.0,
+    "between_ratio": 3.1666666666666665,
+    "verdict": "INCONCLUSIVE_DEGENERATE",
+    "n": 12,
+    "phenotype": {
+     "hp_bonus": 0.0,
+     "inv_capacity": 14,
+     "energy_drain": 2.4000000000000004
+    },
+    "policy": "BlindExceptIdentityFrozenMamba",
+    "between_same_body": false,
+    "reference": "paired_band",
+    "intact_median": 19.0,
+    "floor": 24.0,
+    "noop": {
+     "ratio": 1.0,
+     "verdict": "INCONCLUSIVE_DEGENERATE",
+     "median": 19.0
+    },
+    "w_ok": true
+   },
+   "identity_zeroed": {
+    "within_ratio": 1.0,
+    "between_ratio": 3.5833333333333335,
+    "verdict": "INCONCLUSIVE_DEGENERATE",
+    "n": 12,
+    "phenotype": {
+     "hp_bonus": 0.0,
+     "inv_capacity": 14,
+     "energy_drain": 2.4000000000000004
+    },
+    "policy": "IdentityZeroedFrozenMamba",
+    "between_same_body": false,
+    "reference": "paired_band",
+    "intact_median": 21.75,
+    "floor": 24.0,
+    "noop": {
+     "ratio": 1.0,
+     "verdict": "INCONCLUSIVE_DEGENERATE",
+     "median": 21.75
+    },
+    "w_ok": true
+   }
+  },
+  {
+   "seed": 3034,
+   "intact_median_ref": 22.0,
+   "blind_median_ref": 34.75,
+   "except_identity": {
+    "within_ratio": 1.0,
+    "between_ratio": 3.1666666666666665,
+    "verdict": "INCONCLUSIVE_DEGENERATE",
+    "n": 12,
+    "phenotype": {
+     "hp_bonus": 0.0,
+     "inv_capacity": 14,
+     "energy_drain": 2.4000000000000004
+    },
+    "policy": "BlindExceptIdentityFrozenMamba",
+    "between_same_body": false,
+    "reference": "paired_band",
+    "intact_median": 19.0,
+    "floor": 24.0,
+    "noop": {
+     "ratio": 1.0,
+     "verdict": "INCONCLUSIVE_DEGENERATE",
+     "median": 19.0
+    },
+    "w_ok": true
+   },
+   "identity_zeroed": {
+    "within_ratio": 1.0,
+    "between_ratio": 3.5833333333333335,
+    "verdict": "INCONCLUSIVE_DEGENERATE",
+    "n": 12,
+    "phenotype": {
+     "hp_bonus": 0.0,
+     "inv_capacity": 14,
+     "energy_drain": 2.4000000000000004
+    },
+    "policy": "IdentityZeroedFrozenMamba",
+    "between_same_body": false,
+    "reference": "paired_band",
+    "intact_median": 21.75,
+    "floor": 24.0,
+    "noop": {
+     "ratio": 1.0,
+     "verdict": "INCONCLUSIVE_DEGENERATE",
+     "median": 21.75
+    },
+    "w_ok": true
+   }
+  },
+  {
+   "seed": 3035,
+   "intact_median_ref": 22.0,
+   "blind_median_ref": 35.5,
+   "except_identity": {
+    "within_ratio": 1.0,
+    "between_ratio": 3.1666666666666665,
+    "verdict": "INCONCLUSIVE_DEGENERATE",
+    "n": 12,
+    "phenotype": {
+     "hp_bonus": 0.0,
+     "inv_capacity": 14,
+     "energy_drain": 2.4000000000000004
+    },
+    "policy": "BlindExceptIdentityFrozenMamba",
+    "between_same_body": false,
+    "reference": "paired_band",
+    "intact_median": 19.0,
+    "floor": 24.0,
+    "noop": {
+     "ratio": 1.0,
+     "verdict": "INCONCLUSIVE_DEGENERATE",
+     "median": 19.0
+    },
+    "w_ok": true
+   },
+   "identity_zeroed": {
+    "within_ratio": 1.0116279069767442,
+    "between_ratio": 3.6666666666666665,
+    "verdict": "INCONCLUSIVE_DEGENERATE",
+    "n": 12,
+    "phenotype": {
+     "hp_bonus": 0.0,
+     "inv_capacity": 14,
+     "energy_drain": 2.4000000000000004
+    },
+    "policy": "IdentityZeroedFrozenMamba",
+    "between_same_body": false,
+    "reference": "paired_band",
+    "intact_median": 21.75,
+    "floor": 24.0,
+    "noop": {
+     "ratio": 1.0,
+     "verdict": "INCONCLUSIVE_DEGENERATE",
+     "median": 21.75
+    },
+    "w_ok": true
+   }
+  },
+  {
+   "seed": 3036,
+   "intact_median_ref": 22.0,
+   "blind_median_ref": 35.5,
+   "except_identity": {
+    "within_ratio": 1.0,
+    "between_ratio": 3.1666666666666665,
+    "verdict": "INCONCLUSIVE_DEGENERATE",
+    "n": 12,
+    "phenotype": {
+     "hp_bonus": 0.0,
+     "inv_capacity": 14,
+     "energy_drain": 2.4000000000000004
+    },
+    "policy": "BlindExceptIdentityFrozenMamba",
+    "between_same_body": false,
+    "reference": "paired_band",
+    "intact_median": 19.0,
+    "floor": 24.0,
+    "noop": {
+     "ratio": 1.0,
+     "verdict": "INCONCLUSIVE_DEGENERATE",
+     "median": 19.0
+    },
+    "w_ok": true
+   },
+   "identity_zeroed": {
+    "within_ratio": 1.0235294117647058,
+    "between_ratio": 3.5833333333333335,
+    "verdict": "INCONCLUSIVE_DEGENERATE",
+    "n": 12,
+    "phenotype": {
+     "hp_bonus": 0.0,
+     "inv_capacity": 14,
+     "energy_drain": 2.4000000000000004
+    },
+    "policy": "IdentityZeroedFrozenMamba",
+    "between_same_body": false,
+    "reference": "paired_band",
+    "intact_median": 21.75,
+    "floor": 24.0,
+    "noop": {
+     "ratio": 1.0,
+     "verdict": "INCONCLUSIVE_DEGENERATE",
+     "median": 21.75
+    },
+    "w_ok": true
+   }
+  },
+  {
+   "seed": 3037,
+   "intact_median_ref": 21.5,
+   "blind_median_ref": 35.5,
+   "except_identity": {
+    "within_ratio": 1.0,
+    "between_ratio": 3.1666666666666665,
+    "verdict": "INCONCLUSIVE_DEGENERATE",
+    "n": 12,
+    "phenotype": {
+     "hp_bonus": 0.0,
+     "inv_capacity": 14,
+     "energy_drain": 2.4000000000000004
+    },
+    "policy": "BlindExceptIdentityFrozenMamba",
+    "between_same_body": false,
+    "reference": "paired_band",
+    "intact_median": 19.0,
+    "floor": 24.0,
+    "noop": {
+     "ratio": 1.0,
+     "verdict": "INCONCLUSIVE_DEGENERATE",
+     "median": 19.0
+    },
+    "w_ok": true
+   },
+   "identity_zeroed": {
+    "within_ratio": 1.036144578313253,
+    "between_ratio": 3.5,
+    "verdict": "INCONCLUSIVE_DEGENERATE",
+    "n": 12,
+    "phenotype": {
+     "hp_bonus": 0.0,
+     "inv_capacity": 14,
+     "energy_drain": 2.4000000000000004
+    },
+    "policy": "IdentityZeroedFrozenMamba",
+    "between_same_body": false,
+    "reference": "paired_band",
+    "intact_median": 21.5,
+    "floor": 24.0,
+    "noop": {
+     "ratio": 1.0,
+     "verdict": "INCONCLUSIVE_DEGENERATE",
+     "median": 21.5
+    },
+    "w_ok": true
+   }
+  },
+  {
+   "seed": 3038,
+   "intact_median_ref": 22.0,
+   "blind_median_ref": 34.75,
+   "except_identity": {
+    "within_ratio": 1.0,
+    "between_ratio": 3.1666666666666665,
+    "verdict": "INCONCLUSIVE_DEGENERATE",
+    "n": 12,
+    "phenotype": {
+     "hp_bonus": 0.0,
+     "inv_capacity": 14,
+     "energy_drain": 2.4000000000000004
+    },
+    "policy": "BlindExceptIdentityFrozenMamba",
+    "between_same_body": false,
+    "reference": "paired_band",
+    "intact_median": 19.0,
+    "floor": 24.0,
+    "noop": {
+     "ratio": 1.0,
+     "verdict": "INCONCLUSIVE_DEGENERATE",
+     "median": 19.0
+    },
+    "w_ok": true
+   },
+   "identity_zeroed": {
+    "within_ratio": 1.0235294117647058,
+    "between_ratio": 3.5,
+    "verdict": "INCONCLUSIVE_DEGENERATE",
+    "n": 12,
+    "phenotype": {
+     "hp_bonus": 0.0,
+     "inv_capacity": 14,
+     "energy_drain": 2.4000000000000004
+    },
+    "policy": "IdentityZeroedFrozenMamba",
+    "between_same_body": false,
+    "reference": "paired_band",
+    "intact_median": 21.75,
+    "floor": 24.0,
+    "noop": {
+     "ratio": 1.0,
+     "verdict": "INCONCLUSIVE_DEGENERATE",
+     "median": 21.75
+    },
+    "w_ok": true
+   }
+  }
+ ],
+ "verdict": {
+  "verdict": "NI_L_UN_NI_L_AUTRE",
+  "n": 7,
+  "r_ex": [
+   0.9047619047619048,
+   0.8636363636363636,
+   0.8636363636363636,
+   0.8636363636363636,
+   0.8636363636363636,
+   0.8837209302325582,
+   0.8636363636363636
+  ],
+  "r_id": [
+   1.0238095238095237,
+   0.9886363636363636,
+   0.9886363636363636,
+   0.9886363636363636,
+   0.9886363636363636,
+   1.0,
+   0.9886363636363636
+  ],
+  "echecs": [],
+  "med_r_ex": 0.8636363636363636,
+  "med_r_id": 0.9886363636363636,
+  "hi_ex": 0,
+  "lo_ex": 7,
+  "hi_id": 0,
+  "lo_id": 7
+ },
+ "_cout_s": 510334.4082901478,
+ "_provenance": [
+  {
+   "git_sha": "72ce45ac39a0833fc8e075bdf59c52d648a79538",
+   "dirty": true,
+   "rule": "S2-BLIND-CHAMPION-DECOMP-R1",
+   "seal": "6b6be87dac7629fb959b361822fbb03696d1e0ee0a9f5b6acb78a2ff9a22f050"
+  }
+ ],
+ "_cout_note": "_cout_s = 510334 s est de l'HORLOGE MURALE : le run a traverse une veille machine de ~6 jours (bail kuzu expire pendant la veille, processus vivant, 7/7 seeds ecrits). Le cout CPU n'est pas mesure ; reference : -ter, memes 14 cellules, 1039 s (E12 sur le cout)."
+}

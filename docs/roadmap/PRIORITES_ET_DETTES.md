@@ -2943,8 +2943,25 @@ lisent cet instrument ([EDR-124], S2-002/003, S2-013) ; (b) passer la référenc
 à bande non appariée. Preuve : [`EDR-S2-BLIND-CHAMPION`](../EDR/S2-BLIND-CHAMPION_Stopped_At_Control_The_Ablation_Instrument_Has_An_8_Percent_RNG_Noise_Floor.md).
 <!-- closes_when:grep_present=tools/s2_demand_ablation.py::paired_band -->
 
-**P2.42 — ⚠️ OUVERTE (2026-09-08) — `S2-BLIND-CHAMPION` à re-sceller en `-bis` : l'intervention n'est
-pas celle que le sceau décrit.** Annuler `W[:num_inputs, :]` coupe le chemin POLITIQUE, mais
+**P2.42 — ✅ CLOSE le 2026-09-16 (session loop 766eabae) — `S2-BLIND-CHAMPION` re-scellé (`-bis`, puis `-ter` à seeds neufs) et LU : `AVEUGLE_SURVIT_MIEUX`, r = 1,614 sur 7/7, p = 0,016 — à corps identique, W identique, apprenant gelé, chemin d'identité coupé, bande RNG appariée.**
+Fait : aveuglement à l'ENTRÉE (`InputBlindFrozenMamba`, obs = 0 : aucun poids touché, donc corps de P1.7 intact et chemin
+d'identité E24 coupé), apprenant legacy gelé dans les DEUX bras (`FrozenCreditMamba`), `run_ablation_map(paired_band=True,
+noop_control=True)`. Contrôles EXACTS : (i) 7/7 ; (ii) within du bras aveugle = 1,000 exactement 7/7 ; no-op apparié = 1,000 sur les
+14 cellules (la bande appariée efface les ±6-8 %). `-bis` (seeds d'origine) : `INDETERMINE-DEGENERE` — sa clause (iii) écartait
+tout intact sous le plancher 24,0, et l'intact à crédit gelé survit 20.5-22.5 : le phénomène lui-même ;
+`-ter` (clause corrigée : écarté seulement si les DEUX bras ≤ plancher ; seeds 3032-3038, `-bis` déclaré en entier) : intact 21.0-22.0
+(sous le plancher 7/7, publié), aveugle 33.25-35.5, r 1,511-1,679. Record
+[`EDR-S2-BLIND-CHAMPION-TER`](../EDR/S2-BLIND-CHAMPION-TER_Blinded_At_Input_Same_Body_Frozen_Learner_The_Champion_Survives_61_Percent_Longer.md),
+bandeau sur l'original ; 8 cas (`tests/sandbox/test_s2_blind_champion_bis.py`), CALIBRATED déclaré ; règles `-bis`/`-ter` scellées avant
+leurs cellules. **Ce que les données disent DÉJÀ** : l'information seule n'explique pas l'effet — l'intact à perception DÉRANGÉE (obs d'un pair,
+bande appariée) survit comme l'intact (within 0,977-1,035) ; le +61 % vient de la suppression de l'ENTRÉE, et par le chemin
+d'identité E24 « obs = 0 » met aussi 18 logits d'ACTION à zéro. Lire « survit mieux SANS ENTRÉE », pas « sans voir ».
+**Décomposé le 2026-09-22** (règle `S2-BLIND-CHAMPION-DECOMP-R1` scellée avant, mêmes 7 seeds, références importées du `-ter`,
+`results/s2_blind_champion_decomp_r1.json`) : `NI_L_UN_NI_L_AUTRE` — entrée coupée / identités gardées : r 0,864 (le champion survit MOINS, 19,0 ticks sur 7/7) ; identités coupées / entrée gardée : r 0,989 (rien) ; no-op 1,000 sur
+14/14. Le +61 % est une INTERACTION (aucune coupure seule ne le produit, l'une fait pire) ; mécanisme à nommer — **reste, hors de
+cette entrée (décision robla)** : un bras à entrée BROUILLÉE (même excitation, information détruite). ⚠️ `_cout_s` du JSON = horloge
+murale à travers une veille machine de six jours (noté dans le JSON), coût CPU non mesuré.
+Énoncé d'origine : `S2-BLIND-CHAMPION` à re-sceller en `-bis` : l'intervention n'est pas celle que le sceau décrit. Annuler `W[:num_inputs, :]` coupe le chemin POLITIQUE, mais
 l'observation continue d'entrer par `H[:, :max_I] = x` et par
 `world_model.observe_batch(..., x_obs, train=True)` (surprise → curiosité → récompense intrinsèque).
 Classe **E8**, commise dans la formulation d'une règle scellée. Le `-bis` doit (a) décrire
@@ -2956,6 +2973,7 @@ lue tant que ce n'est pas fait.
 P1.7 : `make_blind` fait tomber le drain de 2,40 à 1,30, −46 %, panel en numpy pur — à re-mesurer) et à
 apprenant GELÉ, en aveuglant à l'ENTRÉE. Tant que ce n'est pas fait, la DV 7/7 (+39 %) se lit comme un
 effet métabolique candidat, pas comme un effet de la cécité.
+<!-- closes_when:grep_present=tools/evo_runs/s2_blind_champion_bis.py::def blind_champion_verdict_ter -->
 
 **P2.43 — ⚠️ OUVERTE (2026-09-08) — le marqueur de demande in-world n'a TOUJOURS pas de contrôle
 POSITIF, et l'amplification ne peut pas en fabriquer un.** Dose-réponse mesurée dans `stoneage` :

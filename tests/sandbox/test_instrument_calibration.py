@@ -181,6 +181,32 @@ CALIBRATED = {
     "tools/evo_runs/s2_blind_champion.py::run_blind_champion": [
         "plan-vide:raises", "regime-degenere:raises", "guard-before-world",
         "appariement-meme-seed", "aveuglement-pose-et-verifie"],
+    # P2.42 -bis/-ter (2026-09-16) : l'aveuglement passe a l'ENTREE (obs nulle, corps et W intacts, chemin
+    # d'identite E24 coupe), apprenant legacy gele dans les deux bras, bande appariee. 8 cas dans
+    # tests/sandbox/test_s2_blind_champion_bis.py, 0 monde : l'aveugle IGNORE l'obs la ou la base la lit
+    # (controle positif), le credit gele ne bouge pas W la ou le credit de base le bouge (controle positif),
+    # garde en tete, injection de map_fn (classes, bande appariee, no-op demandes ; verdict calibre applique ;
+    # controle (ii) prime). Le verdict -ter corrige la clause (iii) : ecarte seulement si les DEUX bras sont au
+    # plancher -- le -bis a rendu INDETERMINE-DEGENERE (7/7 ecartes) parce que l'intact SOUS le plancher
+    # etait le PHENOMENE ; 5 seeds unanimes = p 0,0625 -> INDETERMINE (puissance dite, pas avalee).
+    "tools/evo_runs/s2_blind_champion_bis.py::run_blind_champion_bis": [
+        "plan-vide:raises", "regime-degenere:raises", "guard-before-world",
+        "classes-bande-appariee-noop:demandes", "meme-genome-deux-bras", "controle-ii:harnais"],
+    "tools/evo_runs/s2_blind_champion_bis.py::blind_champion_verdict_ter": [
+        "intact-sous-plancher:garde-et-nomme", "deux-bras-au-plancher:ecarte", "tous-ecartes:degenere-pas-sans-mesure",
+        "5-seeds-unanimes:indetermine-p0.0625", "6-seeds:lisible", "pas-de-cout", "controle-ii-prime", "entree-vide:pas-de-fond"],
+    # `compute_policy_gradient` de FrozenCreditMamba (tools/evo_runs/s2_blind_champion_bis.py) : no-op EXACT
+    # (W bit-identique), confronte au credit de base qui bouge W -- test_frozen_credit_leaves_W_untouched_...
+    "tools/evo_runs/s2_blind_champion_bis.py::compute_policy_gradient": ["noop:W-bit-identical", "base:moves-W"],
+    # DECOMP-R1 (2026-09-16) : decomposer le +61 % -- entree du reseau coupee (identites gardees) vs 18 identites
+    # coupees. 6 cas dans tests/sandbox/test_s2_blind_champion_bis.py, 0 monde : masques EXACTS (tranche annoncee a
+    # zero, le reste intact, entree non mutee), complementaires ; branches dans l'ordre impose ; no-op EXACTEMENT 1
+    # sinon HARNAIS ; convention 6/7 ; runner : references importees par seed, deux bras demandes, garde en tete.
+    "tools/evo_runs/s2_blind_champion_bis.py::decomp_verdict": [
+        "excitation", "identite", "les-deux", "ni-l-un-ni-l-autre", "mixte:entre-les-barres", "6/7:convention",
+        "noop-non-exact:harnais", "w_ok-faux:harnais", "entree-vide:pas-de-fond"],
+    "tools/evo_runs/s2_blind_champion_bis.py::run_decomp": [
+        "plan-vide:raises", "references-importees-par-seed", "deux-bras-bande-appariee-noop"],
     # P2.41 (2026-09-08) : S2-SUBJECT-VARIANCE -- le verdict du marqueur varie-t-il avec le SUJET ?
     # 14 cas dans tests/sandbox/test_s2_subject_variance.py, aucun monde construit (map_fn injectee).
     # La branche qui COMPTE est INDETERMINE-BRUIT : sans le bras de replication du MEME sujet, le

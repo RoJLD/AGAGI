@@ -10,6 +10,8 @@ adopts: [REF-EXPERIMENT-PREFLIGHT, REF-DEMAND-MARKER]
 extends: [EDR-EVO-011]
 ---
 
+> ✅ **RE-SCELLÉ et LU le 2026-09-16 (P2.42) — [[EDR-S2-BLIND-CHAMPION-TER]].** L'intervention corrigée (aveuglement à l'ENTRÉE, corps et W intacts, chemin d'identité coupé, apprenant gelé, bande RNG appariée) rend `AVEUGLE_SURVIT_MIEUX` : r = **1,614** sur 7/7 seeds NEUFS, p = 0,016, contrôle (ii) exactement 1,000 et no-op exactement 1,000 — la bande appariée efface le plancher de bruit de ±6-8 % mesuré ici. Le `-bis` (mêmes corrections, seeds d'origine) est gravé `INDETERMINE-DEGENERE` : sa clause (iii) écartait l'intact SOUS le plancher, qui est le phénomène. Ce record reste tel quel (INDETERMINE-HARNAIS au sceau d'origine).
+
 > ⚠️ **Ce record ne rapporte AUCUN verdict sur sa DV.** La règle scellée
 > (`docs/preregistrations/S2-BLIND-CHAMPION.json`) impose : un contrôle qui échoue → `INDETERMINE-HARNAIS`,
 > et **ne pas lire la suite**. Le contrôle a échoué. Ce qui suit est un résultat sur l'INSTRUMENT —
