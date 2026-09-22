@@ -151,6 +151,10 @@ def test_ancrer_data_root_pointe_les_donnees_sur_le_depot_COMMUN_et_respecte_la_
     wt = tmp_path / "wt"
     _git(repo, "worktree", "add", "-q", "-b", "chantier/ancre", str(wt))
     monkeypatch.chdir(wt)
+    # E5 (etat global) : la variable est d'ordinaire ABSENTE, donc delenv(raising=False) sur une cle
+    # jamais posee n'enregistre rien -- monkeypatch ne peut restaurer une absence qu'il n'a pas vue.
+    # Poser une sentinelle AVANT force l'enregistrement : le teardown efface ensuite la cle entiere.
+    monkeypatch.setenv("AGAGI_DATA_ROOT", "sentinelle-a-effacer")
     monkeypatch.delenv("AGAGI_DATA_ROOT", raising=False)
     pose = S.ancrer_data_root()
     principal = os.path.realpath(str(repo)).replace("\\", "/")
@@ -263,3 +267,10 @@ def test_snapshot_porte_toutes_les_cles_et_ne_leve_pas_sans_sources(tmp_path, re
     assert snap["leases"] == {"live": [], "dead": []}
     assert snap["hook_errors"] == {}                          # journal absent : aucun echec MESURE
     assert set(snap) >= {"psutil", "worktrees", "commits", "processes", "cpu_pct", "hook_errors"}
+
+
+def test_zz_aucune_fuite_de_AGAGI_DATA_ROOT_apres_l_ancrage():
+    """Place en DERNIER dans le fichier (l'ordre pytest suit l'ordre de definition) : verifie que
+    `test_ancrer_data_root_pointe_les_donnees_sur_le_depot_COMMUN_et_respecte_la_variable` n'a rien
+    laisse fuiter dans os.environ pour les tests suivants, dans CE fichier et au-dela."""
+    assert not os.environ.get("AGAGI_DATA_ROOT", "").endswith("/depot/data")

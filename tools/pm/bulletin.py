@@ -125,7 +125,10 @@ def resume_tableau(pm_dir=None):
     except (OSError, ValueError):
         return "[PM] tableau absent : lancer python -m tools.pm.board (ou la session PM n'a pas encore tourné)"
     from tools.pm.board import summary
-    return summary(board)
+    try:
+        return summary(board)
+    except (KeyError, TypeError) as exc:
+        return f"[PM] tableau illisible ({type(exc).__name__}: {exc}) : relancer python -m tools.pm.board"
 
 
 def _rotation(p, max_o=None, garde_o=None):

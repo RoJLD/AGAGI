@@ -164,3 +164,15 @@ def test_journal_des_hooks_TOURNE_au_dela_du_plafond_et_garde_la_QUEUE(tmp_path,
     petit.write_text("une ligne\n", encoding="utf-8")
     BU._rotation(str(petit), max_o=4000, garde_o=1000)
     assert petit.read_text(encoding="utf-8") == "une ligne\n"
+
+
+def test_resume_tableau_BOARD_illisible_par_summary_dit_illisible_au_lieu_de_se_taire(tmp_path, monkeypatch):
+    """`summary(board)` vivait HORS du try/except qui charge BOARD.json : un BOARD écrit par une autre
+    version (clé manquante) faisait lever `summary`, le hook journalisait et n'imprimait RIEN."""
+    from src import paths
+    monkeypatch.setenv("AGAGI_DATA_ROOT", str(tmp_path).replace("\\", "/"))
+    d = paths.pm_dir()
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "BOARD.json"), "w", encoding="utf-8") as fh:
+        json.dump({"generated_at": 1.0}, fh)
+    assert BU.resume_tableau().startswith("[PM] tableau illisible")
