@@ -1,10 +1,14 @@
 """
-tests/sandbox/test_harness_seal_r1.py — tests de la fonction PURE `build_rule_r1` (tâche 10, fix round 1/5).
+tests/sandbox/test_harness_seal_r1.py — tests de la fonction PURE `build_rule_r1` (tâche 10, fix rounds 1-2/5).
 
 HARNESS-R1 (sans -bis) n'avait encore lu AUCUNE cellule quand la revue a trouvé 8 défauts Important,
 dont 4 touchant le CONTENU scellé (E2/E5/E8/E23) : la voie légitime est un `-bis` scellé AVANT toute
 cellule, citant R1 et la raison. `build_rule_r1` scelle donc directement HARNESS-R1-bis (cf.
 `tools/harness/seal_r1.py::main`) ; ces tests couvrent les propriétés PURES de la fonction.
+
+Fix round 2/5 : trois tests de REFUS (un smoke incomplet — sans `Aprime_ref`, sans `noise` pour une
+cellule, sans `unit_s` full_eval pour une cellule — lève AVANT toute prédiction non adossée, motif (a)
+du dépôt) et un test que `B_SWEEP0_LR` est une SOURCE UNIQUE partagée par `smoke_r1.py`/`seal_r1.py`.
 """
 import os
 import sys
@@ -16,7 +20,8 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 from src.seed_ai.harness_pieces import PIECES  # noqa: E402
 from src.seed_ai.harness_verdict import BRANCHES, validate_rule  # noqa: E402
 from tools.harness.learners.connectome import ConnectomeLearner  # noqa: E402
-from tools.harness.seal_r1 import B_SWEEP0_LR, build_rule_r1  # noqa: E402
+from tools.harness.r1_constants import B_SWEEP0_LR  # noqa: E402
+from tools.harness.seal_r1 import build_rule_r1  # noqa: E402
 from tools.plain_substrate_ceiling import PLAIN_COMPOSITION_CEILING, PLAIN_COMPOSITION_PROVENANCE  # noqa: E402
 
 
@@ -161,3 +166,52 @@ def test_design_drops_the_human_facing_warning_but_keeps_the_rest():
     assert "warning" not in rule["design"]
     for k in ("control_family", "links", "n_independent", "question", "inferred_links", "inferred_reason"):
         assert k in rule["design"]
+
+
+# ---------------------------------------------------------------------------------------------------
+# Fix round 2/5 : refuser un smoke INCOMPLET (motif (a) -- entrée absente -> affirmation de fond),
+# jamais scellement d'une prédiction bâtie sur un `else` non adossé à une mesure.
+# ---------------------------------------------------------------------------------------------------
+
+def _smoke_missing(key, cell=None):
+    """`_smoke()` amputée : `key` seule retirée (ex. `Aprime_ref`), ou seulement `smoke[key][cell]`
+    retirée pour un champ imbriqué par cellule (`noise`, `unit_s`)."""
+    s = _smoke()
+    if cell is None:
+        del s[key]
+    else:
+        del s[key][cell]
+    return s
+
+
+def test_build_rule_r1_refuses_a_smoke_without_Aprime_ref():
+    with pytest.raises(ValueError, match="Aprime_ref"):
+        build_rule_r1(_smoke_missing("Aprime_ref"))
+
+
+@pytest.mark.parametrize("cell", ["A", "Aprime", "B"])
+def test_build_rule_r1_refuses_a_smoke_without_noise_for_any_cell(cell):
+    with pytest.raises(ValueError, match="noise"):
+        build_rule_r1(_smoke_missing("noise", cell))
+
+
+@pytest.mark.parametrize("cell", ["A", "Aprime", "B"])
+def test_build_rule_r1_refuses_a_smoke_without_full_eval_unit_s_for_any_cell(cell):
+    with pytest.raises(ValueError, match="unit_s"):
+        build_rule_r1(_smoke_missing("unit_s", cell))
+
+
+def test_aprime_prediction_is_never_built_without_its_measured_reference():
+    """Le défaut trouvé en revue : un `else` scellait `"... ; acquisition ACQUIRED"` SANS numéro quand
+    `Aprime_ref` manquait. Il n'existe plus -- la fonction lève avant d'atteindre la construction de la
+    prédiction ; sur un smoke COMPLET, la prédiction cite TOUJOURS une médiane mesurée."""
+    rule = build_rule_r1(_smoke())
+    assert "MESUREE mediane" in rule["predictions_chiffrees_AVANT_le_run"]["Aprime"]
+
+
+def test_b_sweep0_lr_is_a_single_source_shared_by_smoke_and_seal():
+    """Fix (3) : plus de littéral `0.002` redéclaré indépendamment dans les deux fichiers -- les deux
+    importent `tools.harness.r1_constants.B_SWEEP0_LR`, donc les trois valeurs sont le MÊME objet."""
+    import tools.harness.seal_r1 as seal_mod
+    import tools.harness.smoke_r1 as smoke_mod
+    assert seal_mod.B_SWEEP0_LR == B_SWEEP0_LR == smoke_mod.B_SWEEP0_LR == 0.002

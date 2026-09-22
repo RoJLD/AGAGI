@@ -21,6 +21,11 @@ Fix round 1/5 (revue contrôleur, tâche 10) — quatre défauts réels corrigé
     CELLULE et PAR SEED : `noise = {"A": {seed: ratio}, "Aprime": {...}, "B": {...}}`.
 (11) ajoute une assertion de bit-identité GRATUITE (le fichier existe déjà, publié) sur la cellule B au
     seed 0, contre `results_file("retain_compose_lr_replication.json")["lr_0.002"]["per_seed"]["learned"][0]`.
+
+Fix round 2/5 (revue contrôleur, tâche 10) point (3) : `B_SWEEP0_LR` vit désormais dans
+`tools/harness/r1_constants.py`, SOURCE UNIQUE partagée avec `seal_r1.py` — plus de littéral `0.002`
+dupliqué qui pourrait diverger en silence. `SMOKE_NAME` (même module) fixe le nom `Harness` du smoke,
+que `seal_r1.py` réutilise pour calculer son chemin par défaut (point 2).
 """
 import json
 import os
@@ -37,11 +42,11 @@ from src.paths import results_file  # noqa: E402
 from src.seed_ai.harness import Harness  # noqa: E402
 from tools.harness.cell import _run_arm  # noqa: E402
 from tools.harness.learners.connectome import ConnectomeLearner  # noqa: E402
+from tools.harness.r1_constants import B_SWEEP0_LR, SMOKE_NAME, SMOKE_SEED  # noqa: E402
 from tools.harness.tasks.composition import CompositionTask  # noqa: E402
 
 SEEDS = (0, 1, 2)
 H_A = {"lr": 0.02, "rank": 16, "n_classes": None, "credit": "supervised"}
-B_SWEEP0_LR = 0.002          # premier pas du sweep de la cellule B (bras full_eval == bras "A" de B)
 
 
 def _hb(lr):
@@ -143,7 +148,7 @@ def main():
         vals = [out["B"][str(lr)][str(s)] for s in SEEDS]
         print(f"B lr={lr} : {vals} (mediane {float(np.median(vals)):.4f})")
 
-    h = Harness(seed=0, name="harness_r1_smoke", with_db=False)
+    h = Harness(seed=SMOKE_SEED, name=SMOKE_NAME, with_db=False)
     path = h.save(out)
     print("->", path)
 

@@ -38,6 +38,24 @@ Défauts corrigés ici (numérotés comme dans la revue) :
 (14) le champ `warning` de `declare_design` (texte d'aide au lecteur humain, pas une donnée scellable)
     est retiré du dict `design` avant scellement ; le reste (links, control_family, n_independent,
     question, cost_estimate) est conservé.
+
+Fix round 2/5 (re-revue contrôleur, tâche 10) — SANS re-sceller (le `-bis` sur disque est propre ;
+`preregister` reste IDEMPOTENT à contenu identique -- un re-run de ce module rend le MÊME chemin, sans
+`PreregistrationConflict`, tant que le smoke lu ne change pas) :
+(1) fallback non adossé : la prédiction ACQUIRED de A' avait un `else` qui scellait la CLAIM SANS
+    référence mesurée si `Aprime_ref` manquait -- motif (a) du dépôt (entrée absente -> affirmation de
+    fond). `build_rule_r1` REFUSE désormais (`ValueError`) un smoke sans `Aprime_ref`, sans `noise` pour
+    les trois cellules (A/Aprime/B), ou sans `unit_s` (bras full_eval) pour les trois cellules -- AUCUNE
+    prédiction ne se scelle plus sans sa mesure. Les branches `if ... is not None else ...` sont
+    retirées : la valeur est désormais TOUJOURS présente (garde en tête de fonction) ou la fonction a
+    déjà levé.
+(2) entrée périmée par défaut : `main()` sans argument lisait `harness_r1_smoke_0.json`, le smoke DE R1
+    (sans `Aprime_ref`) -- un re-run sans argument aurait construit une règle DÉGRADÉE avant d'échouer
+    sur le conflit de contenu. Le défaut est désormais `<SMOKE_NAME>_<SMOKE_SEED>_rerun.json` (le
+    fichier réellement rendu par le re-smoke de la tâche 10) ; de toute façon, le refus du point (1)
+    bloquerait un smoke incomplet avant tout scellement.
+(3) `B_SWEEP0_LR` vit désormais dans `tools/harness/r1_constants.py`, SOURCE UNIQUE partagée avec
+    `smoke_r1.py` (jamais un `0.002` redéclaré indépendamment dans les deux fichiers).
 """
 import json
 import os
@@ -52,11 +70,11 @@ from src.paths import results_file  # noqa: E402
 from src.seed_ai.harness_pieces import PIECES  # noqa: E402
 from src.seed_ai.harness_verdict import BRANCHES  # noqa: E402
 from tools.experiment_preflight import assert_control_family, declare_design  # noqa: E402
+from tools.harness.r1_constants import B_SWEEP0_LR, SMOKE_NAME, SMOKE_SEED  # noqa: E402
 from tools.plain_substrate_ceiling import PLAIN_COMPOSITION_CEILING, PLAIN_COMPOSITION_PROVENANCE  # noqa: E402
 from tools.preregister import preregister, stamp  # noqa: E402
 
 N_SEEDS, N_ARMS = 12, 5
-B_SWEEP0_LR = 0.002          # premier pas du sweep de la cellule B -- SOURCE UNIQUE (fix (10))
 
 # Ce que chaque branche de lecture SIGNIFIE pour la famille HARNESS-R1 -- une phrase DISTINCTE par
 # branche (fix (4)) : un dict dont les 15 valeurs sont identiques ne discrimine rien, c'est le défaut
@@ -99,7 +117,25 @@ def build_rule_r1(smoke: dict) -> dict:
     """Pure : construit les trois sous-règles de cellule (A, A', B) et la règle de famille HARNESS-R1-bis.
     Choisit le second lr de B = le meilleur des lr != `B_SWEEP0_LR` dont la médiane dépasse la barre
     (référence + 0,05) ; à égalité, celui le plus proche de `B_SWEEP0_LR` (fix (10)) ; lève s'il n'y en a
-    aucun."""
+    aucun.
+
+    Fix round 2 (1) -- EN TÊTE, avant tout calcul : un smoke incomplet ne doit produire NI règle
+    dégradée NI prédiction non adossée. `Aprime_ref`, `noise` (A/Aprime/B) et `unit_s` (A/Aprime/B, bras
+    full_eval) sont exigés ; leur absence LÈVE `ValueError`, jamais une prédiction bâtie sur un `else`
+    silencieux (motif (a) du dépôt -- entrée absente -> affirmation de fond)."""
+    if "Aprime_ref" not in smoke:
+        raise ValueError("smoke sans 'Aprime_ref' : aucune prediction ACQUIRED de A' ne peut se sceller "
+                         "sans sa reference mesuree (motif (a) : entree absente -> affirmation de fond)")
+    _noise = smoke.get("noise", {})
+    _missing_noise = [c for c in ("A", "Aprime", "B") if c not in _noise]
+    if _missing_noise:
+        raise ValueError(f"smoke sans 'noise' pour {_missing_noise} : plancher de bruit manquant, "
+                         "aucune prediction ne peut citer une bande mesuree sans elle")
+    _missing_unit = [c for c in ("A", "Aprime", "B") if c not in smoke.get("unit_s", {})]
+    if _missing_unit:
+        raise ValueError(f"smoke sans 'unit_s' (bras full_eval) pour {_missing_unit} : cout non mesure, "
+                         "donc non comparable entre cellules (fix round 1, point 2)")
+
     sweep0_lr = B_SWEEP0_LR
     ref_b = statistics.median(float(v) for v in smoke["B_ref"].values())
     bar_b = ref_b + 0.05
@@ -169,12 +205,12 @@ def build_rule_r1(smoke: dict) -> dict:
     }
 
     # (7) plancher de bruit MESURE par cellule et par seed -- publie tel quel dans la regle (les
-    # predictions ci-dessous en citent le resume, pas des chiffres importes d'ailleurs, E8).
-    noise = smoke.get("noise", {})
-    band_A = (min(noise["A"].values()), max(noise["A"].values())) if noise.get("A") else None
+    # predictions ci-dessous en citent le resume, pas des chiffres importes d'ailleurs, E8). Presence
+    # deja garantie par la garde en tete de fonction (fix round 2, point 1) : TOUJOURS calculable ici.
+    noise = _noise
+    band_A = (min(noise["A"].values()), max(noise["A"].values()))
     med_B_intact = statistics.median(float(v) for v in smoke["B"][str(sweep0_lr)].values())
-    med_Aprime_ref = (statistics.median(float(v) for v in smoke["Aprime_ref"].values())
-                       if "Aprime_ref" in smoke else None)
+    med_Aprime_ref = statistics.median(float(v) for v in smoke["Aprime_ref"].values())
 
     design = declare_design(
         question="Le harnais à trois conditions rend-il, sur les trois cellules PORTÉES à réponse "
@@ -190,16 +226,12 @@ def build_rule_r1(smoke: dict) -> dict:
     a_pred = ("PIECE_PARTIAL : chute >= 3x hors bande, plain ~0,27 > barre ~0,22 (billet publié, "
               "results/bilinear_composition.json) ; bit-identite seed 0 (0,9328125 / 0,2703125, connu "
               "publié) ; bar_status CEILING_ABOVE_BAR (0,944 = 34/36 forme close, publiée > barre "
-              "ref+0,05) ; sham DECLARED ({\"bilinear_sham\": True}, registre PIECES) ; ")
-    if band_A is not None:
-        a_pred += f"bande de bruit MESUREE au smoke [{band_A[0]:.3f}, {band_A[1]:.3f}] ; "
-    a_pred += "e19 ROBUST attendu"
+              "ref+0,05) ; sham DECLARED ({\"bilinear_sham\": True}, registre PIECES) ; "
+              f"bande de bruit MESUREE au smoke [{band_A[0]:.3f}, {band_A[1]:.3f}] ; e19 ROBUST attendu")
 
-    aprime_pred = "PIECE_NOT_NECESSARY : plain = bilineaire = 1,0 (same_tick supervise 150 ep., MESURE seeds 0-2 au present smoke)"
-    if med_Aprime_ref is not None:
-        aprime_pred += f" ; acquisition ACQUIRED : reference lr=0 MESUREE mediane {med_Aprime_ref:.3f} << 1,0 appris"
-    else:
-        aprime_pred += " ; acquisition ACQUIRED"
+    aprime_pred = ("PIECE_NOT_NECESSARY : plain = bilineaire = 1,0 (same_tick supervise 150 ep., MESURE "
+                   "seeds 0-2 au present smoke) ; acquisition ACQUIRED : reference lr=0 MESUREE mediane "
+                   f"{med_Aprime_ref:.3f} << 1,0 appris")
 
     b_pred = (f"DEMANDED_ACQUIRED_NECESSARY : intact MESURE au present smoke, mediane {med_B_intact:.3f} a lr "
               f"{sweep0_lr} ; state_reset -> ~1/6 (plancher de Bayes K=6, connu) ; sans recurrent_state "
@@ -234,7 +266,12 @@ def build_rule_r1(smoke: dict) -> dict:
 
 def main(argv=None):
     argv = argv if argv is not None else sys.argv[1:]
-    path = results_file("harness_r1_smoke_0.json")
+    # Fix round 2, point (2) : le nominal (`<SMOKE_NAME>_<SMOKE_SEED>.json`) est le smoke DE R1 (sans
+    # Aprime_ref) -- desormais suivi par git, ce qui a detourne le re-smoke de la tache 10 vers
+    # `_rerun.json` (P2.61). Le defaut suit ce meme fichier, tire de la source UNIQUE `SMOKE_NAME` --
+    # et de toute facon, la garde en tete de `build_rule_r1` (fix round 2, point 1) refuse tout smoke
+    # incomplet avant qu'aucune regle degradee ne puisse se sceller.
+    path = results_file(f"{SMOKE_NAME}_{SMOKE_SEED}_rerun.json")
     if argv:
         path = argv[0]
     # LIRE dans une variable AVANT toute écriture (CLAUDE.md -- jamais un "w" avant d'avoir fini de lire).
