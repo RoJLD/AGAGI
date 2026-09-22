@@ -30,7 +30,7 @@ lignée. Spec : `docs/superpowers/specs/2026-09-02-evo028-weak-position-design.m
 0,804 de puissance au point observé 0,818), config EVO-027 verbatim : EARLY biais ères 1-15/run 30,
 LATE propre 1-20/biais 21-35/run 50, horizon post-fenêtre apparié, N constant 172, budget
 agent-ticks E13 + CostGuard 600 s/seed. Règle scellée AVANT run : `EVO-028.json` ; coût scellé par
-smoke (`EVO-028-SMOKE`, branche « t_pair ≤ 134 s » : 99,9 s mesuré → 2,39 h < plafond 11 520 s).
+smoke (`EVO-028-SMOKE`, `docs/preregistrations/EVO-028-SMOKE.json`, branche « t_pair ≤ 134 s » : 99,9 s mesuré → 2,39 h < plafond 11 520 s).
 Données NEUVES seulement (E9) — aucune fusion avec les 24+24 d'EVO-027 qui ont engendré l'hypothèse.
 Ajouts vs EVO-027 : lecture SECONDAIRE sans poids (top-1 de l'élite à la dernière ère, contre la
 faille de déflation best-ever relevée par le réfutateur) ; taux PAR paire ; DV |logit| réparée
