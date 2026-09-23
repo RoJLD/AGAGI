@@ -140,14 +140,25 @@ def test_classify_leases_sur_un_repertoire_VIDE_ne_classe_RIEN(tmp_path):
 # --------------------------------------------------------------------------------------------------
 
 def test_default_leases_dir_is_anchored_to_the_repository_root_not_the_cwd():
+    """Le répertoire des baux est ancré à la racine COMMUNE du dépôt — le parent du `.git` partagé par tous
+    les worktrees (P2.69 i) — jamais au worktree courant.
+
+    ⚠️ CORRIGÉ le 2026-09-23 (5e rouge de la suite de nuit du PM, mesuré depuis un worktree) : ce test
+    comparait à `git rev-parse --show-toplevel`, c'est-à-dire au sommet du worktree COURANT. Depuis l'arbre
+    principal les deux coïncident (vert) ; depuis un worktree, `--show-toplevel` rend le worktree alors que
+    `_repo_root` rend, par design, l'arbre principal (rouge). Le test contredisait le design qu'il garde —
+    reproduit : `_dir(None)` = C:/…/AGAGI/runs/leases, toplevel = C:/…/AGAGI/.claude/worktrees/<wt>. La
+    référence est désormais `--git-common-dir`, la même que l'implémentation lit — mais mesurée ICI par git,
+    pas recopiée d'elle."""
     import subprocess
     from pathlib import Path
     L._reset_repo_root_cache()
     try:
         d = L._dir(None)
         assert d.is_absolute()
-        racine = subprocess.check_output(["git", "rev-parse", "--show-toplevel"], text=True).strip()
-        assert d.resolve() == (Path(racine) / L.DEFAULT_LEASES_DIR).resolve()
+        common = subprocess.check_output(["git", "rev-parse", "--git-common-dir"], text=True).strip()
+        racine_commune = Path(common).resolve().parent
+        assert d.resolve() == (racine_commune / L.DEFAULT_LEASES_DIR).resolve()
     finally:
         L._reset_repo_root_cache()
 
@@ -186,6 +197,41 @@ def test_repo_root_from_a_worktree_is_the_MAIN_tree(tmp_path):
         assert L._repo_root(cwd=wt).resolve() == principal.resolve()
     finally:
         subprocess.run = faux.orig
+
+
+def test_repo_root_from_a_REAL_worktree_is_the_main_tree(tmp_path):
+    """CONTRE-EXEMPLE RÉEL (2026-09-23, 5e rouge de la suite de nuit du PM). Le mock ci-dessus ne peut pas
+    contredire l'implémentation : il répond ce qu'on lui dit — c'est ainsi que le test d'ancrage a pu
+    rester vert tout en contredisant le design. Ici un VRAI worktree jetable (`git worktree add --detach
+    --no-checkout` : aucun fichier extrait, donc aucun chemin long Windows ; seule la métadonnée `.git` du
+    worktree existe), interrogé par le VRAI git : `--show-toplevel` y rend le worktree — l'ancienne
+    référence, fausse — et `_repo_root(cwd=wt)` rend l'arbre principal, le design (P2.69 i). La racine de
+    référence est le parent de `--git-common-dir`, donc le test tient AUSSI quand la suite tourne déjà
+    depuis un worktree (le cas du PM). Retiré en teardown ; git absent ou `worktree add` refusé -> skip
+    explicite, jamais un vert fabriqué."""
+    import subprocess
+    from pathlib import Path
+    import pytest
+    try:
+        common = subprocess.check_output(["git", "rev-parse", "--git-common-dir"], text=True).strip()
+    except (OSError, subprocess.CalledProcessError) as e:
+        pytest.skip(f"git indisponible : {e}")
+    racine_commune = Path(common).resolve().parent
+    wt = tmp_path / "wt"
+    r = subprocess.run(["git", "worktree", "add", "--detach", "--no-checkout", str(wt), "HEAD"],
+                       capture_output=True, text=True)
+    if r.returncode != 0:
+        pytest.skip(f"worktree jetable refusé par git : {r.stderr.strip()[:160]}")
+    try:
+        toplevel_wt = Path(subprocess.check_output(["git", "rev-parse", "--show-toplevel"], cwd=str(wt),
+                                                   text=True).strip()).resolve()
+        assert toplevel_wt == wt.resolve() and toplevel_wt != racine_commune, (
+            "prémisse : depuis le worktree, --show-toplevel doit rendre le worktree, pas l'arbre principal")
+        r_wt = L._repo_root(cwd=wt).resolve()
+        assert r_wt == racine_commune, f"_repo_root depuis un worktree doit rendre l'arbre principal, or {r_wt}"
+        assert r_wt != toplevel_wt, "l'ancienne référence (toplevel) aurait rougi ici : c'est le contre-exemple"
+    finally:
+        subprocess.run(["git", "worktree", "remove", "--force", str(wt)], capture_output=True)
 
 
 def test_repo_root_without_git_falls_back_to_the_cwd(tmp_path):
