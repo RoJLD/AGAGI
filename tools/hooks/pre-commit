@@ -393,5 +393,37 @@ if [ -n "$staged_rc" ]; then
   }
 fi
 
+# 20. PROVENANCE DE L'EVIDENCE (2026-09-23) -- classe E27 : mesure DEUX FOIS cette semaine sur des
+# clones/worktrees neufs, un record qui cite `results/*.json` absent du depot (ou present seulement sur
+# le disque d'une session) ne peut etre rouvert par personne d'autre -- une conclusion dont l'evidence
+# n'est plus rouvrable n'est pas refutable. `check_evidence_provenance.py` exige que tout chemin cite
+# EXISTE sur le disque ET soit SUIVI par git, ou soit publie par son hash (sha256 a cote de la citation).
+# Trois causes distinctes, jamais fondues : absent (nulle part), non_suivi (existe, git l'ignore),
+# glob_vide (un motif a joker qui ne developpe vers aucun fichier). Baseline legataire gelee PAR
+# (record, chemin, cause) dans tools/evidence_provenance_baseline.json ; ABSENT est PIRE que NON_SUIVI --
+# un legataire qui REGRESSE (non_suivi -> absent) bloque, l'inverse non. Un record illisible BLOQUE et
+# n'est jamais gelable.
+# Se declenche si un record EDR, un results/*.json, la baseline OU le module lui-meme est stage ; la
+# baseline stagee seule declenche aussi (E4 occ. 5). --only n'est utilise QUE si les fichiers stages sont
+# EXCLUSIVEMENT des docs/EDR -- un results/*.json modifie (apparu, disparu, deplace) peut changer la
+# provenance d'AUTRES records que ceux stages, donc un results stage -> run NON scope (meme raisonnement
+# que la porte 19).
+staged_ep=$(git diff --cached --name-only --diff-filter=AMD | grep -E '^(docs/EDR/.*\.md|results/.*\.json|tools/evidence_provenance_baseline\.json|tools/check_evidence_provenance\.py)$')
+if [ -n "$staged_ep" ]; then
+  only_ep=$(echo "$staged_ep" | grep -E '^docs/EDR/' || true)
+  non_edr_ep=$(echo "$staged_ep" | grep -vE '^docs/EDR/' || true)
+  if [ -n "$only_ep" ] && [ -z "$non_edr_ep" ]; then
+    PYTHONIOENCODING=utf-8 python tools/check_evidence_provenance.py --only $only_ep
+  else
+    PYTHONIOENCODING=utf-8 python tools/check_evidence_provenance.py
+  fi || {
+    echo ""
+    echo "-> Un record cite une evidence ABSENTE ou NON SUIVIE (ou a REGRESSE) : git add le results/*.json,"
+    echo "   publier son sha256 a cote de la citation, ou corriger le chemin. Geler EN CONNAISSANCE :"
+    echo "   python tools/check_evidence_provenance.py --update-baseline"
+    fail=1
+  }
+fi
+
 [ "$fail" -ne 0 ] && echo "   (urgence : git commit --no-verify)"
 exit $fail

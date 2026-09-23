@@ -237,7 +237,27 @@ possiblement une LIMITE du parseur de cellule — `_CELL_LR` ne reconnaît pas `
 illisible BLOQUE et n'est jamais gelable par `--update-baseline` ; un scan sous 50 records refuse
 d'écrire la baseline (arbre vide/partiel désarmerait la porte en silence) ; mutation tuée par son
 témoin).
-**19 gardes** <!-- count:portes_hook=19 --> sont branchées sur le hook pre-commit
+
+`check_evidence_provenance.py` (porte 20, 2026-09-23) — classe E27 : mesuré DEUX FOIS cette semaine sur
+des clones/worktrees neufs, un record citant un `results/*.json` absent du dépôt (ou présent seulement
+sur le disque d'une session) n'est rouvrable par personne d'autre — une conclusion dont l'évidence n'est
+plus rouvrable n'est pas réfutable. Réutilise `cited_results`/`_developper` de `check_regime_claims.py`
+(porte 19). Un chemin cité doit EXISTER sur le disque ET être SUIVI par git, ou être publié par son hash
+(`sha256 <hex>` dans les 120 caractères après la citation) — trois causes distinctes, jamais fondues :
+`absent` (nulle part), `non_suivi` (existe, git l'ignore), `glob_vide` (un motif à joker `results/x_*.json`
+qui ne développe vers AUCUN fichier — sans cette 3ᵉ cause, la citation disparaîtrait silencieusement du
+compte, forme (a) documentée plus haut). `ABSENT` est jugé PIRE que `NON_SUIVI` (rang 2 > 1, récupérable
+par `git add`) ; baseline gelée PAR (record, chemin, cause) — un légataire ne bloque que s'il RÉGRESSE
+vers une cause pire qu'au gel. ⚠️ Défaut trouvé en implémentant le brief, corrigé avant tout commit : la
+fenêtre de 120 caractères après une citation ne s'arrêtait pas à la citation `results/` SUIVANTE — un
+hash placé après une 2ᵉ citation « bleedait » en arrière sur la 1ʳᵉ, la faisant compter comme publiée par
+hash sans qu'aucun hash ne lui soit associé (`publie_par_hash` borne désormais la fenêtre à la prochaine
+occurrence de `results/`). Mesuré le 2026-09-23 (`--report`) : 300 records, 97 chemins cités, 18 absents,
+0 non suivis, 0 publiés par hash — 18 gelés comme dette légataire dans 17 records. Un record illisible
+BLOQUE et n'est jamais gelable ; un scan sous 50 records refuse d'écrire la baseline ; mutation tuée par
+son témoin.
+
+**20 gardes** <!-- count:portes_hook=20 --> sont branchées sur le hook pre-commit
 (`tools/hooks/pre-commit`) — compte RECOMPUTÉ depuis le hook lui-même : la phrase « 5 cliquets, tous
 branchés » qui vivait ici était fausse.
 ⚠️ **La baseline d'un cliquet doit elle-même déclencher le hook** — sinon l'élargir et la committer seule

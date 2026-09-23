@@ -320,6 +320,18 @@ PORTES = {
                       "mesuré nulle part, publié = 1.0 partout)"),
         }],
     },
+    "20": {
+        "module": "tools.check_evidence_provenance",
+        "titre": "provenance de l'évidence citée (E27)",
+        "temoins": ["tests/sandbox/test_evidence_provenance_gate.py"],
+        "mutations": [{
+            "nom": "une évidence absente ou non suivie est toujours OK",
+            "avant": '    statut = "ABSENT" if absents else ("NON_SUIVI" if non_suivis else "OK")',
+            "apres": '    statut = "OK"',
+            "motif": ("le verdict du cliquet — les 18 chemins absents gelés passeraient, et tout "
+                      "nouveau chemin absent, non suivi ou à glob mort aussi"),
+        }],
+    },
     "21": {
         "module": "tools.check_roles_registry",
         "titre": "registre des rôles : cinq colonnes obligatoires (spec PM 2026-09-16)",

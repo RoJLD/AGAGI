@@ -1,0 +1,57 @@
+{
+  "_comment": "Paires (record, chemin results/ cite) ABSENT/NON_SUIVI/GLOB_VIDE, gelees PAR CAUSE comme dette legataire (E27). Un legataire ne bloque que s'il REGRESSE vers une cause PIRE qu'au gel (tools/check_evidence_provenance.py, _RANG). Aucune NOUVELLE paire.",
+  "legataires": {
+    "docs/EDR/088_Content_Benefit_Rises_With_Criticality_Trend_Not_Yet_Robust.md": {
+      "results/lewis_critical_2026.json": "absent",
+      "results/lewis_critical_2027.json": "absent"
+    },
+    "docs/EDR/089_Structural_Tension_Lethality_Vs_Survival_Blocks_Coevolved_Language_Use.md": {
+      "results/coevolve_use_long_189.json": "absent"
+    },
+    "docs/EDR/090_Lethality_Curriculum_Has_No_Survivable_First_Rung.md": {
+      "results/lethality_curriculum_190.json": "absent"
+    },
+    "docs/EDR/093_No_Income_Rung_The_Wall_Is_Action_Spending.md": {
+      "results/lewis_survival_sweep_193.json": "absent"
+    },
+    "docs/EDR/094_Intrinsic_Wall_Survival_Is_Apex_Independent.md": {
+      "results/lewis_apex_sweep_194.json": "absent"
+    },
+    "docs/EDR/098_Intrinsic_Wall_Is_Not_The_Surprise_Brain_Cost.md": {
+      "results/lewis_surprise_sweep_198.json": "absent"
+    },
+    "docs/EDR/099_Intrinsic_Drain_Is_The_Biology_Phase.md": {
+      "results/lewis_drain_decompose_199.json": "absent"
+    },
+    "docs/EDR/100_Biology_Drain_Is_Evolved_Phenotype_Metabolism.md": {
+      "results/lewis_drain_decompose_100.json": "absent"
+    },
+    "docs/EDR/101_Metabolism_Rescale_Necessary_Not_Sufficient.md": {
+      "results/lewis_metab_sweep_101_reduced.json": "absent"
+    },
+    "docs/EDR/105_Forage_Bottleneck_Is_Approach_Not_Capture_Champions_Dont_Reach_Prey.md": {
+      "results/lewis_forage_funnel_105.json": "absent"
+    },
+    "docs/EDR/106_Approach_Wall_Is_Policy_Not_Kinematics_Frozen_Prey_Still_Unreached.md": {
+      "results/lewis_approach_kinematics_106.json": "absent"
+    },
+    "docs/EDR/114b_P_Reach_Deconfound_Corrected_Forage_Baselines.md": {
+      "results/lewis_forage_deconfound_1140.json": "absent"
+    },
+    "docs/EDR/123_Credit_Horizon_Refuted_Gradient_Advantage_Constant_Not_Widening.md": {
+      "results/memory_credit_horizon_1167.json": "absent"
+    },
+    "docs/EDR/125_Craft_Wall_The_Tool_Ladder_Inverts_Apex_By_Coop_Not_By_Spear.md": {
+      "results/competence_profile_1240.json": "absent"
+    },
+    "docs/EDR/127_QD_Selection_Does_Not_Rescue_Dead_Craft_Reached_Not_Retained.md": {
+      "results/qd_tier_rescue_1260.json": "absent"
+    },
+    "docs/EDR/150_ToM_Gated_Not_Dead_Head_Inert_Reward_Disconnected_From_Fitness.md": {
+      "results/tom_probe_1280.json": "absent"
+    },
+    "docs/EDR/151_ToM_Behavioral_Coordination_Indeterminate_No_Recruitment_Above_Geometric_Baseline.md": {
+      "results/tom_coordination_1300.json": "absent"
+    }
+  }
+}
