@@ -234,6 +234,19 @@ DANS le design : plafonner `max_ticks` pour les traces, réserver le n complet a
 **persister les génomes entraînés** (les avoir perdus a coûté un réentraînement complet).
 Mesurer le débit sur un smoke avant d'engager un run long — mais ne pas extrapoler une tendance depuis
 un préfixe court (un transitoire d'apprentissage y ressemble).
+⚠️ **Une unité de coût mesurée SOUS CHARGE n'est pas une unité — payé trois fois le 2026-09-22.** La
+garde E13 projette le coût d'un run depuis UNE cellule mesurée ; si cette cellule tourne pendant qu'un
+autre job occupe la machine, la projection est fausse et la garde COUPE ou ABANDONNE sur un chiffre qui
+ne décrit pas le run : b0 (P4.17, 217 s par cellule au lieu de 75-90 s → deux lignes de grille coupées),
+d7 (P4.16, 815 s contre 283 s en P4.8 pour la MÊME cellule bit-identique), c9 (cellule A du harnais
+`INCONCLUSIVE_N` par abandons sous neuf processus python). C'est E12 appliqué au coût — la classe qui
+avait déjà inversé une décision de CI (8 h 30 mesurées sous seize agents, 30 min au repos). Règles :
+**un seul run lourd à la fois** sur la machine ; **une vague de commits COMPTE comme un run lourd** (la
+porte 15 lance un `pytest` par mutation) ; noter la charge au départ de chaque cellule
+(`python -m tools.jobs.doctor`, lecture seule) ; publier l'unité LIBRE et l'unité SOUS CHARGE, la charge
+se mesurant par la réplication d'une cellule bit-identique ; en cas de coupe, une REPRISE déclarée à unité
+re-mesurée machine libre et même budget scellé (jamais relever la marge) ; des abandons qui persistent
+sous marge explicite se GRAVENT comme E12, ils ne se relancent pas.
 
 ## Records
 Nouveau record → frontmatter `gate:` / `tests:[SDR-Gx]` / `adopts:` ou `foundational`, sinon
