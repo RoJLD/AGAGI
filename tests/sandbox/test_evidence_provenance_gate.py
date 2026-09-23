@@ -389,3 +389,27 @@ def test_p10_garde_de_compte_a_3_records_ne_modifie_PAS_la_baseline_disque(tmp_p
     monkeypatch.setattr(P, "_BASELINE", str(b))
     assert P.main(["--root", str(tmp_path), "--update-baseline"]) == 1
     assert b.read_text(encoding="utf-8") == contenu_avant
+
+
+# ---------------------------------------------------------------------------------------------------
+# Re-revue architecte, meme jour : le correctif de la revue precedente (_env_isole inconditionnel dans
+# _tracked) a introduit une REGRESSION -- isoler GIT_* meme quand root == _ROOT fait retomber sur
+# .git/index AMBIANT (le travail stage d'une AUTRE session) au lieu de l'index TEMPORAIRE du commit en
+# cours que git fixe via GIT_INDEX_FILE pour ses hooks. Corrige par _env_pour (herite sur le depot
+# COURANT, isole sur un depot TIERS). Decision rendue OBSERVABLE plutot que de mocker subprocess.
+
+
+def test_p11_env_pour_herite_sur_le_depot_courant_et_isole_sur_un_depot_tiers(tmp_path):
+    """(b) root == _ROOT (le depot du commit en cours) -> None : herite l'environnement ambiant, donc
+    GIT_INDEX_FILE quand git le fixe pour un commit partiel -- c'est l'index QU'IL FAUT juger (lecon de
+    la porte 4 : « la porte juge ce qui SERA committe »), pas l'index ambiant qui peut porter le travail
+    stage d'une AUTRE session sur l'arbre PARTAGE (experience du re-reviewer : session B stage
+    results/y.json sans committer, session A commite docs/EDR/X.md qui le cite -- avec l'index ambiant,
+    y.json ressortirait SUIVI a tort).
+    (a) root != _ROOT (un depot TIERS, ex. le jetable de test) -> isole (_env_isole(), aucune variable
+    GIT_* heritee) -- le defaut ORIGINAL de cette correction, deja couvert indirectement par les tests
+    test_p6_* (restes verts), verifie ici DIRECTEMENT sur la fonction de decision elle-meme."""
+    assert P._env_pour(P._ROOT) is None
+    env_tiers = P._env_pour(str(tmp_path))
+    assert env_tiers is not None
+    assert all(not k.startswith("GIT_") for k in env_tiers)

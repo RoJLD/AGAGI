@@ -76,7 +76,7 @@
   "tests/sandbox/test_energy_readout_probe.py": 4,
   "tests/sandbox/test_energy_trace.py": 5,
   "tests/sandbox/test_eval_harness.py": 8,
-  "tests/sandbox/test_evidence_provenance_gate.py": 24,
+  "tests/sandbox/test_evidence_provenance_gate.py": 25,
   "tests/sandbox/test_evo011_preflight.py": 25,
   "tests/sandbox/test_evo_memory_enrichment.py": 13,
   "tests/sandbox/test_evo_memory_inworld.py": 15,

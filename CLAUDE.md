@@ -266,6 +266,10 @@ n'était alors non suivi non plus — coïncidence, pas preuve). Corrigé par un
 monkeypatch de `_tracked`/`_dans_head`. `_dans_head` (nouvel oracle, `git cat-file -e HEAD:<chemin>`)
 distingue « suivi dans l'INDEX » de « présent dans HEAD » — un fichier stagé dans LE MÊME commit est
 suivi mais pas encore dans HEAD ; publié en `--report` uniquement, ne bloque rien.
+⚠️ Ce correctif lui-même a produit une RÉGRESSION, trouvée en re-revue le jour même (cf. la règle à deux
+faces `GIT_INDEX_FILE`/`_env_pour` dans la section Environnement) : isoler l'environnement git de
+`_tracked` INCONDITIONNELLEMENT cassait le cas où `root` EST le dépôt courant pendant le commit —
+`_env_pour(root)` distingue désormais dépôt courant (hérite) de dépôt tiers (isole).
 
 **20 gardes** <!-- count:portes_hook=20 --> sont branchées sur le hook pre-commit
 (`tools/hooks/pre-commit`) — compte RECOMPUTÉ depuis le hook lui-même : la phrase « 5 cliquets, tous
@@ -351,19 +355,29 @@ explicite, jamais le processus courant ni ses ancêtres, jamais un bail dont le 
   disque (ce qu'un auteur veut voir en écrivant). La règle « même commit » reste : c'est elle qui rend un
   commit vert par lui-même et un clone cohérent.
 - ⚠️ **`GIT_INDEX_FILE` (même mécanisme que ci-dessus) fuit aussi vers un dépôt git IMBRIQUÉ créé par un
-  test.** Mesuré le 2026-09-23 (porte 20, revue architecte) : un test qui construit un VRAI dépôt git
-  jetable (`git init` sous `tmp_path`, pour exercer un oracle git réel plutôt qu'une constante injectée)
-  et l'invoque en SOUS-PROCESSUS hérite l'environnement du processus appelant — et `git commit --
+  test — et la règle n'est PAS « retirer `GIT_*` avant tout sous-processus git », elle est À DEUX FACES.**
+  Mesuré le 2026-09-23 (porte 20, revue architecte) : un test qui construit un VRAI dépôt git jetable
+  (`git init` sous `tmp_path`, pour exercer un oracle git réel plutôt qu'une constante injectée) et
+  l'invoque en SOUS-PROCESSUS hérite l'environnement du processus appelant — et `git commit --
   <pathspec>` fixe `GIT_INDEX_FILE` pour ses hooks. Le hook lance `check_gate_mutation.py`, qui lance
   `pytest` en sous-processus, qui lance le test, qui lance `git init`/`git add`/`git commit` sur le dépôt
   JETABLE : tous héritent `GIT_INDEX_FILE`, pointant vers l'index TEMPORAIRE du commit EXTÉRIEUR, pas
   celui du dépôt jetable. Symptôme observé au premier essai de commit : deux tests rougissent sans
   aucune mutation, dont un `git commit` qui échoue avec « invalid object … for docs/EDR/PAD-00.md ».
-  Reproduit hors commit en fixant `GIT_INDEX_FILE` à un chemin bidon avant `pytest`. **Corrigé** :
-  toute commande `git` invoquée sur un dépôt AUTRE que celui du commit en cours (un dépôt de test, un
-  clone, un submodule…) doit passer un `env` d'où les variables `GIT_*` sont retirées
-  (`tools/check_evidence_provenance.py::_env_isole`) — sinon elle peut lire/écrire l'index d'un AUTRE
-  dépôt sans erreur visible.
+  Reproduit hors commit en fixant `GIT_INDEX_FILE` à un chemin bidon avant `pytest`.
+  **Premier correctif, TROP LARGE, retiré le jour même** : isoler `GIT_*` INCONDITIONNELLEMENT (même
+  quand la commande vise le dépôt COURANT pendant le commit en cours) a cassé la leçon du point
+  précédent — la porte juge ce qui SERA committé, pas l'index AMBIANT, or c'est justement
+  `GIT_INDEX_FILE` (hérité) qui porte l'index TEMPORAIRE du commit partiel. Isoler dessus fait retomber
+  sur `.git/index` ambiant, qui peut porter le travail STAGÉ-MAIS-PAS-COMMITTÉ d'une AUTRE session sur
+  l'arbre PARTAGÉ — expérience reproduite par le re-reviewer : session B stage `results/y.json` sans
+  committer ; session A commite `docs/EDR/X.md` qui le cite ; avec l'index ambiant, `y.json` ressort
+  SUIVI à tort (FAUX PASS silencieux). **Règle correcte, à deux faces** : un sous-processus `git` qui
+  vise un dépôt AUTRE que le dépôt courant (un dépôt de test jetable, un clone, un submodule…) doit
+  ISOLER `GIT_*` ; un sous-processus qui vise le dépôt COURANT pendant un hook doit au contraire les
+  HÉRITER, sinon il juge un autre index que celui du commit en cours. Implémenté par
+  `tools/check_evidence_provenance.py::_env_pour(root)` — compare `root` au dépôt courant et rend `None`
+  (hérite) ou `_env_isole()` (isole), décision testée DIRECTEMENT (sans mocker `subprocess`).
 - Ne jamais committer sans demande explicite.
 - ⚠️ **Un `grep` de vérification sur du Markdown doit viser un motif SANS mise en forme** (un mot nu) : `grep "empreinte TARDIVE"` ne trouve pas `empreinte **TARDIVE**`. Et **une absence de correspondance n'est jamais une preuve d'absence** tant que le motif n'a pas été validé sur un cas POSITIF connu — mesuré le 2026-09-07 : trois greps faux m'ont fait graver une « forme d'erreur inédite » qui n'existait pas, rétractée le jour même. C'est la faute que le dépôt traque chez ses sondes (absence → affirmation), commise sur l'outil de vérification lui-même.
 - ⚠️ **Pas de backticks dans AUCUNE chaîne passée au shell** — `git commit -m`, `python -c`,

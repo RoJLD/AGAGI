@@ -52,13 +52,20 @@ Et un troisieme, trouve par la revue architecte APRES le premier commit (voir le
 dans task-2-report.md) : `_tracked` n'avait AUCUN temoin qui exerce le VRAI oracle git -- les cinq tests
 `non_suivi` du premier tir injectaient tous `suivi=lambda: False`, donc `_tracked` pouvait etre remplace
 par `return True` sans qu'un seul test ne rougisse. `test_p6_*` construit desormais un depot git JETABLE
-reel (aucun monkeypatch de `_tracked`/`_dans_head`) pour fermer ce trou.
+reel (aucun monkeypatch de `_tracked`/`_dans_head`) pour fermer ce trou -- ce qui a REVELE un quatrieme
+defaut (le premier essai de commit de cette meme correction a echoue dessus), CORRIGE par `_env_pour` :
+isoler `GIT_*` INCONDITIONNELLEMENT est FAUX -- ca marche pour un depot TIERS (le jetable de test) mais
+c'est une REGRESSION sur le depot COURANT pendant un commit, ou `GIT_INDEX_FILE` DOIT au contraire etre
+HERITE (voir `_env_pour` pour le mecanisme complet et l'experience qui l'a prouve).
 
 `_tracked` teste l'INDEX (`git ls-files`) : c'est le bon oracle POUR LE HOOK, ou un fichier ajoute dans
-LE MEME commit doit compter comme suivi. `_dans_head` teste HEAD (`git cat-file -e HEAD:<chemin>`) :
-un chemin peut etre `suivi` (dans l'index) sans etre `dans_head` (juste stage, pas encore committe) --
-c'est PUREMENT diagnostique (publie en `--report` uniquement, ne bloque rien) : un clone qui ne recupere
-que les commits (jamais l'index de qui que ce soit) ne voit que HEAD.
+LE MEME commit doit compter comme suivi -- et ou un fichier seulement STAGE par une AUTRE session sur
+l'arbre PARTAGE doit rester non_suivi (l'INDEX AMBIANT le confondrait avec suivi ; `_env_pour` heritant
+`GIT_INDEX_FILE` sur le depot courant juge le BON index, celui du commit, pas celui de l'arbre). `_dans_
+head` teste HEAD (`git cat-file -e HEAD:<chemin>`) : un chemin peut etre `suivi` (dans l'index) sans
+etre `dans_head` (juste stage, pas encore committe) -- c'est PUREMENT diagnostique (publie en `--report`
+uniquement, ne bloque rien) : un clone qui ne recupere que les commits (jamais l'index de qui que ce
+soit) ne voit que HEAD.
 
 ⚠️ « Combien de chemins cites ? » n'a PAS UNE reponse : un motif a accolade/joker (`results/lock_001_
 pred2_r{2,3,4}.json`) est UN motif brut qui developpe vers PLUSIEURS chemins. Trois comptes distincts,
@@ -162,34 +169,66 @@ def evaluer(texte, existe, suivi, root):
 
 
 def _env_isole():
-    """Env SANS aucune variable `GIT_*` heritee. Indispensable : `git commit -- <pathspec>` (le motif
-    que CLAUDE.md impose) fait tourner les hooks avec `GIT_INDEX_FILE` pointant vers un index
-    TEMPORAIRE construit pour ce commit PARTIEL -- si un sous-processus invoque `git` sur un AUTRE
-    depot (`root` different de celui du commit en cours -- typiquement le depot git JETABLE d'un test),
-    il HERITE cette variable et lit/ecrit le MAUVAIS index, celui du depot exterieur. Mesure le
+    """Env SANS aucune variable `GIT_*` heritee -- pour un appel git qui vise un depot TIERS (pas le
+    depot courant du commit en cours). `git commit -- <pathspec>` (le motif que CLAUDE.md impose) fait
+    tourner les hooks avec `GIT_INDEX_FILE` pointant vers l'index TEMPORAIRE de ce commit PARTIEL ; un
+    sous-processus qui invoque `git` sur un depot TIERS (typiquement le depot git JETABLE d'un test)
+    HERITE cette variable par defaut et lit/ecrit le MAUVAIS index, celui du depot exterieur. Mesure le
     2026-09-23 : reproduit en fixant `GIT_INDEX_FILE` a un chemin bidon avant de lancer les tests -- 2
     rougissent aussitot, dont un `git commit` qui echoue avec « invalid object ... for docs/EDR/PAD-00.md »
-    -- exactement le symptome observe en conditions reelles lors du premier essai de commit de CETTE
-    correction. `_tracked`/`_dans_head` prennent `root` en parametre : ils doivent refleter l'etat de
-    CE depot, jamais celui d'un autre herite par accident de l'environnement du processus appelant."""
+    -- exactement le symptome observe au premier essai de commit de CETTE correction. N'appeler que via
+    `_env_pour`, jamais directement : seul `_env_pour` sait distinguer depot COURANT de depot TIERS."""
     return {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+
+
+def _env_pour(root):
+    """LA decision d'isolation, rendue OBSERVABLE (testee directement, sans mocker subprocess) --
+    corrige une REGRESSION trouvee en re-revue le 2026-09-23 : `_tracked` isolait INCONDITIONNELLEMENT,
+    y compris quand `root` EST le depot courant pendant un commit.
+
+    `root == _ROOT` (le depot COURANT, celui du commit en cours) -> `None`, pour HERITER l'environnement
+    ambiant -- notamment `GIT_INDEX_FILE`, que git fixe pour ses hooks pendant un `git commit --
+    <pathspec>` et qui pointe l'index TEMPORAIRE de CE commit. C'est exactement ce qu'il faut juger
+    (lecon de la porte 4, deja dans CLAUDE.md : « la porte juge ce qui SERA committe, pas le disque » --
+    et ici, pas l'index AMBIANT non plus). RETIRER la variable ferait retomber sur `.git/index` AMBIANT,
+    qui peut porter le travail STAGE-MAIS-PAS-COMMITTE d'une AUTRE session sur l'arbre PARTAGE --
+    experience reproduite par le re-reviewer : session B stage `results/y.json` sans committer ; session
+    A commite `docs/EDR/X.md` qui le cite ; avec l'INDEX AMBIANT (isolation inconditionnelle, le bug),
+    `y.json` ressort SUIVI alors qu'aucun clone du commit de A ne le verra -- un FAUX PASS silencieux.
+
+    `root != _ROOT` (un depot TIERS -- jetable de test, clone, submodule) -> `_env_isole()`, car ce depot
+    n'a RIEN a voir avec le commit en cours : HERITER `GIT_INDEX_FILE` lui ferait lire/ecrire l'index
+    d'un AUTRE depot (le defaut ORIGINAL, trouve au premier essai de commit de cette correction).
+
+    `os.path.normcase` en plus de `realpath` : ce depot tourne sous Windows, ou la casse du lecteur
+    (`C:` vs `c:`) ne doit pas faire passer le depot courant pour un depot tiers."""
+    ici = os.path.normcase(os.path.realpath(root))
+    courant = os.path.normcase(os.path.realpath(_ROOT))
+    return None if ici == courant else _env_isole()
 
 
 def _tracked(root, rel):
     """Oracle INDEX : `git ls-files` voit un fichier `git add`-e, meme pas encore committe -- c'est le
     bon oracle POUR LE HOOK (un fichier ajoute dans LE MEME commit doit compter comme suivi). Temoin
-    REEL (pas de monkeypatch) : `test_p6_tracked_a_un_temoin_REEL_sur_un_depot_git_jetable`."""
+    REEL (pas de monkeypatch) : `test_p6_tracked_a_un_temoin_REEL_sur_un_depot_git_jetable`. La decision
+    d'environnement (heriter sur le depot courant, isoler sur un depot tiers) est dans `_env_pour`."""
     return subprocess.run(["git", "ls-files", "--error-unmatch", rel], cwd=root,
-                           capture_output=True, env=_env_isole()).returncode == 0
+                           capture_output=True, env=_env_pour(root)).returncode == 0
 
 
 def _dans_head(root, rel):
     """Oracle HEAD : `git cat-file -e HEAD:<rel>` -- distinct de `_tracked` (l'INDEX). Un chemin peut
     etre `suivi` (ajoute a l'index) sans etre `dans_head` (juste stage, pas encore committe) : un clone
     qui ne recupere que les commits ne voit que HEAD. PUREMENT diagnostique -- publie en `--report`
-    uniquement, ne participe a AUCUN statut ni AUCUNE decision de blocage."""
+    uniquement, ne participe a AUCUN statut ni AUCUNE decision de blocage.
+
+    `HEAD:<rel>` lit directement l'objet ARBRE au commit HEAD (base d'objets), jamais l'INDEX -- donc
+    INSENSIBLE a `GIT_INDEX_FILE` : que `_env_pour` isole ou herite ne changerait rien au resultat ICI.
+    On l'applique quand meme, par UNIFORMITE avec `_tracked` (meme regle pour tout appel git visant
+    `root` dans ce module) et en DEFENSE contre un `GIT_DIR` heritee sur un depot TIERS -- meme si ce
+    n'est pas le mecanisme du defaut reproduit."""
     return subprocess.run(["git", "cat-file", "-e", f"HEAD:{rel}"], cwd=root,
-                           capture_output=True, env=_env_isole()).returncode == 0
+                           capture_output=True, env=_env_pour(root)).returncode == 0
 
 
 def analyze(root=_ROOT, suivi=None):
