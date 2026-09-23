@@ -3532,9 +3532,27 @@ dose → verdict, no-op exact, n = 3 → underpowered, label mémorisé, gap ind
 complète + E8, P1/P2/P3, Z_UTILISE / Z_INERTE, ratio 2,0 / None, vies prédites, clones à lr 0) et `run_s2_paired` déclaré
 (6 cas). Recomputé après : **306 déclarations, 69 garde-seule = 38 déclaratives + 31 muettes** — les 12 ont quitté
 le périmètre garde-seule ; cliquet de calibration : 240 détectés / 232 calibrés / 2 légataires.
+
+**Fournées 4–9 (2026-09-22, après 4b68b121) : les 31 MUETTES sont à ZÉRO** — 19 simulateurs sous CLASSE de monde
+factice injectée dans le module (`_world`, `Biosphere3D`, `FamineWorld`, `AgriculturalWorld`, `WORLDS[clé]` remplacés
+par un environnement minimal à dose connue : cohorte de dicts, `step()` qui compte les ticks et tue la cohorte à un tick
+connu), 6 runners de monde de plus avec leurs maillons coûteux en enregistreurs (`train_population` : 24 têtes × 5000
+pas, `_setup3`, `seed_at`), les 3 sondes d'`evo_memory_inworld` sous `MemoryDemandBiosphere` factice (dont le logit
+d'attaque par un `MambaBatchModel.forward` remplacé qui rend des logits CONNUS, restauration vérifiée), `run_retention_map`
+en ORCHESTRATEUR injecté (quatre maillons, chemin de sortie en dur capturé par un `chdir` temporaire) et les 2 fonctions
+pures (`run_bptt_act` : W nul → 0,0 et gradient −0,25, fil direct → 1,0 ; `run_refgame` : déterminisme, code effondré à
+1 epoch, `acc ≤ injectivité`). Six fichiers, 36 tests, 0 monde réel, ~2 s par fournée :
+`tests/sandbox/test_mute_simulators_fake_world.py`, `_2.py`, `_3.py`, `_4.py`, `_5.py`, `_6.py`. Ce qui est jugé : la
+boucle d'ères, les réglages de régime POSÉS sur le monde (E8), l'état global posé puis RESTAURÉ même sur exception (E5 :
+`persistence.SPECIATE`, `forward`, logger), ce qui COMPTE ou est IGNORÉ (tués des seuls survivants, agent sans génome,
+agent sans apex perçu, mort en attaquant = engagé), les agrégats et les valeurs d'absence publiées telles quelles (0,0 /
+1,0 / `nan` / `None` sans fichier : défauts légataires de porte 14, documentés, jamais corrigés en silence). Les 31
+re-déclarées d'après leurs témoins (compte de clés inchangé). Portée recomputée : **38 garde-seule = 38 déclaratives + 0 muette** ; baseline gelée VIDE (comme le
+cliquet de calibration le 2026-09-01) ; porte 2 : 240 / 232 / 2 inchangés. Suite naturelle : la porte 18 (brancher
+`tools/check_calibration_reach.py` sur le hook — aucune NOUVELLE muette), passe dédiée avec témoin de mutation.
 **Suite** : (a) les 38 déclaratives — re-déclarer d'après ce que leurs témoins AFFIRMENT (une ligne chacune, dans
-`test_instrument_calibration.py`, fichier à trois auteurs ce jour : fenêtre à convenir) ; (b) les 31 muettes — injection
-à dose connue pour les orchestrateurs, un monde pour les simulateurs, ou déclaration explicite que la garde suffit.
+`test_instrument_calibration.py`, fichier à trois auteurs ce jour : fenêtre à convenir) ; (b) ✅ FAIT le 2026-09-22 (31 → 0 par les fournées 4–9, ci-dessus) — injection
+à dose connue pour les orchestrateurs, un monde FACTICE pour les simulateurs ; aucune déclaration « la garde suffit » n'a été nécessaire.
 
 **AVANCEMENT 2026-09-14 (tick 3) : 103 → 80.** ⚠️ **La scission 62/39 était encore surcomptée** :
 la v2 créditait `import tools.x` de TOUS les symboles de `x`, même jamais appelés (elle comptait

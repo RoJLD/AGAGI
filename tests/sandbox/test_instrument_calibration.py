@@ -120,8 +120,18 @@ CALIBRATED = {
     "tools/torch_throw_gate_inworld_ab.py::compare": ["cohorte-vide:raises", "guard-before-world",
                                                       "dose:GRADIENT_GAGNE", "noop-exact:NEUTRE", "n=3:NEUTRE+underpowered",
                                                       "apparie-par-seed:ON-puis-SHUFFLE"],
-    "tools/lexicon.py::measure": ["argument-degenere:raises", "guard-before-world"],
-    "tools/speaker_incentive.py::measure": ["argument-degenere:raises", "guard-before-world"],
+    # P2.56 (b) : _world/_adjacent_ref injectes -- paires (token, referent) collectees pour les SEULS agents adjacents a un
+    # referent, le silence est le token 4, un agent sans referent n'est pas collecte : [(0, M), (4, M)] x 2 eres.
+    # temoin : tests/sandbox/test_mute_simulators_fake_world.py
+    "tools/lexicon.py::measure": ["argument-degenere:raises", "guard-before-world",
+                                  "paires:token-referent-adjacent-seulement", "silence:token-4",
+                                  "sans-referent:non-collecte"],
+    # P2.56 (b) : _world/_apex_ctx injectes -- la mesure lit les politiques EVOLUEES (prime OFF a chaque ere) ; 1 silencieux sur 3
+    # -> part de silence 1/3, MI > permutee ; aucun contexte -> (0.0, 0.0, 1.0) publie tel quel (porte 14 legataire).
+    # temoin : tests/sandbox/test_mute_simulators_fake_world.py
+    "tools/speaker_incentive.py::measure": ["argument-degenere:raises", "guard-before-world",
+                                            "mesure-pure:prime-OFF-chaque-ere", "dose:silence-1/3-MI>permutee",
+                                            "absence:(0,0,1.0)-publiee-telle-quelle"],
     # P2.56 (b) : injection de _eras_to_master (tests/sandbox/test_mute_orchestrators_injection_3.py) -- curriculum 5 eres /
     # controle 10 -> ratio 2,0 ; egaux -> 1,0 ; un run invalide est IGNORE (moyenne sur les valides) ; aucun valide -> None.
     "tools/transfer_ratio.py::measure": ["argument-degenere:raises", "guard-before-world", "dose:ratio-2.0",
@@ -166,7 +176,11 @@ CALIBRATED = {
         "regime-degenere:raises", "echelle-vide:raises", "guard-before-world"],
     "multiverse_runner.py::run_world_era": [
         "regime-degenere:raises", "cohorte-vide:raises", "guard-before-world"],
-    "tools/curriculum_world.py::run_world_era": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 (b) : CLASSE de monde factice injectee -- proies moyennes 4.0 et 5 ticks (cohorte morte au tick 5) ; l'horizon
+    # max_ticks 2 borne la boucle AVANT la mort ; target_prey pose sur la config (E8).
+    # temoin : tests/sandbox/test_mute_simulators_fake_world_3.py
+    "tools/curriculum_world.py::run_world_era": ["empty-cohort:raises", "guard-before-world", "dose:proies-4.0-ticks-5",
+                                                 "horizon:borne-la-boucle-avant-la-mort", "regime-E8:target_prey-pose"],
     # `tools/substrate_ab_compositional.py::run_curriculum` etait declare ICI ET plus bas (clé en
     # DOUBLE dans un dict litteral : la seconde ecrase la premiere sans un mot). Retire le 2026-09-14 ;
     # la declaration qui fait foi est celle du bloc G2, plus bas, qui nomme les cas reels.
@@ -357,7 +371,12 @@ CALIBRATED = {
         "rung-identical:refused", "per-world-independent", "same-champion-four-arms",
         "empty-world-family:raises"],
     # P2.45 (2026-09-06) : 6 homonymes reveles par le correctif du faux vert par nom nu -- QUALIFIES.
-    "tools/lewis_world.py::measure_mi": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 (b) : _world/_apex_ctx injectes -- 2 parleurs parfaits pres d'un apex + 1 agent loin (IGNORE) : n = 2 eres x 2 ticks
+    # x 2 = 8, MI > permutee ; aucun contexte -> (0.0, 0.0, 0) publie tel quel (defaut legataire de porte 14).
+    # temoin : tests/sandbox/test_mute_simulators_fake_world.py
+    "tools/lewis_world.py::measure_mi": ["empty-cohort:raises", "guard-before-world",
+                                         "monde-factice:n-8-agent-loin-ignore", "dose:code-parfait-MI>permutee",
+                                         "absence:(0,0,0)-publiee-telle-quelle"],
     "tools/target_competence_probe.py::run_probe": ["empty-cohort:raises", "guard-before-world"],
     # P2.56 (b) : injection de measure_arm (tests/sandbox/test_mute_orchestrators_injection_2.py) -- survies 100 / 120 ->
     # survival_ratio 1,2 ; z_range 2,0 + updown 0,5 -> Z_UTILISE ; z 0,1 -> Z_INERTE ; updown 0,2 (sous 0,25 x 1,2) -> Z_INERTE.
@@ -410,9 +429,20 @@ CALIBRATED = {
         "empty-cohort:raises", "guard-before-world",
         "CORPS-ATTEINT:ablation-appliquee-a-CHAQUE-ere", "CORPS-ATTEINT:moyenne-dose-connue",
         "CORPS-ATTEINT:pool-vivants-ET-morts", "DEFAUT-GELE:pool-vide-rend-0.0"],
-    "tools/ablation_multi.py::run_condition": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 (b) : CLASSE de monde factice injectee -- le mecanisme (apply_fn) est applique a CHAQUE ere, sur le monde de l'ere ;
+    # regime E8 (crit_base transmis, target_prey 12, eps 0.2, craft 0, era 1) ; proies 3.0 / mammouths 2.0.
+    # temoin : tests/sandbox/test_mute_simulators_fake_world_5.py
+    "tools/ablation_multi.py::run_condition": ["empty-cohort:raises", "guard-before-world",
+                                               "mecanisme:applique-a-CHAQUE-ere-sur-le-monde-de-l-ere",
+                                               "dose:proies-3.0-mammouths-2.0",
+                                               "regime-E8:crit_base-target_prey-12-eps-0.2-craft-0-era-1"],
     "tools/adaptive_planning_probe.py::run_adaptive": ["empty-cohort:raises", "guard-before-world"],
-    "tools/agricultural_demand_probe.py::run_agricultural": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 (b) : AgriculturalWorld injecte -- trajectoire PAR TICK (t, n_agents, saison, items) ; seuls les items DECLARES sont
+    # comptes (un type inconnu n'apparait pas).
+    # temoin : tests/sandbox/test_mute_simulators_fake_world_3.py
+    "tools/agricultural_demand_probe.py::run_agricultural": ["empty-cohort:raises", "guard-before-world",
+                                                             "trajectoire-par-tick:n_agents-saison-items",
+                                                             "items:declares-seuls-comptes"],
     "tools/altar_tool_funnel_probe.py::run_era_funnel": ["empty-cohort:raises", "guard-before-world"],
     "tools/anticipation_bench.py::run_bench": ["empty-cohort:raises", "guard-before-world",
                                                "corps-atteint:avoidance-dans-[0,1]:smoke"],
@@ -425,50 +455,132 @@ CALIBRATED = {
         "CORPS-ATTEINT:seed_at(seed,i)-une-fois-PAR-ERE", "CORPS-ATTEINT:regime-impose",
         "CORPS-ATTEINT:mediane-par-ere-morts-compris", "CORPS-ATTEINT:censure-rapportee"],
     "tools/anticipation_planning_probe.py::run_planning": ["empty-cohort:raises", "guard-before-world"],
-    "tools/arm_act_grad.py::run_bptt_act": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 (b) : PUR (numpy) -- W nul : accuracy 0.0 (signe de 0 != +-1) et dW[0, N-O] = -0.25 (descendre le gradient CREE le fil
+    # entree->sortie) ; fil direct de poids 10 : accuracy 1.0 (identite ET tanh, D 0 et 1) et dW[0, N-O] = +0.0625.
+    # temoin : tests/sandbox/test_mute_simulators_fake_world_6.py
+    "tools/arm_act_grad.py::run_bptt_act": ["empty-cohort:raises", "guard-before-world", "W-nul:acc-0.0-gradient--0.25",
+                                            "fil-direct:acc-1.0-identite-et-tanh", "fil-trop-fort:gradient-+0.0625"],
     "tools/cognitive_demand_inworld.py::run_credit_linear": ["empty-cohort:raises", "guard-before-world",
                                                            "learning-dose:published"],   # P1.6
-    "tools/comm_lever.py::run_era": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 (b) : CLASSE de monde factice injectee -- le levier est POSE sur le monde (hear_radius 7), regime E8 (target_prey 9,
+    # LANGUAGE, nuit off) ; agregats crafts 6 / kills 5 / proies 2.0 ; 5 meilleurs promus par life_score.
+    # temoin : tests/sandbox/test_mute_simulators_fake_world_3.py
+    "tools/comm_lever.py::run_era": ["empty-cohort:raises", "guard-before-world",
+                                     "regime-E8:hear_radius-7-target_prey-9-LANGUAGE-nuit-off",
+                                     "dose:crafts-6-kills-5-proies-2.0", "promotion:5-meilleurs-par-life_score"],
     "tools/compositional_language_probe.py::run_compositional": ["empty-cohort:raises", "guard-before-world"],
-    "tools/confirm_scramble.py::run_era": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 (b) : CLASSE de monde factice injectee -- scramble_signal True et hear_radius 6 POSES sur le monde, target_prey 12,
+    # LANGUAGE (E8) ; kills 4 / proies 2.0 ; 5 promus.
+    # temoin : tests/sandbox/test_mute_simulators_fake_world_4.py
+    "tools/confirm_scramble.py::run_era": ["empty-cohort:raises", "guard-before-world",
+                                           "regime-E8:scramble-True-hear_radius-6-target_prey-12-LANGUAGE",
+                                           "dose:kills-4-proies-2.0", "promotion:5"],
     "tools/craft_specialization_probe.py::run_spec": ["empty-cohort:raises", "guard-before-world"],
-    "tools/curriculum_2d.py::run_2d_era": ["empty-cohort:raises", "guard-before-world"],
-    "tools/curriculum_developmental.py::run_era": ["empty-cohort:raises", "guard-before-world"],
-    "tools/curriculum_grab.py::run_one_era": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 (b) : CLASSE de monde factice injectee -- les DEUX axes poses (target_prey 7, craft_level 2) plus eps, crit_base,
+    # nuit off (E8) ; sortie (crafts 8, kills 1, proies 5.0, ticks 4).
+    # temoin : tests/sandbox/test_mute_simulators_fake_world_4.py
+    "tools/curriculum_2d.py::run_2d_era": ["empty-cohort:raises", "guard-before-world",
+                                           "regime-E8:deux-axes-target_prey-7-craft_level-2-eps-crit_base-nuit-off",
+                                           "dose:crafts-8-kills-1-proies-5.0-ticks-4"],
+    # P2.56 (b) : CLASSE de monde factice injectee -- les TROIS sevrages lisent l'ere GLOBALE (crit_eras, group_reward_eras,
+    # current_era poses sur le monde : E8) ; sortie (3, 1, 2.0, 4) ; 5 meilleurs promus, tries par life_score.
+    # temoin : tests/sandbox/test_mute_simulators_fake_world_5.py
+    "tools/curriculum_developmental.py::run_era": ["empty-cohort:raises", "guard-before-world",
+                                                   "regime-E8:trois-sevrages-sur-l-ere-GLOBALE", "dose:(3,1,2.0,4)",
+                                                   "promotion:5-meilleurs-tries"],
+    # P2.56 (b) : CLASSE de monde factice injectee -- le monde n'est prepare (_setup_grab_training : eps, n_items, keep_prey
+    # transmis) QUE sous training ; craft_level pose (E8) ; sortie (10, 6, 5) : l'horizon borne une cohorte immortelle.
+    # temoin : tests/sandbox/test_mute_simulators_fake_world_5.py
+    "tools/curriculum_grab.py::run_one_era": ["empty-cohort:raises", "guard-before-world",
+                                              "monde-prepare:SEULEMENT-en-training", "dose:(10,6,5)-horizon-borne",
+                                              "regime-E8:craft_level-pose"],
     "tools/dreaming_probe.py::run_era_organ": ["empty-cohort:raises", "guard-before-world"],
     # P2.56 : corps atteint par test_behavioral_diversity (2 eres, 5 cles de diversite dans [0,1],
     # median_competence dans [0,1]) et test_credit_assignment_gamma (gamma se propage au TD).
     "tools/evolve_ceiling_probe.py::run_evolution": ["empty-cohort:raises", "guard-before-world",
                                                      "2-eres:diversite-decomposee-dans-[0,1]",
                                                      "gamma:propage-au-TD"],
-    "tools/evolve_competence.py::run_era": ["empty-cohort:raises", "guard-before-world"],
-    "tools/func_benefit.py::run_seed": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 (b) : CLASSE de monde factice injectee (life_score = id) -- classement rendu par scores DECROISSANTS 6..2 (5 promus
+    # sur 7), genomes rendus identiques par CONTENU (from_genome copie), info (ticks 5, eaten 14, mam 3, score 6.0).
+    # temoin : tests/sandbox/test_mute_simulators_fake_world_4.py
+    "tools/evolve_competence.py::run_era": ["empty-cohort:raises", "guard-before-world",
+                                            "classement:scores-decroissants-6..2-genomes-par-CONTENU",
+                                            "dose:ticks-5-eaten-14-mam-3-score-6.0", "genomes-vides:raises"],
+    # P2.56 (b) : CLASSE de monde factice injectee -- appariement seed_at(base, seed) ; les tues de mammouth des seuls
+    # SURVIVANTS comptent ; une tete par genome, entrainees ensemble, portee par CHAQUE agent ; use_ref_head/decode_act poses.
+    # temoin : tests/sandbox/test_mute_simulators_fake_world_5.py
+    "tools/func_benefit.py::run_seed": ["empty-cohort:raises", "guard-before-world", "appariement:seed_at(base,seed)",
+                                        "compte:mammouths-des-seuls-SURVIVANTS",
+                                        "tetes:une-par-genome-portee-par-chaque-agent",
+                                        "regime-E8:use_ref_head-decode_act"],
     # `tools/hcm_analyzer.py::run_hcm_analysis` etait declare ICI, en version PAUVRE, ET plus haut en
     # version riche (CORPS-ATTEINT, 4 cas). Dans un dict litteral la DERNIERE cle gagne : c'est donc
     # la version pauvre qui faisait foi, et l'instrument comptait comme GARDE-SEULE dans la dette
     # P2.49 alors qu'il etait calibre. Retire le 2026-09-14 ; garde gelee :
     # `test_CALIBRATED_n_a_AUCUNE_cle_en_double`.
     "tools/hunif_retention_probe.py::run_retention": ["empty-cohort:raises", "guard-before-world"],
-    "tools/lang_speciation.py::run_seed": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 (b) : _world/_gain injectes -- mode token pose (SPECIATE True, SPECIATE_MODE token) pendant chaque ere puis size
+    # RESTAURE (E5) ; le gain mesure 0.42 est rendu tel quel.
+    # temoin : tests/sandbox/test_mute_simulators_fake_world_2.py
+    "tools/lang_speciation.py::run_seed": ["empty-cohort:raises", "guard-before-world",
+                                           "etat-global-E5:mode-token-pose-puis-size-restaure",
+                                           "dose:gain-0.42-transmis"],
     "tools/life_score_contamination_probe.py::run_arm": ["empty-cohort:raises", "guard-before-world"],
-    "tools/map_elites_compare.py::run_era_pool": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 (b) : CLASSE de monde factice injectee -- pool COMPLET rendu avec ses stats (num_nodes, proies, crafts, mammouths),
+    # meilleur 3.0 / ticks 3.0 ; un agent sans genome est IGNORE du pool et du meilleur score.
+    # temoin : tests/sandbox/test_mute_simulators_fake_world_5.py
+    "tools/map_elites_compare.py::run_era_pool": ["empty-cohort:raises", "guard-before-world",
+                                                  "pool:complet-avec-stats", "dose:meilleur-3.0-ticks-3.0",
+                                                  "sans-genome:IGNORE-du-pool-et-du-meilleur"],
     "tools/map_elites_compare.py::run_lineage_hof": ["empty-cohort:raises", "guard-before-world",
                                                      "injection:apparie-reproductible(a==b)"],
     "tools/map_elites_compare.py::run_lineage_qd": ["empty-cohort:raises", "guard-before-world",
                                                     "injection:archive-peuplee(cov>=1)"],
     "tools/metabolic_cost_sweep.py::run_lineage": ["empty-cohort:raises", "guard-before-world"],
     "tools/metabolic_cost_sweep.py::run_era_metab": ["empty-cohort:raises", "guard-before-world"],
-    "tools/nas_memory.py::run_seed": ["empty-cohort:raises", "guard-before-world"],
-    "tools/nas_rich.py::run_seed": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 (b) : _world injecte (7 agents, big_kills 2) -- les 5 MEILLEURS par ere promus, tries par life_score ; mammouths
+    # moyens 2.0 ; hof_stats publies (12.5, 20) ; _restore appele une fois.
+    # temoin : tests/sandbox/test_mute_simulators_fake_world.py
+    "tools/nas_memory.py::run_seed": ["empty-cohort:raises", "guard-before-world",
+                                      "promotion:5-par-ere-tries-life_score", "dose:big_kills-2-moyenne-2.0",
+                                      "hof_stats:publies-restore-appele"],
+    # P2.56 (b) : _world injecte (proies = numero d'ere) -- proies moyennees sur la SECONDE moitie des eres seulement (3.5 sur
+    # 1,2,3,4) ; SPECIATE restaure ; 5 promus par ere.
+    # temoin : tests/sandbox/test_mute_simulators_fake_world_2.py
+    "tools/nas_rich.py::run_seed": ["empty-cohort:raises", "guard-before-world",
+                                    "dose:proies-moyenne-SECONDE-moitie-3.5", "etat-global-E5:SPECIATE-restaure",
+                                    "promotion:5-par-ere"],
     "tools/online_world_model_probe.py::run_online": ["empty-cohort:raises", "guard-before-world"],
-    "tools/persistence_test.py::run_era": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 (b) : CLASSE de monde factice injectee -- le crit est rythme sur l'ere GLOBALE (current_era 17 pose sur le monde),
+    # crit_base 0.7 / crit_eras 9 / target_prey 5 (E8) ; sortie (0, 2, 1.0, 2).
+    # temoin : tests/sandbox/test_mute_simulators_fake_world_4.py
+    "tools/persistence_test.py::run_era": ["empty-cohort:raises", "guard-before-world",
+                                           "regime-E8:current_era-GLOBAL-17-crit_base-0.7-crit_eras-9",
+                                           "dose:(0,2,1.0,2)"],
     "tools/planning_depth_probe.py::run_depth": ["empty-cohort:raises", "guard-before-world"],
-    "tools/probe_impasse.py::run_era": ["empty-cohort:raises", "guard-before-world"],
-    "tools/reconfirm_047.py::run_seed": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 (b) : CLASSE de monde factice injectee -- parleurs comptes 3 sur un pool de 6 (1 sur 2 parle), LANGUAGE pose (E8).
+    # temoin : tests/sandbox/test_mute_simulators_fake_world_4.py
+    "tools/probe_impasse.py::run_era": ["empty-cohort:raises", "guard-before-world", "dose:parleurs-3-sur-pool-6",
+                                        "regime-E8:LANGUAGE-pose"],
+    # P2.56 (b) : _world/_apex_ctx injectes -- `eras` eres d'entrainement PUIS 4 eres de mesure, toutes sous la meme DEMAND ;
+    # MI reelle > permutee sur un code parfait ; aucun contexte -> (0.0, 0.0) publie tel quel (porte 14 legataire).
+    # temoin : tests/sandbox/test_mute_simulators_fake_world_2.py
+    "tools/reconfirm_047.py::run_seed": ["empty-cohort:raises", "guard-before-world",
+                                         "eres:entrainement-puis-4-de-mesure-meme-demande", "dose:MI-reelle>permutee",
+                                         "absence:(0,0)-publiee-telle-quelle"],
     "tools/referential_community_probe.py::run_community": ["empty-cohort:raises", "guard-before-world"],
     "tools/referential_game_probe.py::run_lewis": ["empty-cohort:raises", "guard-before-world"],
-    "tools/refgame.py::run_refgame": ["empty-cohort:raises", "guard-before-world"],
-    "tools/speciation.py::run_seed": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 (b) : PUR (numpy) -- deterministe par seed ; 1 epoch : code EFFONDRE (1/3, 1/3) ; acc <= injectivite sur 4 seeds
+    # (un code non injectif ne se decode pas).
+    # temoin : tests/sandbox/test_mute_simulators_fake_world_6.py
+    "tools/refgame.py::run_refgame": ["empty-cohort:raises", "guard-before-world", "determinisme:par-seed",
+                                      "1-epoch:code-effondre-1/3", "acc<=injectivite:4-seeds"],
+    # P2.56 (b) : _world injecte -- persistence.SPECIATE pose a True pendant CHAQUE ere puis RESTAURE, meme quand le monde leve
+    # (E5 etat global) ; kills 3.0 et hof (11.0, 19) transmis ; 5 promus par ere.
+    # temoin : tests/sandbox/test_mute_simulators_fake_world_2.py
+    "tools/speciation.py::run_seed": ["empty-cohort:raises", "guard-before-world",
+                                      "etat-global-E5:SPECIATE-pose-puis-restaure-meme-sur-exception",
+                                      "dose:kills-3.0-hof-(11.0,19)", "promotion:5-par-ere"],
     "tools/substrate_ab.py::run_substrate_ab": ["empty-cohort:raises", "guard-before-world",
                                                 "legacy:hit-dans-[0,1]:smoke", "torch:hit-dans-[0,1]:smoke"],
     # P2.49 / P2.56 (2026-09-14) : le banc G2 (31 records, 2e module le plus cite du lot). Les quatre
@@ -509,7 +621,13 @@ CALIBRATED = {
         ["empty-cohort:raises", "guard-before-world", "loss_trend[-1]<=loss_trend[0]:direction"],
     "tools/warmstart_evolution_inworld.py::run_dagger_warmstart":
         ["empty-cohort:raises", "guard-before-world", "2-rounds:tendances-et-verdict-formes:smoke"],
-    "tools/wire_ref_head.py::run_seed": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 (b) : CLASSE de monde factice injectee -- 2 parleurs parfaits x 20 ticks : n 40, MI - base permutee > 0.7 ; l'agent
+    # sans apex percu est hors des tokens ; sous 5 tokens (0.0, n) publie tel quel (porte 14) ; tetes entrainees si use_head.
+    # temoin : tests/sandbox/test_mute_simulators_fake_world_5.py
+    "tools/wire_ref_head.py::run_seed": ["empty-cohort:raises", "guard-before-world",
+                                         "dose:2-parleurs-parfaits-n-40-gain>0.7", "sans-apex-percu:hors-tokens",
+                                         "absence:<5-tokens-(0.0,n)-publiee-telle-quelle",
+                                         "tetes:entrainees-si-use_head"],
     # P2.42 (2026-09-06) : verdict statistique du harnais puissant (EDR 052), en COLLISION de nom
     # avec is_machine_idle::verdict (non-instrument) -> declaration QUALIFIEE. Forme close : t = d*sqrt(n/2).
     "src/seed_ai/eval_harness.py::verdict": ["significant", "not-significant", "and-rule:powerless-d",
@@ -549,9 +667,22 @@ CALIBRATED = {
     # (diff, gap_on, kills) publiees par niveau ; 30 appels.
     "compare_rp_sweep": ["empty-cohort:raises", "guard-before-world", "niveau-bas:NEUTRE", "niveaux-hauts:GRADIENT_GAGNE",
                          "medianes-par-niveau:publiees"],
-    "probe_memory_discrimination": ["empty-cohort:raises", "guard-before-world"],
-    "probe_navigation_incontext": ["empty-cohort:raises", "guard-before-world"],
-    "probe_attack_logit": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 (b) : evo_memory_inworld : MemoryDemandBiosphere/_cfg injectes -- rencontre CONTROLEE : l'agent qui s'approche du
+    # Mammouth et reste devant le Leurre -> disc 1.0 ; mort en attaquant = engage -> disc 0.0 ; mode -> hide/ablate (E8).
+    # temoin : tests/sandbox/test_mute_simulators_fake_world_6.py
+    "probe_memory_discrimination": ["empty-cohort:raises", "guard-before-world",
+                                    "dose:approche-Mammouth-reste-Leurre-disc-1.0", "mort-en-attaquant:engage-disc-0.0",
+                                    "regime-E8:mode-vers-hide_on_approach-ablate_memory-mobilite-0"],
+    # P2.56 (b) : evo_memory_inworld : MemoryDemandBiosphere/_setup_lewis injectes -- intent lu contre la position de l'apex en
+    # DEBUT de tick : approche du Mammouth 1.0, fuite du Leurre 0.0, moved_frac 1.0 ; mort = engage ; era 10000, vitesse apex.
+    # temoin : tests/sandbox/test_mute_simulators_fake_world_6.py
+    "probe_navigation_incontext": ["empty-cohort:raises", "guard-before-world", "dose:disc-1.0-n-1-1-moved_frac-1.0",
+                                   "mort-en-attaquant:engage", "regime-E8:era-10000-benchmark-vitesse-apex"],
+    # P2.56 (b) : evo_memory_inworld : monde injecte + MambaBatchModel.forward remplace (logits CONNUS) -- logit vers le Mammouth
+    # 2.0, vers le Leurre 0.5 -> disc 1.5, std 0.75, n 3/3 ; forward RESTAURE apres ; sans forward : nan publie, std 0.0.
+    # temoin : tests/sandbox/test_mute_simulators_fake_world_6.py
+    "probe_attack_logit": ["empty-cohort:raises", "guard-before-world", "dose:logits-connus-disc-1.5-std-0.75",
+                           "forward:restaure-apres", "absence:nan-publie-std-0.0"],
     # P2.56 (b) : injection de _collect_oracle_trajectory / _probe_free_channels -- la population torch porte num_agents
     # clones du genome (W egal) a lr = 0 (jamais entrainee par la sonde), trajectoire transmise ; trajectoire vide -> None.
     "probe_genome_free_channels": ["empty-cohort:raises", "guard-before-world", "clones:lr0-W-egal",
@@ -607,8 +738,19 @@ CALIBRATED = {
     "measure_action_pipeline": ["empty-cohort:raises", "guard-before-world", "taux-dans-[0,1]:n>0:smoke"],
     # no-op EXACT : un genome qui ne grabbe JAMAIS rend 0.0 (reponse connue).
     "measure_inworld_grab_rate": ["empty-cohort:raises", "guard-before-world", "genome-sans-grab:0.0:noop-exact"],
-    "tools/arm_language.py::measure_mi": ["empty-cohort:raises", "guard-before-world"],
-    "run_retention_map": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 (b) : _world/_near_mammoth injectes -- mesure PURE (pression 0.0 a chaque ere) ; chaque agent compte avec son
+    # contexte mammouth ; MI > base sur un code parfait.
+    # temoin : tests/sandbox/test_mute_simulators_fake_world_2.py
+    "tools/arm_language.py::measure_mi": ["empty-cohort:raises", "guard-before-world", "mesure-pure:pression-OFF",
+                                          "dose:MI>base-contexte-mammouth-par-agent"],
+    # P2.56 (b) : retention_map : ORCHESTRATEUR injecte (_acquire_shared_db, run_curriculum, make_run_era_fn, summarize_retention)
+    # -- transcript -> echelle REELLE + champions transmis ; etiquettes oubli/retention/retrograde a +-0.02 ; carte ecrite
+    # sous cwd (chdir temporaire) ; db absente ou transcript vide -> None sans fichier ; logger arrete dans tous les cas.
+    # temoin : tests/sandbox/test_mute_simulators_fake_world_6.py
+    "run_retention_map": ["empty-cohort:raises", "guard-before-world",
+                          "orchestration:echelle-reelle-et-champions-transmis",
+                          "etiquettes:oubli-retention-retrograde-a-0.02", "absence:None-sans-fichier",
+                          "logger:arrete-meme-sans-db"],
     # P2.56 : INJECTION a DOSE CONNUE (tests/test_s2_ablation_wiring.py) -- within 100/20 = 5.0,
     # between 100/10 = 10.0, verdict PERCEPTION_DEMANDED, n = 12 : la couche d'appariement est
     # calibree en forme close. L'instrument porte 15 records ; sa declaration disait « garde seule ».
@@ -629,10 +771,18 @@ CALIBRATED = {
     # observee), lue en aval comme « reste au plancher » / « n'emerge pas » / « les deux se valent ».
     # Le zero d'une cohorte inexistante et celui d'une cohorte qui meurt sont le meme nombre.
     # Un test verifie non seulement QUE la garde leve, mais OU elle est posee (refus < 0.5 s).
-    "measure_regime": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 (b) : famine_harshness_probe : FamineWorld injecte -- mediane 6.0 sur 2 eres ; regime pose (cache, cycles 8/12,
+    # benchmark, sweet spot metab/payoff : E8) ; la reserve injectee 5.0 est posee sur CHAQUE agent.
+    # temoin : tests/sandbox/test_mute_simulators_fake_world_3.py
+    "measure_regime": ["empty-cohort:raises", "guard-before-world", "dose:mediane-6.0-sur-2-eres",
+                       "regime-E8:cache-cycles-8/12-benchmark-sweet-spot", "reserve-injectee:5.0-sur-CHAQUE-agent"],
     "measure_genome": ["empty-cohort:raises", "guard-before-world"],
     "measure_in_world": ["empty-cohort:raises", "guard-before-world"],
-    "measure_survival": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 (b) : substrate_world_ab : WORLDS[cle] injecte -- UNE mediane PAR ere d'eval ([7, 7, 7] pour k_eval 3 ; l'appelant
+    # agrege), substrat injecte (batch_model_cls, benchmark_mode, nuit off, era 10000) ; cohorte introuvable -> leve.
+    # temoin : tests/sandbox/test_mute_simulators_fake_world_3.py
+    "measure_survival": ["empty-cohort:raises", "guard-before-world", "une-mediane-PAR-ere-eval:[7,7,7]",
+                         "substrat-injecte:batch_model_cls-benchmark-nuit-off-era-10000", "cohorte-introuvable:raises"],
     "measure_arm": ["empty-cohort:raises", "guard-before-world"],
     "run_credit_probe": ["empty-cohort:raises", "guard-before-world", "learning-dose:published"],   # P1.6
     # P2.56 (b) : injection de run_condition (sentinelle qui journalise) -- grille COMPLETE 2 regimes x 3 agents ; config de

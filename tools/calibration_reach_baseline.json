@@ -1,36 +1,4 @@
 {
  "_comment": "Déclarations CALIBRATED garde-seule dont AUCUN test n'importe-et-appelle le symbole (P2.56). Dette gelée : aucune NOUVELLE muette. tools/check_calibration_reach.py",
- "muettes": [
-  "measure_regime",
-  "measure_survival",
-  "probe_attack_logit",
-  "probe_memory_discrimination",
-  "probe_navigation_incontext",
-  "run_retention_map",
-  "tools/ablation_multi.py::run_condition",
-  "tools/agricultural_demand_probe.py::run_agricultural",
-  "tools/arm_act_grad.py::run_bptt_act",
-  "tools/arm_language.py::measure_mi",
-  "tools/comm_lever.py::run_era",
-  "tools/confirm_scramble.py::run_era",
-  "tools/curriculum_2d.py::run_2d_era",
-  "tools/curriculum_developmental.py::run_era",
-  "tools/curriculum_grab.py::run_one_era",
-  "tools/curriculum_world.py::run_world_era",
-  "tools/evolve_competence.py::run_era",
-  "tools/func_benefit.py::run_seed",
-  "tools/lang_speciation.py::run_seed",
-  "tools/lewis_world.py::measure_mi",
-  "tools/lexicon.py::measure",
-  "tools/map_elites_compare.py::run_era_pool",
-  "tools/nas_memory.py::run_seed",
-  "tools/nas_rich.py::run_seed",
-  "tools/persistence_test.py::run_era",
-  "tools/probe_impasse.py::run_era",
-  "tools/reconfirm_047.py::run_seed",
-  "tools/refgame.py::run_refgame",
-  "tools/speaker_incentive.py::measure",
-  "tools/speciation.py::run_seed",
-  "tools/wire_ref_head.py::run_seed"
- ]
+ "muettes": []
 }
