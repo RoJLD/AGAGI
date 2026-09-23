@@ -1,4 +1,4 @@
-"""Témoins gelés du Réfutateur : extraction à leur SHA, vérification qu'une revue retrouve le défaut connu.
+"""Témoins gelés du Réfutateur : extraction ANONYME à leur SHA, et barème UNIQUE de la phase témoins.
 
 Le Réfutateur (`docs/REF/REF-REVUE-ADVERSARIALE.md`, `.claude/workflows/refutateur.js`) est un
 INSTRUMENT : il produit une affirmation (« ce record a tel défaut », ou « rien à signaler »). Comme tout
@@ -12,12 +12,28 @@ cette réponse connue :
 
 Une revue dont la phase témoins échoue est NULLE : rien ne s'écrit dans `docs/reviews/`.
 
+⚠️ **Ce module est la CLÉ DE RÉPONSE, et elle ne se republie nulle part.** Trois propriétés la protègent,
+chacune contre une façon MESURÉE de franchir l'instrument sans rien mesurer :
+
+1. **Extraction ANONYME.** `extraire` écrit sous le nom NEUTRE déclaré au roster (`temoin-N.md`), délié de
+   l'ordre du roster. Un agent qui lit `temoin-3.md` ne sait ni que c'est un témoin à défaut, ni lequel.
+   Publier « ce que la revue doit produire » à côté du témoin mesurerait sa capacité à lire un tableau ;
+   et un plancher de fausses critiques mesuré sous l'instruction « ce record est sain, tais-toi » n'est
+   plus un plancher.
+2. **Seule une critique CONFIRMÉE retrouve un témoin**, et la regex est cherchée dans son CONSTAT et sa
+   PREUVE — jamais dans sa SONDE. Mesuré : le token attendu apparaît dans le texte des témoins eux-mêmes
+   (section « ce qui n'est pas mesuré ») ; une revue qui recopie la commande, ou qui ne confirme rien,
+   franchissait les quatre témoins.
+3. **Le barème vit ICI et nulle part ailleurs.** Le workflow ne juge pas : il fait lancer ce CLI. Deux
+   implémentations du même barème divergent — elles avaient déjà divergé sur trois points (dialecte de
+   regex, comptage partiel, `attendu` vide).
+
 Ce module ne construit AUCUN monde, ne tient AUCUN bail (`kuzu`) et ne lance aucune simulation : il ne
 fait que lire l'histoire git et apparier des expressions régulières.
 
 Usage :
-    python tools/refutateur_temoins.py --extraire <dir>        # écrit <dir>/<nom>.md pour chaque témoin
-    python tools/refutateur_temoins.py --verifier <nom> <fic>  # exit 0 si le défaut est retrouvé, 1 sinon
+    python tools/refutateur_temoins.py --extraire <dir>        # écrit <dir>/temoin-N.md, imprime nom -> fichier
+    python tools/refutateur_temoins.py --verifier <nom> <fic>  # 0 = défaut retrouvé, 1 = revue NULLE, 2 = indécidable
     python tools/refutateur_temoins.py --lister                # inventaire (nom, genre, sha court, défaut)
 """
 import argparse
@@ -29,6 +45,18 @@ import sys
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _JSON = os.path.join(_ROOT, "tools", "refutateur_temoins.json")
+
+#: Champs d'une critique sur lesquels la regex d'un témoin à défaut est cherchée. `sonde` en est
+#: EXCLUE : recopier la commande qui nomme le paramètre n'est pas une découverte.
+_CHAMPS_JUGES = ("constat", "preuve")
+
+
+class FormatInvalide(ValueError):
+    """Le texte des critiques n'est pas jugeable — ni verdict NULLE, ni verdict RETROUVÉ : indécidable.
+
+    Distinguer ce cas de « revue NULLE » est le point : un texte illisible est une absence de mesure,
+    pas un résultat. Le confondre avec un échec ferait d'un bug de sérialisation un verdict de fond.
+    """
 
 
 def charger():
@@ -45,10 +73,32 @@ def par_nom(nom):
     raise KeyError(f"témoin inconnu : {nom!r} (connus : {[t['nom'] for t in charger()]})")
 
 
-def extraire(temoin, dest):
-    """Écrit la version GELÉE du record dans `dest/<nom>.md` et rend le chemin écrit.
+def roster_conforme(temoins=None):
+    """(ok, raison) — le roster est-il exactement 3 témoins à défaut et 1 no-op, noms et fichiers uniques ?
 
-    Lève si le couple (sha, chemin) n'existe pas : un témoin introuvable est RAPPORTÉ, jamais remplacé.
+    Le gel n'est contraignant que s'il est VÉRIFIÉ : sans cela un appelant peut affaiblir un `attendu`,
+    ne passer que le no-op, ou pointer ailleurs.
+    """
+    tem = charger() if temoins is None else temoins
+    genres = [t.get("genre") for t in tem]
+    if genres.count("defaut") != 3 or genres.count("noop") != 1 or len(tem) != 4:
+        return False, f"roster non conforme : {genres!r} (attendu 3 'defaut' + 1 'noop')"
+    if len({t["nom"] for t in tem}) != len(tem):
+        return False, "noms de témoins en collision"
+    if len({t["fichier"] for t in tem}) != len(tem):
+        return False, "noms de fichiers d'extraction en collision"
+    for t in tem:
+        if t["genre"] == "defaut" and not t.get("attendu"):
+            return False, f"témoin à défaut sans regex `attendu` : {t['nom']}"
+    return True, "ok"
+
+
+def extraire(temoin, dest):
+    """Écrit la version GELÉE du record sous son nom NEUTRE dans `dest` et rend le chemin écrit.
+
+    Le nom du témoin n'apparaît NULLE PART dans le chemin écrit : la revue doit être aveugle à ce
+    qu'elle relit. Lève si le couple (sha, chemin) n'existe pas — un témoin introuvable est RAPPORTÉ,
+    jamais remplacé.
     """
     os.makedirs(dest, exist_ok=True)
     p = subprocess.run(["git", "show", f"{temoin['sha']}:{temoin['chemin']}"], cwd=_ROOT,
@@ -56,64 +106,81 @@ def extraire(temoin, dest):
     if p.returncode != 0:
         raise RuntimeError(
             f"témoin {temoin['nom']} introuvable : {temoin['sha']}:{temoin['chemin']}\n{p.stderr.strip()}")
-    out = os.path.join(dest, f"{temoin['nom']}.md")
+    out = os.path.join(dest, temoin["fichier"])
     with open(out, "w", encoding="utf-8") as fh:
         fh.write(p.stdout)
     return out
 
 
-def _critiques_confirmees(texte):
-    """Nombre de critiques à compter dans `texte`, ou None si ce n'est pas une liste JSON.
+def extraire_tous(dest):
+    """Extrait les quatre témoins et rend la correspondance {nom: chemin écrit} — à l'APPELANT seulement.
 
-    Quand les critiques portent un `verdict` (forme rendue par le workflow), seules les CONFIRMÉES
-    comptent — même règle des deux côtés, sinon le même témoin serait jugé par deux barèmes.
+    Rien n'est écrit dans `dest` qui trahisse cette correspondance : l'agent de revue reçoit un chemin,
+    le vérificateur relit le roster.
     """
+    return {t["nom"]: extraire(t, dest) for t in charger()}
+
+
+def _charger_critiques(texte):
+    """La liste des critiques, ou FormatInvalide. Chaque critique est un objet portant un `verdict`."""
     try:
         charge = json.loads(texte)
-    except ValueError:
-        return None
+    except ValueError as exc:
+        raise FormatInvalide(f"critiques illisibles (JSON attendu) : {exc}") from exc
     if not isinstance(charge, list):
-        return None
-    avec_verdict = [c for c in charge if isinstance(c, dict) and "verdict" in c]
-    if avec_verdict and len(avec_verdict) == len(charge):
-        return sum(1 for c in charge if str(c["verdict"]).lower().startswith("confirm"))
-    return len(charge)
+        raise FormatInvalide(f"critiques attendues sous forme de LISTE, reçu {type(charge).__name__}")
+    for i, c in enumerate(charge):
+        if not isinstance(c, dict):
+            raise FormatInvalide(f"critique {i} : objet attendu, reçu {type(c).__name__}")
+        if "verdict" not in c:
+            raise FormatInvalide(
+                f"critique {i} sans `verdict` : indécidable. Un comptage PARTIEL (certaines critiques "
+                "jugées, d'autres non) rendait un barème différent de chaque côté.")
+    return charge
+
+
+def _confirmees(critiques):
+    return [c for c in critiques if str(c.get("verdict", "")).strip().lower().startswith("confirm")]
 
 
 def verifier(temoin, texte_critiques):
     """La revue a-t-elle retrouvé ce que ce témoin exige ? (True = revue recevable sur ce témoin.)
 
-    * `genre = "defaut"` : la regex `attendu` doit apparaître dans le texte des critiques.
-    * `genre = "noop"`   : au plus UNE critique (confirmée, si les verdicts sont présents).
+    * `genre = "defaut"` : la regex `attendu` doit apparaître dans le CONSTAT ou la PREUVE d'au moins une
+      critique **CONFIRMÉE**. Ni la sonde, ni une critique non confirmée ne comptent.
+    * `genre = "noop"`   : au plus UNE critique confirmée.
 
-    ⚠️ Un texte VIDE rend False dans les DEUX genres. Le silence d'un agent qui n'a rien rendu et le
+    ⚠️ Un texte VIDE rend False dans les deux genres. Le silence d'un agent qui n'a rien rendu et le
     silence d'une revue qui n'a rien trouvé se ressemblent ; les confondre ferait passer le témoin no-op
     sur une absence de mesure — exactement la forme « entrée vide -> affirmation de fond » que ce dépôt
-    traque chez ses instruments. Une liste JSON vide (`[]`) est une RÉPONSE, elle passe.
+    traque chez ses instruments. Une liste JSON vide (`[]`) est une RÉPONSE, elle passe le no-op.
+    Un texte ILLISIBLE lève `FormatInvalide` : indécidable n'est pas NULLE.
     """
     if not texte_critiques.strip():
         return False
+    confirmees = _confirmees(_charger_critiques(texte_critiques))
     if temoin["genre"] == "noop":
-        n = _critiques_confirmees(texte_critiques)
-        if n is None:
-            return texte_critiques.strip() == "[]"
-        return n <= 1
-    if not temoin["attendu"]:
+        return len(confirmees) <= 1
+    if not temoin.get("attendu"):
         raise ValueError(f"témoin {temoin['nom']} de genre 'defaut' sans regex `attendu`")
-    return re.search(temoin["attendu"], texte_critiques, re.I) is not None
+    motif = re.compile(temoin["attendu"], re.I)
+    return any(motif.search(str(c.get(champ, ""))) for c in confirmees for champ in _CHAMPS_JUGES)
 
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--extraire", metavar="DIR", help="écrit chaque témoin à son SHA dans DIR")
+    ap.add_argument("--extraire", metavar="DIR", help="écrit chaque témoin à son SHA, sous un nom neutre")
     ap.add_argument("--verifier", nargs=2, metavar=("NOM", "FICHIER"),
-                    help="confronte le texte des critiques au témoin NOM")
+                    help="confronte le texte des critiques (JSON) au témoin NOM")
     ap.add_argument("--lister", action="store_true", help="inventaire des témoins gelés")
     args = ap.parse_args(argv)
-    tem = charger()
+    ok, raison = roster_conforme()
+    if not ok:
+        print(f"roster GELÉ invalide : {raison}")
+        return 2
     if args.extraire:
-        for t in tem:
-            print(extraire(t, args.extraire))
+        for nom, chemin in extraire_tous(args.extraire).items():
+            print(f"{nom} -> {chemin}")
         return 0
     if args.verifier:
         try:
@@ -122,14 +189,19 @@ def main(argv=None):
             print(exc)
             return 2
         with open(args.verifier[1], encoding="utf-8") as fh:
-            ok = verifier(t, fh.read())
-        print(f"{t['nom']} ({t['genre']}) : {'RETROUVÉ' if ok else 'NON RETROUVÉ -> revue NULLE'}")
-        if not ok:
+            texte = fh.read()
+        try:
+            retrouve = verifier(t, texte)
+        except FormatInvalide as exc:
+            print(f"{t['nom']} : INDÉCIDABLE (format non reconnu) — {exc}")
+            return 2
+        print(f"{t['nom']} ({t['genre']}) : {'RETROUVÉ' if retrouve else 'NON RETROUVÉ -> revue NULLE'}")
+        if not retrouve:
             print(f"  défaut attendu : {t['defaut']}")
-        return 0 if ok else 1
+        return 0 if retrouve else 1
     if args.lister:
-        for t in tem:
-            print(f"{t['nom']:34s} {t['genre']:7s} {t['sha'][:9]}  {t['chemin']}")
+        for t in charger():
+            print(f"{t['nom']:34s} {t['genre']:7s} {t['sha'][:9]}  {t['fichier']}  {t['chemin']}")
             print(f"  {t['defaut']}")
         return 0
     ap.print_help()

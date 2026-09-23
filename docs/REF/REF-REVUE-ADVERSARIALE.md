@@ -61,31 +61,38 @@ si une sonde exigeait une simulation, elle devient une dette au backlog, pas une
 | P7 | **JUGE** | **Dose.** Pour tout apprenant : le nombre de mises à jour REÇUES est-il publié ? La cohorte est-elle constante (`n_agents` par bloc, `resurrections`) ? Un nul est-il un nul d'apprentissage ou un nul de létalité ? | lire le bloc d'apprentissage du JSON ; à défaut, `tools/learning_events.py::count_learning_events` est le compteur de référence |
 | P8 | **JUGE** | **Corps et aliasing.** L'intervention touche-t-elle des lignes de `W` dont le monde dérive le CORPS (E26), un chevauchement entrée/sortie (E24), une VUE de l'état récurrent ? | `python tools/check_io_overlap.py` ; `grep -n "W\[" <runner>` et lire ce que les lignes touchées alimentent dans `src/agents/mamba_agent.py` |
 | P9 | **DÉLÈGUE** | **Provenance.** Le `results/` cité existe-t-il et est-il suivi ? Le sceau de la pré-inscription est-il intact ? | `python tools/check_evidence_provenance.py --only <record>` ; `python -c "from tools.preregister import verify; verify('<REGLE>')"` |
-| P10 | **JUGE** | **Mécanisme.** Toute affirmation sur le CODE — « TD à chaque tick », « la curiosité est active », « `W` est figé à pas nul », « ce paramètre rend le grab payant » — se vérifie EN LISANT LA LIGNE. Le référent d'un paramètre publié en fait partie. | `grep -n` du symbole, puis `Read` de la ligne citée et de ce qu'elle alimente. E26 et E29 sont nées ici, à la lecture, pas au raisonnement |
+| P10 | **JUGE** | **Mécanisme.** Toute affirmation sur le CODE — « TD à chaque tick », « la curiosité est active », « `W` est figé à pas nul », « ce canal est inerte » — se vérifie EN LISANT LA LIGNE. Le référent d'un paramètre publié en fait partie. | `grep -n` du symbole, puis `Read` de la ligne citée et de ce qu'elle alimente. E26 et E29 sont nées ici, à la lecture, pas au raisonnement |
 
-**Trois prompts DÉLÈGUENT** (P2, P3, P9) — leur réponse est rendue par une porte, ils la recopient.
-**Sept JUGENT** (P1, P4, P5, P6, P7, P8, P10) : aucune porte ne sait quelle prémisse PORTE un verdict,
+**DÉLÈGUENT** : P2, P3, P9 — leur réponse est rendue par une porte, ils la recopient.
+**JUGENT** : P1, P4, P5, P6, P7, P8, P10 — aucune porte ne sait quelle prémisse PORTE un verdict,
 combien de cellules un dispositif a RÉELLEMENT, ni si un mécanisme affirmé existe dans le code.
 
 ## Phase témoins — avant toute revue réelle
 
-Les prompts P1-P10 passent d'abord sur quatre versions GELÉES de records (`tools/refutateur_temoins.json`,
-extraites par `python tools/refutateur_temoins.py --extraire <dir>`) :
+Les prompts P1-P10 passent d'abord sur quatre versions GELÉES de records, gelées dans le roster
+`tools/refutateur_temoins.json` et extraites par `python tools/refutateur_temoins.py --extraire <dir>`.
+Le roster gèle `GRAB-COST-v09-08`, `S2-BLIND-v1`, `RETAIN-COMPOSE-pre-retractation` et `LOCK-002-sain`.
 
-| témoin | genre | ce que la revue doit produire |
-| --- | --- | --- |
-| `GRAB-COST-v09-08` | défaut (E8) | une critique nommant `forage_payoff` : valeur citée, jamais publiée, et dont le référent ne touche pas l'action ablatée |
-| `S2-BLIND-v1` | défaut (E26) | une critique nommant le CORPS / `make_blind` / le `drain` : l'ablation annule aussi les lignes dont le monde dérive le phénotype |
-| `RETAIN-COMPOSE-pre-retractation` | défaut (E19) | une critique nommant le PAS (`lr`, balayage) : un nul comparatif sous gradient à pas unique |
-| `LOCK-002-sain` | **no-op** | **au plus UNE critique confirmée** — c'est le plancher de fausses critiques, publié à côté de toute revue |
+⚠️ **La revue les lit en AVEUGLE, et ce document ne publie aucun attendu.** Les témoins sont extraits sous
+des noms NEUTRES (`temoin-N.md`, délié de l'ordre du roster) ; ni leur nom, ni leur genre, ni ce qu'on
+doit y trouver ne parviennent à l'agent qui relit. Publier « ce que la revue doit produire » à côté du
+témoin ne mesurerait plus si les prompts DISCRIMINENT, mais si l'agent sait lire un tableau — et un
+plancher de fausses critiques mesuré sous l'instruction « ce record est sain, tais-toi » n'est plus un
+plancher. Les attendus vivent dans le roster, que l'agent de revue ne lit jamais ; le barème vit dans
+`tools/refutateur_temoins.py` et nulle part ailleurs — deux implémentations d'un même barème divergent.
 
-Le no-op vaut autant que les trois défauts : sans lui, un Réfutateur qui crie sur tout retrouverait les
-trois défauts et paraîtrait parfait. C'est le même argument que le no-op EXACT d'un instrument de
-contraste — un détecteur sans plancher de bruit ne sait pas ce qu'il ne peut pas voir.
+**Ce qui RETROUVE un témoin** : une critique **CONFIRMÉE**, dont le fond vit dans son CONSTAT ou sa
+PREUVE. Jamais la sonde — recopier la commande qui nomme un paramètre n'est pas une découverte, et un
+record dit souvent lui-même, dans sa section « ce qui n'est pas mesuré », le mot qu'on attendait de la
+revue. Pour le témoin sain : **au plus UNE critique confirmée**, et ce chiffre se publie dans l'en-tête de
+toute revue. Il vaut autant que les trois défauts — sans lui, un Réfutateur qui crie sur tout retrouverait
+les trois et paraîtrait parfait, exactement comme un instrument de contraste sans no-op EXACT ne sait pas
+ce qu'il ne peut pas voir.
 
 **Un témoin manqué rend la revue NULLE** : rien ne s'écrit dans `docs/reviews/`, le compteur
 `témoin manqué` s'incrémente dans `ROLES.md`. **Deux fois → les prompts sont re-scellés** (ils ne
-discriminent plus), et le re-scellage passe par robla.
+discriminent plus), et le re-scellage passe par robla. Un texte de critiques ILLISIBLE n'est pas NULLE
+mais **indécidable** (code 2) : un bug de sérialisation ne doit pas devenir un verdict de fond.
 
 Les témoins sont figés au SHA qui porte le défaut **NU**, jamais sa rectification. Ce regard « à l'œil »
 est lui-même exécutable : chaque témoin déclare une `signature` (présente dans le record à ce SHA) et une

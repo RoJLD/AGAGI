@@ -1402,10 +1402,18 @@ CALIBRATED = {
     # regard « a l'oeil » porte sur les versions gelees est lui-meme execute (signature / antisignature).
     # Cas dans tests/sandbox/test_refutateur_temoins.py -- PAS ici : ce fichier commence par
     # `pytest.importorskip("torch")` et le Refutateur n'a aucune dependance torch.
-    "tools/refutateur_temoins.py::verifier": ["defaut:nomme", "defaut:revue-creuse", "defaut:texte-vide",
-                                             "noop:zero-ou-une", "noop:deux-confirmees",
+    # ⚠️ Quatre FRANCHISSEMENTS mesures en revue le 2026-09-23, tous geles en contre-exemple : la cle de
+    # reponse publiee dans le document que l'agent lit ; une revue qui ne CONFIRME rien passant les quatre
+    # temoins (regex cherchee jusque dans la sonde, et le token attendu figure dans le texte des temoins
+    # eux-memes) ; le double bareme Python/JS deja divergent sur trois points ; un roster gele que
+    # l'appelant pouvait affaiblir. Plus une troisieme issue : INDECIDABLE (code 2) distinct de NULLE.
+    "tools/refutateur_temoins.py::verifier": ["defaut:constat-confirme", "defaut:revue-creuse",
+                                             "defaut:non-confirmee-ne-compte-pas", "defaut:sonde-seule-ne-compte-pas",
+                                             "defaut:texte-vide", "noop:zero-ou-une-confirmee",
+                                             "noop:deux-confirmees", "format:illisible-leve",
+                                             "format:comptage-partiel-leve", "roster:refuse-affaibli",
                                              "temoin:signature-presente", "temoin:antisignature-absente",
-                                             "cli:exit-0-1-2"],
+                                             "extraction:nom-neutre-decorrele", "cli:exit-0-1-2"],
 }
 
 _GENOMES = os.path.join("results", "warm007_genomes")
