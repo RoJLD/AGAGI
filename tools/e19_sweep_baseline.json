@@ -1,0 +1,15 @@
+{
+ "_comment": "Runners scelles PAR (chemin, raison) : nu (sous gradient SANS assert_verdict_invariant_to_optimizer), regle_absente (nom resolu mais fichier scelle introuvable/illisible), non_resolu (nom NON resolu statiquement, ex. argv). Dette legataire GELEE : aucun NOUVEAU nu, aucune REGRESSION de raison. tools/check_e19_optimizer_sweep.py",
+ "legataires": {
+  "tools/bilinear_aligned_run.py": "nu",
+  "tools/bilinear_sham_run.py": "nu",
+  "tools/evo_runs/s2_blind_champion_bis.py": "non_resolu",
+  "tools/lang_memory_edge_run.py": "non_resolu",
+  "tools/legacy_cause_de_mort.py": "nu",
+  "tools/legacy_lr_curve.py": "nu",
+  "tools/legacy_lr_curve_r2.py": "nu",
+  "tools/lock001_pred2_r1.py": "non_resolu",
+  "tools/lock001_proxy_r1.py": "non_resolu",
+  "tools/td_step_pilot.py": "nu"
+ }
+}

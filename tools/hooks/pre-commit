@@ -427,5 +427,38 @@ if [ -n "$staged_ep" ]; then
   }
 fi
 
+# 22. GARDE E19 APPELEE (2026-09-23) -- un runner SCELLE dont la regle compare des bras SOUS GRADIENT
+# (grille de lr, bras a pas distincts, clause_E19, sender_lr) doit appeler assert_verdict_invariant_to_
+# optimizer, sinon son nul mesure le REGLAGE (RETAIN-COMPOSE : verdict invertit de 0,173 a 0,923 au seul
+# lr). Meme perimetre que la porte 11 (tools/, src/seed_ai/, hors check_*.py et _HORS_PERIMETRE, reutilises
+# de check_control_family). Un runner qui APPELLE la garde directement est couvert MEME sans regle JSON
+# scellee (tools/learner_calibration.py : ses bras sont des litteraux Python, pas une regle verify()) --
+# c'est le seul appelant reel du depot. Un nom de regle NON RESOLU (argv) est rapporte, jamais devine ni
+# compte "pas sous gradient" ; un nom resolu dont le fichier scelle est introuvable est REGLE ABSENTE,
+# distincte. Baseline legataire gelee PAR (chemin, raison) dans tools/e19_sweep_baseline.json ; rang
+# couvert < non_resolu < regle_absente < nu -- un legataire qui EMPIRE (ex. non_resolu -> nu) bloque comme
+# un nu tout neuf. Se declenche si un runner .py (tools/ ou src/seed_ai/), une regle scellee, la baseline,
+# OU un des TROIS modules partages (le module lui-meme, check_control_family.py dont il importe _sources/
+# _HORS_PERIMETRE, experiment_preflight.py qui DEFINIT la garde -- E4 occ. 5) est stage. --only n'est
+# utilise QUE si les fichiers stages sont EXCLUSIVEMENT des runners .py ORDINAIRES (pas les trois modules
+# partages, pas une regle JSON, pas la baseline) -- un changement a l'un de ces trois peut reclasser
+# N'IMPORTE QUEL autre runner, donc force un run NON scope (meme raisonnement que les portes 19/20).
+staged_e19=$(git diff --cached --name-only --diff-filter=AM | grep -E '^((tools|src/seed_ai)/.*\.py|docs/preregistrations/.*\.json|tools/e19_sweep_baseline\.json)$')
+if [ -n "$staged_e19" ]; then
+  only_e19=$(echo "$staged_e19" | grep -E '^(tools|src/seed_ai)/.*\.py$' | grep -vE '^tools/(check_e19_optimizer_sweep|check_control_family|experiment_preflight)\.py$' || true)
+  hors_py_e19=$(echo "$staged_e19" | grep -vE '^(tools|src/seed_ai)/.*\.py$' || true)
+  partages_e19=$(echo "$staged_e19" | grep -E '^tools/(check_e19_optimizer_sweep|check_control_family|experiment_preflight)\.py$' || true)
+  if [ -n "$only_e19" ] && [ -z "$hors_py_e19" ] && [ -z "$partages_e19" ]; then
+    PYTHONIOENCODING=utf-8 python tools/check_e19_optimizer_sweep.py --only $only_e19
+  else
+    PYTHONIOENCODING=utf-8 python tools/check_e19_optimizer_sweep.py
+  fi || {
+    echo ""
+    echo "-> Ce runner compare des bras sous GRADIENT sans balayer le pas : son nul mesure le reglage (E19)."
+    echo "   Appeler assert_verdict_invariant_to_optimizer(measure, lrs=...) ou geler : --update-baseline"
+    fail=1
+  }
+fi
+
 [ "$fail" -ne 0 ] && echo "   (urgence : git commit --no-verify)"
 exit $fail

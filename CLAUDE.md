@@ -271,7 +271,31 @@ faces `GIT_INDEX_FILE`/`_env_pour` dans la section Environnement) : isoler l'env
 `_tracked` INCONDITIONNELLEMENT cassait le cas où `root` EST le dépôt courant pendant le commit —
 `_env_pour(root)` distingue désormais dépôt courant (hérite) de dépôt tiers (isole).
 
-**20 gardes** <!-- count:portes_hook=20 --> sont branchées sur le hook pre-commit
+`check_e19_optimizer_sweep.py` (porte 22, 2026-09-23) — classe **E19** : un runner SCELLÉ dont la règle
+compare des bras SOUS GRADIENT (grille de `lr`, bras à pas distincts, `clause_E19`, `sender_lr`) doit
+appeler `assert_verdict_invariant_to_optimizer`, sinon son nul mesure le RÉGLAGE — cas fondateur,
+EDR-RETAIN-COMPOSE rétracté en entier parce que son verdict s'inversait au seul `lr` (0,173 → 0,923).
+Même périmètre AST que la porte 11 (`tools.check_control_family._sources`/`_HORS_PERIMETRE`, réutilisés
+tels quels). ⚠️ **Trouvé en écrivant cette porte, pas en la relisant après coup** : le périmètre naïf
+« un runner qui appelle `verify(...)` » RATE ENTIÈREMENT le seul appelant réel de la garde,
+`tools/learner_calibration.py:120` — ses bras (`ARMS`, `lr=0.0`/`lr=0.004`) sont des littéraux Python,
+jamais une règle JSON scellée. Corrigé : un module qui appelle la garde DIRECTEMENT entre dans le
+périmètre même sans `verify()` — la garde EST le balayage, l'appeler EST la preuve. Un nom de règle NON
+RÉSOLU (`argv[...]`) est RAPPORTÉ, jamais deviné ni compté « pas sous gradient » ; un nom résolu dont le
+fichier scellé est introuvable est RÈGLE ABSENTE, distincte (jamais fondues — quatre compteurs de tête
+sont publiés : sous gradient / nus / non résolus / règle absente, en plus des scellés et des gelés).
+Baseline légataire gelée PAR (chemin, raison) dans `tools/e19_sweep_baseline.json` ; rang `couvert <
+non_resolu < regle_absente < nu` — un légataire dont la raison EMPIRE (ex. `non_resolu` → `nu`, une
+résolution qui devient possible et révèle un vrai nu) bloque comme un nu tout neuf, l'amélioration
+jamais. `--update-baseline` refuse d'écrire sous 10 runners scellés trouvés (même garde que la porte
+20 ; contre-exemple gelé : la baseline sur disque reste OCTET POUR OCTET inchangée). Mesuré le
+2026-09-23 (`--report`) : **29 runners scellés, 7 sous gradient, 6 nus** (familles LEGACY-LR-CURVE,
+LEGACY-CAUSE-DE-MORT, BILINEAR-ALIGNED/-SHAM, TD-STEP-PILOT — gelés comme dette légataire), **4 non
+résolus** (argv : les deux `lock001_*`, `lang_memory_edge_run.py`, `s2_blind_champion_bis.py`), **0
+règle absente**, **1 seul appelant réel de la garde** — `tools/learner_calibration.py`, classé
+`couvert`, le CONTRÔLE POSITIF sur données réelles de cette porte. Mutation tuée.
+
+**21 gardes** <!-- count:portes_hook=21 --> sont branchées sur le hook pre-commit
 (`tools/hooks/pre-commit`) — compte RECOMPUTÉ depuis le hook lui-même : la phrase « 5 cliquets, tous
 branchés » qui vivait ici était fausse.
 ⚠️ **La baseline d'un cliquet doit elle-même déclencher le hook** — sinon l'élargir et la committer seule

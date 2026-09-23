@@ -344,6 +344,18 @@ PORTES = {
                       "une règle documentée déguisée en rôle (E10)"),
         }],
     },
+    "22": {
+        "module": "tools.check_e19_optimizer_sweep",
+        "titre": "garde E19 appelée par tout runner scellé sous gradient",
+        "temoins": ["tests/sandbox/test_e19_sweep_gate.py"],
+        "mutations": [{
+            "nom": "un runner sous gradient sans garde n'est plus nu",
+            "avant": '    return sorted(p for p, v in etat_.items() if v["sous_gradient"] and not v["garde"])',
+            "apres": "    return []",
+            "motif": ("le verdict du cliquet — les runners de la série LEGACY/BILINEAR-ALIGNED repasseraient sans "
+                      "balayage du pas, et `classer` (qui s'appuie dessus) ne verrait plus aucun nu non plus"),
+        }],
+    },
 }
 
 # ⚠️ Clé = NOM DE MODULE, et non numéro de porte : c'est ce qui permet à
