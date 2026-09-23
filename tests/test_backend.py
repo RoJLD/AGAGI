@@ -209,7 +209,7 @@ def test_flatland_websocket_streams_frames() -> None:
         assert "genome_diversity" in summary
 
 
-def test_flatland_runs_crud() -> None:
+def test_flatland_runs_crud(sans_bail_etranger) -> None:
     r = client.post("/api/flatland/runs", json={"config_overrides": {"size": 16}, "pop_size": 2, "label": "e2e"})
     assert r.status_code == 200
     rid = r.json()["run_id"]
@@ -230,7 +230,7 @@ def test_flatland_bad_override_returns_400() -> None:
     assert r.status_code == 400
 
 
-def test_ws_flatland_run_id_streams_frames() -> None:
+def test_ws_flatland_run_id_streams_frames(sans_bail_etranger) -> None:
     rid = client.post("/api/flatland/runs", json={"pop_size": 2, "label": "wt"}).json()["run_id"]
     try:
         with client.websocket_connect(f"/ws/flatland/{rid}") as ws:

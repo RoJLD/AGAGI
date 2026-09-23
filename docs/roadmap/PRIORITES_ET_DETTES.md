@@ -919,6 +919,32 @@ portent l'ANCIEN code tant qu'ils ne sont pas rebasés. **(iii)** : `test_p_reac
 est la cause DOCUMENTÉE d'une mesure de monde contaminée, mais elle n'est pas prouvée ici (pas reproduite) ; s'il
 revient à bail libre, le lire ou geler à ce moment-là.
 <!-- closes_when:grep_present=tests/conftest.py::_arm_runtime_net -->
+**P2.82 — ✅ CLOSE (2026-09-23) — rang 14 quater — Un skip levé au MAUVAIS NIVEAU devient un verdict : quatre faux rouges sous bail `kuzu`,
+reproduits (suite complète du PM, nuit du 22 au 23 ; 4 failed en 2,7 s sous le bail de P4.16).**
+Quoi : (a) `tests/sandbox/test_s2_ablation_real_path.py` (2 cas, l.74 et l.92) prend `hold("kuzu")` LUI-MÊME et ne
+porte AUCUN des `_WORLD_HINTS` de `tests/conftest.py` : la garde de collecte ne le saute pas, `ResourceBusy` (« détenue
+par pid=… owner=s2-credit-ablation-2 ») devient FAIL. Un test qui tient un bail est par définition un test de monde :
+faire de `ResourceBusy` à la prise de bail par un test un `pytest.skip` nommant le détenteur (même issue que la garde de
+collecte), et ajouter `hold(` aux indices. (b) `tests/test_backend.py::test_flatland_runs_crud` et
+`::test_ws_flatland_run_id_streams_frames` : le `Skipped` du garde runtime (`_arm_runtime_net`) est levé DANS
+l'application ASGI, traversé par Starlette et rendu « RuntimeError: No response returned » / `BaseExceptionGroup` =
+FAIL. Le skip se décide dans le test (fixture), jamais dans le code servi. Pourquoi : les deux formes n'apparaissent
+QUE bail tenu — invisibles à toute suite lancée machine au repos, donc jamais vues par la CI (E14 : la garde de
+collecte, apprise sur un cas, n'a pas été généralisée aux tests qui la contournent ; E10 : « sautée, jamais rouge »
+était une règle documentée, pas exécutée). Contre-exemples à geler : un test qui appelle `hold` sous détenteur étranger
+est SKIPPED, pas FAILED ; un `Skipped` levé côté serveur ne traverse pas l'app.
+**Livré le 2026-09-23 (sous le bail de P4.16, seul moment où les deux issues étaient mesurables)** : hook
+`pytest_runtest_call` de `tests/conftest.py` (ResourceBusy pendant l'appel → skip nommant le détenteur ; toute
+autre exception passe) ; fixture `sans_bail_etranger` (décision `_skip_si_bail_etranger`, calibrée sans monde) posée
+sur les deux tests backend ; `tests/sandbox/test_lease_skip_guard.py` (6 cas : conversion, spécificité, deux
+bouts-en-bout sous détenteur PRÉSENT ou FACTICE — un sous-processus enfant qui tient `kuzu` 120 s, lancé par le
+test lui-même quand le bail est libre, donc mesurable AUSSI machine au repos —, décision au repos / sous détenteur,
+câblage de la fixture). **Remis au PM (suite complète = son périmètre), hors de cette entrée** : un job CI ou une passe manuelle « suite complète sous
+bail tenu par un détenteur factice » (`tools/jobs/run.hold` dans un sous-processus pendant `pytest tests/`), sans
+quoi la prochaine forme de ce défaut sera découverte par la suite de nuit de quelqu'un d'autre — E12 côté tests :
+une suite mesurée machine au repos ne mesure pas l'état « bail tenu ». *Coût : agent 1 h ; calcul 0.*
+Dépend de : rien. Occurrence au registre : E14 (2026-09-23, session d7).
+<!-- closes_when:grep_present=tests/conftest.py::ResourceBusy -->
 
 **P3.4 — rang 14 — ✅ CLOSE le 2026-09-15 ([[EDR-CALIB-LEGACY-LEARNER]], `results/legacy_learner_calibration.json`) — Cas de calibration de l'apprenant LEGACY.**
 Quoi : `MambaBatchModel.compute_policy_gradient` (le chemin actif pendant tout l'arc EVO), mêmes bras

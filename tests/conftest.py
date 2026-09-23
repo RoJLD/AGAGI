@@ -126,6 +126,45 @@ def pytest_collection_modifyitems(config, items):  # noqa: F811 — complète le
 _NET = {"armed": False, "orig": None}
 
 
+try:
+    from tools.jobs.lease import ResourceBusy as _ResourceBusy
+except Exception:                                   # noqa: BLE001 — module absent : la garde ne convertit rien
+    class _ResourceBusy(Exception):
+        """Substitut jamais levé : sans `tools.jobs`, aucun bail n'existe."""
+
+
+@pytest.hookimpl(wrapper=True)
+def pytest_runtest_call(item):
+    """P2.82 (2026-09-23) — GARDE À LA PRISE. Un test qui prend `hold("kuzu")` LUI-MÊME sans porter d'indice
+    de monde échappe à la garde de collecte, et `ResourceBusy` (bail détenu par un run étranger) devenait
+    FAIL — mesuré : 2 rouges de `test_s2_ablation_real_path.py` dans la suite de nuit du PM sous le bail de
+    P4.16. Un test qui tient un bail est par définition un test de monde : la même issue que la garde de
+    collecte, au MÉCANISME (la prise) plutôt qu'à l'heuristique (un indice de plus). Toute autre exception
+    passe inchangée (spécificité, `test_lease_skip_guard.py`)."""
+    try:
+        return (yield)
+    except _ResourceBusy as exc:
+        pytest.skip(f"[garde de bail, prise] {exc} — un run tient la ressource : attendre sa fin, ou "
+                    f"python -m tools.jobs.doctor (P2.82)")
+
+
+def _skip_si_bail_etranger():
+    """La DÉCISION de la fixture `sans_bail_etranger`, isolée pour être calibrée sans monde."""
+    detenteur = _foreign_kuzu_holder()
+    if detenteur:
+        pytest.skip(f"[garde de bail, fixture] bail « kuzu » détenu par {detenteur} : ce test sert un monde "
+                    f"dans une app ASGI, où un Skipped levé côté serveur deviendrait un RuntimeError (P2.82)")
+
+
+@pytest.fixture
+def sans_bail_etranger():
+    """P2.82 (2026-09-23) — le skip se décide DANS LE TEST, jamais dans le code servi. Les tests backend qui
+    construisent un monde à travers l'app ASGI (`test_flatland_runs_crud`, `test_ws_flatland_run_id_streams_frames`)
+    voyaient le `Skipped` du filet runtime traverser Starlette et ressortir en « RuntimeError: No response
+    returned » = FAIL (mesuré sous le bail de P4.16). Prendre cette fixture décide le skip AVANT la requête."""
+    _skip_si_bail_etranger()
+
+
 def _arm_runtime_net(raison):
     """P2.69 (ii), 2026-09-15 — FILET RUNTIME de la garde de bail. L'heuristique textuelle ci-dessus
     devine ; mesuré ce jour : **58 fichiers** de tests importent un module qui construit un monde SANS
