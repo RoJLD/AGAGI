@@ -433,11 +433,15 @@ fi
 # lr). Meme perimetre que la porte 11 (tools/, src/seed_ai/, hors check_*.py et _HORS_PERIMETRE, reutilises
 # de check_control_family). Un runner qui APPELLE la garde directement est couvert MEME sans regle JSON
 # scellee (tools/learner_calibration.py : ses bras sont des litteraux Python, pas une regle verify()) --
-# c'est le seul appelant reel du depot. Un nom de regle NON RESOLU (argv) est rapporte, jamais devine ni
-# compte "pas sous gradient" ; un nom resolu dont le fichier scelle est introuvable est REGLE ABSENTE,
-# distincte. Baseline legataire gelee PAR (chemin, raison) dans tools/e19_sweep_baseline.json ; rang
-# couvert < non_resolu < regle_absente < nu -- un legataire qui EMPIRE (ex. non_resolu -> nu) bloque comme
-# un nu tout neuf. Se declenche si un runner .py (tools/ ou src/seed_ai/), une regle scellee, la baseline,
+# c'est le seul appelant reel du depot -- gele dans "appelants_garde" : en PERDRE un bloque, sinon la
+# porte resterait verte si learner_calibration.py cessait d'appeler la garde. Un nom de regle NON RESOLU
+# (argv) est rapporte, jamais devine ni compte "pas sous gradient" ; un nom resolu dont le fichier scelle
+# est introuvable est REGLE ABSENTE. Une regle dont le contenu SERIALISE mentionne lr/learning_rate/E19
+# HORS des cles structurees, sans qu'aucune forme reconnue ne tire, est INDETERMINEE (revue 2026-09-23 :
+# trois runners vivants -- s2_credit_ablation(.py|_2.py), s2_reward_ablation.py -- sortaient "couvert" en
+# silence). Baseline legataire gelee PAR (chemin, raison) dans tools/e19_sweep_baseline.json ; rang
+# couvert < illisible < non_resolu < regle_absente < indetermine < nu -- un legataire qui EMPIRE bloque
+# comme un nu tout neuf. Se declenche si un runner .py (tools/ ou src/seed_ai/), une regle scellee, la baseline,
 # OU un des TROIS modules partages (le module lui-meme, check_control_family.py dont il importe _sources/
 # _HORS_PERIMETRE, experiment_preflight.py qui DEFINIT la garde -- E4 occ. 5) est stage. --only n'est
 # utilise QUE si les fichiers stages sont EXCLUSIVEMENT des runners .py ORDINAIRES (pas les trois modules

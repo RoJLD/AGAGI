@@ -65,7 +65,7 @@
   "tests/sandbox/test_dream_node_group_mask.py": 8,
   "tests/sandbox/test_dream_noise_seam.py": 4,
   "tests/sandbox/test_dreaming_probe.py": 39,
-  "tests/sandbox/test_e19_sweep_gate.py": 12,
+  "tests/sandbox/test_e19_sweep_gate.py": 23,
   "tests/sandbox/test_edr105_forage_funnel.py": 12,
   "tests/sandbox/test_edr106_approach_kinematics.py": 9,
   "tests/sandbox/test_edr107_evolve_nav.py": 12,

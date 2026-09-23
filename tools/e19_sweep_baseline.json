@@ -1,13 +1,22 @@
 {
- "_comment": "Runners scelles PAR (chemin, raison) : nu (sous gradient SANS assert_verdict_invariant_to_optimizer), regle_absente (nom resolu mais fichier scelle introuvable/illisible), non_resolu (nom NON resolu statiquement, ex. argv). Dette legataire GELEE : aucun NOUVEAU nu, aucune REGRESSION de raison. tools/check_e19_optimizer_sweep.py",
+ "_comment": "Runners scelles PAR (chemin, raison) : nu (sous gradient SANS assert_verdict_invariant_to_optimizer), indetermine (mentionne le pas/E19 sans forme reconnue), regle_absente (nom resolu mais fichier scelle introuvable/illisible), non_resolu (nom NON resolu statiquement, ex. argv), illisible (le MODULE ne parse pas). 'appelants_garde' gele les chemins qui appellent REELLEMENT la garde -- le controle positif de cette porte ; en PERDRE un bloque. Dette legataire GELEE : aucun NOUVEAU nu, aucune REGRESSION de raison, aucune perte d'appelant. tools/check_e19_optimizer_sweep.py",
+ "appelants_garde": [
+  "tools/learner_calibration.py"
+ ],
  "legataires": {
   "tools/bilinear_aligned_run.py": "nu",
   "tools/bilinear_sham_run.py": "nu",
   "tools/evo_runs/s2_blind_champion_bis.py": "non_resolu",
+  "tools/evo_runs/s2_credit_ablation.py": "indetermine",
+  "tools/evo_runs/s2_credit_ablation_2.py": "indetermine",
+  "tools/evo_runs/s2_credit_retention.py": "indetermine",
+  "tools/evo_runs/s2_reward_ablation.py": "indetermine",
   "tools/lang_memory_edge_run.py": "non_resolu",
   "tools/legacy_cause_de_mort.py": "nu",
   "tools/legacy_lr_curve.py": "nu",
   "tools/legacy_lr_curve_r2.py": "nu",
+  "tools/legacy_nan_guard_run.py": "nu",
+  "tools/legacy_wm_guard_run.py": "nu",
   "tools/lock001_pred2_r1.py": "non_resolu",
   "tools/lock001_proxy_r1.py": "non_resolu",
   "tools/td_step_pilot.py": "nu"
