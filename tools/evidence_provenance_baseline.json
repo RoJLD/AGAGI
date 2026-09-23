@@ -1,5 +1,5 @@
 {
-  "_comment": "Paires (record, chemin results/ cite) ABSENT/NON_SUIVI/GLOB_VIDE, gelees PAR CAUSE comme dette legataire (E27). Un legataire ne bloque que s'il REGRESSE vers une cause PIRE qu'au gel (tools/check_evidence_provenance.py, _RANG). Aucune NOUVELLE paire.",
+  "_comment": "Paires (record, chemin results/ cite) ABSENT/NON_SUIVI/GLOB_VIDE/PAR_HASH, gelees PAR CAUSE comme dette legataire ou declaration auditable (E27). Un legataire ne bloque que s'il REGRESSE vers une cause de rang PIRE qu'au gel (tools/check_evidence_provenance.py, _RANG). Aucune NOUVELLE paire absente/non suivie/a glob vide.",
   "legataires": {
     "docs/EDR/088_Content_Benefit_Rises_With_Criticality_Trend_Not_Yet_Robust.md": {
       "results/lewis_critical_2026.json": "absent",

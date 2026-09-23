@@ -2,7 +2,7 @@
 disque ET etre SUIVI par git, ou etre publie par son hash (`sha256 <hex>` a cote de la citation).
 
   python tools/check_evidence_provenance.py                    # cliquet : exit 1 sur toute NOUVELLE paire
-  python tools/check_evidence_provenance.py --report           # etat complet, exit 0
+  python tools/check_evidence_provenance.py --report           # etat complet + comptes par HEAD, exit 0
   python tools/check_evidence_provenance.py --update-baseline  # gele l'etat courant PAR (record, chemin, cause)
   python tools/check_evidence_provenance.py --only docs/EDR/X.md
 
@@ -11,26 +11,65 @@ cette semaine sur des clones/worktrees neufs : un record citant un `results/*.js
 present seulement sur le disque d'une session) ne peut etre confronte par personne d'autre.
 
 Reutilise `cited_results` / `_developper` de la tache 1 (`tools/check_regime_claims.py`) plutot que de
-re-parser les citations.
+re-parser les citations -- donc le hook re-tourne cette porte aussi quand CE module change (E4 occ. 5).
+⚠️ Seules les citations ENTRE BACKTICKS sont vues (le motif de `cited_results` l'exige) : une citation
+nue (sans backtick) est invisible. Mesure le 2026-09-23 : 0 citation nue dans docs/EDR -- angle mort
+INACTIF aujourd'hui, pas garanti de le rester.
 
-Une absence n'est JAMAIS affirmee sans etre nommee -- trois causes distinctes, jamais fondues sous une
-etiquette unique (lecon de revue de la tache 1) :
+Une absence n'est JAMAIS affirmee sans etre nommee -- QUATRE causes distinctes, jamais fondues sous une
+etiquette unique (lecon de revue de la tache 1, puis de la revue architecte de CETTE porte) :
   * `absent`     -- le chemin n'existe nulle part sur le disque ;
-  * `non_suivi`  -- il existe mais `git` ne le suit pas (recuperable par `git add`) ;
+  * `non_suivi`  -- il existe mais `git` ne le suit pas dans l'INDEX (recuperable par `git add`) ;
   * `glob_vide`  -- un motif a joker (`results/x_*.json`) qui ne developpe vers AUCUN fichier. Sans ce
     troisieme cas, `_developper` rend une liste VIDE pour un tel motif et la citation disparaitrait du
     compte sans laisser de trace -- exactement la forme (a) documentee dans CLAUDE.md (donnee absente ->
     silence, jamais une affirmation qui dit qu'on ne sait pas).
-`ABSENT` est REGARDE PIRE que `NON_SUIVI` (rang 2 > 1) : un fichier non suivi reste recuperable par
-`git add`, un fichier absent ne l'est pas sans savoir ou il est parti. Un legataire gele `non_suivi`
-qui REGRESSE vers `absent` (ou `glob_vide`) bloque ; l'inverse (une paire qui s'ameliore) ne bloque pas.
+  * `par_hash`   -- ⚠️ une DECLARATION, pas une VERIFICATION : `publie_par_hash` confronte le TEXTE (un
+    `sha256 <hex>` ecrit a cote de la citation) a rien d'autre -- ni le fichier (qui peut avoir disparu),
+    ni son contenu reel. Longtemps un angle mort total (rien ne gelait ces chemins, donc leur disparition
+    -- l'auteur retire discretement le hash sans que le fichier redevienne suivi -- ne se voyait pas) :
+    desormais gele dans la baseline comme les trois autres, donc AUDITABLE et sa regression vers une
+    cause pire (le hash disparait, le fichier reste absent/non-suivi) BLOQUE comme les autres.
+`ABSENT`/`GLOB_VIDE` sont REGARDES PIRES que `NON_SUIVI` (rang 2 > 1), lui-meme PIRE que `PAR_HASH`
+(rang 1 > 0, un chemin non suivi reste recuperable par `git add`, un hash declare ne demande rien de
+plus). Un legataire gele qui REGRESSE vers une cause de rang PIRE bloque ; l'inverse (une paire qui
+s'ameliore) ne bloque pas.
 
-⚠️ Defaut trouve en implementant le brief de cette porte, corrige ici (documente dans le rapport de
-tache) : la fenetre de 120 caracteres qui cherche un `sha256 <hex>` APRES une citation ne s'arretait pas
-a la PROCHAINE citation `results/...` -- un hash place apres une deuxieme citation « bleedait » en
-arriere sur la premiere, la faisant compter comme publiee par hash alors qu'aucun hash ne lui etait
-associe. `publie_par_hash` borne desormais la fenetre a la prochaine occurrence de `results/` si elle
-survient avant les 120 caracteres.
+⚠️ Un chemin ISSU D'UNE EXPANSION (`results/b_r{1,2}.json` -> `results/b_r1.json`) ne peut JAMAIS etre
+marque `par_hash` : `publie_par_hash` cherche le CHEMIN DEVELOPPE tel quel dans le texte brut, qui ne
+contient que le MOTIF non developpe -- `texte.find("results/b_r1.json")` echoue silencieusement. Rendre
+`False` sans le dire serait la meme faute que le defaut (2) ci-dessous (silence plutot qu'affirmation) ;
+`evaluer` le signale desormais dans `expansions`, et `--report` l'annote dans le detail plutot que de
+laisser croire que la publication par hash a ete tentee et a echoue pour une autre raison.
+
+⚠️ Deux defauts trouves en implementant le brief de la tache 2, corriges avant le premier commit :
+  (1) la fenetre de 120 caracteres qui cherche un `sha256 <hex>` APRES une citation ne s'arretait pas a
+      la PROCHAINE citation `results/...` -- un hash place apres une deuxieme citation « bleedait » en
+      arriere sur la premiere. `publie_par_hash` borne desormais la fenetre a la prochaine occurrence de
+      `results/` si elle survient avant les 120 caracteres.
+  (2) un motif a joker qui developpe vers RIEN disparaissait du compte (cf. `glob_vide` ci-dessus).
+Et un troisieme, trouve par la revue architecte APRES le premier commit (voir le rapport de correction
+dans task-2-report.md) : `_tracked` n'avait AUCUN temoin qui exerce le VRAI oracle git -- les cinq tests
+`non_suivi` du premier tir injectaient tous `suivi=lambda: False`, donc `_tracked` pouvait etre remplace
+par `return True` sans qu'un seul test ne rougisse. `test_p6_*` construit desormais un depot git JETABLE
+reel (aucun monkeypatch de `_tracked`/`_dans_head`) pour fermer ce trou.
+
+`_tracked` teste l'INDEX (`git ls-files`) : c'est le bon oracle POUR LE HOOK, ou un fichier ajoute dans
+LE MEME commit doit compter comme suivi. `_dans_head` teste HEAD (`git cat-file -e HEAD:<chemin>`) :
+un chemin peut etre `suivi` (dans l'index) sans etre `dans_head` (juste stage, pas encore committe) --
+c'est PUREMENT diagnostique (publie en `--report` uniquement, ne bloque rien) : un clone qui ne recupere
+que les commits (jamais l'index de qui que ce soit) ne voit que HEAD.
+
+⚠️ « Combien de chemins cites ? » n'a PAS UNE reponse : un motif a accolade/joker (`results/lock_001_
+pred2_r{2,3,4}.json`) est UN motif brut qui developpe vers PLUSIEURS chemins. Trois comptes distincts,
+tous publies, jamais fondus (E8 applique au RAPPORT lui-meme, trouve par la revue architecte) :
+  * motifs cites          -- citations BRUTES distinctes (avant expansion), dedupliquees sur tout le corpus ;
+  * chemins distincts      -- chemins APRES expansion, dedupliques sur tout le corpus (un meme chemin peut
+    etre cite par plusieurs records, ou par plusieurs motifs du meme record) ;
+  * paires record x chemin -- somme, par record, du nombre de chemins developpes cites CE record (c'est
+    l'unite de la baseline : deux records qui citent le meme chemin comptent pour DEUX paires).
+Un grep litteral sur `results/` compte quelque chose de plus proche de « motifs » que de « chemins » ou
+« paires », car les motifs a accolade/joker s'y developpent en plusieurs fichiers PRESENTS sur le disque.
 
 Un record illisible est RAPPORTE et BLOQUE, jamais compte OK ni gelable par --update-baseline.
 
@@ -50,18 +89,24 @@ if _ROOT not in sys.path:
 
 from tools.check_regime_claims import _developper, cited_results  # noqa: E402
 _BASELINE = os.path.join(_ROOT, "tools", "evidence_provenance_baseline.json")
-_HASH = re.compile(r"sha256[:\s]+([0-9a-f]{12,64})")
+_HASH = re.compile(r"sha256[:\s]+([0-9a-f]{12,64})", re.I)
 _NEXT_RESULTS = re.compile(r"\bresults/")
 FENETRE = 120
-# Severite : ABSENT (rien de reouvrable) est PIRE que NON_SUIVI (recuperable par `git add`) ; un motif
-# a glob mort (aucune preuve nulle part) est aussi severe qu'un fichier absent.
-_RANG = {"non_suivi": 1, "absent": 2, "glob_vide": 2}
+# Severite : PAR_HASH (declare, rien a faire de plus) < NON_SUIVI (recuperable par `git add`) <
+# ABSENT/GLOB_VIDE (aucune preuve nulle part, rang egal -- deux formes symetriques de "rien a lire").
+_RANG = {"par_hash": 0, "non_suivi": 1, "absent": 2, "glob_vide": 2}
 
 
 def publie_par_hash(texte, chemin):
     """`sha256 <12-64 hex>` a moins de FENETRE caracteres APRES `chemin`, et avant la PROCHAINE citation
     `results/` si elle survient plus tot -- sinon un hash place a cote d'une citation VOISINE compterait
-    aussi pour celle-ci (defaut reel du brief, corrige ; cf. docstring du module)."""
+    aussi pour celle-ci (defaut (1) du module, corrige).
+
+    ⚠️ DECLARATION, pas VERIFICATION : ne confronte le hash a RIEN d'autre que le texte lui-meme -- ni
+    l'existence du fichier, ni son contenu. Et ne peut JAMAIS matcher un `chemin` ISSU D'UNE EXPANSION
+    (`results/b_r{1,2}.json` -> `results/b_r1.json`) : `texte.find(chemin)` ne trouve que le chemin
+    LITTERAL, or seul le motif NON developpe apparait dans le texte brut. `evaluer` le signale via
+    `expansions` plutot que de laisser ce `False` silencieux se confondre avec « pas de hash cite »."""
     i = texte.find(chemin)
     while i != -1:
         fin = i + len(chemin)
@@ -75,13 +120,21 @@ def publie_par_hash(texte, chemin):
 
 
 def evaluer(texte, existe, suivi, root):
-    """`existe(rel) -> bool`, `suivi(rel) -> bool` injectes (le disque et git sont resolus par
-    l'appelant -- `analyze` en production, un double en test)."""
-    cites, glob_vides = [], set()
-    for motif in cited_results(texte):
+    """`existe(rel) -> bool`, `suivi(rel) -> bool` injectes (le disque et l'INDEX git sont resolus par
+    l'appelant -- `analyze` en production via `_tracked`, un double en test).
+
+    Rend `motifs` (citations BRUTES, avant expansion), `cites` (chemins APRES expansion), `expansions`
+    (le sous-ensemble de `cites` qui n'a PAS de forme litterale dans le texte -- cf. `publie_par_hash`),
+    et `causes` qui couvre desormais LES QUATRE causes, y compris `par_hash` (pour l'audit/le gel -- voir
+    docstring du module)."""
+    motifs = sorted(set(cited_results(texte)))
+    cites, glob_vides, expansions = [], set(), set()
+    for motif in motifs:
         dev = _developper(root, motif)
         if dev:
             cites.extend(dev)
+            if dev != [motif]:
+                expansions.update(dev)
         else:
             # Un motif a joker qui ne developpe vers RIEN ne doit pas disparaitre : c'est une absence
             # de preuve, pas une absence de citation.
@@ -92,6 +145,7 @@ def evaluer(texte, existe, suivi, root):
     absents, non_suivis, causes = [], [], {}
     for c in cites:
         if c in par_hash:
+            causes[c] = "par_hash"
             continue
         if c in glob_vides:
             absents.append(c)
@@ -103,18 +157,45 @@ def evaluer(texte, existe, suivi, root):
             non_suivis.append(c)
             causes[c] = "non_suivi"
     statut = "ABSENT" if absents else ("NON_SUIVI" if non_suivis else "OK")
-    return {"cites": cites, "absents": absents, "non_suivis": non_suivis, "par_hash": par_hash,
-            "statut": statut, "causes": causes}
+    return {"motifs": motifs, "cites": cites, "absents": absents, "non_suivis": non_suivis,
+            "par_hash": par_hash, "statut": statut, "causes": causes, "expansions": sorted(expansions)}
+
+
+def _env_isole():
+    """Env SANS aucune variable `GIT_*` heritee. Indispensable : `git commit -- <pathspec>` (le motif
+    que CLAUDE.md impose) fait tourner les hooks avec `GIT_INDEX_FILE` pointant vers un index
+    TEMPORAIRE construit pour ce commit PARTIEL -- si un sous-processus invoque `git` sur un AUTRE
+    depot (`root` different de celui du commit en cours -- typiquement le depot git JETABLE d'un test),
+    il HERITE cette variable et lit/ecrit le MAUVAIS index, celui du depot exterieur. Mesure le
+    2026-09-23 : reproduit en fixant `GIT_INDEX_FILE` a un chemin bidon avant de lancer les tests -- 2
+    rougissent aussitot, dont un `git commit` qui echoue avec « invalid object ... for docs/EDR/PAD-00.md »
+    -- exactement le symptome observe en conditions reelles lors du premier essai de commit de CETTE
+    correction. `_tracked`/`_dans_head` prennent `root` en parametre : ils doivent refleter l'etat de
+    CE depot, jamais celui d'un autre herite par accident de l'environnement du processus appelant."""
+    return {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
 
 
 def _tracked(root, rel):
+    """Oracle INDEX : `git ls-files` voit un fichier `git add`-e, meme pas encore committe -- c'est le
+    bon oracle POUR LE HOOK (un fichier ajoute dans LE MEME commit doit compter comme suivi). Temoin
+    REEL (pas de monkeypatch) : `test_p6_tracked_a_un_temoin_REEL_sur_un_depot_git_jetable`."""
     return subprocess.run(["git", "ls-files", "--error-unmatch", rel], cwd=root,
-                           capture_output=True).returncode == 0
+                           capture_output=True, env=_env_isole()).returncode == 0
+
+
+def _dans_head(root, rel):
+    """Oracle HEAD : `git cat-file -e HEAD:<rel>` -- distinct de `_tracked` (l'INDEX). Un chemin peut
+    etre `suivi` (ajoute a l'index) sans etre `dans_head` (juste stage, pas encore committe) : un clone
+    qui ne recupere que les commits ne voit que HEAD. PUREMENT diagnostique -- publie en `--report`
+    uniquement, ne participe a AUCUN statut ni AUCUNE decision de blocage."""
+    return subprocess.run(["git", "cat-file", "-e", f"HEAD:{rel}"], cwd=root,
+                           capture_output=True, env=_env_isole()).returncode == 0
 
 
 def analyze(root=_ROOT, suivi=None):
-    """`suivi(root, rel) -> bool` injectable (les tests tournent hors depot git). Defaut : `_tracked`,
-    resolu a l'appel (comme check_regime_claims.analyze)."""
+    """`suivi(root, rel) -> bool` injectable (les tests tournent hors depot git, ou veulent forcer un
+    scenario precis). Defaut : `_tracked`, resolu a l'appel (comme check_regime_claims.analyze) -- un
+    appel SANS `suivi=` exerce le VRAI oracle git."""
     suivi = _tracked if suivi is None else suivi
     out, illisibles = {}, []
     d = os.path.join(root, "docs", "EDR")
@@ -136,7 +217,8 @@ def analyze(root=_ROOT, suivi=None):
 def _load_baseline():
     """Rend `{fichier: {chemin: cause}}` -- une paire (record, chemin), pas un fichier entier : deux
     citations du meme record peuvent avoir des causes differentes, et geler par fichier aurait masque
-    l'une des deux (lecon de revue de la tache 1)."""
+    l'une des deux (lecon de revue de la tache 1). Inclut desormais la cause `par_hash` (revue
+    architecte, point 6) : un chemin declare par hash est gele et auditable comme les trois autres."""
     if not os.path.exists(_BASELINE):
         return {}
     with open(_BASELINE, encoding="utf-8") as fh:
@@ -151,7 +233,14 @@ def main(argv=None):
     ap.add_argument("--root", default=_ROOT)
     args = ap.parse_args(argv)
     a = analyze(args.root)
-    fautes = {f: dict(v["causes"]) for f, v in a["records"].items() if v["statut"] != "OK"}
+
+    # a_geler : TOUTES les paires causees (y compris par_hash) -- c'est ce que la baseline gele, pour
+    # que la disparition d'une declaration par hash soit AUDITABLE (point 6 de la revue).
+    a_geler = {f: dict(v["causes"]) for f, v in a["records"].items() if v["causes"]}
+    # fautes : seulement les paires qui rendent le record BLOQUANT (par_hash ne bloque jamais seul).
+    fautes = {f: {c: v["causes"][c] for c in (v["absents"] + v["non_suivis"])}
+              for f, v in a["records"].items() if v["statut"] != "OK"}
+
     for f in a["illisibles"]:
         print(f"  [ILLISIBLE -- BLOQUE, non gelable par --update-baseline] {f}")
 
@@ -163,26 +252,61 @@ def main(argv=None):
                   "vers un arbre vide ou partiel ? Baseline NON ecrite (elle desarmerait la porte en silence).")
             return 1
         with open(_BASELINE, "w", encoding="utf-8") as fh:
-            json.dump({"_comment": "Paires (record, chemin results/ cite) ABSENT/NON_SUIVI/GLOB_VIDE, "
-                                   "gelees PAR CAUSE comme dette legataire (E27). Un legataire ne bloque "
-                                   "que s'il REGRESSE vers une cause PIRE qu'au gel "
-                                   "(tools/check_evidence_provenance.py, _RANG). Aucune NOUVELLE paire.",
-                       "legataires": fautes}, fh, ensure_ascii=False, indent=2, sort_keys=True)
-        n_chemins = sum(len(v) for v in fautes.values())
-        print(f"baseline gelee : {n_chemins} chemin(s) dans {len(fautes)} record(s)")
+            json.dump({"_comment": "Paires (record, chemin results/ cite) ABSENT/NON_SUIVI/GLOB_VIDE/PAR_HASH, "
+                                   "gelees PAR CAUSE comme dette legataire ou declaration auditable (E27). Un "
+                                   "legataire ne bloque que s'il REGRESSE vers une cause de rang PIRE qu'au gel "
+                                   "(tools/check_evidence_provenance.py, _RANG). Aucune NOUVELLE paire absente/"
+                                   "non suivie/a glob vide.",
+                       "legataires": a_geler}, fh, ensure_ascii=False, indent=2, sort_keys=True)
+        n_chemins = sum(len(v) for v in a_geler.values())
+        n_hash_geles = sum(1 for v in a_geler.values() for c in v.values() if c == "par_hash")
+        print(f"baseline gelee : {n_chemins} chemin(s) dans {len(a_geler)} record(s) "
+              f"(dont {n_hash_geles} publie(s) par hash)")
         return 0
 
-    n_cites = sum(len(v["cites"]) for v in a["records"].values())
-    n_absents = sum(len(v["absents"]) for v in a["records"].values())
-    n_non_suivis = sum(len(v["non_suivis"]) for v in a["records"].values())
-    n_hash = sum(len(v["par_hash"]) for v in a["records"].values())
-    print(f"records : {len(a['records'])} | chemins cites : {n_cites} | absents : {n_absents} | "
-          f"non suivis : {n_non_suivis} | publies par hash : {n_hash} | records fautifs : {len(fautes)}")
+    # Comptes par UNITE (point 2 de la revue) : motifs BRUTS != chemins developpes DISTINCTS != paires
+    # record x chemin (l'unite de la baseline). Et comptes par CAUSE (point 3) : `absents` fondait
+    # `absent` et `glob_vide` sous une seule etiquette -- E8 applique au rapport lui-meme.
+    tous_motifs, tous_chemins, n_paires = set(), set(), 0
+    n_absent = n_glob_vide = n_non_suivi = n_hash = 0
+    for v in a["records"].values():
+        tous_motifs.update(v["motifs"])
+        tous_chemins.update(v["cites"])
+        n_paires += len(v["cites"])
+        for c, cause in v["causes"].items():
+            if cause == "absent":
+                n_absent += 1
+            elif cause == "glob_vide":
+                n_glob_vide += 1
+            elif cause == "non_suivi":
+                n_non_suivi += 1
+            elif cause == "par_hash":
+                n_hash += 1
+    print(f"records : {len(a['records'])} | motifs cites : {len(tous_motifs)} | "
+          f"chemins distincts : {len(tous_chemins)} | paires record×chemin : {n_paires} | "
+          f"absents : {n_absent} | non suivis : {n_non_suivi} | glob vides : {n_glob_vide} | "
+          f"publies par hash : {n_hash} | records fautifs : {len(fautes)}")
 
     if args.report:
+        # Point 4 de la revue : "0 non suivis" mesure contre l'INDEX (git add suffit) peut masquer un
+        # arbre ou une douzaine de results/*.json sont STAGES mais jamais COMMITES -- un clone qui ne
+        # recupere que HEAD ne les voit pas. Diagnostique seulement : ne participe a AUCUN blocage.
+        n_head_absent = sum(1 for v in a["records"].values() for c in v["cites"]
+                             if not _dans_head(args.root, c))
+        print(f"contre HEAD : {n_head_absent} chemin(s) cite(s) absent(s) du dernier commit "
+              "(git cat-file -e HEAD:<chemin> ; distinct de 'suivi', qui teste l'INDEX -- un chemin "
+              "stage dans CE commit est suivi mais peut ne pas encore etre dans HEAD)")
         for f, ch in sorted(fautes.items()):
-            detail = ", ".join(f"{c} [{cause}]" for c, cause in sorted(ch.items()))
+            detail = ", ".join(
+                f"{c} [{cause}]" + (" [issu d'une expansion -- hash inapplicable sur ce chemin]"
+                                     if c in a["records"][f]["expansions"] else "")
+                for c, cause in sorted(ch.items()))
             print(f"  [{a['records'][f]['statut']}] {f} : {detail}")
+        if n_hash:
+            print(f"  publies par hash (GELES, DECLARATIFS -- non verifies contre le fichier reel) : {n_hash}")
+            for f, v in sorted(a["records"].items()):
+                if v["par_hash"]:
+                    print(f"    {f} : {', '.join(v['par_hash'])}")
         return 0
 
     base = _load_baseline()
@@ -212,6 +336,8 @@ def main(argv=None):
             detail = ", ".join(f"{c} [{cause}]" for c, cause in sorted(ch.items()))
             print(f"  [NOUVEAU/REGRESSE] {f} : {detail}")
         print("-> git add le results/*.json, publier son sha256 a cote de la citation, ou corriger le chemin.")
+        print("   Un sha256 declare est GELE dans la baseline et reste auditable (cause par_hash) -- ce")
+        print("   n'est PAS une verification (le fichier peut avoir disparu), seulement une declaration.")
         print("   OU declarer la dette : python tools/check_evidence_provenance.py --update-baseline")
         return 1
 

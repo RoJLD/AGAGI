@@ -238,24 +238,34 @@ illisible BLOQUE et n'est jamais gelable par `--update-baseline` ; un scan sous 
 d'écrire la baseline (arbre vide/partiel désarmerait la porte en silence) ; mutation tuée par son
 témoin).
 
-`check_evidence_provenance.py` (porte 20, 2026-09-23) — classe E27 : mesuré DEUX FOIS cette semaine sur
-des clones/worktrees neufs, un record citant un `results/*.json` absent du dépôt (ou présent seulement
-sur le disque d'une session) n'est rouvrable par personne d'autre — une conclusion dont l'évidence n'est
-plus rouvrable n'est pas réfutable. Réutilise `cited_results`/`_developper` de `check_regime_claims.py`
-(porte 19). Un chemin cité doit EXISTER sur le disque ET être SUIVI par git, ou être publié par son hash
-(`sha256 <hex>` dans les 120 caractères après la citation) — trois causes distinctes, jamais fondues :
-`absent` (nulle part), `non_suivi` (existe, git l'ignore), `glob_vide` (un motif à joker `results/x_*.json`
-qui ne développe vers AUCUN fichier — sans cette 3ᵉ cause, la citation disparaîtrait silencieusement du
-compte, forme (a) documentée plus haut). `ABSENT` est jugé PIRE que `NON_SUIVI` (rang 2 > 1, récupérable
-par `git add`) ; baseline gelée PAR (record, chemin, cause) — un légataire ne bloque que s'il RÉGRESSE
-vers une cause pire qu'au gel. ⚠️ Défaut trouvé en implémentant le brief, corrigé avant tout commit : la
-fenêtre de 120 caractères après une citation ne s'arrêtait pas à la citation `results/` SUIVANTE — un
-hash placé après une 2ᵉ citation « bleedait » en arrière sur la 1ʳᵉ, la faisant compter comme publiée par
-hash sans qu'aucun hash ne lui soit associé (`publie_par_hash` borne désormais la fenêtre à la prochaine
-occurrence de `results/`). Mesuré le 2026-09-23 (`--report`) : 300 records, 97 chemins cités, 18 absents,
-0 non suivis, 0 publiés par hash — 18 gelés comme dette légataire dans 17 records. Un record illisible
-BLOQUE et n'est jamais gelable ; un scan sous 50 records refuse d'écrire la baseline ; mutation tuée par
-son témoin.
+`check_evidence_provenance.py` (porte 20, 2026-09-23, corrigée en revue architecte le jour même — 7
+Important) — classe E27 : mesuré DEUX FOIS sur des clones/worktrees neufs, un record citant un
+`results/*.json` absent du dépôt (ou présent seulement sur le disque d'une session) n'est rouvrable par
+personne d'autre. Réutilise `cited_results`/`_developper` de `check_regime_claims.py` (porte 19) — donc
+le hook re-déclenche aussi la porte 20 quand CE module change (E4 occ. 5, trouvé en revue). Un chemin
+cité doit EXISTER sur le disque ET être SUIVI par git (INDEX), ou être publié par son hash (`sha256
+<hex>` dans les 120 caractères après la citation, bornée à la citation SUIVANTE) — QUATRE causes
+distinctes, jamais fondues : `absent` (nulle part), `non_suivi` (existe, git l'ignore), `glob_vide` (un
+motif à joker `results/x_*.json` qui ne développe vers AUCUN fichier), `par_hash` (une DÉCLARATION GELÉE
+et auditable, jamais une vérification — le hash n'est confronté à rien d'autre que le texte). Rang
+`par_hash` < `non_suivi` < `absent`/`glob_vide` ; baseline gelée PAR (record, chemin, cause), y compris
+`par_hash` — sa disparition (le hash retiré sans que le fichier devienne suivi) est une RÉGRESSION comme
+les trois autres. « Combien de chemins cités ? » n'a pas une réponse : motifs à accolade/joker
+développent vers plusieurs chemins — trois comptes distincts publiés (motifs / chemins distincts /
+paires record×chemin), jamais fondus (E8 appliqué au RAPPORT lui-même). Mesuré le 2026-09-23
+(`--report`) : 300 records, **76 motifs cités, 78 chemins distincts (97 paires record×chemin)**, 18
+absents, 0 non suivis, 0 glob vides, 0 publiés par hash, contre HEAD 18 chemins absents du dernier commit
+— 18 gelés comme dette légataire dans 17 records. Un record illisible BLOQUE et n'est jamais gelable ;
+un scan sous 50 records refuse d'écrire la baseline (contenu disque vérifié inchangé) ; mutation tuée.
+⚠️ **Défaut le plus grave trouvé en revue** : `_tracked` (l'oracle git réel) n'avait AUCUN témoin qui
+l'exerce — les cinq tests `non_suivi` du premier tir injectaient tous `suivi=lambda: False`, donc
+`_tracked` pouvait devenir `return True` sans qu'un seul test ne rougisse, et la porte n'avait jamais
+tiré sur données réelles (0 `non_suivi` mesuré, dans un arbre où pourtant aucun `results/*.json`
+n'était alors non suivi non plus — coïncidence, pas preuve). Corrigé par un dépôt git JETABLE réel
+(`git init -b main`, un fichier committé, un fichier stagé-seul, un fichier jamais ajouté), SANS AUCUN
+monkeypatch de `_tracked`/`_dans_head`. `_dans_head` (nouvel oracle, `git cat-file -e HEAD:<chemin>`)
+distingue « suivi dans l'INDEX » de « présent dans HEAD » — un fichier stagé dans LE MÊME commit est
+suivi mais pas encore dans HEAD ; publié en `--report` uniquement, ne bloque rien.
 
 **20 gardes** <!-- count:portes_hook=20 --> sont branchées sur le hook pre-commit
 (`tools/hooks/pre-commit`) — compte RECOMPUTÉ depuis le hook lui-même : la phrase « 5 cliquets, tous
@@ -340,6 +350,20 @@ explicite, jamais le processus courant ni ses ancêtres, jamais un bail dont le 
   des cibles `grep_*` depuis l'INDEX — elle juge exactement ce qui sera committé. Hors commit, elle lit le
   disque (ce qu'un auteur veut voir en écrivant). La règle « même commit » reste : c'est elle qui rend un
   commit vert par lui-même et un clone cohérent.
+- ⚠️ **`GIT_INDEX_FILE` (même mécanisme que ci-dessus) fuit aussi vers un dépôt git IMBRIQUÉ créé par un
+  test.** Mesuré le 2026-09-23 (porte 20, revue architecte) : un test qui construit un VRAI dépôt git
+  jetable (`git init` sous `tmp_path`, pour exercer un oracle git réel plutôt qu'une constante injectée)
+  et l'invoque en SOUS-PROCESSUS hérite l'environnement du processus appelant — et `git commit --
+  <pathspec>` fixe `GIT_INDEX_FILE` pour ses hooks. Le hook lance `check_gate_mutation.py`, qui lance
+  `pytest` en sous-processus, qui lance le test, qui lance `git init`/`git add`/`git commit` sur le dépôt
+  JETABLE : tous héritent `GIT_INDEX_FILE`, pointant vers l'index TEMPORAIRE du commit EXTÉRIEUR, pas
+  celui du dépôt jetable. Symptôme observé au premier essai de commit : deux tests rougissent sans
+  aucune mutation, dont un `git commit` qui échoue avec « invalid object … for docs/EDR/PAD-00.md ».
+  Reproduit hors commit en fixant `GIT_INDEX_FILE` à un chemin bidon avant `pytest`. **Corrigé** :
+  toute commande `git` invoquée sur un dépôt AUTRE que celui du commit en cours (un dépôt de test, un
+  clone, un submodule…) doit passer un `env` d'où les variables `GIT_*` sont retirées
+  (`tools/check_evidence_provenance.py::_env_isole`) — sinon elle peut lire/écrire l'index d'un AUTRE
+  dépôt sans erreur visible.
 - Ne jamais committer sans demande explicite.
 - ⚠️ **Un `grep` de vérification sur du Markdown doit viser un motif SANS mise en forme** (un mot nu) : `grep "empreinte TARDIVE"` ne trouve pas `empreinte **TARDIVE**`. Et **une absence de correspondance n'est jamais une preuve d'absence** tant que le motif n'a pas été validé sur un cas POSITIF connu — mesuré le 2026-09-07 : trois greps faux m'ont fait graver une « forme d'erreur inédite » qui n'existait pas, rétractée le jour même. C'est la faute que le dépôt traque chez ses sondes (absence → affirmation), commise sur l'outil de vérification lui-même.
 - ⚠️ **Pas de backticks dans AUCUNE chaîne passée au shell** — `git commit -m`, `python -c`,
