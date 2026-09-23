@@ -153,6 +153,34 @@ def test_stamp_appends_once_per_distinct_provenance_and_keeps_cells_intact(tmp_p
     assert len(db["_provenance"]) == 2 and db["_provenance"][0]["git_sha"] == "autre-commit"
 
 
+# ==================================================================================================
+# Tâche 5 (spec PM 2026-09-16 §2.3) : `reviewed_by` -- exigé à l'ENVELOPPE de toute NOUVELLE
+# pré-inscription qui DÉCLARE un coût (clés cout/budget_s/garde_cout/plafond/cout_scelle). Décision du
+# contrôleur : pas de seuil numérique deviné -- aucun champ de coût homogène n'existe dans le dépôt.
+# ==================================================================================================
+
+def test_une_NOUVELLE_regle_qui_declare_un_cout_exige_reviewed_by(tmp_path):
+    from tools import preregister as PR
+    rule = {"question": "q", "cout": "~40 min sous bail", "regle_de_lecture_continue": "ORDRE IMPOSE : INCOMPLET, AUTRE."}
+    with pytest.raises(PR.ReviewRequired, match="reviewed_by"):
+        PR.preregister("T-COUT", rule, _dir=str(tmp_path))
+    p = PR.preregister("T-COUT", rule, _dir=str(tmp_path), reviewed_by="docs/reviews/2026-09-17-t-cout.md")
+    import json
+    env = json.load(open(p, encoding="utf-8"))
+    assert env["reviewed_by"] == "docs/reviews/2026-09-17-t-cout.md" and set(env) == {"name", "rule", "seal", "reviewed_by"}
+    assert PR.verify("T-COUT", _dir=str(tmp_path)) == rule                      # le sceau ne porte que rule
+
+
+def test_une_regle_SANS_cout_declare_ne_l_exige_pas_et_une_existante_se_rescelle_sans(tmp_path):
+    from tools import preregister as PR
+    rule = {"question": "q", "regle_de_lecture_continue": "ORDRE IMPOSE : INCOMPLET, AUTRE."}
+    PR.preregister("T-LIBRE", rule, _dir=str(tmp_path))                          # pas de coût : pas de revue exigée
+    couteuse = {"question": "q", "budget_s": 3600, "regle_de_lecture_continue": "ORDRE IMPOSE : INCOMPLET, AUTRE."}
+    PR.preregister("T-EXIST", couteuse, _dir=str(tmp_path), reviewed_by="x")
+    PR.preregister("T-EXIST", couteuse, _dir=str(tmp_path))                     # identique : idempotent, sans reviewed_by
+    assert PR.declare_un_cout(couteuse) is True and PR.declare_un_cout(rule) is False
+
+
 def test_every_sealed_runner_carries_the_provenance_stamp():
     """TEMOIN de P2.68 : tout runner que la porte 11 reconnait comme SCELLE (`verify` importe et
     appele -- analyse AST) appelle `provenance(` ou `stamp(`. La liste des exceptions est VIDE et doit

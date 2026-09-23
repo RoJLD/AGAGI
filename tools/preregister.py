@@ -49,6 +49,17 @@ class IncompleteDiscrimination(Exception):
     """Les branches de lecture ne couvrent pas le CONTINUUM -> latitude post-hoc rouverte."""
 
 
+class ReviewRequired(RuntimeError):
+    """Une NOUVELLE règle qui déclare un coût n'est scellée qu'après la revue adversariale (spec PM 2026-09-16 §2.3)."""
+
+
+_CLES_COUT = ("cout", "budget_s", "garde_cout", "plafond", "cout_scelle")
+
+
+def declare_un_cout(rule: dict) -> bool:
+    return isinstance(rule, dict) and any(k in rule for k in _CLES_COUT)
+
+
 _CATCHALL = ("sinon", "autre", "autrement", "default", "toute autre issue", "tout autre resultat")
 
 
@@ -90,8 +101,10 @@ def path_for(name: str) -> str:
     return os.path.join(_DIR, f"{name}.json")
 
 
-def preregister(name: str, rule: dict, *, _dir=None) -> str:
-    """Scelle `rule` sous `name`. Idempotent à contenu IDENTIQUE ; lève si le contenu DIFFÈRE."""
+def preregister(name: str, rule: dict, *, _dir=None, reviewed_by=None) -> str:
+    """Scelle `rule` sous `name`. Idempotent à contenu IDENTIQUE ; lève si le contenu DIFFÈRE.
+    `reviewed_by` (chemin docs/reviews/…) est écrit à l'ENVELOPPE, hors sceau : exigé d'une NOUVELLE règle qui
+    déclare un coût, jamais d'une règle existante re-scellée à l'identique."""
     _assert_exhaustive(rule)                      # E11 occ.3 : les branches doivent couvrir le CONTINUUM
     d = _dir or _DIR
     os.makedirs(d, exist_ok=True)
@@ -106,6 +119,11 @@ def preregister(name: str, rule: dict, *, _dir=None) -> str:
                 f"corrige pas : enregistrer « {name}-bis » et garder les deux, pour que le changement de "
                 f"règle soit VISIBLE.")
         return p                                     # ré-écriture à l'identique : sans effet
+    if declare_un_cout(rule) and not reviewed_by:
+        raise ReviewRequired(f"« {name} » déclare un coût ({', '.join(k for k in _CLES_COUT if k in rule)}) : "
+                             "passer reviewed_by=<docs/reviews/…> — la revue adversariale précède le sceau (E8/E19)")
+    if reviewed_by:
+        payload["reviewed_by"] = reviewed_by
     with open(p, "w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False, indent=2, sort_keys=True)
     return p
