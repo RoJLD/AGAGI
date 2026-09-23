@@ -172,3 +172,34 @@ def test_a_record_with_an_EDGE_but_no_gate_is_NOT_an_orphan(tmp_path):
     verdicts muet sans que rien ne rougisse (le meme fichier teste deja l'autre sens juste au-dessus)."""
     root = _record(tmp_path, "id: EDR-999\ntype: EDR\nadopts: [EDR-112]")
     assert all(o["id"] != "EDR-999" for o in C.analyze(root)["orphans"])
+
+
+# --------------------------------------------------------------------------------------------------
+# Tâche 4 (spec PM 2026-09-16 §3.5) : `review:` — porte 1 étendue. Tout NOUVEAU record EDR à verdict
+# (gate: G0-G4/foundational OU tests: [SDR-Gx]) doit porter `review:` — le chemin d'une revue
+# adversariale à sondes propres, JAMAIS un id de record (edge_key_silences traiterait `EDR-...` comme
+# une arête non lue et ferait rendre 1 à la porte 1 sur TOUT l'arbre — piège principal de cette tâche).
+# --------------------------------------------------------------------------------------------------
+
+def test_a_NEW_edr_with_a_gate_but_no_review_is_review_missing(tmp_path):
+    """CONTRE-EXEMPLE GELÉ de la porte 1 étendue (spec PM 2026-09-16 §3.5) : un record à verdict sans revue."""
+    root = _record(tmp_path, "id: EDR-999\ntype: EDR\ngate: G0\ntests: [SDR-G0]")
+    assert any(r["id"] == "EDR-999" for r in C.analyze(root)["review_missing"])
+
+
+def test_an_edr_with_a_review_path_is_NOT_review_missing(tmp_path):
+    root = _record(tmp_path, "id: EDR-999\ntype: EDR\ngate: G0\nreview: docs/reviews/2026-09-17-edr-999.md")
+    assert not any(r["id"] == "EDR-999" for r in C.analyze(root)["review_missing"])
+
+
+def test_an_edr_WITHOUT_verdict_anchor_is_not_asked_for_a_review(tmp_path):
+    root = _record(tmp_path, "id: EDR-999\ntype: EDR\nadopts: [REF-DEMAND-MARKER]")
+    assert not any(r["id"] == "EDR-999" for r in C.analyze(root)["review_missing"])
+
+
+def test_the_review_key_is_READ_by_the_schema_not_silenced(tmp_path):
+    root = _record(tmp_path, "id: EDR-999\ntype: EDR\ngate: G0\nreview: docs/reviews/2026-09-17-edr-999.md")
+    sil = C.edge_key_silences(root)
+    assert not any(k == "review" for _, k in sil["non_lues"])
+    rec = [r for r in scan_records(root) if r["id"] == "EDR-999"][0]
+    assert rec["review"] == "docs/reviews/2026-09-17-edr-999.md"

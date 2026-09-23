@@ -105,7 +105,7 @@ def analyze(root: str = _ROOT) -> dict:
         by_id.setdefault(r["id"], []).append(r["file"])
     collisions = [{"id": i, "files": sorted(fs)} for i, fs in sorted(by_id.items()) if len(fs) > 1]
 
-    orphans, gate_unlinked, gate_tests_mismatch = [], [], []
+    orphans, gate_unlinked, gate_tests_mismatch, review_missing = [], [], [], []
     for r in records:
         if r["type"] not in ("EDR", "ADR"):          # SDR/REF = ancrages structurels
             continue
@@ -124,9 +124,15 @@ def analyze(root: str = _ROOT) -> dict:
             if r.get("gate") in _GATES and declared and r["gate"] not in declared:
                 gate_tests_mismatch.append({"id": r["id"], "file": r["file"],
                                             "gate": r["gate"], "tests_gates": declared})
+        # Tâche 4 (spec PM 2026-09-16 §3.5) : tout EDR à verdict (gate: G0-G4/foundational OU
+        # tests: [SDR-Gx]) doit porter `review:` -- le chemin d'une revue adversariale à sondes
+        # propres. `has_gate` couvre `foundational` (via _ANCHORS) en plus des 5 portes.
+        if r["type"] == "EDR" and (has_gate or tests_sdr) and not r.get("review"):
+            review_missing.append({"id": r["id"], "file": r["file"]})
 
     return {"orphans": orphans, "collisions": collisions, "gate_unlinked": gate_unlinked,
-            "gate_tests_mismatch": gate_tests_mismatch, "n_records": len(records)}
+            "gate_tests_mismatch": gate_tests_mismatch, "review_missing": review_missing,
+            "n_records": len(records)}
 
 
 def _load_baseline() -> dict:
@@ -158,6 +164,7 @@ def main(argv=None) -> int:
                    # 2026-07 mais affiche en --report SEULEMENT -> 11 `gate: G2` legataires sans tests
                    # et 94 EDR non raccordes a une porte pouvaient croitre en silence).
                    "gate_unlinked_files": sorted(g["file"] for g in st["gate_unlinked"]),
+                   "review_missing_files": sorted(m["file"] for m in st["review_missing"]),
                    "_note": "Dette légataire gelée. Le ratchet interdit tout NOUVEL orphelin/collision."}
         os.makedirs(os.path.dirname(_BASELINE), exist_ok=True)
         with open(_BASELINE, "w", encoding="utf-8") as fh:
@@ -185,7 +192,8 @@ def main(argv=None) -> int:
     if args.report:
         print(f"records={st['n_records']} orphelins={n_orph} collisions={n_coll} "
               f"gate_non_raccordés={len(st['gate_unlinked'])} "
-              f"mismatches_gate_tests={len(st['gate_tests_mismatch'])}")
+              f"mismatches_gate_tests={len(st['gate_tests_mismatch'])} "
+              f"sans_revue={len(st['review_missing'])}")
         for m in st["gate_tests_mismatch"]:
             print(f"  [mismatch] {m['id']} gate: {m['gate']} vs tests: {m['tests_gates']}")
         for o in st["orphans"]:
@@ -203,6 +211,8 @@ def main(argv=None) -> int:
     new_mism = [m for m in st["gate_tests_mismatch"] if m["file"] not in base_mism]
     base_gu = set(base.get("gate_unlinked_files", []))
     new_gu = [g for g in st["gate_unlinked"] if g["file"] not in base_gu]
+    base_rv = set(base.get("review_missing_files", []))
+    new_rv = [m for m in st["review_missing"] if m["file"] not in base_rv]
 
     # scope optionnel aux fichiers du commit courant (hook pre-commit) : ne bloque pas sur le travail // non-committé
     if args.only is not None:
@@ -211,11 +221,13 @@ def main(argv=None) -> int:
         new_coll = [c for c in new_coll if any(f in only for f in c["files"])]
         new_mism = [m for m in new_mism if m["file"] in only]
         new_gu = [g for g in new_gu if g["file"] in only]
+        new_rv = [m for m in new_rv if m["file"] in only]
 
-    if not new_orph and not new_coll and not new_mism and not new_gu:
+    if not new_orph and not new_coll and not new_mism and not new_gu and not new_rv:
         print(f"OK : {n_orph} orphelins / {n_coll} collisions / "
               f"{len(st['gate_tests_mismatch'])} mismatches gate<->tests / "
-              f"{len(st['gate_unlinked'])} non-raccordés à une porte, tous légataires (baseline). "
+              f"{len(st['gate_unlinked'])} non-raccordés à une porte / "
+              f"{len(st['review_missing'])} sans revue, tous légataires (baseline). "
               f"Aucun nouveau.")
         return 0
 
@@ -230,6 +242,9 @@ def main(argv=None) -> int:
     for g in new_gu:
         print(f"  [NOUVEL EDR NON RACCORDÉ À UNE PORTE] {g['id']}  ({g['file']}) — ajoute gate: Gx "
               f"et/ou tests: [SDR-Gx] (ou gate: foundational)")
+    for m in new_rv:
+        print(f"  [NOUVEAU RECORD SANS REVUE] {m['id']}  ({m['file']}) — ajoute review: "
+              f"docs/reviews/<date>-<slug>.md (revue adversariale à sondes propres, REF-REVUE-ADVERSARIALE)")
     return 1
 
 
