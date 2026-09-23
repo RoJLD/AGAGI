@@ -14,7 +14,7 @@ import pytest
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 from tools.cost_guard import (  # noqa: E402
-    CostGuard, CostExceeded, project_cost, CostTooHighToStart)
+    CostGuard, CostExceeded, Stopwatch, project_cost, CostTooHighToStart)
 
 
 class _Clock:
@@ -76,3 +76,48 @@ def test_would_exceed_allows_a_clean_abort_without_exception():
     assert not g.would_exceed()
     c.t = 11.0
     assert g.would_exceed()
+
+
+# ---- P2.78 : la garde de queue porte sur le CPU, le mur est publié à côté ----------------------------------
+def test_default_gated_clock_is_process_cpu_and_wall_is_published_beside_it():
+    import time
+    g = CostGuard(budget_s=1.0)
+    assert g._clock is time.process_time and g._wall is time.monotonic and g.gated_on == "cpu"
+    r = g.report()
+    assert set(r) == {"spent_s", "spent_wall_s", "gated_on", "wall_over_cpu"} and r["spent_s"] >= 0.0 and r["spent_wall_s"] >= 0.0
+
+
+def test_a_machine_suspension_does_NOT_kill_the_unit_but_is_READABLE_in_the_report():
+    """Le cas de P4.9 (33 060 s de mur) et de DECOMP (510 334 s) : le mur explose, le CPU non. La garde ne
+    lève pas ; le rapport montre le rapport mur/CPU."""
+    cpu, mur = _Clock(), _Clock()
+    g = CostGuard(budget_s=10, label="seed dormeur", clock=cpu, wall_clock=mur)
+    cpu.t, mur.t = 5.0, 5000.0
+    g.tick()                                   # 5 s de CPU sous un budget de 10 s : rien ne lève
+    assert not g.would_exceed()
+    r = g.report()
+    assert r["spent_s"] == 5.0 and r["spent_wall_s"] == 5000.0 and r["gated_on"] == "injected" and r["wall_over_cpu"] is None
+    cpu.t = 11.0                               # le CPU franchit : la garde lève, ET dit le mur à côté
+    with pytest.raises(CostExceeded) as e:
+        g.tick()
+    assert e.value.spent_s == 11.0 and e.value.spent_wall_s == 5000.0 and "mur 5000.0s" in str(e.value)
+
+
+def test_wall_over_cpu_is_computed_only_on_a_cpu_gated_guard_and_never_divides_by_zero():
+    import time
+    g = CostGuard(budget_s=1.0, clock=time.process_time, wall_clock=time.monotonic)
+    r = g.report()
+    assert r["gated_on"] == "cpu" and (r["wall_over_cpu"] is None or r["wall_over_cpu"] > 0.0)
+    h = CostGuard(budget_s=1.0, clock=time.monotonic)
+    assert h.gated_on == "wall" and h.report()["wall_over_cpu"] is None
+
+
+def test_stopwatch_publishes_wall_AND_cpu_and_predicts_the_ratio_exactly():
+    mur, cpu = _Clock(), _Clock()
+    sw = Stopwatch(wall_clock=mur, cpu_clock=cpu)
+    mur.t, cpu.t = 600.0, 120.0
+    assert sw.elapsed() == {"elapsed_s": 600.0, "elapsed_cpu_s": 120.0, "wall_over_cpu": 5.0}
+    cpu.t = 0.0
+    assert sw.elapsed()["wall_over_cpu"] is None       # CPU nul : pas de ratio fabriqué
+    real = Stopwatch().elapsed()
+    assert real["elapsed_s"] >= 0.0 and real["elapsed_cpu_s"] >= 0.0

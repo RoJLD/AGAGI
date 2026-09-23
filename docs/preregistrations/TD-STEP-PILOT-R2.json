@@ -1,0 +1,83 @@
+{
+  "name": "TD-STEP-PILOT-R2",
+  "rule": {
+    "cellule": {
+      "K": 6,
+      "bras_par_lr": [
+        "lam0",
+        "lam05",
+        "lam09",
+        "lam099",
+        "td0_d0"
+      ],
+      "cellules_importees": 96,
+      "cellules_neuves": 108,
+      "episodes_td": 3000,
+      "lambda": [
+        0.0,
+        0.5,
+        0.9,
+        0.99
+      ],
+      "lr": [
+        4.0,
+        2.0,
+        1.0
+      ],
+      "lr_par_agent": [
+        0.25,
+        0.125,
+        0.0625
+      ],
+      "n_agents": 16,
+      "references": [
+        "lr0_reference",
+        "lr0_reference_d0"
+      ],
+      "seeds": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12
+      ],
+      "substrat": "bilinear rang 16, W/U/V/W_bl traces",
+      "trace_reset_per_episode": true
+    },
+    "controles": {
+      "calibration": "tests/sandbox/test_td_step_pilot.py (lecture R2, branches dans l'ordre, coupe)",
+      "chemin": "td0_d0 vs lr0_reference_d0 a chaque lr (un lr non lisible ne compte pas, publie)",
+      "cout": "project_cost(unit mesuree, n restantes, budget 14400, safety 1,5) AVANT la grille ; coupe publiee",
+      "famille": "204 cellules (108 neuves + 96 importees) via assert_control_family",
+      "importation": "cellules importees RELUES depuis R0/R1 a chaque appel, sceaux verifies"
+    },
+    "cout": "108 cellules neuves x 45-90 s (R0/R1) -> 1,4-2,7 h CPU, sans bail, en parallele d'un run kuzu (contention possible : le garde de cout tranche) ; results/td_step_pilot_r2.json",
+    "discrimination": {
+      "AIDE_A_UN_POINT (aide09 >= 11/12 a exactement un lr lisible, ou a des lr non adjacents)": "l'effet de R0 est une observation a un point de fonctionnement, ce que R1 disait deja ; la piece n'est pas acquise.",
+      "AIDE_INVARIANTE (aide09 >= 11/12 a DEUX lr lisibles ADJACENTS au moins)": "la trace aide sur un intervalle de lr : billet a deux issues acquis pour eligibility_trace_credit, avec l'intervalle publie.",
+      "CONTROLE_CHEMIN_ECHOUE (aucun lr lisible)": "TD par pas n'apprend meme sans delai a aucun des lr : aucune lecture de la trace.",
+      "INCOMPLET": "cellules neuves manquantes ou cellules importees absentes de R0/R1 : aucune lecture.",
+      "PAS_D_AIDE (aide09 < 11/12 partout, lr lisibles)": "la trace n'aide nulle part sur la grille : negatif GRAVE pour la ligne, sans inference."
+    },
+    "dv_primaire": "accuracy eval argmax par seed ; par lr : `lisible@lr` = `td0_d0` > `lr0_reference_d0` + 0,05 sur >= 10/12 ; `aide09@lr` = `lam09` > `lam0` + 0,05 par seed (compte /12) ; de meme `aide05@lr`, `aide099@lr` ; `meilleur_lambda@lr` = lambda de mediane maximale ; medianes de tous les bras ; `_cout_s` et `_cout_cpu_s` publies.",
+    "provenance": "Ecrite en connaissant R0 (sceau ea2c8d856dc8... : TD0_INERTE|TRACE_AIDE a lr 4,0 : tdlam09 0,253 vs td0 0,190, 12/12) et R1 (sceau 260470cca474... : AIDE_NON_INVARIANTE|DOSE_LAMBDA_ABSENTE : lr 2,0 -> 0/12 ; lambda 0,5 a lr 4,0 -> 0/12 au-dessus de la marge, ordre 0 < 0,5 < 0,9 sur 12/12). Cellules IMPORTEES (memes seeds 1-12, meme code, meme regime, sceaux verifies) : lr 4,0 : lambda 0 (R0 td0), 0,5 (R1 tdlam05@4), 0,9 (R0 tdlam), td0_d0 (R0) ; lr 2,0 : lambda 0 (R1 td0@2), 0,9 (R1 tdlam09@2) ; references lr0_reference et lr0_reference_d0 (R0). Jamais mesures : lambda 0,99 partout, lr 2,0 lambda 0,5, td0_d0 a lr 2,0, toute la ligne lr 1,0. Le lr 0,5 propose par agagi-52 est ECARTE d'avance (cout : R1 a deja rendu 0/12 a 0,125/agent ; la question « jusqu'ou en lr » est repondue par 1,0 si 1,0 est nul) et le lr 8,0 aussi (R0 : controles inertes, hors regime). Les seeds 0 sont exclus comme en R0/R1.",
+    "question": "P4.17 (ADR-005, ligne eligibility_trace_credit ; decision robla deleguee via agagi-52, 2026-09-22) : sur le pilote TD PAR PAS (D=1, substrat bilineaire, 3000 episodes, SGD), existe-t-il un POINT DE FONCTIONNEMENT (lr, lambda) ou la trace d'eligibilite AIDE (lambda > 0 bat lambda = 0), et jusqu'ou descend-il en lr ? Grille lr {4,0 ; 2,0 ; 1,0} (0,25 / 0,125 / 0,0625 par agent) x lambda {0 ; 0,5 ; 0,9 ; 0,99}, plus le controle CHEMIN td0_d0 a chaque lr et les references lr=0 (D=1 et D=0).",
+    "regle_de_lecture_continue": "ORDRE IMPOSE : INCOMPLET, CONTROLE_CHEMIN_ECHOUE, AIDE_INVARIANTE, AIDE_A_UN_POINT, PAS_D_AIDE. aide05 et aide099 sont PUBLIES (dose en lambda) mais n'entrent dans aucune branche : un lambda 0,99 qui aiderait la ou 0,9 n'aide pas serait un fait post-hoc a rapporter, pas un verdict.",
+    "seuils": {
+      "budget_s": 14400,
+      "justification": "0,05 = min_sep ; 11/12 = ce que R0 a observe (12/12) moins un ; 10/12 = convention de R0 pour le chemin ; budget 4 h avec marge 1,5 sur une unite MESUREE sur la premiere cellule neuve (cellules uniformes : memes episodes, memes agents -- la queue est la contention machine, pas le seed) ; si la projection depasse, la ligne lr 1,0 est COUPEE en premier (les lr hauts d'abord) et la coupe est publiee dans _regime",
+      "marge": 0.05,
+      "safety": 1.5,
+      "seeds_aide": 11,
+      "seeds_chemin": 10
+    }
+  },
+  "seal": "c5f13741f271639f5eeefd3fff80ef93a053e27b4d5e52e34d0cf165ee0ceb13"
+}

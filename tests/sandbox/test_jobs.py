@@ -121,11 +121,17 @@ def test_classify_leases_met_un_bail_VIVANT_du_bon_cote(tmp_path):
 
 
 def test_classify_leases_sur_un_repertoire_VIDE_ne_classe_RIEN(tmp_path):
-    """Spécificité : aucune entrée -> les deux listes sont vides. C'est la forme (a) du biais du dépôt
+    """Spécificité : aucune entrée -> AUCUN état n'est peuplé. C'est la forme (a) du biais du dépôt
     (entrée absente -> affirmation de fond) : ici, rendre un bail « mort » depuis zéro donnée
-    autoriserait un kill sans détenteur."""
+    autoriserait un kill sans détenteur.
+
+    ⚠️ 2026-09-22 : cette assertion gelait la FORME du dict (`== {"live": [], "dead": []}`) et non
+    l'invariant — elle a rougi quand `classify_leases` a séparé `expired_alive` d'`orphan` (E4 occ.
+    doctor), alors que la propriété testée tenait toujours. Reformulée sur l'INVARIANT (E25), elle est
+    désormais plus forte : tout état présent doit être vide, et les trois états doivent exister."""
     cls = D.classify_leases(leases_dir=tmp_path)
-    assert cls == {"live": [], "dead": []}
+    assert {"live", "expired_alive", "orphan"} <= set(cls)
+    assert all(v == [] for v in cls.values()), cls
 
 
 # --------------------------------------------------------------------------------------------------

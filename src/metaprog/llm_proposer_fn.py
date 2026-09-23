@@ -6,6 +6,9 @@ src/metaprog/llm_proposer_fn.py — Le dernier morceau d'armement du #8 : la fon
     gated sur la clé ANTHROPIC_API_KEY ; à n'exécuter QUE dans un CONTENEUR JETABLE (règle EDR 044).
   - `scripted_llm_fn` : un LLM *scripté* déterministe (sûr) — pour TESTER et DÉMONTRER la boucle armée
     de bout en bout sans aucun appel externe. Remplacer l'un par l'autre = armer/désarmer en 1 ligne.
+  - `claude_code_llm_fn(...)` (P2.66) : un terminal CLAUDE CODE (`claude -p`, prompt par STDIN, outils
+    désarmés) — déjà sur la machine et authentifié ; périmètre = paramètres JSON bornés (EDR 065).
+    Testé contre un FAUX exécutable (tests/sandbox/test_claude_code_llm_fn.py) : aucun appel réel.
 """
 import os
 
@@ -72,3 +75,44 @@ def scripted_llm_fn(prompt: str) -> str:
          '"rationale": "demande referentielle pure (baseline forte connue)"}'),
     ]
     return catalogue[n_tried % len(catalogue)]
+
+
+def claude_code_llm_fn(binary=None, timeout_s=600, allowed_tools=""):
+    """Renvoie un `llm_fn(prompt) -> str` qui interroge un terminal CLAUDE CODE en mode non interactif
+    (`claude -p`). Interface fixée par la session c9 (P2.66) : c'est ce que `tools/harness/propose.py`
+    consomme.
+
+    Commande : `[bin, "-p", "--output-format", "text", "--allowedTools", allowed_tools]` avec
+    `bin` = `binary` si donné, sinon `AGAGI_CLAUDE_BIN` si posée, sinon `"claude"`. Le PROMPT passe par
+    STDIN, jamais en argument (limite de longueur de la ligne de commande sous Windows). Sortie = stdout
+    BRUT : `parse_demand_response` / `sanitize_demand_params` (`src/metaprog/rsi_loop.py`) restent seuls
+    juges de ce qui en sort. Exit != 0 -> `RuntimeError` portant le stderr ; dépassement de `timeout_s`
+    -> `subprocess.TimeoutExpired` REMONTÉE (jamais avalée : une réponse absente n'est pas une chaîne
+    vide). Aucun secret dans le code : le terminal porte sa propre authentification.
+
+    Sûreté : le périmètre reste des PARAMÈTRES JSON bornés par l'allow-list (`rsi_loop.py:96`,
+    `ALLOWED_DEMAND_PARAMS`), aucun code n'est exécuté -> le raisonnement d'EDR-065 tient, pas de
+    conteneur requis ; `--allowedTools ""` désarme en plus les outils du terminal côté proposition.
+    ⚠️ Tant que l'allow-list a 5 entrées, c'est un ÉCHANTILLONNEUR D'HYPERPARAMÈTRES avec un bon prior —
+    la valeur est dans P4.10 (élargir ce que le LLM peut demander)."""
+    import shutil
+    import subprocess
+
+    def llm_fn(prompt: str) -> str:
+        bin_ = binary or os.environ.get("AGAGI_CLAUDE_BIN") or "claude"
+        # ⚠️ Résolution EXPLICITE par le PATH (PATHEXT compris). Mesuré le 2026-09-22 : sous Windows,
+        # `subprocess.run(["claude", ...])` ne consulte pas PATHEXT (CreateProcess n'ajoute que `.exe`),
+        # donc le shim `claude.cmd` qu'installe npm est INVISIBLE sous le nom nu -> FileNotFoundError
+        # (6/8 cas rouges avec la forme littérale). `shutil.which` le trouve ; sous POSIX il rend le
+        # même chemin que le shell. Un nom introuvable est laissé tel quel : l'erreur reste celle du
+        # système (FileNotFoundError), jamais avalée.
+        exe = shutil.which(bin_) or bin_
+        cmd = [exe, "-p", "--output-format", "text", "--allowedTools", allowed_tools]
+        r = subprocess.run(cmd, input=prompt, capture_output=True, text=True, encoding="utf-8",
+                           timeout=timeout_s)
+        if r.returncode != 0:
+            raise RuntimeError(
+                f"claude_code_llm_fn : {bin_} a rendu le code {r.returncode} -- "
+                f"stderr : {r.stderr.strip() or '(vide)'}")
+        return r.stdout
+    return llm_fn

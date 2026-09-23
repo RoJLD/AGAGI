@@ -28,7 +28,7 @@ _LEASE_GUARD_EXEMPT = True
 def _env_propre(monkeypatch):
     """Chaque cas part d'un environnement SANS variable de racine : sinon un test vert ici pourrait
     l'être grâce à la configuration de la machine, pas grâce au code."""
-    for v in ("AGAGI_DATA_ROOT", "AGAGI_RESULTS_ROOT", "AGAGI_DB_ROOT"):
+    for v in ("AGAGI_DATA_ROOT", "AGAGI_RESULTS_ROOT", "AGAGI_DB_ROOT", "AGAGI_PROPOSALS_ROOT"):
         monkeypatch.delenv(v, raising=False)
 
 
@@ -163,3 +163,78 @@ def test_sessions_et_pm_suivent_AGAGI_DATA_ROOT(monkeypatch):
     monkeypatch.setenv("AGAGI_DATA_ROOT", "//nas/agagi/froid")
     assert paths.sessions_dir() == "//nas/agagi/froid/sessions"
     assert paths.pm_dir("alerts.jsonl") == "//nas/agagi/froid/pm/alerts.jsonl"
+
+
+# --------------------------------------------------------------------------------------------------
+# 5. Racine des PROPOSITIONS du harnais — brique libre livrée le 2026-09-22 (spec de la session c9)
+# --------------------------------------------------------------------------------------------------
+
+def test_proposals_root_vaut_proposals_par_DEFAUT_et_proposals_file_le_suit():
+    """RÉPONSE CONNUE : sans variable, la racine est le littéral "proposals" — quatrième racine, même
+    contrat que `results_root` / `results_file`. Comparaison au LITTÉRAL, jamais via os.path.join."""
+    assert paths.proposals_root() == "proposals"
+    assert paths.proposals_file("task_007.json") == "proposals/task_007.json"
+    assert paths.proposals_file() == "proposals"
+
+
+def test_proposals_root_RESPECTE_l_environnement_et_est_RELUE_apres_monkeypatch(monkeypatch):
+    """Même clause que pour les trois autres racines (classe E5) : la variable posée APRÈS l'import
+    doit agir, dans les deux sens — donc aucun cache au chargement du module."""
+    avant = paths.proposals_root()
+    monkeypatch.setenv("AGAGI_PROPOSALS_ROOT", "//nas/agagi/propositions")
+    assert paths.proposals_root() == "//nas/agagi/propositions" != avant
+    assert paths.proposals_file("x.json") == "//nas/agagi/propositions/x.json"
+    monkeypatch.delenv("AGAGI_PROPOSALS_ROOT")
+    assert paths.proposals_root() == "proposals"
+    monkeypatch.setenv("AGAGI_PROPOSALS_ROOT", "")
+    assert paths.proposals_root() == "proposals", "variable VIDE = variable absente (cf. data_root)"
+
+
+def test_proposals_file_JOINT_par_slash_avec_plusieurs_parties(monkeypatch):
+    """Jointure par `/`, JAMAIS `os.path.join` — la comparaison de chaînes casserait sous Windows
+    (cf. `_sous`). Vérifié sur le défaut ET sur une racine venant de l'environnement, terminée par
+    un séparateur (il ne doit pas être doublé)."""
+    assert paths.proposals_file("2026-09-22", "task_007", "proposal.json") == \
+        "proposals/2026-09-22/task_007/proposal.json"
+    monkeypatch.setenv("AGAGI_PROPOSALS_ROOT", "D:/agagi-props/")
+    assert paths.proposals_file("a", "b.json") == "D:/agagi-props/a/b.json"
+    assert "\\" not in paths.proposals_file("a", "b.json")
+
+
+def test_proposals_est_dans___all___ET_dans_describe(monkeypatch):
+    """Exposée comme les autres : `from src.paths import *` la voit, et `describe()` la rapporte avec
+    valeur, origine et existence — une mesure faite sur la mauvaise racine doit se voir en tête."""
+    assert "proposals_root" in paths.__all__ and "proposals_file" in paths.__all__
+    d = paths.describe()
+    assert d["AGAGI_PROPOSALS_ROOT"] == {"valeur": "proposals", "origine": "defaut",
+                                        "existe": os.path.isdir("proposals")}
+    monkeypatch.setenv("AGAGI_PROPOSALS_ROOT", "/propositions/qui/n/existe/pas")
+    assert paths.describe()["AGAGI_PROPOSALS_ROOT"] == {"valeur": "/propositions/qui/n/existe/pas",
+                                                        "origine": "environnement", "existe": False}
+
+
+def test_proposals_est_INDEPENDANTE_des_trois_autres_racines(monkeypatch):
+    """Branche appariée : déplacer les données, les résultats ou la base ne déplace PAS les
+    propositions, et réciproquement. Sans ce cas, une racine DÉRIVÉE (comme `db_root` suit
+    `data_root`) passerait tous les cas ci-dessus."""
+    monkeypatch.setenv("AGAGI_DATA_ROOT", "/froid")
+    monkeypatch.setenv("AGAGI_RESULTS_ROOT", "/mesures")
+    monkeypatch.setenv("AGAGI_DB_ROOT", "/base")
+    assert paths.proposals_root() == "proposals"
+    monkeypatch.setenv("AGAGI_PROPOSALS_ROOT", "/propositions")
+    assert paths.results_file("x.json") == "/mesures/x.json"
+    assert paths.data_root() == "/froid" and paths.db_root() == "/base"
+
+
+def test_le_litteral_proposals_ne_fait_PAS_crier_la_porte_des_chemins_de_donnees():
+    """`tools/check_data_paths.py` : `src/paths.py` est son lieu d'indirection AUTORISÉ (hors
+    périmètre) ET son motif ne vise que `data/`, `results/`, `/app/data/` — donc aucune baseline à
+    élargir. Contrôle POSITIF d'abord : si le scanner n'attrapait rien du tout, « rien trouvé dans
+    src/paths.py » ne prouverait rien (CLAUDE.md : un motif se valide sur un cas positif connu)."""
+    from tools.check_data_paths import _HORS_PERIMETRE, scan_literals
+    assert scan_literals([("tools/x.py", 'p = "results/x.json"\n')]) == {"tools/x.py": ["results/x.json"]}
+    assert "src/paths.py" in _HORS_PERIMETRE
+    with open(paths.__file__, encoding="utf-8") as f:
+        src = f.read()
+    assert '"proposals"' in src, "le littéral doit VIVRE dans src/paths.py, son seul lieu légitime"
+    assert scan_literals([("src/paths.py", src)]) == {}

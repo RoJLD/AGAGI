@@ -14,6 +14,7 @@ with hold("kuzu", owner="probe-fragile", ttl_s=1800):
         return Genome(W, I, O)
 
     cfg = MutationConfig()
+    cfg.preserve_io_blocks = False  # sonde du DEFAUT historique (EVO-021) ; ON par defaut depuis P2.63
     print("  10 seeds : UN SEUL add_node applique a un lecteur cable (rien d'autre)")
     kept_edge = lost_sal = 0
     for s in range(10):

@@ -125,7 +125,7 @@ def _tracked_by_git(rel):
 def _evalue_clause(pred, arg):
     """-> (satisfaite ?, raison si le prédicat est REFUSÉ). Prédicats PURS uniquement."""
     if pred in ("path_present", "path_absent"):
-        existe = os.path.exists(os.path.join(_ROOT, arg))
+        existe = _existe(arg)
         if existe and _tracked_by_git(arg) is False:
             return None, (f"`{pred}` cite {arg!r}, qui existe ICI mais n'est PAS SUIVI par git (ignore ou non" 
                           "ajoute) : la clause est INVERIFIABLE sur un clone -- c'est la CI rouge du 2026-09-07" 
@@ -135,14 +135,101 @@ def _evalue_clause(pred, arg):
         if "::" not in arg:
             return None, f"`{pred}` attend `chemin::motif` (reçu {arg!r})"
         rel, motif = arg.split("::", 1)
-        chemin = os.path.join(_ROOT, rel)
-        if not os.path.exists(chemin):
+        contenu = _lire_fichier(rel)
+        if contenu is None:
             return None, f"`{pred}` cite {rel!r}, qui n'existe pas — la clause est invérifiable"
-        with open(chemin, encoding="utf-8", errors="ignore") as fh:
-            present = re.search(motif, fh.read()) is not None
+        present = re.search(motif, contenu) is not None
         return (present if pred == "grep_present" else not present), None
     return None, (f"prédicat `{pred}` INCONNU — vocabulaire fermé : path_present, path_absent, "
                   "grep_present, grep_absent")
+
+
+def _en_commit():
+    """Sommes-nous DANS un commit (hook pre-commit) ? git pose alors `GIT_INDEX_FILE`, et pour un commit
+    path-scopé cet index vaut HEAD + les seuls chemins du commit. Tout ce que la porte juge doit alors
+    l'être contre CET index — ce qu'un clone verra — et non contre le disque, qui porte les hunks EN VOL
+    de toutes les sessions de l'arbre partagé."""
+    return bool(os.environ.get("GIT_INDEX_FILE"))
+
+
+def _lire_backlog():
+    """Le TEXTE du backlog à juger. En commit : la version de l'INDEX (`git show :chemin`) — c'est elle
+    qui sera committée, pas celle du disque. Mesuré le 2026-09-22 (blocage circulaire à trois sessions) :
+    la porte lisait le backlog sur disque, où l'entrée d'une session B citait des fichiers stagés par B
+    mais absents de l'index temporaire de la session A qui committait — rouge chez A, à cause de B, sur
+    un texte qu'A ne committait pas. Hors commit, ou si le chemin n'est pas dans l'index : le disque."""
+    if _en_commit():
+        try:
+            rel = os.path.relpath(_BACKLOG, _ROOT).replace(os.sep, "/")
+            r = subprocess.run(["git", "-C", _ROOT, "show", f":{rel}"], capture_output=True,
+                               timeout=60)
+            if r.returncode == 0:
+                return r.stdout.decode("utf-8", errors="replace")
+        except (OSError, subprocess.SubprocessError, ValueError):
+            pass
+    return open(_BACKLOG, encoding="utf-8").read()
+
+
+def _existe(rel):
+    """Le chemin cité existe-t-il POUR CE QU'ON JUGE ? En commit : présent dans l'index (donc dans le
+    commit à venir) ; hors commit : présent sur le disque. `_tracked_by_git` rend None hors dépôt —
+    alors on ne conclut rien de l'index et on regarde le disque."""
+    if _en_commit():
+        t = _tracked_by_git(rel)
+        if t is not None:
+            return t
+    return os.path.exists(os.path.join(_ROOT, rel))
+
+
+def _lire_fichier(rel):
+    """Contenu d'un fichier CIBLE de clause `grep_*`, ou None s'il n'existe pas POUR CE QU'ON JUGE (même
+    règle que `_existe`). En commit : la version de l'INDEX. Mesuré le 2026-09-22, troisième point de
+    lecture disque de cette porte : `def claude_code_llm_fn` écrit sur disque par une autre session (P2.66,
+    non committé) satisfaisait la clause de P2.66 DANS LE COMMIT d'une session qui ne le committait pas —
+    « entrée ouverte à condition satisfaite », rouge chez l'une à cause du travail en vol de l'autre."""
+    if _en_commit():
+        try:
+            r = subprocess.run(["git", "-C", _ROOT, "show", f":{rel}"], capture_output=True, timeout=60)
+            if r.returncode == 0:
+                return r.stdout.decode("utf-8", errors="ignore")
+            if _tracked_by_git(rel) is False:
+                return None                   # absent de l'index : n'existe pas pour ce commit
+        except (OSError, subprocess.SubprocessError):
+            pass                              # git indécidable -> le disque, comme hors commit
+    chemin = os.path.join(_ROOT, rel)
+    if not os.path.exists(chemin):
+        return None
+    with open(chemin, encoding="utf-8", errors="ignore") as fh:
+        return fh.read()
+
+
+def _chemins_suivis():
+    """Chemins connus de git — lus dans l'INDEX (`git ls-files`), pas dans HEAD.
+
+    Lire l'index et non HEAD est ce qui rend la garde utilisable : le commit qui AJOUTE un fichier le
+    stage d'abord, donc un fichier stagé compte déjà comme suivi et ne bloque pas sa propre citation.
+    `GIT_INDEX_FILE` est honoré par git, donc un index TEMPORAIRE (la méthode de commit du dépôt)
+    fonctionne aussi. Git absent ou en erreur -> ensemble VIDE **signalé par `None`** serait un piège
+    (tout deviendrait « non suivi ») : on rend alors un ensemble qui contient TOUT, c'est-à-dire qu'on
+    ne conclut RIEN — une vérification qu'on ne peut pas faire ne produit pas de verdict (E4)."""
+    try:
+        r = subprocess.run(["git", "ls-files"], cwd=_ROOT, capture_output=True, text=True,
+                           encoding="utf-8", errors="replace", timeout=60)
+    except (OSError, subprocess.SubprocessError):
+        return _TOUT_SUIVI
+    if r.returncode != 0:
+        return _TOUT_SUIVI
+    return frozenset(l.strip() for l in r.stdout.splitlines() if l.strip())
+
+
+class _ToutSuivi(frozenset):
+    """Ensemble qui contient tout : `x in _TOUT_SUIVI` est vrai pour n'importe quel chemin."""
+
+    def __contains__(self, item):
+        return True
+
+
+_TOUT_SUIVI = _ToutSuivi()
 
 
 def scan_clauses(txt):
@@ -200,7 +287,7 @@ def _known_ids():
 
 def scan():
     """Renvoie {clef: description} pour chaque péremption MÉCANIQUE trouvée."""
-    txt = open(_BACKLOG, encoding="utf-8").read()
+    txt = _lire_backlog()
     trouve = {}
 
     connus = _known_ids()
@@ -232,6 +319,7 @@ def scan():
     # perimee » et « travail a faire » : il a signale `tools/check_staged_authorship.py`, introduit par
     # « *Correctif candidat, plus fort* : un script ... A evaluer ». Geler ce cas dans la baseline
     # aurait masque une classe de faux positifs qui se reproduira a chaque proposition.
+    suivis = _chemins_suivis()
     _PROPOSE = ("candidat", "propos", "à écrire", "a ecrire", "à évaluer", "a evaluer",
                 "TODO", "futur", "il faudra", "piste")
     lignes_proposition = {l for l in txt.splitlines()
@@ -241,9 +329,19 @@ def scan():
             continue                      # nom nu : trop ambigu pour conclure
         if any(chemin in l for l in lignes_proposition):
             continue                      # cite comme A FAIRE, pas comme existant
-        if not os.path.exists(os.path.join(_ROOT, chemin)):
+        if not _existe(chemin):
             trouve[f"chemin-mort:{chemin}"] = (
                 f"le backlog cite `{chemin}`, qui n'existe plus")
+        elif chemin not in suivis:
+            # 2026-09-22 : EXISTE ICI, INCONNU DE GIT -> vert chez l'auteur, ROUGE sur tout clone (là-bas
+            # le chemin « n'existe plus », juste au-dessus). La porte connaissait pourtant la leçon : son
+            # message pour les clauses `closes_when` cite la CI rouge du 2026-09-07 (`5b0025e`) — elle ne
+            # l'appliquait qu'aux CLAUSES, pas à la PROSE. Mesuré sur le commit 72ce45a, qui a introduit
+            # trois citations de ce genre sans que rien ne crie chez son auteur.
+            trouve[f"chemin-non-suivi:{chemin}"] = (
+                f"le backlog cite `{chemin}`, qui existe ICI mais n'est PAS SUIVI par git : sur un clone "
+                "il est ABSENT et la citation devient un renvoi vers le vide. Committer le fichier (un "
+                "fichier STAGÉ compte déjà), ou ne pas le citer.")
 
     viol, sans = scan_clauses(txt)
     trouve.update(viol)

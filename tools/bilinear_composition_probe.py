@@ -86,7 +86,7 @@ def _make_seq(key, q, task, K, I, n, same_tick):
 
 
 def _train_eval_one(seed, bilinear, task, episodes, n_agents, K, lr, rank, eval_batches=40,
-                     same_tick=False, credit_mode="reinforce", align_train_eval=False):
+                     same_tick=False, credit_mode="reinforce", align_train_eval=False, bilinear_sham=False):
     """Entraîne la tâche (composition (q+key)%K OU recall=key) avec BILINEAR on/off ; renvoie l'accuracy éval.
 
     `same_tick` (défaut False = comportement Tâche 2 inchangé) : lève le confond de RÉTENTION (cf.
@@ -99,6 +99,9 @@ def _train_eval_one(seed, bilinear, task, episodes, n_agents, K, lr, rank, eval_
     d'entraînement porte sur K classes (`n_classes=K`) au lieu des 8 logits de mouvement — l'éval prend
     `argmax` sur `[:K]`, donc sans ce flag deux classes distractrices (nœuds 70-71) entrent dans la perte et
     sont ignorées à la mesure. Ce que ça change se MESURE (règle scellée BILINEAR-ALIGNED-R1).
+    `bilinear_sham` (P4.12, 2026-09-16 ; défaut False = bit-identique) : avec `bilinear=True`, la combinaison devient ADDITIVE
+    ((H·U)+(H·V))·W_bl -- mêmes paramètres, même init, même optimiseur : le contrôle à paramètres APPARIÉS de la
+    pièce (règle scellée BILINEAR-SHAM-R1). Ignoré si `bilinear=False`.
     DESALIGNEMENT_TRAIN_EVAL — mesuré le 2026-09-15 (`results/bilinear_aligned_r1.json`, seeds 1-12, régime
     publié) : branche `SEPARATION_TIENT` — aligné, plain 0,284 [0,245-0,306] vs bilinéaire 0,941 [0,902-0,958],
     12/12 seeds séparés (publié non aligné : 0,271 / 0,932). À lr=0,002 et 300 épisodes : 0,185 / 0,426. Le
@@ -112,10 +115,11 @@ def _train_eval_one(seed, bilinear, task, episodes, n_agents, K, lr, rank, eval_
     np.random.seed(seed)
     torch.manual_seed(seed)
     saved = (TorchPopulationModel.CONDITION_GATE, TorchPopulationModel.GATE_TARGET,
-             TorchPopulationModel.BILINEAR, TorchPopulationModel.BILINEAR_RANK)
+             TorchPopulationModel.BILINEAR, TorchPopulationModel.BILINEAR_RANK, TorchPopulationModel.BILINEAR_SHAM)
     TorchPopulationModel.CONDITION_GATE = False
     TorchPopulationModel.GATE_TARGET = None
     TorchPopulationModel.BILINEAR = bool(bilinear)
+    TorchPopulationModel.BILINEAR_SHAM = bool(bilinear_sham) and bool(bilinear)
     TorchPopulationModel.BILINEAR_RANK = int(rank)
     try:
         agent = make_population([MambaAgent() for _ in range(n_agents)], backend="torch")
@@ -170,7 +174,7 @@ def _train_eval_one(seed, bilinear, task, episodes, n_agents, K, lr, rank, eval_
         return float(np.mean(np.concatenate(hits)))
     finally:
         (TorchPopulationModel.CONDITION_GATE, TorchPopulationModel.GATE_TARGET,
-         TorchPopulationModel.BILINEAR, TorchPopulationModel.BILINEAR_RANK) = saved
+         TorchPopulationModel.BILINEAR, TorchPopulationModel.BILINEAR_RANK, TorchPopulationModel.BILINEAR_SHAM) = saved
 
 
 def _resolve_ceiling(incapable_ceiling, ceiling_provenance, task, same_tick, K,

@@ -76,3 +76,60 @@ def test_probe_align_flag_is_published_and_default_is_False():
     r2 = run_bilinear_composition_probe(seeds=[0], episodes=5, n_agents=4, K=4, rank=8,
                                         same_tick=True, credit_mode="supervised", align_train_eval=True)
     assert r2["align_train_eval"] is True
+
+
+# --------------------------------------------------------------------------------------------------
+# P4.12 (ADR-005 item 2, 2026-09-16) -- SHAM LINEAIRE A PARAMETRES APPARIES de la piece `bilinear` :
+# drapeau de classe BILINEAR_SHAM, memes U/V/W_bl, combinaison additive au lieu du produit. Trois cas :
+# OFF = no-op exact ; ON = compte de parametres EGAL (asserte, pas lu) et sortie DIFFERENTE du bilineaire ;
+# le drapeau est restaure par la sonde.
+# --------------------------------------------------------------------------------------------------
+
+def _bil_pop(seed, sham):
+    import numpy as np, torch
+    from src.agents.mamba_agent import MambaAgent
+    from src.agents.backend import make_population
+    from src.agents.backend_torch import TorchPopulationModel as T
+    saved = (T.BILINEAR, T.BILINEAR_RANK, T.BILINEAR_SHAM)
+    T.BILINEAR, T.BILINEAR_RANK, T.BILINEAR_SHAM = True, 16, bool(sham)
+    try:
+        np.random.seed(seed); torch.manual_seed(seed)
+        pop = make_population([MambaAgent() for _ in range(3)], backend="torch")
+        obs = np.random.RandomState(5).uniform(-1, 1, (3, pop.I)).astype(np.float32)
+        H = torch.zeros((3, pop.N))
+        out = pop._step(torch.tensor(obs), H).detach().cpu().numpy().copy()
+        n_params = sum(p.numel() for p in (pop.U, pop.V, pop.W_bl))
+        return out, n_params
+    finally:
+        T.BILINEAR, T.BILINEAR_RANK, T.BILINEAR_SHAM = saved
+
+
+def test_sham_OFF_is_a_bit_identical_noop_of_the_bilinear_step():
+    import numpy as np
+    from src.agents.backend_torch import TorchPopulationModel as T
+    assert T.BILINEAR_SHAM is False, "defaut = OFF"
+    a, _ = _bil_pop(1, sham=False)
+    b, _ = _bil_pop(1, sham=False)
+    assert np.array_equal(a, b)
+
+
+def test_sham_ON_has_EXACTLY_the_same_parameter_count_and_a_different_output():
+    import numpy as np
+    out_bil, n_bil = _bil_pop(1, sham=False)
+    out_sham, n_sham = _bil_pop(1, sham=True)          # meme seed -> memes tirages d'init
+    assert n_sham == n_bil > 0, "controle a parametres APPARIES : compte egal par construction"
+    assert not np.array_equal(out_bil, out_sham), "le sham CHANGE la sortie (somme != produit)"
+
+
+def test_probe_seam_bilinear_sham_is_off_by_default_and_restores_the_flag():
+    from src.agents.backend_torch import TorchPopulationModel as T
+    from tools.bilinear_composition_probe import _train_eval_one
+    before = T.BILINEAR_SHAM
+    a = _train_eval_one(seed=0, bilinear=True, task="composition", episodes=5, n_agents=4, K=4, lr=0.02, rank=8,
+                        same_tick=True, credit_mode="supervised")
+    b = _train_eval_one(seed=0, bilinear=True, task="composition", episodes=5, n_agents=4, K=4, lr=0.02, rank=8,
+                        same_tick=True, credit_mode="supervised", bilinear_sham=False)
+    assert a == b and T.BILINEAR_SHAM == before
+    _train_eval_one(seed=0, bilinear=True, task="composition", episodes=5, n_agents=4, K=4, lr=0.02, rank=8,
+                    same_tick=True, credit_mode="supervised", bilinear_sham=True)
+    assert T.BILINEAR_SHAM == before, "le drapeau est restaure apres un run sham"

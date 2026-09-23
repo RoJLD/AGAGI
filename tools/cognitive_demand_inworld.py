@@ -48,6 +48,10 @@ def _pinned_substrate():
     from src.agents.backend_torch import TorchPopulationModel
     saved = TorchPopulationModel.BILINEAR
     TorchPopulationModel.BILINEAR = False
+    # P4.11 : le crédit épinglé est TD(0) d'origine ; `count_learning_events(trace_lambda=...)` le pose
+    # APRÈS ce pin (ordre du `with`) et le restaure AVANT -- même schéma que `lr`.
+    saved_trace = TorchPopulationModel.CREDIT_TRACE_LAMBDA
+    TorchPopulationModel.CREDIT_TRACE_LAMBDA = 0.0
     # E29 (2026-09-16) : l'activation LEGACY (`generated_ops.py`, non versionnée, rechargée à chaud à
     # chaque pas) est GELÉE au hash présent à l'entrée — un run ne peut plus changer d'activation en
     # cours de route, et un clone sans le fichier tourne en builtin DÉCLARÉ (publié par
@@ -59,6 +63,7 @@ def _pinned_substrate():
             yield
     finally:
         TorchPopulationModel.BILINEAR = saved
+        TorchPopulationModel.CREDIT_TRACE_LAMBDA = saved_trace
 
 
 class CognitiveOracleBatchModel(BaselineBatchModel):
@@ -530,6 +535,7 @@ def run_learner_probe(seed=2026, num_agents=12, ticks=2000, block=400, policy="t
             e.config.cog_gain = cog_gain
             e.config.base_metabolism = base_metabolism
             e.config.forage_payoff = 0.0
+            e.config.trace_energy_sinks = True        # P4.14 : le prix du calcul (brain) est lu sur le monde, EDR-099
             if policy == "oracle":
                 e.batch_model_cls = LinearCognitiveOracle
                 e.use_torch_inworld = False
@@ -589,6 +595,10 @@ def run_learner_probe(seed=2026, num_agents=12, ticks=2000, block=400, policy="t
                                    "hit_rate": hits / n, "n_decisions": int(n)})
                     hits, n = 0, 0
             deaths = int(num_agents) - len(e.agents)
+            _tous = list(e.agents) + list(getattr(e, "dead_agents", []))
+            _ph = [a.get("_e_phases") or {} for a in _tous]
+            brain_cost_total = float(sum(p.get("brain", 0.0) for p in _ph))
+            drain_total = float(sum(sum(p.values()) for p in _ph))
             nan_skips = int(sum(int(getattr(a["model"], "_td_nan_skips", 0)) for a in list(e.agents) + list(getattr(e, "dead_agents", []))))
             if hasattr(e, "memory_retriever"):
                 e.memory_retriever.stop()
@@ -599,6 +609,11 @@ def run_learner_probe(seed=2026, num_agents=12, ticks=2000, block=400, policy="t
     return {"policy": policy, "immortal": bool(immortal), "seed": int(seed), "ticks": int(ticks),
             "block": int(block), "num_agents": int(num_agents), "chance": 1.0 / 8.0, "deaths": deaths,
             "resurrections": int(resurrections), "cause_de_mort": cause_de_mort,
+            # P4.14 « glia » : le PRIX du calcul a cote de la dose -- compute_spent (branches de reve, via le
+            # compteur) et brain_cost (puits `brain` d'EDR-099, cumule sur la cohorte, resurrections comprises).
+            "glia": {"compute_spent_total": float(ev.summary()["compute_spent_total"]),
+                     "brain_cost_total": brain_cost_total, "energie_perdue_total": drain_total,
+                     "brain_share": (brain_cost_total / drain_total) if drain_total > 0 else None},
             "morts_w_non_fini": int(morts_w_non_fini), "nan_skips": nan_skips,      # E28
             "wm_resets": int(getattr(_WM, "nonfinite_resets", 0)) - _wm_resets0,
             "nan_brain_cost": int(getattr(e, "nan_brain_cost", 0)),                   # E28, garde du monde

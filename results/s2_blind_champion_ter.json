@@ -1,0 +1,406 @@
+{
+ "_design": {
+  "question": "Re-scellement du -bis (P2.42) : Le champion HoF survit-il MIEUX quand il ne voit plus ? Re-scellement (P2.42) de S2-BLIND-CHAMPION dont le sceau decrivait une intervention qui n'etait pas celle faite (E8) : annuler W[:num_inputs,:] laissait l'observation entrer par H[:, :max_I] = x (18 logits d'action SONT l'observation, E24) et changeait le CORPS (drain 2,40 -> 1,30, E26). Ici l'aveuglement se fait a l'ENTREE (observation nulle), a genome, corps, biais et recurrence bit-identiques, apprenant legacy GELE dans les deux bras, bande RNG APPARIEE. -- avec la clause (iii) CORRIGEE : le -bis a rendu INDETERMINE-DEGENERE parce que ses 7 seeds ont ete ecartes (bras INTACT sous le plancher 24,0) alors que l'intact sous le plancher EST le phenomene a lire (l'aveugle est au-dessus). Le -ter n'ecarte un seed que si les DEUX bras sont au plancher ou dessous.",
+  "replication_unit": "seed de monde (K=12 \u00e8res appari\u00e9es par seed ; les deux bras partagent seed, g\u00e9nome, corps)",
+  "n_independent": 7,
+  "links": {
+   "survie_intact": "measured",
+   "survie_aveugle_entree": "measured",
+   "noop_par_bras": "measured",
+   "controle_ii_within_aveugle": "measured",
+   "genome_identique": "measured"
+  },
+  "inferred_links": [],
+  "cost_estimate": "identique au -bis (599 s mesures : 14 cellules x 4 conditions) -> ~10 min sous bail kuzu ; results/s2_blind_champion_ter.json",
+  "inferred_reason": null,
+  "control_family": {
+   "cells": 7,
+   "alpha_family": 0.05,
+   "alpha_cell": 0.0071428571428571435,
+   "method": "bonferroni",
+   "reason": null,
+   "fwer_bound": 0.05
+  },
+  "warning": null
+ },
+ "_regime": {
+  "world": "stoneage",
+  "num_agents": 12,
+  "max_ticks": 200,
+  "K": 12,
+  "seeds": [
+   3032,
+   3033,
+   3034,
+   3035,
+   3036,
+   3037,
+   3038
+  ],
+  "floor": 24.0,
+  "clause_iii": "ter : ecarte si les DEUX bras <= plancher",
+  "blinding": "entree (obs = 0)",
+  "learner": "legacy credit gele, NTM non gele",
+  "reference": "paired_band",
+  "noop_control": true
+ },
+ "rows": [
+  {
+   "seed": 3032,
+   "intact": {
+    "within_ratio": 0.9767441860465116,
+    "between_ratio": 3.6666666666666665,
+    "verdict": "INCONCLUSIVE_DEGENERATE",
+    "n": 12,
+    "phenotype": {
+     "hp_bonus": 0.0,
+     "inv_capacity": 14,
+     "energy_drain": 2.4000000000000004
+    },
+    "policy": "FrozenCreditMamba",
+    "between_same_body": false,
+    "reference": "paired_band",
+    "intact_median": 21.0,
+    "floor": 24.0,
+    "noop": {
+     "ratio": 1.0,
+     "verdict": "INCONCLUSIVE_DEGENERATE",
+     "median": 21.0
+    }
+   },
+   "blind": {
+    "within_ratio": 1.0,
+    "between_ratio": 5.833333333333333,
+    "verdict": "INCONCLUSIVE_DEGENERATE",
+    "n": 12,
+    "phenotype": {
+     "hp_bonus": 0.0,
+     "inv_capacity": 14,
+     "energy_drain": 2.4000000000000004
+    },
+    "policy": "InputBlindFrozenMamba",
+    "between_same_body": false,
+    "reference": "paired_band",
+    "intact_median": 35.25,
+    "floor": 24.0,
+    "noop": {
+     "ratio": 1.0,
+     "verdict": "INCONCLUSIVE_DEGENERATE",
+     "median": 35.25
+    },
+    "w_ok": true
+   }
+  },
+  {
+   "seed": 3033,
+   "intact": {
+    "within_ratio": 1.035294117647059,
+    "between_ratio": 3.75,
+    "verdict": "INCONCLUSIVE_DEGENERATE",
+    "n": 12,
+    "phenotype": {
+     "hp_bonus": 0.0,
+     "inv_capacity": 14,
+     "energy_drain": 2.4000000000000004
+    },
+    "policy": "FrozenCreditMamba",
+    "between_same_body": false,
+    "reference": "paired_band",
+    "intact_median": 22.0,
+    "floor": 24.0,
+    "noop": {
+     "ratio": 1.0,
+     "verdict": "INCONCLUSIVE_DEGENERATE",
+     "median": 22.0
+    }
+   },
+   "blind": {
+    "within_ratio": 1.0,
+    "between_ratio": 5.583333333333333,
+    "verdict": "INCONCLUSIVE_DEGENERATE",
+    "n": 12,
+    "phenotype": {
+     "hp_bonus": 0.0,
+     "inv_capacity": 14,
+     "energy_drain": 2.4000000000000004
+    },
+    "policy": "InputBlindFrozenMamba",
+    "between_same_body": false,
+    "reference": "paired_band",
+    "intact_median": 33.25,
+    "floor": 24.0,
+    "noop": {
+     "ratio": 1.0,
+     "verdict": "INCONCLUSIVE_DEGENERATE",
+     "median": 33.25
+    },
+    "w_ok": true
+   }
+  },
+  {
+   "seed": 3034,
+   "intact": {
+    "within_ratio": 0.9777777777777777,
+    "between_ratio": 3.75,
+    "verdict": "INCONCLUSIVE_DEGENERATE",
+    "n": 12,
+    "phenotype": {
+     "hp_bonus": 0.0,
+     "inv_capacity": 14,
+     "energy_drain": 2.4000000000000004
+    },
+    "policy": "FrozenCreditMamba",
+    "between_same_body": false,
+    "reference": "paired_band",
+    "intact_median": 22.0,
+    "floor": 24.0,
+    "noop": {
+     "ratio": 1.0,
+     "verdict": "INCONCLUSIVE_DEGENERATE",
+     "median": 22.0
+    }
+   },
+   "blind": {
+    "within_ratio": 1.0,
+    "between_ratio": 5.666666666666667,
+    "verdict": "INCONCLUSIVE_DEGENERATE",
+    "n": 12,
+    "phenotype": {
+     "hp_bonus": 0.0,
+     "inv_capacity": 14,
+     "energy_drain": 2.4000000000000004
+    },
+    "policy": "InputBlindFrozenMamba",
+    "between_same_body": false,
+    "reference": "paired_band",
+    "intact_median": 34.75,
+    "floor": 24.0,
+    "noop": {
+     "ratio": 1.0,
+     "verdict": "INCONCLUSIVE_DEGENERATE",
+     "median": 34.75
+    },
+    "w_ok": true
+   }
+  },
+  {
+   "seed": 3035,
+   "intact": {
+    "within_ratio": 0.9777777777777777,
+    "between_ratio": 3.6666666666666665,
+    "verdict": "INCONCLUSIVE_DEGENERATE",
+    "n": 12,
+    "phenotype": {
+     "hp_bonus": 0.0,
+     "inv_capacity": 14,
+     "energy_drain": 2.4000000000000004
+    },
+    "policy": "FrozenCreditMamba",
+    "between_same_body": false,
+    "reference": "paired_band",
+    "intact_median": 22.0,
+    "floor": 24.0,
+    "noop": {
+     "ratio": 1.0,
+     "verdict": "INCONCLUSIVE_DEGENERATE",
+     "median": 22.0
+    }
+   },
+   "blind": {
+    "within_ratio": 1.0,
+    "between_ratio": 5.833333333333333,
+    "verdict": "INCONCLUSIVE_DEGENERATE",
+    "n": 12,
+    "phenotype": {
+     "hp_bonus": 0.0,
+     "inv_capacity": 14,
+     "energy_drain": 2.4000000000000004
+    },
+    "policy": "InputBlindFrozenMamba",
+    "between_same_body": false,
+    "reference": "paired_band",
+    "intact_median": 35.5,
+    "floor": 24.0,
+    "noop": {
+     "ratio": 1.0,
+     "verdict": "INCONCLUSIVE_DEGENERATE",
+     "median": 35.5
+    },
+    "w_ok": true
+   }
+  },
+  {
+   "seed": 3036,
+   "intact": {
+    "within_ratio": 0.9777777777777777,
+    "between_ratio": 3.6666666666666665,
+    "verdict": "INCONCLUSIVE_DEGENERATE",
+    "n": 12,
+    "phenotype": {
+     "hp_bonus": 0.0,
+     "inv_capacity": 14,
+     "energy_drain": 2.4000000000000004
+    },
+    "policy": "FrozenCreditMamba",
+    "between_same_body": false,
+    "reference": "paired_band",
+    "intact_median": 22.0,
+    "floor": 24.0,
+    "noop": {
+     "ratio": 1.0,
+     "verdict": "INCONCLUSIVE_DEGENERATE",
+     "median": 22.0
+    }
+   },
+   "blind": {
+    "within_ratio": 1.0,
+    "between_ratio": 5.833333333333333,
+    "verdict": "INCONCLUSIVE_DEGENERATE",
+    "n": 12,
+    "phenotype": {
+     "hp_bonus": 0.0,
+     "inv_capacity": 14,
+     "energy_drain": 2.4000000000000004
+    },
+    "policy": "InputBlindFrozenMamba",
+    "between_same_body": false,
+    "reference": "paired_band",
+    "intact_median": 35.5,
+    "floor": 24.0,
+    "noop": {
+     "ratio": 1.0,
+     "verdict": "INCONCLUSIVE_DEGENERATE",
+     "median": 35.5
+    },
+    "w_ok": true
+   }
+  },
+  {
+   "seed": 3037,
+   "intact": {
+    "within_ratio": 0.9772727272727273,
+    "between_ratio": 3.6666666666666665,
+    "verdict": "INCONCLUSIVE_DEGENERATE",
+    "n": 12,
+    "phenotype": {
+     "hp_bonus": 0.0,
+     "inv_capacity": 14,
+     "energy_drain": 2.4000000000000004
+    },
+    "policy": "FrozenCreditMamba",
+    "between_same_body": false,
+    "reference": "paired_band",
+    "intact_median": 21.5,
+    "floor": 24.0,
+    "noop": {
+     "ratio": 1.0,
+     "verdict": "INCONCLUSIVE_DEGENERATE",
+     "median": 21.5
+    }
+   },
+   "blind": {
+    "within_ratio": 1.0,
+    "between_ratio": 5.833333333333333,
+    "verdict": "INCONCLUSIVE_DEGENERATE",
+    "n": 12,
+    "phenotype": {
+     "hp_bonus": 0.0,
+     "inv_capacity": 14,
+     "energy_drain": 2.4000000000000004
+    },
+    "policy": "InputBlindFrozenMamba",
+    "between_same_body": false,
+    "reference": "paired_band",
+    "intact_median": 35.5,
+    "floor": 24.0,
+    "noop": {
+     "ratio": 1.0,
+     "verdict": "INCONCLUSIVE_DEGENERATE",
+     "median": 35.5
+    },
+    "w_ok": true
+   }
+  },
+  {
+   "seed": 3038,
+   "intact": {
+    "within_ratio": 1.0,
+    "between_ratio": 3.6666666666666665,
+    "verdict": "INCONCLUSIVE_DEGENERATE",
+    "n": 12,
+    "phenotype": {
+     "hp_bonus": 0.0,
+     "inv_capacity": 14,
+     "energy_drain": 2.4000000000000004
+    },
+    "policy": "FrozenCreditMamba",
+    "between_same_body": false,
+    "reference": "paired_band",
+    "intact_median": 22.0,
+    "floor": 24.0,
+    "noop": {
+     "ratio": 1.0,
+     "verdict": "INCONCLUSIVE_DEGENERATE",
+     "median": 22.0
+    }
+   },
+   "blind": {
+    "within_ratio": 1.0,
+    "between_ratio": 5.666666666666667,
+    "verdict": "INCONCLUSIVE_DEGENERATE",
+    "n": 12,
+    "phenotype": {
+     "hp_bonus": 0.0,
+     "inv_capacity": 14,
+     "energy_drain": 2.4000000000000004
+    },
+    "policy": "InputBlindFrozenMamba",
+    "between_same_body": false,
+    "reference": "paired_band",
+    "intact_median": 34.75,
+    "floor": 24.0,
+    "noop": {
+     "ratio": 1.0,
+     "verdict": "INCONCLUSIVE_DEGENERATE",
+     "median": 34.75
+    },
+    "w_ok": true
+   }
+  }
+ ],
+ "verdict": {
+  "verdict": "AVEUGLE_SURVIT_MIEUX",
+  "r_blind": 1.6136363636363635,
+  "sign_p": 0.015625,
+  "n": 7,
+  "ratios": [
+   1.6785714285714286,
+   1.5113636363636365,
+   1.5795454545454546,
+   1.6136363636363635,
+   1.6136363636363635,
+   1.6511627906976745,
+   1.5795454545454546
+  ],
+  "echecs": [],
+  "ecartes": [],
+  "intact_sous_plancher": [
+   3032,
+   3033,
+   3034,
+   3035,
+   3036,
+   3037,
+   3038
+  ]
+ },
+ "_cout_s": 1039.4642868041992,
+ "_provenance": [
+  {
+   "git_sha": "72ce45ac39a0833fc8e075bdf59c52d648a79538",
+   "dirty": true,
+   "rule": "S2-BLIND-CHAMPION-ter",
+   "seal": "dd7641b30cea02a851e49f729a51692432b148a0507c47d4193caa53c808034b"
+  }
+ ]
+}

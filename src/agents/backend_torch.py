@@ -57,6 +57,29 @@ class TorchPopulationModel(PopulationModel):
     # --- Terme bilinéaire low-rank optionnel (attaque le mur de composition/binding) ---
     BILINEAR = False         # terme d'interaction bilinéaire low-rank dans _step (débloque la composition).
     BILINEAR_RANK = 16       # rang r du bilinéaire ((H·U)⊙(H·V))·W_bl ; params créés SEULEMENT si BILINEAR.
+    # P4.12 (ADR-005 item 2, 2026-09-16) : SHAM LINÉAIRE À PARAMÈTRES APPARIÉS. Quand BILINEAR et BILINEAR_SHAM sont
+    # vrais, le terme devient ((H·U) + (H·V))·W_bl -- MÊMES tenseurs U, V, W_bl (donc exactement le même nombre de
+    # paramètres, par construction), même init, même optimiseur ; seule la COMBINAISON change : additive au lieu du
+    # produit de Hadamard. C'est le contrôle qui manquait à la pièce `bilinear` (PARAMS_NON_APPARIES) : si le sham
+    # compose aussi, ce n'est pas la multiplication qui débloque, c'est la capacité. Défaut False = bit-identique.
+    BILINEAR_SHAM = False
+
+    # --- P4.11 (ADR-005 item 1, 2026-09-16) : trace d'éligibilité TD(λ) dans `_td_update` ---
+    # 0.0 (défaut) = le chemin d'ORIGINE est pris tel quel (un backward de la perte combinée + opt.step) :
+    # bit-identique PAR CONSTRUCTION, aucune opération réordonnée. λ > 0 = chemin « trace » : e_a ← γλ·e_a +
+    # ∂logπ/∂θ, e_v ← γλ·e_v + ∂V/∂θ pour CHAQUE paramètre θ de l'optimiseur (W (B,N,N), et U/V/W_bl si
+    # BILINEAR -- tous à dimension de tête B, agents DISJOINTS -> gradients par agent), puis
+    # Δθ = lr·(δ·e_a − (V−cible)·e_v)/B appliqué à θ directement (même signe et même 1/B que la perte
+    # d'origine −(δ·logπ).mean() + 0,5·((V−cible)²).mean() sous SGD). `lr` lu sur l'optimiseur ; aucun tirage RNG.
+    # REFUS explicite (raise) si λ > 0 sous gate (CONDITION_GATE / ANTISAT : w_gate est partagé, sans tête B, et
+    # sa pénalité n'est pas δ-modulée) ou sous un optimiseur autre que SGD sans momentum (Adam : le chemin trace
+    # le CONTOURNE) -- sauf CREDIT_TRACE_BYPASS_OPTIMIZER = True, posé par un kwarg explicite du compteur, jamais
+    # un silence. Les traces sont des LISTES alignées sur `_trace_params()` (e_a[0] = trace de W).
+    # Traces à zéro à la construction ; `reset_traces(mask)` est une OPTION d'ablation, pas un défaut : à la
+    # résurrection intra-tick (cohorte immortelle) l'objet est le même et la trace PERSISTE (immortel veut
+    # dire immortel) ; à changement de B le monde RECONSTRUIT le modèle et la trace est perdue (déclaré ici).
+    CREDIT_TRACE_LAMBDA = 0.0
+    CREDIT_TRACE_BYPASS_OPTIMIZER = False
 
     def __init__(self, agents, world_model=None, lr=0.04, device="cpu"):
         if torch is None:
@@ -116,6 +139,9 @@ class TorchPopulationModel(PopulationModel):
             self.W_bl = (0.1 * torch.randn(self.B, r, self.N, device=self.device)).detach().requires_grad_(True)
             params += [self.U, self.V, self.W_bl]
         self.opt = torch.optim.SGD(params, lr=lr)
+        self.e_a = self.e_v = None          # P4.11 : traces d'éligibilité, une par paramètre, allouées au 1er pas tracé
+        self.trace_updates = 0
+        self.trace_resets = 0
         # E19 (occ. lr/B, 2026-09-16) : W est DISJOINT par agent mais `_td_update` MOYENNE la perte
         # sur B et l'optimiseur est SGD (le 1/B ne s'annule pas, il s'annulerait sous Adam) — chaque
         # agent reçoit donc lr/B. « 0,04 » à B=12 vaut 0,0033 par agent. Publié, jamais déduit ;
@@ -138,7 +164,9 @@ class TorchPopulationModel(PopulationModel):
         if type(self).BILINEAR and self.W_bl is not None:
             hu = torch.bmm(H.unsqueeze(1), self.U).squeeze(1)      # (B,r)
             hv = torch.bmm(H.unsqueeze(1), self.V).squeeze(1)      # (B,r)
-            excitation = excitation + torch.bmm((hu * hv).unsqueeze(1), self.W_bl).squeeze(1)  # (B,N)
+            # P4.12 : sham linéaire apparié -- somme au lieu du produit, mêmes paramètres (voir BILINEAR_SHAM)
+            inter = (hu + hv) if type(self).BILINEAR_SHAM else (hu * hv)
+            excitation = excitation + torch.bmm(inter.unsqueeze(1), self.W_bl).squeeze(1)  # (B,N)
         return (1.0 - delta) * H + delta * torch.tanh(excitation)
 
     def _gate_value(self, H):
@@ -228,6 +256,9 @@ class TorchPopulationModel(PopulationModel):
         logp = logp - F.binary_cross_entropy_with_logits(out[:, _GRAB_NODE], grab, reduction="none")
         logp = logp - F.binary_cross_entropy_with_logits(out[:, _RUB_NODE], rub, reduction="none")
 
+        lam = float(type(self).CREDIT_TRACE_LAMBDA)
+        if lam > 0.0:                                            # P4.11 : chemin TRACE ; 0.0 = chemin d'origine intact
+            return self._td_update_trace(lam, logp, v, target, delta)
         actor_loss = -(delta * logp).mean()                      # ACTOR (avantage = δ)
         critic_loss = ((v - target) ** 2).mean()                 # CRITIC (vers r + γV')
         loss = actor_loss + 0.5 * critic_loss + gate_pen
@@ -236,6 +267,79 @@ class TorchPopulationModel(PopulationModel):
         self.opt.step()
         self._write_back()
         return float(loss.item())
+
+    @staticmethod
+    def _trace_step(e, g, gamma_lambda):
+        """Récurrence de la trace accumulante : e ← γλ·e + g (e None = zéro)."""
+        return g if e is None else gamma_lambda * e + g
+
+    def _trace_params(self):
+        """Les paramètres TRACÉS = ceux de l'optimiseur, dans son ordre (W en tête ; U/V/W_bl si BILINEAR).
+        Chacun doit porter la tête B (un agent par tranche) : sinon refus, jamais un broadcast silencieux."""
+        params = [q for grp in self.opt.param_groups for q in grp["params"]]
+        for q in params:
+            if q.dim() < 2 or q.shape[0] != self.B:
+                raise NotImplementedError(f"paramètre sans tête B={self.B} (forme {tuple(q.shape)}) : non traçable")
+        return params
+
+    def _trace_refusals(self):
+        """Raisons pour lesquelles le chemin trace REFUSE (liste vide = admis). Pure : ne modifie rien."""
+        cls = type(self)
+        raisons = []
+        if cls.CONDITION_GATE or cls.ANTISAT > 0:
+            raisons.append("gate/ANTISAT : w_gate est partagé (sans tête B) et sa pénalité n'est pas δ-modulée")
+        sgd_pur = isinstance(self.opt, torch.optim.SGD) and all(
+            float(g.get("momentum", 0.0)) == 0.0 and float(g.get("weight_decay", 0.0)) == 0.0
+            and float(g.get("dampening", 0.0)) == 0.0 and not g.get("nesterov", False)
+            for g in self.opt.param_groups)
+        if not sgd_pur and not cls.CREDIT_TRACE_BYPASS_OPTIMIZER:
+            raisons.append(f"optimiseur {type(self.opt).__name__} : le chemin trace le CONTOURNE -- "
+                           "demander explicitement CREDIT_TRACE_BYPASS_OPTIMIZER (kwarg trace_bypass_optimizer)")
+        return raisons
+
+    def _td_update_trace(self, lam, logp, v, target, delta):
+        """P4.11 : TD(λ) à traces d'éligibilité accumulantes, W seul. `logp`, `v` portent le graphe de `_step`
+        recalculé sur la transition précédente ; `target` et `delta` sont détachés. ΔW appliqué à W.data,
+        l'optimiseur n'est PAS touché (SGD sans momentum : équivalent ; sinon refus, cf. `_trace_refusals`)."""
+        raisons = self._trace_refusals()
+        if raisons:
+            raise NotImplementedError("CREDIT_TRACE_LAMBDA > 0 refusé : " + " ; ".join(raisons))
+        params = self._trace_params()
+        g_a = torch.autograd.grad(logp.sum(), params, retain_graph=True, allow_unused=True)
+        g_v = torch.autograd.grad(v.sum(), params, allow_unused=True)
+        gl = _GAMMA * lam
+        if self.e_a is None:
+            self.e_a, self.e_v = [None] * len(params), [None] * len(params)
+        lr = float(self.opt.param_groups[0]["lr"])
+        for i, q in enumerate(params):
+            ga = torch.zeros_like(q) if g_a[i] is None else g_a[i].detach()   # paramètre hors graphe : gradient nul
+            gv = torch.zeros_like(q) if g_v[i] is None else g_v[i].detach()
+            self.e_a[i] = self._trace_step(self.e_a[i], ga, gl)
+            self.e_v[i] = self._trace_step(self.e_v[i], gv, gl)
+            forme = (-1,) + (1,) * (q.dim() - 1)
+            coef_a = delta.view(forme)
+            coef_v = (v - target).detach().view(forme)
+            with torch.no_grad():
+                q.add_(lr * (coef_a * self.e_a[i] - coef_v * self.e_v[i]) / self.B)
+        self.trace_updates += 1
+        self._write_back()
+        loss = -(delta * logp).mean() + 0.5 * ((v - target) ** 2).mean()   # même grandeur publiée qu'en TD(0)
+        return float(loss.item())
+
+    def reset_traces(self, mask=None):
+        """Remet les traces à zéro pour les agents de `mask` ((B,) booléen) ou pour tous (None). OPTION
+        d'ablation (P4.11) : le défaut est de ne JAMAIS reset -- compté dans `trace_resets`."""
+        self.trace_resets += 1                      # l'APPEL est compté, même sans trace allouée (n = 0)
+        if self.e_a is None:
+            return 0
+        if mask is None:
+            for e in self.e_a + self.e_v:
+                e.zero_()
+            return int(self.B)
+        m = torch.as_tensor(np.asarray(mask, dtype=bool), device=self.device)
+        for e in self.e_a + self.e_v:
+            e[m] = 0.0
+        return int(m.sum().item())
 
     def learn_episode_bptt(self, obs_seq, actions_seq, rewards, truncate=False, gamma=1.0):
         """BPTT FENÊTRÉ (EDR-146) — la capacité que numpy N'A PAS. Rejoue l'épisode (obs_seq) depuis

@@ -1,0 +1,28 @@
+{
+  "name": "S2-BLIND-CHAMPION-DECOMP-R1",
+  "rule": {
+    "controle_de_manipulation_OBLIGATOIRE": "(i) masques EXACTS (tranche annoncee a zero, le reste bit-identique a l'observation, entree non mutee) et complementaires -- prouves a 0 monde ; genome identique (w_ok) ; (ii) no-op apparie = 1,000 EXACTEMENT sur chaque bras nouveau, sinon INDETERMINE-HARNAIS ; (iii) famille : 14 cellules via assert_control_family.",
+    "cout": "2 bras x 7 seeds = 14 cellules x 4 conditions ; -ter : 1039 s pour 14 cellules -> ~17 min sous bail kuzu ; results/s2_blind_champion_decomp_r1.json",
+    "design": "Monde stoneage, regime grave (12 agents, 200 ticks, K=12), seeds 3032-3038 (ceux du -ter). Par seed, deux bras NOUVEAUX sur le MEME genome (champion HoF), apprenant legacy gele, bande RNG appariee, no-op mesure : BlindExceptIdentityFrozenMamba (x[:, :max_N-max_O] = 0 -> 46 entrees coupees, 18 identites gardees) et IdentityZeroedFrozenMamba (x[:, max_N-max_O:max_I] = 0 -> 18 identites coupees, 46 entrees gardees). Le gain du routeur (tanh(x . router)) voit la tranche restante dans chaque bras : declare, non separe. r_ex et r_id = survie mediane du bras / survie mediane intacte du -ter (meme seed). Runner tools/evo_runs/s2_blind_champion_bis.py --decomp, verdict decomp_verdict (9 cas, tests/sandbox/test_s2_blind_champion_bis.py).",
+    "discrimination": {
+      "EXCITATION (hi_ex >= 6/7 ET lo_id >= 6/7)": "couper l'entree du reseau suffit, couper les 18 identites ne fait rien : l'effet est l'EXCITATION recurrente (sedation), pas les actions d'identite.",
+      "IDENTITE (hi_id >= 6/7 ET lo_ex >= 6/7)": "couper les 18 identites suffit, couper le reste ne fait rien : l'effet est dans les 18 logits d'action qui SONT l'observation.",
+      "INCOMPLET / INDETERMINE-HARNAIS": "bras manquant, w_ok faux ou no-op != 1,000 : rien n'est lu.",
+      "LES_DEUX (hi_ex >= 6/7 ET hi_id >= 6/7)": "chaque coupure seule suffit : deux voies redondantes ou un seuil bas.",
+      "MIXTE (sinon)": "rapporter r_ex, r_id et les comptes, sans inference.",
+      "NI_L_UN_NI_L_AUTRE (lo_ex >= 6/7 ET lo_id >= 6/7)": "aucune coupure partielle ne suffit : l'effet exige de couper les DEUX (non additif) -- rapporte sans inference."
+    },
+    "dv_primaire": "`r_ex` et `r_id` par seed ; comptes `hi_ex` (r_ex >= 1,20), `lo_ex` (r_ex <= 1,05), `hi_id`, `lo_id` ; medianes ; `noop` par bras (attendu exactement 1,000) ; `w_ok`.",
+    "provenance": "Ecrite en connaissant le -ter (results/s2_blind_champion_ter.json, sceau dd7641b30cea... : AVEUGLE_SURVIT_MIEUX, r_blind 1.614, 7/7, intact 21-22 / aveugle 33,25-35,5, no-op 1,000, within aveugle 1,000) et l'indice deja dans ses donnees : le champion intact a perception DERANGEE (information detruite, excitation conservee) survit comme l'intact (within apparie 0,977-1,035). Les references intact / aveugle total sont IMPORTEES du -ter (memes seeds 3032-3038, appariees par seed) et declarees telles ; aucune cellule des deux bras partiels n'a ete mesuree avant ce scellement.",
+    "question": "Le +61 % de survie du champion aveugle a l'ENTREE (S2-BLIND-CHAMPION-ter) confond DEUX mecanismes : (a) l'entree du reseau recurrent est coupee (moins d'excitation) ; (b) les 18 noeuds d'IDENTITE (max_N-max_O .. max_I : leur valeur d'observation est directement un logit d'action, EDR-HOF-IO-OVERLAP) sont mis a zero. Lequel porte l'effet ? Deux bras partiels : except_identity (x[:, :46] = 0, 18 identites gardees) et identity_zeroed (x[:, 46:64] = 0, 46 entrees gardees), meme dispositif que le -ter.",
+    "regle_de_lecture_continue": "ORDRE IMPOSE : INCOMPLET/HARNAIS, EXCITATION, IDENTITE, LES_DEUX, NI_L_UN_NI_L_AUTRE, MIXTE.",
+    "seuils": {
+      "bar_high": 1.2,
+      "bar_low": 1.05,
+      "justification": "barres du sceau d'origine ; 6/7 = convention (5/7 laisse 2 seeds contraires) ; no-op exact car le -ter l'a mesure exact 14/14",
+      "seeds_min": 6,
+      "tol_noop": 0.0
+    }
+  },
+  "seal": "6b6be87dac7629fb959b361822fbb03696d1e0ee0a9f5b6acb78a2ff9a22f050"
+}

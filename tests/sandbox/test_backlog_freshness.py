@@ -19,6 +19,10 @@ def _backlog(tmp_path, monkeypatch, texte):
     p = tmp_path / "BACKLOG.md"
     p.write_text(texte, encoding="utf-8")
     monkeypatch.setattr(B, "_BACKLOG", str(p))
+    # 2026-09-22 : ces cas jugent un backlog JOUET sur DISQUE. Sous le hook (donc sous la porte 15, qui
+    # lance ce fichier), `GIT_INDEX_FILE` est hérité et la porte passerait en mode COMMIT (lecture de
+    # l'index) : on le retire ici, et les cas du mode commit le reposent explicitement.
+    monkeypatch.delenv("GIT_INDEX_FILE", raising=False)
     return p
 
 
@@ -276,3 +280,176 @@ def test_a_COMPOSITE_title_COUNTS_as_an_entry_for_the_amputation_floor():
     """Le plancher d'amputation compte les MEMES entrees que le reste du cliquet : une entree
     invisible au compte est une entree qu'on peut effacer sans que le plancher bouge."""
     assert B.compter_entrees("**P1.x / P2.45 — a.**\n\n**P2.46 — b.**\n") == 2
+
+
+# ---------------------------------------------------------------------------------------------
+# CHEMIN CITÉ MAIS NON SUIVI PAR GIT (2026-09-22). La porte testait l'EXISTENCE locale du chemin,
+# jamais sa traçabilité : un fichier présent chez l'auteur et absent de git est VERT chez lui et
+# ROUGE sur tout clone (le chemin « n'existe plus » là-bas). Mesuré sur mon propre commit 72ce45a,
+# qui a introduit trois citations de ce genre ; la porte savait pourtant la leçon — son message pour
+# les clauses `closes_when` cite déjà la CI rouge du 2026-09-07 (`5b0025e`) — mais ne l'appliquait
+# qu'aux clauses, pas à la prose. L'auteur ne pouvait pas voir le défaut qu'il créait.
+# ⚠️ Un fichier STAGÉ compte comme suivi : sinon la garde bloquerait le commit même qui l'ajoute
+# (le hook tourne sur l'index, temporaire compris, via GIT_INDEX_FILE).
+
+def _fichier(tmp_path, nom, suivi_par):
+    """Crée `nom` sous tmp_path et l'inscrit (ou non) dans l'inventaire des chemins suivis."""
+    p = tmp_path / nom
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text("x\n", encoding="utf-8")
+    return p
+
+
+def test_un_chemin_cite_EXISTANT_mais_NON_SUIVI_est_DETECTE(tmp_path, monkeypatch):
+    """CONTRE-EXEMPLE GELÉ : le cas réel de 72ce45a — le fichier est là, git ne le connaît pas."""
+    _fichier(tmp_path, "tools/td_step_pilot.py", suivi_par=None)
+    monkeypatch.setattr(B, "_ROOT", str(tmp_path))
+    monkeypatch.setattr(B, "_chemins_suivis", lambda: frozenset())
+    _backlog(tmp_path, monkeypatch, "Pilote `tools/td_step_pilot.py`, règle scellée, 144 cellules.\n")
+    trouve = B.scan()
+    assert "chemin-non-suivi:tools/td_step_pilot.py" in trouve, trouve
+
+
+def test_un_chemin_cite_et_SUIVI_ne_declenche_RIEN(tmp_path, monkeypatch):
+    """SPÉCIFICITÉ : le cas nominal — sans lui, « tout signaler » ferait passer le test précédent."""
+    _fichier(tmp_path, "tools/td_step_pilot.py", suivi_par=None)
+    monkeypatch.setattr(B, "_ROOT", str(tmp_path))
+    monkeypatch.setattr(B, "_chemins_suivis", lambda: frozenset({"tools/td_step_pilot.py"}))
+    _backlog(tmp_path, monkeypatch, "Pilote `tools/td_step_pilot.py`, règle scellée, 144 cellules.\n")
+    trouve = B.scan()
+    assert not any(k.startswith("chemin-non-suivi:") for k in trouve), trouve
+
+
+def test_un_chemin_STAGE_compte_comme_suivi(tmp_path, monkeypatch):
+    """Le commit qui AJOUTE le fichier ne doit pas être bloqué par sa propre citation : `git ls-files`
+    lit l'INDEX (temporaire compris), donc un fichier stagé est déjà « suivi » pour la porte."""
+    _fichier(tmp_path, "results/td_step_pilot_r0.json", suivi_par=None)
+    monkeypatch.setattr(B, "_ROOT", str(tmp_path))
+    monkeypatch.setattr(B, "_chemins_suivis", lambda: frozenset({"results/td_step_pilot_r0.json"}))
+    _backlog(tmp_path, monkeypatch, "Résultats dans `results/td_step_pilot_r0.json`.\n")
+    assert not any(k.startswith("chemin-non-suivi:") for k in B.scan()), "un fichier stagé est suivi"
+
+
+def test_un_chemin_PROPOSE_non_suivi_reste_EPARGNE(tmp_path, monkeypatch):
+    """La règle de 2026-09-01 tient AUSSI pour la traçabilité : un fichier annoncé « à écrire » n'est
+    ni mort ni non suivi — c'est du travail à faire. Sans ce cas, la porte crierait sur toute
+    proposition (la classe de faux positifs que la baseline aurait masquée)."""
+    monkeypatch.setattr(B, "_ROOT", str(tmp_path))
+    monkeypatch.setattr(B, "_chemins_suivis", lambda: frozenset())
+    _fichier(tmp_path, "tools/harness/propose.py", suivi_par=None)
+    _backlog(tmp_path, monkeypatch,
+             "Correctif candidat : `tools/harness/propose.py` reste à écrire.\n")
+    trouve = B.scan()
+    assert not any(k.startswith("chemin-non-suivi:") for k in trouve), trouve
+
+
+def test_chemins_suivis_lit_l_index_du_VRAI_depot():
+    """La source de vérité est `git ls-files` (index), pas une liste en dur : un fichier committé du
+    dépôt doit y être, un chemin inventé non. Contrôle apparié, sur le dépôt réel."""
+    suivis = B._chemins_suivis()
+    assert "tools/check_backlog_freshness.py" in suivis
+    assert "tools/ce_fichier_n_existe_pas_42.py" not in suivis
+
+
+# ---------------------------------------------------------------------------------------------
+# MODE COMMIT (2026-09-22) — la porte juge ce qui SERA COMMITTÉ, pas le disque. Blocage circulaire
+# mesuré à trois sessions : la porte lisait le backlog sur DISQUE, où l'entrée d'une session B citait
+# des fichiers stagés par B ; l'index TEMPORAIRE d'une session A qui committait (HEAD + ses seuls
+# chemins) ne les contenait pas -> rouge chez A, à cause de B, sur un texte qu'A ne committait pas.
+# Sous `GIT_INDEX_FILE`, texte ET existence se lisent désormais dans l'index.
+
+def test_en_commit_un_fichier_sur_disque_mais_HORS_index_est_MORT_pour_ce_commit(tmp_path, monkeypatch):
+    """Le cas réel : le fichier est là (stagé par une autre session), pas dans CET index -> pour ce
+    commit il n'existe pas. C'est `chemin-mort`, jamais « existe mais non suivi » (qui ne peut pas
+    exister en mode commit : l'index EST la définition de l'existence)."""
+    _fichier(tmp_path, "tools/td_step_pilot.py", suivi_par=None)
+    monkeypatch.setattr(B, "_ROOT", str(tmp_path))
+    _backlog(tmp_path, monkeypatch, "Pilote `tools/td_step_pilot.py`, règle scellée.\n")
+    monkeypatch.setenv("GIT_INDEX_FILE", str(tmp_path / "index-temporaire"))
+    monkeypatch.setattr(B, "_tracked_by_git", lambda rel: False)
+    monkeypatch.setattr(B, "_chemins_suivis", lambda: frozenset())
+    trouve = B.scan()
+    assert "chemin-mort:tools/td_step_pilot.py" in trouve, trouve
+    assert not any(k.startswith("chemin-non-suivi:") for k in trouve), trouve
+
+
+def test_en_commit_un_fichier_DANS_l_index_existe_meme_absent_du_disque(tmp_path, monkeypatch):
+    """SPÉCIFICITÉ appariée : même citation, fichier dans l'index -> rien, même s'il n'est pas sur le
+    disque (un index temporaire n'écrit pas l'arbre)."""
+    monkeypatch.setattr(B, "_ROOT", str(tmp_path))
+    _backlog(tmp_path, monkeypatch, "Pilote `tools/td_step_pilot.py`, règle scellée.\n")
+    monkeypatch.setenv("GIT_INDEX_FILE", str(tmp_path / "index-temporaire"))
+    monkeypatch.setattr(B, "_tracked_by_git", lambda rel: True)
+    monkeypatch.setattr(B, "_chemins_suivis", lambda: frozenset({"tools/td_step_pilot.py"}))
+    trouve = B.scan()
+    assert not any(k.startswith(("chemin-mort:", "chemin-non-suivi:")) for k in trouve), trouve
+
+
+def test_en_commit_la_clause_path_present_juge_l_INDEX(tmp_path, monkeypatch):
+    """La clause `path_present` d'une entrée OUVERTE, sur un fichier présent sur disque mais hors de cet
+    index : la condition est FAUSSE (entrée ouverte, cohérente) — et surtout PAS « refusée comme non
+    suivie », le refus qui bloquait la session A pour une clause de la session B."""
+    _fichier(tmp_path, "results/x.json", suivi_par=None)
+    monkeypatch.setattr(B, "_ROOT", str(tmp_path))
+    _backlog(tmp_path, monkeypatch,
+             "**P9.1 — OUVERTE — essai.**\n<!-- closes_when:path_present=results/x.json -->\n")
+    monkeypatch.setenv("GIT_INDEX_FILE", str(tmp_path / "index-temporaire"))
+    monkeypatch.setattr(B, "_tracked_by_git", lambda rel: False)
+    monkeypatch.setattr(B, "_chemins_suivis", lambda: frozenset())
+    trouve = B.scan()
+    assert not any("P9.1" in k for k in trouve), trouve
+
+
+def test_en_commit_une_clause_grep_lit_le_fichier_cible_dans_l_INDEX(tmp_path, monkeypatch):
+    """Le cas réel P2.66 : la fonction est sur DISQUE (travail en vol d'une autre session), pas dans cet
+    index -> la clause `grep_present` ne doit PAS être satisfaite pour ce commit ; et un fichier hors
+    index rend « n'existe pas » (invérifiable), jamais le contenu du disque."""
+    _fichier(tmp_path, "src/x.py", suivi_par=None)
+    (tmp_path / "src" / "x.py").write_text("def claude_code_llm_fn():\n    pass\n", encoding="utf-8")
+    monkeypatch.setattr(B, "_ROOT", str(tmp_path))
+    monkeypatch.setenv("GIT_INDEX_FILE", str(tmp_path / "index-temporaire"))
+    monkeypatch.setattr(B, "_tracked_by_git", lambda rel: False)
+    assert B._lire_fichier("src/x.py") is None
+    ok, raison = B._evalue_clause("grep_present", "src/x.py::def claude_code_llm_fn")
+    assert ok is None and "n'existe pas" in raison
+
+
+def test_en_commit_le_fichier_cible_est_celui_de_l_INDEX_sur_le_VRAI_depot(tmp_path, monkeypatch):
+    """Intégration réelle, même patron que pour le backlog : index temporaire depuis HEAD, le contenu lu
+    est celui de HEAD, et si le disque diffère (ce fichier est en cours d'édition), ce n'est PAS le disque."""
+    import subprocess
+    idx = tmp_path / "index-head"
+    env = dict(os.environ, GIT_INDEX_FILE=str(idx))
+    subprocess.run(["git", "-C", B._ROOT, "read-tree", "HEAD"], env=env, check=True, capture_output=True)
+    rel = "tools/check_backlog_freshness.py"
+    head = subprocess.run(["git", "-C", B._ROOT, "show", f"HEAD:{rel}"], capture_output=True,
+                          check=True).stdout.decode("utf-8", errors="ignore")
+    monkeypatch.setenv("GIT_INDEX_FILE", str(idx))
+    lu = B._lire_fichier(rel)
+    assert lu == head
+    disque = open(os.path.join(B._ROOT, rel), encoding="utf-8", errors="ignore").read()
+    if disque != head:
+        assert lu != disque, "en commit, le disque ne doit jamais être le contenu jugé"
+
+
+def test_hors_commit_le_texte_juge_est_celui_du_DISQUE(monkeypatch):
+    monkeypatch.delenv("GIT_INDEX_FILE", raising=False)
+    assert B._lire_backlog() == open(B._BACKLOG, encoding="utf-8").read()
+
+
+def test_en_commit_le_texte_juge_est_celui_de_l_INDEX_sur_le_VRAI_depot(tmp_path, monkeypatch):
+    """Intégration réelle : un index temporaire construit depuis HEAD (la méthode de commit du dépôt) —
+    `_lire_backlog()` doit rendre la version de HEAD, et, si le disque en diffère (hunks en vol
+    d'autres sessions), NE PAS rendre le disque. C'est exactement la lecture qui manquait."""
+    import subprocess
+    idx = tmp_path / "index-head"
+    env = dict(os.environ, GIT_INDEX_FILE=str(idx))
+    subprocess.run(["git", "-C", B._ROOT, "read-tree", "HEAD"], env=env, check=True, capture_output=True)
+    head = subprocess.run(["git", "-C", B._ROOT, "show", "HEAD:docs/roadmap/PRIORITES_ET_DETTES.md"],
+                          capture_output=True, check=True).stdout.decode("utf-8", errors="replace")
+    monkeypatch.setenv("GIT_INDEX_FILE", str(idx))
+    lu = B._lire_backlog()
+    assert lu == head
+    disque = open(B._BACKLOG, encoding="utf-8").read()
+    if disque != head:
+        assert lu != disque, "en commit, le disque (hunks d'autrui) ne doit jamais être le texte jugé"

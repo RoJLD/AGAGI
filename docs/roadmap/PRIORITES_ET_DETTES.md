@@ -154,7 +154,29 @@ ateliers open-endedness), pas un checkpoint ; (2) un LLM dans la boucle comme G�
 quand un run le demande. Se ferme par un ADR qui nomme la branche.
 <!-- closes_when:grep_absent=docs/ADR/004_fourche_strategique_demande_generee_ou_concue.md::status: proposed -->
 
-**P2.66 — `claude_code_llm_fn` : un terminal Claude Code comme `llm_fn` du #8.** Quoi : une quatrième
+**P2.66 — ✅ CLOSE (2026-09-22) — `claude_code_llm_fn` : un terminal Claude Code comme `llm_fn` du #8.**
+Fait : `src/metaprog/llm_proposer_fn.py::claude_code_llm_fn(binary=None, timeout_s=600, allowed_tools="")
+-> llm_fn(prompt) -> str`, quatrième fonction à côté de `anthropic_llm_fn` / `local_llm_fn` /
+`scripted_llm_fn`, même contrat. Interface fixée par c9, consommée par propose.py en semaine 5. Prompt
+par STDIN (jamais en argument : limite de ligne de commande sous Windows) ; commande `[bin, "-p",
+"--output-format", "text", "--allowedTools", allowed_tools]` ; `bin` = `binary`, sinon
+`AGAGI_CLAUDE_BIN`, sinon `"claude"` — résolu par `shutil.which` (⚠️ mesuré : sous Windows
+`subprocess.run(["claude", …])` ne consulte pas PATHEXT, le shim `claude.cmd` d'npm est invisible sous
+le nom nu, 6/8 cas rouges avec la forme littérale) ; `subprocess.run(input=prompt, capture_output=True,
+text=True, encoding="utf-8", timeout=timeout_s)` ; timeout -> `TimeoutExpired` REMONTÉE ; exit != 0 ->
+`RuntimeError` portant le stderr ; sortie = stdout BRUT (`parse_demand_response` /
+`sanitize_demand_params` inchangés) ; aucun secret ; périmètre = PARAMÈTRES JSON (`rsi_loop.py:96`),
+aucun code exécuté, raisonnement d'[[EDR-065]]. Tests : `tests/sandbox/test_claude_code_llm_fn.py`
+(8 cas, TDD RED->GREEN, faux exécutable = script Python derrière un shim `claude.cmd` / `claude` sh,
+PATH RÉDUIT au tmp_path — aucun appel réel, jamais) : texte OK via PATH nu · texte OK via
+`AGAGI_CLAUDE_BIN` (avec contraste `FileNotFoundError` sans la variable) · `binary=` prime · exit 3 ->
+`RuntimeError` avec stderr · timeout remonté · stdin intact (é/ç/€, plusieurs lignes, égalité exacte) ·
+argv exact (`-p`, `--output-format text`, `--allowedTools ""`, prompt ABSENT) · `allowed_tools`
+transmis tel quel. Pas un instrument (nom non capté par le cliquet, vérifié : 234 détectés, rien
+déclaré). NON branché dans `tools/rsi_demand_loop.py` (semaine 5 de c9). ⚠️ Tant que l'allow-list a
+5 entrées, c'est un échantillonneur d'hyperparamètres — la valeur est dans P4.10.
+*Brique libre livrée le 2026-09-22 : `proposals_root()` / `proposals_file(*parties)` dans `src/paths.py` — variable `AGAGI_PROPOSALS_ROOT`, défaut `proposals`, jointure `/`, relue à chaque appel, exposée dans `__all__` et `describe()` ; 6 cas dans `tests/sandbox/test_paths.py` (11 → 17 def test), porte `check_data_paths` verte SANS toucher la baseline (44 gelés / 0 nouveau : `src/paths.py` est hors périmètre et le motif ne vise que `data/`, `results/`, `/app/data/`). ⚠️ Ce même motif ne couvre PAS `proposals/` : un littéral `"proposals/x.json"` écrit en dur chez un consommateur passerait la porte — élargir `_EST_DONNEE` impose de re-geler la baseline par un acte explicite, à faire quand la racine porte des fichiers réels.*
+Quoi (énoncé d'origine) : une quatrième
 fonction dans `src/metaprog/llm_proposer_fn.py`, même contrat `str -> str` que `anthropic_llm_fn`
 (`:13`, clé + conteneur jetable) et `local_llm_fn` (`:33`, LM Studio) : `subprocess.run(["claude", "-p",
 prompt, "--output-format", "text"], timeout=...)`, outils désactivés côté proposition (`--allowedTools`
@@ -168,7 +190,7 @@ entrées, c'est un échantillonneur d'hyperparamètres avec un bon prior — la 
 Coût ≈ 1 h. Preuve : `tools/rsi_demand_loop.py:8` (« ARMER = une seule ligne »).
 <!-- closes_when:grep_present=src/metaprog/llm_proposer_fn.py::def claude_code_llm_fn -->
 
-**P5.1 — Preprint MÉTHODO (ADR-004 (i) « preprint maintenant ») — plan, figures F1-F6 et brouillon v0 livrés le 2026-09-16 ; relecture, F7, traduction et soumission à faire.**
+**P5.1 — Preprint MÉTHODO (ADR-004 (i) « preprint maintenant ») — plan, figures F1-F7 et brouillon v0 livrés le 2026-09-16 ; relecture adversariale, cible/langue, annexe et soumission à faire (décision robla).**
 Quoi : `docs/preprint/PLAN.md` — titre de travail, thèse (les erreurs qui comptent sont des affirmations produites SANS
 mesure, et elles ont une direction : le négatif), six objets publiables avec leur chiffre RECOMPUTÉ et sa commande
 (297 EDR dont 2 rétractés et 39 verdicts négatifs ; 234/226 instruments ; 28 classes d'erreur, 23 exécutables ; 17 portes,
@@ -668,39 +690,90 @@ fixe, jamais un nul de capacité ; « un bras qui n'a pas appris franchit la bar
 incapable ». Les records gardent leur texte d'époque (historique) ; `plain_substrate_ceiling.py` et le backlog
 portaient déjà la rétractation. 103 tests des fichiers touchés passent (12,8 s).
 <!-- closes_when:grep_present=tests/sandbox/test_experiment_preflight.py::CORRECTION 2026-09-16 -->
+**P2.78 — rang 14 ter — ✅ CLOSE le 2026-09-22 (session loop 766eabae ; entrée ouverte par la session P4.9) — la garde de QUEUE porte sur le temps CPU du processus  le temps mur est publié À CÔTÉ  jamais à la place ; `Stopwatch` pour les runners.**
+Fait : `tools/cost_guard.py` — `CostGuard(clock=time.process_time  wall_clock=time.monotonic)` : `tick()` lève sur le CPU
+(`clock` reste l'horloge GATÉE  injectable : les cas existants sont inchangés)  `spent_wall_s` et `report()` publient le mur
+et `wall_over_cpu` (machine endormie ou contention = ratio ≫ 1  LISIBLE  plus tueur) ; `CostExceeded` dit le mur à côté du CPU ;
+`Stopwatch().elapsed()` rend `elapsed_s` ET `elapsed_cpu_s` (+ ratio  `None` à CPU nul — pas de ratio fabriqué). 4 cas neufs
+(`tests/sandbox/test_cost_guard.py`) : défaut = `process_time` ; une suspension (mur 5000 s  CPU 5 s) ne tue PAS l'unité et se lit
+dans le rapport ; ratio seulement sur une garde CPU ; `Stopwatch` prédit le ratio exactement. Seconde occurrence mesurée le
+jour même  qui a motivé la fermeture : `results/s2_blind_champion_decomp_r1.json` publie `_cout_s` = 510 334 s (5 9 jours de mur
+à travers une veille machine) pour 14 cellules que le `-ter` a faites en 1 039 s — annoté dans le JSON (`_cout_note`)  le coût CPU
+n'est pas mesuré. ⚠️ Deux limites dites dans le module : `process_time` ne compte que CE processus (un parent de pool de workers
+a un CPU ~0 → garde qui ne peut pas échouer, E1 : passer `clock=time.monotonic`) ; une contention gonfle le mur sans le CPU et
+n'est plus attrapée par la garde de queue — elle se lit ; (c) `process_time` somme TOUS les threads : un run torch multi-thread publie
+`_cout_cpu_s` 2 142 s pour `_cout_s` 1 191 s (TD-STEP-PILOT-R2, mesuré), donc `wall_over_cpu` < 1 — le budget CPU d'une unité vaut
+~ threads × mur, à connaître avant de fixer `budget_s`. **Reste, par runner (recommandation, pas une clause)** : publier
+`elapsed_cpu_s` à côté de `elapsed_s` via `Stopwatch` dans les 9 runners qui n'écrivent que `time.time()` (les trois miens compris :
+`td_step_pilot`, `bilinear_sham_run`, `s2_blind_champion_bis`).
+Énoncé d'origine : `project_cost` / `CostGuard` mesurent du temps MUR : une cellule de P4.9 a duré 33 060 s (9,2 h) sans qu'on
+puisse dire si la machine calculait ou dormait.
+Quoi : `results/s2_credit_ablation.json` → `arms.b_zero.2029.elapsed_s` = 33 060 s contre 26 à 3885 s pour les 59
+autres cellules (total hors cellule 7699 s, DANS la projection de 20 007 s ; réel publié 40 759 s = 11,3 h, sous le
+budget scellé de 16 h). Le run a traversé la nuit du 15 au 16 : suspension de la machine ou contention, le chiffre
+ne le dit pas. `tools/cost_guard.py` (`project_cost`, `CostGuard`) et les runners (`elapsed_s` = `time.time()`)
+ne publient que du temps mur. Faire publier À CÔTÉ le temps CPU du processus (`time.process_time()`) par bras et
+par run (`elapsed_cpu_s`), et faire porter la garde de QUEUE (`CostGuard.tick`) sur le temps CPU, pas sur le mur —
+une suspension ne doit ni tuer un run ni gonfler un coût publié. Un chiffre de coût mesuré sur une machine dont on
+ne connaît pas l'état est la classe E12 appliquée au coût (CLAUDE.md § Calibration). *Coût : agent 1 h ; calcul
+0.* Dépend de : rien.
+<!-- closes_when:grep_present=tools/cost_guard.py::process_time -->
 
 **P4.11 — rang 5 — OUVERTE ([`ADR-005`](../ADR/005_mecanismes_biomimetiques_pieces_familles_prerequis.md), item 1) —
 Trace d'éligibilité de politique TD(λ) dans `TorchPopulationModel._td_update` : le crédit local SANS BPTT, calibré à
-0 simulation, puis proxy D=2 AVANT P1.6.**
-Quoi : flag de classe `CREDIT_TRACE_LAMBDA` (0,0 = bit-identique à TD(0)), traces e_a ← γλ·e_a + ∂logπ/∂W et
-e_v ← γλ·e_v + ∂V/∂W (un backward de logp.sum() / v.sum(), W disjoint par agent), ΔW = lr·(δ·e_a − (v−cible)·e_v)/B,
-pas lu sur `self.opt.param_groups[0]["lr"]`, aucun tirage RNG ; 4ᵉ kwarg `trace_lambda` de `count_learning_events`,
-restauré en `finally`, inscrit dans `regime` ; épinglé dans `_pinned_substrate`. Calibration à 0 run (5 cas,
-déclaration CALIBRATED qualifiée `backend_torch.py::learn`) : λ=0 → W bit-identique à HEAD après 3 ticks ; ΔW exact
-prédit ; décroissance λ^k mesurée ; lr=0 → dW=0. Bras (règle scellée, deux issues nommées) : `tdlam_0` (doit répliquer
-bit à bit `natural`), `tdlam_0.9` aux DEUX pas (E19 — ⚠️ pas EFFECTIF lr/B, P2.76), `hebb_delta` (Hebb×δ, prédit INERTE
-par EDR-020), `lr0_reference`, `oracle` ; `assert_control_family(cells=n_bras×12)`. Issues : LEARNER_INERT, TRACE_NUIT
-(précédent EDR-130 : λ=0,7 dégrade sur du 1-pas), TRACE_NEUTRE (lu avec le ratio Σ|ΔW|), TRACE_AIDE (≥ +0,05, ≥ 10/12,
-invariant aux deux pas). **Scellé d'avance** : sur P1.6 (same-tick i.i.d.) la trace n'a rien à transporter — le run y
-QUALIFIE l'implémentation ; l'issue positive n'est productible que sur une tâche DIFFÉRÉE → proxy D=2
-(`tools/lang_memory_edge_run.py`, LOCK-002, CPU pur, ≈ 1 h) AVANT P1.6 (≈ 50 min, bail kuzu). Motivation : EDR-148
-(TD(λ) nommé, jamais tenté) ; P4.9 (le bras SANS signal n'érode pas ; érosion portée par la voie ÉPISODIQUE — une
-trace dans `_td_update` ne peut PAS la changer sans couper/remplacer l'épisodique : c'est le run n°3, pas le n°1).
-⚠️ Le modulateur δ vient d'un critic saturé (56 % < −0,99, S2-REWARD-ABLATION) — NAV-005 : un modulateur biaisé
-effondre le crédit ; publier la distribution de δ à côté du verdict.
-<!-- closes_when:grep_present=src/agents/backend_torch.py::CREDIT_TRACE_LAMBDA -->
+0 simulation ; l'issue positive se mesure sur un PILOTE TD PAR PAS (`CompositionTask(same_tick=False)`), pas sur le
+proxy D=2.**
+⚠️ **CORRECTION 2026-09-16 (mesurée)** : la première version de cette entrée envoyait le run positif sur le proxy D=2 de
+LOCK-002 (`tools/lang_memory_edge_run.py`). Or `language_memory_demand_probe._train_and_eval` apprend par
+`agent.learn_episode(...)` (l.282, l.321) — la voie ÉPISODIQUE, jamais `learn()`/`_td_update` : une trace dans `_td_update`
+n'y serait JAMAIS exercée, le run aurait été un no-op. `_td_update` ne tourne aujourd'hui qu'in-world, tick par tick, sur une
+tâche same-tick. Le lieu correct = un pilote TD par pas sur `CompositionTask(same_tick=False)` (key t0, q t1, récompense
+t1) : forward par pas, `learn(rewards_t, actions_t)` par pas, CPU pur, sans monde — c'est le billet `credit="td"` de
+l'ADR-005, et c'est accepté par la session harnais comme MODE `credit="td"` de `ConnectomeLearner` en R2 (la Dose compte
+les T mises à jour, la trace = kwarg `trace_lambda` de `build`).
+**État au 2026-09-16 (session loop 766eabae / agagi-b0, non committé)** : trace posée dans `_td_update` — drapeaux de
+classe `CREDIT_TRACE_LAMBDA` (0,0 = chemin d'ORIGINE pris tel quel : bit-identique par construction) et
+`CREDIT_TRACE_BYPASS_OPTIMIZER` (sous un optimiseur autre que SGD sans momentum, λ>0 REFUSE sauf contournement DEMANDÉ
+par kwarg, publié dans `regime`) ; chemin `_td_update_trace` : e ← γλ·e + ∇ sur TOUS les paramètres de l'optimiseur
+(`_trace_params` = W, U, V, W_bl — listes alignées), ΔW = lr·(δ·e_a − (v−cible)·e_v)/B (mêmes signes et même /B que
+−(δ·logp).mean() et 0,5·((v−cible)²).mean() ; ⚠️ pas EFFECTIF lr/B, P2.76) ; refus explicite sous `CONDITION_GATE` /
+`ANTISAT` ; `reset_traces(mask)` option COMPTÉE (résurrection : pas de reset par défaut — immortel veut dire immortel ;
+rebuild à changement de B perd la trace, dit dans le docstring) ; `trace_updates` / `trace_resets` publiés ;
+`count_learning_events(trace_lambda=, trace_bypass_optimizer=)` publié dans `regime` ; pin 0,0 dans `_pinned_substrate`.
+Cellule de référence de la session harnais re-mesurée APRÈS le patch : 0,932812511920929 / 0,27031248807907104,
+bit-identiques. 9 cas `tests/sandbox/test_credit_trace_lambda.py`, contrôle POSITIF en premier (la formule rejouée hors du
+modèle prédit W à 1e-6 sur deux mises à jour et sur les quatre paramètres, et prédit AUTRE CHOSE à λ=0,5) ; déclaration
+CALIBRATED qualifiée `backend_torch.py::_td_update`.
+**Pilote `tools/td_step_pilot.py`, règle `TD-STEP-PILOT-R0` scellée, 144 cellules en cours.** Deux fumées seed 0 (déclarées
+dans la règle, seed 0 EXCLU) ont changé le design AVANT scellement — la question A du pré-vol : (1) le contrôle positif
+« BPTT 0,923 » est BILINÉAIRE ; en plain, BPTT 2 pas rend 0,21/0,27 à 600 ép. → un bras TD plain ne pouvait pas réussir
+(E1) : substrat bilinéaire sur tous les bras, trace généralisée aux 4 paramètres ; (2) il manquait un contrôle positif du
+CHEMIN de crédit : TD par pas à D=0 n'apprend RIEN à lr 0,04-0,4 même à 4000 ép. (0,18 vs 0,17 réf.), apprend à lr 4,0
+(0,25/agent) : 0,30 à 1500 ép., 0,52 à 3000 ; 8,0 → 0,38 ; 40 diverge → bras `td0_d0` + `lr0_reference_d0`, branche
+`CONTROLE_CHEMIN_ECHOUE` avant toute lecture de D=1. Régime scellé : 3000 ép., lr {4,0 ; 8,0} (E19), λ=0,9, reset des
+traces par épisode (publié) ; 6 bras × 2 pas × 12 seeds. Fumée D=1 seed 0 (1500 ép., lr 4) : td0 0,189, λ=0,9 0,178,
+réf. 0,145. Branches, dans l'ordre : INCOMPLET ; CONTROLE_SUBSTRAT_ECHOUE ; CONTROLE_CHEMIN_ECHOUE ;
+TD0_{APPREND|INERTE} | TRACE_{AIDE|NUIT|NEUTRE}. Réponse connue positive sur la même Task = `bptt_credit` (bilinéaire).
+Le bras `hebb_delta` (Hebb×δ, prédit INERTE par EDR-020) SORT de R1 — à sceller à part, R1 ne mesure qu'une chose.
+P1.6 = QUALIFICATION seulement (no-op exact, non inerte, non dégradante — précédent EDR-130 —, E19), pas le lieu de
+l'issue positive. Motivation : EDR-148 (TD(λ) nommé, jamais tenté) ; P4.9 (l'érosion est portée par la voie ÉPISODIQUE — une
+trace dans `_td_update` ne peut PAS la changer sans couper/remplacer l'épisodique : run n°3, pas n°1). ⚠️ Le modulateur δ
+vient d'un critic saturé (56 % < −0,99, S2-REWARD-ABLATION) — NAV-005 : publier la distribution de δ à côté du verdict.
+**Se ferme** avec le record `EDR-TD-STEP-PILOT-R0` (verdict lu dans `results/td_step_pilot_r0.json`, committé) — la clause
+ci-dessous est un motif d'auto-clôture ancré (vérifiable sur un clone ; `grep_present` sur le JSON non suivi ne l'était pas).
+<!-- closes_when:grep_present=docs/roadmap/PRIORITES_ET_DETTES.md::\n\*\*P4\.11 — ✅ CLOSE -->
 
-**P4.12 — rang 6 — OUVERTE (ADR-005, item 2) — Sham LINÉAIRE de même rang pour la pièce `bilinear` : ferme
-`PARAMS_NON_APPARIES` de la cellule R1 du harnais (ADR-004).**
+**P4.12 — rang 6 — ✅ CLOSE le 2026-09-16 (session loop 766eabae, accord agagi-c9 sur l'interface) — Sham LINÉAIRE à paramètres APPARIÉS pour la pièce `bilinear` : le contrôle EXISTE, est mesuré, et sa lecture scellée est `SHAM_PARTIEL`.**
 Quoi : `(H·U + H·V)·W_sh` à MÊME nombre de paramètres que `((H·U)⊙(H·V))·W_bl` (rang 16), flag `BILINEAR_SHAM`,
 ~30 lignes dans `backend_torch.py::_step`, 1 cas de calibration (no-op exact quand OFF ; compte de paramètres ÉGAL au
 bilinéaire quand ON — asserté, pas lu), puis 12 seeds × 300 épisodes de `bilinear_composition_probe` (CPU pur, minutes).
 Remplace l'item « calcul dendritique multi-compartiments contre une tâche où le bilinéaire est prouvablement
 incapable » : ce prérequis est IMPOSSIBLE en l'état (aucune borne supérieure prouvée sur la forme complète de `_step`,
 deux rétractations du plain déjà payées — P2.77). Le contrôle qui manque n'est pas une tâche plus dure, c'est le sham.
+Fait : `TorchPopulationModel.BILINEAR_SHAM` (défaut False = bit-identique ; ON = `((H·U)+(H·V))·W_bl`, MÊMES tenseurs U/V/W_bl, même init, même optimiseur — pas un `W_sh` séparé : le compte est égal PAR CONSTRUCTION), couture `bilinear_sham` dans `_train_eval_one`, 3 cas de calibration (no-op exact OFF, compte ÉGAL et sortie différente ON, drapeau restauré). Règle scellée `BILINEAR-SHAM-R1` AVANT toute cellule, le smoke seed 0 (sham 0,309) DÉCLARÉ dans la règle et EXCLU (seeds 1-12) ; runner `tools/bilinear_sham_run.py` (design déclaré, famille 72 cellules = 3 bras × 2 pas × 12 seeds, tampon de provenance), `results/bilinear_sham_r1.json`, 209 s. Compte de paramètres par agent ASSERTÉ puis publié dans `_regime` : plain 29,584, bilinéaire 37,840, sham 37,840. Bit-identité des bras plain/bilinéaire seeds 1-11 contre le JSON d'EDR-BILINEAR : **22/22**. Lecture scellée : **`SHAM_PARTIEL`** — à lr 0,02 : plain **0,270**, sham **0,315**, bilinéaire **0,934** ; à lr 0,002 (E19) : 0,180 / 0,189 / 0,413 ; sham ≤ plain + 0,05 sur 8/12 seeds (la branche `SHAM_INERTE` exigeait 11/12). La règle impose de RAPPORTER sans inférer : c'est fait. Faits POST-HOC, hors verdict, publiés pour qu'on puisse les chiffrer : sham ≥ barre 0,5 sur **0/24** cellules ; sham sous le plafond affine 0,3889 du plain sur **12/12** à 0,02 (la somme `H·(U+V)·W_bl` reste AFFINE en H — le sham est un terme linéaire de rang 16 ajouté à W) ; sham > plain sur 12/12 à 0,02 (+0,045 : de la capacité LINÉAIRE, pas de la composition) ; bilinéaire > sham + 0,05 sur 12/12 et 12/12. Le critère scellé « sham ≤ plain + 0,05 par seed » était un mauvais mètre pour « ne compose pas » ; le bon (distance à la barre) est vu APRÈS coup — une `BILINEAR-SHAM-R2` qui le scellerait doit le déclarer (E11), décision laissée à robla. Pour le registre de pièces (agagi-c9) : `matched_sham = {"bilinear_sham": True}` est désormais DÉCLARABLE (le contrôle existe et est mesuré) ; la nécessité de la multiplication n'est pas ÉTABLIE par la lecture scellée. Bandeau en tête d'EDR-BILINEAR.
 <!-- closes_when:grep_present=src/agents/backend_torch.py::BILINEAR_SHAM -->
 
-**P4.13 — rang 8 — OUVERTE (ADR-005, item 3) — « Hormone » = δ_j = σ(W_jj), le seul levier de constante de temps à
+**P4.13 — rang 8 — OUVERTE (partie (a) mesurée le 2026-09-16, session loop 766eabae ; reste (b)) (ADR-005, item 3) — « Hormone » = δ_j = σ(W_jj), le seul levier de constante de temps à
 une ligne : PUBLIER sa distribution sur le HoF (0 run), puis un facteur par agent sous garde E19.**
 Quoi : (a) 0 run — `mamba_agent.delta_distribution(genome)` + un runner qui l'applique à chaque génome du HoF principal et des HoF famine (JSON sous `results/`, nom fixé par le runner) :
 la distribution de δ_j = σ(clip(W_jj, ±10)) (min / médiane / max / part de nœuds à δ < 0,01 et > 0,99) — trois
@@ -710,9 +783,21 @@ absent de torch), flag OFF bit-identique, publié dans `regime`, jugé par `asse
 DEUX réglages du gate. Lire d'abord EDR-194 (LR_CLOSES, lr∝1/EMA(loss) sur le tronc) et COG-001 (LR_INSUFFICIENT sur
 les readouts) : « le LIEU de la modulation décide ». ⚠️ La diagonale a DEUX écrivains (TD `mamba_agent.py:923-924`
 n'exclut pas la diagonale ; mutation) — un facteur posé sur δ doit dire lequel il module.
-<!-- closes_when:grep_present=src/agents/mamba_agent.py::def delta_distribution -->
+Fait (a), 0 run : `mamba_agent.delta_distribution(genome)` (même formule que `MambaBatchModel.forward` et `_step` :
+σ(clip(W_jj, ±10)) ; nan COMPTÉ et exclu ; aucune diagonale finie → None), runner `tools/delta_distribution_hof.py`
+→ `results/delta_distribution_hof.json` (tampon de provenance), 7 cas de calibration (`tests/sandbox/test_delta_distribution.py`).
+Mesuré sur les **30** génomes des trois HoF présents (principal, famine, famine_s43 ; 0 illisible, 0 non fini) :
+**la diagonale est EXACTEMENT nulle sur 0,936 des nœuds de CHAQUE génome** (161/172, la même fraction sur les 30 —
+deux jeux d'indices quasi identiques : nœuds 46-53, 70, 71, 74 ; 30 jeux de valeurs), donc **δ = 0,5 (médiane des médianes 0,500)
+est GELÉ sur 161 nœuds** ; sur les 11 restants δ va de 0,007 à 0,993 ; part gelée (δ < 0,01) ≤ 0,017, part
+instantanée (δ > 0,99) ≤ 0,006. Un agent FRAIS a 172/172 diagonales non nulles : la sparsification a mis la diagonale à
+zéro, et `mutate_weights` ne touche que les poids NON NULS (EVO-009) — **l'évolution n'a AUCUN écrivain sur δ** ; seul le crédit
+TD (`mamba_agent.py:923-924`) peut l'écrire, et il n'a jamais tourné sur ces champions. Conséquence pour (b) : un facteur par agent
+sur δ multiplierait une CONSTANTE 0,5 sur 161/172 nœuds — c'est un bouton GLOBAL de constante de temps, pas une modulation
+par nœud ; le design de (b) doit le dire et se mesurer contre ce plancher (sinon E8). Clause déplacée sur (b).
+<!-- closes_when:grep_present=src/agents/backend_torch.py::DELTA_MODULATION -->
 
-**P4.14 — rang 9 — OUVERTE (ADR-005, item 4) — « Glia » réduit à une PUBLICATION : `compute_spent` / `brain_cost`
+**P4.14 — rang 9 — ✅ CLOSE le 2026-09-16 (session loop 766eabae) — « Glia » réduit à une PUBLICATION : `compute_spent` / `brain_cost`
 comme prix à côté de toute dose d'apprentissage.**
 Quoi : `count_learning_events().summary()` publie `compute_spent_total` et `brain_cost_total` lus sur le monde (champs
 existants : `world_1_stoneage.py:1284`, `mamba_agent.py:281-296`) — 0 ligne de moteur. Aucune pièce
@@ -720,9 +805,17 @@ existants : `world_1_stoneage.py:1284`, `mamba_agent.py:281-296`) — 0 ligne de
 et tant que le calcul ne coûte rien in-world (brain = −0,1 % du drain, EDR-099 ; un acte cognitif RAPPORTE +0,1) : une
 grandeur qui n'agit pas ne s'instrumente pas (E2). L'allocateur legacy existant (rêve TTC, K∈[1,8] par agent) est OFF
 sur 60/60 génomes HoF et son bénéfice est du BRUIT d'état (DREAM-002, sham = dream).
+Fait, 0 ligne de moteur : `count_learning_events` enveloppe `forward` (legacy ET torch, pass-through bit-identique) et publie
+`compute_spent_total` + `forward_calls` ; `run_learner_probe` pose `trace_energy_sinks` (DV **bit-identique** vérifiée : bloc
+400, seed 2026, lr 0,001 — `hit_rate` 0,20635… / 4 754 décisions, identiques à R2) et publie `glia = {compute_spent_total,
+brain_cost_total, energie_perdue_total, brain_share}`. Première mesure (legacy sous garde E28, 400 ticks) : `compute_spent`
+**0** (aucun rêve), `brain_share` **0,11 %** — EDR-099 (« −0,1 % du drain ») reproduit à la sonde. 3 tests (compteur à 0,
+rêve forcé K=4 chez un porteur d'organe → Σ = 4 avec sortie bit-identique à RNG apparié, sonde). Conclusion tenue : une
+grandeur qui n'agit pas ne s'instrumente pas comme PIÈCE — elle est désormais publiée pour qu'on puisse le dire chiffré.
 <!-- closes_when:grep_present=tools/learning_events.py::compute_spent -->
 
-**P4.15 — rang 3 — OUVERTE (propriétaire : la session P4.9) — Graver `EDR-S2-CREDIT-ABLATION` : P4.9 est FINI et
+**P4.15 — ✅ CLOSE (2026-09-22, par la session P4.9 : record [[EDR-S2-CREDIT-ABLATION]] + `results/s2_credit_ablation.json`
+committés, P4.9 CLOSE) — rang 3 — Graver `EDR-S2-CREDIT-ABLATION` : P4.9 est FINI et
 son verdict change la lecture du crédit, mais il n'a ni record ni commit.**
 Quoi (mesuré le 2026-09-16, sceptique C10) : `results/s2_credit_ablation.json` (non suivi, 74 977 o, 15 sept 12:04)
 porte un bloc `verdict` complet — n=12, `SIGNAL_QUELCONQUE` / `EPISODIQUE_SUFFIT` / `ATTENUE_A_PETIT_PAS` ; S_a 36,0 /
@@ -1018,9 +1111,20 @@ type de bras et sceller le budget sur MESURE (leçon P4.4). Pourquoi : [[EDR-S2-
 *Coût : agent 3-4 h ; calcul ~4-6 h sous bail.* Dépend de : rien.
 <!-- closes_when:path_present=docs/preregistrations/S2-REWARD-ABLATION.json -->
 
-**P4.9 — ✅ SCELLÉE ET LANCÉE (2026-09-15) — rang 4 ter — Ablation du CRÉDIT : l'érosion vient-elle du SIGNE du
-signal, du PAS, ou du TD par tick ?**
-État : règle `S2-CREDIT-ABLATION` scellée (10 branches ordonnées, budget 16 h dérivé des coûts P4.8, charge machine
+**P4.9 — ✅ CLOSE (2026-09-22, [[EDR-S2-CREDIT-ABLATION]] : SIGNAL_QUELCONQUE / EPISODIQUE_SUFFIT /
+ATTENUE_A_PETIT_PAS) — rang 4 ter — Ablation du CRÉDIT : l'érosion vient-elle du SIGNE du signal, du PAS, ou
+du TD par tick ?**
+Résultat (n = 12, mêmes seeds, `b_full` importé sur réplication bit-identique) : sans signal (`reward_scale` 0) le
+crédit ne bouge presque pas (Σ|ΔW| 2,5 % du complet) et n'érode pas (`S_zero` 33,25 vs `S_a` 36,0, NEUTRE) ; le
+signal INVERSÉ (`reward_scale` −1) efface le bassin autant que le vrai (`S_neg` 7,25 vs `S_full` 8,0, 12/12) ; la
+voie ÉPISODIQUE seule (TD coupé) suffit (`S_tdoff` 7,5, 12/12, à 8 % du mouvement) ; le pas 0,004 atténue sans
+retenir (`S_lr` 21,5, 9/12 érodés, mais 12/12 mieux que le pas publié). **Les deux mécanismes candidats de P4.8
+(avantage constant négatif ; pas trop grand) sont RÉFUTÉS : l'érosion exige un signal, ignore son signe, n'est pas
+proportionnelle au mouvement, et le destructeur est la mise à jour épisodique (REINFORCE k = 8) elle-même.**
+Coût : réel 11,3 h dont 9,2 h sur UNE cellule (b_zero seed 2029 ; les 59 autres = 2,1 h, dans la projection) →
+P2.78 (temps mur vs CPU). Suite : P4.16 (TD seul / retour constant / épisodique à petit pas, puis ancre au bassin).
+État à la préparation :
+règle `S2-CREDIT-ABLATION` scellée (10 branches ordonnées, budget 16 h dérivé des coûts P4.8, charge machine
 connue et publiée : agents parallèles), runner `tools/evo_runs/s2_credit_ablation.py` (six bras : gelé / complète
 importée sur réplication / `reward_scale` 0 / `reward_scale` −1 / `lr` 0,004 / TD coupé), quatre seams vérifiés à
 réponse connue avant le run (`preflight_credit_seams` : ce qui ATTEINT le learner d'origine), verdict calibré 16 cas.
@@ -1042,6 +1146,60 @@ si `Σ|ΔW|` < 10 % du bras complet. Pré-vol : le no-op `reward_scale = 1` est 
 ~50-370 s par bras et par seed mesuré en P4.8 → 3 bras × 12 seeds ≈ 1-2 h ; sceller le budget sur MESURE.
 Pourquoi : [[EDR-S2-REWARD-ABLATION]]. *Coût : agent 2-3 h ; calcul 1-2 h sous bail.* Dépend de : rien.
 <!-- closes_when:path_present=docs/preregistrations/S2-CREDIT-ABLATION.json -->
+
+**P4.16 — ✅ SCELLÉE ET LANCÉE (2026-09-22) — rang 4 quater — Ablation du CRÉDIT, seconde passe : la voie
+ÉPISODIQUE détruit-elle quel que soit le CONTENU du signal, et le TD seul détruit-il ?**
+État : règle `S2-CREDIT-ABLATION-2` scellée (12 branches ordonnées, budget 16 h dérivé des coûts P4.9, charge
+déclarée : deux agents en worktrees + sessions parallèles), runner `tools/evo_runs/s2_credit_ablation_2.py`
+(cinq bras : gelé / complète importée sur réplication / TD seul / retour constant +1 / épisodique seul à 0,004) ;
+les seams `episode_enabled` / `reward_const` vivent dans le runner (`credit_variant`, sous `count_learning_events`,
+fichier en cours d'édition par b0) et sont vérifiés à réponse connue avant le run (`preflight_credit_seams_2` :
+no-op EXACT contre la trace de P4.9, épisodique jamais appelé, constante seule reçue, pas lu sur l'optimiseur) ;
+verdict calibré 16 cas ; temps CPU publié à côté du temps mur (P2.78, côté runner). Pré-vol (32 ticks) : Σ|ΔW|
+complet 186, TD seul 100, constante 25, épisodique 0,004 → 20. Résultat → record `EDR-S2-CREDIT-ABLATION-2`
+(results/s2_credit_ablation_2.json, committé avec le record). À replier ensuite : les deux seams dans
+`count_learning_events` quand `tools/learning_events.py` sera libre.
+Quoi (design initial) : même dispositif (bassin DAgger cloné ×12, phase immortelle 2000 ticks, test mortel 200 ticks poids gelés,
+n = 12, mêmes seeds, `a_frozen` re-mesuré, `b_full` importé sur réplication bit-identique), trois bras sur le
+crédit : (b_tdonly) épisodique COUPÉ, TD seul — seam `episode_enabled=False` à AJOUTER à `count_learning_events`
+et à calibrer à réponse connue (learn_episode d'origine jamais appelé, TD vivant) ; (b_const) retour CONSTANT +1
+partout — seam `reward_const` à ajouter (signal non nul, contenu nul : si ça érode, c'est la dérive de politique
+de REINFORCE, indépendante du contenu) ; (b_ep_lr) épisodique seul à `lr` 0,004 (dose de mouvement de
+`b_tdoff`, 10× moins). Issues nommées d'avance : b_const ERODE → le destructeur est l'opérateur épisodique
+lui-même → remède candidat = ANCRE au bassin (perte d'imitation / KL vers la politique DAgger pendant le crédit,
+forme DAgger + RL) à sceller ensuite ; b_const NEUTRE → le contenu compte (magnitude / variance du retour) →
+cible = normalisation du retour ; b_tdonly ERODE → le TD par tick suffit AUSSI (deux destructeurs) ; b_tdonly
+NEUTRE → un seul destructeur, `learn_episode` (`gate_last_only=True` : ce qu'il déplace devient la question).
+Pré-vol : les deux nouveaux seams à réponse connue (ce qui ATTEINT le learner d'origine, comme P4.9). Coût
+mesuré P4.9 (charge connue) : 26-713 s par bras-seed → ~1-3 h ; sceller le budget sur MESURE ; publier le temps
+CPU à côté du temps mur (P2.78). Pourquoi : [[EDR-S2-CREDIT-ABLATION]]. *Coût : agent 2-3 h ; calcul 1-3 h
+sous bail.* Dépend de : P2.78 (souhaitable, non bloquant).
+<!-- closes_when:path_present=docs/preregistrations/S2-CREDIT-ABLATION-2.json -->
+
+**P4.17 — rang 4 quinquies — OUVERTE (2026-09-22, décision robla déléguée via agagi-52 ; session loop 766eabae) — Balayage
+lr × λ sur le pilote TD PAR PAS : où la trace d'éligibilité vit-elle, et jusqu'où descend-elle en lr ? Le billet à deux issues de
+la ligne `eligibility_trace_credit` (ADR-005) se joue ici, PAS in-world (P4.16-bis refusé : 0,0033/agent in-world = 75× sous le
+seul point où la trace ait jamais marché).**
+Motivation : R0 (`TD-STEP-PILOT-R0`, EDR-TD-STEP-PILOT-R0) — à lr 4,0 (0,25/agent), λ 0,9 déplace de +0,063, 12/12, séparation
+totale ; R1 (`TD-STEP-PILOT-R1`) — rien à lr 2,0 (0/12), λ 0,5 sous la marge (0/12) : un effet à UN point n'est pas une pièce.
+Quoi : règle `TD-STEP-PILOT-R2` scellée le 2026-09-22 (`docs/preregistrations/TD-STEP-PILOT-R2.json`), R0/R1 déclarés (E11) :
+grille lr {4,0 ; 2,0 ; 1,0} × λ {0 ; 0,5 ; 0,9 ; 0,99} + contrôle CHEMIN `td0_d0` à chaque lr + références lr = 0 (D=1, D=0),
+12 seeds, 3000 épisodes, substrat bilinéaire ; 96 cellules IMPORTÉES de R0/R1 (mêmes seeds, même code, sceaux vérifiés, relues à
+chaque appel), 108 neuves. Écarts déclarés au design proposé : lr 0,5 ÉCARTÉ (R1 a déjà rendu 0/12 à 0,125/agent ; « jusqu'où »
+est répondu par 1,0 si 1,0 est nul ; 60 cellules), lr 8,0 aussi (R0 : contrôles inertes). Branches, ordre imposé : INCOMPLET ;
+CONTROLE_CHEMIN_ECHOUE (aucun lr lisible) ; AIDE_INVARIANTE (λ 0,9 > λ 0 + 0,05 sur ≥ 11/12 à DEUX lr lisibles ADJACENTS) ;
+AIDE_A_UN_POINT ; PAS_D_AIDE — aide05 / aide099 publiés (dose en λ) hors verdict. Garde E13 : unité MESURÉE sur la première
+cellule neuve, `project_cost(budget 14 400 s, marge 1,5)`, coupe des lr BAS d'abord, publiée. Runner : `tools/td_step_pilot.py --r2`
+(reprenable, `_cout_s` ET `_cout_cpu_s`), 5 cas de lecture (`tests/sandbox/test_td_step_pilot.py`, 22 verts).
+**État** : run n°1 lancé à 21:50 EN PARALLÈLE du run kuzu de d7 — première cellule neuve **217 s** contre 75-90 s pour la même cellule en R0 (contention machine, pas coût de la cellule) ; la garde a projeté 34 800 s > budget
+et COUPÉ lr 1.0 puis lr 2.0 (96 cellules, publiées dans `_regime.coupe`), projection restante 3588 s ; les 11 cellules λ 0,99 à lr 4,0 tournent à 74-97 s (l'unité mesurée était un transitoire). Décision
+déclarée : REPRISE `--relever-coupe` dès que la machine est libre — rien d'effacé, historique des coupes conservé
+(`_regime.coupes_precedentes`), unité RE-MESURÉE sur la première cellule coupée, MÊME budget scellé ; relever la marge aurait été le
+mauvais correctif (E12 sur le coût : une unité mesurée pendant qu'un autre job tourne n'est pas une unité — même classe que la
+mesure « 8 h 30 pendant que seize agents tournaient »). Pas en parallèle de S2-002-PAIRED-R1 (les deux veulent une machine libre).
+**Se ferme** avec le record `EDR-TD-STEP-PILOT-R2` (verdict lu dans `results/td_step_pilot_r2.json`, committé avec ses artefacts) —
+clause ancrée, vérifiable sur un clone.
+<!-- closes_when:grep_present=docs/roadmap/PRIORITES_ET_DETTES.md::\n\*\*P4\.17 — ✅ CLOSE -->
 
 **P4.7 — rang 19 — S5 / G4 phase A : `g` PER-ACTION vs agnostique vs labels PERMUTÉS (nœud 74).**
 Sonde livrée (fix de persistance ACTIF depuis le 2026-09-07, voir le bloc S5 plus bas et
@@ -2818,13 +2976,14 @@ famille se forme ENTRE les appels, pas dans une boucle. Un tel cliquet aurait é
   ne déclaraient AUCUN design**, donc n'étaient jamais interrogés — dont `tools/lang_memory_edge_run.py`,
   qui a produit la 3ᵉ arête établie du graphe. 20 cas de calibration.
 
-**P2.40 — ⚠️ OUVERTE — dette légataire de la porte 11 : 9 runners scellés ne déclarent aucun design.**
-`tools/control_family_baseline.json` : `evo022`, `evo023`, `evo024`, `evo026`, `evo026bis`, `evo027`,
-`evo028`, `lang_memory_edge_run`, `s2_floor_pronostic_run`. Aucun n'a été interrogé sur sa famille de
-contrôles ; **leurs verdicts sont publiés**. Coût de résorption : une ligne par runner, plus la
-question qu'elle force à se poser. Commencer par `lang_memory_edge_run.py` (3ᵉ arête établie) et
-`evo027_run.py` (le plus récent). Un test de fraîcheur vérifie déjà que cette dette reste RÉELLE :
-`test_la_dette_legataire_est_REELLE_et_pas_un_commentaire`.
+**P2.40 — ✅ CLOSE le 2026-09-08 (commit `5969d08b`, « la dette légataire d'E23 résorbée dans la foulée, 9 runners, baseline à ZÉRO ») — entrée laissée OUVERTE par oubli, péremption vue EN PASSANT le 2026-09-16 (session loop 766eabae).**
+Énoncé d'origine : dette légataire de la porte 11, 9 runners scellés sans `declare_design` (`evo022`, `evo023`, `evo024`,
+`evo026`, `evo026bis`, `evo027`, `evo028`, `lang_memory_edge_run`, `s2_floor_pronostic_run`), verdicts publiés. Preuve de
+la fermeture, recomputée : `tools/control_family_baseline.json` porte `"runners_nus": []`, et la porte 11 rend
+« runners scellés : 24 | sans design : 0 (dont 0 NOUVEAUX) | légataires gelés : 0 ». ⚠️ Le test de fraîcheur `test_la_dette_legataire_est_REELLE_et_pas_un_commentaire`
+passe désormais À VIDE (aucun gelé → aucun disparu) : il ne garde plus rien, ce qui est le sort normal d'un test de
+péremption dont la dette a disparu — pas une E4, car il ne PORTE aucun verdict.
+<!-- closes_when:grep_absent=tools/control_family_baseline.json::evo027 -->
 
 **P2.39 — ✅ CLOSE (2026-09-07) — EVO-011 est FERMÉE, sans run évolutif.**
 [`EDR-EVO-011`](../EDR/EVO-011_Reading_The_Type_Costs_Survival_The_Enabled_Act_Is_Net_Negative.md) :
@@ -2835,8 +2994,19 @@ FAIM, pas de riposte. **L'acte que la lecture débloque est net-négatif en éne
 peut pas sélectionner cette lecture — quelle que soit sa découvrabilité. Le pré-vol a répondu pour
 29 s de calcul là où un run évolutif complet était prévu.
 
-**P2.41 — ⚠️ OUVERTE (2026-09-08) — le PLANCHER DE BRUIT de `run_ablation_map` vaut ±6-8 %, et
-aucun record ne le mentionne.** Mesuré par no-op exact (`NullAblatedMamba`, livré) : 1,058 sur le
+**P2.41 — ✅ CLOSE le 2026-09-16 (session loop 766eabae) — le PLANCHER DE BRUIT de `run_ablation_map` (±6-8 %) est désormais ANNONCÉ sur les quatre records qui le lisent, et la référence à bande APPARIÉE est une couture de l'instrument.**
+Fait : (a) bandeau « RÉSOLUTION DE L'INSTRUMENT » en tête d'EDR-124, S2-002, S2-003, S2-013 (chiffres d'EDR-S2-BLIND-CHAMPION
+vérifiés avant écriture ; par record, ce qui est DANS la bande — 0,991 ; ≈ 1,00 ; 0,99/0,99/1,07 — et ce qui en sort : 1,19
+agricultural ; aucun verdict modifié) ; (b) `run_ablation_map(paired_band=True)` : le bras INTACT devient
+`perception_null_variant(intact_cls)` (mêmes tirages que l'ablation, perception intacte), `reference` publié (`paired_band` /
+`bare`), défaut False bit-identique, 1 cas d'injection à 0 monde (classes passées à `run_condition` = Null, Ablated, Reflex ;
+défaut = None ; politique injectée → SA variante nulle). ⚠️ Ce que la bande appariée a DÉJÀ mesuré (EDR-S2-BLIND-CHAMPION, 2026-09-08,
+stoneage) : champion aveuglé 1,0122 (bruit résiduel 1,2 %), **champion 0,9369** — dérangé, le champion survit 6,7 % de PLUS, hors du
+bruit apparié : un signal que la bande nue masquait sous ses 8 %. **Recommandation (décision robla, run ~1 h avec bail kuzu,
+peut déplacer des verdicts)** : re-mesurer la carte S2-002 sur les 4 mondes à `paired_band=True` + `noop_control=True`, sous une
+règle scellée `S2-002-PAIRED-R1` (branches : plancher apparié publié par monde ; `PERCEPTION_HURTS` si intact < nul − bruit sur
+≥ K−1 ères ; `DECOY` dans la bande ; `DEMANDED`), avant toute réécriture de S2-002/S2-013.
+Énoncé d'origine : le PLANCHER DE BRUIT de `run_ablation_map` vaut ±6-8 %, et aucun record ne le mentionne. Mesuré par no-op exact (`NullAblatedMamba`, livré) : 1,058 sur le
 champion, 0,922 sur un champion aveuglé, *perception intacte dans les deux cas*. Le `within_ratio`
 publié du champion vaut 0,991 — DEDANS. Aucun faux `DEMANDED` n'en découle (du bruit ne crée pas de
 demande), mais la résolution de tout l'arc S2 est bornée : `PERCEPTION_DECOY` doit se lire « aucun
@@ -2844,9 +3014,27 @@ effet détectable au-dessus de 8 % ». **Deux actions** : (a) bandeau de résolu
 lisent cet instrument ([EDR-124], S2-002/003, S2-013) ; (b) passer la référence à `NullAblatedMamba`
 (bande APPARIÉE), ce qui divise le bruit par 6 — mesuré : 1,0122 sur un sujet aveuglé contre 0,897-1,059
 à bande non appariée. Preuve : [`EDR-S2-BLIND-CHAMPION`](../EDR/S2-BLIND-CHAMPION_Stopped_At_Control_The_Ablation_Instrument_Has_An_8_Percent_RNG_Noise_Floor.md).
+<!-- closes_when:grep_present=tools/s2_demand_ablation.py::paired_band -->
 
-**P2.42 — ⚠️ OUVERTE (2026-09-08) — `S2-BLIND-CHAMPION` à re-sceller en `-bis` : l'intervention n'est
-pas celle que le sceau décrit.** Annuler `W[:num_inputs, :]` coupe le chemin POLITIQUE, mais
+**P2.42 — ✅ CLOSE le 2026-09-16 (session loop 766eabae) — `S2-BLIND-CHAMPION` re-scellé (`-bis`, puis `-ter` à seeds neufs) et LU : `AVEUGLE_SURVIT_MIEUX`, r = 1,614 sur 7/7, p = 0,016 — à corps identique, W identique, apprenant gelé, chemin d'identité coupé, bande RNG appariée.**
+Fait : aveuglement à l'ENTRÉE (`InputBlindFrozenMamba`, obs = 0 : aucun poids touché, donc corps de P1.7 intact et chemin
+d'identité E24 coupé), apprenant legacy gelé dans les DEUX bras (`FrozenCreditMamba`), `run_ablation_map(paired_band=True,
+noop_control=True)`. Contrôles EXACTS : (i) 7/7 ; (ii) within du bras aveugle = 1,000 exactement 7/7 ; no-op apparié = 1,000 sur les
+14 cellules (la bande appariée efface les ±6-8 %). `-bis` (seeds d'origine) : `INDETERMINE-DEGENERE` — sa clause (iii) écartait
+tout intact sous le plancher 24,0, et l'intact à crédit gelé survit 20.5-22.5 : le phénomène lui-même ;
+`-ter` (clause corrigée : écarté seulement si les DEUX bras ≤ plancher ; seeds 3032-3038, `-bis` déclaré en entier) : intact 21.0-22.0
+(sous le plancher 7/7, publié), aveugle 33.25-35.5, r 1,511-1,679. Record
+[`EDR-S2-BLIND-CHAMPION-TER`](../EDR/S2-BLIND-CHAMPION-TER_Blinded_At_Input_Same_Body_Frozen_Learner_The_Champion_Survives_61_Percent_Longer.md),
+bandeau sur l'original ; 8 cas (`tests/sandbox/test_s2_blind_champion_bis.py`), CALIBRATED déclaré ; règles `-bis`/`-ter` scellées avant
+leurs cellules. **Ce que les données disent DÉJÀ** : l'information seule n'explique pas l'effet — l'intact à perception DÉRANGÉE (obs d'un pair,
+bande appariée) survit comme l'intact (within 0,977-1,035) ; le +61 % vient de la suppression de l'ENTRÉE, et par le chemin
+d'identité E24 « obs = 0 » met aussi 18 logits d'ACTION à zéro. Lire « survit mieux SANS ENTRÉE », pas « sans voir ».
+**Décomposé le 2026-09-22** (règle `S2-BLIND-CHAMPION-DECOMP-R1` scellée avant, mêmes 7 seeds, références importées du `-ter`,
+`results/s2_blind_champion_decomp_r1.json`) : `NI_L_UN_NI_L_AUTRE` — entrée coupée / identités gardées : r 0,864 (le champion survit MOINS, 19,0 ticks sur 7/7) ; identités coupées / entrée gardée : r 0,989 (rien) ; no-op 1,000 sur
+14/14. Le +61 % est une INTERACTION (aucune coupure seule ne le produit, l'une fait pire) ; mécanisme à nommer — **reste, hors de
+cette entrée (décision robla)** : un bras à entrée BROUILLÉE (même excitation, information détruite). ⚠️ `_cout_s` du JSON = horloge
+murale à travers une veille machine de six jours (noté dans le JSON), coût CPU non mesuré.
+Énoncé d'origine : `S2-BLIND-CHAMPION` à re-sceller en `-bis` : l'intervention n'est pas celle que le sceau décrit. Annuler `W[:num_inputs, :]` coupe le chemin POLITIQUE, mais
 l'observation continue d'entrer par `H[:, :max_I] = x` et par
 `world_model.observe_batch(..., x_obs, train=True)` (surprise → curiosité → récompense intrinsèque).
 Classe **E8**, commise dans la formulation d'une règle scellée. Le `-bis` doit (a) décrire
@@ -2858,6 +3046,7 @@ lue tant que ce n'est pas fait.
 P1.7 : `make_blind` fait tomber le drain de 2,40 à 1,30, −46 %, panel en numpy pur — à re-mesurer) et à
 apprenant GELÉ, en aveuglant à l'ENTRÉE. Tant que ce n'est pas fait, la DV 7/7 (+39 %) se lit comme un
 effet métabolique candidat, pas comme un effet de la cécité.
+<!-- closes_when:grep_present=tools/evo_runs/s2_blind_champion_bis.py::def blind_champion_verdict_ter -->
 
 **P2.43 — ⚠️ OUVERTE (2026-09-08) — le marqueur de demande in-world n'a TOUJOURS pas de contrôle
 POSITIF, et l'amplification ne peut pas en fabriquer un.** Dose-réponse mesurée dans `stoneage` :
@@ -2873,6 +3062,15 @@ et amplifier `obs → action` ×3 / ×8 a multiplié le drain (11,0 / 15,0 en nu
 « Aucun contrôle positif constructible par amplification » est donc un ARTEFACT CANDIDAT. À faire, après
 P1.7 : re-smoke à corps APPARIÉ (ballast exact), 4 cellules × 30 s ; si le lecteur câblé ballasté survit
 ET rend DEMANDED, c'est le premier contrôle positif de `run_ablation_map` sur une politique qui lit.
+→ **P2.43, note du 2026-09-22 (session loop 766eabae, en passant).** Le re-smoke à corps apparié est RÉPONDU par P2.59
+(2026-09-15) : `ObsReaderOnBody` lit l'obs SUR le corps du champion (aucun poids touché, corps apparié par construction)
+et rend **DECOY 0,86** (lire pour poursuivre COÛTE ; `INCONCLUSIVE_INVERTED` 0,66 sous corps insuffisant). L'artefact
+candidat du panel (mort par le corps) est écarté : à corps apparié, aucune lecture câblée n'est net-positive sur stoneage.
+Depuis P2.41 (b) la RÉSOLUTION n'est plus l'obstacle (`paired_band=True` : no-op 1,000 exact sur 14/14 cellules, -ter/DECOMP)
+— l'obstacle est le MONDE : l'obs de stoneage n'encode que la direction de la proie la plus proche (+ type d'apex adjacent,
+lidar, énergies, inventaire), et poursuivre la proie ne paie pas (EVO-011, S2-012). Un contrôle positif exige soit un
+comportement obs-dirigé dont le PAYOFF est positif dans ce monde (aucun candidat câblable identifié), soit un monde où
+lire paie (les 5 planchers sont mesurés). Entrée laissée OUVERTE ; décision robla.
 
 **P1.x — ✅ CLOSE par P2.54 (2026-09-09 ; titre laissé OUVERT jusqu'au 2026-09-14) — « CI VERTE » couvrait 6 % de la suite : 1937 tests
 sur 2059 n'étaient exécutés par AUCUN job.** Mesuré en parsant `.github/workflows/ci.yml` : les deux
@@ -3306,6 +3504,55 @@ connait le mieux.** La premiere version appariait par NOM NU : les trois declara
 par analyse AST des IMPORTS (`from tools.x import nom`, ou `import tools.x`), seule facon de savoir
 QUEL `compare` un test importe. Le script vit dans le scratchpad ; **le porter dans le depot est la
 suite naturelle** — la scission 62/39 devrait etre RECOMPUTEE et non recopiee (cf. porte 8).
+
+**AVANCEMENT 2026-09-22 (session loop 766eabae) : l'instrument v3 est DANS LE DÉPÔT, et les deux comptes sont recomputés à
+chaque appel.** `tools/check_calibration_reach.py` (AST strict : `nom(` après `from m import nom [as a]`, `y.nom(` après
+`import m [as y]` / `from p import m` ; un appel INDIRECT ne compte pas — choix déclaré ; une clé NUE en collision est
+NON RÉSOLUE, rapportée, jamais comptée d'un côté) ; même expression « garde-seule » que `test_perimeter_widening` (égalité
+gelée par un test). Mesuré à la livraison : **305 déclarations, 81 garde-seule = 38 DÉCLARATIVES + 43 MUETTES + 0 non résolue** (284 fichiers de tests balayés). Baseline gelée dans la même passe (`tools/calibration_reach_baseline.json` : la liste des 43 muettes ; toute NOUVELLE muette
+bloque, une résorbée est rapportée) ; 7 cas (`tests/sandbox/test_calibration_reach.py`) dont le verdict du cliquet à réponse connue.
+⚠️ Pas encore branché sur le hook (porte 18 candidate) : brancher une porte exige son témoin de mutation (porte 15) et touche
+`tools/hooks/pre-commit` + le compte `portes_hook` — à faire dans une passe dédiée, coordonnée (le hook est partagé).
+**Même jour, (b) entamé** : six orchestrateurs muets de la famille throw-gate (`compare`, `compare_debias`, `compare_density`,
+`compare_warmstart`, `compare_rp_sweep` de `torch_throw_gate_inworld_ab`, `compare` de `torch_binary_gate_probe`) reçoivent une
+injection à dose connue (`tests/sandbox/test_torch_gate_orchestrators_injection.py`, 8 cas, 0 monde : ON +0,30 vs SHUFFLE +0,05 sur
+5 seeds → `GRADIENT_GAGNE`, no-op EXACT → `NEUTRE`, n = 3 → `NEUTRE` + `underpowered`, bras séparés par `penalty` / `shaping` /
+`warm_w` / `prey_count`, label mémorisé → `verdict_vs_shuffle` NEUTRE, gap indéfini COMPTÉ). Puis trois autres (`tests/sandbox/test_mute_orchestrators_injection_2.py`, 6 cas, 0 monde) :
+`run_diagnostic` (grille 2 régimes × 3 agents — la sentinelle `run_condition` journalise politique, génome, config du régime, K,
+seed ; E8 : la config de CHAQUE régime est celle de la grille), `probe_substrate_attractor` (trajectoires connues, `measure_convergence`
+RÉEL : P1 {off n, action n, H 0}, P2 = n, P3 {1, 1, T/2}), `run_probe` vertical (Z_UTILISE / Z_INERTE prédits, `survival_ratio` 1,2).
+Puis trois instruments (`tests/sandbox/test_mute_orchestrators_injection_3.py`, 4 cas, 0 monde) : `transfer_ratio.measure` (ratio 2,0
+prédit, bras invalide ignoré et compté, aucun bras valide → `None`), `measured_floor` (24 vies = seed + 5 : médiane et vies
+prédites exactement, politique corps-seul de K), `probe_genome_free_channels` (clones à lr = 0, trajectoire transmise, trajectoire
+vide → `None`). Recomputé après : **81 garde-seule = 50 déclaratives + 31 muettes**, baseline resserrée trois fois
+(43 → 37 → 34 → 31 ; la porte a rapporté chaque résorption avant qu'on la gèle). Leurs douze déclarations restent à ré-écrire
+(fenêtre sur le fichier partagé), avec celle du nouvel instrument `run_s2_paired`. **Fait le 2026-09-22, 22:30** (fenêtre
+ouverte par agagi-52 après d7) : les 12 déclarations sont RÉ-ÉCRITES d'après ce que leurs témoins affirment (cas nommés :
+dose → verdict, no-op exact, n = 3 → underpowered, label mémorisé, gap indéfini compté, bras séparés par paramètre, grille
+complète + E8, P1/P2/P3, Z_UTILISE / Z_INERTE, ratio 2,0 / None, vies prédites, clones à lr 0) et `run_s2_paired` déclaré
+(6 cas). Recomputé après : **306 déclarations, 69 garde-seule = 38 déclaratives + 31 muettes** — les 12 ont quitté
+le périmètre garde-seule ; cliquet de calibration : 240 détectés / 232 calibrés / 2 légataires.
+
+**Fournées 4–9 (2026-09-22, après 4b68b121) : les 31 MUETTES sont à ZÉRO** — 19 simulateurs sous CLASSE de monde
+factice injectée dans le module (`_world`, `Biosphere3D`, `FamineWorld`, `AgriculturalWorld`, `WORLDS[clé]` remplacés
+par un environnement minimal à dose connue : cohorte de dicts, `step()` qui compte les ticks et tue la cohorte à un tick
+connu), 6 runners de monde de plus avec leurs maillons coûteux en enregistreurs (`train_population` : 24 têtes × 5000
+pas, `_setup3`, `seed_at`), les 3 sondes d'`evo_memory_inworld` sous `MemoryDemandBiosphere` factice (dont le logit
+d'attaque par un `MambaBatchModel.forward` remplacé qui rend des logits CONNUS, restauration vérifiée), `run_retention_map`
+en ORCHESTRATEUR injecté (quatre maillons, chemin de sortie en dur capturé par un `chdir` temporaire) et les 2 fonctions
+pures (`run_bptt_act` : W nul → 0,0 et gradient −0,25, fil direct → 1,0 ; `run_refgame` : déterminisme, code effondré à
+1 epoch, `acc ≤ injectivité`). Six fichiers, 36 tests, 0 monde réel, ~2 s par fournée :
+`tests/sandbox/test_mute_simulators_fake_world.py`, `_2.py`, `_3.py`, `_4.py`, `_5.py`, `_6.py`. Ce qui est jugé : la
+boucle d'ères, les réglages de régime POSÉS sur le monde (E8), l'état global posé puis RESTAURÉ même sur exception (E5 :
+`persistence.SPECIATE`, `forward`, logger), ce qui COMPTE ou est IGNORÉ (tués des seuls survivants, agent sans génome,
+agent sans apex perçu, mort en attaquant = engagé), les agrégats et les valeurs d'absence publiées telles quelles (0,0 /
+1,0 / `nan` / `None` sans fichier : défauts légataires de porte 14, documentés, jamais corrigés en silence). Les 31
+re-déclarées d'après leurs témoins (compte de clés inchangé). Portée recomputée : **38 garde-seule = 38 déclaratives + 0 muette** ; baseline gelée VIDE (comme le
+cliquet de calibration le 2026-09-01) ; porte 2 : 240 / 232 / 2 inchangés. Suite naturelle : la porte 18 (brancher
+`tools/check_calibration_reach.py` sur le hook — aucune NOUVELLE muette), passe dédiée avec témoin de mutation.
+**Suite** : (a) les 38 déclaratives — re-déclarer d'après ce que leurs témoins AFFIRMENT (une ligne chacune, dans
+`test_instrument_calibration.py`, fichier à trois auteurs ce jour : fenêtre à convenir) ; (b) ✅ FAIT le 2026-09-22 (31 → 0 par les fournées 4–9, ci-dessus) — injection
+à dose connue pour les orchestrateurs, un monde FACTICE pour les simulateurs ; aucune déclaration « la garde suffit » n'a été nécessaire.
 
 **AVANCEMENT 2026-09-14 (tick 3) : 103 → 80.** ⚠️ **La scission 62/39 était encore surcomptée** :
 la v2 créditait `import tools.x` de TOUS les symboles de `x`, même jamais appelés (elle comptait

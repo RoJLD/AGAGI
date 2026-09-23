@@ -31,6 +31,8 @@ résultats `results/lock_001_pred2_*.json`) :
 | 4 | `-R4` | plain, **14 400 ép.**, lr 0,002 / 0,0005 | `PERCE` (n=3) | RETAIN 0,422 / 0,438 / 0,439 à 0,0005 |
 | **N12** | `-N12` | plain, 14 400 ép., lr 0,0005, **seeds 0-11, population neuve** | **`PERCE`** | ci-dessous |
 
+Règles scellées de l'escalier, par chemin : `docs/preregistrations/LOCK-001-PRED2-R1.json`, `docs/preregistrations/LOCK-001-PRED2-R2.json`, `docs/preregistrations/LOCK-001-PRED2-R3.json`, `docs/preregistrations/LOCK-001-PRED2-R4.json`, `docs/preregistrations/LOCK-001-PRED2-N12.json` (rattachement explicite, porte `check_preregistration_applied`, 2026-09-16).
+
 La clause E19 est dans chaque règle : **un point ne se lit que si PRESENT y apprend** (médiane ≥ 0,30)
 — un nul à référence effondrée est `SANS_REFERENCE`, jamais un nul. Le n=12 exige ≥ 11/12 seeds au-dessus
 de 0,30 (test des signes unilatéral, p ≤ 0,0032 — la convention de puissance de DELAYED-COORD) et un

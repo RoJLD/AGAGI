@@ -1,0 +1,52 @@
+{
+  "name": "S2-002-PAIRED-R1",
+  "rule": {
+    "cellule": {
+      "K": 12,
+      "between_same_body": false,
+      "max_ticks": 200,
+      "noop_control": true,
+      "num_agents": 12,
+      "paired_band": true,
+      "seeds": [
+        2026,
+        3026,
+        3027
+      ],
+      "sujet": "champion HoF (load_champion_genome)",
+      "worlds": [
+        "soup",
+        "stoneage",
+        "agricultural",
+        "industrial",
+        "famine"
+      ]
+    },
+    "controles": {
+      "calibration": "tests/sandbox/test_s2_002_paired.py (lecture, injection)",
+      "famille": "15 cellules via assert_control_family",
+      "noop": "mesure par (monde, seed), attendu 1,000 exact",
+      "plancher": "intact_median face a PLANCHER_NOPERC[monde] (regime grave)"
+    },
+    "cout": "5 mondes x 3 seeds x 4 conditions (nul, ablate, reflexe, no-op) x 12 eres x 12 agents x 200 ticks ; stoneage : ~18,5 s/condition (-ter) -> 20-40 min sous bail kuzu ; results/s2_002_paired_r1.json ; _cout_s et _cout_cpu_s publies",
+    "design": "Regime GRAVE (PLANCHER_REGIME : 12 agents, 200 ticks, K=12 eres appariees), 5 mondes (soup, stoneage, agricultural, industrial, famine), 3 seeds de monde (2026, 3026, 3027), sujet = champion HoF, between = reflexe sur genome frais (comme publie). Instrument : tools/s2_demand_ablation.py::run_ablation_map(paired_band=True, noop_control=True) -- le bras de reference est le no-op EXACT (memes tirages que l'ablation, perception intacte), le no-op est mesure a cote. Runner tools/evo_runs/s2_002_paired.py, lecture s2_paired_lecture (calibree).",
+    "discrimination": {
+      "CARTE_INCHANGEE (sur chaque monde lu, le verdict apparie == verdict publie (DECOY) sur >= 2/3 seeds)": "la carte S2-002 tient a resolution ~1 % : bandeau sur S2-002/S2-013 avec les within apparies (le plancher de bruit n'etait pas ce qui portait le verdict).",
+      "CARTE_MODIFIEE (un monde lu au moins change de verdict sur >= 2/3 seeds)": "nommer le monde et le nouveau verdict (DEMANDED / INVERTED / DEGENERATE) : bandeau correctif sur S2-002/S2-013 pour ce monde ; aucune reecriture du verdict d'origine.",
+      "HARNAIS (no-op apparie != 1,000 sur un monde, 2/3 seeds ou plus)": "la bande appariee ne rend pas ce monde exact : monde NON LU, nomme ; si les 5 mondes sont dans ce cas, aucune lecture.",
+      "INCOMPLET": "moins de 5 mondes x 3 seeds : aucune lecture.",
+      "MIXTE (sinon)": "seeds en desaccord sur un monde lu : rapporter les trois within, sans inference."
+    },
+    "dv_primaire": "par (monde, seed) : `within_ratio` (apparie), `noop` (ratio, attendu 1,000 exact), `verdict` de l'instrument, `intact_median` face au plancher ; par monde : `within_median` sur les 3 seeds, `verdicts` (comptes), `noop_exact` (n/3).",
+    "provenance": "Ecrite en connaissant : EDR-S2-002 (5 mondes DECOY, within ~1,00, K=12, seed 2026, 12 agents, 200 ticks), EDR-S2-013 (stoneage 0,99 / agricultural 1,19 / industrial 0,99 / famine 1,07, DECOY), EDR-S2-BLIND-CHAMPION (no-op nu 1,058 / 0,922 ; apparie 1,0122 et 0,9369 sur stoneage), S2-BLIND-CHAMPION-ter (within intact apparie 0,977-1,035, no-op 1,000 exact 14/14, seeds 3032-3038) et DECOMP-R1. Aucune cellule de CE dispositif (5 mondes x 3 seeds, bande appariee) n'a ete mesuree avant ce scellement ; stoneage a ete vu par le -ter sur d'autres seeds (2026 est le seed publie de S2-002, 3026/3027 sont ceux du -bis) -- dit ici, seeds gardes pour l'appariement avec les records.",
+    "question": "S2-002-PAIRED-R1 (P2.41 b -> decision robla deleguee, 2026-09-22) : la carte d'ablation-perception within-subject du champion HoF (EDR-S2-002 / EDR-S2-013 : PERCEPTION_DECOY sur les 5 mondes, within ~ 1,00 a bande NUE dont le bruit est +-6-8 %) tient-elle a bande RNG APPARIEE (run_ablation_map(paired_band=True), no-op attendu 1,000 exact) -- et que vaut le within du champion une fois le bruit efface (S2-BLIND-CHAMPION-ter : 0,977-1,035 sur stoneage, 7 seeds) ?",
+    "regle_de_lecture_continue": "ORDRE IMPOSE : INCOMPLET, HARNAIS (par monde), CARTE_INCHANGEE, CARTE_MODIFIEE, MIXTE. Fait POST-HOC publie hors verdict : par monde, le SIGNE de (within_median - 1) et s'il depasse la marge 0,05 -- un champion derange qui survit PLUS n'est pas un verdict de l'instrument (INVERTED exige < 0,77), c'est un fait a rapporter.",
+    "seuils": {
+      "justification": "le no-op apparie a ete mesure EXACT (1,000) sur 14/14 cellules stoneage : tout ecart est une fuite a rapporter ; 2/3 seeds = majorite ; 0,05 = min_sep pour la lecture post-hoc du signe",
+      "marge": 0.05,
+      "noop_tol": 0.0,
+      "seeds_accord": 2
+    }
+  },
+  "seal": "985ef9c5f8b4c7fb261a9d70e309a8bf339d0db3e6728807f8134d0b3410c9d9"
+}

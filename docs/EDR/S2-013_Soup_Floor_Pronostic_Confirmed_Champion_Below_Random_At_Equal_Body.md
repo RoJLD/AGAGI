@@ -10,6 +10,8 @@ adopts: [REF-DEMAND-MARKER]
 extends: [EDR-S2-002]
 ---
 
+> ⚠️ **RÉSOLUTION DE L'INSTRUMENT, mention posée le 2026-09-16 (P2.41 a) — [[EDR-S2-BLIND-CHAMPION]].** `run_ablation_map`, qui porte les verdicts de ce record, a un **plancher de bruit RNG de ±6-8 %**, mesuré le 2026-09-08 par no-op EXACT (aucune observation changée, within-subject : même génome, même corps) : `within_ratio` **1,058** sur le champion, **0,922** sur un champion aveuglé — l'ablation consomme des tirages du flux global (`derange_rows`, boucle de rejet) et désynchronise la bande RNG du bras ablaté. Conséquence de lecture : tout `within_ratio` compris entre 0,92 et 1,06 n'est **pas distinguable de zéro**, et `PERCEPTION_DECOY` se lit « aucun effet détectable au-dessus de 8 % », pas « aucun effet ». À bande APPARIÉE (`NullAblatedMamba` en référence, P2.41 b) le no-op tombe à 1,012 (bruit ÷ 6). Les ratios 0,99 / 0,99 / 1,07 de la table sont À L'INTÉRIEUR de cette bande ; 1,19 (agricultural) en sort. Les verdicts ci-dessous ne sont pas modifiés.
+
 ## Question — un pronostic gravé AVANT le run
 
 Au câblage des bornes E14 (2026-09-02), la table `PLANCHER_NOPERC` (clones du champion,

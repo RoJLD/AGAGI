@@ -7,11 +7,13 @@ données (`HOF_PATH`). Conséquence directe : héberger les données ailleurs �
 une autre machine — demandait d'éditer 26 fichiers. Le stockage était une propriété du CODE, alors
 que c'est une propriété du DÉPLOIEMENT.
 
-TROIS RACINES, et elles sont séparées pour une raison MESURÉE
-------------------------------------------------------------
-    AGAGI_DATA_ROOT     défaut "data"     -- artefacts FROIDS : génomes, Hall of Fame, états d'agents
-    AGAGI_RESULTS_ROOT  défaut "results"  -- sorties de mesure (les .json sont versionnés dans git)
-    AGAGI_DB_ROOT       défaut = DATA_ROOT -- bases VIVANTES (KuzuDB, graphe d'expériences)
+TROIS RACINES, et elles sont séparées pour une raison MESURÉE — plus une QUATRIÈME (2026-09-22)
+-----------------------------------------------------------------------------------------------
+    AGAGI_DATA_ROOT      défaut "data"      -- artefacts FROIDS : génomes, Hall of Fame, états d'agents
+    AGAGI_RESULTS_ROOT   défaut "results"   -- sorties de mesure (les .json sont versionnés dans git)
+    AGAGI_DB_ROOT        défaut = DATA_ROOT -- bases VIVANTES (KuzuDB, graphe d'expériences)
+    AGAGI_PROPOSALS_ROOT défaut "proposals" -- PROPOSITIONS du harnais : tâches générées en attente de
+                                               revue humaine (P2.66 / P4.10). Même contrat que results.
 
 `AGAGI_DB_ROOT` est distincte, et ce n'est pas de la symétrie décorative. Répartition mesurée des
 3,0 Go de `data/` : **`kuzu_graph.db` pèse 2 674 Mo à lui seul (89 %)**, `agent_states/` 305 Mo, le
@@ -21,7 +23,7 @@ latence et risque de corruption à l'endroit précis où le dépôt a déjà mal
 la base reste sur disque rapide et se SAUVEGARDE vers le NAS.
 
 Les défauts reproduisent EXACTEMENT les chemins actuels : sans variable d'environnement, ce module
-est bit-identique à l'existant. Une migration se fait donc en posant trois variables, sans toucher
+est bit-identique à l'existant. Une migration se fait donc en posant quatre variables, sans toucher
 au code.
 
 ⚠️ CE MODULE NE LÈVE PAS À L'IMPORT, et c'est délibéré. Le 2026-09-08, un module posait `HOF_PATH`
@@ -33,13 +35,14 @@ explicite, et c'est à l'appelant de la poser où il veut échouer.
 import os
 
 __all__ = [
-    "data_root", "results_root", "db_root",
+    "data_root", "results_root", "db_root", "proposals_root",
     "hall_of_fame", "agent_states", "epoch_states", "genomes", "data_file", "sessions_dir", "pm_dir",
-    "results_file", "kuzu_graph", "experiment_graph", "db_file",
+    "results_file", "kuzu_graph", "experiment_graph", "db_file", "proposals_file",
     "assert_roots_exist", "describe",
 ]
 
-_DEFAUTS = {"AGAGI_DATA_ROOT": "data", "AGAGI_RESULTS_ROOT": "results"}
+_DEFAUTS = {"AGAGI_DATA_ROOT": "data", "AGAGI_RESULTS_ROOT": "results",
+            "AGAGI_PROPOSALS_ROOT": "proposals"}
 
 
 def _racine(var, defaut):
@@ -121,6 +124,17 @@ def results_file(*parties):
     return _sous(results_root(), *parties)
 
 
+# --- propositions du harnais (2026-09-22) ---------------------------------------------------------
+def proposals_root():
+    """Racine des PROPOSITIONS du harnais : tâches générées, en attente de revue humaine (P2.66 /
+    P4.10). Indépendante des trois autres racines, relue à CHAQUE appel comme elles."""
+    return _racine("AGAGI_PROPOSALS_ROOT", _DEFAUTS["AGAGI_PROPOSALS_ROOT"])
+
+
+def proposals_file(*parties):
+    return _sous(proposals_root(), *parties)
+
+
 # --- bases VIVANTES -------------------------------------------------------------------------------
 def kuzu_graph():
     """La base de 2,7 Go. Reste sur disque rapide (cf. l'en-tête) ; se sauvegarde vers le NAS."""
@@ -158,12 +172,13 @@ def assert_roots_exist(*, data=True, results=False, db=False):
 
 
 def describe():
-    """Les trois racines effectives et leur origine (défaut ou variable). Pour l'imprimer en tête
+    """Les racines effectives et leur origine (défaut ou variable). Pour l'imprimer en tête
     d'un run : une mesure faite sur la mauvaise racine ne doit pas pouvoir passer inaperçue."""
     out = {}
     for var, valeur in (("AGAGI_DATA_ROOT", data_root()),
                         ("AGAGI_RESULTS_ROOT", results_root()),
-                        ("AGAGI_DB_ROOT", db_root())):
+                        ("AGAGI_DB_ROOT", db_root()),
+                        ("AGAGI_PROPOSALS_ROOT", proposals_root())):
         out[var] = {"valeur": valeur, "origine": "environnement" if os.environ.get(var) else "defaut",
                     "existe": os.path.isdir(valeur)}
     return out

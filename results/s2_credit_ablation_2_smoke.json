@@ -1,0 +1,533 @@
+{
+ "preregistration": [
+  "S2-CREDIT-ABLATION-2"
+ ],
+ "design": {
+  "question": "EDR-S2-CREDIT-ABLATION (P4.9) : l'érosion du bassin DAgger par le crédit publié EXIGE un signal non nul, IGNORE son signe, n'est pas proportionnelle au mouvement des poids, et la voie ÉPISODIQUE seule (REINFORCE k=8, learn_episode) suffit. Trois questions restent : (1) le TD par tick SEUL (épisodique coupé) détruit-il aussi ? (2) l'opérateur détruit-il quel que soit le CONTENU du signal (retour constant +1 : signal non nul, contenu nul) ? (3) la voie épisodique détruit-elle encore à pas 10× plus petit ?",
+  "replication_unit": "seed (une cohorte de 12 clones du bassin par bras, un monde par seed ; 5 bras appariés)",
+  "n_independent": 1,
+  "links": {
+   "seams_credit": "measured",
+   "noop_exact_vs_P49": "measured",
+   "dose_de_credit": "measured",
+   "mouvement_dW": "measured",
+   "resurrections": "measured",
+   "survie_mortelle_poids_geles": "measured",
+   "bassin_transfere_S_a": "measured",
+   "replication_b_full": "measured"
+  },
+  "inferred_links": [],
+  "cost_estimate": "Coût : unité = UN SEED COMPLET (cinq bras), chaque bras MESURÉ sur le premier seed, projetée par project_cost (marge ×3) sur 12 seeds, b_full retiré de l'unité projetée s'il est importé. Budget 57600 s (16 h) DÉRIVÉ DES MESURES P4.9 : par bras-seed 26 à 713 s selon le comportement appris (TD+épisodique complet 713 s sous charge, épisodique seul 40-105 s, TD sans signal 108 s, petit pas 236-492 s) -> unité attendue 250 à 1500 s hors b_full ; ×12 ×3 = 9 000 à 54 000 s. Charge machine DÉCLARÉE : deux agents en worktrees (tests) et les runs des sessions parallèles -> le chiffre est un MAJORANT. Temps mur ET temps CPU du processus publiés (elapsed_total_s, elapsed_cpu_s : P2.78). Si la garde refuse, re-sceller un -bis sur mesure sans toucher n, dose ni cohorte. Reprise par seed (JSON réécrit après chaque bras, et AVANT la garde).",
+  "inferred_reason": null,
+  "control_family": {
+   "cells": 1,
+   "alpha_family": 0.05,
+   "alpha_cell": 0.05,
+   "method": "bonferroni",
+   "reason": null,
+   "fwer_bound": 0.05
+  },
+  "warning": null
+ },
+ "provenance": {
+  "git_sha": "16163f306cbd3b9160ef365d88fc185ce5e96cfc",
+  "dirty": true
+ },
+ "regime": {
+  "cognitive_demand": true,
+  "cog_linear": false,
+  "cog_gain": 12.0,
+  "base_metabolism": 0.75,
+  "forage_payoff": 0.0,
+  "benchmark_mode": true,
+  "night_enabled": false,
+  "energy_start": 80.0,
+  "immortal_phase1": true,
+  "refill_below": 30.0,
+  "refill_to": 80.0,
+  "hp_refill_below": 50.0,
+  "frozen_phase2_lr": 0.0,
+  "arms_credit": {
+   "b_full": {
+    "reward_scale": 1.0,
+    "td_enabled": true,
+    "lr": null,
+    "episode_enabled": true,
+    "reward_const": null
+   },
+   "b_tdonly": {
+    "reward_scale": 1.0,
+    "td_enabled": true,
+    "lr": null,
+    "episode_enabled": false,
+    "reward_const": null
+   },
+   "b_const": {
+    "reward_scale": 1.0,
+    "td_enabled": true,
+    "lr": null,
+    "episode_enabled": true,
+    "reward_const": 1.0
+   },
+   "b_eplr": {
+    "reward_scale": 1.0,
+    "td_enabled": false,
+    "lr": 0.004,
+    "episode_enabled": true,
+    "reward_const": null
+   }
+  },
+  "lr_low": 0.004,
+  "lr_published": 0.04
+ },
+ "params": {
+  "seeds": [
+   2026
+  ],
+  "ticks_learn": 200,
+  "ticks_test": 100,
+  "agents": 12,
+  "budget_s": 57600.0,
+  "smoke": true,
+  "full_all": false
+ },
+ "arms": {
+  "a_frozen": {
+   "2026": {
+    "seed": 2026,
+    "arm": "a_frozen",
+    "num_agents": 12,
+    "ticks_learn": 200,
+    "ticks_test": 100,
+    "lr": null,
+    "credit": null,
+    "learning": null,
+    "survival": {
+     "survival_median": 31.5,
+     "ages": [
+      100,
+      4,
+      10,
+      14,
+      19,
+      20,
+      30,
+      33,
+      40,
+      71,
+      84,
+      86
+     ],
+     "censored": 1,
+     "ticks": 100
+    },
+    "elapsed_s": 1.1619319915771484
+   }
+  },
+  "b_full": {
+   "2026": {
+    "seed": 2026,
+    "arm": "b_full",
+    "num_agents": 12,
+    "ticks_learn": 200,
+    "ticks_test": 100,
+    "lr": null,
+    "credit": {
+     "reward_scale": 1.0,
+     "td_enabled": true,
+     "lr": null,
+     "episode_enabled": true,
+     "reward_const": null
+    },
+    "learning": {
+     "td_calls": 200,
+     "td_updates": 199,
+     "episode_calls": 25,
+     "episode_updates": 25,
+     "legacy_calls": 0,
+     "legacy_updates": 0,
+     "compute_spent_total": 0.0,
+     "forward_calls": 200,
+     "skips": {},
+     "dW_abs_sum": 1738.9083148241043,
+     "reward_scale": 1.0,
+     "td_enabled": true,
+     "lr": null,
+     "lr_effective_per_agent": 0.0033333333333333335,
+     "lr_effective_unit": "torch: lr/B (SGD, perte moyennée sur B, W disjoint par agent)",
+     "trace_lambda": null,
+     "trace_bypass_optimizer": false,
+     "trace_updates": 0,
+     "trace_resets": 0,
+     "resurrections": 0,
+     "ticks": 200
+    },
+    "survival": {
+     "survival_median": 8.0,
+     "ages": [
+      3,
+      4,
+      7,
+      7,
+      7,
+      8,
+      8,
+      9,
+      10,
+      11,
+      12,
+      14
+     ],
+     "censored": 0,
+     "ticks": 14
+    },
+    "elapsed_s": 6.772740840911865
+   }
+  },
+  "b_tdonly": {
+   "2026": {
+    "seed": 2026,
+    "arm": "b_tdonly",
+    "num_agents": 12,
+    "ticks_learn": 200,
+    "ticks_test": 100,
+    "lr": null,
+    "credit": {
+     "reward_scale": 1.0,
+     "td_enabled": true,
+     "lr": null,
+     "episode_enabled": false,
+     "reward_const": null
+    },
+    "learning": {
+     "td_calls": 200,
+     "td_updates": 199,
+     "episode_calls": 25,
+     "episode_updates": 0,
+     "legacy_calls": 0,
+     "legacy_updates": 0,
+     "compute_spent_total": 0.0,
+     "forward_calls": 200,
+     "skips": {},
+     "dW_abs_sum": 715.5969280004501,
+     "reward_scale": 1.0,
+     "td_enabled": true,
+     "lr": null,
+     "lr_effective_per_agent": 0.0033333333333333335,
+     "lr_effective_unit": "torch: lr/B (SGD, perte moyennée sur B, W disjoint par agent)",
+     "trace_lambda": null,
+     "trace_bypass_optimizer": false,
+     "trace_updates": 0,
+     "trace_resets": 0,
+     "resurrections": 1,
+     "ticks": 200
+    },
+    "survival": {
+     "survival_median": 14.0,
+     "ages": [
+      8,
+      9,
+      11,
+      12,
+      13,
+      13,
+      15,
+      16,
+      18,
+      19,
+      19,
+      28
+     ],
+     "censored": 0,
+     "ticks": 28
+    },
+    "elapsed_s": 9.902654886245728
+   }
+  },
+  "b_const": {
+   "2026": {
+    "seed": 2026,
+    "arm": "b_const",
+    "num_agents": 12,
+    "ticks_learn": 200,
+    "ticks_test": 100,
+    "lr": null,
+    "credit": {
+     "reward_scale": 1.0,
+     "td_enabled": true,
+     "lr": null,
+     "episode_enabled": true,
+     "reward_const": 1.0
+    },
+    "learning": {
+     "td_calls": 200,
+     "td_updates": 199,
+     "episode_calls": 25,
+     "episode_updates": 25,
+     "legacy_calls": 0,
+     "legacy_updates": 0,
+     "compute_spent_total": 0.0,
+     "forward_calls": 200,
+     "skips": {},
+     "dW_abs_sum": 179.88537077605724,
+     "reward_scale": 1.0,
+     "td_enabled": true,
+     "lr": null,
+     "lr_effective_per_agent": 0.0033333333333333335,
+     "lr_effective_unit": "torch: lr/B (SGD, perte moyennée sur B, W disjoint par agent)",
+     "trace_lambda": null,
+     "trace_bypass_optimizer": false,
+     "trace_updates": 0,
+     "trace_resets": 0,
+     "resurrections": 4,
+     "ticks": 200
+    },
+    "survival": {
+     "survival_median": 30.5,
+     "ages": [
+      4,
+      9,
+      11,
+      16,
+      23,
+      27,
+      34,
+      35,
+      39,
+      43,
+      64,
+      86
+     ],
+     "censored": 0,
+     "ticks": 86
+    },
+    "elapsed_s": 8.736929416656494
+   }
+  },
+  "b_eplr": {
+   "2026": {
+    "seed": 2026,
+    "arm": "b_eplr",
+    "num_agents": 12,
+    "ticks_learn": 200,
+    "ticks_test": 100,
+    "lr": 0.004,
+    "credit": {
+     "reward_scale": 1.0,
+     "td_enabled": false,
+     "lr": 0.004,
+     "episode_enabled": true,
+     "reward_const": null
+    },
+    "learning": {
+     "td_calls": 200,
+     "td_updates": 0,
+     "episode_calls": 25,
+     "episode_updates": 25,
+     "legacy_calls": 0,
+     "legacy_updates": 0,
+     "compute_spent_total": 0.0,
+     "forward_calls": 200,
+     "skips": {
+      "td_disabled": 200
+     },
+     "dW_abs_sum": 253.8748071193695,
+     "reward_scale": 1.0,
+     "td_enabled": false,
+     "lr": 0.004,
+     "lr_effective_per_agent": null,
+     "lr_effective_unit": null,
+     "trace_lambda": null,
+     "trace_bypass_optimizer": false,
+     "trace_updates": 0,
+     "trace_resets": 0,
+     "resurrections": 6,
+     "ticks": 200
+    },
+    "survival": {
+     "survival_median": 16.5,
+     "ages": [
+      8,
+      8,
+      9,
+      9,
+      11,
+      15,
+      18,
+      27,
+      30,
+      36,
+      37,
+      41
+     ],
+     "censored": 0,
+     "ticks": 41
+    },
+    "elapsed_s": 5.844655752182007
+   }
+  }
+ },
+ "cost": {
+  "unit_a_frozen_s": 1.1619319915771484,
+  "unit_b_full_s": 6.772740840911865,
+  "unit_b_tdonly_s": 9.902654886245728,
+  "unit_b_const_s": 8.736929416656494,
+  "unit_b_eplr_s": 5.844655752182007,
+  "unit_s": 32.41891288757324,
+  "b_full_imported": false,
+  "projected_s": 97.25673866271973,
+  "elapsed_total_s": 47.39140701293945,
+  "elapsed_cpu_s": 50.171875
+ },
+ "preflight": {
+  "seed": 2026,
+  "num_agents": 4,
+  "ticks": 32,
+  "noop_exact_vs_P49": true,
+  "tdonly_episode_never_called": true,
+  "tdonly_td_alive": true,
+  "const_all_rewards_one": true,
+  "const_both_paths_update": true,
+  "eplr_td_never_called": true,
+  "eplr_episodes_alive": true,
+  "eplr_lr_published": true,
+  "eplr_lr_effective": 0.004,
+  "full_lr_effective": 0.04,
+  "dW_abs_sum": {
+   "full": 185.50076726078987,
+   "tdonly": 99.96593046188354,
+   "const": 24.63488867878914,
+   "eplr": 19.737155318260193
+  },
+  "td_updates": {
+   "full": 31,
+   "tdonly": 31,
+   "const": 31,
+   "eplr": 0
+  },
+  "episode_updates": {
+   "full": 4,
+   "tdonly": 0,
+   "const": 4,
+   "eplr": 4
+  },
+  "first_td_rewards_full": [
+   2.7238006591796875,
+   2.845120906829834,
+   2.505854606628418,
+   2.2738037109375
+  ]
+ },
+ "replication": {
+  "seed": 2026,
+  "identical": false,
+  "reason": "parametres differents",
+  "p44_ages": [
+   5,
+   6,
+   6,
+   7,
+   7,
+   7,
+   7,
+   8,
+   8,
+   9,
+   9,
+   11
+  ],
+  "measured_ages": [
+   3,
+   4,
+   7,
+   7,
+   7,
+   8,
+   8,
+   9,
+   10,
+   11,
+   12,
+   14
+  ],
+  "p44_S": 7.0,
+  "measured_S": 8.0,
+  "p44_dW_abs_sum": 18242.03954219818,
+  "measured_dW_abs_sum": 1738.9083148241043,
+  "p44_git_sha": "05cf8888a47e2101a8402536f8867a60b3d661b8"
+ },
+ "rows": [
+  {
+   "seed": 2026,
+   "S_a": 31.5,
+   "S_full": 8.0,
+   "dose_full": 199,
+   "dW_full": 1738.9083148241043,
+   "resurrections_full": 0,
+   "imported_full": false,
+   "S_tdonly": 14.0,
+   "dose_tdonly": 199,
+   "dW_tdonly": 715.5969280004501,
+   "resurrections_tdonly": 1,
+   "imported_tdonly": false,
+   "S_const": 30.5,
+   "dose_const_td": 199,
+   "dose_const_ep": 25,
+   "dW_const": 179.88537077605724,
+   "resurrections_const": 4,
+   "imported_const": false,
+   "S_eplr": 16.5,
+   "dose_eplr": 25,
+   "dW_eplr": 253.8748071193695,
+   "resurrections_eplr": 6,
+   "imported_eplr": false
+  }
+ ],
+ "verdict": {
+  "n": 1,
+  "contenu": null,
+  "voie": null,
+  "pas_episodique": null,
+  "thresholds": {
+   "harness_min": 20.0,
+   "dose_min": 1000,
+   "dose_episodic_min": 100,
+   "sign_min": 10,
+   "delta_min": 5.0,
+   "n_min": 12
+  },
+  "S_a_median": 31.5,
+  "S_full_median": 8.0,
+  "S_tdonly_median": 14.0,
+  "S_const_median": 30.5,
+  "S_eplr_median": 16.5,
+  "dose_full_median": 199.0,
+  "dose_tdonly_median": 199.0,
+  "dose_const_td_median": 199.0,
+  "dose_const_ep_median": 25.0,
+  "dose_eplr_median": 25.0,
+  "d_full_median": -23.5,
+  "d_full_positive": "0/1",
+  "d_full_negative": "1/1",
+  "arm_full": "NEUTRE",
+  "d_tdonly_median": -17.5,
+  "d_tdonly_positive": "0/1",
+  "d_tdonly_negative": "1/1",
+  "arm_tdonly": "NEUTRE",
+  "d_const_median": -1.0,
+  "d_const_positive": "0/1",
+  "d_const_negative": "1/1",
+  "arm_const": "NEUTRE",
+  "d_eplr_median": -15.0,
+  "d_eplr_positive": "0/1",
+  "d_eplr_negative": "1/1",
+  "arm_eplr": "NEUTRE",
+  "dW_ratio_median": {
+   "tdonly": 0.4115207926145519,
+   "const": 0.10344730037952184,
+   "eplr": 0.14599666063765396
+  },
+  "verdict": "INCOMPLET",
+  "why": "1 seeds < 12 : reprise, aucune lecture"
+ }
+}

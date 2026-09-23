@@ -1,0 +1,28 @@
+{
+  "name": "S2-BLIND-CHAMPION-bis",
+  "rule": {
+    "ce_qui_change_par_rapport_au_sceau_d_origine": "(a) l'intervention est celle que le sceau decrit : l'observation n'entre NULLE PART, chemin d'identite compris ; (b) le corps est celui du champion (aucun poids touche) ; (c) apprenant gele dans les deux bras -> le contraste ne porte pas sur << apprendre en aveugle >> ; (d) bande appariee : le no-op attendu ~1,0 (1,012 mesure sur l'aveugle-W). Les ecritures NTM de forward ne sont PAS gelees (identiques dans les deux bras, declarees). Le confond SEDATION (obs nulle = moins d'excitation) reste NON separe, comme dans l'original : un bras a entree BROUILLEE est l'etape suivante, pas une clause d'ici.",
+    "controle_de_manipulation_OBLIGATOIRE": "(i) INTERVENTION REELLE ET MINIMALE : la politique aveugle ignore l'observation (tests/sandbox/test_s2_blind_champion_bis.py : forward bit-identique sur deux obs, la politique de base les distingue) et le genome est le MEME dans les deux bras (W egal avant/apres, w_ok) ; (ii) L'AVEUGLEMENT MORD : within_ratio du bras aveugle a bande appariee attendu EXACTEMENT 1,000 (un zero derange est un zero ; memes tirages) -- tolerance scellee 0,05, tout residu > 0 est PUBLIE et nomme (une fuite) ; (iii) PLANCHER 24,0 sur le bras intact, seed ecarte et nomme ; (iv) assert_not_degenerate ; (v) FAMILLE : 7 controles (ii) via assert_control_family.",
+    "cout": "2 bras x 7 seeds = 14 cellules x 4 conditions (nul, ablate, reflexe, no-op) x 12 eres x 12 agents x 200 ticks ; ~40 s/cellule -> ~10 min sous bail kuzu ; results/s2_blind_champion_bis.json",
+    "design": "Monde stoneage, regime grave de S2-002/003 (12 agents, 200 ticks, K=12 eres appariees), 7 seeds de monde (2026, 3026..3031). DEUX bras par seed, MEME genome (load_champion_genome(), meme objet, W verifie egal avant/apres) : INTACT = politique FrozenCreditMamba (MambaBatchModel, compute_policy_gradient no-op) ; AVEUGLE = InputBlindFrozenMamba (idem + observation remplacee par des zeros AVANT le forward). Instrument : tools/s2_demand_ablation.py::run_ablation_map(subject=champion, batch_model_cls=..., paired_band=True, noop_control=True) ; DV lue : intact_median du bras (survie mediane sur K eres), noop publie par bras. Runner tools/evo_runs/s2_blind_champion_bis.py, verdict par blind_champion_verdict (instrument calibre, inchange).",
+    "discrimination": {
+      "r_blind <= 1,05": "PAS_DE_COUT : le +39 % de l'original etait porte par le corps (drain -46 %) et/ou par le chemin d'identite ; retractation de l'observation d'origine.",
+      "r_blind >= 1,20 ET sign_p < 0,05": "AVEUGLE_SURVIT_MIEUX : lire l'observation COUTE au champion, a corps identique et sans apprentissage -- l'effet metabolique candidat de l'original est ecarte ; reste le confond sedation, nomme.",
+      "sinon": "INDETERMINE : entre les barres, rapporte sans inference.",
+      "un controle echoue sur un seed": "INDETERMINE-HARNAIS : rien n'est lu."
+    },
+    "dv_primaire": "`r_blind` = mediane sur seeds de (survie mediane aveugle / survie mediane intacte) ; `sign_p` (test des signes) ; `within_ratio` du bras aveugle par seed (controle ii) ; `noop` par bras ; `intact_median` des deux bras face au plancher 24,0.",
+    "provenance": "Ecrite en connaissant : le run d'origine (results/s2_blind_champion.json, sceau 51e4bd0e3346..., INDETERMINE-HARNAIS, r = 1,375-1,753 sur 7/7 seeds NON LU) ; la mesure a bande appariee du 2026-09-08 (EDR-S2-BLIND-CHAMPION : champion 0,9369, aveugle-W 1,0122) ; le ballast de P1.7 (drain 2,40 -> 1,30). AUCUNE cellule du -bis n'a ete mesuree avant ce scellement (pas de smoke : ancre de cout = 29 s/cellule mesuree sur ce banc le 2026-09-08 pour 3 conditions ; ici 4 conditions -> ~40 s).",
+    "question": "Le champion HoF survit-il MIEUX quand il ne voit plus ? Re-scellement (P2.42) de S2-BLIND-CHAMPION dont le sceau decrivait une intervention qui n'etait pas celle faite (E8) : annuler W[:num_inputs,:] laissait l'observation entrer par H[:, :max_I] = x (18 logits d'action SONT l'observation, E24) et changeait le CORPS (drain 2,40 -> 1,30, E26). Ici l'aveuglement se fait a l'ENTREE (observation nulle), a genome, corps, biais et recurrence bit-identiques, apprenant legacy GELE dans les deux bras, bande RNG APPARIEE.",
+    "regle_de_lecture_continue": "ORDRE IMPOSE : controles (INDETERMINE-HARNAIS), puis AVEUGLE_SURVIT_MIEUX, PAS_DE_COUT, INDETERMINE.",
+    "seuils": {
+      "alpha": 0.05,
+      "bar_high": 1.2,
+      "bar_low": 1.05,
+      "floor": 24.0,
+      "justification": "identiques au sceau d'origine : le -bis change l'intervention, pas la lecture",
+      "tol_ii": 0.05
+    }
+  },
+  "seal": "928fb3256e09e00045e394dd5e5c27f7182843f65bd54b581cff3a5832833451"
+}

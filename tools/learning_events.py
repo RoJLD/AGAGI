@@ -54,16 +54,23 @@ import numpy as np
 class LearningEvents:
     """Compteurs d'un `with count_learning_events(...) as ev`. Publiable tel quel (`summary()`)."""
 
-    def __init__(self, reward_scale=1.0, td_enabled=True, lr=None):
+    def __init__(self, reward_scale=1.0, td_enabled=True, lr=None, trace_lambda=None, trace_bypass_optimizer=False):
         self.reward_scale = float(reward_scale)
         self.td_enabled = bool(td_enabled)
         self.lr = None if lr is None else float(lr)
+        # P4.11 : None = drapeau de classe intact (0.0 en prod = TD(0) d'origine) ; float = TD(λ) à traces.
+        self.trace_lambda = None if trace_lambda is None else float(trace_lambda)
+        self.trace_bypass_optimizer = bool(trace_bypass_optimizer)
+        self.trace_updates = 0
+        self.trace_resets = 0
         self.td_calls = 0
         self.td_updates = 0
         self.episode_calls = 0
         self.episode_updates = 0
         self.legacy_calls = 0
         self.legacy_updates = 0
+        self.compute_spent_total = 0.0      # P4.14 « glia » : Σ compute_spent rendu par forward (legacy ET torch)
+        self.forward_calls = 0
         self.skips = {}
         self.dW_abs_sum = 0.0
         # E19 (occ. lr/B) : le pas REELLEMENT applique au W d'un agent, lu sur le modele au moment
@@ -83,6 +90,8 @@ class LearningEvents:
             "episode_updates": int(self.episode_updates),
             "legacy_calls": int(self.legacy_calls),
             "legacy_updates": int(self.legacy_updates),
+            "compute_spent_total": float(self.compute_spent_total),
+            "forward_calls": int(self.forward_calls),
             "skips": dict(self.skips),
             "dW_abs_sum": float(self.dW_abs_sum),
             "reward_scale": self.reward_scale,
@@ -90,6 +99,10 @@ class LearningEvents:
             "lr": self.lr,
             "lr_effective_per_agent": self.lr_effective_per_agent,
             "lr_effective_unit": self.lr_effective_unit,
+            "trace_lambda": self.trace_lambda,
+            "trace_bypass_optimizer": self.trace_bypass_optimizer,
+            "trace_updates": int(self.trace_updates),
+            "trace_resets": int(self.trace_resets),
         }
 
 
@@ -128,18 +141,22 @@ def _delta_genomes(model, w0):
 
 
 @contextlib.contextmanager
-def count_learning_events(reward_scale=1.0, td_enabled=True, lr=None):
+def count_learning_events(reward_scale=1.0, td_enabled=True, lr=None, trace_lambda=None, trace_bypass_optimizer=False):
     """Compte les événements d'apprentissage de TOUTE population torch construite ou entraînée dans le
     bloc, et applique les variantes déclarées. Patch de CLASSE, restauré en `finally` (exception comprise)."""
     from src.agents.backend_torch import TorchPopulationModel as _TPM
     from src.agents.mamba_agent import MambaBatchModel as _MBM
     from src.graph_rag.async_logger import logger as _logger   # même objet que `world_1_stoneage.logger`
 
-    ev = LearningEvents(reward_scale=reward_scale, td_enabled=td_enabled, lr=lr)
+    ev = LearningEvents(reward_scale=reward_scale, td_enabled=td_enabled, lr=lr, trace_lambda=trace_lambda,
+                        trace_bypass_optimizer=trace_bypass_optimizer)
+    orig_trace = (_TPM.CREDIT_TRACE_LAMBDA, _TPM.CREDIT_TRACE_BYPASS_OPTIMIZER)
     orig_learn = _TPM.learn
     orig_episode = _TPM.learn_episode
     orig_init = _TPM.__init__
     orig_legacy = _MBM.compute_policy_gradient
+    orig_fwd_legacy = _MBM.forward
+    orig_fwd_torch = _TPM.forward
     orig_lr_actor, orig_lr_critic = _MBM.LR_ACTOR, _MBM.LR_CRITIC
     had_emit = "emit" in _logger.__dict__
     orig_emit = _logger.emit
@@ -156,6 +173,8 @@ def count_learning_events(reward_scale=1.0, td_enabled=True, lr=None):
             ev.dW_abs_sum += _delta_W(self, w0)
             ev.lr_effective_per_agent = getattr(self, "effective_lr_per_agent", None)
             ev.lr_effective_unit = "torch: lr/B (SGD, perte moyennée sur B, W disjoint par agent)"
+            ev.trace_updates = int(getattr(self, "trace_updates", 0))     # P4.11 : lu sur le modèle, pas déduit
+            ev.trace_resets = int(getattr(self, "trace_resets", 0))
         return out
 
     def learn_episode(self, obs_seq, actions_seq, rewards, gamma=1.0, gate_last_only=True):
@@ -187,6 +206,24 @@ def count_learning_events(reward_scale=1.0, td_enabled=True, lr=None):
             ev.lr_effective_unit = "legacy: LR_ACTOR par agent (pas de moyenne sur B)"
         return out
 
+    def _compte_compute(out):
+        # P4.14 : le second retour de forward est `compute_spent` (B,) -- legacy : branches de reve par agent ;
+        # torch : 0 (backend_torch.py, aucun calcul allouable). Publie, jamais interprete ici (E2 : une
+        # grandeur qui n'agit pas ne s'instrumente pas -- ici on la MESURE pour pouvoir le dire).
+        ev.forward_calls += 1
+        try:
+            cs = out[1]
+            ev.compute_spent_total += float(np.sum(np.asarray(cs, dtype=np.float64))) if np.ndim(cs) else float(cs)
+        except Exception:                               # noqa: BLE001 -- forme inattendue : compte l'appel, pas la valeur
+            pass
+        return out
+
+    def fwd_legacy(self, batch_obs, env_surprise_batch=None):
+        return _compte_compute(orig_fwd_legacy(self, batch_obs, env_surprise_batch))
+
+    def fwd_torch(self, batch_obs, env_surprise_batch=None):
+        return _compte_compute(orig_fwd_torch(self, batch_obs, env_surprise_batch))
+
     def emit(*args, **kwargs):
         name = args[0] if args else kwargs.get("event_type", kwargs.get("name"))
         if name == "TORCH_EPISODE_SKIP":
@@ -197,6 +234,11 @@ def count_learning_events(reward_scale=1.0, td_enabled=True, lr=None):
     _TPM.learn = learn
     _TPM.learn_episode = learn_episode
     _MBM.compute_policy_gradient = compute_policy_gradient
+    _MBM.forward = fwd_legacy
+    _TPM.forward = fwd_torch
+    if ev.trace_lambda is not None:                     # P4.11 : posé ici, restauré en finally
+        _TPM.CREDIT_TRACE_LAMBDA = ev.trace_lambda
+    _TPM.CREDIT_TRACE_BYPASS_OPTIMIZER = ev.trace_bypass_optimizer
     if ev.lr is not None:
         _TPM.__init__ = __init__
         _MBM.LR_ACTOR = ev.lr
@@ -209,6 +251,9 @@ def count_learning_events(reward_scale=1.0, td_enabled=True, lr=None):
         _TPM.learn_episode = orig_episode
         _TPM.__init__ = orig_init
         _MBM.compute_policy_gradient = orig_legacy
+        _MBM.forward = orig_fwd_legacy
+        _TPM.forward = orig_fwd_torch
+        _TPM.CREDIT_TRACE_LAMBDA, _TPM.CREDIT_TRACE_BYPASS_OPTIMIZER = orig_trace
         _MBM.LR_ACTOR, _MBM.LR_CRITIC = orig_lr_actor, orig_lr_critic
         if had_emit:
             _logger.emit = orig_emit

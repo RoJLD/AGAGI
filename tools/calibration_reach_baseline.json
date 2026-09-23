@@ -1,0 +1,4 @@
+{
+ "_comment": "Déclarations CALIBRATED garde-seule dont AUCUN test n'importe-et-appelle le symbole (P2.56). Dette gelée : aucune NOUVELLE muette. tools/check_calibration_reach.py",
+ "muettes": []
+}

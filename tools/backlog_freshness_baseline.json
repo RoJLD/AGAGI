@@ -1,8 +1,6 @@
 {
   "_comment": "Peremptions MECANIQUES legataires du backlog, gelees. Le cliquet refuse toute NOUVELLE entree. Retirer une ligne quand elle est corrigee -- jamais en ajouter pour faire passer le hook.",
   "legataires": {
-    "chemin-mort:docs/superpowers/plans/2026-09-16-harness-r1-weeks-1-3.md": "cité par le backlog (commit 3e2a9f83) mais NON SUIVI par git au 2026-09-16 -- fichier present seulement sur le disque de la session parallele ; RETIRER cette ligne des que le fichier est committe (la porte 4 teste os.path.exists, pas git ls-files : angle mort consigne)",
-    "chemin-mort:results/s2_credit_ablation.json": "cité par le backlog (commit 3e2a9f83) mais NON SUIVI par git au 2026-09-16 -- fichier present seulement sur le disque de la session parallele ; RETIRER cette ligne des que le fichier est committe (la porte 4 teste os.path.exists, pas git ls-files : angle mort consigne)",
     "numero-double:P2.0-bis": "P2.0-bis apparaît 2 fois en tête d'entrée : l'une des versions est périmée et rien ne dit laquelle",
     "numero-double:P2.1": "P2.1 apparaît 2 fois en tête d'entrée : l'une des versions est périmée et rien ne dit laquelle"
   },

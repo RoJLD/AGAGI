@@ -1,0 +1,446 @@
+{
+ "td0@4|seed=1": 0.203125,
+ "tdlam09@4|seed=1": 0.27031248807907104,
+ "lr0_reference@4|seed=1": 0.18437500298023224,
+ "td0@4|seed=2": 0.203125,
+ "tdlam09@4|seed=2": 0.28437501192092896,
+ "lr0_reference@4|seed=2": 0.17656250298023224,
+ "td0@4|seed=3": 0.203125,
+ "tdlam09@4|seed=3": 0.2828125059604645,
+ "lr0_reference@4|seed=3": 0.16093750298023224,
+ "td0@4|seed=4": 0.16718749701976776,
+ "tdlam09@4|seed=4": 0.2421875,
+ "lr0_reference@4|seed=4": 0.1484375,
+ "td0@4|seed=5": 0.19062499701976776,
+ "tdlam09@4|seed=5": 0.25468748807907104,
+ "lr0_reference@4|seed=5": 0.15937499701976776,
+ "td0@4|seed=6": 0.1875,
+ "tdlam09@4|seed=6": 0.2984375059604645,
+ "lr0_reference@4|seed=6": 0.12968750298023224,
+ "td0@4|seed=7": 0.19062499701976776,
+ "tdlam09@4|seed=7": 0.2515625059604645,
+ "lr0_reference@4|seed=7": 0.1640625,
+ "td0@4|seed=8": 0.19374999403953552,
+ "tdlam09@4|seed=8": 0.24531249701976776,
+ "lr0_reference@4|seed=8": 0.1953125,
+ "td0@4|seed=9": 0.1640625,
+ "tdlam09@4|seed=9": 0.22031250596046448,
+ "lr0_reference@4|seed=9": 0.1640625,
+ "td0@4|seed=10": 0.17499999701976776,
+ "tdlam09@4|seed=10": 0.23281249403953552,
+ "lr0_reference@4|seed=10": 0.15312500298023224,
+ "td0@4|seed=11": 0.1796875,
+ "tdlam09@4|seed=11": 0.23125000298023224,
+ "lr0_reference@4|seed=11": 0.17656250298023224,
+ "td0@4|seed=12": 0.18906250596046448,
+ "tdlam09@4|seed=12": 0.2562499940395355,
+ "lr0_reference@4|seed=12": 0.15937499701976776,
+ "_design": {
+  "question": "TD-STEP-PILOT-R0 a rendu TD0_INERTE|TRACE_AIDE a UN seul pas (lr 4,0 : tdlam 0,253 vs td0 0,190, 12/12) -- l'autre pas scelle (8,0) etant hors regime (controles inertes). Le TRACE_AIDE est-il INVARIANT a un troisieme pas (2,0, 0,125/agent) et la trace a-t-elle une DOSE-REPONSE en lambda (0 = td0, 0,5, 0,9) au pas 4,0 ?",
+  "replication_unit": "seed (une population de 16 agents par cellule ; bras appari\u00e9s par seed)",
+  "n_independent": 12,
+  "links": {
+   "accuracy_td0@2": "measured",
+   "accuracy_tdlam09@2": "measured",
+   "accuracy_lr0_reference@2": "measured",
+   "accuracy_tdlam05@4": "measured",
+   "cellules_pas_4_importees_de_R0": "measured"
+  },
+  "inferred_links": [],
+  "cost_estimate": "48 cellules x 45-90 s -> ~50 min CPU, sans bail ; results/td_step_pilot_r1.json",
+  "inferred_reason": null,
+  "control_family": {
+   "cells": 84,
+   "alpha_family": 0.05,
+   "alpha_cell": 0.0005952380952380953,
+   "method": "bonferroni",
+   "reason": null,
+   "fwer_bound": 0.05
+  },
+  "warning": null
+ },
+ "_regime": {
+  "K": 6,
+  "bras_importes": [
+   "td0@4",
+   "tdlam09@4",
+   "lr0_reference@4"
+  ],
+  "bras_nouveaux": [
+   "td0@2",
+   "tdlam09@2",
+   "lr0_reference@2",
+   "tdlam05@4"
+  ],
+  "episodes_td": 3000,
+  "lambda_importe": 0.9,
+  "lambda_nouveau": 0.5,
+  "lr_importe": 4.0,
+  "lr_nouveau": 2.0,
+  "lr_nouveau_par_agent": 0.125,
+  "n_agents": 16,
+  "substrat": "bilinear rang 16, W/U/V/W_bl traces",
+  "trace_reset_per_episode": true
+ },
+ "_dose": {
+  "td0@2|seed=1": {
+   "updates": 6000,
+   "trace_updates": 0,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "tdlam09@2|seed=1": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "lr0_reference@2|seed=1": {
+   "updates": 6000,
+   "trace_updates": 0,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.0
+  },
+  "tdlam05@4|seed=1": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.25
+  },
+  "td0@2|seed=2": {
+   "updates": 6000,
+   "trace_updates": 0,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "tdlam09@2|seed=2": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "lr0_reference@2|seed=2": {
+   "updates": 6000,
+   "trace_updates": 0,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.0
+  },
+  "tdlam05@4|seed=2": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.25
+  },
+  "td0@2|seed=3": {
+   "updates": 6000,
+   "trace_updates": 0,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "tdlam09@2|seed=3": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "lr0_reference@2|seed=3": {
+   "updates": 6000,
+   "trace_updates": 0,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.0
+  },
+  "tdlam05@4|seed=3": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.25
+  },
+  "td0@2|seed=4": {
+   "updates": 6000,
+   "trace_updates": 0,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "tdlam09@2|seed=4": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "lr0_reference@2|seed=4": {
+   "updates": 6000,
+   "trace_updates": 0,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.0
+  },
+  "tdlam05@4|seed=4": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.25
+  },
+  "td0@2|seed=5": {
+   "updates": 6000,
+   "trace_updates": 0,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "tdlam09@2|seed=5": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "lr0_reference@2|seed=5": {
+   "updates": 6000,
+   "trace_updates": 0,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.0
+  },
+  "tdlam05@4|seed=5": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.25
+  },
+  "td0@2|seed=6": {
+   "updates": 6000,
+   "trace_updates": 0,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "tdlam09@2|seed=6": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "lr0_reference@2|seed=6": {
+   "updates": 6000,
+   "trace_updates": 0,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.0
+  },
+  "tdlam05@4|seed=6": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.25
+  },
+  "td0@2|seed=7": {
+   "updates": 6000,
+   "trace_updates": 0,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "tdlam09@2|seed=7": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "lr0_reference@2|seed=7": {
+   "updates": 6000,
+   "trace_updates": 0,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.0
+  },
+  "tdlam05@4|seed=7": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.25
+  },
+  "td0@2|seed=8": {
+   "updates": 6000,
+   "trace_updates": 0,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "tdlam09@2|seed=8": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "lr0_reference@2|seed=8": {
+   "updates": 6000,
+   "trace_updates": 0,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.0
+  },
+  "tdlam05@4|seed=8": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.25
+  },
+  "td0@2|seed=9": {
+   "updates": 6000,
+   "trace_updates": 0,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "tdlam09@2|seed=9": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "lr0_reference@2|seed=9": {
+   "updates": 6000,
+   "trace_updates": 0,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.0
+  },
+  "tdlam05@4|seed=9": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.25
+  },
+  "td0@2|seed=10": {
+   "updates": 6000,
+   "trace_updates": 0,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "tdlam09@2|seed=10": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "lr0_reference@2|seed=10": {
+   "updates": 6000,
+   "trace_updates": 0,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.0
+  },
+  "tdlam05@4|seed=10": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.25
+  },
+  "td0@2|seed=11": {
+   "updates": 6000,
+   "trace_updates": 0,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "tdlam09@2|seed=11": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "lr0_reference@2|seed=11": {
+   "updates": 6000,
+   "trace_updates": 0,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.0
+  },
+  "tdlam05@4|seed=11": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.25
+  },
+  "td0@2|seed=12": {
+   "updates": 6000,
+   "trace_updates": 0,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "tdlam09@2|seed=12": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "lr0_reference@2|seed=12": {
+   "updates": 6000,
+   "trace_updates": 0,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.0
+  },
+  "tdlam05@4|seed=12": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.25
+  }
+ },
+ "td0@2|seed=1": 0.19374999403953552,
+ "_provenance": [
+  {
+   "git_sha": "72ce45ac39a0833fc8e075bdf59c52d648a79538",
+   "dirty": true,
+   "rule": "TD-STEP-PILOT-R1",
+   "seal": "260470cca474e86a7fc918c030d6505b6e0d9d0f10424dca78506e781b8545f3"
+  }
+ ],
+ "tdlam09@2|seed=1": 0.2109375,
+ "lr0_reference@2|seed=1": 0.18437500298023224,
+ "tdlam05@4|seed=1": 0.20781250298023224,
+ "td0@2|seed=2": 0.19687500596046448,
+ "tdlam09@2|seed=2": 0.19374999403953552,
+ "lr0_reference@2|seed=2": 0.17656250298023224,
+ "tdlam05@4|seed=2": 0.21406249701976776,
+ "td0@2|seed=3": 0.20000000298023224,
+ "tdlam09@2|seed=3": 0.20781250298023224,
+ "lr0_reference@2|seed=3": 0.16093750298023224,
+ "tdlam05@4|seed=3": 0.22812500596046448,
+ "td0@2|seed=4": 0.1796875,
+ "tdlam09@2|seed=4": 0.18125000596046448,
+ "lr0_reference@2|seed=4": 0.1484375,
+ "tdlam05@4|seed=4": 0.17499999701976776,
+ "td0@2|seed=5": 0.171875,
+ "tdlam09@2|seed=5": 0.18437500298023224,
+ "lr0_reference@2|seed=5": 0.15937499701976776,
+ "tdlam05@4|seed=5": 0.23749999701976776,
+ "td0@2|seed=6": 0.18593749403953552,
+ "tdlam09@2|seed=6": 0.18593749403953552,
+ "lr0_reference@2|seed=6": 0.12968750298023224,
+ "tdlam05@4|seed=6": 0.2265625,
+ "td0@2|seed=7": 0.19374999403953552,
+ "tdlam09@2|seed=7": 0.20468750596046448,
+ "lr0_reference@2|seed=7": 0.1640625,
+ "tdlam05@4|seed=7": 0.20781250298023224,
+ "td0@2|seed=8": 0.1875,
+ "tdlam09@2|seed=8": 0.203125,
+ "lr0_reference@2|seed=8": 0.1953125,
+ "tdlam05@4|seed=8": 0.203125,
+ "td0@2|seed=9": 0.15468749403953552,
+ "tdlam09@2|seed=9": 0.17031249403953552,
+ "lr0_reference@2|seed=9": 0.1640625,
+ "tdlam05@4|seed=9": 0.1875,
+ "td0@2|seed=10": 0.18437500298023224,
+ "tdlam09@2|seed=10": 0.17499999701976776,
+ "lr0_reference@2|seed=10": 0.15312500298023224,
+ "tdlam05@4|seed=10": 0.19218750298023224,
+ "td0@2|seed=11": 0.1875,
+ "tdlam09@2|seed=11": 0.20156249403953552,
+ "lr0_reference@2|seed=11": 0.17656250298023224,
+ "tdlam05@4|seed=11": 0.203125,
+ "td0@2|seed=12": 0.171875,
+ "tdlam09@2|seed=12": 0.18125000596046448,
+ "lr0_reference@2|seed=12": 0.15937499701976776,
+ "tdlam05@4|seed=12": 0.20937499403953552,
+ "_cout_s": 2699.4462921619415,
+ "_lecture": {
+  "mediane_td0@2": 0.18671874701976776,
+  "mediane_tdlam09@2": 0.18984374403953552,
+  "mediane_lr0_reference@2": 0.16250000149011612,
+  "mediane_tdlam05@4": 0.20781250298023224,
+  "mediane_td0@4": 0.18984375149011612,
+  "mediane_tdlam09@4": 0.25312499701976776,
+  "mediane_lr0_reference@4": 0.16250000149011612,
+  "tdlam09@2_sup_td0@2": "0/12",
+  "td0@2_sup_ref@2": "1/12",
+  "tdlam05@4_sup_td0@4": "0/12",
+  "tdlam09@4_sup_tdlam05@4": "12/12",
+  "branche": "AIDE_NON_INVARIANTE|DOSE_LAMBDA_ABSENTE"
+ }
+}

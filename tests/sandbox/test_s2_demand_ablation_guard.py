@@ -82,3 +82,38 @@ def test_run_ablation_map_SANS_sujet_reste_le_champion(monkeypatch):
     monkeypatch.setattr(M, "load_champion_genome", lambda *a, **k: "CHAMPION-PUBLIE")
     M.run_ablation_map(worlds=["stoneage"], K=12)
     assert "CHAMPION-PUBLIE" in vus and "SUJET-X" not in vus
+
+
+def test_run_ablation_map_paired_band_uses_the_NULL_variant_as_reference_and_publishes_it(monkeypatch):
+    """P2.41 b (2026-09-16) : à `paired_band=True` le bras INTACT est le no-op EXACT (`NullAblatedMamba`
+    pour le moteur normal), qui consomme les MÊMES tirages que l'ablation — le contraste within porte
+    sur la perception seule. Réponse connue, 0 monde : les classes passées à `run_condition` sont
+    (Null, Ablated, Reflex) et la sortie publie `reference == "paired_band"`. Branche négative
+    appariée : par défaut (False) la référence reste `None` (moteur normal, bit-identique) et
+    `reference == "bare"`."""
+    import tools.s2_demand_ablation as M
+
+    def _fake(seen):
+        def _run(wcls, cls, genome, seed, **kw):
+            seen.append(cls)
+            return {"survival": [10.0] * 12, "era_survival": [10.0] * 12,
+                    "life_score": [1.0] * 12, "era_life": [1.0] * 12}
+        return _run
+
+    vus = []
+    monkeypatch.setattr(M, "run_condition", _fake(vus))
+    monkeypatch.setattr(M, "load_champion_genome", lambda *a, **k: "CHAMPION")
+    out = M.run_ablation_map(worlds=["stoneage"], K=12, paired_band=True)
+    assert vus[0] is M.NullAblatedMamba and vus[1] is M.PerceptionAblatedMamba, vus
+    assert out["stoneage"]["reference"] == "paired_band"
+
+    vus.clear()
+    out = M.run_ablation_map(worlds=["stoneage"], K=12)
+    assert vus[0] is None and vus[1] is M.PerceptionAblatedMamba, vus     # défaut : bit-identique
+    assert out["stoneage"]["reference"] == "bare"
+
+    # politique injectée : la référence appariée est la variante NULLE de CETTE politique, pas Mamba
+    vus.clear()
+    monkeypatch.setattr(M, "run_condition", _fake(vus))
+    out = M.run_ablation_map(worlds=["stoneage"], K=12, batch_model_cls=M.ReflexBatchModel, paired_band=True)
+    assert getattr(vus[0], "_perception_null_of", None) is M.ReflexBatchModel and vus[0] is not M.NullAblatedMamba
