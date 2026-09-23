@@ -40,6 +40,26 @@ _SDR_GATE = re.compile(r"^SDR-(G\d)$")
 # Baseline dans tools/ (tracké) et non results/ (gitignored) -> la dette gelée est versionnée/portable.
 _BASELINE = os.path.join(_ROOT, "tools", "record_link_baseline.json")
 
+# ⚠️ Revue du contrôleur (post-Tâche 4) : `not r.get("review")` était satisfait par N'IMPORTE QUELLE
+# chaîne non vide -- `review: x` passait. Une garde dont la satisfaction est « tape quelque chose »
+# est décorative (E10). `review:` doit désigner un fichier RÉEL : forme `docs/reviews/AAAA-MM-JJ-slug.md`
+# ET existence sur disque (relative à `root`), vérifiées séparément pour que la raison du blocage soit
+# LISIBLE (le Réfutateur, tâche 6, écrira ces fichiers -- il doit savoir si son chemin est mal formé ou
+# simplement pas encore écrit).
+_REVIEW_PATH = re.compile(r"^docs/reviews/\d{4}-\d{2}-\d{2}-.+\.md$")
+
+
+def _review_defect(review, root: str) -> str | None:
+    """None si `review` désigne un fichier de revue VALIDE et EXISTANT ; sinon la raison du défaut
+    (`"absente"` / `"forme"` / `"fichier introuvable"`) -- jamais fondues en une seule catégorie."""
+    if not review:
+        return "absente"
+    if not _REVIEW_PATH.match(str(review)):
+        return "forme"
+    if not os.path.isfile(os.path.join(root, str(review))):
+        return "fichier introuvable"
+    return None
+
 
 # --- FERMETURE DU SILENCE (2026-09-01) -------------------------------------------------------------
 # `parse_record` jette EN SILENCE toute clé de frontmatter absente de `_LIST_KEYS` (branche
@@ -127,8 +147,10 @@ def analyze(root: str = _ROOT) -> dict:
         # Tâche 4 (spec PM 2026-09-16 §3.5) : tout EDR à verdict (gate: G0-G4/foundational OU
         # tests: [SDR-Gx]) doit porter `review:` -- le chemin d'une revue adversariale à sondes
         # propres. `has_gate` couvre `foundational` (via _ANCHORS) en plus des 5 portes.
-        if r["type"] == "EDR" and (has_gate or tests_sdr) and not r.get("review"):
-            review_missing.append({"id": r["id"], "file": r["file"]})
+        if r["type"] == "EDR" and (has_gate or tests_sdr):
+            raison = _review_defect(r.get("review"), root)
+            if raison:
+                review_missing.append({"id": r["id"], "file": r["file"], "raison": raison})
 
     return {"orphans": orphans, "collisions": collisions, "gate_unlinked": gate_unlinked,
             "gate_tests_mismatch": gate_tests_mismatch, "review_missing": review_missing,
@@ -200,6 +222,8 @@ def main(argv=None) -> int:
             print(f"  [orphelin] {o['id']}  ({o['file']})")
         for c in st["collisions"]:
             print(f"  [collision] {c['id']}  ->  {', '.join(c['files'])}")
+        for m in st["review_missing"]:
+            print(f"  [sans revue: {m['raison']}] {m['id']}  ({m['file']})")
         return 0
 
     # mode ratchet : n'échoue que sur les NOUVEAUX (hors baseline gelé)
@@ -243,7 +267,7 @@ def main(argv=None) -> int:
         print(f"  [NOUVEL EDR NON RACCORDÉ À UNE PORTE] {g['id']}  ({g['file']}) — ajoute gate: Gx "
               f"et/ou tests: [SDR-Gx] (ou gate: foundational)")
     for m in new_rv:
-        print(f"  [NOUVEAU RECORD SANS REVUE] {m['id']}  ({m['file']}) — ajoute review: "
+        print(f"  [NOUVEAU RECORD SANS REVUE: {m['raison']}] {m['id']}  ({m['file']}) — ajoute review: "
               f"docs/reviews/<date>-<slug>.md (revue adversariale à sondes propres, REF-REVUE-ADVERSARIALE)")
     return 1
 

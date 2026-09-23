@@ -31,6 +31,7 @@ DÉTECTABLE (il n'est pas dans le fichier scellé), pas impossible.
 import hashlib
 import json
 import os
+import re
 import subprocess
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -58,6 +59,16 @@ _CLES_COUT = ("cout", "budget_s", "garde_cout", "plafond", "cout_scelle")
 
 def declare_un_cout(rule: dict) -> bool:
     return isinstance(rule, dict) and any(k in rule for k in _CLES_COUT)
+
+
+# ⚠️ Revue du contrôleur (post-Tâche 5) : `not reviewed_by` était satisfait par N'IMPORTE QUELLE chaîne
+# non vide -- `reviewed_by="x"` passait. Même forme que `check_record_links._REVIEW_PATH`, dont ce
+# module est indépendant (pas d'import croisé). Ici, seule la FORME est vérifiée, JAMAIS l'existence :
+# une règle peut être scellée depuis un cwd (ou une session //) où `docs/reviews/` n'est pas visible, et
+# la revue peut être écrite APRÈS le scellement de la règle (mais avant le run, ce que rien ici ne peut
+# vérifier -- cf. la limite déjà documentée du module). L'existence est la responsabilité du LECTEUR
+# (`check_record_links` la vérifie côté record, avec le fichier réellement sur disque).
+_REVIEW_PATH = re.compile(r"^docs/reviews/\d{4}-\d{2}-\d{2}-.+\.md$")
 
 
 _CATCHALL = ("sinon", "autre", "autrement", "default", "toute autre issue", "tout autre resultat")
@@ -103,8 +114,11 @@ def path_for(name: str) -> str:
 
 def preregister(name: str, rule: dict, *, _dir=None, reviewed_by=None) -> str:
     """Scelle `rule` sous `name`. Idempotent à contenu IDENTIQUE ; lève si le contenu DIFFÈRE.
-    `reviewed_by` (chemin docs/reviews/…) est écrit à l'ENVELOPPE, hors sceau : exigé d'une NOUVELLE règle qui
-    déclare un coût, jamais d'une règle existante re-scellée à l'identique."""
+    `reviewed_by` (chemin docs/reviews/AAAA-MM-JJ-slug.md) est écrit à l'ENVELOPPE, hors sceau : exigé
+    d'une NOUVELLE règle qui déclare un coût, jamais d'une règle existante re-scellée à l'identique.
+    Seule la FORME du chemin est vérifiée ici, JAMAIS son existence sur disque : une règle peut être
+    scellée depuis un cwd où `docs/reviews/` n'est pas visible (session //, autre worktree) — c'est
+    `check_record_links` qui vérifie l'existence, côté record, avec le fichier réellement présent."""
     _assert_exhaustive(rule)                      # E11 occ.3 : les branches doivent couvrir le CONTINUUM
     d = _dir or _DIR
     os.makedirs(d, exist_ok=True)
@@ -119,9 +133,15 @@ def preregister(name: str, rule: dict, *, _dir=None, reviewed_by=None) -> str:
                 f"corrige pas : enregistrer « {name}-bis » et garder les deux, pour que le changement de "
                 f"règle soit VISIBLE.")
         return p                                     # ré-écriture à l'identique : sans effet
-    if declare_un_cout(rule) and not reviewed_by:
+    if reviewed_by is not None and not _REVIEW_PATH.match(str(reviewed_by)):
+        raise ReviewRequired(f"« {name} » : reviewed_by={reviewed_by!r} n'a pas la forme attendue "
+                             "docs/reviews/AAAA-MM-JJ-slug.md — seule la FORME est vérifiée ici, jamais "
+                             "l'existence (une règle peut être scellée depuis un cwd où docs/reviews/ "
+                             "n'est pas visible)")
+    elif declare_un_cout(rule) and not reviewed_by:
         raise ReviewRequired(f"« {name} » déclare un coût ({', '.join(k for k in _CLES_COUT if k in rule)}) : "
-                             "passer reviewed_by=<docs/reviews/…> — la revue adversariale précède le sceau (E8/E19)")
+                             "passer reviewed_by=<docs/reviews/AAAA-MM-JJ-slug.md> — la revue adversariale "
+                             "précède le sceau (E8/E19)")
     if reviewed_by:
         payload["reviewed_by"] = reviewed_by
     with open(p, "w", encoding="utf-8") as f:

@@ -78,7 +78,7 @@ PORTES = {
             "motif": "la détection d'orphelin — tout record non raccordé passerait",
         }, {
             "nom": "un record à verdict SANS revue n'est plus signalé",
-            "avant": '        if r["type"] == "EDR" and (has_gate or tests_sdr) and not r.get("review"):',
+            "avant": '        if r["type"] == "EDR" and (has_gate or tests_sdr):',
             "apres": "        if False:",
             "motif": "l'exigence de revue (spec PM 2026-09-16) — la règle documentée depuis le 07-21 et appliquée 1 fois sur 28 redeviendrait décorative",
         }],

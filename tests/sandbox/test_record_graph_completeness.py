@@ -179,16 +179,47 @@ def test_a_record_with_an_EDGE_but_no_gate_is_NOT_an_orphan(tmp_path):
 # (gate: G0-G4/foundational OU tests: [SDR-Gx]) doit porter `review:` — le chemin d'une revue
 # adversariale à sondes propres, JAMAIS un id de record (edge_key_silences traiterait `EDR-...` comme
 # une arête non lue et ferait rendre 1 à la porte 1 sur TOUT l'arbre — piège principal de cette tâche).
+#
+# ⚠️ Revue du contrôleur (post-Tâche 4) : `not r.get("review")` était satisfait par N'IMPORTE QUELLE
+# chaîne non vide — `review: x` passait. Corrigé : `review:` doit être un chemin de FORME
+# `docs/reviews/AAAA-MM-JJ-slug.md` ET le fichier doit EXISTER, avec une raison DISTINCTE par défaut
+# (`"absente"` / `"forme"` / `"fichier introuvable"`) — ne pas les fondre.
 # --------------------------------------------------------------------------------------------------
+
+def _make_review_file(tmp_path, relpath="docs/reviews/2026-09-17-edr-999.md"):
+    p = tmp_path / relpath
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text("# revue\n", encoding="utf-8")
+    return relpath
+
 
 def test_a_NEW_edr_with_a_gate_but_no_review_is_review_missing(tmp_path):
     """CONTRE-EXEMPLE GELÉ de la porte 1 étendue (spec PM 2026-09-16 §3.5) : un record à verdict sans revue."""
     root = _record(tmp_path, "id: EDR-999\ntype: EDR\ngate: G0\ntests: [SDR-G0]")
-    assert any(r["id"] == "EDR-999" for r in C.analyze(root)["review_missing"])
+    rv = C.analyze(root)["review_missing"]
+    assert any(r["id"] == "EDR-999" and r["raison"] == "absente" for r in rv), rv
 
 
-def test_an_edr_with_a_review_path_is_NOT_review_missing(tmp_path):
+def test_an_edr_with_an_INVALID_FORM_review_is_review_missing(tmp_path):
+    """⚠️ CONTRE-EXEMPLE GELÉ nommé par la revue du contrôleur : `review: x` n'est PAS un chemin de revue
+    -- n'importe quelle chaîne non vide passait avant ce correctif. Raison distincte : 'forme'."""
+    root = _record(tmp_path, "id: EDR-999\ntype: EDR\ngate: G0\nreview: x")
+    rv = C.analyze(root)["review_missing"]
+    assert any(r["id"] == "EDR-999" and r["raison"] == "forme" for r in rv), rv
+
+
+def test_an_edr_with_a_WELLFORMED_but_MISSING_review_file_is_review_missing(tmp_path):
+    """CONTRE-EXEMPLE GELÉ : chemin de FORME valide mais fichier ABSENT du disque -- le Réfutateur
+    (tâche 6) doit pouvoir distinguer « j'ai oublié d'écrire » de « le chemin est mal formé »."""
+    root = _record(tmp_path, "id: EDR-999\ntype: EDR\ngate: G0\nreview: docs/reviews/2026-09-23-inexistant.md")
+    rv = C.analyze(root)["review_missing"]
+    assert any(r["id"] == "EDR-999" and r["raison"] == "fichier introuvable" for r in rv), rv
+
+
+def test_an_edr_with_a_review_path_that_EXISTS_is_NOT_review_missing(tmp_path):
+    """SPÉCIFICITÉ (no-op apparié aux trois précédents) : forme valide ET fichier présent -> passe."""
     root = _record(tmp_path, "id: EDR-999\ntype: EDR\ngate: G0\nreview: docs/reviews/2026-09-17-edr-999.md")
+    _make_review_file(tmp_path)
     assert not any(r["id"] == "EDR-999" for r in C.analyze(root)["review_missing"])
 
 
@@ -198,8 +229,13 @@ def test_an_edr_WITHOUT_verdict_anchor_is_not_asked_for_a_review(tmp_path):
 
 
 def test_the_review_key_is_READ_by_the_schema_not_silenced(tmp_path):
-    root = _record(tmp_path, "id: EDR-999\ntype: EDR\ngate: G0\nreview: docs/reviews/2026-09-17-edr-999.md")
+    """⚠️ Minor 3 de la revue du contrôleur : ce test était VACUE (sa fixture utilisait un CHEMIN, qui
+    ne ressemble pas à un id). `review: EDR-999` A la FORME d'un identifiant de record (`_ID_LIKE`) --
+    sans `review` dans le schéma (`_empty_record`), `edge_key_silences` le signalerait comme une clé
+    d'arête NON LUE (le piège exact nommé en tâche 4). Vise `edge_key_silences`, pas `analyze` : ce
+    record sera par ailleurs « sans revue » pour cause de forme, ce qui est cohérent et hors du test."""
+    root = _record(tmp_path, "id: EDR-999\ntype: EDR\ngate: G0\nreview: EDR-999")
     sil = C.edge_key_silences(root)
-    assert not any(k == "review" for _, k in sil["non_lues"])
+    assert not any(k == "review" for _, k in sil["non_lues"]), sil["non_lues"]
     rec = [r for r in scan_records(root) if r["id"] == "EDR-999"][0]
-    assert rec["review"] == "docs/reviews/2026-09-17-edr-999.md"
+    assert rec["review"] == "EDR-999"
