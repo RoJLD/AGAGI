@@ -23,6 +23,6 @@ Spec : `docs/superpowers/specs/2026-09-16-pm-stratege-refutateur-design.md`.
 | **Greffier-métrologue** | candidat | — | — | — | — | réfuté le 2026-09-16 (la promotion documenté→exécutable A été appliquée, P2.25) ; naît sur deux classes restées `documenté` après deux récidives |
 | **Bibliothécaire de la doctrine** | candidat | — | — | — | — | réfuté le 2026-09-16 (rare, bon marché après coup) ; naît sur deux sessions trompées par la même phrase périmée, datées |
 | **Auditeur des angles morts** | candidat | — | — | — | — | → cliquet « hors motif » + lentille du stratège sur tout élargissement de détecteur (backlog) ; ne naît pas comme rôle |
-| **Archiviste de l'évidence** | candidat | — | — | — | — | constat vrai (69/20/18) devenu la porte 19 (plan 2) ; ne naît pas comme rôle |
+| **Archiviste de l'évidence** | candidat | — | — | — | — | constat vrai (78 chemins, 18 absents, 0 non suivi -- le « 20 non suivis » de la note initiale etait un double comptage, corrige le 2026-09-23) devenu la porte 19 (plan 2) ; ne naît pas comme rôle |
 | **Greffier de passage** | candidat | — | — | — | — | réfuté le 2026-09-16 (une seule occurrence) ; naît sur deux occurrences datées de travail dupliqué faute de brief |
 | **Scribe des records** | dissous | témoin du panel — fonction couverte par la porte 1 | doit être TUÉ à chaque revue des rôles, sinon la passe est nulle | — | — | témoin permanent : ne renaît jamais |

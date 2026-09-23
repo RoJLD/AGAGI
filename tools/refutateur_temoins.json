@@ -1,7 +1,7 @@
 {
   "_comment": "Temoins GELES du Refutateur (spec PM 2026-09-16, section 2.3). A chaque revue, les prompts figes de docs/REF/REF-REVUE-ADVERSARIALE.md passent d'abord ici : un defaut connu non retrouve rend la revue NULLE. Ne jamais remplacer un temoin par un record plus commode ; ne jamais deplacer un SHA pour faire passer une revue. CE FICHIER EST LA CLE DE REPONSE : il n'est lu ni par l'agent de revue, ni par aucun document que l'agent de revue est somme de lire. Les attendus ne se republient nulle part.",
   "_champs": {
-    "nom": "identifiant du temoin, cite par le verificateur et par ROLES.md. JAMAIS donne a l'agent qui revoit.",
+    "nom": "identifiant du temoin, cite par le verificateur et par ROLES.md. JAMAIS donne a l'agent qui revoit. ⚠️ Un nom ne doit PAS trahir son genre : le REF les publie, et un agent qui lit l'en-tete d'un temoin anonyme peut joindre les deux. 'LOCK-002-sain' disait 'tais-toi' et a ete renomme au SHA le 2026-09-23 -- un temoin est epingle a un SHA, pas a un record.",
     "genre": "defaut = la revue DOIT retrouver le defaut connu ; noop = record sain, la revue doit RESTER SILENCIEUSE (plancher de fausses critiques)",
     "sha": "commit qui GELE la version du record. Choisi pour porter le defaut NU, pas sa rectification.",
     "chemin": "chemin du record DANS le commit sha",
@@ -46,7 +46,7 @@
       "antisignature": "RETAIN-COMPOSE-LR|R.TRACT"
     },
     {
-      "nom": "LOCK-002-sain",
+      "nom": "LOCK-002-286f244",
       "genre": "noop",
       "sha": "286f24429b621ebf9ba1c7a040f377672a1f5a07",
       "chemin": "docs/EDR/LOCK-002_D2_Retention_Is_Learned_Under_REINFORCE_At_The_Right_Step_The_Fourth_Manifestation_Was_E19.md",

@@ -192,7 +192,7 @@
   "tests/sandbox/test_referential_community_probe.py": 3,
   "tests/sandbox/test_referential_game_probe.py": 2,
   "tests/sandbox/test_reflexive_supervisor.py": 6,
-  "tests/sandbox/test_refutateur_temoins.py": 25,
+  "tests/sandbox/test_refutateur_temoins.py": 26,
   "tests/sandbox/test_regime_claims_gate.py": 22,
   "tests/sandbox/test_repopulation.py": 5,
   "tests/sandbox/test_resolve_dreaming.py": 4,

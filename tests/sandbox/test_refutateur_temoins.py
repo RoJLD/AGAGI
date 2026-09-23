@@ -93,6 +93,24 @@ def test_les_fichiers_d_extraction_sont_NEUTRES_et_decorreles_de_l_ordre_du_rost
         "les fichiers suivent l'ordre du roster : « le dernier est le no-op » redeviendrait devinable")
 
 
+def test_aucun_NOM_de_temoin_ne_declare_son_genre():
+    """CONTRE-EXEMPLE GELE : « LOCK-002-sain » disait « tais-toi ».
+
+    Le REF publie les NOMS des temoins, et un agent qui lit l'en-tete d'un fichier anonyme
+    (`id: EDR-LOCK-002`) peut joindre les deux : le nom redonnait la cle que l'anonymat retire. Renomme
+    au SHA le 2026-09-23 -- un temoin est epingle a un SHA, pas a un record.
+    ⚠️ RESIDU CONNU, signale au controleur et non tranche : `RETAIN-COMPOSE-pre-retractation` annonce
+    qu'une retractation a suivi, donc qu'un defaut est a trouver. Meme classe, meme correctif
+    (`RETAIN-COMPOSE-4204f8f`). Le vocabulaire ci-dessous ne ferme que ce qui a ete decide.
+    """
+    declarent_le_genre = ("sain", "noop", "ok", "propre", "clean", "defaut", "bug", "faux", "bon")
+    for t in T.charger():
+        for mot in declarent_le_genre:
+            assert mot not in t["nom"].lower(), (
+                f"le nom {t['nom']} declare son genre : le REF le publie, l'anonymat de l'extraction "
+                "ne protege plus rien")
+
+
 @pytest.mark.parametrize("nom", [t["nom"] for t in T.charger()])
 def test_la_version_gelee_porte_ENCORE_son_defaut_connu(nom, tmp_path):
     """Signature PRESENTE et antisignature ABSENTE : le regard « a l'oeil » du 2026-09-23, execute."""
@@ -189,7 +207,7 @@ def test_verifier_sur_les_trois_defauts_reconnait_le_bon_constat_et_rejette_la_r
 
 
 def test_verifier_du_noop_tolere_une_critique_CONFIRMEE_et_refuse_deux():
-    noop = T.par_nom("LOCK-002-sain")
+    noop = T.par_nom("LOCK-002-286f244")
     assert T.verifier(noop, "[]") is True
     assert T.verifier(noop, _texte(_crit(constat="un doute"))) is True
     assert T.verifier(noop, _texte(_crit(constat="a"), _crit(constat="b"))) is False
@@ -211,7 +229,7 @@ def test_verifier_leve_FormatInvalide_sur_un_texte_illisible_ou_une_critique_san
     with pytest.raises(T.FormatInvalide):
         T.verifier(grab, partiel)
     with pytest.raises(T.FormatInvalide):
-        T.verifier(T.par_nom("LOCK-002-sain"), partiel)
+        T.verifier(T.par_nom("LOCK-002-286f244"), partiel)
 
 
 def test_main_rend_0_puis_1_puis_2_les_trois_issues(tmp_path, capsys):

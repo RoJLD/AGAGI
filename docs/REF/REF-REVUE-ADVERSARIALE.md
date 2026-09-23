@@ -71,7 +71,7 @@ combien de cellules un dispositif a RÉELLEMENT, ni si un mécanisme affirmé ex
 
 Les prompts P1-P10 passent d'abord sur quatre versions GELÉES de records, gelées dans le roster
 `tools/refutateur_temoins.json` et extraites par `python tools/refutateur_temoins.py --extraire <dir>`.
-Le roster gèle `GRAB-COST-v09-08`, `S2-BLIND-v1`, `RETAIN-COMPOSE-pre-retractation` et `LOCK-002-sain`.
+Le roster gèle `GRAB-COST-v09-08`, `S2-BLIND-v1`, `RETAIN-COMPOSE-pre-retractation` et `LOCK-002-286f244`.
 
 ⚠️ **La revue les lit en AVEUGLE, et ce document ne publie aucun attendu.** Les témoins sont extraits sous
 des noms NEUTRES (`temoin-N.md`, délié de l'ordre du roster) ; ni leur nom, ni leur genre, ni ce qu'on
