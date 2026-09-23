@@ -1413,7 +1413,14 @@ CALIBRATED = {
                                              "noop:deux-confirmees", "format:illisible-leve",
                                              "format:comptage-partiel-leve", "roster:refuse-affaibli",
                                              "temoin:signature-presente", "temoin:antisignature-absente",
-                                             "extraction:nom-neutre-decorrele", "cli:exit-0-1-2"],
+                                             "extraction:nom-neutre-decorrele", "cli:exit-0-1-2",
+                                             # 2026-09-23, 3e ronde : le NOM d'un temoin est une FORME
+                                             # DERIVEE (<id du record>-<sha7>, recomputee), plus une liste
+                                             # noire de mots. La liste avait attrape `LOCK-002-sain` et
+                                             # LAISSE PASSER `RETAIN-COMPOSE-pre-retractation` (qui annonce
+                                             # qu'un defaut est a trouver) -- vu a l'oeil, pas par la garde.
+                                             "nom:forme-derivee", "nom:renomme-a-la-main-refuse",
+                                             "nom:echappe-a-la-liste-noire-refuse"],
 }
 
 _GENOMES = os.path.join("results", "warm007_genomes")

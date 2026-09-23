@@ -73,6 +73,33 @@ def par_nom(nom):
     raise KeyError(f"témoin inconnu : {nom!r} (connus : {[t['nom'] for t in charger()]})")
 
 
+def nom_attendu(temoin):
+    """Le nom que ce témoin DOIT porter : `<identifiant du record>-<sha7>`, RECOMPUTÉ.
+
+    L'identifiant du record est la tête de son nom de fichier (avant le premier `_`) ; le sha7 est le
+    SHA gelé. Les deux champs existent déjà : le nom n'est donc **dérivé, jamais déclaré**.
+
+    ⚠️ **Pourquoi une FORME POSITIVE et non une liste de mots interdits.** La question qui compte est
+    « ce nom divulgue-t-il le genre du témoin ? ». Une liste noire (`sain`, `noop`, `defaut`…) ne
+    répond jamais à celle-là : elle répond « ce nom contient-il l'un de ces mots ». Mesuré le
+    2026-09-23 : `LOCK-002-sain` a été attrapé par la liste, mais `RETAIN-COMPOSE-pre-retractation`
+    — qui annonce qu'une rétractation a suivi, donc qu'un défaut est à trouver — est passé à travers,
+    et n'a été vu qu'À L'ŒIL. Ajouter `retract*` aurait déplacé le trou d'un cran. Une forme dérivée
+    de l'identité (quel record, à quel SHA) ne PEUT structurellement rien dire de la qualité de ce
+    qu'elle nomme : elle tue la classe au lieu d'énumérer ses membres. Elle est aussi plus exacte —
+    un témoin EST un record à un SHA.
+
+    ⚠️ **Ce que cette garde NE VOIT PAS, et qu'il faut savoir avant la prochaine passe** : elle vérifie
+    la FORME DU NOM, jamais le CONTENU du fichier extrait. Un record peut, à son SHA gelé, annoncer sa
+    propre faiblesse dans son titre ou sa prose et dire ainsi au relecteur ce qu'il doit trouver —
+    rien ici ne l'attrape. Seule l'`antisignature` couvre un cas voisin et un seul : que la marque de
+    la CORRECTION soit absente. « Le texte gelé n'annonce pas son propre défaut » n'est ni mesuré, ni
+    décidable par motif ; il reste à la charge de qui gèle un témoin.
+    """
+    identifiant = os.path.basename(temoin["chemin"]).split("_")[0]
+    return f"{identifiant}-{temoin['sha'][:7]}"
+
+
 def roster_conforme(temoins=None):
     """(ok, raison) — le roster est-il exactement 3 témoins à défaut et 1 no-op, noms et fichiers uniques ?
 
@@ -90,6 +117,12 @@ def roster_conforme(temoins=None):
     for t in tem:
         if t["genre"] == "defaut" and not t.get("attendu"):
             return False, f"témoin à défaut sans regex `attendu` : {t['nom']}"
+        voulu = nom_attendu(t)
+        if t["nom"] != voulu:
+            return False, (
+                f"nom de témoin hors FORME : {t['nom']!r}, attendu {voulu!r} "
+                "(<identifiant du record>-<sha7>, recomputé depuis `chemin` et `sha`). Un nom libre "
+                "peut annoncer le GENRE du témoin, et le REF publie les noms.")
     return True, "ok"
 
 

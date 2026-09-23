@@ -43,7 +43,7 @@ un Réfutateur qui crie sur tout retrouverait les trois défauts et paraîtrait 
 Hors ligne, une liste de critiques déjà rendue (JSON : une liste d'objets portant chacun un `verdict`) se confronte à un
 témoin sans relancer le workflow :
 
-    PYTHONIOENCODING=utf-8 python tools/refutateur_temoins.py --verifier GRAB-COST-v09-08 <fichier.json>
+    PYTHONIOENCODING=utf-8 python tools/refutateur_temoins.py --verifier EDR-GRAB-COST-1828371 <fichier.json>
 
 exit **0** = défaut retrouvé · **1** = revue NULLE · **2** = indécidable (témoin inconnu, roster invalide, ou critiques
 illisibles — un bug de sérialisation n'est pas un verdict de fond).

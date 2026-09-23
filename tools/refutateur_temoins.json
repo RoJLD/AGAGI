@@ -1,7 +1,7 @@
 {
   "_comment": "Temoins GELES du Refutateur (spec PM 2026-09-16, section 2.3). A chaque revue, les prompts figes de docs/REF/REF-REVUE-ADVERSARIALE.md passent d'abord ici : un defaut connu non retrouve rend la revue NULLE. Ne jamais remplacer un temoin par un record plus commode ; ne jamais deplacer un SHA pour faire passer une revue. CE FICHIER EST LA CLE DE REPONSE : il n'est lu ni par l'agent de revue, ni par aucun document que l'agent de revue est somme de lire. Les attendus ne se republient nulle part.",
   "_champs": {
-    "nom": "identifiant du temoin, cite par le verificateur et par ROLES.md. JAMAIS donne a l'agent qui revoit. ⚠️ Un nom ne doit PAS trahir son genre : le REF les publie, et un agent qui lit l'en-tete d'un temoin anonyme peut joindre les deux. 'LOCK-002-sain' disait 'tais-toi' et a ete renomme au SHA le 2026-09-23 -- un temoin est epingle a un SHA, pas a un record.",
+    "nom": "FORME IMPOSEE ET DERIVEE : <identifiant du record>-<sha7>, recompute par nom_attendu() depuis `chemin` et `sha` ; tout ecart est refuse par roster_conforme() et rend le CLI 2. Le nom est cite par le verificateur et par ROLES.md, JAMAIS donne a l'agent qui revoit -- mais le REF les publie, et un agent qui lit l'en-tete d'un temoin anonyme peut joindre les deux. Un nom LIBRE annonce donc le genre : 'LOCK-002-sain' disait 'tais-toi' ; 'RETAIN-COMPOSE-pre-retractation' annoncait qu'une retractation a suivi, donc qu'un defaut etait a trouver -- celui-la est passe a travers la liste noire de neuf mots qui avait attrape le premier, et n'a ete vu qu'A L'OEIL. Une forme derivee de l'IDENTITE (quel record, a quel SHA) ne peut structurellement rien dire de la QUALITE de ce qu'elle nomme. ⚠️ Elle ne voit pas le CONTENU : un record peut annoncer sa propre faiblesse dans son titre.",
     "genre": "defaut = la revue DOIT retrouver le defaut connu ; noop = record sain, la revue doit RESTER SILENCIEUSE (plancher de fausses critiques)",
     "sha": "commit qui GELE la version du record. Choisi pour porter le defaut NU, pas sa rectification.",
     "chemin": "chemin du record DANS le commit sha",
@@ -13,7 +13,7 @@
   },
   "temoins": [
     {
-      "nom": "GRAB-COST-v09-08",
+      "nom": "EDR-GRAB-COST-1828371",
       "genre": "defaut",
       "sha": "1828371324613f7213d2ef28c560c82407ffe464",
       "chemin": "docs/EDR/EDR-GRAB-COST_Grabbing_Costs_Survival_Even_When_Grabbing_Feeds.md",
@@ -24,7 +24,7 @@
       "antisignature": "RECTIFICATION|jamais eu cours"
     },
     {
-      "nom": "S2-BLIND-v1",
+      "nom": "S2-BLIND-CHAMPION-42e9357",
       "genre": "defaut",
       "sha": "42e9357fc3643159717b6020d9634b41689d003b",
       "chemin": "docs/EDR/S2-BLIND-CHAMPION_Stopped_At_Control_The_Ablation_Instrument_Has_An_8_Percent_RNG_Noise_Floor.md",
@@ -35,7 +35,7 @@
       "antisignature": "E26|PORT.E BORN.E|CORPS NON APPARI"
     },
     {
-      "nom": "RETAIN-COMPOSE-pre-retractation",
+      "nom": "EDR-RETAIN-COMPOSE-4204f8f",
       "genre": "defaut",
       "sha": "4204f8fd5a651441dbdbb95f9b4cd92b80d7fd60",
       "chemin": "docs/EDR/EDR-RETAIN-COMPOSE_Where_Is_The_Retain_Compose_Wall.md",

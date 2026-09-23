@@ -93,22 +93,58 @@ def test_les_fichiers_d_extraction_sont_NEUTRES_et_decorreles_de_l_ordre_du_rost
         "les fichiers suivent l'ordre du roster : « le dernier est le no-op » redeviendrait devinable")
 
 
-def test_aucun_NOM_de_temoin_ne_declare_son_genre():
-    """CONTRE-EXEMPLE GELE : « LOCK-002-sain » disait « tais-toi ».
+def test_le_nom_d_un_temoin_est_une_FORME_DERIVEE_et_non_un_libelle_libre():
+    """LA garde. Le nom vaut `<identifiant du record>-<sha7>`, RECOMPUTE depuis `chemin` et `sha`.
 
-    Le REF publie les NOMS des temoins, et un agent qui lit l'en-tete d'un fichier anonyme
-    (`id: EDR-LOCK-002`) peut joindre les deux : le nom redonnait la cle que l'anonymat retire. Renomme
-    au SHA le 2026-09-23 -- un temoin est epingle a un SHA, pas a un record.
-    ⚠️ RESIDU CONNU, signale au controleur et non tranche : `RETAIN-COMPOSE-pre-retractation` annonce
-    qu'une retractation a suivi, donc qu'un defaut est a trouver. Meme classe, meme correctif
-    (`RETAIN-COMPOSE-4204f8f`). Le vocabulaire ci-dessous ne ferme que ce qui a ete decide.
+    Pourquoi une forme POSITIVE plutot qu'une liste de mots interdits : la question qui compte est
+    « ce nom divulgue-t-il le GENRE du temoin ? », et une liste noire n'y repond jamais -- elle repond
+    « ce nom contient-il l'un de ces mots ». Mesure du 2026-09-23 : la liste de neuf mots a attrape
+    `LOCK-002-sain` et a LAISSE PASSER `RETAIN-COMPOSE-pre-retractation`, qui annonce qu'une
+    retractation a suivi, donc qu'un defaut est a trouver ; il n'a ete vu qu'A L'OEIL. Ajouter
+    `retract*` aurait deplace le trou d'un cran. Un nom derive de l'IDENTITE (quel record, a quel SHA)
+    ne peut structurellement rien dire de la QUALITE de ce qu'il nomme.
+
+    ⚠️ CE QUE CETTE GARDE NE VOIT PAS : la FORME DU NOM, jamais le CONTENU du fichier extrait. Un
+    record peut, a son SHA gele, annoncer sa propre faiblesse dans son titre ou sa prose et dire ainsi
+    au relecteur ce qu'il doit trouver. Seule l'`antisignature` couvre un cas voisin et un seul (la
+    marque de la CORRECTION est absente). « Le texte gele n'annonce pas son propre defaut » n'est ni
+    mesure, ni decidable par motif : il reste a la charge de qui gele un temoin.
     """
-    declarent_le_genre = ("sain", "noop", "ok", "propre", "clean", "defaut", "bug", "faux", "bon")
+    for t in T.charger():
+        assert t["nom"] == T.nom_attendu(t), (
+            f"nom hors forme : {t['nom']!r}, attendu {T.nom_attendu(t)!r}")
+        assert re.fullmatch(r"[A-Za-z0-9.\-]+-[0-9a-f]{7}", t["nom"]), t["nom"]
+
+
+def test_un_nom_renomme_A_LA_MAIN_est_REFUSE_et_rend_le_CLI_2(tmp_path):
+    """CONTRE-EXEMPLE GELE : les deux issues de la forme, sur les deux noms reellement rencontres."""
+    tem = T.charger()
+    assert T.roster_conforme(tem)[0] is True  # controle INTACT avant toute mutation
+    for libelle in ("LOCK-002-sain", "RETAIN-COMPOSE-pre-retractation", "temoin-4", ""):
+        mute = [dict(t, nom=libelle) if t["genre"] == "noop" else t for t in tem]
+        ok, raison = T.roster_conforme(mute)
+        assert ok is False, f"un nom libre {libelle!r} passe la forme"
+        assert "FORME" in raison or "collision" in raison
+    # Le CLI refuse EN BLOC un roster hors forme : il rend 2 (indecidable), jamais 0 ni 1.
+    f = tmp_path / "x.json"
+    f.write_text("[]", encoding="utf-8")
+    vrai_charger = T.charger
+    T.charger = lambda: [dict(t, nom="LOCK-002-sain") if t["genre"] == "noop" else t
+                         for t in vrai_charger()]
+    try:
+        assert T.main(["--verifier", "EDR-GRAB-COST-1828371", str(f)]) == 2
+    finally:
+        T.charger = vrai_charger
+    assert T.main(["--verifier", "EDR-GRAB-COST-1828371", str(f)]) == 1  # roster rendu, revue NULLE
+
+
+def test_plancher_secondaire_aucun_nom_ne_contient_un_mot_de_genre():
+    """PLANCHER, pas la garde : conserve parce qu'il a reellement attrape `LOCK-002-sain`, et qu'un
+    mot de genre glisse aussi dans un NOM DE FICHIER de record (que la forme, elle, recopie)."""
+    declarent_le_genre = ("sain", "noop", "ok", "propre", "clean", "bug", "faux", "bon")
     for t in T.charger():
         for mot in declarent_le_genre:
-            assert mot not in t["nom"].lower(), (
-                f"le nom {t['nom']} declare son genre : le REF le publie, l'anonymat de l'extraction "
-                "ne protege plus rien")
+            assert mot not in t["nom"].lower(), f"le nom {t['nom']} declare son genre"
 
 
 @pytest.mark.parametrize("nom", [t["nom"] for t in T.charger()])
@@ -126,7 +162,7 @@ def test_la_version_gelee_porte_ENCORE_son_defaut_connu(nom, tmp_path):
 
 
 def test_extraire_ecrit_la_version_GELEE_sous_un_nom_ANONYME(tmp_path):
-    grab = T.par_nom("GRAB-COST-v09-08")
+    grab = T.par_nom("EDR-GRAB-COST-1828371")
     p = T.extraire(grab, str(tmp_path))
     assert os.path.basename(p) == grab["fichier"]
     assert "GRAB" not in os.path.basename(p)
@@ -154,7 +190,7 @@ def test_extraire_tous_rend_la_correspondance_a_l_appelant_et_n_ecrit_RIEN_qui_l
 
 
 def test_extraire_leve_sur_un_temoin_dont_le_SHA_ne_porte_pas_le_chemin(tmp_path):
-    faux = dict(T.par_nom("GRAB-COST-v09-08"), nom="FAUX", chemin="docs/EDR/_inexistant_.md")
+    faux = dict(T.par_nom("EDR-GRAB-COST-1828371"), nom="FAUX", chemin="docs/EDR/_inexistant_.md")
     with pytest.raises(RuntimeError):
         T.extraire(faux, str(tmp_path))
 
@@ -165,7 +201,7 @@ def test_extraire_leve_sur_un_temoin_dont_le_SHA_ne_porte_pas_le_chemin(tmp_path
 
 
 def test_verifier_accepte_un_constat_CONFIRME_et_refuse_son_absence():
-    grab = T.par_nom("GRAB-COST-v09-08")
+    grab = T.par_nom("EDR-GRAB-COST-1828371")
     trouve = _crit(constat="la valeur forage_payoff citee n'est publiee par aucun bloc regime",
                    preuve="results/…json : pas de cle forage_payoff", sonde="python tools/check_regime_claims.py")
     assert T.verifier(grab, _texte(trouve)) is True
@@ -175,7 +211,7 @@ def test_verifier_accepte_un_constat_CONFIRME_et_refuse_son_absence():
 
 def test_une_critique_NON_CONFIRMEE_ne_retrouve_PAS_un_temoin():
     """CONTRE-EXEMPLE GELE (revue du 2026-09-23) : une revue qui ne confirme rien passait les 4 temoins."""
-    grab = T.par_nom("GRAB-COST-v09-08")
+    grab = T.par_nom("EDR-GRAB-COST-1828371")
     non_confirmee = _crit(verdict="non confirmé", sonde="grep forage_payoff",
                           constat="forage_payoff semble cite", preuve="ligne 14")
     assert T.verifier(grab, _texte(non_confirmee)) is False
@@ -186,7 +222,7 @@ def test_une_critique_NON_CONFIRMEE_ne_retrouve_PAS_un_temoin():
 def test_le_token_present_dans_la_SEULE_sonde_ne_retrouve_PAS_un_temoin():
     """CONTRE-EXEMPLE GELE : le token attendu figure dans le texte des temoins eux-memes (section
     « ce qui n'est pas mesure »). Une revue qui RECOPIE la commande passait le temoin."""
-    grab = T.par_nom("GRAB-COST-v09-08")
+    grab = T.par_nom("EDR-GRAB-COST-1828371")
     sonde_seule = _crit(sonde="grep -n forage_payoff docs/EDR/…md", constat="le regime est publie",
                         preuve="aucune discordance")
     assert T.verifier(grab, _texte(sonde_seule)) is False
@@ -194,9 +230,9 @@ def test_le_token_present_dans_la_SEULE_sonde_ne_retrouve_PAS_un_temoin():
 
 def test_verifier_sur_les_trois_defauts_reconnait_le_bon_constat_et_rejette_la_revue_creuse():
     connus = {
-        "GRAB-COST-v09-08": "forage_payoff = 3.0 cite, absent du bloc regime du results",
-        "S2-BLIND-v1": "make_blind annule aussi W[0:10], donc le CORPS ; le drain tombe de 46 %",
-        "RETAIN-COMPOSE-pre-retractation": "nul comparatif sous gradient, le pas lr=0.02 n'est pas balaye (E19)",
+        "EDR-GRAB-COST-1828371": "forage_payoff = 3.0 cite, absent du bloc regime du results",
+        "S2-BLIND-CHAMPION-42e9357": "make_blind annule aussi W[0:10], donc le CORPS ; le drain tombe de 46 %",
+        "EDR-RETAIN-COMPOSE-4204f8f": "nul comparatif sous gradient, le pas lr=0.02 n'est pas balaye (E19)",
     }
     creuse = _crit(constat="Le record est clair, bien ecrit, la conclusion est prudente.",
                    preuve="lecture integrale", sonde="cat du record")
@@ -220,7 +256,7 @@ def test_verifier_du_noop_tolere_une_critique_CONFIRMEE_et_refuse_deux():
 
 def test_verifier_leve_FormatInvalide_sur_un_texte_illisible_ou_une_critique_sans_verdict():
     """INDECIDABLE n'est pas NULLE : un bug de serialisation ne doit pas devenir un verdict de fond."""
-    grab = T.par_nom("GRAB-COST-v09-08")
+    grab = T.par_nom("EDR-GRAB-COST-1828371")
     for illisible in ("P2 : forage_payoff non publie", "{\"critiques\": []}", "[1, 2]", "[[]]"):
         with pytest.raises(T.FormatInvalide):
             T.verifier(grab, illisible)
@@ -241,9 +277,9 @@ def test_main_rend_0_puis_1_puis_2_les_trois_issues(tmp_path, capsys):
     nul.write_text(_texte(_crit(constat="rien a signaler")), encoding="utf-8")
     illisible = tmp_path / "illisible.txt"
     illisible.write_text("rien a signaler", encoding="utf-8")
-    assert T.main(["--verifier", "GRAB-COST-v09-08", str(bon)]) == 0
-    assert T.main(["--verifier", "GRAB-COST-v09-08", str(nul)]) == 1
-    assert T.main(["--verifier", "GRAB-COST-v09-08", str(illisible)]) == 2
+    assert T.main(["--verifier", "EDR-GRAB-COST-1828371", str(bon)]) == 0
+    assert T.main(["--verifier", "EDR-GRAB-COST-1828371", str(nul)]) == 1
+    assert T.main(["--verifier", "EDR-GRAB-COST-1828371", str(illisible)]) == 2
     sortie = capsys.readouterr().out
     assert "NULLE" in sortie and "INDÉCIDABLE" in sortie
 
