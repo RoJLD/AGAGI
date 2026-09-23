@@ -719,6 +719,56 @@ ne connaît pas l'état est la classe E12 appliquée au coût (CLAUDE.md § Cali
 0.* Dépend de : rien.
 <!-- closes_when:grep_present=tools/cost_guard.py::process_time -->
 
+**P2.79 — ⚠️ OUVERTE (2026-09-22, décision de robla en attente) — « gitdata » : faut-il un gestionnaire de données
+versionnées (DVC ou équivalent) PAR-DESSUS `src/paths.py`, ou rester à git ?**
+Quoi : le 2026-09-09 robla a demandé « un gitignore pour les datas, un gitdata » pour héberger les données sur un NAS
+plutôt que dans le code. Tranché ce jour-là : indirection `src/paths.py` (AGAGI_DATA_ROOT / AGAGI_RESULTS_ROOT /
+AGAGI_DB_ROOT, relues à chaque appel) + porte 12 (`tools/check_data_paths.py`, baseline gelée) ; la base kuzu reste
+LOCALE et se sauvegarde vers le NAS. NON décidé : versionner les données elles-mêmes avec un outil dédié — le « gitdata »
+demandé existe déjà sous trois noms (DVC, git-annex, git LFS) : pointeurs suivis par git, octets sur le NAS, dvc pull
+sur un clone. Mesuré le 2026-09-22 (git ls-files + du) : les données SUIVIES par git pèsent **7,5 Mo** (454 fichiers
+sous data/ et results/, le plus gros data/hall_of_fame.pkl à 1,2 Mo) contre **3,6 Go** sur disque pour data/ (kuzu,
+états d'agents — non suivis) et 62 Mo pour results/ ; le pack git fait 437 Mo. Le volume versionné est donc petit : un
+DVC ne s'impose pas AUJOURD'HUI, et il coûte un outil de plus par session et un remote NAS à configurer. Deux issues :
+(a) rester à git + `src/paths.py` — fermer cette entrée en RETIRANT sa clause ; (b) DVC par-dessus (dvc init, remote
+NAS, les .pkl/.npz sortent de git) — la clause se satisfait d'elle-même. Le seuil qui renverse (a) : un artefact
+NÉCESSAIRE à la reprise qui dépasse ~50 Mo, ou le pack qui double. *Coût : (a) 0 ; (b) agent 2 h + configuration du
+NAS.* Dépend de : rien. Voir aussi P2.80 (les 44 littéraux qui contournent l'indirection).
+<!-- closes_when:path_present=.dvc/config -->
+
+**P2.80 — ⚠️ OUVERTE (2026-09-22) — 44 chemins de données encore ÉCRITS EN DUR dans 25 fichiers (dette légataire
+gelée par la porte 12) : tant qu'ils y sont, AGAGI_DATA_ROOT ne déplace qu'une PARTIE des données, en silence.**
+Quoi : la porte 12 (`tools/check_data_paths.py`) refuse tout NOUVEAU littéral data/… ou results/… mais gèle les anciens
+dans `tools/data_paths_baseline.json` — recompté le 2026-09-22 par le cliquet lui-même : « 44 dans 25 fichiers |
+gelés : 44 | NOUVEAUX : 0 ». Ces sites lisent ou écrivent À CÔTÉ de l'indirection : un NAS monté via AGAGI_DATA_ROOT
+laisserait src/graph_rag/ (kuzu, pending_article), `tools/confirm_b.py`, `tools/curriculum_craft.py`,
+`tools/skinner_box.py`… sur le disque local, sans un mot. Trois familles, comptées dans la baseline (un fichier peut
+en porter deux) : bases kuzu / experiment_graph — **13 fichiers** (trois chemins différents pour ce que
+`paths.kuzu_graph()` / `paths.experiment_graph()` nomment déjà) ; Hall of Fame et ses variantes — **10 fichiers**
+(→ `paths.hall_of_fame(variante)` / `paths.agent_states`) ; sorties results/ — **4 fichiers** (→ `paths.results_file`).
+Migrer un site ne déclenche RIEN (c'est le but de la porte) ; après chaque famille, `--update-baseline` resserre la
+baseline. Ordre : kuzu d'abord (une seule fonction cible, 13 fichiers), HoF ensuite, results/ enfin. *Coût : agent
+2-3 h ; calcul 0.* Dépend de : rien. Lié à P2.79.
+<!-- closes_when:grep_present=tools/data_paths_baseline.json::"fichiers": \{\} -->
+
+**P2.81 — ⚠️ OUVERTE (2026-09-22, vue en passant pendant le design du dashboard) — `backend/app/main.py:68` résout la
+racine du dépôt un niveau TROP HAUT : le WebSocket « Évolution temps réel » tail un fichier qui ne peut pas exister.**
+Quoi : `RESULTS_DIR = Path(__file__).resolve().parents[3] / "results"` est la forme copiée des routes et des services,
+qui vivent un niveau PLUS PROFOND (`backend/app/routes/*.py`, `backend/app/services/runs_service.py:18` — pour eux
+`parents[3]` EST le dépôt). Pour `main.py`, `parents[3]` est le dossier PARENT du dépôt. Mesuré à l'import le
+2026-09-22 : `C:\Users\robla\VScode_Project\results`, `existe = False` (sous docker : `/results`, alors que
+docker-compose monte `./results:/app/results`). Deux consommateurs : `service = ExperimentDataService(RESULTS_DIR)`
+(l.70) — construit, jamais utilisé, inoffensif ; et `LIVE_PROGRESS_PATH` (l.69), tailé par `/ws/evolution`
+(l.126-129), consommé par `frontend/src/components/LiveEvolution.tsx:34`. Or le lanceur
+(`backend/app/services/sandbox_service.py:9,59`) arme `AGISEED_LIVE_PROGRESS` sur `<dépôt>/results/live_progress.jsonl`
+— le BON chemin : le runner écrit là, le WS lit ailleurs, les deux ne se rejoignent jamais, et `emit_progress`
+(`src/seed_ai/live_progress.py:21-23`) avale toute erreur d'ouverture. Le seul test du flux (`tests/test_backend.py:168-171`)
+monkeypatche `LIVE_PROGRESS_PATH` vers un `tmp_path` : un contrôle qui ne peut pas échouer sur le vrai chemin (E1).
+Depuis `b0f2620b` (2026-06-05, commit initial). Correctif : UNE résolution de racine pour tout le backend
+(`tools.parity_check.find_repo_root` ou `src.paths`), et un test qui compare `main.LIVE_PROGRESS_PATH` au chemin
+armé par `sandbox_service._arm_live_progress` SANS monkeypatch. *Coût : agent 30 min ; calcul 0.* Dépend de : rien.
+<!-- closes_when:grep_absent=backend/app/main.py::parents\[3\] -->
+
 **P4.11 — rang 5 — OUVERTE ([`ADR-005`](../ADR/005_mecanismes_biomimetiques_pieces_familles_prerequis.md), item 1) —
 Trace d'éligibilité de politique TD(λ) dans `TorchPopulationModel._td_update` : le crédit local SANS BPTT, calibré à
 0 simulation ; l'issue positive se mesure sur un PILOTE TD PAR PAS (`CompositionTask(same_tick=False)`), pas sur le
