@@ -72,7 +72,7 @@ from src.seed_ai.harness_verdict import BRANCHES  # noqa: E402
 from tools.experiment_preflight import assert_control_family, declare_design  # noqa: E402
 from tools.harness.r1_constants import B_SWEEP0_LR, SMOKE_NAME, SMOKE_SEED  # noqa: E402
 from tools.plain_substrate_ceiling import PLAIN_COMPOSITION_CEILING, PLAIN_COMPOSITION_PROVENANCE  # noqa: E402
-from tools.preregister import preregister, stamp  # noqa: E402
+from tools.preregister import preregister, stamp, verify  # noqa: E402
 
 N_SEEDS, N_ARMS = 12, 5
 
@@ -264,8 +264,61 @@ def build_rule_r1(smoke: dict) -> dict:
     }
 
 
+# Ruling contrôleur E12 (2026-09-22, après le premier run de -bis) : sous 9 processus python
+# concurrents, la CostGuard PAR SEED (`budget_s / 12` = 15 x unité scellée) a abandonné les seeds 2-3
+# de la cellule A (bras A0/A2/D/D2) -> INCONCLUSIVE_N. La marge x3 de `project_cost` supposait la
+# charge du SMOKE (mesurée à peu près au repos) ; elle ne borne pas la charge d'un run réel partagé
+# avec d'autres sessions. Texte SCELLÉ verbatim (ruling contrôleur) -- ne pas reformuler.
+RAISON_TER = ("E12 : sous 9 processus python concurrents, la CostGuard par seed (15 x unite) a "
+             "abandonne les seeds 2-3 de la cellule A (A0/A2/D/D2) -> INCONCLUSIVE_N ; la marge x3 de "
+             "project_cost supposait la charge du smoke. Le budget est une garde de cout, pas une "
+             "grandeur lue : la lecture est inchangee.")
+
+
+def build_rule_r1_ter(rule_bis: dict) -> dict:
+    """Pure : construit HARNESS-R1-ter à partir de la règle -bis DÉJÀ SCELLÉE -- LUE depuis le JSON
+    scellé (`verify("HARNESS-R1-bis")`), JAMAIS recalculée depuis le smoke (décision contrôleur E12,
+    2026-09-22) : recalculer depuis le smoke risquerait de faire bouger le choix du second lr de B
+    (`build_rule_r1` re-sélectionne `lr2` par médiane) ou toute autre valeur dérivée, alors que seul le
+    BUDGET doit changer. `rule_bis` est copié en PROFONDEUR (`json.loads(json.dumps(...))`) -- jamais
+    muté en mémoire, la règle -bis reste intacte sur disque ET en mémoire pour l'appelant.
+
+    Seuls trois changements par rapport à -bis :
+      * `cellules[clé].budget_s` x3 (marge de charge EXPLICITE : la CostGuard par seed devient
+        `budget_s_ter / 12` = 45 x unité scellée par seed, pour ~5 x unité de travail par seed -- le
+        budget est une GARDE DE COÛT, jamais une grandeur LUE par `harness_verdict_lecture`, donc la
+        relever ne change AUCUNE lecture) ;
+      * `budget_family_s` = somme des budgets de cellule (déjà x3 chacun) ;
+      * `remplace` (-bis, pas R1) et `raison_ter` (texte scellé, `RAISON_TER`), à côté de `remplace`/
+        `raison_bis` d'origine -- CONSERVÉS : -ter remplace -bis, qui remplaçait déjà R1, la chaîne
+        entière reste lisible depuis n'importe quel maillon.
+
+    `predictions_chiffrees_AVANT_le_run` n'est PAS touché : la même prédiction, scellée dans -bis AVANT
+    le premier run, reste la prédiction de -ter -- seul le budget de coût a changé, pas la lecture
+    attendue. Un champ séparé le déclare explicitement (jamais une mutation silencieuse d'un dict déjà
+    scellé ailleurs)."""
+    rule = json.loads(json.dumps(rule_bis))
+    budget_family = 0.0
+    for c in rule["cellules"].values():
+        c["budget_s"] = 3.0 * float(c["budget_s"])
+        budget_family += c["budget_s"]
+    rule["budget_family_s"] = budget_family
+    rule["remplace"] = "HARNESS-R1-bis"
+    rule["raison_ter"] = RAISON_TER
+    rule["predictions_chiffrees_AVANT_le_run_note"] = "scellées dans -bis avant tout run, re-portées telles quelles"
+    return rule
+
+
 def main(argv=None):
     argv = argv if argv is not None else sys.argv[1:]
+    if "--ter" in argv:
+        # -ter se construit depuis le SCEAU -bis, jamais depuis un chemin de smoke -- aucun autre
+        # argument n'a de sens ici.
+        bis = verify("HARNESS-R1-bis")
+        rule = build_rule_r1_ter(bis)
+        p = preregister("HARNESS-R1-ter", rule)
+        print("->", p)
+        return
     # Fix round 2, point (2) : le nominal (`<SMOKE_NAME>_<SMOKE_SEED>.json`) est le smoke DE R1 (sans
     # Aprime_ref) -- desormais suivi par git, ce qui a detourne le re-smoke de la tache 10 vers
     # `_rerun.json` (P2.61). Le defaut suit ce meme fichier, tire de la source UNIQUE `SMOKE_NAME` --

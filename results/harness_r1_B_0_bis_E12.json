@@ -1,0 +1,1060 @@
+{
+  "name": "harness_r1_B",
+  "seed": 0,
+  "commit": "46577661",
+  "git_dirty": true,
+  "data": {
+    "regime": {
+      "task": {
+        "task": "composition_two_step_K6",
+        "K": 6,
+        "T": 2,
+        "same_tick": false,
+        "kind": "composition",
+        "obs_dim": 59,
+        "slots": {
+          "key": [
+            0,
+            6
+          ],
+          "q": [
+            6,
+            12
+          ],
+          "distractor": [
+            12,
+            18
+          ]
+        }
+      },
+      "learner_name": "connectome_torch",
+      "learner_family": "connectome_torch",
+      "sweep": [
+        {
+          "credit": "supervised",
+          "lr": 0.002,
+          "n_classes": 6,
+          "rank": 16
+        },
+        {
+          "credit": "supervised",
+          "lr": 0.001,
+          "n_classes": 6,
+          "rank": 16
+        }
+      ],
+      "piece": "recurrent_state",
+      "without": {
+        "feedforward": true
+      },
+      "n_agents": 16,
+      "episodes": 600,
+      "eval_batches": 40,
+      "seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ],
+      "bayes_floors": {
+        "permute_key": {
+          "declared": 0.16666666666666666,
+          "measured": 0.1650390625,
+          "se": 0.005823093691405702,
+          "certified": true
+        },
+        "permute_query": {
+          "declared": 0.16666666666666666,
+          "measured": 0.176513671875,
+          "se": 0.005823093691405702,
+          "certified": true
+        },
+        "inject_distractor_slot": {
+          "declared": null,
+          "measured": 1.0,
+          "se": 1.5625e-08,
+          "certified": false
+        }
+      },
+      "contract_task": {
+        "bayes_floors": {
+          "permute_key": 0.16666666666666666,
+          "permute_query": 0.16666666666666666,
+          "state_reset": 0.16666666666666666
+        },
+        "certified": true,
+        "elapsed_ms": 3.1906000804156065
+      },
+      "incapable_ceiling": null,
+      "piece_removed_verified": true
+    },
+    "design": {
+      "question": "HARNESS-R1-bis",
+      "replication_unit": "seed",
+      "n_independent": 12,
+      "links": {
+        "ablation->chute": "measured",
+        "dose->acquisition": "measured",
+        "sans_piece->chute": "measured",
+        "analogue_bio": "inferred"
+      },
+      "inferred_links": [
+        "analogue_bio"
+      ],
+      "cost_estimate": 3086.5238280035555,
+      "inferred_reason": "l'analogue biologique d'une pi\u00e8ce est une hypoth\u00e8se port\u00e9e par le registre (spec \u00a72.6), jamais mesur\u00e9e ici",
+      "control_family": {
+        "cells": 8,
+        "alpha_family": 0.05,
+        "alpha_cell": 0.00625,
+        "method": "bonferroni",
+        "reason": null,
+        "fwer_bound": 0.05
+      },
+      "warning": "1 maillon(s) INF\u00c9R\u00c9(S) : ['analogue_bio']. Une cha\u00eene causale transporte son signe, pas son amplitude \u2014 v\u00e9rifier que le r\u00e9gime place l'effet au-dessus du bruit, ou mesurer \u00e0 n r\u00e9duit."
+    },
+    "control_family": {
+      "cells": 8,
+      "alpha_family": 0.05,
+      "alpha_cell": 0.00625,
+      "method": "bonferroni",
+      "reason": null,
+      "fwer_bound": 0.05
+    },
+    "preregistration": {
+      "name": "HARNESS-R1-bis",
+      "seal": "54f2f1de4123d44180001e55a24088d9805279b623f6ba812dc78eb385cd2e91",
+      "rule_path": [
+        "cellules",
+        "B"
+      ],
+      "rule": {
+        "ablations": [
+          {
+            "must_bite": true,
+            "name": "permute_key",
+            "site": "input"
+          },
+          {
+            "must_bite": true,
+            "name": "permute_query",
+            "site": "input"
+          },
+          {
+            "must_bite": false,
+            "name": "inject_distractor_slot",
+            "site": "input"
+          },
+          {
+            "must_bite": true,
+            "name": "state_reset",
+            "site": "state"
+          }
+        ],
+        "alive_margin": 0.05,
+        "bayes_floors": {
+          "permute_key": 0.16666666666666666,
+          "permute_query": 0.16666666666666666,
+          "state_reset": 0.16666666666666666
+        },
+        "budget_s": 3086.5238280035555,
+        "collapse_factor": 1.5,
+        "control_family": {
+          "alpha_cell": 0.00625,
+          "alpha_family": 0.05,
+          "cells": 8,
+          "fwer_bound": 0.05,
+          "method": "bonferroni",
+          "reason": null
+        },
+        "episodes": 600,
+        "eval_batches": 40,
+        "incapable_ceiling": null,
+        "issues": {
+          "attendue": "DEMANDED_ACQUIRED_NECESSARY",
+          "sinon": "la retention ne passe pas par l'etat porte a ce pas : resultat a graver, LOCK-001 rouvert"
+        },
+        "learner": "connectome_torch",
+        "matched_sham": null,
+        "min_sep": 0.05,
+        "n_agents": 16,
+        "n_floor": 12,
+        "oracle_min": 0.9,
+        "piece": "recurrent_state",
+        "prior_max": 0.5,
+        "sweep": [
+          {
+            "credit": "supervised",
+            "lr": 0.002,
+            "n_classes": 6,
+            "rank": 16
+          },
+          {
+            "credit": "supervised",
+            "lr": 0.001,
+            "n_classes": 6,
+            "rank": 16
+          }
+        ],
+        "task": "composition_two_step_K6"
+      }
+    },
+    "provenance": {
+      "git_sha": "4657766140f891b8fa7cdac0a8e3f3752c127faf",
+      "dirty": true,
+      "rule": "HARNESS-R1-bis",
+      "seal": "54f2f1de4123d44180001e55a24088d9805279b623f6ba812dc78eb385cd2e91"
+    },
+    "db": {
+      "seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ],
+      "arms": {
+        "A": {
+          "last": {
+            "0": 0.932812511920929,
+            "1": 0.9281250238418579,
+            "2": 0.8968750238418579,
+            "3": 0.953125,
+            "4": 0.917187511920929,
+            "5": 0.964062511920929,
+            "6": 0.8999999761581421,
+            "7": 0.9140625,
+            "8": 0.90625,
+            "9": 0.9046875238418579,
+            "10": 0.940625011920929,
+            "11": 0.9390624761581421
+          },
+          "dose": {
+            "0": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 40988.434864997864,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "1": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 40835.679255485535,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "2": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 41129.14333534241,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "3": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 40882.45648097992,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "4": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 41006.91654729843,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "5": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 41062.57093143463,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "6": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 40720.03778362274,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "7": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 40975.803340911865,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "8": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 40718.248200416565,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "9": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 40876.56899404526,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "10": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 41173.31146430969,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "11": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 41166.43893432617,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            }
+          },
+          "first": {
+            "0": 0.17812499403953552,
+            "1": 0.1640625,
+            "2": 0.15781250596046448,
+            "3": 0.19218750298023224,
+            "4": 0.17343750596046448,
+            "5": 0.13906249403953552,
+            "6": 0.17031249403953552,
+            "7": 0.15781250596046448,
+            "8": 0.203125,
+            "9": 0.15156249701976776,
+            "10": 0.1640625,
+            "11": 0.18125000596046448
+          },
+          "mid": {
+            "0": 0.543749988079071,
+            "1": 0.5296875238418579,
+            "2": 0.5078125,
+            "3": 0.512499988079071,
+            "4": 0.4921875,
+            "5": 0.47343748807907104,
+            "6": 0.573437511920929,
+            "7": 0.546875,
+            "8": 0.573437511920929,
+            "9": 0.5484374761581421,
+            "10": 0.4937500059604645,
+            "11": 0.5484374761581421
+          }
+        },
+        "A0": {
+          "last": {
+            "0": 0.16249999403953552,
+            "1": 0.17812499403953552,
+            "2": 0.15000000596046448,
+            "3": 0.17499999701976776,
+            "4": 0.16093750298023224,
+            "5": 0.14687499403953552,
+            "6": 0.18281249701976776,
+            "7": 0.12656250596046448,
+            "8": 0.18906250596046448,
+            "9": 0.17499999701976776,
+            "10": 0.16249999403953552,
+            "11": 0.16249999403953552
+          },
+          "dose": {
+            "0": {
+              "calls": 600,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "1": {
+              "calls": 600,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "2": {
+              "calls": 600,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "3": {
+              "calls": 600,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "4": {
+              "calls": 600,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "5": {
+              "calls": 600,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "6": {
+              "calls": 600,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "7": {
+              "calls": 600,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "8": {
+              "calls": 600,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "9": {
+              "calls": 600,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "10": {
+              "calls": 600,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "11": {
+              "calls": 600,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            }
+          }
+        },
+        "A2": {
+          "last": {
+            "0": 0.7015625238418579,
+            "1": 0.65625,
+            "2": 0.6390625238418579,
+            "3": 0.676562488079071,
+            "4": 0.6890624761581421,
+            "5": 0.7109375,
+            "6": 0.6937500238418579,
+            "7": 0.621874988079071,
+            "8": 0.640625,
+            "9": 0.659375011920929,
+            "10": 0.703125,
+            "11": 0.7046874761581421
+          },
+          "dose": {
+            "0": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 20625.00947189331,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "1": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 20427.874398708344,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "2": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 20491.907638549805,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "3": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 20488.332320213318,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "4": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 20461.68979358673,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "5": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 20559.041232585907,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "6": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 20510.224168777466,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "7": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 20334.26718568802,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "8": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 20525.742427825928,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "9": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 20654.878841876984,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "10": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 20303.93122434616,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "11": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 20615.327105998993,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            }
+          }
+        },
+        "D": {
+          "last": {
+            "0": 0.17812499403953552,
+            "1": 0.15781250596046448,
+            "2": 0.15468749403953552,
+            "3": 0.15781250596046448,
+            "4": 0.17499999701976776,
+            "5": 0.19374999403953552,
+            "6": 0.16562500596046448,
+            "7": 0.13124999403953552,
+            "8": 0.14374999701976776,
+            "9": 0.16718749701976776,
+            "10": 0.18593749403953552,
+            "11": 0.16718749701976776
+          },
+          "dose": {
+            "0": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 1152.1149121522903,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "1": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 1165.505157545209,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "2": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 1142.2567696124315,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "3": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 1119.569742500782,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "4": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 1127.3387246578932,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "5": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 1134.4128795266151,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "6": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 1134.8956396132708,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "7": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 1148.6944138854742,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "8": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 1160.1147053092718,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "9": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 1162.2156680077314,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "10": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 1148.0048449486494,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "11": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 1157.6976864784956,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            }
+          }
+        },
+        "D2": {
+          "last": {
+            "1": 0.16562500596046448,
+            "2": 0.16093750298023224,
+            "3": 0.16562500596046448,
+            "4": 0.16093750298023224,
+            "5": 0.19687500596046448,
+            "6": 0.171875,
+            "7": 0.13593749701976776,
+            "8": 0.14374999701976776,
+            "9": 0.18593749403953552,
+            "10": 0.171875,
+            "11": 0.18437500298023224
+          },
+          "dose": {
+            "1": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 579.1588985919952,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "2": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 574.8230722174048,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "3": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 566.2560733035207,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "4": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 568.8380304798484,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "5": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 570.4555553421378,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "6": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 571.7004110813141,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "7": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 574.1672874391079,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "8": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 574.6349717527628,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "9": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 578.9693513140082,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "10": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 574.4869242012501,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            },
+            "11": {
+              "calls": 600,
+              "updates": 600,
+              "dparam_abs_sum": 576.8973638340831,
+              "episodes_seen": 9600,
+              "unit": "gradient_updates"
+            }
+          }
+        }
+      },
+      "eval": {
+        "noop": {
+          "A": {
+            "0": 0.9390624761581421,
+            "1": 0.932812511920929,
+            "2": 0.8999999761581421,
+            "3": 0.9375,
+            "4": 0.926562488079071,
+            "5": 0.949999988079071,
+            "6": 0.926562488079071,
+            "7": 0.9140625,
+            "8": 0.8999999761581421,
+            "9": 0.9375,
+            "10": 0.9515625238418579,
+            "11": 0.9515625238418579
+          },
+          "A0": {
+            "0": 0.18125000596046448,
+            "1": 0.1875,
+            "2": 0.17343750596046448,
+            "3": 0.1484375,
+            "4": 0.18437500298023224,
+            "5": 0.15312500298023224,
+            "6": 0.171875,
+            "7": 0.14218750596046448,
+            "8": 0.20624999701976776,
+            "9": 0.171875,
+            "10": 0.16093750298023224,
+            "11": 0.18593749403953552
+          },
+          "A2": {
+            "0": 0.6484375,
+            "1": 0.675000011920929,
+            "2": 0.6343749761581421,
+            "3": 0.6875,
+            "4": 0.684374988079071,
+            "5": 0.707812488079071,
+            "6": 0.6796875,
+            "7": 0.621874988079071,
+            "8": 0.6656249761581421,
+            "9": 0.731249988079071,
+            "10": 0.692187488079071,
+            "11": 0.7203124761581421
+          },
+          "D": {
+            "0": 0.16875000298023224,
+            "1": 0.17812499403953552,
+            "2": 0.16875000298023224,
+            "3": 0.1640625,
+            "4": 0.21250000596046448,
+            "5": 0.1640625,
+            "6": 0.18906250596046448,
+            "7": 0.15312500298023224,
+            "8": 0.14374999701976776,
+            "9": 0.19374999403953552,
+            "10": 0.16249999403953552,
+            "11": 0.19687500596046448
+          },
+          "D2": {
+            "1": 0.17656250298023224,
+            "2": 0.16718749701976776,
+            "3": 0.16562500596046448,
+            "4": 0.21250000596046448,
+            "5": 0.15625,
+            "6": 0.18906250596046448,
+            "7": 0.14218750596046448,
+            "8": 0.14687499403953552,
+            "9": 0.1875,
+            "10": 0.16093750298023224,
+            "11": 0.17499999701976776
+          }
+        },
+        "oracle": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0,
+          "6": 1.0,
+          "7": 1.0,
+          "8": 1.0,
+          "9": 1.0,
+          "10": 1.0,
+          "11": 1.0
+        },
+        "ablated": {
+          "permute_key": {
+            "0": 0.22968749701976776,
+            "1": 0.21250000596046448,
+            "2": 0.2109375,
+            "3": 0.22968749701976776,
+            "4": 0.20000000298023224,
+            "5": 0.21406249701976776,
+            "6": 0.203125,
+            "7": 0.19374999403953552,
+            "8": 0.20000000298023224,
+            "9": 0.19843749701976776,
+            "10": 0.18906250596046448,
+            "11": 0.22343750298023224
+          },
+          "permute_query": {
+            "0": 0.20468750596046448,
+            "1": 0.20781250298023224,
+            "2": 0.21562500298023224,
+            "3": 0.22343750298023224,
+            "4": 0.20624999701976776,
+            "5": 0.23749999701976776,
+            "6": 0.19687500596046448,
+            "7": 0.20000000298023224,
+            "8": 0.23749999701976776,
+            "9": 0.21406249701976776,
+            "10": 0.22031250596046448,
+            "11": 0.25468748807907104
+          },
+          "inject_distractor_slot": {
+            "0": 0.9375,
+            "1": 0.932812511920929,
+            "2": 0.8968750238418579,
+            "3": 0.948437511920929,
+            "4": 0.909375011920929,
+            "5": 0.9515625238418579,
+            "6": 0.885937511920929,
+            "7": 0.9156249761581421,
+            "8": 0.9078124761581421,
+            "9": 0.9046875238418579,
+            "10": 0.932812511920929,
+            "11": 0.9359375238418579
+          },
+          "state_reset": {
+            "0": 0.18281249701976776,
+            "1": 0.15781250596046448,
+            "2": 0.16249999403953552,
+            "3": 0.15937499701976776,
+            "4": 0.14531250298023224,
+            "5": 0.171875,
+            "6": 0.15625,
+            "7": 0.13593749701976776,
+            "8": 0.16249999403953552,
+            "9": 0.1796875,
+            "10": 0.16249999403953552,
+            "11": 0.15000000596046448
+          }
+        },
+        "control": {
+          "state_reset": {
+            "intact": {
+              "0": 0.9312499761581421,
+              "1": 0.9125000238418579,
+              "2": 0.890625,
+              "3": 0.926562488079071,
+              "4": 0.903124988079071,
+              "5": 0.9453125,
+              "6": 0.8921874761581421,
+              "7": 0.887499988079071,
+              "8": 0.890625,
+              "9": 0.875,
+              "10": 0.9234374761581421,
+              "11": 0.917187511920929
+            },
+            "ablated": {
+              "0": 0.1875,
+              "1": 0.17656250298023224,
+              "2": 0.20156249403953552,
+              "3": 0.19218750298023224,
+              "4": 0.17343750596046448,
+              "5": 0.16562500596046448,
+              "6": 0.1796875,
+              "7": 0.14218750596046448,
+              "8": 0.15625,
+              "9": 0.1953125,
+              "10": 0.15937499701976776,
+              "11": 0.19687500596046448
+            }
+          }
+        }
+      },
+      "abandoned": {
+        "A": [],
+        "A0": [],
+        "A2": [],
+        "D": [],
+        "D2": [
+          0
+        ]
+      },
+      "regime": {
+        "task": {
+          "task": "composition_two_step_K6",
+          "K": 6,
+          "T": 2,
+          "same_tick": false,
+          "kind": "composition",
+          "obs_dim": 59,
+          "slots": {
+            "key": [
+              0,
+              6
+            ],
+            "q": [
+              6,
+              12
+            ],
+            "distractor": [
+              12,
+              18
+            ]
+          }
+        },
+        "learner_name": "connectome_torch",
+        "learner_family": "connectome_torch",
+        "sweep": [
+          {
+            "credit": "supervised",
+            "lr": 0.002,
+            "n_classes": 6,
+            "rank": 16
+          },
+          {
+            "credit": "supervised",
+            "lr": 0.001,
+            "n_classes": 6,
+            "rank": 16
+          }
+        ],
+        "piece": "recurrent_state",
+        "without": {
+          "feedforward": true
+        },
+        "n_agents": 16,
+        "episodes": 600,
+        "eval_batches": 40,
+        "seeds": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11
+        ],
+        "bayes_floors": {
+          "permute_key": {
+            "declared": 0.16666666666666666,
+            "measured": 0.1650390625,
+            "se": 0.005823093691405702,
+            "certified": true
+          },
+          "permute_query": {
+            "declared": 0.16666666666666666,
+            "measured": 0.176513671875,
+            "se": 0.005823093691405702,
+            "certified": true
+          },
+          "inject_distractor_slot": {
+            "declared": null,
+            "measured": 1.0,
+            "se": 1.5625e-08,
+            "certified": false
+          }
+        },
+        "contract_task": {
+          "bayes_floors": {
+            "permute_key": 0.16666666666666666,
+            "permute_query": 0.16666666666666666,
+            "state_reset": 0.16666666666666666
+          },
+          "certified": true,
+          "elapsed_ms": 3.1906000804156065
+        },
+        "incapable_ceiling": null,
+        "piece_removed_verified": true
+      }
+    },
+    "verdict": {
+      "verdict": "INCONCLUSIVE_N",
+      "branch": "INCONCLUSIVE_N",
+      "why": "11 seeds complets < n_floor=12 (abandons : {'D2': [0]})",
+      "demand": null,
+      "noise_floor": null,
+      "acquisition": null,
+      "necessity": null,
+      "e19": null
+    },
+    "cost": {
+      "unit_s_measured": null,
+      "unit_s_given": 17.147354600019753,
+      "projected_s": 3086.5238280035555,
+      "actual_s": 1089.3068301000167,
+      "machine_load_note": "charge machine a noter dans le record (E12)"
+    }
+  }
+}

@@ -10,6 +10,8 @@ Fix round 2/5 : trois tests de REFUS (un smoke incomplet — sans `Aprime_ref`, 
 cellule, sans `unit_s` full_eval pour une cellule — lève AVANT toute prédiction non adossée, motif (a)
 du dépôt) et un test que `B_SWEEP0_LR` est une SOURCE UNIQUE partagée par `smoke_r1.py`/`seal_r1.py`.
 """
+import copy
+import json
 import os
 import sys
 
@@ -21,8 +23,10 @@ from src.seed_ai.harness_pieces import PIECES  # noqa: E402
 from src.seed_ai.harness_verdict import BRANCHES, validate_rule  # noqa: E402
 from tools.harness.learners.connectome import ConnectomeLearner  # noqa: E402
 from tools.harness.r1_constants import B_SWEEP0_LR  # noqa: E402
-from tools.harness.seal_r1 import build_rule_r1  # noqa: E402
+from tools.harness.seal_r1 import RAISON_TER, build_rule_r1, build_rule_r1_ter  # noqa: E402
 from tools.plain_substrate_ceiling import PLAIN_COMPOSITION_CEILING, PLAIN_COMPOSITION_PROVENANCE  # noqa: E402
+from tools.preregister import preregister as _preregister  # noqa: E402
+from tools.preregister import verify as _verify  # noqa: E402
 
 
 def _smoke(b_med=None):
@@ -207,6 +211,73 @@ def test_aprime_prediction_is_never_built_without_its_measured_reference():
     prédiction ; sur un smoke COMPLET, la prédiction cite TOUJOURS une médiane mesurée."""
     rule = build_rule_r1(_smoke())
     assert "MESUREE mediane" in rule["predictions_chiffrees_AVANT_le_run"]["Aprime"]
+
+
+# ---------------------------------------------------------------------------------------------------
+# Ruling contrôleur E12 (2026-09-22) : sous 9 processus python concurrents, la CostGuard par seed (15 x
+# unité scellée) a abandonné des seeds de la cellule A sous -bis -> INCONCLUSIVE_N. `HARNESS-R1-ter`
+# relève UNIQUEMENT le budget (marge de charge explicite, x3 encore), lu depuis le sceau -bis DÉJÀ
+# écrit -- jamais recalculé depuis le smoke (risquerait de faire bouger `lr2`/toute valeur dérivée).
+# ---------------------------------------------------------------------------------------------------
+
+def test_build_rule_r1_ter_triples_each_cell_budget_and_the_family_total():
+    bis = build_rule_r1(_smoke())
+    ter = build_rule_r1_ter(bis)
+    for c in ("A", "Aprime", "B"):
+        assert ter["cellules"][c]["budget_s"] == pytest.approx(3.0 * bis["cellules"][c]["budget_s"], rel=1e-9)
+    assert ter["budget_family_s"] == pytest.approx(3.0 * bis["budget_family_s"], rel=1e-9)
+
+
+def test_build_rule_r1_ter_is_identical_to_bis_except_budgets_and_the_declared_fields():
+    """-ter ne change QUE le budget (garde de coût) et trois champs déclaratifs (`remplace`,
+    `raison_ter`, `predictions_chiffrees_AVANT_le_run_note`) : tout le reste (sweep, ablations, issues,
+    `predictions_chiffrees_AVANT_le_run` elle-même, discrimination, dv_primaire, design, `raison_bis`
+    d'origine...) doit rester BIT-IDENTIQUE à -bis."""
+    bis = build_rule_r1(_smoke())
+    ter = build_rule_r1_ter(bis)
+    ter_stripped, bis_stripped = json.loads(json.dumps(ter)), json.loads(json.dumps(bis))
+    for c in ("A", "Aprime", "B"):
+        ter_stripped["cellules"][c].pop("budget_s")
+        bis_stripped["cellules"][c].pop("budget_s")
+    ter_stripped.pop("budget_family_s")
+    bis_stripped.pop("budget_family_s")
+    # `remplace` est RÉÉCRIT (pas ajouté) : -bis pointait "HARNESS-R1", -ter pointe "HARNESS-R1-bis" --
+    # chaque maillon nomme son prédécesseur IMMÉDIAT (`raison_bis` d'origine reste, inchangée, pour la
+    # chaîne complète). Exclu des DEUX côtés, pas seulement de `ter_stripped`.
+    ter_stripped.pop("remplace")
+    bis_stripped.pop("remplace")
+    ter_stripped.pop("raison_ter")
+    ter_stripped.pop("predictions_chiffrees_AVANT_le_run_note")
+    assert ter_stripped == bis_stripped
+    assert bis["remplace"] == "HARNESS-R1"
+    assert ter["remplace"] == "HARNESS-R1-bis"
+    assert ter["raison_bis"] == bis["raison_bis"]
+    assert ter["raison_ter"] == RAISON_TER
+    assert ter["predictions_chiffrees_AVANT_le_run"] == bis["predictions_chiffrees_AVANT_le_run"]
+
+
+def test_build_rule_r1_ter_does_not_mutate_its_input():
+    bis = build_rule_r1(_smoke())
+    before = copy.deepcopy(bis)
+    build_rule_r1_ter(bis)
+    assert bis == before
+
+
+def test_sealing_ter_leaves_the_bis_file_untouched_on_disk(tmp_path):
+    """Le défaut que ce test rend impossible : sceller -ter en réécrivant ou en mutant le fichier -bis
+    déjà sur disque -- une pré-inscription ne se corrige pas (`tools/preregister.py`), et -ter doit se
+    construire à CÔTÉ de -bis, jamais AU-DESSUS."""
+    d = str(tmp_path)
+    bis = build_rule_r1(_smoke())
+    _preregister("HARNESS-R1-bis", bis, _dir=d)
+    bis_path = os.path.join(d, "HARNESS-R1-bis.json")
+    before = open(bis_path, encoding="utf-8").read()
+    ter = build_rule_r1_ter(_verify("HARNESS-R1-bis", _dir=d))
+    _preregister("HARNESS-R1-ter", ter, _dir=d)
+    after = open(bis_path, encoding="utf-8").read()
+    assert after == before, "sceller -ter a modifié le fichier -bis sur disque"
+    reread = _verify("HARNESS-R1-ter", _dir=d)          # sceau -ter valide (ne lève pas)
+    assert reread["remplace"] == "HARNESS-R1-bis"
 
 
 def test_b_sweep0_lr_is_a_single_source_shared_by_smoke_and_seal():
