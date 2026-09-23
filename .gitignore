@@ -47,6 +47,9 @@ data/kuzu_db/
 data/kuzudb/
 data/test_kuzudb/
 data/agent_states/
+# PM (2026-09-16, spec pm-stratege-refutateur) : bulletins par session et tableau, artefacts RUNTIME, jamais suivis.
+data/sessions/
+data/pm/
 
 # Frontend-specific
 frontend/node_modules/

@@ -307,6 +307,18 @@ PORTES = {
             "motif": "le cliquet ne cliquerait plus : tout chevauchant hors baseline passerait",
         }],
     },
+    "21": {
+        "module": "tools.check_roles_registry",
+        "titre": "registre des rôles : cinq colonnes obligatoires (spec PM 2026-09-16)",
+        "temoins": ["tests/sandbox/test_roles_registry_gate.py"],
+        "mutations": [{
+            "nom": "une colonne creuse sur un rôle instancié n'est plus un défaut",
+            "avant": "            creuses = [COLONNES[i] for i in range(2, 7) if c[i] in _VIDE]",
+            "apres": "            creuses = []",
+            "motif": ("le verdict du cliquet — un rôle sans instrument ni contrôle positif passerait, c'est-à-dire "
+                      "une règle documentée déguisée en rôle (E10)"),
+        }],
+    },
 }
 
 # ⚠️ Clé = NOM DE MODULE, et non numéro de porte : c'est ce qui permet à

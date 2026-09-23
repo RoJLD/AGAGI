@@ -70,6 +70,9 @@
   "tools/life_score_contamination_probe.py": [
    "results/life_score_contamination_"
   ],
+  "tools/pm/roles_counts.py": [
+   "results/"
+  ],
   "tools/retention_map.py": [
    "results/retention_map.json"
   ],

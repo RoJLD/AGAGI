@@ -2275,7 +2275,7 @@ L'écran mécanique l'a remplacée, et il a coûté zéro simulation.
   par le branchement de la porte 8 elle-même. ⚠️ **Portée déclarée** : il vérifie ce qu'on lui
   DÉCLARE, il ne découvre pas les chiffres non balisés (deviner produirait des faux positifs sur
   toute date et tout chiffre historique) ; la couverture croît par annotation : aujourd'hui
-  **16 comptes balisés** <!-- count:syntheses_balisees=16 --> — et ce nombre-là est balisé LUI AUSSI, donc
+  **18 comptes balisés** <!-- count:syntheses_balisees=18 --> — et ce nombre-là est balisé LUI AUSSI, donc
   une régression de couverture se voit. *(Auto-audit du 2026-09-07 : cette phrase AFFIRMAIT cette
   propriété sans la tenir — la balise n'existait pas. Une affirmation non vérifiée écrite dans le
   cliquet qui les traque : c'est E10 au méta-niveau, corrigé le jour même. ⚠️ Et ce compteur est

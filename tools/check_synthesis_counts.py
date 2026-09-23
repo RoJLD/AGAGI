@@ -57,6 +57,7 @@ _DOCS = (
     os.path.join("docs", "REF", "REF-DEMAND-MARKER.md"),
     os.path.join("docs", "roadmap", "FIL_DIRECTEUR_AGI.md"),
     os.path.join("docs", "roadmap", "SCIENCE.md"),
+    os.path.join("docs", "roadmap", "ROLES.md"),
 )
 
 _TAG = re.compile(r"<!--\s*count:([a-z0-9_]+)\s*=\s*(-?\d+)\s*-->")
@@ -118,6 +119,11 @@ def _regles_scellees():
     return len([f for f in os.listdir(d) if f.endswith(".json")]) if os.path.isdir(d) else 0
 
 
+def _roles(statut):
+    from tools.check_roles_registry import lignes
+    return sum(1 for l in lignes(_lire(os.path.join("docs", "roadmap", "ROLES.md"))) if l["statut"] == statut)
+
+
 COMPTEURS = {
     "instruments_detectes": lambda: len(_calib()[0]),
     "instruments_calibres": lambda: len(_calib()[1]),
@@ -132,6 +138,8 @@ COMPTEURS = {
     "portes_hook": _portes_hook,
     "aretes_taxonomy": _aretes_taxonomy,
     "regles_scellees": _regles_scellees,
+    "roles_instancies": lambda: _roles("instancié"),
+    "roles_candidats": lambda: _roles("candidat"),
     "syntheses_balisees": lambda: sum(len(_TAG.findall(_lire(d))) for d in _DOCS),
 }
 

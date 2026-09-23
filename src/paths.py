@@ -36,7 +36,7 @@ import os
 
 __all__ = [
     "data_root", "results_root", "db_root", "proposals_root",
-    "hall_of_fame", "agent_states", "epoch_states", "genomes", "data_file",
+    "hall_of_fame", "agent_states", "epoch_states", "genomes", "data_file", "sessions_dir", "pm_dir",
     "results_file", "kuzu_graph", "experiment_graph", "db_file", "proposals_file",
     "assert_roots_exist", "describe",
 ]
@@ -107,6 +107,16 @@ def data_file(*parties):
     """Échappatoire pour un artefact froid sans accesseur dédié. Préférer un accesseur NOMMÉ : un
     nom dit ce qu'est la donnée, un chemin ne dit que où elle est aujourd'hui."""
     return _sous(data_root(), *parties)
+
+
+def sessions_dir(*parties):
+    """Bulletins de session du PM (un JSON par sessionId, writer = les hooks de CETTE session)."""
+    return _sous(data_root(), "sessions", *parties)
+
+
+def pm_dir(*parties):
+    """Artefacts du PM : BOARD.json, BOARD.md, alerts.jsonl, hook_errors.log, ROLES_COUNTS.json (writer = PM)."""
+    return _sous(data_root(), "pm", *parties)
 
 
 # --- sorties de mesure ----------------------------------------------------------------------------

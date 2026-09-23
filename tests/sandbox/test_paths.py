@@ -151,6 +151,20 @@ def test_describe_dit_la_valeur_ET_son_origine(monkeypatch):
     assert d["AGAGI_DATA_ROOT"]["origine"] == "defaut"
 
 
+def test_sessions_et_pm_sont_sous_la_racine_FROIDE_au_litteral_d_aujourd_hui():
+    # PM (spec 2026-09-16 §3.1, §3.2) : bulletins de session et tableau, deux sous-repertoires de data/.
+    assert paths.sessions_dir() == "data/sessions"
+    assert paths.sessions_dir("6f3aee07.json") == "data/sessions/6f3aee07.json"
+    assert paths.pm_dir() == "data/pm"
+    assert paths.pm_dir("BOARD.json") == "data/pm/BOARD.json"
+
+
+def test_sessions_et_pm_suivent_AGAGI_DATA_ROOT(monkeypatch):
+    monkeypatch.setenv("AGAGI_DATA_ROOT", "//nas/agagi/froid")
+    assert paths.sessions_dir() == "//nas/agagi/froid/sessions"
+    assert paths.pm_dir("alerts.jsonl") == "//nas/agagi/froid/pm/alerts.jsonl"
+
+
 # --------------------------------------------------------------------------------------------------
 # 5. Racine des PROPOSITIONS du harnais — brique libre livrée le 2026-09-22 (spec de la session c9)
 # --------------------------------------------------------------------------------------------------

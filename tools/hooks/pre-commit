@@ -146,7 +146,7 @@ rm -f /tmp/agagi_scan.err
 # « 19 classes sur 19 » faux le jour de l'ajout d'E20 ; « 5 cliquets tous branches » alors qu'il y en
 # avait 6 ; « 105 detectes / 104 calibres » quand le cliquet en comptait 143. Les ATOMES etaient
 # gardes, les RESUMES -- ce qu'une session future CITE en premier -- ne l'etaient pas.
-staged_syn=$(git diff --cached --name-only --diff-filter=AM | grep -E '^(CLAUDE\.md|docs/REF/REGISTRE_ERREURS\.md|docs/roadmap/PRIORITES_ET_DETTES\.md|docs/EDR/README\.md|docs/SDR/.*\.md|docs/REF/REF-DEMAND-MARKER\.md|docs/roadmap/(FIL_DIRECTEUR_AGI|SCIENCE)\.md|tools/check_synthesis_counts\.py)$')
+staged_syn=$(git diff --cached --name-only --diff-filter=AM | grep -E '^(CLAUDE\.md|docs/REF/REGISTRE_ERREURS\.md|docs/roadmap/PRIORITES_ET_DETTES\.md|docs/EDR/README\.md|docs/SDR/.*\.md|docs/REF/REF-DEMAND-MARKER\.md|docs/roadmap/(FIL_DIRECTEUR_AGI|SCIENCE)\.md|docs/roadmap/ROLES\.md|tools/check_synthesis_counts\.py)$')
 if [ -n "$staged_syn" ]; then
   PYTHONIOENCODING=utf-8 python tools/check_synthesis_counts.py || {
     echo ""
@@ -350,6 +350,19 @@ if git diff --cached --name-only --diff-filter=ACMR | grep -Eq "^(data/genomes/.
     echo ""
     echo "-> Un genome persiste a des blocs entree/sortie qui se chevauchent (E24) : le regenerer avec"
     echo "   preserve_io_blocks=True, ou geler EN CONNAISSANCE : python tools/check_io_overlap.py --update-baseline"
+    fail=1
+  }
+fi
+
+# 21. REGISTRE DES ROLES (2026-09-16) -- spec pm-stratege-refutateur section 3.6 : toute ligne de
+# docs/roadmap/ROLES.md porte ses cinq colonnes (instrument, controle positif, cout, compteurs, dissolution).
+# Une ligne creuse est une regle documentee (E10). Pas de baseline : le registre nait complet.
+staged_roles=$(git diff --cached --name-only --diff-filter=AM | grep -E '^(docs/roadmap/ROLES\.md|tools/check_roles_registry\.py)$')
+if [ -n "$staged_roles" ]; then
+  PYTHONIOENCODING=utf-8 python tools/check_roles_registry.py || {
+    echo ""
+    echo "-> Une ligne de ROLES.md n'a pas ses cinq colonnes : un role sans instrument, controle positif,"
+    echo "   cout, compteurs ou critere de dissolution est une regle documentee, pas un role. Completer."
     fail=1
   }
 fi
