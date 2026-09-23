@@ -1,0 +1,54 @@
+{
+  "_comment": "Temoins GELES du Refutateur (spec PM 2026-09-16, section 2.3). A chaque revue, les prompts figes de docs/REF/REF-REVUE-ADVERSARIALE.md passent d'abord ici : un defaut connu non retrouve rend la revue NULLE. Ne jamais remplacer un temoin par un record plus commode ; ne jamais deplacer un SHA pour faire passer une revue.",
+  "_champs": {
+    "nom": "identifiant du temoin, cite par le workflow et par ROLES.md",
+    "genre": "defaut = la revue DOIT retrouver le defaut connu ; noop = record sain, la revue doit RESTER SILENCIEUSE (plancher de fausses critiques)",
+    "sha": "commit qui GELE la version du record. Choisi pour porter le defaut NU, pas sa rectification.",
+    "attendu": "regex cherchee dans le TEXTE DES CRITIQUES rendues par la revue (genre=defaut uniquement)",
+    "defaut": "enonce en clair du defaut connu, et ou il a ete grave",
+    "signature": "regex qui DOIT etre presente dans le RECORD a ce SHA — gele la verification a l'oeil faite au moment du gel",
+    "antisignature": "regex qui doit etre ABSENTE du record a ce SHA : la marque de la correction. Vide = rien a exclure (temoin no-op)."
+  },
+  "temoins": [
+    {
+      "nom": "GRAB-COST-v09-08",
+      "genre": "defaut",
+      "sha": "1828371324613f7213d2ef28c560c82407ffe464",
+      "chemin": "docs/EDR/EDR-GRAB-COST_Grabbing_Costs_Survival_Even_When_Grabbing_Feeds.md",
+      "attendu": "forage_payoff",
+      "defaut": "E8 occ. 4 — PREMISSE RECOPIEE : le record s'ouvre sur 'le regime de famine dure porte forage_payoff = 3.0', valeur (a) jamais publiee par le runner (run_condition construit avec config=None, donc le defaut 1.0), (b) dont le referent ne touche JAMAIS l'action ablatee (forage_payoff ne multiplie que prey_reward sur une mise a mort, world_1_stoneage.py:800) et (c) dont le fait annonce ('grabber NOURRIT') est mesurable et FAUX (0 repas sur 20 776 agent-ticks). Rectifie le 2026-09-09 par 9ce2a3ba80ad21352929a1351359cf664d00aafe.",
+      "signature": "forage_payoff = 3\\.0",
+      "antisignature": "RECTIFICATION|jamais eu cours"
+    },
+    {
+      "nom": "S2-BLIND-v1",
+      "genre": "defaut",
+      "sha": "42e9357fc3643159717b6020d9634b41689d003b",
+      "chemin": "docs/EDR/S2-BLIND-CHAMPION_Stopped_At_Control_The_Ablation_Instrument_Has_An_8_Percent_RNG_Noise_Floor.md",
+      "attendu": "(corps|make_blind|drain|ph[eé]notype|W\\[0)",
+      "defaut": "E26 — CORPS NON APPARIE : le record affirme que le controle (i) est 'reste bit-identique', ce qui est vrai de W et FAUX du corps. make_blind annule W[:num_inputs, :], donc aussi les lignes 0-9 dont le monde derive hp_bonus / inv_capacity / drain (mamba_agent.py:47-50) : le drain du sujet aveugle tombe de 2,40 a 1,30 (-46 %). La DV rapportee est un effet METABOLIQUE candidat avant d'etre un effet de cecite. Borne posee le 2026-09-15 par a08999a244a9264d87d16ee854e512e4cac95341.",
+      "signature": "reste bit-identique",
+      "antisignature": "E26|PORT.E BORN.E|CORPS NON APPARI"
+    },
+    {
+      "nom": "RETAIN-COMPOSE-pre-retractation",
+      "genre": "defaut",
+      "sha": "4204f8fd5a651441dbdbb95f9b4cd92b80d7fd60",
+      "chemin": "docs/EDR/EDR-RETAIN-COMPOSE_Where_Is_The_Retain_Compose_Wall.md",
+      "attendu": "(\\blr\\b|learning_rate|balayage|pas d'apprentissage|E19)",
+      "defaut": "E19 — NUL COMPARATIF SOUS GRADIENT SANS BALAYAGE DU PAS : le verdict RETENTION repose sur learned = 0,173 a lr = 0,02, pas unique, jamais balaye ; les deux controles calibres (same_tick, oracle) sont en regime 1-pas, donc aveugles au 2-pas. A protocole identique et seul lr change : 0,02 -> 0,173 (RETENTION) mais 0,002 -> 0,923 (INCONCLUSIVE), 0/144, 12/12 seeds. Verdict RETRACTE par EDR-RETAIN-COMPOSE-LR.",
+      "signature": "Verdict : RETENTION",
+      "antisignature": "RETAIN-COMPOSE-LR|R.TRACT"
+    },
+    {
+      "nom": "LOCK-002-sain",
+      "genre": "noop",
+      "sha": "286f24429b621ebf9ba1c7a040f377672a1f5a07",
+      "chemin": "docs/EDR/LOCK-002_D2_Retention_Is_Learned_Under_REINFORCE_At_The_Right_Step_The_Fourth_Manifestation_Was_E19.md",
+      "attendu": "",
+      "defaut": "AUCUN — record sain : regles scellees AVANT la premiere cellule, clause E19 explicite (second pas lr=0,0005), branche AUTRE prouvee VIDE par un test, garde d'alias, controle degrade nomme, budget mesure a charge connue, n=12 pour le verdict. C'est le PLANCHER DE FAUSSES CRITIQUES du Refutateur : au plus 1 critique confirmee toleree. Sans ce temoin, un Refutateur qui crie sur tout passerait les trois autres.",
+      "signature": "id: EDR-LOCK-002",
+      "antisignature": ""
+    }
+  ]
+}

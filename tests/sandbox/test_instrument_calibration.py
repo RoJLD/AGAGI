@@ -1394,6 +1394,18 @@ CALIBRATED = {
                                   "seams:known-answer", "seams:refuses-leak"],
     # Cas : tests/sandbox/test_s2_credit_ablation_2.py::test_run_arm_refuses_degenerate_args_before_any_world.
     "tools/evo_runs/s2_credit_ablation_2.py::run_arm": ["guard-before-world"],
+    # 2026-09-23 -- LA GARDE DE LA GARDE. `verifier` n'est pas DETECTE par l'heuristique de nommage (aucun
+    # motif ne couvre « verifier »), mais il PRODUIT une affirmation : « cette revue a retrouve le defaut
+    # connu » / « revue NULLE ». Un Refutateur non calibre ne se contenterait pas d'echouer, il validerait
+    # des revues creuses. Ses deux issues sont confrontees a des textes a reponse connue (defaut nomme ->
+    # True ; revue creuse ou vide -> False ; no-op : 0 ou 1 critique -> True, 2 confirmees -> False), et le
+    # regard « a l'oeil » porte sur les versions gelees est lui-meme execute (signature / antisignature).
+    # Cas dans tests/sandbox/test_refutateur_temoins.py -- PAS ici : ce fichier commence par
+    # `pytest.importorskip("torch")` et le Refutateur n'a aucune dependance torch.
+    "tools/refutateur_temoins.py::verifier": ["defaut:nomme", "defaut:revue-creuse", "defaut:texte-vide",
+                                             "noop:zero-ou-une", "noop:deux-confirmees",
+                                             "temoin:signature-presente", "temoin:antisignature-absente",
+                                             "cli:exit-0-1-2"],
 }
 
 _GENOMES = os.path.join("results", "warm007_genomes")
