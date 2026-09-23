@@ -217,11 +217,25 @@ les 348 `.npz` de `data/genomes/` ni les Hall of Fame. Coût nul — trois entie
 famine et les 348 `.npz` sont à 0. Un fichier illisible est RAPPORTÉ, jamais compté 0 ; deux mutations
 tuées par ses témoins).
 `check_regime_claims.py` (porte 19 — **RÉGIME CITÉ ↔ RÉGIME MESURÉ, E8 occ. 4** : une valeur de
-paramètre citée par un record doit être PUBLIÉE par le bloc `regime` d'un `results/*.json` SUIVI
-par git — cas fondateur EDR-GRAB-COST, `forage_payoff = 3.0` cité alors que le runner tournait au
-défaut 1.0. Une rectification qui cite la vraie ET la fausse valeur CONCORDE (c'est la vraie qui
-compte). Mesuré le 2026-09-23 : **74 records citent un paramètre, 5 concordent** — 69 gelés comme
-dette légataire. Un record illisible est RAPPORTÉ, jamais compté CONCORDE ; mutation tuée par son
+paramètre citée par un record doit être RETROUVÉE, MESURÉE, dans un `results/*.json` SUIVI par git —
+dans un bloc `regime` (à toute profondeur, pas seulement racine/1ʳᵉ cellule) OU ailleurs dans le
+fichier (`CONCORDE_HORS_REGIME` : une INFORMATION, pas une faute — cas fondateur trouvé en revue,
+S2-CREDIT-ABLATION cite `reward_scale = 0` publié par le runner dans
+`arms/<bras>/<seed>/learning/reward_scale`, jamais dans `regime` ; confondre « hors du bloc regime »
+et « jamais mesuré » fabrique un DISCORDE, la classe E8 elle-même appliquée à l'instrument qui la
+traque. ⚠️ Le VOISIN S2-REWARD-ABLATION, lui, cite `reward_scale = 0` comme hypothèse de PRÉDICTION,
+jamais mesurée nulle part — publié = `1.0` dans les trois results cités : reste `DISCORDE`, un vrai
+candidat E8, pas un artefact de l'instrument). Une rectification qui cite la vraie ET la fausse
+valeur CONCORDE (c'est la vraie qui compte). Baseline gelée PAR STATUT (pas par nom) : un légataire
+ne bloque que s'il RÉGRESSE vers un statut pire qu'au gel — `SANS_RESULTS`/`SANS_REGIME` à rang égal,
+`DISCORDE` toujours pire. Mesuré le 2026-09-23 (après correctif) : **74 records citent un paramètre,
+10 concordent** (5 `CONCORDE` + 5 `CONCORDE_HORS_REGIME`, le double d'avant le correctif) — 64 gelés
+comme dette légataire, dont 8 `DISCORDE`, **7 vérifiés un par un contre le JSON** (ex. le record 107
+cite `max_ticks = 80` quand le run mesuré porte `max_ticks = 12` ; le 8ᵉ, EDR-RETAIN-COMPOSE-LR, est
+possiblement une LIMITE du parseur de cellule — `_CELL_LR` ne reconnaît pas `lr_0.02`, seulement
+`lr=0.02|...` — découverte en vérifiant, non élargie dans cette passe). Un record
+illisible BLOQUE et n'est jamais gelable par `--update-baseline` ; un scan sous 50 records refuse
+d'écrire la baseline (arbre vide/partiel désarmerait la porte en silence) ; mutation tuée par son
 témoin).
 **19 gardes** <!-- count:portes_hook=19 --> sont branchées sur le hook pre-commit
 (`tools/hooks/pre-commit`) — compte RECOMPUTÉ depuis le hook lui-même : la phrase « 5 cliquets, tous

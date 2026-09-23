@@ -1,14 +1,25 @@
 """Porte 19 -- REGIME CITE <-> REGIME MESURE (classe E8 occ. 4, spec PM S3.5).
 
-  python tools/check_regime_claims.py                    # cliquet : exit 1 sur tout NOUVEAU record discordant
+  python tools/check_regime_claims.py                    # cliquet : exit 1 sur tout NOUVEAU/REGRESSE
   python tools/check_regime_claims.py --report           # etat complet, exit 0
-  python tools/check_regime_claims.py --update-baseline  # gele l'etat courant (dette legataire)
+  python tools/check_regime_claims.py --update-baseline  # gele l'etat courant PAR STATUT (dette legataire)
   python tools/check_regime_claims.py --only docs/EDR/X.md
 
-Un record qui cite `forage_payoff = 3.0` doit citer un `results/*.json` SUIVI par git dont le bloc `regime`
-porte cette valeur. Mesure le 2026-09-23 (`--report`) : 74 records citent un parametre, 5 concordent avec le
-regime publie (CONCORDE) -- les 69 autres (SANS_RESULTS + SANS_REGIME + DISCORDE) sont la dette gelee ici.
-Un record illisible est RAPPORTE, jamais compte CONCORDE.
+Un record qui cite `forage_payoff = 3.0` doit citer un `results/*.json` SUIVI par git dont la valeur est
+PUBLIEE -- soit dans un bloc `regime` (a N'IMPORTE QUELLE profondeur : racine, cellule, ou plus bas),
+soit AILLEURS dans le fichier (ex. `arms/<bras>/<seed>/learning/reward_scale`). Un parametre publie HORS
+du bloc `regime` est une INFORMATION (CONCORDE_HORS_REGIME), pas une absence : confondre les deux fabrique
+un DISCORDE la ou le runner a simplement publie ailleurs -- c'est la classe E8 elle-meme (absence de
+DONNEES REGARDEES -> affirmation negative de fond) appliquee a l'INSTRUMENT qui traque E8.
+
+Mesure le 2026-09-23 (`--report`, apres correctif revue -- recherche en profondeur + hors-regime) : 300
+records dans docs/EDR/, 74 citent un parametre, **10 concordent** (5 CONCORDE + 5 CONCORDE_HORS_REGIME --
+double du chiffre d'avant le correctif, qui ne cherchait qu'a la racine et au 1er niveau de cellule) --
+64 restent dette legataire geles PAR STATUT (53 SANS_RESULTS, 3 SANS_REGIME, 8 DISCORDE dont **7
+verifies un par un contre le JSON reel, aucun artefact d'instrument** -- le 8e, EDR-RETAIN-COMPOSE-LR,
+est possiblement une LIMITE du parseur de cellule (`_CELL_LR` ne reconnait pas `lr_0.02`, seulement
+`lr=0.02|...`) decouverte en verifiant : cf. rapport de correction, non elargi dans cette passe).
+Un record illisible est RAPPORTE et BLOQUE, jamais compte CONCORDE ni gelable par `--update-baseline`.
 """
 import argparse
 import glob
@@ -27,7 +38,12 @@ _NUM = r"([0-9]+(?:[.,][0-9]+)?)"
 _CLAIM = re.compile(r"(?<![\w.])(" + "|".join(PARAMS) + r")\s*=\s*" + _NUM + r"(?!\w)(?!\.[0-9])")
 _RESULTS = re.compile(r"`[^`]*?(results/[A-Za-z0-9_./*{},\-]+\.json)`")
 _CELL_LR = re.compile(r"(?:^|\|)lr=" + _NUM + r"(?:\||$)")
-OK = ("SANS_PARAMETRE", "CONCORDE")
+OK = ("SANS_PARAMETRE", "CONCORDE", "CONCORDE_HORS_REGIME")
+# Ordre de gravite (pour le gel PAR STATUT, finding 2) : une dette legataire ne bloque que si son statut
+# COURANT est PIRE (rang superieur) que celui gele. SANS_RESULTS et SANS_REGIME sont a rang EGAL (deux
+# formes symetriques de « je n'ai rien pu confronter ») ; DISCORDE est toujours le pire, meme depuis l'un
+# ou l'autre.
+_RANG = {"CONCORDE": 0, "CONCORDE_HORS_REGIME": 1, "SANS_RESULTS": 2, "SANS_REGIME": 2, "DISCORDE": 3}
 
 
 def _f(s):
@@ -72,57 +88,126 @@ def _absorber(dst, regime):
             dst.setdefault(_canon(k), set()).add(float(v))
 
 
+def _sous_noeuds(node):
+    """Genere `node` puis tout sous-dict/element de liste, a TOUTE profondeur -- un bloc `regime` peut
+    vivre sous `arms/<bras>/<seed>/regime`, pas seulement a la racine ou dans une cellule de 1er niveau
+    (trouvaille de revue : le lecteur etait aveugle en profondeur, ce qui transformait « je n'ai pas
+    regarde la » en « le runner ne l'a pas publie »)."""
+    if isinstance(node, dict):
+        yield node
+        for v in node.values():
+            yield from _sous_noeuds(v)
+    elif isinstance(node, list):
+        for v in node:
+            yield from _sous_noeuds(v)
+
+
 def regime_values(data):
+    """Union des PARAMS trouves dans tout sous-dict nomme `regime`, a N'IMPORTE QUELLE profondeur, plus
+    les cles de cellule `lr=0.001|seed=2026` rencontrees a n'importe quel niveau."""
     out = {}
     if not isinstance(data, dict):
         return out
-    _absorber(out, data.get("regime") if isinstance(data.get("regime"), dict) else None)
-    for k, v in data.items():
-        if k.startswith("_") or not isinstance(v, dict):
-            continue
-        _absorber(out, v.get("regime") if isinstance(v.get("regime"), dict) else None)
-        m = _CELL_LR.search(k)
-        if m:
-            out.setdefault("lr", set()).add(_f(m.group(1)))
+    for node in _sous_noeuds(data):
+        r = node.get("regime")
+        if isinstance(r, dict):
+            _absorber(out, r)
+        for k in node:
+            if isinstance(k, str):
+                m = _CELL_LR.search(k)
+                if m:
+                    out.setdefault("lr", set()).add(_f(m.group(1)))
+    return out
+
+
+def valeurs_hors_regime(data, params=PARAMS):
+    """Cherche PARAMS (alias canonicalises) PARTOUT dans `data` SAUF a l'interieur d'un bloc nomme
+    `regime` (deja couvert par `regime_values`) -- recursion sur dicts ET listes, cle == nom du
+    parametre ou son alias. Un parametre publie ICI (ex. `arms/b_full/2026/learning/reward_scale`)
+    est une INFORMATION mesuree, pas une absence : `evaluer` le classe CONCORDE_HORS_REGIME, jamais
+    DISCORDE, quand la valeur citee y est retrouvee."""
+    noms = set(params)
+    out = {}
+
+    def _rec(node):
+        if isinstance(node, dict):
+            for k, v in node.items():
+                if k == "regime":
+                    continue
+                if isinstance(v, (int, float)) and not isinstance(v, bool) and k in noms:
+                    out.setdefault(_canon(k), set()).add(float(v))
+                _rec(v)
+        elif isinstance(node, list):
+            for v in node:
+                _rec(v)
+    _rec(data)
     return out
 
 
 def evaluer(texte, lecteur, root=_ROOT):
+    """`lecteur(chemin) -> dict | str | None` : un dict est le JSON lu ; une chaine ou `None` signale un
+    echec de lecture (la chaine, quand elle est fournie par le lecteur reel de `analyze`, NOMME la cause
+    -- « fichier absent », « JSON invalide », « non suivi par git » -- minor (iii) de la revue)."""
     cl = claims(texte)
     cites = [c for motif in cited_results(texte) for c in _developper(root, motif)]
     if not cl:
         return {"params": {}, "cites": cites, "statut": "SANS_PARAMETRE", "detail": []}
-    mesures = {}
-    lus = 0
+    params = {p: sorted(v) for p, v in cl.items()}
+    if not cites:
+        return {"params": params, "cites": cites, "statut": "SANS_RESULTS",
+                "detail": ["aucun chemin results/*.json cite"]}
+    regime_par_fichier, hors_par_fichier, raisons = {}, {}, []
     for c in cites:
         data = lecteur(c)
-        if data is None:
-            continue
-        lus += 1
-        for p, vals in regime_values(data).items():
-            mesures.setdefault(p, set()).update(vals)
-    params = {p: sorted(v) for p, v in cl.items()}
+        if isinstance(data, dict):
+            regime_par_fichier[c] = regime_values(data)
+            hors_par_fichier[c] = valeurs_hors_regime(data)
+        else:
+            raisons.append(f"{c} : {data if isinstance(data, str) else 'illisible'}")
+    lus = len(regime_par_fichier)
     if lus == 0:
-        return {"params": params, "cites": cites, "statut": "SANS_RESULTS", "detail": ["aucun results/ cite n'est lisible"]}
-    if not mesures:
-        return {"params": params, "cites": cites, "statut": "SANS_REGIME", "detail": ["aucun bloc regime dans les results cites"]}
+        return {"params": params, "cites": cites, "statut": "SANS_RESULTS",
+                "detail": ["aucun results/ cite n'est lisible (" + "; ".join(raisons) + ")"]}
+    if not any(regime_par_fichier.values()) and not any(hors_par_fichier.values()):
+        return {"params": params, "cites": cites, "statut": "SANS_REGIME",
+                "detail": ["aucun bloc regime ni parametre connu publie dans les results cites"]}
     detail = []
+    pire = 0    # 0 CONCORDE, 1 CONCORDE_HORS_REGIME, 3 DISCORDE (rang du pire parametre du record)
     for p, vals in cl.items():
-        if p not in mesures:
-            detail.append(f"{p} cite {sorted(vals)} : absent du regime publie")
-        elif not (vals & mesures[p]):
-            detail.append(f"{p} cite {sorted(vals)} : regime publie {sorted(mesures[p])}")
-    statut = "DISCORDE" if detail else "CONCORDE"
+        trouve = False
+        for c in cites:
+            m = vals & regime_par_fichier.get(c, {}).get(p, set())
+            if m:
+                valeur = ",".join(str(v) for v in sorted(m))
+                detail.append(f"{p}={valeur} <- {c}")
+                trouve = True
+                break
+        if not trouve:
+            for c in cites:
+                m = vals & hors_par_fichier.get(c, {}).get(p, set())
+                if m:
+                    valeur = ",".join(str(v) for v in sorted(m))
+                    detail.append(f"{p} cite {sorted(vals)} : hors du bloc regime, publie {valeur} dans {c}")
+                    pire = max(pire, 1)
+                    trouve = True
+                    break
+        if not trouve:
+            detail.append(f"{p} cite {sorted(vals)} : introuvable dans les results cites")
+            pire = max(pire, 3)
+    statut = "DISCORDE" if pire >= 3 else ("CONCORDE_HORS_REGIME" if pire >= 1 else "CONCORDE")
     return {"params": params, "cites": cites, "statut": statut, "detail": detail}
 
 
 def _lecteur(root):
     def lire(rel):
+        p = os.path.join(root, rel)
+        if not os.path.exists(p):
+            return "fichier absent"
         try:
-            with open(os.path.join(root, rel), encoding="utf-8") as fh:
+            with open(p, encoding="utf-8") as fh:
                 return json.load(fh)
         except (OSError, ValueError):
-            return None
+            return "JSON invalide"
     return lire
 
 
@@ -132,14 +217,17 @@ def _tracked(root, rel):
 
 
 def analyze(root=_ROOT, suivi=None):
-    """`suivi(root, rel) -> bool` injectable (les tests tournent hors depot git) ; defaut : `_tracked`, resolu a l'appel."""
+    """`suivi(root, rel) -> bool` injectable (les tests tournent hors depot git) ; defaut : `_tracked`,
+    resolu a l'appel."""
     suivi = _tracked if suivi is None else suivi
     out, illisibles = {}, []
     d = os.path.join(root, "docs", "EDR")
     lecteur = _lecteur(root)
 
     def lecteur_suivi(rel):
-        return lecteur(rel) if suivi(root, rel) else None
+        if not suivi(root, rel):
+            return "non suivi par git"
+        return lecteur(rel)
     for name in sorted(os.listdir(d)) if os.path.isdir(d) else []:
         if not name.endswith(".md"):
             continue
@@ -155,10 +243,16 @@ def analyze(root=_ROOT, suivi=None):
 
 
 def _load_baseline():
+    """Rend `{fichier: statut}`. Compat ascendante : l'ancien format (liste de noms, avant le correctif
+    de revue « la baseline gele un NOM, pas un STATUT ») est relu comme si tout y etait DISCORDE (le pire
+    rang), donc strictement PROTECTEUR le temps d'un `--update-baseline` de rattrapage."""
     if not os.path.exists(_BASELINE):
-        return []
+        return {}
     with open(_BASELINE, encoding="utf-8") as fh:
-        return json.load(fh).get("legataires", [])
+        leg = json.load(fh).get("legataires", {})
+    if isinstance(leg, list):
+        leg = {f: "DISCORDE" for f in leg}
+    return leg
 
 
 def main(argv=None):
@@ -171,32 +265,51 @@ def main(argv=None):
     a = analyze(args.root)
     fautifs = sorted(f for f, v in a["records"].items() if v["statut"] not in OK)
     for f in a["illisibles"]:
-        print(f"  [ILLISIBLE, non compte] {f}")
+        print(f"  [ILLISIBLE -- BLOQUE, non gelable par --update-baseline] {f}")
     if args.update_baseline:
+        # Garde minor (i) : un scan quasi-vide (mauvais --root, arbre partiel) ecrirait une baseline VIDE
+        # qui desarmerait la porte EN SILENCE -- refuser plutot que de geler une mesure degeneree.
+        if len(a["records"]) < 50:
+            print(f"REFUS : seulement {len(a['records'])} record(s) scanne(s) (< 50) -- --root pointe-t-il "
+                  "vers un arbre vide ou partiel ? Baseline NON ecrite (elle desarmerait la porte en silence).")
+            return 1
+        legataires = {f: a["records"][f]["statut"] for f in fautifs}
         with open(_BASELINE, "w", encoding="utf-8") as fh:
-            json.dump({"_comment": "Records citant un parametre SANS bloc regime concordant, geles comme dette legataire "
-                                   "(E8 occ. 4). Aucun NOUVEAU (tools/check_regime_claims.py).",
-                       "legataires": fautifs}, fh, ensure_ascii=False, indent=2)
-        print(f"baseline gelee : {len(fautifs)} record(s) sur {len(a['records'])}")
+            json.dump({"_comment": "Records dont le statut n'est pas CONCORDE/CONCORDE_HORS_REGIME, geles PAR "
+                                   "STATUT comme dette legataire (E8 occ. 4). Un legataire ne bloque que s'il "
+                                   "REGRESSE vers un statut PIRE qu'au gel (tools/check_regime_claims.py, _RANG).",
+                       "legataires": legataires}, fh, ensure_ascii=False, indent=2)
+        print(f"baseline gelee : {len(legataires)} record(s) sur {len(a['records'])}")
         return 0
-    n = {s: sum(1 for v in a["records"].values() if v["statut"] == s) for s in ("SANS_PARAMETRE", "CONCORDE", "SANS_RESULTS", "SANS_REGIME", "DISCORDE")}
+    n = {s: sum(1 for v in a["records"].values() if v["statut"] == s)
+         for s in ("SANS_PARAMETRE", "CONCORDE", "CONCORDE_HORS_REGIME", "SANS_RESULTS", "SANS_REGIME", "DISCORDE")}
     print(f"records : {len(a['records'])} | {n}")
     if args.report:
-        for f in fautifs:
-            print(f"  [{a['records'][f]['statut']}] {f} : {'; '.join(a['records'][f]['detail'])}")
+        for f, v in sorted(a["records"].items()):
+            if v["statut"] == "SANS_PARAMETRE":
+                continue
+            print(f"  [{v['statut']}] {f} : {'; '.join(v['detail'])}")
         return 0
-    base = set(_load_baseline())
+    base = _load_baseline()
     only = None if args.only is None else {o.replace("\\", "/") for o in args.only}
-    nouveaux = [f for f in fautifs if f not in base and (only is None or f in only)]
-    nouveaux += [i for i in a["illisibles"] if only is None or i in only]     # illisible BLOQUE : jamais compte OK
+
+    def _regresse(f):
+        if f not in base:
+            return True
+        return _RANG.get(a["records"][f]["statut"], 3) > _RANG.get(base[f], 0)
+
+    nouveaux = [f for f in fautifs if _regresse(f) and (only is None or f in only)]
+    nouveaux += [i for i in a["illisibles"] if only is None or i in only]     # illisible BLOQUE : jamais gelable
     if nouveaux:
-        print("ECHEC : un record cite un parametre que son runner n'a pas PUBLIE (bloc regime) -- E8 occ. 4 :")
+        print("ECHEC : un record cite un parametre introuvable dans les results cites (regime OU ailleurs) "
+              "-- E8 occ. 4 -- ou une dette legataire a REGRESSE vers un statut pire :")
         for f in nouveaux:
             v = a["records"].get(f, {"statut": "ILLISIBLE", "detail": []})
-            print(f"  [NOUVEAU {v['statut']}] {f} : {'; '.join(v['detail'])}")
-        print("-> citer le results/*.json SUIVI dont le bloc regime porte la valeur, ou corriger la valeur.")
+            print(f"  [NOUVEAU/REGRESSE {v['statut']}] {f} : {'; '.join(v['detail'])}")
+        print("-> citer le results/*.json SUIVI qui porte la valeur (regime ou ailleurs), ou corriger la valeur.")
         return 1
-    print(f"OK : {len(fautifs)} record(s) sans regime concordant, tous legataires (baseline). Aucun nouveau.")
+    print(f"OK : {len(fautifs)} record(s) sans regime concordant, tous legataires a un statut AU MOINS AUSSI BON "
+          "qu'au gel. Aucun nouveau, aucune regression.")
     return 0
 
 

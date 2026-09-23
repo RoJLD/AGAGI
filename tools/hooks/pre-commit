@@ -367,20 +367,26 @@ if [ -n "$staged_roles" ]; then
   }
 fi
 
-# 19. REGIME CITE <-> REGIME MESURE (2026-09-16) -- classe E8 occ. 4 : un record qui cite une valeur de
-# parametre doit citer un results/*.json SUIVI par git dont le bloc regime porte cette valeur. Mesure le
-# 2026-09-23 : 74 records citent un parametre, 5 concordent (CONCORDE) -- 69 dans la baseline legataire.
-# Ne tourne que si un record EDR, un results/*.json ou la baseline est stage ; baseline seule -> non scope.
-staged_rc=$(git diff --cached --name-only --diff-filter=AM | grep -E '^(docs/EDR/.*\.md|results/.*\.json|tools/regime_claims_baseline\.json)$')
+# 19. REGIME CITE <-> REGIME MESURE (2026-09-16, corrige en revue le 2026-09-23) -- classe E8 occ. 4 : un
+# record qui cite une valeur de parametre doit la retrouver, MESUREE, dans un results/*.json SUIVI par
+# git -- dans un bloc regime (a toute profondeur) ou ailleurs dans le fichier (CONCORDE_HORS_REGIME, une
+# information, pas une faute). Mesure le 2026-09-23 : 74 records citent un parametre, 10 concordent (5
+# CONCORDE + 5 CONCORDE_HORS_REGIME) -- 64 dans la baseline legataire, dont 8 DISCORDE (7 verifies).
+# Se declenche si un record EDR, un results/*.json, la baseline OU le module lui-meme (check_regime_claims
+# .py) est stage ; baseline seule -> non scope (E4 occ. 5). Le scope --only n'est utilise QUE si les
+# fichiers stages sont EXCLUSIVEMENT des docs/EDR -- un results/*.json modifie (bloc regime change) peut
+# invalider les affirmations d'AUTRES records que ceux stages, donc un results stage -> run NON scope.
+staged_rc=$(git diff --cached --name-only --diff-filter=AM | grep -E '^(docs/EDR/.*\.md|results/.*\.json|tools/regime_claims_baseline\.json|tools/check_regime_claims\.py)$')
 if [ -n "$staged_rc" ]; then
   only_rc=$(echo "$staged_rc" | grep -E '^docs/EDR/' || true)
-  if [ -n "$only_rc" ]; then
+  non_edr_rc=$(echo "$staged_rc" | grep -vE '^docs/EDR/' || true)
+  if [ -n "$only_rc" ] && [ -z "$non_edr_rc" ]; then
     PYTHONIOENCODING=utf-8 python tools/check_regime_claims.py --only $only_rc
   else
     PYTHONIOENCODING=utf-8 python tools/check_regime_claims.py
   fi || {
     echo ""
-    echo "-> Une valeur de parametre citee n'est pas celle que le runner a PUBLIEE (bloc regime du results cite)."
+    echo "-> Une valeur de parametre citee est introuvable dans les results cites (regime OU ailleurs)."
     echo "   Citer le results/*.json SUIVI qui la porte, ou corriger la prose. Geler EN CONNAISSANCE :"
     echo "   python tools/check_regime_claims.py --update-baseline"
     fail=1

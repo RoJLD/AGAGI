@@ -309,14 +309,15 @@ PORTES = {
     },
     "19": {
         "module": "tools.check_regime_claims",
-        "titre": "régime cité ↔ régime mesuré (E8 occ. 4)",
+        "titre": "régime cité ↔ régime mesuré, en profondeur et hors du bloc regime (E8 occ. 4)",
         "temoins": ["tests/sandbox/test_regime_claims_gate.py"],
         "mutations": [{
-            "nom": "une valeur citée absente du régime publié n'est plus une discordance",
-            "avant": '    statut = "DISCORDE" if detail else "CONCORDE"',
+            "nom": "une valeur citée introuvable nulle part n'est plus une discordance",
+            "avant": '    statut = "DISCORDE" if pire >= 3 else ("CONCORDE_HORS_REGIME" if pire >= 1 else "CONCORDE")',
             "apres": '    statut = "CONCORDE"',
             "motif": ("le verdict du cliquet — EDR-GRAB-COST tel qu'au 2026-09-09 (forage_payoff = 3.0 jamais mesuré, "
-                      "défaut 1.0) passerait pour concordant"),
+                      "défaut 1.0) passerait pour concordant, comme S2-REWARD-ABLATION (reward_scale = 0 jamais "
+                      "mesuré nulle part, publié = 1.0 partout)"),
         }],
     },
     "21": {
