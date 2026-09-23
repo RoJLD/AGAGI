@@ -216,7 +216,14 @@ les 348 `.npz` de `data/genomes/` ni les Hall of Fame. Coût nul — trois entie
 0,5 s ; les 10 entrées du HoF principal (64 + 126 dans 172 = 18, une seule lignée) sont gelées, les deux HoF
 famine et les 348 `.npz` sont à 0. Un fichier illisible est RAPPORTÉ, jamais compté 0 ; deux mutations
 tuées par ses témoins).
-**18 gardes** <!-- count:portes_hook=18 --> sont branchées sur le hook pre-commit
+`check_regime_claims.py` (porte 19 — **RÉGIME CITÉ ↔ RÉGIME MESURÉ, E8 occ. 4** : une valeur de
+paramètre citée par un record doit être PUBLIÉE par le bloc `regime` d'un `results/*.json` SUIVI
+par git — cas fondateur EDR-GRAB-COST, `forage_payoff = 3.0` cité alors que le runner tournait au
+défaut 1.0. Une rectification qui cite la vraie ET la fausse valeur CONCORDE (c'est la vraie qui
+compte). Mesuré le 2026-09-23 : **74 records citent un paramètre, 5 concordent** — 69 gelés comme
+dette légataire. Un record illisible est RAPPORTÉ, jamais compté CONCORDE ; mutation tuée par son
+témoin).
+**19 gardes** <!-- count:portes_hook=19 --> sont branchées sur le hook pre-commit
 (`tools/hooks/pre-commit`) — compte RECOMPUTÉ depuis le hook lui-même : la phrase « 5 cliquets, tous
 branchés » qui vivait ici était fausse.
 ⚠️ **La baseline d'un cliquet doit elle-même déclencher le hook** — sinon l'élargir et la committer seule

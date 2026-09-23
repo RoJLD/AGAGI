@@ -307,6 +307,18 @@ PORTES = {
             "motif": "le cliquet ne cliquerait plus : tout chevauchant hors baseline passerait",
         }],
     },
+    "19": {
+        "module": "tools.check_regime_claims",
+        "titre": "régime cité ↔ régime mesuré (E8 occ. 4)",
+        "temoins": ["tests/sandbox/test_regime_claims_gate.py"],
+        "mutations": [{
+            "nom": "une valeur citée absente du régime publié n'est plus une discordance",
+            "avant": '    statut = "DISCORDE" if detail else "CONCORDE"',
+            "apres": '    statut = "CONCORDE"',
+            "motif": ("le verdict du cliquet — EDR-GRAB-COST tel qu'au 2026-09-09 (forage_payoff = 3.0 jamais mesuré, "
+                      "défaut 1.0) passerait pour concordant"),
+        }],
+    },
     "21": {
         "module": "tools.check_roles_registry",
         "titre": "registre des rôles : cinq colonnes obligatoires (spec PM 2026-09-16)",
