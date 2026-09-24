@@ -1,0 +1,5 @@
+{
+  "_pourquoi": "Etats BLOQUANTS tolerés EN CONNAISSANCE, avec leur condition de sortie. Les clés préfixées par _ sont ignorées par le cliquet (ce sont des notes, pas des tolérances).",
+  "_commit-msg": "P2.108, 2026-09-24. `tools/hooks/commit-msg` est LIVRE mais PAS DEPLOYE, et c'est délibéré : `core.hooksPath` vaut un chemin ABSOLU vers le `.git/hooks` du dépôt principal, donc le déployer arme la FLOTTE ENTIERE — six sessions verraient d'un coup leurs fusions passer par les portes. Un déploiement est un acte ANNONCE, pas l'effet de bord du commit qui livre le fichier. A retirer de cette baseline le jour du déploiement : c'est ce retrait qui rend la garde effective sur ce crochet.",
+  "commit-msg": "ABSENT"
+}

@@ -38,6 +38,7 @@ Usage :
 """
 import argparse
 import ast
+import functools
 import json
 import os
 import re
@@ -82,8 +83,19 @@ def _named_artifacts(cell):
         tok = span.split("(")[0].strip()
         # Le registre cite volontiers `fichier.py:163` — forme légitime que le motif brut rejetait.
         tok = re.sub(r":\d+$", "", tok)
-        if _IDENT.match(tok) or _PATH.match(tok):
-            found.append(tok)
+        # ⚠️ ET LA FORME QUALIFIÉE `fichier.py::fonction` (2026-09-24, P2.108). C'est la convention
+        # du dépôt pour lever une collision de noms (elle est OBLIGATOIRE dans `CALIBRATED`), et
+        # c'est la façon naturelle de désigner UN cas gelé parmi les seize d'un fichier. Ce cliquet
+        # ne la lisait pas : le token entier ne passait ni `_IDENT` ni `_PATH`, la colonne Garde
+        # paraissait ne nommer AUCUN artefact, et deux classes inscrites avec leur contre-exemple
+        # étaient refusées comme « déclaratives ». Un cliquet qui refuse la notation que le dépôt
+        # recommande crie au loup, et une garde qui crie toujours est une garde qu'on désarme.
+        # Les deux moitiés sont retenues : le fichier DOIT exister, la fonction est vérifiée comme
+        # n'importe quel identifiant.
+        for moitie in (tok.split("::") if "::" in tok else [tok]):
+            moitie = moitie.strip()
+            if _IDENT.match(moitie) or _PATH.match(moitie):
+                found.append(moitie)
     return sorted(set(found))
 
 
@@ -91,14 +103,29 @@ def _is_test_artifact(name):
     return name.startswith("test_") or (bool(_PATH.match(name)) and "test" in os.path.basename(name))
 
 
+_CACHE_WALK = {}
+
+
 def _walk(dirs, suffix=".py"):
-    for d in dirs:
-        for root, _, files in os.walk(d):
-            if "__pycache__" in root:
-                continue
-            for f in files:
-                if f.endswith(suffix):
-                    yield os.path.join(root, f)
+    """⚠️ MÉMOÏSÉ, et ce n'est pas du confort (mesuré le 2026-09-24). `_exists` appelle ce parcours
+    puis RELIT chaque fichier du dépôt pour y chercher un `def <nom>` ; à une vingtaine d'appels par
+    passe, c'est autant de balayages complets de `tools/`, `src/` et `tests/`. En ajoutant la
+    vérification de la forme qualifiée, la suite de ce cliquet est passée de 104 s à un dépassement
+    de 900 s — un durcissement correct rendu inutilisable par son coût, donc désarmé en pratique.
+    La liste des fichiers est figée pour la durée du processus : ces cliquets sont des passes
+    courtes, jamais des démons."""
+    cle = (tuple(dirs), suffix)
+    if cle not in _CACHE_WALK:
+        trouves = []
+        for d in dirs:
+            for root, _, files in os.walk(d):
+                if "__pycache__" in root:
+                    continue
+                for f in files:
+                    if f.endswith(suffix):
+                        trouves.append(os.path.join(root, f))
+        _CACHE_WALK[cle] = trouves
+    return list(_CACHE_WALK[cle])
 
 
 def _collectibles():
@@ -137,10 +164,13 @@ def _collectibles():
     return out
 
 
+@functools.lru_cache(maxsize=None)
 def _exists(name):
     """Fichier présent, ou fonction définie dans tools/, src/ ou tests/.
 
-    `tests/` est inclus : une garde peut légitimement ÊTRE un test (contre-exemple gelé)."""
+    `tests/` est inclus : une garde peut légitimement ÊTRE un test (contre-exemple gelé).
+    ⚠️ MÉMOÏSÉ pour la même raison que `_walk` : le registre cite le même artefact dans plusieurs
+    classes, et chaque appel non mis en cache relit le dépôt entier."""
     if _PATH.match(name):
         if os.path.exists(os.path.join(_ROOT, name)):
             return True
@@ -168,6 +198,34 @@ def scan():
         if not arts:
             creuses[classe] = ("NON NOMMEE : statut `executable` mais la colonne Garde ne nomme aucun "
                                "artefact -- il n'y a rien a executer, le statut est declaratif")
+            continue
+        # ⚠️ LA FORME QUALIFIEE EST UNE PROMESSE PRECISE, DONC VERIFIEE PRECISEMENT (2026-09-24).
+        # La tolerance ci-dessous (« au moins un artefact reel ») est justifiee pour de la prose
+        # technique en backticks ; elle ne l'est PAS pour `fichier.py::fonction`, qui ne peut pas
+        # etre de la prose. Mesure du controle positif ecrit dans la meme passe : avec la seule
+        # tolerance, un fichier REEL suivi d'une fonction INVENTEE passait -- la moitie droite
+        # n'etait jamais lue, et le lecteur croyait pourtant qu'on lui nommait UN cas precis.
+        for tok in re.findall(r"`([^`]+)`", cell):
+            tok = tok.split("(")[0].strip()
+            if "::" not in tok:
+                continue
+            fichier, _, fonction = tok.partition("::")
+            fichier, fonction = fichier.strip(), fonction.strip()
+            # ⚠️ ET SEULEMENT SUR LA FORME REELLE `*.py::identifiant`. Premier tir de cette
+            # stricture : UN faux positif immediat, sur E1, dont la colonne cite une clause de
+            # peremption de backlog (`grep_present=docs/EDR/….md::verdict: TD0_INERTE`) — deux
+            # points doubles qui ne sont pas une qualification python. Un cliquet qui durcit doit
+            # etre confronte au registre REEL avant d'etre cru : celui-ci l'a ete, et il avait tort.
+            if not (_PATH.match(fichier) and _IDENT.match(fonction)):
+                continue
+            manquants = [m for m in (fichier, fonction) if m and not _exists(m)]
+            if manquants:
+                creuses[classe] = (f"CITATION QUALIFIEE FAUSSE : `{tok}` nomme {manquants}, qui "
+                                   f"n'existe(nt) pas. La forme fichier.py::fonction annonce UN cas "
+                                   f"precis : ses deux moities doivent exister, sinon elle est plus "
+                                   f"trompeuse qu'une absence de citation")
+                break
+        if classe in creuses:
             continue
         # ⚠️ Exiger que TOUS les termes backtickés existent produisait des faux positifs en masse :
         # la colonne cite aussi de la PROSE technique (`argmax`, `throw`, `lr`, `pass`) qui n'est pas

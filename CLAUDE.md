@@ -224,7 +224,18 @@ certification ne porte que sur le refus d'un argument dégénéré. Les 31 muett
 disque, comme la porte 4 durcie. ⚠️ Elle s'est prise en défaut elle-même (**E4 occ. 9**) : un appel sous
 `pytest.raises` était compté comme une ATTEINTE du corps, donc six déclarations passaient pour calibrées par leur seul
 test de garde — la baseline avait été gelée sur cette mesure avant d'être confrontée à un cas connu).
-**19 gardes** <!-- count:portes_hook=19 --> sont branchées sur le hook pre-commit
+`check_hook_deployment.py` (porte 22, P2.108 — **la copie DÉPLOYÉE contre la version RELUE**. `.git/hooks/`
+n'est pas versionné : les crochets y sont recopiés à la main, et entre les deux rien ne tenait. ⚠️
+`core.hooksPath` vaut ici un chemin **ABSOLU** vers le `.git/hooks` du dépôt principal, donc **tous les
+worktrees exécutent le MÊME fichier** : y écrire arme la flotte entière. Les deux sens sont des occurrences
+RÉELLES et ils n'ont pas le même remède, donc pas la même sanction — une copie **en retard** (un `cp` oublié,
+contenu déjà committé) CRIE avec la commande exacte sans bloquer, parce que le commit qui met à jour un crochet
+est dans cet état par construction ; une copie **en avance** (du code qui n'existe dans AUCUN commit, écrit dans
+le crochet commun par un worktree — mesuré par le PM, il bloquait chaque session qui committait un record)
+REFUSE. La référence est l'**INDEX**, jamais le disque : l'arbre est partagé. ⚠️ Elle ne peut PAS voir sa
+propre absence — elle est lancée PAR le pre-commit déployé ; celle de tout AUTRE crochet, si, et c'est elle qui
+compte, un `commit-msg` manquant rouvrant le trou de la fusion).
+**20 gardes** <!-- count:portes_hook=20 --> sont branchées sur le hook pre-commit
 (`tools/hooks/pre-commit`) — compte RECOMPUTÉ depuis le hook lui-même : la phrase « 5 cliquets, tous
 branchés » qui vivait ici était fausse.
 ⚠️ **La baseline d'un cliquet doit elle-même déclencher le hook** — sinon l'élargir et la committer seule

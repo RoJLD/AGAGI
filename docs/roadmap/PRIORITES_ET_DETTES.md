@@ -1080,6 +1080,86 @@ Vu en passant, à consigner par le PM (son périmètre) : le hook `pre-commit` n
 *Coût : agent 1 h ; calcul 0.* Dépend de : rien.
 <!-- closes_when:grep_present=tools/check_preregistration_applied.py::--names -->
 
+**P2.108 — rang 12 bis — CLOSE (2026-09-24) — Les portes ne tiraient JAMAIS sur l'union de deux branches, et
+la copie deployee des crochets ne repondait de rien. Les deux trous sont fermes, avec leurs contre-exemples.**
+Quoi (mesure, depot JETABLE, git 2.54.0.windows.1). Sur une fusion PROPRE : `pre-commit` **0 appel** (1 sur un
+commit ordinaire, controle positif fait), `commit-msg` 1 appel avec MERGE_HEAD present et un code 1 **annule la
+fusion**, `post-merge` appele mais **son code de retour est ignore**. Le cas est vivant, pas theorique : deux
+sessions corrigent le meme compte publie en comptant des objets DIFFERENTS ; chaque branche est localement juste,
+l'union est fausse, et aucun conflit git ne le signale. Deux collisions de numeros de backlog reelles le meme jour
+(rapportees par `agagi-c9`) ont la meme cause : la cle `numero-double` de `check_backlog_freshness` EXISTE et sait
+les attraper -- elle ne tournait simplement pas au moment ou une fusion introduit le doublon.
+⚠️ DEUXIEME MESURE, et c'est elle qui decide la forme : relancer le `pre-commit` TEL QUEL ne suffit pas. Ses
+**17 appels** a `git diff --cached --name-only` comparent l'index au PREMIER PARENT, donc au seul cote entrant.
+Quand les deux branches portent la MEME valeur de balise -- le cas qui ne conflicte pas, donc le cas dangereux --
+le document PORTEUR DU COMPTE est identique a HEAD : absent du diff, porte non armee. Un crochet naif aurait laisse
+passer son propre contre-exemple. D'ou la comparaison a la BASE DE FUSION (bloc `AGAGI:FUSION-SCOPE`), qui vaut
+aussi pour un SQUASH -- lequel ne pose AUCUN MERGE_HEAD et reproduisait le trou integralement.
+Livre : `tools/hooks/commit-msg` (relance les portes sur une fusion propre, jamais deux fois), les deux blocs
+balises de `tools/hooks/pre-commit`, `tools/check_hook_deployment.py` + sa baseline (porte 22),
+`tests/sandbox/test_hook_on_merge.py` (16 cas) et `tests/sandbox/test_hook_deployment.py` (18 cas).
+Ce que DEUX revues adversariales ont coute, et pourquoi elles valaient leur prix : la v1 du temoin (fichier VIDE
+juge sur sa PRESENCE) et la v2 (horodatage + HEAD + MERGE_HEAD) ont ete REFUTEES toutes les deux. La v2 tombait sur
+une sequence sans rien d'anormal, reproduite 4 fois : fusion refusee -> MERGE_HEAD reste -> l'auteur corrige et
+recommite -> `pre-commit` PASSE et pose le temoin -> le commit AVORTE a l'editeur, donc `commit-msg` n'a rien
+consomme -> un temoin VALIDE survit dans un git-dir PARTAGE et desarme la fusion suivante, avec un index DIFFERENT.
+Classe **E31** (l'identite d'une garde omet CE QU'ELLE A VERIFIE) ; remede : 4e ligne = `git write-tree`. Classe
+**E32** trouvee dans la meme passe (une garde degrade son PERIMETRE en silence : `git merge-base` rend du vide sur
+des histoires sans ancetre commun, la portee retombait au premier parent sans le dire).
+⚠️ CE QUI RESTE A FAIRE, ET QUI N'EST PAS UN DETAIL : `tools/hooks/commit-msg` est LIVRE mais **PAS DEPLOYE**.
+`core.hooksPath` vaut un chemin ABSOLU vers le `.git/hooks` du depot principal : le deployer arme la FLOTTE
+ENTIERE d'un coup. C'est un acte ANNONCE, pas l'effet de bord d'un commit -- la baseline de la porte 22 le dit et
+le tolere explicitement, et c'est son retrait qui rendra la garde effective sur ce crochet.
+⚠️ DOUBLON A RESORBER A LA FUSION, et il n'est pas de la meme nature que les collisions de NUMERO : `agagi-c9`
+porte sur une branche non fusionnee une entree **P2.104** (« aucune porte ne tourne a la fusion ») qui decrit le
+MEME defaut, mesure independamment, avec pour remede l'installation d'un `pre-merge-commit` / `commit-msg`
+relancant au moins les portes de compte et de doublon. Deux entrees sur le meme mecanisme polluent le backlog :
+celle-ci est le LIVRABLE (code + 34 cas geles), P2.104 est le CONSTAT. A la fusion, n'en garder qu'une -- et c'est
+`agagi-c9` qui decide du sort de la sienne, pas moi. La garde de copie `tools/hooks` -> `.git/hooks`, elle, n'a
+d'equivalent nulle part : c'est la partie de ce lot qui ne peut pas faire doublon.
+⚠️ NUMERO, et c'est la TROISIEME collision du jour : ce chantier a ete annonce sous **P2.102** dans la prose du
+2026-09-24 ; P2.102 etait deja pris par une entree committee d'une branche non fusionnee (`agagi-c9`). Regle
+d'arbitrage retenue (proposee par `agagi-c9`, confirmee par le PM) : **le numero NON ENCORE COMMITTE cede**. Le PM
+a propose 107 ; `agagi-c9` rapporte qu'`agagi-52` le vise deja, donc 108/109, verifies libres sur le motif
+d'EN-TETE (`^**P2.`) dans la branche principale -- une recherche en prose trouve aussi les CITATIONS d'autres
+entrees et fabrique des collisions imaginaires, piege paye deux fois aujourd'hui.
+⚠️ Et l'occurrence qui vaut le plus cher est la troisieme : **elle s'est formee dans le message de coordination du
+PM lui-meme**, celui qui m'annoncait qu'un crochet mecanique rendrait ces collisions impossibles -- un numero donne
+de memoire, sur une liste de reservation incomplete. Le PM, dont c'est le perimetre, en a produit une a la main en
+expliquant pourquoi il ne fallait pas creer un role d'Integrateur pour les eviter. C'est l'argument, et il n'est
+pas rhetorique : **la parade n'est pas quelqu'un qui surveille, c'est une garde qui tourne au moment ou ca casse**.
+La cle `numero-double` de `check_backlog_freshness` savait attraper les trois ; elle ne tournait pas la ou elles
+naissent. *Cout : agent 4 h ; calcul 0.*
+<!-- closes_when:grep_present=tools/hooks/pre-commit::check_hook_deployment -->
+
+**P2.109 — rang 12 ter — ⚠️ OUVERTE (2026-09-24) — La moitie MANQUANTE de la regle des commits path-scopes : un
+pathspec qui NOMME un fichier qu'une autre session est en train d'ecrire l'emporte, et rien ne le dit.**
+Quoi (reproduit le 2026-09-24 sur l'arbre principal, 5 sessions actives). La regle du depot -- « tout commit passe
+par `git commit -- <chemins>`, JAMAIS nu » -- protege contre le commit NU, qui emporte l'index ENTIER. Elle ne
+protege PAS contre le cas symetrique : `git commit -- <chemins>` prend le **contenu de l'ARBRE DE TRAVAIL** des
+chemins nommes (verifie en depot jetable : HEAD=V1, index=V2, disque=V3 -> le commit grave V3). Nommer dans son
+pathspec un fichier qu'un autre edite grave donc son travail en cours, sous un message qui ne le decrit pas.
+L'incident : un lot de 11 chemins incluait `tools/hooks/pre-commit`, que cette session modifiait depuis une heure.
+Il n'a pas atterri (le hook l'a refuse pour une autre raison), et l'auteur travaillait dans un worktree LIE -- donc
+sa copie, pas la mienne. Mais l'isolation etait un ACCIDENT HEUREUX, pas une garde : les cinq sessions de l'arbre
+PRINCIPAL sont exposees, et c'est la que le plus gros du travail se fait.
+Pourquoi ca peut BLOQUER alors que la garde existante se contente d'avertir, et c'est le point de bascule (argument
+de `agagi-c9`) : `tools/hooks/pre-commit` lance deja `check_staged_authorship` en mode scan avec `|| true`, et le
+commentaire au-dessus dit pourquoi -- la PREEMPTION n'est pas reparable par celui qui commite (le travail de la
+victime est deja dans HEAD), et un cliquet qui bloque sur de l'irreparable est un cliquet qu'on desactive. Le cas
+inverse, lui, est REPARABLE a l'instant ou il se produit : il suffit de retirer le chemin du pathspec. **Un cliquet
+doit bloquer sur du reparable et avertir sur l'irreparable** -- regle a retenir, elle explique proprement pourquoi
+certaines gardes de ce depot refusent et d'autres crient.
+Remede propose : au `pre-commit`, confronter les chemins STAGES aux empreintes de `check_staged_authorship` et
+REFUSER quand l'un d'eux porte l'empreinte d'une AUTRE session, avec le nom du proprietaire et la commande de
+retrait. ⚠️ Deux garde-fous a ne pas oublier, sans quoi la garde sera desarmee en trois faux positifs : (a) en
+worktree LIE le cas n'existe pas -- chaque worktree a sa copie, mesure a l'appui (blobs distincts) -- donc la
+comparaison porte sur l'arbre que CE commit va prendre, jamais sur celui d'un autre worktree ; (b) une empreinte
+perimee (session morte) ne doit pas bloquer eternellement : TTL, comme les bails de `tools/jobs`.
+Contre-exemple a geler dans la meme passe : deux empreintes concurrentes sur le meme chemin -> REFUS ; une seule
+empreinte, la sienne -> PASSE. *Cout : agent 2 h ; calcul 0.* Depend de : rien.
+<!-- closes_when:grep_present=tools/hooks/pre-commit::check_pathspec_collision -->
+
 **P2.83 — ⚠️ OUVERTE (2026-09-24, vue en passant pendant la revue de la spec du dashboard Pilotage) — le cliquet de
 calibration ne connaît NI `compute_*` NI `parse_*`, et une déclaration qu'il ne détecte pas est ignorée EN SILENCE :
 7ᵉ angle mort de nommage, dette nette CHIFFRÉE à 7 fonctions.**

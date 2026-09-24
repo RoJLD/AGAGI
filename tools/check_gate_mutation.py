@@ -357,6 +357,34 @@ PORTES = {
                       "une règle documentée déguisée en rôle (E10)"),
         }],
     },
+    "22": {
+        "module": "tools.check_hook_deployment",
+        "titre": "copie déployée des crochets (P2.108) : .git/hooks/ contre tools/hooks/",
+        "temoins": ["tests/sandbox/test_hook_deployment.py"],
+        "mutations": [
+            {
+                "nom": "une copie JAMAIS COMMITTÉE redevient un simple `cp` oublié",
+                "avant": "    if b in anciennes:",
+                "apres": "    if True:",
+                "motif": ("la SEULE ligne qui sépare les deux sens de la divergence. Le sens bénin "
+                          "(copie en retard) CRIE sans bloquer ; le sens grave (du code écrit dans "
+                          "le crochet COMMUN, que personne n'a relu, exécuté par toutes les "
+                          "sessions — occurrence réelle mesurée par le PM) REFUSE. Muter cette "
+                          "ligne fait passer le second pour le premier : la porte imprimerait une "
+                          "invitation à recopier un fichier que le dépôt n'a jamais vu"),
+            },
+            {
+                "nom": "la normalisation des fins de ligne disparaît",
+                "avant": '    return contenu.replace(b"\\r\\n", b"\\n").replace(b"\\r", b"\\n").rstrip() + b"\\n"',
+                "apres": "    return contenu",
+                "motif": ("le faux positif qui TUERAIT la garde : `core.autocrlf=true` sur cette "
+                          "machine, donc la copie déployée est en CRLF et le blob en LF — 46 lignes "
+                          "d'écart mesurées sur deux fichiers IDENTIQUES. Sans normalisation, la "
+                          "porte refuse tous les commits de toutes les sessions sous Windows, et "
+                          "elle est désarmée le jour même"),
+            },
+        ],
+    },
 }
 
 # ⚠️ Clé = NOM DE MODULE, et non numéro de porte : c'est ce qui permet à
