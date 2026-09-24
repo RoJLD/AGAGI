@@ -1421,6 +1421,25 @@ CALIBRATED = {
                                              # qu'un defaut est a trouver) -- vu a l'oeil, pas par la garde.
                                              "nom:forme-derivee", "nom:renomme-a-la-main-refuse",
                                              "nom:echappe-a-la-liste-noire-refuse"],
+    # 2026-09-24, 4e ronde -- LE MOTIF `attendu` N'EST PLUS LE BAREME. La re-revue a mesure que
+    # l'ancien verdict par regex avait un PLANCHER DE FAUSSES RETROUVAILLES egal au SIGNAL MAXIMAL :
+    # une phrase vague identique pour les quatre temoins, ecrite sans ouvrir un fichier, passait 4/4 ;
+    # recopier une ligne du temoin extrait passait deux defauts sur trois ; et LE SIGNE ETAIT INVERSE
+    # (la critique juste d'E26 rendait NULLE faute du mot « corps »). C'est la lecon run_ablation_map
+    # appliquee a l'instrument de revue. Deux etages remplacent le motif -- plancher MECANIQUE
+    # (verdict confirme + preuve de FORME + anti-recopie a seuil MESURE : recopies 32 et 24 mots,
+    # critiques justes 4 et 2, tout N dans [5,24] separe) puis JUGE calibre sur cinq textes REELS a
+    # reponse connue. Cas dans tests/sandbox/test_refutateur_temoins.py ; la calibration du juge et le
+    # fait que le PLANCHER remonte quand on desarme un etage sont dans test_refutateur_mutation.py.
+    "tools/refutateur_temoins.py::verdict_temoin": [
+        "etage1:attaque-universelle-rejetee", "etage1:recopie-rejetee", "etage1:non-confirmee-rejetee",
+        "juste:E26-sans-le-token-RETROUVE", "juste:GRAB-fait-c-RETROUVE",
+        "defaut:sans-jugement-INDECIDABLE", "defaut:jugement-NON-NULLE",
+        "noop:seuil-du-roster", "noop:attaque-ne-fait-plus-crier",
+        "signal-attendu:faux-mais-verdict-bon"],
+    "tools/refutateur_temoins.py::verdict_phase_temoins": [
+        "plancher:voyage-avec-le-score", "plancher:nul-apres-correctif",
+        "plancher:remonte-si-on-desarme-un-etage", "phase:vide-1-sur-4", "phase:passee-3-sur-4"],
 }
 
 _GENOMES = os.path.join("results", "warm007_genomes")

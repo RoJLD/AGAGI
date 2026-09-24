@@ -12,9 +12,9 @@ propres sondes** — pas une relecture. Le bilan mesuré de l'arc WARM (7 revues
 la prudence rédactionnelle n'en aurait attrapé aucune : ce qui trouve, c'est la commande qu'on relance.
 
 Ce document **FIGE** les prompts. Toute modification est un commit path-scopé décidé par robla, et
-**re-passe les témoins** (`tools/refutateur_temoins.json`). `.claude/workflows/refutateur.js` les exécute,
-un contexte par prompt, après avoir retrouvé le défaut connu de trois témoins gelés et être resté
-silencieux sur un quatrième, sain.
+**re-passe les témoins**. `.claude/workflows/refutateur.js` les exécute, un contexte par prompt, après
+une phase témoins que ce document ne décrit qu'en RÈGLES : ni combien de témoins il y a, ni de quels
+genres, ni dans quel ordre, ni ce qu'on doit y trouver.
 
 ## Ce que le Réfutateur ne fait PLUS : le partage avec les portes
 
@@ -40,10 +40,23 @@ périment en un commit. Lancer la porte, lire SA sortie.
 ## Contrat de chaque critique
 
 Une SONDE obligatoire et **lancée** (`grep`, `python -c`, `git show`, lecture d'un `results/*.json`,
-exécution d'une porte) · un CONSTAT avec `fichier:ligne` ou sortie de commande · une CLASSE du registre
-(`Ex`) ou « aucune » · un VERDICT parmi `confirmé` / `non confirmé` / `hors périmètre`. Sortie ≤ 40
-lignes. **Une critique sans sonde lancée est rejetée à la consolidation** — c'est la différence entre
-une revue et une relecture.
+exécution d'une porte) · un CONSTAT · une PREUVE · une CLASSE du registre (`Ex`) ou « aucune » · un
+VERDICT parmi `confirmé` / `non confirmé` / `hors périmètre`. Sortie ≤ 40 lignes.
+
+**Trois conditions MÉCANIQUES, vérifiées sans agent** (`tools/refutateur_temoins.py::recevabilite`) ;
+une critique qui en manque une est écartée avant toute lecture de fond :
+
+1. le verdict commence par `confirmé` — un doute explicité n'est pas une trouvaille ;
+2. la PREUVE a une forme vérifiable : un `fichier:ligne`, **ou** une commande (dans la sonde)
+   accompagnée d'une sortie chiffrée, **ou** une valeur opposée à une autre. « aucune » n'en est pas
+   une, et une phrase qui récite des noms de paramètres sans rien ouvrir non plus ;
+3. le CONSTAT n'est pas une **RECOPIE** : aucune fenêtre de huit mots consécutifs du constat ne doit
+   se retrouver mot pour mot dans le fichier relu. Recopier une ligne d'un record n'est pas le
+   critiquer — et le mot qu'on attendait de la revue est souvent déjà dans son texte.
+
+⚠️ Le fond — « cette critique nomme-t-elle CE défaut ? » — n'est **pas** décidable par un motif. Il est
+jugé, à part, par un agent à prompt figé calibré sur des textes à réponse connue. Écrire le mot juste
+n'a jamais été une découverte, et une découverte formulée autrement n'est pas une erreur.
 
 ⚠️ Le Réfutateur **ne construit aucun monde et ne prend aucun bail** (`kuzu`). Une revue est une lecture :
 si une sonde exigeait une simulation, elle devient une dette au backlog, pas une critique.
@@ -69,27 +82,33 @@ combien de cellules un dispositif a RÉELLEMENT, ni si un mécanisme affirmé ex
 
 ## Phase témoins — avant toute revue réelle
 
-Les prompts P1-P10 passent d'abord sur quatre versions GELÉES de records, gelées dans le roster
+Les prompts P1-P10 passent d'abord sur des versions GELÉES de records, tenues par le roster
 `tools/refutateur_temoins.json` et extraites par `python tools/refutateur_temoins.py --extraire <dir>`.
-Le roster gèle `EDR-GRAB-COST-1828371`, `S2-BLIND-CHAMPION-42e9357`, `EDR-RETAIN-COMPOSE-4204f8f` et
-`LOCK-002-286f244` — un nom de témoin est `<identifiant du record>-<sha7>`, **recomputé** depuis le
-roster et refusé s'il s'en écarte : un nom libre finit par dire ce qu'il y a à trouver.
 
-⚠️ **La revue les lit en AVEUGLE, et ce document ne publie aucun attendu.** Les témoins sont extraits sous
-des noms NEUTRES (`temoin-N.md`, délié de l'ordre du roster) ; ni leur nom, ni leur genre, ni ce qu'on
-doit y trouver ne parviennent à l'agent qui relit. Publier « ce que la revue doit produire » à côté du
-témoin ne mesurerait plus si les prompts DISCRIMINENT, mais si l'agent sait lire un tableau — et un
-plancher de fausses critiques mesuré sous l'instruction « ce record est sain, tais-toi » n'est plus un
-plancher. Les attendus vivent dans le roster, que l'agent de revue ne lit jamais ; le barème vit dans
-`tools/refutateur_temoins.py` et nulle part ailleurs — deux implémentations d'un même barème divergent.
+⚠️ **La revue les lit en AVEUGLE, et ce document ne publie NI leur identité, NI leur nombre, NI leurs
+genres, NI ce qu'on doit y trouver.** Les fichiers portent des noms neutres (`temoin-N.md`), déliés de
+l'ordre du roster. Publier « ce que la revue doit produire » à côté du témoin ne mesurerait plus si les
+prompts DISCRIMINENT, mais si l'agent sait lire un tableau ; et un plancher de fausses critiques mesuré
+sous l'instruction « ce record est sain, tais-toi » n'est plus un plancher. Même un ORDINAL suffit à
+tout rendre : une énumération dont le dernier est le témoin sain redonne la clé qu'on vient de retirer.
+Le roster, que l'agent de revue ne lit jamais, porte les identités, les genres, les seuils et les
+attendus ; le barème vit dans `tools/refutateur_temoins.py` et nulle part ailleurs.
 
-**Ce qui RETROUVE un témoin** : une critique **CONFIRMÉE**, dont le fond vit dans son CONSTAT ou sa
-PREUVE. Jamais la sonde — recopier la commande qui nomme un paramètre n'est pas une découverte, et un
-record dit souvent lui-même, dans sa section « ce qui n'est pas mesuré », le mot qu'on attendait de la
-revue. Pour le témoin sain : **au plus UNE critique confirmée**, et ce chiffre se publie dans l'en-tête de
-toute revue. Il vaut autant que les trois défauts — sans lui, un Réfutateur qui crie sur tout retrouverait
-les trois et paraîtrait parfait, exactement comme un instrument de contraste sans no-op EXACT ne sait pas
-ce qu'il ne peut pas voir.
+**Ce qui RETROUVE un témoin** — deux étages, et le second n'est pas un motif :
+
+1. **Plancher MÉCANIQUE** : au moins une critique RECEVABLE au sens des trois conditions ci-dessus
+   (confirmée, preuve de forme, pas une recopie). Pur, sans agent, rejouable par n'importe qui.
+2. **JUGE** : un agent à prompt figé, qui reçoit le défaut DÉCLARÉ du témoin et les critiques
+   recevables — **jamais un motif à chercher** — et répond `OUI` / `NON` / `INDECIDABLE`. Il est
+   calibré sur des textes gelés à réponse connue ; s'il rate ses propres témoins, l'instrument rend
+   INDÉCIDABLE plutôt que de juger.
+
+⚠️ **Tout score de phase témoins se publie à côté de son PLANCHER DE FAUSSES RETROUVAILLES**, mesuré le
+jour même par `python tools/refutateur_temoins.py --plancher <dir>` : combien de témoins une revue SANS
+CONTENU peut encore faire retrouver. Un score sans son plancher est interdit — c'est la règle du dépôt
+sur tout ratio, et elle est née ici : le 2026-09-23, une phrase vague identique pour tous les témoins,
+écrite sans ouvrir un fichier, les passait TOUS. Le plancher valait le signal maximal ; l'instrument ne
+voyait rien.
 
 **Un témoin manqué rend la revue NULLE** : rien ne s'écrit dans `docs/reviews/`, le compteur
 `témoin manqué` s'incrémente dans `ROLES.md`. **Deux fois → les prompts sont re-scellés** (ils ne

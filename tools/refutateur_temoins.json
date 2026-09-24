@@ -48,6 +48,7 @@
     {
       "nom": "LOCK-002-286f244",
       "genre": "noop",
+      "seuil_critiques": 1,
       "sha": "286f24429b621ebf9ba1c7a040f377672a1f5a07",
       "chemin": "docs/EDR/LOCK-002_D2_Retention_Is_Learned_Under_REINFORCE_At_The_Right_Step_The_Fourth_Manifestation_Was_E19.md",
       "fichier": "temoin-2.md",

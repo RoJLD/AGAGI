@@ -30,20 +30,33 @@ revue. Forme : en-tête (cible, SHA, date, résultat des TÉMOINS), puis une sec
    Le script ne juge rien : la phase **Verification** fait relire le roster et lancer
    `python tools/refutateur_temoins.py --verifier` par un agent, et ce sont les codes de sortie qui décident.
 
-3. **Lire le statut.**
+3. **Publier le plancher avec le score — jamais après.**
+
+       PYTHONIOENCODING=utf-8 python tools/refutateur_temoins.py --plancher <scratchpad>/temoins
+
+   Le workflow le fait lui-même et recopie la ligne dans son rendu ; l'en-tête de la revue doit la porter.
+   **Un score de phase témoins sans son plancher de fausses retrouvailles est interdit** — comme tout ratio du
+   dépôt. Mesuré le 2026-09-23 : une phrase vague, identique pour tous les témoins et écrite sans ouvrir un
+   fichier, les passait TOUS ; le plancher valait le signal maximal et l'instrument ne voyait rien.
+
+4. **Lire le statut.**
    * `statut: NUL` → un défaut connu n'a pas été retrouvé, ou le témoin sain a fait crier la revue, ou le roster a été
      refusé : **rien ne s'écrit**. Incrémenter `témoin manqué` dans `ROLES.md` (PM). Deux fois de suite → les prompts du
      REF ne discriminent plus et sont re-scellés, par robla.
    * `statut: ECRITE` → `docs/reviews/<date>-<slug>.md` existe. La session qui GRAVE ajoute
      `review: docs/reviews/<date>-<slug>.md` au frontmatter du record, ou passe `reviewed_by=` à `preregister`.
 
-Le plancher de fausses critiques (ce que la revue a trouvé sur le témoin **sain**) se publie dans l'en-tête de la revue :
-un Réfutateur qui crie sur tout retrouverait les trois défauts et paraîtrait parfait.
+Hors ligne, une liste de critiques déjà rendue (JSON : une liste d'objets portant chacun un `verdict`, ou l'objet
+`{"critiques": [...]}` que rendent les agents) se confronte à un témoin sans relancer le workflow. Le fichier relu est
+obligatoire — sans lui la garde anti-recopie ne peut pas s'exécuter, et recopier une ligne du témoin suffirait à le
+« retrouver » :
 
-Hors ligne, une liste de critiques déjà rendue (JSON : une liste d'objets portant chacun un `verdict`) se confronte à un
-témoin sans relancer le workflow :
+    PYTHONIOENCODING=utf-8 python tools/refutateur_temoins.py --verifier <nom> <critiques.json> \
+        --extrait <scratchpad>/temoins/temoin-N.md --jugement OUI
 
-    PYTHONIOENCODING=utf-8 python tools/refutateur_temoins.py --verifier EDR-GRAB-COST-1828371 <fichier.json>
+exit **0** = défaut retrouvé · **1** = revue NULLE · **2** = indécidable (témoin inconnu, roster invalide, critiques
+illisibles, `--extrait` absent, ou jugement de l'étage 2 manquant — aucun de ces cas n'est un verdict de fond). La
+commande imprime le plancher **avec** le verdict : il n'existe pas de chemin qui rende l'un sans l'autre.
 
-exit **0** = défaut retrouvé · **1** = revue NULLE · **2** = indécidable (témoin inconnu, roster invalide, ou critiques
-illisibles — un bug de sérialisation n'est pas un verdict de fond).
+Les noms de témoins se lisent dans `tools/refutateur_temoins.json` (ou `--lister`) — jamais dans un document que l'agent
+de revue est amené à lire.

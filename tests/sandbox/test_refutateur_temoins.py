@@ -1,20 +1,18 @@
-"""Temoins GELES du Refutateur : ils existent dans l'histoire git a leur SHA, la version gelee porte
-ENCORE son defaut connu (signature / antisignature executables), et le bareme produit SES DEUX ISSUES
-(revue ECRITE / revue NULLE) sur des textes a reponse connue -- plus une troisieme, INDECIDABLE.
+"""Temoins GELES du Refutateur : le roster, l'extraction ANONYME, et le BAREME A DEUX ETAGES.
 
-Pourquoi une signature executable : la verification « a l'oeil » de la version d'un temoin n'est faite
-qu'une fois, au moment de le geler. Si le SHA etait mal choisi (p.ex. la version DEJA RECTIFIEE d'un
-record au lieu de celle qui porte le defaut nu), plus rien ne le dirait : le Refutateur validerait une
-revue qui « retrouve » un defaut deja corrige dans le texte. `signature` / `antisignature` gelent ce
-regard dans un test.
+Ce fichier gele, en contre-exemples, tout ce que la re-revue du 2026-09-23 a mesure -- et qui
+condamnait le bareme precedent :
 
-⚠️ QUATRE FRANCHISSEMENTS MESURES EN REVUE (2026-09-23), chacun gele ici en contre-exemple :
-  1. la cle de reponse etait PUBLIEE dans le document que l'agent est somme de lire (REF), et le chemin
-     du temoin portait son nom -> la phase mesurait la lecture d'un tableau, pas la discrimination ;
-  2. une revue qui ne CONFIRME rien passait les quatre temoins : la regex etait cherchee dans toute la
-     charge JSON, sonde comprise, et le token attendu figure dans le texte des temoins eux-memes ;
-  3. le double bareme (Python / JS) avait DEJA diverge sur trois points -> le bareme vit ici, seul ;
-  4. le roster gele n'etait pas contraignant : l'appelant passait les attendus au workflow.
+  1. une seule phrase vague, identique pour les quatre temoins, ecrite SANS ouvrir un fichier,
+     passait 4/4 : le PLANCHER DE FAUSSES RETROUVAILLES valait le SIGNAL MAXIMAL (lecon
+     `run_ablation_map` du depot -- un instrument de contraste dans cet etat ne voit rien) ;
+  2. recopier UNE ligne du temoin extrait passait deux des trois defauts ;
+  3. LE SIGNE ETAIT INVERSE : la critique JUSTE du defaut E26, avec sa sonde et son fichier:ligne,
+     rendait « revue NULLE » faute du mot « corps ».
+
+Le motif `attendu` n'est donc plus le bareme (il survit en SIGNAL RAPPORTE). A sa place : un plancher
+MECANIQUE (verdict confirme + preuve de FORME + anti-recopie), puis un JUGE calibre sur cinq textes
+reels a reponse connue. Chaque etage est teste sur SES DEUX ISSUES, controle intact d'abord.
 """
 import json
 import os
@@ -42,8 +40,15 @@ def _crit(verdict="confirmé", constat="", sonde="", preuve="", prompt="P1", cla
             "classe": classe, "verdict": verdict}
 
 
-def _texte(*critiques):
-    return json.dumps(list(critiques), ensure_ascii=False)
+def _cas(nom):
+    return [c for c in T.cas_du_juge() if c["nom"] == nom][0]
+
+
+@pytest.fixture(scope="module")
+def extraits(tmp_path_factory):
+    """Les quatre temoins extraits une fois : {nom: texte}."""
+    d = tmp_path_factory.mktemp("temoins")
+    return {nom: _lire(chemin) for nom, chemin in T.extraire_tous(str(d)).items()}, str(d)
 
 
 # --------------------------------------------------------------------------------------------- #
@@ -66,17 +71,69 @@ def test_trois_temoins_a_defaut_et_un_noop_tous_presents_dans_git():
 
 
 def test_roster_conforme_REFUSE_un_roster_affaibli():
-    """Les deux issues de la garde du roster : un attendu vidé, ou le no-op seul, ne passent pas."""
     tem = T.charger()
-    affaibli = [dict(t, attendu="") if t["genre"] == "defaut" else t for t in tem]
-    assert T.roster_conforme(affaibli)[0] is False
+    assert T.roster_conforme(tem)[0] is True, "controle INTACT avant toute mutation"
     assert T.roster_conforme([t for t in tem if t["genre"] == "noop"])[0] is False
     doublon = [dict(tem[0]), dict(tem[1]), dict(tem[2]), dict(tem[3], nom=tem[0]["nom"])]
     assert T.roster_conforme(doublon)[0] is False
+    sans_seuil = [{k: v for k, v in t.items() if k != "seuil_critiques"} if t["genre"] == "noop" else t
+                  for t in tem]
+    ok, raison = T.roster_conforme(sans_seuil)
+    assert ok is False and "seuil_critiques" in raison
+
+
+def test_un_attendu_DEGENERE_est_refuse_meme_s_il_n_est_plus_le_bareme():
+    """`attendu` n'est qu'un signal RAPPORTE depuis la re-revue -- mais un signal faux reste faux."""
+    assert T.attendu_est_degenere(".") is True
+    assert T.attendu_est_degenere(".*") is True
+    assert T.attendu_est_degenere("") is True
+    assert T.attendu_est_degenere("[") is True  # regex invalide : indecidable -> refusee
+    assert T.attendu_est_degenere("forage_payoff") is False
+    mute = [dict(t, attendu=".") if t["genre"] == "defaut" else t for t in T.charger()]
+    ok, raison = T.roster_conforme(mute)
+    assert ok is False and "DÉGÉNÉRÉ" in raison
+
+
+def test_le_nom_d_un_temoin_est_une_FORME_DERIVEE_et_non_un_libelle_libre():
+    """La garde. `<identifiant du record>-<sha7>`, RECOMPUTE depuis `chemin` et `sha`.
+
+    Une liste noire de mots ne repond jamais a « ce nom divulgue-t-il le GENRE ? » : elle repond
+    « contient-il l'un de ces mots ». Mesure du 2026-09-23 : elle a attrape `LOCK-002-sain` et LAISSE
+    PASSER `RETAIN-COMPOSE-pre-retractation`, vu seulement A L'OEIL.
+    ⚠️ CE QU'ELLE NE VOIT PAS : la FORME DU NOM, jamais le CONTENU du fichier extrait.
+    """
+    for t in T.charger():
+        assert t["nom"] == T.nom_attendu(t), f"nom hors forme : {t['nom']!r}"
+        assert re.fullmatch(r"[A-Za-z0-9.\-]+-[0-9a-f]{7}", t["nom"]), t["nom"]
+
+
+def test_un_nom_renomme_A_LA_MAIN_est_REFUSE_et_rend_le_CLI_2(tmp_path):
+    tem = T.charger()
+    assert T.roster_conforme(tem)[0] is True
+    for libelle in ("LOCK-002-sain", "RETAIN-COMPOSE-pre-retractation", "temoin-4", ""):
+        mute = [dict(t, nom=libelle) if t["genre"] == "noop" else t for t in tem]
+        ok, raison = T.roster_conforme(mute)
+        assert ok is False, f"un nom libre {libelle!r} passe la forme"
+        assert "FORME" in raison or "collision" in raison
+    f = tmp_path / "x.json"
+    f.write_text("[]", encoding="utf-8")
+    vrai = T.charger
+    T.charger = lambda: [dict(t, nom="LOCK-002-sain") if t["genre"] == "noop" else t for t in vrai()]
+    try:
+        assert T.main(["--verifier", "EDR-GRAB-COST-1828371", str(f)]) == 2
+    finally:
+        T.charger = vrai
+
+
+def test_plancher_secondaire_aucun_nom_ne_contient_un_mot_de_genre():
+    """PLANCHER, pas la garde : un mot de genre peut se glisser dans un NOM DE FICHIER de record."""
+    for t in T.charger():
+        for mot in ("sain", "noop", "ok", "propre", "clean", "bug", "faux", "bon"):
+            assert mot not in t["nom"].lower(), f"le nom {t['nom']} declare son genre"
 
 
 # --------------------------------------------------------------------------------------------- #
-# Extraction ANONYME (franchissement 1)
+# Extraction ANONYME
 # --------------------------------------------------------------------------------------------- #
 
 
@@ -87,102 +144,27 @@ def test_les_fichiers_d_extraction_sont_NEUTRES_et_decorreles_de_l_ordre_du_rost
         assert t["nom"] not in t["fichier"]
         for mot in ("sain", "noop", "defaut", "GRAB", "BLIND", "RETAIN", "LOCK"):
             assert mot.lower() not in t["fichier"].lower()
-    ordre = [t["fichier"] for t in tem]
-    attendu_naif = [f"temoin-{i}.md" for i in range(1, len(tem) + 1)]
-    assert ordre != attendu_naif, (
+    assert [t["fichier"] for t in tem] != [f"temoin-{i}.md" for i in range(1, len(tem) + 1)], (
         "les fichiers suivent l'ordre du roster : « le dernier est le no-op » redeviendrait devinable")
 
 
-def test_le_nom_d_un_temoin_est_une_FORME_DERIVEE_et_non_un_libelle_libre():
-    """LA garde. Le nom vaut `<identifiant du record>-<sha7>`, RECOMPUTE depuis `chemin` et `sha`.
-
-    Pourquoi une forme POSITIVE plutot qu'une liste de mots interdits : la question qui compte est
-    « ce nom divulgue-t-il le GENRE du temoin ? », et une liste noire n'y repond jamais -- elle repond
-    « ce nom contient-il l'un de ces mots ». Mesure du 2026-09-23 : la liste de neuf mots a attrape
-    `LOCK-002-sain` et a LAISSE PASSER `RETAIN-COMPOSE-pre-retractation`, qui annonce qu'une
-    retractation a suivi, donc qu'un defaut est a trouver ; il n'a ete vu qu'A L'OEIL. Ajouter
-    `retract*` aurait deplace le trou d'un cran. Un nom derive de l'IDENTITE (quel record, a quel SHA)
-    ne peut structurellement rien dire de la QUALITE de ce qu'il nomme.
-
-    ⚠️ CE QUE CETTE GARDE NE VOIT PAS : la FORME DU NOM, jamais le CONTENU du fichier extrait. Un
-    record peut, a son SHA gele, annoncer sa propre faiblesse dans son titre ou sa prose et dire ainsi
-    au relecteur ce qu'il doit trouver. Seule l'`antisignature` couvre un cas voisin et un seul (la
-    marque de la CORRECTION est absente). « Le texte gele n'annonce pas son propre defaut » n'est ni
-    mesure, ni decidable par motif : il reste a la charge de qui gele un temoin.
-    """
-    for t in T.charger():
-        assert t["nom"] == T.nom_attendu(t), (
-            f"nom hors forme : {t['nom']!r}, attendu {T.nom_attendu(t)!r}")
-        assert re.fullmatch(r"[A-Za-z0-9.\-]+-[0-9a-f]{7}", t["nom"]), t["nom"]
-
-
-def test_un_nom_renomme_A_LA_MAIN_est_REFUSE_et_rend_le_CLI_2(tmp_path):
-    """CONTRE-EXEMPLE GELE : les deux issues de la forme, sur les deux noms reellement rencontres."""
-    tem = T.charger()
-    assert T.roster_conforme(tem)[0] is True  # controle INTACT avant toute mutation
-    for libelle in ("LOCK-002-sain", "RETAIN-COMPOSE-pre-retractation", "temoin-4", ""):
-        mute = [dict(t, nom=libelle) if t["genre"] == "noop" else t for t in tem]
-        ok, raison = T.roster_conforme(mute)
-        assert ok is False, f"un nom libre {libelle!r} passe la forme"
-        assert "FORME" in raison or "collision" in raison
-    # Le CLI refuse EN BLOC un roster hors forme : il rend 2 (indecidable), jamais 0 ni 1.
-    f = tmp_path / "x.json"
-    f.write_text("[]", encoding="utf-8")
-    vrai_charger = T.charger
-    T.charger = lambda: [dict(t, nom="LOCK-002-sain") if t["genre"] == "noop" else t
-                         for t in vrai_charger()]
-    try:
-        assert T.main(["--verifier", "EDR-GRAB-COST-1828371", str(f)]) == 2
-    finally:
-        T.charger = vrai_charger
-    assert T.main(["--verifier", "EDR-GRAB-COST-1828371", str(f)]) == 1  # roster rendu, revue NULLE
-
-
-def test_plancher_secondaire_aucun_nom_ne_contient_un_mot_de_genre():
-    """PLANCHER, pas la garde : conserve parce qu'il a reellement attrape `LOCK-002-sain`, et qu'un
-    mot de genre glisse aussi dans un NOM DE FICHIER de record (que la forme, elle, recopie)."""
-    declarent_le_genre = ("sain", "noop", "ok", "propre", "clean", "bug", "faux", "bon")
-    for t in T.charger():
-        for mot in declarent_le_genre:
-            assert mot not in t["nom"].lower(), f"le nom {t['nom']} declare son genre"
-
-
 @pytest.mark.parametrize("nom", [t["nom"] for t in T.charger()])
-def test_la_version_gelee_porte_ENCORE_son_defaut_connu(nom, tmp_path):
-    """Signature PRESENTE et antisignature ABSENTE : le regard « a l'oeil » du 2026-09-23, execute."""
-    t = T.par_nom(nom)
-    txt = _lire(T.extraire(t, str(tmp_path)))
+def test_la_version_gelee_porte_ENCORE_son_defaut_connu(nom, extraits):
+    """Signature PRESENTE et antisignature ABSENTE : le regard « a l'oeil », execute."""
+    textes, _ = extraits
+    t, txt = T.par_nom(nom), textes[nom]
     assert re.search(t["signature"], txt), (
-        f"{nom} : la signature {t['signature']!r} est ABSENTE de {t['sha'][:9]}:{t['chemin']} — "
-        "le SHA ne designe pas la version attendue")
+        f"{nom} : signature {t['signature']!r} ABSENTE de {t['sha'][:9]} — mauvais SHA")
     if t["antisignature"]:
         assert not re.search(t["antisignature"], txt), (
-            f"{nom} : l'antisignature {t['antisignature']!r} est PRESENTE — la version gelee est deja "
-            "corrigee, son defaut n'est plus a trouver")
-
-
-def test_extraire_ecrit_la_version_GELEE_sous_un_nom_ANONYME(tmp_path):
-    grab = T.par_nom("EDR-GRAB-COST-1828371")
-    p = T.extraire(grab, str(tmp_path))
-    assert os.path.basename(p) == grab["fichier"]
-    assert "GRAB" not in os.path.basename(p)
-    txt = _lire(p)
-    # La premisse fausse est ENONCEE, pas citee comme erreur passee : la rectification du 2026-09-09
-    # (« RECTIFICATION », « le 3.0 n'a jamais eu cours ») n'est pas encore dans le texte.
-    assert "forage_payoff = 3.0" in txt
-    assert "RECTIFICATION" not in txt
-    assert "grabber NOURRIT" in txt  # le titre d'origine, celui que la premisse fausse porte
+            f"{nom} : antisignature PRESENTE — la version gelee est deja corrigee")
 
 
 def test_extraire_tous_rend_la_correspondance_a_l_appelant_et_n_ecrit_RIEN_qui_la_trahisse(tmp_path):
     correspondance = T.extraire_tous(str(tmp_path))
     assert set(correspondance) == {t["nom"] for t in T.charger()}
-    ecrits = sorted(os.listdir(tmp_path))
-    assert ecrits == sorted(t["fichier"] for t in T.charger()), (
-        f"le repertoire extrait contient autre chose que les temoins anonymes : {ecrits}")
-    # Le contenu d'un temoin PORTE son defaut (c'est le point) ; ce qui ne doit fuiter nulle part dans
-    # le repertoire extrait, c'est la correspondance nom <-> fichier.
-    for fichier in ecrits:
+    assert sorted(os.listdir(tmp_path)) == sorted(t["fichier"] for t in T.charger())
+    for fichier in os.listdir(tmp_path):
         contenu = _lire(os.path.join(tmp_path, fichier))
         for t in T.charger():
             assert t["nom"] not in contenu, f"{fichier} nomme le temoin {t['nom']}"
@@ -196,102 +178,294 @@ def test_extraire_leve_sur_un_temoin_dont_le_SHA_ne_porte_pas_le_chemin(tmp_path
 
 
 # --------------------------------------------------------------------------------------------- #
-# `verifier` : seule une critique CONFIRMEE retrouve un temoin (franchissement 2)
+# ETAGE 1 — le plancher MECANIQUE, sur les cinq textes REELS de la re-revue
 # --------------------------------------------------------------------------------------------- #
 
 
-def test_verifier_accepte_un_constat_CONFIRME_et_refuse_son_absence():
-    grab = T.par_nom("EDR-GRAB-COST-1828371")
-    trouve = _crit(constat="la valeur forage_payoff citee n'est publiee par aucun bloc regime",
-                   preuve="results/…json : pas de cle forage_payoff", sonde="python tools/check_regime_claims.py")
-    assert T.verifier(grab, _texte(trouve)) is True
-    assert T.verifier(grab, _texte(_crit(constat="rien a signaler", preuve="—"))) is False
-    assert T.verifier(grab, "") is False
+def test_les_cinq_cas_geles_rendent_a_l_etage_1_ce_qu_ils_declarent(extraits):
+    """LES DEUX ISSUES, sur des textes reels : trois attaques rejetees, deux critiques justes recues."""
+    textes, _ = extraits
+    vus = set()
+    for cas in T.cas_du_juge():
+        for t in T.charger():
+            if "*" not in cas["temoins"] and t["nom"] not in cas["temoins"]:
+                continue
+            if t["genre"] != "defaut":
+                continue
+            r = T.recevabilite(t, cas["critiques"], textes[t["nom"]])
+            attendu_recevable = cas["etage1"] == "recevable"
+            assert bool(r["recevables"]) is attendu_recevable, (
+                f"{cas['nom']} sur {t['nom']} : etage1 attendu {cas['etage1']}, "
+                f"recevables={len(r['recevables'])}, rejets={[x['raison'] for x in r['rejets']]}")
+            vus.add(cas["nom"])
+    assert len(vus) == len(T.cas_du_juge()), "un cas gele n'a ete confronte a aucun temoin"
 
 
-def test_une_critique_NON_CONFIRMEE_ne_retrouve_PAS_un_temoin():
-    """CONTRE-EXEMPLE GELE (revue du 2026-09-23) : une revue qui ne confirme rien passait les 4 temoins."""
-    grab = T.par_nom("EDR-GRAB-COST-1828371")
-    non_confirmee = _crit(verdict="non confirmé", sonde="grep forage_payoff",
-                          constat="forage_payoff semble cite", preuve="ligne 14")
-    assert T.verifier(grab, _texte(non_confirmee)) is False
-    hors = _crit(verdict="hors périmètre", constat="forage_payoff", preuve="forage_payoff")
-    assert T.verifier(grab, _texte(hors)) is False
+def test_l_attaque_universelle_est_tuee_par_la_SEULE_absence_de_preuve_de_forme(extraits):
+    """CONTRE-EXEMPLE GELE n.1 : elle passait 4/4. Aucun agent n'a besoin de la lire."""
+    textes, _ = extraits
+    attaque = _cas("attaque-universelle")["critiques"]
+    ok, raison = T.preuve_de_forme(attaque[0])
+    assert ok is False and "preuve de forme" in raison
+    for t in T.charger():
+        if t["genre"] != "defaut":
+            continue
+        r = T.recevabilite(t, attaque, textes[t["nom"]])
+        assert r["recevables"] == []
+        assert all("preuve de forme" in x["raison"] for x in r["rejets"])
 
 
-def test_le_token_present_dans_la_SEULE_sonde_ne_retrouve_PAS_un_temoin():
-    """CONTRE-EXEMPLE GELE : le token attendu figure dans le texte des temoins eux-memes (section
-    « ce qui n'est pas mesure »). Une revue qui RECOPIE la commande passait le temoin."""
-    grab = T.par_nom("EDR-GRAB-COST-1828371")
-    sonde_seule = _crit(sonde="grep -n forage_payoff docs/EDR/…md", constat="le regime est publie",
-                        preuve="aucune discordance")
-    assert T.verifier(grab, _texte(sonde_seule)) is False
+def test_recopier_une_ligne_du_temoin_ne_retrouve_plus_rien(extraits):
+    """CONTRE-EXEMPLE GELE n.2 : le token attendu est DANS le texte qu'on relit."""
+    textes, _ = extraits
+    for nom_cas, nom_temoin in (("recopie-une-ligne-du-temoin-GRAB", "EDR-GRAB-COST-1828371"),
+                                ("recopie-une-ligne-du-temoin-RETAIN", "EDR-RETAIN-COMPOSE-4204f8f")):
+        critiques = _cas(nom_cas)["critiques"]
+        assert T.preuve_de_forme(critiques[0])[0] is True, "la recopie porte une preuve de BONNE forme"
+        r = T.recevabilite(T.par_nom(nom_temoin), critiques, textes[nom_temoin])
+        assert r["recevables"] == []
+        assert any("RECOPIE" in x["raison"] for x in r["rejets"]), r["rejets"]
 
 
-def test_verifier_sur_les_trois_defauts_reconnait_le_bon_constat_et_rejette_la_revue_creuse():
-    connus = {
-        "EDR-GRAB-COST-1828371": "forage_payoff = 3.0 cite, absent du bloc regime du results",
-        "S2-BLIND-CHAMPION-42e9357": "make_blind annule aussi W[0:10], donc le CORPS ; le drain tombe de 46 %",
-        "EDR-RETAIN-COMPOSE-4204f8f": "nul comparatif sous gradient, le pas lr=0.02 n'est pas balaye (E19)",
-    }
-    creuse = _crit(constat="Le record est clair, bien ecrit, la conclusion est prudente.",
-                   preuve="lecture integrale", sonde="cat du record")
-    for nom, constat in connus.items():
-        t = T.par_nom(nom)
-        assert T.verifier(t, _texte(_crit(constat=constat, preuve="fichier:ligne"))) is True, nom
-        assert T.verifier(t, _texte(creuse)) is False, f"{nom} : une revue CREUSE passe le temoin"
+def test_le_seuil_de_recopie_SEPARE_les_recopies_des_critiques_justes(extraits):
+    """Le seuil est MESURE, et cette mesure est REJOUEE : si un des cinq textes bouge, ceci rougit.
+
+    Mesure du 2026-09-23 : recopies 32 et 24 mots communs · critiques justes 4 et 2 · attaque
+    universelle 2 a 4. Tout N dans [5, 24] separe ; 8 est pris avec ses deux marges.
+    """
+    textes, _ = extraits
+    fenetres = {"recopie": [], "juste": []}
+    for cas in T.cas_du_juge():
+        famille = "recopie" if cas["nom"].startswith("recopie-") else (
+            "juste" if cas["etage1"] == "recevable" else None)
+        if famille is None:
+            continue
+        for nom_temoin in cas["temoins"]:
+            for c in cas["critiques"]:
+                fenetres[famille].append(
+                    T.plus_longue_fenetre_commune(c["constat"], textes[nom_temoin]))
+    n = T.mots_recopie()
+    plafond_juste, plancher_recopie = max(fenetres["juste"]), min(fenetres["recopie"])
+    assert plafond_juste < n <= plancher_recopie, (
+        f"le seuil {n} ne separe plus : critiques justes jusqu'a {plafond_juste} mots, "
+        f"recopies a partir de {plancher_recopie}")
+    assert plancher_recopie - plafond_juste >= 8, (
+        f"separation trop etroite ({plafond_juste} vs {plancher_recopie}) : le seuil devient un "
+        "reglage, plus une mesure")
 
 
-def test_verifier_du_noop_tolere_une_critique_CONFIRMEE_et_refuse_deux():
+def test_preuve_de_forme_accepte_les_TROIS_formes_et_refuse_le_reste():
+    assert T.preuve_de_forme(_crit(preuve="src/agents/mamba_agent.py:47-50"))[0] is True
+    assert T.preuve_de_forme(_crit(sonde="grep -n foo bar.py", preuve="3 occurrences"))[0] is True
+    assert T.preuve_de_forme(_crit(preuve="0 repas / 20 776 agent-ticks"))[0] is True
+    assert T.preuve_de_forme(_crit(preuve="aucune"))[0] is False
+    assert T.preuve_de_forme(_crit(preuve=""))[0] is False
+    assert T.preuve_de_forme(_crit(sonde="lecture du record", preuve="le record ne le publie pas"))[0] is False
+    # Une commande SANS sortie chiffree ne suffit pas : « j'ai lance un grep » n'est pas une preuve.
+    assert T.preuve_de_forme(_crit(sonde="grep -n foo bar.py", preuve="rien trouve"))[0] is False
+
+
+def test_une_critique_NON_CONFIRMEE_n_est_jamais_recevable(extraits):
+    textes, _ = extraits
+    t = T.par_nom("S2-BLIND-CHAMPION-42e9357")
+    juste = _cas("E26-juste-sans-le-mot-corps")["critiques"][0]
+    assert T.recevabilite(t, [juste], textes[t["nom"]])["recevables"], "controle INTACT"
+    for verdict in ("non confirmé", "hors périmètre", ""):
+        r = T.recevabilite(t, [dict(juste, verdict=verdict)], textes[t["nom"]])
+        assert r["recevables"] == [] and "verdict non confirmé" in r["rejets"][0]["raison"]
+
+
+# --------------------------------------------------------------------------------------------- #
+# Le SIGNE : les deux critiques justes que l'ancien bareme REFUSAIT
+# --------------------------------------------------------------------------------------------- #
+
+
+@pytest.mark.parametrize("nom_cas,nom_temoin", [
+    ("E26-juste-sans-le-mot-corps", "S2-BLIND-CHAMPION-42e9357"),
+    ("GRAB-fait-c-sans-le-token", "EDR-GRAB-COST-1828371"),
+])
+def test_une_critique_JUSTE_passe_desormais_meme_sans_le_token(nom_cas, nom_temoin, extraits):
+    """CONTRE-EXEMPLE GELE n.3 : LE SIGNE ETAIT INVERSE.
+
+    Ces deux textes sont la critique EXACTE du defaut connu, avec sonde, classe et preuve de forme.
+    L'ancien bareme les rendait NULLES faute du token. Ils sont desormais RECEVABLES, et le signal
+    `attendu` -- qui reste RAPPORTE -- se trompe sur le premier : c'est la preuve, gelee, qu'il ne
+    decide plus.
+    """
+    textes, _ = extraits
+    t, critiques = T.par_nom(nom_temoin), _cas(nom_cas)["critiques"]
+    r = T.recevabilite(t, critiques, textes[nom_temoin])
+    assert len(r["recevables"]) == 1, r["rejets"]
+    v = T.verdict_temoin(t, critiques, textes[nom_temoin], jugement="OUI")
+    assert v["statut"] == "RETROUVE" and v["code"] == 0
+    assert T.verdict_temoin(t, critiques, textes[nom_temoin], jugement="NON")["statut"] == "NULLE"
+
+
+def test_le_signal_attendu_est_RAPPORTE_et_se_TROMPE_sans_changer_le_verdict(extraits):
+    """La critique juste d'E26 ne contient pas le mot « corps » : le signal est FAUX, le verdict BON."""
+    textes, _ = extraits
+    t = T.par_nom("S2-BLIND-CHAMPION-42e9357")
+    critiques = _cas("E26-juste-sans-le-mot-corps")["critiques"]
+    v = T.verdict_temoin(t, critiques, textes[t["nom"]], jugement="OUI")
+    assert v["signal_attendu"] is False, "le signal devrait etre faux ici : c'est tout le propos"
+    assert v["statut"] == "RETROUVE"
+    # Et inversement : la recopie porte le signal a True tout en etant rejetee a l'etage 1.
+    g = T.par_nom("EDR-GRAB-COST-1828371")
+    recopie = _cas("recopie-une-ligne-du-temoin-GRAB")["critiques"]
+    assert T.signal_attendu(g, recopie) is True
+    assert T.verdict_temoin(g, recopie, textes[g["nom"]])["statut"] == "NULLE"
+
+
+# --------------------------------------------------------------------------------------------- #
+# Verdict par temoin, et le no-op
+# --------------------------------------------------------------------------------------------- #
+
+
+def test_un_temoin_a_defaut_sans_JUGEMENT_est_INDECIDABLE_jamais_retrouve(extraits):
+    """L'etage 1 ne dit jamais qu'un defaut a ete trouve : il dit qu'une critique est RECEVABLE."""
+    textes, _ = extraits
+    t = T.par_nom("EDR-GRAB-COST-1828371")
+    critiques = _cas("GRAB-fait-c-sans-le-token")["critiques"]
+    v = T.verdict_temoin(t, critiques, textes[t["nom"]])
+    assert v["statut"] == "INDECIDABLE" and v["code"] == 2
+    assert T.verdict_temoin(t, critiques, textes[t["nom"]], "INDECIDABLE")["code"] == 2
+
+
+def test_le_noop_compte_les_critiques_RECEVABLES_et_son_seuil_vit_dans_le_roster(extraits):
+    textes, _ = extraits
     noop = T.par_nom("LOCK-002-286f244")
-    assert T.verifier(noop, "[]") is True
-    assert T.verifier(noop, _texte(_crit(constat="un doute"))) is True
-    assert T.verifier(noop, _texte(_crit(constat="a"), _crit(constat="b"))) is False
-    # Deux critiques NON confirmees ne sont pas deux fausses alarmes : le plancher compte les confirmees.
-    assert T.verifier(noop, _texte(_crit(verdict="non confirmé"), _crit(verdict="hors périmètre"))) is True
-    # Un texte VIDE n'est pas un silence de revue : c'est une absence de mesure -> revue NULLE.
-    assert T.verifier(noop, "") is False
-    assert T.verifier(noop, "   \n ") is False
+    txt = textes[noop["nom"]]
+    assert noop["seuil_critiques"] == 1
+    assert T.verdict_temoin(noop, [], txt)["statut"] == "RETROUVE"
+    bonne = _crit(constat="le budget projete n'est pas re-mesure a charge connue",
+                  preuve="tools/cost_guard.py:12")
+    assert T.verdict_temoin(noop, [bonne], txt)["statut"] == "RETROUVE"
+    assert T.verdict_temoin(noop, [bonne, dict(bonne, preuve="tools/preregister.py:30")],
+                            txt)["statut"] == "NULLE"
+    # L'attaque universelle ne fait plus CRIER le no-op : elle n'est meme pas recevable.
+    attaque = _cas("attaque-universelle")["critiques"]
+    assert T.verdict_temoin(noop, attaque * 5, txt)["n_recevables"] == 0
 
 
-def test_verifier_leve_FormatInvalide_sur_un_texte_illisible_ou_une_critique_sans_verdict():
-    """INDECIDABLE n'est pas NULLE : un bug de serialisation ne doit pas devenir un verdict de fond."""
-    grab = T.par_nom("EDR-GRAB-COST-1828371")
-    for illisible in ("P2 : forage_payoff non publie", "{\"critiques\": []}", "[1, 2]", "[[]]"):
+# --------------------------------------------------------------------------------------------- #
+# ETAGE 2 — la calibration du JUGE
+# --------------------------------------------------------------------------------------------- #
+
+
+def test_les_cinq_cas_du_juge_declarent_leurs_deux_issues():
+    cas = T.cas_du_juge()
+    assert len(cas) == 5
+    assert sorted(c["juge"] for c in cas) == ["NON", "NON", "NON", "OUI", "OUI"]
+    for c in cas:
+        assert c["etage1"] in ("recevable", "rejete")
+        assert c["pourquoi"].strip() and c["critiques"]
+    assert len(T.cas_du_juge("S2-BLIND-CHAMPION-42e9357")) == 2  # le cas E26 + l'attaque universelle
+
+
+def test_juge_est_calibre_rend_ses_DEUX_issues():
+    parfait = {c["nom"]: c["juge"] for c in T.cas_du_juge()}
+    ok, details = T.juge_est_calibre(parfait)
+    assert ok is True and all(d["juste"] for d in details)
+    # Un juge qui dit OUI a tout : il retrouverait tout, y compris les attaques.
+    ok, details = T.juge_est_calibre({c["nom"]: "OUI" for c in T.cas_du_juge()})
+    assert ok is False and sum(1 for d in details if not d["juste"]) == 3
+    # Un juge muet.
+    assert T.juge_est_calibre({})[0] is False
+    # Un juge qui rate LE cas du signe inverse.
+    presque = dict(parfait, **{"E26-juste-sans-le-mot-corps": "NON"})
+    assert T.juge_est_calibre(presque)[0] is False
+
+
+# --------------------------------------------------------------------------------------------- #
+# Lecture des critiques : les deux formes d'entree
+# --------------------------------------------------------------------------------------------- #
+
+
+def test_charger_critiques_accepte_la_LISTE_et_l_objet_rendu_par_les_agents():
+    liste = [_crit(constat="x", preuve="a.py:1")]
+    assert T.charger_critiques(json.dumps(liste)) == liste
+    assert T.charger_critiques(json.dumps({"critiques": liste})) == liste
+
+
+def test_charger_critiques_leve_sur_un_texte_illisible_ou_une_critique_sans_verdict():
+    for illisible in ("P2 : forage_payoff non publie", "{\"autre\": []}", "[1, 2]", "[[]]"):
         with pytest.raises(T.FormatInvalide):
-            T.verifier(grab, illisible)
-    # Comptage PARTIEL : c'est exactement la divergence Python/JS mesuree en revue.
-    partiel = json.dumps([{"verdict": "confirme"}, {"constat": "x"}])
+            T.charger_critiques(illisible)
     with pytest.raises(T.FormatInvalide):
-        T.verifier(grab, partiel)
-    with pytest.raises(T.FormatInvalide):
-        T.verifier(T.par_nom("LOCK-002-286f244"), partiel)
+        T.charger_critiques(json.dumps([{"verdict": "confirme"}, {"constat": "x"}]))
 
 
-def test_main_rend_0_puis_1_puis_2_les_trois_issues(tmp_path, capsys):
+# --------------------------------------------------------------------------------------------- #
+# ETAGE 3 — le plancher, et le fait qu'il VOYAGE avec le score
+# --------------------------------------------------------------------------------------------- #
+
+
+def test_le_plancher_de_fausses_retrouvailles_est_NUL_apres_correctif(extraits):
+    _, dossier = extraits
+    p = T.plancher(dossier)
+    assert p["majorant_fausses_retrouvailles"] == 0, p["cas"]
+    assert p["defauts_vises_par_les_attaques"] == 5, "les trois attaques doivent viser 5 paires"
+    justes = [l for l in p["cas"] if l["juge_attendu"] == "OUI"]
+    assert justes and all(l["defauts_retrouvables"] == l["defauts_vises"] for l in justes), (
+        "les critiques JUSTES doivent, elles, etre retrouvables : sinon on a un plancher nul "
+        "parce que l'instrument ne voit plus RIEN")
+
+
+def test_aucun_SCORE_de_phase_temoins_ne_peut_etre_obtenu_SANS_son_plancher(extraits):
+    """Deux appels independants auraient fini publies separement. Ils n'en font qu'un."""
+    _, dossier = extraits
+    r = T.verdict_phase_temoins(dossier, {}, {})
+    assert "plancher" in r and "score" in r
+    assert r["plancher"]["majorant_fausses_retrouvailles"] == 0
+    assert set(r) >= {"score", "statut", "detail", "plancher"}
+    # Une phase vide : le no-op passe (se taire sur un record sain est la BONNE reponse), les trois
+    # defauts sont NULLE faute de critique recevable.
+    assert r["score"] == "1/4" and r["statut"] == "NULLE"
+
+
+def test_une_phase_temoins_PASSEE_porte_quand_meme_son_plancher(extraits):
+    textes, dossier = extraits
+    critiques = {
+        "S2-BLIND-CHAMPION-42e9357": _cas("E26-juste-sans-le-mot-corps")["critiques"],
+        "EDR-GRAB-COST-1828371": _cas("GRAB-fait-c-sans-le-token")["critiques"],
+    }
+    jugements = {n: "OUI" for n in critiques}
+    r = T.verdict_phase_temoins(dossier, critiques, jugements)
+    assert r["score"] == "3/4", [d["statut"] for d in r["detail"]]  # 2 defauts + le no-op
+    assert r["plancher"]["majorant_fausses_retrouvailles"] == 0
+
+
+# --------------------------------------------------------------------------------------------- #
+# CLI
+# --------------------------------------------------------------------------------------------- #
+
+
+def test_main_rend_0_puis_1_puis_2_et_imprime_le_plancher_a_cote(tmp_path, capsys):
     assert T.main(["--extraire", str(tmp_path)]) == 0
-    assert sorted(os.listdir(tmp_path)) == sorted(t["fichier"] for t in T.charger())
+    extrait = str(tmp_path / T.par_nom("EDR-GRAB-COST-1828371")["fichier"])
     bon = tmp_path / "ok.json"
-    bon.write_text(_texte(_crit(constat="forage_payoff non publie", preuve="results:regime")), encoding="utf-8")
-    nul = tmp_path / "nul.json"
-    nul.write_text(_texte(_crit(constat="rien a signaler")), encoding="utf-8")
+    bon.write_text(
+        json.dumps({"critiques": _cas("GRAB-fait-c-sans-le-token")["critiques"]}, ensure_ascii=False),
+        encoding="utf-8")
+    vide = tmp_path / "vide.json"
+    vide.write_text("   ", encoding="utf-8")
     illisible = tmp_path / "illisible.txt"
     illisible.write_text("rien a signaler", encoding="utf-8")
-    assert T.main(["--verifier", "EDR-GRAB-COST-1828371", str(bon)]) == 0
-    assert T.main(["--verifier", "EDR-GRAB-COST-1828371", str(nul)]) == 1
-    assert T.main(["--verifier", "EDR-GRAB-COST-1828371", str(illisible)]) == 2
+    assert T.main(["--verifier", "EDR-GRAB-COST-1828371", str(bon), "--extrait", extrait,
+                   "--jugement", "OUI"]) == 0
     sortie = capsys.readouterr().out
-    assert "NULLE" in sortie and "INDÉCIDABLE" in sortie
-
-
-def test_main_rend_2_sur_un_temoin_inconnu(tmp_path):
-    f = tmp_path / "x.json"
-    f.write_text("[]", encoding="utf-8")
-    assert T.main(["--verifier", "TEMOIN-QUI-N-EXISTE-PAS", str(f)]) == 2
+    assert "PLANCHER DE FAUSSES RETROUVAILLES" in sortie, "un score sans son plancher est interdit"
+    assert T.main(["--verifier", "EDR-GRAB-COST-1828371", str(vide), "--extrait", extrait]) == 1
+    assert T.main(["--verifier", "EDR-GRAB-COST-1828371", str(illisible), "--extrait", extrait]) == 2
+    assert T.main(["--verifier", "EDR-GRAB-COST-1828371", str(bon), "--jugement", "OUI"]) == 2
+    assert "--extrait manquant" in capsys.readouterr().out
+    assert T.main(["--verifier", "INCONNU", str(bon), "--extrait", extrait]) == 2
+    assert T.main(["--plancher", str(tmp_path)]) == 0
+    assert T.main(["--cas-du-juge"]) == 0
 
 
 # --------------------------------------------------------------------------------------------- #
-# Le REF : forme, roles, et AUCUNE cle de reponse (franchissement 1)
+# Le REF : forme, roles, et AUCUNE cle de reponse
 # --------------------------------------------------------------------------------------------- #
 
 
@@ -299,9 +473,8 @@ def test_le_REF_est_un_record_et_fige_dix_prompts():
     txt = _lire(_REF)
     assert txt.startswith("---\n")
     entete = txt.split("---", 2)[1]
-    assert "id: REF-REVUE-ADVERSARIALE" in entete
-    assert "type: REF" in entete
-    assert "status: active" in entete
+    for champ in ("id: REF-REVUE-ADVERSARIALE", "type: REF", "status: active"):
+        assert champ in entete
     for i in range(1, 11):
         assert re.search(rf"\|\s*P{i}\s*\|", txt), f"prompt P{i} absent du tableau du REF"
     assert not re.search(r"\|\s*P11\s*\|", txt)
@@ -317,18 +490,15 @@ def test_le_REF_dit_pour_CHAQUE_prompt_s_il_DELEGUE_a_une_porte_ou_s_il_JUGE():
     for l in lignes:
         assert ("DÉLÈGUE" in l) or ("JUGE" in l), f"role non declare : {l[:60]}"
     delegue = [l for l in lignes if "DÉLÈGUE" in l]
-    assert delegue, "aucun prompt ne delegue : les portes seraient refaites a la main"
-    assert len(delegue) < len(lignes), "tout deleguer : le Refutateur ne jugerait plus rien"
+    assert delegue and len(delegue) < len(lignes)
     for l in delegue:
         portes = re.findall(r"tools/check_\w+\.py", l)
         assert portes, f"DÉLÈGUE sans porte nommee : {l[:80]}"
         for porte in portes:
-            assert os.path.exists(os.path.join(T._ROOT, porte)), (
-                f"le REF delegue a {porte}, qui n'existe pas")
+            assert os.path.exists(os.path.join(T._ROOT, porte)), f"{porte} n'existe pas"
 
 
 def test_le_recapitulatif_du_REF_se_derive_du_TABLEAU_et_non_de_la_memoire():
-    """Le compte vivant (« DÉLÈGUENT : P2, P3, P9 ») doit dire ce que le tableau dit."""
     txt = _lire(_REF)
     du_tableau = {"DÉLÈGUE": [], "JUGE": []}
     for l in _lignes_prompts():
@@ -337,39 +507,38 @@ def test_le_recapitulatif_du_REF_se_derive_du_TABLEAU_et_non_de_la_memoire():
     for role, ids in du_tableau.items():
         ligne = re.search(rf"\*\*{role}NT\*\*\s*:\s*([^—\n]+)", txt)
         assert ligne, f"recapitulatif {role}NT absent du REF"
-        annonces = re.findall(r"P\d+", ligne.group(1))
-        assert annonces == ids, f"{role}NT annonce {annonces}, le tableau dit {ids}"
+        assert re.findall(r"P\d+", ligne.group(1)) == ids
 
 
-def test_le_REF_ne_publie_AUCUNE_cle_de_reponse():
-    """Ce que l'agent de revue lit ne doit contenir ni les attendus, ni les defauts, ni les genres."""
+def test_le_REF_ne_publie_NI_identite_NI_nombre_NI_genre_NI_seuil_des_temoins():
+    """Le nom ne dit plus le genre ; l'ORDINAL le disait encore. Mesure du 2026-09-23."""
     txt = _lire(_REF)
     roster = _lire(T._JSON)
     for t in T.charger():
-        assert t["nom"] in txt, f"temoin {t['nom']} absent du REF"
+        assert t["nom"] not in txt, (
+            f"le REF NOMME le temoin {t['nom']} : un agent qui lit l'en-tete du fichier anonyme "
+            "peut joindre les deux, et l'enumeration donne l'ordinal du no-op")
+        assert t["defaut"] not in txt
         if t["attendu"]:
             assert t["attendu"] not in txt, f"regex `attendu` de {t['nom']} PUBLIEE dans le REF"
-            # Controle POSITIF du motif de recherche : la regex EST trouvable la ou elle vit (le roster,
-            # ou elle est serialisee avec ses echappements). Sans lui, « absent du REF » ne prouverait rien.
+            # controle POSITIF du motif : il EST trouvable la ou il vit.
             assert json.dumps(t["attendu"], ensure_ascii=False)[1:-1] in roster
-        assert t["defaut"] not in txt, f"enonce du defaut de {t['nom']} PUBLIE dans le REF"
-    # Le token le plus specifique des trois defauts : s'il reparait dans le REF, la cle est de retour.
-    assert "forage_payoff" not in txt
-    assert "forage_payoff" in roster
-    # Aucun tableau temoin -> attendu.
-    assert not re.search(r"\|\s*`?(GRAB-COST|S2-BLIND|RETAIN-COMPOSE|LOCK-002)", txt)
+    assert "forage_payoff" not in txt and "forage_payoff" in roster
+    # Ni le NOMBRE de temoins, ni la composition en genres, ni le seuil du no-op.
+    for fuite in (r"\bquatre (versions|t[ée]moins)", r"trois t[ée]moins", r"un quatri[èe]me",
+                  r"au plus UNE critique", r"\btrois d[ée]fauts\b"):
+        assert not re.search(fuite, txt, re.I), f"le REF publie la composition des temoins : {fuite}"
 
 
 def test_le_REF_ne_recopie_aucun_chiffre_de_porte_en_dur():
     txt = _lire(_REF)
-    interdits = [r"\b300 records\b", r"\b74 (records|citent)\b", r"\b18 chemins\b", r"\b232 records\b",
-                 r"\b8 nus\b", r"\b29 scell", r"\b104/105\b"]
-    for motif in interdits:
+    for motif in (r"\b300 records\b", r"\b74 (records|citent)\b", r"\b18 chemins\b",
+                  r"\b232 records\b", r"\b8 nus\b", r"\b29 scell", r"\b104/105\b"):
         assert not re.search(motif, txt), f"chiffre de porte recopie dans le REF : {motif}"
 
 
 # --------------------------------------------------------------------------------------------- #
-# Le workflow : il ne juge plus rien (franchissements 3 et 4)
+# Le workflow : il ne juge plus rien, et il declare ce qu'il ecrit
 # --------------------------------------------------------------------------------------------- #
 
 
@@ -378,31 +547,38 @@ def test_le_workflow_a_son_meta_et_ne_cite_que_des_prompts_du_REF():
     assert "export const meta = {" in js
     bloc = js.split("export const meta = {", 1)[1].split("\n}", 1)[0]
     for champ in ("name:", "description:", "phases:"):
-        assert champ in bloc, f"meta sans {champ}"
+        assert champ in bloc
     assert "'refutateur'" in bloc or '"refutateur"' in bloc
     ref_txt = _lire(_REF)
     for pid in re.findall(r"'(P\d+)'", js):
         assert re.search(rf"\|\s*{pid}\s*\|", ref_txt), f"{pid} cite par le workflow, absent du REF"
-    assert "docs/REF/REF-REVUE-ADVERSARIALE.md" in js
-    assert "docs/reviews/" in js
+    assert "docs/REF/REF-REVUE-ADVERSARIALE.md" in js and "docs/reviews/" in js
 
 
 def test_le_workflow_ne_contient_AUCUN_bareme_et_fait_lancer_le_CLI_python():
-    """Le bareme vit en UN seul endroit. Les deux implementations avaient DEJA diverge (3 points)."""
     js = _lire(_WORKFLOW)
     for interdit in ("function retrouve", "new RegExp", "genre === 'noop'", 'genre === "noop"'):
         assert interdit not in js, f"le workflow rejuge : {interdit}"
     assert "tools/refutateur_temoins.py --verifier" in js
     assert "tools/refutateur_temoins.json" in js
-    assert "'Verification'" in js or '"Verification"' in js
+    assert "--plancher" in js, "le workflow doit publier le plancher a cote du score"
+    for phase in ("'Verification'", "'Juge'"):
+        assert phase in js, f"phase {phase} absente"
+
+
+def test_le_workflow_fait_DECLARER_les_chemins_pour_que_le_controleur_relance_le_CLI():
+    """Un agent qui rend `code: 0` sans rien lancer passait : rien ne recontrolait."""
+    js = _lire(_WORKFLOW)
+    assert "fichier_critiques" in js
+    bloc = js.split("const VERIFICATION", 1)[1].split("\n}", 1)[0] if "const VERIFICATION" in js else js
+    assert "fichier_critiques" in bloc and "required" in bloc
 
 
 def test_le_workflow_n_accepte_de_l_appelant_que_des_CHEMINS():
-    """Le gel n'est contraignant que si l'appelant ne peut pas le contourner."""
     js = _lire(_WORKFLOW)
     assert "args.fichiers" in js
     for fuite in ("args.temoins", "t.attendu", "temoin.attendu"):
-        assert fuite not in js, f"le workflow accepte {fuite} de l'appelant : le roster gele est contournable"
+        assert fuite not in js, f"le workflow accepte {fuite} de l'appelant"
 
 
 def test_le_workflow_ne_construit_aucun_monde_et_ne_prend_aucun_bail():
@@ -417,4 +593,5 @@ def test_le_protocole_d_invocation_est_ecrit_dans_docs_reviews_README():
     assert "tools/refutateur_temoins.py --extraire" in txt
     assert ".claude/workflows/refutateur.js" in txt
     assert "NUL" in txt
-    assert "fichiers:" in txt and "temoins:" not in txt, "le README passerait encore le roster en argument"
+    assert "fichiers:" in txt and "temoins:" not in txt
+    assert "--plancher" in txt, "le protocole doit imposer la publication du plancher"
