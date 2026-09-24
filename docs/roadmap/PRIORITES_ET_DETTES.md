@@ -1104,6 +1104,31 @@ Dépend de : rien. Trouvé en écrivant `docs/superpowers/specs/2026-09-22-pilot
 ⚠️ Clause corrigée dans la même passe : la première version citait le motif `parse_` — SATISFAITE d'emblée par
 `ap.parse_args(argv)` (`:337`), et le cliquet l'a immédiatement dénoncée (« condition DÉCLARÉE satisfaite mais l'entrée
 s'annonce ouverte »). La clause vise donc le motif tel qu'il s'écrirait DANS un `re.compile`, absent aujourd'hui.
+
+**AVANCEMENT 2026-09-24 (agagi-b0, sur passation du PM) : la moitie SILENCE est FERMEE ; la moitie MOTIFS reste,
+et elle est desormais chiffree motif par motif.** Le defaut dominant n'etait pas l'absence de deux motifs mais
+l'IGNORANCE MUETTE : `scan_calibrated` sautait toute declaration non detectee sous le commentaire « declaration
+perimee », donc l'auteur croyait avoir declare et rien ne le contredisait. Mesure faite AVANT de decider (recomptee
+sur cet arbre, pas reprise) : **9 declarations y tombaient et AUCUNE n'etait perimee** — 6 fonctions bien PRESENTES
+qu'aucun des 14 motifs ne voit (`_cause_de_mort` — nommage FRANCAIS —, `plain_readout_ceiling`,
+`additive_argmax_exact_ceiling`, `verify_plain_ceiling_witness`, `_td_update`, `logit_median_at_outputs`) et
+3 CLASSES (`GrabOffMamba`, `NullGrabOffMamba`, `GrabForcedMamba`) : **le cliquet ne scanne que `def`, jamais
+`class`** — neuvieme angle mort, de la meme famille que les huit precedents. Livre : le cliquet CRIE desormais,
+et il TRANCHE LA CAUSE (`_cause_ignoree` : `MOTIF_AVEUGLE` si un `def` du meme nom existe dans le perimetre,
+`CLASSE` si c'est une classe, `PERIMEE` si le symbole n'existe nulle part) parce que les remedes sont OPPOSES —
+elargir un motif, etendre aux classes, ou supprimer une declaration morte ; un cri unique enverrait au mauvais
+correctif. Cliquet : les 9 sont GELEES dans la baseline (`declarations_ignorees`), toute NOUVELLE bloque. Deux
+mutations de plus a la porte 2 (le cri redevient silencieux ; la cause n'est plus tranchee) : **5/5 tuees**.
+Cout de chaque elargissement, MESURE sur l'arbre courant (instruments NEUFS que le motif ferait entrer, donc a
+calibrer) : `compute_*` **+5** (dont `tools/pm/roles_counts.py::compute_counts`), `parse_*` **+3**, `*ceiling*`
+**+5**, `verify_*` **+1**, `_td_update*` **+2**, `*median*` **+9 mais rejete** (ce sont des formateurs :
+`_fmt_mediane`, `_median`, `_median_norm`… — un motif qui ratisse des helpers rend le cliquet inutilisable).
+⚠️ Fait qui change l'arbitrage : `*ceiling*` + `verify_*` + `_td_update*` **RESORBENT 4 des 9 ignorees** (elles
+sont deja declarees : elles passeraient d'« ignoree » a « calibree » le jour ou le motif les voit) pour 3 dettes
+neuves, tandis que `compute_*`/`parse_*` en revelent 8 sans en resorber aucune — deux passes distinctes, la
+premiere presque gratuite. Reste a faire : (i) elargir aux trois motifs resorbants, (ii) elargir a
+`compute_*`/`parse_*` en calibrant ou gelant les 8, (iii) decider pour les 3 CLASSES (les declarer
+`NOT_AN_INSTRUMENT` qualifiees, ou etendre le scan aux `class`). *Cout : agent 1-2 h par passe ; calcul 0.*
 <!-- closes_when:grep_present=tools/check_instrument_calibration.py::parse_\w+\) -->
 
 **P2.84 — ⚠️ OUVERTE (2026-09-24, demande de robla le 2026-09-23) — lot 2 « Science » du dashboard : arbres en temps

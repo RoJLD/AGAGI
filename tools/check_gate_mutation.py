@@ -111,6 +111,21 @@ PORTES = {
                 "motif": ("le motif `compute_policy_gradient` — l'apprenant legacy de MambaBatchModel, "
                           "actif pendant tout l'arc EVO, ne serait plus ni calibré ni compté comme dette"),
             },
+            {
+                "nom": "une déclaration non détectée redevient SILENCIEUSE (P2.83)",
+                "avant": "            ignorees[name] = _cause_ignoree(bare)",
+                "apres": "            pass",
+                "motif": ("la branche qui CRIE : 9 déclarations réelles (6 fonctions invisibles aux motifs, "
+                          "3 classes) redeviendraient ignorées sans un mot, et leur auteur croirait avoir "
+                          "déclaré — E10 appliquée au cliquet lui-même"),
+            },
+            {
+                "nom": "la CAUSE d'une déclaration ignorée n'est plus tranchée (P2.83)",
+                "avant": '        return ("MOTIF_AVEUGLE", sorted(defs))',
+                "apres": '        return ("PERIMEE", [])',
+                "motif": ("le cri enverrait au remède OPPOSÉ : « supprimer la déclaration morte » pour un "
+                          "symbole bien PRÉSENT que les motifs ne voient pas"),
+            },
         ],
     },
     "3": {
