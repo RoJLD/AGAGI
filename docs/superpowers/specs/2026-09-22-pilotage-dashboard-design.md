@@ -81,38 +81,61 @@ compute_pilotage(snap, backlog_txt, records_graph, roles_counts, portes, now) ->
 
 ```text
 {
-  "schema": "pilotage_v1",
+  "schema": "pilotage_v1",                      # ⚠️ pydantic v2 : `schema` masque un attribut de BaseModel -> alias
+                                                # (`Field(alias="schema")`) ou le modèle émet un UserWarning
   "generated_at": <epoch s>,
-  "repo_root": <str>,
+  "repo_root": <str>,                           # POSIX, casse d'origine : find_repo_root(None).as_posix() —
+                                                # "C:/Users/robla/VScode_Project/AGAGI". C'est CELUI-CI que les liens
+                                                # vscode consomment, jamais `flotte.repo_root` (que le board normalise
+                                                # en minuscules : "c:/users/robla/vscode_project/agagi")
   "aveugle": [<str>, ...],                      # une ligne par source absente ou par erreur nommée
 
-  "flotte": null | { ... },                     # = tools.pm.board.compute(snap), INCHANGÉ : ses clés sont le CONTRAT du
-                                                # board, figé par tests/sandbox/test_pm_board.py, jamais réénumérées ici.
-                                                # Lu à la pointe 6977912a (2026-09-23) : generated_at, repo_root, aveugle,
-                                                # sessions, sessions_mortes, alertes (A1-A9),
-                                                # charge_connue {sims_en_vol, cpu_pct, bails_vivants}, worktrees, bails
+  "flotte": null | { ... },                     # DEUX provenances, JAMAIS confondues (3.2) : le contenu de BOARD.json
+                                                # (chemin du poll, écrit par le tick avec json.dump(default=str) — donc
+                                                # un aller-retour JSON, pas le dict) ou board.compute(snap) en mémoire
+                                                # (chemin ?frais=1). Ses clés sont le CONTRAT du board, figé par
+                                                # tests/sandbox/test_pm_board.py, jamais réénumérées ici. Lu à la pointe
+                                                # 6977912a : generated_at, repo_root, aveugle, sessions, sessions_mortes,
+                                                # alertes (A1-A9), charge_connue {sims_en_vol, cpu_pct, bails_vivants},
+                                                # worktrees, bails
 
   "roadmap": null | {
     "direction": {"rangs": [{"rang": "14 ter", "p_items": ["P2.78"], "statuts": ["close"]}, ...]},
                                                 # rang -> LISTE : un rang n'est pas unique (5 rangs portés par deux
-                                                # entrées à HEAD 79af2944), donc ce n'est pas une fonction
-    "entrees": [{
+                                                # entrées à HEAD 79af2944), donc ce n'est pas une fonction.
+                                                # ORDRE : (int(base), index du suffixe dans ["", "bis", "ter",
+                                                # "quater", "quinquies"]) — un tri de CHAÎNES mettrait "14 quater"
+                                                # avant "14 ter" et "10" avant "2", rendant la vue centrale illisible
+    "entrees": [{                               # ORDRE : `bloc` croissant, puis ordre des `nums` de la tête
         "num": "P2.78",                         # UN numéro par entrée
         "nums": ["P2.78"],                      # tous les numéros de la TÊTE dont vient l'entrée (composite : 2+)
         "bloc": 43,                             # index du bloc (tête) d'origine — deux entrées d'une composite le partagent
         "priorite": "P2", "rang": "14 ter" | null,
         "statut": "ouverte" | "close" | "perimee" | "illisible",
-        "date": "2026-09-22" | null, "titre": <str>, "lignes": [671, 697],
+        "date": "2026-09-22" | null,            # première date des DEUX premières lignes ; c'est la date du STATUT, pas
+                                                # de l'ouverture (15 têtes en portent plusieurs, 10 aucune)
+        "titre": <str>,                         # règle en 3.1 ; markdown TEL QUEL, aucune troncature dans le JSON
+        "lignes": [671, 697],                   # 1-based, [début de la tête, dernière ligne AVANT la tête suivante]
         "clause": null | {"pred": "grep_present", "arg": "...", "satisfaite": true | false | null, "raison": null | <str>},
-        "chemins": [{"rel": "tools/cost_guard.py", "existe": true}, ...]
+        "holds": [{"pred": "grep_present", "arg": "...", "satisfaite": true | false | null}, ...],   # `holds_when` : 8
+                                                # entrées en portent ; une affirmation PERMANENTE rompue est un fait, pas
+                                                # une fermeture — jamais confondue avec `clause`
+        "chemins": [{"rel": "tools/cost_guard.py", "existe": true, "ligne": n | null}, ...],
+        "chemins_non_captes": n                 # fragments backtickés contenant "/" que le motif n'a PAS pris (voir 3.1) :
+                                                # une liste amputée ne se présente jamais comme complète
     }, ...],
     "comptes": {"par_priorite": {"P0": {"ouvertes": n, "closes": n, "perimees": n}, ...},
                 "blocs": n, "numeros": n, "illisibles": n},   # DEUX comptes : têtes et numéros (égaux sans composite)
     "portes_agi": <records_graph["roadmap"] tel quel>          # {"G0": {"sdr", "status", "tested_by": [...]}, ...}
   },
 
-  "portes": null | [{
-    "num": "1", "module": "tools.check_record_links", "titre": <str> | null, "temoins": [<str>, ...] | null,
+  "portes": null | [{                           # ORDRE : int(num) croissant — PAS l'ordre du fichier, PAS un tri de
+                                                # chaînes ; les numéros sont NON CONTIGUS (ni 19 ni 20) et le hook
+                                                # écrit le bloc 21 AVANT le bloc 18
+    "num": "1",                                 # chaîne, extraite du hook par `^#\s*(\d+)\.` en tête de bloc
+    "module": "tools.check_record_links",       # premier `python tools/check_(\w+)\.py` du bloc, dédupliqué (un bloc
+                                                # peut lancer son check DEUX fois : --only puis complet)
+    "titre": <str> | null, "temoins": [<str>, ...] | null,
     "mutations": n | null,                      # null = porte branchée au hook mais ABSENTE de PORTES (non mutée)
     "baseline": null | {"chemin": "tools/record_link_baseline.json", "existe": true, "dette": n | null}
   }, ...],
@@ -176,6 +199,24 @@ Règles du schéma :
 | `read_roles_counts(repo_root)` | compteurs du PM | `paths.pm_dir("ROLES_COUNTS.json")` |
 | `read_portes(repo_root)` | inventaire des portes | `tools/hooks/pre-commit` (source d'autorité), joint à `check_gate_mutation.PORTES` et à `BASELINES` |
 
+**`read_portes` — extraction déclarée, parce que `_portes_hook` ne suffit pas.** `check_synthesis_counts._portes_hook`
+rend `len(set(...))` : un COMPTE, sans numéro ni ordre. La spec déclare donc l'extraction : le numéro par
+`^#\s*(\d+)\.` en tête de bloc de commentaire, le module par le **premier** `python tools/check_(\w+)\.py` du bloc
+(dédupliqué : un bloc lance parfois son check deux fois, `--only` puis complet — `tools/hooks/pre-commit:22,24` et
+`:55,57`), la liste triée par `int(num)`. Mesuré le 2026-09-24 : **19 modules distincts, 19 blocs numérotés dans
+l'ordre 1..17 puis 21 puis 18** — les numéros ne sont **ni contigus** (pas de 19 ni 20) **ni dans l'ordre du fichier**.
+Cas de calibration : un hook FACTICE portant un bloc dont le numéro et l'ordre divergent.
+
+⚠️ **La racine du dépôt ne peut pas venir de `find_repo_root` seul.** `tools/parity_check.py:44-47` essaie
+`Path.cwd()` **en premier** : un backend (ou un `python -m`) lancé depuis un autre dépôt — ou n'importe quel répertoire
+portant `.git` — rend CE répertoire. Mesuré le 2026-09-24 depuis un `git init` jetable : la fonction rend le répertoire
+jetable, pas AGAGI. Le pilotage deviendrait alors entièrement aveugle **en accusant les bons fichiers d'être absents** :
+le négatif FABRIQUÉ que le principe 3 interdit. Deux règles, les deux exigées : (a) la racine s'ancre sur le MODULE
+(`Path(__file__).resolve().parents[2]` depuis `tools/pm/pilotage.py`), `find_repo_root` en repli seulement ;
+(b) **garde de santé déclarée** — si la racine retenue ne porte pas `docs/roadmap/PRIORITES_ET_DETTES.md` ET
+`tools/hooks/pre-commit`, la sortie porte une ligne `aveugle` qui **NOMME la racine résolue**, jamais un « fichier
+absent ». Contre-exemple gelé : un cwd étranger portant `.git`.
+
 ⚠️ **Les accesseurs de `src/paths.py` rendent un chemin RELATIF quand aucune variable d'environnement n'est posée**
 (mesuré le 2026-09-24, environnement nettoyé : `paths.results_file("records_graph.json")` → `results/records_graph.json`,
 `paths.pm_dir("BOARD.json")` → `data/pm/BOARD.json`, `os.path.isabs` → `False`). Un chemin relatif dépend du répertoire
@@ -204,7 +245,20 @@ aucun regex d'entrée :
   **deux premières lignes** (même fenêtre que le statut : deux entrées portent leur rang sur la 2ᵉ ligne, P4.15 et
   P4.9), `null` sinon. ⚠️ Sans `quinquies`, « rang 4 quinquies » (P4.17) serait **tronqué en `4`** et entrerait en
   collision silencieuse avec le rang 4 de P4.4 ; le suffixe est capté ou le rang est `null`, jamais tronqué ;
-- `date` = première `\d{4}-\d{2}-\d{2}` des deux premières lignes, `null` sinon ;
+- `date` = première `\d{4}-\d{2}-\d{2}` des deux premières lignes, `null` sinon. **C'est la date du STATUT** (« CLOSE le
+  2026-09-15 », « mesurée le 2026-09-16 »), pas celle de l'ouverture : mesuré sur le backlog réel, **15 têtes portent
+  plus d'une date** et **10 n'en portent aucune**. Le champ est descriptif ; aucune lecture du lot 1 n'en dépend, et un
+  calcul de « fermetures par semaine » est du lot 2, qui devra alors se donner une règle plus fine ;
+- `titre` = la ligne de tête **privée de** `**`, des numéros, du marqueur de statut, du rang et de la date ; le markdown
+  restant est laissé **TEL QUEL** et rendu en texte, jamais interprété ; **aucune troncature dans le JSON** (la
+  troncature est CSS, le titre complet reste accessible). Mesuré : le titre le plus long fait **566 caractères** et
+  17 853 octets de titres au total — une troncature à l'aveugle couperait au milieu d'un lien markdown (cas réel :
+  la tête de P3.7 porte un lien vers un ADR). Cas de calibration : une tête coupée au milieu d'un lien → titre complet,
+  aucun markdown fermé d'office ;
+- `lignes` = **1-based**, `[première ligne de la tête, dernière ligne AVANT la tête suivante]` — attention, les bornes
+  de `_entrees` vont du début d'un bloc au **début du bloc suivant** (`check_backlog_freshness.py:100`), donc la borne
+  haute brute désigne la tête d'à côté : on retire 1. Contre-exemple gelé : la dernière ligne d'une entrée ne doit
+  jamais être la tête de la suivante ;
 - `statut` : `perimee` si `PÉRIMÉE` ou `CADUQUE` dans les deux premières lignes ; sinon `close` si l'un des
   `_CLOSE_MARQUEURS` (`:92`) y figure — même règle que le cliquet ; sinon `ouverte` ;
 - `clause` : `_CLAUSE.findall(bloc)` (`:82`) ; la première clause est évaluée par `evaluer_clause` ; une exception
@@ -219,7 +273,19 @@ aucun regex d'entrée :
   `false` ; chemin absolu → `null` + « existe ICI mais n'est PAS SUIVI par git ») — d'où le paramètre `evaluer_clause`
   injectable, qui est ce que la calibration utilise (§6) ;
 - `chemins` : `_BACKTICK_PATH.findall(bloc)` (`:61`) filtrés sur `"/" in c` (même filtre que
-  `tools/pm/snapshot.py::read_backlog_paths`), `existe` = `os.path.exists(join(repo_root, rel))` ;
+  `tools/pm/snapshot.py::read_backlog_paths`), `existe` = `os.path.exists(join(repo_root, rel))`.
+  ⚠️ **Ce motif TRONQUE, et il faut le DIRE plutôt que l'élargir en douce** : il n'admet que cinq extensions
+  (`py|md|json|yml|yaml`) et refuse un chemin commençant par un point (`[\w]` initial). Mesuré le 2026-09-24 sur le
+  backlog : **364 fragments backtickés contiennent un `/`, 201 sont captés, 163 sont INVISIBLES** — dont
+  `.github/workflows/ci.yml`, `.claude/worktrees/…`, et `tools/hooks/pre-commit` (sans extension, cité **7 fois**).
+  Présenter cette liste comme complète serait la forme (c) du registre — un motif qui tronque en silence — appliquée à
+  l'instrument qui affiche les preuves. Donc : `chemins_non_captes` compte les fragments non pris, et la vue écrit
+  « 5 chemins affichés, 3 non reconnus par le motif ». Élargir le motif est un changement du CLIQUET, hors de ce lot :
+  il ne se fait pas dans un dashboard.
+- `ligne` d'un chemin : `null` par défaut. Le numéro de ligne du champ `lignes` est une position dans le BACKLOG, jamais
+  dans le fichier cité (mesuré : `tools/cost_guard.py` fait 139 lignes, l'entrée qui le cite commence ligne 671) — l'y
+  appliquer ouvrirait au-delà de la fin du fichier. Un `ligne` non nul n'est rempli que si la citation porte elle-même
+  un suffixe `:n` ou `::symbole` résolu par grep ;
 - toute exception dans le traitement d'UN bloc → une entrée `statut: "illisible"`, `titre` = première ligne brute, le
   reste `null` ; la fonction termine par `assert comptes["blocs"] == compter_entrees(txt)` (§2.2).
 
@@ -241,11 +307,17 @@ ferait tourner git + psutil en permanence, c'est-à-dire la charge machine que l
 (« un seul run lourd à la fois ; noter la charge au départ de chaque cellule »). **Le backend ne recalcule donc pas
 la flotte.**
 
-- `backend/app/services/pilotage_service.py`, racine par `find_repo_root(None)` :
+- `backend/app/services/pilotage_service.py`, racine par la règle du §3.1 (ancrage sur le module + garde de santé) :
   - **flotte = lecture de `paths.pm_dir("BOARD.json")`** (ancré sur la racine), le cache écrit par le tick PM dont il
-    est l'unique writer. Son âge est publié dans `charge.flotte_age_s` ; absent → `flotte: null` + ligne
+    est l'unique writer. ⚠️ Ce fichier est écrit par `json.dump(..., default=str)` (`tools/pm/tick.py:100`), donc **ce
+    qui est servi est un ALLER-RETOUR JSON, pas le dict de `board.compute`** : `default=str` stringifie en silence tout
+    objet non sérialisable. Le §6 en tire deux tests distincts au lieu d'un. Absent → `flotte: null` + ligne
     `aveugle: "flotte: data/pm/BOARD.json absent — le tick PM n'a pas encore tourné"`. Une flotte vieille est servie
     AVEC son âge, jamais muette. Sa fraîcheur est donc celle du tick (20-30 min), et c'est écrit dans la vue.
+  - **`charge.flotte_age_s = now - flotte["generated_at"]`**, et `null` si la clé manque — **jamais le `mtime` du
+    fichier** : un `git checkout`, une copie ou une écriture interrompue donne un mtime frais sur un contenu périmé, et
+    la vue annoncerait une fraîcheur supposée, ce que le §5 interdit. Contre-exemple gelé : un `BOARD.json` dont le
+    mtime et le `generated_at` diffèrent de plusieurs minutes — le seul cas qui distingue les deux règles.
   - **roadmap, portes, charge** : recalculés à la demande, cache mémoire `(généré_à, dict)`, `ttl_s=30.0` — 0,70 s
     mesuré, tenable.
   - `get_pilotage(ttl_s=30.0, frais=False)` : `frais=True` recalcule la flotte par `snapshot()` + `board.compute`
@@ -300,16 +372,36 @@ la flotte.**
 - `frontend/src/components/pilotage/PilotageFlotteView.tsx` : `Stat` × 4 (sims en vol, CPU instantané — 1 s, pas une
   moyenne —, bails, **âge de la flotte**), table des sessions (nom, branche, P-items revendiqués / inférés, nombre de
   fichiers en vol, âge du heartbeat), alertes en liste avec `Badge` (`danger` pour `alerte`, `warning` pour `info`) et
-  preuve dépliable (`<details>`). Bouton « recalculer la flotte (≈ 20 s, charge la machine) » → `?frais=1`,
-  **désactivé** quand le dernier tableau annonce `sims_en_vol > 0` (règle : un seul run lourd à la fois).
+  preuve dépliable (`<details>`).
+  ⚠️ **`Stat` REFUSE `null`** : sa signature est `value: string | number` (`frontend/src/components/ui/Stat.tsx:1-4`) et
+  `tsconfig` est `strict` — vérifié par `tsc` sur `value={sims}` avec `sims: number | null` : `error TS2322`. Or les
+  trois champs de charge sont `n | null` par construction (porte 14). **Tranché : la conversion se fait dans la vue,
+  pas dans la primitive** — une valeur absente est rendue `"non mesuré"` (chaîne littérale, lisible par un lecteur
+  d'écran), jamais `0`, jamais un tiret nu. `Stat` n'est pas modifié. Cas vitest : une `charge` à champs `null` rend
+  quatre `Stat` portant « non mesuré » et aucun zéro.
+  Bouton « recalculer la flotte (≈ 20 s, charge la machine) » → `?frais=1`, **désactivé** quand le dernier tableau
+  annonce `sims_en_vol > 0` (règle : un seul run lourd à la fois).
+  ⚠️ **Ce chemin expirerait par construction** : `apiFetch` a un `timeoutMs` par défaut de **10 s**
+  (`frontend/src/api/client.ts:23`) alors que le recalcul mesure 15,6-18,1 s. L'appel `frais` passe donc
+  `apiFetch(..., { timeoutMs: 40_000 })` — marge sur le majorant — et la vue distingue `isFetching` (recalcul en cours :
+  les données du cache restent affichées AVEC leur âge et un indicateur) de `isLoading` (aucune donnée). Cas vitest :
+  le `timeoutMs` transmis est > 18 000.
 - `frontend/src/components/pilotage/PilotageRoadmapView.tsx` : direction (table rang → **liste** de P-items → statuts) ;
   cartes G0-G4 (`Panel` : statut, SDR, records) ; table des entrées avec filtres priorité et statut (`Field`), colonne
   clause en `Badge` — **`success` satisfaite / `warning` non / `purple` invérifiable** (la primitive n'a que
   `teal | success | danger | warning | purple`, pas de `neutral`, et pas de prop `title` : `variant="neutral"` ferait
   échouer `tsc`, donc `npm run build`) —, la raison en **texte visible** (`text-dim`), jamais dans un `title`
-  (inatteignable au clavier, J3) ; chemins cités en `<a href="vscode://file/<abs>:<ligne>" aria-label="ouvrir … dans
-  VS Code">` quand `existe`, sinon `<s>chemin</s> <span class="text-dim">(absent)</span>` non cliquable — le style seul
-  ne dit rien à un lecteur d'écran ; `Stat` ouvertes / closes / périmées par priorité, datés de `generated_at`.
+  (inatteignable au clavier, J3). **Deux liens, deux gabarits LITTÉRAUX** : l'entrée elle-même →
+  `vscode://file/C:/Users/robla/VScode_Project/AGAGI/docs/roadmap/PRIORITES_ET_DETTES.md:671` (avec `lignes[0]`) ; un
+  chemin cité → `vscode://file/C:/Users/robla/VScode_Project/AGAGI/tools/cost_guard.py`, **sans ligne** sauf si
+  `ligne` est non nul (la ligne du champ `lignes` est une position dans le BACKLOG : l'appliquer au fichier cité
+  ouvrirait au-delà de sa fin). Les deux se bâtissent sur le `repo_root` **DE TÊTE**, en POSIX — jamais
+  `flotte.repo_root` (minuscules) : un antislash dans un `href` est encodé `%5C` et VS Code ne le résout pas. Chaque
+  lien porte `aria-label="ouvrir … dans VS Code"`. Un chemin absent est rendu `<s>chemin</s>
+  <span class="text-dim">(absent)</span>`, non cliquable — le style seul ne dit rien à un lecteur d'écran. Sous la
+  table, si `chemins_non_captes > 0` : « n chemin(s) cité(s) non reconnu(s) par le motif du cliquet », pour qu'une liste
+  amputée ne se présente jamais comme complète. `Stat` ouvertes / closes / périmées par priorité, datés de
+  `generated_at`.
 - `frontend/src/components/pilotage/PilotagePortesView.tsx` : table (n°, module, titre, témoins, mutations, baseline,
   dette) ; phrase fixe en tête : « inventaire recomputé depuis le hook pre-commit, joint à check_gate_mutation.PORTES
   pour les mutations — aucune porte n'est exécutée d'ici ».
@@ -329,6 +421,14 @@ la flotte.**
   depuis le tick précédent, publier vers l'artefact : `Artifact write_db` (`db_op: set`, `collection: pilotage`,
   `doc_id: latest`, `file_path: <data_root>/pm/PILOTAGE.json`) puis un second `set` avec `doc_id: <AAAA-MM-JJ-HHMM>`.
   Le PM est l'unique writer de cette base ; personne d'autre ne la touche.
+  ⚠️ **Taille MESURÉE et rétention déclarée** — le document construit sur l'état réel (127 blocs, 269 chemins,
+  `portes_agi` complet) pèse **87 411 octets à `indent=1`** (67 839 compacts) pour la seule roadmap, plus 7 039 octets
+  de `BOARD.json` : **≈ 94 Ko par version**, dont 17,9 Ko de titres. À deux documents par tick et un tick toutes les
+  20-30 min, la croissance est non bornée. Règles : (i) publier le doc daté **une fois par jour** (le premier tick du
+  jour), pas à chaque tick ; (ii) le tick PM — unique writer — **supprime** les docs datés au-delà des **30 derniers** ;
+  (iii) `latest` est toujours réécrit. Si une limite du store refuse un document (les limites par document et par
+  collection sont à lire AVANT le premier `write_db`, même passe que les règles d'accès), le tick écrit l'échec dans son
+  digest et la page affiche la dernière version reçue avec sa date — jamais une page vide sans explication.
 - Page : `tools/pm/artefact/pilotage.html`, versionnée, **publiée la première fois par la session PM** (celle qui tient
   le bail `pm` : c'est elle qui déclare les capacités et qui republie ensuite ; aucune autre session ne publie cette
   page), favicon fixé à la création, **URL notée dans `docs/roadmap/FRONTEND.md`** — c'est là que les ticks suivants la
@@ -412,7 +512,13 @@ décision, comme le dépôt l'exige.
 | parité de compte | sur le backlog RÉEL : `comptes["blocs"] == compter_entrees(txt)` et `illisibles == 0` (si une entrée réelle devient illisible, le test la nomme) |
 | tête composite | `**P2.0 / P2.1 — …**` → **1 bloc et 2 entrées**, mêmes `lignes`, `nums` de longueur 2, et l'assertion de parité ne lève PAS (c'est le contre-exemple du défaut bloquant trouvé en revue) |
 | rang | `rang 4 quinquies` n'est pas tronqué en `4` ; un rang porté par deux entrées donne une seule ligne de direction avec deux `p_items` ; un rang sur la 2ᵉ ligne est capté |
-| non-duplication | `flotte` == `board.compute(snap, now=now)` (égalité de dict) sur un instantané injecté |
+| non-duplication, chemin `?frais=1` | `flotte` == `board.compute(snap, now=now)` (égalité de dict) sur un instantané injecté |
+| non-duplication, chemin SERVI | après aller-retour JSON d'un `BOARD.json` factice : `set(flotte) == set(board.compute(snap))` et les valeurs scalaires égales. Contre-exemple gelé : un champ que `json.dump(default=str)` transforme (un objet non sérialisable) — le test doit le NOMMER, pas l'avaler |
+| âge de la flotte | `BOARD.json` dont le `mtime` et le `generated_at` diffèrent de plusieurs minutes → `flotte_age_s` suit `generated_at` ; clé absente → `null` |
+| racine étrangère | cwd dans un dépôt jetable (`git init`) → ligne `aveugle` NOMMANT la racine résolue, aucun « fichier absent » |
+| chemins tronqués par le motif | une entrée citant `.github/workflows/ci.yml` et `tools/hooks/pre-commit` → `chemins` ne les porte pas ET `chemins_non_captes == 2` |
+| ordres | `rangs` triés par (base, suffixe) : `14 ter` AVANT `14 quater`, `2` AVANT `10` ; `entrees` dans l'ordre du backlog |
+| titre | une tête coupée au milieu d'un lien markdown → titre complet, markdown inchangé, aucune troncature |
 | inventaire des portes | `len(portes)` == nombre de scripts `check_*` du hook (recomputé, **pas** `len(PORTES)`) ; une porte du hook hors `PORTES` → `mutations: null` ; pour chaque baseline déclarée : `existe` mesuré, `dette` = taille de la collection déclarée ou `null` |
 | fenêtre du ratio | `charge.fenetre` == `roles_counts["fenetre"]` et **jamais** `roles_counts["depuis"]` (contre-exemple : un `ROLES_COUNTS.json` dont les deux diffèrent) |
 | ancrage des chemins | environnement sans `AGAGI_*`, cwd ≠ dépôt → les lecteurs trouvent quand même leurs fichiers (contre-exemple du relatif, §3.1) |
@@ -570,13 +676,32 @@ bloquants** — chacun trouvé indépendamment par deux lentilles :
 Plus une mesure qui a changé le flux : `snapshot()` coûte 15,6-18,1 s, au-delà du timeout de 10 s d'`apiFetch` — la
 flotte n'est plus recalculée dans la requête (§3.2).
 
-⚠️ **Ce que la revue n'a PAS couvert, et il faut le dire** : les lentilles **faisabilité (20 constats)** et
-**complétude (20 constats)** ont rendu leurs rapports, mais **leurs 120 juges sont tous tombés sur la limite de
-session** — zéro vote. Leurs constats ne sont donc PAS vérifiés. Traitement : ceux qui recoupaient un constat confirmé
-(les 3 bloquants, la fenêtre du ratio, le coût, la chaîne openapi) sont intégrés ; ceux que **j'ai vérifiés moi-même
-par sonde** sont intégrés en le disant (chemins relatifs de `src/paths.py` ; non-détection de `compute_*`/`parse_*` ;
-dette nette de 7 fonctions ; `data/pm/` désormais ignoré — un constat déjà PÉRIMÉ par la fusion, preuve que ces
-constats ne sont pas des faits jusqu'à vérification) ; les autres sont laissés **non vérifiés** et nommés là où ils
-portent (règles d'accès du store de l'artefact, §3.4 et §11 ; forme des types générés, §11). Une seconde passe sur ces
-deux lentilles est le seul moyen de fermer ce trou ; elle n'est pas un prérequis du pas 1, qui ne dépend d'aucun de ces
-constats.
+**Passe 2 (2026-09-24) — le trou de la première passe est FERMÉ.** Les lentilles **faisabilité** et **complétude**
+(40 constats) avaient rendu leurs rapports sans qu'aucun de leurs 120 juges ne survive à la limite de session. Ils ont
+été rejugés contre la spec AMENDÉE, trois juges chacun (reproduire / déjà-corrigé / importance) : **30 réfutés ou déjà
+corrigés** — donc l'intégration de la passe 1 avait bien absorbé tous leurs bloquants et importants — et **10 retenus,
+tous mineurs**, tous intégrés ci-dessus (conventions de `titre`, `date` et `lignes` ; borne d'extension de
+`_BACKTICK_PATH` ; `Stat` face à `null` ; ordre des candidats de `find_repo_root` ; forme du lien `vscode://` ; limites
+du store ; `schema` sous pydantic v2 ; forme de l'exemption de bail). Coût : 121 agents, 9,7 M de tokens.
+
+**Critique de complétude final** — un agent chargé de la seule question « qu'est-ce qui manque pour implémenter sans
+poser de question ? » a trouvé **17 manques, dont 3 BLOQUANTS que ni la passe 1 ni la passe 2 n'avaient vus**, chacun
+avec sa sonde :
+
+1. **`Stat` refuse ce que la spec lui demande** — `value: string | number`, `tsc` strict, erreur `TS2322` sur un `null`
+   mesurée. C'est le bloquant n°3 (Badge) répété sur une AUTRE primitive : la leçon n'avait pas été généralisée.
+   Tranché en §3.3 (conversion dans la vue, « non mesuré »).
+2. **`?frais=1` expirerait par construction** — la mesure de `snapshot()` (18 s) avait changé le poll mais pas le seul
+   chemin qui la paie encore : `apiFetch` coupe à 10 s. Tranché en §3.3 (`timeoutMs: 40_000`, `isFetching`).
+3. **`portes[].num` et l'ordre ne sont pas dérivables de la source déclarée** — `_portes_hook` rend un COMPTE ;
+   la numérotation du hook n'est ni contiguë ni dans l'ordre du fichier. Tranché en §3.1 (motif d'extraction déclaré).
+
+Les neuf manques « importants » sont intégrés aux mêmes sections : deux définitions incompatibles de `flotte` (dict vs
+fichier écrit avec `default=str`), `flotte_age_s` sans source (mtime vs `generated_at`), `find_repo_root` qui essaie le
+cwd d'abord, deux formes contradictoires de `repo_root`, le `<ligne>` du lien vscode qui n'existait pas, 163 chemins
+cités invisibles sur 364, la taille non bornée des documents publiés (94 Ko/version mesurés), l'absence d'ordre de tri,
+la règle de `titre`.
+
+**Ce qui reste non vérifié, dit plutôt que tu** : les règles d'ACCÈS du store de l'artefact (qui peut écrire sous une
+capacité `db` nue) et la forme exacte des types générés depuis un `dict[str, Any]` — les deux sont nommés en §3.4 et
+§11, à trancher au pas 2 et au pas 4 avec le skill `artifact-capabilities` en main. Aucun ne bloque le pas 1.
