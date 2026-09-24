@@ -1341,20 +1341,64 @@ itérations dans `_run_arm` (épisodes d'entraînement, lots d'évaluation) et p
 `regime`, avec une assertion d'égalité ; le record cite `regime_mesure`. Coût ≈ 1 h.
 <!-- closes_when:grep_present=tools/harness/cell.py::regime_mesure -->
 
-**P2.101 — Cinq dettes mineures du harnais, chacune avec sa preuve (regroupées : aucune ne vaut une entrée seule).**
+**P2.102 — La garde d'alias de la condition (iii) (« la pièce est-elle tout le learner ? ») n'a jamais été
+appliquée à la PIÈCE, seulement à l'état.** Le spec (`docs/superpowers/specs/2026-09-16-harness-contracts-
+design.md:293-296`) prévoit `alias_guard_verdict(ctrl_A, ctrl_D)` : la tâche de CONTRÔLE doit survivre au
+retrait de la pièce, sinon la « pièce » ablatée est en réalité tout le learner. Mesuré ([[EDR-HARNESS-R1]] §7,
+revue finale de branche C1) : le bloc `necessity` des trois cellules n'a AUCUNE clé `alias` (la cellule B en
+porte une, mais pour l'ablation D'ÉTAT `state_reset` de la DEMANDE, jamais pour la nécessité de la pièce) ;
+`tools/harness/cell.py:146-148` n'évalue les contrôles que sur le bras A (AVEC la pièce), jamais sur D (sans
+elle). Non posée pour A (`without={"bilinear": false}`) ni pour B (`without={"feedforward": true}`, une
+lésion LARGE) : `PIECE_PARTIAL` (A) et `NECESSARY` (B, non décisif) pourraient, sans cette garde, documenter
+une pièce qui n'est en réalité qu'un nom pour « le learner entier ». Quoi : un bras de contrôle par cellule à
+ablation de pièce (construit et évalué SANS la pièce, comme D, symétrique du contrôle déjà présent pour les
+ablations d'état), confronté par `alias_guard_verdict` — coût d'un bras de contrôle par cellule (R2). Coût ≈
+2 h + un run de cellule.
+<!-- closes_when:grep_present=tools/harness/cell.py::alias_guard_verdict -->
+
+**P2.103 — Cinq dettes mineures du harnais, chacune avec sa preuve (regroupées : aucune ne vaut une entrée
+seule).** ⚠️ Renumérotée de P2.101 en P2.103 le 2026-09-24 (collision de numéro mesurée avec
+`feat/d1-prod-pairing`, qui porte un P2.101 sans rapport — « La PERTE DE NOMMAGE », depuis b2736a49 ; voir
+`.superpowers/sdd/2026-09-16-harness-r1-weeks-1-3/merge-preflight.md` §6). Contenu inchangé sauf l'item (d),
+corrigé par la revue finale de branche (C2) sur un fait FAUX de l'artefact.
 (a) Le bris d'égalité du second `lr` choisit le pas le plus PROCHE de `sweep0_lr` (`tools/harness/seal_r1.py:148`),
 donc la sonde E19 la plus faible, là où le plus ÉLOIGNÉ discriminerait mieux — déclarer le critère dans le sceau.
 (b) `ConnectomeLearner.build` valide `obs_dim` et `K` mais jamais `n >= 1`
 (`tools/harness/learners/connectome.py:194-199`) : `n=0` construit une instance vide au lieu d'un refus en tête.
 (c) `TabularLearner.state_dict` omet `seen_cols` (`tools/harness/learners/tabular.py:103-104` vs `:31`, `:48-51`) :
 un rechargement filtre tout jusqu'à ré-apprentissage. (d) Aucun bras `sham` n'a tourné en R1
-(`src/seed_ai/harness_verdict.py:47`, `_ARMS`) alors que `PIECES["bilinear"].matched_sham` existe : la nécessité
-publiée reste `PARAMS_NON_APPARIES` tant que le bras n'est pas couru (R2). (e) Le champ `cout` du sceau
+(`src/seed_ai/harness_verdict.py:47`, `_ARMS`) : la nécessité de A publie `sham`=`DECLARED` (le registre
+`PIECES["bilinear"].matched_sham` existe) — **PAS** `PARAMS_NON_APPARIES` comme l'affirmait cette entrée avant
+correction (C2, revue finale de branche : le texte d'origine était FAUX sur l'artefact, `results/harness_r1_A_0.json`
+porte `sham="DECLARED"`). `sham="DECLARED"` documente une entrée du registre, jamais une mesure : `sham_arm_run`
+= `false` (constante, publiée à côté depuis C2, `src/seed_ai/harness_verdict.py::_necessity`) le dit désormais
+explicitement. Courir réellement un sixième bras `sham` reste à faire (R2). (e) Le champ `cout` du sceau
 `HARNESS-R1-ter` décrit le budget de `-bis` (« 81 min ») alors que son `budget_family_s` vaut 14 534 s = 242 min
 (`docs/preregistrations/HARNESS-R1-ter.json`) : `build_rule_r1_ter` (`tools/harness/seal_r1.py:278-309`) hérite
 `cout` au lieu de le DÉRIVER — le sceau est immuable et reste reproductible, mais un futur `-quater` doit dériver
 le texte des budgets qu'il vient de changer (classe E8 ; commentaire déjà posé dans la fonction).
 <!-- closes_when:grep_present=tools/harness/learners/connectome.py::n < 1 -->
+
+**P2.104 — Aucune porte ne tourne à la FUSION : les 19 cliquets sont contournés par tout commit de fusion.**
+Mesuré le 2026-09-24 : `core.hooksPath` vaut `.git/hooks` et les seuls hooks installés y sont `pre-commit` et
+`post-commit` (tous les autres sont des `.sample`). Il n'existe ni `pre-merge-commit`, ni `commit-msg`, ni
+`prepare-commit-msg` : un `git merge` qui crée un commit de fusion ne déclenche AUCUNE des 19 portes.
+Conséquences mesurées sur la fusion de `feat/harness-r1` : (a) la collision de numéros P2.101 ci-dessus
+(P2.103) serait passée en silence, la clé « numero-double » de `check_backlog_freshness` ne s'exécutant pas
+sur une fusion ; (b) un compteur de comptage sur une ligne partagée (ex. `SCIENCE.md` records_total) en
+CONFLIT GIT choisit naïvement un camp au lieu de RECALCULER, publiant un compte faux ; (c) deux compteurs sur
+des plages de lignes DISJOINTES fusionnent par prise silencieuse, sans le moindre conflit pour signaler qu'un
+compteur doit être recomputé. C'est la classe E10 (« une règle documentée sans application exécutable est
+violée ») appliquée au hook lui-même, et la forme est celle de E4 : le journal de bord de cette branche
+croyait la parade armée à la fusion. Quoi : installer un hook `pre-merge-commit` qui lance au moins les
+portes de COMPTE et de DOUBLON (`check_synthesis_counts`, `check_backlog_freshness`, `check_test_census`,
+`check_record_links`), avec son contre-exemple gelé ; décision à prendre avec robla car le hook est partagé
+entre toutes les sessions et un refus au mauvais moment bloque la fusion de n'importe qui. Preuve
+reproductible : `ls .git/hooks | grep -v sample`. Coût ≈ 1 h + un tour de test de mutation.
+⚠️ Pas de clause `closes_when` : le fichier cible (`tools/hooks/pre-merge-commit`) n'existe pas encore —
+`check_backlog_freshness` refuse un chemin cité qui n'existe pas (« invérifiable »), et une clause qui
+pointe vers un fichier absent serait exactement le mensonge que la garde existe pour attraper. À poser
+UNE FOIS le hook créé.
 
 ### Décisions tranchées le 2026-09-14 (robla : « ce qu'il y a de mieux pour l'avenir »)
 

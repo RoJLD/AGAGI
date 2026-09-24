@@ -296,6 +296,16 @@ avec le SECOND pas déjà mesuré au smoke comme point de référence primaire (
 soit avec un nombre d'épisodes qui ne sature pas à lr=0,02 (le smoke a mesuré `unit_s`/`noise` mais jamais
 la fraction d'épisodes nécessaire pour éviter le plafond à ce pas).
 
+**C4 (revue finale de branche, 2026-09-24) — ce que la mesure ÉTABLIT, au-delà du refus.** `LR_ARTIFACT`
+reste le bon refus sur la NÉCESSITÉ de `bilinear` (invariante au pas), mais s'arrêter à « rien ne
+distingue “la pièce n'est pas nécessaire” de “la tâche est trop facile” » est plus faible que ce que la
+cellule a mesuré : le bras D (SANS bilinéaire, `results/harness_r1_Aprime_0.json`) atteint **1,0000 = le
+plafond de l'oracle, sur 12/12 seeds**, à lr=0,02/150 épisodes — le substrat `plain` **RÉSOUT**
+`recall_same_tick_K6` à cette dose, un fait établi et non un artefact. Ce qui reste INDÉCIDÉ par cette
+cellule est la VITESSE d'acquisition, pas la capacité : au second pas (lr=0,002), D2=**0,8531** reste
+significativement SOUS A2=**0,9867** (les deux chiffres du §4.2 ci-dessus) — un écart réel, mais que
+l'E19 lit comme fermeture d'artefact faute d'un point de référence qui ne sature pas.
+
 ### 6b. B — la garde d'alias exige un contrôle ENTRAÎNÉ, pas seulement présenté
 
 Le split `control` (`tools/harness/tasks/composition.py:53-56` — key re-présentée au pas de réponse) est
@@ -336,7 +346,21 @@ apprentissage supplémentaire.
   (A, A′) dans le registre `PIECES`, et la nécessité de A publie `sham`=`DECLARED` sur cette base — mais
   les cinq bras réellement exécutés sont `A, A0, A2, D, D2` (`src/seed_ai/harness_verdict.py:47`), aucun
   sixième bras `sham` n'est lancé par `run_harness_cell`. « DECLARED » documente une existence dans le
-  registre, pas une mesure.
+  registre, pas une mesure ; `sham_arm_run`=`false` (constante, revue finale de branche C2) est publié à
+  côté pour que ça ne se confonde plus.
+* **La garde d'alias de la condition (iii) — « la pièce est-elle tout le learner ? » — n'a jamais tourné.**
+  Le spec (`docs/superpowers/specs/2026-09-16-harness-contracts-design.md:293-296`) prévoit `alias_guard_
+  verdict(ctrl_A, ctrl_D)` : la tâche de CONTRÔLE doit survivre au retrait de la pièce, sinon la « pièce »
+  ablatée est en réalité TOUT le learner. Mesuré (revue finale de branche, C1) : le bloc `necessity` des
+  trois cellules n'a AUCUNE clé `alias` (seule la cellule B en porte une, mais pour l'ablation D'ÉTAT
+  `state_reset` de la condition de DEMANDE — §4.3, §6b — jamais pour la NÉCESSITÉ de la pièce) ;
+  `tools/harness/cell.py:146-148` n'évalue les contrôles que sur le bras A (AVEC la pièce), jamais sur D
+  (sans elle). La question n'est donc posée ni pour A (`without={"bilinear": false}`), ni pour B
+  (`without={"feedforward": true}`, une lésion LARGE — retire tout état porté, pas seulement un
+  sous-mécanisme) : `PIECE_PARTIAL` (A) et `NECESSARY` (B, non décisif) pourraient, sans cette garde,
+  documenter une pièce qui n'est en réalité qu'un nom pour « le learner entier ». Non implémenté ici (un
+  bras de contrôle par cellule à ablation de pièce, donc un coût de run supplémentaire) — porté au
+  backlog en **P2.102**.
 
 ## 8. Coût
 
