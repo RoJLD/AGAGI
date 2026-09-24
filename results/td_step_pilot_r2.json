@@ -153,7 +153,6 @@
   ],
   "substrat": "bilinear rang 16, W/U/V/W_bl traces",
   "trace_reset_per_episode": true,
-  "unite_s": 217.44147491455078,
   "coupe": {
    "cles": [
     "lam05|lr=1.0|seed=1",
@@ -168,18 +167,6 @@
     "lam05|lr=1.0|seed=7",
     "lam05|lr=1.0|seed=8",
     "lam05|lr=1.0|seed=9",
-    "lam05|lr=2.0|seed=1",
-    "lam05|lr=2.0|seed=10",
-    "lam05|lr=2.0|seed=11",
-    "lam05|lr=2.0|seed=12",
-    "lam05|lr=2.0|seed=2",
-    "lam05|lr=2.0|seed=3",
-    "lam05|lr=2.0|seed=4",
-    "lam05|lr=2.0|seed=5",
-    "lam05|lr=2.0|seed=6",
-    "lam05|lr=2.0|seed=7",
-    "lam05|lr=2.0|seed=8",
-    "lam05|lr=2.0|seed=9",
     "lam099|lr=1.0|seed=1",
     "lam099|lr=1.0|seed=10",
     "lam099|lr=1.0|seed=11",
@@ -192,18 +179,6 @@
     "lam099|lr=1.0|seed=7",
     "lam099|lr=1.0|seed=8",
     "lam099|lr=1.0|seed=9",
-    "lam099|lr=2.0|seed=1",
-    "lam099|lr=2.0|seed=10",
-    "lam099|lr=2.0|seed=11",
-    "lam099|lr=2.0|seed=12",
-    "lam099|lr=2.0|seed=2",
-    "lam099|lr=2.0|seed=3",
-    "lam099|lr=2.0|seed=4",
-    "lam099|lr=2.0|seed=5",
-    "lam099|lr=2.0|seed=6",
-    "lam099|lr=2.0|seed=7",
-    "lam099|lr=2.0|seed=8",
-    "lam099|lr=2.0|seed=9",
     "lam09|lr=1.0|seed=1",
     "lam09|lr=1.0|seed=10",
     "lam09|lr=1.0|seed=11",
@@ -239,23 +214,120 @@
     "td0_d0|lr=1.0|seed=6",
     "td0_d0|lr=1.0|seed=7",
     "td0_d0|lr=1.0|seed=8",
-    "td0_d0|lr=1.0|seed=9",
-    "td0_d0|lr=2.0|seed=1",
-    "td0_d0|lr=2.0|seed=10",
-    "td0_d0|lr=2.0|seed=11",
-    "td0_d0|lr=2.0|seed=12",
-    "td0_d0|lr=2.0|seed=2",
-    "td0_d0|lr=2.0|seed=3",
-    "td0_d0|lr=2.0|seed=4",
-    "td0_d0|lr=2.0|seed=5",
-    "td0_d0|lr=2.0|seed=6",
-    "td0_d0|lr=2.0|seed=7",
-    "td0_d0|lr=2.0|seed=8",
-    "td0_d0|lr=2.0|seed=9"
+    "td0_d0|lr=1.0|seed=9"
    ],
-   "raison": "TD-STEP-PILOT-R2: 107 unit\u00e9s \u00d7 217.4s \u00d7 marge 1.5 = 582 min > budget 240 min. R\u00e9duire n, r\u00e9duire l'unit\u00e9, ou relever le budget EXPLICITEMENT \u2014 mais ne pas lancer en esp\u00e9rant que \u00e7a passe."
+   "raison": "relevee (--relever-coupe) : unite re-mesuree machine libre"
   },
-  "projection_s": 3587.784336090088
+  "coupes_precedentes": [
+   {
+    "unite_s": 217.44147491455078,
+    "projection_s": 3587.784336090088,
+    "coupe": {
+     "cles": [
+      "lam05|lr=1.0|seed=1",
+      "lam05|lr=1.0|seed=10",
+      "lam05|lr=1.0|seed=11",
+      "lam05|lr=1.0|seed=12",
+      "lam05|lr=1.0|seed=2",
+      "lam05|lr=1.0|seed=3",
+      "lam05|lr=1.0|seed=4",
+      "lam05|lr=1.0|seed=5",
+      "lam05|lr=1.0|seed=6",
+      "lam05|lr=1.0|seed=7",
+      "lam05|lr=1.0|seed=8",
+      "lam05|lr=1.0|seed=9",
+      "lam05|lr=2.0|seed=1",
+      "lam05|lr=2.0|seed=10",
+      "lam05|lr=2.0|seed=11",
+      "lam05|lr=2.0|seed=12",
+      "lam05|lr=2.0|seed=2",
+      "lam05|lr=2.0|seed=3",
+      "lam05|lr=2.0|seed=4",
+      "lam05|lr=2.0|seed=5",
+      "lam05|lr=2.0|seed=6",
+      "lam05|lr=2.0|seed=7",
+      "lam05|lr=2.0|seed=8",
+      "lam05|lr=2.0|seed=9",
+      "lam099|lr=1.0|seed=1",
+      "lam099|lr=1.0|seed=10",
+      "lam099|lr=1.0|seed=11",
+      "lam099|lr=1.0|seed=12",
+      "lam099|lr=1.0|seed=2",
+      "lam099|lr=1.0|seed=3",
+      "lam099|lr=1.0|seed=4",
+      "lam099|lr=1.0|seed=5",
+      "lam099|lr=1.0|seed=6",
+      "lam099|lr=1.0|seed=7",
+      "lam099|lr=1.0|seed=8",
+      "lam099|lr=1.0|seed=9",
+      "lam099|lr=2.0|seed=1",
+      "lam099|lr=2.0|seed=10",
+      "lam099|lr=2.0|seed=11",
+      "lam099|lr=2.0|seed=12",
+      "lam099|lr=2.0|seed=2",
+      "lam099|lr=2.0|seed=3",
+      "lam099|lr=2.0|seed=4",
+      "lam099|lr=2.0|seed=5",
+      "lam099|lr=2.0|seed=6",
+      "lam099|lr=2.0|seed=7",
+      "lam099|lr=2.0|seed=8",
+      "lam099|lr=2.0|seed=9",
+      "lam09|lr=1.0|seed=1",
+      "lam09|lr=1.0|seed=10",
+      "lam09|lr=1.0|seed=11",
+      "lam09|lr=1.0|seed=12",
+      "lam09|lr=1.0|seed=2",
+      "lam09|lr=1.0|seed=3",
+      "lam09|lr=1.0|seed=4",
+      "lam09|lr=1.0|seed=5",
+      "lam09|lr=1.0|seed=6",
+      "lam09|lr=1.0|seed=7",
+      "lam09|lr=1.0|seed=8",
+      "lam09|lr=1.0|seed=9",
+      "lam0|lr=1.0|seed=1",
+      "lam0|lr=1.0|seed=10",
+      "lam0|lr=1.0|seed=11",
+      "lam0|lr=1.0|seed=12",
+      "lam0|lr=1.0|seed=2",
+      "lam0|lr=1.0|seed=3",
+      "lam0|lr=1.0|seed=4",
+      "lam0|lr=1.0|seed=5",
+      "lam0|lr=1.0|seed=6",
+      "lam0|lr=1.0|seed=7",
+      "lam0|lr=1.0|seed=8",
+      "lam0|lr=1.0|seed=9",
+      "td0_d0|lr=1.0|seed=1",
+      "td0_d0|lr=1.0|seed=10",
+      "td0_d0|lr=1.0|seed=11",
+      "td0_d0|lr=1.0|seed=12",
+      "td0_d0|lr=1.0|seed=2",
+      "td0_d0|lr=1.0|seed=3",
+      "td0_d0|lr=1.0|seed=4",
+      "td0_d0|lr=1.0|seed=5",
+      "td0_d0|lr=1.0|seed=6",
+      "td0_d0|lr=1.0|seed=7",
+      "td0_d0|lr=1.0|seed=8",
+      "td0_d0|lr=1.0|seed=9",
+      "td0_d0|lr=2.0|seed=1",
+      "td0_d0|lr=2.0|seed=10",
+      "td0_d0|lr=2.0|seed=11",
+      "td0_d0|lr=2.0|seed=12",
+      "td0_d0|lr=2.0|seed=2",
+      "td0_d0|lr=2.0|seed=3",
+      "td0_d0|lr=2.0|seed=4",
+      "td0_d0|lr=2.0|seed=5",
+      "td0_d0|lr=2.0|seed=6",
+      "td0_d0|lr=2.0|seed=7",
+      "td0_d0|lr=2.0|seed=8",
+      "td0_d0|lr=2.0|seed=9"
+     ],
+     "raison": "TD-STEP-PILOT-R2: 107 unit\u00e9s \u00d7 217.4s \u00d7 marge 1.5 = 582 min > budget 240 min. R\u00e9duire n, r\u00e9duire l'unit\u00e9, ou relever le budget EXPLICITEMENT \u2014 mais ne pas lancer en esp\u00e9rant que \u00e7a passe."
+    },
+    "relevee_a": "2026-09-24 11:29"
+   }
+  ],
+  "unite_s": 196.35169649124146,
+  "projection_s": 10308.464065790176
  },
  "_dose": {
   "lam099|lr=4.0|seed=1": {
@@ -329,6 +401,222 @@
    "trace_updates": 6000,
    "trace_resets": 3000,
    "lr_effective_per_agent": 0.25
+  },
+  "lam05|lr=2.0|seed=1": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "lam099|lr=2.0|seed=1": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "td0_d0|lr=2.0|seed=1": {
+   "updates": 3000,
+   "trace_updates": 0,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "lam05|lr=2.0|seed=2": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "lam099|lr=2.0|seed=2": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "td0_d0|lr=2.0|seed=2": {
+   "updates": 3000,
+   "trace_updates": 0,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "lam05|lr=2.0|seed=3": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "lam099|lr=2.0|seed=3": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "td0_d0|lr=2.0|seed=3": {
+   "updates": 3000,
+   "trace_updates": 0,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "lam05|lr=2.0|seed=4": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "lam099|lr=2.0|seed=4": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "td0_d0|lr=2.0|seed=4": {
+   "updates": 3000,
+   "trace_updates": 0,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "lam05|lr=2.0|seed=5": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "lam099|lr=2.0|seed=5": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "td0_d0|lr=2.0|seed=5": {
+   "updates": 3000,
+   "trace_updates": 0,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "lam05|lr=2.0|seed=6": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "lam099|lr=2.0|seed=6": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "td0_d0|lr=2.0|seed=6": {
+   "updates": 3000,
+   "trace_updates": 0,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "lam05|lr=2.0|seed=7": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "lam099|lr=2.0|seed=7": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "td0_d0|lr=2.0|seed=7": {
+   "updates": 3000,
+   "trace_updates": 0,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "lam05|lr=2.0|seed=8": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "lam099|lr=2.0|seed=8": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "td0_d0|lr=2.0|seed=8": {
+   "updates": 3000,
+   "trace_updates": 0,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "lam05|lr=2.0|seed=9": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "lam099|lr=2.0|seed=9": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "td0_d0|lr=2.0|seed=9": {
+   "updates": 3000,
+   "trace_updates": 0,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "lam05|lr=2.0|seed=10": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "lam099|lr=2.0|seed=10": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "td0_d0|lr=2.0|seed=10": {
+   "updates": 3000,
+   "trace_updates": 0,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "lam05|lr=2.0|seed=11": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "lam099|lr=2.0|seed=11": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "td0_d0|lr=2.0|seed=11": {
+   "updates": 3000,
+   "trace_updates": 0,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "lam05|lr=2.0|seed=12": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "lam099|lr=2.0|seed=12": {
+   "updates": 6000,
+   "trace_updates": 6000,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
+  },
+  "td0_d0|lr=2.0|seed=12": {
+   "updates": 3000,
+   "trace_updates": 0,
+   "trace_resets": 3000,
+   "lr_effective_per_agent": 0.125
   }
  },
  "lam099|lr=4.0|seed=1": 0.26875001192092896,
@@ -356,6 +644,72 @@
    "dirty": true,
    "rule": "TD-STEP-PILOT-R2",
    "seal": "c5f13741f271639f5eeefd3fff80ef93a053e27b4d5e52e34d0cf165ee0ceb13"
+  },
+  {
+   "git_sha": "95be944c64af1527cd8da96f63b5729ecd7407a1",
+   "dirty": true,
+   "rule": "TD-STEP-PILOT-R2",
+   "seal": "c5f13741f271639f5eeefd3fff80ef93a053e27b4d5e52e34d0cf165ee0ceb13"
+  },
+  {
+   "git_sha": "b2736a49861cd1d83badb60387edfead03c524f6",
+   "dirty": true,
+   "rule": "TD-STEP-PILOT-R2",
+   "seal": "c5f13741f271639f5eeefd3fff80ef93a053e27b4d5e52e34d0cf165ee0ceb13"
+  },
+  {
+   "git_sha": "2d7e5619e454ca687b3c8c7a9eed961d65edefa9",
+   "dirty": true,
+   "rule": "TD-STEP-PILOT-R2",
+   "seal": "c5f13741f271639f5eeefd3fff80ef93a053e27b4d5e52e34d0cf165ee0ceb13"
+  },
+  {
+   "git_sha": "7fa6b2d884feffdfc1a27bf7367dc2e7060d87c2",
+   "dirty": true,
+   "rule": "TD-STEP-PILOT-R2",
+   "seal": "c5f13741f271639f5eeefd3fff80ef93a053e27b4d5e52e34d0cf165ee0ceb13"
+  },
+  {
+   "git_sha": "b9817408ae72d498662933f1d8528600c6aa0d59",
+   "dirty": true,
+   "rule": "TD-STEP-PILOT-R2",
+   "seal": "c5f13741f271639f5eeefd3fff80ef93a053e27b4d5e52e34d0cf165ee0ceb13"
+  },
+  {
+   "git_sha": "9eac126d07d24285f075c1d935692db57d1fa7ef",
+   "dirty": true,
+   "rule": "TD-STEP-PILOT-R2",
+   "seal": "c5f13741f271639f5eeefd3fff80ef93a053e27b4d5e52e34d0cf165ee0ceb13"
+  },
+  {
+   "git_sha": "259e86f886e4f15dce114bc86024532043a35df5",
+   "dirty": true,
+   "rule": "TD-STEP-PILOT-R2",
+   "seal": "c5f13741f271639f5eeefd3fff80ef93a053e27b4d5e52e34d0cf165ee0ceb13"
+  },
+  {
+   "git_sha": "c231f6fe1b08ee593a62165138bf9c02d3a7b364",
+   "dirty": true,
+   "rule": "TD-STEP-PILOT-R2",
+   "seal": "c5f13741f271639f5eeefd3fff80ef93a053e27b4d5e52e34d0cf165ee0ceb13"
+  },
+  {
+   "git_sha": "ba56ede347f3c48d9595f87c77c942332b8b6a61",
+   "dirty": true,
+   "rule": "TD-STEP-PILOT-R2",
+   "seal": "c5f13741f271639f5eeefd3fff80ef93a053e27b4d5e52e34d0cf165ee0ceb13"
+  },
+  {
+   "git_sha": "c8b449b5391ed1712c792e119b8e04bd8a4493f7",
+   "dirty": true,
+   "rule": "TD-STEP-PILOT-R2",
+   "seal": "c5f13741f271639f5eeefd3fff80ef93a053e27b4d5e52e34d0cf165ee0ceb13"
+  },
+  {
+   "git_sha": "bd2a0247b729363c81ea8f909a82195bab69b689",
+   "dirty": true,
+   "rule": "TD-STEP-PILOT-R2",
+   "seal": "c5f13741f271639f5eeefd3fff80ef93a053e27b4d5e52e34d0cf165ee0ceb13"
   }
  ],
  "lam099|lr=4.0|seed=2": 0.2953124940395355,
@@ -369,8 +723,8 @@
  "lam099|lr=4.0|seed=10": 0.23281249403953552,
  "lam099|lr=4.0|seed=11": 0.26249998807907104,
  "lam099|lr=4.0|seed=12": 0.28437501192092896,
- "_cout_s": 1190.6170840000268,
- "_cout_cpu_s": 2141.5625,
+ "_cout_s": 7416.585859199986,
+ "_cout_cpu_s": 6977.40625,
  "_lecture": {
   "par_lr": {
    "4.0": {
@@ -389,22 +743,70 @@
     "meilleur_lambda": "lam099"
    },
    "2.0": {
-    "coupe": true
+    "lisible": true,
+    "td0_d0_sup_ref_d0": "12/12",
+    "aide09": "0/12",
+    "aide05": "0/12",
+    "aide099": "0/12",
+    "lam0_sup_ref": "1/12",
+    "medianes": {
+     "lam0": 0.18671874701976776,
+     "lam05": 0.18359375,
+     "lam09": 0.18984374403953552,
+     "lam099": 0.1953125
+    },
+    "meilleur_lambda": "lam099"
    },
    "1.0": {
     "coupe": true
    }
   },
   "lr_coupes": [
-   "1.0",
-   "2.0"
+   "1.0"
   ],
   "lr_lisibles": [
-   4.0
+   4.0,
+   2.0
   ],
   "lr_aide09": [
    4.0
   ],
   "branche": "AIDE_A_UN_POINT"
- }
+ },
+ "lam05|lr=2.0|seed=1": 0.2109375,
+ "lam099|lr=2.0|seed=1": 0.19843749701976776,
+ "td0_d0|lr=2.0|seed=1": 0.3421874940395355,
+ "lam05|lr=2.0|seed=2": 0.1953125,
+ "lam099|lr=2.0|seed=2": 0.20156249403953552,
+ "td0_d0|lr=2.0|seed=2": 0.34843748807907104,
+ "lam05|lr=2.0|seed=3": 0.19218750298023224,
+ "lam099|lr=2.0|seed=3": 0.1953125,
+ "td0_d0|lr=2.0|seed=3": 0.2890625,
+ "lam05|lr=2.0|seed=4": 0.15312500298023224,
+ "lam099|lr=2.0|seed=4": 0.18906250596046448,
+ "td0_d0|lr=2.0|seed=4": 0.3359375,
+ "lam05|lr=2.0|seed=5": 0.17343750596046448,
+ "lam099|lr=2.0|seed=5": 0.20624999701976776,
+ "td0_d0|lr=2.0|seed=5": 0.3125,
+ "lam05|lr=2.0|seed=6": 0.171875,
+ "lam099|lr=2.0|seed=6": 0.1875,
+ "td0_d0|lr=2.0|seed=6": 0.29374998807907104,
+ "lam05|lr=2.0|seed=7": 0.2109375,
+ "lam099|lr=2.0|seed=7": 0.21718749403953552,
+ "td0_d0|lr=2.0|seed=7": 0.3187499940395355,
+ "lam05|lr=2.0|seed=8": 0.1953125,
+ "lam099|lr=2.0|seed=8": 0.20468750596046448,
+ "td0_d0|lr=2.0|seed=8": 0.31562501192092896,
+ "lam05|lr=2.0|seed=9": 0.17499999701976776,
+ "lam099|lr=2.0|seed=9": 0.16562500596046448,
+ "td0_d0|lr=2.0|seed=9": 0.3421874940395355,
+ "lam05|lr=2.0|seed=10": 0.19062499701976776,
+ "lam099|lr=2.0|seed=10": 0.18437500298023224,
+ "td0_d0|lr=2.0|seed=10": 0.2874999940395355,
+ "lam05|lr=2.0|seed=11": 0.17656250298023224,
+ "lam099|lr=2.0|seed=11": 0.1953125,
+ "td0_d0|lr=2.0|seed=11": 0.3218750059604645,
+ "lam05|lr=2.0|seed=12": 0.17656250298023224,
+ "lam099|lr=2.0|seed=12": 0.18593749403953552,
+ "td0_d0|lr=2.0|seed=12": 0.33906251192092896
 }

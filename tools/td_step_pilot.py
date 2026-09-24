@@ -46,6 +46,29 @@ def _flush_terminal(agent, n):
         agent._prev = None
 
 
+_N_AGENTS_GRILLE = 16   # `cellule.n_agents` des trois regles scellees R0/R1/R2
+_N_GRILLE = 40 * _N_AGENTS_GRILLE      # 640 evaluations : le pas de la grille est 1/640
+_EVAL_BATCHES = 40      # défaut de `_train_eval_td_step`, jamais surchargé -> grille = 40 × n_agents = 640
+
+
+def _cmp_grille(x, y, marge, n_grille, sens=1):
+    """`x > y + marge` (sens=+1) ou `x < y − marge` (sens=−1), comparé en UNITÉS DE GRILLE (2026-09-24, E14 :
+    rétro-application le jour même du correctif de `bilinear_sham_run::_sous_barre`).
+
+    L'accuracy est un COMPTE sur `n_grille` = `eval_batches × n_agents` = 640 évaluations : ses valeurs sont des
+    multiples exacts de 1/640, la marge scellée 0,05 vaut EXACTEMENT 32 pas, et float32 les rend décalées de
+    ~2e-6 (0,184375 revient 0,18437500298023224). Un critère à seuil comme « ≥ 10/12 » peut donc basculer sur une
+    seule ÉGALITÉ perdue — et elle se perd TOUJOURS du côté qui refuse. Vérifié par la revue d'agagi-52 : les
+    17 comptes publiés de R0/R1/R2 sont IDENTIQUES dans les deux arithmétiques et aucune égalité exacte n'est
+    survenue jusqu'ici ; le défaut était LATENT, et les 48 cellules neuves de la reprise pouvaient le réaliser.
+    Repli DÉCLARÉ (comparaison ordinaire) si une valeur ou la marge n'est pas commensurable au pas."""
+    a, b, m = x * n_grille, y * n_grille, marge * n_grille
+    ra, rb, rm = round(a), round(b), round(m)
+    if max(abs(ra - a), abs(rb - b), abs(rm - m)) > 1e-3:
+        return (x > y + marge) if sens > 0 else (x < y - marge)
+    return (ra > rb + rm) if sens > 0 else (ra < rb - rm)
+
+
 def _train_eval_td_step(seed, lam, episodes, n_agents, K, lr, eval_batches=40, trace_reset_per_episode=True,
                         same_tick=False):
     """Entraîne la composition (différée 2 pas ; ou same-tick 1 pas = contrôle positif du CHEMIN de crédit : sans
@@ -133,10 +156,12 @@ def _lecture(db, regle):
         return float(np.median([db[f"{b}|lr{i}|seed={sd}"] for sd in seeds]))
 
     def n_sup(b, ref, i, marge):
-        return sum(1 for sd in seeds if db[f"{b}|lr{i}|seed={sd}"] > db[f"{ref}|lr{i}|seed={sd}"] + marge)
+        return sum(1 for sd in seeds
+                   if _cmp_grille(db[f"{b}|lr{i}|seed={sd}"], db[f"{ref}|lr{i}|seed={sd}"], marge, _N_GRILLE))
 
     def n_inf(b, ref, i, marge):
-        return sum(1 for sd in seeds if db[f"{b}|lr{i}|seed={sd}"] < db[f"{ref}|lr{i}|seed={sd}"] - marge)
+        return sum(1 for sd in seeds
+                   if _cmp_grille(db[f"{b}|lr{i}|seed={sd}"], db[f"{ref}|lr{i}|seed={sd}"], marge, _N_GRILLE, sens=-1))
     out = {f"mediane_{b}_lr{i}": med(b, i) for b in c["bras"] for i in range(2)}
     out["td0_sup_ref"] = [f"{n_sup('td0', 'lr0_reference', i, s['marge'])}/{len(seeds)}" for i in range(2)]
     out["td0_d0_sup_ref_d0"] = [f"{n_sup('td0_d0', 'lr0_reference_d0', i, s['marge'])}/{len(seeds)}" for i in range(2)]
@@ -347,7 +372,8 @@ def _lecture_r2(db, regle):
         return float(np.median([db[f"{k}|seed={sd}"] for sd in seeds]))
 
     def n_sup(a, b, marge):
-        return sum(1 for sd in seeds if db[f"{a}|seed={sd}"] > db[f"{b}|seed={sd}"] + marge)
+        return sum(1 for sd in seeds
+                   if _cmp_grille(db[f"{a}|seed={sd}"], db[f"{b}|seed={sd}"], marge, _N_GRILLE))
     out, lisibles, aides = {"par_lr": {}, "lr_coupes": sorted({k.split("|")[1][3:] for k in coupe})}, [], []
     for lr in lrs:
         if any(k in coupe for k in _cellules_r2(regle) if f"|lr={lr}|" in k):

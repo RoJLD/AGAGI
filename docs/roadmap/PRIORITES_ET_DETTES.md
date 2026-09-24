@@ -1522,7 +1522,7 @@ DIRECTION / MIXTE. Pourquoi : [[EDR-S2-CREDIT-ABLATION-2]] § Portée. *Coût : 
 Dépend de : rien.
 <!-- closes_when:path_present=docs/preregistrations/S2-BASSIN-FRAGILITY.json -->
 
-**P4.17 — rang 4 quinquies — OUVERTE (2026-09-22, décision robla déléguée via agagi-52 ; session loop 766eabae) — Balayage
+**P4.17 — rang 4 quinquies — ✅ CLOSE le 2026-09-24 (verdict `AIDE_A_UN_POINT` ; ouverte le 2026-09-22, décision robla déléguée via agagi-52 ; session loop 766eabae) — Balayage
 lr × λ sur le pilote TD PAR PAS : où la trace d'éligibilité vit-elle, et jusqu'où descend-elle en lr ? Le billet à deux issues de
 la ligne `eligibility_trace_credit` (ADR-005) se joue ici, PAS in-world (P4.16-bis refusé : 0,0033/agent in-world = 75× sous le
 seul point où la trace ait jamais marché).**
@@ -1556,7 +1556,36 @@ representatives des cellules neuves. Le protocole a fonctionne exactement comme 
 re-mesuree machine libre, MEME budget scelle, marge jamais relevee) et il rend un verdict que je n'attendais
 pas. Consequence pour le record `EDR-TD-STEP-PILOT-R2` : il publiera la ligne lr 1.0 comme NON MESUREE, avec sa
 raison chiffree, et non comme un accident de machine.
-<!-- closes_when:path_present=docs/EDR/TD-STEP-PILOT-R2_Grid_Of_Step_And_Lambda.md -->
+**✅ CLOSE le 2026-09-24 — lecture scellée `AIDE_A_UN_POINT`** ([[EDR-TD-STEP-PILOT-R2]],
+`results/td_step_pilot_r2.json`, 96 cellules importées + 48 neuves). Ce que la grille ajoute à R0, et c'est le
+résultat : **à lr 4,0 la trace n'est pas un bonus, elle est CE QUI REND la tâche différée apprenable** — λ 0,9
+(médiane 0,2531) et λ 0,99 (0,2563) franchissent la barre de leur propre référence lr = 0 (0,1625 + 0,05) sur
+**11/12 seeds**, quand λ 0 (0,1898) la franchit sur 1/12 et λ 0,5 (0,2078) sur 3/12. Comptes scellés :
+`aide09@lr` 12/12, `aide099@lr` 11/12, `aide05@lr` 0/12.
+⚠️ **Au pas moitié (lr 2,0), AUCUN bras à délai n'apprend** — `lam0` 1/12, `lam05` 0/12, `lam09` 1/12,
+`lam099` 2/12 au-dessus de la barre — donc le `0/12` d'aide y oppose deux bras qui n'apprennent ni l'un ni
+l'autre, et il ne réfute PAS l'invariance au pas : elle reste OUVERTE. La règle mesure `lisible@lr` sur la
+paire SANS délai (`td0_d0` 0,3203 contre 0,168, 12/12), l'aide sur la paire AVEC délai ; le record publie les
+deux côte à côte pour que le glissement soit impossible. Le balayage utile est donc vers le HAUT, pas vers le
+bas. (Tension nommée par agagi-52 AVANT la lecture ; sa clôture de P4.11 est amendée en conséquence.)
+**Complément à ma note de reprise ci-dessus, qui était partielle.** Chiffré exactement : à 107 unités, budget
+240 min, marge 1,5 — unité contaminée 217,4 s → 255 min restants après la coupe de lr 1,0, donc une SECONDE
+coupe ; unité libre 196,4 s → 231 min, donc une seule. **La contention a coûté EXACTEMENT une ligne (les 48
+cellules de lr 2,0, que la reprise a récupérées), et seulement parce que la projection était déjà à 6 % du
+seuil** ; la coupe de lr 1,0, elle, tient machine libre : elle est STRUCTURELLE. Les deux portent pourtant le
+même `coupe=True` dans le JSON — d'où la dette ci-dessous.
+⚠️ **Et la prémisse de coût que j'avais SCELLÉE est fausse** : la règle justifie sa projection par « cellules
+uniformes : mêmes épisodes, mêmes agents ». Mesuré sur les 28 cellules chronométrées : `lam05` 161,9 s,
+`lam099` 157,6 s, `td0_d0` **56,2 s** — le contrôle de chemin est **2,8× plus rapide**. L'unité est mesurée sur
+la PREMIÈRE cellule neuve (famille lente) et appliquée à une grille hétérogène : la projection sur-estime, et
+le cliquet de coût mord plus qu'il ne devrait. C'est E8 appliqué au modèle de coût. *(Ne change pas la coupe de
+lr 1,0, qui tient même à l'unité médiane toutes familles.)* **À FAIRE, deux dettes nommées** : (i) que
+`_regime.coupe` porte un vocabulaire FERMÉ (`contention` / `structure` / `budget`) au lieu d'une phrase — une
+coupe de charge et une coupe structurelle se lisent aujourd'hui pareil, et cette confusion a déjà produit une
+sur-déclaration (celle de P4.11, amendée) ; (ii) que `project_cost` prenne une unité PAR BRAS quand les bras
+diffèrent, ou que la règle scelle explicitement « unité mesurée sur le bras le plus lent, projection
+majorante ». *Coût : agent 1 h ; calcul 0.*
+<!-- closes_when:path_present=docs/EDR/TD-STEP-PILOT-R2_The_Eligibility_Trace_Is_What_Makes_The_Delayed_Task_Learnable_At_One_Operating_Point.md -->
 
 **P4.7 — rang 19 — S5 / G4 phase A : `g` PER-ACTION vs agnostique vs labels PERMUTÉS (nœud 74).**
 Sonde livrée (fix de persistance ACTIF depuis le 2026-09-07, voir le bloc S5 plus bas et
