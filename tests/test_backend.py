@@ -435,16 +435,26 @@ def test_pilotage_endpoint_rend_le_schema() -> None:
 def test_pilotage_le_POLL_ne_recalcule_JAMAIS_le_snapshot(monkeypatch) -> None:
     """La mesure qui a changé le design : `snapshot()` coûte 15,6-18,1 s (charge notée : 40 % CPU,
     9 processus python) alors qu'`apiFetch` coupe à 10 s et que toute la roadmap coûte 0,70 s. Le poll ne
-    doit donc jamais l'appeler — seul `?frais=1` le fait."""
+    doit donc jamais l'appeler — seul `?frais=1` le fait.
+
+    ⚠️ Le compteur est indispensable, et l'assertion porte sur LUI : le filet d'exception du service
+    (toute exception -> une ligne `aveugle`, jamais un 500) attrape l'AssertionError du monkeypatch, donc
+    un test qui n'assert que le statut 200 passerait même si la régression était réintroduite — vérifié
+    par la revue en simulant l'appel inconditionnel. Le `raise` reste pour documenter l'intention ; c'est
+    `appels["n"] == 0` qui garde la propriété."""
     from backend.app.services import pilotage_service as ps
 
+    appels = {"n": 0}
+
     def _interdit(*a, **k):
+        appels["n"] += 1
         raise AssertionError("snapshot() appelé sur le chemin du poll : 18 s par requête")
 
     monkeypatch.setattr(ps, "snapshot", _interdit)
     ps._vider_cache()
     r = client.get("/api/pm/pilotage")
     assert r.status_code == 200
+    assert appels["n"] == 0, "snapshot() a été appelé sur le chemin du poll (18 s par requête)"
 
 
 def test_pilotage_un_lecteur_qui_leve_devient_une_ligne_aveugle_jamais_un_500(monkeypatch) -> None:
