@@ -1439,7 +1439,15 @@ CALIBRATED = {
         "signal-attendu:faux-mais-verdict-bon"],
     "tools/refutateur_temoins.py::verdict_phase_temoins": [
         "plancher:voyage-avec-le-score", "plancher:nul-apres-correctif",
-        "plancher:remonte-si-on-desarme-un-etage", "phase:vide-1-sur-4", "phase:passee-3-sur-4"],
+        "plancher:remonte-si-on-desarme-un-etage", "phase:vide-1-sur-4", "phase:passee-3-sur-4",
+        # 2026-09-24, 7e ronde : le premier Step 4 reel a rendu NUL -- `relectures` n'atteignait
+        # jamais le verificateur (un prompt disait « ci-dessus » sans rien interpoler). Le workflow
+        # n'avait JAMAIS fait circuler ses propres donnees, et six rondes de tests ne pouvaient pas
+        # le voir : ils lisent le TEXTE du script. Gardes ajoutees (et leurs mutations) :
+        # circulation:deictique-sans-donnee, circulation:verificateur-prive-de-relectures,
+        # juge:ne-recoit-que-les-relectures-a-juger, juge:questions-omettent-le-noop.
+        "circulation:deictique-sans-donnee", "circulation:verificateur-prive-de-relectures",
+        "juge:ne-recoit-que-les-relectures-a-juger", "juge:questions-omettent-le-noop"],
 }
 
 _GENOMES = os.path.join("results", "warm007_genomes")

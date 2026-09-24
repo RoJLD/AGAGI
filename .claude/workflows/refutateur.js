@@ -3,6 +3,7 @@ export const meta = {
   description: 'Revue adversariale a sondes propres d un record ou d une pre-inscription : temoins ANONYMES, plancher MECANIQUE puis JUGE calibre, enfin 10 prompts figes (docs/REF/REF-REVUE-ADVERSARIALE.md). Le bareme vit en Python (tools/refutateur_temoins.py) : ce script ne juge rien. Tout score de phase temoins voyage avec son PLANCHER DE FAUSSES RETROUVAILLES. Un defaut connu non retrouve rend la revue NULLE : rien ne s ecrit.',
   phases: [
     { title: 'Temoins', detail: 'relecture AVEUGLE de fichiers anonymes : ni nom, ni genre, ni attendu' },
+    { title: 'Aiguillage', detail: 'quels fichiers le juge doit juger : le no-op ne lui parvient pas' },
     { title: 'Juge', detail: 'etage 2 : calibre sur cinq textes a reponse connue, sinon INDECIDABLE' },
     { title: 'Verification', detail: 'etage 1 + verdict par le CLI python ; chemins DECLARES, plancher publie' },
     { title: 'Revue', detail: 'P1..P10, un contexte par prompt, sondes obligatoires et LANCEES' },
@@ -76,6 +77,22 @@ if (muettes) {
   return { statut: 'NUL', raison: 'relecture sans reponse', cible: args.target }
 }
 
+phase('Aiguillage')
+// Le juge ne doit NI etre interroge sur le temoin sain, NI en recevoir la relecture : sinon il
+// l'identifie par difference. Un agent qui ne juge rien rend la liste des fichiers a juger.
+const AIGUILLAGE = { type: 'object', properties: { fichiers: { type: 'array', items: { type: 'string' } } },
+                     required: ['fichiers'] }
+const aiguillage = await agent(`Lance: PYTHONIOENCODING=utf-8 python tools/refutateur_temoins.py --questions-du-juge
+Rends dans \`fichiers\` la liste des noms de fichier qu'elle imprime, telle quelle, sans rien y ajouter ni retirer.
+Tu ne juges rien et tu ne lis aucun de ces fichiers.`,
+  { label: 'aiguillage', phase: 'Aiguillage', schema: AIGUILLAGE, effort: 'low' })
+const aJuger = new Set((aiguillage && aiguillage.fichiers) || [])
+const relecturesJugees = relectures.filter(r => aJuger.has(r.fichier.split(/[\\/]/).pop()))
+if (!relecturesJugees.length || relecturesJugees.length >= relectures.length) {
+  log(`revue NULLE : aiguillage incoherent (${relecturesJugees.length} sur ${relectures.length})`)
+  return { statut: 'NUL', raison: 'aiguillage incoherent', cible: args.target }
+}
+
 phase('Juge')
 const travail = args.travail || `${fichiers[0].replace(/[\\/][^\\/]*$/, '')}-verification`
 // Etage 2. Le juge ne voit JAMAIS le motif `attendu` : il recoit le defaut DECLARE en prose et des critiques.
@@ -87,18 +104,22 @@ une decouverte formulee autrement reste une decouverte, et reciter un vocabulair
    Cette commande rend des cas de calibration : une REF opaque, les temoins vises, et des critiques. Pour chacun, va
    chercher le champ \`defaut\` du temoin vise dans ${ROSTER}, puis reponds OUI ou NON a la question ci-dessus.
    Rends ces reponses dans \`calibration\`, la cle etant la REF du cas, telle quelle.
-2. Pour chaque relecture ci-dessous, identifie le temoin par le champ \`fichier\` du roster (nom de base du chemin relu),
-   et rends dans \`jugements\` (cle = nom du temoin) OUI / NON / INDECIDABLE sur la meme question, a partir du champ
-   \`defaut\` de CE temoin. Pour un temoin de genre noop, rends INDECIDABLE : il n'a pas de defaut a nommer.
-Relectures (JSON) : ${JSON.stringify(relectures)}`, { label: 'juge', phase: 'Juge', schema: JUGEMENTS })
+2. Lance: PYTHONIOENCODING=utf-8 python tools/refutateur_temoins.py --questions-du-juge
+   Elle donne, pour chaque fichier a juger, le DEFAUT a reconnaitre. Pour chaque relecture fournie plus bas, retrouve
+   son fichier dans cette liste et rends dans \`jugements\` (cle = nom de base du fichier relu) OUI / NON / INDECIDABLE
+   sur la meme question. Ne juge que les fichiers que cette commande nomme.
+Relectures a juger (JSON) : ${JSON.stringify(relecturesJugees)}`,
+  { label: 'juge', phase: 'Juge', schema: JUGEMENTS })
 
 phase('Verification')
 // Le script ne juge rien : un agent ecrit les critiques, lance le CLI, et DECLARE les chemins pour que le
 // controleur relance lui-meme. Un agent qui rendrait code:0 sans rien lancer laisse une commande rejouable.
 const verif = await agent(`Tu es le VERIFICATEUR. Tu ne juges RIEN : le bareme vit dans ${ROSTER} et dans
 tools/refutateur_temoins.py.
+Relectures, une par temoin (JSON) : ${JSON.stringify(relectures)}
+Jugements rendus par le juge, cle = nom de base du fichier relu : ${JSON.stringify(juge && juge.jugements)}
 1. Lis ${ROSTER}. REFUSE (champ refus non vide, resultats vide) si les genres ne sont pas EXACTEMENT trois "defaut" et
-   un "noop", si un nom ou un champ fichier est en double, ou si un temoin du roster n'a pas sa relecture ci-dessous.
+   un "noop", si un nom ou un champ fichier est en double, ou si un temoin du roster n'a pas sa relecture ci-dessus.
 2. Verifie la CALIBRATION du juge. Lance:
    PYTHONIOENCODING=utf-8 python tools/refutateur_temoins.py --cas-du-juge-avec-reponses
    (vue RESERVEE au verificateur : le juge, lui, n'a recu que la question, sous une REF opaque). Chaque ligne y porte
@@ -107,11 +128,11 @@ tools/refutateur_temoins.py.
    propres temoins ne juge pas.
 3. Ecris la liste de critiques de chaque relecture, telle quelle, en JSON, dans
    ${travail}/critiques-<nom du temoin>.json (cree le repertoire). N'ajoute, ne retire, ne reformule AUCUNE critique.
-4. Lance pour chacun, depuis la racine du depot, en reprenant le jugement du juge
-   (${JSON.stringify(juge && juge.jugements)}) :
+4. Lance pour chacun, depuis la racine du depot, en reprenant le jugement du juge -- ses cles sont des NOMS DE BASE de
+   fichiers, que le champ fichier du roster rattache a un temoin :
    PYTHONIOENCODING=utf-8 python tools/refutateur_temoins.py --verifier <nom> ${travail}/critiques-<nom>.json --extrait <chemin relu> --jugement <OUI|NON|INDECIDABLE>
    Le code de sortie fait foi : 0 = retrouve, 1 = revue NULLE, 2 = indecidable. Ne reinterprete pas la sortie texte.
-   Pour un temoin de genre noop, ne passe PAS --jugement.
+   Un temoin sans jugement du juge se lance SANS --jugement ; ne fabrique jamais un jugement absent.
 5. Lance enfin: PYTHONIOENCODING=utf-8 python tools/refutateur_temoins.py --plancher <repertoire des temoins>
    et recopie sa premiere ligne, TELLE QUELLE, dans le champ plancher. Un score sans son plancher est interdit.
 6. Rends {refus, plancher, resultats: {<nom>: {retrouve, code, fichier_critiques, commande}}}, ou le champ commande

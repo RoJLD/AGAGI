@@ -371,6 +371,25 @@ def cas_du_juge(nom_temoin=None, avec_reponses=False):
     return redige
 
 
+def questions_du_juge():
+    """Ce que le JUGE doit juger : {fichier neutre, defaut déclaré} — **le no-op est OMIS**.
+
+    ⚠️ Lui demander un jugement sur le témoin sain lui APPRENDRAIT qu'il existe un témoin sain : le
+    champ `defaut` du roster y dit « AUCUN — record sain ». C'est la même loi que les quatre
+    occurrences précédentes — dès qu'un instrument s'auto-administre, sa clé de réponse voyage avec
+    lui. Et ce jugement ne servait à rien : `verdict_temoin` ne consulte le champ que pour un témoin
+    de genre `defaut`.
+
+    ⚠️ **Ce que cette omission ne ferme PAS** : le juge ne doit pas non plus RECEVOIR la relecture du
+    témoin qu'on ne lui soumet pas, sinon il l'identifie par différence. C'est le rôle de la phase
+    `Aiguillage` du workflow, qui filtre les relectures AVANT de les lui passer.
+    """
+    q = [{"fichier": t["fichier"], "defaut": t["defaut"]}
+         for t in charger() if t["genre"] == "defaut"]
+    random.shuffle(q)
+    return q
+
+
 def juge_est_calibre(reponses):
     """(ok, details) — le juge a-t-il rendu la réponse CONNUE sur ses cinq témoins ?
 
@@ -512,6 +531,8 @@ def main(argv=None):
                     help="les cas de calibration de l'étage 2, RÉDIGÉS : la question, pas la réponse")
     ap.add_argument("--cas-du-juge-avec-reponses", action="store_true",
                     help="les MÊMES cas avec leurs réponses — pour le VÉRIFICATEUR, jamais pour le juge")
+    ap.add_argument("--questions-du-juge", action="store_true",
+                    help="fichier neutre + défaut déclaré, pour les témoins à DÉFAUT seulement")
     ap.add_argument("--lister", action="store_true", help="inventaire des témoins gelés")
     args = ap.parse_args(argv)
     ok, raison = roster_conforme()
@@ -534,6 +555,11 @@ def main(argv=None):
                 print(f"  [{c.get('prompt', '?')}] verdict={c.get('verdict', '')!r} "
                       f"preuve={c.get('preuve', '')!r}")
                 print(f"      constat : {c.get('constat', '')}")
+        return 0
+    if args.questions_du_juge:
+        for q in questions_du_juge():
+            print(f"\nfichier : {q['fichier']}")
+            print(f"  défaut à reconnaître : {q['defaut']}")
         return 0
     if args.cas_du_juge_avec_reponses:
         for cas in cas_du_juge(avec_reponses=True):

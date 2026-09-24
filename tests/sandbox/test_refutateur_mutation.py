@@ -124,6 +124,21 @@ _MUTATIONS = [
     ("un backtick NU revient dans un litteral gabarit",
      S.test_le_workflow_n_a_AUCUN_backtick_NU_dans_ses_litteraux_gabarits,
      _mut_workflow(lambda t: t.replace("dans le champ plancher.", "dans le champ `plancher`.")), None),
+    # Le premier Step 4 reel a rendu NUL parce que `relectures` n'atteignait pas le verificateur :
+    # un prompt qui dit « ci-dessus » sans rien interpoler demande de relayer ce qu'il n'a pas recu.
+    ("le verificateur ne recoit plus les relectures",
+     S.test_le_prompt_du_VERIFICATEUR_recoit_bien_les_relectures_et_les_jugements,
+     _mut_workflow(lambda t: t.replace(
+         "Relectures, une par temoin (JSON) : ${JSON.stringify(relectures)}\n", "")), None),
+    ("un prompt deictique n'interpole plus rien",
+     S.test_chaque_prompt_qui_dit_CI_DESSOUS_interpole_vraiment_une_donnee,
+     _mut_workflow(lambda t: t.replace(
+         "Relectures a juger (JSON) : ${JSON.stringify(relecturesJugees)}",
+         "Relectures a juger : voir plus bas")), None),
+    ("le juge recoit TOUTES les relectures, no-op compris",
+     S.test_le_JUGE_ne_recoit_QUE_les_relectures_a_juger_pas_celle_du_noop,
+     _mut_workflow(lambda t: t.replace("JSON.stringify(relecturesJugees)",
+                                       "JSON.stringify(relectures)")), None),
 ]
 
 _MUTATIONS_ROSTER = [

@@ -643,6 +643,83 @@ def test_le_workflow_fait_DECLARER_les_chemins_pour_que_le_controleur_relance_le
     assert "fichier_critiques" in bloc and "required" in bloc
 
 
+def _gabarits(js):
+    """Les littéraux gabarits du script, grossièrement découpés — assez pour savoir ce qui y est interpolé."""
+    return re.findall(r"`(?:[^`\\]|\\.)*`", js, re.S)
+
+
+def test_chaque_prompt_qui_dit_CI_DESSOUS_interpole_vraiment_une_donnee():
+    """CONTRE-EXEMPLE GELE : le workflow n'avait JAMAIS fait circuler ses propres données.
+
+    Mesuré au premier lancement réel (2026-09-24) : le prompt du vérificateur disait « si un témoin
+    du roster n'a pas sa relecture CI-DESSOUS » et « écris la liste de critiques de chaque
+    relecture » — or `relectures` n'y était **jamais interpolé**. On lui demandait de relayer des
+    critiques qu'on ne lui avait pas données. Le défaut a traversé six rondes, 87 tests et deux
+    revues, parce que **les tests lisent le TEXTE du workflow** : aucun ne fait circuler une donnée.
+
+    Un déictique renvoie à des DONNÉES, et les données passent par `JSON.stringify` — exiger une
+    interpolation quelconque ne discriminait pas : `${ROSTER}` (un chemin) suffisait à faire passer
+    un prompt qu'on venait de priver de ses relectures (mesuré sur le harnais de mutation).
+
+    ⚠️ CE QUE CETTE GARDE NE VOIT PAS — et c'est la deuxième fois qu'on l'apprend : c'est un `grep`.
+    Elle vérifie qu'une interpolation de données EXISTE dans le même gabarit, jamais qu'elle porte la
+    BONNE donnée ; un renommage de variable la contourne, `JSON.stringify` est une convention qu'un
+    refactor peut abandonner, et une donnée interpolée mais VIDE la passe.
+    **Seule une exécution de bout en bout prouve qu'une donnée circule.** La seule vraie
+    vérification de ce workflow reste de le lancer.
+    """
+    js = _lire(_WORKFLOW)
+    vus = 0
+    for gabarit in _gabarits(js):
+        if re.search(r"ci-dessous|ci-dessus|plus bas|plus haut", gabarit, re.I):
+            vus += 1
+            assert "${JSON.stringify(" in gabarit, (
+                f"un prompt renvoie à des données qu'il n'interpole pas : …{gabarit[:90]}…")
+    assert vus >= 2, "aucun prompt déictique trouvé : la garde ne balaie rien"
+
+
+def test_le_prompt_du_VERIFICATEUR_recoit_bien_les_relectures_et_les_jugements():
+    """Le cas précis qui a rendu NUL le premier Step 4."""
+    js = _lire(_WORKFLOW)
+    bloc = [g for g in _gabarits(js) if "VERIFICATEUR" in g]
+    assert len(bloc) == 1, "prompt du vérificateur introuvable ou dupliqué"
+    bloc = bloc[0]
+    for donnee in ("${JSON.stringify(relectures)}", "juge.jugements", "juge.calibration"):
+        assert donnee in bloc, f"le vérificateur ne reçoit pas {donnee}"
+
+
+def test_le_JUGE_ne_recoit_QUE_les_relectures_a_juger_pas_celle_du_noop():
+    """Lui soumettre le no-op lui apprendrait qu'il existe ; la lui DONNER le lui apprendrait aussi."""
+    js = _lire(_WORKFLOW)
+    bloc = [g for g in _gabarits(js) if "Tu es le JUGE" in g]
+    assert len(bloc) == 1
+    assert "${JSON.stringify(relecturesJugees)}" in bloc[0]
+    assert "JSON.stringify(relectures)}" not in bloc[0], (
+        "le juge reçoit TOUTES les relectures : il identifie le no-op par différence")
+    assert "--questions-du-juge" in bloc[0]
+    assert "noop" not in bloc[0].lower(), "le prompt du juge nomme le genre qu'il ne doit pas connaître"
+    assert "'Aiguillage'" in js, "la phase qui filtre les relectures a disparu"
+
+
+def test_questions_du_juge_OMET_le_noop_et_donne_le_defaut_des_autres():
+    q = T.questions_du_juge()
+    defauts = [t for t in T.charger() if t["genre"] == "defaut"]
+    noop = T.par_nom("LOCK-002-286f244")
+    assert len(q) == len(defauts) == 3
+    assert {x["fichier"] for x in q} == {t["fichier"] for t in defauts}
+    assert noop["fichier"] not in {x["fichier"] for x in q}
+    assert all(x["defaut"] for x in q)
+    # Le CLI n'imprime ni le fichier du no-op, ni son « AUCUN — record sain ».
+    import io
+    from contextlib import redirect_stdout
+    tampon = io.StringIO()
+    with redirect_stdout(tampon):
+        assert T.main(["--questions-du-juge"]) == 0
+    sortie = tampon.getvalue()
+    assert noop["fichier"] not in sortie and "record sain" not in sortie
+    assert all(x["fichier"] in sortie for x in q)
+
+
 def test_le_workflow_n_accepte_de_l_appelant_que_des_CHEMINS():
     js = _lire(_WORKFLOW)
     assert "args.fichiers" in js
