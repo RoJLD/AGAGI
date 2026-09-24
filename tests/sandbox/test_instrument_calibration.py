@@ -1471,7 +1471,15 @@ CALIBRATED = {
         "juge:ne-recoit-que-les-relectures-a-juger", "juge:questions-omettent-le-noop",
         # 2026-09-24, 8e ronde : l'aiguillage a rendu une liste VIDE, indiscernable d'un refus legitime.
         "aiguillage:pas-au-reglage-le-plus-bas", "aiguillage:sortie-brute-et-commande-rendues",
-        "aiguillage:transport-distingue-de-fuite"],
+        "aiguillage:transport-distingue-de-fuite",
+        # 2026-09-24, 1er Step 4 COMPLET : les trois defauts RETROUVES a l'aveugle avec leur mecanisme
+        # (le controle positif que huit rondes cherchaient), et le no-op a SIX critiques recevables --
+        # dont une confrontee aux donnees et JUSTE. L'ancien bareme jetait la revue entiere pour cela :
+        # supprimer la mesure au lieu de la publier. Le no-op MESURE desormais (statut MESURE, code 0),
+        # son compte voyage dans la meme structure que le score, et l'INDISCRIMINATION se DIT.
+        "noop:mesure-jamais-barrage", "noop:plancher-voyage-avec-le-score",
+        "discrimination:indiscriminant-le-dit", "discrimination:controle-positif",
+        "racine:absolue-validee-deux-issues"],
     # `plancher` : le chiffre sans lequel tout score de phase temoins est INTERDIT (regle du depot sur
     # les ratios). Ses reponses connues sont les cinq textes de tools/refutateur_juge_temoins.json --
     # trois attaques a 0 defaut retrouvable, deux critiques justes a 1/1 -- et la mutation du BAREME,

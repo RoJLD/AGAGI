@@ -2,6 +2,7 @@ export const meta = {
   name: 'refutateur',
   description: 'Revue adversariale a sondes propres d un record ou d une pre-inscription : temoins ANONYMES, plancher MECANIQUE puis JUGE calibre, enfin 10 prompts figes (docs/REF/REF-REVUE-ADVERSARIALE.md). Le bareme vit en Python (tools/refutateur_temoins.py) : ce script ne juge rien. Tout score de phase temoins voyage avec son PLANCHER DE FAUSSES RETROUVAILLES. Un defaut connu non retrouve rend la revue NULLE : rien ne s ecrit.',
   phases: [
+    { title: 'Racine', detail: 'racine ABSOLUE du depot, validee avant toute autre phase' },
     { title: 'Temoins', detail: 'relecture AVEUGLE de fichiers anonymes : ni nom, ni genre, ni attendu' },
     { title: 'Aiguillage', detail: 'quels fichiers le juge doit juger : le no-op ne lui parvient pas' },
     { title: 'Juge', detail: 'etage 2 : calibre sur cinq textes a reponse connue, sinon INDECIDABLE' },
@@ -18,6 +19,11 @@ export const meta = {
 // Le roster gele (tools/refutateur_temoins.json) fait foi et n'est JAMAIS passe par l'appelant.
 // Ce script ne contient AUCUN bareme : il fait lancer le CLI python, dont les codes de sortie sont
 // 0 (retrouve) / 1 (revue NULLE) / 2 (indecidable). Il ne construit aucun monde et ne prend aucun bail.
+// ⚠️ RACINE ABSOLUE. Tous les prompts employaient des chemins RELATIFS, donc dependaient du repertoire
+// courant dont les agents heritent -- un etat ambiant NON DECLARE. Mesure du 2026-09-24 : un agent a
+// lance le CLI depuis l'arbre principal, ou le module n'existe pas, et n'a rapporte qu'EXIT=2. Sans la
+// sortie brute rendue par l'aiguillage, la cause aurait ete cherchee une troisieme fois a l'aveugle.
+let racine = args.racine || '.'
 const REF = 'docs/REF/REF-REVUE-ADVERSARIALE.md'
 const ROSTER = 'tools/refutateur_temoins.json'
 const PROMPTS = ['P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8', 'P9', 'P10']
@@ -37,21 +43,27 @@ const JUGEMENTS = {
   },
   required: ['calibration', 'jugements'],
 }
+// ⚠️ LE NO-OP MESURE, IL NE FAIT PAS BARRAGE. Son `statut` vaut MESURE et son `n_recevables` est le
+// PLANCHER mesure sur un record cru sain : il voyage avec le score, jamais a cote. Une revue qui a
+// retrouve trois defauts reels ne se jette plus parce que ce plancher est haut -- c'etait supprimer la
+// mesure au lieu de la publier (1er Step 4 complet, 2026-09-24 : 6 critiques recevables sur le no-op,
+// dont une confirmee contre les donnees). Seuls les temoins a DEFAUT font barriere.
 const VERIFICATION = {
   type: 'object',
   properties: {
     refus: { type: 'string' },
     plancher: { type: 'string' },
+    plancher_noop: { type: 'string' },
     resultats: { type: 'object', additionalProperties: { type: 'object', properties: {
-      retrouve: { type: 'boolean' }, code: { type: 'number' },
+      statut: { type: 'string' }, code: { type: 'number' }, n_recevables: { type: 'number' },
       fichier_critiques: { type: 'string' }, commande: { type: 'string' } },
-      required: ['retrouve', 'code', 'fichier_critiques', 'commande'] } },
+      required: ['statut', 'code', 'n_recevables', 'fichier_critiques', 'commande'] } },
   },
-  required: ['resultats', 'plancher'],
+  required: ['resultats', 'plancher', 'plancher_noop'],
 }
 
 function consigne(cible, ids) {
-  return `Tu es le REFUTATEUR. Lis ${REF} et applique EXACTEMENT les prompts ${ids.join(', ')} a la cible ${cible}.
+  return `Tu es le REFUTATEUR. Lis ${racine}/${REF} et applique EXACTEMENT les prompts ${ids.join(', ')} a la cible ${cible}.
 Un prompt marque DELEGUE est UNE LIGNE : lance la porte nommee, recopie son verdict, arrete-toi. Un prompt marque JUGE
 demande de lire, de compter ou de rejouer. Chaque critique porte sa SONDE (commande rejouable, que tu as LANCEE), sa PREUVE
 et son CONSTAT, une classe (Ex du registre ou "aucune") et un verdict parmi confirme / non confirme / hors perimetre.
@@ -61,10 +73,38 @@ et CONSTAT qui n'est pas une RECOPIE (aucune fenetre de huit mots consecutifs re
 Ne construis aucun monde, ne lance aucune simulation. Reponds en francais, <= 40 lignes.`
 }
 
+phase('Racine')
+// Une garde qui REFUSE au demarrage si le module n'est pas trouvable a la racine annoncee. Le script
+// n'a pas d'acces disque : un agent la derive et la fait VALIDER par le CLI, dont le code fait foi.
+const RACINE = {
+  type: 'object',
+  properties: { racine: { type: 'string' }, code: { type: 'number' },
+                commande: { type: 'string' }, sortie_brute: { type: 'string' } },
+  required: ['racine', 'code', 'commande', 'sortie_brute'],
+}
+const ancrage = await agent(`Determine la racine ABSOLUE du depot AGAGI et verifie que le Refutateur y est utilisable.
+1. Lance: git rev-parse --show-toplevel   (depuis le repertoire du script${args.racine ? `, ou prends ${args.racine}` : ''})
+2. Avec ce chemin ABSOLU R, lance: PYTHONIOENCODING=utf-8 python R/tools/refutateur_temoins.py --racine-valide R
+3. Rends \`racine\` = R, \`code\` = le code de sortie de l'etape 2 (0 = utilisable, 2 = non),
+   \`commande\` = la ligne EXACTE de l'etape 2, \`sortie_brute\` = sa sortie COMPLETE telle quelle.
+N'invente aucun chemin et ne corrige rien : si ca echoue, rends le code et la sortie.`,
+  { label: 'racine', phase: 'Racine', schema: RACINE })
+if (!ancrage || ancrage.code !== 0 || !ancrage.racine) {
+  log(`revue NULLE : racine-invalide -- le module n'est pas trouvable a la racine annoncee`)
+  log(`  commande lancee : ${(ancrage && ancrage.commande) || '(non rendue)'}`)
+  log(`  sortie brute lue : ${(ancrage && ancrage.sortie_brute) || '(non rendue)'}`)
+  return { statut: 'NUL', raison: 'racine-invalide', cible: args.target,
+           racine: { annoncee: ancrage && ancrage.racine, code: ancrage && ancrage.code,
+                     commande: ancrage && ancrage.commande,
+                     sortie_brute: ancrage && ancrage.sortie_brute } }
+}
+racine = ancrage.racine
+log(`racine validee : ${racine}`)
+
 phase('Temoins')
 const fichiers = args.fichiers || []
 if (!fichiers.length) {
-  log(`revue NULLE : aucun fichier de temoin fourni (lancer python tools/refutateur_temoins.py --extraire avant)`)
+  log(`revue NULLE : aucun fichier de temoin fourni (lancer python ${racine}/tools/refutateur_temoins.py --extraire avant)`)
   return { statut: 'NUL', raison: 'temoins absents', cible: args.target }
 }
 // Relecture AVEUGLE : l'agent recoit un chemin anonyme, jamais le nom du temoin ni ce qu'il doit y trouver.
@@ -98,7 +138,7 @@ const AIGUILLAGE = {
                 commande: { type: 'string' }, sortie_brute: { type: 'string' } },
   required: ['fichiers', 'commande', 'sortie_brute'],
 }
-const aiguillage = await agent(`Lance: PYTHONIOENCODING=utf-8 python tools/refutateur_temoins.py --questions-du-juge
+const aiguillage = await agent(`Lance: PYTHONIOENCODING=utf-8 python ${racine}/tools/refutateur_temoins.py --questions-du-juge
 Rends dans \`fichiers\` la liste des noms de fichier qu'elle imprime, telle quelle, sans rien y ajouter ni retirer ;
 dans \`commande\` la ligne EXACTE que tu as lancee ; dans \`sortie_brute\` sa sortie COMPLETE, telle quelle.
 Si la commande echoue ou n'imprime aucun fichier, rends \`fichiers\` vide ET la sortie brute : c'est elle qui dira
@@ -129,11 +169,11 @@ const travail = args.travail || `${fichiers[0].replace(/[\\/][^\\/]*$/, '')}-ver
 const juge = await agent(`Tu es le JUGE de la phase temoins. Ta seule question, pour chaque lot de critiques :
 « ces critiques nomment-elles LE defaut decrit ? » -- OUI, NON, ou INDECIDABLE. Tu ne cherches AUCUN mot impose :
 une decouverte formulee autrement reste une decouverte, et reciter un vocabulaire n'en est pas une.
-1. Lance: PYTHONIOENCODING=utf-8 python tools/refutateur_temoins.py --cas-du-juge
+1. Lance: PYTHONIOENCODING=utf-8 python ${racine}/tools/refutateur_temoins.py --cas-du-juge
    Cette commande rend des cas de calibration : une REF opaque, les temoins vises, et des critiques. Pour chacun, va
-   chercher le champ \`defaut\` du temoin vise dans ${ROSTER}, puis reponds OUI ou NON a la question ci-dessus.
+   chercher le champ \`defaut\` du temoin vise dans ${racine}/${ROSTER}, puis reponds OUI ou NON a la question ci-dessus.
    Rends ces reponses dans \`calibration\`, la cle etant la REF du cas, telle quelle.
-2. Lance: PYTHONIOENCODING=utf-8 python tools/refutateur_temoins.py --questions-du-juge
+2. Lance: PYTHONIOENCODING=utf-8 python ${racine}/tools/refutateur_temoins.py --questions-du-juge
    Elle donne, pour chaque fichier a juger, le DEFAUT a reconnaitre. Pour chaque relecture fournie plus bas, retrouve
    son fichier dans cette liste et rends dans \`jugements\` (cle = nom de base du fichier relu) OUI / NON / INDECIDABLE
    sur la meme question. Ne juge que les fichiers que cette commande nomme.
@@ -143,18 +183,18 @@ Relectures a juger (JSON) : ${JSON.stringify(relecturesJugees)}`,
 phase('Verification')
 // Le script ne juge rien : un agent ecrit les critiques, lance le CLI, et DECLARE les chemins pour que le
 // controleur relance lui-meme. Un agent qui rendrait code:0 sans rien lancer laisse une commande rejouable.
-const verif = await agent(`Tu es le VERIFICATEUR. Tu ne juges RIEN : le bareme vit dans ${ROSTER} et dans
-tools/refutateur_temoins.py.
+const verif = await agent(`Tu es le VERIFICATEUR. Tu ne juges RIEN : le bareme vit dans ${racine}/${ROSTER} et dans
+${racine}/tools/refutateur_temoins.py.
 Relectures, une par temoin (JSON) : ${JSON.stringify(relectures)}
 Jugements rendus par le juge, cle = nom de base du fichier relu : ${JSON.stringify(juge && juge.jugements)}
-1. Lis ${ROSTER}. REFUSE (champ refus non vide, resultats vide) si les genres ne sont pas EXACTEMENT trois "defaut" et
+1. Lis ${racine}/${ROSTER}. REFUSE (champ refus non vide, resultats vide) si les genres ne sont pas EXACTEMENT trois "defaut" et
    un "noop", si un nom ou un champ fichier est en double, ou si un temoin du roster n'a pas sa relecture ci-dessus.
-2. RE-DERIVE l'aiguillage. Lance: PYTHONIOENCODING=utf-8 python tools/refutateur_temoins.py --questions-du-juge
+2. RE-DERIVE l'aiguillage. Lance: PYTHONIOENCODING=utf-8 python ${racine}/tools/refutateur_temoins.py --questions-du-juge
    et compare la liste de fichiers qu'elle imprime a celle qui a servi a filtrer les relectures du juge :
    ${JSON.stringify([...aJuger])}. Si elles different, REFUSE avec la raison "aiguillage divergent" -- le juge a vu
    autre chose que ce que le roster gele prescrit, et cela peut etre une FUITE.
 3. Verifie la CALIBRATION du juge. Lance:
-   PYTHONIOENCODING=utf-8 python tools/refutateur_temoins.py --cas-du-juge-avec-reponses
+   PYTHONIOENCODING=utf-8 python ${racine}/tools/refutateur_temoins.py --cas-du-juge-avec-reponses
    (vue RESERVEE au verificateur : le juge, lui, n'a recu que la question, sous une REF opaque). Chaque ligne y porte
    la REF puis le nom du cas : remappe par la REF les reponses du juge ${JSON.stringify(juge && juge.calibration)}
    et compare-les au champ juge. Si UNE seule differe, REFUSE avec la raison "juge non calibre" : un juge qui rate ses
@@ -163,25 +203,46 @@ Jugements rendus par le juge, cle = nom de base du fichier relu : ${JSON.stringi
    ${travail}/critiques-<nom du temoin>.json (cree le repertoire). N'ajoute, ne retire, ne reformule AUCUNE critique.
 5. Lance pour chacun, depuis la racine du depot, en reprenant le jugement du juge -- ses cles sont des NOMS DE BASE de
    fichiers, que le champ fichier du roster rattache a un temoin :
-   PYTHONIOENCODING=utf-8 python tools/refutateur_temoins.py --verifier <nom> ${travail}/critiques-<nom>.json --extrait <chemin relu> --jugement <OUI|NON|INDECIDABLE>
-   Le code de sortie fait foi : 0 = retrouve, 1 = revue NULLE, 2 = indecidable. Ne reinterprete pas la sortie texte.
+   PYTHONIOENCODING=utf-8 python ${racine}/tools/refutateur_temoins.py --verifier <nom> ${travail}/critiques-<nom>.json --extrait <chemin relu> --jugement <OUI|NON|INDECIDABLE>
+   Le code de sortie fait foi et la premiere ligne imprimee donne le STATUT (RETROUVE / NULLE / INDECIDABLE /
+   MESURE) ainsi que le nombre de critiques RECEVABLES. Ne reinterprete rien d'autre.
    Un temoin sans jugement du juge se lance SANS --jugement ; ne fabrique jamais un jugement absent.
-6. Lance enfin: PYTHONIOENCODING=utf-8 python tools/refutateur_temoins.py --plancher <repertoire des temoins>
+   ⚠️ Le temoin qui rend MESURE ne fait PAS barrage : il MESURE un plancher sur un record cru sain. Reporte son
+   statut et son compte, n'en tire aucun echec.
+6. Lance enfin: PYTHONIOENCODING=utf-8 python ${racine}/tools/refutateur_temoins.py --plancher <repertoire des temoins>
    et recopie sa premiere ligne, TELLE QUELLE, dans le champ plancher. Un score sans son plancher est interdit.
-7. Rends {refus, plancher, resultats: {<nom>: {retrouve, code, fichier_critiques, commande}}}, ou le champ commande
-   porte la ligne EXACTE que tu as lancee a l'etape 5, pour qu'un tiers la relance.`,
+7. Compose \`plancher_noop\` : une ligne de la forme
+   "plancher mesure sur <nom du temoin de genre noop> : N critiques recevables (seuil historique S)",
+   avec le N et le S que l'etape 5 a imprimes pour ce temoin. Ce nombre voyage AVEC le score, jamais a cote.
+8. Rends {refus, plancher, plancher_noop, resultats: {<nom>: {statut, code, n_recevables, fichier_critiques,
+   commande}}}, ou le champ commande porte la ligne EXACTE de l'etape 5, pour qu'un tiers la relance.`,
   { label: 'verification', phase: 'Verification', schema: VERIFICATION })
 
 const resultats = (verif && verif.resultats) || {}
 const refus = ((verif && verif.refus) || '').trim()
 const plancherPublie = ((verif && verif.plancher) || '').trim()
-const rates = Object.entries(resultats).filter(([, v]) => !v.retrouve || v.code !== 0).map(([n]) => n)
-if (refus || !Object.keys(resultats).length || rates.length || !plancherPublie) {
-  log(`revue NULLE : ${refus || (rates.length ? `temoins non retrouves ${rates.join(', ')}` : 'plancher non publie')}`)
-  return { statut: 'NUL', raison: refus || 'temoin manque', temoins: resultats,
-           plancher: plancherPublie, cible: args.target }
+const plancherNoop = ((verif && verif.plancher_noop) || '').trim()
+// Seuls les temoins a DEFAUT font barriere. Un statut MESURE est une mesure, pas un echec.
+const rates = Object.entries(resultats)
+  .filter(([, v]) => v.statut !== 'RETROUVE' && v.statut !== 'MESURE').map(([n]) => n)
+const mesures = Object.entries(resultats).filter(([, v]) => v.statut === 'MESURE')
+// DISCRIMINATION : le record cru sain produit-il MOINS de critiques recevables que les defectueux ?
+// Si non, l'instrument ne les distingue pas -- et ca se DIT, ca ne s'annule pas.
+const nDefauts = Object.values(resultats)
+  .filter(v => v.statut === 'RETROUVE').map(v => v.n_recevables).filter(n => typeof n === 'number')
+const nNoop = mesures.length ? mesures[0][1].n_recevables : null
+const discrimine = (nNoop === null || !nDefauts.length) ? null : nNoop < Math.min(...nDefauts)
+if (refus || !Object.keys(resultats).length || rates.length || !plancherPublie || !plancherNoop) {
+  log(`revue NULLE : ${refus || (rates.length ? `defauts non retrouves ${rates.join(', ')}` : 'plancher non publie')}`)
+  return { statut: 'NUL', raison: refus || 'defaut manque', temoins: resultats,
+           plancher: plancherPublie, plancher_noop: plancherNoop, cible: args.target }
 }
-log(`temoins retrouves : ${Object.keys(resultats).join(' ')} — ${plancherPublie}`)
+log(`defauts retrouves : ${Object.keys(resultats).filter(n => resultats[n].statut === 'RETROUVE').join(' ')}`)
+log(`  ${plancherPublie}`)
+log(`  ${plancherNoop}`)
+if (discrimine === false) {
+  log(`  ⚠️ INDISCRIMINANT : le record cru sain rend ${nNoop} critiques recevables, les defectueux au moins ${Math.min(...nDefauts)}`)
+}
 
 phase('Revue')
 const parPrompt = await pipeline(PROMPTS, id =>
@@ -192,12 +253,15 @@ phase('Consolidation')
 const slug = args.target.split('/').pop().replace(/\.(md|json)$/, '').slice(0, 60)
 const sortie = `docs/reviews/${args.today}-${slug}.md`
 const consolide = await agent(`Ecris le fichier ${sortie} (Write) selon docs/reviews/README.md : en-tete (cible ${args.target},
-date ${args.today}, SHA courant via git rev-parse HEAD, resultat des TEMOINS ${JSON.stringify(resultats)} ET, sur la meme
-ligne, le PLANCHER DE FAUSSES RETROUVAILLES tel quel : "${plancherPublie}" -- un score sans son plancher est interdit),
+date ${args.today}, SHA courant via git -C ${racine} rev-parse HEAD, resultat des TEMOINS ${JSON.stringify(resultats)} ET, sur les
+memes lignes, LES DEUX PLANCHERS tels quels : "${plancherPublie}" et "${plancherNoop}"${
+  discrimine === false ? `, suivis de "⚠️ INDISCRIMINANT : le record cru sain rend autant de critiques recevables que les defectueux"` : ''
+} -- un score sans ses planchers est interdit),
 puis une section par prompt P1..P10 avec Sonde / Constat / Classe / Verdict, a partir de ces critiques (JSON) :
 ${JSON.stringify(critiques)}. N'invente AUCUNE critique et n'en retire aucune. Ne modifie AUCUN autre fichier.
 Rends le chemin ecrit et le nombre de critiques confirmees.`,
   { label: 'consolidation', phase: 'Consolidation', effort: 'low' })
 return { statut: 'ECRITE', fichier: sortie, n_critiques: critiques.length,
          n_confirmees: critiques.filter(c => (c.verdict || '').toLowerCase().startsWith('confirm')).length,
-         temoins: resultats, plancher: plancherPublie, note: consolide }
+         temoins: resultats, plancher: plancherPublie, plancher_noop: plancherNoop,
+         discrimine, racine, note: consolide }

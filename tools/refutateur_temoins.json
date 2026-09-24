@@ -53,7 +53,7 @@
       "chemin": "docs/EDR/LOCK-002_D2_Retention_Is_Learned_Under_REINFORCE_At_The_Right_Step_The_Fourth_Manifestation_Was_E19.md",
       "fichier": "temoin-2.md",
       "attendu": "",
-      "defaut": "AUCUN — record sain : regles scellees AVANT la premiere cellule, clause E19 explicite (second pas lr=0,0005), branche AUTRE prouvee VIDE par un test, garde d'alias, controle degrade nomme, budget mesure a charge connue, n=12 pour le verdict. C'est le PLANCHER DE FAUSSES CRITIQUES du Refutateur : au plus 1 critique CONFIRMEE toleree. Sans ce temoin, un Refutateur qui crie sur tout passerait les trois autres.",
+      "defaut": "AUCUN DEFAUT CONNU au moment du gel -- ce qui n'est PAS la meme chose que « sain », et le premier Step 4 complet l'a montre. Ce que le record a pour lui : regles scellees AVANT la premiere cellule, clause E19 explicite (second pas lr=0,0005), branche AUTRE prouvee VIDE par un test, garde d'alias, controle degrade nomme, budget mesure a charge connue, n=12 pour le verdict. ⚠️ MESURE DU 2026-09-24 : la revue y a rendu 10 critiques, dont 6 RECEVABLES a l'etage 1, la ou le seuil historique etait « au plus une ». La plus mesurable a ete verifiee contre les donnees et elle est JUSTE : le bras ablate fait mieux que l'intact sur 10 seeds sur 12 (mediane 0,030) et le compteur `leak_seeds` rend 0 parce qu'il ne compte que `ci - ca > tol` -- une fuite DIRECTIONNELLE, dans le sens qu'il ne regarde pas. Ce temoin ne CERTIFIE donc rien : il MESURE un plancher, qui se publie a cote de tout score. Nommer le temoin employe est plus honnete que pretendre a une propriete qu'on ne sait pas etablir.",
       "signature": "id: EDR-LOCK-002",
       "antisignature": ""
     }

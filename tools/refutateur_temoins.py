@@ -166,6 +166,24 @@ def roster_conforme(temoins=None):
 # --------------------------------------------------------------------------------------------- #
 
 
+def racine_valide(racine):
+    """(ok, raison) — ce répertoire est-il une racine du dépôt où le Réfutateur est utilisable ?
+
+    ⚠️ **Un instrument dont la correction dépend d'un état ambiant non déclaré échoue de façon
+    imprévisible.** Mesuré le 2026-09-24 : tous les prompts du workflow emploient des chemins
+    RELATIFS ; un agent qui héritait d'un répertoire courant différent a lancé le CLI là où le module
+    n'existe pas, et n'a rapporté qu'`EXIT=2`. Sans la sortie brute rendue par l'aiguillage, la cause
+    aurait été cherchée une troisième fois à l'aveugle. Le workflow annonce désormais une racine
+    ABSOLUE et la fait valider ici avant toute autre phase.
+    """
+    for relatif in ("tools/refutateur_temoins.py", "tools/refutateur_temoins.json",
+                    "tools/refutateur_juge_temoins.json"):
+        chemin = os.path.join(racine, *relatif.split("/"))
+        if not os.path.isfile(chemin):
+            return False, f"racine {racine!r} : {relatif} introuvable"
+    return True, f"racine {racine!r} : module et roster présents"
+
+
 def extraire(temoin, dest):
     """Écrit la version GELÉE du record sous son nom NEUTRE dans `dest` et rend le chemin écrit."""
     os.makedirs(dest, exist_ok=True)
@@ -425,10 +443,13 @@ def verdict_temoin(temoin, critiques, texte_extrait, jugement=None):
             "rejets": [r["raison"] for r in et1["rejets"]],
             "signal_attendu": signal_attendu(temoin, et1["recevables"])}
     if temoin["genre"] == "noop":
-        seuil = temoin["seuil_critiques"]
-        retrouve = len(et1["recevables"]) <= seuil
-        return dict(base, seuil=seuil, statut="RETROUVE" if retrouve else "NULLE",
-                    code=0 if retrouve else 1)
+        # ⚠️ LE NO-OP MESURE, IL NE FAIT PAS BARRAGE (2026-09-24, 1er Step 4 complet). Il rendait NULLE
+        # toute la revue quand son compte dépassait le seuil — donc une revue qui venait de retrouver
+        # TROIS défauts réels était jetée parce que le plancher était haut. C'est supprimer la mesure au
+        # lieu de la publier, l'inverse exact de la doctrine du dépôt : un plancher de bruit se publie À
+        # CÔTÉ du ratio, il ne l'annule pas. Il rend donc un NOMBRE, qui voyage avec le score.
+        return dict(base, statut="MESURE", code=0, seuil=temoin["seuil_critiques"],
+                    depasse_le_seuil=len(et1["recevables"]) > temoin["seuil_critiques"])
     if not et1["recevables"]:
         return dict(base, statut="NULLE", code=1, raison="aucune critique RECEVABLE (étage 1)")
     verdict_juge = str(jugement or "").strip().upper()
@@ -492,12 +513,42 @@ def verdict_phase_temoins(dest, critiques_par_temoin, jugements=None):
             texte = fh.read()
         detail.append(verdict_temoin(t, critiques_par_temoin.get(t["nom"], []), texte,
                                      jugements.get(t["nom"])))
-    retrouves = [d for d in detail if d["statut"] == "RETROUVE"]
-    indecidables = [d for d in detail if d["statut"] == "INDECIDABLE"]
-    return {"score": f"{len(retrouves)}/{len(detail)}",
-            "statut": "INDECIDABLE" if indecidables else ("PASSEE" if len(retrouves) == len(detail)
-                                                          else "NULLE"),
+    defauts = [d for d in detail if d["genre"] == "defaut"]
+    mesures = [d for d in detail if d["genre"] == "noop"]
+    retrouves = [d for d in defauts if d["statut"] == "RETROUVE"]
+    indecidables = [d for d in defauts if d["statut"] == "INDECIDABLE"]
+    # Seuls les témoins à DÉFAUT font barrière : un défaut connu non retrouvé veut dire que le
+    # relecteur était aveugle, et son travail ne vaut rien. Le no-op, lui, MESURE.
+    if indecidables:
+        statut = "INDECIDABLE"
+    elif len(retrouves) == len(defauts):
+        statut = "PASSEE"
+    else:
+        statut = "NULLE"
+    n_noop = mesures[0]["n_recevables"] if mesures else None
+    # ⚠️ On compare aux témoins à défaut RETROUVÉS, pas à tous : un défaut que la revue a manqué a 0
+    # critique recevable, et l'inclure ferait dire « indiscriminant » à toute revue incomplète — un
+    # verdict fabriqué à partir d'une absence de mesure, exactement ce que ce dépôt traque.
+    n_defauts = [d["n_recevables"] for d in defauts if d["statut"] == "RETROUVE"]
+    # DISCRIMINATION : si le record cru sain produit autant de critiques recevables que les records
+    # défectueux, l'instrument ne les distingue pas — et ça, c'est un verdict, pas un détail.
+    if n_noop is None or not n_defauts:
+        discrimine = None
+    else:
+        discrimine = n_noop < min(n_defauts)
+    return {"score": f"{len(retrouves)}/{len(defauts)}",
+            "statut": statut,
             "detail": detail,
+            # Le plancher de fausses retrouvailles ET le plancher MESURÉ sur le témoin cru sain
+            # voyagent tous deux avec le score : aucun chemin ne rend l'un sans les autres.
+            "plancher_noop": {"temoin": mesures[0]["temoin"] if mesures else None,
+                              "n_recevables": n_noop,
+                              "n_recevables_par_defaut": n_defauts,
+                              "discrimine": discrimine,
+                              "verdict": ("NON MESURE" if discrimine is None else
+                                          ("DISCRIMINE" if discrimine else "INDISCRIMINANT : le record "
+                                           "cru sain produit autant de critiques recevables que les "
+                                           "records défectueux"))},
             "plancher": plancher(dest)}
 
 
@@ -534,7 +585,13 @@ def main(argv=None):
     ap.add_argument("--questions-du-juge", action="store_true",
                     help="fichier neutre + défaut déclaré, pour les témoins à DÉFAUT seulement")
     ap.add_argument("--lister", action="store_true", help="inventaire des témoins gelés")
+    ap.add_argument("--racine-valide", metavar="DIR",
+                    help="le Réfutateur est-il utilisable depuis cette racine ? exit 0 ou 2")
     args = ap.parse_args(argv)
+    if args.racine_valide:
+        ok_racine, raison_racine = racine_valide(args.racine_valide)
+        print(raison_racine)
+        return 0 if ok_racine else 2
     ok, raison = roster_conforme()
     if not ok:
         print(f"roster GELÉ invalide : {raison}")

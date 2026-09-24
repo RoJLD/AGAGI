@@ -215,13 +215,23 @@ def _depot_jetable(tmp_path):
         # env=P._env_isole() : sans ca, un GIT_INDEX_FILE herite de l'EXTERIEUR (git commit -- <pathspec>
         # en fixe un pour ses hooks -- cf. P._env_isole) ferait lire/ecrire ce depot JETABLE dans
         # l'index d'un AUTRE depot. Reproduit puis corrige (voir rapport de correction).
-        r = subprocess.run(["git", *args], cwd=str(repo), capture_output=True, text=True, env=P._env_isole())
+        #
+        # ⚠️ -C <repo> ET l'identite EN LIGNE (-c), jamais `git config` : un test qui ECRIT une config
+        # est a UNE regression d'isolation pres de polluer le depot REEL, et c'est arrive. Mesure d'une
+        # session parallele, ancree sur toutes les branches : 33 commits sur 1725 portent l'identite
+        # `Test <test@example.com>`, et la PREMIERE est 7d6c04c9 -- « fix(porte 20) : temoin REEL de la
+        # seconde issue (depot git jetable) », mtime de .git/config au 2026-09-23 22:51, la soiree ou
+        # cette porte travaillait. Une ronde intermediaire avait casse l'isolation avant que la suivante
+        # ne la repare. Avec -c il n'y a RIEN A ECRIRE : la famille de pannes disparait au lieu d'etre
+        # gardee. C'est la forme qu'emploient deja test_backlog_freshness.py:84 et
+        # test_harness_provenance.py:50.
+        r = subprocess.run(
+            ["git", "-C", str(repo), "-c", "user.name=Test", "-c", "user.email=test@example.com", *args],
+            cwd=str(repo), capture_output=True, text=True, env=P._env_isole())
         assert r.returncode == 0, f"git {args} a echoue : {r.stderr}"
         return r
 
     git("init", "-b", "main")
-    git("config", "user.email", "test@example.com")
-    git("config", "user.name", "Test")
     (repo / "results").mkdir()
     (repo / "results" / "committe.json").write_text("{}", encoding="utf-8")
     git("add", "results/committe.json")

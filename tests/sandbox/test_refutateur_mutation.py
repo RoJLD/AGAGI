@@ -153,6 +153,15 @@ _MUTATIONS = [
      _mut_workflow(lambda t: t.replace("aiguillage-FUITE", "aiguillage-TRANSPORT")), None),
     # `::verifier` a survecu QUATRE rondes a la fonction qu'il declarait, le cliquet l'abandonnant en
     # silence. La garde ferme la cause du symbole RENOMME, pour ces fichiers.
+    # 1er Step 4 complet : les 3 defauts RETROUVES, et le no-op a 6 critiques recevables rendait tout NUL.
+    ("le no-op refait barrage au lieu de mesurer",
+     S.test_le_workflow_fait_MESURER_le_noop_au_lieu_de_le_faire_BARRER,
+     _mut_workflow(lambda t: t.replace("v.statut !== 'MESURE'", "false")), None),
+    ("la racine absolue disparait du workflow",
+     S.test_le_workflow_ancre_une_RACINE_ABSOLUE_et_refuse_si_le_module_n_y_est_pas,
+     _mut_workflow(lambda t: t.replace(
+         "python ${racine}/tools/refutateur_temoins.py --plancher",
+         "python tools/refutateur_temoins.py --plancher")), None),
     ("une declaration CALIBRATED pointe vers un symbole disparu",
      S.test_aucune_declaration_CALIBRATED_de_ce_module_ne_pointe_vers_un_symbole_DISPARU,
      {"lire": lambda: _lecture_mutee(

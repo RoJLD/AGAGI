@@ -110,10 +110,20 @@ sur tout ratio, et elle est née ici : le 2026-09-23, une phrase vague identique
 écrite sans ouvrir un fichier, les passait TOUS. Le plancher valait le signal maximal ; l'instrument ne
 voyait rien.
 
-**Un témoin manqué rend la revue NULLE** : rien ne s'écrit dans `docs/reviews/`, le compteur
+**Un témoin à DÉFAUT manqué rend la revue NULLE** : rien ne s'écrit dans `docs/reviews/`, le compteur
 `témoin manqué` s'incrémente dans `ROLES.md`. **Deux fois → les prompts sont re-scellés** (ils ne
 discriminent plus), et le re-scellage passe par robla. Un texte de critiques ILLISIBLE n'est pas NULLE
 mais **indécidable** (code 2) : un bug de sérialisation ne doit pas devenir un verdict de fond.
+
+⚠️ **Le témoin CRU SAIN, lui, MESURE — il ne fait pas barrage.** Il rend un NOMBRE, le compte de
+critiques recevables sur un record dont aucun défaut n'est connu, et ce nombre voyage avec le score
+dans la même structure. Le faire barrer revenait à **jeter une revue qui venait de retrouver trois
+défauts réels parce que le plancher était haut** : supprimer la mesure au lieu de la publier, l'inverse
+exact de la doctrine. Mesuré le 2026-09-24, premier passage complet : six critiques recevables sur ce
+témoin, dont une confrontée aux données et **juste**. « Aucun défaut connu » n'est pas « sain », et
+personne ne sait établir la seconde propriété : la revue nomme donc le témoin employé et publie son
+compte. **Si ce compte est ≥ à celui des témoins à défaut retrouvés, la revue le DIT** — l'instrument
+ne distingue alors pas un record sain d'un record défectueux, et c'est un verdict, pas un détail.
 
 Les témoins sont figés au SHA qui porte le défaut **NU**, jamais sa rectification. Ce regard « à l'œil »
 est lui-même exécutable : chaque témoin déclare une `signature` (présente dans le record à ce SHA) et une

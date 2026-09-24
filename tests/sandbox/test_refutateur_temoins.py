@@ -332,20 +332,43 @@ def test_un_temoin_a_defaut_sans_JUGEMENT_est_INDECIDABLE_jamais_retrouve(extrai
     assert T.verdict_temoin(t, critiques, textes[t["nom"]], "INDECIDABLE")["code"] == 2
 
 
-def test_le_noop_compte_les_critiques_RECEVABLES_et_son_seuil_vit_dans_le_roster(extraits):
+def test_le_noop_MESURE_au_lieu_de_faire_BARRAGE(extraits):
+    """CONTRE-EXEMPLE GELE : au 1er Step 4 complet, le no-op a rendu SIX critiques recevables.
+
+    L'ancien barème rendait alors toute la revue NULLE — donc une revue qui venait de retrouver
+    TROIS défauts réels, à l'aveugle et avec leur mécanisme, était jetée parce que le plancher était
+    haut. C'est **supprimer la mesure au lieu de la publier**, l'inverse exact de la doctrine du
+    dépôt : un plancher de bruit se publie À CÔTÉ du ratio, il ne l'annule pas. Et la mesure était
+    JUSTE — une des six a été confrontée aux données : le bras ablaté fait mieux que l'intact sur
+    10 seeds sur 12 (médiane 0,030), `leak_seeds` rendant 0 parce qu'il ne compte que `ci - ca > tol`,
+    une fuite DIRECTIONNELLE dans le sens qu'il ne regarde pas.
+
+    Le no-op rend donc un NOMBRE, et son dépassement de seuil est une INFORMATION, jamais un code 1.
+    """
     textes, _ = extraits
     noop = T.par_nom("LOCK-002-286f244")
     txt = textes[noop["nom"]]
     assert noop["seuil_critiques"] == 1
-    assert T.verdict_temoin(noop, [], txt)["statut"] == "RETROUVE"
-    bonne = _crit(constat="le budget projete n'est pas re-mesure a charge connue",
-                  preuve="tools/cost_guard.py:12")
-    assert T.verdict_temoin(noop, [bonne], txt)["statut"] == "RETROUVE"
-    assert T.verdict_temoin(noop, [bonne, dict(bonne, preuve="tools/preregister.py:30")],
-                            txt)["statut"] == "NULLE"
-    # L'attaque universelle ne fait plus CRIER le no-op : elle n'est meme pas recevable.
+    for n in (0, 1, 2, 6):
+        crits = [_crit(constat=f"constat distinct numero {i}", preuve=f"tools/x{i}.py:{i + 1}")
+                 for i in range(n)]
+        v = T.verdict_temoin(noop, crits, txt)
+        assert v["statut"] == "MESURE" and v["code"] == 0, (n, v["statut"])
+        assert v["n_recevables"] == n
+        assert v["depasse_le_seuil"] is (n > noop["seuil_critiques"])
+    # L'attaque universelle ne fait pas monter le plancher : elle n'est meme pas recevable.
     attaque = _cas("attaque-universelle")["critiques"]
     assert T.verdict_temoin(noop, attaque * 5, txt)["n_recevables"] == 0
+
+
+def test_racine_valide_rend_ses_DEUX_issues(tmp_path):
+    """Un instrument dont la correction depend d'un etat ambiant NON DECLARE echoue au hasard."""
+    ok, raison = T.racine_valide(T._ROOT)
+    assert ok is True and "module et roster" in raison
+    ok, raison = T.racine_valide(str(tmp_path))
+    assert ok is False and "introuvable" in raison
+    assert T.main(["--racine-valide", T._ROOT]) == 0
+    assert T.main(["--racine-valide", str(tmp_path)]) == 2
 
 
 # --------------------------------------------------------------------------------------------- #
@@ -484,12 +507,13 @@ def test_aucun_SCORE_de_phase_temoins_ne_peut_etre_obtenu_SANS_son_plancher(extr
     """Deux appels independants auraient fini publies separement. Ils n'en font qu'un."""
     _, dossier = extraits
     r = T.verdict_phase_temoins(dossier, {}, {})
-    assert "plancher" in r and "score" in r
+    assert set(r) >= {"score", "statut", "detail", "plancher", "plancher_noop"}
     assert r["plancher"]["majorant_fausses_retrouvailles"] == 0
-    assert set(r) >= {"score", "statut", "detail", "plancher"}
-    # Une phase vide : le no-op passe (se taire sur un record sain est la BONNE reponse), les trois
-    # defauts sont NULLE faute de critique recevable.
-    assert r["score"] == "1/4" and r["statut"] == "NULLE"
+    # Le PLANCHER MESURE sur le temoin cru sain voyage dans la MEME structure que le score.
+    assert r["plancher_noop"]["temoin"] == "LOCK-002-286f244"
+    assert r["plancher_noop"]["n_recevables"] == 0
+    # Le score ne porte que sur les temoins a DEFAUT : eux seuls font barriere.
+    assert r["score"] == "0/3" and r["statut"] == "NULLE"
 
 
 def test_une_phase_temoins_PASSEE_porte_quand_meme_son_plancher(extraits):
@@ -500,8 +524,34 @@ def test_une_phase_temoins_PASSEE_porte_quand_meme_son_plancher(extraits):
     }
     jugements = {n: "OUI" for n in critiques}
     r = T.verdict_phase_temoins(dossier, critiques, jugements)
-    assert r["score"] == "3/4", [d["statut"] for d in r["detail"]]  # 2 defauts + le no-op
+    assert r["score"] == "2/3", [d["statut"] for d in r["detail"]]
     assert r["plancher"]["majorant_fausses_retrouvailles"] == 0
+    assert r["plancher_noop"]["n_recevables"] == 0
+
+
+def test_une_phase_INDISCRIMINANTE_le_DIT_au_lieu_de_s_annuler(extraits):
+    """Si le record cru sain produit autant de critiques recevables que les défectueux, l'instrument
+    ne les distingue pas — et ça, c'est un VERDICT, pas un détail qu'on tait."""
+    textes, dossier = extraits
+    noop = T.par_nom("LOCK-002-286f244")
+    beaucoup = [_crit(constat=f"constat distinct numero {i}", preuve=f"tools/x{i}.py:{i + 1}")
+                for i in range(6)]
+    critiques = {
+        "S2-BLIND-CHAMPION-42e9357": _cas("E26-juste-sans-le-mot-corps")["critiques"],
+        "EDR-GRAB-COST-1828371": _cas("GRAB-fait-c-sans-le-token")["critiques"],
+        noop["nom"]: beaucoup,
+    }
+    r = T.verdict_phase_temoins(dossier, critiques, {n: "OUI" for n in critiques})
+    assert r["plancher_noop"]["n_recevables"] == 6
+    assert r["plancher_noop"]["discrimine"] is False
+    assert "INDISCRIMINANT" in r["plancher_noop"]["verdict"]
+    # ⚠️ Et la revue n'est PAS annulee pour autant : les deux defauts restent RETROUVES.
+    assert r["score"] == "2/3"
+    assert [d["statut"] for d in r["detail"] if d["genre"] == "noop"] == ["MESURE"]
+    # Controle POSITIF du meme champ : un no-op silencieux DISCRIMINE.
+    r2 = T.verdict_phase_temoins(dossier, {k: v for k, v in critiques.items() if k != noop["nom"]},
+                                 {n: "OUI" for n in critiques})
+    assert r2["plancher_noop"]["discrimine"] is True and r2["plancher_noop"]["verdict"] == "DISCRIMINE"
 
 
 # --------------------------------------------------------------------------------------------- #
@@ -748,6 +798,33 @@ def test_questions_du_juge_OMET_le_noop_et_donne_le_defaut_des_autres():
     sortie = tampon.getvalue()
     assert noop["fichier"] not in sortie and "record sain" not in sortie
     assert all(x["fichier"] in sortie for x in q)
+
+
+def test_le_workflow_ancre_une_RACINE_ABSOLUE_et_refuse_si_le_module_n_y_est_pas():
+    """CONTRE-EXEMPLE GELE : un agent a lancé le CLI depuis l'arbre principal, où le module n'existe
+    pas, et n'a rapporté qu'`EXIT=2`. Tous les prompts employaient des chemins RELATIFS — un état
+    ambiant non déclaré, dont la correction de l'instrument dépendait."""
+    js = _lire(_WORKFLOW)
+    assert "phase('Racine')" in js and "'Racine'" in js.split("phases:", 1)[1][:400]
+    bloc = js.split("phase('Racine')", 1)[1].split("phase('Temoins')", 1)[0]
+    assert "--racine-valide" in bloc and "git rev-parse --show-toplevel" in bloc
+    assert "racine-invalide" in bloc, "aucune branche de refus au demarrage"
+    for champ in ("commande", "sortie_brute"):
+        assert f"ancrage.{champ}" in bloc, f"la panne de racine ne dit pas {champ}"
+    # Plus AUCUNE invocation relative du CLI dans le corps du script (les commentaires exceptes).
+    code = "\n".join(l for l in js.splitlines() if not l.lstrip().startswith("//"))
+    relatives = re.findall(r"python\s+(?!\$\{racine\}/)(?!R/)tools/refutateur_temoins\.py", code)
+    assert not relatives, f"{len(relatives)} invocation(s) encore relative(s) : {relatives[:3]}"
+
+
+def test_le_workflow_fait_MESURER_le_noop_au_lieu_de_le_faire_BARRER():
+    js = _lire(_WORKFLOW)
+    assert "plancher_noop" in js
+    assert "'plancher_noop'" in js.split("const VERIFICATION", 1)[1].split("\n}", 1)[0], (
+        "le plancher du no-op n'est pas EXIGE du verificateur")
+    # Le filtre d'echec accepte MESURE : un no-op bavard ne jette plus une revue qui a trouve.
+    assert "v.statut !== 'MESURE'" in js
+    assert "discrimine" in js and "INDISCRIMINANT" in js
 
 
 def test_le_workflow_n_accepte_de_l_appelant_que_des_CHEMINS():

@@ -40,9 +40,13 @@ revue. Forme : en-tête (cible, SHA, date, résultat des TÉMOINS), puis une sec
    fichier, les passait TOUS ; le plancher valait le signal maximal et l'instrument ne voyait rien.
 
 4. **Lire le statut.**
-   * `statut: NUL` → un défaut connu n'a pas été retrouvé, ou le témoin sain a fait crier la revue, ou le roster a été
-     refusé : **rien ne s'écrit**. Incrémenter `témoin manqué` dans `ROLES.md` (PM). Deux fois de suite → les prompts du
-     REF ne discriminent plus et sont re-scellés, par robla.
+   * `statut: NUL` → un défaut connu n'a pas été retrouvé, le roster a été refusé, la racine est invalide, ou
+     l'aiguillage a cassé : **rien ne s'écrit**. Incrémenter `témoin manqué` dans `ROLES.md` (PM). Deux fois de suite
+     → les prompts du REF ne discriminent plus et sont re-scellés, par robla.
+     ⚠️ Le témoin **cru sain** ne rend jamais NUL : il MESURE. Son compte se publie, il n'annule rien — jeter une
+     revue qui a retrouvé ses défauts parce que ce plancher est haut, c'est supprimer la mesure au lieu de la
+     publier. Si `discrimine` est `false`, la revue le dit dans son en-tête : l'instrument ne sépare pas un record
+     sain d'un défectueux.
    * `statut: ECRITE` → `docs/reviews/<date>-<slug>.md` existe. La session qui GRAVE ajoute
      `review: docs/reviews/<date>-<slug>.md` au frontmatter du record, ou passe `reviewed_by=` à `preregister`.
 
