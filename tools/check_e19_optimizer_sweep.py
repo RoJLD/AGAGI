@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Porte 22 — GARDE E19 APPELÉE : un runner SCELLÉ dont la règle compare des bras SOUS GRADIENT
+"""Porte 23 — GARDE E19 APPELÉE : un runner SCELLÉ dont la règle compare des bras SOUS GRADIENT
 (grille de `lr`, bras à pas distincts, `clause_E19`, `sender_lr`) appelle
 `assert_verdict_invariant_to_optimizer`, sinon son nul mesure le RÉGLAGE, pas la capacité.
 

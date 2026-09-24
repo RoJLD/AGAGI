@@ -56,7 +56,7 @@ SANS_VALEUR_LUE en publiant ou l'instrument a regarde. Les deux restantes ne son
 sont DECLAREES ci-dessous. Mesure de la migration : les 8 DISCORDE geles se relisent 2 DISCORDE
 (contradictions reelles) + 6 SANS_VALEUR_LUE -- rang 2, donc une amelioration, aucun faux rouge.
 
-CE QU'IL NE VOIT PAS (la section que les portes 20 et 22 ont et qui manquait ici). Elle n'est plus
+CE QU'IL NE VOIT PAS (la section que les portes 20 et 23 ont et qui manquait ici). Elle n'est plus
 seulement ECRITE ICI : `CECITES` est IMPRIMEE par `--report` et par tout ECHEC, parce que le lecteur
 d'une sortie n'ouvre jamais la docstring -- c'est exactement par la que le defaut ci-dessus a survecu.
   * une CITATION n'est pas forcement une PREMISSE, et `claims()` ne sait pas les distinguer : une

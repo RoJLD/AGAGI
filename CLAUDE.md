@@ -271,7 +271,7 @@ faces `GIT_INDEX_FILE`/`_env_pour` dans la section Environnement) : isoler l'env
 `_tracked` INCONDITIONNELLEMENT cassait le cas où `root` EST le dépôt courant pendant le commit —
 `_env_pour(root)` distingue désormais dépôt courant (hérite) de dépôt tiers (isole).
 
-`check_e19_optimizer_sweep.py` (porte 22, 2026-09-23, CORRIGÉE en revue le jour même) — classe **E19** :
+`check_e19_optimizer_sweep.py` (porte 23, 2026-09-23, CORRIGÉE en revue le jour même ; numérotée 22 jusqu'au 2026-09-24, renumérotée avant fusion parce que 22 était déjà `check_hook_deployment` dans la branche partagée — les commits de sa livraison disent « porte 22 ») — classe **E19** :
 un runner SCELLÉ dont la règle compare des bras SOUS GRADIENT (grille de `lr`, bras à pas distincts,
 `clause_E19`, `sender_lr`) doit appeler `assert_verdict_invariant_to_optimizer`, sinon son nul mesure
 le RÉGLAGE — cas fondateur, EDR-RETAIN-COMPOSE rétracté en entier parce que son verdict s'inversait au

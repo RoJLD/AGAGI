@@ -1,4 +1,4 @@
-"""Porte 22 : un runner scelle qui compare des bras SOUS GRADIENT appelle la garde E19 -- un nul a pas
+"""Porte 23 : un runner scelle qui compare des bras SOUS GRADIENT appelle la garde E19 -- un nul a pas
 fixe s'est deja retourne (RETAIN-COMPOSE 0,173 -> 0,923 au seul lr) ; la garde existe et n'a qu'UN
 appelant reel (tools/learner_calibration.py:120) sur onze points d'entree d'apprentissage.
 

@@ -946,9 +946,10 @@ une suite mesurée machine au repos ne mesure pas l'état « bail tenu ». *Coû
 Dépend de : rien. Occurrence au registre : E14 (2026-09-23, session d7).
 <!-- closes_when:grep_present=tests/conftest.py::ResourceBusy -->
 
-**P2.88 — ⚠️ OUVERTE (2026-09-24, mesurée en revue adversariale de la porte 19, HEAD `636c65b1`) — la porte 19
+**P2.88 — ✅ CLOSE le 2026-09-24 (ouverte le même jour, mesurée en revue adversariale de la porte 19, HEAD `636c65b1`) — la porte 19
 rend `DISCORDE` sur TROIS situations qu'elle ne distingue pas — prémisse FAUSSE, clé qu'elle n'a pas su LIRE, clé
 ABSENTE — avec la même chaîne de détail au caractère près, et c'est le libellé du pire cas qui s'affiche.**
+Fait : livrée par `107229a0` (fix porte 19, 2026-09-24), dont le commit n'a pas enregistré la fermeture — c'est la porte 4 qui l'a détectée seule (clause satisfaite, entrée encore ouverte), et elle est enregistrée avec le renumérotage 22 → 23 de la porte E19. `DISCORDE` (rang 3) nomme désormais LES DEUX valeurs lues et le fichier ; `SANS_VALEUR_LUE` (rang 2, hors `OK`) publie le nombre de results lus et les clés VOISINES. Mesuré le 2026-09-24 : `python tools/check_regime_claims.py` rend `records : 300 | {'SANS_PARAMETRE': 226, 'CONCORDE': 5, 'CONCORDE_HORS_REGIME': 5, 'SANS_RESULTS': 53, 'SANS_REGIME': 3, 'SANS_VALEUR_LUE': 6, 'DISCORDE': 2}`, exit 0 — exactement la migration prévue ci-dessous (8 DISCORDE → 2 + 6). Les trois témoins demandés sont présents et verts dans `tests/sandbox/test_regime_claims_gate.py` : (a) `test_aucune_valeur_lue_rend_SANS_VALEUR_LUE_et_PUBLIE_ou_il_a_regarde` (statut ET clé voisine dans le détail) ; (b) `test_CONTRE_EXEMPLE_GELE_EDR_GRAB_COST_au_2026_09_09_est_DISCORDE` durci (`3.0` ET `1.0` dans le détail) ; (c) l'ancien `test_1_valeur_introuvable_nulle_part_reste_DISCORDE` renommé `test_1_valeur_CONTREDITE_par_le_regime_ET_par_le_hors_regime_est_DISCORDE`. Porte 15 : les 2 mutations de la porte 19, qui visent la distinction neuve, sont TUÉES.
 Quoi : `tools/check_regime_claims.py::evaluer` apparie par INTERSECTION D'ENSEMBLES (l.179 sur `regime_par_fichier`,
 l.187 sur `hors_par_fichier`) ; quand l'intersection est vide il écrit `<p> cite [...] : introuvable dans les results
 cites` et pose `pire = max(pire, 3)` (l.194-196), donc `DISCORDE` (l.197, rang 3 = le pire de `_RANG` l.46) — sans
@@ -1065,10 +1066,10 @@ P2.83 (qui explique pourquoi le compteur d'instruments ne veut pas dire ce qu'il
 déclaration que le cliquet ne détecte pas est ignorée en silence) et à P2.56.
 <!-- closes_when:grep_present=tools/hooks/pre-commit::staged_syn_intrants -->
 
-**P2.91 — ⚠️ OUVERTE (2026-09-24) — la porte 22 compte mal dans LES DEUX SENS (deux de ses « non résolus » sont des
+**P2.91 — ⚠️ OUVERTE (2026-09-24) — la porte 23 compte mal dans LES DEUX SENS (deux de ses « non résolus » sont des
 nus qui DÉCLARENT `clause_E19`, quatre des douze chemins signalés ne comparent aucun pas) — et le patron de
 remédiation naturel est un appel DÉCORATIF qui rend `True` par court-circuit sans rien mesurer.**
-Quoi : la porte 22 (`tools/check_e19_optimizer_sweep.py`, branchée au hook `tools/hooks/pre-commit:452-458`) est VERTE
+Quoi : la porte 23 (ex-22, `tools/check_e19_optimizer_sweep.py`, branchée au hook `tools/hooks/pre-commit:452-458`) est VERTE
 et son résumé se lit « 8 nus pour 1 appelant », ce qui invite à conclure « poser la garde partout ». Mesuré le
 2026-09-24 : `runners scellés : 29 | sous gradient (PLANCHER) : 9 | nus (PLANCHER) : 8 | indéterminés : 4 | non
 résolus : 4 | règle absente : 0 | illisibles : 0 | appelants de la garde : 1 | gelés : 16`, pour 13 lignes `couvert`

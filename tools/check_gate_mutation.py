@@ -378,7 +378,10 @@ PORTES = {
                       "une règle documentée déguisée en rôle (E10)"),
         }],
     },
-    "22": {
+    # Numerotee "22" jusqu'au 2026-09-24 : renumerotee "23" avant fusion, "22" etant deja
+    # check_hook_deployment dans la branche partagee (le numero non fusionne cede). Une cle
+    # dupliquee dans ce dict serait ecrasee EN SILENCE par Python -- une porte sortirait du harnais.
+    "23": {
         "module": "tools.check_e19_optimizer_sweep",
         "titre": "garde E19 appelée par tout runner scellé sous gradient",
         "temoins": ["tests/sandbox/test_e19_sweep_gate.py"],
