@@ -86,6 +86,24 @@ def test_cell_A_known_answer_is_PARTIAL_with_ceiling_above_bar():
     assert out["e19"]["condition"] == "necessity"
 
 
+def test_sham_declared_is_never_confused_with_a_sham_arm_that_ran():
+    """C2 (revue finale de branche, 2026-09-24) : `sham`="DECLARED" documente une entrée du registre
+    PIECES (`matched_sham`), jamais qu'un bras sham a MESURÉ quelque chose -- `_ARMS` (module) n'a pas de
+    sixième bras, R1 n'en a couru aucun. `sham_arm_run` est une CONSTANTE False tant que ce bras n'existe
+    pas, publiée à côté du champ `sham`, jamais fusionnée avec lui -- calibré dans les deux sens."""
+    rule_with_sham = _rule()
+    rule_with_sham["matched_sham"] = {"bilinear_sham": True}
+    out = harness_verdict_lecture(_db(), rule_with_sham)
+    nec = out["necessity"]["bilinear"]
+    assert nec["sham"] == "DECLARED"
+    assert nec["sham_arm_run"] is False
+
+    out2 = harness_verdict_lecture(_db(), _rule())   # matched_sham=None par défaut
+    nec2 = out2["necessity"]["bilinear"]
+    assert nec2["sham"] == "PARAMS_NON_APPARIES"
+    assert nec2["sham_arm_run"] is False
+
+
 def test_cell_B_known_answer_is_NECESSARY():
     out = harness_verdict_lecture(_db(D=0.18, D2=0.19), _rule("recurrent_state"))
     assert out["verdict"] == "DEMANDED_ACQUIRED_NECESSARY"
@@ -148,6 +166,17 @@ def test_intact_at_the_bayes_floor_is_DEMAND_INCONCLUSIVE_never_a_negative_claim
 
 def test_a_biting_control_is_INCONCLUSIVE_SPECIFICITY():
     assert harness_verdict_lecture(_db(abl_dist=[0.40] * 12), _rule())["verdict"] == "INCONCLUSIVE_SPECIFICITY"
+
+
+def test_a_control_that_improves_the_arm_says_what_was_measured_not_generic_mord():
+    """B2 (revue finale de branche, 2026-09-24) : le contrôle de spécificité AMÉLIORE le bras au retrait
+    (0,50 -> 0,80, ratio inversé) -- `ablation_verdict` rend INCONCLUSIVE_INVERTED, jamais un « mordant »
+    classique. Le libellé doit dire ce qui est mesuré, pas la formule générique « contrôle de spécificité
+    mord »."""
+    out = harness_verdict_lecture(_db(A=0.50, abl_dist=[0.80] * 12), _rule())
+    assert out["verdict"] == "INCONCLUSIVE_SPECIFICITY"
+    assert "AMÉLIORE" in out["why"] and "dans l'autre sens" in out["why"]
+    assert "mord (" not in out["why"]   # jamais la formule générique pour ce cas précis
 
 
 def test_learner_at_reference_is_NOT_ACQUIRED_with_dose_and_saturation():
@@ -275,6 +304,23 @@ def test_missing_intervention_flag_with_D_equal_to_A_is_PIECE_INCONCLUSIVE_not_N
     assert out["verdict"] == "PIECE_INCONCLUSIVE"
 
 
+def test_necessity_that_improves_without_the_piece_is_PIECE_INCONCLUSIVE_not_NOT_NECESSARY():
+    """B2 (revue finale de branche, 2026-09-24) : la variante SANS la pièce (D=0,85) fait MIEUX que
+    l'intact (A=0,60) -- ratio ~0,706, INCONCLUSIVE_INVERTED. Avant le fix, `_necessity` lisait ça
+    NOT_NECESSARY (« aucun effet de l'ablation détecté ») -- un effet de 1,42x dans l'autre sens publié
+    comme aucun effet (le contre-exemple gelé de la classe E3, cf. tools/demand_marker.py:76-78, appliqué
+    ici au CONTRASTE de nécessité plutôt qu'à la demande). A2/D2 gardent la MÊME direction inversée (le
+    gap reste négatif aux deux pas) pour que l'E19 tombe en GAP_BELOW_RESOLUTION, jamais LR_ARTIFACT --
+    ce n'est pas ce que ce test calibre."""
+    db = _db(A=0.60, D=0.85, A2=0.40, D2=0.55)
+    out = harness_verdict_lecture(db, _rule())
+    nec = out["necessity"]["bilinear"]
+    assert nec["raw"]["verdict"] == "INCONCLUSIVE_INVERTED"
+    assert nec["verdict"] == "INCONCLUSIVE"
+    assert out["verdict"] == "PIECE_INCONCLUSIVE"
+    assert "MIEUX" in nec["why"] and "dans l'autre sens" in nec["why"]
+
+
 def test_missing_arm_is_INCOMPLET_and_n11_is_INCONCLUSIVE_N():
     db = _db()
     del db["arms"]["D2"]
@@ -333,6 +379,34 @@ def test_mutating_necessity_threshold_to_strict_flips_the_boundary_case():
         db2["arms"]["D"]["last"][str(s)] = 0.17 + 0.05 + 1e-6
         db2["arms"]["A0"]["last"][str(s)] = 0.17
     assert harness_verdict_lecture(db2, _rule())["verdict"] == "PIECE_PARTIAL"
+
+
+def test_empty_ablations_raises_ValueError_not_DEMANDED_ACQUIRED_NECESSARY():
+    """B1 (revue finale de branche, 2026-09-24) : `rule["ablations"] = []` faisait rendre
+    DEMANDED_ACQUIRED_NECESSARY avec `demand={}` -- la branche dont le NOM affirme la demande, publiée
+    sans qu'aucune demande n'ait été mesurée. `validate_rule` refuse maintenant EN TÊTE."""
+    rule = _rule()
+    rule["ablations"] = []
+    with pytest.raises(ValueError, match="must_bite=True"):
+        harness_verdict_lecture(_db(), rule)
+
+
+def test_only_a_decoy_ablation_raises_ValueError():
+    """B1 : une règle qui ne déclare QU'un contrôle de spécificité (`must_bite=False`), sans aucune
+    ablation mordante, ne peut jamais produire de demande mesurée non plus -- même garde que la clause
+    (a) d'`assert_task_contract`, formulée ici sur la RÈGLE plutôt que sur la tâche."""
+    rule = _rule()
+    rule["ablations"] = [{"name": "inject_distractor_slot", "site": "input", "must_bite": False}]
+    with pytest.raises(ValueError, match="must_bite=True"):
+        harness_verdict_lecture(_db(), rule)
+
+
+def test_only_a_biting_ablation_raises_ValueError_no_specificity_control():
+    """B1 : symétrique -- que des ablations `must_bite=True`, aucun contrôle de spécificité déclaré."""
+    rule = _rule()
+    rule["ablations"] = [{"name": "permute_key", "site": "input", "must_bite": True}]
+    with pytest.raises(ValueError, match="must_bite=False"):
+        harness_verdict_lecture(_db(), rule)
 
 
 def test_duplicate_lrs_in_sweep_raises_ValueError_not_LR_ARTIFACT():

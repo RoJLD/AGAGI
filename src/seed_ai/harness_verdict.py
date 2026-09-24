@@ -34,6 +34,19 @@ IMPORTANT (re-ruling) : nécessité + E19 doivent s'exécuter AVANT la demande s
 un artefact de pas (LR_ARTIFACT, index 3) ou une référence effondrée (INDETERMINE_HARNAIS, index 2) —
 tous deux plus sévères dans l'ORDRE 2.3-b qu'une branche de demande — pouvaient se faire préempter par
 un verdict de demande de priorité plus faible.
+
+Fixes de la revue finale de branche (2026-09-24) — trois défauts réels, mesurés par le reviseur sur
+`HARNESS-R1-ter` :
+B1 : `validate_rule` n'exigeait qu'une cohérence des lrs/provenance/n_floor, jamais qu'`rule["ablations"]`
+porte au moins une ablation `must_bite=True` ET une `must_bite=False` — une règle à `ablations=[]` (ou au
+seul décoy) rendait `DEMANDED_ACQUIRED_NECESSARY` avec `demand={}`, aucune demande mesurée.
+B2 : `_necessity` lisait `INCONCLUSIVE_INVERTED` (effet massif de signe INVERSE) comme `NOT_NECESSARY`
+(« aucun effet détecté ») — même motif E3 que `_demand` savait déjà éviter pour `DEMAND_INCONCLUSIVE`,
+l'asymétrie était interne à ce fichier. Rejoint désormais `INCONCLUSIVE` → `PIECE_INCONCLUSIVE`, `why`
+CHIFFRE l'inversion.
+C2 : `sham="DECLARED"` (une entrée du registre `PIECES` existe) se lisait à tort comme « un bras sham a
+mesuré quelque chose » — `_ARMS` n'a pas de sixième bras, aucun sham n'a couru dans R1. `sham_arm_run`
+(constante `False` tant que `_ARMS` ne porte pas de bras sham) publié à côté, jamais fusionné à `sham`.
 """
 import statistics
 
@@ -108,7 +121,24 @@ def validate_rule(rule):
 
     Exposée PUBLIQUEMENT (tâche 6, revue contrôleur fix round 1, 2026-09-16) : un runner de cellule doit
     pouvoir l'appeler EN TÊTE, avant `assert_task_contract`, pour refuser une règle mal formée avant tout
-    build -- `_validate_rule` reste un alias privé pour les appels internes de ce module."""
+    build -- `_validate_rule` reste un alias privé pour les appels internes de ce module.
+
+    B1 (revue finale de branche, 2026-09-24) : `rule["ablations"] = []` (ou seulement un contrôle
+    `must_bite=False`) faisait rendre `DEMANDED_ACQUIRED_NECESSARY` à `harness_verdict_lecture` avec
+    `demand = {}` -- la branche dont le NOM affirme la demande, publiée sans qu'aucune demande n'ait été
+    mesurée. `cell.py:180-184` ne vérifie qu'une INCLUSION de noms (∅ ⊆ tout, donc toujours vraie) et la
+    clause (a) d'`assert_task_contract` porte sur la TÂCHE (`task.demand.ablations`), jamais sur la RÈGLE
+    (`rule["ablations"]`) qui peut légitimement en choisir un SOUS-ENSEMBLE. Même exigence que la clause
+    (a) de la tâche, formulée ici sur la règle."""
+    abls = rule.get("ablations", [])
+    if not any(bool(a.get("must_bite")) for a in abls):
+        raise ValueError(f"rule.ablations : aucune ablation must_bite=True (reçu {abls!r}) -- une règle "
+                         "sans ablation mordante ne peut PRODUIRE aucune demande mesurée, et pourtant "
+                         "harness_verdict_lecture rendrait DEMANDED_ACQUIRED_NECESSARY avec demand={} (B1)")
+    if not any(not bool(a.get("must_bite")) for a in abls):
+        raise ValueError(f"rule.ablations : aucune ablation must_bite=False (reçu {abls!r}) -- aucun "
+                         "contrôle de spécificité déclaré par la règle : une seule issue possible, même "
+                         "garde que la clause (a) d'assert_task_contract, formulée ici sur la règle")
     lrs = [float(h["lr"]) for h in rule["sweep"]]
     # MINOR (fix round 2) : EXACTEMENT deux, pas « au moins deux » -- `_e19` n'indexe que `lrs[0]`/`lrs[1]`
     # (la db ne porte que A2/D2, un SEUL second pas), donc un sweep à 3 pas passait ce garde-fou puis
@@ -151,6 +181,13 @@ def _demand(db, rule, seeds, last_A, band):
         floor = rule["bayes_floors"].get(name)
         # ceiling=None : deux bras au plafond = « n'a pas mordu » (spécificité SATISFAITE), pas « dégénéré » —
         # le contrat de tâche a déjà prouvé sur l'oracle que chaque must_bite mord.
+        # B3 (revue finale de branche, 2026-09-24) : `intervention_verified=True` est câblé ici, quel que
+        # soit `a["site"]` -- LÉGITIME pour les DEUX sites désormais : site="input" est garanti par la
+        # clause (c) d'`assert_task_contract` (chaque ablation d'entrée change l'observation, vérifié à la
+        # construction de la cellule) ; site="state" est garanti par la clause (L8) STATE_ABLATION_BITES
+        # d'`assert_learner_contract` (src/seed_ai/harness_learner.py) -- ajoutée pour fermer EXACTEMENT ce
+        # trou (B3) : un learner dont `ablate_state` rend l'état inchangé pour une Ablation de la tâche est
+        # refusé EN TÊTE par `run_harness_cell`, avant qu'aucun bras ne puisse produire une db ici lue.
         raw = ablation_verdict(last_A, ablated, floor=(floor if must else None), ceiling=None, n_floor=int(rule["n_floor"]),
                                collapse_factor=float(rule["collapse_factor"]), intervention_verified=True)
         in_band = bool(band[0] <= raw["ratio"] <= band[1])
@@ -189,7 +226,16 @@ def _demand(db, rule, seeds, last_A, band):
             if entry["alias"] is not None and entry["alias"]["alias_verdict"] != "SURGICAL":
                 _bump("INCONCLUSIVE_ALIAS", f"{name} : alias {entry['alias']['alias_verdict']}")
         elif raw["verdict"] != "X_DECOY":
-            _bump("INCONCLUSIVE_SPECIFICITY", f"{name} : contrôle de spécificité mord ({raw['verdict']}, ratio {raw['ratio']:.3f})")
+            # B2 (revue finale de branche, 2026-09-24) : « mord » dit ce qui est mesuré pour un contrôle
+            # qui s'EFFONDRE comme la vraie ablation -- mais un INCONCLUSIVE_INVERTED est un contrôle qui
+            # AMÉLIORE le bras au retrait, l'inverse d'un mordant. Dire la mesure, pas un mot générique.
+            if raw["verdict"] == "INCONCLUSIVE_INVERTED":
+                inv = 1.0 / max(raw["ratio"], 1e-9)
+                _bump("INCONCLUSIVE_SPECIFICITY",
+                     f"{name} : contrôle de spécificité AMÉLIORE le bras au retrait (ratio {raw['ratio']:.3f} "
+                     f"= {inv:.2f}x dans l'autre sens), pas un mordant classique")
+            else:
+                _bump("INCONCLUSIVE_SPECIFICITY", f"{name} : contrôle de spécificité mord ({raw['verdict']}, ratio {raw['ratio']:.3f})")
     return out, worst, whys.get(worst)
 
 
@@ -253,8 +299,15 @@ def _necessity(db, rule, seeds, last_A, last_D, ref, band):
     med_D = _med(last_D)
     in_band = bool(band[0] <= raw["ratio"] <= band[1])
     # CRITICAL 1, même discipline que `_demand` : les verdicts INCONCLUSIVE* ne sont JAMAIS relus comme
-    # NOT_NECESSARY, même quand le ratio tombe dans la bande de bruit -- seuls X_DEMANDED/X_DECOY/
-    # INCONCLUSIVE_INVERTED portent une conclusion binaire lisible.
+    # NOT_NECESSARY, même quand le ratio tombe dans la bande de bruit -- seuls X_DEMANDED/X_DECOY
+    # portent une conclusion binaire lisible.
+    # B2 (revue finale de branche, 2026-09-24) : INCONCLUSIVE_INVERTED lisait NOT_NECESSARY -- « aucun
+    # effet de l'ablation détecté » -- alors que c'est un effet MASSIF de signe INVERSE (retirer la
+    # pièce fait MONTER le bras) : la docstring d'`ablation_verdict` (tools/demand_marker.py:79-80) dit
+    # de ce verdict « ni demande, ni inertie -- à investiguer, JAMAIS lu pass », et son contre-exemple
+    # gelé (classe E3) est exactement un ratio inversé lu à tort comme un leurre inerte. Rejoint
+    # maintenant INCONCLUSIVE (comme INCONCLUSIVE_DEGENERATE) -- `_demand` route déjà ce même verdict
+    # vers DEMAND_INCONCLUSIVE, l'asymétrie était interne à ce fichier.
     if raw["verdict"] == "X_DEMANDED":
         if in_band:
             verdict = "NOT_NECESSARY"
@@ -268,16 +321,27 @@ def _necessity(db, rule, seeds, last_A, last_D, ref, band):
             else:
                 verdict = "PIECE_PARTIAL"
                 why = f"med(D) {med_D:.3f} > barre {ref + min_sep:.3f}, ratio {raw['ratio']:.2f}x hors bande"
-    elif raw["verdict"] in ("X_DECOY", "INCONCLUSIVE_INVERTED"):
+    elif raw["verdict"] == "X_DECOY":
         verdict = "NOT_NECESSARY"
         why = f"{raw['verdict']} (ratio {raw['ratio']:.3f}) : aucun effet de l'ablation détecté"
-    else:   # INCONCLUSIVE, INCONCLUSIVE_DEGENERATE
+    else:   # INCONCLUSIVE, INCONCLUSIVE_INVERTED, INCONCLUSIVE_DEGENERATE
         verdict = "INCONCLUSIVE"
-        why_suffix = f" -- {raw['why']}" if raw.get("why") else ""
-        why = f"{raw['verdict']} (ratio {raw['ratio']:.3f}){why_suffix}"
+        if raw["verdict"] == "INCONCLUSIVE_INVERTED":
+            inv = 1.0 / max(raw["ratio"], 1e-9)
+            why = (f"INCONCLUSIVE_INVERTED (ratio {raw['ratio']:.3f}) : la variante SANS la pièce fait "
+                  f"MIEUX ({inv:.2f}x dans l'autre sens) -- ni nécessité ni inertie, à investiguer")
+        else:
+            why_suffix = f" -- {raw['why']}" if raw.get("why") else ""
+            why = f"{raw['verdict']} (ratio {raw['ratio']:.3f}){why_suffix}"
     return {"verdict": verdict, "why": why, "ratio": raw["ratio"], "in_noise_band": in_band, "med_without": med_D,
             "per_seed_diff": [a - d for a, d in zip(last_A, last_D)], "raw": raw,
             "sham": ("DECLARED" if rule.get("matched_sham") else "PARAMS_NON_APPARIES"),
+            # C2 (revue finale de branche, 2026-09-24) : "sham"="DECLARED" dit qu'un bras sham EXISTE
+            # dans le registre PIECES, jamais qu'il a COURU -- `_ARMS` (module, ligne 47) n'a pas de bras
+            # sham, R1 n'en a exécuté aucun (record §7). `sham_arm_run` est une CONSTANTE tant que `_ARMS`
+            # ne porte pas de sixième bras -- un champ qui ne sait pas dit qu'il ne sait pas, jamais
+            # `sham`=DECLARED lu à tort comme « mesuré ».
+            "sham_arm_run": False,
             # Décision contrôleur (fix round 1) : PAS de `assert_bar_separates_the_incapable(bar, med_D)`
             # inconditionnel ici -- il lèverait sur la cellule PARTIAL par construction (le bras SANS la
             # pièce franchit déjà la barre, c'est exactement ce que PARTIAL encode). On PUBLIE le fait à

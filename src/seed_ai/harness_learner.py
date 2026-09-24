@@ -10,6 +10,14 @@ Décision contrôleur (tâche 2, 2026-09-16) — L4 (VACUOUS_PIECE) compare les 
 l'init : un apprenant tabulaire non entraîné rend des zéros avec ou sans sa table, et une pièce du CHEMIN DE
 CRÉDIT ne change rien à l'init. La variante « sans » subit donc les MÊMES n_learn pas d'apprentissage, sur les
 MÊMES épisodes, que l'intact — via `run_episode` + `learn`, exactement comme la boucle qui calibre (L2)/(L3).
+
+Fix B3 (revue finale de branche, 2026-09-24) — nouvelle clause (L8) STATE_ABLATION_BITES : un learner qui
+DÉCLARE une Ablation site="state" mais dont `ablate_state` rend l'état INCHANGÉ passait les deux contrats
+existants (`assert_task_contract` ignore tout site != "input" ; (L0) ne vérifie que l'appartenance du nom
+à `supported_state_ablations`) — `harness_verdict_lecture` lisait alors NOT_DEMANDED avant que la garde
+d'alias VACUOUS_ABLATION n'ait la moindre chance de protester. (L8) refuse EN TÊTE, avant tout run de
+cellule, en comparant `ablate_state(state_a, nom)` à `state_a` (l'état APRÈS un épisode entier, jamais
+`init_state()` nu — cf. docstring de `assert_learner_contract`).
 """
 import time
 from dataclasses import dataclass
@@ -92,6 +100,25 @@ def _fail(msg):
     raise PreflightError("assert_learner_contract : " + msg)
 
 
+def _states_differ(s0, s1) -> bool:
+    """Comparaison ROBUSTE pour (L8) : None vs non-None d'abord (un `ablate_state` qui rend `None` change
+    bien l'état), puis tenseur/tableau via la version numpy (`np.array_equal` -- `.detach().cpu()` pour un
+    tenseur torch d'abord), puis liste/tuple par égalité élément à élément, sinon `!=` générique. Rend
+    True si les deux DIFFÈRENT (jamais une comparaison d'identité d'objet, qui confondrait « même valeur »
+    avec « même objet en mémoire »)."""
+    if (s0 is None) != (s1 is None):
+        return True
+    if s0 is None and s1 is None:
+        return False
+    a0 = s0.detach().cpu().numpy() if hasattr(s0, "detach") else s0
+    a1 = s1.detach().cpu().numpy() if hasattr(s1, "detach") else s1
+    if hasattr(a0, "shape") or hasattr(a1, "shape"):
+        return not bool(np.array_equal(np.asarray(a0), np.asarray(a1)))
+    if isinstance(a0, (list, tuple)) and isinstance(a1, (list, tuple)):
+        return list(a0) != list(a1)
+    return bool(a0 != a1)
+
+
 def _logits_of(inst, ep):
     state = inst.init_state()
     out = None
@@ -121,7 +148,14 @@ def assert_learner_contract(learner, task, seed=0, n_probe=8, n_learn=5, pieces=
     subit les MÊMES n_learn pas d'apprentissage que l'intact puis diffère de lui sur >= 1 logit APRÈS coup —
     un apprenant tabulaire non entraîné rend des zéros avec ou sans sa table, comparer à l'init serait aveugle
     à toute pièce du chemin de crédit ; (L5) assert_no_aliasing(logits, state) ; (L6) entry_task non vide ;
-    (L7) len(sweep()) >= 2 pas distincts.
+    (L7) len(sweep()) >= 2 pas distincts ; (L8) STATE_ABLATION_BITES : pour chaque Ablation de la tâche dont
+    site == "state", `ablate_state(state_a, nom)` DIFFÈRE de `state_a` (l'état APRÈS un épisode entier
+    depuis `init_state()`, PAS `init_state()` lui-même -- comparer contre l'état initial serait DÉGÉNÉRÉ
+    pour un substrat dont `init_state()` rend des zéros et `ablate_state` aussi : zéro contre zéro ne mord
+    jamais). Sans (L8) : un learner qui DÉCLARE `state_reset` sans que `ablate_state` change réellement
+    l'état passait (L0) (qui ne vérifie que l'appartenance du nom) et (a) de `assert_task_contract` (qui
+    ignore tout site != "input"), et `harness_verdict_lecture` lisait NOT_DEMANDED avant que la garde
+    d'alias `VACUOUS_ABLATION` n'ait la moindre chance de protester (B3, revue finale de branche, 2026-09-24).
     `pieces` (défaut None = `learner.pieces`) restreint (L4) aux noms listés ; un nom absent de
     `learner.pieces` lève "(L4) pièce inconnue".
     Rend {"n_pieces", "reference_dparam", "elapsed_ms"}."""
@@ -174,6 +208,25 @@ def assert_learner_contract(learner, task, seed=0, n_probe=8, n_learn=5, pieces=
         inst_a.close()
         inst_c.close()
         _fail(f"(L5) {e}")
+    # (L8) STATE_ABLATION_BITES (finding B3, revue finale de branche, 2026-09-24) : une Ablation
+    # site="state" doit réellement changer l'état, sinon `piece_removed_verified`/`intervention_verified`
+    # (publiés True par cell.py/harness_verdict.py juste APRÈS ce contrat, jamais câblés à l'aveugle)
+    # seraient légitimés sans preuve. `state_a` (calculé pour (L5) ci-dessus) est l'état APRÈS le dernier
+    # `act()` d'un épisode entier depuis `init_state()` -- PAS `init_state()` lui-même : pour
+    # ConnectomeLearner, `init_state()` rend des zéros et `ablate_state(zeros, "state_reset")` rend
+    # `zeros_like(zeros)` = zeros -- comparer contre `init_state()` directement serait DÉGÉNÉRÉ (zéro
+    # contre zéro, aucune ablation ne pourrait jamais mordre ce test). `state_a` est déjà peuplé par un
+    # passage forward réel ; c'est lui que l'ablation doit changer.
+    for a in task.demand.ablations:
+        if a.site != "state":
+            continue
+        s_ablated = inst_a.ablate_state(state_a, a.name)
+        if not _states_differ(state_a, s_ablated):
+            inst_a.close()
+            inst_c.close()
+            _fail(f"(L8) STATE_ABLATION_BITES : ablate_state(état, {a.name!r}) rend un état IDENTIQUE à "
+                 "l'état d'origine -- l'ablation d'état ne mord pas ; piece_removed_verified serait "
+                 "publié sans qu'aucune intervention n'ait été mesurée")
     # (L3) l'intact apprend ; la même trace de logits post-apprentissage sert à (L4)
     dose_a = _learn_n_steps(inst_a, ep, task, n_learn)
     la_trained, _ = _logits_of(inst_a, ep)

@@ -68,14 +68,18 @@ class _CounterInstance:
 class CounterLearner:
     name, family, max_K = "counter", "toy", 64
     entry_task = "toy_parity"
-    supported_state_ablations = frozenset()
 
-    def __init__(self, vacuous_piece=False, aliased=False, dead=False, reference_learns=False, one_lr=False):
+    def __init__(self, vacuous_piece=False, aliased=False, dead=False, reference_learns=False, one_lr=False,
+                 supports_state_reset=False):
         self.pieces = (Piece("table", "test", "aucun", "aucune", None, "parity", {"table": True}, True, None, "absent"),
                        Piece("bias", "test", "aucun", "aucune", None, "parity", {"bias": True}, True, None, "absent"))
         if vacuous_piece:
             self.pieces += (Piece("decoy", "test", "aucun", "aucune", None, "parity", {"decoy": True}, True, None, "absent"),)
         self.aliased, self.dead, self.reference_learns, self.one_lr = aliased, dead, reference_learns, one_lr
+        # (L8) B3 : déclarer le support d'une ablation d'état SANS que `ablate_state` la fasse mordre --
+        # `_CounterInstance.ablate_state` (ci-dessus) est un NO-OP littéral (`return state`), exactement
+        # le contre-exemple gelé de STATE_ABLATION_BITES ci-dessous.
+        self.supported_state_ablations = frozenset({"state_reset"}) if supports_state_reset else frozenset()
 
     def sweep(self):
         return [{"lr": 1.0}] if self.one_lr else [{"lr": 1.0}, {"lr": 0.5}]
@@ -123,6 +127,14 @@ def test_L5_refuses_logits_that_alias_the_state():
 def test_L7_refuses_a_single_sweep_point():
     with pytest.raises(PreflightError, match="sweep"):
         assert_learner_contract(CounterLearner(one_lr=True), ToyParity())
+
+
+def test_L8_refuses_a_state_ablation_whose_ablate_state_is_a_no_op():
+    # B3 (revue finale de branche, 2026-09-24) : `_CounterInstance.ablate_state` est un NO-OP littéral
+    # (`return state`) -- un learner qui DÉCLARE supporter "state_reset" (L0 passe) sans que
+    # `ablate_state` change quoi que ce soit doit être refusé EN TÊTE, avant qu'aucune cellule ne tourne.
+    with pytest.raises(PreflightError, match="STATE_ABLATION_BITES"):
+        assert_learner_contract(CounterLearner(supports_state_reset=True), ToyParityT2())
 
 
 def test_run_episode_scores_with_the_task_verifier():

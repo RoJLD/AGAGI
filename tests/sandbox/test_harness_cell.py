@@ -265,6 +265,22 @@ def test_unit_s_given_is_published_and_never_measured(sealed, tmp_path, monkeypa
     assert saved["data"]["cost"]["unit_s_given"] == 0.01
 
 
+def test_machine_load_note_is_none_when_not_given_and_published_when_given(sealed, tmp_path, monkeypatch):
+    """C3 (revue finale de branche, 2026-09-24) : `cost.machine_load_note` publiait la CONSTANTE « charge
+    machine a noter dans le record (E12) » même quand aucune charge n'avait été mesurée par l'appelant --
+    un champ nommé comme une mesure qui ne le disait pas. Kwarg absent -> `None` (jamais la constante) ;
+    kwarg fourni -> la valeur telle quelle."""
+    monkeypatch.setenv("AGAGI_RESULTS_ROOT", str(tmp_path / "res"))
+    out = run_harness_cell(ToyParity(), TabularLearner(honest=True), "HARNESS-TOY", seeds=SEEDS, episodes=10,
+                           out_name="toy_load_absent", prereg_dir=sealed, n_agents=8, eval_batches=5)
+    assert out["cost"]["machine_load_note"] is None
+
+    out2 = run_harness_cell(ToyParity(), TabularLearner(honest=True), "HARNESS-TOY", seeds=SEEDS, episodes=10,
+                            out_name="toy_load_given", prereg_dir=sealed, n_agents=8, eval_batches=5,
+                            machine_load_note="0 processus python DU PROJET vus (test)")
+    assert out2["cost"]["machine_load_note"] == "0 processus python DU PROJET vus (test)"
+
+
 def test_abandoned_seed_is_counted_and_yields_INCONCLUSIVE_N(sealed, tmp_path, monkeypatch):
     monkeypatch.setenv("AGAGI_RESULTS_ROOT", str(tmp_path / "res"))
     t = {"now": 0.0}

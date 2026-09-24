@@ -116,7 +116,8 @@ def main(argv=None):
         out = run_harness_cell(task, learner, rule_name, seeds=SEEDS, episodes=int(c["episodes"]),
                                out_name=f"harness_r1_{key}", n_agents=int(c["n_agents"]),
                                eval_batches=int(c["eval_batches"]), budget_s=float(c["budget_s"]),
-                               unit_s=float(rule["smoke"]["unit_s"][key]), rule_path=["cellules", key])
+                               unit_s=float(rule["smoke"]["unit_s"][key]), rule_path=["cellules", key],
+                               machine_load_note=load_note)   # C3 : la charge MESURÉE, plus la constante
         v, cost = out["verdict"], out["cost"]
         observed_unit_s = cost["actual_s"] / 60.0     # 60 = len(seeds) x len(ARMS) -- même dénominateur
         # que le `n_units` de project_cost : moyenne observée par (seed, bras), comparable à l'unité

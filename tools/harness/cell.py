@@ -153,10 +153,15 @@ def _run_arm(task, learner, seed, n, K, hyper, episodes, eval_batches, *, withou
 
 
 def run_harness_cell(task, learner, rule_name, *, seeds, episodes, out_name, n_agents=16, eval_batches=40,
-                     budget_s=3600.0, unit_s=None, rule_path=None, prereg_dir=None, save=True, clock=None):
+                     budget_s=3600.0, unit_s=None, rule_path=None, prereg_dir=None, save=True, clock=None,
+                     machine_load_note=None):
     """Voir docstring de module. Rend {"db", "verdict", "path", "cost"}. `rule_path` (liste de clés, ex.
     ["cellules", "B"]) descend dans la règle scellée -- `verify` vérifie le sceau sur la règle ENTIÈRE ; la
-    sélection d'une sous-cellule est un indexage PUR, donc une clé absente lève KeyError avant tout le reste."""
+    sélection d'une sous-cellule est un indexage PUR, donc une clé absente lève KeyError avant tout le reste.
+    `machine_load_note` (C3, revue finale de branche, 2026-09-24) : chaîne MESURÉE par l'appelant (ex.
+    `run_r1.py::_machine_load_note`, `tools.jobs.doctor.project_processes()`) juste avant l'appel ; publiée
+    TELLE QUELLE dans `cost.machine_load_note`. Par défaut `None` -- jamais une constante qui prétend
+    « à noter » : un champ qui ne sait pas dit qu'il ne sait pas."""
     whole = verify(rule_name, _dir=prereg_dir)
     rule = whole
     if rule_path:
@@ -283,7 +288,7 @@ def run_harness_cell(task, learner, rule_name, *, seeds, episodes, out_name, n_a
                                 "rule": rule},
             "provenance": prov, "db": db, "verdict": verdict,
             "cost": {"unit_s_measured": unit_measured, "unit_s_given": unit_s, "projected_s": projected,
-                     "actual_s": clock() - t0, "machine_load_note": "charge machine a noter dans le record (E12)"}}
+                     "actual_s": clock() - t0, "machine_load_note": machine_load_note}}
     path = None
     if save:
         h = Harness(seed=seeds[0], name=out_name, with_db=False)

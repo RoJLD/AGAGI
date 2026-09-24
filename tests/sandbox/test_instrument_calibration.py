@@ -1269,9 +1269,12 @@ CALIBRATED = {
         "t2-mask-seq:content-diff-control:passes", "t2-mask-seq:mask-only-control:not-bit-identical",
         "no-change-control:raises", "target-changed:raises", "mask-seq-aliased:raises"],
     # Cas dans tests/sandbox/test_harness_learner.py.
+    # B3 (revue finale de branche, 2026-09-24) : (L8) STATE_ABLATION_BITES -- un learner qui DÉCLARE
+    # supporter une ablation d'état sans que `ablate_state` la fasse mordre (no-op littéral) doit être
+    # refusé EN TÊTE, avant qu'aucune cellule ne tourne.
     "src/seed_ai/harness_learner.py::assert_learner_contract": [
         "counter:passes-L0-L7", "L0:max_K", "L2:REFERENCE_LEARNS", "L3:DEAD_LEARNER", "L4:VACUOUS_PIECE",
-        "L4:pieces-scoped", "L5:aliasing", "L7:single-sweep"],
+        "L4:pieces-scoped", "L5:aliasing", "L7:single-sweep", "L8:state-ablation-no-op:raises"],
     # `run_episode` (motif `run\w*`) : instrument PARTAGE par la garde et le futur runner -- il tourne
     # une politique sur un episode et rend (actions, hits) via task.score (le VERIFIEUR, jamais l'oracle,
     # E1). Revue fix-round-1 (2026-09-16) : la declaration initiale listait DEUX libelles portes par
@@ -1340,6 +1343,12 @@ CALIBRATED = {
     # re-ruling (necessite+E19 doivent tourner AVANT la demande sur le chemin ACQUIS -- LR_ARTIFACT/
     # INDETERMINE_HARNAIS sont plus severes que toute branche de demande dans l'ORDRE 2.3-b, 1 cas) ;
     # MINOR (sweep a 3 pas -> ValueError au lieu d'un KeyError illisible, 1 cas).
+    # Fixes de la revue finale de branche (2026-09-24) : B1 (validate_rule exige >=1 must_bite=True ET
+    # >=1 must_bite=False dans rule.ablations -- 3 cas, dont le positif deja couvert par les cas existants
+    # ci-dessus qui portent tous une regle a ablations mixtes) ; B2 (INCONCLUSIVE_INVERTED de _necessity
+    # rejoint INCONCLUSIVE -> PIECE_INCONCLUSIVE au lieu de NOT_NECESSARY, 1 cas ; libelle de
+    # _demand:INCONCLUSIVE_SPECIFICITY corrige pour un controle qui AMELIORE le bras, 1 cas) ; C2 (sham
+    # vs sham_arm_run, jamais fusionnes, 1 cas calibre les deux sens).
     "src/seed_ai/harness_verdict.py::harness_verdict_lecture": [
         "branch-order",                             # test_branch_order_is_the_sealed_one
         "cellA:PIECE_PARTIAL",                       # test_cell_A_known_answer_is_PARTIAL_with_ceiling_above_bar
@@ -1370,7 +1379,13 @@ CALIBRATED = {
         "rule:duplicate-lrs:raises",                 # test_duplicate_lrs_in_sweep_raises_ValueError_not_LR_ARTIFACT
         "rule:short-provenance:raises",              # test_short_provenance_raises_ValueError_not_CEILING_ABOVE_BAR
         "acquisition:bar-separates",                 # test_incapable_ceiling_below_the_bar_is_SEPARATES
-        "acquisition:ceiling-unvalidated"],          # test_incapable_ceiling_none_is_CEILING_UNVALIDATED
+        "acquisition:ceiling-unvalidated",           # test_incapable_ceiling_none_is_CEILING_UNVALIDATED
+        "rule:no-must-bite-true:raises",             # test_empty_ablations_raises_ValueError_not_DEMANDED_ACQUIRED_NECESSARY
+        "rule:only-decoy:raises",                    # test_only_a_decoy_ablation_raises_ValueError
+        "rule:only-bite-no-decoy:raises",            # test_only_a_biting_ablation_raises_ValueError_no_specificity_control
+        "necessity:inverted",                        # test_necessity_that_improves_without_the_piece_is_PIECE_INCONCLUSIVE_not_NOT_NECESSARY
+        "INCONCLUSIVE_SPECIFICITY:inverted",         # test_a_control_that_improves_the_arm_says_what_was_measured_not_generic_mord
+        "sham:declared-vs-arm-run"],                 # test_sham_declared_is_never_confused_with_a_sham_arm_that_ran
     "src/seed_ai/harness_verdict.py::measure_noise_floor": [
         "band:min-max",                              # test_noise_floor_band_is_min_max_of_paired_ratios
         "empty:raises",                              # test_nan_and_empty_raise_instead_of_fabricating
