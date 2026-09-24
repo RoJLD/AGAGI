@@ -1,0 +1,23 @@
+[provenance] {'git_sha': '4657766140f891b8fa7cdac0a8e3f3752c127faf', 'dirty': True, 'rule': 'HARNESS-R1-bis', 'seal': '54f2f1de4123d44180001e55a24088d9805279b623f6ba812dc78eb385cd2e91'}
+[charge machine, AVANT le run] 13 processus python.exe vus (tasklist) avant le run -- E12, tout wall-clock qui suit est un MAJORANT sous cette charge
+[design du lanceur] {'question': "Le harnais à trois conditions rend-il, sur les trois cellules PORTÉES à réponse connue, PARTIAL (A), NOT_NECESSARY (A') et NECESSARY (B) ?", 'replication_unit': 'seed', 'n_independent': 12, 'links': {'ablation->chute': 'measured', 'analogue_bio': 'inferred', 'dose->acquisition': 'measured', 'sans_piece->chute': 'measured'}, 'inferred_links': ['analogue_bio'], 'cost_estimate': None, 'inferred_reason': "l'analogue biologique d'une pièce est une hypothèse portée par le registre (spec §2.6), jamais mesurée ici", 'control_family': {'cells': 20, 'alpha_family': 0.05, 'alpha_cell': 0.0025, 'method': 'bonferroni', 'reason': None, 'fwer_bound': 0.05}, 'warning': "1 maillon(s) INFÉRÉ(S) : ['analogue_bio']. Une chaîne causale transporte son signe, pas son amplitude — vérifier que le régime place l'effet au-dessus du bruit, ou mesurer à n réduit."}
+  seed  2 bras D: ABANDONNE (cout wall-clock) : harness_r1_A seed 2: 96.5s > budget 96.3s
+  seed  2 bras D2: ABANDONNE (cout wall-clock) : harness_r1_A seed 2: 97.0s > budget 96.3s
+  seed  3 bras A0: ABANDONNE (cout wall-clock) : harness_r1_A seed 3: 96.4s > budget 96.3s
+  seed  3 bras A2: ABANDONNE (cout wall-clock) : harness_r1_A seed 3: 96.4s > budget 96.3s
+  seed  3 bras D: ABANDONNE (cout wall-clock) : harness_r1_A seed 3: 96.5s > budget 96.3s
+  seed  3 bras D2: ABANDONNE (cout wall-clock) : harness_r1_A seed 3: 96.6s > budget 96.3s
+[A] verdict=INCONCLUSIVE_N  branch=INCONCLUSIVE_N
+      why : 10 seeds complets < n_floor=12 (abandons : {'A0': [3], 'A2': [3], 'D': [2, 3], 'D2': [2, 3]})
+      -> results/harness_r1_A_0.json
+      cout : unite_donnee=6.423s  projete=1156.2s  reel=507.3s (8.5 min)  |  13 processus python.exe vus (tasklist) avant le run -- E12, tout wall-clock qui suit est un MAJORANT sous cette charge
+[Aprime] verdict=LR_ARTIFACT  branch=LR_ARTIFACT
+      why : nécessité de la pièce : nul NON robuste au pas -> artefact d'hyperparamètre, PAS un verdict de capacité. L'écart au bras de référence se REFERME de 100.0% sur le balayage (lr=0.002 : écart 0.1336 -> lr=0.02 : écart 0 ; seuil 66.7%). Le bras testé REJOINT sa référence quand on change SEULEMENT le réglage : le réglage est un FACTEUR du verdict. Rejouer, ou refuser le verdict.
+      -> results/harness_r1_Aprime_0.json
+      cout : unite_donnee=3.345s  projete=602.1s  reel=85.9s (1.4 min)  |  13 processus python.exe vus (tasklist) avant le run -- E12, tout wall-clock qui suit est un MAJORANT sous cette charge
+  seed  0 bras D2: ABANDONNE (cout wall-clock) : harness_r1_B seed 0: 257.4s > budget 257.2s
+[B] verdict=INCONCLUSIVE_N  branch=INCONCLUSIVE_N
+      why : 11 seeds complets < n_floor=12 (abandons : {'D2': [0]})
+      -> results/harness_r1_B_0.json
+      cout : unite_donnee=17.147s  projete=3086.5s  reel=1089.3s (18.2 min)  |  13 processus python.exe vus (tasklist) avant le run -- E12, tout wall-clock qui suit est un MAJORANT sous cette charge
+EXITCODE:0

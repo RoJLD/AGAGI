@@ -46,11 +46,11 @@ ablation ; `sep_ref` (mediane A - mediane A0) ; `dose.updates` par bras ; `noise
 ## 2. E12 en acte
 
 Le premier run réel (`HARNESS-R1-bis`, 2026-09-22 après-midi) a tourné sous une charge mesurée par **UNE
-seule lecture globale `tasklist`** (« 13 processus python.exe vus avant le run », `scratchpad_run_r1.log`,
+seule lecture globale `tasklist`** (« 13 processus python.exe vus avant le run », `results/harness_r1_run_bis.log`,
 répétée TELLE QUELLE pour les trois cellules) — PAS par `tools.jobs.doctor.project_processes()` lu au
 départ de chaque cellule : cette lecture PAR CELLULE, scopée au PROJET (hors éditeurs/extensions, hors
 moi-même et mes ancêtres), n'existe que depuis `-ter`, où elle a rendu **0 / 0 / 0** avant chacune des
-trois cellules (`scratchpad_run_r1_ter.log`). Le chiffre « 9 processus python concurrents » cité en §1
+trois cellules (`results/harness_r1_run_ter.log`). Le chiffre « 9 processus python concurrents » cité en §1
 vient du RULING scellé dans `raison_ter` (texte du contrôleur), pas d'une mesure directement enregistrée
 dans le log `-bis` — E12 : un chiffre de coût se lit avec sa charge, et la charge se mesure LÀ où elle est
 mesurée. La `CostGuard` PAR SEED de `-bis` vaut `budget_s / 12` = 15 × l'unité scellée du smoke
