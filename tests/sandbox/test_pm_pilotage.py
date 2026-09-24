@@ -3,8 +3,11 @@
 EXEMPTION DÉCLARÉE de la garde de bail : aucun test ici ne simule un monde ni ne prend de bail."""
 import json
 import os
+import shutil
 import subprocess
 import sys
+
+import pytest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
@@ -171,45 +174,64 @@ def test_un_lecteur_absent_rend_None_jamais_un_defaut(tmp_path):
     assert P.read_backlog(str(tmp_path)) is None
 
 
-def test_read_board_et_read_roles_counts_TROUVENT_le_depot_COMMUN_depuis_un_worktree(tmp_path, monkeypatch):
-    """CRITIQUE 1 : `pilotage.py` était le SEUL module de `tools/pm/` à ne pas appeler
-    `snapshot.ancrer_data_root()`. Depuis un worktree, `paths.pm_dir(...)` rend un chemin RELATIF que
-    `_ancre` joignait à la racine du WORKTREE — où `BOARD.json`/`ROLES_COUNTS.json` n'existent PAS, même
-    quand ils existent dans le dépôt COMMUN. Contre-exemple gelé : un dépôt jetable + un worktree lié,
-    les deux fichiers écrits côté dépôt COMMUN, lus depuis le worktree.
+def _git_jetable(*args, cwd):
+    """`git` pour un dépôt JETABLE : aucune variable `GIT_*` héritée (un crochet pose `GIT_INDEX_FILE` /
+    `GIT_DIR`, le dépôt jetable en hériterait et écrirait dans l'index du vrai dépôt) et une identité
+    passée par `-c`, LOCALE à la commande — jamais écrite dans une configuration."""
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    return subprocess.run(["git", "-c", "user.name=pilotage-test", "-c", "user.email=pilotage@test.invalid",
+                           *args], cwd=str(cwd), check=True, capture_output=True, encoding="utf-8", env=env)
 
-    Isolation : sentinelle setenv PUIS delenv (le seul enchaînement qui enregistre une restauration
-    monkeypatch pour une clé jusque-là ABSENTE — cf. `test_pm_snapshot.py`), sinon l'écriture RAW que fait
-    `ancrer_data_root()` sur `os.environ` fuit vers les tests suivants de la session."""
-    monkeypatch.setenv("AGAGI_DATA_ROOT", "sentinelle-a-effacer")
-    monkeypatch.delenv("AGAGI_DATA_ROOT", raising=False)
 
+def _depot_commun_et_worktree(tmp_path, monkeypatch):
+    """Un dépôt jetable (un commit) + un worktree lié ; `BOARD.json` et `ROLES_COUNTS.json` écrits dans
+    l'arbre PRINCIPAL jetable, jamais dans le worktree. Environnement nettoyé : `AGAGI_DATA_ROOT` et les
+    variables `GIT_*` qui détourneraient `git rev-parse` sont retirées par la sentinelle setenv PUIS
+    delenv (le seul enchaînement qui enregistre une restauration monkeypatch pour une clé jusque-là
+    ABSENTE — cf. `test_pm_snapshot.py`)."""
+    for v in ("AGAGI_DATA_ROOT", "GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_COMMON_DIR"):
+        monkeypatch.setenv(v, "sentinelle-a-effacer")
+        monkeypatch.delenv(v, raising=False)
     depot = tmp_path / "depot"
     depot.mkdir()
-    _git = lambda *a: subprocess.run(["git", *a], cwd=str(depot), check=True, capture_output=True,
-                                     encoding="utf-8")
-    _git("init", "-q", "-b", "main")
-    _git("config", "user.email", "t@t")
-    _git("config", "user.name", "t")
+    _git_jetable("init", "-q", "-b", "main", cwd=depot)
     (depot / "a.md").write_text("x", encoding="utf-8")
-    _git("add", "a.md")
-    _git("commit", "-q", "-m", "init")
-
+    _git_jetable("add", "a.md", cwd=depot)
+    _git_jetable("commit", "-q", "-m", "init", cwd=depot)
     wt = tmp_path / "wt"
-    subprocess.run(["git", "worktree", "add", "-q", "-b", "chantier/ancre-pilotage", str(wt)],
-                   cwd=str(depot), check=True, capture_output=True, encoding="utf-8")
+    _git_jetable("worktree", "add", "-q", "-b", "chantier/ancre-pilotage", str(wt), cwd=depot)
 
     pm_dir = depot / "data" / "pm"
     pm_dir.mkdir(parents=True)
     (pm_dir / "BOARD.json").write_text(json.dumps({"generated_at": NOW, "sessions": []}), encoding="utf-8")
     (pm_dir / "ROLES_COUNTS.json").write_text(json.dumps({"ratio_science_methodo": 1.0}), encoding="utf-8")
+    assert not (wt / "data").exists(), "le worktree jetable ne doit porter AUCUN data/ : sinon rien n'est testé"
+    return depot, wt
 
+
+def test_read_board_SEUL_trouve_le_BOARD_du_depot_COMMUN_depuis_un_worktree(tmp_path, monkeypatch):
+    """CRITIQUE 1, lecteur par lecteur. Depuis un worktree, `paths.pm_dir(...)` rend un chemin RELATIF
+    que `_ancre` joignait à la racine du WORKTREE — où `BOARD.json` n'existe PAS, même quand il existe
+    dans le dépôt COMMUN.
+
+    F1 : l'ancien test enchaînait `read_board` PUIS `read_roles_counts` ; la re-revue a mesuré que l'ancrage
+    du second était MASQUÉ par l'ordre (le premier posait `AGAGI_DATA_ROOT` pour tout le processus). Chaque
+    lecteur est donc appelé SEUL, dans un environnement nettoyé, sur son propre dépôt jetable."""
+    _depot, wt = _depot_commun_et_worktree(tmp_path, monkeypatch)
     board = P.read_board(str(wt))
-    roles = P.read_roles_counts(str(wt))
     assert board is not None and board["sessions"] == [], (
         f"read_board(worktree) devait trouver le BOARD.json du dépôt COMMUN : {board}")
+    assert "AGAGI_DATA_ROOT" not in os.environ, "l'ancrage doit être une résolution PURE (F1)"
+
+
+def test_read_roles_counts_SEUL_trouve_ROLES_COUNTS_du_depot_COMMUN_depuis_un_worktree(tmp_path, monkeypatch):
+    """Pendant du précédent pour `read_roles_counts`, appelé SEUL — aucun autre lecteur ne tourne avant
+    lui dans ce test, donc aucun ancrage d'un autre lecteur ne peut le couvrir."""
+    _depot, wt = _depot_commun_et_worktree(tmp_path, monkeypatch)
+    roles = P.read_roles_counts(str(wt))
     assert roles is not None and roles["ratio_science_methodo"] == 1.0, (
         f"read_roles_counts(worktree) devait trouver le ROLES_COUNTS.json du dépôt COMMUN : {roles}")
+    assert "AGAGI_DATA_ROOT" not in os.environ, "l'ancrage doit être une résolution PURE (F1)"
 
 
 def test_backlog_VIDE_est_ILLISIBLE_jamais_un_backlog_de_zero_entree():
@@ -236,15 +258,51 @@ def test_backlog_SANS_AUCUNE_TETE_reconnue_est_ILLISIBLE():
 def test_tete_indentee_rompt_la_PARITE_et_devient_une_ligne_aveugle_jamais_une_exception():
     """Minor (revue finale) : `_ENTREE` exige `^\\*\\*` ancré en tout DÉBUT de ligne, `compter_entrees`
     matche sur `ln.strip()` -- une tête INDENTÉE est comptée par le second, invisible pour le premier :
-    `parse_roadmap` lève une `AssertionError` de parité qui, non rattrapée, remontait jusqu'au `except`
-    du service et aveuglait TOUT (flotte, portes, charge compris), pas seulement le backlog."""
+    `parse_roadmap` lève une erreur de parité qui, non rattrapée, remontait jusqu'au `except` du service et
+    aveuglait TOUT (flotte, portes, charge compris), pas seulement le backlog.
+
+    F11 : l'erreur est une `ValueError` EXPLICITE, plus une `AssertionError` — sous `python -O` un `assert`
+    disparaît (cf. le test suivant). L'assertion cherche le NOUVEAU type, à force égale."""
     txt = "  **P9.9 — OUVERTE (2026-09-01) — tête indentée de deux espaces.**\nCorps.\n"
     out = P.compute_pilotage(None, txt, None, None, [], NOW, repo_root=P.racine_depot(),
                              board={"sessions": []})
     assert out["roadmap"] is None, out["roadmap"]
-    assert any("backlog" in a and "AssertionError" in a for a in out["aveugle"]), out["aveugle"]
+    assert any("backlog" in a and "ValueError" in a for a in out["aveugle"]), out["aveugle"]
     assert out["portes"] == [], "le reste du pilotage ne doit PAS être aveuglé par le backlog"
     assert out["flotte"] is not None, "le reste du pilotage ne doit PAS être aveuglé par le backlog"
+
+
+_DEUX_TETES_PLUS_UNE_INDENTEE = ("**P9.1 — OUVERTE (2026-09-01) — une.**\nCorps.\n\n"
+                                 "**P9.2 — OUVERTE (2026-09-02) — deux.**\nCorps.\n\n"
+                                 "  **P9.3 — OUVERTE (2026-09-03) — indentée, perdue par _ENTREE.**\nCorps.\n")
+
+
+def test_parite_rompue_LEVE_ValueError_meme_sous_python_O(tmp_path):
+    """F11 : la parité reposait sur un `assert`. Sous `python -O` il disparaît : un backlog à 2 têtes
+    valides plus 1 tête indentée sortait avec `blocs = 2` SANS ligne d'aveuglement — l'entrée indentée
+    perdue en silence (forme (c) du registre : une troncature qui ne lève jamais). Le contre-exemple tourne
+    dans un interpréteur `-O` RÉEL (drapeau vérifié), pas dans celui de pytest."""
+    src = tmp_path / "backlog.md"
+    src.write_text(_DEUX_TETES_PLUS_UNE_INDENTEE, encoding="utf-8")
+    code = ("import sys\n"
+            "sys.path.insert(0, sys.argv[1])\n"
+            "from tools.pm import pilotage as P\n"
+            "txt = open(sys.argv[2], encoding='utf-8').read()\n"
+            "print('optimize', sys.flags.optimize)\n"
+            "try:\n"
+            "    out = P.parse_roadmap(txt, sys.argv[1], 0.0, evaluer_clause=lambda p, a: (True, None))\n"
+            "    print('PAS DE LEVEE blocs', out['comptes']['blocs'])\n"
+            "except Exception as exc:\n"
+            "    print('LEVEE', type(exc).__name__)\n")
+    env = dict(os.environ, PYTHONIOENCODING="utf-8")
+    r = subprocess.run([sys.executable, "-O", "-c", code, P.racine_depot(), str(src)], capture_output=True,
+                       encoding="utf-8", env=env, timeout=120)
+    lignes = r.stdout.strip().splitlines()
+    assert lignes[:1] == ["optimize 1"], (r.stdout, r.stderr)
+    assert lignes[1:] == ["LEVEE ValueError"], (r.stdout, r.stderr)
+    with pytest.raises(ValueError, match="parité rompue"):
+        P.parse_roadmap(_DEUX_TETES_PLUS_UNE_INDENTEE, P.racine_depot(), NOW,
+                        evaluer_clause=lambda p, a: (True, None))
 
 
 def test_portes_agi_perdues_SANS_backlog_est_DIT_quand_records_graph_est_present():
@@ -255,6 +313,64 @@ def test_portes_agi_perdues_SANS_backlog_est_DIT_quand_records_graph_est_present
     out = P.compute_pilotage(None, None, rg, None, None, NOW, repo_root=P.racine_depot())
     assert out["roadmap"] is None
     assert any("portes_agi" in a for a in out["aveugle"]), out["aveugle"]
+
+
+def test_records_graph_SANS_cle_roadmap_le_DIT_jamais_un_None_muet():
+    """F9 : backlog valide et `records_graph` présent mais SANS clé `roadmap` -> `portes_agi` valait `None`
+    avec un `aveugle` VIDE. Une absence n'est jamais une mesure : elle se NOMME."""
+    out = P.compute_pilotage(None, _BACKLOG_SYNTH, {"graph": {}}, None, None, NOW, repo_root=P.racine_depot())
+    assert out["roadmap"] is not None and out["roadmap"]["comptes"]["blocs"] == 5
+    assert out["roadmap"]["portes_agi"] is None
+    assert any(a.startswith("portes_agi") and "roadmap" in a for a in out["aveugle"]), out["aveugle"]
+
+
+@pytest.mark.parametrize("rg", [{"roadmap": []}, {"roadmap": "G0"}, {"roadmap": None}, [1], "x"])
+def test_records_graph_de_FORME_inattendue_n_aveugle_que_portes_agi(rg):
+    """F3, couche 2 : `records_graph.json` est une source ÉTRANGÈRE (writer : `check_record_links`). Un
+    `roadmap` non-dict passait tel quel dans `Roadmap.portes_agi` et la validation de la route levait HORS
+    du filet du service (500) ; un graphe non-dict faisait lever `.get` et aveuglait TOUT le pilotage. Seul
+    `portes_agi` tombe, avec une ligne nommée ; la roadmap du backlog reste servie."""
+    out = P.compute_pilotage(None, _BACKLOG_SYNTH, rg, None, [], NOW, repo_root=P.racine_depot(),
+                             board={"generated_at": NOW, "sessions": []})
+    assert out["roadmap"] is not None and out["roadmap"]["comptes"]["blocs"] == 5
+    assert out["roadmap"]["portes_agi"] is None
+    assert any(("portes_agi" in a or "graphe de records" in a) and "inattendue" in a
+               for a in out["aveugle"]), out["aveugle"]
+    assert out["flotte"] is not None and out["portes"] == []
+
+
+def test_fichiers_INDISPONIBLES_ne_publient_pas_le_zero_FABRIQUE_de_ROLES_COUNTS():
+    """F10 : `roles_counts.compute_counts` rend `fichiers = {science: 0, methodo: 0, autre: 0}` quand git est
+    muet, et le DIT dans le drapeau voisin `fichiers_disponibles = False`. Le pilotage recopiait `fichiers`
+    sans lire le drapeau : un zéro fabriqué publié. Les deux entrées sont produites par le VRAI
+    `compute_counts` (jamais un drapeau réinventé) : `None` pour git muet, une liste pour le contrôle."""
+    from tools.pm.roles_counts import compute_counts
+    muet = compute_counts([], None, NOW)
+    assert muet["fichiers_disponibles"] is False and muet["fichiers"] == {"science": 0, "methodo": 0, "autre": 0}
+    out = P.compute_pilotage(None, None, None, muet, None, NOW, repo_root=P.racine_depot())
+    assert out["charge"] is not None and out["charge"]["fichiers"] is None, out["charge"]
+    assert any("fichiers_disponibles" in a for a in out["aveugle"]), out["aveugle"]
+
+    temoin = compute_counts([], ["docs/EDR/x.md", "tools/check_y.py"], NOW)
+    assert temoin["fichiers_disponibles"] is True
+    ok = P.compute_pilotage(None, None, None, temoin, None, NOW, repo_root=P.racine_depot())
+    assert ok["charge"]["fichiers"] == {"science": 1, "methodo": 1, "autre": 0}
+    assert not any("fichiers_disponibles" in a for a in ok["aveugle"]), ok["aveugle"]
+
+
+@pytest.mark.parametrize("rc", [[1], "x", 3])
+def test_ROLES_COUNTS_de_FORME_inattendue_n_aveugle_que_ses_champs(rc):
+    """Même classe que I4 : un `ROLES_COUNTS.json` non-dict faisait lever `.get` dans `compute_pilotage` et
+    aveuglait TOUT le pilotage via le filet du service. Il est ILLISIBLE, jamais « introuvable » ; la charge
+    connue du board, elle, reste servie."""
+    board = {"generated_at": NOW, "sessions": [],
+             "charge_connue": {"sims_en_vol": 0, "cpu_pct": 5.0, "bails_vivants": []}}
+    out = P.compute_pilotage(None, _BACKLOG_SYNTH, None, rc, None, NOW, repo_root=P.racine_depot(), board=board)
+    assert out["roadmap"] is not None and out["flotte"] is not None
+    assert out["charge"] is not None and out["charge"]["cpu_pct"] == 5.0
+    assert out["charge"]["ratio_science_methodo"] is None and out["charge"]["fichiers"] is None
+    assert any("ROLES_COUNTS" in a and "inattendue" in a for a in out["aveugle"]), out["aveugle"]
+    assert not any("ROLES_COUNTS" in a and "introuvable" in a for a in out["aveugle"]), out["aveugle"]
 
 
 def test_racine_ETRANGERE_nomme_la_racine_jamais_un_fichier_absent(tmp_path):
@@ -270,6 +386,38 @@ def test_racine_ETRANGERE_nomme_la_racine_jamais_un_fichier_absent(tmp_path):
     assert "introuvable" not in out["aveugle"][0] and "illisible" not in out["aveugle"][0], out["aveugle"]
     assert out["flotte"] is None and out["roadmap"] is None
     assert out["portes"] is None and out["charge"] is None
+
+
+def test_racine_qui_porte_le_HOOK_SEUL_est_AGAGI_avec_un_backlog_ABSENT(tmp_path):
+    """F5 (ruling du contrôleur) : la garde de santé ne se déclenche que si la racine ne porte NI le backlog
+    NI le hook. Une racine qui porte l'un des deux est AGAGI avec un fichier manquant — l'accident E22 que
+    ce dépôt a déjà subi — et c'est la ligne PAR SOURCE qui doit le NOMMER. Avant : `not (A and B)` disait
+    « racine suspecte » et mettait flotte/portes/charge à `None`, sources saines comprises."""
+    (tmp_path / "tools" / "hooks").mkdir(parents=True)
+    shutil.copyfile(os.path.join(P.racine_depot(), "tools", "hooks", "pre-commit"),
+                    str(tmp_path / "tools" / "hooks" / "pre-commit"))
+    racine = str(tmp_path)
+    out = P.compute_pilotage(None, P.read_backlog(racine), None, None, P.read_portes(racine), NOW,
+                             repo_root=racine, board={"generated_at": NOW, "sessions": []})
+    assert not any("suspecte" in a for a in out["aveugle"]), out["aveugle"]
+    assert any("PRIORITES_ET_DETTES.md" in a and "introuvable" in a for a in out["aveugle"]), out["aveugle"]
+    assert out["portes"] is not None and len(out["portes"]) > 0, "portes calculé depuis le hook copié"
+    assert out["flotte"] is not None and out["roadmap"] is None
+
+
+def test_racine_qui_porte_le_BACKLOG_SEUL_est_AGAGI_avec_un_hook_ABSENT(tmp_path):
+    """Symétrique du précédent : le backlog seul -> la roadmap est calculée, la ligne nomme le hook absent,
+    aucune « racine suspecte »."""
+    (tmp_path / "docs" / "roadmap").mkdir(parents=True)
+    (tmp_path / "docs" / "roadmap" / "PRIORITES_ET_DETTES.md").write_text(_BACKLOG_SYNTH, encoding="utf-8")
+    racine = str(tmp_path)
+    out = P.compute_pilotage(None, P.read_backlog(racine), None, None, P.read_portes(racine), NOW,
+                             repo_root=racine, board={"generated_at": NOW, "sessions": []})
+    assert not any("suspecte" in a for a in out["aveugle"]), out["aveugle"]
+    assert any("pre-commit" in a for a in out["aveugle"]), out["aveugle"]
+    assert out["portes"] is None
+    assert out["roadmap"] is not None and out["roadmap"]["comptes"]["blocs"] == 5
+    assert out["flotte"] is not None
 
 
 def test_board_NON_DICT_est_ILLISIBLE_ne_nuit_pas_au_reste_du_pilotage():
@@ -293,6 +441,55 @@ def test_board_generated_at_NON_NUMERIQUE_est_ILLISIBLE_ne_nuit_pas_au_reste_du_
     assert out["flotte"] is None
     assert any("flotte" in a for a in out["aveugle"]), out["aveugle"]
     assert out["roadmap"] is not None and out["roadmap"]["comptes"]["blocs"] == 5
+
+
+@pytest.mark.parametrize("board,mot", [
+    ({"generated_at": NOW, "sessions": [], "charge_connue": [1]}, "charge_connue"),     # AttributeError : tout aveuglé
+    ({"generated_at": NOW, "sessions": [], "charge_connue": []}, "charge_connue"),      # charge tout à None SANS ligne
+    ({"generated_at": NOW, "sessions": [], "charge_connue": "x"}, "charge_connue"),
+    ({"generated_at": NOW, "sessions": [], "aveugle": 5}, "aveugle"),                   # TypeError
+    ({"generated_at": NOW, "sessions": [], "aveugle": "abc"}, "aveugle"),               # « flotte: a », « b »…
+    ({"generated_at": NOW, "sessions": [], "aveugle": ["ok", 3]}, "aveugle"),
+    ({"generated_at": True, "sessions": []}, "generated_at"),                           # âge absurde : now - 1.0
+    ({"generated_at": float("nan"), "sessions": []}, "generated_at"),                   # âge nan
+    ({"generated_at": float("inf"), "sessions": []}, "generated_at"),
+])
+def test_board_de_FORME_inattendue_aveugle_la_flotte_SEULE_et_le_NOMME(board, mot):
+    """F8 : `_board_valide` ne regardait que le type racine et `generated_at`. Chaque cas est une sonde
+    MESURÉE par la re-revue (commentaire en regard) : une exception qui aveuglait tout, une charge à `None`
+    sans ligne, trois lignes fabriquées depuis une chaîne, un âge absurde ou `nan` publié. Verdict commun :
+    la flotte est ILLISIBLE et le dit en nommant le champ ; la roadmap reste servie."""
+    out = P.compute_pilotage(None, _BACKLOG_SYNTH, None, None, None, NOW, repo_root=P.racine_depot(),
+                             board=board)
+    assert out["flotte"] is None
+    assert any(a.startswith("flotte :") and "BOARD.json" in a and mot in a for a in out["aveugle"]), out["aveugle"]
+    assert not any(a.startswith("flotte: ") for a in out["aveugle"]), "aucune ligne recopiée d'un aveugle malformé"
+    assert out["charge"] is None, "ni flotte lisible ni ROLES_COUNTS : aucune charge, jamais des None muets"
+    assert out["roadmap"] is not None and out["roadmap"]["comptes"]["blocs"] == 5
+
+
+def test_board_SANS_generated_at_est_servi_avec_une_ligne_AGE_INCONNU():
+    """F8 : un board sans `generated_at` rendait `flotte_age_s = None` SANS ligne. Il reste servi (le reste
+    de son contenu est lisible), mais l'âge inconnu se DIT."""
+    board = {"sessions": [], "aveugle": [], "charge_connue": {"sims_en_vol": 0, "cpu_pct": 5.0, "bails_vivants": []}}
+    out = P.compute_pilotage(None, None, None, None, None, NOW, repo_root=P.racine_depot(), board=board)
+    assert out["flotte"] == board
+    assert out["charge"]["flotte_age_s"] is None
+    assert any("âge inconnu" in a and "generated_at" in a for a in out["aveugle"]), out["aveugle"]
+    avec = dict(board, generated_at=NOW - 60.0)
+    ok = P.compute_pilotage(None, None, None, None, None, NOW, repo_root=P.racine_depot(), board=avec)
+    assert ok["charge"]["flotte_age_s"] == 60.0
+    assert not any("âge inconnu" in a for a in ok["aveugle"]), ok["aveugle"]
+
+
+def test_board_SANS_charge_connue_le_DIT():
+    """Même classe que F8/F9 : un board lisible mais sans `charge_connue` rendait `sims_en_vol`, `cpu_pct` et
+    `bails_vivants` à `None` sans un mot — trois inconnues présentées comme des valeurs."""
+    board = {"generated_at": NOW, "sessions": [], "aveugle": []}
+    out = P.compute_pilotage(None, None, None, None, None, NOW, repo_root=P.racine_depot(), board=board)
+    assert out["flotte"] == board
+    assert out["charge"]["sims_en_vol"] is None and out["charge"]["cpu_pct"] is None
+    assert any("charge_connue" in a for a in out["aveugle"]), out["aveugle"]
 
 
 def test_les_lecteurs_ANCRENT_le_chemin_relatif_de_paths(tmp_path, monkeypatch):

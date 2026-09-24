@@ -213,9 +213,14 @@ portant `.git` — rend CE répertoire. Mesuré le 2026-09-24 depuis un `git ini
 jetable, pas AGAGI. Le pilotage deviendrait alors entièrement aveugle **en accusant les bons fichiers d'être absents** :
 le négatif FABRIQUÉ que le principe 3 interdit. Deux règles, les deux exigées : (a) la racine s'ancre sur le MODULE
 (`Path(__file__).resolve().parents[2]` depuis `tools/pm/pilotage.py`), `find_repo_root` en repli seulement ;
-(b) **garde de santé déclarée** — si la racine retenue ne porte pas `docs/roadmap/PRIORITES_ET_DETTES.md` ET
+(b) **garde de santé déclarée** — si la racine retenue ne porte **NI** `docs/roadmap/PRIORITES_ET_DETTES.md` **NI**
 `tools/hooks/pre-commit`, la sortie porte une ligne `aveugle` qui **NOMME la racine résolue**, jamais un « fichier
-absent ». Contre-exemple gelé : un cwd étranger portant `.git`.
+absent ». Les DEUX témoins doivent manquer : une racine qui porte l'un des deux est AGAGI avec un fichier absent —
+l'accident de classe E22 (un fichier anéanti ou supprimé) que ce dépôt a déjà subi —, et ce sont alors les lignes
+PAR SOURCE qui le nomment ; déclencher la garde sur un seul témoin manquant dirait « racine suspecte » et mettrait
+flotte, portes et charge à `null`, sources saines comprises (mesuré par la re-revue du 2026-09-24). Contre-exemple
+gelé : un cwd étranger portant `.git` ; contre-exemples de spécificité : une racine portant le hook seul, puis le
+backlog seul.
 
 ⚠️ **Les accesseurs de `src/paths.py` rendent un chemin RELATIF quand aucune variable d'environnement n'est posée**
 (mesuré le 2026-09-24, environnement nettoyé : `paths.results_file("records_graph.json")` → `results/records_graph.json`,

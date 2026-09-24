@@ -307,11 +307,14 @@ class PilotageV1(BaseModel):
     `response_model` IGNORE en silence une clé qu'il ne déclare pas (`model_config` par défaut n'est pas
     `extra="forbid"`), il ne lève pas dessus. Le vrai risque qu'un modèle nommé introduirait est un
     changement de TYPE d'un champ existant (le board rend un `str` là où le modèle attend un nombre, par
-    exemple) : LÀ, pydantic lève une `ValidationError` — HORS du `try/except` du service, une seconde
-    source d'erreur que les modes dégradés ne couvrent pas. `roadmap`, `portes` et `charge`, eux, sont le
-    contrat de `tools/pm/pilotage.py` LUI-MÊME (même dépôt, même commit) : les typer en modèles nommés ne
-    court pas ce risque de la même façon, et le frontend en a besoin (sinon `openapi-typescript` rend
-    `{[key: string]: unknown}`, inutilisable sous `tsconfig strict`).
+    exemple) : LÀ, pydantic lève une `ValidationError` à la sérialisation de la réponse, HORS du
+    `try/except` du service. `roadmap`, `portes` et `charge` sont typés en modèles nommés parce que le
+    frontend en a besoin (sinon `openapi-typescript` rend `{[key: string]: unknown}`, inutilisable sous
+    `tsconfig strict`) — et ils COURENT ce risque : `charge` recopie des champs de `BOARD.json` et de
+    `ROLES_COUNTS.json`, `roadmap.portes_agi` recopie `records_graph.json`, trois sources que
+    `tools/pm/pilotage.py` ne possède pas (mesuré : un seul champ de type inattendu donnait un 500). Le
+    service valide donc chaque bloc contre CE modèle, dans son filet, et un bloc refusé devient `null` plus
+    une ligne `aveugle` qui le nomme (`backend/app/services/pilotage_service.py`).
     ⚠️ `schema` masque un attribut de `BaseModel` en pydantic v2 : d'où l'alias.
     """
     model_config = ConfigDict(populate_by_name=True)

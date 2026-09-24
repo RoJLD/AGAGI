@@ -1,7 +1,10 @@
+import copy
 import json
 import os
+import subprocess
 import time
 
+import pytest
 from fastapi.testclient import TestClient
 
 from backend.app.main import app, _resolve_cors_origins
@@ -425,16 +428,49 @@ def test_flatland_server_does_not_reuse_a_CLOSED_event_loop() -> None:
         asyncio.set_event_loop(asyncio.new_event_loop())
 
 
+def _sources_du_pilotage() -> tuple[str, dict[str, str]]:
+    """Chemins des cinq sources du pilotage, construits SANS les lecteurs de `tools/pm/pilotage.py` (F2).
+
+    La racine vient de CE fichier de test, le dépôt commun d'un appel `git rev-parse --git-common-dir`
+    fait ICI, et les chemins relatifs de l'accesseur `src.paths` (ou d'`AGAGI_DATA_ROOT` si elle est
+    posée) — jamais de `read_board` / `read_roles_counts` / `read_records_graph`, qui sont l'instrument
+    sous test : un lecteur qui rend faussement `None` ferait juger la source absente et SAUTER
+    l'assertion (oracle circulaire, prouvé par la re-revue sous la reversion de C1)."""
+    from src import paths
+
+    racine = os.path.dirname(os.path.dirname(os.path.abspath(__file__))).replace("\\", "/")
+    commun = subprocess.run(["git", "rev-parse", "--git-common-dir"], cwd=racine, capture_output=True,
+                            encoding="utf-8", check=True).stdout.strip()
+    if not os.path.isabs(commun):
+        commun = os.path.join(racine, commun)
+    racine_commune = os.path.dirname(os.path.realpath(commun))
+    base_pm = racine if os.environ.get("AGAGI_DATA_ROOT") else racine_commune
+
+    def _ancre(base: str, rel: str) -> str:
+        return rel if os.path.isabs(rel) else os.path.join(base, rel)
+
+    return racine, {
+        "PRIORITES_ET_DETTES.md": os.path.join(racine, "docs", "roadmap", "PRIORITES_ET_DETTES.md"),
+        "records_graph.json": _ancre(racine, paths.results_file("records_graph.json")),
+        "ROLES_COUNTS.json": _ancre(base_pm, paths.pm_dir("ROLES_COUNTS.json")),
+        "BOARD.json": _ancre(base_pm, paths.pm_dir("BOARD.json")),
+        "pre-commit": os.path.join(racine, "tools", "hooks", "pre-commit"),
+    }
+
+
 def test_pilotage_endpoint_rend_le_schema() -> None:
-    """IMPORTANT 5 : les quatre assertions d'origine (200, schéma, `generated_at` numérique, `aveugle`
-    liste) sont satisfaites par le dict de MODE DÉGRADÉ du service lui-même -- c'est ce test qui a
-    « couvert » le défaut C1 (BOARD.json/ROLES_COUNTS.json faussement introuvables) pendant tout le lot.
-    Renforcé : `_vider_cache()` en entrée (le cache est un état de PROCESSUS -- un réordonnancement lui
-    ferait servir la réponse d'erreur laissée par un autre test), un bloc NON `null` (la roadmap est
-    TOUJOURS calculable dans ce dépôt) et aucune ligne `aveugle` ne doit nommer une source qui existe
-    pourtant sur le disque."""
+    """Bout-en-bout sur la vraie app et les vraies sources. Les quatre assertions d'origine (200, schéma,
+    `generated_at` numérique, `aveugle` liste) sont satisfaites par le dict de MODE DÉGRADÉ du service
+    lui-même ; `_vider_cache()` en entrée (le cache est un état de PROCESSUS), la roadmap NON `null` (elle
+    est TOUJOURS calculable dans ce dépôt) et aucune ligne `aveugle` ne doit nommer une source dont le
+    fichier EXISTE.
+
+    Ce que ce test vérifie, et rien de plus : la PRÉSENCE est jugée par `os.path.isfile` sur des chemins
+    construits hors de `pilotage.py` (`_sources_du_pilotage`). Sur une machine où `BOARD.json` et
+    `ROLES_COUNTS.json` existent (dépôt commun), il rougit si le service les déclare absents — prouvé sous
+    la mutation « ancrer sur `repo_root` » (F2). Là où ils n'existent pas (CI), leur branche ne juge rien :
+    l'ancrage y est tenu par les tests hermétiques de `tests/sandbox/test_pm_pilotage.py`."""
     from backend.app.services import pilotage_service as ps
-    from tools.pm import pilotage as P
 
     ps._vider_cache()
     r = client.get("/api/pm/pilotage")
@@ -445,19 +481,38 @@ def test_pilotage_endpoint_rend_le_schema() -> None:
     assert isinstance(d["aveugle"], list)
     assert d["roadmap"] is not None, f"la roadmap est TOUJOURS calculable dans ce dépôt : {d['aveugle']}"
 
-    racine = P.racine_depot()
-    sources_presentes = {
-        "PRIORITES_ET_DETTES.md": os.path.isfile(
-            os.path.join(racine, "docs", "roadmap", "PRIORITES_ET_DETTES.md")),
-        "records_graph.json": P.read_records_graph(racine) is not None,
-        "ROLES_COUNTS.json": P.read_roles_counts(racine) is not None,
-        "BOARD.json": P.read_board(racine) is not None,
-        "pre-commit": os.path.isfile(os.path.join(racine, "tools", "hooks", "pre-commit")),
-    }
-    for nom, present in sources_presentes.items():
-        if present:
+    racine, chemins = _sources_du_pilotage()
+    assert d["repo_root"] == racine, (d["repo_root"], racine)
+    for nom, chemin in chemins.items():
+        if os.path.isfile(chemin):
             assert not any(nom in a for a in d["aveugle"]), (
-                f"ligne aveugle nommant {nom!r} alors que ce fichier EXISTE sur le disque : {d['aveugle']}")
+                f"ligne aveugle nommant {nom!r} alors que {chemin} EXISTE sur le disque : {d['aveugle']}")
+
+
+def test_pilotage_n_ecrit_JAMAIS_AGAGI_DATA_ROOT_dans_l_environnement(monkeypatch) -> None:
+    """F1, contre-exemple GELÉ : `read_board` et `read_roles_counts` appelaient `ancrer_data_root`, qui
+    ÉCRIT `os.environ["AGAGI_DATA_ROOT"]`. Dans un CLI court c'est un choix ; dans le processus uvicorn,
+    mesuré par la re-revue, UN poll faisait basculer `paths.data_root()` / `paths.db_root()` (KuzuDB,
+    génomes, HoF) vers le `data/` COMMUN pour TOUT le processus, et tout enfant lancé avec
+    `os.environ.copy()` en héritait. L'ancrage doit être une résolution PURE.
+
+    Isolation : sentinelle setenv PUIS delenv, pour qu'une écriture éventuelle soit défaite en fin de test
+    et ne fuie pas vers la suite de la session."""
+    from backend.app.services import pilotage_service as ps
+    from tools.pm import pilotage as P
+
+    monkeypatch.setenv("AGAGI_DATA_ROOT", "sentinelle-a-effacer")
+    monkeypatch.delenv("AGAGI_DATA_ROOT", raising=False)
+    racine = P.racine_depot()
+    P.read_board(racine)
+    assert "AGAGI_DATA_ROOT" not in os.environ, f"read_board a ÉCRIT l'environnement : {os.environ['AGAGI_DATA_ROOT']}"
+    P.read_roles_counts(racine)
+    assert "AGAGI_DATA_ROOT" not in os.environ, (
+        f"read_roles_counts a ÉCRIT l'environnement : {os.environ['AGAGI_DATA_ROOT']}")
+    ps._vider_cache()
+    ps.get_pilotage()
+    assert "AGAGI_DATA_ROOT" not in os.environ, (
+        f"get_pilotage a ÉCRIT l'environnement : {os.environ['AGAGI_DATA_ROOT']}")
 
 
 def test_pilotage_le_POLL_ne_recalcule_JAMAIS_le_snapshot(monkeypatch) -> None:
@@ -503,10 +558,19 @@ def test_pilotage_un_lecteur_qui_leve_devient_une_ligne_aveugle_jamais_un_500(mo
 def test_pilotage_frais_est_REFUSE_quand_une_simulation_est_en_vol(monkeypatch) -> None:
     """IMPORTANT 6 (spec §5) : `?frais=1` pendant qu'une simulation tourne doit être REFUSÉ et DIT, jamais
     silencieux -- et le refus se juge sur le DERNIER tableau CONNU (`BOARD.json`), jamais sur un nouveau
-    `snapshot()` (18 s, exactement le coût que le refus évite d'engager)."""
+    `snapshot()` (18 s, exactement le coût que le refus évite d'engager).
+
+    F4 : le `raise` seul ne verrouillait rien. Mesuré par la re-revue : un mutant qui ajoute la ligne de
+    refus mais OUBLIE `effectif = False` appelle `snapshot()`, dont l'exception est avalée par le filet du
+    service (200) — le test restait VERT. C'est le piège déjà payé sur ce lot (31785f77) : « faire lever »
+    s'inverse en aval d'un filet d'exception ; seul un compteur incrémenté AVANT le `raise` survit. D'où
+    `appels == 0` et aucune ligne `pilotage:` (la trace du filet)."""
     from backend.app.services import pilotage_service as ps
 
+    appels = {"n": 0}
+
     def _interdit(*a, **k):
+        appels["n"] += 1
         raise AssertionError("snapshot() a été appelé alors que sims_en_vol > 0 -- le refus doit l'éviter")
 
     monkeypatch.setattr(ps, "snapshot", _interdit)
@@ -518,6 +582,8 @@ def test_pilotage_frais_est_REFUSE_quand_une_simulation_est_en_vol(monkeypatch) 
     assert r.status_code == 200
     d = r.json()
     assert any("frais" in a and "refus" in a.lower() for a in d["aveugle"]), d["aveugle"]
+    assert appels["n"] == 0, "snapshot() a été APPELÉ malgré le refus -- le filet du service l'a masqué"
+    assert not any(a.startswith("pilotage:") for a in d["aveugle"]), d["aveugle"]
 
 
 def test_pilotage_frais_PROCEDE_quand_aucune_simulation_n_est_en_vol(monkeypatch) -> None:
@@ -544,6 +610,174 @@ def test_pilotage_frais_PROCEDE_quand_aucune_simulation_n_est_en_vol(monkeypatch
     d = r.json()
     assert appels["n"] == 1, "frais=1 sans simulation en vol doit appeler snapshot() (pas de refus)"
     assert not any("refus" in a.lower() for a in d["aveugle"]), d["aveugle"]
+    assert not any("SANS mesure de charge" in a for a in d["aveugle"]), "la charge a été MESURÉE (0 sim)"
+
+
+def _faux_snapshot_rapide(appels):
+    def _snap(racine):
+        appels["n"] += 1
+        return {"now": time.time(), "repo_root": racine, "psutil": False, "registry": None,
+                "bulletins": None, "worktrees": None, "commits": None, "leases": None,
+                "processes": None, "cpu_pct": None, "backlog_paths": None, "hook_errors": None}
+    return _snap
+
+
+@pytest.mark.parametrize("dernier", [
+    None,                                                                          # BOARD.json absent
+    [1, 2],                                                                        # illisible
+    {"generated_at": 1.0, "sessions": [], "charge_connue": {"sims_en_vol": None}},  # charge non mesurée
+    {"generated_at": 1.0, "sessions": [], "charge_connue": {"sims_en_vol": True}},  # un booléen n'est pas un compte
+])
+def test_pilotage_frais_SANS_mesure_de_charge_est_ACCEPTE_mais_DIT(monkeypatch, dernier) -> None:
+    """F6 : sans dernier tableau lisible, `frais=1` lançait le recalcul de 15-18 s sans dire que la charge
+    était INCONNUE — un refus se prononce sur une mesure, donc l'absence de mesure n'est pas un refus, mais
+    elle ne passe pas pour un « 0 simulation en vol » : elle se dit."""
+    from backend.app.services import pilotage_service as ps
+
+    appels = {"n": 0}
+    monkeypatch.setattr(ps, "snapshot", _faux_snapshot_rapide(appels))
+    monkeypatch.setattr(ps.pilotage, "read_board", lambda racine: copy.deepcopy(dernier))
+    ps._vider_cache()
+    r = client.get("/api/pm/pilotage?frais=1")
+    assert r.status_code == 200
+    d = r.json()
+    assert appels["n"] == 1, "sans mesure, frais=1 n'est pas refusé"
+    assert any("SANS mesure de charge" in a and "aveugle" in a for a in d["aveugle"]), d["aveugle"]
+    assert not any(a.startswith("pilotage:") for a in d["aveugle"]), d["aveugle"]
+
+
+def test_pilotage_racine_depot_qui_LEVE_devient_une_ligne_aveugle_jamais_un_500(monkeypatch) -> None:
+    """F7 : `racine_depot()` était appelé HORS du filet d'exception — monkeypatché pour lever, il donnait
+    un 500. En mode dégradé, `repo_root` porte la racine si elle a été résolue, `None` sinon (ici)."""
+    from backend.app.services import pilotage_service as ps
+
+    def _boum():
+        raise RuntimeError("racine casse")
+
+    monkeypatch.setattr(ps.pilotage, "racine_depot", _boum)
+    ps._vider_cache()
+    r = client.get("/api/pm/pilotage")
+    assert r.status_code == 200, "une exception ne doit jamais devenir un 500"
+    d = r.json()
+    assert d["aveugle"] and d["aveugle"][0].startswith("pilotage:") and "racine casse" in d["aveugle"][0]
+    assert d["repo_root"] is None
+    assert d["flotte"] is None and d["roadmap"] is None and d["portes"] is None and d["charge"] is None
+
+
+def test_pilotage_lecture_de_charge_qui_LEVE_sous_frais_jamais_un_500(monkeypatch) -> None:
+    """F7 : `_sims_en_vol_dernier_tableau` était lui aussi hors du filet. La racine, résolue AVANT
+    l'exception, est portée par le mode dégradé ; `snapshot()` n'est pas atteint."""
+    from backend.app.services import pilotage_service as ps
+    from tools.pm import pilotage as P
+
+    appels = {"n": 0}
+
+    def _boum(racine):
+        raise RuntimeError("tableau casse")
+
+    monkeypatch.setattr(ps, "_sims_en_vol_dernier_tableau", _boum)
+    monkeypatch.setattr(ps, "snapshot", _faux_snapshot_rapide(appels))
+    ps._vider_cache()
+    r = client.get("/api/pm/pilotage?frais=1")
+    assert r.status_code == 200, "une exception ne doit jamais devenir un 500"
+    d = r.json()
+    assert d["aveugle"][0].startswith("pilotage:") and "tableau casse" in d["aveugle"][0], d["aveugle"]
+    assert d["repo_root"] == P.racine_depot()
+    assert appels["n"] == 0
+
+
+def _json_ou_none(chemin):
+    try:
+        with open(chemin, encoding="utf-8") as fh:
+            return json.load(fh)
+    except (OSError, ValueError):
+        return None
+
+
+def _donnees_de_base():
+    """Copie des données RÉELLES (lues par `_sources_du_pilotage`, jamais par les lecteurs sous test) ; en
+    CI, où `data/pm/` n'existe pas, un tableau et des compteurs SYNTHÉTIQUES de même forme que ceux du
+    tick PM (`board.compute`, `roles_counts.compute_counts`), pour que le test tourne partout."""
+    _racine, chemins = _sources_du_pilotage()
+    board = _json_ou_none(chemins["BOARD.json"])
+    if not (isinstance(board, dict) and isinstance(board.get("charge_connue"), dict)):
+        board = {"generated_at": time.time(), "repo_root": _racine, "aveugle": [], "sessions": [],
+                 "sessions_mortes": [], "alertes": [],
+                 "charge_connue": {"sims_en_vol": 0, "cpu_pct": 5.0, "bails_vivants": ["pm"]},
+                 "worktrees": [], "bails": None}
+    roles = _json_ou_none(chemins["ROLES_COUNTS.json"])
+    if not isinstance(roles, dict):
+        roles = {"generated_at": time.time(), "depuis": "2026-09-16",
+                 "fenetre": {"depuis": "2026-08-25", "jours": 30}, "alertes": {"emises": 0},
+                 "fichiers": {"science": 2, "methodo": 2, "autre": 1}, "ratio_science_methodo": 1.0,
+                 "fichiers_disponibles": True}
+    graphe = _json_ou_none(chemins["records_graph.json"])
+    if not (isinstance(graphe, dict) and isinstance(graphe.get("roadmap"), dict)):
+        graphe = {"roadmap": {"G0": {"status": "validated"}}}
+    return board, roles, graphe
+
+
+def _servir(monkeypatch, board, roles, graphe):
+    from backend.app.services import pilotage_service as ps
+
+    monkeypatch.setattr(ps.pilotage, "read_board", lambda racine: board)
+    monkeypatch.setattr(ps.pilotage, "read_roles_counts", lambda racine: roles)
+    monkeypatch.setattr(ps.pilotage, "read_records_graph", lambda racine: graphe)
+    ps._vider_cache()
+    return client.get("/api/pm/pilotage")
+
+
+@pytest.mark.parametrize("source,champ,valeur", [
+    ("board", "cpu_pct", "n/a"),
+    ("board", "bails_vivants", [{"x": 1}]),
+    ("board", "sims_en_vol", 1.5),
+    ("roles", "ratio_science_methodo", "inf"),
+    ("roles", "fenetre", 30),
+    ("roles", "fichiers", {"science": None, "methodo": 1, "autre": 2}),
+])
+def test_pilotage_un_champ_de_TYPE_inattendu_n_aveugle_que_charge_jamais_un_500(monkeypatch, source, champ,
+                                                                              valeur) -> None:
+    """F3 : `Charge` recopie des champs de `BOARD.json` et de `ROLES_COUNTS.json`, sources qui
+    n'appartiennent pas à `pilotage.py`. Mesuré par la re-revue : UN champ de type inattendu donnait un 500
+    à la sérialisation de la réponse, APRÈS le filet du service, sans ligne d'aveuglement. Chaque cas part
+    d'une copie des données réelles avec UN SEUL champ changé : 200, `charge` à `null`, une ligne qui NOMME
+    le bloc, les autres blocs servis."""
+    board, roles, graphe = _donnees_de_base()
+    if source == "board":
+        board["charge_connue"][champ] = valeur
+    else:
+        roles[champ] = valeur
+    r = _servir(monkeypatch, board, roles, graphe)
+    assert r.status_code == 200, "un refus du modèle de la route ne doit jamais devenir un 500"
+    d = r.json()
+    assert d["charge"] is None, d["charge"]
+    assert any(a.startswith("charge") and "refus" in a for a in d["aveugle"]), d["aveugle"]
+    assert d["flotte"] is not None and d["roadmap"] is not None and d["portes"] is not None
+
+
+def test_pilotage_portes_agi_de_FORME_inattendue_n_aveugle_que_portes_agi(monkeypatch) -> None:
+    """F3 : `Roadmap.portes_agi` recopie `records_graph["roadmap"]` — source étrangère. Une liste à la place
+    du dict donnait un 500. `portes_agi` seul tombe à `null`, NOMMÉ ; la roadmap du backlog reste servie."""
+    board, roles, graphe = _donnees_de_base()
+    graphe["roadmap"] = []
+    r = _servir(monkeypatch, board, roles, graphe)
+    assert r.status_code == 200, "un refus du modèle de la route ne doit jamais devenir un 500"
+    d = r.json()
+    assert d["roadmap"] is not None and d["roadmap"]["portes_agi"] is None
+    assert any("portes_agi" in a for a in d["aveugle"]), d["aveugle"]
+    assert d["flotte"] is not None and d["portes"] is not None and d["charge"] is not None
+
+
+def test_pilotage_controle_la_copie_INTACTE_des_donnees_est_servie_sans_refus(monkeypatch) -> None:
+    """Contrôle des deux tests précédents : la MÊME copie, sans champ changé, est servie en entier — sinon
+    un refus serait l'effet du dispositif, pas du champ modifié."""
+    board, roles, graphe = _donnees_de_base()
+    r = _servir(monkeypatch, board, roles, graphe)
+    assert r.status_code == 200
+    d = r.json()
+    assert not any("refus" in a for a in d["aveugle"]), d["aveugle"]
+    assert all(d[k] is not None for k in ("flotte", "roadmap", "portes", "charge")), d["aveugle"]
+    assert d["roadmap"]["portes_agi"] == graphe["roadmap"]
 
 
 def test_pilotage_cache_sous_le_TTL(monkeypatch) -> None:

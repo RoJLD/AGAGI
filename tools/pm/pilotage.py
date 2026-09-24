@@ -7,6 +7,7 @@ jamais un zéro : elle est `None` PLUS une ligne `aveugle` (porte 14 appliquée 
 """
 import argparse
 import json
+import math
 import os
 import re
 import sys
@@ -44,7 +45,9 @@ def parse_roadmap(txt, repo_root, now, evaluer_clause=None):
     """Entrées du backlog, lues avec les MÊMES regex que le cliquet (jamais un motif réinventé).
 
     ⚠️ La parité de compte porte sur les BLOCS : `compter_entrees` compte des LIGNES de tête, donc une
-    tête composite `P2.0 / P2.1` vaut UN. Les entrées sont dupliquées par numéro APRÈS l'assertion.
+    tête composite `P2.0 / P2.1` vaut UN. Les entrées sont dupliquées par numéro APRÈS la vérification.
+    Parité rompue -> `ValueError` EXPLICITE, jamais un `assert` : sous `python -O` un `assert` disparaît,
+    et un backlog à une tête indentée sortait alors TRONQUÉ sans un mot (F11).
 
     ⚠️ `evaluer_clause` est injectable parce que `_evalue_clause` ne prend AUCUNE racine : il juge contre
     le `_ROOT` de son module et exige que le fichier soit SUIVI par git (et lit l'INDEX sous
@@ -61,8 +64,9 @@ def parse_roadmap(txt, repo_root, now, evaluer_clause=None):
         fin = bornes[i + 1][0] if i + 1 < len(bornes) else len(txt)
         blocs.append({"i": i, "deb": deb, "fin": fin, "corps": txt[deb:fin], "brut": brut})
 
-    assert len(blocs) == compter_entrees(txt), (
-        f"parité rompue : {len(blocs)} blocs contre {compter_entrees(txt)} têtes comptées par le cliquet")
+    tetes = compter_entrees(txt)
+    if len(blocs) != tetes:
+        raise ValueError(f"parité rompue : {len(blocs)} blocs contre {tetes} têtes comptées par le cliquet")
 
     entrees, illisibles = [], 0
     for b in blocs:
@@ -205,20 +209,32 @@ def read_records_graph(repo_root):
     return _lire_json(_ancre(repo_root, paths.results_file("records_graph.json")))
 
 
+def _racine_des_donnees_pm(repo_root):
+    """Base où ancrer un chemin RELATIF de `paths.pm_dir` — résolution PURE, aucune écriture d'environnement.
+
+    Même sémantique que `snapshot.ancrer_data_root` (qui pose `AGAGI_DATA_ROOT = <racine commune>/data`,
+    c.-à-d. le défaut relatif joint à la racine COMMUNE), sans son effet de bord : si `AGAGI_DATA_ROOT` est
+    posée, `paths.pm_dir` en tient compte et un chemin encore relatif s'ancre sur `repo_root` comme avant ;
+    sinon il s'ancre sur la racine COMMUNE à tous les worktrees (`git rev-parse --git-common-dir`), et sur
+    `repo_root` si git est muet. ⚠️ F1 : l'appel à `ancrer_data_root` vivait ici, donc dans le processus
+    uvicorn — mesuré, UN poll faisait basculer `paths.data_root()` / `paths.db_root()` (KuzuDB, génomes,
+    HoF) vers le `data/` COMMUN pour tout le processus et ses enfants."""
+    if os.environ.get("AGAGI_DATA_ROOT"):
+        return repo_root
+    from tools.pm.snapshot import racine_commune
+    return racine_commune(repo_root) or repo_root
+
+
 def read_roles_counts(repo_root):
     from src import paths
-    from tools.pm.snapshot import ancrer_data_root
-    ancrer_data_root(repo_root)   # AVANT tout paths.* : sinon un worktree lit SON propre data/ (jamais le COMMUN)
-    return _lire_json(_ancre(repo_root, paths.pm_dir("ROLES_COUNTS.json")))
+    return _lire_json(_ancre(_racine_des_donnees_pm(repo_root), paths.pm_dir("ROLES_COUNTS.json")))
 
 
 def read_board(repo_root):
     """Le cache du tick PM. ⚠️ Écrit par `json.dump(..., default=str)` (tools/pm/tick.py) : ce qui revient
     est un ALLER-RETOUR JSON, pas le dict de `board.compute`."""
     from src import paths
-    from tools.pm.snapshot import ancrer_data_root
-    ancrer_data_root(repo_root)   # AVANT tout paths.* : sinon un worktree lit SON propre data/ (jamais le COMMUN)
-    return _lire_json(_ancre(repo_root, paths.pm_dir("BOARD.json")))
+    return _lire_json(_ancre(_racine_des_donnees_pm(repo_root), paths.pm_dir("BOARD.json")))
 
 
 def read_portes(repo_root):
@@ -272,24 +288,44 @@ def _racine_saine(racine):
     Garde de santé (spec §3.1) : sans elle, une racine mal résolue (un `--repo-root` étranger, un cwd qui
     porte un `.git` sans être AGAGI) fait accuser CHAQUE fichier d'être absent, un par un, sans jamais
     nommer la vraie cause. Mesuré depuis un `tempfile.mkdtemp()` : cinq lignes « introuvable », zéro ligne
-    nommant la racine."""
+    nommant la racine.
+
+    ⚠️ Les DEUX témoins doivent manquer (F5, ruling du contrôleur). Une racine qui porte l'un des deux est
+    AGAGI avec un fichier absent — l'accident E22 que ce dépôt a déjà subi — et ce sont les lignes PAR
+    SOURCE qui le nomment ; `not (A and B)` y disait « racine suspecte » et mettait flotte, portes et
+    charge à `None`, sources saines comprises."""
     return (os.path.isfile(os.path.join(racine, "docs", "roadmap", "PRIORITES_ET_DETTES.md"))
-            and os.path.isfile(os.path.join(racine, "tools", "hooks", "pre-commit")))
+            or os.path.isfile(os.path.join(racine, "tools", "hooks", "pre-commit")))
 
 
-def _board_valide(board):
-    """`False` si `board` n'a pas la FORME d'un tableau PM : un `board` non-dict (`AttributeError` sur
-    `.get`) ou dont `generated_at` n'est pas numérique (`ValueError` plus loin, sur `now - float(gen)`)
-    est une source ILLISIBLE, jamais une exception qui aveugle roadmap/portes/charge avec lui (I4)."""
+def _board_refus(board):
+    """`None` si `board` a la FORME d'un tableau PM, sinon la RAISON (une chaîne) de le déclarer illisible.
+
+    I4 puis F8 : chaque forme refusée a été MESURÉE comme un défaut — `board` non-dict ou `charge_connue`
+    non-dict (`AttributeError` sur `.get`, tout aveuglé ; `charge_connue = []` rendait la charge tout à
+    `None` SANS ligne), `aveugle` non-liste (`aveugle = 5` : `TypeError` ; `"abc"` : trois lignes
+    « flotte: a/b/c » fabriquées), `generated_at` non numérique, booléen (âge absurde) ou non fini (âge
+    `nan`, puis un 500 à la sérialisation JSON). Une clé ABSENTE (ou `null`) n'est pas un refus : elle est
+    dite plus loin, dans le bloc qu'elle prive."""
     if not isinstance(board, dict):
-        return False
+        return f"racine de type {type(board).__name__}"
     gen = board.get("generated_at")
     if gen is not None:
+        if isinstance(gen, bool):
+            return "generated_at booléen"
         try:
-            float(gen)
+            valeur = float(gen)
         except (TypeError, ValueError):
-            return False
-    return True
+            return f"generated_at non numérique ({type(gen).__name__})"
+        if not math.isfinite(valeur):
+            return f"generated_at non fini ({valeur})"
+    cc = board.get("charge_connue")
+    if cc is not None and not isinstance(cc, dict):
+        return f"charge_connue de type {type(cc).__name__}"
+    av = board.get("aveugle")
+    if av is not None and not (isinstance(av, list) and all(isinstance(a, str) for a in av)):
+        return f"aveugle n'est pas une liste de chaînes ({type(av).__name__})"
+    return None
 
 
 def compute_pilotage(snap, backlog_txt, records_graph, roles_counts, portes, now, repo_root=None,
@@ -319,15 +355,21 @@ def compute_pilotage(snap, backlog_txt, records_graph, roles_counts, portes, now
         from tools.pm.board import compute as board_compute
         flotte = board_compute(snap, now=now)
     elif board is not None:
-        if _board_valide(board):
+        refus = _board_refus(board)
+        if refus is None:
             flotte = board
         else:
-            aveugle.append(f"flotte : BOARD.json de forme inattendue ({type(board).__name__}) -- "
-                            "illisible, jamais une exception qui aveugle roadmap/portes/charge avec lui")
+            aveugle.append(f"flotte : BOARD.json de forme inattendue ({refus}) -- illisible, jamais une "
+                            "exception qui aveugle roadmap/portes/charge avec lui")
     else:
         aveugle.append("flotte : ni instantané ni BOARD.json — le tick PM n'a pas encore tourné")
     if flotte is not None:
         aveugle.extend("flotte: " + a for a in (flotte.get("aveugle") or []))
+        if flotte.get("generated_at") is None:
+            aveugle.append("flotte : BOARD.json sans generated_at -- âge inconnu (jamais un mtime de repli)")
+        if flotte.get("charge_connue") is None:
+            aveugle.append("charge : BOARD.json ne porte pas charge_connue -- sims_en_vol, cpu_pct et "
+                            "bails_vivants inconnus, servis à null")
 
     roadmap = None
     if backlog_txt is None:
@@ -348,9 +390,28 @@ def compute_pilotage(snap, backlog_txt, records_graph, roles_counts, portes, now
                                 "d'entrée reconnue -- source ILLISIBLE, jamais un backlog de 0 entrée")
                 roadmap = None
 
+    # `records_graph.json` est une source ÉTRANGÈRE (writer : check_record_links) : sa forme se vérifie ICI,
+    # sinon un `roadmap` non-dict passait dans `Roadmap.portes_agi` et la route levait HORS du filet du
+    # service (500), et un graphe non-dict faisait lever `.get` et aveuglait TOUT le pilotage (F3).
+    graphe = records_graph
+    if graphe is not None and not isinstance(graphe, dict):
+        aveugle.append(f"graphe de records : results/records_graph.json de forme inattendue "
+                        f"({type(graphe).__name__}) -- illisible, portes_agi servies à null")
+        graphe = None
     if roadmap is not None:
-        roadmap["portes_agi"] = records_graph.get("roadmap") if records_graph is not None else None
-    elif records_graph is not None:
+        portes_agi = None
+        if graphe is not None:
+            if "roadmap" not in graphe:
+                aveugle.append("portes_agi : results/records_graph.json ne porte pas de clé roadmap -- "
+                                "portes G0-G4 inconnues, servies à null")
+            elif not isinstance(graphe["roadmap"], dict):
+                aveugle.append(f"portes_agi : la clé roadmap de records_graph.json est de forme inattendue "
+                                f"({type(graphe['roadmap']).__name__}) -- servie à null, le reste de la "
+                                "roadmap reste servi")
+            else:
+                portes_agi = graphe["roadmap"]
+        roadmap["portes_agi"] = portes_agi
+    elif graphe is not None:
         aveugle.append("portes_agi : nichées dans roadmap, indisponibles -- le backlog est absent ou "
                         "illisible alors que records_graph.json, lui, est présent")
     if records_graph is None:
@@ -359,20 +420,30 @@ def compute_pilotage(snap, backlog_txt, records_graph, roles_counts, portes, now
     if portes is None:
         aveugle.append("portes : tools/hooks/pre-commit illisible")
 
-    charge = None
-    if roles_counts is None and flotte is None:
+    compteurs = roles_counts
+    if compteurs is None:
         aveugle.append("compteurs du PM : data/pm/ROLES_COUNTS.json introuvable")
-    else:
-        if roles_counts is None:
-            aveugle.append("compteurs du PM : data/pm/ROLES_COUNTS.json introuvable")
+    elif not isinstance(compteurs, dict):
+        aveugle.append(f"compteurs du PM : ROLES_COUNTS.json de forme inattendue ({type(compteurs).__name__}) "
+                        "-- illisible, jamais une exception qui aveugle le reste du pilotage")
+        compteurs = None
+    charge = None
+    if compteurs is not None or flotte is not None:
         cc = (flotte or {}).get("charge_connue") or {}
         gen = (flotte or {}).get("generated_at")
+        fichiers = (compteurs or {}).get("fichiers")
+        if compteurs is not None and compteurs.get("fichiers_disponibles") is False:
+            # roles_counts.compute_counts rend {science: 0, methodo: 0, autre: 0} quand git est muet, et le
+            # DIT dans ce drapeau voisin : recopier `fichiers` publierait un zéro FABRIQUÉ (F10).
+            aveugle.append("charge : ROLES_COUNTS.json déclare fichiers_disponibles = false (git muet) -- ses "
+                            "comptes de fichiers sont un zéro FABRIQUÉ, servis à null")
+            fichiers = None
         charge = {"sims_en_vol": cc.get("sims_en_vol"), "cpu_pct": cc.get("cpu_pct"),
                   "bails_vivants": cc.get("bails_vivants"),
                   "flotte_age_s": (now - float(gen)) if gen is not None else None,
-                  "ratio_science_methodo": (roles_counts or {}).get("ratio_science_methodo"),
-                  "fichiers": (roles_counts or {}).get("fichiers"),
-                  "fenetre": (roles_counts or {}).get("fenetre")}
+                  "ratio_science_methodo": (compteurs or {}).get("ratio_science_methodo"),
+                  "fichiers": fichiers,
+                  "fenetre": (compteurs or {}).get("fenetre")}
     return {"schema": SCHEMA, "generated_at": now, "repo_root": racine.replace("\\", "/"),
             "aveugle": aveugle, "flotte": flotte, "roadmap": roadmap, "portes": portes, "charge": charge}
 
