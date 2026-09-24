@@ -860,6 +860,27 @@ contre-exemple gelé et sa mutation (porte 15), dans la même passe — et une b
 existantes d'autrui.
 <!-- closes_when:grep_present=tools/check_backlog_freshness.py::auto-référentielle -->
 
+**P4.21 — rang 12 — OUVERTE (2026-09-24, trouvée en amendant ma propre clôture) — Un verdict de SYNTHÈSE qui
+agrège plusieurs POINTS DE FONCTIONNEMENT n'a aucune garde : le pré-vol garde une CELLULE, pas une CONCLUSION.**
+Preuve (E2 occ. 6) : `7fa6b2d8` publiait « invariance au pas RÉFUTÉE » depuis `aide09 = 0/12` à lr 2,0, alors que
+les bras de R1 à ce pas sont `lr0_reference@2`, `td0@2`, `tdlam09@2` — jamais `td0_d0@2`, donc aucun contrôle de
+CHEMIN — et que `td0@2` lui-même n'y rend que 1/12 : une seule issue était atteignable. Amendé le jour même par
+`17cff006`. Le pré-vol POSE la bonne question (« l'instrument peut-il produire LES DEUX issues ? ») et
+`assert_positive_control` / `assert_bar_is_reachable` y répondent — mais pour UNE cellule, UNE fois, au lancement.
+Rien ne les rejoue à l'instant où une prose agrège plusieurs cellules en un mot (« réfutée », « invariant »,
+« confiné »), et c'est ce mot qui est lu et cité.
+**Forme demandée** : un verdict qui nomme plus d'un point de fonctionnement DÉCLARE, point par point, si ce point
+porte son propre contrôle ; la garde refuse le vocabulaire de RÉFUTATION sur un point déclaré sans contrôle, et
+accepte « non établie ». Déclaration plutôt que devinette — on ne sait pas décider automatiquement lequel des bras
+est « le contrôle » d'un point, et proxifier ça serait la faute que le dépôt interdit ailleurs : même patron que
+`tools/demand_marker.py::_degeneracy`. Domicile naturel : `tools/experiment_preflight.py`, à côté de
+`assert_verdict_invariant_to_optimizer` qui est son cousin exact (lui garde l'invariance AU PAS, mais seulement
+entre deux lr tous deux LISIBLES). Coût : une assertion, son contre-exemple gelé, sa mutation (porte 15) ; et
+l'entrée au périmètre du cliquet de calibration si la fonction produit une affirmation.
+⚠️ Peut se reformer en SILENCE : n'importe quelle clôture future peut refaire exactement ça, hook au vert.
+<!-- closes_when:grep_present=tools/experiment_preflight.py::assert_verdict_points_controlled -->
+
+
 
 **P4.12 — rang 6 — ✅ CLOSE le 2026-09-16 (session loop 766eabae, accord agagi-c9 sur l'interface) — Sham LINÉAIRE à paramètres APPARIÉS pour la pièce `bilinear` : le contrôle EXISTE, est mesuré, et sa lecture scellée est `SHAM_PARTIEL`.**
 Quoi : `(H·U + H·V)·W_sh` à MÊME nombre de paramètres que `((H·U)⊙(H·V))·W_bl` (rang 16), flag `BILINEAR_SHAM`,
