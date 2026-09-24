@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """Source UNIQUE de l'état de pilotage : flotte, roadmap, portes, charge, assemblés en `pilotage_v1`.
 
-`compute_pilotage` est PURE (tout est injecté) et **aucune fonction de ce module n'écrit un fichier** :
+`compute_pilotage` est PURE (toutes les sources sont injectées ; seul le chemin cherché d'une source PM
+absente est recalculé, pour la nommer) et **aucune fonction de ce module n'écrit un fichier** :
 le backend l'appelle en mémoire, le tick PM en dumpe le résultat lui-même. Une source absente n'est
 jamais un zéro : elle est `None` PLUS une ligne `aveugle` (porte 14 appliquée au schéma).
 """
@@ -225,16 +226,36 @@ def _racine_des_donnees_pm(repo_root):
     return racine_commune(repo_root) or repo_root
 
 
-def read_roles_counts(repo_root):
+def chemin_roles_counts(repo_root):
+    """Le chemin que `read_roles_counts` CHERCHE — un seul calcul, pour qu'une absence se nomme à l'endroit
+    exact où elle a été constatée (G9)."""
     from src import paths
-    return _lire_json(_ancre(_racine_des_donnees_pm(repo_root), paths.pm_dir("ROLES_COUNTS.json")))
+    return _ancre(_racine_des_donnees_pm(repo_root), paths.pm_dir("ROLES_COUNTS.json"))
+
+
+def chemin_board(repo_root):
+    """Le chemin que `read_board` CHERCHE (même rôle que `chemin_roles_counts`)."""
+    from src import paths
+    return _ancre(_racine_des_donnees_pm(repo_root), paths.pm_dir("BOARD.json"))
+
+
+def read_roles_counts(repo_root):
+    return _lire_json(chemin_roles_counts(repo_root))
 
 
 def read_board(repo_root):
     """Le cache du tick PM. ⚠️ Écrit par `json.dump(..., default=str)` (tools/pm/tick.py) : ce qui revient
     est un ALLER-RETOUR JSON, pas le dict de `board.compute`."""
-    from src import paths
-    return _lire_json(_ancre(_racine_des_donnees_pm(repo_root), paths.pm_dir("BOARD.json")))
+    return _lire_json(chemin_board(repo_root))
+
+
+def _chemin_cherche(resolveur, racine):
+    """Le chemin cherché, en POSIX, pour une ligne `aveugle` — jamais une exception : un chemin non résolu
+    se DIT à la place du chemin."""
+    try:
+        return str(resolveur(racine)).replace("\\", "/")
+    except Exception as exc:                                       # noqa: BLE001 — la ligne ne doit jamais lever
+        return f"<chemin non résolu : {type(exc).__name__}>"
 
 
 def read_portes(repo_root):
@@ -315,6 +336,10 @@ def _board_refus(board):
             return "generated_at booléen"
         try:
             valeur = float(gen)
+        except OverflowError:
+            # G8 : un entier JSON de plus de 309 chiffres — non attrapée, l'exception sortait de
+            # `compute_pilotage` et aveuglait TOUT le pilotage.
+            return "generated_at hors bornes (entier trop grand pour un float)"
         except (TypeError, ValueError):
             return f"generated_at non numérique ({type(gen).__name__})"
         if not math.isfinite(valeur):
@@ -330,7 +355,9 @@ def _board_refus(board):
 
 def compute_pilotage(snap, backlog_txt, records_graph, roles_counts, portes, now, repo_root=None,
                      board=None):
-    """PURE : tout est injecté, rien n'est lu, rien n'est écrit.
+    """PURE : toutes les SOURCES sont injectées, rien n'est écrit. Une seule résolution hors injection : quand
+    `BOARD.json` ou `ROLES_COUNTS.json` manque, le chemin que son lecteur CHERCHE est recalculé (git
+    `rev-parse` compris, via `chemin_board` / `chemin_roles_counts`) pour que la ligne le NOMME (G9).
 
     `flotte` a DEUX provenances, jamais confondues : `board` (le contenu de BOARD.json, chemin du poll —
     un aller-retour JSON) ou `board.compute(snap)` si `snap` est fourni (chemin `?frais=1`).
@@ -362,14 +389,26 @@ def compute_pilotage(snap, backlog_txt, records_graph, roles_counts, portes, now
             aveugle.append(f"flotte : BOARD.json de forme inattendue ({refus}) -- illisible, jamais une "
                             "exception qui aveugle roadmap/portes/charge avec lui")
     else:
-        aveugle.append("flotte : ni instantané ni BOARD.json — le tick PM n'a pas encore tourné")
+        # G9 : l'ancienne ligne affirmait une CAUSE (« le tick PM n'a pas encore tourné ») tirée d'une
+        # absence ; mesuré, git absent du PATH, un backend lancé depuis un worktree le disait pendant que le
+        # tick tournait. La ligne nomme le chemin CHERCHÉ et les deux causes, sans en choisir une.
+        aveugle.append(f"flotte : BOARD.json introuvable (ou JSON illisible) à {_chemin_cherche(chemin_board, racine)}"
+                        " -- tick PM jamais passé, ou racine de données mal résolue : l'absence ne tranche pas")
     if flotte is not None:
         aveugle.extend("flotte: " + a for a in (flotte.get("aveugle") or []))
         if flotte.get("generated_at") is None:
             aveugle.append("flotte : BOARD.json sans generated_at -- âge inconnu (jamais un mtime de repli)")
-        if flotte.get("charge_connue") is None:
+        cc_flotte = flotte.get("charge_connue")
+        if cc_flotte is None:
             aveugle.append("charge : BOARD.json ne porte pas charge_connue -- sims_en_vol, cpu_pct et "
                             "bails_vivants inconnus, servis à null")
+        elif isinstance(cc_flotte, dict):
+            # G7 (classe F8) : `charge_connue = {}` passait la garde (c'est un dict) et les champs tombaient
+            # à `None` sans un mot. Chaque champ attendu ABSENT est nommé, sur une seule ligne.
+            absents = [c for c in ("sims_en_vol", "cpu_pct", "bails_vivants") if c not in cc_flotte]
+            if absents:
+                aveugle.append(f"charge : charge_connue de la flotte ne porte pas {', '.join(absents)} -- "
+                                "inconnu(s), servi(s) à null")
 
     roadmap = None
     if backlog_txt is None:
@@ -422,7 +461,9 @@ def compute_pilotage(snap, backlog_txt, records_graph, roles_counts, portes, now
 
     compteurs = roles_counts
     if compteurs is None:
-        aveugle.append("compteurs du PM : data/pm/ROLES_COUNTS.json introuvable")
+        aveugle.append(f"compteurs du PM : ROLES_COUNTS.json introuvable (ou JSON illisible) à "
+                        f"{_chemin_cherche(chemin_roles_counts, racine)} -- tick PM jamais passé, ou racine de "
+                        "données mal résolue : l'absence ne tranche pas")
     elif not isinstance(compteurs, dict):
         aveugle.append(f"compteurs du PM : ROLES_COUNTS.json de forme inattendue ({type(compteurs).__name__}) "
                         "-- illisible, jamais une exception qui aveugle le reste du pilotage")
@@ -431,13 +472,23 @@ def compute_pilotage(snap, backlog_txt, records_graph, roles_counts, portes, now
     if compteurs is not None or flotte is not None:
         cc = (flotte or {}).get("charge_connue") or {}
         gen = (flotte or {}).get("generated_at")
-        fichiers = (compteurs or {}).get("fichiers")
-        if compteurs is not None and compteurs.get("fichiers_disponibles") is False:
+        fichiers = None
+        if compteurs is not None:
             # roles_counts.compute_counts rend {science: 0, methodo: 0, autre: 0} quand git est muet, et le
-            # DIT dans ce drapeau voisin : recopier `fichiers` publierait un zéro FABRIQUÉ (F10).
-            aveugle.append("charge : ROLES_COUNTS.json déclare fichiers_disponibles = false (git muet) -- ses "
-                            "comptes de fichiers sont un zéro FABRIQUÉ, servis à null")
-            fichiers = None
+            # DIT dans ce drapeau voisin : recopier `fichiers` publierait un zéro FABRIQUÉ (F10). G7 : `fichiers`
+            # n'est publié que si le drapeau vaut EXACTEMENT `True` — il est né avec `roles_counts.py`
+            # (ff99e849, `git log -S fichiers_disponibles`), donc son absence n'est pas un « ancien format ».
+            dispo = compteurs.get("fichiers_disponibles")
+            if dispo is True:
+                fichiers = compteurs.get("fichiers")
+            elif dispo is False:
+                aveugle.append("charge : ROLES_COUNTS.json déclare fichiers_disponibles = false (git muet) -- "
+                                "comptes de fichiers INDISPONIBLES, leur zéro est FABRIQUÉ, servis à null")
+            else:
+                etat = ("absent" if "fichiers_disponibles" not in compteurs else
+                        "null" if dispo is None else f"de type {type(dispo).__name__}")
+                aveugle.append(f"charge : ROLES_COUNTS.json ne dit pas si ses comptes de fichiers sont fiables "
+                                f"(fichiers_disponibles {etat}) -- disponibilité inconnue, servis à null")
         charge = {"sims_en_vol": cc.get("sims_en_vol"), "cpu_pct": cc.get("cpu_pct"),
                   "bails_vivants": cc.get("bails_vivants"),
                   "flotte_age_s": (now - float(gen)) if gen is not None else None,

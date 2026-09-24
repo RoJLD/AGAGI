@@ -317,7 +317,11 @@ la flotte.**
     est l'unique writer. ⚠️ Ce fichier est écrit par `json.dump(..., default=str)` (`tools/pm/tick.py:100`), donc **ce
     qui est servi est un ALLER-RETOUR JSON, pas le dict de `board.compute`** : `default=str` stringifie en silence tout
     objet non sérialisable. Le §6 en tire deux tests distincts au lieu d'un. Absent → `flotte: null` + ligne
-    `aveugle: "flotte: data/pm/BOARD.json absent — le tick PM n'a pas encore tourné"`. Une flotte vieille est servie
+    `aveugle: "flotte : BOARD.json introuvable (ou JSON illisible) à <chemin cherché> -- tick PM jamais passé, ou
+    racine de données mal résolue : l'absence ne tranche pas"` — le chemin CHERCHÉ nommé, les deux causes sans en
+    choisir une (amendé le 2026-09-24 : l'ancienne ligne affirmait « le tick PM n'a pas encore tourné », une
+    CAUSE tirée d'une absence ; mesuré, git absent du PATH, un backend lancé depuis un worktree le disait pendant
+    que le tick tournait). Même forme pour `ROLES_COUNTS.json`. Une flotte vieille est servie
     AVEC son âge, jamais muette. Sa fraîcheur est donc celle du tick (20-30 min), et c'est écrit dans la vue.
   - **`charge.flotte_age_s = now - flotte["generated_at"]`**, et `null` si la clé manque — **jamais le `mtime` du
     fichier** : un `git checkout`, une copie ou une écriture interrompue donne un mtime frais sur un contenu périmé, et

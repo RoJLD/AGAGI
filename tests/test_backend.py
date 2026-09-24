@@ -468,8 +468,11 @@ def test_pilotage_endpoint_rend_le_schema() -> None:
     Ce que ce test vérifie, et rien de plus : la PRÉSENCE est jugée par `os.path.isfile` sur des chemins
     construits hors de `pilotage.py` (`_sources_du_pilotage`). Sur une machine où `BOARD.json` et
     `ROLES_COUNTS.json` existent (dépôt commun), il rougit si le service les déclare absents — prouvé sous
-    la mutation « ancrer sur `repo_root` » (F2). Là où ils n'existent pas (CI), leur branche ne juge rien :
-    l'ancrage y est tenu par les tests hermétiques de `tests/sandbox/test_pm_pilotage.py`."""
+    la mutation « ancrer sur `repo_root` » (F2). Là où ils n'existent pas (CI), la branche jugeait RIEN, sans
+    aucun signal (G6) : elle juge désormais le sens réciproque — une source ABSENTE selon l'oracle doit être
+    NOMMÉE par une ligne `aveugle` (prouvé sous un mutant qui supprime la ligne « introuvable » du board, avec
+    `AGAGI_DATA_ROOT` pointée vers un répertoire vide). L'ancrage lui-même reste tenu, en CI, par les tests
+    hermétiques de `tests/sandbox/test_pm_pilotage.py`."""
     from backend.app.services import pilotage_service as ps
 
     ps._vider_cache()
@@ -487,6 +490,11 @@ def test_pilotage_endpoint_rend_le_schema() -> None:
         if os.path.isfile(chemin):
             assert not any(nom in a for a in d["aveugle"]), (
                 f"ligne aveugle nommant {nom!r} alors que {chemin} EXISTE sur le disque : {d['aveugle']}")
+        else:
+            # G6 : le sens RÉCIPROQUE. Sans lui, là où la source manque (CI : pas de data/pm/), la boucle ne
+            # jugeait RIEN et l'exécution n'en montrait aucun signal ; désormais elle juge partout.
+            assert any(nom in a for a in d["aveugle"]), (
+                f"{nom!r} est ABSENT du disque ({chemin}) et AUCUNE ligne aveugle ne le nomme : {d['aveugle']}")
 
 
 def test_pilotage_n_ecrit_JAMAIS_AGAGI_DATA_ROOT_dans_l_environnement(monkeypatch) -> None:
@@ -627,6 +635,9 @@ def _faux_snapshot_rapide(appels):
     [1, 2],                                                                        # illisible
     {"generated_at": 1.0, "sessions": [], "charge_connue": {"sims_en_vol": None}},  # charge non mesurée
     {"generated_at": 1.0, "sessions": [], "charge_connue": {"sims_en_vol": True}},  # un booléen n'est pas un compte
+    # G8 : un entier JSON de plus de 309 chiffres fait lever OverflowError à math.isfinite — l'exception
+    # aveuglait TOUT le pilotage au lieu d'être une non-mesure.
+    json.loads('{"generated_at": 1.0, "sessions": [], "charge_connue": {"sims_en_vol": 1' + "0" * 400 + "}}"),
 ])
 def test_pilotage_frais_SANS_mesure_de_charge_est_ACCEPTE_mais_DIT(monkeypatch, dernier) -> None:
     """F6 : sans dernier tableau lisible, `frais=1` lançait le recalcul de 15-18 s sans dire que la charge
@@ -717,14 +728,19 @@ def _donnees_de_base():
     return board, roles, graphe
 
 
-def _servir(monkeypatch, board, roles, graphe):
+def _servir(monkeypatch, board, roles, graphe, cl=None):
     from backend.app.services import pilotage_service as ps
 
     monkeypatch.setattr(ps.pilotage, "read_board", lambda racine: board)
     monkeypatch.setattr(ps.pilotage, "read_roles_counts", lambda racine: roles)
     monkeypatch.setattr(ps.pilotage, "read_records_graph", lambda racine: graphe)
     ps._vider_cache()
-    return client.get("/api/pm/pilotage")
+    return (cl or client).get("/api/pm/pilotage")
+
+
+# Un client qui REND le 500 au lieu de relever l'exception serveur dans le test : c'est le statut que le
+# navigateur verrait, et le seul moyen de constater qu'un défaut de rendu en est un (G2, G4).
+client_500 = TestClient(app, raise_server_exceptions=False)
 
 
 @pytest.mark.parametrize("source,champ,valeur", [
@@ -778,6 +794,178 @@ def test_pilotage_controle_la_copie_INTACTE_des_donnees_est_servie_sans_refus(mo
     assert not any("refus" in a for a in d["aveugle"]), d["aveugle"]
     assert all(d[k] is not None for k in ("flotte", "roadmap", "portes", "charge")), d["aveugle"]
     assert d["roadmap"]["portes_agi"] == graphe["roadmap"]
+
+
+@pytest.mark.parametrize("source,champ,valeur,blocs", [
+    # `charge_connue` est RECOPIÉE dans les deux blocs (`flotte` = le board, `charge` = ses trois champs) :
+    # la valeur fautive est servie deux fois, les deux blocs tombent, et eux seuls.
+    ("board_cc", "bails_vivants", ["\ud800"], ("flotte", "charge")),
+    ("roles", "fenetre", {"x": "\ud800"}, ("charge",)),
+    ("board", "zz", "a\ud800b", ("flotte",)),
+    ("board", "aveugle", ["x\udc80"], ("flotte",)),
+    ("graphe", "G0", "\udfff", ("portes_agi",)),
+])
+def test_pilotage_un_SURROGATE_isole_n_aveugle_que_son_bloc_jamais_un_500(monkeypatch, source, champ, valeur,
+                                                                          blocs) -> None:
+    """G2 : `_servable` rejouait validation, dump et `json.dumps(allow_nan=False)`, mais pas le
+    `.encode("utf-8")` de `JSONResponse.render`. Mesuré : une chaîne portant un surrogate isolé (ce que
+    `json.load` rend pour `"\\ud800"`) passait le filet par bloc ET celui d'enveloppe, puis donnait un 500 —
+    les cinq cas ci-dessous. Chacun : 200, le ou les blocs qui PORTENT la valeur à `null`, une ligne qui
+    NOMME chacun, les autres servis. `portes_agi` est un sous-bloc (source étrangère : `records_graph.json`) :
+    seul lui tombe, jamais toute la roadmap (même règle que la couche 2 de F3)."""
+    board, roles, graphe = _donnees_de_base()
+    if source == "board_cc":
+        board["charge_connue"][champ] = valeur
+    elif source == "board":
+        board[champ] = valeur
+    elif source == "roles":
+        roles[champ] = valeur
+    else:
+        graphe["roadmap"][champ] = valeur
+    r = _servir(monkeypatch, board, roles, graphe, cl=client_500)
+    assert r.status_code == 200, f"un surrogate isolé a donné {r.status_code}"
+    d = r.json()
+    for bloc in blocs:
+        if bloc == "portes_agi":
+            assert d["roadmap"] is not None and d["roadmap"]["portes_agi"] is None, d["aveugle"]
+        else:
+            assert d[bloc] is None, d[bloc]
+        assert any(a.startswith(bloc) and "refus" in a for a in d["aveugle"]), (bloc, d["aveugle"])
+    autres = tuple(k for k in ("flotte", "roadmap", "portes", "charge") if k not in blocs)
+    assert all(d[k] is not None for k in autres), d["aveugle"]
+    assert not any(a.startswith("pilotage:") for a in d["aveugle"]), d["aveugle"]
+
+
+@pytest.mark.parametrize("cas", ["message_a_surrogate", "racine_Path"])
+def test_pilotage_le_MODE_DEGRADE_est_lui_meme_servable_jamais_un_500(monkeypatch, cas) -> None:
+    """G2 : le dict du mode dégradé n'était validé par rien. Une exception dont le message porte un surrogate
+    isolé, ou un `racine_depot` qui rend un `Path` (sa `.replace` n'est pas celle d'une chaîne : TypeError,
+    puis `repo_root` non-chaîne dans le dict dégradé), donnaient un 500. La ligne est rendue ENCODABLE
+    (échappement visible `\\ud800`, jamais une suppression) et `repo_root` est une chaîne POSIX."""
+    from backend.app.services import pilotage_service as ps
+    from tools.pm import pilotage as P
+    import pathlib
+
+    vraie = P.racine_depot()
+    if cas == "message_a_surrogate":
+        def _racine():
+            raise RuntimeError("racine casse \ud800 ici")
+    else:
+        def _racine():
+            return pathlib.Path(vraie)
+    monkeypatch.setattr(ps.pilotage, "racine_depot", _racine)
+    ps._vider_cache()
+    r = client_500.get("/api/pm/pilotage")
+    assert r.status_code == 200, f"le mode dégradé a donné {r.status_code}"
+    d = r.json()
+    assert d["aveugle"] and d["aveugle"][0].startswith("pilotage:"), d["aveugle"]
+    assert d["flotte"] is None and d["roadmap"] is None and d["portes"] is None and d["charge"] is None
+    if cas == "message_a_surrogate":
+        assert "racine casse \\ud800 ici" in d["aveugle"][0], d["aveugle"]
+        assert d["repo_root"] is None
+    else:
+        assert d["repo_root"] == vraie, d["repo_root"]
+
+
+@pytest.mark.parametrize("source,modif,bloc,chemin", [
+    ("board", lambda b, r, g: b.__setitem__("sessions", [{"x": [1.0, float("nan")]}]), "flotte",
+     "flotte.sessions[0].x[1]"),
+    ("graphe", lambda b, r, g: g["roadmap"].__setitem__("G0", {"score": float("inf")}), "portes_agi",
+     "roadmap.portes_agi.G0.score"),
+    ("roles", lambda b, r, g: r.__setitem__("fenetre", {"depuis": "2026-08-25", "jours": float("nan")}),
+     "charge", "charge.fenetre.jours"),
+])
+def test_pilotage_un_float_NON_FINI_imbrique_est_REFUSE_et_NOMME_jamais_un_null_muet(monkeypatch, source, modif,
+                                                                                     bloc, chemin) -> None:
+    """G3 : pydantic, en mode json, sert à `null` SANS ligne un `nan` ou un `inf` placé dans un champ `Any`
+    (`flotte`, `portes_agi`, `fenetre`) — alors qu'un `inf` dans un champ `float` déclaré
+    (`ratio_science_methodo`) est, lui, refusé et nommé. Une pré-passe sur le bloc BRUT refuse le bloc et
+    NOMME le chemin du premier non-fini. Mesuré sur HEAD : 200, `null`, aucune ligne."""
+    board, roles, graphe = _donnees_de_base()
+    modif(board, roles, graphe)
+    r = _servir(monkeypatch, board, roles, graphe, cl=client_500)
+    assert r.status_code == 200
+    d = r.json()
+    if bloc == "portes_agi":
+        assert d["roadmap"] is not None and d["roadmap"]["portes_agi"] is None, d["roadmap"] and d["roadmap"]["portes_agi"]
+        autres = ("flotte", "portes", "charge")
+    else:
+        assert d[bloc] is None, d[bloc]
+        autres = tuple(k for k in ("flotte", "roadmap", "portes", "charge") if k != bloc)
+    lignes = [a for a in d["aveugle"] if a.startswith(bloc) and "non fini" in a]
+    assert len(lignes) == 1 and chemin in lignes[0], (chemin, d["aveugle"])
+    assert all(d[k] is not None for k in autres), d["aveugle"]
+
+
+def test_la_pre_passe_NON_FINI_voit_cles_tuples_et_profondeur_et_se_tait_sur_le_fini() -> None:
+    """G3, unitaire : la pré-passe parcourt dict (CLÉS comprises), liste et tuple à toute profondeur ; elle rend
+    le chemin du PREMIER non-fini, `None` sur une structure finie (contrôle), et refuse une structure
+    cyclique au lieu de boucler."""
+    from backend.app.services import pilotage_service as ps
+
+    assert ps._premier_non_fini({"a": [1, 2.5, {"b": (0, "inf")}]}, "x") is None
+    assert ps._premier_non_fini({"a": ({"b": [0, float("inf")]},)}, "x") == "x.a[0].b[1]"
+    assert ps._premier_non_fini({"a": {float("nan"): 1}}, "x") == "x.a[clé nan]"
+    assert ps._premier_non_fini({(1.0, float("-inf")): 1}, "x") == "x[clé (1.0, -inf)][1]"
+    assert ps._premier_non_fini(float("nan"), "x") == "x"
+    cyclique = {"a": []}
+    cyclique["a"].append(cyclique)
+    with pytest.raises(ValueError, match="cyclique"):
+        ps._premier_non_fini(cyclique, "x")
+
+
+@pytest.mark.parametrize("champ,valeur", [("aveugle", [1]), ("repo_root", "Path")])
+def test_pilotage_le_FILET_D_ENVELOPPE_nomme_l_enveloppe_jamais_un_500(monkeypatch, champ, valeur) -> None:
+    """G4 : le filet final `_servable(_ENVELOPPE, out)` était PORTEUR sans aucun témoin — la re-revue l'a
+    montré : un `compute_pilotage` qui rend `aveugle=[1]` ou `repo_root=Path(...)` donne 200 dégradé grâce à
+    lui, 500 sans lui, et le mutant qui le retire laissait les 21 tests pilotage verts. La ligne NOMME
+    l'enveloppe et RÉSUME le refus (une ligne, jamais l'erreur pydantic vidée sur plusieurs lignes)."""
+    from backend.app.services import pilotage_service as ps
+    import pathlib
+
+    vrai = ps.pilotage.compute_pilotage
+
+    def _enveloppe_malformee(*a, **k):
+        out = vrai(*a, **k)
+        out[champ] = pathlib.Path(out["repo_root"]) if valeur == "Path" else valeur
+        return out
+
+    monkeypatch.setattr(ps.pilotage, "compute_pilotage", _enveloppe_malformee)
+    ps._vider_cache()
+    r = client_500.get("/api/pm/pilotage")
+    assert r.status_code == 200, f"une enveloppe malformée a donné {r.status_code}"
+    d = r.json()
+    assert len(d["aveugle"]) == 1 and d["aveugle"][0].startswith("pilotage:"), d["aveugle"]
+    assert "enveloppe" in d["aveugle"][0] and champ in d["aveugle"][0], d["aveugle"]
+    assert "\n" not in d["aveugle"][0], "le refus est RÉSUMÉ, jamais l'erreur pydantic vidée en entier"
+    assert d["flotte"] is None and d["roadmap"] is None and d["portes"] is None and d["charge"] is None
+
+
+@pytest.mark.parametrize("cache", ["froid", "chaud"])
+@pytest.mark.parametrize("dernier,ligne", [
+    (None, "SANS mesure de charge"),                                                         # accepté, dit
+    ({"generated_at": 1.0, "sessions": [], "charge_connue": {"sims_en_vol": 2}}, "refusé"),  # refusé, dit
+])
+def test_pilotage_une_ligne_de_FRAIS_n_entre_JAMAIS_dans_le_cache(monkeypatch, cache, dernier, ligne) -> None:
+    """G5 : la non-pollution du cache n'était verrouillée par rien — le mutant qui met en cache la ligne de
+    refus et la ligne « SANS mesure de charge » laissait les 21 tests verts. Or ces lignes décrivent UNE
+    requête `frais=1` : servies ensuite à chaque poll normal pendant 30 s, elles affirmeraient un refus ou
+    un recalcul qui n'a pas eu lieu. Cache froid ET cache chaud ; la présence de la ligne sur la requête
+    `frais=1` elle-même est le contrôle du dispositif."""
+    from backend.app.services import pilotage_service as ps
+
+    appels = {"n": 0}
+    monkeypatch.setattr(ps, "snapshot", _faux_snapshot_rapide(appels))
+    monkeypatch.setattr(ps.pilotage, "read_board", lambda racine: copy.deepcopy(dernier))
+    ps._vider_cache()
+    if cache == "chaud":
+        avant = client.get("/api/pm/pilotage").json()
+        assert not any("frais=1" in a for a in avant["aveugle"]), avant["aveugle"]
+    d1 = client.get("/api/pm/pilotage?frais=1").json()
+    assert any(a.startswith("frais=1") and ligne in a for a in d1["aveugle"]), ("contrôle", d1["aveugle"])
+    d2 = client.get("/api/pm/pilotage").json()
+    assert not any("frais=1" in a for a in d2["aveugle"]), (
+        f"une ligne de la requête frais=1 a été SERVIE au poll suivant (cache {cache}) : {d2['aveugle']}")
 
 
 def test_pilotage_cache_sous_le_TTL(monkeypatch) -> None:

@@ -19,7 +19,12 @@ bulletins et registre par `paths.*`, donc depuis un worktree, sans variable d'en
 strict comme la route le fera : `charge`, `flotte` et `roadmap.portes_agi` recopient des sources que
 `pilotage.py` ne possède pas (`BOARD.json`, `ROLES_COUNTS.json`, `records_graph.json`), et un seul champ de type
 inattendu donnait un 500 à la sérialisation, APRÈS le filet d'exception, sans ligne d'aveuglement (F3). Un bloc
-refusé devient `None` plus une ligne qui le NOMME ; les autres restent servis.
+refusé devient `None` plus une ligne qui le NOMME ; les autres restent servis. `roadmap.portes_agi` est un
+SOUS-bloc (source étrangère) : il tombe seul, jamais toute la roadmap avec lui.
+
+⚠️ Deux refus que la route ne ferait PAS, ou trop tard (re-revue de 6a062eeb) : l'ENCODAGE UTF-8 de
+`JSONResponse.render` (un surrogate isolé passait tous les filets puis donnait un 500 — G2), et le float non fini
+dans un champ `Any` que pydantic sert à `null` SANS le dire (G3). Le mode dégradé est lui-même rendu servable.
 """
 from __future__ import annotations
 
@@ -33,7 +38,7 @@ from pydantic import TypeAdapter
 from tools.pm import pilotage
 from tools.pm.snapshot import snapshot
 
-from ..schemas import PilotageV1
+from ..schemas import PilotageV1, Roadmap
 
 _TTL_DEFAUT = 30.0
 _cache: dict[str, Any] = {"at": 0.0, "valeur": None}
@@ -42,7 +47,16 @@ _cache: dict[str, Any] = {"at": 0.0, "valeur": None}
 # exactement comme `response_model=PilotageV1` le fera.
 _BLOCS = ("flotte", "roadmap", "portes", "charge")
 _ADAPTATEURS = {cle: TypeAdapter(PilotageV1.model_fields[cle].annotation) for cle in _BLOCS}
+_PORTES_AGI = TypeAdapter(Roadmap.model_fields["portes_agi"].annotation)
 _ENVELOPPE = TypeAdapter(PilotageV1)
+
+
+class _NonFini(ValueError):
+    """Un float non fini que pydantic, en mode json, servirait à `null` SANS le dire (G3)."""
+
+
+class _EnveloppeRefusee(Exception):
+    """Le filet final a refusé l'enveloppe entière : le mode dégradé le NOMME (G4)."""
 
 
 def _vider_cache() -> None:
@@ -51,12 +65,57 @@ def _vider_cache() -> None:
     _cache["valeur"] = None
 
 
-def _servable(adaptateur: TypeAdapter, valeur: Any) -> None:
+def _texte_servable(texte: str) -> str:
+    """Une chaîne que `JSONResponse.render` peut ENCODER en UTF-8 : un surrogate isolé devient son
+    échappement VISIBLE (`\\ud800`), jamais une suppression (G2). `decode("utf-8")` et non `decode("ascii")` :
+    ce dernier lève sur le premier accent de ces lignes françaises."""
+    return texte.encode("utf-8", "backslashreplace").decode("utf-8")
+
+
+def _premier_non_fini(valeur: Any, chemin: str, _ancetres: frozenset = frozenset()) -> str | None:
+    """Chemin du PREMIER float non fini (clé ou valeur, à toute profondeur, dans un dict, une liste ou un
+    tuple), `None` s'il n'y en a pas. Pré-passe sur le bloc BRUT, avant pydantic : en mode json, pydantic sert
+    à `null` un `nan` ou un `inf` placé dans un champ `Any`, sans ligne (G3). Une structure cyclique lève
+    `ValueError` au lieu de boucler."""
+    if isinstance(valeur, float):
+        return None if math.isfinite(valeur) else chemin
+    if not isinstance(valeur, (dict, list, tuple)):
+        return None
+    if id(valeur) in _ancetres:
+        raise ValueError(f"structure cyclique à {chemin}")
+    ancetres = _ancetres | {id(valeur)}
+    if isinstance(valeur, dict):
+        for cle, sous in valeur.items():
+            trouve = _premier_non_fini(cle, f"{chemin}[clé {cle!r}]", ancetres)
+            if trouve is None:
+                trouve = _premier_non_fini(sous, f"{chemin}.{cle}" if isinstance(cle, str) else f"{chemin}[{cle!r}]",
+                                           ancetres)
+            if trouve is not None:
+                return trouve
+        return None
+    for i, sous in enumerate(valeur):
+        trouve = _premier_non_fini(sous, f"{chemin}[{i}]", ancetres)
+        if trouve is not None:
+            return trouve
+    return None
+
+
+def _servable(adaptateur: TypeAdapter, valeur: Any, nom: str = "pilotage") -> None:
     """Rejoue ce que fait la route (FastAPI 0.128 : `validate_python(..., from_attributes=True)`, puis
-    `dump_python(mode="json", by_alias=True)`, puis `json.dumps(..., allow_nan=False)`) ; lève si elle
-    refuserait. Le JSON strict compte : un `float('inf')` VALIDE pour pydantic fait encore un 500 au rendu."""
+    `dump_python(mode="json", by_alias=True)`, puis `JSONResponse.render` de Starlette, c.-à-d.
+    `json.dumps(..., ensure_ascii=False, allow_nan=False)` PUIS `.encode("utf-8")`) ; lève si elle refuserait.
+    Le JSON strict compte (un `float('inf')` VALIDE pour pydantic fait encore un 500 au rendu), l'encodage aussi
+    (un surrogate isolé passe `json.dumps` et fait un 500 à l'`encode` — G2).
+
+    Et lève AUSSI là où la route ne refuserait RIEN : un float non fini dans un champ `Any`, qu'elle servirait
+    à `null` sans le dire (G3, `_premier_non_fini`, chemin préfixé par `nom`)."""
+    chemin = _premier_non_fini(valeur, nom)
+    if chemin is not None:
+        raise _NonFini(f"float non fini à {chemin} -- refusé AVANT la route (dans un champ libre, pydantic le "
+                       "servirait à null sans le dire)")
     v = adaptateur.validate_python(valeur, from_attributes=True)
-    json.dumps(adaptateur.dump_python(v, mode="json", by_alias=True), ensure_ascii=False, allow_nan=False)
+    json.dumps(adaptateur.dump_python(v, mode="json", by_alias=True), ensure_ascii=False,
+               allow_nan=False).encode("utf-8")
 
 
 def _resume(exc: Exception) -> str:
@@ -73,28 +132,48 @@ def _resume(exc: Exception) -> str:
     return f"{type(exc).__name__}: {str(exc)[:160]}"
 
 
+def _ligne_de_refus(nom: str, exc: Exception, suite: str) -> str:
+    if isinstance(exc, _NonFini):
+        return f"{nom} : bloc refusé, {exc} -- servi à null, {suite}"
+    return f"{nom} : bloc refusé par le modèle de la route ({_resume(exc)}) -- servi à null, {suite}"
+
+
 def _blocs_servables(out: dict) -> dict:
-    """Met à `None` tout bloc que la route refuserait, avec une ligne qui le NOMME ; les autres restent."""
+    """Met à `None` tout bloc que la route refuserait, avec une ligne qui le NOMME ; les autres restent.
+
+    `roadmap.portes_agi` est jugé AVANT la roadmap, comme un sous-bloc : il recopie `records_graph.json`, source
+    étrangère, et un surrogate ou un non-fini y aveuglait toute la roadmap du backlog (même règle que la couche 2
+    de F3 dans `pilotage.py`). Chaque ligne est enfin rendue ENCODABLE : une ligne recopiée du board, ou un
+    chemin, peut porter un surrogate — elle ne doit pas faire tomber l'enveloppe entière."""
     out = dict(out)
     aveugle = list(out.get("aveugle") or [])
+    rm = out.get("roadmap")
+    if isinstance(rm, dict) and rm.get("portes_agi") is not None:
+        try:
+            _servable(_PORTES_AGI, rm["portes_agi"], "roadmap.portes_agi")
+        except Exception as exc:                           # noqa: BLE001 — refus NOMMÉ, jamais un 500
+            aveugle.append(_ligne_de_refus("portes_agi", exc, "le reste de la roadmap reste servi"))
+            out["roadmap"] = dict(rm, portes_agi=None)
     for cle in _BLOCS:
         if out.get(cle) is None:
             continue
         try:
-            _servable(_ADAPTATEURS[cle], out[cle])
+            _servable(_ADAPTATEURS[cle], out[cle], cle)
         except Exception as exc:                           # noqa: BLE001 — refus NOMMÉ, jamais un 500
-            aveugle.append(f"{cle} : bloc refusé par le modèle de la route ({_resume(exc)}) -- servi à null, "
-                           "les autres blocs restent servis")
+            aveugle.append(_ligne_de_refus(cle, exc, "les autres blocs restent servis"))
             out[cle] = None
-    out["aveugle"] = aveugle
+    out["aveugle"] = [_texte_servable(a) if isinstance(a, str) else a for a in aveugle]
     return out
 
 
 def _sims_en_vol_dernier_tableau(racine: str) -> float | None:
     """Lit le DERNIER `BOARD.json` connu (jamais un `snapshot()` neuf) pour juger si `frais=1` doit être
     refusé. `None` si le tableau est absent, illisible, ou ne MESURE pas `sims_en_vol` (absent, `null`,
-    booléen, non fini) : un refus se prononce sur une mesure, jamais sur une absence — `get_pilotage` suit
-    alors son chemin normal et DIT que la charge était inconnue."""
+    booléen, non fini, hors bornes) : un refus se prononce sur une mesure, jamais sur une absence —
+    `get_pilotage` suit alors son chemin normal et DIT que la charge était inconnue.
+
+    G8 : un entier JSON de plus de 309 chiffres fait lever `OverflowError` à `math.isfinite` — non attrapée,
+    elle aveuglait TOUT le pilotage ; c'est une non-mesure."""
     try:
         dernier = pilotage.read_board(racine)
     except Exception:                                      # noqa: BLE001 — un tableau illisible ne bloque rien
@@ -105,9 +184,28 @@ def _sims_en_vol_dernier_tableau(racine: str) -> float | None:
     if not isinstance(cc, dict):
         return None
     sims = cc.get("sims_en_vol")
-    if isinstance(sims, bool) or not isinstance(sims, (int, float)) or not math.isfinite(sims):
+    if isinstance(sims, bool) or not isinstance(sims, (int, float)):
+        return None
+    try:
+        if not math.isfinite(sims):
+            return None
+    except OverflowError:
         return None
     return sims
+
+
+def _mode_degrade(now: float, racine: Any, exc: Exception) -> dict:
+    """Le dict du mode dégradé, lui-même SERVABLE (G2) : la ligne est rendue encodable (un message d'exception
+    peut porter un surrogate isolé) et `repo_root` est une chaîne POSIX (un `racine_depot` qui rend un `Path`
+    donnait un 500). Un refus de l'enveloppe est NOMMÉ comme tel (G4)."""
+    if isinstance(exc, _EnveloppeRefusee):
+        texte = f"pilotage: enveloppe refusée par le modèle de la route ({exc}) -- les quatre blocs servis à null"
+    else:
+        texte = f"pilotage: {type(exc).__name__}: {exc}"
+    return {"schema": pilotage.SCHEMA, "generated_at": now,
+            "repo_root": None if racine is None else _texte_servable(str(racine).replace("\\", "/")),
+            "aveugle": [_texte_servable(texte)],
+            "flotte": None, "roadmap": None, "portes": None, "charge": None}
 
 
 def get_pilotage(ttl_s: float = _TTL_DEFAUT, frais: bool = False) -> dict:
@@ -123,8 +221,8 @@ def get_pilotage(ttl_s: float = _TTL_DEFAUT, frais: bool = False) -> dict:
         if frais:
             sims = _sims_en_vol_dernier_tableau(racine)
             if sims is None:
-                sans_mesure = ("frais=1 accepté SANS mesure de charge (dernier tableau absent, illisible ou "
-                               "sans sims_en_vol) -- recalcul lancé à l'aveugle")
+                sans_mesure = ("frais=1 accepté SANS mesure de charge (dernier tableau absent, illisible, ou "
+                               "sims_en_vol absent ou non mesurable) -- recalcul lancé à l'aveugle")
             elif sims > 0:
                 effectif = False
                 refus_frais = (f"frais=1 refusé : {sims:g} simulation(s) en vol d'après le dernier tableau "
@@ -141,11 +239,12 @@ def get_pilotage(ttl_s: float = _TTL_DEFAUT, frais: bool = False) -> dict:
             board=None if effectif else pilotage.read_board(racine),
         )
         out = _blocs_servables(out)
-        _servable(_ENVELOPPE, out)                         # filet final : l'enveloppe entière passe la route
+        try:                                               # filet final : l'enveloppe entière passe la route
+            _servable(_ENVELOPPE, out)
+        except Exception as exc:                           # noqa: BLE001 — NOMMÉ par le mode dégradé
+            raise _EnveloppeRefusee(_resume(exc)) from exc
     except Exception as exc:                               # noqa: BLE001 — l'erreur est NOMMÉE, jamais avalée
-        out = {"schema": pilotage.SCHEMA, "generated_at": now, "repo_root": racine,
-               "aveugle": [f"pilotage: {type(exc).__name__}: {exc}"],
-               "flotte": None, "roadmap": None, "portes": None, "charge": None}
+        out = _mode_degrade(now, racine, exc)
     if not effectif:
         _cache["at"], _cache["valeur"] = now, out
     ajouts = [a for a in (refus_frais, sans_mesure) if a]

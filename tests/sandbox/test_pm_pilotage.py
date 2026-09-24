@@ -177,10 +177,46 @@ def test_un_lecteur_absent_rend_None_jamais_un_defaut(tmp_path):
 def _git_jetable(*args, cwd):
     """`git` pour un dépôt JETABLE : aucune variable `GIT_*` héritée (un crochet pose `GIT_INDEX_FILE` /
     `GIT_DIR`, le dépôt jetable en hériterait et écrirait dans l'index du vrai dépôt) et une identité
-    passée par `-c`, LOCALE à la commande — jamais écrite dans une configuration."""
+    passée par `-c`, LOCALE à la commande — jamais écrite dans une configuration.
+
+    G1 : `commit.gpgsign=false` aussi, par `-c` — la config GLOBALE de cette machine porte
+    `commit.gpgsign = true`, et le commit jetable était signé de la clé personnelle de robla (en-tête
+    `gpgsig` mesuré ; un gpg-agent à cache froid pouvait bloquer le test). Aucun tag n'est créé ici, donc
+    `tag.gpgsign` n'a rien à neutraliser."""
     env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
     return subprocess.run(["git", "-c", "user.name=pilotage-test", "-c", "user.email=pilotage@test.invalid",
-                           *args], cwd=str(cwd), check=True, capture_output=True, encoding="utf-8", env=env)
+                           "-c", "commit.gpgsign=false", *args], cwd=str(cwd), check=True, capture_output=True,
+                          encoding="utf-8", env=env)
+
+
+def test__git_jetable_ne_SIGNE_jamais_meme_si_la_config_GLOBALE_l_exige(tmp_path, monkeypatch):
+    """G1 : `_git_jetable` se déclarait hermétique mais héritait de `commit.gpgsign = true`, posé dans la
+    config GLOBALE de la machine de robla — mesuré, le commit jetable portait un en-tête `gpgsig`, signé de
+    sa clé PERSONNELLE ; gpg-agent à cache froid, pinentry pouvait bloquer le test (faux rouge ou garde-temps).
+
+    Le dispositif rend le défaut visible PARTOUT, CI comprise : un HOME factice dont la config globale
+    EXIGE une signature par un programme INEXISTANT. Non neutralisée, la signature fait échouer le commit ;
+    neutralisée, le commit passe et ne porte aucun `gpgsig`. Contrôle : git lit bien cette config."""
+    home = tmp_path / "home"
+    home.mkdir()
+    gpg_absent = (home / "gpg-absent.exe").as_posix()
+    (home / ".gitconfig").write_text("[commit]\n\tgpgsign = true\n[gpg]\n\tprogram = " + gpg_absent + "\n",
+                                     encoding="utf-8")
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(home))
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    lu = subprocess.run(["git", "config", "--global", "--get", "commit.gpgsign"], cwd=str(tmp_path),
+                        capture_output=True, encoding="utf-8", env=env)
+    assert lu.stdout.strip() == "true", ("contrôle : la config globale factice doit être celle que git lit",
+                                         lu.stdout, lu.stderr)
+    depot = tmp_path / "depot"
+    depot.mkdir()
+    _git_jetable("init", "-q", "-b", "main", cwd=depot)
+    (depot / "a.md").write_text("x", encoding="utf-8")
+    _git_jetable("add", "a.md", cwd=depot)
+    _git_jetable("commit", "-q", "-m", "init", cwd=depot)
+    entetes = _git_jetable("cat-file", "commit", "HEAD", cwd=depot).stdout.split("\n\n")[0]
+    assert "gpgsig" not in entetes, f"le commit jetable est SIGNÉ : {entetes}"
 
 
 def _depot_commun_et_worktree(tmp_path, monkeypatch):
@@ -490,6 +526,90 @@ def test_board_SANS_charge_connue_le_DIT():
     assert out["flotte"] == board
     assert out["charge"]["sims_en_vol"] is None and out["charge"]["cpu_pct"] is None
     assert any("charge_connue" in a for a in out["aveugle"]), out["aveugle"]
+
+
+@pytest.mark.parametrize("cc,absents", [
+    ({}, ["sims_en_vol", "cpu_pct", "bails_vivants"]),
+    ({"cpu_pct": 5.0}, ["sims_en_vol", "bails_vivants"]),
+    ({"sims_en_vol": 0, "cpu_pct": 5.0, "bails_vivants": []}, []),              # contrôle : rien d'absent
+])
+def test_charge_connue_sans_un_champ_attendu_NOMME_chaque_absent(cc, absents):
+    """G7 (classe F8) : `charge_connue = {}` passait la garde du board (c'est un dict) et les trois champs de
+    `charge` tombaient à `None` SANS ligne — trois inconnues présentées comme des valeurs. Chaque champ
+    attendu ABSENT est nommé, sur une seule ligne ; un champ présent n'y figure pas."""
+    board = {"generated_at": NOW, "sessions": [], "aveugle": [], "charge_connue": cc}
+    out = P.compute_pilotage(None, None, None, None, None, NOW, repo_root=P.racine_depot(), board=board)
+    assert out["flotte"] == board and out["charge"] is not None
+    lignes = [a for a in out["aveugle"] if a.startswith("charge") and "charge_connue" in a]
+    if not absents:
+        assert not lignes, lignes
+        return
+    assert len(lignes) == 1, out["aveugle"]
+    for champ in ("sims_en_vol", "cpu_pct", "bails_vivants"):
+        assert (champ in lignes[0]) == (champ in absents), (champ, lignes[0])
+        if champ in absents:
+            assert out["charge"][champ] is None
+
+
+@pytest.mark.parametrize("roles,attendu", [
+    ({"fichiers": {"science": 3, "methodo": 1, "autre": 0}}, "inconnue"),                       # drapeau absent
+    ({"fichiers": {"science": 3, "methodo": 1, "autre": 0}, "fichiers_disponibles": None}, "inconnue"),
+    ({"fichiers": {"science": 3, "methodo": 1, "autre": 0}, "fichiers_disponibles": "true"}, "inconnue"),
+    ({"fichiers": {"science": 3, "methodo": 1, "autre": 0}, "fichiers_disponibles": 1}, "inconnue"),
+    ({"fichiers": {"science": 0, "methodo": 0, "autre": 0}, "fichiers_disponibles": False}, "indisponibles"),
+    ({"fichiers": {"science": 3, "methodo": 1, "autre": 0}, "fichiers_disponibles": True}, None),  # contrôle
+])
+def test_fichiers_publies_SEULEMENT_si_fichiers_disponibles_est_True(roles, attendu):
+    """G7 (classe F10) : seul `fichiers_disponibles = false` retenait `fichiers` ; un drapeau ABSENT ou d'un
+    type inattendu laissait publier des zéros sans un mot. La justification « ancien format » est RÉFUTÉE :
+    `git log -S fichiers_disponibles` montre le drapeau né avec `roles_counts.py` (ff99e849) — aucun
+    ROLES_COUNTS.json légitime n'en est dépourvu. `fichiers` n'est publié que si le drapeau est `True` ;
+    sinon `None` et une ligne qui distingue « disponibilité inconnue » de « indisponibles »."""
+    out = P.compute_pilotage(None, None, None, roles, None, NOW, repo_root=P.racine_depot())
+    lignes = [a for a in out["aveugle"] if "fichiers_disponibles" in a]
+    if attendu is None:
+        assert out["charge"]["fichiers"] == roles["fichiers"]
+        assert not lignes, lignes
+        return
+    assert out["charge"]["fichiers"] is None, out["charge"]
+    assert len(lignes) == 1, out["aveugle"]
+    autre = "indisponibles" if attendu == "inconnue" else "inconnue"
+    assert attendu in lignes[0].lower() and autre not in lignes[0].lower(), lignes[0]
+
+
+def test_board_generated_at_ENTIER_GEANT_est_ILLISIBLE_jamais_une_OverflowError():
+    """G8 : un entier JSON de plus de 309 chiffres fait lever `OverflowError` à `float(generated_at)`, que la
+    garde n'attrapait pas (`TypeError`, `ValueError` seulement) : l'exception sortait de `compute_pilotage`
+    et aveuglait TOUT le pilotage. Il est lu par `json.loads`, comme `read_board` le lirait."""
+    board = json.loads('{"generated_at": 1' + "0" * 400 + ', "sessions": []}')
+    out = P.compute_pilotage(None, _BACKLOG_SYNTH, None, None, None, NOW, repo_root=P.racine_depot(),
+                             board=board)
+    assert out["flotte"] is None
+    assert any(a.startswith("flotte :") and "BOARD.json" in a and "generated_at" in a
+               for a in out["aveugle"]), out["aveugle"]
+    assert out["roadmap"] is not None and out["roadmap"]["comptes"]["blocs"] == 5
+
+
+def test_BOARD_et_ROLES_introuvables_NOMMENT_le_chemin_et_les_DEUX_causes_sans_en_choisir_une(tmp_path,
+                                                                                           monkeypatch):
+    """G9 : « ni instantané ni BOARD.json — le tick PM n'a pas encore tourné » affirmait une CAUSE tirée
+    d'une absence. Mesuré : git absent du PATH, un backend lancé depuis un worktree disait exactement cela
+    pendant que le tick tournait — la vraie cause était la racine de données non résolue. La ligne NOMME le
+    chemin cherché et donne les deux causes sans en choisir une.
+
+    Oracle indépendant du lecteur : `AGAGI_DATA_ROOT` pointée vers un répertoire VIDE, le chemin cherché est
+    construit ici depuis ce répertoire (`src/paths.py` : `<data_root>/pm/<fichier>`)."""
+    vide = tmp_path / "donnees"
+    vide.mkdir()
+    monkeypatch.setenv("AGAGI_DATA_ROOT", vide.as_posix())
+    out = P.compute_pilotage(None, None, None, None, None, NOW, repo_root=P.racine_depot())
+    for fichier, prefixe in (("BOARD.json", "flotte"), ("ROLES_COUNTS.json", "compteurs du PM")):
+        attendu = vide.as_posix() + "/pm/" + fichier
+        lignes = [a for a in out["aveugle"] if a.startswith(prefixe) and fichier in a]
+        assert len(lignes) == 1, (fichier, out["aveugle"])
+        assert attendu in lignes[0], (attendu, lignes[0])
+        assert "introuvable" in lignes[0] and "tick PM" in lignes[0] and "racine de données" in lignes[0], lignes[0]
+    assert not any("pas encore tourné" in a for a in out["aveugle"]), out["aveugle"]
 
 
 def test_les_lecteurs_ANCRENT_le_chemin_relatif_de_paths(tmp_path, monkeypatch):
