@@ -96,3 +96,46 @@ Corps.
     rangs = [r["rang"] for r in out["direction"]["rangs"]]
     assert rangs == ["2", "3", "4 quinquies", "10", "14 ter", "14 quater"], rangs
     assert all(isinstance(r["p_items"], list) for r in out["direction"]["rangs"])
+
+
+def test_clause_REELLE_sur_le_depot_trois_reponses_connues():
+    """Contrôle positif de la couche d'évaluation, sans évaluateur factice : `_evalue_clause` juge contre
+    le dépôt du module et exige un fichier SUIVI par git. Trois réponses connues : un motif présent dans
+    un fichier suivi → true ; un chemin qui n'existe pas → false ; un chemin absolu hors dépôt → null plus
+    une raison qui dit « pas suivi par git »."""
+    txt = ("**P9.1 — OUVERTE (2026-09-01) — vraie.**\nCorps.\n"
+           "<!-- closes_when:grep_present=tools/cost_guard.py::process_time -->\n\n"
+           "**P9.2 — OUVERTE (2026-09-02) — fausse.**\nCorps.\n"
+           "<!-- closes_when:path_present=zzz/nexiste/pas.py -->\n\n"
+           "**P9.3 — OUVERTE (2026-09-03) — invérifiable.**\nCorps.\n"
+           "<!-- closes_when:path_present=" + os.path.abspath(os.sep).replace(os.sep, "/") + "tmp_hors_depot.py -->\n")
+    out = P.parse_roadmap(txt, P.racine_depot(), NOW)              # évaluateur RÉEL
+    par = {e["num"]: e for e in out["entrees"]}
+    assert par["P9.1"]["clause"]["satisfaite"] is True
+    assert par["P9.2"]["clause"]["satisfaite"] is False
+    assert par["P9.3"]["clause"]["satisfaite"] in (False, None)
+
+
+def test_les_chemins_non_captes_par_le_motif_sont_COMPTES_jamais_avales():
+    """Le motif du cliquet n'admet que py|md|json|yml|yaml et refuse un chemin commençant par un point :
+    mesuré le 2026-09-24, 163 des 364 fragments backtickés du backlog réel sont invisibles. Présenter la
+    liste comme complète serait un motif qui TRONQUE en silence."""
+    txt = ("**P9.4 — OUVERTE (2026-09-01) — cite `tools/cost_guard.py`, `.github/workflows/ci.yml` "
+           "et `tools/hooks/pre-commit`.**\nCorps.\n")
+    out = P.parse_roadmap(txt, P.racine_depot(), NOW, evaluer_clause=lambda p, a: (True, None))
+    e = out["entrees"][0]
+    assert [c["rel"] for c in e["chemins"]] == ["tools/cost_guard.py"]
+    assert e["chemins_non_captes"] == 2, "les deux autres sont comptés, jamais présentés comme absents"
+
+
+def test_bloc_illisible_est_COMPTE_jamais_perdu(monkeypatch):
+    """Une exception sur UN bloc ne fait pas disparaître l'entrée : elle devient `illisible` et la parité
+    tient. Sans ce cas, une entrée mal formée réduirait silencieusement le compte publié."""
+    txt = "**P9.5 — OUVERTE (2026-09-01) — normale.**\nCorps.\n"
+    def _boum(*a, **k):
+        raise RuntimeError("bloc casse")
+    monkeypatch.setattr(P, "_entrees_du_bloc", _boum)
+    out = P.parse_roadmap(txt, P.racine_depot(), NOW, evaluer_clause=lambda p, a: (True, None))
+    assert out["comptes"]["illisibles"] == 1
+    assert out["entrees"][0]["statut"] == "illisible"
+    assert out["comptes"]["blocs"] == 1
