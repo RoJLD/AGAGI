@@ -208,24 +208,122 @@ class NoteFeedItem(BaseModel):
     ts: str
 
 
+class RoadmapRang(BaseModel):
+    rang: str
+    p_items: list[str]
+    statuts: list[str]
+
+
+class RoadmapDirection(BaseModel):
+    rangs: list[RoadmapRang]
+
+
+class RoadmapClause(BaseModel):
+    pred: str
+    arg: str
+    satisfaite: bool | None
+    raison: str | None = None
+
+
+class RoadmapHold(BaseModel):
+    pred: str
+    arg: str
+    satisfaite: bool | None
+
+
+class RoadmapChemin(BaseModel):
+    rel: str
+    existe: bool
+    ligne: int | None = None
+
+
+class RoadmapEntree(BaseModel):
+    num: str
+    nums: list[str]
+    bloc: int
+    priorite: str | None
+    rang: str | None
+    statut: str
+    date: str | None
+    titre: str
+    lignes: list[int]
+    clause: RoadmapClause | None = None
+    holds: list[RoadmapHold] = []
+    chemins: list[RoadmapChemin] = []
+    chemins_non_captes: int
+    raison_illisible: str | None = None
+
+
+class RoadmapComptesPriorite(BaseModel):
+    ouvertes: int
+    closes: int
+    perimees: int
+
+
+class RoadmapComptes(BaseModel):
+    par_priorite: dict[str, RoadmapComptesPriorite]
+    blocs: int
+    numeros: int
+    illisibles: int
+
+
+class Roadmap(BaseModel):
+    direction: RoadmapDirection
+    entrees: list[RoadmapEntree]
+    comptes: RoadmapComptes
+    portes_agi: dict[str, Any] | None = None
+
+
+class PorteBaseline(BaseModel):
+    chemin: str
+    existe: bool
+    dette: int | None = None
+
+
+class Porte(BaseModel):
+    num: str
+    module: str
+    titre: str | None = None
+    temoins: list[str] | None = None
+    mutations: int | None = None
+    baseline: PorteBaseline | None = None
+
+
+class Charge(BaseModel):
+    sims_en_vol: int | None = None
+    cpu_pct: float | None = None
+    bails_vivants: list[str] | None = None
+    flotte_age_s: float | None = None
+    ratio_science_methodo: float | None = None
+    fichiers: dict[str, int] | None = None
+    fenetre: dict[str, Any] | None = None
+
+
 class PilotageV1(BaseModel):
     """Enveloppe de `pilotage_v1`.
 
     ⚠️ `flotte` est `dict | None` SANS modèle strict : son contrat appartient au board (session PM) et
-    évolue chez son propriétaire ; un `response_model` qui refuserait une clé neuve lèverait un 500 HORS
-    du try/except du service — une seconde source d'erreur que les modes dégradés ne couvrent pas.
+    évolue chez son propriétaire. Ce n'est PAS pour éviter un refus de clé neuve : en pydantic v2, un
+    `response_model` IGNORE en silence une clé qu'il ne déclare pas (`model_config` par défaut n'est pas
+    `extra="forbid"`), il ne lève pas dessus. Le vrai risque qu'un modèle nommé introduirait est un
+    changement de TYPE d'un champ existant (le board rend un `str` là où le modèle attend un nombre, par
+    exemple) : LÀ, pydantic lève une `ValidationError` — HORS du `try/except` du service, une seconde
+    source d'erreur que les modes dégradés ne couvrent pas. `roadmap`, `portes` et `charge`, eux, sont le
+    contrat de `tools/pm/pilotage.py` LUI-MÊME (même dépôt, même commit) : les typer en modèles nommés ne
+    court pas ce risque de la même façon, et le frontend en a besoin (sinon `openapi-typescript` rend
+    `{[key: string]: unknown}`, inutilisable sous `tsconfig strict`).
     ⚠️ `schema` masque un attribut de `BaseModel` en pydantic v2 : d'où l'alias.
     """
     model_config = ConfigDict(populate_by_name=True)
 
     schema_: str = Field(alias="schema")
     generated_at: float
-    repo_root: str
+    repo_root: str | None = None
     aveugle: list[str]
     flotte: dict | None = None
-    roadmap: dict | None = None
-    portes: list[dict] | None = None
-    charge: dict | None = None
+    roadmap: Roadmap | None = None
+    portes: list[Porte] | None = None
+    charge: Charge | None = None
 
 
 class SweepResult(BaseModel):

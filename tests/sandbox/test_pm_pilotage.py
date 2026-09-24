@@ -3,6 +3,7 @@
 EXEMPTION DÉCLARÉE de la garde de bail : aucun test ici ne simule un monde ni ne prend de bail."""
 import json
 import os
+import subprocess
 import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
@@ -170,27 +171,171 @@ def test_un_lecteur_absent_rend_None_jamais_un_defaut(tmp_path):
     assert P.read_backlog(str(tmp_path)) is None
 
 
+def test_read_board_et_read_roles_counts_TROUVENT_le_depot_COMMUN_depuis_un_worktree(tmp_path, monkeypatch):
+    """CRITIQUE 1 : `pilotage.py` était le SEUL module de `tools/pm/` à ne pas appeler
+    `snapshot.ancrer_data_root()`. Depuis un worktree, `paths.pm_dir(...)` rend un chemin RELATIF que
+    `_ancre` joignait à la racine du WORKTREE — où `BOARD.json`/`ROLES_COUNTS.json` n'existent PAS, même
+    quand ils existent dans le dépôt COMMUN. Contre-exemple gelé : un dépôt jetable + un worktree lié,
+    les deux fichiers écrits côté dépôt COMMUN, lus depuis le worktree.
+
+    Isolation : sentinelle setenv PUIS delenv (le seul enchaînement qui enregistre une restauration
+    monkeypatch pour une clé jusque-là ABSENTE — cf. `test_pm_snapshot.py`), sinon l'écriture RAW que fait
+    `ancrer_data_root()` sur `os.environ` fuit vers les tests suivants de la session."""
+    monkeypatch.setenv("AGAGI_DATA_ROOT", "sentinelle-a-effacer")
+    monkeypatch.delenv("AGAGI_DATA_ROOT", raising=False)
+
+    depot = tmp_path / "depot"
+    depot.mkdir()
+    _git = lambda *a: subprocess.run(["git", *a], cwd=str(depot), check=True, capture_output=True,
+                                     encoding="utf-8")
+    _git("init", "-q", "-b", "main")
+    _git("config", "user.email", "t@t")
+    _git("config", "user.name", "t")
+    (depot / "a.md").write_text("x", encoding="utf-8")
+    _git("add", "a.md")
+    _git("commit", "-q", "-m", "init")
+
+    wt = tmp_path / "wt"
+    subprocess.run(["git", "worktree", "add", "-q", "-b", "chantier/ancre-pilotage", str(wt)],
+                   cwd=str(depot), check=True, capture_output=True, encoding="utf-8")
+
+    pm_dir = depot / "data" / "pm"
+    pm_dir.mkdir(parents=True)
+    (pm_dir / "BOARD.json").write_text(json.dumps({"generated_at": NOW, "sessions": []}), encoding="utf-8")
+    (pm_dir / "ROLES_COUNTS.json").write_text(json.dumps({"ratio_science_methodo": 1.0}), encoding="utf-8")
+
+    board = P.read_board(str(wt))
+    roles = P.read_roles_counts(str(wt))
+    assert board is not None and board["sessions"] == [], (
+        f"read_board(worktree) devait trouver le BOARD.json du dépôt COMMUN : {board}")
+    assert roles is not None and roles["ratio_science_methodo"] == 1.0, (
+        f"read_roles_counts(worktree) devait trouver le ROLES_COUNTS.json du dépôt COMMUN : {roles}")
+
+
+def test_backlog_VIDE_est_ILLISIBLE_jamais_un_backlog_de_zero_entree():
+    """CRITIQUE 2 : `read_backlog` rend `""` sur un fichier vide (pas `None`), et `compter_entrees("")`
+    rend 0 -- l'assertion de parité passait et `compute_pilotage` publiait `blocs: 0, numeros: 0` SANS
+    une ligne d'aveuglement. Contre-exemple réel : le backlog est déjà tombé de 2352 lignes à 0
+    (2026-09-09, `check_backlog_freshness.compter_entrees`). Un fichier vide est une source ILLISIBLE."""
+    out = P.compute_pilotage(None, "", None, None, None, NOW, repo_root=P.racine_depot())
+    assert out["roadmap"] is None, out["roadmap"]
+    assert any("VIDE" in a for a in out["aveugle"]), out["aveugle"]
+    texte = json.dumps(out, ensure_ascii=False)
+    assert '"blocs": 0' not in texte and '"numeros": 0' not in texte
+
+
+def test_backlog_SANS_AUCUNE_TETE_reconnue_est_ILLISIBLE():
+    """Variante non-vide de CRITIQUE 2 : du texte présent, mais aucune tête `**Pn.m` -- même verdict,
+    un backlog de forme méconnaissable n'est pas un backlog à 0 entrée."""
+    out = P.compute_pilotage(None, "# Juste un titre\n\nDu texte sans aucune tête d'entrée.\n", None, None,
+                             None, NOW, repo_root=P.racine_depot())
+    assert out["roadmap"] is None, out["roadmap"]
+    assert any("AUCUNE" in a for a in out["aveugle"]), out["aveugle"]
+
+
+def test_tete_indentee_rompt_la_PARITE_et_devient_une_ligne_aveugle_jamais_une_exception():
+    """Minor (revue finale) : `_ENTREE` exige `^\\*\\*` ancré en tout DÉBUT de ligne, `compter_entrees`
+    matche sur `ln.strip()` -- une tête INDENTÉE est comptée par le second, invisible pour le premier :
+    `parse_roadmap` lève une `AssertionError` de parité qui, non rattrapée, remontait jusqu'au `except`
+    du service et aveuglait TOUT (flotte, portes, charge compris), pas seulement le backlog."""
+    txt = "  **P9.9 — OUVERTE (2026-09-01) — tête indentée de deux espaces.**\nCorps.\n"
+    out = P.compute_pilotage(None, txt, None, None, [], NOW, repo_root=P.racine_depot(),
+                             board={"sessions": []})
+    assert out["roadmap"] is None, out["roadmap"]
+    assert any("backlog" in a and "AssertionError" in a for a in out["aveugle"]), out["aveugle"]
+    assert out["portes"] == [], "le reste du pilotage ne doit PAS être aveuglé par le backlog"
+    assert out["flotte"] is not None, "le reste du pilotage ne doit PAS être aveuglé par le backlog"
+
+
+def test_portes_agi_perdues_SANS_backlog_est_DIT_quand_records_graph_est_present():
+    """Minor (revue finale) : `portes_agi` vit DANS `roadmap`. Si le backlog manque (ou est illisible)
+    alors que `records_graph.json` est présent, les portes G0-G4 sont jetées avec `roadmap` sans qu'aucun
+    mot ne le dise -- une des TROIS lectures de l'avancement (spec §2.3) disparaît en silence."""
+    rg = {"roadmap": {"G0": {"status": "validated"}}}
+    out = P.compute_pilotage(None, None, rg, None, None, NOW, repo_root=P.racine_depot())
+    assert out["roadmap"] is None
+    assert any("portes_agi" in a for a in out["aveugle"]), out["aveugle"]
+
+
+def test_racine_ETRANGERE_nomme_la_racine_jamais_un_fichier_absent(tmp_path):
+    """IMPORTANT 3 (spec §3.1 et §6, ligne « racine étrangère ») : depuis un dépôt jetable qui ne porte NI
+    le backlog NI le hook, le pilotage accusait chaque fichier d'être absent, un par un, sans jamais
+    nommer la racine en cause. Mesuré depuis un `tempfile.mkdtemp()`. Contre-exemple gelé : un cwd
+    étranger portant `.git`."""
+    subprocess.run(["git", "init", "-q"], cwd=str(tmp_path), check=True, capture_output=True,
+                   encoding="utf-8")
+    out = P.compute_pilotage(None, None, None, None, None, NOW, repo_root=str(tmp_path))
+    assert len(out["aveugle"]) == 1, out["aveugle"]
+    assert str(tmp_path).replace("\\", "/") in out["aveugle"][0].replace("\\", "/")
+    assert "introuvable" not in out["aveugle"][0] and "illisible" not in out["aveugle"][0], out["aveugle"]
+    assert out["flotte"] is None and out["roadmap"] is None
+    assert out["portes"] is None and out["charge"] is None
+
+
+def test_board_NON_DICT_est_ILLISIBLE_ne_nuit_pas_au_reste_du_pilotage():
+    """IMPORTANT 4 : sonde du reviewer, `board = [1, 2, 3]` faisait lever `AttributeError` sur
+    `flotte.get(...)`, attrapée par le `except` du SERVICE -- qui mettait roadmap/portes/charge à `null`
+    alors qu'une seule source (le board) est en cause. `compute_pilotage` doit rester debout tout seul."""
+    out = P.compute_pilotage(None, _BACKLOG_SYNTH, None, None, None, NOW, repo_root=P.racine_depot(),
+                             board=[1, 2, 3])
+    assert out["flotte"] is None
+    assert any("flotte" in a and "list" in a for a in out["aveugle"]), out["aveugle"]
+    assert out["roadmap"] is not None and out["roadmap"]["comptes"]["blocs"] == 5
+
+
+def test_board_generated_at_NON_NUMERIQUE_est_ILLISIBLE_ne_nuit_pas_au_reste_du_pilotage():
+    """IMPORTANT 4 : sonde du reviewer, `board = {"generated_at": "2026-09-24 12:00:00"}` faisait lever
+    `ValueError` sur `float(gen)` -- exactement la forme dont la docstring de `read_board` prévient déjà
+    (`json.dump(..., default=str)` stringifie en silence). Même verdict : illisible, pas contagieux."""
+    board = {"generated_at": "2026-09-24 12:00:00", "sessions": []}
+    out = P.compute_pilotage(None, _BACKLOG_SYNTH, None, None, None, NOW, repo_root=P.racine_depot(),
+                             board=board)
+    assert out["flotte"] is None
+    assert any("flotte" in a for a in out["aveugle"]), out["aveugle"]
+    assert out["roadmap"] is not None and out["roadmap"]["comptes"]["blocs"] == 5
+
+
 def test_les_lecteurs_ANCRENT_le_chemin_relatif_de_paths(tmp_path, monkeypatch):
     """`src/paths.py` rend du RELATIF sans variable d'environnement (mesuré : `results/records_graph.json`,
     `os.path.isabs` False) : un lecteur qui ne l'ancre pas dépend du répertoire courant du processus, et
-    celui d'uvicorn n'est pas garanti."""
+    celui d'uvicorn n'est pas garanti.
+
+    Étendu (minor, revue finale) : `read_board` et `read_roles_counts` — les deux lecteurs faux de C1 —
+    n'étaient testés que contre un `tmp_path` VIDE, où toute implémentation (correcte ou non) rend `None`.
+    Ici `tmp_path` porte ses propres `data/pm/{BOARD,ROLES_COUNTS}.json` et n'est PAS un dépôt git (cwd
+    hors dépôt, donc `ancrer_data_root` ne trouve rien à ancrer et se tait) : le test isole ainsi le
+    comportement de repli sur `repo_root` de celui, distinct, de l'ancrage sur le dépôt COMMUN (couvert
+    par son propre test)."""
     for v in ("AGAGI_DATA_ROOT", "AGAGI_RESULTS_ROOT", "AGAGI_DB_ROOT"):
         monkeypatch.delenv(v, raising=False)
     (tmp_path / "results").mkdir()
     (tmp_path / "results" / "records_graph.json").write_text('{"roadmap": {"G0": {"status": "validated"}}}',
                                                              encoding="utf-8")
-    monkeypatch.chdir(tmp_path.parent)                     # cwd DIFFÉRENT de la racine passée
+    (tmp_path / "data" / "pm").mkdir(parents=True)
+    (tmp_path / "data" / "pm" / "BOARD.json").write_text('{"sessions": []}', encoding="utf-8")
+    (tmp_path / "data" / "pm" / "ROLES_COUNTS.json").write_text('{"ratio_science_methodo": 3.0}',
+                                                                encoding="utf-8")
+    monkeypatch.chdir(tmp_path.parent)                     # cwd DIFFÉRENT de la racine passée, HORS DÉPÔT git
     g = P.read_records_graph(str(tmp_path))
     assert g is not None and g["roadmap"]["G0"]["status"] == "validated"
+    b = P.read_board(str(tmp_path))
+    assert b is not None and b["sessions"] == [], b
+    r = P.read_roles_counts(str(tmp_path))
+    assert r is not None and r["ratio_science_methodo"] == 3.0, r
 
 
 def test_inventaire_des_portes_recompute_depuis_le_HOOK_pas_depuis_PORTES():
     """`check_gate_mutation.PORTES` est la table des portes MUTÉES, pas l'inventaire des gardes : mesuré le
     2026-09-24, le hook lance 19 scripts `check_*` et PORTES en a 16 — `check_staged_authorship` (porte 7)
     et `check_gate_mutation` (porte 15) en sont absents. Et la numérotation du hook n'est ni contiguë
-    (ni 19 ni 20) ni dans l'ordre du fichier (le bloc 21 précède le 18)."""
+    (ni 19 ni 20) ni dans l'ordre du fichier (le bloc 21 précède le 18).
+
+    I7 : la spec (§6, « inventaire des portes ») exige la PARITÉ EXACTE avec le hook recomputé, pas un
+    plancher `>= 16` — un plancher laisserait une porte ajoutée À L'INTÉRIEUR d'un bloc existant du hook
+    disparaître de l'inventaire sans qu'aucun test ne rougisse."""
+    from tools.check_synthesis_counts import _portes_hook
     portes = P.read_portes(P.racine_depot())
-    assert portes is not None and len(portes) >= 16
+    assert portes is not None and len(portes) == _portes_hook(), (len(portes), _portes_hook())
     nums = [p["num"] for p in portes]
     assert nums == sorted(nums, key=int), "ordre par int(num), pas un tri de chaînes"
     assert all(isinstance(p["num"], str) for p in portes)
@@ -212,8 +357,12 @@ def test_une_porte_du_hook_sans_baseline_declaree_porte_baseline_None():
 
 def test_NO_OP_EXACT_tout_absent_rend_cinq_aveuglements_et_aucun_zero():
     """Spécificité de l'instrument : sans aucune source, il ne dit pas « 0 alerte, 0 entrée » — il dit
-    qu'il est AVEUGLE, cinq fois, et laisse les quatre blocs à None."""
-    out = P.compute_pilotage(None, None, None, None, None, NOW, repo_root="c:/x")
+    qu'il est AVEUGLE, cinq fois, et laisse les quatre blocs à None.
+
+    `repo_root` DOIT être une racine SAINE (`racine_depot()`) : `c:/x` n'existe pas sur le disque et
+    déclencherait désormais la garde de santé (I3), qui court-circuite tout en UNE seule ligne nommant
+    la racine — un cas différent, couvert par son propre test (racine étrangère)."""
+    out = P.compute_pilotage(None, None, None, None, None, NOW, repo_root=P.racine_depot())
     assert out["schema"] == "pilotage_v1" and out["generated_at"] == NOW
     assert out["flotte"] is None and out["roadmap"] is None
     assert out["portes"] is None and out["charge"] is None
@@ -231,7 +380,9 @@ def test_flotte_est_la_sortie_du_board_SANS_transformation():
             "cpu_pct": 10.0, "backlog_paths": {},
             "hook_errors": {}}  # DICT {événement: n}, jamais une liste : board._alertes fait .items()
     attendu = B.compute(snap, now=NOW)
-    out = P.compute_pilotage(snap, None, None, None, None, NOW, repo_root="c:/x/agagi")
+    # `repo_root` du COMPUTE (garde de santé I3) est distinct de `snap["repo_root"]` (interne au board,
+    # jamais mesuré sur disque) : le premier doit être SAIN, le second reste un identifiant quelconque.
+    out = P.compute_pilotage(snap, None, None, None, None, NOW, repo_root=P.racine_depot())
     assert out["flotte"] == attendu
 
 
@@ -240,7 +391,7 @@ def test_charge_porte_la_FENETRE_glissante_jamais_la_constante_depuis():
     30 j). Servir `depuis` comme fenêtre attribuerait le ratio à une période qui n'est pas la sienne."""
     rc = {"depuis": "2026-09-16", "fenetre": {"depuis": "2026-08-24", "jours": 30},
           "ratio_science_methodo": 1.12, "fichiers": {"science": 239, "methodo": 213, "autre": 604}}
-    out = P.compute_pilotage(None, None, None, rc, None, NOW, repo_root="c:/x")
+    out = P.compute_pilotage(None, None, None, rc, None, NOW, repo_root=P.racine_depot())
     assert out["charge"]["fenetre"] == {"depuis": "2026-08-24", "jours": 30}
     assert out["charge"]["ratio_science_methodo"] == 1.12
     assert "depuis" not in out["charge"], "la constante DEBUT n'est pas une fenêtre"
@@ -254,11 +405,11 @@ def test_age_de_la_flotte_vient_de_generated_at_jamais_du_mtime(tmp_path):
              "sessions_mortes": [], "alertes": [],
              "charge_connue": {"sims_en_vol": 0, "cpu_pct": 5.0, "bails_vivants": []},
              "worktrees": [], "bails": None}
-    out = P.compute_pilotage(None, None, None, None, None, NOW, repo_root="c:/x", board=board)
+    out = P.compute_pilotage(None, None, None, None, None, NOW, repo_root=P.racine_depot(), board=board)
     assert out["charge"]["flotte_age_s"] == 1800.0
     sans = dict(board)
     sans.pop("generated_at")
-    out2 = P.compute_pilotage(None, None, None, None, None, NOW, repo_root="c:/x", board=sans)
+    out2 = P.compute_pilotage(None, None, None, None, None, NOW, repo_root=P.racine_depot(), board=sans)
     assert out2["charge"]["flotte_age_s"] is None, "clé absente -> None, jamais un mtime de repli"
 
 

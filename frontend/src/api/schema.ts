@@ -914,6 +914,27 @@ export interface components {
             /** Title */
             title: string;
         };
+        /** Charge */
+        Charge: {
+            /** Bails Vivants */
+            bails_vivants?: string[] | null;
+            /** Cpu Pct */
+            cpu_pct?: number | null;
+            /** Fenetre */
+            fenetre?: {
+                [key: string]: unknown;
+            } | null;
+            /** Fichiers */
+            fichiers?: {
+                [key: string]: number;
+            } | null;
+            /** Flotte Age S */
+            flotte_age_s?: number | null;
+            /** Ratio Science Methodo */
+            ratio_science_methodo?: number | null;
+            /** Sims En Vol */
+            sims_en_vol?: number | null;
+        };
         /** ConditionSummary */
         ConditionSummary: {
             /** Metrics */
@@ -1160,17 +1181,21 @@ export interface components {
          * @description Enveloppe de `pilotage_v1`.
          *
          *     ⚠️ `flotte` est `dict | None` SANS modèle strict : son contrat appartient au board (session PM) et
-         *     évolue chez son propriétaire ; un `response_model` qui refuserait une clé neuve lèverait un 500 HORS
-         *     du try/except du service — une seconde source d'erreur que les modes dégradés ne couvrent pas.
+         *     évolue chez son propriétaire. Ce n'est PAS pour éviter un refus de clé neuve : en pydantic v2, un
+         *     `response_model` IGNORE en silence une clé qu'il ne déclare pas (`model_config` par défaut n'est pas
+         *     `extra="forbid"`), il ne lève pas dessus. Le vrai risque qu'un modèle nommé introduirait est un
+         *     changement de TYPE d'un champ existant (le board rend un `str` là où le modèle attend un nombre, par
+         *     exemple) : LÀ, pydantic lève une `ValidationError` — HORS du `try/except` du service, une seconde
+         *     source d'erreur que les modes dégradés ne couvrent pas. `roadmap`, `portes` et `charge`, eux, sont le
+         *     contrat de `tools/pm/pilotage.py` LUI-MÊME (même dépôt, même commit) : les typer en modèles nommés ne
+         *     court pas ce risque de la même façon, et le frontend en a besoin (sinon `openapi-typescript` rend
+         *     `{[key: string]: unknown}`, inutilisable sous `tsconfig strict`).
          *     ⚠️ `schema` masque un attribut de `BaseModel` en pydantic v2 : d'où l'alias.
          */
         PilotageV1: {
             /** Aveugle */
             aveugle: string[];
-            /** Charge */
-            charge?: {
-                [key: string]: unknown;
-            } | null;
+            charge?: components["schemas"]["Charge"] | null;
             /** Flotte */
             flotte?: {
                 [key: string]: unknown;
@@ -1178,17 +1203,147 @@ export interface components {
             /** Generated At */
             generated_at: number;
             /** Portes */
-            portes?: {
-                [key: string]: unknown;
-            }[] | null;
+            portes?: components["schemas"]["Porte"][] | null;
             /** Repo Root */
-            repo_root: string;
-            /** Roadmap */
-            roadmap?: {
-                [key: string]: unknown;
-            } | null;
+            repo_root?: string | null;
+            roadmap?: components["schemas"]["Roadmap"] | null;
             /** Schema */
             schema: string;
+        };
+        /** Porte */
+        Porte: {
+            baseline?: components["schemas"]["PorteBaseline"] | null;
+            /** Module */
+            module: string;
+            /** Mutations */
+            mutations?: number | null;
+            /** Num */
+            num: string;
+            /** Temoins */
+            temoins?: string[] | null;
+            /** Titre */
+            titre?: string | null;
+        };
+        /** PorteBaseline */
+        PorteBaseline: {
+            /** Chemin */
+            chemin: string;
+            /** Dette */
+            dette?: number | null;
+            /** Existe */
+            existe: boolean;
+        };
+        /** Roadmap */
+        Roadmap: {
+            comptes: components["schemas"]["RoadmapComptes"];
+            direction: components["schemas"]["RoadmapDirection"];
+            /** Entrees */
+            entrees: components["schemas"]["RoadmapEntree"][];
+            /** Portes Agi */
+            portes_agi?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /** RoadmapChemin */
+        RoadmapChemin: {
+            /** Existe */
+            existe: boolean;
+            /** Ligne */
+            ligne?: number | null;
+            /** Rel */
+            rel: string;
+        };
+        /** RoadmapClause */
+        RoadmapClause: {
+            /** Arg */
+            arg: string;
+            /** Pred */
+            pred: string;
+            /** Raison */
+            raison?: string | null;
+            /** Satisfaite */
+            satisfaite: boolean | null;
+        };
+        /** RoadmapComptes */
+        RoadmapComptes: {
+            /** Blocs */
+            blocs: number;
+            /** Illisibles */
+            illisibles: number;
+            /** Numeros */
+            numeros: number;
+            /** Par Priorite */
+            par_priorite: {
+                [key: string]: components["schemas"]["RoadmapComptesPriorite"];
+            };
+        };
+        /** RoadmapComptesPriorite */
+        RoadmapComptesPriorite: {
+            /** Closes */
+            closes: number;
+            /** Ouvertes */
+            ouvertes: number;
+            /** Perimees */
+            perimees: number;
+        };
+        /** RoadmapDirection */
+        RoadmapDirection: {
+            /** Rangs */
+            rangs: components["schemas"]["RoadmapRang"][];
+        };
+        /** RoadmapEntree */
+        RoadmapEntree: {
+            /** Bloc */
+            bloc: number;
+            /**
+             * Chemins
+             * @default []
+             */
+            chemins: components["schemas"]["RoadmapChemin"][];
+            /** Chemins Non Captes */
+            chemins_non_captes: number;
+            clause?: components["schemas"]["RoadmapClause"] | null;
+            /** Date */
+            date: string | null;
+            /**
+             * Holds
+             * @default []
+             */
+            holds: components["schemas"]["RoadmapHold"][];
+            /** Lignes */
+            lignes: number[];
+            /** Num */
+            num: string;
+            /** Nums */
+            nums: string[];
+            /** Priorite */
+            priorite: string | null;
+            /** Raison Illisible */
+            raison_illisible?: string | null;
+            /** Rang */
+            rang: string | null;
+            /** Statut */
+            statut: string;
+            /** Titre */
+            titre: string;
+        };
+        /** RoadmapHold */
+        RoadmapHold: {
+            /** Arg */
+            arg: string;
+            /** Pred */
+            pred: string;
+            /** Satisfaite */
+            satisfaite: boolean | null;
+        };
+        /** RoadmapRang */
+        RoadmapRang: {
+            /** P Items */
+            p_items: string[];
+            /** Rang */
+            rang: string;
+            /** Statuts */
+            statuts: string[];
         };
         /** RunDetail */
         RunDetail: {

@@ -196,6 +196,96 @@
         "title": "ArticleResponse",
         "type": "object"
       },
+      "Charge": {
+        "properties": {
+          "bails_vivants": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Bails Vivants"
+          },
+          "cpu_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cpu Pct"
+          },
+          "fenetre": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fenetre"
+          },
+          "fichiers": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fichiers"
+          },
+          "flotte_age_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flotte Age S"
+          },
+          "ratio_science_methodo": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ratio Science Methodo"
+          },
+          "sims_en_vol": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sims En Vol"
+          }
+        },
+        "title": "Charge",
+        "type": "object"
+      },
       "ConditionSummary": {
         "properties": {
           "metrics": {
@@ -936,7 +1026,7 @@
         "type": "object"
       },
       "PilotageV1": {
-        "description": "Enveloppe de `pilotage_v1`.\n\n⚠️ `flotte` est `dict | None` SANS modèle strict : son contrat appartient au board (session PM) et\névolue chez son propriétaire ; un `response_model` qui refuserait une clé neuve lèverait un 500 HORS\ndu try/except du service — une seconde source d'erreur que les modes dégradés ne couvrent pas.\n⚠️ `schema` masque un attribut de `BaseModel` en pydantic v2 : d'où l'alias.",
+        "description": "Enveloppe de `pilotage_v1`.\n\n⚠️ `flotte` est `dict | None` SANS modèle strict : son contrat appartient au board (session PM) et\névolue chez son propriétaire. Ce n'est PAS pour éviter un refus de clé neuve : en pydantic v2, un\n`response_model` IGNORE en silence une clé qu'il ne déclare pas (`model_config` par défaut n'est pas\n`extra=\"forbid\"`), il ne lève pas dessus. Le vrai risque qu'un modèle nommé introduirait est un\nchangement de TYPE d'un champ existant (le board rend un `str` là où le modèle attend un nombre, par\nexemple) : LÀ, pydantic lève une `ValidationError` — HORS du `try/except` du service, une seconde\nsource d'erreur que les modes dégradés ne couvrent pas. `roadmap`, `portes` et `charge`, eux, sont le\ncontrat de `tools/pm/pilotage.py` LUI-MÊME (même dépôt, même commit) : les typer en modèles nommés ne\ncourt pas ce risque de la même façon, et le frontend en a besoin (sinon `openapi-typescript` rend\n`{[key: string]: unknown}`, inutilisable sous `tsconfig strict`).\n⚠️ `schema` masque un attribut de `BaseModel` en pydantic v2 : d'où l'alias.",
         "properties": {
           "aveugle": {
             "items": {
@@ -948,14 +1038,12 @@
           "charge": {
             "anyOf": [
               {
-                "additionalProperties": true,
-                "type": "object"
+                "$ref": "#/components/schemas/Charge"
               },
               {
                 "type": "null"
               }
-            ],
-            "title": "Charge"
+            ]
           },
           "flotte": {
             "anyOf": [
@@ -977,8 +1065,7 @@
             "anyOf": [
               {
                 "items": {
-                  "additionalProperties": true,
-                  "type": "object"
+                  "$ref": "#/components/schemas/Porte"
                 },
                 "type": "array"
               },
@@ -989,20 +1076,25 @@
             "title": "Portes"
           },
           "repo_root": {
-            "title": "Repo Root",
-            "type": "string"
-          },
-          "roadmap": {
             "anyOf": [
               {
-                "additionalProperties": true,
-                "type": "object"
+                "type": "string"
               },
               {
                 "type": "null"
               }
             ],
-            "title": "Roadmap"
+            "title": "Repo Root"
+          },
+          "roadmap": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Roadmap"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "schema": {
             "title": "Schema",
@@ -1012,10 +1104,459 @@
         "required": [
           "schema",
           "generated_at",
-          "repo_root",
           "aveugle"
         ],
         "title": "PilotageV1",
+        "type": "object"
+      },
+      "Porte": {
+        "properties": {
+          "baseline": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PorteBaseline"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "module": {
+            "title": "Module",
+            "type": "string"
+          },
+          "mutations": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mutations"
+          },
+          "num": {
+            "title": "Num",
+            "type": "string"
+          },
+          "temoins": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temoins"
+          },
+          "titre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Titre"
+          }
+        },
+        "required": [
+          "num",
+          "module"
+        ],
+        "title": "Porte",
+        "type": "object"
+      },
+      "PorteBaseline": {
+        "properties": {
+          "chemin": {
+            "title": "Chemin",
+            "type": "string"
+          },
+          "dette": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dette"
+          },
+          "existe": {
+            "title": "Existe",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "chemin",
+          "existe"
+        ],
+        "title": "PorteBaseline",
+        "type": "object"
+      },
+      "Roadmap": {
+        "properties": {
+          "comptes": {
+            "$ref": "#/components/schemas/RoadmapComptes"
+          },
+          "direction": {
+            "$ref": "#/components/schemas/RoadmapDirection"
+          },
+          "entrees": {
+            "items": {
+              "$ref": "#/components/schemas/RoadmapEntree"
+            },
+            "title": "Entrees",
+            "type": "array"
+          },
+          "portes_agi": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Portes Agi"
+          }
+        },
+        "required": [
+          "direction",
+          "entrees",
+          "comptes"
+        ],
+        "title": "Roadmap",
+        "type": "object"
+      },
+      "RoadmapChemin": {
+        "properties": {
+          "existe": {
+            "title": "Existe",
+            "type": "boolean"
+          },
+          "ligne": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ligne"
+          },
+          "rel": {
+            "title": "Rel",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rel",
+          "existe"
+        ],
+        "title": "RoadmapChemin",
+        "type": "object"
+      },
+      "RoadmapClause": {
+        "properties": {
+          "arg": {
+            "title": "Arg",
+            "type": "string"
+          },
+          "pred": {
+            "title": "Pred",
+            "type": "string"
+          },
+          "raison": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raison"
+          },
+          "satisfaite": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Satisfaite"
+          }
+        },
+        "required": [
+          "pred",
+          "arg",
+          "satisfaite"
+        ],
+        "title": "RoadmapClause",
+        "type": "object"
+      },
+      "RoadmapComptes": {
+        "properties": {
+          "blocs": {
+            "title": "Blocs",
+            "type": "integer"
+          },
+          "illisibles": {
+            "title": "Illisibles",
+            "type": "integer"
+          },
+          "numeros": {
+            "title": "Numeros",
+            "type": "integer"
+          },
+          "par_priorite": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/RoadmapComptesPriorite"
+            },
+            "title": "Par Priorite",
+            "type": "object"
+          }
+        },
+        "required": [
+          "par_priorite",
+          "blocs",
+          "numeros",
+          "illisibles"
+        ],
+        "title": "RoadmapComptes",
+        "type": "object"
+      },
+      "RoadmapComptesPriorite": {
+        "properties": {
+          "closes": {
+            "title": "Closes",
+            "type": "integer"
+          },
+          "ouvertes": {
+            "title": "Ouvertes",
+            "type": "integer"
+          },
+          "perimees": {
+            "title": "Perimees",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "ouvertes",
+          "closes",
+          "perimees"
+        ],
+        "title": "RoadmapComptesPriorite",
+        "type": "object"
+      },
+      "RoadmapDirection": {
+        "properties": {
+          "rangs": {
+            "items": {
+              "$ref": "#/components/schemas/RoadmapRang"
+            },
+            "title": "Rangs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "rangs"
+        ],
+        "title": "RoadmapDirection",
+        "type": "object"
+      },
+      "RoadmapEntree": {
+        "properties": {
+          "bloc": {
+            "title": "Bloc",
+            "type": "integer"
+          },
+          "chemins": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/RoadmapChemin"
+            },
+            "title": "Chemins",
+            "type": "array"
+          },
+          "chemins_non_captes": {
+            "title": "Chemins Non Captes",
+            "type": "integer"
+          },
+          "clause": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RoadmapClause"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "holds": {
+            "default": [],
+            "items": {
+              "$ref": "#/components/schemas/RoadmapHold"
+            },
+            "title": "Holds",
+            "type": "array"
+          },
+          "lignes": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Lignes",
+            "type": "array"
+          },
+          "num": {
+            "title": "Num",
+            "type": "string"
+          },
+          "nums": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Nums",
+            "type": "array"
+          },
+          "priorite": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Priorite"
+          },
+          "raison_illisible": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Raison Illisible"
+          },
+          "rang": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rang"
+          },
+          "statut": {
+            "title": "Statut",
+            "type": "string"
+          },
+          "titre": {
+            "title": "Titre",
+            "type": "string"
+          }
+        },
+        "required": [
+          "num",
+          "nums",
+          "bloc",
+          "priorite",
+          "rang",
+          "statut",
+          "date",
+          "titre",
+          "lignes",
+          "chemins_non_captes"
+        ],
+        "title": "RoadmapEntree",
+        "type": "object"
+      },
+      "RoadmapHold": {
+        "properties": {
+          "arg": {
+            "title": "Arg",
+            "type": "string"
+          },
+          "pred": {
+            "title": "Pred",
+            "type": "string"
+          },
+          "satisfaite": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Satisfaite"
+          }
+        },
+        "required": [
+          "pred",
+          "arg",
+          "satisfaite"
+        ],
+        "title": "RoadmapHold",
+        "type": "object"
+      },
+      "RoadmapRang": {
+        "properties": {
+          "p_items": {
+            "items": {
+              "type": "string"
+            },
+            "title": "P Items",
+            "type": "array"
+          },
+          "rang": {
+            "title": "Rang",
+            "type": "string"
+          },
+          "statuts": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Statuts",
+            "type": "array"
+          }
+        },
+        "required": [
+          "rang",
+          "p_items",
+          "statuts"
+        ],
+        "title": "RoadmapRang",
         "type": "object"
       },
       "RunDetail": {

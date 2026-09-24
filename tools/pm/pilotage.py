@@ -207,6 +207,8 @@ def read_records_graph(repo_root):
 
 def read_roles_counts(repo_root):
     from src import paths
+    from tools.pm.snapshot import ancrer_data_root
+    ancrer_data_root(repo_root)   # AVANT tout paths.* : sinon un worktree lit SON propre data/ (jamais le COMMUN)
     return _lire_json(_ancre(repo_root, paths.pm_dir("ROLES_COUNTS.json")))
 
 
@@ -214,6 +216,8 @@ def read_board(repo_root):
     """Le cache du tick PM. ⚠️ Écrit par `json.dump(..., default=str)` (tools/pm/tick.py) : ce qui revient
     est un ALLER-RETOUR JSON, pas le dict de `board.compute`."""
     from src import paths
+    from tools.pm.snapshot import ancrer_data_root
+    ancrer_data_root(repo_root)   # AVANT tout paths.* : sinon un worktree lit SON propre data/ (jamais le COMMUN)
     return _lire_json(_ancre(repo_root, paths.pm_dir("BOARD.json")))
 
 
@@ -262,6 +266,32 @@ def read_portes(repo_root):
     return sorted(out, key=lambda p: int(p["num"]))
 
 
+def _racine_saine(racine):
+    """`False` si `racine` ne porte NI le backlog NI le hook — signe qu'elle n'est probablement pas AGAGI.
+
+    Garde de santé (spec §3.1) : sans elle, une racine mal résolue (un `--repo-root` étranger, un cwd qui
+    porte un `.git` sans être AGAGI) fait accuser CHAQUE fichier d'être absent, un par un, sans jamais
+    nommer la vraie cause. Mesuré depuis un `tempfile.mkdtemp()` : cinq lignes « introuvable », zéro ligne
+    nommant la racine."""
+    return (os.path.isfile(os.path.join(racine, "docs", "roadmap", "PRIORITES_ET_DETTES.md"))
+            and os.path.isfile(os.path.join(racine, "tools", "hooks", "pre-commit")))
+
+
+def _board_valide(board):
+    """`False` si `board` n'a pas la FORME d'un tableau PM : un `board` non-dict (`AttributeError` sur
+    `.get`) ou dont `generated_at` n'est pas numérique (`ValueError` plus loin, sur `now - float(gen)`)
+    est une source ILLISIBLE, jamais une exception qui aveugle roadmap/portes/charge avec lui (I4)."""
+    if not isinstance(board, dict):
+        return False
+    gen = board.get("generated_at")
+    if gen is not None:
+        try:
+            float(gen)
+        except (TypeError, ValueError):
+            return False
+    return True
+
+
 def compute_pilotage(snap, backlog_txt, records_graph, roles_counts, portes, now, repo_root=None,
                      board=None):
     """PURE : tout est injecté, rien n'est lu, rien n'est écrit.
@@ -271,10 +301,17 @@ def compute_pilotage(snap, backlog_txt, records_graph, roles_counts, portes, now
 
     ⚠️ Les deux aveuglements « backlog » et « graphe de records » sont INDÉPENDANTS : chacun se déclare
     sur l'absence de SA propre source, jamais sur une combinaison des deux — un `records_graph` fourni
-    sans backlog n'a nulle part où accrocher `portes_agi`, mais son absence à lui reste rapportée.
+    sans backlog n'a nulle part où accrocher `portes_agi`, mais son absence à lui reste rapportée (et se
+    DIT : voir plus bas).
     """
     now = float(now)
     racine = repo_root or racine_depot()
+    if not _racine_saine(racine):
+        return {"schema": SCHEMA, "generated_at": now, "repo_root": racine.replace("\\", "/"),
+                "aveugle": [f"racine résolue suspecte : {racine} ne porte ni "
+                            "docs/roadmap/PRIORITES_ET_DETTES.md ni tools/hooks/pre-commit -- chemin de "
+                            "dépôt probablement FAUX (jamais rapporté comme un simple fichier absent)"],
+                "flotte": None, "roadmap": None, "portes": None, "charge": None}
     aveugle = []
 
     flotte = None
@@ -282,7 +319,11 @@ def compute_pilotage(snap, backlog_txt, records_graph, roles_counts, portes, now
         from tools.pm.board import compute as board_compute
         flotte = board_compute(snap, now=now)
     elif board is not None:
-        flotte = board
+        if _board_valide(board):
+            flotte = board
+        else:
+            aveugle.append(f"flotte : BOARD.json de forme inattendue ({type(board).__name__}) -- "
+                            "illisible, jamais une exception qui aveugle roadmap/portes/charge avec lui")
     else:
         aveugle.append("flotte : ni instantané ni BOARD.json — le tick PM n'a pas encore tourné")
     if flotte is not None:
@@ -291,9 +332,27 @@ def compute_pilotage(snap, backlog_txt, records_graph, roles_counts, portes, now
     roadmap = None
     if backlog_txt is None:
         aveugle.append("backlog : docs/roadmap/PRIORITES_ET_DETTES.md introuvable")
+    elif not backlog_txt.strip():
+        aveugle.append("backlog : docs/roadmap/PRIORITES_ET_DETTES.md est VIDE -- source ILLISIBLE, "
+                        "jamais un backlog de 0 entrée (cf. l'anéantissement du 2026-09-09)")
     else:
-        roadmap = parse_roadmap(backlog_txt, racine, now)
+        try:
+            roadmap = parse_roadmap(backlog_txt, racine, now)
+        except Exception as exc:                        # parité rompue (ex. tête indentée) : NOMMÉ, pas propagé
+            aveugle.append(f"backlog : docs/roadmap/PRIORITES_ET_DETTES.md illisible "
+                            f"({type(exc).__name__}: {exc})")
+            roadmap = None
+        else:
+            if roadmap["comptes"]["blocs"] == 0:
+                aveugle.append("backlog : docs/roadmap/PRIORITES_ET_DETTES.md ne porte AUCUNE tête "
+                                "d'entrée reconnue -- source ILLISIBLE, jamais un backlog de 0 entrée")
+                roadmap = None
+
+    if roadmap is not None:
         roadmap["portes_agi"] = records_graph.get("roadmap") if records_graph is not None else None
+    elif records_graph is not None:
+        aveugle.append("portes_agi : nichées dans roadmap, indisponibles -- le backlog est absent ou "
+                        "illisible alors que records_graph.json, lui, est présent")
     if records_graph is None:
         aveugle.append("graphe de records : results/records_graph.json introuvable")
 

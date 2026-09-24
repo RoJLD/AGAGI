@@ -1,4 +1,6 @@
 import json
+import os
+import time
 
 from fastapi.testclient import TestClient
 
@@ -424,12 +426,38 @@ def test_flatland_server_does_not_reuse_a_CLOSED_event_loop() -> None:
 
 
 def test_pilotage_endpoint_rend_le_schema() -> None:
+    """IMPORTANT 5 : les quatre assertions d'origine (200, schéma, `generated_at` numérique, `aveugle`
+    liste) sont satisfaites par le dict de MODE DÉGRADÉ du service lui-même -- c'est ce test qui a
+    « couvert » le défaut C1 (BOARD.json/ROLES_COUNTS.json faussement introuvables) pendant tout le lot.
+    Renforcé : `_vider_cache()` en entrée (le cache est un état de PROCESSUS -- un réordonnancement lui
+    ferait servir la réponse d'erreur laissée par un autre test), un bloc NON `null` (la roadmap est
+    TOUJOURS calculable dans ce dépôt) et aucune ligne `aveugle` ne doit nommer une source qui existe
+    pourtant sur le disque."""
+    from backend.app.services import pilotage_service as ps
+    from tools.pm import pilotage as P
+
+    ps._vider_cache()
     r = client.get("/api/pm/pilotage")
     assert r.status_code == 200
     d = r.json()
     assert d["schema"] == "pilotage_v1"
     assert isinstance(d["generated_at"], (int, float))
     assert isinstance(d["aveugle"], list)
+    assert d["roadmap"] is not None, f"la roadmap est TOUJOURS calculable dans ce dépôt : {d['aveugle']}"
+
+    racine = P.racine_depot()
+    sources_presentes = {
+        "PRIORITES_ET_DETTES.md": os.path.isfile(
+            os.path.join(racine, "docs", "roadmap", "PRIORITES_ET_DETTES.md")),
+        "records_graph.json": P.read_records_graph(racine) is not None,
+        "ROLES_COUNTS.json": P.read_roles_counts(racine) is not None,
+        "BOARD.json": P.read_board(racine) is not None,
+        "pre-commit": os.path.isfile(os.path.join(racine, "tools", "hooks", "pre-commit")),
+    }
+    for nom, present in sources_presentes.items():
+        if present:
+            assert not any(nom in a for a in d["aveugle"]), (
+                f"ligne aveugle nommant {nom!r} alors que ce fichier EXISTE sur le disque : {d['aveugle']}")
 
 
 def test_pilotage_le_POLL_ne_recalcule_JAMAIS_le_snapshot(monkeypatch) -> None:
@@ -470,6 +498,52 @@ def test_pilotage_un_lecteur_qui_leve_devient_une_ligne_aveugle_jamais_un_500(mo
     d = r.json()
     assert d["aveugle"] and d["aveugle"][0].startswith("pilotage:")
     assert d["flotte"] is None and d["roadmap"] is None and d["portes"] is None and d["charge"] is None
+
+
+def test_pilotage_frais_est_REFUSE_quand_une_simulation_est_en_vol(monkeypatch) -> None:
+    """IMPORTANT 6 (spec §5) : `?frais=1` pendant qu'une simulation tourne doit être REFUSÉ et DIT, jamais
+    silencieux -- et le refus se juge sur le DERNIER tableau CONNU (`BOARD.json`), jamais sur un nouveau
+    `snapshot()` (18 s, exactement le coût que le refus évite d'engager)."""
+    from backend.app.services import pilotage_service as ps
+
+    def _interdit(*a, **k):
+        raise AssertionError("snapshot() a été appelé alors que sims_en_vol > 0 -- le refus doit l'éviter")
+
+    monkeypatch.setattr(ps, "snapshot", _interdit)
+    monkeypatch.setattr(ps.pilotage, "read_board", lambda racine: {
+        "generated_at": time.time(), "sessions": [],
+        "charge_connue": {"sims_en_vol": 2, "cpu_pct": 50.0, "bails_vivants": []}})
+    ps._vider_cache()
+    r = client.get("/api/pm/pilotage?frais=1")
+    assert r.status_code == 200
+    d = r.json()
+    assert any("frais" in a and "refus" in a.lower() for a in d["aveugle"]), d["aveugle"]
+
+
+def test_pilotage_frais_PROCEDE_quand_aucune_simulation_n_est_en_vol(monkeypatch) -> None:
+    """Contrôle positif du refus précédent : `sims_en_vol == 0` ne bloque rien, `frais=1` appelle bien
+    `snapshot()` (`snapshot` est monkeypatché en version RAPIDE : le vrai coûte 15-18 s, hors de propos
+    ici -- seul le fait qu'il soit APPELÉ, donc pas refusé, est sous test)."""
+    from backend.app.services import pilotage_service as ps
+
+    appels = {"n": 0}
+
+    def _faux_snapshot(racine):
+        appels["n"] += 1
+        return {"now": time.time(), "repo_root": racine, "psutil": False, "registry": None,
+                "bulletins": None, "worktrees": None, "commits": None, "leases": None,
+                "processes": None, "cpu_pct": None, "backlog_paths": None, "hook_errors": None}
+
+    monkeypatch.setattr(ps, "snapshot", _faux_snapshot)
+    monkeypatch.setattr(ps.pilotage, "read_board", lambda racine: {
+        "generated_at": time.time(), "sessions": [],
+        "charge_connue": {"sims_en_vol": 0, "cpu_pct": 5.0, "bails_vivants": []}})
+    ps._vider_cache()
+    r = client.get("/api/pm/pilotage?frais=1")
+    assert r.status_code == 200
+    d = r.json()
+    assert appels["n"] == 1, "frais=1 sans simulation en vol doit appeler snapshot() (pas de refus)"
+    assert not any("refus" in a.lower() for a in d["aveugle"]), d["aveugle"]
 
 
 def test_pilotage_cache_sous_le_TTL(monkeypatch) -> None:
