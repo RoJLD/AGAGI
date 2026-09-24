@@ -167,15 +167,22 @@ def _alertes(snap, sessions, now, backlog_ok):
         if len(noms) >= 2:
             add("A6", c, "alerte", f"{c} revendiqué par {', '.join(sorted(noms))}", {"p_item": c, "sessions": sorted(noms)})
 
-    for s in sessions:                                          # A7 / A8 — informations (A7 dépend de `backlog_ok`)
+    # A7 / A8 — informations (A7 dépend de `backlog_ok`). Clé = `session_id`, JAMAIS le nom : le journal suit
+    # une alerte par sa clé, et un nom CHANGE (redémarrage de la flotte du 2026-09-24 : agagi-52 -> agagi-00,
+    # agagi-aa -> agagi-2f…). Clé par nom, un renommage marquait l'alerte « suivie » (journal : « suivie
+    # A7:agagi-52 ») et en émettait une « nouvelle » sous l'autre nom — un suivi FABRIQUÉ, compté dans
+    # suivies_48h. Le nom reste dans le message et la preuve : c'est lui qu'on lit, pas lui qu'on suit.
+    # (Une session sans bulletin est sautée : quand on arrive ici, `session_id` a servi à la jointure, il existe.)
+    for s in sessions:
         if not s["bulletin"]:
             continue
+        sid, qui = s["session_id"], {"session": _nom(s), "session_id": s["session_id"]}
         age_h = _h(now - s["started_at"]) if s.get("started_at") else None
         if age_h is not None and age_h > SEUILS["sans_claim_h"] and not s["claims"] and not s["claims_inferes"] and backlog_ok:
-            add("A7", _nom(s), "info", f"{_nom(s)} active depuis {age_h:.1f} h sans P-item revendiqué ni inféré", {"session": _nom(s)})
+            add("A7", sid, "info", f"{_nom(s)} active depuis {age_h:.1f} h sans P-item revendiqué ni inféré", qui)
         hb = s.get("heartbeat_at")
         if hb is not None and _h(now - hb) > SEUILS["heartbeat_h"]:
-            add("A8", _nom(s), "info", f"{_nom(s)} : heartbeat vieux de {_h(now - hb):.1f} h, PID vivant", {"session": _nom(s)})
+            add("A8", sid, "info", f"{_nom(s)} : heartbeat vieux de {_h(now - hb):.1f} h, PID vivant", qui)
     return A, aveugle
 
 

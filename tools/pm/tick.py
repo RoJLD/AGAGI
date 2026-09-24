@@ -60,8 +60,10 @@ def digest(board, d, counts, illisibles=0):
         L_.append(f"[PM] NOUVELLE {a['cle']} ({a['gravite']}) — {a['message']} -> décider : message ciblé / investigation / note")
     for a in d["repetees"]:
         L_.append(f"[PM] REPETEE {a['cle']} — {a['message']} -> inscrire le cliquet manquant au backlog (deux fois = promu)")
+    # une clé suivie se lit avec son MESSAGE : les clés A7/A8 sont des session_id, illisibles seules
+    msg = {l["cle"]: l.get("message") for l in d["lignes"] if l.get("statut") == "suivie"}
     for k in d["disparues"]:
-        L_.append(f"[PM] suivie {k}")
+        L_.append(f"[PM] suivie {k}" + (f" — {msg[k]}" if msg.get(k) else ""))
     ca = counts["alertes"]
     L_.append(f"[PM] compteurs : émises {ca['emises']} · suivies 48 h {ca['suivies_48h']} · fausses/ignorées "
               f"{ca['fausses_ou_ignorees']} · répétées {ca['repetees']} · ouvertes {ca['ouvertes']} ; "

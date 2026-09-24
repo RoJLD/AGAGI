@@ -33,7 +33,12 @@ _horloge = time.time                             # monkeypatchable : aucun test 
 
 
 def _vide(session_id):
-    return {"session_id": session_id, "name": None, "pid": None, "cwd": None, "branch": None, "worktree": None,
+    # `name` et `pid` viennent du REGISTRE natif, relu à chaque écriture ; `identite` dit l'état de la
+    # dernière lecture ("registre", "absente du registre", "registre indisponible", "registre partiellement
+    # illisible") et `identite_at` QUAND nom et pid y ont été lus pour la dernière fois — un `pid` à null
+    # n'est jamais laissé passer pour une valeur sans que `identite` dise pourquoi.
+    return {"session_id": session_id, "name": None, "pid": None, "identite": None, "identite_at": None,
+            "noms_precedents": [], "cwd": None, "branch": None, "worktree": None,
             "started_at": None, "heartbeat_at": None, "ended_at": None, "claims": [], "files_touched": [],
             "last_tool_at": None}
 
@@ -77,7 +82,8 @@ def appliquer(event, payload, bul, *, now, branche_fn):
     if event == "start":
         b["started_at"] = now
         b["cwd"] = norm(cwd) if cwd else None
-        b["pid"] = payload.get("pid")
+        # le payload SessionStart ne porte PAS de pid (mesuré : null dans tous les bulletins) : il vient du
+        # registre natif, dans `resoudre_identite`, comme le nom
         b["branch"], b["worktree"] = branche_fn(cwd)
     elif event == "tool":
         b["last_tool_at"] = now
@@ -103,11 +109,53 @@ def appliquer(event, payload, bul, *, now, branche_fn):
     return b
 
 
+def identite_depuis_registre(session_id, registry_dir=None):
+    """{"statut", "name", "pid"} de la session d'après le registre natif — relu, jamais mémorisé.
+
+    Le nom n'est PAS une identité : au redémarrage de la flotte du 2026-09-24, TOUS les noms ont changé
+    (agagi-11 -> agagi-e4, agagi-52 -> agagi-00, agagi-b0 -> looper…), et un nom se change aussi EN COURS de
+    session (`looper` : nameSource=user, 103 s après le démarrage). Seul `session_id` est stable.
+
+    Une session reprise laisse au registre l'entrée de son ANCIEN pid, même `sessionId` : on prend la plus
+    RÉCENTE (`started_at`), jamais la première rencontrée — l'ordre du glob est celui des pids, et l'ancien
+    pid peut trier devant. Sans mesure de vie (`avec_vie=False`) : psutil coûtait ~70 ms par outil.
+
+    Une ABSENCE n'est affirmée que sur un registre lu en ENTIER : si une entrée est illisible, la session y
+    est peut-être — le statut le dit, et `resoudre_identite` garde alors le dernier nom lu."""
+    reg = read_registry(registry_dir or REGISTRY_DIR, avec_vie=False)
+    if reg is None:
+        return {"statut": "registre indisponible", "name": None, "pid": None}
+    cands = [r for r in reg if "illisible" not in r and r.get("session_id") == session_id]
+    if cands:
+        r = max(cands, key=lambda x: x.get("started_at") or float("-inf"))
+        return {"statut": "registre", "name": r.get("name"), "pid": r.get("pid")}
+    if any("illisible" in r for r in reg):
+        return {"statut": "registre partiellement illisible", "name": None, "pid": None}
+    return {"statut": "absente du registre", "name": None, "pid": None}
+
+
+def resoudre_identite(bul, ident, now):
+    """PUR : applique une lecture du registre au bulletin.
+
+    - lue : `name`/`pid` REMPLACÉS (jamais gelés à la première écriture — le défaut corrigé ici) ;
+    - absente d'un registre lu en entier : `name`/`pid` remis à None, et `identite` dit pourquoi ;
+    - registre indisponible ou partiellement illisible : `name`/`pid` GARDÉS, `identite_at` dit de quand ils datent.
+    Un nom remplacé passe dans `noms_precedents` (10 derniers) : c'est lui qui permet de relire un vieux message
+    ou une vieille alerte adressés à un nom que plus personne ne porte."""
+    b = dict(bul)
+    precedent = b.get("name")
+    if ident["statut"] == "registre":
+        b["name"], b["pid"], b["identite_at"] = ident["name"], ident["pid"], now
+    elif ident["statut"] == "absente du registre":
+        b["name"], b["pid"], b["identite_at"] = None, None, now
+    b["identite"] = ident["statut"]
+    if precedent and precedent != b.get("name"):
+        b["noms_precedents"] = [n for n in (b.get("noms_precedents") or []) if n != precedent][-9:] + [precedent]
+    return b
+
+
 def nom_depuis_registre(session_id, registry_dir=None):
-    for r in (read_registry(registry_dir or REGISTRY_DIR) or []):
-        if r.get("session_id") == session_id:
-            return r.get("name")
-    return None
+    return identite_depuis_registre(session_id, registry_dir)["name"]
 
 
 def session_id_courant(registry_dir=None):
@@ -241,8 +289,9 @@ def _hook(event):
         raise ValueError("hook sans session_id")
     now = _horloge()
     bul = appliquer(event, payload, charger(sid), now=now, branche_fn=branche_git)
-    if bul.get("name") is None:
-        bul["name"] = nom_depuis_registre(sid)
+    # à CHAQUE écriture, pas seulement la première : le nom était gelé au premier hook (`if name is None`),
+    # et le tableau adressait ses alertes à des noms morts. Coût mesuré : ~2 ms (registre sans psutil).
+    bul = resoudre_identite(bul, identite_depuis_registre(sid), now)
     ecrire(bul)
     if event == "start":
         print(resume_tableau(now=now))
@@ -256,8 +305,7 @@ def _claim(p_item, session):
     bul = dict(_vide(sid), **charger(sid))
     if p_item not in bul["claims"]:
         bul["claims"].append(p_item)
-    if bul.get("name") is None:
-        bul["name"] = nom_depuis_registre(sid)
+    bul = resoudre_identite(bul, identite_depuis_registre(sid), _horloge())
     ecrire(bul)
     print(f"[PM] {bul.get('name') or sid} revendique {', '.join(bul['claims'])}")
 

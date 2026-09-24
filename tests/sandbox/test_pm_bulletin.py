@@ -254,3 +254,129 @@ def test_resume_tableau_BOARD_illisible_par_summary_dit_illisible_au_lieu_de_se_
     with open(os.path.join(d, "BOARD.json"), "w", encoding="utf-8") as fh:
         json.dump({"generated_at": 1.0}, fh)
     assert BU.resume_tableau().startswith("[PM] tableau illisible")
+
+
+# --- Défauts 2 et 5 (2026-09-24) : le NOM n'est pas une identité, et le pid ne venait de nulle part.
+# Mesuré : au redémarrage de la flotte, TOUS les noms ont changé (agagi-11 -> agagi-e4, agagi-52 -> agagi-00…) et le
+# bulletin gardait le PREMIER nom lu (`if name is None`) — le tableau adressait ses alertes à des noms morts ;
+# `pid` valait null sur 11 bulletins sur 12 (le payload SessionStart n'en porte pas). Registre INJECTÉ (répertoire
+# jetable), horloge INJECTÉE (`now`) : jamais le vrai registre, jamais l'horloge du jour.
+
+def _registre(rep, fichiers):
+    """Registre natif jetable sous `rep/reg` : {nom de fichier: entrée (dict) ou texte brut (entrée illisible)}."""
+    d = rep / "reg"
+    d.mkdir(parents=True, exist_ok=True)
+    for nom, e in fichiers.items():
+        (d / nom).write_text(e if isinstance(e, str) else json.dumps(e), encoding="utf-8")
+    return str(d)
+
+
+def _natif(sid, name, pid, started_ms=1_790_000_000_000):
+    return {"pid": pid, "sessionId": sid, "name": name, "cwd": "c:/x/agagi", "startedAt": started_ms}
+
+
+def test_identite_prend_l_entree_la_plus_RECENTE_du_meme_session_id_meme_si_l_ancien_pid_trie_DEVANT(tmp_path):
+    """Une session reprise laisse au registre l'entrée de son ANCIEN pid, même sessionId. L'ordre du glob est celui
+    des noms de fichiers, donc des pids : ici l'ancien (100) trie devant le nouveau (200)."""
+    reg = _registre(tmp_path / "a", {"100.json": _natif("s1", "agagi-11", 100, started_ms=1_000_000),
+                                     "200.json": _natif("s1", "agagi-e4", 200, started_ms=2_000_000)})
+    assert BU.identite_depuis_registre("s1", reg) == {"statut": "registre", "name": "agagi-e4", "pid": 200}
+    # l'autre sens : c'est `started_at` qui tranche, PAS l'ordre des fichiers — dates inversées, même ordre de glob
+    reg2 = _registre(tmp_path / "b", {"100.json": _natif("s1", "agagi-11", 100, started_ms=2_000_000),
+                                      "200.json": _natif("s1", "agagi-e4", 200, started_ms=1_000_000)})
+    assert BU.identite_depuis_registre("s1", reg2) == {"statut": "registre", "name": "agagi-11", "pid": 100}
+
+
+def test_identite_dit_INDISPONIBLE_ABSENTE_ou_PARTIELLEMENT_ILLISIBLE_et_n_affirme_l_absence_que_sur_un_registre_ENTIER(tmp_path):
+    vide = {"name": None, "pid": None}
+    assert BU.identite_depuis_registre("s1", str(tmp_path / "nulle_part")) == dict(vide, statut="registre indisponible")
+    autre = {"7.json": _natif("s7", "agagi-52", 7)}
+    assert BU.identite_depuis_registre("s1", _registre(tmp_path / "a", autre)) == dict(vide, statut="absente du registre")
+    # une entrée illisible : la session y est PEUT-ÊTRE — l'absence n'est pas affirmée
+    partiel = dict(autre, **{"casse.json": "{pas du json"})
+    assert BU.identite_depuis_registre("s1", _registre(tmp_path / "b", partiel)) == \
+        dict(vide, statut="registre partiellement illisible")
+    # contrôle positif : l'entrée illisible ne masque pas une entrée LISIBLE de la session
+    trouve = dict(partiel, **{"9.json": _natif("s1", "agagi-11", 9)})
+    assert BU.identite_depuis_registre("s1", _registre(tmp_path / "c", trouve)) == \
+        {"statut": "registre", "name": "agagi-11", "pid": 9}
+
+
+def test_resoudre_identite_REMPLACE_nom_et_pid_pousse_l_ancien_nom_dans_noms_precedents_et_ne_mute_pas_l_entree():
+    bul = dict(BU._vide("s1"), name="agagi-11", pid=100, identite="registre", identite_at=NOW - 3600)
+    avant = json.dumps(bul, sort_keys=True)
+    b = BU.resoudre_identite(bul, {"statut": "registre", "name": "agagi-e4", "pid": 200}, NOW)
+    assert (b["name"], b["pid"], b["identite"], b["identite_at"]) == ("agagi-e4", 200, "registre", NOW)
+    assert b["noms_precedents"] == ["agagi-11"]
+    assert json.dumps(bul, sort_keys=True) == avant                          # PURE : l'entrée n'est pas mutée
+    # no-op EXACT : le même nom relu ne pousse rien, seule la date de lecture avance
+    b2 = BU.resoudre_identite(b, {"statut": "registre", "name": "agagi-e4", "pid": 200}, NOW + 1)
+    assert b2["noms_precedents"] == ["agagi-11"] and b2["identite_at"] == NOW + 1
+    # plafond : 10 noms gardés, le plus récent en QUEUE, jamais de doublon
+    for i in range(12):
+        b2 = BU.resoudre_identite(b2, {"statut": "registre", "name": f"n{i}", "pid": 1}, NOW + 2 + i)
+    assert len(b2["noms_precedents"]) == 10 and b2["noms_precedents"][-1] == "n10" and b2["name"] == "n11"
+    assert len(set(b2["noms_precedents"])) == 10
+
+
+def test_resoudre_identite_GARDE_le_nom_sur_registre_INDISPONIBLE_ou_PARTIEL_et_le_RETIRE_sur_absence_d_un_registre_ENTIER():
+    bul = dict(BU._vide("s1"), name="agagi-11", pid=100, identite="registre", identite_at=NOW - 3600)
+    for statut in ("registre indisponible", "registre partiellement illisible"):
+        b = BU.resoudre_identite(bul, {"statut": statut, "name": None, "pid": None}, NOW)
+        assert (b["name"], b["pid"]) == ("agagi-11", 100), statut               # GARDÉS
+        assert b["identite"] == statut and b["identite_at"] == NOW - 3600        # datés de leur LECTURE, pas de maintenant
+        assert b["noms_precedents"] == []
+    b = BU.resoudre_identite(bul, {"statut": "absente du registre", "name": None, "pid": None}, NOW)
+    assert (b["name"], b["pid"], b["identite"], b["identite_at"]) == (None, None, "absente du registre", NOW)
+    assert b["noms_precedents"] == ["agagi-11"]                                  # le nom perdu reste LISIBLE
+
+
+def test_main_RE_RESOUT_nom_et_pid_depuis_le_registre_a_CHAQUE_ecriture_pas_seulement_la_premiere(tmp_path, monkeypatch):
+    """Le défaut : `if name is None` gelait le nom au PREMIER hook. Le pid vient du registre, jamais du payload."""
+    monkeypatch.setattr(BU, "_horloge", lambda: NOW)
+    monkeypatch.setenv("AGAGI_DATA_ROOT", str(tmp_path).replace("\\", "/"))
+    monkeypatch.setattr(BU, "REGISTRY_DIR", _registre(tmp_path, {"100.json": _natif("s1", "agagi-11", 100)}))
+
+    def lire():
+        return json.loads((tmp_path / "sessions" / "s1.json").read_text(encoding="utf-8"))
+
+    monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(_payload("SessionStart", pid=999))))   # pid du payload IGNORÉ
+    assert BU.main(["start"]) == 0
+    b = lire()
+    assert (b["name"], b["pid"], b["identite"], b["identite_at"]) == ("agagi-11", 100, "registre", NOW)
+    # no-op : registre inchangé, second hook -> même nom, rien dans noms_precedents
+    monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(_payload("Stop"))))
+    assert BU.main(["stop"]) == 0
+    assert lire()["name"] == "agagi-11" and lire()["noms_precedents"] == []
+    # la session est REPRISE : nouveau pid, nouveau nom ; l'ancienne entrée reste au registre et trie DEVANT
+    (tmp_path / "reg" / "200.json").write_text(json.dumps(_natif("s1", "agagi-e4", 200, started_ms=1_790_000_001_000)),
+                                               encoding="utf-8")
+    monkeypatch.setattr(BU, "_horloge", lambda: NOW + 60)
+    monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(_payload("PostToolUse", tool_name="Edit",
+                                                                     tool_input={"file_path": "c:/x/agagi/f.py"}))))
+    assert BU.main(["tool"]) == 0
+    b = lire()
+    assert (b["name"], b["pid"], b["identite_at"], b["noms_precedents"]) == ("agagi-e4", 200, NOW + 60, ["agagi-11"])
+    # `claim` ré-résout aussi (il écrivait lui aussi sous `if name is None`)
+    (tmp_path / "reg" / "200.json").write_text(json.dumps(_natif("s1", "looper", 200, started_ms=1_790_000_001_000)),
+                                               encoding="utf-8")
+    assert BU.main(["claim", "P4.9", "--session", "s1"]) == 0
+    b = lire()
+    assert b["name"] == "looper" and b["noms_precedents"] == ["agagi-11", "agagi-e4"] and b["claims"] == ["P4.9"]
+
+
+def test_un_pid_INCONNU_s_accompagne_d_une_identite_qui_l_explique(tmp_path, monkeypatch):
+    """Un `pid` à null ne passe jamais pour une valeur : `identite` dit pourquoi il manque."""
+    monkeypatch.setattr(BU, "_horloge", lambda: NOW)
+    monkeypatch.setenv("AGAGI_DATA_ROOT", str(tmp_path).replace("\\", "/"))
+    monkeypatch.setattr(BU, "REGISTRY_DIR", str(tmp_path / "nulle_part"))
+    monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(_payload("SessionStart"))))
+    assert BU.main(["start"]) == 0
+    b = json.loads((tmp_path / "sessions" / "s1.json").read_text(encoding="utf-8"))
+    assert (b["pid"], b["identite"], b["identite_at"]) == (None, "registre indisponible", None)
+    # le registre apparaît, SANS cette session : absence affirmée, datée
+    monkeypatch.setattr(BU, "REGISTRY_DIR", _registre(tmp_path, {"7.json": _natif("s7", "agagi-52", 7)}))
+    monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(_payload("Stop"))))
+    assert BU.main(["stop"]) == 0
+    b = json.loads((tmp_path / "sessions" / "s1.json").read_text(encoding="utf-8"))
+    assert (b["pid"], b["identite"], b["identite_at"]) == (None, "absente du registre", NOW)
