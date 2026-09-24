@@ -9,7 +9,13 @@ import pytest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
-from src.seed_ai.harness_learner import Dose, Piece, assert_learner_contract, run_episode  # noqa: E402
+from src.seed_ai.harness_learner import (  # noqa: E402
+    Dose,
+    Piece,
+    _states_differ,
+    assert_learner_contract,
+    run_episode,
+)
 from src.seed_ai.harness_task import Ablation, DemandDeclaration, Episode  # noqa: E402
 from tools.experiment_preflight import PreflightError  # noqa: E402
 from tests.sandbox.test_harness_task import ToyParity, ToyParityT2  # noqa: E402
@@ -135,6 +141,91 @@ def test_L8_refuses_a_state_ablation_whose_ablate_state_is_a_no_op():
     # `ablate_state` change quoi que ce soit doit être refusé EN TÊTE, avant qu'aucune cellule ne tourne.
     with pytest.raises(PreflightError, match="STATE_ABLATION_BITES"):
         assert_learner_contract(CounterLearner(supports_state_reset=True), ToyParityT2())
+
+
+def test_L8_states_differ_calibration_on_the_POPULATED_branch():
+    # Mineur relevé par la re-revue de branche (2026-09-24) : le cas gelé ci-dessus a un `init_state()`
+    # qui rend None, donc `state_a` est None et (L8) ne compare que None contre None -- la branche
+    # `np.array_equal` de `_states_differ` (harness_learner.py:115-116), celle qui juge un état RÉEL,
+    # n'avait AUCUN cas. Le code y était déjà correct (vérifié par sonde indépendante) ; c'était la
+    # DÉCLARATION de couverture qui était optimiste. Les DEUX issues, sur la branche peuplée :
+    peuple = np.array([[1.0, 2.0], [3.0, 4.0]], dtype=np.float64)
+    assert _states_differ(peuple, peuple.copy()) is False        # même valeur, objet différent
+    change = peuple.copy()
+    change[1, 1] = 0.0                                           # UNE cellule
+    assert _states_differ(peuple, change) is True
+    # le cas DÉGÉNÉRÉ que la docstring de (L8) nomme, et la raison de comparer `state_a` et non
+    # `init_state()` : pour un substrat dont l'init rend des zéros, `zeros_like` ne mord jamais.
+    zeros = np.zeros((2, 2), dtype=np.float64)
+    assert _states_differ(zeros, np.zeros_like(zeros)) is False
+    # None contre un tableau peuplé DIFFÈRE (un `ablate_state` qui rend None mord bien)
+    assert _states_differ(peuple, None) is True
+    assert _states_differ(None, peuple) is True
+
+
+class _PopulatedStateInstance:
+    """Instance jouet à état porté réellement PEUPLÉ (accumulation de obs_t, donc non nul dès le pas 0),
+    dont `ablate_state` est un NO-OP littéral. Sert le cas (L8) sur la branche `np.array_equal` :
+    contrairement à `_CounterInstance`, `state_a` n'est PAS None quand (L8) le compare."""
+
+    def __init__(self, K, obs_dim):
+        self.K, self.obs_dim = K, obs_dim
+        self._dose = Dose(unit="count_updates")
+        self.ablate_seen = []        # ce que (L8) a RÉELLEMENT comparé -- vérifié par le test
+
+    def init_state(self):
+        return np.zeros(self.obs_dim, dtype=np.float64)
+
+    def act(self, obs_t, state):
+        carried = self.init_state() if state is None else state
+        new_state = carried + obs_t.astype(np.float64).sum(axis=0)   # PEUPLÉ : obs_t n'est pas nul
+        logits = np.zeros((obs_t.shape[0], self.K), dtype=np.float32)
+        return logits, new_state
+
+    def ablate_state(self, state, name):
+        self.ablate_seen.append(None if state is None else np.array(state, copy=True))
+        return state                                              # NO-OP : (L8) doit refuser
+
+    def learn(self, ep, actions, hits):
+        self._dose.calls += 1
+        return self._dose
+
+    def state_dict(self):
+        return {}
+
+    def dose(self):
+        return self._dose
+
+    def close(self):
+        pass
+
+
+class _PopulatedStateLearner(CounterLearner):
+    """`CounterLearner` dont `build` rend une instance à état PEUPLÉ (cf. `_PopulatedStateInstance`)."""
+
+    def __init__(self):
+        super().__init__(supports_state_reset=True)
+        self.built = []
+
+    def build(self, seed, n, obs_dim, K, hyper, *, without=None, reference=False):
+        inst = _PopulatedStateInstance(K, obs_dim)
+        self.built.append(inst)
+        return inst
+
+
+def test_L8_refuses_a_no_op_on_a_POPULATED_state():
+    # Même refus que le cas gelé, mais par la branche `np.array_equal` et non par None-contre-None :
+    # l'état comparé porte la somme des observations du dernier pas, `ablate_state` le rend tel quel.
+    learner = _PopulatedStateLearner()
+    with pytest.raises(PreflightError, match="STATE_ABLATION_BITES"):
+        assert_learner_contract(learner, ToyParityT2())
+    # Et on PROUVE que le refus vient bien de la branche peuplée : sans cette assertion, un état resté
+    # None donnerait le MÊME refus (None contre None ne diffère pas non plus) et le cas passerait pour
+    # la mauvaise raison -- c'est exactement le défaut que la re-revue a relevé sur le cas gelé.
+    vus = [s for inst in learner.built for s in inst.ablate_seen]
+    assert vus, "(L8) n'a appelé ablate_state sur aucune instance"
+    assert all(s is not None and hasattr(s, "shape") for s in vus)
+    assert any(np.abs(s).sum() > 0.0 for s in vus), "l'état comparé par (L8) était nul, donc dégénéré"
 
 
 def test_run_episode_scores_with_the_task_verifier():
