@@ -12,12 +12,18 @@ fail=0
 # ⚠️ La baseline elle-meme DOIT declencher la garde : sans ca, elargir le baseline et le
 # committer seul ne verifiait RIEN -- le trou par lequel un faux vert est passe (mesure le
 # 2026-09-01 : baseline elargie de 19 a 42 orphelins dans l'arbre, sans commit).
-staged_rec=$(git diff --cached --name-only --diff-filter=AM | grep -E '^(docs/(EDR|ADR|SDR|REF)/.*\.md|tools/record_link_baseline\.json)$')
+# 2026-09-24 : `docs/reviews/*.md` entre au declencheur, en AMD. La porte 1 exige `review:` de tout
+# NOUVEAU record a gate:/tests: ; sans ce motif, SUPPRIMER un fichier de revue se committait proprement
+# et rendait un record defectueux sans qu'aucune porte ne parle. AMD (et non AM) parce que c'est la
+# SUPPRESSION qui est le cas dangereux.
+staged_rec=$(git diff --cached --name-only --diff-filter=AMD | grep -E '^(docs/(EDR|ADR|SDR|REF)/.*\.md|docs/reviews/.*\.md|tools/record_link_baseline\.json)$')
 if [ -n "$staged_rec" ]; then
   # E4 occ.6 (2026-09-02, revue adversariale C3) : si SEULE la baseline est stagee, la liste --only
   # est VIDE et le checker filtre tout -> le ratchet ne pouvait pas echouer sur ce commit precis
   # (le trou residuel de l'occ.5). Baseline stagee sans record -> run NON scope (arbre entier).
-  only_rec=$(echo "$staged_rec" | grep -v record_link_baseline || true)
+  # MEME PIEGE pour docs/reviews/ : un fichier de revue n'est pas un record, aucun --only ne le
+  # designe ; s'il est seul stage, le run doit etre NON SCOPE, sinon la porte ne peut pas echouer.
+  only_rec=$(echo "$staged_rec" | grep -v -E 'record_link_baseline|^docs/reviews/' || true)
   if [ -n "$only_rec" ]; then
     PYTHONIOENCODING=utf-8 python tools/check_record_links.py --only $only_rec
   else
@@ -376,7 +382,10 @@ fi
 # .py) est stage ; baseline seule -> non scope (E4 occ. 5). Le scope --only n'est utilise QUE si les
 # fichiers stages sont EXCLUSIVEMENT des docs/EDR -- un results/*.json modifie (bloc regime change) peut
 # invalider les affirmations d'AUTRES records que ceux stages, donc un results stage -> run NON scope.
-staged_rc=$(git diff --cached --name-only --diff-filter=AM | grep -E '^(docs/EDR/.*\.md|results/.*\.json|tools/regime_claims_baseline\.json|tools/check_regime_claims\.py)$')
+# 2026-09-24 : AM -> AMD. Le commentaire de ce declencheur est celui de la porte 20 MOT POUR MOT, mais
+# la 20 filtrait en AMD et la 19 en AM : un results/ SUPPRIME ne reveillait pas la 19, alors que c'est
+# exactement le cas ou une valeur citee cesse d'etre verifiable.
+staged_rc=$(git diff --cached --name-only --diff-filter=AMD | grep -E '^(docs/EDR/.*\.md|results/.*\.json|tools/regime_claims_baseline\.json|tools/check_regime_claims\.py)$')
 if [ -n "$staged_rc" ]; then
   only_rc=$(echo "$staged_rc" | grep -E '^docs/EDR/' || true)
   non_edr_rc=$(echo "$staged_rc" | grep -vE '^docs/EDR/' || true)

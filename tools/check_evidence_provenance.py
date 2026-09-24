@@ -82,6 +82,11 @@ Un record illisible est RAPPORTE et BLOQUE, jamais compte OK ni gelable par --up
 
 Mesure le 2026-09-23 (--report) : voir la sortie de la commande -- aucun chiffre n'est recopie ici, il
 se perimerait (cf. la meme lecon dans check_regime_claims.py, ligne "300 records... 74 citent...").
+
+CE QU'IL NE VOIT PAS (perimetre DECLARE, 2026-09-24) : cette porte ne lit que `docs/EDR/*.md`. Le graphe
+compte 26 records non-EDR (ADR, SDR, REF), dont 3 citent des `results/` : leur evidence n'est
+verifiee par AUCUNE porte. Meme perimetre que la porte 19, et il n'etait declare nulle part --
+un perimetre tu se lit comme une absence de defaut.
 """
 import argparse
 import json

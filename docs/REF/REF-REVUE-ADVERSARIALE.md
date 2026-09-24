@@ -94,6 +94,12 @@ tout rendre : une énumération dont le dernier est le témoin sain redonne la c
 Le roster, que l'agent de revue ne lit jamais, porte les identités, les genres, les seuils et les
 attendus ; le barème vit dans `tools/refutateur_temoins.py` et nulle part ailleurs.
 
+⚠️ **Et ce document ne peut pas garantir seul ce qu'il annonce.** Le fichier extrait porte son propre
+`id:` en ligne 2 : l'anonymat couvre la paire (fichier → témoin), jamais le record. **Tout document
+suivi qui nomme un témoin avec son genre reconstitue la clé par simple jointure** — mesuré le
+2026-09-24 sur `docs/roadmap/ROLES.md`, qui publiait le nom du no-op pendant que cette page affirmait
+ne rien publier : vrai de la page, faux du dépôt. Le roster est la **seule** place d'un nom de témoin.
+
 **Ce qui RETROUVE un témoin** — deux étages, et le second n'est pas un motif :
 
 1. **Plancher MÉCANIQUE** : au moins une critique RECEVABLE au sens des trois conditions ci-dessus

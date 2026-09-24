@@ -335,6 +335,17 @@ PORTES = {
             "apres": '    statut = "OK"',
             "motif": ("le verdict du cliquet — les 18 chemins absents gelés passeraient, et tout "
                       "nouveau chemin absent, non suivi ou à glob mort aussi"),
+        }, {
+            # 2026-09-24 : point n°1 de la revue de la porte 20 — « remplacer `_tracked` par
+            # `return True` laisse 13/13 verts ». Le TEMOIN réel (dépôt git jetable) a été ajouté
+            # dans la foulée ; le harnais, lui, ne prouvait toujours pas qu'il DISCRIMINE, donc la
+            # leçon restait non cliquetée. C'est exactement ce que la porte 15 existe pour dire.
+            "nom": "l'oracle git de _tracked répond toujours OUI",
+            "avant": '    return subprocess.run(["git", "ls-files", "--error-unmatch", rel], cwd=root,',
+            "apres": '    return True or subprocess.run(["git", "ls-files", "--error-unmatch", rel], cwd=root,',
+            "motif": ("le seul oracle qui distingue un results/ SUIVI d'un fichier simplement posé sur "
+                      "le disque — le muter rend NON_SUIVI inatteignable, et une évidence non "
+                      "committée passerait pour rouvrable"),
         }],
     },
     "21": {

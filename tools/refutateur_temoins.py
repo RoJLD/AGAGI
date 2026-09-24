@@ -118,6 +118,14 @@ def nom_attendu(temoin):
     record peut, à son SHA gelé, annoncer sa propre faiblesse dans son titre et dire ainsi au
     relecteur ce qu'il doit trouver. Seule l'`antisignature` couvre un cas voisin et un seul (la
     marque de la CORRECTION est absente). Cela reste à la charge de qui gèle un témoin.
+
+    ⚠️⚠️ **ET LA CÉCITÉ QUI COMPTE LE PLUS : le fichier extrait porte son propre `id:` en ligne 2.**
+    L'anonymat du NOM DE FICHIER ne rend donc anonyme que la paire (fichier → témoin), jamais le
+    RECORD lui-même — quiconque ouvre `temoin-2.md` sait qu'il lit EDR-LOCK-002. Tout document SUIVI
+    qui nomme un témoin avec son genre reconstitue la clé par simple JOINTURE, sans aucune inférence.
+    Mesuré le 2026-09-24, cinquième occurrence de la loi : `docs/roadmap/ROLES.md:20` publiait
+    « trois records-témoins gelés (…) + no-op LOCK-002 » pendant que le REF affirmait en face ne rien
+    publier — vrai du REF, faux du dépôt. **Le roster est la seule place d'un nom de témoin.**
     """
     identifiant = os.path.basename(temoin["chemin"]).split("_")[0]
     return f"{identifiant}-{temoin['sha'][:7]}"

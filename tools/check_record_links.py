@@ -50,14 +50,29 @@ _REVIEW_PATH = re.compile(r"^docs/reviews/\d{4}-\d{2}-\d{2}-.+\.md$")
 
 
 def _review_defect(review, root: str) -> str | None:
-    """None si `review` désigne un fichier de revue VALIDE et EXISTANT ; sinon la raison du défaut
-    (`"absente"` / `"forme"` / `"fichier introuvable"`) -- jamais fondues en une seule catégorie."""
+    """None si `review` désigne un fichier de revue VALIDE, EXISTANT et **SUIVI PAR GIT** ; sinon la
+    raison du défaut (`"absente"` / `"forme"` / `"fichier introuvable"` / `"non suivi"`) -- jamais
+    fondues en une seule catégorie.
+
+    ⚠️ **Pourquoi l'INDEX et pas le disque** (2026-09-24, revue de branche). Cette fonction testait
+    `os.path.isfile`, donc le DISQUE. La porte 20, livrée dans la MÊME branche pour la MÊME classe
+    (E27, « une évidence qui n'est plus rouvrable »), exige l'INDEX. La preuve qu'une revue a eu lieu
+    était donc le seul chemin d'évidence du dépôt qui n'avait pas à être suivi — et sur un arbre que
+    six sessions éditent, un record pouvait se committer CERTIFIÉ REVU en pointant vers un fichier qui
+    ne serait jamais dans le clone. On réutilise l'oracle de la porte 20, `_env_pour` compris : lui
+    seul sait hériter l'index sur le dépôt courant et l'isoler sur un dépôt tiers — un
+    `GIT_INDEX_FILE` ambiant ferait répondre l'index d'un AUTRE dépôt.
+    """
     if not review:
         return "absente"
     if not _REVIEW_PATH.match(str(review)):
         return "forme"
     if not os.path.isfile(os.path.join(root, str(review))):
         return "fichier introuvable"
+    from tools.check_evidence_provenance import _tracked  # noqa: PLC0415 (import tardif : la porte 1
+    # tourne au hook sur des commits qui ne touchent aucun results/, inutile de charger la porte 20)
+    if not _tracked(root, str(review)):
+        return "non suivi"
     return None
 
 

@@ -188,7 +188,7 @@
   "tests/sandbox/test_preserve_io_blocks_default.py": 4,
   "tests/sandbox/test_projectiles.py": 3,
   "tests/sandbox/test_qd_tier_rescue.py": 9,
-  "tests/sandbox/test_record_graph_completeness.py": 21,
+  "tests/sandbox/test_record_graph_completeness.py": 22,
   "tests/sandbox/test_referential_community_probe.py": 3,
   "tests/sandbox/test_referential_game_probe.py": 2,
   "tests/sandbox/test_reflexive_supervisor.py": 6,

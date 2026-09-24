@@ -216,11 +216,57 @@ def test_an_edr_with_a_WELLFORMED_but_MISSING_review_file_is_review_missing(tmp_
     assert any(r["id"] == "EDR-999" and r["raison"] == "fichier introuvable" for r in rv), rv
 
 
-def test_an_edr_with_a_review_path_that_EXISTS_is_NOT_review_missing(tmp_path):
-    """SPÉCIFICITÉ (no-op apparié aux trois précédents) : forme valide ET fichier présent -> passe."""
+def _depot_jetable_avec_revue(tmp_path, suivre=True):
+    """Un VRAI dépôt git jetable portant le record et sa revue — le second `git add` étant l'objet du test.
+
+    ⚠️ Pas de monkeypatch de l'oracle : c'est le point n°1 de la revue de la porte 20 (« remplacer
+    `_tracked` par `return True` laisse 13/13 verts »). Un témoin qui injecte une constante ne prouve
+    rien. ⚠️ Identité passée EN LIGNE (`-c`), jamais `git config` : un test qui ÉCRIT une config est à
+    une régression d'isolation près de polluer le dépôt réel, et c'est arrivé (33 commits signés
+    `Test <test@example.com>`, premier `7d6c04c9`).
+    """
+    import subprocess  # noqa: PLC0415
+
+    from tools.check_evidence_provenance import _env_isole  # noqa: PLC0415
+
     root = _record(tmp_path, "id: EDR-999\ntype: EDR\ngate: G0\nreview: docs/reviews/2026-09-17-edr-999.md")
     _make_review_file(tmp_path)
+
+    def git(*args):
+        # ⚠️ `_env_isole()` retire TOUS les `GIT_*`, pas seulement `GIT_INDEX_FILE`. Première version
+        # de ce témoin : n'en retirait qu'UN — vert hors commit, ROUGE sous le hook, parce que
+        # `git commit` fixe aussi `GIT_DIR` (et `GIT_PREFIX`, `GIT_AUTHOR_*`). Un `git add` héritant
+        # de `GIT_DIR` vise l'index du dépôt RÉEL, pas le jetable. C'est exactement la leçon que ce
+        # témoin CITE, appliquée à moitié : réutiliser l'helper de la porte 20 plutôt que le réécrire.
+        r = subprocess.run(
+            ["git", "-C", str(root), "-c", "user.name=Test", "-c", "user.email=test@example.com", *args],
+            cwd=str(root), capture_output=True, text=True, env=_env_isole())
+        assert r.returncode == 0, f"git {args} : {r.stderr}"
+
+    git("init", "-b", "main")
+    if suivre:
+        git("add", "docs/reviews/2026-09-17-edr-999.md")
+    return root
+
+
+def test_an_edr_with_a_review_path_SUIVI_PAR_GIT_is_NOT_review_missing(tmp_path):
+    """SPÉCIFICITÉ (no-op apparié aux trois précédents) : forme valide, fichier présent ET SUIVI -> passe."""
+    root = _depot_jetable_avec_revue(tmp_path, suivre=True)
     assert not any(r["id"] == "EDR-999" for r in C.analyze(root)["review_missing"])
+
+
+def test_an_edr_dont_la_revue_EXISTE_mais_N_EST_PAS_SUIVIE_est_review_missing(tmp_path):
+    """⚠️ CONTRE-EXEMPLE GELÉ (2026-09-24) : la preuve qu'une revue a eu lieu était le SEUL chemin
+    d'évidence du dépôt qui n'avait pas à être suivi.
+
+    `_review_defect` testait `os.path.isfile`, donc le DISQUE, alors que la porte 20 — livrée dans la
+    MÊME branche pour la MÊME classe (E27, « une évidence qui n'est plus rouvrable ») — exige l'INDEX.
+    Sur un arbre que six sessions éditent, un record pouvait donc se committer **certifié revu** en
+    pointant vers un fichier qui ne serait jamais dans le clone. Raison distincte : 'non suivi'.
+    """
+    root = _depot_jetable_avec_revue(tmp_path, suivre=False)
+    rv = C.analyze(root)["review_missing"]
+    assert any(r["id"] == "EDR-999" and r["raison"] == "non suivi" for r in rv), rv
 
 
 def test_an_edr_WITHOUT_verdict_anchor_is_not_asked_for_a_review(tmp_path):

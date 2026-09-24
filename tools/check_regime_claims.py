@@ -15,10 +15,36 @@ DONNEES REGARDEES -> affirmation negative de fond) appliquee a l'INSTRUMENT qui 
 Mesure le 2026-09-23 (`--report`, apres correctif revue -- recherche en profondeur + hors-regime) : 300
 records dans docs/EDR/, 74 citent un parametre, **10 concordent** (5 CONCORDE + 5 CONCORDE_HORS_REGIME --
 double du chiffre d'avant le correctif, qui ne cherchait qu'a la racine et au 1er niveau de cellule) --
-64 restent dette legataire geles PAR STATUT (53 SANS_RESULTS, 3 SANS_REGIME, 8 DISCORDE dont **7
-verifies un par un contre le JSON reel, aucun artefact d'instrument** -- le 8e, EDR-RETAIN-COMPOSE-LR,
-est possiblement une LIMITE du parseur de cellule (`_CELL_LR` ne reconnait pas `lr_0.02`, seulement
-`lr=0.02|...`) decouverte en verifiant : cf. rapport de correction, non elargi dans cette passe).
+64 restent dette legataire geles PAR STATUT (53 SANS_RESULTS, 3 SANS_REGIME, 8 DISCORDE).
+
+⚠️ RECTIFICATION (2026-09-24, P2.88). Cette docstring a affirme que les 8 DISCORDE etaient « 7 verifies
+un par un contre le JSON reel, AUCUN ARTEFACT D'INSTRUMENT ». C'est FAUX, et mesurable. Reclassees
+contre les JSON reels avec trois categories, les 10 lignes fautives de ces 8 DISCORDE donnent
+`{'ABSENCE_CLE': 4, 'CONTRADICTION': 2, 'ILLISIBLE_PAR_L_INSTRUMENT': 4}` : **la moitie des
+« absences » sont des valeurs BIEN PRESENTES**, que le lecteur a clefs n'a pas su lire --
+`results/retain_compose_lr_replication.json` porte `/lr_0.02` et `/_params/lrs` (`_CELL_LR` n'accepte
+que `lr=0.02|`), `results/lang_memory_diagnostic.json` porte `D1_lr0.02_ep1200`,
+`results/s2_credit_retention.json` porte `/regime/frozen_phase2_lr = 0.0` (le record cite `lr = 0`
+pour des poids geles : la valeur EST publiee, sous une cle QUALIFIEE), `results/td_step_pilot_r0.json`
+porte `/_regime/lr_td` (une LISTE). Le correctif etait monte jusqu'au backlog et JAMAIS jusqu'ici --
+or la docstring est la seule chose qu'un lecteur du module voit.
+
+CE QU'IL NE VOIT PAS (la section que les portes 20 et 22 ont et qui manquait ici) :
+  * `DISCORDE` FOND CINQ SITUATIONS sous un seul mot, avec la meme chaine de detail au caractere pres,
+    et ce mot affirme la pire : (a) premisse reellement FAUSSE -- le cas fondateur EDR-GRAB-COST ;
+    (b) cle jamais publiee ; (c) cle PUBLIEE mais illisible par le lecteur a clefs ; (d) cle publiee
+    QUALIFIEE (`frozen_phase2_lr` pour `lr`) ; (e) faux positif de l'EXTRACTEUR -- `reward_scale = 0`
+    cite a l'interieur d'une PREDICTION dans S2-REWARD-ABLATION. Un statut nomme `NON_PUBLIE` serait un
+    SECOND negatif fabrique par-dessus le premier : cet instrument ne peut pas etablir ce que le runner
+    a PUBLIE, seulement ce que LUI a LU.
+  * il ne lit que `docs/EDR/*.md`. Le graphe compte 26 records non-EDR (ADR, SDR, REF), dont 3 citent
+    des `results/` : leurs affirmations de parametre ne sont vues par aucune porte. Perimetre DECLARE,
+    jamais mesure comme une absence de defaut.
+  * il apparie par INTERSECTION D'ENSEMBLES : une valeur citee dans la prose et publiee ailleurs sous
+    un autre NOM reste invisible, et il ne nomme jamais la valeur qu'il a pourtant LUE.
+  * un E8 REEL peut sortir sous ce meme mot sans etre distingue : `docs/EDR/107_...md:21` annonce une
+    trajectoire de 20 generations quand son seul results publie `generations: 2`.
+
 Un record illisible est RAPPORTE et BLOQUE, jamais compte CONCORDE ni gelable par `--update-baseline`.
 """
 import argparse

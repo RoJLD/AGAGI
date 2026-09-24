@@ -218,9 +218,14 @@ def test_le_CLIQUET_ne_fait_RIEN_quand_aucune_porte_n_est_concernee(capsys):
 
 
 @pytest.mark.timeout(1200)
-def test_LES_TREIZE_PORTES_du_hook_tuent_leurs_mutants():
-    """⚠️ L'ANCRAGE SUR LE REEL, et le seul test de ce fichier qui coûte cher (~4 min). Il rejoue la
-    mesure complète : 13 portes, 16 mutations. C'est lui qui a trouvé QUATRE défauts réels le jour de
+def test_TOUTES_LES_PORTES_du_hook_tuent_leurs_mutants():
+    """⚠️ L'ANCRAGE SUR LE REEL, et le seul test de ce fichier qui coûte cher. Il rejoue la mesure
+    COMPLETE : 19 portes, 28 mutations au 2026-09-24 (recompte : `len(PORTES)` et la somme des
+    `mutations`). Le nom disait TREIZE et le corps « 13 portes, 16 mutations, ~4 min » : perime avant
+    cette branche, aggrave par elle. Un compte fige dans un NOM DE TEST ne peut pas se recomputer --
+    c'est la meme faute que les comptes publies dans la prose, traquee par `check_synthesis_counts`.
+    ⚠️ Son plafond de 1200 s n'a PAS ete re-mesure a 19 portes : a re-mesurer machine libre.
+    C'est lui qui a trouvé QUATRE défauts réels le jour de
     sa livraison — trois verdicts de porte SANS aucun contre-exemple (`orphans` de la porte 1,
     `scan_collisions` de la porte 2, le report de la porte 6) et un test qui PUNISSAIT son propre
     correctif (porte 14, seuil figé à 100 sur une dette tombée à 85)."""
