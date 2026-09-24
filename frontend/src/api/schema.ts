@@ -287,6 +287,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/pm/pilotage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pilotage */
+        get: operations["pilotage_api_pm_pilotage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/provenance": {
         parameters: {
             query?: never;
@@ -1138,6 +1155,41 @@ export interface components {
             /** Ts */
             ts: string;
         };
+        /**
+         * PilotageV1
+         * @description Enveloppe de `pilotage_v1`.
+         *
+         *     ⚠️ `flotte` est `dict | None` SANS modèle strict : son contrat appartient au board (session PM) et
+         *     évolue chez son propriétaire ; un `response_model` qui refuserait une clé neuve lèverait un 500 HORS
+         *     du try/except du service — une seconde source d'erreur que les modes dégradés ne couvrent pas.
+         *     ⚠️ `schema` masque un attribut de `BaseModel` en pydantic v2 : d'où l'alias.
+         */
+        PilotageV1: {
+            /** Aveugle */
+            aveugle: string[];
+            /** Charge */
+            charge?: {
+                [key: string]: unknown;
+            } | null;
+            /** Flotte */
+            flotte?: {
+                [key: string]: unknown;
+            } | null;
+            /** Generated At */
+            generated_at: number;
+            /** Portes */
+            portes?: {
+                [key: string]: unknown;
+            }[] | null;
+            /** Repo Root */
+            repo_root: string;
+            /** Roadmap */
+            roadmap?: {
+                [key: string]: unknown;
+            } | null;
+            /** Schema */
+            schema: string;
+        };
         /** RunDetail */
         RunDetail: {
             /** Commit */
@@ -1741,6 +1793,37 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+        };
+    };
+    pilotage_api_pm_pilotage_get: {
+        parameters: {
+            query?: {
+                frais?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PilotageV1"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

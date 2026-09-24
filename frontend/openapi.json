@@ -935,6 +935,89 @@
         "title": "NoteFeedItem",
         "type": "object"
       },
+      "PilotageV1": {
+        "description": "Enveloppe de `pilotage_v1`.\n\n⚠️ `flotte` est `dict | None` SANS modèle strict : son contrat appartient au board (session PM) et\névolue chez son propriétaire ; un `response_model` qui refuserait une clé neuve lèverait un 500 HORS\ndu try/except du service — une seconde source d'erreur que les modes dégradés ne couvrent pas.\n⚠️ `schema` masque un attribut de `BaseModel` en pydantic v2 : d'où l'alias.",
+        "properties": {
+          "aveugle": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Aveugle",
+            "type": "array"
+          },
+          "charge": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Charge"
+          },
+          "flotte": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flotte"
+          },
+          "generated_at": {
+            "title": "Generated At",
+            "type": "number"
+          },
+          "portes": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Portes"
+          },
+          "repo_root": {
+            "title": "Repo Root",
+            "type": "string"
+          },
+          "roadmap": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Roadmap"
+          },
+          "schema": {
+            "title": "Schema",
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema",
+          "generated_at",
+          "repo_root",
+          "aveugle"
+        ],
+        "title": "PilotageV1",
+        "type": "object"
+      },
       "RunDetail": {
         "properties": {
           "commit": {
@@ -1892,6 +1975,49 @@
         "summary": "Observability Logger",
         "tags": [
           "Observability"
+        ]
+      }
+    },
+    "/api/pm/pilotage": {
+      "get": {
+        "operationId": "pilotage_api_pm_pilotage_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "frais",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Frais",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PilotageV1"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Pilotage",
+        "tags": [
+          "pm"
         ]
       }
     },

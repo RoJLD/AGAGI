@@ -421,3 +421,58 @@ def test_flatland_server_does_not_reuse_a_CLOSED_event_loop() -> None:
     finally:
         threading.Thread.start = orig_start
         asyncio.set_event_loop(asyncio.new_event_loop())
+
+
+def test_pilotage_endpoint_rend_le_schema() -> None:
+    r = client.get("/api/pm/pilotage")
+    assert r.status_code == 200
+    d = r.json()
+    assert d["schema"] == "pilotage_v1"
+    assert isinstance(d["generated_at"], (int, float))
+    assert isinstance(d["aveugle"], list)
+
+
+def test_pilotage_le_POLL_ne_recalcule_JAMAIS_le_snapshot(monkeypatch) -> None:
+    """La mesure qui a changé le design : `snapshot()` coûte 15,6-18,1 s (charge notée : 40 % CPU,
+    9 processus python) alors qu'`apiFetch` coupe à 10 s et que toute la roadmap coûte 0,70 s. Le poll ne
+    doit donc jamais l'appeler — seul `?frais=1` le fait."""
+    from backend.app.services import pilotage_service as ps
+
+    def _interdit(*a, **k):
+        raise AssertionError("snapshot() appelé sur le chemin du poll : 18 s par requête")
+
+    monkeypatch.setattr(ps, "snapshot", _interdit)
+    ps._vider_cache()
+    r = client.get("/api/pm/pilotage")
+    assert r.status_code == 200
+
+
+def test_pilotage_un_lecteur_qui_leve_devient_une_ligne_aveugle_jamais_un_500(monkeypatch) -> None:
+    from backend.app.services import pilotage_service as ps
+
+    def _boum(*a, **k):
+        raise RuntimeError("lecteur casse")
+
+    monkeypatch.setattr(ps.pilotage, "compute_pilotage", _boum)
+    ps._vider_cache()
+    r = client.get("/api/pm/pilotage")
+    assert r.status_code == 200, "une exception ne doit jamais devenir un 500"
+    d = r.json()
+    assert d["aveugle"] and d["aveugle"][0].startswith("pilotage:")
+    assert d["flotte"] is None and d["roadmap"] is None and d["portes"] is None and d["charge"] is None
+
+
+def test_pilotage_cache_sous_le_TTL(monkeypatch) -> None:
+    from backend.app.services import pilotage_service as ps
+    appels = {"n": 0}
+    vrai = ps.pilotage.compute_pilotage
+
+    def _compte(*a, **k):
+        appels["n"] += 1
+        return vrai(*a, **k)
+
+    monkeypatch.setattr(ps.pilotage, "compute_pilotage", _compte)
+    ps._vider_cache()
+    client.get("/api/pm/pilotage")
+    client.get("/api/pm/pilotage")
+    assert appels["n"] == 1, f"le cache 30 s n'a pas tenu : {appels['n']} calculs"

@@ -21,6 +21,7 @@ from .routes.observability import router as observability_router
 from .routes.flatland import router as flatland_router
 from .routes.runs import router as runs_router
 from .routes.health import router as health_router
+from .routes.pm import router as pm_router
 from .services.data_service import ExperimentDataService
 from .services.live_progress_service import LiveProgressTail
 from .services import sandbox_service as sandbox_service_module
@@ -86,6 +87,7 @@ app.include_router(observability_router, prefix="/api", tags=["Observability"])
 app.include_router(flatland_router, prefix="/api/flatland", tags=["Flatland"])
 app.include_router(runs_router, prefix="/api", tags=["runs"])
 app.include_router(health_router, prefix="/api", tags=["health"])
+app.include_router(pm_router, prefix="/api/pm", tags=["pm"])
 
 
 @app.get("/health")

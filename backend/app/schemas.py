@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class GraphEdge(BaseModel):
@@ -206,6 +206,26 @@ class NoteFeedItem(BaseModel):
     id: str
     text: str
     ts: str
+
+
+class PilotageV1(BaseModel):
+    """Enveloppe de `pilotage_v1`.
+
+    ⚠️ `flotte` est `dict | None` SANS modèle strict : son contrat appartient au board (session PM) et
+    évolue chez son propriétaire ; un `response_model` qui refuserait une clé neuve lèverait un 500 HORS
+    du try/except du service — une seconde source d'erreur que les modes dégradés ne couvrent pas.
+    ⚠️ `schema` masque un attribut de `BaseModel` en pydantic v2 : d'où l'alias.
+    """
+    model_config = ConfigDict(populate_by_name=True)
+
+    schema_: str = Field(alias="schema")
+    generated_at: float
+    repo_root: str
+    aveugle: list[str]
+    flotte: dict | None = None
+    roadmap: dict | None = None
+    portes: list[dict] | None = None
+    charge: dict | None = None
 
 
 class SweepResult(BaseModel):
