@@ -554,6 +554,18 @@ découpe 5 ms, `compter_entrees` 8 ms). Ces deux chiffres sont ce qui a fait ren
 requête (§3.2) ; ce sont des MAJORANTS (machine partagée). À re-mesurer machine au repos avant de discuter le TTL, et à
 publier ici avec la charge du moment.
 
+**Chemin SERVI — MESURÉ le 2026-09-24** (worktree `chantier/pilotage`, HEAD `31785f77` ; charge NOTÉE avant
+chaque passe, machine sous forte charge PARTAGÉE tout du long) : `get_pilotage()` (le poll — jamais
+`snapshot()`) rend, à cache FROID (`_vider_cache()` avant chaque appel), **2,64 s** (cpu_percent(1) 97,6 %,
+12 processus python), **7,84 s** (84,5 %, 16 processus) puis **8,96 s** (83,0 %, 16 processus) sur trois passes
+indépendantes, et **< 10 µs** à cache CHAUD dans les trois cas — 2 aveuglements, `schema` `pilotage_v1`,
+131 blocs de roadmap, 19 portes, stables sur les trois passes ; cohérent avec le 4,07 s relevé côté endpoint
+`GET /api/pm/pilotage` (premier appel HTTP, cache vide). ⚠️ La VARIANCE est le fait à retenir, pas la
+meilleure passe : sous charge partagée la marge tombe à **1,04 s** sous le timeout client de 10 s (passe à
+8,96 s), loin du « plus de 3× » qu'une première mesure isolée aurait suggéré — à re-mesurer machine au repos
+avant de fixer une marge de confiance, et publier l'unité SOUS CHARGE à côté de l'unité LIBRE (classe E12
+appliquée au coût, cf. CLAUDE.md).
+
 ---
 
 ## 7. Ordre de livraison — chaque pas utile seul
