@@ -1220,6 +1220,47 @@ Contre-exemple a geler dans la meme passe : deux empreintes concurrentes sur le 
 empreinte, la sienne -> PASSE. *Cout : agent 2 h ; calcul 0.* Depend de : rien.
 <!-- closes_when:grep_present=tools/hooks/pre-commit::check_pathspec_collision -->
 
+**P2.110 — rang 12 quater — ⚠️ OUVERTE (2026-09-24, extraite du bloc P4.17, désormais fermé) — Le cliquet de COÛT
+projette depuis UNE cellule, sur une horloge MUR, et ne dit pas POURQUOI il coupe : trois défauts mesurés le même jour
+sur la même expérience, dont l'un a déjà produit une sur-déclaration et un autre une preuve fausse dans un record.**
+Quoi. (i) **`_regime.coupe` ne porte qu'une PHRASE — et elle MENT sur la coupe courante.** Les deux coupes E13 de
+TD-STEP-PILOT-R2 sont marquées `coupe=True` à l'identique alors que leurs natures sont OPPOSÉES : `lr 2,0` a été coupée
+par CONTENTION (unité 217,4 s machine chargée) et RÉCUPÉRÉE par la reprise déclarée (unité 196,4 s machine libre) ;
+`lr 1,0` est STRUCTURELLE — elle tient machine libre, c'est une sous-estimation au scellement. Un lecteur ne peut pas
+les distinguer, et la clôture de P4.11 en a tiré « invariance au pas RÉFUTÉE » avant d'être amendée en « NON ÉTABLIE »
+(`17cff006`, `181a9819`). Mesuré en ré-écrivant cette entrée : la `raison` publiée pour la coupe COURANTE de `lr 1,0`
+(60 clés) est « relevee (--relever-coupe) : unite re-mesuree machine libre » — la raison de la LEVÉE, pas celle de la
+re-coupe (95 unités × 196,4 s × marge 1,5 = 466 min > 240) : `tools/td_step_pilot.py` pose la coupe par `setdefault`,
+qui conserve le dict écrit par `--relever-coupe`. À faire : un vocabulaire FERMÉ `nature` ∈ {`contention`,
+`structure`, `budget`} à côté du drapeau, et une raison écrite à CHAQUE coupe. Sens déclarés : `budget` = projection
+> budget, charge au moment de la mesure NON qualifiée (le seul fait établi — le « je ne sais pas » de la porte 14, pas
+un défaut) ; `contention` = unité mesurée sous une charge MESURÉE, coupe PROVISOIRE, reprise déclarée due ;
+`structure` = la coupe tient sur une unité mesurée machine LIBRE. Une reprise RE-QUALIFIE la coupe précédente dans
+`coupes_precedentes` (récupérée → `contention` établie ; re-coupée → `structure`).
+(ii) **L'unité est mesurée sur UNE cellule et appliquée à une grille HÉTÉROGÈNE.** La règle scellée justifie sa
+projection par « cellules uniformes : mêmes épisodes, mêmes agents » ; mesuré sur les 28 cellules chronométrées de la
+reprise, c'est FAUX — `lam05` 161,9 s, `lam099` 157,6 s, `td0_d0` **56,2 s**, soit **2,8×** entre familles de bras (le
+contrôle de chemin n'a ni trace ni délai). L'unité est prise sur la PREMIÈRE cellule neuve, qui appartient à la
+famille lente : la projection sur-estime et le cliquet mord plus qu'il ne devrait. C'est **E8 appliqué au modèle de
+coût** — une prémisse posée en décor, scellée par moi. À faire : unité PAR BRAS (`project_cost_per_arm`) quand les
+bras diffèrent, ou sceller explicitement « unité du bras le plus lent, projection MAJORANTE » et le dire dans le record.
+(iii) **L'unité de la projection est du temps MUR, et le record dit le contraire.** `_mesure` rend `time.time() - tc`,
+et c'est cette valeur qui entre dans `project_cost` ; P2.78 ne gate sur le CPU que `CostGuard.tick`, que ce runner
+n'appelle pas. C'est précisément pourquoi une contention a pu gonfler l'unité (217,4 s contre 196,4 s) et couper une
+ligne. Or [[EDR-TD-STEP-PILOT-R2]] écrit que la DÉCISION du garde « est gouvernée par le temps CPU du processus » : la
+conclusion qu'il en tire (les deux rafales n'ont pas touché la décision) est JUSTE, mais pour une autre raison —
+l'unité est mesurée sur la première cellule, AVANT les rafales. Preuve fausse, conclusion juste : **E33**, dans mon
+propre record. À faire : rectifier le record par un bandeau ; publier `unite_cpu_s` et la charge au moment de la
+mesure à côté de `unite_s` — ce sont elles qui permettent de qualifier `nature`. ⚠️ Ne PAS basculer la projection sur
+le CPU : `budget_s` est du mur, et un run torch multi-thread rend un CPU > mur (`tools/cost_guard.py`, docstring,
+point (c)).
+⚠️ Ce qui rend l'ensemble mordant, et qui vaut plus que les correctifs : **une projection à 6 % de son seuil transforme
+10 % de contention en une ligne de grille perdue** (255 min contre 231 min pour un budget de 240) — la fragilité est
+dans la MARGE entre projection et budget, et rien ne la publie aujourd'hui. Preuve : `results/td_step_pilot_r2.json`
+(`_regime.coupe`, `_regime.coupes_precedentes`), [[EDR-TD-STEP-PILOT-R2]] § « Coût, coupes, et pourquoi leurs natures
+diffèrent ». *Coût : agent 1 h 30 ; calcul 0.* Dépend de : rien.
+<!-- closes_when:grep_present=tools/cost_guard.py::(?s)^(?=.*NATURES_COUPE)(?=.*def project_cost_per_arm) -->
+
 **P2.83 — ⚠️ OUVERTE (2026-09-24, vue en passant pendant la revue de la spec du dashboard Pilotage) — le cliquet de
 calibration ne connaît NI `compute_*` NI `parse_*`, et une déclaration qu'il ne détecte pas est ignorée EN SILENCE :
 7ᵉ angle mort de nommage, dette nette CHIFFRÉE à 7 fonctions.**
@@ -1802,12 +1843,8 @@ uniformes : mêmes épisodes, mêmes agents ». Mesuré sur les 28 cellules chro
 `lam099` 157,6 s, `td0_d0` **56,2 s** — le contrôle de chemin est **2,8× plus rapide**. L'unité est mesurée sur
 la PREMIÈRE cellule neuve (famille lente) et appliquée à une grille hétérogène : la projection sur-estime, et
 le cliquet de coût mord plus qu'il ne devrait. C'est E8 appliqué au modèle de coût. *(Ne change pas la coupe de
-lr 1,0, qui tient même à l'unité médiane toutes familles.)* **À FAIRE, deux dettes nommées** : (i) que
-`_regime.coupe` porte un vocabulaire FERMÉ (`contention` / `structure` / `budget`) au lieu d'une phrase — une
-coupe de charge et une coupe structurelle se lisent aujourd'hui pareil, et cette confusion a déjà produit une
-sur-déclaration (celle de P4.11, amendée) ; (ii) que `project_cost` prenne une unité PAR BRAS quand les bras
-diffèrent, ou que la règle scelle explicitement « unité mesurée sur le bras le plus lent, projection
-majorante ». *Coût : agent 1 h ; calcul 0.*
+lr 1,0, qui tient même à l'unité médiane toutes familles.)* **Ces dettes sont SORTIES en [[P2.110]]** le 2026-09-24 (avec une troisième, trouvée en les ré-écrivant) :
+une entrée fermée ne porte pas de travail à faire — personne ne va chercher un « à faire » sous un coché vert.
 <!-- closes_when:path_present=docs/EDR/TD-STEP-PILOT-R2_The_Eligibility_Trace_Is_What_Makes_The_Delayed_Task_Learnable_At_One_Operating_Point.md -->
 
 **P4.7 — rang 19 — S5 / G4 phase A : `g` PER-ACTION vs agnostique vs labels PERMUTÉS (nœud 74).**
