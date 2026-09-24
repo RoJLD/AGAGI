@@ -1214,6 +1214,36 @@ expliquant pourquoi il ne fallait pas creer un role d'Integrateur pour les evite
 pas rhetorique : **la parade n'est pas quelqu'un qui surveille, c'est une garde qui tourne au moment ou ca casse**.
 La cle `numero-double` de `check_backlog_freshness` savait attraper les trois ; elle ne tournait pas la ou elles
 naissent. *Cout : agent 4 h ; calcul 0.*
+⚠️ REFUTEE PUIS CORRIGEE LE JOUR MEME (commit 3e26caf2, puis le suivant). La re-verification
+adversariale lancee AVANT le premier commit a rendu son verdict APRES : REFUTE, quatre griefs de
+gravite HAUTE, tous mesures en depots jetables avec controle apparie, et 4 mutations sur 9
+survivantes. Le premier commit le dit dans son message -- il livrait du code teste, pas un verdict.
+Ce qui est tombe, et ce qui le remplace :
+1. LE TEMOIN EST SUPPRIME. Son identite couvrait l'INDEX (`git write-tree`) alors que les portes de
+   ce depot jugent le DISQUE, et l'arbre est PARTAGE donc le disque change tout seul pendant qu'un
+   editeur est ouvert. Mesure APPARIEE : le meme etat du monde passe rc=0 avec ZERO porte quand le
+   residu est la, et est REFUSE rc=1 sans lui. Trois identites essayees, trois refutees -> on ne
+   raffine pas une quatrieme, on retire le raccourci. Le cout est chiffre et borne : les portes
+   tournent DEUX fois sur une fusion conflictuelle, ce qui etait deja paye des qu'un editeur
+   depassait 120 s. Quatre mutations survivantes disparaissent avec lui. Classe E31, occurrence 2.
+2. `commit-msg` VERIFIE AVANT D'ANNONCER. Il imprimait « portee = base de fusion » sans verifier que
+   le pre-commit qu'il lance porte le bloc -- et le pre-commit DEPLOYE ne le portait pas (0
+   occurrence mesuree). La fusion fautive passait pendant que le crochet imprimait le contraire.
+3. `CHERRY_PICK_HEAD` entre dans la portee : un cherry-pick CONFLICTUEL arme bien le pre-commit mais
+   ne pose pas MERGE_HEAD, donc la portee restait le premier parent -- le trou du squash sur une
+   autre reference. `REVERT_HEAD` est exclu DELIBEREMENT (le commit annule est un ancetre, la base
+   serait lui-meme et la portee engloberait tout l'historique depuis) et une garde d'ancetre rend ce
+   raisonnement executable au lieu de le laisser en commentaire.
+4. CE QUI RESTE NON COUVERT, ECRIT NOIR SUR BLANC plutot que laisse en creux : `git rebase`,
+   `git cherry-pick` PROPRE et `git pull --rebase` rendent rc=0 avec ZERO appel de pre-commit ET de
+   commit-msg (seul `prepare-commit-msg` tourne, et il ne peut rien refuser). La voie d'integration
+   la plus courante du depot n'est donc couverte par AUCUN crochet de commit, et ca reste vrai apres
+   cette livraison -- la protection de ces voies doit vivre en `pre-push` ou en CI. Une session
+   voisine a annule son rebase sur cette seule mesure.
+LA LECON DE METHODE, qui vaut plus que les quatre correctifs : une revue adversariale qui lance ses
+propres sondes a tue DEUX versions successives d'une garde de quinze lignes, dont une que son auteur
+croyait avoir durcie une heure plus tot. Aucune relecture ne les aurait vues ; les deux refutations
+sont venues de sequences ORDINAIRES, sans malveillance ni fabrication.
 <!-- closes_when:grep_present=tools/hooks/pre-commit::check_hook_deployment -->
 
 **P2.109 — rang 12 ter — ⚠️ OUVERTE (2026-09-24) — La moitie MANQUANTE de la regle des commits path-scopes : un
@@ -1242,6 +1272,22 @@ comparaison porte sur l'arbre que CE commit va prendre, jamais sur celui d'un au
 perimee (session morte) ne doit pas bloquer eternellement : TTL, comme les bails de `tools/jobs`.
 Contre-exemple a geler dans la meme passe : deux empreintes concurrentes sur le meme chemin -> REFUS ; une seule
 empreinte, la sienne -> PASSE. *Cout : agent 2 h ; calcul 0.* Depend de : rien.
+⚠️ DEUX EXCEPTIONS A LA REGLE AFFICHEE, mesurees le 2026-09-24 et ecrites nulle part -- elles
+appartiennent a cette entree parce qu'elles portent sur la MEME phrase de CLAUDE.md (« tout commit
+passe par `git commit -- <chemins>`, JAMAIS nu ») :
+(a) PENDANT UNE FUSION, `git commit -- <chemins>` est FATAL : `cannot do a partial commit during a
+    merge`, exit 128. Le commit NU est alors le SEUL chemin disponible. La regle affichee est donc
+    inapplicable exactement la ou le risque de tout emporter est le plus grand, et personne ne le
+    sait avant de buter dessus. A ecrire A COTE de la regle, pas a sa place.
+(b) LA TECHNIQUE D'INDEX TEMPORAIRE DU DEPOT, appliquee a une fusion, est ACCEPTEE par git et ne fait
+    PAS ce qu'on croit : `GIT_INDEX_FILE=<tmp> git commit -F msg` pendant une fusion conflictuelle
+    resolue rend rc=0, le commit porte bien DEUX parents -- donc il conclut la fusion -- mais son
+    arbre est celui de l'INDEX TEMPORAIRE. Le cote entrant est PERDU tout en etant enregistre comme
+    fusionne, et les portes tirent sur l'index temporaire, pas sur l'union. C'est la contradiction la
+    plus silencieuse des trois : elle produit un commit de fusion d'apparence normale. Ce depot
+    commite par index temporaire tous les jours ; la regle a en tirer est simple et executable :
+    **ne jamais conclure une fusion par la technique d'index temporaire** -- verifier `MERGE_HEAD`
+    avant de la lancer, et refuser.
 <!-- closes_when:grep_present=tools/hooks/pre-commit::check_pathspec_collision -->
 
 **P2.110 — rang 12 quater — ⚠️ OUVERTE (2026-09-24, extraite du bloc P4.17, désormais fermé) — Le cliquet de COÛT

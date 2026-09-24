@@ -49,12 +49,39 @@ fail=0
 # ORDINAIRE, donc git lance pre-commit lui-même (mesuré : 1 appel, MERGE_HEAD absent).
 AGAGI_DIFF_BASE=""
 _agagi_quoi=""
-_agagi_mh=$(git rev-parse --git-path MERGE_HEAD 2>/dev/null)
+_agagi_mh=""
+# ⚠️ PAS SEULEMENT MERGE_HEAD (2026-09-24, re-vérification adversariale, grief de gravité HAUTE).
+# Mesuré en dépôt jetable, sur la MÊME divergence que le contre-exemple gelé : un `git cherry-pick`
+# CONFLICTUEL arme bien ce hook (1 appel) — mais MERGE_HEAD est ABSENT, c'est `CHERRY_PICK_HEAD` qui
+# porte le côté entrant. La portée restait donc le premier parent, le document porteur du compte
+# était identique à HEAD, et la porte 8 se taisait : exactement le mécanisme du trou `--squash`, sur
+# une autre référence. Coût nul, la réf est là.
+# ⚠️ REVERT_HEAD est DÉLIBÉRÉMENT EXCLU, et c'est le contraire d'un oubli : le commit qu'on annule
+# est normalement un ANCÊTRE de HEAD, donc `git merge-base HEAD REVERT_HEAD` rend ce commit LUI-MÊME
+# et la portée engloberait TOUT ce qui a changé depuis — des dizaines de fichiers sans rapport, donc
+# des portes qui rougissent sur du légataire et un crochet qu'on désarme en trois jours. La garde
+# d'ancêtre ci-dessous rend ce raisonnement EXÉCUTABLE au lieu de le laisser en commentaire : toute
+# référence déjà contenue dans l'histoire de HEAD n'élargit rien, et on le DIT.
+for _agagi_r in MERGE_HEAD CHERRY_PICK_HEAD; do
+  _agagi_p=$(git rev-parse --git-path "$_agagi_r" 2>/dev/null)
+  if [ -n "$_agagi_p" ] && [ -f "$_agagi_p" ]; then
+    _agagi_mh="$_agagi_p"
+    if [ "$_agagi_r" = "MERGE_HEAD" ]; then _agagi_quoi="fusion"; else _agagi_quoi="cherry-pick"; fi
+    break
+  fi
+done
 _agagi_sq=$(git rev-parse --git-path SQUASH_MSG 2>/dev/null)
-if [ -n "$_agagi_mh" ] && [ -f "$_agagi_mh" ]; then
-  _agagi_quoi="fusion"
+if [ -n "$_agagi_mh" ]; then
   # $(cat) volontairement NON quoté : une fusion octopus liste plusieurs parents.
   AGAGI_DIFF_BASE=$(git merge-base HEAD $(cat "$_agagi_mh") 2>/dev/null)
+  # Le côté entrant est-il DÉJÀ dans notre histoire ? Alors la base de fusion est ce commit
+  # lui-même et « élargir » reviendrait à prendre tout l'historique depuis : on ne le fait pas.
+  if [ -n "$AGAGI_DIFF_BASE" ] && git merge-base --is-ancestor $(cat "$_agagi_mh") HEAD 2>/dev/null; then
+    echo "[agagi/pre-commit] $_agagi_quoi : le côté entrant est DÉJÀ un ancêtre de HEAD — élargir la"
+    echo "   portée prendrait tout l'historique depuis lui. Portée inchangée (premier parent), et dite."
+    AGAGI_DIFF_BASE=""
+    _agagi_deja_dit=1
+  fi
   # ⚠️ LA BRANCHE FUSION SE TAISAIT (2026-09-24, deuxième revue adversariale). `git merge-base` rend
   # du VIDE sans échouer bruyamment sur des HISTOIRES SANS ANCÊTRE COMMUN
   # (`git merge --allow-unrelated-histories`) comme sur un MERGE_HEAD illisible ou tronqué. La portée
@@ -64,10 +91,10 @@ if [ -n "$_agagi_mh" ] && [ -f "$_agagi_mh" ]; then
   # passe : c'est la forme (a) du biais de ce dépôt (absence -> affirmation de fond). On ne peut PAS
   # élargir à l'arbre vide pour autant : sur des histoires non apparentées, la portée deviendrait le
   # dépôt ENTIER et toutes les portes rougiraient sur du légataire. Donc : portée inchangée, DITE.
-  if [ -z "$AGAGI_DIFF_BASE" ]; then
-    echo "[agagi/pre-commit] FUSION en cours, mais base de fusion INCALCULABLE (histoires sans"
-    echo "   ancêtre commun, ou MERGE_HEAD illisible). La portée des portes reste le PREMIER PARENT :"
-    echo "   une divergence qui n'existe QU'À L'UNION ne sera PAS vue."
+  if [ -z "$AGAGI_DIFF_BASE" ] && [ -z "$_agagi_deja_dit" ]; then
+    echo "[agagi/pre-commit] $_agagi_quoi en cours, mais base INCALCULABLE (histoires sans ancêtre"
+    echo "   commun, ou référence du côté entrant illisible). La portée des portes reste le PREMIER"
+    echo "   PARENT : une divergence qui n'existe QU'À L'UNION ne sera PAS vue."
   fi
 elif [ -n "$_agagi_sq" ] && [ -f "$_agagi_sq" ]; then
   _agagi_quoi="squash"
@@ -525,71 +552,38 @@ PYTHONIOENCODING=utf-8 python tools/check_hook_deployment.py || {
   fail=1
 }
 
-# >>> AGAGI:FUSION-MARQUEUR >>>
-# TÉMOIN lu par `tools/hooks/commit-msg`. Sur une fusion PROPRE, git ne lance AUCUN pre-commit
-# (mesuré : 0 appel) ; commit-msg le relance. Sur une fusion CONFLICTUELLE, ce hook s'est DÉJÀ armé
-# au commit manuel de résolution — le témoin le dit, et commit-msg ne double pas le travail.
-#
-# ⚠️ IDENTITÉ ET PÉRISSABILITÉ (2026-09-24, corrigé après revue adversariale). La première version
-# posait un fichier VIDE à tout commit réussi, et c'était une garde DÉSARMABLE : mesuré,
-# `GIT_EDITOR=false git commit` fait AVORTER le commit (rc=1) et le témoin SURVIT — après quoi
-# n'importe quelle fusion propre le voyait et sautait TOUTES les portes, en silence. Le git-dir
-# étant PARTAGÉ par une dizaine de sessions, le témoin de l'une désarmait la fusion de l'autre.
-# Deux corrections, chacune gelée par un cas de `tests/sandbox/test_hook_on_merge.py` :
-#   (a) le témoin n'est posé QUE si une fusion est EN COURS (MERGE_HEAD présent). Un commit
-#       ordinaire — abouti ou avorté, squash compris — n'écrit plus rien du tout ;
-#   (b) il PORTE l'identité de CETTE fusion : horodatage, HEAD, contenu de MERGE_HEAD, et l'ARBRE
-#       DE L'INDEX (`git write-tree`). commit-msg exige que les quatre correspondent et que l'âge
-#       soit <= 120 s. Un témoin étranger, périmé ou fabriqué ne décrit pas cette fusion-ci : il ne
-#       peut plus la désarmer. ⚠️ La 4e ligne a été ajoutée APRÈS une deuxième revue : les trois
-#       premières certifient « une fusion de B dans A », pas « CET index-ci », et la même paire est
-#       atteignable deux fois de suite avec des index différents (détail au point de pose).
-# ⚠️ Le PID n'est PAS une identité utilisable ici : mesuré sous Git Bash (git 2.54.0.windows.1),
-# $PPID vaut 1 dans pre-commit COMME dans commit-msg (MSYS) — il n'identifie aucun `git commit`.
-# Sans horloge lisible (`date +%s`), on ne pose RIEN : les portes tourneront deux fois sur une
-# fusion conflictuelle, ce qui est le côté SÛR de l'erreur.
-# Posé seulement en cas de SUCCÈS ; consommé par commit-msg à CHAQUE commit. Vit dans le git-dir,
-# JAMAIS dans l'arbre de travail (qui est partagé).
-_agagi_temoin=$(git rev-parse --git-path agagi-pre-commit-ran 2>/dev/null)
-if [ -n "$_agagi_temoin" ]; then
-  rm -f "$_agagi_temoin" 2>/dev/null || true
-  _agagi_mh2=$(git rev-parse --git-path MERGE_HEAD 2>/dev/null)
-  if [ "$fail" -eq 0 ] && [ -n "$_agagi_mh2" ] && [ -f "$_agagi_mh2" ]; then
-    _agagi_now=$(date +%s 2>/dev/null)
-    case "$_agagi_now" in
-      ''|*[!0-9]*)
-        echo "[agagi/pre-commit] pas d'horloge lisible : aucun témoin posé (les portes pourront"
-        echo "   tourner deux fois sur cette fusion — c'est le côté sûr de l'erreur)." ;;
-      *)
-        # ⚠️ QUATRIÈME LIGNE : L'ARBRE DE L'INDEX (2026-09-24, deuxième revue adversariale). Les trois
-        # premières lignes certifient « une fusion de B dans A » — elles ne disent RIEN de ce qui est
-        # committé. Or la même paire (HEAD, MERGE_HEAD) est atteignable DEUX FOIS DE SUITE avec des
-        # index DIFFÉRENTS, et c'est un accident ordinaire, reproduit 4 fois : une fusion refusée par
-        # une porte laisse MERGE_HEAD en place ; l'auteur corrige, `git add`, `git commit` ; pre-commit
-        # PASSE et pose le témoin ; puis le commit AVORTE à l'éditeur (`:cq`, éditeur introuvable,
-        # Ctrl-C) — commit-msg n'a jamais tourné, donc n'a rien consommé, et un témoin VALIDE survit
-        # dans le git-dir. C'est le seul des cinq scénarios testés qui laisse un résidu. `git
-        # write-tree` est exactement « CET index-ci » : si l'index a bougé entre l'avortement et la
-        # reprise (le cas quand on corrige quoi que ce soit), le témoin ne décrit plus ce commit et
-        # les portes retirent. S'il n'a pas bougé, sauter est CORRECT — rien n'a changé.
-        # Un index non écrivable (entrées non fusionnées) ne pose RIEN : côté sûr, les portes tirent.
-        _agagi_tree=$(git write-tree 2>/dev/null)
-        case "$_agagi_tree" in
-          ''|*[!0-9a-fA-F]*)
-            echo "[agagi/pre-commit] index non écrivable (entrées non fusionnées ?) : aucun témoin"
-            echo "   posé — les portes pourront tourner deux fois sur cette fusion." ;;
-          *)
-            printf '%s\n%s\n%s\n%s\n' \
-              "$_agagi_now" \
-              "$(git rev-parse HEAD 2>/dev/null)" \
-              "$(tr '\n' ' ' < "$_agagi_mh2" 2>/dev/null)" \
-              "$_agagi_tree" \
-              > "$_agagi_temoin" 2>/dev/null || true ;;
-        esac ;;
-    esac
-  fi
-fi
-# <<< AGAGI:FUSION-MARQUEUR <<<
+# >>> AGAGI:FUSION-SANS-TEMOIN >>>
+# IL N'Y A PAS DE TÉMOIN ICI, ET C'EST UNE DÉCISION MESURÉE (2026-09-24). Ce bloc portait un jeton
+# « les portes ont déjà tourné », posé dans le git-dir et lu par `tools/hooks/commit-msg`, pour
+# éviter de les relancer sur une fusion CONFLICTUELLE — où ce hook s'arme déjà au commit de
+# résolution. Trois identités ont été essayées, DEUX réfutées par la mesure, la troisième par une
+# re-vérification adversariale qui lançait ses propres sondes :
+#   v1  la seule PRÉSENCE du fichier — un commit avorté laissait un résidu qui désarmait TOUT, et le
+#       git-dir étant PARTAGÉ par une dizaine de sessions, le résidu de l'une désarmait l'autre ;
+#   v2  (horodatage, HEAD, MERGE_HEAD) — certifie « une fusion de B dans A », pas « CET état-ci » :
+#       la même paire est réatteignable avec un index DIFFÉRENT. Séquence reproduite 4 fois : une
+#       fusion refusée laisse MERGE_HEAD, l'auteur corrige et recommite, ce hook PASSE et pose le
+#       jeton, puis le commit AVORTE à l'éditeur — commit-msg n'a jamais tourné, donc n'a rien
+#       consommé, et un jeton VALIDE survit ;
+#   v3  + `git write-tree` — RÉFUTÉE AUSSI, et c'est la mesure qui tranche : l'identité couvre
+#       l'INDEX, mais les portes de ce dépôt jugent le DISQUE (`check_synthesis_counts` compte des
+#       FICHIERS, `check_amputation` et `check_instrument_calibration` balayent l'ARBRE). L'index
+#       peut être identique pendant que CE QUI EST JUGÉ a changé — et l'arbre est partagé, donc il
+#       change tout seul. Mesure APPARIÉE : le même état du monde passe rc=0 avec ZÉRO porte quand
+#       le jeton résiduel est là, et est REFUSÉ rc=1 sans lui.
+# CE QU'ON EN TIRE, et c'est la classe E31 du registre : quand l'identité d'un jeton ne peut pas
+# couvrir ce que la vérification JUGE, on ne raffine pas une quatrième identité — ON SUPPRIME LE
+# RACCOURCI. Retirer le seul mécanisme capable de SAUTER des portes ne peut pas ouvrir de trou :
+# c'est un remède MONOTONE, ce qu'un raffinement n'est jamais.
+# CE QUE ÇA COÛTE, mesuré et borné : sur une fusion CONFLICTUELLE les portes tournent DEUX fois (une
+# au commit de résolution, une relancée par commit-msg). Ce coût était déjà payé sans qu'on le sache
+# — dès qu'un éditeur de message dépassait 120 s, le jeton périmait et les portes tournaient deux
+# fois de toute façon.
+# ⚠️ Aucun jeton n'est écrit, et le résidu d'une ancienne version est retiré par `commit-msg` sans
+# jamais être LU. Quatre propriétés du jeton (pose conditionnée au succès, expiration, consommation,
+# comparaison de MERGE_HEAD) n'avaient AUCUN contre-exemple gelé — quatre mutations survivantes au
+# harnais de la porte 15 ; elles disparaissent avec lui plutôt que d'être testées une par une.
+# <<< AGAGI:FUSION-SANS-TEMOIN <<<
 
 [ "$fail" -ne 0 ] && echo "   (urgence : git commit --no-verify)"
 exit $fail

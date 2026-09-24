@@ -2,14 +2,8 @@
 # Crochet de FUSION (AGAGI) — arme les portes du pre-commit au moment exact où le code d'une AUTRE
 # branche entre dans la sienne. Installation : cp tools/hooks/commit-msg .git/hooks/commit-msg &&
 # chmod +x .git/hooks/commit-msg  (chaque clone / chaque session doit reposer la copie à la main :
-# `.git/hooks/` n'est pas versionné, exactement comme pour le pre-commit).
-#
-# ⚠️ COMPARER LES COPIES EN NORMALISANT LES FINS DE LIGNE. Mesuré le 2026-09-24 : sur cette machine
-# `core.autocrlf=true`, donc `.git/hooks/pre-commit` et `tools/hooks/pre-commit` sont en CRLF sur le
-# disque alors que le blob de HEAD est en LF. Un `diff` brut entre la copie déployée et le blob rend
-# 46 lignes de différence ; après `tr -d '\r'` des deux côtés, le hook déployé est EXACTEMENT la
-# version de HEAD. Toute garde qui comparerait ces fichiers sans normaliser crierait au loup en
-# permanence sous Windows.
+# `.git/hooks/` n'est pas versionné, exactement comme pour le pre-commit — et c'est la porte 22,
+# `tools/check_hook_deployment.py`, qui refuse désormais une copie déployée que personne n'a relue).
 #
 # LE TROU, MESURÉ (2026-09-24, dépôt JETABLE, git 2.54.0.windows.1) — sur une fusion PROPRE :
 #     pre-commit           0 appel      (1 sur un commit ordinaire : la sonde marche)
@@ -19,31 +13,62 @@
 # sessions corrigent le même compte publié en comptant des objets différents ; chaque branche est
 # localement juste, l'union est fausse, et aucun conflit git ne le signale.
 #
-# ⚠️ DEUXIÈME MESURE, et c'est elle qui décide la forme (même dépôt jetable, même jour) : relancer
-# le pre-commit TEL QUEL sur une fusion ne suffit PAS. Ses 17 appels à `git diff --cached
-# --name-only` comparent l'index au PREMIER PARENT — donc au seul côté ENTRANT :
+# ⚠️ CE QUE CE CROCHET NE COUVRE PAS — et il faut le lire comme une LIMITE, pas comme un oubli.
+# Mesuré en dépôt jetable le 2026-09-24, sur la MÊME divergence que le contre-exemple gelé :
+#     git cherry-pick B          rc=0   pre-commit 0 appel   commit-msg 0 appel   -> PASSE
+#     git rebase B               rc=0   pre-commit 0 appel   commit-msg 0 appel   -> PASSE
+#     git pull --rebase o B      rc=0   pre-commit 0 appel   commit-msg 0 appel   -> PASSE
+#     git merge --no-ff B        rc=1   pre-commit 1 appel                        -> REFUSÉ
+#     git merge B C (octopus)    rc=1   pre-commit 1 appel                        -> REFUSÉ
+# Un rebase et un cherry-pick PROPRE ne lancent NI pre-commit NI commit-msg : seul
+# `prepare-commit-msg` tourne, et il ne peut rien refuser. Or `git pull --rebase` est une façon
+# parfaitement ordinaire de faire entrer le code d'une autre branche dans la sienne — la phrase
+# d'ouverture de ce fichier. CES VOIES NE SONT COUVERTES PAR AUCUN CROCHET DE COMMIT, ici ou
+# ailleurs. Ne pas le dire reviendrait à laisser une absence passer pour une couverture (la forme
+# (a) du biais de ce dépôt). La protection de ces voies doit vivre ailleurs : `pre-push`, ou la CI.
+# Un cherry-pick CONFLICTUEL, lui, arme bien le pre-commit — et `CHERRY_PICK_HEAD` est traité par le
+# bloc AGAGI:FUSION-SCOPE au même titre que MERGE_HEAD, sans quoi la portée resterait le premier
+# parent et la porte se tairait exactement comme sur un squash.
+#
+# ⚠️ DEUXIÈME MESURE, et c'est elle qui décide la forme : relancer le pre-commit TEL QUEL sur une
+# fusion ne suffit PAS. Ses 17 appels à `git diff --cached --name-only` comparent l'index au PREMIER
+# PARENT — donc au seul côté ENTRANT :
 #     diff_vs_HEAD = [docs/preregistrations/b.json]
 #     diff_vs_BASE = [CLAUDE.md  docs/preregistrations/a.json  docs/preregistrations/b.json]
 # Quand les deux branches portent la MÊME valeur de balise (le cas qui ne conflicte pas, donc le
 # cas dangereux), le document PORTEUR DU COMPTE est identique à HEAD : il n'apparaît pas dans le
 # diff, et la porte 8 ne s'arme pas — un crochet naïf aurait laissé passer son propre
 # contre-exemple. La comparaison à la BASE DE FUSION est posée dans `tools/hooks/pre-commit`
-# (bloc AGAGI:FUSION-SCOPE), qui la fait AUSSI pour une fusion conflictuelle et pour un SQUASH, où
-# il s'arme seul. Le chiffre 17 est RECOMPUTABLE (il valait « 18 » ici la veille, et c'était faux —
-# le grep comptait aussi les commentaires qui citent la commande) :
+# (bloc AGAGI:FUSION-SCOPE), qui la fait AUSSI pour une fusion conflictuelle et pour un SQUASH.
+# Le chiffre 17 est RECOMPUTABLE, jamais recopié — `tests/sandbox/test_hook_on_merge.py` le rejoue
+# et rougit s'il cesse de correspondre (la réécriture de ce crochet l'avait perdu une fois) :
 #     grep -c '^[^#]*git diff --cached --name-only' tools/hooks/pre-commit
 #
-# ⚠️ CE QUE CE CROCHET NE COUVRE PAS, et pourquoi il n'a pas à le couvrir : `git merge --squash`.
-# Mesuré — un squash ne pose AUCUN MERGE_HEAD (git écrit SQUASH_MSG), donc rien ici ne s'arme ; mais
-# le commit qui le conclut est un commit ORDINAIRE, et git lance pre-commit lui-même (1 appel
-# mesuré). Le squash est donc traité entièrement côté pre-commit, par l'élargissement de PORTÉE
-# (bloc AGAGI:FUSION-SCOPE, qui lit la tête du côté entrant dans SQUASH_MSG). Reste une limite
-# assumée et écrite : si SQUASH_MSG a été réécrit sans ses lignes « commit <sha> », la base est
-# incalculable — le pre-commit le DIT à voix haute et la portée reste le premier parent.
+# ⚠️ POURQUOI IL N'Y A PLUS DE TÉMOIN (2026-09-24, TROISIÈME version, après une re-vérification
+# adversariale qui a réfuté la deuxième). Une optimisation posait un TÉMOIN dans le git-dir pour
+# éviter de relancer les portes sur une fusion CONFLICTUELLE, où `pre-commit` s'est déjà armé au
+# commit de résolution. Trois identités ont été essayées, deux réfutées par la mesure :
+#   v1  la seule PRÉSENCE du fichier  -> un commit avorté laissait un résidu qui désarmait TOUT ;
+#   v2  (horodatage, HEAD, MERGE_HEAD) -> certifie « une fusion de B dans A », pas « CET état-ci » ;
+#       la même paire est réatteignable avec un index DIFFÉRENT (séquence reproduite 4 fois) ;
+#   v3  + `git write-tree` (l'arbre de l'index) -> RÉFUTÉE AUSSI, et c'est la mesure décisive :
+#       l'identité couvre l'INDEX, mais les portes de ce dépôt jugent le DISQUE
+#       (`check_synthesis_counts` compte des FICHIERS, `check_amputation` et
+#       `check_instrument_calibration` balayent l'ARBRE). L'index peut être identique pendant que
+#       ce qui est jugé a changé — et l'arbre est PARTAGÉ entre une dizaine de sessions, donc il
+#       change tout seul. Mesure APPARIÉE : le même état du monde passe rc=0 avec ZÉRO porte quand
+#       le témoin résiduel est là, et est REFUSÉ rc=1 sans lui.
+# Conclusion retenue : on ne raffine pas une quatrième identité, ON SUPPRIME LE RACCOURCI. Le coût
+# est mesuré et borné — sur une fusion CONFLICTUELLE les portes tournent DEUX fois — et il était
+# déjà payé sans qu'on le sache : dès qu'un éditeur de message dépasse 120 s, le témoin périmait et
+# les portes tournaient deux fois de toute façon. Retirer le seul mécanisme capable de SAUTER des
+# portes ne peut pas ouvrir de trou : c'est un remède monotone, ce qu'un raffinement n'est pas.
+# ⚠️ Le PID n'aurait pas sauvé l'idée : mesuré, $PPID vaut 1 dans pre-commit COMME dans commit-msg
+# sous Git Bash (MSYS) — il n'identifie aucun `git commit` particulier.
 #
-# PRINCIPES : ne JAMAIS doubler le travail (un commit ordinaire sort en quelques millisecondes) ;
-# ne JAMAIS recopier la logique du pre-commit (une copie divergerait en silence) ; et sortir 0 sur
-# tout ce qu'on ne sait pas juger — un crochet qui plante bloquerait toute la flotte.
+# PRINCIPES : ne JAMAIS recopier la logique du pre-commit (une copie divergerait en silence) ; ne
+# rien ANNONCER qu'on n'a pas vérifié ; et sortir 0 sur tout ce qu'on ne sait pas juger — un crochet
+# qui plante bloquerait toute la flotte.
 #
 # Bypass d'urgence (déconseillé) : git commit --no-verify / git merge --no-verify
 
@@ -51,91 +76,18 @@
 gitdir=$(git rev-parse --git-dir 2>/dev/null) || exit 0
 [ -n "$gitdir" ] || exit 0
 
-# 1. LE TÉMOIN, ET SON IDENTITÉ. `tools/hooks/pre-commit` le pose (bloc AGAGI:FUSION-MARQUEUR)
-# UNIQUEMENT quand une fusion est en cours et que toutes les portes ont passé. Il porte quatre
-# lignes : horodatage epoch, HEAD, contenu de MERGE_HEAD, arbre de l'index (`git write-tree`).
-#
-# ⚠️ POURQUOI UNE IDENTITÉ (mesure du 2026-09-24, revue adversariale). La première version posait un
-# fichier VIDE à tout commit réussi et se contentait de sa PRÉSENCE. Or `GIT_EDITOR=false git commit`
-# fait AVORTER le commit (rc=1) et le témoin SURVIVAIT : ensuite n'importe quelle fusion propre le
-# voyait et sautait TOUTES les portes, EN SILENCE. Et le git-dir est partagé par une dizaine de
-# sessions, donc le témoin de l'une désarmait la fusion de l'autre. C'était une garde qu'on peut
-# désarmer sans le savoir. Désormais un témoin ne vaut que s'il décrit CETTE fusion-ci :
-#     - même HEAD et même MERGE_HEAD que maintenant ;
-#     - même ARBRE D'INDEX que maintenant (`git write-tree`) ;
-#     - âge <= 120 s (un témoin oublié périme tout seul) ;
-#     - et il est CONSOMMÉ ici à chaque commit, quel qu'il soit.
-#
-# ⚠️ POURQUOI L'ARBRE, ET PAS SEULEMENT LA PAIRE (2026-09-24, DEUXIÈME revue adversariale — la
-# première correction ne suffisait pas et le témoin restait désarmable par accident ORDINAIRE,
-# reproduit 4 fois). (HEAD, MERGE_HEAD, horodatage) certifie « une fusion de B dans A » ; ça ne dit
-# RIEN de ce qui est committé. Séquence mesurée, sans aucune malveillance : une fusion est REFUSÉE
-# par une porte (MERGE_HEAD reste en place) ; l'auteur corrige, `git add`, `git commit` ; pre-commit
-# PASSE et pose le témoin ; le commit AVORTE à l'éditeur (`:cq`, éditeur introuvable, Ctrl-C) — donc
-# commit-msg n'a jamais tourné et n'a rien consommé. Un témoin VALIDE survit dans le git-dir : c'est
-# le SEUL des cinq scénarios testés qui laisse un résidu. La tentative suivante, avec un index
-# DIFFÉRENT, retrouvait la même paire et sautait toutes les portes. L'arbre de l'index est
-# exactement « CET index-ci » : s'il a bougé, le témoin ne décrit plus ce commit ; s'il n'a pas
-# bougé, sauter est correct puisque rien n'a changé.
-# Tout ce qui ne se lit pas comme ça est traité comme ABSENT — c'est-à-dire : les portes tirent.
-# ⚠️ Le PID ne peut pas servir d'identité : mesuré, $PPID vaut 1 dans pre-commit COMME dans
-# commit-msg sous Git Bash (MSYS) — il n'identifie aucun `git commit` particulier.
-temoin="$gitdir/agagi-pre-commit-ran"
-deja=0
-if [ -f "$temoin" ]; then
-  t_pose=$(sed -n 1p "$temoin" 2>/dev/null)
-  t_head=$(sed -n 2p "$temoin" 2>/dev/null)
-  t_mh=$(sed -n 3p "$temoin" 2>/dev/null)
-  t_tree=$(sed -n 4p "$temoin" 2>/dev/null)
-  maintenant=$(date +%s 2>/dev/null)
-  cur_head=$(git rev-parse HEAD 2>/dev/null)
-  # `git write-tree` ECRIT dans la base d'objets (ce que `git commit` fait de toute facon une ligne
-  # plus loin) et REFUSE un index a entrees non fusionnees -- il rend alors du vide, le temoin est
-  # traite comme ABSENT, et les portes tirent. Un temoin d'ANCIEN format (3 lignes) a t_tree vide :
-  # il ne peut pas correspondre, donc il ne desarme rien. Cote sur de l'erreur dans les deux cas.
-  cur_tree=$(git write-tree 2>/dev/null)
-  cur_mh=""
-  if [ -f "$gitdir/MERGE_HEAD" ]; then
-    cur_mh=$(tr '\n' ' ' < "$gitdir/MERGE_HEAD" 2>/dev/null)
-  fi
-  # Les deux horodatages doivent etre des entiers NON VIDES ; sinon le temoin est traite comme
-  # ABSENT (cote sur de l'erreur : les portes tirent).
-  nombres=0
-  case "$t_pose" in
-    ''|*[!0-9]*) : ;;
-    *) case "$maintenant" in
-         ''|*[!0-9]*) : ;;
-         *) nombres=1 ;;
-       esac ;;
-  esac
-  if [ "$nombres" -eq 1 ]; then
-    age=$((maintenant - t_pose))
-    if [ "$age" -ge 0 ] && [ "$age" -le 120 ] \
-       && [ -n "$cur_head" ] && [ "$t_head" = "$cur_head" ] \
-       && [ -n "$cur_mh" ] && [ "$t_mh" = "$cur_mh" ] \
-       && [ -n "$cur_tree" ] && [ "$t_tree" = "$cur_tree" ]; then
-      deja=1
-    fi
-  fi
-fi
-rm -f "$temoin" 2>/dev/null
-
-# 2. Commit ORDINAIRE (squash compris) : pre-commit a déjà tourné, il n'y a rien à armer.
+# 1. Commit ORDINAIRE (squash compris) : git a lancé pre-commit lui-même, il n'y a rien à armer.
+# ⚠️ Un résidu d'une ancienne version de ce crochet ne doit pas traîner dans un git-dir partagé :
+# on le retire, sans jamais le LIRE ni lui accorder le moindre effet.
+rm -f "$gitdir/agagi-pre-commit-ran" 2>/dev/null
 if [ ! -f "$gitdir/MERGE_HEAD" ]; then
   exit 0
 fi
 
-# 3. Fusion CONFLICTUELLE : le commit manuel de résolution a armé pre-commit (témoin posé POUR cette
-# fusion), qui a lui-même élargi sa portée à la base de fusion. Relancer les portes les ferait
-# tourner DEUX fois.
-if [ "$deja" -eq 1 ]; then
-  exit 0
-fi
-
-# 4. Fusion PROPRE : git n'a lancé AUCUN pre-commit. C'est le seul cas où ce crochet travaille.
-# Le hook ACTIF est celui d'à côté ($0) — c'est la seule façon de respecter `core.hooksPath`, que ce
-# dépôt fixe à un chemin ABSOLU (mesuré : $0 vaut alors ce chemin absolu, et sh sait le lire même
-# écrit à la Windows). Les deux autres candidats ne servent que de filet.
+# 2. Une fusion est en cours. Le hook ACTIF est celui d'à côté ($0) — c'est la seule façon de
+# respecter `core.hooksPath`, que ce dépôt fixe à un chemin ABSOLU (mesuré : $0 vaut alors ce chemin
+# absolu, et sh sait le lire même écrit à la Windows). Les deux autres candidats ne servent que de
+# filet.
 pre=""
 for d in "$(dirname "$0")" "$(git config --get core.hooksPath 2>/dev/null)" "$gitdir/hooks"; do
   [ -n "$d" ] || continue
@@ -163,15 +115,29 @@ if [ ! -x "$pre" ]; then
   exit 0
 fi
 
-echo "[agagi/commit-msg] FUSION PROPRE : git n'arme aucun pre-commit ici — portes relancées sur"
-echo "   l'UNION des deux branches (portée = base de fusion, pas le premier parent)."
+# 3. ⚠️ VÉRIFIER AVANT D'ANNONCER (2026-09-24, grief de gravité HAUTE d'une re-vérification
+# adversariale). La version précédente imprimait « portes relancées sur l'UNION — portée = base de
+# fusion » SANS jamais vérifier que le pre-commit qu'elle lance porte le bloc de portée. Or ce
+# n'était pas hypothétique : le pre-commit DÉPLOYÉ ce jour-là ne portait AUCUN des deux blocs
+# (0 occurrence mesurée), et la fusion fautive passait pendant que le crochet imprimait
+# l'affirmation inverse. Un crochet qui annonce ce qu'il ne fait pas est la forme (a) du biais de ce
+# dépôt appliquée à l'outillage lui-même. La copie est comparée en NORMALISANT les fins de ligne :
+# `core.autocrlf=true` ici, donc la copie déployée est en CRLF et le blob en LF.
+if tr -d '\r' < "$pre" | grep -q 'AGAGI:FUSION-SCOPE'; then
+  echo "[agagi/commit-msg] fusion EN COURS : git n'a armé aucun pre-commit de lui-même ici — portes"
+  echo "   relancées sur l'UNION des deux branches (portée = base de fusion, pas le premier parent)."
+else
+  echo "[agagi/commit-msg] fusion EN COURS : portes relancées, mais le pre-commit lancé NE PORTE PAS"
+  echo "   le bloc AGAGI:FUSION-SCOPE — la portée reste le PREMIER PARENT. Une divergence qui"
+  echo "   n'existe QU'À L'UNION ne sera PAS vue. Copie périmée ? cp tools/hooks/pre-commit \"$pre\""
+fi
+# ⚠️ Sur une fusion CONFLICTUELLE, pre-commit s'est déjà armé au commit de résolution : les portes
+# tournent donc DEUX fois. C'est délibéré, c'est le prix de la suppression du témoin, et c'est écrit
+# plus haut. On ne POSTULE pas « fusion propre » : on dit ce qu'on fait.
 if sh "$pre"; then
-  rm -f "$temoin" 2>/dev/null
   exit 0
 fi
 
-# Le pre-commit relancé a reposé un témoin s'il avait réussi ; il a échoué, on nettoie par principe.
-rm -f "$temoin" 2>/dev/null
 echo ""
 echo "-> Une porte refuse l'UNION des deux branches, alors que CHAQUE côté était juste isolément."
 echo "   La fusion est annulée (rien n'est committé). Corriger dans l'arbre de fusion puis"

@@ -75,9 +75,9 @@ def _pre_commit_jouet(log_rel):
     src = _lire(_PRE_COMMIT)
     scope = _bloc(src, "# >>> AGAGI:FUSION-SCOPE >>>", "# <<< AGAGI:FUSION-SCOPE <<<", "portée de fusion")
     porte8 = _bloc(src, "# 8. COMPTES PUBLIES", "# 9. SEPARATION DE LA BARRE", "porte 8")
-    marqueur = _bloc(src, "# >>> AGAGI:FUSION-MARQUEUR >>>", None, "témoin de fusion")
+    marqueur = _bloc(src, "# >>> AGAGI:FUSION-SANS-TEMOIN >>>", None, "queue du hook")
     assert "exit $fail" in marqueur, (
-        "le bloc AGAGI:FUSION-MARQUEUR doit courir jusqu'à la sortie du hook")
+        "le bloc AGAGI:FUSION-SANS-TEMOIN doit courir jusqu'à la sortie du hook")
     assert "check_synthesis_counts" in porte8, "la porte 8 extraite ne lance pas son cliquet"
     return (
         "#!/bin/sh\n"
@@ -265,7 +265,18 @@ def test_un_commit_ORDINAIRE_ne_double_pas_les_portes(tmp_path, monkeypatch):
 # 3. (b) Une fusion CONFLICTUELLE résolue ne lance pas les portes DEUX fois (témoin du pre-commit).
 # --------------------------------------------------------------------------------------------------
 
-def test_une_fusion_CONFLICTUELLE_resolue_ne_double_pas_les_portes(tmp_path, monkeypatch):
+def test_une_fusion_CONFLICTUELLE_resolue_tire_les_portes_DEUX_fois_et_c_est_le_prix_assume(
+        tmp_path, monkeypatch):
+    """⚠️ CE CAS A CHANGÉ DE SENS LE 2026-09-24, et c'est le point de la troisième version.
+    Il exigeait UNE exécution : un témoin posé par `pre-commit` disait à `commit-msg` de ne pas
+    relancer. Ce témoin est SUPPRIMÉ — sa dernière identité couvrait l'INDEX alors que les portes de
+    ce dépôt jugent le DISQUE, et l'arbre est partagé donc le disque change tout seul (mesure
+    appariée : le même état du monde passait avec zéro porte grâce à un résidu, et était refusé sans
+    lui). Les portes tournent donc DEUX fois ici : une au commit de résolution, une relancée par
+    `commit-msg`. C'est un COÛT, pas un défaut, et il était déjà payé sans qu'on le sache — dès qu'un
+    éditeur de message dépassait 120 s, le témoin périmait et les portes tournaient deux fois.
+    Le cas le GÈLE pour que personne ne « ré-optimise » ce raccourci sans relire pourquoi il est
+    tombé : un chiffre qui passerait de 2 à 1 signifierait qu'un mécanisme de saut est revenu."""
     d = _depot(tmp_path, monkeypatch)
     _deux_branches(d, divergent=False, conflit=True)
 
@@ -278,9 +289,12 @@ def test_une_fusion_CONFLICTUELLE_resolue_ne_double_pas_les_portes(tmp_path, mon
     rc, sortie = d.git("commit", "-q", "-m", "resolution", check=False)
 
     assert rc == 0, f"le commit de résolution doit passer :\n{sortie}"
-    assert d.appels() == 1, (
-        f"pre-commit s'arme DÉJÀ au commit de résolution : {d.appels()} appels au lieu de 1 — "
-        f"commit-msg doit lire le témoin et ne rien relancer.\n{sortie}")
+    assert d.appels() == 2, (
+        f"{d.appels()} exécution(s) des portes au lieu de 2. Si c'est 1, un mécanisme de SAUT est "
+        f"revenu : relire pourquoi le témoin a été supprimé (classe E31) avant de le rétablir.\n{sortie}")
+    assert not os.path.isfile(_temoin(d)), (
+        "un témoin a été posé : le raccourci supprimé est revenu, et avec lui la possibilité de "
+        "désarmer les portes par un résidu dans un git-dir PARTAGÉ")
 
 
 # --------------------------------------------------------------------------------------------------
@@ -309,8 +323,12 @@ def test_le_pre_commit_versionne_porte_la_portee_de_fusion_et_le_temoin():
     assert "# >>> AGAGI:FUSION-SCOPE >>>" in src, (
         "sans la portée de fusion, relancer les portes ne verrait que le côté ENTRANT (mesuré)")
     assert "merge-base" in src, "la portée de fusion doit comparer à la BASE, pas au premier parent"
-    assert "# >>> AGAGI:FUSION-MARQUEUR >>>" in src, (
-        "sans témoin, commit-msg doublerait les portes sur une fusion conflictuelle")
+    assert "# >>> AGAGI:FUSION-SANS-TEMOIN >>>" in src, (
+        "le bloc qui DOCUMENTE la suppression du témoin a disparu. Il ne fait rien s'exécuter — sa "
+        "seule fonction est d'empêcher qu'une session future, voyant les portes tourner deux fois "
+        "sur une fusion conflictuelle, ne « ré-optimise » un jeton dont trois identités sont tombées")
+    assert "AGAGI:FUSION-MARQUEUR" not in src, (
+        "l'ancien bloc de pose du témoin est revenu : relire la classe E31 avant de le rétablir")
     assert os.path.isfile(_COMMIT_MSG), (
         "tools/hooks/commit-msg est le livrable : sans lui, une fusion propre n'arme aucune porte")
 
@@ -544,40 +562,46 @@ def test_le_nombre_d_appels_annonce_dans_les_commentaires_se_RECOMPUTE():
 
 
 # --------------------------------------------------------------------------------------------------
-# 10. DEFAUT 1-bis (gravite HAUTE) -- L'IDENTITE DU TEMOIN OMETTAIT CE QUI EST COMMITTE.
-# DEUXIEME revue adversariale du 2026-09-24 : la premiere correction (horodatage + HEAD + MERGE_HEAD)
-# ne suffisait pas. Ce triplet certifie « une fusion de B dans A » ; il ne dit RIEN de l'index. Or la
-# MEME paire est atteignable DEUX FOIS DE SUITE avec des index DIFFERENTS, sans rien faire d'anormal.
-# Sequence reproduite 4 fois de maniere independante :
-#   (1) une fusion est REFUSEE par une porte          -> MERGE_HEAD RESTE en place ;
-#   (2) l'auteur corrige, `git add`, `git commit`     -> pre-commit PASSE et POSE le temoin ;
-#   (3) le commit AVORTE a l'editeur (`:cq`, editeur introuvable, Ctrl-C) -> commit-msg n'a jamais
-#       tourne, donc n'a rien CONSOMME : un temoin VALIDE survit dans le git-dir. C'est le SEUL des
-#       cinq scenarios testes qui laisse un residu ;
-#   (4) l'auteur abandonne (`git merge --abort`) et refait la fusion -- ou, git-dir PARTAGE, une
-#       autre session fusionne le meme B dans le meme A. Meme HEAD, meme MERGE_HEAD, age < 120 s :
-#       le vieux temoin desarmait TOUTES les portes sur un index JAMAIS verifie.
-# La 4e ligne du temoin est `git write-tree` : exactement « CET index-ci ». Si l'index a bouge entre
-# l'avortement et la reprise -- le cas des qu'on corrige quoi que ce soit -- le temoin ne decrit plus
-# ce commit et les portes retirent ; s'il n'a pas bouge, sauter est correct puisque rien n'a change.
-# ⚠️ Le CONTROLE POSITIF de cette 4e ligne est le cas 3(b) : sur une fusion conflictuelle resolue,
-# l'index est IDENTIQUE entre la pose et la lecture, et les portes doivent tourner UNE fois. Une
-# comparaison d'arbre cassee (qui ne correspondrait jamais) les ferait tourner DEUX fois et
-# rougirait la-bas. Sans ce controle, « refuser toujours » passerait le cas ci-dessous.
+# 10. LE TEMOIN A ETE SUPPRIME -- et ces cas gelent le fait qu'AUCUN residu ne peut desarmer.
+# TROIS identites ont ete essayees, TROIS refutees, la derniere par une re-verification adversariale
+# qui lancait ses propres sondes :
+#   v1  la seule PRESENCE du fichier -- un commit avorte laissait un residu qui desarmait TOUT ;
+#   v2  (horodatage, HEAD, MERGE_HEAD) -- certifie « une fusion de B dans A », pas « CET etat-ci » :
+#       la meme paire est reatteignable avec un index DIFFERENT (sequence reproduite 4 fois) ;
+#   v3  + `git write-tree` -- REFUTEE AUSSI, et c'est la mesure qui tranche : l'identite couvre
+#       l'INDEX, mais les portes de ce depot jugent le DISQUE (`check_synthesis_counts` compte des
+#       FICHIERS, `check_amputation` et `check_instrument_calibration` balayent l'ARBRE). L'index
+#       peut etre identique pendant que CE QUI EST JUGE a change -- et l'arbre est PARTAGE entre une
+#       dizaine de sessions, donc il change tout seul. Mesure APPARIEE du refutateur : le meme etat
+#       du monde passe rc=0 avec ZERO porte quand le residu est la, et est REFUSE rc=1 sans lui.
+# CE QU'ON EN TIRE (classe E31) : quand l'identite d'un jeton ne peut pas couvrir ce que la
+# verification JUGE, on ne raffine pas une quatrieme identite -- ON SUPPRIME LE RACCOURCI. Retirer
+# le seul mecanisme capable de SAUTER des portes ne peut pas ouvrir de trou : remede MONOTONE.
+# Les cas ci-dessous ne testent donc plus une identite : ils gelent qu'AUCUN fichier pose dans le
+# git-dir, quel qu'il soit, ne change quoi que ce soit. C'est une propriete plus forte et plus
+# simple a defendre -- et elle survit a toute future idee de jeton.
+# ⚠️ Leur CONTROLE POSITIF est ailleurs : `test_controle_positif_la_meme_fusion_SANS_divergence_PASSE`
+# (la fusion saine passe) et `..._CONFLICTUELLE_resolue_tire_les_portes_DEUX_fois_...` (le cout du
+# retrait est chiffre). Sans eux, « refuser toujours » passerait tout ce qui suit sans rien mesurer.
 # --------------------------------------------------------------------------------------------------
 
-def test_une_FUSION_AVORTEE_A_L_EDITEUR_ne_desarme_PAS_la_fusion_suivante(tmp_path, monkeypatch):
+def test_une_FUSION_AVORTEE_A_L_EDITEUR_ne_laisse_AUCUN_residu_et_ne_desarme_rien(tmp_path, monkeypatch):
+    """La sequence EXACTE qui a tue la v2 et la v3, rejouee contre la version sans temoin.
+       (1) une fusion est REFUSEE par une porte  -> MERGE_HEAD RESTE en place ;
+       (2) l'auteur corrige, git add, git commit -> pre-commit PASSE ;
+       (3) le commit AVORTE a l'editeur         -> commit-msg n'a jamais tourne, donc n'a rien
+           consomme. C'etait le SEUL des cinq scenarios testes qui laissait un residu ;
+       (4) la fusion est abandonnee puis refaite avec un index DIFFERENT -> doit etre REFUSEE.
+    Deux assertions, et la premiere est celle qui a du sens maintenant : il n'y a RIEN a consommer."""
     d = _depot(tmp_path, monkeypatch)
     _deux_branches(d, divergent=True)
     avant = d.head()
 
-    # (1) la fusion fautive est REFUSEE, et MERGE_HEAD reste en place.
     rc, sortie = d.git("merge", "--no-ff", "B", "-m", "fusion B dans A", check=False)
     assert rc != 0, f"la sequence part d'une fusion REFUSEE ; elle est passee :\n{sortie}"
     assert os.path.isfile(os.path.join(d.p, ".git", "MERGE_HEAD")), (
         f"la sequence repose sur le fait MESURE qu'un refus LAISSE MERGE_HEAD en place :\n{sortie}")
 
-    # (2) l'auteur corrige le compte publie et (3) le commit avorte a l'editeur.
     d.balise(3)
     d.git("add", "CLAUDE.md")
     env = dict(d.env)
@@ -586,62 +610,80 @@ def test_une_FUSION_AVORTEE_A_L_EDITEUR_ne_desarme_PAS_la_fusion_suivante(tmp_pa
     assert rc != 0, f"le cas exige un commit AVORTE ; il a reussi :\n{sortie}"
     assert d.head() == avant, f"rien ne doit avoir ete committe :\n{sortie}"
 
-    # LE RESIDU. Sans lui ce cas serait vert sans rien mesurer -- exactement le defaut du cas 5.
-    assert os.path.isfile(_temoin(d)), (
-        "ce cas n'a de sens que si un temoin SURVIT a l'avortement. S'il n'y en a plus, la mesure "
-        "qui le motive a change : la REFAIRE avant de croire ce vert")
-    lignes = _lire(_temoin(d)).splitlines()
-    assert len(lignes) == 4, (
-        f"le temoin doit porter QUATRE lignes (horodatage, HEAD, MERGE_HEAD, arbre de l'index), "
-        f"or {len(lignes)} : {lignes}")
-    arbre_corrige = lignes[3]
+    # LA PROPRIETE : plus aucun residu, donc plus rien a desarmer. C'est ce qui remplace toute
+    # discussion d'identite -- un fichier qui n'existe pas n'a pas besoin d'etre bien identifie.
+    assert not os.path.isfile(_temoin(d)), (
+        "un jeton a survecu a l'avortement : le raccourci supprime est revenu. Relire pourquoi les "
+        "trois identites sont tombees (classe E31) AVANT de le retablir")
 
-    # (4) la fusion est abandonnee puis REFAITE : meme HEAD, meme MERGE_HEAD, index DIFFERENT.
     d.git("merge", "--abort")
-    assert os.path.isfile(_temoin(d)), (
-        "git ne connait pas ce fichier : le temoin doit survivre a --abort (c'est le probleme)")
     d.raz()
     rc, sortie = d.git("merge", "--no-ff", "B", "-m", "fusion B dans A", check=False)
 
     assert rc != 0, (
-        "un temoin laisse par une fusion AVORTEE A L'EDITEUR a desarme la fusion suivante : elle "
-        "est passee alors que son compte est faux a l'union. L'identite du temoin ne contient pas "
-        f"CE QUI EST COMMITTE.\n{sortie}")
+        "la fusion fautive est passee apres un commit avorte a l'editeur : quelque chose desarme "
+        f"encore les portes.\n{sortie}")
     assert "CHIFFRE" in sortie.upper(), f"le refus ne vient pas de la porte des comptes :\n{sortie}"
     assert d.head() == avant, f"un commit de fusion a quand meme ete cree :\n{sortie}"
 
-    # Et la RAISON du refus est bien celle qu'on annonce : les deux index different vraiment.
-    rc, arbre_union = d.git("write-tree", check=False)
-    assert rc == 0 and arbre_union.strip() and arbre_union.strip() != arbre_corrige, (
-        "le cas ne mesure rien si les deux index rendent le MEME arbre : le temoin serait alors "
-        f"legitime. Arbre du temoin {arbre_corrige}, arbre de la reprise {arbre_union.strip()!r}")
 
-
-def test_un_temoin_dont_SEUL_l_arbre_differe_ne_desarme_PAS(tmp_path, monkeypatch):
-    """Le meme defaut, isole : horodatage FRAIS, HEAD JUSTE, MERGE_HEAD JUSTE -- seul l'arbre ment.
-    C'est la forme minimale de ce que laissait l'avortement, sans dependre de l'editeur ni de git."""
+def test_un_jeton_FABRIQUE_quelle_que_soit_son_identite_ne_desarme_rien(tmp_path, monkeypatch):
+    """Generalisation des deux cas d'identite qui existaient ici. On fabrique le jeton le plus
+    CREDIBLE possible -- horodatage frais pris de git, HEAD juste, MERGE_HEAD juste, et un arbre
+    d'index REEL (pas une chaine de zeros, qui aurait pu etre rejetee pour sa forme). Sous la v3 un
+    tel jeton desarmait ; il ne doit plus rien faire du tout."""
     d = _depot(tmp_path, monkeypatch)
     _deux_branches(d, divergent=True)
     avant = d.head()
 
-    # Fusion arretee AVANT le commit : MERGE_HEAD present, index = UNION, aucun hook lance encore.
     d.git("merge", "--no-ff", "--no-commit", "B", check=False)
     mh = _lire(os.path.join(d.p, ".git", "MERGE_HEAD")).replace("\n", " ").strip()
     assert mh, "MERGE_HEAD doit etre present et lisible"
+    rc, arbre = d.git("write-tree", check=False)
+    assert rc == 0 and arbre.strip(), "l'arbre de l'index doit etre calculable pour fabriquer le jeton"
     maintenant = int(subprocess.run(["git", "-C", d.p, "log", "-1", "--format=%ct"],
                                     capture_output=True, env=d.env).stdout.decode().strip() or 0)
-    # L'horodatage vient de git (pas de l'horloge du test) : meme source que le hook, aucune derive.
     with open(_temoin(d), "w", encoding="utf-8", newline="\n") as fh:
-        fh.write("{}\n{}\n{} \n{}\n".format(maintenant, avant, mh, "0" * 40))
+        fh.write("{}\n{}\n{} \n{}\n".format(maintenant, avant, mh, arbre.strip()))
 
     d.git("merge", "--abort")
     d.raz()
     rc, sortie = d.git("merge", "--no-ff", "B", "-m", "fusion B dans A", check=False)
 
     assert rc != 0, (
-        "un temoin dont SEUL l'arbre est faux a desarme les portes : l'index n'entre pas dans "
-        f"l'identite, et c'est tout le defaut.\n{sortie}")
+        "un jeton fabrique a desarme les portes : un fichier depose dans un git-dir PARTAGE ne doit "
+        f"plus avoir le moindre effet.\n{sortie}")
     assert d.head() == avant, f"un commit de fusion a quand meme ete cree :\n{sortie}"
+
+
+def test_le_crochet_ne_LIT_jamais_un_jeton_et_ne_laisse_aucun_residu(tmp_path, monkeypatch):
+    """Garde de la garde, TEXTUELLE et donc invisible au harnais de mutation (qui mute en memoire) :
+    le crochet doit RETIRER un residu d'ancienne version sans jamais le lire. Si un futur `sed -n`
+    ou un `[ -f ... ]` conditionnel revenait sur ce fichier, ce cas le nomme."""
+    src = _lire(_COMMIT_MSG)
+    assert "agagi-pre-commit-ran" in src, (
+        "le crochet doit continuer a NETTOYER le residu des anciennes versions : un git-dir partage "
+        "par une dizaine de sessions ne doit pas garder de fichier orphelin")
+    apres_rm = src.split("agagi-pre-commit-ran", 1)[1]
+    for interdit in ("sed -n 1p", "sed -n 2p", "sed -n 3p", "sed -n 4p"):
+        assert interdit not in src, (
+            f"le crochet relit un jeton ({interdit}) : les trois identites essayees ont ete "
+            "refutees, la troisieme par mesure appariee. Relire la classe E31 avant de recommencer")
+    assert "deja=1" not in src and "$deja" not in src, (
+        "une variable de saut est revenue dans le crochet : il n'y a plus rien qui doive faire "
+        "sauter les portes")
+    assert apres_rm, "le nettoyage doit etre suivi du reste du crochet"
+
+
+def test_le_pre_commit_ne_POSE_plus_aucun_jeton(tmp_path, monkeypatch):
+    """Pendant a l'autre bout : la SOURCE du hook ne doit plus ecrire de jeton nulle part."""
+    src = _lire(_PRE_COMMIT)
+    assert "# >>> AGAGI:FUSION-SANS-TEMOIN >>>" in src, (
+        "le bloc qui documente la SUPPRESSION du temoin a disparu : sans lui, la prochaine session "
+        "qui verra les portes tourner deux fois le reintroduira sans savoir pourquoi il est tombe")
+    assert "agagi-pre-commit-ran" not in src, (
+        "le pre-commit ecrit de nouveau un jeton dans le git-dir")
+    assert "AGAGI:FUSION-MARQUEUR" not in src, "l'ancien bloc de pose du temoin est revenu"
 
 
 # --------------------------------------------------------------------------------------------------
@@ -681,3 +723,116 @@ def test_une_fusion_SANS_ANCETRE_COMMUN_DIT_que_la_portee_est_degradee(tmp_path,
         f"l'union doit l'annoncer, sinon son vert ne veut rien dire.\n{sortie}")
     assert "PREMIER PARENT" in sortie.upper(), (
         f"le message doit nommer la portee reellement utilisee, pas seulement l'echec :\n{sortie}")
+
+
+# --------------------------------------------------------------------------------------------------
+# 12. GRAVITE HAUTE -- NE PAS ANNONCER CE QU'ON N'A PAS VERIFIE.
+# Mesure de la re-verification adversariale (2026-09-24) : `commit-msg` imprimait « portes relancees
+# sur l'UNION -- portee = base de fusion » SANS jamais verifier que le pre-commit qu'il lance porte
+# le bloc AGAGI:FUSION-SCOPE. Ce n'etait pas hypothetique : le pre-commit DEPLOYE ce jour-la ne
+# portait AUCUN des deux blocs (0 occurrence mesuree dans .git/hooks/pre-commit), l'installation
+# etant manuelle « par clone / par session ». La fusion fautive passait donc pendant que le crochet
+# imprimait l'affirmation inverse -- la forme (a) du biais de ce depot (une absence ressort en
+# affirmation de fond) appliquee a l'outillage lui-meme.
+# --------------------------------------------------------------------------------------------------
+
+def _pre_commit_sans_portee(log_rel):
+    """Le meme pre-commit jouet, AMPUTE de son bloc de portee : la configuration reellement
+    observee sur le depot le jour de la mesure (copie deployee anterieure aux deux blocs)."""
+    entier = _pre_commit_jouet(log_rel)
+    scope = _bloc(_lire(_PRE_COMMIT), "# >>> AGAGI:FUSION-SCOPE >>>", "# <<< AGAGI:FUSION-SCOPE <<<",
+                  "portee de fusion")
+    ampute = entier.replace(scope, "# (bloc de portee ABSENT : copie deployee perimee)")
+    assert "AGAGI:FUSION-SCOPE" not in ampute, "l'amputation n'a pas eu lieu, le cas ne mesure rien"
+    return ampute
+
+
+def test_commit_msg_AVOUE_quand_le_pre_commit_lance_n_a_PAS_le_bloc_de_portee(tmp_path, monkeypatch):
+    d = _depot(tmp_path, monkeypatch)
+    _deux_branches(d, divergent=True)
+    avec = os.path.join(d.p, ".githooks", "pre-commit")
+    with open(avec, "w", encoding="utf-8", newline="\n") as fh:
+        fh.write(_pre_commit_sans_portee("appels.log"))
+    os.chmod(avec, 0o755)
+    d.raz()
+
+    rc, sortie = d.git("merge", "--no-ff", "B", "-m", "fusion B dans A", check=False)
+
+    assert "NE PORTE PAS" in sortie.upper(), (
+        "le crochet a relance un pre-commit AMPUTE de son bloc de portee sans le dire. Il annonce "
+        f"alors une verification qu'il ne fait pas, ce qui est pire que de se taire.\n{sortie}")
+    assert "PREMIER PARENT" in sortie.upper(), (
+        f"le message doit nommer la portee REELLEMENT utilisee :\n{sortie}")
+    assert d.appels() == 1, f"le pre-commit ampute doit quand meme avoir tourne :\n{sortie}"
+
+
+def test_controle_positif_avec_le_bloc_le_crochet_annonce_la_base(tmp_path, monkeypatch):
+    """Sans ce controle, un crochet qui dirait TOUJOURS « ne porte pas » passerait le cas ci-dessus
+    en ne mesurant rien. Le pre-commit COMPLET doit produire l'annonce d'elargissement."""
+    d = _depot(tmp_path, monkeypatch)
+    _deux_branches(d, divergent=False)
+    d.raz()
+
+    rc, sortie = d.git("merge", "--no-ff", "B", "-m", "fusion B dans A", check=False)
+
+    assert rc == 0, f"la fusion saine doit passer :\n{sortie}"
+    assert "NE PORTE PAS" not in sortie.upper(), (
+        f"le crochet accuse un pre-commit qui porte pourtant le bloc :\n{sortie}")
+    assert "base de fusion" in sortie, (
+        f"l'annonce d'elargissement doit etre produite quand le bloc EST la :\n{sortie}")
+
+
+# --------------------------------------------------------------------------------------------------
+# 13. GRAVITE HAUTE -- LE CHERRY-PICK CONFLICTUEL A LA MEME MALADIE QUE LE SQUASH.
+# Mesure : un `git cherry-pick` CONFLICTUEL arme bien le pre-commit (1 appel) -- mais MERGE_HEAD est
+# ABSENT, c'est CHERRY_PICK_HEAD qui porte le cote entrant. Le bloc de portee ne testait que
+# MERGE_HEAD et SQUASH_MSG : la portee restait le PREMIER PARENT, le document porteur du compte
+# etait identique a HEAD, et la porte se taisait. Meme mecanisme que le trou `--squash`, sur une
+# autre reference.
+# ⚠️ Le cherry-pick PROPRE, lui, n'est couvert par RIEN (0 appel de pre-commit ET de commit-msg) --
+# c'est ecrit dans l'en-tete de `tools/hooks/commit-msg` comme une LIMITE, et le cas ci-dessous ne
+# pretend pas le couvrir.
+# --------------------------------------------------------------------------------------------------
+
+def test_un_CHERRY_PICK_CONFLICTUEL_faux_a_l_UNION_est_REFUSE(tmp_path, monkeypatch):
+    d = _depot(tmp_path, monkeypatch)
+    _deux_branches(d, divergent=True, conflit=True)
+    avant = d.head()
+
+    rc, sortie = d.git("cherry-pick", "B", check=False)
+    assert rc != 0, f"le cas exige un cherry-pick CONFLICTUEL ; il est passe seul :\n{sortie}"
+    assert not os.path.isfile(os.path.join(d.p, ".git", "MERGE_HEAD")), (
+        "la mesure qui motive ce cas est justement l'ABSENCE de MERGE_HEAD pendant un cherry-pick")
+    assert os.path.isfile(os.path.join(d.p, ".git", "CHERRY_PICK_HEAD")), (
+        "git doit poser CHERRY_PICK_HEAD : c'est la seule trace du cote entrant ici")
+
+    d.ecrire("notes.txt", "resolution\n")
+    d.git("add", "notes.txt")
+    d.raz()
+    rc, sortie = d.git("commit", "-q", "-m", "cherry-pick de B", check=False)
+
+    assert d.appels() == 1, (
+        f"le commit qui conclut un cherry-pick est ORDINAIRE : pre-commit doit tourner UNE fois, "
+        f"or {d.appels()}")
+    assert rc != 0, (
+        "le cherry-pick est passe alors que la balise annonce 2 regles scellees pour 3 fichiers a "
+        f"l'union : la portee n'a pas ete elargie a CHERRY_PICK_HEAD.\n{sortie}")
+    assert "CHIFFRE" in sortie.upper(), f"le refus ne vient pas de la porte des comptes :\n{sortie}"
+    assert d.head() == avant, f"un commit a quand meme ete cree :\n{sortie}"
+
+
+def test_controle_positif_un_CHERRY_PICK_sans_divergence_PASSE(tmp_path, monkeypatch):
+    d = _depot(tmp_path, monkeypatch)
+    _deux_branches(d, divergent=False, conflit=True)
+    avant = d.head()
+
+    d.git("cherry-pick", "B", check=False)
+    d.ecrire("notes.txt", "resolution\n")
+    d.git("add", "notes.txt")
+    d.raz()
+    rc, sortie = d.git("commit", "-q", "-m", "cherry-pick de B", check=False)
+
+    assert rc == 0, f"un cherry-pick dont le compte est JUSTE a l'union doit passer :\n{sortie}"
+    assert d.head() != avant, "le commit de cherry-pick n'a pas ete cree"
+    assert "syntheses :" in sortie, (
+        f"la porte n'a pas tourne : le vert de ce controle ne prouverait rien.\n{sortie}")
