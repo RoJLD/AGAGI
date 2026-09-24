@@ -1479,7 +1479,12 @@ CALIBRATED = {
         # son compte voyage dans la meme structure que le score, et l'INDISCRIMINATION se DIT.
         "noop:mesure-jamais-barrage", "noop:plancher-voyage-avec-le-score",
         "discrimination:indiscriminant-le-dit", "discrimination:controle-positif",
-        "racine:absolue-validee-deux-issues"],
+        "racine:absolue-validee-deux-issues",
+        # Un temoin GELE a une duree de vie : il mesure ce qu'on savait AU GEL. Le temoin cru sain
+        # porte un phenomene etabli DEPUIS ailleurs (P2.42) -- il n'avait pas ete mal choisi. La
+        # peremption SCIENTIFIQUE n'est pas decidable par motif : seule la moitie CALCULABLE (l'age,
+        # et la date de gel recomputee depuis git) est executable, et elle RAPPORTE sans bloquer.
+        "peremption:date-de-gel-recomputee", "peremption:rapportee-jamais-bloquante"],
     # `plancher` : le chiffre sans lequel tout score de phase temoins est INTERDIT (regle du depot sur
     # les ratios). Ses reponses connues sont les cinq textes de tools/refutateur_juge_temoins.json --
     # trois attaques a 0 defaut retrouvable, deux critiques justes a 1/1 -- et la mutation du BAREME,

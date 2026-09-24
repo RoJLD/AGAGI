@@ -166,6 +166,51 @@ def roster_conforme(temoins=None):
 # --------------------------------------------------------------------------------------------- #
 
 
+def peremption_du_roster(aujourdhui=None):
+    """L'ÂGE des gels et de la dernière revue du roster. **RAPPORTÉ, jamais bloquant.**
+
+    ⚠️ **Un témoin gelé a une durée de vie.** Mesuré le 2026-09-24 : le témoin cru sain, figé le
+    2026-09-16, porte un phénomène — « le bras ablaté fait mieux que l'intact » — qui est la forme
+    EXACTE d'un résultat établi DEPUIS dans le dépôt (P2.42 : le champion aveuglé à l'entrée survit
+    61 % plus longtemps, 7/7 seeds, à corps identique). Le témoin n'a pas été mal choisi : il était
+    sain **au regard de ce qu'on savait au gel**. Ce qui était propre le devient moins à mesure que le
+    dépôt apprend, et cela vaut pour les QUATRE témoins.
+
+    **Ce qui est calculable et ce qui ne l'est pas.** L'âge d'un gel est un nombre ; la péremption
+    SCIENTIFIQUE d'un témoin ne l'est pas — aucun motif ne décide si un record paru depuis change ce
+    qu'un témoin mesure. On calcule donc la moitié calculable et on **déclare** l'autre
+    (`_peremption` du roster). Et on ne BLOQUE pas : refuser un roster sur un calendrier casserait un
+    instrument qui marche pour une raison qui n'est pas un fait sur ses témoins. Le chiffre est
+    imprimé par `--lister` et `--plancher`, à côté de tout ce que l'instrument rend.
+    """
+    import datetime  # noqa: PLC0415
+
+    with open(_JSON, encoding="utf-8") as fh:
+        brut = json.load(fh)
+    jour = datetime.date.fromisoformat(aujourdhui) if aujourdhui else datetime.date.today()
+    revu = datetime.date.fromisoformat(brut["revu_le"])
+    intervalle = int(brut["intervalle_de_revue_jours"])
+    gels = [{"temoin": t["nom"], "gele_le": t["gele_le"],
+             "age_jours": (jour - datetime.date.fromisoformat(t["gele_le"])).days}
+            for t in brut["temoins"]]
+    depuis_revue = (jour - revu).days
+    return {"revu_le": brut["revu_le"], "jours_depuis_la_revue": depuis_revue,
+            "intervalle_declare_jours": intervalle,
+            "revue_due": depuis_revue > intervalle,
+            "gel_le_plus_ancien": max(gels, key=lambda g: g["age_jours"]),
+            "gels": sorted(gels, key=lambda g: -g["age_jours"])}
+
+
+def _imprimer_peremption(p):
+    etat = "REVUE DUE" if p["revue_due"] else "à jour"
+    print(f"roster revu le {p['revu_le']} ({p['jours_depuis_la_revue']} j, intervalle déclaré "
+          f"{p['intervalle_declare_jours']} j) : {etat} · gel le plus ancien "
+          f"{p['gel_le_plus_ancien']['temoin']} ({p['gel_le_plus_ancien']['gele_le']}, "
+          f"{p['gel_le_plus_ancien']['age_jours']} j)")
+    print("  Un témoin gelé mesure ce qu'on savait AU GEL : relire chaque `defaut` contre les records "
+          "parus depuis. Rapporté, jamais bloquant.")
+
+
 def racine_valide(racine):
     """(ok, raison) — ce répertoire est-il une racine du dépôt où le Réfutateur est utilisable ?
 
@@ -602,6 +647,7 @@ def main(argv=None):
         return 0
     if args.plancher:
         _imprimer_plancher(plancher(args.plancher))
+        _imprimer_peremption(peremption_du_roster())
         return 0
     if args.cas_du_juge:
         print("Cas de calibration — RÉDIGÉS. Aucune réponse n'est publiée ici : ni le verdict attendu,")
@@ -661,8 +707,10 @@ def main(argv=None):
         return r["code"]
     if args.lister:
         for t in charger():
-            print(f"{t['nom']:34s} {t['genre']:7s} {t['sha'][:9]}  {t['fichier']}  {t['chemin']}")
+            print(f"{t['nom']:34s} {t['genre']:7s} {t['sha'][:9]} gele {t['gele_le']}  "
+                  f"{t['fichier']}  {t['chemin']}")
             print(f"  {t['defaut']}")
+        _imprimer_peremption(peremption_du_roster())
         return 0
     ap.print_help()
     return 0

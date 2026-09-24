@@ -125,6 +125,15 @@ personne ne sait établir la seconde propriété : la revue nomme donc le témoi
 compte. **Si ce compte est ≥ à celui des témoins à défaut retrouvés, la revue le DIT** — l'instrument
 ne distingue alors pas un record sain d'un record défectueux, et c'est un verdict, pas un détail.
 
+⚠️ **Un témoin gelé a une durée de vie.** Il mesure ce qu'on savait **au gel** ; ce qui était propre le
+devient moins à mesure que le dépôt apprend. Mesuré le 2026-09-24 : le témoin cru sain porte un
+phénomène — « le bras ablaté fait mieux que l'intact » — qui est la forme exacte d'un résultat établi
+**depuis**. Le témoin n'avait donc pas été mal choisi. Le roster porte la **date de chaque gel** et se
+confronte périodiquement à ce que le dépôt a appris ; l'ÂGE est calculé et rapporté par le CLI, la
+péremption **scientifique** n'est pas décidable par motif et se déclare. Rien ne bloque sur un
+calendrier : refuser un roster pour une raison qui n'est pas un fait sur ses témoins casserait un
+instrument qui marche. À la revue du roster, on corrige le TEXTE d'un `defaut`, pas son SHA.
+
 Les témoins sont figés au SHA qui porte le défaut **NU**, jamais sa rectification. Ce regard « à l'œil »
 est lui-même exécutable : chaque témoin déclare une `signature` (présente dans le record à ce SHA) et une
 `antisignature` (la marque de la correction, qui doit être ABSENTE), vérifiées par

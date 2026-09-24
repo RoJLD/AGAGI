@@ -361,6 +361,57 @@ def test_le_noop_MESURE_au_lieu_de_faire_BARRAGE(extraits):
     assert T.verdict_temoin(noop, attaque * 5, txt)["n_recevables"] == 0
 
 
+def test_chaque_temoin_declare_sa_date_de_gel_et_elle_se_RECOMPUTE_depuis_git():
+    """La moitié CALCULABLE de la péremption : la date déclarée doit être celle du commit.
+
+    Un témoin gelé mesure ce qu'on savait AU GEL. `gele_le` rend cette date lisible à côté du SHA —
+    et, comme `nom_attendu`, elle se **recompute** au lieu d'être crue sur parole.
+    """
+    for t in T.charger():
+        assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", t["gele_le"]), t["nom"]
+        p = subprocess.run(["git", "show", "-s", "--format=%cs", t["sha"]],
+                           cwd=T._ROOT, capture_output=True, text=True)
+        assert p.returncode == 0, p.stderr
+        assert p.stdout.strip() == t["gele_le"], (
+            f"{t['nom']} : gele_le={t['gele_le']} mais le commit date du {p.stdout.strip()}")
+    # CONTROLE POSITIF du motif : une date fausse serait bien detectee.
+    faux = dict(T.charger()[0], gele_le="2000-01-01")
+    p = subprocess.run(["git", "show", "-s", "--format=%cs", faux["sha"]],
+                       cwd=T._ROOT, capture_output=True, text=True)
+    assert p.stdout.strip() != faux["gele_le"]
+
+
+def test_la_peremption_du_roster_est_RAPPORTEE_jamais_bloquante(capsys):
+    """⚠️ Un témoin gelé a une durée de vie — et la péremption SCIENTIFIQUE n'est pas décidable.
+
+    Mesuré le 2026-09-24 : le témoin cru sain porte un phénomène (« le bras ablaté fait mieux que
+    l'intact ») qui est la forme EXACTE d'un résultat ÉTABLI DEPUIS dans le dépôt (P2.42). Le témoin
+    n'a pas été mal choisi : il était sain au regard de ce qu'on savait au gel. Ce qui était propre le
+    devient moins à mesure que le dépôt apprend, et cela vaut pour les QUATRE témoins.
+
+    On calcule donc la moitié calculable — l'ÂGE — et on **déclare** l'autre (`_peremption` du
+    roster). Et on ne bloque pas : refuser un roster sur un calendrier casserait un instrument qui
+    marche pour une raison qui n'est **pas un fait sur ses témoins**.
+    """
+    p = T.peremption_du_roster()
+    assert set(p) >= {"revu_le", "jours_depuis_la_revue", "revue_due", "gel_le_plus_ancien", "gels"}
+    assert len(p["gels"]) == len(T.charger())
+    assert p["gels"] == sorted(p["gels"], key=lambda g: -g["age_jours"])
+    assert p["gel_le_plus_ancien"]["temoin"] == "EDR-RETAIN-COMPOSE-4204f8f"  # gel le 2026-08-04
+    # Les deux issues, sur une date injectee (jamais l'horloge du jour, qui rendrait le test instable).
+    assert T.peremption_du_roster("2026-09-24")["revue_due"] is False
+    tardif = T.peremption_du_roster("2027-09-24")
+    assert tardif["revue_due"] is True and tardif["jours_depuis_la_revue"] > 300
+    # ⚠️ ET LE ROSTER RESTE CONFORME : la peremption ne BLOQUE rien.
+    assert T.roster_conforme()[0] is True
+    # Le chiffre est imprime a cote de ce que l'instrument rend, jamais dans un coin.
+    T.main(["--lister"])
+    sortie = capsys.readouterr().out
+    assert "roster revu le" in sortie and "gel le plus ancien" in sortie
+    for t in T.charger():
+        assert f"gele {t['gele_le']}" in sortie
+
+
 def test_racine_valide_rend_ses_DEUX_issues(tmp_path):
     """Un instrument dont la correction depend d'un etat ambiant NON DECLARE echoue au hasard."""
     ok, raison = T.racine_valide(T._ROOT)
