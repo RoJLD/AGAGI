@@ -19,12 +19,18 @@ PAS : c'est un choix déclaré, la couverture par transitivité serait un proxy 
 Cliquet : `tools/calibration_reach_baseline.json` gèle la liste des MUETTES ; toute NOUVELLE muette bloque ;
 une muette résorbée est rapportée (resserrer la baseline). Les deux comptes sont RECOMPUTÉS à chaque appel,
 jamais recopiés (P2.56 : 62/39 puis 48/48 puis 35/45 — le chiffre bouge, un chiffre recopié ment).
-`--update-baseline` gèle l'état courant. Usage : python tools/check_calibration_reach.py [--update-baseline]
+`--update-baseline` gèle l'état courant. Usage : python tools/check_calibration_reach.py [--update-baseline] [--index]
+⚠️ `--index` (porte 18, 2026-09-22) : une porte juge ce qui SERA COMMITTÉ, pas le disque (E10 occ. 17, porte 4
+durcie en 2ffef2ab) — sous cette option le dict CALIBRATED, les tests ET la baseline sont lus depuis l'INDEX courant
+(`git ls-files -s` + `git cat-file --batch`, donc `GIT_INDEX_FILE` respecté). Un appelant présent sur le disque mais
+absent de l'index ne résorbe rien ; un test retiré de l'index rend sa déclaration muette même si le fichier est encore
+là. Limite déclarée : la RÉSOLUTION des clés NUES (quel fichier définit `measure_regime`) lit `tools/` sur le disque.
 """
 import ast
 import json
 import os
 import re
+import subprocess
 import sys
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -35,19 +41,60 @@ from tools.check_instrument_calibration import _CALIB_TESTS, scan_collisions, sc
 
 _BASELINE = os.path.join(_ROOT, "tools", "calibration_reach_baseline.json")
 _TESTS_DIR = os.path.join(_ROOT, "tests")
+
+
+def _index_blobs(prefix):
+    """{chemin relatif: contenu} des fichiers de l'INDEX courant sous `prefix` (respecte GIT_INDEX_FILE, donc un
+    commit par index temporaire). Une lecture en batch (`git cat-file --batch`), jamais un `git show` par fichier.
+    Un dépôt illisible rend {} -- RAPPORTÉ par l'appelant (n_tests = 0 -> ECHEC), jamais un vert."""
+    ls = subprocess.run(["git", "ls-files", "-s", "--", prefix], cwd=_ROOT, capture_output=True)
+    if ls.returncode != 0:
+        return {}
+    entries = []
+    for line in ls.stdout.decode("utf-8", errors="replace").splitlines():
+        meta, _, path = line.partition("\t")
+        parts = meta.split()
+        if len(parts) >= 3 and parts[2] == "0" and path:       # stade 0 seulement (pas de conflit en cours)
+            entries.append((path, parts[1]))
+    if not entries:
+        return {}
+    cat = subprocess.run(["git", "cat-file", "--batch"], cwd=_ROOT, capture_output=True,
+                         input=("\n".join(sha for _, sha in entries) + "\n").encode("ascii"))
+    if cat.returncode != 0:
+        return {}
+    out, buf, pos = {}, cat.stdout, 0
+    for path, sha in entries:
+        nl = buf.find(b"\n", pos)
+        if nl < 0:
+            break
+        header = buf[pos:nl].decode("ascii", errors="replace").split()
+        pos = nl + 1
+        if len(header) < 3 or header[1] != "blob":                # "<sha> missing" : chemin sauté, jamais inventé
+            continue
+        size = int(header[2])
+        out[path] = buf[pos:pos + size].decode("utf-8", errors="replace")
+        pos += size + 1                                           # le saut de ligne qui suit chaque blob
+    return out
 # ⚠️ MÊME expression que test_perimeter_widening.test_the_measured_EXPOSURE_of_head_guard_only_calibration_is_PUBLISHED :
 # un test gèle l'égalité des deux (un cliquet qui compterait une AUTRE dette que celle publiée serait un faux vert).
 GARDE_SEULE = re.compile(r"(:raises$|^guard-before-world$|^regime-degenere|^plan-vide|^empty-cohort|"
                          r"^entree-vide|^cohorte-vide|^selection-vide|^argument-degenere|^echelle-vide)")
 
 
-def load_calibrated(path=None):
+def load_calibrated(path=None, index=False):
     """Le dict `CALIBRATED` du fichier de calibration, évalué littéralement (jamais importé : importer le
-    module exécuterait ses fixtures). {} si absent ou illisible — RAPPORTÉ par l'appelant, pas avalé."""
+    module exécuterait ses fixtures). {} si absent ou illisible — RAPPORTÉ par l'appelant, pas avalé.
+    `index=True` : le fichier tel qu'il est dans l'INDEX (ce qui sera committé), pas sur le disque."""
     p = path or _CALIB_TESTS
-    if not os.path.exists(p):
-        return {}
-    src = open(p, encoding="utf-8").read()
+    if index:
+        rel = os.path.relpath(p, _ROOT).replace("\\", "/")
+        src = _index_blobs(rel).get(rel)
+        if src is None:
+            return {}
+    else:
+        if not os.path.exists(p):
+            return {}
+        src = open(p, encoding="utf-8").read()
     m = re.search(r"^CALIBRATED\s*=\s*(\{.*?^\})", src, re.M | re.S)
     if not m:
         return {}
@@ -100,9 +147,21 @@ def reached_symbols(src):
         elif isinstance(node, ast.Import):
             for a in node.names:
                 mod_alias[a.asname or a.name] = a.name
+    # Un appel SOUS `with pytest.raises(...)` lève à la GARDE : le corps n'est PAS atteint. Mesuré le 2026-09-23 :
+    # six déclarations garde-seule (les quatre s2_*::run_arm, run_curriculum, run_world_era) passaient pour
+    # « déclaratives » par leur seul test de garde -- la mesure comptait un refus comme une atteinte.
+    sous_raises = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.With):
+            for item in node.items:
+                ce = item.context_expr
+                if isinstance(ce, ast.Call) and ((isinstance(ce.func, ast.Attribute) and ce.func.attr == "raises")
+                                                 or (isinstance(ce.func, ast.Name) and ce.func.id == "raises")):
+                    for stmt in node.body:
+                        sous_raises.update(id(n) for n in ast.walk(stmt) if isinstance(n, ast.Call))
     out = set()
     for node in ast.walk(tree):
-        if not isinstance(node, ast.Call):
+        if not isinstance(node, ast.Call) or id(node) in sous_raises:
             continue
         f = node.func
         if isinstance(f, ast.Name) and f.id in from_alias:
@@ -112,7 +171,13 @@ def reached_symbols(src):
     return out
 
 
-def _iter_tests(tests_dir=None):
+def _iter_tests(tests_dir=None, index=False):
+    if index:                                                     # ce qui SERA COMMITTÉ, jamais le disque
+        rel_dir = os.path.relpath(tests_dir or _TESTS_DIR, _ROOT).replace("\\", "/")
+        for rel, src in sorted(_index_blobs(rel_dir).items()):
+            if rel.endswith(".py"):
+                yield rel, src
+        return
     d = tests_dir or _TESTS_DIR
     for dirpath, dirnames, filenames in os.walk(d):
         dirnames[:] = sorted(x for x in dirnames if x != "__pycache__")
@@ -125,13 +190,14 @@ def _iter_tests(tests_dir=None):
                     continue
 
 
-def scan(calibrated=None, tests_dir=None):
+def scan(calibrated=None, tests_dir=None, index=False):
     """Le compte, RECOMPUTÉ : {"garde_seule", "declaratives": {clé: [tests]}, "muettes": [clés],
-    "non_resolues": {clé: raison}, "n_tests", "n_calibrated"}."""
-    calibrated = load_calibrated() if calibrated is None else calibrated
+    "non_resolues": {clé: raison}, "n_tests", "n_calibrated", "source"}. `index=True` lit CALIBRATED et les
+    tests dans l'INDEX (porte 18) ; la résolution des clés nues lit `tools/` sur le disque (limite déclarée)."""
+    calibrated = load_calibrated(index=index) if calibrated is None else calibrated
     keys = garde_seule(calibrated)
     instruments, collisions = scan_instruments(), scan_collisions()
-    par_test = {rel: reached_symbols(src) for rel, src in _iter_tests(tests_dir)}
+    par_test = {rel: reached_symbols(src) for rel, src in _iter_tests(tests_dir, index=index)}
     declaratives, muettes, non_resolues = {}, [], {}
     for k in keys:
         module, name = resolve(k, instruments, collisions)
@@ -144,10 +210,21 @@ def scan(calibrated=None, tests_dir=None):
         else:
             muettes.append(k)
     return {"n_calibrated": len(calibrated), "garde_seule": len(keys), "declaratives": declaratives,
-            "muettes": sorted(muettes), "non_resolues": non_resolues, "n_tests": len(par_test)}
+            "muettes": sorted(muettes), "non_resolues": non_resolues, "n_tests": len(par_test),
+            "source": "index" if index else "disk"}
 
 
-def _load_baseline():
+def _load_baseline(index=False):
+    """La baseline gelée ; None si absente (dit tel quel). `index=True` : celle de l'INDEX, pas du disque."""
+    if index:
+        rel = os.path.relpath(_BASELINE, _ROOT).replace("\\", "/")
+        src = _index_blobs(rel).get(rel)
+        if src is None:
+            return None
+        try:
+            return json.loads(src)
+        except ValueError:
+            return None
     if not os.path.exists(_BASELINE):
         return None
     with open(_BASELINE, encoding="utf-8") as f:
@@ -165,11 +242,15 @@ def etat(res, baseline):
 
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
-    res = scan()
+    index = "--index" in argv                                     # porte 18 : juger l'INDEX (ce qui sera committé)
+    res = scan(index=index)
     if not res["n_calibrated"]:
-        print("ECHEC : aucun dict CALIBRATED lisible -- la portée ne peut pas être mesurée (rien n'est vérifié).")
+        print(f"ECHEC : aucun dict CALIBRATED lisible ({res['source']}) -- la portée ne peut pas être mesurée (rien n'est vérifié).")
         return 1
-    print(f"CALIBRATED : {res['n_calibrated']} déclarations | garde-seule : {res['garde_seule']} | "
+    if not res["n_tests"]:
+        print(f"ECHEC : aucun test lisible ({res['source']}) -- la portée ne peut pas être mesurée (rien n'est vérifié).")
+        return 1
+    print(f"[{res['source'].upper()}] CALIBRATED : {res['n_calibrated']} déclarations | garde-seule : {res['garde_seule']} | "
           f"déclaratives (un test importe ET appelle) : {len(res['declaratives'])} | muettes : {len(res['muettes'])} | "
           f"non résolues (nom nu en collision) : {len(res['non_resolues'])} | tests balayés : {res['n_tests']}")
     for k, why in sorted(res["non_resolues"].items()):

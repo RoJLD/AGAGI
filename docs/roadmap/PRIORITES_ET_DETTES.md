@@ -3626,8 +3626,25 @@ agent sans apex perçu, mort en attaquant = engagé), les agrégats et les valeu
 re-déclarées d'après leurs témoins (compte de clés inchangé). Portée recomputée : **38 garde-seule = 38 déclaratives + 0 muette** ; baseline gelée VIDE (comme le
 cliquet de calibration le 2026-09-01) ; porte 2 : 240 / 232 / 2 inchangés. Suite naturelle : la porte 18 (brancher
 `tools/check_calibration_reach.py` sur le hook — aucune NOUVELLE muette), passe dédiée avec témoin de mutation.
-**Suite** : (a) les 38 déclaratives — re-déclarer d'après ce que leurs témoins AFFIRMENT (une ligne chacune, dans
-`test_instrument_calibration.py`, fichier à trois auteurs ce jour : fenêtre à convenir) ; (b) ✅ FAIT le 2026-09-22 (31 → 0 par les fournées 4–9, ci-dessus) — injection
+
+**(a) SOLDÉE le 2026-09-23 : 306 déclarations, 0 garde-seule** (`python
+tools/check_calibration_reach.py`, recomputé). Les 32 sous-déclarées re-déclarées d'après ce que leurs témoins AFFIRMENT
+(extraction AST des appels et assertions de chaque témoin, `witness_extract` ; un smoke est annoncé `:smoke`, une réponse
+connue est nommée — `adaptatif:succes~=max-fixe-a-cout<0.6`, `champion>tabula-rasa:condition-necessaire`,
+`ablation:effondre-SEULEMENT-sous-demande`, `repro:appariee-exacte`…). ⚠️ **Trouvé en le faisant (E4 occ. 9) : six
+« déclaratives » ne l'étaient que par un appel SOUS `pytest.raises`** (les quatre `s2_*::run_arm`, `run_curriculum`,
+`run_world_era`) — l'instrument de portée comptait un refus à la garde comme une atteinte du corps, donc 4b68b121
+annonçait 6 muettes de moins qu'il n'y en avait. Corrigé dans l'outil (un appel sous `raises` n'atteint pas ; cas gelé
+`test_a_call_under_pytest_raises_does_NOT_reach_the_body…`), les six résorbées en fournée 10
+(`tests/sandbox/test_mute_orchestrators_injection_4.py` : seams `_bassin_cohort` / `phase1` / `phase2` / `credit_variant`
+/ `effective_reward` en enregistreurs — variante PUBLIÉE et transmise (E8), ordre des maillons, bras gelé sans phase 1,
+cohorte froide sans bassin ; `run_curriculum` orchestré sous `chdir` ; `run_world_era` à classe de monde) et
+re-déclarées. Le mode `--index` (juger ce qui SERA committé : `git ls-files -s` + `cat-file --batch`) est dans l'outil
+avec ses témoins (index synthétique, plomberie git réelle sur index temporaire, muette neuve injectée → rouge). Reste
+UNIQUEMENT la porte 18 (bloc dans les deux hooks, `PORTES["18"]` à trois mutations, `portes_hook` recomputé) — après la
+fusion PM, numéro 18 réservé par le PM.
+**Suite** : (a) ✅ FAIT le 2026-09-23 (32 re-déclarées + 6 démasquées, ci-dessus) — re-déclarer d'après ce que leurs
+témoins AFFIRMENT (une ligne chacune, dans `test_instrument_calibration.py`) ; (b) ✅ FAIT le 2026-09-22 (31 → 0 par les fournées 4–9, ci-dessus) — injection
 à dose connue pour les orchestrateurs, un monde FACTICE pour les simulateurs ; aucune déclaration « la garde suffit » n'a été nécessaire.
 
 **AVANCEMENT 2026-09-14 (tick 3) : 103 → 80.** ⚠️ **La scission 62/39 était encore surcomptée** :

@@ -84,7 +84,13 @@ CALIBRATED = {
     # P2.56 (2026-09-14) : re-declare d'apres tests/sandbox/test_anticipation_bench.py (corps atteint).
     "tools/anticipation_bench.py::compare": ["cohorte-vide:raises", "guard-before-world",
                                              "corps-atteint:verdict-dans-ensemble:smoke"],
-    "tools/life_score_contamination_probe.py::compare": ["cohorte-vide:raises", "guard-before-world"],
+    # P2.56 (a) : re-declaree d'apres ce que son temoin AFFIRME (2026-09-23) :
+    # schema complet, per_seed 2, repro_ok bool, verdict dans {INERTE, CONTAMINEE, AMBIGU} ; drop_altars rend
+    # METRIQUE_INERTE (autel mort).
+    # temoin : tests/sandbox/test_life_score_contamination_probe.py
+    "tools/life_score_contamination_probe.py::compare": ["cohorte-vide:raises", "guard-before-world",
+                                                         "schema-et-repro:smoke",
+                                                         "drop_altars:METRIQUE_INERTE-autel-mort"],
     # P2.56 : INJECTION d'orchestrateur (`run_era_fn=_fake_pool_runner`) -- la couche d'agregation
     # est testee sans monde ; plus un smoke reel (test_compare_smoke_real).
     "tools/map_elites_compare.py::compare": ["cohorte-vide:raises", "guard-before-world",
@@ -148,8 +154,22 @@ CALIBRATED = {
         "CORPS-ATTEINT:dose-connue-ratio-2.0", "CORPS-ATTEINT:plancher-de-puissance-n<12",
         "CORPS-ATTEINT:decoy-medianes-egales", "CORPS-ATTEINT:ratio-inverse",
         "CORPS-ATTEINT:bras-identiques-degenere"],
-    "tools/generalization_transfer_probe.py::run": ["argument-degenere:raises", "guard-before-world"],
-    "tools/memory_payoff_probe.py::run": ["argument-degenere:raises", "guard-before-world"],
+    # P2.56 (a) : re-declaree d'apres ce que son temoin AFFIRME (2026-09-23) :
+    # reponses connues (K 6, 4 seeds) : le noyau transfere dans les DEUX regimes (> 0.8) ; le specifique generalise
+    # SEULEMENT sous entrainement varie (MULTI > 0.6, MONO < 0.4) ; l'ablation effondre MULTI (> 0.3) pas MONO (< 0.15) ;
+    # theta_w corrobore (MULTI > MONO + 0.3).
+    # temoin : tests/sandbox/test_generalization_transfer_probe.py
+    "tools/generalization_transfer_probe.py::run": ["argument-degenere:raises", "guard-before-world",
+                                                    "noyau:transfere-dans-les-deux-regimes>0.8",
+                                                    "specifique:generalise-seulement-sous-entrainement-varie",
+                                                    "ablation:effondre-MULTI-pas-MONO", "theta_w:corrobore"],
+    # P2.56 (a) : re-declaree d'apres ce que son temoin AFFIRME (2026-09-23) :
+    # reponses connues (K 6, delai 5) : l'ablation memoire effondre SEULEMENT sous demande de rappel (< 0.6 vs > 0.9) ;
+    # mem_w > 0.3 sous demande, < 0.15 sans memoire.
+    # temoin : tests/sandbox/test_memory_payoff_probe.py
+    "tools/memory_payoff_probe.py::run": ["argument-degenere:raises", "guard-before-world",
+                                          "ablation-memoire:effondre-SEULEMENT-sous-demande-de-rappel",
+                                          "mem_w:>0.3-demande-<0.15-sans-memoire"],
     # P2.56 (b) : injection de survive / life_seeds -- vie = seed + 5 : mediane ET les vies publiees predites exactement ;
     # la politique corps-seul est celle de K (body_only_policy(K)).
     "tools/s2_fallback_rate_probe.py::measured_floor": ["argument-degenere:raises", "guard-before-world",
@@ -172,10 +192,24 @@ CALIBRATED = {
     "tools/hcm_analyzer.py::run_hcm_analysis": [
         "empty-cohort:raises", "guard-before-world",
         "CORPS-ATTEINT:contrat-du-HoF", "aucun-genome-compatible:raises-en-chiffrant"],
-    "main_curriculum.py::run_curriculum": [
-        "regime-degenere:raises", "echelle-vide:raises", "guard-before-world"],
-    "multiverse_runner.py::run_world_era": [
-        "regime-degenere:raises", "cohorte-vide:raises", "guard-before-world"],
+    # P2.56 (b), fournee 10 (2026-09-23) : le seul temoin appelait sous pytest.raises (corps non atteint) --
+    # ORCHESTRATEUR injecte (_acquire_shared_db, make_run_era_fn, WorldStage, CurriculumRunner, logger) -- etages
+    # dans l'ordre de l'echelle, DEFAULT_LADDER si None, keep_memory lu dans KEEP_MEMORY quand None, transcript
+    # rendu ET ecrit sous cwd (chemin en dur : chdir temporaire), manage_logger commande start/stop ; db absente ->
+    # liste VIDE publiee (porte 14 legataire, documentee) et logger arrete.
+    # temoin : tests/sandbox/test_mute_orchestrators_injection_4.py
+    "main_curriculum.py::run_curriculum": ["regime-degenere:raises", "echelle-vide:raises", "guard-before-world",
+                                           "etages:ordre-de-l-echelle-DEFAULT_LADDER-si-None",
+                                           "keep_memory:KEEP_MEMORY-quand-None", "transcript:rendu-et-ecrit-sous-cwd",
+                                           "manage_logger:commande-start-stop", "absence:liste-vide-publiee-porte-14"],
+    # P2.56 (b), fournee 10 (2026-09-23) : le seul temoin appelait sous pytest.raises (corps non atteint) --
+    # CLASSE de monde factice (size 10) -- chaque genome seme un agent a energie 100, run_era(num_ticks) transmis,
+    # resultats tries par score DECROISSANT avec 5 champs, genome transfere par COPIE profonde (contenu identique,
+    # objet distinct) ; horizon nul ou genomes vides -> leve.
+    # temoin : tests/sandbox/test_mute_orchestrators_injection_4.py
+    "multiverse_runner.py::run_world_era": ["regime-degenere:raises", "cohorte-vide:raises", "guard-before-world",
+                                            "semis:un-agent-par-genome-energie-100", "tri:score-decroissant-5-champs",
+                                            "genome:copie-profonde-contenu-identique"],
     # P2.56 (b) : CLASSE de monde factice injectee -- proies moyennes 4.0 et 5 ticks (cohorte morte au tick 5) ; l'horizon
     # max_ticks 2 borne la boucle AVANT la mort ; target_prey pose sur la config (E8).
     # temoin : tests/sandbox/test_mute_simulators_fake_world_3.py
@@ -377,7 +411,16 @@ CALIBRATED = {
     "tools/lewis_world.py::measure_mi": ["empty-cohort:raises", "guard-before-world",
                                          "monde-factice:n-8-agent-loin-ignore", "dose:code-parfait-MI>permutee",
                                          "absence:(0,0,0)-publiee-telle-quelle"],
-    "tools/target_competence_probe.py::run_probe": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 (a) : re-declaree d'apres ce que son temoin AFFIRME (2026-09-23) :
+    # stoneage REEL sous quatre modes (mixture, tabula, mono_fresh, champion) : per_era non vide, n >= N (reproduction),
+    # decomposition apex / lance RECOLTEE et rapportee (frac_apex, frac_tool, total_mammoth, total_spears),
+    # median_competence dans [0, 1].
+    # temoin : tests/sandbox/test_diversity_dose_probe.py, tests/sandbox/test_live_harvest.py,
+    #          tests/sandbox/test_mono_fresh.py, tests/sandbox/test_preserve_dims_probe.py
+    "tools/target_competence_probe.py::run_probe": ["empty-cohort:raises", "guard-before-world",
+                                                    "modes:mixture-tabula-mono_fresh-champion:monde-reel",
+                                                    "decomposition:apex-lance-recoltee-et-rapportee",
+                                                    "median_competence:dans-[0,1]"],
     # P2.56 (b) : injection de measure_arm (tests/sandbox/test_mute_orchestrators_injection_2.py) -- survies 100 / 120 ->
     # survival_ratio 1,2 ; z_range 2,0 + updown 0,5 -> Z_UTILISE ; z 0,1 -> Z_INERTE ; updown 0,2 (sous 0,25 x 1,2) -> Z_INERTE.
     "tools/vertical_world_probe.py::run_probe": ["empty-cohort:raises", "guard-before-world", "dose:Z_UTILISE",
@@ -436,14 +479,26 @@ CALIBRATED = {
                                                "mecanisme:applique-a-CHAQUE-ere-sur-le-monde-de-l-ere",
                                                "dose:proies-3.0-mammouths-2.0",
                                                "regime-E8:crit_base-target_prey-12-eps-0.2-craft-0-era-1"],
-    "tools/adaptive_planning_probe.py::run_adaptive": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 (a) : re-declaree d'apres ce que son temoin AFFIRME (2026-09-23) :
+    # reponse connue : la profondeur adaptative egale le succes du fixe-max (a 0.15 pres) pour moins de 0.6x son calcul ;
+    # un mauvais modele (lineaire) recoit une profondeur <= 2.
+    # temoin : tests/sandbox/test_adaptive_planning_probe.py
+    "tools/adaptive_planning_probe.py::run_adaptive": ["empty-cohort:raises", "guard-before-world",
+                                                       "adaptatif:succes~=max-fixe-a-cout<0.6",
+                                                       "mauvais-modele:profondeur<=2"],
     # P2.56 (b) : AgriculturalWorld injecte -- trajectoire PAR TICK (t, n_agents, saison, items) ; seuls les items DECLARES sont
     # comptes (un type inconnu n'apparait pas).
     # temoin : tests/sandbox/test_mute_simulators_fake_world_3.py
     "tools/agricultural_demand_probe.py::run_agricultural": ["empty-cohort:raises", "guard-before-world",
                                                              "trajectoire-par-tick:n_agents-saison-items",
                                                              "items:declares-seuls-comptes"],
-    "tools/altar_tool_funnel_probe.py::run_era_funnel": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 (a) : re-declaree d'apres ce que son temoin AFFIRME (2026-09-23) :
+    # biosphere reelle (1 seed, 40 ticks) : 5 champs par agent, couverture vivants + morts, et l'autel est MORT
+    # (altars_solved jamais > 0 : AUDIT-002).
+    # temoin : tests/sandbox/test_altar_tool_funnel_probe.py
+    "tools/altar_tool_funnel_probe.py::run_era_funnel": ["empty-cohort:raises", "guard-before-world",
+                                                         "corps-atteint:5-champs-vivants+morts:smoke",
+                                                         "autel-mort:altars_solved-0"],
     "tools/anticipation_bench.py::run_bench": ["empty-cohort:raises", "guard-before-world",
                                                "corps-atteint:avoidance-dans-[0,1]:smoke"],
     # P2.49 (2026-09-09) : le HARNAIS PARTAGE du fil S2 (10 records) -- il porte la couche
@@ -454,7 +509,14 @@ CALIBRATED = {
         "empty-cohort:raises", "guard-before-world",
         "CORPS-ATTEINT:seed_at(seed,i)-une-fois-PAR-ERE", "CORPS-ATTEINT:regime-impose",
         "CORPS-ATTEINT:mediane-par-ere-morts-compris", "CORPS-ATTEINT:censure-rapportee"],
-    "tools/anticipation_planning_probe.py::run_planning": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 (a) : re-declaree d'apres ce que son temoin AFFIRME (2026-09-23) :
+    # reponses connues : modeles {bilinear, linear, none} bornes ; le bilineaire est PLUS FIDELE que le lineaire, bat
+    # l'aleatoire, et a n_fit 100 depasse le lineaire de plus de 0.1 (efficacite d'echantillon).
+    # temoin : tests/sandbox/test_anticipation_planning_probe.py, tests/sandbox/test_online_world_model_probe.py
+    "tools/anticipation_planning_probe.py::run_planning": ["empty-cohort:raises", "guard-before-world",
+                                                           "bilineaire:plus-fidele-que-lineaire",
+                                                           "bilineaire:bat-l-aleatoire",
+                                                           "n_fit-100:bilineaire>lineaire+0.1"],
     # P2.56 (b) : PUR (numpy) -- W nul : accuracy 0.0 (signe de 0 != +-1) et dW[0, N-O] = -0.25 (descendre le gradient CREE le fil
     # entree->sortie) ; fil direct de poids 10 : accuracy 1.0 (identite ET tanh, D 0 et 1) et dW[0, N-O] = +0.0625.
     # temoin : tests/sandbox/test_mute_simulators_fake_world_6.py
@@ -468,14 +530,26 @@ CALIBRATED = {
     "tools/comm_lever.py::run_era": ["empty-cohort:raises", "guard-before-world",
                                      "regime-E8:hear_radius-7-target_prey-9-LANGUAGE-nuit-off",
                                      "dose:crafts-6-kills-5-proies-2.0", "promotion:5-meilleurs-par-life_score"],
-    "tools/compositional_language_probe.py::run_compositional": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 (a) : re-declaree d'apres ce que son temoin AFFIRME (2026-09-23) :
+    # chance = 1/A EXACT, gen_gap = zeroshot - chance, topsim dans [-1, 1], flags de gate RESTAURES (E5) ; variantes
+    # per_attr / curriculum / warmstart tournent (smoke).
+    # temoin : tests/sandbox/test_compositional_language_probe.py
+    "tools/compositional_language_probe.py::run_compositional": ["empty-cohort:raises", "guard-before-world",
+                                                                 "chance:1/A-exact", "gen_gap:=zeroshot-chance",
+                                                                 "topsim:dans-[-1,1]", "flags-gate:restaures-E5",
+                                                                 "variantes:per_attr-curriculum-warmstart:smoke"],
     # P2.56 (b) : CLASSE de monde factice injectee -- scramble_signal True et hear_radius 6 POSES sur le monde, target_prey 12,
     # LANGUAGE (E8) ; kills 4 / proies 2.0 ; 5 promus.
     # temoin : tests/sandbox/test_mute_simulators_fake_world_4.py
     "tools/confirm_scramble.py::run_era": ["empty-cohort:raises", "guard-before-world",
                                            "regime-E8:scramble-True-hear_radius-6-target_prey-12-LANGUAGE",
                                            "dose:kills-4-proies-2.0", "promotion:5"],
-    "tools/craft_specialization_probe.py::run_spec": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 (a) : re-declaree d'apres ce que son temoin AFFIRME (2026-09-23) :
+    # cles spec_depth / comp_total / frac_specialists / frac_A (smoke, bras on et off) ; flags de gate restaures (E5).
+    # temoin : tests/sandbox/test_craft_specialization_probe.py
+    "tools/craft_specialization_probe.py::run_spec": ["empty-cohort:raises", "guard-before-world",
+                                                      "corps-atteint:spec_depth-comp_total-frac:smoke",
+                                                      "flags-gate:restaures-E5"],
     # P2.56 (b) : CLASSE de monde factice injectee -- les DEUX axes poses (target_prey 7, craft_level 2) plus eps, crit_base,
     # nuit off (E8) ; sortie (crafts 8, kills 1, proies 5.0, ticks 4).
     # temoin : tests/sandbox/test_mute_simulators_fake_world_4.py
@@ -494,7 +568,11 @@ CALIBRATED = {
     "tools/curriculum_grab.py::run_one_era": ["empty-cohort:raises", "guard-before-world",
                                               "monde-prepare:SEULEMENT-en-training", "dose:(10,6,5)-horizon-borne",
                                               "regime-E8:craft_level-pose"],
-    "tools/dreaming_probe.py::run_era_organ": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 (a) : re-declaree d'apres ce que son temoin AFFIRME (2026-09-23) :
+    # biosphere reelle, ere courte, ~50 % d'organe seme : liste de stats avec age / total_dreams / has_organ (bool).
+    # temoin : tests/sandbox/test_dreaming_probe.py
+    "tools/dreaming_probe.py::run_era_organ": ["empty-cohort:raises", "guard-before-world",
+                                               "corps-atteint:age-total_dreams-has_organ:smoke"],
     # P2.56 : corps atteint par test_behavioral_diversity (2 eres, 5 cles de diversite dans [0,1],
     # median_competence dans [0,1]) et test_credit_assignment_gamma (gamma se propage au TD).
     "tools/evolve_ceiling_probe.py::run_evolution": ["empty-cohort:raises", "guard-before-world",
@@ -518,14 +596,24 @@ CALIBRATED = {
     # la version pauvre qui faisait foi, et l'instrument comptait comme GARDE-SEULE dans la dette
     # P2.49 alors qu'il etait calibre. Retire le 2026-09-14 ; garde gelee :
     # `test_CALIBRATED_n_a_AUCUNE_cle_en_double`.
-    "tools/hunif_retention_probe.py::run_retention": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 (a) : re-declaree d'apres ce que son temoin AFFIRME (2026-09-23) :
+    # cles craft_early / craft_late / comp_late / payoff_late / capability (smoke) ; capability off -> False ; warmstart
+    # tourne ; flags de gate restaures (E5).
+    # temoin : tests/sandbox/test_hunif_retention_probe.py
+    "tools/hunif_retention_probe.py::run_retention": ["empty-cohort:raises", "guard-before-world",
+                                                      "corps-atteint:craft_early-craft_late-comp_late:smoke",
+                                                      "capability-off:False", "flags-gate:restaures-E5"],
     # P2.56 (b) : _world/_gain injectes -- mode token pose (SPECIATE True, SPECIATE_MODE token) pendant chaque ere puis size
     # RESTAURE (E5) ; le gain mesure 0.42 est rendu tel quel.
     # temoin : tests/sandbox/test_mute_simulators_fake_world_2.py
     "tools/lang_speciation.py::run_seed": ["empty-cohort:raises", "guard-before-world",
                                            "etat-global-E5:mode-token-pose-puis-size-restaure",
                                            "dose:gain-0.42-transmis"],
-    "tools/life_score_contamination_probe.py::run_arm": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 (a) : re-declaree d'apres ce que son temoin AFFIRME (2026-09-23) :
+    # biosphere reelle (1 ere, 4 agents, 5 ticks) : roster non vide a 6 champs par agent.
+    # temoin : tests/sandbox/test_life_score_contamination_probe.py
+    "tools/life_score_contamination_probe.py::run_arm": ["empty-cohort:raises", "guard-before-world",
+                                                         "corps-atteint:roster-6-champs:smoke"],
     # P2.56 (b) : CLASSE de monde factice injectee -- pool COMPLET rendu avec ses stats (num_nodes, proies, crafts, mammouths),
     # meilleur 3.0 / ticks 3.0 ; un agent sans genome est IGNORE du pool et du meilleur score.
     # temoin : tests/sandbox/test_mute_simulators_fake_world_5.py
@@ -536,8 +624,18 @@ CALIBRATED = {
                                                      "injection:apparie-reproductible(a==b)"],
     "tools/map_elites_compare.py::run_lineage_qd": ["empty-cohort:raises", "guard-before-world",
                                                     "injection:archive-peuplee(cov>=1)"],
-    "tools/metabolic_cost_sweep.py::run_lineage": ["empty-cohort:raises", "guard-before-world"],
-    "tools/metabolic_cost_sweep.py::run_era_metab": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 (a) : re-declaree d'apres ce que son temoin AFFIRME (2026-09-23) :
+    # dose : coef 0.01 vs 0 -> efficacite monte ET noeuds actifs baissent ; repro appariee EXACTE (meme seed, meme
+    # resultat) ; seed_num_nodes 240 -> >= 235 noeuds contre <= 180 par defaut.
+    # temoin : tests/sandbox/test_metabolic_cost_sweep.py
+    "tools/metabolic_cost_sweep.py::run_lineage": ["empty-cohort:raises", "guard-before-world",
+                                                   "dose:coef-0.01>0-efficacite-monte-noeuds-actifs-baissent",
+                                                   "repro:appariee-exacte", "seed_num_nodes-240:>=235-vs-defaut<=180"],
+    # P2.56 (a) : re-declaree d'apres ce que son temoin AFFIRME (2026-09-23) :
+    # biosphere reelle (30 ticks) : mean_active >= 0, ticks >= 1, scored liste (smoke).
+    # temoin : tests/sandbox/test_metabolic_cost_sweep.py
+    "tools/metabolic_cost_sweep.py::run_era_metab": ["empty-cohort:raises", "guard-before-world",
+                                                     "corps-atteint:mean_active-ticks-scored:smoke"],
     # P2.56 (b) : _world injecte (7 agents, big_kills 2) -- les 5 MEILLEURS par ere promus, tries par life_score ; mammouths
     # moyens 2.0 ; hof_stats publies (12.5, 20) ; _restore appele une fois.
     # temoin : tests/sandbox/test_mute_simulators_fake_world.py
@@ -550,14 +648,27 @@ CALIBRATED = {
     "tools/nas_rich.py::run_seed": ["empty-cohort:raises", "guard-before-world",
                                     "dose:proies-moyenne-SECONDE-moitie-3.5", "etat-global-E5:SPECIATE-restaure",
                                     "promotion:5-par-ere"],
-    "tools/online_world_model_probe.py::run_online": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 (a) : re-declaree d'apres ce que son temoin AFFIRME (2026-09-23) :
+    # courbe indexee par les checkpoints demandes, valeurs dans [0, 1] ; les resets episodiques aident ou sont neutres
+    # (>= sans-reset - 0.02).
+    # temoin : tests/sandbox/test_online_world_model_probe.py
+    "tools/online_world_model_probe.py::run_online": ["empty-cohort:raises", "guard-before-world",
+                                                      "courbe:checkpoints-dans-[0,1]",
+                                                      "resets-episodiques:aident-ou-neutres"],
     # P2.56 (b) : CLASSE de monde factice injectee -- le crit est rythme sur l'ere GLOBALE (current_era 17 pose sur le monde),
     # crit_base 0.7 / crit_eras 9 / target_prey 5 (E8) ; sortie (0, 2, 1.0, 2).
     # temoin : tests/sandbox/test_mute_simulators_fake_world_4.py
     "tools/persistence_test.py::run_era": ["empty-cohort:raises", "guard-before-world",
                                            "regime-E8:current_era-GLOBAL-17-crit_base-0.7-crit_eras-9",
                                            "dose:(0,2,1.0,2)"],
-    "tools/planning_depth_probe.py::run_depth": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 (a) : re-declaree d'apres ce que son temoin AFFIRME (2026-09-23) :
+    # reponses connues : la profondeur aide le modele FIDELE (bi[3] > bi[1] + 0.05) ; un mauvais modele reste bloque
+    # (< 0.55 a toute profondeur) ; le gain de profondeur est conditionne par la fidelite (gain_bi > gain_lin).
+    # temoin : tests/sandbox/test_planning_depth_probe.py
+    "tools/planning_depth_probe.py::run_depth": ["empty-cohort:raises", "guard-before-world",
+                                                 "profondeur:aide-le-modele-fidele-+0.05",
+                                                 "mauvais-modele:bloque-<0.55-a-toute-profondeur",
+                                                 "gain-de-profondeur:conditionne-par-la-fidelite"],
     # P2.56 (b) : CLASSE de monde factice injectee -- parleurs comptes 3 sur un pool de 6 (1 sur 2 parle), LANGUAGE pose (E8).
     # temoin : tests/sandbox/test_mute_simulators_fake_world_4.py
     "tools/probe_impasse.py::run_era": ["empty-cohort:raises", "guard-before-world", "dose:parleurs-3-sur-pool-6",
@@ -568,8 +679,18 @@ CALIBRATED = {
     "tools/reconfirm_047.py::run_seed": ["empty-cohort:raises", "guard-before-world",
                                          "eres:entrainement-puis-4-de-mesure-meme-demande", "dose:MI-reelle>permutee",
                                          "absence:(0,0)-publiee-telle-quelle"],
-    "tools/referential_community_probe.py::run_community": ["empty-cohort:raises", "guard-before-world"],
-    "tools/referential_game_probe.py::run_lewis": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 (a) : re-declaree d'apres ce que son temoin AFFIRME (2026-09-23) :
+    # chance = 1/K EXACT, bornes ; rotate off se reduit au jeu apparie (within >= cross - 0.2) ; non appris -> mi NaN
+    # publie tel quel ; flags de gate restaures (E5).
+    # temoin : tests/sandbox/test_referential_community_probe.py
+    "tools/referential_community_probe.py::run_community": ["empty-cohort:raises", "guard-before-world",
+                                                            "chance:1/K-exact", "rotate-off:se-reduit-au-jeu-apparie",
+                                                            "non-appris:mi-nan-publie", "flags-gate:restaures-E5"],
+    # P2.56 (a) : re-declaree d'apres ce que son temoin AFFIRME (2026-09-23) :
+    # chance = 1/K EXACT, bornes ; le canal BROUILLE reste proche de la chance (<= chance + 0.2) ; flags restaures (E5).
+    # temoin : tests/sandbox/test_referential_game_probe.py
+    "tools/referential_game_probe.py::run_lewis": ["empty-cohort:raises", "guard-before-world", "chance:1/K-exact",
+                                                   "brouille:proche-de-la-chance", "flags-gate:restaures-E5"],
     # P2.56 (b) : PUR (numpy) -- deterministe par seed ; 1 epoch : code EFFONDRE (1/3, 1/3) ; acc <= injectivite sur 4 seeds
     # (un code non injectif ne se decode pas).
     # temoin : tests/sandbox/test_mute_simulators_fake_world_6.py
@@ -607,14 +728,56 @@ CALIBRATED = {
     "tools/substrate_ab_compositional.py::run_curriculum_fade_gated":
         ["empty-cohort:raises", "guard-before-world", "oracle-bias-8:gap>0.5:controle-positif",
          "gate_mode-inconnu:raises", "learned:gap-borne"],
-    "tools/torch_binary_gate_heldout_probe.py::run_arm": ["empty-cohort:raises", "guard-before-world"],
-    "tools/torch_binary_gate_probe.py::run_arm": ["empty-cohort:raises", "guard-before-world"],
-    "tools/torch_bptt_meansends.py::run_meansends": ["empty-cohort:raises", "guard-before-world"],
-    "tools/torch_gate_bptt_meansends.py::run_cell": ["empty-cohort:raises", "guard-before-world"],
-    "tools/torch_gate_persist_ab.py::run_arm": ["empty-cohort:raises", "guard-before-world"],
-    "tools/torch_inworld_ab.py::run_arm": ["empty-cohort:raises", "guard-before-world"],
-    "tools/torch_prod_gate_meansends.py::run_prod": ["empty-cohort:raises", "guard-before-world"],
-    "tools/torch_throw_gate_inworld_ab.py::run_arm": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 (a) : re-declaree d'apres ce que son temoin AFFIRME (2026-09-23) :
+    # bras true et shuffle : cles binding_gap_heldout / comp_rate_heldout / throw_rate_heldout, bornes (smoke).
+    # temoin : tests/sandbox/test_torch_binary_gate_heldout_probe.py
+    "tools/torch_binary_gate_heldout_probe.py::run_arm": ["empty-cohort:raises", "guard-before-world",
+                                                          "corps-atteint:binding_gap_heldout-throw_rate-bornes:smoke",
+                                                          "bras:true-et-shuffle"],
+    # P2.56 (a) : re-declaree d'apres ce que son temoin AFFIRME (2026-09-23) :
+    # bras on / off / shuffle_label : cles binding_gap / comp_rate / throw_rate, bornes (smoke). Le verdict compare
+    # est calibre a part (injection, batch 2 de P2.56 b).
+    # temoin : tests/sandbox/test_torch_binary_gate_probe.py
+    "tools/torch_binary_gate_probe.py::run_arm": ["empty-cohort:raises", "guard-before-world",
+                                                  "corps-atteint:binding_gap-comp_rate-throw_rate-bornes:smoke",
+                                                  "bras:on-off-shuffle_label"],
+    # P2.56 (a) : re-declaree d'apres ce que son temoin AFFIRME (2026-09-23) :
+    # mode bptt : cles hit_end / p_x / binding_gap (smoke).
+    # temoin : tests/sandbox/test_torch_bptt_meansends.py
+    "tools/torch_bptt_meansends.py::run_meansends": ["empty-cohort:raises", "guard-before-world",
+                                                     "corps-atteint:hit_end-p_x-binding_gap:smoke"],
+    # P2.56 (a) : re-declaree d'apres ce que son temoin AFFIRME (2026-09-23) :
+    # les 4 cellules mode x gate (smoke, bornes) ; la gate CHANGE binding_gap (gate != none) ; antisat 0 accepte.
+    # temoin : tests/sandbox/test_torch_gate_bptt_meansends.py
+    "tools/torch_gate_bptt_meansends.py::run_cell": ["empty-cohort:raises", "guard-before-world",
+                                                     "corps-atteint:4-cellules-mode-x-gate:smoke",
+                                                     "gate:change-binding_gap", "antisat-0:accepte"],
+    # P2.56 (a) : re-declaree d'apres ce que son temoin AFFIRME (2026-09-23) :
+    # dose : n_rebuilds = 1 pour 40 episodes / rebuild_every 20, les DEUX bras ; comp_rate dans [0, 1].
+    # temoin : tests/sandbox/test_torch_gate_persist_ab.py
+    "tools/torch_gate_persist_ab.py::run_arm": ["empty-cohort:raises", "guard-before-world",
+                                                "dose:n_rebuilds-1-pour-40/20-les-deux-bras",
+                                                "corps-atteint:comp_rate-dans-[0,1]:smoke"],
+    # P2.56 (a) : re-declaree d'apres ce que son temoin AFFIRME (2026-09-23) :
+    # monde reel court (4 ticks, 8 agents, use_torch False) : ticks 4 rendu, survival dans [0, 1].
+    # temoin : tests/sandbox/test_torch_inworld_ab.py
+    "tools/torch_inworld_ab.py::run_arm": ["empty-cohort:raises", "guard-before-world",
+                                           "corps-atteint:ticks-4-survival-dans-[0,1]:smoke"],
+    # P2.56 (a) : re-declaree d'apres ce que son temoin AFFIRME (2026-09-23) :
+    # cles hit_end / p_x / binding_gap / gate (smoke) ; variantes stochastic / episodic / uniform / gate_mult tournent ;
+    # flags CONDITION_GATE / GATE_TARGET / GATE_MULT RESTAURES (E5).
+    # temoin : tests/sandbox/test_torch_prod_gate.py
+    "tools/torch_prod_gate_meansends.py::run_prod": ["empty-cohort:raises", "guard-before-world",
+                                                     "corps-atteint:hit_end-p_x-binding_gap-gate:smoke",
+                                                     "variantes:stochastic-episodic-uniform-gate_mult:smoke",
+                                                     "flags-gate:restaures-E5"],
+    # P2.56 (a) : re-declaree d'apres ce que son temoin AFFIRME (2026-09-23) :
+    # boutons factoriels no_consume / weightless / conditional_credit acceptes et poses sur le monde (smoke) ; cles
+    # binding_gap_inworld / throw_rate / kills_with_tool, bornes. Le verdict compare est calibre a part (injection).
+    # temoin : tests/sandbox/test_torch_throw_gate_factorial.py, tests/sandbox/test_torch_throw_gate_inworld_ab.py
+    "tools/torch_throw_gate_inworld_ab.py::run_arm": ["empty-cohort:raises", "guard-before-world",
+                                                      "boutons-factoriels:no_consume-weightless-conditional_credit:smoke",
+                                                      "corps-atteint:binding_gap_inworld-throw_rate-kills_with_tool-bornes:smoke"],
     # P2.56 : tests/sandbox/test_warmstart_evolution_inworld.py -- la perte DECROIT (direction connue),
     # DAgger rend 2 tendances + un genome + un verdict bien forme.
     "tools/warmstart_evolution_inworld.py::run_bptt_imitation_warmstart":
@@ -638,9 +801,28 @@ CALIBRATED = {
     "capability_payoff_verdict": ["pays", "no-payoff", "refuses-single-point"],
     # ⚠️ `run_world` est en COLLISION (3 fichiers) -> declarations QUALIFIEES obligatoires. Les DEUX
     # autres etaient invisibles jusqu'a cet elargissement : dette REELLE revelee, traitee ici.
-    "tools/compositional_world_probe.py::run_world": ["empty-cohort:raises", "guard-before-world"],
-    "tools/language_payoff_probe.py::run_world": ["empty-cohort:raises", "guard-before-world"],
-    "tools/world_demand_marker_probe.py::run_world": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 (a) : re-declaree d'apres ce que son temoin AFFIRME (2026-09-23) :
+    # cles payoff / comp_rate / capability / demand (smoke) ; capability off -> False ; flags de gate restaures (E5).
+    # temoin : tests/sandbox/test_compositional_world_probe.py
+    "tools/compositional_world_probe.py::run_world": ["empty-cohort:raises", "guard-before-world",
+                                                      "corps-atteint:payoff-comp_rate-capability-demand:smoke",
+                                                      "capability-off:False", "flags-gate:restaures-E5"],
+    # P2.56 (a) : re-declaree d'apres ce que son temoin AFFIRME (2026-09-23) :
+    # reponses connues (K 4, 3 seeds) : l'ablation du canal effondre la survie SEULEMENT sous demande de coordination
+    # (< 0.6 vs > 0.9), MI > 0.3 sous demande et < 0.15 en trivial, nocomm survit le trivial pas le demandant.
+    # temoin : tests/sandbox/test_language_payoff_probe.py
+    "tools/language_payoff_probe.py::run_world": ["empty-cohort:raises", "guard-before-world",
+                                                  "ablation-canal:effondre-SEULEMENT-sous-demande-de-coordination",
+                                                  "MI:>0.3-demande-<0.15-trivial", "nocomm:survit-trivial-pas-demande"],
+    # P2.56 (a) : re-declaree d'apres ce que son temoin AFFIRME (2026-09-23) :
+    # reponses connues (K 4, 3 seeds) : l'ablation effondre la fitness SEULEMENT sous demande (< 0.6 vs > 0.9) ;
+    # obs_weight > 0.2 sous demande, < 0.1 en trivial ; le between-subject rend un FAUX POSITIF sur le trivial
+    # (fit_true > 1.5 x random_action) -- la raison du marqueur within-subject.
+    # temoin : tests/sandbox/test_world_demand_marker_probe.py
+    "tools/world_demand_marker_probe.py::run_world": ["empty-cohort:raises", "guard-before-world",
+                                                      "ablation:effondre-SEULEMENT-sous-demande",
+                                                      "obs_weight:>0.2-demande-<0.1-trivial",
+                                                      "between-subject:faux-positif-sur-trivial-montre"],
     "run_inworld_evolution": ["empty-cohort:raises", "guard-before-world", "2-generations:trend-et-best:smoke"],
     # P2.40 (2026-09-02) : 3e vague de gardes -- les 12 sondes rendues visibles par le 6e
     # elargissement (verbes compare_/sweep_/probe_ en tete). Garde d'arguments EN TETE, testee
@@ -776,14 +958,27 @@ CALIBRATED = {
     # temoin : tests/sandbox/test_mute_simulators_fake_world_3.py
     "measure_regime": ["empty-cohort:raises", "guard-before-world", "dose:mediane-6.0-sur-2-eres",
                        "regime-E8:cache-cycles-8/12-benchmark-sweet-spot", "reserve-injectee:5.0-sur-CHAQUE-agent"],
-    "measure_genome": ["empty-cohort:raises", "guard-before-world"],
-    "measure_in_world": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 (a) : re-declaree d'apres ce que son temoin AFFIRME (2026-09-23) :
+    # monde famine reel (4 agents, 40 ticks, cache) : cles median_survival / fruits_at_transition, toutes deux >= 0.
+    # temoin : tests/sandbox/test_famine_storage_probe.py
+    "measure_genome": ["empty-cohort:raises", "guard-before-world",
+                       "corps-atteint:median_survival-fruits_at_transition>=0:smoke"],
+    # P2.56 (a) : re-declaree d'apres ce que son temoin AFFIRME (2026-09-23) :
+    # famine reelle : k_eval medianes FINIES, et la condition necessaire a toute mesure de transfert : le champion dans
+    # SON monde survit plus que le tabula rasa (sinon la survie est au plancher et rien n'est mesurable).
+    # temoin : tests/sandbox/test_cross_world_transfer.py
+    "measure_in_world": ["empty-cohort:raises", "guard-before-world", "k_eval-medianes-finies",
+                         "champion>tabula-rasa:condition-necessaire"],
     # P2.56 (b) : substrate_world_ab : WORLDS[cle] injecte -- UNE mediane PAR ere d'eval ([7, 7, 7] pour k_eval 3 ; l'appelant
     # agrege), substrat injecte (batch_model_cls, benchmark_mode, nuit off, era 10000) ; cohorte introuvable -> leve.
     # temoin : tests/sandbox/test_mute_simulators_fake_world_3.py
     "measure_survival": ["empty-cohort:raises", "guard-before-world", "une-mediane-PAR-ere-eval:[7,7,7]",
                          "substrat-injecte:batch_model_cls-benchmark-nuit-off-era-10000", "cohorte-introuvable:raises"],
-    "measure_arm": ["empty-cohort:raises", "guard-before-world"],
+    # P2.56 (a) : re-declaree d'apres ce que son temoin AFFIRME (2026-09-23) :
+    # monde 3D reel (1 ere, 3 agents, 20 ticks) : cles survival / z_range / updown_frac, z_range >= 0, updown dans [0, 1].
+    # temoin : tests/sandbox/test_vertical_world_probe.py
+    "measure_arm": ["empty-cohort:raises", "guard-before-world",
+                    "corps-atteint:survival-z_range-updown_frac-bornes:smoke-3D"],
     "run_credit_probe": ["empty-cohort:raises", "guard-before-world", "learning-dose:published"],   # P1.6
     # P2.56 (b) : injection de run_condition (sentinelle qui journalise) -- grille COMPLETE 2 regimes x 3 agents ; config de
     # CHAQUE regime = celle de la grille (E8) ; champion porte le genome, bras cables partent frais ; seed/K/agents/ticks transmis.
@@ -1360,7 +1555,13 @@ CALIBRATED = {
                                  "retenu_neutre", "appris_froid", "pas_appris_froid"],
     # `run_arm` est un nom en COLLISION (3 autres fichiers) : la declaration DOIT etre qualifiee. Cas :
     # tests/sandbox/test_s2_credit_retention.py::test_run_arm_refuses_degenerate_args_before_any_world.
-    "tools/evo_runs/s2_credit_retention.py::run_arm": ["guard-before-world"],
+    # P2.56 (b), fournee 10 (2026-09-23) : le seul temoin appelait sous pytest.raises (corps non atteint) --
+    # load_bassin / phase1 / phase2 en enregistreurs -- cohorte FROIDE (c_) sans aucun chargement du bassin, cohorte
+    # CHAUDE : un seul chargement clone x n, lr transmis a la phase 1, bras gele sans phase 1.
+    # temoin : tests/sandbox/test_mute_orchestrators_injection_4.py
+    "tools/evo_runs/s2_credit_retention.py::run_arm": ["guard-before-world", "froide:bassin-jamais-charge",
+                                                       "chaude:un-chargement-clone-x-n", "lr:transmis-a-la-phase-1",
+                                                       "gele:sans-phase-1"],
     # P4.8 (2026-09-14) -- lecture de la regle scellee S2-REWARD-ABLATION(-bis), branches dans l'ORDRE impose
     # (INCOMPLET -> HARNAIS -> DOSE -> REPLICATION -> lecture). Cas dans tests/sandbox/test_s2_reward_ablation.py
     # (reponses connues sur lignes synthetiques). Le SEAM de recompense y est calibre a reponse connue
@@ -1371,7 +1572,15 @@ CALIBRATED = {
                                 "credit_erode_seul:plein", "credit_erode_seul:attenue", "sign-and-delta",
                                 "curiosity-dead:measured", "curiosity-dead:refuses-live"],
     # Cas : tests/sandbox/test_s2_reward_ablation.py::test_run_arm_refuses_degenerate_args_before_any_world.
-    "tools/evo_runs/s2_reward_ablation.py::run_arm": ["guard-before-world"],
+    # P2.56 (b), fournee 10 (2026-09-23) : le seul temoin appelait sous pytest.raises (corps non atteint) --
+    # effective_reward / _bassin_cohort / phases en enregistreurs -- l'echelle EFFECTIVE (construit un monde) est
+    # resolue AVANT le seed ; b_energy transmet curiosity 0.0 et novelty 0.0 a la phase 1 ; reward et reward_declared
+    # publies cote a cote ; bras gele : aucune echelle resolue.
+    # temoin : tests/sandbox/test_mute_orchestrators_injection_4.py
+    "tools/evo_runs/s2_reward_ablation.py::run_arm": ["guard-before-world", "echelle-effective:resolue-AVANT-le-seed",
+                                                      "b_energy:curiosite-0-nouveaute-0-transmises",
+                                                      "reward-et-declare:publies-cote-a-cote",
+                                                      "gele:aucune-echelle-resolue"],
     # P4.9 (2026-09-15) -- lecture de la regle scellee S2-CREDIT-ABLATION, branches dans l'ORDRE impose
     # (INCOMPLET -> HARNAIS -> DOSE (TD et episodique) -> REPLICATION -> mecanisme PAS_OU_BRUIT /
     # SIGNAL_QUELCONQUE / SIGNE_NEGATIF + lectures secondaires voie_td / pas / ratios dW). Cas dans
@@ -1382,7 +1591,14 @@ CALIBRATED = {
                                 "pas_ou_bruit", "signal_quelconque", "signe_negatif", "neg_etend", "voie_td",
                                 "pas", "dW-ratio", "sign-and-delta", "seams:known-answer", "seams:refuses-leak"],
     # Cas : tests/sandbox/test_s2_credit_ablation.py::test_run_arm_refuses_degenerate_args_before_any_world.
-    "tools/evo_runs/s2_credit_ablation.py::run_arm": ["guard-before-world"],
+    # P2.56 (b), fournee 10 (2026-09-23) : le seul temoin appelait sous pytest.raises (corps non atteint) --
+    # seams _bassin_cohort / phase1 / phase2 en enregistreurs -- la variante du bras est PUBLIEE et transmise a la
+    # phase 1 (b_zero : reward_scale 0.0, td_enabled True, lr None : E8), copie de la table (jamais un alias), bras
+    # gele sans phase 1 ; bras inconnu -> leve.
+    # temoin : tests/sandbox/test_mute_orchestrators_injection_4.py
+    "tools/evo_runs/s2_credit_ablation.py::run_arm": ["guard-before-world",
+                                                      "variante:publiee-et-transmise-a-la-phase-1-E8",
+                                                      "variante:copie-jamais-alias", "gele:sans-phase-1"],
     # P4.16 (2026-09-22) -- lecture de la regle scellee S2-CREDIT-ABLATION-2, branches dans l'ORDRE impose
     # (INCOMPLET -> HARNAIS -> DOSE (TD et episodique par voie) -> REPLICATION -> contenu / voie / pas episodique
     # + ratios dW). Cas dans tests/sandbox/test_s2_credit_ablation_2.py ; les seams episode_enabled / reward_const
@@ -1393,7 +1609,14 @@ CALIBRATED = {
                                   "pas_episodique", "sign-and-delta", "dW-ratio", "seams:noop-exact",
                                   "seams:known-answer", "seams:refuses-leak"],
     # Cas : tests/sandbox/test_s2_credit_ablation_2.py::test_run_arm_refuses_degenerate_args_before_any_world.
-    "tools/evo_runs/s2_credit_ablation_2.py::run_arm": ["guard-before-world"],
+    # P2.56 (b), fournee 10 (2026-09-23) : le seul temoin appelait sous pytest.raises (corps non atteint) --
+    # seams en enregistreurs + credit_variant en contexte enregistre -- la variante ENVELOPPE la phase 1 seule (ordre
+    # variant-in / phase1 / variant-out / phase2), b_const -> reward_const 1.0, b_tdonly -> episode_enabled False ;
+    # bras gele : ni variante ni phase 1.
+    # temoin : tests/sandbox/test_mute_orchestrators_injection_4.py
+    "tools/evo_runs/s2_credit_ablation_2.py::run_arm": ["guard-before-world", "variante:enveloppe-la-phase-1-seule",
+                                                        "b_const:reward_const-1.0-b_tdonly:episode-off",
+                                                        "gele:ni-variante-ni-phase-1"],
 }
 
 _GENOMES = os.path.join("results", "warm007_genomes")
