@@ -142,7 +142,7 @@ aux deux pas) et TRACE_NUIT / TRACE_NEUTRE / LEARNER_INERT.
   D=1 (`tools/td_step_pilot.py`, `CompositionTask(same_tick=False)`), la qualification in-world n'étant admise
   qu'à dose RELEVÉE (jamais au pas par défaut) :
   * **La pièce ENTRE** ssi, à dose appariée en Σ|ΔW| PUBLIÉE : (1) λ>0 franchit la barre sur ≥ 11/12 seeds à
-    **deux lr adjacents** (l'invariance au pas, aujourd'hui réfutée à 0/12 pour lr 2,0) **ET** (2) le sham
+    **deux lr adjacents** (l'invariance au pas est aujourd'hui NON ÉTABLIE : 0/12 à lr 2,0, mais ce point n'a pas son contrôle de CHEMIN — `td0_d0@2` jamais mesuré — donc il ne réfute rien ; la reprise de P4.17 le mesure) **ET** (2) le sham
     **δ-PERMUTÉ** reste sous la barre au même point (sans quoi « transporte du crédit » et « fait un pas plus gros »
     restent indiscernables : γλ = 0,81).
   * **La pièce est REFUSÉE, et ça se grave comme résultat** ssi le sham δ-permuté égale la trace au point où elle
