@@ -125,7 +125,13 @@ def revisions_connues(nom, limite=_MAX_REVISIONS):
     cp » (le contenu déployé a existé dans un commit) de « quelqu'un a écrit dans le crochet
     commun » (il n'a jamais existé nulle part) — deux diagnostics aux remèdes opposés."""
     chemin = f"{_SOURCE}/{nom}".replace(os.sep, "/")
-    rc, sortie = _git("rev-list", f"--max-count={limite}", "HEAD", "--", chemin)
+    # ⚠️ TOUTES LES RÉFÉRENCES, pas HEAD seul (2026-09-24, déploiement flotte). `core.hooksPath` est
+    # ABSOLU : un worktree sur une branche divergente exécute le crochet déployé depuis la branche de
+    # référence. Vu depuis cette branche, le contenu déployé n'est dans AUCUN de ses commits — avec
+    # l'historique de HEAD seul, la porte rendait INCONNU (« du code que personne n'a relu ») et
+    # BLOQUAIT tous les commits du worktree. Un contenu committé sur N'IMPORTE QUELLE branche a été
+    # relu ; ce qui doit bloquer, c'est ce qui n'a jamais existé nulle part.
+    rc, sortie = _git("rev-list", f"--max-count={limite}", "--all", "--", chemin)
     if rc != 0:
         return set()
     vus = set()

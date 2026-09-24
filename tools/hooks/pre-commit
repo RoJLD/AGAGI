@@ -6,6 +6,34 @@
 # Bypass d'urgence (déconseillé) : git commit --no-verify
 fail=0
 
+# >>> AGAGI:PORTE-ABSENTE >>>
+# UNE BRANCHE ANTÉRIEURE À UNE PORTE NE DOIT PAS ÊTRE BLOQUÉE PAR ELLE (2026-09-24, déploiement flotte).
+# `core.hooksPath` vaut un chemin ABSOLU vers le `.git/hooks` du dépôt principal : TOUS les worktrees
+# exécutent CE fichier, quelle que soit leur branche. Le jour où l'on déploie une porte nouvelle, chaque
+# worktree dont la branche est antérieure à cette porte lance `python tools/check_<porte>.py` sur un
+# fichier qu'il n'a pas : python rend 2, la porte le lit comme un refus, et tous ses commits sont
+# bloqués. Mesuré au déploiement de la porte 22 : `chantier/pm-portes`, où un implémenteur du PM
+# committait, avait été coupé avant `tools/check_hook_deployment.py`.
+# La fonction ci-dessous n'intercepte QUE les appels `tools/check_*.py`, et ne saute une porte QUE si
+# son fichier manque à la fois sur le DISQUE et dans HEAD : c'est la signature exacte d'une branche
+# antérieure à la porte. Une porte présente dans HEAD mais supprimée sur le disque continue d'échouer,
+# sinon supprimer une garde suffirait à la faire taire. Le saut est DIT à voix haute : un saut muet
+# serait la classe E32 (une dégradation de périmètre indiscernable d'une porte qui a passé).
+# Même technique que la fonction `git()` du bloc AGAGI:FUSION-SCOPE ; `command` évite la récursion, et
+# les affectations placées devant l'appel (`PYTHONIOENCODING=utf-8 python ...`) arrivent au processus.
+# Contre-exemples gelés : tests/sandbox/test_hook_porte_absente.py.
+python() {
+  case "$1" in
+    tools/check_*.py)
+      if [ ! -f "$1" ] && ! command git cat-file -e "HEAD:$1" 2>/dev/null; then
+        echo "[agagi/pre-commit] $1 ABSENT de cette branche (antérieure à la porte) : porte NON vérifiée ici."
+        return 0
+      fi ;;
+  esac
+  command python "$@"
+}
+# <<< AGAGI:PORTE-ABSENTE <<<
+
 # >>> AGAGI:FUSION-SCOPE >>>
 # PORTÉE EN FUSION (2026-09-24). En fusion, l'index porte l'UNION des deux côtés, mais
 # `git diff --cached` le compare à HEAD — le PREMIER PARENT. Le côté entrant est donc seul visible,

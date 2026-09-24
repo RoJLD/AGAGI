@@ -374,6 +374,15 @@ PORTES = {
                           "invitation à recopier un fichier que le dépôt n'a jamais vu"),
             },
             {
+                "nom": "l'historique consulté redevient celui de HEAD seul (worktrees divergents)",
+                "avant": '    rc, sortie = _git("rev-list", f"--max-count={limite}", "--all", "--", chemin)',
+                "apres": '    rc, sortie = _git("rev-list", f"--max-count={limite}", "HEAD", "--", chemin)',
+                "motif": ("le cas des WORKTREES : core.hooksPath est ABSOLU, un worktree sur une branche "
+                          "divergente exécute le crochet déployé depuis la branche de référence ; vu "
+                          "depuis sa branche, ce contenu n'est dans aucun de SES commits. Avec HEAD "
+                          "seul, la porte rendrait INCONNU et bloquerait tous les commits du worktree"),
+            },
+            {
                 "nom": "la normalisation des fins de ligne disparaît",
                 "avant": '    return contenu.replace(b"\\r\\n", b"\\n").replace(b"\\r", b"\\n").rstrip() + b"\\n"',
                 "apres": "    return contenu",

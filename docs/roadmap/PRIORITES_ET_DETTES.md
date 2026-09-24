@@ -1244,6 +1244,18 @@ LA LECON DE METHODE, qui vaut plus que les quatre correctifs : une revue adversa
 propres sondes a tue DEUX versions successives d'une garde de quinze lignes, dont une que son auteur
 croyait avoir durcie une heure plus tot. Aucune relecture ne les aurait vues ; les deux refutations
 sont venues de sequences ORDINAIRES, sans malveillance ni fabrication.
+DEPLOIEMENT FLOTTE (2026-09-24, soir, sur demande de robla) -- deux defauts trouves EN LE PREPARANT, avant
+tout cp, et fermes avec leurs cas geles :
+(a) UN CROCHET PARTAGE BLOQUE LES BRANCHES ANTERIEURES A SES PORTES. core.hooksPath est ABSOLU : les trois
+    worktrees actifs (harness-r1, pilotage, pm-portes) executent le pre-commit deploye, et AUCUN de leurs
+    branches ne porte tools/check_hook_deployment.py (mesure : git cat-file -e <branche>:... rend non pour les
+    trois). Python rend 2 sur un fichier absent, la porte le lit comme un refus : deployer la porte 22 aurait
+    bloque tous les commits de ces trois worktrees. Bloc AGAGI:PORTE-ABSENTE : une porte dont le fichier
+    manque A LA FOIS sur le disque et dans HEAD (signature d'une branche anterieure) est sautee ET DITE ;
+    une porte presente dans HEAD mais supprimee sur le disque bloque toujours. tests/sandbox/test_hook_porte_absente.py.
+(b) LA PORTE 22 NE CONNAISSAIT QUE L'HISTORIQUE DE HEAD : vu depuis une branche divergente, le contenu
+    deploye n'est dans aucun de ses commits, donc INCONNU (« code jamais relu ») et blocage. Historique
+    elargi a toutes les references (--all) ; ce qui doit bloquer est ce qui n'a existe NULLE PART.
 <!-- closes_when:grep_present=tools/hooks/pre-commit::check_hook_deployment -->
 
 **P2.109 — rang 12 ter — ⚠️ OUVERTE (2026-09-24) — La moitie MANQUANTE de la regle des commits path-scopes : un

@@ -148,6 +148,49 @@ def test_hors_depot_la_garde_se_TAIT_et_le_DIT(monkeypatch, capsys):
 # 4. MESURE SUR LE DÉPÔT RÉEL — la garde doit rendre un état DÉFINI, et le vert doit être expliqué.
 # --------------------------------------------------------------------------------------------------
 
+def test_une_copie_committee_sur_une_AUTRE_branche_est_PERIME_pas_INCONNU(tmp_path, monkeypatch):
+    """LE CAS DES WORKTREES (2026-09-24, déploiement flotte). `core.hooksPath` est ABSOLU : un worktree
+    sur une branche divergente exécute le crochet déployé depuis la branche de référence. Vu depuis
+    cette branche divergente, le contenu déployé n'est dans AUCUN de ses commits — si l'historique
+    consulté est celui de HEAD seul, la porte rend INCONNU (« du code que personne n'a relu ») et
+    BLOQUE tous les commits du worktree, alors que le contenu vient d'un commit de l'autre branche.
+    L'historique doit être celui de TOUTES les références."""
+    import subprocess
+    for k in ("GIT_INDEX_FILE", "GIT_DIR", "GIT_WORK_TREE", "GIT_OBJECT_DIRECTORY"):
+        monkeypatch.delenv(k, raising=False)
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    repo = str(tmp_path / "jetable")
+    os.makedirs(os.path.join(repo, "tools", "hooks"))
+
+    def git(*a):
+        r = subprocess.run(["git", "-C", repo, "-c", "user.name=t", "-c", "user.email=t@t", *a],
+                           capture_output=True, env=env)
+        assert r.returncode == 0, (a, (r.stdout + r.stderr).decode("utf-8", "replace"))
+
+    def ecrire(contenu):
+        with open(os.path.join(repo, "tools", "hooks", "x"), "w", encoding="utf-8", newline="\n") as fh:
+            fh.write(contenu)
+
+    git("init", "-q", "-b", "base", ".")
+    ecrire("#!/bin/sh\nv1\n")
+    git("add", "-A")
+    git("commit", "-q", "-m", "v1")
+    git("checkout", "-q", "-b", "autre")
+    ecrire("#!/bin/sh\nv2 : la version DEPLOYEE, committee sur l'autre branche\n")
+    git("add", "-A")
+    git("commit", "-q", "-m", "v2")
+    git("checkout", "-q", "base")  # la branche divergente : v2 n'est dans aucun de SES commits
+
+    monkeypatch.setattr(G, "_RACINE", repo)
+    deploye = b"#!/bin/sh\nv2 : la version DEPLOYEE, committee sur l'autre branche\n"
+    assert G.norme(deploye) in G.revisions_connues("x"), (
+        "un contenu committé sur une AUTRE branche est invisible à l'historique : depuis un worktree "
+        "divergent, la copie déployée passerait pour du code jamais relu, et la porte bloquerait "
+        "tous les commits de ce worktree")
+    e = G.etat_un_crochet("x", None, livre=b"#!/bin/sh\nv1\n", deploye=deploye)
+    assert e["etat"] == G.PERIME, e
+
+
 def test_le_depot_reel_rend_un_etat_defini_pour_chaque_crochet():
     dossier = G.repertoire_deploye()
     if dossier is None:
