@@ -769,7 +769,7 @@ Depuis `b0f2620b` (2026-06-05, commit initial). Correctif : UNE résolution de r
 armé par `sandbox_service._arm_live_progress` SANS monkeypatch. *Coût : agent 30 min ; calcul 0.* Dépend de : rien.
 <!-- closes_when:grep_absent=backend/app/main.py::parents\[3\] -->
 
-**P4.11 — rang 5 — ✅ CLOSE le 2026-09-24 (accord du master, session harnais) — ⚠️ BILLET ACQUIS À UN SEUL POINT DE FONCTIONNEMENT : lr 4,0 = 0,25/agent, λ 0,9-0,99 (aide09 12/12, aide099 11/12) ; **invariance au pas NON ÉTABLIE** — à lr 2,0 l'aide est nulle (aide09 0/12, R1) mais ce point N'A PAS SON CONTRÔLE DE CHEMIN : les bras de R1 à ce pas sont `lr0_reference@2`, `td0@2`, `tdlam09@2`, **jamais `td0_d0@2`**, et la ligne lr 2,0 de R2 était coupée ; or `td0@2` lui-même ne rend que 1/12, donc on ne distingue pas « la trace n'aide pas à ce pas » de « rien n'apprend à ce pas ». ⚠️ **Corrigé le 2026-09-24, même jour** : la première rédaction de cette clôture écrivait « invariance RÉFUTÉE », ce qui SUR-DÉCLARAIT — trouvé en vérifiant les bras de R1 après que la session propriétaire du pilote ait corrigé sa propre lecture (la ligne lr 2,0 avait été coupée par la CONTENTION et sa reprise la récupère : 48 cellules en cours, elles trancheront). lr 1,0 JAMAIS mesuré (coupe E13 STRUCTURELLE, tenue machine libre, publiée dans `_regime.coupe`). La pièce `eligibility_trace_credit` N'ENTRE PAS au registre : deux contrôles de son billet manquent (P4.19). ([`ADR-005`](../ADR/005_mecanismes_biomimetiques_pieces_familles_prerequis.md), item 1) —
+**P4.11 — rang 5 — ✅ CLOSE le 2026-09-24 (accord du master, session harnais) — ⚠️ BILLET ACQUIS À UN SEUL POINT DE FONCTIONNEMENT : lr 4,0 = 0,25/agent, λ 0,9-0,99 (aide09 12/12, aide099 11/12) ; **invariance au pas NON ÉTABLIE** — à lr 2,0 l'aide est nulle (aide09 0/12, R1) mais ce point N'A PAS SON CONTRÔLE DE CHEMIN : les bras de R1 à ce pas sont `lr0_reference@2`, `td0@2`, `tdlam09@2`, **jamais `td0_d0@2`**, et la ligne lr 2,0 de R2 était coupée ; or **aucun des deux bras ne franchit sa propre barre** à ce pas : mesuré indépendamment par la session du harnais sur `results/td_step_pilot_r1.json`, `lr0_reference@2` = 0,1643, `td0@2` = 0,1840, `tdlam09@2` = 0,1917, pour une barre réf + 0,05 = **0,2143**. Le 0/12 du pas 2 oppose donc deux bras qui n'apprennent NI l'un NI l'autre : la grandeur contrastée n'existe pas à ce point. Une trace transporte du crédit ; s'il n'y a pas de crédit à transporter, son inertie ne la concerne pas. ⚠️ **Et le critère de lisibilité ne comble pas ce trou tout seul** : `lisible@lr` se mesure sur la paire SANS DÉLAI (`td0_d0` contre `lr0_reference_d0`), alors que l'aide se lit sur la paire AVEC délai — un pas peut donc être déclaré « lisible » pendant que les bras qui portent le contraste restent sous leur barre. Le bras de chemin à ce pas est en cours de mesure par la reprise de P4.17 ; sa lecture appartient à cette entrée-là, pas à celle-ci. ✅ **Ce que le billet ne risque PAS** : les 17 comptes publiés de R0/R1/R2 ont été recomptés en arithmétique de GRILLE (640 évaluations, marge = 32 pas exactement) — tous IDENTIQUES, zéro égalité exacte, donc E30 est LATENT dans ce runner et n'a pas touché ces chiffres. ⚠️ **Corrigé le 2026-09-24, même jour** : la première rédaction de cette clôture écrivait « invariance RÉFUTÉE », ce qui SUR-DÉCLARAIT — trouvé en vérifiant les bras de R1 après que la session propriétaire du pilote ait corrigé sa propre lecture (la ligne lr 2,0 avait été coupée par la CONTENTION et sa reprise la récupère : 48 cellules en cours, elles trancheront). lr 1,0 JAMAIS mesuré (coupe E13 STRUCTURELLE, tenue machine libre, publiée dans `_regime.coupe`). La pièce `eligibility_trace_credit` N'ENTRE PAS au registre : deux contrôles de son billet manquent (P4.19). ([`ADR-005`](../ADR/005_mecanismes_biomimetiques_pieces_familles_prerequis.md), item 1) —
 Trace d'éligibilité de politique TD(λ) dans `TorchPopulationModel._td_update` : le crédit local SANS BPTT, calibré à
 0 simulation ; l'issue positive se mesure sur un PILOTE TD PAR PAS (`CompositionTask(same_tick=False)`), pas sur le
 proxy D=2.**
@@ -860,6 +860,27 @@ contre-exemple gelé et sa mutation (porte 15), dans la même passe — et une b
 existantes d'autrui.
 <!-- closes_when:grep_present=tools/check_backlog_freshness.py::auto-référentielle -->
 
+**P2.105 — rang 12 — OUVERTE (2026-09-24, second cas d'E30 paru le jour de la classe) — La porte qui manque à
+E30 : un seuil dont la marge est un multiple EXACT du pas d'une grille se compare sur la grille, et rien ne
+l'applique.**
+Le registre disait « garde exécutable à écrire quand un second cas paraîtra ». Il est paru : `tools/td_step_pilot.py`
+(`n_sup`/`n_inf`, l. 136, 240, 350) compare en flottants une accuracy qui est un COMPTE sur 40 × 16 = **640**
+évaluations, avec une marge 0,05 qui vaut **exactement 32 pas**, sur des valeurs stockées en **float32**. Les
+17 comptes publiés de R0/R1/R2 ne changent PAS (zéro égalité exacte sur 12 seeds) — le défaut y est LATENT — mais
+la reprise de P4.17 tourne sur 48 cellules NEUVES avec le code non corrigé, et une égalité qui y apparaîtrait
+serait perdue du côté qui refuse (E14 en formation).
+**Le travail est déjà à moitié fait** : le motif est écrit et VALIDÉ sur le cas positif connu (`bilinear_sham_run`
+avant `ba56ede3`), et l'inventaire des **12 sites** est mesuré, donc la baseline est prête à geler. Deux des 12
+produisent un VERDICT publié avec marge et leur commensurabilité n'est pas mesurée :
+`tools/adaptive_planning_probe.py:154` (`ADAPTIVE_NEUTRAL`) et `tools/hunif_retention_probe.py:148`
+(`NO_RETENTION_ADVANTAGE`) — deux négatifs de fond ; les autres ne gouvernent qu'un affichage.
+**Forme** : porte qui refuse tout NOUVEAU site de la forme hors baseline, plus l'heuristique gratuite là où
+l'instrument connaît son N (`n_eval`, `eval_batches × n_agents`) — « la marge est-elle un multiple du pas ? » est
+décidable sans simuler. Contre-exemple gelé et mutation (porte 15) dans la même passe. ⚠️ Le correctif de
+`ba56ede3` est à retro-appliquer à `td_step_pilot.py` AVANT la lecture de la reprise, sinon c'est E14 caractérisée.
+<!-- closes_when:grep_present=tools/hooks/pre-commit::check_grid_threshold -->
+
+
 **P4.21 — rang 12 — OUVERTE (2026-09-24, trouvée en amendant ma propre clôture) — Un verdict de SYNTHÈSE qui
 agrège plusieurs POINTS DE FONCTIONNEMENT n'a aucune garde : le pré-vol garde une CELLULE, pas une CONCLUSION.**
 Preuve (E2 occ. 6) : `7fa6b2d8` publiait « invariance au pas RÉFUTÉE » depuis `aide09 = 0/12` à lr 2,0, alors que
@@ -877,6 +898,8 @@ est « le contrôle » d'un point, et proxifier ça serait la faute que le dép�
 `assert_verdict_invariant_to_optimizer` qui est son cousin exact (lui garde l'invariance AU PAS, mais seulement
 entre deux lr tous deux LISIBLES). Coût : une assertion, son contre-exemple gelé, sa mutation (porte 15) ; et
 l'entrée au périmètre du cliquet de calibration si la fonction produit une affirmation.
+**Deux règles apportées par la session du harnais, mesurées un étage plus bas sur la MÊME forme, et qui doivent contraindre la garde** : (1) *le vocabulaire du verdict doit avoir une branche pour « l'entrée ne permettait pas de décider »* — chez elle aucun `INCONCLUSIVE*` ne peut devenir un négatif, `_demand` les route vers `DEMAND_INCONCLUSIVE` et jamais vers `NOT_DEMANDED` ; sans cette branche l'auteur n'a pas d'autre mot que le négatif de fond, **et il le prend** (c'est littéralement ce que j'ai fait) ; (2) *l'ORDRE des branches est lui aussi une garde, et il peut PRÉEMPTER la protestation* — mesuré chez elle : un défaut qui déclenche bien l'alarme d'alias ressort quand même en `NOT_DEMANDED`, simplement parce que `NOT_DEMANDED` précède `INCONCLUSIVE_ALIAS` dans l'ordre scellé. La garde criait, personne ne l'entendait. Donc le refus du vocabulaire de réfutation doit être rendu **AVANT** qu'un verdict de fond ait pu être choisi, pas après.
+**Contre-exemple gelé, offert et prêt à l'emploi** (mesuré par la session du harnais dans son propre code) : `_necessity` lisait `INCONCLUSIVE_INVERTED` — le bras SANS la pièce fait MIEUX, ratio 0,703, soit 1,42× dans l'autre sens — et publiait « aucun effet de l'ablation détecté ». Un effet de 1,42× annoncé comme AUCUN effet, par le fichier même qui route correctement ce verdict quand il s'agit de la demande, et qui avait survécu à un cliquet de calibration et à 135 tests verts. Il est du bon côté de la frontière que cette entrée décrit : à prendre tel quel plutôt qu'à fabriquer.
 ⚠️ Peut se reformer en SILENCE : n'importe quelle clôture future peut refaire exactement ça, hook au vert.
 <!-- closes_when:grep_present=tools/experiment_preflight.py::assert_verdict_points_controlled -->
 
