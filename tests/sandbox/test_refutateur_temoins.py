@@ -650,6 +650,59 @@ def test_le_workflow_n_accepte_de_l_appelant_que_des_CHEMINS():
         assert fuite not in js, f"le workflow accepte {fuite} de l'appelant"
 
 
+def test_le_workflow_n_a_AUCUN_backtick_NU_dans_ses_litteraux_gabarits():
+    """CONTRE-EXEMPLE GELE : le harnais a REFUSE de charger le script le 2026-09-24.
+
+        Invalid workflow script: Script parse error: Unexpected token (116:62)
+        ere ligne, TELLE QUELLE, dans le champ `plancher`. Un score sans son plancher es
+
+    Un backtick de PROSE dans un littéral gabarit ferme le gabarit. Le livrable central de la tâche
+    n'avait jamais été exécuté : les tests portaient sur le module Python et sur le TEXTE du
+    workflow, aucun ne vérifiait qu'il est CHARGEABLE.
+
+    ⚠️ `node --check` est MESURÉ INSUFFISANT — il rend 0 sur le fichier que le harnais refuse (les
+    deux parseurs diffèrent), donc une garde qui l'appellerait serait décorative (classe E4).
+    ⚠️ Et cette garde-ci ne voit qu'une propriété SYNTAXIQUE LOCALE : la passer ne garantit pas que
+    le harnais accepte le script.
+    """
+    from tools import workflow_lint  # noqa: PLC0415
+
+    source = _lire(_WORKFLOW)
+    assert workflow_lint.backticks_nus(source) == [], (
+        "backtick nu dans le workflow : le harnais refusera de le charger")
+
+    # CONTRE-EXEMPLE : on ré-introduit EN MÉMOIRE le backtick exact de la ligne 116.
+    casse = source.replace("dans le champ plancher.", "dans le champ `plancher`.")
+    assert casse != source, "le contre-exemple ne casse RIEN : la garde ne prouverait rien"
+    trouves = workflow_lint.backticks_nus(casse)
+    assert trouves, "MUTATION NON TUEE : le backtick nu de la ligne 116 repasse"
+    assert any(sig == "backtick-en-texte" for _, _, sig, _ in trouves)
+    assert any(sig == "tagged-template" for _, _, sig, _ in trouves)
+
+
+def test_le_balayeur_de_backticks_rend_ses_DEUX_issues_sur_des_sources_minimales():
+    """Les deux issues sur une réponse connue, et pas seulement sur le fichier réel."""
+    from tools import workflow_lint  # noqa: PLC0415
+
+    sain = "const a = `texte ${x} et \\` echappe`\nconst b = 'un ` dans une chaine'\n// un ` en commentaire\n"
+    assert workflow_lint.backticks_nus(sain) == [], workflow_lint.backticks_nus(sain)
+    casse = "const a = `voir le champ `plancher` ici`\n"
+    signatures = {sig for _, _, sig, _ in workflow_lint.backticks_nus(casse)}
+    assert signatures == {"backtick-en-texte", "tagged-template"}
+    assert workflow_lint.backticks_nus("const a = `jamais ferme\n")[-1][2] == "gabarit-non-ferme"
+    assert workflow_lint.main([_WORKFLOW]) == 0
+
+
+def test_TOUS_les_scripts_de_workflow_du_depot_sont_balayes_pas_seulement_celui_ci():
+    """La garde porte sur le MÉCANISME, pas sur le fichier où il a mordu (règle du dépôt)."""
+    from tools import workflow_lint  # noqa: PLC0415
+
+    dossier = os.path.join(T._ROOT, ".claude", "workflows")
+    scripts = [os.path.join(dossier, f) for f in sorted(os.listdir(dossier)) if f.endswith(".js")]
+    assert scripts, "aucun script de workflow trouvé : la garde ne balaierait rien"
+    assert workflow_lint.main(scripts) == 0
+
+
 def test_le_workflow_ne_construit_aucun_monde_et_ne_prend_aucun_bail():
     js = _lire(_WORKFLOW)
     for interdit in ("hold(", "jobs.run", "FamineWorld", "kuzu"):

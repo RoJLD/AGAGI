@@ -111,11 +111,11 @@ tools/refutateur_temoins.py.
    (${JSON.stringify(juge && juge.jugements)}) :
    PYTHONIOENCODING=utf-8 python tools/refutateur_temoins.py --verifier <nom> ${travail}/critiques-<nom>.json --extrait <chemin relu> --jugement <OUI|NON|INDECIDABLE>
    Le code de sortie fait foi : 0 = retrouve, 1 = revue NULLE, 2 = indecidable. Ne reinterprete pas la sortie texte.
-   Pour un temoin de genre noop, n'passe PAS --jugement.
+   Pour un temoin de genre noop, ne passe PAS --jugement.
 5. Lance enfin: PYTHONIOENCODING=utf-8 python tools/refutateur_temoins.py --plancher <repertoire des temoins>
-   et recopie sa premiere ligne, TELLE QUELLE, dans le champ `plancher`. Un score sans son plancher est interdit.
-6. Rends {refus, plancher, resultats: {<nom>: {retrouve, code, fichier_critiques, commande}}}, ou `commande` est la
-   ligne EXACTE que tu as lancee a l'etape 4, pour qu'un tiers la relance.`,
+   et recopie sa premiere ligne, TELLE QUELLE, dans le champ plancher. Un score sans son plancher est interdit.
+6. Rends {refus, plancher, resultats: {<nom>: {retrouve, code, fichier_critiques, commande}}}, ou le champ commande
+   porte la ligne EXACTE que tu as lancee a l'etape 4, pour qu'un tiers la relance.`,
   { label: 'verification', phase: 'Verification', schema: VERIFICATION })
 
 const resultats = (verif && verif.resultats) || {}

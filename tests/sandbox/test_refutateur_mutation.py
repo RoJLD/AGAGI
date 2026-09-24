@@ -119,6 +119,11 @@ _MUTATIONS = [
     ("le workflow ne declare plus les chemins des critiques",
      S.test_le_workflow_fait_DECLARER_les_chemins_pour_que_le_controleur_relance_le_CLI,
      _mut_workflow(lambda t: t.replace("fichier_critiques", "fichier_interne")), None),
+    # Le harnais a REFUSE de charger le script le 2026-09-24 sur ce backtick exact (116:62), et
+    # `node --check` rendait 0 : la garde ne peut pas s'appuyer sur lui.
+    ("un backtick NU revient dans un litteral gabarit",
+     S.test_le_workflow_n_a_AUCUN_backtick_NU_dans_ses_litteraux_gabarits,
+     _mut_workflow(lambda t: t.replace("dans le champ plancher.", "dans le champ `plancher`.")), None),
 ]
 
 _MUTATIONS_ROSTER = [

@@ -193,7 +193,7 @@
   "tests/sandbox/test_referential_game_probe.py": 2,
   "tests/sandbox/test_reflexive_supervisor.py": 6,
   "tests/sandbox/test_refutateur_mutation.py": 5,
-  "tests/sandbox/test_refutateur_temoins.py": 42,
+  "tests/sandbox/test_refutateur_temoins.py": 45,
   "tests/sandbox/test_regime_claims_gate.py": 22,
   "tests/sandbox/test_repopulation.py": 5,
   "tests/sandbox/test_resolve_dreaming.py": 4,
