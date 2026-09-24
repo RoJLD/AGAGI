@@ -1287,6 +1287,75 @@ le champion prod ; à relancer sur le sujet issu de P4.4. *Coût : agent ~2 h ; 
 P1.7) et apprenant GELÉ, pour lire ou rétracter la DV 7/7 (+39 %). Voir l'annotation sous l'entrée
 P2.42. Dépend de : P1.7.
 
+**P2.96 — Le split `control` du harnais n'est JAMAIS entraîné : la garde d'alias est structurellement aveugle.**
+Mesuré par [[EDR-HARNESS-R1]] (cellule B, `INCONCLUSIVE_ALIAS`) : `run_harness_cell` entraîne l'instance
+uniquement sur le split `"train"` (`tools/harness/cell.py:121-127`) puis évalue le contrôle sur CETTE instance
+(`tools/harness/cell.py:146-148`), alors que le split existe (`tools/harness/tasks/composition.py:53-56`). La
+politique apprend à lire `key` au pas 0 dans son état et jamais au pas 1 : réinitialiser l'état tue aussi la tâche
+de contrôle (0,9078 → 0,1781, `leakage` 0,7297) et `alias_guard_verdict` rend `FUNCTIONAL_LEAK` PAR CONSTRUCTION.
+Un contrôle non entraîné ne peut pas séparer « l'état est nécessaire » de « ce slot n'est jamais lu ». Quoi :
+entraîner en ALTERNANCE sur `train` et `control` dès qu'une ablation `site="state"` est déclarée (précédent
+exécutable : `tools/language_memory_demand_probe.py::_train_and_eval`, paramètre `train_control=True`), la dose du
+contrôle publiée à part ; OU faire porter au contrat de tâche l'exigence que le contrôle soit résoluble par la
+politique entraînée sur `train` seul, et REFUSER en tête sinon. Prérequis de toute cellule à ablation d'état (donc
+de la re-mesure de B en R2). Coût ≈ 2 h + un run de cellule.
+<!-- closes_when:grep_present=tools/harness/cell.py::train_control -->
+
+**P2.97 — La garde E19 ne distingue pas un écart nul par PLAFOND d'un écart nul par effondrement.**
+Mesuré par [[EDR-HARNESS-R1]] (cellule A′, `LR_ARTIFACT`) : `_e19` (`src/seed_ai/harness_verdict.py:288-330`)
+protège par `reference_floor` contre une référence qui s'effondre vers le plancher, mais deux bras SATURÉS au
+plafond au même pas du balayage donnent `gap = 0` — donc `closure = 1,0` et `LR_ARTIFACT` — alors qu'aucun des
+deux n'a échoué. Sur une tâche facile (rappel `same_tick`, 150 épisodes, les deux bras à 1,000 à lr 0,02), la
+garde mêle saturation et vitesse d'apprentissage. Quoi : ajouter au calcul un plafond symétrique du
+`reference_floor` (si les DEUX bras dépassent `ceiling - 2 se` à un pas, ce pas ne porte pas d'information sur la
+nécessité : statut `GAP_AT_CEILING`, publié, pas `LR_ARTIFACT`), avec son contre-exemple gelé ; et, côté
+protocole, sceller une cellule facile avec un régime qui ne sature pas au pas le plus rapide (le smoke doit
+mesurer les DEUX pas, pas un seul — c'est ce qui a manqué à A′). Coût ≈ 3 h, zéro run.
+<!-- closes_when:grep_present=src/seed_ai/harness_verdict.py::GAP_AT_CEILING -->
+
+**P2.98 — `check_preregistration_applied.py` PLANTE (AttributeError) sur un `.json` de `docs/preregistrations/`
+dont `rule` n'est pas un dict.** Mesuré en écrivant [[EDR-HARNESS-R1]] : `payload.get("rule", {}).get(...)`
+(`tools/check_preregistration_applied.py:105-106`, `:154`, `:217`) suppose un dict ; un fichier de provenance dont
+`rule` est une chaîne fait tomber la porte 5 en exception au lieu d'un refus propre — c'est pourquoi la provenance
+de `-bis` est tamponnée sur le SMOKE (`tools/harness/seal_r1.py:30-37`) plutôt que déposée là. Une porte qui
+plante ne dit pas « non », elle ne dit rien. Quoi : ignorer proprement (avec un message nommant le fichier) tout
+payload dont `rule` n'est pas un dict, et un cas de calibration qui pose un tel fichier dans un `_dir` temporaire.
+Coût ≈ 30 min.
+<!-- closes_when:grep_present=tests/sandbox/test_preregistration_guard.py::rule_non_dict -->
+
+**P2.99 — `assert_verdict_invariant_to_optimizer` ne surveille que l'effondrement ABSOLU de la référence, pas sa
+dégradation relative.** `tools/experiment_preflight.py:303-372` : `reference_floor` est un plancher bas (ici la
+barre d'acquisition, ~0,19-0,22) ; une référence qui passe de 1,00 à 0,70 — dégradation massive, toujours très
+au-dessus du plancher — ne déclenche rien, et la closure attribue au PAS ce qui vient du bras de référence.
+Trouvée en revue de [[EDR-HARNESS-R1]] (héritage P2.21). Quoi : publier `refs_by_lr` dans le retour de la garde
+(aujourd'hui elle ne rend que `True`) et refuser, ou marquer `INDETERMINE_REFERENCE_MOVED`, quand la référence
+varie de plus d'un seuil DÉCLARÉ entre les deux pas ; contre-exemple gelé des deux côtés. Coût ≈ 1 h.
+<!-- closes_when:grep_present=tools/experiment_preflight.py::INDETERMINE_REFERENCE_MOVED -->
+
+**P2.100 — Le bloc `regime` publié par une cellule est RECOPIÉ des arguments du runner, jamais re-dérivé d'un
+comptage.** `tools/harness/cell.py:238-245` construit `regime` depuis `task.regime()` et les kwargs reçus
+(`episodes`, `n_agents`, `eval_batches`) : rien ne prouve que le nombre d'épisodes réellement exécutés est celui
+publié — c'est la forme E8 (« une prémisse est une mesure, pas un décor ») appliquée au régime du harnais, et le
+sceau lui-même ne peut pas la rattraper puisque le runner prend ces valeurs en arguments. Quoi : compter les
+itérations dans `_run_arm` (épisodes d'entraînement, lots d'évaluation) et publier `regime_mesure` à côté de
+`regime`, avec une assertion d'égalité ; le record cite `regime_mesure`. Coût ≈ 1 h.
+<!-- closes_when:grep_present=tools/harness/cell.py::regime_mesure -->
+
+**P2.101 — Cinq dettes mineures du harnais, chacune avec sa preuve (regroupées : aucune ne vaut une entrée seule).**
+(a) Le bris d'égalité du second `lr` choisit le pas le plus PROCHE de `sweep0_lr` (`tools/harness/seal_r1.py:148`),
+donc la sonde E19 la plus faible, là où le plus ÉLOIGNÉ discriminerait mieux — déclarer le critère dans le sceau.
+(b) `ConnectomeLearner.build` valide `obs_dim` et `K` mais jamais `n >= 1`
+(`tools/harness/learners/connectome.py:194-199`) : `n=0` construit une instance vide au lieu d'un refus en tête.
+(c) `TabularLearner.state_dict` omet `seen_cols` (`tools/harness/learners/tabular.py:103-104` vs `:31`, `:48-51`) :
+un rechargement filtre tout jusqu'à ré-apprentissage. (d) Aucun bras `sham` n'a tourné en R1
+(`src/seed_ai/harness_verdict.py:47`, `_ARMS`) alors que `PIECES["bilinear"].matched_sham` existe : la nécessité
+publiée reste `PARAMS_NON_APPARIES` tant que le bras n'est pas couru (R2). (e) Le champ `cout` du sceau
+`HARNESS-R1-ter` décrit le budget de `-bis` (« 81 min ») alors que son `budget_family_s` vaut 14 534 s = 242 min
+(`docs/preregistrations/HARNESS-R1-ter.json`) : `build_rule_r1_ter` (`tools/harness/seal_r1.py:278-309`) hérite
+`cout` au lieu de le DÉRIVER — le sceau est immuable et reste reproductible, mais un futur `-quater` doit dériver
+le texte des budgets qu'il vient de changer (classe E8 ; commentaire déjà posé dans la fonction).
+<!-- closes_when:grep_present=tools/harness/learners/connectome.py::n < 1 -->
+
 ### Décisions tranchées le 2026-09-14 (robla : « ce qu'il y a de mieux pour l'avenir »)
 
 - **P1.1 → FERMÉE** : `pytest-timeout` est installé et imposé par la CI (`.github/workflows/ci.yml`).
