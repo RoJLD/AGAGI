@@ -946,6 +946,57 @@ une suite mesurée machine au repos ne mesure pas l'état « bail tenu ». *Coû
 Dépend de : rien. Occurrence au registre : E14 (2026-09-23, session d7).
 <!-- closes_when:grep_present=tests/conftest.py::ResourceBusy -->
 
+**P2.83 — ⚠️ OUVERTE (2026-09-24, vue en passant pendant la revue de la spec du dashboard Pilotage) — le cliquet de
+calibration ne connaît NI `compute_*` NI `parse_*`, et une déclaration qu'il ne détecte pas est ignorée EN SILENCE :
+7ᵉ angle mort de nommage, dette nette CHIFFRÉE à 7 fonctions.**
+Quoi : `tools/check_instrument_calibration.py` porte **14 motifs** (`*verdict*`, `measure*`, `run_*`, `classify*`,
+`benchmark*`, `assert_*`, `compare*`, `sweep*`, `probe*`, `learn*`, `compute_policy_gradient`, `*_survival_eras`) et
+aucun ne capte `compute_*` ni `parse_*` — vérifié le 2026-09-24 en passant les deux signatures aux motifs chargés
+depuis le module : zéro correspondance. Or une déclaration `CALIBRATED` dont le nom n'est pas détecté n'est pas
+signalée : elle tombe dans la branche « déclaration périmée » et est **ignorée sans un mot** (`:249`, et le commentaire
+`:74` le dit déjà pour le 5ᵉ angle mort `assert_*`). Déclarer un instrument nommé `compute_…` revient donc à ne rien
+déclarer, et c'est la classe **E10** appliquée au cliquet lui-même. Coût de l'élargissement, mesuré AVANT de le
+décider (règle du dépôt : chaque élargissement révèle de la dette réelle, on la compte d'abord) : **7 fonctions non
+déjà captées** — `tools/pm/roles_counts.py::compute_counts` (un instrument du PM, qui publie le ratio
+science/méthodo), `tools/compositional_transfer_probe.py::compute_transfer`,
+`tools/cartography.py::parse_territories`, `tools/consolidate_records.py::parse_record`,
+`src/visualization.py::compute_genome_layers`, `src/graph_rag/reflexive_supervisor.py::compute_trend`,
+`src/metaprog/rsi_loop.py::parse_demand_response` ; les cinq `compute_*_verdict` du dépôt sont déjà prises par le
+motif `*verdict*`, donc l'élargissement ne les compte pas deux fois. À faire : ajouter les deux motifs, geler les 7
+(ou les calibrer), et une ligne dans `check_gate_mutation.PORTES` pour la porte 2 qui rougit si un motif est retiré.
+⚠️ La déclaration silencieusement ignorée est le vrai défaut : même sans élargissement, le cliquet devrait CRIER
+quand une clé de `CALIBRATED` ne correspond à aucun symbole détecté. *Coût : agent 1-2 h ; calcul 0.*
+Dépend de : rien. Trouvé en écrivant `docs/superpowers/specs/2026-09-22-pilotage-dashboard-design.md` (section 6).
+⚠️ Clause corrigée dans la même passe : la première version citait le motif `parse_` — SATISFAITE d'emblée par
+`ap.parse_args(argv)` (`:337`), et le cliquet l'a immédiatement dénoncée (« condition DÉCLARÉE satisfaite mais l'entrée
+s'annonce ouverte »). La clause vise donc le motif tel qu'il s'écrirait DANS un `re.compile`, absent aujourd'hui.
+<!-- closes_when:grep_present=tools/check_instrument_calibration.py::parse_\w+\) -->
+
+**P2.84 — ⚠️ OUVERTE (2026-09-24, demande de robla le 2026-09-23) — lot 2 « Science » du dashboard : arbres en temps
+réel, taxonomies, pipeline des runs, « à quoi ça sert / ce qu'on en tire », visuel des avancées — À BRAINSTORMER avant
+toute implémentation, sources déjà MESURÉES.**
+Quoi : le lot 1 (`docs/superpowers/specs/2026-09-22-pilotage-dashboard-design.md`) livre Flotte / Roadmap / Portes et
+s'arrête là ; robla a demandé en plus « la visu de nos arbres en temps réel, les taxonomies, nos runs, la
+compréhension, à quoi ils servent, ce qu'on en tire, visuelle de nos avancées », et a tranché le 2026-09-23 : **lot 2
+séparé, à brainstormer**. Ce que le lot 1 couvre déjà : worktrees (liste, branche, fusionné, session attachée), runs
+EN VOL (bails, processus), portes G0-G4 avec `tested_by`, comptes datés. Ce qu'il ne couvre pas, avec la source
+mesurée le 2026-09-22/24 : (a) **taxonomie** — `data/agi_taxonomy/{capabilities,demands,refuted}.json`
+(`tools/check_agi_taxonomy.py:40-43`), aucune vue, et le frontend a déjà un rendu d3-force réutilisable
+(`ProvenanceGraph`, `TopologyViewer`) ; (b) **pipeline scellée → run → record → arête** — 66
+`docs/preregistrations/*.json` (`{name, rule, seal}`), `check_preregistration_applied.couverture()` (`:177`) et
+`familles_sans_record()` (`:193`) disent déjà quelle règle scellée n'a pas de record ; (c) **ce qu'on en tire** —
+`results/records_graph.json` : 321 nœuds (296 EDR, 5 ADR, 15 REF, 5 SDR), **131 verdicts**, 454 arêtes ; (d)
+**rythme** — records ajoutés par semaine ISO (`git log --diff-filter=A -- docs/EDR` : 13 / 4 / 6 / 3 sur S36→S39
+2026), fermetures par semaine (dates des têtes d'entrée), ratio science/méthodo (`tools/pm/roles_counts.py`, fenêtre
+glissante 30 j) ; (e) **arbres** — avance/retard par branche (`git rev-list --left-right --count` : `pm-roles` 22/18,
+`harness-r1` 7/23, `reconcile-d1-main` 0/644 le 2026-09-22 avant la fusion). Aucune donnée à produire : tout existe,
+le coût est le cadrage puis le rendu. Note annexe trouvée en passant : `/api/strategy/strategy_tree` **n'a aucun
+consommateur frontend** (`grep -rln strategy_tree frontend/src/components` vide le 2026-09-22) — à confirmer par la
+porte de parité avant de le brancher ou de le retirer. *Coût : brainstorm 2 h ; implémentation non estimée avant
+cadrage.* Dépend de : lot 1 (pas 1-3 de la spec).
+<!-- closes_when:path_present=docs/superpowers/specs/2026-09-24-pilotage-science-design.md -->
+
+
 **P3.4 — rang 14 — ✅ CLOSE le 2026-09-15 ([[EDR-CALIB-LEGACY-LEARNER]], `results/legacy_learner_calibration.json`) — Cas de calibration de l'apprenant LEGACY.**
 Quoi : `MambaBatchModel.compute_policy_gradient` (le chemin actif pendant tout l'arc EVO), mêmes bras
 que P1.6 (oracle / apprenant / apprenant coupé), cohorte immortelle, n = 12. Le panel l'a mesuré à n = 1
