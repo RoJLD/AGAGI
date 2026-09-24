@@ -1121,6 +1121,24 @@ périmé UNIQUEMENT sur le disque doit passer en commit et être signalé hors c
 depuis un fichier est concernée. *Coût : agent 1-2 h ; calcul 0.* Dépend de : rien.
 <!-- closes_when:grep_present=tools/check_synthesis_counts.py::GIT_INDEX_FILE -->
 
+**P2.86 — ⚠️ OUVERTE (2026-09-24) — dans un test, l'identité git se passe PAR `-c`, jamais par `git config` : trois
+tests l'ÉCRIVENT dans un dépôt jetable, et une seule régression d'isolation suffit à polluer le dépôt réel.**
+Quoi : mesuré le 2026-09-24 — **trois** tests posent l'identité par une écriture (`tests/sandbox/test_pm_roles_counts.py:96-97`,
+`test_pm_snapshot.py:23-24`, `test_staged_authorship.py:54-55` : `git config user.name/user.email`) et **trois** la
+passent en ligne (`test_backlog_freshness.py`, `test_harness_provenance.py`, `test_hook_on_merge.py` :
+`git -C <repo> -c user.name=t -c user.email=t@t <commande>`). La forme `-c` **n'écrit rien** : il n'y a donc aucune
+fenêtre d'isolation à protéger. La forme `git config` est correcte tant que le `cwd` et l'`env` du sous-processus sont
+justes — et la nuit du 2026-09-23 a montré ce qu'il arrive sinon : la config LOCALE du dépôt AGAGI est passée à
+`user.name = Test` / `user.email = test@example.com` (mtime de `.git/config` : 2026-09-23 22:51), et **33 commits sur
+1725, toutes branches — 11 le 23, 22 le 24 —** ont porté cette identité au lieu de celle du propriétaire, dont deux des
+miens (par `commit-tree`, qui ne reçoit pas l'identité de l'appelant). Corrigé à la racine par robla le 2026-09-24
+(config locale remise à `Robin Denis`), donc l'occurrence est close — mais le MÉCANISME reste : trois tests peuvent la
+reposer. La session `agagi-11` fait passer le sien à la forme `-c` dans sa passe et attribue la fenêtre d'isolation à
+une ronde intermédiaire de son propre chantier de porte, sans pouvoir la rejouer (état non reproductible). À faire :
+les trois écritures passent à `-c`, et la règle entre dans `CLAUDE.md` en une ligne — c'est une famille entière fermée
+par une forme, pas par une garde. *Coût : agent 30 min ; calcul 0.* Dépend de : rien.
+<!-- closes_when:grep_absent=tests/sandbox/test_pm_snapshot.py::config", "user\. -->
+
 
 **P3.4 — rang 14 — ✅ CLOSE le 2026-09-15 ([[EDR-CALIB-LEGACY-LEARNER]], `results/legacy_learner_calibration.json`) — Cas de calibration de l'apprenant LEGACY.**
 Quoi : `MambaBatchModel.compute_policy_gradient` (le chemin actif pendant tout l'arc EVO), mêmes bras
