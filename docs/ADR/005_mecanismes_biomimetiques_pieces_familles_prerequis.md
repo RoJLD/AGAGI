@@ -126,6 +126,27 @@ aux deux pas) et TRACE_NUIT / TRACE_NEUTRE / LEARNER_INERT.
 - Backlog : P2.75 (E29 — CLOSE : le fichier est VERSIONNÉ, `versioned` mesuré, sha normalisé CRLF→LF), P2.76 (lr/B, CLOSE), P2.77 (fixtures, CLOSE),
   P4.11–P4.15 (la file). Registre : E29 (nouvelle classe, garde exécutable, 12 contre-exemples), E19 occ. 7.
 - Records : bandeau de portée sur [[EDR-CALIB-LEGACY-LEARNER]] (lr/B et activation) ; aucun verdict modifié.
-- **Critère de révision** : si l'item 1 rend TRACE_AIDE sur le proxy D=2 ET NEUTRE/NUIT sur P1.6, la pièce
-  `eligibility_trace_credit` entre au registre avec ce billet ; si TRACE_NUIT partout, l'analogie ne transporte pas
-  et ça se grave (résultat, pas échec). Sans run de l'item 1 à 6 semaines, la file est réordonnée par robla.
+- **Critère de révision — AMENDÉ le 2026-09-24** (accord du master ; l'amendement DIT ce qu'il remplace et
+  pourquoi, aucune réécriture silencieuse). *Texte remplacé* : « si l'item 1 rend TRACE_AIDE sur le proxy D=2 ET
+  NEUTRE/NUIT sur P1.6, la pièce entre au registre ; si TRACE_NUIT partout, ça se grave. Sans run de l'item 1 à
+  6 semaines, la file est réordonnée. » *Pourquoi il était INDÉCIDABLE — et ce n'est pas « pas encore mesuré »* :
+  (i) sa jambe 1 nommait le **proxy D=2**, lieu que cet ADR a lui-même RÉTRACTÉ comme no-op le jour de sa rédaction
+  (`language_memory_demand_probe` apprend par `learn_episode`, jamais par `_td_update` : une trace n'y serait jamais
+  exercée) ; (ii) sa jambe 2 (NEUTRE/NUIT sur P1.6) a été REFUSÉE sur mesure — in-world le pas effectif est
+  0,0033/agent, 75× sous le seul point où la trace ait jamais aidé, et `results/s2_credit_ablation_2.json` publie
+  `trace_lambda: null`, `trace_updates: 0` : aucun run in-world n'a jamais posé λ>0 ; (iii) sa jambe 3
+  (« TRACE_NUIT partout ») n'est pas réalisée : `tdlam_inf_td0` = 0/12 aux deux pas de R0. La conjonction n'est donc
+  ni satisfaite ni réfutable. *Son échéance (~2026-10-28) n'est pas échue et son déclencheur est sans objet* : trois
+  runs de l'item 1 ont eu lieu (R0 4534 s, R1 2699 s, R2 1190 s de mur).
+  **NOUVEAU CRITÈRE, à DEUX issues nommées, sur le seul lieu qui exerce le mécanisme** — le pilote TD PAR PAS à
+  D=1 (`tools/td_step_pilot.py`, `CompositionTask(same_tick=False)`), la qualification in-world n'étant admise
+  qu'à dose RELEVÉE (jamais au pas par défaut) :
+  * **La pièce ENTRE** ssi, à dose appariée en Σ|ΔW| PUBLIÉE : (1) λ>0 franchit la barre sur ≥ 11/12 seeds à
+    **deux lr adjacents** (l'invariance au pas, aujourd'hui réfutée à 0/12 pour lr 2,0) **ET** (2) le sham
+    **δ-PERMUTÉ** reste sous la barre au même point (sans quoi « transporte du crédit » et « fait un pas plus gros »
+    restent indiscernables : γλ = 0,81).
+  * **La pièce est REFUSÉE, et ça se grave comme résultat** ssi le sham δ-permuté égale la trace au point où elle
+    aide (l'effet est le PAS, pas le transport) **OU** si l'aide reste confinée à un seul lr après un balayage
+    complet à dose appariée (l'effet est un artefact de réglage, classe E19).
+  * **Ni l'un ni l'autre** → la ligne reste « attend » avec ses manques nommés (P4.19), sans réordonner la file.
+  Échéance inchangée : sans l'un des deux contrôles de P4.19 payé au 2026-10-28, la file est réordonnée par robla.

@@ -769,7 +769,7 @@ Depuis `b0f2620b` (2026-06-05, commit initial). Correctif : UNE résolution de r
 armé par `sandbox_service._arm_live_progress` SANS monkeypatch. *Coût : agent 30 min ; calcul 0.* Dépend de : rien.
 <!-- closes_when:grep_absent=backend/app/main.py::parents\[3\] -->
 
-**P4.11 — rang 5 — OUVERTE ([`ADR-005`](../ADR/005_mecanismes_biomimetiques_pieces_familles_prerequis.md), item 1) —
+**P4.11 — rang 5 — ✅ CLOSE le 2026-09-24 (accord du master, session harnais) — ⚠️ BILLET ACQUIS À UN SEUL POINT DE FONCTIONNEMENT : lr 4,0 = 0,25/agent, λ 0,9-0,99 (aide09 12/12, aide099 11/12) ; **invariance au pas RÉFUTÉE** (aide09 à lr 2,0 : 0/12, R1 puis recomputé sur les cellules importées de R2) ; lr 1,0 JAMAIS mesuré (coupe E13 publiée dans `_regime.coupe`). La pièce `eligibility_trace_credit` N'ENTRE PAS au registre : deux contrôles de son billet manquent (P4.19). ([`ADR-005`](../ADR/005_mecanismes_biomimetiques_pieces_familles_prerequis.md), item 1) —
 Trace d'éligibilité de politique TD(λ) dans `TorchPopulationModel._td_update` : le crédit local SANS BPTT, calibré à
 0 simulation ; l'issue positive se mesure sur un PILOTE TD PAR PAS (`CompositionTask(same_tick=False)`), pas sur le
 proxy D=2.**
@@ -811,7 +811,55 @@ trace dans `_td_update` ne peut PAS la changer sans couper/remplacer l'épisodiq
 vient d'un critic saturé (56 % < −0,99, S2-REWARD-ABLATION) — NAV-005 : publier la distribution de δ à côté du verdict.
 **Se ferme** avec le record `EDR-TD-STEP-PILOT-R0` (verdict lu dans `results/td_step_pilot_r0.json`, committé) — la clause
 ci-dessous est un motif d'auto-clôture ancré (vérifiable sur un clone ; `grep_present` sur le JSON non suivi ne l'était pas).
-<!-- closes_when:grep_present=docs/roadmap/PRIORITES_ET_DETTES.md::\n\*\*P4\.11 — ✅ CLOSE -->
+⚠️ **Clause corrigée le 2026-09-24** : la précédente grep-ait sa PROPRE ligne « P4.11 — ✅ CLOSE » dans ce fichier — une clause auto-référentielle ne peut STRUCTURELLEMENT pas signaler qu'une condition de fond est remplie, elle ne fait que recopier la décision de l'auteur (E1). Ancrée désormais sur la SORTIE : le verdict du record.
+<!-- closes_when:grep_present=docs/EDR/TD-STEP-PILOT-R0_Per_Step_TD_Credit_Is_Inert_At_D1_And_The_Eligibility_Trace_Transports_Credit.md::verdict: TD0_INERTE -->
+
+**P4.19 — rang 6 — OUVERTE (2026-09-24, accord du master) — Les DEUX contrôles manquants du billet de la pièce
+`eligibility_trace_credit` : le sham « δ PERMUTÉ » et la dose appariée en Σ|ΔW|.**
+ADR-005 exige pour cette pièce un `matched_sham` « même trace, δ PERMUTÉ dans le temps » et une entrée « à dose
+appariée en Σ|ΔW| ». Mesuré le 2026-09-24, aucun des deux n'existe :
+* **(a) sham δ-permuté : JAMAIS mesuré** — `git show HEAD:tools/td_step_pilot.py | grep -ciE 'permut|shuffl|sham|scramble'`
+  → **0** (motif validé sur un cas positif : 5 occurrences de `sham` dans `src/agents/backend_torch.py`). Les bras
+  réellement joués sont `['td0','tdlam','lr0_reference','td0_d0','lr0_reference_d0','bptt']` (R0) et
+  `['lam0','lam05','lam09','lam099','td0_d0']` (R2). C'est le SEUL bras qui sépare « la trace TRANSPORTE du crédit »
+  de « la trace fait un pas effectif plus GROS » : à λ = 0,9 et γ = 0,9, γλ = 0,81 ajoute 0,81·g₀ au pas 1 — plus
+  gros autant que mieux orienté. Le record R0 ne mentionne ce manque nulle part (grep `sham`/`permut` → 0).
+  Coût : un bras de plus dans le pilote, ~12 cellules à 75-90 s hors contention (~20 min) + un addendum au record.
+* **(b) dose appariée en Σ|ΔW| : NON PUBLIÉE, donc non mesurable** — 0 occurrence de `sum_abs_dW`, `sigma_dW`,
+  `dW_abs` ni `"dW` dans `results/td_step_pilot_r0.json`, `_r1.json`, `_r2.json` ; leurs blocs `_dose` ne portent que
+  `{updates, trace_updates, trace_resets, lr_effective_per_agent, optimiseur}`. L'appariement publié est NOMINAL
+  (td0 et tdlam déclarent tous deux `lr_effective 0,25`), pas effectif. Coût : une somme accumulée dans le runner —
+  **nul**, et à faire AVANT tout nouveau tir, sinon le tir suivant sera à refaire.
+Tant que (a) et (b) ne sont pas payés, la pièce reste « attend » au registre du harnais (la session harnais l'y
+maintient avec ces deux manques nommés). Prérequis de l'ENTRÉE de la pièce, pas dette diffuse.
+<!-- closes_when:grep_present=tools/td_step_pilot.py::permut -->
+
+**P4.20 — rang 12 — OUVERTE (2026-09-24, balayage demandé par le master) — Deux familles de clauses `closes_when`
+qui ne peuvent pas faire ce qu'elles promettent.**
+Balayage complet des 60 clauses du backlog (41 `grep_present`, 14 `path_present`, 5 `grep_absent`) :
+* **(i) AUTO-RÉFÉRENTIELLES — 2 cas.** Une clause qui grep sa propre ligne « ✅ CLOSE » dans ce fichier ne peut
+  structurellement pas échouer autrement qu'en restant fausse, ni signaler qu'une condition de fond est remplie :
+  elle recopie la décision de l'auteur (E1, contrôle qui ne peut pas échouer). **P4.11** (la mienne, corrigée ici,
+  ancrée sur le verdict du record) et **P4.17** (écrite en copiant mon motif — le défaut s'est PROPAGÉ ; à son
+  propriétaire de l'ancrer sur `EDR-TD-STEP-PILOT-R2` quand ce record existera). ⚠️ Contre-exemple de
+  SPÉCIFICITÉ : la clause de **P4.15** vise `P4.9`, une AUTRE entrée — c'est une dépendance légitime, et elle a
+  fonctionné (P4.15 s'est fermée quand P4.9 est passée CLOSE). Ne pas interdire la famille, interdire l'auto-visée.
+* **(ii) ANCRÉES SUR L'ARTEFACT D'ENTRÉE — 6 cas.** `path_present=docs/preregistrations/<règle>.json` est VRAI dès
+  le SCELLEMENT, avant tout run : l'entrée peut passer « ✅ CLOSE » avec le cliquet au vert alors que le record et
+  l'évidence n'existent pas. Vu en acte sur **P4.16** (l'arbre annonçait CLOSE et `records_total=325` pendant que le
+  record et `results/s2_credit_ablation_2.json` étaient non suivis). Les 6 : `LOCK-001-PROXY-R1`,
+  `S2-REWARD-ABLATION`, `S2-CREDIT-ABLATION`, `S2-CREDIT-ABLATION-2`, `S2-BASSIN-FRAGILITY`, `S5-G4-PHASE-A`.
+  Une clause doit viser la SORTIE (record, `results/<run>.json`), jamais l'entrée.
+* **Aggravant commun** : `_CLOSE_MARQUEURS` de `tools/check_backlog_freshness.py` contient « ✅ » SEUL, donc
+  « ✅ SCELLÉE ET LANCÉE » bascule l'entrée du côté CLOSE de la logique à deux sens — c'est pourquoi P4.16 ne
+  déclenchait aucune violation malgré son état réel.
+**À faire, en une passe** : durcir la porte 4 — (1) refuser une clause dont le motif vise l'entrée qui la porte ;
+(2) refuser (ou signaler, baseline gelée sur les 6) une clause `path_present` pointant dans `docs/preregistrations/` ;
+(3) distinguer « ✅ CLOSE » de « ✅ SCELLÉE / LANCÉE » dans `_CLOSE_MARQUEURS`. Chaque durcissement avec son
+contre-exemple gelé et sa mutation (porte 15), dans la même passe — et une baseline pour ne pas bloquer les 6 entrées
+existantes d'autrui.
+<!-- closes_when:grep_present=tools/check_backlog_freshness.py::auto-référentielle -->
+
 
 **P4.12 — rang 6 — ✅ CLOSE le 2026-09-16 (session loop 766eabae, accord agagi-c9 sur l'interface) — Sham LINÉAIRE à paramètres APPARIÉS pour la pièce `bilinear` : le contrôle EXISTE, est mesuré, et sa lecture scellée est `SHAM_PARTIEL`.**
 Quoi : `(H·U + H·V)·W_sh` à MÊME nombre de paramètres que `((H·U)⊙(H·V))·W_bl` (rang 16), flag `BILINEAR_SHAM`,
