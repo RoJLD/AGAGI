@@ -945,6 +945,27 @@ quoi la prochaine forme de ce défaut sera découverte par la suite de nuit de q
 une suite mesurée machine au repos ne mesure pas l'état « bail tenu ». *Coût : agent 1 h ; calcul 0.*
 Dépend de : rien. Occurrence au registre : E14 (2026-09-23, session d7).
 <!-- closes_when:grep_present=tests/conftest.py::ResourceBusy -->
+**P2.101 — rang 14 quinquies — La PERTE DE NOMMAGE : réécrire la prose d'un record peut dé-nommer une grandeur
+SCELLÉE sans la substituer — indétectable par l'auteur, refusé par la porte 5, et découvert au commit.**
+Quoi (mesuré le 2026-09-24 sur moi-même, P4.16) : après une revue adversariale, j'ai réécrit le tableau de
+`EDR-S2-CREDIT-ABLATION-2` pour le rendre lisible — « TD seul », « 1999 », « 0,71 » à la place de `S_tdonly`,
+`dose_tdonly`, `dW_tdonly`. Aucune DV n'était substituée, aucun chiffre faux, la mesure était la bonne : seules
+les ÉTIQUETTES avaient disparu. `check_preregistration_applied` a refusé le commit en listant **huit** grandeurs
+exigées par la règle scellée et absentes du record (`S_eplr`, `S_tdonly`, `dW_const`, `dW_eplr`, `dW_full`,
+`dW_tdonly`, `dose_const_ep`, `dose_const_td`, …). La porte a eu raison — son contrat est LEXICAL et elle ne peut
+pas distinguer « dé-nommée » de « substituée », ce qui est précisément sa valeur. Mais le coût tombe au pire
+moment : l'auteur l'apprend après les douze portes de l'export, plusieurs minutes, sur un arbre partagé où HEAD
+bouge. Ce n'est ni un faux ni une omission : c'est une **perte de nommage**, une forme qu'aucune entrée du backlog
+ne décrivait. Elle frappe exactement les récritures qui AMÉLIORENT un record, donc elle taxe la correction.
+Remède proposé, bon marché : un mode LISTANT de la porte — `python tools/check_preregistration_applied.py --names
+docs/EDR/<record>.md` qui rend, en quelques secondes et sans rien juger, les grandeurs que les règles scellées
+dont ce record se réclame l'obligent à nommer, avec celles qui manquent. L'auteur l'appelle PENDANT qu'il écrit,
+pas après. Deux cas de calibration : un record complet rend une liste de manquantes VIDE ; un record dont on
+retire une étiquette la voit apparaître (et le mode ne doit pas, lui, prononcer de verdict : il RAPPORTE).
+Vu en passant, à consigner par le PM (son périmètre) : le hook `pre-commit` ne s'exécute pas sur un merge propre
+(0 appel contre 1 pour un commit ordinaire, mesuré par agagi-11) — les douze portes ne s'arment pas à la fusion.
+*Coût : agent 1 h ; calcul 0.* Dépend de : rien.
+<!-- closes_when:grep_present=tools/check_preregistration_applied.py::--names -->
 
 **P2.83 — ⚠️ OUVERTE (2026-09-24, vue en passant pendant la revue de la spec du dashboard Pilotage) — le cliquet de
 calibration ne connaît NI `compute_*` NI `parse_*`, et une déclaration qu'il ne détecte pas est ignorée EN SILENCE :
