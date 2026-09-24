@@ -1065,6 +1065,62 @@ porte de parité avant de le brancher ou de le retirer. *Coût : brainstorm 2 h 
 cadrage.* Dépend de : lot 1 (pas 1-3 de la spec).
 <!-- closes_when:path_present=docs/superpowers/specs/2026-09-24-pilotage-science-design.md -->
 
+**P2.85 — ⚠️ OUVERTE (2026-09-24, mesurée en étant bloquée par elle) — la porte 8 juge le DISQUE et non l'INDEX : le
+travail NON COMMITTÉ d'une session rend un compteur « périmé » et bloque le commit de TOUTES les autres, sur des
+chemins sans rapport. Même défaut que la porte 4 avant `2ffef2ab`, jamais rétro-appliqué (E14).**
+**Preuve ANCRÉE, indépendante de tout état transitoire** (c'est elle qui porte l'entrée) :
+`tools/check_synthesis_counts.py` ne contient **aucune** référence à l'index — `grep -c` sur
+`GIT_INDEX_FILE|ls-files|git show :` rend **0**, contre **7** pour `tools/check_backlog_freshness.py`, la porte 4
+CORRIGÉE le 2026-09-22 par `2ffef2ab`. La porte 8 recompute donc ses comptes depuis le disque **par construction**, et
+le contraste 0 contre 7 se rejoue à tout moment sur n'importe quel sha.
+
+**Occurrence observée, datée et ANCRÉE comme un instantané** : le 2026-09-24 vers 11 h, sous un `GIT_INDEX_FILE`
+construit par `git read-tree HEAD` — donc un index où le registre était EXACTEMENT celui de HEAD — la porte rendait
+`[CHIFFRE PÉRIMÉ] docs/REF/REGISTRE_ERREURS.md:72 classes_documentees publié=4 RÉEL=5`, et **elle a refusé mon commit
+de l'amendement de P2.83, qui ne touche QUE `docs/roadmap/PRIORITES_ET_DETTES.md`** : un hunk étranger a bloqué un
+commit sain. À cet instant, une classe `E30` était sur le disque (`git show HEAD:… | grep -c E30` → 0 ; disque → 1)
+**sans sa balise**. La session `agagi-52` a depuis mis la phrase à jour et la porte rend `exit 0` : l'occurrence est
+résorbée, le mécanisme demeure.
+
+**DEUXIÈME occurrence, une heure plus tard, et elle est décisive** : le même commit a été refusé une seconde fois, cette
+fois sur `docs/roadmap/SCIENCE.md:11 records_total publié=325 RÉEL=326`. Or `SCIENCE.md` est **identique sur le disque
+et dans HEAD** (vérifié ligne à ligne) : rien n'a été édité. La cause est la simple **PRÉSENCE d'un fichier non
+committé** — `docs/EDR/S2-002-PAIRED-R1_Paired_Band_Exact_NoOp….md`, en `??` dans `git status`, créé par une autre
+session — que la porte compte parce qu'elle balaye le **répertoire du disque** (302 fichiers) au lieu de l'index
+(301 suivis). Conséquence structurelle, pas anecdotique : sur un dépôt où des records naissent en continu, **tout
+record non encore committé bloque le commit de toutes les sessions**, y compris sur des chemins qui n'ont aucun rapport.
+Deux occurrences en une heure, sur deux compteurs et deux fichiers différents, suffisent à la promotion (règle du
+registre : deux fois documenté → promu).
+
+⚠️ **Leçon de méthode, payée par TROIS sessions le même jour sur le même fichier** : cette session, `agagi-d7` et
+`agagi-11` ont mesuré `REGISTRE_ERREURS.md` à trois instants et en ont tiré trois diagnostics différents, **sans
+qu'aucune ne se trompe sur sa propre mesure** — le fichier était édité entre-temps. Le dépôt exige de DATER un chiffre
+publié ; il n'exige pas encore d'**ancrer une mesure de diagnostic**. Règle à retenir (candidate au registre) : une
+mesure destinée à un diagnostic se rejoue sur `git show <sha>:<chemin>` ou cite le sha de l'instant, **jamais sur le
+disque nu d'un arbre partagé**. C'est la racine commune de deux inférences trop rapides du même jour, dont
+« l'auteur `Test <test@example.com>` est un processus de test » — alors que c'est l'identité git du dépôt
+(`git config user.email` = `test@example.com`), portée par 6 des 30 derniers commits **et par mes deux propres commits
+par index temporaire**, qui ne passent pas l'identité explicite à `commit-tree`.
+
+**Élargissement du balayage, mesuré par `agagi-11` (non revérifié ici)** : le hook `pre-commit` **ne s'exécute pas du
+tout sur un merge propre** (0 appel contre 1 pour un commit ordinaire, contrôle positif fait) ; seuls
+`prepare-commit-msg` et `commit-msg` s'arment, et tous deux peuvent annuler le merge par un code 1. Tout invariant qui
+tient sur chaque branche séparément et casse à l'UNION traverse donc sans qu'aucune porte ne parle — et la porte 8 en
+est le cas d'école : deux branches peuvent corriger le même compte en comptant des objets différents, et la fusion
+publie un chiffre faux sans conflit. **Le crochet de merge et la garde de copie `tools/hooks` → `.git/hooks` sont pris
+par la session `agagi-d7` en P2.102** : les deux entrées se répondent — celle-ci fait juger l'INDEX au lieu du disque
+pendant un commit, celle-là fait tourner les portes à la FUSION. Les deux trous se ferment ensemble et il faut les
+livrer dans cet ordre (juger le bon état d'abord, l'étendre au merge ensuite).
+Pourquoi c'est la même erreur qu'une déjà corrigée : le 2026-09-22, la porte 4 lisait elle aussi le disque tout en
+étant jugée contre l'index temporaire du commit, et `2ffef2ab` l'a fait lire l'index sous `GIT_INDEX_FILE` (CLAUDE.md,
+section Environnement : « elle juge exactement ce qui sera committé »). Le correctif n'a jamais été **rétro-appliqué**
+aux autres portes — classe **E14**. À faire : sous `GIT_INDEX_FILE`, faire lire l'index à `check_synthesis_counts`
+(mêmes deux modes que la porte 4 : index en commit, disque hors commit), avec un contre-exemple gelé — un compteur
+périmé UNIQUEMENT sur le disque doit passer en commit et être signalé hors commit — et une ligne dans
+`check_gate_mutation.PORTES`. ⚠️ **Balayer les 19 portes du hook pour le même défaut** : toute porte qui recompute
+depuis un fichier est concernée. *Coût : agent 1-2 h ; calcul 0.* Dépend de : rien.
+<!-- closes_when:grep_present=tools/check_synthesis_counts.py::GIT_INDEX_FILE -->
+
 
 **P3.4 — rang 14 — ✅ CLOSE le 2026-09-15 ([[EDR-CALIB-LEGACY-LEARNER]], `results/legacy_learner_calibration.json`) — Cas de calibration de l'apprenant LEGACY.**
 Quoi : `MambaBatchModel.compute_policy_gradient` (le chemin actif pendant tout l'arc EVO), mêmes bras
