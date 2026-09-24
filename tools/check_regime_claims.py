@@ -12,6 +12,23 @@ du bloc `regime` est une INFORMATION (CONCORDE_HORS_REGIME), pas une absence : c
 un DISCORDE la ou le runner a simplement publie ailleurs -- c'est la classe E8 elle-meme (absence de
 DONNEES REGARDEES -> affirmation negative de fond) appliquee a l'INSTRUMENT qui traque E8.
 
+LE BAREME (corrige le 2026-09-24 ; rang = gravite, le PIRE parametre porte le statut du record) :
+
+  rang 0  CONCORDE              une valeur citee est lue dans un bloc `regime`
+  rang 1  CONCORDE_HORS_REGIME  elle est lue ailleurs dans le fichier -- une information, pas une absence
+  rang 2  SANS_VALEUR_LUE       AUCUNE valeur n'a ete lue pour ce parametre. Le detail publie LE NOMBRE
+                                de results/ lus et les CLES VOISINES qui portent le nom du parametre :
+                                « voici ou j'ai regarde et ce que j'y ai vu a cote ». HORS de `OK` -- un
+                                inconnu ne devient pas un vert, il cesse seulement d'affirmer. A rang
+                                EGAL avec SANS_RESULTS / SANS_REGIME, les deux autres non-lectures.
+  rang 3  DISCORDE              DEUX valeurs LUES et DIFFERENTES. Le mot est desormais EXACT, et le
+                                detail NOMME les deux valeurs et le fichier.
+
+Pourquoi ce bareme, et pourquoi ce n'est pas `NON_PUBLIE` : cette porte ne peut pas etablir ce que le
+runner a PUBLIE, seulement ce que LUI a LU. Nommer « jamais publie » une valeur qu'il n'a pas su lire
+serait un SECOND negatif fabrique par-dessus le premier. Le nom du statut dit ce que l'instrument
+mesure, et rien de plus.
+
 Mesure le 2026-09-23 (`--report`, apres correctif revue -- recherche en profondeur + hors-regime) : 300
 records dans docs/EDR/, 74 citent un parametre, **10 concordent** (5 CONCORDE + 5 CONCORDE_HORS_REGIME --
 double du chiffre d'avant le correctif, qui ne cherchait qu'a la racine et au 1er niveau de cellule) --
@@ -29,21 +46,34 @@ pour des poids geles : la valeur EST publiee, sous une cle QUALIFIEE), `results/
 porte `/_regime/lr_td` (une LISTE). Le correctif etait monte jusqu'au backlog et JAMAIS jusqu'ici --
 or la docstring est la seule chose qu'un lecteur du module voit.
 
-CE QU'IL NE VOIT PAS (la section que les portes 20 et 22 ont et qui manquait ici) :
-  * `DISCORDE` FOND CINQ SITUATIONS sous un seul mot, avec la meme chaine de detail au caractere pres,
-    et ce mot affirme la pire : (a) premisse reellement FAUSSE -- le cas fondateur EDR-GRAB-COST ;
-    (b) cle jamais publiee ; (c) cle PUBLIEE mais illisible par le lecteur a clefs ; (d) cle publiee
-    QUALIFIEE (`frozen_phase2_lr` pour `lr`) ; (e) faux positif de l'EXTRACTEUR -- `reward_scale = 0`
-    cite a l'interieur d'une PREDICTION dans S2-REWARD-ABLATION. Un statut nomme `NON_PUBLIE` serait un
-    SECOND negatif fabrique par-dessus le premier : cet instrument ne peut pas etablir ce que le runner
-    a PUBLIE, seulement ce que LUI a LU.
+CORRECTIF DU 2026-09-24 (P2.88, tache 2b) -- CE QUI VIENT D'ETRE FERME, et comment il a ete trouve :
+en faisant tourner la porte sur SON PROPRE CAS FONDATEUR, pas en la relisant. « cite 3.0, publie 1.0 »
+et « cite base_metabolism, jamais lu » rendaient la MEME chaine au caractere pres -- `<p> cite [...] :
+introuvable dans les results cites` -- sous le MEME mot `DISCORDE`, qui AFFIRME un desaccord. Des cinq
+situations fondues, trois sont desormais separees : la contradiction reste DISCORDE et NOMME la valeur
+lue ; les non-lectures (cle jamais publiee, cle publiee mais illisible, cle QUALIFIEE) passent
+SANS_VALEUR_LUE en publiant ou l'instrument a regarde. Les deux restantes ne sont pas decidables ici et
+sont DECLAREES ci-dessous. Mesure de la migration : les 8 DISCORDE geles se relisent 2 DISCORDE
+(contradictions reelles) + 6 SANS_VALEUR_LUE -- rang 2, donc une amelioration, aucun faux rouge.
+
+CE QU'IL NE VOIT PAS (la section que les portes 20 et 22 ont et qui manquait ici). Elle n'est plus
+seulement ECRITE ICI : `CECITES` est IMPRIMEE par `--report` et par tout ECHEC, parce que le lecteur
+d'une sortie n'ouvre jamais la docstring -- c'est exactement par la que le defaut ci-dessus a survecu.
+  * une CITATION n'est pas forcement une PREMISSE, et `claims()` ne sait pas les distinguer : une
+    PREDICTION sur un bras deliberement non couru (S2-REWARD-ABLATION, `reward_scale = 0`), un
+    contrefactuel, ou le regime d'un AUTRE record cite en bloc-citation (EDR-LANG-MEMORY cite le `lr`
+    de RETAIN-COMPOSE-LR) sortent comme des affirmations du record. Un DISCORDE peut donc etre un faux
+    positif de l'EXTRACTEUR. Corriger `claims()` est un autre chantier ; la porte doit au moins le DIRE.
   * il ne lit que `docs/EDR/*.md`. Le graphe compte 26 records non-EDR (ADR, SDR, REF), dont 3 citent
     des `results/` : leurs affirmations de parametre ne sont vues par aucune porte. Perimetre DECLARE,
     jamais mesure comme une absence de defaut.
-  * il apparie par INTERSECTION D'ENSEMBLES : une valeur citee dans la prose et publiee ailleurs sous
-    un autre NOM reste invisible, et il ne nomme jamais la valeur qu'il a pourtant LUE.
-  * un E8 REEL peut sortir sous ce meme mot sans etre distingue : `docs/EDR/107_...md:21` annonce une
-    trajectoire de 20 generations quand son seul results publie `generations: 2`.
+  * il apparie par INTERSECTION D'ENSEMBLES sur des cles EXACTES : une valeur publiee sous un autre NOM
+    reste invisible. C'est maintenant RAPPORTE (les cles voisines sont nommees), jamais corrige.
+  * un E8 REEL reste a traiter et il est GELE, pas resolu : `docs/EDR/107_...md` ecrit `max_ticks=80`
+    quand son propre `results/lewis_evolve_nav_107.json` publie **12** (`data/max_ticks`), et son
+    verdict « SUBSTRAT BLOQUE » porte sur un `p_reach` que le budget de pas borne mecaniquement. Le
+    meme record annonce une trajectoire de 20 generations quand son seul results publie `generations: 2`.
+    Affaire de SCIENCE, propriete du fil -- la porte le nomme desormais au lieu de le fondre.
 
 Un record illisible est RAPPORTE et BLOQUE, jamais compte CONCORDE ni gelable par `--update-baseline`.
 """
@@ -64,12 +94,38 @@ _NUM = r"([0-9]+(?:[.,][0-9]+)?)"
 _CLAIM = re.compile(r"(?<![\w.])(" + "|".join(PARAMS) + r")\s*=\s*" + _NUM + r"(?!\w)(?!\.[0-9])")
 _RESULTS = re.compile(r"`[^`]*?(results/[A-Za-z0-9_./*{},\-]+\.json)`")
 _CELL_LR = re.compile(r"(?:^|\|)lr=" + _NUM + r"(?:\||$)")
+# `SANS_VALEUR_LUE` reste HORS de `OK` : un inconnu ne devient pas un vert, il cesse seulement
+# d'AFFIRMER un desaccord qui n'a pas ete mesure.
 OK = ("SANS_PARAMETRE", "CONCORDE", "CONCORDE_HORS_REGIME")
 # Ordre de gravite (pour le gel PAR STATUT, finding 2) : une dette legataire ne bloque que si son statut
-# COURANT est PIRE (rang superieur) que celui gele. SANS_RESULTS et SANS_REGIME sont a rang EGAL (deux
-# formes symetriques de « je n'ai rien pu confronter ») ; DISCORDE est toujours le pire, meme depuis l'un
-# ou l'autre.
-_RANG = {"CONCORDE": 0, "CONCORDE_HORS_REGIME": 1, "SANS_RESULTS": 2, "SANS_REGIME": 2, "DISCORDE": 3}
+# COURANT est PIRE (rang superieur) que celui gele. SANS_RESULTS, SANS_REGIME et SANS_VALEUR_LUE sont a
+# rang EGAL (trois formes de « je n'ai rien pu confronter ») ; DISCORDE -- deux valeurs LUES et
+# DIFFERENTES -- est toujours le pire, meme depuis l'un ou l'autre.
+_RANG = {"CONCORDE": 0, "CONCORDE_HORS_REGIME": 1, "SANS_RESULTS": 2, "SANS_REGIME": 2,
+         "SANS_VALEUR_LUE": 2, "DISCORDE": 3}
+# Statut porte par le PIRE parametre du record. SANS_RESULTS / SANS_REGIME sont rendus EN AMONT (aucun
+# fichier lisible / aucun parametre connu publie) : parvenu ici, le rang 2 est toujours SANS_VALEUR_LUE.
+_STATUT_DU_RANG = {0: "CONCORDE", 1: "CONCORDE_HORS_REGIME", 2: "SANS_VALEUR_LUE", 3: "DISCORDE"}
+assert all(_RANG[s] == r for r, s in _STATUT_DU_RANG.items()), "table de rangs incoherente"
+STATUTS = ("SANS_PARAMETRE", "CONCORDE", "CONCORDE_HORS_REGIME", "SANS_RESULTS", "SANS_REGIME",
+           "SANS_VALEUR_LUE", "DISCORDE")
+
+# Ce que cette porte NE SAIT PAS voir, publie a cote de chaque verdict (--report et ECHEC) : un
+# detecteur qui ne dit pas sa cecite laisse lire ses sorties comme si elles couvraient tout.
+CECITES = (
+    "une CITATION n'est pas forcement une PREMISSE. `claims()` racle la prose : il ne distingue pas la "
+    "valeur du regime COURU d'une PREDICTION sur un bras deliberement NON couru (S2-REWARD-ABLATION "
+    "annonce `reward_scale = 0` pour un bras jamais lance), d'un contrefactuel, ni du regime d'un AUTRE "
+    "record cite en bloc-citation (EDR-LANG-MEMORY cite le `lr` de RETAIN-COMPOSE-LR). Un DISCORDE peut "
+    "donc etre un faux positif de l'EXTRACTEUR et non un defaut du record : le verifier avant d'accuser.",
+    "le lecteur est un lecteur A CLEFS EXACTES. Une valeur publiee sous une cle QUALIFIEE "
+    "(`frozen_phase2_lr` pour `lr`), dans un NOM DE CELLULE (`D1_lr0.02_ep1200`) ou comme LISTE "
+    "(`_regime/lr_td`) n'est pas lue -- d'ou `SANS_VALEUR_LUE`, qui dit « je n'ai pas lu », jamais "
+    "« le runner n'a pas publie » : cette porte ne peut pas etablir la seconde affirmation.",
+    "le perimetre est `docs/EDR/*.md` seul. Les 26 records non-EDR (ADR, SDR, REF) du graphe, dont 3 "
+    "citent des `results/`, ne sont vus par aucune porte -- perimetre DECLARE, jamais mesure comme une "
+    "absence de defaut.",
+)
 
 
 def _f(s):
@@ -170,6 +226,24 @@ def valeurs_hors_regime(data, params=PARAMS):
     return out
 
 
+def cles_voisines(data, p, limite=6):
+    """Les cles PUBLIEES qui portent le nom du parametre sans l'etre exactement : `frozen_phase2_lr` et
+    `lr_td` pour `lr`, `base_metabolism_initial` pour `base_metabolism`, `D1_lr0.02_ep1200` pour `lr`.
+
+    Le lecteur a clefs exactes ne sait pas les lire. Les NOMMER est ce qui transforme « je n'ai rien
+    trouve » -- une affirmation de fond deguisee -- en « voici ou j'ai regarde et ce que j'y ai vu a
+    cote ». Cout nul : `_sous_noeuds` parcourt deja l'arbre. L'alias INVERSE est cherche aussi (un
+    record qui cite `n_agents` doit voir `num_agents_max`). Rend une liste VIDE quand il n'y en a pas :
+    une absence de voisine n'est pas un verdict, c'est une absence."""
+    noms = {p} | {k for k, v in ALIAS.items() if v == p}
+    out = set()
+    for node in _sous_noeuds(data):
+        for k in node:
+            if isinstance(k, str) and k not in noms and any(n in k.lower() for n in noms):
+                out.add(k)
+    return sorted(out)[:limite]
+
+
 def evaluer(texte, lecteur, root=_ROOT):
     """`lecteur(chemin) -> dict | str | None` : un dict est le JSON lu ; une chaine ou `None` signale un
     echec de lecture (la chaine, quand elle est fournie par le lecteur reel de `analyze`, NOMME la cause
@@ -182,12 +256,13 @@ def evaluer(texte, lecteur, root=_ROOT):
     if not cites:
         return {"params": params, "cites": cites, "statut": "SANS_RESULTS",
                 "detail": ["aucun chemin results/*.json cite"]}
-    regime_par_fichier, hors_par_fichier, raisons = {}, {}, []
+    regime_par_fichier, hors_par_fichier, voisines_par_fichier, raisons = {}, {}, {}, []
     for c in cites:
         data = lecteur(c)
         if isinstance(data, dict):
             regime_par_fichier[c] = regime_values(data)
             hors_par_fichier[c] = valeurs_hors_regime(data)
+            voisines_par_fichier[c] = {p: cles_voisines(data, p) for p in cl}
         else:
             raisons.append(f"{c} : {data if isinstance(data, str) else 'illisible'}")
     lus = len(regime_par_fichier)
@@ -198,7 +273,7 @@ def evaluer(texte, lecteur, root=_ROOT):
         return {"params": params, "cites": cites, "statut": "SANS_REGIME",
                 "detail": ["aucun bloc regime ni parametre connu publie dans les results cites"]}
     detail = []
-    pire = 0    # 0 CONCORDE, 1 CONCORDE_HORS_REGIME, 3 DISCORDE (rang du pire parametre du record)
+    pire = 0    # rang du PIRE parametre du record, cf. _RANG / _STATUT_DU_RANG
     for p, vals in cl.items():
         trouve = False
         for c in cites:
@@ -218,9 +293,31 @@ def evaluer(texte, lecteur, root=_ROOT):
                     trouve = True
                     break
         if not trouve:
-            detail.append(f"{p} cite {sorted(vals)} : introuvable dans les results cites")
-            pire = max(pire, 3)
-    statut = "DISCORDE" if pire >= 3 else ("CONCORDE_HORS_REGIME" if pire >= 1 else "CONCORDE")
+            # L'intersection est VIDE -- mais un ensemble vide ne dit pas POURQUOI il est vide, et
+            # l'instrument tient pourtant la reponse dans `regime_par_fichier` / `hors_par_fichier`.
+            # Deux situations s'y cachaient sous le meme mot et la meme chaine, au caractere pres :
+            # une valeur LUE et DIFFERENTE (le cas fondateur E8 occ. 4 -- cite 3.0, publie 1.0) et une
+            # valeur JAMAIS LUE. Le premier est un desaccord ; le second est une non-lecture, et la
+            # nommer « discordance » etait l'erreur meme que cette porte existe pour policer.
+            lu = None
+            for bloc, source in (("bloc regime", regime_par_fichier), ("hors du bloc regime", hors_par_fichier)):
+                for c in cites:
+                    publiees = source.get(c, {}).get(p, set())
+                    if publiees:
+                        lu = (c, bloc, ",".join(str(v) for v in sorted(publiees)))
+                        break
+                if lu:
+                    break
+            if lu:
+                c, bloc, publiees = lu
+                detail.append(f"{p} cite {sorted(vals)} : les results cites publient {publiees} dans {c} ({bloc})")
+                pire = max(pire, 3)
+            else:
+                vois = sorted({k for c in cites for k in voisines_par_fichier.get(c, {}).get(p, [])})
+                ou = ("cles voisines publiees : " + ", ".join(vois[:6])) if vois else "aucune cle voisine publiee"
+                detail.append(f"{p} cite {sorted(vals)} : aucune valeur lue dans {lus} results/ lu(s) ; {ou}")
+                pire = max(pire, 2)
+    statut = _STATUT_DU_RANG[pire]
     return {"params": params, "cites": cites, "statut": statut, "detail": detail}
 
 
@@ -281,6 +378,14 @@ def _load_baseline():
     return leg
 
 
+def _publier_cecites():
+    """Ce que la porte ne voit PAS, imprime a cote de ses verdicts -- pas seulement dans la docstring,
+    que le lecteur d'une SORTIE n'ouvre jamais."""
+    print("CE QUE CETTE PORTE NE VOIT PAS :")
+    for c in CECITES:
+        print(f"  - {c}")
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--report", action="store_true")
@@ -307,14 +412,14 @@ def main(argv=None):
                        "legataires": legataires}, fh, ensure_ascii=False, indent=2)
         print(f"baseline gelee : {len(legataires)} record(s) sur {len(a['records'])}")
         return 0
-    n = {s: sum(1 for v in a["records"].values() if v["statut"] == s)
-         for s in ("SANS_PARAMETRE", "CONCORDE", "CONCORDE_HORS_REGIME", "SANS_RESULTS", "SANS_REGIME", "DISCORDE")}
+    n = {s: sum(1 for v in a["records"].values() if v["statut"] == s) for s in STATUTS}
     print(f"records : {len(a['records'])} | {n}")
     if args.report:
         for f, v in sorted(a["records"].items()):
             if v["statut"] == "SANS_PARAMETRE":
                 continue
             print(f"  [{v['statut']}] {f} : {'; '.join(v['detail'])}")
+        _publier_cecites()
         return 0
     base = _load_baseline()
     only = None if args.only is None else {o.replace("\\", "/") for o in args.only}
@@ -327,12 +432,17 @@ def main(argv=None):
     nouveaux = [f for f in fautifs if _regresse(f) and (only is None or f in only)]
     nouveaux += [i for i in a["illisibles"] if only is None or i in only]     # illisible BLOQUE : jamais gelable
     if nouveaux:
-        print("ECHEC : un record cite un parametre introuvable dans les results cites (regime OU ailleurs) "
-              "-- E8 occ. 4 -- ou une dette legataire a REGRESSE vers un statut pire :")
+        print("ECHEC : un record cite une valeur de parametre que les results cites CONTREDISENT (DISCORDE) "
+              "ou qu'aucun d'eux ne publie sous une cle lisible (SANS_VALEUR_LUE) -- E8 occ. 4 -- ou une "
+              "dette legataire a REGRESSE vers un statut pire :")
         for f in nouveaux:
             v = a["records"].get(f, {"statut": "ILLISIBLE", "detail": []})
             print(f"  [NOUVEAU/REGRESSE {v['statut']}] {f} : {'; '.join(v['detail'])}")
-        print("-> citer le results/*.json SUIVI qui porte la valeur (regime ou ailleurs), ou corriger la valeur.")
+        print("-> DISCORDE : la valeur lue est NOMMEE ci-dessus -- corriger le record, ou citer le results/ "
+              "qui porte vraiment la valeur.")
+        print("-> SANS_VALEUR_LUE : rien n'est affirme contre le record ; citer un results/*.json SUIVI qui "
+              "publie la valeur sous une cle exacte (les cles VOISINES vues sont listees ci-dessus).")
+        _publier_cecites()
         return 1
     print(f"OK : {len(fautifs)} record(s) sans regime concordant, tous legataires a un statut AU MOINS AUSSI BON "
           "qu'au gel. Aucun nouveau, aucune regression.")

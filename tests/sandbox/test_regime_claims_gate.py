@@ -40,6 +40,12 @@ def test_regime_values_lit_la_racine_les_cellules_et_les_cles_de_cellule():
 def test_CONTRE_EXEMPLE_GELE_EDR_GRAB_COST_au_2026_09_09_est_DISCORDE():
     v = G.evaluer(GRAB_COST_V1, lambda p: REGIME_RACINE)
     assert v["statut"] == "DISCORDE" and "forage_payoff" in " ".join(v["detail"])
+    # DURCI (2026-09-24) : jusqu'ici ce temoin n'assertait que le NOM du parametre, donc RIEN ne
+    # testait que la porte nomme la valeur qu'elle a pourtant LUE. Le cas FONDATEUR (E8 occ. 4) est
+    # une CONTRADICTION -- cite 3.0, publie 1.0 -- et le detail doit le dire, sinon il est
+    # indiscernable d'une absence.
+    assert "3.0" in v["detail"][0] and "1.0" in v["detail"][0]
+    assert "results/p41_grab_mechanism.json" in v["detail"][0]
 
 
 def test_la_rectification_qui_cite_la_vraie_ET_la_fausse_valeur_CONCORDE():
@@ -119,10 +125,15 @@ def test_1_valeur_publiee_SEULEMENT_hors_du_bloc_regime_est_CONCORDE_HORS_REGIME
     assert "CONCORDE_HORS_REGIME" in G.OK
 
 
-def test_1_valeur_introuvable_nulle_part_reste_DISCORDE():
+def test_1_valeur_CONTREDITE_par_le_regime_ET_par_le_hors_regime_est_DISCORDE():
+    """RENOMME le 2026-09-24. Il s'appelait `test_1_valeur_introuvable_nulle_part_reste_DISCORDE`
+    alors que ses donnees PUBLIENT `forage_payoff: 1.0`, deux fois : ce n'est pas une introuvable,
+    c'est une CONTRADICTION. Le nom mentait sur ce que le temoin teste -- et ce mensonge est la
+    forme MINIATURE du defaut de la porte, qui disait « introuvable » d'une valeur qu'elle lisait."""
     data = {"regime": {"forage_payoff": 1.0}, "arms": {"a": {"forage_payoff": 1.0}}}
     v = G.evaluer("`forage_payoff = 3.0` (`results/x.json`)", lambda p: data)
     assert v["statut"] == "DISCORDE"
+    assert "3.0" in v["detail"][0] and "1.0" in v["detail"][0]
 
 
 def test_2_baseline_gele_un_STATUT_et_une_REGRESSION_vers_DISCORDE_bloque(tmp_path, monkeypatch):
@@ -230,3 +241,117 @@ def test_minor_iii_SANS_RESULTS_distingue_absent_non_suivi_et_json_invalide(tmp_
     assert "non suivi par git" in " ".join(a["records"]["docs/EDR/B.md"]["detail"])
     assert "JSON invalide" in " ".join(a["records"]["docs/EDR/C.md"]["detail"])
     assert "aucun chemin" in " ".join(a["records"]["docs/EDR/D.md"]["detail"])
+
+
+# ---------------------------------------------------------------------------------------------------
+# 2026-09-24 -- TROIS SITUATIONS NE SE DISENT PLUS SOUS UN SEUL MOT.
+#
+# Defaut mesure en faisant tourner la porte sur son PROPRE cas fondateur : « cite 3.0, publie 1.0 » et
+# « cite base_metabolism, jamais lu » rendaient la MEME chaine, au caractere pres, sous le MEME mot
+# `DISCORDE` -- un mot qui AFFIRME un desaccord la ou la mesure est une non-lecture. Les trois temoins
+# DISCORDE geles jusqu'ici (GRAB_COST l.40, le renomme ci-dessus, la regression de phase 2) sont TOUS
+# des contradictions : la branche MAJORITAIRE -- 6 des 8 records fautifs du depot -- n'avait AUCUN
+# temoin. C'est pour ca que le defaut a tenu une revue.
+
+
+def test_deux_valeurs_lues_differentes_restent_DISCORDE_et_le_detail_NOMME_les_deux():
+    # Cas FONDATEUR de la porte (E8 occ. 4) : le record annonce 3.0, le runner publie 1.0.
+    bt = chr(96)
+    texte = "Le regime porte forage_payoff = 3.0.\nResultats : " + bt + "results/t.json" + bt + "\n"
+    r = G.evaluer(texte, lambda c: {"regime": {"forage_payoff": 1.0}})
+    assert r["statut"] == "DISCORDE"
+    assert "3.0" in r["detail"][0] and "1.0" in r["detail"][0]
+    assert "results/t.json" in r["detail"][0]
+
+
+def test_aucune_valeur_lue_rend_SANS_VALEUR_LUE_et_PUBLIE_ou_il_a_regarde():
+    """La branche MAJORITAIRE, celle qui n'avait aucun temoin.
+
+    ECART ASSUME AU BRIEF, mesure : le fixture prescrit ne portait QUE `base_metabolism_initial`, donc
+    AUCUN parametre connu -- la garde amont (« aucun bloc regime ni parametre connu publie ») le classe
+    SANS_REGIME avant d'arriver ici, et le brief interdit explicitement de recouvrir un cas deja gere en
+    amont. Un `num_agents` publie suffit a placer le cas dans le domaine que le nouveau bareme gouverne ;
+    les trois assertions sont celles du brief, mot pour mot. La frontiere est gelee juste en dessous."""
+    bt = chr(96)
+    texte = "Le regime porte base_metabolism = 0.7.\nResultats : " + bt + "results/t.json" + bt + "\n"
+    r = G.evaluer(texte, lambda c: {"regime": {"base_metabolism_initial": 0.75, "num_agents": 12}})
+    assert r["statut"] == "SANS_VALEUR_LUE"
+    assert "1" in r["detail"][0]                        # le nombre de results LUS
+    assert "base_metabolism_initial" in r["detail"][0]  # la CLE VOISINE, publiee
+
+
+def test_FRONTIERE_un_results_sans_aucun_parametre_connu_reste_SANS_REGIME():
+    """Le fixture VERBATIM du brief. SANS_REGIME est deja un « je n'ai rien pu confronter » de rang 2 :
+    le recouvrir par SANS_VALEUR_LUE fabriquerait un verdict par-dessus une garde amont saine. Gele ici
+    pour que l'ecart ci-dessus soit une DECISION mesuree, jamais un effet de bord."""
+    bt = chr(96)
+    texte = "Le regime porte base_metabolism = 0.7.\nResultats : " + bt + "results/t.json" + bt + "\n"
+    r = G.evaluer(texte, lambda c: {"regime": {"base_metabolism_initial": 0.75}})
+    assert r["statut"] == "SANS_REGIME"
+
+
+def test_controle_positif_la_concordance_reste_CONCORDE():
+    # Sans ce cas, les deux tests ci-dessus passeraient sur un instrument qui rend
+    # DISCORDE pour TOUT -- un instrument qui ne peut pas produire les deux issues.
+    bt = chr(96)
+    texte = "Le regime porte forage_payoff = 1.0.\nResultats : " + bt + "results/t.json" + bt + "\n"
+    r = G.evaluer(texte, lambda c: {"regime": {"forage_payoff": 1.0}})
+    assert r["statut"] == "CONCORDE"
+
+
+def test_la_valeur_lue_HORS_du_bloc_regime_est_nommee_elle_aussi():
+    """Le cas 107 du depot : `max_ticks` cite 80, publie 12 sous `data/max_ticks` -- hors bloc regime.
+    Une contradiction hors-regime est une contradiction ; le detail doit dire OU il a lu."""
+    data = {"regime": {"num_agents": 24}, "data": {"max_ticks": 12}}
+    r = G.evaluer("`max_ticks = 80` (`results/x.json`)", lambda p: data)
+    assert r["statut"] == "DISCORDE"
+    assert "80" in r["detail"][0] and "12" in r["detail"][0] and "results/x.json" in r["detail"][0]
+
+
+def test_SANS_VALEUR_LUE_est_rang_2_comme_les_autres_non_lectures_et_reste_HORS_de_OK():
+    """Un inconnu ne devient pas un vert : il cesse seulement d'AFFIRMER. Rang 2 = strictement meilleur
+    que DISCORDE, donc la migration de baseline ne peut pas fabriquer de faux rouge."""
+    assert G._RANG["SANS_VALEUR_LUE"] == 2 == G._RANG["SANS_RESULTS"] == G._RANG["SANS_REGIME"]
+    assert G._RANG["DISCORDE"] == 3
+    assert "SANS_VALEUR_LUE" not in G.OK and "DISCORDE" not in G.OK
+
+
+def test_cles_voisines_ne_rend_QUE_les_cles_qui_portent_le_nom_et_jamais_le_nom_exact():
+    data = {"regime": {"lr": 0.04, "frozen_phase2_lr": 0.0}, "_regime": {"lr_td": [0.1]}, "autre": 1}
+    v = G.cles_voisines(data, "lr")
+    assert "frozen_phase2_lr" in v and "lr_td" in v
+    assert "lr" not in v and "autre" not in v
+    assert G.cles_voisines(data, "forage_payoff") == []          # aucune voisine : liste VIDE, pas un verdict
+    # l'alias inverse est cherche aussi : un record qui cite `n_agents` doit voir `num_agents_max`
+    assert "num_agents_max" in G.cles_voisines({"num_agents_max": 30}, "num_agents")
+
+
+def test_STEP5_contre_exemple_gele_un_NOUVEAU_DISCORDE_bloque_et_sa_correction_PASSE(tmp_path, monkeypatch):
+    """Les DEUX issues sur le MEME dispositif : seule la valeur PUBLIEE change. Sans l'issue verte, un
+    cliquet qui refuse tout aurait l'air de discriminer."""
+    d = tmp_path / "docs" / "EDR"
+    d.mkdir(parents=True)
+    (d / "N.md").write_text(GRAB_COST_V1, encoding="utf-8")
+    (tmp_path / "results").mkdir()
+    r = tmp_path / "results" / "p41_grab_mechanism.json"
+    b = tmp_path / "base.json"
+    b.write_text(json.dumps({"legataires": {}}), encoding="utf-8")
+    monkeypatch.setattr(G, "_BASELINE", str(b))
+    monkeypatch.setattr(G, "_tracked", lambda root, rel: True)
+    r.write_text(json.dumps({"regime": {"forage_payoff": 1.0}}), encoding="utf-8")   # cite 3.0, publie 1.0
+    assert G.main(["--root", str(tmp_path)]) == 1
+    r.write_text(json.dumps({"regime": {"forage_payoff": 3.0}}), encoding="utf-8")   # la contradiction disparait
+    assert G.main(["--root", str(tmp_path)]) == 0
+
+
+def test_la_porte_PUBLIE_sa_cecite_une_citation_n_est_pas_forcement_une_PREMISSE(tmp_path, capsys):
+    """`claims()` racle la prose sans distinguer une premisse d'une PREDICTION (S2-REWARD-ABLATION :
+    `reward_scale = 0` est un bras DELIBEREMENT non couru), d'un contrefactuel, ou de la citation du
+    regime d'un AUTRE record. La porte ne sait pas le voir -- elle doit donc le DIRE."""
+    assert any("prediction" in c.lower() for c in G.CECITES)
+    d = tmp_path / "docs" / "EDR"
+    d.mkdir(parents=True)
+    (d / "A.md").write_text("rien ici", encoding="utf-8")
+    G.main(["--root", str(tmp_path), "--report"])
+    sortie = capsys.readouterr().out.lower()
+    assert "prediction" in sortie and "premisse" in sortie

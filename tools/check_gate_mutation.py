@@ -316,13 +316,27 @@ PORTES = {
         "module": "tools.check_regime_claims",
         "titre": "régime cité ↔ régime mesuré, en profondeur et hors du bloc regime (E8 occ. 4)",
         "temoins": ["tests/sandbox/test_regime_claims_gate.py"],
+        # RE-DÉCLARÉE le 2026-09-24. L'ancienne mutation substituait la ligne
+        # `statut = "DISCORDE" if pire >= 3 else (...)`, qui n'existe plus : le barème distingue
+        # désormais une CONTRADICTION (deux valeurs lues et différentes) d'une NON-LECTURE. Un motif
+        # absent aurait rendu INVALIDE — la porte 15 crie au lieu de se taire, et c'est ce cri qui a
+        # imposé cette mise à jour. Les deux mutations ci-dessous visent la distinction NEUVE, donc
+        # elles mesurent le correctif lui-même et non plus la seule frontière `pire >= 3`.
         "mutations": [{
-            "nom": "une valeur citée introuvable nulle part n'est plus une discordance",
-            "avant": '    statut = "DISCORDE" if pire >= 3 else ("CONCORDE_HORS_REGIME" if pire >= 1 else "CONCORDE")',
-            "apres": '    statut = "CONCORDE"',
-            "motif": ("le verdict du cliquet — EDR-GRAB-COST tel qu'au 2026-09-09 (forage_payoff = 3.0 jamais mesuré, "
-                      "défaut 1.0) passerait pour concordant, comme S2-REWARD-ABLATION (reward_scale = 0 jamais "
-                      "mesuré nulle part, publié = 1.0 partout)"),
+            "nom": "la distinction neuve est effacée : une non-lecture redevient une discordance",
+            "avant": '                pire = max(pire, 2)',
+            "apres": '                pire = max(pire, 3)',
+            "motif": ("tout ce que le correctif du 2026-09-24 ajoute — les 6 records dont aucun results/ "
+                      "ne publie la valeur sous une clé lisible redeviendraient `DISCORDE`, un mot qui "
+                      "AFFIRME un désaccord jamais mesuré (le biais dominant du dépôt, commis par "
+                      "l'instrument écrit pour le policer)"),
+        }, {
+            "nom": "le détail de DISCORDE cesse de nommer la valeur qu'il a LUE",
+            "avant": '                detail.append(f"{p} cite {sorted(vals)} : les results cites publient {publiees} dans {c} ({bloc})")',
+            "apres": '                detail.append(f"{p} cite {sorted(vals)} : introuvable dans les results cites")',
+            "motif": ("la chaîne EXACTE d'avant le correctif — le cas fondateur EDR-GRAB-COST (cité 3.0, "
+                      "publié 1.0) redeviendrait indiscernable, au caractère près, d'une valeur que la "
+                      "porte n'a jamais lue ; c'est le défaut mesuré, pas une hypothèse"),
         }],
     },
     "20": {
