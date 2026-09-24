@@ -80,6 +80,9 @@ def main(argv=None):
     rule_name = DEFAULT_RULE
     if "--rule" in argv:
         i = argv.index("--rule")
+        if i + 1 >= len(argv):
+            raise ValueError("--rule requiert un argument (le nom de la regle scellee) : aucun fourni "
+                             "apres --rule sur la ligne de commande")
         rule_name = argv[i + 1]
         argv = argv[:i] + argv[i + 2:]
     cells = argv or ["A", "Aprime", "B"]

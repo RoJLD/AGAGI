@@ -283,20 +283,27 @@ def build_rule_r1_ter(rule_bis: dict) -> dict:
     BUDGET doit changer. `rule_bis` est copié en PROFONDEUR (`json.loads(json.dumps(...))`) -- jamais
     muté en mémoire, la règle -bis reste intacte sur disque ET en mémoire pour l'appelant.
 
-    Seuls trois changements par rapport à -bis :
-      * `cellules[clé].budget_s` x3 (marge de charge EXPLICITE : la CostGuard par seed devient
-        `budget_s_ter / 12` = 45 x unité scellée par seed, pour ~5 x unité de travail par seed -- le
-        budget est une GARDE DE COÛT, jamais une grandeur LUE par `harness_verdict_lecture`, donc la
-        relever ne change AUCUNE lecture) ;
+    QUATRE changements par rapport à -bis (sept clés au total -- revue adversariale du 2026-09-24,
+    finding B3 : une version antérieure de ce docstring en comptait trois et omettait la quatrième) :
+      * `cellules[clé].budget_s` x3, une fois PAR CELLULE -- A, Aprime, B (marge de charge EXPLICITE : la
+        CostGuard par seed devient `budget_s_ter / 12` = 45 x unité scellée par seed, pour ~5 x unité de
+        travail par seed -- le budget est une GARDE DE COÛT, jamais une grandeur LUE par
+        `harness_verdict_lecture`, donc la relever ne change AUCUNE lecture) ;
       * `budget_family_s` = somme des budgets de cellule (déjà x3 chacun) ;
       * `remplace` (-bis, pas R1) et `raison_ter` (texte scellé, `RAISON_TER`), à côté de `remplace`/
         `raison_bis` d'origine -- CONSERVÉS : -ter remplace -bis, qui remplaçait déjà R1, la chaîne
-        entière reste lisible depuis n'importe quel maillon.
+        entière reste lisible depuis n'importe quel maillon ;
+      * `predictions_chiffrees_AVANT_le_run_note`, un champ NOUVEAU (pas une mutation du dict de
+        prédictions lui-même, qui n'est PAS touché : la même prédiction, scellée dans -bis AVANT le
+        premier run, reste la prédiction de -ter -- seul le budget de coût a changé, pas la lecture
+        attendue).
 
-    `predictions_chiffrees_AVANT_le_run` n'est PAS touché : la même prédiction, scellée dans -bis AVANT
-    le premier run, reste la prédiction de -ter -- seul le budget de coût a changé, pas la lecture
-    attendue. Un champ séparé le déclare explicitement (jamais une mutation silencieuse d'un dict déjà
-    scellé ailleurs)."""
+    ⚠️ Défaut NOMMÉ, pas corrigé ici (dette EDR-HARNESS-R1 §9, classe E8) : le champ `cout`, hérité de
+    -bis SANS modification par cette fonction (il n'apparaît dans AUCUNE des quatre listes ci-dessus),
+    décrit donc encore le budget DE -bis (`3 x unite x 12 x 5`, `budget_family_s` = 81 min en texte) une
+    fois que `-ter` l'a TRIPLÉ -- une prémisse PÉRIMÉE republiée sans le savoir. Un futur `-quater` (ou
+    toute fonction du même patron `build_rule_r1_<suffixe>`) doit DÉRIVER `cout` des budgets qu'il vient
+    de changer, jamais l'hériter tel quel : ne pas répéter ce défaut."""
     rule = json.loads(json.dumps(rule_bis))
     budget_family = 0.0
     for c in rule["cellules"].values():

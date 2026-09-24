@@ -248,6 +248,11 @@ def test_build_rule_r1_ter_is_identical_to_bis_except_budgets_and_the_declared_f
     bis_stripped.pop("remplace")
     ter_stripped.pop("raison_ter")
     ter_stripped.pop("predictions_chiffrees_AVANT_le_run_note")
+    # `cout` n'est PAS retiré ici : il reste bit-identique à -bis par construction (build_rule_r1_ter ne
+    # le touche jamais), donc l'égalité ci-dessous le compare tel quel des deux côtés et passe QUAND
+    # MÊME -- c'est exactement la dette nommée en EDR-HARNESS-R1 §9 (classe E8) : `cout` d'un -ter
+    # gelé décrit encore le budget DE -bis après que le budget réel a triplé. Ce test gèle la
+    # reproductibilité du SCEAU (correct), pas l'exactitude de son champ `cout` (faux, dette connue).
     assert ter_stripped == bis_stripped
     assert bis["remplace"] == "HARNESS-R1"
     assert ter["remplace"] == "HARNESS-R1-bis"

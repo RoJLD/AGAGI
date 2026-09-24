@@ -30,20 +30,33 @@ corrige pas (`tools/preregister.py`) :
   2-3 de la cellule A (A0/A2/D/D2) -> INCONCLUSIVE_N ; la marge x3 de project_cost supposait la charge du
   smoke. Le budget est une garde de cout, pas une grandeur lue : la lecture est inchangee. » `-ter` est
   lue depuis le sceau `-bis` déjà écrit, **jamais recalculée depuis le smoke** (`build_rule_r1_ter`,
-  `tools/harness/seal_r1.py:278-309`) : seuls trois champs changent (`budget_s` par cellule ×3,
-  `budget_family_s`, `remplace`/`raison_ter`) — `predictions_chiffrees_AVANT_le_run` reste **bit-identique**
-  à `-bis`, donc à `HARNESS-R1`.
+  `tools/harness/seal_r1.py:278-309`) : QUATRE champs changent par rapport à `-bis` (`budget_s` par
+  cellule ×3, `budget_family_s`, `remplace`/`raison_ter`, et `predictions_chiffrees_AVANT_le_run_note` —
+  sept clés au total) — `predictions_chiffrees_AVANT_le_run` reste **bit-identique de `-bis` à `-ter`**
+  (vérifié champ par champ). ⚠️ Cette bit-identité ne remonte PAS jusqu'à `HARNESS-R1` : `-bis` avait déjà,
+  AVANT toute cellule, complété les prédictions de R1 avec des grandeurs MESURÉES au smoke (`raison_bis`)
+  — la bande de bruit [0,990 ; 1,034] pour A, la référence lr=0 mesurée 0,161 pour A′, la médiane intacte
+  0,928 pour B — et les cellules elles-mêmes diffèrent entre `HARNESS-R1` et `-bis` sur `budget_s`,
+  `control_family`, `eval_batches`, `issues`, `n_agents`, et le texte d'`incapable_ceiling` (A). La chaîne
+  `HARNESS-R1` → `-bis` n'est donc PAS bit-identique sur ce champ ; seule la chaîne `-bis` → `-ter` l'est.
 
 `dv_primaire` (identique aux trois maillons, vérifié) : « `hits` par seed et par bras ; `ratio_within` par
 ablation ; `sep_ref` (mediane A - mediane A0) ; `dose.updates` par bras ; `noise_band` ; `closure` (E19) ».
 
 ## 2. E12 en acte
 
-Le premier run réel (`HARNESS-R1-bis`, 2026-09-22 après-midi) a tourné sous **9 processus python DU
-PROJET concurrents** (`tools.jobs.doctor.project_processes()`, lu au départ de chaque cellule). La
-`CostGuard` PAR SEED de `-bis` vaut `budget_s / 12` = 15 × l'unité scellée du smoke (`unit_s_given`) —
-pour la cellule A, 15 × 6,42 s ≈ 96,3 s. Sous cette charge, quatre seeds de la cellule A ont dépassé ce
-budget et ont été abandonnés avant la fin de leur bras (`results/harness_r1_A_0_bis_E12.json`) :
+Le premier run réel (`HARNESS-R1-bis`, 2026-09-22 après-midi) a tourné sous une charge mesurée par **UNE
+seule lecture globale `tasklist`** (« 13 processus python.exe vus avant le run », `scratchpad_run_r1.log`,
+répétée TELLE QUELLE pour les trois cellules) — PAS par `tools.jobs.doctor.project_processes()` lu au
+départ de chaque cellule : cette lecture PAR CELLULE, scopée au PROJET (hors éditeurs/extensions, hors
+moi-même et mes ancêtres), n'existe que depuis `-ter`, où elle a rendu **0 / 0 / 0** avant chacune des
+trois cellules (`scratchpad_run_r1_ter.log`). Le chiffre « 9 processus python concurrents » cité en §1
+vient du RULING scellé dans `raison_ter` (texte du contrôleur), pas d'une mesure directement enregistrée
+dans le log `-bis` — E12 : un chiffre de coût se lit avec sa charge, et la charge se mesure LÀ où elle est
+mesurée. La `CostGuard` PAR SEED de `-bis` vaut `budget_s / 12` = 15 × l'unité scellée du smoke
+(`unit_s_given`) — pour la cellule A, 15 × 6,42 s ≈ 96,3 s. Sous cette charge, SIX couples (seed, bras) de
+la cellule A ont dépassé ce budget et ont été abandonnés avant la fin de leur bras
+(`results/harness_r1_A_0_bis_E12.json`) — DEUX seeds distincts (2 et 3), jamais quatre :
 
 | bras | seeds abandonnés (cellule A, `-bis`) |
 |---|---|
@@ -57,6 +70,13 @@ budget et ont été abandonnés avant la fin de leur bras (`results/harness_r1_A
 (D2 : `[0]`) → également `INCONCLUSIVE_N` (11 < 12, `results/harness_r1_B_0_bis_E12.json`). La cellule A′
 a complété ses 12 seeds sans abandon sous `-bis` et rendait déjà `LR_ARTIFACT` — la charge n'a affecté que
 le COMPTE de seeds complets, jamais la lecture elle-même.
+
+**Réplication gratuite (A′, non revendiquée avant cette revue) :** A′ a donc tourné DEUX fois, sous `-bis`
+PUIS sous `-ter` — les deux blocs `data.db` (`results/harness_r1_Aprime_0_bis_E12.json` et
+`results/harness_r1_Aprime_0.json`) sont IDENTIQUES champ pour champ, SAUF `regime.contract_task.elapsed_ms`
+(1,2367 ms sous `-bis` contre 1,2950 ms sous `-ter` — un temps CPU de compilation du contrat, pas une
+donnée de résultat) : une bit-identité de cellule ENTIÈRE entre deux runs indépendants, plus forte que la
+seule bit-identité de RÈGLE affirmée en §1.
 
 Le correctif `-ter` relève le budget de chaque cellule ×3 (`CostGuard` par seed = 45 × l'unité scellée),
 sans toucher aucune valeur lue par `harness_verdict_lecture` — le budget est une garde de coût, jamais une
@@ -111,7 +131,7 @@ processus persisté.
 | A0 | 0,1688 | 0,1984 | 0,1797 | 0,1609 | 0,1844 | 0,1641 | 0,1734 | 0,1625 | 0,1734 | 0,1703 | 0,1672 | 0,1672 | **0,1695** |
 | A2 (2e lr) | 0,3750 | 0,4344 | 0,4172 | 0,4484 | 0,4047 | 0,4375 | 0,3516 | 0,4031 | 0,4078 | 0,4234 | 0,3844 | 0,4078 | **0,4078** |
 | D (sans bilinear) | 0,2703 | 0,2688 | 0,2531 | 0,2781 | 0,2750 | 0,2766 | 0,2328 | 0,3031 | 0,2719 | 0,2797 | 0,2609 | 0,2672 | **0,2711** |
-| D2 (sans bilinear, 2e lr) | 0,1906 | 0,1781 | 0,1906 | 0,1625 | 0,1750 | 0,1906 | 0,1422 | 0,1937 | 0,1828 | 0,1969 | 0,1766 | 0,1531 | **0,1781** |
+| D2 (sans bilinear, 2e lr) | 0,1906 | 0,1781 | 0,1906 | 0,1625 | 0,1750 | 0,1906 | 0,1422 | 0,1937 | 0,1828 | 0,1969 | 0,1766 | 0,1531 | **0,1805** |
 
 Acquisition : `bar`=0,2195, `reference_last`(A0)=0,1695, `learner_last`(A)=0,9320, `learner_first`=0,1727,
 `per_seed_above_ref`=**12/12**, `saturation`=TENDANCE, `bar_status`=**CEILING_ABOVE_BAR**,
@@ -144,17 +164,23 @@ au-dessus de la barre sans jamais rattraper A) ne se referme pas au second pas.
 | bras | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | médiane |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 | A  | 1,0000 | 1,0000 | 1,0000 | 1,0000 | 1,0000 | 1,0000 | 1,0000 | 1,0000 | 1,0000 | 1,0000 | 1,0000 | 1,0000 | **1,0000** |
-| A0 | 0,2531 | 0,1453 | 0,1609 | 0,1031 | 0,1422 | 0,2516 | 0,2094 | 0,1281 | 0,2047 | 0,1047 | 0,1422 | 0,1281 | **0,1422** |
-| A2 (2e lr) | 0,9750 | 0,9719 | 1,0000 | 0,9906 | 1,0000 | 0,9828 | 0,9875 | 0,9750 | 0,9906 | 0,9859 | 0,9875 | 0,9859 | **0,9859** |
+| A0 | 0,2531 | 0,1453 | 0,1609 | 0,1031 | 0,1422 | 0,2516 | 0,2094 | 0,1281 | 0,2047 | 0,1047 | 0,1422 | 0,1281 | **0,1438** |
+| A2 (2e lr) | 0,9750 | 0,9719 | 1,0000 | 0,9906 | 1,0000 | 0,9828 | 0,9875 | 0,9750 | 0,9906 | 0,9859 | 0,9875 | 0,9859 | **0,9867** |
 | D (sans bilinear) | 1,0000 | 1,0000 | 1,0000 | 1,0000 | 1,0000 | 1,0000 | 1,0000 | 1,0000 | 1,0000 | 1,0000 | 1,0000 | 1,0000 | **1,0000** |
 | D2 (sans bilinear, 2e lr) | 0,8531 | 0,7547 | 0,8500 | 0,8578 | 0,8859 | 0,9297 | 0,8531 | 0,8672 | 0,8656 | 0,8516 | 0,7781 | 0,8375 | **0,8531** |
 
 Acquisition : `bar`=0,1938, `reference_last`(A0)=0,1438, `learner_last`(A)=1,0000, `per_seed_above_ref`=
 **12/12**, `saturation`=PLATEAU, `bar_status`=CEILING_UNVALIDATED (aucun `incapable_ceiling` scellé pour
-A′). `dose.updates` : A = 150 (12/12 seeds) ; A0 = 0. Verdict : `ACQUIRED`.
+A′), `sep_ref`=1,0000 − 0,1438 = **0,8562** (`acquisition.raw.sep`=0,85625). `dose.updates` : A = 150,
+A2 = 150, D = 150, D2 = 150 (12/12 seeds chacun, `unit`=gradient_updates) ; A0 = 0 (12/12 seeds,
+`dparam_abs_sum`=0,0 — bras de référence gelé). Verdict : `ACQUIRED`.
 
-Nécessité (`bilinear`) au premier pas (lr=0,02) : `med_without`(D)=1,0000, `ratio`=1,00, `in_noise_band`=
-**true** → lecture brute au 1er pas : `NOT_NECESSARY` (X_DECOY, « aucun effet de l'ablation détecté »).
+`noise_band`(A) = [1,0000 ; 1,0000] — **DÉGÉNÉRÉE** : `last` et `noop` sont tous deux au plafond 1,0 sur
+les 12 seeds (`noise_floor.A.band` du JSON) ; cf. §6a, c'est le fait le plus tranchant de la limite de
+cette cellule. Nécessité (`bilinear`) au premier pas (lr=0,02) : `med_without`(D)=1,0000, `ratio`=1,00,
+`in_noise_band`= **true** → lecture brute au 1er pas : `NOT_NECESSARY` (X_DECOY, « aucun effet de
+l'ablation détecté ») — sur une bande réduite à un seul POINT, `in_noise_band=true` ne porte AUCUNE
+information (un ratio de 1,000 ne peut pas être ailleurs que dans une bande [1,0 ; 1,0]).
 
 E19 (`condition`=necessity) : `lrs`=[0,02 ; 0,002], `gaps_by_lr`={0,02: **0,0000** ; 0,002: **0,1336**},
 `closure`=**1,000**, `resolution`=0,05, `status`=**LR_ARTIFACT**. `why` (citation intégrale) : « nécessité
@@ -171,19 +197,21 @@ verdict avant que la demande ne soit calculée (`out["demand"]` = `null` dans le
 
 | bras | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | médiane |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| A  | 0,9328 | 0,9281 | 0,8969 | 0,9531 | 0,9172 | 0,9641 | 0,9000 | 0,9141 | 0,9062 | 0,9047 | 0,9406 | 0,9391 | **0,9172** |
+| A  | 0,9328 | 0,9281 | 0,8969 | 0,9531 | 0,9172 | 0,9641 | 0,9000 | 0,9141 | 0,9062 | 0,9047 | 0,9406 | 0,9391 | **0,9227** |
 | A0 | 0,1625 | 0,1781 | 0,1500 | 0,1750 | 0,1609 | 0,1469 | 0,1828 | 0,1266 | 0,1891 | 0,1750 | 0,1625 | 0,1625 | **0,1625** |
-| A2 (2e lr) | 0,7016 | 0,6562 | 0,6391 | 0,6766 | 0,6891 | 0,7109 | 0,6938 | 0,6219 | 0,6406 | 0,6594 | 0,7031 | 0,7047 | **0,6766** |
-| D (sans recurrent_state) | 0,1781 | 0,1578 | 0,1547 | 0,1578 | 0,1750 | 0,1937 | 0,1656 | 0,1312 | 0,1437 | 0,1672 | 0,1859 | 0,1672 | **0,1656** |
+| A2 (2e lr) | 0,7016 | 0,6562 | 0,6391 | 0,6766 | 0,6891 | 0,7109 | 0,6938 | 0,6219 | 0,6406 | 0,6594 | 0,7031 | 0,7047 | **0,6828** |
+| D (sans recurrent_state) | 0,1781 | 0,1578 | 0,1547 | 0,1578 | 0,1750 | 0,1937 | 0,1656 | 0,1312 | 0,1437 | 0,1672 | 0,1859 | 0,1672 | **0,1664** |
 | D2 (sans recurrent_state, 2e lr) | 0,1453 | 0,1656 | 0,1609 | 0,1656 | 0,1609 | 0,1969 | 0,1719 | 0,1359 | 0,1437 | 0,1859 | 0,1719 | 0,1844 | **0,1656** |
 
 Acquisition : `bar`=0,2125, `reference_last`(A0)=0,1625, `learner_last`(A)=0,9227, `per_seed_above_ref`=
-**12/12**, `saturation`=TENDANCE, `bar_status`=CEILING_UNVALIDATED. `dose.updates` : A = 600 (12/12) ; A0 =
-0. Verdict : `ACQUIRED`.
+**12/12**, `saturation`=TENDANCE, `bar_status`=CEILING_UNVALIDATED, `sep_ref`=0,9227 − 0,1625 = **0,7602**
+(`acquisition.raw.sep`=0,76016). `dose.updates` : A = 600, A2 = 600, D = 600, D2 = 600 (12/12 seeds
+chacun, `unit`=gradient_updates) ; A0 = 0 (12/12 seeds, `dparam_abs_sum`=0,0 — bras de référence gelé).
+Verdict : `ACQUIRED`.
 
-Nécessité (`recurrent_state`) : `med_without`(D)=0,1656, `ratio`=**5,54**, `sham`=**PARAMS_NON_APPARIES**
+Nécessité (`recurrent_state`) : `med_without`(D)=0,1664, `ratio`=**5,54**, `sham`=**PARAMS_NON_APPARIES**
 (aucun sham déclaré pour `recurrent_state` dans le registre `PIECES`), `without_clears_bar`=**false**
-(0,1656 ≤ 0,2125) → « med(D) 0.166 <= barre 0.212 (référence + min_sep) » → **`NECESSARY`** au sens de la
+(0,1664 ≤ 0,2125) → « med(D) 0.166 <= barre 0.212 (référence + min_sep) » → **`NECESSARY`** au sens de la
 seule nécessité. E19 : `lrs`=[0,002 ; 0,001], `gaps_by_lr`={0,002: 0,7563 ; 0,001: 0,5172},
 `closure`=**0,316**, `resolution`=0,1670, `status`=**ROBUST**.
 
@@ -203,9 +231,11 @@ Bloc alias de `state_reset` (`alias_guard_verdict`) : `functional_aliasing`=fail
 **FUNCTIONAL_LEAK**, `leakage`=**0,7297**, `x_response`=0,7617, `leak_seeds`=12/12,
 `leak_seeds_two_sided`=12/12. Split CONTROL (key re-présentée au pas de réponse, censé rester résolu même
 état effacé) : `control_intact_median`=**0,9078**, `control_ablated_median`=**0,1781**,
-`control_demand.ratio`=**5,10** (X_DEMANDED). Le contrôle, censé être un no-op sous `state_reset`, CHUTE
-quasiment autant que la tâche principale (0,9078→0,1781, contre A→D 0,9172→0,1656) : c'est ce chiffre qui
-rend l'alias FUNCTIONAL_LEAK plutôt que SURGICAL, et qui fait le verdict final :
+`control_demand.ratio`=**5,10** (X_DEMANDED). Le contrôle, censé être un no-op sous `state_reset`, chute
+quasiment autant que la tâche principale sous LA MÊME ablation (contrôle 0,9078 → 0,1781, `leakage`
+0,7297 > tol 0,05 ; tâche `A` → `state_reset` 0,9227 → 0,1609, `x_response` 0,7617) : c'est ce
+rapprochement — pas le contraste de nécessité `A` → `D` (0,9227 → 0,1664, calculé plus haut) — qui rend
+l'alias FUNCTIONAL_LEAK plutôt que SURGICAL, et qui fait le verdict final :
 **`INCONCLUSIVE_ALIAS`**, `why` = « state_reset : alias FUNCTIONAL_LEAK ».
 
 ## 5. Prédictions scellées vs obtenues
@@ -217,12 +247,16 @@ tout run, re-portées telles quelles »).
 * **A** — `issues.attendue`=`PIECE_PARTIAL`. **Obtenu : `PIECE_PARTIAL`.** Prédiction confirmée sur la
   branche ET sur l'ordre de grandeur (chute ≥3× hors bande annoncée, obtenu 3,44× ; `bar_status`
   `CEILING_ABOVE_BAR` annoncé et obtenu ; bit-identité seed 0 annoncée 0,9328125/0,2703125 — obtenue
-  0,932812511920929/0,270312488079071, identique aux décimales publiées).
+  0,932812511920929/0,270312488079071, identique aux décimales publiées) — SAUF la bande de bruit, la
+  SEULE quantité annoncée qui a bougé : scellée [0,990 ; 1,034] (3 seeds au smoke), obtenue [0,9649 ;
+  1,0345] (12 seeds) — borne basse ~2,5 points plus bas que l'annoncée. Cela ne change rien à la lecture :
+  le décoy `inject_distractor_slot` (ratio 1,0008) tombe DANS les deux bandes, et les ratios demandés
+  (4,39 / 4,35) restent très au-delà de l'une comme de l'autre.
 * **A′** — `issues.attendue`=`PIECE_NOT_NECESSARY`. **Obtenu : `LR_ARTIFACT`, PAS la branche attendue.**
   `issues.sinon` (citation) : « le bilineaire modifie le rappel same_tick : resultat a graver » — cette
   clause `sinon` ne couvre PAS non plus ce qui a été mesuré : le bilinéaire ne « modifie » rien (D = A =
   1,0 au premier pas, ratio 1,00, X_DECOY) — c'est le SECOND pas du sweep qui rouvre un écart (D2 medD2=
-  0,8531 < A2=0,9859) et que l'E19 lit comme non robuste. Ni `attendue` ni `sinon` ne nommaient cette
+  0,8531 < A2=0,9867) et que l'E19 lit comme non robuste. Ni `attendue` ni `sinon` ne nommaient cette
   troisième possibilité (motif discuté en §6).
 * **B** — `issues.attendue`=`DEMANDED_ACQUIRED_NECESSARY`. **Obtenu : `INCONCLUSIVE_ALIAS`, PAS la branche
   attendue.** `issues.sinon` (citation) : « la retention ne passe pas par l'etat porte a ce pas : resultat
@@ -243,10 +277,15 @@ d'avance, et que cette famille est de nature INSTRUMENTALE plutôt que scientifi
 `recall_same_tick_K6` est une tâche à un seul slot à lire (`kind="recall"`, cible = key) : au premier pas
 du sweep (lr=0,02, 150 épisodes), la tâche est si facile que le bras SANS bilinéaire (D) atteint DÉJÀ le
 plafond (`med(D)`=1,0000, identique à A=1,0000) — ratio 1,00, X_DECOY, `PIECE_NOT_NECESSARY` à ce point
-SEUL. La prédiction scellée (`PIECE_NOT_NECESSARY`) avait été mesurée sur ce même point au smoke (« plain =
+SEUL. **Le fait le plus tranchant de cette limite** : `noise_band`(A) est elle-même DÉGÉNÉRÉE à ce point
+([1,0000 ; 1,0000], `noise_floor.A.band` du JSON — `last` et `noop` valent 1,0 sur les 12 seeds). Une bande
+réduite à un seul point rend `in_noise_band=true` non informatif : le harnais ne peut littéralement pas
+distinguer, à ce pas, un ratio de 1,000 d'une bande de bruit nulle — ce n'est pas seulement que la piece
+`bilinear` semble non nécessaire, c'est que l'INSTRUMENT n'a plus aucune capacité de discrimination à ce
+point du sweep. La prédiction scellée (`PIECE_NOT_NECESSARY`) avait été mesurée sur ce même point au smoke (« plain =
 bilineaire = 1,0 (same_tick supervise 150 ep., MESURE seeds 0-2 au present smoke) ») — un SEUL pas de lr.
 Au second pas (lr=0,002), la tâche redevient discriminante : D2 (sans bilinéaire)=0,8531 reste
-significativement sous A2 (avec bilinéaire)=0,9859. `assert_verdict_invariant_to_optimizer` lit cette
+significativement sous A2 (avec bilinéaire)=0,9867. `assert_verdict_invariant_to_optimizer` lit cette
 réouverture d'écart comme la fermeture d'un artefact (`closure`=1,000, le gap passe de 0,1336 à 0,0000) —
 alors que ce que la mesure montre réellement est : à un pas assez grand pour saturer les deux bras
 (0,02, 150 épisodes), rien ne distingue « la pièce n'est pas nécessaire » de « la tâche est trop facile
@@ -284,7 +323,8 @@ apprentissage supplémentaire.
   reste ouverte.
 * **La nécessité de `bilinear` mesurée ici est une nécessité D'ACQUISITION À CETTE DOSE**, pas un plafond
   absolu : le plafond `plain` en forme close (34/36 = 0,944, MINORANT jamais prouvé) reste AU-DESSUS de la
-  barre (0,944 > 0,932 obtenu par A elle-même) — `PIECE_PARTIAL` documente que le plain PEUT composer à ce
+  barre d'acquisition (0,944 > 0,2195, la barre — PAS 0,932, qui est la MÉDIANE obtenue par `A` elle-même,
+  bilinéaire compris : 0,944 > 0,9320 aussi) — `PIECE_PARTIAL` documente que le plain PEUT composer à ce
   budget d'entraînement, pas qu'il ne composera JAMAIS mieux avec plus de budget.
   `representational_ceiling_above_bar`=true est un fait publié, pas une réfutation.
 * **Un seul substrat, une seule famille de pièce testée par cellule.** `connectome_torch` uniquement ;
@@ -313,6 +353,17 @@ Réel total `-ter` : 211,24 + 85,89 + 504,61 = **801,74 s ≈ 13,4 min**, contre
 `tools/harness/run_r1.py:26-30`) — le rapport `actual_s`/`projected_s` très inférieur à 1 sur les trois
 cellules est cohérent avec la charge tombée entre le smoke et le run `-ter` (§2), jamais avec une
 sous-estimation de `unit_s_given` (qui reste la valeur scellée, non recalculée).
+
+⚠️ **Le champ `cout` scellé dans `docs/preregistrations/HARNESS-R1-ter.json` est une PRÉMISSE PÉRIMÉE** :
+il décrit encore le budget de `-bis` mot pour mot (« budget PAR CELLULE = 3 × unité × 12 seeds × 5 bras
+[…] budget_family_s = 81 min ») — `build_rule_r1_ter` (`tools/harness/seal_r1.py:278-309`) ne dérive QUE
+`budget_s`/`budget_family_s`/`remplace`/`raison_ter`/`predictions_chiffrees_AVANT_le_run_note` depuis
+`-bis` (§1), jamais `cout`, qui reste donc BIT-IDENTIQUE à `-bis` alors que `-ter` porte en réalité un
+budget PAR CELLULE = 9 × unité × 12 × 5 et `budget_family_s` = 14534,33 s = 242 min
+(`docs/preregistrations/HARNESS-R1-ter.json`, champ `budget_family_s`, vs le texte du champ `cout` qui
+affirme encore 81 min). C'est la classe **E8** (une prémisse est une mesure, pas un décor) : les chiffres
+justes sont ceux de la table ci-dessus, recomputés depuis les JSON de résultat, jamais le texte de `cout`.
+Dette portée en §9.
 
 ## 9. Dettes vues en passant
 
@@ -356,6 +407,12 @@ Trouvées EN CHEMIN, pas l'objet de cette tâche — portées au backlog par le 
   (ligne 48-51).
 * **Aucun bras `sham` n'a tourné dans R1** — `src/seed_ai/harness_verdict.py:47` (`_ARMS = ("A", "A0",
   "A2", "D", "D2")`), malgré `matched_sham` déclaré dans le registre `PIECES` pour `bilinear` (§7).
+* **Le champ `cout` de `-ter` décrit le budget de `-bis`, pas le sien** — `build_rule_r1_ter`
+  (`tools/harness/seal_r1.py:278-309`) ne dérive QUE `budget_s`/`budget_family_s`/`remplace`/`raison_ter`/
+  `predictions_chiffrees_AVANT_le_run_note` depuis `-bis`, jamais `cout`, qui reste donc hérité
+  BIT-IDENTIQUE alors que le budget réel a triplé (§8). Preuve :
+  `docs/preregistrations/HARNESS-R1-ter.json`, champ `cout` (texte : « budget_family_s = 81 min ») vs
+  champ `budget_family_s` (valeur : 14534,33 s = 242 min). Classe E8.
 
 ## Registre
 
