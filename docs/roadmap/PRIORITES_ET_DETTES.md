@@ -3640,9 +3640,15 @@ annonçait 6 muettes de moins qu'il n'y en avait. Corrigé dans l'outil (un appe
 / `effective_reward` en enregistreurs — variante PUBLIÉE et transmise (E8), ordre des maillons, bras gelé sans phase 1,
 cohorte froide sans bassin ; `run_curriculum` orchestré sous `chdir` ; `run_world_era` à classe de monde) et
 re-déclarées. Le mode `--index` (juger ce qui SERA committé : `git ls-files -s` + `cat-file --batch`) est dans l'outil
-avec ses témoins (index synthétique, plomberie git réelle sur index temporaire, muette neuve injectée → rouge). Reste
-UNIQUEMENT la porte 18 (bloc dans les deux hooks, `PORTES["18"]` à trois mutations, `portes_hook` recomputé) — après la
-fusion PM, numéro 18 réservé par le PM.
+avec ses témoins (index synthétique, plomberie git réelle sur index temporaire, muette neuve injectée → rouge). **Porte 18
+LIVRÉE le 2026-09-24** (passe dédiée, après la fusion PM `79af2944` ; numéro attribué par le PM) : bloc dans
+`tools/hooks/pre-commit` ET dans la copie ACTIVE `.git/hooks/pre-commit` (non versionnée — les deux, sinon l'arbre
+annonce 19 portes et le hook en exécute 18), déclenchée par tout test / le fichier de calibration / l'outil / sa
+baseline stagés (`--diff-filter` incluant **D** : une SUPPRESSION de test peut rendre une déclaration muette),
+`--index` donc jugeant ce qui SERA committé, ~3 s. Calibrée dans la même passe (porte 15) : **3 mutations sur 3
+TUÉES, témoins intacts verts** — périmètre vidé (verte à vide), « une muette neuve n'est jamais nouvelle » (vue,
+jamais bloquée), mode index lisant le disque (la faille même de la porte 4). `portes_hook` **18 → 19**, recomputé
+depuis le hook. **P2.56 est CLOSE** : (a), (b) et la porte.
 **Suite** : (a) ✅ FAIT le 2026-09-23 (32 re-déclarées + 6 démasquées, ci-dessus) — re-déclarer d'après ce que leurs
 témoins AFFIRMENT (une ligne chacune, dans `test_instrument_calibration.py`) ; (b) ✅ FAIT le 2026-09-22 (31 → 0 par les fournées 4–9, ci-dessus) — injection
 à dose connue pour les orchestrateurs, un monde FACTICE pour les simulateurs ; aucune déclaration « la garde suffit » n'a été nécessaire.

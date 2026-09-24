@@ -290,6 +290,29 @@ PORTES = {
                       "serait de nouveau committable"),
         }],
     },
+    "18": {
+        "module": "tools.check_calibration_reach",
+        "titre": "portée de la calibration : aucune NOUVELLE déclaration muette (P2.56)",
+        "temoins": ["tests/sandbox/test_calibration_reach.py"],
+        "mutations": [{
+            "nom": "aucune déclaration n'est plus garde-seule",
+            "avant": '                  if isinstance(cas, list) and cas and all(GARDE_SEULE.search(str(c)) for c in cas))',
+            "apres": "                  if False)",
+            "motif": ("le périmètre disparaît : une muette neuve n'est même pas candidate, la porte est verte "
+                      "à vide"),
+        }, {
+            "nom": "une muette neuve n'est jamais nouvelle",
+            "avant": '    return {"nouvelles": sorted(m - gel), "resorbees": sorted(gel - m), "connues": sorted(m & gel),',
+            "apres": '    return {"nouvelles": [], "resorbees": sorted(gel - m), "connues": sorted(m & gel),',
+            "motif": "le verdict : la muette est VUE mais jamais bloquée",
+        }, {
+            "nom": "le mode index lit le disque",
+            "avant": '    if index:                                                     # ce qui SERA COMMITTÉ, jamais le disque',
+            "apres": "    if False:                                                     # ce qui SERA COMMITTÉ, jamais le disque",
+            "motif": ("E10 occ. 17 : un appelant présent sur le disque mais absent du commit résorberait une "
+                      "muette ; la porte 4 a payé cette faille sur trois sessions"),
+        }],
+    },
     "17": {
         "module": "tools.check_io_overlap",
         "titre": "génome persisté à chevauchement entrée/sortie (E24)",

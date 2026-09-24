@@ -216,7 +216,15 @@ les 348 `.npz` de `data/genomes/` ni les Hall of Fame. Coût nul — trois entie
 0,5 s ; les 10 entrées du HoF principal (64 + 126 dans 172 = 18, une seule lignée) sont gelées, les deux HoF
 famine et les 348 `.npz` sont à 0. Un fichier illisible est RAPPORTÉ, jamais compté 0 ; deux mutations
 tuées par ses témoins).
-**18 gardes** <!-- count:portes_hook=18 --> sont branchées sur le hook pre-commit
+`check_calibration_reach.py` (porte 18 — **PORTÉE de la calibration, cliquet strict à baseline VIDE**. La porte 2
+vérifie qu'une DÉCLARATION existe ; celle-ci vérifie qu'un test **IMPORTE et APPELLE** le symbole quand tous les cas
+déclarés sont des gardes d'entrée (« garde-seule ») : sinon le corps n'a jamais rencontré une réponse connue, et la
+certification ne porte que sur le refus d'un argument dégénéré. Les 31 muettes légataires sont résorbées par injection
+(P2.56, 0 monde réel) → **baseline VIDE**, toute NOUVELLE muette bloque. Elle juge l'**INDEX** (`--index`), pas le
+disque, comme la porte 4 durcie. ⚠️ Elle s'est prise en défaut elle-même (**E4 occ. 9**) : un appel sous
+`pytest.raises` était compté comme une ATTEINTE du corps, donc six déclarations passaient pour calibrées par leur seul
+test de garde — la baseline avait été gelée sur cette mesure avant d'être confrontée à un cas connu).
+**19 gardes** <!-- count:portes_hook=19 --> sont branchées sur le hook pre-commit
 (`tools/hooks/pre-commit`) — compte RECOMPUTÉ depuis le hook lui-même : la phrase « 5 cliquets, tous
 branchés » qui vivait ici était fausse.
 ⚠️ **La baseline d'un cliquet doit elle-même déclencher le hook** — sinon l'élargir et la committer seule
