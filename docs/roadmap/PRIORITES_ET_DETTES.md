@@ -1369,6 +1369,43 @@ les trois écritures passent à `-c`, et la règle entre dans `CLAUDE.md` en une
 par une forme, pas par une garde. *Coût : agent 30 min ; calcul 0.* Dépend de : rien.
 <!-- closes_when:grep_absent=tests/sandbox/test_pm_snapshot.py::config", "user\. -->
 
+**P2.87 — ⚠️ OUVERTE (2026-09-24, demande de robla) — le dashboard doit s'INDEXER TOUT SEUL à mesure que le projet
+produit : donner un FORMAT déclaré aux résultats et aux artefacts pour qu'un type neuf soit ingéré sans écrire un
+parseur. À BRAINSTORMER (robla demande une session dédiée après redémarrage).**
+Quoi : le lot 1 du dashboard (`docs/superpowers/specs/2026-09-22-pilotage-dashboard-design.md`) lit des sources
+EXISTANTES une par une, chacune avec son lecteur écrit à la main. La demande est l'inverse : que produire un artefact
+suffise à l'indexer. État mesuré le 2026-09-24, qui dit à la fois ce qui existe et ce qui manque.
+
+**Trois ingesteurs existent déjà**, et ils prouvent que le dépôt sait faire : `tools/consolidate_records.py` (les
+frontmatter des EDR → `results/records_graph.json`, 321 nœuds et 454 arêtes), `tools/pm/board.py` (registre de
+sessions + bulletins + git → le tableau data/pm/BOARD.json, artefact runtime non suivi), `tools/check_synthesis_counts.py` (les balises `count:` de
+9 documents → recompute). Chacun connaît SA source : rien ne se branche par convention.
+
+**Quatre familles de format, inégalement tenues** : `results/*.json` — **95 fichiers dont 21 seulement portent un bloc
+`regime`** (c'est le format que les records doivent citer, cf. E8 occ. 4) ; `docs/EDR/*.md` — 303, frontmatter
+`gate:`/`tests:`/`adopts:` imposé par la porte 1 ; `docs/preregistrations/*.json` — 68, forme `{name, rule, seal}` ;
+data/pm/*.json — 2, écrits par le tick PM (runtime, non suivis). La leçon utile : **le seul format réellement tenu est celui qu'une PORTE
+exige** (le frontmatter des EDR, 303/303) ; celui que personne ne vérifie est tenu à 22 % (le bloc `regime`, 21/95).
+
+**Et les artefacts de travail de Claude ne sont ingérés par RIEN** : 130 specs, 124 plans, 7 ledgers d'exécution SDD et
+53 rapports de tâche — **314 fichiers**, zéro lecteur. Vérifié plutôt que supposé : `grep -l docs/superpowers tools/*.py`
+rend trois fichiers, mais les trois occurrences sont des CITATIONS en docstring (« Design : … », `tools/cartography.py`:7,
+`tools/altar_tool_funnel_probe.py`:4, `tools/coevolve_use_long.py`:5), aucune lecture. Or ces artefacts portent précisément ce
+qu'aucune autre source ne dit : ce qui a été DÉCIDÉ (specs), ce qui est PRÉVU (plans), ce qui a été TRANCHÉ en cours
+d'exécution (les `Ruling:` des ledgers) et ce qui a été RÉFUTÉ (les rapports de revue).
+
+**À brainstormer, dans cet ordre de questions** : (a) quel jeu minimal de champs rend un artefact auto-descriptible
+(type, date, sujet, verdict ou état, liens sortants) sans alourdir son écriture ? (b) la convention s'impose-t-elle par
+une PORTE (le seul mécanisme qui tienne, mesuré ci-dessus) ou par un lecteur tolérant qui signale ce qu'il n'a pas su
+lire — la seconde voie étant la seule compatible avec 314 artefacts déjà écrits ? (c) l'indexation se fait-elle au
+MOMENT de l'écriture (un hook, donc un writer de plus) ou à la LECTURE (un balayage par le tick PM, donc rien à
+changer aux auteurs) ? (d) que devient l'index : un fichier, une collection de l'artefact Claude, ou le graphe de
+records élargi ? (e) ⚠️ un piège nommé d'avance : un index qui rend une liste VIDE quand il n'a rien su lire serait la
+forme (c) du registre — un motif qui tronque en silence. Il doit publier ce qu'il n'a pas indexé, comme
+`chemins_non_captes` du lot 1. *Coût : brainstorm 2 h ; implémentation non estimée avant cadrage.*
+Dépend de : rien (mais recoupe P2.84, le lot 2 « Science » du dashboard — à décider s'ils fusionnent).
+<!-- closes_when:path_present=docs/superpowers/specs/2026-09-25-auto-indexation-artefacts-design.md -->
+
 
 **P3.4 — rang 14 — ✅ CLOSE le 2026-09-15 ([[EDR-CALIB-LEGACY-LEARNER]], `results/legacy_learner_calibration.json`) — Cas de calibration de l'apprenant LEGACY.**
 Quoi : `MambaBatchModel.compute_policy_gradient` (le chemin actif pendant tout l'arc EVO), mêmes bras
