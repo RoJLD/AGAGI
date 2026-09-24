@@ -73,6 +73,32 @@ def _bit_identite(db, regle, reference):
     return {"n_egal": n_attendu - len(ecarts), "n_attendu": n_attendu, "ecarts": ecarts}
 
 
+_EVAL_BATCHES = 40      # défaut de `_train_eval_one`, JAMAIS surchargé par ce runner (l. 146) -> grille = 40 × n_agents
+
+
+def _sous_barre(sham, plain, marge, n_grille):
+    """`sham <= plain + marge`, comparé en UNITÉS DE GRILLE et non en flottants (2026-09-24).
+
+    L'accuracy est un COMPTE sur `n_grille` évaluations : ses valeurs sont des multiples exacts de
+    `1/n_grille`, et la marge scellée (0,05) vaut ici EXACTEMENT 32 pas de grille. Le critère tombe donc
+    régulièrement sur une ÉGALITÉ — et une égalité exacte se perd en binaire : mesuré sur le seed 3 de
+    BILINEAR-SHAM-R1, `210/640 <= 178/640 + 32/640` est VRAI par construction, mais rendait `False` pour
+    1,19e-08 (0,328125 > 0,32812498807907104, le flottant de `plain` étant arrondi vers le bas). Le compte
+    publié était **8/12 au lieu de 9/12** — le verdict SHAM_PARTIEL ne change pas (9 < 11 exigés), le
+    CHIFFRE de l'évidence, si. Règle : un seuil dont la marge est un multiple exact du pas de la grille se
+    compare sur la grille. Trouvé par la revue d'agagi-52, recompté indépendamment seed par seed."""
+    a, b = round(sham * n_grille), round(plain * n_grille)
+    m = round(marge * n_grille)
+    # ⚠️ La tolérance se mesure sur le bruit de CONVERSION, pas sur zéro : les accuracies sont produites en
+    # float32 (0,278125 est stocké 0,27812498807907104), donc × 640 elles tombent à ~8e-6 de l'entier. Une
+    # tolérance à 1e-6 rejetait la grille et faisait retomber dans la comparaison flottante — le correctif
+    # n'aurait rien corrigé (et rien ne l'aurait dit : le compte serait resté 8/12, « inchangé donc bon »).
+    # 1e-3 pas de grille reste 500× plus serré que le demi-pas qui séparerait une valeur HORS grille.
+    if max(abs(a - sham * n_grille), abs(b - plain * n_grille), abs(m - marge * n_grille)) > 1e-3:
+        return sham <= plain + marge      # hors grille (marge non commensurable) : comparaison ordinaire
+    return a <= b + m
+
+
 def _lecture(db, regle):
     """Branche scellée, dans l'ORDRE IMPOSÉ (INCOMPLET, SHAM_INERTE, SHAM_COMPOSE, SHAM_PARTIEL). Ne lit que des
     cellules présentes ; jamais une inférence."""
@@ -90,10 +116,12 @@ def _lecture(db, regle):
     mp, mb, ms = med("plain", lr_pub), med("bilinear", lr_pub), med("sham", lr_pub)
     mp2, mb2, ms2 = med("plain", lr_bas), med("bilinear", lr_bas), med("sham", lr_bas)
     sous = sum(1 for sd in seeds
-               if db[f"sham|lr={lr_pub}|seed={sd}"] <= db[f"plain|lr={lr_pub}|seed={sd}"] + s["marge"])
+               if _sous_barre(db[f"sham|lr={lr_pub}|seed={sd}"], db[f"plain|lr={lr_pub}|seed={sd}"],
+                              s["marge"], _EVAL_BATCHES * c["n_agents"]))
     out = {"mediane_plain_002": mp, "mediane_bilineaire_002": mb, "mediane_sham_002": ms,
            "mediane_plain_0002": mp2, "mediane_bilineaire_0002": mb2, "mediane_sham_0002": ms2,
-           "sham_sous_plain_plus_marge": f"{sous}/{len(seeds)}"}
+           "sham_sous_plain_plus_marge": f"{sous}/{len(seeds)}",
+           "n_grille": _EVAL_BATCHES * c["n_agents"]}
     ctrl = db.get("_controles", {}).get("bit_identite")
     if ctrl:
         out["bit_identite"] = f"{ctrl['n_egal']}/{ctrl['n_attendu']}"

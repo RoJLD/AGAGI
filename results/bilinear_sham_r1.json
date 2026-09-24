@@ -1,7 +1,7 @@
 {
  "_design": {
   "question": "P4.12 (ADR-005 item 2) : la piece `bilinear` doit son effet (plain 0,271 vs bilineaire 0,932, EDR-BILINEAR) a la MULTIPLICATION ((H.U)*(H.V)).W_bl ou a la CAPACITE ajoutee (U, V, W_bl : memes parametres) ? Le sham lineaire a parametres APPARIES ((H.U)+(H.V)).W_bl, meme init, meme optimiseur, tranche.",
-  "replication_unit": "seed (une population de 16 agents par cellule ; 3 bras x 2 pas appari\u00e9s par seed)",
+  "replication_unit": "seed (une population de 16 agents par cellule ; 3 bras x 2 pas appariés par seed)",
   "n_independent": 12,
   "links": {
    "accuracy_plain": "measured",
@@ -24,7 +24,7 @@
    "reason": null,
    "fwer_bound": 0.05
   },
-  "warning": "1 maillon(s) INF\u00c9R\u00c9(S) : ['plafond_plain_forme_close']. Une cha\u00eene causale transporte son signe, pas son amplitude \u2014 v\u00e9rifier que le r\u00e9gime place l'effet au-dessus du bruit, ou mesurer \u00e0 n r\u00e9duit."
+  "warning": "1 maillon(s) INFÉRÉ(S) : ['plafond_plain_forme_close']. Une chaîne causale transporte son signe, pas son amplitude — vérifier que le régime place l'effet au-dessus du bruit, ou mesurer à n réduit."
  },
  "_regime": {
   "K": 6,
@@ -144,8 +144,16 @@
   "mediane_plain_0002": 0.18046874552965164,
   "mediane_bilineaire_0002": 0.4125000089406967,
   "mediane_sham_0002": 0.18906250596046448,
-  "sham_sous_plain_plus_marge": "8/12",
+  "sham_sous_plain_plus_marge": "9/12",
+  "n_grille": 640,
   "bit_identite": "22/22",
   "branche": "SHAM_PARTIEL"
+ },
+ "_rectification": {
+  "date": "2026-09-24",
+  "quoi": "sham_sous_plain_plus_marge : 8/12 -> 9/12 (le VERDICT SHAM_PARTIEL est inchange, 9 < 11 exiges)",
+  "pourquoi": "le critere `sham <= plain + marge` etait compare en FLOTTANTS alors que l'accuracy est un COMPTE sur n_grille = 640 evaluations (40 lots x 16 agents) et que la marge scellee 0,05 vaut EXACTEMENT 32 pas de grille : le seed 3 est une EGALITE (210/640 contre 178/640 + 32/640), rendue fausse pour 1,19e-08 (0,328125 > 0,32812498807907104). Les 11 autres seeds sont identiques dans les deux arithmetiques.",
+  "cellules_re_mesurees": 0,
+  "source": "revue d'agagi-52, recomptee independamment seed par seed ; correctif a la source dans tools/bilinear_sham_run.py::_sous_barre, cas geles dans tests/sandbox/test_bilinear_sham_run.py"
  }
 }

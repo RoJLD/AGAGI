@@ -9,7 +9,7 @@ import pytest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
-from tools.bilinear_sham_run import BRAS, _bit_identite, _lecture  # noqa: E402
+from tools.bilinear_sham_run import BRAS, _bit_identite, _lecture, _sous_barre  # noqa: E402
 from tools.preregister import verify  # noqa: E402
 
 RULE = verify("BILINEAR-SHAM-R1")
@@ -106,3 +106,25 @@ def test_published_result_rereads_to_its_sealed_branch_with_matched_params_and_b
     n = db["_regime"]["n_params_par_agent"]
     assert n["sham"] == n["bilinear"] > n["plain"]
     assert db["_controles"]["bit_identite"]["n_egal"] == db["_controles"]["bit_identite"]["n_attendu"] == 22
+
+
+def test_le_critere_se_compare_sur_la_GRILLE_et_pas_en_flottants():
+    """2026-09-24 — l'accuracy est un COMPTE sur 640 evaluations et la marge scellee (0,05) vaut EXACTEMENT
+    32 pas : le critere tombe donc sur des EGALITES, qui se perdent en binaire. Reponses connues, tirees des
+    cellules publiees : le seed 3 (210/640 contre 178/640 + 32/640) est une egalite VRAIE que la comparaison
+    flottante rendait fausse pour 1,19e-08 -- le compte publie valait 8/12 au lieu de 9/12.
+    """
+    assert _sous_barre(210 / 640, 178 / 640, 0.05, 640) is True, "egalite exacte : comptee"
+    assert _sous_barre(212 / 640, 176 / 640, 0.05, 640) is False, "un pas au-dessus : non comptee"
+    assert _sous_barre(179 / 640, 174 / 640, 0.05, 640) is True
+    # le float32 du depot : 178/640 est stocke 0,27812498807907104 -- la grille doit RESISTER a ce bruit
+    import numpy as np
+    assert _sous_barre(float(np.float32(210 / 640)), float(np.float32(178 / 640)), 0.05, 640) is True
+
+
+def test_hors_grille_le_critere_retombe_sur_la_comparaison_ordinaire():
+    """SPECIFICITE : si la marge n'est pas un multiple du pas, il n'y a pas de grille a utiliser -- le
+    critere ne doit pas inventer d'arrondi (sans ce cas, un arrondi silencieux deplacerait un seuil).
+    """
+    assert _sous_barre(0.5, 0.48, 0.037, 640) is True
+    assert _sous_barre(0.5, 0.40, 0.037, 640) is False
