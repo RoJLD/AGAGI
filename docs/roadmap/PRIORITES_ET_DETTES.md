@@ -769,7 +769,7 @@ Depuis `b0f2620b` (2026-06-05, commit initial). Correctif : UNE résolution de r
 armé par `sandbox_service._arm_live_progress` SANS monkeypatch. *Coût : agent 30 min ; calcul 0.* Dépend de : rien.
 <!-- closes_when:grep_absent=backend/app/main.py::parents\[3\] -->
 
-**P4.11 — rang 5 — ✅ CLOSE le 2026-09-24 (accord du master, session harnais) — ⚠️ BILLET ACQUIS À UN SEUL POINT DE FONCTIONNEMENT : lr 4,0 = 0,25/agent, λ 0,9-0,99 (aide09 12/12, aide099 11/12) ; **invariance au pas NON ÉTABLIE** — à lr 2,0 l'aide est nulle (aide09 0/12, R1) mais ce point N'A PAS SON CONTRÔLE DE CHEMIN : les bras de R1 à ce pas sont `lr0_reference@2`, `td0@2`, `tdlam09@2`, **jamais `td0_d0@2`**, et la ligne lr 2,0 de R2 était coupée ; or **aucun des deux bras ne franchit sa propre barre** à ce pas : mesuré indépendamment par la session du harnais sur `results/td_step_pilot_r1.json`, `lr0_reference@2` = 0,1643, `td0@2` = 0,1840, `tdlam09@2` = 0,1917, pour une barre réf + 0,05 = **0,2143**. Le 0/12 du pas 2 oppose donc deux bras qui n'apprennent NI l'un NI l'autre : la grandeur contrastée n'existe pas à ce point. Une trace transporte du crédit ; s'il n'y a pas de crédit à transporter, son inertie ne la concerne pas. ⚠️ **Et le critère de lisibilité ne comble pas ce trou tout seul** : `lisible@lr` se mesure sur la paire SANS DÉLAI (`td0_d0` contre `lr0_reference_d0`), alors que l'aide se lit sur la paire AVEC délai — un pas peut donc être déclaré « lisible » pendant que les bras qui portent le contraste restent sous leur barre. ✅ **TRANCHÉ depuis, et dans le sens de cet amendement** (P4.17 CLOSE, lecture scellée `AIDE_A_UN_POINT`) : la reprise a récupéré la ligne lr 2,0 avec son bras de chemin, et `td0_d0` y passe **12/12** pendant qu'**aucun bras à délai ne franchit sa barre** (1/12, 0/12, 1/12, 2/12) — le pas est « lisible » au sens de la règle par la paire SANS délai, et le 0/12 d'aide oppose bien deux bras qui n'apprennent ni l'un ni l'autre. L'invariance au pas reste donc **OUVERTE**, et le balayage utile va vers le **HAUT**, pas vers le bas. ⚠️ Et la lecture complète RENFORCE le billet au lieu de l'affaiblir : à lr 4,0, contre la référence lr=0 du même dispositif (barre 0,2125), `lam0` ne franchit que sur **1/12** et `lam05` sur 3/12, tandis que `lam09` et `lam099` franchissent sur **11/12** — les bras SANS trace n'apprennent pas du tout, donc le +0,063 de R0 n'était pas un bonus sur une tâche apprise : à ce point, la trace est **CE QUI REND la tâche différée apprenable**. Ce qui manque à la pièce reste ce que dit P4.19 (le sham δ-permuté et la dose appariée), pas une invariance. ✅ **Ce que le billet ne risque PAS, recompté sur ce que le CODE compare** (ma première liste, faite de mémoire, en manquait quatre — corrigé le jour même) : **25 comparaisons** effectives de `_lecture`/`_lecture_r1`/`_lecture_r2`, dont 5 NON LISIBLES (bras de lr 1,0 absents, jamais comptées 0) et 20 recomptées en arithmétique de GRILLE (640 évaluations, marge = 32 pas ; médianes sur 1/1280, barre 0,5 = 640 pas) — **0 changement, 0 égalité exacte**, écart maximal à un compte entier 1,526e-05 pas sur 504 valeurs. E30 est donc LATENT ici et n'a touché aucun de ces chiffres. ⚠️ **Mais la marge en PAS, que le compte cachait** : le `12/12` de `tdlam > td0` à lr 4,0 — la mesure qui PORTE ce billet — tient à **+1 pas de grille**, une évaluation sur 640 chez un seul seed (et `aide099` 11/12 à −2 pas). Le compte est au plancher de RÉSOLUTION ; le verdict, lui, est robuste (seuil scellé `seeds_aide` = 11, donc 12 → 11 laisserait la branche intacte). À citer avec sa marge, jamais nu. ⚠️ **Corrigé le 2026-09-24, même jour** : la première rédaction de cette clôture écrivait « invariance RÉFUTÉE », ce qui SUR-DÉCLARAIT — trouvé en vérifiant les bras de R1 après que la session propriétaire du pilote ait corrigé sa propre lecture (la ligne lr 2,0 avait été coupée par la CONTENTION et sa reprise la récupère : 48 cellules en cours, elles trancheront). lr 1,0 JAMAIS mesuré (coupe E13 STRUCTURELLE, tenue machine libre, publiée dans `_regime.coupe`). La pièce `eligibility_trace_credit` N'ENTRE PAS au registre : deux contrôles de son billet manquent (P4.19). ([`ADR-005`](../ADR/005_mecanismes_biomimetiques_pieces_familles_prerequis.md), item 1) —
+**P4.11 — rang 5 — ✅ CLOSE le 2026-09-24 (revue de la session qui porte le harnais, réserves appliquées telles quelles) — ⚠️ BILLET ACQUIS À UN SEUL POINT DE FONCTIONNEMENT : lr 4,0 = 0,25/agent, λ 0,9-0,99 (aide09 12/12, aide099 11/12) ; **invariance au pas NON ÉTABLIE** — à lr 2,0 l'aide est nulle (aide09 0/12, R1) mais ce point N'A PAS SON CONTRÔLE DE CHEMIN : les bras de R1 à ce pas sont `lr0_reference@2`, `td0@2`, `tdlam09@2`, **jamais `td0_d0@2`**, et la ligne lr 2,0 de R2 était coupée ; or **aucun des deux bras ne franchit sa propre barre** à ce pas : mesuré indépendamment par la session du harnais sur `results/td_step_pilot_r1.json`, `lr0_reference@2` = 0,1643, `td0@2` = 0,1840, `tdlam09@2` = 0,1917, pour une barre réf + 0,05 = **0,2143**. Le 0/12 du pas 2 oppose donc deux bras qui n'apprennent NI l'un NI l'autre : la grandeur contrastée n'existe pas à ce point. Une trace transporte du crédit ; s'il n'y a pas de crédit à transporter, son inertie ne la concerne pas. ⚠️ **Et le critère de lisibilité ne comble pas ce trou tout seul** : `lisible@lr` se mesure sur la paire SANS DÉLAI (`td0_d0` contre `lr0_reference_d0`), alors que l'aide se lit sur la paire AVEC délai — un pas peut donc être déclaré « lisible » pendant que les bras qui portent le contraste restent sous leur barre. ✅ **TRANCHÉ depuis, et dans le sens de cet amendement** (P4.17 CLOSE, lecture scellée `AIDE_A_UN_POINT`) : la reprise a récupéré la ligne lr 2,0 avec son bras de chemin, et `td0_d0` y passe **12/12** pendant qu'**aucun bras à délai ne franchit sa barre** (1/12, 0/12, 1/12, 2/12) — le pas est « lisible » au sens de la règle par la paire SANS délai, et le 0/12 d'aide oppose bien deux bras qui n'apprennent ni l'un ni l'autre. L'invariance au pas reste donc **OUVERTE**, et le balayage utile va vers le **HAUT**, pas vers le bas. ⚠️ Et la lecture complète RENFORCE le billet au lieu de l'affaiblir : à lr 4,0, contre la référence lr=0 du même dispositif (barre 0,2125), `lam0` ne franchit que sur **1/12** et `lam05` sur 3/12, tandis que `lam09` et `lam099` franchissent sur **11/12** — les bras SANS trace n'apprennent pas du tout, donc le +0,063 de R0 n'était pas un bonus sur une tâche apprise : à ce point, la trace est **CE QUI REND la tâche différée apprenable**. Ce qui manque à la pièce reste ce que dit P4.19 (le sham δ-permuté et la dose appariée), pas une invariance. ✅ **Ce que le billet ne risque PAS, recompté sur ce que le CODE compare** (ma première liste, faite de mémoire, en manquait quatre — corrigé le jour même) : **25 comparaisons** effectives de `_lecture`/`_lecture_r1`/`_lecture_r2`, dont 5 NON LISIBLES (bras de lr 1,0 absents, jamais comptées 0) et 20 recomptées en arithmétique de GRILLE (640 évaluations, marge = 32 pas ; médianes sur 1/1280, barre 0,5 = 640 pas) — **0 changement, 0 égalité exacte**, écart maximal à un compte entier 1,526e-05 pas sur 504 valeurs. E30 est donc LATENT ici et n'a touché aucun de ces chiffres. ⚠️ **Mais la marge en PAS, que le compte cachait** : le `12/12` de `tdlam > td0` à lr 4,0 — la mesure qui PORTE ce billet — tient à **+1 pas de grille**, une évaluation sur 640 chez un seul seed (et `aide099` 11/12 à −2 pas). Le compte est au plancher de RÉSOLUTION ; le verdict, lui, est robuste (seuil scellé `seeds_aide` = 11, donc 12 → 11 laisserait la branche intacte). À citer avec sa marge, jamais nu. ⚠️ **Corrigé le 2026-09-24, même jour** : la première rédaction de cette clôture écrivait « invariance RÉFUTÉE », ce qui SUR-DÉCLARAIT — trouvé en vérifiant les bras de R1 après que la session propriétaire du pilote ait corrigé sa propre lecture (la ligne lr 2,0 avait été coupée par la CONTENTION et sa reprise la récupère : 48 cellules en cours, elles trancheront). lr 1,0 JAMAIS mesuré (coupe E13 STRUCTURELLE, tenue machine libre, publiée dans `_regime.coupe`). La pièce `eligibility_trace_credit` N'ENTRE PAS au registre : deux contrôles de son billet manquent (P4.19). ([`ADR-005`](../ADR/005_mecanismes_biomimetiques_pieces_familles_prerequis.md), item 1) —
 Trace d'éligibilité de politique TD(λ) dans `TorchPopulationModel._td_update` : le crédit local SANS BPTT, calibré à
 0 simulation ; l'issue positive se mesure sur un PILOTE TD PAR PAS (`CompositionTask(same_tick=False)`), pas sur le
 proxy D=2.**
@@ -814,7 +814,7 @@ ci-dessous est un motif d'auto-clôture ancré (vérifiable sur un clone ; `grep
 ⚠️ **Clause corrigée le 2026-09-24** : la précédente grep-ait sa PROPRE ligne « P4.11 — ✅ CLOSE » dans ce fichier — une clause auto-référentielle ne peut STRUCTURELLEMENT pas signaler qu'une condition de fond est remplie, elle ne fait que recopier la décision de l'auteur (E1). Ancrée désormais sur la SORTIE : le verdict du record.
 <!-- closes_when:grep_present=docs/EDR/TD-STEP-PILOT-R0_Per_Step_TD_Credit_Is_Inert_At_D1_And_The_Eligibility_Trace_Transports_Credit.md::verdict: TD0_INERTE -->
 
-**P4.19 — rang 6 — OUVERTE (2026-09-24, accord du master) — Les DEUX contrôles manquants du billet de la pièce
+**P4.19 — rang 6 — OUVERTE (2026-09-24, issue de la revue de la session qui porte le harnais) — Les DEUX contrôles manquants du billet de la pièce
 `eligibility_trace_credit` : le sham « δ PERMUTÉ » et la dose appariée en Σ|ΔW|.**
 ADR-005 exige pour cette pièce un `matched_sham` « même trace, δ PERMUTÉ dans le temps » et une entrée « à dose
 appariée en Σ|ΔW| ». Mesuré le 2026-09-24, aucun des deux n'existe :
@@ -834,7 +834,7 @@ Tant que (a) et (b) ne sont pas payés, la pièce reste « attend » au registre
 maintient avec ces deux manques nommés). Prérequis de l'ENTRÉE de la pièce, pas dette diffuse.
 <!-- closes_when:grep_present=tools/td_step_pilot.py::permut -->
 
-**P4.20 — rang 12 — OUVERTE (2026-09-24, balayage demandé par le master) — Deux familles de clauses `closes_when`
+**P4.20 — rang 12 — OUVERTE (2026-09-24, balayage demandé par la session qui porte le harnais) — Deux familles de clauses `closes_when`
 qui ne peuvent pas faire ce qu'elles promettent.**
 Balayage complet des 60 clauses du backlog (41 `grep_present`, 14 `path_present`, 5 `grep_absent`) :
 * **(i) AUTO-RÉFÉRENTIELLES — 2 cas.** Une clause qui grep sa propre ligne « ✅ CLOSE » dans ce fichier ne peut
@@ -850,6 +850,10 @@ Balayage complet des 60 clauses du backlog (41 `grep_present`, 14 `path_present`
   record et `results/s2_credit_ablation_2.json` étaient non suivis). Les 6 : `LOCK-001-PROXY-R1`,
   `S2-REWARD-ABLATION`, `S2-CREDIT-ABLATION`, `S2-CREDIT-ABLATION-2`, `S2-BASSIN-FRAGILITY`, `S5-G4-PHASE-A`.
   Une clause doit viser la SORTIE (record, `results/<run>.json`), jamais l'entrée.
+* **Aggravant commun** : `_CLOSE_MARQUEURS` de `tools/check_backlog_freshness.py` contient « ✅ » SEUL, donc
+  « ✅ SCELLÉE ET LANCÉE » bascule l'entrée du côté CLOSE de la logique à deux sens — c'est pourquoi P4.16 ne
+  déclenchait aucune violation malgré son état réel.
+* **(iii) ANCRÉES SUR LA PRÉSENCE DU REMÈDE — 1 cas, le mien, ajouté le 2026-09-24 le jour même du balayage.** Viser la SORTIE ne suffit pas : encore faut-il que ce soit la sortie que l'entrée CHERCHE. La clause de **P2.107** était `grep_present=tests/conftest.py::GIT_DIR` — donc satisfaite dès qu'une fixture existe — alors que l'entrée déclare explicitement ne pas se clore tant que le SITE d'appel fautif n'est pas nommé. Elle a basculé au vert **dans l'heure**, par la pose du remède, sur une entrée dont la condition de fond était intacte. Différence avec (i) : l'auto-référentielle recopie la DÉCISION de l'auteur ; celle-ci constate l'EXISTENCE DU CORRECTIF. Aucune des deux ne constate ce que l'entrée cherche. ⚠️ Et le défaut a été écrit PENDANT ce balayage-ci, par son auteur : un balayage de forme ne protège pas contre la production d'un exemplaire neuf de la même forme, ce qui est l'argument le plus fort pour que la porte 4 le refuse EXÉCUTABLEMENT au lieu qu'on le relise. Durcissement (4) à ajouter à la liste ci-dessous : refuser une clause dont le motif vise le fichier livrable du REMÈDE quand l'entrée porte une réserve de fond explicite — ou, plus simple et plus sûr, faire DÉCLARER par l'auteur ce que la clause constate, et refuser le silence.
 * **Aggravant commun** : `_CLOSE_MARQUEURS` de `tools/check_backlog_freshness.py` contient « ✅ » SEUL, donc
   « ✅ SCELLÉE ET LANCÉE » bascule l'entrée du côté CLOSE de la logique à deux sens — c'est pourquoi P4.16 ne
   déclenchait aucune violation malgré son état réel.
@@ -900,6 +904,62 @@ ne bouge, pas même sur les 48 cellules neuves. Cette entrée ne porte donc plus
 CLIQUET : empêcher un NOUVEAU site, couvrir l'étage des médianes, et trancher les 9 autres sites de
 l'inventaire (dont les deux qui publient un verdict négatif).
 <!-- closes_when:grep_present=tools/hooks/pre-commit::check_grid_threshold -->
+
+
+**P2.107 — rang 3 — OUVERTE (2026-09-24, mécanisme REPRODUIT le jour même) — Les variables que git exporte
+aux hooks fuient dans TOUTE la chaîne de sous-processus, et un test peut alors MUTER LE DÉPÔT RÉEL : fermer la
+CLASSE par une fixture, pas les sites un par un.**
+Ce matin la fuite de `GIT_INDEX_FILE` a été fermée SITE PAR SITE dans `tests/sandbox/test_jobs.py`
+(`_env_sans_git`). Ça n'a pas suffi : la même famille est repassée quelques heures plus tard par **`GIT_DIR`**
+et a mis l'arbre PARTAGÉ hors service (`core.bare = true`, `git status` mort pour toutes les sessions du
+checkout principal). Corriger des sites ne ferme pas une classe — c'est E14 appliqué à l'hygiène
+d'environnement. Mesuré : `tests/conftest.py` porte **zéro** occurrence de `GIT_DIR`, `GIT_WORK_TREE` ou
+`GIT_INDEX_FILE`, donc la protection existe pour UN fichier de tests et pour aucun des ~2000 autres.
+Preuve du mécanisme (deux dépôts JOUETS, jamais celui-ci) : `git init` + `GIT_DIR` hérité + pas de
+`GIT_WORK_TREE` + cwd ailleurs ⇒ le dépôt POINTÉ bascule `core.bare` false → true, son `git status` rend le
+message exact observé, le tmpdir ne reçoit aucun `.git`, et le `git config user.email` suivant écrase
+l'identité du dépôt pointé.
+**Forme demandée** : une fixture `autouse=True` dans `tests/conftest.py` qui RETIRE `GIT_DIR`, `GIT_WORK_TREE`,
+`GIT_INDEX_FILE`, `GIT_OBJECT_DIRECTORY` et `GIT_CEILING_DIRECTORIES` de l'environnement. ⚠️ **De portée
+FONCTION, pas SESSION** : une fixture de session nettoie l'environnement hérité une seule fois, ce qui suffit
+pour la fuite du hook mais laisse le second chemin ouvert — un test qui pose `os.environ["GIT_DIR"]` sans
+`monkeypatch` empoisonne tous les tests SUIVANTS de la même exécution. La portée fonction couvre les deux pour
+un coût nul, et reste compatible avec les tests qui ont BESOIN de ces variables (un `monkeypatch.setenv` dans
+le test s'applique après le nettoyage — c'est le cas de `_en_commit()` dans `check_backlog_freshness`).
+**Contre-exemple gelé, DÉJÀ ÉCRIT** : le script de reproduction à deux dépôts jouets ; il doit ROUGIR si la
+fixture est retirée, et c'est ce qui en fait une garde plutôt qu'une note.
+**Garde d'appoint à coût nul** : refuser toute sortie de test contenant `re-init: ignored` — l'empreinte que
+l'accident émet de lui-même, et la seule qui survive à un `env=` explicite qui contournerait la fixture.
+**À fermer quoi qu'il arrive** : les trois `subprocess.run(..., cwd=repo)` sans `env=` de
+`test_pm_roles_counts.py:95`, `test_pm_snapshot.py:22`, `test_staged_authorship.py:53`. L'identité intacte
+prouve seulement qu'ils n'ont pas été le chemin d'AUJOURD'HUI, pas qu'ils sont sûrs.
+⚠️ Le site d'appel réellement emprunté le 2026-09-24 n'est **PAS identifié** : ne pas clore cette entrée sur la
+seule pose de la fixture sans l'avoir cherché, sinon la prochaine variante repassera par le trou non vu. La
+CLASSE est établie, le CAS ne l'est pas.
+⚠️ **CETTE ENTRÉE NE PORTE VOLONTAIREMENT AUCUNE CLAUSE `closes_when`, et voici pourquoi** — la première rédaction en portait une, `grep_present=tests/conftest.py::GIT_DIR`, et elle était FAUSSE de la même façon que les deux familles de P4.20, un cran plus subtil : elle a été **SATISFAITE dans l'heure** par la pose de la fixture, alors que l'entrée déclare au paragraphe précédent qu'elle ne se clôt PAS tant que le site n'est pas nommé. Elle ancrait sur la **PRÉSENCE DU REMÈDE**, pas sur la condition de fond. Trouvée par la session qui a posé la fixture, pas par moi — et je venais de balayer les 60 clauses du backlog pour cette famille exacte quelques heures plus tôt (P4.20), en écrivant simultanément un nouvel exemplaire du défaut. La condition réelle (« le site d'appel est NOMMÉ et gelé en régression ») n'est pas exprimable dans le vocabulaire fermé de prédicats PURS ; le dépôt interdit de proxifier ce qu'on ne sait pas mesurer, donc l'entrée reste HORS périmètre de clause — RAPPORTÉE par la porte 4, jamais comptée comme un succès, ce qui est le comportement prescrit et non un oubli.
+
+
+
+**P2.111 — rang 8 — OUVERTE (2026-09-24, mesuré contre le motif RÉEL de la porte) — La porte 4 ne refuse pas
+la forme `sha:chemin` parce qu'un DEUX-POINTS casse sa classe de caractères, pas parce qu'elle l'a vérifiée :
+une échappatoire SILENCIEUSE à la garde des chemins non suivis.**
+Mesure, motif recopié depuis `tools/check_backlog_freshness.py` (`_BACKTICK_PATH`) et exécuté sur les deux
+formes : un chemin nu entre backticks est SIGNALÉ comme non suivi ; la même citation préfixée d'un sha ne
+l'est pas. La porte ne voit tout simplement pas la seconde.
+**Pourquoi ça compte dans les DEUX sens.** (a) La forme `sha:chemin` est LÉGITIME et même préférable sur ce
+dépôt : elle résout depuis n'importe quelle branche, elle est plus précise qu'un chemin nu, et elle ne bloque
+pas la flotte quand on cite du travail vivant sur une autre branche — c'est la seule façon correcte de citer
+une garde qui existe ailleurs (cf. **E33** occ. 4). (b) Mais rien ne vérifie qu'elle RÉSOUT : une citation
+`sha:chemin` vers un sha inexistant, ou vers un chemin absent de ce sha, passe en silence — exactement le
+défaut que la porte existe pour empêcher, déplacé d'un cran.
+**Forme demandée** : ACCEPTER explicitement `sha:chemin` (ou `ref:chemin`) comme forme de citation, et vérifier
+qu'elle résout par `git cat-file -e <sha>:<chemin>`. Une échappatoire silencieuse devient une forme CONTRÔLÉE.
+Contre-exemple gelé et mutation (porte 15) dans la même passe, comme pour tout durcissement de porte.
+⚠️ **Je ne prends pas cette entrée** : j'ai durci cette porte deux fois aujourd'hui, mais la session qui tient
+le tableau des rôles la déclare « ni la sienne ni la mienne ». Elle est inscrite avec sa mesure pour que le
+propriétaire la prenne ; si personne ne la revendique, elle reste ouverte et RAPPORTÉE, ce qui est le
+comportement prescrit pour une dette sans propriétaire — pas un oubli.
+<!-- closes_when:grep_present=tools/check_backlog_freshness.py::cat-file -->
 
 
 **P4.21 — rang 12 — OUVERTE (2026-09-24, trouvée en amendant ma propre clôture) — Un verdict de SYNTHÈSE qui
