@@ -62,6 +62,9 @@ def _sessions(snap):
                     "started_at": r.get("started_at"), "branch": b.get("branch"),
                     "claims": list(b.get("claims") or []), "claims_inferes": [],
                     "files_touched": list(b.get("files_touched") or []),
+                    # dernier contact par fichier et dernière écriture du bulletin (défaut 3) : absents d'un
+                    # bulletin légataire, ils restent absents — {} et None, jamais une date inventée
+                    "files_touched_at": dict(b.get("files_touched_at") or {}), "updated_at": b.get("updated_at"),
                     "heartbeat_at": b.get("heartbeat_at"), "bulletin": bool(b)})
     return out, mortes, vies
 

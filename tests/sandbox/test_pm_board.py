@@ -236,6 +236,16 @@ def test_chaque_source_ABSENTE_est_nommee_AVEUGLE_et_ses_alertes_sont_supprimees
     assert md.splitlines()[2].startswith("AVEUGLE SUR")          # en tête, avant toute autre ligne
 
 
+def test_le_tableau_porte_la_date_de_chaque_fichier_en_vol_et_du_bulletin_et_n_en_invente_aucune():
+    """Défaut 3 (2026-09-24) : `files_touched_at` et `updated_at` traversent le tableau tels quels ; un bulletin
+    légataire (sans ces champs) rend {} et None, jamais une date fabriquée."""
+    bul = [dict(_bul("s1", files=["a.py"]), files_touched_at={"a.py": NOW - 30}, updated_at=NOW - 30), _bul("s2")]
+    s = {x["session_id"]: x for x in B.compute(_snap(bulletins=bul))["sessions"]}
+    assert s["s1"]["files_touched_at"] == {"a.py": NOW - 30} and s["s1"]["updated_at"] == NOW - 30
+    assert s["s2"]["files_touched_at"] == {} and s["s2"]["updated_at"] is None
+    assert s["s1"]["files_touched"] == ["a.py"]                             # la liste, elle, ne change pas de forme
+
+
 def test_une_session_SANS_BULLETIN_est_un_AVEUGLEMENT_nomme_pas_une_session_calme():
     """C2.2 : sans bulletin, la session n'a ni fichiers en vol, ni claims, ni heartbeat — A1, A6, A7
     et A8 sont MUETTES sur elle. Zéro alerte y ressemble exactement à « rien à signaler »."""

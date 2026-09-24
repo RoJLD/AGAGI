@@ -37,10 +37,13 @@ def _vide(session_id):
     # dernière lecture ("registre", "absente du registre", "registre indisponible", "registre partiellement
     # illisible") et `identite_at` QUAND nom et pid y ont été lus pour la dernière fois — un `pid` à null
     # n'est jamais laissé passer pour une valeur sans que `identite` dise pourquoi.
+    # `files_touched` reste une LISTE de chemins (contrat du tableau : intersection avec le backlog, clé d'A1) ;
+    # `files_touched_at` date le DERNIER contact de chaque entrée, évincé avec elle ; `updated_at` date chaque
+    # écriture du bulletin, fichier ou pas. Une entrée légataire sans date reste SANS date, jamais datée d'office.
     return {"session_id": session_id, "name": None, "pid": None, "identite": None, "identite_at": None,
             "noms_precedents": [], "cwd": None, "branch": None, "worktree": None,
-            "started_at": None, "heartbeat_at": None, "ended_at": None, "claims": [], "files_touched": [],
-            "last_tool_at": None}
+            "started_at": None, "heartbeat_at": None, "ended_at": None, "updated_at": None, "claims": [],
+            "files_touched": [], "files_touched_at": {}, "last_tool_at": None}
 
 
 def charger(session_id, sessions_dir=None):
@@ -78,6 +81,7 @@ def appliquer(event, payload, bul, *, now, branche_fn):
     """PUR : applique un événement de hook au bulletin. `branche_fn(cwd) -> (branche, worktree)` est injecté."""
     sid = payload.get("session_id") or bul.get("session_id")
     b = dict(_vide(sid), **bul)
+    b["updated_at"] = now                                # CHAQUE écriture est datée (défaut 3 : rien ne l'était)
     cwd = payload.get("cwd") or b.get("cwd")
     if event == "start":
         b["started_at"] = now
@@ -99,6 +103,8 @@ def appliquer(event, payload, bul, *, now, branche_fn):
             # aucun cwd connu (ni bulletin ni payload) : chemin ABSOLU gardé tel quel -- valeur honnête, jamais laissé tomber
             files = [f for f in b["files_touched"] if f != rel] + [rel]
             b["files_touched"] = files[-PLAFOND_FICHIERS:]
+            at = dict(b.get("files_touched_at") or {}, **{rel: now})
+            b["files_touched_at"] = {f: at[f] for f in b["files_touched"] if f in at}     # évincé AVEC la liste
     elif event == "stop":
         b["heartbeat_at"] = now
         br, wt = branche_fn(cwd)
@@ -305,7 +311,9 @@ def _claim(p_item, session):
     bul = dict(_vide(sid), **charger(sid))
     if p_item not in bul["claims"]:
         bul["claims"].append(p_item)
-    bul = resoudre_identite(bul, identite_depuis_registre(sid), _horloge())
+    now = _horloge()
+    bul["updated_at"] = now
+    bul = resoudre_identite(bul, identite_depuis_registre(sid), now)
     ecrire(bul)
     print(f"[PM] {bul.get('name') or sid} revendique {', '.join(bul['claims'])}")
 

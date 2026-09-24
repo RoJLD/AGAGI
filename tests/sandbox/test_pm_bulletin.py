@@ -188,13 +188,15 @@ def test_main_avec_stdin_illisible_sort_0_et_journalise(tmp_path, monkeypatch, c
     assert "stop" in log and "JSONDecodeError" in log
 
 
-def test_main_claim_ajoute_le_P_item_sans_doublon(tmp_path, monkeypatch):
+def test_main_claim_ajoute_le_P_item_sans_doublon_et_date_le_bulletin(tmp_path, monkeypatch):
+    monkeypatch.setattr(BU, "_horloge", lambda: NOW + 5)
     monkeypatch.setenv("AGAGI_DATA_ROOT", str(tmp_path).replace("\\", "/"))
     monkeypatch.setattr(BU, "REGISTRY_DIR", str(tmp_path / "reg"))
     assert BU.main(["claim", "P4.9", "--session", "s1"]) == 0
     assert BU.main(["claim", "P4.9", "--session", "s1"]) == 0
     assert BU.main(["claim", "P2.78", "--session", "s1"]) == 0
-    assert json.loads((tmp_path / "sessions" / "s1.json").read_text(encoding="utf-8"))["claims"] == ["P4.9", "P2.78"]
+    b = json.loads((tmp_path / "sessions" / "s1.json").read_text(encoding="utf-8"))
+    assert b["claims"] == ["P4.9", "P2.78"] and b["updated_at"] == NOW + 5
 
 
 def test_main_claim_sans_session_resolue_sort_0_et_l_ecrit(tmp_path, monkeypatch, capsys):
@@ -254,6 +256,46 @@ def test_resume_tableau_BOARD_illisible_par_summary_dit_illisible_au_lieu_de_se_
     with open(os.path.join(d, "BOARD.json"), "w", encoding="utf-8") as fh:
         json.dump({"generated_at": 1.0}, fh)
     assert BU.resume_tableau().startswith("[PM] tableau illisible")
+
+
+# --- Défaut 3 (2026-09-24) : aucune écriture n'était datée par ENTRÉE — on ne pouvait corréler aucun fichier touché
+# dans le temps. La LISTE `files_touched` garde son contrat (des chemins, dans l'ordre : le tableau y fait des
+# intersections et en tire la clé d'A1) ; `files_touched_at` date le DERNIER contact de chaque entrée, `updated_at`
+# chaque écriture du bulletin. Horloge INJECTÉE (`now`).
+
+def _tool(b, fichier, now):
+    return BU.appliquer("tool", _payload("PostToolUse", tool_name="Edit", tool_input={"file_path": f"c:/x/agagi/{fichier}"}),
+                        b, now=now, branche_fn=lambda c: (None, None))
+
+
+def test_chaque_entree_de_files_touched_est_HORODATEE_au_dernier_contact_et_le_contrat_de_la_liste_est_conserve(tmp_path):
+    b = BU.appliquer("start", _payload("SessionStart"), {}, now=NOW, branche_fn=lambda c: (None, None))
+    assert b["updated_at"] == NOW and b["files_touched_at"] == {}
+    b = _tool(_tool(b, "a.py", NOW + 10), "b.py", NOW + 20)
+    assert b["files_touched"] == ["a.py", "b.py"]                             # la LISTE ne change pas de forme
+    assert b["files_touched_at"] == {"a.py": NOW + 10, "b.py": NOW + 20} and b["updated_at"] == NOW + 20
+    # re-toucher a.py : la liste le remet en queue, sa date AVANCE (dernier contact, pas premier)
+    b = _tool(b, "a.py", NOW + 30)
+    assert b["files_touched"] == ["b.py", "a.py"] and b["files_touched_at"] == {"a.py": NOW + 30, "b.py": NOW + 20}
+    # un événement SANS fichier date le bulletin sans toucher aux entrées
+    b = BU.appliquer("stop", _payload("Stop"), b, now=NOW + 40, branche_fn=lambda c: (None, None))
+    assert b["updated_at"] == NOW + 40 and b["files_touched_at"] == {"a.py": NOW + 30, "b.py": NOW + 20}
+    # aller-retour disque : le dict survit tel quel
+    BU.ecrire(b, str(tmp_path))
+    assert BU.charger("s1", str(tmp_path))["files_touched_at"] == {"a.py": NOW + 30, "b.py": NOW + 20}
+
+
+def test_l_eviction_FIFO_retire_aussi_la_date_et_une_entree_LEGATAIRE_sans_date_n_en_recoit_pas_une_inventee():
+    b = {}
+    for i in range(BU.PLAFOND_FICHIERS + 5):
+        b = _tool(b, f"f{i}.py", NOW + i)
+    assert len(b["files_touched"]) == BU.PLAFOND_FICHIERS
+    assert set(b["files_touched_at"]) == set(b["files_touched"])            # ni orphelin, ni manquant
+    assert "f0.py" not in b["files_touched_at"] and b["files_touched_at"]["f204.py"] == NOW + 204
+    # bulletin d'AVANT ce commit (liste sans dict) : ses entrées restent, SANS date -- jamais une date fabriquée
+    vieux = {"session_id": "s1", "cwd": "c:/x/agagi", "files_touched": ["ancien.py"]}
+    b = _tool(vieux, "neuf.py", NOW)
+    assert b["files_touched"] == ["ancien.py", "neuf.py"] and b["files_touched_at"] == {"neuf.py": NOW}
 
 
 # --- Défauts 2 et 5 (2026-09-24) : le NOM n'est pas une identité, et le pid ne venait de nulle part.
