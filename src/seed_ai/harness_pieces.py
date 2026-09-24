@@ -194,7 +194,14 @@ PIECES: dict = {
             "td0 sur 12/12, R0) et NON INVARIANTE (R1 : lr 2,0 → 0/12 ; lambda 0,5 → 0/12) — classe "
             "E19 ; billet PAYABLE par un balayage lr x lambda SCELLÉ (EDR-TD-STEP-PILOT-R0 avec "
             "bandeau, R1). Réserves : effet faible, un substrat, un délai, traces remises à zéro par "
-            "épisode, aucune extrapolation in-world"
+            "épisode, aucune extrapolation in-world. DEUX CONTROLES DU BILLET MANQUENT, mesures a "
+            "l'appui : (a) le sham exige par ADR-005 (« meme trace, delta PERMUTE dans le temps ») "
+            "n'a JAMAIS ete mesure (0 occurrence dans tools/td_step_pilot.py, motif valide sur cas "
+            "positif) — c'est le SEUL bras qui separe « la trace transporte du credit » de « la trace "
+            "fait un pas effectif plus gros » (gamma*lambda = 0,81 ajoute 0,81*g0 au pas 1) ; (b) la "
+            "dose appariee en Sigma|dW| qu'exige le billet n'est publiee par AUCUN des trois JSON du "
+            "pilote : le critere d'entree n'est pas seulement non atteint, il n'est pas MESURABLE sur "
+            "les artefacts existants."
         ),
     ),
     "time_constant_modulation": Piece(
