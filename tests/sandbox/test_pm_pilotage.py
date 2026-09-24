@@ -100,20 +100,40 @@ Corps.
 
 def test_clause_REELLE_sur_le_depot_trois_reponses_connues():
     """Contrôle positif de la couche d'évaluation, sans évaluateur factice : `_evalue_clause` juge contre
-    le dépôt du module et exige un fichier SUIVI par git. Trois réponses connues : un motif présent dans
-    un fichier suivi → true ; un chemin qui n'existe pas → false ; un chemin absolu hors dépôt → null plus
-    une raison qui dit « pas suivi par git »."""
+    le dépôt du module et exige un fichier SUIVI par git. Deux réponses connues : un motif présent dans
+    un fichier suivi → true ; un chemin qui n'existe pas → false. La branche « existe mais non suivi par git »
+    est couverte par le test suivant avec un dépôt git jetable."""
     txt = ("**P9.1 — OUVERTE (2026-09-01) — vraie.**\nCorps.\n"
            "<!-- closes_when:grep_present=tools/cost_guard.py::process_time -->\n\n"
            "**P9.2 — OUVERTE (2026-09-02) — fausse.**\nCorps.\n"
            "<!-- closes_when:path_present=zzz/nexiste/pas.py -->\n\n"
-           "**P9.3 — OUVERTE (2026-09-03) — invérifiable.**\nCorps.\n"
+           "**P9.3 — OUVERTE (2026-09-03) — inexistant.**\nCorps.\n"
            "<!-- closes_when:path_present=" + os.path.abspath(os.sep).replace(os.sep, "/") + "tmp_hors_depot.py -->\n")
     out = P.parse_roadmap(txt, P.racine_depot(), NOW)              # évaluateur RÉEL
     par = {e["num"]: e for e in out["entrees"]}
     assert par["P9.1"]["clause"]["satisfaite"] is True
     assert par["P9.2"]["clause"]["satisfaite"] is False
-    assert par["P9.3"]["clause"]["satisfaite"] in (False, None)
+    assert par["P9.3"]["clause"]["satisfaite"] is False
+
+
+def test_clause_sur_un_fichier_qui_EXISTE_mais_n_est_PAS_SUIVI_par_git(tmp_path, monkeypatch):
+    """Troisième réponse connue, celle que le cas d'origine n'exerçait pas : `_evalue_clause` rend `None`
+    PLUS une raison quand le fichier existe mais n'est pas suivi par git — la clause est alors invérifiable
+    sur un clone. Il faut un dépôt git JETABLE pour l'atteindre : `_evalue_clause` juge contre le `_ROOT`
+    de son module, et un test n'écrit jamais dans l'arbre partagé (P2.81)."""
+    import subprocess
+    import tools.check_backlog_freshness as cb
+
+    subprocess.run(["git", "init", "-q"], cwd=str(tmp_path), check=True)
+    (tmp_path / "temoin.py").write_text("x = 1", encoding="utf-8")
+    monkeypatch.setattr(cb, "_ROOT", str(tmp_path))
+
+    txt = ("**P9.6 — OUVERTE (2026-09-01) — cite un fichier present mais non suivi.**\nCorps.\n"
+           "<!-- closes_when:path_present=temoin.py -->\n")
+    out = P.parse_roadmap(txt, str(tmp_path), NOW)          # évaluateur RÉEL
+    clause = out["entrees"][0]["clause"]
+    assert clause["satisfaite"] is None, clause
+    assert "PAS SUIVI par git" in (clause["raison"] or ""), clause
 
 
 def test_les_chemins_non_captes_par_le_motif_sont_COMPTES_jamais_avales():
