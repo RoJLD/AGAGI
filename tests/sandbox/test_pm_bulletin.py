@@ -90,6 +90,10 @@ def test_main_start_ecrit_le_bulletin_imprime_le_resume_et_sort_0(tmp_path, monk
 
 
 def test_main_start_avec_BOARD_en_cache_imprime_le_resume_du_tableau(tmp_path, monkeypatch, capsys):
+    # Horloge INJECTÉE (défaut 1, 2026-09-24) : le résumé dépend désormais de l'âge du tableau, et NOW
+    # (2027) est dans le FUTUR de l'horloge réelle — sans injection, ce test aurait changé de verdict
+    # selon le jour où il tourne.
+    monkeypatch.setattr(BU, "_horloge", lambda: NOW + 600)
     monkeypatch.setenv("AGAGI_DATA_ROOT", str(tmp_path).replace("\\", "/"))
     monkeypatch.setattr(BU, "REGISTRY_DIR", str(tmp_path / "reg"))
     (tmp_path / "pm").mkdir()
@@ -100,6 +104,80 @@ def test_main_start_avec_BOARD_en_cache_imprime_le_resume_du_tableau(tmp_path, m
     assert BU.main(["start"]) == 0
     out = capsys.readouterr().out
     assert "[PM] AVEUGLE SUR bails" in out and "0 sessions AGAGI" in out
+    assert "âge 10 min (generated_at)" in out and "TABLEAU PÉRIMÉ" not in out
+
+
+# --- Défaut 1 (2026-09-24) : le tableau en cache PUBLIE son âge, et un tableau périmé n'est pas imprimé comme
+# courant. Mesuré à l'essai d'acceptation : un BOARD vieux de ~31 h annonçait à chaque démarrage « AVEUGLE SUR
+# bulletin absent pour agagi-11, b0, d7, c9 » alors que ces bulletins existaient.
+
+def _board_cache(tmp_path, **kw):
+    d = tmp_path / "pm"
+    d.mkdir(exist_ok=True)
+    board = {"generated_at": NOW, "aveugle": ["bulletin absent pour 4 session(s) : agagi-11, agagi-b0, agagi-d7, agagi-c9"],
+             "sessions": [], "charge_connue": {"sims_en_vol": 0, "cpu_pct": 89.0, "bails_vivants": []},
+             "alertes": [{"id": "A5", "cle": "A5:cpu", "gravite": "alerte", "message": "charge CPU = 89 %", "preuve": {}}]}
+    board.update(kw)
+    (d / "BOARD.json").write_text(json.dumps(board), encoding="utf-8")
+    return str(d)
+
+
+def test_CONTRE_EXEMPLE_tableau_RECENT_imprime_ses_alertes_DATEES_et_VIEUX_de_31_h_les_TAIT_et_dit_PERIME(tmp_path):
+    """Les DEUX issues sur le MÊME tableau, seule l'horloge injectée change."""
+    pm = _board_cache(tmp_path)
+    recent = BU.resume_tableau(pm, now=NOW + 600)
+    assert "âge 10 min (generated_at)" in recent
+    assert "[PM] AVEUGLE SUR bulletin absent" in recent and "A5:cpu" in recent
+    assert "TABLEAU PÉRIMÉ" not in recent
+    vieux = BU.resume_tableau(pm, now=NOW + 31 * 3600)
+    assert "TABLEAU PÉRIMÉ" in vieux and "il y a 31.0 h (generated_at)" in vieux
+    assert "le tick NE TOURNE PAS" in vieux and "python -m tools.pm.board" in vieux and "/pm" in vieux
+    assert "1 alerte(s), 1 aveuglement(s)" in vieux and "NON réimprimés comme courants" in vieux
+    # le cœur du défaut : l'aveuglement FABRIQUÉ et l'alerte d'hier ne sont PAS présentés comme d'aujourd'hui
+    assert "AVEUGLE SUR" not in vieux and "A5:cpu" not in vieux
+
+
+def test_le_seuil_de_peremption_EST_le_TTL_du_bail_pm_et_tranche_a_la_seconde(tmp_path):
+    from tools.pm import board as B
+    from tools.pm import tick as TK
+    assert B.PEREMPTION_S == TK.TTL_PM_S == 7200.0            # une seule source : le tick relit celle du tableau
+    pm = _board_cache(tmp_path)
+    assert "TABLEAU PÉRIMÉ" not in BU.resume_tableau(pm, now=NOW + B.PEREMPTION_S - 1)
+    assert "TABLEAU PÉRIMÉ" in BU.resume_tableau(pm, now=NOW + B.PEREMPTION_S + 1)
+
+
+def test_un_tableau_DATE_DU_FUTUR_n_est_pas_courant_mais_une_minute_de_gigue_l_est(tmp_path):
+    pm = _board_cache(tmp_path)
+    futur = BU.resume_tableau(pm, now=NOW - 3600)
+    assert "DATÉ DU FUTUR de 60 min" in futur and "A5:cpu" not in futur and "AVEUGLE SUR" not in futur
+    assert "A5:cpu" in BU.resume_tableau(pm, now=NOW - 30)                 # sous TOLERANCE_FUTUR_S : courant
+
+
+def test_sans_generated_at_l_age_vient_du_MTIME_et_le_DIT(tmp_path):
+    """Le repli existe et se nomme : un tableau sans `generated_at` est illisible par `summary`, mais son âge
+    reste publié — lu du mtime, annoncé comme borne BASSE (le fichier est écrit APRÈS la mesure)."""
+    pm = _board_cache(tmp_path)
+    p = os.path.join(pm, "BOARD.json")
+    with open(p, encoding="utf-8") as fh:
+        b = json.load(fh)
+    del b["generated_at"]
+    with open(p, "w", encoding="utf-8") as fh:
+        json.dump(b, fh)
+    os.utime(p, (NOW, NOW))
+    t = BU.resume_tableau(pm, now=NOW + 31 * 3600)
+    assert t.startswith("[PM] tableau illisible") and "31.0 h (mtime du fichier" in t and "borne BASSE" in t
+
+
+def test_main_start_avec_un_BOARD_de_31_h_imprime_PERIME_et_pas_ses_alertes(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(BU, "_horloge", lambda: NOW + 31 * 3600)
+    monkeypatch.setenv("AGAGI_DATA_ROOT", str(tmp_path).replace("\\", "/"))
+    monkeypatch.setattr(BU, "REGISTRY_DIR", str(tmp_path / "reg"))
+    _board_cache(tmp_path)
+    monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(_payload("SessionStart"))))
+    assert BU.main(["start"]) == 0
+    out = capsys.readouterr().out
+    assert "TABLEAU PÉRIMÉ" in out and "AVEUGLE SUR" not in out and "A5:cpu" not in out
+    assert not (tmp_path / "pm" / "hook_errors.log").exists()
 
 
 def test_main_avec_stdin_illisible_sort_0_et_journalise(tmp_path, monkeypatch, capsys):

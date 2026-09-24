@@ -12,10 +12,18 @@ import sys
 import time
 
 from src import paths
+from tools.pm.bulletin import texte_age
 from tools.pm.snapshot import ancrer_data_root, norm, snapshot
 
 SEUILS = {"suppressions": 500, "cpu_pct": 80.0, "sims_max": 1, "worktree_jours": 7,
           "sans_claim_h": 1.0, "heartbeat_h": 2.0}
+# Le bail `pm` est renouvelé à CHAQUE tick (tools/pm/tick.py), pour TTL_PM_S. Un tableau plus vieux que ce TTL
+# n'a donc été suivi d'AUCUN tick pendant toute la durée du bail : par la définition même du système, le rôle PM
+# est VACANT. La péremption du tableau lu au démarrage est ce seuil-là, et pas une valeur de plus à choisir :
+# le skill /pm se réveille toutes les 1200-1800 s, donc 2 h = au moins quatre ticks manqués d'affilée — une
+# panne, pas une gigue. Défini ICI (le tableau le relit), importé par le tick : une seule source.
+TTL_PM_S = 7200.0
+PEREMPTION_S = TTL_PM_S
 
 
 def _h(sec):
@@ -225,9 +233,15 @@ def render_md(board):
     return "\n".join(L) + "\n"
 
 
-def summary(board, max_lines=25):
-    """Ce qu'une session lit à sa naissance : aveuglements, charge, qui est sur quoi, alertes."""
-    L = [f"[PM] tableau du {time.strftime('%Y-%m-%d %H:%M', time.localtime(board['generated_at']))} — {len(board['sessions'])} sessions AGAGI"]
+def summary(board, max_lines=25, age_s=None, source_age=None):
+    """Ce qu'une session lit à sa naissance : l'ÂGE du tableau, aveuglements, charge, qui est sur quoi, alertes.
+
+    L'âge est publié en TÊTE, toujours : un résumé en cache sans âge fait passer du périmé pour du courant.
+    `age_s=None` s'imprime « âge INCONNU » — jamais un silence. Au-delà de PEREMPTION_S, le hook de démarrage
+    n'appelle pas ce résumé comme courant (bulletin.resume_tableau)."""
+    age = f"âge {texte_age(age_s)}" + (f" ({source_age})" if source_age else "")
+    L = [f"[PM] tableau du {time.strftime('%Y-%m-%d %H:%M', time.localtime(board['generated_at']))} — {age}, "
+         f"périmé au-delà de {texte_age(PEREMPTION_S)} — {len(board['sessions'])} sessions AGAGI"]
     L += [f"[PM] AVEUGLE SUR {a}" for a in board["aveugle"]]
     c = board["charge_connue"]
     L.append(f"[PM] charge : sims={c['sims_en_vol']} cpu={c['cpu_pct']} bails={c['bails_vivants']}")
@@ -257,7 +271,7 @@ def main(argv=None):
     md = render_md(board)
     with open(paths.pm_dir("BOARD.md"), "w", encoding="utf-8") as fh:
         fh.write(md)
-    print(md if args.stdout else summary(board))
+    print(md if args.stdout else summary(board, age_s=0.0, source_age="calculé à l'instant"))
     return 0
 
 

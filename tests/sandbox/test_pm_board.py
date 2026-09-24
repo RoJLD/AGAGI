@@ -260,6 +260,14 @@ def test_render_et_summary_portent_les_alertes_et_la_charge():
     assert len(s.splitlines()) <= 25 and "A1" in s
 
 
+def test_summary_publie_l_AGE_en_tete_et_dit_INCONNU_plutot_que_se_taire():
+    """Défaut 1 (2026-09-24) : un résumé en cache sans âge fait passer du périmé pour du courant."""
+    b = B.compute(_snap())
+    tete = B.summary(b, age_s=600, source_age="generated_at").splitlines()[0]
+    assert "âge 10 min (generated_at)" in tete and "périmé au-delà de 2.0 h" in tete
+    assert "âge INCONNU" in B.summary(b).splitlines()[0]
+
+
 def test_main_ecrit_BOARD_json_et_md_sous_pm_dir(tmp_path, monkeypatch):
     monkeypatch.setenv("AGAGI_DATA_ROOT", str(tmp_path).replace("\\", "/"))
     code = B.main(["--repo-root", os.getcwd(), "--registry-dir", str(tmp_path / "aucun"),

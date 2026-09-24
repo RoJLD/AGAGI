@@ -17,11 +17,9 @@ from src import paths
 from tools.jobs import lease as L
 from tools.pm import alerts as AL
 from tools.pm import roles_counts as RC
-from tools.pm.board import compute, render_md
+from tools.pm.board import TTL_PM_S, compute, render_md  # TTL_PM_S défini au TABLEAU : c'est aussi son seuil de péremption
 from tools.pm.bulletin import session_id_courant
 from tools.pm.snapshot import ancrer_data_root, read_registry, snapshot
-
-TTL_PM_S = 7200.0
 
 
 def prendre_bail_pm(owner, pid, *, leases_dir=None, ttl_s=TTL_PM_S):
