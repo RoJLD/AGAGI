@@ -962,6 +962,30 @@ comportement prescrit pour une dette sans propriétaire — pas un oubli.
 <!-- closes_when:grep_present=tools/check_backlog_freshness.py::cat-file -->
 
 
+**P2.112 — rang 4 — OUVERTE (2026-09-24, après un dégât RÉEL et mesuré) — Toute réécriture d'un fichier
+PARTAGÉ doit asserter que rien du DISQUE COURANT ne disparaît — pas seulement rien de HEAD.**
+Preuve (E22, occurrence du jour) : mon script alignait le disque depuis son BLOB après le commit, et a
+détruit l'entrée `P2.110` d'une autre session — écrite à 13:00, absente du disque, de l'index et de tout
+commit. Aucune porte ne pouvait le voir : la porte 16 juge un commit, et ce hunk n'en a jamais fait partie.
+Mes scripts portaient déjà l'assertion « aucune ligne de HEAD ne disparaît », qui est INOPÉRANTE ici :
+l'état écrasé n'était pas HEAD, c'était le disque.
+**Forme demandée** : un helper partagé — domicile naturel `tools/check_amputation.py`, qui porte déjà la
+logique d'amputation — du type `ecrire_sans_perte(chemin, nouveau, retraits_declares=())` qui RELIT le
+fichier juste avant d'écrire, refuse si une ligne non vide du disque courant disparaît sans être déclarée,
+et dit LAQUELLE. Coût nul, et il transforme une discipline en refus.
+**Contre-exemple gelé à écrire dans la même passe** : un fichier portant un hunk « étranger », une
+réécriture bâtie depuis une base qui ne le contient pas, et l'assertion qui ROUGIT ; plus le cas symétrique
+d'un retrait DÉCLARÉ qui passe.
+⚠️ **Ce n'est pas automatisable par une porte** : une porte s'exécute au commit et ne voit pas les écritures
+disque. C'est donc un helper que les scripts doivent APPELER — et une règle documentée sans application
+exécutable est la classe E10. La parade contre E10 ici est que le helper soit le chemin le plus COURT :
+s'il est plus simple à appeler qu'un `open(...).write(...)`, il sera appelé.
+⚠️ **Tension à ne pas oublier en le concevant** : différer l'écriture après le commit protège la flotte du
+blocage par la porte 8 (P2.85) ; l'écrire depuis le blob détruit. Le helper doit rendre les deux
+compatibles, et c'est en croyant résoudre la première que j'ai créé la seconde.
+<!-- closes_when:grep_present=tools/check_amputation.py::ecrire_sans_perte -->
+
+
 **P4.21 — rang 12 — OUVERTE (2026-09-24, trouvée en amendant ma propre clôture) — Un verdict de SYNTHÈSE qui
 agrège plusieurs POINTS DE FONCTIONNEMENT n'a aucune garde : le pré-vol garde une CELLULE, pas une CONCLUSION.**
 Preuve (E2 occ. 6) : `7fa6b2d8` publiait « invariance au pas RÉFUTÉE » depuis `aide09 = 0/12` à lr 2,0, alors que
