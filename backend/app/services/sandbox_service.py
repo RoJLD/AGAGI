@@ -8,6 +8,16 @@ import collections
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../"))
 
+
+def default_live_progress_path() -> str:
+    """Chemin du puits de progression live, SANS effet de bord (ni makedirs ni troncature).
+
+    Extrait pour que les tests puissent le comparer sans appeler `_arm_live_progress`, qui VIDE le
+    fichier : un test qui l'appellerait tronquerait la progression d'un run en vol (P2.81).
+    """
+    return os.path.join(PROJECT_ROOT, "results", "live_progress.jsonl")
+
+
 class SandboxService:
     def __init__(self):
         self._processes: dict[str, subprocess.Popen] = {}
@@ -56,7 +66,7 @@ class SandboxService:
         """Arme le puits de progression live pour CE run : vide le fichier puis pose l'env.
         Si le vidage échoue, l'env n'est PAS posé (emit_progress restera no-op -> pas de données stale)."""
         if progress_path is None:
-            progress_path = os.path.join(PROJECT_ROOT, "results", "live_progress.jsonl")
+            progress_path = default_live_progress_path()
         os.makedirs(os.path.dirname(progress_path), exist_ok=True)
         try:
             open(progress_path, "w", encoding="utf-8").close()  # vide / crée

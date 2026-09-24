@@ -176,6 +176,26 @@ def test_ws_evolution_streams_appended_events(tmp_path, monkeypatch) -> None:
         assert event["run"] == "demo"
 
 
+def test_P2_81_le_puits_de_progression_du_backend_est_celui_que_le_lanceur_arme() -> None:
+    """P2.81 : `main.py:68` résolvait la racine par `parents[3]`, forme copiée des routes qui vivent un
+    niveau PLUS PROFOND — pour `main.py` c'est le dossier PARENT du dépôt. Mesuré le 2026-09-22 :
+    `C:/Users/robla/VScode_Project/results`, qui n'existe pas. Le WS `/ws/evolution` taillait donc un
+    fichier que le lanceur n'écrit jamais, depuis le commit initial.
+
+    ⚠️ Ce test NE DOIT PAS appeler `_arm_live_progress` : elle fait `os.makedirs` puis `open(path, "w")`
+    sur le VRAI `<dépôt>/results/live_progress.jsonl` — elle TRONQUERAIT la progression d'un run en vol,
+    et un test deviendrait writer d'un fichier partagé. On compare au helper PUR.
+    """
+    from pathlib import Path
+    from backend.app import main as main_mod
+    from backend.app.services import sandbox_service as sb
+
+    assert Path(main_mod.LIVE_PROGRESS_PATH) == Path(sb.default_live_progress_path())
+    assert Path(main_mod.RESULTS_DIR).name == "results"
+    assert (Path(main_mod.RESULTS_DIR).parent / "tools" / "hooks" / "pre-commit").exists(), (
+        "la racine du backend doit être le DÉPÔT : son parent doit porter tools/hooks/pre-commit")
+
+
 def test_arm_live_progress_sets_env_and_clears_file(tmp_path) -> None:
     import os as _os
     sink = tmp_path / "live_progress.jsonl"

@@ -23,6 +23,7 @@ from .routes.runs import router as runs_router
 from .routes.health import router as health_router
 from .services.data_service import ExperimentDataService
 from .services.live_progress_service import LiveProgressTail
+from .services import sandbox_service as sandbox_service_module
 from .flatland_server import flatland_server
 
 # Allowlist dev par défaut (jamais "*" : wildcard + credentials reflète n'importe quelle origine — cf. test_security).
@@ -65,7 +66,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-RESULTS_DIR = Path(__file__).resolve().parents[3] / "results"
+# ⚠️ P2.81 : `parents[3]` était copié des routes et des services, qui vivent un niveau PLUS PROFOND —
+# pour CE fichier il désigne le dossier PARENT du dépôt (mesuré le 2026-09-22 :
+# C:/Users/robla/VScode_Project/results, inexistant), donc `/ws/evolution` taillait un fichier que le
+# lanceur n'écrit jamais. La racine se prend là où le lanceur la prend : `sandbox_service.PROJECT_ROOT`.
+RESULTS_DIR = Path(sandbox_service_module.PROJECT_ROOT) / "results"
 LIVE_PROGRESS_PATH = RESULTS_DIR / "live_progress.jsonl"
 service = ExperimentDataService(RESULTS_DIR)
 
