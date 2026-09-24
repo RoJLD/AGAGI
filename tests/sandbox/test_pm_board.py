@@ -246,6 +246,17 @@ def test_le_tableau_porte_la_date_de_chaque_fichier_en_vol_et_du_bulletin_et_n_e
     assert s["s1"]["files_touched"] == ["a.py"]                             # la liste, elle, ne change pas de forme
 
 
+def test_le_tableau_DECLARE_que_les_fichiers_en_vol_ne_voient_que_les_outils_d_edition_jamais_un_script():
+    """Défaut 4 (2026-09-24) : `files_touched` n'est alimenté que par le hook des outils d'édition ; une session
+    qui venait de réécrire le backlog PAR SCRIPT n'apparaissait pas. La cécité est DITE partout où le tableau
+    présente ces fichiers — et elle n'est pas un AVEUGLE SUR (une limite déclarée n'est pas une source absente)."""
+    b = B.compute(_snap(bulletins=[_bul("s1", files=["a.py"]), _bul("s2")]))
+    for rendu in (B.render_md(b), B.summary(b)):
+        assert B.CECITE_FICHIERS in rendu
+    assert "script" in B.CECITE_FICHIERS and "Bash" in B.CECITE_FICHIERS and "Edit" in B.CECITE_FICHIERS
+    assert b["aveugle"] == []
+
+
 def test_une_session_SANS_BULLETIN_est_un_AVEUGLEMENT_nomme_pas_une_session_calme():
     """C2.2 : sans bulletin, la session n'a ni fichiers en vol, ni claims, ni heartbeat — A1, A6, A7
     et A8 sont MUETTES sur elle. Zéro alerte y ressemble exactement à « rien à signaler »."""

@@ -24,6 +24,15 @@ SEUILS = {"suppressions": 500, "cpu_pct": 80.0, "sims_max": 1, "worktree_jours":
 # panne, pas une gigue. Défini ICI (le tableau le relit), importé par le tick : une seule source.
 TTL_PM_S = 7200.0
 PEREMPTION_S = TTL_PM_S
+# CÉCITÉ DÉCLARÉE (défaut 4, 2026-09-24). `files_touched` n'est alimenté QUE par le hook PostToolUse des outils
+# d'ÉDITION (matcher Edit|Write|MultiEdit|NotebookEdit dans .claude/settings.json) : un script Python lancé par
+# Bash qui réécrit un fichier n'y laisse AUCUNE trace — mesuré : une session qui venait de réécrire le backlog par
+# script n'apparaissait pas. Une liste qui ne voit qu'une partie des écritures ressemble à une liste complète ;
+# le tableau le DIT partout où il présente ces fichiers (A1 et les P-items inférés en dépendent). Ce n'est PAS une
+# ligne AVEUGLE SUR : une limite déclarée n'est pas une source absente, et y entrer gonflerait le compte à chaque tick.
+CECITE_FICHIERS = ("fichiers en vol = vus par les hooks des outils d'édition (Edit/Write/MultiEdit/NotebookEdit) "
+                   "SEULEMENT : un script lancé par Bash qui réécrit un fichier n'y laisse aucune trace — A1 et "
+                   "les P-items inférés ne voient pas ces écritures")
 
 
 def _h(sec):
@@ -231,6 +240,7 @@ def render_md(board):
         hb = f"{_h(board['generated_at'] - s['heartbeat_at']):.1f} h" if s.get("heartbeat_at") else "—"
         L.append(f"| {_nom(s)} | {s.get('branch') or '—'} | {', '.join(s['claims']) or '—'} | "
                  f"{', '.join(s['claims_inferes']) or '—'} | {len(s['files_touched'])} | {hb} |")
+    L.append(f"\n{CECITE_FICHIERS}")
     if board.get("sessions_mortes"):
         L.append(f"\nsessions MORTES écartées du tableau (PID disparu, entrée encore au registre) : "
                  f"{', '.join(board['sessions_mortes'])}")
@@ -259,6 +269,7 @@ def summary(board, max_lines=25, age_s=None, source_age=None):
         L.append(f"[PM] sessions MORTES écartées : {', '.join(board['sessions_mortes'])}")
     for s in board["sessions"]:
         L.append(f"[PM] {_nom(s)} : {', '.join(s['claims'] or s['claims_inferes']) or 'sans P-item'} — {len(s['files_touched'])} fichiers en vol")
+    L.append(f"[PM] {CECITE_FICHIERS}")
     for a in board["alertes"]:
         L.append(f"[PM] {a['gravite'].upper()} {a['cle']} — {a['message']}")
     if len(L) > max_lines:

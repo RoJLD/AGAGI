@@ -17,7 +17,7 @@ from src import paths
 from tools.jobs import lease as L
 from tools.pm import alerts as AL
 from tools.pm import roles_counts as RC
-from tools.pm.board import TTL_PM_S, compute, render_md  # TTL_PM_S défini au TABLEAU : c'est aussi son seuil de péremption
+from tools.pm.board import CECITE_FICHIERS, TTL_PM_S, compute, render_md  # TTL_PM_S : défini au TABLEAU, seuil de péremption
 from tools.pm.bulletin import session_id_courant
 from tools.pm.snapshot import ancrer_data_root, read_registry, snapshot
 
@@ -56,6 +56,7 @@ def digest(board, d, counts, illisibles=0):
         L_.append("[PM] AVEUGLE SUR git (fichiers modifiés non mesurés)")
     c = board["charge_connue"]
     L_.append(f"[PM] charge connue : sims={c['sims_en_vol']} cpu={c['cpu_pct']} bails={c['bails_vivants']}")
+    L_.append(f"[PM] {CECITE_FICHIERS}")                # une A1 absente ne prouve rien sur ce que Bash a réécrit
     for a in d["nouvelles"]:
         L_.append(f"[PM] NOUVELLE {a['cle']} ({a['gravite']}) — {a['message']} -> décider : message ciblé / investigation / note")
     for a in d["repetees"]:
