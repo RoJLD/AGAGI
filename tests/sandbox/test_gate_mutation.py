@@ -21,6 +21,7 @@ import pytest
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 from tools import check_gate_mutation as G  # noqa: E402
+from tools._git_env import env_isole  # noqa: E402
 
 _ROOT = G._ROOT
 _PORTE_RAPIDE = "14"        # temoins les plus rapides du lot (~1 s), donc le moins cher a muter
@@ -217,6 +218,59 @@ def test_le_CLIQUET_ne_fait_RIEN_quand_aucune_porte_n_est_concernee(capsys):
     assert "aucune porte" in capsys.readouterr().out
 
 
+# ==================================================================================================
+# LE LANCEUR ne transmet pas le dépôt du commit à ses témoins (famille GIT_*, 2026-09-24)
+# ==================================================================================================
+
+_TEMOIN_GIT_INIT = (
+    "import os, subprocess\n"
+    "def test_git_init_dans_B():\n"
+    "    subprocess.run(['git', 'init', '-q'], cwd=os.environ['AGAGI_TEMOIN_B'], check=True)\n"
+)
+
+
+def _core_bare(depot):
+    p = subprocess.run(["git", "config", "--file", os.path.join(str(depot), ".git", "config"),
+                        "--get", "core.bare"], capture_output=True, text=True, env=env_isole())
+    return p.stdout.strip()
+
+
+@pytest.mark.parametrize("purge", [True, False], ids=["avec_purge", "sans_purge_defaut_restaure"])
+def test_le_LANCEUR_purge_GIT_un_temoin_qui_fait_git_init_ne_vise_plus_le_depot_du_commit(
+        tmp_path, monkeypatch, purge):
+    """Contre-exemple gelé, DEUX issues, par le VRAI lanceur `G._pytest`. Un dépôt A (réel, jetable)
+    joue le dépôt du commit : `GIT_DIR` le désigne, comme pendant un hook. Le témoin lancé fait
+    `git init -q` dans un répertoire B — la forme SANS `-b` du site réel, qui n'imprime RIEN.
+    Donc ancrage sur l'ÉTAT, jamais sur la sortie : B a-t-il reçu un `.git`, `core.bare` de A a-t-il
+    basculé ? Avec purge : B est un dépôt, A intact. Défaut restauré (`dict(os.environ)`) : B reste
+    vide et A passe `core.bare = true` — le contrôle POSITIF, qui prouve que le témoin VOIT la fuite.
+    Le témoin est écrit hors de `tests/` : aucune purge de `tests/conftest.py` ne peut le masquer."""
+    A, B = tmp_path / "A", tmp_path / "B"
+    A.mkdir()
+    B.mkdir()
+    for k in [k for k in os.environ if k.startswith("GIT_")]:
+        monkeypatch.delenv(k)                       # un hook ambiant ne doit rien viser d'autre que A
+    subprocess.run(["git", "init", "-q"], cwd=str(A), check=True, env=env_isole())
+    assert _core_bare(A) == "false"
+    temoin = tmp_path / "temoin" / "test_temoin_git_init.py"
+    temoin.parent.mkdir()
+    temoin.write_text(_TEMOIN_GIT_INIT, encoding="utf-8")
+    # ⚠️ Sans ini À CÔTÉ du témoin, pytest descend depuis la racine et crée un nœud par entrée de
+    # chaque niveau : mesuré le 2026-09-24, Temp en porte 30 407 -> collecte > 180 s, le témoin ne
+    # tourne JAMAIS. L'ini fixe rootdir/confcutdir ici : collecte en 0,25 s.
+    (temoin.parent / "pytest.ini").write_text("[pytest]\n", encoding="utf-8")
+    monkeypatch.setenv("GIT_DIR", str(A / ".git"))  # ce que git exporte à ses hooks
+    monkeypatch.setenv("AGAGI_TEMOIN_B", str(B))
+    if not purge:
+        monkeypatch.setattr(G, "env_isole", lambda: dict(os.environ))  # le défaut d'avant, restauré
+    code, sortie = G._pytest([str(temoin)])
+    assert code == 0 and "1 passed" in sortie, sortie  # le témoin a TOURNÉ, sinon B vide ne prouve rien
+    if purge:
+        assert (B / ".git").is_dir() and _core_bare(A) == "false", sortie
+    else:
+        assert not (B / ".git").exists() and _core_bare(A) == "true", sortie
+
+
 @pytest.mark.timeout(1200)
 def test_TOUTES_LES_PORTES_du_hook_tuent_leurs_mutants():
     """⚠️ L'ANCRAGE SUR LE REEL, et le seul test de ce fichier qui coûte cher. Il rejoue la mesure
@@ -231,5 +285,5 @@ def test_TOUTES_LES_PORTES_du_hook_tuent_leurs_mutants():
     correctif (porte 14, seuil figé à 100 sur une dette tombée à 85)."""
     p = subprocess.run([sys.executable, "tools/check_gate_mutation.py"], cwd=_ROOT,
                        capture_output=True, text=True, encoding="utf-8", errors="replace",
-                       env={**os.environ, "PYTHONIOENCODING": "utf-8"})
+                       env={**env_isole(), "PYTHONIOENCODING": "utf-8"})  # pas de GIT_* du hook
     assert p.returncode == 0, p.stdout + p.stderr

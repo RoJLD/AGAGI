@@ -60,6 +60,10 @@ import sys
 import tempfile
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
+
+from tools._git_env import env_isole  # noqa: E402  -- module NEUTRE (os seul), jamais une porte
 
 # ------------------------------------------------------------------------------------------------
 # LES MUTATIONS DÉCLARÉES. Une par comportement décisif de la porte — celui qui, s'il disparaît,
@@ -421,8 +425,16 @@ def _chemin_module(modname):
 def _pytest(temoins, spec=None, timeout=900):
     """Lance les témoins, avec ou sans mutation. Rend (code_de_sortie, sortie_texte).
 
-    `-x` : une seule rougeur suffit à tuer un mutant, inutile de payer la suite du fichier."""
-    env = dict(os.environ)
+    `-x` : une seule rougeur suffit à tuer un mutant, inutile de payer la suite du fichier.
+
+    ⚠️ L'environnement du sous-processus est TOUJOURS purgé de la famille `GIT_*` (`env_isole`) :
+    ce lanceur tourne pendant le hook pre-commit, où git exporte `GIT_DIR`/`GIT_INDEX_FILE`, et un
+    témoin doit tourner HERMÉTIQUE — jamais contre l'index du commit en cours, jamais un `git init`
+    qui réinitialiserait le dépôt réel (témoin gelé : `test_le_LANCEUR_purge_GIT_...`).
+    CE QUE LA PURGE NE FERME PAS : un script lancé à la main dans le shell du hook (il n'hérite pas
+    de ce lanceur) ; un témoin qui POSE lui-même une variable `GIT_*` puis lance git sans purger à
+    son tour ; toute variable qui agit sur git hors du préfixe `GIT_`."""
+    env = env_isole()  # isolation INCONDITIONNELLE : un témoin ne juge jamais le commit en cours
     env["PYTHONIOENCODING"] = "utf-8"
     env["PYTHONPATH"] = _ROOT + os.pathsep + env.get("PYTHONPATH", "")
     cmd = [sys.executable, "-m", "pytest", "-q", "-x", "--timeout=300",

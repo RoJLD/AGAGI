@@ -173,17 +173,10 @@ def evaluer(texte, existe, suivi, root):
             "par_hash": par_hash, "statut": statut, "causes": causes, "expansions": sorted(expansions)}
 
 
-def _env_isole():
-    """Env SANS aucune variable `GIT_*` heritee -- pour un appel git qui vise un depot TIERS (pas le
-    depot courant du commit en cours). `git commit -- <pathspec>` (le motif que CLAUDE.md impose) fait
-    tourner les hooks avec `GIT_INDEX_FILE` pointant vers l'index TEMPORAIRE de ce commit PARTIEL ; un
-    sous-processus qui invoque `git` sur un depot TIERS (typiquement le depot git JETABLE d'un test)
-    HERITE cette variable par defaut et lit/ecrit le MAUVAIS index, celui du depot exterieur. Mesure le
-    2026-09-23 : reproduit en fixant `GIT_INDEX_FILE` a un chemin bidon avant de lancer les tests -- 2
-    rougissent aussitot, dont un `git commit` qui echoue avec « invalid object ... for docs/EDR/PAD-00.md »
-    -- exactement le symptome observe au premier essai de commit de CETTE correction. N'appeler que via
-    `_env_pour`, jamais directement : seul `_env_pour` sait distinguer depot COURANT de depot TIERS."""
-    return {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+# Le helper vit dans `tools/_git_env.py` (partage avec la porte 15 ; sa docstring dit quand isoler,
+# quand heriter). Le nom `_env_isole` reste pour les temoins, qui visent un depot JETABLE (tiers).
+# Dans CE module, la decision isoler/heriter selon le depot vise appartient a `_env_pour`.
+from tools._git_env import env_isole as _env_isole  # noqa: E402
 
 
 def _env_pour(root):
@@ -201,9 +194,11 @@ def _env_pour(root):
     A commite `docs/EDR/X.md` qui le cite ; avec l'INDEX AMBIANT (isolation inconditionnelle, le bug),
     `y.json` ressort SUIVI alors qu'aucun clone du commit de A ne le verra -- un FAUX PASS silencieux.
 
-    `root != _ROOT` (un depot TIERS -- jetable de test, clone, submodule) -> `_env_isole()`, car ce depot
-    n'a RIEN a voir avec le commit en cours : HERITER `GIT_INDEX_FILE` lui ferait lire/ecrire l'index
-    d'un AUTRE depot (le defaut ORIGINAL, trouve au premier essai de commit de cette correction).
+    `root != _ROOT` (un depot TIERS -- jetable de test, clone, submodule) -> `_env_isole()`
+    (`tools/_git_env.env_isole` ; 2026-09-23 : un `git commit` jetable y echouait en « invalid
+    object »), car ce depot n'a RIEN a voir avec le commit en cours : HERITER `GIT_INDEX_FILE` lui
+    ferait lire/ecrire l'index d'un AUTRE depot (le defaut ORIGINAL, trouve au premier essai de
+    commit de cette correction).
 
     `os.path.normcase` en plus de `realpath` : ce depot tourne sous Windows, ou la casse du lecteur
     (`C:` vs `c:`) ne doit pas faire passer le depot courant pour un depot tiers."""
