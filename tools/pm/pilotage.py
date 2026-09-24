@@ -155,3 +155,107 @@ def _entrees_du_bloc(b, txt, repo_root, evaluer, _CLAUSE, _HOLDS, _BACKTICK_PATH
     return [{"num": n, "nums": nums, "bloc": b["i"], "priorite": n.split(".")[0], "rang": rang,
              "statut": statut, "date": date, "titre": titre, "lignes": [l0, l1], "clause": clause,
              "holds": holds, "chemins": chemins, "chemins_non_captes": non_captes} for n in nums]
+
+
+_NUM_BLOC = re.compile(r"^#\s*(\d+)\.", re.M)
+_CHECK = re.compile(r"python\s+tools/(check_\w+)\.py")
+
+# module -> (fichier de baseline sous tools/, clé de la collection qui compte la dette ou None).
+# EXPLICITE parce que non dérivable du nom du module : check_record_links -> record_link_baseline.json.
+BASELINES = {
+    "check_record_links": ("record_link_baseline.json", None),
+    "check_instrument_calibration": ("instrument_calibration_baseline.json", None),
+    "check_guard_negative_cases": ("guard_negative_cases_baseline.json", None),
+    "check_backlog_freshness": ("backlog_freshness_baseline.json", "legataires"),
+    "check_agi_taxonomy": ("agi_taxonomy_baseline.json", None),
+    "check_substrate_pinning": ("substrate_pinning_baseline.json", None),
+    "check_bar_separation": ("bar_separation_baseline.json", None),
+    "check_test_census": ("test_census_baseline.json", None),
+    "check_data_paths": ("data_paths_baseline.json", "fichiers"),
+    "check_fabricated_defaults": ("fabricated_defaults_baseline.json", None),
+    "check_control_family": ("control_family_baseline.json", None),
+    "check_io_overlap": ("io_overlap_baseline.json", None),
+    "check_calibration_reach": ("calibration_reach_baseline.json", None),
+}
+
+
+def _lire_json(chemin):
+    try:
+        with open(chemin, encoding="utf-8") as fh:
+            return json.load(fh)
+    except (OSError, ValueError):
+        return None
+
+
+def _ancre(repo_root, rel):
+    return rel if os.path.isabs(rel) else os.path.join(repo_root, rel)
+
+
+def read_backlog(repo_root):
+    try:
+        with open(os.path.join(repo_root, "docs", "roadmap", "PRIORITES_ET_DETTES.md"), encoding="utf-8") as fh:
+            return fh.read()
+    except OSError:
+        return None
+
+
+def read_records_graph(repo_root):
+    from src import paths
+    return _lire_json(_ancre(repo_root, paths.results_file("records_graph.json")))
+
+
+def read_roles_counts(repo_root):
+    from src import paths
+    return _lire_json(_ancre(repo_root, paths.pm_dir("ROLES_COUNTS.json")))
+
+
+def read_board(repo_root):
+    """Le cache du tick PM. ⚠️ Écrit par `json.dump(..., default=str)` (tools/pm/tick.py) : ce qui revient
+    est un ALLER-RETOUR JSON, pas le dict de `board.compute`."""
+    from src import paths
+    return _lire_json(_ancre(repo_root, paths.pm_dir("BOARD.json")))
+
+
+def read_portes(repo_root):
+    """Inventaire des gardes du hook, joint à PORTES pour titres/témoins/mutations et à BASELINES.
+
+    La source d'AUTORITÉ est le hook : `check_gate_mutation.PORTES` est la table des portes MUTÉES
+    (16 clés le 2026-09-24) alors que le hook lance 19 scripts. Le numéro vient de `^#\\s*(\\d+)\\.` en
+    tête de bloc, le module du PREMIER `python tools/check_X.py` du bloc (un bloc lance parfois son check
+    deux fois : `--only` puis complet).
+    """
+    chemin = os.path.join(repo_root, "tools", "hooks", "pre-commit")
+    try:
+        with open(chemin, encoding="utf-8") as fh:
+            src = fh.read()
+    except OSError:
+        return None
+    try:
+        from tools.check_gate_mutation import PORTES
+    except Exception:
+        PORTES = {}
+
+    marques = [(m.start(), m.group(1)) for m in _NUM_BLOC.finditer(src)]
+    out, vus = [], set()
+    for i, (deb, num) in enumerate(marques):
+        fin = marques[i + 1][0] if i + 1 < len(marques) else len(src)
+        mods = _CHECK.findall(src[deb:fin])
+        if not mods or num in vus:
+            continue
+        vus.add(num)
+        mod = mods[0]
+        p = PORTES.get(num) or {}
+        base = None
+        if mod in BASELINES:
+            rel, cle = BASELINES[mod]
+            chemin_b = os.path.join(repo_root, "tools", rel)
+            dette = None
+            if cle:
+                doc = _lire_json(chemin_b)
+                if isinstance(doc, dict) and isinstance(doc.get(cle), (dict, list)):
+                    dette = len(doc[cle])
+            base = {"chemin": "tools/" + rel, "existe": os.path.exists(chemin_b), "dette": dette}
+        out.append({"num": num, "module": "tools." + mod, "titre": p.get("titre"),
+                    "temoins": list(p.get("temoins") or []) or None,
+                    "mutations": len(p.get("mutations") or []) if p else None, "baseline": base})
+    return sorted(out, key=lambda p: int(p["num"]))

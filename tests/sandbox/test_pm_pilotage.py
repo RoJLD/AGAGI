@@ -159,3 +159,52 @@ def test_bloc_illisible_est_COMPTE_jamais_perdu(monkeypatch):
     assert out["comptes"]["illisibles"] == 1
     assert out["entrees"][0]["statut"] == "illisible"
     assert out["comptes"]["blocs"] == 1
+
+
+def test_un_lecteur_absent_rend_None_jamais_un_defaut(tmp_path):
+    """Porte 14 appliquée aux lecteurs : un fichier absent ne rend ni {} ni [] ni 0 — il rend None, et
+    c'est `compute_pilotage` qui en fait une ligne `aveugle`."""
+    assert P.read_records_graph(str(tmp_path)) is None
+    assert P.read_roles_counts(str(tmp_path)) is None
+    assert P.read_board(str(tmp_path)) is None
+    assert P.read_backlog(str(tmp_path)) is None
+
+
+def test_les_lecteurs_ANCRENT_le_chemin_relatif_de_paths(tmp_path, monkeypatch):
+    """`src/paths.py` rend du RELATIF sans variable d'environnement (mesuré : `results/records_graph.json`,
+    `os.path.isabs` False) : un lecteur qui ne l'ancre pas dépend du répertoire courant du processus, et
+    celui d'uvicorn n'est pas garanti."""
+    for v in ("AGAGI_DATA_ROOT", "AGAGI_RESULTS_ROOT", "AGAGI_DB_ROOT"):
+        monkeypatch.delenv(v, raising=False)
+    (tmp_path / "results").mkdir()
+    (tmp_path / "results" / "records_graph.json").write_text('{"roadmap": {"G0": {"status": "validated"}}}',
+                                                             encoding="utf-8")
+    monkeypatch.chdir(tmp_path.parent)                     # cwd DIFFÉRENT de la racine passée
+    g = P.read_records_graph(str(tmp_path))
+    assert g is not None and g["roadmap"]["G0"]["status"] == "validated"
+
+
+def test_inventaire_des_portes_recompute_depuis_le_HOOK_pas_depuis_PORTES():
+    """`check_gate_mutation.PORTES` est la table des portes MUTÉES, pas l'inventaire des gardes : mesuré le
+    2026-09-24, le hook lance 19 scripts `check_*` et PORTES en a 16 — `check_staged_authorship` (porte 7)
+    et `check_gate_mutation` (porte 15) en sont absents. Et la numérotation du hook n'est ni contiguë
+    (ni 19 ni 20) ni dans l'ordre du fichier (le bloc 21 précède le 18)."""
+    portes = P.read_portes(P.racine_depot())
+    assert portes is not None and len(portes) >= 16
+    nums = [p["num"] for p in portes]
+    assert nums == sorted(nums, key=int), "ordre par int(num), pas un tri de chaînes"
+    assert all(isinstance(p["num"], str) for p in portes)
+    modules = {p["module"] for p in portes}
+    assert any("staged_authorship" in m for m in modules), "porte 7 : absente de PORTES, présente au hook"
+    assert any("gate_mutation" in m for m in modules), "porte 15 : le cliquet des cliquets"
+    sans_mutation = [p for p in portes if p["mutations"] is None]
+    assert sans_mutation, "une porte du hook hors PORTES porte mutations=None, jamais 0"
+    with_base = [p for p in portes if p["baseline"]]
+    assert with_base and all("existe" in p["baseline"] for p in with_base)
+
+
+def test_une_porte_du_hook_sans_baseline_declaree_porte_baseline_None():
+    portes = P.read_portes(P.racine_depot())
+    assert any(p["baseline"] is None for p in portes), (
+        "le mappage module -> baseline est EXPLICITE (record_link_baseline.json, sans s) : "
+        "une porte non déclarée ne doit pas inventer un chemin")
