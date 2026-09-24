@@ -1400,6 +1400,41 @@ reproductible : `ls .git/hooks | grep -v sample`. Coût ≈ 1 h + un tour de tes
 pointe vers un fichier absent serait exactement le mensonge que la garde existe pour attraper. À poser
 UNE FOIS le hook créé.
 
+**P2.106 — La forme E30 est ATTEIGNABLE dans le verdict du harnais : la marge 0,05 vaut un nombre
+ENTIER de pas de grille, sur les accuracies COMME sur les médianes.**
+Mesuré le 2026-09-24 en recomptant les trois cellules de [[EDR-HARNESS-R1]] en arithmétique exacte
+(Fraction), après l'ouverture de la classe E30 par une session voisine sur un autre runner (P2.105).
+Le régime publié donne N = `eval_batches` × `n_agents` = 40 × 16 = **640** évaluations, donc une
+accuracy est un compte k/640 — vérifié : chaque valeur publiée est k/640 arrondi en float32, pire
+écart **1,526e-05** pas. Or la marge du harnais vaut **0,05 × 640 = 32 pas EXACTEMENT** sur cette
+grille, et **0,05 × 1280 = 64 pas exactement** sur celle des médianes (une médiane de 12 valeurs est
+un demi-entier sur 640). Les quatre comparaisons que le module fait réellement sont donc toutes
+exposées à une égalité exacte, que la représentation flottante tranche alors arbitrairement :
+`src/seed_ai/harness_verdict.py:254` (compte par seed A contre A0, PUBLIÉ en `per_seed_above_ref`),
+`:451` (idem A2 contre A0), `:319` (`med_D <= ref + min_sep`, qui DÉCIDE `NECESSARY`) et `:349`
+(`without_clears_bar`, PUBLIÉ).
+**État : LATENTE dans R1, et c'est mesuré, pas supposé.** Sur les quatre comparaisons réelles des
+trois cellules, l'arithmétique exacte et le flottant concordent PARTOUT, zéro égalité : marges les
+plus serrées +66 pas (cellule A, `med(D)` au-dessus de la barre) et −59 pas (cellule B). Aucun
+chiffre publié n'est à re-graver. ⚠️ Une égalité exacte EXISTE bien dans les données (cellule B,
+D2 seed 5 : 126/640 contre une barre à 94/640 + 32 = 126/640) mais elle porte sur un contraste par
+seed que le module ne calcule JAMAIS — j'avais d'abord conclu « un nombre publié a été changé »,
+c'était faux, rectifié par relecture du code avant publication. La leçon de méthode est la même que
+celle du grep : une sonde de vérification doit être confrontée à ce que le code fait, pas à ce qu'on
+croit qu'il compare.
+**Pourquoi ça ne peut pas rester une note** : la latence ne tient qu'aux valeurs de CE run. Il suffit
+d'un `eval_batches` ou d'un `n_agents` différent, ou d'une cellule plus serrée, pour qu'une égalité
+tombe sur une comparaison publiée — et rien ne le dirait, puisque le verdict sortirait normal.
+**Quoi** : (a) comparer en arithmétique de GRILLE dans `_acquisition` et `_necessity` (compte entier
+contre compte entier + pas), ou à défaut publier à côté de chaque compte la **marge minimale en pas
+de grille** sur les seeds — c'est la discipline « tout ratio se publie avec son plancher de bruit » de
+ce dépôt, appliquée au bruit de REPRÉSENTATION ; (b) publier N (le dénominateur) dans le bloc
+`regime`, aujourd'hui seulement déductible de `eval_batches` × `n_agents` ; (c) une garde qui REFUSE,
+ou au minimum SIGNALE dans le JSON, toute comparaison dont la marge est nulle en pas de grille, avec
+son contre-exemple gelé (la cellule B seed 5 le fournit tout fait, en le portant sur une comparaison
+réelle). Coût ≈ 2 h, zéro run.
+<!-- closes_when:grep_present=src/seed_ai/harness_verdict.py::pas_de_grille -->
+
 ### Décisions tranchées le 2026-09-14 (robla : « ce qu'il y a de mieux pour l'avenir »)
 
 - **P1.1 → FERMÉE** : `pytest-timeout` est installé et imposé par la CI (`.github/workflows/ci.yml`).
