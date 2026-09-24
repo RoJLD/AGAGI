@@ -208,3 +208,86 @@ def test_une_porte_du_hook_sans_baseline_declaree_porte_baseline_None():
     assert any(p["baseline"] is None for p in portes), (
         "le mappage module -> baseline est EXPLICITE (record_link_baseline.json, sans s) : "
         "une porte non déclarée ne doit pas inventer un chemin")
+
+
+def test_NO_OP_EXACT_tout_absent_rend_cinq_aveuglements_et_aucun_zero():
+    """Spécificité de l'instrument : sans aucune source, il ne dit pas « 0 alerte, 0 entrée » — il dit
+    qu'il est AVEUGLE, cinq fois, et laisse les quatre blocs à None."""
+    out = P.compute_pilotage(None, None, None, None, None, NOW, repo_root="c:/x")
+    assert out["schema"] == "pilotage_v1" and out["generated_at"] == NOW
+    assert out["flotte"] is None and out["roadmap"] is None
+    assert out["portes"] is None and out["charge"] is None
+    assert len(out["aveugle"]) == 5, out["aveugle"]
+    texte = json.dumps(out, ensure_ascii=False)
+    assert ": 0" not in texte and "[]" not in texte, f"un zéro ou une liste vide fabriqués : {texte}"
+
+
+def test_flotte_est_la_sortie_du_board_SANS_transformation():
+    """Non-duplication : les clés de la flotte sont le CONTRAT du board, figé par ses 119 tests. Le
+    pilotage n'en renomme, n'en retire et n'en ajoute aucune."""
+    from tools.pm import board as B
+    snap = {"now": NOW, "repo_root": "c:/x/agagi", "psutil": True, "registry": [], "bulletins": [],
+            "worktrees": [], "commits": [], "leases": {"live": [], "dead": []}, "processes": [],
+            "cpu_pct": 10.0, "backlog_paths": {},
+            "hook_errors": {}}  # DICT {événement: n}, jamais une liste : board._alertes fait .items()
+    attendu = B.compute(snap, now=NOW)
+    out = P.compute_pilotage(snap, None, None, None, None, NOW, repo_root="c:/x/agagi")
+    assert out["flotte"] == attendu
+
+
+def test_charge_porte_la_FENETRE_glissante_jamais_la_constante_depuis():
+    """`ROLES_COUNTS.json` publie `depuis` (constante DEBUT, début du rôle PM) ET `fenetre` (glissante,
+    30 j). Servir `depuis` comme fenêtre attribuerait le ratio à une période qui n'est pas la sienne."""
+    rc = {"depuis": "2026-09-16", "fenetre": {"depuis": "2026-08-24", "jours": 30},
+          "ratio_science_methodo": 1.12, "fichiers": {"science": 239, "methodo": 213, "autre": 604}}
+    out = P.compute_pilotage(None, None, None, rc, None, NOW, repo_root="c:/x")
+    assert out["charge"]["fenetre"] == {"depuis": "2026-08-24", "jours": 30}
+    assert out["charge"]["ratio_science_methodo"] == 1.12
+    assert "depuis" not in out["charge"], "la constante DEBUT n'est pas une fenêtre"
+
+
+def test_age_de_la_flotte_vient_de_generated_at_jamais_du_mtime(tmp_path):
+    """Un `git checkout`, une copie ou une écriture interrompue donne un mtime FRAIS sur un contenu
+    périmé : la vue annoncerait une fraîcheur supposée. Seul contre-exemple qui distingue les deux
+    règles : un fichier dont le mtime et le `generated_at` diffèrent de plusieurs minutes."""
+    board = {"generated_at": NOW - 1800.0, "repo_root": "c:/x", "aveugle": [], "sessions": [],
+             "sessions_mortes": [], "alertes": [],
+             "charge_connue": {"sims_en_vol": 0, "cpu_pct": 5.0, "bails_vivants": []},
+             "worktrees": [], "bails": None}
+    out = P.compute_pilotage(None, None, None, None, None, NOW, repo_root="c:/x", board=board)
+    assert out["charge"]["flotte_age_s"] == 1800.0
+    sans = dict(board)
+    sans.pop("generated_at")
+    out2 = P.compute_pilotage(None, None, None, None, None, NOW, repo_root="c:/x", board=sans)
+    assert out2["charge"]["flotte_age_s"] is None, "clé absente -> None, jamais un mtime de repli"
+
+
+def test_prediction_une_entree_close_de_plus_ne_bouge_que_son_compte():
+    """Linéarité en la dose : ajouter UNE entrée close augmente `closes` de 1 et ne touche rien d'autre."""
+    base = P.compute_pilotage(None, _BACKLOG_SYNTH, None, None, None, NOW, repo_root=P.racine_depot())
+    plus = P.compute_pilotage(None, _BACKLOG_SYNTH + "\n**P2.99 — ✅ CLOSE le 2026-09-09 — une de plus.**\nCorps.\n",
+                              None, None, None, NOW, repo_root=P.racine_depot())
+    a, b = base["roadmap"]["comptes"], plus["roadmap"]["comptes"]
+    assert b["par_priorite"]["P2"]["closes"] == a["par_priorite"]["P2"]["closes"] + 1
+    assert b["par_priorite"]["P2"]["ouvertes"] == a["par_priorite"]["P2"]["ouvertes"]
+    assert b["blocs"] == a["blocs"] + 1 and b["numeros"] == a["numeros"] + 1
+
+
+def test_parite_sur_le_backlog_REEL():
+    """Sur le vrai fichier : autant de blocs que le cliquet compte de têtes, et aucun bloc illisible."""
+    from tools.check_backlog_freshness import compter_entrees
+    txt = P.read_backlog(P.racine_depot())
+    assert txt is not None
+    out = P.compute_pilotage(None, txt, None, None, None, NOW, repo_root=P.racine_depot())
+    c = out["roadmap"]["comptes"]
+    assert c["blocs"] == compter_entrees(txt)
+    illis = [e["num"] for e in out["roadmap"]["entrees"] if e["statut"] == "illisible"]
+    assert not illis, f"entrées illisibles sur le backlog réel : {illis}"
+
+
+def test_main_json_n_ecrit_AUCUN_fichier(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    avant = sorted(os.listdir(tmp_path))
+    P.main(["--json", "--repo-root", P.racine_depot()])
+    assert sorted(os.listdir(tmp_path)) == avant, "main a écrit un fichier"
+    assert json.loads(capsys.readouterr().out)["schema"] == "pilotage_v1"

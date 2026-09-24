@@ -10,6 +10,7 @@ import json
 import os
 import re
 import sys
+import time
 
 SCHEMA = "pilotage_v1"
 
@@ -259,3 +260,89 @@ def read_portes(repo_root):
                     "temoins": list(p.get("temoins") or []) or None,
                     "mutations": len(p.get("mutations") or []) if p else None, "baseline": base})
     return sorted(out, key=lambda p: int(p["num"]))
+
+
+def compute_pilotage(snap, backlog_txt, records_graph, roles_counts, portes, now, repo_root=None,
+                     board=None):
+    """PURE : tout est injecté, rien n'est lu, rien n'est écrit.
+
+    `flotte` a DEUX provenances, jamais confondues : `board` (le contenu de BOARD.json, chemin du poll —
+    un aller-retour JSON) ou `board.compute(snap)` si `snap` est fourni (chemin `?frais=1`).
+
+    ⚠️ Les deux aveuglements « backlog » et « graphe de records » sont INDÉPENDANTS : chacun se déclare
+    sur l'absence de SA propre source, jamais sur une combinaison des deux — un `records_graph` fourni
+    sans backlog n'a nulle part où accrocher `portes_agi`, mais son absence à lui reste rapportée.
+    """
+    now = float(now)
+    racine = repo_root or racine_depot()
+    aveugle = []
+
+    flotte = None
+    if snap is not None:
+        from tools.pm.board import compute as board_compute
+        flotte = board_compute(snap, now=now)
+    elif board is not None:
+        flotte = board
+    else:
+        aveugle.append("flotte : ni instantané ni BOARD.json — le tick PM n'a pas encore tourné")
+    if flotte is not None:
+        aveugle.extend("flotte: " + a for a in (flotte.get("aveugle") or []))
+
+    roadmap = None
+    if backlog_txt is None:
+        aveugle.append("backlog : docs/roadmap/PRIORITES_ET_DETTES.md introuvable")
+    else:
+        roadmap = parse_roadmap(backlog_txt, racine, now)
+        roadmap["portes_agi"] = records_graph.get("roadmap") if records_graph is not None else None
+    if records_graph is None:
+        aveugle.append("graphe de records : results/records_graph.json introuvable")
+
+    if portes is None:
+        aveugle.append("portes : tools/hooks/pre-commit illisible")
+
+    charge = None
+    if roles_counts is None and flotte is None:
+        aveugle.append("compteurs du PM : data/pm/ROLES_COUNTS.json introuvable")
+    else:
+        if roles_counts is None:
+            aveugle.append("compteurs du PM : data/pm/ROLES_COUNTS.json introuvable")
+        cc = (flotte or {}).get("charge_connue") or {}
+        gen = (flotte or {}).get("generated_at")
+        charge = {"sims_en_vol": cc.get("sims_en_vol"), "cpu_pct": cc.get("cpu_pct"),
+                  "bails_vivants": cc.get("bails_vivants"),
+                  "flotte_age_s": (now - float(gen)) if gen is not None else None,
+                  "ratio_science_methodo": (roles_counts or {}).get("ratio_science_methodo"),
+                  "fichiers": (roles_counts or {}).get("fichiers"),
+                  "fenetre": (roles_counts or {}).get("fenetre")}
+    return {"schema": SCHEMA, "generated_at": now, "repo_root": racine.replace("\\", "/"),
+            "aveugle": aveugle, "flotte": flotte, "roadmap": roadmap, "portes": portes, "charge": charge}
+
+
+def main(argv=None):
+    """`--json` imprime le pilotage. N'ÉCRIT AUCUN FICHIER : le tick PM est le seul writer."""
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--repo-root", default=None)
+    ap.add_argument("--json", action="store_true")
+    args = ap.parse_args(argv)
+    racine = args.repo_root or racine_depot()
+    out = compute_pilotage(None, read_backlog(racine), read_records_graph(racine),
+                           read_roles_counts(racine), read_portes(racine), time.time(),
+                           repo_root=racine, board=read_board(racine))
+    if args.json:
+        print(json.dumps(out, ensure_ascii=False, indent=1, default=str))
+    else:
+        print(f"[pilotage] {out['schema']} — {len(out['aveugle'])} aveuglement(s)")
+        for a in out["aveugle"]:
+            print("  AVEUGLE :", a)
+        if out["roadmap"]:
+            c = out["roadmap"]["comptes"]
+            print(f"  roadmap : {c['blocs']} blocs, {c['numeros']} entrées, {c['illisibles']} illisible(s)")
+        if out["portes"]:
+            print(f"  portes : {len(out['portes'])}")
+        if out["charge"]:
+            print(f"  charge : {out['charge']}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
