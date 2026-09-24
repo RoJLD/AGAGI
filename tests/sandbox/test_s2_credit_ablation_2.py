@@ -229,3 +229,58 @@ def test_replication_and_import_are_the_P48_instruments():
     p44 = json.load(open(os.path.join(R._ROOT, RA.P44_RESULTS), encoding="utf-8"))
     row = copy.deepcopy(p44["arms"]["b_warm_credit"]["2026"])
     assert R.replication_check(row, seed=2026)["identical"] is True
+
+
+# --------------------------------------------------------------------------------------------------
+# 4. Le bloc COÛT se recompute (P2.78 + revue adversariale du 2026-09-24 : un dénominateur de coût
+#    reconstruit à la main par le lecteur est une prémisse recopiée, classe E8).
+# --------------------------------------------------------------------------------------------------
+
+
+def _arms(cells):
+    """cells : {(bras, seed): (elapsed_s, importe)} -> la structure `arms` du JSON."""
+    out = {}
+    for (a, s), (e, imp) in cells.items():
+        rec = {"elapsed_s": float(e)}
+        if imp:
+            rec["imported_from"] = "results/ailleurs.json"
+        out.setdefault(a, {})[str(s)] = rec
+    return out
+
+
+def test_cost_cells_separates_MEASURED_from_IMPORTED_and_publishes_the_rate():
+    """Le coût par cellule se calcule sur les cellules RÉELLEMENT calculées : une cellule importée
+    porte l'`elapsed_s` du run d'origine, qui n'a pas été dépensé ici."""
+    arms = _arms({("a", 1): (10.0, False), ("b", 1): (90.0, False), ("b", 2): (1000.0, True)})
+    c = R.cost_cells(arms)
+    assert c["cells_declared"] == 3 and c["cells_measured"] == 2 and c["cells_imported"] == 1
+    assert c["elapsed_measured_s"] == pytest.approx(100.0)
+    assert c["s_per_measured_cell"] == pytest.approx(50.0)
+
+
+def test_cost_cells_excludes_the_long_cells_from_the_rate_without_losing_them():
+    """Les cellules hors échelle (machine suspendue) sont EXCLUES du débit et PUBLIÉES à part, avec
+    leur propre dénominateur — jamais soustraites du numérateur en gardant le dénominateur complet."""
+    arms = _arms({("a", 1): (100.0, False), ("a", 2): (200.0, False), ("a", 3): (9000.0, False)})
+    c = R.cost_cells(arms, long_cell_s=5000.0)
+    assert c["cells_long"] == 1 and c["cells_short"] == 2
+    assert c["elapsed_short_s"] == pytest.approx(300.0)
+    assert c["s_per_short_cell"] == pytest.approx(150.0)
+    assert c["cells_over_long_s"] == {"a/3": 9000}
+
+
+def test_cost_cells_returns_None_rather_than_a_fabricated_rate_on_an_empty_arm_set():
+    """Porte 14 : une collection vide rend None, jamais 0.0 (un débit de 0 s/cellule serait une
+    affirmation de gratuité)."""
+    c = R.cost_cells({})
+    assert c["cells_measured"] == 0
+    assert c["s_per_measured_cell"] is None and c["s_per_short_cell"] is None
+
+
+def test_cost_cells_matches_the_real_run_and_its_published_wall_time():
+    """Réponse connue sur l'artefact publié : les cellules mesurées expliquent le temps mur à 1 %."""
+    d = json.load(open(os.path.join(R._ROOT, "results", "s2_credit_ablation_2.json"), encoding="utf-8"))
+    c = R.cost_cells(d["arms"])
+    assert c["cells_declared"] == 60 and c["cells_imported"] == 11 and c["cells_measured"] == 49
+    assert abs(c["elapsed_measured_s"] - d["cost"]["elapsed_total_s"]) / d["cost"]["elapsed_total_s"] < 0.01
+    assert c["cells_long"] == 2 and c["cells_short"] == 47

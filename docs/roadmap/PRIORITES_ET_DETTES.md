@@ -1274,9 +1274,24 @@ si `Σ|ΔW|` < 10 % du bras complet. Pré-vol : le no-op `reward_scale = 1` est 
 Pourquoi : [[EDR-S2-REWARD-ABLATION]]. *Coût : agent 2-3 h ; calcul 1-2 h sous bail.* Dépend de : rien.
 <!-- closes_when:path_present=docs/preregistrations/S2-CREDIT-ABLATION.json -->
 
-**P4.16 — ✅ SCELLÉE ET LANCÉE (2026-09-22) — rang 4 quater — Ablation du CRÉDIT, seconde passe : la voie
-ÉPISODIQUE détruit-elle quel que soit le CONTENU du signal, et le TD seul détruit-il ?**
-État : règle `S2-CREDIT-ABLATION-2` scellée (12 branches ordonnées, budget 16 h dérivé des coûts P4.9, charge
+**P4.16 — ✅ CLOSE (2026-09-23, [[EDR-S2-CREDIT-ABLATION-2]] : CONTENU_INDIFFERENT / TD_SUFFIT_AUSSI /
+EPISODIQUE_DESTRUCTEUR_A_PETIT_PAS) — rang 4 quater — Ablation du CRÉDIT, seconde passe : la voie ÉPISODIQUE
+détruit-elle quel que soit le CONTENU du signal, et le TD seul détruit-il ?**
+Résultat (n = 12, mêmes seeds, `b_full` importé sur réplication bit-identique) : **chacune des deux voies SUFFIT
+seule à amener le bassin au PLANCHER** — TD par tick sans un épisode `S_tdonly` 8,5, complet 8,0, épisodique seul de
+P4.9 7,5, contre un plancher froid mesuré à 7,5 (saturation 96-98 %) : le run établit une suffisance, PAS un ordre
+(contraste apparié p = 0,344, DV saturée). Un retour constant +1 érode à mi-chemin (`S_const` 23,25, −12,25, 11/12,
+à 5,4 % du mouvement) — mais ce bras mesure un OFFSET POSITIF de l'avantage (auto-renforcement), **pas** une absence
+de contenu : l'avantage épisodique est centré par le monde en amont, et δ ≈ +1 sous critic borné. Le PAS reste la
+seule dépendance quantitative de l'arc et il INTERAGIT avec la voie : à voie et dose égales, diviser lr par 10 fait
+passer l'écart de −29,0 à −19,0 (12/12, p = 2,4e−4), mais à pas identique 0,004 couper le TD AGGRAVE l'érosion
+(−14,0 → −19,0) en réduisant le mouvement de moitié. Direction contre amplitude NON tranché (aucun bras ne fait
+varier la direction à amplitude appariée) → P4.18. **Record réécrit après revue adversariale à trois lentilles
+(21 griefs confirmés sur 22) : les trois verdicts scellés tiennent, la prose débordait sur cinq points.**
+Coût : mur 19,5 h contre CPU 4,3 h ; dénominateurs recomputés par le runner (`cost_cells`) — 60 cellules déclarées,
+11 importées, 49 calculées dont 2 hors échelle (nuit), 431 s par cellule sur les 47 restantes. Suite : P4.18
+(contrôle de FRAGILITÉ : bruit apparié en mouvement, avant tout remède), puis P4.19 (ancre au bassin).
+État à la préparation : règle `S2-CREDIT-ABLATION-2` scellée (12 branches ordonnées, budget 16 h dérivé des coûts P4.9, charge
 déclarée : deux agents en worktrees + sessions parallèles), runner `tools/evo_runs/s2_credit_ablation_2.py`
 (cinq bras : gelé / complète importée sur réplication / TD seul / retour constant +1 / épisodique seul à 0,004) ;
 les seams `episode_enabled` / `reward_const` vivent dans le runner (`credit_variant`, sous `count_learning_events`,
@@ -1302,6 +1317,23 @@ mesuré P4.9 (charge connue) : 26-713 s par bras-seed → ~1-3 h ; sceller le bu
 CPU à côté du temps mur (P2.78). Pourquoi : [[EDR-S2-CREDIT-ABLATION]]. *Coût : agent 2-3 h ; calcul 1-3 h
 sous bail.* Dépend de : P2.78 (souhaitable, non bloquant).
 <!-- closes_when:path_present=docs/preregistrations/S2-CREDIT-ABLATION-2.json -->
+**P4.18 — rang 4 quinquies (PROCHAIN RUN, bon marché) — Contrôle de FRAGILITÉ du bassin : une perturbation ALÉATOIRE
+de W appariée en mouvement érode-t-elle autant que le crédit ?**
+Quoi : même dispositif de test (bassin DAgger cloné ×12, phase 2 MORTELLE 200 ticks à poids gelés, n = 12, mêmes seeds,
+`a_frozen` re-mesuré), mais SANS phase d'apprentissage : W est perturbé par un bruit gaussien de direction aléatoire,
+normalisé pour que `Σ|ΔW|` égale la médiane mesurée d'un bras de P4.16/P4.9 — quatre niveaux appariés : 5 % (retour
+constant), 6 % (épisodique 0,004), 71 % (TD seul), 100 % (complet) — plus un bras à `Σ|ΔW|` = 2,5 % (P4.9 sans signal :
+n'érodait pas). Aucune simulation d'apprentissage : quelques secondes par cellule (phase 2 seule), ~15 min de run.
+Issues nommées d'avance : le bruit apparié érode AUTANT que le bras de crédit de même mouvement → le bassin est une
+CRÊTE fragile à toute perturbation, le crédit n'est pas spécial, un remède d'ANCRAGE (P4.19) ne répond pas à la
+question ; le bruit n'érode PAS (ou bien moins) à mouvement égal → la DIRECTION des pas du crédit est le destructeur,
+et l'ancre au bassin (imitation / KL vers la politique DAgger pendant le crédit, forme DAgger + RL) devient le remède à
+sceller. Pré-vol : no-op exact à bruit nul (S = `S_a` au bit près) ; l'appariement en `Σ|ΔW|` vérifié à 1 % ; la
+direction tirée d'un rng dédié publié. Règle à sceller `S2-BASSIN-FRAGILITY` : classement de chaque niveau contre
+`S_a` (signe 10/12, ±5), et lecture par COMPARAISON appariée niveau-à-bras (bruit − crédit, 10/12, ±5) → FRAGILE /
+DIRECTION / MIXTE. Pourquoi : [[EDR-S2-CREDIT-ABLATION-2]] § Portée. *Coût : agent 2 h ; calcul ~15 min sous bail.*
+Dépend de : rien.
+<!-- closes_when:path_present=docs/preregistrations/S2-BASSIN-FRAGILITY.json -->
 
 **P4.17 — rang 4 quinquies — OUVERTE (2026-09-22, décision robla déléguée via agagi-52 ; session loop 766eabae) — Balayage
 lr × λ sur le pilote TD PAR PAS : où la trace d'éligibilité vit-elle, et jusqu'où descend-elle en lr ? Le billet à deux issues de

@@ -90,6 +90,14 @@ retient PLUS que le pas publié sur 12/12 seeds sans retenir le bassin (21,5, h�
 
 ## Portée (hedges)
 
+> **Précisé le 2026-09-24 par [[EDR-S2-CREDIT-ABLATION-2]] (P4.16)** : le TD par tick SEUL (épisodique coupé)
+> amène le bassin au plancher lui aussi (8,5 contre un plancher froid mesuré à 7,5, saturation 96 %) — « le TD
+> n'est pas nécessaire » tient, mais il SUFFIT, et le run ne peut PAS classer les deux voies entre elles (DV
+> saturée) ; un retour constant POSITIF érode à mi-chemin (23,25, 11/12, à 5,4 % du mouvement) — ce bras mesure un
+> OFFSET POSITIF de l'avantage, pas une absence de contenu ; l'épisodique seul à 0,004 érode (17,0, 11/12) mais
+> **moins que le même bras à pas publié** (−19,0 contre −29,0, 12/12 appariés) : l'`ATTENUE_A_PETIT_PAS` de ce
+> record TIENT et se reconduit à voie unique. Prochain contrôle : le bruit apparié en mouvement (P4.18).
+
 * **Le bras sans signal ne sépare pas « le pas est inoffensif » de « le pas n'a pas eu lieu »** : avec
   `reward_scale = 0` l'erreur TD tend vers 0 (V → 0) et l'avantage épisodique aussi, donc les poids ne bougent
   qu'à 2,5 %. Ce que le bras ÉTABLIT : la machinerie sans signal ne fabrique pas d'érosion par elle-même (pas de

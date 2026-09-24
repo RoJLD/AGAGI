@@ -23,6 +23,7 @@ Usage : python tools/evo_runs/s2_credit_ablation_2.py   (env : SCA2_SEEDS=12 SCA
         SCA2_SMOKE=1 -> 1 seed, 200/100 ticks, fichier _smoke ; SCA2_FULL_ALL=1 -> b_full mesuré partout)
 """
 import contextlib
+import datetime as _dt
 import json
 import os
 import sys
@@ -204,6 +205,34 @@ def run_arm(seed, arm, num_agents=12, ticks_learn=2000, ticks_test=200):
     out["survival"] = phase2_survive_mortal(agents, seed, ticks_test)
     out["elapsed_s"] = time.time() - t0
     return out
+
+
+def _horodatage(t=None):
+    """Heure civile locale ISO (secondes). `t` : un `time.time()` ; None = maintenant."""
+    return (_dt.datetime.fromtimestamp(t) if t is not None else _dt.datetime.now()).isoformat(timespec="seconds")
+
+
+def cost_cells(arms, long_cell_s=5000.0):
+    """Les DÉNOMINATEURS du coût, recomputés depuis les cellules elles-mêmes (P2.78 ; revue adversariale du
+    2026-09-24). Une cellule IMPORTÉE porte l'`elapsed_s` du run d'origine : ce temps n'a pas été dépensé ici,
+    et sommer les 60 cellules donne PLUS que le temps mur du run. Une cellule hors échelle (machine suspendue
+    pendant une nuit) est exclue du DÉBIT et publiée à part, avec son propre dénominateur — jamais soustraite
+    du numérateur en gardant le dénominateur complet. Un ensemble vide rend `None`, jamais 0.0 (porte 14 : un
+    débit de 0 s/cellule serait une affirmation de gratuité)."""
+    cells = [(a, s, float(r["elapsed_s"]), bool(r.get("imported_from")))
+             for a, per in arms.items() for s, r in per.items()]
+    mesurees = [(a, s, e) for a, s, e, imp in cells if not imp]
+    longues = [(a, s, e) for a, s, e in mesurees if e > long_cell_s]
+    courtes = [(a, s, e) for a, s, e in mesurees if e <= long_cell_s]
+    som_m = sum(e for _, _, e in mesurees)
+    som_c = sum(e for _, _, e in courtes)
+    return {"cells_declared": len(cells), "cells_measured": len(mesurees), "cells_imported": len(cells) - len(mesurees),
+            "cells_long": len(longues), "cells_short": len(courtes),
+            "elapsed_measured_s": som_m, "elapsed_short_s": som_c,
+            "s_per_measured_cell": (som_m / len(mesurees)) if mesurees else None,
+            "s_per_short_cell": (som_c / len(courtes)) if courtes else None,
+            "long_cell_s": float(long_cell_s),
+            "cells_over_long_s": {f"{a}/{s}": round(e) for a, s, e in sorted(longues, key=lambda x: -x[2])}}
 
 
 def _row_doses(arm, learning):
@@ -395,6 +424,12 @@ def main():
     data["verdict"] = credit_ablation_2_verdict(rows) if rows else {"verdict": "INCOMPLET", "n": 0}
     data["cost"]["elapsed_total_s"] = time.time() - t_start
     data["cost"]["elapsed_cpu_s"] = time.process_time() - cpu_start     # P2.78 : le temps CPU à côté du mur
+    # Heure CIVILE : aucun instrument ne la produit ailleurs, et c'est elle qui dit si un temps mur long est un
+    # calcul ou une nuit (revue adversariale du 2026-09-24 : une valeur saisie à la main dans un JSON de
+    # résultats est indiscernable d'une valeur mesurée).
+    data["cost"]["started_at"] = _horodatage(t_start)
+    data["cost"]["finished_at"] = _horodatage()
+    data["cost"].update(cost_cells(data["arms"]))                        # dénominateurs recomputés, jamais à la main
     _save(out, data)
     v = data["verdict"]
     print(f"\n=== P4.16 S2-CREDIT-ABLATION-2 — n={v.get('n')} : {v.get('verdict')} | contenu {v.get('contenu')} | "
