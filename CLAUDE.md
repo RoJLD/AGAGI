@@ -261,6 +261,19 @@ Nouveau record → frontmatter `gate:` / `tests:[SDR-Gx]` / `adopts:` ou `founda
 `tools/check_record_links.py` le signale comme orphelin (le hook pre-commit bloque les nouveaux).
 Les résultats NÉGATIFS et les auto-réfutations se gravent au même titre que les positifs.
 
+⚠️ **Avant de BANDER un record, lire ce record — et valider le motif DEDANS.** Mesuré le 2026-09-24
+(**récidive** de la règle du grep ci-dessous, écrite le 2026-09-07) : j'ai cherché `industrial` dans le CODE et
+dans l'OUTILLAGE, j'y ai trouvé une seule note, et j'allais publier comme inédit (« la carte ne l'a jamais
+tiré », avec une classe E10 à la clé) un fait que **les deux records visés portaient déjà** —
+`EDR-S2-002` ligne 15 (bandeau « COMPTE DES MONDES CORRIGÉ ») et `EDR-S2-013` dans ses réserves. Rétracté avant
+publication, et une session voisine était à un pas de graver la classe sur ma formulation. Le périmètre est la
+variante neuve : *valider le motif sur un cas positif connu* ne suffit pas si on le valide sur le MAUVAIS
+corpus. Règle opératoire, déclarative faute d'être automatisable : **un record qu'on cite se lit, et le motif se
+grep dans CE fichier** ; un bandeau qui annonce une nouveauté nomme ce qu'il a lu pour l'affirmer. *(Même passe,
+même mécanisme, deuxième fois : mon `grep "occ. 9, 2026-09-23"` a rendu 0 sur une ligne que j'avais moi-même
+écrite et committée — le motif exact était « (9, 2026-09-23, … ». Une absence de correspondance n'est pas une
+absence.)*
+
 ⚠️ **Une PRÉMISSE est une mesure, pas un décor.** Toute valeur de configuration citée dans un record
 doit être PUBLIÉE par le runner (bloc `regime` du JSON de résultats), jamais recopiée de mémoire.
 Mesuré le 2026-09-09 (**E8 occ. 4**) : `EDR-GRAB-COST` s'ouvrait sur « le régime porte

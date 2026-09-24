@@ -1,0 +1,442 @@
+{
+ "_design": {
+  "question": "S2-002-PAIRED-R1 (P2.41 b -> decision robla deleguee, 2026-09-22) : la carte d'ablation-perception within-subject du champion HoF (EDR-S2-002 / EDR-S2-013 : PERCEPTION_DECOY sur les 5 mondes, within ~ 1,00 a bande NUE dont le bruit est +-6-8 %) tient-elle a bande RNG APPARIEE (run_ablation_map(paired_band=True), no-op attendu 1,000 exact) -- et que vaut le within du champion une fois le bruit efface (S2-BLIND-CHAMPION-ter : 0,977-1,035 sur stoneage, 7 seeds) ?",
+  "replication_unit": "\u00e8re (K=12 \u00e8res appari\u00e9es par cellule) ; 3 seeds de monde par monde, 5 mondes",
+  "n_independent": 3,
+  "links": {
+   "within_apparie": "measured",
+   "noop_apparie": "measured",
+   "verdict_instrument": "measured",
+   "intact_median_vs_plancher": "measured"
+  },
+  "inferred_links": [],
+  "cost_estimate": "5 mondes x 3 seeds x 4 conditions (nul, ablate, reflexe, no-op) x 12 eres x 12 agents x 200 ticks ; stoneage : ~18,5 s/condition (-ter) -> 20-40 min sous bail kuzu ; results/s2_002_paired_r1.json ; _cout_s et _cout_cpu_s publies",
+  "inferred_reason": null,
+  "control_family": {
+   "cells": 15,
+   "alpha_family": 0.05,
+   "alpha_cell": 0.0033333333333333335,
+   "method": "bonferroni",
+   "reason": null,
+   "fwer_bound": 0.05
+  },
+  "warning": null
+ },
+ "_regime": {
+  "K": 12,
+  "between_same_body": false,
+  "max_ticks": 200,
+  "noop_control": true,
+  "num_agents": 12,
+  "paired_band": true,
+  "sujet": "champion HoF (load_champion_genome)",
+  "worlds": [
+   "soup",
+   "stoneage",
+   "agricultural",
+   "industrial",
+   "famine"
+  ],
+  "seeds": [
+   2026,
+   3026,
+   3027
+  ],
+  "reference": "paired_band",
+  "publie": {
+   "soup": "PERCEPTION_DECOY",
+   "stoneage": "PERCEPTION_DECOY",
+   "agricultural": "PERCEPTION_DECOY",
+   "industrial": "PERCEPTION_DECOY",
+   "famine": "PERCEPTION_DECOY"
+  }
+ },
+ "soup|seed=2026": {
+  "within_ratio": 1.0940170940170941,
+  "between_ratio": 5.416666666666667,
+  "verdict": "INCONCLUSIVE_DEGENERATE",
+  "noop": {
+   "ratio": 1.0,
+   "verdict": "INCONCLUSIVE_DEGENERATE",
+   "median": 32.0
+  },
+  "intact_median": 32.0,
+  "floor": 32.0,
+  "reference": "paired_band",
+  "policy": "MambaBatchModel",
+  "n": 12,
+  "t_s": 240.48879432678223
+ },
+ "_provenance": [
+  {
+   "git_sha": "55194b52434bbc7528670d6b64afa72cf9842b89",
+   "dirty": true,
+   "rule": "S2-002-PAIRED-R1",
+   "seal": "985ef9c5f8b4c7fb261a9d70e309a8bf339d0db3e6728807f8134d0b3410c9d9"
+  },
+  {
+   "git_sha": "5548a5a661149bc13336e2e412e538ee2ec2833d",
+   "dirty": true,
+   "rule": "S2-002-PAIRED-R1",
+   "seal": "985ef9c5f8b4c7fb261a9d70e309a8bf339d0db3e6728807f8134d0b3410c9d9"
+  },
+  {
+   "git_sha": "95be944c64af1527cd8da96f63b5729ecd7407a1",
+   "dirty": true,
+   "rule": "S2-002-PAIRED-R1",
+   "seal": "985ef9c5f8b4c7fb261a9d70e309a8bf339d0db3e6728807f8134d0b3410c9d9"
+  }
+ ],
+ "soup|seed=3026": {
+  "within_ratio": 1.073394495412844,
+  "between_ratio": 4.142857142857143,
+  "verdict": "INCONCLUSIVE_DEGENERATE",
+  "noop": {
+   "ratio": 1.0,
+   "verdict": "INCONCLUSIVE_DEGENERATE",
+   "median": 29.25
+  },
+  "intact_median": 29.25,
+  "floor": 32.0,
+  "reference": "paired_band",
+  "policy": "MambaBatchModel",
+  "n": 12,
+  "t_s": 236.31588792800903
+ },
+ "soup|seed=3027": {
+  "within_ratio": 1.0458715596330275,
+  "between_ratio": 4.0,
+  "verdict": "INCONCLUSIVE_DEGENERATE",
+  "noop": {
+   "ratio": 1.0,
+   "verdict": "INCONCLUSIVE_DEGENERATE",
+   "median": 28.5
+  },
+  "intact_median": 28.5,
+  "floor": 32.0,
+  "reference": "paired_band",
+  "policy": "MambaBatchModel",
+  "n": 12,
+  "t_s": 267.3871600627899
+ },
+ "stoneage|seed=2026": {
+  "within_ratio": 0.9369369369369369,
+  "between_ratio": 4.666666666666667,
+  "verdict": "PERCEPTION_DECOY",
+  "noop": {
+   "ratio": 1.0,
+   "verdict": "INCONCLUSIVE_DEGENERATE",
+   "median": 26.0
+  },
+  "intact_median": 26.0,
+  "floor": 24.0,
+  "reference": "paired_band",
+  "policy": "MambaBatchModel",
+  "n": 12,
+  "t_s": 289.5302150249481
+ },
+ "stoneage|seed=3026": {
+  "within_ratio": 0.9428571428571428,
+  "between_ratio": 3.5714285714285716,
+  "verdict": "PERCEPTION_DECOY",
+  "noop": {
+   "ratio": 1.0,
+   "verdict": "INCONCLUSIVE_DEGENERATE",
+   "median": 24.75
+  },
+  "intact_median": 24.75,
+  "floor": 24.0,
+  "reference": "paired_band",
+  "policy": "MambaBatchModel",
+  "n": 12,
+  "t_s": 216.37626004219055
+ },
+ "stoneage|seed=3027": {
+  "within_ratio": 0.9320388349514563,
+  "between_ratio": 4.0,
+  "verdict": "INCONCLUSIVE_DEGENERATE",
+  "noop": {
+   "ratio": 1.0,
+   "verdict": "INCONCLUSIVE_DEGENERATE",
+   "median": 24.0
+  },
+  "intact_median": 24.0,
+  "floor": 24.0,
+  "reference": "paired_band",
+  "policy": "MambaBatchModel",
+  "n": 12,
+  "t_s": 175.00370478630066
+ },
+ "agricultural|seed=2026": {
+  "within_ratio": 1.0666666666666667,
+  "between_ratio": 4.666666666666667,
+  "verdict": "PERCEPTION_DECOY",
+  "noop": {
+   "ratio": 1.0,
+   "verdict": "INCONCLUSIVE_DEGENERATE",
+   "median": 28.0
+  },
+  "intact_median": 28.0,
+  "floor": 25.25,
+  "reference": "paired_band",
+  "policy": "MambaBatchModel",
+  "n": 12,
+  "t_s": 347.77969336509705
+ },
+ "agricultural|seed=3026": {
+  "within_ratio": 0.96875,
+  "between_ratio": 4.083333333333333,
+  "verdict": "INCONCLUSIVE_DEGENERATE",
+  "noop": {
+   "ratio": 1.0,
+   "verdict": "INCONCLUSIVE_DEGENERATE",
+   "median": 23.25
+  },
+  "intact_median": 23.25,
+  "floor": 25.25,
+  "reference": "paired_band",
+  "policy": "MambaBatchModel",
+  "n": 12,
+  "t_s": 267.6000645160675
+ },
+ "agricultural|seed=3027": {
+  "within_ratio": 0.9479166666666666,
+  "between_ratio": 4.0,
+  "verdict": "INCONCLUSIVE_DEGENERATE",
+  "noop": {
+   "ratio": 1.0,
+   "verdict": "INCONCLUSIVE_DEGENERATE",
+   "median": 22.75
+  },
+  "intact_median": 22.75,
+  "floor": 25.25,
+  "reference": "paired_band",
+  "policy": "MambaBatchModel",
+  "n": 12,
+  "t_s": 237.13876605033875
+ },
+ "industrial|seed=2026": {
+  "within_ratio": 0.9369369369369369,
+  "between_ratio": 4.666666666666667,
+  "verdict": "PERCEPTION_DECOY",
+  "noop": {
+   "ratio": 1.0,
+   "verdict": "INCONCLUSIVE_DEGENERATE",
+   "median": 26.0
+  },
+  "intact_median": 26.0,
+  "floor": 24.0,
+  "reference": "paired_band",
+  "policy": "MambaBatchModel",
+  "n": 12,
+  "t_s": 238.4410538673401
+ },
+ "industrial|seed=3026": {
+  "within_ratio": 0.9428571428571428,
+  "between_ratio": 3.5714285714285716,
+  "verdict": "PERCEPTION_DECOY",
+  "noop": {
+   "ratio": 1.0,
+   "verdict": "INCONCLUSIVE_DEGENERATE",
+   "median": 24.75
+  },
+  "intact_median": 24.75,
+  "floor": 24.0,
+  "reference": "paired_band",
+  "policy": "MambaBatchModel",
+  "n": 12,
+  "t_s": 238.49251246452332
+ },
+ "industrial|seed=3027": {
+  "within_ratio": 0.9320388349514563,
+  "between_ratio": 4.0,
+  "verdict": "INCONCLUSIVE_DEGENERATE",
+  "noop": {
+   "ratio": 1.0,
+   "verdict": "INCONCLUSIVE_DEGENERATE",
+   "median": 24.0
+  },
+  "intact_median": 24.0,
+  "floor": 24.0,
+  "reference": "paired_band",
+  "policy": "MambaBatchModel",
+  "n": 12,
+  "t_s": 195.34172415733337
+ },
+ "famine|seed=2026": {
+  "within_ratio": 1.1067961165048543,
+  "between_ratio": 4.666666666666667,
+  "verdict": "PERCEPTION_DECOY",
+  "noop": {
+   "ratio": 1.0,
+   "verdict": "INCONCLUSIVE_DEGENERATE",
+   "median": 28.5
+  },
+  "intact_median": 28.5,
+  "floor": 21.75,
+  "reference": "paired_band",
+  "policy": "MambaBatchModel",
+  "n": 12,
+  "t_s": 112.39556980133057
+ },
+ "famine|seed=3026": {
+  "within_ratio": 1.0303030303030303,
+  "between_ratio": 3.8461538461538463,
+  "verdict": "PERCEPTION_DECOY",
+  "noop": {
+   "ratio": 1.0,
+   "verdict": "INCONCLUSIVE_DEGENERATE",
+   "median": 25.5
+  },
+  "intact_median": 25.5,
+  "floor": 21.75,
+  "reference": "paired_band",
+  "policy": "MambaBatchModel",
+  "n": 12,
+  "t_s": 72.93376159667969
+ },
+ "famine|seed=3027": {
+  "within_ratio": 1.0,
+  "between_ratio": 4.0,
+  "verdict": "PERCEPTION_DECOY",
+  "noop": {
+   "ratio": 1.0,
+   "verdict": "INCONCLUSIVE_DEGENERATE",
+   "median": 24.5
+  },
+  "intact_median": 24.5,
+  "floor": 21.75,
+  "reference": "paired_band",
+  "policy": "MambaBatchModel",
+  "n": 12,
+  "t_s": 65.42689442634583
+ },
+ "_cout_s": 3215.714715400012,
+ "_cout_cpu_s": 604.421875,
+ "_lecture": {
+  "par_monde": {
+   "soup": {
+    "within": [
+     1.0940170940170941,
+     1.073394495412844,
+     1.0458715596330275
+    ],
+    "within_median": 1.073394495412844,
+    "verdicts": [
+     "INCONCLUSIVE_DEGENERATE",
+     "INCONCLUSIVE_DEGENERATE",
+     "INCONCLUSIVE_DEGENERATE"
+    ],
+    "noop_exact": "3/3",
+    "intact_median": [
+     32.0,
+     29.25,
+     28.5
+    ],
+    "floor": 32.0,
+    "signe_post_hoc": "survit MOINS derange",
+    "lecture": "MODIFIE -> INCONCLUSIVE_DEGENERATE"
+   },
+   "stoneage": {
+    "within": [
+     0.9369369369369369,
+     0.9428571428571428,
+     0.9320388349514563
+    ],
+    "within_median": 0.9369369369369369,
+    "verdicts": [
+     "PERCEPTION_DECOY",
+     "PERCEPTION_DECOY",
+     "INCONCLUSIVE_DEGENERATE"
+    ],
+    "noop_exact": "3/3",
+    "intact_median": [
+     26.0,
+     24.75,
+     24.0
+    ],
+    "floor": 24.0,
+    "signe_post_hoc": "survit PLUS derange",
+    "lecture": "INCHANGE"
+   },
+   "agricultural": {
+    "within": [
+     1.0666666666666667,
+     0.96875,
+     0.9479166666666666
+    ],
+    "within_median": 0.96875,
+    "verdicts": [
+     "PERCEPTION_DECOY",
+     "INCONCLUSIVE_DEGENERATE",
+     "INCONCLUSIVE_DEGENERATE"
+    ],
+    "noop_exact": "3/3",
+    "intact_median": [
+     28.0,
+     23.25,
+     22.75
+    ],
+    "floor": 25.25,
+    "signe_post_hoc": "dans la marge",
+    "lecture": "MODIFIE -> INCONCLUSIVE_DEGENERATE"
+   },
+   "industrial": {
+    "within": [
+     0.9369369369369369,
+     0.9428571428571428,
+     0.9320388349514563
+    ],
+    "within_median": 0.9369369369369369,
+    "verdicts": [
+     "PERCEPTION_DECOY",
+     "PERCEPTION_DECOY",
+     "INCONCLUSIVE_DEGENERATE"
+    ],
+    "noop_exact": "3/3",
+    "intact_median": [
+     26.0,
+     24.75,
+     24.0
+    ],
+    "floor": 24.0,
+    "signe_post_hoc": "survit PLUS derange",
+    "lecture": "INCHANGE"
+   },
+   "famine": {
+    "within": [
+     1.1067961165048543,
+     1.0303030303030303,
+     1.0
+    ],
+    "within_median": 1.0303030303030303,
+    "verdicts": [
+     "PERCEPTION_DECOY",
+     "PERCEPTION_DECOY",
+     "PERCEPTION_DECOY"
+    ],
+    "noop_exact": "3/3",
+    "intact_median": [
+     28.5,
+     25.5,
+     24.5
+    ],
+    "floor": 21.75,
+    "signe_post_hoc": "dans la marge",
+    "lecture": "INCHANGE"
+   }
+  },
+  "harnais": [],
+  "inchanges": [
+   "stoneage",
+   "industrial",
+   "famine"
+  ],
+  "modifies": {
+   "soup": "INCONCLUSIVE_DEGENERATE",
+   "agricultural": "INCONCLUSIVE_DEGENERATE"
+  },
+  "mixtes": [],
+  "branche": "CARTE_MODIFIEE"
+ }
+}

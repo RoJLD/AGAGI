@@ -1379,7 +1379,18 @@ mauvais correctif (E12 sur le coût : une unité mesurée pendant qu'un autre jo
 mesure « 8 h 30 pendant que seize agents tournaient »). Pas en parallèle de S2-002-PAIRED-R1 (les deux veulent une machine libre).
 **Se ferme** avec le record `EDR-TD-STEP-PILOT-R2` (verdict lu dans `results/td_step_pilot_r2.json`, committé avec ses artefacts) —
 clause ancrée, vérifiable sur un clone.
-<!-- closes_when:grep_present=docs/roadmap/PRIORITES_ET_DETTES.md::\n\*\*P4\.17 — ✅ CLOSE -->
+⚠️ Clause RÉ-ANCRÉE le 2026-09-24 (revue d'agagi-52, classe **E1**) : elle visait la ligne « ✅ CLOSE » de CETTE entrée, donc elle grepait sa propre décision d'auteur et ne pouvait structurellement rien constater. Elle vise désormais la SORTIE que l'entrée se donne — le record `EDR-TD-STEP-PILOT-R2`, qui n'existe pas encore : un verdict qui ne vit que dans `results/td_step_pilot_r2.json` n'est pas un record.
+**REPRISE FAITE le 2026-09-24, et elle REFUTE la cause supposee.** `--relever-coupe` relance sur machine LIBRE
+(0 bail, 0 processus python du projet, verifie au depart) : l'unite RE-MESUREE vaut **196,4 s**, contre 217 s
+sous la contention du 2026-09-22 — **10 % d'ecart, pas un facteur 2**. La ligne lr 1.0 est donc RE-COUPEE, et
+cette fois sans aucune charge a incriminer : `95 unites x 196,4 s x marge 1,5 = 466 min > budget 240 min`. Ce que
+j'avais attribue a la contention etait une **sous-estimation au SCELLEMENT** : la grille, telle que scellee, ne
+tient pas dans son budget, et les cellules de la ligne lr 4,0 qui tournaient a 74-97 s n'etaient pas
+representatives des cellules neuves. Le protocole a fonctionne exactement comme ecrit (reprise declaree, unite
+re-mesuree machine libre, MEME budget scelle, marge jamais relevee) et il rend un verdict que je n'attendais
+pas. Consequence pour le record `EDR-TD-STEP-PILOT-R2` : il publiera la ligne lr 1.0 comme NON MESUREE, avec sa
+raison chiffree, et non comme un accident de machine.
+<!-- closes_when:path_present=docs/EDR/TD-STEP-PILOT-R2_Grid_Of_Step_And_Lambda.md -->
 
 **P4.7 — rang 19 — S5 / G4 phase A : `g` PER-ACTION vs agnostique vs labels PERMUTÉS (nœud 74).**
 Sonde livrée (fix de persistance ACTIF depuis le 2026-09-07, voir le bloc S5 plus bas et
@@ -3194,6 +3205,22 @@ effet détectable au-dessus de 8 % ». **Deux actions** : (a) bandeau de résolu
 lisent cet instrument ([EDR-124], S2-002/003, S2-013) ; (b) passer la référence à `NullAblatedMamba`
 (bande APPARIÉE), ce qui divise le bruit par 6 — mesuré : 1,0122 sur un sujet aveuglé contre 0,897-1,059
 à bande non appariée. Preuve : [`EDR-S2-BLIND-CHAMPION`](../EDR/S2-BLIND-CHAMPION_Stopped_At_Control_The_Ablation_Instrument_Has_An_8_Percent_RNG_Noise_Floor.md).
+**S2-002-PAIRED-R1 MESUREE ET LUE le 2026-09-24 (15/15 cellules, 54 min mur, machine LIBRE au depart) :
+lecture scellee `CARTE_MODIFIEE`** — [[EDR-S2-002-PAIRED-R1]], `results/s2_002_paired_r1.json`. Le controle qui
+motivait toute la passe est EXACT : **le no-op apparie vaut 1,0000 sur 15/15 cellules**, contre 1,058 / 0,922 a
+bande nue et 1,012 au `-bis` — le plancher de bruit de +-6-8 % n'est pas reduit, il est SUPPRIME. A cette
+resolution, deux lectures bougent : `soup` (within median 1,073) et `agricultural` (0,969) passent de
+`PERCEPTION_DECOY` a `INCONCLUSIVE_DEGENERATE`, non par changement de signe mais par le PLANCHER (leur bras
+INTACT est au niveau ou sous le plancher no-perception : soup 32,00 / 29,25 / 28,50 contre 32,00 ; agricultural
+28,00 / 23,25 / 22,75 contre 25,25). `stoneage`, `industrial` et `famine` restent DECOY, desormais a bruit nul ;
+aucun monde en HARNAIS, aucun MIXTE. Bandeaux poses sur EDR-S2-002 et EDR-S2-013. Deux faits publies a cote du
+verdict : le `between_ratio` des memes cellules vaut 3,57 a 5,42 quand le `within` vaut ~1,00 (le faux positif
+between-subject reproduit sur 15 cellules a bruit nul) ; et les trois cellules `industrial` sont BIT-POUR-BIT
+identiques a celles de `stoneage` sur TOUS les champs mesures — duplication DEJA consignee par EDR-S2-002 et
+EDR-S2-013 (via EDR-S2-012), ici confirmee au bit pres et employee comme **controle de determinisme** du harnais,
+jamais comme replication. ⚠️ En verifiant ce dernier point j'ai failli publier comme inedit ce que les deux
+records portaient deja : recidive de la regle du grep (CLAUDE.md, section Records, ligne ajoutee dans la meme
+passe) — le motif avait ete valide sur le CODE et l'OUTILLAGE, jamais sur les records que j'allais bander.
 <!-- closes_when:grep_present=tools/s2_demand_ablation.py::paired_band -->
 
 **P2.42 — ✅ CLOSE le 2026-09-16 (session loop 766eabae) — `S2-BLIND-CHAMPION` re-scellé (`-bis`, puis `-ter` à seeds neufs) et LU : `AVEUGLE_SURVIT_MIEUX`, r = 1,614 sur 7/7, p = 0,016 — à corps identique, W identique, apprenant gelé, chemin d'identité coupé, bande RNG appariée.**
