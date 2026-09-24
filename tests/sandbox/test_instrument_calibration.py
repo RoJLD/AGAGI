@@ -1617,6 +1617,17 @@ CALIBRATED = {
     "tools/evo_runs/s2_credit_ablation_2.py::run_arm": ["guard-before-world", "variante:enveloppe-la-phase-1-seule",
                                                         "b_const:reward_const-1.0-b_tdonly:episode-off",
                                                         "gele:ni-variante-ni-phase-1"],
+    # Pilotage (2026-09-24) : `compute_pilotage` et `parse_roadmap` PRODUISENT des affirmations (statut
+    # d'une entree, clause satisfaite, comptes publies) — donc des instruments au sens strict.
+    # Avertissement : le cliquet ne les DETECTE pas : aucun de ses 14 motifs ne capte `compute_*` ni `parse_*`, et une
+    # declaration non detectee est ignoree en silence (check_instrument_calibration.py:249). C'est P2.83,
+    # dont la moitie « le cliquet CRIE et tranche la cause » est livree : la declaration documente, la
+    # GARANTIE vient des cas qui tournent en CI (job `suite-complete`, par repertoire).
+    "tools/pm/pilotage.py::compute_pilotage": ["no-op:cinq-aveuglements", "prediction:une-close-de-plus",
+                                               "non-duplication:board", "age:generated_at-pas-mtime"],
+    "tools/pm/pilotage.py::parse_roadmap": ["parite:blocs", "composite:deux-entrees-un-bloc",
+                                            "rang:quinquies-non-tronque", "clause:trois-reponses-connues",
+                                            "chemins:non-captes-comptes", "illisible:compte-jamais-perdu"],
 }
 
 _GENOMES = os.path.join("results", "warm007_genomes")
