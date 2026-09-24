@@ -14,6 +14,29 @@ extends: [EDR-TD-STEP-PILOT-R0, EDR-LOCK-003]
 > runner `tools/td_step_pilot.py --r2`, résultats `results/td_step_pilot_r2.json`. Lecture : **`AIDE_A_UN_POINT`**.
 > 96 cellules IMPORTÉES de R0/R1 (jamais re-mesurées), 48 cellules neuves.
 
+> ⚠️ **PREUVE RECTIFIÉE le 2026-09-24 — classe E33 (conclusion juste, preuve fausse), et deux natures NON ÉTABLIES.
+> Aucun chiffre, aucune coupe, aucune lecture de ce record ne change : le verdict `AIDE_A_UN_POINT` ne dépend que des
+> cellules mesurées.** Trouvé en ré-écrivant P2.110 du backlog (close par `1c5f4b09`).
+> **(1) La décision du garde n'est PAS gouvernée par le CPU.** Le § « Coût, coupes, et pourquoi leurs natures
+> diffèrent » l'affirme depuis P2.78 ; or `_mesure` (`tools/td_step_pilot.py`, version de `3d7c22b3`) rendait
+> `time.time() - tc`, et c'est ce temps MUR qui entrait dans `project_cost` — P2.78 ne gate sur le CPU que
+> `CostGuard.tick`, que `main_r2` n'appelle jamais. La conclusion (les deux fenêtres de rafale n'ont pas touché la
+> décision) reste juste, pour une autre raison : la décision se prend UNE fois, sur la cellule d'unité, et celle de la
+> reprise (196,4 s, 1,2× la médiane de son bras `lam05`) n'était pas dans une rafale (6 à 12× : 968 s contre 163 s).
+> **(2) La `raison` publiée de la coupe COURANTE est fausse** : pour la ligne lr 1,0 (60 clés) le JSON porte « relevee
+> (--relever-coupe) : unite re-mesuree machine libre », qui est la raison de la LEVÉE, et non celle de la re-coupe
+> (95 unités × 196,4 s × marge 1,5 = 466 min > 240) — `setdefault` conservait le dict écrit par `--relever-coupe`.
+> **(3) Les deux natures que ce paragraphe attribue — lr 2,0 « CONTENTION », lr 1,0 « STRUCTURE » — ne sont pas
+> établies.** Elles reposent sur deux étiquettes de charge qui n'ont jamais été mesurées : la passe 1 est dite chargée
+> parce qu'un autre run tournait, la reprise est dite libre sur « 0 bail / 0 processus » au départ. Et les deux unités
+> viennent de deux cellules DIFFÉRENTES (`lam099|lr=4.0|seed=1` à la passe 1, `lam05|lr=2.0|seed=1` à la reprise) :
+> ce n'est pas une réplication. Les totaux committés pointent même dans l'autre sens : la passe 1 dite chargée a un
+> rapport CPU/mur de **1,80** (2 142 / 1 191 s, 12 cellules, 99 s par cellule), la reprise dite libre de **0,78**
+> (4 836 / 6 226 s, 36 cellules, 173 s par cellule), à régime identique (3 000 épisodes, 16 agents, K 6 ; R0 : 31,5 s
+> par cellule). Rejoué sur ces entrées, le classificateur livré par P2.110 (`classify_cut_nature`) rend
+> `indeterminee` pour les DEUX lignes. Ce qui reste établi : la coupe de lr 1,0 tient à toute unité supérieure à
+> 101,0 s (sa bascule à la reprise), et lr 2,0 a été mesurée à la reprise.
+
 ## La question
 
 [[EDR-TD-STEP-PILOT-R0]] avait mesuré, à un seul pas (lr 4,0), que la trace d'éligibilité TD(λ=0,9) déplace la
