@@ -139,6 +139,26 @@ _MUTATIONS = [
      S.test_le_JUGE_ne_recoit_QUE_les_relectures_a_juger_pas_celle_du_noop,
      _mut_workflow(lambda t: t.replace("JSON.stringify(relecturesJugees)",
                                        "JSON.stringify(relectures)")), None),
+    # Au 2e Step 4 reel, l'aiguillage a rendu une liste vide -- indiscernable d'un refus legitime.
+    ("l'aiguillage retombe au reglage le plus bas",
+     S.test_l_AIGUILLAGE_ne_peut_plus_echouer_en_SILENCE,
+     _mut_workflow(lambda t: t.replace(
+         "{ label: 'aiguillage', phase: 'Aiguillage', schema: AIGUILLAGE }",
+         "{ label: 'aiguillage', phase: 'Aiguillage', schema: AIGUILLAGE, effort: 'low' }")), None),
+    ("l'aiguillage ne rend plus sa sortie brute",
+     S.test_l_AIGUILLAGE_ne_peut_plus_echouer_en_SILENCE,
+     _mut_workflow(lambda t: t.replace("sortie_brute", "detail_interne")), None),
+    ("les deux pannes de l'aiguillage reprennent le meme nom",
+     S.test_l_AIGUILLAGE_ne_peut_plus_echouer_en_SILENCE,
+     _mut_workflow(lambda t: t.replace("aiguillage-FUITE", "aiguillage-TRANSPORT")), None),
+    # `::verifier` a survecu QUATRE rondes a la fonction qu'il declarait, le cliquet l'abandonnant en
+    # silence. La garde ferme la cause du symbole RENOMME, pour ces fichiers.
+    ("une declaration CALIBRATED pointe vers un symbole disparu",
+     S.test_aucune_declaration_CALIBRATED_de_ce_module_ne_pointe_vers_un_symbole_DISPARU,
+     {"lire": lambda: _lecture_mutee(
+         os.path.join(S.T._ROOT, "tests", "sandbox", "test_instrument_calibration.py"),
+         lambda t: t.replace('"tools/refutateur_temoins.py::recevabilite"',
+                             '"tools/refutateur_temoins.py::verifier"'))}, None),
 ]
 
 _MUTATIONS_ROSTER = [

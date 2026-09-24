@@ -701,6 +701,36 @@ def test_le_JUGE_ne_recoit_QUE_les_relectures_a_juger_pas_celle_du_noop():
     assert "'Aiguillage'" in js, "la phase qui filtre les relectures a disparu"
 
 
+def test_l_AIGUILLAGE_ne_peut_plus_echouer_en_SILENCE():
+    """CONTRE-EXEMPLE GELE : au 2e Step 4 réel, l'aiguillage a rendu `{"fichiers": []}`.
+
+    Le CLI marchait (3 fichiers, no-op exclu, exit 0) : c'est l'agent qui n'a rien relayé — et il
+    était le seul de la chaîne réglé sur `effort: 'low'`, alors qu'il décide ce que le juge voit.
+    Son mode d'échec, une liste vide, était **indiscernable d'un refus légitime** et faisait tomber
+    toute la revue sans dire pourquoi.
+
+    Trois propriétés, décidables sur le texte : il n'est plus au réglage le plus bas ; il rend la
+    COMMANDE et la SORTIE BRUTE, que le script logge ; et les deux pannes opposées — n'avoir rien
+    relayé (TRANSPORT) et n'avoir rien filtré (FUITE, le juge verrait le no-op) — portent des noms
+    distincts.
+    """
+    js = _lire(_WORKFLOW)
+    bloc = js.split("phase('Aiguillage')", 1)[1].split("phase('Juge')", 1)[0]
+    # La garde lit le CODE, pas la prose : le commentaire qui EXPLIQUE la correction la déclenchait.
+    bloc = "\n".join(l for l in bloc.splitlines() if not l.lstrip().startswith("//"))
+    assert "effort: 'low'" not in bloc, (
+        "l'aiguillage est au réglage le plus bas : c'est une garde contre une fuite, pas une corvée")
+    for champ in ("commande", "sortie_brute"):
+        assert f"{champ}: {{ type: 'string' }}" in bloc, f"l'aiguillage ne rend pas {champ}"
+        assert f"'{champ}'" in bloc, f"{champ} n'est pas exigé par le schéma"
+        assert f"aiguillage.{champ}" in bloc, f"le script ne LOGGE pas {champ} quand ça casse"
+    assert "aiguillage-TRANSPORT" in bloc and "aiguillage-FUITE" in bloc, (
+        "les deux pannes opposées portent encore le même nom")
+    # Et le vérificateur RE-DERIVE l'aiguillage : une fuite ne serait plus silencieuse.
+    verificateur = [g for g in _gabarits(js) if "VERIFICATEUR" in g][0]
+    assert "--questions-du-juge" in verificateur and "aiguillage divergent" in verificateur
+
+
 def test_questions_du_juge_OMET_le_noop_et_donne_le_defaut_des_autres():
     q = T.questions_du_juge()
     defauts = [t for t in T.charger() if t["genre"] == "defaut"]
@@ -784,6 +814,47 @@ def test_le_workflow_ne_construit_aucun_monde_et_ne_prend_aucun_bail():
     js = _lire(_WORKFLOW)
     for interdit in ("hold(", "jobs.run", "FamineWorld", "kuzu"):
         assert interdit not in js, f"le workflow touche a {interdit} : une revue ne simule pas"
+
+
+def test_aucune_declaration_CALIBRATED_de_ce_module_ne_pointe_vers_un_symbole_DISPARU():
+    """CONTRE-EXEMPLE GELE : `tools/refutateur_temoins.py::verifier` a survécu quatre rondes à sa
+    fonction.
+
+    La refonte du barème (ronde 4) a scindé `verifier` en `recevabilite` et `verdict_temoin` ; la
+    déclaration est restée, et le cliquet de calibration **l'abandonne en silence** — il ne dit ni
+    « déclaration morte », ni « déclaration inutile ». J'ai donc cru l'instrument calibré alors que
+    la clé ne résolvait rien. C'est la troisième cause d'un même silence, après la LANGUE du nom et
+    le KIND du symbole (`^def` ne voit pas une classe).
+
+    Cette garde ferme la cause du symbole RENOMMÉ, **pour mes fichiers seulement**. La généraliser à
+    tout `CALIBRATED` est le vrai correctif — il appartient à la session qui reprend les motifs du
+    cliquet, pas à cette tâche.
+
+    ⚠️ Elle ne dit rien de l'inverse : une fonction qui affirme mais n'est **pas** déclarée reste
+    invisible, et l'heuristique ne la détecte pas davantage.
+    """
+    import ast  # noqa: PLC0415
+
+    source_tests = _lire(os.path.join(T._ROOT, "tests", "sandbox", "test_instrument_calibration.py"))
+    arbre = ast.parse(source_tests)
+    cles = []
+    for noeud in ast.walk(arbre):
+        if isinstance(noeud, ast.Assign) and any(
+                getattr(c, "id", "") == "CALIBRATED" for c in noeud.targets):
+            cles = [k.value for k in noeud.value.keys if isinstance(k, ast.Constant)]
+            break
+    assert cles, "CALIBRATED introuvable : le détecteur d'AST n'a rien lu"
+
+    miens = [c for c in cles if c.startswith(("tools/refutateur_temoins.py::", "tools/workflow_lint.py::"))]
+    assert miens, "aucune déclaration de ce module : la garde ne balaie rien"
+    for cle in miens:
+        chemin, symbole = cle.split("::", 1)
+        module = ast.parse(_lire(os.path.join(T._ROOT, chemin)))
+        definis = {n.name for n in ast.walk(module)
+                   if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))}
+        assert symbole in definis, (
+            f"déclaration MORTE : {cle} — le symbole n'existe plus. Le cliquet l'abandonne en "
+            f"silence ; définis dans ce fichier : {sorted(definis)}")
 
 
 def test_le_protocole_d_invocation_est_ecrit_dans_docs_reviews_README():

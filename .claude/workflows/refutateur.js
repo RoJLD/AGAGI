@@ -79,18 +79,47 @@ if (muettes) {
 
 phase('Aiguillage')
 // Le juge ne doit NI etre interroge sur le temoin sain, NI en recevoir la relecture : sinon il
-// l'identifie par difference. Un agent qui ne juge rien rend la liste des fichiers a juger.
-const AIGUILLAGE = { type: 'object', properties: { fichiers: { type: 'array', items: { type: 'string' } } },
-                     required: ['fichiers'] }
+// l'identifie par difference. Un agent qui ne juge rien et ne lit aucun temoin rend la liste des
+// fichiers a juger.
+//
+// POURQUOI UN AGENT, et pas `args.fichiers_a_juger` : le roster GELE doit rester le seul a partitionner
+// les temoins. Laisser l'appelant nommer les fichiers a juger lui rendrait le pouvoir qu'on lui a retire
+// a la ronde 4 -- il pourrait tous les passer (le juge verrait le no-op) ou n'en passer qu'un. Le script
+// n'a pas d'acces disque : quelqu'un doit lancer la commande. Cet agent est le privilege MINIMAL qui le
+// permet, et depuis cette ronde sa sortie est RE-DERIVEE par le verificateur, qui refuse sur ecart :
+// une fuite ne serait plus silencieuse.
+//
+// ⚠️ PAS d'`effort: 'low'` ici (il y etait, et c'etait l'erreur) : cette phase decide ce que le juge voit,
+// c'est une garde contre une fuite, pas une corvee. Son mode d'echec silencieux -- une liste vide -- a
+// fait tomber toute la revue au 2e lancement reel.
+const AIGUILLAGE = {
+  type: 'object',
+  properties: { fichiers: { type: 'array', items: { type: 'string' } },
+                commande: { type: 'string' }, sortie_brute: { type: 'string' } },
+  required: ['fichiers', 'commande', 'sortie_brute'],
+}
 const aiguillage = await agent(`Lance: PYTHONIOENCODING=utf-8 python tools/refutateur_temoins.py --questions-du-juge
-Rends dans \`fichiers\` la liste des noms de fichier qu'elle imprime, telle quelle, sans rien y ajouter ni retirer.
-Tu ne juges rien et tu ne lis aucun de ces fichiers.`,
-  { label: 'aiguillage', phase: 'Aiguillage', schema: AIGUILLAGE, effort: 'low' })
+Rends dans \`fichiers\` la liste des noms de fichier qu'elle imprime, telle quelle, sans rien y ajouter ni retirer ;
+dans \`commande\` la ligne EXACTE que tu as lancee ; dans \`sortie_brute\` sa sortie COMPLETE, telle quelle.
+Si la commande echoue ou n'imprime aucun fichier, rends \`fichiers\` vide ET la sortie brute : c'est elle qui dira
+pourquoi. Tu ne juges rien et tu ne lis aucun de ces fichiers.`,
+  { label: 'aiguillage', phase: 'Aiguillage', schema: AIGUILLAGE })
 const aJuger = new Set((aiguillage && aiguillage.fichiers) || [])
 const relecturesJugees = relectures.filter(r => aJuger.has(r.fichier.split(/[\\/]/).pop()))
+// Deux pannes OPPOSEES, longtemps confondues sous un seul message : rien n'a ete relaye (TRANSPORT),
+// ou rien n'a ete filtre (FUITE -- le juge verrait le temoin sain).
 if (!relecturesJugees.length || relecturesJugees.length >= relectures.length) {
-  log(`revue NULLE : aiguillage incoherent (${relecturesJugees.length} sur ${relectures.length})`)
-  return { statut: 'NUL', raison: 'aiguillage incoherent', cible: args.target }
+  const panne = relecturesJugees.length ? 'aiguillage-FUITE' : 'aiguillage-TRANSPORT'
+  const detail = relecturesJugees.length
+    ? `rien n'a ete filtre : le juge verrait les ${relectures.length} relectures, no-op compris`
+    : `rien n'a ete relaye : ${aJuger.size} fichier(s) rendu(s) par l'aiguillage`
+  log(`revue NULLE : ${panne} -- ${detail}`)
+  log(`  commande lancee : ${(aiguillage && aiguillage.commande) || '(non rendue)'}`)
+  log(`  sortie brute lue : ${(aiguillage && aiguillage.sortie_brute) || '(non rendue)'}`)
+  return { statut: 'NUL', raison: panne, detail, cible: args.target,
+           aiguillage: { commande: aiguillage && aiguillage.commande,
+                         sortie_brute: aiguillage && aiguillage.sortie_brute,
+                         fichiers: [...aJuger] } }
 }
 
 phase('Juge')
@@ -120,23 +149,27 @@ Relectures, une par temoin (JSON) : ${JSON.stringify(relectures)}
 Jugements rendus par le juge, cle = nom de base du fichier relu : ${JSON.stringify(juge && juge.jugements)}
 1. Lis ${ROSTER}. REFUSE (champ refus non vide, resultats vide) si les genres ne sont pas EXACTEMENT trois "defaut" et
    un "noop", si un nom ou un champ fichier est en double, ou si un temoin du roster n'a pas sa relecture ci-dessus.
-2. Verifie la CALIBRATION du juge. Lance:
+2. RE-DERIVE l'aiguillage. Lance: PYTHONIOENCODING=utf-8 python tools/refutateur_temoins.py --questions-du-juge
+   et compare la liste de fichiers qu'elle imprime a celle qui a servi a filtrer les relectures du juge :
+   ${JSON.stringify([...aJuger])}. Si elles different, REFUSE avec la raison "aiguillage divergent" -- le juge a vu
+   autre chose que ce que le roster gele prescrit, et cela peut etre une FUITE.
+3. Verifie la CALIBRATION du juge. Lance:
    PYTHONIOENCODING=utf-8 python tools/refutateur_temoins.py --cas-du-juge-avec-reponses
    (vue RESERVEE au verificateur : le juge, lui, n'a recu que la question, sous une REF opaque). Chaque ligne y porte
    la REF puis le nom du cas : remappe par la REF les reponses du juge ${JSON.stringify(juge && juge.calibration)}
    et compare-les au champ juge. Si UNE seule differe, REFUSE avec la raison "juge non calibre" : un juge qui rate ses
    propres temoins ne juge pas.
-3. Ecris la liste de critiques de chaque relecture, telle quelle, en JSON, dans
+4. Ecris la liste de critiques de chaque relecture, telle quelle, en JSON, dans
    ${travail}/critiques-<nom du temoin>.json (cree le repertoire). N'ajoute, ne retire, ne reformule AUCUNE critique.
-4. Lance pour chacun, depuis la racine du depot, en reprenant le jugement du juge -- ses cles sont des NOMS DE BASE de
+5. Lance pour chacun, depuis la racine du depot, en reprenant le jugement du juge -- ses cles sont des NOMS DE BASE de
    fichiers, que le champ fichier du roster rattache a un temoin :
    PYTHONIOENCODING=utf-8 python tools/refutateur_temoins.py --verifier <nom> ${travail}/critiques-<nom>.json --extrait <chemin relu> --jugement <OUI|NON|INDECIDABLE>
    Le code de sortie fait foi : 0 = retrouve, 1 = revue NULLE, 2 = indecidable. Ne reinterprete pas la sortie texte.
    Un temoin sans jugement du juge se lance SANS --jugement ; ne fabrique jamais un jugement absent.
-5. Lance enfin: PYTHONIOENCODING=utf-8 python tools/refutateur_temoins.py --plancher <repertoire des temoins>
+6. Lance enfin: PYTHONIOENCODING=utf-8 python tools/refutateur_temoins.py --plancher <repertoire des temoins>
    et recopie sa premiere ligne, TELLE QUELLE, dans le champ plancher. Un score sans son plancher est interdit.
-6. Rends {refus, plancher, resultats: {<nom>: {retrouve, code, fichier_critiques, commande}}}, ou le champ commande
-   porte la ligne EXACTE que tu as lancee a l'etape 4, pour qu'un tiers la relance.`,
+7. Rends {refus, plancher, resultats: {<nom>: {retrouve, code, fichier_critiques, commande}}}, ou le champ commande
+   porte la ligne EXACTE que tu as lancee a l'etape 5, pour qu'un tiers la relance.`,
   { label: 'verification', phase: 'Verification', schema: VERIFICATION })
 
 const resultats = (verif && verif.resultats) || {}
