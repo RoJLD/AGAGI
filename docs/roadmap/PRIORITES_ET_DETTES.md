@@ -1290,7 +1290,7 @@ passe par `git commit -- <chemins>`, JAMAIS nu ») :
     avant de la lancer, et refuser.
 <!-- closes_when:grep_present=tools/hooks/pre-commit::check_pathspec_collision -->
 
-**P2.110 — rang 12 quater — ⚠️ OUVERTE (2026-09-24, extraite du bloc P4.17, désormais fermé) — Le cliquet de COÛT
+**P2.110 — rang 12 quater — ✅ CLOSE le 2026-09-24 (code livré ; ouverte le même jour, extraite du bloc P4.17) — Le cliquet de COÛT
 projette depuis UNE cellule, sur une horloge MUR, et ne dit pas POURQUOI il coupe : trois défauts mesurés le même jour
 sur la même expérience, dont l'un a déjà produit une sur-déclaration et un autre une preuve fausse dans un record.**
 Quoi. (i) **`_regime.coupe` ne porte qu'une PHRASE — et elle MENT sur la coupe courante.** Les deux coupes E13 de
@@ -1329,7 +1329,33 @@ point (c)).
 dans la MARGE entre projection et budget, et rien ne la publie aujourd'hui. Preuve : `results/td_step_pilot_r2.json`
 (`_regime.coupe`, `_regime.coupes_precedentes`), [[EDR-TD-STEP-PILOT-R2]] § « Coût, coupes, et pourquoi leurs natures
 diffèrent ». *Coût : agent 1 h 30 ; calcul 0.* Dépend de : rien.
+**✅ CLOSE le 2026-09-24 — code livré, et la revue a changé le design sur trois points.** `tools/cost_guard.py` :
+`NATURES_COUPE`, `classify_cut_nature` (INSTRUMENT, déclaré dans `CALIBRATED`, 12 cas à réponse connue dans
+`tests/sandbox/test_cost_guard.py`), `cut_geometry` / `cut_record`, `margin_to_budget`, `LoadWindow`, `cost_per_arm` /
+`project_cost_per_arm` ; et `project_cost` refuse désormais une unité NaN ou négative (`nan > budget` valait False : la
+garde ne pouvait pas échouer, E1). `tools/td_step_pilot.py`, `main_r2` seul : la décision est extraite en fonction PURE
+`_decider_coupes_r2`, **bit-identique à l'ancienne boucle sur 610 cas** (aléatoires seedés, égalité exacte au budget,
+unité nulle, et les deux points publiés : 96 clés à 3 587,78 s, 60 clés à 10 308,46 s) ; la coupe est RECONSTRUITE à
+chaque passe (plus de `setdefault`, clause `holds_when` ci-dessous), avec une raison PAR LIGNE ; le temps de CHAQUE
+cellule est persisté (`_temps_s`) ; l'unité CPU et la charge sont publiées à côté de l'unité mur, qui reste la seule à
+décider. Trois écarts à l'énoncé, tous issus de la revue (deux critiques adversariales, 32 amendements dont 7
+bloquants) : (1) la nature se décide PAR LIGNE et non par mesure — les deux lignes de la passe 1 ont été coupées sur la
+MÊME unité, donc un classifieur de la mesure leur rendait forcément la même nature, ce qui est le défaut (i) lui-même ;
+ce qui distingue les lignes, c'est leur dépassement (1,065 pour lr 2,0 ; 2,424 pour lr 1,0) et leur unité de bascule
+(204,3 s ; 89,7 s), désormais publiés ; (2) le mot `budget` devient **`indeterminee`** — toute coupe est causée par le
+budget, et un libellé d'absence qui ressemble à une cause de fond est le biais absence → affirmation ; (3) la charge est
+la charge EXTÉRIEURE INTÉGRÉE sur la fenêtre de la cellule (`LoadWindow`, en cœurs, lectures HORS du chronomètre : un
+capteur posé dedans aurait gonflé l'unité scellée elle-même, E11), jamais un instantané ni un compte de processus (qui
+mesure la PRÉSENCE, pas la charge). Seuil `COEURS_EXTERIEURS_LIBRE_MAX` = 8,0 cœurs, déclaré PROVISOIRE et non calibré
+comme certificat ; `contention` n'est ÉTABLIE que par la RÉPLIQUE de la même cellule, jamais en comparant deux cellules
+différentes (E8). Tests : `test_cost_guard.py` 10 → 29, `test_td_step_pilot.py` 22 → 34, 79 verts. ⚠️ **Ce que la
+clôture ne corrige PAS, et qui est dit** : le JSON publié de R2 garde sa raison fausse (artefact d'un record fermé, non
+réécrit) ; et sur l'entrée historique réelle, le classificateur rend `indeterminee` pour les DEUX lignes — il ne confirme
+pas les natures que le record attribue, et la revue en donne une raison chiffrée sur les totaux committés : la reprise
+dite LIBRE a un rapport CPU/mur de 0,78 (4 836 / 6 226 s), la passe 1 dite CHARGÉE de 1,80 (2 142 / 1 191 s). Le bandeau
+de rectification du record (point (iii), E33) part dans un commit séparé.
 <!-- closes_when:grep_present=tools/cost_guard.py::(?s)^(?=.*NATURES_COUPE)(?=.*def project_cost_per_arm) -->
+<!-- holds_when:grep_absent=tools/td_step_pilot.py::(?m)^[^#\n]*setdefault\("coupe" -->
 
 **P2.83 — ⚠️ OUVERTE (2026-09-24, vue en passant pendant la revue de la spec du dashboard Pilotage) — le cliquet de
 calibration ne connaît NI `compute_*` NI `parse_*`, et une déclaration qu'il ne détecte pas est ignorée EN SILENCE :

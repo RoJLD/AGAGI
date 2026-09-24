@@ -1617,6 +1617,23 @@ CALIBRATED = {
     "tools/evo_runs/s2_credit_ablation_2.py::run_arm": ["guard-before-world", "variante:enveloppe-la-phase-1-seule",
                                                         "b_const:reward_const-1.0-b_tdonly:episode-off",
                                                         "gele:ni-variante-ni-phase-1"],
+    # P2.110 (2026-09-24) -- nature d'UNE LIGNE coupee par le cliquet de cout, vocabulaire FERME
+    # (contention / structure / indeterminee). Cas : tests/sandbox/test_cost_guard.py (reponses connues, appels HORS de
+    # pytest.raises). PAR LIGNE et non par mesure : les deux lignes de la passe 1 de TD-STEP-PILOT-R2 ont ete coupees sur
+    # la MEME unite ; seule la bande de contamination declaree (ou la replique libre de la MEME cellule) les separe.
+    # ⚠️ Sur l'entree HISTORIQUE reelle de R2 (aucune charge publiee, deux unites prises sur deux cellules differentes),
+    # le classificateur rend `indeterminee` pour les deux lignes : il ne CONFIRME PAS l'etiquette « structure » que le
+    # record EDR-TD-STEP-PILOT-R2 attribue a lr 1,0 (E33 possible : conclusion peut-etre juste, preuve absente). Le cas
+    # « {lr 1,0 : structure ; lr 2,0 : contention} » n'est atteint que par une replique HYPOTHETIQUE, nommee comme telle.
+    "tools/cost_guard.py::classify_cut_nature": ["charge-inconnue:indeterminee", "nan:je-ne-sais-pas",
+                                                 "charge-mesuree:contention", "machine-libre:structure",
+                                                 "par-ligne:bande-separe-deux-lignes-de-la-meme-passe",
+                                                 "replique-libre:structure-ou-contention-etablie",
+                                                 "replique-chargee:ignoree",
+                                                 "replique-hypothetique:passe-1-scindee",
+                                                 "histoire-R2:indeterminee-ne-confirme-pas-structure",
+                                                 "noop:mesure-comme-sa-propre-replique", "monotonie:depassement-et-charge",
+                                                 "refus:entrees-degenerees:raises"],
 }
 
 _GENOMES = os.path.join("results", "warm007_genomes")

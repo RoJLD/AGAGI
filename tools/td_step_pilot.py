@@ -15,6 +15,7 @@ réussir (E1) ; la trace couvre W, U, V, W_bl ; (4) référence lr=0 du même di
 (barre = référence + 0,05, jamais « chance + marge »). Deux pas par bras (E19). Aucun monde, aucun bail, CPU pur.
 Résultats : `results/td_step_pilot_r0.json`. Usage : python tools/td_step_pilot.py [--lecture]
 """
+import copy
 import json
 import os
 import sys
@@ -30,6 +31,9 @@ from tools.bilinear_composition_probe import _make_seq, _sample, _train_eval_one
 from tools.experiment_preflight import assert_control_family, declare_design
 from tools.preregister import stamp, verify
 from tools.cost_guard import Stopwatch          # P2.78 : mur ET CPU
+from tools.cost_guard import (COEURS_EXTERIEURS_LIBRE_MAX, CostTooHighToStart, LoadWindow,  # P2.110 : main_r2 seul
+                              classify_cut_nature, cost_per_arm, cut_geometry, cut_record, margin_to_budget,
+                              project_cost)
 from src.paths import results_file   # noqa: E402  (porte 12)
 
 RULE = "TD-STEP-PILOT-R0"
@@ -408,14 +412,141 @@ def _lecture_r2(db, regle):
     return out
 
 
+# ---- P2.110 (2026-09-24) : le cliquet de cout de R2 en fonctions PURES ------------------------------------------------
+# Trois defauts mesures sur ce runner : (i) `setdefault("coupe", ...)` gardait le dict ecrit par --relever-coupe, donc la
+# raison publiee de la coupe COURANTE (60 cles, lr 1,0) etait celle de la LEVEE -- et dans une meme passe seule la raison de
+# la PREMIERE ligne etait ecrite ; (ii) l'unite d'une seule cellule appliquee a une grille heterogene (2,8x entre
+# familles) ; (iii) une unite MUR non qualifiee (aucune charge publiee). La DECISION scellee ne change pas (E11) : unite
+# = mur de la premiere cellule neuve, `project_cost`, coupe du lr le plus bas. Ce qui change : POURQUOI est publie, par
+# ligne, avec la charge mesuree et les deux cotes du seuil.
+_CLES_UNITE_R2 = ("unite_cpu_s", "unite_cle", "charge_unite", "marge_au_seuil", "unite_de_bascule_acceptee_s")
+
+
+def _lr_de(k):
+    return float(k.split("|")[1][3:])
+
+
+def _decider_coupes_r2(restantes, unite_s, budget_s, safety, label=RULE_R2):
+    """Decision E13 de R2, extraite en fonction PURE -- semantique IDENTIQUE a la boucle scellee (E11 sinon) : tant que
+    `project_cost` leve, couper la ligne du lr le plus BAS ; si plus rien ne reste, pas de projection (None).
+
+    Rend (restantes gardees, lignes coupees, projection_s | None). Chaque ligne = {lr, cles, n_unites, raison} : SA raison
+    (la boucle d'origine ne publiait que celle de la premiere) et `n_unites` = le compte projete qui l'a fait couper, dont
+    depend sa geometrie (`cut_geometry`). Calibree par PREDICTION sur l'histoire committee : passe 1 -> 96 cles et
+    3587.784336090088 au bit pres ; reprise -> 60 cles et 10308.464065790176 (tests/sandbox/test_td_step_pilot.py)."""
+    restantes, lignes = list(restantes), []
+    while True:
+        try:
+            return restantes, lignes, project_cost(unit_s=unite_s, n_units=len(restantes), budget_s=budget_s,
+                                                   safety=safety, label=label)
+        except CostTooHighToStart as exc:
+            lr_bas = min(_lr_de(k) for k in restantes)
+            coupees = [k for k in restantes if _lr_de(k) == lr_bas]
+            lignes.append({"lr": lr_bas, "cles": coupees, "n_unites": len(restantes), "raison": str(exc)})
+            restantes = [k for k in restantes if _lr_de(k) != lr_bas]
+            if not restantes:
+                return restantes, lignes, None
+
+
+def _coupe_r2(lignes, *, unite_s, unite_cpu_s, charge, budget_s, safety):
+    """PURE : le dict `coupe` d'UNE passe, RECONSTRUIT -- jamais `setdefault`. `cles` = union triee (le seul champ lu par
+    `_lecture_r2`, inchangee) ; `lignes` = un `cut_record` par ligne, nature classee PAR LIGNE (`classify_cut_nature`) sur
+    la charge integree de la cellule d'unite, sans bande de contamination : aucune n'est mesuree pour cette machine,
+    donc la voie par la marge est fermee et le depassement publie laisse le lecteur appliquer la sienne ; `raison` =
+    celles de TOUTES les lignes, dans l'ordre de coupe."""
+    x = (charge or {}).get("coeurs_exterieurs")
+    recs = []
+    for ligne in lignes:
+        g = cut_geometry(unite_s, ligne["n_unites"], budget_s, safety)
+        recs.append(cut_record(nature=classify_cut_nature(g["depassement"], coeurs_exterieurs=x), raison=ligne["raison"],
+                               lr=ligne["lr"], cles=ligne["cles"], unit_s=unite_s, n_units=ligne["n_unites"],
+                               budget_s=budget_s, safety=safety, unite_cpu_s=unite_cpu_s, charge=copy.deepcopy(charge)))
+    return {"cles": sorted({k for ligne in lignes for k in ligne["cles"]}),
+            "raison": " ; ".join(f"lr={r['lr']} : {r['raison']}" for r in recs), "lignes": recs}
+
+
+def _relever_coupe(regime, *, relevee_a, replique=None):
+    """PURE : rend un NOUVEAU `_regime` ou la coupe courante passe a l'historique par COPIE PROFONDE (l'ancienne levee y
+    rangeait une REFERENCE au dict de coupe, protegee seulement parce que la cle etait re-liee ensuite -- revue M-M13).
+    Retire l'unite levee et tout ce qui la decrit ; la raison de la LEVEE va dans l'historique (`raison_levee`), jamais
+    dans `coupe` : une reprise sans nouvelle coupe ne laisse ni raison ni cle vide. `replique` = la cellule d'unite
+    re-chronometree (M-M6), rangee avec la coupe qu'elle sert a re-qualifier. Les historiques anterieurs sont gardes."""
+    r = copy.deepcopy(regime)
+    entree = {"unite_s": r.pop("unite_s", None), "projection_s": r.pop("projection_s", None), "coupe": r.pop("coupe"),
+              "relevee_a": relevee_a,
+              "raison_levee": "--relever-coupe : reprise DECLAREE (E13) -- unite re-mesuree, coupe re-projetee"}
+    for cle in _CLES_UNITE_R2:
+        if cle in r:
+            entree[cle] = r.pop(cle)
+    if replique is not None:
+        entree["replique_unite"] = copy.deepcopy(replique)
+    r.setdefault("coupes_precedentes", []).append(entree)
+    return r
+
+
+def _requalifier_r2(entree, cles_coupees_maintenant, *, budget_s, safety):
+    """PURE : re-qualifie chaque ligne d'une coupe LEVEE, apres la nouvelle decision. `issue` est un FAIT (re-coupee ->
+    `confirmee`, sinon `recuperee`) ; `nature` n'est ETABLIE que par la replique LIBRE de la MEME cellule
+    (`classify_cut_nature`, regle 1). « Recuperee -> contention etablie » en comparant deux cellules DIFFERENTES serait une
+    inference deguisee en mesure (E8, revue M-M6 / I-REQUALIF) : l'ecart 217,4 / 196,4 s de R2 (+10,7 %) est plus petit
+    que l'exces de la premiere cellule sur la mediane de son propre bras (+21 % a +38 %). Sans replique valide (absente,
+    exactitude differente, charge illisible), la nature retombe sur la charge de la mesure d'origine ; sur l'ancien format
+    (R2 publie : ni lignes, ni cellule d'unite, ni charge) elle est `indeterminee`, cause non qualifiee."""
+    maintenant = set(cles_coupees_maintenant)
+    coupe = entree.get("coupe") or {}
+    rep = entree.get("replique_unite") or {}
+    mur_rep = rep.get("mur_s")
+    rep_ok = (rep.get("exactitude_identique") is True and isinstance(mur_rep, (int, float))
+              and not isinstance(mur_rep, bool) and mur_rep > 0)
+    out = {}
+    if not coupe.get("lignes"):
+        for lr in sorted({_lr_de(k) for k in coupe.get("cles", [])}):
+            cles = [k for k in coupe["cles"] if _lr_de(k) == lr]
+            out[str(lr)] = {"issue": "confirmee" if maintenant.intersection(cles) else "recuperee",
+                            "nature": "indeterminee",
+                            "raison": "ancien format : ni lignes, ni cellule d'unite, ni charge publiees -- cause non "
+                                      "qualifiee (les deux unites viennent de deux cellules differentes)"}
+        return out
+    for ligne in coupe["lignes"]:
+        d_rep = cut_geometry(mur_rep, ligne["n_unites"], budget_s, safety)["depassement"] if rep_ok else None
+        nature = classify_cut_nature(ligne["depassement"], coeurs_exterieurs=(ligne.get("charge") or {}).get("coeurs_exterieurs"),
+                                     depassement_replique=d_rep,
+                                     coeurs_exterieurs_replique=rep.get("coeurs_exterieurs") if rep_ok else None)
+        out[str(ligne["lr"])] = {"issue": "confirmee" if maintenant.intersection(ligne["cles"]) else "recuperee",
+                                 "nature": nature, "depassement_replique": d_rep,
+                                 "facteur_charge": rep.get("facteur_charge") if rep_ok else None}
+    return out
+
+
+def _cout_par_bras_r2(temps, neuves, *, unite_s, unite_cle, safety):
+    """PURE, non levante (revue M-M9) : la projection a posteriori PAR BRAS, publiee A COTE de la decision, jamais a sa
+    place -- la regle scellee fixe « unite MESUREE sur la premiere cellule neuve » (E11 sinon). Medianes du mur des
+    cellules chronometrees (`_temps_s`, persiste depuis P2.110 : les 108 cellules de R2 n'ont que la sortie standard).
+    Un bras neuf sans cellule chronometree n'a PAS d'unite : la projection par bras est alors None, jamais partielle ni
+    completee par une unite par defaut (porte 14). `unite_sur_mediane_du_bras` dit de combien la cellule d'unite depasse
+    son propre bras (premiere cellule du processus : import de torch, echauffement)."""
+    par_bras, n = {}, {}
+    for k, t in temps.items():
+        par_bras.setdefault(k.split("|")[0], []).append(t["mur_s"])
+    for k in neuves:
+        n[k.split("|")[0]] = n.get(k.split("|")[0], 0) + 1
+    med = {b: float(np.median(v)) for b, v in par_bras.items()}
+    manquants = sorted(b for b in n if b not in med)
+    bras_u = unite_cle.split("|")[0] if unite_cle else None
+    return {"unite_mediane_par_bras_s": med, "n_neuves_par_bras": n, "bras_sans_unite": manquants,
+            "projection_par_bras_s": None if (manquants or not n) else cost_per_arm(med, n, safety=safety)["projection_s"],
+            "projection_unite_unique_s": (unite_s * len(neuves) * safety) if unite_s is not None else None,
+            "unite_sur_mediane_du_bras": (unite_s / med[bras_u]) if (unite_s is not None and bras_u in med) else None}
+
+
 def main_r2(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
-    from tools.cost_guard import CostTooHighToStart, project_cost
     regle = verify(RULE_R2)
     out_path = str(results_file("td_step_pilot_r2.json"))
     c, s = regle["cellule"], regle["seuils"]
     db = json.load(open(out_path, encoding="utf-8")) if os.path.exists(out_path) else {}
-    db.update(_import_r2(regle))                                   # relues a chaque appel
+    imp = _import_r2(regle)
+    db.update(imp)                                                 # relues a chaque appel
     if "--lecture" in argv:
         print(json.dumps(_lecture_r2(db, regle), indent=1, ensure_ascii=False))
         return db
@@ -431,53 +562,93 @@ def main_r2(argv=None):
     db.setdefault("_design", design)
     db.setdefault("_regime", {k: v for k, v in c.items() if k != "seeds"})
     db.setdefault("_dose", {})
+    db.setdefault("_temps_s", {})
     sw = Stopwatch()
-    if "--relever-coupe" in argv and db["_regime"].get("coupe"):
-        # E13, reprise DECLAREE : la coupe a ete decidee sur une unite mesuree sous contention ; on la releve, on
-        # garde son historique, et on re-mesure l'unite sur la premiere cellule coupee AVANT de re-projeter.
-        hist = db["_regime"].setdefault("coupes_precedentes", [])
-        hist.append({"unite_s": db["_regime"].get("unite_s"), "projection_s": db["_regime"].get("projection_s"),
-                     "coupe": db["_regime"]["coupe"], "relevee_a": time.strftime("%Y-%m-%d %H:%M")})
-        db["_regime"]["coupe"] = {"cles": [], "raison": "relevee (--relever-coupe) : unite re-mesuree machine libre"}
-        db["_regime"].pop("unite_s", None)
-        db["_regime"].pop("projection_s", None)
-    restantes = [k for k in _cellules_r2(regle) if k not in db and k not in set(db["_regime"].get("coupe", {}).get("cles", []))]
 
-    def _mesure(k):
+    def _chronometrer(k):
+        """(accuracy, dose, temps) d'une cellule, SANS rien persister. La fenetre de charge s'ouvre AVANT le chronometre et
+        se ferme APRES son arret (revue M-M5, E11) : aucune lecture de capteur n'entre dans l'unite scellee. L'unite reste
+        le MUR (`budget_s` est du mur ; un run torch multi-thread rend un CPU > mur) ; le CPU est publie A COTE."""
         bras, lr_s, sd_s = k.split("|")
         lr, sd = float(lr_s[3:]), int(sd_s[5:])
         lam = {"lam0": 0.0, "lam05": 0.5, "lam09": 0.9, "lam099": 0.99, "td0_d0": 0.0}[bras]
-        tc = time.time()
+        fenetre = LoadWindow()
+        chrono = Stopwatch()
         acc, dose = _train_eval_td_step(sd, lam, c["episodes_td"], c["n_agents"], c["K"], lr,
                                         trace_reset_per_episode=c["trace_reset_per_episode"], same_tick=(bras == "td0_d0"))
+        el = chrono.elapsed()
+        charge = fenetre.close()
+        mur, cpu = el["elapsed_s"], el["elapsed_cpu_s"]
+        return acc, dose, {"mur_s": mur, "cpu_s": cpu, "coeurs_propres": (cpu / mur) if mur > 0 else None,
+                           "coeurs_exterieurs": charge["coeurs_exterieurs"]}
+
+    def _mesure(k):
+        acc, dose, t = _chronometrer(k)
         db[k], db["_dose"][k] = acc, dose
+        db["_temps_s"][k] = t          # P2.110 (ii) : le temps de CHAQUE cellule est persiste, plus seulement imprime
         json.dump(stamp(db, RULE_R2), open(out_path, "w", encoding="utf-8"), indent=1)
-        print(f"  {k}: {acc:.3f} ({time.time() - tc:.1f} s)", flush=True)
-        return time.time() - tc
+        ext = "illisible" if t["coeurs_exterieurs"] is None else f"{t['coeurs_exterieurs']:.1f} coeurs ext."
+        print(f"  {k}: {acc:.3f} ({t['mur_s']:.1f} s mur, {t['cpu_s']:.1f} s cpu, {ext})", flush=True)
+        return t
+    if "--relever-coupe" in argv and db["_regime"].get("coupe"):
+        # E13, reprise DECLAREE : on releve la coupe, on garde son historique, et on re-mesure l'unite AVANT de
+        # re-projeter. P2.110 (revue M-M6) : d'abord, la cellule d'unite de la coupe levee est RE-CHRONOMETREE -- premiere
+        # du processus, comme a l'origine (meme echauffement : import de torch) --, jamais re-persistee ; son exactitude
+        # doit ressortir bit-identique (determinisme controle au passage). C'est la seule mesure qui ETABLIT une
+        # contention (CLAUDE.md : la charge se mesure par la replication d'une cellule bit-identique). Cout declare : une
+        # cellule. Contrepartie DECLAREE : la nouvelle unite est alors prise dans un processus CHAUD (torch deja importe,
+        # 2,7 a 7,6 s mesures en revue), donc un peu plus basse qu'une premiere cellule -- publiee telle quelle. Absente de
+        # l'ancien format (unite_cle non publiee) : pas de replique, cause non qualifiee.
+        replique = None
+        k_u, u0 = db["_regime"].get("unite_cle"), db["_regime"].get("unite_s")
+        if k_u is not None and k_u in db:
+            acc_r, _, t_r = _chronometrer(k_u)
+            identique = acc_r == db[k_u]
+            replique = dict(t_r, cle=k_u, exactitude_identique=identique,
+                            facteur_charge=(u0 / t_r["mur_s"]) if (identique and u0 and t_r["mur_s"] > 0) else None)
+            print(f"  REPLIQUE de l'unite {k_u} : {t_r['mur_s']:.1f} s (origine {u0}) -- exactitude "
+                  f"{'IDENTIQUE' if identique else 'DIFFERENTE : replique ecartee'}", flush=True)
+        db["_regime"] = _relever_coupe(db["_regime"], relevee_a=time.strftime("%Y-%m-%d %H:%M"), replique=replique)
+    restantes = [k for k in _cellules_r2(regle) if k not in db and k not in set(db["_regime"].get("coupe", {}).get("cles", []))]
     if restantes and "unite_s" not in db["_regime"]:
         # garde de cout E13 : l'unite est MESUREE sur la premiere cellule neuve, jamais supposee
-        unite = _mesure(restantes.pop(0))
-        db["_regime"]["unite_s"] = unite
-        while True:
-            try:
-                proj = project_cost(unit_s=unite, n_units=len(restantes), budget_s=s["budget_s"], safety=s["safety"], label=RULE_R2)
-                db["_regime"]["projection_s"] = proj
-                break
-            except CostTooHighToStart as exc:
-                lr_bas = min(float(k.split("|")[1][3:]) for k in restantes)
-                coupees = [k for k in restantes if float(k.split("|")[1][3:]) == lr_bas]
-                restantes = [k for k in restantes if k not in coupees]
-                cp = db["_regime"].setdefault("coupe", {"cles": [], "raison": str(exc)})
-                cp["cles"] = sorted(set(cp["cles"]) | set(coupees))
-                print(f"  COUPE (E13) : ligne lr={lr_bas} ({len(coupees)} cellules) -- {exc}", flush=True)
-                if not restantes:
-                    break
+        if db["_regime"].get("coupe"):
+            raise ValueError("TD-STEP-PILOT-R2 : etat incoherent -- une coupe sans unite_s ; la decision la remplacerait "
+                             "en silence. Relancer avec --relever-coupe (qui la range dans l'historique).")
+        k0 = restantes.pop(0)
+        t = _mesure(k0)
+        regime = db["_regime"]
+        regime["unite_s"], regime["unite_cpu_s"], regime["unite_cle"] = t["mur_s"], t["cpu_s"], k0
+        regime["charge_unite"] = {"coeurs_exterieurs": t["coeurs_exterieurs"], "coeurs_propres": t["coeurs_propres"],
+                                  "coeurs_logiques": os.cpu_count(), "seuil_coeurs_libre": COEURS_EXTERIEURS_LIBRE_MAX,
+                                  "bande_contamination": None,
+                                  "fenetre": "integree sur la cellule d'unite, lectures HORS du chronometre"}
+        restantes, lignes, proj = _decider_coupes_r2(restantes, t["mur_s"], s["budget_s"], s["safety"])
+        if lignes:
+            regime["coupe"] = _coupe_r2(lignes, unite_s=t["mur_s"], unite_cpu_s=t["cpu_s"],
+                                        charge=regime["charge_unite"], budget_s=s["budget_s"], safety=s["safety"])
+            for rec in regime["coupe"]["lignes"]:
+                print(f"  COUPE (E13) : ligne lr={rec['lr']} ({len(rec['cles'])} cellules, {rec['depassement']:.3f} x le "
+                      f"budget, bascule {rec['unite_de_bascule_s']:.1f} s, nature {rec['nature']}) -- {rec['raison']}", flush=True)
+        if proj is not None:
+            # P2.110 : les DEUX cotes du seuil -- la marge de la projection ACCEPTEE ici, celle (negative) de chaque ligne
+            # refusee dans coupe.lignes ; la fragilite se lit dans la seconde, pas dans la premiere.
+            regime["projection_s"] = proj
+            regime["marge_au_seuil"] = margin_to_budget(proj, s["budget_s"])
+            regime["unite_de_bascule_acceptee_s"] = (s["budget_s"] / (len(restantes) * s["safety"])) if restantes else None
+        hist = regime.get("coupes_precedentes") or []
+        if hist and "requalification" not in hist[-1]:
+            hist[-1]["requalification"] = _requalifier_r2(hist[-1], regime.get("coupe", {}).get("cles", []),
+                                                          budget_s=s["budget_s"], safety=s["safety"])
         json.dump(stamp(db, RULE_R2), open(out_path, "w", encoding="utf-8"), indent=1)
     for k in restantes:
         _mesure(k)
     el = sw.elapsed()
     db["_cout_s"] = db.get("_cout_s", 0.0) + el["elapsed_s"]
     db["_cout_cpu_s"] = db.get("_cout_cpu_s", 0.0) + el["elapsed_cpu_s"]
+    db["_regime"]["cout_par_bras_a_posteriori"] = _cout_par_bras_r2(
+        db["_temps_s"], [k for k in _cellules_r2(regle) if k not in imp], unite_s=db["_regime"].get("unite_s"),
+        unite_cle=db["_regime"].get("unite_cle"), safety=s["safety"])
     db["_lecture"] = _lecture_r2(db, regle)
     json.dump(stamp(db, RULE_R2), open(out_path, "w", encoding="utf-8"), indent=1)
     print(json.dumps(db["_lecture"], indent=1, ensure_ascii=False))
