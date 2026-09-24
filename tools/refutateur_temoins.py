@@ -44,12 +44,15 @@ Usage :
     python tools/refutateur_temoins.py --verifier <nom> <critiques.json> --extrait <dir>/<fichier>.md
                                        [--jugement OUI|NON|INDECIDABLE]
     python tools/refutateur_temoins.py --plancher <dir>      # plancher de fausses retrouvailles
-    python tools/refutateur_temoins.py --cas-du-juge         # les cinq cas de calibration de l'etage 2
+    python tools/refutateur_temoins.py --cas-du-juge         # calibration de l'etage 2, REDIGEE
+    python tools/refutateur_temoins.py --cas-du-juge-avec-reponses   # VERIFICATEUR seulement
     python tools/refutateur_temoins.py --lister
 """
 import argparse
+import hashlib
 import json
 import os
+import random
 import re
 import subprocess
 import sys
@@ -314,13 +317,58 @@ def signal_attendu(temoin, critiques):
 # --------------------------------------------------------------------------------------------- #
 
 
-def cas_du_juge(nom_temoin=None):
-    """Les cinq textes RÉELS de la re-revue, à réponse connue. `*` = applicable à tout témoin."""
+#: Champs d'un cas de calibration qui sont la RÉPONSE, et non la question. ⚠️ `nom` en fait partie :
+#: `attaque-universelle`, `recopie-une-ligne-…`, `E26-juste-sans-le-mot-corps` annoncent tous leur
+#: verdict. Rédiger les trois autres champs en laissant le nom n'aurait rien fermé.
+_REPONSES_DU_JUGE = ("juge", "pourquoi", "etage1", "nom")
+
+
+def ref_du_cas(nom):
+    """Identifiant OPAQUE et STABLE d'un cas : il sert de clé au juge sans rien dire de la réponse."""
+    return hashlib.sha1(nom.encode("utf-8")).hexdigest()[:8]
+
+
+def cas_du_juge(nom_temoin=None, avec_reponses=False):
+    """Les cinq textes RÉELS de la re-revue. **RÉDIGÉS par défaut** : la question, pas la réponse.
+
+    ⚠️ **Une consigne de « ne pas regarder » n'est pas une garde.** Mesuré le 2026-09-24, troisième
+    occurrence de la même loi en une soirée : *dès qu'un instrument s'auto-administre, sa clé de
+    réponse voyage avec lui*. Le juge était sommé de lire le JSON de calibration « sans regarder le
+    champ `juge` » — or ce fichier donne la réponse **trois fois** : `juge` (OUI/NON), `pourquoi` (en
+    clair : « une revue JUSTE échouait là où une revue VIDE passait » dit l'attendu sans ambiguïté) et
+    `etage1` (`rejete`/`recevable`). Un juge qui passe sa calibration dans ces conditions ne prouve
+    rien, et `juge_est_calibre` ne peut jamais rougir. La parade est structurelle, pas rédactionnelle :
+    **servir la question sans la réponse.**
+
+    La vue rédigée rend `ref`, `temoins`, `critiques`. `avec_reponses=True` est réservé au
+    VÉRIFICATEUR et aux tests — jamais au juge.
+
+    ⚠️ **Le NOM du cas était lui-même une réponse** — trouvé en relisant la première sortie rédigée :
+    `attaque-universelle`, `recopie-une-ligne-du-temoin-GRAB`, `E26-juste-sans-le-mot-corps` annoncent
+    tous leur verdict. Rédiger `juge`, `pourquoi` et `etage1` en laissant le nom n'aurait rien fermé.
+    Le juge reçoit donc une `ref` OPAQUE et STABLE (sha1 du nom, 8 hex) qui lui sert de clé ; le
+    vérificateur la remappe. De même, `temoins: ["*"]` disait « ce cas vise TOUS les témoins », donc
+    « attaque universelle » : la vue rédigée le résout en la liste concrète.
+
+    ⚠️ **Ce que la rédaction NE GARANTIT PAS**, et qu'il faut savoir : elle empêche de LIRE la réponse,
+    jamais qu'un juge RECONNAISSE un cas déjà vu (rien ne le protège d'avoir été entraîné dessus, ni
+    d'avoir croisé ces textes dans un commit du dépôt) ; elle ne dit rien non plus de ce que le juge
+    infère du contenu même des critiques. L'ORDRE, lui, portait de l'information (les attaques
+    d'abord, les critiques justes ensuite) : la vue rédigée le mélange, c'était gratuit.
+    """
     with open(_JUGE, encoding="utf-8") as fh:
-        cas = json.load(fh)["cas"]
-    if nom_temoin is None:
+        cas = [dict(c, ref=ref_du_cas(c["nom"])) for c in json.load(fh)["cas"]]
+    if nom_temoin is not None:
+        cas = [c for c in cas if "*" in c["temoins"] or nom_temoin in c["temoins"]]
+    if avec_reponses:
         return cas
-    return [c for c in cas if "*" in c["temoins"] or nom_temoin in c["temoins"]]
+    # `*` est lui-même un indice (« ce cas vise TOUS les témoins » = attaque universelle) : on le
+    # résout en la liste concrète des témoins à défaut.
+    defauts = [t["nom"] for t in charger() if t["genre"] == "defaut"]
+    redige = [{**{k: v for k, v in c.items() if k not in _REPONSES_DU_JUGE},
+               "temoins": defauts if "*" in c["temoins"] else c["temoins"]} for c in cas]
+    random.shuffle(redige)
+    return redige
 
 
 def juge_est_calibre(reponses):
@@ -330,12 +378,13 @@ def juge_est_calibre(reponses):
     juge pas : l'instrument rend INDÉCIDABLE. Les deux issues sont testées sans aucun agent.
     """
     details, ok = [], True
-    for cas in cas_du_juge():
-        rendu = str(reponses.get(cas["nom"], "")).strip().upper()
+    for cas in cas_du_juge(avec_reponses=True):
+        # Le juge répond par la REF opaque qu'il a reçue ; le nom est accepté aussi (tests, CLI).
+        rendu = str(reponses.get(cas["ref"], reponses.get(cas["nom"], ""))).strip().upper()
         juste = rendu == cas["juge"]
         ok = ok and juste
-        details.append({"cas": cas["nom"], "attendu": cas["juge"], "rendu": rendu or "(absent)",
-                        "juste": juste})
+        details.append({"cas": cas["nom"], "ref": cas["ref"], "attendu": cas["juge"],
+                        "rendu": rendu or "(absent)", "juste": juste})
     return ok, details
 
 
@@ -386,7 +435,7 @@ def plancher(dest):
     defauts = [t for t in charger() if t["genre"] == "defaut"]
     noop = [t for t in charger() if t["genre"] == "noop"][0]
     lignes = []
-    for cas in cas_du_juge():
+    for cas in cas_du_juge(avec_reponses=True):
         vises = [t for t in defauts if "*" in cas["temoins"] or t["nom"] in cas["temoins"]]
         passes = []
         for t in vises:
@@ -459,7 +508,10 @@ def main(argv=None):
     ap.add_argument("--jugement", choices=["OUI", "NON", "INDECIDABLE"],
                     help="verdict de l'étage 2 (le JUGE) pour un témoin à défaut")
     ap.add_argument("--plancher", metavar="DIR", help="mesure le plancher de fausses retrouvailles")
-    ap.add_argument("--cas-du-juge", action="store_true", help="les cinq cas de calibration de l'étage 2")
+    ap.add_argument("--cas-du-juge", action="store_true",
+                    help="les cas de calibration de l'étage 2, RÉDIGÉS : la question, pas la réponse")
+    ap.add_argument("--cas-du-juge-avec-reponses", action="store_true",
+                    help="les MÊMES cas avec leurs réponses — pour le VÉRIFICATEUR, jamais pour le juge")
     ap.add_argument("--lister", action="store_true", help="inventaire des témoins gelés")
     args = ap.parse_args(argv)
     ok, raison = roster_conforme()
@@ -474,9 +526,19 @@ def main(argv=None):
         _imprimer_plancher(plancher(args.plancher))
         return 0
     if args.cas_du_juge:
+        print("Cas de calibration — RÉDIGÉS. Aucune réponse n'est publiée ici : ni le verdict attendu,")
+        print("ni son explication, ni le sort de l'étage 1. Réponds à partir des critiques seules.")
         for cas in cas_du_juge():
-            print(f"{cas['nom']:34s} étage1={cas['etage1']:10s} juge={cas['juge']:3s} "
-                  f"témoins={cas['temoins']}")
+            print(f"\ncas {cas['ref']}  témoins={cas['temoins']}")
+            for c in cas["critiques"]:
+                print(f"  [{c.get('prompt', '?')}] verdict={c.get('verdict', '')!r} "
+                      f"preuve={c.get('preuve', '')!r}")
+                print(f"      constat : {c.get('constat', '')}")
+        return 0
+    if args.cas_du_juge_avec_reponses:
+        for cas in cas_du_juge(avec_reponses=True):
+            print(f"{cas['ref']}  {cas['nom']:34s} étage1={cas['etage1']:10s} "
+                  f"juge={cas['juge']:3s} témoins={cas['temoins']}")
             print(f"  {cas['pourquoi']}")
         return 0
     if args.verifier:

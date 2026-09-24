@@ -84,12 +84,12 @@ const juge = await agent(`Tu es le JUGE de la phase temoins. Ta seule question, 
 « ces critiques nomment-elles LE defaut decrit ? » -- OUI, NON, ou INDECIDABLE. Tu ne cherches AUCUN mot impose :
 une decouverte formulee autrement reste une decouverte, et reciter un vocabulaire n'en est pas une.
 1. Lance: PYTHONIOENCODING=utf-8 python tools/refutateur_temoins.py --cas-du-juge
-   puis lis ${ROSTER} et tools/refutateur_juge_temoins.json. Pour CHACUN des cinq cas, reponds OUI/NON a partir du
-   champ `defaut` du temoin vise et des critiques du cas -- SANS regarder le champ `attendu`, ni le champ `juge`.
-   Rends ces reponses dans `calibration` (cle = nom du cas).
-2. Pour chaque relecture ci-dessous, identifie le temoin par le champ `fichier` du roster (nom de base du chemin relu),
-   et rends dans `jugements` (cle = nom du temoin) OUI / NON / INDECIDABLE sur la question ci-dessus, a partir du champ
-   `defaut` de CE temoin. Pour un temoin de genre noop, rends INDECIDABLE : il n'a pas de defaut a nommer.
+   Cette commande rend des cas de calibration : une REF opaque, les temoins vises, et des critiques. Pour chacun, va
+   chercher le champ \`defaut\` du temoin vise dans ${ROSTER}, puis reponds OUI ou NON a la question ci-dessus.
+   Rends ces reponses dans \`calibration\`, la cle etant la REF du cas, telle quelle.
+2. Pour chaque relecture ci-dessous, identifie le temoin par le champ \`fichier\` du roster (nom de base du chemin relu),
+   et rends dans \`jugements\` (cle = nom du temoin) OUI / NON / INDECIDABLE sur la meme question, a partir du champ
+   \`defaut\` de CE temoin. Pour un temoin de genre noop, rends INDECIDABLE : il n'a pas de defaut a nommer.
 Relectures (JSON) : ${JSON.stringify(relectures)}`, { label: 'juge', phase: 'Juge', schema: JUGEMENTS })
 
 phase('Verification')
@@ -99,9 +99,12 @@ const verif = await agent(`Tu es le VERIFICATEUR. Tu ne juges RIEN : le bareme v
 tools/refutateur_temoins.py.
 1. Lis ${ROSTER}. REFUSE (champ refus non vide, resultats vide) si les genres ne sont pas EXACTEMENT trois "defaut" et
    un "noop", si un nom ou un champ fichier est en double, ou si un temoin du roster n'a pas sa relecture ci-dessous.
-2. Verifie la CALIBRATION du juge : compare ses reponses ${JSON.stringify(juge && juge.calibration)} au champ `juge` de
-   chaque cas de tools/refutateur_juge_temoins.json. Si UNE seule differe, REFUSE avec la raison
-   "juge non calibre" : un juge qui rate ses propres temoins ne juge pas.
+2. Verifie la CALIBRATION du juge. Lance:
+   PYTHONIOENCODING=utf-8 python tools/refutateur_temoins.py --cas-du-juge-avec-reponses
+   (vue RESERVEE au verificateur : le juge, lui, n'a recu que la question, sous une REF opaque). Chaque ligne y porte
+   la REF puis le nom du cas : remappe par la REF les reponses du juge ${JSON.stringify(juge && juge.calibration)}
+   et compare-les au champ juge. Si UNE seule differe, REFUSE avec la raison "juge non calibre" : un juge qui rate ses
+   propres temoins ne juge pas.
 3. Ecris la liste de critiques de chaque relecture, telle quelle, en JSON, dans
    ${travail}/critiques-<nom du temoin>.json (cree le repertoire). N'ajoute, ne retire, ne reformule AUCUNE critique.
 4. Lance pour chacun, depuis la racine du depot, en reprenant le jugement du juge

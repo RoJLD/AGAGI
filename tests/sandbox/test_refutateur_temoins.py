@@ -41,7 +41,8 @@ def _crit(verdict="confirmé", constat="", sonde="", preuve="", prompt="P1", cla
 
 
 def _cas(nom):
-    return [c for c in T.cas_du_juge() if c["nom"] == nom][0]
+    """Vue COMPLÈTE : les tests ont droit aux réponses, le juge non."""
+    return [c for c in T.cas_du_juge(avec_reponses=True) if c["nom"] == nom][0]
 
 
 @pytest.fixture(scope="module")
@@ -186,7 +187,7 @@ def test_les_cinq_cas_geles_rendent_a_l_etage_1_ce_qu_ils_declarent(extraits):
     """LES DEUX ISSUES, sur des textes reels : trois attaques rejetees, deux critiques justes recues."""
     textes, _ = extraits
     vus = set()
-    for cas in T.cas_du_juge():
+    for cas in T.cas_du_juge(avec_reponses=True):
         for t in T.charger():
             if "*" not in cas["temoins"] and t["nom"] not in cas["temoins"]:
                 continue
@@ -235,7 +236,7 @@ def test_le_seuil_de_recopie_SEPARE_les_recopies_des_critiques_justes(extraits):
     """
     textes, _ = extraits
     fenetres = {"recopie": [], "juste": []}
-    for cas in T.cas_du_juge():
+    for cas in T.cas_du_juge(avec_reponses=True):
         famille = "recopie" if cas["nom"].startswith("recopie-") else (
             "juste" if cas["etage1"] == "recevable" else None)
         if famille is None:
@@ -353,7 +354,7 @@ def test_le_noop_compte_les_critiques_RECEVABLES_et_son_seuil_vit_dans_le_roster
 
 
 def test_les_cinq_cas_du_juge_declarent_leurs_deux_issues():
-    cas = T.cas_du_juge()
+    cas = T.cas_du_juge(avec_reponses=True)
     assert len(cas) == 5
     assert sorted(c["juge"] for c in cas) == ["NON", "NON", "NON", "OUI", "OUI"]
     for c in cas:
@@ -362,12 +363,80 @@ def test_les_cinq_cas_du_juge_declarent_leurs_deux_issues():
     assert len(T.cas_du_juge("S2-BLIND-CHAMPION-42e9357")) == 2  # le cas E26 + l'attaque universelle
 
 
+def test_les_cas_servis_au_JUGE_sont_REDIGES_et_la_vue_complete_est_le_controle_positif(capsys):
+    """CONTRE-EXEMPLE GELE : une consigne de « ne pas regarder » n'est pas une garde.
+
+    Le juge était sommé de lire le JSON de calibration « sans regarder le champ juge » — or ce fichier
+    donne la réponse TROIS fois (`juge`, `pourquoi` en clair, `etage1`). `juge_est_calibre` ne pouvait
+    jamais rougir. Troisième occurrence de la même loi en une soirée : dès qu'un instrument
+    s'auto-administre, sa clé de réponse voyage avec lui.
+
+    ⚠️ Les DEUX volets sont indispensables : un test qui ne trouve RIEN dans la vue rédigée ne
+    distingue pas « rédigé » de « cassé ». Le second volet est le contrôle POSITIF du motif.
+    """
+    redige = T.cas_du_juge()
+    complet = T.cas_du_juge(avec_reponses=True)
+    assert len(redige) == len(complet) == 5
+    for c in redige:
+        assert set(c) == {"ref", "temoins", "critiques"}, f"champ de trop dans la vue rédigée : {set(c)}"
+    motifs = (r"juge=", r"étage1=", r"\bOUI\b", r"\bNON\b", r"\brejete\b", r"\brecevable\b",
+              # ⚠️ Le NOM du cas annonçait lui aussi la réponse (`attaque-…`, `recopie-…`, `…-juste-…`) :
+              # rédiger les trois autres champs en le laissant n'aurait rien fermé. Le juge reçoit une
+              # REF opaque, stable, dérivée du nom.
+              r"attaque", r"recopie", r"juste", r"universelle")
+    # Volet 1 : la sortie servie au juge ne porte aucune réponse.
+    T.main(["--cas-du-juge"])
+    servi = capsys.readouterr().out
+    for motif in motifs:
+        assert not re.search(motif, servi, re.I), f"la vue RÉDIGÉE publie {motif!r}"
+    for c in complet:
+        assert c["nom"] not in servi, f"le NOM du cas {c['nom']} annonce sa réponse"
+        assert c["pourquoi"] not in servi, "l'explication est servie au juge"
+        assert c["ref"] in servi, "la REF opaque doit être servie : c'est la clé de reponse du juge"
+    # `*` est un indice (« ce cas vise TOUS les témoins ») : il est résolu en liste concrète.
+    assert "'*'" not in servi and '"*"' not in servi
+    # Volet 2 — CONTRÔLE POSITIF : les mêmes motifs SONT présents dans la vue complète.
+    T.main(["--cas-du-juge-avec-reponses"])
+    reserve = capsys.readouterr().out
+    for motif in motifs:
+        assert re.search(motif, reserve, re.I), (
+            f"{motif!r} absent de la vue COMPLÈTE : le motif du volet 1 ne prouve rien")
+    for c in complet:
+        assert c["nom"] in reserve and c["pourquoi"] in reserve
+
+
+def test_la_REF_opaque_est_STABLE_et_ne_dit_rien_du_cas():
+    """Le juge repond par une ref ; le verificateur la remappe. Elle doit etre stable entre appels."""
+    a = {c["ref"] for c in T.cas_du_juge()}
+    b = {c["ref"] for c in T.cas_du_juge()}
+    assert a == b and len(a) == 5, "les refs bougent d'un appel a l'autre : le remappage casse"
+    for c in T.cas_du_juge(avec_reponses=True):
+        assert c["ref"] == T.ref_du_cas(c["nom"])
+        assert re.fullmatch(r"[0-9a-f]{8}", c["ref"])
+        for mot in ("attaque", "recopie", "juste", "e26", "grab", "retain"):
+            assert mot not in c["ref"].lower()
+    # `juge_est_calibre` accepte la REF (ce que rend le juge) comme le nom (tests, CLI).
+    par_ref = {c["ref"]: c["juge"] for c in T.cas_du_juge(avec_reponses=True)}
+    assert T.juge_est_calibre(par_ref)[0] is True
+    faux = dict(par_ref)
+    faux[next(iter(faux))] = "INDECIDABLE"
+    assert T.juge_est_calibre(faux)[0] is False
+
+
+def test_la_redaction_MELANGE_l_ordre_des_cas():
+    """L'ordre portait de l'information : les attaques d'abord, les critiques justes ensuite."""
+    reference = [c["ref"] for c in T.cas_du_juge(avec_reponses=True)]
+    ordres = {tuple(c["ref"] for c in T.cas_du_juge()) for _ in range(40)}
+    assert len(ordres) > 1, "la vue rédigée sert toujours le même ordre : il redevient un indice"
+    assert all(sorted(o) == sorted(reference) for o in ordres), "le mélange perd ou duplique un cas"
+
+
 def test_juge_est_calibre_rend_ses_DEUX_issues():
-    parfait = {c["nom"]: c["juge"] for c in T.cas_du_juge()}
+    parfait = {c["nom"]: c["juge"] for c in T.cas_du_juge(avec_reponses=True)}
     ok, details = T.juge_est_calibre(parfait)
     assert ok is True and all(d["juste"] for d in details)
     # Un juge qui dit OUI a tout : il retrouverait tout, y compris les attaques.
-    ok, details = T.juge_est_calibre({c["nom"]: "OUI" for c in T.cas_du_juge()})
+    ok, details = T.juge_est_calibre({c["nom"]: "OUI" for c in T.cas_du_juge(avec_reponses=True)})
     assert ok is False and sum(1 for d in details if not d["juste"]) == 3
     # Un juge muet.
     assert T.juge_est_calibre({})[0] is False

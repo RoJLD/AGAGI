@@ -154,6 +154,30 @@ def test_chaque_mutation_du_ROSTER_est_tuee_par_un_temoin(nom, test, transformer
     assert message
 
 
+def test_la_REDACTION_de_la_calibration_est_mutee_et_son_temoin_rougit(capsys):
+    """Si `cas_du_juge()` cesse de rediger, le juge lit sa propre reponse et sa calibration ne prouve
+    plus rien. La garde doit le voir -- c'est le seul rempart, une consigne de « ne pas regarder »
+    n'en est pas un."""
+    garde = (lambda: S.test_les_cas_servis_au_JUGE_sont_REDIGES_et_la_vue_complete_est_le_controle_positif(
+        capsys))
+    rouge, message = _rougit(garde)
+    assert not rouge, f"garde DEJA rouge sans mutation : {message}"
+    capsys.readouterr()
+
+    vrai = S.T._REPONSES_DU_JUGE
+    S.T._REPONSES_DU_JUGE = ()          # la redaction ne retire plus rien
+    assert S.T._REPONSES_DU_JUGE != vrai, "la mutation ne mute RIEN"
+    try:
+        servi = S.T.cas_du_juge()
+        assert any("juge" in c for c in servi), "la mutation n'a pas eu d'effet sur la vue servie"
+        rouge, message = _rougit(garde)
+    finally:
+        S.T._REPONSES_DU_JUGE = vrai
+        capsys.readouterr()
+    assert rouge, "MUTATION NON TUEE : la vue servie au juge publie sa reponse et la garde reste VERTE"
+    assert message
+
+
 def test_le_bareme_lui_meme_est_mute_le_plancher_remonte(tmp_path):
     """La mutation la plus importante : desarmer un etage doit faire REMONTER le plancher.
 
