@@ -12,6 +12,22 @@ from tools.jobs import lease as L          # noqa: E402
 from tools.jobs.run import hold, run, kill_tree  # noqa: E402
 from tools.jobs import doctor as D         # noqa: E402
 
+# E5 (occ. 2026-09-24) — `GIT_INDEX_FILE`, que git pose pour les hooks pendant TOUT `git commit`, FUIT dans
+# la chaîne de sous-processus (hook -> check_gate_mutation -> pytest -> un test -> git). Un test qui lance git
+# hérite donc de l'index DU COMMIT EN COURS : ses opérations s'y écrivent. Mesuré le 2026-09-24 : `git add`
+# dans un dépôt jetable laisse l'index de ce dépôt VIDE et écrit 112 octets dans l'index étranger — et un
+# `git add` exécuté pendant un hook ATTERRIT DANS LE COMMIT (dépôt jouet : commit path-scopé sur `voulu.txt`,
+# le commit contient `intrus.txt`). Tout appel git d'un test passe donc par un environnement NETTOYÉ.
+# ⚠️ Helper LOCAL en attendant la fusion de `_env_isole()` (branche PM, commit 7d6c04c9) : un seul helper
+# partagé à terme, pas deux.
+_VARS_GIT = ("GIT_INDEX_FILE", "GIT_DIR", "GIT_WORK_TREE", "GIT_OBJECT_DIRECTORY",
+             "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_PREFIX", "GIT_COMMON_DIR")
+
+
+def _env_sans_git():
+    """Copie de l'environnement privée de toute variable `GIT_*` qui redirige une opération git."""
+    return {k: v for k, v in os.environ.items() if k not in _VARS_GIT}
+
 
 def test_named_resource_is_exclusive(tmp_path):
     """VIOLATION RÉELLE (2×) : deux sondes monde concurrentes -> contention KuzuDB -> mesure contaminée.
@@ -213,25 +229,27 @@ def test_repo_root_from_a_REAL_worktree_is_the_main_tree(tmp_path):
     from pathlib import Path
     import pytest
     try:
-        common = subprocess.check_output(["git", "rev-parse", "--git-common-dir"], text=True).strip()
+        common = subprocess.check_output(["git", "rev-parse", "--git-common-dir"], text=True,
+                                         env=_env_sans_git()).strip()
     except (OSError, subprocess.CalledProcessError) as e:
         pytest.skip(f"git indisponible : {e}")
     racine_commune = Path(common).resolve().parent
     wt = tmp_path / "wt"
     r = subprocess.run(["git", "worktree", "add", "--detach", "--no-checkout", str(wt), "HEAD"],
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, env=_env_sans_git())
     if r.returncode != 0:
         pytest.skip(f"worktree jetable refusé par git : {r.stderr.strip()[:160]}")
     try:
         toplevel_wt = Path(subprocess.check_output(["git", "rev-parse", "--show-toplevel"], cwd=str(wt),
-                                                   text=True).strip()).resolve()
+                                                   text=True, env=_env_sans_git()).strip()).resolve()
         assert toplevel_wt == wt.resolve() and toplevel_wt != racine_commune, (
             "prémisse : depuis le worktree, --show-toplevel doit rendre le worktree, pas l'arbre principal")
         r_wt = L._repo_root(cwd=wt).resolve()
         assert r_wt == racine_commune, f"_repo_root depuis un worktree doit rendre l'arbre principal, or {r_wt}"
         assert r_wt != toplevel_wt, "l'ancienne référence (toplevel) aurait rougi ici : c'est le contre-exemple"
     finally:
-        subprocess.run(["git", "worktree", "remove", "--force", str(wt)], capture_output=True)
+        subprocess.run(["git", "worktree", "remove", "--force", str(wt)], capture_output=True,
+                       env=_env_sans_git())
 
 
 def test_repo_root_without_git_falls_back_to_the_cwd(tmp_path):
@@ -245,3 +263,54 @@ def test_repo_root_without_git_falls_back_to_the_cwd(tmp_path):
         assert L._repo_root(cwd=hors).resolve() == hors.resolve()
     finally:
         subprocess.run = faux.orig
+
+
+# ---------------------------------------------------------------------------------------------
+# E5 occ. 2026-09-24 — `GIT_INDEX_FILE` FUIT du hook vers tous les sous-processus, et un `git` de test
+# écrit alors dans l'index DU COMMIT EN COURS. Mesuré en dépôt jouet : un `git add` lancé depuis un
+# pre-commit atterrit DANS le commit, alors que celui-ci était path-scopé sur un autre fichier — la
+# discipline « commit path-scopé » du dépôt (arbre PARTAGÉ entre sessions) est donc contournable par le
+# hook. Le contre-exemple ci-dessous mesure les DEUX issues et rougit si l'isolation disparaît.
+
+def _git(args, cwd, env=None):
+    import subprocess
+    return subprocess.run(["git", *args], cwd=str(cwd), capture_output=True, text=True,
+                          env=env if env is not None else os.environ.copy())
+
+
+def test_un_git_de_test_sous_GIT_INDEX_FILE_ecrit_dans_l_index_ETRANGER(tmp_path):
+    """LE DÉFAUT, gelé : sans isolation, `git add` dans un dépôt jetable laisse l'index de CE dépôt vide
+    et écrit dans l'index désigné par la variable héritée — celui du commit en cours, sous un hook."""
+    depot, etranger = tmp_path / "jetable", tmp_path / "index-du-commit"
+    depot.mkdir()
+    assert _git(["init", "-q", "."], depot).returncode == 0
+    (depot / "fichier.txt").write_text("contenu\n", encoding="utf-8")
+
+    pollue = _env_sans_git()
+    pollue["GIT_INDEX_FILE"] = str(etranger)
+    assert _git(["add", "fichier.txt"], depot, env=pollue).returncode == 0
+
+    # ⚠️ lire l'index PROPRE du dépôt exige un environnement nettoyé : avec la variable, `ls-files` lit
+    # l'index étranger (piège rencontré en écrivant ce test — la lecture subit la même fuite que l'écriture).
+    assert _git(["ls-files"], depot, env=_env_sans_git()).stdout.strip() == "", "l'index du dépôt doit rester VIDE"
+    assert etranger.exists(), "l'index étranger n'a pas été écrit : le mécanisme n'est plus reproduit"
+    assert "fichier.txt" in _git(["ls-files"], depot, env=pollue).stdout, "le fichier a atterri dans l'index ÉTRANGER"
+
+
+def test_l_environnement_NETTOYE_renvoie_le_git_de_test_dans_son_propre_index(tmp_path):
+    """LA GARDE, appariée au cas ci-dessus : mêmes gestes, environnement nettoyé -> le fichier atterrit
+    dans l'index du dépôt jetable et l'index étranger n'est JAMAIS créé. Rougit si `_env_sans_git` cesse
+    de retirer `GIT_INDEX_FILE` (ou si un appel de ce fichier oublie `env=`)."""
+    depot, etranger = tmp_path / "jetable", tmp_path / "index-du-commit"
+    depot.mkdir()
+    assert _git(["init", "-q", "."], depot).returncode == 0
+    (depot / "fichier.txt").write_text("contenu\n", encoding="utf-8")
+
+    os.environ["GIT_INDEX_FILE"] = str(etranger)         # comme git le pose pour un hook
+    try:
+        assert "GIT_INDEX_FILE" not in _env_sans_git(), "l'environnement nettoyé la porte encore"
+        assert _git(["add", "fichier.txt"], depot, env=_env_sans_git()).returncode == 0
+        assert "fichier.txt" in _git(["ls-files"], depot, env=_env_sans_git()).stdout
+        assert not etranger.exists(), "l'index du commit en cours a été touché malgré l'isolation"
+    finally:
+        os.environ.pop("GIT_INDEX_FILE", None)
