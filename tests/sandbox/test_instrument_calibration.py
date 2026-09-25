@@ -1634,6 +1634,133 @@ CALIBRATED = {
                                                  "histoire-R2:indeterminee-ne-confirme-pas-structure",
                                                  "noop:mesure-comme-sa-propre-replique", "monotonie:depassement-et-charge",
                                                  "refus:entrees-degenerees:raises"],
+    # ======================================================================================================
+    # REFUTATEUR (tools/refutateur_temoins.py) -- calibration de l'instrument de REVUE.
+    #
+    # ⚠️⚠️ CES DECLARATIONS NE FONT PAS COMPTER CES FONCTIONS. Mesure du 2026-09-24, refaite ici :
+    #   verdict_temoin  DETECTE · verdict_phase_temoins  DETECTE
+    #   recevabilite    non detecte · plancher  non detecte · juge_est_calibre  non detecte
+    # Les 14 motifs du cliquet sont des verbes ANGLAIS ancres sur `^def` : un nom francais lui est
+    # invisible. Jusqu'au 2026-09-24 le cliquet ABANDONNAIT EN SILENCE toute cle qu'il ne resolvait pas ;
+    # depuis (P2.83, agagi-b0) il CRIE et tranche la cause (MOTIF_AVEUGLE ici), et a la fusion du
+    # 2026-09-25 ces trois cles ont ete GELEES en connaissance dans tools/instrument_calibration_baseline
+    # .json (declarations_ignorees, 9 -> 12). Ces lignes documentent donc, elles ne gardent pas. Ne pas
+    # les lire comme une dette CLOSE. (Elargir les motifs n'est pas le perimetre de cette tache.)
+    #
+    # ⚠️ ET NOUS VENONS D'EN PRODUIRE UNE INSTANCE. Jusqu'au 2026-09-24 cette entree declarait
+    # `tools/refutateur_temoins.py::verifier` -- une fonction RENOMMEE a la 4e ronde (le motif `attendu`
+    # cessant d'etre le bareme, `verifier` s'est scinde en `recevabilite` (etage 1) et `verdict_temoin`
+    # (verdict complet)). La declaration a survecu a la fonction pendant quatre rondes, verifiee par
+    # personne, et j'ai cru la chose calibree. Troisieme cause d'un meme silence, apres la LANGUE du nom
+    # et le KIND du symbole (une CLASSE declaree est toujours abandonnee, `^def` ne la voyant pas).
+    # Les cas ci-dessous ne sont pas jetes : ils testent toujours quelque chose de reel et sont rattaches
+    # a la fonction qui a HERITE du role.
+    #
+    # Cas dans tests/sandbox/test_refutateur_temoins.py et test_refutateur_mutation.py -- PAS ici : ce
+    # fichier commence par `pytest.importorskip("torch")` et le Refutateur n'a aucune dependance torch.
+    #
+    # Ce que ces fonctions AFFIRMENT : `recevabilite` decide si une critique COMPTE (etage 1 mecanique) ;
+    # `plancher` rend le plancher de fausses retrouvailles, le chiffre sans lequel tout score de phase
+    # temoins est interdit ; `juge_est_calibre` decide si l'etage 2 a le droit de juger.
+    # ⚠️ Quatre FRANCHISSEMENTS mesures le 2026-09-23, tous geles en contre-exemple : la cle de reponse
+    # publiee dans le document que l'agent lit ; une revue qui ne CONFIRME rien passant les quatre temoins
+    # (regex cherchee jusque dans la sonde, et le token attendu figure dans le texte des temoins eux-memes) ;
+    # le double bareme Python/JS deja divergent sur trois points ; un roster gele que l'appelant pouvait
+    # affaiblir. Plus une troisieme issue : INDECIDABLE (code 2), distinct de NULLE.
+    "tools/refutateur_temoins.py::recevabilite": ["defaut:constat-confirme", "defaut:revue-creuse",
+                                             "defaut:non-confirmee-ne-compte-pas", "defaut:sonde-seule-ne-compte-pas",
+                                             "defaut:texte-vide", "noop:zero-ou-une-confirmee",
+                                             "noop:deux-confirmees", "format:illisible-leve",
+                                             "format:comptage-partiel-leve", "roster:refuse-affaibli",
+                                             "temoin:signature-presente", "temoin:antisignature-absente",
+                                             "extraction:nom-neutre-decorrele", "cli:exit-0-1-2",
+                                             "etage1:cinq-cas-geles", "etage1:seuil-de-recopie-mesure",
+                                             "etage1:trois-formes-de-preuve",
+                                             # 2026-09-23, 3e ronde : le NOM d'un temoin est une FORME
+                                             # DERIVEE (<id du record>-<sha7>, recomputee), plus une liste
+                                             # noire de mots. La liste avait attrape `LOCK-002-sain` et
+                                             # LAISSE PASSER `RETAIN-COMPOSE-pre-retractation` (qui annonce
+                                             # qu'un defaut est a trouver) -- vu a l'oeil, pas par la garde.
+                                             "nom:forme-derivee", "nom:renomme-a-la-main-refuse",
+                                             "nom:echappe-a-la-liste-noire-refuse"],
+    # 2026-09-24, 4e ronde -- LE MOTIF `attendu` N'EST PLUS LE BAREME. La re-revue a mesure que
+    # l'ancien verdict par regex avait un PLANCHER DE FAUSSES RETROUVAILLES egal au SIGNAL MAXIMAL :
+    # une phrase vague identique pour les quatre temoins, ecrite sans ouvrir un fichier, passait 4/4 ;
+    # recopier une ligne du temoin extrait passait deux defauts sur trois ; et LE SIGNE ETAIT INVERSE
+    # (la critique juste d'E26 rendait NULLE faute du mot « corps »). C'est la lecon run_ablation_map
+    # appliquee a l'instrument de revue. Deux etages remplacent le motif -- plancher MECANIQUE
+    # (verdict confirme + preuve de FORME + anti-recopie a seuil MESURE : recopies 32 et 24 mots,
+    # critiques justes 4 et 2, tout N dans [5,24] separe) puis JUGE calibre sur cinq textes REELS a
+    # reponse connue. Cas dans tests/sandbox/test_refutateur_temoins.py ; la calibration du juge et le
+    # fait que le PLANCHER remonte quand on desarme un etage sont dans test_refutateur_mutation.py.
+    "tools/refutateur_temoins.py::verdict_temoin": [
+        "etage1:attaque-universelle-rejetee", "etage1:recopie-rejetee", "etage1:non-confirmee-rejetee",
+        "juste:E26-sans-le-token-RETROUVE", "juste:GRAB-fait-c-RETROUVE",
+        "defaut:sans-jugement-INDECIDABLE", "defaut:jugement-NON-NULLE",
+        "noop:seuil-du-roster", "noop:attaque-ne-fait-plus-crier",
+        "signal-attendu:faux-mais-verdict-bon"],
+    "tools/refutateur_temoins.py::verdict_phase_temoins": [
+        "plancher:voyage-avec-le-score", "plancher:nul-apres-correctif",
+        "plancher:remonte-si-on-desarme-un-etage", "phase:vide-1-sur-4", "phase:passee-3-sur-4",
+        # 2026-09-24, 7e ronde : le premier Step 4 reel a rendu NUL -- `relectures` n'atteignait
+        # jamais le verificateur (un prompt disait « ci-dessus » sans rien interpoler). Le workflow
+        # n'avait JAMAIS fait circuler ses propres donnees, et six rondes de tests ne pouvaient pas
+        # le voir : ils lisent le TEXTE du script. Gardes ajoutees (et leurs mutations) :
+        # circulation:deictique-sans-donnee, circulation:verificateur-prive-de-relectures,
+        # juge:ne-recoit-que-les-relectures-a-juger, juge:questions-omettent-le-noop.
+        "circulation:deictique-sans-donnee", "circulation:verificateur-prive-de-relectures",
+        "juge:ne-recoit-que-les-relectures-a-juger", "juge:questions-omettent-le-noop",
+        # 2026-09-24, 8e ronde : l'aiguillage a rendu une liste VIDE, indiscernable d'un refus legitime.
+        "aiguillage:pas-au-reglage-le-plus-bas", "aiguillage:sortie-brute-et-commande-rendues",
+        "aiguillage:transport-distingue-de-fuite",
+        # 2026-09-24, 1er Step 4 COMPLET : les trois defauts RETROUVES a l'aveugle avec leur mecanisme
+        # (le controle positif que huit rondes cherchaient), et le no-op a SIX critiques recevables --
+        # dont une confrontee aux donnees et JUSTE. L'ancien bareme jetait la revue entiere pour cela :
+        # supprimer la mesure au lieu de la publier. Le no-op MESURE desormais (statut MESURE, code 0),
+        # son compte voyage dans la meme structure que le score, et l'INDISCRIMINATION se DIT.
+        "noop:mesure-jamais-barrage", "noop:plancher-voyage-avec-le-score",
+        "discrimination:indiscriminant-le-dit", "discrimination:controle-positif",
+        "racine:absolue-validee-deux-issues",
+        # Un temoin GELE a une duree de vie : il mesure ce qu'on savait AU GEL. Le temoin cru sain
+        # porte un phenomene etabli DEPUIS ailleurs (P2.42) -- il n'avait pas ete mal choisi. La
+        # peremption SCIENTIFIQUE n'est pas decidable par motif : seule la moitie CALCULABLE (l'age,
+        # et la date de gel recomputee depuis git) est executable, et elle RAPPORTE sans bloquer.
+        "peremption:date-de-gel-recomputee", "peremption:rapportee-jamais-bloquante"],
+    # `plancher` : le chiffre sans lequel tout score de phase temoins est INTERDIT (regle du depot sur
+    # les ratios). Ses reponses connues sont les cinq textes de tools/refutateur_juge_temoins.json --
+    # trois attaques a 0 defaut retrouvable, deux critiques justes a 1/1 -- et la mutation du BAREME,
+    # qui prouve qu'il SAIT REMONTER : desarmer la preuve de forme le porte a >= 3, desarmer
+    # l'anti-recopie a >= 2. Sans cette derniere, « 0/5 » pourrait vouloir dire « l'instrument ne voit
+    # plus rien ». ⚠️ NON DETECTE par le cliquet (voir l'avertissement en tete de ce bloc).
+    "tools/refutateur_temoins.py::plancher": [
+        "attaque-universelle:0-sur-3", "recopie-GRAB:0-sur-1", "recopie-RETAIN:0-sur-1",
+        "critique-juste-E26:1-sur-1", "critique-juste-GRAB:1-sur-1",
+        "noop:passe-par-construction", "mutation:preuve-de-forme-desarmee-remonte",
+        "mutation:anti-recopie-desarmee-remonte", "voyage-avec-le-score"],
+    # `juge_est_calibre` : decide si l'etage 2 a le DROIT de juger. Fonction PURE, testee sans aucun
+    # agent sur les deux issues -- juge parfait (5/5) -> True ; juge qui dit OUI a tout (3 faux) -> False ;
+    # juge muet -> False ; juge qui rate LE cas du signe inverse -> False. Accepte la REF opaque comme
+    # le nom, le juge ne recevant que la premiere. ⚠️ NON DETECTE par le cliquet.
+    "tools/refutateur_temoins.py::juge_est_calibre": [
+        "parfait:5-sur-5", "oui-a-tout:refuse", "muet:refuse", "rate-le-signe-inverse:refuse",
+        "cle-par-ref-opaque", "cle-par-nom"],
+    # BALAYAGE du reste de tools/refutateur_temoins.py et tools/workflow_lint.py au critere « produit-elle
+    # une AFFIRMATION SCIENTIFIQUE ? », 2026-09-24. Aucune de celles-ci n'est detectee non plus ; ce qui
+    # suit est une NOTE, pas une garde :
+    #   preuve_de_forme / attendu_est_degenere / roster_conforme -- PREDICATS d'hygiene. Ils decident
+    #     d'une propriete de FORME (une preuve a-t-elle un fichier:ligne ? un motif est-il degenere ? le
+    #     roster est-il conforme ?), jamais d'une grandeur du monde. Leurs cas vivent avec ceux de
+    #     `recevabilite`, dont ils sont les composants.
+    #   plus_longue_fenetre_commune -- PRIMITIVE numerique (un nombre de mots communs), sans seuil ni
+    #     verdict, du meme genre que `grad_mem.py::run_bptt` deja declare non-instrument. Le seuil qui
+    #     l'utilise, lui, est MESURE et re-mesure par un test.
+    #   signal_attendu -- rend explicitement un signal RAPPORTE, retire du bareme le 2026-09-23 parce
+    #     qu'il se TROMPE ; un test gele le prouve. Il n'affirme plus rien.
+    #   nom_attendu / ref_du_cas / cas_du_juge / questions_du_juge / charger_critiques / extraire* --
+    #     derivation ou service de donnees, aucune affirmation.
+    #   workflow_lint.py::backticks_nus -- l'affirmation porte sur l'etat d'un FICHIER DU DEPOT, pas sur
+    #     le monde ni sur un agent : meme justification que `parity_check.py::classify`. Ses deux issues
+    #     sont neanmoins testees, contre-exemple gele compris.
 }
 
 _GENOMES = os.path.join("results", "warm007_genomes")

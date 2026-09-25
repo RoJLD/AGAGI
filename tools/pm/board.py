@@ -12,10 +12,27 @@ import sys
 import time
 
 from src import paths
+from tools.pm.bulletin import texte_age
 from tools.pm.snapshot import ancrer_data_root, norm, snapshot
 
 SEUILS = {"suppressions": 500, "cpu_pct": 80.0, "sims_max": 1, "worktree_jours": 7,
           "sans_claim_h": 1.0, "heartbeat_h": 2.0}
+# Le bail `pm` est renouvelé à CHAQUE tick (tools/pm/tick.py), pour TTL_PM_S. Un tableau plus vieux que ce TTL
+# n'a donc été suivi d'AUCUN tick pendant toute la durée du bail : par la définition même du système, le rôle PM
+# est VACANT. La péremption du tableau lu au démarrage est ce seuil-là, et pas une valeur de plus à choisir :
+# le skill /pm se réveille toutes les 1200-1800 s, donc 2 h = au moins quatre ticks manqués d'affilée — une
+# panne, pas une gigue. Défini ICI (le tableau le relit), importé par le tick : une seule source.
+TTL_PM_S = 7200.0
+PEREMPTION_S = TTL_PM_S
+# CÉCITÉ DÉCLARÉE (défaut 4, 2026-09-24). `files_touched` n'est alimenté QUE par le hook PostToolUse des outils
+# d'ÉDITION (matcher Edit|Write|MultiEdit|NotebookEdit dans .claude/settings.json) : un script Python lancé par
+# Bash qui réécrit un fichier n'y laisse AUCUNE trace — mesuré : une session qui venait de réécrire le backlog par
+# script n'apparaissait pas. Une liste qui ne voit qu'une partie des écritures ressemble à une liste complète ;
+# le tableau le DIT partout où il présente ces fichiers (A1 et les P-items inférés en dépendent). Ce n'est PAS une
+# ligne AVEUGLE SUR : une limite déclarée n'est pas une source absente, et y entrer gonflerait le compte à chaque tick.
+CECITE_FICHIERS = ("fichiers en vol = vus par les hooks des outils d'édition (Edit/Write/MultiEdit/NotebookEdit) "
+                   "SEULEMENT : un script lancé par Bash qui réécrit un fichier n'y laisse aucune trace — A1 et "
+                   "les P-items inférés ne voient pas ces écritures")
 
 
 def _h(sec):
@@ -54,6 +71,9 @@ def _sessions(snap):
                     "started_at": r.get("started_at"), "branch": b.get("branch"),
                     "claims": list(b.get("claims") or []), "claims_inferes": [],
                     "files_touched": list(b.get("files_touched") or []),
+                    # dernier contact par fichier et dernière écriture du bulletin (défaut 3) : absents d'un
+                    # bulletin légataire, ils restent absents — {} et None, jamais une date inventée
+                    "files_touched_at": dict(b.get("files_touched_at") or {}), "updated_at": b.get("updated_at"),
                     "heartbeat_at": b.get("heartbeat_at"), "bulletin": bool(b)})
     return out, mortes, vies
 
@@ -159,15 +179,22 @@ def _alertes(snap, sessions, now, backlog_ok):
         if len(noms) >= 2:
             add("A6", c, "alerte", f"{c} revendiqué par {', '.join(sorted(noms))}", {"p_item": c, "sessions": sorted(noms)})
 
-    for s in sessions:                                          # A7 / A8 — informations (A7 dépend de `backlog_ok`)
+    # A7 / A8 — informations (A7 dépend de `backlog_ok`). Clé = `session_id`, JAMAIS le nom : le journal suit
+    # une alerte par sa clé, et un nom CHANGE (redémarrage de la flotte du 2026-09-24 : agagi-52 -> agagi-00,
+    # agagi-aa -> agagi-2f…). Clé par nom, un renommage marquait l'alerte « suivie » (journal : « suivie
+    # A7:agagi-52 ») et en émettait une « nouvelle » sous l'autre nom — un suivi FABRIQUÉ, compté dans
+    # suivies_48h. Le nom reste dans le message et la preuve : c'est lui qu'on lit, pas lui qu'on suit.
+    # (Une session sans bulletin est sautée : quand on arrive ici, `session_id` a servi à la jointure, il existe.)
+    for s in sessions:
         if not s["bulletin"]:
             continue
+        sid, qui = s["session_id"], {"session": _nom(s), "session_id": s["session_id"]}
         age_h = _h(now - s["started_at"]) if s.get("started_at") else None
         if age_h is not None and age_h > SEUILS["sans_claim_h"] and not s["claims"] and not s["claims_inferes"] and backlog_ok:
-            add("A7", _nom(s), "info", f"{_nom(s)} active depuis {age_h:.1f} h sans P-item revendiqué ni inféré", {"session": _nom(s)})
+            add("A7", sid, "info", f"{_nom(s)} active depuis {age_h:.1f} h sans P-item revendiqué ni inféré", qui)
         hb = s.get("heartbeat_at")
         if hb is not None and _h(now - hb) > SEUILS["heartbeat_h"]:
-            add("A8", _nom(s), "info", f"{_nom(s)} : heartbeat vieux de {_h(now - hb):.1f} h, PID vivant", {"session": _nom(s)})
+            add("A8", sid, "info", f"{_nom(s)} : heartbeat vieux de {_h(now - hb):.1f} h, PID vivant", qui)
     return A, aveugle
 
 
@@ -213,6 +240,7 @@ def render_md(board):
         hb = f"{_h(board['generated_at'] - s['heartbeat_at']):.1f} h" if s.get("heartbeat_at") else "—"
         L.append(f"| {_nom(s)} | {s.get('branch') or '—'} | {', '.join(s['claims']) or '—'} | "
                  f"{', '.join(s['claims_inferes']) or '—'} | {len(s['files_touched'])} | {hb} |")
+    L.append(f"\n{CECITE_FICHIERS}")
     if board.get("sessions_mortes"):
         L.append(f"\nsessions MORTES écartées du tableau (PID disparu, entrée encore au registre) : "
                  f"{', '.join(board['sessions_mortes'])}")
@@ -225,9 +253,15 @@ def render_md(board):
     return "\n".join(L) + "\n"
 
 
-def summary(board, max_lines=25):
-    """Ce qu'une session lit à sa naissance : aveuglements, charge, qui est sur quoi, alertes."""
-    L = [f"[PM] tableau du {time.strftime('%Y-%m-%d %H:%M', time.localtime(board['generated_at']))} — {len(board['sessions'])} sessions AGAGI"]
+def summary(board, max_lines=25, age_s=None, source_age=None):
+    """Ce qu'une session lit à sa naissance : l'ÂGE du tableau, aveuglements, charge, qui est sur quoi, alertes.
+
+    L'âge est publié en TÊTE, toujours : un résumé en cache sans âge fait passer du périmé pour du courant.
+    `age_s=None` s'imprime « âge INCONNU » — jamais un silence. Au-delà de PEREMPTION_S, le hook de démarrage
+    n'appelle pas ce résumé comme courant (bulletin.resume_tableau)."""
+    age = f"âge {texte_age(age_s)}" + (f" ({source_age})" if source_age else "")
+    L = [f"[PM] tableau du {time.strftime('%Y-%m-%d %H:%M', time.localtime(board['generated_at']))} — {age}, "
+         f"périmé au-delà de {texte_age(PEREMPTION_S)} — {len(board['sessions'])} sessions AGAGI"]
     L += [f"[PM] AVEUGLE SUR {a}" for a in board["aveugle"]]
     c = board["charge_connue"]
     L.append(f"[PM] charge : sims={c['sims_en_vol']} cpu={c['cpu_pct']} bails={c['bails_vivants']}")
@@ -235,6 +269,7 @@ def summary(board, max_lines=25):
         L.append(f"[PM] sessions MORTES écartées : {', '.join(board['sessions_mortes'])}")
     for s in board["sessions"]:
         L.append(f"[PM] {_nom(s)} : {', '.join(s['claims'] or s['claims_inferes']) or 'sans P-item'} — {len(s['files_touched'])} fichiers en vol")
+    L.append(f"[PM] {CECITE_FICHIERS}")
     for a in board["alertes"]:
         L.append(f"[PM] {a['gravite'].upper()} {a['cle']} — {a['message']}")
     if len(L) > max_lines:
@@ -257,7 +292,7 @@ def main(argv=None):
     md = render_md(board)
     with open(paths.pm_dir("BOARD.md"), "w", encoding="utf-8") as fh:
         fh.write(md)
-    print(md if args.stdout else summary(board))
+    print(md if args.stdout else summary(board, age_s=0.0, source_age="calculé à l'instant"))
     return 0
 
 

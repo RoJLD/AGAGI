@@ -52,10 +52,10 @@ python() {
 # compte AUSSI les lignes de commentaire qui citent la commande. Forme juste (elle s'exclut elle-même,
 # puisqu'elle vit dans un commentaire) :
 #   grep -c '^[^#]*git diff --cached --name-only' tools/hooks/pre-commit
-# rend 17 appels à cette date. `tests/sandbox/test_hook_on_merge.py` rejoue ce compte et rougit si le
+# rend 20 appels à cette date. `tests/sandbox/test_hook_on_merge.py` rejoue ce compte et rougit si le
 # chiffre écrit ici cesse de correspondre.
 #
-# ⚠️ OÙ la base est insérée. Elle se pose AVANT un éventuel `--`, jamais après : aucun des 17 appels
+# ⚠️ OÙ la base est insérée. Elle se pose AVANT un éventuel `--`, jamais après : aucun des 20 appels
 # n'écrit `--` aujourd'hui, mais un site futur du type `git diff --cached --name-only -- <chemin>`
 # recevrait sinon la base APRÈS le séparateur, où git la lit comme un PATHSPEC — la sortie serait
 # VIDE et la porte se tairait en silence (mesuré : la sonde ne voyait plus que le côté entrant).
@@ -178,12 +178,18 @@ fi
 # ⚠️ La baseline elle-meme DOIT declencher la garde : sans ca, elargir le baseline et le
 # committer seul ne verifiait RIEN -- le trou par lequel un faux vert est passe (mesure le
 # 2026-09-01 : baseline elargie de 19 a 42 orphelins dans l'arbre, sans commit).
-staged_rec=$(git diff --cached --name-only --diff-filter=AM | grep -E '^(docs/(EDR|ADR|SDR|REF)/.*\.md|tools/record_link_baseline\.json)$')
+# 2026-09-24 : `docs/reviews/*.md` entre au declencheur, en AMD. La porte 1 exige `review:` de tout
+# NOUVEAU record a gate:/tests: ; sans ce motif, SUPPRIMER un fichier de revue se committait proprement
+# et rendait un record defectueux sans qu'aucune porte ne parle. AMD (et non AM) parce que c'est la
+# SUPPRESSION qui est le cas dangereux.
+staged_rec=$(git diff --cached --name-only --diff-filter=AMD | grep -E '^(docs/(EDR|ADR|SDR|REF)/.*\.md|docs/reviews/.*\.md|tools/record_link_baseline\.json)$')
 if [ -n "$staged_rec" ]; then
   # E4 occ.6 (2026-09-02, revue adversariale C3) : si SEULE la baseline est stagee, la liste --only
   # est VIDE et le checker filtre tout -> le ratchet ne pouvait pas echouer sur ce commit precis
   # (le trou residuel de l'occ.5). Baseline stagee sans record -> run NON scope (arbre entier).
-  only_rec=$(echo "$staged_rec" | grep -v record_link_baseline || true)
+  # MEME PIEGE pour docs/reviews/ : un fichier de revue n'est pas un record, aucun --only ne le
+  # designe ; s'il est seul stage, le run doit etre NON SCOPE, sinon la porte ne peut pas echouer.
+  only_rec=$(echo "$staged_rec" | grep -v -E 'record_link_baseline|^docs/reviews/' || true)
   if [ -n "$only_rec" ]; then
     PYTHONIOENCODING=utf-8 python tools/check_record_links.py --only $only_rec
   else
@@ -473,7 +479,7 @@ fi
 # contre-exemple.
 # `--pour-fichiers` : ne reveille QUE les portes dont le cliquet ou les temoins sont stages (~15 s
 # pour une porte). Muter les treize a chaque commit couterait 4 min -- un cliquet qu'on desactive.
-staged_gm=$(git diff --cached --name-only --diff-filter=AM | grep -E '^(tools/check_\w+\.py|tests/sandbox/test_\w+\.py|tools/check_gate_mutation\.py|tools/_mutation_plugin\.py)$')
+staged_gm=$(git diff --cached --name-only --diff-filter=AM | grep -E '^(tools/check_\w+\.py|tests/sandbox/test_\w+\.py|tools/check_gate_mutation\.py|tools/_mutation_plugin\.py|tools/_git_env\.py)$')
 if [ -n "$staged_gm" ]; then
   PYTHONIOENCODING=utf-8 python tools/check_gate_mutation.py --pour-fichiers $staged_gm || {
     echo ""
@@ -551,6 +557,68 @@ if git diff --cached --name-only --diff-filter=ACMRD | grep -Eq "^(tests/.*\.py|
     fail=1
   }
 fi
+# 19. REGIME CITE <-> REGIME MESURE (2026-09-16, corrige en revue le 2026-09-23) -- classe E8 occ. 4 : un
+# record qui cite une valeur de parametre doit la retrouver, MESUREE, dans un results/*.json SUIVI par
+# git -- dans un bloc regime (a toute profondeur) ou ailleurs dans le fichier (CONCORDE_HORS_REGIME, une
+# information, pas une faute). Mesure le 2026-09-23 : 74 records citent un parametre, 10 concordent (5
+# CONCORDE + 5 CONCORDE_HORS_REGIME) -- 64 dans la baseline legataire, dont 8 DISCORDE (7 verifies).
+# Se declenche si un record EDR, un results/*.json, la baseline OU le module lui-meme (check_regime_claims
+# .py) est stage ; baseline seule -> non scope (E4 occ. 5). Le scope --only n'est utilise QUE si les
+# fichiers stages sont EXCLUSIVEMENT des docs/EDR -- un results/*.json modifie (bloc regime change) peut
+# invalider les affirmations d'AUTRES records que ceux stages, donc un results stage -> run NON scope.
+# 2026-09-24 : AM -> AMD. Le commentaire de ce declencheur est celui de la porte 20 MOT POUR MOT, mais
+# la 20 filtrait en AMD et la 19 en AM : un results/ SUPPRIME ne reveillait pas la 19, alors que c'est
+# exactement le cas ou une valeur citee cesse d'etre verifiable.
+staged_rc=$(git diff --cached --name-only --diff-filter=AMD | grep -E '^(docs/EDR/.*\.md|results/.*\.json|tools/regime_claims_baseline\.json|tools/check_regime_claims\.py)$')
+if [ -n "$staged_rc" ]; then
+  only_rc=$(echo "$staged_rc" | grep -E '^docs/EDR/' || true)
+  non_edr_rc=$(echo "$staged_rc" | grep -vE '^docs/EDR/' || true)
+  if [ -n "$only_rc" ] && [ -z "$non_edr_rc" ]; then
+    PYTHONIOENCODING=utf-8 python tools/check_regime_claims.py --only $only_rc
+  else
+    PYTHONIOENCODING=utf-8 python tools/check_regime_claims.py
+  fi || {
+    echo ""
+    echo "-> Une valeur de parametre citee est introuvable dans les results cites (regime OU ailleurs)."
+    echo "   Citer le results/*.json SUIVI qui la porte, ou corriger la prose. Geler EN CONNAISSANCE :"
+    echo "   python tools/check_regime_claims.py --update-baseline"
+    fail=1
+  }
+fi
+
+# 20. PROVENANCE DE L'EVIDENCE (2026-09-23, corrigee en revue architecte le 2026-09-23) -- classe E27 :
+# mesure DEUX FOIS sur des clones/worktrees neufs, un record qui cite `results/*.json` absent du depot
+# (ou present seulement sur le disque d'une session) ne peut etre rouvert par personne d'autre -- une
+# conclusion dont l'evidence n'est plus rouvrable n'est pas refutable. `check_evidence_provenance.py`
+# exige que tout chemin cite EXISTE sur le disque ET soit SUIVI par git (INDEX), ou soit publie par son
+# hash (sha256 a cote de la citation -- une DECLARATION geleE/auditable, jamais une verification).
+# QUATRE causes distinctes, jamais fondues : absent (nulle part), non_suivi (existe, git l'ignore),
+# glob_vide (un motif a joker qui ne developpe vers aucun fichier), par_hash (declare, gele pour audit).
+# Baseline legataire gelee PAR (record, chemin, cause) dans tools/evidence_provenance_baseline.json ;
+# rang par_hash < non_suivi < absent/glob_vide -- un legataire qui REGRESSE vers une cause plus grave
+# bloque, l'inverse non. Un record illisible BLOQUE et n'est jamais gelable.
+# Se declenche si un record EDR, un results/*.json, la baseline, le module lui-meme, OU
+# check_regime_claims.py (dont la porte 20 importe cited_results/_developper -- E4 occ. 5, point 7 de la
+# revue) est stage. --only n'est utilise QUE si les fichiers stages sont EXCLUSIVEMENT des docs/EDR --
+# un results/*.json modifie (apparu, disparu, deplace) peut changer la provenance d'AUTRES records que
+# ceux stages, donc un results stage -> run NON scope (meme raisonnement que la porte 19).
+staged_ep=$(git diff --cached --name-only --diff-filter=AMD | grep -E '^(docs/EDR/.*\.md|results/.*\.json|tools/evidence_provenance_baseline\.json|tools/check_evidence_provenance\.py|tools/check_regime_claims\.py)$')
+if [ -n "$staged_ep" ]; then
+  only_ep=$(echo "$staged_ep" | grep -E '^docs/EDR/' || true)
+  non_edr_ep=$(echo "$staged_ep" | grep -vE '^docs/EDR/' || true)
+  if [ -n "$only_ep" ] && [ -z "$non_edr_ep" ]; then
+    PYTHONIOENCODING=utf-8 python tools/check_evidence_provenance.py --only $only_ep
+  else
+    PYTHONIOENCODING=utf-8 python tools/check_evidence_provenance.py
+  fi || {
+    echo ""
+    echo "-> Un record cite une evidence ABSENTE ou NON SUIVIE (ou a REGRESSE) : git add le results/*.json,"
+    echo "   publier son sha256 a cote de la citation, ou corriger le chemin. Un sha256 declare est GELE"
+    echo "   dans la baseline et reste auditable (cause par_hash) -- ce n'est PAS une verification."
+    echo "   Geler EN CONNAISSANCE : python tools/check_evidence_provenance.py --update-baseline"
+    fail=1
+  }
+fi
 
 # 22. COPIE DEPLOYEE DES CROCHETS (2026-09-24) -- P2.108. `.git/hooks/` n'est pas versionne : les
 # crochets de `tools/hooks/` y sont recopies A LA MAIN, et entre les deux rien ne tenait. Les deux
@@ -612,6 +680,43 @@ PYTHONIOENCODING=utf-8 python tools/check_hook_deployment.py || {
 # comparaison de MERGE_HEAD) n'avaient AUCUN contre-exemple gelé — quatre mutations survivantes au
 # harnais de la porte 15 ; elles disparaissent avec lui plutôt que d'être testées une par une.
 # <<< AGAGI:FUSION-SANS-TEMOIN <<<
+
+# 23. GARDE E19 APPELEE (2026-09-23) -- un runner SCELLE dont la regle compare des bras SOUS GRADIENT
+# (grille de lr, bras a pas distincts, clause_E19, sender_lr) doit appeler assert_verdict_invariant_to_
+# optimizer, sinon son nul mesure le REGLAGE (RETAIN-COMPOSE : verdict invertit de 0,173 a 0,923 au seul
+# lr). Meme perimetre que la porte 11 (tools/, src/seed_ai/, hors check_*.py et _HORS_PERIMETRE, reutilises
+# de check_control_family). Un runner qui APPELLE la garde directement est couvert MEME sans regle JSON
+# scellee (tools/learner_calibration.py : ses bras sont des litteraux Python, pas une regle verify()) --
+# c'est le seul appelant reel du depot -- gele dans "appelants_garde" : en PERDRE un bloque, sinon la
+# porte resterait verte si learner_calibration.py cessait d'appeler la garde. Un nom de regle NON RESOLU
+# (argv) est rapporte, jamais devine ni compte "pas sous gradient" ; un nom resolu dont le fichier scelle
+# est introuvable est REGLE ABSENTE. Une regle dont le contenu SERIALISE mentionne lr/learning_rate/E19
+# HORS des cles structurees, sans qu'aucune forme reconnue ne tire, est INDETERMINEE (revue 2026-09-23 :
+# trois runners vivants -- s2_credit_ablation(.py|_2.py), s2_reward_ablation.py -- sortaient "couvert" en
+# silence). Baseline legataire gelee PAR (chemin, raison) dans tools/e19_sweep_baseline.json ; rang
+# couvert < illisible < non_resolu < regle_absente < indetermine < nu -- un legataire qui EMPIRE bloque
+# comme un nu tout neuf. Se declenche si un runner .py (tools/ ou src/seed_ai/), une regle scellee, la baseline,
+# OU un des TROIS modules partages (le module lui-meme, check_control_family.py dont il importe _sources/
+# _HORS_PERIMETRE, experiment_preflight.py qui DEFINIT la garde -- E4 occ. 5) est stage. --only n'est
+# utilise QUE si les fichiers stages sont EXCLUSIVEMENT des runners .py ORDINAIRES (pas les trois modules
+# partages, pas une regle JSON, pas la baseline) -- un changement a l'un de ces trois peut reclasser
+# N'IMPORTE QUEL autre runner, donc force un run NON scope (meme raisonnement que les portes 19/20).
+staged_e19=$(git diff --cached --name-only --diff-filter=AM | grep -E '^((tools|src/seed_ai)/.*\.py|docs/preregistrations/.*\.json|tools/e19_sweep_baseline\.json)$')
+if [ -n "$staged_e19" ]; then
+  only_e19=$(echo "$staged_e19" | grep -E '^(tools|src/seed_ai)/.*\.py$' | grep -vE '^tools/(check_e19_optimizer_sweep|check_control_family|experiment_preflight)\.py$' || true)
+  hors_py_e19=$(echo "$staged_e19" | grep -vE '^(tools|src/seed_ai)/.*\.py$' || true)
+  partages_e19=$(echo "$staged_e19" | grep -E '^tools/(check_e19_optimizer_sweep|check_control_family|experiment_preflight)\.py$' || true)
+  if [ -n "$only_e19" ] && [ -z "$hors_py_e19" ] && [ -z "$partages_e19" ]; then
+    PYTHONIOENCODING=utf-8 python tools/check_e19_optimizer_sweep.py --only $only_e19
+  else
+    PYTHONIOENCODING=utf-8 python tools/check_e19_optimizer_sweep.py
+  fi || {
+    echo ""
+    echo "-> Ce runner compare des bras sous GRADIENT sans balayer le pas : son nul mesure le reglage (E19)."
+    echo "   Appeler assert_verdict_invariant_to_optimizer(measure, lrs=...) ou geler : --update-baseline"
+    fail=1
+  }
+fi
 
 [ "$fail" -ne 0 ] && echo "   (urgence : git commit --no-verify)"
 exit $fail

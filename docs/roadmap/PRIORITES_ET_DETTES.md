@@ -1448,6 +1448,14 @@ neuves, tandis que `compute_*`/`parse_*` en revelent 8 sans en resorber aucune �
 premiere presque gratuite. Reste a faire : (i) elargir aux trois motifs resorbants, (ii) elargir a
 `compute_*`/`parse_*` en calibrant ou gelant les 8, (iii) decider pour les 3 CLASSES (les declarer
 `NOT_AN_INSTRUMENT` qualifiees, ou etendre le scan aux `class`). *Cout : agent 1-2 h par passe ; calcul 0.*
+**FUSION 2026-09-25 (PM, `chantier/pm-portes` → `feat/d1-prod-pairing`) : +3 déclarations FRANÇAISES gelées, 9 → 12.**
+`tools/refutateur_temoins.py::recevabilite`, `::plancher`, `::juge_est_calibre` — cause `MOTIF_AVEUGLE` (noms français,
+motifs anglais), la même que `_cause_de_mort`. Le bloc REFUTATEUR de `CALIBRATED` les annonçait déjà comme « NON
+DÉTECTÉ par le cliquet » ; la branche entrante ne pouvait pas entendre le cri, son cliquet étant encore muet. Gelées EN
+CONNAISSANCE dans `declarations_ignorees` (mesuré à la fusion : `check_instrument_calibration.py` refusait 3 NOUVELLES,
+0 après gel). ⚠️ Aucun des motifs des passes (i)/(ii) ci-dessus ne les verrait (`*ceiling*`, `verify_*`, `_td_update*`,
+`compute_*`, `parse_*` — tous anglais) : les résorber demande un motif NOMMÉ pour ces trois fonctions, ou un motif
+français, ou leur renommage — mesuré en revue de fusion, pas déduit.
 <!-- closes_when:grep_present=tools/check_instrument_calibration.py::parse_\w+\) -->
 
 **P2.84 — ⚠️ OUVERTE (2026-09-24, demande de robla le 2026-09-23) — lot 2 « Science » du dashboard : arbres en temps
@@ -1585,6 +1593,430 @@ forme (c) du registre — un motif qui tronque en silence. Il doit publier ce qu
 Dépend de : rien (mais recoupe P2.84, le lot 2 « Science » du dashboard — à décider s'ils fusionnent).
 <!-- closes_when:path_present=docs/superpowers/specs/2026-09-25-auto-indexation-artefacts-design.md -->
 
+
+**P2.88 — ✅ CLOSE le 2026-09-24 (ouverte le même jour, mesurée en revue adversariale de la porte 19, HEAD `636c65b1`) — la porte 19
+rend `DISCORDE` sur TROIS situations qu'elle ne distingue pas — prémisse FAUSSE, clé qu'elle n'a pas su LIRE, clé
+ABSENTE — avec la même chaîne de détail au caractère près, et c'est le libellé du pire cas qui s'affiche.**
+Fait : livrée par `107229a0` (fix porte 19, 2026-09-24), dont le commit n'a pas enregistré la fermeture — c'est la porte 4 qui l'a détectée seule (clause satisfaite, entrée encore ouverte), et elle est enregistrée avec le renumérotage 22 → 23 de la porte E19. `DISCORDE` (rang 3) nomme désormais LES DEUX valeurs lues et le fichier ; `SANS_VALEUR_LUE` (rang 2, hors `OK`) publie le nombre de results lus et les clés VOISINES. Mesuré le 2026-09-24 : `python tools/check_regime_claims.py` rend `records : 300 | {'SANS_PARAMETRE': 226, 'CONCORDE': 5, 'CONCORDE_HORS_REGIME': 5, 'SANS_RESULTS': 53, 'SANS_REGIME': 3, 'SANS_VALEUR_LUE': 6, 'DISCORDE': 2}`, exit 0 — exactement la migration prévue ci-dessous (8 DISCORDE → 2 + 6). Les trois témoins demandés sont présents et verts dans `tests/sandbox/test_regime_claims_gate.py` : (a) `test_aucune_valeur_lue_rend_SANS_VALEUR_LUE_et_PUBLIE_ou_il_a_regarde` (statut ET clé voisine dans le détail) ; (b) `test_CONTRE_EXEMPLE_GELE_EDR_GRAB_COST_au_2026_09_09_est_DISCORDE` durci (`3.0` ET `1.0` dans le détail) ; (c) l'ancien `test_1_valeur_introuvable_nulle_part_reste_DISCORDE` renommé `test_1_valeur_CONTREDITE_par_le_regime_ET_par_le_hors_regime_est_DISCORDE`. Porte 15 : les 2 mutations de la porte 19, qui visent la distinction neuve, sont TUÉES.
+Quoi : `tools/check_regime_claims.py::evaluer` apparie par INTERSECTION D'ENSEMBLES (l.179 sur `regime_par_fichier`,
+l.187 sur `hors_par_fichier`) ; quand l'intersection est vide il écrit `<p> cite [...] : introuvable dans les results
+cites` et pose `pire = max(pire, 3)` (l.194-196), donc `DISCORDE` (l.197, rang 3 = le pire de `_RANG` l.46) — sans
+jamais nommer la valeur qu'il a pourtant LUE et qu'il tient dans ces deux dictionnaires. Témoin à réponse connue
+(lecteur FACTICE, aucun disque, aucun git, 5 cas) : les deux contrôles positifs passent — (A) cité 3.0 / publié 3.0 →
+`CONCORDE`, (D) publié hors du bloc `regime` → `CONCORDE_HORS_REGIME`, l'instrument n'est pas dégénéré. Mais (B) cité
+3.0 / publié 1.0 — le cas fondateur EDR-GRAB-COST, E8 occ. 4 —, (C) clé jamais lue et (E) contradiction hors-régime
+rendent le MÊME statut ET la MÊME chaîne : `statut B == statut C ? True`, `detail B == detail C ? True`, et « la
+valeur publiée (1.0) est-elle nommée dans le détail de B ? False ». Trois situations épistémiques sous un seul mot,
+et ce mot affirme la première. Absence de LECTURE → affirmation négative de fond, commise par l'instrument même qui
+traque E8.
+État relancé le 2026-09-24 : `records : 300 | {'SANS_PARAMETRE': 226, 'CONCORDE': 5, 'CONCORDE_HORS_REGIME': 5,
+'SANS_RESULTS': 53, 'SANS_REGIME': 3, 'DISCORDE': 8}`, exit 0 ; `tools/regime_claims_baseline.json` = 64 légataires
+(53 + 8 + 3). ⚠️ Reclassées contre les JSON réels avec TROIS catégories (la 3ᵉ étant « le nom du paramètre est dans le
+fichier mais le lecteur à clés ne le voit pas »), les 10 lignes fautives des 8 DISCORDE donnent `{'ABSENCE_CLE': 4,
+'CONTRADICTION': 2, 'ILLISIBLE_PAR_L_INSTRUMENT': 4}` — **la moitié des « absences » sont des valeurs BIEN PRÉSENTES** :
+`results/retain_compose_lr_replication.json` porte `/lr_0.02`, `/lr_0.002`, `/_params/lrs` (`_CELL_LR` l.40 n'accepte
+que `lr=0.02|`) ; `results/lang_memory_diagnostic.json` porte `D1_lr0.02_ep1200` ; `results/s2_credit_retention.json`
+porte `/regime/frozen_phase2_lr = 0.0` ; `results/td_step_pilot_r0.json` porte `/_regime/lr_td` (une LISTE). Un statut
+nommé `NON_PUBLIE` (« jamais publié ») serait donc un SECOND négatif fabriqué par-dessus le premier : l'instrument ne
+peut pas établir ce que le runner a publié, seulement ce que LUI a lu.
+Un E8 RÉEL, vivant dans HEAD, sort sous le même mot. `docs/EDR/107_..._Substrate_Blocked.md:21` annonce « Trajectoire
+`p_reach` sur 20 générations (run réduit `R=1`, `pop=24`, `max_ticks=80`, `seed=107`) » ; le SEUL results cité publie
+`generations: 2, num_agents: 6, max_ticks: 12` et une `traj` de DEUX valeurs. Ce n'est pas un paramètre qui diverge,
+c'est un smoke de 2 générations cité comme preuve d'une trajectoire de 20 — et les deux fichiers sont propres
+vis-à-vis de HEAD (`git status --porcelain` vide). La 2ᵉ « contradiction » est un faux positif de l'extracteur :
+`docs/EDR/S2-REWARD-ABLATION_…md:106` cite `reward_scale = 0` à l'INTÉRIEUR d'une prédiction.
+Coût s'il reste : la porte est branchée au hook (`tools/hooks/pre-commit:370`, déclenchée par tout `docs/EDR/*.md`,
+`results/*.json`, la baseline ou son module). ⚠️ Une dette GELÉE n'imprime AUCUN détail (`OK`, exit 0) — le détail ne
+sort que pour un record NOUVEAU ou RÉGRESSÉ, c'est-à-dire exactement quand la porte BLOQUE et que l'auteur doit agir :
+là, deux réparations opposées reçoivent la même phrase, et le pied de page (l.309) propose les deux remèdes sans dire
+lequel s'applique.
+À ÉCRIRE, en nommant ce qui a été LU et jamais ce que le runner aurait fait : (1) une valeur lue, différente de la
+citée → garder `DISCORDE` rang 3 (le mot devient exact), détail nommant LES DEUX valeurs et le fichier ; (2) aucune
+valeur lue → nouveau statut **`SANS_VALEUR_LUE`**, **rang 2** (avec `SANS_RESULTS` / `SANS_REGIME`), hors de `OK`
+(l.41) — un inconnu ne devient pas un vert, mais il cesse d'affirmer —, détail publiant le nombre de results lus et,
+à coût nul (`_sous_noeuds` les parcourt déjà), les clés VOISINES portant le nom du paramètre. Témoins à ajouter dans
+`tests/sandbox/test_regime_claims_gate.py` : (a) un témoin d'absence exigeant `SANS_VALEUR_LUE` ET la présence des
+clés voisines dans le détail ; (b) le témoin GRAB-COST (l.40) durci — exiger `DISCORDE` ET la présence de `1.0` dans
+le détail, sans quoi rien ne teste que la valeur publiée est nommée (l.42 n'assert aujourd'hui que le NOM du
+paramètre) ; (c) l.122 renommé — il s'appelle `test_1_valeur_introuvable_nulle_part_reste_DISCORDE` alors que ses
+données publient `forage_payoff: 1.0`. Les trois témoins DISCORDE gelés (l.40, l.122, l.128 phase 2) sont TOUS des
+contradictions : **zéro témoin** pour la branche majoritaire. Puis `--update-baseline` : 2 restent DISCORDE, 6 passent
+`SANS_VALEUR_LUE` (rang 2 = une AMÉLIORATION, donc aucun faux rouge). Libellés libres, mesuré avec contrôle positif
+(`grep -rn --include=*.py` sur `tools/` + `tests/`) : `SANS_VALEUR_LUE` → 0, `DISCORDE` → 18. *Coût : agent 1-2 h ;
+calcul 0.* Dépend de : rien. À faire AVANT tout resserrement de la baseline de la porte 19, sinon les 8 DISCORDE se
+regèlent sous le mauvais nom. Même famille que P2.83 et P2.92 (une branche de rejet qui confond des causes opposées).
+Occurrence au registre : E8.
+**FUSION 2026-09-25 (PM) : un DISCORDE gelé EN CONNAISSANCE, lu comme « citation ≠ prémisse ».** À l'union avec la cible,
+la porte 19 a rencontré `S2-CREDIT-ABLATION-2` (né sur la cible, où la porte n'existait pas) et l'a classé `DISCORDE`
+(`reward_scale` cité `0` l. 146, publié `1.0` sur les 4 bras et dans `regime/arms_credit`). Gelé dans
+`tools/regime_claims_baseline.json`. Lecture tranchée en revue de fusion (lentille baselines, re-mesurée) : la citation
+renvoie au bras `b_zero` du record PARENT `S2-CREDIT-ABLATION`, pas à une prémisse de CE run — la forme que la porte
+déclare ne pas savoir distinguer ; pas d'E8. À l'auteur (P4.16) de citer le results parent ou de reformuler, jamais à
+une fusion de toucher un record.
+<!-- closes_when:grep_present=tests/sandbox/test_regime_claims_gate.py::SANS_VALEUR_LUE -->
+
+**P2.89 — ⚠️ OUVERTE (2026-09-24, vue en passant pendant l'audit des portes) — la porte 8 n'est armée que par les NEUF
+documents qui PUBLIENT les comptes : 13 des 18 balises n'ont aucun de leurs intrants dans sa ligne de déclenchement,
+318 des 325 records entrent ou sortent sans la réveiller — le compte d'instruments est FAUX dans HEAD aujourd'hui
+(240 publié, 242 réel), et la porte juge le DISQUE, pas l'index (faux VERT mesuré dans l'arbre principal).**
+Quoi : `tools/hooks/pre-commit:149` n'appelle `tools/check_synthesis_counts.py` que si le commit stage l'un des NEUF
+documents où vivent les balises (`CLAUDE.md`, `docs/REF/REGISTRE_ERREURS.md`, `docs/roadmap/PRIORITES_ET_DETTES.md`,
+`docs/EDR/README.md`, `docs/SDR/*.md`, `docs/REF/REF-DEMAND-MARKER.md`, `docs/roadmap/FIL_DIRECTEUR_AGI.md`,
+`docs/roadmap/SCIENCE.md`, `docs/roadmap/ROLES.md`) ou la porte elle-même. Ces neuf documents sont les SORTIES des
+comptes, pas leurs INTRANTS. Les portes voisines font l'inverse et s'arment sur LEURS intrants : porte 1 sur
+`docs/(EDR|ADR|SDR|REF)/.*\.md` (hook:15), porte 3 sur `(tools|src)/.*\.py` (hook:46), porte taxonomy sur
+`data/agi_taxonomy/.*\.json` (hook:262).
+Sur les **18 balises** publiées (recomptées le 2026-09-24 : 18), **5 seulement sont correctement armées — et
+uniquement parce que leur intrant EST le document qui les publie** (`classes_executables` / `classes_documentees` dans
+`REGISTRE_ERREURS.md`, `roles_instancies` / `roles_candidats` dans `ROLES.md`, `syntheses_balisees` auto-référentiel).
+L'écrivain arme donc la porte exactement dans les cas où il est aussi le lecteur, jamais ailleurs. Les **13 autres
+sont MUETTES** : les 4 `records_*` (intrant = tout `.md` de `docs/{EDR,ADR,SDR,REF}`), les 6 `instruments_*` (intrant =
+tout `.py` de `tools/` et `src/` hors `check_*`, plus le dict `CALIBRATED` de
+`tests/sandbox/test_instrument_calibration.py`), `portes_hook` (intrant = `tools/hooks/pre-commit`) et les 2
+`aretes_taxonomy` (intrant = `data/agi_taxonomy/demands.json`). Côté records : **7 sur 325** arment la porte (les 5
+SDR, `REGISTRE_ERREURS.md`, `REF-DEMAND-MARKER.md`) — **318 ne l'arment pas, soit 97,8 %**.
+Ce n'est pas un risque : **le compte est FAUX dans HEAD au moment où cette entrée est écrite.** `python
+tools/check_synthesis_counts.py` rend **exit=1** et quatre `[CHIFFRE PÉRIMÉ]` : `CLAUDE.md:31` `instruments_detectes`
+publié=240 RÉEL=**242**, `CLAUDE.md:32` `instruments_calibres` publié=232 RÉEL=**234**, et les deux mêmes à
+`docs/SDR/G2_agent_composes.md:59`. Cause tracée : `c4d69b79` ajoute `verdict_temoin` et `verdict_phase_temoins` dans
+`tools/refutateur_temoins.py`, tous deux capturés par `^def\s+(\w*verdict\w*)\s*\(` — et ce commit **n'arme pas** la
+porte. Deux occurrences antérieures, datées et indépendantes : (a) `62763305` ajoute `docs/REF/REF-REVUE-ADVERSARIALE.md`
+sans armer la porte (grep EXIT=1, contrôle positif du même motif sur une liste contenant `SCIENCE.md` : EXIT=0), et
+`SCIENCE.md` a publié `records_total=324` pour un réel de 325 à ce commit ET au suivant `72879d76`, corrigé seulement
+à `b9aec5cc` ; (b) 5 commits publient un `portes_hook` faux — quatre à `16` quand le hook en câblait `17` (de
+`7ed985d6`, qui câble la porte 17, à `48ef27ea`), et `7fb183d4` publie `8` alors que son propre message dit « le hook
+passe de 8 a 11 gardes ». Dans les deux cas la correction est tombée sur un commit SANS RAPPORT. Exposition sur les
+200 derniers commits : 24 commits ajoutent/suppriment un record → **7 n'arment pas** ; 22 modifient le hook → **5** ;
+112 touchent un intrant `instruments_*` → **53**. (`aretes_taxonomy` est armé 4/4 par HASARD, ces commits stageant
+aussi une synthèse — rien dans le hook ne le garantit.)
+Second défaut, indépendant : **elle lit le DISQUE, jamais l'INDEX.** `grep -c GIT_INDEX_FILE` rend **0** dans
+`check_synthesis_counts.py`, `check_record_links.py` et `check_instrument_calibration.py`, contre **3** dans
+`check_backlog_freshness.py` et **7** dans `check_evidence_provenance.py`. Faux VERT mesuré aujourd'hui dans l'arbre
+principal : `ls docs/{EDR,ADR,SDR,REF}/*.md | wc -l` = 327 contre `git ls-files` = 326, le non-suivi étant
+`docs/EDR/S2-CREDIT-ABLATION-2_….md` que `parse_record` accepte ; `SCIENCE.md` sur disque publie 325 et la porte rend
+OK, alors que `git show HEAD:docs/roadmap/SCIENCE.md` publie 324 — un vert sur un chiffre qu'aucun clone du commit ne
+peut reproduire. C'est la classe corrigée pour la porte 4 le 2026-09-22 et jamais rétro-appliquée (E14).
+Rien ne protège la ligne d'armement elle-même : `tests/sandbox/test_synthesis_counts.py` porte 7 tests, dont **0**
+mentionne `staged_syn` ou `pre-commit` (contrôle positif : le même grep trouve 7 `def test`) ; et la porte 15 mute 19
+MODULES dont `tools.check_synthesis_counts` (`check_gate_mutation.py:186`) mais **jamais le fichier
+`tools/hooks/pre-commit`**. Le harnais mesure si chaque porte SAIT trouver, jamais si elle est APPELÉE — la question
+se pose à l'identique pour les 20 autres portes et mérite sa propre entrée. Nuance : le 7ᵉ test
+(`test_the_repository_published_counts_are_all_current`) lance `scan()` sur le dépôt réel et attrape donc la
+péremption — mais seulement dans la suite complète (~30 min), pas au commit, et la facture tombe sur qui n'a rien fait.
+À ÉCRIRE : (1) une seconde liste `staged_syn_intrants` dans le bloc 8 du hook, couvrant
+`docs/(EDR|ADR|SDR|REF)/.*\.md`, `(tools|src)/.*\.py`, `tests/sandbox/test_instrument_calibration\.py`,
+`tools/hooks/pre-commit`, `data/agi_taxonomy/.*\.json`, la porte tournant si l'une OU l'autre est non vide ; (2) un
+contre-exemple gelé confrontant la regex à une liste connue (un record EDR doit armer, un `results/*.json` non), plus
+une mutation déclarée à la porte 15 — ce qui suppose d'abord de lui donner prise sur le hook ; (3) un mode `--index`.
+⚠️ Ce 3ᵉ point n'est PAS du même coût que pour la porte 4 : celle-ci lit du TEXTE depuis l'index, alors que les
+compteurs d'ici délèguent à `check_record_links.py` et `check_instrument_calibration.py`, qui parcourent le SYSTÈME DE
+FICHIERS (`os.walk`, `os.listdir`) — les rendre index-aware fait partie du travail. ⚠️ Avant d'élargir, deux
+préalables mesurés : la porte coûte **11,3-11,9 s** (3 réplicats, charge relevée : 7 processus python, 22 CPU
+logiques — MAJORANT, l'unité machine libre n'est pas mesurée), dont **9,67 s sur 10,93 s** passées dans `_calib()`
+(`check_synthesis_counts.py:72`), appelé **5 fois** par passe faute de mémo — trois de ces appels dans la seule lambda
+`instruments_non_calibres` (l.130) ; un `functools.lru_cache` divise par ~3,4, et scoper la recompute à la famille de
+l'intrant stagé rend un commit de record quasi gratuit (~0,3 s). Sans ces deux-là on ajoute ~11 s à chaque commit de
+science, et un cliquet qu'on désactive ne mesure rien. *Coût : agent 1 h 30 ; calcul 0.* Dépend de : rien. Lié à
+P2.83 (qui explique pourquoi le compteur d'instruments ne veut pas dire ce qu'il annonce : une
+déclaration que le cliquet ne détecte pas est ignorée en silence) et à P2.56.
+<!-- closes_when:grep_present=tools/hooks/pre-commit::staged_syn_intrants -->
+
+**P2.91 — ⚠️ OUVERTE (2026-09-24) — la porte 23 compte mal dans LES DEUX SENS (deux de ses « non résolus » sont des
+nus qui DÉCLARENT `clause_E19`, quatre des douze chemins signalés ne comparent aucun pas) — et le patron de
+remédiation naturel est un appel DÉCORATIF qui rend `True` par court-circuit sans rien mesurer.**
+Quoi : la porte 23 (ex-22, `tools/check_e19_optimizer_sweep.py`, branchée au hook `tools/hooks/pre-commit`, bloc `# 23.`) est VERTE
+et son résumé se lit « 8 nus pour 1 appelant », ce qui invite à conclure « poser la garde partout ». Mesuré le
+2026-09-24 : `runners scellés : 29 | sous gradient (PLANCHER) : 9 | nus (PLANCHER) : 8 | indéterminés : 4 | non
+résolus : 4 | règle absente : 0 | illisibles : 0 | appelants de la garde : 1 | gelés : 16`, pour 13 lignes `couvert`
+(13 + 8 + 4 + 4 = 29). Le compte est faux dans les DEUX sens, et le patron de remédiation évident est pire que le
+défaut.
+⚠️ **(0) LE PIÈGE PRINCIPAL — LE PATRON ÉVIDENT EST UN APPEL QUI NE PEUT PAS ÉCHOUER.** La garde attend
+`measure(lr) -> (bras_testé, bras_de_référence)` et calcule `gap = référence − testé` ;
+`tools/experiment_preflight.py:399-401` rend `True` SANS RIEN CALCULER dès que `g_max <= 0`. Mesuré sur la grille
+réelle `results/bilinear_aligned_r1.json` (médianes recomputées : lr=0,02 plain 0,2844 / bilinear 0,9414 ; lr=0,002
+plain 0,1852 / bilinear 0,4258, 12 seeds) : écrire l'appel dans le sens naturel — testé = `bilinear`, le bras CAPABLE
+— donne des gaps NÉGATIFS aux deux pas et **rend `True` par court-circuit**. Or la porte déclare elle-même compter un
+appel **même DÉCORATIF** : le chemin passerait de `nu` à `couvert`, la porte verdirait, et RIEN ne serait mesuré — un
+couvert fabriqué par un instrument incapable de produire les deux issues. **Le nul à défendre est « `plain` ne compose
+pas » : testé = `plain`, référence = `bilinear`.** Dans ce sens, closure mesurée **63,4 %** contre un seuil de
+66,7 % — la garde PASSE, de 3,3 points seulement. Sur `BILINEAR-SHAM-R1` : `plain|bilinear` **65,1 %**,
+`sham|bilinear` **63,9 %**. Ces chiffres sont le critère d'acceptation de la passe ; ils se re-dérivent en secondes,
+sans aucune simulation.
+(a) DEUX des quatre « non résolus » sont des NUS DÉGUISÉS. `_resoudre` (l.126-135) ne lit que les constantes CHAÎNE de
+niveau MODULE ; `tools/lock001_pred2_r1.py:34` `NOM_REGLE = "LOCK-001-PRED2-R1"` puis `:138` `nom = argv[...] if
+"--regle" in argv else NOM_REGLE` et `:139` `verify(nom)` ; idem `tools/lock001_proxy_r1.py:33`. En résolvant à la
+main, les deux rendent `sous_gradient = True (clause_E19 déclarée)` et aucun n'appelle la garde : ils relèvent du rang
+`nu` (5, BLOQUANT) et sortent `non_resolu` (rang 2, seulement RAPPORTÉ). **Les nus atteignables statiquement sont donc
+10, pas 8** — et ces deux-là servent `docs/EDR/LOCK-002_D2_Retention_Is_Learned_Under_REINFORCE_At_The_Right_Step_The_Fourth_Manifestation_Was_E19.md` et
+`docs/EDR/LOCK-003_The_Same_Lever_Pierces_Both_Threads_Low_Step_And_Duration_Prediction_2_Of_LOCK-001_Holds.md` : la porte est aveugle sur le record qui PORTE la 4ᵉ occurrence de la classe qu'elle police.
+Correctif : propager les constantes CHAÎNE LOCALES de la fonction englobante. ⚠️ La branche `ast.IfExp` de `_resoudre`
+est du CODE MORT sur le corpus réel (son unique témoin, `tests/sandbox/test_e19_sweep_gate.py:43-47`, emploie la forme
+INLINE `verify("EVO-028-SMOKE" if SMOKE else "EVO-028")`, qu'aucun runner n'utilise).
+⚠️ (a-bis) `tools/lang_memory_edge_run.py` N'EST PAS un nu caché, et le correctif « lire le défaut de
+`os.environ.get` » y FABRIQUERAIT un négatif : sa ligne 31 est à la COLONNE 0 (module), son défaut littéral est
+`LANG-MEMORY-EDGE` (mesuré `sous_gradient=False`), et la règle qui déclare `clause_E19` est `LANG-MEMORY-EDGE-D2`,
+atteinte uniquement par la variable d'environnement (`docs/EDR/LOCK-002_...md:34`). Le résoudre statiquement ferait
+passer le chemin `non_resolu` → `indetermine` (régression bloquante) tout en affirmant « pas sous gradient » d'un
+runner que le record dit avoir tourné sous gradient. Le nom n'est pas décidable : le faire DÉCLARER est la seule voie.
+(b) QUATRE des douze chemins signalés ne comparent aucun pas. `tools/legacy_nan_guard_run.py` et
+`tools/legacy_wm_guard_run.py` sortent `nu` parce que `cellule.lr = null` est lu « comparaison de pas hors grille
+littérale, DÉCLARÉE » ; or ici `null` porte l'AUTRE sens, celui de `LEGACY-CAUSE-DE-MORT-R1` (`bras: {"lr0_reference":
+0.0, "lr_low": 0.004, "natural": null}`) : le pas NON SURCHARGÉ. `legacy_nan_guard_run.py:8` dit « re-mesure le bras
+`natural` (lr 0,04) sur les 12 seeds de P3.4 » — UN bras, UN pas — et sa référence lr0 est IMPORTÉE, déclarée
+`allow_inferred_reason` (`:78-81`). Le docstring de la garde les exclut (`experiment_preflight.py:301-302` : « un
+verdict à UN SEUL bras et seuil absolu n'est pas protégeable par ce mécanisme »). De même, `S2-REWARD-ABLATION` et
+`S2-CREDIT-RETENTION` ne balaient rien : leurs seules occurrences de `lr` sont « poids GELÉS lr=0 » (phase 2 à poids
+figés, l'inverse d'un balayage) et « lr 0,04 » nommant le régime PUBLIÉ. ⚠️ Le docstring de la porte
+(`check_e19_optimizer_sweep.py:51-53`) affirme « AU MOINS TROIS runners VIVANTS comparant réellement sous gradient
+[…] `s2_reward_ablation.py` » : mesuré, c'est FAUX — seuls `s2_credit_ablation.py` et `s2_credit_ablation_2.py` en
+portent un. C'est DEUX, pas trois. Le témoin qui gèle ce trio (`test_e19_sweep_gate.py:266`) n'exige, lui, que
+`indetermine` : il est juste, c'est la PROSE qui surclame.
+À ÉCRIRE, dans l'ordre : (1) `tools/bilinear_aligned_run.py` —
+`assert_verdict_invariant_to_optimizer(lambda lr: (med("plain", lr), med("bilinear", lr)), lrs=tuple(c["lr"]))`,
+**dans CET ordre**, et PUBLIER la closure dans la lecture sur le modèle de `tools/learner_calibration.py:116-125`
+(dont le `measure(lr)` ne relance RIEN : il projette une grille déjà calculée) ; le helper `med(sub, lr)` existe déjà
+aux lignes 39-40. Attendu : closure 63,4 %, statut `INVARIANT_AU_PAS` — un autre chiffre signale un appel mal orienté.
+(2) `tools/bilinear_sham_run.py`, même orientation (65,1 %). (3) et (4) `lock001_proxy_r1.py` et `lock001_pred2_r1.py`
+— rendre le nom RÉSOLVABLE d'abord, puis munir de la garde. (5) `legacy_lr_curve_r2.py` (5 pas, référence lr 0,0
+RE-MESURÉE dans la grille, le cas le plus propre). (6) `legacy_lr_curve.py`. (7) `td_step_pilot.py`. (8)
+`legacy_cause_de_mort.py` — applicable, mais sa DV est une PART de canal de mort : écrire la lecture AVANT d'appeler.
+(9) rectifier « AU MOINS TROIS » en DEUX dans le docstring et en retirer `s2_reward_ablation.py`. (10) l'avis imprimé
+PAR LIGNE (`:302-304`) doit dire « déclarer ET appeler » : suivi seul, il fait passer un chemin de `indetermine`
+(rang 4) à `nu` (rang 5) — vérifié en mémoire, `REGRESSION (donc COMMIT BLOQUE) : True`. ⚠️ À NE PAS traiter mais à
+trancher : les deux gardes legacy et les deux `s2_*` sont hors périmètre de la garde, et les « reclasser dans
+`tools/e19_sweep_baseline.json` » n'est PAS faisable en l'état — le vocabulaire des raisons est FERMÉ à cinq valeurs
+(mesuré : `Counter({'nu': 8, 'non_resolu': 4, 'indetermine': 4})`) ; les sortir demande d'ÉCRIRE une sixième raison
+(`hors_perimetre`, rang 0, exigeant une justification) avec son contre-exemple gelé. Les 11 grilles concernées sont
+présentes et SUIVIES par git : *coût agent 2-3 h ; calcul 0*, aucune simulation. Ajouter un appelant ne bloque jamais
+(seule la PERTE d'un appelant gelé bloque, `main()` l.445-448). Dépend de : rien.
+⚠️ FAIT MESURÉ EN PASSANT, à consigner dans `docs/EDR/EDR-BILINEAR_Bilinear_Substrate_Unlocks_Composition.md` et non ici : sur
+`results/bilinear_sham_r1.json`, le couple testé=`plain` / référence=`sham` rend une closure de **80,7 %**, au-dessus
+du seuil — la garde LÈVE. L'avantage post-hoc publié « sham > plain à 0,02 (+0,045 : capacité LINÉAIRE) » tombe à
++0,0086 à lr 0,002. Ce fait est POST-HOC et hors verdict scellé ; il ne rétracte rien, mais il appartient au record.
+<!-- closes_when:grep_present=tools/bilinear_aligned_run.py::assert_verdict_invariant_to_optimizer -->
+
+**P2.92 — ⚠️ OUVERTE (2026-09-24) — les 18 chemins d'évidence gelés par la porte 20 n'ont JAMAIS été committés
+(`results/` ignoré jusqu'au 2026-09-08, records de juin 2026), et 11 des 17 records ne disent nulle part que leur
+évidence est introuvable.**
+Quoi : `python tools/check_evidence_provenance.py` (porte 20) rend, relancé le 2026-09-24 : « records : 300 | motifs
+cites : 76 | chemins distincts : 78 | paires record×chemin : 97 | absents : 18 | non suivis : 0 | glob vides : 0 |
+publies par hash : 0 | records fautifs : 17 », puis « OK : 18 chemin(s) legataire(s) gele(s) ».
+`tools/evidence_provenance_baseline.json` porte exactement ces 18 paires dans 17 records, toutes de cause `absent`.
+CE QUE SONT CES 18. Quatre oracles DISTINCTS par chemin — disque (`os.path.exists`), index (`git ls-files
+--error-unmatch`), arbre (`git cat-file -e HEAD:`), historique (`git log --all --`) — rendent 18/18 : absent, absent,
+absent, 0 commit. Le quatrième a son témoin positif sur la MÊME commande (`git log --all --oneline --
+results/records_graph.json` rend 4 commits), donc le 0 est une absence mesurée. Renommage : 18 renommages dans le
+dépôt (tous dans `docs/EDR/`, ex. 135→142), **0** touchant `results/`. Suppression : 15 suppressions (ex.
+data/articles.json), **0** sur le pathspec `results/*.json` — pathspec validé sur un cas positif
+(`--diff-filter=A -- "results/*.json"` rend 102 ajouts). Aucun `results/` présent-mais-non-suivi : `git ls-files
+--others -- results/` rend 0, et l'inventaire RÉCURSIF rend 95 suivis = 95 sur disque (⚠️ un `os.listdir` NON récursif
+rend 93 et fabrique un faux écart : `results/s6/` existe).
+MÉCANISME, daté. `.gitignore:18-19` porte `results/*` puis `!results/*.json` depuis le commit `7936c2b5` du
+2026-09-08 ; juste avant, et au commit du record 088, la ligne est `results/` NU. Ce commit n'a ajouté que **44**
+`.json` — ceux encore présents sur le disque ce jour-là. Or les 17 records fautifs sont tous antérieurs de deux à
+trois mois (2026-06-15 pour 088 → 2026-07-01 pour 127/150/151). ⚠️ Un `.gitignore` n'a jamais rendu le suivi
+IMPOSSIBLE : `git ls-tree -r 7936c2b5 results/` rend **57** `.json`, donc 13 étaient déjà suivis. Mais le premier de
+ces 13 date du **2026-07-21**, trois semaines APRÈS le dernier des 17 : pendant toute la fenêtre de rédaction, ZÉRO
+`results/*.json` n'était suivi.
+CE QUI MANQUE VRAIMENT — et ce n'est pas ce qu'on croit. Les 6 records les plus récents (114b, 123, 125, 127, 150,
+151) DISENT déjà que leur évidence n'est pas au dépôt : re-mesuré le 2026-09-24, le mot `gitignore` est présent dans
+**6** des 17 et ABSENT des **11** autres (088, 089, 090, 093, 094, 098, 099, 100, 101, 105, 106), 0 illisible. Les six
+nomment en plus leur graine de fumée à côté de leur graine de verdict (`docs/EDR/150_*.md:16` « **Seed** : 1280, R=3
+… (smoke 99280) », `123:5` « **Seed** : 1167 (smoke 99167) », `127:101` « -> results/qd_tier_rescue_1260.json
+(gitignore) ») : la substitution « prendre le 99xxx suivi pour le 1xxx publié » n'est donc PAS indétectable, la ligne
+du record la contredit. Ce qui est vrai et mesuré, c'est que **11 des 17 records citent un `results/*.json`
+introuvable sans un mot d'avertissement**, et que `docs/EDR/106_*.md` qualifie même son évidence de « régénérable ».
+C'est là qu'un lecteur croit pouvoir rouvrir et ne peut pas. (Fait annexe, publié pour qu'on cesse d'y revenir : sur
+les 6 qui ont un voisin suivi, 5 étiquettes de verdict sur 6 sont identiques entre le smoke R=1 et le verdict publié ;
+114b est la seule qui diffère, CONFOND CONFIRME publié contre CONFOND NEGLIGEABLE au smoke.)
+À ÉCRIRE, par valeur mesurée décroissante. (1) **Faire DÉCLARER l'irrécupérable au lieu de le deviner** : ajouter à
+`tools/check_evidence_provenance.py` une cause `non_refutable`, rangée dans `_RANG`, posée par un bandeau écrit dans
+le record (« évidence perdue : conclusion non réfutable en l'état ») et gelant la paire sous cette cause au lieu
+d'`absent` ; écrire le bandeau dans les **11** records muets d'abord, dans les 6 autres ensuite. C'est ce que teste la
+clause. (2) **Confronter un sha256 déclaré au fichier quand le fichier existe** : `grep -c hashlib
+tools/check_evidence_provenance.py` rend **0** (témoin positif : `hashlib` est dans `tools/preregister.py`), donc la
+cause `par_hash` n'est jamais vérifiée, même fichier présent. ⚠️ Ce n'est PAS un trou caché — le docstring l'énonce
+(« une DECLARATION, pas une VERIFICATION … ni le fichier (qui peut avoir disparu) »), le message d'échec le PROPOSE
+comme remède, et le comportement est GELÉ en test (`tests/sandbox/test_evidence_provenance_gate.py:17-23`, où
+`results/perdu.json` est absent, non suivi, porteur d'un sha256, et asserté `par_hash`). Le résidu à écrire est donc
+étroit et sans risque (0 paire `par_hash` aujourd'hui) : distinguer `hash + fichier présent` (vérifiable, donc à
+vérifier) de `hash + fichier nulle part` (invérifiable, donc à refuser ou classer `non_refutable`). (3) **Ne PAS
+re-runner pour « restituer »** : les runners cités par les 17 records sont **11** (et non 9), tous présents ET suivis,
+mais les records épinglent des commits de juin (dda4080, eb81cff, bdb7cb9) sur du code qui a dérivé depuis (E28) —
+un re-run serait une mesure NOUVELLE, pas la restitution de celle qui est publiée. *Coût : agent 2-3 h ; calcul 0.*
+Dépend de : rien. C'est E27 exactement, sur des paires que la porte laisse passer par construction (un légataire gelé
+ne bloque qu'en RÉGRESSANT). Même famille que P2.88 et P2.83.
+⚠️ VU EN PASSANT, À NE PAS FONDRE ICI (entrée séparée, calibration d'instrument) : `tools/tom_probe.py:97-102` —
+`_verdict_tom_emergence(0.0, 0.0, 0.0)` rend `TOM_INERT` (témoin positif : `(0.5, 0.1, 0.1)` rend `TOM_EMERGES`), sans
+aucun plancher de n ; et `results/tom_probe_99280.json`, le seul fichier `tom_probe` suivi par le dépôt, porte
+`n_ctrl=0.0`, `n_tom=0.0` et ce même verdict de fond, qui est l'étiquette publiée par EDR-150. Même forme sur
+`results/qd_tier_rescue_99260.json` (`d_craft=0.0`, `n_confirme_seeds=0` → `QD_NEUTRE`). C'est la forme (a) de
+CLAUDE.md — entrée vide → affirmation négative de fond — et `tom_probe` est absent de
+`tools/fabricated_defaults_baseline.json` (témoin positif : `tom_coordination` y apparaît 2 fois), donc la porte 14 ne
+l'attrape pas.
+<!-- closes_when:grep_present=tools/check_evidence_provenance.py::non_refutable -->
+
+**P2.93 — ⚠️ OUVERTE (2026-09-24, vue en passant en auditant `tools/preregister.py`) — la porte de revue ne reconnaît
+un coût que sous CINQ noms de clé au PREMIER niveau : aucune règle n'est aveuglée par la seule profondeur (0/68), mais
+4 à 5 déclarent leur échelle sous `design` / `regime_scelle` / `n`, et la prochaine qui fera pareil sera scellée SANS
+revue — contournement REPRODUIT.**
+Quoi : `tools/preregister.py:57` fige `_CLES_COUT = ("cout", "budget_s", "garde_cout", "plafond", "cout_scelle")` et
+`:60-61` teste `any(k in rule for k in _CLES_COUT)` — **premier niveau seulement**. Conséquence REPRODUITE dans un
+répertoire temporaire hors dépôt : la MÊME échelle, mot pour mot, fait mordre ou ne fait pas mordre la porte selon le
+NOM de la clé qui la porte. Contrôle positif d'abord — la règle d'`EVO-006-REPLICATION` avec son échelle recopiée sous
+`cout` lève bien `ReviewRequired` ; puis la même règle, échelle laissée sous `design` (« 2 bras x 12 seeds x 35
+eres… »), est **scellée sans revue**, enveloppe `['name','rule','seal']` ; idem pour l'échelle STRUCTURÉE de
+`DELAYED-COORD-LR-N12` (`n` = 12 **plus** `regime_scelle` = {episodes: 1600, n_agents: 16, seeds: "0..11",
+eval_batches: 40}) ; et une règle qui ne déclare rien du tout passe aussi. La porte échoue donc **OUVERTE**, en
+silence.
+La cause SUPPOSÉE — « elle ne lit que le premier niveau, donc des clés se cachent plus bas » — est **réfutée**, mais
+pas par le chiffre d'abord publié. Descente récursive sur dicts ET listes, mêmes 5 clés, sur les 68 fichiers de
+`docs/preregistrations/` (68 fichiers, 68 suivis par git, **0 illisible**) : **61** rendent `declare_un_cout(rule) is
+True` au premier niveau ; **1** — `TD-STEP-PILOT-R2.json` — porte en plus `controles.cout` et `seuils.budget_s` à la
+profondeur 1, mais elle en porte AUSSI une au premier niveau, donc **0 règle est aveuglée par la seule profondeur**
+(et non « 0 clé profonde » : ce chiffre-là vaut 1). Contrôle de portée de la descente : **60/68** règles contiennent
+au moins un conteneur imbriqué, profondeur de conteneur max **4** — la descente pouvait voir quelque chose, son zéro
+est un vrai zéro et non un instrument muet.
+Le vrai défaut est le **VOCABULAIRE FERMÉ** (5 noms) et la FORME. Sur les **7** règles sans aucune clé reconnue :
+**4** déclarent une échelle de RUN sous un autre nom — `EVO-006-REPLICATION` et `EVO-007` (`design` = « N bras x 12
+seeds x 35 eres »), `DELAYED-COORD-LR-N12` et `-bis` (`n` + `regime_scelle` structuré) ; **`EVO-012`** déclare une
+PORTÉE de 4 sujets pour une mesure que sa propre clé `note` dit « purement mecaniste (passages avant + inspection de
+W) : n'utilise NI le harnais de survie NI les compteurs du monde » — la ranger dans l'angle mort est un jugement, pas
+une mesure ; **`EVO-007-bis`** et **`-bis2`** sont des re-scellements d'une règle de LECTURE (clés `remplace`,
+`defaut_de_la_regle_initiale`, `lecon`, `pourquoi_bis2`). L'angle mort vaut donc **4, au plus 5**. ⚠️ Ne pas publier
+de total « 66/68 » : 61 est MESURÉ par clé, le reste est LU dans de la prose, et les deux ne s'additionnent pas dans
+la même unité. Le chiffre « 61 » n'est d'ailleurs publié dans AUCUN fichier suivi (`git grep "61 declarent|61/68"` →
+vide, contrôle positif du même `git grep` : `declare_un_cout` → 2) : il vit dans le message du commit `5c7b0d47`, qui
+ne se corrige pas.
+Ce qu'il coûte s'il reste : la dette est **entièrement à VENIR**, ce qui est exactement le moment où elle est
+gratuite. Les 7 ont été ajoutées du 2026-07-28 au 2026-09-02, la plus récente des 68 date du 2026-09-22, et
+`ReviewRequired` (`tools/preregister.py:141-144`) a été posée le 2026-09-23 : **aucune règle n'a jamais traversé la
+porte**, et 0/68 enveloppe porte `reviewed_by` (les 68 valent exactement `['name','rule','seal']`, recompté le
+2026-09-24). Rien d'autre ne l'attrape : `check_preregistration_applied.py` ne lit que des noms de DV
+(`_MEASURE_FIELDS:37`), `check_control_family.py` ne contient ni « cout » ni « revue ».
+À ÉCRIRE : ne pas élargir le motif (deviner), mais **faire DÉCLARER** — doctrine du dépôt
+(`tools/demand_marker._degeneracy`, `tools/check_guard_negative_cases.py`) : dans `preregister()`, refuser une
+NOUVELLE règle qui ne porte ni clé de coût ni déclaration EXPLICITE d'absence de run (`cout: "aucun run"`, ou
+`sans_run: true`), via une exception nommée `CoutNonDeclare`. ⚠️ **Le témoin à geler n'est PAS « la branche fausse »** :
+elle est DÉJÀ exercée — `tests/sandbox/test_preregistration_guard.py:179`
+(`test_une_regle_SANS_cout_declare_ne_l_exige_pas_et_une_existante_se_rescelle_sans`) scelle une règle sans clé de
+coût sans `reviewed_by` et affirme `declare_un_cout(rule) is False` à `:186`. Le témoin MANQUANT est l'autre : une
+règle qui déclare une échelle sous un nom HORS vocabulaire doit être REFUSÉE. ⚠️ Et il ne peut pas être
+`EVO-006-REPLICATION` verbatim : mesuré, la sceller telle quelle lève `IncompleteDiscrimination` (ses 3 branches n'ont
+pas d'attrape-tout) AVANT d'atteindre la branche de coût — le cas à geler est sa FORME plus une
+`regle_de_lecture_continue`. La demande ne porte QUE sur la création : le re-scellement à l'identique sort en `:135`
+avant d'y arriver, et `verify()` passe **68/68** aujourd'hui. Aucun appelant ne bouge, et pour une raison plus forte
+que « les 43 importateurs n'y touchent pas » : **aucun module du dépôt n'appelle `preregister()`** — les 43
+importateurs (32 sous `tools/`) importent `verify` (32), `stamp, verify` (14) ou `provenance` (13), et le seul `from
+tools.preregister import preregister` est `preregister.py` lui-même. Les 68 règles ont donc toutes été scellées hors
+code suivi — raison de plus pour que la demande vive DANS `preregister()`, seul point de passage possible. *Coût :
+agent ~1 h ; calcul 0.* Dépend de : rien. Lié à P2.94.
+<!-- closes_when:grep_present=tools/preregister.py::CoutNonDeclare -->
+
+**P2.94 — ⚠️ OUVERTE (2026-09-24) — `reviewed_by` est posé HORS du sceau : sa SUPPRESSION et sa FORGERIE passent
+toutes deux `verify()`, et aucun lecteur ne peut même le relire — alors que le mettre DANS le sceau coûte ZÉRO
+re-scellement.**
+⚠️ **Entrée trouvée EN PASSANT pendant la mesure de P2.93 et NON passée au réfutateur** : les trois faits structurels
+ci-dessous ont été re-vérifiés par le synthétiseur le 2026-09-24 ; le prototype « design B » (68/68 sceaux préservés)
+est en revanche la mesure du seul investigateur et n'a été rejouée par personne.
+Quoi : `_seal()` (`tools/preregister.py:106-108`) ne hache que `rule` — vérifié : `return
+hashlib.sha256(json.dumps(rule, sort_keys=True, …))` ; `preregister()` écrit `payload["reviewed_by"] = reviewed_by`
+dans l'ENVELOPPE (`:145-146`, à côté de `name` et `seal`) ; `verify()` recompute `_seal(payload.get("rule", {}))`
+(`:199`) et rend `payload["rule"]` seul (`:202`). Mesuré dans un répertoire temporaire, avec contrôle POSITIF
+d'abord : retoucher `rule` lève bien `PreregistrationTampered` — le sceau MARCHE ; puis SUPPRIMER `reviewed_by` →
+`verify()` PASSE ; puis FORGER un `reviewed_by` (« docs/reviews/2026-01-01-revue-qui-n-a-jamais-eu-lieu.md ») sur une
+règle qui n'en avait pas → `verify()` PASSE ; et `verify()` ne rend que `rule`, donc `reviewed_by` n'est même pas
+LISIBLE par l'API : aucun lecteur ne peut vérifier l'attestation ni constater son effacement. La porte `ReviewRequired`
+est donc DÉCORATIVE au sens d'E10 — elle exige une revue à l'écriture, et le dépôt ne peut ni la relire ni détecter sa
+disparition.
+Instances aujourd'hui : **0/68** — recensement refait le 2026-09-24, les 68 enveloppes portent exactement
+`['name','rule','seal']`, 0 illisible, la porte ayant un jour d'âge. C'est précisément la fenêtre où le correctif est
+gratuit. Le point qui DÉCIDE, mesuré et non raisonné : *design A* (le sceau porte TOUJOURS `{rule, reviewed_by}`, même
+absent) change **68/68** sceaux, casserait les **13** sceaux CITÉS hors `docs/preregistrations/`
+(`results/bilinear_aligned_r1.json`, `legacy_cause_de_mort.json`, `legacy_lr_curve_r1.json`,
+`legacy_lr_curve_r2.json`, `legacy_nan_guard_r1.json`, `legacy_wm_guard_r1.json`,
+`s2_blind_champion_bis.json`, `s2_blind_champion_ter.json`, `s2_blind_champion_decomp_r1.json`,
+`td_step_pilot_r0.json`, `td_step_pilot_r1.json`, `td_step_pilot_r2.json`, `bilinear_sham_r1.json`) et rendrait tout re-scellement idempotent impossible
+(`PreregistrationConflict`, `:130`). *Design B* — le sceau BRANCHE : `_seal(rule)` quand `reviewed_by` est absent,
+`_seal({"rule": rule, "reviewed_by": …})` quand il est présent — prototypé et mesuré : **68/68 règles gardent leur
+sceau exact, 0 cassée, 0 re-scellement, 13 citations intactes**, et les six cas se comportent (intacte VRAI · `rule`
+retouchée FAUX · `reviewed_by` supprimé FAUX · `reviewed_by` forgé FAUX · légataire sans revue intacte VRAI · revue
+AJOUTÉE à une légataire FAUX). Donc **non, les 68 n'ont PAS à être re-scellées** — à condition d'écrire la branche.
+(Le premier prototype, qui enveloppait TOUJOURS `rule` dans `{"rule": …}`, cassait 68/68 : l'écart entre les deux
+designs est mesuré, pas argumenté.)
+À ÉCRIRE : la branche dans `_seal`/`verify` de `tools/preregister.py`, `verify()` qui rend aussi l'attestation (ou un
+`attestation(name)`), et les témoins manquants dans `tests/sandbox/test_preregistration_guard.py` — ses 19 tests
+couvrent la FORME de `reviewed_by` (`:189`, `:198`) mais AUCUN n'essaie de l'effacer ni de le forger :
+`def test_supprimer_reviewed_by_est_DETECTE`, `def test_forger_reviewed_by_est_DETECTE`, et le test de non-régression
+des 68 (`test_the_repository_preregistrations_are_all_intact:67`) qui doit rester vert. ⚠️ Traiter dans la même passe
+le cas jumeau : `name` est lui aussi HORS du sceau (0/68 instance, mais un payload dont le `name` ment passe
+`verify()`) — l'y ajouter changerait 68/68 comme le design A, donc le laisser hors sceau et le VÉRIFIER contre le nom
+de fichier dans `verify()`, ce qui est gratuit. *Coût : agent ~1 h ; calcul 0.* Dépend de : rien. Lié à P2.93.
+<!-- closes_when:grep_present=tests/sandbox/test_preregistration_guard.py::def test_supprimer_reviewed_by_est_DETECTE -->
+
+**P2.95 — ⚠️ OUVERTE (2026-09-24, mesurée en lecture seule) — la règle `review:` est ARMÉE et GELÉE sur 232 EDR à
+verdict, et son chemin de SUCCÈS n'a jamais été parcouru sur un record réel : `docs/reviews/` ne contient que son
+README.**
+Quoi : `tools/check_record_links.py` exige qu'un EDR à verdict porte `review:` désignant un fichier RÉEL — forme
+`docs/reviews/<AAAA-MM-JJ>-<slug>.md` (`_REVIEW_PATH`, l.49) ET existence sur disque (`_review_defect`, l.52-61),
+exigence appliquée l.150-153. Re-mesuré le 2026-09-24 : `--report` rend `records=325 orphelins=18 collisions=7
+gate_non_raccordés=67 mismatches_gate_tests=0 sans_revue=232`. Décomposition recomputée depuis `scan_records`,
+jamais recopiée : 325 = **299 EDR + 16 REF + 5 SDR + 5 ADR** ; le périmètre est les **232 EDR à verdict** (`gate:`
+dans G0-G4/`foundational` OU `tests:[SDR-Gx]`), et **93 records sont HORS périmètre** (67 EDR sans aucun raccord de
+porte + 26 non-EDR, la branche étant `r["type"] == "EDR"`). Les 232 défauts sont tous de raison `absente`, et
+**aucun record du dépôt, tous types confondus, ne porte un champ `review:` non vide**.
+⚠️ **La moitié « poser la règle pour les NOUVEAUX » est DÉJÀ FAITE — la réécrire produirait une entrée née close.**
+`tools/record_link_baseline.json` gèle `review_missing_files = 232`, **set-égal** au courant (vérifié élément par
+élément : 0 en trop, 0 en moins) ; `tools/hooks/pre-commit` l.22/24 lance la porte ; `tools/preregister.py:141`
+refuse une règle scellée à coût déclaré sans `reviewed_by=` au même format. Le cliquet produit bien les DEUX issues :
+baseline réelle → exit 0 ; même baseline amputée d'une entrée → `[EDR-097, absente]`, exit 1.
+Ce qui manque est autre chose : **le chemin de SUCCÈS de la porte n'a jamais été parcouru sur un record réel.**
+`git ls-files docs/reviews/` rend UNE ligne, son README. Zéro revue, zéro `review:`. Et ce n'est pas une porte
+aveugle — contrôle de BOUT EN BOUT (confronter `_review_defect` à des chaînes ne suffit pas : ça contourne
+`parse_record`) : dans un faux dépôt, un record dont le frontmatter porte `review: docs/reviews/…md` est LU et SORT
+de `review_missing` ; le fichier de revue supprimé, il y rentre en `fichier introuvable`. La porte sait dire OUI ;
+personne ne le lui a jamais fait dire sur un record du dépôt.
+Pourquoi ce n'est pas de la négligence, et pourquoi ça reste une dette : l'instrument de revue a échoué DEUX fois sa
+propre calibration (`.superpowers/sdd/2026-09-16-portes-18-19-20-refutateur/progress.md`) — clé de réponse voyageant
+avec l'instrument, puis **plancher de fausses retrouvailles à 4/4** (une revue VIDE passait les quatre témoins, une
+revue JUSTE échouait) ; la ronde 4 (`c4d69b7`) ramène ce plancher à 0/5. Le « Step 4 : première revue réelle » du plan
+est **NON EXÉCUTÉ**, et sa cible est un TÉMOIN gelé (un SHA), pas le record courant : l'exécuter ne posera `review:`
+sur aucun record et ne bougera pas la baseline. Cette entrée porte exactement ce résidu.
+Ce que ça coûte : `CLAUDE.md:329` justifie l'obligation de revue par « **7 revues, 7 erreurs réelles trouvées** » —
+ligne **sans balise `count:`** (contrôle positif : 4 balises existent), donc jamais recomputée. Ces 7 revues ont bien
+laissé des traces, mais **en PROSE dans les records** (`grep -c -i revue` : 4 sur WARM-004, 3 sur WARM-008, 2 sur
+WARM-006 — « ## Corollaires établis par la revue adversariale », « Correction majeure post-revue ») : jamais un
+document autonome portant ses sondes, ses verdicts par prompt et ses commandes rejouables. Conséquence mesurable :
+les compteurs du rôle Réfutateur (spec §2.3, « critiques émises / confirmées », lus dans `docs/reviews/*.md`) ont
+zéro entrée.
+À ÉCRIRE : (1) une première revue `docs/reviews/<date>-<slug>.md` produite par le workflow sur un record COURANT
+(§ « Lancer une revue » de `docs/reviews/README.md:9`, témoins extraits par `tools/refutateur_temoins.py --extraire` ;
+`statut: NUL` → rien ne s'écrit) ; (2) le `review:` correspondant au frontmatter du record ; (3) `python
+tools/check_record_links.py --update-baseline`, qui ne retire la ligne QUE si `_review_defect` rend None (forme ET
+existence). Les trois dans le MÊME commit (règle citation+artefact). **Cible n°1 mesurée : `EDR-CALIB-LEARNER`**
+(`docs/EDR/CALIB-LEARNER_InWorld_Learner_Learns_At_Unbounded_Dose_The_Published_Nulls_Were_Dose_Bounded.md`), indegré
+**7** — maximum du périmètre, ex æquo avec `EDR-AUDIT-001` — ET cité par CLAUDE.md. Vérifié : ce chemin n'apparaît
+dans AUCUNE autre liste de la baseline, donc la clause bascule sur ce seul motif. ⚠️ **Échappatoire connue de la
+clause, à ne pas emprunter** : supprimer ou renommer le record puis regeler la baseline la satisferait sans aucune
+revue — la clause observe le resserrement, pas l'intention ; le commit de fermeture doit porter le fichier de revue
+lui-même.
+Lot PORTEUR pour la suite, mesuré : sur les 232, **98 sont cibles d'au moins une arête entrante** (471 arêtes, **0
+pendante**), **16 ont un indegré ≥3**, et **14 sont cités par CLAUDE.md**. ⚠️ Ce 14 est une mesure REFAITE : un
+appariement par id ENTIER n'en trouve que 7, parce que CLAUDE.md cite aussi par id NU (`S2-011`, `WARM-005`,
+`S2-CREDIT-ABLATION`, `S6-FALLBACK-RATE`…) ; la variante qui accepte en plus un suffixe NUMÉRIQUE nu en rend 25, mais
+ses gains sont des faux positifs de prose (`121 sites légataires` → « EDR-121 », `+0,156` → « EDR-156 »). Union
+{indegré ≥3} ∪ {cités} = 25, moins `EDR-RETAIN-COMPOSE` (rétracté ; dans `build_graph`, `from` est le RÉTRACTÉ) →
+**lot net de 24**. Exiger 232 revues rétroactives est absurde ; 24 ne l'est pas, et les **206** restants demeurent
+gelés sans dette nouvelle possible. ⚠️ `adopts:` n'est PAS un proxy de « porteur » : les 113 arêtes `ADOPTE` visent 7
+cibles — 112 des ancres REF et 1 l'ADR-004 ; **aucun EDR n'est adopté**. *Coût : un agent par revue, lecture seule +
+sondes, aucun run de monde.* Dépend de : la ronde 5 du Réfutateur (calibrer l'instrument AVANT de graver un
+artefact). Lié à P2.25 (une revue dont les vérificateurs meurent rend « 0 défaut confirmé »).
+**FUSION 2026-09-25 (PM) : trois records nés sur la cible SANS `review:` gelés, 232 → 235.** `S2-002-PAIRED-R1`,
+`S2-CREDIT-ABLATION-2`, `TD-STEP-PILOT-R2` ont été committés sur `feat/d1-prod-pairing` avant que la règle « nouveau
+record ⇒ revue SUIVIE » n'y arrive par cette fusion ; la porte 1 les refusait comme NOUVEAUX. Gelés dans
+`tools/record_link_baseline.json` (`review_missing`). `S2-CREDIT-ABLATION-2` déclare une revue EN PROSE (21 griefs
+confirmés sur 22) sans aucun chemin suivi — exactement le cas de cette entrée. La règle vaut pour tout record né APRÈS.
+<!-- closes_when:grep_absent=tools/record_link_baseline.json::CALIB-LEARNER_InWorld_Learner -->
 
 **P3.4 — rang 14 — ✅ CLOSE le 2026-09-15 ([[EDR-CALIB-LEGACY-LEARNER]], `results/legacy_learner_calibration.json`) — Cas de calibration de l'apprenant LEGACY.**
 Quoi : `MambaBatchModel.compute_policy_gradient` (le chemin actif pendant tout l'arc EVO), mêmes bras

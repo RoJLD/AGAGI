@@ -126,7 +126,7 @@ def test_a_QUALIFIED_file_double_colon_function_citation_is_recognised(tmp_path,
     « déclaratives ». Un cliquet qui refuse la notation que le dépôt recommande crie au loup."""
     _registre(tmp_path, monkeypatch, [
         "| **E99** | Classe bidon | occurrence | `exécutable` | contre-exemple gelé : "
-        "`tests/sandbox/test_hook_on_merge.py::test_un_temoin_dont_SEUL_l_arbre_differe_ne_desarme_PAS` |",
+        "`tests/sandbox/test_hook_on_merge.py::test_un_temoin_ETRANGER_ne_desarme_PAS_une_fusion_fautive` |",
     ])
     assert "E99" not in G.scan(), "la forme qualifiée `fichier.py::fonction` doit être reconnue"
 

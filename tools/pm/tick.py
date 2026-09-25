@@ -17,11 +17,9 @@ from src import paths
 from tools.jobs import lease as L
 from tools.pm import alerts as AL
 from tools.pm import roles_counts as RC
-from tools.pm.board import compute, render_md
+from tools.pm.board import CECITE_FICHIERS, TTL_PM_S, compute, render_md  # TTL_PM_S : défini au TABLEAU, seuil de péremption
 from tools.pm.bulletin import session_id_courant
 from tools.pm.snapshot import ancrer_data_root, read_registry, snapshot
-
-TTL_PM_S = 7200.0
 
 
 def prendre_bail_pm(owner, pid, *, leases_dir=None, ttl_s=TTL_PM_S):
@@ -58,12 +56,15 @@ def digest(board, d, counts, illisibles=0):
         L_.append("[PM] AVEUGLE SUR git (fichiers modifiés non mesurés)")
     c = board["charge_connue"]
     L_.append(f"[PM] charge connue : sims={c['sims_en_vol']} cpu={c['cpu_pct']} bails={c['bails_vivants']}")
+    L_.append(f"[PM] {CECITE_FICHIERS}")                # une A1 absente ne prouve rien sur ce que Bash a réécrit
     for a in d["nouvelles"]:
         L_.append(f"[PM] NOUVELLE {a['cle']} ({a['gravite']}) — {a['message']} -> décider : message ciblé / investigation / note")
     for a in d["repetees"]:
         L_.append(f"[PM] REPETEE {a['cle']} — {a['message']} -> inscrire le cliquet manquant au backlog (deux fois = promu)")
+    # une clé suivie se lit avec son MESSAGE : les clés A7/A8 sont des session_id, illisibles seules
+    msg = {l["cle"]: l.get("message") for l in d["lignes"] if l.get("statut") == "suivie"}
     for k in d["disparues"]:
-        L_.append(f"[PM] suivie {k}")
+        L_.append(f"[PM] suivie {k}" + (f" — {msg[k]}" if msg.get(k) else ""))
     ca = counts["alertes"]
     L_.append(f"[PM] compteurs : émises {ca['emises']} · suivies 48 h {ca['suivies_48h']} · fausses/ignorées "
               f"{ca['fausses_ou_ignorees']} · répétées {ca['repetees']} · ouvertes {ca['ouvertes']} ; "

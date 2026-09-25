@@ -53,6 +53,30 @@ def test_digest_nomme_les_repetees_comme_cliquets_a_inscrire():
     assert "suivie A4:abc" in t and "science/méthodo = 0.5" in t
 
 
+def test_digest_imprime_une_cle_SUIVIE_avec_son_message_car_une_cle_A7_A8_est_un_session_id_illisible_seule():
+    """Défaut 2 (2026-09-24) : A7/A8 sont clées par `session_id` (un nom change), donc « suivie A7:6f3aee07… » ne
+    dit plus rien à qui lit le digest — le message de la ligne suivie porte le nom et le fait."""
+    board = {"aveugle": [], "charge_connue": {"sims_en_vol": 0, "cpu_pct": 1.0, "bails_vivants": []},
+             "alertes": [], "sessions": []}
+    d = {"nouvelles": [], "repetees": [], "disparues": ["A7:6f3aee07-e0f8", "A4:abc"],
+         "lignes": [{"cle": "A7:6f3aee07-e0f8", "statut": "suivie",
+                     "message": "agagi-11 active depuis 2.0 h sans P-item revendiqué ni inféré"}]}
+    t = TK.digest(board, d, _counts())
+    assert "[PM] suivie A7:6f3aee07-e0f8 — agagi-11 active depuis 2.0 h" in t
+    assert "[PM] suivie A4:abc\n" in t + "\n" and "suivie A4:abc —" not in t     # sans message : la clé nue, pas un tiret vide
+
+
+def test_digest_DECLARE_la_cecite_des_fichiers_en_vol_a_chaque_tick_sans_casser_le_noop():
+    """Défaut 4 : le PM lit le digest comme seule entrée ; une A1 absente ne prouve rien sur ce que Bash a réécrit."""
+    from tools.pm import board as B
+    board = {"aveugle": [], "charge_connue": {"sims_en_vol": 0, "cpu_pct": 0.0, "bails_vivants": []},
+             "alertes": [], "sessions": []}
+    d = {"nouvelles": [], "repetees": [], "disparues": [], "lignes": []}
+    t = TK.digest(board, d, _counts())
+    assert f"[PM] {B.CECITE_FICHIERS}" in t and "rien de nouveau (noop)" in t
+    assert "AVEUGLE SUR" not in t                                   # déclarée, pas comptée comme une source absente
+
+
 def test_digest_dit_rien_de_nouveau_quand_rien_n_a_bouge():
     board = {"aveugle": [], "charge_connue": {"sims_en_vol": 0, "cpu_pct": 0.0, "bails_vivants": []},
              "alertes": [], "sessions": []}

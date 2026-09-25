@@ -31,7 +31,7 @@
 # parent et la porte se tairait exactement comme sur un squash.
 #
 # ⚠️ DEUXIÈME MESURE, et c'est elle qui décide la forme : relancer le pre-commit TEL QUEL sur une
-# fusion ne suffit PAS. Ses 17 appels à `git diff --cached --name-only` comparent l'index au PREMIER
+# fusion ne suffit PAS. Ses 20 appels à `git diff --cached --name-only` comparent l'index au PREMIER
 # PARENT — donc au seul côté ENTRANT :
 #     diff_vs_HEAD = [docs/preregistrations/b.json]
 #     diff_vs_BASE = [CLAUDE.md  docs/preregistrations/a.json  docs/preregistrations/b.json]
