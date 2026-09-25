@@ -1,0 +1,303 @@
+{
+  "name": "HARNESS-R1-bis",
+  "rule": {
+    "budget_family_s": 4844.776878026314,
+    "cellules": {
+      "A": {
+        "ablations": [
+          {
+            "must_bite": true,
+            "name": "permute_key",
+            "site": "input"
+          },
+          {
+            "must_bite": true,
+            "name": "permute_query",
+            "site": "input"
+          },
+          {
+            "must_bite": false,
+            "name": "inject_distractor_slot",
+            "site": "input"
+          }
+        ],
+        "alive_margin": 0.05,
+        "bayes_floors": {
+          "permute_key": 0.16666666666666666,
+          "permute_query": 0.16666666666666666
+        },
+        "budget_s": 1156.1909940233454,
+        "collapse_factor": 1.5,
+        "control_family": {
+          "alpha_cell": 0.008333333333333333,
+          "alpha_family": 0.05,
+          "cells": 6,
+          "fwer_bound": 0.05,
+          "method": "bonferroni",
+          "reason": null
+        },
+        "episodes": 300,
+        "eval_batches": 40,
+        "incapable_ceiling": {
+          "proven": false,
+          "provenance": "forme close de backend_torch._step a H_in=0 (logit_j = sigmoid(W[j,j])*tanh(W[key,j]+W[K+q,j])) ; MINORANT 34/36 par charniere a marge FIXE, float64, victoire STRICTE ; re-verifie SANS autograd (python pur) ET IN SITU dans le vrai TorchPopulationModel (34/36 aux deux). ATTENTION : c est un MINORANT qui MONTE avec l effort -- 29/36, 34/36 et 36/36 selon trois chercheurs independants du meme jour. Il ne fonde AUCUN << le substrat ne peut pas >> (E19 occ.4) :  MINORANT, jamais PROUVE.",
+          "value": 0.9444444444444444
+        },
+        "issues": {
+          "attendue": "PIECE_PARTIAL",
+          "sinon": "soit la bit-identite est perdue (harnais), soit le regime differe (E19/E8) : INDETERMINE, pas un resultat"
+        },
+        "learner": "connectome_torch",
+        "matched_sham": {
+          "bilinear_sham": true
+        },
+        "min_sep": 0.05,
+        "n_agents": 16,
+        "n_floor": 12,
+        "oracle_min": 0.9,
+        "piece": "bilinear",
+        "prior_max": 0.5,
+        "sweep": [
+          {
+            "credit": "supervised",
+            "lr": 0.02,
+            "n_classes": null,
+            "rank": 16
+          },
+          {
+            "credit": "supervised",
+            "lr": 0.002,
+            "n_classes": null,
+            "rank": 16
+          }
+        ],
+        "task": "composition_same_tick_K6"
+      },
+      "Aprime": {
+        "ablations": [
+          {
+            "must_bite": true,
+            "name": "permute_key",
+            "site": "input"
+          },
+          {
+            "must_bite": false,
+            "name": "permute_query",
+            "site": "input"
+          },
+          {
+            "must_bite": false,
+            "name": "inject_distractor_slot",
+            "site": "input"
+          }
+        ],
+        "alive_margin": 0.05,
+        "bayes_floors": {
+          "permute_key": 0.16666666666666666
+        },
+        "budget_s": 602.0620559994131,
+        "collapse_factor": 1.5,
+        "control_family": {
+          "alpha_cell": 0.008333333333333333,
+          "alpha_family": 0.05,
+          "cells": 6,
+          "fwer_bound": 0.05,
+          "method": "bonferroni",
+          "reason": null
+        },
+        "episodes": 150,
+        "eval_batches": 40,
+        "incapable_ceiling": null,
+        "issues": {
+          "attendue": "PIECE_NOT_NECESSARY",
+          "sinon": "le bilineaire modifie le rappel same_tick : resultat a graver"
+        },
+        "learner": "connectome_torch",
+        "matched_sham": {
+          "bilinear_sham": true
+        },
+        "min_sep": 0.05,
+        "n_agents": 16,
+        "n_floor": 12,
+        "oracle_min": 0.9,
+        "piece": "bilinear",
+        "prior_max": 0.5,
+        "sweep": [
+          {
+            "credit": "supervised",
+            "lr": 0.02,
+            "n_classes": null,
+            "rank": 16
+          },
+          {
+            "credit": "supervised",
+            "lr": 0.002,
+            "n_classes": null,
+            "rank": 16
+          }
+        ],
+        "task": "recall_same_tick_K6"
+      },
+      "B": {
+        "ablations": [
+          {
+            "must_bite": true,
+            "name": "permute_key",
+            "site": "input"
+          },
+          {
+            "must_bite": true,
+            "name": "permute_query",
+            "site": "input"
+          },
+          {
+            "must_bite": false,
+            "name": "inject_distractor_slot",
+            "site": "input"
+          },
+          {
+            "must_bite": true,
+            "name": "state_reset",
+            "site": "state"
+          }
+        ],
+        "alive_margin": 0.05,
+        "bayes_floors": {
+          "permute_key": 0.16666666666666666,
+          "permute_query": 0.16666666666666666,
+          "state_reset": 0.16666666666666666
+        },
+        "budget_s": 3086.5238280035555,
+        "collapse_factor": 1.5,
+        "control_family": {
+          "alpha_cell": 0.00625,
+          "alpha_family": 0.05,
+          "cells": 8,
+          "fwer_bound": 0.05,
+          "method": "bonferroni",
+          "reason": null
+        },
+        "episodes": 600,
+        "eval_batches": 40,
+        "incapable_ceiling": null,
+        "issues": {
+          "attendue": "DEMANDED_ACQUIRED_NECESSARY",
+          "sinon": "la retention ne passe pas par l'etat porte a ce pas : resultat a graver, LOCK-001 rouvert"
+        },
+        "learner": "connectome_torch",
+        "matched_sham": null,
+        "min_sep": 0.05,
+        "n_agents": 16,
+        "n_floor": 12,
+        "oracle_min": 0.9,
+        "piece": "recurrent_state",
+        "prior_max": 0.5,
+        "sweep": [
+          {
+            "credit": "supervised",
+            "lr": 0.002,
+            "n_classes": 6,
+            "rank": 16
+          },
+          {
+            "credit": "supervised",
+            "lr": 0.001,
+            "n_classes": 6,
+            "rank": 16
+          }
+        ],
+        "task": "composition_two_step_K6"
+      }
+    },
+    "clause_E19": "toute cellule non NECESSARY passe assert_verdict_invariant_to_optimizer sur les deux pas du sweep ; closure > 2/3 = LR_ARTIFACT, pas un verdict",
+    "cout": "temps mur = MAJORANT mesure SOUS CHARGE (E12, d'autres sessions actives pendant le smoke) ; unites (s/bras, bras full_eval -- ce que run_harness_cell chronometre) : {'A': 6.423283300129697, 'Aprime': 3.3447891999967396, 'B': 17.147354600019753} ; bras nu (informatif) : {'A': 5.137666549999267, 'Aprime': 2.516406250069849, 'B': 16.773577000014484} ; budget PAR CELLULE = 3 x unite x 12 seeds x 5 bras (deja la marge de project_cost, ne PAS remultiplier par safety=3) ; budget_family_s = 81 min ; sans bail kuzu",
+    "design": {
+      "control_family": {
+        "alpha_cell": 0.0025,
+        "alpha_family": 0.05,
+        "cells": 20,
+        "fwer_bound": 0.05,
+        "method": "bonferroni",
+        "reason": null
+      },
+      "cost_estimate": null,
+      "inferred_links": [
+        "analogue_bio"
+      ],
+      "inferred_reason": "l'analogue biologique d'une pièce est une hypothèse portée par le registre (spec §2.6), jamais mesurée ici",
+      "links": {
+        "ablation->chute": "measured",
+        "analogue_bio": "inferred",
+        "dose->acquisition": "measured",
+        "sans_piece->chute": "measured"
+      },
+      "n_independent": 12,
+      "question": "Le harnais à trois conditions rend-il, sur les trois cellules PORTÉES à réponse connue, PARTIAL (A), NOT_NECESSARY (A') et NECESSARY (B) ?",
+      "replication_unit": "seed"
+    },
+    "design_note": "unite = seed, n = 12 (seeds 0-11), 5 bras apparies par seed (A, A0, A2, D, D2), eval du meme sujet, plancher de bruit par second rng",
+    "discrimination": {
+      "AUTRE": "issue non prevue par les 14 branches precedentes : a documenter EXPLICITEMENT avant toute republication de la regle, jamais une cle attrape-tout silencieuse.",
+      "DEMANDED_ACQUIRED_NECESSARY": "la tache demande l'information, le sujet l'acquiert, et la piece est necessaire a la porter : la lecture la plus forte du harnais.",
+      "DEMAND_INCONCLUSIVE": "l'instrument de demande refuse de conclure (puissance, signe inverse, degenerescence) : ni demande ni absence de demande n'est affirmee.",
+      "DEMAND_WITHIN_NOISE": "l'ablation mord mais dans la bande de bruit mesuree : aucune demande detectable au-dessus du plancher.",
+      "INCOMPLET": "un bras ou une eval manque dans la db : le runner n'a pas fini, aucune lecture n'est tentee.",
+      "INCONCLUSIVE_ALIAS": "la garde d'aliasing sur l'ablation d'etat echoue : impossible de distinguer une vraie lesion d'un artefact de vue partagee.",
+      "INCONCLUSIVE_N": "moins de n_floor=12 seeds completes (abandons de cout) : la cellule ne peut conclure, quel que soit le resultat mesure.",
+      "INCONCLUSIVE_SPECIFICITY": "le controle de specificite (distracteur) mord : la chute de l'ablation ciblee pourrait venir d'ailleurs que de l'information retiree.",
+      "INDETERMINE_HARNAIS": "le controle positif de la DV (oracle) echoue, ou la reference lr=0 depasse prior_max : le harnais lui-meme est suspect, aucune lecture de la piece n'est tentee.",
+      "LR_ARTIFACT": "le nul (d'acquisition ou de necessite) disparait au second pas du sweep : artefact du pas de lr, pas une propriete de la piece.",
+      "NOT_ACQUIRED": "le sujet n'acquiert rien au-dessus de sa reference appariee : la question de necessite de la piece ne se pose pas encore.",
+      "NOT_DEMANDED": "l'ablation ne mord pas hors bande de bruit : la tache ne DEMANDE pas cette information au sujet (DECOY informatif).",
+      "PIECE_INCONCLUSIVE": "le contraste de necessite est lui-meme inconclusif (puissance, degenerescence) : ni necessaire ni non-necessaire n'est affirme.",
+      "PIECE_NOT_NECESSARY": "le contraste intact/sans-piece tombe dans la bande de bruit ou ne mord pas : la piece n'est PAS necessaire a cette tache, a cette dose.",
+      "PIECE_PARTIAL": "sans la piece, le sujet chute mais reste au-dessus de la barre d'acquisition : la piece AIDE sans etre seule a porter la capacite."
+    },
+    "dv_primaire": "`hits` par seed et par bras ; `ratio_within` par ablation ; `sep_ref` (mediane A - mediane A0) ; `dose.updates` par bras ; `noise_band` ; `closure` (E19)",
+    "predictions_chiffrees_AVANT_le_run": {
+      "A": "PIECE_PARTIAL : chute >= 3x hors bande, plain ~0,27 > barre ~0,22 (billet publié, results/bilinear_composition.json) ; bit-identite seed 0 (0,9328125 / 0,2703125, connu publié) ; bar_status CEILING_ABOVE_BAR (0,944 = 34/36 forme close, publiée > barre ref+0,05) ; sham DECLARED ({\"bilinear_sham\": True}, registre PIECES) ; bande de bruit MESUREE au smoke [0.990, 1.034] ; e19 ROBUST attendu",
+      "Aprime": "PIECE_NOT_NECESSARY : plain = bilineaire = 1,0 (same_tick supervise 150 ep., MESURE seeds 0-2 au present smoke) ; acquisition ACQUIRED : reference lr=0 MESUREE mediane 0.161 << 1,0 appris",
+      "B": "DEMANDED_ACQUIRED_NECESSARY : intact MESURE au present smoke, mediane 0.928 a lr 0.002 ; state_reset -> ~1/6 (plancher de Bayes K=6, connu) ; sans recurrent_state (feedforward, entraine sans etat porte) -> ~1/6 (meme plancher) ; second pas de lr 0.001 (mediane MESUREE au present smoke 0.656) ; e19 ROBUST attendu"
+    },
+    "question": "Le harnais à trois conditions rend-il, sur les trois cellules PORTÉES à réponse connue, PARTIAL (A), NOT_NECESSARY (A') et NECESSARY (B) ?",
+    "raison_bis": "revue de la tâche 10 : unités non comparables, référence A' non mesurée, plancher de bruit absent, issue négative non nommée, famille de contrôles sous-déclarée (E2/E8/E23)",
+    "regle_de_lecture_continue": "ORDRE IMPOSE : INCOMPLET -> INCONCLUSIVE_N -> INDETERMINE_HARNAIS -> LR_ARTIFACT -> NOT_ACQUIRED -> NOT_DEMANDED -> DEMAND_WITHIN_NOISE -> DEMAND_INCONCLUSIVE -> INCONCLUSIVE_SPECIFICITY -> INCONCLUSIVE_ALIAS -> PIECE_NOT_NECESSARY -> PIECE_INCONCLUSIVE -> PIECE_PARTIAL -> DEMANDED_ACQUIRED_NECESSARY -> AUTRE",
+    "remplace": "HARNESS-R1",
+    "smoke": {
+      "B_medians_by_lr": {
+        "0.0005": 0.30156248807907104,
+        "0.001": 0.65625
+      },
+      "B_ref_median": 0.16249999403953552,
+      "noise": {
+        "A": {
+          "0": 0.996661089184563,
+          "1": 0.9899665805723079,
+          "2": 1.0344827586206897
+        },
+        "Aprime": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0
+        },
+        "B": {
+          "0": 0.9933444638712615,
+          "1": 0.9949748872156333,
+          "2": 0.9965278306677031
+        }
+      },
+      "sweep0_lr": 0.002,
+      "unit_s": {
+        "A": 6.423283300129697,
+        "Aprime": 3.3447891999967396,
+        "B": 17.147354600019753
+      },
+      "unit_s_nude": {
+        "A": 5.137666549999267,
+        "Aprime": 2.516406250069849,
+        "B": 16.773577000014484
+      }
+    }
+  },
+  "seal": "54f2f1de4123d44180001e55a24088d9805279b623f6ba812dc78eb385cd2e91"
+}

@@ -1,0 +1,19 @@
+[règle] HARNESS-R1-ter
+[provenance] {'git_sha': '4657766140f891b8fa7cdac0a8e3f3752c127faf', 'dirty': True, 'rule': 'HARNESS-R1-ter', 'seal': 'e1b66db9a23e441f0f0036cb6a3e411dcf3b999a3c0aaaac5b8e5277ad7f79ca'}
+[design du lanceur] {'question': "Le harnais à trois conditions rend-il, sur les trois cellules PORTÉES à réponse connue, PARTIAL (A), NOT_NECESSARY (A') et NECESSARY (B) ?", 'replication_unit': 'seed', 'n_independent': 12, 'links': {'ablation->chute': 'measured', 'analogue_bio': 'inferred', 'dose->acquisition': 'measured', 'sans_piece->chute': 'measured'}, 'inferred_links': ['analogue_bio'], 'cost_estimate': None, 'inferred_reason': "l'analogue biologique d'une pièce est une hypothèse portée par le registre (spec §2.6), jamais mesurée ici", 'control_family': {'cells': 20, 'alpha_family': 0.05, 'alpha_cell': 0.0025, 'method': 'bonferroni', 'reason': None, 'fwer_bound': 0.05}, 'warning': "1 maillon(s) INFÉRÉ(S) : ['analogue_bio']. Une chaîne causale transporte son signe, pas son amplitude — vérifier que le régime place l'effet au-dessus du bruit, ou mesurer à n réduit."}
+[A] charge machine, AVANT cette cellule : 0 processus python DU PROJET vus (tools.jobs.doctor, hors moi-même) avant cette cellule -- E12, tout wall-clock qui suit est un MAJORANT sous cette charge
+[A] verdict=PIECE_PARTIAL  branch=PIECE_PARTIAL
+      why : la variante sans bilinear chute (3.44x) mais franchit la barre d'acquisition (0.271 > 0.220)
+      -> results/harness_r1_A_0.json
+      cout : unite_scellee(smoke)=6.423s  unite_observee(actual_s/60)=3.521s  projete=1156.2s  reel=211.2s (3.5 min)
+[Aprime] charge machine, AVANT cette cellule : 0 processus python DU PROJET vus (tools.jobs.doctor, hors moi-même) avant cette cellule -- E12, tout wall-clock qui suit est un MAJORANT sous cette charge
+[Aprime] verdict=LR_ARTIFACT  branch=LR_ARTIFACT
+      why : nécessité de la pièce : nul NON robuste au pas -> artefact d'hyperparamètre, PAS un verdict de capacité. L'écart au bras de référence se REFERME de 100.0% sur le balayage (lr=0.002 : écart 0.1336 -> lr=0.02 : écart 0 ; seuil 66.7%). Le bras testé REJOINT sa référence quand on change SEULEMENT le réglage : le réglage est un FACTEUR du verdict. Rejouer, ou refuser le verdict.
+      -> results/harness_r1_Aprime_0.json
+      cout : unite_scellee(smoke)=3.345s  unite_observee(actual_s/60)=1.431s  projete=602.1s  reel=85.9s (1.4 min)
+[B] charge machine, AVANT cette cellule : 0 processus python DU PROJET vus (tools.jobs.doctor, hors moi-même) avant cette cellule -- E12, tout wall-clock qui suit est un MAJORANT sous cette charge
+[B] verdict=INCONCLUSIVE_ALIAS  branch=INCONCLUSIVE_ALIAS
+      why : state_reset : alias FUNCTIONAL_LEAK
+      -> results/harness_r1_B_0.json
+      cout : unite_scellee(smoke)=17.147s  unite_observee(actual_s/60)=8.410s  projete=3086.5s  reel=504.6s (8.4 min)
+EXITCODE:0

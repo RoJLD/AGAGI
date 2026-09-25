@@ -1,0 +1,1369 @@
+{
+  "name": "harness_r1_Aprime",
+  "seed": 0,
+  "commit": "46577661",
+  "git_dirty": true,
+  "data": {
+    "regime": {
+      "task": {
+        "task": "recall_same_tick_K6",
+        "K": 6,
+        "T": 1,
+        "same_tick": true,
+        "kind": "recall",
+        "obs_dim": 59,
+        "slots": {
+          "key": [
+            0,
+            6
+          ],
+          "q": [
+            6,
+            12
+          ],
+          "distractor": [
+            12,
+            18
+          ]
+        }
+      },
+      "learner_name": "connectome_torch",
+      "learner_family": "connectome_torch",
+      "sweep": [
+        {
+          "credit": "supervised",
+          "lr": 0.02,
+          "n_classes": null,
+          "rank": 16
+        },
+        {
+          "credit": "supervised",
+          "lr": 0.002,
+          "n_classes": null,
+          "rank": 16
+        }
+      ],
+      "piece": "bilinear",
+      "without": {
+        "bilinear": false
+      },
+      "n_agents": 16,
+      "episodes": 150,
+      "eval_batches": 40,
+      "seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ],
+      "bayes_floors": {
+        "permute_key": {
+          "declared": 0.16666666666666666,
+          "measured": 0.1650390625,
+          "se": 0.005823093691405702,
+          "certified": true
+        },
+        "permute_query": {
+          "declared": null,
+          "measured": 1.0,
+          "se": 1.5625e-08,
+          "certified": false
+        },
+        "inject_distractor_slot": {
+          "declared": null,
+          "measured": 1.0,
+          "se": 1.5625e-08,
+          "certified": false
+        }
+      },
+      "contract_task": {
+        "bayes_floors": {
+          "permute_key": 0.16666666666666666
+        },
+        "certified": true,
+        "elapsed_ms": 1.2366999872028828
+      },
+      "incapable_ceiling": null,
+      "piece_removed_verified": true
+    },
+    "design": {
+      "question": "HARNESS-R1-bis",
+      "replication_unit": "seed",
+      "n_independent": 12,
+      "links": {
+        "ablation->chute": "measured",
+        "dose->acquisition": "measured",
+        "sans_piece->chute": "measured",
+        "analogue_bio": "inferred"
+      },
+      "inferred_links": [
+        "analogue_bio"
+      ],
+      "cost_estimate": 602.0620559994131,
+      "inferred_reason": "l'analogue biologique d'une pi\u00e8ce est une hypoth\u00e8se port\u00e9e par le registre (spec \u00a72.6), jamais mesur\u00e9e ici",
+      "control_family": {
+        "cells": 6,
+        "alpha_family": 0.05,
+        "alpha_cell": 0.008333333333333333,
+        "method": "bonferroni",
+        "reason": null,
+        "fwer_bound": 0.05
+      },
+      "warning": "1 maillon(s) INF\u00c9R\u00c9(S) : ['analogue_bio']. Une cha\u00eene causale transporte son signe, pas son amplitude \u2014 v\u00e9rifier que le r\u00e9gime place l'effet au-dessus du bruit, ou mesurer \u00e0 n r\u00e9duit."
+    },
+    "control_family": {
+      "cells": 6,
+      "alpha_family": 0.05,
+      "alpha_cell": 0.008333333333333333,
+      "method": "bonferroni",
+      "reason": null,
+      "fwer_bound": 0.05
+    },
+    "preregistration": {
+      "name": "HARNESS-R1-bis",
+      "seal": "54f2f1de4123d44180001e55a24088d9805279b623f6ba812dc78eb385cd2e91",
+      "rule_path": [
+        "cellules",
+        "Aprime"
+      ],
+      "rule": {
+        "ablations": [
+          {
+            "must_bite": true,
+            "name": "permute_key",
+            "site": "input"
+          },
+          {
+            "must_bite": false,
+            "name": "permute_query",
+            "site": "input"
+          },
+          {
+            "must_bite": false,
+            "name": "inject_distractor_slot",
+            "site": "input"
+          }
+        ],
+        "alive_margin": 0.05,
+        "bayes_floors": {
+          "permute_key": 0.16666666666666666
+        },
+        "budget_s": 602.0620559994131,
+        "collapse_factor": 1.5,
+        "control_family": {
+          "alpha_cell": 0.008333333333333333,
+          "alpha_family": 0.05,
+          "cells": 6,
+          "fwer_bound": 0.05,
+          "method": "bonferroni",
+          "reason": null
+        },
+        "episodes": 150,
+        "eval_batches": 40,
+        "incapable_ceiling": null,
+        "issues": {
+          "attendue": "PIECE_NOT_NECESSARY",
+          "sinon": "le bilineaire modifie le rappel same_tick : resultat a graver"
+        },
+        "learner": "connectome_torch",
+        "matched_sham": {
+          "bilinear_sham": true
+        },
+        "min_sep": 0.05,
+        "n_agents": 16,
+        "n_floor": 12,
+        "oracle_min": 0.9,
+        "piece": "bilinear",
+        "prior_max": 0.5,
+        "sweep": [
+          {
+            "credit": "supervised",
+            "lr": 0.02,
+            "n_classes": null,
+            "rank": 16
+          },
+          {
+            "credit": "supervised",
+            "lr": 0.002,
+            "n_classes": null,
+            "rank": 16
+          }
+        ],
+        "task": "recall_same_tick_K6"
+      }
+    },
+    "provenance": {
+      "git_sha": "4657766140f891b8fa7cdac0a8e3f3752c127faf",
+      "dirty": true,
+      "rule": "HARNESS-R1-bis",
+      "seal": "54f2f1de4123d44180001e55a24088d9805279b623f6ba812dc78eb385cd2e91"
+    },
+    "db": {
+      "seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ],
+      "arms": {
+        "A": {
+          "last": {
+            "0": 1.0,
+            "1": 1.0,
+            "2": 1.0,
+            "3": 1.0,
+            "4": 1.0,
+            "5": 1.0,
+            "6": 1.0,
+            "7": 1.0,
+            "8": 1.0,
+            "9": 1.0,
+            "10": 1.0,
+            "11": 1.0
+          },
+          "dose": {
+            "0": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 4570.525520026684,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "1": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 4564.837977766991,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "2": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 4555.8364797234535,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "3": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 4555.134204924107,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "4": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 4568.386199593544,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "5": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 4562.369023799896,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "6": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 4576.1299857497215,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "7": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 4558.056701302528,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "8": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 4581.334110438824,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "9": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 4596.004758119583,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "10": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 4577.17657661438,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "11": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 4626.573127150536,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            }
+          },
+          "first": {
+            "0": 0.2421875,
+            "1": 0.14374999701976776,
+            "2": 0.1953125,
+            "3": 0.16249999403953552,
+            "4": 0.125,
+            "5": 0.2562499940395355,
+            "6": 0.21875,
+            "7": 0.15468749403953552,
+            "8": 0.18437500298023224,
+            "9": 0.09843750298023224,
+            "10": 0.17031249403953552,
+            "11": 0.13437500596046448
+          },
+          "mid": {
+            "0": 1.0,
+            "1": 1.0,
+            "2": 1.0,
+            "3": 1.0,
+            "4": 1.0,
+            "5": 1.0,
+            "6": 1.0,
+            "7": 1.0,
+            "8": 1.0,
+            "9": 1.0,
+            "10": 1.0,
+            "11": 1.0
+          }
+        },
+        "A0": {
+          "last": {
+            "0": 0.25312501192092896,
+            "1": 0.14531250298023224,
+            "2": 0.16093750298023224,
+            "3": 0.10312499850988388,
+            "4": 0.14218750596046448,
+            "5": 0.2515625059604645,
+            "6": 0.20937499403953552,
+            "7": 0.12812499701976776,
+            "8": 0.20468750596046448,
+            "9": 0.10468749701976776,
+            "10": 0.14218750596046448,
+            "11": 0.12812499701976776
+          },
+          "dose": {
+            "0": {
+              "calls": 150,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "1": {
+              "calls": 150,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "2": {
+              "calls": 150,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "3": {
+              "calls": 150,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "4": {
+              "calls": 150,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "5": {
+              "calls": 150,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "6": {
+              "calls": 150,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "7": {
+              "calls": 150,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "8": {
+              "calls": 150,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "9": {
+              "calls": 150,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "10": {
+              "calls": 150,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "11": {
+              "calls": 150,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            }
+          }
+        },
+        "A2": {
+          "last": {
+            "0": 0.9750000238418579,
+            "1": 0.971875011920929,
+            "2": 1.0,
+            "3": 0.9906250238418579,
+            "4": 1.0,
+            "5": 0.9828125238418579,
+            "6": 0.987500011920929,
+            "7": 0.9750000238418579,
+            "8": 0.9906250238418579,
+            "9": 0.9859374761581421,
+            "10": 0.987500011920929,
+            "11": 0.9859374761581421
+          },
+          "dose": {
+            "0": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 896.914955496788,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "1": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 884.0289229154587,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "2": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 901.3893628120422,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "3": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 894.329098880291,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "4": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 895.2932017445564,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "5": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 890.8821869492531,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "6": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 891.3839580416679,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "7": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 898.9042298793793,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "8": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 892.2427303791046,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "9": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 892.2320230007172,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "10": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 886.472632586956,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "11": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 889.6027901768684,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            }
+          }
+        },
+        "D": {
+          "last": {
+            "0": 1.0,
+            "1": 1.0,
+            "2": 1.0,
+            "3": 1.0,
+            "4": 1.0,
+            "5": 1.0,
+            "6": 1.0,
+            "7": 1.0,
+            "8": 1.0,
+            "9": 1.0,
+            "10": 1.0,
+            "11": 1.0
+          },
+          "dose": {
+            "0": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 1124.7312188148499,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "1": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 1131.9756836891174,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "2": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 1125.8152241706848,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "3": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 1129.1679787635803,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "4": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 1129.5677599906921,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "5": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 1123.709128856659,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "6": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 1128.2317242622375,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "7": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 1125.7069725990295,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "8": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 1127.6046285629272,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "9": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 1131.2088994979858,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "10": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 1128.3934106826782,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "11": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 1127.4132132530212,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            }
+          }
+        },
+        "D2": {
+          "last": {
+            "0": 0.8531249761581421,
+            "1": 0.754687488079071,
+            "2": 0.8500000238418579,
+            "3": 0.8578125238418579,
+            "4": 0.885937511920929,
+            "5": 0.9296875,
+            "6": 0.8531249761581421,
+            "7": 0.8671875,
+            "8": 0.8656250238418579,
+            "9": 0.8515625,
+            "10": 0.778124988079071,
+            "11": 0.8374999761581421
+          },
+          "dose": {
+            "0": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 113.90897953510284,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "1": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 111.63451737165451,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "2": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 112.05216580629349,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "3": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 112.80476820468903,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "4": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 113.4345852136612,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "5": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 112.75586593151093,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "6": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 111.76363813877106,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "7": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 112.90021061897278,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "8": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 111.93819916248322,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "9": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 112.10331624746323,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "10": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 112.3301545381546,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "11": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 112.26741218566895,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            }
+          }
+        }
+      },
+      "eval": {
+        "noop": {
+          "A": {
+            "0": 1.0,
+            "1": 1.0,
+            "2": 1.0,
+            "3": 1.0,
+            "4": 1.0,
+            "5": 1.0,
+            "6": 1.0,
+            "7": 1.0,
+            "8": 1.0,
+            "9": 1.0,
+            "10": 1.0,
+            "11": 1.0
+          },
+          "A0": {
+            "0": 0.234375,
+            "1": 0.16562500596046448,
+            "2": 0.15312500298023224,
+            "3": 0.13750000298023224,
+            "4": 0.15156249701976776,
+            "5": 0.23906250298023224,
+            "6": 0.20156249403953552,
+            "7": 0.15937499701976776,
+            "8": 0.1796875,
+            "9": 0.10625000298023224,
+            "10": 0.16875000298023224,
+            "11": 0.13124999403953552
+          },
+          "A2": {
+            "0": 0.984375,
+            "1": 0.9781249761581421,
+            "2": 1.0,
+            "3": 0.9921875,
+            "4": 1.0,
+            "5": 0.9781249761581421,
+            "6": 0.987500011920929,
+            "7": 0.9703124761581421,
+            "8": 0.9937499761581421,
+            "9": 0.9921875,
+            "10": 0.987500011920929,
+            "11": 0.984375
+          },
+          "D": {
+            "0": 1.0,
+            "1": 1.0,
+            "2": 1.0,
+            "3": 1.0,
+            "4": 1.0,
+            "5": 1.0,
+            "6": 1.0,
+            "7": 1.0,
+            "8": 1.0,
+            "9": 1.0,
+            "10": 1.0,
+            "11": 1.0
+          },
+          "D2": {
+            "0": 0.856249988079071,
+            "1": 0.7593749761581421,
+            "2": 0.859375,
+            "3": 0.846875011920929,
+            "4": 0.8500000238418579,
+            "5": 0.903124988079071,
+            "6": 0.846875011920929,
+            "7": 0.854687511920929,
+            "8": 0.859375,
+            "9": 0.8500000238418579,
+            "10": 0.815625011920929,
+            "11": 0.8671875
+          }
+        },
+        "oracle": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0,
+          "6": 1.0,
+          "7": 1.0,
+          "8": 1.0,
+          "9": 1.0,
+          "10": 1.0,
+          "11": 1.0
+        },
+        "ablated": {
+          "permute_key": {
+            "0": 0.21875,
+            "1": 0.22499999403953552,
+            "2": 0.22499999403953552,
+            "3": 0.2421875,
+            "4": 0.23281249403953552,
+            "5": 0.24375000596046448,
+            "6": 0.20937499403953552,
+            "7": 0.2109375,
+            "8": 0.19687500596046448,
+            "9": 0.2109375,
+            "10": 0.20000000298023224,
+            "11": 0.21718749403953552
+          },
+          "permute_query": {
+            "0": 1.0,
+            "1": 1.0,
+            "2": 1.0,
+            "3": 1.0,
+            "4": 1.0,
+            "5": 1.0,
+            "6": 1.0,
+            "7": 1.0,
+            "8": 1.0,
+            "9": 1.0,
+            "10": 1.0,
+            "11": 1.0
+          },
+          "inject_distractor_slot": {
+            "0": 1.0,
+            "1": 1.0,
+            "2": 1.0,
+            "3": 1.0,
+            "4": 1.0,
+            "5": 1.0,
+            "6": 1.0,
+            "7": 1.0,
+            "8": 1.0,
+            "9": 1.0,
+            "10": 1.0,
+            "11": 1.0
+          }
+        },
+        "control": {}
+      },
+      "abandoned": {
+        "A": [],
+        "A0": [],
+        "A2": [],
+        "D": [],
+        "D2": []
+      },
+      "regime": {
+        "task": {
+          "task": "recall_same_tick_K6",
+          "K": 6,
+          "T": 1,
+          "same_tick": true,
+          "kind": "recall",
+          "obs_dim": 59,
+          "slots": {
+            "key": [
+              0,
+              6
+            ],
+            "q": [
+              6,
+              12
+            ],
+            "distractor": [
+              12,
+              18
+            ]
+          }
+        },
+        "learner_name": "connectome_torch",
+        "learner_family": "connectome_torch",
+        "sweep": [
+          {
+            "credit": "supervised",
+            "lr": 0.02,
+            "n_classes": null,
+            "rank": 16
+          },
+          {
+            "credit": "supervised",
+            "lr": 0.002,
+            "n_classes": null,
+            "rank": 16
+          }
+        ],
+        "piece": "bilinear",
+        "without": {
+          "bilinear": false
+        },
+        "n_agents": 16,
+        "episodes": 150,
+        "eval_batches": 40,
+        "seeds": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11
+        ],
+        "bayes_floors": {
+          "permute_key": {
+            "declared": 0.16666666666666666,
+            "measured": 0.1650390625,
+            "se": 0.005823093691405702,
+            "certified": true
+          },
+          "permute_query": {
+            "declared": null,
+            "measured": 1.0,
+            "se": 1.5625e-08,
+            "certified": false
+          },
+          "inject_distractor_slot": {
+            "declared": null,
+            "measured": 1.0,
+            "se": 1.5625e-08,
+            "certified": false
+          }
+        },
+        "contract_task": {
+          "bayes_floors": {
+            "permute_key": 0.16666666666666666
+          },
+          "certified": true,
+          "elapsed_ms": 1.2366999872028828
+        },
+        "incapable_ceiling": null,
+        "piece_removed_verified": true
+      }
+    },
+    "verdict": {
+      "verdict": "LR_ARTIFACT",
+      "branch": "LR_ARTIFACT",
+      "why": "n\u00e9cessit\u00e9 de la pi\u00e8ce : nul NON robuste au pas -> artefact d'hyperparam\u00e8tre, PAS un verdict de capacit\u00e9. L'\u00e9cart au bras de r\u00e9f\u00e9rence se REFERME de 100.0% sur le balayage (lr=0.002 : \u00e9cart 0.1336 -> lr=0.02 : \u00e9cart 0 ; seuil 66.7%). Le bras test\u00e9 REJOINT sa r\u00e9f\u00e9rence quand on change SEULEMENT le r\u00e9glage : le r\u00e9glage est un FACTEUR du verdict. Rejouer, ou refuser le verdict.",
+      "demand": null,
+      "noise_floor": {
+        "A": {
+          "band": [
+            1.0,
+            1.0
+          ],
+          "per_seed": {
+            "0": 1.0,
+            "1": 1.0,
+            "2": 1.0,
+            "3": 1.0,
+            "4": 1.0,
+            "5": 1.0,
+            "6": 1.0,
+            "7": 1.0,
+            "8": 1.0,
+            "9": 1.0,
+            "10": 1.0,
+            "11": 1.0
+          }
+        },
+        "A0": {
+          "band": [
+            0.7499999729069803,
+            1.1391304679538892
+          ],
+          "per_seed": {
+            "0": 1.0800000508626302,
+            "1": 0.8773584769857703,
+            "2": 1.0510204071702682,
+            "3": 0.7499999729069803,
+            "4": 0.9381443876707802,
+            "5": 1.052287593513843,
+            "6": 1.038759691068655,
+            "7": 0.803921564960883,
+            "8": 1.1391304679538892,
+            "9": 0.9852940619610601,
+            "10": 0.8425926130331426,
+            "11": 0.9761904978157451
+          }
+        },
+        "A2": {
+          "band": [
+            0.9904762146964906,
+            1.0048309671357372
+          ],
+          "per_seed": {
+            "0": 0.9904762146964906,
+            "1": 0.9936102600490158,
+            "2": 1.0,
+            "3": 0.9984252208799828,
+            "4": 1.0,
+            "5": 1.0047923811353099,
+            "6": 1.0,
+            "7": 1.0048309671357372,
+            "8": 0.9968553938201183,
+            "9": 0.9937007633719858,
+            "10": 1.0,
+            "11": 1.0015872773670016
+          }
+        },
+        "D": {
+          "band": [
+            1.0,
+            1.0
+          ],
+          "per_seed": {
+            "0": 1.0,
+            "1": 1.0,
+            "2": 1.0,
+            "3": 1.0,
+            "4": 1.0,
+            "5": 1.0,
+            "6": 1.0,
+            "7": 1.0,
+            "8": 1.0,
+            "9": 1.0,
+            "10": 1.0,
+            "11": 1.0
+          }
+        },
+        "D2": {
+          "band": [
+            0.954022959946337,
+            1.0422793965541783
+          ],
+          "per_seed": {
+            "0": 0.9963503509904396,
+            "1": 0.9938271759983636,
+            "2": 0.9890909368341619,
+            "3": 1.0129151430458667,
+            "4": 1.0422793965541783,
+            "5": 1.029411778293752,
+            "6": 1.0073800314677328,
+            "7": 1.0146252143675025,
+            "8": 1.0072727550159801,
+            "9": 1.0018382071933127,
+            "10": 0.954022959946337,
+            "11": 0.9657657382724522
+          }
+        }
+      },
+      "acquisition": {
+        "bar": 0.19375000447034835,
+        "reference_last": 0.14375000447034836,
+        "learner_last": 1.0,
+        "learner_first": 0.16640624403953552,
+        "per_seed_above_ref": "12/12",
+        "saturation": "PLATEAU",
+        "bar_status": "CEILING_UNVALIDATED",
+        "representational_ceiling_above_bar": null,
+        "dose": {
+          "A": {
+            "0": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 4570.525520026684,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "1": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 4564.837977766991,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "2": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 4555.8364797234535,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "3": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 4555.134204924107,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "4": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 4568.386199593544,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "5": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 4562.369023799896,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "6": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 4576.1299857497215,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "7": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 4558.056701302528,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "8": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 4581.334110438824,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "9": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 4596.004758119583,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "10": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 4577.17657661438,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "11": {
+              "calls": 150,
+              "updates": 150,
+              "dparam_abs_sum": 4626.573127150536,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            }
+          },
+          "A0": {
+            "0": {
+              "calls": 150,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "1": {
+              "calls": 150,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "2": {
+              "calls": 150,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "3": {
+              "calls": 150,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "4": {
+              "calls": 150,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "5": {
+              "calls": 150,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "6": {
+              "calls": 150,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "7": {
+              "calls": 150,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "8": {
+              "calls": 150,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "9": {
+              "calls": 150,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "10": {
+              "calls": 150,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            },
+            "11": {
+              "calls": 150,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 2400,
+              "unit": "gradient_updates"
+            }
+          }
+        },
+        "raw": {
+          "learner_first": 0.16640624403953552,
+          "learner_last": 1.0,
+          "reference_last": 0.14375000447034836,
+          "oracle_last": 1.0,
+          "sep": 0.8562499955296516,
+          "gain": 0.8335937559604645,
+          "bar": 0.19375000447034835,
+          "min_sep": 0.05,
+          "min_gain": 0.05,
+          "verdict": "LEARNER_LEARNS",
+          "onset": "during_run",
+          "why": "sep 0.856 au-dessus de la reference, gain 0.834 pendant le run"
+        },
+        "verdict": "ACQUIRED",
+        "why": null
+      },
+      "necessity": {
+        "bilinear": {
+          "verdict": "NOT_NECESSARY",
+          "why": "X_DECOY (ratio 1.000) : aucun effet de l'ablation d\u00e9tect\u00e9",
+          "ratio": 1.0,
+          "in_noise_band": true,
+          "med_without": 1.0,
+          "per_seed_diff": [
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "raw": {
+            "ratio": 1.0,
+            "n": 12,
+            "collapse": false,
+            "decoy": true,
+            "corroborant": null,
+            "verdict": "X_DECOY",
+            "degenerate": false,
+            "why": null,
+            "censored": false,
+            "inverted": false,
+            "n_intact": 12,
+            "n_ablated": 12,
+            "denominateur_eteint": false,
+            "bras_vide": false,
+            "ratio_est_une_borne": false
+          },
+          "sham": "DECLARED",
+          "without_clears_bar": true,
+          "intervention_verified": true
+        }
+      },
+      "e19": {
+        "lrs": [
+          0.02,
+          0.002
+        ],
+        "gaps_by_lr": {
+          "0.02": 0.0,
+          "0.002": 0.13359376788139343
+        },
+        "closure": 1.0,
+        "status": "LR_ARTIFACT",
+        "condition": "necessity",
+        "resolution": 0.05,
+        "why": "n\u00e9cessit\u00e9 de la pi\u00e8ce : nul NON robuste au pas -> artefact d'hyperparam\u00e8tre, PAS un verdict de capacit\u00e9. L'\u00e9cart au bras de r\u00e9f\u00e9rence se REFERME de 100.0% sur le balayage (lr=0.002 : \u00e9cart 0.1336 -> lr=0.02 : \u00e9cart 0 ; seuil 66.7%). Le bras test\u00e9 REJOINT sa r\u00e9f\u00e9rence quand on change SEULEMENT le r\u00e9glage : le r\u00e9glage est un FACTEUR du verdict. Rejouer, ou refuser le verdict."
+      }
+    },
+    "cost": {
+      "unit_s_measured": null,
+      "unit_s_given": 3.3447891999967396,
+      "projected_s": 602.0620559994131,
+      "actual_s": 85.94720220007002,
+      "machine_load_note": "charge machine a noter dans le record (E12)"
+    }
+  }
+}

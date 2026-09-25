@@ -1,0 +1,1460 @@
+{
+  "name": "harness_r1_A",
+  "seed": 0,
+  "commit": "46577661",
+  "git_dirty": true,
+  "data": {
+    "regime": {
+      "task": {
+        "task": "composition_same_tick_K6",
+        "K": 6,
+        "T": 1,
+        "same_tick": true,
+        "kind": "composition",
+        "obs_dim": 59,
+        "slots": {
+          "key": [
+            0,
+            6
+          ],
+          "q": [
+            6,
+            12
+          ],
+          "distractor": [
+            12,
+            18
+          ]
+        }
+      },
+      "learner_name": "connectome_torch",
+      "learner_family": "connectome_torch",
+      "sweep": [
+        {
+          "credit": "supervised",
+          "lr": 0.02,
+          "n_classes": null,
+          "rank": 16
+        },
+        {
+          "credit": "supervised",
+          "lr": 0.002,
+          "n_classes": null,
+          "rank": 16
+        }
+      ],
+      "piece": "bilinear",
+      "without": {
+        "bilinear": false
+      },
+      "n_agents": 16,
+      "episodes": 300,
+      "eval_batches": 40,
+      "seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ],
+      "bayes_floors": {
+        "permute_key": {
+          "declared": 0.16666666666666666,
+          "measured": 0.1650390625,
+          "se": 0.005823093691405702,
+          "certified": true
+        },
+        "permute_query": {
+          "declared": 0.16666666666666666,
+          "measured": 0.176513671875,
+          "se": 0.005823093691405702,
+          "certified": true
+        },
+        "inject_distractor_slot": {
+          "declared": null,
+          "measured": 1.0,
+          "se": 1.5625e-08,
+          "certified": false
+        }
+      },
+      "contract_task": {
+        "bayes_floors": {
+          "permute_key": 0.16666666666666666,
+          "permute_query": 0.16666666666666666
+        },
+        "certified": true,
+        "elapsed_ms": 3.1951998826116323
+      },
+      "incapable_ceiling": {
+        "proven": false,
+        "provenance": "forme close de backend_torch._step a H_in=0 (logit_j = sigmoid(W[j,j])*tanh(W[key,j]+W[K+q,j])) ; MINORANT 34/36 par charniere a marge FIXE, float64, victoire STRICTE ; re-verifie SANS autograd (python pur) ET IN SITU dans le vrai TorchPopulationModel (34/36 aux deux). ATTENTION : c est un MINORANT qui MONTE avec l effort -- 29/36, 34/36 et 36/36 selon trois chercheurs independants du meme jour. Il ne fonde AUCUN << le substrat ne peut pas >> (E19 occ.4) :  MINORANT, jamais PROUVE.",
+        "value": 0.9444444444444444
+      },
+      "piece_removed_verified": true
+    },
+    "design": {
+      "question": "HARNESS-R1-ter",
+      "replication_unit": "seed",
+      "n_independent": 12,
+      "links": {
+        "ablation->chute": "measured",
+        "dose->acquisition": "measured",
+        "sans_piece->chute": "measured",
+        "analogue_bio": "inferred"
+      },
+      "inferred_links": [
+        "analogue_bio"
+      ],
+      "cost_estimate": 1156.1909940233454,
+      "inferred_reason": "l'analogue biologique d'une pi\u00e8ce est une hypoth\u00e8se port\u00e9e par le registre (spec \u00a72.6), jamais mesur\u00e9e ici",
+      "control_family": {
+        "cells": 6,
+        "alpha_family": 0.05,
+        "alpha_cell": 0.008333333333333333,
+        "method": "bonferroni",
+        "reason": null,
+        "fwer_bound": 0.05
+      },
+      "warning": "1 maillon(s) INF\u00c9R\u00c9(S) : ['analogue_bio']. Une cha\u00eene causale transporte son signe, pas son amplitude \u2014 v\u00e9rifier que le r\u00e9gime place l'effet au-dessus du bruit, ou mesurer \u00e0 n r\u00e9duit."
+    },
+    "control_family": {
+      "cells": 6,
+      "alpha_family": 0.05,
+      "alpha_cell": 0.008333333333333333,
+      "method": "bonferroni",
+      "reason": null,
+      "fwer_bound": 0.05
+    },
+    "preregistration": {
+      "name": "HARNESS-R1-ter",
+      "seal": "e1b66db9a23e441f0f0036cb6a3e411dcf3b999a3c0aaaac5b8e5277ad7f79ca",
+      "rule_path": [
+        "cellules",
+        "A"
+      ],
+      "rule": {
+        "ablations": [
+          {
+            "must_bite": true,
+            "name": "permute_key",
+            "site": "input"
+          },
+          {
+            "must_bite": true,
+            "name": "permute_query",
+            "site": "input"
+          },
+          {
+            "must_bite": false,
+            "name": "inject_distractor_slot",
+            "site": "input"
+          }
+        ],
+        "alive_margin": 0.05,
+        "bayes_floors": {
+          "permute_key": 0.16666666666666666,
+          "permute_query": 0.16666666666666666
+        },
+        "budget_s": 3468.5729820700362,
+        "collapse_factor": 1.5,
+        "control_family": {
+          "alpha_cell": 0.008333333333333333,
+          "alpha_family": 0.05,
+          "cells": 6,
+          "fwer_bound": 0.05,
+          "method": "bonferroni",
+          "reason": null
+        },
+        "episodes": 300,
+        "eval_batches": 40,
+        "incapable_ceiling": {
+          "proven": false,
+          "provenance": "forme close de backend_torch._step a H_in=0 (logit_j = sigmoid(W[j,j])*tanh(W[key,j]+W[K+q,j])) ; MINORANT 34/36 par charniere a marge FIXE, float64, victoire STRICTE ; re-verifie SANS autograd (python pur) ET IN SITU dans le vrai TorchPopulationModel (34/36 aux deux). ATTENTION : c est un MINORANT qui MONTE avec l effort -- 29/36, 34/36 et 36/36 selon trois chercheurs independants du meme jour. Il ne fonde AUCUN << le substrat ne peut pas >> (E19 occ.4) :  MINORANT, jamais PROUVE.",
+          "value": 0.9444444444444444
+        },
+        "issues": {
+          "attendue": "PIECE_PARTIAL",
+          "sinon": "soit la bit-identite est perdue (harnais), soit le regime differe (E19/E8) : INDETERMINE, pas un resultat"
+        },
+        "learner": "connectome_torch",
+        "matched_sham": {
+          "bilinear_sham": true
+        },
+        "min_sep": 0.05,
+        "n_agents": 16,
+        "n_floor": 12,
+        "oracle_min": 0.9,
+        "piece": "bilinear",
+        "prior_max": 0.5,
+        "sweep": [
+          {
+            "credit": "supervised",
+            "lr": 0.02,
+            "n_classes": null,
+            "rank": 16
+          },
+          {
+            "credit": "supervised",
+            "lr": 0.002,
+            "n_classes": null,
+            "rank": 16
+          }
+        ],
+        "task": "composition_same_tick_K6"
+      }
+    },
+    "provenance": {
+      "git_sha": "4657766140f891b8fa7cdac0a8e3f3752c127faf",
+      "dirty": true,
+      "rule": "HARNESS-R1-ter",
+      "seal": "e1b66db9a23e441f0f0036cb6a3e411dcf3b999a3c0aaaac5b8e5277ad7f79ca"
+    },
+    "db": {
+      "seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ],
+      "arms": {
+        "A": {
+          "last": {
+            "0": 0.932812511920929,
+            "1": 0.925000011920929,
+            "2": 0.9375,
+            "3": 0.901562511920929,
+            "4": 0.890625,
+            "5": 0.925000011920929,
+            "6": 0.9375,
+            "7": 0.9312499761581421,
+            "8": 0.9468749761581421,
+            "9": 0.9234374761581421,
+            "10": 0.942187488079071,
+            "11": 0.96875
+          },
+          "dose": {
+            "0": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 10793.570553779602,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "1": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 10739.793929815292,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "2": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 11026.657061815262,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "3": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 10583.877575397491,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "4": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 10799.850482106209,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "5": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 10653.986238837242,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "6": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 10686.346269845963,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "7": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 10867.230679512024,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "8": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 10924.513369560242,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "9": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 10830.619951367378,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "10": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 11018.012105703354,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "11": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 10823.154688954353,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            }
+          },
+          "first": {
+            "0": 0.17499999701976776,
+            "1": 0.1640625,
+            "2": 0.15468749403953552,
+            "3": 0.1796875,
+            "4": 0.17031249403953552,
+            "5": 0.16093750298023224,
+            "6": 0.18437500298023224,
+            "7": 0.18281249701976776,
+            "8": 0.18437500298023224,
+            "9": 0.12968750298023224,
+            "10": 0.16718749701976776,
+            "11": 0.19374999403953552
+          },
+          "mid": {
+            "0": 0.801562488079071,
+            "1": 0.785937488079071,
+            "2": 0.7437499761581421,
+            "3": 0.768750011920929,
+            "4": 0.7328125238418579,
+            "5": 0.7734375,
+            "6": 0.7796875238418579,
+            "7": 0.807812511920929,
+            "8": 0.778124988079071,
+            "9": 0.784375011920929,
+            "10": 0.8062499761581421,
+            "11": 0.7906249761581421
+          }
+        },
+        "A0": {
+          "last": {
+            "0": 0.16875000298023224,
+            "1": 0.19843749701976776,
+            "2": 0.1796875,
+            "3": 0.16093750298023224,
+            "4": 0.18437500298023224,
+            "5": 0.1640625,
+            "6": 0.17343750596046448,
+            "7": 0.16249999403953552,
+            "8": 0.17343750596046448,
+            "9": 0.17031249403953552,
+            "10": 0.16718749701976776,
+            "11": 0.16718749701976776
+          },
+          "dose": {
+            "0": {
+              "calls": 300,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "1": {
+              "calls": 300,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "2": {
+              "calls": 300,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "3": {
+              "calls": 300,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "4": {
+              "calls": 300,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "5": {
+              "calls": 300,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "6": {
+              "calls": 300,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "7": {
+              "calls": 300,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "8": {
+              "calls": 300,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "9": {
+              "calls": 300,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "10": {
+              "calls": 300,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "11": {
+              "calls": 300,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            }
+          }
+        },
+        "A2": {
+          "last": {
+            "0": 0.375,
+            "1": 0.43437498807907104,
+            "2": 0.41718751192092896,
+            "3": 0.44843751192092896,
+            "4": 0.4046874940395355,
+            "5": 0.4375,
+            "6": 0.3515625,
+            "7": 0.40312498807907104,
+            "8": 0.4078125059604645,
+            "9": 0.4234375059604645,
+            "10": 0.3843750059604645,
+            "11": 0.4078125059604645
+          },
+          "dose": {
+            "0": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 1736.8317812681198,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "1": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 1744.0986129641533,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "2": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 1741.7050989866257,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "3": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 1746.9939844608307,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "4": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 1755.2323802113533,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "5": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 1750.0197620391846,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "6": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 1760.1784164905548,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "7": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 1735.1206489801407,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "8": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 1725.5639508366585,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "9": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 1743.414625287056,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "10": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 1743.8471205234528,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "11": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 1746.254880964756,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            }
+          }
+        },
+        "D": {
+          "last": {
+            "0": 0.27031248807907104,
+            "1": 0.26875001192092896,
+            "2": 0.25312501192092896,
+            "3": 0.27812498807907104,
+            "4": 0.2750000059604645,
+            "5": 0.27656251192092896,
+            "6": 0.23281249403953552,
+            "7": 0.3031249940395355,
+            "8": 0.2718749940395355,
+            "9": 0.2796874940395355,
+            "10": 0.26093751192092896,
+            "11": 0.2671875059604645
+          },
+          "dose": {
+            "0": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 1855.230333328247,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "1": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 1871.3086156845093,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "2": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 1865.392029285431,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "3": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 1862.556167125702,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "4": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 1868.472852230072,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "5": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 1871.9578404426575,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "6": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 1872.892680644989,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "7": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 1857.1968579292297,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "8": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 1858.8715081214905,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "9": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 1856.3950114250183,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "10": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 1875.2763109207153,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "11": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 1849.2872014045715,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            }
+          }
+        },
+        "D2": {
+          "last": {
+            "0": 0.19062499701976776,
+            "1": 0.17812499403953552,
+            "2": 0.19062499701976776,
+            "3": 0.16249999403953552,
+            "4": 0.17499999701976776,
+            "5": 0.19062499701976776,
+            "6": 0.14218750596046448,
+            "7": 0.19374999403953552,
+            "8": 0.18281249701976776,
+            "9": 0.19687500596046448,
+            "10": 0.17656250298023224,
+            "11": 0.15312500298023224
+          },
+          "dose": {
+            "0": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 248.96073824167252,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "1": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 249.27127021551132,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "2": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 250.40498089790344,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "3": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 249.53837037086487,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "4": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 250.3390390276909,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "5": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 248.76480489969254,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "6": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 249.59732121229172,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "7": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 247.36101651191711,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "8": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 248.49442726373672,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "9": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 248.4024160504341,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "10": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 250.73566204309464,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "11": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 248.306438267231,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            }
+          }
+        }
+      },
+      "eval": {
+        "noop": {
+          "A": {
+            "0": 0.9359375238418579,
+            "1": 0.934374988079071,
+            "2": 0.90625,
+            "3": 0.934374988079071,
+            "4": 0.885937511920929,
+            "5": 0.925000011920929,
+            "6": 0.925000011920929,
+            "7": 0.9281250238418579,
+            "8": 0.948437511920929,
+            "9": 0.948437511920929,
+            "10": 0.9468749761581421,
+            "11": 0.948437511920929
+          },
+          "A0": {
+            "0": 0.16249999403953552,
+            "1": 0.18593749403953552,
+            "2": 0.18593749403953552,
+            "3": 0.1640625,
+            "4": 0.18281249701976776,
+            "5": 0.15312500298023224,
+            "6": 0.19843749701976776,
+            "7": 0.16875000298023224,
+            "8": 0.1953125,
+            "9": 0.15625,
+            "10": 0.15312500298023224,
+            "11": 0.18593749403953552
+          },
+          "A2": {
+            "0": 0.39375001192092896,
+            "1": 0.4078125059604645,
+            "2": 0.4359374940395355,
+            "3": 0.4437499940395355,
+            "4": 0.4156250059604645,
+            "5": 0.41718751192092896,
+            "6": 0.39375001192092896,
+            "7": 0.3671875,
+            "8": 0.39375001192092896,
+            "9": 0.421875,
+            "10": 0.3890624940395355,
+            "11": 0.44843751192092896
+          },
+          "D": {
+            "0": 0.2578125,
+            "1": 0.28437501192092896,
+            "2": 0.23593750596046448,
+            "3": 0.2640624940395355,
+            "4": 0.29374998807907104,
+            "5": 0.2734375,
+            "6": 0.25312501192092896,
+            "7": 0.2562499940395355,
+            "8": 0.25468748807907104,
+            "9": 0.2718749940395355,
+            "10": 0.2421875,
+            "11": 0.296875
+          },
+          "D2": {
+            "0": 0.18906250596046448,
+            "1": 0.1953125,
+            "2": 0.20781250298023224,
+            "3": 0.16562500596046448,
+            "4": 0.17499999701976776,
+            "5": 0.18281249701976776,
+            "6": 0.18125000596046448,
+            "7": 0.16249999403953552,
+            "8": 0.20624999701976776,
+            "9": 0.1875,
+            "10": 0.15781250596046448,
+            "11": 0.18437500298023224
+          }
+        },
+        "oracle": {
+          "0": 1.0,
+          "1": 1.0,
+          "2": 1.0,
+          "3": 1.0,
+          "4": 1.0,
+          "5": 1.0,
+          "6": 1.0,
+          "7": 1.0,
+          "8": 1.0,
+          "9": 1.0,
+          "10": 1.0,
+          "11": 1.0
+        },
+        "ablated": {
+          "permute_key": {
+            "0": 0.23281249403953552,
+            "1": 0.2109375,
+            "2": 0.21406249701976776,
+            "3": 0.20781250298023224,
+            "4": 0.22499999403953552,
+            "5": 0.21875,
+            "6": 0.20468750596046448,
+            "7": 0.22499999403953552,
+            "8": 0.203125,
+            "9": 0.2109375,
+            "10": 0.1875,
+            "11": 0.21875
+          },
+          "permute_query": {
+            "0": 0.19687500596046448,
+            "1": 0.20781250298023224,
+            "2": 0.21718749403953552,
+            "3": 0.22968749701976776,
+            "4": 0.2265625,
+            "5": 0.21406249701976776,
+            "6": 0.21406249701976776,
+            "7": 0.22187499701976776,
+            "8": 0.19843749701976776,
+            "9": 0.203125,
+            "10": 0.21250000596046448,
+            "11": 0.2421875
+          },
+          "inject_distractor_slot": {
+            "0": 0.9390624761581421,
+            "1": 0.9234374761581421,
+            "2": 0.9375,
+            "3": 0.9046875238418579,
+            "4": 0.8921874761581421,
+            "5": 0.9296875,
+            "6": 0.932812511920929,
+            "7": 0.9296875,
+            "8": 0.948437511920929,
+            "9": 0.925000011920929,
+            "10": 0.9390624761581421,
+            "11": 0.96875
+          }
+        },
+        "control": {}
+      },
+      "abandoned": {
+        "A": [],
+        "A0": [],
+        "A2": [],
+        "D": [],
+        "D2": []
+      },
+      "regime": {
+        "task": {
+          "task": "composition_same_tick_K6",
+          "K": 6,
+          "T": 1,
+          "same_tick": true,
+          "kind": "composition",
+          "obs_dim": 59,
+          "slots": {
+            "key": [
+              0,
+              6
+            ],
+            "q": [
+              6,
+              12
+            ],
+            "distractor": [
+              12,
+              18
+            ]
+          }
+        },
+        "learner_name": "connectome_torch",
+        "learner_family": "connectome_torch",
+        "sweep": [
+          {
+            "credit": "supervised",
+            "lr": 0.02,
+            "n_classes": null,
+            "rank": 16
+          },
+          {
+            "credit": "supervised",
+            "lr": 0.002,
+            "n_classes": null,
+            "rank": 16
+          }
+        ],
+        "piece": "bilinear",
+        "without": {
+          "bilinear": false
+        },
+        "n_agents": 16,
+        "episodes": 300,
+        "eval_batches": 40,
+        "seeds": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11
+        ],
+        "bayes_floors": {
+          "permute_key": {
+            "declared": 0.16666666666666666,
+            "measured": 0.1650390625,
+            "se": 0.005823093691405702,
+            "certified": true
+          },
+          "permute_query": {
+            "declared": 0.16666666666666666,
+            "measured": 0.176513671875,
+            "se": 0.005823093691405702,
+            "certified": true
+          },
+          "inject_distractor_slot": {
+            "declared": null,
+            "measured": 1.0,
+            "se": 1.5625e-08,
+            "certified": false
+          }
+        },
+        "contract_task": {
+          "bayes_floors": {
+            "permute_key": 0.16666666666666666,
+            "permute_query": 0.16666666666666666
+          },
+          "certified": true,
+          "elapsed_ms": 3.1951998826116323
+        },
+        "incapable_ceiling": {
+          "proven": false,
+          "provenance": "forme close de backend_torch._step a H_in=0 (logit_j = sigmoid(W[j,j])*tanh(W[key,j]+W[K+q,j])) ; MINORANT 34/36 par charniere a marge FIXE, float64, victoire STRICTE ; re-verifie SANS autograd (python pur) ET IN SITU dans le vrai TorchPopulationModel (34/36 aux deux). ATTENTION : c est un MINORANT qui MONTE avec l effort -- 29/36, 34/36 et 36/36 selon trois chercheurs independants du meme jour. Il ne fonde AUCUN << le substrat ne peut pas >> (E19 occ.4) :  MINORANT, jamais PROUVE.",
+          "value": 0.9444444444444444
+        },
+        "piece_removed_verified": true
+      }
+    },
+    "verdict": {
+      "verdict": "PIECE_PARTIAL",
+      "branch": "PIECE_PARTIAL",
+      "why": "la variante sans bilinear chute (3.44x) mais franchit la barre d'acquisition (0.271 > 0.220)",
+      "demand": {
+        "permute_key": {
+          "must_bite": true,
+          "verdict": "X_DEMANDED",
+          "ratio": 4.386029414471664,
+          "in_noise_band": false,
+          "raw": {
+            "ratio": 4.386029414471664,
+            "n": 12,
+            "collapse": true,
+            "decoy": false,
+            "corroborant": null,
+            "verdict": "X_DEMANDED",
+            "degenerate": false,
+            "why": null,
+            "censored": false,
+            "inverted": false,
+            "n_intact": 12,
+            "n_ablated": 12,
+            "denominateur_eteint": false,
+            "bras_vide": false,
+            "ratio_est_une_borne": false
+          },
+          "why": null,
+          "alias": null
+        },
+        "permute_query": {
+          "must_bite": true,
+          "verdict": "X_DEMANDED",
+          "ratio": 4.3540146313133326,
+          "in_noise_band": false,
+          "raw": {
+            "ratio": 4.3540146313133326,
+            "n": 12,
+            "collapse": true,
+            "decoy": false,
+            "corroborant": null,
+            "verdict": "X_DEMANDED",
+            "degenerate": false,
+            "why": null,
+            "censored": false,
+            "inverted": false,
+            "n_intact": 12,
+            "n_ablated": 12,
+            "denominateur_eteint": false,
+            "bras_vide": false,
+            "ratio_est_une_borne": false
+          },
+          "why": null,
+          "alias": null
+        },
+        "inject_distractor_slot": {
+          "must_bite": false,
+          "verdict": "X_DECOY",
+          "ratio": 1.0008389133681297,
+          "in_noise_band": true,
+          "raw": {
+            "ratio": 1.0008389133681297,
+            "n": 12,
+            "collapse": false,
+            "decoy": true,
+            "corroborant": null,
+            "verdict": "X_DECOY",
+            "degenerate": false,
+            "why": null,
+            "censored": false,
+            "inverted": false,
+            "n_intact": 12,
+            "n_ablated": 12,
+            "denominateur_eteint": false,
+            "bras_vide": false,
+            "ratio_est_une_borne": false
+          },
+          "why": null,
+          "alias": null
+        }
+      },
+      "noise_floor": {
+        "A": {
+          "band": [
+            0.9648829682121528,
+            1.0344827586206897
+          ],
+          "per_seed": {
+            "0": 0.996661089184563,
+            "1": 0.9899665805723079,
+            "2": 1.0344827586206897,
+            "3": 0.9648829682121528,
+            "4": 1.0052909917640889,
+            "5": 1.0,
+            "6": 1.0135135004518676,
+            "7": 1.0033669519041184,
+            "8": 0.9983525158556602,
+            "9": 0.9736408192964102,
+            "10": 0.9950495174156042,
+            "11": 1.0214167911156644
+          }
+        },
+        "A0": {
+          "band": [
+            0.8740157911948826,
+            1.0918366939810014
+          ],
+          "per_seed": {
+            "0": 1.0384615948919735,
+            "1": 1.0672269089394868,
+            "2": 0.9663865856006073,
+            "3": 0.980952399117606,
+            "4": 1.0085470412905937,
+            "5": 1.071428550575635,
+            "6": 0.8740157911948826,
+            "7": 0.962962910635155,
+            "8": 0.8880000305175781,
+            "9": 1.0899999618530274,
+            "10": 1.0918366939810014,
+            "11": 0.8991596766611204
+          }
+        },
+        "A2": {
+          "band": [
+            0.8928571158255587,
+            1.0978723079600232
+          ],
+          "per_seed": {
+            "0": 0.9523809235472627,
+            "1": 1.0651340548177834,
+            "2": 0.9569892877420034,
+            "3": 1.0105634207196763,
+            "4": 0.9736841822217758,
+            "5": 1.0486891086110002,
+            "6": 0.8928571158255587,
+            "7": 1.0978723079600232,
+            "8": 1.0357142694953352,
+            "9": 1.0037037178322121,
+            "10": 0.9879518376844757,
+            "11": 0.9094076546218379
+          }
+        },
+        "D": {
+          "band": [
+            0.900000020077354,
+            1.1829268335232348
+          ],
+          "per_seed": {
+            "0": 1.0484848022460938,
+            "1": 0.9450549473582279,
+            "2": 1.0728477055417571,
+            "3": 1.0532544164997173,
+            "4": 0.9361702710484554,
+            "5": 1.0114286150251115,
+            "6": 0.919753019556445,
+            "7": 1.1829268335232348,
+            "8": 1.067484689138433,
+            "9": 1.028735632813895,
+            "10": 1.07741940406061,
+            "11": 0.900000020077354
+          }
+        },
+        "D2": {
+          "band": [
+            0.7844827657080431,
+            1.1923076993614967
+          ],
+          "per_seed": {
+            "0": 1.0082644152597344,
+            "1": 0.9119999694824219,
+            "2": 0.9172932055868679,
+            "3": 0.981132004175294,
+            "4": 1.0,
+            "5": 1.0427350434317149,
+            "6": 0.7844827657080431,
+            "7": 1.1923076993614967,
+            "8": 0.8863636347216352,
+            "9": 1.0500000317891438,
+            "10": 1.1188118578160406,
+            "11": 0.8305084773159274
+          }
+        }
+      },
+      "acquisition": {
+        "bar": 0.21953124850988387,
+        "reference_last": 0.16953124850988388,
+        "learner_last": 0.9320312440395355,
+        "learner_first": 0.17265624552965164,
+        "per_seed_above_ref": "12/12",
+        "saturation": "TENDANCE",
+        "bar_status": "CEILING_ABOVE_BAR",
+        "representational_ceiling_above_bar": true,
+        "dose": {
+          "A": {
+            "0": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 10793.570553779602,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "1": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 10739.793929815292,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "2": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 11026.657061815262,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "3": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 10583.877575397491,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "4": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 10799.850482106209,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "5": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 10653.986238837242,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "6": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 10686.346269845963,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "7": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 10867.230679512024,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "8": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 10924.513369560242,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "9": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 10830.619951367378,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "10": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 11018.012105703354,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "11": {
+              "calls": 300,
+              "updates": 300,
+              "dparam_abs_sum": 10823.154688954353,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            }
+          },
+          "A0": {
+            "0": {
+              "calls": 300,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "1": {
+              "calls": 300,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "2": {
+              "calls": 300,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "3": {
+              "calls": 300,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "4": {
+              "calls": 300,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "5": {
+              "calls": 300,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "6": {
+              "calls": 300,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "7": {
+              "calls": 300,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "8": {
+              "calls": 300,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "9": {
+              "calls": 300,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "10": {
+              "calls": 300,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            },
+            "11": {
+              "calls": 300,
+              "updates": 0,
+              "dparam_abs_sum": 0.0,
+              "episodes_seen": 4800,
+              "unit": "gradient_updates"
+            }
+          }
+        },
+        "raw": {
+          "learner_first": 0.17265624552965164,
+          "learner_last": 0.9320312440395355,
+          "reference_last": 0.16953124850988388,
+          "oracle_last": 1.0,
+          "sep": 0.7624999955296516,
+          "gain": 0.7593749985098839,
+          "bar": 0.21953124850988387,
+          "min_sep": 0.05,
+          "min_gain": 0.05,
+          "verdict": "LEARNER_LEARNS",
+          "onset": "during_run",
+          "why": "sep 0.762 au-dessus de la reference, gain 0.759 pendant le run"
+        },
+        "verdict": "ACQUIRED",
+        "why": null
+      },
+      "necessity": {
+        "bilinear": {
+          "verdict": "PIECE_PARTIAL",
+          "why": "med(D) 0.271 > barre 0.220, ratio 3.44x hors bande",
+          "ratio": 3.4380404372214866,
+          "in_noise_band": false,
+          "med_without": 0.2710937410593033,
+          "per_seed_diff": [
+            0.6625000238418579,
+            0.65625,
+            0.684374988079071,
+            0.6234375238418579,
+            0.6156249940395355,
+            0.6484375,
+            0.7046875059604645,
+            0.6281249821186066,
+            0.6749999821186066,
+            0.6437499821186066,
+            0.6812499761581421,
+            0.7015624940395355
+          ],
+          "raw": {
+            "ratio": 3.4380404372214866,
+            "n": 12,
+            "collapse": true,
+            "decoy": false,
+            "corroborant": null,
+            "verdict": "X_DEMANDED",
+            "degenerate": false,
+            "why": null,
+            "censored": false,
+            "inverted": false,
+            "n_intact": 12,
+            "n_ablated": 12,
+            "denominateur_eteint": false,
+            "bras_vide": false,
+            "ratio_est_une_borne": false
+          },
+          "sham": "DECLARED",
+          "without_clears_bar": true,
+          "intervention_verified": true
+        }
+      },
+      "e19": {
+        "lrs": [
+          0.02,
+          0.002
+        ],
+        "gaps_by_lr": {
+          "0.02": 0.6609375029802322,
+          "0.002": 0.22734376043081284
+        },
+        "closure": 0.6560283545634837,
+        "status": "ROBUST",
+        "condition": "necessity",
+        "resolution": 0.17049352421687355,
+        "why": null
+      }
+    },
+    "cost": {
+      "unit_s_measured": null,
+      "unit_s_given": 6.423283300129697,
+      "projected_s": 1156.1909940233454,
+      "actual_s": 211.23643489996903,
+      "machine_load_note": "charge machine a noter dans le record (E12)"
+    }
+  }
+}

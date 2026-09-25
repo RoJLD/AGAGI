@@ -67,6 +67,8 @@ NOT_AN_INSTRUMENT = {
                "reward_const de credit_variant : copie ou substitue les recompenses puis appelle l'original.",
     "tools/evo_runs/s2_credit_ablation_2.py::learn_episode": "wrapper de CAPTURE imbrique (_learning_trace_2) et "
                "seams episode_enabled / reward_const de credit_variant : rend None ou substitue puis appelle l'original.",
+    # Harnais ADR-004, tache 2 (2026-09-16).
+    "src/seed_ai/harness_learner.py::learn": "stub de PROTOCOL (LearnerInstance.learn, corps `...`) : declare la signature du contrat, n'apprend rien, ne rend rien ; les implementations (tools/harness/learners/*.py::learn) sont declarees CALIBRATED.",
 }
 
 CALIBRATED = {
@@ -1450,6 +1452,171 @@ CALIBRATED = {
         "guard-before-world", "oracle:hit=1.0", "dose-counted", "lr0-reference:dW=0",
         "reproducible", "variant-published"],
     "learner_verdict": ["missing:raises", "harness:indeterminate", "inert", "learns:during_run", "learns:early"],
+    # Harnais ADR-004 (2026-09-16). Cas dans tests/sandbox/test_harness_task.py.
+    # Revue fix-round-1 (2026-09-16) : la sonde de lot vide (f) et _episodes_bit_identical (a)/(d)
+    # ignoraient mask_seq -- probe malformee (mask non tronque) et deux episodes differant SEULEMENT
+    # par leur mask juges bit-identiques a tort. Corrige + 2 cas T=2 ajoutes (bug trouve en revue ->
+    # cas de calibration, jamais une simple note).
+    "src/seed_ai/harness_task.py::assert_task_contract": [
+        "toy:passes", "no-nobite:raises", "biting-control:raises", "verifier-is-oracle:raises",
+        "aliased-ablation:raises", "chance-as-ceiling:raises", "short-provenance:raises",
+        "non-reproducible:raises", "state-without-control:raises",
+        "t2-mask-seq:content-diff-control:passes", "t2-mask-seq:mask-only-control:not-bit-identical",
+        "no-change-control:raises", "target-changed:raises", "mask-seq-aliased:raises"],
+    # Cas dans tests/sandbox/test_harness_learner.py.
+    # B3 (revue finale de branche, 2026-09-24) : (L8) STATE_ABLATION_BITES -- un learner qui DÉCLARE
+    # supporter une ablation d'état sans que `ablate_state` la fasse mordre (no-op littéral) doit être
+    # refusé EN TÊTE, avant qu'aucune cellule ne tourne.
+    "src/seed_ai/harness_learner.py::assert_learner_contract": [
+        "counter:passes-L0-L7", "L0:max_K", "L2:REFERENCE_LEARNS", "L3:DEAD_LEARNER", "L4:VACUOUS_PIECE",
+        "L4:pieces-scoped", "L5:aliasing", "L7:single-sweep", "L8:state-ablation-no-op:raises"],
+    # `run_episode` (motif `run\w*`) : instrument PARTAGE par la garde et le futur runner -- il tourne
+    # une politique sur un episode et rend (actions, hits) via task.score (le VERIFIEUR, jamais l'oracle,
+    # E1). Revue fix-round-1 (2026-09-16) : la declaration initiale listait DEUX libelles portes par
+    # une SEULE fonction de test (sur-affirmation de couverture), et la branche `ablate` (site="state",
+    # appliquee au DERNIER pas seulement) n'avait AUCUN cas -- un libelle par fonction de test reelle,
+    # desormais.
+    "src/seed_ai/harness_learner.py::run_episode": [
+        "counter:hits-via-task-score",           # test_run_episode_scores_with_the_task_verifier
+        "ablate:applied-at-last-step"],           # test_run_episode_applies_ablate_only_before_the_last_step
+    # Tache 4 (2026-09-16) -- `_TabularInstance.learn` (verite-terrain, table de comptes indexee par
+    # la cle de l'observation cumulee). `learn` est en COLLISION (`src/agents/backend.py::learn` entre
+    # autres) : declaration QUALIFIEE obligatoire. Un libelle par fonction de test REELLE de
+    # `tests/sandbox/test_harness_tabular.py` (meme discipline que `run_episode` ci-dessus, apres la
+    # revue fix-round-1 qui a corrige la sur-affirmation de couverture) : les 5 fonctions du fichier
+    # appellent toutes `learn`, directement (`_train`) ou via `assert_learner_contract` (L2/L3/L4).
+    # ⚠️ Fix round 1 (revue, 2026-09-16) : `_keys` hachait TOUTE la ligne d'observation -- sous
+    # `inject_distractor_slot` (must_bite=False), le bit distracteur (jamais actif a l'entrainement)
+    # faisait chuter le learner de verite-terrain a la chance, un artefact de HACHAGE lu a tort comme
+    # X_DECOY/INCONCLUSIVE_SPECIFICITY. Fixe par `seen_cols` (colonnes vues a l'entrainement, cf. module) ;
+    # cas ajoute : `specificity-control:decoy`.
+    "tools/harness/learners/tabular.py::learn": [
+        "contract:passes-both-regimes",          # test_honest_tabular_passes_the_contract_on_both_regimes
+        "decoy:refused-after-learn",              # test_decoy_piece_is_refused_by_L4_not_judged_dispensable
+        "table:learns-reference-chance",          # test_table_learns_composition_and_reference_stays_at_chance
+        "without-table:chance-state-reset:chance",  # test_without_table_falls_to_chance_and_state_reset_kills_two_step
+        "specificity-control:decoy"],             # test_specificity_control_spares_the_reader_but_permute_key_bites
+    # Tache 9 (2026-09-16) -- ConnectomeLearner.learn (adaptateur UNIQUE vers make_population(backend=
+    # "torch"), torch.optim.Adam sur [W]+[U,V,W_bl si presents], imitate_episode_bptt). `learn` est en
+    # COLLISION (src/agents/backend.py::learn, tools/harness/learners/tabular.py::learn entre autres) :
+    # declaration QUALIFIEE obligatoire. Un libelle par assertion REELLE de tests/sandbox/
+    # test_harness_connectome.py qui EXERCE `learn` -- test_two_open_instances_with_different_flags_
+    # are_refused, test_a_failing_build_never_leaks_class_flags (fix round 1, CRITICAL 1) et
+    # test_bilinear_sham_without_bilinear_is_refused (fix round 1, IMPORTANT 2) n'appellent jamais learn
+    # (seul build/les drapeaux de classe sont exerces) et ne portent donc aucun libelle ici, meme
+    # discipline que tabular.py::learn ci-dessus. Le test de bit-identite
+    # porte DEUX libelles (deux groupes d'assertions distincts dans le meme corps -- le contraste
+    # bilineaire/plain PUIS la reference lr=0 a dose appariee), meme motif que harness_verdict_lecture
+    # ci-dessous.
+    "tools/harness/learners/connectome.py::learn": [
+        "contract:L0-L7",                  # test_connectome_passes_the_learner_contract
+        "cellA:bit-identical",             # test_cell_A_seed0_is_bit_identical_to_the_published_json
+        "reference:dparam=0",              # test_cell_A_seed0_is_bit_identical_to_the_published_json
+        "cellB:regime-n_classes=6"],       # test_cell_B_regime_reproduces_retain_compose_at_seed0
+    # Tache 5 (2026-09-16) -- harness_verdict_lecture : lecture PURE (ADR-004 §2.3-6) qui COMPOSE trois
+    # instruments deja calibres (ablation_verdict pour demande/necessite, alias_guard_verdict pour l'etat,
+    # learner_verdict pour l'acquisition, import paresseux) et publie l'E19 (assert_verdict_invariant_to_
+    # optimizer) sur les DEUX conditions -- acquisition (le nul tient-il au pas ?) ET necessite (l'ecart
+    # tient-il aux deux pas ?). Un libelle par fonction de test REELLE de tests/sandbox/test_harness_
+    # verdict.py (meme discipline que run_episode / tabular.py::learn ci-dessus).
+    # test_missing_arm_is_INCOMPLET_and_n11_is_INCONCLUSIVE_N porte DEUX libelles (deux assertions
+    # distinctes dans le meme corps) ; test_nan_and_empty_raise_instead_of_fabricating est PARTAGEE avec
+    # measure_noise_floor ci-dessous (elle leve sur les deux instruments dans le meme corps de test).
+    # Fix round 1/5 (revue contrôleur, 2026-09-16) -- trois defauts REELS trouves par des sondes mesurees
+    # (jamais une relecture) : CRITICAL 1 (les trois INCONCLUSIVE* de ablation_verdict devenaient une
+    # affirmation NEGATIVE -> nouvelle branche DEMAND_INCONCLUSIVE, 3 cas), CRITICAL 2 (l'E19 de necessite
+    # lisait du bruit sous-resolution comme un artefact de pas -> plancher de resolution, 1 cas dedie +
+    # jitter independant restaure sur le cas both-at-ceiling), IMPORTANT 1 (intervention_verified cablee
+    # -> lue depuis db.regime, 1 cas), IMPORTANT 2 (deux defauts de REGLE relus comme verdict scientifique
+    # -> ValueError en tete, 2 cas), IMPORTANT 3 (demande publiee mais IGNOREE sur un sujet qui n'a rien
+    # acquis -- pas de nouveau cas, verifie par l'existant), IMPORTANT 4 (controle positif de la garde de
+    # barre + incapable_ceiling=None, 2 cas).
+    # Fix round 2/5 (re-revue contrôleur, 2026-09-16) -- deux regressions du fix round 1, dont une causee
+    # par le ruling du controleur lui-meme (corrigee ici) : CRITICAL re-ruling (l'E19 defend le nul du
+    # CONTRASTE quel que soit le cote -- sauter NECESSARY laissait passer un artefact de pas cote
+    # NECESSARY, fabriquant DEMANDED_ACQUIRED_NECESSARY depuis un ecart qui se referme, 2 cas) ; IMPORTANT
+    # re-ruling (necessite+E19 doivent tourner AVANT la demande sur le chemin ACQUIS -- LR_ARTIFACT/
+    # INDETERMINE_HARNAIS sont plus severes que toute branche de demande dans l'ORDRE 2.3-b, 1 cas) ;
+    # MINOR (sweep a 3 pas -> ValueError au lieu d'un KeyError illisible, 1 cas).
+    # Fixes de la revue finale de branche (2026-09-24) : B1 (validate_rule exige >=1 must_bite=True ET
+    # >=1 must_bite=False dans rule.ablations -- 3 cas, dont le positif deja couvert par les cas existants
+    # ci-dessus qui portent tous une regle a ablations mixtes) ; B2 (INCONCLUSIVE_INVERTED de _necessity
+    # rejoint INCONCLUSIVE -> PIECE_INCONCLUSIVE au lieu de NOT_NECESSARY, 1 cas ; libelle de
+    # _demand:INCONCLUSIVE_SPECIFICITY corrige pour un controle qui AMELIORE le bras, 1 cas) ; C2 (sham
+    # vs sham_arm_run, jamais fusionnes, 1 cas calibre les deux sens).
+    "src/seed_ai/harness_verdict.py::harness_verdict_lecture": [
+        "branch-order",                             # test_branch_order_is_the_sealed_one
+        "cellA:PIECE_PARTIAL",                       # test_cell_A_known_answer_is_PARTIAL_with_ceiling_above_bar
+        "cellB:NECESSARY",                           # test_cell_B_known_answer_is_NECESSARY
+        "NOT_DEMANDED",                              # test_ablated_equal_to_intact_is_NOT_DEMANDED
+        "DEMAND_WITHIN_NOISE",                       # test_ratio_inside_the_measured_noise_band_is_DEMAND_WITHIN_NOISE_never_decoy
+        "DEMAND_INCONCLUSIVE:grey-zone",             # test_grey_zone_ratio_is_DEMAND_INCONCLUSIVE_not_a_claim
+        "DEMAND_INCONCLUSIVE:inverted",              # test_ablation_that_improves_the_arm_is_DEMAND_INCONCLUSIVE_not_a_claim
+        "DEMAND_INCONCLUSIVE:degenerate-floor",      # test_intact_at_the_bayes_floor_is_DEMAND_INCONCLUSIVE_never_a_negative_claim
+        "INCONCLUSIVE_SPECIFICITY",                  # test_a_biting_control_is_INCONCLUSIVE_SPECIFICITY
+        "NOT_ACQUIRED:dose+saturation",              # test_learner_at_reference_is_NOT_ACQUIRED_with_dose_and_saturation
+        "INDETERMINE_HARNAIS:prior-solves",          # test_reference_above_prior_max_is_INDETERMINE_HARNAIS_PRIOR_SOLVES
+        "INDETERMINE_HARNAIS:oracle",                # test_oracle_below_min_is_INDETERMINE_HARNAIS
+        "LR_ARTIFACT:necessity",                     # test_piece_gap_that_closes_at_the_second_lr_is_LR_ARTIFACT
+        "INDETERMINE_HARNAIS:reference-collapsed",   # test_intact_collapsed_at_the_second_lr_is_INDETERMINE_HARNAIS
+        "LR_ARTIFACT:acquisition",                   # test_acquisition_null_that_vanishes_at_the_second_lr_is_LR_ARTIFACT
+        "LR_ARTIFACT:necessary-side",                # test_necessary_side_gap_that_closes_at_the_second_lr_is_LR_ARTIFACT
+        "INDETERMINE_HARNAIS:necessary-side-reference-collapsed",  # test_necessary_side_reference_collapsed_at_the_second_lr_is_INDETERMINE_HARNAIS
+        "order:necessity-e19-before-demand",         # test_necessity_and_e19_run_before_demand_on_the_acquired_path
+        "rule:three-step-sweep:raises",              # test_three_step_sweep_raises_ValueError_not_KeyError
+        "necessity:gap-below-resolution",            # test_gap_below_resolution_floor_is_PIECE_NOT_NECESSARY_not_LR_ARTIFACT
+        "PIECE_NOT_NECESSARY:both-at-ceiling",       # test_D_equal_to_A_is_PIECE_NOT_NECESSARY_and_both_at_ceiling_is_not_degenerate
+        "necessity:unverified-intervention:degenerate",  # test_missing_intervention_flag_with_D_equal_to_A_is_PIECE_INCONCLUSIVE_not_NOT_NECESSARY
+        "INCOMPLET",                                 # test_missing_arm_is_INCOMPLET_and_n11_is_INCONCLUSIVE_N
+        "INCONCLUSIVE_N",                            # test_missing_arm_is_INCOMPLET_and_n11_is_INCONCLUSIVE_N
+        "nan:raises",                                # test_nan_and_empty_raise_instead_of_fabricating
+        "boundary:<=-is-necessary",                  # test_mutating_necessity_threshold_to_strict_flips_the_boundary_case
+        "rule:duplicate-lrs:raises",                 # test_duplicate_lrs_in_sweep_raises_ValueError_not_LR_ARTIFACT
+        "rule:short-provenance:raises",              # test_short_provenance_raises_ValueError_not_CEILING_ABOVE_BAR
+        "acquisition:bar-separates",                 # test_incapable_ceiling_below_the_bar_is_SEPARATES
+        "acquisition:ceiling-unvalidated",           # test_incapable_ceiling_none_is_CEILING_UNVALIDATED
+        "rule:no-must-bite-true:raises",             # test_empty_ablations_raises_ValueError_not_DEMANDED_ACQUIRED_NECESSARY
+        "rule:only-decoy:raises",                    # test_only_a_decoy_ablation_raises_ValueError
+        "rule:only-bite-no-decoy:raises",            # test_only_a_biting_ablation_raises_ValueError_no_specificity_control
+        "necessity:inverted",                        # test_necessity_that_improves_without_the_piece_is_PIECE_INCONCLUSIVE_not_NOT_NECESSARY
+        "INCONCLUSIVE_SPECIFICITY:inverted",         # test_a_control_that_improves_the_arm_says_what_was_measured_not_generic_mord
+        "sham:declared-vs-arm-run"],                 # test_sham_declared_is_never_confused_with_a_sham_arm_that_ran
+    "src/seed_ai/harness_verdict.py::measure_noise_floor": [
+        "band:min-max",                              # test_noise_floor_band_is_min_max_of_paired_ratios
+        "empty:raises",                              # test_nan_and_empty_raise_instead_of_fabricating
+        "per-arm:weak-arm-band"],                    # test_necessity_uses_the_band_of_the_WEAK_arm_not_only_A
+    "src/seed_ai/harness_verdict.py::measure_ablated_bayes_ceiling": [
+        "composition:certified-1/K",                 # test_measure_ablated_bayes_ceiling_certifies_the_declared_floor
+        "wrong-declared-floor:uncertified",          # test_measure_ablated_bayes_ceiling_flags_a_wrong_declared_floor
+        "not-enumerable:uncertified"],                # test_measure_ablated_bayes_ceiling_uncertified_when_state_space_not_enumerable
+    # Tache 6 (2026-09-16) -- run_harness_cell : runner de CELLULE (ADR-004 S2.3). Compose les cinq
+    # instruments deja calibres des taches 1-5 (assert_task_contract, assert_learner_contract, run_episode,
+    # harness_verdict_lecture, measure_ablated_bayes_ceiling) + preregister/verify/provenance,
+    # declare_design/assert_control_family/assert_selection_nonempty, project_cost/CostGuard. Un libelle par
+    # fonction de test REELLE de tests/sandbox/test_harness_cell.py (meme discipline que harness_verdict_
+    # lecture ci-dessus) ; `_run_arm`, `_accuracy`, `_accuracy_ablated`, `_tick` (prefixe `_`) ne sont pas
+    # detectees par le motif `run\w*` du cliquet.
+    # Revue controleur, fix round 1 (2026-09-16) : 3 nouveaux cas pour des refus DECIDABLES qui ne
+    # tombaient qu'au verdict, apres jusqu'a 65 builds (ablation de regle absente de la tache, sweep a lrs
+    # dupliques, n_floor > len(seeds)), 2 pour les minors (seeds dupliques, episodes < 2) -- 6 -> 11.
+    # Tache 8 (consolidation semaine 1, 2026-09-16) : 3 gardes sans AUCUN contre-exemple -- bayes_floors
+    # nommant une ablation absente de la tache, sweep du learner divergent de celui de la regle, unit_s
+    # DONNE (E8 : unit_s_measured doit rester None) -- 11 -> 14.
+    "tools/harness/cell.py::run_harness_cell": [
+        "guard-before-world:task-contract",       # test_task_contract_refuses_before_any_build
+        "guard-before-world:tampered",            # test_tampered_rule_refuses_before_any_build
+        "guard-before-world:cost",                # test_cost_projection_refuses_before_any_build
+        "guard-before-world:rule_path",           # test_rule_path_selects_a_sub_rule_and_missing_key_raises_before_any_build
+        "guard-before-world:unknown-ablation",    # test_rule_naming_an_unknown_ablation_refuses_before_any_build
+        "guard-before-world:unknown-bayes-floor-ablation",  # test_rule_naming_an_unknown_bayes_floor_ablation_refuses_before_any_build
+        "guard-before-world:duplicate-lrs",       # test_rule_with_duplicate_lrs_refuses_before_any_build
+        "guard-before-world:n_floor-above-seeds", # test_rule_with_n_floor_above_seeds_refuses_before_any_build
+        "guard-before-world:sweep-mismatch",      # test_learner_sweep_mismatching_rule_refuses_before_any_build
+        "guard-before-world:duplicate-seeds",     # test_duplicate_seeds_refuse_before_any_build
+        "guard-before-world:episodes-min",        # test_episodes_below_two_refuses_before_any_build
+        "injection:unite=seed+reference-dose-matched",  # test_unit_is_the_seed_and_reference_is_dose_matched
+        "unit_s:given-not-measured",              # test_unit_s_given_is_published_and_never_measured
+        "abandon:INCONCLUSIVE_N"],                # test_abandoned_seed_is_counted_and_yields_INCONCLUSIVE_N
     # P2.60 (2026-09-15) -- banc factoriel 2^4 d'EDR-177 et driver d'EDR-178, portes dans HEAD par FUSION
     # 3-voies du tag keep/edr-177-178-factorial-regime-sweep (merge-tree sans conflit, gardes de HEAD
     # conservees). Deux ORCHESTRATEURS calibres PAR INJECTION a dose connue, AUCUN monde construit
