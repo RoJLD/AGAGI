@@ -1,4 +1,9 @@
 import numpy as np
+import pytest
+
+pytest.importorskip("torch")  # la CI installe requirements.txt SANS torch : sans cette garde le module ERRE
+# à la collecte — et jusqu'au 2026-09-26 UNE erreur de collecte interrompait TOUTE la suite (8 modules,
+# 0 test exécuté pendant ~10 jours, run 36154477100).
 
 from tools.disjoint_heads_ab import D, K_A, P_PRED
 from tools.disjoint_heads_correlated import _make_correlated_teachers, _verdict_correlated

@@ -9,6 +9,10 @@ qu'une mediane de gaps mesures (P2.52, 2026-09-14).
 """
 import pytest
 
+pytest.importorskip("torch")  # la CI installe requirements.txt SANS torch : sans cette garde le module ERRE
+# à la collecte — et jusqu'au 2026-09-26 UNE erreur de collecte interrompait TOUTE la suite (8 modules,
+# 0 test exécuté pendant ~10 jours, run 36154477100).
+
 from tools import craft_or_starve_edr, kchain_edr, torch_binary_gate_probe
 
 _EXEMPLAIRES = [craft_or_starve_edr._gaps_pour_verdict, kchain_edr._gaps_pour_verdict,

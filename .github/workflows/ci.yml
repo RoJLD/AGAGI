@@ -23,7 +23,11 @@ jobs:
         # ⚠️ `psutil` (tools/jobs/doctor, garde de bail) et `pyyaml` (consolidate_records, graphe)
         # sont des dependances TRANSITIVES : verifiees par analyse d'imports AVANT de pousser,
         # pas decouvertes sur un portail rouge.
-        run: python -m pip install --upgrade pip && python -m pip install numpy pytest pytest-timeout psutil pyyaml
+        # ⚠️ `jsonschema` (check_agi_taxonomy, porte 6) est importé PARESSEUSEMENT, dans la fonction qui valide
+        # (ligne ~185) : l'analyse d'imports ci-dessus ne le voyait pas. La porte le DIT au lieu de valider en
+        # silence — « [NOUVELLE VIOLATION] schéma NON vérifié : `jsonschema` absent » — et ce job était rouge
+        # pour cette seule cause (runs 36154477100 et 36163823183 du 2026-09-25, mesuré par agagi-00).
+        run: python -m pip install --upgrade pip && python -m pip install numpy pytest pytest-timeout psutil pyyaml jsonschema
 
       - name: Graphe de records (orphelins, collisions, aretes ignorees)
         run: PYTHONIOENCODING=utf-8 python tools/check_record_links.py
@@ -117,8 +121,16 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
           python -m pip install pytest pytest-timeout
+      # ⚠️ `--continue-on-collection-errors` (2026-09-26). Sans lui, UNE erreur de collecte interrompt la session
+      # AVANT le premier test : « Interrupted: 8 errors during collection » — 8 modules qui importaient torch
+      # sans `importorskip` (torch n'est pas dans requirements.txt) ont rendu ce job rouge SANS EXÉCUTER UN SEUL
+      # des 2951 tests collectés (compte local, torch rendu inimportable), pendant ~10 jours, et rien ne
+      # distinguait ce rouge d'un rouge de test (mesuré par agagi-00, run 36154477100 : E22 appliqué à la CI).
+      # Avec le drapeau, une erreur de collecte reste une ERREUR (job rouge), mais la suite TOURNE et rapporte.
       - name: Suite COMPLETE (repertoire, pas liste nommee)
-        run: PYTHONIOENCODING=utf-8 PYTHONPATH=. python -m pytest tests/ -q --timeout=900 -p no:cacheprovider
+        run: >-
+          PYTHONIOENCODING=utf-8 PYTHONPATH=. python -m pytest tests/ -q --timeout=900 -p no:cacheprovider
+          --continue-on-collection-errors
 
   test-and-build:
     runs-on: ubuntu-latest

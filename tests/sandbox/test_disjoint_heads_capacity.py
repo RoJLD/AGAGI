@@ -1,5 +1,9 @@
 import pytest
 
+pytest.importorskip("torch")  # la CI installe requirements.txt SANS torch : sans cette garde le module ERRE
+# à la collecte — et jusqu'au 2026-09-26 UNE erreur de collecte interrompait TOUTE la suite (8 modules,
+# 0 test exécuté pendant ~10 jours, run 36154477100).
+
 from tools.disjoint_heads_ab import torch, D, K_A, P_PRED, _make_teachers, _make_data
 from tools.disjoint_heads_capacity import _verdict_capacity
 

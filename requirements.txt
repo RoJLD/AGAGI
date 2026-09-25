@@ -12,3 +12,6 @@ langgraph>=0.0.26
 langchain>=0.1.0
 langchain-core>=0.1.0
 PyYAML>=6.0
+# check_agi_taxonomy (porte 6) valide demands.json par jsonschema, importe PARESSEUSEMENT : absent, la porte
+# declare une VIOLATION (elle ne valide pas en silence) -- garde-methodologique rouge le 2026-09-25 pour ca.
+jsonschema>=4.0

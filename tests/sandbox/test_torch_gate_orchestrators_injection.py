@@ -15,6 +15,10 @@ import sys
 import numpy as np
 import pytest
 
+pytest.importorskip("torch")  # la CI installe requirements.txt SANS torch : sans cette garde le module ERRE
+# à la collecte — et jusqu'au 2026-09-26 UNE erreur de collecte interrompait TOUTE la suite (8 modules,
+# 0 test exécuté pendant ~10 jours, run 36154477100).
+
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 _LEASE_GUARD_EXEMPT = True

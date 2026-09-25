@@ -4,6 +4,10 @@ import sys
 
 import pytest
 
+pytest.importorskip("torch")  # la CI installe requirements.txt SANS torch : sans cette garde le module ERRE
+# à la collecte — et jusqu'au 2026-09-26 UNE erreur de collecte interrompait TOUTE la suite (8 modules,
+# 0 test exécuté pendant ~10 jours, run 36154477100).
+
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
