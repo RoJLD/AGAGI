@@ -1456,6 +1456,17 @@ CONNAISSANCE dans `declarations_ignorees` (mesuré à la fusion : `check_instrum
 0 après gel). ⚠️ Aucun des motifs des passes (i)/(ii) ci-dessus ne les verrait (`*ceiling*`, `verify_*`, `_td_update*`,
 `compute_*`, `parse_*` — tous anglais) : les résorber demande un motif NOMMÉ pour ces trois fonctions, ou un motif
 français, ou leur renommage — mesuré en revue de fusion, pas déduit.
+**FUSION 2026-09-26 (agagi-2f, chantier Pilotage → `feat/d1-prod-pairing`, fusion `e78f06f4`) : +2 gelées, 12 → 14 —
+et ce sont les deux déclarations qui ont OUVERT cette entrée.** `tools/pm/pilotage.py::compute_pilotage` et
+`::parse_roadmap`, cause `MOTIF_AVEUGLE`. Écrites sur la branche quand le cliquet était encore muet, elles ont été
+refusées au premier commit de fusion par la moitié SILENCE livrée ci-dessus — le même mécanisme qu'à la fusion
+pm-portes : une branche écrite sous un cliquet muet l'entend crier en arrivant.
+Gelées par `--update-baseline`, dont le diff se réduit à ces deux lignes (vérifié avant de stager). Leurs cas de
+calibration tournent dans `tests/sandbox/test_pm_pilotage.py` ; ce qui manque, c'est la DÉTECTION. La passe (ii)
+(`compute_*`/`parse_*`) les résorberait toutes les deux : elle passe donc de « 8 dettes révélées, 0 résorbée » à
+« 8 révélées, 2 résorbées ». Même cause `MOTIF_AVEUGLE` que les trois du Réfutateur, mais pas le même remède : les
+leurs sont des noms FRANÇAIS qu'aucun motif anglais ne verra ; celles-ci relèvent d'un motif anglais qui MANQUE,
+et la passe (ii) suffit.
 <!-- closes_when:grep_present=tools/check_instrument_calibration.py::parse_\w+\) -->
 
 **P2.84 — ⚠️ OUVERTE (2026-09-24, demande de robla le 2026-09-23) — lot 2 « Science » du dashboard : arbres en temps
@@ -1592,6 +1603,50 @@ forme (c) du registre — un motif qui tronque en silence. Il doit publier ce qu
 `chemins_non_captes` du lot 1. *Coût : brainstorm 2 h ; implémentation non estimée avant cadrage.*
 Dépend de : rien (mais recoupe P2.84, le lot 2 « Science » du dashboard — à décider s'ils fusionnent).
 <!-- closes_when:path_present=docs/superpowers/specs/2026-09-25-auto-indexation-artefacts-design.md -->
+
+**P2.113 — ⚠️ OUVERTE (2026-09-26, vue en passant pendant la fusion du chantier Pilotage) — la suite complète ÉCRIT
+deux fichiers SUIVIS de l'arbre où on la lance, et trois de ses tests sont rouges hors de l'arbre principal sans que
+le code y soit pour rien.**
+Quoi : la suite complète (`python -m pytest tests/`, forme du job CI `suite-complete`) a été lancée le 2026-09-25 dans
+un worktree fusionné (feat/d1 `5e4b3e32` + chantier Pilotage), en partant d'une copie de travail PROPRE. Résultat :
+3311 passés, 8 rouges, dont aucun n'est imputable au chantier (tri refait sur un checkout détaché propre de
+`5e4b3e32`). Quatre constats en sortent.
+(a) **Deux tests écrivent dans l'arbre.** Mesuré : à la fin de la suite, `git status` rendait `results/records_graph.json`
+(+258 lignes) et `frontend/package-lock.json` (197 lignes changées) modifiés, avec une mtime de 18:04, donc pendant
+la suite. Les écrivains : `tests/test_consolidate_records.py::test_main_exits_zero_on_clean_repo` appelle `main([])`
+sur le VRAI dépôt, et réécrit le graphe depuis le DISQUE, records non committés des autres sessions compris ;
+`tests/test_frontend_build.py` lance `npm install`, qui re-résout les versions et réécrit le verrou. Dans l'arbre
+partagé, le premier fichier peut être committé par quelqu'un et publier un graphe construit sur le travail en vol
+d'autrui. Le `M frontend/package-lock.json` visible depuis plusieurs jours dans l'arbre principal a exactement cette
+signature (confirmé par le PM, agagi-e4). Remède : sortie de `main` vers `tmp_path` (le module a déjà
+`--root`, il lui manque une sortie) ; `npm ci` à la place de `npm install`, ou un build dans une copie jetable.
+Garde qui peut échouer : une fixture de session dans `tests/conftest.py` compare `git status --porcelain` des
+fichiers SUIVIS au début et à la fin de la session, et échoue si la suite en a modifié un. Ce défaut peut se reformer
+en silence, donc une note ne suffit pas.
+(b) `tests/sandbox/test_perimeter_widening.py::test_the_measured_EXPOSURE_of_head_guard_only_calibration_is_PUBLISHED`
+est rouge sur feat/d1 lui-même : il exige plus de 0 déclaration « garde-seule », or P2.56 a ramené ce compte à 0. Le
+test prévoit lui-même sa sortie (« mettre à jour le chiffre publié dans le backlog AVANT de retirer ce test »).
+(c) `tests/sandbox/test_grab_cost.py` et `tests/sandbox/test_grab_mechanism.py` (3 cas) ouvrent
+data/hof_famine_harsh_s42.pkl, un fichier non versionné présent seulement dans le data/ de l'arbre principal :
+FileNotFoundError dans tout worktree et tout clone, au lieu d'un skip qui dirait pourquoi.
+(d) `tests/test_backend.py::test_flatland_runs_crud` et `::test_ws_flatland_run_id_streams_frames` : rouges dans la
+suite (un Skipped du filet runtime traverse Starlette et devient « RuntimeError: No response returned », la forme
+de P2.82), verts relancés seuls juste après (2 passés, 0 bail). Le mécanisme n'est PAS établi. Hypothèse : un bail
+« kuzu » transitoire pendant la suite arme le filet runtime, et la fixture `sans_bail_etranger` ne voit plus de
+détenteur au moment du test. À vérifier avec un bail tenu puis relâché pendant une session pytest.
+*Coût : agent 1-2 h pour (a) avec sa garde, quelques minutes pour (b) et (c), une expérience contrôlée pour (d).*
+<!-- closes_when:grep_absent=tests/test_consolidate_records.py::main\(\[\]\) -->
+
+**P2.114 — ⚠️ OUVERTE (2026-09-26) — dashboard Pilotage : `?frais=1` lancé depuis un WORKTREE recalcule la flotte
+avec le data/ du worktree, pas celui du dépôt commun.**
+Quoi : le correctif F1 du chantier Pilotage (fusionné dans `e6e2c8e1`) a supprimé l'écriture de `AGAGI_DATA_ROOT`
+dans le processus backend. Depuis, `read_board` et `read_roles_counts` résolvent le dépôt COMMUN sans effet de bord.
+Mais le chemin `frais=1` appelle `tools/pm/snapshot.py::snapshot`, qui lit bulletins et registre via `paths.*` : sans
+variable posée, depuis un worktree, il lit le data/ du worktree. Avant F1, la fuite d'environnement le masquait par
+accident, parce que `read_board` posait la variable avant l'appel. C'est documenté dans la docstring de
+`backend/app/services/pilotage_service.py`. Depuis l'arbre principal, rien ne change. Remède : une résolution de
+racine injectable dans `snapshot()`, sur le modèle de `_racine_des_donnees_pm`. Le module appartient au PM, donc la
+correction lui revient. *Coût : agent 30 min ; calcul 0.*
 
 
 **P2.88 — ✅ CLOSE le 2026-09-24 (ouverte le même jour, mesurée en revue adversariale de la porte 19, HEAD `636c65b1`) — la porte 19
