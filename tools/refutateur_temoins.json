@@ -1,0 +1,69 @@
+{
+  "_comment": "Temoins GELES du Refutateur (spec PM 2026-09-16, section 2.3). A chaque revue, les prompts figes de docs/REF/REF-REVUE-ADVERSARIALE.md passent d'abord ici : un defaut a DEFAUT non retrouve rend la revue NULLE ; le temoin cru sain, lui, MESURE. Ne jamais remplacer un temoin par un record plus commode ; ne jamais deplacer un SHA pour faire passer une revue. CE FICHIER EST LA CLE DE REPONSE : il n'est lu ni par l'agent de revue, ni par aucun document que l'agent de revue est somme de lire. Les attendus ne se republient nulle part.",
+  "_peremption": "⚠️ UN TEMOIN GELE A UNE DUREE DE VIE, et ce roster se confronte PERIODIQUEMENT a ce que le depot a appris depuis -- sinon il mesure le PASSE en croyant mesurer le PRESENT. Mesure du 2026-09-24 : le temoin cru sain (gele le 2026-09-16) porte un phenomene -- le bras ablate fait mieux que l'intact -- qui est la forme EXACTE d'un resultat ETABLI depuis dans le depot (P2.42 : le champion aveugle a l'entree survit 61 % plus longtemps, 7/7 seeds, a corps identique). Le temoin n'a donc pas ete mal choisi : il etait sain AU REGARD DE CE QU ON SAVAIT AU GEL. Ce qui etait propre le devient moins a mesure que le depot apprend, et cela vaut pour les QUATRE temoins, pas seulement le no-op. La peremption SCIENTIFIQUE d'un temoin n'est pas decidable par motif : on la DECLARE, comme le depot le fait pour tout ce qu'il ne sait pas decider. Ce qui EST calculable -- l'age du gel -- est RAPPORTE par `peremption_du_roster()` et imprime par --lister et --plancher ; il ne BLOQUE rien, refuser sur un calendrier casserait un instrument qui marche pour une raison qui n'est pas un fait sur ses temoins. A la revue du roster : relire chaque `defaut` contre les records parus depuis `gele_le`, et corriger le texte plutot que le SHA.",
+  "revu_le": "2026-09-24",
+  "intervalle_de_revue_jours": 60,
+  "_champs": {
+    "nom": "FORME IMPOSEE ET DERIVEE : <identifiant du record>-<sha7>, recompute par nom_attendu() depuis `chemin` et `sha` ; tout ecart est refuse par roster_conforme() et rend le CLI 2. Le nom est cite par le verificateur et par ROLES.md, JAMAIS donne a l'agent qui revoit -- mais le REF les publie, et un agent qui lit l'en-tete d'un temoin anonyme peut joindre les deux. Un nom LIBRE annonce donc le genre : 'LOCK-002-sain' disait 'tais-toi' ; 'RETAIN-COMPOSE-pre-retractation' annoncait qu'une retractation a suivi, donc qu'un defaut etait a trouver -- celui-la est passe a travers la liste noire de neuf mots qui avait attrape le premier, et n'a ete vu qu'A L'OEIL. Une forme derivee de l'IDENTITE (quel record, a quel SHA) ne peut structurellement rien dire de la QUALITE de ce qu'elle nomme. ⚠️ Elle ne voit pas le CONTENU : un record peut annoncer sa propre faiblesse dans son titre.",
+    "genre": "defaut = la revue DOIT retrouver le defaut connu ; noop = record sain, la revue doit RESTER SILENCIEUSE (plancher de fausses critiques)",
+    "sha": "commit qui GELE la version du record. Choisi pour porter le defaut NU, pas sa rectification.",
+    "gele_le": "date du commit `sha`, en clair. Le SHA identifie, la date RENSEIGNE : elle dit a quelle connaissance du depot ce temoin a ete confronte.",
+    "chemin": "chemin du record DANS le commit sha",
+    "fichier": "nom NEUTRE sous lequel le temoin est extrait. Deliberement DECORRELE de l'ordre du roster : un agent qui devinerait 'le dernier est le no-op' n'aurait rien gagne.",
+    "attendu": "regex cherchee dans le CONSTAT et la PREUVE des critiques CONFIRMEES (genre=defaut uniquement). Jamais dans la sonde : recopier la commande qui nomme le parametre n'est pas une decouverte.",
+    "defaut": "enonce en clair du defaut connu, et ou il a ete grave",
+    "signature": "regex qui DOIT etre presente dans le RECORD a ce SHA — gele la verification a l'oeil faite au moment du gel",
+    "antisignature": "regex qui doit etre ABSENTE du record a ce SHA : la marque de la correction. Vide = rien a exclure (temoin no-op)."
+  },
+  "temoins": [
+    {
+      "nom": "EDR-GRAB-COST-1828371",
+      "genre": "defaut",
+      "sha": "1828371324613f7213d2ef28c560c82407ffe464",
+      "gele_le": "2026-09-08",
+      "chemin": "docs/EDR/EDR-GRAB-COST_Grabbing_Costs_Survival_Even_When_Grabbing_Feeds.md",
+      "fichier": "temoin-3.md",
+      "attendu": "forage_payoff",
+      "defaut": "E8 occ. 4 — PREMISSE RECOPIEE : le record s'ouvre sur 'le regime de famine dure porte forage_payoff = 3.0', valeur (a) jamais publiee par le runner (run_condition construit avec config=None, donc le defaut 1.0), (b) dont le referent ne touche JAMAIS l'action ablatee (forage_payoff ne multiplie que prey_reward sur une mise a mort, world_1_stoneage.py:800) et (c) dont le fait annonce ('grabber NOURRIT') est mesurable et FAUX (0 repas sur 20 776 agent-ticks). Rectifie le 2026-09-09 par 9ce2a3ba80ad21352929a1351359cf664d00aafe.",
+      "signature": "forage_payoff = 3\\.0",
+      "antisignature": "RECTIFICATION|jamais eu cours"
+    },
+    {
+      "nom": "S2-BLIND-CHAMPION-42e9357",
+      "genre": "defaut",
+      "sha": "42e9357fc3643159717b6020d9634b41689d003b",
+      "gele_le": "2026-09-08",
+      "chemin": "docs/EDR/S2-BLIND-CHAMPION_Stopped_At_Control_The_Ablation_Instrument_Has_An_8_Percent_RNG_Noise_Floor.md",
+      "fichier": "temoin-1.md",
+      "attendu": "(corps|make_blind|drain|ph[eé]notype|W\\[0)",
+      "defaut": "E26 — CORPS NON APPARIE : le record affirme que le controle (i) est 'reste bit-identique', ce qui est vrai de W et FAUX du corps. make_blind annule W[:num_inputs, :], donc aussi les lignes 0-9 dont le monde derive hp_bonus / inv_capacity / drain (mamba_agent.py:47-50) : le drain du sujet aveugle tombe de 2,40 a 1,30 (-46 %). La DV rapportee est un effet METABOLIQUE candidat avant d'etre un effet de cecite. Borne posee le 2026-09-15 par a08999a244a9264d87d16ee854e512e4cac95341.",
+      "signature": "reste bit-identique",
+      "antisignature": "E26|PORT.E BORN.E|CORPS NON APPARI"
+    },
+    {
+      "nom": "EDR-RETAIN-COMPOSE-4204f8f",
+      "genre": "defaut",
+      "sha": "4204f8fd5a651441dbdbb95f9b4cd92b80d7fd60",
+      "gele_le": "2026-08-04",
+      "chemin": "docs/EDR/EDR-RETAIN-COMPOSE_Where_Is_The_Retain_Compose_Wall.md",
+      "fichier": "temoin-4.md",
+      "attendu": "(\\blr\\b|learning_rate|balayage|pas d'apprentissage|E19)",
+      "defaut": "E19 — NUL COMPARATIF SOUS GRADIENT SANS BALAYAGE DU PAS : le verdict RETENTION repose sur learned = 0,173 a lr = 0,02, pas unique, jamais balaye ; les deux controles calibres (same_tick, oracle) sont en regime 1-pas, donc aveugles au 2-pas. A protocole identique et seul lr change : 0,02 -> 0,173 (RETENTION) mais 0,002 -> 0,923 (INCONCLUSIVE), 0/144, 12/12 seeds. Verdict RETRACTE par EDR-RETAIN-COMPOSE-LR.",
+      "signature": "Verdict : RETENTION",
+      "antisignature": "RETAIN-COMPOSE-LR|R.TRACT"
+    },
+    {
+      "nom": "LOCK-002-286f244",
+      "genre": "noop",
+      "seuil_critiques": 1,
+      "sha": "286f24429b621ebf9ba1c7a040f377672a1f5a07",
+      "gele_le": "2026-09-16",
+      "chemin": "docs/EDR/LOCK-002_D2_Retention_Is_Learned_Under_REINFORCE_At_The_Right_Step_The_Fourth_Manifestation_Was_E19.md",
+      "fichier": "temoin-2.md",
+      "attendu": "",
+      "defaut": "AUCUN DEFAUT CONNU au moment du gel -- ce qui n'est PAS la meme chose que « sain », et le premier Step 4 complet l'a montre. Ce que le record a pour lui : regles scellees AVANT la premiere cellule, clause E19 explicite (second pas lr=0,0005), branche AUTRE prouvee VIDE par un test, garde d'alias, controle degrade nomme, budget mesure a charge connue, n=12 pour le verdict. ⚠️ MESURE DU 2026-09-24 : la revue y a rendu 10 critiques, dont 6 RECEVABLES a l'etage 1, la ou le seuil historique etait « au plus une ». La plus mesurable a ete verifiee contre les donnees et elle est JUSTE : le bras ablate fait mieux que l'intact sur 10 seeds sur 12 (mediane 0,030) et le compteur `leak_seeds` rend 0 parce qu'il ne compte que `ci - ca > tol` -- une fuite DIRECTIONNELLE, dans le sens qu'il ne regarde pas. Ce temoin ne CERTIFIE donc rien : il MESURE un plancher, qui se publie a cote de tout score. Nommer le temoin employe est plus honnete que pretendre a une propriete qu'on ne sait pas etablir.",
+      "signature": "id: EDR-LOCK-002",
+      "antisignature": ""
+    }
+  ]
+}

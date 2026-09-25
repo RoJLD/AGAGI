@@ -6,18 +6,190 @@
 # Bypass d'urgence (déconseillé) : git commit --no-verify
 fail=0
 
+# >>> AGAGI:PORTE-ABSENTE >>>
+# UNE BRANCHE ANTÉRIEURE À UNE PORTE NE DOIT PAS ÊTRE BLOQUÉE PAR ELLE (2026-09-24, déploiement flotte).
+# `core.hooksPath` vaut un chemin ABSOLU vers le `.git/hooks` du dépôt principal : TOUS les worktrees
+# exécutent CE fichier, quelle que soit leur branche. Le jour où l'on déploie une porte nouvelle, chaque
+# worktree dont la branche est antérieure à cette porte lance `python tools/check_<porte>.py` sur un
+# fichier qu'il n'a pas : python rend 2, la porte le lit comme un refus, et tous ses commits sont
+# bloqués. Mesuré au déploiement de la porte 22 : `chantier/pm-portes`, où un implémenteur du PM
+# committait, avait été coupé avant `tools/check_hook_deployment.py`.
+# La fonction ci-dessous n'intercepte QUE les appels `tools/check_*.py`, et ne saute une porte QUE si
+# son fichier manque à la fois sur le DISQUE et dans HEAD : c'est la signature exacte d'une branche
+# antérieure à la porte. Une porte présente dans HEAD mais supprimée sur le disque continue d'échouer,
+# sinon supprimer une garde suffirait à la faire taire. Le saut est DIT à voix haute : un saut muet
+# serait la classe E32 (une dégradation de périmètre indiscernable d'une porte qui a passé).
+# Même technique que la fonction `git()` du bloc AGAGI:FUSION-SCOPE ; `command` évite la récursion, et
+# les affectations placées devant l'appel (`PYTHONIOENCODING=utf-8 python ...`) arrivent au processus.
+# Contre-exemples gelés : tests/sandbox/test_hook_porte_absente.py.
+python() {
+  case "$1" in
+    tools/check_*.py)
+      if [ ! -f "$1" ] && ! command git cat-file -e "HEAD:$1" 2>/dev/null; then
+        echo "[agagi/pre-commit] $1 ABSENT de cette branche (antérieure à la porte) : porte NON vérifiée ici."
+        return 0
+      fi ;;
+  esac
+  command python "$@"
+}
+# <<< AGAGI:PORTE-ABSENTE <<<
+
+# >>> AGAGI:FUSION-SCOPE >>>
+# PORTÉE EN FUSION (2026-09-24). En fusion, l'index porte l'UNION des deux côtés, mais
+# `git diff --cached` le compare à HEAD — le PREMIER PARENT. Le côté entrant est donc seul visible,
+# et une divergence qui n'existe qu'à l'union ne déclenche AUCUNE porte. Cas mesuré, dépôt jetable :
+# deux branches portent le même compte publié à la MÊME valeur en comptant des objets DIFFÉRENTS ;
+# git fusionne sans conflit, le document porteur du compte est identique à HEAD (donc absent du
+# diff), et la porte 8 ne s'arme pas — alors que le compte est faux à l'union.
+#   diff vs HEAD = [docs/preregistrations/b.json]
+#   diff vs BASE = [CLAUDE.md  docs/preregistrations/a.json  docs/preregistrations/b.json]
+# On compare donc à la BASE DE FUSION. La fonction encadre TOUS les appels sans en toucher un seul
+# (`command` évite la récursion) ; chaque porte garde son propre `--diff-filter`. Silencieuse hors
+# fusion, et neutralisée si la base n'est pas calculable : on n'élargit jamais à l'aveugle.
+#
+# COMBIEN d'appels encadrés — chiffre RECOMPUTABLE, jamais recopié. La première version annonçait
+# le chiffre « 18 », et la mesure en rend 17 : le piège est dans la commande, un `grep -c` sans ancre
+# compte AUSSI les lignes de commentaire qui citent la commande. Forme juste (elle s'exclut elle-même,
+# puisqu'elle vit dans un commentaire) :
+#   grep -c '^[^#]*git diff --cached --name-only' tools/hooks/pre-commit
+# rend 20 appels à cette date. `tests/sandbox/test_hook_on_merge.py` rejoue ce compte et rougit si le
+# chiffre écrit ici cesse de correspondre.
+#
+# ⚠️ OÙ la base est insérée. Elle se pose AVANT un éventuel `--`, jamais après : aucun des 20 appels
+# n'écrit `--` aujourd'hui, mais un site futur du type `git diff --cached --name-only -- <chemin>`
+# recevrait sinon la base APRÈS le séparateur, où git la lit comme un PATHSPEC — la sortie serait
+# VIDE et la porte se tairait en silence (mesuré : la sonde ne voyait plus que le côté entrant).
+#
+# SQUASH (mesuré le 2026-09-24, git 2.54.0.windows.1, dépôt jetable). `git merge --squash`
+# reproduisait le trou INTÉGRALEMENT : il ne pose AUCUN MERGE_HEAD, donc ni ce bloc ni
+# `tools/hooks/commit-msg` ne s'armaient, et la même divergence passait (rc=0). Ce qui EST
+# disponible pendant un squash, et ce qui ne l'est pas :
+#   .git/SQUASH_MSG   PRÉSENT, et il liste les commits absorbés sous la forme « commit <sha40> » —
+#                     le PREMIER est la tête du côté entrant. git l'écrit même sous `--no-log` et
+#                     sous `merge.log=false` (mesuré), l'efface au commit qui conclut comme à un
+#                     `git reset --hard` : c'est donc un marqueur fiable de squash EN COURS.
+#   .git/AUTO_MERGE   présent, mais c'est l'ARBRE fusionné : il ne donne aucune base.
+#   .git/ORIG_HEAD    ÉGAL à HEAD (un squash ne déplace pas HEAD) : inutile pour la base.
+# ⚠️ CE QU'ON NE PEUT PAS FAIRE : SQUASH_MSG est un MESSAGE, pas une réf. S'il a été réécrit sans
+# ses lignes « commit <sha> », la base est INCALCULABLE — le bloc le DIT à voix haute et laisse la
+# portée au premier parent, plutôt que de laisser croire que l'union est vue.
+# Côté crochets, un squash n'a besoin de rien d'autre : le commit qui le conclut est un commit
+# ORDINAIRE, donc git lance pre-commit lui-même (mesuré : 1 appel, MERGE_HEAD absent).
+AGAGI_DIFF_BASE=""
+_agagi_quoi=""
+_agagi_mh=""
+# ⚠️ PAS SEULEMENT MERGE_HEAD (2026-09-24, re-vérification adversariale, grief de gravité HAUTE).
+# Mesuré en dépôt jetable, sur la MÊME divergence que le contre-exemple gelé : un `git cherry-pick`
+# CONFLICTUEL arme bien ce hook (1 appel) — mais MERGE_HEAD est ABSENT, c'est `CHERRY_PICK_HEAD` qui
+# porte le côté entrant. La portée restait donc le premier parent, le document porteur du compte
+# était identique à HEAD, et la porte 8 se taisait : exactement le mécanisme du trou `--squash`, sur
+# une autre référence. Coût nul, la réf est là.
+# ⚠️ REVERT_HEAD est DÉLIBÉRÉMENT EXCLU, et c'est le contraire d'un oubli : le commit qu'on annule
+# est normalement un ANCÊTRE de HEAD, donc `git merge-base HEAD REVERT_HEAD` rend ce commit LUI-MÊME
+# et la portée engloberait TOUT ce qui a changé depuis — des dizaines de fichiers sans rapport, donc
+# des portes qui rougissent sur du légataire et un crochet qu'on désarme en trois jours. La garde
+# d'ancêtre ci-dessous rend ce raisonnement EXÉCUTABLE au lieu de le laisser en commentaire : toute
+# référence déjà contenue dans l'histoire de HEAD n'élargit rien, et on le DIT.
+for _agagi_r in MERGE_HEAD CHERRY_PICK_HEAD; do
+  _agagi_p=$(git rev-parse --git-path "$_agagi_r" 2>/dev/null)
+  if [ -n "$_agagi_p" ] && [ -f "$_agagi_p" ]; then
+    _agagi_mh="$_agagi_p"
+    if [ "$_agagi_r" = "MERGE_HEAD" ]; then _agagi_quoi="fusion"; else _agagi_quoi="cherry-pick"; fi
+    break
+  fi
+done
+_agagi_sq=$(git rev-parse --git-path SQUASH_MSG 2>/dev/null)
+if [ -n "$_agagi_mh" ]; then
+  # $(cat) volontairement NON quoté : une fusion octopus liste plusieurs parents.
+  AGAGI_DIFF_BASE=$(git merge-base HEAD $(cat "$_agagi_mh") 2>/dev/null)
+  # Le côté entrant est-il DÉJÀ dans notre histoire ? Alors la base de fusion est ce commit
+  # lui-même et « élargir » reviendrait à prendre tout l'historique depuis : on ne le fait pas.
+  if [ -n "$AGAGI_DIFF_BASE" ] && git merge-base --is-ancestor $(cat "$_agagi_mh") HEAD 2>/dev/null; then
+    echo "[agagi/pre-commit] $_agagi_quoi : le côté entrant est DÉJÀ un ancêtre de HEAD — élargir la"
+    echo "   portée prendrait tout l'historique depuis lui. Portée inchangée (premier parent), et dite."
+    AGAGI_DIFF_BASE=""
+    _agagi_deja_dit=1
+  fi
+  # ⚠️ LA BRANCHE FUSION SE TAISAIT (2026-09-24, deuxième revue adversariale). `git merge-base` rend
+  # du VIDE sans échouer bruyamment sur des HISTOIRES SANS ANCÊTRE COMMUN
+  # (`git merge --allow-unrelated-histories`) comme sur un MERGE_HEAD illisible ou tronqué. La portée
+  # retombait alors au PREMIER PARENT — c'est-à-dire exactement le trou que ce bloc existe pour
+  # boucher — et rien ne le disait, alors que la branche SQUASH juste dessous criait déjà pour le
+  # même symptôme. Une dégradation SILENCIEUSE de périmètre est indiscernable d'un contrôle qui
+  # passe : c'est la forme (a) du biais de ce dépôt (absence -> affirmation de fond). On ne peut PAS
+  # élargir à l'arbre vide pour autant : sur des histoires non apparentées, la portée deviendrait le
+  # dépôt ENTIER et toutes les portes rougiraient sur du légataire. Donc : portée inchangée, DITE.
+  if [ -z "$AGAGI_DIFF_BASE" ] && [ -z "$_agagi_deja_dit" ]; then
+    echo "[agagi/pre-commit] $_agagi_quoi en cours, mais base INCALCULABLE (histoires sans ancêtre"
+    echo "   commun, ou référence du côté entrant illisible). La portée des portes reste le PREMIER"
+    echo "   PARENT : une divergence qui n'existe QU'À L'UNION ne sera PAS vue."
+  fi
+elif [ -n "$_agagi_sq" ] && [ -f "$_agagi_sq" ]; then
+  _agagi_quoi="squash"
+  _agagi_tete=$(sed -n 's/^commit \([0-9a-f]\{7,\}\).*$/\1/p' "$_agagi_sq" 2>/dev/null | head -1)
+  if [ -n "$_agagi_tete" ]; then
+    AGAGI_DIFF_BASE=$(git merge-base HEAD "$_agagi_tete" 2>/dev/null)
+  fi
+  if [ -z "$AGAGI_DIFF_BASE" ]; then
+    echo "[agagi/pre-commit] SQUASH en cours, mais base de fusion INCALCULABLE : SQUASH_MSG ne porte"
+    echo "   aucune ligne 'commit <sha>' exploitable (message réécrit ?). La portée des portes reste"
+    echo "   le PREMIER PARENT : une divergence qui n'existe QU'À L'UNION ne sera PAS vue."
+  fi
+fi
+if [ -n "$AGAGI_DIFF_BASE" ]; then
+  git() {
+    if [ "$1 $2" = "diff --cached" ]; then
+      _agagi_sep=0
+      for _agagi_a in "$@"; do
+        if [ "$_agagi_a" = "--" ]; then _agagi_sep=1; break; fi
+      done
+      if [ "$_agagi_sep" -eq 0 ]; then
+        command git "$@" "$AGAGI_DIFF_BASE"
+        return $?
+      fi
+      # Un `--` est présent : on réinsère la base JUSTE AVANT lui. Rotation des paramètres
+      # positionnels (dépile en tête, empile en queue) — POSIX, et sans supposer l'absence d'espaces.
+      _agagi_n=$#
+      _agagi_i=0
+      _agagi_fait=0
+      while [ "$_agagi_i" -lt "$_agagi_n" ]; do
+        _agagi_a="$1"
+        shift
+        if [ "$_agagi_fait" -eq 0 ] && [ "$_agagi_a" = "--" ]; then
+          set -- "$@" "$AGAGI_DIFF_BASE" "--"
+          _agagi_fait=1
+        else
+          set -- "$@" "$_agagi_a"
+        fi
+        _agagi_i=$((_agagi_i + 1))
+      done
+      command git "$@"
+      return $?
+    fi
+    command git "$@"
+  }
+  echo "[agagi/pre-commit] $_agagi_quoi : portée élargie à la base $AGAGI_DIFF_BASE (union des deux côtés)."
+fi
+# <<< AGAGI:FUSION-SCOPE <<<
+
 # 1. HYGIÈNE DU GRAPHE DE RECORDS — bloque tout commit qui INTRODUIT un nouvel orphelin (record sans
 # porte ni arête) ou une collision d'id. Dette légataire gelée dans results/record_link_baseline.json.
 # Scopé aux records stagés -> ne bloque jamais sur le travail non-committé d'une autre session.
 # ⚠️ La baseline elle-meme DOIT declencher la garde : sans ca, elargir le baseline et le
 # committer seul ne verifiait RIEN -- le trou par lequel un faux vert est passe (mesure le
 # 2026-09-01 : baseline elargie de 19 a 42 orphelins dans l'arbre, sans commit).
-staged_rec=$(git diff --cached --name-only --diff-filter=AM | grep -E '^(docs/(EDR|ADR|SDR|REF)/.*\.md|tools/record_link_baseline\.json)$')
+# 2026-09-24 : `docs/reviews/*.md` entre au declencheur, en AMD. La porte 1 exige `review:` de tout
+# NOUVEAU record a gate:/tests: ; sans ce motif, SUPPRIMER un fichier de revue se committait proprement
+# et rendait un record defectueux sans qu'aucune porte ne parle. AMD (et non AM) parce que c'est la
+# SUPPRESSION qui est le cas dangereux.
+staged_rec=$(git diff --cached --name-only --diff-filter=AMD | grep -E '^(docs/(EDR|ADR|SDR|REF)/.*\.md|docs/reviews/.*\.md|tools/record_link_baseline\.json)$')
 if [ -n "$staged_rec" ]; then
   # E4 occ.6 (2026-09-02, revue adversariale C3) : si SEULE la baseline est stagee, la liste --only
   # est VIDE et le checker filtre tout -> le ratchet ne pouvait pas echouer sur ce commit precis
   # (le trou residuel de l'occ.5). Baseline stagee sans record -> run NON scope (arbre entier).
-  only_rec=$(echo "$staged_rec" | grep -v record_link_baseline || true)
+  # MEME PIEGE pour docs/reviews/ : un fichier de revue n'est pas un record, aucun --only ne le
+  # designe ; s'il est seul stage, le run doit etre NON SCOPE, sinon la porte ne peut pas echouer.
+  only_rec=$(echo "$staged_rec" | grep -v -E 'record_link_baseline|^docs/reviews/' || true)
   if [ -n "$only_rec" ]; then
     PYTHONIOENCODING=utf-8 python tools/check_record_links.py --only $only_rec
   else
@@ -307,7 +479,7 @@ fi
 # contre-exemple.
 # `--pour-fichiers` : ne reveille QUE les portes dont le cliquet ou les temoins sont stages (~15 s
 # pour une porte). Muter les treize a chaque commit couterait 4 min -- un cliquet qu'on desactive.
-staged_gm=$(git diff --cached --name-only --diff-filter=AM | grep -E '^(tools/check_\w+\.py|tests/sandbox/test_\w+\.py|tools/check_gate_mutation\.py|tools/_mutation_plugin\.py)$')
+staged_gm=$(git diff --cached --name-only --diff-filter=AM | grep -E '^(tools/check_\w+\.py|tests/sandbox/test_\w+\.py|tools/check_gate_mutation\.py|tools/_mutation_plugin\.py|tools/_git_env\.py)$')
 if [ -n "$staged_gm" ]; then
   PYTHONIOENCODING=utf-8 python tools/check_gate_mutation.py --pour-fichiers $staged_gm || {
     echo ""
@@ -382,6 +554,166 @@ if git diff --cached --name-only --diff-filter=ACMRD | grep -Eq "^(tests/.*\.py|
     echo "-> Une declaration garde-seule NEUVE qu'aucun test n'importe-et-appelle (muette) : ajouter un cas"
     echo "   CORPS-ATTEINT (injection a dose connue, monde factice), ou geler EN CONNAISSANCE :"
     echo "   python tools/check_calibration_reach.py --update-baseline"
+    fail=1
+  }
+fi
+# 19. REGIME CITE <-> REGIME MESURE (2026-09-16, corrige en revue le 2026-09-23) -- classe E8 occ. 4 : un
+# record qui cite une valeur de parametre doit la retrouver, MESUREE, dans un results/*.json SUIVI par
+# git -- dans un bloc regime (a toute profondeur) ou ailleurs dans le fichier (CONCORDE_HORS_REGIME, une
+# information, pas une faute). Mesure le 2026-09-23 : 74 records citent un parametre, 10 concordent (5
+# CONCORDE + 5 CONCORDE_HORS_REGIME) -- 64 dans la baseline legataire, dont 8 DISCORDE (7 verifies).
+# Se declenche si un record EDR, un results/*.json, la baseline OU le module lui-meme (check_regime_claims
+# .py) est stage ; baseline seule -> non scope (E4 occ. 5). Le scope --only n'est utilise QUE si les
+# fichiers stages sont EXCLUSIVEMENT des docs/EDR -- un results/*.json modifie (bloc regime change) peut
+# invalider les affirmations d'AUTRES records que ceux stages, donc un results stage -> run NON scope.
+# 2026-09-24 : AM -> AMD. Le commentaire de ce declencheur est celui de la porte 20 MOT POUR MOT, mais
+# la 20 filtrait en AMD et la 19 en AM : un results/ SUPPRIME ne reveillait pas la 19, alors que c'est
+# exactement le cas ou une valeur citee cesse d'etre verifiable.
+staged_rc=$(git diff --cached --name-only --diff-filter=AMD | grep -E '^(docs/EDR/.*\.md|results/.*\.json|tools/regime_claims_baseline\.json|tools/check_regime_claims\.py)$')
+if [ -n "$staged_rc" ]; then
+  only_rc=$(echo "$staged_rc" | grep -E '^docs/EDR/' || true)
+  non_edr_rc=$(echo "$staged_rc" | grep -vE '^docs/EDR/' || true)
+  if [ -n "$only_rc" ] && [ -z "$non_edr_rc" ]; then
+    PYTHONIOENCODING=utf-8 python tools/check_regime_claims.py --only $only_rc
+  else
+    PYTHONIOENCODING=utf-8 python tools/check_regime_claims.py
+  fi || {
+    echo ""
+    echo "-> Une valeur de parametre citee est introuvable dans les results cites (regime OU ailleurs)."
+    echo "   Citer le results/*.json SUIVI qui la porte, ou corriger la prose. Geler EN CONNAISSANCE :"
+    echo "   python tools/check_regime_claims.py --update-baseline"
+    fail=1
+  }
+fi
+
+# 20. PROVENANCE DE L'EVIDENCE (2026-09-23, corrigee en revue architecte le 2026-09-23) -- classe E27 :
+# mesure DEUX FOIS sur des clones/worktrees neufs, un record qui cite `results/*.json` absent du depot
+# (ou present seulement sur le disque d'une session) ne peut etre rouvert par personne d'autre -- une
+# conclusion dont l'evidence n'est plus rouvrable n'est pas refutable. `check_evidence_provenance.py`
+# exige que tout chemin cite EXISTE sur le disque ET soit SUIVI par git (INDEX), ou soit publie par son
+# hash (sha256 a cote de la citation -- une DECLARATION geleE/auditable, jamais une verification).
+# QUATRE causes distinctes, jamais fondues : absent (nulle part), non_suivi (existe, git l'ignore),
+# glob_vide (un motif a joker qui ne developpe vers aucun fichier), par_hash (declare, gele pour audit).
+# Baseline legataire gelee PAR (record, chemin, cause) dans tools/evidence_provenance_baseline.json ;
+# rang par_hash < non_suivi < absent/glob_vide -- un legataire qui REGRESSE vers une cause plus grave
+# bloque, l'inverse non. Un record illisible BLOQUE et n'est jamais gelable.
+# Se declenche si un record EDR, un results/*.json, la baseline, le module lui-meme, OU
+# check_regime_claims.py (dont la porte 20 importe cited_results/_developper -- E4 occ. 5, point 7 de la
+# revue) est stage. --only n'est utilise QUE si les fichiers stages sont EXCLUSIVEMENT des docs/EDR --
+# un results/*.json modifie (apparu, disparu, deplace) peut changer la provenance d'AUTRES records que
+# ceux stages, donc un results stage -> run NON scope (meme raisonnement que la porte 19).
+staged_ep=$(git diff --cached --name-only --diff-filter=AMD | grep -E '^(docs/EDR/.*\.md|results/.*\.json|tools/evidence_provenance_baseline\.json|tools/check_evidence_provenance\.py|tools/check_regime_claims\.py)$')
+if [ -n "$staged_ep" ]; then
+  only_ep=$(echo "$staged_ep" | grep -E '^docs/EDR/' || true)
+  non_edr_ep=$(echo "$staged_ep" | grep -vE '^docs/EDR/' || true)
+  if [ -n "$only_ep" ] && [ -z "$non_edr_ep" ]; then
+    PYTHONIOENCODING=utf-8 python tools/check_evidence_provenance.py --only $only_ep
+  else
+    PYTHONIOENCODING=utf-8 python tools/check_evidence_provenance.py
+  fi || {
+    echo ""
+    echo "-> Un record cite une evidence ABSENTE ou NON SUIVIE (ou a REGRESSE) : git add le results/*.json,"
+    echo "   publier son sha256 a cote de la citation, ou corriger le chemin. Un sha256 declare est GELE"
+    echo "   dans la baseline et reste auditable (cause par_hash) -- ce n'est PAS une verification."
+    echo "   Geler EN CONNAISSANCE : python tools/check_evidence_provenance.py --update-baseline"
+    fail=1
+  }
+fi
+
+# 22. COPIE DEPLOYEE DES CROCHETS (2026-09-24) -- P2.108. `.git/hooks/` n'est pas versionne : les
+# crochets de `tools/hooks/` y sont recopies A LA MAIN, et entre les deux rien ne tenait. Les deux
+# sens sont des occurrences REELLES, pas des hypotheses :
+#   (a) COPIE EN RETARD -- une porte ajoutee ici et committee ne s'execute chez PERSONNE tant que le
+#       `cp` n'est pas refait. Le depot annonce alors N gardes et en fait tourner N-1, sans aucun
+#       signal : une absence devenue affirmation de fond, la forme (a) du biais de ce depot. Ce sens
+#       CRIE avec la commande exacte, il ne bloque pas -- le commit qui MET A JOUR un crochet est
+#       dans cet etat par construction, et bloquer arreterait toute la flotte sur un fichier partage.
+#   (b) COPIE EN AVANCE -- mesure par la session PM : un worktree a ecrit dans le crochet COMMUN une
+#       porte qui n'existe dans AUCUN commit. ⚠️ `core.hooksPath` vaut ici un chemin ABSOLU vers le
+#       `.git/hooks` du depot principal : TOUS les worktrees executent le MEME fichier, donc y ecrire
+#       arme la flotte entiere. Du code que personne n'a relu bloquait chaque session qui committait
+#       un record. Ce sens-la REFUSE, et c'est la raison d'etre de la porte.
+# La reference est l'INDEX (`git show :<chemin>`), jamais le disque : l'arbre est PARTAGE et peut
+# porter a cet instant l'edition en cours d'une autre session.
+# ⚠️ CE QU'ELLE NE PEUT PAS VOIR : elle est lancee PAR le pre-commit deploye. Si CELUI-LA est absent,
+# elle ne tourne pas du tout -- l'absence du pre-commit est indetectable de l'interieur. Celle de
+# tout AUTRE crochet est parfaitement visible d'ici, et c'est elle qui compte : un `commit-msg`
+# manquant rouvre le trou de la fusion (git ne lance AUCUN pre-commit sur une fusion propre).
+# Cout : deux lectures de fichier ; l'historique n'est parcouru QUE s'il y a divergence.
+PYTHONIOENCODING=utf-8 python tools/check_hook_deployment.py || {
+  echo ""
+  echo "-> La copie DEPLOYEE d'un crochet n'est pas celle que le depot a relue. Un crochet deploye"
+  echo "   s'execute chez TOUTES les sessions (core.hooksPath absolu) : remettre la copie en"
+  echo "   conformite, ou committer ce qui a ete ecrit dans le crochet commun pour qu'il soit relu."
+  fail=1
+}
+
+# >>> AGAGI:FUSION-SANS-TEMOIN >>>
+# IL N'Y A PAS DE TÉMOIN ICI, ET C'EST UNE DÉCISION MESURÉE (2026-09-24). Ce bloc portait un jeton
+# « les portes ont déjà tourné », posé dans le git-dir et lu par `tools/hooks/commit-msg`, pour
+# éviter de les relancer sur une fusion CONFLICTUELLE — où ce hook s'arme déjà au commit de
+# résolution. Trois identités ont été essayées, DEUX réfutées par la mesure, la troisième par une
+# re-vérification adversariale qui lançait ses propres sondes :
+#   v1  la seule PRÉSENCE du fichier — un commit avorté laissait un résidu qui désarmait TOUT, et le
+#       git-dir étant PARTAGÉ par une dizaine de sessions, le résidu de l'une désarmait l'autre ;
+#   v2  (horodatage, HEAD, MERGE_HEAD) — certifie « une fusion de B dans A », pas « CET état-ci » :
+#       la même paire est réatteignable avec un index DIFFÉRENT. Séquence reproduite 4 fois : une
+#       fusion refusée laisse MERGE_HEAD, l'auteur corrige et recommite, ce hook PASSE et pose le
+#       jeton, puis le commit AVORTE à l'éditeur — commit-msg n'a jamais tourné, donc n'a rien
+#       consommé, et un jeton VALIDE survit ;
+#   v3  + `git write-tree` — RÉFUTÉE AUSSI, et c'est la mesure qui tranche : l'identité couvre
+#       l'INDEX, mais les portes de ce dépôt jugent le DISQUE (`check_synthesis_counts` compte des
+#       FICHIERS, `check_amputation` et `check_instrument_calibration` balayent l'ARBRE). L'index
+#       peut être identique pendant que CE QUI EST JUGÉ a changé — et l'arbre est partagé, donc il
+#       change tout seul. Mesure APPARIÉE : le même état du monde passe rc=0 avec ZÉRO porte quand
+#       le jeton résiduel est là, et est REFUSÉ rc=1 sans lui.
+# CE QU'ON EN TIRE, et c'est la classe E31 du registre : quand l'identité d'un jeton ne peut pas
+# couvrir ce que la vérification JUGE, on ne raffine pas une quatrième identité — ON SUPPRIME LE
+# RACCOURCI. Retirer le seul mécanisme capable de SAUTER des portes ne peut pas ouvrir de trou :
+# c'est un remède MONOTONE, ce qu'un raffinement n'est jamais.
+# CE QUE ÇA COÛTE, mesuré et borné : sur une fusion CONFLICTUELLE les portes tournent DEUX fois (une
+# au commit de résolution, une relancée par commit-msg). Ce coût était déjà payé sans qu'on le sache
+# — dès qu'un éditeur de message dépassait 120 s, le jeton périmait et les portes tournaient deux
+# fois de toute façon.
+# ⚠️ Aucun jeton n'est écrit, et le résidu d'une ancienne version est retiré par `commit-msg` sans
+# jamais être LU. Quatre propriétés du jeton (pose conditionnée au succès, expiration, consommation,
+# comparaison de MERGE_HEAD) n'avaient AUCUN contre-exemple gelé — quatre mutations survivantes au
+# harnais de la porte 15 ; elles disparaissent avec lui plutôt que d'être testées une par une.
+# <<< AGAGI:FUSION-SANS-TEMOIN <<<
+
+# 23. GARDE E19 APPELEE (2026-09-23) -- un runner SCELLE dont la regle compare des bras SOUS GRADIENT
+# (grille de lr, bras a pas distincts, clause_E19, sender_lr) doit appeler assert_verdict_invariant_to_
+# optimizer, sinon son nul mesure le REGLAGE (RETAIN-COMPOSE : verdict invertit de 0,173 a 0,923 au seul
+# lr). Meme perimetre que la porte 11 (tools/, src/seed_ai/, hors check_*.py et _HORS_PERIMETRE, reutilises
+# de check_control_family). Un runner qui APPELLE la garde directement est couvert MEME sans regle JSON
+# scellee (tools/learner_calibration.py : ses bras sont des litteraux Python, pas une regle verify()) --
+# c'est le seul appelant reel du depot -- gele dans "appelants_garde" : en PERDRE un bloque, sinon la
+# porte resterait verte si learner_calibration.py cessait d'appeler la garde. Un nom de regle NON RESOLU
+# (argv) est rapporte, jamais devine ni compte "pas sous gradient" ; un nom resolu dont le fichier scelle
+# est introuvable est REGLE ABSENTE. Une regle dont le contenu SERIALISE mentionne lr/learning_rate/E19
+# HORS des cles structurees, sans qu'aucune forme reconnue ne tire, est INDETERMINEE (revue 2026-09-23 :
+# trois runners vivants -- s2_credit_ablation(.py|_2.py), s2_reward_ablation.py -- sortaient "couvert" en
+# silence). Baseline legataire gelee PAR (chemin, raison) dans tools/e19_sweep_baseline.json ; rang
+# couvert < illisible < non_resolu < regle_absente < indetermine < nu -- un legataire qui EMPIRE bloque
+# comme un nu tout neuf. Se declenche si un runner .py (tools/ ou src/seed_ai/), une regle scellee, la baseline,
+# OU un des TROIS modules partages (le module lui-meme, check_control_family.py dont il importe _sources/
+# _HORS_PERIMETRE, experiment_preflight.py qui DEFINIT la garde -- E4 occ. 5) est stage. --only n'est
+# utilise QUE si les fichiers stages sont EXCLUSIVEMENT des runners .py ORDINAIRES (pas les trois modules
+# partages, pas une regle JSON, pas la baseline) -- un changement a l'un de ces trois peut reclasser
+# N'IMPORTE QUEL autre runner, donc force un run NON scope (meme raisonnement que les portes 19/20).
+staged_e19=$(git diff --cached --name-only --diff-filter=AM | grep -E '^((tools|src/seed_ai)/.*\.py|docs/preregistrations/.*\.json|tools/e19_sweep_baseline\.json)$')
+if [ -n "$staged_e19" ]; then
+  only_e19=$(echo "$staged_e19" | grep -E '^(tools|src/seed_ai)/.*\.py$' | grep -vE '^tools/(check_e19_optimizer_sweep|check_control_family|experiment_preflight)\.py$' || true)
+  hors_py_e19=$(echo "$staged_e19" | grep -vE '^(tools|src/seed_ai)/.*\.py$' || true)
+  partages_e19=$(echo "$staged_e19" | grep -E '^tools/(check_e19_optimizer_sweep|check_control_family|experiment_preflight)\.py$' || true)
+  if [ -n "$only_e19" ] && [ -z "$hors_py_e19" ] && [ -z "$partages_e19" ]; then
+    PYTHONIOENCODING=utf-8 python tools/check_e19_optimizer_sweep.py --only $only_e19
+  else
+    PYTHONIOENCODING=utf-8 python tools/check_e19_optimizer_sweep.py
+  fi || {
+    echo ""
+    echo "-> Ce runner compare des bras sous GRADIENT sans balayer le pas : son nul mesure le reglage (E19)."
+    echo "   Appeler assert_verdict_invariant_to_optimizer(measure, lrs=...) ou geler : --update-baseline"
     fail=1
   }
 fi

@@ -117,6 +117,34 @@ def test_uppercase_emphasis_in_test_names_is_recognised(tmp_path, monkeypatch):
     assert "E99" not in G.scan(), "un nom de test avec majuscules d'emphase doit être reconnu"
 
 
+def test_a_QUALIFIED_file_double_colon_function_citation_is_recognised(tmp_path, monkeypatch):
+    """DÉFAUT MESURÉ (2026-09-24, P2.108) : `fichier.py::fonction` est LA convention du dépôt pour
+    lever une collision de noms — elle est OBLIGATOIRE dans `CALIBRATED` — et c'est la seule façon
+    de désigner UN cas gelé parmi les seize d'un fichier. Ce cliquet ne la lisait pas : le token
+    entier ne passait ni le motif d'identifiant ni celui de chemin, la colonne Garde paraissait ne
+    nommer AUCUN artefact, et deux classes inscrites AVEC leur contre-exemple étaient refusées comme
+    « déclaratives ». Un cliquet qui refuse la notation que le dépôt recommande crie au loup."""
+    _registre(tmp_path, monkeypatch, [
+        "| **E99** | Classe bidon | occurrence | `exécutable` | contre-exemple gelé : "
+        "`tests/sandbox/test_hook_on_merge.py::test_un_temoin_ETRANGER_ne_desarme_PAS_une_fusion_fautive` |",
+    ])
+    assert "E99" not in G.scan(), "la forme qualifiée `fichier.py::fonction` doit être reconnue"
+
+
+def test_a_QUALIFIED_citation_whose_FUNCTION_does_not_exist_is_still_flagged(tmp_path, monkeypatch):
+    """CONTRÔLE POSITIF de l'élargissement ci-dessus : accepter la forme qualifiée ne doit pas
+    revenir à accepter n'importe quoi. Le fichier existe, la fonction est inventée — la citation
+    reste fautive. Sans ce cas, une tolérance trop large passerait le test précédent en ne
+    distinguant plus rien, ce qui est exactement le défaut que ce fichier traque chez les autres."""
+    _registre(tmp_path, monkeypatch, [
+        "| **E99** | Classe bidon | occurrence | `exécutable` | contre-exemple gelé : "
+        "`tests/sandbox/test_hook_on_merge.py::test_ce_cas_n_existe_dans_aucun_fichier` |",
+    ])
+    assert "E99" in G.scan(), (
+        "une fonction INVENTÉE derrière un fichier réel doit rester signalée : sinon la moitié "
+        "droite de la notation qualifiée n'est plus vérifiée du tout")
+
+
 def test_the_real_registry_is_and_stays_clean():
     """L'état gelé du dépôt : 0 garde `exécutable` sans contre-exemple nommé.
 

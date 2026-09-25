@@ -10,9 +10,43 @@ importable (run sandbox-only sans deps backend), la fixture ne fait rien.
 
 Garde-fou pour ne pas re-accumuler la dette : `.githooks/pre-push` (lance les tests CI avant push).
 """
+import os
 import pathlib
 
 import pytest
+
+
+@pytest.fixture(autouse=True)
+def _env_git_neutralise(monkeypatch):
+    """⚠️ **Aucun test ne voit les variables `GIT_*` de son appelant** — E5, DEUX occurrences le même jour.
+
+    Pendant tout `git commit`, git EXPORTE `GIT_DIR`, `GIT_INDEX_FILE`, `GIT_WORK_TREE`… vers le hook
+    pre-commit et, de là, vers TOUS ses sous-processus — donc vers `pytest` quand le hook lance le harnais
+    de mutation. Un test qui croit travailler sur un dépôt jetable travaille alors sur le dépôt RÉEL :
+    `git init` hérité d'un `GIT_DIR` sans `GIT_WORK_TREE` **réinitialise le dépôt pointé et y pose
+    `core.bare = true`** (mesuré deux fois — le 2026-09-23 vers 20:03 et le 2026-09-24 à 13:30:13 ; dans
+    les deux cas `git status` a rendu « must be run in a work tree » pour TOUTES les sessions, et seule la
+    plomberie passait encore). Le `git config user.email` qui suit un tel init écrase de plus l'identité du
+    dépôt réel : c'est le mécanisme des commits signés `Test <test@example.com>` de P2.86.
+
+    Trois décisions, toutes payées :
+      * **Toute la famille `GIT_*`, jamais une énumération.** Deux correctifs successifs n'ont listé que
+        `GIT_INDEX_FILE` et ont laissé passer `GIT_DIR` — c'est l'énumération qui a échoué, pas l'idée.
+      * **Portée FONCTION, pas session.** Une fixture de session nettoie l'environnement HÉRITÉ une seule
+        fois ; elle ne protège pas du second chemin, un test qui pose `os.environ["GIT_DIR"]` sans
+        `monkeypatch` et empoisonne tous les tests suivants de la même exécution. Coût nul.
+      * **`monkeypatch` plutôt qu'une mutation directe** : l'environnement est restauré après chaque test,
+        et un test qui a BESOIN d'une de ces variables la pose lui-même (`monkeypatch.setenv`) — la fixture
+        nettoie AVANT, elle ne l'empêche pas.
+
+    ⚠️ **Réserve honnête : ceci ne ferme pas la classe, seulement sa surface `pytest`.** Un script lancé à
+    la main pendant un hook, ou un sous-processus qui reconstruit son environnement avec un `env=` explicite,
+    garde la fuite. Et le SITE qui a réellement emprunté le trou le 2026-09-24 n'est pas identifié à ce jour
+    (P2.107) : cette fixture supprime la classe d'accidents, elle ne dispense pas de le trouver.
+    Contre-exemple gelé : `tests/sandbox/test_git_env_leak.py`.
+    """
+    for nom in [k for k in os.environ if k.startswith("GIT_")]:
+        monkeypatch.delenv(nom, raising=False)
 
 
 def pytest_configure(config):

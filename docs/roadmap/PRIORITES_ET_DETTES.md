@@ -769,7 +769,7 @@ Depuis `b0f2620b` (2026-06-05, commit initial). Correctif : UNE résolution de r
 armé par `sandbox_service._arm_live_progress` SANS monkeypatch. *Coût : agent 30 min ; calcul 0.* Dépend de : rien.
 <!-- closes_when:grep_absent=backend/app/main.py::parents\[3\] -->
 
-**P4.11 — rang 5 — ✅ CLOSE le 2026-09-24 (accord du master, session harnais) — ⚠️ BILLET ACQUIS À UN SEUL POINT DE FONCTIONNEMENT : lr 4,0 = 0,25/agent, λ 0,9-0,99 (aide09 12/12, aide099 11/12) ; **invariance au pas NON ÉTABLIE** — à lr 2,0 l'aide est nulle (aide09 0/12, R1) mais ce point N'A PAS SON CONTRÔLE DE CHEMIN : les bras de R1 à ce pas sont `lr0_reference@2`, `td0@2`, `tdlam09@2`, **jamais `td0_d0@2`**, et la ligne lr 2,0 de R2 était coupée ; or `td0@2` lui-même ne rend que 1/12, donc on ne distingue pas « la trace n'aide pas à ce pas » de « rien n'apprend à ce pas ». ⚠️ **Corrigé le 2026-09-24, même jour** : la première rédaction de cette clôture écrivait « invariance RÉFUTÉE », ce qui SUR-DÉCLARAIT — trouvé en vérifiant les bras de R1 après que la session propriétaire du pilote ait corrigé sa propre lecture (la ligne lr 2,0 avait été coupée par la CONTENTION et sa reprise la récupère : 48 cellules en cours, elles trancheront). lr 1,0 JAMAIS mesuré (coupe E13 STRUCTURELLE, tenue machine libre, publiée dans `_regime.coupe`). La pièce `eligibility_trace_credit` N'ENTRE PAS au registre : deux contrôles de son billet manquent (P4.19). ([`ADR-005`](../ADR/005_mecanismes_biomimetiques_pieces_familles_prerequis.md), item 1) —
+**P4.11 — rang 5 — ✅ CLOSE le 2026-09-24 (revue de la session qui porte le harnais, réserves appliquées telles quelles) — ⚠️ BILLET ACQUIS À UN SEUL POINT DE FONCTIONNEMENT : lr 4,0 = 0,25/agent, λ 0,9-0,99 (aide09 12/12, aide099 11/12) ; **invariance au pas NON ÉTABLIE** — à lr 2,0 l'aide est nulle (aide09 0/12, R1) mais ce point N'A PAS SON CONTRÔLE DE CHEMIN : les bras de R1 à ce pas sont `lr0_reference@2`, `td0@2`, `tdlam09@2`, **jamais `td0_d0@2`**, et la ligne lr 2,0 de R2 était coupée ; or **aucun des deux bras ne franchit sa propre barre** à ce pas : mesuré indépendamment par la session du harnais sur `results/td_step_pilot_r1.json`, `lr0_reference@2` = 0,1643, `td0@2` = 0,1840, `tdlam09@2` = 0,1917, pour une barre réf + 0,05 = **0,2143**. Le 0/12 du pas 2 oppose donc deux bras qui n'apprennent NI l'un NI l'autre : la grandeur contrastée n'existe pas à ce point. Une trace transporte du crédit ; s'il n'y a pas de crédit à transporter, son inertie ne la concerne pas. ⚠️ **Et le critère de lisibilité ne comble pas ce trou tout seul** : `lisible@lr` se mesure sur la paire SANS DÉLAI (`td0_d0` contre `lr0_reference_d0`), alors que l'aide se lit sur la paire AVEC délai — un pas peut donc être déclaré « lisible » pendant que les bras qui portent le contraste restent sous leur barre. ✅ **TRANCHÉ depuis, et dans le sens de cet amendement** (P4.17 CLOSE, lecture scellée `AIDE_A_UN_POINT`) : la reprise a récupéré la ligne lr 2,0 avec son bras de chemin, et `td0_d0` y passe **12/12** pendant qu'**aucun bras à délai ne franchit sa barre** (1/12, 0/12, 1/12, 2/12) — le pas est « lisible » au sens de la règle par la paire SANS délai, et le 0/12 d'aide oppose bien deux bras qui n'apprennent ni l'un ni l'autre. L'invariance au pas reste donc **OUVERTE**, et le balayage utile va vers le **HAUT**, pas vers le bas. ⚠️ Et la lecture complète RENFORCE le billet au lieu de l'affaiblir : à lr 4,0, contre la référence lr=0 du même dispositif (barre 0,2125), `lam0` ne franchit que sur **1/12** et `lam05` sur 3/12, tandis que `lam09` et `lam099` franchissent sur **11/12** — les bras SANS trace n'apprennent pas du tout, donc le +0,063 de R0 n'était pas un bonus sur une tâche apprise : à ce point, la trace est **CE QUI REND la tâche différée apprenable**. Ce qui manque à la pièce reste ce que dit P4.19 (le sham δ-permuté et la dose appariée), pas une invariance. ✅ **Ce que le billet ne risque PAS, recompté sur ce que le CODE compare** (ma première liste, faite de mémoire, en manquait quatre — corrigé le jour même) : **25 comparaisons** effectives de `_lecture`/`_lecture_r1`/`_lecture_r2`, dont 5 NON LISIBLES (bras de lr 1,0 absents, jamais comptées 0) et 20 recomptées en arithmétique de GRILLE (640 évaluations, marge = 32 pas ; médianes sur 1/1280, barre 0,5 = 640 pas) — **0 changement, 0 égalité exacte**, écart maximal à un compte entier 1,526e-05 pas sur 504 valeurs. E30 est donc LATENT ici et n'a touché aucun de ces chiffres. ⚠️ **Mais la marge en PAS, que le compte cachait** : le `12/12` de `tdlam > td0` à lr 4,0 — la mesure qui PORTE ce billet — tient à **+1 pas de grille**, une évaluation sur 640 chez un seul seed (et `aide099` 11/12 à −2 pas). Le compte est au plancher de RÉSOLUTION ; le verdict, lui, est robuste (seuil scellé `seeds_aide` = 11, donc 12 → 11 laisserait la branche intacte). À citer avec sa marge, jamais nu. ⚠️ **Corrigé le 2026-09-24, même jour** : la première rédaction de cette clôture écrivait « invariance RÉFUTÉE », ce qui SUR-DÉCLARAIT — trouvé en vérifiant les bras de R1 après que la session propriétaire du pilote ait corrigé sa propre lecture (la ligne lr 2,0 avait été coupée et sa reprise la récupère : 48 cellules, qui ont tranché depuis — ⚠️ la NATURE de cette coupe, « contention », n'est PAS établie : le rapport CPU/mur de la reprise dite libre vaut 0,78 contre 1,80 pour la passe dite chargée, cf. E33 occ. 6). lr 1,0 JAMAIS mesuré (coupe E13 publiée dans `_regime.coupe` ; sa nature « structurelle, tenue machine libre » n'est PAS établie non plus, pour la même raison). La pièce `eligibility_trace_credit` N'ENTRE PAS au registre : deux contrôles de son billet manquent (P4.19). ([`ADR-005`](../ADR/005_mecanismes_biomimetiques_pieces_familles_prerequis.md), item 1) —
 Trace d'éligibilité de politique TD(λ) dans `TorchPopulationModel._td_update` : le crédit local SANS BPTT, calibré à
 0 simulation ; l'issue positive se mesure sur un PILOTE TD PAR PAS (`CompositionTask(same_tick=False)`), pas sur le
 proxy D=2.**
@@ -814,7 +814,7 @@ ci-dessous est un motif d'auto-clôture ancré (vérifiable sur un clone ; `grep
 ⚠️ **Clause corrigée le 2026-09-24** : la précédente grep-ait sa PROPRE ligne « P4.11 — ✅ CLOSE » dans ce fichier — une clause auto-référentielle ne peut STRUCTURELLEMENT pas signaler qu'une condition de fond est remplie, elle ne fait que recopier la décision de l'auteur (E1). Ancrée désormais sur la SORTIE : le verdict du record.
 <!-- closes_when:grep_present=docs/EDR/TD-STEP-PILOT-R0_Per_Step_TD_Credit_Is_Inert_At_D1_And_The_Eligibility_Trace_Transports_Credit.md::verdict: TD0_INERTE -->
 
-**P4.19 — rang 6 — OUVERTE (2026-09-24, accord du master) — Les DEUX contrôles manquants du billet de la pièce
+**P4.19 — rang 6 — OUVERTE (2026-09-24, issue de la revue de la session qui porte le harnais) — Les DEUX contrôles manquants du billet de la pièce
 `eligibility_trace_credit` : le sham « δ PERMUTÉ » et la dose appariée en Σ|ΔW|.**
 ADR-005 exige pour cette pièce un `matched_sham` « même trace, δ PERMUTÉ dans le temps » et une entrée « à dose
 appariée en Σ|ΔW| ». Mesuré le 2026-09-24, aucun des deux n'existe :
@@ -834,7 +834,7 @@ Tant que (a) et (b) ne sont pas payés, la pièce reste « attend » au registre
 maintient avec ces deux manques nommés). Prérequis de l'ENTRÉE de la pièce, pas dette diffuse.
 <!-- closes_when:grep_present=tools/td_step_pilot.py::permut -->
 
-**P4.20 — rang 12 — OUVERTE (2026-09-24, balayage demandé par le master) — Deux familles de clauses `closes_when`
+**P4.20 — rang 12 — OUVERTE (2026-09-24, balayage demandé par la session qui porte le harnais) — Deux familles de clauses `closes_when`
 qui ne peuvent pas faire ce qu'elles promettent.**
 Balayage complet des 60 clauses du backlog (41 `grep_present`, 14 `path_present`, 5 `grep_absent`) :
 * **(i) AUTO-RÉFÉRENTIELLES — 2 cas.** Une clause qui grep sa propre ligne « ✅ CLOSE » dans ce fichier ne peut
@@ -853,12 +853,147 @@ Balayage complet des 60 clauses du backlog (41 `grep_present`, 14 `path_present`
 * **Aggravant commun** : `_CLOSE_MARQUEURS` de `tools/check_backlog_freshness.py` contient « ✅ » SEUL, donc
   « ✅ SCELLÉE ET LANCÉE » bascule l'entrée du côté CLOSE de la logique à deux sens — c'est pourquoi P4.16 ne
   déclenchait aucune violation malgré son état réel.
+* **(iii) ANCRÉES SUR LA PRÉSENCE DU REMÈDE — 1 cas, le mien, ajouté le 2026-09-24 le jour même du balayage.** Viser la SORTIE ne suffit pas : encore faut-il que ce soit la sortie que l'entrée CHERCHE. La clause de **P2.107** était `grep_present=tests/conftest.py::GIT_DIR` — donc satisfaite dès qu'une fixture existe — alors que l'entrée déclare explicitement ne pas se clore tant que le SITE d'appel fautif n'est pas nommé. Elle a basculé au vert **dans l'heure**, par la pose du remède, sur une entrée dont la condition de fond était intacte. Différence avec (i) : l'auto-référentielle recopie la DÉCISION de l'auteur ; celle-ci constate l'EXISTENCE DU CORRECTIF. Aucune des deux ne constate ce que l'entrée cherche. ⚠️ Et le défaut a été écrit PENDANT ce balayage-ci, par son auteur : un balayage de forme ne protège pas contre la production d'un exemplaire neuf de la même forme, ce qui est l'argument le plus fort pour que la porte 4 le refuse EXÉCUTABLEMENT au lieu qu'on le relise. Durcissement (4) à ajouter à la liste ci-dessous : refuser une clause dont le motif vise le fichier livrable du REMÈDE quand l'entrée porte une réserve de fond explicite — ou, plus simple et plus sûr, faire DÉCLARER par l'auteur ce que la clause constate, et refuser le silence.
+* **Aggravant commun** : `_CLOSE_MARQUEURS` de `tools/check_backlog_freshness.py` contient « ✅ » SEUL, donc
+  « ✅ SCELLÉE ET LANCÉE » bascule l'entrée du côté CLOSE de la logique à deux sens — c'est pourquoi P4.16 ne
+  déclenchait aucune violation malgré son état réel.
 **À faire, en une passe** : durcir la porte 4 — (1) refuser une clause dont le motif vise l'entrée qui la porte ;
 (2) refuser (ou signaler, baseline gelée sur les 6) une clause `path_present` pointant dans `docs/preregistrations/` ;
 (3) distinguer « ✅ CLOSE » de « ✅ SCELLÉE / LANCÉE » dans `_CLOSE_MARQUEURS`. Chaque durcissement avec son
 contre-exemple gelé et sa mutation (porte 15), dans la même passe — et une baseline pour ne pas bloquer les 6 entrées
 existantes d'autrui.
 <!-- closes_when:grep_present=tools/check_backlog_freshness.py::auto-référentielle -->
+
+**P2.105 — rang 12 — OUVERTE (2026-09-24, second cas d'E30 paru le jour de la classe) — La porte qui manque à
+E30 : un seuil dont la marge est un multiple EXACT du pas d'une grille se compare sur la grille, et rien ne
+l'applique.**
+Le registre disait « garde exécutable à écrire quand un second cas paraîtra ». Il est paru : `tools/td_step_pilot.py`
+(`n_sup`/`n_inf`, l. 136, 240, 350) compare en flottants une accuracy qui est un COMPTE sur 40 × 16 = **640**
+évaluations, avec une marge 0,05 qui vaut **exactement 32 pas**, sur des valeurs stockées en **float32**. Les
+17 comptes publiés de R0/R1/R2 ne changent PAS (zéro égalité exacte sur 12 seeds) — le défaut y est LATENT — mais
+la reprise de P4.17 tourne sur 48 cellules NEUVES avec le code non corrigé, et une égalité qui y apparaîtrait
+serait perdue du côté qui refuse (E14 en formation).
+**Le travail est déjà à moitié fait** : le motif est écrit et VALIDÉ sur le cas positif connu (`bilinear_sham_run`
+avant `ba56ede3`), et l'inventaire des **12 sites** est mesuré, donc la baseline est prête à geler. Deux des 12
+produisent un VERDICT publié avec marge et leur commensurabilité n'est pas mesurée :
+`tools/adaptive_planning_probe.py:154` (`ADAPTIVE_NEUTRAL`) et `tools/hunif_retention_probe.py:148`
+(`NO_RETENTION_ADVANTAGE`) — deux négatifs de fond ; les autres ne gouvernent qu'un affichage.
+**Forme** : porte qui refuse tout NOUVEAU site de la forme hors baseline, plus l'heuristique gratuite là où
+l'instrument connaît son N (`n_eval`, `eval_batches × n_agents`) — « la marge est-elle un multiple du pas ? » est
+décidable sans simuler.
+⚠️ **Spécification COMPLÉTÉE le 2026-09-24, après deux mesures : mon motif initial était INCOMPLET sur deux axes.**
+(i) **L'étage des MÉDIANES.** Une médiane de 12 comptes est un demi-entier sur N, donc vit sur la grille `2N` —
+où 0,05 vaut 64 pas et une barre 0,5 vaut 640 pas, encore entiers. Mon motif ne visait que les comparaisons
+par seed : il aurait manqué le contrôle positif de R0 (`max(médianes de bptt) < 0,5`, l. 145) et les deux
+comparaisons de médianes du module de verdict du harnais. Une porte qui ne couvre pas cet étage certifie à moitié.
+(ii) **La marge 0,0.** `tdlam09@4 > tdlam05@4` compare à marge NULLE (l. 270) : trivialement commensurable,
+donc à classer explicitement plutôt qu'à faire lever une heuristique.
+**Second livrable, tiré du recompte et moins coûteux que la porte** : publier à côté de chaque compte sa
+**marge minimale EN PAS DE GRILLE**. C'est la discipline « tout ratio se publie avec son plancher de bruit »
+appliquée au bruit de REPRÉSENTATION, et elle a une valeur immédiate — elle révèle que le `12/12` du billet
+de P4.11 tient à **+1 pas** (une évaluation sur 640). Publier aussi `N` dans le bloc `regime` : il n'est
+aujourd'hui que DÉDUCTIBLE (`eval_batches × n_agents`), donc une prémisse non mesurée (E8).
+**Contre-exemple naturel disponible** : l'égalité exacte `126/640` contre `94/640 + 32` mesurée par la session
+du harnais dans un run publié — à PORTER sur une comparaison que le code effectue vraiment, sa propre revue
+ayant montré que le contraste où elle l'a trouvée n'est jamais calculé.
+⚠️ Entrée VOISINE à ne pas prendre : **P2.106** est réservée par la session du harnais pour le même sujet côté
+module de verdict (comparaison en grille dans `_acquisition`/`_necessity`, ou publication des marges en pas).
+Son insertion attend la fin d'une re-revue qui COMPTE les numéros du backlog : ne pas l'écrire à sa place. Contre-exemple gelé et mutation (porte 15) dans la même passe. ✅ Le correctif de `ba56ede3` A ÉTÉ rétro-appliqué à `td_step_pilot.py` (ses TROIS lectures) par sa
+session propriétaire le jour même, AVANT la lecture de la reprise, avec recompte avant/après : aucun compte
+ne bouge, pas même sur les 48 cellules neuves. Cette entrée ne porte donc plus l'urgence, seulement le
+CLIQUET : empêcher un NOUVEAU site, couvrir l'étage des médianes, et trancher les 9 autres sites de
+l'inventaire (dont les deux qui publient un verdict négatif).
+<!-- closes_when:grep_present=tools/hooks/pre-commit::check_grid_threshold -->
+
+
+**P2.107 — rang 3 — OUVERTE (2026-09-24, mécanisme REPRODUIT le jour même) — Les variables que git exporte
+aux hooks fuient dans TOUTE la chaîne de sous-processus, et un test peut alors MUTER LE DÉPÔT RÉEL : fermer la
+CLASSE par une fixture, pas les sites un par un.**
+Ce matin la fuite de `GIT_INDEX_FILE` a été fermée SITE PAR SITE dans `tests/sandbox/test_jobs.py`
+(`_env_sans_git`). Ça n'a pas suffi : la même famille est repassée quelques heures plus tard par **`GIT_DIR`**
+et a mis l'arbre PARTAGÉ hors service (`core.bare = true`, `git status` mort pour toutes les sessions du
+checkout principal). Corriger des sites ne ferme pas une classe — c'est E14 appliqué à l'hygiène
+d'environnement. Mesuré : `tests/conftest.py` porte **zéro** occurrence de `GIT_DIR`, `GIT_WORK_TREE` ou
+`GIT_INDEX_FILE`, donc la protection existe pour UN fichier de tests et pour aucun des ~2000 autres.
+Preuve du mécanisme (deux dépôts JOUETS, jamais celui-ci) : `git init` + `GIT_DIR` hérité + pas de
+`GIT_WORK_TREE` + cwd ailleurs ⇒ le dépôt POINTÉ bascule `core.bare` false → true, son `git status` rend le
+message exact observé, le tmpdir ne reçoit aucun `.git`, et le `git config user.email` suivant écrase
+l'identité du dépôt pointé.
+**Forme demandée** : une fixture `autouse=True` dans `tests/conftest.py` qui RETIRE `GIT_DIR`, `GIT_WORK_TREE`,
+`GIT_INDEX_FILE`, `GIT_OBJECT_DIRECTORY` et `GIT_CEILING_DIRECTORIES` de l'environnement. ⚠️ **De portée
+FONCTION, pas SESSION** : une fixture de session nettoie l'environnement hérité une seule fois, ce qui suffit
+pour la fuite du hook mais laisse le second chemin ouvert — un test qui pose `os.environ["GIT_DIR"]` sans
+`monkeypatch` empoisonne tous les tests SUIVANTS de la même exécution. La portée fonction couvre les deux pour
+un coût nul, et reste compatible avec les tests qui ont BESOIN de ces variables (un `monkeypatch.setenv` dans
+le test s'applique après le nettoyage — c'est le cas de `_en_commit()` dans `check_backlog_freshness`).
+**Contre-exemple gelé, DÉJÀ ÉCRIT** : le script de reproduction à deux dépôts jouets ; il doit ROUGIR si la
+fixture est retirée, et c'est ce qui en fait une garde plutôt qu'une note.
+**Garde d'appoint à coût nul** : refuser toute sortie de test contenant `re-init: ignored` — l'empreinte que
+l'accident émet de lui-même, et la seule qui survive à un `env=` explicite qui contournerait la fixture.
+**À fermer quoi qu'il arrive** : les trois `subprocess.run(..., cwd=repo)` sans `env=` de
+`test_pm_roles_counts.py:95`, `test_pm_snapshot.py:22`, `test_staged_authorship.py:53`. L'identité intacte
+prouve seulement qu'ils n'ont pas été le chemin d'AUJOURD'HUI, pas qu'ils sont sûrs.
+⚠️ Le site d'appel réellement emprunté le 2026-09-24 n'est **PAS identifié** : ne pas clore cette entrée sur la
+seule pose de la fixture sans l'avoir cherché, sinon la prochaine variante repassera par le trou non vu. La
+CLASSE est établie, le CAS ne l'est pas.
+⚠️ **CETTE ENTRÉE NE PORTE VOLONTAIREMENT AUCUNE CLAUSE `closes_when`, et voici pourquoi** — la première rédaction en portait une, `grep_present=tests/conftest.py::GIT_DIR`, et elle était FAUSSE de la même façon que les deux familles de P4.20, un cran plus subtil : elle a été **SATISFAITE dans l'heure** par la pose de la fixture, alors que l'entrée déclare au paragraphe précédent qu'elle ne se clôt PAS tant que le site n'est pas nommé. Elle ancrait sur la **PRÉSENCE DU REMÈDE**, pas sur la condition de fond. Trouvée par la session qui a posé la fixture, pas par moi — et je venais de balayer les 60 clauses du backlog pour cette famille exacte quelques heures plus tôt (P4.20), en écrivant simultanément un nouvel exemplaire du défaut. La condition réelle (« le site d'appel est NOMMÉ et gelé en régression ») n'est pas exprimable dans le vocabulaire fermé de prédicats PURS ; le dépôt interdit de proxifier ce qu'on ne sait pas mesurer, donc l'entrée reste HORS périmètre de clause — RAPPORTÉE par la porte 4, jamais comptée comme un succès, ce qui est le comportement prescrit et non un oubli.
+
+
+
+✅ **SITE IDENTIFIÉ le soir même, à la vraisemblance forte** — la chaîne complète et ses sept concordances
+sont dans l'occurrence E5 du registre : le témoin `tests/sandbox/test_record_graph_completeness.py`, dans sa
+première version jamais committée sur la branche `chantier/pm-portes`, lancé par le hook d'un commit AVORTÉ
+(13:29:39 → 13:31:37) sous le `GIT_DIR` du worktree. La réserve « ne pas clore sans avoir cherché le site »
+est donc levée. **L'entrée reste OUVERTE**, pour deux raisons mesurées : (a) le correctif du TRANSPORT — la
+purge de la famille GIT_* dans le lanceur de témoins de la porte 15 — existe sur la branche PM, avec son
+utilitaire `f6bb56a0:tools/_git_env.py` et un contre-exemple à deux issues ancré sur l'ÉTAT, mais il n'est PAS
+fusionné ici, où `tools/check_gate_mutation.py` construit toujours son environnement depuis `os.environ` sans
+purge ; (b) les trois sites non protégés restent à fermer.
+**P2.111 — rang 8 — OUVERTE (2026-09-24, mesuré contre le motif RÉEL de la porte) — La porte 4 ne refuse pas
+la forme `sha:chemin` parce qu'un DEUX-POINTS casse sa classe de caractères, pas parce qu'elle l'a vérifiée :
+une échappatoire SILENCIEUSE à la garde des chemins non suivis.**
+Mesure, motif recopié depuis `tools/check_backlog_freshness.py` (`_BACKTICK_PATH`) et exécuté sur les deux
+formes : un chemin nu entre backticks est SIGNALÉ comme non suivi ; la même citation préfixée d'un sha ne
+l'est pas. La porte ne voit tout simplement pas la seconde.
+**Pourquoi ça compte dans les DEUX sens.** (a) La forme `sha:chemin` est LÉGITIME et même préférable sur ce
+dépôt : elle résout depuis n'importe quelle branche, elle est plus précise qu'un chemin nu, et elle ne bloque
+pas la flotte quand on cite du travail vivant sur une autre branche — c'est la seule façon correcte de citer
+une garde qui existe ailleurs (cf. **E33** occ. 4). (b) Mais rien ne vérifie qu'elle RÉSOUT : une citation
+`sha:chemin` vers un sha inexistant, ou vers un chemin absent de ce sha, passe en silence — exactement le
+défaut que la porte existe pour empêcher, déplacé d'un cran.
+**Forme demandée** : ACCEPTER explicitement `sha:chemin` (ou `ref:chemin`) comme forme de citation, et vérifier
+qu'elle résout par `git cat-file -e <sha>:<chemin>`. Une échappatoire silencieuse devient une forme CONTRÔLÉE.
+Contre-exemple gelé et mutation (porte 15) dans la même passe, comme pour tout durcissement de porte.
+⚠️ **Je ne prends pas cette entrée** : j'ai durci cette porte deux fois aujourd'hui, mais la session qui tient
+le tableau des rôles la déclare « ni la sienne ni la mienne ». Elle est inscrite avec sa mesure pour que le
+propriétaire la prenne ; si personne ne la revendique, elle reste ouverte et RAPPORTÉE, ce qui est le
+comportement prescrit pour une dette sans propriétaire — pas un oubli.
+<!-- closes_when:grep_present=tools/check_backlog_freshness.py::cat-file -->
+
+
+**P2.112 — rang 4 — OUVERTE (2026-09-24, après un dégât RÉEL et mesuré) — Toute réécriture d'un fichier
+PARTAGÉ doit asserter que rien du DISQUE COURANT ne disparaît — pas seulement rien de HEAD.**
+Preuve (E22, occurrence du jour) : mon script alignait le disque depuis son BLOB après le commit, et a
+détruit l'entrée `P2.110` d'une autre session — écrite à 13:00, absente du disque, de l'index et de tout
+commit. Aucune porte ne pouvait le voir : la porte 16 juge un commit, et ce hunk n'en a jamais fait partie.
+Mes scripts portaient déjà l'assertion « aucune ligne de HEAD ne disparaît », qui est INOPÉRANTE ici :
+l'état écrasé n'était pas HEAD, c'était le disque.
+**Forme demandée** : un helper partagé — domicile naturel `tools/check_amputation.py`, qui porte déjà la
+logique d'amputation — du type `ecrire_sans_perte(chemin, nouveau, retraits_declares=())` qui RELIT le
+fichier juste avant d'écrire, refuse si une ligne non vide du disque courant disparaît sans être déclarée,
+et dit LAQUELLE. Coût nul, et il transforme une discipline en refus.
+**Contre-exemple gelé à écrire dans la même passe** : un fichier portant un hunk « étranger », une
+réécriture bâtie depuis une base qui ne le contient pas, et l'assertion qui ROUGIT ; plus le cas symétrique
+d'un retrait DÉCLARÉ qui passe.
+⚠️ **Ce n'est pas automatisable par une porte** : une porte s'exécute au commit et ne voit pas les écritures
+disque. C'est donc un helper que les scripts doivent APPELER — et une règle documentée sans application
+exécutable est la classe E10. La parade contre E10 ici est que le helper soit le chemin le plus COURT :
+s'il est plus simple à appeler qu'un `open(...).write(...)`, il sera appelé.
+⚠️ **Tension à ne pas oublier en le concevant** : différer l'écriture après le commit protège la flotte du
+blocage par la porte 8 (P2.85) ; l'écrire depuis le blob détruit. Le helper doit rendre les deux
+compatibles, et c'est en croyant résoudre la première que j'ai créé la seconde.
+<!-- closes_when:grep_present=tools/check_amputation.py::ecrire_sans_perte -->
+
 
 **P4.21 — rang 12 — OUVERTE (2026-09-24, trouvée en amendant ma propre clôture) — Un verdict de SYNTHÈSE qui
 agrège plusieurs POINTS DE FONCTIONNEMENT n'a aucune garde : le pré-vol garde une CELLULE, pas une CONCLUSION.**
@@ -877,6 +1012,8 @@ est « le contrôle » d'un point, et proxifier ça serait la faute que le dép�
 `assert_verdict_invariant_to_optimizer` qui est son cousin exact (lui garde l'invariance AU PAS, mais seulement
 entre deux lr tous deux LISIBLES). Coût : une assertion, son contre-exemple gelé, sa mutation (porte 15) ; et
 l'entrée au périmètre du cliquet de calibration si la fonction produit une affirmation.
+**Deux règles apportées par la session du harnais, mesurées un étage plus bas sur la MÊME forme, et qui doivent contraindre la garde** : (1) *le vocabulaire du verdict doit avoir une branche pour « l'entrée ne permettait pas de décider »* — chez elle aucun `INCONCLUSIVE*` ne peut devenir un négatif, `_demand` les route vers `DEMAND_INCONCLUSIVE` et jamais vers `NOT_DEMANDED` ; sans cette branche l'auteur n'a pas d'autre mot que le négatif de fond, **et il le prend** (c'est littéralement ce que j'ai fait) ; (2) *l'ORDRE des branches est lui aussi une garde, et il peut PRÉEMPTER la protestation* — mesuré chez elle : un défaut qui déclenche bien l'alarme d'alias ressort quand même en `NOT_DEMANDED`, simplement parce que `NOT_DEMANDED` précède `INCONCLUSIVE_ALIAS` dans l'ordre scellé. La garde criait, personne ne l'entendait. Donc le refus du vocabulaire de réfutation doit être rendu **AVANT** qu'un verdict de fond ait pu être choisi, pas après.
+**Contre-exemple gelé, offert et prêt à l'emploi** (mesuré par la session du harnais dans son propre code) : `_necessity` lisait `INCONCLUSIVE_INVERTED` — le bras SANS la pièce fait MIEUX, ratio 0,703, soit 1,42× dans l'autre sens — et publiait « aucun effet de l'ablation détecté ». Un effet de 1,42× annoncé comme AUCUN effet, par le fichier même qui route correctement ce verdict quand il s'agit de la demande, et qui avait survécu à un cliquet de calibration et à 135 tests verts. Il est du bon côté de la frontière que cette entrée décrit : à prendre tel quel plutôt qu'à fabriquer.
 ⚠️ Peut se reformer en SILENCE : n'importe quelle clôture future peut refaire exactement ça, hook au vert.
 <!-- closes_when:grep_present=tools/experiment_preflight.py::assert_verdict_points_controlled -->
 
@@ -1036,6 +1173,232 @@ Vu en passant, à consigner par le PM (son périmètre) : le hook `pre-commit` n
 *Coût : agent 1 h ; calcul 0.* Dépend de : rien.
 <!-- closes_when:grep_present=tools/check_preregistration_applied.py::--names -->
 
+**P2.108 — rang 12 bis — CLOSE (2026-09-24) — Les portes ne tiraient JAMAIS sur l'union de deux branches, et
+la copie deployee des crochets ne repondait de rien. Les deux trous sont fermes, avec leurs contre-exemples.**
+Quoi (mesure, depot JETABLE, git 2.54.0.windows.1). Sur une fusion PROPRE : `pre-commit` **0 appel** (1 sur un
+commit ordinaire, controle positif fait), `commit-msg` 1 appel avec MERGE_HEAD present et un code 1 **annule la
+fusion**, `post-merge` appele mais **son code de retour est ignore**. Le cas est vivant, pas theorique : deux
+sessions corrigent le meme compte publie en comptant des objets DIFFERENTS ; chaque branche est localement juste,
+l'union est fausse, et aucun conflit git ne le signale. Deux collisions de numeros de backlog reelles le meme jour
+(rapportees par `agagi-c9`) ont la meme cause : la cle `numero-double` de `check_backlog_freshness` EXISTE et sait
+les attraper -- elle ne tournait simplement pas au moment ou une fusion introduit le doublon.
+⚠️ DEUXIEME MESURE, et c'est elle qui decide la forme : relancer le `pre-commit` TEL QUEL ne suffit pas. Ses
+**17 appels** a `git diff --cached --name-only` comparent l'index au PREMIER PARENT, donc au seul cote entrant.
+Quand les deux branches portent la MEME valeur de balise -- le cas qui ne conflicte pas, donc le cas dangereux --
+le document PORTEUR DU COMPTE est identique a HEAD : absent du diff, porte non armee. Un crochet naif aurait laisse
+passer son propre contre-exemple. D'ou la comparaison a la BASE DE FUSION (bloc `AGAGI:FUSION-SCOPE`), qui vaut
+aussi pour un SQUASH -- lequel ne pose AUCUN MERGE_HEAD et reproduisait le trou integralement.
+Livre : `tools/hooks/commit-msg` (relance les portes sur une fusion propre, jamais deux fois), les deux blocs
+balises de `tools/hooks/pre-commit`, `tools/check_hook_deployment.py` + sa baseline (porte 22),
+`tests/sandbox/test_hook_on_merge.py` (16 cas) et `tests/sandbox/test_hook_deployment.py` (18 cas).
+Ce que DEUX revues adversariales ont coute, et pourquoi elles valaient leur prix : la v1 du temoin (fichier VIDE
+juge sur sa PRESENCE) et la v2 (horodatage + HEAD + MERGE_HEAD) ont ete REFUTEES toutes les deux. La v2 tombait sur
+une sequence sans rien d'anormal, reproduite 4 fois : fusion refusee -> MERGE_HEAD reste -> l'auteur corrige et
+recommite -> `pre-commit` PASSE et pose le temoin -> le commit AVORTE a l'editeur, donc `commit-msg` n'a rien
+consomme -> un temoin VALIDE survit dans un git-dir PARTAGE et desarme la fusion suivante, avec un index DIFFERENT.
+Classe **E31** (l'identite d'une garde omet CE QU'ELLE A VERIFIE) ; remede : 4e ligne = `git write-tree`. Classe
+**E32** trouvee dans la meme passe (une garde degrade son PERIMETRE en silence : `git merge-base` rend du vide sur
+des histoires sans ancetre commun, la portee retombait au premier parent sans le dire).
+⚠️ CE QUI RESTE A FAIRE, ET QUI N'EST PAS UN DETAIL : `tools/hooks/commit-msg` est LIVRE mais **PAS DEPLOYE**.
+`core.hooksPath` vaut un chemin ABSOLU vers le `.git/hooks` du depot principal : le deployer arme la FLOTTE
+ENTIERE d'un coup. C'est un acte ANNONCE, pas l'effet de bord d'un commit -- la baseline de la porte 22 le dit et
+le tolere explicitement, et c'est son retrait qui rendra la garde effective sur ce crochet.
+⚠️ DOUBLON A RESORBER A LA FUSION, et il n'est pas de la meme nature que les collisions de NUMERO : `agagi-c9`
+porte sur une branche non fusionnee une entree **P2.104** (« aucune porte ne tourne a la fusion ») qui decrit le
+MEME defaut, mesure independamment, avec pour remede l'installation d'un `pre-merge-commit` / `commit-msg`
+relancant au moins les portes de compte et de doublon. Deux entrees sur le meme mecanisme polluent le backlog :
+celle-ci est le LIVRABLE (code + 34 cas geles), P2.104 est le CONSTAT. A la fusion, n'en garder qu'une -- et c'est
+`agagi-c9` qui decide du sort de la sienne, pas moi. La garde de copie `tools/hooks` -> `.git/hooks`, elle, n'a
+d'equivalent nulle part : c'est la partie de ce lot qui ne peut pas faire doublon.
+⚠️ NUMERO, et c'est la TROISIEME collision du jour : ce chantier a ete annonce sous **P2.102** dans la prose du
+2026-09-24 ; P2.102 etait deja pris par une entree committee d'une branche non fusionnee (`agagi-c9`). Regle
+d'arbitrage retenue (proposee par `agagi-c9`, confirmee par le PM) : **le numero NON ENCORE COMMITTE cede**. Le PM
+a propose 107 ; `agagi-c9` rapporte qu'`agagi-52` le vise deja, donc 108/109, verifies libres sur le motif
+d'EN-TETE (`^**P2.`) dans la branche principale -- une recherche en prose trouve aussi les CITATIONS d'autres
+entrees et fabrique des collisions imaginaires, piege paye deux fois aujourd'hui.
+⚠️ Et l'occurrence qui vaut le plus cher est la troisieme : **elle s'est formee dans le message de coordination du
+PM lui-meme**, celui qui m'annoncait qu'un crochet mecanique rendrait ces collisions impossibles -- un numero donne
+de memoire, sur une liste de reservation incomplete. Le PM, dont c'est le perimetre, en a produit une a la main en
+expliquant pourquoi il ne fallait pas creer un role d'Integrateur pour les eviter. C'est l'argument, et il n'est
+pas rhetorique : **la parade n'est pas quelqu'un qui surveille, c'est une garde qui tourne au moment ou ca casse**.
+La cle `numero-double` de `check_backlog_freshness` savait attraper les trois ; elle ne tournait pas la ou elles
+naissent. *Cout : agent 4 h ; calcul 0.*
+⚠️ REFUTEE PUIS CORRIGEE LE JOUR MEME (commit 3e26caf2, puis le suivant). La re-verification
+adversariale lancee AVANT le premier commit a rendu son verdict APRES : REFUTE, quatre griefs de
+gravite HAUTE, tous mesures en depots jetables avec controle apparie, et 4 mutations sur 9
+survivantes. Le premier commit le dit dans son message -- il livrait du code teste, pas un verdict.
+Ce qui est tombe, et ce qui le remplace :
+1. LE TEMOIN EST SUPPRIME. Son identite couvrait l'INDEX (`git write-tree`) alors que les portes de
+   ce depot jugent le DISQUE, et l'arbre est PARTAGE donc le disque change tout seul pendant qu'un
+   editeur est ouvert. Mesure APPARIEE : le meme etat du monde passe rc=0 avec ZERO porte quand le
+   residu est la, et est REFUSE rc=1 sans lui. Trois identites essayees, trois refutees -> on ne
+   raffine pas une quatrieme, on retire le raccourci. Le cout est chiffre et borne : les portes
+   tournent DEUX fois sur une fusion conflictuelle, ce qui etait deja paye des qu'un editeur
+   depassait 120 s. Quatre mutations survivantes disparaissent avec lui. Classe E31, occurrence 2.
+2. `commit-msg` VERIFIE AVANT D'ANNONCER. Il imprimait « portee = base de fusion » sans verifier que
+   le pre-commit qu'il lance porte le bloc -- et le pre-commit DEPLOYE ne le portait pas (0
+   occurrence mesuree). La fusion fautive passait pendant que le crochet imprimait le contraire.
+3. `CHERRY_PICK_HEAD` entre dans la portee : un cherry-pick CONFLICTUEL arme bien le pre-commit mais
+   ne pose pas MERGE_HEAD, donc la portee restait le premier parent -- le trou du squash sur une
+   autre reference. `REVERT_HEAD` est exclu DELIBEREMENT (le commit annule est un ancetre, la base
+   serait lui-meme et la portee engloberait tout l'historique depuis) et une garde d'ancetre rend ce
+   raisonnement executable au lieu de le laisser en commentaire.
+4. CE QUI RESTE NON COUVERT, ECRIT NOIR SUR BLANC plutot que laisse en creux : `git rebase`,
+   `git cherry-pick` PROPRE et `git pull --rebase` rendent rc=0 avec ZERO appel de pre-commit ET de
+   commit-msg (seul `prepare-commit-msg` tourne, et il ne peut rien refuser). La voie d'integration
+   la plus courante du depot n'est donc couverte par AUCUN crochet de commit, et ca reste vrai apres
+   cette livraison -- la protection de ces voies doit vivre en `pre-push` ou en CI. Une session
+   voisine a annule son rebase sur cette seule mesure.
+LA LECON DE METHODE, qui vaut plus que les quatre correctifs : une revue adversariale qui lance ses
+propres sondes a tue DEUX versions successives d'une garde de quinze lignes, dont une que son auteur
+croyait avoir durcie une heure plus tot. Aucune relecture ne les aurait vues ; les deux refutations
+sont venues de sequences ORDINAIRES, sans malveillance ni fabrication.
+DEPLOIEMENT FLOTTE (2026-09-24, soir, sur demande de robla) -- deux defauts trouves EN LE PREPARANT, avant
+tout cp, et fermes avec leurs cas geles :
+(a) UN CROCHET PARTAGE BLOQUE LES BRANCHES ANTERIEURES A SES PORTES. core.hooksPath est ABSOLU : les trois
+    worktrees actifs (harness-r1, pilotage, pm-portes) executent le pre-commit deploye, et AUCUN de leurs
+    branches ne porte tools/check_hook_deployment.py (mesure : git cat-file -e <branche>:... rend non pour les
+    trois). Python rend 2 sur un fichier absent, la porte le lit comme un refus : deployer la porte 22 aurait
+    bloque tous les commits de ces trois worktrees. Bloc AGAGI:PORTE-ABSENTE : une porte dont le fichier
+    manque A LA FOIS sur le disque et dans HEAD (signature d'une branche anterieure) est sautee ET DITE ;
+    une porte presente dans HEAD mais supprimee sur le disque bloque toujours. tests/sandbox/test_hook_porte_absente.py.
+(b) LA PORTE 22 NE CONNAISSAIT QUE L'HISTORIQUE DE HEAD : vu depuis une branche divergente, le contenu
+    deploye n'est dans aucun de ses commits, donc INCONNU (« code jamais relu ») et blocage. Historique
+    elargi a toutes les references (--all) ; ce qui doit bloquer est ce qui n'a existe NULLE PART.
+<!-- closes_when:grep_present=tools/hooks/pre-commit::check_hook_deployment -->
+
+**P2.109 — rang 12 ter — ⚠️ OUVERTE (2026-09-24) — La moitie MANQUANTE de la regle des commits path-scopes : un
+pathspec qui NOMME un fichier qu'une autre session est en train d'ecrire l'emporte, et rien ne le dit.**
+Quoi (reproduit le 2026-09-24 sur l'arbre principal, 5 sessions actives). La regle du depot -- « tout commit passe
+par `git commit -- <chemins>`, JAMAIS nu » -- protege contre le commit NU, qui emporte l'index ENTIER. Elle ne
+protege PAS contre le cas symetrique : `git commit -- <chemins>` prend le **contenu de l'ARBRE DE TRAVAIL** des
+chemins nommes (verifie en depot jetable : HEAD=V1, index=V2, disque=V3 -> le commit grave V3). Nommer dans son
+pathspec un fichier qu'un autre edite grave donc son travail en cours, sous un message qui ne le decrit pas.
+L'incident : un lot de 11 chemins incluait `tools/hooks/pre-commit`, que cette session modifiait depuis une heure.
+Il n'a pas atterri (le hook l'a refuse pour une autre raison), et l'auteur travaillait dans un worktree LIE -- donc
+sa copie, pas la mienne. Mais l'isolation etait un ACCIDENT HEUREUX, pas une garde : les cinq sessions de l'arbre
+PRINCIPAL sont exposees, et c'est la que le plus gros du travail se fait.
+Pourquoi ca peut BLOQUER alors que la garde existante se contente d'avertir, et c'est le point de bascule (argument
+de `agagi-c9`) : `tools/hooks/pre-commit` lance deja `check_staged_authorship` en mode scan avec `|| true`, et le
+commentaire au-dessus dit pourquoi -- la PREEMPTION n'est pas reparable par celui qui commite (le travail de la
+victime est deja dans HEAD), et un cliquet qui bloque sur de l'irreparable est un cliquet qu'on desactive. Le cas
+inverse, lui, est REPARABLE a l'instant ou il se produit : il suffit de retirer le chemin du pathspec. **Un cliquet
+doit bloquer sur du reparable et avertir sur l'irreparable** -- regle a retenir, elle explique proprement pourquoi
+certaines gardes de ce depot refusent et d'autres crient.
+Remede propose : au `pre-commit`, confronter les chemins STAGES aux empreintes de `check_staged_authorship` et
+REFUSER quand l'un d'eux porte l'empreinte d'une AUTRE session, avec le nom du proprietaire et la commande de
+retrait. ⚠️ Deux garde-fous a ne pas oublier, sans quoi la garde sera desarmee en trois faux positifs : (a) en
+worktree LIE le cas n'existe pas -- chaque worktree a sa copie, mesure a l'appui (blobs distincts) -- donc la
+comparaison porte sur l'arbre que CE commit va prendre, jamais sur celui d'un autre worktree ; (b) une empreinte
+perimee (session morte) ne doit pas bloquer eternellement : TTL, comme les bails de `tools/jobs`.
+Contre-exemple a geler dans la meme passe : deux empreintes concurrentes sur le meme chemin -> REFUS ; une seule
+empreinte, la sienne -> PASSE. *Cout : agent 2 h ; calcul 0.* Depend de : rien.
+⚠️ DEUX EXCEPTIONS A LA REGLE AFFICHEE, mesurees le 2026-09-24 et ecrites nulle part -- elles
+appartiennent a cette entree parce qu'elles portent sur la MEME phrase de CLAUDE.md (« tout commit
+passe par `git commit -- <chemins>`, JAMAIS nu ») :
+(a) PENDANT UNE FUSION, `git commit -- <chemins>` est FATAL : `cannot do a partial commit during a
+    merge`, exit 128. Le commit NU est alors le SEUL chemin disponible. La regle affichee est donc
+    inapplicable exactement la ou le risque de tout emporter est le plus grand, et personne ne le
+    sait avant de buter dessus. A ecrire A COTE de la regle, pas a sa place.
+(b) LA TECHNIQUE D'INDEX TEMPORAIRE DU DEPOT, appliquee a une fusion, est ACCEPTEE par git et ne fait
+    PAS ce qu'on croit : `GIT_INDEX_FILE=<tmp> git commit -F msg` pendant une fusion conflictuelle
+    resolue rend rc=0, le commit porte bien DEUX parents -- donc il conclut la fusion -- mais son
+    arbre est celui de l'INDEX TEMPORAIRE. Le cote entrant est PERDU tout en etant enregistre comme
+    fusionne, et les portes tirent sur l'index temporaire, pas sur l'union. C'est la contradiction la
+    plus silencieuse des trois : elle produit un commit de fusion d'apparence normale. Ce depot
+    commite par index temporaire tous les jours ; la regle a en tirer est simple et executable :
+    **ne jamais conclure une fusion par la technique d'index temporaire** -- verifier `MERGE_HEAD`
+    avant de la lancer, et refuser.
+<!-- closes_when:grep_present=tools/hooks/pre-commit::check_pathspec_collision -->
+
+⚠️ **TROISIÈME VECTEUR DU MÊME OUTIL, mesuré le 2026-09-24 — le commit par index TEMPORAIRE n'avance pas
+l'index PARTAGÉ, et l'écart devient une ANNULATION de HEAD sous un commit nu.** Un commit fait sous
+`GIT_INDEX_FILE` fait avancer HEAD sans toucher l'index partagé : pour chaque chemin committé, celui-ci garde
+l'ANCIENNE version. `git status` la présente alors comme un changement stagé qui revient en arrière, et tout
+commit qui emporte l'index l'installerait — donc supprimerait du travail déjà publié.
+**Mesure, faite à deux sessions puis recoupée** : l'index partageé portait ADR-005 à **131 lignes** contre 152
+dans HEAD et sur le disque, l'amendement du critère de révision manquant ; et les deux blobs de l'index
+correspondaient EXACTEMENT à des commits antérieurs — vérifié, le blob de l'ADR est celui de `3e2a9f83`
+(11:41) et celui du registre celui de `a49f839c` (17:24). Le reset n'a donc rien pu perdre, et la séquence est
+complète : un script qui fait le reset laisse l'index juste ; le commit suivant fait par index temporaire le
+laisse en arrière.
+**Remède, une ligne à la FIN de toute procédure de commit par index temporaire** : `git reset -q --` suivi des
+chemins committés, avec vérification que le pathspec n'est pas vide. Ça ne touche QUE l'index partagé et le
+remet sur le nouveau HEAD. Mesuré chez moi : **19 scripts** de commit utilisent un index temporaire, **aucun**
+ne faisait ce reset.
+⚠️ **La racine est commune aux TROIS vecteurs de cette technique**, et c'est ce qu'il faut retenir plutôt que
+les trois cas : le commit par index temporaire est ISOLÉ par construction — c'est sa vertu, il n'emporte pas le
+travail d'autrui — mais isolé signifie qu'il ne propage RIEN vers les deux autres états qui comptent, le
+DISQUE et l'INDEX PARTAGÉ. (1) Lire HEAD plusieurs fois dans un même script annule les commits des autres ;
+(2) écrire le disque depuis son blob détruit leurs hunks non committés ; (3) ne pas rafraîchir l'index laisse
+un piège armé contre HEAD. Chaque vecteur est un état qu'on a oublié de faire avancer AVEC HEAD.
+**P2.110 — rang 12 quater — ✅ CLOSE le 2026-09-24 (code livré ; ouverte le même jour, extraite du bloc P4.17) — Le cliquet de COÛT
+projette depuis UNE cellule, sur une horloge MUR, et ne dit pas POURQUOI il coupe : trois défauts mesurés le même jour
+sur la même expérience, dont l'un a déjà produit une sur-déclaration et un autre une preuve fausse dans un record.**
+Quoi. (i) **`_regime.coupe` ne porte qu'une PHRASE — et elle MENT sur la coupe courante.** Les deux coupes E13 de
+TD-STEP-PILOT-R2 sont marquées `coupe=True` à l'identique alors que leurs natures sont OPPOSÉES : `lr 2,0` a été coupée
+par CONTENTION (unité 217,4 s machine chargée) et RÉCUPÉRÉE par la reprise déclarée (unité 196,4 s machine libre) ;
+`lr 1,0` est STRUCTURELLE — elle tient machine libre, c'est une sous-estimation au scellement. Un lecteur ne peut pas
+les distinguer, et la clôture de P4.11 en a tiré « invariance au pas RÉFUTÉE » avant d'être amendée en « NON ÉTABLIE »
+(`17cff006`, `181a9819`). Mesuré en ré-écrivant cette entrée : la `raison` publiée pour la coupe COURANTE de `lr 1,0`
+(60 clés) est « relevee (--relever-coupe) : unite re-mesuree machine libre » — la raison de la LEVÉE, pas celle de la
+re-coupe (95 unités × 196,4 s × marge 1,5 = 466 min > 240) : `tools/td_step_pilot.py` pose la coupe par `setdefault`,
+qui conserve le dict écrit par `--relever-coupe`. À faire : un vocabulaire FERMÉ `nature` ∈ {`contention`,
+`structure`, `budget`} à côté du drapeau, et une raison écrite à CHAQUE coupe. Sens déclarés : `budget` = projection
+> budget, charge au moment de la mesure NON qualifiée (le seul fait établi — le « je ne sais pas » de la porte 14, pas
+un défaut) ; `contention` = unité mesurée sous une charge MESURÉE, coupe PROVISOIRE, reprise déclarée due ;
+`structure` = la coupe tient sur une unité mesurée machine LIBRE. Une reprise RE-QUALIFIE la coupe précédente dans
+`coupes_precedentes` (récupérée → `contention` établie ; re-coupée → `structure`).
+(ii) **L'unité est mesurée sur UNE cellule et appliquée à une grille HÉTÉROGÈNE.** La règle scellée justifie sa
+projection par « cellules uniformes : mêmes épisodes, mêmes agents » ; mesuré sur les 28 cellules chronométrées de la
+reprise, c'est FAUX — `lam05` 161,9 s, `lam099` 157,6 s, `td0_d0` **56,2 s**, soit **2,8×** entre familles de bras (le
+contrôle de chemin n'a ni trace ni délai). L'unité est prise sur la PREMIÈRE cellule neuve, qui appartient à la
+famille lente : la projection sur-estime et le cliquet mord plus qu'il ne devrait. C'est **E8 appliqué au modèle de
+coût** — une prémisse posée en décor, scellée par moi. À faire : unité PAR BRAS (`project_cost_per_arm`) quand les
+bras diffèrent, ou sceller explicitement « unité du bras le plus lent, projection MAJORANTE » et le dire dans le record.
+(iii) **L'unité de la projection est du temps MUR, et le record dit le contraire.** `_mesure` rend `time.time() - tc`,
+et c'est cette valeur qui entre dans `project_cost` ; P2.78 ne gate sur le CPU que `CostGuard.tick`, que ce runner
+n'appelle pas. C'est précisément pourquoi une contention a pu gonfler l'unité (217,4 s contre 196,4 s) et couper une
+ligne. Or [[EDR-TD-STEP-PILOT-R2]] écrit que la DÉCISION du garde « est gouvernée par le temps CPU du processus » : la
+conclusion qu'il en tire (les deux rafales n'ont pas touché la décision) est JUSTE, mais pour une autre raison —
+l'unité est mesurée sur la première cellule, AVANT les rafales. Preuve fausse, conclusion juste : **E33**, dans mon
+propre record. À faire : rectifier le record par un bandeau ; publier `unite_cpu_s` et la charge au moment de la
+mesure à côté de `unite_s` — ce sont elles qui permettent de qualifier `nature`. ⚠️ Ne PAS basculer la projection sur
+le CPU : `budget_s` est du mur, et un run torch multi-thread rend un CPU > mur (`tools/cost_guard.py`, docstring,
+point (c)).
+⚠️ Ce qui rend l'ensemble mordant, et qui vaut plus que les correctifs : **une projection à 6 % de son seuil transforme
+10 % de contention en une ligne de grille perdue** (255 min contre 231 min pour un budget de 240) — la fragilité est
+dans la MARGE entre projection et budget, et rien ne la publie aujourd'hui. Preuve : `results/td_step_pilot_r2.json`
+(`_regime.coupe`, `_regime.coupes_precedentes`), [[EDR-TD-STEP-PILOT-R2]] § « Coût, coupes, et pourquoi leurs natures
+diffèrent ». *Coût : agent 1 h 30 ; calcul 0.* Dépend de : rien.
+**✅ CLOSE le 2026-09-24 — code livré, et la revue a changé le design sur trois points.** `tools/cost_guard.py` :
+`NATURES_COUPE`, `classify_cut_nature` (INSTRUMENT, déclaré dans `CALIBRATED`, 12 cas à réponse connue dans
+`tests/sandbox/test_cost_guard.py`), `cut_geometry` / `cut_record`, `margin_to_budget`, `LoadWindow`, `cost_per_arm` /
+`project_cost_per_arm` ; et `project_cost` refuse désormais une unité NaN ou négative (`nan > budget` valait False : la
+garde ne pouvait pas échouer, E1). `tools/td_step_pilot.py`, `main_r2` seul : la décision est extraite en fonction PURE
+`_decider_coupes_r2`, **bit-identique à l'ancienne boucle sur 610 cas** (aléatoires seedés, égalité exacte au budget,
+unité nulle, et les deux points publiés : 96 clés à 3 587,78 s, 60 clés à 10 308,46 s) ; la coupe est RECONSTRUITE à
+chaque passe (plus de `setdefault`, clause `holds_when` ci-dessous), avec une raison PAR LIGNE ; le temps de CHAQUE
+cellule est persisté (`_temps_s`) ; l'unité CPU et la charge sont publiées à côté de l'unité mur, qui reste la seule à
+décider. Trois écarts à l'énoncé, tous issus de la revue (deux critiques adversariales, 32 amendements dont 7
+bloquants) : (1) la nature se décide PAR LIGNE et non par mesure — les deux lignes de la passe 1 ont été coupées sur la
+MÊME unité, donc un classifieur de la mesure leur rendait forcément la même nature, ce qui est le défaut (i) lui-même ;
+ce qui distingue les lignes, c'est leur dépassement (1,065 pour lr 2,0 ; 2,424 pour lr 1,0) et leur unité de bascule
+(204,3 s ; 89,7 s), désormais publiés ; (2) le mot `budget` devient **`indeterminee`** — toute coupe est causée par le
+budget, et un libellé d'absence qui ressemble à une cause de fond est le biais absence → affirmation ; (3) la charge est
+la charge EXTÉRIEURE INTÉGRÉE sur la fenêtre de la cellule (`LoadWindow`, en cœurs, lectures HORS du chronomètre : un
+capteur posé dedans aurait gonflé l'unité scellée elle-même, E11), jamais un instantané ni un compte de processus (qui
+mesure la PRÉSENCE, pas la charge). Seuil `COEURS_EXTERIEURS_LIBRE_MAX` = 8,0 cœurs, déclaré PROVISOIRE et non calibré
+comme certificat ; `contention` n'est ÉTABLIE que par la RÉPLIQUE de la même cellule, jamais en comparant deux cellules
+différentes (E8). Tests : `test_cost_guard.py` 10 → 29, `test_td_step_pilot.py` 22 → 34, 79 verts. ⚠️ **Ce que la
+clôture ne corrige PAS, et qui est dit** : le JSON publié de R2 garde sa raison fausse (artefact d'un record fermé, non
+réécrit) ; et sur l'entrée historique réelle, le classificateur rend `indeterminee` pour les DEUX lignes — il ne confirme
+pas les natures que le record attribue, et la revue en donne une raison chiffrée sur les totaux committés : la reprise
+dite LIBRE a un rapport CPU/mur de 0,78 (4 836 / 6 226 s), la passe 1 dite CHARGÉE de 1,80 (2 142 / 1 191 s). Le bandeau
+de rectification du record (point (iii), E33) part dans un commit séparé.
+<!-- closes_when:grep_present=tools/cost_guard.py::(?s)^(?=.*NATURES_COUPE)(?=.*def project_cost_per_arm) -->
+<!-- holds_when:grep_absent=tools/td_step_pilot.py::(?m)^[^#\n]*setdefault\("coupe" -->
+
 **P2.83 — ⚠️ OUVERTE (2026-09-24, vue en passant pendant la revue de la spec du dashboard Pilotage) — le cliquet de
 calibration ne connaît NI `compute_*` NI `parse_*`, et une déclaration qu'il ne détecte pas est ignorée EN SILENCE :
 7ᵉ angle mort de nommage, dette nette CHIFFRÉE à 7 fonctions.**
@@ -1060,6 +1423,39 @@ Dépend de : rien. Trouvé en écrivant `docs/superpowers/specs/2026-09-22-pilot
 ⚠️ Clause corrigée dans la même passe : la première version citait le motif `parse_` — SATISFAITE d'emblée par
 `ap.parse_args(argv)` (`:337`), et le cliquet l'a immédiatement dénoncée (« condition DÉCLARÉE satisfaite mais l'entrée
 s'annonce ouverte »). La clause vise donc le motif tel qu'il s'écrirait DANS un `re.compile`, absent aujourd'hui.
+
+**AVANCEMENT 2026-09-24 (agagi-b0, sur passation du PM) : la moitie SILENCE est FERMEE ; la moitie MOTIFS reste,
+et elle est desormais chiffree motif par motif.** Le defaut dominant n'etait pas l'absence de deux motifs mais
+l'IGNORANCE MUETTE : `scan_calibrated` sautait toute declaration non detectee sous le commentaire « declaration
+perimee », donc l'auteur croyait avoir declare et rien ne le contredisait. Mesure faite AVANT de decider (recomptee
+sur cet arbre, pas reprise) : **9 declarations y tombaient et AUCUNE n'etait perimee** — 6 fonctions bien PRESENTES
+qu'aucun des 14 motifs ne voit (`_cause_de_mort` — nommage FRANCAIS —, `plain_readout_ceiling`,
+`additive_argmax_exact_ceiling`, `verify_plain_ceiling_witness`, `_td_update`, `logit_median_at_outputs`) et
+3 CLASSES (`GrabOffMamba`, `NullGrabOffMamba`, `GrabForcedMamba`) : **le cliquet ne scanne que `def`, jamais
+`class`** — neuvieme angle mort, de la meme famille que les huit precedents. Livre : le cliquet CRIE desormais,
+et il TRANCHE LA CAUSE (`_cause_ignoree` : `MOTIF_AVEUGLE` si un `def` du meme nom existe dans le perimetre,
+`CLASSE` si c'est une classe, `PERIMEE` si le symbole n'existe nulle part) parce que les remedes sont OPPOSES —
+elargir un motif, etendre aux classes, ou supprimer une declaration morte ; un cri unique enverrait au mauvais
+correctif. Cliquet : les 9 sont GELEES dans la baseline (`declarations_ignorees`), toute NOUVELLE bloque. Deux
+mutations de plus a la porte 2 (le cri redevient silencieux ; la cause n'est plus tranchee) : **5/5 tuees**.
+Cout de chaque elargissement, MESURE sur l'arbre courant (instruments NEUFS que le motif ferait entrer, donc a
+calibrer) : `compute_*` **+5** (dont `tools/pm/roles_counts.py::compute_counts`), `parse_*` **+3**, `*ceiling*`
+**+5**, `verify_*` **+1**, `_td_update*` **+2**, `*median*` **+9 mais rejete** (ce sont des formateurs :
+`_fmt_mediane`, `_median`, `_median_norm`… — un motif qui ratisse des helpers rend le cliquet inutilisable).
+⚠️ Fait qui change l'arbitrage : `*ceiling*` + `verify_*` + `_td_update*` **RESORBENT 4 des 9 ignorees** (elles
+sont deja declarees : elles passeraient d'« ignoree » a « calibree » le jour ou le motif les voit) pour 3 dettes
+neuves, tandis que `compute_*`/`parse_*` en revelent 8 sans en resorber aucune — deux passes distinctes, la
+premiere presque gratuite. Reste a faire : (i) elargir aux trois motifs resorbants, (ii) elargir a
+`compute_*`/`parse_*` en calibrant ou gelant les 8, (iii) decider pour les 3 CLASSES (les declarer
+`NOT_AN_INSTRUMENT` qualifiees, ou etendre le scan aux `class`). *Cout : agent 1-2 h par passe ; calcul 0.*
+**FUSION 2026-09-25 (PM, `chantier/pm-portes` → `feat/d1-prod-pairing`) : +3 déclarations FRANÇAISES gelées, 9 → 12.**
+`tools/refutateur_temoins.py::recevabilite`, `::plancher`, `::juge_est_calibre` — cause `MOTIF_AVEUGLE` (noms français,
+motifs anglais), la même que `_cause_de_mort`. Le bloc REFUTATEUR de `CALIBRATED` les annonçait déjà comme « NON
+DÉTECTÉ par le cliquet » ; la branche entrante ne pouvait pas entendre le cri, son cliquet étant encore muet. Gelées EN
+CONNAISSANCE dans `declarations_ignorees` (mesuré à la fusion : `check_instrument_calibration.py` refusait 3 NOUVELLES,
+0 après gel). ⚠️ Aucun des motifs des passes (i)/(ii) ci-dessus ne les verrait (`*ceiling*`, `verify_*`, `_td_update*`,
+`compute_*`, `parse_*` — tous anglais) : les résorber demande un motif NOMMÉ pour ces trois fonctions, ou un motif
+français, ou leur renommage — mesuré en revue de fusion, pas déduit.
 <!-- closes_when:grep_present=tools/check_instrument_calibration.py::parse_\w+\) -->
 
 **P2.84 — ⚠️ OUVERTE (2026-09-24, demande de robla le 2026-09-23) — lot 2 « Science » du dashboard : arbres en temps
@@ -1160,6 +1556,473 @@ les trois écritures passent à `-c`, et la règle entre dans `CLAUDE.md` en une
 par une forme, pas par une garde. *Coût : agent 30 min ; calcul 0.* Dépend de : rien.
 <!-- closes_when:grep_absent=tests/sandbox/test_pm_snapshot.py::config", "user\. -->
 
+**P2.87 — ⚠️ OUVERTE (2026-09-24, demande de robla) — le dashboard doit s'INDEXER TOUT SEUL à mesure que le projet
+produit : donner un FORMAT déclaré aux résultats et aux artefacts pour qu'un type neuf soit ingéré sans écrire un
+parseur. À BRAINSTORMER (robla demande une session dédiée après redémarrage).**
+Quoi : le lot 1 du dashboard (`docs/superpowers/specs/2026-09-22-pilotage-dashboard-design.md`) lit des sources
+EXISTANTES une par une, chacune avec son lecteur écrit à la main. La demande est l'inverse : que produire un artefact
+suffise à l'indexer. État mesuré le 2026-09-24, qui dit à la fois ce qui existe et ce qui manque.
+
+**Trois ingesteurs existent déjà**, et ils prouvent que le dépôt sait faire : `tools/consolidate_records.py` (les
+frontmatter des EDR → `results/records_graph.json`, 321 nœuds et 454 arêtes), `tools/pm/board.py` (registre de
+sessions + bulletins + git → le tableau data/pm/BOARD.json, artefact runtime non suivi), `tools/check_synthesis_counts.py` (les balises `count:` de
+9 documents → recompute). Chacun connaît SA source : rien ne se branche par convention.
+
+**Quatre familles de format, inégalement tenues** : `results/*.json` — **95 fichiers dont 21 seulement portent un bloc
+`regime`** (c'est le format que les records doivent citer, cf. E8 occ. 4) ; `docs/EDR/*.md` — 303, frontmatter
+`gate:`/`tests:`/`adopts:` imposé par la porte 1 ; `docs/preregistrations/*.json` — 68, forme `{name, rule, seal}` ;
+data/pm/*.json — 2, écrits par le tick PM (runtime, non suivis). La leçon utile : **le seul format réellement tenu est celui qu'une PORTE
+exige** (le frontmatter des EDR, 303/303) ; celui que personne ne vérifie est tenu à 22 % (le bloc `regime`, 21/95).
+
+**Et les artefacts de travail de Claude ne sont ingérés par RIEN** : 130 specs, 124 plans, 7 ledgers d'exécution SDD et
+53 rapports de tâche — **314 fichiers**, zéro lecteur. Vérifié plutôt que supposé : `grep -l docs/superpowers tools/*.py`
+rend trois fichiers, mais les trois occurrences sont des CITATIONS en docstring (« Design : … », `tools/cartography.py`:7,
+`tools/altar_tool_funnel_probe.py`:4, `tools/coevolve_use_long.py`:5), aucune lecture. Or ces artefacts portent précisément ce
+qu'aucune autre source ne dit : ce qui a été DÉCIDÉ (specs), ce qui est PRÉVU (plans), ce qui a été TRANCHÉ en cours
+d'exécution (les `Ruling:` des ledgers) et ce qui a été RÉFUTÉ (les rapports de revue).
+
+**À brainstormer, dans cet ordre de questions** : (a) quel jeu minimal de champs rend un artefact auto-descriptible
+(type, date, sujet, verdict ou état, liens sortants) sans alourdir son écriture ? (b) la convention s'impose-t-elle par
+une PORTE (le seul mécanisme qui tienne, mesuré ci-dessus) ou par un lecteur tolérant qui signale ce qu'il n'a pas su
+lire — la seconde voie étant la seule compatible avec 314 artefacts déjà écrits ? (c) l'indexation se fait-elle au
+MOMENT de l'écriture (un hook, donc un writer de plus) ou à la LECTURE (un balayage par le tick PM, donc rien à
+changer aux auteurs) ? (d) que devient l'index : un fichier, une collection de l'artefact Claude, ou le graphe de
+records élargi ? (e) ⚠️ un piège nommé d'avance : un index qui rend une liste VIDE quand il n'a rien su lire serait la
+forme (c) du registre — un motif qui tronque en silence. Il doit publier ce qu'il n'a pas indexé, comme
+`chemins_non_captes` du lot 1. *Coût : brainstorm 2 h ; implémentation non estimée avant cadrage.*
+Dépend de : rien (mais recoupe P2.84, le lot 2 « Science » du dashboard — à décider s'ils fusionnent).
+<!-- closes_when:path_present=docs/superpowers/specs/2026-09-25-auto-indexation-artefacts-design.md -->
+
+
+**P2.88 — ✅ CLOSE le 2026-09-24 (ouverte le même jour, mesurée en revue adversariale de la porte 19, HEAD `636c65b1`) — la porte 19
+rend `DISCORDE` sur TROIS situations qu'elle ne distingue pas — prémisse FAUSSE, clé qu'elle n'a pas su LIRE, clé
+ABSENTE — avec la même chaîne de détail au caractère près, et c'est le libellé du pire cas qui s'affiche.**
+Fait : livrée par `107229a0` (fix porte 19, 2026-09-24), dont le commit n'a pas enregistré la fermeture — c'est la porte 4 qui l'a détectée seule (clause satisfaite, entrée encore ouverte), et elle est enregistrée avec le renumérotage 22 → 23 de la porte E19. `DISCORDE` (rang 3) nomme désormais LES DEUX valeurs lues et le fichier ; `SANS_VALEUR_LUE` (rang 2, hors `OK`) publie le nombre de results lus et les clés VOISINES. Mesuré le 2026-09-24 : `python tools/check_regime_claims.py` rend `records : 300 | {'SANS_PARAMETRE': 226, 'CONCORDE': 5, 'CONCORDE_HORS_REGIME': 5, 'SANS_RESULTS': 53, 'SANS_REGIME': 3, 'SANS_VALEUR_LUE': 6, 'DISCORDE': 2}`, exit 0 — exactement la migration prévue ci-dessous (8 DISCORDE → 2 + 6). Les trois témoins demandés sont présents et verts dans `tests/sandbox/test_regime_claims_gate.py` : (a) `test_aucune_valeur_lue_rend_SANS_VALEUR_LUE_et_PUBLIE_ou_il_a_regarde` (statut ET clé voisine dans le détail) ; (b) `test_CONTRE_EXEMPLE_GELE_EDR_GRAB_COST_au_2026_09_09_est_DISCORDE` durci (`3.0` ET `1.0` dans le détail) ; (c) l'ancien `test_1_valeur_introuvable_nulle_part_reste_DISCORDE` renommé `test_1_valeur_CONTREDITE_par_le_regime_ET_par_le_hors_regime_est_DISCORDE`. Porte 15 : les 2 mutations de la porte 19, qui visent la distinction neuve, sont TUÉES.
+Quoi : `tools/check_regime_claims.py::evaluer` apparie par INTERSECTION D'ENSEMBLES (l.179 sur `regime_par_fichier`,
+l.187 sur `hors_par_fichier`) ; quand l'intersection est vide il écrit `<p> cite [...] : introuvable dans les results
+cites` et pose `pire = max(pire, 3)` (l.194-196), donc `DISCORDE` (l.197, rang 3 = le pire de `_RANG` l.46) — sans
+jamais nommer la valeur qu'il a pourtant LUE et qu'il tient dans ces deux dictionnaires. Témoin à réponse connue
+(lecteur FACTICE, aucun disque, aucun git, 5 cas) : les deux contrôles positifs passent — (A) cité 3.0 / publié 3.0 →
+`CONCORDE`, (D) publié hors du bloc `regime` → `CONCORDE_HORS_REGIME`, l'instrument n'est pas dégénéré. Mais (B) cité
+3.0 / publié 1.0 — le cas fondateur EDR-GRAB-COST, E8 occ. 4 —, (C) clé jamais lue et (E) contradiction hors-régime
+rendent le MÊME statut ET la MÊME chaîne : `statut B == statut C ? True`, `detail B == detail C ? True`, et « la
+valeur publiée (1.0) est-elle nommée dans le détail de B ? False ». Trois situations épistémiques sous un seul mot,
+et ce mot affirme la première. Absence de LECTURE → affirmation négative de fond, commise par l'instrument même qui
+traque E8.
+État relancé le 2026-09-24 : `records : 300 | {'SANS_PARAMETRE': 226, 'CONCORDE': 5, 'CONCORDE_HORS_REGIME': 5,
+'SANS_RESULTS': 53, 'SANS_REGIME': 3, 'DISCORDE': 8}`, exit 0 ; `tools/regime_claims_baseline.json` = 64 légataires
+(53 + 8 + 3). ⚠️ Reclassées contre les JSON réels avec TROIS catégories (la 3ᵉ étant « le nom du paramètre est dans le
+fichier mais le lecteur à clés ne le voit pas »), les 10 lignes fautives des 8 DISCORDE donnent `{'ABSENCE_CLE': 4,
+'CONTRADICTION': 2, 'ILLISIBLE_PAR_L_INSTRUMENT': 4}` — **la moitié des « absences » sont des valeurs BIEN PRÉSENTES** :
+`results/retain_compose_lr_replication.json` porte `/lr_0.02`, `/lr_0.002`, `/_params/lrs` (`_CELL_LR` l.40 n'accepte
+que `lr=0.02|`) ; `results/lang_memory_diagnostic.json` porte `D1_lr0.02_ep1200` ; `results/s2_credit_retention.json`
+porte `/regime/frozen_phase2_lr = 0.0` ; `results/td_step_pilot_r0.json` porte `/_regime/lr_td` (une LISTE). Un statut
+nommé `NON_PUBLIE` (« jamais publié ») serait donc un SECOND négatif fabriqué par-dessus le premier : l'instrument ne
+peut pas établir ce que le runner a publié, seulement ce que LUI a lu.
+Un E8 RÉEL, vivant dans HEAD, sort sous le même mot. `docs/EDR/107_..._Substrate_Blocked.md:21` annonce « Trajectoire
+`p_reach` sur 20 générations (run réduit `R=1`, `pop=24`, `max_ticks=80`, `seed=107`) » ; le SEUL results cité publie
+`generations: 2, num_agents: 6, max_ticks: 12` et une `traj` de DEUX valeurs. Ce n'est pas un paramètre qui diverge,
+c'est un smoke de 2 générations cité comme preuve d'une trajectoire de 20 — et les deux fichiers sont propres
+vis-à-vis de HEAD (`git status --porcelain` vide). La 2ᵉ « contradiction » est un faux positif de l'extracteur :
+`docs/EDR/S2-REWARD-ABLATION_…md:106` cite `reward_scale = 0` à l'INTÉRIEUR d'une prédiction.
+Coût s'il reste : la porte est branchée au hook (`tools/hooks/pre-commit:370`, déclenchée par tout `docs/EDR/*.md`,
+`results/*.json`, la baseline ou son module). ⚠️ Une dette GELÉE n'imprime AUCUN détail (`OK`, exit 0) — le détail ne
+sort que pour un record NOUVEAU ou RÉGRESSÉ, c'est-à-dire exactement quand la porte BLOQUE et que l'auteur doit agir :
+là, deux réparations opposées reçoivent la même phrase, et le pied de page (l.309) propose les deux remèdes sans dire
+lequel s'applique.
+À ÉCRIRE, en nommant ce qui a été LU et jamais ce que le runner aurait fait : (1) une valeur lue, différente de la
+citée → garder `DISCORDE` rang 3 (le mot devient exact), détail nommant LES DEUX valeurs et le fichier ; (2) aucune
+valeur lue → nouveau statut **`SANS_VALEUR_LUE`**, **rang 2** (avec `SANS_RESULTS` / `SANS_REGIME`), hors de `OK`
+(l.41) — un inconnu ne devient pas un vert, mais il cesse d'affirmer —, détail publiant le nombre de results lus et,
+à coût nul (`_sous_noeuds` les parcourt déjà), les clés VOISINES portant le nom du paramètre. Témoins à ajouter dans
+`tests/sandbox/test_regime_claims_gate.py` : (a) un témoin d'absence exigeant `SANS_VALEUR_LUE` ET la présence des
+clés voisines dans le détail ; (b) le témoin GRAB-COST (l.40) durci — exiger `DISCORDE` ET la présence de `1.0` dans
+le détail, sans quoi rien ne teste que la valeur publiée est nommée (l.42 n'assert aujourd'hui que le NOM du
+paramètre) ; (c) l.122 renommé — il s'appelle `test_1_valeur_introuvable_nulle_part_reste_DISCORDE` alors que ses
+données publient `forage_payoff: 1.0`. Les trois témoins DISCORDE gelés (l.40, l.122, l.128 phase 2) sont TOUS des
+contradictions : **zéro témoin** pour la branche majoritaire. Puis `--update-baseline` : 2 restent DISCORDE, 6 passent
+`SANS_VALEUR_LUE` (rang 2 = une AMÉLIORATION, donc aucun faux rouge). Libellés libres, mesuré avec contrôle positif
+(`grep -rn --include=*.py` sur `tools/` + `tests/`) : `SANS_VALEUR_LUE` → 0, `DISCORDE` → 18. *Coût : agent 1-2 h ;
+calcul 0.* Dépend de : rien. À faire AVANT tout resserrement de la baseline de la porte 19, sinon les 8 DISCORDE se
+regèlent sous le mauvais nom. Même famille que P2.83 et P2.92 (une branche de rejet qui confond des causes opposées).
+Occurrence au registre : E8.
+**FUSION 2026-09-25 (PM) : un DISCORDE gelé EN CONNAISSANCE, lu comme « citation ≠ prémisse ».** À l'union avec la cible,
+la porte 19 a rencontré `S2-CREDIT-ABLATION-2` (né sur la cible, où la porte n'existait pas) et l'a classé `DISCORDE`
+(`reward_scale` cité `0` l. 146, publié `1.0` sur les 4 bras et dans `regime/arms_credit`). Gelé dans
+`tools/regime_claims_baseline.json`. Lecture tranchée en revue de fusion (lentille baselines, re-mesurée) : la citation
+renvoie au bras `b_zero` du record PARENT `S2-CREDIT-ABLATION`, pas à une prémisse de CE run — la forme que la porte
+déclare ne pas savoir distinguer ; pas d'E8. À l'auteur (P4.16) de citer le results parent ou de reformuler, jamais à
+une fusion de toucher un record.
+<!-- closes_when:grep_present=tests/sandbox/test_regime_claims_gate.py::SANS_VALEUR_LUE -->
+
+**P2.89 — ⚠️ OUVERTE (2026-09-24, vue en passant pendant l'audit des portes) — la porte 8 n'est armée que par les NEUF
+documents qui PUBLIENT les comptes : 13 des 18 balises n'ont aucun de leurs intrants dans sa ligne de déclenchement,
+318 des 325 records entrent ou sortent sans la réveiller — le compte d'instruments est FAUX dans HEAD aujourd'hui
+(240 publié, 242 réel), et la porte juge le DISQUE, pas l'index (faux VERT mesuré dans l'arbre principal).**
+Quoi : `tools/hooks/pre-commit:149` n'appelle `tools/check_synthesis_counts.py` que si le commit stage l'un des NEUF
+documents où vivent les balises (`CLAUDE.md`, `docs/REF/REGISTRE_ERREURS.md`, `docs/roadmap/PRIORITES_ET_DETTES.md`,
+`docs/EDR/README.md`, `docs/SDR/*.md`, `docs/REF/REF-DEMAND-MARKER.md`, `docs/roadmap/FIL_DIRECTEUR_AGI.md`,
+`docs/roadmap/SCIENCE.md`, `docs/roadmap/ROLES.md`) ou la porte elle-même. Ces neuf documents sont les SORTIES des
+comptes, pas leurs INTRANTS. Les portes voisines font l'inverse et s'arment sur LEURS intrants : porte 1 sur
+`docs/(EDR|ADR|SDR|REF)/.*\.md` (hook:15), porte 3 sur `(tools|src)/.*\.py` (hook:46), porte taxonomy sur
+`data/agi_taxonomy/.*\.json` (hook:262).
+Sur les **18 balises** publiées (recomptées le 2026-09-24 : 18), **5 seulement sont correctement armées — et
+uniquement parce que leur intrant EST le document qui les publie** (`classes_executables` / `classes_documentees` dans
+`REGISTRE_ERREURS.md`, `roles_instancies` / `roles_candidats` dans `ROLES.md`, `syntheses_balisees` auto-référentiel).
+L'écrivain arme donc la porte exactement dans les cas où il est aussi le lecteur, jamais ailleurs. Les **13 autres
+sont MUETTES** : les 4 `records_*` (intrant = tout `.md` de `docs/{EDR,ADR,SDR,REF}`), les 6 `instruments_*` (intrant =
+tout `.py` de `tools/` et `src/` hors `check_*`, plus le dict `CALIBRATED` de
+`tests/sandbox/test_instrument_calibration.py`), `portes_hook` (intrant = `tools/hooks/pre-commit`) et les 2
+`aretes_taxonomy` (intrant = `data/agi_taxonomy/demands.json`). Côté records : **7 sur 325** arment la porte (les 5
+SDR, `REGISTRE_ERREURS.md`, `REF-DEMAND-MARKER.md`) — **318 ne l'arment pas, soit 97,8 %**.
+Ce n'est pas un risque : **le compte est FAUX dans HEAD au moment où cette entrée est écrite.** `python
+tools/check_synthesis_counts.py` rend **exit=1** et quatre `[CHIFFRE PÉRIMÉ]` : `CLAUDE.md:31` `instruments_detectes`
+publié=240 RÉEL=**242**, `CLAUDE.md:32` `instruments_calibres` publié=232 RÉEL=**234**, et les deux mêmes à
+`docs/SDR/G2_agent_composes.md:59`. Cause tracée : `c4d69b79` ajoute `verdict_temoin` et `verdict_phase_temoins` dans
+`tools/refutateur_temoins.py`, tous deux capturés par `^def\s+(\w*verdict\w*)\s*\(` — et ce commit **n'arme pas** la
+porte. Deux occurrences antérieures, datées et indépendantes : (a) `62763305` ajoute `docs/REF/REF-REVUE-ADVERSARIALE.md`
+sans armer la porte (grep EXIT=1, contrôle positif du même motif sur une liste contenant `SCIENCE.md` : EXIT=0), et
+`SCIENCE.md` a publié `records_total=324` pour un réel de 325 à ce commit ET au suivant `72879d76`, corrigé seulement
+à `b9aec5cc` ; (b) 5 commits publient un `portes_hook` faux — quatre à `16` quand le hook en câblait `17` (de
+`7ed985d6`, qui câble la porte 17, à `48ef27ea`), et `7fb183d4` publie `8` alors que son propre message dit « le hook
+passe de 8 a 11 gardes ». Dans les deux cas la correction est tombée sur un commit SANS RAPPORT. Exposition sur les
+200 derniers commits : 24 commits ajoutent/suppriment un record → **7 n'arment pas** ; 22 modifient le hook → **5** ;
+112 touchent un intrant `instruments_*` → **53**. (`aretes_taxonomy` est armé 4/4 par HASARD, ces commits stageant
+aussi une synthèse — rien dans le hook ne le garantit.)
+Second défaut, indépendant : **elle lit le DISQUE, jamais l'INDEX.** `grep -c GIT_INDEX_FILE` rend **0** dans
+`check_synthesis_counts.py`, `check_record_links.py` et `check_instrument_calibration.py`, contre **3** dans
+`check_backlog_freshness.py` et **7** dans `check_evidence_provenance.py`. Faux VERT mesuré aujourd'hui dans l'arbre
+principal : `ls docs/{EDR,ADR,SDR,REF}/*.md | wc -l` = 327 contre `git ls-files` = 326, le non-suivi étant
+`docs/EDR/S2-CREDIT-ABLATION-2_….md` que `parse_record` accepte ; `SCIENCE.md` sur disque publie 325 et la porte rend
+OK, alors que `git show HEAD:docs/roadmap/SCIENCE.md` publie 324 — un vert sur un chiffre qu'aucun clone du commit ne
+peut reproduire. C'est la classe corrigée pour la porte 4 le 2026-09-22 et jamais rétro-appliquée (E14).
+Rien ne protège la ligne d'armement elle-même : `tests/sandbox/test_synthesis_counts.py` porte 7 tests, dont **0**
+mentionne `staged_syn` ou `pre-commit` (contrôle positif : le même grep trouve 7 `def test`) ; et la porte 15 mute 19
+MODULES dont `tools.check_synthesis_counts` (`check_gate_mutation.py:186`) mais **jamais le fichier
+`tools/hooks/pre-commit`**. Le harnais mesure si chaque porte SAIT trouver, jamais si elle est APPELÉE — la question
+se pose à l'identique pour les 20 autres portes et mérite sa propre entrée. Nuance : le 7ᵉ test
+(`test_the_repository_published_counts_are_all_current`) lance `scan()` sur le dépôt réel et attrape donc la
+péremption — mais seulement dans la suite complète (~30 min), pas au commit, et la facture tombe sur qui n'a rien fait.
+À ÉCRIRE : (1) une seconde liste `staged_syn_intrants` dans le bloc 8 du hook, couvrant
+`docs/(EDR|ADR|SDR|REF)/.*\.md`, `(tools|src)/.*\.py`, `tests/sandbox/test_instrument_calibration\.py`,
+`tools/hooks/pre-commit`, `data/agi_taxonomy/.*\.json`, la porte tournant si l'une OU l'autre est non vide ; (2) un
+contre-exemple gelé confrontant la regex à une liste connue (un record EDR doit armer, un `results/*.json` non), plus
+une mutation déclarée à la porte 15 — ce qui suppose d'abord de lui donner prise sur le hook ; (3) un mode `--index`.
+⚠️ Ce 3ᵉ point n'est PAS du même coût que pour la porte 4 : celle-ci lit du TEXTE depuis l'index, alors que les
+compteurs d'ici délèguent à `check_record_links.py` et `check_instrument_calibration.py`, qui parcourent le SYSTÈME DE
+FICHIERS (`os.walk`, `os.listdir`) — les rendre index-aware fait partie du travail. ⚠️ Avant d'élargir, deux
+préalables mesurés : la porte coûte **11,3-11,9 s** (3 réplicats, charge relevée : 7 processus python, 22 CPU
+logiques — MAJORANT, l'unité machine libre n'est pas mesurée), dont **9,67 s sur 10,93 s** passées dans `_calib()`
+(`check_synthesis_counts.py:72`), appelé **5 fois** par passe faute de mémo — trois de ces appels dans la seule lambda
+`instruments_non_calibres` (l.130) ; un `functools.lru_cache` divise par ~3,4, et scoper la recompute à la famille de
+l'intrant stagé rend un commit de record quasi gratuit (~0,3 s). Sans ces deux-là on ajoute ~11 s à chaque commit de
+science, et un cliquet qu'on désactive ne mesure rien. *Coût : agent 1 h 30 ; calcul 0.* Dépend de : rien. Lié à
+P2.83 (qui explique pourquoi le compteur d'instruments ne veut pas dire ce qu'il annonce : une
+déclaration que le cliquet ne détecte pas est ignorée en silence) et à P2.56.
+<!-- closes_when:grep_present=tools/hooks/pre-commit::staged_syn_intrants -->
+
+**P2.91 — ⚠️ OUVERTE (2026-09-24) — la porte 23 compte mal dans LES DEUX SENS (deux de ses « non résolus » sont des
+nus qui DÉCLARENT `clause_E19`, quatre des douze chemins signalés ne comparent aucun pas) — et le patron de
+remédiation naturel est un appel DÉCORATIF qui rend `True` par court-circuit sans rien mesurer.**
+Quoi : la porte 23 (ex-22, `tools/check_e19_optimizer_sweep.py`, branchée au hook `tools/hooks/pre-commit`, bloc `# 23.`) est VERTE
+et son résumé se lit « 8 nus pour 1 appelant », ce qui invite à conclure « poser la garde partout ». Mesuré le
+2026-09-24 : `runners scellés : 29 | sous gradient (PLANCHER) : 9 | nus (PLANCHER) : 8 | indéterminés : 4 | non
+résolus : 4 | règle absente : 0 | illisibles : 0 | appelants de la garde : 1 | gelés : 16`, pour 13 lignes `couvert`
+(13 + 8 + 4 + 4 = 29). Le compte est faux dans les DEUX sens, et le patron de remédiation évident est pire que le
+défaut.
+⚠️ **(0) LE PIÈGE PRINCIPAL — LE PATRON ÉVIDENT EST UN APPEL QUI NE PEUT PAS ÉCHOUER.** La garde attend
+`measure(lr) -> (bras_testé, bras_de_référence)` et calcule `gap = référence − testé` ;
+`tools/experiment_preflight.py:399-401` rend `True` SANS RIEN CALCULER dès que `g_max <= 0`. Mesuré sur la grille
+réelle `results/bilinear_aligned_r1.json` (médianes recomputées : lr=0,02 plain 0,2844 / bilinear 0,9414 ; lr=0,002
+plain 0,1852 / bilinear 0,4258, 12 seeds) : écrire l'appel dans le sens naturel — testé = `bilinear`, le bras CAPABLE
+— donne des gaps NÉGATIFS aux deux pas et **rend `True` par court-circuit**. Or la porte déclare elle-même compter un
+appel **même DÉCORATIF** : le chemin passerait de `nu` à `couvert`, la porte verdirait, et RIEN ne serait mesuré — un
+couvert fabriqué par un instrument incapable de produire les deux issues. **Le nul à défendre est « `plain` ne compose
+pas » : testé = `plain`, référence = `bilinear`.** Dans ce sens, closure mesurée **63,4 %** contre un seuil de
+66,7 % — la garde PASSE, de 3,3 points seulement. Sur `BILINEAR-SHAM-R1` : `plain|bilinear` **65,1 %**,
+`sham|bilinear` **63,9 %**. Ces chiffres sont le critère d'acceptation de la passe ; ils se re-dérivent en secondes,
+sans aucune simulation.
+(a) DEUX des quatre « non résolus » sont des NUS DÉGUISÉS. `_resoudre` (l.126-135) ne lit que les constantes CHAÎNE de
+niveau MODULE ; `tools/lock001_pred2_r1.py:34` `NOM_REGLE = "LOCK-001-PRED2-R1"` puis `:138` `nom = argv[...] if
+"--regle" in argv else NOM_REGLE` et `:139` `verify(nom)` ; idem `tools/lock001_proxy_r1.py:33`. En résolvant à la
+main, les deux rendent `sous_gradient = True (clause_E19 déclarée)` et aucun n'appelle la garde : ils relèvent du rang
+`nu` (5, BLOQUANT) et sortent `non_resolu` (rang 2, seulement RAPPORTÉ). **Les nus atteignables statiquement sont donc
+10, pas 8** — et ces deux-là servent `docs/EDR/LOCK-002_D2_Retention_Is_Learned_Under_REINFORCE_At_The_Right_Step_The_Fourth_Manifestation_Was_E19.md` et
+`docs/EDR/LOCK-003_The_Same_Lever_Pierces_Both_Threads_Low_Step_And_Duration_Prediction_2_Of_LOCK-001_Holds.md` : la porte est aveugle sur le record qui PORTE la 4ᵉ occurrence de la classe qu'elle police.
+Correctif : propager les constantes CHAÎNE LOCALES de la fonction englobante. ⚠️ La branche `ast.IfExp` de `_resoudre`
+est du CODE MORT sur le corpus réel (son unique témoin, `tests/sandbox/test_e19_sweep_gate.py:43-47`, emploie la forme
+INLINE `verify("EVO-028-SMOKE" if SMOKE else "EVO-028")`, qu'aucun runner n'utilise).
+⚠️ (a-bis) `tools/lang_memory_edge_run.py` N'EST PAS un nu caché, et le correctif « lire le défaut de
+`os.environ.get` » y FABRIQUERAIT un négatif : sa ligne 31 est à la COLONNE 0 (module), son défaut littéral est
+`LANG-MEMORY-EDGE` (mesuré `sous_gradient=False`), et la règle qui déclare `clause_E19` est `LANG-MEMORY-EDGE-D2`,
+atteinte uniquement par la variable d'environnement (`docs/EDR/LOCK-002_...md:34`). Le résoudre statiquement ferait
+passer le chemin `non_resolu` → `indetermine` (régression bloquante) tout en affirmant « pas sous gradient » d'un
+runner que le record dit avoir tourné sous gradient. Le nom n'est pas décidable : le faire DÉCLARER est la seule voie.
+(b) QUATRE des douze chemins signalés ne comparent aucun pas. `tools/legacy_nan_guard_run.py` et
+`tools/legacy_wm_guard_run.py` sortent `nu` parce que `cellule.lr = null` est lu « comparaison de pas hors grille
+littérale, DÉCLARÉE » ; or ici `null` porte l'AUTRE sens, celui de `LEGACY-CAUSE-DE-MORT-R1` (`bras: {"lr0_reference":
+0.0, "lr_low": 0.004, "natural": null}`) : le pas NON SURCHARGÉ. `legacy_nan_guard_run.py:8` dit « re-mesure le bras
+`natural` (lr 0,04) sur les 12 seeds de P3.4 » — UN bras, UN pas — et sa référence lr0 est IMPORTÉE, déclarée
+`allow_inferred_reason` (`:78-81`). Le docstring de la garde les exclut (`experiment_preflight.py:301-302` : « un
+verdict à UN SEUL bras et seuil absolu n'est pas protégeable par ce mécanisme »). De même, `S2-REWARD-ABLATION` et
+`S2-CREDIT-RETENTION` ne balaient rien : leurs seules occurrences de `lr` sont « poids GELÉS lr=0 » (phase 2 à poids
+figés, l'inverse d'un balayage) et « lr 0,04 » nommant le régime PUBLIÉ. ⚠️ Le docstring de la porte
+(`check_e19_optimizer_sweep.py:51-53`) affirme « AU MOINS TROIS runners VIVANTS comparant réellement sous gradient
+[…] `s2_reward_ablation.py` » : mesuré, c'est FAUX — seuls `s2_credit_ablation.py` et `s2_credit_ablation_2.py` en
+portent un. C'est DEUX, pas trois. Le témoin qui gèle ce trio (`test_e19_sweep_gate.py:266`) n'exige, lui, que
+`indetermine` : il est juste, c'est la PROSE qui surclame.
+À ÉCRIRE, dans l'ordre : (1) `tools/bilinear_aligned_run.py` —
+`assert_verdict_invariant_to_optimizer(lambda lr: (med("plain", lr), med("bilinear", lr)), lrs=tuple(c["lr"]))`,
+**dans CET ordre**, et PUBLIER la closure dans la lecture sur le modèle de `tools/learner_calibration.py:116-125`
+(dont le `measure(lr)` ne relance RIEN : il projette une grille déjà calculée) ; le helper `med(sub, lr)` existe déjà
+aux lignes 39-40. Attendu : closure 63,4 %, statut `INVARIANT_AU_PAS` — un autre chiffre signale un appel mal orienté.
+(2) `tools/bilinear_sham_run.py`, même orientation (65,1 %). (3) et (4) `lock001_proxy_r1.py` et `lock001_pred2_r1.py`
+— rendre le nom RÉSOLVABLE d'abord, puis munir de la garde. (5) `legacy_lr_curve_r2.py` (5 pas, référence lr 0,0
+RE-MESURÉE dans la grille, le cas le plus propre). (6) `legacy_lr_curve.py`. (7) `td_step_pilot.py`. (8)
+`legacy_cause_de_mort.py` — applicable, mais sa DV est une PART de canal de mort : écrire la lecture AVANT d'appeler.
+(9) rectifier « AU MOINS TROIS » en DEUX dans le docstring et en retirer `s2_reward_ablation.py`. (10) l'avis imprimé
+PAR LIGNE (`:302-304`) doit dire « déclarer ET appeler » : suivi seul, il fait passer un chemin de `indetermine`
+(rang 4) à `nu` (rang 5) — vérifié en mémoire, `REGRESSION (donc COMMIT BLOQUE) : True`. ⚠️ À NE PAS traiter mais à
+trancher : les deux gardes legacy et les deux `s2_*` sont hors périmètre de la garde, et les « reclasser dans
+`tools/e19_sweep_baseline.json` » n'est PAS faisable en l'état — le vocabulaire des raisons est FERMÉ à cinq valeurs
+(mesuré : `Counter({'nu': 8, 'non_resolu': 4, 'indetermine': 4})`) ; les sortir demande d'ÉCRIRE une sixième raison
+(`hors_perimetre`, rang 0, exigeant une justification) avec son contre-exemple gelé. Les 11 grilles concernées sont
+présentes et SUIVIES par git : *coût agent 2-3 h ; calcul 0*, aucune simulation. Ajouter un appelant ne bloque jamais
+(seule la PERTE d'un appelant gelé bloque, `main()` l.445-448). Dépend de : rien.
+⚠️ FAIT MESURÉ EN PASSANT, à consigner dans `docs/EDR/EDR-BILINEAR_Bilinear_Substrate_Unlocks_Composition.md` et non ici : sur
+`results/bilinear_sham_r1.json`, le couple testé=`plain` / référence=`sham` rend une closure de **80,7 %**, au-dessus
+du seuil — la garde LÈVE. L'avantage post-hoc publié « sham > plain à 0,02 (+0,045 : capacité LINÉAIRE) » tombe à
++0,0086 à lr 0,002. Ce fait est POST-HOC et hors verdict scellé ; il ne rétracte rien, mais il appartient au record.
+**FUSION 2026-09-25 (PM, `feat/harness-r1`) : un « nu » gelé qui est un défaut d'ATTRIBUTION, pas de garde.** La porte 23
+attribue la règle `HARNESS-R1-bis` (`clause_E19` déclarée) à `tools/harness/seal_r1.py` — le SCELLEUR, qui n'exécute
+aucune cellule — et le classe `nu` ; or `src/seed_ai/harness_verdict.py` appelle `assert_verdict_invariant_to_optimizer`
+et entre au même gel comme APPELANT réel (2 désormais). Même famille que les deux sens ci-dessus : le runner d'une
+règle n'est pas forcément le fichier qui la nomme. Gelé `nu` EN CONNAISSANCE dans `tools/e19_sweep_baseline.json`
+(+ `cell.py`, `run_r1.py` en `non_resolu`, argv) ; à résorber quand l'attribution lira l'appelant.
+<!-- closes_when:grep_present=tools/bilinear_aligned_run.py::assert_verdict_invariant_to_optimizer -->
+
+**P2.92 — ⚠️ OUVERTE (2026-09-24) — les 18 chemins d'évidence gelés par la porte 20 n'ont JAMAIS été committés
+(`results/` ignoré jusqu'au 2026-09-08, records de juin 2026), et 11 des 17 records ne disent nulle part que leur
+évidence est introuvable.**
+Quoi : `python tools/check_evidence_provenance.py` (porte 20) rend, relancé le 2026-09-24 : « records : 300 | motifs
+cites : 76 | chemins distincts : 78 | paires record×chemin : 97 | absents : 18 | non suivis : 0 | glob vides : 0 |
+publies par hash : 0 | records fautifs : 17 », puis « OK : 18 chemin(s) legataire(s) gele(s) ».
+`tools/evidence_provenance_baseline.json` porte exactement ces 18 paires dans 17 records, toutes de cause `absent`.
+CE QUE SONT CES 18. Quatre oracles DISTINCTS par chemin — disque (`os.path.exists`), index (`git ls-files
+--error-unmatch`), arbre (`git cat-file -e HEAD:`), historique (`git log --all --`) — rendent 18/18 : absent, absent,
+absent, 0 commit. Le quatrième a son témoin positif sur la MÊME commande (`git log --all --oneline --
+results/records_graph.json` rend 4 commits), donc le 0 est une absence mesurée. Renommage : 18 renommages dans le
+dépôt (tous dans `docs/EDR/`, ex. 135→142), **0** touchant `results/`. Suppression : 15 suppressions (ex.
+data/articles.json), **0** sur le pathspec `results/*.json` — pathspec validé sur un cas positif
+(`--diff-filter=A -- "results/*.json"` rend 102 ajouts). Aucun `results/` présent-mais-non-suivi : `git ls-files
+--others -- results/` rend 0, et l'inventaire RÉCURSIF rend 95 suivis = 95 sur disque (⚠️ un `os.listdir` NON récursif
+rend 93 et fabrique un faux écart : `results/s6/` existe).
+MÉCANISME, daté. `.gitignore:18-19` porte `results/*` puis `!results/*.json` depuis le commit `7936c2b5` du
+2026-09-08 ; juste avant, et au commit du record 088, la ligne est `results/` NU. Ce commit n'a ajouté que **44**
+`.json` — ceux encore présents sur le disque ce jour-là. Or les 17 records fautifs sont tous antérieurs de deux à
+trois mois (2026-06-15 pour 088 → 2026-07-01 pour 127/150/151). ⚠️ Un `.gitignore` n'a jamais rendu le suivi
+IMPOSSIBLE : `git ls-tree -r 7936c2b5 results/` rend **57** `.json`, donc 13 étaient déjà suivis. Mais le premier de
+ces 13 date du **2026-07-21**, trois semaines APRÈS le dernier des 17 : pendant toute la fenêtre de rédaction, ZÉRO
+`results/*.json` n'était suivi.
+CE QUI MANQUE VRAIMENT — et ce n'est pas ce qu'on croit. Les 6 records les plus récents (114b, 123, 125, 127, 150,
+151) DISENT déjà que leur évidence n'est pas au dépôt : re-mesuré le 2026-09-24, le mot `gitignore` est présent dans
+**6** des 17 et ABSENT des **11** autres (088, 089, 090, 093, 094, 098, 099, 100, 101, 105, 106), 0 illisible. Les six
+nomment en plus leur graine de fumée à côté de leur graine de verdict (`docs/EDR/150_*.md:16` « **Seed** : 1280, R=3
+… (smoke 99280) », `123:5` « **Seed** : 1167 (smoke 99167) », `127:101` « -> results/qd_tier_rescue_1260.json
+(gitignore) ») : la substitution « prendre le 99xxx suivi pour le 1xxx publié » n'est donc PAS indétectable, la ligne
+du record la contredit. Ce qui est vrai et mesuré, c'est que **11 des 17 records citent un `results/*.json`
+introuvable sans un mot d'avertissement**, et que `docs/EDR/106_*.md` qualifie même son évidence de « régénérable ».
+C'est là qu'un lecteur croit pouvoir rouvrir et ne peut pas. (Fait annexe, publié pour qu'on cesse d'y revenir : sur
+les 6 qui ont un voisin suivi, 5 étiquettes de verdict sur 6 sont identiques entre le smoke R=1 et le verdict publié ;
+114b est la seule qui diffère, CONFOND CONFIRME publié contre CONFOND NEGLIGEABLE au smoke.)
+À ÉCRIRE, par valeur mesurée décroissante. (1) **Faire DÉCLARER l'irrécupérable au lieu de le deviner** : ajouter à
+`tools/check_evidence_provenance.py` une cause `non_refutable`, rangée dans `_RANG`, posée par un bandeau écrit dans
+le record (« évidence perdue : conclusion non réfutable en l'état ») et gelant la paire sous cette cause au lieu
+d'`absent` ; écrire le bandeau dans les **11** records muets d'abord, dans les 6 autres ensuite. C'est ce que teste la
+clause. (2) **Confronter un sha256 déclaré au fichier quand le fichier existe** : `grep -c hashlib
+tools/check_evidence_provenance.py` rend **0** (témoin positif : `hashlib` est dans `tools/preregister.py`), donc la
+cause `par_hash` n'est jamais vérifiée, même fichier présent. ⚠️ Ce n'est PAS un trou caché — le docstring l'énonce
+(« une DECLARATION, pas une VERIFICATION … ni le fichier (qui peut avoir disparu) »), le message d'échec le PROPOSE
+comme remède, et le comportement est GELÉ en test (`tests/sandbox/test_evidence_provenance_gate.py:17-23`, où
+`results/perdu.json` est absent, non suivi, porteur d'un sha256, et asserté `par_hash`). Le résidu à écrire est donc
+étroit et sans risque (0 paire `par_hash` aujourd'hui) : distinguer `hash + fichier présent` (vérifiable, donc à
+vérifier) de `hash + fichier nulle part` (invérifiable, donc à refuser ou classer `non_refutable`). (3) **Ne PAS
+re-runner pour « restituer »** : les runners cités par les 17 records sont **11** (et non 9), tous présents ET suivis,
+mais les records épinglent des commits de juin (dda4080, eb81cff, bdb7cb9) sur du code qui a dérivé depuis (E28) —
+un re-run serait une mesure NOUVELLE, pas la restitution de celle qui est publiée. *Coût : agent 2-3 h ; calcul 0.*
+Dépend de : rien. C'est E27 exactement, sur des paires que la porte laisse passer par construction (un légataire gelé
+ne bloque qu'en RÉGRESSANT). Même famille que P2.88 et P2.83.
+⚠️ VU EN PASSANT, À NE PAS FONDRE ICI (entrée séparée, calibration d'instrument) : `tools/tom_probe.py:97-102` —
+`_verdict_tom_emergence(0.0, 0.0, 0.0)` rend `TOM_INERT` (témoin positif : `(0.5, 0.1, 0.1)` rend `TOM_EMERGES`), sans
+aucun plancher de n ; et `results/tom_probe_99280.json`, le seul fichier `tom_probe` suivi par le dépôt, porte
+`n_ctrl=0.0`, `n_tom=0.0` et ce même verdict de fond, qui est l'étiquette publiée par EDR-150. Même forme sur
+`results/qd_tier_rescue_99260.json` (`d_craft=0.0`, `n_confirme_seeds=0` → `QD_NEUTRE`). C'est la forme (a) de
+CLAUDE.md — entrée vide → affirmation négative de fond — et `tom_probe` est absent de
+`tools/fabricated_defaults_baseline.json` (témoin positif : `tom_coordination` y apparaît 2 fois), donc la porte 14 ne
+l'attrape pas.
+<!-- closes_when:grep_present=tools/check_evidence_provenance.py::non_refutable -->
+
+**P2.93 — ⚠️ OUVERTE (2026-09-24, vue en passant en auditant `tools/preregister.py`) — la porte de revue ne reconnaît
+un coût que sous CINQ noms de clé au PREMIER niveau : aucune règle n'est aveuglée par la seule profondeur (0/68), mais
+4 à 5 déclarent leur échelle sous `design` / `regime_scelle` / `n`, et la prochaine qui fera pareil sera scellée SANS
+revue — contournement REPRODUIT.**
+Quoi : `tools/preregister.py:57` fige `_CLES_COUT = ("cout", "budget_s", "garde_cout", "plafond", "cout_scelle")` et
+`:60-61` teste `any(k in rule for k in _CLES_COUT)` — **premier niveau seulement**. Conséquence REPRODUITE dans un
+répertoire temporaire hors dépôt : la MÊME échelle, mot pour mot, fait mordre ou ne fait pas mordre la porte selon le
+NOM de la clé qui la porte. Contrôle positif d'abord — la règle d'`EVO-006-REPLICATION` avec son échelle recopiée sous
+`cout` lève bien `ReviewRequired` ; puis la même règle, échelle laissée sous `design` (« 2 bras x 12 seeds x 35
+eres… »), est **scellée sans revue**, enveloppe `['name','rule','seal']` ; idem pour l'échelle STRUCTURÉE de
+`DELAYED-COORD-LR-N12` (`n` = 12 **plus** `regime_scelle` = {episodes: 1600, n_agents: 16, seeds: "0..11",
+eval_batches: 40}) ; et une règle qui ne déclare rien du tout passe aussi. La porte échoue donc **OUVERTE**, en
+silence.
+La cause SUPPOSÉE — « elle ne lit que le premier niveau, donc des clés se cachent plus bas » — est **réfutée**, mais
+pas par le chiffre d'abord publié. Descente récursive sur dicts ET listes, mêmes 5 clés, sur les 68 fichiers de
+`docs/preregistrations/` (68 fichiers, 68 suivis par git, **0 illisible**) : **61** rendent `declare_un_cout(rule) is
+True` au premier niveau ; **1** — `TD-STEP-PILOT-R2.json` — porte en plus `controles.cout` et `seuils.budget_s` à la
+profondeur 1, mais elle en porte AUSSI une au premier niveau, donc **0 règle est aveuglée par la seule profondeur**
+(et non « 0 clé profonde » : ce chiffre-là vaut 1). Contrôle de portée de la descente : **60/68** règles contiennent
+au moins un conteneur imbriqué, profondeur de conteneur max **4** — la descente pouvait voir quelque chose, son zéro
+est un vrai zéro et non un instrument muet.
+Le vrai défaut est le **VOCABULAIRE FERMÉ** (5 noms) et la FORME. Sur les **7** règles sans aucune clé reconnue :
+**4** déclarent une échelle de RUN sous un autre nom — `EVO-006-REPLICATION` et `EVO-007` (`design` = « N bras x 12
+seeds x 35 eres »), `DELAYED-COORD-LR-N12` et `-bis` (`n` + `regime_scelle` structuré) ; **`EVO-012`** déclare une
+PORTÉE de 4 sujets pour une mesure que sa propre clé `note` dit « purement mecaniste (passages avant + inspection de
+W) : n'utilise NI le harnais de survie NI les compteurs du monde » — la ranger dans l'angle mort est un jugement, pas
+une mesure ; **`EVO-007-bis`** et **`-bis2`** sont des re-scellements d'une règle de LECTURE (clés `remplace`,
+`defaut_de_la_regle_initiale`, `lecon`, `pourquoi_bis2`). L'angle mort vaut donc **4, au plus 5**. ⚠️ Ne pas publier
+de total « 66/68 » : 61 est MESURÉ par clé, le reste est LU dans de la prose, et les deux ne s'additionnent pas dans
+la même unité. Le chiffre « 61 » n'est d'ailleurs publié dans AUCUN fichier suivi (`git grep "61 declarent|61/68"` →
+vide, contrôle positif du même `git grep` : `declare_un_cout` → 2) : il vit dans le message du commit `5c7b0d47`, qui
+ne se corrige pas.
+Ce qu'il coûte s'il reste : la dette est **entièrement à VENIR**, ce qui est exactement le moment où elle est
+gratuite. Les 7 ont été ajoutées du 2026-07-28 au 2026-09-02, la plus récente des 68 date du 2026-09-22, et
+`ReviewRequired` (`tools/preregister.py:141-144`) a été posée le 2026-09-23 : **aucune règle n'a jamais traversé la
+porte**, et 0/68 enveloppe porte `reviewed_by` (les 68 valent exactement `['name','rule','seal']`, recompté le
+2026-09-24). Rien d'autre ne l'attrape : `check_preregistration_applied.py` ne lit que des noms de DV
+(`_MEASURE_FIELDS:37`), `check_control_family.py` ne contient ni « cout » ni « revue ».
+À ÉCRIRE : ne pas élargir le motif (deviner), mais **faire DÉCLARER** — doctrine du dépôt
+(`tools/demand_marker._degeneracy`, `tools/check_guard_negative_cases.py`) : dans `preregister()`, refuser une
+NOUVELLE règle qui ne porte ni clé de coût ni déclaration EXPLICITE d'absence de run (`cout: "aucun run"`, ou
+`sans_run: true`), via une exception nommée `CoutNonDeclare`. ⚠️ **Le témoin à geler n'est PAS « la branche fausse »** :
+elle est DÉJÀ exercée — `tests/sandbox/test_preregistration_guard.py:179`
+(`test_une_regle_SANS_cout_declare_ne_l_exige_pas_et_une_existante_se_rescelle_sans`) scelle une règle sans clé de
+coût sans `reviewed_by` et affirme `declare_un_cout(rule) is False` à `:186`. Le témoin MANQUANT est l'autre : une
+règle qui déclare une échelle sous un nom HORS vocabulaire doit être REFUSÉE. ⚠️ Et il ne peut pas être
+`EVO-006-REPLICATION` verbatim : mesuré, la sceller telle quelle lève `IncompleteDiscrimination` (ses 3 branches n'ont
+pas d'attrape-tout) AVANT d'atteindre la branche de coût — le cas à geler est sa FORME plus une
+`regle_de_lecture_continue`. La demande ne porte QUE sur la création : le re-scellement à l'identique sort en `:135`
+avant d'y arriver, et `verify()` passe **68/68** aujourd'hui. Aucun appelant ne bouge, et pour une raison plus forte
+que « les 43 importateurs n'y touchent pas » : **aucun module du dépôt n'appelle `preregister()`** — les 43
+importateurs (32 sous `tools/`) importent `verify` (32), `stamp, verify` (14) ou `provenance` (13), et le seul `from
+tools.preregister import preregister` est `preregister.py` lui-même. Les 68 règles ont donc toutes été scellées hors
+code suivi — raison de plus pour que la demande vive DANS `preregister()`, seul point de passage possible. *Coût :
+agent ~1 h ; calcul 0.* Dépend de : rien. Lié à P2.94.
+<!-- closes_when:grep_present=tools/preregister.py::CoutNonDeclare -->
+
+**P2.94 — ⚠️ OUVERTE (2026-09-24) — `reviewed_by` est posé HORS du sceau : sa SUPPRESSION et sa FORGERIE passent
+toutes deux `verify()`, et aucun lecteur ne peut même le relire — alors que le mettre DANS le sceau coûte ZÉRO
+re-scellement.**
+⚠️ **Entrée trouvée EN PASSANT pendant la mesure de P2.93 et NON passée au réfutateur** : les trois faits structurels
+ci-dessous ont été re-vérifiés par le synthétiseur le 2026-09-24 ; le prototype « design B » (68/68 sceaux préservés)
+est en revanche la mesure du seul investigateur et n'a été rejouée par personne.
+Quoi : `_seal()` (`tools/preregister.py:106-108`) ne hache que `rule` — vérifié : `return
+hashlib.sha256(json.dumps(rule, sort_keys=True, …))` ; `preregister()` écrit `payload["reviewed_by"] = reviewed_by`
+dans l'ENVELOPPE (`:145-146`, à côté de `name` et `seal`) ; `verify()` recompute `_seal(payload.get("rule", {}))`
+(`:199`) et rend `payload["rule"]` seul (`:202`). Mesuré dans un répertoire temporaire, avec contrôle POSITIF
+d'abord : retoucher `rule` lève bien `PreregistrationTampered` — le sceau MARCHE ; puis SUPPRIMER `reviewed_by` →
+`verify()` PASSE ; puis FORGER un `reviewed_by` (« docs/reviews/2026-01-01-revue-qui-n-a-jamais-eu-lieu.md ») sur une
+règle qui n'en avait pas → `verify()` PASSE ; et `verify()` ne rend que `rule`, donc `reviewed_by` n'est même pas
+LISIBLE par l'API : aucun lecteur ne peut vérifier l'attestation ni constater son effacement. La porte `ReviewRequired`
+est donc DÉCORATIVE au sens d'E10 — elle exige une revue à l'écriture, et le dépôt ne peut ni la relire ni détecter sa
+disparition.
+Instances aujourd'hui : **0/68** — recensement refait le 2026-09-24, les 68 enveloppes portent exactement
+`['name','rule','seal']`, 0 illisible, la porte ayant un jour d'âge. C'est précisément la fenêtre où le correctif est
+gratuit. Le point qui DÉCIDE, mesuré et non raisonné : *design A* (le sceau porte TOUJOURS `{rule, reviewed_by}`, même
+absent) change **68/68** sceaux, casserait les **13** sceaux CITÉS hors `docs/preregistrations/`
+(`results/bilinear_aligned_r1.json`, `legacy_cause_de_mort.json`, `legacy_lr_curve_r1.json`,
+`legacy_lr_curve_r2.json`, `legacy_nan_guard_r1.json`, `legacy_wm_guard_r1.json`,
+`s2_blind_champion_bis.json`, `s2_blind_champion_ter.json`, `s2_blind_champion_decomp_r1.json`,
+`td_step_pilot_r0.json`, `td_step_pilot_r1.json`, `td_step_pilot_r2.json`, `bilinear_sham_r1.json`) et rendrait tout re-scellement idempotent impossible
+(`PreregistrationConflict`, `:130`). *Design B* — le sceau BRANCHE : `_seal(rule)` quand `reviewed_by` est absent,
+`_seal({"rule": rule, "reviewed_by": …})` quand il est présent — prototypé et mesuré : **68/68 règles gardent leur
+sceau exact, 0 cassée, 0 re-scellement, 13 citations intactes**, et les six cas se comportent (intacte VRAI · `rule`
+retouchée FAUX · `reviewed_by` supprimé FAUX · `reviewed_by` forgé FAUX · légataire sans revue intacte VRAI · revue
+AJOUTÉE à une légataire FAUX). Donc **non, les 68 n'ont PAS à être re-scellées** — à condition d'écrire la branche.
+(Le premier prototype, qui enveloppait TOUJOURS `rule` dans `{"rule": …}`, cassait 68/68 : l'écart entre les deux
+designs est mesuré, pas argumenté.)
+À ÉCRIRE : la branche dans `_seal`/`verify` de `tools/preregister.py`, `verify()` qui rend aussi l'attestation (ou un
+`attestation(name)`), et les témoins manquants dans `tests/sandbox/test_preregistration_guard.py` — ses 19 tests
+couvrent la FORME de `reviewed_by` (`:189`, `:198`) mais AUCUN n'essaie de l'effacer ni de le forger :
+`def test_supprimer_reviewed_by_est_DETECTE`, `def test_forger_reviewed_by_est_DETECTE`, et le test de non-régression
+des 68 (`test_the_repository_preregistrations_are_all_intact:67`) qui doit rester vert. ⚠️ Traiter dans la même passe
+le cas jumeau : `name` est lui aussi HORS du sceau (0/68 instance, mais un payload dont le `name` ment passe
+`verify()`) — l'y ajouter changerait 68/68 comme le design A, donc le laisser hors sceau et le VÉRIFIER contre le nom
+de fichier dans `verify()`, ce qui est gratuit. *Coût : agent ~1 h ; calcul 0.* Dépend de : rien. Lié à P2.93.
+<!-- closes_when:grep_present=tests/sandbox/test_preregistration_guard.py::def test_supprimer_reviewed_by_est_DETECTE -->
+
+**P2.95 — ⚠️ OUVERTE (2026-09-24, mesurée en lecture seule) — la règle `review:` est ARMÉE et GELÉE sur 232 EDR à
+verdict, et son chemin de SUCCÈS n'a jamais été parcouru sur un record réel : `docs/reviews/` ne contient que son
+README.**
+Quoi : `tools/check_record_links.py` exige qu'un EDR à verdict porte `review:` désignant un fichier RÉEL — forme
+`docs/reviews/<AAAA-MM-JJ>-<slug>.md` (`_REVIEW_PATH`, l.49) ET existence sur disque (`_review_defect`, l.52-61),
+exigence appliquée l.150-153. Re-mesuré le 2026-09-24 : `--report` rend `records=325 orphelins=18 collisions=7
+gate_non_raccordés=67 mismatches_gate_tests=0 sans_revue=232`. Décomposition recomputée depuis `scan_records`,
+jamais recopiée : 325 = **299 EDR + 16 REF + 5 SDR + 5 ADR** ; le périmètre est les **232 EDR à verdict** (`gate:`
+dans G0-G4/`foundational` OU `tests:[SDR-Gx]`), et **93 records sont HORS périmètre** (67 EDR sans aucun raccord de
+porte + 26 non-EDR, la branche étant `r["type"] == "EDR"`). Les 232 défauts sont tous de raison `absente`, et
+**aucun record du dépôt, tous types confondus, ne porte un champ `review:` non vide**.
+⚠️ **La moitié « poser la règle pour les NOUVEAUX » est DÉJÀ FAITE — la réécrire produirait une entrée née close.**
+`tools/record_link_baseline.json` gèle `review_missing_files = 232`, **set-égal** au courant (vérifié élément par
+élément : 0 en trop, 0 en moins) ; `tools/hooks/pre-commit` l.22/24 lance la porte ; `tools/preregister.py:141`
+refuse une règle scellée à coût déclaré sans `reviewed_by=` au même format. Le cliquet produit bien les DEUX issues :
+baseline réelle → exit 0 ; même baseline amputée d'une entrée → `[EDR-097, absente]`, exit 1.
+Ce qui manque est autre chose : **le chemin de SUCCÈS de la porte n'a jamais été parcouru sur un record réel.**
+`git ls-files docs/reviews/` rend UNE ligne, son README. Zéro revue, zéro `review:`. Et ce n'est pas une porte
+aveugle — contrôle de BOUT EN BOUT (confronter `_review_defect` à des chaînes ne suffit pas : ça contourne
+`parse_record`) : dans un faux dépôt, un record dont le frontmatter porte `review: docs/reviews/…md` est LU et SORT
+de `review_missing` ; le fichier de revue supprimé, il y rentre en `fichier introuvable`. La porte sait dire OUI ;
+personne ne le lui a jamais fait dire sur un record du dépôt.
+Pourquoi ce n'est pas de la négligence, et pourquoi ça reste une dette : l'instrument de revue a échoué DEUX fois sa
+propre calibration (`.superpowers/sdd/2026-09-16-portes-18-19-20-refutateur/progress.md`) — clé de réponse voyageant
+avec l'instrument, puis **plancher de fausses retrouvailles à 4/4** (une revue VIDE passait les quatre témoins, une
+revue JUSTE échouait) ; la ronde 4 (`c4d69b7`) ramène ce plancher à 0/5. Le « Step 4 : première revue réelle » du plan
+est **NON EXÉCUTÉ**, et sa cible est un TÉMOIN gelé (un SHA), pas le record courant : l'exécuter ne posera `review:`
+sur aucun record et ne bougera pas la baseline. Cette entrée porte exactement ce résidu.
+Ce que ça coûte : `CLAUDE.md:329` justifie l'obligation de revue par « **7 revues, 7 erreurs réelles trouvées** » —
+ligne **sans balise `count:`** (contrôle positif : 4 balises existent), donc jamais recomputée. Ces 7 revues ont bien
+laissé des traces, mais **en PROSE dans les records** (`grep -c -i revue` : 4 sur WARM-004, 3 sur WARM-008, 2 sur
+WARM-006 — « ## Corollaires établis par la revue adversariale », « Correction majeure post-revue ») : jamais un
+document autonome portant ses sondes, ses verdicts par prompt et ses commandes rejouables. Conséquence mesurable :
+les compteurs du rôle Réfutateur (spec §2.3, « critiques émises / confirmées », lus dans `docs/reviews/*.md`) ont
+zéro entrée.
+À ÉCRIRE : (1) une première revue `docs/reviews/<date>-<slug>.md` produite par le workflow sur un record COURANT
+(§ « Lancer une revue » de `docs/reviews/README.md:9`, témoins extraits par `tools/refutateur_temoins.py --extraire` ;
+`statut: NUL` → rien ne s'écrit) ; (2) le `review:` correspondant au frontmatter du record ; (3) `python
+tools/check_record_links.py --update-baseline`, qui ne retire la ligne QUE si `_review_defect` rend None (forme ET
+existence). Les trois dans le MÊME commit (règle citation+artefact). **Cible n°1 mesurée : `EDR-CALIB-LEARNER`**
+(`docs/EDR/CALIB-LEARNER_InWorld_Learner_Learns_At_Unbounded_Dose_The_Published_Nulls_Were_Dose_Bounded.md`), indegré
+**7** — maximum du périmètre, ex æquo avec `EDR-AUDIT-001` — ET cité par CLAUDE.md. Vérifié : ce chemin n'apparaît
+dans AUCUNE autre liste de la baseline, donc la clause bascule sur ce seul motif. ⚠️ **Échappatoire connue de la
+clause, à ne pas emprunter** : supprimer ou renommer le record puis regeler la baseline la satisferait sans aucune
+revue — la clause observe le resserrement, pas l'intention ; le commit de fermeture doit porter le fichier de revue
+lui-même.
+Lot PORTEUR pour la suite, mesuré : sur les 232, **98 sont cibles d'au moins une arête entrante** (471 arêtes, **0
+pendante**), **16 ont un indegré ≥3**, et **14 sont cités par CLAUDE.md**. ⚠️ Ce 14 est une mesure REFAITE : un
+appariement par id ENTIER n'en trouve que 7, parce que CLAUDE.md cite aussi par id NU (`S2-011`, `WARM-005`,
+`S2-CREDIT-ABLATION`, `S6-FALLBACK-RATE`…) ; la variante qui accepte en plus un suffixe NUMÉRIQUE nu en rend 25, mais
+ses gains sont des faux positifs de prose (`121 sites légataires` → « EDR-121 », `+0,156` → « EDR-156 »). Union
+{indegré ≥3} ∪ {cités} = 25, moins `EDR-RETAIN-COMPOSE` (rétracté ; dans `build_graph`, `from` est le RÉTRACTÉ) →
+**lot net de 24**. Exiger 232 revues rétroactives est absurde ; 24 ne l'est pas, et les **206** restants demeurent
+gelés sans dette nouvelle possible. ⚠️ `adopts:` n'est PAS un proxy de « porteur » : les 113 arêtes `ADOPTE` visent 7
+cibles — 112 des ancres REF et 1 l'ADR-004 ; **aucun EDR n'est adopté**. *Coût : un agent par revue, lecture seule +
+sondes, aucun run de monde.* Dépend de : la ronde 5 du Réfutateur (calibrer l'instrument AVANT de graver un
+artefact). Lié à P2.25 (une revue dont les vérificateurs meurent rend « 0 défaut confirmé »).
+**FUSION 2026-09-25 (PM) : trois records nés sur la cible SANS `review:` gelés, 232 → 235.** `S2-002-PAIRED-R1`,
+`S2-CREDIT-ABLATION-2`, `TD-STEP-PILOT-R2` ont été committés sur `feat/d1-prod-pairing` avant que la règle « nouveau
+record ⇒ revue SUIVIE » n'y arrive par cette fusion ; la porte 1 les refusait comme NOUVEAUX. Gelés dans
+`tools/record_link_baseline.json` (`review_missing`). `S2-CREDIT-ABLATION-2` déclare une revue EN PROSE (21 griefs
+confirmés sur 22) sans aucun chemin suivi — exactement le cas de cette entrée. La règle vaut pour tout record né APRÈS. Fusion de `feat/harness-r1` le même jour : + `EDR-HARNESS-R1` (né sur sa branche avant la règle), même gel → 236.
+<!-- closes_when:grep_absent=tools/record_link_baseline.json::CALIB-LEARNER_InWorld_Learner -->
 
 **P3.4 — rang 14 — ✅ CLOSE le 2026-09-15 ([[EDR-CALIB-LEGACY-LEARNER]], `results/legacy_learner_calibration.json`) — Cas de calibration de l'apprenant LEGACY.**
 Quoi : `MambaBatchModel.compute_policy_gradient` (le chemin actif pendant tout l'arc EVO), mêmes bras
@@ -1499,7 +2362,7 @@ DIRECTION / MIXTE. Pourquoi : [[EDR-S2-CREDIT-ABLATION-2]] § Portée. *Coût : 
 Dépend de : rien.
 <!-- closes_when:path_present=docs/preregistrations/S2-BASSIN-FRAGILITY.json -->
 
-**P4.17 — rang 4 quinquies — OUVERTE (2026-09-22, décision robla déléguée via agagi-52 ; session loop 766eabae) — Balayage
+**P4.17 — rang 4 quinquies — ✅ CLOSE le 2026-09-24 (verdict `AIDE_A_UN_POINT` ; ouverte le 2026-09-22, décision robla déléguée via agagi-52 ; session loop 766eabae) — Balayage
 lr × λ sur le pilote TD PAR PAS : où la trace d'éligibilité vit-elle, et jusqu'où descend-elle en lr ? Le billet à deux issues de
 la ligne `eligibility_trace_credit` (ADR-005) se joue ici, PAS in-world (P4.16-bis refusé : 0,0033/agent in-world = 75× sous le
 seul point où la trace ait jamais marché).**
@@ -1533,7 +2396,32 @@ representatives des cellules neuves. Le protocole a fonctionne exactement comme 
 re-mesuree machine libre, MEME budget scelle, marge jamais relevee) et il rend un verdict que je n'attendais
 pas. Consequence pour le record `EDR-TD-STEP-PILOT-R2` : il publiera la ligne lr 1.0 comme NON MESUREE, avec sa
 raison chiffree, et non comme un accident de machine.
-<!-- closes_when:path_present=docs/EDR/TD-STEP-PILOT-R2_Grid_Of_Step_And_Lambda.md -->
+**✅ CLOSE le 2026-09-24 — lecture scellée `AIDE_A_UN_POINT`** ([[EDR-TD-STEP-PILOT-R2]],
+`results/td_step_pilot_r2.json`, 96 cellules importées + 48 neuves). Ce que la grille ajoute à R0, et c'est le
+résultat : **à lr 4,0 la trace n'est pas un bonus, elle est CE QUI REND la tâche différée apprenable** — λ 0,9
+(médiane 0,2531) et λ 0,99 (0,2563) franchissent la barre de leur propre référence lr = 0 (0,1625 + 0,05) sur
+**11/12 seeds**, quand λ 0 (0,1898) la franchit sur 1/12 et λ 0,5 (0,2078) sur 3/12. Comptes scellés :
+`aide09@lr` 12/12, `aide099@lr` 11/12, `aide05@lr` 0/12.
+⚠️ **Au pas moitié (lr 2,0), AUCUN bras à délai n'apprend** — `lam0` 1/12, `lam05` 0/12, `lam09` 1/12,
+`lam099` 2/12 au-dessus de la barre — donc le `0/12` d'aide y oppose deux bras qui n'apprennent ni l'un ni
+l'autre, et il ne réfute PAS l'invariance au pas : elle reste OUVERTE. La règle mesure `lisible@lr` sur la
+paire SANS délai (`td0_d0` 0,3203 contre 0,168, 12/12), l'aide sur la paire AVEC délai ; le record publie les
+deux côte à côte pour que le glissement soit impossible. Le balayage utile est donc vers le HAUT, pas vers le
+bas. (Tension nommée par agagi-52 AVANT la lecture ; sa clôture de P4.11 est amendée en conséquence.)
+**Complément à ma note de reprise ci-dessus, qui était partielle.** Chiffré exactement : à 107 unités, budget
+240 min, marge 1,5 — unité contaminée 217,4 s → 255 min restants après la coupe de lr 1,0, donc une SECONDE
+coupe ; unité libre 196,4 s → 231 min, donc une seule. **La contention a coûté EXACTEMENT une ligne (les 48
+cellules de lr 2,0, que la reprise a récupérées), et seulement parce que la projection était déjà à 6 % du
+seuil** ; la coupe de lr 1,0, elle, tient machine libre : elle est STRUCTURELLE. Les deux portent pourtant le
+même `coupe=True` dans le JSON — d'où la dette ci-dessous.
+⚠️ **Et la prémisse de coût que j'avais SCELLÉE est fausse** : la règle justifie sa projection par « cellules
+uniformes : mêmes épisodes, mêmes agents ». Mesuré sur les 28 cellules chronométrées : `lam05` 161,9 s,
+`lam099` 157,6 s, `td0_d0` **56,2 s** — le contrôle de chemin est **2,8× plus rapide**. L'unité est mesurée sur
+la PREMIÈRE cellule neuve (famille lente) et appliquée à une grille hétérogène : la projection sur-estime, et
+le cliquet de coût mord plus qu'il ne devrait. C'est E8 appliqué au modèle de coût. *(Ne change pas la coupe de
+lr 1,0, qui tient même à l'unité médiane toutes familles.)* **Ces dettes sont SORTIES en [[P2.110]]** le 2026-09-24 (avec une troisième, trouvée en les ré-écrivant) :
+une entrée fermée ne porte pas de travail à faire — personne ne va chercher un « à faire » sous un coché vert.
+<!-- closes_when:path_present=docs/EDR/TD-STEP-PILOT-R2_The_Eligibility_Trace_Is_What_Makes_The_Delayed_Task_Learnable_At_One_Operating_Point.md -->
 
 **P4.7 — rang 19 — S5 / G4 phase A : `g` PER-ACTION vs agnostique vs labels PERMUTÉS (nœud 74).**
 Sonde livrée (fix de persistance ACTIF depuis le 2026-09-07, voir le bloc S5 plus bas et
@@ -1544,6 +2432,161 @@ le champion prod ; à relancer sur le sujet issu de P4.4. *Coût : agent ~2 h ; 
 **Rang 20 — amendement de P2.42 (2026-09-14)** : le `-bis` de S2-BLIND se fait à CORPS APPARIÉ (ballast
 P1.7) et apprenant GELÉ, pour lire ou rétracter la DV 7/7 (+39 %). Voir l'annotation sous l'entrée
 P2.42. Dépend de : P1.7.
+
+**P2.96 — Le split `control` du harnais n'est JAMAIS entraîné : la garde d'alias est structurellement aveugle.**
+Mesuré par [[EDR-HARNESS-R1]] (cellule B, `INCONCLUSIVE_ALIAS`) : `run_harness_cell` entraîne l'instance
+uniquement sur le split `"train"` (`tools/harness/cell.py:121-127`) puis évalue le contrôle sur CETTE instance
+(`tools/harness/cell.py:146-148`), alors que le split existe (`tools/harness/tasks/composition.py:53-56`). La
+politique apprend à lire `key` au pas 0 dans son état et jamais au pas 1 : réinitialiser l'état tue aussi la tâche
+de contrôle (0,9078 → 0,1781, `leakage` 0,7297) et `alias_guard_verdict` rend `FUNCTIONAL_LEAK` PAR CONSTRUCTION.
+Un contrôle non entraîné ne peut pas séparer « l'état est nécessaire » de « ce slot n'est jamais lu ». Quoi :
+entraîner en ALTERNANCE sur `train` et `control` dès qu'une ablation `site="state"` est déclarée (précédent
+exécutable : `tools/language_memory_demand_probe.py::_train_and_eval`, paramètre `train_control=True`), la dose du
+contrôle publiée à part ; OU faire porter au contrat de tâche l'exigence que le contrôle soit résoluble par la
+politique entraînée sur `train` seul, et REFUSER en tête sinon. Prérequis de toute cellule à ablation d'état (donc
+de la re-mesure de B en R2). Coût ≈ 2 h + un run de cellule.
+<!-- closes_when:grep_present=tools/harness/cell.py::train_control -->
+
+**P2.97 — La garde E19 ne distingue pas un écart nul par PLAFOND d'un écart nul par effondrement.**
+Mesuré par [[EDR-HARNESS-R1]] (cellule A′, `LR_ARTIFACT`) : `_e19` (`src/seed_ai/harness_verdict.py:288-330`)
+protège par `reference_floor` contre une référence qui s'effondre vers le plancher, mais deux bras SATURÉS au
+plafond au même pas du balayage donnent `gap = 0` — donc `closure = 1,0` et `LR_ARTIFACT` — alors qu'aucun des
+deux n'a échoué. Sur une tâche facile (rappel `same_tick`, 150 épisodes, les deux bras à 1,000 à lr 0,02), la
+garde mêle saturation et vitesse d'apprentissage. Quoi : ajouter au calcul un plafond symétrique du
+`reference_floor` (si les DEUX bras dépassent `ceiling - 2 se` à un pas, ce pas ne porte pas d'information sur la
+nécessité : statut `GAP_AT_CEILING`, publié, pas `LR_ARTIFACT`), avec son contre-exemple gelé ; et, côté
+protocole, sceller une cellule facile avec un régime qui ne sature pas au pas le plus rapide (le smoke doit
+mesurer les DEUX pas, pas un seul — c'est ce qui a manqué à A′). Coût ≈ 3 h, zéro run.
+<!-- closes_when:grep_present=src/seed_ai/harness_verdict.py::GAP_AT_CEILING -->
+
+**P2.98 — `check_preregistration_applied.py` PLANTE (AttributeError) sur un `.json` de `docs/preregistrations/`
+dont `rule` n'est pas un dict.** Mesuré en écrivant [[EDR-HARNESS-R1]] : `payload.get("rule", {}).get(...)`
+(`tools/check_preregistration_applied.py:105-106`, `:154`, `:217`) suppose un dict ; un fichier de provenance dont
+`rule` est une chaîne fait tomber la porte 5 en exception au lieu d'un refus propre — c'est pourquoi la provenance
+de `-bis` est tamponnée sur le SMOKE (`tools/harness/seal_r1.py:30-37`) plutôt que déposée là. Une porte qui
+plante ne dit pas « non », elle ne dit rien. Quoi : ignorer proprement (avec un message nommant le fichier) tout
+payload dont `rule` n'est pas un dict, et un cas de calibration qui pose un tel fichier dans un `_dir` temporaire.
+Coût ≈ 30 min.
+<!-- closes_when:grep_present=tests/sandbox/test_preregistration_guard.py::rule_non_dict -->
+
+**P2.99 — `assert_verdict_invariant_to_optimizer` ne surveille que l'effondrement ABSOLU de la référence, pas sa
+dégradation relative.** `tools/experiment_preflight.py:303-372` : `reference_floor` est un plancher bas (ici la
+barre d'acquisition, ~0,19-0,22) ; une référence qui passe de 1,00 à 0,70 — dégradation massive, toujours très
+au-dessus du plancher — ne déclenche rien, et la closure attribue au PAS ce qui vient du bras de référence.
+Trouvée en revue de [[EDR-HARNESS-R1]] (héritage P2.21). Quoi : publier `refs_by_lr` dans le retour de la garde
+(aujourd'hui elle ne rend que `True`) et refuser, ou marquer `INDETERMINE_REFERENCE_MOVED`, quand la référence
+varie de plus d'un seuil DÉCLARÉ entre les deux pas ; contre-exemple gelé des deux côtés. Coût ≈ 1 h.
+<!-- closes_when:grep_present=tools/experiment_preflight.py::INDETERMINE_REFERENCE_MOVED -->
+
+**P2.100 — Le bloc `regime` publié par une cellule est RECOPIÉ des arguments du runner, jamais re-dérivé d'un
+comptage.** `tools/harness/cell.py:238-245` construit `regime` depuis `task.regime()` et les kwargs reçus
+(`episodes`, `n_agents`, `eval_batches`) : rien ne prouve que le nombre d'épisodes réellement exécutés est celui
+publié — c'est la forme E8 (« une prémisse est une mesure, pas un décor ») appliquée au régime du harnais, et le
+sceau lui-même ne peut pas la rattraper puisque le runner prend ces valeurs en arguments. Quoi : compter les
+itérations dans `_run_arm` (épisodes d'entraînement, lots d'évaluation) et publier `regime_mesure` à côté de
+`regime`, avec une assertion d'égalité ; le record cite `regime_mesure`. Coût ≈ 1 h.
+<!-- closes_when:grep_present=tools/harness/cell.py::regime_mesure -->
+
+**P2.102 — La garde d'alias de la condition (iii) (« la pièce est-elle tout le learner ? ») n'a jamais été
+appliquée à la PIÈCE, seulement à l'état.** Le spec (`docs/superpowers/specs/2026-09-16-harness-contracts-
+design.md:293-296`) prévoit `alias_guard_verdict(ctrl_A, ctrl_D)` : la tâche de CONTRÔLE doit survivre au
+retrait de la pièce, sinon la « pièce » ablatée est en réalité tout le learner. Mesuré ([[EDR-HARNESS-R1]] §7,
+revue finale de branche C1) : le bloc `necessity` des trois cellules n'a AUCUNE clé `alias` (la cellule B en
+porte une, mais pour l'ablation D'ÉTAT `state_reset` de la DEMANDE, jamais pour la nécessité de la pièce) ;
+`tools/harness/cell.py:146-148` n'évalue les contrôles que sur le bras A (AVEC la pièce), jamais sur D (sans
+elle). Non posée pour A (`without={"bilinear": false}`) ni pour B (`without={"feedforward": true}`, une
+lésion LARGE) : `PIECE_PARTIAL` (A) et `NECESSARY` (B, non décisif) pourraient, sans cette garde, documenter
+une pièce qui n'est en réalité qu'un nom pour « le learner entier ». Quoi : un bras de contrôle par cellule à
+ablation de pièce (construit et évalué SANS la pièce, comme D, symétrique du contrôle déjà présent pour les
+ablations d'état), confronté par `alias_guard_verdict` — coût d'un bras de contrôle par cellule (R2). Coût ≈
+2 h + un run de cellule.
+**FUSION 2026-09-25 (PM, `feat/harness-r1` ⟂ plan 2) : le scelleur du harnais est sous le contrat revue-avant-sceau.**
+`tools/preregister.py` (plan 2, 2026-09-23) refuse toute NOUVELLE règle qui déclare un coût sans `reviewed_by`
+(`ReviewRequired`) ; `tools/harness/seal_r1.py::main` scelle `HARNESS-R1-ter` sans le passer — `-bis` existant n'est
+pas touché (ré-écriture identique, retour avant la garde), mais `-ter` ne pourra pas être scellé tant que `main`
+n'accepte pas `--reviewed-by` ET qu'une revue de R1 n'existe pas (P2.95 : HARNESS-R1 est gelé SANS revue). Mesuré à la
+fusion : 14 erreurs + 1 échec dans `test_harness_cell.py` / `test_harness_seal_r1.py`, dont les fixtures scellent des
+règles jouets à coût — adaptées avec un chemin de FORME (`_REVUE_FIXTURE`), jamais une revue prétendue.
+<!-- closes_when:grep_present=tools/harness/cell.py::alias_guard_verdict -->
+
+**P2.103 — Cinq dettes mineures du harnais, chacune avec sa preuve (regroupées : aucune ne vaut une entrée
+seule).** ⚠️ Renumérotée de P2.101 en P2.103 le 2026-09-24 (collision de numéro mesurée avec
+`feat/d1-prod-pairing`, qui porte un P2.101 sans rapport — « La PERTE DE NOMMAGE », depuis b2736a49 ; voir
+`.superpowers/sdd/2026-09-16-harness-r1-weeks-1-3/merge-preflight.md` §6). Contenu inchangé sauf l'item (d),
+corrigé par la revue finale de branche (C2) sur un fait FAUX de l'artefact.
+(a) Le bris d'égalité du second `lr` choisit le pas le plus PROCHE de `sweep0_lr` (`tools/harness/seal_r1.py:148`),
+donc la sonde E19 la plus faible, là où le plus ÉLOIGNÉ discriminerait mieux — déclarer le critère dans le sceau.
+(b) `ConnectomeLearner.build` valide `obs_dim` et `K` mais jamais `n >= 1`
+(`tools/harness/learners/connectome.py:194-199`) : `n=0` construit une instance vide au lieu d'un refus en tête.
+(c) `TabularLearner.state_dict` omet `seen_cols` (`tools/harness/learners/tabular.py:103-104` vs `:31`, `:48-51`) :
+un rechargement filtre tout jusqu'à ré-apprentissage. (d) Aucun bras `sham` n'a tourné en R1
+(`src/seed_ai/harness_verdict.py:47`, `_ARMS`) : la nécessité de A publie `sham`=`DECLARED` (le registre
+`PIECES["bilinear"].matched_sham` existe) — **PAS** `PARAMS_NON_APPARIES` comme l'affirmait cette entrée avant
+correction (C2, revue finale de branche : le texte d'origine était FAUX sur l'artefact, `results/harness_r1_A_0.json`
+porte `sham="DECLARED"`). `sham="DECLARED"` documente une entrée du registre, jamais une mesure : `sham_arm_run`
+= `false` (constante, publiée à côté depuis C2, `src/seed_ai/harness_verdict.py::_necessity`) le dit désormais
+explicitement. Courir réellement un sixième bras `sham` reste à faire (R2). (e) Le champ `cout` du sceau
+`HARNESS-R1-ter` décrit le budget de `-bis` (« 81 min ») alors que son `budget_family_s` vaut 14 534 s = 242 min
+(`docs/preregistrations/HARNESS-R1-ter.json`) : `build_rule_r1_ter` (`tools/harness/seal_r1.py:278-309`) hérite
+`cout` au lieu de le DÉRIVER — le sceau est immuable et reste reproductible, mais un futur `-quater` doit dériver
+le texte des budgets qu'il vient de changer (classe E8 ; commentaire déjà posé dans la fonction).
+<!-- closes_when:grep_present=tools/harness/learners/connectome.py::n < 1 -->
+
+**P2.104 — Aucune porte ne tourne à la FUSION : les 19 cliquets sont contournés par tout commit de fusion.**
+Mesuré le 2026-09-24 : `core.hooksPath` vaut `.git/hooks` et les seuls hooks installés y sont `pre-commit` et
+`post-commit` (tous les autres sont des `.sample`). Il n'existe ni `pre-merge-commit`, ni `commit-msg`, ni
+`prepare-commit-msg` : un `git merge` qui crée un commit de fusion ne déclenche AUCUNE des 19 portes.
+Conséquences mesurées sur la fusion de `feat/harness-r1` : (a) la collision de numéros P2.101 ci-dessus
+(P2.103) serait passée en silence, la clé « numero-double » de `check_backlog_freshness` ne s'exécutant pas
+sur une fusion ; (b) un compteur de comptage sur une ligne partagée (ex. `SCIENCE.md` records_total) en
+CONFLIT GIT choisit naïvement un camp au lieu de RECALCULER, publiant un compte faux ; (c) deux compteurs sur
+des plages de lignes DISJOINTES fusionnent par prise silencieuse, sans le moindre conflit pour signaler qu'un
+compteur doit être recomputé. C'est la classe E10 (« une règle documentée sans application exécutable est
+violée ») appliquée au hook lui-même, et la forme est celle de E4 : le journal de bord de cette branche
+croyait la parade armée à la fusion. Quoi : installer un hook `pre-merge-commit` qui lance au moins les
+portes de COMPTE et de DOUBLON (`check_synthesis_counts`, `check_backlog_freshness`, `check_test_census`,
+`check_record_links`), avec son contre-exemple gelé ; décision à prendre avec robla car le hook est partagé
+entre toutes les sessions et un refus au mauvais moment bloque la fusion de n'importe qui. Preuve
+reproductible : `ls .git/hooks | grep -v sample`. Coût ≈ 1 h + un tour de test de mutation.
+⚠️ Pas de clause `closes_when` : le fichier cible (`tools/hooks/pre-merge-commit`) n'existe pas encore —
+`check_backlog_freshness` refuse un chemin cité qui n'existe pas (« invérifiable »), et une clause qui
+pointe vers un fichier absent serait exactement le mensonge que la garde existe pour attraper. À poser
+UNE FOIS le hook créé.
+
+**P2.106 — La forme E30 est ATTEIGNABLE dans le verdict du harnais : la marge 0,05 vaut un nombre
+ENTIER de pas de grille, sur les accuracies COMME sur les médianes.**
+Mesuré le 2026-09-24 en recomptant les trois cellules de [[EDR-HARNESS-R1]] en arithmétique exacte
+(Fraction), après l'ouverture de la classe E30 par une session voisine sur un autre runner (P2.105).
+Le régime publié donne N = `eval_batches` × `n_agents` = 40 × 16 = **640** évaluations, donc une
+accuracy est un compte k/640 — vérifié : chaque valeur publiée est k/640 arrondi en float32, pire
+écart **1,526e-05** pas. Or la marge du harnais vaut **0,05 × 640 = 32 pas EXACTEMENT** sur cette
+grille, et **0,05 × 1280 = 64 pas exactement** sur celle des médianes (une médiane de 12 valeurs est
+un demi-entier sur 640). Les quatre comparaisons que le module fait réellement sont donc toutes
+exposées à une égalité exacte, que la représentation flottante tranche alors arbitrairement :
+`src/seed_ai/harness_verdict.py:254` (compte par seed A contre A0, PUBLIÉ en `per_seed_above_ref`),
+`:451` (idem A2 contre A0), `:319` (`med_D <= ref + min_sep`, qui DÉCIDE `NECESSARY`) et `:349`
+(`without_clears_bar`, PUBLIÉ).
+**État : LATENTE dans R1, et c'est mesuré, pas supposé.** Sur les quatre comparaisons réelles des
+trois cellules, l'arithmétique exacte et le flottant concordent PARTOUT, zéro égalité : marges les
+plus serrées +66 pas (cellule A, `med(D)` au-dessus de la barre) et −59 pas (cellule B). Aucun
+chiffre publié n'est à re-graver. ⚠️ Une égalité exacte EXISTE bien dans les données (cellule B,
+D2 seed 5 : 126/640 contre une barre à 94/640 + 32 = 126/640) mais elle porte sur un contraste par
+seed que le module ne calcule JAMAIS — j'avais d'abord conclu « un nombre publié a été changé »,
+c'était faux, rectifié par relecture du code avant publication. La leçon de méthode est la même que
+celle du grep : une sonde de vérification doit être confrontée à ce que le code fait, pas à ce qu'on
+croit qu'il compare.
+**Pourquoi ça ne peut pas rester une note** : la latence ne tient qu'aux valeurs de CE run. Il suffit
+d'un `eval_batches` ou d'un `n_agents` différent, ou d'une cellule plus serrée, pour qu'une égalité
+tombe sur une comparaison publiée — et rien ne le dirait, puisque le verdict sortirait normal.
+**Quoi** : (a) comparer en arithmétique de GRILLE dans `_acquisition` et `_necessity` (compte entier
+contre compte entier + pas), ou à défaut publier à côté de chaque compte la **marge minimale en pas
+de grille** sur les seeds — c'est la discipline « tout ratio se publie avec son plancher de bruit » de
+ce dépôt, appliquée au bruit de REPRÉSENTATION ; (b) publier N (le dénominateur) dans le bloc
+`regime`, aujourd'hui seulement déductible de `eval_batches` × `n_agents` ; (c) une garde qui REFUSE,
+ou au minimum SIGNALE dans le JSON, toute comparaison dont la marge est nulle en pas de grille, avec
+son contre-exemple gelé (la cellule B seed 5 le fournit tout fait, en le portant sur une comparaison
+réelle). Coût ≈ 2 h, zéro run.
+<!-- closes_when:grep_present=src/seed_ai/harness_verdict.py::pas_de_grille -->
 
 ### Décisions tranchées le 2026-09-14 (robla : « ce qu'il y a de mieux pour l'avenir »)
 

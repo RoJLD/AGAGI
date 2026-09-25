@@ -252,3 +252,239 @@ def test_r2_eleven_seeds_convention_and_published_lambda_facts():
 def test_r2_a_cut_lr_line_is_neither_missing_nor_readable_and_is_published():
     lec = _lecture_r2(_db2(aide_at=(4.0, 2.0), coupe=(1.0,)), RULE2)
     assert lec["branche"] == "AIDE_INVARIANTE" and lec["lr_coupes"] == ["1.0"] and lec["par_lr"]["1.0"] == {"coupe": True}
+
+
+_PUB2 = os.path.join(os.path.dirname(__file__), "..", "..", "results", "td_step_pilot_r2.json")
+
+
+def _publie2():
+    if not os.path.exists(_PUB2):
+        return None
+    db = json.load(open(_PUB2, encoding="utf-8"))
+    return db if "_lecture" in db else None
+
+
+@pytest.mark.skipif(_publie2() is None, reason="run TD-STEP-PILOT-R2 non encore publié (ou en cours)")
+def test_r2_published_result_rereads_to_its_sealed_branch():
+    """P2.110 (M-M11, E14) : R0 et R1 avaient leur témoin de relecture, R2 n'en avait AUCUN — la garde n'avait pas été
+    rétro-appliquée. Posé AVANT de toucher `main_r2` : la refonte du cliquet de coût ne doit changer NI la lecture
+    scellée NI les cellules importées (branche AIDE_A_UN_POINT, lr 1,0 seul coupé, relue à l'identique)."""
+    from tools.td_step_pilot import _import_r2
+    db = _publie2()
+    imp = _import_r2(RULE2)
+    assert all(db[k] == v for k, v in imp.items()), "les cellules importees ne sont plus celles de R0/R1"
+    db.update(imp)
+    lec = _lecture_r2(db, RULE2)
+    assert lec == db["_lecture"] and lec["branche"] == "AIDE_A_UN_POINT" != "INCOMPLET"
+    assert lec["lr_coupes"] == ["1.0"] and lec["lr_aide09"] == [4.0]
+
+
+# ---- P2.110 : le cliquet de coût de R2, extrait en fonctions PURES et calibré sur son histoire ----------------------
+# Constantes FIGÉES en littéraux (M-M10), jamais relues depuis results/ (dont la racine dépend d'AGAGI_RESULTS_ROOT) :
+#   passe 1 -- commit f2d017fd : unité 217.44147491455078 s, projection acceptée 3587.784336090088 s ;
+#   reprise -- commit 3d7c22b3 : unité 196.35169649124146 s, projection acceptée 10308.464065790176 s.
+import copy  # noqa: E402
+
+from tools.td_step_pilot import _decider_coupes_r2, _relever_coupe, _requalifier_r2  # noqa: E402
+
+S2 = RULE2["seuils"]
+U_PASSE1, P_PASSE1 = 217.44147491455078, 3587.784336090088
+U_REPRISE, P_REPRISE = 196.35169649124146, 10308.464065790176
+RAISON_PASSE1 = ("TD-STEP-PILOT-R2: 107 unités × 217.4s × marge 1.5 = 582 min > budget 240 min. Réduire n, réduire "
+                 "l'unité, ou relever le budget EXPLICITEMENT — mais ne pas lancer en espérant que ça passe.")
+# les cellules de la grille IMPORTÉES de R0/R1 (`_import_r2`, hors références) -- reconstruites depuis la STRUCTURE
+_IMPORTEES_R2 = ({f"{b}|lr=4.0|seed={sd}" for b in ("lam0", "lam05", "lam09", "td0_d0") for sd in C2["seeds"]}
+                 | {f"{b}|lr=2.0|seed={sd}" for b in ("lam0", "lam09") for sd in C2["seeds"]})
+
+
+def _restantes(passe):
+    """(cellule d'unité, restantes) comme `main_r2` les construisait : passe 1 = la grille moins les importées ;
+    reprise = idem moins la ligne lr 4,0, mesurée entière à la passe 1."""
+    r = [k for k in _cellules_r2(RULE2) if k not in _IMPORTEES_R2 and (passe == 1 or "|lr=4.0|" not in k)]
+    return r[0], r[1:]
+
+
+def _cles(lignes):
+    return sorted(k for l in lignes for k in l["cles"])
+
+
+def test_r2_imported_cells_reconstructed_from_structure_match_the_sealed_counts():
+    assert len(_IMPORTEES_R2) + len(C2["references"]) * len(C2["seeds"]) == C2["cellules_importees"] == 96
+    assert len(_cellules_r2(RULE2)) - len(_IMPORTEES_R2) == C2["cellules_neuves"] == 108
+
+
+def test_r2_decider_reproduces_the_first_pass_BIT_FOR_BIT_and_the_reason_that_was_never_published():
+    """Non-régression de l'extraction (M-M10, nommée comme telle) ET prédiction : depuis la seule structure et l'unité
+    committée, la fonction rend les 96 clés et la projection au bit près, la raison de la ligne lr 1,0 au CARACTÈRE près
+    (celle que publie coupes_precedentes[0]) -- et celle de lr 2,0, jamais publiée (le setdefault ne gardait que la
+    première), que le record cite pourtant (255 min)."""
+    k_u, rest = _restantes(1)
+    assert k_u == "lam099|lr=4.0|seed=1" and len(rest) == 107
+    gardees, lignes, proj = _decider_coupes_r2(rest, U_PASSE1, S2["budget_s"], S2["safety"])
+    assert proj == P_PASSE1 and len(gardees) == 11 and all("|lr=4.0|" in k for k in gardees)
+    assert [l["lr"] for l in lignes] == [1.0, 2.0] and [l["n_unites"] for l in lignes] == [107, 47]
+    assert len(_cles(lignes)) == 96 and _cles(lignes) == sorted(k for k in rest if "|lr=4.0|" not in k)
+    assert lignes[0]["raison"] == RAISON_PASSE1
+    assert "47 unités × 217.4s" in lignes[1]["raison"] and "= 255 min > budget 240 min" in lignes[1]["raison"]
+
+
+def test_r2_decider_reproduces_the_reprise_BIT_FOR_BIT():
+    k_u, rest = _restantes(2)
+    assert k_u == "lam05|lr=2.0|seed=1" and len(rest) == 95
+    gardees, lignes, proj = _decider_coupes_r2(rest, U_REPRISE, S2["budget_s"], S2["safety"])
+    assert proj == P_REPRISE and len(gardees) == 35 and [l["lr"] for l in lignes] == [1.0]
+    assert len(lignes[0]["cles"]) == 60 and all("|lr=1.0|" in k for k in lignes[0]["cles"])
+    assert "95 unités × 196.4s" in lignes[0]["raison"] and "= 466 min > budget 240 min" in lignes[0]["raison"]
+
+
+@pytest.mark.skipif(_publie2() is None, reason="run TD-STEP-PILOT-R2 non encore publié (ou en cours)")
+def test_r2_decider_matches_the_PUBLISHED_cuts():
+    r = _publie2()["_regime"]
+    h = r["coupes_precedentes"][0]
+    assert (h["unite_s"], h["projection_s"], r["unite_s"], r["projection_s"]) == (U_PASSE1, P_PASSE1, U_REPRISE, P_REPRISE)
+    _, l1, _ = _decider_coupes_r2(_restantes(1)[1], U_PASSE1, S2["budget_s"], S2["safety"])
+    _, l2, _ = _decider_coupes_r2(_restantes(2)[1], U_REPRISE, S2["budget_s"], S2["safety"])
+    assert _cles(l1) == sorted(h["coupe"]["cles"]) and l1[0]["raison"] == h["coupe"]["raison"]
+    assert _cles(l2) == sorted(r["coupe"]["cles"])
+    # la raison PUBLIÉE de la coupe courante est celle de la LEVÉE (P2.110 (i)) -- la vraie est rendue par la fonction
+    assert "relevee" in r["coupe"]["raison"] and "95 unités" in l2[0]["raison"]
+
+
+def test_r2_decider_has_BOTH_outcomes_on_the_real_geometry():
+    """L'instrument peut produire les deux issues sur la géométrie RÉELLE : les 107 unités de la passe 1 à l'unité de la
+    reprise ne coupent QUE lr 1,0 (230,7 min) ; à l'unité de la passe 1, lr 1,0 ET lr 2,0."""
+    _, rest = _restantes(1)
+    assert [l["lr"] for l in _decider_coupes_r2(rest, U_REPRISE, S2["budget_s"], S2["safety"])[1]] == [1.0]
+    assert [l["lr"] for l in _decider_coupes_r2(rest, U_PASSE1, S2["budget_s"], S2["safety"])[1]] == [1.0, 2.0]
+
+
+def test_r2_decider_noop_and_monotone_in_the_unit():
+    _, rest = _restantes(1)
+    gardees, lignes, proj = _decider_coupes_r2(rest, U_PASSE1, float("inf"), S2["safety"])
+    assert gardees == rest and lignes == [] and proj == U_PASSE1 * 107 * S2["safety"]     # budget infini : no-op EXACT
+    n_lignes = [len(_decider_coupes_r2(rest, u, S2["budget_s"], S2["safety"])[1])
+                for u in (10.0, 89.0, 90.0, 150.0, 204.2, 204.3, U_PASSE1, 1000.0, 1e9)]
+    assert n_lignes == sorted(n_lignes) and n_lignes[0] == 0 and n_lignes[-1] == 3
+    gardees, lignes, proj = _decider_coupes_r2(rest, 1e9, S2["budget_s"], S2["safety"])
+    assert gardees == [] and proj is None and [l["lr"] for l in lignes] == [1.0, 2.0, 4.0]      # tout coupé : pas de projection
+
+
+def test_r2_lifting_a_cut_moves_it_to_history_as_a_DEEP_copy_and_writes_the_lift_reason_there_only():
+    """M-M13 / I-RAISON-PAR-LIGNE : fonction PURE ; l'historique ne partage aucun objet avec le régime vivant ; la raison
+    de la LEVÉE va dans l'historique, jamais dans `coupe` (une reprise sans coupe laissait une raison et zéro clé)."""
+    regime = {"K": 6, "unite_s": U_PASSE1, "projection_s": P_PASSE1, "unite_cle": "lam099|lr=4.0|seed=1",
+              "coupe": {"cles": ["a|lr=1.0|seed=1"], "raison": RAISON_PASSE1}, "coupes_precedentes": [{"ancienne": 1}]}
+    avant = copy.deepcopy(regime)
+    r = _relever_coupe(regime, relevee_a="2026-09-24 11:29", replique={"cle": "lam099|lr=4.0|seed=1", "mur_s": 1.0})
+    assert regime == avant                                                    # l'entrée n'est pas touchée
+    assert not {"coupe", "unite_s", "projection_s", "unite_cle"} & set(r) and r["K"] == 6
+    assert r["coupes_precedentes"][0] == {"ancienne": 1} and len(r["coupes_precedentes"]) == 2
+    h = r["coupes_precedentes"][-1]
+    assert (h["coupe"], h["unite_s"], h["projection_s"], h["relevee_a"]) == (avant["coupe"], U_PASSE1, P_PASSE1, "2026-09-24 11:29")
+    assert h["unite_cle"] == "lam099|lr=4.0|seed=1" and h["replique_unite"]["mur_s"] == 1.0
+    assert "relever-coupe" in h["raison_levee"]
+    h["coupe"]["cles"].append("MUTE")
+    assert regime["coupe"]["cles"] == ["a|lr=1.0|seed=1"]                     # aucun alias
+
+
+def test_r2_requalifying_the_PUBLISHED_history_publishes_the_issue_but_NOT_a_cause():
+    """M-M6 / M-M2 : l'historique publié de R2 n'a ni lignes, ni cellule d'unité, ni charge ; les deux unités viennent de
+    deux cellules DIFFÉRENTES. L'issue (re-coupée / récupérée) est un fait ; la cause reste `indeterminee`."""
+    _, l1, _ = _decider_coupes_r2(_restantes(1)[1], U_PASSE1, S2["budget_s"], S2["safety"])
+    _, l2, _ = _decider_coupes_r2(_restantes(2)[1], U_REPRISE, S2["budget_s"], S2["safety"])
+    entree = {"unite_s": U_PASSE1, "projection_s": P_PASSE1, "coupe": {"cles": _cles(l1), "raison": RAISON_PASSE1}}
+    q = _requalifier_r2(entree, _cles(l2), budget_s=S2["budget_s"], safety=S2["safety"])
+    assert {lr: (v["issue"], v["nature"]) for lr, v in q.items()} == \
+        {"1.0": ("confirmee", "indeterminee"), "2.0": ("recuperee", "indeterminee")}
+
+
+def _harnais_main_r2(monkeypatch, tmp_path):
+    """`main_r2` de bout en bout SANS entraînement ni vraie lecture de charge (recette I-TEST-MAIN-R2) : horloge FACTICE
+    avancée de `conf["duree"]` par cellule, charge extérieure injectée à dose CONNUE `conf["ext"]` (None = illisible),
+    capteur LENT de `conf["lent"]` s par lecture (M-M5), sceaux et imports de R0/R1 remplacés, résultats sous tmp_path."""
+    import tools.td_step_pilot as tsp
+    from tools.cost_guard import LoadWindow, Stopwatch
+    conf = {"t": 0.0, "duree": U_PASSE1, "ext": 12.0, "lent": 0.0, "acc": 0.2}
+    mur, cpu = (lambda: conf["t"]), (lambda: 0.9 * conf["t"])
+
+    def occupation():
+        conf["t"] += conf["lent"]
+        return None if conf["ext"] is None else (conf["ext"] + 0.9) * conf["t"]
+
+    def entraine(seed, lam, episodes, n_agents, K, lr, eval_batches=40, trace_reset_per_episode=True, same_tick=False):
+        conf["t"] += conf["duree"]
+        return conf["acc"], {"updates": 1}
+    imports = {k: 0.2 for k in _IMPORTEES_R2}
+    imports.update({f"{r}|seed={sd}": 0.15 for r in C2["references"] for sd in C2["seeds"]})
+    monkeypatch.setenv("AGAGI_RESULTS_ROOT", str(tmp_path))
+    monkeypatch.setattr(tsp, "_import_r2", lambda regle: dict(imports))
+    monkeypatch.setattr(tsp, "_train_eval_td_step", entraine)
+    monkeypatch.setattr(tsp, "stamp", lambda db, name: db)
+    monkeypatch.setattr(tsp, "Stopwatch", lambda: Stopwatch(wall_clock=mur, cpu_clock=cpu))
+    monkeypatch.setattr(tsp, "LoadWindow", lambda: LoadWindow(busy_reader=occupation, cpu_clock=cpu, wall_clock=mur))
+    return tsp, conf
+
+
+def test_r2_main_end_to_end_cut_then_declared_reprise_with_SAME_CELL_replica(monkeypatch, tmp_path):
+    """L'histoire de R2 rejouée à dose CONNUE : passe 1 à 217,4 s sous 12 cœurs extérieurs (chargée) -> deux lignes,
+    `contention` provisoire ; reprise déclarée à 196,4 s sous 3 cœurs (libre) : la cellule d'unité de la passe 1 est
+    RÉPLIQUÉE d'abord (même échauffement, exactitude bit-identique, rien de re-persisté), puis la décision rend lr 1,0
+    seule, avec SA raison (jamais celle de la levée) ; l'historique est intact et re-qualifié par la réplique :
+    lr 1,0 re-coupée -> `structure`, lr 2,0 récupérée -> `contention` ÉTABLIE."""
+    tsp, conf = _harnais_main_r2(monkeypatch, tmp_path)
+    db = tsp.main_r2([])
+    r = db["_regime"]
+    assert (r["unite_s"], r["unite_cle"], r["projection_s"]) == (U_PASSE1, "lam099|lr=4.0|seed=1", P_PASSE1)
+    assert r["unite_cpu_s"] == pytest.approx(0.9 * U_PASSE1) and r["charge_unite"]["coeurs_exterieurs"] == pytest.approx(12.0)
+    assert r["marge_au_seuil"] == pytest.approx(0.7508, abs=1e-4)
+    cp = r["coupe"]
+    assert len(cp["cles"]) == 96 and [l["lr"] for l in cp["lignes"]] == [1.0, 2.0]
+    assert cp["lignes"][0]["raison"] == RAISON_PASSE1 and "47 unités" in cp["lignes"][1]["raison"]
+    assert [l["nature"] for l in cp["lignes"]] == ["contention", "contention"]
+    assert [round(l["depassement"], 3) for l in cp["lignes"]] == [2.424, 1.065]          # les DEUX distances au seuil
+    assert len(db["_temps_s"]) == 12 and all(set(t) >= {"mur_s", "cpu_s", "coeurs_exterieurs"} for t in db["_temps_s"].values())
+    assert tsp._lecture_r2(db, RULE2)["lr_coupes"] == ["1.0", "2.0"]
+    conf.update(t=0.0, duree=U_REPRISE, ext=3.0)
+    db2 = tsp.main_r2(["--relever-coupe"])
+    r2 = db2["_regime"]
+    assert (r2["unite_s"], r2["unite_cle"], r2["projection_s"]) == (U_REPRISE, "lam05|lr=2.0|seed=1", P_REPRISE)
+    assert len(r2["coupe"]["cles"]) == 60 and [l["lr"] for l in r2["coupe"]["lignes"]] == [1.0]
+    assert "95 unités" in r2["coupe"]["raison"] and "relevee" not in r2["coupe"]["raison"]
+    assert "--relever-coupe" not in r2["coupe"]["raison"]
+    assert r2["coupe"]["lignes"][0]["nature"] == "structure"                            # fenêtre libre
+    h = r2["coupes_precedentes"][-1]
+    assert sorted(h["coupe"]["cles"]) == cp["cles"] and h["coupe"]["lignes"][0]["raison"] == RAISON_PASSE1
+    assert h["unite_s"] == U_PASSE1 and "relever-coupe" in h["raison_levee"]
+    rep = h["replique_unite"]
+    assert rep["cle"] == "lam099|lr=4.0|seed=1" and rep["exactitude_identique"] is True and rep["mur_s"] == U_REPRISE
+    assert rep["facteur_charge"] == pytest.approx(U_PASSE1 / U_REPRISE)
+    assert db2["_temps_s"]["lam099|lr=4.0|seed=1"]["mur_s"] == U_PASSE1                  # la réplique n'écrase RIEN
+    assert {lr: (v["issue"], v["nature"]) for lr, v in h["requalification"].items()} == \
+        {"1.0": ("confirmee", "structure"), "2.0": ("recuperee", "contention")}
+    assert tsp._lecture_r2(db2, RULE2)["lr_coupes"] == ["1.0"]
+    cpb = r2["cout_par_bras_a_posteriori"]
+    assert cpb["projection_par_bras_s"] is None and cpb["bras_sans_unite"] == ["lam0", "lam09"]   # jamais fabriquée
+    assert cpb["unite_sur_mediane_du_bras"] == pytest.approx(1.0)
+
+
+def test_r2_main_a_slow_load_sensor_never_enters_the_sealed_unit(monkeypatch, tmp_path):
+    """M-M5 (E11) : `doctor.project_processes()` coûte 7 à 25 s ; posé DANS la fenêtre chronométrée, un capteur gonflait
+    l'unité scellée de 4 à 6 % -- l'écart qui a coupé lr 2,0. Capteur lent de 10 s par lecture : unité IDENTIQUE."""
+    tsp, conf = _harnais_main_r2(monkeypatch, tmp_path)
+    conf["lent"] = 10.0
+    r = tsp.main_r2([])["_regime"]
+    assert r["unite_s"] == U_PASSE1 and r["projection_s"] == P_PASSE1 and len(r["coupe"]["cles"]) == 96
+
+
+def test_r2_main_a_reprise_without_new_cut_leaves_neither_reason_nor_empty_cut(monkeypatch, tmp_path):
+    """I-RAISON-PAR-LIGNE : l'ancienne levée écrivait `coupe = {cles: [], raison: "relevee..."}` ; une reprise qui ne
+    coupe plus rien laissait donc une raison et zéro clé. Ici : pas de `coupe` du tout, et une réplique dont la charge
+    est ILLISIBLE ne prouve rien -- la nature re-qualifiée retombe sur la charge d'origine (chargée -> contention)."""
+    tsp, conf = _harnais_main_r2(monkeypatch, tmp_path)
+    tsp.main_r2([])
+    conf.update(t=0.0, duree=50.0, ext=None)
+    r = tsp.main_r2(["--relever-coupe"])["_regime"]
+    assert "coupe" not in r and r["charge_unite"]["coeurs_exterieurs"] is None
+    q = r["coupes_precedentes"][-1]["requalification"]
+    assert {lr: (v["issue"], v["nature"]) for lr, v in q.items()} == \
+        {"1.0": ("recuperee", "contention"), "2.0": ("recuperee", "contention")}

@@ -134,6 +134,21 @@ def test_read_registry_mesure_la_VIE_de_chaque_pid_et_None_sans_psutil(tmp_path,
     assert all(r["alive"] is None for r in S.read_registry(str(d)))       # « je ne sais pas », pas « mort »
 
 
+def test_read_registry_avec_vie_False_ne_consulte_PAS_psutil_et_rend_alive_None_pas_False(tmp_path, monkeypatch):
+    """Défaut 2 (2026-09-24) : le hook `tool` relit le registre à CHAQUE outil pour ré-résoudre le nom, et l'import
+    de psutil y coûtait ~70 ms sous charge contre ~2 ms la lecture. Sans mesure, `alive` vaut None (« non mesuré »),
+    jamais False — et le reste de l'entrée est lu à l'identique."""
+    d = tmp_path / "sessions"
+    d.mkdir()
+    (d / "1.json").write_text(json.dumps({"pid": os.getpid(), "sessionId": "s1", "name": "n"}), encoding="utf-8")
+    appels, vrai = [], S._psutil
+    monkeypatch.setattr(S, "_psutil", lambda: appels.append(1) or vrai())
+    sans = S.read_registry(str(d), avec_vie=False)
+    assert appels == [] and [(r["name"], r["alive"]) for r in sans] == [("n", None)]
+    avec = S.read_registry(str(d))                                          # contrôle positif : par défaut, psutil EST consulté
+    assert appels == [1] and avec[0]["alive"] is True
+
+
 def test_racine_commune_rend_l_arbre_PRINCIPAL_depuis_un_worktree_et_None_hors_depot(repo, tmp_path):
     wt = tmp_path / "wt"
     _git(repo, "worktree", "add", "-q", "-b", "chantier/x", str(wt))

@@ -83,3 +83,53 @@ def test_scan_collisions_is_SILENT_when_every_name_is_UNIQUE(monkeypatch):
     test précédent — et rendrait le cliquet inutilisable en criant sur 200 fichiers."""
     monkeypatch.setattr(M, "_iter_sources", lambda: iter(_FAUX_ARBRE[1:]))
     assert M.scan_collisions() == {}
+
+
+# --------------------------------------------------------------------------------------------------
+# P2.83 (2026-09-24) — NEUVIÈME angle mort : une déclaration `CALIBRATED` que le cliquet ne détecte pas
+# tombait dans une branche « déclaration périmée » et était ignorée EN SILENCE. Mesuré sur l'arbre :
+# 9 déclarations y tombaient et AUCUNE n'était périmée — 6 fonctions présentes qu'aucun des 14 motifs
+# ne voit (dont `_cause_de_mort`, nommage FRANÇAIS) et 3 CLASSES (le cliquet ne scanne que `def`).
+# L'auteur croyait avoir déclaré ; rien ne le contredisait (E10 appliquée au cliquet lui-même). Les
+# remèdes sont OPPOSÉS selon la cause — élargir un motif, étendre aux classes, ou supprimer une
+# déclaration morte — donc le cri doit TRANCHER, et ces cas gèlent qu'il tranche juste.
+# --------------------------------------------------------------------------------------------------
+
+_ARBRE_CAUSES = [
+    ("tools/x.py", "def presente_mais_invisible():\n    return 1\n"),
+    ("tools/y.py", "class UneClasse(Base):\n    pass\n"),
+    ("tools/z.py", "class SansBase:\n    pass\n"),
+]
+
+
+def test_la_CAUSE_d_une_declaration_ignoree_est_TRANCHEE_et_pas_devinee(monkeypatch):
+    """Trois réponses CONNUES, trois remèdes opposés : un `def` présent (élargir un motif), une `class`
+    (le cliquet ne scanne que `def`), un symbole absent (supprimer la déclaration morte)."""
+    monkeypatch.setattr(M, "_iter_sources", lambda: iter(_ARBRE_CAUSES))
+    assert M._cause_ignoree("presente_mais_invisible") == ("MOTIF_AVEUGLE", ["tools/x.py"])
+    assert M._cause_ignoree("UneClasse") == ("CLASSE", ["tools/y.py"])
+    assert M._cause_ignoree("SansBase") == ("CLASSE", ["tools/z.py"]), "`class C:` sans parenthèses compte aussi"
+    assert M._cause_ignoree("jamais_ecrite") == ("PERIMEE", [])
+
+
+def test_une_declaration_non_detectee_est_RAPPORTEE_avec_sa_cause_jamais_avalee(monkeypatch, tmp_path):
+    """Le contre-exemple de la branche silencieuse : `scan_calibrated` doit PUBLIER ce qu'il ignore.
+    Sans ce cas, remplacer le cri par `continue` repasserait tous les autres tests du fichier."""
+    monkeypatch.setattr(M, "_iter_sources", lambda: iter(_ARBRE_CAUSES))
+    monkeypatch.setattr(M, "scan_instruments", lambda: {"presente_mais_invisible": "tools/x.py"})
+    monkeypatch.setattr(M, "scan_collisions", lambda: {})
+    faux = tmp_path / "test_instrument_calibration.py"
+    faux.write_text("\n".join([
+        "CALIBRATED = {",
+        '    "presente_mais_invisible": ["cas"],',      # détectée : elle compte
+        '    "tools/y.py::UneClasse": ["cas"],',        # CLASSE : ignorée, à crier
+        '    "jamais_ecrite": ["cas"],',                # PÉRIMÉE : ignorée, à crier
+        "}",
+        "",
+    ]), encoding="utf-8")
+    monkeypatch.setattr(M, "_CALIB_TESTS", str(faux))
+    assert M.scan_calibrated() == {"presente_mais_invisible"}
+    ignorees = M.scan_calibrated.ignorees
+    assert set(ignorees) == {"tools/y.py::UneClasse", "jamais_ecrite"}, ignorees
+    assert ignorees["tools/y.py::UneClasse"][0] == "CLASSE"
+    assert ignorees["jamais_ecrite"][0] == "PERIMEE"

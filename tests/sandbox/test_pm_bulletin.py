@@ -90,6 +90,10 @@ def test_main_start_ecrit_le_bulletin_imprime_le_resume_et_sort_0(tmp_path, monk
 
 
 def test_main_start_avec_BOARD_en_cache_imprime_le_resume_du_tableau(tmp_path, monkeypatch, capsys):
+    # Horloge INJECTÉE (défaut 1, 2026-09-24) : le résumé dépend désormais de l'âge du tableau, et NOW
+    # (2027) est dans le FUTUR de l'horloge réelle — sans injection, ce test aurait changé de verdict
+    # selon le jour où il tourne.
+    monkeypatch.setattr(BU, "_horloge", lambda: NOW + 600)
     monkeypatch.setenv("AGAGI_DATA_ROOT", str(tmp_path).replace("\\", "/"))
     monkeypatch.setattr(BU, "REGISTRY_DIR", str(tmp_path / "reg"))
     (tmp_path / "pm").mkdir()
@@ -100,6 +104,80 @@ def test_main_start_avec_BOARD_en_cache_imprime_le_resume_du_tableau(tmp_path, m
     assert BU.main(["start"]) == 0
     out = capsys.readouterr().out
     assert "[PM] AVEUGLE SUR bails" in out and "0 sessions AGAGI" in out
+    assert "âge 10 min (generated_at)" in out and "TABLEAU PÉRIMÉ" not in out
+
+
+# --- Défaut 1 (2026-09-24) : le tableau en cache PUBLIE son âge, et un tableau périmé n'est pas imprimé comme
+# courant. Mesuré à l'essai d'acceptation : un BOARD vieux de ~31 h annonçait à chaque démarrage « AVEUGLE SUR
+# bulletin absent pour agagi-11, b0, d7, c9 » alors que ces bulletins existaient.
+
+def _board_cache(tmp_path, **kw):
+    d = tmp_path / "pm"
+    d.mkdir(exist_ok=True)
+    board = {"generated_at": NOW, "aveugle": ["bulletin absent pour 4 session(s) : agagi-11, agagi-b0, agagi-d7, agagi-c9"],
+             "sessions": [], "charge_connue": {"sims_en_vol": 0, "cpu_pct": 89.0, "bails_vivants": []},
+             "alertes": [{"id": "A5", "cle": "A5:cpu", "gravite": "alerte", "message": "charge CPU = 89 %", "preuve": {}}]}
+    board.update(kw)
+    (d / "BOARD.json").write_text(json.dumps(board), encoding="utf-8")
+    return str(d)
+
+
+def test_CONTRE_EXEMPLE_tableau_RECENT_imprime_ses_alertes_DATEES_et_VIEUX_de_31_h_les_TAIT_et_dit_PERIME(tmp_path):
+    """Les DEUX issues sur le MÊME tableau, seule l'horloge injectée change."""
+    pm = _board_cache(tmp_path)
+    recent = BU.resume_tableau(pm, now=NOW + 600)
+    assert "âge 10 min (generated_at)" in recent
+    assert "[PM] AVEUGLE SUR bulletin absent" in recent and "A5:cpu" in recent
+    assert "TABLEAU PÉRIMÉ" not in recent
+    vieux = BU.resume_tableau(pm, now=NOW + 31 * 3600)
+    assert "TABLEAU PÉRIMÉ" in vieux and "il y a 31.0 h (generated_at)" in vieux
+    assert "le tick NE TOURNE PAS" in vieux and "python -m tools.pm.board" in vieux and "/pm" in vieux
+    assert "1 alerte(s), 1 aveuglement(s)" in vieux and "NON réimprimés comme courants" in vieux
+    # le cœur du défaut : l'aveuglement FABRIQUÉ et l'alerte d'hier ne sont PAS présentés comme d'aujourd'hui
+    assert "AVEUGLE SUR" not in vieux and "A5:cpu" not in vieux
+
+
+def test_le_seuil_de_peremption_EST_le_TTL_du_bail_pm_et_tranche_a_la_seconde(tmp_path):
+    from tools.pm import board as B
+    from tools.pm import tick as TK
+    assert B.PEREMPTION_S == TK.TTL_PM_S == 7200.0            # une seule source : le tick relit celle du tableau
+    pm = _board_cache(tmp_path)
+    assert "TABLEAU PÉRIMÉ" not in BU.resume_tableau(pm, now=NOW + B.PEREMPTION_S - 1)
+    assert "TABLEAU PÉRIMÉ" in BU.resume_tableau(pm, now=NOW + B.PEREMPTION_S + 1)
+
+
+def test_un_tableau_DATE_DU_FUTUR_n_est_pas_courant_mais_une_minute_de_gigue_l_est(tmp_path):
+    pm = _board_cache(tmp_path)
+    futur = BU.resume_tableau(pm, now=NOW - 3600)
+    assert "DATÉ DU FUTUR de 60 min" in futur and "A5:cpu" not in futur and "AVEUGLE SUR" not in futur
+    assert "A5:cpu" in BU.resume_tableau(pm, now=NOW - 30)                 # sous TOLERANCE_FUTUR_S : courant
+
+
+def test_sans_generated_at_l_age_vient_du_MTIME_et_le_DIT(tmp_path):
+    """Le repli existe et se nomme : un tableau sans `generated_at` est illisible par `summary`, mais son âge
+    reste publié — lu du mtime, annoncé comme borne BASSE (le fichier est écrit APRÈS la mesure)."""
+    pm = _board_cache(tmp_path)
+    p = os.path.join(pm, "BOARD.json")
+    with open(p, encoding="utf-8") as fh:
+        b = json.load(fh)
+    del b["generated_at"]
+    with open(p, "w", encoding="utf-8") as fh:
+        json.dump(b, fh)
+    os.utime(p, (NOW, NOW))
+    t = BU.resume_tableau(pm, now=NOW + 31 * 3600)
+    assert t.startswith("[PM] tableau illisible") and "31.0 h (mtime du fichier" in t and "borne BASSE" in t
+
+
+def test_main_start_avec_un_BOARD_de_31_h_imprime_PERIME_et_pas_ses_alertes(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(BU, "_horloge", lambda: NOW + 31 * 3600)
+    monkeypatch.setenv("AGAGI_DATA_ROOT", str(tmp_path).replace("\\", "/"))
+    monkeypatch.setattr(BU, "REGISTRY_DIR", str(tmp_path / "reg"))
+    _board_cache(tmp_path)
+    monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(_payload("SessionStart"))))
+    assert BU.main(["start"]) == 0
+    out = capsys.readouterr().out
+    assert "TABLEAU PÉRIMÉ" in out and "AVEUGLE SUR" not in out and "A5:cpu" not in out
+    assert not (tmp_path / "pm" / "hook_errors.log").exists()
 
 
 def test_main_avec_stdin_illisible_sort_0_et_journalise(tmp_path, monkeypatch, capsys):
@@ -110,13 +188,15 @@ def test_main_avec_stdin_illisible_sort_0_et_journalise(tmp_path, monkeypatch, c
     assert "stop" in log and "JSONDecodeError" in log
 
 
-def test_main_claim_ajoute_le_P_item_sans_doublon(tmp_path, monkeypatch):
+def test_main_claim_ajoute_le_P_item_sans_doublon_et_date_le_bulletin(tmp_path, monkeypatch):
+    monkeypatch.setattr(BU, "_horloge", lambda: NOW + 5)
     monkeypatch.setenv("AGAGI_DATA_ROOT", str(tmp_path).replace("\\", "/"))
     monkeypatch.setattr(BU, "REGISTRY_DIR", str(tmp_path / "reg"))
     assert BU.main(["claim", "P4.9", "--session", "s1"]) == 0
     assert BU.main(["claim", "P4.9", "--session", "s1"]) == 0
     assert BU.main(["claim", "P2.78", "--session", "s1"]) == 0
-    assert json.loads((tmp_path / "sessions" / "s1.json").read_text(encoding="utf-8"))["claims"] == ["P4.9", "P2.78"]
+    b = json.loads((tmp_path / "sessions" / "s1.json").read_text(encoding="utf-8"))
+    assert b["claims"] == ["P4.9", "P2.78"] and b["updated_at"] == NOW + 5
 
 
 def test_main_claim_sans_session_resolue_sort_0_et_l_ecrit(tmp_path, monkeypatch, capsys):
@@ -176,3 +256,169 @@ def test_resume_tableau_BOARD_illisible_par_summary_dit_illisible_au_lieu_de_se_
     with open(os.path.join(d, "BOARD.json"), "w", encoding="utf-8") as fh:
         json.dump({"generated_at": 1.0}, fh)
     assert BU.resume_tableau().startswith("[PM] tableau illisible")
+
+
+# --- Défaut 3 (2026-09-24) : aucune écriture n'était datée par ENTRÉE — on ne pouvait corréler aucun fichier touché
+# dans le temps. La LISTE `files_touched` garde son contrat (des chemins, dans l'ordre : le tableau y fait des
+# intersections et en tire la clé d'A1) ; `files_touched_at` date le DERNIER contact de chaque entrée, `updated_at`
+# chaque écriture du bulletin. Horloge INJECTÉE (`now`).
+
+def _tool(b, fichier, now):
+    return BU.appliquer("tool", _payload("PostToolUse", tool_name="Edit", tool_input={"file_path": f"c:/x/agagi/{fichier}"}),
+                        b, now=now, branche_fn=lambda c: (None, None))
+
+
+def test_chaque_entree_de_files_touched_est_HORODATEE_au_dernier_contact_et_le_contrat_de_la_liste_est_conserve(tmp_path):
+    b = BU.appliquer("start", _payload("SessionStart"), {}, now=NOW, branche_fn=lambda c: (None, None))
+    assert b["updated_at"] == NOW and b["files_touched_at"] == {}
+    b = _tool(_tool(b, "a.py", NOW + 10), "b.py", NOW + 20)
+    assert b["files_touched"] == ["a.py", "b.py"]                             # la LISTE ne change pas de forme
+    assert b["files_touched_at"] == {"a.py": NOW + 10, "b.py": NOW + 20} and b["updated_at"] == NOW + 20
+    # re-toucher a.py : la liste le remet en queue, sa date AVANCE (dernier contact, pas premier)
+    b = _tool(b, "a.py", NOW + 30)
+    assert b["files_touched"] == ["b.py", "a.py"] and b["files_touched_at"] == {"a.py": NOW + 30, "b.py": NOW + 20}
+    # un événement SANS fichier date le bulletin sans toucher aux entrées
+    b = BU.appliquer("stop", _payload("Stop"), b, now=NOW + 40, branche_fn=lambda c: (None, None))
+    assert b["updated_at"] == NOW + 40 and b["files_touched_at"] == {"a.py": NOW + 30, "b.py": NOW + 20}
+    # aller-retour disque : le dict survit tel quel
+    BU.ecrire(b, str(tmp_path))
+    assert BU.charger("s1", str(tmp_path))["files_touched_at"] == {"a.py": NOW + 30, "b.py": NOW + 20}
+
+
+def test_l_eviction_FIFO_retire_aussi_la_date_et_une_entree_LEGATAIRE_sans_date_n_en_recoit_pas_une_inventee():
+    b = {}
+    for i in range(BU.PLAFOND_FICHIERS + 5):
+        b = _tool(b, f"f{i}.py", NOW + i)
+    assert len(b["files_touched"]) == BU.PLAFOND_FICHIERS
+    assert set(b["files_touched_at"]) == set(b["files_touched"])            # ni orphelin, ni manquant
+    assert "f0.py" not in b["files_touched_at"] and b["files_touched_at"]["f204.py"] == NOW + 204
+    # bulletin d'AVANT ce commit (liste sans dict) : ses entrées restent, SANS date -- jamais une date fabriquée
+    vieux = {"session_id": "s1", "cwd": "c:/x/agagi", "files_touched": ["ancien.py"]}
+    b = _tool(vieux, "neuf.py", NOW)
+    assert b["files_touched"] == ["ancien.py", "neuf.py"] and b["files_touched_at"] == {"neuf.py": NOW}
+
+
+# --- Défauts 2 et 5 (2026-09-24) : le NOM n'est pas une identité, et le pid ne venait de nulle part.
+# Mesuré : au redémarrage de la flotte, TOUS les noms ont changé (agagi-11 -> agagi-e4, agagi-52 -> agagi-00…) et le
+# bulletin gardait le PREMIER nom lu (`if name is None`) — le tableau adressait ses alertes à des noms morts ;
+# `pid` valait null sur 11 bulletins sur 12 (le payload SessionStart n'en porte pas). Registre INJECTÉ (répertoire
+# jetable), horloge INJECTÉE (`now`) : jamais le vrai registre, jamais l'horloge du jour.
+
+def _registre(rep, fichiers):
+    """Registre natif jetable sous `rep/reg` : {nom de fichier: entrée (dict) ou texte brut (entrée illisible)}."""
+    d = rep / "reg"
+    d.mkdir(parents=True, exist_ok=True)
+    for nom, e in fichiers.items():
+        (d / nom).write_text(e if isinstance(e, str) else json.dumps(e), encoding="utf-8")
+    return str(d)
+
+
+def _natif(sid, name, pid, started_ms=1_790_000_000_000):
+    return {"pid": pid, "sessionId": sid, "name": name, "cwd": "c:/x/agagi", "startedAt": started_ms}
+
+
+def test_identite_prend_l_entree_la_plus_RECENTE_du_meme_session_id_meme_si_l_ancien_pid_trie_DEVANT(tmp_path):
+    """Une session reprise laisse au registre l'entrée de son ANCIEN pid, même sessionId. L'ordre du glob est celui
+    des noms de fichiers, donc des pids : ici l'ancien (100) trie devant le nouveau (200)."""
+    reg = _registre(tmp_path / "a", {"100.json": _natif("s1", "agagi-11", 100, started_ms=1_000_000),
+                                     "200.json": _natif("s1", "agagi-e4", 200, started_ms=2_000_000)})
+    assert BU.identite_depuis_registre("s1", reg) == {"statut": "registre", "name": "agagi-e4", "pid": 200}
+    # l'autre sens : c'est `started_at` qui tranche, PAS l'ordre des fichiers — dates inversées, même ordre de glob
+    reg2 = _registre(tmp_path / "b", {"100.json": _natif("s1", "agagi-11", 100, started_ms=2_000_000),
+                                      "200.json": _natif("s1", "agagi-e4", 200, started_ms=1_000_000)})
+    assert BU.identite_depuis_registre("s1", reg2) == {"statut": "registre", "name": "agagi-11", "pid": 100}
+
+
+def test_identite_dit_INDISPONIBLE_ABSENTE_ou_PARTIELLEMENT_ILLISIBLE_et_n_affirme_l_absence_que_sur_un_registre_ENTIER(tmp_path):
+    vide = {"name": None, "pid": None}
+    assert BU.identite_depuis_registre("s1", str(tmp_path / "nulle_part")) == dict(vide, statut="registre indisponible")
+    autre = {"7.json": _natif("s7", "agagi-52", 7)}
+    assert BU.identite_depuis_registre("s1", _registre(tmp_path / "a", autre)) == dict(vide, statut="absente du registre")
+    # une entrée illisible : la session y est PEUT-ÊTRE — l'absence n'est pas affirmée
+    partiel = dict(autre, **{"casse.json": "{pas du json"})
+    assert BU.identite_depuis_registre("s1", _registre(tmp_path / "b", partiel)) == \
+        dict(vide, statut="registre partiellement illisible")
+    # contrôle positif : l'entrée illisible ne masque pas une entrée LISIBLE de la session
+    trouve = dict(partiel, **{"9.json": _natif("s1", "agagi-11", 9)})
+    assert BU.identite_depuis_registre("s1", _registre(tmp_path / "c", trouve)) == \
+        {"statut": "registre", "name": "agagi-11", "pid": 9}
+
+
+def test_resoudre_identite_REMPLACE_nom_et_pid_pousse_l_ancien_nom_dans_noms_precedents_et_ne_mute_pas_l_entree():
+    bul = dict(BU._vide("s1"), name="agagi-11", pid=100, identite="registre", identite_at=NOW - 3600)
+    avant = json.dumps(bul, sort_keys=True)
+    b = BU.resoudre_identite(bul, {"statut": "registre", "name": "agagi-e4", "pid": 200}, NOW)
+    assert (b["name"], b["pid"], b["identite"], b["identite_at"]) == ("agagi-e4", 200, "registre", NOW)
+    assert b["noms_precedents"] == ["agagi-11"]
+    assert json.dumps(bul, sort_keys=True) == avant                          # PURE : l'entrée n'est pas mutée
+    # no-op EXACT : le même nom relu ne pousse rien, seule la date de lecture avance
+    b2 = BU.resoudre_identite(b, {"statut": "registre", "name": "agagi-e4", "pid": 200}, NOW + 1)
+    assert b2["noms_precedents"] == ["agagi-11"] and b2["identite_at"] == NOW + 1
+    # plafond : 10 noms gardés, le plus récent en QUEUE, jamais de doublon
+    for i in range(12):
+        b2 = BU.resoudre_identite(b2, {"statut": "registre", "name": f"n{i}", "pid": 1}, NOW + 2 + i)
+    assert len(b2["noms_precedents"]) == 10 and b2["noms_precedents"][-1] == "n10" and b2["name"] == "n11"
+    assert len(set(b2["noms_precedents"])) == 10
+
+
+def test_resoudre_identite_GARDE_le_nom_sur_registre_INDISPONIBLE_ou_PARTIEL_et_le_RETIRE_sur_absence_d_un_registre_ENTIER():
+    bul = dict(BU._vide("s1"), name="agagi-11", pid=100, identite="registre", identite_at=NOW - 3600)
+    for statut in ("registre indisponible", "registre partiellement illisible"):
+        b = BU.resoudre_identite(bul, {"statut": statut, "name": None, "pid": None}, NOW)
+        assert (b["name"], b["pid"]) == ("agagi-11", 100), statut               # GARDÉS
+        assert b["identite"] == statut and b["identite_at"] == NOW - 3600        # datés de leur LECTURE, pas de maintenant
+        assert b["noms_precedents"] == []
+    b = BU.resoudre_identite(bul, {"statut": "absente du registre", "name": None, "pid": None}, NOW)
+    assert (b["name"], b["pid"], b["identite"], b["identite_at"]) == (None, None, "absente du registre", NOW)
+    assert b["noms_precedents"] == ["agagi-11"]                                  # le nom perdu reste LISIBLE
+
+
+def test_main_RE_RESOUT_nom_et_pid_depuis_le_registre_a_CHAQUE_ecriture_pas_seulement_la_premiere(tmp_path, monkeypatch):
+    """Le défaut : `if name is None` gelait le nom au PREMIER hook. Le pid vient du registre, jamais du payload."""
+    monkeypatch.setattr(BU, "_horloge", lambda: NOW)
+    monkeypatch.setenv("AGAGI_DATA_ROOT", str(tmp_path).replace("\\", "/"))
+    monkeypatch.setattr(BU, "REGISTRY_DIR", _registre(tmp_path, {"100.json": _natif("s1", "agagi-11", 100)}))
+
+    def lire():
+        return json.loads((tmp_path / "sessions" / "s1.json").read_text(encoding="utf-8"))
+
+    monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(_payload("SessionStart", pid=999))))   # pid du payload IGNORÉ
+    assert BU.main(["start"]) == 0
+    b = lire()
+    assert (b["name"], b["pid"], b["identite"], b["identite_at"]) == ("agagi-11", 100, "registre", NOW)
+    # no-op : registre inchangé, second hook -> même nom, rien dans noms_precedents
+    monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(_payload("Stop"))))
+    assert BU.main(["stop"]) == 0
+    assert lire()["name"] == "agagi-11" and lire()["noms_precedents"] == []
+    # la session est REPRISE : nouveau pid, nouveau nom ; l'ancienne entrée reste au registre et trie DEVANT
+    (tmp_path / "reg" / "200.json").write_text(json.dumps(_natif("s1", "agagi-e4", 200, started_ms=1_790_000_001_000)),
+                                               encoding="utf-8")
+    monkeypatch.setattr(BU, "_horloge", lambda: NOW + 60)
+    monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(_payload("PostToolUse", tool_name="Edit",
+                                                                     tool_input={"file_path": "c:/x/agagi/f.py"}))))
+    assert BU.main(["tool"]) == 0
+    b = lire()
+    assert (b["name"], b["pid"], b["identite_at"], b["noms_precedents"]) == ("agagi-e4", 200, NOW + 60, ["agagi-11"])
+    # `claim` ré-résout aussi (il écrivait lui aussi sous `if name is None`)
+    (tmp_path / "reg" / "200.json").write_text(json.dumps(_natif("s1", "looper", 200, started_ms=1_790_000_001_000)),
+                                               encoding="utf-8")
+    assert BU.main(["claim", "P4.9", "--session", "s1"]) == 0
+    b = lire()
+    assert b["name"] == "looper" and b["noms_precedents"] == ["agagi-11", "agagi-e4"] and b["claims"] == ["P4.9"]
+
+
+def test_un_pid_INCONNU_s_accompagne_d_une_identite_qui_l_explique(tmp_path, monkeypatch):
+    """Un `pid` à null ne passe jamais pour une valeur : `identite` dit pourquoi il manque."""
+    monkeypatch.setattr(BU, "_horloge", lambda: NOW)
+    monkeypatch.setenv("AGAGI_DATA_ROOT", str(tmp_path).replace("\\", "/"))
+    monkeypatch.setattr(BU, "REGISTRY_DIR", str(tmp_path / "nulle_part"))
+    monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(_payload("SessionStart"))))
+    assert BU.main(["start"]) == 0
+    b = json.loads((tmp_path / "sessions" / "s1.json").read_text(encoding="utf-8"))
+    assert (b["pid"], b["identite"], b["identite_at"]) == (None, "registre indisponible", None)
+    # le registre apparaît, SANS cette session : absence affirmée, datée
+    monkeypatch.setattr(BU, "REGISTRY_DIR", _registre(tmp_path, {"7.json": _natif("s7", "agagi-52", 7)}))
+    monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(_payload("Stop"))))
+    assert BU.main(["stop"]) == 0
+    b = json.loads((tmp_path / "sessions" / "s1.json").read_text(encoding="utf-8"))
+    assert (b["pid"], b["identite"], b["identite_at"]) == (None, "absente du registre", NOW)

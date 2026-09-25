@@ -172,3 +172,116 @@ def test_a_record_with_an_EDGE_but_no_gate_is_NOT_an_orphan(tmp_path):
     verdicts muet sans que rien ne rougisse (le meme fichier teste deja l'autre sens juste au-dessus)."""
     root = _record(tmp_path, "id: EDR-999\ntype: EDR\nadopts: [EDR-112]")
     assert all(o["id"] != "EDR-999" for o in C.analyze(root)["orphans"])
+
+
+# --------------------------------------------------------------------------------------------------
+# Tâche 4 (spec PM 2026-09-16 §3.5) : `review:` — porte 1 étendue. Tout NOUVEAU record EDR à verdict
+# (gate: G0-G4/foundational OU tests: [SDR-Gx]) doit porter `review:` — le chemin d'une revue
+# adversariale à sondes propres, JAMAIS un id de record (edge_key_silences traiterait `EDR-...` comme
+# une arête non lue et ferait rendre 1 à la porte 1 sur TOUT l'arbre — piège principal de cette tâche).
+#
+# ⚠️ Revue du contrôleur (post-Tâche 4) : `not r.get("review")` était satisfait par N'IMPORTE QUELLE
+# chaîne non vide — `review: x` passait. Corrigé : `review:` doit être un chemin de FORME
+# `docs/reviews/AAAA-MM-JJ-slug.md` ET le fichier doit EXISTER, avec une raison DISTINCTE par défaut
+# (`"absente"` / `"forme"` / `"fichier introuvable"`) — ne pas les fondre.
+# --------------------------------------------------------------------------------------------------
+
+def _make_review_file(tmp_path, relpath="docs/reviews/2026-09-17-edr-999.md"):
+    p = tmp_path / relpath
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text("# revue\n", encoding="utf-8")
+    return relpath
+
+
+def test_a_NEW_edr_with_a_gate_but_no_review_is_review_missing(tmp_path):
+    """CONTRE-EXEMPLE GELÉ de la porte 1 étendue (spec PM 2026-09-16 §3.5) : un record à verdict sans revue."""
+    root = _record(tmp_path, "id: EDR-999\ntype: EDR\ngate: G0\ntests: [SDR-G0]")
+    rv = C.analyze(root)["review_missing"]
+    assert any(r["id"] == "EDR-999" and r["raison"] == "absente" for r in rv), rv
+
+
+def test_an_edr_with_an_INVALID_FORM_review_is_review_missing(tmp_path):
+    """⚠️ CONTRE-EXEMPLE GELÉ nommé par la revue du contrôleur : `review: x` n'est PAS un chemin de revue
+    -- n'importe quelle chaîne non vide passait avant ce correctif. Raison distincte : 'forme'."""
+    root = _record(tmp_path, "id: EDR-999\ntype: EDR\ngate: G0\nreview: x")
+    rv = C.analyze(root)["review_missing"]
+    assert any(r["id"] == "EDR-999" and r["raison"] == "forme" for r in rv), rv
+
+
+def test_an_edr_with_a_WELLFORMED_but_MISSING_review_file_is_review_missing(tmp_path):
+    """CONTRE-EXEMPLE GELÉ : chemin de FORME valide mais fichier ABSENT du disque -- le Réfutateur
+    (tâche 6) doit pouvoir distinguer « j'ai oublié d'écrire » de « le chemin est mal formé »."""
+    root = _record(tmp_path, "id: EDR-999\ntype: EDR\ngate: G0\nreview: docs/reviews/2026-09-23-inexistant.md")
+    rv = C.analyze(root)["review_missing"]
+    assert any(r["id"] == "EDR-999" and r["raison"] == "fichier introuvable" for r in rv), rv
+
+
+def _depot_jetable_avec_revue(tmp_path, suivre=True):
+    """Un VRAI dépôt git jetable portant le record et sa revue — le second `git add` étant l'objet du test.
+
+    ⚠️ Pas de monkeypatch de l'oracle : c'est le point n°1 de la revue de la porte 20 (« remplacer
+    `_tracked` par `return True` laisse 13/13 verts »). Un témoin qui injecte une constante ne prouve
+    rien. ⚠️ Identité passée EN LIGNE (`-c`), jamais `git config` : un test qui ÉCRIT une config est à
+    une régression d'isolation près de polluer le dépôt réel, et c'est arrivé (33 commits signés
+    `Test <test@example.com>`, premier `7d6c04c9`).
+    """
+    import subprocess  # noqa: PLC0415
+
+    from tools.check_evidence_provenance import _env_isole  # noqa: PLC0415
+
+    root = _record(tmp_path, "id: EDR-999\ntype: EDR\ngate: G0\nreview: docs/reviews/2026-09-17-edr-999.md")
+    _make_review_file(tmp_path)
+
+    def git(*args):
+        # ⚠️ `_env_isole()` retire TOUS les `GIT_*`, pas seulement `GIT_INDEX_FILE`. Première version
+        # de ce témoin : n'en retirait qu'UN — vert hors commit, ROUGE sous le hook, parce que
+        # `git commit` fixe aussi `GIT_DIR` (et `GIT_PREFIX`, `GIT_AUTHOR_*`). Un `git add` héritant
+        # de `GIT_DIR` vise l'index du dépôt RÉEL, pas le jetable. C'est exactement la leçon que ce
+        # témoin CITE, appliquée à moitié : réutiliser l'helper de la porte 20 plutôt que le réécrire.
+        r = subprocess.run(
+            ["git", "-C", str(root), "-c", "user.name=Test", "-c", "user.email=test@example.com", *args],
+            cwd=str(root), capture_output=True, text=True, env=_env_isole())
+        assert r.returncode == 0, f"git {args} : {r.stderr}"
+
+    git("init", "-b", "main")
+    if suivre:
+        git("add", "docs/reviews/2026-09-17-edr-999.md")
+    return root
+
+
+def test_an_edr_with_a_review_path_SUIVI_PAR_GIT_is_NOT_review_missing(tmp_path):
+    """SPÉCIFICITÉ (no-op apparié aux trois précédents) : forme valide, fichier présent ET SUIVI -> passe."""
+    root = _depot_jetable_avec_revue(tmp_path, suivre=True)
+    assert not any(r["id"] == "EDR-999" for r in C.analyze(root)["review_missing"])
+
+
+def test_an_edr_dont_la_revue_EXISTE_mais_N_EST_PAS_SUIVIE_est_review_missing(tmp_path):
+    """⚠️ CONTRE-EXEMPLE GELÉ (2026-09-24) : la preuve qu'une revue a eu lieu était le SEUL chemin
+    d'évidence du dépôt qui n'avait pas à être suivi.
+
+    `_review_defect` testait `os.path.isfile`, donc le DISQUE, alors que la porte 20 — livrée dans la
+    MÊME branche pour la MÊME classe (E27, « une évidence qui n'est plus rouvrable ») — exige l'INDEX.
+    Sur un arbre que six sessions éditent, un record pouvait donc se committer **certifié revu** en
+    pointant vers un fichier qui ne serait jamais dans le clone. Raison distincte : 'non suivi'.
+    """
+    root = _depot_jetable_avec_revue(tmp_path, suivre=False)
+    rv = C.analyze(root)["review_missing"]
+    assert any(r["id"] == "EDR-999" and r["raison"] == "non suivi" for r in rv), rv
+
+
+def test_an_edr_WITHOUT_verdict_anchor_is_not_asked_for_a_review(tmp_path):
+    root = _record(tmp_path, "id: EDR-999\ntype: EDR\nadopts: [REF-DEMAND-MARKER]")
+    assert not any(r["id"] == "EDR-999" for r in C.analyze(root)["review_missing"])
+
+
+def test_the_review_key_is_READ_by_the_schema_not_silenced(tmp_path):
+    """⚠️ Minor 3 de la revue du contrôleur : ce test était VACUE (sa fixture utilisait un CHEMIN, qui
+    ne ressemble pas à un id). `review: EDR-999` A la FORME d'un identifiant de record (`_ID_LIKE`) --
+    sans `review` dans le schéma (`_empty_record`), `edge_key_silences` le signalerait comme une clé
+    d'arête NON LUE (le piège exact nommé en tâche 4). Vise `edge_key_silences`, pas `analyze` : ce
+    record sera par ailleurs « sans revue » pour cause de forme, ce qui est cohérent et hors du test."""
+    root = _record(tmp_path, "id: EDR-999\ntype: EDR\ngate: G0\nreview: EDR-999")
+    sil = C.edge_key_silences(root)
+    assert not any(k == "review" for _, k in sil["non_lues"]), sil["non_lues"]
+    rec = [r for r in scan_records(root) if r["id"] == "EDR-999"][0]
+    assert rec["review"] == "EDR-999"

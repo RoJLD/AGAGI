@@ -6,6 +6,11 @@
 Le bulletin vit dans paths.sessions_dir("<session_id>.json"). Un hook sort TOUJOURS 0 : une erreur s'écrit dans
 paths.pm_dir("hook_errors.log"), jamais dans la session. `start` imprime le résumé de BOARD.json en cache (jamais
 recomputé ici : le hook doit rester sous la seconde) — c'est le PULL de la spec §3.1.
+
+⚠️ Un résumé en CACHE a un âge, et il le PUBLIE (défaut mesuré le 2026-09-24) : le démarrage imprimait un
+tableau vieux de ~31 h sans dire son âge, et annonçait « AVEUGLE SUR bulletin absent pour agagi-11, b0, d7,
+c9 » alors que ces bulletins existaient. Une donnée PÉRIMÉE présentée comme courante FABRIQUE une alerte à
+chaque démarrage. Au-delà de `PEREMPTION_S`, le démarrage dit PÉRIMÉ et ne réimprime pas les alertes.
 """
 import argparse
 import json
@@ -23,12 +28,22 @@ PLAFOND_FICHIERS = 200
 REGISTRY_DIR = REGISTRY_DIR_DEFAULT              # monkeypatchable par les tests
 MAX_JOURNAL_O = 1_000_000                        # au-delà : on garde la QUEUE
 GARDE_JOURNAL_O = 200_000
+TOLERANCE_FUTUR_S = 60.0                         # un tableau daté de PLUS d'une minute dans le futur est incohérent
+_horloge = time.time                             # monkeypatchable : aucun test ne lit l'horloge du jour
 
 
 def _vide(session_id):
-    return {"session_id": session_id, "name": None, "pid": None, "cwd": None, "branch": None, "worktree": None,
-            "started_at": None, "heartbeat_at": None, "ended_at": None, "claims": [], "files_touched": [],
-            "last_tool_at": None}
+    # `name` et `pid` viennent du REGISTRE natif, relu à chaque écriture ; `identite` dit l'état de la
+    # dernière lecture ("registre", "absente du registre", "registre indisponible", "registre partiellement
+    # illisible") et `identite_at` QUAND nom et pid y ont été lus pour la dernière fois — un `pid` à null
+    # n'est jamais laissé passer pour une valeur sans que `identite` dise pourquoi.
+    # `files_touched` reste une LISTE de chemins (contrat du tableau : intersection avec le backlog, clé d'A1) ;
+    # `files_touched_at` date le DERNIER contact de chaque entrée, évincé avec elle ; `updated_at` date chaque
+    # écriture du bulletin, fichier ou pas. Une entrée légataire sans date reste SANS date, jamais datée d'office.
+    return {"session_id": session_id, "name": None, "pid": None, "identite": None, "identite_at": None,
+            "noms_precedents": [], "cwd": None, "branch": None, "worktree": None,
+            "started_at": None, "heartbeat_at": None, "ended_at": None, "updated_at": None, "claims": [],
+            "files_touched": [], "files_touched_at": {}, "last_tool_at": None}
 
 
 def charger(session_id, sessions_dir=None):
@@ -66,11 +81,13 @@ def appliquer(event, payload, bul, *, now, branche_fn):
     """PUR : applique un événement de hook au bulletin. `branche_fn(cwd) -> (branche, worktree)` est injecté."""
     sid = payload.get("session_id") or bul.get("session_id")
     b = dict(_vide(sid), **bul)
+    b["updated_at"] = now                                # CHAQUE écriture est datée (défaut 3 : rien ne l'était)
     cwd = payload.get("cwd") or b.get("cwd")
     if event == "start":
         b["started_at"] = now
         b["cwd"] = norm(cwd) if cwd else None
-        b["pid"] = payload.get("pid")
+        # le payload SessionStart ne porte PAS de pid (mesuré : null dans tous les bulletins) : il vient du
+        # registre natif, dans `resoudre_identite`, comme le nom
         b["branch"], b["worktree"] = branche_fn(cwd)
     elif event == "tool":
         b["last_tool_at"] = now
@@ -86,6 +103,8 @@ def appliquer(event, payload, bul, *, now, branche_fn):
             # aucun cwd connu (ni bulletin ni payload) : chemin ABSOLU gardé tel quel -- valeur honnête, jamais laissé tomber
             files = [f for f in b["files_touched"] if f != rel] + [rel]
             b["files_touched"] = files[-PLAFOND_FICHIERS:]
+            at = dict(b.get("files_touched_at") or {}, **{rel: now})
+            b["files_touched_at"] = {f: at[f] for f in b["files_touched"] if f in at}     # évincé AVEC la liste
     elif event == "stop":
         b["heartbeat_at"] = now
         br, wt = branche_fn(cwd)
@@ -96,11 +115,53 @@ def appliquer(event, payload, bul, *, now, branche_fn):
     return b
 
 
+def identite_depuis_registre(session_id, registry_dir=None):
+    """{"statut", "name", "pid"} de la session d'après le registre natif — relu, jamais mémorisé.
+
+    Le nom n'est PAS une identité : au redémarrage de la flotte du 2026-09-24, TOUS les noms ont changé
+    (agagi-11 -> agagi-e4, agagi-52 -> agagi-00, agagi-b0 -> looper…), et un nom se change aussi EN COURS de
+    session (`looper` : nameSource=user, 103 s après le démarrage). Seul `session_id` est stable.
+
+    Une session reprise laisse au registre l'entrée de son ANCIEN pid, même `sessionId` : on prend la plus
+    RÉCENTE (`started_at`), jamais la première rencontrée — l'ordre du glob est celui des pids, et l'ancien
+    pid peut trier devant. Sans mesure de vie (`avec_vie=False`) : psutil coûtait ~70 ms par outil.
+
+    Une ABSENCE n'est affirmée que sur un registre lu en ENTIER : si une entrée est illisible, la session y
+    est peut-être — le statut le dit, et `resoudre_identite` garde alors le dernier nom lu."""
+    reg = read_registry(registry_dir or REGISTRY_DIR, avec_vie=False)
+    if reg is None:
+        return {"statut": "registre indisponible", "name": None, "pid": None}
+    cands = [r for r in reg if "illisible" not in r and r.get("session_id") == session_id]
+    if cands:
+        r = max(cands, key=lambda x: x.get("started_at") or float("-inf"))
+        return {"statut": "registre", "name": r.get("name"), "pid": r.get("pid")}
+    if any("illisible" in r for r in reg):
+        return {"statut": "registre partiellement illisible", "name": None, "pid": None}
+    return {"statut": "absente du registre", "name": None, "pid": None}
+
+
+def resoudre_identite(bul, ident, now):
+    """PUR : applique une lecture du registre au bulletin.
+
+    - lue : `name`/`pid` REMPLACÉS (jamais gelés à la première écriture — le défaut corrigé ici) ;
+    - absente d'un registre lu en entier : `name`/`pid` remis à None, et `identite` dit pourquoi ;
+    - registre indisponible ou partiellement illisible : `name`/`pid` GARDÉS, `identite_at` dit de quand ils datent.
+    Un nom remplacé passe dans `noms_precedents` (10 derniers) : c'est lui qui permet de relire un vieux message
+    ou une vieille alerte adressés à un nom que plus personne ne porte."""
+    b = dict(bul)
+    precedent = b.get("name")
+    if ident["statut"] == "registre":
+        b["name"], b["pid"], b["identite_at"] = ident["name"], ident["pid"], now
+    elif ident["statut"] == "absente du registre":
+        b["name"], b["pid"], b["identite_at"] = None, None, now
+    b["identite"] = ident["statut"]
+    if precedent and precedent != b.get("name"):
+        b["noms_precedents"] = [n for n in (b.get("noms_precedents") or []) if n != precedent][-9:] + [precedent]
+    return b
+
+
 def nom_depuis_registre(session_id, registry_dir=None):
-    for r in (read_registry(registry_dir or REGISTRY_DIR) or []):
-        if r.get("session_id") == session_id:
-            return r.get("name")
-    return None
+    return identite_depuis_registre(session_id, registry_dir)["name"]
 
 
 def session_id_courant(registry_dir=None):
@@ -117,18 +178,78 @@ def session_id_courant(registry_dir=None):
     return None
 
 
-def resume_tableau(pm_dir=None):
+RELANCER = ("[PM] relancer — une passe : python -m tools.pm.board (15-18 s ; tableau seul, ni journal ni bail) · "
+            "en continu : /pm en boucle (/loop) dans UNE session dédiée")
+
+
+def age_tableau(board, chemin, now):
+    """(âge en s, source de l'âge) du tableau en cache ; (None, None) si rien ne le date.
+
+    Source PRÉFÉRÉE : `generated_at`, l'instant où le tick a MESURÉ la flotte — c'est l'âge des DONNÉES, et il
+    voyage avec le contenu. Le mtime date l'ÉCRITURE du fichier : une copie, une restauration ou un script qui
+    réécrit un vieux tableau le rajeunit sans rajeunir ce qu'il décrit — exactement la faute corrigée ici (du
+    périmé présenté comme courant). Le mtime n'est donc qu'un REPLI, dit comme tel : le fichier est écrit APRÈS
+    la mesure, l'âge qu'il donne est une borne BASSE de l'âge des données."""
+    g = board.get("generated_at") if isinstance(board, dict) else None
+    if isinstance(g, (int, float)) and not isinstance(g, bool):
+        return now - float(g), "generated_at"
+    try:
+        return now - os.path.getmtime(chemin), "mtime du fichier, generated_at absent : borne BASSE"
+    except OSError:
+        return None, None
+
+
+def texte_age(age_s):
+    """Lisible par un humain chaque matin : minutes sous 90 min, heures au-delà."""
+    if age_s is None:
+        return "âge INCONNU"
+    if abs(age_s) < 90 * 60:
+        return f"{age_s / 60:.0f} min"
+    return f"{age_s / 3600:.1f} h"
+
+
+def perime(board, chemin, age_s, source, seuil_s):
+    """Ce que le démarrage imprime À LA PLACE des alertes quand le tableau n'est pas courant. Appelée
+    APRÈS un `summary` réussi : les trois listes comptées ci-dessous y ont donc été lues sans erreur."""
+    n_al, n_av, n_se = len(board["alertes"]), len(board["aveugle"]), len(board["sessions"])
+    archive = os.path.join(os.path.dirname(chemin), "BOARD.md").replace("\\", "/")
+    if age_s is None:
+        tete = "[PM] TABLEAU D'ÂGE INCONNU : ni generated_at ni mtime lisibles — rien ne permet de le dire courant."
+    elif age_s < 0:
+        tete = (f"[PM] TABLEAU DATÉ DU FUTUR de {texte_age(-age_s)} ({source}) : horloge changée ou fichier "
+                f"réécrit à la main — rien ne permet de le dire courant.")
+    else:
+        tete = (f"[PM] TABLEAU PÉRIMÉ : mesuré il y a {texte_age(age_s)} ({source}). Seuil {texte_age(seuil_s)} = TTL "
+                f"du bail pm : au-delà, aucun tick n'a renouvelé ce bail — le tick NE TOURNE PAS.")
+    return "\n".join([tete,
+                      f"[PM] ses {n_al} alerte(s), {n_av} aveuglement(s) et {n_se} session(s) décrivent CETTE "
+                      f"heure-là : NON réimprimés comme courants (archive : {archive}).",
+                      RELANCER])
+
+
+def resume_tableau(pm_dir=None, now=None):
+    """Résumé du tableau en cache, TOUJOURS daté ; PÉRIMÉ (sans ses alertes) au-delà de `board.PEREMPTION_S`.
+
+    ⚠️ Ne JAMAIS corriger la péremption en recalculant ici : `snapshot()` coûte 15 à 18 s, un hook de
+    démarrage doit rester sous la seconde. Le remède est que le tick tourne ; le démarrage, lui, DIT qu'il
+    ne tourne pas."""
     p = os.path.join(pm_dir or paths.pm_dir(), "BOARD.json")
+    now = _horloge() if now is None else float(now)
     try:
         with open(p, encoding="utf-8") as fh:
             board = json.load(fh)
     except (OSError, ValueError):
         return "[PM] tableau absent : lancer python -m tools.pm.board (ou la session PM n'a pas encore tourné)"
-    from tools.pm.board import summary
+    from tools.pm.board import PEREMPTION_S, summary
+    age_s, source = age_tableau(board, p, now)
     try:
-        return summary(board)
-    except (KeyError, TypeError) as exc:
-        return f"[PM] tableau illisible ({type(exc).__name__}: {exc}) : relancer python -m tools.pm.board"
+        corps = summary(board, age_s=age_s, source_age=source)
+    except (KeyError, TypeError, AttributeError) as exc:
+        return (f"[PM] tableau illisible ({type(exc).__name__}: {exc}) — âge {texte_age(age_s)} ({source}) : "
+                f"relancer python -m tools.pm.board")
+    if age_s is None or age_s < -TOLERANCE_FUTUR_S or age_s > PEREMPTION_S:
+        return perime(board, p, age_s, source, PEREMPTION_S)
+    return corps
 
 
 def _rotation(p, max_o=None, garde_o=None):
@@ -172,12 +293,14 @@ def _hook(event):
     sid = payload.get("session_id")
     if not sid:
         raise ValueError("hook sans session_id")
-    bul = appliquer(event, payload, charger(sid), now=time.time(), branche_fn=branche_git)
-    if bul.get("name") is None:
-        bul["name"] = nom_depuis_registre(sid)
+    now = _horloge()
+    bul = appliquer(event, payload, charger(sid), now=now, branche_fn=branche_git)
+    # à CHAQUE écriture, pas seulement la première : le nom était gelé au premier hook (`if name is None`),
+    # et le tableau adressait ses alertes à des noms morts. Coût mesuré : ~2 ms (registre sans psutil).
+    bul = resoudre_identite(bul, identite_depuis_registre(sid), now)
     ecrire(bul)
     if event == "start":
-        print(resume_tableau())
+        print(resume_tableau(now=now))
 
 
 def _claim(p_item, session):
@@ -188,8 +311,9 @@ def _claim(p_item, session):
     bul = dict(_vide(sid), **charger(sid))
     if p_item not in bul["claims"]:
         bul["claims"].append(p_item)
-    if bul.get("name") is None:
-        bul["name"] = nom_depuis_registre(sid)
+    now = _horloge()
+    bul["updated_at"] = now
+    bul = resoudre_identite(bul, identite_depuis_registre(sid), now)
     ecrire(bul)
     print(f"[PM] {bul.get('name') or sid} revendique {', '.join(bul['claims'])}")
 

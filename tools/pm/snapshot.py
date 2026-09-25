@@ -99,11 +99,14 @@ def _vivant(ps, pid):
         return None
 
 
-def read_registry(registry_dir=None):
+def read_registry(registry_dir=None, avec_vie=True):
+    """Entrées du registre natif. `avec_vie=False` saute la mesure de vie (`alive` vaut alors `None`,
+    « non mesuré ») : le hook `tool` relit le registre à CHAQUE outil pour ré-résoudre le nom, et
+    l'import de psutil y coûtait ~70 ms sous charge (mesuré le 2026-09-24) contre ~2 ms la lecture."""
     d = registry_dir or REGISTRY_DIR_DEFAULT
     if not os.path.isdir(d):
         return None
-    ps = _psutil()
+    ps = _psutil() if avec_vie else None
     out = []
     for f in sorted(glob.glob(os.path.join(d, "*.json"))):
         try:

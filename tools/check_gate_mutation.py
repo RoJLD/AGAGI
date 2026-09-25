@@ -60,6 +60,10 @@ import sys
 import tempfile
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
+
+from tools._git_env import env_isole  # noqa: E402  -- module NEUTRE (os seul), jamais une porte
 
 # ------------------------------------------------------------------------------------------------
 # LES MUTATIONS DÉCLARÉES. Une par comportement décisif de la porte — celui qui, s'il disparaît,
@@ -76,6 +80,11 @@ PORTES = {
             "avant": "        if not has_gate and not has_edge:",
             "apres": "        if False:",
             "motif": "la détection d'orphelin — tout record non raccordé passerait",
+        }, {
+            "nom": "un record à verdict SANS revue n'est plus signalé",
+            "avant": '        if r["type"] == "EDR" and (has_gate or tests_sdr):',
+            "apres": "        if False:",
+            "motif": "l'exigence de revue (spec PM 2026-09-16) — la règle documentée depuis le 07-21 et appliquée 1 fois sur 28 redeviendrait décorative",
         }],
     },
     "2": {
@@ -110,6 +119,21 @@ PORTES = {
                 "apres": "    # (motif compute_policy_gradient retiré par la mutation)",
                 "motif": ("le motif `compute_policy_gradient` — l'apprenant legacy de MambaBatchModel, "
                           "actif pendant tout l'arc EVO, ne serait plus ni calibré ni compté comme dette"),
+            },
+            {
+                "nom": "une déclaration non détectée redevient SILENCIEUSE (P2.83)",
+                "avant": "            ignorees[name] = _cause_ignoree(bare)",
+                "apres": "            pass",
+                "motif": ("la branche qui CRIE : 9 déclarations réelles (6 fonctions invisibles aux motifs, "
+                          "3 classes) redeviendraient ignorées sans un mot, et leur auteur croirait avoir "
+                          "déclaré — E10 appliquée au cliquet lui-même"),
+            },
+            {
+                "nom": "la CAUSE d'une déclaration ignorée n'est plus tranchée (P2.83)",
+                "avant": '        return ("MOTIF_AVEUGLE", sorted(defs))',
+                "apres": '        return ("PERIMEE", [])',
+                "motif": ("le cri enverrait au remède OPPOSÉ : « supprimer la déclaration morte » pour un "
+                          "symbole bien PRÉSENT que les motifs ne voient pas"),
             },
         ],
     },
@@ -330,6 +354,56 @@ PORTES = {
             "motif": "le cliquet ne cliquerait plus : tout chevauchant hors baseline passerait",
         }],
     },
+    "19": {
+        "module": "tools.check_regime_claims",
+        "titre": "régime cité ↔ régime mesuré, en profondeur et hors du bloc regime (E8 occ. 4)",
+        "temoins": ["tests/sandbox/test_regime_claims_gate.py"],
+        # RE-DÉCLARÉE le 2026-09-24. L'ancienne mutation substituait la ligne
+        # `statut = "DISCORDE" if pire >= 3 else (...)`, qui n'existe plus : le barème distingue
+        # désormais une CONTRADICTION (deux valeurs lues et différentes) d'une NON-LECTURE. Un motif
+        # absent aurait rendu INVALIDE — la porte 15 crie au lieu de se taire, et c'est ce cri qui a
+        # imposé cette mise à jour. Les deux mutations ci-dessous visent la distinction NEUVE, donc
+        # elles mesurent le correctif lui-même et non plus la seule frontière `pire >= 3`.
+        "mutations": [{
+            "nom": "la distinction neuve est effacée : une non-lecture redevient une discordance",
+            "avant": '                pire = max(pire, 2)',
+            "apres": '                pire = max(pire, 3)',
+            "motif": ("tout ce que le correctif du 2026-09-24 ajoute — les 6 records dont aucun results/ "
+                      "ne publie la valeur sous une clé lisible redeviendraient `DISCORDE`, un mot qui "
+                      "AFFIRME un désaccord jamais mesuré (le biais dominant du dépôt, commis par "
+                      "l'instrument écrit pour le policer)"),
+        }, {
+            "nom": "le détail de DISCORDE cesse de nommer la valeur qu'il a LUE",
+            "avant": '                detail.append(f"{p} cite {sorted(vals)} : les results cites publient {publiees} dans {c} ({bloc})")',
+            "apres": '                detail.append(f"{p} cite {sorted(vals)} : introuvable dans les results cites")',
+            "motif": ("la chaîne EXACTE d'avant le correctif — le cas fondateur EDR-GRAB-COST (cité 3.0, "
+                      "publié 1.0) redeviendrait indiscernable, au caractère près, d'une valeur que la "
+                      "porte n'a jamais lue ; c'est le défaut mesuré, pas une hypothèse"),
+        }],
+    },
+    "20": {
+        "module": "tools.check_evidence_provenance",
+        "titre": "provenance de l'évidence citée (E27)",
+        "temoins": ["tests/sandbox/test_evidence_provenance_gate.py"],
+        "mutations": [{
+            "nom": "une évidence absente ou non suivie est toujours OK",
+            "avant": '    statut = "ABSENT" if absents else ("NON_SUIVI" if non_suivis else "OK")',
+            "apres": '    statut = "OK"',
+            "motif": ("le verdict du cliquet — les 18 chemins absents gelés passeraient, et tout "
+                      "nouveau chemin absent, non suivi ou à glob mort aussi"),
+        }, {
+            # 2026-09-24 : point n°1 de la revue de la porte 20 — « remplacer `_tracked` par
+            # `return True` laisse 13/13 verts ». Le TEMOIN réel (dépôt git jetable) a été ajouté
+            # dans la foulée ; le harnais, lui, ne prouvait toujours pas qu'il DISCRIMINE, donc la
+            # leçon restait non cliquetée. C'est exactement ce que la porte 15 existe pour dire.
+            "nom": "l'oracle git de _tracked répond toujours OUI",
+            "avant": '    return subprocess.run(["git", "ls-files", "--error-unmatch", rel], cwd=root,',
+            "apres": '    return True or subprocess.run(["git", "ls-files", "--error-unmatch", rel], cwd=root,',
+            "motif": ("le seul oracle qui distingue un results/ SUIVI d'un fichier simplement posé sur "
+                      "le disque — le muter rend NON_SUIVI inatteignable, et une évidence non "
+                      "committée passerait pour rouvrable"),
+        }],
+    },
     "21": {
         "module": "tools.check_roles_registry",
         "titre": "registre des rôles : cinq colonnes obligatoires (spec PM 2026-09-16)",
@@ -340,6 +414,58 @@ PORTES = {
             "apres": "            creuses = []",
             "motif": ("le verdict du cliquet — un rôle sans instrument ni contrôle positif passerait, c'est-à-dire "
                       "une règle documentée déguisée en rôle (E10)"),
+        }],
+    },
+    "22": {
+        "module": "tools.check_hook_deployment",
+        "titre": "copie déployée des crochets (P2.108) : .git/hooks/ contre tools/hooks/",
+        "temoins": ["tests/sandbox/test_hook_deployment.py"],
+        "mutations": [
+            {
+                "nom": "une copie JAMAIS COMMITTÉE redevient un simple `cp` oublié",
+                "avant": "    if b in anciennes:",
+                "apres": "    if True:",
+                "motif": ("la SEULE ligne qui sépare les deux sens de la divergence. Le sens bénin "
+                          "(copie en retard) CRIE sans bloquer ; le sens grave (du code écrit dans "
+                          "le crochet COMMUN, que personne n'a relu, exécuté par toutes les "
+                          "sessions — occurrence réelle mesurée par le PM) REFUSE. Muter cette "
+                          "ligne fait passer le second pour le premier : la porte imprimerait une "
+                          "invitation à recopier un fichier que le dépôt n'a jamais vu"),
+            },
+            {
+                "nom": "l'historique consulté redevient celui de HEAD seul (worktrees divergents)",
+                "avant": '    rc, sortie = _git("rev-list", f"--max-count={limite}", "--all", "--", chemin)',
+                "apres": '    rc, sortie = _git("rev-list", f"--max-count={limite}", "HEAD", "--", chemin)',
+                "motif": ("le cas des WORKTREES : core.hooksPath est ABSOLU, un worktree sur une branche "
+                          "divergente exécute le crochet déployé depuis la branche de référence ; vu "
+                          "depuis sa branche, ce contenu n'est dans aucun de SES commits. Avec HEAD "
+                          "seul, la porte rendrait INCONNU et bloquerait tous les commits du worktree"),
+            },
+            {
+                "nom": "la normalisation des fins de ligne disparaît",
+                "avant": '    return contenu.replace(b"\\r\\n", b"\\n").replace(b"\\r", b"\\n").rstrip() + b"\\n"',
+                "apres": "    return contenu",
+                "motif": ("le faux positif qui TUERAIT la garde : `core.autocrlf=true` sur cette "
+                          "machine, donc la copie déployée est en CRLF et le blob en LF — 46 lignes "
+                          "d'écart mesurées sur deux fichiers IDENTIQUES. Sans normalisation, la "
+                          "porte refuse tous les commits de toutes les sessions sous Windows, et "
+                          "elle est désarmée le jour même"),
+            },
+        ],
+    },
+    # Numerotee "22" jusqu'au 2026-09-24 : renumerotee "23" avant fusion, "22" etant deja
+    # check_hook_deployment dans la branche partagee (le numero non fusionne cede). Une cle
+    # dupliquee dans ce dict serait ecrasee EN SILENCE par Python -- une porte sortirait du harnais.
+    "23": {
+        "module": "tools.check_e19_optimizer_sweep",
+        "titre": "garde E19 appelée par tout runner scellé sous gradient",
+        "temoins": ["tests/sandbox/test_e19_sweep_gate.py"],
+        "mutations": [{
+            "nom": "un runner sous gradient sans garde n'est plus nu",
+            "avant": '    return sorted(p for p, v in etat_.items() if v["sous_gradient"] and not v["garde"])',
+            "apres": "    return []",
+            "motif": ("le verdict du cliquet — les runners de la série LEGACY/BILINEAR-ALIGNED repasseraient sans "
+                      "balayage du pas, et `classer` (qui s'appuie dessus) ne verrait plus aucun nu non plus"),
         }],
     },
 }
@@ -377,8 +503,16 @@ def _chemin_module(modname):
 def _pytest(temoins, spec=None, timeout=900):
     """Lance les témoins, avec ou sans mutation. Rend (code_de_sortie, sortie_texte).
 
-    `-x` : une seule rougeur suffit à tuer un mutant, inutile de payer la suite du fichier."""
-    env = dict(os.environ)
+    `-x` : une seule rougeur suffit à tuer un mutant, inutile de payer la suite du fichier.
+
+    ⚠️ L'environnement du sous-processus est TOUJOURS purgé de la famille `GIT_*` (`env_isole`) :
+    ce lanceur tourne pendant le hook pre-commit, où git exporte `GIT_DIR`/`GIT_INDEX_FILE`, et un
+    témoin doit tourner HERMÉTIQUE — jamais contre l'index du commit en cours, jamais un `git init`
+    qui réinitialiserait le dépôt réel (témoin gelé : `test_le_LANCEUR_purge_GIT_...`).
+    CE QUE LA PURGE NE FERME PAS : un script lancé à la main dans le shell du hook (il n'hérite pas
+    de ce lanceur) ; un témoin qui POSE lui-même une variable `GIT_*` puis lance git sans purger à
+    son tour ; toute variable qui agit sur git hors du préfixe `GIT_`."""
+    env = env_isole()  # isolation INCONDITIONNELLE : un témoin ne juge jamais le commit en cours
     env["PYTHONIOENCODING"] = "utf-8"
     env["PYTHONPATH"] = _ROOT + os.pathsep + env.get("PYTHONPATH", "")
     cmd = [sys.executable, "-m", "pytest", "-q", "-x", "--timeout=300",

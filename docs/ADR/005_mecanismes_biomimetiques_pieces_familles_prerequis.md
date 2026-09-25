@@ -126,7 +126,7 @@ aux deux pas) et TRACE_NUIT / TRACE_NEUTRE / LEARNER_INERT.
 - Backlog : P2.75 (E29 — CLOSE : le fichier est VERSIONNÉ, `versioned` mesuré, sha normalisé CRLF→LF), P2.76 (lr/B, CLOSE), P2.77 (fixtures, CLOSE),
   P4.11–P4.15 (la file). Registre : E29 (nouvelle classe, garde exécutable, 12 contre-exemples), E19 occ. 7.
 - Records : bandeau de portée sur [[EDR-CALIB-LEGACY-LEARNER]] (lr/B et activation) ; aucun verdict modifié.
-- **Critère de révision — AMENDÉ le 2026-09-24** (accord du master ; l'amendement DIT ce qu'il remplace et
+- **Critère de révision — AMENDÉ le 2026-09-24** (revue de la session qui porte le harnais, réserves appliquées ; l'amendement DIT ce qu'il remplace et
   pourquoi, aucune réécriture silencieuse). *Texte remplacé* : « si l'item 1 rend TRACE_AIDE sur le proxy D=2 ET
   NEUTRE/NUIT sur P1.6, la pièce entre au registre ; si TRACE_NUIT partout, ça se grave. Sans run de l'item 1 à
   6 semaines, la file est réordonnée. » *Pourquoi il était INDÉCIDABLE — et ce n'est pas « pas encore mesuré »* :

@@ -41,6 +41,13 @@ Tu ne tiens aucun état en contexte — tout est relu par le tick.
   toujours (tests, NAS) ; `src/paths.py` n'est pas modifié.
 - Un hook qui échoue deux fois en 24 h remonte en **A9** au tableau (`hook_errors.log`). C'est la SEULE
   façon dont un échec de hook devient visible.
+- Le hook `tool` n'est branché que sur `Edit|Write|MultiEdit|NotebookEdit` : `files_touched` (et ses dates
+  `files_touched_at`) ne voient QUE ces outils. Un fichier réécrit par un script sous Bash, un `git apply` ou un
+  sous-agent n'y laisse AUCUNE trace — A1 et les P-items inférés ne voient pas ces écritures. Le tableau le
+  DÉCLARE (`board.CECITE_FICHIERS`, repris dans BOARD.md, le résumé de démarrage et le digest) ; ce n'est PAS
+  corrigé. Un diff de `git status` autour de chaque Bash attribuerait à la session les écritures d'autrui sur
+  l'arbre partagé — pire que la cécité ; la voie est un hook PostToolUse `Bash` qui COMPTE sans capturer
+  (`.claude/settings.json`, dette à inscrire).
 
 ## Interdits
 

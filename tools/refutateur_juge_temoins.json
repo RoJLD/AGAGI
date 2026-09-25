@@ -1,0 +1,98 @@
+{
+  "_comment": "CALIBRATION du Refutateur, etage 1 (plancher mecanique) et etage 2 (le JUGE). Les cinq textes viennent de la RE-REVUE du 2026-09-23, qui a mesure que le motif `attendu` ne mesurait pas une decouverte mais un VOCABULAIRE : une seule phrase vague passait les QUATRE temoins (plancher de fausses retrouvailles = signal maximal, la lecon run_ablation_map du depot), recopier UNE ligne du temoin extrait passait deux defauts sur trois, et la critique JUSTE du defaut E26 formulee sans le mot 'corps' rendait NULLE. Le signe etait inverse. Ces cinq cas sont donc des textes REELS a reponse connue, et la meilleure calibration disponible.",
+  "_champs": {
+    "mots_recopie": "N : un constat dont une fenetre de N mots consecutifs se retrouve MOT POUR MOT dans le fichier extrait est une RECOPIE, pas une decouverte. Valeur MESUREE le 2026-09-23 sur les cinq cas ci-dessous, jamais choisie : les deux RECOPIES rendent 32 et 24 mots, les deux critiques JUSTES rendent 4 et 2, l'attaque universelle 2 a 4. Tout N dans [5, 24] separe ; 8 est pris au milieu bas, a 4 mots au-dessus du plafond des critiques justes et 16 sous le plancher des recopies. La separation est RE-MESUREE par tests/sandbox/test_refutateur_temoins.py::test_le_seuil_de_recopie_SEPARE_les_recopies_des_critiques_justes, qui echoue si un jour elle se referme.",
+    "cas.temoins": "noms de temoins auxquels le cas s'applique ; ['*'] = tous",
+    "cas.etage1": "recevable | rejete — ce que le plancher MECANIQUE doit rendre, sans aucun agent",
+    "cas.juge": "OUI | NON — ce que l'etage 2 doit rendre sur les critiques RECEVABLES. Un cas rejete a l'etage 1 n'atteint jamais le juge ; son `juge` documente la reponse attendue si on la lui posait.",
+    "cas.critiques": "le texte REEL, tel qu'il a ete rendu ou formule pendant la re-revue"
+  },
+  "mots_recopie": 8,
+  "cas": [
+    {
+      "nom": "attaque-universelle",
+      "temoins": ["*"],
+      "etage1": "rejete",
+      "juge": "NON",
+      "pourquoi": "Une seule phrase vague, identique pour les quatre temoins, ecrite SANS ouvrir un fichier : elle passait 4/4 sous le motif `attendu` parce qu'elle recite les trois tokens attendus. Elle ne porte AUCUNE preuve de forme : ni fichier:ligne, ni commande avec sa sortie, ni valeur opposee a une autre. L'etage 1 la rejette sur ce seul fait.",
+      "critiques": [
+        {
+          "prompt": "P1",
+          "constat": "La prémisse porteuse n'est mesurée nulle part : ni la valeur forage_payoff, ni le corps dérivé des lignes de W, ni le pas lr ne sont publiés par un bloc régime",
+          "sonde": "lecture du record",
+          "preuve": "aucune",
+          "classe": "E8",
+          "verdict": "confirme"
+        }
+      ]
+    },
+    {
+      "nom": "recopie-une-ligne-du-temoin-GRAB",
+      "temoins": ["EDR-GRAB-COST-1828371"],
+      "etage1": "rejete",
+      "juge": "NON",
+      "pourquoi": "Recopier la ligne 14 du temoin extrait suffisait a le RETROUVER : `grep -c forage_payoff temoin-3.md` rend 2, donc le token attendu est DANS le texte qu'on relit. Le constat porte pourtant un fichier:ligne de bonne forme : seule la regle anti-recopie le distingue d'une decouverte.",
+      "critiques": [
+        {
+          "prompt": "P2",
+          "constat": "Le régime de famine dure porte `forage_payoff = 3.0` — ramasser un fruit RAPPORTE. Si le grab coûtait malgré cela, ce serait la taxe de PORTAGE, pas la collecte, qui domine.",
+          "sonde": "grep -n forage_payoff temoin-3.md",
+          "preuve": "temoin-3.md:14",
+          "classe": "aucune",
+          "verdict": "confirme"
+        }
+      ]
+    },
+    {
+      "nom": "recopie-une-ligne-du-temoin-RETAIN",
+      "temoins": ["EDR-RETAIN-COMPOSE-4204f8f"],
+      "etage1": "rejete",
+      "juge": "NON",
+      "pourquoi": "Meme mecanisme : `lr` vit a temoin-4.md:22, dans la ligne de budget. Recopier cette ligne retrouvait le temoin sans rien avoir compris du pas non balaye.",
+      "critiques": [
+        {
+          "prompt": "P3",
+          "constat": "Budget mesuré (FOREGROUND) : `episodes=600` (pas le défaut 1500), `n_agents=16`, `K=6`, `lr=0.02`, `eval_batches=40`, 12 seeds, `runtime_s=648.0`.",
+          "sonde": "grep -n lr temoin-4.md",
+          "preuve": "temoin-4.md:22",
+          "classe": "aucune",
+          "verdict": "confirme"
+        }
+      ]
+    },
+    {
+      "nom": "E26-juste-sans-le-mot-corps",
+      "temoins": ["S2-BLIND-CHAMPION-42e9357"],
+      "etage1": "recevable",
+      "juge": "OUI",
+      "pourquoi": "LE SIGNE ETAIT INVERSE. C'est la critique EXACTE du defaut connu — l'ablation annule aussi les lignes dont le monde derive le phenotype — avec sa sonde, sa classe et son fichier:ligne. Le motif `attendu` la rendait NULLE parce qu'elle ne contient pas le mot 'corps'. Une revue JUSTE echouait la ou une revue VIDE passait.",
+      "critiques": [
+        {
+          "prompt": "P8",
+          "constat": "Le contrôle (i) affirme que tout reste bit-identique hors des lignes annulées, mais l'ablation met à zéro les lignes 0 à 9, dont le monde dérive hp_bonus et inv_capacity ; la dépense métabolique du sujet passe de 2,40 à 1,30, soit -46 %. Un sujet qui dépense moins survit plus longtemps sans rien lire : la DV rapportée est un effet métabolique candidat avant d'être un effet de cécité.",
+          "sonde": "grep -n hp_bonus inv_capacity src/agents/mamba_agent.py",
+          "preuve": "src/agents/mamba_agent.py:47-50",
+          "classe": "E26",
+          "verdict": "confirme"
+        }
+      ]
+    },
+    {
+      "nom": "GRAB-fait-c-sans-le-token",
+      "temoins": ["EDR-GRAB-COST-1828371"],
+      "etage1": "recevable",
+      "juge": "OUI",
+      "pourquoi": "Le roster nomme ce fait (c) comme PARTIE du defaut de GRAB-COST : 'le fait annonce (grabber NOURRIT) est mesurable et FAUX, 0 repas sur 20 776 agent-ticks'. Le motif `attendu` le refusait faute du token `forage_payoff` — l'instrument refusait une critique que sa propre cle de reponse decrit.",
+      "critiques": [
+        {
+          "prompt": "P10",
+          "constat": "La prémisse « grabber NOURRIT », qui porte le titre et la question du record, est mesurable et fausse : sur 20 776 agent-ticks le grab nourrit exactement 0 fois, et l'inventaire du champion ne contient aucun Fruit (4 549 rock, 1 166 Spark, 663 stick).",
+          "sonde": "python -c compte des repas par do_grab sur la trace du champion",
+          "preuve": "0 repas / 20 776 agent-ticks ; 0 Fruit sur 7 588 objets portés",
+          "classe": "E8",
+          "verdict": "confirme"
+        }
+      ]
+    }
+  ]
+}

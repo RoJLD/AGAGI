@@ -239,6 +239,7 @@ def scan_calibrated():
     known = scan_instruments()
     collisions = scan_collisions()
     out, refusees = set(), []
+    ignorees = {}                                     # {declaration: (cause, chemins)} — P2.83, jamais en silence
     qualified_paths = {}                              # {nom nu: {chemins declares calibres}}
     for name, branches in (declared or {}).items():
         # Une déclaration peut être QUALIFIÉE : "tools/foo.py::run_probe" — obligatoire dès que le nom
@@ -246,7 +247,19 @@ def scan_calibrated():
         qualified = "::" in name
         bare = name.split("::")[-1] if qualified else name
         if bare not in known:
-            continue                                  # déclaration périmée : ignorée, pas de faux vert
+            # ⚠️ NEUVIÈME angle mort (2026-09-24, P2.83 — mesuré, pas supposé) : cette branche disait
+            # « déclaration périmée » et se taisait. Sur les 9 déclarations qui y tombaient, **ZÉRO**
+            # était périmée : 6 sont des fonctions bien PRÉSENTES qu'aucun des 14 motifs ne voit
+            # (`_cause_de_mort` — nommage FRANÇAIS —, `plain_readout_ceiling`,
+            # `additive_argmax_exact_ceiling`, `verify_plain_ceiling_witness`, `_td_update`,
+            # `logit_median_at_outputs`) et 3 sont des CLASSES (`GrabOffMamba`, `NullGrabOffMamba`,
+            # `GrabForcedMamba`) — le cliquet ne scanne que `def`, jamais `class`. L'auteur croyait
+            # avoir déclaré ; rien ne le contredisait (classe E10 appliquée au cliquet lui-même).
+            # Les DEUX remèdes sont OPPOSÉS — élargir un motif, ou supprimer une déclaration morte —
+            # donc le cri doit TRANCHER la cause, et il peut le faire gratuitement : le symbole
+            # existe-t-il ailleurs dans le périmètre, comme `def` ou comme `class` ?
+            ignorees[name] = _cause_ignoree(bare)
+            continue
         if bare in collisions and not qualified:
             refusees.append(bare)                     # AMBIGUË : refusée tant qu'elle n'est pas qualifiée
             continue
@@ -267,8 +280,37 @@ def scan_calibrated():
     # a l'auteur qu'il a declare ce qu'il n'a pas declare -- exactement la classe du « drop silencieux »
     # corrigee le matin meme sur la liste blanche de frontmatter.
     scan_calibrated.refusees = sorted(set(refusees))
+    scan_calibrated.ignorees = dict(sorted(ignorees.items()))
     scan_calibrated.qualified_paths = {k: sorted(v) for k, v in qualified_paths.items()}
     return out
+
+
+_DEF = "def"
+_CLASSE = "class"
+
+
+def _cause_ignoree(bare):
+    """POURQUOI une déclaration n'est pas détectée, et OÙ le symbole vit — la cause décide du remède,
+    et les remèdes sont OPPOSÉS (P2.83) :
+      * `MOTIF_AVEUGLE`  — un `def` de ce nom existe dans le périmètre : ÉLARGIR un motif (ou renommer) ;
+      * `CLASSE`         — c'est une `class` : le cliquet ne scanne que `def`, il ne peut PAS la voir ;
+      * `PERIMEE`        — le symbole n'existe nulle part : SUPPRIMER la déclaration morte.
+    Fonction PURE sur le périmètre (`_iter_sources`), calibrée sur réponse connue dans
+    `tests/sandbox/test_check_instrument_calibration_collisions.py`. Un cri unique enverrait l'auteur au
+    mauvais correctif ; on ne devine pas, on regarde."""
+    rx_def = re.compile(r"^\s*def\s+" + re.escape(bare) + r"\s*\(", re.M)
+    rx_cls = re.compile(r"^\s*class\s+" + re.escape(bare) + r"\s*[(:]", re.M)
+    defs, classes = [], []
+    for path, src in _iter_sources():
+        if rx_def.search(src):
+            defs.append(path)
+        if rx_cls.search(src):
+            classes.append(path)
+    if defs:
+        return ("MOTIF_AVEUGLE", sorted(defs))
+    if classes:
+        return ("CLASSE", sorted(classes))
+    return ("PERIMEE", [])
 
 
 def collision_coverage(collisions, calibrated_paths, not_instrument_paths):
@@ -367,11 +409,15 @@ def main(argv=None):
             collisions_partielles[nu] = manquants
     uncalibrated = sorted(set(instruments) - calibrated - set(faux_positifs))
 
+    ignorees = getattr(scan_calibrated, "ignorees", {})
+
     if args.update_baseline:
         os.makedirs(os.path.dirname(_BASELINE), exist_ok=True)
         with open(_BASELINE, "w", encoding="utf-8") as fh:
-            json.dump({"uncalibrated": uncalibrated}, fh, indent=2, ensure_ascii=False)
-        print(f"baseline gelé : {len(uncalibrated)} instruments non calibrés -> {_BASELINE}")
+            json.dump({"uncalibrated": uncalibrated, "declarations_ignorees": sorted(ignorees)},
+                      fh, indent=2, ensure_ascii=False)
+        print(f"baseline gelé : {len(uncalibrated)} instruments non calibrés, "
+              f"{len(ignorees)} déclaration(s) ignorée(s) -> {_BASELINE}")
         return 0
 
     known = set(_load_baseline().get("uncalibrated", []))
@@ -405,6 +451,21 @@ def main(argv=None):
         print(f"⚠️  {len(refusees)} declaration(s) CALIBRATED REFUSEE(S) (nom ambigu, non qualifie) : "
               f"{', '.join(refusees)}")
         print("    -> les qualifier « fichier.py::fonction », sinon elles ne comptent PAS.")
+    gelees_ign = set(_load_baseline().get("declarations_ignorees", []))
+    nouvelles_ign = [n for n in ignorees if n not in gelees_ign]
+    if ignorees:
+        _REMEDE = {
+            "MOTIF_AVEUGLE": "le symbole EXISTE ({ou}) : aucun des motifs ne le voit -> ELARGIR un motif, ou renommer",
+            "CLASSE": "c'est une CLASSE ({ou}) : le cliquet ne scanne que `def` -> la declarer NOT_AN_INSTRUMENT, "
+                      "ou etendre le scan aux classes",
+            "PERIMEE": "le symbole n'existe NULLE PART dans le perimetre -> SUPPRIMER la declaration morte",
+        }
+        print(f"⚠️  {len(ignorees)} declaration(s) CALIBRATED IGNOREE(S) par le cliquet "
+              f"(dont {len(nouvelles_ign)} NOUVELLE(S)) — elles ne protegent RIEN :")
+        for n, (cause, ou) in sorted(ignorees.items()):
+            neuf = "  [NOUVELLE]" if n in nouvelles_ign else ""
+            print(f"  [{cause}]{neuf} {n}")
+            print("    -> " + _REMEDE[cause].format(ou=", ".join(ou[:2]) if ou else "-"))
     if collisions:
         # ⚠️ Ne PAS laisser ce chiffre implicite : le total réel est len(instruments) + masquees.
         print(f"⚠️  {len(collisions)} nom(s) en COLLISION -> {masquees} définition(s) INVISIBLE(S) "
@@ -438,7 +499,15 @@ def main(argv=None):
         print("Calibrer sur vérité-terrain (tools/ground_truth_worlds.py) OU déclarer la dette :")
         print("  python tools/check_instrument_calibration.py --update-baseline")
         return 1
-    print("OK : aucun nouvel instrument non calibré.")
+    if nouvelles_ign:
+        # P2.83 : une déclaration que le cliquet IGNORE ne protège rien — et l'auteur croit avoir déclaré.
+        print(f"\nECHEC : {len(nouvelles_ign)} NOUVELLE(S) déclaration(s) CALIBRATED ignorée(s) en silence : "
+              f"{', '.join(nouvelles_ign)}")
+        print("Appliquer le remède de sa CAUSE (ci-dessus) OU déclarer la dette :")
+        print("  python tools/check_instrument_calibration.py --update-baseline")
+        return 1
+    print("OK : aucun nouvel instrument non calibré"
+          + (f" ; {len(ignorees)} déclaration(s) ignorée(s), toutes légataires (baseline)." if ignorees else "."))
     return 0
 
 

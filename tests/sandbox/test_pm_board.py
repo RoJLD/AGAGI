@@ -177,14 +177,36 @@ def test_A6_meme_P_item_revendique_par_deux_sessions():
     assert len(a) == 1 and a[0]["preuve"] == {"p_item": "P4.9", "sessions": ["agagi-11", "agagi-52"]}
 
 
-def test_A7_session_active_plus_d_une_heure_sans_claim_ni_inference_est_une_INFO():
+def test_A7_session_active_plus_d_une_heure_sans_claim_ni_inference_est_une_INFO_clee_par_SESSION_ID():
+    """Clé = `session_id`, JAMAIS le nom (défaut 2, 2026-09-24) : ce test exigeait `A7:agagi-11` et PROTÉGEAIT le
+    défaut — un nom change au redémarrage, une clé par nom fabriquait un suivi. Le nom reste dans le message et
+    dans `preuve.session` : c'est lui qu'on LIT, pas lui qu'on SUIT."""
     reg = [_reg("agagi-11", "s1", started=NOW - 2 * 3600), _reg("agagi-52", "s2", started=NOW - 2 * 3600)]
     bul = [_bul("s1"), _bul("s2", files=["tools/evo_runs/s2_credit_ablation.py"])]
     b = B.compute(_snap(registry=reg, bulletins=bul))
     a = _ids(b, "A7")
-    assert [x["cle"] for x in a] == ["A7:agagi-11"] and a[0]["gravite"] == "info"
+    assert [x["cle"] for x in a] == ["A7:s1"] and a[0]["gravite"] == "info"
+    assert "agagi-11" in a[0]["message"] and a[0]["preuve"] == {"session": "agagi-11", "session_id": "s1"}
     s2 = [s for s in b["sessions"] if s["name"] == "agagi-52"][0]
     assert s2["claims_inferes"] == ["P4.9"]                     # inféré des fichiers touchés, marqué comme tel
+
+
+def test_A7_le_MEME_bulletin_sous_DEUX_noms_successifs_produit_UNE_seule_cle_et_AUCUN_suivi_FABRIQUE():
+    """CONTRE-EXEMPLE GELÉ (défaut 2, 2026-09-24) : clé par NOM, un renommage (redémarrage de la flotte :
+    agagi-52 -> agagi-00) faisait « disparaître » A7:agagi-52 — journal : suivie, comptée dans suivies_48h — et
+    émettait une « nouvelle » A7:agagi-00. Deux lignes de journal et un compteur gonflé pour ZÉRO changement réel."""
+    from tools.pm import alerts as AL
+    bul = [_bul("s1")]
+    avant = B.compute(_snap(registry=[_reg("agagi-11", "s1", started=NOW - 2 * 3600)], bulletins=bul))
+    apres = B.compute(_snap(registry=[_reg("agagi-e4", "s1", started=NOW - 2 * 3600)], bulletins=bul), now=NOW + 1200)
+    assert [a["cle"] for a in _ids(avant, "A7")] == [a["cle"] for a in _ids(apres, "A7")] == ["A7:s1"]
+    assert "agagi-11" in _ids(avant, "A7")[0]["message"] and "agagi-e4" in _ids(apres, "A7")[0]["message"]
+    journal = AL.diff(avant, [], NOW)["lignes"]                 # premier tick : émise
+    assert [l["statut"] for l in journal] == ["emise"]
+    d = AL.diff(apres, journal, NOW + 1200)                     # second tick, après le renommage
+    assert d["nouvelles"] == [] and d["disparues"] == [] and d["repetees"] == [] and d["lignes"] == []
+    c = AL.compteurs(journal + d["lignes"], NOW + 1200)
+    assert c["suivies_48h"] == 0 and c["emises"] == 1 and c["ouvertes"] == 1
 
 
 def test_A7_supprimee_quand_le_backlog_est_AVEUGLE_et_pas_fabriquee():
@@ -196,9 +218,12 @@ def test_A7_supprimee_quand_le_backlog_est_AVEUGLE_et_pas_fabriquee():
     assert any("backlog" in a for a in b["aveugle"])
 
 
-def test_A8_heartbeat_vieux_de_plus_de_deux_heures_est_une_INFO():
+def test_A8_heartbeat_vieux_de_plus_de_deux_heures_est_une_INFO_clee_par_SESSION_ID():
+    """Même correctif qu'A7 (ce test exigeait `A8:agagi-11`) : clé = session_id, nom dans le message et la preuve."""
     b = B.compute(_snap(bulletins=[_bul("s1", heartbeat=NOW - 3 * 3600), _bul("s2")]))
-    assert [x["cle"] for x in _ids(b, "A8")] == ["A8:agagi-11"]
+    a = _ids(b, "A8")
+    assert [x["cle"] for x in a] == ["A8:s1"] and a[0]["gravite"] == "info"
+    assert "agagi-11" in a[0]["message"] and a[0]["preuve"] == {"session": "agagi-11", "session_id": "s1"}
 
 
 def test_chaque_source_ABSENTE_est_nommee_AVEUGLE_et_ses_alertes_sont_supprimees():
@@ -209,6 +234,27 @@ def test_chaque_source_ABSENTE_est_nommee_AVEUGLE_et_ses_alertes_sont_supprimees
     assert b["charge_connue"] == {"sims_en_vol": None, "cpu_pct": None, "bails_vivants": None}
     md = B.render_md(b)
     assert md.splitlines()[2].startswith("AVEUGLE SUR")          # en tête, avant toute autre ligne
+
+
+def test_le_tableau_porte_la_date_de_chaque_fichier_en_vol_et_du_bulletin_et_n_en_invente_aucune():
+    """Défaut 3 (2026-09-24) : `files_touched_at` et `updated_at` traversent le tableau tels quels ; un bulletin
+    légataire (sans ces champs) rend {} et None, jamais une date fabriquée."""
+    bul = [dict(_bul("s1", files=["a.py"]), files_touched_at={"a.py": NOW - 30}, updated_at=NOW - 30), _bul("s2")]
+    s = {x["session_id"]: x for x in B.compute(_snap(bulletins=bul))["sessions"]}
+    assert s["s1"]["files_touched_at"] == {"a.py": NOW - 30} and s["s1"]["updated_at"] == NOW - 30
+    assert s["s2"]["files_touched_at"] == {} and s["s2"]["updated_at"] is None
+    assert s["s1"]["files_touched"] == ["a.py"]                             # la liste, elle, ne change pas de forme
+
+
+def test_le_tableau_DECLARE_que_les_fichiers_en_vol_ne_voient_que_les_outils_d_edition_jamais_un_script():
+    """Défaut 4 (2026-09-24) : `files_touched` n'est alimenté que par le hook des outils d'édition ; une session
+    qui venait de réécrire le backlog PAR SCRIPT n'apparaissait pas. La cécité est DITE partout où le tableau
+    présente ces fichiers — et elle n'est pas un AVEUGLE SUR (une limite déclarée n'est pas une source absente)."""
+    b = B.compute(_snap(bulletins=[_bul("s1", files=["a.py"]), _bul("s2")]))
+    for rendu in (B.render_md(b), B.summary(b)):
+        assert B.CECITE_FICHIERS in rendu
+    assert "script" in B.CECITE_FICHIERS and "Bash" in B.CECITE_FICHIERS and "Edit" in B.CECITE_FICHIERS
+    assert b["aveugle"] == []
 
 
 def test_une_session_SANS_BULLETIN_est_un_AVEUGLEMENT_nomme_pas_une_session_calme():
@@ -258,6 +304,14 @@ def test_render_et_summary_portent_les_alertes_et_la_charge():
     assert "A1" in md and "agagi-11" in md and "charge connue" in md.lower()
     s = B.summary(b)
     assert len(s.splitlines()) <= 25 and "A1" in s
+
+
+def test_summary_publie_l_AGE_en_tete_et_dit_INCONNU_plutot_que_se_taire():
+    """Défaut 1 (2026-09-24) : un résumé en cache sans âge fait passer du périmé pour du courant."""
+    b = B.compute(_snap())
+    tete = B.summary(b, age_s=600, source_age="generated_at").splitlines()[0]
+    assert "âge 10 min (generated_at)" in tete and "périmé au-delà de 2.0 h" in tete
+    assert "âge INCONNU" in B.summary(b).splitlines()[0]
 
 
 def test_main_ecrit_BOARD_json_et_md_sous_pm_dir(tmp_path, monkeypatch):

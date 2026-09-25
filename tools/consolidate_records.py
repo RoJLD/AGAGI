@@ -43,7 +43,9 @@ def _empty_record(file: str) -> dict:
             "supersedes_mechanism_of": [],
             "url": None, "method": None, "lib": None, "maturity": None,
             "requires_ref": False,
-            "verdict": None, "file": file, "linked": False}
+            "verdict": None,
+            "review": None,                 # chemin docs/reviews/<date>-<slug>.md (spec PM 2026-09-16 §3.5)
+            "file": file, "linked": False}
 
 
 def parse_record(path: str) -> dict | None:

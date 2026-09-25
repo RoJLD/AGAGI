@@ -28,8 +28,8 @@ Quatre questions, dont deux ont des assertions exécutables :
 
 **Inventaire au 2026-09-01 : 105 détectés, 104 calibrés, 1 déclaré non-instrument, ZÉRO dette.**
 **État COURANT, recomputé et jamais recopié :**
-**240 détectés** <!-- count:instruments_detectes=240 -->
-· **232 calibrés** <!-- count:instruments_calibres=232 -->
+**250 détectés** <!-- count:instruments_detectes=250 -->
+· **242 calibrés** <!-- count:instruments_calibres=242 -->
 · **2 non calibrés** <!-- count:instruments_non_calibres=2 -->
 — la famille `run_*` (72 fonctions) est entrée le 2026-09-06 sans créer de dette. *(Les chiffres datés ci-dessus sont HISTORIQUES : ils restent vrais
 et ne sont donc pas balisés.)*
@@ -224,7 +224,125 @@ certification ne porte que sur le refus d'un argument dégénéré. Les 31 muett
 disque, comme la porte 4 durcie. ⚠️ Elle s'est prise en défaut elle-même (**E4 occ. 9**) : un appel sous
 `pytest.raises` était compté comme une ATTEINTE du corps, donc six déclarations passaient pour calibrées par leur seul
 test de garde — la baseline avait été gelée sur cette mesure avant d'être confrontée à un cas connu).
-**19 gardes** <!-- count:portes_hook=19 --> sont branchées sur le hook pre-commit
+`check_regime_claims.py` (porte 19 — **RÉGIME CITÉ ↔ RÉGIME MESURÉ, E8 occ. 4** : une valeur de
+paramètre citée par un record doit être RETROUVÉE, MESURÉE, dans un `results/*.json` SUIVI par git —
+dans un bloc `regime` (à toute profondeur, pas seulement racine/1ʳᵉ cellule) OU ailleurs dans le
+fichier (`CONCORDE_HORS_REGIME` : une INFORMATION, pas une faute — cas fondateur trouvé en revue,
+S2-CREDIT-ABLATION cite `reward_scale = 0` publié par le runner dans
+`arms/<bras>/<seed>/learning/reward_scale`, jamais dans `regime` ; confondre « hors du bloc regime »
+et « jamais mesuré » fabrique un DISCORDE, la classe E8 elle-même appliquée à l'instrument qui la
+traque. ⚠️ Le VOISIN S2-REWARD-ABLATION, lui, cite `reward_scale = 0` comme hypothèse de PRÉDICTION,
+jamais mesurée nulle part — publié = `1.0` dans les trois results cités : reste `DISCORDE`, un vrai
+candidat E8, pas un artefact de l'instrument). Une rectification qui cite la vraie ET la fausse
+valeur CONCORDE (c'est la vraie qui compte). Baseline gelée PAR STATUT (pas par nom) : un légataire
+ne bloque que s'il RÉGRESSE vers un statut pire qu'au gel — `SANS_RESULTS`/`SANS_REGIME` à rang égal,
+`DISCORDE` toujours pire. Mesuré le 2026-09-23 (après correctif) : **74 records citent un paramètre,
+10 concordent** (5 `CONCORDE` + 5 `CONCORDE_HORS_REGIME`, le double d'avant le correctif) — 64 gelés
+comme dette légataire, dont 8 `DISCORDE`, **7 vérifiés un par un contre le JSON** (ex. le record 107
+cite `max_ticks = 80` quand le run mesuré porte `max_ticks = 12` ; le 8ᵉ, EDR-RETAIN-COMPOSE-LR, est
+possiblement une LIMITE du parseur de cellule — `_CELL_LR` ne reconnaît pas `lr_0.02`, seulement
+`lr=0.02|...` — découverte en vérifiant, non élargie dans cette passe). Un record
+illisible BLOQUE et n'est jamais gelable par `--update-baseline` ; un scan sous 50 records refuse
+d'écrire la baseline (arbre vide/partiel désarmerait la porte en silence) ; mutation tuée par son
+témoin).
+
+`check_evidence_provenance.py` (porte 20, 2026-09-23, corrigée en revue architecte le jour même — 7
+Important) — classe E27 : mesuré DEUX FOIS sur des clones/worktrees neufs, un record citant un
+`results/*.json` absent du dépôt (ou présent seulement sur le disque d'une session) n'est rouvrable par
+personne d'autre. Réutilise `cited_results`/`_developper` de `check_regime_claims.py` (porte 19) — donc
+le hook re-déclenche aussi la porte 20 quand CE module change (E4 occ. 5, trouvé en revue). Un chemin
+cité doit EXISTER sur le disque ET être SUIVI par git (INDEX), ou être publié par son hash (`sha256
+<hex>` dans les 120 caractères après la citation, bornée à la citation SUIVANTE) — QUATRE causes
+distinctes, jamais fondues : `absent` (nulle part), `non_suivi` (existe, git l'ignore), `glob_vide` (un
+motif à joker `results/x_*.json` qui ne développe vers AUCUN fichier), `par_hash` (une DÉCLARATION GELÉE
+et auditable, jamais une vérification — le hash n'est confronté à rien d'autre que le texte). Rang
+`par_hash` < `non_suivi` < `absent`/`glob_vide` ; baseline gelée PAR (record, chemin, cause), y compris
+`par_hash` — sa disparition (le hash retiré sans que le fichier devienne suivi) est une RÉGRESSION comme
+les trois autres. « Combien de chemins cités ? » n'a pas une réponse : motifs à accolade/joker
+développent vers plusieurs chemins — trois comptes distincts publiés (motifs / chemins distincts /
+paires record×chemin), jamais fondus (E8 appliqué au RAPPORT lui-même). Mesuré le 2026-09-23
+(`--report`) : 300 records, **76 motifs cités, 78 chemins distincts (97 paires record×chemin)**, 18
+absents, 0 non suivis, 0 glob vides, 0 publiés par hash, contre HEAD 18 chemins absents du dernier commit
+— 18 gelés comme dette légataire dans 17 records. Un record illisible BLOQUE et n'est jamais gelable ;
+un scan sous 50 records refuse d'écrire la baseline (contenu disque vérifié inchangé) ; mutation tuée.
+⚠️ **Défaut le plus grave trouvé en revue** : `_tracked` (l'oracle git réel) n'avait AUCUN témoin qui
+l'exerce — les cinq tests `non_suivi` du premier tir injectaient tous `suivi=lambda: False`, donc
+`_tracked` pouvait devenir `return True` sans qu'un seul test ne rougisse, et la porte n'avait jamais
+tiré sur données réelles (0 `non_suivi` mesuré, dans un arbre où pourtant aucun `results/*.json`
+n'était alors non suivi non plus — coïncidence, pas preuve). Corrigé par un dépôt git JETABLE réel
+(`git init -b main`, un fichier committé, un fichier stagé-seul, un fichier jamais ajouté), SANS AUCUN
+monkeypatch de `_tracked`/`_dans_head`. `_dans_head` (nouvel oracle, `git cat-file -e HEAD:<chemin>`)
+distingue « suivi dans l'INDEX » de « présent dans HEAD » — un fichier stagé dans LE MÊME commit est
+suivi mais pas encore dans HEAD ; publié en `--report` uniquement, ne bloque rien.
+⚠️ Ce correctif lui-même a produit une RÉGRESSION, trouvée en re-revue le jour même (cf. la règle à deux
+faces `GIT_INDEX_FILE`/`_env_pour` dans la section Environnement) : isoler l'environnement git de
+`_tracked` INCONDITIONNELLEMENT cassait le cas où `root` EST le dépôt courant pendant le commit —
+`_env_pour(root)` distingue désormais dépôt courant (hérite) de dépôt tiers (isole).
+
+`check_hook_deployment.py` (porte 22, P2.108 — **la copie DÉPLOYÉE contre la version RELUE**. `.git/hooks/`
+n'est pas versionné : les crochets y sont recopiés à la main, et entre les deux rien ne tenait. ⚠️
+`core.hooksPath` vaut ici un chemin **ABSOLU** vers le `.git/hooks` du dépôt principal, donc **tous les
+worktrees exécutent le MÊME fichier** : y écrire arme la flotte entière. Les deux sens sont des occurrences
+RÉELLES et ils n'ont pas le même remède, donc pas la même sanction — une copie **en retard** (un `cp` oublié,
+contenu déjà committé) CRIE avec la commande exacte sans bloquer, parce que le commit qui met à jour un crochet
+est dans cet état par construction ; une copie **en avance** (du code qui n'existe dans AUCUN commit, écrit dans
+le crochet commun par un worktree — mesuré par le PM, il bloquait chaque session qui committait un record)
+REFUSE. La référence est l'**INDEX**, jamais le disque : l'arbre est partagé. ⚠️ Elle ne peut PAS voir sa
+propre absence — elle est lancée PAR le pre-commit déployé ; celle de tout AUTRE crochet, si, et c'est elle qui
+compte, un `commit-msg` manquant rouvrant le trou de la fusion).
+
+`check_e19_optimizer_sweep.py` (porte 23, 2026-09-23, CORRIGÉE en revue le jour même ; numérotée 22 jusqu'au 2026-09-24, renumérotée avant fusion parce que 22 était déjà `check_hook_deployment` dans la branche partagée — les commits de sa livraison disent « porte 22 ») — classe **E19** :
+un runner SCELLÉ dont la règle compare des bras SOUS GRADIENT (grille de `lr`, bras à pas distincts,
+`clause_E19`, `sender_lr`) doit appeler `assert_verdict_invariant_to_optimizer`, sinon son nul mesure
+le RÉGLAGE — cas fondateur, EDR-RETAIN-COMPOSE rétracté en entier parce que son verdict s'inversait au
+seul `lr` (0,173 → 0,923). Même périmètre AST que la porte 11
+(`tools.check_control_family._sources`/`_HORS_PERIMETRE`, réutilisés tels quels). ⚠️ **Trouvé en
+écrivant cette porte** : le périmètre naïf « un runner qui appelle `verify(...)` » RATE ENTIÈREMENT le
+seul appelant réel de la garde, `tools/learner_calibration.py:120` — ses bras (`ARMS`, `lr=0.0`/
+`lr=0.004`) sont des littéraux Python, jamais une règle JSON scellée. Corrigé : un module qui appelle
+la garde DIRECTEMENT entre dans le périmètre même sans `verify()` — la garde EST le balayage, l'appeler
+EST la preuve.
+⚠️ **Défaut trouvé en REVUE le 2026-09-23, corrigé dans la même passe** : `sous_gradient` rendait
+« aucune grille de pas » — une affirmation NÉGATIVE DE FOND — pour toute règle dont le contenu ne
+collait pas à ses formes structurées, y compris des règles dont la PROSE SCELLÉE nomme `lr`/`E19` en
+toutes lettres. Sur les 68 règles scellées, 17 mentionnaient le pas sans qu'aucune forme ne tire, dont
+AU MOINS TROIS runners VIVANTS sortant `couvert` en silence : `tools/evo_runs/s2_credit_ablation.py`
+(bras `(b_lr) lr=…`, clause « 6a » nommant `E19` explicitement), `s2_credit_ablation_2.py`,
+`s2_reward_ablation.py`. Trois corrections : (1) un troisième état **`indetermine`** — une règle dont
+le JSON sérialisé, clés structurées RETIRÉES, mentionne encore `lr`/`learning_rate`/« pas
+d'apprentissage »/`E19` (insensible casse/accents) sans qu'aucune forme reconnue ne tire — rapportée,
+gelée, JAMAIS lue comme « pas sous gradient » ; (2) `cellule.lr = null` (LEGACY-NAN-GUARD-R1/WM-GUARD-
+R1, un pas non littéral mais DÉCLARÉ) et les clés `cellule.lr_*` (préfixe, ex. `lr_importe`/
+`lr_nouveau`, TD-STEP-PILOT-R1) rejoignent les formes RECONNUES (positives) ; (3) un `illisible`
+(`SyntaxError`) qui mentionne `verify(`/la garde dans sa source BRUTE est RAPPORTÉ, jamais avalé —
+pré-filtre textuel pour ne pas polluer la baseline avec tout fichier cassé du dépôt (leçon porte 17).
+Rang final `couvert < illisible < non_resolu < regle_absente < indetermine < nu` (jamais fondus — SEPT
+compteurs de tête : scellés / sous gradient / nus / indéterminés / non résolus / règle absente /
+illisibles, en plus des appelants et des gelés), et un chemin qui cumule plusieurs catégories prend
+TOUJOURS la PIRE (`classer`, jamais la première trouvée). ⚠️ **Minor le plus important de la revue** :
+la baseline gèle désormais aussi `appelants_garde`, la LISTE des chemins qui appellent RÉELLEMENT la
+garde — sans ce gel dédié, le seul contrôle positif de la porte (`learner_calibration.py`) pouvait
+perdre son appel sans que rien ne le refuse (il ne référence aucune règle JSON, donc `sous_gradient`
+serait simplement retombé à `False` et le chemin aurait disparu du périmètre en silence) ; en PERDRE un
+BLOQUE. Autres minors : un `--only` donné SANS aucun fichier est REFUSÉ (filtrait tout, vert trompeur) ;
+le mode cliquet NOMME désormais les `non_resolu`/`regle_absente`/`indetermine` NOUVEAUX hors baseline,
+pas seulement le compteur agrégé. `--update-baseline` refuse d'écrire sous 10 runners scellés trouvés
+(même garde que la porte 20 ; contre-exemple gelé : la baseline sur disque reste OCTET POUR OCTET
+inchangée). Mesuré le 2026-09-23 (`--report`, après correction) : **29 runners scellés, 9 sous gradient
+(PLANCHER), 8 nus** (PLANCHER — familles LEGACY-LR-CURVE, LEGACY-CAUSE-DE-MORT, BILINEAR-ALIGNED/-SHAM,
+TD-STEP-PILOT, et désormais LEGACY-NAN-GUARD/WM-GUARD via `cellule.lr=null`), **4 indéterminés**
+(S2-CREDIT-ABLATION, -2, S2-CREDIT-RETENTION, S2-REWARD-ABLATION), **4 non résolus** (argv : les deux
+`lock001_*`, `lang_memory_edge_run.py`, `s2_blind_champion_bis.py`), **0 règle absente, 0 illisible, 1
+seul appelant réel de la garde** — `tools/learner_calibration.py`, classé `couvert`, le CONTRÔLE
+POSITIF sur données réelles de cette porte, désormais GELÉ nommément. ⚠️ Les comptes « sous gradient »/
+« nus » restent un PLANCHER : la détection PAR FORME ne lit pas le français, une règle encore invisible
+aujourd'hui peut exister. Mutation tuée.
+
+`check_roles_registry.py` (porte 21, plan 1 PM, 2026-09-23 — toute ligne de `docs/roadmap/ROLES.md` porte ses cinq
+colonnes, un rôle ne naît que d'une récidive MESURÉE avec instrument, contrôle positif et critère de dissolution ;
+seul paragraphe absent de cette liste jusqu'à la fusion du 2026-09-25, alors que le compte ci-dessous l'incluait).
+
+**23 gardes** <!-- count:portes_hook=23 --> sont branchées sur le hook pre-commit
 (`tools/hooks/pre-commit`) — compte RECOMPUTÉ depuis le hook lui-même : la phrase « 5 cliquets, tous
 branchés » qui vivait ici était fausse.
 ⚠️ **La baseline d'un cliquet doit elle-même déclencher le hook** — sinon l'élargir et la committer seule
@@ -255,6 +373,8 @@ porte 15 lance un `pytest` par mutation) ; noter la charge au départ de chaque 
 se mesurant par la réplication d'une cellule bit-identique ; en cas de coupe, une REPRISE déclarée à unité
 re-mesurée machine libre et même budget scellé (jamais relever la marge) ; des abandons qui persistent
 sous marge explicite se GRAVENT comme E12, ils ne se relancent pas.
+⚠️ **Et la charge ne fausse pas que les COÛTS : elle fausse les GARDE-TEMPS, et le faux rouge qu'elle produit est indiscernable d'un vrai blocage.** Mesuré le 2026-09-24 : `tests/sandbox/test_hook_on_merge.py` a dépassé le garde-temps de 300 s sur UN cas ; reproduit hors pytest, le même dispositif rend la main en **4,1 s**. Dans le dépôt jouet, un `git commit` trivial prenait **6 à 10 s** au lieu de moins d'une seconde, CPU à 100 % et **ZÉRO processus python du projet** (`doctor` : 0 bail, 0 processus) — la charge venait d'ailleurs. Quarante minutes perdues à chercher une boucle infinie qui n'existait pas. ⚠️ **La cause est INFÉRÉE, pas établie** : le blocage ne s'est PAS reproduit à la passe suivante (21 cas comportementaux verts en 478 s, CE cas compris, garde-temps 600 s), et l'expérience contrôlée — même cas, charge mesurée à deux niveaux — n'a pas été faite. Un second mécanisme produit exactement le même symptôme (paragraphe suivant) ; il est écarté ICI par la pile — l'appel bloqué était `sh sonde.sh`, pas pytest. Règle : devant un test qui dépasse son garde-temps, **reproduire le dispositif HORS du harnais avant de diagnostiquer une boucle**, **lire la pile** du garde-temps pour savoir QUEL appel attend ; et noter la charge, `doctor` seul ne la voit pas puisqu'il ne compte que les processus du projet.
+⚠️ **Et un faux blocage sous pytest peut venir de pytest lui-même.** Mesuré le 2026-09-24 par une session voisine (`agagi-e4`) : un témoin qui lance pytest sur un fichier placé dans `tmp_path` a bloqué **plus de 180 s** ; pile `faulthandler` : `Session.collect` crée un nœud `Dir` pour chaque entrée en remontant vers la racine, et `C:\Users\robla\AppData\Local\Temp` en compte **30 407**. Un `pytest.ini` posé à côté du fichier ramène la collecte à **0,25 s**. Même symptôme que la charge — bloqué sous pytest, rien hors pytest — et cause entièrement différente. Règle : tout test qui lance pytest sur un fichier de `tmp_path` pose un `pytest.ini` à côté ; et devant un dépassement, **distinguer les deux causes avant d'en retenir une** — la pile dit si le blocage est dans la collecte ou dans le dispositif. Deux causes, un symptôme, et la pile qui les sépare.
 
 ## Records
 Nouveau record → frontmatter `gate:` / `tests:[SDR-Gx]` / `adopts:` ou `foundational`, sinon
@@ -320,6 +440,30 @@ explicite, jamais le processus courant ni ses ancêtres, jamais un bail dont le 
   des cibles `grep_*` depuis l'INDEX — elle juge exactement ce qui sera committé. Hors commit, elle lit le
   disque (ce qu'un auteur veut voir en écrivant). La règle « même commit » reste : c'est elle qui rend un
   commit vert par lui-même et un clone cohérent.
+- ⚠️ **`GIT_INDEX_FILE` (même mécanisme que ci-dessus) fuit aussi vers un dépôt git IMBRIQUÉ créé par un
+  test — et la règle n'est PAS « retirer `GIT_*` avant tout sous-processus git », elle est À DEUX FACES.**
+  Mesuré le 2026-09-23 (porte 20, revue architecte) : un test qui construit un VRAI dépôt git jetable
+  (`git init` sous `tmp_path`, pour exercer un oracle git réel plutôt qu'une constante injectée) et
+  l'invoque en SOUS-PROCESSUS hérite l'environnement du processus appelant — et `git commit --
+  <pathspec>` fixe `GIT_INDEX_FILE` pour ses hooks. Le hook lance `check_gate_mutation.py`, qui lance
+  `pytest` en sous-processus, qui lance le test, qui lance `git init`/`git add`/`git commit` sur le dépôt
+  JETABLE : tous héritent `GIT_INDEX_FILE`, pointant vers l'index TEMPORAIRE du commit EXTÉRIEUR, pas
+  celui du dépôt jetable. Symptôme observé au premier essai de commit : deux tests rougissent sans
+  aucune mutation, dont un `git commit` qui échoue avec « invalid object … for docs/EDR/PAD-00.md ».
+  Reproduit hors commit en fixant `GIT_INDEX_FILE` à un chemin bidon avant `pytest`.
+  **Premier correctif, TROP LARGE, retiré le jour même** : isoler `GIT_*` INCONDITIONNELLEMENT (même
+  quand la commande vise le dépôt COURANT pendant le commit en cours) a cassé la leçon du point
+  précédent — la porte juge ce qui SERA committé, pas l'index AMBIANT, or c'est justement
+  `GIT_INDEX_FILE` (hérité) qui porte l'index TEMPORAIRE du commit partiel. Isoler dessus fait retomber
+  sur `.git/index` ambiant, qui peut porter le travail STAGÉ-MAIS-PAS-COMMITTÉ d'une AUTRE session sur
+  l'arbre PARTAGÉ — expérience reproduite par le re-reviewer : session B stage `results/y.json` sans
+  committer ; session A commite `docs/EDR/X.md` qui le cite ; avec l'index ambiant, `y.json` ressort
+  SUIVI à tort (FAUX PASS silencieux). **Règle correcte, à deux faces** : un sous-processus `git` qui
+  vise un dépôt AUTRE que le dépôt courant (un dépôt de test jetable, un clone, un submodule…) doit
+  ISOLER `GIT_*` ; un sous-processus qui vise le dépôt COURANT pendant un hook doit au contraire les
+  HÉRITER, sinon il juge un autre index que celui du commit en cours. Implémenté par
+  `tools/check_evidence_provenance.py::_env_pour(root)` — compare `root` au dépôt courant et rend `None`
+  (hérite) ou `_env_isole()` (isole), décision testée DIRECTEMENT (sans mocker `subprocess`).
 - Ne jamais committer sans demande explicite.
 - ⚠️ **Un `grep` de vérification sur du Markdown doit viser un motif SANS mise en forme** (un mot nu) : `grep "empreinte TARDIVE"` ne trouve pas `empreinte **TARDIVE**`. Et **une absence de correspondance n'est jamais une preuve d'absence** tant que le motif n'a pas été validé sur un cas POSITIF connu — mesuré le 2026-09-07 : trois greps faux m'ont fait graver une « forme d'erreur inédite » qui n'existait pas, rétractée le jour même. C'est la faute que le dépôt traque chez ses sondes (absence → affirmation), commise sur l'outil de vérification lui-même.
 - ⚠️ **Pas de backticks dans AUCUNE chaîne passée au shell** — `git commit -m`, `python -c`,

@@ -2,5 +2,21 @@
   "uncalibrated": [
     "learn",
     "learn_episode_bptt"
+  ],
+  "declarations_ignorees": [
+    "_cause_de_mort",
+    "additive_argmax_exact_ceiling",
+    "plain_readout_ceiling",
+    "src/agents/backend_torch.py::_td_update",
+    "tools/evo_mech_dv.py::logit_median_at_outputs",
+    "tools/pm/pilotage.py::compute_pilotage",
+    "tools/pm/pilotage.py::parse_roadmap",
+    "tools/refutateur_temoins.py::juge_est_calibre",
+    "tools/refutateur_temoins.py::plancher",
+    "tools/refutateur_temoins.py::recevabilite",
+    "tools/s2_demand_ablation.py::GrabForcedMamba",
+    "tools/s2_demand_ablation.py::GrabOffMamba",
+    "tools/s2_demand_ablation.py::NullGrabOffMamba",
+    "verify_plain_ceiling_witness"
   ]
 }
