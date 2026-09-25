@@ -944,11 +944,11 @@ CLASSE est établie, le CAS ne l'est pas.
 sont dans l'occurrence E5 du registre : le témoin `tests/sandbox/test_record_graph_completeness.py`, dans sa
 première version jamais committée sur la branche `chantier/pm-portes`, lancé par le hook d'un commit AVORTÉ
 (13:29:39 → 13:31:37) sous le `GIT_DIR` du worktree. La réserve « ne pas clore sans avoir cherché le site »
-est donc levée. **L'entrée reste OUVERTE**, pour deux raisons mesurées : (a) le correctif du TRANSPORT — la
+est donc levée. **L'entrée reste OUVERTE**, pour UNE raison mesurée — (a) est LEVÉE le 2026-09-25 : le correctif du TRANSPORT — la
 purge de la famille GIT_* dans le lanceur de témoins de la porte 15 — existe sur la branche PM, avec son
-utilitaire `f6bb56a0:tools/_git_env.py` et un contre-exemple à deux issues ancré sur l'ÉTAT, mais il n'est PAS
-fusionné ici, où `tools/check_gate_mutation.py` construit toujours son environnement depuis `os.environ` sans
-purge ; (b) les trois sites non protégés restent à fermer.
+utilitaire `f6bb56a0:tools/_git_env.py` et un contre-exemple à deux issues ancré sur l'ÉTAT, et il est désormais
+FUSIONNÉ ici par `8988ac8b` — `tools/check_gate_mutation.py` porte `env_isole` et `tools/_git_env.py` est suivi ;
+il ne l'était pas quand cette entrée a été écrite, la veille ; (b) les trois sites non protégés restent à fermer.
 **P2.111 — rang 8 — OUVERTE (2026-09-24, mesuré contre le motif RÉEL de la porte) — La porte 4 ne refuse pas
 la forme `sha:chemin` parce qu'un DEUX-POINTS casse sa classe de caractères, pas parce qu'elle l'a vérifiée :
 une échappatoire SILENCIEUSE à la garde des chemins non suivis.**
