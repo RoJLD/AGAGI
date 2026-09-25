@@ -1,0 +1,374 @@
+{
+  "config": {
+    "seeds": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "eras": 8,
+    "num_agents": 30,
+    "max_ticks": 300,
+    "frac_topk": 0.25
+  },
+  "per_seed": [
+    {
+      "n": 30,
+      "n_crafters": 2,
+      "n_altar_solvers": 0,
+      "term_mass_share": {
+        "age": 0.018768286591022622,
+        "preys_eaten": 0.5173767216156426,
+        "altars_solved": 0.0,
+        "spears_crafted": 0.32113037893384716,
+        "mammoth_kills": 0.14272461285948762,
+        "ref_distinction": 0.0
+      },
+      "variants": {
+        "drop_altars": {
+          "kendall_tau": 1.0,
+          "topk_jaccard": 1.0
+        },
+        "drop_spears": {
+          "kendall_tau": 0.9858490566037735,
+          "topk_jaccard": 1.0
+        },
+        "drop_both": {
+          "kendall_tau": 0.9858490566037735,
+          "topk_jaccard": 1.0
+        }
+      }
+    },
+    {
+      "n": 30,
+      "n_crafters": 0,
+      "n_altar_solvers": 0,
+      "term_mass_share": {
+        "age": 0.013763478565792934,
+        "preys_eaten": 0.5479091785745595,
+        "altars_solved": 0.0,
+        "spears_crafted": 0.0,
+        "mammoth_kills": 0.4383273428596476,
+        "ref_distinction": 0.0
+      },
+      "variants": {
+        "drop_altars": {
+          "kendall_tau": 1.0,
+          "topk_jaccard": 1.0
+        },
+        "drop_spears": {
+          "kendall_tau": 1.0,
+          "topk_jaccard": 1.0
+        },
+        "drop_both": {
+          "kendall_tau": 1.0,
+          "topk_jaccard": 1.0
+        }
+      }
+    },
+    {
+      "n": 30,
+      "n_crafters": 2,
+      "n_altar_solvers": 0,
+      "term_mass_share": {
+        "age": 0.08146277053791837,
+        "preys_eaten": 0.4018600378896607,
+        "altars_solved": 0.0,
+        "spears_crafted": 0.1722257305241403,
+        "mammoth_kills": 0.3444514610482806,
+        "ref_distinction": 0.0
+      },
+      "variants": {
+        "drop_altars": {
+          "kendall_tau": 1.0,
+          "topk_jaccard": 1.0
+        },
+        "drop_spears": {
+          "kendall_tau": 0.9861431870669746,
+          "topk_jaccard": 1.0
+        },
+        "drop_both": {
+          "kendall_tau": 0.9861431870669746,
+          "topk_jaccard": 1.0
+        }
+      }
+    },
+    {
+      "n": 30,
+      "n_crafters": 0,
+      "n_altar_solvers": 0,
+      "term_mass_share": {
+        "age": 0.01579528541936723,
+        "preys_eaten": 0.6001248259638005,
+        "altars_solved": 0.0,
+        "spears_crafted": 0.0,
+        "mammoth_kills": 0.3840798886168323,
+        "ref_distinction": 0.0
+      },
+      "variants": {
+        "drop_altars": {
+          "kendall_tau": 1.0,
+          "topk_jaccard": 1.0
+        },
+        "drop_spears": {
+          "kendall_tau": 1.0,
+          "topk_jaccard": 1.0
+        },
+        "drop_both": {
+          "kendall_tau": 1.0,
+          "topk_jaccard": 1.0
+        }
+      }
+    },
+    {
+      "n": 30,
+      "n_crafters": 0,
+      "n_altar_solvers": 0,
+      "term_mass_share": {
+        "age": 0.022275123278354025,
+        "preys_eaten": 0.6376466587315083,
+        "altars_solved": 0.0,
+        "spears_crafted": 0.0,
+        "mammoth_kills": 0.3400782179901377,
+        "ref_distinction": 0.0
+      },
+      "variants": {
+        "drop_altars": {
+          "kendall_tau": 1.0,
+          "topk_jaccard": 1.0
+        },
+        "drop_spears": {
+          "kendall_tau": 1.0,
+          "topk_jaccard": 1.0
+        },
+        "drop_both": {
+          "kendall_tau": 1.0,
+          "topk_jaccard": 1.0
+        }
+      }
+    },
+    {
+      "n": 30,
+      "n_crafters": 0,
+      "n_altar_solvers": 0,
+      "term_mass_share": {
+        "age": 0.0271450265755505,
+        "preys_eaten": 0.593204252088079,
+        "altars_solved": 0.0,
+        "spears_crafted": 0.0,
+        "mammoth_kills": 0.37965072133637057,
+        "ref_distinction": 0.0
+      },
+      "variants": {
+        "drop_altars": {
+          "kendall_tau": 1.0,
+          "topk_jaccard": 1.0
+        },
+        "drop_spears": {
+          "kendall_tau": 1.0,
+          "topk_jaccard": 1.0
+        },
+        "drop_both": {
+          "kendall_tau": 1.0,
+          "topk_jaccard": 1.0
+        }
+      }
+    },
+    {
+      "n": 30,
+      "n_crafters": 0,
+      "n_altar_solvers": 0,
+      "term_mass_share": {
+        "age": 0.01627140274380517,
+        "preys_eaten": 0.4519834095501436,
+        "altars_solved": 0.0,
+        "spears_crafted": 0.0,
+        "mammoth_kills": 0.5317451877060513,
+        "ref_distinction": 0.0
+      },
+      "variants": {
+        "drop_altars": {
+          "kendall_tau": 1.0,
+          "topk_jaccard": 1.0
+        },
+        "drop_spears": {
+          "kendall_tau": 1.0,
+          "topk_jaccard": 1.0
+        },
+        "drop_both": {
+          "kendall_tau": 1.0,
+          "topk_jaccard": 1.0
+        }
+      }
+    },
+    {
+      "n": 30,
+      "n_crafters": 0,
+      "n_altar_solvers": 0,
+      "term_mass_share": {
+        "age": 0.018493646037813827,
+        "preys_eaten": 0.4649240624031408,
+        "altars_solved": 0.0,
+        "spears_crafted": 0.0,
+        "mammoth_kills": 0.5165822915590453,
+        "ref_distinction": 0.0
+      },
+      "variants": {
+        "drop_altars": {
+          "kendall_tau": 1.0,
+          "topk_jaccard": 1.0
+        },
+        "drop_spears": {
+          "kendall_tau": 1.0,
+          "topk_jaccard": 1.0
+        },
+        "drop_both": {
+          "kendall_tau": 1.0,
+          "topk_jaccard": 1.0
+        }
+      }
+    },
+    {
+      "n": 30,
+      "n_crafters": 0,
+      "n_altar_solvers": 0,
+      "term_mass_share": {
+        "age": 0.021010618269448,
+        "preys_eaten": 0.3765343775886738,
+        "altars_solved": 0.0,
+        "spears_crafted": 0.0,
+        "mammoth_kills": 0.6024550041418781,
+        "ref_distinction": 0.0
+      },
+      "variants": {
+        "drop_altars": {
+          "kendall_tau": 1.0,
+          "topk_jaccard": 1.0
+        },
+        "drop_spears": {
+          "kendall_tau": 1.0,
+          "topk_jaccard": 1.0
+        },
+        "drop_both": {
+          "kendall_tau": 1.0,
+          "topk_jaccard": 1.0
+        }
+      }
+    },
+    {
+      "n": 30,
+      "n_crafters": 0,
+      "n_altar_solvers": 0,
+      "term_mass_share": {
+        "age": 0.0516786265960151,
+        "preys_eaten": 0.4790489412040748,
+        "altars_solved": 0.0,
+        "spears_crafted": 0.0,
+        "mammoth_kills": 0.46927243219991005,
+        "ref_distinction": 0.0
+      },
+      "variants": {
+        "drop_altars": {
+          "kendall_tau": 1.0,
+          "topk_jaccard": 1.0
+        },
+        "drop_spears": {
+          "kendall_tau": 1.0,
+          "topk_jaccard": 1.0
+        },
+        "drop_both": {
+          "kendall_tau": 1.0,
+          "topk_jaccard": 1.0
+        }
+      }
+    },
+    {
+      "n": 30,
+      "n_crafters": 1,
+      "n_altar_solvers": 0,
+      "term_mass_share": {
+        "age": 0.011287797643569252,
+        "preys_eaten": 0.4668918733349812,
+        "altars_solved": 0.0,
+        "spears_crafted": 0.08239268352970257,
+        "mammoth_kills": 0.439427645491747,
+        "ref_distinction": 0.0
+      },
+      "variants": {
+        "drop_altars": {
+          "kendall_tau": 1.0,
+          "topk_jaccard": 1.0
+        },
+        "drop_spears": {
+          "kendall_tau": 0.9114857374572437,
+          "topk_jaccard": 0.7777777777777778
+        },
+        "drop_both": {
+          "kendall_tau": 0.9114857374572437,
+          "topk_jaccard": 0.7777777777777778
+        }
+      }
+    },
+    {
+      "n": 30,
+      "n_crafters": 0,
+      "n_altar_solvers": 0,
+      "term_mass_share": {
+        "age": 0.0093810421788843,
+        "preys_eaten": 0.32224954049602555,
+        "altars_solved": 0.0,
+        "spears_crafted": 0.0,
+        "mammoth_kills": 0.66836941732509,
+        "ref_distinction": 0.0
+      },
+      "variants": {
+        "drop_altars": {
+          "kendall_tau": 1.0,
+          "topk_jaccard": 1.0
+        },
+        "drop_spears": {
+          "kendall_tau": 1.0,
+          "topk_jaccard": 1.0
+        },
+        "drop_both": {
+          "kendall_tau": 1.0,
+          "topk_jaccard": 1.0
+        }
+      }
+    }
+  ],
+  "per_variant": {
+    "drop_altars": {
+      "median_jaccard": 1.0,
+      "median_tau": 1.0,
+      "n_changed": 0,
+      "effect": 0.0,
+      "verdict": "METRIQUE_INERTE"
+    },
+    "drop_spears": {
+      "median_jaccard": 1.0,
+      "median_tau": 1.0,
+      "n_changed": 1,
+      "effect": 0.0,
+      "verdict": "METRIQUE_INERTE"
+    },
+    "drop_both": {
+      "median_jaccard": 1.0,
+      "median_tau": 1.0,
+      "n_changed": 1,
+      "effect": 0.0,
+      "verdict": "METRIQUE_INERTE"
+    }
+  },
+  "global_verdict": "METRIQUE_INERTE",
+  "repro_ok": true,
+  "hof_decomposition": null
+}
