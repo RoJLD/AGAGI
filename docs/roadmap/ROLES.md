@@ -67,3 +67,19 @@ ont coûté une collision chacune le même jour.
 **Ce qui le ferait renaître** (critère publié avec le refus, sans quoi ce registre ne serait pas un
 instrument) : l'allocateur ET le crochet livrés, et des collisions qui continuent — la cause ne serait
 alors pas structurelle, et le candidat reviendrait.
+
+**Note 2 — Clôture du 2026-09-25, sur ordre de robla (« Go et terminons, clôturons tout cela »).**
+
+Deux des six points remis à robla par la passation du PM n'étaient pas des actes mais des décisions ;
+elles sont gravées ici pour qu'aucune session suivante ne rouvre l'enquête.
+
+1. **Écriture dans `.git/config` le 2026-09-24 à 13:42:31** (`core.bare` true → false) : au moins trois
+   sessions s'étaient vu REFUSER ce droit par le classificateur ; quelqu'un a écrit ; personne ne sait qui.
+   L'hypothèse « identité posée par aa » est RÉFUTÉE (identité déjà correcte à 13:32, trois commits
+   `commit-tree` sans `-c`). **Close, NON ATTRIBUÉE.** La garde est structurelle — `tests/conftest.py`
+   (fixture autouse) et `tools/_git_env.py` (isolation de la famille `GIT_*`) — et le registre porte la
+   classe ; une enquête de plus n'ajouterait ni garde ni fait.
+2. **Le tick du PM** : la conception prévoit UNE session dédiée en `/loop` ; aucune ne le tient. Depuis le
+   2026-09-24 le tableau se déclare PÉRIMÉ au-delà du TTL du bail au lieu de se présenter comme courant
+   (défaut 1). L'allocation est proposée dans le prompt de reprise remis à robla ; d'ici là,
+   `python -m tools.pm.board` à la main, et aucune alerte du tableau ne vaut mesure.
