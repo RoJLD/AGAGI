@@ -1431,7 +1431,7 @@ L'effet sur les verdicts publiés est INCONNU : rien n'est retiré. *Rang : deva
 Dépend de : P4.18 (ne pas changer le harnais sous un run scellé qui le rejoue).
 <!-- closes_when:grep_absent=tools/evo_runs/s2_credit_retention.py::e\.agents\.append\(a\) -->
 
-**P2.133 — rang 6 — OUVERTE (2026-09-26, vue en passant par la session SCIENCE-HARNAIS pendant la revue v6 de
+**P2.133 — rang 6 — ✅ CLOSE le 2026-09-26 (ouverte le même jour, vue en passant par la session SCIENCE-HARNAIS pendant la revue v6 de
 S2-BASSIN-FRAGILITY) — Le Refutateur sort encore NUL sur une revue saine : le vérificateur a rendu `refus = "aucun"`, et
 le correctif `bfaea9c6` ne normalisait que des guillemets et des espaces. Récidive d'un nul de TRANSPORT déguisé en nul de
 FOND (E4).**
@@ -1444,6 +1444,24 @@ même run (les huit agents rejoués depuis le cache, seule la revue tourne). **3
 ne se normalise pas par liste — le schéma `VERIFICATION` doit porter un booléen `refuse` et une `raison` séparée, le
 champ texte n'étant jamais lu comme décision ; témoin sous node sur « aucun » ET sur un vrai refus (« juge non
 calibré »), comme celui de `bfaea9c6`. *Coût : agent < 1 h ; calcul 0.* Dépend de : rien.
+✅ **FERMÉE le 2026-09-26 (agagi-32, worker Dette ; attribuée par Master 2)** — correctif STRUCTUREL, pas une liste
+noire : le schéma `VERIFICATION` de `.claude/workflows/refutateur.js` EXIGE un booléen `refuse` et porte un motif
+séparé `raison`, lu seulement si `refuse` vaut true (`lireRefus`) ; `normaliserRefus` a disparu (la clause). Un refus
+accompagné de résultats, ou un `refuse` absent ou non booléen — la forme exacte des runs du soir, antérieure au
+champ —, rend `statut INCOHERENT`, nommé avec sa raison, AVANT la branche qui déclare une revue NULLE : jamais un nul
+de fond. **Deux retouches du prompt figé**, qui changent le CONTRAT de sortie et non le jugement : l'étape 1 dit
+« REFUSE (refuse: true, le motif dans raison, resultats vide) », l'étape 8 rend `{refuse, raison, …}` et dit ce qu'ils
+signifient. Le sha du script change : les revues en cours sur une copie restent valables, la prochaine lance le
+fichier du dépôt. Témoin sous node, code réel extrait du script (`tests/sandbox/test_refutateur_workflow_refus.py`) :
+« aucun », « (vide) Pas de refus. Étape 1 : … » et « (aucun refus) Roster conforme : … » — les trois formes
+RÉELLES du soir (runs wf_c3134d3f-8dd, wf_f2e45bc7-b84, wf_4c85e158-009) —, « none », « néant » et la
+forme `""` de `bfaea9c6` rendent SANS_REFUS ; un vrai refus garde son motif ; cinq formes incohérentes sont
+nommées. Vert sur le script patché, ROUGE sur celui de d1 ; **4/4 mutations tuées** (décider sur le texte, refus
+avec résultats, booléen absent, retour INCOHERENT retiré) ; balayeur de backticks et `node --check` verts. ⚠️
+**Trouvé en calibrant le témoin** : ma première assertion d'ordre visait la PREMIÈRE occurrence de « revue NULLE »,
+qui existe déjà sur les branches de démarrage — elle aurait vérifié autre chose que ce qu'elle annonçait ; un motif
+validé sur le mauvais corpus (règle de `CLAUDE.md` §Records). Ancrée sur la branche nulle de la vérification.
+Registre : `bfaea9c6` et P2.133 sous E4 (forme miroir) ; `636c65b1`, `c0274ea9` et `82927108` fondent E35.
 <!-- closes_when:grep_absent=.claude/workflows/refutateur.js::function normaliserRefus -->
 
 **P2.129 — rang 12 — ✅ CLOSE le 2026-09-26 (ouverte le même jour, trouvée par la revue adversariale de la règle S2-BASSIN-FRAGILITY v3,
