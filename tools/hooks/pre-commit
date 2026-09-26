@@ -756,7 +756,10 @@ if [ -n "$staged_e19" ]; then
   }
 fi
 
-# --- 24. Seuil a MARGE compare en FLOTTANTS sur une grandeur de GRILLE (classe E30) -- tools/check_grid_threshold.py
+# 24. SEUIL A MARGE COMPARE EN FLOTTANTS SUR UNE GRANDEUR DE GRILLE (2026-09-26) -- classe E30, P2.105,
+# tools/check_grid_threshold.py. ⚠️ Tete ecrite « # --- 24. » a la livraison : tools/pm/pilotage.py::read_portes ne
+# reconnaissait pas le bloc et rangeait check_grid_threshold dans le bloc 23 (test de parite rouge en CI, run
+# 36230848727 ; lecteur rendu tolerant par 7775cdad). Forme alignee sur les 23 autres.
 # Un compte k/N compare avec une marge multiple EXACTE du pas (0,05 = 32/640) perd l'EGALITE en float32, toujours
 # du cote qui refuse (BILINEAR-SHAM-R1 : 8/12 publie, 9/12 exact ; TD-STEP-PILOT R1 comparait encore en flottants
 # nus apres une retro-application annoncee complete). Toute comparaison « a OP b +/- marge » d'un runner passe par
