@@ -2303,6 +2303,24 @@ quatre conditions ; P2.84 construit sur cet index). Mesuré en l'écrivant : auc
 seul git les date (305/305 par la commande figée de la spec) ; D1-D3 restent à valider. La clause suit le CODE, jamais la spec.
 <!-- closes_when:path_present=tools/pm/index_artefacts.py -->
 
+**P2.135 — ⚠️ OUVERTE (2026-09-26, vue en revue adversariale de la spec P2.87/P2.84) — la porte 3
+(`tools/check_preregistration_applied.py`) rend un VERT sur une racine sans `docs/preregistrations` ni `docs/EDR` :
+« OK … sur les 0 familles inspectables », sortie 0 — une absence de source convertie en succès.**
+Preuve, reproduite le 2026-09-26 (module copié SEUL dans un répertoire vide, `python tools/check_preregistration_applied.py`) :
+`couverture : 0/0 FAMILLES … REELLEMENT inspectees (0 sans grandeur nommee, 0 dont aucun record ne se reclame)` puis
+`OK : aucune DV scellee absente de son record (sur les 0 familles inspectables).`, exit 0. Mécanisme : `_edr_texts`
+(`tools/check_preregistration_applied.py:79-80`), `_familles` (`:135-136`) et `nouvelles_sans_grandeur` (`:209-210`)
+rendent un conteneur VIDE quand leur répertoire manque, et `main` (`:274-276`) lit « aucun problème » comme un succès
+quel que soit `total`. C'est la forme (a) du registre (entrée vide → verdict de fond), appliquée à une PORTE. Effet
+hors de la porte : tout appelant dont la racine n'est pas celle attendue (un backend dans une image où `docs/` manque,
+un worktree partiel) reçoit `couverture() == (0, 0, 0, 0)` et `familles_sans_record() == []` — la spec
+`docs/superpowers/specs/2026-09-26-auto-indexation-artefacts-design.md` (§3.2, bloquant B2 de sa revue) doit le
+contourner par un `isdir` AVANT l'appel. À faire : répertoire absent → exception NOMMÉE dans les trois lecteurs,
+`main` qui sort 2 (jamais 0) avec la racine résolue dans le message ; contre-exemple gelé : racine vide → la porte
+ÉCHOUE (témoin dont le nom porte `racine_VIDE`) ; une mutation dans `check_gate_mutation.PORTES` qui rétablit le
+`return fam` silencieux. *Coût : agent 30-60 min ; calcul 0.* Dépend de : rien. Attribution : Master 2.
+<!-- closes_when:grep_present=tests/sandbox/test_preregistration_applied.py::racine_VIDE -->
+
 **P2.113 — ⚠️ OUVERTE (2026-09-26, vue en passant pendant la fusion du chantier Pilotage) — la suite complète ÉCRIT
 deux fichiers SUIVIS de l'arbre où on la lance, et trois de ses tests sont rouges hors de l'arbre principal sans que
 le code y soit pour rien.**

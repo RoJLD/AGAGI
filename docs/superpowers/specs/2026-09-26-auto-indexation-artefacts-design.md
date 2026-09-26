@@ -2,7 +2,8 @@
 
 **Date** : 2026-09-26. **Statut** : v2, AMENDÉE par une revue adversariale opus le jour même (§12 : 3 bloquants,
 14 importants, 7 mineurs, tous intégrés). Conception issue d'un brainstorm remis à Master 2 ; approche A retenue
-(« lecteur tolérant à la lecture ») avec quatre conditions (§1). **Aucun code avant l'approbation de cette spec.**
+(« lecteur tolérant à la lecture ») avec quatre conditions (§1). **APPROUVÉE par Master 2 le 2026-09-26 ; décisions
+D1-D3 tranchées (§9, qui fait foi sur les sections précédentes là où D1 les déplace).** Prochaine étape : le plan.
 **Portée** : AGAGI seul. **Dépend de** : le lot 1 du dashboard (`docs/superpowers/specs/2026-09-22-pilotage-dashboard-design.md`,
 pas 1-5 livrés, `5d534d44`). **Ne ferme rien** : les clauses de P2.87 et P2.84 sont repointées sur le CODE qu'elles
 attendent (§11), jamais sur ce document.
@@ -348,16 +349,46 @@ qui n'est pas celle de ce lot (I14 b).
 
 ---
 
-## 9. Décisions à valider AVANT le plan
+## 9. Décisions — TRANCHÉES par Master 2 le 2026-09-26 (spec approuvée)
 
-- **D1 — dater par git, sémantique « entrée du chemin actuel ».** Aucune source publiée ne date un EDR. Proposé :
-  `date_ajout_git` (renommage = entrée, 305/305), nommée telle quelle partout. ⚠️ **Conséquence** : dans l'image
-  docker (ni git ni `.git`), `par_semaine` des records est TOUJOURS `null` (« non mesurable ici ») ; seul un backend
-  lancé sur la machine (dev) le mesure (I14 a). Alternatives : (i) monter `.git` en lecture seule et installer git
-  dans l'image ; (ii) pas de rythme des records.
-- **D2 — `pyyaml` dans `backend/requirements.txt`**, pour lire les frontmatters dans l'image. Alternative : index
-  sans frontmatter en production.
+- **D1 — dater par git LÀ où l'historique complet existe, publier, LIRE avec l'âge : le patron de `BOARD.json`.**
+  Ni git dans l'image, ni renoncement au rythme. La commande d'écriture (`python -m tools.pm.index_artefacts
+  --ecrire-dates`, appelée par le tick PM, ou lancée sur batcave) calcule les dates (§3.1, commande figée) et écrit
+  `paths.pm_dir("DATES_GIT.json")` avec son `generated_at`, le sha de HEAD et l'**état de l'historique** mesuré par
+  `git rev-parse --is-shallow-repository` (`complet` / `tronque` / `indisponible`). Le backend et l'index ne lancent
+  JAMAIS git : ils LISENT ce fichier (`data/` est monté dans l'image), avec son âge calculé sur `generated_at`, jamais
+  sur le `mtime`. Fichier absent, historique tronqué ou indisponible → `date_ajout_git = null` + raison du
+  vocabulaire fermé, jamais une date du jour. Sémantique publiée : « entrée du chemin actuel dans le dépôt, à la date
+  de l'instantané » (renommage = entrée, 305/305).
+- **D2 — `pyyaml` dans `backend/requirements.txt`** (leçon `b7a06d87` : l'image n'a que cette liste), avec un témoin
+  qui lit un frontmatter RÉEL dans les conditions de l'image (venv limité à cette liste, §7 « image docker »).
 - **D3 — l'onglet Index va dans la famille Pilotage**, les trois vues dans une famille Science neuve.
+
+**Ce que D1 change dans les sections précédentes** (elles gardent leur texte d'avant décision ; en cas d'écart,
+ce paragraphe fait foi) :
+- §2 : `lire_dates_git` sort du chemin de requête ; il n'existe que dans l'écrivain de `DATES_GIT.json`. `indexer`
+  reçoit `dates = read_dates(racine)` (le fichier) et `lire_suivis` n'existe plus côté lecture : la liste des
+  fichiers suivis voyage DANS `DATES_GIT.json` (clé `suivis`, même instantané), et `hors_familles` est publié avec
+  l'âge de cet instantané.
+- **Forme de `DATES_GIT.json`** (`dates_git_v1`, writer unique : `index_artefacts.ecrire_dates_git`, appelé par le
+  tick PM ou à la main — même programme, comme `BOARD.json` et `board.main`) : `{schema, generated_at, head,
+  historique: "complet" | "tronque" | "indisponible", raison: null | <str>, dates: {chemin: "AAAA-MM-JJ" (UTC)} |
+  null, suivis: [chemin, …] | null}` — `dates` et `suivis` valent `null`, jamais `{}` ni `[]`, quand l'historique
+  n'est pas `complet`.
+- **Vocabulaire des raisons de `date_ajout_git`** (remplace celui du §3.1) : `dates_absentes` (fichier introuvable
+  ou illisible, chemin CHERCHÉ nommé en ligne, les deux causes sans en choisir une — leçon G9 du lot 1),
+  `historique_tronque`, `git_indisponible` (là où l'écrivain a tourné), `hors_depot`, `absent_des_dates` (chemin
+  hors de l'instantané : ajouté depuis, ou non suivi à cette date — l'index ne tranche pas sans git), et
+  `sans_ajout_trouve` (suivi dans l'instantané, sans ajout trouvé). La raison `non_suivi` disparaît : sans git
+  vivant, elle affirmerait un état présent tiré d'un instantané passé.
+- §5 : la ligne « git absent (image docker) » devient « `DATES_GIT.json` absent » (même comportement, raison
+  `dates_absentes`) ; un instantané vieux est servi AVEC son âge (`dates_age_s`) ; la ligne `dates : …` du smoke CI
+  est attendue (aucun `DATES_GIT.json` dans le `data/` de la CI).
+- §7 : les cas « dates git » visent l'ÉCRIVAIN (dépôt jetable réel, clone `--depth 1` → `historique: "tronque"`,
+  `dates: null`) et le LECTEUR (fichier absent, tronqué, âge sur `generated_at` et non sur un `mtime` volontairement
+  décalé — contre-exemple du lot 1) ; le tick PM qui écrit `DATES_GIT.json` passe par le même filet que le pilotage
+  (une exception devient une ligne de digest, jamais un tick qui échoue).
+- §8 : le pas 1 livre aussi l'écrivain et le patch du tick PM.
 
 ---
 
