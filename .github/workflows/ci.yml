@@ -19,19 +19,19 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Install minimal deps
-        # ⚠️ `psutil` (tools/jobs/doctor, garde de bail) et `pyyaml` (consolidate_records, graphe)
-        # sont des dependances TRANSITIVES : verifiees par analyse d'imports AVANT de pousser,
-        # pas decouvertes sur un portail rouge.
-        # ⚠️ `jsonschema` (check_agi_taxonomy, porte 6) est importé PARESSEUSEMENT, dans la fonction qui valide
-        # (ligne ~185) : l'analyse d'imports ci-dessus ne le voyait pas. La porte le DIT au lieu de valider en
-        # silence — « [NOUVELLE VIOLATION] schéma NON vérifié : `jsonschema` absent » — et ce job était rouge
-        # pour cette seule cause (runs 36154477100 et 36163823183 du 2026-09-25, mesuré par agagi-00).
-        # ⚠️ `pydantic` : le pas « Cellules de CONTROLE » importe src.agents.mamba_agent → src/swarm/consensus.py:2.
-        # Il était SAUTÉ sur chaque run depuis que le pas AGI-Taxonomy rougissait (jsonschema) ; jsonschema réparé,
-        # il a tiré pour la première fois le 2026-09-26 (run 36210667429 : 3 failed / 17 passed, tous pydantic).
-        # Un pas sauté est un pas qu'on ne mesure pas — le vert d'un job à pas SAUTÉS ne dit rien de ces pas.
-        run: python -m pip install --upgrade pip && python -m pip install numpy pytest pytest-timeout psutil pyyaml jsonschema pydantic
+      - name: Install deps (requirements.txt + outillage CI)
+        # Historique d'UNE journée (2026-09-25/26) : la liste « minimale » d'origine (numpy pytest pytest-timeout
+        # psutil pyyaml, « verifiee par analyse d'imports ») a été prise en défaut TROIS fois de suite, chaque pelure
+        # démasquant la suivante : `jsonschema` (check_agi_taxonomy, import PARESSEUX l. ~185 — la porte DIT
+        # « schéma NON vérifié » au lieu de valider en silence ; runs 36154477100/36163823183), puis `pydantic`
+        # (pas « Cellules de CONTROLE » → src/swarm/consensus.py:2 ; run 36210667429, 3 failed / 17 passed), puis
+        # `kuzu` (run 36211300623 : 6 témoins de « Gardes-de-gardes » et les témoins de la porte 11 ROUGES sans
+        # aucune mutation — la porte 15 ne peut alors rien juger). Chaque pas rouge SAUTAIT les suivants, donc
+        # chaque défaut cachait le prochain, et les méta-gardes n'ont tourné sur AUCUN run de d1.
+        # Le MÉCANISME, pas le cas : ces pas exécutent des tests qui importent le code du monde, et le code du monde
+        # déclare ses dépendances dans requirements.txt. Une liste recopiée à la main est un compte publié qui ne se
+        # recompute pas (E8) ; on installe la déclaration elle-même, plus l'outillage propre à la CI.
+        run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt pytest-timeout psutil
 
       - name: Graphe de records (orphelins, collisions, aretes ignorees)
         run: PYTHONIOENCODING=utf-8 python tools/check_record_links.py
@@ -210,7 +210,13 @@ jobs:
         run: |
           docker compose up -d
           sleep 10
-          curl --fail http://localhost:8000/health
+          # Sans les logs, un backend mort au démarrage ne laisse que « Failed to connect » (2026-09-26 :
+          # ImportError de tools.pm, invisible dans le run).
+          curl --fail http://localhost:8000/health || { docker compose logs backend; exit 1; }
+          # /health ne dit rien du tableau de bord : l'import de tools.pm est GARDÉ, donc son absence
+          # rend un mode dégradé (ligne « pilotage: ... ») sous un 200. Ce marqueur fait rougir le smoke.
+          curl --fail -s http://localhost:8000/api/pm/pilotage -o pilotage_smoke.json || { docker compose logs backend; exit 1; }
+          python3 -c "import json, sys; d = json.load(open('pilotage_smoke.json', encoding='utf-8')); av = d.get('aveugle') or []; bad = [a for a in av if a.startswith('pilotage:')]; print('pilotage :', d.get('schema'), '|', len(av), 'ligne(s) aveugle'); [print('  DEGRADE :', a) for a in bad]; sys.exit(1 if bad or d.get('schema') != 'pilotage_v1' else 0)" || { docker compose logs backend; exit 1; }
           curl --fail http://localhost:4173
           # Install Playwright browsers and run E2E tests against the running services
           npm --prefix frontend install
