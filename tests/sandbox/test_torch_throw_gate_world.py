@@ -9,6 +9,7 @@ if _ROOT not in sys.path:
 
 from src.worlds.world_1_stoneage import Biosphere3D, WorldConfig
 from src.agents.mamba_agent import MambaAgent
+import pytest  # P2.121 famille 1 : gardes torch par test
 
 
 class _FakePop:
@@ -42,6 +43,7 @@ def test_ensure_throw_gate_noop_when_off():
 
 
 def test_ensure_throw_gate_builds_head():
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     w = _fresh_world()
     w.use_torch_inworld = True
     w.torch_throw_gate = True
@@ -72,6 +74,7 @@ def _torch_world(n_agents=4, seed=0):
 
 
 def test_gate_on_step_records_and_H_shape():
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     w = _torch_world()
     w.step()
     # pop.H aligne sur les agents (assomption porteuse)
@@ -99,6 +102,7 @@ def test_gate_off_is_nonregressive():
 
 
 def test_learn_throw_gate_steps_optimizer():
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     import torch
     w = _fresh_world()
     w.use_torch_inworld = True
@@ -118,6 +122,7 @@ def test_learn_throw_gate_steps_optimizer():
 
 
 def test_learn_throw_gate_shuffle_runs():
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     import torch
     w = _fresh_world()
     w.use_torch_inworld = True
@@ -131,6 +136,7 @@ def test_learn_throw_gate_shuffle_runs():
 
 
 def test_learn_throw_gate_skips_on_desync():
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     import torch
     w = _fresh_world()
     w.use_torch_inworld = True
@@ -146,6 +152,7 @@ def test_torch_throw_penalty_default_and_debias_knob():
     """EDR-NAV-005 : la penalite throw-sans-kill est un knob. Defaut = -0.5 (EDR-172, biaise).
     La mettre a 0.0 (non-biaise) DOIT produire un update d'optimiseur different, a H/init/agents
     identiques (seul l'agent throw-sans-kill change de recompense)."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     import torch
 
     def _run(penalty):
@@ -172,6 +179,7 @@ def test_torch_throw_shaping_default_and_knob():
     """EDR-173-suite : le shaping remplace la recompense binaire (hit/penalty) par le credit DENSE
     de visee _throw_aim. Defaut OFF (retro-compatible). ON avec des _throw_aim distincts DOIT produire
     un update different, a H/init/agents identiques."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     import torch
 
     def _run(shaping):
@@ -268,6 +276,7 @@ def test_conditional_credit_changes_learn_update():
     (verifie par test_throw_advantage_marginal_vs_conditional). Le 2e pas Adam exploite l'historique de
     moment (m1,v1 non-nuls) -> devient sensible a la MAGNITUDE du gradient, ce qui distingue enfin les
     deux bras. Root-cause verifiee numeriquement (cf. rapport task-3)."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     import torch
 
     def _run(conditional):

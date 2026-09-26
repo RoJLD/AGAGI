@@ -329,7 +329,11 @@ def test_run_grab_incidence_and_ablation_smoke(tmp_path):
     pytest.importorskip("torch")
     out = run_grab_incidence_and_ablation(seeds=(2026,), rounds=1, epochs_per_round=2, num_agents=4,
                                           max_ticks=10, K=2, n_probe=2,
-                                          out_path=str(tmp_path / "w7.json"))
+                                          out_path=str(tmp_path / "w7.json"),
+                                          # JAMAIS results/ : le défaut relatif « results/warm007_genomes » ÉCRASAIT
+                                          # les agents 00-03 des génomes de calibration (agent00 = _GRABBER) à chaque
+                                          # passage depuis la racine — mesuré le 2026-09-26, original perdu.
+                                          genome_dir=str(tmp_path / "genomes"))
     recs = out["seeds"]["2026"]["agents"]
     assert len(recs) == 2
     for r in recs:
@@ -450,9 +454,9 @@ def test_aux_off_weight_drives_grab_logit_down():
 def test_aux_off_hinge_has_zero_gradient_below_margin():
     """La charnière doit avoir un gradient EXACTEMENT nul sur un nœud déjà conforme — c'est tout l'intérêt
     vs la BCE, dont le gradient résiduel (0.269 à la borne tanh) perturbait le tronc récurrent partagé."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     import torch
     import torch.nn.functional as F
-    pytest.importorskip("torch")
     margin = 0.2
     for x0, attendu_nul in ((-0.9, True), (-0.5, True), (-0.1, False), (0.5, False)):
         x = torch.tensor([x0], requires_grad=True)

@@ -86,6 +86,7 @@ def test_the_untrained_ceiling_REPRODUCES_on_the_real_probes():
     """VALEUR GELEE, mesuree sans aucun entrainement. Si un de ces plafonds MONTAIT au-dessus de la
     valeur publiee du bras leurre, le `specificity_control` de l'arete correspondante deviendrait
     ininterpretable -- c'est la seule facon dont ce dossier pourrait faire tomber une arete."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     from tools.memory_perception_demand_probe import _train_and_eval as mp
     from tools.perception_coordination_demand_probe import _train_and_eval as pc
     seeds = list(range(6))

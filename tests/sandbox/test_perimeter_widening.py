@@ -53,9 +53,14 @@ def test_the_HEAD_guard_alone_CANNOT_certify_the_body():
 def test_the_measured_EXPOSURE_of_head_guard_only_calibration_is_PUBLISHED():
     """La lecon ne vaut que chiffree, et le chiffre doit se RECOMPUTER -- sinon c'est une opinion.
 
-    On recompte les declarations dont AUCUN cas n'atteint le corps. Le test ne fige pas le nombre
-    (il bougera a chaque calibration reelle) : il exige que la proportion reste PUBLIEE et non nulle,
-    c'est-a-dire que personne ne puisse croire la dette resorbee sans l'avoir resorbee."""
+    On recompte les declarations dont AUCUN cas n'atteint le corps. Le chiffre ne se fige pas, il se
+    RECOMPUTE : 92 sur 248 au 2026-09-09, puis resorbe par P2.56 (injection d'orchestrateurs) jusqu'a 0 sur
+    323 -- P2.49 CLOSE. Il vaut donc 0. La porte 18 (tools/check_calibration_reach.py, baseline VIDE) refuse
+    toute NOUVELLE garde-seule MUETTE ; ce test tient le reste -- une garde-seule qu'un test importe ET appelle
+    passe la porte 18, et fait rougir ce test. P2.113 (b), 2026-09-26 : ce test
+    exigeait encore « au moins une », il etait rouge partout ou il tournait, et la CI ne le voyait pas --
+    il importait la suite de calibration, dont le saut de MODULE sans torch le faisait sauter (P2.121
+    famille 1). Il garde son nom : P2.49 et P2.113 (b) le citent."""
     import re
 
     from tests.sandbox.test_instrument_calibration import CALIBRATED
@@ -63,9 +68,11 @@ def test_the_measured_EXPOSURE_of_head_guard_only_calibration_is_PUBLISHED():
                        r"^entree-vide|^cohorte-vide|^selection-vide|^argument-degenere|^echelle-vide)")
     seulement = [n for n, cas in CALIBRATED.items()
                  if isinstance(cas, list) and cas and all(garde.search(c) for c in cas)]
-    assert len(seulement) > 0, (
-        "si plus AUCUNE declaration n'est garde-seule, c'est une excellente nouvelle -- "
-        "mettre a jour le chiffre publie dans le backlog AVANT de retirer ce test")
+    assert len(seulement) == 0, (
+        f"{len(seulement)} declaration(s) garde-seule sont REAPPARUES ({sorted(seulement)[:5]}) : l'exposition "
+        "publiee par P2.49 (0/323) a change. La porte 18 (tools/check_calibration_reach.py) ne refuse que les "
+        "MUETTES : une garde-seule qu'un test importe ET appelle la passe. Calibrer son corps, ou mettre a jour "
+        "le chiffre publie AVANT de toucher ce test")
     assert len(seulement) < len(CALIBRATED), (
         "toutes les declarations seraient garde-seule : aucun corps d'instrument ne serait teste")
 

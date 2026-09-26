@@ -4,9 +4,11 @@ if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
 import numpy as np
+import pytest  # P2.121 famille 1 : gardes torch par test
 
 
 def test_energy_binary():
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     from tools.torch_binary_gate_probe import _energy_binary
     assert _energy_binary(True, True) == 1.0        # composition reussie
     assert _energy_binary(True, False) == -0.3      # throw sans craft -> faim
@@ -15,6 +17,7 @@ def test_energy_binary():
 
 
 def test_binding_gap():
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     from tools.torch_binary_gate_probe import _binding_gap
     # throw parfaitement conditionne sur craft -> gap = 1
     throws = [1, 1, 0, 0]; craft = [True, True, False, False]
@@ -25,6 +28,7 @@ def test_binding_gap():
 
 
 def test_run_arm_smoke_on_and_off():
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     from tools.torch_binary_gate_probe import run_arm
     r_on = run_arm(gate_on=True, episodes=60, n_agents=16, seed=0)
     r_off = run_arm(gate_on=False, episodes=60, n_agents=16, seed=0)
@@ -42,6 +46,7 @@ def test_verdict_pure_on_binds_more():
 
 
 def test_shuffle_control_present():
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     from tools.torch_binary_gate_probe import run_arm
     r = run_arm(True, shuffle_label=True, episodes=40, n_agents=16, seed=0)
     assert set(["gate_on", "binding_gap", "comp_rate", "throw_rate"]).issubset(r)

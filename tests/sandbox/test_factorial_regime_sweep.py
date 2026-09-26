@@ -6,6 +6,7 @@ if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
 from tools.factorial_regime_sweep import (REGIMES, run_sweep, _regime_main_effects_table)
+import pytest  # P2.121 famille 1 : gardes torch par test
 
 
 def test_regimes_defined():
@@ -38,6 +39,7 @@ def test_run_sweep_smoke():
     ⚠️ SIMULE un monde (Biosphere3D via compare_factorial, banc EDR-177 porté dans HEAD le 2026-09-15,
     P2.60) : la garde de bail de tests/conftest.py saute ce module pendant un run (SAUTÉ visible, jamais
     un vert vide). L'orchestration sans monde est calibrée dans test_edr177_178_calibration.py."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     tiny = {"neutralise": REGIMES["neutralise"], "rare": REGIMES["rare"]}
     out = run_sweep(tiny, seeds=(0,), ticks=6, warmup=2, n_agents=4)
     assert set(out) == {"neutralise", "rare"}
