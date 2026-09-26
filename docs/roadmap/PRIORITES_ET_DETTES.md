@@ -1374,6 +1374,15 @@ message). 0 erreur de collecte : `b895a0a3` a fait son travail. Familles, par ta
 5. **fixtures PM — 5** (test_pm_board A1/A3, `tests/sandbox/test_pm_bulletin.py` ×2, test_pm_snapshot leases) : un chemin
    Windows `c:/x/agagi` est normalisé sur POSIX en `/home/runner/…/c:/x/agagi` — la normalisation suppose une lettre de
    lecteur ; portabilité des FIXTURES, pas du code.
+   ✅ **TRAITÉE le 2026-09-26 (agagi-32, worker Dette)** — reproduite sous Linux (WSL, requirements de la CI) AVANT
+   correctif : **4 rouges**, pas 5 (le cas des bails de `test_pm_snapshot` passe depuis `faae4909`, psutil) — A1 et A3
+   du tableau, deux cas du bulletin, tous par `c:/x/agagi` préfixé du cwd. Remède, fixtures seules : une racine
+   ABSOLUE sur chaque plateforme (`c:/x/agagi` sous Windows, `/x/agagi` sous POSIX) dans `test_pm_board.py` et
+   `test_pm_bulletin.py` (15 littéraux) ; le test d'équivalence antislashs garde une racine de forme Windows LOCALE
+   (il teste un remplacement textuel, valable partout). Vérifié sur les six fichiers PM : **Linux 4 rouges → 192
+   verts, Windows 192 verts**. ⚠️ Pris par la vérification des DEUX côtés : ma première passe avait réécrit la
+   définition même de la racine (`_R = _R if …`) — VERTE sous Linux (seule la branche `else` s'évalue), `NameError`
+   sous Windows ; un seul côté l'aurait laissée passer. Le compte du run CI qui suit s'écrit ici.
 6. ⚠️ **git env sur Linux — 2** : `tests/sandbox/test_git_env_leak.py::test_un_GIT_DIR_herite_detourne_le_git_init_vers_le_depot_POINTE`
    (« le depot POINTE est passe en bare : son arbre de travail disparait pour toutes les sessions ») et
    `tests/sandbox/test_gate_mutation.py::…[sans_purge_defaut_restaure]`. C'est LA classe de la corruption `core.bare = true`

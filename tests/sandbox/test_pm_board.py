@@ -9,7 +9,10 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 from tools.pm import board as B  # noqa: E402
 
 NOW = 1_800_000_000.0
-ROOT = "c:/x/agagi"
+# P2.121 famille 5 (2026-09-26) : une racine de fixture ABSOLUE sur CHAQUE plateforme. « c:/x/agagi » n'est absolu
+# que sous Windows : sous POSIX, `norm` (abspath) le préfixait du cwd (« /home/runner/…/c:/x/agagi ») et les clés
+# attendues ne correspondaient plus — rouge en CI, vert sous Windows.
+ROOT = "c:/x/agagi" if os.name == "nt" else "/x/agagi"
 
 
 def _reg(name, sid, cwd=ROOT, started=NOW - 600, alive=True):
@@ -52,12 +55,16 @@ def test_compute_normalise_repo_root_et_worktrees_pas_seulement_cwd():
     Backslashes vs slashes est indépendant de la plateforme (le `.replace` de `norm` est un remplacement
     textuel, pas une résolution de chemin) ; on ne teste PAS une différence de CASSE, `normcase` est
     l'identité sur Linux."""
+    # Racine de forme WINDOWS, locale à ce cas : il teste l'équivalence TEXTUELLE antislashs / barres obliques, qui
+    # vaut sur toute plateforme ; avec la racine POSIX de la fixture, un « cwd à antislashs » n'aurait pas de sens.
+    win = "c:/x/agagi"
+    wts = [{"path": win, "branch": "main", "head": "abc", "merged": False, "locked": False, "head_time": NOW}]
     reg = [_reg("agagi-11", "s1", cwd="c:\\x\\agagi")]
-    b = B.compute(_snap(registry=reg, bulletins=[_bul("s1")]))
+    b = B.compute(_snap(registry=reg, bulletins=[_bul("s1")], repo_root=win, worktrees=wts))
     assert [s["name"] for s in b["sessions"]] == ["agagi-11"]
     # discriminant réel du correctif (repo_root lui-même non normalisé côté appelant, sans worktree
     # qui masquerait le défaut par coïncidence) :
-    b2 = B.compute(_snap(registry=[_reg("agagi-11", "s1", cwd=ROOT)], bulletins=[_bul("s1")],
+    b2 = B.compute(_snap(registry=[_reg("agagi-11", "s1", cwd=win)], bulletins=[_bul("s1")],
                           worktrees=[], repo_root="c:\\x\\agagi"))
     assert [s["name"] for s in b2["sessions"]] == ["agagi-11"]
 
