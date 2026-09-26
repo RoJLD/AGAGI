@@ -84,6 +84,33 @@ def test_un_processus_HORS_projet_n_est_PAS_vu(dormeur, tmp_path):
     assert p.pid not in _pids(D.project_processes())
 
 
+def test_un_processus_lance_depuis_un_worktree_FRERE_est_VU(dormeur, tmp_path, monkeypatch):
+    """CONTRE-EXEMPLE GELÉ (2026-09-26, trouvé par agagi-40) : le doctor lancé DEPUIS un worktree ne voyait ni l'arbre
+    principal ni les worktrees frères — `_ROOT` valait la racine de SON worktree. Un vrai dépôt jetable A, deux
+    worktrees W1 et W2 ; le doctor « tourne » depuis W1 (`_ROOT`). Un processus dans W2 et un dans A sont VUS ; un
+    processus hors du dépôt ne l'est pas (spécificité appariée, même commande)."""
+    import shutil
+    if shutil.which("git") is None:
+        pytest.skip("git introuvable")
+    env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+    a = tmp_path / "A"
+    a.mkdir()
+    for args in (["init", "-q"],
+                 ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "b"],
+                 ["worktree", "add", "-q", str(tmp_path / "W1"), "-b", "w1"],
+                 ["worktree", "add", "-q", str(tmp_path / "W2"), "-b", "w2"]):
+        subprocess.run(["git", *args], cwd=str(a), env=env, check=True, capture_output=True)
+    hors = tmp_path / "hors"
+    hors.mkdir()
+    monkeypatch.setattr(D, "_ROOT", str(tmp_path / "W1"))    # le doctor tourne DEPUIS le worktree W1
+    monkeypatch.setattr(D, "_RACINES", None)
+    import psutil
+    frere, principal, dehors = dormeur(tmp_path / "W2"), dormeur(a), dormeur(hors)
+    assert D._works_in_project(psutil.Process(frere.pid)), "un run dans un worktree FRÈRE est invisible"
+    assert D._works_in_project(psutil.Process(principal.pid)), "un run dans l'arbre PRINCIPAL est invisible"
+    assert not D._works_in_project(psutil.Process(dehors.pid)), "un processus HORS du dépôt est compté"
+
+
 def _bail(tmp_path, pid, *, expire, resource="kuzu-test"):
     """Écrit un bail sur `pid` (create_time RÉEL, sinon is_holder_alive le juge réattribué)."""
     ct = _lease.proc_create_time(pid) or 0.0

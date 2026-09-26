@@ -48,6 +48,44 @@ def _protected_pids():
     return pids
 
 
+_RACINES = None                                   # cache par processus ; None = à calculer
+
+
+def _racines_du_depot(racine=None):
+    """TOUTES les racines d'arbre du DÉPÔT, jamais la seule racine du worktree qui exécute le doctor (2026-09-26,
+    trouvé par agagi-40, corrigé par agagi-32). `_ROOT` est le répertoire qui contient CE fichier : lancé depuis un
+    worktree, il vaut la racine de ce worktree, et un run de l'arbre principal ou d'un worktree FRÈRE n'était pas
+    « sous » elle — le doctor rendait « 0 processus » pendant qu'un pytest lourd tournait à côté (mesuré : la session
+    qui l'a lancé le lisait elle-même depuis son worktree). Même ancrage que les BAILS (`lease._repo_root`, P2.69 i :
+    le parent du `.git` COMMUN), plus chaque worktree de `git worktree list --porcelain` — un worktree peut vivre
+    HORS de l'arbre principal. Sans git : la racine seule, comme avant (jamais une liste vide). Mis en cache par
+    processus quand `racine` n'est pas donnée."""
+    global _RACINES
+    if racine is None and _RACINES is not None:
+        return _RACINES
+    base = racine or _ROOT
+    racines = {os.path.realpath(base)}
+    try:
+        from pathlib import Path
+        racines.add(os.path.realpath(str(_lease._repo_root(Path(base)))))
+    except Exception:                                   # noqa: BLE001 — sans git : la racine seule, dit plus haut
+        pass
+    try:
+        import subprocess
+        out = subprocess.run(["git", "worktree", "list", "--porcelain"], cwd=base, capture_output=True,
+                             text=True, encoding="utf-8", errors="replace", timeout=20)
+        if out.returncode == 0:
+            for ligne in out.stdout.splitlines():
+                if ligne.startswith("worktree "):
+                    racines.add(os.path.realpath(ligne[len("worktree "):].strip()))
+    except Exception:                                   # noqa: BLE001 — idem
+        pass
+    r = sorted(racines)
+    if racine is None:
+        _RACINES = r
+    return r
+
+
 def _works_in_project(p) -> bool:
     """Le processus travaille-t-il DANS le dépôt ? — lu sur son `cwd`, pas sur sa ligne de commande.
 
@@ -64,10 +102,16 @@ def _works_in_project(p) -> bool:
     if not cwd:
         return False
     try:
-        racine = os.path.realpath(_ROOT)
-        return os.path.commonpath([os.path.realpath(cwd), racine]) == racine
-    except Exception:                     # disques différents sous Windows -> commonpath lève
+        c = os.path.realpath(cwd)
+    except Exception:
         return False
+    for racine in _racines_du_depot():                  # arbre principal ET worktrees (2026-09-26)
+        try:
+            if os.path.commonpath([c, racine]) == racine:
+                return True
+        except Exception:                 # disques différents sous Windows -> commonpath lève
+            continue
+    return False
 
 
 def project_processes(older_min: float = 0.0):
