@@ -505,6 +505,32 @@ def test_soumission_refusee_si_le_run_deborde_minuit_RIEN_n_est_cree(depot):
     assert kube.appels == []
 
 
+@pytest.mark.parametrize("paire", ["OMP_NUM_THREADS=0", "OMP_NUM_THREADS=abc", "MKL_NUM_THREADS=-2",
+                                   "OPENBLAS_NUM_THREADS=", "NUMEXPR_NUM_THREADS=2.5"])
+def test_threads_declares_entier_positif_sinon_refus(paire):
+    with pytest.raises(R.Refus, match="threads"):
+        R.valider_env([paire])
+
+
+def test_sur_souscription_signalee_et_publiee_jamais_refusee(depot):
+    """16 threads sous 2 CPU : ×5,7 de CPU mesuré sur la cellule P4.18 (2026-09-26). Signalé AVANT toute création,
+    jamais refusé : le nombre de threads peut être l'objet même de la mesure. Deux issues, et le seuil."""
+    assert R.sur_souscription({"OMP_NUM_THREADS": "16"}, 2.0) == {
+        "threads_declares": {"OMP_NUM_THREADS": 16}, "limite_cpu": 2.0, "rapport": 8.0}
+    assert R.sur_souscription({"OMP_NUM_THREADS": "3"}, 2.0)["rapport"] == 1.5
+    assert R.sur_souscription({"OMP_NUM_THREADS": "2", "MKL_NUM_THREADS": "1"}, 2.0) is None     # au seuil : rien
+    assert R.sur_souscription({"AUTRE": "99"}, 2.0) is None and R.sur_souscription({}, 2.0) is None
+    assert R.valider_env(["OMP_NUM_THREADS=16"]) == {"OMP_NUM_THREADS": "16"}
+    repo, sha = depot
+    dits = []
+    for env, attendu in (({"OMP_NUM_THREADS": "16"}, 1), ({"OMP_NUM_THREADS": "2"}, 0)):
+        dits.clear()
+        with pytest.raises(R.Refus, match="fin de sa fenêtre"):
+            R.soumettre(["-m", "pkg.runner"], sha=sha, kube=KubeFactice(_noeud()), racine=repo, env=env,
+                        sortie=dits.append, maintenant=_paris(22, 30))
+        assert sum("SUR-SOUSCRIPTION" in m for m in dits) == attendu, dits
+
+
 def test_code_de_sortie_absent_n_est_pas_un_succes():
     assert R.code_de_sortie(0) == 0 and R.code_de_sortie(3) == 3
     assert R.code_de_sortie(None) == 1 and R.code_de_sortie("0") == 1 and R.code_de_sortie(True) == 1

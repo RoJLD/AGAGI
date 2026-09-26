@@ -245,8 +245,21 @@ def valider_env(paires) -> dict:
             raise Refus(f"--env attend CLE=VALEUR : {p!r}")
         if E._ENV_INTERDITES.match(k) or k in ("AGAGI_IMAGE", "NODE_NAME", "HOME", "MPLCONFIGDIR"):
             raise Refus(f"--env {k} interdite (elle déplacerait les écritures, le code, ou la configuration du Job)")
+        if k in E.VARS_THREADS and not re.fullmatch(r"[1-9][0-9]*", v):
+            raise Refus(f"--env {k}={v!r} : un nombre de threads est un entier strictement positif")
         out[k] = v
     return out
+
+
+def sur_souscription(env_declare: dict, cpu: float) -> dict | None:
+    """Threads DÉCLARÉS au-delà de la limite CPU du conteneur. Pas un refus : le nombre de threads peut être l'objet
+    même de la mesure (l'ordre de réduction de torch en dépend). Mais un piège de coût que rien d'autre ne signale —
+    mesuré le 2026-09-26 (cellule P4.18, sha afa4dac6, nexus, limite 2 CPU) : OMP_NUM_THREADS=16 → 499,8 s de CPU et
+    253,3 s de mur, contre 87,0 s et 53,9 s aux 2 threads posés depuis le cgroup (×5,7 et ×4,7)."""
+    declares = {k: int(v) for k, v in env_declare.items() if k in E.VARS_THREADS}
+    if not declares or max(declares.values()) <= cpu:
+        return None
+    return {"threads_declares": declares, "limite_cpu": cpu, "rapport": max(declares.values()) / cpu}
 
 
 def env_local(declare: dict, base: dict | None = None) -> dict:
@@ -595,6 +608,10 @@ def soumettre(commande, *, sha="HEAD", cpu=2.0, req_cpu=1.0, mem="4Gi", req_mem=
     kube = kube or Kube.depuis(cfg)
     commande = valider_commande(list(commande))
     env_declare = valider_env(env) if not isinstance(env, dict) else valider_env([f"{k}={v}" for k, v in env.items()])
+    exces = sur_souscription(env_declare, cpu)
+    if exces:
+        sortie(f"[remote] ⚠ SUR-SOUSCRIPTION : {exces['threads_declares']} pour une limite de {cpu:g} CPU "
+               f"(×{exces['rapport']:g}) — mesuré ×5,7 de CPU et ×4,7 de mur à 16 threads sous 2 CPU. Voulu ?")
     besoin = deadline_s + attente_s + MARGE_TRANSFERT_S
     reste = fenetre_restante_s(cfg["fenetre"], maintenant)
     if cmp_continu(besoin, reste, 0.0):                    # secondes : grandeur continue (porte 24)
@@ -637,7 +654,7 @@ def soumettre(commande, *, sha="HEAD", cpu=2.0, req_cpu=1.0, mem="4Gi", req_mem=
     (j / "soumission.json").write_text(json.dumps(
         {"job": nom, "sha": sha, "commande": commande, "env": env_declare, "image": image_ref(info, "<registre>"),
          "noeud": noeud,
-         "garde_image": mode_garde, "entrees_non_suivies": absentes,
+         "garde_image": mode_garde, "entrees_non_suivies": absentes, "sur_souscription": exces,
          "ressources": {"cpu": cpu, "req_cpu": req_cpu, "mem": mem, "req_mem": req_mem,
                         "plafonds_limitrange": {"cpu": max_cpu, "mem_gi": max_mem_gi}},
          "soumis_utc": _dt.datetime.now(_dt.timezone.utc).isoformat()}, indent=2, ensure_ascii=False),
