@@ -382,7 +382,11 @@ d7 (P4.16, 815 s contre 283 s en P4.8 pour la MÊME cellule bit-identique), c9 (
 `INCONCLUSIVE_N` par abandons sous neuf processus python). C'est E12 appliqué au coût — la classe qui
 avait déjà inversé une décision de CI (8 h 30 mesurées sous seize agents, 30 min au repos). Règles :
 **un seul run lourd à la fois** sur la machine ; **une vague de commits COMPTE comme un run lourd** (la
-porte 15 lance un `pytest` par mutation) ; noter la charge au départ de chaque cellule
+porte 15 lance un `pytest` par mutation) — **un commit de FUSION aussi** (il touche presque toujours des portes), et
+**arrêter le `git commit` ne tue PAS son crochet** : le pre-commit finit ses portes en orphelin (mesuré le 2026-09-26 :
+fusion lancée à 20:07:03 pendant le run P4.18, git arrêté vers 20:12, crochet jusqu'à 20:13:36, 8 pytest de mutation ;
+P2.139 en fait une garde) — avant TOUT commit, doctor : un bail kuzu vivant d'une autre session veut dire qu'on ne
+committe pas ; noter la charge au départ de chaque cellule
 (`python -m tools.jobs.doctor`, lecture seule) ; publier l'unité LIBRE et l'unité SOUS CHARGE, la charge
 se mesurant par la réplication d'une cellule bit-identique ; en cas de coupe, une REPRISE déclarée à unité
 re-mesurée machine libre et même budget scellé (jamais relever la marge) ; des abandons qui persistent

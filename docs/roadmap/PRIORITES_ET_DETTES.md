@@ -1450,9 +1450,11 @@ Dépend de : P4.18 (ne pas changer le harnais sous un run scellé qui le rejoue)
 `forward` apparierait `W[j]` à un autre corps (`pop.agents[j] is not e.agents[j]["model"]`), en lecture seule, sans tirage
 RNG ; `None` quand l'appariement n'est pas défini (pas de population, ou B différent : le monde reconstruira), jamais `[]`
 par défaut. Contre-exemple GELÉ (`tests/sandbox/test_e34_slot_identity.py`, cohorte factice sans torch ET monde réel) :
-une mort en position p désaligne B − p tranches, donc une mort en TÊTE les **B** (la dernière pilote le mort revenu en
-queue) : le « jusqu'à 11 slots » de l'intitulé est CORRIGÉ en 12 (trouvé aussi par la revue v8 de S2-BASSIN-FRAGILITY,
-dont la v9 dit « jusqu'à 12 ») ; une mort en QUEUE n'en désaligne aucune (l'invariant rend les deux issues). (2) Correctif SOUS DRAPEAU :
+depuis un ordre aligné, une mort en position p < B − 1 désaligne B − p tranches, donc une mort en TÊTE les **B** (la
+dernière pilote le mort revenu en queue) : le « jusqu'à 11 slots » de l'intitulé est CORRIGÉ en 12 (trouvé aussi par la
+revue v8 de S2-BASSIN-FRAGILITY, dont la v9 dit « jusqu'à 12 ») ; une mort en DERNIÈRE position n'en désaligne aucune
+(l'invariant rend les deux issues), et les permutations se COMPOSENT (la loi B − p ne vaut que depuis un ordre aligné :
+rectifié après la revue E34 v1, P10.d). (2) Correctif SOUS DRAPEAU :
 `phase1_learn_immortal(slot_order_fix=True)` remet `e.agents` dans l'ordre de construction de la population après chaque
 résurrection (`restore_slot_order`) et VÉRIFIE l'invariant à chaque tick (lève sinon) ; `identity_audit=True` le MESURE
 sans rien changer (`slot_identity` publié : slot-ticks désalignés, premier tick, positions remises). Défauts = chemin
@@ -1461,8 +1463,11 @@ trace forcée gelée AVANT édition (digest 94e779e8…, 4 clones, 30 ticks, mor
 tick 12 : 82 slot-ticks désalignés sur 120) retrouvée après édition, défauts ET audit ; les lignes 1-116 de
 `s2_credit_retention.py` sont inchangées (107-113 sont citées par des règles scellées). Sans mort, le drapeau est un
 no-op au bit ; avec une mort en tête, il change W (contrôle positif). (3)-(4) Sonde `tools/evo_runs/e34_identity_cell.py`
-sous la règle `E34-IDENTITY-CELL` (bande « matériel » = étendue de `b_full` entre seeds publiée par P4.16, [7,0 ; 9,5]) :
-en cours. **La clause ci-dessous reste celle de l'entrée** : elle décrit la vraie clôture (le correctif devenu le
+sous la règle `E34-IDENTITY-CELL` : la v1 (S_on contre l'étendue de `b_full` ENTRE seeds) a été RÉFUTÉE par sa revue
+(`docs/reviews/2026-09-26-E34-IDENTITY-CELL.v1.md`, 16 critiques confirmées : S_off était le BORD bas de la bande, dose
+mal définie, SANS_OBJET fabriqué par un audit aveugle, branche de dose morte, témoin et paire de deux exécutions) ; la v2
+lit S_on contre {S_off + 11 SHAMS} du MÊME seed au MÊME lieu (k tirages numpy au tick t1 où le drapeau fait diverger sa
+trajectoire, RNG torch intact), dose = COMMUTATIONS (une tranche change de corps), 13 cellules sur la batcave : en cours. **La clause ci-dessous reste celle de l'entrée** : elle décrit la vraie clôture (le correctif devenu le
 DÉFAUT, après P4.18 et, si la sonde rend MATERIEL, le plan n = 12) ; la sonde ne ferme qu'un sous-item.
 **Addendum CALIB-LEARNER (2026-09-26, session E34, vu en lisant la recette)** : la MÊME recette vit dans
 `tools/cognitive_demand_inworld.py:575-587` (`run_learner_probe`, contrôle POSITIF de l'apprenant, EDR-CALIB-LEARNER
@@ -1473,6 +1478,51 @@ sont des `MambaAgent()` FRAIS, des cerveaux DISTINCTS échangés entre corps —
 (cohorte fraîche). L'audit (`immortal_after_step(..., identity=...)`) s'y branche sans rien changer pour en mesurer la dose ;
 hors du mandat du correctif.
 <!-- closes_when:grep_absent=tools/evo_runs/s2_credit_retention.py::e\.agents\.append\(a\) -->
+
+**P2.138 — rang 5 — OUVERTE (2026-09-26, session E34) — Exécuter la correction DIFFÉRÉE de P1.4 : l'aliasing de
+production d'[[EDR-INFRA-001]] (`TorchPopulationModel.forward` rend une VUE de l'état récurrent `H`, et le monde écrit
+dedans), épinglé par P2.64, attend sa correction depuis que P4.4 est passé.**
+Ce n'est PAS une découverte : [[EDR-INFRA-001]] (2026-07-21, défaut 1) l'a mesuré NON inerte (3/6 génomes différents,
+jusqu'à +37 %) ; P1.4 a DÉCIDÉ le 2026-09-14 « épingler maintenant, corriger APRÈS le run P4.4 » ; P2.64 (CLOSE le
+2026-09-15) l'épingle dans `tests/sandbox/test_infra001_aliasing_pinned.py`. La revue /refutateur de la règle
+E34-IDENTITY-CELL v1 l'a REDÉCOUVERT (critique P8.b), et la session E34 l'a relayé comme neuf sur la foi d'un grep
+négatif (« 0 ligne au registre et au backlog ») — c'est le mécanisme que la teneur du registre (agagi-32) inscrit sous
+E5 : un défaut qui vit dans un record, une décision de backlog et un témoin épinglé, SANS une ligne au site
+(`forward` n'a aucun commentaire) ni au registre, se redécouvre comme neuf ; et une absence de correspondance n'est pas
+une absence (règle CLAUDE.md du grep).
+Site, relu au 2026-09-26 : `logits = H_new[:, self.N - self.O:self.N]` puis `return logits.cpu().numpy(), 0`
+(`src/agents/backend_torch.py:200-210`) ; le monde écrit EN PLACE `logits[agent["last_action"]] -= 0.1`
+(`src/worlds/world_1_stoneage.py:1340`) et le consensus social (`:973`). Sonde rejouée (bassin cloné ×2, `forward`,
+`lg[1][2] -= 0.1`) : `np.shares_memory` = True, `H[1, N−O+2]` 0,0 → −0,1.
+Portée (lue dans le code par agagi-32, NON mesurée) : `forward` CLONE les logits quand la porte est active
+(`backend_torch.py:202-203`) — l'aliasing n'existe que SANS porte, donc tout contraste porte / sans porte porte un
+aliasing propre à un bras ; `TorchBatchModel.forward` (`torch_batch_model.py:225-228`) rend la même vue, mais sa
+récurrence repasse par une copie prise avant les écritures, et seul le consensus y atteint V(s'). Entre bras d'un même
+backend et d'un même état de porte, l'aliasing est commun dans sa FORME ; son effet sur les CONTRASTES n'est pas mesuré
+(l'écriture dépend de l'action tirée, et le consensus écrit dans V(s'), que seuls les bras qui apprennent consomment,
+`backend_torch.py:220`).
+**Forme** : (1) à coût nul, un commentaire AU SITE qui renvoie à INFRA-001, P1.4 et P2.64 (sans décaler les lignes
+citées par des règles scellées : en fin de ligne, ou après le run P4.18) ; (2) la correction SOUS DRAPEAU (`forward`
+rend une copie), défaut = comportement publié au bit — même discipline que P2.132 ; devenue le DÉFAUT, elle rougit P2.64
+par construction et change TOUTES les baselines torch (la raison du report) : elle passe donc par une décision, INFRA-001
+mis à jour et les baselines re-mesurées. Ne se corrige pas en silence. *Coût : agent 1 h ; calcul : une cellule témoin,
+puis les baselines si le défaut change.* Dépend de : P4.18 (ne pas changer le harnais sous un run scellé qui le rejoue).
+<!-- closes_when:grep_absent=src/agents/backend_torch.py::return logits\.cpu\(\)\.numpy\(\), 0 -->
+
+**P2.139 — rang 6 — OUVERTE (2026-09-26, vue par la session E34 en provoquant l'incident) — Le pre-commit ne sait pas
+qu'un run lourd tourne : rien n'empêche une vague de commits (porte 15, un pytest par mutation) pendant le run d'une
+autre session.** La règle est écrite (CLAUDE.md, « une vague de commits COMPTE comme un run lourd ») et elle a été violée
+le 2026-09-26 : le commit de FUSION de d1 (0070def0) dans tmp/e34, lancé à 20:07:03 pendant le run P4.18 de la session
+SCIENCE-HARNAIS (bail kuzu « s2-bassin-fragility »), a lancé la porte 15 (8 pytest de mutation, ~20:07-20:12) ; le git
+arrêté, son crochet a continué ses portes en ORPHELIN jusqu'à 20:13:36 (« fork: retry: Resource temporarily
+unavailable » au journal) ; P4.18 a été coupé par sa garde de coût (charge de plusieurs sources) et relancé le
+lendemain machine libre. E10 (règle sans application exécutable) sur E12 (coût sous charge). **Forme** (décision
+Master 2 : version exécutable de « un seul run lourd à la fois ») : en tête du crochet, lire le bail `kuzu`
+(`tools.jobs.lease`) ; s'il est VIVANT et tenu par un processus qui n'est ni nous ni un ancêtre, la porte 15 (et toute
+porte qui lance pytest) REFUSE en nommant le détenteur et la commande à relancer — jamais un saut silencieux ; témoin :
+un bail factice vivant fait refuser, un bail expiré ou le nôtre non ; et le crochet se termine avec son parent (un git
+tué ne laisse pas d'orphelin). Touche `tools/hooks/` : copie déployée et porte 22 à la clé. *Coût : agent 1-2 h.*
+Attribution : Master 2.
 
 **P2.133 — rang 6 — ✅ CLOSE le 2026-09-26 (ouverte le même jour, vue en passant par la session SCIENCE-HARNAIS pendant la revue v6 de
 S2-BASSIN-FRAGILITY) — Le Refutateur sort encore NUL sur une revue saine : le vérificateur a rendu `refus = "aucun"`, et

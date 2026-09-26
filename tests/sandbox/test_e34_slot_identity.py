@@ -157,6 +157,82 @@ def test_immortal_after_step_audit_counts_a_known_dose_of_misalignment():
     assert ident["ticks_known"] == 6 and ident["ticks_unknown"] == 0 and ident["slot_ticks_total"] == 24
     assert ident["slot_ticks_misaligned"] == 12 and ident["ticks_misaligned"] == 3
     assert ident["first_misaligned_tick"] == 3 and ident["max_misaligned_slots"] == 4
+    # la DOSE qui agit : UNE commutation par tranche au tick de la mort, puis un ré-étiquetage qui persiste sans rien
+    # commuter (revue v1, P8.a/P10.a) -- 4 commutations, pas 12 slot-ticks
+    assert ident["slot_switches"] == 4 and ident["ticks_with_switch"] == 1 and ident["first_switch_tick"] == 3
+
+
+def test_switches_compose_and_a_tail_death_commutes_nothing():
+    """Réponses connues : mort en QUEUE depuis l'ordre aligné -> 0 commutation ; puis mort en tête -> 4 ; puis une
+    nouvelle mort en tête sur l'ordre DÉJÀ permuté -> encore 4 (les permutations se composent, la loi « B − p »
+    ne vaut que depuis un ordre aligné)."""
+    from tools.evo_runs.s2_credit_retention import _identity_counters, immortal_after_step
+    e = _World(4)
+    ident = _identity_counters()
+    for t, pos in ((0, 3), (1, None), (2, 0), (3, None), (4, 0)):
+        if pos is not None:
+            e.kill(pos)
+        immortal_after_step(e, identity=ident, tick=t)
+    assert ident["slot_switches"] == 8 and ident["ticks_with_switch"] == 2 and ident["first_switch_tick"] == 2
+    assert ident["first_misaligned_tick"] == 2
+
+
+def test_the_fix_never_commutes_and_records_its_first_reorder_tick():
+    from tools.evo_runs.s2_credit_retention import _identity_counters, immortal_after_step
+    e = _World(4)
+    ident = _identity_counters()
+    for t, pos in ((0, None), (1, 0), (2, None), (3, 2)):
+        if pos is not None:
+            e.kill(pos)
+        immortal_after_step(e, slot_order_fix=True, identity=ident, tick=t)
+    assert ident["slot_switches"] == 0 and ident["slot_ticks_misaligned"] == 0
+    assert ident["first_reorder_tick"] == 1 and ident["ticks_reordered"] == 2
+
+
+def test_the_published_identity_hides_the_working_pairing():
+    from tools.evo_runs.s2_credit_retention import _identity_counters, _published_identity
+    ident = _identity_counters()
+    ident["_pairing"] = ["a", "b"]
+    pub = _published_identity(ident)
+    assert "_pairing" not in pub and pub["slot_switches"] == 0 and "_pairing" in ident
+
+
+def test_sham_draws_numpy_once_at_the_first_misaligning_tick_and_leaves_torch_rng_intact():
+    """Le SHAM tire k valeurs du RNG global numpy, UNE fois, au premier tick où une résurrection désaligne (le tick où
+    le drapeau ferait diverger sa trajectoire) — jamais avant (mort en queue), jamais deux fois — et ne touche PAS le
+    RNG torch."""
+    from tools.evo_runs.s2_credit_retention import _identity_counters, immortal_after_step
+    e = _World(4)
+    ident = _identity_counters()
+    np.random.seed(123)
+    ref = np.random.RandomState(123)
+    try:
+        import torch
+        torch_state = torch.get_rng_state().clone()
+    except ImportError:                                             # sans torch : la partie numpy reste vérifiée
+        torch = None
+    for t, pos in ((0, 3), (1, None), (2, 0), (3, 1)):
+        if pos is not None:
+            e.kill(pos)
+        immortal_after_step(e, identity=ident, tick=t, sham_draws=3)
+        if t < 2:
+            assert np.random.random() == ref.random()                # aucun tirage avant le tick de divergence
+    assert ident["sham_tick"] == 2 and ident["sham_draws"] == 3
+    ref.random(3)                                                   # les 3 tirages du sham, au tick 2
+    assert np.random.random() == ref.random()                       # et aucun au tick 3 (une seule fois)
+    if torch is not None:
+        assert torch.equal(torch.get_rng_state(), torch_state)
+
+
+def test_sham_is_refused_before_the_refill_without_audit_under_the_fix_or_negative():
+    from tools.evo_runs.s2_credit_retention import _identity_counters, immortal_after_step
+    for kw in ({"sham_draws": 2}, {"sham_draws": 2, "slot_order_fix": True, "identity": _identity_counters()},
+               {"sham_draws": -1, "identity": _identity_counters()}):
+        e = _World(3)
+        e.kill(0)
+        with pytest.raises(ValueError):
+            immortal_after_step(e, tick=0, **kw)
+        assert len(e.agents) == 2 and len(e.dead_agents) == 1        # la recharge n'a pas eu lieu
 
 
 def test_immortal_after_step_audit_without_tick_is_refused_before_the_refill():
