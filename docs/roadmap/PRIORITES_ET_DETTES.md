@@ -1281,6 +1281,17 @@ l'entraînement », dit le code) et re-vérifier les cas `_GRABBER` sur le vrai 
 `results/` ou `data/` hors `tmp_path` — ces dossiers sont IGNORÉS par git, donc invisibles à P2.113 (a), qui ne voit
 que les fichiers SUIVIS. Classe **E5** au registre. Sans clause `closes_when` (déclaré) : la restauration des génomes
 n'a pas de prédicat de fichier.
+**Ce qui dépend des 4 génomes écrasés** (recensé le 2026-09-26 à la demande de Master 2 : grep de `_GRABBER`,
+`warm007_genomes` et `seed2026_agent0[0-3]` dans `tests/`, `tools/`, `src/` et `docs/`) : DEUX cas de calibration
+chargent `_GRABBER` = agent00 — `test_survival_follows_the_imposed_carry_cost_by_prediction` et
+`test_ablation_effect_grows_with_the_imposed_carry_cost` (`tests/sandbox/test_instrument_calibration.py`, l. 2005 et
+2025). Les deux autres lecteurs, `test_instrument_is_exact_noop_on_non_grabber` et
+`test_warmstart_evolution_inworld.py::test_grab_off_is_exact_noop_for_never_grabbing_genome`, chargent agent06, NON
+écrasé. Aucun outil de `tools/` ni de `src/` ne relit ce dossier (`tools/warmstart_evolution_inworld.py` ne fait
+qu'y écrire). Un seul record cite ces génomes : [[EDR-WARM-007]], créé le 2026-07-21 — ses chiffres viennent des
+ORIGINAUX, il n'est pas invalidé ; mais toute re-mesure faite depuis le 2026-09-09 dans l'arbre principal a lu des
+génomes de fumée. Un ré-entraînement rétablirait donc le SUJET de deux cas de calibration et la reproductibilité de
+WARM-007, rien d'autre. Remonté à robla par Master 2, avec la preuve.
 
 
 **P2.121 — rang 6 — OUVERTE (2026-09-26, mesuré sur le run 36210667429, le PREMIER où `suite-complete` exécute des
