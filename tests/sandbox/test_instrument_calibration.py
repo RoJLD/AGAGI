@@ -1818,6 +1818,26 @@ CALIBRATED = {
     "tools/evo_runs/s2_credit_ablation_2.py::run_arm": ["guard-before-world", "variante:enveloppe-la-phase-1-seule",
                                                         "b_const:reward_const-1.0-b_tdonly:episode-off",
                                                         "gele:ni-variante-ni-phase-1"],
+    # E34 / P2.132 (2026-09-26) -- lecture de la regle scellee E34-IDENTITY-CELL v2 (une cellule = une sonde), branches
+    # dans l'ORDRE impose : INCOMPLET (cellule, sham ou temoin absent ; audit AVEUGLE, revue v1 P7.a) -> LIEU_MIXTE ->
+    # temoin d'une autre execution LEVE (P5.b) -> TEMOIN_ROMPU -> SANS_OBJET (0 COMMUTATION, P8.a) -> harnais qui ment
+    # LEVE -> bande = {S_off} + 11 shams du MEME seed sur la grille 0,5, bords DANS la bande, S_off n'en est plus le
+    # bord impose (P1.a/P4.a/P6.a) ; FORT descriptif, jamais une seconde voie. Cas : tests/sandbox/
+    # test_e34_identity_cell.py (lignes synthetiques, appels HORS de pytest.raises) ; S_a lu dans le JSON SUIVI de P4.16.
+    "identity_cell_verdict": ["incomplet", "audit-aveugle:incomplet-jamais-sans_objet", "missing:raises", "lieu_mixte",
+                              "temoin-autre-execution:raises", "temoin_rompu", "sans_objet:zero-commutation",
+                              "harnais-qui-ment:raises", "bande:meme-seed-bords-dans-la-bande", "materiel_hausse",
+                              "materiel_baisse", "fort:descriptif", "dose-en-commutations-publiee",
+                              "fausse-alarme-h0-publiee", "non_materiel:borne-a-la-cellule-et-a-sa-dose",
+                              "part-erosion:None-sans-erosion"],
+    # E34 / P2.132 -- une cellule b_full seed 2026 sous le traitement de son bras (off / on / sham_k) : garde en tete
+    # (aucun monde), traitement TRANSMIS a la phase 1 (injection : slot_order_fix, sham_draws, identity_audit toujours
+    # vrai), appel REEL minuscule (monde torch, 2 agents, 3 + 2 ticks) qui publie l'audit de l'invariant et des
+    # commutations ; le no-op EXACT du drapeau eteint, le contre-exemple (mort en tete) et le sham (numpy seul, une
+    # fois, au tick de divergence, RNG torch intact) sont dans tests/sandbox/test_e34_slot_identity.py.
+    "run_identity_cell": ["guard-before-world", "traitement-transmis-a-la-phase-1", "appel-reel:audit-publie",
+                          "drapeau-eteint:noop-exact-au-bit", "mort-en-tete:contre-exemple",
+                          "sham:numpy-seul-une-fois-au-tick-de-divergence"],
     # P4.18 (2026-09-26) -- lecture de la regle scellee S2-BASSIN-FRAGILITY, branches dans l'ORDRE impose (INCOMPLET ->
     # NOOP -> HARNAIS -> REPLICATION -> TRANSPLANT -> APPARIEMENT -> INSTRUMENT (controle POSITIF de FRAGILE) ->
     # PREMISSE -> par bras DIRECTION/PARTIEL/FRAGILE/PROTECTRICE/INOFFENSIF -> global FRAGILE/DIRECTION/
