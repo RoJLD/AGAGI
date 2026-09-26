@@ -88,6 +88,11 @@ MAX_CPU, MAX_MEM_GI = 2.0, 4.0
 # explicitement sur le Job (jamais le défaut de la LimitRange), et ne dépasse jamais le `max` de la LimitRange LUE sur
 # le cluster au moment de la soumission (les constantes ci-dessus ne servent que de repli aux fonctions pures).
 PALIERS_MEMOIRE_GI = (4, 8, 16, 20, 24, 28, 32)
+# Réserve d'ELYSIUM (elysium-91, 2026-09-26) : pods BURSTABLE, request <= limit / 4 — sous pression mémoire, ce sont nos
+# pods (au-delà de leur request, priorité la plus basse) qui partent, jamais ollama ni la brain. Jamais Guaranteed.
+RAPPORT_REQUETE_MEMOIRE_MAX = 0.25
+# Objets du namespace que « namespace --appliquer » RETIRE après avoir appliqué les gabarits (remplacés par un autre).
+OBJETS_RETIRES = (("limitrange", "elysium-limitrange-standard"),)
 JOURNAL_LOCAL = "runs/deport"          # runs/ est ignoré par git : journaux et MANIFEST des runs
 MARGE_TRANSFERT_S = 1200               # préparation + tirage d'image + envoi des sources, borne haute
 ATTENTE_MIN_S = 60
@@ -272,6 +277,14 @@ def valider_ressources(req_cpu: float, cpu: float, req_mem: str, mem: str, max_c
         raise Refus(f"mémoire : la limite {mem} n'est pas un palier déclaré {[f'{p}Gi' for p in PALIERS_MEMOIRE_GI]}")
     if not (0 < mem_en_gi(req_mem) <= mem_en_gi(mem) <= max_mem_gi):
         raise Refus(f"mémoire : 0 < requête ({req_mem}) <= limite ({mem}) <= {max_mem_gi}Gi (max de la LimitRange)")
+    if mem_en_gi(req_mem) > RAPPORT_REQUETE_MEMOIRE_MAX * mem_en_gi(mem):
+        raise Refus(f"mémoire : requête {req_mem} > limite / 4 ({mem_en_gi(mem) / 4:g}Gi) — réserve d'ELYSIUM : pods "
+                    "BURSTABLE, jamais une requête qui ferait évincer les services du nœud à notre place")
+
+
+def requete_memoire_defaut(mem: str) -> str:
+    """Requête mémoire par défaut d'un palier : limite / 4 (réserve d'ELYSIUM), exprimée en Mi."""
+    return f"{int(mem_en_gi(mem) * 1024 * RAPPORT_REQUETE_MEMOIRE_MAX)}Mi"
 
 
 def plafonds_limitrange(kube) -> tuple:
@@ -323,7 +336,7 @@ def fenetre_restante_s(fenetre, maintenant: _dt.datetime | None = None) -> float
     return max(0.0, (fin - t).total_seconds() - int(fenetre["marge_s"]))
 
 
-def manifeste_job(*, nom, sha, image, commande, namespace, noeud, cpu=2.0, req_cpu=1.0, mem="4Gi", req_mem="1Gi",
+def manifeste_job(*, nom, sha, image, commande, namespace, noeud, cpu=2.0, req_cpu=1.0, mem="4Gi", req_mem=None,
                   attente_s=3600, deadline_s=2 * 3600, entry_sha256="", source_sha256="",
                   env_declare=None, max_cpu=MAX_CPU, max_mem_gi=MAX_MEM_GI) -> dict:
     """Le Job d'UN run. Conformité ELYSIUM portée par construction (CNCE-1/3/5/8/11) et vérifiée par test.
@@ -332,6 +345,7 @@ def manifeste_job(*, nom, sha, image, commande, namespace, noeud, cpu=2.0, req_c
     déclarer `soft`), et un atlas à terre FIGE alors le pod, puis le kubelet — incident ELYSIUM du 01/09 :
     WAL kine 8,9 Go, control-plane 3 h 50 à terre. La réplication vers atlas, si on la veut, se fait APRÈS
     le rapatriement, hors du run (atlas = cible copy-only, SIGIL-1764)."""
+    req_mem = req_mem or requete_memoire_defaut(mem)
     valider_ressources(req_cpu, cpu, req_mem, mem, max_cpu, max_mem_gi)
     if attente_s < ATTENTE_MIN_S:
         raise Refus(f"--attente-s {attente_s} < {ATTENTE_MIN_S} s : la sortie serait perdue avant tout rapatriement")
@@ -571,11 +585,12 @@ def garde_image(info: dict, sha: str, racine: Path) -> str:
 
 
 # ------------------------------------------------------------------------------------------ étapes
-def soumettre(commande, *, sha="HEAD", cpu=2.0, req_cpu=1.0, mem="4Gi", req_mem="1Gi",
+def soumettre(commande, *, sha="HEAD", cpu=2.0, req_cpu=1.0, mem="4Gi", req_mem=None,
               attente_s=3600, deadline_s=2 * 3600, image_divergente_ok=False,
               env=None, kube=None, racine=None, sortie=print, maintenant=None, cfg=None) -> str:
     cfg = cfg or charger_config()
     noeud = cfg["noeud"]
+    req_mem = req_mem or requete_memoire_defaut(mem)
     racine = racine or racine_depot()
     kube = kube or Kube.depuis(cfg)
     commande = valider_commande(list(commande))
@@ -702,7 +717,9 @@ def lire_fin(job_obj: dict, pod: dict | None, noeud_pret_maintenant: bool) -> di
         etat = "noeud_perdu"
     else:
         etat = "inconnu"
-    return {"etat": etat, **preuves}
+    # Réserve d'ELYSIUM : OOMKilled et Evicted (comme la préemption et la perte du nœud) sont des issues de
+    # l'ENVIRONNEMENT, distinctes et RELANÇABLES — pas un échec de l'expérience. La relance reste un geste déclaré.
+    return {"etat": etat, "relancable": etat in ("oom", "evince", "preempte", "noeud_perdu"), **preuves}
 
 
 def attendre(job, *, kube=None, delai_s=8 * 3600, sortie=print, cfg=None) -> dict:
@@ -1098,8 +1115,8 @@ def main(argv=None) -> int:
         _env_cli(p)
         p.add_argument("--cpu", type=float, default=2.0)
         p.add_argument("--req-cpu", type=float, default=1.0)
-        p.add_argument("--mem", default="4Gi")
-        p.add_argument("--req-mem", default="1Gi")
+        p.add_argument("--mem", default="4Gi", help=f"palier : {', '.join(f'{p}Gi' for p in PALIERS_MEMOIRE_GI)}")
+        p.add_argument("--req-mem", default=None, help="défaut : limite / 4 (pods BURSTABLE, réserve d'ELYSIUM)")
         p.add_argument("--attente-s", type=float, default=3600, help="fenêtre de rapatriement après le run")
         p.add_argument("--deadline-s", type=float, default=2 * 3600, help="durée max du runner (avant minuit)")
         p.add_argument("--image-divergente-ok", action="store_true")
@@ -1176,8 +1193,12 @@ def main(argv=None) -> int:
             if not a.appliquer:
                 print(rendu)
                 return 0
-            r = Kube.depuis(cfg).brut(["apply", "-f", "-"], entree=rendu.encode("utf-8"), ns=False)
+            kube = Kube.depuis(cfg)
+            r = kube.brut(["apply", "-f", "-"], entree=rendu.encode("utf-8"), ns=False)
             print(r.stdout.decode())
+            for genre, nom in OBJETS_RETIRES:                 # APRÈS l'apply : jamais un namespace sans LimitRange
+                d = kube.brut(["delete", genre, nom, "--ignore-not-found"])
+                print(d.stdout.decode().strip() or f"{genre}/{nom} absent (déjà retiré)")
             return 0
         if a.action == "surveiller":
             # flush : lancée en arrière-plan, sortie redirigée vers un fichier, une sonde non vidée n'écrirait rien

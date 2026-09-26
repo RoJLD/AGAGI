@@ -756,7 +756,7 @@ def test_paliers_de_memoire_explicites_et_plafond_LU_sur_le_cluster():
     assert R.plafonds_limitrange(KubeLimitRange([[{"type": "Container", "max": {"cpu": "1500m", "memory": "8192Mi"}}]])) == (1.5, 8.0)
     with pytest.raises(R.Refus, match="plafond inconnu"):
         R.plafonds_limitrange(KubeLimitRange([]))
-    j = _job(mem="24Gi", req_mem="8Gi", max_mem_gi=32)
+    j = _job(mem="24Gi", req_mem="6Gi", max_mem_gi=32)
     lim = j["spec"]["template"]["spec"]["containers"][0]["resources"]["limits"]["memory"]
     assert lim == "24Gi" and json.loads(j["metadata"]["annotations"]["agagi.io/ressources"])["mem"] == "24Gi"
 
@@ -773,3 +773,29 @@ def test_limite_memoire_lue_dans_le_cgroup_trois_issues(tmp_path):
     casse.mkdir()
     (casse / "memory.max").write_text("n'importe quoi")
     assert E.lire_limite_memoire(str(casse))["source"] == "illisible"
+
+
+def test_pods_BURSTABLE_requete_au_plus_le_quart_de_la_limite():
+    """Réserve d'ELYSIUM : request <= limit/4 (un pod garanti à 32 Gi ferait évincer ollama). Défaut = limit/4."""
+    j = _job(mem="32Gi", max_mem_gi=32)
+    res = j["spec"]["template"]["spec"]["containers"][0]["resources"]
+    assert res["limits"]["memory"] == "32Gi" and res["requests"]["memory"] == "8192Mi"
+    with pytest.raises(R.Refus, match="BURSTABLE"):
+        _job(mem="32Gi", req_mem="16Gi", max_mem_gi=32)
+    assert R.requete_memoire_defaut("4Gi") == "1024Mi"
+
+
+def test_oom_et_eviction_sont_RELANCABLES_un_echec_d_entree_non():
+    oom = _pod(containerStatuses=[{"name": "run", "state": {"terminated": {"exitCode": 137, "reason": "OOMKilled"}}}])
+    assert R.lire_fin({}, oom, True)["relancable"] is True
+    assert R.lire_fin({}, _pod(reason="Evicted"), True)["relancable"] is True
+    refus = _pod(containerStatuses=[{"name": "run", "state": {"terminated": {"exitCode": 86}}}])
+    assert R.lire_fin({}, refus, True)["relancable"] is False
+
+
+def test_manifestes_ml_heavy_et_retrait_de_la_limitrange_standard():
+    rendu = R.rendre_manifestes(R.charger_config(), R.racine_depot())
+    assert "name: elysium-limitrange-ml-heavy" in rendu and "memory: 32Gi" in rendu
+    assert "elysium.io/limitrange-tier: ml-heavy" in rendu
+    assert "requests.memory: 24Gi" in rendu and "limits.memory: 40Gi" in rendu
+    assert ("limitrange", "elysium-limitrange-standard") in R.OBJETS_RETIRES

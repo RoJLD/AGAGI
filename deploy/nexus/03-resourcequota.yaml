@@ -5,6 +5,11 @@
 # 3375m CPU / 6752 Mi déjà pris (dont nexus-ollama). 8 CPU de requests pour AGAGI laissent ~3,6 CPU de
 # requests libres à ELYSIUM sur nexus. Aucun namespace du cluster ne porte de ResourceQuota aujourd'hui :
 # celle-ci est un geste de voisinage, pas une norme — les sessions ELYSIUM peuvent en ajuster les valeurs.
+# Mémoire fixée par ELYSIUM le 2026-09-26, robla d'accord : requests 24 Gi, limits 40 Gi — un Job à 32 Gi (+ un
+# petit build), JAMAIS deux gros simultanés : sérialisation voulue. 40 Gi AGAGI + 24 Gi de nexus-ollama = 64 Gi,
+# déjà au ras du nœud (elysium-8d) ; elysium-91 avait proposé 48 Gi (un Job 32 Gi + 16 Gi de petits) — la valeur
+# la plus PRUDENTE est retenue en attendant que les deux s'accordent. Mesures d'ELYSIUM : allouable 61,6 Gi,
+# requests engagées 7,0 Gi, usage réel 5,3 Gi.
 apiVersion: v1
 kind: ResourceQuota
 metadata:
@@ -17,9 +22,9 @@ metadata:
 spec:
   hard:
     requests.cpu: "8"
-    requests.memory: 16Gi
+    requests.memory: 24Gi
     limits.cpu: "16"
-    limits.memory: 32Gi
+    limits.memory: 40Gi
     pods: "16"
     count/jobs.batch: "100"
     configmaps: "20"

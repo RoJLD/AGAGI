@@ -32,6 +32,8 @@ metadata:
     # cnce-12-trust-zone-required (ELYSIUM PR-A secrets-flotte, Audit puis Enforce) : namespace de calcul de
     # Robin, sans état res publica -> personal (elysium-2d, 2026-09-26 ; inscrit dans config/namespace_zones.yaml)
     elysium.io/trust-zone: personal
+    # palier de LimitRange hors boucle manuelle du README ELYSIUM (elysium-91, 2026-09-26) : cf. 01-limitrange.yaml
+    elysium.io/limitrange-tier: ml-heavy
     elysium.io/owner: agagi
     app.kubernetes.io/part-of: agagi
   annotations:
