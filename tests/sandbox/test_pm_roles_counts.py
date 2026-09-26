@@ -9,6 +9,26 @@ import time
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 from tools.pm import roles_counts as RC  # noqa: E402
+from tools._git_env import env_isole  # noqa: E402  (P2.107 b : un dépôt JETABLE isole GIT_*, règle à deux faces)
+
+
+def _run(repo, *a):
+    """Appel de commande sur un dépôt JETABLE : la famille GIT_* est ISOLÉE (P2.107 b)."""
+    return subprocess.run(a, cwd=repo, check=True, capture_output=True, env=env_isole())
+
+
+def test_P2_107_b_le_git_du_depot_jetable_ISOLE_un_GIT_DIR_qui_fuit(tmp_path, monkeypatch):
+    """P2.107 (b) : cette aide vise un dépôt JETABLE ; elle ISOLE la famille GIT_* (règle à deux faces). La fixture de
+    conftest purge l'environnement AVANT le test ; un `GIT_DIR` posé PENDANT le test, lui, détournait l'`init` vers le
+    dépôt pointé — et le `user.email` qui suit écrasait son identité (P2.86). ROUGE sans `env=env_isole()`."""
+    sentinelle = tmp_path / "sentinelle"
+    sentinelle.mkdir()
+    _run(sentinelle, "git", "init", "-q", "-b", "main")
+    monkeypatch.setenv("GIT_DIR", (sentinelle / ".git").as_posix())
+    cible = tmp_path / "cible"
+    cible.mkdir()
+    _run(cible, "git", "init", "-q", "-b", "main")
+    assert (cible / ".git").is_dir(), "l'init a ete DETOURNE vers la sentinelle"
 
 T0 = 1_800_000_000.0
 
@@ -91,7 +111,7 @@ def test_fichiers_modifies_CONTROLE_POSITIF_since_ancre_a_minuit(tmp_path):
     dépôt git rend None, jamais une liste vide (« je ne sais pas » ≠ « rien de modifié »)."""
     repo = tmp_path / "repo"
     repo.mkdir()
-    run = lambda *a: subprocess.run(a, cwd=repo, check=True, capture_output=True)
+    run = lambda *a: _run(repo, *a)
     run("git", "init", "-b", "main")
     run("git", "config", "user.email", "test@example.com")
     run("git", "config", "user.name", "Test")

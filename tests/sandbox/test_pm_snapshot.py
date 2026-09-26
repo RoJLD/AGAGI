@@ -9,10 +9,26 @@ import pytest
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 from tools.pm import snapshot as S  # noqa: E402
+from tools._git_env import env_isole  # noqa: E402  (P2.107 b : un dépôt JETABLE isole GIT_*, règle à deux faces)
 
 
 def _git(repo, *args):
-    return subprocess.run(["git", *args], cwd=repo, capture_output=True, encoding="utf-8", check=True).stdout
+    return subprocess.run(["git", *args], cwd=repo, capture_output=True, encoding="utf-8", check=True,
+                          env=env_isole()).stdout
+
+
+def test_P2_107_b_le_git_du_depot_jetable_ISOLE_un_GIT_DIR_qui_fuit(tmp_path, monkeypatch):
+    """P2.107 (b) : cette aide vise un dépôt JETABLE ; elle ISOLE la famille GIT_* (règle à deux faces). La fixture de
+    conftest purge l'environnement AVANT le test ; un `GIT_DIR` posé PENDANT le test, lui, détournait l'`init` vers le
+    dépôt pointé — et le `user.email` qui suit écrasait son identité (P2.86). ROUGE sans `env=env_isole()`."""
+    sentinelle = tmp_path / "sentinelle"
+    sentinelle.mkdir()
+    _git(sentinelle, "init", "-q", "-b", "main")
+    monkeypatch.setenv("GIT_DIR", (sentinelle / ".git").as_posix())
+    cible = tmp_path / "cible"
+    cible.mkdir()
+    _git(cible, "init", "-q", "-b", "main")
+    assert (cible / ".git").is_dir(), "l'init a ete DETOURNE vers la sentinelle"
 
 
 @pytest.fixture

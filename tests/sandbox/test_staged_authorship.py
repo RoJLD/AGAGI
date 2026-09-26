@@ -37,14 +37,35 @@ from tools.check_staged_authorship import (  # noqa: E402
     NoSnapshotError, ForeignHunkDetected, MissingPathsInCommit, WorkPreempted, scan_own_snapshots, retire_snapshots,
 )
 
+from tools._git_env import env_isole  # noqa: E402  (P2.107 b : un dépôt JETABLE isole GIT_*, règle à deux faces)
+
 _FILE = "shared_module.py"
 _OTHER = "other_module.py"
 
 
 def _git(args, cwd):
-    r = subprocess.run(["git"] + args, cwd=cwd, capture_output=True, text=True, encoding="utf-8")
+    r = subprocess.run(["git"] + args, cwd=cwd, capture_output=True, text=True, encoding="utf-8", env=env_isole())
     assert r.returncode == 0, f"git {args} a échoué : {r.stderr}"
     return r.stdout
+
+
+def test_P2_107_b_le_git_du_depot_jetable_ISOLE_un_GIT_DIR_qui_fuit(tmp_path, monkeypatch):
+    """P2.107 (b) : cette aide vise un dépôt JETABLE ; elle ISOLE la famille GIT_* (règle à deux faces). La fixture de
+    conftest purge l'environnement AVANT le test ; un `GIT_DIR` posé PENDANT le test, lui, détournait l'`init` vers le
+    dépôt pointé — et le `user.email` qui suit écrasait son identité (P2.86). ROUGE sans `env=env_isole()`."""
+    sentinelle = tmp_path / "sentinelle"
+    sentinelle.mkdir()
+    _git(["init", "-q"], str(sentinelle))
+    _git(["config", "user.email", "vrai@proprietaire.fr"], str(sentinelle))
+    monkeypatch.setenv("GIT_DIR", (sentinelle / ".git").as_posix())
+    cible = tmp_path / "cible"
+    cible.mkdir()
+    _git(["init", "-q"], str(cible))
+    _git(["config", "user.email", "test@example.com"], str(cible))
+    assert (cible / ".git").is_dir(), "l'init a ete DETOURNE vers la sentinelle"
+    monkeypatch.delenv("GIT_DIR")
+    assert _git(["config", "user.email"], str(sentinelle)).strip() == "vrai@proprietaire.fr", (
+        "l'identite du depot POINTE a ete ecrasee")
 
 
 def _init_repo(tmp_path):

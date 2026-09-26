@@ -219,7 +219,15 @@ Jugements rendus par le juge, cle = nom de base du fichier relu : ${JSON.stringi
   { label: 'verification', phase: 'Verification', schema: VERIFICATION })
 
 const resultats = (verif && verif.resultats) || {}
-const refus = ((verif && verif.refus) || '').trim()
+// Un refus fait UNIQUEMENT de guillemets ou d'espaces n'est PAS un refus : le verificateur a rendu '""' pour
+// « aucun refus » et la revue est sortie NULLE avec les trois temoins RETROUVES (2026-09-26, agagi-40,
+// wf_d1ad70bd) -- un nul de TRANSPORT deguise en nul de FOND, famille E4. Temoin :
+// tests/sandbox/test_refutateur_workflow_refus.py (extrait cette fonction et l'execute sous node).
+function normaliserRefus(x) {
+  const s = (typeof x === 'string' ? x : '').trim()
+  return /^["'\s]*$/.test(s) ? '' : s
+}
+const refus = normaliserRefus(verif && verif.refus)
 const plancherPublie = ((verif && verif.plancher) || '').trim()
 const plancherNoop = ((verif && verif.plancher_noop) || '').trim()
 // Seuls les temoins a DEFAUT font barriere. Un statut MESURE est une mesure, pas un echec.

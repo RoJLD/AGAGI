@@ -974,6 +974,15 @@ purge de la famille GIT_* dans le lanceur de témoins de la porte 15 — existe 
 utilitaire `f6bb56a0:tools/_git_env.py` et un contre-exemple à deux issues ancré sur l'ÉTAT, et il est désormais
 FUSIONNÉ ici par `8988ac8b` — `tools/check_gate_mutation.py` porte `env_isole` et `tools/_git_env.py` est suivi ;
 il ne l'était pas quand cette entrée a été écrite, la veille ; (b) les trois sites non protégés restent à fermer.
+✅ **(b) FERMÉE le 2026-09-26 (agagi-32, worker Dette)** : les trois aides de dépôts JETABLES isolent explicitement la
+famille GIT_* (`env=env_isole()`, `tools/_git_env.py`) — `tests/sandbox/test_pm_snapshot.py::_git`,
+`tests/sandbox/test_staged_authorship.py::_git`, `tests/sandbox/test_pm_roles_counts.py::_run`. Le quatrième appel que
+cite la garde d'E5 (`tests/sandbox/test_preregistration_guard.py:128`, `rev-parse HEAD`) vise le dépôt COURANT : il
+HÉRITE, règle à deux faces. Un témoin par fichier (`test_P2_107_b_le_git_du_depot_jetable_ISOLE_un_GIT_DIR_qui_fuit`) :
+un `GIT_DIR` posé PENDANT le test — la fixture de conftest purge AVANT, elle ne le voit pas — ne détourne plus l'init ;
+chacun ROUGE sans l'isolation et VERT avec, vérifié fichier par fichier avec restauration octet pour octet. Windows 65
+verts ; Linux (WSL) 65 verts. **L'entrée reste OUVERTE pour une seule raison** : la garde d'appoint « refuser toute
+sortie de test contenant `re-init: ignored` » n'existe pas (seul le témoin du mécanisme affirme l'empreinte).
 **P2.111 — rang 8 — OUVERTE (2026-09-24, mesuré contre le motif RÉEL de la porte) — La porte 4 ne refuse pas
 la forme `sha:chemin` parce qu'un DEUX-POINTS casse sa classe de caractères, pas parce qu'elle l'a vérifiée :
 une échappatoire SILENCIEUSE à la garde des chemins non suivis.**
@@ -1373,6 +1382,12 @@ message). 0 erreur de collecte : `b895a0a3` a fait son travail. Familles, par ta
    calibration tournent sous Linux sans un rouge. Trouvé par la revue et vérifié : le smoke de
    `test_warmstart_evolution_inworld` écrasait les génomes de calibration WARM-007 → **P2.125**. Le compte du run CI qui
    suit s'écrit ici.
+   📏 **LU sur le run 36238578726 (`c0274ea9`, cumul de la famille 1 et du doctor ; relevé par agagi-88 et Master 2)** :
+   suite-complete **48 → 9 rouges**, 0 nouveau, **39 disparus** (plain_substrate_ceiling 11, torch_throw_gate_world 7,
+   orchestrator_injection 7, torch_gate_persist_ab 4, torch_binary_gate_probe 4, td_step_pilot 2, et un chacun pour
+   warmstart_evolution_inworld, vitality_bar_measured, torch_binary_gate_heldout_probe, factorial_regime_sweep) ;
+   passés 2940 → 3400, sautés 237 → 343 (attendu) ; `test_instrument_calibration.py` : **0 rouge à son premier passage
+   en CI**. Restent 9 : les 4 PM de la famille 5 (`eda2870f`, en jugement), 3 grab (P2.113 c), 2 flatland (P2.113 d).
 2. **`tests/sandbox/test_hook_on_merge.py` — 18 tests** : « git commit -q -m base a échoué (1) » dans le dépôt jetable ;
    stderr : « python: can't open file '…/jetable/tools/check_e19_optimizer_sweep.py' ». Le crochet jouet, extrait VERBATIM
    de `tools/hooks/pre-commit`, appelle la porte 23 que le dépôt jetable ne porte pas — vert sur Windows, rouge sur
@@ -1432,6 +1447,8 @@ message). 0 erreur de collecte : `b895a0a3` a fait son travail. Familles, par ta
    sur la chaîne `79b24af6` → `cb5e06ca`.
 7. **déjà inscrits, P2.113 (b)(c)(d)** : test_perimeter_widening EXPOSURE (traité avec la clôture de P2.49), test_grab_* ×3
    (pkl non versionné), test_backend ×2 (TaskGroup).
+   📏 **Au run 36238578726** : (b) est VERTE en CI, collectée pour la PREMIÈRE fois depuis que la suite de calibration se
+   charge sans torch (corrigée avec la famille 1) ; restent (c) 3 rouges et (d) 2 rouges.
 **Forme demandée** : une famille = un commit, vérifié dans les DEUX conditions ; le run qui suit chaque commit est LU et son
 compte (rouges avant → après) est écrit ICI ; la famille 6 s'instruit avant la 1, plus grosse mais mécanique. Sans clause
 `closes_when` (déclaré) : la clôture est « 0 rouge hors P2.113 » lu sur un run, ce qu'aucun prédicat de fichier n'exprime.
