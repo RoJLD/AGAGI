@@ -408,7 +408,8 @@ def test_labels_de_propriete_elysium():
         assert meta["labels"]["elysium.io/source-repo"]
 
 
-@pytest.mark.parametrize("kw", [dict(cpu=3.0), dict(mem="8Gi"), dict(req_cpu=2.0, cpu=1.0),
+@pytest.mark.parametrize("kw", [dict(cpu=3.0), dict(mem="8Gi"), dict(mem="3Gi"), dict(mem="12Gi", max_mem_gi=32),
+                                dict(req_cpu=2.0, cpu=1.0),
                                 dict(req_mem="2Gi", mem="1Gi"), dict(mem="4G"), dict(cpu=0.0, req_cpu=0.0)])
 def test_ressources_hors_limitrange_refusees_avant_soumission(kw):
     with pytest.raises(R.Refus):
@@ -732,3 +733,43 @@ def test_surveillance_deux_issues_et_exclusion_COMPTEE():
     ign = R.lire_anomalies({"items": [_j("agagi-build-p2134-r1-0", "Failed")]},
                            {"items": [_p("agagi-build-p2134-r1-0-x", oom=True)]}, t, ignorer=("-p2134-",))
     assert ign["anomalies"] == [] and len(ign["ignorees"]) == 2 and "motif déclaré" in ign["ignorees"][0]
+
+
+# ------------------------------------------------------------------------------------------ paliers de mémoire
+class KubeLimitRange:
+    def __init__(self, limites):
+        self.limites = limites
+
+    def json(self, args, ns=True):
+        assert args == ["get", "limitrange"]
+        return {"items": [{"spec": {"limits": l}} for l in self.limites]}
+
+
+def test_paliers_de_memoire_explicites_et_plafond_LU_sur_le_cluster():
+    """Décision de robla : paliers 4 à 32 Gi selon le besoin, sous réserve d'ELYSIUM. Un palier au-dessus du max de
+    la LimitRange est refusé AVANT soumission ; le max se LIT (le plus restrictif l'emporte), il ne se devine pas."""
+    std = [{"type": "Container", "max": {"cpu": "2", "memory": "4Gi"}}]
+    mlh = [{"type": "Container", "max": {"cpu": "12", "memory": "32Gi"}}]
+    assert R.plafonds_limitrange(KubeLimitRange([std])) == (2.0, 4.0)
+    assert R.plafonds_limitrange(KubeLimitRange([mlh])) == (12.0, 32.0)
+    assert R.plafonds_limitrange(KubeLimitRange([std, mlh])) == (2.0, 4.0)         # le plus restrictif
+    assert R.plafonds_limitrange(KubeLimitRange([[{"type": "Container", "max": {"cpu": "1500m", "memory": "8192Mi"}}]])) == (1.5, 8.0)
+    with pytest.raises(R.Refus, match="plafond inconnu"):
+        R.plafonds_limitrange(KubeLimitRange([]))
+    j = _job(mem="24Gi", req_mem="8Gi", max_mem_gi=32)
+    lim = j["spec"]["template"]["spec"]["containers"][0]["resources"]["limits"]["memory"]
+    assert lim == "24Gi" and json.loads(j["metadata"]["annotations"]["agagi.io/ressources"])["mem"] == "24Gi"
+
+
+def test_limite_memoire_lue_dans_le_cgroup_trois_issues(tmp_path):
+    v2 = tmp_path / "v2"
+    v2.mkdir()
+    (v2 / "memory.max").write_text("8589934592\n")
+    assert E.lire_limite_memoire(str(v2))["limite_octets"] == 8 * 2 ** 30
+    (v2 / "memory.max").write_text("max\n")
+    assert E.lire_limite_memoire(str(v2))["limite_octets"] is None and E.lire_limite_memoire(str(v2))["source"] == "cgroup2"
+    assert E.lire_limite_memoire(str(tmp_path / "rien"))["source"] == "absente"
+    casse = tmp_path / "casse"
+    casse.mkdir()
+    (casse / "memory.max").write_text("n'importe quoi")
+    assert E.lire_limite_memoire(str(casse))["source"] == "illisible"

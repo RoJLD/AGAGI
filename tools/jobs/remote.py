@@ -84,6 +84,10 @@ FICHIERS_CONTEXTE = {"Dockerfile": f"{RUNNER_DIR}/Dockerfile", "constraints.txt"
                      "requirements.txt": "requirements.txt", "build-job.yaml": f"{RUNNER_DIR}/build-job.yaml"}
 # Plafond par conteneur = LimitRange `standard` du namespace (deploy/nexus/01-limitrange.yaml).
 MAX_CPU, MAX_MEM_GI = 2.0, 4.0
+# Paliers de mémoire (décision de robla, 2026-09-26) : une limite de conteneur est TOUJOURS l'un d'eux, déclarée
+# explicitement sur le Job (jamais le défaut de la LimitRange), et ne dépasse jamais le `max` de la LimitRange LUE sur
+# le cluster au moment de la soumission (les constantes ci-dessus ne servent que de repli aux fonctions pures).
+PALIERS_MEMOIRE_GI = (4, 8, 16, 20, 24, 28, 32)
 JOURNAL_LOCAL = "runs/deport"          # runs/ est ignoré par git : journaux et MANIFEST des runs
 MARGE_TRANSFERT_S = 1200               # préparation + tirage d'image + envoi des sources, borne haute
 ATTENTE_MIN_S = 60
@@ -257,13 +261,31 @@ def mem_en_gi(q: str) -> float:
     return float(m.group(1)) / (1024.0 if m.group(2) == "Mi" else 1.0)
 
 
-def valider_ressources(req_cpu: float, cpu: float, req_mem: str, mem: str) -> None:
+def valider_ressources(req_cpu: float, cpu: float, req_mem: str, mem: str, max_cpu: float = MAX_CPU,
+                       max_mem_gi: float = MAX_MEM_GI) -> None:
     """Refuse AVANT soumission ce que la LimitRange refuserait APRÈS — un refus d'admission d'un pod de Job
-    est SILENCIEUX (Job `0/1` sans pod : ELYSIUM image-ci README, Iron Rule 5)."""
-    if not (0 < req_cpu <= cpu <= MAX_CPU):
-        raise Refus(f"CPU : 0 < requête ({req_cpu}) <= limite ({cpu}) <= {MAX_CPU} (LimitRange standard)")
-    if not (0 < mem_en_gi(req_mem) <= mem_en_gi(mem) <= MAX_MEM_GI):
-        raise Refus(f"mémoire : 0 < requête ({req_mem}) <= limite ({mem}) <= {MAX_MEM_GI}Gi (LimitRange standard)")
+    est SILENCIEUX (Job `0/1` sans pod : ELYSIUM image-ci README, Iron Rule 5). La limite mémoire doit être un
+    PALIER déclaré (PALIERS_MEMOIRE_GI) : deux cellules ne se comparent qu'à palier connu."""
+    if not (0 < req_cpu <= cpu <= max_cpu):
+        raise Refus(f"CPU : 0 < requête ({req_cpu}) <= limite ({cpu}) <= {max_cpu} (max de la LimitRange)")
+    if mem_en_gi(mem) not in PALIERS_MEMOIRE_GI:
+        raise Refus(f"mémoire : la limite {mem} n'est pas un palier déclaré {[f'{p}Gi' for p in PALIERS_MEMOIRE_GI]}")
+    if not (0 < mem_en_gi(req_mem) <= mem_en_gi(mem) <= max_mem_gi):
+        raise Refus(f"mémoire : 0 < requête ({req_mem}) <= limite ({mem}) <= {max_mem_gi}Gi (max de la LimitRange)")
+
+
+def plafonds_limitrange(kube) -> tuple:
+    """(max CPU, max mémoire en Gi) par conteneur, LUS dans les LimitRange du namespace — le plus restrictif
+    l'emporte, comme dans Kubernetes. Aucune LimitRange ou aucun max lisible → Refus (on ne devine pas un plafond)."""
+    def cpu_en(q):
+        return float(q[:-1]) / 1000 if str(q).endswith("m") else float(q)
+    maxs = [l.get("max", {}) for lr in kube.json(["get", "limitrange"]).get("items", [])
+            for l in lr.get("spec", {}).get("limits", []) if l.get("type") == "Container"]
+    cpus = [cpu_en(m["cpu"]) for m in maxs if "cpu" in m]
+    mems = [mem_en_gi(m["memory"]) for m in maxs if "memory" in m]
+    if not cpus or not mems:
+        raise Refus("aucun max CPU/mémoire lisible dans les LimitRange du namespace : plafond inconnu, refus")
+    return min(cpus), min(mems)
 
 
 def nom_job(commande: list, sha: str, suffixe: str | None = None) -> str:
@@ -303,14 +325,14 @@ def fenetre_restante_s(fenetre, maintenant: _dt.datetime | None = None) -> float
 
 def manifeste_job(*, nom, sha, image, commande, namespace, noeud, cpu=2.0, req_cpu=1.0, mem="4Gi", req_mem="1Gi",
                   attente_s=3600, deadline_s=2 * 3600, entry_sha256="", source_sha256="",
-                  env_declare=None) -> dict:
+                  env_declare=None, max_cpu=MAX_CPU, max_mem_gi=MAX_MEM_GI) -> dict:
     """Le Job d'UN run. Conformité ELYSIUM portée par construction (CNCE-1/3/5/8/11) et vérifiée par test.
 
     AUCUN volume NFS, par construction : un montage `nfs:` en ligne est `hard` (un pod ne peut pas le
     déclarer `soft`), et un atlas à terre FIGE alors le pod, puis le kubelet — incident ELYSIUM du 01/09 :
     WAL kine 8,9 Go, control-plane 3 h 50 à terre. La réplication vers atlas, si on la veut, se fait APRÈS
     le rapatriement, hors du run (atlas = cible copy-only, SIGIL-1764)."""
-    valider_ressources(req_cpu, cpu, req_mem, mem)
+    valider_ressources(req_cpu, cpu, req_mem, mem, max_cpu, max_mem_gi)
     if attente_s < ATTENTE_MIN_S:
         raise Refus(f"--attente-s {attente_s} < {ATTENTE_MIN_S} s : la sortie serait perdue avant tout rapatriement")
     env_declare = dict(env_declare or {})
@@ -342,7 +364,9 @@ def manifeste_job(*, nom, sha, image, commande, namespace, noeud, cpu=2.0, req_c
         "metadata": {"name": nom, "namespace": namespace, "labels": labels,
                      "annotations": {"agagi.io/sha": sha, "agagi.io/commande": json.dumps(commande),
                                      "agagi.io/env": json.dumps(env_declare, sort_keys=True),
-                                     "agagi.io/entry-sha256": entry_sha256}},
+                                     "agagi.io/entry-sha256": entry_sha256,
+                                     "agagi.io/ressources": json.dumps({"cpu": cpu, "req_cpu": req_cpu, "mem": mem,
+                                                                        "req_mem": req_mem})}},
         "spec": {
             "backoffLimit": 0,
             "activeDeadlineSeconds": int(deadline_s + attente_s + MARGE_TRANSFERT_S),
@@ -566,6 +590,7 @@ def soumettre(commande, *, sha="HEAD", cpu=2.0, req_cpu=1.0, mem="4Gi", req_mem=
     info = lire_image(racine)
     mode_garde = "desactivee (--image-divergente-ok)" if image_divergente_ok else garde_image(info, sha, racine)
     pret, raison = noeud_pret(kube, noeud)
+    max_cpu, max_mem_gi = plafonds_limitrange(kube) if pret else (MAX_CPU, MAX_MEM_GI)
     if not pret:
         raise Refus(f"{raison}. {allumage(cfg)}")
     absentes = entrees_non_suivies(racine)
@@ -577,6 +602,7 @@ def soumettre(commande, *, sha="HEAD", cpu=2.0, req_cpu=1.0, mem="4Gi", req_mem=
     nom = nom_job(commande, sha)
     ref = image_ref(info, cfg["registre"])
     job = manifeste_job(nom=nom, sha=sha, image=ref, commande=commande, namespace=cfg["namespace"], cpu=cpu,
+                        max_cpu=max_cpu, max_mem_gi=max_mem_gi,
                         req_cpu=req_cpu,
                         mem=mem, req_mem=req_mem, noeud=noeud, attente_s=attente_s, deadline_s=deadline_s,
                         entry_sha256=hashlib.sha256(entry).hexdigest(),
@@ -597,6 +623,8 @@ def soumettre(commande, *, sha="HEAD", cpu=2.0, req_cpu=1.0, mem="4Gi", req_mem=
         {"job": nom, "sha": sha, "commande": commande, "env": env_declare, "image": image_ref(info, "<registre>"),
          "noeud": noeud,
          "garde_image": mode_garde, "entrees_non_suivies": absentes,
+         "ressources": {"cpu": cpu, "req_cpu": req_cpu, "mem": mem, "req_mem": req_mem,
+                        "plafonds_limitrange": {"cpu": max_cpu, "mem_gi": max_mem_gi}},
          "soumis_utc": _dt.datetime.now(_dt.timezone.utc).isoformat()}, indent=2, ensure_ascii=False),
         encoding="utf-8")
     return nom

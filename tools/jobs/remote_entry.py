@@ -106,6 +106,24 @@ def lire_limite_cpu(racine: str = "/sys/fs/cgroup") -> dict:
     return out
 
 
+def lire_limite_memoire(racine: str = "/sys/fs/cgroup") -> dict:
+    """Limite mémoire du conteneur LUE dans le cgroup (v2 `memory.max`, repli v1), avec sa source — le palier déclaré
+    sur le Job est une INTENTION, celle-ci est la MESURE publiée à côté du digest. `max` = aucune limite ;
+    fichier absent = limite INCONNUE (Windows, WSL), jamais « illimitée » ; contenu illisible = dit."""
+    out = {"source": "absente", "memory_max_brut": None, "limite_octets": None, "erreur": None}
+    for rel, src in (("memory.max", "cgroup2"), (os.path.join("memory", "memory.limit_in_bytes"), "cgroup1")):
+        chemin = os.path.join(racine, rel)
+        if os.path.exists(chemin):
+            try:
+                with open(chemin, encoding="ascii") as f:
+                    brut = f.read().strip()
+                out.update(source=src, memory_max_brut=brut, limite_octets=None if brut == "max" else int(brut))
+            except (OSError, ValueError) as err:
+                out.update(source="illisible", erreur=f"{type(err).__name__}: {err}")
+            return out
+    return out
+
+
 def _affinite():
     try:
         return len(os.sched_getaffinity(0))
@@ -391,6 +409,7 @@ def principal(a) -> int:
         "cpu": {**limite, "affinite": _affinite(), "os_cpu_count": os.cpu_count(),
                 "threads_poses": {v: env.get(v) for v in VARS_THREADS},
                 "threads_source": env.get("AGAGI_THREADS_SOURCE")},
+        "memoire": lire_limite_memoire(a.cgroup),
         "charge_debut": charge0, "charge_fin": charge1,
         "python": platform.python_version(), "plateforme": platform.platform(),
         "versions": _versions(sys.executable, env), "image": os.environ.get("AGAGI_IMAGE"),
