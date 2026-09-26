@@ -2188,7 +2188,11 @@ le coût est le cadrage puis le rendu. Note annexe trouvée en passant : `/api/s
 consommateur frontend** (`grep -rln strategy_tree frontend/src/components` vide le 2026-09-22) — à confirmer par la
 porte de parité avant de le brancher ou de le retirer. *Coût : brainstorm 2 h ; implémentation non estimée avant
 cadrage.* Dépend de : lot 1 (pas 1-3 de la spec).
-<!-- closes_when:path_present=docs/superpowers/specs/2026-09-24-pilotage-science-design.md -->
+Cadrage fait le 2026-09-26 avec P2.87, dans UNE spec : `docs/superpowers/specs/2026-09-26-auto-indexation-artefacts-design.md`
+(v2 après revue adversariale opus : 3 bloquants, 14 importants, 7 mineurs intégrés ; approche A validée par Master 2 avec
+quatre conditions). Trois vues : Pipeline, Taxonomie, Trouvailles. Les « fermetures par semaine » de (d) sont HORS
+périmètre (la date d'une tête est celle de son statut). La clause suit le CODE, jamais la spec.
+<!-- closes_when:path_present=tools/pm/science.py -->
 
 **P2.85 — ⚠️ OUVERTE (2026-09-24, mesurée en étant bloquée par elle) — la porte 8 juge le DISQUE et non l'INDEX : le
 travail NON COMMITTÉ d'une session rend un compteur « périmé » et bloque le commit de TOUTES les autres, sur des
@@ -2299,7 +2303,29 @@ records élargi ? (e) ⚠️ un piège nommé d'avance : un index qui rend une l
 forme (c) du registre — un motif qui tronque en silence. Il doit publier ce qu'il n'a pas indexé, comme
 `chemins_non_captes` du lot 1. *Coût : brainstorm 2 h ; implémentation non estimée avant cadrage.*
 Dépend de : rien (mais recoupe P2.84, le lot 2 « Science » du dashboard — à décider s'ils fusionnent).
-<!-- closes_when:path_present=docs/superpowers/specs/2026-09-25-auto-indexation-artefacts-design.md -->
+Spec écrite le 2026-09-26 : `docs/superpowers/specs/2026-09-26-auto-indexation-artefacts-design.md` (v2 après revue
+adversariale opus, approche A — lecteur tolérant à la lecture, table de familles déclarée — validée par Master 2 avec
+quatre conditions ; P2.84 construit sur cet index). Mesuré en l'écrivant : aucune source publiée ne date un EDR (0/305),
+seul git les date (305/305 par la commande figée de la spec) ; D1-D3 restent à valider. La clause suit le CODE, jamais la spec.
+<!-- closes_when:path_present=tools/pm/index_artefacts.py -->
+
+**P2.135 — ⚠️ OUVERTE (2026-09-26, vue en revue adversariale de la spec P2.87/P2.84) — la porte 3
+(`tools/check_preregistration_applied.py`) rend un VERT sur une racine sans `docs/preregistrations` ni `docs/EDR` :
+« OK … sur les 0 familles inspectables », sortie 0 — une absence de source convertie en succès.**
+Preuve, reproduite le 2026-09-26 (module copié SEUL dans un répertoire vide, `python tools/check_preregistration_applied.py`) :
+`couverture : 0/0 FAMILLES … REELLEMENT inspectees (0 sans grandeur nommee, 0 dont aucun record ne se reclame)` puis
+`OK : aucune DV scellee absente de son record (sur les 0 familles inspectables).`, exit 0. Mécanisme : `_edr_texts`
+(`tools/check_preregistration_applied.py:79-80`), `_familles` (`:135-136`) et `nouvelles_sans_grandeur` (`:209-210`)
+rendent un conteneur VIDE quand leur répertoire manque, et `main` (`:274-276`) lit « aucun problème » comme un succès
+quel que soit `total`. C'est la forme (a) du registre (entrée vide → verdict de fond), appliquée à une PORTE. Effet
+hors de la porte : tout appelant dont la racine n'est pas celle attendue (un backend dans une image où `docs/` manque,
+un worktree partiel) reçoit `couverture() == (0, 0, 0, 0)` et `familles_sans_record() == []` — la spec
+`docs/superpowers/specs/2026-09-26-auto-indexation-artefacts-design.md` (§3.2, bloquant B2 de sa revue) doit le
+contourner par un `isdir` AVANT l'appel. À faire : répertoire absent → exception NOMMÉE dans les trois lecteurs,
+`main` qui sort 2 (jamais 0) avec la racine résolue dans le message ; contre-exemple gelé : racine vide → la porte
+ÉCHOUE (témoin dont le nom porte `racine_VIDE`) ; une mutation dans `check_gate_mutation.PORTES` qui rétablit le
+`return fam` silencieux. *Coût : agent 30-60 min ; calcul 0.* Dépend de : rien. Attribution : Master 2.
+<!-- closes_when:grep_present=tests/sandbox/test_preregistration_applied.py::racine_VIDE -->
 
 **P2.113 — ⚠️ OUVERTE (2026-09-26, vue en passant pendant la fusion du chantier Pilotage) — la suite complète ÉCRIT
 deux fichiers SUIVIS de l'arbre où on la lance, et trois de ses tests sont rouges hors de l'arbre principal sans que
