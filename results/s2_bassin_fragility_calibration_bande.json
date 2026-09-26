@@ -1,0 +1,159 @@
+{
+ "reps": 1000,
+ "n_seeds": 12,
+ "r_draws": 5,
+ "couverture": {
+  "exacte_sigma_0.5": {
+   "homogene": {
+    "taux": 1.0,
+    "erreur_mc": 0.0,
+    "reps": 1000
+   },
+   "heterogene": {
+    "taux": 1.0,
+    "erreur_mc": 0.0,
+    "reps": 1000
+   }
+  },
+  "exacte_sigma_1.0": {
+   "homogene": {
+    "taux": 1.0,
+    "erreur_mc": 0.0,
+    "reps": 1000
+   },
+   "heterogene": {
+    "taux": 0.999,
+    "erreur_mc": 0.0009994998749374613,
+    "reps": 1000
+   }
+  },
+  "exacte_sigma_2.0": {
+   "homogene": {
+    "taux": 1.0,
+    "erreur_mc": 0.0,
+    "reps": 1000
+   },
+   "heterogene": {
+    "taux": 1.0,
+    "erreur_mc": 0.0,
+    "reps": 1000
+   }
+  },
+  "exacte_sigma_4.0": {
+   "homogene": {
+    "taux": 1.0,
+    "erreur_mc": 0.0,
+    "reps": 1000
+   },
+   "heterogene": {
+    "taux": 0.997,
+    "erreur_mc": 0.0017294507798720387,
+    "reps": 1000
+   }
+  },
+  "exacte_sigma_8.0": {
+   "homogene": {
+    "taux": 1.0,
+    "erreur_mc": 0.0,
+    "reps": 1000
+   },
+   "heterogene": {
+    "taux": 1.0,
+    "erreur_mc": 0.0,
+    "reps": 1000
+   }
+  },
+  "echangeable_sigma_0.5": {
+   "homogene": {
+    "taux": 0.993,
+    "erreur_mc": 0.002636474919281427,
+    "reps": 1000
+   },
+   "heterogene": {
+    "taux": 0.983,
+    "erreur_mc": 0.004087909000944127,
+    "reps": 1000
+   }
+  },
+  "echangeable_sigma_1.0": {
+   "homogene": {
+    "taux": 0.955,
+    "erreur_mc": 0.00655553201502365,
+    "reps": 1000
+   },
+   "heterogene": {
+    "taux": 0.969,
+    "erreur_mc": 0.005480784615363026,
+    "reps": 1000
+   }
+  },
+  "echangeable_sigma_2.0": {
+   "homogene": {
+    "taux": 0.952,
+    "erreur_mc": 0.006759881655768837,
+    "reps": 1000
+   },
+   "heterogene": {
+    "taux": 0.953,
+    "erreur_mc": 0.00669260786241059,
+    "reps": 1000
+   }
+  },
+  "echangeable_sigma_4.0": {
+   "homogene": {
+    "taux": 0.959,
+    "erreur_mc": 0.006270486424512857,
+    "reps": 1000
+   },
+   "heterogene": {
+    "taux": 0.954,
+    "erreur_mc": 0.006624499981130654,
+    "reps": 1000
+   }
+  },
+  "echangeable_sigma_8.0": {
+   "homogene": {
+    "taux": 0.953,
+    "erreur_mc": 0.00669260786241059,
+    "reps": 1000
+   },
+   "heterogene": {
+    "taux": 0.926,
+    "erreur_mc": 0.008277922444671728,
+    "reps": 1000
+   }
+  }
+ },
+ "puissance": {
+  "effet_2.0_sigma_2": {
+   "taux": 0.808,
+   "erreur_mc": 0.01245536029185828,
+   "reps": 1000
+  },
+  "effet_2.0_sigma_2_reference_echangeable": {
+   "taux": 0.674,
+   "erreur_mc": 0.01482309009619789,
+   "reps": 1000
+  },
+  "effet_4.0_sigma_2": {
+   "taux": 1.0,
+   "erreur_mc": 0.0,
+   "reps": 1000
+  },
+  "effet_4.0_sigma_2_reference_echangeable": {
+   "taux": 0.997,
+   "erreur_mc": 0.0017294507798720387,
+   "reps": 1000
+  }
+ },
+ "bande": {
+  "methode": "bootstrap echangeable",
+  "b": 2000,
+  "q": 0.975,
+  "entropie": 4181
+ },
+ "provenance": {
+  "module": "tools/evo_runs/s2_bassin_fragility.py",
+  "fonction": "mesurer_couverture_bande"
+ }
+}
