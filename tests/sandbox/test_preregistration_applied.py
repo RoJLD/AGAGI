@@ -28,6 +28,15 @@ def _mk(tmp_path, rule, record_text, name="EVO-999"):
     return C.scan()
 
 
+def _racine_reelle():
+    """Remet les répertoires RÉELS du dépôt, que `_mk` déplace sans les restaurer. ⚠️ Jamais `importlib.reload(C)` :
+    recharger RELIT le module sur disque et DÉFAIT la mutation installée EN MÉMOIRE par le harnais de la porte 15,
+    pour tous les tests qui suivent. Mesuré le 2026-09-26 (P2.135) : la mutation qui rétablit le vide silencieux de
+    `_familles` était déclarée SURVIVANTE alors que deux témoins la tuaient — ils tournaient après un reload."""
+    C._PREREG = os.path.join(C._ROOT, "docs", "preregistrations")
+    C._EDR = os.path.join(C._ROOT, "docs", "EDR")
+
+
 def test_substituted_dv_is_DETECTED(tmp_path):
     """⚠️ CONTRE-EXEMPLE GELÉ — la configuration EXACTE d'EDR-EVO-019 avant correction.
 
@@ -65,8 +74,7 @@ def test_generic_tokens_do_not_create_false_positives(tmp_path):
 
 def test_repository_preregistrations_are_all_applied():
     """Cliquet sur le depot REEL : chaque regle scellee doit etre mesuree dans son record."""
-    import importlib
-    importlib.reload(C)
+    _racine_reelle()
     problems = C.scan()
     assert not problems, f"DV scellees non mesurees : {problems}"
 
@@ -199,8 +207,7 @@ def test_family_reached_through_a_CITING_record_is_INSPECTED_and_can_FAIL(tmp_pa
 
 def test_repository_DELAYED_COORD_family_is_now_ATTACHED_to_its_record():
     """Le cas MESURE de P2.28, sur le depot REEL : la famille est rattachee et inspectee, pas sautee."""
-    import importlib
-    importlib.reload(C)
+    _racine_reelle()
     par_base = {base: (qty, recs) for base, _, qty, recs, _, _ in C._inspection()}
     qty, recs = par_base["DELAYED-COORD-LR-N12"]
     assert qty and any(os.path.basename(r).startswith("EDR-DELAYED-COORD_") for r in recs), recs
@@ -268,3 +275,64 @@ def test_la_normalisation_symetrique_ne_rend_PAS_le_cliquet_INCREVABLE():
     low, low_norm = txt.lower(), re.sub(r"[^A-Za-z0-9_\[\]]", "", txt).lower()
     for q in ("envbig_kills", "throw_prey_hits", "W[4o8]"):
         assert q.lower() not in low and q.lower() not in low_norm
+
+
+# --------------------------------------------------------------------------------------------------
+# P2.135 (2026-09-26, revue adversariale de la spec P2.87/P2.84, inscrite par agagi-61) — une racine sans
+# docs/preregistrations ni docs/EDR rendait « OK … sur les 0 familles inspectables », sortie 0 : une absence
+# de source convertie en succès (forme (a) du biais du dépôt, appliquée à une PORTE).
+# --------------------------------------------------------------------------------------------------
+
+def _racine_vide(tmp_path, monkeypatch):
+    monkeypatch.setattr(C, "_PREREG", str(tmp_path / "docs" / "preregistrations"))
+    monkeypatch.setattr(C, "_EDR", str(tmp_path / "docs" / "EDR"))
+
+
+def test_P2_135_une_racine_VIDE_fait_ECHOUER_la_porte_et_NOMME_la_racine(tmp_path, monkeypatch, capsys):
+    """LE CONTRE-EXEMPLE GELÉ, forme de la preuve (module sur une racine VIDE) : il rendait `couverture : 0/0` puis
+    « OK … sur les 0 familles inspectables », sortie 0. Il REFUSE désormais, sortie 2, en nommant la racine résolue."""
+    _racine_vide(tmp_path, monkeypatch)
+    assert C.main() == 2
+    sortie = capsys.readouterr().out
+    assert "REFUS" in sortie and "OK" not in sortie
+    assert os.path.abspath(str(tmp_path)) in sortie
+
+
+def test_P2_135_chaque_lecteur_LEVE_sur_une_racine_VIDE_au_lieu_de_rendre_un_vide(tmp_path, monkeypatch):
+    """Les trois lecteurs, et les fonctions PUBLIQUES qui en dépendent (un appelant hors de la porte reçoit
+    `couverture()`) : une exception NOMMÉE, jamais un conteneur vide lu comme « rien à signaler »."""
+    _racine_vide(tmp_path, monkeypatch)
+    for lecteur in (C._edr_texts, C._familles, C.nouvelles_sans_grandeur, C.couverture, C.familles_sans_record,
+                    C.scan):
+        with pytest.raises(C.RacineSansSource):
+            lecteur()
+
+
+def test_P2_135_un_seul_repertoire_manquant_suffit_et_chaque_lecteur_nomme_le_sien(tmp_path, monkeypatch):
+    """Chaque lecteur garde SON répertoire, et le message nomme le lecteur : docs/EDR présent sans
+    docs/preregistrations -> _familles et nouvelles_sans_grandeur lèvent, _edr_texts non ; puis l'inverse."""
+    (tmp_path / "edr").mkdir()
+    monkeypatch.setattr(C, "_EDR", str(tmp_path / "edr"))
+    monkeypatch.setattr(C, "_PREREG", str(tmp_path / "absent"))
+    assert C._edr_texts() == {}
+    with pytest.raises(C.RacineSansSource, match="_familles"):
+        C._familles()
+    with pytest.raises(C.RacineSansSource, match="nouvelles_sans_grandeur"):
+        C.nouvelles_sans_grandeur()
+    (tmp_path / "pre").mkdir()
+    monkeypatch.setattr(C, "_PREREG", str(tmp_path / "pre"))
+    monkeypatch.setattr(C, "_EDR", str(tmp_path / "absent_edr"))
+    assert C._familles() == {}
+    with pytest.raises(C.RacineSansSource, match="_edr_texts"):
+        C._edr_texts()
+
+
+def test_P2_135_des_repertoires_PRESENTS_mais_vides_ne_declenchent_PAS_la_garde(tmp_path, monkeypatch):
+    """Spécificité : des répertoires PRÉSENTS et vides sont une mesure (zéro règle scellée), pas une absence de
+    source — aucun lecteur ne lève et la couverture vaut (0, 0, 0, 0). Sans ce cas, une garde qui refuserait tout
+    passerait la revue. (On ne gèle pas ici le verdict de `main` sur une source vide : la garde vise l'ABSENCE.)"""
+    (tmp_path / "pre").mkdir()
+    (tmp_path / "edr").mkdir()
+    monkeypatch.setattr(C, "_PREREG", str(tmp_path / "pre"))
+    monkeypatch.setattr(C, "_EDR", str(tmp_path / "edr"))
+    assert C.couverture() == (0, 0, 0, 0) and C.nouvelles_sans_grandeur() == [] and C.scan() == []

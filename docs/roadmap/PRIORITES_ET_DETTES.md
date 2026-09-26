@@ -2342,7 +2342,7 @@ quatre conditions ; P2.84 construit sur cet index). Mesuré en l'écrivant : auc
 seul git les date (305/305 par la commande figée de la spec) ; D1-D3 restent à valider. La clause suit le CODE, jamais la spec.
 <!-- closes_when:path_present=tools/pm/index_artefacts.py -->
 
-**P2.135 — ⚠️ OUVERTE (2026-09-26, vue en revue adversariale de la spec P2.87/P2.84) — la porte 3
+**P2.135 — ✅ CLOSE le 2026-09-26 (ouverte le même jour, vue en revue adversariale de la spec P2.87/P2.84) — la porte 3
 (`tools/check_preregistration_applied.py`) rend un VERT sur une racine sans `docs/preregistrations` ni `docs/EDR` :
 « OK … sur les 0 familles inspectables », sortie 0 — une absence de source convertie en succès.**
 Preuve, reproduite le 2026-09-26 (module copié SEUL dans un répertoire vide, `python tools/check_preregistration_applied.py`) :
@@ -2358,6 +2358,22 @@ contourner par un `isdir` AVANT l'appel. À faire : répertoire absent → excep
 `main` qui sort 2 (jamais 0) avec la racine résolue dans le message ; contre-exemple gelé : racine vide → la porte
 ÉCHOUE (témoin dont le nom porte `racine_VIDE`) ; une mutation dans `check_gate_mutation.PORTES` qui rétablit le
 `return fam` silencieux. *Coût : agent 30-60 min ; calcul 0.* Dépend de : rien. Attribution : Master 2.
+✅ **FERMÉE le 2026-09-26 (agagi-32, worker Dette ; attribuée par Master 2)** — c'est la porte **5** du crochet
+(« fidélité prereg→record »), pas la 3 qu'annonce l'en-tête (la 3 est l'intégrité des gardes du registre).
+`RacineSansSource` (`tools/check_preregistration_applied.py`) : les trois lecteurs — `_edr_texts`, `_familles`,
+`nouvelles_sans_grandeur` — LÈVENT en nommant le lecteur, le répertoire manquant et la racine résolue, au lieu de
+rendre un conteneur vide ; `main` sort **2** avec « REFUS : … », jamais 0 ; `couverture()` et
+`familles_sans_record()` lèvent aussi pour un appelant hors de la porte. Forme de la preuve rejouée : le module
+copié SEUL dans un répertoire vide rend `REFUS : _edr_texts : répertoire introuvable …`, sortie 2 (mesurée sans
+pipe, sous Windows et sous Linux) ; sur le dépôt réel la porte reste verte, 47 familles. Un répertoire PRÉSENT mais
+vide reste un vrai zéro (témoin de spécificité, qui ne gèle pas de verdict sur une source vide). Contre-exemple
+gelé : `test_P2_135_une_racine_VIDE_fait_ECHOUER_la_porte_et_NOMME_la_racine`, avec trois autres cas (chaque
+lecteur lève, un seul répertoire manquant suffit, spécificité). Porte 15 : la mutation demandée — le `return fam`
+silencieux rétabli — est tuée, **2/2** sur la porte 5 (Windows et Linux). ⚠️ **Trouvé en la calibrant** : elle
+sortait d'abord SURVIVANTE alors que deux témoins la tuaient à la main. Deux `importlib.reload(C)` du même fichier
+relisaient le module sur disque et DÉFAISAIENT la mutation en mémoire pour tous les tests suivants. Remplacés par
+une remise explicite des répertoires (`_racine_reelle`, 22 tests conservés) ; la limite est écrite dans
+`tools/_mutation_plugin.py` ; E35 occ. 5 au registre. Windows 22 verts ; Linux (WSL) 22 verts.
 <!-- closes_when:grep_present=tests/sandbox/test_preregistration_applied.py::racine_VIDE -->
 
 **P2.113 — ⚠️ OUVERTE (2026-09-26, vue en passant pendant la fusion du chantier Pilotage) — la suite complète ÉCRIT

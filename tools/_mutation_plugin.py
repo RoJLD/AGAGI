@@ -19,6 +19,11 @@ ne voit PAS la mutation : il relit le fichier intact. Un tel témoin ne peut don
 mutant, et le harnais le comptera comme SURVIVANT s'il est le seul. C'est conservateur dans le sens
 sûr — il crie au lieu de se taire — mais il faut le savoir pour lire son verdict : les mutations
 déclarées visent le COMPORTEMENT D'EXÉCUTION, pas la forme du texte.
+⚠️ MÊME LIMITE, SOUS UNE AUTRE FORME : un témoin qui RECHARGE le module (`importlib.reload`) relit le
+disque et DÉFAIT la mutation pour TOUS les tests qui le suivent dans le fichier — pas seulement pour
+lui. Mesuré le 2026-09-26 (P2.135) : deux `reload` du témoin de la porte 5 rendaient aveugles les cas
+placés après eux, et la mutation de `_familles` sortait SURVIVANTE alors que deux témoins la tuaient.
+Remède côté témoin : remettre les globaux explicitement, jamais recharger.
 
 Le plugin est SILENCIEUX sans `AGAGI_MUTATION_SPEC` : le charger sur une suite ordinaire ne change
 rien. C'est ce qui permet au harnais de mesurer le contrôle INTACT avec exactement la même
