@@ -7,9 +7,11 @@
 # celle-ci est un geste de voisinage, pas une norme — les sessions ELYSIUM peuvent en ajuster les valeurs.
 # Mémoire fixée par ELYSIUM le 2026-09-26, robla d'accord : requests 24 Gi, limits 40 Gi — un Job à 32 Gi (+ un
 # petit build), JAMAIS deux gros simultanés : sérialisation voulue. 40 Gi AGAGI + 24 Gi de nexus-ollama = 64 Gi,
-# déjà au ras du nœud (elysium-8d) ; elysium-91 avait proposé 48 Gi (un Job 32 Gi + 16 Gi de petits) — la valeur
-# la plus PRUDENTE est retenue en attendant que les deux s'accordent. Mesures d'ELYSIUM : allouable 61,6 Gi,
-# requests engagées 7,0 Gi, usage réel 5,3 Gi.
+# déjà au ras du nœud (elysium-8d) ; elysium-91, qui proposait 48 Gi, s'est aligné sur 40 (2026-09-26). Pire cas
+# mesuré par elysium-91 : nexus-ollama est ÉPINGLÉ sur nexus (limite 24 Gi, vide au moment de la mesure) → ~28 Gi
+# ELYSIUM + 40 Gi AGAGI = 68 Gi pour 61,6 Gi allouables ; le dépassement n'arrive que si les deux gonflent
+# ensemble, et nos pods BURSTABLE à requête basse partent en premier — accepté. Mesures d'ELYSIUM : requests
+# engagées 7,0 Gi, usage réel 5,3 Gi.
 apiVersion: v1
 kind: ResourceQuota
 metadata:
