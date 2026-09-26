@@ -1524,6 +1524,43 @@ un bail factice vivant fait refuser, un bail expiré ou le nôtre non ; et le cr
 tué ne laisse pas d'orphelin). Touche `tools/hooks/` : copie déployée et porte 22 à la clé. *Coût : agent 1-2 h.*
 Attribution : Master 2.
 
+**P2.140 — rang 5 — OUVERTE (2026-09-26, promotion d'E12 DÉCIDÉE par Master 2 ; inscrite par agagi-32, teneur du
+registre) — La condition de CALME devient une garde : `project_cost` refuse une unité de coût mesurée hors calme, sauf
+déclaration « unité sous charge » publiée avec la charge.**
+Preuve : E12 (le chiffre pris dans un régime non déclaré) compte sept occurrences inscrites, toutes `documenté`, quand la
+règle du registre en tolère deux — dont, sur le COÛT : la suite chronométrée à 8 h 30 sous seize agents (30 min au
+repos, 2026-09-08) ; la triple du 2026-09-22, que seul CLAUDE.md portait jusqu'ici — b0 (P4.17 : 217 s par cellule au
+lieu de 75-90 s), d7 (P4.16 : 815 s contre 283 s pour la MÊME cellule bit-identique), c9 (abandons sous neuf processus
+python) ; et P4.18, coupé le 2026-09-26 par sa garde de coût, son unité mesurée sous une charge de plusieurs sources
+(2052,6 s, chiffre relayé par Master 2). Les règles de CLAUDE.md §Coût des runs — un seul run lourd à la fois, noter la
+charge au départ de chaque cellule — ne sont appliquées par rien.
+**Forme** (décision Master 2) : la condition de calme écrite par agagi-40 pour la reprise de P4.18 — CPU système sous un
+seuil, aucune synchro du plugin episodic-memory, aucun bail lourd, le tout sur une fenêtre continue — devient une
+fonction de `tools/cost_guard.py` ; `project_cost` REFUSE une unité mesurée hors calme, sauf déclaration explicite
+« unité sous charge », publiée avec la charge mesurée. Briques existantes dans le même module : `LoadWindow` (charge
+extérieure intégrée sur la fenêtre de la cellule, en cœurs) et `COEURS_EXTERIEURS_LIBRE_MAX`, qui aujourd'hui QUALIFIENT
+une coupe après coup (`classify_cut_nature`) ; la promotion les fait REFUSER avant. La fonction de calme est un
+instrument : no-op exact (machine libre -> calme), et un refus publie la condition qui a manqué. Contre-exemple gelé :
+l'unité de P4.18 du 2026-09-26. **Ordre** : APRÈS la reprise de P4.18 (2026-09-27, 10 h) — ne pas changer la garde
+sous un run scellé qui la rejoue. À la livraison, E12 passe exécutable. *Coût : agent 1-2 h.* Sans clause
+`closes_when` (déclaré) : le nom de la fonction de calme n'est pas fixé, à poser par l'implémenteur.
+
+**P2.141 — rang 6 — OUVERTE (2026-09-26, promotion PARTIELLE de la règle du grep DÉCIDÉE par Master 2 ; inscrite par
+agagi-32) — Le Réfutateur n'affirme plus une ABSENCE sans contrôle positif.**
+Preuve : la revue /refutateur de la règle E34-IDENTITY-CELL v1 (critique P8.b) a rendu « 0 ligne au registre et au
+backlog » pour l'aliasing de `TorchPopulationModel.forward`, sur des greps « -= 0.1 » et « shares_memory » jamais
+validés sur un cas positif ; le fait vivait dans [[EDR-INFRA-001]] (2026-07-21), et le backlog l'écrit « pénalité
+anti-répétition » (P1.3, P1.4, P2.64). Relayé tel quel, il allait graver comme neuf un défaut mesuré, décidé et épinglé
+(P2.138 en est la correction différée). La règle du grep de CLAUDE.md comptait déjà ses récidives (2026-09-07,
+2026-09-24 deux fois, E30, E32) : registre, E4.
+**Forme** (décision Master 2) : le schéma du Réfutateur (`.claude/workflows/refutateur.js`) exige, pour toute
+affirmation d'ABSENCE, le motif, le corpus et un contrôle positif — un fichier connu où le motif correspond ; une
+absence sans eux est rendue INCOHERENT et nommée, comme un refus sans booléen depuis P2.133. Retouche du prompt FIGÉ, à
+nommer comme P2.133. Témoins : une absence sans contrôle positif -> INCOHERENT ; une absence dont le contrôle positif
+NE correspond PAS -> INCOHERENT ; spécificité : une absence au contrôle positif valide est lue. **Ordre** : après la
+reprise de P4.18 (2026-09-27, 10 h). *Coût : agent 1 h.*
+<!-- closes_when:grep_present=.claude/workflows/refutateur.js::controle_positif -->
+
 **P2.133 — rang 6 — ✅ CLOSE le 2026-09-26 (ouverte le même jour, vue en passant par la session SCIENCE-HARNAIS pendant la revue v6 de
 S2-BASSIN-FRAGILITY) — Le Refutateur sort encore NUL sur une revue saine : le vérificateur a rendu `refus = "aucun"`, et
 le correctif `bfaea9c6` ne normalisait que des guillemets et des espaces. Récidive d'un nul de TRANSPORT déguisé en nul de
