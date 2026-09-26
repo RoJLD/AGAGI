@@ -163,7 +163,10 @@ def _entrees_du_bloc(b, txt, repo_root, evaluer, _CLAUSE, _HOLDS, _BACKTICK_PATH
              "holds": holds, "chemins": chemins, "chemins_non_captes": non_captes} for n in nums]
 
 
-_NUM_BLOC = re.compile(r"^#\s*(\d+)\.", re.M)
+# Tête de bloc du hook : « # 24. TITRE », tirets de décoration tolérés (« # --- 24. TITRE »). Mesuré le 2026-09-26 :
+# la porte 24 est entrée sous la forme décorée, et le motif strict l'effaçait de l'inventaire en silence (23 servies
+# pour 24 branchées). Un commentaire daté (« # 2026-09-26 : ») n'est pas une tête : le chiffre y est suivi d'un tiret.
+_NUM_BLOC = re.compile(r"^#\s*(?:-+\s*)?(\d+)\.", re.M)
 _CHECK = re.compile(r"python\s+tools/(check_\w+)\.py")
 
 # module -> (fichier de baseline sous tools/, clé de la collection qui compte la dette ou None).
@@ -262,8 +265,8 @@ def read_portes(repo_root):
     """Inventaire des gardes du hook, joint à PORTES pour titres/témoins/mutations et à BASELINES.
 
     La source d'AUTORITÉ est le hook : `check_gate_mutation.PORTES` est la table des portes MUTÉES
-    (16 clés le 2026-09-24) alors que le hook lance 19 scripts. Le numéro vient de `^#\\s*(\\d+)\\.` en
-    tête de bloc, le module du PREMIER `python tools/check_X.py` du bloc (un bloc lance parfois son check
+    (16 clés le 2026-09-24) alors que le hook lance 19 scripts. Le numéro vient de `_NUM_BLOC` (tirets de
+    décoration tolérés) en tête de bloc, le module du PREMIER `python tools/check_X.py` du bloc (un bloc lance parfois son check
     deux fois : `--only` puis complet).
     """
     chemin = os.path.join(repo_root, "tools", "hooks", "pre-commit")

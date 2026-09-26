@@ -665,6 +665,25 @@ def test_inventaire_des_portes_recompute_depuis_le_HOOK_pas_depuis_PORTES():
     assert with_base and all("existe" in p["baseline"] for p in with_base)
 
 
+def test_une_tete_de_bloc_DECOREE_du_hook_n_efface_pas_sa_porte(tmp_path):
+    """Mesuré le 2026-09-26 (run CI 36230848727, suite-complete : 68 -> 69 rouges) : la porte 24 est entrée au
+    hook sous la tête « # --- 24. Seuil a MARGE ... ». Le motif de tête exigeait « # 24. », donc le bloc 24
+    n'existait pas pour `read_portes`, son `check_grid_threshold` tombait dans le bloc 23 (déjà pourvu) et
+    DISPARAISSAIT de l'inventaire : 23 portes servies pour 24 branchées. Le test de parité ci-dessus l'a vu ;
+    celui-ci fige la forme, sur un hook FACTICE, sans dépendre de l'état du vrai hook."""
+    (tmp_path / "tools" / "hooks").mkdir(parents=True)
+    (tmp_path / "tools" / "hooks" / "pre-commit").write_text(
+        "#!/bin/sh\n"
+        "# 1. PREMIERE\n"
+        "python tools/check_record_links.py\n"
+        "# --- 2. DECOREE (tete avec tirets)\n"
+        "python tools/check_instrument_calibration.py\n"
+        "# 2026-09-26 : une date en commentaire n'est PAS une tete de bloc\n", encoding="utf-8")
+    portes = P.read_portes(str(tmp_path))
+    assert [(p["num"], p["module"]) for p in portes] == [
+        ("1", "tools.check_record_links"), ("2", "tools.check_instrument_calibration")], portes
+
+
 def test_une_porte_du_hook_sans_baseline_declaree_porte_baseline_None():
     portes = P.read_portes(P.racine_depot())
     assert any(p["baseline"] is None for p in portes), (
