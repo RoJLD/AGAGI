@@ -1147,6 +1147,67 @@ inchangé ») et l'occurrence E33 au registre — dans un commit SÉPARÉ, aprè
 <!-- closes_when:grep_present=tools/language_memory_demand_probe.py::leak_seeds_neg -->
 
 
+**P2.121 — rang 6 — OUVERTE (2026-09-26, mesuré sur le run 36210667429, le PREMIER où `suite-complete` exécute des
+tests) — La suite complète tourne en CI : 2807 passés, 88 rouges, 18 erreurs, 238 sautés, 17 min 38 s — et ses rouges se
+rangent en SEPT familles dont AUCUNE n'est un défaut du monde. Inventaire par cause, recette par famille.**
+Preuve : job `suite-complete` du run 36210667429 (sha `bb3c1f7e`, log lu par l'API des jobs, regroupé par fichier puis par
+message). 0 erreur de collecte : `b895a0a3` a fait son travail. Familles, par taille :
+1. **torch absent du runner — 38 tests dans 10 modules** : `tests/sandbox/test_orchestrator_injection.py` (7 rouges /
+   74 tests), `tests/sandbox/test_plain_substrate_ceiling.py` (11/21), `tests/sandbox/test_torch_throw_gate_world.py`
+   (7/14), test_torch_binary_gate_probe (4/5), test_torch_gate_persist_ab (4/5), test_td_step_pilot (2/34),
+   test_torch_binary_gate_heldout_probe (1/2), test_vitality_bar_measured (1/9), test_warmstart_evolution_inworld (1/31),
+   test_factorial_regime_sweep::test_run_sweep_smoke (`NotImplementedError: backend 'torch'`). Ces modules MÊLENT tests
+   torch et non-torch : la garde de MODULE `importorskip` de `b895a0a3` y sauterait les non-torch. Recette :
+   `pytest.importorskip("torch")` en TÊTE de chaque test nommé dans le log ; pour les paramétrés
+   (`test_ab_benches_*[tools.torch_*…]`), `pytest.param(..., marks=pytest.mark.skipif(...))` sur les seules cellules torch.
+   Vérifier des DEUX côtés : torch rendu inimportable (plugin jetable `sys.modules['torch'] = None`) → skips ; torch
+   présent → les mêmes verts qu'aujourd'hui.
+2. **`tests/sandbox/test_hook_on_merge.py` — 18 tests** : « git commit -q -m base a échoué (1) » dans le dépôt jetable ;
+   stderr : « python: can't open file '…/jetable/tools/check_e19_optimizer_sweep.py' ». Le crochet jouet, extrait VERBATIM
+   de `tools/hooks/pre-commit`, appelle la porte 23 que le dépôt jetable ne porte pas — vert sur Windows, rouge sur
+   POSIX : à instruire (garde de fichier lue par `sh` et non `bash` ? `python` vs `python3` ?). Auteur naturel : le
+   porteur du crochet de fusion (P2.108).
+3. **Réfutateur — 22** (18 erreurs + 4 rouges `tests/sandbox/test_refutateur_temoins.py`, 1 test_refutateur_mutation) :
+   « témoin EDR-GRAB-COST-1828371 introuvable », « fatal: bad object » — clone à profondeur 1. Traité par `faae4909`
+   (`fetch-depth: 0`) ; à CONFIRMER sur le run qui le juge.
+4. **vie de processus — ~19** (test_jobs ×5 dont « DID NOT RAISE ResourceBusy », test_doctor_visibility ×4,
+   test_pm_snapshot ×3, test_pm_tick ×2, test_cost_guard ×1) : psutil importé paresseusement, None sans lui, absent de
+   `requirements.txt`. Traité par `faae4909` (psutil) ; à CONFIRMER.
+5. **fixtures PM — 5** (test_pm_board A1/A3, `tests/sandbox/test_pm_bulletin.py` ×2, test_pm_snapshot leases) : un chemin
+   Windows `c:/x/agagi` est normalisé sur POSIX en `/home/runner/…/c:/x/agagi` — la normalisation suppose une lettre de
+   lecteur ; portabilité des FIXTURES, pas du code.
+6. ⚠️ **git env sur Linux — 2** : `tests/sandbox/test_git_env_leak.py::test_un_GIT_DIR_herite_detourne_le_git_init_vers_le_depot_POINTE`
+   (« le depot POINTE est passe en bare : son arbre de travail disparait pour toutes les sessions ») et
+   `tests/sandbox/test_gate_mutation.py::…[sans_purge_defaut_restaure]`. C'est LA classe de la corruption `core.bare = true`
+   des 23-24/09 : deux témoins verts sur Windows, rouges sur POSIX — soit la garde n'y tient pas, soit le témoin suppose
+   Windows. **À instruire EN PREMIER** : c'est le seul rouge de la liste qui peut cacher un défaut RÉEL.
+7. **déjà inscrits, P2.113 (b)(c)(d)** : test_perimeter_widening EXPOSURE (traité avec la clôture de P2.49), test_grab_* ×3
+   (pkl non versionné), test_backend ×2 (TaskGroup).
+**Forme demandée** : une famille = un commit, vérifié dans les DEUX conditions ; le run qui suit chaque commit est LU et son
+compte (rouges avant → après) est écrit ICI ; la famille 6 s'instruit avant la 1, plus grosse mais mécanique. Sans clause
+`closes_when` (déclaré) : la clôture est « 0 rouge hors P2.113 » lu sur un run, ce qu'aucun prédicat de fichier n'exprime.
+
+
+**P2.122 — rang 5 — OUVERTE (2026-09-26, occurrence RÉELLE : mon commit `9bf30520`) — `check_staged_authorship.verify`
+ne voit pas un hunk écrit par une AUTRE session entre mon snapshot et mon commit, et « git commit -- chemin » l'emporte
+avec le fichier ENTIER.**
+Preuve : `9bf30520` (« ci(garde-methodologique): installer requirements.txt… », `.github/workflows/ci.yml` seul) porte
+DEUX hunks — `@@ -19,19` (le mien) et `@@ -210,7 +210,13` (le pas de smoke docker d'agagi-88, +6 lignes, écrit sur le
+disque APRÈS mon `snapshot(owner='agagi-e7-ci3')` et AVANT mon commit). `verify` a rendu `{ci.yml: 0}` : par construction
+(`tools/check_staged_authorship.py`, `_foreign_hunks`) il ne signale que les blocs présents au SNAPSHOT et absents de HEAD ;
+un bloc arrivé APRÈS est indiscernable d'un bloc à moi. Le signal était sous mes yeux et non lu : `git diff --stat` →
++20/−14 pour un remplacement de 13 lignes par 13. Rien de perdu (poussé tel quel, le commit suivant de 88 l'attribue), mais
+le log MENT sur l'auteur du smoke — cousin de l'occ. 19 d'E10 (commit nu = index entier) au grain du FICHIER, et E22 de
+lecture du compte. Trouvé par agagi-88, qui a relu le diff avant de pousser.
+**Forme demandée** : (a) `verify(paths, owner, attendu={chemin: contenu})` — l'appelant passe le contenu qu'IL a produit ;
+tout bloc du disque absent de HEAD ET de `attendu` est ÉTRANGER, refusé et NOMMÉ ; (b) un helper `commit_exact(paths,
+message, attendu)` qui enchaîne la vérification et `git commit -- paths` dans le MÊME appel, fermant la fenêtre ; (c) le
+diff stat comparé au delta attendu dans ce helper. **Contre-exemple gelé** : dépôt jouet, mon contenu écrit, un hunk étranger
+ajouté après, `verify(attendu=…)` REFUSE et nomme la ligne ; sans hunk étranger il passe. Palliatif appliqué à la main
+depuis `faae4909` : un script compare disque et contenu attendu octet pour octet juste avant chaque `git commit --`.
+<!-- closes_when:grep_present=tools/check_staged_authorship.py::commit_exact -->
+
+
 **P4.21 — rang 12 — OUVERTE (2026-09-24, trouvée en amendant ma propre clôture) — Un verdict de SYNTHÈSE qui
 agrège plusieurs POINTS DE FONCTIONNEMENT n'a aucune garde : le pré-vol garde une CELLULE, pas une CONCLUSION.**
 Preuve (E2 occ. 6) : `7fa6b2d8` publiait « invariance au pas RÉFUTÉE » depuis `aide09 = 0/12` à lr 2,0, alors que
