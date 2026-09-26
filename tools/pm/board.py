@@ -258,10 +258,17 @@ def compute(snap, now=None):
             "worktrees": snap.get("worktrees"), "bails": leases}
 
 
-def _fichiers_en_vol(s):
-    """« 3 » ou « 3 (+2 écritures Bash non nommées) » : le compte P2.118 voyage à côté de la liste, jamais dedans."""
+def _bash_non_nommees(s):
+    """« +2 écriture(s) Bash non nommée(s) », ou « » si rien n'a été compté (None = jamais compté : rien à dire)."""
     k = int(s.get("bash_ecritures_possibles") or 0)
-    return f"{len(s['files_touched'])}" + (f" (+{k} écriture(s) Bash non nommée(s))" if k else "")
+    return f"+{k} écriture(s) Bash non nommée(s)" if k else ""
+
+
+def _fichiers_en_vol(s):
+    """Cellule du tableau : « 3 » ou « 3 (+2 écriture(s) Bash non nommée(s)) » — le compte P2.118 voyage à côté de la
+    liste, jamais dedans."""
+    b = _bash_non_nommees(s)
+    return f"{len(s['files_touched'])}" + (f" ({b})" if b else "")
 
 
 def render_md(board):
@@ -304,7 +311,8 @@ def summary(board, max_lines=25, age_s=None, source_age=None):
     if board.get("sessions_mortes"):
         L.append(f"[PM] sessions MORTES écartées : {', '.join(board['sessions_mortes'])}")
     for s in board["sessions"]:
-        L.append(f"[PM] {_nom(s)} : {', '.join(s['claims'] or s['claims_inferes']) or 'sans P-item'} — {_fichiers_en_vol(s)} fichiers en vol")
+        L.append(f"[PM] {_nom(s)} : {', '.join(s['claims'] or s['claims_inferes']) or 'sans P-item'} — {len(s['files_touched'])} fichiers en vol"
+                 + (f", {_bash_non_nommees(s)}" if _bash_non_nommees(s) else ""))
     L.append(f"[PM] {CECITE_FICHIERS}")
     for a in board["alertes"]:
         L.append(f"[PM] {a['gravite'].upper()} {a['cle']} — {a['message']}")
