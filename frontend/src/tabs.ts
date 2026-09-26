@@ -11,11 +11,14 @@ import {
   GraduationCap,
   History,
   ListChecks,
+  MapIcon,
   Network,
   NotebookPen,
   ShieldAlert,
+  ShieldCheck,
   Spline,
   TrendingUp,
+  Users,
   Workflow,
   Zap,
 } from "lucide-react";
@@ -42,6 +45,9 @@ export const TAB_KEYS = [
   "provenance",
   "carnet",
   "synthese",
+  "flotte",
+  "roadmap",
+  "portes",
 ] as const;
 
 export type TabKey = (typeof TAB_KEYS)[number];
@@ -103,6 +109,16 @@ export const TAB_FAMILIES: TabFamily[] = [
       { key: "provenance", label: "Provenance", icon: Workflow },
       { key: "carnet", label: "Carnet", icon: NotebookPen },
       { key: "synthese", label: "Fil EDR", icon: ListChecks },
+    ],
+  },
+  {
+    // Lecture seule de GET /api/pm/pilotage (spec 2026-09-22) : flotte du tick PM, backlog, portes du hook.
+    family: "Pilotage",
+    tabs: [
+      { key: "flotte", label: "Flotte", icon: Users },
+      // MapIcon, jamais Map : Map masquerait le global JavaScript dans ce module.
+      { key: "roadmap", label: "Roadmap", icon: MapIcon },
+      { key: "portes", label: "Portes", icon: ShieldCheck },
     ],
   },
 ];

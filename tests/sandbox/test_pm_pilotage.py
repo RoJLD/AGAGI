@@ -778,3 +778,163 @@ def test_main_json_n_ecrit_AUCUN_fichier(tmp_path, monkeypatch, capsys):
     P.main(["--json", "--repo-root", P.racine_depot()])
     assert sorted(os.listdir(tmp_path)) == avant, "main a écrit un fichier"
     assert json.loads(capsys.readouterr().out)["schema"] == "pilotage_v1"
+
+
+# --- Titre : aucun débris de ponctuation laissé par le retrait du marqueur de statut (2026-09-26) -------------------
+# Mesuré sur le backlog réel : 68 titres sur 172 commençaient par « ( , [[EDR-…]]) — — » ou « ( ) — — » quand le statut
+# était daté ENTRE PARENTHÈSES (« ✅ CLOSE (2026-09-14) — rang 2 — … »). Le markdown restant reste TEL QUEL.
+
+@pytest.mark.parametrize("tete, attendu", [
+    ("**P1.7 — ✅ CLOSE (2026-09-14) — rang 2 — Classe neuve du registre.**", "Classe neuve du registre."),
+    ("**P1.6 — ✅ CLOSE (2026-09-14, [[EDR-CALIB-LEARNER]]) — rang 1 — Contrôle positif IN-WORLD.**",
+     "([[EDR-CALIB-LEARNER]]) — Contrôle positif IN-WORLD."),
+    ("**P2.66 — ✅ CLOSE (2026-09-22) — `claude_code_llm_fn` : un terminal.**", "`claude_code_llm_fn` : un terminal."),
+    # contrôle de spécificité : des parenthèses VIDES dans du code ou collées à un mot ne sont pas des débris
+    ("**P2.1 — ⚠️ OUVERTE (2026-09-01) — appeler `llm_fn()` puis f() (voir x).**",
+     "appeler `llm_fn()` puis f() (voir x)."),
+])
+def test_titre_sans_debris_de_ponctuation_du_marqueur_de_statut(tete, attendu):
+    txt = f"# B\n\n{tete}\nCorps.\n"
+    rm = P.parse_roadmap(txt, P.racine_depot(), NOW, evaluer_clause=lambda p, a: (None, None))
+    assert rm["entrees"][0]["titre"] == attendu
+
+
+def test_titre_du_backlog_REEL_ne_porte_plus_de_debris():
+    txt = P.read_backlog(P.racine_depot())
+    rm = P.parse_roadmap(txt, P.racine_depot(), NOW, evaluer_clause=lambda p, a: (None, None))
+    fautifs = [(e["num"], e["titre"][:40]) for e in rm["entrees"]
+               if e["titre"].startswith(("(,", "( ,", "()", "( )")) or "— —" in e["titre"]]
+    assert not fautifs, f"{len(fautifs)} titre(s) à débris : {fautifs[:5]}"
+
+
+# --- Projection pour la page artefact (spec §3.4, 2026-09-26) ------------------------------------------------------
+# Mesuré le 2026-09-26 : `pilotage_v1` réel = 150 KiB compacts (172 blocs), sur une limite de 256 KiB par document
+# du store (db.d.ts, contrat 0.2.60) — dont 95 KiB pour les seules entrées, +45 blocs en deux jours.
+
+def _pilotage_complet():
+    return {
+        "schema": "pilotage_v1", "generated_at": NOW, "repo_root": "C:/x", "aveugle": ["flotte: bails (tools/jobs)"],
+        "flotte": {"generated_at": NOW - 60, "aveugle": ["bails (tools/jobs)"], "sessions_mortes": ["vieille"],
+                   "sessions": [
+                       {"name": "a", "session_id": "s1", "branch": "b", "claims": ["P2.1"], "claims_inferes": [],
+                        "files_touched": ["x.py", "y.py"], "bash_ecritures_possibles": 4, "bulletin": True,
+                        "heartbeat_at": NOW - 30},
+                       {"name": "n", "session_id": "s2", "branch": None, "claims": [], "claims_inferes": [],
+                        "files_touched": [], "bulletin": False},
+                       "illisible"],
+                   "alertes": [{"id": "A1", "cle": "A1:x", "gravite": "alerte", "message": "m",
+                                "preuve": {"fichier": "x.py", "cwds": ["C:/secret"]}}],
+                   "charge_connue": {"sims_en_vol": 0, "cpu_pct": 3.0, "bails_vivants": []}},
+        "roadmap": {
+            "direction": {"rangs": [{"rang": "1", "p_items": ["P2.1"], "statuts": ["ouverte"]}]},
+            "comptes": {"par_priorite": {"P2": {"ouvertes": 1, "closes": 0, "perimees": 0}}, "blocs": 1,
+                        "numeros": 1, "illisibles": 0},
+            "portes_agi": {"G0": {"sdr": "SDR-G0", "status": "validated", "tested_by": ["EDR-1", "EDR-2"]},
+                           "G1": "forme inattendue"},
+            "entrees": [{"num": "P2.1", "nums": ["P2.1"], "bloc": 0, "priorite": "P2", "rang": "1",
+                         "statut": "ouverte", "date": None, "titre": "t", "lignes": [3, 5],
+                         "clause": {"pred": "grep_present", "arg": "tools/a.py::f", "satisfaite": False,
+                                    "raison": None},
+                         "holds": [], "chemins": [{"rel": "tools/a.py", "existe": True, "ligne": None},
+                                                  {"rel": "tools/b.py", "existe": False, "ligne": None}],
+                         "chemins_non_captes": 3}]},
+        "portes": [{"num": "1", "module": "tools.check_x", "titre": "x", "temoins": ["t"], "mutations": 2,
+                    "baseline": {"chemin": "tools/x_baseline.json", "existe": False, "dette": 4}},
+                   {"num": "7", "module": "tools.check_y", "titre": None, "temoins": None, "mutations": None,
+                    "baseline": None}],
+        "charge": {"sims_en_vol": 0, "cpu_pct": 3.0, "bails_vivants": [], "flotte_age_s": 60.0,
+                   "ratio_science_methodo": 1.0, "fichiers": None, "fenetre": {"depuis": "2026-08-27", "jours": 30}},
+    }
+
+
+def test_projection_artefact_garde_les_COMPTES_retire_chemins_preuves_et_arguments():
+    a = P.projection_artefact(_pilotage_complet())
+    assert a["schema"] == "pilotage_artefact_v1" and a["source_schema"] == "pilotage_v1"
+    assert a["generated_at"] == NOW and a["omis"] == []
+    e = a["roadmap"]["entrees"][0]
+    assert (e["chemins"], e["chemins_absents"], e["chemins_non_captes"]) == (2, 1, 3)
+    assert e["clause"] == {"pred": "grep_present", "satisfaite": False}           # argument et raison : retirés
+    assert a["roadmap"]["portes_agi"]["G0"] == {"sdr": "SDR-G0", "status": "validated", "records": 2}
+    assert a["roadmap"]["portes_agi"]["G1"] == {"sdr": None, "status": None, "records": None}
+    s1, s2 = a["flotte"]["sessions"]
+    assert s1 == {"nom": "a", "branche": "b", "bulletin": True, "claims": ["P2.1"], "claims_inferes": [],
+                  "fichiers_en_vol": 2, "bash_ecritures_possibles": 4, "heartbeat_at": NOW - 30}
+    assert s2["bulletin"] is False and s2["fichiers_en_vol"] is None              # sans bulletin : INCONNU, pas 0
+    assert a["flotte"]["alertes"] == [{"id": "A1", "gravite": "alerte", "message": "m"}]     # aucune preuve (chemins)
+    assert a["flotte"]["sessions_mortes"] == ["vieille"] and a["flotte"]["generated_at"] == NOW - 60
+    # l'entrée de session illisible est DITE (ligne aveugle ajoutée), jamais retirée en silence
+    assert a["aveugle"] == ["flotte: bails (tools/jobs)", "flotte : 1 entrée(s) de session illisible(s), non projetée(s)"]
+    assert a["portes"] == [{"num": "1", "module": "tools.check_x", "titre": "x", "mutations": 2, "baseline": False,
+                            "dette": 4},
+                           {"num": "7", "module": "tools.check_y", "titre": None, "mutations": None, "baseline": None,
+                            "dette": None}]
+    assert a["charge"] == _pilotage_complet()["charge"]
+    assert "C:/secret" not in json.dumps(a) and "tools/a.py" not in json.dumps(a)
+
+
+def test_projection_NO_OP_EXACT_les_blocs_null_restent_null():
+    p = {"schema": "pilotage_v1", "generated_at": NOW, "repo_root": None, "aveugle": ["pilotage: ValueError: x"],
+         "flotte": None, "roadmap": None, "portes": None, "charge": None}
+    a = P.projection_artefact(p)
+    assert (a["flotte"], a["roadmap"], a["portes"], a["charge"]) == (None, None, None, None)
+    assert a["aveugle"] == ["pilotage: ValueError: x"] and a["omis"] == []
+
+
+def test_projection_TROP_GROSSE_retire_les_entrees_et_le_DIT(monkeypatch):
+    p = _pilotage_complet()
+    p["roadmap"]["entrees"][0]["titre"] = "x" * 3000                              # une entrée lourde, taille connue
+    a0 = P.projection_artefact(p)
+    assert a0["roadmap"]["entrees"] is not None and a0["omis"] == []              # contrôle : sous la limite
+    sans = json.loads(json.dumps(a0))
+    sans["roadmap"]["entrees"] = None
+    monkeypatch.setattr(P, "ARTEFACT_OCTETS_MAX", P._octets(sans) + 1000)         # entre « sans entrées » et « complet »
+    a = P.projection_artefact(p)
+    assert a["roadmap"]["entrees"] is None and a["roadmap"]["comptes"] == p["roadmap"]["comptes"]
+    assert len(a["omis"]) == 1 and "entrées du backlog retirées (1)" in a["omis"][0], a["omis"]
+    monkeypatch.setattr(P, "ARTEFACT_OCTETS_MAX", 100)                            # trop gros même sans elles : DIT
+    b = P.projection_artefact(p)
+    assert len(b["omis"]) == 2 and "refusera" in b["omis"][1], b["omis"]
+
+
+def test_projection_du_depot_REEL_tient_sous_la_limite_du_store():
+    """Le jour où le backlog réel dépasse la limite, ce témoin ROUGIT — plutôt qu'un write_db refusé en silence."""
+    r = P.racine_depot()
+    p = P.compute_pilotage(None, P.read_backlog(r), P.read_records_graph(r), None, P.read_portes(r), NOW, repo_root=r)
+    a = P.projection_artefact(p)
+    n = len(json.dumps(a, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
+    assert a["omis"] == [] and n < P.ARTEFACT_OCTETS_MAX, (n, a["omis"])
+
+
+def test_main_artefact_imprime_la_projection_et_n_ecrit_AUCUN_fichier(tmp_path, monkeypatch, capsys):
+    monkeypatch.chdir(tmp_path)
+    P.main(["--artefact", "--repo-root", P.racine_depot()])
+    assert os.listdir(tmp_path) == [], "main a écrit un fichier"
+    assert json.loads(capsys.readouterr().out)["schema"] == "pilotage_artefact_v1"
+
+
+def test_toute_baseline_de_tools_est_RECENSEE_dans_BASELINES():
+    """Revue du pas 3 (2026-09-26) : cinq baselines existaient sans entrée dans BASELINES — la vue Portes les rendait
+    « aucune baseline », un négatif FABRIQUÉ par une table périmée. Une baseline neuve fait rougir ce témoin tant
+    qu'elle n'est pas recensée (avec sa clé de dette, ou `None` si le compte n'a pas été confronté à sa porte)."""
+    import glob
+    r = P.racine_depot()
+    sur_disque = {os.path.basename(f) for f in glob.glob(os.path.join(r, "tools", "*baseline*.json"))}
+    assert sur_disque, "contrôle : aucune baseline trouvée -- le motif ne voit rien"
+    recensees = {fichier for fichier, _ in P.BASELINES.values()}
+    assert not sur_disque - recensees, f"baselines non recensées dans BASELINES : {sorted(sur_disque - recensees)}"
+
+
+def test_le_seuil_de_peremption_du_FRONT_suit_celui_du_tableau():
+    """La vue Flotte et la page artefact marquent un tableau PÉRIMÉ au-delà de `board.PEREMPTION_S` ; la constante est
+    recopiée dans frontend/src/lib/pilotage.ts et tools/pm/artefact/pilotage.html (le JSON ne la publie pas). Ce témoin
+    rougit si l'une bouge sans les autres."""
+    import re
+    from tools.pm import board as B
+    src = open(os.path.join(P.racine_depot(), "frontend", "src", "lib", "pilotage.ts"), encoding="utf-8").read()
+    m = re.search(r"export const PEREMPTION_TABLEAU_S = ([\d_]+);", src)
+    assert m, "PEREMPTION_TABLEAU_S introuvable dans frontend/src/lib/pilotage.ts"
+    assert float(m.group(1).replace("_", "")) == B.PEREMPTION_S
+    page = open(os.path.join(P.racine_depot(), "tools", "pm", "artefact", "pilotage.html"), encoding="utf-8").read()
+    m = re.search(r"const PEREMPTION_TABLEAU_S = (\d+);", page)
+    assert m, "PEREMPTION_TABLEAU_S introuvable dans tools/pm/artefact/pilotage.html"
+    assert float(m.group(1)) == B.PEREMPTION_S

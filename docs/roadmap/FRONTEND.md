@@ -410,3 +410,43 @@ spec → plan → impl. Réordonnançable selon priorité produit.
 = `genome.W` statique (pas de restructuration par tick → prémisse EDR 107 non supportée), snapshots
 rares, pas d'endpoint de découverte d'`agent_id` (voir le détail J1b ci-dessus). **Pivot vers J2**
 (valeur certaine, frontend-only) comme prochaine tranche livrée.
+
+---
+
+## Vague K — Pilotage (2026-09-26) — ✅ LIVRÉE (pas 3, 4 et 5 de la spec)
+
+Spec : `docs/superpowers/specs/2026-09-22-pilotage-dashboard-design.md` (§3.3 frontend, §3.4 tick et artefact). Lecture
+seule : les vues LISENT `GET /api/pm/pilotage` et ne recalculent rien ; toute valeur absente se dit (« non mesuré »,
+« non publié », « indisponible — <ligne d'aveuglement> »), jamais un 0 ni une liste vide.
+
+**État.**
+- **Pas 3 (`f635fb3a`)** — famille « Pilotage » : onglets Flotte / Roadmap / Portes (`tabs.ts`, trois `lazy()`),
+  `api/pm.ts` (`fetchPilotage`, chemin littéral pour la porte de parité ; `?frais=1` avec un timeout de 40 s),
+  `queryKeys.pm.pilotage`, `PILOTAGE_POLL` (30 s, une requête pour les trois vues), `AveugleBanner`,
+  `lib/pilotage.ts` (rattachement de chaque ligne `aveugle` à son bloc, lecture défensive de `flotte`, liens
+  `vscode://file/`), `a:focus-visible` / `summary:focus-visible`. Revue adversariale avant commit : 0 critique,
+  4 importants, 9 mineurs, tous traités — dont des listes vides venues d'une source AVEUGLE côté tableau affichées comme
+  des négatifs, et un recalcul `frais=1` écrasé en silence au sondage suivant (le serveur ne le garde pas).
+- **Pas 4 (`f90ed678`)** — le tick PM écrit `data/pm/PILOTAGE.json` (pilotage complet, même tableau et mêmes
+  compteurs que le tick) et `data/pm/PILOTAGE_ARTEFACT.json` (projection `pilotage_artefact_v1`) ; le skill `/pm`
+  (étape 2 bis) la publie vers la page artefact, dont il est l'unique writer.
+- **Pas 5 (ce paragraphe)** — URL et coût ci-dessous.
+
+**Page artefact** : https://claude.ai/artifact/8CLoJBfo3pWXvkXNaWtWSa — source versionnée
+`tools/pm/artefact/pilotage.html`, base `pilotage/latest`, `pilotage/index` (liste des jours) et
+`pilotage_jours/<AAAA-MM-JJ>` (30 au plus). Règle du store : `write: owner` — vérifiée à la publication : une écriture
+au niveau `admin` (un Editor) est REFUSÉE, une lecture au niveau `interact` passe. Privée par défaut : robla la partage
+depuis le menu de la page. Amorcée le 2026-09-26 avec la projection réelle (tableau du tick vieux de 6,8 h, marqué
+PÉRIMÉ par la page).
+
+**Coût mesuré** (2026-09-26, machine au repos : 3,4 % de CPU sur 1 s, 1 processus python du projet) :
+`compute_pilotage` sur les sources réelles 0,88 / 0,88 / 0,92 s (172 blocs) ; projection 0,8-0,9 ms ; document
+complet 150 KiB compacts contre **59,4 KiB pour la projection** (limite du store : 256 KiB par document ; garde à
+240 KiB, qui retire les entrées et le DIT dans `omis`). Bundle : `PilotageFlotteView` 6,7 kB, `PilotageRoadmapView`
+8,0 kB, `PilotagePortesView` 2,7 kB (≈ 2,7 / 2,7 / 1,1 kB gzip). Chemin servi (`GET /api/pm/pilotage`, mesuré le
+2026-09-24 sous charge) : 2,6 à 9,0 s à cache froid, moins de 10 µs à cache chaud. Tests : vitest 55 fichiers /
+204 tests ; 24 mutants des vues, tous tués.
+
+**Reste, et où.** P2.87 (le dashboard s'indexe tout seul) puis P2.84 (lot 2 « Science », brainstorm avant code). Le
+tick PM ne tourne pas depuis le 2026-09-26 à 11 h 42 : la page et l'onglet Flotte le disent (tableau PÉRIMÉ) ; les
+publications reprendront avec la prochaine session PM.

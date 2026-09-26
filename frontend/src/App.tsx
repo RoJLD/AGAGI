@@ -29,6 +29,15 @@ const EnergyView = lazy(() => import("./components/EnergyView").then((m) => ({ d
 const ForageFunnelView = lazy(() => import("./components/ForageFunnelView").then((m) => ({ default: m.ForageFunnelView })));
 const CarnetView = lazy(() => import("./components/CarnetView").then((m) => ({ default: m.CarnetView })));
 const EdrIndexView = lazy(() => import("./components/EdrIndexView").then((m) => ({ default: m.EdrIndexView })));
+const PilotageFlotteView = lazy(() =>
+  import("./components/pilotage/PilotageFlotteView").then((m) => ({ default: m.PilotageFlotteView })),
+);
+const PilotageRoadmapView = lazy(() =>
+  import("./components/pilotage/PilotageRoadmapView").then((m) => ({ default: m.PilotageRoadmapView })),
+);
+const PilotagePortesView = lazy(() =>
+  import("./components/pilotage/PilotagePortesView").then((m) => ({ default: m.PilotagePortesView })),
+);
 
 export default function App() {
   const { theme, toggle } = useTheme();
@@ -100,6 +109,9 @@ export default function App() {
           )}
           {tab === "runs" && <RunsHistoryView onCompare={(cond) => navigate("comparison", { ab: cond })} />}
           {tab === "sante" && <HealthView />}
+          {tab === "flotte" && <PilotageFlotteView />}
+          {tab === "roadmap" && <PilotageRoadmapView />}
+          {tab === "portes" && <PilotagePortesView />}
           </Suspense>
           </ErrorBoundary>
         </section>

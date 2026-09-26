@@ -11,9 +11,9 @@ nouveau `snapshot()` — ce serait le coût de 18 s qu'on refuse d'engager) anno
 (`charge_connue.sims_en_vol > 0`, spec §5) : recalculer la flotte pendant qu'une sim tourne, c'est la
 contention kuzu / le coût contaminé que l'alerte A5 du board interdit déjà côté PM. Sans tableau lisible, il
 n'y a pas de mesure sur laquelle refuser : le recalcul est lancé, et la charge INCONNUE est dite (F6).
-Limite connue, non corrigée ici (elle touche `snapshot.py`, qui appartient au PM) : `snapshot(racine)` lit
-bulletins et registre par `paths.*`, donc depuis un worktree, sans variable d'environnement, il lit le
-`data/` du WORKTREE et non celui du dépôt commun.
+P2.114 (close) : `snapshot(racine)` ancre bulletins et journal de hooks sur le dépôt COMMUN par une résolution
+PURE (`snapshot.base_des_donnees`) — depuis un worktree, ou un uvicorn lancé d'ailleurs, il ne lit plus le
+`data/` du cwd du processus, et aucune variable d'environnement n'est posée.
 
 ⚠️ Chaque bloc est validé ICI contre le modèle nommé que la route applique (`PilotageV1`), puis passé au JSON
 strict comme la route le fera : `charge`, `flotte` et `roadmap.portes_agi` recopient des sources que

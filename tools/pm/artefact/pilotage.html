@@ -1,0 +1,353 @@
+<title>Pilotage AGAGI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  /* Page LUE à distance : elle rend ce que le tick PM a publié (base `pilotage`), elle ne calcule rien et n'écrit
+     rien. Source : tools/pm/pilotage.py::projection_artefact, spec 2026-09-22 §3.4. */
+  :root {
+    --fond: #f4f6f6;
+    --surface: #ffffff;
+    --surface-2: #eaefee;
+    --trait: #d3dcda;
+    --texte: #16211f;
+    --texte-2: #4c5c59;
+    --accent: #0f766e;
+    --ok: #15803d;
+    --attention: #b45309;
+    --critique: #b91c1c;
+    --neutre: #6d28d9;
+    --sur-couleur: #ffffff;
+    --sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", "Cascadia Mono", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --fond: #0e1614;
+      --surface: #16211f;
+      --surface-2: #1d2b28;
+      --trait: #2c3d3a;
+      --texte: #e6eeec;
+      --texte-2: #9fb2ae;
+      --accent: #2dd4bf;
+      --ok: #4ade80;
+      --attention: #fbbf24;
+      --critique: #f87171;
+      --neutre: #a78bfa;
+      --sur-couleur: #0e1614;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --fond: #0e1614;
+    --surface: #16211f;
+    --surface-2: #1d2b28;
+    --trait: #2c3d3a;
+    --texte: #e6eeec;
+    --texte-2: #9fb2ae;
+    --accent: #2dd4bf;
+    --ok: #4ade80;
+    --attention: #fbbf24;
+    --critique: #f87171;
+    --neutre: #a78bfa;
+    --sur-couleur: #0e1614;
+  }
+  body { background: var(--fond); color: var(--texte); font: 15px/1.5 var(--sans); }
+  .page { max-width: 72rem; margin: 0 auto; padding-inline: 16px; padding-block: 20px 48px; display: grid; gap: 20px; }
+  h1, h2 { text-wrap: balance; margin: 0; }
+  h1 { font-size: 1.5rem; font-weight: 600; letter-spacing: -0.01em; }
+  h2 { font-size: 1.05rem; font-weight: 600; }
+  .dim { color: var(--texte-2); }
+  .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  header { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: end; justify-content: space-between; }
+  header p { margin: 4px 0 0; font-size: 0.9rem; }
+  label { font-size: 0.8rem; color: var(--texte-2); display: grid; gap: 4px; }
+  select { font: inherit; font-size: 0.9rem; padding: 6px 8px; border: 1px solid var(--trait); border-radius: 6px;
+           background: var(--surface); color: var(--texte); }
+  select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  section { display: grid; gap: 10px; }
+  .bloc { background: var(--surface); border: 1px solid var(--trait); border-radius: 8px; padding: 14px 16px; }
+  .aveugle { border-left: 3px solid var(--attention); }
+  .aveugle.critique { border-left-color: var(--critique); }
+  .aveugle ul, .omis ul { margin: 6px 0 0; padding-left: 18px; display: grid; gap: 4px; font-size: 0.88rem; }
+  .tuiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: 10px; }
+  .tuile { background: var(--surface); border: 1px solid var(--trait); border-radius: 8px; padding: 10px 12px; display: grid; gap: 2px; }
+  .tuile span { font-size: 0.75rem; color: var(--texte-2); letter-spacing: 0.02em; text-transform: uppercase; }
+  .tuile strong { font: 500 1.35rem/1.2 var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .tuile strong.absent { font: 400 0.95rem/1.6 var(--sans); color: var(--texte-2); }
+  .defile { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--trait); vertical-align: top; }
+  th { color: var(--texte-2); font-weight: 500; font-size: 0.78rem; letter-spacing: 0.02em; text-transform: uppercase; }
+  td.num, th.num { text-align: right; }
+  td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  td.nowrap { white-space: nowrap; }
+  .puce { display: inline-block; font-size: 0.72rem; font-weight: 600; padding: 1px 7px; border-radius: 999px; white-space: nowrap;
+          border: 1px solid transparent; }
+  .puce.ok { background: var(--ok); color: var(--sur-couleur); }
+  .puce.attention { background: var(--attention); color: var(--sur-couleur); }
+  .puce.critique { background: var(--critique); color: var(--sur-couleur); }
+  .puce.neutre { background: var(--neutre); color: var(--sur-couleur); }
+  .puce.contour { border-color: var(--accent); color: var(--texte); }
+  .alertes { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  .alertes li { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: baseline; font-size: 0.9rem; }
+  .portes-agi { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: 10px; }
+  .portes-agi .bloc { display: grid; gap: 2px; }
+  .portes-agi strong { font-family: var(--mono); }
+  .rang-item { display: inline-block; margin-right: 12px; white-space: nowrap; }
+  .pile { display: grid; gap: 20px; }
+  .ligne { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: end; }
+  .etat { padding: 24px 16px; text-align: center; color: var(--texte-2); }
+  .etat.erreur { color: var(--critique); }
+  @media (prefers-reduced-motion: no-preference) { .bloc, .tuile { transition: border-color 0.2s; } }
+</style>
+
+<div class="page">
+  <header>
+    <div>
+      <h1>Pilotage AGAGI</h1>
+      <p class="dim" id="provenance">En attente de la base du tableau…</p>
+    </div>
+    <label for="version">Version affichée
+      <select id="version" disabled>
+        <option value="latest">dernière publication</option>
+      </select>
+    </label>
+  </header>
+  <main id="contenu" aria-live="polite">
+    <div class="etat bloc" role="status">Chargement de la dernière publication du tick PM…</div>
+  </main>
+</div>
+
+<script>
+  "use strict";
+  // Lecture seule. Chaque valeur absente se DIT (« non mesuré », « indisponible ») — jamais un 0 de repli.
+  const $ = (sel) => document.querySelector(sel);
+  const NON_MESURE = "non mesuré";
+
+  function el(tag, attrs, ...enfants) {
+    const e = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs || {})) {
+      if (v === null || v === undefined || v === false) continue;
+      if (k === "class") e.className = v;
+      else e.setAttribute(k, v === true ? "" : String(v));
+    }
+    for (const c of enfants.flat()) {
+      if (c === null || c === undefined || c === false) continue;
+      e.append(c instanceof Node ? c : document.createTextNode(String(c)));
+    }
+    return e;
+  }
+
+  const nf1 = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 1 });
+  const estNombre = (v) => typeof v === "number" && Number.isFinite(v);
+  const mesure = (v, fmt) => (estNombre(v) ? (fmt ? fmt(v) : String(v)) : NON_MESURE);
+  function duree(s) {
+    return mesure(s, (v) => {
+      const a = Math.max(0, v);
+      if (a < 60) return Math.round(a) + " s";
+      if (a < 3600) return Math.round(a / 60) + " min";
+      if (a < 86400) return nf1.format(a / 3600) + " h";
+      return nf1.format(a / 86400) + " j";
+    });
+  }
+  const date = (t) => (estNombre(t) ? new Date(t * 1000).toLocaleString("fr-FR", { dateStyle: "medium", timeStyle: "short" }) : NON_MESURE);
+
+  function tuile(libelle, valeur) {
+    const absent = valeur === NON_MESURE;
+    return el("div", { class: "tuile" }, el("span", {}, libelle), el("strong", { class: absent ? "absent" : null }, valeur));
+  }
+  // Mêmes motifs que frontend/src/lib/pilotage.ts (MOTIFS / GLOBALES) : chaque bloc null retrouve SA raison.
+  const MOTIFS = {
+    flotte: /^flotte\s*:/, roadmap: /^(backlog|roadmap)\s*:/, portes: /^portes\s*:/,
+    charge: /^(charge|compteurs du PM|flotte)\s*:/, portes_agi: /^(portes_agi|graphe de records)\s*:/,
+  };
+  const GLOBALES = /^(pilotage:|racine résolue suspecte)/;
+  const PEREMPTION_TABLEAU_S = 7200; // tools/pm/board.py::PEREMPTION_S (TTL du bail pm)
+  function indisponible(bloc, doc) {
+    const av = doc.aveugle || [];
+    const lignes = [...av.filter((l) => GLOBALES.test(l)), ...av.filter((l) => MOTIFS[bloc].test(l))];
+    return el("div", { class: "bloc etat" }, lignes.length
+      ? `Indisponible — ${lignes.join(" · ")}`
+      : "Indisponible — la publication ne dit pas pourquoi (bloc null sans ligne d'aveuglement : à signaler).");
+  }
+  function table(label, entetes, lignes) {
+    return el("div", { class: "bloc defile" },
+      el("table", { "aria-label": label },
+        el("thead", {}, el("tr", {}, entetes.map(([t, cls]) => el("th", { class: cls || null, scope: "col" }, t)))),
+        el("tbody", {}, lignes)));
+  }
+  const PUCE_STATUT = { close: ["ok", "close"], perimee: ["attention", "périmée"], illisible: ["critique", "illisible"] };
+  function puceStatut(s) {
+    if (s === "ouverte") return el("span", { class: "puce contour" }, "ouverte");
+    const [cls, txt] = PUCE_STATUT[s] || ["neutre", String(s)];
+    return el("span", { class: "puce " + cls }, txt);
+  }
+  function puceClause(c) {
+    if (!c) return el("span", { class: "dim" }, "sans clause");
+    if (c.satisfaite === true) return el("span", { class: "puce ok" }, "satisfaite");
+    if (c.satisfaite === false) return el("span", { class: "puce attention" }, "non satisfaite");
+    return el("span", { class: "puce neutre" }, "invérifiable");
+  }
+
+  function rendreResume(doc) {
+    const c = doc.charge;
+    const f = doc.flotte;
+    const alertes = f && Array.isArray(f.alertes) ? f.alertes : null;
+    const graves = alertes ? alertes.filter((a) => a.gravite === "alerte").length : null;
+    return el("section", { "aria-label": "Résumé" }, el("div", { class: "tuiles" },
+      tuile("Sessions vivantes", f && Array.isArray(f.sessions) ? String(f.sessions.length) : NON_MESURE),
+      tuile("Alertes", alertes ? `${graves} / ${alertes.length}` : NON_MESURE),
+      tuile("Simulations en vol", c ? mesure(c.sims_en_vol) : NON_MESURE),
+      tuile("CPU instantané", c ? mesure(c.cpu_pct, (v) => nf1.format(v) + " %") : NON_MESURE),
+      tuile("Âge de la flotte", c ? duree(c.flotte_age_s) : NON_MESURE),
+      tuile("Science / méthodo", c ? mesure(c.ratio_science_methodo, (v) => v.toFixed(2)) : NON_MESURE)));
+  }
+
+  function rendreFlotte(doc) {
+    const s = el("section", { "aria-labelledby": "t-flotte" }, el("h2", { id: "t-flotte" }, "Flotte"));
+    const f = doc.flotte;
+    if (!f) return s.append(indisponible("flotte", doc)), s;
+    const aveugleTableau = (doc.aveugle || []).filter((l) => l.startsWith("flotte: ")).map((l) => l.slice(8));
+    const backlogAveugle = aveugleTableau.some((l) => l.startsWith("backlog"));
+    const age = doc.charge && doc.charge.flotte_age_s;
+    if (estNombre(age) && age > PEREMPTION_TABLEAU_S)
+      s.append(el("div", { class: "bloc aveugle critique", role: "status" }, el("strong", {}, `Tableau PÉRIMÉ : mesuré il y a ${duree(age)}.`),
+        ` Au-delà de ${duree(PEREMPTION_TABLEAU_S)}, aucun tick n'a renouvelé le bail du PM : sessions et alertes décrivent cette heure-là.`));
+    s.append(el("p", { class: "dim" }, `Tableau du tick PM daté du ${date(f.generated_at)}.`));
+    if (!Array.isArray(f.sessions)) s.append(el("div", { class: "bloc etat" }, "Sessions non publiées par le tableau — inconnues, pas vides."));
+    else s.append(table("Sessions vivantes", [["Session"], ["Branche"], ["P-items revendiqués"], ["P-items inférés"], ["Fichiers en vol", "num"], ["Heartbeat"]],
+      f.sessions.length ? f.sessions.map((x) => el("tr", {},
+        el("td", {}, x.nom), el("td", {}, x.branche || "inconnue"),
+        el("td", {}, x.bulletin === false ? "sans bulletin" : (x.claims || []).join(", ") || "aucun"),
+        el("td", {}, x.bulletin === false ? "sans bulletin" : backlogAveugle ? "inconnu (backlog aveugle côté tableau)" : (x.claims_inferes || []).join(", ") || "aucun"),
+        el("td", { class: "num" }, x.bulletin === false ? "sans bulletin"
+          : mesure(x.fichiers_en_vol) + (x.bash_ecritures_possibles ? ` (+${x.bash_ecritures_possibles} Bash non nommée·s)` : "")),
+        el("td", { class: "nowrap" }, estNombre(x.heartbeat_at) && estNombre(doc.generated_at) ? "il y a " + duree(doc.generated_at - x.heartbeat_at) : NON_MESURE)))
+      : [el("tr", {}, el("td", { colspan: 6, class: "dim" }, aveugleTableau.some((l) => l.startsWith("registre natif"))
+          ? "Sessions INCONNUES : le tableau est aveugle sur le registre natif." : "Aucune session vivante recensée par le tableau."))]));
+    if (Array.isArray(f.sessions)) s.append(el("p", { class: "dim" }, "Fichiers en vol : seuls les outils d'édition les nomment ; une écriture par un script lancé par Bash n'est que comptée, jamais nommée."));
+    if (!Array.isArray(f.alertes)) s.append(el("div", { class: "bloc etat" }, "Alertes non publiées par le tableau — inconnues, pas « 0 alerte »."));
+    else s.append(el("div", { class: "bloc" }, f.alertes.length
+      ? el("ul", { class: "alertes" }, f.alertes.map((a) => el("li", {},
+          el("span", { class: "puce " + (a.gravite === "alerte" ? "critique" : a.gravite === "info" ? "attention" : "neutre") }, `${a.id} ${a.gravite}`),
+          el("span", {}, a.message))))
+      : el("span", { class: "dim" }, aveugleTableau.length
+          ? `Aucune alerte dans le tableau — qui est aveugle sur : ${aveugleTableau.join(" · ")}.` : "Aucune alerte dans le tableau.")));
+    if (Array.isArray(f.sessions_mortes) && f.sessions_mortes.length)
+      s.append(el("p", { class: "dim" }, "Sessions mortes écartées : " + f.sessions_mortes.join(", ")));
+    return s;
+  }
+
+  function rendreRoadmap(doc) {
+    const s = el("section", { "aria-labelledby": "t-roadmap" }, el("h2", { id: "t-roadmap" }, "Roadmap"));
+    const rm = doc.roadmap;
+    if (!rm) return s.append(indisponible("roadmap", doc)), s;
+    const prio = Object.keys(rm.comptes.par_priorite || {}).sort();
+    s.append(el("div", { class: "tuiles" },
+      prio.map((p) => { const n = rm.comptes.par_priorite[p]; return tuile(`${p} ouv. / closes / pér.`, `${n.ouvertes} / ${n.closes} / ${n.perimees}`); }),
+      tuile("Têtes d'entrée", String(rm.comptes.blocs)), tuile("Illisibles", String(rm.comptes.illisibles))));
+    const f = doc.charge && doc.charge.fenetre;
+    if (f && typeof f.depuis === "string") s.append(el("p", { class: "dim" }, `Ratio science / méthodo sur ${f.jours} j glissants depuis le ${f.depuis}, en fichiers modifiés.`));
+    s.append(el("h2", {}, "Direction"));
+    s.append(rm.direction.rangs.length ? table("Direction : rangs tranchés", [["Rang"], ["Entrées"]],
+      rm.direction.rangs.map((r) => el("tr", {}, el("td", { class: "nowrap" }, r.rang),
+        el("td", {}, r.p_items.map((p, i) => el("span", { class: "rang-item" }, p + " ", puceStatut(r.statuts[i])))))))
+      : el("p", { class: "dim" }, "Aucune entrée ne porte de rang."));
+    s.append(el("h2", {}, "Portes G0-G4"));
+    if (!rm.portes_agi) s.append(indisponible("portes_agi", doc));
+    else if (!Object.keys(rm.portes_agi).length) s.append(el("p", { class: "dim" }, "records_graph.json ne publie aucune porte G."));
+    else s.append(el("div", { class: "portes-agi" }, Object.keys(rm.portes_agi).sort().map((k) => {
+      const g = rm.portes_agi[k] || {};
+      return el("div", { class: "bloc" }, el("strong", {}, k), el("span", {}, g.status || "statut non publié"),
+        el("span", { class: "dim" }, g.sdr || "SDR non publié"),
+        el("span", { class: "dim" }, estNombre(g.records) ? `${g.records} record(s)` : "records non publiés"));
+    })));
+    s.append(el("h2", {}, "Entrées du backlog"));
+    if (!Array.isArray(rm.entrees)) { s.append(el("div", { class: "bloc etat" }, "Entrées retirées de cette publication (voir « Omis » en bas de page).")); return s; }
+    const filtre = el("select", { id: "filtre-statut" },
+      [["", "tous les statuts"], ["ouverte", "ouvertes"], ["close", "closes"], ["perimee", "périmées"], ["illisible", "illisibles"]].map(([v, t]) => el("option", { value: v }, t)));
+    const zone = el("div", {});
+    const compte = el("span", { class: "dim" });
+    const peindre = () => {
+      const vues = rm.entrees.filter((e) => !filtre.value || e.statut === filtre.value);
+      compte.textContent = `${vues.length} entrée(s) sur ${rm.entrees.length}`;
+      zone.replaceChildren(table("Entrées du backlog", [["N°"], ["Statut"], ["Rang"], ["Date"], ["Titre"], ["Clause"], ["Chemins cités", "num"]],
+        vues.map((e) => el("tr", {},
+          el("td", { class: "nowrap mono" }, e.num), el("td", {}, puceStatut(e.statut)),
+          el("td", { class: "nowrap" }, e.rang || "—"), el("td", { class: "nowrap mono" }, e.date || "non datée"),
+          el("td", {}, e.titre), el("td", {}, puceClause(e.clause)),
+          el("td", { class: "num" }, `${e.chemins}` + (e.chemins_absents ? ` (${e.chemins_absents} absent·s)` : "") + (e.chemins_non_captes ? ` +${e.chemins_non_captes} non reconnu·s` : ""))))));
+    };
+    filtre.addEventListener("change", peindre);
+    peindre();
+    s.append(el("div", { class: "ligne" }, el("label", { for: "filtre-statut" }, "Filtrer par statut", filtre), compte), zone);
+    return s;
+  }
+
+  function rendrePortes(doc) {
+    const s = el("section", { "aria-labelledby": "t-portes" }, el("h2", { id: "t-portes" }, "Portes du hook pre-commit"));
+    if (!Array.isArray(doc.portes)) return s.append(indisponible("portes", doc)), s;
+    s.append(el("p", { class: "dim" }, `${doc.portes.length} porte(s) branchée(s) — inventaire recomputé depuis le hook, aucune n'est exécutée d'ici.`));
+    s.append(table("Portes du hook pre-commit", [["N°", "num"], ["Module"], ["Titre"], ["Mutations", "num"], ["Baseline"], ["Dette gelée", "num"]],
+      doc.portes.map((p) => el("tr", {},
+        el("td", { class: "num" }, p.num), el("td", { class: "mono" }, p.module), el("td", {}, p.titre || "non publié"),
+        el("td", { class: "num" }, estNombre(p.mutations) ? p.mutations : "non mutée"),
+        el("td", {}, p.baseline === null ? "non recensée" : p.baseline ? "présente" : "ABSENTE"),
+        el("td", { class: "num" }, estNombre(p.dette) ? p.dette : "non comptée")))));
+    return s;
+  }
+
+  function rendre(doc, id) {
+    if (!doc || doc.schema !== "pilotage_artefact_v1") {
+      $("#contenu").replaceChildren(el("div", { class: "etat bloc", role: "status" },
+        doc ? `Publication de forme inconnue (schema = ${JSON.stringify(doc.schema)}) : rien n'est affiché plutôt qu'un rendu faux.`
+            : "Aucune publication reçue : le tick PM n'a encore rien publié dans cette base."));
+      return;
+    }
+    $("#provenance").textContent = `Publication du ${date(doc.generated_at)} (${id === "latest" ? "la plus récente" : "archive du " + id}) — écrite par le tick PM, lecture seule.`;
+    const av = doc.aveugle || [];
+    const blocs = [];
+    if (av.length) {
+      const critique = av.some((l) => l.startsWith("pilotage:"));
+      blocs.push(el("div", { class: "bloc aveugle" + (critique ? " critique" : ""), role: critique ? "alert" : "status" },
+        el("strong", {}, `${av.length} ligne(s) d'aveuglement publiée(s)`), el("ul", {}, av.map((l) => el("li", {}, l)))));
+    }
+    blocs.push(rendreResume(doc), rendreFlotte(doc), rendreRoadmap(doc), rendrePortes(doc));
+    if (Array.isArray(doc.omis) && doc.omis.length)
+      blocs.push(el("div", { class: "bloc omis" }, el("strong", {}, "Omis de cette publication (taille du document)"), el("ul", {}, doc.omis.map((l) => el("li", {}, l)))));
+    $("#contenu").replaceChildren(el("div", { class: "pile" }, ...blocs));
+  }
+
+  function erreur(message) {
+    $("#contenu").replaceChildren(el("div", { class: "etat bloc erreur", role: "alert" }, message));
+  }
+
+  (async () => {
+    const db = window.claude ? await window.claude.use("db") : null;
+    if (!db) { erreur("La base de ce tableau n'est pas accessible dans cette vue : ouvrir la page depuis claude.ai, connecté à l'organisation."); return; }
+    const choix = $("#version");
+    let courant = "latest";
+    let dernier = undefined;
+    db.doc("pilotage/latest").onSnapshot((snap) => {
+      dernier = snap.exists ? snap.data() : null;
+      if (courant === "latest") rendre(dernier, "latest");
+    }, (e) => erreur(`Lecture de la dernière publication impossible (${e.code}) : ${e.message}`));
+    db.doc("pilotage/index").onSnapshot((snap) => {
+      const jours = snap.exists && Array.isArray(snap.data().jours) ? snap.data().jours : [];
+      choix.replaceChildren(el("option", { value: "latest" }, "dernière publication"),
+        ...jours.map((j) => el("option", { value: j }, "archive du " + j)));
+      choix.value = jours.includes(courant) ? courant : "latest";
+      choix.disabled = false;
+    }, () => { choix.disabled = true; });
+    choix.addEventListener("change", async () => {
+      courant = choix.value;
+      if (courant === "latest") { rendre(dernier, "latest"); return; }
+      try {
+        const snap = await db.doc("pilotage_jours/" + courant).get();
+        rendre(snap.exists ? snap.data() : null, courant);
+      } catch (e) { erreur(`Archive du ${courant} illisible (${e.code || "erreur"}) : ${e.message || e}`); }
+    });
+  })();
+</script>

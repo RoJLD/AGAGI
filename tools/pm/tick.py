@@ -109,8 +109,30 @@ def main(argv=None):
     counts = RC.compute_counts(journal + d["lignes"], RC.fichiers_modifies(args.repo_root, now=now), now)
     with open(paths.pm_dir("ROLES_COUNTS.json"), "w", encoding="utf-8") as fh:
         json.dump(counts, fh, ensure_ascii=False, indent=1)
-    print(digest(board, d, counts, illisibles=illisibles))
+    pilotage = ecrire_pilotage(args.repo_root, board, counts, now)
+    print(digest(board, d, counts, illisibles=illisibles) + ("\n" + pilotage if pilotage else ""))
     return 0
+
+
+def ecrire_pilotage(repo_root, board, counts, now):
+    """Spec pilotage §3.4 : `PILOTAGE.json` (pilotage_v1 complet, mêmes board et compteurs que ce tick) puis
+    `PILOTAGE_ARTEFACT.json` (projection publiée par le skill /pm vers la page artefact). Rend une ligne de digest
+    si la projection omet quelque chose ou si le calcul a levé — jamais une exception : BOARD.json, journal et
+    compteurs sont déjà écrits, le pilotage ne doit pas les faire échouer avec lui. En cas d'échec, les fichiers
+    précédents restent tels quels, avec LEUR `generated_at` : le skill ne republie donc rien de neuf."""
+    try:
+        from tools.pm import pilotage as PI
+        racine = str(repo_root).replace("\\", "/")
+        complet = PI.compute_pilotage(None, PI.read_backlog(racine), PI.read_records_graph(racine), counts,
+                                      PI.read_portes(racine), now, repo_root=racine, board=board)
+        artefact = PI.projection_artefact(complet)
+        with open(paths.pm_dir("PILOTAGE.json"), "w", encoding="utf-8") as fh:
+            json.dump(complet, fh, ensure_ascii=False, indent=1, default=str)
+        with open(paths.pm_dir("PILOTAGE_ARTEFACT.json"), "w", encoding="utf-8") as fh:
+            json.dump(artefact, fh, ensure_ascii=False, separators=(",", ":"), default=str)
+    except Exception as exc:                            # noqa: BLE001 — NOMMÉ dans le digest, jamais avalé
+        return f"[PM] AVEUGLE SUR pilotage (PILOTAGE.json non écrit : {type(exc).__name__}: {exc})"
+    return "\n".join(f"[PM] artefact : {o}" for o in artefact["omis"])
 
 
 if __name__ == "__main__":

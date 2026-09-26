@@ -84,3 +84,6 @@ tests/sandbox/test_generated_op.py
 runs/
 .worktrees/
 probe*_out.json
+# Sortie de l'outil navigateur Playwright MCP : ecrite a la RACINE de l'arbre principal (captures, journaux de console),
+# quel que soit le worktree de la session -- mesure le 2026-09-26, 13 fichiers en une passe de controle visuel.
+.playwright-mcp/

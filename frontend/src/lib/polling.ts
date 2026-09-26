@@ -6,6 +6,15 @@ export const STATUS_POLL = {
   refetchIntervalInBackground: false,
 } as const;
 
+/** Options react-query du pilotage (3 vues, MÊME queryKey : une seule requête réseau). 30 s : la flotte servie
+ *  est le BOARD.json du tick PM (20-30 min) et roadmap/portes/charge sont en cache 30 s côté backend — sonder plus
+ *  vite ne rendrait rien de plus frais. Pas de sondage en arrière-plan. */
+export const PILOTAGE_POLL = {
+  refetchInterval: 30_000,
+  staleTime: 5_000,
+  refetchIntervalInBackground: false,
+} as const;
+
 /** Options react-query pour une query live de LiveDashboard, à intervalle donné.
  *  staleTime 0 (données fraîches à l'affichage) ; pas de polling en arrière-plan. */
 export function livePoll(intervalMs: number) {

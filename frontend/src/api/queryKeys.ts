@@ -40,4 +40,7 @@ export const queryKeys = {
   },
   sweeps: ["sweeps"] as const,
   notes: ["notes"] as const,
+  pm: {
+    pilotage: ["pm", "pilotage"] as const,
+  },
 } as const;
