@@ -1180,7 +1180,10 @@ def main(argv=None) -> int:
             print(r.stdout.decode())
             return 0
         if a.action == "surveiller":
-            return surveiller(duree_s=a.duree_s, pas_s=a.pas_s, ignorer=tuple(a.ignorer))
+            # flush : lancée en arrière-plan, sortie redirigée vers un fichier, une sonde non vidée n'écrirait rien
+            # avant de s'arrêter — mesuré le 2026-09-26, fichier de sortie VIDE pendant 20 min.
+            return surveiller(duree_s=a.duree_s, pas_s=a.pas_s, ignorer=tuple(a.ignorer),
+                              sortie=lambda m: print(m, flush=True))
         if a.action == "config":
             cfg = charger_config()
             for k in VARIABLES_CONFIG:
