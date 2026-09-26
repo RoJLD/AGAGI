@@ -1020,7 +1020,8 @@ compatibles, et c'est en croyant résoudre la première que j'ai créé la secon
 <!-- closes_when:grep_present=tools/check_amputation.py::ecrire_sans_perte -->
 
 
-**P2.115 — rang 5 — OUVERTE (2026-09-26, mesuré sur `352cce44`) — `check_gate_mutation.py --only <inconnu>` rend
+**P2.115 — rang 5 — ✅ CLOSE le 2026-09-26 (ouverte le 2026-09-26, mesuré sur `352cce44`) — `check_gate_mutation.py
+--only <inconnu>` rend
 « OK : 0 porte(s) » et exit 0 : le cliquet DES cliquets accepte un périmètre VIDE comme un succès.**
 Preuve : `PYTHONIOENCODING=utf-8 python tools/check_gate_mutation.py --only 99` → `OK : 0 porte(s), 0/0 mutation(s)
 TUEE(S), temoins intacts VERTS.`, exit 0. Cause : `tools/check_gate_mutation.py:572` filtre
@@ -1038,6 +1039,15 @@ explicite de `--pour-fichiers` reste tel quel.
 **Contre-exemple gelé à écrire dans la même passe** : `main(["--only", "99"])` rend exit ≠ 0 et nomme `99` ;
 `main(["--only", "4"])` continue de fonctionner ; la garde retirée est TUÉE par ce témoin (la porte 15 se mute
 elle-même).
+**✅ CLOSE le 2026-09-26 (agagi-32, `tmp/p2-105`)** : `main` REFUSE (exit 2, message `INCONNUE`, numéros nommés, liste des
+portes déclarées) tout `--only` portant un numéro absent de `PORTES` ou vide, AVANT tout scan — et un `etats` vide
+après scan est refusé aussi (« 0 porte » n'est jamais un OK) ; le court-circuit de `--pour-fichiers` est inchangé.
+Occurrence VÉCUE le jour même, en écrivant la porte 24 : `--only 24` rendait « OK : 0 porte(s) » pendant que
+l'entrée « 24 » n'existait pas encore. Témoins (`tests/sandbox/test_gate_mutation.py`) : `--only 99` refusé et nommé
+avec un `scan` qui lève s'il est appelé (le refus précède tout pytest), `--only` vide refusé, `--only 4` passe et le
+scan ne reçoit que `4` (no-op apparié), périmètre vidé après scan refusé. ⚠️ La porte 15 est HORS_PERIMETRE d'elle-même
+(raison écrite : ses sous-processus relisent le fichier intact) — pas de mutation déclarée, ces témoins SONT sa
+calibration : avant le correctif ils rougissaient, après ils passent.
 <!-- closes_when:grep_present=tools/check_gate_mutation.py::INCONNUE -->
 
 

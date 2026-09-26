@@ -218,6 +218,48 @@ def test_le_CLIQUET_ne_fait_RIEN_quand_aucune_porte_n_est_concernee(capsys):
     assert "aucune porte" in capsys.readouterr().out
 
 
+def test_only_INCONNU_est_REFUSE_et_NOMME_avant_tout_pytest(monkeypatch, capsys):
+    """CONTRE-EXEMPLE GELÉ (P2.115) : `--only 99` rendait « OK : 0 porte(s) » et exit 0 — un vert qui ne mesurait
+    rien, sur la porte qui vérifie les autres. Le refus est posé AVANT le scan : aucun sous-processus ne part.
+    ⚠️ La porte 15 ne se mute pas elle-même (HORS_PERIMETRE, raison écrite) : ce témoin EST sa calibration —
+    avant le correctif il rougissait (main rendait 0), après il passe."""
+    def _pas_de_scan(only=None):
+        raise AssertionError("scan appelé : le refus devait venir AVANT")
+    monkeypatch.setattr(G, "scan", _pas_de_scan)
+    assert G.main(["--only", "99"]) == 2
+    out = capsys.readouterr().out
+    assert "INCONNUE" in out and "99" in out
+
+
+def test_only_VIDE_est_refuse_pour_la_meme_raison(monkeypatch, capsys):
+    def _pas_de_scan(only=None):
+        raise AssertionError("scan appelé : le refus devait venir AVANT")
+    monkeypatch.setattr(G, "scan", _pas_de_scan)
+    assert G.main(["--only"]) == 2
+    assert "0 porte" in capsys.readouterr().out
+
+
+def test_only_CONNU_continue_de_fonctionner_et_ne_scanne_que_lui(monkeypatch, capsys):
+    """NO-OP APPARIÉ : un numéro déclaré passe, et le scan ne reçoit que lui."""
+    vu = {}
+
+    def _scan(only=None):
+        vu["only"] = list(only)
+        return {"4": {"intact": "VERT", "code_intact": 0, "sortie": "",
+                      "mutations": [{"nom": "n", "motif": "m", "verdict": "TUEE", "code": 1, "sortie": ""}]}}
+    monkeypatch.setattr(G, "scan", _scan)
+    assert G.main(["--only", "4"]) == 0 and vu["only"] == ["4"]
+    assert "OK" in capsys.readouterr().out
+
+
+def test_un_perimetre_qui_se_VIDE_apres_filtrage_est_refuse_jamais_OK(monkeypatch, capsys):
+    """La seconde moitié de la forme : un `etats` VIDE après scan n'est jamais un OK — `echecs({})` est vide par
+    construction, et c'est exactement ce qui rendait le vert."""
+    monkeypatch.setattr(G, "scan", lambda only=None: {})
+    assert G.main([]) == 2
+    assert "0 porte" in capsys.readouterr().out
+
+
 # ==================================================================================================
 # LE LANCEUR ne transmet pas le dépôt du commit à ses témoins (famille GIT_*, 2026-09-24)
 # ==================================================================================================

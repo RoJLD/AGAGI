@@ -664,8 +664,24 @@ def main(argv=None):
         if not only:
             print("aucune porte concernee par ces fichiers — rien a muter")
             return 0
+    elif only is not None:
+        # P2.115 (2026-09-26) : un `--only` qui ne désignait AUCUNE porte déclarée rendait « OK : 0 porte(s), 0/0
+        # mutation(s) TUEE(S) » et exit 0 — la forme (a) du biais du dépôt (entrée vide → verdict de fond) appliquée
+        # à la porte qui vérifie les autres. Mesuré : `--only 99` → OK, exit 0 ; et le jour même, `--only 24` a
+        # rendu OK pendant que l'entrée « 24 » n'existait pas encore dans PORTES. Un numéro mal tapé, une porte
+        # renumérotée (la 23 a porté le numéro 22 jusqu'au 2026-09-24) ou un `--only` figé dans un script rendaient
+        # un vert qui ne mesurait RIEN. Refus NOMMÉ, posé AVANT le scan : aucun pytest ne part. Le court-circuit
+        # de `--pour-fichiers` (ci-dessus) reste tel quel : lui DIT qu'il n'a rien à muter.
+        inconnues = [p for p in only if p not in PORTES]
+        if inconnues or not only:
+            print(f"REFUS : porte(s) INCONNUE(S) dans --only : {', '.join(inconnues) or '(aucun numero)'} -- "
+                  f"portes declarees : {', '.join(sorted(PORTES, key=_ordre))}. « 0 porte » n'est jamais un OK.")
+            return 2
 
     etats = scan(only)
+    if not etats:
+        print("REFUS : aucune porte examinee -- « 0 porte » n'est jamais un OK (P2.115).")
+        return 2
     problemes = echecs(etats)
     n_mut = sum(len(e["mutations"]) for e in etats.values())
     n_tuees = sum(1 for e in etats.values() for m in e["mutations"] if m["verdict"] == "TUEE")
