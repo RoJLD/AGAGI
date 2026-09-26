@@ -982,3 +982,67 @@ def test_pilotage_cache_sous_le_TTL(monkeypatch) -> None:
     client.get("/api/pm/pilotage")
     client.get("/api/pm/pilotage")
     assert appels["n"] == 1, f"le cache 30 s n'a pas tenu : {appels['n']} calculs"
+
+
+# --- 2026-09-26 : le smoke docker rougissait — le backend mourait à l'import de tools.pm -------------------
+_SONDE_SANS_TOOLS_PM = '''
+import json, sys
+from importlib.abc import MetaPathFinder
+
+
+class _BloqueToolsPm(MetaPathFinder):
+    """Reproduit l'image backend sans le volume ./tools : tout import de tools.pm échoue."""
+    def find_spec(self, nom, chemin=None, cible=None):
+        if nom == "tools.pm" or nom.startswith("tools.pm."):
+            raise ModuleNotFoundError("No module named " + repr(nom), name=nom)
+        return None
+
+
+sys.meta_path.insert(0, _BloqueToolsPm())
+sys.path.insert(0, sys.argv[1])
+from backend.app.main import app
+from fastapi.testclient import TestClient
+
+with TestClient(app, raise_server_exceptions=False) as c:
+    h = c.get("/health")
+    p = c.get("/api/pm/pilotage")
+print("RESULTAT " + json.dumps({"health": h.status_code, "pilotage": p.status_code,
+                                "corps": p.json() if p.status_code == 200 else None}))
+'''
+
+
+def test_le_backend_DEMARRE_sans_tools_pm_et_le_pilotage_NOMME_l_absence(tmp_path) -> None:
+    """Régression du 2026-09-26 (run CI 36210667429) : `pilotage_service` importait `tools.pm` au niveau du
+    module, or `tools/` n'est pas dans l'image backend. Le processus uvicorn mourait AU DÉMARRAGE, /health
+    avec lui, et le smoke ne montrait que « Failed to connect ». L'import est désormais GARDÉ : le backend
+    démarre, et l'absence n'est pas tue — la route rend le mode dégradé, dont la ligne `pilotage:` NOMME
+    ImportError et tools.pm (c'est ce marqueur que le smoke de la CI fait rougir).
+
+    Sous-processus obligatoire : l'import de `backend.app.main` est un état de processus, déjà fait ici par le
+    module de test. Un chercheur de `sys.meta_path` y bloque `tools.pm`, sans toucher au disque."""
+    racine = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    sonde = tmp_path / "sonde_sans_tools_pm.py"
+    sonde.write_text(_SONDE_SANS_TOOLS_PM, encoding="utf-8")
+    env = dict(os.environ, PYTHONIOENCODING="utf-8")
+    env.pop("PYTHONPATH", None)
+    r = subprocess.run([os.sys.executable, str(sonde), racine], cwd=racine, capture_output=True,
+                       encoding="utf-8", errors="replace", env=env, timeout=300)
+    lignes = [ligne for ligne in r.stdout.splitlines() if ligne.startswith("RESULTAT ")]
+    assert r.returncode == 0 and lignes, f"le backend ne démarre pas sans tools.pm :\n{r.stderr[-3000:]}"
+    res = json.loads(lignes[-1][len("RESULTAT "):])
+    assert res["health"] == 200, res
+    assert res["pilotage"] == 200, res
+    d = res["corps"]
+    assert d["schema"] == "pilotage_v1"
+    assert all(d[b] is None for b in ("flotte", "roadmap", "portes", "charge")), d
+    degrade = [a for a in d["aveugle"] if a.startswith("pilotage:")]
+    assert len(degrade) == 1, d["aveugle"]
+    assert "ImportError" in degrade[0] and "tools.pm" in degrade[0], degrade
+
+
+def test_le_SCHEMA_recopie_par_le_service_suit_celui_de_tools_pm() -> None:
+    """Le mode dégradé doit rendre le schéma SANS tools.pm, donc le service le recopie : cette recopie ne
+    peut pas dériver en silence de `tools.pm.pilotage.SCHEMA`."""
+    from backend.app.services import pilotage_service as ps
+    from tools.pm import pilotage as P
+    assert ps._SCHEMA == P.SCHEMA

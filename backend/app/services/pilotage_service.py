@@ -35,10 +35,24 @@ from typing import Any
 
 from pydantic import TypeAdapter
 
-from tools.pm import pilotage
-from tools.pm.snapshot import snapshot
+# ⚠️ Import GARDÉ (2026-09-26, régression du smoke docker) : `tools/` ne fait pas partie de l'image backend, il
+# n'y arrive que par un volume du compose. Importé sans garde, une absence de `tools.pm` (volume manquant,
+# dépendance absente de backend/requirements.txt) tuait le processus uvicorn AU DÉMARRAGE : /health tombait
+# avec lui, alors que le tableau de bord n'est qu'une route parmi d'autres. Même forme que `routes/health.py`
+# pour `tools.parity_check`. L'absence n'est pas tue pour autant : la route rend le mode dégradé, dont la
+# ligne `pilotage: ImportError ...` NOMME le module manquant, et le smoke de la CI rougit sur ce marqueur.
+try:
+    from tools.pm import pilotage
+    from tools.pm.snapshot import snapshot
+    _IMPORT_REFUSE: Exception | None = None
+except Exception as _exc:                                  # noqa: BLE001 — NOMMÉ par get_pilotage, jamais avalé
+    pilotage = None
+    snapshot = None
+    _IMPORT_REFUSE = _exc
 
 from ..schemas import PilotageV1, Roadmap
+
+_SCHEMA = "pilotage_v1"   # recopie de tools.pm.pilotage.SCHEMA : le mode dégradé doit le rendre SANS ce module
 
 _TTL_DEFAUT = 30.0
 _cache: dict[str, Any] = {"at": 0.0, "valeur": None}
@@ -202,7 +216,7 @@ def _mode_degrade(now: float, racine: Any, exc: Exception) -> dict:
         texte = f"pilotage: enveloppe refusée par le modèle de la route ({exc}) -- les quatre blocs servis à null"
     else:
         texte = f"pilotage: {type(exc).__name__}: {exc}"
-    return {"schema": pilotage.SCHEMA, "generated_at": now,
+    return {"schema": _SCHEMA, "generated_at": now,
             "repo_root": None if racine is None else _texte_servable(str(racine).replace("\\", "/")),
             "aveugle": [_texte_servable(texte)],
             "flotte": None, "roadmap": None, "portes": None, "charge": None}
@@ -217,6 +231,10 @@ def get_pilotage(ttl_s: float = _TTL_DEFAUT, frais: bool = False) -> dict:
     sans_mesure = None
     effectif = frais
     try:                                                   # TOUT dans le filet, résolution de la racine comprise (F7)
+        if _IMPORT_REFUSE is not None:
+            raise ImportError(f"tools.pm indisponible dans ce processus ({type(_IMPORT_REFUSE).__name__}: "
+                              f"{_IMPORT_REFUSE}) -- volume ./tools absent du conteneur, ou dépendance de "
+                              "tools.pm absente de backend/requirements.txt")
         racine = pilotage.racine_depot()
         if frais:
             sims = _sims_en_vol_dernier_tableau(racine)

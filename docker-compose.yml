@@ -10,6 +10,10 @@ services:
       - ./results:/app/results
       - ./data:/app/data
       - ./src:/app/src
+      # tools/ (tools.pm, importé par /api/pm/pilotage) et docs/ (le backlog que le pilotage lit) : même
+      # convention que ./src, montés en LECTURE SEULE — le backend ne les écrit jamais.
+      - ./tools:/app/tools:ro
+      - ./docs:/app/docs:ro
 
   frontend:
     build:
