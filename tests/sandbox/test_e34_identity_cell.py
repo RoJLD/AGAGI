@@ -1,13 +1,12 @@
-"""E34 (P2.132) — `E34-IDENTITY-CELL` v2 : calibration du runner de la sonde (tools/evo_runs/e34_identity_cell.py).
+"""E34 (P2.132) — `E34-IDENTITY-CELL` v3 : calibration du runner de la sonde (tools/evo_runs/e34_identity_cell.py).
 
-À réponse CONNUE : (1) le VERDICT (pur, lignes synthétiques, branches dans l'ordre scellé) : bande = {S_off, 11 shams}
-du MÊME seed, bords DANS la bande sur la grille 0,5, S_off n'est plus un bord imposé ; audit incomplet -> INCOMPLET
-(jamais SANS_OBJET, revue v1 P7.a) ; lieux mêlés -> LIEU_MIXTE ; témoin d'une autre exécution -> LÈVE (P5.b) ; dose =
-COMMUTATIONS (P8.a) ; harnais qui ment -> LÈVE ; (2) S_a et la dispersion ENTRE seeds (descriptive) LUES dans le
-JSON suivi de P4.16 ; (3) le témoin du code contre la cellule publiée de P4.4 — identique à elle-même, rompu par UN
-ulp de Σ|ΔW| ou UN âge ; (4) `run_identity_cell` : garde en tête, traitement du bras TRANSMIS à la phase 1
-(injection, sans torch), et un appel réel minuscule (monde, torch, 2 agents : sauté par conftest quand un run tient
-`kuzu`).
+À réponse CONNUE : (1) le VERDICT (pur, lignes synthétiques, branches dans l'ordre scellé) : bande = les 12 shams de
+PERMUTATION (revue v2, P5.a), bords DANS la bande sur la grille 0,5 ; témoin rompu lu AVANT l'absence des autres cellules
+(P10.d) ; audit aveugle -> INCOMPLET, jamais SANS_OBJET (v1 P7.a) ; commits mêlés -> PROVENANCE_MIXTE (P10.e) ; lieux
+mêlés -> LIEU_MIXTE ; bande inerte -> BANDE_INERTE (P1.b/P5.b) ; contrôle positif non vu -> NON_TRANCHE (P5.c) ;
+harnais qui ment -> LÈVE ; fausse alarme avec ex-aequo calculée (P5.d) ; doses par bras (P7.d) ; (2) S_a et la
+dispersion ENTRE seeds (descriptive) LUES dans le JSON suivi de P4.16 ; (3) le témoin du code contre la cellule
+publiée de P4.4 ; (4) `run_identity_cell` : garde en tête, traitement TRANSMIS, appel réel minuscule (monde, torch).
 """
 import json
 import os
@@ -21,45 +20,45 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 from tools.evo_runs import e34_identity_cell as R  # noqa: E402
 
 TL = 2000
+T1 = 57
 LIEU = {"platform": "Windows-11", "python": "3.13.12", "torch": "2.6.0+cu124", "torch_threads": 16,
         "AGAGI_CPU_LIMIT": None, "AGAGI_IMAGE": None}
+PROV = {"git_sha": "abc123", "dirty": False}
 AGES_OFF = [5, 6, 6, 7, 7, 7, 7, 8, 8, 9, 9, 11]
 DW_OFF = 18242.03954219818
+PERM_S = (7.0, 7.5, 8.0, 6.5, 7.0, 7.5, 8.0, 7.0, 7.5, 7.0, 8.5, 7.5)          # bande [6,5 ; 8,5]
 
 
-def _row(s, arm="off", switches=40, mis=24000, known=TL, unknown=0, t1=57, reorder_tick=None, sham_tick=None,
-         draws=0, fix=False, lieu=LIEU, ages=None, dw=12000.0):
+def _row(s, arm, switches=0, mis=0, known=TL, unknown=0, order_changes=12, first_order=T1, fix=False, reorder_tick=None,
+         perm=0, perm_tick=None, cut_tick=None, td=TL - 1, dw=12000.0, ages=None, lieu=LIEU, prov=PROV):
     ident = {"ticks_known": known, "ticks_unknown": unknown, "slot_switches": switches, "slot_ticks_misaligned": mis,
-             "first_switch_tick": t1 if switches else None, "first_reorder_tick": reorder_tick,
-             "positions_reordered": 30 if fix else 0, "sham_tick": sham_tick, "sham_draws": draws, "slot_order_fix": fix}
-    return {"arm": arm, "num_agents": 12, "lieu": dict(lieu),
-            "learning": {"td_updates": TL - 1, "resurrections": 12, "dW_abs_sum": dw, "slot_identity": ident},
+             "order_changes": order_changes, "first_order_change_tick": first_order, "first_reorder_tick": reorder_tick,
+             "positions_reordered": 30 if fix else 0, "sham_perm": perm, "first_perm_tick": perm_tick,
+             "credit_cut_tick": cut_tick, "slot_order_fix": fix}
+    return {"arm": arm, "num_agents": 12, "lieu": dict(lieu), "provenance": dict(prov),
+            "learning": {"td_updates": td, "episode_updates": 250, "resurrections": 12, "dW_abs_sum": dw,
+                         "slot_identity": ident},
             "survival": {"survival_median": s, "ages": list(ages or [int(s)] * 12)}}
 
 
-def _off(s=7.0, **kw):
-    return _row(s, ages=AGES_OFF, dw=DW_OFF, **kw)
+def _rows(s_on=8.0, s_pos=20.0, perm_s=PERM_S, **over):
+    rows = {"off": _row(7.0, "off", switches=40, mis=24000, ages=AGES_OFF, dw=DW_OFF),
+            "on": _row(s_on, "on", fix=True, reorder_tick=T1),
+            "pos": _row(s_pos, "pos", switches=40, mis=24000, cut_tick=T1, td=T1 + 1)}
+    for k, v in enumerate(perm_s, 1):
+        rows[f"perm_{k:02d}"] = _row(v, f"perm_{k:02d}", switches=60, mis=20000, perm=k, perm_tick=T1, dw=11000.0 + k)
+    rows.update(over)
+    return rows
 
 
-def _on(s, **kw):
-    kw.setdefault("reorder_tick", 57)
-    return _row(s, arm="on", switches=0, mis=0, fix=True, **kw)
-
-
-def _shams(values=(7.0, 7.5, 8.0, 6.5, 7.0, 7.5, 8.0, 7.0, 7.5, 7.0, 8.5), t1=57):
-    return [_row(v, arm=f"sham_{k:02d}", sham_tick=t1, draws=k) for k, v in enumerate(values, 1)]
-
-
-def _witness(off=None, identical=True):
-    off = off or _off()
+def _witness(off, identical=True):
     return {"identical": identical, "reason": "bit-identique" if identical else "Σ|ΔW| différent",
             "measured_ages": list(off["survival"]["ages"]), "measured_dW_abs_sum": off["learning"]["dW_abs_sum"]}
 
 
-def _v(s_on, off=None, shams=None, witness=None, **kw):
-    off = off or _off()
-    return R.identity_cell_verdict(off, _on(s_on, **kw), _shams() if shams is None else shams,
-                                   _witness(off) if witness is None else witness, 31.5, TL)
+def _v(rows=None, witness=None, **kw):
+    rows = rows or _rows(**kw)
+    return R.identity_cell_verdict(rows, _witness(rows["off"]) if witness is None else witness, 31.5, TL)
 
 
 # --------------------------------------------------------------------------------------------------
@@ -67,122 +66,150 @@ def _v(s_on, off=None, shams=None, witness=None, **kw):
 # --------------------------------------------------------------------------------------------------
 
 
-def test_arm_table_off_on_and_eleven_shams():
-    assert R.ARMS[:2] == ("off", "on") and len(R.SHAMS) == 11 and R.SHAMS[0] == "sham_01"
-    assert R.arm_config("off") == {"slot_order_fix": False, "sham_draws": 0}
-    assert R.arm_config("on") == {"slot_order_fix": True, "sham_draws": 0}
-    assert R.arm_config("sham_07") == {"slot_order_fix": False, "sham_draws": 7}
+def test_arm_table_off_on_pos_and_twelve_permutations():
+    assert R.ARMS[:3] == ("off", "on", "pos") and len(R.PERMS) == 12 and len(R.ARMS) == 15
+    base = {"slot_order_fix": False, "sham_perm": 0, "cut_credit_at_t1": False}
+    assert R.arm_config("off") == base
+    assert R.arm_config("on") == dict(base, slot_order_fix=True)
+    assert R.arm_config("pos") == dict(base, cut_credit_at_t1=True)
+    assert R.arm_config("perm_07") == dict(base, sham_perm=7)
     with pytest.raises(ValueError):
-        R.arm_config("sham_12")
+        R.arm_config("perm_13")
 
 
-def test_verdict_INCOMPLET_when_a_cell_a_sham_or_the_witness_is_missing():
-    off = _off()
-    assert R.identity_cell_verdict(None, _on(8.0), _shams(), _witness(off), 31.5, TL)["verdict"] == "INCOMPLET"
-    sh = _shams()
-    sh[4] = None
-    v = R.identity_cell_verdict(off, _on(8.0), sh, _witness(off), 31.5, TL)
-    assert v["verdict"] == "INCOMPLET" and v["manquants"] == ["sham_05"]
-    assert R.identity_cell_verdict(off, _on(8.0), _shams()[:10], _witness(off), 31.5, TL)["verdict"] == "INCOMPLET"
-    assert R.identity_cell_verdict(off, _on(8.0), _shams(), None, 31.5, TL)["verdict"] == "INCOMPLET"
+def test_verdict_INCOMPLET_when_the_off_cell_or_its_witness_is_missing():
+    rows = _rows()
+    rows["off"] = None
+    assert R.identity_cell_verdict(rows, None, 31.5, TL)["verdict"] == "INCOMPLET"
+    rows = _rows()
+    assert R.identity_cell_verdict(rows, None, 31.5, TL)["verdict"] == "INCOMPLET"
 
 
-def test_verdict_blind_audit_is_INCOMPLET_never_SANS_OBJET():
-    """Revue v1 P7.a : un audit qui n'a apparié aucun tick laisse les compteurs à 0 PAR ABSENCE -- INCOMPLET."""
-    off = _off(switches=0, known=0)
-    v = R.identity_cell_verdict(off, _on(8.0), _shams(), _witness(off), 31.5, TL)
-    assert v["verdict"] == "INCOMPLET" and v["audit_incomplet"] == ["off"]
-    v = R.identity_cell_verdict(_off(), _on(8.0, unknown=1), _shams(), _witness(), 31.5, TL)
-    assert v["verdict"] == "INCOMPLET" and v["audit_incomplet"] == ["on"]
-
-
-def test_verdict_refuses_non_finite_inputs_and_a_missing_audit():
-    with pytest.raises(ValueError):
-        _v(float("nan"))
-    bad = _off()
-    del bad["learning"]["slot_identity"]
-    with pytest.raises(ValueError):
-        R.identity_cell_verdict(bad, _on(8.0), _shams(), _witness(), 31.5, TL)
-    with pytest.raises(ValueError):
-        R.identity_cell_verdict(_off(), _on(8.0), _shams(), _witness(), float("nan"), TL)
-
-
-def test_verdict_LIEU_MIXTE_when_the_cells_come_from_two_places():
-    sh = _shams()
-    sh[2] = _row(8.0, arm="sham_03", sham_tick=57, draws=3, lieu=dict(LIEU, torch_threads=2))
-    assert R.identity_cell_verdict(_off(), _on(8.0), sh, _witness(), 31.5, TL)["verdict"] == "LIEU_MIXTE"
+def test_verdict_TEMOIN_ROMPU_is_read_before_the_other_missing_cells():
+    """Revue v2, P10.d : un témoin rompu arrête le run après la phase A -- le verdict doit le DIRE, pas « INCOMPLET »."""
+    rows = {a: None for a in R.ARMS}
+    rows["off"] = _rows()["off"]
+    v = R.identity_cell_verdict(rows, _witness(rows["off"], identical=False), 31.5, TL)
+    assert v["verdict"] == "TEMOIN_ROMPU"
 
 
 def test_verdict_refuses_a_witness_from_another_run():
-    """Revue v1 P5.b : le témoin doit certifier la ligne éteinte LUE (mêmes âges, même Σ|ΔW|)."""
-    w = _witness()
+    rows = _rows()
+    w = _witness(rows["off"])
     w["measured_dW_abs_sum"] = 17000.0
     with pytest.raises(ValueError):
-        _v(8.0, witness=w)
+        R.identity_cell_verdict(rows, w, 31.5, TL)
 
 
-def test_verdict_TEMOIN_ROMPU_before_any_reading():
-    off = _off()
-    assert _v(20.0, witness=_witness(off, identical=False))["verdict"] == "TEMOIN_ROMPU"
+def test_verdict_INCOMPLET_when_a_cell_is_missing_or_an_audit_is_blind():
+    rows = _rows()
+    rows["perm_05"] = None
+    v = _v(rows)
+    assert v["verdict"] == "INCOMPLET" and v["manquants"] == ["perm_05"]
+    v = _v(_rows(off=_row(7.0, "off", switches=0, known=0, ages=AGES_OFF, dw=DW_OFF)))
+    assert v["verdict"] == "INCOMPLET" and v["audit_incomplet"] == ["off"]
+
+
+def test_verdict_refuses_non_finite_inputs():
+    with pytest.raises(ValueError):
+        _v(s_on=float("nan"))
+    with pytest.raises(ValueError):
+        R.identity_cell_verdict(_rows(), _witness(_rows()["off"]), float("nan"), TL)
+
+
+def test_verdict_PROVENANCE_MIXTE_on_two_commits_or_a_dirty_tree():
+    """Revue v2, P10.e : une cellule d'un autre commit (ou d'un arbre sale) comblerait un trou sans trace."""
+    assert _v(_rows(perm_03=_row(8.0, "perm_03", switches=60, perm=3, perm_tick=T1,
+                                 prov={"git_sha": "zzz", "dirty": False})))["verdict"] == "PROVENANCE_MIXTE"
+    assert _v(_rows(pos=_row(20.0, "pos", switches=40, cut_tick=T1, td=T1 + 1,
+                             prov={"git_sha": "abc123", "dirty": True})))["verdict"] == "PROVENANCE_MIXTE"
+
+
+def test_verdict_LIEU_MIXTE_when_the_cells_come_from_two_places():
+    assert _v(_rows(perm_03=_row(8.0, "perm_03", switches=60, perm=3, perm_tick=T1,
+                                 lieu=dict(LIEU, torch_threads=2))))["verdict"] == "LIEU_MIXTE"
 
 
 def test_verdict_SANS_OBJET_only_when_no_slot_switched_body():
-    off = _off(switches=0)
-    v = R.identity_cell_verdict(off, _on(20.0), _shams(), _witness(off), 31.5, TL)
+    v = _v(_rows(off=_row(7.0, "off", switches=0, ages=AGES_OFF, dw=DW_OFF)))
     assert v["verdict"] == "SANS_OBJET"
 
 
 def test_verdict_refuses_a_harness_that_lies():
     with pytest.raises(ValueError):                                     # allumé qui commute
-        R.identity_cell_verdict(_off(), _row(8.0, arm="on", switches=3, mis=0, fix=True, reorder_tick=57),
-                                _shams(), _witness(), 31.5, TL)
-    with pytest.raises(ValueError):                                     # allumé qui a divergé à un autre tick
-        _v(8.0, reorder_tick=58)
-    with pytest.raises(ValueError):                                     # sham tiré ailleurs qu'au tick de divergence
-        R.identity_cell_verdict(_off(), _on(8.0), _shams(t1=58), _witness(), 31.5, TL)
-    sh = _shams()
-    sh[0] = _row(7.0, arm="sham_01", sham_tick=57, draws=2)               # sham_01 qui a tiré 2 valeurs
-    with pytest.raises(ValueError):
-        R.identity_cell_verdict(_off(), _on(8.0), sh, _witness(), 31.5, TL)
+        _v(_rows(on=_row(8.0, "on", switches=3, fix=True, reorder_tick=T1)))
+    with pytest.raises(ValueError):                                     # allumé dont la PREMIÈRE remise est hors de t1
+        _v(_rows(on=_row(8.0, "on", fix=True, reorder_tick=T1 + 1)))
+    with pytest.raises(ValueError):                                     # permutation témoin hors de t1
+        _v(_rows(perm_02=_row(8.0, "perm_02", switches=60, perm=2, perm_tick=T1 + 3)))
+    with pytest.raises(ValueError):                                     # permutation témoin au mauvais RNG privé
+        _v(_rows(perm_02=_row(8.0, "perm_02", switches=60, perm=9, perm_tick=T1)))
+    with pytest.raises(ValueError):                                     # contrôle positif sans effet sur la dose
+        _v(_rows(pos=_row(20.0, "pos", switches=40, cut_tick=T1, td=TL - 1)))
+    with pytest.raises(ValueError):                                     # contrôle positif coupé hors de t1
+        _v(_rows(pos=_row(20.0, "pos", switches=40, cut_tick=T1 + 2, td=T1 + 1)))
 
 
-def test_verdict_band_is_the_same_seed_trajectories_and_its_edges_belong_to_it():
-    """Bande = {S_off} ∪ 11 shams = [6,5 ; 8,5] ici : S_off (7,0) n'en est PLUS le bord. Bords DANS la bande."""
-    assert _v(8.5)["verdict"] == "NON_MATERIEL" and _v(6.5)["verdict"] == "NON_MATERIEL"
-    assert _v(9.0)["verdict"] == "MATERIEL_HAUSSE"
-    assert _v(6.0)["verdict"] == "MATERIEL_BAISSE"
-    v = _v(8.0)
-    assert (v["band_min"], v["band_max"]) == (6.5, 8.5) and len(v["band_values"]) == 12 and v["band_values"][0] == 7.0
+def test_verdict_BANDE_INERTE_when_the_twelve_permutations_did_not_diverge():
+    rows = _rows()
+    for a in R.PERMS:
+        rows[a]["learning"]["dW_abs_sum"] = 11000.0
+    v = _v(rows)
+    assert v["verdict"] == "BANDE_INERTE" and v["band_dW_distincts"] == 1
 
 
-def test_verdict_FORT_is_descriptive_and_never_a_second_road_to_MATERIEL():
-    assert _v(12.0)["fort"] is True and _v(12.0)["verdict"] == "MATERIEL_HAUSSE"          # |dS| = 5,0 : égalité
-    assert _v(11.5)["fort"] is False and _v(11.5)["verdict"] == "MATERIEL_HAUSSE"
-    off = _off(s=2.0)
-    shams = _shams(values=(2.0, 12.0) + (7.0,) * 9)                    # bande [2,0 ; 12,0]
-    v = R.identity_cell_verdict(off, _on(8.0), shams, _witness(off), 31.5, TL)
-    assert v["verdict"] == "NON_MATERIEL" and v["fort"] is True
+def test_verdict_band_is_the_permutations_and_its_edges_belong_to_it():
+    """Bande = les 12 permutations [6,5 ; 8,5] ; S_off (7,0) n'en fait pas partie. Bords DANS la bande."""
+    assert _v(s_on=8.5)["verdict"] == "NON_MATERIEL" and _v(s_on=6.5)["verdict"] == "NON_MATERIEL"
+    assert _v(s_on=9.0)["verdict"] == "MATERIEL_HAUSSE" and _v(s_on=6.0)["verdict"] == "MATERIEL_BAISSE"
+    v = _v()
+    assert (v["band_min"], v["band_max"]) == (6.5, 8.5) and len(v["band_values"]) == 12 and v["S_off"] == 7.0
 
 
-def test_verdict_publishes_the_dose_in_switches_the_band_and_the_h0_false_alarm():
-    v = _v(13.0)
-    assert v["switches_off"] == 40 and v["first_switch_tick_off"] == 57
+def test_verdict_NON_TRANCHE_when_the_positive_control_stays_in_the_band():
+    """Revue v2, P5.c : si un effet FORT de sens connu (crédit coupé à t1) ne sort pas de la bande, l'instrument ne
+    voit rien à ce t1 : pas de note de robustesse."""
+    assert _v(s_on=8.0, s_pos=8.5)["verdict"] == "NON_TRANCHE"
+    assert _v(s_on=8.0, s_pos=5.0)["verdict"] == "NON_TRANCHE"          # sortie par le BAS : sens inverse, non vu
+    assert _v(s_on=8.0, s_pos=9.0)["verdict"] == "NON_MATERIEL"
+    assert _v(s_on=9.0, s_pos=8.0)["verdict"] == "MATERIEL_HAUSSE"       # un effet VU se lit, contrôle ou non
+
+
+def test_verdict_false_alarm_is_computed_with_ties():
+    """Revue v2, P5.d : 2/13 est une BORNE ; sur les valeurs observées, les ex-aequo la réduisent."""
+    v = _v(s_on=8.0)
+    assert v["fausse_alarme_h0_borne"] == pytest.approx(2.0 / 13.0)
+    assert v["fausse_alarme_h0_ex_aequo"] == pytest.approx(2.0 / 13.0)   # max 8,5 et min 6,5 uniques
+    rows = _rows(perm_s=(7.0,) * 12)
+    for k, a in enumerate(R.PERMS):
+        rows[a]["learning"]["dW_abs_sum"] = 11000.0 + k
+    v = _v(rows)
+    assert v["fausse_alarme_h0_ex_aequo"] == pytest.approx(1.0 / 13.0)   # S_on 8,0 seul au max, min à 12 ex-aequo
+
+
+def test_verdict_publishes_doses_per_arm_the_sham_ratios_and_the_floor():
+    v = _v(s_on=13.0)
+    assert v["verdict"] == "MATERIEL_HAUSSE" and v["switches_off"] == 40 and v["t1"] == T1
     assert v["fraction_transitions_td_a_cheval"] == pytest.approx(40 / (12 * (TL - 1)))
-    assert v["S_off"] == 7.0 and v["S_on"] == 13.0 and v["dS"] == 6.0 and v["S_a"] == 31.5
-    assert v["erosion_off"] == 24.5 and v["part_erosion_levee"] == pytest.approx(6.0 / 24.5)
-    assert v["fausse_alarme_h0"] == pytest.approx(2.0 / 13.0) and v["thresholds"]["n_band"] == 12
-    assert v["positions_reordered_on"] == 30 and v["lieu"] == LIEU and v["verdict"] == "MATERIEL_HAUSSE"
+    assert v["fraction_fenetres_episodiques_a_cheval_max"] == pytest.approx(40 / (12 * 250))
+    assert set(v["dose"]) == set(R.ARMS) and v["dose"]["pos"]["td_updates"] == T1 + 1
+    assert v["dose"]["perm_03"]["slot_switches"] == 60 and v["dose"]["on"]["slot_switches"] == 0
+    assert v["S_a"] == 31.5 and v["erosion_off"] == 24.5 and v["part_erosion_levee"] == pytest.approx(6.0 / 24.5)
+    assert len(v["perms_dS"]) == 12 and v["perms_dS"]["perm_11"] == 1.5 and v["perms_fort"] == 0
+    assert v["sous_plancher_off"] is True and v["thresholds"]["floor"] == 9.0
+    assert v["levier_apres_t1"] == pytest.approx((TL - T1) / TL) and v["git_sha"] == "abc123"
 
 
-def test_verdict_NON_MATERIEL_is_bounded_to_this_cell_and_its_dose():
-    v = _v(7.5)
-    assert v["verdict"] == "NON_MATERIEL" and "CETTE cellule" in v["why"] and "40 commutations" in v["why"]
+def test_verdict_NON_MATERIEL_cites_the_cell_its_dose_and_what_the_flag_removed():
+    v = _v(s_on=7.5, s_pos=20.0)
+    assert v["verdict"] == "NON_MATERIEL" and "CETTE cellule" in v["why"]
+    assert "40 commutations" in v["why"] and "30 positions remises" in v["why"]
 
 
-def test_verdict_part_erosion_is_None_not_a_number_without_erosion():
-    off = _off(s=40.0)
-    v = R.identity_cell_verdict(off, _on(40.0), _shams(values=(40.0,) * 11), _witness(off), 31.5, TL)
-    assert v["part_erosion_levee"] is None
+def test_verdict_part_erosion_is_None_without_erosion():
+    rows = _rows()
+    rows["off"]["survival"]["survival_median"] = 40.0
+    assert _v(rows)["part_erosion_levee"] is None and _v(rows)["perms_part_erosion"] is None
 
 
 # --------------------------------------------------------------------------------------------------
@@ -251,7 +278,7 @@ def test_run_identity_cell_refuses_degenerate_args_before_any_world(monkeypatch)
         raise AssertionError("un monde a été construit avant la garde")
     monkeypatch.setattr(R, "_bassin_cohort", _boom)
     for kw in ({"arm": "maybe"}, {"arm": "on", "num_agents": 0}, {"arm": "off", "ticks_learn": 0},
-               {"arm": "sham_03", "ticks_test": -1}):
+               {"arm": "perm_03", "ticks_test": -1}):
         with pytest.raises(ValueError):
             R.run_identity_cell(2026, **kw)
 
@@ -263,12 +290,13 @@ def test_run_identity_cell_passes_the_arm_treatment_to_phase_1(monkeypatch):
                         lambda agents, seed, ticks, **kw: seen.append((agents, seed, ticks, kw)) or {"td_updates": 1})
     monkeypatch.setattr(R, "phase2_survive_mortal", lambda agents, seed, ticks: {"survival_median": 4.0, "ticks": ticks})
     on = R.run_identity_cell(2026, "on", num_agents=3, ticks_learn=5, ticks_test=2)
-    R.run_identity_cell(2026, "off", num_agents=3, ticks_learn=5, ticks_test=2)
-    sh = R.run_identity_cell(2026, "sham_04", num_agents=3, ticks_learn=5, ticks_test=2)
-    assert seen[0] == (["cohorte", 2026, 3], 2026, 5, {"slot_order_fix": True, "identity_audit": True, "sham_draws": 0})
-    assert seen[1][3] == {"slot_order_fix": False, "identity_audit": True, "sham_draws": 0}
-    assert seen[2][3] == {"slot_order_fix": False, "identity_audit": True, "sham_draws": 4}
-    assert on["treatment"] == {"slot_order_fix": True, "sham_draws": 0} and sh["arm"] == "sham_04"
+    R.run_identity_cell(2026, "pos", num_agents=3, ticks_learn=5, ticks_test=2)
+    pm = R.run_identity_cell(2026, "perm_04", num_agents=3, ticks_learn=5, ticks_test=2)
+    base = {"identity_audit": True, "slot_order_fix": False, "sham_perm": 0, "cut_credit_at_t1": False}
+    assert seen[0] == (["cohorte", 2026, 3], 2026, 5, dict(base, slot_order_fix=True))
+    assert seen[1][3] == dict(base, cut_credit_at_t1=True)
+    assert seen[2][3] == dict(base, sham_perm=4)
+    assert on["treatment"]["slot_order_fix"] is True and pm["arm"] == "perm_04"
     assert on["lr"] is None and on["num_agents"] == 3 and on["survival"]["survival_median"] == 4.0
     assert on["cpu_s"] >= 0.0 and on["elapsed_s"] >= 0.0
 
@@ -286,5 +314,6 @@ def test_run_identity_cell_real_world_minimal_publishes_the_invariant_and_switch
     assert on["learning"]["slot_identity"]["slot_order_fix"] is True
     assert on["learning"]["slot_identity"]["slot_switches"] == 0
     assert off["learning"]["slot_identity"]["slot_order_fix"] is False
-    assert off["learning"]["slot_identity"]["ticks_known"] == 3 and "_pairing" not in off["learning"]["slot_identity"]
+    ident = off["learning"]["slot_identity"]
+    assert ident["ticks_known"] == 3 and "_pairing" not in ident and "_perm_rng" not in ident
     assert np.isfinite(on["survival"]["survival_median"]) and len(on["survival"]["ages"]) == 2

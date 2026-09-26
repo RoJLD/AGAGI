@@ -1466,8 +1466,12 @@ no-op au bit ; avec une mort en tête, il change W (contrôle positif). (3)-(4) 
 sous la règle `E34-IDENTITY-CELL` : la v1 (S_on contre l'étendue de `b_full` ENTRE seeds) a été RÉFUTÉE par sa revue
 (`docs/reviews/2026-09-26-E34-IDENTITY-CELL.v1.md`, 16 critiques confirmées : S_off était le BORD bas de la bande, dose
 mal définie, SANS_OBJET fabriqué par un audit aveugle, branche de dose morte, témoin et paire de deux exécutions) ; la v2
-lit S_on contre {S_off + 11 SHAMS} du MÊME seed au MÊME lieu (k tirages numpy au tick t1 où le drapeau fait diverger sa
-trajectoire, RNG torch intact), dose = COMMUTATIONS (une tranche change de corps), 13 cellules sur la batcave : en cours. **La clause ci-dessous reste celle de l'entrée** : elle décrit la vraie clôture (le correctif devenu le
+(S_on contre {S_off + 11 shams numpy}) a été RÉFUTÉE à son tour (`docs/reviews/2026-09-26-E34-IDENTITY-CELL.v2.md`, 22
+critiques confirmées, dont P5.a : un sham numpy décale tout le flux aléatoire alors que le drapeau ne fait que réordonner
+les corps) ; la v3 lit S_on contre DOUZE shams de PERMUTATION (à chaque tick où la recharge change l'ordre, corps
+permutés par un RNG privé, identité NON réparée : sous H0 le correctif n'est qu'une permutation parmi 13), qualifiée par
+un CONTRÔLE POSITIF (crédit coupé à t1 : sans lui, NON_TRANCHE), dose = COMMUTATIONS, 15 cellules sur la batcave : en
+cours. **La clause ci-dessous reste celle de l'entrée** : elle décrit la vraie clôture (le correctif devenu le
 DÉFAUT, après P4.18 et, si la sonde rend MATERIEL, le plan n = 12) ; la sonde ne ferme qu'un sous-item.
 **Addendum CALIB-LEARNER (2026-09-26, session E34, vu en lisant la recette)** : la MÊME recette vit dans
 `tools/cognitive_demand_inworld.py:575-587` (`run_learner_probe`, contrôle POSITIF de l'apprenant, EDR-CALIB-LEARNER
@@ -1490,7 +1494,9 @@ négatif (« 0 ligne au registre et au backlog ») — c'est le mécanisme que l
 E5 : un défaut qui vit dans un record, une décision de backlog et un témoin épinglé, SANS une ligne au site
 (`forward` n'a aucun commentaire) ni au registre, se redécouvre comme neuf ; et une absence de correspondance n'est pas
 une absence (règle CLAUDE.md du grep).
-Site, relu au 2026-09-26 : `logits = H_new[:, self.N - self.O:self.N]` puis `return logits.cpu().numpy(), 0`
+Site, relu au 2026-09-26 (numéros de ligne de `backend_torch.py` ANCRÉS au sha f1d6a987 ; dans d1, fe12f42d (P4.19 (a))
+les décale de +25 : 200-210 -> 225-235, 202-203 -> 227-228, 220 -> 245, sémantique de `forward` inchangée — relevé par
+agagi-32) : `logits = H_new[:, self.N - self.O:self.N]` puis `return logits.cpu().numpy(), 0`
 (`src/agents/backend_torch.py:200-210`) ; le monde écrit EN PLACE `logits[agent["last_action"]] -= 0.1`
 (`src/worlds/world_1_stoneage.py:1340`) et le consensus social (`:973`). Sonde rejouée (bassin cloné ×2, `forward`,
 `lg[1][2] -= 0.1`) : `np.shares_memory` = True, `H[1, N−O+2]` 0,0 → −0,1.

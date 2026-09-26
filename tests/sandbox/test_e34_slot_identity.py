@@ -175,6 +175,8 @@ def test_switches_compose_and_a_tail_death_commutes_nothing():
         immortal_after_step(e, identity=ident, tick=t)
     assert ident["slot_switches"] == 8 and ident["ticks_with_switch"] == 2 and ident["first_switch_tick"] == 2
     assert ident["first_misaligned_tick"] == 2
+    assert ident["order_changes"] == 2 and ident["first_order_change_tick"] == 2
+    assert ident["switch_events"] == [[2, 4], [4, 4]]
 
 
 def test_the_fix_never_commutes_and_records_its_first_reorder_tick():
@@ -189,45 +191,72 @@ def test_the_fix_never_commutes_and_records_its_first_reorder_tick():
     assert ident["first_reorder_tick"] == 1 and ident["ticks_reordered"] == 2
 
 
-def test_the_published_identity_hides_the_working_pairing():
+def test_the_published_identity_hides_the_working_state():
     from tools.evo_runs.s2_credit_retention import _identity_counters, _published_identity
     ident = _identity_counters()
     ident["_pairing"] = ["a", "b"]
+    ident["_perm_rng"] = np.random.RandomState(1)
     pub = _published_identity(ident)
-    assert "_pairing" not in pub and pub["slot_switches"] == 0 and "_pairing" in ident
+    assert "_pairing" not in pub and "_perm_rng" not in pub and pub["slot_switches"] == 0 and "_pairing" in ident
 
 
-def test_sham_draws_numpy_once_at_the_first_misaligning_tick_and_leaves_torch_rng_intact():
-    """Le SHAM tire k valeurs du RNG global numpy, UNE fois, au premier tick où une résurrection désaligne (le tick où
-    le drapeau ferait diverger sa trajectoire) — jamais avant (mort en queue), jamais deux fois — et ne touche PAS le
-    RNG torch."""
+def test_permutation_sham_permutes_with_its_private_rng_at_each_order_change_only():
+    """SHAM de PERMUTATION (revue v2, P5.a/P6.c) : à CHAQUE tick où la recharge change l'ordre -- jamais sur une mort en
+    queue -- les corps sont permutés par RandomState(k), sans réparer l'identité ; le RNG global numpy et le RNG torch
+    sont intacts."""
     from tools.evo_runs.s2_credit_retention import _identity_counters, immortal_after_step
     e = _World(4)
     ident = _identity_counters()
     np.random.seed(123)
-    ref = np.random.RandomState(123)
+    ref_global = np.random.RandomState(123)
     try:
         import torch
         torch_state = torch.get_rng_state().clone()
     except ImportError:                                             # sans torch : la partie numpy reste vérifiée
         torch = None
+    prive = np.random.RandomState(5)
+    for t, pos in ((0, 3), (1, None), (2, 0), (3, None), (4, 1)):
+        avant = None
+        if pos is not None:
+            e.kill(pos)
+        if t in (2, 4):                                             # l'ordre que la recharge publiée va produire
+            survivants = [a["id"] for a in e.agents]
+            avant = survivants + [a["id"] for a in e.dead_agents]
+        immortal_after_step(e, identity=ident, tick=t, sham_perm=5)
+        if avant is not None:
+            attendu = [avant[int(i)] for i in prive.permutation(4)]
+            assert [a["id"] for a in e.agents] == attendu          # permutation PRIVÉE, appliquée après la recharge
+    assert ident["perm_events"] == 2 and ident["first_perm_tick"] == 2 and ident["sham_perm"] == 5
+    assert ident["order_changes"] == 2 and ident["first_order_change_tick"] == 2
+    assert np.random.random() == ref_global.random()                # aucun tirage du RNG global
+    if torch is not None:
+        assert torch.equal(torch.get_rng_state(), torch_state)
+    assert slot_identity_violations(e) != []                         # l'identité n'est PAS réparée
+
+
+def test_positive_control_cuts_the_credit_at_the_first_order_change():
+    """CONTRÔLE POSITIF (revue v2, P5.c) : au premier tick où la recharge change l'ordre (t1), learn et learn_episode de
+    la population rendent None ; rien avant, rien d'autre."""
+    from tools.evo_runs.s2_credit_retention import _identity_counters, immortal_after_step
+    e = _World(4)
+    ident = _identity_counters()
     for t, pos in ((0, 3), (1, None), (2, 0), (3, 1)):
         if pos is not None:
             e.kill(pos)
-        immortal_after_step(e, identity=ident, tick=t, sham_draws=3)
+        immortal_after_step(e, identity=ident, tick=t, cut_credit_at_t1=True)
         if t < 2:
-            assert np.random.random() == ref.random()                # aucun tirage avant le tick de divergence
-    assert ident["sham_tick"] == 2 and ident["sham_draws"] == 3
-    ref.random(3)                                                   # les 3 tirages du sham, au tick 2
-    assert np.random.random() == ref.random()                       # et aucun au tick 3 (une seule fois)
-    if torch is not None:
-        assert torch.equal(torch.get_rng_state(), torch_state)
+            assert not hasattr(e._torch_pop, "learn")               # mort en queue : aucune coupe
+    assert ident["credit_cut_tick"] == 2
+    assert e._torch_pop.learn([1.0], [{}]) is None and e._torch_pop.learn_episode([], [], []) is None
+    assert ident["perm_events"] == 0 and ident["positions_reordered"] == 0
 
 
-def test_sham_is_refused_before_the_refill_without_audit_under_the_fix_or_negative():
+def test_sham_and_cut_are_refused_before_the_refill_without_audit_under_the_fix_combined_or_negative():
     from tools.evo_runs.s2_credit_retention import _identity_counters, immortal_after_step
-    for kw in ({"sham_draws": 2}, {"sham_draws": 2, "slot_order_fix": True, "identity": _identity_counters()},
-               {"sham_draws": -1, "identity": _identity_counters()}):
+    for kw in ({"sham_perm": 2}, {"sham_perm": 2, "slot_order_fix": True, "identity": _identity_counters()},
+               {"sham_perm": -1, "identity": _identity_counters()}, {"cut_credit_at_t1": True},
+               {"cut_credit_at_t1": True, "slot_order_fix": True, "identity": _identity_counters()},
+               {"cut_credit_at_t1": True, "sham_perm": 3, "identity": _identity_counters()}):
         e = _World(3)
         e.kill(0)
         with pytest.raises(ValueError):
@@ -352,6 +381,29 @@ def test_without_death_the_fix_is_a_bit_exact_noop():
     fix = _trace(lambda e, t: immortal_after_step(e, slot_order_fix=True, tick=t), kills=())
     assert ref["res"] == fix["res"] == 0
     assert fix["digest"] == ref["digest"]
+
+
+def test_real_world_permutation_shams_diverge_from_off_and_from_each_other():
+    """Revue v2, P5.b : dans le MONDE réel, un sham de permutation change ce qui est appris (la bande ne peut pas être
+    inerte par construction), et deux RNG privés donnent deux trajectoires."""
+    from tools.evo_runs.s2_credit_retention import _identity_counters, immortal_after_step
+    ref = _trace(lambda e, t: _refill_reference_5d534d44(e))
+    outs = []
+    for k in (1, 2):
+        ident = _identity_counters()
+        outs.append(_trace(lambda e, t, ident=ident, k=k: immortal_after_step(e, identity=ident, tick=t, sham_perm=k)))
+        assert ident["first_perm_tick"] == 2 and ident["perm_events"] >= 2
+    assert outs[0]["digest"] != ref["digest"] and outs[1]["digest"] != ref["digest"]
+    assert outs[0]["digest"] != outs[1]["digest"]
+
+
+def test_real_world_positive_control_stops_the_credit_at_t1():
+    from tools.evo_runs.s2_credit_retention import _identity_counters, immortal_after_step
+    ref = _trace(lambda e, t: _refill_reference_5d534d44(e))
+    ident = _identity_counters()
+    pos = _trace(lambda e, t: immortal_after_step(e, identity=ident, tick=t, cut_credit_at_t1=True))
+    assert ident["credit_cut_tick"] == 2
+    assert pos["summary"]["td_updates"] < ref["summary"]["td_updates"] and pos["digest"] != ref["digest"]
 
 
 def test_with_a_head_death_the_fix_changes_what_is_learned():
