@@ -70,9 +70,19 @@ def _bloc(src, debut, fin, quoi):
 
 
 def _pre_commit_jouet(log_rel):
-    """Le pre-commit du dépôt jouet : le squelette du vrai (portée de fusion + porte 8 + témoin),
-    plus un COMPTEUR D'APPELS. Les trois blocs sont extraits verbatim du fichier versionné."""
+    """Le pre-commit du dépôt jouet : le squelette du vrai (porte absente + portée de fusion + porte 8 +
+    témoin), plus un COMPTEUR D'APPELS. Les quatre blocs sont extraits verbatim du fichier versionné.
+
+    ⚠️ PORTE-ABSENTE (2026-09-26, P2.121 famille 2). La « queue du hook » court de FUSION-SANS-TEMOIN à la
+    sortie, et elle contient désormais les portes 23 et 24, dont les outils n'existent pas dans le dépôt
+    jetable : `python tools/check_e19_optimizer_sweep.py` y rendait « can't open file », la porte le lisait
+    comme un refus, et le commit de BASE échouait — 18 cas rouges, sur POSIX ET sous Windows (mesuré le
+    2026-09-26 : l'inventaire les disait verts sous Windows). Le vrai hook porte déjà la parade — le bloc
+    PORTE-ABSENTE saute une porte absente du disque ET de HEAD, en le disant — et le squelette jouet ne
+    l'extrayait pas. Il l'extrait : toute porte future ajoutée dans la queue sera sautée ici à voix haute,
+    au lieu de rendre ce fichier rouge pour une raison étrangère à la fusion."""
     src = _lire(_PRE_COMMIT)
+    absente = _bloc(src, "# >>> AGAGI:PORTE-ABSENTE >>>", "# <<< AGAGI:PORTE-ABSENTE <<<", "porte absente")
     scope = _bloc(src, "# >>> AGAGI:FUSION-SCOPE >>>", "# <<< AGAGI:FUSION-SCOPE <<<", "portée de fusion")
     porte8 = _bloc(src, "# 8. COMPTES PUBLIES", "# 9. SEPARATION DE LA BARRE", "porte 8")
     marqueur = _bloc(src, "# >>> AGAGI:FUSION-SANS-TEMOIN >>>", None, "queue du hook")
@@ -83,7 +93,7 @@ def _pre_commit_jouet(log_rel):
         "#!/bin/sh\n"
         "fail=0\n"
         f'echo appel >> "$(git rev-parse --git-dir)/{log_rel}"\n'
-        "\n" + scope + "\n\n" + porte8 + "\n" + marqueur
+        "\n" + absente + "\n\n" + scope + "\n\n" + porte8 + "\n" + marqueur
     )
 
 
@@ -743,7 +753,8 @@ def _pre_commit_sans_portee(log_rel):
     scope = _bloc(_lire(_PRE_COMMIT), "# >>> AGAGI:FUSION-SCOPE >>>", "# <<< AGAGI:FUSION-SCOPE <<<",
                   "portee de fusion")
     ampute = entier.replace(scope, "# (bloc de portee ABSENT : copie deployee perimee)")
-    assert "AGAGI:FUSION-SCOPE" not in ampute, "l'amputation n'a pas eu lieu, le cas ne mesure rien"
+    # le MARQUEUR, pas le nom nu : PORTE-ABSENTE cite ce nom dans un commentaire (2026-09-26, E1)
+    assert "# >>> AGAGI:FUSION-SCOPE >>>" not in ampute, "l'amputation n'a pas eu lieu, le cas ne mesure rien"
     return ampute
 
 

@@ -1235,6 +1235,15 @@ message). 0 erreur de collecte : `b895a0a3` a fait son travail. Familles, par ta
    de `tools/hooks/pre-commit`, appelle la porte 23 que le dépôt jetable ne porte pas — vert sur Windows, rouge sur
    POSIX : à instruire (garde de fichier lue par `sh` et non `bash` ? `python` vs `python3` ?). Auteur naturel : le
    porteur du crochet de fusion (P2.108).
+   ✅ **TRAITÉ le 2026-09-26 (agagi-32, en passant, `tmp/p2-105`)** — mesuré : ROUGE AUSSI SOUS WINDOWS (« vert sur
+   Windows » ne tenait plus ; le même `can't open file` pour la porte 23, et la porte 24 livrée le jour même en ajoutait
+   un second). Cause : la « queue du hook » extraite par `_pre_commit_jouet` court de FUSION-SANS-TEMOIN à la sortie et
+   contient les portes 23 et 24, dont les outils n'existent pas dans le dépôt jetable. Le vrai hook porte déjà la
+   parade (bloc PORTE-ABSENTE : une porte absente du disque ET de HEAD est sautée, et DIT) ; le squelette jouet ne
+   l'extrayait pas. Il l'extrait. Rejoué sous Windows : 18 rouges → 1, et ce dernier était un défaut RÉEL de
+   `tools/hooks/commit-msg` (E1, gravé au registre) — son détecteur de portée cherchait le nom nu du bloc, que
+   PORTE-ABSENTE cite en commentaire : l'avertissement « NE PORTE PAS » ne pouvait plus se déclencher. Corrigé (marqueur
+   d'ouverture) → 22/22 verts sous Windows. POSIX non rejoué ici : le prochain run CI le dira.
 3. **Réfutateur — 22** (18 erreurs + 4 rouges `tests/sandbox/test_refutateur_temoins.py`, 1 test_refutateur_mutation) :
    « témoin EDR-GRAB-COST-1828371 introuvable », « fatal: bad object » — clone à profondeur 1. Traité par `faae4909`
    (`fetch-depth: 0`) ; **CONFIRMÉ** sur le run 36212333576 : 22 → 0, plus aucune erreur.

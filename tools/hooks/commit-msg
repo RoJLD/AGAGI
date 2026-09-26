@@ -123,7 +123,10 @@ fi
 # l'affirmation inverse. Un crochet qui annonce ce qu'il ne fait pas est la forme (a) du biais de ce
 # dépôt appliquée à l'outillage lui-même. La copie est comparée en NORMALISANT les fins de ligne :
 # `core.autocrlf=true` ici, donc la copie déployée est en CRLF et le blob en LF.
-if tr -d '\r' < "$pre" | grep -q 'AGAGI:FUSION-SCOPE'; then
+# ⚠️ Le MARQUEUR d'ouverture, jamais le nom nu (2026-09-26, E1) : le bloc PORTE-ABSENTE du pre-commit CITE ce
+# nom dans un commentaire, donc « grep AGAGI:FUSION-SCOPE » trouvait un pre-commit AMPUTÉ de sa portée et ce
+# test ne pouvait plus dire NON. Contre-exemple : test_hook_on_merge.py, cas « commit_msg_AVOUE ».
+if tr -d '\r' < "$pre" | grep -qF '# >>> AGAGI:FUSION-SCOPE >>>'; then
   echo "[agagi/commit-msg] fusion EN COURS : git n'a armé aucun pre-commit de lui-même ici — portes"
   echo "   relancées sur l'UNION des deux branches (portée = base de fusion, pas le premier parent)."
 else
