@@ -1,10 +1,12 @@
 import os, sys
+import pytest  # P2.121 famille 1 : gardes torch par test
 _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
 
 def test_run_arm_smoke_true_and_shuffle():
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     from tools.torch_binary_gate_heldout_probe import run_arm
     r_true = run_arm(shuffle_reward=False, train_ep=80, test_ep=30, n_agents=32, seed=0)
     r_shuf = run_arm(shuffle_reward=True, train_ep=80, test_ep=30, n_agents=32, seed=0)

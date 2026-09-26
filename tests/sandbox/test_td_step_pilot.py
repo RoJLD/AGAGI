@@ -81,6 +81,7 @@ def test_trace_helps_is_tested_before_trace_hurts_and_at_either_step():
 
 
 def test_flush_terminal_applies_the_deferred_update_with_a_zero_bootstrap_and_clears_the_transition():
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     import torch
     from src.agents.backend_torch import TorchPopulationModel as T
     from src.agents.mamba_agent import MambaAgent
@@ -104,6 +105,7 @@ def test_flush_terminal_applies_the_deferred_update_with_a_zero_bootstrap_and_cl
 
 
 def test_td_step_trainer_publishes_its_dose_and_lr0_moves_no_weight():
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     acc, dose = _train_eval_td_step(0, 0.9, 3, 4, 4, 0.0, eval_batches=2, same_tick=False)
     assert 0.0 <= acc <= 1.0 and dose["updates"] == 6 and dose["trace_updates"] == 6 and dose["trace_resets"] == 3
     assert dose["lr_effective_per_agent"] == 0.0

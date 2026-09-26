@@ -38,6 +38,7 @@ _RAPIDE = dict(K=_K, restarts=3, steps=1500)
 def test_the_positive_control_reaches_ONE():
     """CONTROLE POSITIF APPARIE : une forme LIBRE `t[key,q,j]`, meme cible, meme budget -> 1.000.
     Il innocente l'OPTIMISEUR : ce qui borne la forme close n'est pas la recherche."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     assert plain_readout_ceiling(free_table=True, **_RAPIDE) == 1.0
 
 
@@ -45,6 +46,7 @@ def test_the_specificity_control_reaches_ONE():
     """CONTROLE DE SPECIFICITE : la MEME forme close, sur une cible SEPARABLE (`key`) -> 1.000.
     Il innocente la FORME : ce qui la borne sur `(q+key)%K` est bien la NON-SEPARABILITE de la cible,
     pas une parametrisation trop pauvre ni une derivation fautive du code source."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     assert plain_readout_ceiling(target="separable", **_RAPIDE) == 1.0
 
 
@@ -53,6 +55,7 @@ def test_the_ceiling_is_STRICTLY_ABOVE_CHANCE():
     niveau de chance : un score separable passe dans une transformee monotone represente bien plus que
     1/K sur une cible modulaire. Passer `1/K` comme plafond de l'incapable EST l'erreur P2.15, et c'est
     le geste le plus naturel du monde — d'ou ce test."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     c = plain_readout_ceiling(**_RAPIDE)
     assert c > 1.0 / _K, f"plafond {c} au niveau de chance : la mesure serait vide de contenu"
 
@@ -60,12 +63,14 @@ def test_the_ceiling_is_STRICTLY_ABOVE_CHANCE():
 def test_the_ceiling_is_STRICTLY_BELOW_ONE():
     """La forme close ne peut PAS faire la tache : si elle atteignait 1.000, la derivation serait
     fausse (le substrat plain saurait composer) et toute la these BILINEAR tomberait avec elle."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     assert plain_readout_ceiling(**_RAPIDE) < 1.0
 
 
 def test_an_unknown_target_is_REFUSED_not_guessed():
     """Ne pas proxifier ce qu'on ne sait pas mesurer : une cible inconnue leve, elle ne retombe pas en
     silence sur la cible par defaut — un defaut de frappe rendrait sinon un plafond du MAUVAIS probleme."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     with pytest.raises(ValueError):
         plain_readout_ceiling(target="composition", **_RAPIDE)
 
@@ -88,6 +93,7 @@ def test_the_aggregate_reports_INVALID_on_an_UNCONVERGED_search():
     Ils innocentent la FORME et l'OPTIMISEUR ; ni l'un ni l'autre ne dit si on a cherche assez
     longtemps sur le probleme DUR, et c'est la seule question qui decide de la valeur du plafond.
     Seul `saturation_control` (moitie budget vs budget plein) peut le contredire."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     r = measure_plain_composition_ceiling(K=_K, restarts=2, steps=60)
     assert r["positive_control"] == 1.0 and r["specificity_control"] == 1.0, (
         "les deux premiers controles doivent bien PASSER ici : c'est ce qui rend le cas discriminant", r)
@@ -107,6 +113,7 @@ def test_the_published_budget_is_REFUSED_by_the_instrument_itself():
     mesuree vaut 34/36. Deux controles mordent : `saturation_control` (le demi-budget rend moins) et
     `dominates_proven_bound` (egalite, pas domination). C'est exactement le regime qui a produit le
     0.3889 publie le 2026-09-02, et le test le GELE au lieu de le benir."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     r = measure_plain_composition_ceiling(K=_K, restarts=8, steps=4000)
     assert r["valid"] is False, r
     assert r["search_stalled_at_proven_bound"] is True, r
@@ -119,6 +126,7 @@ def test_the_instrument_NEVER_claims_the_ceiling_is_ESTABLISHED():
     """`valid` veut dire « mesure internement coherente », JAMAIS « plafond etabli ». La distinction
     n'est pas rhetorique : c'est en la perdant que j'ai publie « la conclusion d'EDR-BILINEAR tient,
     marge 0.084 », rétracte le jour meme (E19 occ.4)."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     r = measure_plain_composition_ceiling(K=_K, restarts=2, steps=200)
     assert r["is_minorant"] is True, r
     assert "proven_additive_bound" in r and r["proven_additive_bound"] == 0.75, r
@@ -188,6 +196,7 @@ def test_the_witness_HOLDS_IN_THE_REAL_SUBSTRATE():
     Si ce nombre divergeait de la forme close, ce serait la DERIVATION qui serait fausse — et un plafond
     calcule sur une forme qui n'est pas celle du substrat serait exactement l'aliasing d'EDR-WARM-007 :
     une grandeur mesuree qui n'est pas celle qui agit. Les deux tombent a 30/36."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     assert verify_plain_ceiling_witness(in_situ=True) == (34, 36)
     assert verify_plain_ceiling_witness(in_situ=True) == verify_plain_ceiling_witness()
 
@@ -297,6 +306,7 @@ def test_the_plain_form_is_PERFECT_at_small_K(K):
       * la separation de CAPACITE d'`EDR-BILINEAR` n'est pas « non etablie », elle est **FAUSSE** ;
       * le chantier « borne SUPERIEURE prouvee » (relaxation de moments/SOS) est SANS OBJET : il n'y a
         rien a borner, la forme atteint le maximum."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     p = os.path.join(_ROOT, "results", f"plain_ceiling_witness_K{K}.json")
     assert os.path.exists(p), p
     assert verify_plain_ceiling_witness(p) == (K * K, K * K)

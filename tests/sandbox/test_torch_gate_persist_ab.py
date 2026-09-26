@@ -7,6 +7,7 @@ import numpy as np
 from src.agents.mamba_agent import MambaAgent
 from src.agents.backend import make_population
 from src.agents.backend_torch import TorchPopulationModel
+import pytest  # P2.121 famille 1 : gardes torch par test
 
 
 def _gated_pop(n=4, seed=0):
@@ -23,6 +24,7 @@ def _gated_pop(n=4, seed=0):
 
 
 def test_inherit_gate_copies_values():
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     import torch
     from tools.torch_gate_persist_ab import inherit_gate
     old = _gated_pop(seed=0)
@@ -37,6 +39,7 @@ def test_inherit_gate_copies_values():
 
 
 def test_inherit_gate_noop_when_gate_absent():
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     from tools.torch_gate_persist_ab import inherit_gate
     old = _gated_pop(seed=0)
     plain = make_population([MambaAgent() for _ in range(4)], backend="torch")  # gate OFF -> w_gate None
@@ -45,6 +48,7 @@ def test_inherit_gate_noop_when_gate_absent():
 
 
 def test_run_arm_smoke_persist_and_reset():
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     from tools.torch_gate_persist_ab import run_arm
     r_p = run_arm(persist=True, episodes=40, rebuild_every=20, n_agents=16, seed=0)
     r_r = run_arm(persist=False, episodes=40, rebuild_every=20, n_agents=16, seed=0)
@@ -65,6 +69,7 @@ def test_rebuild_asymmetry_gate_lost_unless_inherited():
     """Preuve directe de l'asymetrie du rebuild : un pas de learn_episode fait diverger le gate (w_gate)
     ET ecrit un W neuf dans le genome. Au rebuild : W SURVIT toujours (relu du genome par le nouveau pop)
     mais le gate est PERDU (RESET, neuf ~ 0) sauf carry-over explicite (PERSIST, inherit_gate)."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     import numpy as np, torch
     from tools.torch_gate_persist_ab import _new_gated_pop, inherit_gate
     from tools.compositional_world_probe import _energy, _softmax_np, CRAFT, USE, _MOVE

@@ -17,7 +17,11 @@ import pytest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
-pytest.importorskip("torch")
+# ⚠️ P2.121 famille 1 (2026-09-26) : PLUS de saut de MODULE ici. Un `pytest.importorskip("torch")` en tête de
+# fichier faisait sauter TOUS les cas d'un bloc sur un runner sans torch : la suite de CALIBRATION — le cliquet
+# central du dépôt — ne tournait jamais en CI et n'y pesait qu'UN seul « skipped » (E22, `1be5330a`). Les imports
+# de tête ci-dessous se chargent sans torch (mesuré) ; les cas qui EXIGENT torch le disent un par un
+# (`pytest.importorskip("torch")` en tête de leur corps), et tous les autres tournent partout.
 
 from src.seed_ai.mutation import Genome  # noqa: E402
 from tools.ground_truth_worlds import GroundTruthCarryWorld, make_carry_world  # noqa: E402
@@ -1992,6 +1996,7 @@ def test_instrument_is_exact_noop_on_non_grabber():
     """LE CONTRÔLE QUI COMPTE. Sur un agent qui ne grabbe pas, l'ablation doit être un no-op EXACT,
     ère par ère. Toute dérive signale que l'instrument agit par un canal AUTRE que le geste — signature
     qu'avait le bug d'aliasing, et qui était passée pour un résultat (ratios 0.95-2.68 sur des gi=0)."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     g = _load(_NON_GRABBER)
     intact, ablate = _eras(g, False), _eras(g, True)
     assert intact == ablate, f"ablation NON inerte sur un non-grabber : {intact} vs {ablate}"
@@ -2004,6 +2009,7 @@ def test_survival_follows_the_imposed_carry_cost_by_prediction():
     On identifie le drain non contrôlé D en UN point (gt_carry=0), puis on PRÉDIT la survie à
     gt_carry=c sans aucun paramètre libre restant. Si la mesure suit la prédiction, la survie répond
     bien LINÉAIREMENT au coût imposé -> l'instrument de survie est calibré sur ce régime."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     g = _load(_GRABBER)
     s0 = float(np.median(_eras(g, False, world=make_carry_world(0.0))))
     assert s0 > 0, "bras de référence dégénéré"
@@ -2019,6 +2025,7 @@ def test_survival_follows_the_imposed_carry_cost_by_prediction():
 def test_ablation_effect_grows_with_the_imposed_carry_cost():
     """MONOTONIE : plus le portage coûte cher, plus retirer le grab doit rapporter. Un instrument dont
     l'effet ne suit pas la dose IMPOSÉE mesure autre chose que ce qu'il prétend."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     g = _load(_GRABBER)
     ratios = []
     for c in (0.0, 3.0):
@@ -2032,6 +2039,7 @@ def test_ablation_effect_grows_with_the_imposed_carry_cost():
 def test_instrument_does_not_alias_recurrent_state():
     """Régression du bug RÉEL (EDR-WARM-007). Encodé ici parce que c'est un défaut d'INSTRUMENT :
     `forward` renvoie une vue de `H`, donc clamper les logits mutait l'état récurrent."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     from src.agents.mamba_agent import MambaAgent
     from src.agents.backend_torch import TorchPopulationModel
     from tools.warmstart_evolution_inworld import _GRAB_NODE_T
@@ -2294,6 +2302,7 @@ def test_perception_ablation_is_inert_when_perception_pays_nothing():
 
     D'où `gt_income` : un revenu corporel plat, obs-INDÉPENDANT. Mesuré à ce point de fonctionnement :
     survie 19.5 (plancher de référence 9.0, plafond 200) et ratio 0.96."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     v, med = _perc_ratio(0.0)
     assert 12.0 < med < 195.0, f"métrique NON vivante à dose 0 (médiane {med:.1f}) : test sans valeur"
     assert 0.7 <= v["ratio"] <= 1.4, f"ablation NON inerte alors que la perception ne paie rien : {v['ratio']:.2f}"
@@ -2301,6 +2310,7 @@ def test_perception_ablation_is_inert_when_perception_pays_nothing():
 
 def test_perception_ablation_collapses_when_perception_pays():
     """CONTRÔLE POSITIF. À dose 6, l'ablation doit effondrer la survie. Mesuré : 126.5 → 29.8 (4.25×)."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     v, med = _perc_ratio(6.0)
     assert v["ratio"] >= 2.0, f"pas d'effondrement alors que la perception paie : {v['ratio']:.2f}"
     assert med > 12.0, "bras intact au plancher : l'effondrement ne serait pas interprétable"
@@ -2316,6 +2326,7 @@ def test_perception_ratio_is_monotone_only_while_uncensored():
     ⚠️ CONSÉQUENCE POUR LES CHIFFRES PUBLIÉS : tout ratio de cette branche dont le bras intact frôle
     `max_ticks` est une **borne INFÉRIEURE compressée**, pas une amplitude. C'est ce que signale le champ
     `censored` de `ablation_verdict`. Même phénomène que la cellule positive de S2-007 (EDR-AUDIT-001)."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     r = [_perc_ratio(d)[0]["ratio"] for d in (0.0, 3.0, 6.0)]
     assert r[0] < r[1] < r[2], f"non monotone dans la plage NON censurée : {r}"
     assert r[0] < 1.5 and r[2] > 2.0, f"amplitude insuffisante pour conclure : {r}"
@@ -3030,6 +3041,7 @@ def test_sp2_oracle_sender_makes_perception_demanded():
     """CONTRÔLE POSITIF (générateur A) : avec un sender ORACLE (signal = index perçu), la coordination est
     parfaite et DÉRANGER la perception l'effondre -> COORD X_DEMANDED. Le banc SAIT produire l'effondrement.
     Sender bypassé (oracle) -> seul le receiver entraîne, ~50s pour 12 seeds."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     from tools.perception_coordination_demand_probe import run_perception_coordination_demand_probe
     r = run_perception_coordination_demand_probe(seeds=list(range(12)), episodes=200, n_agents=16, K=6,
                                                  sender_mode="oracle")
@@ -3040,6 +3052,7 @@ def test_sp2_oracle_sender_makes_perception_demanded():
 def test_sp2_random_sender_is_inert_no_false_demand():
     """CONTRÔLE NÉGATIF : avec un sender ALÉATOIRE (signal décorrélé), pas de coordination -> DÉRANGER la
     perception est inerte -> COORD PAS X_DEMANDED. Le banc ne FABRIQUE pas un effondrement inexistant."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     from tools.perception_coordination_demand_probe import run_perception_coordination_demand_probe
     r = run_perception_coordination_demand_probe(seeds=list(range(12)), episodes=200, n_agents=16, K=6,
                                                  sender_mode="random")
@@ -3415,6 +3428,7 @@ def test_mp_oracle_memory_makes_perception_demanded():
     """CONTRÔLE POSITIF (générateur A) : avec une mémoire ORACLE (rétention parfaite de l'indice encodé),
     DÉRANGER la perception à l'encodage l'effondre -> DELAYED X_DEMANDED. Le banc SAIT produire l'effondrement.
     Oracle BYPASSE l'agent (guess = indice encodé) -> aucun entraînement -> episodes=0 valide, quelques secondes."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     from tools.memory_perception_demand_probe import run_memory_perception_demand_probe
     r = run_memory_perception_demand_probe(seeds=list(range(12)), episodes=0, n_agents=16, K=6, D=2,
                                            memory_mode="oracle")
@@ -3425,6 +3439,7 @@ def test_mp_oracle_memory_makes_perception_demanded():
 def test_mp_random_memory_is_inert_no_false_demand():
     """CONTRÔLE NÉGATIF : avec une mémoire ALÉATOIRE (guess décorrélé de l'indice), DÉRANGER la perception
     est inerte -> DELAYED PAS X_DEMANDED. Le banc ne FABRIQUE pas un effondrement inexistant."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     from tools.memory_perception_demand_probe import run_memory_perception_demand_probe
     r = run_memory_perception_demand_probe(seeds=list(range(12)), episodes=0, n_agents=16, K=6, D=2,
                                            memory_mode="random")
@@ -3473,6 +3488,7 @@ def test_decision_saliency_value_is_unchanged_by_the_restoration():
 def test_lm_oracle_memory_makes_language_demanded():
     """CONTRÔLE POSITIF (demande) : mémoire ORACLE (rétention parfaite du key) -> ablater l'état
     (H-reset) effondre LANG -> X_DEMANDED. Le banc SAIT produire l'effondrement."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     from tools.language_memory_demand_probe import run_language_memory_demand_probe
     r = run_language_memory_demand_probe(seeds=list(range(12)), episodes=0, n_agents=16, K=6, D=2,
                                          memory_mode="oracle")
@@ -3482,6 +3498,7 @@ def test_lm_oracle_memory_makes_language_demanded():
 def test_lm_random_memory_is_inert():
     """CONTRÔLE NÉGATIF (demande) : mémoire ALÉATOIRE (guess décorrélé) -> ablation inerte -> PAS
     X_DEMANDED. Le banc ne fabrique pas un effondrement inexistant."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     from tools.language_memory_demand_probe import run_language_memory_demand_probe
     r = run_language_memory_demand_probe(seeds=list(range(12)), episodes=0, n_agents=16, K=6, D=2,
                                          memory_mode="random")
@@ -3493,6 +3510,7 @@ def test_lm_leaky_control_fires_the_aliasing_guard():
     ablater l'état fait FUIR le contrôle -> `functional_aliasing='fail'` (FUNCTIONAL_LEAK). Prouve que
     le garde SAIT détecter une fuite (sinon un 'pass' serait vacux). oracle+leaky : LANG effondre
     (X_DEMANDED) ET le garde tire — les deux dimensions (demande + aliasing) sont sensibles."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     from tools.language_memory_demand_probe import run_language_memory_demand_probe
     r = run_language_memory_demand_probe(seeds=list(range(12)), episodes=0, n_agents=16, K=6, D=2,
                                          memory_mode="oracle", control_mode="leaky")
@@ -3609,6 +3627,7 @@ def test_alias_guard_is_wired_into_the_probe_result():
     """La garde doit être BRANCHÉE, pas seulement écrite : les clés remontent bien dans le dict de
     `run_language_memory_demand_probe` (classe E4 — une vérification qui ne peut pas échouer).
     `episodes=0` -> aucun entraînement, rapide."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     from tools.language_memory_demand_probe import run_language_memory_demand_probe
     r = run_language_memory_demand_probe(seeds=list(range(12)), episodes=0, n_agents=8, K=6, D=1,
                                          memory_mode="oracle")
@@ -3649,6 +3668,7 @@ def test_bilinear_unlocks_composition_same_tick_supervised():
     et n'est donc PAS touché par l'artefact E19. Cf.
     `test_bilinear_composition_null_under_retention_is_lr_dependent` (le nul du 2-pas, lui, BASCULE avec
     le seul `lr` : « la rétention était le confond dominant » n'est pas établi)."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     from tools.bilinear_composition_probe import run_bilinear_composition_probe
     r = run_bilinear_composition_probe(seeds=list(range(12)), episodes=300, n_agents=16, K=6, rank=16,
                                         task="composition", same_tick=True, credit_mode="supervised")
@@ -3703,6 +3723,7 @@ def test_bilinear_composition_null_under_retention_is_lr_dependent():
     plafond structurel mesuré du substrat plain (0.3889 — chiffre de l'époque, rétracté le 2026-09-08 :
     le plain atteint 0.944 sans apprendre). Ce qui est gelé, c'est la BASCULE, pas un
     verdict de capacité."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     from tools.bilinear_composition_probe import run_bilinear_composition_probe
     bar = 1 / 6 + 0.15
     seeds = list(range(12))
@@ -3736,6 +3757,7 @@ def test_bilinear_noop_on_recall():
     composition. Budget borné : seeds=[0,1,2], episodes=150, n_agents=16, K=6 (wall mesuré ≈23s).
     Per-seed bilinéaire mesuré (2026-08-03) : [0.608, 0.688, 0.712], tous >> seuil 1/6+0.15≈0.317
     (plus lent que plain [0.975, 0.958, 1.0] à ce budget, mais clairement au-dessus du seuil)."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     from tools.bilinear_composition_probe import run_bilinear_composition_probe
     r = run_bilinear_composition_probe(seeds=[0, 1, 2], episodes=150, n_agents=16, K=6, task="recall")
     assert r["bilinear_median"] > 1 / 6 + 0.15, r    # bilinéaire n'abîme pas le rappel
@@ -3750,6 +3772,7 @@ def test_retain_compose_same_tick_composes():
     """POSITIF (générateur A) : le bilinéaire compose key+q CO-PRÉSENTS -> same_tick > bar. Prouve que
     l'instrument PEUT montrer la composition (sinon un oracle<=bar serait ininterprétable).
     Mesuré (2026-08-04) : same_tick_median=0.966, 4 seeds dans [0.955, 0.977], tous > bar=1/6+0.15≈0.317."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     from tools.retain_compose_diagnostic_probe import run_retain_compose_diagnostic_probe
     r = run_retain_compose_diagnostic_probe(seeds=list(range(4)), episodes=400, n_agents=16, K=6,
                                             conditions=("same_tick",))
@@ -3760,6 +3783,7 @@ def test_retain_compose_decorrelated_oracle_is_floor():
     """NÉGATIF : un key ALÉATOIRE injecté en état (décorrélé de la cible) ne permet PAS (q+key)%K -> plancher.
     Prouve que l'oracle mesure la LECTURE de l'état retenu, pas un artefact d'injection.
     Mesuré (2026-08-04) : oracle_decorrelated_median=0.162, 4 seeds dans [0.152, 0.178], tous <= bar≈0.317."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     from tools.retain_compose_diagnostic_probe import run_retain_compose_diagnostic_probe
     r = run_retain_compose_diagnostic_probe(seeds=list(range(4)), episodes=400, n_agents=16, K=6,
                                             conditions=("oracle_decorrelated",))
@@ -3798,6 +3822,7 @@ def test_retain_compose_learned_verdict_is_an_lr_artifact():
     garde) : wall MESURÉ 51.3 s (call) / 69.7 s (session), 2026-09-01, 1 thread. Le défaut `lr=0.02` de la
     sonde n'est PAS modifié (cela ré-écrirait silencieusement le passé et invaliderait les chiffres cités
     ici) : les deux pas sont passés EXPLICITEMENT."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     from tools.retain_compose_diagnostic_probe import run_retain_compose_diagnostic_probe
     bar = 1/6 + 0.15
     seeds = list(range(3))
@@ -3975,6 +4000,7 @@ def test_delayed_coordination_probe_is_at_CHANCE_when_the_channel_is_MUTE():
     uniforme), les deux bras doivent être BIT-IDENTIQUES. Cette assertion casse dès qu'une édition rompt
     l'identité de construction exigée par le design — longueur de séquence, nombre de forwards, ou un
     simple tirage RNG supplémentaire dans un bras."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     from tools.delayed_coordination_demand_probe import run_delayed_coordination_demand_probe as run
     K = 6
     r = run(seeds=[0, 1, 2], D=1, episodes=60, n_agents=8, K=K, V=8, lr=0.05, flip_p=1.0, eval_batches=25)
@@ -3993,6 +4019,7 @@ def test_delayed_coordination_probe_UNTRAINED_cannot_beat_chance():
     cible (c'est le cas `mute-channel` qui le fait). Ce qu'il attrape, c'est un chemin de SCORE cassé
     (accuracy comparée au leurre plutôt qu'à la cible, éval dégénérée). Il vaut parce qu'un verdict
     « effondrement vers ~0.17 » n'est interprétable que si le plancher a été MESURÉ (classe E14)."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     from tools.delayed_coordination_demand_probe import run_delayed_coordination_demand_probe as run
     K = 6
     r = run(seeds=[0, 1, 2], D=1, episodes=0, n_agents=8, K=K, V=8, flip_p=0.3, eval_batches=25)
@@ -4015,6 +4042,7 @@ def test_delayed_coordination_probe_REFUSES_an_UNREACHABLE_bar_before_training_a
 
     Second volet : fournir `easiest_arm_accuracy` SANS `vitality_bar` doit lever, jamais devenir un
     no-op silencieux — l'appelant qui fournit la mesure croit avoir arme la garde."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     import time
 
     from tools.delayed_coordination_demand_probe import run_delayed_coordination_demand_probe as run
@@ -4046,6 +4074,7 @@ def test_delayed_coordination_probe_is_BIT_IDENTICAL_when_the_bar_check_runs():
     le contraire possible -- et dans ce depot elle a deja transforme une sonde en artefact (EVO-008).
     Barre a 0.0 : la garde s'execute et passe quel que soit le resultat de l'entrainement minuscule,
     donc le test mesure l'INTERFERENCE, pas l'apprentissage."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     from tools.delayed_coordination_demand_probe import run_delayed_coordination_demand_probe as run
     kw = dict(seeds=[0], D=1, episodes=4, n_agents=4, K=6, V=8, lr=0.05, flip_p=0.3, eval_batches=2)
     sans = run(**kw)
@@ -4206,9 +4235,63 @@ _FAMILLE_DISJOINT = [
 ]
 
 
-def _appelle(mod, fn, arite, valeurs):
+def _defini_seulement_avec_torch(module, nom):
+    """`nom` n'est-il défini, dans le SOURCE de `module`, QUE sous un `if` qui teste torch (`if torch is not None:`) ?
+    Lu par l'AST, jamais deviné : un module qui pose `torch = None` mais définit tout sans condition rend False, donc
+    une faute de frappe sur l'un de ses noms REMONTE (revue opus de P2.121 famille 1 : la première version sautait
+    tout « cannot import name » d'un tel module, 44 cellules exposées)."""
+    import ast
+    import inspect
+    try:
+        arbre = ast.parse(inspect.getsource(module))
+    except (OSError, TypeError, SyntaxError):
+        return False
+
+    def definit(n):
+        if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            return n.name == nom
+        if isinstance(n, ast.Assign):
+            return any(isinstance(t, ast.Name) and t.id == nom for t in n.targets)
+        if isinstance(n, (ast.AnnAssign, ast.AugAssign)):
+            return isinstance(n.target, ast.Name) and n.target.id == nom
+        if isinstance(n, (ast.Import, ast.ImportFrom)):
+            return any((a.asname or a.name.split(".")[0]) == nom for a in n.names)
+        return False
+
+    if any(definit(n) for n in arbre.body):
+        return False
+    return any(isinstance(n, ast.If) and "torch" in ast.unparse(n.test) and any(definit(m) for m in ast.walk(n))
+               for n in arbre.body)
+
+
+def _importe_ou_saute_sans_torch(modnom):
+    """P2.121 famille 1 : charge `modnom` ; la CELLULE saute (et le dit) SEULEMENT si le chargement échoue parce que
+    torch est absent : torch LUI-MÊME introuvable (nom exact — un sous-module `torch.x` manquant, torch présent,
+    remonte), ou un symbole que le module source ne définit QUE sous un `if torch …` (`FlatModel` de
+    `tools.disjoint_heads_ab`, vérifié par l'AST). Toute autre erreur d'import remonte, torch présent ou non. Les
+    cellules sans torch du même test tournent partout."""
     import importlib
-    f = getattr(importlib.import_module(mod), fn)
+    import re
+    try:
+        return importlib.import_module(modnom)
+    except ModuleNotFoundError as exc:
+        if exc.name == "torch":
+            pytest.skip(f"torch absent : {modnom} l'importe à son chargement (requirements-torch.txt)")
+        raise
+    except ImportError as exc:
+        source = sys.modules.get(exc.name or "")
+        manquant = getattr(exc, "name_from", None)
+        if manquant is None:
+            m = re.search(r"cannot import name '(\w+)'", str(exc))
+            manquant = m.group(1) if m else None
+        if (source is not None and getattr(source, "torch", object()) is None and manquant
+                and _defini_seulement_avec_torch(source, manquant)):
+            pytest.skip(f"torch absent : {exc.name} ne définit {manquant} qu'avec torch ({modnom})")
+        raise
+
+
+def _appelle(mod, fn, arite, valeurs):
+    f = getattr(_importe_ou_saute_sans_torch(mod), fn)
     return f(*([list(valeurs)] * arite))
 
 
@@ -4246,6 +4329,7 @@ def test_disjoint_family_has_a_real_MIDDLE_zone(mod, fn, arite):
 def test_the_frozen_thresholds_of_verdict_lr_are_INCLUSIVE():
     """Les seuils publiés sont `>= 0.90` et `<= 0.79`. Un off-by-one les rendrait exclusifs et
     déplacerait silencieusement le verdict qui porte le « 194 LR_CLOSES ». Frontières gelées."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     from tools.disjoint_heads_lr import _verdict_lr
     assert _verdict_lr([0.90] * 5) == "LR_CLOSES", "0.90 doit être DANS le camp LR_CLOSES"
     assert _verdict_lr([0.79] * 5) == "LR_INTERCHANGEABLE", "0.79 doit être DANS le camp opposé"
@@ -5892,7 +5976,7 @@ _MESURES_GARDEES_5 = [
 def test_fifth_wave_run_family_REFUSES_degenerate_arguments(mod, nom, kw):
     """Meme principe que P2.34/P2.37/P2.40/P2.41 : 0 agent / 0 ere / 0 tick est une erreur d'APPEL."""
     import importlib
-    f = getattr(importlib.import_module(mod), nom)
+    f = getattr(_importe_ou_saute_sans_torch(mod), nom)
     with pytest.raises(ValueError, match="degenere"):
         f(**kw)
 
@@ -5904,7 +5988,7 @@ def test_fifth_wave_guards_are_placed_BEFORE_the_world(mod, nom, kw):
     rendre 0.0/nan -- un refus instantane prouve que la garde precede la construction."""
     import importlib
     import time
-    f = getattr(importlib.import_module(mod), nom)
+    f = getattr(_importe_ou_saute_sans_torch(mod), nom)
     t0 = time.time()
     with pytest.raises(ValueError):
         f(**kw)
@@ -6075,7 +6159,7 @@ def test_the_BARE_VERB_instruments_REFUSE_a_degenerate_argument(mod, nom, kw):
     n'avaient AUCUNE garde : une cohorte vide leur faisait rendre 0.0 / nan / {} que l'aval lit comme
     une mesure. C'est la direction CONSTANTE des defauts de ce depot : absence -> negatif de fond."""
     import importlib
-    f = getattr(importlib.import_module(mod), nom)
+    f = getattr(_importe_ou_saute_sans_torch(mod), nom)
     with pytest.raises(ValueError, match="degenere"):
         f(**kw)
 
@@ -6086,7 +6170,7 @@ def test_the_BARE_VERB_guards_are_placed_BEFORE_any_world(mod, nom, kw):
     Sans ce second cas, une garde placee apres la construction du monde passerait le premier."""
     import importlib
     import time
-    f = getattr(importlib.import_module(mod), nom)
+    f = getattr(_importe_ou_saute_sans_torch(mod), nom)
     t0 = time.time()
     with pytest.raises(ValueError):
         f(**kw)
@@ -6231,6 +6315,7 @@ def test_run_learner_probe_oracle_is_the_positive_control_of_the_dv():
 
 
 def test_run_learner_probe_counts_the_dose_the_world_delivers():
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     r = _learner(policy="torch")
     lrn = r["learning"]
     assert lrn["td_calls"] == 40, "un TD par tick sur une cohorte immortelle (population constante)"
@@ -6247,6 +6332,7 @@ def test_run_learner_probe_immortal_cohort_stays_complete_under_learning():
     portait donc un biais de SURVIVANTS corrélé au bras. Immortel veut dire immortel : l'énergie ET les hp
     sont rechargés, et la cohorte reste COMPLÈTE sous apprentissage. Ce cas rejoue la cellule qui a révélé
     le défaut (seed 2027, apprenant naturel, 400 ticks)."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     r = _learner(seed=2027, num_agents=12, ticks=400, block=200, policy="torch")
     assert [b["n_agents"] for b in r["blocks"]] == [12, 12], r["blocks"]
     assert r["resurrections"] >= 1, "sur cette cellule le monde TUE (v1 : 12 -> 9) ; l'immortalité doit avoir agi"
@@ -6254,12 +6340,14 @@ def test_run_learner_probe_immortal_cohort_stays_complete_under_learning():
 
 
 def test_run_learner_probe_lr0_reference_moves_no_weight():
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     r = _learner(policy="torch", lr=0.0)
     assert r["learning"]["dW_abs_sum"] == 0.0, "lr=0 : le plafond de l'incapable, mesuré dans le dispositif"
     assert r["learning"]["td_updates"] > 0, "…mais les updates ont bien eu lieu (ce n'est pas TD coupé)"
 
 
 def test_run_learner_probe_is_reproducible_at_fixed_seed():
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     a = _learner(policy="torch")
     b = _learner(policy="torch")
     assert a["blocks"] == b["blocks"]
@@ -6267,6 +6355,7 @@ def test_run_learner_probe_is_reproducible_at_fixed_seed():
 
 
 def test_run_learner_probe_publishes_its_variant():
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     r = _learner(policy="torch", reward_scale=0.05, td_enabled=False, lr=0.004)
     assert r["learning"]["reward_scale"] == 0.05
     assert r["learning"]["td_enabled"] is False
@@ -6323,6 +6412,7 @@ def _dose_is_coherent(lrn, max_ticks_total):
 
 
 def test_run_credit_linear_publishes_its_learning_dose():
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     from tools.cognitive_demand_inworld import run_credit_linear
     r = run_credit_linear(seed=2026, eras=1, num_agents=3, max_ticks=20)
     assert isinstance(r["trend"], list) and len(r["trend"]) == 1
@@ -6330,6 +6420,7 @@ def test_run_credit_linear_publishes_its_learning_dose():
 
 
 def test_run_credit_probe_publishes_its_learning_dose_without_changing_its_return():
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     from tools.cognitive_demand_inworld import run_credit_probe
     out = {}
     trend = run_credit_probe(seed=2026, eras=1, num_agents=3, max_ticks=20, learning_out=out)
@@ -6338,6 +6429,7 @@ def test_run_credit_probe_publishes_its_learning_dose_without_changing_its_retur
 
 
 def test_run_warmstart_credit_probe_publishes_its_learning_dose():
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     from tools.cognitive_demand_inworld import run_warmstart_credit_probe
     r = run_warmstart_credit_probe(seed=2026, num_agents=3, max_ticks=20, schedule=[(0.25, 12.0)])
     assert len(r["trend"]) == 1 and "learned" in r
@@ -6585,6 +6677,7 @@ def _torch_batch_after_one_deferred_transition(seed=0):
 def test_torch_batch_model_td_update_DIRECT_lr0_leaves_W_bit_identical_and_returns_a_finite_loss():
     """Appel DIRECT de `_td_update` (le second chemin de la collision), a lr = 0 : la transition memorisee est
     creditee, la perte est un nombre fini, et W ne bouge pas d'un bit -- le no-op EXACT de l'apprenant."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     a, bm, v_next = _torch_batch_after_one_deferred_transition()
     for g in bm.opt.param_groups:
         g["lr"] = 0.0
@@ -6597,6 +6690,7 @@ def test_torch_batch_model_td_update_DIRECT_lr0_leaves_W_bit_identical_and_retur
 def test_torch_batch_model_td_update_DIRECT_at_positive_lr_moves_W():
     """Le meme appel, au pas publie (LR = 0.04) : W bouge -- la direction opposee du no-op, pour que la paire
     de cas puisse rendre les DEUX issues."""
+    pytest.importorskip("torch")  # P2.121 famille 1 : exige torch, absent du runner CI -> SAUTÉ et dit
     a, bm, v_next = _torch_batch_after_one_deferred_transition()
     W0 = np.array(a.genome.W, copy=True)
     loss = bm._td_update(bm._prev, v_next)

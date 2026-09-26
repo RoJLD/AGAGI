@@ -1259,6 +1259,41 @@ Dépend de : P2.105 (close).
 <!-- closes_when:grep_present=tools/td_step_pilot.py::marge_en_pas -->
 
 
+**P2.125 — rang 4 — OUVERTE (2026-09-26, trouvée par la revue opus de P2.121 famille 1, VÉRIFIÉE par agagi-32) —
+Un test de fumée ÉCRASAIT les génomes de calibration WARM-007 dans `results/` : depuis le 2026-09-09, `_GRABBER`
+(agent00) est un génome de fumée entraîné 2 époques, l'original est PERDU, et aucune porte ne pouvait le voir —
+`results/*` est ignoré par git.**
+Preuve : `tools/warmstart_evolution_inworld.py:1261` — `run_grab_incidence_and_ablation(…, genome_dir="results/warm007_genomes")`,
+chemin RELATIF au cwd, écriture l. 1314-1320 ; `tests/sandbox/test_warmstart_evolution_inworld.py::test_run_grab_incidence_and_ablation_smoke`
+redirigeait `out_path` vers `tmp_path`, jamais `genome_dir`, avec `num_agents=4` : agents 00 à 03, à chaque passage
+depuis la racine. Dans l'arbre principal, `results/warm007_genomes/seed2026_agent00..03.npz` datent du 2026-09-09 à
+23:29:28 (10 ms d'écart), les agents 04 à 11 du 2026-07-20 ; l'empreinte sha256 d'agent00 (`b976c99d…`) est IDENTIQUE à
+celle que ce smoke a produite le 2026-09-26 dans un worktree. Aucune autre copie des génomes d'origine sur le disque.
+`tests/sandbox/test_instrument_calibration.py` : `_GRABBER = …seed2026_agent00.npz  # gi = 1.000 mesuré in-world` —
+`test_survival_follows_the_imposed_carry_cost_by_prediction` et `test_ablation_effect_grows_with_the_imposed_carry_cost`
+tournent donc, dans l'arbre principal, sur un AUTRE sujet que celui qu'ils décrivent (non établi : ce génome peut encore
+grabber, WARM-006 dit le canal fixé à l'initialisation). En CI, sans génomes, ils sautent.
+**Fait** (commit de P2.121 famille 1) : la CAUSE — le smoke écrit ses génomes sous `tmp_path`, vérifié avec torch :
+`results/warm007_genomes` n'est plus créé.
+**Reste, décision de robla** : (a) restaurer ou ré-entraîner les 4 génomes (« persiste les 12 : ne JAMAIS re-payer
+l'entraînement », dit le code) et re-vérifier les cas `_GRABBER` sur le vrai sujet ; (b) résoudre le défaut de
+`genome_dir` par `src/paths.py` au lieu d'un chemin relatif au cwd ; (c) une garde contre tout test qui écrit sous
+`results/` ou `data/` hors `tmp_path` — ces dossiers sont IGNORÉS par git, donc invisibles à P2.113 (a), qui ne voit
+que les fichiers SUIVIS. Classe **E5** au registre. Sans clause `closes_when` (déclaré) : la restauration des génomes
+n'a pas de prédicat de fichier.
+**Ce qui dépend des 4 génomes écrasés** (recensé le 2026-09-26 à la demande de Master 2 : grep de `_GRABBER`,
+`warm007_genomes` et `seed2026_agent0[0-3]` dans `tests/`, `tools/`, `src/` et `docs/`) : DEUX cas de calibration
+chargent `_GRABBER` = agent00 — `test_survival_follows_the_imposed_carry_cost_by_prediction` et
+`test_ablation_effect_grows_with_the_imposed_carry_cost` (`tests/sandbox/test_instrument_calibration.py`, l. 2005 et
+2025). Les deux autres lecteurs, `test_instrument_is_exact_noop_on_non_grabber` et
+`test_warmstart_evolution_inworld.py::test_grab_off_is_exact_noop_for_never_grabbing_genome`, chargent agent06, NON
+écrasé. Aucun outil de `tools/` ni de `src/` ne relit ce dossier (`tools/warmstart_evolution_inworld.py` ne fait
+qu'y écrire). Un seul record cite ces génomes : [[EDR-WARM-007]], créé le 2026-07-21 — ses chiffres viennent des
+ORIGINAUX, il n'est pas invalidé ; mais toute re-mesure faite depuis le 2026-09-09 dans l'arbre principal a lu des
+génomes de fumée. Un ré-entraînement rétablirait donc le SUJET de deux cas de calibration et la reproductibilité de
+WARM-007, rien d'autre. Remonté à robla par Master 2, avec la preuve.
+
+
 **P2.121 — rang 6 — OUVERTE (2026-09-26, mesuré sur le run 36210667429, le PREMIER où `suite-complete` exécute des
 tests) — La suite complète tourne en CI : 2807 passés, 88 rouges, 18 erreurs, 238 sautés, 17 min 38 s — et ses rouges se
 rangent en SEPT familles dont AUCUNE n'est un défaut du monde. Inventaire par cause, recette par famille.**
@@ -1286,6 +1321,34 @@ message). 0 erreur de collecte : `b895a0a3` a fait son travail. Familles, par ta
    SAUTÉ en CI (le « 1 skipped » du pas Gardes-de-gardes, 164 passed) alors qu'il est ROUGE localement avec torch
    (0 garde-seule, cf. P2.49). Recette : garder le module importable sans torch (garde par cas sur les seules
    déclarations torch), et faire passer ce fichier en tête de la famille — c'est lui qui rend le vert de la CI lisible.
+   ✅ **TRAITÉE le 2026-09-26 (agagi-32, worker Dette)** — mesurée AVANT de garder, vérifiée des DEUX côtés. Torch
+   rendu absent par un chercheur d'imports qui lève `ModuleNotFoundError` (le plugin `sys.modules['torch'] = None`
+   fabriquait 2 à 3 faux rouges : scipy y lisait `None`) : **40 rouges** dans les 10 modules (la CI en comptait 38 ;
+   un de plus dans le monde torch, et `test_factorial_regime_sweep` compté à part), TOUS causés par torch. Gardes :
+   `pytest.importorskip("torch")` après la docstring de **32 fonctions** (posé par l'AST) ; les 3 tests paramétrés sur
+   `_BANCS` sautent à la CELLULE (seules 2 des 3 sondes importent torch à leur chargement) ; le cliquet des défauts de
+   seeds juge et AFFIRME les bancs sans torch avant de sauter. Suite de CALIBRATION : les imports de tête se chargent
+   sans torch, le saut de MODULE est retiré ; sans torch elle rend **455 verts et 66 rouges, tous causés par torch**
+   (import de torch, backend torch non installé, `FlatModel` que `tools.disjoint_heads_ab` ne définit qu'avec torch) ;
+   33 fonctions gardées entières, et 7 fonctions paramétrées MIXTES (1 cellule sur 8, 54 sur 57, 17 sur 20 passent
+   sans torch) sautent à la cellule par `_importe_ou_saute_sans_torch` — qui ne saute que si l'import échoue sur torch
+   lui-même ou sur un symbole d'un module dont `torch` vaut `None` ; toute autre erreur d'import remonte. **Comptes,
+   11 fichiers** : torch ABSENT 604 verts / 135 sautés / **0 rouge** ; torch PRÉSENT 735 verts / 4 sautés (génomes
+   WARM-007 absents, préexistants) / **0 rouge** (13 min 46 s). En CI, la suite de calibration passe d'« 1 skipped » à
+   455 verts + 66 sautés nommés. ⚠️ Effet de bord ASSUMÉ et traité dans le même commit : `test_perimeter_widening`
+   (qui importe `CALIBRATED`) n'est plus sauté par ricochet — son test d'exposition était ROUGE partout où il
+   tournait (P2.113 b), il est corrigé ici. **Revue indépendante (opus, lecture seule) : 0 bloquant, 3 importants
+   CORRIGÉS dans ce commit.** (1) Le saut à la cellule sautait toute « cannot import name » d'un module qui pose
+   `torch = None` : il exige désormais que le nom manquant (`name_from`) ne soit défini QUE sous un `if torch …`, lu
+   par l'AST (`_defini_seulement_avec_torch`), et le nom `torch` EXACT (un sous-module manquant remonte) ; les 12
+   remplacements sans cellule torch sont défaits. (2) Le cliquet des bancs triait par préfixe de nom et laissait
+   `torch_throw_gate_inworld_ab`, chargeable sans torch, non jugé : il tente CHAQUE banc et nomme ceux qu'il n'a pas
+   jugés. (3) Trois tests à génome exigeaient torch sans garde, invisibles aux deux mesures (génome absent) : gardés.
+   Recompté après correctifs : Windows sans torch 616 / 135 / 0 ; avec torch, tout ce que la revue a touché 270 / 0 ;
+   **Linux (WSL, requirements de la CI, torch VRAIMENT absent) 616 verts / 135 sautés / 0 rouge** — les 455 cas de
+   calibration tournent sous Linux sans un rouge. Trouvé par la revue et vérifié : le smoke de
+   `test_warmstart_evolution_inworld` écrasait les génomes de calibration WARM-007 → **P2.125**. Le compte du run CI qui
+   suit s'écrit ici.
 2. **`tests/sandbox/test_hook_on_merge.py` — 18 tests** : « git commit -q -m base a échoué (1) » dans le dépôt jetable ;
    stderr : « python: can't open file '…/jetable/tools/check_e19_optimizer_sweep.py' ». Le crochet jouet, extrait VERBATIM
    de `tools/hooks/pre-commit`, appelle la porte 23 que le dépôt jetable ne porte pas — vert sur Windows, rouge sur
@@ -1311,6 +1374,15 @@ message). 0 erreur de collecte : `b895a0a3` a fait son travail. Familles, par ta
 5. **fixtures PM — 5** (test_pm_board A1/A3, `tests/sandbox/test_pm_bulletin.py` ×2, test_pm_snapshot leases) : un chemin
    Windows `c:/x/agagi` est normalisé sur POSIX en `/home/runner/…/c:/x/agagi` — la normalisation suppose une lettre de
    lecteur ; portabilité des FIXTURES, pas du code.
+   ✅ **TRAITÉE le 2026-09-26 (agagi-32, worker Dette)** — reproduite sous Linux (WSL, requirements de la CI) AVANT
+   correctif : **4 rouges**, pas 5 (le cas des bails de `test_pm_snapshot` passe depuis `faae4909`, psutil) — A1 et A3
+   du tableau, deux cas du bulletin, tous par `c:/x/agagi` préfixé du cwd. Remède, fixtures seules : une racine
+   ABSOLUE sur chaque plateforme (`c:/x/agagi` sous Windows, `/x/agagi` sous POSIX) dans `test_pm_board.py` et
+   `test_pm_bulletin.py` (15 littéraux) ; le test d'équivalence antislashs garde une racine de forme Windows LOCALE
+   (il teste un remplacement textuel, valable partout). Vérifié sur les six fichiers PM : **Linux 4 rouges → 192
+   verts, Windows 192 verts**. ⚠️ Pris par la vérification des DEUX côtés : ma première passe avait réécrit la
+   définition même de la racine (`_R = _R if …`) — VERTE sous Linux (seule la branche `else` s'évalue), `NameError`
+   sous Windows ; un seul côté l'aurait laissée passer. Le compte du run CI qui suit s'écrit ici.
 6. ⚠️ **git env sur Linux — 2** : `tests/sandbox/test_git_env_leak.py::test_un_GIT_DIR_herite_detourne_le_git_init_vers_le_depot_POINTE`
    (« le depot POINTE est passe en bare : son arbre de travail disparait pour toutes les sessions ») et
    `tests/sandbox/test_gate_mutation.py::…[sans_purge_defaut_restaure]`. C'est LA classe de la corruption `core.bare = true`
@@ -1330,6 +1402,10 @@ message). 0 erreur de collecte : `b895a0a3` a fait son travail. Familles, par ta
    forme suffixée (détournement oui, bascule non) ; docstring de la fixture précisée ; occurrence **E33** occ. 8 au
    registre, note de forme dans la garde d'**E5**. Vérifié : **Linux 2 rouges → 8 verts, Windows 8 verts**. Le compte
    du run CI qui suit s'écrit ici.
+   📏 **LU sur le run de `da09f7a1` (relevé par agagi-88, différence des FAILED)** : suite-complete **50 → 48 rouges**,
+   0 nouveau ; disparus exactement les deux cas de la famille (`test_gate_mutation.py::…[sans_purge_defaut_restaure]`
+   et `test_git_env_leak.py::test_un_GIT_DIR_herite_detourne_le_git_init_vers_le_depot_POINTE`). Aucune régression
+   sur la chaîne `79b24af6` → `cb5e06ca`.
 7. **déjà inscrits, P2.113 (b)(c)(d)** : test_perimeter_widening EXPOSURE (traité avec la clôture de P2.49), test_grab_* ×3
    (pkl non versionné), test_backend ×2 (TaskGroup).
 **Forme demandée** : une famille = un commit, vérifié dans les DEUX conditions ; le run qui suit chaque commit est LU et son
@@ -2008,6 +2084,13 @@ en silence, donc une note ne suffit pas.
 (b) `tests/sandbox/test_perimeter_widening.py::test_the_measured_EXPOSURE_of_head_guard_only_calibration_is_PUBLISHED`
 est rouge sur feat/d1 lui-même : il exige plus de 0 déclaration « garde-seule », or P2.56 a ramené ce compte à 0. Le
 test prévoit lui-même sa sortie (« mettre à jour le chiffre publié dans le backlog AVANT de retirer ce test »).
+✅ **(b) CLOSE le 2026-09-26 (agagi-32, avec P2.121 famille 1, décision de Master 2)** : le test GARDE son nom (P2.49
+tient dessus par `holds_when`) et affirme désormais `len(seulement) == 0` — l'exposition résorbée par P2.56, TENUE par
+la porte 18 (`tools/check_calibration_reach.py`, baseline vide) ; si une déclaration garde-seule réapparaît, son
+message dit que c'est la porte 18 qui a un trou. L'assertion `< len(CALIBRATED)` reste. Le « traité avec la clôture de
+P2.49 » d'avant ne tenait pas : le test restait rouge partout où il tournait, et la CI ne le voyait pas (il importait
+la suite de calibration, sautée d'un bloc sans torch). Vérifié : 12 verts avec torch ET sans torch (il tourne
+désormais en CI au lieu d'être sauté).
 (c) `tests/sandbox/test_grab_cost.py` et `tests/sandbox/test_grab_mechanism.py` (3 cas) ouvrent
 data/hof_famine_harsh_s42.pkl, un fichier non versionné présent seulement dans le data/ de l'arbre principal :
 FileNotFoundError dans tout worktree et tout clone, au lieu d'un skip qui dirait pourquoi.

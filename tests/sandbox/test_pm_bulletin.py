@@ -11,16 +11,20 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 from tools.pm import bulletin as BU  # noqa: E402
 
 NOW = 1_800_000_000.0
+# P2.121 famille 5 (2026-09-26) : une racine de fixture ABSOLUE sur CHAQUE plateforme. « c:/x/agagi » n'est absolu
+# que sous Windows : sous POSIX, `norm` (abspath) le préfixait du cwd (« /home/runner/…/c:/x/agagi ») et les clés
+# attendues ne correspondaient plus — rouge en CI, vert sous Windows.
+_R = "c:/x/agagi" if os.name == "nt" else "/x/agagi"
 
 
 def _payload(event, **kw):
-    p = {"session_id": "s1", "cwd": "c:/x/agagi", "hook_event_name": event}
+    p = {"session_id": "s1", "cwd": _R, "hook_event_name": event}
     p.update(kw)
     return p
 
 
 def test_start_cree_le_bulletin_avec_les_champs_du_schema():
-    b = BU.appliquer("start", _payload("SessionStart"), {}, now=NOW, branche_fn=lambda cwd: ("feat/x", "c:/x/agagi"))
+    b = BU.appliquer("start", _payload("SessionStart"), {}, now=NOW, branche_fn=lambda cwd: ("feat/x", _R))
     assert b["session_id"] == "s1" and b["started_at"] == NOW and b["branch"] == "feat/x"
     assert b["claims"] == [] and b["files_touched"] == [] and b["ended_at"] is None
 
@@ -28,9 +32,9 @@ def test_start_cree_le_bulletin_avec_les_champs_du_schema():
 def test_tool_ajoute_le_fichier_edite_sans_doublon_et_plafonne_a_200():
     b = BU.appliquer("start", _payload("SessionStart"), {}, now=NOW, branche_fn=lambda c: (None, None))
     for i in range(205):
-        b = BU.appliquer("tool", _payload("PostToolUse", tool_name="Edit", tool_input={"file_path": f"c:/x/agagi/f{i}.py"}),
+        b = BU.appliquer("tool", _payload("PostToolUse", tool_name="Edit", tool_input={"file_path": f"{_R}/f{i}.py"}),
                          b, now=NOW + i, branche_fn=lambda c: (None, None))
-    b = BU.appliquer("tool", _payload("PostToolUse", tool_name="Write", tool_input={"file_path": "c:/x/agagi/f204.py"}),
+    b = BU.appliquer("tool", _payload("PostToolUse", tool_name="Write", tool_input={"file_path": f"{_R}/f204.py"}),
                      b, now=NOW + 300, branche_fn=lambda c: (None, None))
     assert len(b["files_touched"]) == 200 and b["files_touched"][-1] == "f204.py"     # relatif au cwd, FIFO
     assert b["files_touched"][0] == "f5.py" and b["last_tool_at"] == NOW + 300
@@ -44,16 +48,16 @@ def test_tool_sans_file_path_ne_change_rien():
 
 
 def test_tool_sur_bulletin_vide_fixe_le_cwd_des_le_premier_evenement():
-    b = BU.appliquer("tool", _payload("PostToolUse", tool_name="Edit", tool_input={"file_path": "c:/x/agagi/f0.py"}),
+    b = BU.appliquer("tool", _payload("PostToolUse", tool_name="Edit", tool_input={"file_path": f"{_R}/f0.py"}),
                      {}, now=NOW, branche_fn=lambda c: (None, None))
-    assert b["cwd"] == "c:/x/agagi" and b["files_touched"] == ["f0.py"]
+    assert b["cwd"] == _R and b["files_touched"] == ["f0.py"]
 
 
 def test_tool_sans_cwd_connu_garde_le_chemin_absolu():
-    b = BU.appliquer("tool", _payload("PostToolUse", cwd=None, tool_name="Edit", tool_input={"file_path": "c:/x/agagi/f0.py"}),
+    b = BU.appliquer("tool", _payload("PostToolUse", cwd=None, tool_name="Edit", tool_input={"file_path": f"{_R}/f0.py"}),
                      {}, now=NOW, branche_fn=lambda c: (None, None))
     assert b["cwd"] is None
-    assert b["files_touched"] == [BU.norm("c:/x/agagi/f0.py")]
+    assert b["files_touched"] == [BU.norm(f"{_R}/f0.py")]
 
 
 def test_P2_118_CONTRE_EXEMPLE_python_x_py_compte_UNE_ecriture_possible_et_ls_AUCUNE():
@@ -118,8 +122,8 @@ def test_P2_118_le_hook_SANS_marqueur_ne_touche_pas_au_disque_et_AVEC_marqueur_c
 
 def test_stop_met_le_heartbeat_et_la_branche_et_end_la_fin():
     b = BU.appliquer("start", _payload("SessionStart"), {}, now=NOW, branche_fn=lambda c: ("a", "w"))
-    b = BU.appliquer("stop", _payload("Stop"), b, now=NOW + 60, branche_fn=lambda c: ("feat/y", "c:/x/agagi/.worktrees/w"))
-    assert b["heartbeat_at"] == NOW + 60 and b["branch"] == "feat/y" and b["worktree"] == "c:/x/agagi/.worktrees/w"
+    b = BU.appliquer("stop", _payload("Stop"), b, now=NOW + 60, branche_fn=lambda c: ("feat/y", f"{_R}/.worktrees/w"))
+    assert b["heartbeat_at"] == NOW + 60 and b["branch"] == "feat/y" and b["worktree"] == f"{_R}/.worktrees/w"
     b = BU.appliquer("end", _payload("SessionEnd"), b, now=NOW + 120, branche_fn=lambda c: (None, None))
     assert b["ended_at"] == NOW + 120
 
@@ -324,7 +328,7 @@ def test_resume_tableau_BOARD_illisible_par_summary_dit_illisible_au_lieu_de_se_
 # chaque écriture du bulletin. Horloge INJECTÉE (`now`).
 
 def _tool(b, fichier, now):
-    return BU.appliquer("tool", _payload("PostToolUse", tool_name="Edit", tool_input={"file_path": f"c:/x/agagi/{fichier}"}),
+    return BU.appliquer("tool", _payload("PostToolUse", tool_name="Edit", tool_input={"file_path": f"{_R}/{fichier}"}),
                         b, now=now, branche_fn=lambda c: (None, None))
 
 
@@ -353,7 +357,7 @@ def test_l_eviction_FIFO_retire_aussi_la_date_et_une_entree_LEGATAIRE_sans_date_
     assert set(b["files_touched_at"]) == set(b["files_touched"])            # ni orphelin, ni manquant
     assert "f0.py" not in b["files_touched_at"] and b["files_touched_at"]["f204.py"] == NOW + 204
     # bulletin d'AVANT ce commit (liste sans dict) : ses entrées restent, SANS date -- jamais une date fabriquée
-    vieux = {"session_id": "s1", "cwd": "c:/x/agagi", "files_touched": ["ancien.py"]}
+    vieux = {"session_id": "s1", "cwd": _R, "files_touched": ["ancien.py"]}
     b = _tool(vieux, "neuf.py", NOW)
     assert b["files_touched"] == ["ancien.py", "neuf.py"] and b["files_touched_at"] == {"neuf.py": NOW}
 
@@ -374,7 +378,7 @@ def _registre(rep, fichiers):
 
 
 def _natif(sid, name, pid, started_ms=1_790_000_000_000):
-    return {"pid": pid, "sessionId": sid, "name": name, "cwd": "c:/x/agagi", "startedAt": started_ms}
+    return {"pid": pid, "sessionId": sid, "name": name, "cwd": _R, "startedAt": started_ms}
 
 
 def test_identite_prend_l_entree_la_plus_RECENTE_du_meme_session_id_meme_si_l_ancien_pid_trie_DEVANT(tmp_path):
@@ -455,7 +459,7 @@ def test_main_RE_RESOUT_nom_et_pid_depuis_le_registre_a_CHAQUE_ecriture_pas_seul
                                                encoding="utf-8")
     monkeypatch.setattr(BU, "_horloge", lambda: NOW + 60)
     monkeypatch.setattr("sys.stdin", io.StringIO(json.dumps(_payload("PostToolUse", tool_name="Edit",
-                                                                     tool_input={"file_path": "c:/x/agagi/f.py"}))))
+                                                                     tool_input={"file_path": f"{_R}/f.py"}))))
     assert BU.main(["tool"]) == 0
     b = lire()
     assert (b["name"], b["pid"], b["identite_at"], b["noms_precedents"]) == ("agagi-e4", 200, NOW + 60, ["agagi-11"])

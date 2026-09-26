@@ -22,7 +22,12 @@ NORMES COMMUNES (arbre PARTAGÉ, feat/d1-prod-pairing) :
 - Tests des DEUX côtés (torch / sans torch, Windows / POSIX) ; le run CI qui suit un push est LU et son compte écrit.
 - Fusion : merge feat/d1 DANS tmp/<nom> (worktree), tests, puis ff ; jamais de MERGE_HEAD dans l'arbre principal.
 - Push : par agagi-88 (intégrateur), au sha EXACT, sur ordre de robla — lui envoyer le sha, jamais un accord relayé.
-- Aucun sous-agent opus avant le 28/09 14h. Rendre compte à « Master 2 » par SendMessage : sha, comptes, verdicts.
+- Sous-agents opus AUTORISÉS (crédits réinitialisés, décision de robla du 2026-09-26 — la ligne « aucun opus avant le
+  28/09 14h » est levée) ; emploi recommandé : revues adversariales, juges, relectures de sceau, pas les tâches mécaniques.
+- ⚠️ Mesuré le 2026-09-26 (P2.121 famille 6) : un commit ou un git init lancé DEPUIS un worktree peut passer le dépôt
+  PRINCIPAL en bare si GIT_DIR est hérité — la fixture de tests/conftest.py et tools/_git_env.py restent obligatoires ;
+  tout sous-processus git qui vise un AUTRE dépôt (jetable, clone, cluster) isole la famille GIT_*.
+- Rendre compte à « Master 2 » par SendMessage : sha, comptes, verdicts.
 ```
 
 ## 1. SCIENCE-HARNAIS

@@ -1422,6 +1422,19 @@ _BANCS = [
 ]
 
 
+def _module_ou_saut_sans_torch(modnom):
+    """P2.121 famille 1 : un banc qui importe torch à son CHARGEMENT fait SAUTER sa cellule (et le dit) quand torch
+    est absent — et SEULEMENT pour cette raison : toute autre erreur d'import remonte. Les autres cellules du même
+    test tournent partout."""
+    import importlib
+    try:
+        return importlib.import_module(modnom)
+    except ModuleNotFoundError as exc:
+        if exc.name != "torch":                  # nom EXACT : un sous-module torch.x manquant remonte
+            raise
+        pytest.skip(f"torch absent : {modnom} l'importe à son chargement (requirements-torch.txt)")
+
+
 def _stub_arm(bon, valeurs):
     """Rend un `run_arm` factice : toutes les cles a la meme valeur, choisie selon que le premier
     argument positionnel (ou `shuffle=`) designe le BON bras. Aucune simulation."""
@@ -1443,8 +1456,7 @@ def test_ab_benches_READ_the_dose_and_CONCLUDE_above_the_power_floor(monkeypatch
     """DOSE CONNUE au-dessus du plancher : 6 seeds, separation parfaite de +0.5 par seed.
     `median_diff` doit valoir EXACTEMENT +0.5 et le verdict etre positif. Si l'appariement inversait
     les bras ou si l'agregation lisait la mauvaise cle, la mediane ne serait pas celle-la."""
-    import importlib
-    mod = importlib.import_module(modnom)
+    mod = _module_ou_saut_sans_torch(modnom)
     monkeypatch.setattr(mod, "run_arm", _stub_arm(bon, (0.6, 0.1)), raising=True)
     out = mod.compare(seeds=(0, 1, 2, 3, 4, 5), **kw)
     v = out["verdict"]
@@ -1461,8 +1473,7 @@ def test_ab_benches_CANNOT_conclude_at_their_DEFAULT_seed_count(monkeypatch, mod
 
     Les deux drapeaux doivent le dire : `underpowered` (l'effet franchit la bande sans la puissance)
     et `peut_conclure=False` (le design lui-meme etait incapable de conclure)."""
-    import importlib
-    mod = importlib.import_module(modnom)
+    mod = _module_ou_saut_sans_torch(modnom)
     monkeypatch.setattr(mod, "run_arm", _stub_arm(bon, (0.6, 0.1)), raising=True)
     out = mod.compare(seeds=(0, 1, 2, 3), **kw)
     v = out["verdict"]
@@ -1477,8 +1488,7 @@ def test_ab_benches_stay_NEUTRAL_when_the_two_arms_are_EQUAL(monkeypatch, modnom
     """CONTROLE APPARIE : sans lui, un banc qui rendrait GRADIENT_GAGNE quoi qu'il arrive passerait
     le premier cas. Bras egaux -> mediane 0 -> NEUTRE, et `underpowered` reste FAUX (il n'y a aucun
     effet a manquer)."""
-    import importlib
-    mod = importlib.import_module(modnom)
+    mod = _module_ou_saut_sans_torch(modnom)
     monkeypatch.setattr(mod, "run_arm", _stub_arm(bon, (0.3, 0.3)), raising=True)
     out = mod.compare(seeds=(0, 1, 2, 3, 4, 5), **kw)
     v = out["verdict"]
@@ -1821,15 +1831,28 @@ def test_EVERY_ab_bench_DEFAULT_is_AT_OR_ABOVE_its_own_power_floor():
              ("tools.torch_binary_gate_heldout_probe", "compare"),
              ("tools.torch_gate_persist_ab", "compare"),
              ("tools.torch_throw_gate_inworld_ab", "compare")]
-    fautifs = []
+    fautifs, non_juges = [], []
+    # P2.121 famille 1 : on TENTE chaque banc. Ceux dont le chargement exige torch sont NOMMÉS et non jugés ; tous les
+    # autres sont jugés et affirmés, quels que soient leur nom et leur rang (revue opus : un tri par le préfixe
+    # `tools.torch_` laissait `torch_throw_gate_inworld_ab`, chargeable sans torch, non jugé en CI).
     for m, n in bancs:
-        f = getattr(importlib.import_module(m), n)
+        try:
+            mod = importlib.import_module(m)
+        except ModuleNotFoundError as exc:
+            if exc.name != "torch":
+                raise
+            non_juges.append(m)
+            continue
+        f = getattr(mod, n)
         d = inspect.signature(f).parameters["seeds"].default
         if d is inspect.Parameter.empty or len(d) < plancher:
             fautifs.append((f"{m}.{n}", d, plancher))
     assert not fautifs, (
         "des bancs A/B ont un defaut de seeds SOUS leur propre plancher de puissance : a ces "
         "reglages, aucune amplitude ne peut produire un verdict positif", fautifs)
+    if non_juges:
+        pytest.skip(f"torch absent : {len(non_juges)} banc(s) NON jugés ({', '.join(non_juges)}) ; les "
+                    f"{len(bancs) - len(non_juges)} autres jugés et affirmés")
 
 
 def test_compositional_compare_reads_the_dose_and_keeps_per_seed(monkeypatch):
