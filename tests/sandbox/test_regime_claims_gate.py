@@ -2,11 +2,13 @@
 pas un decor recopie de memoire (E8 occ. 4 : forage_payoff = 3.0 alors que le run tournait a 1.0)."""
 import json
 import os
+import subprocess
 import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 from tools import check_regime_claims as G  # noqa: E402
+from tools._git_env import env_isole  # noqa: E402  (dépôt JETABLE : isoler GIT_*, règle à deux faces)
 
 GRAB_COST_V1 = ("le régime de famine dure porte `forage_payoff = 3.0` — ramasser un fruit RAPPORTE. "
                 "Résultats (`results/p41_grab_mechanism.json`).")
@@ -355,3 +357,68 @@ def test_la_porte_PUBLIE_sa_cecite_une_citation_n_est_pas_forcement_une_PREMISSE
     G.main(["--root", str(tmp_path), "--report"])
     sortie = capsys.readouterr().out.lower()
     assert "prediction" in sortie and "premisse" in sortie
+
+
+# --------------------------------------------------------------------------------------------------
+# P2.128 (2026-09-26, E4) — un `--only` qui ne désignait AUCUN record rendait « OK », sortie 0 (revue du
+# brouillon P4.18 par agagi-40, reproduit par agagi-32). Le tri précède l'analyse ; un record SUPPRIMÉ par
+# le commit en cours n'est pas refusé — le crochet le passe à --only (filtre AMD).
+# --------------------------------------------------------------------------------------------------
+
+def _analyse_interdite(*args, **kwargs):
+    raise AssertionError("analyze appelée : le refus de --only doit la PRÉCÉDER (un refus est instantané)")
+
+
+def test_P2_128_un_only_qui_ne_designe_AUCUN_record_est_REFUSE_avant_l_analyse(tmp_path, monkeypatch, capsys):
+    """LE CONTRE-EXEMPLE GELÉ : chemin inexistant -> refus NOMMÉ, sortie 2 ; `--only` vide -> refus, sortie 2.
+    `analyze` lève si elle est appelée : le refus ne dépend d'aucune analyse."""
+    (tmp_path / "docs" / "EDR").mkdir(parents=True)
+    monkeypatch.setattr(G, "analyze", _analyse_interdite)
+    monkeypatch.setattr(G, "_dans_head", lambda root, rel: False)
+    assert G.main(["--root", str(tmp_path), "--only", "docs/EDR/N_EXISTE_PAS.md"]) == 2
+    sortie = capsys.readouterr().out
+    assert "INCONNU" in sortie and "docs/EDR/N_EXISTE_PAS.md" in sortie
+    assert G.main(["--root", str(tmp_path), "--only"]) == 2
+    assert "VIDE" in capsys.readouterr().out
+    assert G.main(["--root", str(tmp_path), "--only", "tools/check_regime_claims.py"]) == 2   # hors de docs/EDR
+
+
+def test_P2_128_un_only_qui_designe_un_record_JUGE_ce_record(tmp_path, monkeypatch, capsys):
+    """Positif apparié : un --only valide n'est pas refusé par principe — le record désigné est JUGÉ (sortie 1
+    sur un DISCORDE nouveau), un record propre passe (0) et le périmètre jugé est publié."""
+    d = tmp_path / "docs" / "EDR"
+    d.mkdir(parents=True)
+    (d / "N.md").write_text(GRAB_COST_V1, encoding="utf-8")
+    (d / "P.md").write_text("rien ici", encoding="utf-8")
+    (tmp_path / "results").mkdir()
+    (tmp_path / "results" / "p41_grab_mechanism.json").write_text(json.dumps(REGIME_RACINE), encoding="utf-8")
+    b = tmp_path / "base.json"
+    b.write_text(json.dumps({"legataires": {}}), encoding="utf-8")
+    monkeypatch.setattr(G, "_BASELINE", str(b))
+    monkeypatch.setattr(G, "_tracked", lambda root, rel: True)
+    assert G.main(["--root", str(tmp_path), "--only", "docs/EDR/N.md"]) == 1
+    capsys.readouterr()
+    assert G.main(["--root", str(tmp_path), "--only", "docs/EDR/P.md"]) == 0
+    assert "1 record(s) juge(s) : docs/EDR/P.md" in capsys.readouterr().out
+
+
+def test_P2_128_un_record_SUPPRIME_par_le_commit_n_est_PAS_refuse_temoin_git_REEL(tmp_path, capsys):
+    """Le crochet passe à --only les records SUPPRIMÉS (filtre AMD) : un refus naïf bloquerait toute suppression
+    de record. Dépôt git JETABLE réel, oracle HEAD réel : X.md committé puis retiré du disque -> « rien à juger »,
+    sortie 0, et ce n'est pas un OK ; un chemin jamais committé, dans le même dépôt -> refusé."""
+    def git(*args):
+        r = subprocess.run(["git", "-C", str(tmp_path), "-c", "user.name=Test", "-c", "user.email=test@example.com",
+                            *args], capture_output=True, text=True, env=env_isole())
+        assert r.returncode == 0, f"git {args} : {r.stderr}"
+
+    d = tmp_path / "docs" / "EDR"
+    d.mkdir(parents=True)
+    (d / "X.md").write_text("un record", encoding="utf-8")
+    git("init", "-b", "main")
+    git("add", "docs")
+    git("commit", "-m", "init")
+    (d / "X.md").unlink()                                          # supprimé par le commit en cours
+    assert G.main(["--root", str(tmp_path), "--only", "docs/EDR/X.md"]) == 0
+    sortie = capsys.readouterr().out
+    assert "SUPPRIME" in sortie and "rien a juger" in sortie and "OK" not in sortie.replace("pas un OK", "")
+    assert G.main(["--root", str(tmp_path), "--only", "docs/EDR/X.md", "docs/EDR/JAMAIS.md"]) == 2

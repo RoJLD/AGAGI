@@ -414,6 +414,21 @@ PORTES = {
             "motif": ("la chaîne EXACTE d'avant le correctif — le cas fondateur EDR-GRAB-COST (cité 3.0, "
                       "publié 1.0) redeviendrait indiscernable, au caractère près, d'une valeur que la "
                       "porte n'a jamais lue ; c'est le défaut mesuré, pas une hypothèse"),
+        }, {
+            # P2.128 (2026-09-26, E4) : le tri de --only est partagé avec la porte 20 (`_perimetre_only`).
+            "nom": "un --only qui ne désigne AUCUN record redevient un vert",
+            "avant": "    if not only or inconnus:",
+            "apres": "    if False:",
+            "motif": ("le défaut mesuré : `--only docs/EDR/N_EXISTE_PAS.md` et un `--only` vide rendaient "
+                      "« OK », sortie 0, sans avoir jugé un seul record — une faute de frappe dans un "
+                      "script ou un crochet deviendrait un vert qui ne mesure rien"),
+        }, {
+            "nom": "un record SUPPRIMÉ par le commit redevient une faute de frappe",
+            "avant": "        elif _est_record(o) and not os.path.exists(chemin) and dans_head(root, o):",
+            "apres": "        elif False:",
+            "motif": ("le crochet passe à --only les records supprimés (filtre AMD) : sans cette branche, "
+                      "le refus bloquerait toute suppression de record — la garde contre le vert vide "
+                      "deviendrait un faux rouge sur un geste légitime"),
         }],
     },
     "20": {
@@ -437,6 +452,12 @@ PORTES = {
             "motif": ("le seul oracle qui distingue un results/ SUIVI d'un fichier simplement posé sur "
                       "le disque — le muter rend NON_SUIVI inatteignable, et une évidence non "
                       "committée passerait pour rouvrable"),
+        }, {
+            "nom": "la porte 20 cesse de trier son --only (P2.128)",
+            "avant": "        code = _perimetre_only(only, args.root, dans_head=_dans_head)",
+            "apres": "        code = None",
+            "motif": ("le défaut mesuré sur CETTE porte : `--only docs/EDR/N_EXISTE_PAS.md` rendait « OK : 18 "
+                      "chemin(s) legataire(s) », sortie 0 — un vert qui ne mesure rien (E4)"),
         }],
     },
     "21": {

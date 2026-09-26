@@ -423,3 +423,66 @@ def test_p11_env_pour_herite_sur_le_depot_courant_et_isole_sur_un_depot_tiers(tm
     env_tiers = P._env_pour(str(tmp_path))
     assert env_tiers is not None
     assert all(not k.startswith("GIT_") for k in env_tiers)
+
+
+# --------------------------------------------------------------------------------------------------
+# P2.128 (2026-09-26, E4) — un `--only` qui ne désignait AUCUN record rendait « OK », sortie 0 (revue du
+# brouillon P4.18 par agagi-40 ; cause : le filtre par appartenance, sans jamais vérifier qu'il désignait un
+# record balayé). Même garde que la porte 19 (`_perimetre_only`), avec l'oracle HEAD de CETTE porte.
+# --------------------------------------------------------------------------------------------------
+
+def _analyse_interdite(*args, **kwargs):
+    raise AssertionError("analyze appelée : le refus de --only doit la PRÉCÉDER (un refus est instantané)")
+
+
+def test_P2_128_un_only_qui_ne_designe_AUCUN_record_est_REFUSE_avant_l_analyse(tmp_path, monkeypatch, capsys):
+    """LE CONTRE-EXEMPLE GELÉ, forme de la preuve : `--only docs/EDR/N_EXISTE_PAS.md` rendait « OK : 18
+    chemin(s) legataire(s) » ; désormais refus NOMMÉ, sortie 2 — et `--only` vide aussi. `analyze` lève si elle
+    est appelée : le refus ne dépend d'aucune analyse."""
+    (tmp_path / "docs" / "EDR").mkdir(parents=True)
+    monkeypatch.setattr(P, "analyze", _analyse_interdite)
+    monkeypatch.setattr(P, "_dans_head", lambda root, rel: False)
+    assert P.main(["--root", str(tmp_path), "--only", "docs/EDR/N_EXISTE_PAS.md"]) == 2
+    sortie = capsys.readouterr().out
+    assert "INCONNU" in sortie and "docs/EDR/N_EXISTE_PAS.md" in sortie
+    assert P.main(["--root", str(tmp_path), "--only"]) == 2
+    assert "VIDE" in capsys.readouterr().out
+
+
+def test_P2_128_un_only_qui_designe_un_record_JUGE_ce_record(tmp_path, monkeypatch, capsys):
+    """Positif apparié : le record désigné est JUGÉ — une évidence absente le fait refuser (1), un record
+    propre passe (0), et le périmètre jugé est publié."""
+    d = tmp_path / "docs" / "EDR"
+    d.mkdir(parents=True)
+    (d / "N.md").write_text("(`results/absent.json`)", encoding="utf-8")
+    (d / "P.md").write_text("rien de cité", encoding="utf-8")
+    b = tmp_path / "base.json"
+    b.write_text(json.dumps({"legataires": {}}), encoding="utf-8")
+    monkeypatch.setattr(P, "_BASELINE", str(b))
+    monkeypatch.setattr(P, "_tracked", lambda root, rel: False)
+    assert P.main(["--root", str(tmp_path), "--only", "docs/EDR/N.md"]) == 1
+    capsys.readouterr()
+    assert P.main(["--root", str(tmp_path), "--only", "docs/EDR/P.md"]) == 0
+    assert "1 record(s) juge(s) : docs/EDR/P.md" in capsys.readouterr().out
+
+
+def test_P2_128_un_record_SUPPRIME_par_le_commit_n_est_PAS_refuse_temoin_git_REEL(tmp_path, capsys):
+    """Le crochet passe à --only les records SUPPRIMÉS (filtre AMD). Dépôt git JETABLE réel, et l'oracle HEAD de
+    CETTE porte (`_dans_head`, environnement isolé sur un dépôt tiers) : X.md committé puis retiré du disque ->
+    « rien à juger », sortie 0 ; un chemin jamais committé, dans le même dépôt -> refusé."""
+    def git(*args):
+        r = subprocess.run(["git", "-C", str(tmp_path), "-c", "user.name=Test", "-c", "user.email=test@example.com",
+                            *args], capture_output=True, text=True, env=P._env_isole())
+        assert r.returncode == 0, f"git {args} : {r.stderr}"
+
+    d = tmp_path / "docs" / "EDR"
+    d.mkdir(parents=True)
+    (d / "X.md").write_text("un record", encoding="utf-8")
+    git("init", "-b", "main")
+    git("add", "docs")
+    git("commit", "-m", "init")
+    (d / "X.md").unlink()                                          # supprimé par le commit en cours
+    assert P.main(["--root", str(tmp_path), "--only", "docs/EDR/X.md"]) == 0
+    sortie = capsys.readouterr().out
+    assert "SUPPRIME" in sortie and "rien a juger" in sortie
+    assert P.main(["--root", str(tmp_path), "--only", "docs/EDR/X.md", "docs/EDR/JAMAIS.md"]) == 2

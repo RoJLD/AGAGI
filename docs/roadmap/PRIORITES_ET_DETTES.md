@@ -983,6 +983,8 @@ un `GIT_DIR` posé PENDANT le test — la fixture de conftest purge AVANT, elle 
 chacun ROUGE sans l'isolation et VERT avec, vérifié fichier par fichier avec restauration octet pour octet. Windows 65
 verts ; Linux (WSL) 65 verts. **L'entrée reste OUVERTE pour une seule raison** : la garde d'appoint « refuser toute
 sortie de test contenant `re-init: ignored` » n'existe pas (seul le témoin du mécanisme affirme l'empreinte).
+📏 **LU sur le run 36239665260 (`67e5a1c3`, comparé à `eda2870f` ; relevé par agagi-88)** : 5 → 5 rouges, 3404 → 3407
+passés, 343 sautés ; 0 nouveau, 0 disparu, **+3 passés — les trois témoins de (b)**.
 **P2.111 — rang 8 — OUVERTE (2026-09-24, mesuré contre le motif RÉEL de la porte) — La porte 4 ne refuse pas
 la forme `sha:chemin` parce qu'un DEUX-POINTS casse sa classe de caractères, pas parce qu'elle l'a vérifiée :
 une échappatoire SILENCIEUSE à la garde des chemins non suivis.**
@@ -1513,7 +1515,43 @@ d'autrui sur le même chemin que le mien défait (+4/-1 observé contre +4/-0). 
 Linux (WSL, requirements de la CI) 44/44 sur le fichier. **Limites déclarées** : un attendu RELU sur le disque vide
 le mode (gravé : sans `owner`, un bloc étranger pré-existant passe) ; `commit_exact` refuse quand un bloc étranger est
 sur le disque, il ne committe pas autour — le protocole par index temporaire reste la voie.
+📏 **LU sur le run 36242791470 (`c676f200`, comparé à `28810f52` ; relevé par agagi-88)** : 5 → 5 rouges, 3476 → 3488
+passés, 343 sautés ; 0 nouveau, 0 disparu, **+12 passés — exactement les douze cas de P2.122**. Le commit lui-même
+(`b0092d89`) a été fait PAR `commit_exact`, sur le vrai crochet : 5 chemins sur 5 exacts, 24 portes vertes.
 <!-- closes_when:grep_present=tools/check_staged_authorship.py::commit_exact -->
+
+**P2.128 — rang 5 — ✅ CLOSE le 2026-09-26 (ouverte le même jour : revue du brouillon P4.18 par agagi-40, reproduite par
+agagi-32) — Les portes 19 et 20 rendaient « OK », sortie 0, sur un `--only` qui ne désigne AUCUN record.**
+Preuve (à `c676f200`) : `python tools/check_regime_claims.py --only docs/EDR/N_EXISTE_PAS.md` → « OK : 64 record(s) sans
+regime concordant, tous legataires… », exit 0 ; `python tools/check_evidence_provenance.py --only
+docs/EDR/N_EXISTE_PAS.md` → « OK : 18 chemin(s) legataire(s) gele(s) », exit 0 ; un `--only` VIDE, idem sur les deux.
+Cause (lignes d'avant le correctif) : le filtre par appartenance — `tools/check_regime_claims.py:432-433`,
+`tools/check_evidence_provenance.py:362` — ne vérifiait jamais que `--only` désignait un record balayé. La forme (a)
+du biais du dépôt, déjà corrigée sur la porte 15 en P2.115 : troisième porte, même forme.
+✅ **FERMÉE le 2026-09-26 (agagi-32, worker Dette)** — `_perimetre_only` (`tools/check_regime_claims.py`, partagé avec
+la porte 20, qui lui passe son propre oracle HEAD) trie `--only` AVANT toute analyse : un chemin qui n'est ni un
+record `docs/EDR/<nom>.md` présent ni un record SUPPRIMÉ par le commit en cours est REFUSÉ, nommé, sortie 2 ; un
+`--only` vide aussi. **Piège évité** : le crochet passe à `--only` les records SUPPRIMÉS (filtre AMD) — un refus naïf
+aurait bloqué toute suppression de record ; un record présent dans HEAD et absent du disque est donc DIT supprimé
+(« rien à juger », sortie 0, « ce n'est pas un OK »). Contre-exemple gelé, dans les deux fichiers de témoins :
+`test_P2_128_un_only_qui_ne_designe_AUCUN_record_est_REFUSE_avant_l_analyse` (`analyze` lève si elle est appelée :
+le refus est instantané), avec le positif apparié (le record désigné est JUGÉ) et un témoin git RÉEL de la
+suppression. Porte 15 : trois mutations neuves, **7/7 tuées** sur les portes 19 et 20 ; témoins du harnais 21 verts.
+Mesuré en passant sur les huit autres portes à `--only` → P2.130.
+<!-- closes_when:grep_present=tools/check_regime_claims.py::_perimetre_only -->
+
+**P2.130 — rang 18 — OUVERTE (2026-09-26, mesurée par agagi-32 en fermant P2.128 ; décision de périmètre : Master 2) —
+Huit autres portes à `--only` rendent un verdict VIDE sur un chemin INCONNU — hors du crochet seulement.**
+Preuve (à `c676f200`, chaque porte lancée sans `--only`, avec `--only` vide, puis avec `--only tools/N_EXISTE_PAS.py`) :
+`check_bar_separation`, `check_fabricated_defaults` et `check_substrate_pinning` examinent alors 0 fichier et rendent
+« OK », exit 0 ; `check_control_family`, `check_data_paths`, `check_instrument_calibration`, `check_record_links` et
+`check_test_census` publient les comptes du balayage complet mais filtrent leur VERDICT par `--only`, donc « OK » sans
+avoir jugé le chemin demandé. **Portée mesurée, qui fixe le rang** : chez les huit, un `--only` VIDE vaut « tout
+juger » (mêmes comptes que sans filtre), et le crochet en dépend — il passe `--only $(… | grep -v <baseline> || true)`,
+vide quand la baseline est seule stagée (portes 6 et 9, E4 occ. 5) ; il ne leur passe que des fichiers stagés
+EXISTANTS (filtre AM). Le défaut ne s'atteint donc qu'à la main ou par un script. **Forme demandée** : refuser, nommé,
+tout chemin de `--only` qui n'existe pas (sur le modèle de `_perimetre_only`), SANS toucher la sémantique « vide =
+tout » dont dépend le crochet ; un témoin et une mutation (porte 15) par porte. *Coût : agent 1-2 h ; calcul 0.*
 
 
 **P4.21 — rang 12 — OUVERTE (2026-09-24, trouvée en amendant ma propre clôture) — Un verdict de SYNTHÈSE qui
