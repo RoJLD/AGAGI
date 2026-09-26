@@ -52,6 +52,10 @@ def _pinned_substrate():
     # APRÈS ce pin (ordre du `with`) et le restaure AVANT -- même schéma que `lr`.
     saved_trace = TorchPopulationModel.CREDIT_TRACE_LAMBDA
     TorchPopulationModel.CREDIT_TRACE_LAMBDA = 0.0
+    # P4.19 (a) : le sham « δ décalé » de la trace est épinglé ÉTEINT (None) -- sans quoi un drapeau resté posé ferait
+    # LEVER la construction (le sham exige λ > 0) au lieu de laisser tourner le crédit d'origine.
+    saved_sham = TorchPopulationModel.CREDIT_TRACE_DELTA_SHAM
+    TorchPopulationModel.CREDIT_TRACE_DELTA_SHAM = None
     # E29 (2026-09-16) : l'activation LEGACY (`generated_ops.py`, non versionnée, rechargée à chaud à
     # chaque pas) est GELÉE au hash présent à l'entrée — un run ne peut plus changer d'activation en
     # cours de route, et un clone sans le fichier tourne en builtin DÉCLARÉ (publié par
@@ -64,6 +68,7 @@ def _pinned_substrate():
     finally:
         TorchPopulationModel.BILINEAR = saved
         TorchPopulationModel.CREDIT_TRACE_LAMBDA = saved_trace
+        TorchPopulationModel.CREDIT_TRACE_DELTA_SHAM = saved_sham
 
 
 class CognitiveOracleBatchModel(BaselineBatchModel):

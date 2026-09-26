@@ -1703,6 +1703,15 @@ CALIBRATED = {
     "src/agents/backend_torch.py::_td_update_trace": [
         "positive-control:formula-predicts-W", "bilinear:four-traced-params", "lambda->0:allclose-not-bit-identical",
         "decay:(gamma*lambda)^k", "lr0:dW=0-trace-advances", "refusals:explicit"],
+    # P4.19 (a), 2026-09-26 -- le SHAM « delta DECALE d'un episode » de la piece eligibility_trace (drapeau
+    # CREDIT_TRACE_DELTA_SHAM, defaut None = chemin trace intact). Cas dans tests/sandbox/test_credit_trace_delta_sham.py :
+    # la FORMULE sur tenseurs poses (porte recoit le delta de l'episode precedent, TD(0) garde le sien), le mode
+    # identite egal au chemin trace (allclose), l'omission COMPTEE au 1er episode, les refus a leur EMPLACEMENT.
+    "src/agents/backend_torch.py::_td_update_trace_sham": [
+        "formule:porte-delta-tilde-td0-delta-propre", "formule:identite=trace-tampon-vide-omis-compte",
+        "episodes:identite-allclose-trace", "episodes:decale-omet-au-1er-seulement-et-change-W",
+        "defaut-None:compteurs-a-zero", "refus:constructeur-lambda0-vocabulaire", "refus:masque-et-sans-reset",
+        "refus:regarde-a-chaque-mise-a-jour", "pin:pilote-td-step-epingle-eteint-et-restaure-espion"],
     # `_td_update` est une COLLISION (backend_torch.py / torch_batch_model.py) : jusqu'ici UN seul chemin etait
     # declare, donc le nom n'aurait ete couvert qu'a moitie le jour ou le motif le verrait. Le legacy torch
     # (P3.4) : les cas de test_torch_batch_model.py qui l'atteignent via compute_policy_gradient (l'update est

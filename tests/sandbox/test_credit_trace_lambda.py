@@ -20,7 +20,8 @@ from src.agents.backend_torch import _GAMMA, _VALUE_NODE, TorchPopulationModel a
 from src.agents.mamba_agent import MambaAgent  # noqa: E402
 
 B, TICKS = 3, 3
-_FLAGS = ("CREDIT_TRACE_LAMBDA", "CREDIT_TRACE_BYPASS_OPTIMIZER", "CONDITION_GATE", "ANTISAT", "BILINEAR")
+_FLAGS = ("CREDIT_TRACE_LAMBDA", "CREDIT_TRACE_BYPASS_OPTIMIZER", "CREDIT_TRACE_DELTA_SHAM", "CONDITION_GATE", "ANTISAT",
+          "BILINEAR")
 
 
 @pytest.fixture
