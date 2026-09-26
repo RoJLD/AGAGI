@@ -1150,6 +1150,8 @@ inchangé ») et l'occurrence E33 au registre — dans un commit SÉPARÉ, aprè
 **P2.121 — rang 6 — OUVERTE (2026-09-26, mesuré sur le run 36210667429, le PREMIER où `suite-complete` exécute des
 tests) — La suite complète tourne en CI : 2807 passés, 88 rouges, 18 erreurs, 238 sautés, 17 min 38 s — et ses rouges se
 rangent en SEPT familles dont AUCUNE n'est un défaut du monde. Inventaire par cause, recette par famille.**
+→ **Après `faae4909` (run 36212333576) : 68 rouges, 0 erreur, 2849 passés, 236 sautés, 19 min 23** — les comptes sont
+DÉTERMINISTES (mêmes 88 / 18 sur `bb3c1f7e` et sur `a4600308`, mesuré par agagi-39), donc chaque famille se lit avant/après.
 Preuve : job `suite-complete` du run 36210667429 (sha `bb3c1f7e`, log lu par l'API des jobs, regroupé par fichier puis par
 message). 0 erreur de collecte : `b895a0a3` a fait son travail. Familles, par taille :
 1. **torch absent du runner — 38 tests dans 10 modules** : `tests/sandbox/test_orchestrator_injection.py` (7 rouges /
@@ -1162,6 +1164,13 @@ message). 0 erreur de collecte : `b895a0a3` a fait son travail. Familles, par ta
    (`test_ab_benches_*[tools.torch_*…]`), `pytest.param(..., marks=pytest.mark.skipif(...))` sur les seules cellules torch.
    Vérifier des DEUX côtés : torch rendu inimportable (plugin jetable `sys.modules['torch'] = None`) → skips ; torch
    présent → les mêmes verts qu'aujourd'hui.
+   ⚠️ **Le cas le plus lourd de cette famille n'est PAS dans les 38** : `tests/sandbox/test_instrument_calibration.py`
+   commence par `pytest.importorskip("torch")` (l. 20), donc la suite de CALIBRATION entière — 323 déclarations, le
+   cliquet central du dépôt — ne tourne JAMAIS en CI : elle est comptée dans les 238 « skipped », pas dans les rouges.
+   Même mécanisme pour `test_perimeter_widening::test_the_measured_EXPOSURE_…`, qui importe `CALIBRATED` de ce module :
+   SAUTÉ en CI (le « 1 skipped » du pas Gardes-de-gardes, 164 passed) alors qu'il est ROUGE localement avec torch
+   (0 garde-seule, cf. P2.49). Recette : garder le module importable sans torch (garde par cas sur les seules
+   déclarations torch), et faire passer ce fichier en tête de la famille — c'est lui qui rend le vert de la CI lisible.
 2. **`tests/sandbox/test_hook_on_merge.py` — 18 tests** : « git commit -q -m base a échoué (1) » dans le dépôt jetable ;
    stderr : « python: can't open file '…/jetable/tools/check_e19_optimizer_sweep.py' ». Le crochet jouet, extrait VERBATIM
    de `tools/hooks/pre-commit`, appelle la porte 23 que le dépôt jetable ne porte pas — vert sur Windows, rouge sur
@@ -1169,10 +1178,10 @@ message). 0 erreur de collecte : `b895a0a3` a fait son travail. Familles, par ta
    porteur du crochet de fusion (P2.108).
 3. **Réfutateur — 22** (18 erreurs + 4 rouges `tests/sandbox/test_refutateur_temoins.py`, 1 test_refutateur_mutation) :
    « témoin EDR-GRAB-COST-1828371 introuvable », « fatal: bad object » — clone à profondeur 1. Traité par `faae4909`
-   (`fetch-depth: 0`) ; à CONFIRMER sur le run qui le juge.
+   (`fetch-depth: 0`) ; **CONFIRMÉ** sur le run 36212333576 : 22 → 0, plus aucune erreur.
 4. **vie de processus — ~19** (test_jobs ×5 dont « DID NOT RAISE ResourceBusy », test_doctor_visibility ×4,
    test_pm_snapshot ×3, test_pm_tick ×2, test_cost_guard ×1) : psutil importé paresseusement, None sans lui, absent de
-   `requirements.txt`. Traité par `faae4909` (psutil) ; à CONFIRMER.
+   `requirements.txt`. Traité par `faae4909` (psutil) ; **CONFIRMÉ** sur le run 36212333576 : ~19 → 0.
 5. **fixtures PM — 5** (test_pm_board A1/A3, `tests/sandbox/test_pm_bulletin.py` ×2, test_pm_snapshot leases) : un chemin
    Windows `c:/x/agagi` est normalisé sur POSIX en `/home/runner/…/c:/x/agagi` — la normalisation suppose une lettre de
    lecteur ; portabilité des FIXTURES, pas du code.
@@ -4870,8 +4879,14 @@ vers un format à schéma (les génomes sont déjà persistés en `.npz` ailleur
 la classe entière. Coût non estimé ; à faire avant toute refonte de `src/seed_ai/mutation.Genome`.
 
 
-**P2.49 — 🔴 OUVERTE (2026-09-09) — 114 des 272 instruments « calibrés » n'ont AUCUN cas qui atteigne
-leur corps : leur certification ne porte que sur leur garde d'entrée.**
+**P2.49 — ✅ CLOSE le 2026-09-26 (constatée ; RÉSOLUE le 2026-09-24 par P2.56 — garde-seule **0/323** sur l'INDEX,
+porte 18 `check_calibration_reach` à baseline VIDE ; ouverte le 2026-09-09) — 114 des 272 instruments « calibrés »
+n'avaient AUCUN cas qui atteigne leur corps : leur certification ne portait que sur leur garde d'entrée.**
+⚠️ Chiffre publié mis à jour ICI, comme son témoin le demandait (« mettre à jour le chiffre publié dans le backlog AVANT
+de retirer ce test ») : `tests/sandbox/test_perimeter_widening.py::test_the_measured_EXPOSURE_…` exige encore `> 0`,
+donc il est ROUGE localement (torch présent) et SAUTÉ en CI (il importe `CALIBRATED` d'un module qui saute sans torch,
+cf. P2.121 famille 1). Il devient « exposition == 0, contrôlée par la porte 18 » dans la passe qui traite P2.121-1 —
+pas retiré (P2.113 (b) le cite, et cette entrée tient sur son nom).
 <!-- holds_when:grep_present=tests/sandbox/test_perimeter_widening.py::test_the_measured_EXPOSURE_of_head_guard_only_calibration_is_PUBLISHED -->
 Mesuré, pas supposé : `tools/hcm_analyzer.py::run_hcm_analysis` était **déclaré CALIBRÉ** et **ne
 pouvait pas s'exécuter** — `TypeError` à la ligne 29 sur le contrat de `load_hall_of_fame`, à chaque
