@@ -100,6 +100,28 @@ def test_P2_118_le_tableau_publie_les_ecritures_Bash_COMPTEES_a_cote_des_fichier
     assert "COMPTÉ" in B.CECITE_FICHIERS
 
 
+def test_P2_119_CONTRE_EXEMPLE_un_chemin_ABSOLU_est_une_cle_a_lui_seul_et_s_apparie_ENTRE_worktrees():
+    """P2.119 : la mémoire de projet de Claude, touchée par deux sessions de cwd DIFFÉRENTS, est UN fichier : une alerte,
+    clé `A1:<absolu>` sans racine devant, lieu dit « hors de l'arbre ». Avant : clé « <racine>/c:/users/… », lieu
+    faux, et aucune alerte du tout dès que les cwd différaient."""
+    wts = [{"path": ROOT, "branch": "main", "head": "a", "merged": False, "locked": False, "head_time": NOW},
+           {"path": ROOT + "/.worktrees/w2", "branch": "chantier/w2", "head": "b", "merged": False,
+            "locked": False, "head_time": NOW}]
+    reg = [_reg("agagi-11", "s1"), _reg("agagi-52", "s2", cwd=ROOT + "/.worktrees/w2")]
+    memo = "c:/users/x/.claude/projects/p/memory/memory.md"
+    b = B.compute(_snap(registry=reg, worktrees=wts,
+                        bulletins=[_bul("s1", files=[memo]), _bul("s2", files=[memo, "src/paths.py"])]))
+    a = _ids(b, "A1")
+    assert len(a) == 1, a
+    assert a[0]["cle"] == "A1:" + memo and "/c:/" not in a[0]["cle"]
+    assert "hors de l'arbre" in a[0]["message"] and a[0]["preuve"]["sessions"] == ["agagi-11", "agagi-52"]
+    assert len(a[0]["preuve"]["cwds"]) == 2
+    # la seconde face, inchangée : le même chemin RELATIF dans deux worktrees reste deux fichiers
+    rel = B.compute(_snap(registry=reg, worktrees=wts,
+                          bulletins=[_bul("s1", files=["src/paths.py"]), _bul("s2", files=["src/paths.py"])]))
+    assert _ids(rel, "A1") == []
+
+
 def test_A2_bail_orphelin_ALERTE_et_ttl_expire_detenteur_vivant_INFO():
     morts = [{"resource": "kuzu", "pid": 9, "owner": "o", "created": 0, "expires_at": 1, "ttl_s": 1, "vivant": False,
               "detenteur_vivant": False},

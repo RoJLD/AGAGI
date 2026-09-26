@@ -8,6 +8,7 @@ tableau et supprime les alertes qui en dépendent (porte 14 appliquée au tablea
 import argparse
 import json
 import os
+import re
 import sys
 import time
 
@@ -40,6 +41,15 @@ CECITE_FICHIERS = ("fichiers en vol = vus par les hooks des outils d'édition (E
 
 def _h(sec):
     return sec / 3600.0
+
+
+_ABSOLU = re.compile(r"^(?:[A-Za-z]:/|/)")
+
+
+def _absolu(f):
+    """Un chemin de `files_touched` déjà ABSOLU : le bulletin le garde tel quel quand le fichier n'est pas sous le
+    cwd de la session (la mémoire de projet de Claude, un autre worktree), ou quand aucun cwd n'est connu. PURE."""
+    return bool(_ABSOLU.match(f))
 
 
 def _nom(s):
@@ -106,12 +116,26 @@ def _alertes(snap, sessions, now, backlog_ok):
         # Clé = cwd + chemin RELATIF. Deux sessions travaillant dans deux worktreeS différents sur
         # `src/paths.py` éditent DEUX fichiers distincts : les apparier était un faux positif — et
         # c'est le cas NORMAL de ce dépôt, qui multiplie les worktrees.
+        # ⚠️ P2.119 (2026-09-26) : un chemin déjà ABSOLU est une clé À LUI SEUL, appariée SANS le cwd. Le coller derrière
+        # le cwd fabriquait « <racine>/c:/users/… » et un lieu FAUX (« dans <racine> ») pour un fichier hors de l'arbre —
+        # la mémoire de projet de Claude —, et la clé (cwd, f) séparait ce qui est le MÊME fichier pour deux sessions de
+        # worktrees différents : l'alerte vraie à cwd égal, et l'angle mort exactement inverse dès que les cwd diffèrent.
         par_fichier = {}
         for s in sessions:
             for f in s["files_touched"]:
-                par_fichier.setdefault((s["cwd"], f), set()).add(_nom(s))
-        for (cwd, f), noms in sorted(par_fichier.items()):
-            if len(noms) >= 2:
+                e = par_fichier.setdefault((None, f) if _absolu(f) else (s["cwd"], f), {"noms": set(), "cwds": set()})
+                e["noms"].add(_nom(s))
+                e["cwds"].add(s["cwd"])
+        for (cwd, f), e in sorted(par_fichier.items(), key=lambda kv: (kv[0][0] or "", kv[0][1])):
+            noms = e["noms"]
+            if len(noms) < 2:
+                continue
+            if cwd is None:
+                add("A1", f, "alerte",
+                    f"{f} (chemin absolu, hors de l'arbre de la session : partagé par toutes les sessions) touché par "
+                    f"{len(noms)} sessions vivantes : {', '.join(sorted(noms))}",
+                    {"fichier": f, "cwds": sorted(c for c in e["cwds"] if c), "sessions": sorted(noms)})
+            else:
                 add("A1", f"{cwd}/{f}", "alerte",
                     f"{f} touché par {len(noms)} sessions vivantes dans {cwd} : {', '.join(sorted(noms))}",
                     {"fichier": f, "cwds": [cwd], "sessions": sorted(noms)})

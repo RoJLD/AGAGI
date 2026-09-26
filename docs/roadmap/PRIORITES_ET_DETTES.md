@@ -1164,7 +1164,8 @@ chargent ce hook qu'à leur prochain démarrage.
 <!-- closes_when:grep_present=.claude/settings.json::"matcher": "Bash -->
 
 
-**P2.119 — rang 13 — OUVERTE (2026-09-26, vue en passant en rafraîchissant le tableau PM à la main) — L'alerte A1
+**P2.119 — rang 13 — ✅ CLOSE le 2026-09-26 (ouverte le même jour, vue en passant en rafraîchissant le tableau PM à la
+main) — L'alerte A1
 du tableau PM colle `cwd` devant un chemin ABSOLU : un fichier hors de l'arbre (la mémoire de projet de Claude) rend une
 clé mal formée « racine du dépôt + c:/users/… » et un lieu FAUX — et ce même fichier, réellement partagé, n'est apparié
 qu'entre sessions de MÊME cwd.**
@@ -1181,6 +1182,14 @@ le lieu sont faux ; et l'angle mort exactement inverse pour les mêmes fichiers 
 toutes les sessions ») et s'apparie SANS le cwd ; un chemin relatif garde `(cwd, f)`. Le contre-exemple gelé porte les
 deux faces : deux sessions de cwd DIFFÉRENTS touchant le même absolu → UNE alerte à clé `A1:<abs>`, sans racine
 devant ; deux sessions de cwd différents touchant `src/paths.py` → toujours aucune (test existant, l. 75).
+**✅ CLOSE le 2026-09-26 (agagi-32, `tmp/p2-105`)** : dans `tools/pm/board.py`, un chemin de `files_touched` déjà
+ABSOLU (`_absolu` : lettre de lecteur ou racine POSIX) est une clé À LUI SEUL, `A1:<absolu>`, appariée SANS le cwd,
+message « chemin absolu, hors de l'arbre de la session : partagé par toutes les sessions », preuve portant les cwd de
+TOUTES les sessions concernées ; un chemin relatif garde `(cwd, f)`. Contre-exemple gelé
+(`tests/sandbox/test_pm_board.py`) portant les deux faces : deux sessions de cwd différents sur le même fichier de la
+mémoire de projet → UNE alerte à clé sans racine devant ; le même `src/paths.py` relatif dans deux worktrees → toujours
+aucune. Témoin robuste sur POSIX : le chemin absolu du cas n'est pas normalisé par le tableau (famille 5 de P2.121
+non touchée).
 <!-- closes_when:grep_present=tools/pm/board.py::hors de l'arbre -->
 
 
