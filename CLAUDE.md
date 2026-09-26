@@ -515,4 +515,10 @@ explicite, jamais le processus courant ni ses ancêtres, jamais un bail dont le 
   puis `verify(...)` avant de committer — la garde existe depuis le 2026-09-01, ne pas l'invoquer
   revient à ne pas l'avoir.
 - ⚠️ **Sous Git Bash, `set -e` N'ARRÊTE PAS une chaîne quand un `python - <<'EOF'` échoue** (mesuré le 2026-09-06 : un patch a levé, la chaîne a continué, et un commit est parti avec un message annonçant un travail absent — rectifié par `b2a6ce3`). Chaîner par `&&` explicite, et faire échouer la chaîne AVANT `git commit`, jamais après.
+- ⚠️ **Un `&&` placé après un PIPE juge la DERNIÈRE commande du pipe, pas celle qu'on croit tester.** Mesuré le
+  2026-09-26 : `git merge --ff-only X | tail -1 && cp tools/hooks/… .git/hooks/…` a recopié les crochets alors que
+  l'avance rapide venait d'ÉCHOUER (d1 avait bougé) — le statut de la chaîne était celui de `tail`, et la copie
+  déployée, commune à tous les worktrees, a été EN AVANCE sur d1 quelques minutes. Toute action conditionnée à un
+  succès teste la commande ELLE-MÊME (`if git merge --ff-only X; then cp …; fi`), jamais un pipe qui la filtre. Même
+  famille que la règle précédente : une chaîne qui continue après un échec EXÉCUTE l'étape suivante.
 - `_disable_kuzu()` / arrêter `memory_retriever` avant les boucles de simulation (contention + non-repro).
