@@ -2048,6 +2048,20 @@ CALIBRATED = {
     "tools/pm/pilotage.py::parse_roadmap": ["parite:blocs", "composite:deux-entrees-un-bloc",
                                             "rang:quinquies-non-tronque", "clause:trois-reponses-connues",
                                             "chemins:non-captes-comptes", "illisible:compte-jamais-perdu"],
+    # Index des artefacts (P2.87, 2026-09-26) : `indexer` publie des comptes (fichiers, indexés, champs
+    # introuvables, format déclaré) et `calculer_dates_git` des dates — des instruments. Le cliquet ne capte pas
+    # ces noms (P2.83) : déclarations GELÉES dans `declarations_ignorees`, garantie par les cas qui tournent en CI.
+    "tools/pm/index_artefacts.py::indexer": ["no-op:racine-vide-fichiers-null", "injection:dose-connue",
+                                             "prediction:un-fichier-de-plus", "parite:famille-null-seule",
+                                             "reel:parite-et-vocabulaire-ferme",
+                                             # revue adversariale du pas 1 : chaque défaut devient un cas
+                                             "no-op:exclus-null-si-non-lu", "local:json-profond-illisible",
+                                             "non-suivi:jamais-date"],
+    "tools/pm/index_artefacts.py::calculer_dates_git": ["reel:depot-jetable-dates-utc", "tronque:clone-depth-1",
+                                                        "config-heritee:sans-effet", "plus-ancienne:ajout-recree",
+                                                        "fuite-git-dir:refusee", "git-dir-du-meme-depot:complet",
+                                                        "vieux-git:jamais-complet", "suivis:head-jamais-index",
+                                                        "config-heritee:log-showroot"],
 }
 
 _GENOMES = os.path.join("results", "warm007_genomes")

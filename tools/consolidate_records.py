@@ -17,6 +17,8 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
+from tools.frontmatter import bloc_frontmatter  # noqa: E402 — extraction partagée avec l'index (P2.87)
+
 # Arêtes causales internes (records de décision) + arêtes-pont vers le SOTA (REF).
 # Les ponts émanent des nœuds REF (rediscovered_by/supersedes/adopt_for/grounds) :
 # ainsi l'ancrage à la littérature s'ajoute sans toucher les EDR/SDR/ADR existants.
@@ -57,26 +59,25 @@ def parse_record(path: str) -> dict | None:
     text = text.replace("\r\n", "\n").replace("\r", "\n")
     rec = _empty_record(os.path.relpath(path, _ROOT).replace(os.sep, "/"))
 
-    if text.startswith("---"):
-        end = text.find("\n---", 3)
-        if end != -1:
-            try:
-                meta = yaml.safe_load(text[3:end]) or {}
-            except yaml.YAMLError as e:
-                # Frontmatter YAML illisible (ex. valeur non quotee avec ':') : NE PAS crasher tout
-                # le graphe pour un seul record malforme (souvent une session //). On avertit et on
-                # traite le fichier comme sans frontmatter -> EDR NNN_*.md tolere non-lie.
-                print(f"WARN: frontmatter YAML illisible dans {name} "
-                      f"({e.__class__.__name__}) -> record tolere non-lie", file=sys.stderr)
-                meta = {}
-            for k, v in meta.items():
-                if k in _LIST_KEYS:
-                    rec[k] = list(v) if v else []
-                elif k in rec:
-                    rec[k] = v
-            if rec["id"]:
-                rec["linked"] = True
-                return rec
+    bloc = bloc_frontmatter(text)
+    if bloc is not None:
+        try:
+            meta = yaml.safe_load(bloc[0]) or {}
+        except yaml.YAMLError as e:
+            # Frontmatter YAML illisible (ex. valeur non quotee avec ':') : NE PAS crasher tout
+            # le graphe pour un seul record malforme (souvent une session //). On avertit et on
+            # traite le fichier comme sans frontmatter -> EDR NNN_*.md tolere non-lie.
+            print(f"WARN: frontmatter YAML illisible dans {name} "
+                  f"({e.__class__.__name__}) -> record tolere non-lie", file=sys.stderr)
+            meta = {}
+        for k, v in meta.items():
+            if k in _LIST_KEYS:
+                rec[k] = list(v) if v else []
+            elif k in rec:
+                rec[k] = v
+        if rec["id"]:
+            rec["linked"] = True
+            return rec
 
     m = _EDR_NAME.match(name)
     if m:
