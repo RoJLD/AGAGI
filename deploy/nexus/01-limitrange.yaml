@@ -1,17 +1,22 @@
-# deploy/nexus/01-limitrange.yaml — COPIE CONFORME du palier `standard` d'ELYSIUM
-# (gitops/manifests/limitranges/elysium-limitrange-standard.yaml @ 577fc67f7), namespace ajouté.
+# deploy/nexus/01-limitrange.yaml — COPIE du palier `ml-heavy` d'ELYSIUM
+# (gitops/manifests/limitranges/elysium-limitrange-ml-heavy.yaml @ 577fc67f7), namespace rendu depuis la configuration.
 #
-# Pourquoi une copie et pas un palier AGAGI sur mesure : la boucle du README ELYSIUM ré-applique à chaque
-# namespace le palier nommé par son label `elysium.io/default-criticality`. Un palier maison serait écrasé
-# (ou, pire, coexisterait : plusieurs LimitRange → le max le plus RESTRICTIF gagne). Copie à l'identique →
-# la boucle est un no-op ici. Ne pas diverger de la source sans passer par les sessions ELYSIUM.
+# Accord d'ELYSIUM (elysium-91, 2026-09-26), sur décision de robla : paliers de mémoire 4, 8, 16, 20, 24, 28, 32 Gi
+# selon le besoin — ml-heavy (max 12 CPU / 32 Gi, défauts 1 CPU / 2 Gi) les couvre exactement. Remplace le palier
+# `standard` (max 2 CPU / 4 Gi) : `python -m tools.jobs.remote namespace --appliquer` SUPPRIME
+# `elysium-limitrange-standard` dans le même geste — deux LimitRange dans un namespace, le max le plus RESTRICTIF gagne,
+# on resterait à 4 Gi. Le label `elysium.io/limitrange-tier: ml-heavy` du Namespace fait sauter ce namespace par la
+# boucle MANUELLE du README des LimitRange ELYSIUM (procédure humaine, aucune application automatique).
 #
-# Conséquence opératoire pour AGAGI : UN conteneur de run = 2 CPU / 4 Gi au plus. Un run se découpe donc
-# par seed (un Job par seed), pas par pool de processus dans un seul pod.
+# Réserves d'ELYSIUM, tenues par tools/jobs/remote.py : pods BURSTABLE (request <= limit / 4, jamais Guaranteed —
+# un pod garanti à 32 Gi ferait évincer ollama à sa place), priorité elysium-disposable ; paliers 28 et 32 Gi fiables
+# seulement quand nexus-ollama n'a pas de gros modèle chargé (marge réelle mesurée ~33 Gi) ; OOMKilled et Evicted
+# sont des issues DISTINCTES et RELANÇABLES. Si forge-vllm (limite 32 Gi) est un jour planifié sur nexus, refaire les
+# chiffres avec ELYSIUM.
 apiVersion: v1
 kind: LimitRange
 metadata:
-  name: elysium-limitrange-standard
+  name: elysium-limitrange-ml-heavy
   namespace: __NAMESPACE__
   labels:
     elysium.io/managed-by: agagi
@@ -20,20 +25,20 @@ metadata:
     app.kubernetes.io/component: doctrine
     app.kubernetes.io/part-of: elysium-core
     elysium.io/sigil: "SIGIL-1627"
-    elysium.io/tier: standard
+    elysium.io/tier: ml-heavy
     elysium.io/iron_rule: CNCE-2
 spec:
   limits:
     - type: Container
       defaultRequest:
-        cpu: 100m
-        memory: 128Mi
-      default:
-        cpu: 500m
+        cpu: 250m
         memory: 512Mi
+      default:
+        cpu: "1"
+        memory: 2Gi
       max:
-        cpu: "2"
-        memory: 4Gi
+        cpu: "12"
+        memory: 32Gi
       min:
         cpu: 10m
         memory: 32Mi

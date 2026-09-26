@@ -84,6 +84,15 @@ FICHIERS_CONTEXTE = {"Dockerfile": f"{RUNNER_DIR}/Dockerfile", "constraints.txt"
                      "requirements.txt": "requirements.txt", "build-job.yaml": f"{RUNNER_DIR}/build-job.yaml"}
 # Plafond par conteneur = LimitRange `standard` du namespace (deploy/nexus/01-limitrange.yaml).
 MAX_CPU, MAX_MEM_GI = 2.0, 4.0
+# Paliers de mémoire (décision de robla, 2026-09-26) : une limite de conteneur est TOUJOURS l'un d'eux, déclarée
+# explicitement sur le Job (jamais le défaut de la LimitRange), et ne dépasse jamais le `max` de la LimitRange LUE sur
+# le cluster au moment de la soumission (les constantes ci-dessus ne servent que de repli aux fonctions pures).
+PALIERS_MEMOIRE_GI = (4, 8, 16, 20, 24, 28, 32)
+# Réserve d'ELYSIUM (elysium-91, 2026-09-26) : pods BURSTABLE, request <= limit / 4 — sous pression mémoire, ce sont nos
+# pods (au-delà de leur request, priorité la plus basse) qui partent, jamais ollama ni la brain. Jamais Guaranteed.
+RAPPORT_REQUETE_MEMOIRE_MAX = 0.25
+# Objets du namespace que « namespace --appliquer » RETIRE après avoir appliqué les gabarits (remplacés par un autre).
+OBJETS_RETIRES = (("limitrange", "elysium-limitrange-standard"),)
 JOURNAL_LOCAL = "runs/deport"          # runs/ est ignoré par git : journaux et MANIFEST des runs
 MARGE_TRANSFERT_S = 1200               # préparation + tirage d'image + envoi des sources, borne haute
 ATTENTE_MIN_S = 60
@@ -236,8 +245,21 @@ def valider_env(paires) -> dict:
             raise Refus(f"--env attend CLE=VALEUR : {p!r}")
         if E._ENV_INTERDITES.match(k) or k in ("AGAGI_IMAGE", "NODE_NAME", "HOME", "MPLCONFIGDIR"):
             raise Refus(f"--env {k} interdite (elle déplacerait les écritures, le code, ou la configuration du Job)")
+        if k in E.VARS_THREADS and not re.fullmatch(r"[1-9][0-9]*", v):
+            raise Refus(f"--env {k}={v!r} : un nombre de threads est un entier strictement positif")
         out[k] = v
     return out
+
+
+def sur_souscription(env_declare: dict, cpu: float) -> dict | None:
+    """Threads DÉCLARÉS au-delà de la limite CPU du conteneur. Pas un refus : le nombre de threads peut être l'objet
+    même de la mesure (l'ordre de réduction de torch en dépend). Mais un piège de coût que rien d'autre ne signale —
+    mesuré le 2026-09-26 (cellule P4.18, sha afa4dac6, nexus, limite 2 CPU) : OMP_NUM_THREADS=16 → 499,8 s de CPU et
+    253,3 s de mur, contre 87,0 s et 53,9 s aux 2 threads posés depuis le cgroup (×5,7 et ×4,7)."""
+    declares = {k: int(v) for k, v in env_declare.items() if k in E.VARS_THREADS}
+    if not declares or max(declares.values()) <= cpu:
+        return None
+    return {"threads_declares": declares, "limite_cpu": cpu, "rapport": max(declares.values()) / cpu}
 
 
 def env_local(declare: dict, base: dict | None = None) -> dict:
@@ -257,13 +279,39 @@ def mem_en_gi(q: str) -> float:
     return float(m.group(1)) / (1024.0 if m.group(2) == "Mi" else 1.0)
 
 
-def valider_ressources(req_cpu: float, cpu: float, req_mem: str, mem: str) -> None:
+def valider_ressources(req_cpu: float, cpu: float, req_mem: str, mem: str, max_cpu: float = MAX_CPU,
+                       max_mem_gi: float = MAX_MEM_GI) -> None:
     """Refuse AVANT soumission ce que la LimitRange refuserait APRÈS — un refus d'admission d'un pod de Job
-    est SILENCIEUX (Job `0/1` sans pod : ELYSIUM image-ci README, Iron Rule 5)."""
-    if not (0 < req_cpu <= cpu <= MAX_CPU):
-        raise Refus(f"CPU : 0 < requête ({req_cpu}) <= limite ({cpu}) <= {MAX_CPU} (LimitRange standard)")
-    if not (0 < mem_en_gi(req_mem) <= mem_en_gi(mem) <= MAX_MEM_GI):
-        raise Refus(f"mémoire : 0 < requête ({req_mem}) <= limite ({mem}) <= {MAX_MEM_GI}Gi (LimitRange standard)")
+    est SILENCIEUX (Job `0/1` sans pod : ELYSIUM image-ci README, Iron Rule 5). La limite mémoire doit être un
+    PALIER déclaré (PALIERS_MEMOIRE_GI) : deux cellules ne se comparent qu'à palier connu."""
+    if not (0 < req_cpu <= cpu <= max_cpu):
+        raise Refus(f"CPU : 0 < requête ({req_cpu}) <= limite ({cpu}) <= {max_cpu} (max de la LimitRange)")
+    if mem_en_gi(mem) not in PALIERS_MEMOIRE_GI:
+        raise Refus(f"mémoire : la limite {mem} n'est pas un palier déclaré {[f'{p}Gi' for p in PALIERS_MEMOIRE_GI]}")
+    if not (0 < mem_en_gi(req_mem) <= mem_en_gi(mem) <= max_mem_gi):
+        raise Refus(f"mémoire : 0 < requête ({req_mem}) <= limite ({mem}) <= {max_mem_gi}Gi (max de la LimitRange)")
+    if mem_en_gi(req_mem) > RAPPORT_REQUETE_MEMOIRE_MAX * mem_en_gi(mem):
+        raise Refus(f"mémoire : requête {req_mem} > limite / 4 ({mem_en_gi(mem) / 4:g}Gi) — réserve d'ELYSIUM : pods "
+                    "BURSTABLE, jamais une requête qui ferait évincer les services du nœud à notre place")
+
+
+def requete_memoire_defaut(mem: str) -> str:
+    """Requête mémoire par défaut d'un palier : limite / 4 (réserve d'ELYSIUM), exprimée en Mi."""
+    return f"{int(mem_en_gi(mem) * 1024 * RAPPORT_REQUETE_MEMOIRE_MAX)}Mi"
+
+
+def plafonds_limitrange(kube) -> tuple:
+    """(max CPU, max mémoire en Gi) par conteneur, LUS dans les LimitRange du namespace — le plus restrictif
+    l'emporte, comme dans Kubernetes. Aucune LimitRange ou aucun max lisible → Refus (on ne devine pas un plafond)."""
+    def cpu_en(q):
+        return float(q[:-1]) / 1000 if str(q).endswith("m") else float(q)
+    maxs = [l.get("max", {}) for lr in kube.json(["get", "limitrange"]).get("items", [])
+            for l in lr.get("spec", {}).get("limits", []) if l.get("type") == "Container"]
+    cpus = [cpu_en(m["cpu"]) for m in maxs if "cpu" in m]
+    mems = [mem_en_gi(m["memory"]) for m in maxs if "memory" in m]
+    if not cpus or not mems:
+        raise Refus("aucun max CPU/mémoire lisible dans les LimitRange du namespace : plafond inconnu, refus")
+    return min(cpus), min(mems)
 
 
 def nom_job(commande: list, sha: str, suffixe: str | None = None) -> str:
@@ -301,16 +349,17 @@ def fenetre_restante_s(fenetre, maintenant: _dt.datetime | None = None) -> float
     return max(0.0, (fin - t).total_seconds() - int(fenetre["marge_s"]))
 
 
-def manifeste_job(*, nom, sha, image, commande, namespace, noeud, cpu=2.0, req_cpu=1.0, mem="4Gi", req_mem="1Gi",
+def manifeste_job(*, nom, sha, image, commande, namespace, noeud, cpu=2.0, req_cpu=1.0, mem="4Gi", req_mem=None,
                   attente_s=3600, deadline_s=2 * 3600, entry_sha256="", source_sha256="",
-                  env_declare=None) -> dict:
+                  env_declare=None, max_cpu=MAX_CPU, max_mem_gi=MAX_MEM_GI) -> dict:
     """Le Job d'UN run. Conformité ELYSIUM portée par construction (CNCE-1/3/5/8/11) et vérifiée par test.
 
     AUCUN volume NFS, par construction : un montage `nfs:` en ligne est `hard` (un pod ne peut pas le
     déclarer `soft`), et un atlas à terre FIGE alors le pod, puis le kubelet — incident ELYSIUM du 01/09 :
     WAL kine 8,9 Go, control-plane 3 h 50 à terre. La réplication vers atlas, si on la veut, se fait APRÈS
     le rapatriement, hors du run (atlas = cible copy-only, SIGIL-1764)."""
-    valider_ressources(req_cpu, cpu, req_mem, mem)
+    req_mem = req_mem or requete_memoire_defaut(mem)
+    valider_ressources(req_cpu, cpu, req_mem, mem, max_cpu, max_mem_gi)
     if attente_s < ATTENTE_MIN_S:
         raise Refus(f"--attente-s {attente_s} < {ATTENTE_MIN_S} s : la sortie serait perdue avant tout rapatriement")
     env_declare = dict(env_declare or {})
@@ -342,7 +391,9 @@ def manifeste_job(*, nom, sha, image, commande, namespace, noeud, cpu=2.0, req_c
         "metadata": {"name": nom, "namespace": namespace, "labels": labels,
                      "annotations": {"agagi.io/sha": sha, "agagi.io/commande": json.dumps(commande),
                                      "agagi.io/env": json.dumps(env_declare, sort_keys=True),
-                                     "agagi.io/entry-sha256": entry_sha256}},
+                                     "agagi.io/entry-sha256": entry_sha256,
+                                     "agagi.io/ressources": json.dumps({"cpu": cpu, "req_cpu": req_cpu, "mem": mem,
+                                                                        "req_mem": req_mem})}},
         "spec": {
             "backoffLimit": 0,
             "activeDeadlineSeconds": int(deadline_s + attente_s + MARGE_TRANSFERT_S),
@@ -547,15 +598,20 @@ def garde_image(info: dict, sha: str, racine: Path) -> str:
 
 
 # ------------------------------------------------------------------------------------------ étapes
-def soumettre(commande, *, sha="HEAD", cpu=2.0, req_cpu=1.0, mem="4Gi", req_mem="1Gi",
+def soumettre(commande, *, sha="HEAD", cpu=2.0, req_cpu=1.0, mem="4Gi", req_mem=None,
               attente_s=3600, deadline_s=2 * 3600, image_divergente_ok=False,
               env=None, kube=None, racine=None, sortie=print, maintenant=None, cfg=None) -> str:
     cfg = cfg or charger_config()
     noeud = cfg["noeud"]
+    req_mem = req_mem or requete_memoire_defaut(mem)
     racine = racine or racine_depot()
     kube = kube or Kube.depuis(cfg)
     commande = valider_commande(list(commande))
     env_declare = valider_env(env) if not isinstance(env, dict) else valider_env([f"{k}={v}" for k, v in env.items()])
+    exces = sur_souscription(env_declare, cpu)
+    if exces:
+        sortie(f"[remote] ⚠ SUR-SOUSCRIPTION : {exces['threads_declares']} pour une limite de {cpu:g} CPU "
+               f"(×{exces['rapport']:g}) — mesuré ×5,7 de CPU et ×4,7 de mur à 16 threads sous 2 CPU. Voulu ?")
     besoin = deadline_s + attente_s + MARGE_TRANSFERT_S
     reste = fenetre_restante_s(cfg["fenetre"], maintenant)
     if cmp_continu(besoin, reste, 0.0):                    # secondes : grandeur continue (porte 24)
@@ -566,6 +622,7 @@ def soumettre(commande, *, sha="HEAD", cpu=2.0, req_cpu=1.0, mem="4Gi", req_mem=
     info = lire_image(racine)
     mode_garde = "desactivee (--image-divergente-ok)" if image_divergente_ok else garde_image(info, sha, racine)
     pret, raison = noeud_pret(kube, noeud)
+    max_cpu, max_mem_gi = plafonds_limitrange(kube) if pret else (MAX_CPU, MAX_MEM_GI)
     if not pret:
         raise Refus(f"{raison}. {allumage(cfg)}")
     absentes = entrees_non_suivies(racine)
@@ -577,6 +634,7 @@ def soumettre(commande, *, sha="HEAD", cpu=2.0, req_cpu=1.0, mem="4Gi", req_mem=
     nom = nom_job(commande, sha)
     ref = image_ref(info, cfg["registre"])
     job = manifeste_job(nom=nom, sha=sha, image=ref, commande=commande, namespace=cfg["namespace"], cpu=cpu,
+                        max_cpu=max_cpu, max_mem_gi=max_mem_gi,
                         req_cpu=req_cpu,
                         mem=mem, req_mem=req_mem, noeud=noeud, attente_s=attente_s, deadline_s=deadline_s,
                         entry_sha256=hashlib.sha256(entry).hexdigest(),
@@ -596,7 +654,9 @@ def soumettre(commande, *, sha="HEAD", cpu=2.0, req_cpu=1.0, mem="4Gi", req_mem=
     (j / "soumission.json").write_text(json.dumps(
         {"job": nom, "sha": sha, "commande": commande, "env": env_declare, "image": image_ref(info, "<registre>"),
          "noeud": noeud,
-         "garde_image": mode_garde, "entrees_non_suivies": absentes,
+         "garde_image": mode_garde, "entrees_non_suivies": absentes, "sur_souscription": exces,
+         "ressources": {"cpu": cpu, "req_cpu": req_cpu, "mem": mem, "req_mem": req_mem,
+                        "plafonds_limitrange": {"cpu": max_cpu, "mem_gi": max_mem_gi}},
          "soumis_utc": _dt.datetime.now(_dt.timezone.utc).isoformat()}, indent=2, ensure_ascii=False),
         encoding="utf-8")
     return nom
@@ -674,7 +734,9 @@ def lire_fin(job_obj: dict, pod: dict | None, noeud_pret_maintenant: bool) -> di
         etat = "noeud_perdu"
     else:
         etat = "inconnu"
-    return {"etat": etat, **preuves}
+    # Réserve d'ELYSIUM : OOMKilled et Evicted (comme la préemption et la perte du nœud) sont des issues de
+    # l'ENVIRONNEMENT, distinctes et RELANÇABLES — pas un échec de l'expérience. La relance reste un geste déclaré.
+    return {"etat": etat, "relancable": etat in ("oom", "evince", "preempte", "noeud_perdu"), **preuves}
 
 
 def attendre(job, *, kube=None, delai_s=8 * 3600, sortie=print, cfg=None) -> dict:
@@ -1070,8 +1132,8 @@ def main(argv=None) -> int:
         _env_cli(p)
         p.add_argument("--cpu", type=float, default=2.0)
         p.add_argument("--req-cpu", type=float, default=1.0)
-        p.add_argument("--mem", default="4Gi")
-        p.add_argument("--req-mem", default="1Gi")
+        p.add_argument("--mem", default="4Gi", help=f"palier : {', '.join(f'{p}Gi' for p in PALIERS_MEMOIRE_GI)}")
+        p.add_argument("--req-mem", default=None, help="défaut : limite / 4 (pods BURSTABLE, réserve d'ELYSIUM)")
         p.add_argument("--attente-s", type=float, default=3600, help="fenêtre de rapatriement après le run")
         p.add_argument("--deadline-s", type=float, default=2 * 3600, help="durée max du runner (avant minuit)")
         p.add_argument("--image-divergente-ok", action="store_true")
@@ -1148,11 +1210,18 @@ def main(argv=None) -> int:
             if not a.appliquer:
                 print(rendu)
                 return 0
-            r = Kube.depuis(cfg).brut(["apply", "-f", "-"], entree=rendu.encode("utf-8"), ns=False)
+            kube = Kube.depuis(cfg)
+            r = kube.brut(["apply", "-f", "-"], entree=rendu.encode("utf-8"), ns=False)
             print(r.stdout.decode())
+            for genre, nom in OBJETS_RETIRES:                 # APRÈS l'apply : jamais un namespace sans LimitRange
+                d = kube.brut(["delete", genre, nom, "--ignore-not-found"])
+                print(d.stdout.decode().strip() or f"{genre}/{nom} absent (déjà retiré)")
             return 0
         if a.action == "surveiller":
-            return surveiller(duree_s=a.duree_s, pas_s=a.pas_s, ignorer=tuple(a.ignorer))
+            # flush : lancée en arrière-plan, sortie redirigée vers un fichier, une sonde non vidée n'écrirait rien
+            # avant de s'arrêter — mesuré le 2026-09-26, fichier de sortie VIDE pendant 20 min.
+            return surveiller(duree_s=a.duree_s, pas_s=a.pas_s, ignorer=tuple(a.ignorer),
+                              sortie=lambda m: print(m, flush=True))
         if a.action == "config":
             cfg = charger_config()
             for k in VARIABLES_CONFIG:

@@ -16,7 +16,7 @@ d'un run ne soit plus mesurée sous la charge des autres (E12 appliqué au coût
 
 | Pièce | Où | Rôle |
 |---|---|---|
-| namespace (nom configuré) | `deploy/nexus/00-03*.yaml` (GABARITS, rendus par `remote.py namespace`) | normes `elysium-*` : palier LimitRange `standard` (2 CPU / 4 Gi par conteneur), default-deny + egress du seul build, ResourceQuota (8 CPU de requests, 16 pods) |
+| namespace (nom configuré) | `deploy/nexus/00-03*.yaml` (GABARITS, rendus par `remote.py namespace`) | normes `elysium-*` : palier LimitRange `ml-heavy` (12 CPU / 32 Gi par conteneur, accordé par ELYSIUM le 2026-09-26 ; il REMPLACE `standard`, retiré dans le même geste), default-deny + egress du seul build, ResourceQuota (requests 8 CPU / 24 Gi, limits 16 CPU / 40 Gi, 16 pods) |
 | image runner | `deploy/nexus/runner/` | Python 3.13.12, dépendances ÉPINGLÉES sur la batcave (`constraints.txt`) SAUF torch (2.6.0+cpu dans l'image, 2.6.0+cu124 sur la batcave : même version, autre build), git ; construite par Kaniko DANS le namespace ; référence committée dans `IMAGE.json` (tag + digest) |
 | soumission | `tools/jobs/remote.py` | un Job par run : code au sha, attente, rapatriement vérifié |
 | point d'entrée | `tools/jobs/remote_entry.py` | stdlib seule ; tourne dans le pod ET en local, à l'identique |
@@ -158,6 +158,51 @@ restent COMPTÉES sur chaque ligne d'état (« anomalies ignorées=N ») — une
 mort silencieux (E32). Contrôle positif réel, involontaire : le 2026-09-26 la sonde a attrapé les deux builds d'essai
 OOMKilled de P2.134 avant qu'on déclare leur motif. Écrire le motif avec `=` (`--ignorer=-p2134-`) : un motif qui
 commence par un tiret serait lu comme une option.
+
+## Ressources d'un Job
+
+* Mémoire : la limite est TOUJOURS un palier déclaré — 4, 8, 16, 20, 24, 28 ou 32 Gi (`--mem`, défaut 4 Gi) — et la
+  requête vaut au plus limite / 4 (défaut : exactement limite / 4). Réserve d'ELYSIUM : des pods BURSTABLE, jamais
+  Guaranteed ; un pod garanti à 32 Gi ferait évincer les services du nœud à notre place. Paliers 28 et 32 Gi fiables
+  seulement quand `nexus-ollama` n'a pas de gros modèle chargé.
+* Le plafond se LIT dans les LimitRange du namespace à la soumission (le max le plus restrictif gagne) ; aucun max
+  lisible = refus. La limite mémoire MESURÉE dans le cgroup du pod est publiée dans le MANIFEST, à côté du digest.
+* CPU : `--cpu` (défaut 2), requête `--req-cpu` (défaut 1). Les threads sont posés depuis le cgroup (`cpu.max`) sauf
+  si l'appelant en déclare : la déclaration prend alors TOUT le contrôle. Déclarer plus de threads que la limite CPU
+  est SIGNALÉ à la soumission et publié (`sur_souscription` dans `soumission.json`), jamais refusé : c'est parfois
+  l'objet de la mesure. Coût mesuré (cellule P4.18, sha afa4dac6, limite 2 CPU) : 16 threads = 499,8 s de CPU et
+  253,3 s de mur, contre 87,0 s et 53,9 s à 2 threads — ×5,7 et ×4,7, pour des W appris identiques au bit.
+* Issues d'un Job (`attendre`, `lire_fin`) : OOMKilled, Evicted, préemption et perte du nœud sont DISTINCTES et marquées
+  `relancable` ; la relance reste un geste déclaré de qui a scellé le run.
+
+## Choisir le lieu : batcave ou nexus
+
+**Un run qui doit répliquer AU BIT des valeurs publiées sous Windows tourne sur la batcave. nexus sert aux mesures
+NEUVES, comparées à elles-mêmes. Le nombre de threads est toujours publié** (MANIFEST : `cpu.threads_poses`,
+`cpu.threads_source`).
+
+Pourquoi — deux mesures, deux bibliothèques :
+
+* numpy : la cellule du témoin (EDR-DEPORT-NEXUS-TEMOIN) est identique au bit entre les deux lieux, poids gelés comme
+  en apprentissage.
+* torch float32 : témoin de lieu de agagi-40 (2026-09-26, sha afa4dac6, cellule `b_zero` seed 2026 de P4.18, image
+  digest `sha256:7c860b30…`). Les W appris sont identiques au bit entre nexus à 2 threads (cgroup) et nexus à 16 threads
+  (déclarés), mais DIFFÈRENT au dernier bit de ceux de la batcave — torch 2.6.0+cpu Linux contre 2.6.0+cu124 Windows,
+  même version, autre build. Les 12 âges de survie et toute la dose sont identiques partout. Le chemin cumulé
+  `dW_abs_sum` diffère selon le lieu ET selon le nombre de threads : une somme de réductions dépend de leur ordre.
+  Conséquence : P4.18, dont la règle exige la réplication au bit, tourne sur la batcave.
+
+Unité de coût de ce témoin — lire avec sa charge, publiée dans chaque MANIFEST :
+
+| lieu | threads | mur | CPU | charge au départ |
+|---|---|---|---|---|
+| nexus (limite 2 CPU) | 2 (cgroup) | 53,9 s | 87,0 s | loadavg 1,4 |
+| nexus (limite 2 CPU) | 16 (déclarés) | 253,3 s | 499,8 s | loadavg 1,7 |
+| batcave | défaut de la bibliothèque | 190,1 s | 157,6 s (fils direct seul) | CPU système 87 % |
+
+La ligne batcave n'est PAS une unité libre : la machine était à 87 % de CPU au départ, et son CPU ne compte que le fils
+direct (`GetProcessTimes`) quand nexus compte tous les descendants (`RUSAGE_CHILDREN`). Elle ne se compare pas à nexus
+pour décider d'un lieu par le coût.
 
 ## Ce que le déport ne fait PAS
 

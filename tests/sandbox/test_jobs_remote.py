@@ -408,7 +408,8 @@ def test_labels_de_propriete_elysium():
         assert meta["labels"]["elysium.io/source-repo"]
 
 
-@pytest.mark.parametrize("kw", [dict(cpu=3.0), dict(mem="8Gi"), dict(req_cpu=2.0, cpu=1.0),
+@pytest.mark.parametrize("kw", [dict(cpu=3.0), dict(mem="8Gi"), dict(mem="3Gi"), dict(mem="12Gi", max_mem_gi=32),
+                                dict(req_cpu=2.0, cpu=1.0),
                                 dict(req_mem="2Gi", mem="1Gi"), dict(mem="4G"), dict(cpu=0.0, req_cpu=0.0)])
 def test_ressources_hors_limitrange_refusees_avant_soumission(kw):
     with pytest.raises(R.Refus):
@@ -502,6 +503,32 @@ def test_soumission_refusee_si_le_run_deborde_minuit_RIEN_n_est_cree(depot):
         R.soumettre(["-m", "pkg.runner"], sha=sha, kube=kube, racine=repo, sortie=lambda *_: None,
                     maintenant=_paris(22, 30))
     assert kube.appels == []
+
+
+@pytest.mark.parametrize("paire", ["OMP_NUM_THREADS=0", "OMP_NUM_THREADS=abc", "MKL_NUM_THREADS=-2",
+                                   "OPENBLAS_NUM_THREADS=", "NUMEXPR_NUM_THREADS=2.5"])
+def test_threads_declares_entier_positif_sinon_refus(paire):
+    with pytest.raises(R.Refus, match="threads"):
+        R.valider_env([paire])
+
+
+def test_sur_souscription_signalee_et_publiee_jamais_refusee(depot):
+    """16 threads sous 2 CPU : ×5,7 de CPU mesuré sur la cellule P4.18 (2026-09-26). Signalé AVANT toute création,
+    jamais refusé : le nombre de threads peut être l'objet même de la mesure. Deux issues, et le seuil."""
+    assert R.sur_souscription({"OMP_NUM_THREADS": "16"}, 2.0) == {
+        "threads_declares": {"OMP_NUM_THREADS": 16}, "limite_cpu": 2.0, "rapport": 8.0}
+    assert R.sur_souscription({"OMP_NUM_THREADS": "3"}, 2.0)["rapport"] == 1.5
+    assert R.sur_souscription({"OMP_NUM_THREADS": "2", "MKL_NUM_THREADS": "1"}, 2.0) is None     # au seuil : rien
+    assert R.sur_souscription({"AUTRE": "99"}, 2.0) is None and R.sur_souscription({}, 2.0) is None
+    assert R.valider_env(["OMP_NUM_THREADS=16"]) == {"OMP_NUM_THREADS": "16"}
+    repo, sha = depot
+    dits = []
+    for env, attendu in (({"OMP_NUM_THREADS": "16"}, 1), ({"OMP_NUM_THREADS": "2"}, 0)):
+        dits.clear()
+        with pytest.raises(R.Refus, match="fin de sa fenêtre"):
+            R.soumettre(["-m", "pkg.runner"], sha=sha, kube=KubeFactice(_noeud()), racine=repo, env=env,
+                        sortie=dits.append, maintenant=_paris(22, 30))
+        assert sum("SUR-SOUSCRIPTION" in m for m in dits) == attendu, dits
 
 
 def test_code_de_sortie_absent_n_est_pas_un_succes():
@@ -732,3 +759,69 @@ def test_surveillance_deux_issues_et_exclusion_COMPTEE():
     ign = R.lire_anomalies({"items": [_j("agagi-build-p2134-r1-0", "Failed")]},
                            {"items": [_p("agagi-build-p2134-r1-0-x", oom=True)]}, t, ignorer=("-p2134-",))
     assert ign["anomalies"] == [] and len(ign["ignorees"]) == 2 and "motif déclaré" in ign["ignorees"][0]
+
+
+# ------------------------------------------------------------------------------------------ paliers de mémoire
+class KubeLimitRange:
+    def __init__(self, limites):
+        self.limites = limites
+
+    def json(self, args, ns=True):
+        assert args == ["get", "limitrange"]
+        return {"items": [{"spec": {"limits": l}} for l in self.limites]}
+
+
+def test_paliers_de_memoire_explicites_et_plafond_LU_sur_le_cluster():
+    """Décision de robla : paliers 4 à 32 Gi selon le besoin, sous réserve d'ELYSIUM. Un palier au-dessus du max de
+    la LimitRange est refusé AVANT soumission ; le max se LIT (le plus restrictif l'emporte), il ne se devine pas."""
+    std = [{"type": "Container", "max": {"cpu": "2", "memory": "4Gi"}}]
+    mlh = [{"type": "Container", "max": {"cpu": "12", "memory": "32Gi"}}]
+    assert R.plafonds_limitrange(KubeLimitRange([std])) == (2.0, 4.0)
+    assert R.plafonds_limitrange(KubeLimitRange([mlh])) == (12.0, 32.0)
+    assert R.plafonds_limitrange(KubeLimitRange([std, mlh])) == (2.0, 4.0)         # le plus restrictif
+    assert R.plafonds_limitrange(KubeLimitRange([[{"type": "Container", "max": {"cpu": "1500m", "memory": "8192Mi"}}]])) == (1.5, 8.0)
+    with pytest.raises(R.Refus, match="plafond inconnu"):
+        R.plafonds_limitrange(KubeLimitRange([]))
+    j = _job(mem="24Gi", req_mem="6Gi", max_mem_gi=32)
+    lim = j["spec"]["template"]["spec"]["containers"][0]["resources"]["limits"]["memory"]
+    assert lim == "24Gi" and json.loads(j["metadata"]["annotations"]["agagi.io/ressources"])["mem"] == "24Gi"
+
+
+def test_limite_memoire_lue_dans_le_cgroup_trois_issues(tmp_path):
+    v2 = tmp_path / "v2"
+    v2.mkdir()
+    (v2 / "memory.max").write_text("8589934592\n")
+    assert E.lire_limite_memoire(str(v2))["limite_octets"] == 8 * 2 ** 30
+    (v2 / "memory.max").write_text("max\n")
+    assert E.lire_limite_memoire(str(v2))["limite_octets"] is None and E.lire_limite_memoire(str(v2))["source"] == "cgroup2"
+    assert E.lire_limite_memoire(str(tmp_path / "rien"))["source"] == "absente"
+    casse = tmp_path / "casse"
+    casse.mkdir()
+    (casse / "memory.max").write_text("n'importe quoi")
+    assert E.lire_limite_memoire(str(casse))["source"] == "illisible"
+
+
+def test_pods_BURSTABLE_requete_au_plus_le_quart_de_la_limite():
+    """Réserve d'ELYSIUM : request <= limit/4 (un pod garanti à 32 Gi ferait évincer ollama). Défaut = limit/4."""
+    j = _job(mem="32Gi", max_mem_gi=32)
+    res = j["spec"]["template"]["spec"]["containers"][0]["resources"]
+    assert res["limits"]["memory"] == "32Gi" and res["requests"]["memory"] == "8192Mi"
+    with pytest.raises(R.Refus, match="BURSTABLE"):
+        _job(mem="32Gi", req_mem="16Gi", max_mem_gi=32)
+    assert R.requete_memoire_defaut("4Gi") == "1024Mi"
+
+
+def test_oom_et_eviction_sont_RELANCABLES_un_echec_d_entree_non():
+    oom = _pod(containerStatuses=[{"name": "run", "state": {"terminated": {"exitCode": 137, "reason": "OOMKilled"}}}])
+    assert R.lire_fin({}, oom, True)["relancable"] is True
+    assert R.lire_fin({}, _pod(reason="Evicted"), True)["relancable"] is True
+    refus = _pod(containerStatuses=[{"name": "run", "state": {"terminated": {"exitCode": 86}}}])
+    assert R.lire_fin({}, refus, True)["relancable"] is False
+
+
+def test_manifestes_ml_heavy_et_retrait_de_la_limitrange_standard():
+    rendu = R.rendre_manifestes(R.charger_config(), R.racine_depot())
+    assert "name: elysium-limitrange-ml-heavy" in rendu and "memory: 32Gi" in rendu
+    assert "elysium.io/limitrange-tier: ml-heavy" in rendu
+    assert "requests.memory: 24Gi" in rendu and "limits.memory: 40Gi" in rendu
+    assert ("limitrange", "elysium-limitrange-standard") in R.OBJETS_RETIRES
