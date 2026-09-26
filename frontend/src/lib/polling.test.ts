@@ -1,5 +1,13 @@
 import { test, expect } from "vitest";
-import { STATUS_POLL, livePoll } from "./polling";
+import { PILOTAGE_POLL, STATUS_POLL, livePoll } from "./polling";
+
+test("PILOTAGE_POLL : 30 s, staleTime 5 s, pas de polling en fond", () => {
+  expect(PILOTAGE_POLL).toEqual({
+    refetchInterval: 30_000,
+    staleTime: 5_000,
+    refetchIntervalInBackground: false,
+  });
+});
 
 test("STATUS_POLL : pas de polling en fond, staleTime 2s, intervalle 3s", () => {
   expect(STATUS_POLL).toEqual({

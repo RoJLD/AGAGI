@@ -8,3 +8,7 @@ test("clé notes d'un run", () => {
 test("clé du flux notes", () => {
   expect(queryKeys.notes).toEqual(["notes"]);
 });
+
+test("clé du pilotage, partagée par les trois vues", () => {
+  expect(queryKeys.pm.pilotage).toEqual(["pm", "pilotage"]);
+});
