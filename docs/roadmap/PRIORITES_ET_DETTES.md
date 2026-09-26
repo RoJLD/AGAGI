@@ -1320,12 +1320,28 @@ du 01/09 : WAL kine 8,9 Go, control-plane 3 h 50 à terre). Les résultats sont 
 vérifiés contre leur MANIFEST ; en cas de conflit, la sortie vérifiée est CONSERVÉE localement (sous runs/deport,
 répertoire sortie_non_installee). La fonction de dépôt atomique reste dans `tools/jobs/remote_entry.py`, testée,
 sans appelant ; répliquer vers atlas se fera hors run, quand il sera revenu.
-**Reste pour fermer** : (a) application sur le cluster par robla — `kubectl --context direct-192.168.1.21 apply -f
-deploy/nexus/` puis `python -m tools.jobs.remote image` — et le fichier IMAGE.json du runner committé ; (b) le
+**Reste pour fermer** : (a) FAIT le 2026-09-26 — robla a appliqué `deploy/nexus/` et construit l'image
+(`python -m tools.jobs.remote image --sha 019dc34b` : Kaniko en 80 s sur nexus, aucun OOM malgré le plafond de 4 Gi
+signalé par elysium-8d ; tag py3.13.12-39fe2c9bda57, digest sha256:a1d6e4eb…, fichier IMAGE.json du runner
+committé) ; premier run déporté réussi le même jour (évo011 --smoke, 64 s de bout en bout) ; (b) le
 témoin : `python -m tools.evo_runs.evo011_preflight --smoke`, même sha, batcave (fait : deux réplicats identiques
 hors `elapsed_s`, charge 82 % notée) contre nexus, comparé par `ecarts_hors_volatils`, record court avec l'unité de
 coût des deux côtés. Ferme quand ce record existe.
 <!-- closes_when:path_present=docs/EDR/DEPORT-NEXUS-TEMOIN_Meme_Seed_Batcave_Contre_Nexus.md -->
+
+**P2.127 — rang 20 — OUVERTE (2026-09-26, relecture finale d'elysium-91 et d'elysium-2d, non bloquantes) — Durcir
+le namespace elysium-agagi selon les remarques ELYSIUM, sans casser la copie conforme de la LimitRange.**
+(1) `deploy/nexus/01-limitrange.yaml` porte, recopiés d'ELYSIUM, `app.kubernetes.io/part-of: elysium-core` et
+`elysium.io/sigil: SIGIL-1627` : un objet AGAGI se déclare « elysium-core ». Les renommer serait défait par la
+boucle du README des LimitRange ELYSIUM (elle ré-applique le fichier de palier) ; ajouter plutôt une annotation
+`elysium.io/derived-from: SIGIL-1627`, compatible avec la boucle, et en parler aux sessions ELYSIUM. (2) La règle DNS de
+`deploy/nexus/02-networkpolicies.yaml` n'a pas de destination : la restreindre à kube-dns (namespace kube-system,
+pods k8s-app=kube-dns). (3) La ConfigMap registry-ca-bundle du namespace est une COPIE (faite par `tools/jobs/remote.py`
+depuis elysium-brain) : elle ne suit pas une rotation de la CA mkcert — à re-copier si le registre change de CA
+(un build ou un tirage d'image échouerait alors en TLS). (4) Le label trust-zone n'est lu par aucune politique
+aujourd'hui (cnce-12 arrive, PR-A secrets-flotte d'elysium-2d). (5) Verser les manifestes dans le GitOps ELYSIUM ou
+une Application ArgoCD quand ce sera stable (Σ-MANIFEST-MYCORHIZE : l'app est SHADOW tant qu'elle n'est pas déclarée).
+Sans clause `closes_when` (déclaré) : cinq gestes, dont trois se font avec ELYSIUM.
 
 **P2.121 — rang 6 — OUVERTE (2026-09-26, mesuré sur le run 36210667429, le PREMIER où `suite-complete` exécute des
 tests) — La suite complète tourne en CI : 2807 passés, 88 rouges, 18 erreurs, 238 sautés, 17 min 38 s — et ses rouges se
