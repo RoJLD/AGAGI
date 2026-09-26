@@ -52,10 +52,10 @@ python() {
 # compte AUSSI les lignes de commentaire qui citent la commande. Forme juste (elle s'exclut elle-même,
 # puisqu'elle vit dans un commentaire) :
 #   grep -c '^[^#]*git diff --cached --name-only' tools/hooks/pre-commit
-# rend 20 appels à cette date. `tests/sandbox/test_hook_on_merge.py` rejoue ce compte et rougit si le
+# rend 21 appels à cette date. `tests/sandbox/test_hook_on_merge.py` rejoue ce compte et rougit si le
 # chiffre écrit ici cesse de correspondre.
 #
-# ⚠️ OÙ la base est insérée. Elle se pose AVANT un éventuel `--`, jamais après : aucun des 20 appels
+# ⚠️ OÙ la base est insérée. Elle se pose AVANT un éventuel `--`, jamais après : aucun des 21 appels
 # n'écrit `--` aujourd'hui, mais un site futur du type `git diff --cached --name-only -- <chemin>`
 # recevrait sinon la base APRÈS le séparateur, où git la lit comme un PATHSPEC — la sortie serait
 # VIDE et la porte se tairait en silence (mesuré : la sonde ne voyait plus que le côté entrant).
@@ -714,6 +714,31 @@ if [ -n "$staged_e19" ]; then
     echo ""
     echo "-> Ce runner compare des bras sous GRADIENT sans balayer le pas : son nul mesure le reglage (E19)."
     echo "   Appeler assert_verdict_invariant_to_optimizer(measure, lrs=...) ou geler : --update-baseline"
+    fail=1
+  }
+fi
+
+# --- 24. Seuil a MARGE compare en FLOTTANTS sur une grandeur de GRILLE (classe E30) -- tools/check_grid_threshold.py
+# Un compte k/N compare avec une marge multiple EXACTE du pas (0,05 = 32/640) perd l'EGALITE en float32, toujours
+# du cote qui refuse (BILINEAR-SHAM-R1 : 8/12 publie, 9/12 exact ; TD-STEP-PILOT R1 comparait encore en flottants
+# nus apres une retro-application annoncee complete). Toute comparaison « a OP b +/- marge » d'un runner passe par
+# tools/grid_compare.py (cmp_grille : sur la grille ; cmp_continu : DECLARE continu) ; les sites legataires sont
+# geles PAR (chemin, fonction, texte) dans tools/grid_threshold_baseline.json, toute NOUVELLE comparaison nue bloque.
+# Se declenche si un .py de tools/ ou src/seed_ai/, la baseline, le helper OU check_control_family.py (perimetre
+# reutilise) est stage ; --only quand les stages sont EXCLUSIVEMENT des runners ordinaires (un changement au helper,
+# au perimetre ou a la porte peut reclasser n'importe quel site -> run NON scope, meme raisonnement que la porte 23).
+staged_grid=$(git diff --cached --name-only --diff-filter=AM | grep -E '^((tools|src/seed_ai)/.*\.py|tools/grid_threshold_baseline\.json)$')
+if [ -n "$staged_grid" ]; then
+  partages_grid=$(echo "$staged_grid" | grep -E '^tools/(check_grid_threshold|check_control_family|grid_compare)\.py$|^tools/grid_threshold_baseline\.json$' || true)
+  only_grid=$(echo "$staged_grid" | grep -E '^(tools|src/seed_ai)/.*\.py$' | grep -vE '^tools/(check_grid_threshold|check_control_family|grid_compare)\.py$' || true)
+  if [ -n "$only_grid" ] && [ -z "$partages_grid" ]; then
+    PYTHONIOENCODING=utf-8 python tools/check_grid_threshold.py --only $only_grid
+  else
+    PYTHONIOENCODING=utf-8 python tools/check_grid_threshold.py
+  fi || {
+    echo ""
+    echo "-> Une comparaison a marge en FLOTTANTS sur une grandeur de grille perd l'EGALITE (E30 : 8/12 publie pour 9/12 exact)."
+    echo "   Passer par tools/grid_compare.py (cmp_grille / cmp_continu), ou geler EN CONNAISSANCE : --update-baseline"
     fail=1
   }
 fi

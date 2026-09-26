@@ -496,6 +496,19 @@ PORTES = {
                       "balayage du pas, et `classer` (qui s'appuie dessus) ne verrait plus aucun nu non plus"),
         }],
     },
+    "24": {
+        "module": "tools.check_grid_threshold",
+        "titre": "seuil à marge comparé en flottants sur une grandeur de grille (E30)",
+        "temoins": ["tests/sandbox/test_grid_threshold_gate.py"],
+        "mutations": [{
+            "nom": "plus aucune comparaison nue n'est un site",
+            "avant": "        if _lit_marge(n.left) or _lit_marge(n.comparators[0]):",
+            "apres": "        if False:",
+            "motif": ("le détecteur de la forme « a OP b ± marge » — le second cas d'E30 (td_step_pilot, R1 en "
+                      "flottants nus après une rétro-application annoncée complète) repasserait sans un mot, et "
+                      "la baseline des sites légataires ne protégerait plus rien"),
+        }],
+    },
 }
 
 # ⚠️ Clé = NOM DE MODULE, et non numéro de porte : c'est ce qui permet à

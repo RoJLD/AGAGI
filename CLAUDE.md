@@ -342,7 +342,21 @@ aujourd'hui peut exister. Mutation tuée.
 colonnes, un rôle ne naît que d'une récidive MESURÉE avec instrument, contrôle positif et critère de dissolution ;
 seul paragraphe absent de cette liste jusqu'à la fusion du 2026-09-25, alors que le compte ci-dessous l'incluait).
 
-**23 gardes** <!-- count:portes_hook=23 --> sont branchées sur le hook pre-commit
+`check_grid_threshold.py` (porte 24, 2026-09-26, P2.105 — classe **E30** : un COMPTE k/N comparé à un seuil dont la
+marge est un multiple EXACT du pas (0,05 = 32/640) perd l'ÉGALITÉ en float32, toujours du côté qui refuse — 8/12
+publié pour 9/12 exact sur BILINEAR-SHAM-R1. Toute comparaison « a OP b ± marge » d'un runner (`tools/`,
+`src/seed_ai/`, le périmètre des portes 11/23) passe par `tools/grid_compare.py` : `cmp_grille` (sur la grille ;
+l'étage des MÉDIANES vit sur 2N, la marge 0 est explicite, le repli hors grille est DÉCLARÉ) ou `cmp_continu` (la
+grandeur est DÉCLARÉE continue — la porte ne lit pas la nature d'une grandeur, elle fait déclarer) ;
+`marge_en_pas` publie la marge EN PAS. Sites légataires gelés PAR (chemin, fonction, texte), jamais par ligne ;
+`--update-baseline` refuse sous 20 sites ; `--only` vide refusé ; illisible rapporté. ⚠️ Trouvé en l'écrivant :
+la rétro-application du 2026-09-24 à `td_step_pilot.py` annonçait « ses trois lectures » et `_lecture_r1`
+comparait encore en flottants nus (0 occurrence sur 4 versions du fichier) — corrigé, les trois lectures rejouées
+depuis leurs JSON suivis sont bit-identiques (le défaut restait latent). HORS motif, et dit : la forme « barre »
+(`x < 0,5`) et la nature de la grandeur (P2.122). Contre-exemple gelé : 126/640 contre 94/640 + 32, une égalité
+que float32 lit comme un dépassement (`tests/sandbox/test_grid_compare.py`) ; mutation tuée).
+
+**24 gardes** <!-- count:portes_hook=24 --> sont branchées sur le hook pre-commit
 (`tools/hooks/pre-commit`) — compte RECOMPUTÉ depuis le hook lui-même : la phrase « 5 cliquets, tous
 branchés » qui vivait ici était fausse.
 ⚠️ **La baseline d'un cliquet doit elle-même déclencher le hook** — sinon l'élargir et la committer seule

@@ -864,7 +864,8 @@ contre-exemple gelé et sa mutation (porte 15), dans la même passe — et une b
 existantes d'autrui.
 <!-- closes_when:grep_present=tools/check_backlog_freshness.py::auto-référentielle -->
 
-**P2.105 — rang 12 — OUVERTE (2026-09-24, second cas d'E30 paru le jour de la classe) — La porte qui manque à
+**P2.105 — rang 12 — ✅ CLOSE le 2026-09-26 (ouverte le 2026-09-24, second cas d'E30 paru le jour de la classe) —
+La porte qui manque à
 E30 : un seuil dont la marge est un multiple EXACT du pas d'une grille se compare sur la grille, et rien ne
 l'applique.**
 Le registre disait « garde exécutable à écrire quand un second cas paraîtra ». Il est paru : `tools/td_step_pilot.py`
@@ -903,6 +904,30 @@ session propriétaire le jour même, AVANT la lecture de la reprise, avec recomp
 ne bouge, pas même sur les 48 cellules neuves. Cette entrée ne porte donc plus l'urgence, seulement le
 CLIQUET : empêcher un NOUVEAU site, couvrir l'étage des médianes, et trancher les 9 autres sites de
 l'inventaire (dont les deux qui publient un verdict négatif).
+**✅ CLOSE le 2026-09-26 (agagi-32, worktree `tmp/p2-105`, fusion ff) — porte 24 `tools/check_grid_threshold.py`
+branchée au hook, helper partagé `tools/grid_compare.py`, et un TROISIÈME site trouvé en écrivant la porte.** Livré :
+(1) `tools/grid_compare.py` — `cmp_grille(x, y, marge, n_grille, sens)` (l'ancien `_cmp_grille` de `td_step_pilot.py`,
+sorti du runner : même sémantique, même repli DÉCLARÉ si non commensurable), `cmp_continu` (la même comparaison
+DÉCLARÉE continue — la réponse au faux positif de forme sur moyennes, ratios, probabilités : on fait déclarer, on ne
+devine pas), `marge_en_pas`/`sur_grille` (la marge EN PAS DE GRILLE : 0,05 = 32/640, 64/1280 pour l'étage des MÉDIANES
+qui vit sur 2N (i), marge 0 trivialement commensurable (ii)) ; calibrés dans `tests/sandbox/test_grid_compare.py` sur
+le cas fondateur (210 contre 178 + 32 : perdu en float32 de 1,19e-08, tenu sur la grille) et sur le contre-exemple
+naturel **126/640 contre 94/640 + 32, GELÉ** — float32 le lit comme un dépassement, la grille comme l'égalité qu'il est.
+(2) La porte : motif AST « a OP b ± marge » (flottant littéral ou nom de marge), périmètre des portes 11/23 moins le
+helper, baseline PAR (chemin, fonction, texte) — **54 sites légataires** gelés dans
+`tools/grid_threshold_baseline.json`, dont les deux verdicts négatifs de l'inventaire (`adaptive_planning_probe.py`
+`ADAPTIVE_NEUTRAL`, `hunif_retention_probe.py` `NO_RETENTION_ADVANTAGE`) gelés EN CONNAISSANCE, pas tranchés → P2.123 ;
+`--update-baseline` refuse sous 20 sites ; `--only` vide refusé ; illisible rapporté. Témoin
+`tests/sandbox/test_grid_threshold_gate.py` (contre-exemple gelé, clé sans numéro de ligne, helper hors périmètre,
+ancrage réel), mutation déclarée à la porte 15 et tuée. (3) ⚠️ **Trouvé en mesurant — E14 dans l'entrée même qui
+disait le contraire** : « rétro-appliqué à ses TROIS lectures » était FAUX. `_lecture_r1.n_sup` (`td_step_pilot.py`)
+comparait encore en flottants nus, sur les 4 versions du fichier depuis le 2026-09-22 (0 occurrence de `_cmp_grille`
+dans cette fonction, `git show` version par version) : deux lectures sur trois. Routée par le helper dans cette passe,
+comme le contrôle positif de R0 (`max(médianes) < 0,5`, grille 2N) ; les trois lectures REJOUÉES depuis leurs JSON
+suivis (`--lecture`, 0 simulation) avant/après : **bit-identiques** — le défaut restait LATENT, comme la revue l'avait
+mesuré, et il l'était sur un site qu'elle croyait corrigé. Le registre (E30 → `exécutable`, occ. 2) est tenu par une
+autre session ce jour : flip dans un commit séparé, après le sien. **Reste, et où ça va** : la forme « barre » hors
+motif, la marge en pas et `N` non publiés par les runners → P2.123.
 <!-- closes_when:grep_present=tools/hooks/pre-commit::check_grid_threshold -->
 
 
@@ -1145,6 +1170,27 @@ unilatéral ; recompté bilatéral sur LOCK-002 : 10/12 seeds dans l'autre sens,
 inchangé ») et l'occurrence E33 au registre — dans un commit SÉPARÉ, après l'instrument, jamais avant. *Coût : agent
 1 h ; calcul 0.* Dépend de : rien.
 <!-- closes_when:grep_present=tools/language_memory_demand_probe.py::leak_seeds_neg -->
+
+
+**P2.123 — rang 14 — OUVERTE (2026-09-26, reste de P2.105) — Publier la marge EN PAS DE GRILLE et `N` à côté de chaque
+compte comparé à un seuil, et étendre le motif de la porte 24 à la forme « barre » là où `N` est connu.**
+Ce que P2.105 a livré : le helper (`tools/grid_compare.py::marge_en_pas` rend 32 pour 0,05 sur 640, 64 sur 2N, None si
+la marge n'est pas un multiple du pas) et la porte (motif « a OP b ± marge »). Ce qui reste, mesuré : (a) aucun runner
+ne PUBLIE sa marge en pas — `tools/td_step_pilot.py` écrit « k/12 » dans ses trois lectures avec `_N_GRILLE = 640`
+DÉDUCTIBLE (`40 × n_agents`, l. 54) mais absent du bloc `regime` de `results/td_step_pilot_r0.json` et de ses deux
+frères (prémisse non mesurée, E8) ; le `12/12` du billet P4.11 tient à +1 pas (une évaluation sur 640) et rien ne le
+dit à côté du compte ; (b) la forme « barre » (`x < 0,5`, `acc >= 1/K + 0,05`) est HORS motif de la porte 24 (elle
+ratisserait des centaines de comparaisons continues) — le contrôle positif de R0 (`max(médianes) < 0,5`, grille 2N) est
+routé par le helper, mais un NOUVEAU site de cette forme n'est pas refusé ; là où l'instrument connaît `N` (`n_eval`,
+`eval_batches × n_agents`), « la barre est-elle un multiple du pas ? » est décidable sans simuler (`sur_grille`) ;
+(c) les deux verdicts négatifs de l'inventaire, `tools/adaptive_planning_probe.py::main` (`ADAPTIVE_NEUTRAL`, marge
+0,03) et `tools/hunif_retention_probe.py::main` (`NO_RETENTION_ADVANTAGE`, marge 0,05), sont GELÉS EN CONNAISSANCE dans
+la baseline de la porte, pas tranchés : ni l'un ni l'autre ne publie son `N`. **Forme** : chaque lecture qui compare
+sur grille publie `marge_en_pas` et `n_grille` à côté du compte (clés ADDITIVES, aucun compte ne change — à vérifier
+par rejeu `--lecture` bit-identique sur les comptes) ; `N` entre dans `regime` ; la porte 24 gagne un second motif
+« barre flottante » restreint aux modules qui définissent `n_grille`/`_N_GRILLE`. *Coût : agent 1-2 h ; calcul 0.*
+Dépend de : P2.105 (close).
+<!-- closes_when:grep_present=tools/td_step_pilot.py::marge_en_pas -->
 
 
 **P2.121 — rang 6 — OUVERTE (2026-09-26, mesuré sur le run 36210667429, le PREMIER où `suite-complete` exécute des
