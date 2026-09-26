@@ -105,6 +105,17 @@ minimal ; les deux publient les variables déclarées dans le MANIFEST.
    sha (Dockerfile, contraintes, requirements, gabarit de build) ; un sha qui ne porte pas encore
    `deploy/nexus/runner/` n'est comparé que sur requirements.txt, et la soumission le dit.
 
+## État mesuré (2026-09-26)
+
+* Namespace appliqué par robla (`kubectl apply -f deploy/nexus/`) ; image construite par
+  `python -m tools.jobs.remote image --sha 019dc34b` : Kaniko en 80 s sur nexus, sans OOM, tag
+  `py3.13.12-39fe2c9bda57`, digest dans `deploy/nexus/runner/IMAGE.json`.
+* Premier run déporté : `evo011_preflight --smoke` au sha da09f7a1, 64 s de bout en bout (préparation du dépôt au
+  sha, 19,6 Mo envoyés, tirage d'image, run, rapatriement vérifié). Dans le pod : `cpu.max` = 2 CPU lus au cgroup,
+  `os.cpu_count()` = 16 (l'hôte), threads posés à 2.
+* La ConfigMap `registry-ca-bundle` du namespace est une COPIE de celle d'elysium-brain : si la CA mkcert du
+  registre tourne, la re-copier (sinon build et tirage échouent en TLS) — P2.127.
+
 ## Ce que le déport ne fait PAS
 
 * Il ne choisit pas le lieu : `executer` va sur nexus, `local` sur la batcave ; aucun repli silencieux.
