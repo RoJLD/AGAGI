@@ -1386,7 +1386,13 @@ stable ; le CONTENU peut l'être. Proposition, à appliquer APRÈS les cellules 
 donc l'image) : adopter le Dockerfile nettoyé et publier dans IMAGE.json une EMPREINTE DE CONTENU (hash des couples
 chemin/sha256 des fichiers de l'image) à côté du digest — deux reconstructions se diront alors « même contenu »
 sans prétendre au même digest. Scripts d'essai hors dépôt (scratchpad de la session), images d'essai laissées dans
-le dépôt `…-essais` du registre (à purger avec ELYSIUM si l'espace compte).
+le dépôt `…-essais` du registre (à purger avec ELYSIUM si l'espace compte). **Proposition validée par Master 2** (pour
+APRÈS P4.18) : les records citeront le digest (l'artefact exécuté) ET l'empreinte de contenu (l'équivalence, établie
+par une mesure, jamais par un tag). **Demande à ELYSIUM, non urgente** : le palier `ml-heavy` (ou un plafond de build
+plus haut) pour que `--reproducible` ne soit plus OOMKilled — seule voie vers un digest stable. **Au passage** : la
+sonde de surveillance a attrapé ces deux OOMKilled d'essai avant qu'on déclare leur motif (contrôle positif
+involontaire) ; l'exclusion est désormais DÉCLARÉE et COMPTÉE (`python -m tools.jobs.remote surveiller --ignorer=…`,
+REF-DEPORT-NEXUS, Surveillance d'un run).
 
 **P2.132 — rang 4 — OUVERTE (2026-09-26, trouvée par la revue adversariale de la règle S2-BASSIN-FRAGILITY v4,
 critique P7.1, vérifiée à la lecture du code par la session SCIENCE-HARNAIS) — Le harnais IMMORTEL de P4.4 à P4.16
