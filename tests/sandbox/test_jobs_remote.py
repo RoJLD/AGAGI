@@ -702,3 +702,33 @@ def test_aucune_adresse_privee_ecrite_en_dur_dans_le_deport():
     fautes = [(str(f.relative_to(racine)), m.group(0)) for f in fichiers
               for m in motif.finditer(f.read_text(encoding="utf-8")) if m.group(0) not in generiques]
     assert fautes == []
+
+
+# ------------------------------------------------------------------------------------------ surveillance
+def _j(nom, cond=None):
+    return {"metadata": {"name": nom},
+            "status": {"conditions": [{"type": cond, "status": "True", "reason": "BackoffLimitExceeded"}] if cond else []}}
+
+
+def _p(nom, phase="Running", oom=False, cree="2026-09-26T17:00:00Z"):
+    st = {"phase": phase, "containerStatuses": [{"name": "run", "state": {"terminated": {"reason": "OOMKilled"}}}]
+          if oom else []}
+    return {"metadata": {"name": nom, "creationTimestamp": cree}, "status": st}
+
+
+def test_surveillance_deux_issues_et_exclusion_COMPTEE():
+    """La sonde voit un Job échoué, un OOMKilled, un Pending trop long — et un motif ignoré DÉCLARÉ ne réveille pas
+    mais reste COMPTÉ (revue de Master 2 : une exclusion non comptée est un angle mort, E32). Contrôle positif réel :
+    le 2026-09-26, la sonde a attrapé deux builds d'essai OOMKilled avant qu'on la fasse les ignorer."""
+    import calendar
+    t = calendar.timegm((2026, 9, 26, 17, 30, 0, 0, 0, 0))
+    sain = R.lire_anomalies({"items": [_j("a", "Complete"), _j("b")]}, {"items": [_p("b")]}, t)
+    assert sain == {"anomalies": [], "ignorees": [], "actifs": 1}
+    r = R.lire_anomalies({"items": [_j("run-x", "Failed")]},
+                         {"items": [_p("run-y", oom=True), _p("run-z", phase="Pending")]}, t)
+    assert len(r["anomalies"]) == 3 and r["ignorees"] == []                       # 30 min de Pending > 10 min
+    jeune = R.lire_anomalies({"items": []}, {"items": [_p("run-z", phase="Pending", cree="2026-09-26T17:25:00Z")]}, t)
+    assert jeune["anomalies"] == []                                               # 5 min : pas encore
+    ign = R.lire_anomalies({"items": [_j("agagi-build-p2134-r1-0", "Failed")]},
+                           {"items": [_p("agagi-build-p2134-r1-0-x", oom=True)]}, t, ignorer=("-p2134-",))
+    assert ign["anomalies"] == [] and len(ign["ignorees"]) == 2 and "motif déclaré" in ign["ignorees"][0]

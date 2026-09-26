@@ -893,6 +893,76 @@ def rendre_manifestes(cfg: dict, racine: Path) -> str:
     return "\n---\n".join(d.strip("\n") for d in docs) + "\n"
 
 
+# ------------------------------------------------------------------------------------------ surveillance
+PENDING_MAX_S = 600
+
+
+def lire_anomalies(jobs: dict, pods: dict, maintenant: float, ignorer=(), pending_max_s=PENDING_MAX_S) -> dict:
+    """Anomalies d'un namespace de déport, lues sur `kubectl get jobs/pods -o json` : Job ÉCHOUÉ, conteneur
+    OOMKilled, pod Pending depuis plus de `pending_max_s`. PURE (l'horloge est un argument).
+
+    `ignorer` : motifs DÉCLARÉS (sous-chaînes de nom) dont les anomalies ne réveillent personne — elles ne sont pas
+    jetées pour autant : elles sont rendues dans `ignorees`, comptées, et publiées à chaque ligne d'état (revue de
+    Master 2, 2026-09-26 : une exclusion commode non comptée devient un angle mort silencieux, classe E32)."""
+    import calendar
+    anomalies, ignorees = [], []
+
+    def noter(nom, texte):
+        motif = next((m for m in ignorer if m and m in nom), None)
+        (ignorees if motif else anomalies).append(texte + (f"  [ignorée : motif déclaré « {motif} »]" if motif else ""))
+
+    for j in jobs.get("items", []):
+        nom = j["metadata"]["name"]
+        conds = {c["type"]: c for c in j.get("status", {}).get("conditions", []) if c.get("status") == "True"}
+        if "Failed" in conds:
+            noter(nom, f"JOB ÉCHOUÉ {nom} : {conds['Failed'].get('reason')} {conds['Failed'].get('message', '')[:120]}")
+    for p in pods.get("items", []):
+        nom, st = p["metadata"]["name"], p.get("status", {})
+        for c in st.get("containerStatuses", []) + st.get("initContainerStatuses", []):
+            t = c.get("state", {}).get("terminated") or c.get("lastState", {}).get("terminated") or {}
+            if t.get("reason") == "OOMKilled":
+                noter(nom, f"OOMKilled {nom}/{c['name']}")
+        if st.get("phase") == "Pending":
+            age = maintenant - calendar.timegm(_dt.datetime.strptime(p["metadata"]["creationTimestamp"],
+                                                                     "%Y-%m-%dT%H:%M:%SZ").timetuple())
+            if age > pending_max_s:
+                noter(nom, f"PENDING depuis {age / 60:.0f} min {nom} (quota plein ? nœud ?)")
+    actifs = sum(1 for j in jobs.get("items", []) if not {c["type"] for c in j.get("status", {}).get("conditions", [])
+                                                          if c.get("status") == "True"} & {"Complete", "Failed"})
+    return {"anomalies": anomalies, "ignorees": ignorees, "actifs": actifs}
+
+
+def surveiller(*, duree_s=6 * 3600, pas_s=60, ignorer=(), kube=None, sortie=print) -> int:
+    """LECTURE SEULE. Sonde le namespace toutes les `pas_s` secondes ; imprime une ligne d'état à chaque changement
+    (Jobs actifs, quota, nombre d'anomalies IGNORÉES) ; rend 3 à la première anomalie non ignorée, 4 si le cluster
+    est illisible, 0 à l'échéance. Ne relance, ne supprime, ne modifie RIEN."""
+    kube = kube or Kube.depuis(charger_config())
+    t0, dernier = time.monotonic(), None
+    if ignorer:
+        sortie(f"[surveiller] motifs ignorés DÉCLARÉS : {list(ignorer)} (comptés à chaque ligne)")
+    while time.monotonic() - t0 < duree_s:
+        try:
+            jobs, pods = kube.json(["get", "jobs"]), kube.json(["get", "pods"])
+            quota = kube.json(["get", "resourcequota"])
+        except Refus as e:
+            sortie(f"[surveiller] {time.strftime('%H:%M:%S')} cluster illisible : {e}")
+            return 4
+        r = lire_anomalies(jobs, pods, time.time(), ignorer)
+        used = quota["items"][0]["status"].get("used", {}) if quota.get("items") else {}
+        etat = (f"jobs actifs={r['actifs']} pods={used.get('pods')} req.cpu={used.get('requests.cpu')} "
+                f"jobs={used.get('count/jobs.batch')} anomalies ignorées={len(r['ignorees'])}")
+        if etat != dernier:
+            sortie(f"[surveiller] {time.strftime('%H:%M:%S')} {etat}")
+            dernier = etat
+        if r["anomalies"]:
+            for a in r["anomalies"]:
+                sortie(f"[surveiller] {time.strftime('%H:%M:%S')} ANOMALIE {a}")
+            return 3
+        time.sleep(pas_s)
+    sortie(f"[surveiller] {time.strftime('%H:%M:%S')} échéance atteinte, aucune anomalie non ignorée")
+    return 0
+
+
 # ------------------------------------------------------------------------------------------ témoin
 VOLATILS_DEFAUT = ("elapsed_s",)
 _SCALAIRE_JSON = rb'(?:-?Infinity|NaN|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|"(?:[^"\\]|\\.)*"|true|false|null)'
@@ -1028,6 +1098,11 @@ def main(argv=None) -> int:
     p = sp.add_parser("namespace", help="rendre les manifestes du namespace depuis la configuration")
     p.add_argument("--appliquer", action="store_true", help="kubectl apply du rendu (sinon : imprimé)")
     sp.add_parser("config", help="afficher la configuration résolue et d'où vient chaque clé")
+    p = sp.add_parser("surveiller", help="sonde LECTURE SEULE du namespace (Job échoué, OOMKilled, Pending)")
+    p.add_argument("--duree-s", type=float, default=6 * 3600)
+    p.add_argument("--pas-s", type=float, default=60)
+    p.add_argument("--ignorer", action="append", default=[], metavar="MOTIF",
+                   help="sous-chaîne de nom DÉCLARÉE dont les anomalies sont comptées mais ne réveillent pas")
     p = sp.add_parser("temoin", help="rejouer les comptes d'un témoin publié depuis ses octets embarqués")
     p.add_argument("json")
     a = ap.parse_args(argv)
@@ -1076,6 +1151,8 @@ def main(argv=None) -> int:
             r = Kube.depuis(cfg).brut(["apply", "-f", "-"], entree=rendu.encode("utf-8"), ns=False)
             print(r.stdout.decode())
             return 0
+        if a.action == "surveiller":
+            return surveiller(duree_s=a.duree_s, pas_s=a.pas_s, ignorer=tuple(a.ignorer))
         if a.action == "config":
             cfg = charger_config()
             for k in VARIABLES_CONFIG:
