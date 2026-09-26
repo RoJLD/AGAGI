@@ -1294,6 +1294,30 @@ génomes de fumée. Un ré-entraînement rétablirait donc le SUJET de deux cas 
 WARM-007, rien d'autre. Remonté à robla par Master 2, avec la preuve.
 
 
+**P2.126 — rang 3 — OUVERTE, code LIVRÉ (2026-09-26, session INFRA-NEXUS, décision de robla du même jour) —
+L'exécution LOCALE par défaut : tout run AGAGI tournait sur la batcave, chargée en permanence (plugin
+episodic-memory, 82 à 99 % CPU mesurés le 2026-09-26), donc toute unité de coût y était mesurée SOUS CHARGE (E12).**
+Livré sur tmp/nexus (7f639e35, fusionné avec d1 en dd99235d) : `tools/jobs/remote.py` (executer, soumettre,
+attendre, rapatrier, installer, local, image), `tools/jobs/remote_entry.py` (stdlib, tourne dans le pod ET en local),
+`deploy/nexus/` (namespace elysium-agagi, LimitRange du palier standard, NetworkPolicy, ResourceQuota ; image runner
+construite par Kaniko), `docs/REF/REF-DEPORT-NEXUS.md`, `tests/sandbox/test_jobs_remote.py` (67 passés Windows ET
+Linux). Manifestes relus par elysium-8d, elysium-91 et elysium-2d ; revue opus avant commit (2 critiques et 8
+importants corrigés).
+**Écart DÉCLARÉ au mandat, accepté par Master 2 le 2026-09-26** : le mandat prévoyait des résultats écrits en local
+dans le pod puis déposés par renommage atomique sur le NFS atlas. AUCUN pod de run ne monte de NFS : atlas est éteint
+depuis le 14/09 (suspicion RAM, memtest non fait ; SIGIL-1764 l'a rétrogradé en cible de réplication copy-only), et
+un volume nfs déclaré dans un pod se monte en `hard` — un atlas à terre fige le pod puis le kubelet (incident ELYSIUM
+du 01/09 : WAL kine 8,9 Go, control-plane 3 h 50 à terre). Les résultats sont rapatriés depuis le pod VIVANT et
+vérifiés contre leur MANIFEST ; en cas de conflit, la sortie vérifiée est CONSERVÉE localement (sous runs/deport,
+répertoire sortie_non_installee). La fonction de dépôt atomique reste dans `tools/jobs/remote_entry.py`, testée,
+sans appelant ; répliquer vers atlas se fera hors run, quand il sera revenu.
+**Reste pour fermer** : (a) application sur le cluster par robla — `kubectl --context direct-192.168.1.21 apply -f
+deploy/nexus/` puis `python -m tools.jobs.remote image` — et le fichier IMAGE.json du runner committé ; (b) le
+témoin : `python -m tools.evo_runs.evo011_preflight --smoke`, même sha, batcave (fait : deux réplicats identiques
+hors `elapsed_s`, charge 82 % notée) contre nexus, comparé par `ecarts_hors_volatils`, record court avec l'unité de
+coût des deux côtés. Ferme quand ce record existe.
+<!-- closes_when:path_present=docs/EDR/DEPORT-NEXUS-TEMOIN_Meme_Seed_Batcave_Contre_Nexus.md -->
+
 **P2.121 — rang 6 — OUVERTE (2026-09-26, mesuré sur le run 36210667429, le PREMIER où `suite-complete` exécute des
 tests) — La suite complète tourne en CI : 2807 passés, 88 rouges, 18 erreurs, 238 sautés, 17 min 38 s — et ses rouges se
 rangent en SEPT familles dont AUCUNE n'est un défaut du monde. Inventaire par cause, recette par famille.**

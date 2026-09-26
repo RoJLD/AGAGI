@@ -75,7 +75,7 @@ minimal ; les deux publient les variables déclarées dans le MANIFEST.
    Linux compte tous les descendants attendus, Windows le fils direct seul — pas comparables terme à terme
    pour un runner multiprocessus), RSS max (Linux), charge de la MACHINE (`loadavg` de l'hôte sous Linux, %
    CPU système sur 1 s) au début et à la fin, nœud, image, versions.
-7. **Un run ne monte AUCUN volume réseau.** Le pod garde ses sorties (emptyDir) et attend que la batcave les
+7. **Un run ne monte AUCUN volume réseau — écart DÉCLARÉ au mandat, accepté par Master 2 le 2026-09-26 (P2.126).** Le pod garde ses sorties (emptyDir) et attend que la batcave les
    tire (`--attente-s`, 1 h, 60 s au moins) ; faute de rapatriement il sort en code 87, jamais en succès. Le mandat prévoyait
    un dépôt par renommage atomique sur le NFS atlas : il est RETIRÉ des pods, pour trois faits apportés par
    les sessions ELYSIUM le 2026-09-26 — (a) un volume `nfs:` déclaré dans un pod est monté `hard` (seul un PV
