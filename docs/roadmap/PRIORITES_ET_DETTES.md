@@ -1102,6 +1102,51 @@ devant ; deux sessions de cwd différents touchant `src/paths.py` → toujours a
 <!-- closes_when:grep_present=tools/pm/board.py::hors de l'arbre -->
 
 
+**P2.120 — rang 6 — OUVERTE (2026-09-26, transmise par la clôture de flotte du même jour ; fait mesuré par le Réfutateur
+le 2026-09-24, jamais inscrit) — Le compteur d'appariement `leak_seeds` de la garde d'alias ne compte qu'UNE direction
+(`ci − ca > tol`) : quand le bras CONTROL ablaté fait MIEUX que l'intact il rend 0, et trois records publient ce 0 comme
+preuve d'appariement, sans signe ni compte inverse.**
+Preuve : `tools/language_memory_demand_probe.py:178-180` — `per_seed = ci − ca`, `leak_seeds` compte `d > tol`,
+`leak_seeds_two_sided` compte `|d| > tol` (ce second compte existe depuis `366217da`, 2026-09-01, mais il n'a ni
+direction ni signe, et le runner `tools/lang_memory_edge_run.py:124` n'imprime que `leakage` et `leak_seeds`).
+Recompté le 2026-09-26 depuis `results/lang_memory_edge_d2.json` (SUIVI par git, cité par [[EDR-LOCK-002]]), bras
+`learned`, CONTROL, tol = 0,05 : `ci − ca` NÉGATIF sur **10 seeds sur 12** (médiane −0,030), `leak_seeds` = **0**,
+`leak_seeds_two_sided` = **3** (seeds 2, 6, 9 : −0,058 / −0,059 / −0,053), compte inverse `ca − ci > tol` = **3** ;
+`leakage` (différence de médianes agrégées) = 0,028 ≤ tol → `SURGICAL`. Le bras `present` va dans le même sens
+(8/12, médiane −0,014, aucun seed au-delà de tol). Le record ne publie que « `leak_seeds`=0 »
+(`docs/EDR/LOCK-002_D2_Retention_Is_Learned_Under_REINFORCE_At_The_Right_Step_The_Fourth_Manifestation_Was_E19.md:68`) ;
+[[EDR-LANG-MEMORY-EDGE-BIS]] (`:32`) et [[EDR-LANG-MEMORY-EDGE]] (`:33`) publient le même 0 depuis le même compteur,
+NON recomptés ici (leurs bras ne sont pas dans ce JSON) ; seul [[EDR-HARNESS-R1]] (`:231-232`) publie les deux comptes.
+Le fait est déjà gravé chez le Réfutateur — témoin LOCK-002 de `tools/refutateur_temoins.json` (champ `defaut`) et
+`tests/sandbox/test_refutateur_temoins.py:335-344` — trouvé À L'AVEUGLE, seule des six critiques recevables du premier
+no-op complet confrontée aux données ; il n'est dans aucun des trois records qu'il vise.
+**Pourquoi ça compte** : « le bras ablaté fait mieux » n'est pas une curiosité, c'est la forme MESURÉE du dépôt —
+[[EDR-S2-BLIND-CHAMPION-TER]], le champion aveuglé à l'entrée survit PLUS longtemps sur 7/7 seeds (P2.42 close) ; un
+compteur qui ne regarde que la dégradation est aveugle par construction à la direction où le dépôt trouve ses effets.
+Un `SURGICAL` accompagné de « `leak_seeds`=0 » se lit « appariement vérifié » alors que 10 seeds sur 12 bougent dans le
+même sens : la CONCLUSION (`SURGICAL`, `leakage` ≤ tol) tient, la PREUVE publiée ne l'établit pas — c'est la forme
+**E33** ; et le compte bilatéral est CALCULÉ (`two_sided`) puis non publié, forme (b) du biais mesuré à la clôture de la
+dette de calibration (l'instrument SAIT et ne le dit pas). La mesure n'entre pas dans la décision, par choix documenté
+(`:165-169`, aucun seuil par seed étalonné ; `tools/lang_memory_edge_run.py:63`) : l'entrée ne demande PAS d'en faire un
+critère, seulement de rendre la DIRECTION visible là où le lecteur du verdict regarde.
+**Forme demandée** (objet rendu par `alias_guard_verdict`, fonction PURE, calcul 0) : (a) `leak_seeds_pos` (= `leak_seeds`,
+conservé tel quel, les records le citent) et `leak_seeds_neg` (`ca − ci > tol`), publiés côte à côte, avec l'invariant
+`pos + neg == leak_seeds_two_sided` asserté ; (b) `leak_sign` ∈ {−1, 0, +1}, signe de la MÉDIANE de `per_seed` (0 quand
+|médiane| ≤ 1e-9) ; (c) `leak_reserve` : une chaîne DANS l'objet, `None` quand rien n'est à dire, sinon la phrase à
+recopier dans le record (« le CONTROL ablaté fait mieux que l'intact sur k/n seeds, médiane d : appariement à regarder,
+pas gravé tel quel ») dès que `leak_seeds_neg > 0` ou qu'une majorité stricte des seeds a `d < 0` ; (d) le runner
+(`lang_memory_edge_run.py:124`) imprime les deux comptes, le signe et la réserve ; (e) `alias_verdict` et
+`functional_aliasing` INCHANGÉS sur toute entrée — no-op EXACT à asserter sur les cas existants.
+**Calibration dans la même passe** (`tests/sandbox/test_instrument_calibration.py`, à côté des cas `:3533-3585`) : le jeu
+LOCK-002 ci-dessus (12 valeurs par bras, recopiées) rend `pos=0, neg=3, sign=−1, reserve≠None` et `alias_verdict`
+`SURGICAL` inchangé ; son MIROIR (`ci`/`ca` échangés) rend `pos=3, neg=0, sign=+1, reserve=None` ; le no-op (`ci == ca`)
+rend `0, 0, 0, None`. Puis un BANDEAU de rectification sur les trois records (« `leak_seeds`=0 publié depuis un compteur
+unilatéral ; recompté bilatéral sur LOCK-002 : 10/12 seeds dans l'autre sens, 3 au-delà de tol ; verdict `SURGICAL`
+inchangé ») et l'occurrence E33 au registre — dans un commit SÉPARÉ, après l'instrument, jamais avant. *Coût : agent
+1 h ; calcul 0.* Dépend de : rien.
+<!-- closes_when:grep_present=tools/language_memory_demand_probe.py::leak_seeds_neg -->
+
+
 **P4.21 — rang 12 — OUVERTE (2026-09-24, trouvée en amendant ma propre clôture) — Un verdict de SYNTHÈSE qui
 agrège plusieurs POINTS DE FONCTIONNEMENT n'a aucune garde : le pré-vol garde une CELLULE, pas une CONCLUSION.**
 Preuve (E2 occ. 6) : `7fa6b2d8` publiait « invariance au pas RÉFUTÉE » depuis `aide09 = 0/12` à lr 2,0, alors que
