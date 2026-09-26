@@ -785,19 +785,85 @@ def construire_image(*, sha="HEAD", kube=None, racine=None, sortie=print, delai_
 
 # ------------------------------------------------------------------------------------------ témoin
 VOLATILS_DEFAUT = ("elapsed_s",)
+_SCALAIRE_JSON = rb'(?:-?Infinity|NaN|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|"(?:[^"\\]|\\.)*"|true|false|null)'
 
 
 def ecarts_hors_volatils(a: bytes, b: bytes, volatils=VOLATILS_DEFAUT) -> list:
-    """Lignes (numéro 1-based, contenu a, contenu b) où deux sorties diffèrent, HORS des lignes portant une
-    clé JSON déclarée volatile (durée murale…). Liste vide = identiques OCTET POUR OCTET sur tout le reste.
-    La liste des volatils est DÉCLARÉE avant de voir les deux côtés, jamais déduite des écarts."""
-    motif = re.compile(rb'^\s*"(' + b"|".join(re.escape(v.encode()) for v in volatils) + rb')"\s*:')
+    """Lignes (numéro 1-based, contenu a, contenu b) où deux sorties diffèrent, une fois MASQUÉE la seule VALEUR
+    des clés JSON déclarées volatiles (durée murale…). Liste vide = identiques OCTET POUR OCTET sur tout le reste,
+    fins de ligne comprises. La liste des volatils est DÉCLARÉE avant de voir les deux côtés.
+
+    Revue du 2026-09-26 (P5.2, E4) : la première version EXCUSAIT toute la ligne dès qu'une clé volatile
+    l'ouvrait des deux côtés — une valeur posée après elle sur la même ligne devenait invisible, et le témoin
+    unitaire n'exerçait pas ce chemin (sa ligne mixte commençait par une accolade). On masque la valeur, pas la
+    ligne."""
+    if not volatils:
+        masquer = lambda ligne: ligne                                               # noqa: E731
+    else:
+        motif = re.compile(rb'("(?:' + b"|".join(re.escape(v.encode()) for v in volatils) + rb')"\s*:\s*)'
+                           + _SCALAIRE_JSON)
+        masquer = lambda ligne: motif.sub(rb"\1<volatil>", ligne)                    # noqa: E731
     la, lb = a.split(b"\n"), b.split(b"\n")
     if len(la) != len(lb):
         return [(0, f"{len(la)} lignes", f"{len(lb)} lignes")]
     return [(i + 1, x.decode("utf-8", "replace"), y.decode("utf-8", "replace"))
-            for i, (x, y) in enumerate(zip(la, lb))
-            if x != y and not (motif.match(x) and motif.match(y))]
+            for i, (x, y) in enumerate(zip(la, lb)) if masquer(x) != masquer(y)]
+
+
+def _sans_hote(ref):
+    """`hôte:port/chemin:tag@digest` → `chemin:tag@digest` : l'adresse d'un registre n'entre pas dans le dépôt."""
+    if not ref:
+        return ref
+    tete, _, reste = ref.partition("/")
+    return reste if reste and ("." in tete or ":" in tete) else ref
+
+
+def agreger_temoin(tours: dict, sortie_rel: str, volatils=VOLATILS_DEFAUT) -> dict:
+    """Agrège un témoin inter-machines : `tours` = {nom_tour: {côté: répertoire rapatrié (--into)}}. Pour chaque
+    côté : la sortie du runner en OCTETS BRUTS (base64, donc à l'abri de core.autocrlf), son empreinte, son
+    MANIFEST (hôte du registre retiré) ; pour chaque paire de côtés d'un tour : écarts sous la règle et écarts sans
+    volatils (le contrôle que le comparateur voit une différence). Rien n'est jugé ici : on compte."""
+    import base64
+    import itertools
+    doc = {"schema": "agagi-deport-temoin/2", "sortie": sortie_rel, "volatils": list(volatils), "tours": {}}
+    for nom, cotes in tours.items():
+        brut, t = {}, {"cotes": {}, "comparaisons_regle_declaree": {}, "controle_sans_volatils": {}}
+        for cote, rep in cotes.items():
+            rep = Path(rep)
+            brut[cote] = (rep / sortie_rel).read_bytes()
+            mfs = sorted((rep / JOURNAL_LOCAL).glob("*/" + E.MANIFEST))
+            if len(mfs) != 1:
+                raise Refus(f"{rep} : {len(mfs)} MANIFEST (un seul attendu)")
+            m = json.loads(mfs[0].read_text(encoding="utf-8"))
+            m["image"] = _sans_hote(m.get("image"))
+            t["cotes"][cote] = {"manifeste": m, "sortie_sha256": hashlib.sha256(brut[cote]).hexdigest(),
+                                "sortie_octets": len(brut[cote]), "sortie_CR": brut[cote].count(b"\r"),
+                                "sortie_b64": base64.b64encode(brut[cote]).decode("ascii")}
+        for x, y in itertools.combinations(sorted(cotes), 2):
+            t["comparaisons_regle_declaree"][f"{x}~{y}"] = len(ecarts_hors_volatils(brut[x], brut[y], volatils))
+            t["controle_sans_volatils"][f"{x}~{y}"] = len(ecarts_hors_volatils(brut[x], brut[y], ()))
+        doc["tours"][nom] = t
+    return doc
+
+
+def rejouer_temoin(doc: dict) -> list:
+    """Recompute, depuis les octets EMBARQUÉS, chaque compte publié par `agreger_temoin` ; rend la liste des
+    désaccords (vide = tout se rejoue). Une empreinte qui ne correspond plus est un désaccord, pas un avertissement."""
+    import base64
+    import itertools
+    desaccords = []
+    vol = tuple(doc.get("volatils", VOLATILS_DEFAUT))
+    for nom, t in doc.get("tours", {}).items():
+        brut = {c: base64.b64decode(v["sortie_b64"]) for c, v in t["cotes"].items()}
+        for c, v in t["cotes"].items():
+            if hashlib.sha256(brut[c]).hexdigest() != v["sortie_sha256"]:
+                desaccords.append(f"{nom}/{c} : empreinte")
+        for x, y in itertools.combinations(sorted(brut), 2):
+            k = f"{x}~{y}"
+            for cle, vv in (("comparaisons_regle_declaree", vol), ("controle_sans_volatils", ())):
+                if t[cle].get(k) != len(ecarts_hors_volatils(brut[x], brut[y], vv)):
+                    desaccords.append(f"{nom}/{cle}/{k}")
+    return desaccords
 
 
 # ------------------------------------------------------------------------------------------ CLI
@@ -850,6 +916,8 @@ def main(argv=None) -> int:
     _commun(p)
     p.add_argument("--reconstruire", action="store_true")
     sp.add_parser("etat")
+    p = sp.add_parser("temoin", help="rejouer les comptes d'un témoin publié depuis ses octets embarqués")
+    p.add_argument("json")
     a = ap.parse_args(argv)
     try:
         if a.action in ("executer", "soumettre"):
@@ -879,6 +947,10 @@ def main(argv=None) -> int:
         if a.action == "image":
             construire_image(sha=a.sha, reconstruire=a.reconstruire)
             return 0
+        if a.action == "temoin":
+            d = rejouer_temoin(json.loads(Path(a.json).read_text(encoding="utf-8")))
+            print("tout se rejoue" if not d else f"DÉSACCORDS : {d}")
+            return 0 if not d else 1
         if a.action == "etat":
             print(Kube().brut(["get", "jobs,pods", "-l", "app.kubernetes.io/part-of=agagi"]).stdout.decode())
             return 0

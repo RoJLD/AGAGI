@@ -1303,7 +1303,7 @@ génomes de fumée. Un ré-entraînement rétablirait donc le SUJET de deux cas 
 WARM-007, rien d'autre. Remonté à robla par Master 2, avec la preuve.
 
 
-**P2.126 — rang 3 — OUVERTE, code LIVRÉ (2026-09-26, session INFRA-NEXUS, décision de robla du même jour) —
+**P2.126 — ✅ CLOSE (2026-09-26, [[EDR-DEPORT-NEXUS-TEMOIN]]) — rang 3 — session INFRA-NEXUS, décision de robla du même jour —
 L'exécution LOCALE par défaut : tout run AGAGI tournait sur la batcave, chargée en permanence (plugin
 episodic-memory, 82 à 99 % CPU mesurés le 2026-09-26), donc toute unité de coût y était mesurée SOUS CHARGE (E12).**
 Livré sur tmp/nexus (7f639e35, fusionné avec d1 en dd99235d) : `tools/jobs/remote.py` (executer, soumettre,
@@ -1327,6 +1327,11 @@ committé) ; premier run déporté réussi le même jour (évo011 --smoke, 64 s 
 témoin : `python -m tools.evo_runs.evo011_preflight --smoke`, même sha, batcave (fait : deux réplicats identiques
 hors `elapsed_s`, charge 82 % notée) contre nexus, comparé par `ecarts_hors_volatils`, record court avec l'unité de
 coût des deux côtés. Ferme quand ce record existe.
+**Fermeture (2026-09-26)** : record EDR-DEPORT-NEXUS-TEMOIN, revu par /refutateur (19 critiques confirmées sur 42,
+toutes traitées). Au sha def16adc, pour UNE cellule numpy (evo011 --smoke, poids gelés PUIS appris), batcave et nexus
+rendent les mêmes octets hors durée ; le premier tour, NON identique pour la seule fin de ligne et sur deux points
+d'entrée différents, est gardé comme histoire. Hors portée, nommé : l'identité torch float32 entre plateformes (cellule
+P4.18 de SCIENCE, témoin suivant).
 <!-- closes_when:path_present=docs/EDR/DEPORT-NEXUS-TEMOIN_Meme_Seed_Batcave_Contre_Nexus.md -->
 
 **P2.127 — rang 20 — OUVERTE (2026-09-26, relecture finale d'elysium-91 et d'elysium-2d, non bloquantes) — Durcir
@@ -1342,6 +1347,14 @@ depuis elysium-brain) : elle ne suit pas une rotation de la CA mkcert — à re-
 aujourd'hui (cnce-12 arrive, PR-A secrets-flotte d'elysium-2d). (5) Verser les manifestes dans le GitOps ELYSIUM ou
 une Application ArgoCD quand ce sera stable (Σ-MANIFEST-MYCORHIZE : l'app est SHADOW tant qu'elle n'est pas déclarée).
 Sans clause `closes_when` (déclaré) : cinq gestes, dont trois se font avec ELYSIUM.
+
+**P2.131 — rang 22 — OUVERTE (2026-09-26, trouvée en passant par la revue /refutateur d'EDR-DEPORT-NEXUS-TEMOIN, P8.5)
+— Des citations de ligne PÉRIMÉES pour la formule du corps : trois sites renvoient à `src/agents/mamba_agent.py:47-50`,
+où vit aujourd'hui le constructeur.**
+Preuve (sonde de la revue, sha def16adc) : `tools/evo_runs/evo011_preflight.py:42` et `:301`, et
+`tools/experiment_preflight.py:488` citent `mamba_agent.py:47-50` ; la formule réelle est aux lignes 77-80 et 83-88. Une
+citation `fichier:ligne` sans sha se périme en silence dès que le fichier bouge (E33, occ. 5) : remplacer par le NOM de
+la fonction ou une citation `sha:chemin`. Sans clause `closes_when` (déclaré) : trois éditions de commentaire.
 
 **P2.121 — rang 6 — OUVERTE (2026-09-26, mesuré sur le run 36210667429, le PREMIER où `suite-complete` exécute des
 tests) — La suite complète tourne en CI : 2807 passés, 88 rouges, 18 erreurs, 238 sautés, 17 min 38 s — et ses rouges se

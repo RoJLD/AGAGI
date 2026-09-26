@@ -518,6 +518,33 @@ def test_ecarts_hors_volatils_deux_issues():
     assert R.ecarts_hors_volatils(a, b, volatils=()) != []           # rien de déclaré : tout compte
 
 
+def test_une_valeur_POSEE_APRES_la_cle_volatile_reste_visible():
+    """Revue (P5.2, E4) : une ligne OUVERTE par la clé volatile était excusée en entier."""
+    x = b'{\n "elapsed_s": 1.4, "r": 0.5\n}'
+    assert R.ecarts_hors_volatils(x, b'{\n "elapsed_s": 1.5, "r": 0.9\n}') != []    # r a changé : vu
+    assert R.ecarts_hors_volatils(x, b'{\n "elapsed_s": 1.5, "r": 0.5\n}') == []    # seule la durée : masquée
+    assert R.ecarts_hors_volatils(x, x.replace(b"\n", b"\r\n")) != []               # fins de ligne : vues
+
+
+def test_temoin_agrege_puis_rejoue(tmp_path):
+    """Les comptes publiés d'un témoin se RECOMPUTENT depuis les octets embarqués ; une empreinte ou un compte
+    retouché est un désaccord (revue P5.3 : 5 paires sur 7 n'étaient que des nombres déclarés)."""
+    for cote, dur in (("a", "1.4"), ("b", "2.9")):
+        d = tmp_path / cote
+        (d / "results").mkdir(parents=True)
+        (d / "results" / "x.json").write_bytes(('{\n "elapsed_s": ' + dur + ',\n "r": 0.5\n}').encode())
+        (d / "runs" / "deport" / "job").mkdir(parents=True)
+        (d / "runs" / "deport" / "job" / "MANIFEST.json").write_text(json.dumps(
+            {"image": "registre.example:5000/elysium/agagi-runner:t@sha256:0"}))
+    doc = R.agreger_temoin({"t": {"a": tmp_path / "a", "b": tmp_path / "b"}}, "results/x.json")
+    t = doc["tours"]["t"]
+    assert t["comparaisons_regle_declaree"]["a~b"] == 0 and t["controle_sans_volatils"]["a~b"] == 1
+    assert t["cotes"]["a"]["manifeste"]["image"] == "elysium/agagi-runner:t@sha256:0"   # hôte retiré
+    assert R.rejouer_temoin(doc) == []
+    t["comparaisons_regle_declaree"]["a~b"] = 5
+    assert R.rejouer_temoin(doc) == ["t/comparaisons_regle_declaree/a~b"]
+
+
 def test_reecriture_a_l_identique_est_une_sortie_attestee(depot, tmp_path):
     """Revue (S3) : un runner qui reproduit à l'octet un fichier suivi ne laissait AUCUNE trace."""
     repo, sha = depot
