@@ -69,6 +69,48 @@ def test_a_historical_number_without_tag_is_left_alone(tmp_path):
     assert S.scan(docs, _FAUX) == ([], 0)
 
 
+_REGISTRE_JOUET = (
+    "| # | Classe d'erreur | Occurrences | Statut | Garde |\n"
+    "|---|---|---|---|---|\n"
+    "| **E1** | a | b | `exécutable` | g |\n"
+    "| **E2** | a | b | exécutable | g |\n"
+    "| **E3** | a | b | **`exécutable`** | g |\n"
+    "| **E4** | a `x | y` b | occ | `documenté` **(promu le 2026-09-02 — voir)** | g |\n"
+    "| **E5** | a | b | **`non automatisable`** | g |\n"
+)
+
+
+def test_CONTRE_EXEMPLE_GELE_P2_117_le_statut_se_lit_dans_sa_COLONNE_quelle_que_soit_sa_mise_en_forme():
+    """P2.117 : le compteur lisait la FORME (« `exécutable` » après un « | ») et non la COLONNE — E28 et E29, écrites
+    nues, n'étaient comptées nulle part (24 publiés, 26 réels). Trois écritures du même statut rendent 3, pas 1."""
+    assert S._classes_registre("exécutable", _REGISTRE_JOUET) == 3
+    assert S._classes_registre("documenté", _REGISTRE_JOUET) == 1
+    assert S._classes_registre("non automatisable", _REGISTRE_JOUET) == 1
+    assert S._classes_statut_inconnu(_REGISTRE_JOUET) == 0
+
+
+def test_un_pipe_dans_un_CODE_SPAN_ne_decale_pas_la_colonne():
+    """E4 du jouet porte « `x | y` » dans sa deuxième cellule : un split naïf lirait son statut une colonne trop
+    tôt (« occ »). Mesuré sur le vrai registre : 6 lignes sur 33 désalignées par un split naïf."""
+    statuts = dict(S._statuts_registre(_REGISTRE_JOUET))
+    assert statuts["E4"] == "documenté", statuts
+    assert len(S._cellules("| **E4** | a `x | y` b | occ | `documenté` | g |")) == 5
+
+
+def test_un_statut_HORS_vocabulaire_est_COMPTE_jamais_absorbe():
+    """Le no-op apparié du compteur d'inconnus : une faute de rédaction (« exécutabel ») sort du compte des
+    exécutables ET entre dans celui des inconnus — publié à 0, il fait rougir la porte 8."""
+    faux = _REGISTRE_JOUET.replace("| exécutable |", "| exécutabel |")
+    assert S._classes_registre("exécutable", faux) == 2
+    assert S._classes_statut_inconnu(faux) == 1
+
+
+def test_un_registre_SANS_colonne_Statut_LEVE_au_lieu_de_rendre_zero():
+    import pytest
+    with pytest.raises(ValueError, match="Statut"):
+        S._classes_registre("exécutable", "| **E1** | a | b | `exécutable` | g |\n")
+
+
 def test_the_repository_counters_all_return_an_int():
     """Les compteurs RÉELS s'exécutent et rendent un entier. ⚠️ Un compteur qui lève rend le cliquet
     ininterprétable : il doit lever BRUYAMMENT ici plutôt que rendre 0 en production, sans quoi

@@ -90,14 +90,69 @@ def _graphe():
     return R.analyze()
 
 
-def _classes_registre(statut):
-    """Compte les lignes du tableau du registre dont la colonne « Statut » vaut `statut`.
-    ⚠️ Compte les LIGNES `| **Exx** |`, pas les occurrences du mot : une classe peut citer un statut
-    dans sa prose (c'est le cas d'E1, qui parle de `exécutable` dans son texte)."""
-    p = os.path.join(_ROOT, "docs", "REF", "REGISTRE_ERREURS.md")
-    with open(p, encoding="utf-8") as fh:
-        lignes = [l for l in fh if re.match(r"\s*\|\s*\*\*E\d+\*\*\s*\|", l)]
-    return sum(1 for l in lignes if re.search(r"\|\s*`" + re.escape(statut) + r"`", l))
+_STATUTS = ("exécutable", "documenté", "non automatisable")
+# Un code-span Markdown : une course de N backticks, un contenu, la MÊME course de N backticks (non adjacente à
+# d'autres). Un « | » qui y vit n'est pas un séparateur de cellule.
+_CODE_SPAN = re.compile(r"(?<!`)(`+)(?!`)(.+?)(?<!`)\1(?!`)")
+_LIGNE_CLASSE = re.compile(r"\s*\|\s*\*\*E\d+\*\*\s*\|")
+
+
+def _cellules(ligne):
+    """Cellules d'une ligne de tableau Markdown, bords retirés : un « | » dans un code-span ou échappé (\\|) ne
+    sépare PAS. Mesuré le 2026-09-26 : un split naïf sur « | » désaligne 6 lignes sur 33 du registre. PURE."""
+    s = ligne.rstrip("\r\n")
+    p = _CODE_SPAN.sub(lambda m: m.group(0).replace("|", "\x00"), s).replace("\\|", "\x00")
+    c = [x.replace("\x00", "|").strip() for x in p.split("|")]
+    if c and c[0] == "":
+        c = c[1:]
+    if c and c[-1] == "":
+        c = c[:-1]
+    return c
+
+
+def _statut_cellule(cellule):
+    """Le statut d'une cellule de la colonne « Statut », DÉPOUILLÉ de sa mise en forme : backticks, gras et italique,
+    puis tout commentaire qui SUIT le vocable (« `exécutable` **(promu le 2026-09-02 — …)** »). Rend le vocable, ou
+    la cellule nettoyée telle quelle quand elle n'en est pas un (le compteur `classes_statut_inconnu` la publie). PURE."""
+    nu = re.sub(r"[`*]", "", cellule).strip()
+    return re.sub(r"\s*\(.*$", "", nu, flags=re.S).strip()
+
+
+def _statuts_registre(texte=None):
+    """[(classe, statut)] des lignes `| **Exx** |`, statut lu dans la colonne dont l'EN-TÊTE est « Statut ».
+
+    ⚠️ P2.117 (2026-09-26) : le compteur lisait le statut par sa FORME (« `exécutable` » entre backticks juste après
+    un « | »), pas par sa COLONNE. E28 et E29, statut `exécutable` écrit NU, n'étaient comptées nulle part : le
+    registre publiait « 24 exécutables » quand la colonne en portait 26, et la porte 8 rendait OK parce que la
+    prose recopiait le même chiffre que l'instrument — E8 appliquée à l'instrument qui traque E8. Une classe que
+    le compteur ne voit pas n'est jamais promue. En-tête introuvable : LÈVE (un compteur qui rendrait 0 ferait
+    d'une source illisible un registre vide, le biais négatif du dépôt)."""
+    if texte is None:
+        texte = _lire(os.path.join("docs", "REF", "REGISTRE_ERREURS.md"))
+    lignes = texte.splitlines()
+    entete = next((l for l in lignes if l.lstrip().startswith("|") and "Statut" in _cellules(l)), None)
+    if entete is None:
+        raise ValueError("registre des erreurs : aucune ligne d'en-tête ne porte la colonne « Statut »")
+    idx = _cellules(entete).index("Statut")
+    out = []
+    for l in lignes:
+        if _LIGNE_CLASSE.match(l):
+            c = _cellules(l)
+            classe = re.match(r"\s*\|\s*\*\*(E\d+)\*\*", l).group(1)
+            out.append((classe, _statut_cellule(c[idx]) if len(c) > idx else ""))
+    return out
+
+
+def _classes_registre(statut, texte=None):
+    """Compte les LIGNES `| **Exx** |` dont la colonne « Statut » vaut `statut` (une classe peut citer un statut
+    dans sa prose, comme E1 : seule la colonne compte)."""
+    return sum(1 for _c, s in _statuts_registre(texte) if s == statut)
+
+
+def _classes_statut_inconnu(texte=None):
+    """Lignes dont le statut n'est AUCUN des trois vocables : une faute de rédaction, jamais une quatrième catégorie.
+    Publié à 0 dans le registre : une ligne mal écrite fait rougir la porte 8 au commit qui l'écrit."""
+    return sum(1 for _c, s in _statuts_registre(texte) if s not in _STATUTS)
 
 
 def _portes_hook():
@@ -135,6 +190,7 @@ COMPTEURS = {
     "records_total": lambda: _graphe()["n_records"],
     "classes_executables": lambda: _classes_registre("exécutable"),
     "classes_documentees": lambda: _classes_registre("documenté"),
+    "classes_statut_inconnu": _classes_statut_inconnu,
     "portes_hook": _portes_hook,
     "aretes_taxonomy": _aretes_taxonomy,
     "regles_scellees": _regles_scellees,

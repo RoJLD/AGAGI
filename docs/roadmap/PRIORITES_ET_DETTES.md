@@ -1084,7 +1084,8 @@ non bloquant ; le bloc seul compte 0 appel. Le témoin existant ET le nouveau en
 <!-- closes_when:grep_present=tools/hooks/pre-commit::APPELS_ATTENDUS -->
 
 
-**P2.117 — rang 9 — OUVERTE (2026-09-26, mesuré : DEUX classes invisibles) — `check_synthesis_counts._classes_registre`
+**P2.117 — rang 9 — ✅ CLOSE le 2026-09-26 (ouverte le même jour, mesuré : DEUX classes invisibles) —
+`check_synthesis_counts._classes_registre`
 compte les statuts du registre par leur FORME (`` `exécutable` `` entre backticks juste après un `|`), pas par leur
 COLONNE : E28 et E29, statut `exécutable` écrit NU, ne sont comptées nulle part — et le compte publié « 24 exécutables »
 est faux de 2, avec la porte 8 verte dessus.**
@@ -1105,6 +1106,19 @@ correspond à AUCUN (aujourd'hui ce nombre > 0 est une faute de rédaction, pas 
 E29 sur la forme canonique dans la même passe, et recomputer le compte publié.
 **Contre-exemple gelé** : un registre jouet à trois lignes (`` `exécutable` ``, `exécutable`, `**`exécutable`**`) rend 3
 et non 1 ; une ligne à `|` dans un code-span ne décale pas la colonne.
+**✅ CLOSE le 2026-09-26 (agagi-32, `tmp/p2-105`)** : `_statuts_registre` lit la cellule de la colonne dont l'EN-TÊTE
+est « Statut » — `_cellules` respecte les code-spans et le pipe échappé, `_statut_cellule` retire backticks, gras,
+italique et la note qui suit le vocable ; un registre sans cette colonne LÈVE (jamais un 0). Nouveau compteur
+`classes_statut_inconnu`, publié à 0 dans le registre : une ligne hors vocabulaire fait rougir la porte 8 au commit
+qui l'écrit. E28 et E29 alignées sur la forme canonique ; comptes recomputés par la porte 8 — **26 exécutables** (24
+publiés jusqu'ici), 6 documentées, 0 inconnu — et la balise des balises passe de 18 à 19. Occurrence E8 gravée au
+registre avec sa garde. Contre-exemples gelés (`tests/sandbox/test_synthesis_counts.py`) : un registre jouet à trois
+écritures du même statut rend 3 et non 1 ; un pipe dans un code-span ne décale pas la colonne ; une faute de rédaction
+sort du compte et entre dans celui des inconnus ; pas de colonne Statut → lève. Mutation de la porte 8 (dépouillement
+retiré) déclarée et tuée — `--only 8` : 2/2. ⚠️ **Trouvé en l'écrivant, sur moi** : ma première rédaction de
+l'occurrence E8 contenait un pipe NU entre guillemets, qui coupait la ligne E8 en six cellules — le compteur neuf
+l'a vu avant tout commit (25 exécutables, 1 inconnu) et la porte 3 a rougi sur la même ligne. L'instrument a attrapé
+la faute de son propre auteur, dans la passe qui le livrait.
 <!-- closes_when:grep_present=tools/check_synthesis_counts.py::_statut_cellule -->
 
 
@@ -3954,7 +3968,7 @@ L'écran mécanique l'a remplacée, et il a coûté zéro simulation.
   par le branchement de la porte 8 elle-même. ⚠️ **Portée déclarée** : il vérifie ce qu'on lui
   DÉCLARE, il ne découvre pas les chiffres non balisés (deviner produirait des faux positifs sur
   toute date et tout chiffre historique) ; la couverture croît par annotation : aujourd'hui
-  **18 comptes balisés** <!-- count:syntheses_balisees=18 --> — et ce nombre-là est balisé LUI AUSSI, donc
+  **19 comptes balisés** <!-- count:syntheses_balisees=19 --> — et ce nombre-là est balisé LUI AUSSI, donc
   une régression de couverture se voit. *(Auto-audit du 2026-09-07 : cette phrase AFFIRMAIT cette
   propriété sans la tenir — la balise n'existait pas. Une affirmation non vérifiée écrite dans le
   cliquet qui les traque : c'est E10 au méta-niveau, corrigé le jour même. ⚠️ Et ce compteur est

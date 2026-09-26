@@ -239,6 +239,13 @@ PORTES = {
             "apres": "                if False:",
             "motif": ("la comparaison balise/recompute — « 19 classes sur 19 » resterait publiable "
                       "le jour où la 20e arrive"),
+        }, {
+            "nom": "le statut n'est plus dépouillé de sa mise en forme (P2.117)",
+            "avant": '    nu = re.sub(r"[`*]", "", cellule).strip()',
+            "apres": "    nu = cellule.strip()",
+            "motif": ("le lecteur de COLONNE du registre — une classe dont le statut porte des backticks, du "
+                      "gras ou une note de promotion sortirait du compte, et E28/E29 (écrites nues) seraient "
+                      "les seules comptées : l'erreur inverse de celle que P2.117 a corrigée"),
         }],
     },
     "9": {
