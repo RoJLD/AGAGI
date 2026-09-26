@@ -19,7 +19,7 @@ export const meta = {
 // Le roster gele (tools/refutateur_temoins.json) fait foi et n'est JAMAIS passe par l'appelant.
 // Ce script ne contient AUCUN bareme : il fait lancer le CLI python, dont les codes de sortie sont
 // 0 (retrouve) / 1 (revue NULLE) / 2 (indecidable). Il ne construit aucun monde et ne prend aucun bail.
-// ⚠️ RACINE ABSOLUE. Tous les prompts employaient des chemins RELATIFS, donc dependaient du repertoire
+// ⚠ RACINE ABSOLUE. Tous les prompts employaient des chemins RELATIFS, donc dependaient du repertoire
 // courant dont les agents heritent -- un etat ambiant NON DECLARE. Mesure du 2026-09-24 : un agent a
 // lance le CLI depuis l'arbre principal, ou le module n'existe pas, et n'a rapporte qu'EXIT=2. Sans la
 // sortie brute rendue par l'aiguillage, la cause aurait ete cherchee une troisieme fois a l'aveugle.
@@ -43,7 +43,7 @@ const JUGEMENTS = {
   },
   required: ['calibration', 'jugements'],
 }
-// ⚠️ LE NO-OP MESURE, IL NE FAIT PAS BARRAGE. Son `statut` vaut MESURE et son `n_recevables` est le
+// ⚠ LE NO-OP MESURE, IL NE FAIT PAS BARRAGE. Son `statut` vaut MESURE et son `n_recevables` est le
 // PLANCHER mesure sur un record cru sain : il voyage avec le score, jamais a cote. Une revue qui a
 // retrouve trois defauts reels ne se jette plus parce que ce plancher est haut -- c'etait supprimer la
 // mesure au lieu de la publier (1er Step 4 complet, 2026-09-24 : 6 critiques recevables sur le no-op,
@@ -129,7 +129,7 @@ phase('Aiguillage')
 // permet, et depuis cette ronde sa sortie est RE-DERIVEE par le verificateur, qui refuse sur ecart :
 // une fuite ne serait plus silencieuse.
 //
-// ⚠️ PAS d'`effort: 'low'` ici (il y etait, et c'etait l'erreur) : cette phase decide ce que le juge voit,
+// ⚠ PAS d'`effort: 'low'` ici (il y etait, et c'etait l'erreur) : cette phase decide ce que le juge voit,
 // c'est une garde contre une fuite, pas une corvee. Son mode d'echec silencieux -- une liste vide -- a
 // fait tomber toute la revue au 2e lancement reel.
 const AIGUILLAGE = {
@@ -207,7 +207,7 @@ Jugements rendus par le juge, cle = nom de base du fichier relu : ${JSON.stringi
    Le code de sortie fait foi et la premiere ligne imprimee donne le STATUT (RETROUVE / NULLE / INDECIDABLE /
    MESURE) ainsi que le nombre de critiques RECEVABLES. Ne reinterprete rien d'autre.
    Un temoin sans jugement du juge se lance SANS --jugement ; ne fabrique jamais un jugement absent.
-   ⚠️ Le temoin qui rend MESURE ne fait PAS barrage : il MESURE un plancher sur un record cru sain. Reporte son
+   ⚠ Le temoin qui rend MESURE ne fait PAS barrage : il MESURE un plancher sur un record cru sain. Reporte son
    statut et son compte, n'en tire aucun echec.
 6. Lance enfin: PYTHONIOENCODING=utf-8 python ${racine}/tools/refutateur_temoins.py --plancher <repertoire des temoins>
    et recopie sa premiere ligne, TELLE QUELLE, dans le champ plancher. Un score sans son plancher est interdit.
@@ -241,7 +241,7 @@ log(`defauts retrouves : ${Object.keys(resultats).filter(n => resultats[n].statu
 log(`  ${plancherPublie}`)
 log(`  ${plancherNoop}`)
 if (discrimine === false) {
-  log(`  ⚠️ INDISCRIMINANT : le record cru sain rend ${nNoop} critiques recevables, les defectueux au moins ${Math.min(...nDefauts)}`)
+  log(`  ⚠ INDISCRIMINANT : le record cru sain rend ${nNoop} critiques recevables, les defectueux au moins ${Math.min(...nDefauts)}`)
 }
 
 phase('Revue')
@@ -255,7 +255,7 @@ const sortie = `docs/reviews/${args.today}-${slug}.md`
 const consolide = await agent(`Ecris le fichier ${sortie} (Write) selon docs/reviews/README.md : en-tete (cible ${args.target},
 date ${args.today}, SHA courant via git -C ${racine} rev-parse HEAD, resultat des TEMOINS ${JSON.stringify(resultats)} ET, sur les
 memes lignes, LES DEUX PLANCHERS tels quels : "${plancherPublie}" et "${plancherNoop}"${
-  discrimine === false ? `, suivis de "⚠️ INDISCRIMINANT : le record cru sain rend autant de critiques recevables que les defectueux"` : ''
+  discrimine === false ? `, suivis de "⚠ INDISCRIMINANT : le record cru sain rend autant de critiques recevables que les defectueux"` : ''
 } -- un score sans ses planchers est interdit),
 puis une section par prompt P1..P10 avec Sonde / Constat / Classe / Verdict, a partir de ces critiques (JSON) :
 ${JSON.stringify(critiques)}. N'invente AUCUNE critique et n'en retire aucune. Ne modifie AUCUN autre fichier.
