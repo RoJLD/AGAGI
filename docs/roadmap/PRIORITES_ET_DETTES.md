@@ -1166,7 +1166,10 @@ message). 0 erreur de collecte : `b895a0a3` a fait son travail. Familles, par ta
    présent → les mêmes verts qu'aujourd'hui.
    ⚠️ **Le cas le plus lourd de cette famille n'est PAS dans les 38** : `tests/sandbox/test_instrument_calibration.py`
    commence par `pytest.importorskip("torch")` (l. 20), donc la suite de CALIBRATION entière — 323 déclarations, le
-   cliquet central du dépôt — ne tourne JAMAIS en CI : elle est comptée dans les 238 « skipped », pas dans les rouges.
+   cliquet central du dépôt — ne tourne JAMAIS en CI. ⚠️ Et elle n'y pèse qu'UN seul « skipped » (le saut de MODULE,
+   l. 20), pas 323 : sans torch le fichier rend « 1 skipped », avec torch il collecte 516 tests (mesuré par agagi-39 ;
+   ma première rédaction disait « comptée dans les 238 skipped », un compte non mesuré). C'est le cœur de l'occurrence
+   E22 gravée en `1be5330a` : un skip de module est invisible dans un total de sautés, et la suite paraît plus verte.
    Même mécanisme pour `test_perimeter_widening::test_the_measured_EXPOSURE_…`, qui importe `CALIBRATED` de ce module :
    SAUTÉ en CI (le « 1 skipped » du pas Gardes-de-gardes, 164 passed) alors qu'il est ROUGE localement avec torch
    (0 garde-seule, cf. P2.49). Recette : garder le module importable sans torch (garde par cas sur les seules
