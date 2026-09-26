@@ -983,6 +983,8 @@ un `GIT_DIR` posé PENDANT le test — la fixture de conftest purge AVANT, elle 
 chacun ROUGE sans l'isolation et VERT avec, vérifié fichier par fichier avec restauration octet pour octet. Windows 65
 verts ; Linux (WSL) 65 verts. **L'entrée reste OUVERTE pour une seule raison** : la garde d'appoint « refuser toute
 sortie de test contenant `re-init: ignored` » n'existe pas (seul le témoin du mécanisme affirme l'empreinte).
+📏 **LU sur le run 36239665260 (`67e5a1c3`, comparé à `eda2870f` ; relevé par agagi-88)** : 5 → 5 rouges, 3404 → 3407
+passés, 343 sautés ; 0 nouveau, 0 disparu, **+3 passés — les trois témoins de (b)**.
 **P2.111 — rang 8 — OUVERTE (2026-09-24, mesuré contre le motif RÉEL de la porte) — La porte 4 ne refuse pas
 la forme `sha:chemin` parce qu'un DEUX-POINTS casse sa classe de caractères, pas parce qu'elle l'a vérifiée :
 une échappatoire SILENCIEUSE à la garde des chemins non suivis.**
@@ -1451,6 +1453,11 @@ message). 0 erreur de collecte : `b895a0a3` a fait son travail. Familles, par ta
    verts, Windows 192 verts**. ⚠️ Pris par la vérification des DEUX côtés : ma première passe avait réécrit la
    définition même de la racine (`_R = _R if …`) — VERTE sous Linux (seule la branche `else` s'évalue), `NameError`
    sous Windows ; un seul côté l'aurait laissée passer. Le compte du run CI qui suit s'écrit ici.
+   📏 **LU sur le run 36238881471 (`eda2870f`, comparé à `c0274ea9` ; relevé par agagi-88 et Master 2)** : **9 → 5
+   rouges**, 3400 → 3404 passés, 343 sautés, 1 xfailed ; 0 nouveau, **4 disparus — exactement les quatre attendus**
+   (test_pm_board A1 et A3, test_pm_bulletin eviction_FIFO et tool_sur_bulletin_vide). Restent 5 rouges, tous P2.113 :
+   (c) grab ×3, (d) flatland ×2. Le critère de dissolution du worker Dette (moins de 10 rouges hors P2.113 sur un run
+   CI) est ATTEINT, avec **0** hors P2.113.
 6. ⚠️ **git env sur Linux — 2** : `tests/sandbox/test_git_env_leak.py::test_un_GIT_DIR_herite_detourne_le_git_init_vers_le_depot_POINTE`
    (« le depot POINTE est passe en bare : son arbre de travail disparait pour toutes les sessions ») et
    `tests/sandbox/test_gate_mutation.py::…[sans_purge_defaut_restaure]`. C'est LA classe de la corruption `core.bare = true`
@@ -1483,7 +1490,7 @@ compte (rouges avant → après) est écrit ICI ; la famille 6 s'instruit avant 
 `closes_when` (déclaré) : la clôture est « 0 rouge hors P2.113 » lu sur un run, ce qu'aucun prédicat de fichier n'exprime.
 
 
-**P2.122 — rang 5 — OUVERTE (2026-09-26, occurrence RÉELLE : mon commit `9bf30520`) — `check_staged_authorship.verify`
+**P2.122 — rang 5 — ✅ CLOSE le 2026-09-26 (ouverte le même jour, occurrence RÉELLE : le commit `9bf30520`) — `check_staged_authorship.verify`
 ne voit pas un hunk écrit par une AUTRE session entre mon snapshot et mon commit, et « git commit -- chemin » l'emporte
 avec le fichier ENTIER.**
 Preuve : `9bf30520` (« ci(garde-methodologique): installer requirements.txt… », `.github/workflows/ci.yml` seul) porte
@@ -1500,7 +1507,64 @@ message, attendu)` qui enchaîne la vérification et `git commit -- paths` dans 
 diff stat comparé au delta attendu dans ce helper. **Contre-exemple gelé** : dépôt jouet, mon contenu écrit, un hunk étranger
 ajouté après, `verify(attendu=…)` REFUSE et nomme la ligne ; sans hunk étranger il passe. Palliatif appliqué à la main
 depuis `faae4909` : un script compare disque et contenu attendu octet pour octet juste avant chaque `git commit --`.
+✅ **FERMÉE le 2026-09-26 (agagi-32, worker Dette)** — `tools/check_staged_authorship.py`. (a) `verify(paths,
+attendu={chemin: contenu})` juge le DISQUE contre HEAD (lu une fois) et contre l'attendu ; tout bloc absent des deux
+lève `ForeignHunkDetected(objet="disque")`, lignes NOMMÉES ; un chemin non déclaré lève `ValueError`. (b)
+`commit_exact(paths, message, attendu, owner=None)` enchaîne dans le MÊME appel : empreinte de `owner` (forme e21c1f3),
+bloc étranger sur le disque (forme 9bf30520), disque EXACTEMENT égal à l'attendu, attendu différent de HEAD, puis
+`git commit -F - -- <chemins>`, crochets compris ; un chemin neuf est annoncé par `add -N`, retiré si une porte
+rougit. (c) Le delta attendu est calculé par GIT AVANT le commit (blob du disque brut, Myers imposé des deux côtés) ;
+après, le blob ET le compte du commit lui sont confrontés — `CommitNotExact` nomme le commit, les deux comptes et les
+lignes étrangères ; la sortie des crochets reste relayée (une porte qui signale sans bloquer garde son chiffre sous
+les yeux). CLI : `commit-exact --attendu CHEMIN=FICHIER -F MSG` (0 exact, 1 refusé, 3 commit inexact) et
+`verify --attendu`. **Trouvé en l'écrivant, et c'est la cause du « 0 »** : `verify` inspectait l'INDEX, or `git commit
+-- <chemins>` emporte le DISQUE (mesuré en dépôt jouet : X stagé, Y sur le disque → le commit porte Y). Rien n'était
+stagé : « 0 hunk » voulait dire « rien d'inspecté » (E4). Le mode empreinte l'avoue désormais sur stderr
+(`DISQUE_NON_INSPECTE`). **Contre-exemple gelé** : `test_FORME_P2_122_9bf30520_un_bloc_ecrit_APRES_l_empreinte_est_REFUSE_et_NOMME`
+(rapport EXACT : lignes 7-10), avec ses positifs appariés — 12 cas. **Calibré par MUTATION** à la main, le module étant
+hors du harnais de la porte 15 (porte 7) : **11/11 tuées**, contrôle intact vert, restauration octet pour octet. La
+mutation « compte non comparé » n'est tuée que par le témoin du commit INTERCALÉ : le blob seul ne voit pas un commit
+d'autrui sur le même chemin que le mien défait (+4/-1 observé contre +4/-0). Windows 71 verts (avec la porte 11) ;
+Linux (WSL, requirements de la CI) 44/44 sur le fichier. **Limites déclarées** : un attendu RELU sur le disque vide
+le mode (gravé : sans `owner`, un bloc étranger pré-existant passe) ; `commit_exact` refuse quand un bloc étranger est
+sur le disque, il ne committe pas autour — le protocole par index temporaire reste la voie.
+📏 **LU sur le run 36242791470 (`c676f200`, comparé à `28810f52` ; relevé par agagi-88)** : 5 → 5 rouges, 3476 → 3488
+passés, 343 sautés ; 0 nouveau, 0 disparu, **+12 passés — exactement les douze cas de P2.122**. Le commit lui-même
+(`b0092d89`) a été fait PAR `commit_exact`, sur le vrai crochet : 5 chemins sur 5 exacts, 24 portes vertes.
 <!-- closes_when:grep_present=tools/check_staged_authorship.py::commit_exact -->
+
+**P2.128 — rang 5 — ✅ CLOSE le 2026-09-26 (ouverte le même jour : revue du brouillon P4.18 par agagi-40, reproduite par
+agagi-32) — Les portes 19 et 20 rendaient « OK », sortie 0, sur un `--only` qui ne désigne AUCUN record.**
+Preuve (à `c676f200`) : `python tools/check_regime_claims.py --only docs/EDR/N_EXISTE_PAS.md` → « OK : 64 record(s) sans
+regime concordant, tous legataires… », exit 0 ; `python tools/check_evidence_provenance.py --only
+docs/EDR/N_EXISTE_PAS.md` → « OK : 18 chemin(s) legataire(s) gele(s) », exit 0 ; un `--only` VIDE, idem sur les deux.
+Cause (lignes d'avant le correctif) : le filtre par appartenance — `tools/check_regime_claims.py:432-433`,
+`tools/check_evidence_provenance.py:362` — ne vérifiait jamais que `--only` désignait un record balayé. La forme (a)
+du biais du dépôt, déjà corrigée sur la porte 15 en P2.115 : troisième porte, même forme.
+✅ **FERMÉE le 2026-09-26 (agagi-32, worker Dette)** — `_perimetre_only` (`tools/check_regime_claims.py`, partagé avec
+la porte 20, qui lui passe son propre oracle HEAD) trie `--only` AVANT toute analyse : un chemin qui n'est ni un
+record `docs/EDR/<nom>.md` présent ni un record SUPPRIMÉ par le commit en cours est REFUSÉ, nommé, sortie 2 ; un
+`--only` vide aussi. **Piège évité** : le crochet passe à `--only` les records SUPPRIMÉS (filtre AMD) — un refus naïf
+aurait bloqué toute suppression de record ; un record présent dans HEAD et absent du disque est donc DIT supprimé
+(« rien à juger », sortie 0, « ce n'est pas un OK »). Contre-exemple gelé, dans les deux fichiers de témoins :
+`test_P2_128_un_only_qui_ne_designe_AUCUN_record_est_REFUSE_avant_l_analyse` (`analyze` lève si elle est appelée :
+le refus est instantané), avec le positif apparié (le record désigné est JUGÉ) et un témoin git RÉEL de la
+suppression. Porte 15 : trois mutations neuves, **7/7 tuées** sur les portes 19 et 20 ; témoins du harnais 21 verts.
+Mesuré en passant sur les huit autres portes à `--only` → P2.130.
+<!-- closes_when:grep_present=tools/check_regime_claims.py::_perimetre_only -->
+
+**P2.130 — rang 18 — OUVERTE (2026-09-26, mesurée par agagi-32 en fermant P2.128 ; décision de périmètre : Master 2) —
+Huit autres portes à `--only` rendent un verdict VIDE sur un chemin INCONNU — hors du crochet seulement.**
+Preuve (à `c676f200`, chaque porte lancée sans `--only`, avec `--only` vide, puis avec `--only tools/N_EXISTE_PAS.py`) :
+`check_bar_separation`, `check_fabricated_defaults` et `check_substrate_pinning` examinent alors 0 fichier et rendent
+« OK », exit 0 ; `check_control_family`, `check_data_paths`, `check_instrument_calibration`, `check_record_links` et
+`check_test_census` publient les comptes du balayage complet mais filtrent leur VERDICT par `--only`, donc « OK » sans
+avoir jugé le chemin demandé. **Portée mesurée, qui fixe le rang** : chez les huit, un `--only` VIDE vaut « tout
+juger » (mêmes comptes que sans filtre), et le crochet en dépend — il passe `--only $(… | grep -v <baseline> || true)`,
+vide quand la baseline est seule stagée (portes 6 et 9, E4 occ. 5) ; il ne leur passe que des fichiers stagés
+EXISTANTS (filtre AM). Le défaut ne s'atteint donc qu'à la main ou par un script. **Forme demandée** : refuser, nommé,
+tout chemin de `--only` qui n'existe pas (sur le modèle de `_perimetre_only`), SANS toucher la sémantique « vide =
+tout » dont dépend le crochet ; un témoin et une mutation (porte 15) par porte. *Coût : agent 1-2 h ; calcul 0.*
 
 
 **P4.21 — rang 12 — OUVERTE (2026-09-24, trouvée en amendant ma propre clôture) — Un verdict de SYNTHÈSE qui

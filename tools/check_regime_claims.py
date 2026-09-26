@@ -4,6 +4,9 @@
   python tools/check_regime_claims.py --report           # etat complet, exit 0
   python tools/check_regime_claims.py --update-baseline  # gele l'etat courant PAR STATUT (dette legataire)
   python tools/check_regime_claims.py --only docs/EDR/X.md
+      (P2.128, E4 : un chemin qui n'est ni un record docs/EDR/<nom>.md present ni un record SUPPRIME par le
+       commit en cours est REFUSE, sortie 2, AVANT toute analyse -- un --only VIDE aussi. Il rendait « OK »,
+       sortie 0, sans avoir juge un seul record.)
 
 Un record qui cite `forage_payoff = 3.0` doit citer un `results/*.json` SUIVI par git dont la valeur est
 PUBLIEE -- soit dans un bloc `regime` (a N'IMPORTE QUELLE profondeur : racine, cellule, ou plus bas),
@@ -339,6 +342,71 @@ def _tracked(root, rel):
     return p.returncode == 0
 
 
+def _dans_head(root, rel):
+    """Oracle HEAD (`git cat-file -e HEAD:<rel>`), pour un seul usage : reconnaître, dans `--only`, un record
+    SUPPRIMÉ par le commit en cours. Lire l'arbre de HEAD ne dépend pas de `GIT_INDEX_FILE` : hériter
+    l'environnement, comme `_tracked`, est sans effet sur ce résultat."""
+    return subprocess.run(["git", "cat-file", "-e", f"HEAD:{rel}"], cwd=root, capture_output=True).returncode == 0
+
+
+def _est_record(rel):
+    """La forme que `analyze` lit : `docs/EDR/<nom>.md`, sans sous-dossier."""
+    nom = rel[len("docs/EDR/"):] if rel.startswith("docs/EDR/") else ""
+    return nom.endswith(".md") and "/" not in nom and len(nom) > len(".md")
+
+
+def _trier_only(only, root, dans_head=None):
+    """P2.128 (E4) — `--only` confronté à ce que la porte peut JUGER, AVANT toute analyse. Mesuré le 2026-09-26
+    (revue du brouillon P4.18 par agagi-40, reproduit par agagi-32) : `--only docs/EDR/N_EXISTE_PAS.md` et un
+    `--only` vide rendaient « OK », sortie 0 — le filtre ne vérifiait jamais qu'il désignait un record balayé.
+
+    Rend (désignés, supprimés, inconnus). Désigné : un record que `analyze` lit (`docs/EDR/<nom>.md`, présent
+    sur le disque). Supprimé : même forme, absent du disque mais présent dans HEAD — retiré par le commit en
+    cours, que le crochet passe à `--only` (filtre AMD) : ce n'est pas une faute de frappe, et un record
+    supprimé n'affirme plus rien ; le refuser bloquerait toute suppression de record. Inconnu : tout le reste
+    — faute de frappe, chemin hors de docs/EDR, record supprimé AVANT ce commit. `dans_head` est injectable :
+    la porte 20 passe le sien, qui isole l'environnement git sur un dépôt tiers."""
+    dans_head = dans_head or _dans_head
+    designes, supprimes, inconnus = [], [], []
+    for o in sorted(only):
+        chemin = os.path.join(root, o)
+        if _est_record(o) and os.path.isfile(chemin):
+            designes.append(o)
+        elif _est_record(o) and not os.path.exists(chemin) and dans_head(root, o):
+            supprimes.append(o)
+        else:
+            inconnus.append(o)
+    return designes, supprimes, inconnus
+
+
+def _refus_only(only, inconnus):
+    """Le message de refus de `--only` — commun aux portes 19 et 20."""
+    if not only:
+        return ("REFUS : --only VIDE -- il ne designe aucun record, et rendre OK sur un perimetre vide serait un "
+                "vert qui ne mesure RIEN (E4, P2.128). Omettre --only pour juger tous les records.")
+    return (f"REFUS : --only designe {len(inconnus)} chemin(s) INCONNU(S) de cette porte -- ni record "
+            f"docs/EDR/<nom>.md present, ni record supprime par le commit en cours : {', '.join(inconnus)}. "
+            "Corriger le chemin : un filtre qui ne designe rien rendait OK (E4, P2.128).")
+
+
+def _perimetre_only(only, root, dans_head=None):
+    """Applique `--only` AVANT l'analyse. Rend None pour continuer (et publie le périmètre jugé), sinon le
+    code de sortie : 2 = refus nommé ; 0 = rien à juger, DIT comme tel (seulement des records supprimés)."""
+    designes, supprimes, inconnus = _trier_only(only, root, dans_head)
+    if not only or inconnus:
+        print(_refus_only(only, inconnus))
+        return 2
+    if supprimes:
+        print(f"--only : {len(supprimes)} record(s) SUPPRIME(S) par le commit en cours, rien a y juger : "
+              f"{', '.join(supprimes)}")
+    if not designes:
+        print("rien a juger : --only ne designe que des records supprimes -- 0 record juge. Ce n'est pas un OK : "
+              "il n'y avait rien a verifier.")
+        return 0
+    print(f"--only : {len(designes)} record(s) juge(s) : {', '.join(designes)}")
+    return None
+
+
 def analyze(root=_ROOT, suivi=None):
     """`suivi(root, rel) -> bool` injectable (les tests tournent hors depot git) ; defaut : `_tracked`,
     resolu a l'appel."""
@@ -393,6 +461,11 @@ def main(argv=None):
     ap.add_argument("--only", nargs="*", default=None)
     ap.add_argument("--root", default=_ROOT)
     args = ap.parse_args(argv)
+    only = None if args.only is None else {o.replace("\\", "/") for o in args.only}
+    if only is not None:                  # AVANT l'analyse : un refus est instantane et ne depend de rien d'autre
+        code = _perimetre_only(only, args.root)
+        if code is not None:
+            return code
     a = analyze(args.root)
     fautifs = sorted(f for f, v in a["records"].items() if v["statut"] not in OK)
     for f in a["illisibles"]:
@@ -422,7 +495,6 @@ def main(argv=None):
         _publier_cecites()
         return 0
     base = _load_baseline()
-    only = None if args.only is None else {o.replace("\\", "/") for o in args.only}
 
     def _regresse(f):
         if f not in base:

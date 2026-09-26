@@ -5,6 +5,9 @@ disque ET etre SUIVI par git, ou etre publie par son hash (`sha256 <hex>` a cote
   python tools/check_evidence_provenance.py --report           # etat complet + comptes par HEAD, exit 0
   python tools/check_evidence_provenance.py --update-baseline  # gele l'etat courant PAR (record, chemin, cause)
   python tools/check_evidence_provenance.py --only docs/EDR/X.md
+      (P2.128, E4 : un chemin qui n'est ni un record docs/EDR/<nom>.md present ni un record SUPPRIME par le
+       commit en cours est REFUSE, sortie 2, AVANT toute analyse -- un --only VIDE aussi. Meme garde que la
+       porte 19, `_perimetre_only`, avec l'oracle HEAD de CETTE porte.)
 
 Classe E27 : une conclusion dont l'evidence n'est plus rouvrable n'est pas refutable -- mesure DEUX FOIS
 cette semaine sur des clones/worktrees neufs : un record citant un `results/*.json` absent du depot (ou
@@ -99,7 +102,7 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
-from tools.check_regime_claims import _developper, cited_results  # noqa: E402
+from tools.check_regime_claims import _developper, _perimetre_only, cited_results  # noqa: E402
 _BASELINE = os.path.join(_ROOT, "tools", "evidence_provenance_baseline.json")
 _HASH = re.compile(r"sha256[:\s]+([0-9a-f]{12,64})", re.I)
 _NEXT_RESULTS = re.compile(r"\bresults/")
@@ -271,6 +274,11 @@ def main(argv=None):
     ap.add_argument("--only", nargs="*", default=None)
     ap.add_argument("--root", default=_ROOT)
     args = ap.parse_args(argv)
+    only = None if args.only is None else {o.replace("\\", "/") for o in args.only}
+    if only is not None:                  # AVANT l'analyse (P2.128) : l'oracle HEAD est celui de CETTE porte
+        code = _perimetre_only(only, args.root, dans_head=_dans_head)
+        if code is not None:
+            return code
     a = analyze(args.root)
 
     # a_geler : TOUTES les paires causees (y compris par_hash) -- c'est ce que la baseline gele, pour
@@ -349,7 +357,6 @@ def main(argv=None):
         return 0
 
     base = _load_baseline()
-    only = None if args.only is None else {o.replace("\\", "/") for o in args.only}
 
     def _regresse(f, c, cause):
         gele = base.get(f, {})
