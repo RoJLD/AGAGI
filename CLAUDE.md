@@ -28,10 +28,10 @@ Quatre questions, dont deux ont des assertions exécutables :
 
 **Inventaire au 2026-09-01 : 105 détectés, 104 calibrés, 1 déclaré non-instrument, ZÉRO dette.**
 **État COURANT, recomputé et jamais recopié :**
-**250 détectés** <!-- count:instruments_detectes=250 -->
-· **242 calibrés** <!-- count:instruments_calibres=242 -->
+**257 détectés** <!-- count:instruments_detectes=257 -->
+· **249 calibrés** <!-- count:instruments_calibres=249 -->
 · **2 non calibrés** <!-- count:instruments_non_calibres=2 -->
-— la famille `run_*` (72 fonctions) est entrée le 2026-09-06 sans créer de dette. *(Les chiffres datés ci-dessus sont HISTORIQUES : ils restent vrais
+— la famille `run_*` (72 fonctions) est entrée le 2026-09-06 sans créer de dette. Le 12ᵉ élargissement (2026-09-26, P2.83 passe i : `*ceiling*`, `verify_*`, `_td_update*`) a fait entrer 7 noms — 4 déclarations RÉSORBÉES (elles existaient, le cliquet ne les voyait pas) et 3 calibrées dans la même passe, 0 dette créée ; `_td_update` s'est révélé une COLLISION à un seul chemin déclaré, fermée dans la passe. *(Les chiffres datés ci-dessus sont HISTORIQUES : ils restent vrais
 et ne sont donc pas balisés.)*
 *(Point de départ, 2026-07-21 : 71 détectés, 1 calibré.)* Le cliquet est désormais un **cliquet
 strict** : tout NOUVEL instrument non calibré bloque le commit ; sa baseline, vide du 2026-09-01 au

@@ -91,7 +91,8 @@ PORTES = {
         "module": "tools.check_instrument_calibration",
         "titre": "calibration des instruments",
         "temoins": ["tests/sandbox/test_check_instrument_calibration_collisions.py",
-                    "tests/sandbox/test_check_instrument_calibration_learners.py"],
+                    "tests/sandbox/test_check_instrument_calibration_learners.py",
+                    "tests/sandbox/test_check_instrument_calibration_resorbing.py"],
         "mutations": [
             {
                 "nom": "les COLLISIONS de noms redeviennent invisibles",
@@ -134,6 +135,33 @@ PORTES = {
                 "apres": '        return ("PERIMEE", [])',
                 "motif": ("le cri enverrait au remède OPPOSÉ : « supprimer la déclaration morte » pour un "
                           "symbole bien PRÉSENT que les motifs ne voient pas"),
+            },
+            # P2.83 passe (i) (2026-09-26) : les trois motifs RÉSORBANTS du 12e élargissement, retirés UN PAR
+            # UN. Chacun rend invisibles des déclarations qui EXISTENT (4 résorbées, 3 calibrées dans la passe) :
+            # exactement l'état « déclaration ignorée » que la moitié SILENCE de P2.83 a rendu criant.
+            {
+                "nom": "les PLAFONDS redeviennent invisibles (motif *ceiling* retiré)",
+                "avant": r'    re.compile(r"^def\s+(\w*ceiling\w*)\s*\(", re.M),',
+                "apres": "    # (motif *ceiling* retiré par la mutation)",
+                "motif": ("le motif `*ceiling*` — `plain_readout_ceiling`, `additive_argmax_exact_ceiling` (la "
+                          "valeur centrale du dossier P2.15), `_untrained_ceiling` et `_resolve_ceiling` "
+                          "sortiraient du périmètre et leurs déclarations redeviendraient ignorées"),
+            },
+            {
+                "nom": "les TÉMOINS verify_* redeviennent invisibles (motif verify_* retiré)",
+                "avant": r'    re.compile(r"^def\s+(verify_\w+)\s*\(", re.M),',
+                "apres": "    # (motif verify_* retiré par la mutation)",
+                "motif": ("le motif `verify_*` — PROSPECTIF sur l'arbre courant (son seul hit réel est aussi un "
+                          "`*ceiling*`), donc tué par le témoin à arbre FACTICE `verify_witness_in_situ`, pas par "
+                          "le réel : sans lui, le prochain `verify_*` entrerait sans que le cliquet bronche"),
+            },
+            {
+                "nom": "les updates TD redeviennent invisibles (motif _td_update* retiré)",
+                "avant": r'    re.compile(r"^[ \t]*def\s+(_td_update\w*)\s*\(", re.M),',
+                "apres": "    # (motif _td_update* retiré par la mutation)",
+                "motif": ("le motif `_td_update*` — l'update Actor-Critic TD(0) du chemin publié (backend_torch et "
+                          "torch_batch_model, une collision) et le chemin TRACE de P4.11 ne seraient plus ni "
+                          "calibrés ni comptés comme dette, l'état exact d'avant cette passe"),
             },
         ],
     },

@@ -1692,6 +1692,26 @@ calibration tournent dans `tests/sandbox/test_pm_pilotage.py` ; ce qui manque, c
 « 8 révélées, 2 résorbées ». Même cause `MOTIF_AVEUGLE` que les trois du Réfutateur, mais pas le même remède : les
 leurs sont des noms FRANÇAIS qu'aucun motif anglais ne verra ; celles-ci relèvent d'un motif anglais qui MANQUE,
 et la passe (ii) suffit.
+**PASSE (i) FAITE le 2026-09-26 (agagi-32, dans un worktree `tmp/p2-83-passe-1` pour ne pas rougir la porte 8 de la
+flotte pendant l'écriture) : `*ceiling*`, `verify_*`, `_td_update*` — 12ᵉ élargissement, 4 déclarations RÉSORBÉES
+(gelées 14 → 10), 0 dette créée.** Mesuré AVANT application sur `d0edf781` (script jetable, jamais la mesure du 09-24
+reprise) : `*ceiling*` +5 noms, `verify_*` +1 (le même `verify_plain_ceiling_witness`), `_td_update*` +2 (méthodes :
+motif tolérant l'indentation) → **7 noms distincts**, 4 déjà déclarés (`plain_readout_ceiling`,
+`additive_argmax_exact_ceiling`, `verify_plain_ceiling_witness`, `src/agents/backend_torch.py::_td_update`) et **3 dettes
+neuves, toutes calibrées dans la passe** : `_resolve_ceiling` (fonction pure, 4 cas — « auto » REFUSE de certifier depuis
+la rétractation du 09-08), `_untrained_ceiling` (DEUX copies bit-identiques → collision, déclarées qualifiées ; injection à
+dose connue : max ≠ médiane, erreur-type binomiale, bornes), `_td_update_trace` (les cas de `test_credit_trace_lambda.py`
+qui passent par lui, jamais comptés depuis P4.11). ⚠️ Trouvé en mesurant : `_td_update` est LUI-MÊME une COLLISION
+(`src/agents/torch_batch_model.py` aussi) — la déclaration existante ne couvrait qu'UN chemin, le nom serait resté
+« partiellement couvert » le jour où un motif l'aurait vu ; second chemin déclaré avec deux cas DIRECTS (lr=0 → W
+bit-identique et perte finie ; lr>0 → W bouge). ⚠️ `verify_*` seul n'ajoute RIEN sur l'arbre courant (son unique hit est
+aussi un `*ceiling*`) : le motif est PROSPECTIF et sa mutation est tuée par un témoin à arbre FACTICE
+(`verify_witness_in_situ`), pas par le réel — dit dans le témoin et dans la mutation. Témoin
+`tests/sandbox/test_check_instrument_calibration_resorbing.py` (5 cas : arbre factice, spécificité `*median*` /
+`_trace_step`, ancrage réel), 3 mutations de plus à la porte 2 (chaque motif retiré un par un) — mesuré `--only 2` : 8/8
+tuées. Comptes recomputés par la porte 8 dans CLAUDE.md et SDR-G2 (jamais recopiés ici). **Restent** : (ii)
+`compute_*`/`parse_*` (8 révélées, 2 résorbées — `tools/pm/pilotage.py`), (iii) les 3 CLASSES, et les 3 noms FRANÇAIS du
+Réfutateur (motif nommé ou renommage) — 10 déclarations gelées, toutes `MOTIF_AVEUGLE` ou `CLASSE`, aucune `PERIMEE`.
 <!-- closes_when:grep_present=tools/check_instrument_calibration.py::parse_\w+\) -->
 
 **P2.84 — ⚠️ OUVERTE (2026-09-24, demande de robla le 2026-09-23) — lot 2 « Science » du dashboard : arbres en temps

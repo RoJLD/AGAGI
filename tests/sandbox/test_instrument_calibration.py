@@ -1401,6 +1401,22 @@ CALIBRATED = {
     # une fois » (19 restarts sur 24 avaient ete necessaires). `in_situ=True` boucle la derivation sur le
     # VRAI substrat — si forme close et forward divergeaient, ce serait l'aliasing d'EDR-WARM-007.
     "verify_plain_ceiling_witness": ["closed-form:frozen", "in-situ:agrees"],
+    # P2.83 passe (i), 2026-09-26 : les trois motifs RESORBANTS (`*ceiling*`, `verify_*`, `_td_update*`)
+    # font entrer 3 instruments NEUFS, calibres ici a cout nul (0 dette legataire creee). Cas en fin de
+    # fichier, section « P2.83 passe (i) ».
+    #   `_resolve_ceiling` (fonction PURE, tools/bilinear_composition_probe.py) : "auto" REFUSE de
+    #   certifier (retractation du 2026-09-08 : le plain COMPOSE, il n'a pas de « plafond de l'incapable »),
+    #   None -> rien, valeur explicite -> transmise en float avec sa provenance, statut `ceiling_is_proven`
+    #   FAUX par defaut (un plafond declare n'est pas un plafond prouve tant qu'on ne le dit pas).
+    "_resolve_ceiling": ["auto:refuses-to-certify", "none:nothing", "explicit:passthrough-provenance-proven",
+                         "explicit:unproven-by-default"],
+    #   `_untrained_ceiling` : DEUX copies bit-identiques (diff vide sur 28 lignes) -> collision, declarees
+    #   QUALIFIEES. Injection a dose connue : le plafond est le MAX sur les seeds (pas la mediane), l'erreur-
+    #   type suit sqrt(p(1-p)/n_eval), plafond 1.0 -> se 0, n_eval 0 garde par max(., 1), bruts dans l'ordre.
+    "tools/memory_perception_demand_probe.py::_untrained_ceiling": [
+        "injection:max-not-median", "se:binomial-formula", "plafond-1:se-0", "n_eval-0:guarded", "bruts:ordered"],
+    "tools/perception_coordination_demand_probe.py::_untrained_ceiling": [
+        "injection:max-not-median", "se:binomial-formula", "plafond-1:se-0", "n_eval-0:guarded", "bruts:ordered"],
     # ---- LA FAMILLE DES GARDES, rendue comptable par le motif `assert_*` (2026-09-02) ----------------
     # Ces neuf declarations ne CREENT aucune couverture : elles DECLARENT une couverture qui existait
     # deja et que le cliquet ne savait pas nommer. Verifie fonction par fonction avant de les ecrire --
@@ -1676,6 +1692,20 @@ CALIBRATED = {
                                                  "lambda->0:allclose-not-bit-identical", "decay:(gamma*lambda)^k",
                                                  "lr0:dW=0-trace-advances", "refusals:explicit", "reset:option-counted",
                                                  "adapter:restored-published"],
+    # P2.83 passe (i), 2026-09-26 : le motif `_td_update*` compte enfin ce que P4.11 calibrait deja. Le chemin
+    # TRACE lui-meme (`_td_update_trace`, appele par `_td_update` des que CREDIT_TRACE_LAMBDA > 0) : les cas de
+    # tests/sandbox/test_credit_trace_lambda.py qui passent PAR LUI (lambda > 0), le controle positif en
+    # premier ; `lambda0:bit-identical` n'en fait PAS partie (a lambda 0 il n'est jamais appele).
+    "src/agents/backend_torch.py::_td_update_trace": [
+        "positive-control:formula-predicts-W", "bilinear:four-traced-params", "lambda->0:allclose-not-bit-identical",
+        "decay:(gamma*lambda)^k", "lr0:dW=0-trace-advances", "refusals:explicit"],
+    # `_td_update` est une COLLISION (backend_torch.py / torch_batch_model.py) : jusqu'ici UN seul chemin etait
+    # declare, donc le nom n'aurait ete couvert qu'a moitie le jour ou le motif le verrait. Le legacy torch
+    # (P3.4) : les cas de test_torch_batch_model.py qui l'atteignent via compute_policy_gradient (l'update est
+    # DIFFERE : c'est le second appel qui entre dans `_td_update`), plus deux cas DIRECTS en fin de fichier
+    # (lr=0 -> W bit-identique et perte finie ; lr>0 -> W bouge).
+    "src/agents/torch_batch_model.py::_td_update": [
+        "actor-critic:learns", "rebuild:carries-H", "direct:lr0-W-bit-identical", "direct:lr-moves-W"],
     # `src/agents/backend_torch.py::learn_episode` (REINFORCE episodique) -- cas :
     #   tests/sandbox/test_learning_events.py::test_counter_counts_td_and_episode_calls_and_restores_the_class
     #   (un appel = un episode compte), tests/sandbox/test_instrument_calibration.py::
@@ -6470,3 +6500,104 @@ def test_run_learner_probe_publishes_the_price_of_computation_next_to_the_dose()
     assert g["brain_cost_total"] >= 0.0 and g["energie_perdue_total"] > 0.0
     assert 0.0 <= g["brain_share"] < 0.05, "le cerveau coute ~0,1 % du drain (EDR-099) ; ici un plafond large"
     assert r["learning"]["forward_calls"] == 20 and r["learning"]["compute_spent_total"] >= 0.0
+
+
+# ------------------------------------------------------------------------------------------------ #
+# P2.83 passe (i), 2026-09-26 -- les trois instruments que les motifs RESORBANTS font entrer, et le second
+# chemin de la collision `_td_update`. Aucun monde, aucune simulation : fonctions pures ou injection.
+# ------------------------------------------------------------------------------------------------ #
+
+
+def test_resolve_ceiling_AUTO_refuses_to_certify_since_the_plain_composes():
+    """`"auto"` rendait PLAIN_COMPOSITION_CEILING en le nommant « plafond de l'INCAPABLE » ; depuis la
+    retractation du 2026-09-08 (le plain COMPOSE : 9/9 a K=3, 16/16 a K=4) il ne resout plus RIEN et la sonde
+    refuse de rendre `unlocked` plutot que de deviner. Reponse connue : (None, None, False), quel que soit le
+    regime -- y compris celui ou la forme close etait exacte (composition, same_tick)."""
+    from tools.bilinear_composition_probe import _resolve_ceiling
+    assert _resolve_ceiling("auto", "ignoree", "composition", True, 4) == (None, None, False)
+    assert _resolve_ceiling("auto", "ignoree", "recall", False, 6) == (None, None, False)
+
+
+def test_resolve_ceiling_NONE_resolves_nothing():
+    from tools.bilinear_composition_probe import _resolve_ceiling
+    assert _resolve_ceiling(None, "quelconque", "composition", True, 4) == (None, None, False)
+
+
+def test_resolve_ceiling_EXPLICIT_value_passes_through_with_provenance_and_is_UNPROVEN_by_default():
+    """Une valeur DECLAREE par l'appelant est transmise telle quelle (en float), avec sa provenance ; son
+    statut est celui que l'appelant declare -- FAUX par defaut : un plafond declare n'est pas un plafond
+    prouve tant qu'on ne le dit pas."""
+    from tools.bilinear_composition_probe import _resolve_ceiling
+    assert _resolve_ceiling(0.75, "results/plain_ceiling_witness_K4.json", "composition", True, 4,
+                            ceiling_is_proven=True) == (0.75, "results/plain_ceiling_witness_K4.json", True)
+    assert _resolve_ceiling("0.5", "prov", "composition", True, 4) == (0.5, "prov", False)
+
+
+_UNTRAINED_CEILING_MODULES = ("tools.memory_perception_demand_probe", "tools.perception_coordination_demand_probe")
+
+
+@pytest.mark.parametrize("module", _UNTRAINED_CEILING_MODULES)
+def test_untrained_ceiling_is_the_MAX_over_seeds_plus_a_binomial_standard_error(module):
+    """Injection a dose connue : `evaluer` est une TABLE. Un plafond est un MAXIMUM, pas une mediane (la
+    mediane de [0.10, 0.30, 0.20] est 0.20 ; l'instrument doit rendre 0.30), et l'erreur-type suit
+    sqrt(p(1-p)/n_eval) -- meme convention que `assert_bar_is_reachable`. Les bruts sortent dans l'ordre
+    des seeds. Les DEUX copies (collision) sont exercees par le meme cas."""
+    import importlib
+    f = importlib.import_module(module)._untrained_ceiling
+    table = {1: 0.10, 2: 0.30, 3: 0.20}
+    plafond, se, bruts = f([1, 2, 3], table.__getitem__, 100)
+    assert plafond == 0.30 and bruts == [0.10, 0.30, 0.20]
+    assert abs(se - (0.30 * 0.70 / 100) ** 0.5) < 1e-12
+
+
+@pytest.mark.parametrize("module", _UNTRAINED_CEILING_MODULES)
+def test_untrained_ceiling_at_ONE_has_zero_error_and_n_eval_ZERO_is_guarded(module):
+    """Bornes : un incapable qui atteint 1.0 n'a plus d'incertitude binomiale (se = 0) ; `n_eval = 0` ne
+    divise pas par zero (garde `max(., 1)`), il rend l'erreur-type d'UNE evaluation."""
+    import importlib
+    f = importlib.import_module(module)._untrained_ceiling
+    plafond, se, _ = f([0, 1], lambda s: 1.0, 640)
+    assert plafond == 1.0 and se == 0.0
+    plafond, se, _ = f([0], lambda s: 0.5, 0)
+    assert plafond == 0.5 and abs(se - 0.5) < 1e-12
+
+
+def _torch_batch_after_one_deferred_transition(seed=0):
+    """Un TorchBatchModel (legacy torch, P3.4) avec UNE transition memorisee (l'update TD est DIFFERE : le
+    premier compute_policy_gradient ne fait que memoriser) et un second forward (V(s') connu). Le genome est
+    d'abord ALIGNE sur la copie torch (`_write_back`) pour que la bit-identite compare des float32 entre eux."""
+    import torch
+    from src.agents.mamba_agent import MambaAgent
+    from src.agents.torch_batch_model import TorchBatchModel, _VALUE_NODE
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    a = MambaAgent()
+    bm = TorchBatchModel([a])
+    bm._write_back()
+    obs = (np.random.RandomState(seed + 1).randn(1, a.genome.num_inputs) * 0.5).astype(np.float32)
+    bm.forward(obs)
+    assert bm.compute_policy_gradient(np.array([1.0], np.float32), [{"move": 0, "grab": 0, "rub": 0}]) is None
+    bm.forward(obs)
+    v_next = bm.H[:, bm.max_N - bm.max_O + _VALUE_NODE].detach()
+    return a, bm, v_next
+
+
+def test_torch_batch_model_td_update_DIRECT_lr0_leaves_W_bit_identical_and_returns_a_finite_loss():
+    """Appel DIRECT de `_td_update` (le second chemin de la collision), a lr = 0 : la transition memorisee est
+    creditee, la perte est un nombre fini, et W ne bouge pas d'un bit -- le no-op EXACT de l'apprenant."""
+    a, bm, v_next = _torch_batch_after_one_deferred_transition()
+    for g in bm.opt.param_groups:
+        g["lr"] = 0.0
+    W0 = np.array(a.genome.W, copy=True)
+    loss = bm._td_update(bm._prev, v_next)
+    assert isinstance(loss, float) and np.isfinite(loss)
+    assert np.array_equal(a.genome.W, W0)
+
+
+def test_torch_batch_model_td_update_DIRECT_at_positive_lr_moves_W():
+    """Le meme appel, au pas publie (LR = 0.04) : W bouge -- la direction opposee du no-op, pour que la paire
+    de cas puisse rendre les DEUX issues."""
+    a, bm, v_next = _torch_batch_after_one_deferred_transition()
+    W0 = np.array(a.genome.W, copy=True)
+    loss = bm._td_update(bm._prev, v_next)
+    assert np.isfinite(loss) and not np.array_equal(a.genome.W, W0)

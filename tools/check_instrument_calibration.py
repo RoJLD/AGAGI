@@ -124,6 +124,32 @@ _INSTRUMENT_PATTERNS = (
     # dans tools/check_gate_mutation.py (porte 2).
     re.compile(r"^[ \t]*def\s+(learn\w*)\s*\(", re.M),
     re.compile(r"^[ \t]*def\s+(compute_policy_gradient)\s*\(", re.M),
+    # ⚠️ DOUZIEME elargissement, 2026-09-26 (P2.83, passe (i) : les trois motifs RESORBANTS). La moitie
+    # SILENCE de P2.83 (2026-09-24) a mesure 9 declarations CALIBRATED que le cliquet IGNORAIT, dont 4
+    # fonctions bien PRESENTES qu'aucun des 16 motifs ne voyait : `plain_readout_ceiling`,
+    # `additive_argmax_exact_ceiling`, `verify_plain_ceiling_witness` (tools/plain_substrate_ceiling.py --
+    # le plafond du plain, valeur centrale du dossier P2.15) et `_td_update` (src/agents/backend_torch.py,
+    # l'update Actor-Critic TD(0) du chemin PUBLIE, calibre par P4.11). Leurs cas existaient, leur
+    # declaration existait ; seule la DETECTION manquait, et le compteur les comptait pour rien. Cout
+    # MESURE sur l'arbre AVANT application (script jetable, jamais la mesure du 09-24 reprise) :
+    # `*ceiling*` +5 noms, `verify_*` +1 (le meme `verify_plain_ceiling_witness`), `_td_update*` +2 --
+    # 7 noms distincts, 4 deja declares (resorbes) et 3 dettes NEUVES, toutes calibrees dans la meme
+    # passe (0 dette legataire creee) : `_resolve_ceiling` (bilinear_composition_probe, fonction pure),
+    # `_untrained_ceiling` (DEUX copies bit-identiques, memory_perception / perception_coordination --
+    # une collision, declaree qualifiee, injection a dose connue) et `_td_update_trace` (backend_torch,
+    # TD(lambda) a traces, calibre par test_credit_trace_lambda.py depuis P4.11 sans jamais etre compte).
+    # ⚠️ Trouve en mesurant : `_td_update` est LUI-MEME une COLLISION (backend_torch.py ET
+    # torch_batch_model.py) -- la declaration existante ne couvrait qu'UN chemin ; le second est declare
+    # dans la meme passe, avec un cas DIRECT. `verify_*` seul n'ajoute RIEN sur l'arbre courant : le motif
+    # est PROSPECTIF, et sa mutation est tuee par un temoin a arbre factice, pas par le reel (dit tel quel).
+    # `*median*` (+9) reste REJETE : des formateurs (`_fmt_mediane`, `_median_norm`...), un motif qui
+    # ratisse des helpers rend le cliquet inutilisable. `_td_update*` tolere l'indentation (METHODES,
+    # comme les apprenants du 11e) ; les deux autres restent ancres `^def` (fonctions de module).
+    # Temoin : tests/sandbox/test_check_instrument_calibration_resorbing.py ; trois mutations (chaque
+    # motif retire un par un) declarees dans tools/check_gate_mutation.py (porte 2).
+    re.compile(r"^def\s+(\w*ceiling\w*)\s*\(", re.M),
+    re.compile(r"^def\s+(verify_\w+)\s*\(", re.M),
+    re.compile(r"^[ \t]*def\s+(_td_update\w*)\s*\(", re.M),
 )
 
 
