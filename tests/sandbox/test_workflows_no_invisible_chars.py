@@ -25,9 +25,13 @@ _INVISIBLES = {0xFE0E, 0xFE0F, 0x200B, 0x200C, 0x200D, 0x2060, 0xFEFF, 0x00AD, 0
 
 
 def invisibles(texte):
-    """-> [(position, 'U+XXXX')] des caractères invisibles ; vide si le texte est sain."""
+    """-> [(position, 'U+XXXX')] des caractères invisibles ; vide si le texte est sain.
+
+    Le retour chariot est REFUSÉ lui aussi : l'outil Workflow lit les octets du disque et rejette tout caractère de
+    contrôle, donc une extraction CRLF (core.autocrlf=true sous Windows) rend le script inlançable même quand le blob
+    est sain — mesuré le 2026-09-26 après c0274ea9 (275 \\r). D'où `.gitattributes` (eol=lf) et cette lecture du DISQUE."""
     return [(i, f"U+{ord(c):04X}") for i, c in enumerate(texte)
-            if ord(c) in _INVISIBLES or (unicodedata.category(c) in ("Cc", "Cf") and c not in "\n\r\t")]
+            if ord(c) in _INVISIBLES or (unicodedata.category(c) in ("Cc", "Cf") and c not in "\n\t")]
 
 
 def _scripts():
@@ -40,8 +44,8 @@ def test_il_existe_au_moins_un_script_de_workflow_a_examiner():
 
 @pytest.mark.parametrize("chemin", _scripts(), ids=lambda p: os.path.basename(p))
 def test_aucun_script_de_workflow_ne_porte_de_caractere_invisible(chemin):
-    with open(chemin, encoding="utf-8") as fh:
-        texte = fh.read()
+    with open(chemin, "rb") as fh:                      # OCTETS du disque : c'est ce que l'outil Workflow lit
+        texte = fh.read().decode("utf-8")               # (pas de traduction des fins de ligne : un \r reste un \r)
     trouves = invisibles(texte)
     assert not trouves, (
         f"{os.path.relpath(chemin, _ROOT)} porte {len(trouves)} caractère(s) invisible(s) {sorted(set(t[1] for t in trouves))} "
@@ -57,3 +61,6 @@ def test_le_temoin_ROUGIT_sur_un_selecteur_de_variante_seul():
     assert invisibles(malade) == [(4, "U+FE0F")]
     assert invisibles("a​b") == [(1, "U+200B")]
     assert invisibles("﻿debut") == [(0, "U+FEFF")]
+    # Une extraction CRLF est refusée elle aussi (la forme du 2026-09-26 après c0274ea9) ; la tabulation passe.
+    assert invisibles("ligne\r\nsuite\n") == [(5, "U+000D")]
+    assert invisibles("a\tb\n") == []
