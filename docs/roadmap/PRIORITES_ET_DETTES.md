@@ -995,6 +995,93 @@ compatibles, et c'est en croyant résoudre la première que j'ai créé la secon
 <!-- closes_when:grep_present=tools/check_amputation.py::ecrire_sans_perte -->
 
 
+**P2.115 — rang 5 — OUVERTE (2026-09-26, mesuré sur `352cce44`) — `check_gate_mutation.py --only <inconnu>` rend
+« OK : 0 porte(s) » et exit 0 : le cliquet DES cliquets accepte un périmètre VIDE comme un succès.**
+Preuve : `PYTHONIOENCODING=utf-8 python tools/check_gate_mutation.py --only 99` → `OK : 0 porte(s), 0/0 mutation(s)
+TUEE(S), temoins intacts VERTS.`, exit 0. Cause : `tools/check_gate_mutation.py:572` filtre
+`cibles = [p for p in PORTES if (only is None or p in only)]` sans vérifier qu'un seul des numéros demandés EXISTE, et
+`main` (l. 654) imprime OK dès que `echecs(etats)` est vide — ce qu'un `etats` VIDE garantit. Un numéro mal tapé, une
+porte renumérotée (la 23 a porté le numéro 22 jusqu'au 2026-09-24) ou un `--only` figé dans un script rendent un vert
+qui ne mesure RIEN — la forme (a) du biais du dépôt (entrée vide → verdict de fond), appliquée à la porte qui vérifie
+les autres. La porte 23 a corrigé exactement ce défaut chez elle (« un `--only` donné SANS aucun fichier est REFUSÉ »),
+et le mode `--pour-fichiers` de cette porte le DIT au moins (« aucune porte concernee par ces fichiers — rien a muter »).
+`tests/sandbox/test_gate_mutation.py` ne couvre `--only` que par un `scan` monkeypatché (l. 198, 207) : aucun témoin
+n'appelle `main(["--only", …])`.
+**Forme demandée** : tout numéro de `--only` absent de `PORTES` est REFUSÉ — nommé, exit non nul, message portant
+`INCONNUE` ; un périmètre qui se vide après filtrage refuse aussi (« 0 porte » n'est jamais un OK). Le court-circuit
+explicite de `--pour-fichiers` reste tel quel.
+**Contre-exemple gelé à écrire dans la même passe** : `main(["--only", "99"])` rend exit ≠ 0 et nomme `99` ;
+`main(["--only", "4"])` continue de fonctionner ; la garde retirée est TUÉE par ce témoin (la porte 15 se mute
+elle-même).
+<!-- closes_when:grep_present=tools/check_gate_mutation.py::INCONNUE -->
+
+
+**P2.116 — rang 7 — OUVERTE (2026-09-26, mesuré sur `352cce44`) — Le bloc `AGAGI:FUSION-SCOPE` du pre-commit publie
+« 20 appels » dans un COMMENTAIRE, et le seul témoin qui recompute ce chiffre vit dans la suite complète — que ni le
+hook, ni la porte 15, ni la CI n'exécutaient.**
+Preuve : `tools/hooks/pre-commit:55` (« rend 20 appels à cette date ») ; recompte du jour
+`grep -c '^[^#]*git diff --cached --name-only' tools/hooks/pre-commit` → 20, concordant ; témoin
+`tests/sandbox/test_hook_on_merge.py:545` (`test_le_nombre_d_appels_annonce_dans_les_commentaires_se_RECOMPUTE`), vert
+le 2026-09-26 (0,47 s). Mais ce fichier n'est cité par AUCUNE porte : `grep test_hook_on_merge` dans
+`tools/check_gate_mutation.py`, `tools/hooks/pre-commit` et `.github/workflows/ci.yml` ne rend que la ligne 55 du
+hook — et la suite complète n'a exécuté aucun test en CI du ~2026-09-15 au 2026-09-26 (8 erreurs de collecte,
+run 36154477100, corrigé par `b895a0a3`). À la fusion `pm-portes` le chiffre était vrai de chaque côté et FAUX à
+l'union (17 → 20), attrapé par une revue à cinq lentilles et non par un cliquet (passation PM du 2026-09-25). Chaque
+porte ajoutée au hook change ce compte : la prochaine le périme, et le seul témoin est dans le job le plus long.
+**Forme demandée** : le compte sort du commentaire — le hook porte le chiffre attendu dans une variable
+(`APPELS_ATTENDUS=20`) et se REFUSE si le recompte diverge (une ligne de shell, exécutée à CHAQUE commit, qui juge la
+copie DÉPLOYÉE — celle qui tourne) ; le témoin existant reste et entre dans la liste `Gardes-de-gardes` de `ci.yml`.
+**Contre-exemple gelé** : un hook jouet dont la variable dit 20 et qui porte 21 appels est REFUSÉ ; la vraie copie
+passe.
+<!-- closes_when:grep_present=tools/hooks/pre-commit::APPELS_ATTENDUS -->
+
+
+**P2.117 — rang 9 — OUVERTE (2026-09-26, mesuré : DEUX classes invisibles) — `check_synthesis_counts._classes_registre`
+compte les statuts du registre par leur FORME (`` `exécutable` `` entre backticks juste après un `|`), pas par leur
+COLONNE : E28 et E29, statut `exécutable` écrit NU, ne sont comptées nulle part — et le compte publié « 24 exécutables »
+est faux de 2, avec la porte 8 verte dessus.**
+Preuve : `tools/check_synthesis_counts.py:93-101` — `re.search(r"\|\s*`" + statut + r"`", l)` ; mesuré le 2026-09-26
+sur les 33 lignes `| **Exx** |` de `docs/REF/REGISTRE_ERREURS.md` : 24 portent `` `exécutable` `` et 6 `` `documenté` ``
+entre backticks ; **E28** (l. 63) et **E29** (l. 64) écrivent `exécutable` sans backticks dans la colonne Statut ;
+E9 écrit `**`non automatisable`**` (gras autour) et n'entre dans aucun compteur non plus — juste, mais par accident.
+`_classes_registre("exécutable")` rend 24, la colonne en dit 26 ; `docs/REF/REGISTRE_ERREURS.md:74` publie
+la balise `count:classes_executables` à **24** et la porte 8 rend « OK : aucun compte publié n'est périmé » parce que la prose
+recopie le même chiffre que l'instrument. C'est E8 (le compte cité ≠ le compte mesuré) appliqué à l'instrument qui
+traque E8 — occurrence à graver au registre dans la passe qui la corrige, avec sa garde. Conséquence de fond : le
+registre promet qu'« une erreur qui repasse deux fois en documenté est promue » ; une classe que le compteur ne voit pas
+n'est jamais promue.
+**Forme demandée** : lire la CELLULE de la colonne `Statut` repérée par l'en-tête (en respectant les `|` à l'intérieur
+des code-spans — un split naïf sur `|` désaligne 5 lignes sur 33), la dépouiller de sa mise en forme (`` ` ``, `**`,
+`*`, parenthèse de promotion), puis comparer aux trois vocables ; publier le nombre de lignes dont le statut ne
+correspond à AUCUN (aujourd'hui ce nombre > 0 est une faute de rédaction, pas une quatrième catégorie). Aligner E28 et
+E29 sur la forme canonique dans la même passe, et recomputer le compte publié.
+**Contre-exemple gelé** : un registre jouet à trois lignes (`` `exécutable` ``, `exécutable`, `**`exécutable`**`) rend 3
+et non 1 ; une ligne à `|` dans un code-span ne décale pas la colonne.
+<!-- closes_when:grep_present=tools/check_synthesis_counts.py::_statut_cellule -->
+
+
+**P2.118 — rang 11 — OUVERTE (2026-09-26 ; cécité DÉCLARÉE au tableau depuis le 2026-09-24, jamais corrigée) — Le
+tableau PM ne voit que les écritures des outils d'ÉDITION : il manque un hook PostToolUse `Bash` qui COMPTE (sans
+capturer) les écritures possibles, et `.claude/settings.json` ne le porte pas.**
+Preuve : `.claude/settings.json:7` — `"matcher": "Edit|Write|MultiEdit|NotebookEdit"` est le seul hook `tool` ;
+`tools/pm/board.py:27-35` (`CECITE_FICHIERS`, défaut 4) : « un script Python lancé par Bash qui réécrit un fichier n'y
+laisse AUCUNE trace — mesuré : une session qui venait de réécrire le backlog par script n'apparaissait pas » ;
+`.claude/skills/pm/SKILL.md` § Contrat des hooks : « la voie est un hook PostToolUse `Bash` qui COMPTE sans capturer
+(`.claude/settings.json`, dette à inscrire) » — c'est cette inscription. Occurrence du jour : la session qui écrit
+ceci a réécrit 10 fichiers par un script hors dépôt (`b895a0a3`) et cette entrée-ci par un autre : invisible au
+tableau. Conséquence : A1 (fichier partagé) et les P-items inférés — les deux alertes qui protègent l'arbre PARTAGÉ —
+ne voient pas la forme d'écriture la plus dangereuse, celle qui a anéanti le backlog (E22, 2026-09-09).
+**Forme demandée** : un hook PostToolUse sur `Bash` qui N'ENREGISTRE PAS le texte de la commande ni un diff de
+`git status` (il attribuerait à la session les écritures d'autrui sur l'arbre partagé — pire que la cécité,
+SKILL.md), et INCRÉMENTE un compteur `bash_ecritures_possibles` dans le bulletin quand la commande porte un marqueur
+d'écriture (`>`/`>>`/`tee`, `sed -i`, `git apply`, `python <script>`), publié au tableau à côté de `files_touched`
+comme un PLANCHER d'incertitude — jamais comme une liste de fichiers. `tests/sandbox/test_pm_hooks_config.py` l'EXÉCUTE
+réellement (returncode 0, pas de `hook_errors.log`), comme les quatre hooks existants.
+**Contre-exemple gelé** : un bulletin après `python x.py` porte `bash_ecritures_possibles >= 1` ; après `ls` il reste à
+0 ; le texte de la commande n'apparaît dans aucun fichier du tableau.
+<!-- closes_when:grep_present=.claude/settings.json::"matcher": "Bash -->
+
+
 **P4.21 — rang 12 — OUVERTE (2026-09-24, trouvée en amendant ma propre clôture) — Un verdict de SYNTHÈSE qui
 agrège plusieurs POINTS DE FONCTIONNEMENT n'a aucune garde : le pré-vol garde une CELLULE, pas une CONCLUSION.**
 Preuve (E2 occ. 6) : `7fa6b2d8` publiait « invariance au pas RÉFUTÉE » depuis `aide09 = 0/12` à lr 2,0, alors que
