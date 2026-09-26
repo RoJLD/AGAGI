@@ -2,6 +2,7 @@
  "_comment": "Runners scelles PAR (chemin, raison) : nu (sous gradient SANS assert_verdict_invariant_to_optimizer), indetermine (mentionne le pas/E19 sans forme reconnue), regle_absente (nom resolu mais fichier scelle introuvable/illisible), non_resolu (nom NON resolu statiquement, ex. argv), illisible (le MODULE ne parse pas). 'appelants_garde' gele les chemins qui appellent REELLEMENT la garde -- le controle positif de cette porte ; en PERDRE un bloque. Dette legataire GELEE : aucun NOUVEAU nu, aucune REGRESSION de raison, aucune perte d'appelant. tools/check_e19_optimizer_sweep.py",
  "appelants_garde": [
   "src/seed_ai/harness_verdict.py",
+  "tools/evo_runs/s2_bassin_fragility.py",
   "tools/learner_calibration.py"
  ],
  "legataires": {
