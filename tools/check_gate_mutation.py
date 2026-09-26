@@ -429,6 +429,13 @@ PORTES = {
             "motif": ("le crochet passe à --only les records supprimés (filtre AMD) : sans cette branche, "
                       "le refus bloquerait toute suppression de record — la garde contre le vert vide "
                       "deviendrait un faux rouge sur un geste légitime"),
+        }, {
+            # P2.129 (2026-09-26) : l'extracteur élargi redevient l'ancien motif, qui exigeait un backtick après .json.
+            "nom": "l'extracteur de citations exige de nouveau un backtick après .json",
+            "avant": r'_RESULTS = re.compile(r"(?<![A-Za-z0-9_])(results/(?:[A-Za-z0-9_./*\-]|\{[A-Za-z0-9_.,*\-]*\})+\.json)"',
+            "apres": r'_RESULTS = re.compile(r"`[^`]*?(results/[A-Za-z0-9_./*{},\-]+\.json)`"',
+            "motif": ("le défaut mesuré par la critique P9.3 : le TEXTE d'une pré-inscription qui cite un JSON "
+                      "entre guillemets rendait « 0 citation », donc OK — une évidence absente passait"),
         }],
     },
     "20": {

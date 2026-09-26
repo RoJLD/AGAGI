@@ -1422,7 +1422,7 @@ champ texte n'étant jamais lu comme décision ; témoin sous node sur « aucun 
 calibré »), comme celui de `bfaea9c6`. *Coût : agent < 1 h ; calcul 0.* Dépend de : rien.
 <!-- closes_when:grep_absent=.claude/workflows/refutateur.js::function normaliserRefus -->
 
-**P2.129 — rang 12 — OUVERTE (2026-09-26, trouvée par la revue adversariale de la règle S2-BASSIN-FRAGILITY v3,
+**P2.129 — rang 12 — ✅ CLOSE le 2026-09-26 (ouverte le même jour, trouvée par la revue adversariale de la règle S2-BASSIN-FRAGILITY v3,
 critique P9.3, inscrite par la session SCIENCE-HARNAIS à la demande d'agagi-32 ; décision de PÉRIMÈTRE, à attribuer
 par Master 2) — L'extracteur de citations des portes 19 et 20 ne voit un chemin `results/…` que suivi d'un backtick :
 toute autre forme de citation rend « 0 citation », donc un OK.**
@@ -1437,6 +1437,21 @@ records (« 0 citation nue dans docs/EDR », mesuré le 2026-09-23) et un test g
 Deux voies : élargir (citations nues, JSON de pré-inscription) avec rebaselinage déclaré, ou refuser explicitement une
 cible hors périmètre (une pré-inscription n'est pas un record) au lieu de rendre OK. *Coût : agent 1-2 h ; calcul 0.*
 Dépend de : P2.128.
+✅ **FERMÉE le 2026-09-26 (agagi-32, worker Dette ; attribuée par Master 2)** — voie (a), élargir, SANS rebaselinage.
+Mesuré AVANT d'écrire, sur les 305 records de `836117ce` : aucune citation nue, aucune citation entre backticks ratée ; le nouveau
+motif rend, record par record, EXACTEMENT les mêmes ensembles de citations que l'ancien, et les deux portes rendent
+les mêmes comptes sur le dépôt réel (64 légataires pour la 19, 18 pour la 20). La crainte de l'entrée — des baselines à
+reprendre — ne se réalise pas aujourd'hui. `_RESULTS` (`tools/check_regime_claims.py`) voit un chemin `results/…json`
+entre backticks, nu, entre guillemets (le JSON d'une pré-inscription) ou suivi d'un hash dans le même backtick ; la
+virgule n'y est admise qu'entre accolades ; ni `myresults/`, ni `.json.bak`. Témoins :
+`test_P2_129_l_extracteur_voit_une_citation_NUE_entre_GUILLEMETS_ou_suivie_d_un_HASH` (l'ancien motif, rejoué, ne
+voit aucune de ces formes : c'est la nécessité), la spécificité (rien d'inventé), l'invariant « ancien ⊆ nouveau »
+sur les records réels — un invariant, pas une égalité gelée (E25) : un record futur cité nu est voulu — et, porte
+20, la réponse connue de P9.3 : `evaluer()` sur le texte JSON rend la citation, et ABSENT au lieu de OK. Porte 15 :
+une mutation neuve (l'ancien motif remis), tuée ; **8/8** sur les portes 19 et 20. Windows 66 verts, Linux (WSL)
+66 verts. Le test « rien de cité → OK » reste juste : un record qui ne cite rien n'a pas d'évidence à rouvrir.
+**Limite déclarée** : un RÉPERTOIRE `results/…/` (les génomes que cite la pré-inscription) n'est pas un
+`results/*.json` et reste invisible — hors du contrat de la porte 20.
 <!-- closes_when:grep_absent=tools/check_regime_claims.py::_RESULTS = re\.compile\(r"`\[\^`\]\*\?\(results/ -->
 
 **P2.121 — rang 6 — OUVERTE (2026-09-26, mesuré sur le run 36210667429, le PREMIER où `suite-complete` exécute des
