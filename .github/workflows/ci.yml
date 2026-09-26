@@ -122,7 +122,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
+      # ⚠️ `fetch-depth: 0` (2026-09-26, run 36210667429 — le premier où cette suite a EXÉCUTÉ des tests) : les
+      # témoins gelés du Réfutateur (tests/sandbox/test_refutateur_temoins.py, _mutation.py) sont adressés par le
+      # SHA d'un commit ancien (« témoin EDR-GRAB-COST-1828371 introuvable », « fatal: bad object ») ; le clone à
+      # profondeur 1 de checkout@v4 ne le contient pas — 22 rouges qui ne disent rien du code. L'historique complet
+      # coûte quelques secondes de plus sur un job de 18 minutes.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
