@@ -222,11 +222,10 @@ def _racine_des_donnees_pm(repo_root):
     sinon il s'ancre sur la racine COMMUNE à tous les worktrees (`git rev-parse --git-common-dir`), et sur
     `repo_root` si git est muet. ⚠️ F1 : l'appel à `ancrer_data_root` vivait ici, donc dans le processus
     uvicorn — mesuré, UN poll faisait basculer `paths.data_root()` / `paths.db_root()` (KuzuDB, génomes,
-    HoF) vers le `data/` COMMUN pour tout le processus et ses enfants."""
-    if os.environ.get("AGAGI_DATA_ROOT"):
-        return repo_root
-    from tools.pm.snapshot import racine_commune
-    return racine_commune(repo_root) or repo_root
+    HoF) vers le `data/` COMMUN pour tout le processus et ses enfants. La règle vit dans
+    `snapshot.base_des_donnees` (P2.114 : `snapshot` en a besoin pour le chemin `?frais=1`) — une seule copie."""
+    from tools.pm.snapshot import base_des_donnees
+    return base_des_donnees(repo_root)
 
 
 def chemin_roles_counts(repo_root):

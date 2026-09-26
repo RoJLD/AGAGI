@@ -73,6 +73,24 @@ def ancrer_data_root(cwd=None):
     return os.environ["AGAGI_DATA_ROOT"]
 
 
+def base_des_donnees(repo_root):
+    """Base où ancrer un chemin RELATIF de `paths.*` — résolution PURE, aucune écriture d'environnement.
+
+    Même sémantique que `ancrer_data_root`, sans son effet de bord : `AGAGI_DATA_ROOT` posée -> `paths.*` en
+    tiennent compte, et un chemin encore relatif s'ancre sur `repo_root` ; sinon la racine COMMUNE à tous les
+    worktrees, et `repo_root` si git est muet. P2.114 : le backend (`?frais=1`) n'a pas le droit de poser la
+    variable (F1 : un poll ré-ancrait data_root/db_root de tout le processus uvicorn) — sans cette résolution,
+    `snapshot` lisait bulletins et journal de hooks dans le `data/` du CWD du processus (le worktree, ou
+    n'importe quel répertoire), jamais dans celui du dépôt commun."""
+    if os.environ.get("AGAGI_DATA_ROOT"):
+        return repo_root
+    return racine_commune(repo_root) or repo_root
+
+
+def _ancre(base, chemin):
+    return chemin if os.path.isabs(chemin) else os.path.join(base, chemin)
+
+
 def _git(repo_root, *args, timeout=20):
     try:
         out = subprocess.run(["git", *args], cwd=repo_root, capture_output=True, encoding="utf-8",
@@ -321,6 +339,10 @@ def read_backlog_paths(repo_root):
 def snapshot(repo_root, *, registry_dir=None, sessions_dir=None, leases_dir=None, pm_dir=None,
              now=None, since="24 hours ago"):
     now = time.time() if now is None else float(now)
+    if sessions_dir is None or pm_dir is None:          # P2.114 : jamais le data/ du cwd du processus
+        base = base_des_donnees(repo_root)
+        sessions_dir = sessions_dir or _ancre(base, paths.sessions_dir())
+        pm_dir = pm_dir or _ancre(base, paths.pm_dir())
     return {"now": now, "repo_root": norm(repo_root),
             "psutil": _psutil() is not None,
             "registry": read_registry(registry_dir), "bulletins": read_bulletins(sessions_dir),

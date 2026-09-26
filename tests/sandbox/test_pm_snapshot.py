@@ -300,6 +300,62 @@ def test_snapshot_porte_toutes_les_cles_et_ne_leve_pas_sans_sources(tmp_path, re
     assert set(snap) >= {"psutil", "worktrees", "commits", "processes", "cpu_pct", "hook_errors"}
 
 
+@pytest.mark.parametrize("cwd_du_processus", ["worktree", "ailleurs"])
+def test_P2_114_snapshot_depuis_un_WORKTREE_lit_les_donnees_du_depot_COMMUN_sans_ecrire_l_environnement(
+        repo, tmp_path, monkeypatch, cwd_du_processus):
+    """P2.114 : le backend (`?frais=1`) appelle `snapshot(<racine du worktree>)` SANS variable posée — il n'a pas
+    le droit d'en écrire une (F1 : un poll ré-ancrait data_root/db_root de tout le processus). `paths.*` rendent
+    alors un chemin RELATIF, résolu contre le cwd du PROCESSUS : le data/ du worktree (cwd = worktree), ou celui de
+    n'importe quel répertoire (cwd d'uvicorn). Un leurre est posé aux DEUX endroits ; seul le dépôt COMMUN porte
+    la bonne session et le bon journal d'échecs de hook."""
+    wt = tmp_path / "wt"
+    _git(repo, "worktree", "add", "-q", "-b", "chantier/p2-114", str(wt))
+    ailleurs = tmp_path / "ailleurs"
+    ailleurs.mkdir()
+    monkeypatch.setenv("AGAGI_DATA_ROOT", "sentinelle-a-effacer")    # cf. test d'ancrage : restaure l'ABSENCE
+    monkeypatch.delenv("AGAGI_DATA_ROOT", raising=False)
+    monkeypatch.chdir(wt if cwd_du_processus == "worktree" else ailleurs)
+    import time as T
+    now = T.mktime(T.strptime("2026-09-26T12:00:00", "%Y-%m-%dT%H:%M:%S"))
+    (repo / "data" / "sessions").mkdir(parents=True)
+    (repo / "data" / "sessions" / "s.json").write_text(json.dumps({"session_id": "COMMUN"}), encoding="utf-8")
+    (repo / "data" / "pm").mkdir()
+    (repo / "data" / "pm" / "hook_errors.log").write_text("2026-09-26T11:00:00 stop ValueError: x\n",
+                                                          encoding="utf-8")
+    for leurre in (wt, ailleurs):
+        (leurre / "data" / "sessions").mkdir(parents=True)
+        (leurre / "data" / "sessions" / "s.json").write_text(json.dumps({"session_id": "LEURRE"}), encoding="utf-8")
+        (leurre / "data" / "pm").mkdir()
+        (leurre / "data" / "pm" / "hook_errors.log").write_text("2026-09-26T11:00:00 tool OSError: leurre\n",
+                                                                encoding="utf-8")
+    monkeypatch.setattr(S, "read_processes", lambda: [])                   # 9 s réels, hors de propos ici
+    monkeypatch.setattr(S, "read_cpu_pct", lambda: None)
+    snap = S.snapshot(str(wt), registry_dir=str(tmp_path / "r"), leases_dir=tmp_path / "l", now=now)
+    assert [b.get("session_id") for b in snap["bulletins"]] == ["COMMUN"], snap["bulletins"]
+    assert snap["hook_errors"] == {"stop": 1}, snap["hook_errors"]
+    assert "AGAGI_DATA_ROOT" not in os.environ, "la résolution doit être PURE (F1) : aucune variable écrite"
+
+
+def test_P2_114_la_variable_POSEE_et_les_repertoires_INJECTES_gagnent_toujours(repo, tmp_path, monkeypatch):
+    """Contrôle de spécificité du précédent : le tick PM pose `AGAGI_DATA_ROOT` (absolue) AVANT `snapshot`, et les
+    tests injectent `sessions_dir` / `pm_dir` — ces deux voies doivent rester BIT-IDENTIQUES à l'avant-P2.114."""
+    pose = tmp_path / "pose"
+    (pose / "sessions").mkdir(parents=True)
+    (pose / "sessions" / "s.json").write_text(json.dumps({"session_id": "VARIABLE"}), encoding="utf-8")
+    (repo / "data" / "sessions").mkdir(parents=True)
+    (repo / "data" / "sessions" / "s.json").write_text(json.dumps({"session_id": "COMMUN"}), encoding="utf-8")
+    injecte = tmp_path / "injecte"
+    injecte.mkdir()
+    (injecte / "s.json").write_text(json.dumps({"session_id": "INJECTE"}), encoding="utf-8")
+    monkeypatch.setenv("AGAGI_DATA_ROOT", pose.as_posix())
+    monkeypatch.setattr(S, "read_processes", lambda: [])
+    monkeypatch.setattr(S, "read_cpu_pct", lambda: None)
+    kw = dict(registry_dir=str(tmp_path / "r"), leases_dir=tmp_path / "l", now=1000.0)
+    assert [b["session_id"] for b in S.snapshot(str(repo), **kw)["bulletins"]] == ["VARIABLE"]
+    assert [b["session_id"] for b in S.snapshot(str(repo), sessions_dir=str(injecte), **kw)["bulletins"]] == [
+        "INJECTE"]
+
+
 def test_zz_aucune_fuite_de_AGAGI_DATA_ROOT_apres_l_ancrage():
     """Place en DERNIER dans le fichier (l'ordre pytest suit l'ordre de definition) : verifie que
     `test_ancrer_data_root_pointe_les_donnees_sur_le_depot_COMMUN_et_respecte_la_variable` n'a rien

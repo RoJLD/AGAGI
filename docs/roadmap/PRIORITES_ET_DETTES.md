@@ -2236,8 +2236,19 @@ détenteur au moment du test. À vérifier avec un bail tenu puis relâché pend
 *Coût : agent 1-2 h pour (a) avec sa garde, quelques minutes pour (b) et (c), une expérience contrôlée pour (d).*
 <!-- closes_when:grep_absent=tests/test_consolidate_records.py::main\(\[\]\) -->
 
-**P2.114 — ⚠️ OUVERTE (2026-09-26) — dashboard Pilotage : `?frais=1` lancé depuis un WORKTREE recalcule la flotte
-avec le data/ du worktree, pas celui du dépôt commun.**
+**P2.114 — ✅ CLOSE le 2026-09-26 (ouverte le même jour) — dashboard Pilotage : `?frais=1` lancé depuis un WORKTREE
+recalcule la flotte avec le data/ du worktree, pas celui du dépôt commun.**
+Fait (session FRONT) : `tools/pm/snapshot.py::base_des_donnees`, résolution PURE (aucune variable d'environnement
+écrite, F1 tenu) — `AGAGI_DATA_ROOT` posée : ses chemins ; sinon la racine COMMUNE (`racine_commune`), `repo_root` si
+git est muet. `snapshot()` y ancre `sessions_dir` et `pm_dir` quand ils ne sont pas injectés ;
+`pilotage._racine_des_donnees_pm` délègue à la même fonction (une seule copie). Le défaut était plus large que son
+titre : le chemin relatif se résolvait contre le cwd du PROCESSUS, donc un uvicorn lancé depuis `backend/` lisait
+aussi un faux data/, arbre principal compris. Témoin `tests/sandbox/test_pm_snapshot.py` (paramétré cwd = worktree /
+ailleurs, un leurre posé aux DEUX endroits) : ROUGE avant le correctif sur les deux cwd (le leurre lu), vert après ;
+contrôle de spécificité : la variable posée (voie du tick) et les répertoires injectés gagnent toujours,
+bit-identiques. Hors périmètre, dit : sous `frais=1` depuis un worktree, `flotte.repo_root` reste le worktree (la règle
+A3 du board exclut alors le worktree au lieu de l'arbre principal) — question du board, pas du data/.
+<!-- closes_when:grep_present=tools/pm/snapshot.py::def base_des_donnees -->
 Quoi : le correctif F1 du chantier Pilotage (fusionné dans `e6e2c8e1`) a supprimé l'écriture de `AGAGI_DATA_ROOT`
 dans le processus backend. Depuis, `read_board` et `read_roles_counts` résolvent le dépôt COMMUN sans effet de bord.
 Mais le chemin `frais=1` appelle `tools/pm/snapshot.py::snapshot`, qui lit bulletins et registre via `paths.*` : sans
