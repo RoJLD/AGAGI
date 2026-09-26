@@ -1,6 +1,7 @@
 # deploy/nexus/runner/build-job.yaml — build Kaniko de l'image runner, DANS elysium-agagi.
 #
-# Gabarit : `python -m tools.jobs.remote image` substitue __JOB__, __TAG__, __CTX_CM__ et crée d'abord la
+# Gabarit : `python -m tools.jobs.remote image` substitue __JOB__, __TAG__, __CTX_CM__, et depuis la CONFIGURATION
+# (jamais le dépôt) __NAMESPACE__, __NOEUD__, __REGISTRE__, __DEPOT_IMAGE__, __CACHE_KANIKO__ ; il crée d'abord la
 # ConfigMap __CTX_CM__ (Dockerfile + requirements.txt + constraints.txt). Ne pas appliquer tel quel.
 #
 # Écarts ASSUMÉS au gabarit ELYSIUM gitops/jobs/image-ci/_template.yaml :
@@ -16,7 +17,7 @@ apiVersion: batch/v1
 kind: Job
 metadata:
   name: __JOB__
-  namespace: elysium-agagi
+  namespace: __NAMESPACE__
   labels:
     app.kubernetes.io/name: agagi-runner-build
     app.kubernetes.io/component: image-build
@@ -50,7 +51,7 @@ spec:
       restartPolicy: Never
       automountServiceAccountToken: false
       nodeSelector:
-        kubernetes.io/hostname: nexus
+        kubernetes.io/hostname: __NOEUD__
       initContainers:
         - name: contexte
           image: alpine:3.20
@@ -67,9 +68,9 @@ spec:
           args:
             - --context=dir:///workspace
             - --dockerfile=/workspace/Dockerfile
-            - --destination=192.168.1.21:5443/elysium/agagi-runner:__TAG__
+            - --destination=__REGISTRE__/__DEPOT_IMAGE__:__TAG__
             - --cache=true
-            - --cache-repo=192.168.1.21:5443/elysium/_kaniko-cache
+            - --cache-repo=__REGISTRE__/__CACHE_KANIKO__
             - --digest-file=/dev/termination-log
             - --cleanup
             - --verbosity=info

@@ -16,7 +16,7 @@ d'un run ne soit plus mesurée sous la charge des autres (E12 appliqué au coût
 
 | Pièce | Où | Rôle |
 |---|---|---|
-| namespace `elysium-agagi` | `deploy/nexus/00-03*.yaml` | normes `elysium-*` : palier LimitRange `standard` (2 CPU / 4 Gi par conteneur), default-deny + egress du seul build, ResourceQuota (8 CPU de requests, 16 pods) |
+| namespace (nom configuré) | `deploy/nexus/00-03*.yaml` (GABARITS, rendus par `remote.py namespace`) | normes `elysium-*` : palier LimitRange `standard` (2 CPU / 4 Gi par conteneur), default-deny + egress du seul build, ResourceQuota (8 CPU de requests, 16 pods) |
 | image runner | `deploy/nexus/runner/` | Python 3.13.12, dépendances ÉPINGLÉES sur la batcave (`constraints.txt`) SAUF torch (2.6.0+cpu dans l'image, 2.6.0+cu124 sur la batcave : même version, autre build), git ; construite par Kaniko DANS le namespace ; référence committée dans `IMAGE.json` (tag + digest) |
 | soumission | `tools/jobs/remote.py` | un Job par run : code au sha, attente, rapatriement vérifié |
 | point d'entrée | `tools/jobs/remote_entry.py` | stdlib seule ; tourne dans le pod ET en local, à l'identique |
@@ -30,7 +30,35 @@ python -m tools.jobs.remote local    --sha HEAD -- -m tools.evo_runs.<runner> <a
 python -m tools.jobs.remote soumettre ... ; attendre <job> ; rapatrier <job> [--into DIR] ; etat
 python -m tools.jobs.remote installer runs/deport/<job>/sortie_non_installee --into DIR   # après un conflit
 python -m tools.jobs.remote image [--reconstruire]                                    # (re)construire l'image
+python -m tools.jobs.remote namespace [--appliquer]                                   # rendre (et appliquer) les manifestes
+python -m tools.jobs.remote config                                                    # configuration résolue, et sa source
 ```
+
+## Configuration — hors du dépôt, sans défaut
+
+Le dépôt est PUBLIC, et ni le cluster ni le nœud ne sont éternels (décision de robla, 2026-09-26) : AUCUNE adresse,
+aucun contexte kubectl, aucun nom de nœud n'est écrit dans un fichier suivi. `remote.py` les lit dans les variables
+d'environnement, puis dans `~/.agagi/deport.json` (hors dépôt, partagé par tous les worktrees de la machine ; chemin
+surchargeable par `AGAGI_DEPORT_CONFIG`) ; l'environnement l'emporte. Une clé requise absente → refus NOMMÉ avant
+tout effet, jamais une valeur devinée. Modèle sans valeur réelle (adresses RFC 5737) : `deploy/deport.example.json`.
+
+| clé | variable | rôle |
+|---|---|---|
+| `contexte` | `AGAGI_KUBE_CONTEXT` | contexte kubectl (requis) |
+| `registre` | `AGAGI_REGISTRY` | `hôte:port` du registre ; une IP si on rend la NetworkPolicy (requis) |
+| `noeud` | `AGAGI_DEPORT_NOEUD` | nœud où épingler les Jobs (requis) |
+| `namespace` | `AGAGI_DEPORT_NAMESPACE` | namespace dédié (requis) |
+| `depot_image` | `AGAGI_DEPORT_DEPOT_IMAGE` | chemin de l'image dans le registre, sans hôte (requis) |
+| `fenetre` | `AGAGI_DEPORT_FENETRE` | fenêtre d'allumage du nœud, `fuseau,début_h,fin_h,marge_s` ou `aucune` (REQUISE : l'absence se déclare) |
+| `allumage` | `AGAGI_DEPORT_ALLUMAGE` | le geste humain qui allume le nœud, cité dans les refus (facultatif) |
+| `ca_depuis` | `AGAGI_DEPORT_CA_DEPUIS` | namespace d'où copier la ConfigMap `registry-ca-bundle` au premier build (facultatif) |
+
+Les gabarits suivis (`deploy/nexus/*.yaml`, `runner/build-job.yaml`) portent des `__PLACEHOLDERS__` rendus au moment
+de l'application ou du build ; un `kubectl apply -f deploy/nexus/` sur les gabarits BRUTS échoue bruyamment (nom
+invalide), c'est voulu. `IMAGE.json` ne porte que le chemin de l'image et son digest, jamais l'hôte. Une garde de test
+refuse le retour d'une adresse privée écrite en dur dans le code et les gabarits du déport. L'adresse reste dans
+l'historique déjà poussé (commits du 2026-09-26) : la réécrire serait une décision de robla, déconseillée par Master 2
+pour une adresse privée non routable.
 
 La commande est toujours `-m <module> [args]` (python implicite). Une commande par Job : un balayage de
 seeds se découpe en N Jobs, pas en un pool de processus dans un pod (plafond 2 CPU par conteneur ; quota du
@@ -53,8 +81,7 @@ minimal ; les deux publient les variables déclarées dans le MANIFEST.
    liste les entrées non suivies de `data/` ; elle ne peut pas savoir si le runner les lit. Une donnée
    d'entrée d'un run se committe (ou se publie par hash).
 2. **Aucun secret dans le dépôt.** Le pod n'a besoin ni de GitHub ni d'un jeton ; le seul identifiant est le
-   kubeconfig de la batcave (`~/.kube/config`, contexte `direct-192.168.1.21`, surchargeable par
-   `AGAGI_KUBE_CONTEXT`).
+   kubeconfig de la batcave (`~/.kube/config`), désigné par la configuration hors dépôt (clé `contexte`).
 3. **Les sorties sont déduites, pas déclarées.** Empreinte sha256 et horodatage de l'arbre avant et après :
    tout fichier créé, modifié ou RÉÉCRIT À L'IDENTIQUE est une sortie (hors `.git/`, caches,
    `runs/leases/`) — une reproduction exacte d'un résultat committé est attestée, pas invisible. Une écriture
@@ -107,7 +134,8 @@ minimal ; les deux publient les variables déclarées dans le MANIFEST.
 
 ## État mesuré (2026-09-26)
 
-* Namespace appliqué par robla (`kubectl apply -f deploy/nexus/`) ; image construite par
+* Namespace appliqué par robla (`kubectl apply -f deploy/nexus/`, avant que les manifestes deviennent des gabarits ;
+  leur rendu depuis la configuration est identique à l'état du cluster : `kubectl diff` vide) ; image construite par
   `python -m tools.jobs.remote image --sha 019dc34b` : Kaniko en 80 s sur nexus, sans OOM, tag
   `py3.13.12-39fe2c9bda57`, digest dans `deploy/nexus/runner/IMAGE.json`.
 * Premier run déporté : `evo011_preflight --smoke` au sha da09f7a1, 64 s de bout en bout (préparation du dépôt au

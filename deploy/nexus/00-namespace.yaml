@@ -1,4 +1,7 @@
 # deploy/nexus/00-namespace.yaml — namespace dédié aux runs AGAGI déportés sur le cluster ELYSIUM (nœud nexus).
+# GABARIT : __NAMESPACE__ et l'adresse du registre sont rendus depuis la configuration hors dépôt —
+#   python -m tools.jobs.remote namespace [--appliquer]
+# `kubectl apply -f deploy/nexus/` sur les gabarits BRUTS échoue bruyamment (nom invalide), c'est voulu.
 #
 # Livrable (1) de la session INFRA-NEXUS (2026-09-26). Rien d'AGAGI ne se crée HORS de ce namespace.
 # Normes ELYSIUM appliquées (ELYSIUM gitops/policies/cluster-norms/, relues le 2026-09-26 @ 577fc67f7) :
@@ -21,7 +24,7 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: elysium-agagi
+  name: __NAMESPACE__
   labels:
     elysium.io/managed-by: agagi
     elysium.io/source-repo: RoJLD.AGAGI

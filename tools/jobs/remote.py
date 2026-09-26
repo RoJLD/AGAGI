@@ -61,25 +61,29 @@ if str(_ROOT) not in sys.path:
 from tools.grid_compare import cmp_continu  # noqa: E402
 from tools.jobs import remote_entry as E  # noqa: E402
 
-NAMESPACE = "elysium-agagi"
-CONTEXTE_DEFAUT = os.environ.get("AGAGI_KUBE_CONTEXT", "direct-192.168.1.21")
-NOEUD_DEFAUT = "nexus"
-REGISTRE = "192.168.1.21:5443/elysium/agagi-runner"
+# ------------------------------------------------------------------------------------------ configuration
+# AUCUNE adresse, aucun contexte, aucun nœud dans le dépôt (décision de robla, 2026-09-26 : le dépôt est PUBLIC, et
+# le cluster comme le nœud peuvent changer). Lue dans les variables d'environnement, puis dans un fichier HORS dépôt
+# (~/.agagi/deport.json, partagé par tous les worktrees de la machine ; chemin surchargeable par AGAGI_DEPORT_CONFIG).
+# Une clé requise absente → Refus NOMMÉ avant tout effet, jamais une valeur devinée. Exemple sans adresse réelle :
+# deploy/deport.example.json.
+CONFIG_DEFAUT = os.path.join("~", ".agagi", "deport.json")
+VARIABLES_CONFIG = {"contexte": "AGAGI_KUBE_CONTEXT", "registre": "AGAGI_REGISTRY", "noeud": "AGAGI_DEPORT_NOEUD",
+                    "namespace": "AGAGI_DEPORT_NAMESPACE", "depot_image": "AGAGI_DEPORT_DEPOT_IMAGE",
+                    "fenetre": "AGAGI_DEPORT_FENETRE", "allumage": "AGAGI_DEPORT_ALLUMAGE",
+                    "ca_depuis": "AGAGI_DEPORT_CA_DEPUIS"}
+# `fenetre` est REQUISE mais peut valoir null (nœud toujours allumé) : l'absence se DÉCLARE, elle ne se suppose pas.
+CLES_REQUISES = ("contexte", "registre", "noeud", "namespace", "depot_image", "fenetre")
 # Carte de propriété ELYSIUM (Σ-MANIFEST-MYCORHIZE, SIGIL-1762) : sans ces labels, un objet posé hors GitOps
 # ELYSIUM apparaît comme zone d'ombre au sentinel gitops_orphan_paths (elysium-91, 2026-09-26).
 LABELS_PROPRIETE = {"app.kubernetes.io/part-of": "agagi", "elysium.io/owner": "agagi",
                     "elysium.io/managed-by": "agagi", "elysium.io/source-repo": "RoJLD.AGAGI"}
-# nexus : fenêtre 08:00-00:00 Europe/Paris, extinction IPMI DURE à minuit (config/cluster_nodes.yaml
-# d'ELYSIUM, relevé par elysium-91 le 2026-09-26) — un run qui déborde minuit meurt sans drain.
-FENETRE_TZ, FENETRE_DEBUT_H, MARGE_MINUIT_S = "Europe/Paris", 8, 900
 RUNNER_DIR = "deploy/nexus/runner"
 IMAGE_JSON = RUNNER_DIR + "/IMAGE.json"
 FICHIERS_CONTEXTE = {"Dockerfile": f"{RUNNER_DIR}/Dockerfile", "constraints.txt": f"{RUNNER_DIR}/constraints.txt",
                      "requirements.txt": "requirements.txt", "build-job.yaml": f"{RUNNER_DIR}/build-job.yaml"}
 # Plafond par conteneur = LimitRange `standard` du namespace (deploy/nexus/01-limitrange.yaml).
 MAX_CPU, MAX_MEM_GI = 2.0, 4.0
-ALLUMAGE = ("nexus dort ou est indisponible. Il s'allume par bridge-api « /power nexus on » (SIGIL-1611) — "
-            "geste de robla, que cet outil ne fait JAMAIS lui-même. Sinon : `python -m tools.jobs.remote local`.")
 JOURNAL_LOCAL = "runs/deport"          # runs/ est ignoré par git : journaux et MANIFEST des runs
 MARGE_TRANSFERT_S = 1200               # préparation + tirage d'image + envoi des sources, borne haute
 ATTENTE_MIN_S = 60
@@ -95,6 +99,60 @@ ENV_COMMUN = {"PYTHONIOENCODING": "utf-8", "PYTHONUTF8": "1", "PYTHONDONTWRITEBY
 
 class Refus(RuntimeError):
     """Refus bruyant, AVANT tout effet : rien n'est créé, rien n'est écrit."""
+
+
+def _fenetre_depuis_texte(v: str):
+    """`aucune` (nœud toujours allumé, DÉCLARÉ) ou `fuseau,début_h,fin_h,marge_s` (ex. Europe/Paris,8,24,900)."""
+    if v.strip().lower() == "aucune":
+        return None
+    parts = [x.strip() for x in v.split(",")]
+    if len(parts) != 4:
+        raise Refus(f"AGAGI_DEPORT_FENETRE attend « aucune » ou « fuseau,début_h,fin_h,marge_s », reçu {v!r}")
+    return {"tz": parts[0], "debut_h": int(parts[1]), "fin_h": int(parts[2]), "marge_s": int(parts[3])}
+
+
+def charger_config(env=None) -> dict:
+    """La configuration du déport (cf. VARIABLES_CONFIG) : environnement d'abord, fichier hors dépôt ensuite.
+    Refus NOMMÉ pour toute clé requise absente, pour un registre qui n'est pas « hôte:port », pour une fenêtre
+    mal formée. Ne DEVINE rien : c'est ce qui garde l'adresse du cluster hors du dépôt."""
+    env = os.environ if env is None else env
+    chemin = Path(os.path.expanduser(env.get("AGAGI_DEPORT_CONFIG") or CONFIG_DEFAUT))
+    fichier = {}
+    if chemin.is_file():
+        try:
+            fichier = json.loads(chemin.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as e:
+            raise Refus(f"configuration du déport illisible ({chemin}) : {e}")
+        if not isinstance(fichier, dict):
+            raise Refus(f"configuration du déport ({chemin}) : un objet JSON est attendu")
+    cfg, source = {}, {}
+    for cle, var in VARIABLES_CONFIG.items():
+        if env.get(var) not in (None, ""):
+            cfg[cle] = _fenetre_depuis_texte(env[var]) if cle == "fenetre" else env[var]
+            source[cle] = var
+        elif cle in fichier:
+            cfg[cle] = fichier[cle]
+            source[cle] = str(chemin)
+    manquantes = [c for c in CLES_REQUISES if c not in cfg or (cfg[c] in (None, "") and c != "fenetre")]
+    if manquantes:
+        raise Refus("configuration du déport incomplète : " + ", ".join(f"{c} ({VARIABLES_CONFIG[c]})" for c in manquantes)
+                    + f" — à poser dans l'environnement ou dans {chemin} (modèle : deploy/deport.example.json). "
+                    "Aucune valeur n'est devinée.")
+    hote, sep, port = str(cfg["registre"]).rpartition(":")
+    if not sep or not hote or not port.isdigit() or "/" in cfg["registre"]:
+        raise Refus(f"registre attendu « hôte:port », reçu {cfg['registre']!r}")
+    f = cfg["fenetre"]
+    if f is not None and (not isinstance(f, dict) or set(f) != {"tz", "debut_h", "fin_h", "marge_s"}
+                          or not 0 <= int(f["debut_h"]) < int(f["fin_h"]) <= 24):
+        raise Refus(f"fenetre attendue null ou {{tz, debut_h, fin_h, marge_s}} avec 0 <= début < fin <= 24, reçu {f!r}")
+    cfg["_source"] = source
+    return cfg
+
+
+def allumage(cfg: dict) -> str:
+    return (f"nœud {cfg['noeud']} éteint ou indisponible. Voie d'allumage déclarée : "
+            f"{cfg.get('allumage') or 'NON DÉCLARÉE (clé allumage)'} — geste humain, que cet outil ne fait JAMAIS "
+            "lui-même. Sinon : `python -m tools.jobs.remote local`.")
 
 
 # ------------------------------------------------------------------------------------------ git (local)
@@ -215,32 +273,36 @@ def nom_job(commande: list, sha: str, suffixe: str | None = None) -> str:
     return f"agagi-{court}-{sha[:7]}-{suffixe or secrets.token_hex(2)}"
 
 
-def image_ref(info: dict) -> str:
-    """`dépôt:tag@digest` : le tag pour l'humain (CNCE-3 exige un tag), le digest pour la machine."""
-    return f"{info['image']}:{info['tag']}@{info['digest']}"
+def image_ref(info: dict, registre: str) -> str:
+    """`registre/dépôt:tag@digest` : le tag pour l'humain (CNCE-3 exige un tag), le digest pour la machine. Le
+    REGISTRE vient de la configuration, jamais d'IMAGE.json (qui est suivi : il ne porte que le chemin)."""
+    return f"{registre}/{info['image']}:{info['tag']}@{info['digest']}"
 
 
 def _secu_conteneur() -> dict:
     return {"allowPrivilegeEscalation": False, "readOnlyRootFilesystem": True, "capabilities": {"drop": ["ALL"]}}
 
 
-def fenetre_restante_s(maintenant: _dt.datetime | None = None) -> float:
-    """Secondes utilisables avant l'extinction DURE de nexus (IPMI, sans drain) à 00:00 Europe/Paris, marge
-    déduite ; 0 hors de la fenêtre 08:00-00:00. Fuseau illisible → refus, jamais une fenêtre devinée."""
+def fenetre_restante_s(fenetre, maintenant: _dt.datetime | None = None) -> float:
+    """Secondes utilisables avant l'extinction du nœud (fin de sa fenêtre, marge déduite) ; 0 hors de la fenêtre ;
+    l'infini si le nœud est DÉCLARÉ toujours allumé (fenetre = null). Pour nexus en 2026-09 : Europe/Paris,
+    08:00-24:00, extinction IPMI DURE à minuit, sans drain (relevé par elysium-91). Fuseau illisible → refus."""
+    if fenetre is None:
+        return float("inf")
     try:
         from zoneinfo import ZoneInfo
-        tz = ZoneInfo(FENETRE_TZ)
+        tz = ZoneInfo(fenetre["tz"])
     except Exception as e:                                    # noqa: BLE001 — refus dit, pas avalé
-        raise Refus(f"fuseau {FENETRE_TZ} illisible ({e}) : la fenêtre de nexus ne peut pas être calculée")
+        raise Refus(f"fuseau {fenetre.get('tz')!r} illisible ({e}) : la fenêtre du nœud ne peut pas être calculée")
     t = (maintenant or _dt.datetime.now(tz)).astimezone(tz)
-    if t.hour < FENETRE_DEBUT_H:
+    if t.hour < int(fenetre["debut_h"]) or t.hour >= int(fenetre["fin_h"]):
         return 0.0
-    minuit = (t + _dt.timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
-    return max(0.0, (minuit - t).total_seconds() - MARGE_MINUIT_S)
+    fin = t.replace(hour=0, minute=0, second=0, microsecond=0) + _dt.timedelta(hours=int(fenetre["fin_h"]))
+    return max(0.0, (fin - t).total_seconds() - int(fenetre["marge_s"]))
 
 
-def manifeste_job(*, nom, sha, image, commande, cpu=2.0, req_cpu=1.0, mem="4Gi", req_mem="1Gi",
-                  noeud=NOEUD_DEFAUT, attente_s=3600, deadline_s=2 * 3600, entry_sha256="", source_sha256="",
+def manifeste_job(*, nom, sha, image, commande, namespace, noeud, cpu=2.0, req_cpu=1.0, mem="4Gi", req_mem="1Gi",
+                  attente_s=3600, deadline_s=2 * 3600, entry_sha256="", source_sha256="",
                   env_declare=None) -> dict:
     """Le Job d'UN run. Conformité ELYSIUM portée par construction (CNCE-1/3/5/8/11) et vérifiée par test.
 
@@ -277,7 +339,7 @@ def manifeste_job(*, nom, sha, image, commande, cpu=2.0, req_cpu=1.0, mem="4Gi",
                 "echo '[recevoir] bundle recu'")
     return {
         "apiVersion": "batch/v1", "kind": "Job",
-        "metadata": {"name": nom, "namespace": NAMESPACE, "labels": labels,
+        "metadata": {"name": nom, "namespace": namespace, "labels": labels,
                      "annotations": {"agagi.io/sha": sha, "agagi.io/commande": json.dumps(commande),
                                      "agagi.io/env": json.dumps(env_declare, sort_keys=True),
                                      "agagi.io/entry-sha256": entry_sha256}},
@@ -401,11 +463,15 @@ def installer_sorties(sortie: Path, dest: Path, job: str, attendu: dict | None =
 
 # ------------------------------------------------------------------------------------------ kubectl
 class Kube:
-    """kubectl, contexte et namespace FIXÉS. Aucune écriture hors de `elysium-agagi`."""
+    """kubectl, contexte et namespace FIXÉS par la configuration. Aucune écriture hors du namespace configuré."""
 
-    def __init__(self, contexte=CONTEXTE_DEFAUT, ns=NAMESPACE, binaire="kubectl"):
+    def __init__(self, contexte, ns, binaire="kubectl"):
         self.base = [binaire, "--context", contexte]
         self.ns = ns
+
+    @classmethod
+    def depuis(cls, cfg: dict) -> "Kube":
+        return cls(cfg["contexte"], cfg["namespace"])
 
     def brut(self, args, *, entree=None, ns=True, verifier=True, timeout=600) -> subprocess.CompletedProcess:
         cmd = self.base + (["-n", self.ns] if ns else []) + list(args)
@@ -482,24 +548,26 @@ def garde_image(info: dict, sha: str, racine: Path) -> str:
 
 # ------------------------------------------------------------------------------------------ étapes
 def soumettre(commande, *, sha="HEAD", cpu=2.0, req_cpu=1.0, mem="4Gi", req_mem="1Gi",
-              noeud=NOEUD_DEFAUT, attente_s=3600, deadline_s=2 * 3600, image_divergente_ok=False,
-              env=None, kube=None, racine=None, sortie=print, maintenant=None) -> str:
+              attente_s=3600, deadline_s=2 * 3600, image_divergente_ok=False,
+              env=None, kube=None, racine=None, sortie=print, maintenant=None, cfg=None) -> str:
+    cfg = cfg or charger_config()
+    noeud = cfg["noeud"]
     racine = racine or racine_depot()
-    kube = kube or Kube()
+    kube = kube or Kube.depuis(cfg)
     commande = valider_commande(list(commande))
     env_declare = valider_env(env) if not isinstance(env, dict) else valider_env([f"{k}={v}" for k, v in env.items()])
     besoin = deadline_s + attente_s + MARGE_TRANSFERT_S
-    reste = fenetre_restante_s(maintenant) if noeud == NOEUD_DEFAUT else float("inf")
+    reste = fenetre_restante_s(cfg["fenetre"], maintenant)
     if cmp_continu(besoin, reste, 0.0):                    # secondes : grandeur continue (porte 24)
         raise Refus(f"le run demande jusqu'à {besoin / 3600:.1f} h (deadline + fenêtre de rapatriement + marge) ; "
-                    f"nexus s'éteint DUR à minuit (IPMI, sans drain) et il reste {reste / 3600:.1f} h utilisables. "
-                    "Réduire --deadline-s / --attente-s, attendre 08:00, ou `local`.")
+                    f"le nœud {noeud} s'éteint à la fin de sa fenêtre déclarée et il reste {reste / 3600:.1f} h "
+                    "utilisables. Réduire --deadline-s / --attente-s, attendre l'ouverture de la fenêtre, ou `local`.")
     sha = sha_complet(sha, racine)
     info = lire_image(racine)
     mode_garde = "desactivee (--image-divergente-ok)" if image_divergente_ok else garde_image(info, sha, racine)
     pret, raison = noeud_pret(kube, noeud)
     if not pret:
-        raise Refus(f"{raison}. {ALLUMAGE}")
+        raise Refus(f"{raison}. {allumage(cfg)}")
     absentes = entrees_non_suivies(racine)
     if absentes:
         sortie(f"[remote] ⚠ {len(absentes)} entrée(s) de data/ NON suivies n'existeront PAS dans le pod "
@@ -507,8 +575,9 @@ def soumettre(commande, *, sha="HEAD", cpu=2.0, req_cpu=1.0, mem="4Gi", req_mem=
     archive = preparer_source(sha, racine)
     entry = (_ICI / "remote_entry.py").read_bytes()
     nom = nom_job(commande, sha)
-    ref = image_ref(info)
-    job = manifeste_job(nom=nom, sha=sha, image=ref, commande=commande, cpu=cpu, req_cpu=req_cpu,
+    ref = image_ref(info, cfg["registre"])
+    job = manifeste_job(nom=nom, sha=sha, image=ref, commande=commande, namespace=cfg["namespace"], cpu=cpu,
+                        req_cpu=req_cpu,
                         mem=mem, req_mem=req_mem, noeud=noeud, attente_s=attente_s, deadline_s=deadline_s,
                         entry_sha256=hashlib.sha256(entry).hexdigest(),
                         source_sha256=hashlib.sha256(archive).hexdigest(), env_declare=env_declare)
@@ -525,7 +594,8 @@ def soumettre(commande, *, sha="HEAD", cpu=2.0, req_cpu=1.0, mem="4Gi", req_mem=
     j = racine / JOURNAL_LOCAL / nom
     j.mkdir(parents=True, exist_ok=True)
     (j / "soumission.json").write_text(json.dumps(
-        {"job": nom, "sha": sha, "commande": commande, "env": env_declare, "image": ref, "noeud": noeud,
+        {"job": nom, "sha": sha, "commande": commande, "env": env_declare, "image": image_ref(info, "<registre>"),
+         "noeud": noeud,
          "garde_image": mode_garde, "entrees_non_suivies": absentes,
          "soumis_utc": _dt.datetime.now(_dt.timezone.utc).isoformat()}, indent=2, ensure_ascii=False),
         encoding="utf-8")
@@ -607,11 +677,12 @@ def lire_fin(job_obj: dict, pod: dict | None, noeud_pret_maintenant: bool) -> di
     return {"etat": etat, **preuves}
 
 
-def attendre(job, *, kube=None, delai_s=8 * 3600, sortie=print) -> dict:
+def attendre(job, *, kube=None, delai_s=8 * 3600, sortie=print, cfg=None) -> dict:
     """Attend la FIN du runner : `.pret` posé dans /out (rapatriable) ou Job terminé. États DISTINCTS :
     `pret`, `termine`, et pour un échec ceux de `lire_fin` (preempte, noeud_perdu, delai_depasse, oom,
     refus_entree, non_rapatrie, evince, pod_disparu, sources_non_recues, inconnu), ou `expire`."""
-    kube = kube or Kube()
+    cfg = cfg or charger_config()
+    kube = kube or Kube.depuis(cfg)
     t0, dernier = time.monotonic(), None
     while time.monotonic() - t0 < delai_s:
         j = kube.json(["get", "job", job])
@@ -620,7 +691,7 @@ def attendre(job, *, kube=None, delai_s=8 * 3600, sortie=print) -> dict:
         if "Complete" in conds:
             return {"etat": "termine", "job": job}
         if "Failed" in conds:
-            noeud = (pod or {}).get("spec", {}).get("nodeName") or NOEUD_DEFAUT
+            noeud = (pod or {}).get("spec", {}).get("nodeName") or cfg["noeud"]
             return {"job": job, **lire_fin(j, pod, noeud_pret(kube, noeud)[0])}
         if pod is not None and pod.get("status", {}).get("phase") == "Running":
             r = kube.executer_dans(pod["metadata"]["name"], "run", ["test", "-f", "/out/.pret"], timeout=60,
@@ -640,7 +711,7 @@ def rapatrier(job, *, into=None, kube=None, racine=None, sortie=print) -> dict:
     (sha, job, entrée), l'installe, puis libère le pod (`.rapatrie`). Sortie intègre mais en conflit : elle
     est conservée localement et le pod est libéré quand même — la donnée est en sûreté, rien n'est perdu.
     Sortie corrompue : le pod n'est PAS libéré (on peut retirer tant que sa fenêtre court)."""
-    kube = kube or Kube()
+    kube = kube or Kube.depuis(charger_config())
     racine = racine or racine_depot()
     dest = Path(into) if into else racine
     j = kube.json(["get", "job", job])
@@ -718,9 +789,11 @@ def contexte_image(sha: str, racine: Path) -> dict:
             "requirements_sha256": hashlib.sha256(fichiers["requirements.txt"]).hexdigest()}
 
 
-def construire_image(*, sha="HEAD", kube=None, racine=None, sortie=print, delai_s=2400, reconstruire=False) -> dict:
+def construire_image(*, sha="HEAD", kube=None, racine=None, sortie=print, delai_s=2400, reconstruire=False,
+                     cfg=None) -> dict:
+    cfg = cfg or charger_config()
     racine = racine or racine_depot()
-    kube = kube or Kube()
+    kube = kube or Kube.depuis(cfg)
     sha = sha_complet(sha, racine)
     ctx = contexte_image(sha, racine)
     tag = ctx["tag"]
@@ -728,32 +801,40 @@ def construire_image(*, sha="HEAD", kube=None, racine=None, sortie=print, delai_
         deja = lire_image(racine)
         if deja.get("ctx_hash12") == ctx["hash12"]:
             if not reconstruire:
-                raise Refus(f"image {deja.get('tag')} déjà construite pour ce contexte ({image_ref(deja)}) ; "
+                raise Refus(f"image {deja.get('tag')} déjà construite pour ce contexte ({image_ref(deja, cfg['registre'])}) ; "
                             "--reconstruire pour en pousser une NOUVELLE (tag suffixé, l'ancienne reste)")
             tag = f"{ctx['tag']}-r{secrets.token_hex(2)}"
     # durées en SECONDES : grandeur continue, déclarée à la porte 24 (pas un compte sur une grille)
-    if cmp_continu(delai_s + MARGE_TRANSFERT_S, fenetre_restante_s(), 0.0):
-        raise Refus(f"le build peut durer {delai_s / 60:.0f} min et nexus s'éteint DUR à minuit : attendre 08:00")
-    pret, raison = noeud_pret(kube, NOEUD_DEFAUT)
+    if cmp_continu(delai_s + MARGE_TRANSFERT_S, fenetre_restante_s(cfg["fenetre"]), 0.0):
+        raise Refus(f"le build peut durer {delai_s / 60:.0f} min et le nœud {cfg['noeud']} s'éteint à la fin de sa "
+                    "fenêtre déclarée : attendre son ouverture")
+    pret, raison = noeud_pret(kube, cfg["noeud"])
     if not pret:
-        raise Refus(f"{raison}. {ALLUMAGE}")
+        raise Refus(f"{raison}. {allumage(cfg)}")
     if kube.brut(["get", "configmap", "registry-ca-bundle"], verifier=False).returncode != 0:
-        ca = kube.json(["get", "configmap", "registry-ca-bundle", "-n", "elysium-brain"], ns=False)["data"]["ca.crt"]
+        if not cfg.get("ca_depuis"):
+            raise Refus("ConfigMap registry-ca-bundle absente du namespace et clé ca_depuis (AGAGI_DEPORT_CA_DEPUIS) "
+                        "non déclarée : impossible de savoir d'où copier la CA du registre")
+        ca = kube.json(["get", "configmap", "registry-ca-bundle", "-n", cfg["ca_depuis"]], ns=False)["data"]["ca.crt"]
         kube.creer({"apiVersion": "v1", "kind": "ConfigMap",
-                    "metadata": {"name": "registry-ca-bundle", "namespace": NAMESPACE, "labels": LABELS_PROPRIETE},
+                    "metadata": {"name": "registry-ca-bundle", "namespace": cfg["namespace"],
+                                 "labels": LABELS_PROPRIETE},
                     "data": {"ca.crt": ca}})
-        sortie("[remote] registry-ca-bundle copiée depuis elysium-brain (CA publique mkcert)")
+        sortie(f"[remote] registry-ca-bundle copiée depuis {cfg['ca_depuis']} (CA publique du registre)")
     cm = f"agagi-runner-ctx-{ctx['hash12']}"
     if kube.brut(["get", "configmap", cm], verifier=False).returncode != 0:
         kube.creer({"apiVersion": "v1", "kind": "ConfigMap",
-                    "metadata": {"name": cm, "namespace": NAMESPACE, "labels": LABELS_PROPRIETE},
+                    "metadata": {"name": cm, "namespace": cfg["namespace"], "labels": LABELS_PROPRIETE},
                     "data": {n: ctx["fichiers"][n].decode("utf-8")
                              for n in ("Dockerfile", "constraints.txt", "requirements.txt")}})
     job = f"agagi-build-{ctx['hash12']}-{secrets.token_hex(2)}"
     gabarit = ctx["fichiers"]["build-job.yaml"].decode("utf-8")
-    yaml_job = gabarit.replace("__JOB__", job).replace("__TAG__", tag).replace("__CTX_CM__", cm)
+    yaml_job = rendre(gabarit, {"__JOB__": job, "__TAG__": tag, "__CTX_CM__": cm, "__NAMESPACE__": cfg["namespace"],
+                                "__NOEUD__": cfg["noeud"], "__REGISTRE__": cfg["registre"],
+                                "__DEPOT_IMAGE__": cfg["depot_image"],
+                                "__CACHE_KANIKO__": cfg["depot_image"].rsplit("/", 1)[0] + "/_kaniko-cache"})
     kube.brut(["create", "-f", "-"], entree=yaml_job.encode("utf-8"))
-    sortie(f"[remote] build {job} créé -> {REGISTRE}:{tag}")
+    sortie(f"[remote] build {job} créé -> <registre>/{cfg['depot_image']}:{tag}")
     t0 = time.monotonic()
     while True:
         time.sleep(10)
@@ -774,13 +855,42 @@ def construire_image(*, sha="HEAD", kube=None, racine=None, sortie=print, delai_
     if not re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
         raise Refus(f"digest illisible dans le statut de {job} : {digest!r}")
     kube.brut(["delete", "configmap", cm], verifier=False)      # le quota compte les ConfigMaps
-    info = {"image": REGISTRE, "tag": tag, "digest": digest, "ctx_hash12": ctx["hash12"],
+    info = {"image": cfg["depot_image"], "tag": tag, "digest": digest, "ctx_hash12": ctx["hash12"],
             "requirements_sha256": ctx["requirements_sha256"], "source_sha": sha, "job": job,
             "construit_utc": _dt.datetime.now(_dt.timezone.utc).isoformat(),
             "duree_build_s": round(time.monotonic() - t0, 1)}
     E.ecrire_atomique((json.dumps(info, indent=2) + "\n").encode("utf-8"), str(racine / IMAGE_JSON))
-    sortie(f"[remote] image {image_ref(info)} ; {IMAGE_JSON} écrit (à committer)")
+    sortie(f"[remote] image {image_ref(info, '<registre>')} ; {IMAGE_JSON} écrit (à committer)")
     return info
+
+
+# ------------------------------------------------------------------------------------------ gabarits
+MANIFESTES_NAMESPACE = ("00-namespace.yaml", "01-limitrange.yaml", "02-networkpolicies.yaml", "03-resourcequota.yaml")
+
+
+def rendre(gabarit: str, valeurs: dict) -> str:
+    """Substitue les `__CLES__` d'un gabarit ; REFUSE s'il en reste une (un placeholder envoyé au cluster serait un
+    nom invalide au mieux, un objet faux au pire)."""
+    for k, v in valeurs.items():
+        gabarit = gabarit.replace(k, str(v))
+    restes = sorted(set(re.findall(r"__[A-Z][A-Z0-9_]*__", gabarit)))
+    if restes:
+        raise Refus(f"gabarit incomplet : {restes} non substitués")
+    return gabarit
+
+
+def rendre_manifestes(cfg: dict, racine: Path) -> str:
+    """Les manifestes du namespace (deploy/nexus/00-03), rendus depuis la configuration. La NetworkPolicy ouvre le
+    registre par ipBlock : il faut une ADRESSE IP, un nom d'hôte est refusé (il faudrait le résoudre, donc deviner)."""
+    import ipaddress
+    hote, _, port = cfg["registre"].rpartition(":")
+    try:
+        ip = ipaddress.ip_address(hote)
+    except ValueError:
+        raise Refus(f"registre {cfg['registre']!r} : la NetworkPolicy exige une adresse IP, pas un nom d'hôte")
+    valeurs = {"__NAMESPACE__": cfg["namespace"], "__REGISTRE_IP__": str(ip), "__REGISTRE_PORT__": port}
+    docs = [rendre((racine / "deploy" / "nexus" / f).read_text(encoding="utf-8"), valeurs) for f in MANIFESTES_NAMESPACE]
+    return "\n---\n".join(d.strip("\n") for d in docs) + "\n"
 
 
 # ------------------------------------------------------------------------------------------ témoin
@@ -892,7 +1002,6 @@ def main(argv=None) -> int:
         p.add_argument("--req-cpu", type=float, default=1.0)
         p.add_argument("--mem", default="4Gi")
         p.add_argument("--req-mem", default="1Gi")
-        p.add_argument("--noeud", default=NOEUD_DEFAUT)
         p.add_argument("--attente-s", type=float, default=3600, help="fenêtre de rapatriement après le run")
         p.add_argument("--deadline-s", type=float, default=2 * 3600, help="durée max du runner (avant minuit)")
         p.add_argument("--image-divergente-ok", action="store_true")
@@ -916,13 +1025,16 @@ def main(argv=None) -> int:
     _commun(p)
     p.add_argument("--reconstruire", action="store_true")
     sp.add_parser("etat")
+    p = sp.add_parser("namespace", help="rendre les manifestes du namespace depuis la configuration")
+    p.add_argument("--appliquer", action="store_true", help="kubectl apply du rendu (sinon : imprimé)")
+    sp.add_parser("config", help="afficher la configuration résolue et d'où vient chaque clé")
     p = sp.add_parser("temoin", help="rejouer les comptes d'un témoin publié depuis ses octets embarqués")
     p.add_argument("json")
     a = ap.parse_args(argv)
     try:
         if a.action in ("executer", "soumettre"):
             kw = dict(sha=a.sha, cpu=a.cpu, req_cpu=a.req_cpu, mem=a.mem, req_mem=a.req_mem, env=a.env,
-                      noeud=a.noeud, attente_s=a.attente_s, deadline_s=a.deadline_s,
+                      attente_s=a.attente_s, deadline_s=a.deadline_s,
                       image_divergente_ok=a.image_divergente_ok)
             job = soumettre(a.commande, **kw)
             if a.action == "soumettre":
@@ -952,7 +1064,22 @@ def main(argv=None) -> int:
             print("tout se rejoue" if not d else f"DÉSACCORDS : {d}")
             return 0 if not d else 1
         if a.action == "etat":
-            print(Kube().brut(["get", "jobs,pods", "-l", "app.kubernetes.io/part-of=agagi"]).stdout.decode())
+            print(Kube.depuis(charger_config()).brut(["get", "jobs,pods", "-l", "app.kubernetes.io/part-of=agagi"])
+                  .stdout.decode())
+            return 0
+        if a.action == "namespace":
+            cfg = charger_config()
+            rendu = rendre_manifestes(cfg, racine_depot())
+            if not a.appliquer:
+                print(rendu)
+                return 0
+            r = Kube.depuis(cfg).brut(["apply", "-f", "-"], entree=rendu.encode("utf-8"), ns=False)
+            print(r.stdout.decode())
+            return 0
+        if a.action == "config":
+            cfg = charger_config()
+            for k in VARIABLES_CONFIG:
+                print(f"{k:12s} = {cfg.get(k)!r}   <- {cfg['_source'].get(k, 'absente')}")
             return 0
     except Refus as e:
         print(f"[remote] REFUS : {e}", file=sys.stderr)

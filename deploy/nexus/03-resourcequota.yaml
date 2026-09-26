@@ -9,7 +9,7 @@ apiVersion: v1
 kind: ResourceQuota
 metadata:
   name: agagi-quota
-  namespace: elysium-agagi
+  namespace: __NAMESPACE__
   labels:
     elysium.io/managed-by: agagi
     elysium.io/source-repo: RoJLD.AGAGI

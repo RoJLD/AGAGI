@@ -1,5 +1,5 @@
 {
-  "image": "192.168.1.21:5443/elysium/agagi-runner",
+  "image": "elysium/agagi-runner",
   "tag": "py3.13.12-39fe2c9bda57",
   "digest": "sha256:a1d6e4ebe55bbfb14578846360411605e810c24437408eb386dac2af401c214c",
   "ctx_hash12": "39fe2c9bda57",

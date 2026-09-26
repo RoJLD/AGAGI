@@ -20,6 +20,21 @@ from tools._git_env import env_isole          # noqa: E402
 from tools.jobs import remote as R            # noqa: E402
 from tools.jobs import remote_entry as E      # noqa: E402
 
+# Configuration de TEST, adresses de documentation (RFC 5737) : aucun test ne lit la vraie configuration de la machine
+# (~/.agagi/deport.json), et aucune adresse réelle n'entre dans le dépôt.
+CONFIG_TEST = {"AGAGI_KUBE_CONTEXT": "ctx-test", "AGAGI_REGISTRY": "203.0.113.10:5443", "AGAGI_DEPORT_NOEUD": "noeud-test",
+               "AGAGI_DEPORT_NAMESPACE": "agagi-test", "AGAGI_DEPORT_DEPOT_IMAGE": "projet/agagi-runner",
+               "AGAGI_DEPORT_FENETRE": "Europe/Paris,8,24,900", "AGAGI_DEPORT_ALLUMAGE": "geste-de-test",
+               "AGAGI_DEPORT_CA_DEPUIS": "ns-ca-test"}
+FEN = {"tz": "Europe/Paris", "debut_h": 8, "fin_h": 24, "marge_s": 900}
+
+
+@pytest.fixture(autouse=True)
+def config_de_test(monkeypatch, tmp_path_factory):
+    monkeypatch.setenv("AGAGI_DEPORT_CONFIG", str(tmp_path_factory.mktemp("cfg") / "absent.json"))
+    for k, v in CONFIG_TEST.items():
+        monkeypatch.setenv(k, v)
+
 RUNNER = '''import json, os, sys
 seed = int(sys.argv[sys.argv.index("--seed") + 1])
 os.makedirs("results", exist_ok=True)
@@ -347,11 +362,12 @@ def test_installation_nominale(tmp_path):
 
 
 # ------------------------------------------------------------------------------------------ manifeste du Job
-IMG = "192.168.1.21:5443/elysium/agagi-runner:py3.13.12-abc@sha256:" + "0" * 64
+IMG = "203.0.113.10:5443/projet/agagi-runner:py3.13.12-abc@sha256:" + "0" * 64
 
 
 def _job(**kw):
-    base = dict(nom="agagi-x-1234567-ab12", sha="a" * 40, image=IMG, commande=["-m", "tools.evo_runs.x"])
+    base = dict(nom="agagi-x-1234567-ab12", sha="a" * 40, image=IMG, commande=["-m", "tools.evo_runs.x"],
+                namespace="agagi-test", noeud="noeud-test")
     base.update(kw)
     return R.manifeste_job(**base)
 
@@ -366,14 +382,14 @@ def test_job_conforme_aux_normes_enforce_d_elysium():
         assert meta["labels"]["elysium.io/criticality"] in ("vital", "important", "standard", "disposable")
     spec = pod["spec"]
     assert spec["priorityClassName"] == "elysium-disposable"
-    assert spec["nodeSelector"] == {"kubernetes.io/hostname": "nexus"}
+    assert spec["nodeSelector"] == {"kubernetes.io/hostname": "noeud-test"}
     assert spec["securityContext"]["runAsNonRoot"] is True and spec["automountServiceAccountToken"] is False
     for c in spec["containers"] + spec["initContainers"]:
         assert ":" in c["image"] and not c["image"].endswith(":latest")
         assert c["securityContext"]["readOnlyRootFilesystem"] is True
         assert c["resources"]["limits"] and c["resources"]["requests"]
     assert j["spec"]["backoffLimit"] == 0 and j["spec"]["ttlSecondsAfterFinished"] > 0
-    assert j["metadata"]["namespace"] == "elysium-agagi"
+    assert j["metadata"]["namespace"] == "agagi-test"
 
 
 def test_aucun_montage_NFS_dans_un_pod_de_run():
@@ -446,7 +462,7 @@ def test_soumission_refusee_nexus_endormi_RIEN_n_est_cree(depot):
     (repo / R.IMAGE_JSON).write_text(json.dumps({"image": "r", "tag": "t", "digest": "sha256:" + "0" * 64,
                                                  "requirements_sha256": req}))
     kube = KubeFactice(_noeud(ready="False"))
-    with pytest.raises(R.Refus, match="power nexus on"):
+    with pytest.raises(R.Refus, match="geste-de-test"):
         R.soumettre(["-m", "pkg.runner", "--seed", "1"], sha=sha, kube=kube, racine=repo, sortie=lambda *_: None,
                     maintenant=_paris(10, 0))
     assert not [a for a in kube.appels if a[0] == "creer"]
@@ -472,15 +488,17 @@ def _paris(h, m):
 
 def test_fenetre_de_nexus_minuit_dur():
     """nexus s'éteint DUR à 00:00 (IPMI, sans drain) et n'est garanti qu'à partir de 08:00 (elysium-91)."""
-    assert R.fenetre_restante_s(_paris(7, 59)) == 0
-    assert R.fenetre_restante_s(_paris(12, 0)) == 12 * 3600 - R.MARGE_MINUIT_S
-    assert R.fenetre_restante_s(_paris(23, 50)) == 0
+    assert R.fenetre_restante_s(FEN, _paris(7, 59)) == 0
+    assert R.fenetre_restante_s(FEN, _paris(12, 0)) == 12 * 3600 - 900
+    assert R.fenetre_restante_s(FEN, _paris(23, 50)) == 0
+    assert R.fenetre_restante_s(None, _paris(3, 0)) == float("inf")      # toujours allumé : DÉCLARÉ (null)
+    assert R.fenetre_restante_s(dict(FEN, debut_h=9, fin_h=17), _paris(17, 30)) == 0
 
 
 def test_soumission_refusee_si_le_run_deborde_minuit_RIEN_n_est_cree(depot):
     repo, sha = depot
     kube = KubeFactice(_noeud())
-    with pytest.raises(R.Refus, match="minuit"):
+    with pytest.raises(R.Refus, match="fin de sa fenêtre"):
         R.soumettre(["-m", "pkg.runner"], sha=sha, kube=kube, racine=repo, sortie=lambda *_: None,
                     maintenant=_paris(22, 30))
     assert kube.appels == []
@@ -625,3 +643,62 @@ def test_threads_declares_prennent_TOUT_le_controle():
     env3, _ = E.env_du_runner({}, "/src", {"limite_cpu": None})
     assert "OMP_NUM_THREADS" not in env3 and env3["AGAGI_THREADS_SOURCE"] == "defaut-bibliotheque"
     assert R.valider_env(["OMP_NUM_THREADS=16"]) == {"OMP_NUM_THREADS": "16"}      # déclarable
+
+
+# ------------------------------------------------------------------------------------------ configuration (P2.126+)
+@pytest.mark.parametrize("variable", ["AGAGI_KUBE_CONTEXT", "AGAGI_REGISTRY", "AGAGI_DEPORT_NOEUD",
+                                      "AGAGI_DEPORT_NAMESPACE", "AGAGI_DEPORT_DEPOT_IMAGE", "AGAGI_DEPORT_FENETRE"])
+def test_variable_absente_REFUS_NOMME_jamais_un_defaut(monkeypatch, variable):
+    """Décision de robla (2026-09-26) : le dépôt est public, aucune adresse ni aucun nœud n'y est écrit. Une clé
+    requise absente de l'environnement ET du fichier → refus qui NOMME la variable, avant tout effet."""
+    monkeypatch.delenv(variable)
+    with pytest.raises(R.Refus, match=variable):
+        R.charger_config()
+
+
+def test_fichier_hors_depot_puis_environnement_qui_l_emporte(monkeypatch, tmp_path):
+    f = tmp_path / "deport.json"
+    f.write_text(json.dumps({"contexte": "ctx-fichier", "registre": "198.51.100.7:5000", "noeud": "n", "namespace": "ns",
+                             "depot_image": "p/i", "fenetre": None}), encoding="utf-8")
+    monkeypatch.setenv("AGAGI_DEPORT_CONFIG", str(f))
+    for k in CONFIG_TEST:
+        monkeypatch.delenv(k)
+    cfg = R.charger_config()
+    assert cfg["registre"] == "198.51.100.7:5000" and cfg["fenetre"] is None and cfg["_source"]["contexte"] == str(f)
+    monkeypatch.setenv("AGAGI_KUBE_CONTEXT", "ctx-env")
+    assert R.charger_config()["contexte"] == "ctx-env"                  # l'environnement l'emporte
+    assert R.charger_config()["_source"]["contexte"] == "AGAGI_KUBE_CONTEXT"
+
+
+@pytest.mark.parametrize("cle,valeur", [("AGAGI_REGISTRY", "sans-port"), ("AGAGI_REGISTRY", "203.0.113.10:5443/x"),
+                                        ("AGAGI_DEPORT_FENETRE", "Europe/Paris,8"), ("AGAGI_DEPORT_FENETRE", "UTC,18,8,0")])
+def test_configuration_mal_formee_refusee(monkeypatch, cle, valeur):
+    monkeypatch.setenv(cle, valeur)
+    with pytest.raises(R.Refus):
+        R.charger_config()
+
+
+def test_manifestes_rendus_sans_placeholder_et_registre_par_IP():
+    racine = R.racine_depot()
+    rendu = R.rendre_manifestes(R.charger_config(), racine)
+    assert "__" not in rendu and "cidr: 203.0.113.10/32" in rendu and "name: agagi-test" in rendu
+    assert "port: 5443" in rendu
+    with pytest.raises(R.Refus, match="adresse IP"):
+        R.rendre_manifestes(dict(R.charger_config(), registre="registre.example:5443"), racine)
+    with pytest.raises(R.Refus, match="non substitués"):
+        R.rendre("a: __INCONNU__", {})
+
+
+def test_aucune_adresse_privee_ecrite_en_dur_dans_le_deport():
+    """Garde contre le RETOUR silencieux d'une adresse LAN dans le code et les gabarits du déport (le dépôt est public).
+    Seuls les blocs RFC 1918 GÉNÉRIQUES (0.0/16, 0.0.0/8, 16.0.0/12) sont admis, comme `except` de NetworkPolicy."""
+    import re
+    motif = re.compile(r"\b(?:10\.\d{1,3}|192\.168|172\.(?:1[6-9]|2\d|3[01]))\.\d{1,3}\.\d{1,3}\b")
+    generiques = {"192.168.0.0", "10.0.0.0", "172.16.0.0"}
+    assert motif.search("registre 10.1.2.3:5000") and motif.search("hote 172.20.0.9")   # contrôle positif du motif
+    racine = R.racine_depot()
+    fichiers = [racine / "tools" / "jobs" / "remote.py", racine / "tools" / "jobs" / "remote_entry.py",
+                racine / "deploy" / "deport.example.json"] + sorted((racine / "deploy" / "nexus").rglob("*.*"))
+    fautes = [(str(f.relative_to(racine)), m.group(0)) for f in fichiers
+              for m in motif.finditer(f.read_text(encoding="utf-8")) if m.group(0) not in generiques]
+    assert fautes == []

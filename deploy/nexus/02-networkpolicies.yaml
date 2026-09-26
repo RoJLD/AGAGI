@@ -5,14 +5,14 @@
 # une NetworkPolicy ne le voit pas. Un run ne peut donc ni télécharger ni exfiltrer quoi que ce soit.
 #
 # Seul le build Kaniko sort : PyPI / download.pytorch.org / Docker Hub / deb.debian.org en 443, et le registre
-# souverain 192.168.1.21:5443 pour pousser. Ciblé par le label app.kubernetes.io/component=image-build.
+# souverain (adresse et port rendus depuis la configuration) pour pousser. Ciblé par le label app.kubernetes.io/component=image-build.
 # ASSUMÉ : le miroir PyPI SOUVERAIN d'ELYSIUM (gitops/charts/pypi-mirror/, en RFC1918) n'est PAS joignable par
 # cette règle — le build tire le PyPI PUBLIC (et l'index pytorch, que le miroir ne sert pas forcément).
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: default-deny-all
-  namespace: elysium-agagi
+  namespace: __NAMESPACE__
   labels:
     elysium.io/managed-by: agagi
     elysium.io/source-repo: RoJLD.AGAGI
@@ -35,7 +35,7 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
   name: allow-image-build-egress
-  namespace: elysium-agagi
+  namespace: __NAMESPACE__
   labels:
     elysium.io/managed-by: agagi
     elysium.io/source-repo: RoJLD.AGAGI
@@ -51,9 +51,9 @@ spec:
     # registre souverain (push de l'image + cache Kaniko)
     - to:
         - ipBlock:
-            cidr: 192.168.1.21/32
+            cidr: __REGISTRE_IP__/32
       ports:
-        - port: 5443
+        - port: __REGISTRE_PORT__
           protocol: TCP
     # PyPI, download.pytorch.org, Docker Hub (image de base) — HTTPS public uniquement
     - to:

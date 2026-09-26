@@ -1,7 +1,7 @@
 # deploy/nexus/runner/Dockerfile — image RUNNER des runs AGAGI déportés sur nexus (livrable 2, INFRA-NEXUS).
 #
 # Construite IN-CLUSTER par Kaniko (deploy/nexus/runner/build-job.yaml, lancé par
-# `python -m tools.jobs.remote image`), poussée sur le registre souverain 192.168.1.21:5443.
+# `python -m tools.jobs.remote image`), poussée sur le registre configuré (AGAGI_REGISTRY).
 #
 # Ce que l'image contient : l'INTERPRÈTE et les DÉPENDANCES, jamais le code d'AGAGI. Le code arrive au
 # lancement de chaque Job, au sha demandé (dépôt git superficiel envoyé par `kubectl exec`) : une image sert

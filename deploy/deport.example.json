@@ -1,0 +1,11 @@
+{
+  "_lisez_moi": "MODÈLE sans valeur réelle. La vraie configuration vit HORS du dépôt : ~/.agagi/deport.json (ou le chemin de AGAGI_DEPORT_CONFIG), ou les variables AGAGI_KUBE_CONTEXT, AGAGI_REGISTRY, AGAGI_DEPORT_NOEUD, AGAGI_DEPORT_NAMESPACE, AGAGI_DEPORT_DEPOT_IMAGE, AGAGI_DEPORT_FENETRE, AGAGI_DEPORT_ALLUMAGE, AGAGI_DEPORT_CA_DEPUIS, qui l'emportent sur le fichier. Adresses de documentation (RFC 5737). Voir docs/REF/REF-DEPORT-NEXUS.md.",
+  "contexte": "mon-contexte-kubectl",
+  "registre": "203.0.113.10:5443",
+  "noeud": "mon-noeud",
+  "namespace": "mon-namespace",
+  "depot_image": "mon-projet/agagi-runner",
+  "fenetre": {"tz": "Europe/Paris", "debut_h": 8, "fin_h": 24, "marge_s": 900},
+  "allumage": "décrire ici le geste humain qui allume le nœud (null si toujours allumé)",
+  "ca_depuis": "namespace-qui-porte-la-configmap-registry-ca-bundle"
+}
