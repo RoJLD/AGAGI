@@ -761,6 +761,41 @@ def test_surveillance_deux_issues_et_exclusion_COMPTEE():
     assert ign["anomalies"] == [] and len(ign["ignorees"]) == 2 and "motif déclaré" in ign["ignorees"][0]
 
 
+class KubeScenario:
+    """Une lecture par cycle : 'ok', 'echec' (Refus, comme un délai de connexion à l'API) ou 'anomalie'."""
+    def __init__(self, scenario):
+        self.scenario, self.courant = list(scenario), None
+
+    def json(self, args, ns=True):
+        if args == ["get", "jobs"]:
+            if not self.scenario:
+                raise AssertionError("scénario épuisé : la sonde aurait dû s'arrêter")
+            self.courant = self.scenario.pop(0)
+            if self.courant == "echec":
+                raise R.Refus("kubectl get jobs -o : Unable to connect to the server: dial tcp :6443")
+            return {"items": [_j("run-x", "Failed")] if self.courant == "anomalie" else []}
+        if args == ["get", "pods"]:
+            return {"items": []}
+        return {"items": [{"status": {"used": {"pods": "0"}}}]}
+
+
+def test_surveillance_un_accroc_reseau_ne_l_arrete_pas_mais_se_compte():
+    """Mesuré le 2026-09-26 à 20:25:17 : UN délai de connexion à l'API a fait sortir la sonde en 4, le cluster
+    répondait 40 s plus tard. Des ratés NON consécutifs ne l'arrêtent jamais ; `echecs_max` consécutifs, si. Chaque
+    raté est imprimé sur-le-champ et leur total figure sur la ligne d'état : l'aveuglement n'est jamais muet."""
+    dits = []
+    k = KubeScenario(["echec", "echec", "ok", "echec", "echec", "ok", "anomalie"])
+    assert R.surveiller(kube=k, sortie=dits.append, dormir=lambda _: None, echecs_max=3) == 3
+    assert sum("lecture ratée" in m for m in dits) == 4 and not k.scenario
+    assert any("lectures ratées=2" in m for m in dits) and any("lectures ratées=4" in m for m in dits)
+    dits.clear()
+    k = KubeScenario(["ok", "echec", "echec", "echec", "ok"])
+    assert R.surveiller(kube=k, sortie=dits.append, dormir=lambda _: None, echecs_max=3) == 4
+    assert k.scenario == ["ok"] and "3 fois de suite" in dits[-1]
+    k = KubeScenario(["echec"])
+    assert R.surveiller(kube=k, sortie=lambda *_: None, dormir=lambda _: None, echecs_max=1) == 4
+
+
 # ------------------------------------------------------------------------------------------ paliers de mémoire
 class KubeLimitRange:
     def __init__(self, limites):

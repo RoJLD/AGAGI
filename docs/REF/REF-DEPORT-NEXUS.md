@@ -151,8 +151,10 @@ minimal ; les deux publient les variables déclarées dans le MANIFEST.
 ## Surveillance d'un run
 
 `python -m tools.jobs.remote surveiller` sonde le namespace en LECTURE SEULE (toutes les 60 s) et rend 3 à la première
-anomalie : Job échoué, conteneur OOMKilled, pod Pending depuis plus de 10 min ; 4 si le cluster est illisible ; 0 à
-l'échéance. Il ne relance, ne supprime ni ne modifie rien — la relance appartient à qui a scellé le run. Une EXCLUSION
+anomalie : Job échoué, conteneur OOMKilled, pod Pending depuis plus de 10 min ; 4 après 3 lectures ratées
+CONSÉCUTIVES (`--echecs-max`) ; 0 à l'échéance. Une lecture ratée isolée ne l'arrête pas — le 2026-09-26 à 20:25, un
+seul délai de connexion à l'API avait mis fin à la surveillance, le cluster répondait 40 s plus tard — mais elle est
+imprimée sur-le-champ et le total figure sur chaque ligne (« lectures ratées=N »). Il ne relance, ne supprime ni ne modifie rien — la relance appartient à qui a scellé le run. Une EXCLUSION
 se DÉCLARE par motif de nom (`--ignorer=-p2134-` pour des builds d'essai) : ses anomalies ne réveillent personne mais
 restent COMPTÉES sur chaque ligne d'état (« anomalies ignorées=N ») — une exclusion commode non comptée serait un angle
 mort silencieux (E32). Contrôle positif réel, involontaire : le 2026-09-26 la sonde a attrapé les deux builds d'essai

@@ -994,12 +994,15 @@ def lire_anomalies(jobs: dict, pods: dict, maintenant: float, ignorer=(), pendin
     return {"anomalies": anomalies, "ignorees": ignorees, "actifs": actifs}
 
 
-def surveiller(*, duree_s=6 * 3600, pas_s=60, ignorer=(), kube=None, sortie=print) -> int:
+def surveiller(*, duree_s=6 * 3600, pas_s=60, ignorer=(), kube=None, sortie=print, echecs_max=3,
+               dormir=time.sleep) -> int:
     """LECTURE SEULE. Sonde le namespace toutes les `pas_s` secondes ; imprime une ligne d'état à chaque changement
-    (Jobs actifs, quota, nombre d'anomalies IGNORÉES) ; rend 3 à la première anomalie non ignorée, 4 si le cluster
-    est illisible, 0 à l'échéance. Ne relance, ne supprime, ne modifie RIEN."""
+    (Jobs actifs, quota, nombre d'anomalies IGNORÉES, nombre de lectures RATÉES) ; rend 3 à la première anomalie non
+    ignorée, 4 après `echecs_max` lectures ratées CONSÉCUTIVES, 0 à l'échéance. Ne relance, ne supprime, ne modifie
+    RIEN. Une lecture ratée isolée ne l'arrête plus (mesuré le 2026-09-26 : UN délai de connexion à l'API avait mis
+    fin à la surveillance, le cluster répondait 40 s plus tard) — mais elle est imprimée sur-le-champ et comptée."""
     kube = kube or Kube.depuis(charger_config())
-    t0, dernier = time.monotonic(), None
+    t0, dernier, suite, ratees = time.monotonic(), None, 0, 0
     if ignorer:
         sortie(f"[surveiller] motifs ignorés DÉCLARÉS : {list(ignorer)} (comptés à chaque ligne)")
     while time.monotonic() - t0 < duree_s:
@@ -1007,12 +1010,19 @@ def surveiller(*, duree_s=6 * 3600, pas_s=60, ignorer=(), kube=None, sortie=prin
             jobs, pods = kube.json(["get", "jobs"]), kube.json(["get", "pods"])
             quota = kube.json(["get", "resourcequota"])
         except Refus as e:
-            sortie(f"[surveiller] {time.strftime('%H:%M:%S')} cluster illisible : {e}")
-            return 4
+            suite, ratees = suite + 1, ratees + 1
+            sortie(f"[surveiller] {time.strftime('%H:%M:%S')} lecture ratée ({suite}/{echecs_max} consécutives) : {e}")
+            if suite >= echecs_max:
+                sortie(f"[surveiller] {time.strftime('%H:%M:%S')} cluster illisible {suite} fois de suite : arrêt")
+                return 4
+            dormir(pas_s)
+            continue
+        suite = 0
         r = lire_anomalies(jobs, pods, time.time(), ignorer)
         used = quota["items"][0]["status"].get("used", {}) if quota.get("items") else {}
         etat = (f"jobs actifs={r['actifs']} pods={used.get('pods')} req.cpu={used.get('requests.cpu')} "
-                f"jobs={used.get('count/jobs.batch')} anomalies ignorées={len(r['ignorees'])}")
+                f"jobs={used.get('count/jobs.batch')} anomalies ignorées={len(r['ignorees'])} "
+                f"lectures ratées={ratees}")
         if etat != dernier:
             sortie(f"[surveiller] {time.strftime('%H:%M:%S')} {etat}")
             dernier = etat
@@ -1020,7 +1030,7 @@ def surveiller(*, duree_s=6 * 3600, pas_s=60, ignorer=(), kube=None, sortie=prin
             for a in r["anomalies"]:
                 sortie(f"[surveiller] {time.strftime('%H:%M:%S')} ANOMALIE {a}")
             return 3
-        time.sleep(pas_s)
+        dormir(pas_s)
     sortie(f"[surveiller] {time.strftime('%H:%M:%S')} échéance atteinte, aucune anomalie non ignorée")
     return 0
 
@@ -1162,6 +1172,8 @@ def main(argv=None) -> int:
     sp.add_parser("config", help="afficher la configuration résolue et d'où vient chaque clé")
     p = sp.add_parser("surveiller", help="sonde LECTURE SEULE du namespace (Job échoué, OOMKilled, Pending)")
     p.add_argument("--duree-s", type=float, default=6 * 3600)
+    p.add_argument("--echecs-max", type=int, default=3,
+                   help="lectures ratées CONSÉCUTIVES tolérées avant de rendre 4 (chacune imprimée et comptée)")
     p.add_argument("--pas-s", type=float, default=60)
     p.add_argument("--ignorer", action="append", default=[], metavar="MOTIF",
                    help="sous-chaîne de nom DÉCLARÉE dont les anomalies sont comptées mais ne réveillent pas")
@@ -1220,7 +1232,7 @@ def main(argv=None) -> int:
         if a.action == "surveiller":
             # flush : lancée en arrière-plan, sortie redirigée vers un fichier, une sonde non vidée n'écrirait rien
             # avant de s'arrêter — mesuré le 2026-09-26, fichier de sortie VIDE pendant 20 min.
-            return surveiller(duree_s=a.duree_s, pas_s=a.pas_s, ignorer=tuple(a.ignorer),
+            return surveiller(duree_s=a.duree_s, pas_s=a.pas_s, ignorer=tuple(a.ignorer), echecs_max=a.echecs_max,
                               sortie=lambda m: print(m, flush=True))
         if a.action == "config":
             cfg = charger_config()

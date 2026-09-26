@@ -2392,6 +2392,20 @@ une remise explicite des répertoires (`_racine_reelle`, 22 tests conservés) ; 
 `tools/_mutation_plugin.py` ; E35 occ. 5 au registre. Windows 22 verts ; Linux (WSL) 22 verts.
 <!-- closes_when:grep_present=tests/sandbox/test_preregistration_applied.py::racine_VIDE -->
 
+**P2.137 — ✅ CLOSE le 2026-09-26 (ouverte et fermée dans la même passe par la session INFRA-NEXUS) — la sonde
+`python -m tools.jobs.remote surveiller` s'ARRÊTAIT sur un seul accroc réseau : une lecture ratée de l'API la faisait
+sortir en 4, et la surveillance d'un run déporté prenait fin en silence pour le reste de la soirée.**
+Preuve (sortie de la sonde lancée vers 19:28 pour 15 000 s) : `[surveiller] 20:25:17 cluster illisible : kubectl get pods
+-o : Unable to connect to the server: dial tcp …:6443 …` puis `exited with code 4` ; à 20:25:56, `kubectl get nodes`
+rendait les trois nœuds `Ready`. Mécanisme : `surveiller` (`tools/jobs/remote.py`) rendait 4 dans le `except Refus`
+de la PREMIÈRE lecture ratée. Corrigé : `echecs_max` lectures ratées CONSÉCUTIVES (défaut 3, `--echecs-max`) avant de
+rendre 4 ; chaque raté est imprimé sur-le-champ et leur total figure sur chaque ligne d'état (« lectures ratées=N ») —
+tolérer sans compter serait un angle mort (E32). Horloge de sommeil injectable (`dormir`) pour tester la boucle
+elle-même, qui n'avait aucun témoin. Contre-exemple gelé :
+`test_surveillance_un_accroc_reseau_ne_l_arrete_pas_mais_se_compte` — des ratés NON consécutifs n'arrêtent jamais la
+sonde, trois consécutifs si, un seul avec `echecs_max=1` aussi (l'ancien comportement reste disponible).
+<!-- closes_when:grep_present=tests/sandbox/test_jobs_remote.py::accroc_reseau -->
+
 **P2.113 — ⚠️ OUVERTE (2026-09-26, vue en passant pendant la fusion du chantier Pilotage) — la suite complète ÉCRIT
 deux fichiers SUIVIS de l'arbre où on la lance, et trois de ses tests sont rouges hors de l'arbre principal sans que
 le code y soit pour rien.**
