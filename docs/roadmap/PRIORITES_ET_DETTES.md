@@ -1358,6 +1358,18 @@ Preuve (sonde de la revue, sha def16adc) : `tools/evo_runs/evo011_preflight.py:4
 citation `fichier:ligne` sans sha se périme en silence dès que le fichier bouge (E33, occ. 5) : remplacer par le NOM de
 la fonction ou une citation `sha:chemin`. Sans clause `closes_when` (déclaré) : trois éditions de commentaire.
 
+**P2.134 — rang 21 — OUVERTE (2026-09-26, mesurée par la session INFRA-NEXUS en reconstruisant l'image du déport) —
+L'image runner n'est PAS reproductible bit à bit : deux constructions à Dockerfile, contraintes et requirements
+identiques ont rendu deux digests différents.**
+Preuve : `deploy/nexus/runner/IMAGE.json` au commit 28810f52 (digest a1d6e4eb…) contre le même fichier au commit
+5deed2c6 (digest 7c860b30…) ; même contexte de build hors le gabarit du Job (placeholders), cf. EDR-DEPORT-NEXUS-TEMOIN,
+tour 4. Conséquence déjà appliquée : un record cite le DIGEST exact, jamais le tag seul (`docs/REF/REF-DEPORT-NEXUS.md`,
+État mesuré). Reste la dette : (a) épingler TOUTES les dépendances transitives — contraintes générées depuis le pip
+freeze de l'image construite (`/opt/agagi/pip-freeze.txt` dans l'image) — puis reconstruire deux fois et comparer ;
+(b) si le digest varie encore, les horodatages de couches en sont la cause probable : essayer l'option `--reproducible`
+de Kaniko. Tant que ce n'est pas fait, deux runs « sur la même image » ne sont comparables que s'ils citent le même
+digest. Sans clause `closes_when` (déclaré) : la clôture est une mesure (deux digests égaux), pas un fichier.
+
 **P2.121 — rang 6 — OUVERTE (2026-09-26, mesuré sur le run 36210667429, le PREMIER où `suite-complete` exécute des
 tests) — La suite complète tourne en CI : 2807 passés, 88 rouges, 18 erreurs, 238 sautés, 17 min 38 s — et ses rouges se
 rangent en SEPT familles dont AUCUNE n'est un défaut du monde. Inventaire par cause, recette par famille.**
