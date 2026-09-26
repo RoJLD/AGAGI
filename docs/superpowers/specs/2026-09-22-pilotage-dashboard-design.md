@@ -449,6 +449,20 @@ la flotte.**
   quatre blocs en texte (aucun lien de fichier : hors machine, ce serait un chemin mort), liste les docs datés
   disponibles ; sans doc : « aucune publication reçue », jamais un tableau vide. Thème clair/sombre selon les règles de
   l'outil (tokens sur `:root`, redéfinis sous `prefers-color-scheme` et `[data-theme]`).
+- **Amendement du 2026-09-26 — pas 4 livré (`f90ed678`), deux points tranchés par la mesure.**
+  (1) **Le document publié n'est PAS `pilotage_v1`** : mesuré ce jour, le complet pèse 150 KiB compacts (172 blocs, +45
+  en deux jours) pour une limite de 256 KiB par document (`db.d.ts`, contrat 0.2.60) — il aurait cassé sous deux
+  semaines. Le tick écrit donc `PILOTAGE.json` (complet) ET `PILOTAGE_ARTEFACT.json`, projection pure
+  `tools/pm/pilotage.py::projection_artefact` (`pilotage_artefact_v1`, 59,4 KiB) : comptes gardés, listes de chemins,
+  preuves d'alertes et arguments de clause retirés (liens morts hors machine) ; au-delà de 240 KiB les entrées sont
+  retirées et c'est écrit dans `omis`, et un témoin sur le dépôt réel rougit avant que le store ne refuse. Collections :
+  `pilotage/latest`, `pilotage/index` (`{jours: [...]}`, 30 au plus), `pilotage_jours/<AAAA-MM-JJ>` (un document par
+  jour, pas par tick — la rétention du paragraphe précédent, avec des identifiants au jour).
+  (2) **Qui peut écrire la base : tranché.** Sous `db` nu, tout Contributor écrit ; la page déclare
+  `rules: [{path: "", write: "owner"}]` — vérifié à la publication (écriture au niveau `admin` refusée, lecture au
+  niveau `interact` servie). L'unicité du writer est tenue par le store, plus par convention. Page publiée le
+  2026-09-26 par la session FRONT (aucune session PM vivante, mandat de Master 2) :
+  https://claude.ai/artifact/8CLoJBfo3pWXvkXNaWtWSa ; URL notée dans `docs/roadmap/FRONTEND.md` (Vague K).
 
 ---
 
@@ -584,9 +598,9 @@ appliquée au coût, cf. CLAUDE.md).
 | 0 | **FAIT le 2026-09-23** : fusion `chantier/pm-roles` → `feat/d1-prod-pairing` (`79af2944`, poussée) — `tools/pm/{snapshot,board,bulletin,alerts,roles_counts,tick}.py`, `paths.sessions_dir`/`pm_dir`, `docs/roadmap/ROLES.md`, porte 21, 119 tests ; `.gitignore:51-52` porte `data/sessions/` et `data/pm/` ; `src/paths.py` est l'UNION attendue (`proposals_root` de d1 ET `sessions_dir`/`pm_dir` du PM — le conflit annoncé par la revue a été résolu dans la fusion, vérifié le 2026-09-24) | arbre principal | session `pm-roles` |
 | 1 | `tools/pm/pilotage.py` + `tests/sandbox/test_pm_pilotage.py` + déclaration `CALIBRATED` — utilisable à la main (`python -m tools.pm.pilotage --json`) | **worktree `.claude/worktrees/pilotage`** (chemin COURT : sous Windows, un worktree sous `.worktrees/` + des noms de records longs dépasse 260 caractères et `git worktree add` échoue), branche `chantier/pilotage` depuis `feat/d1-prod-pairing` (le lot 0 y est) | moi |
 | 2 | service + route + schémas pydantic + tests backend ; correction P2.81 dans `main.py` (+ helper pur `default_live_progress_path`) et son test SANS effet de bord ; **`make api-types` dans le MÊME commit** (`openapi.json` + `schema.ts`, sinon la CI rougit) | idem | moi |
-| 3 | famille « Pilotage » (3 vues, bandeau, `PILOTAGE_POLL`, client, assertion de `tabs.test.tsx`, `a:focus-visible`/`summary:focus-visible`) + tests vitest (`npm ci` dans le worktree) | idem | moi |
-| 4 | patch `tick.py` (3 lignes) + pas du skill `/pm` + `tools/pm/artefact/pilotage.html` publié (skill `artifact-capabilities` lu d'abord), URL notée dans `FRONTEND.md` | fichiers de `pm-roles` | pm-roles, ou moi après fusion avec `snapshot`/`verify` |
-| 5 | `docs/roadmap/FRONTEND.md` : « Vague K — Pilotage » (état, URL de l'artefact, coût mesuré) | arbre partagé | moi |
+| 3 | **FAIT le 2026-09-26 (`f635fb3a`)** : famille « Pilotage » (3 vues, bandeau, `PILOTAGE_POLL`, client, assertion de `tabs.test.tsx`, `a:focus-visible`/`summary:focus-visible`) + tests vitest (`npm ci` dans le worktree) | idem | moi |
+| 4 | **FAIT le 2026-09-26 (`f90ed678`, amendement §3.4)** : patch `tick.py` (3 lignes) + pas du skill `/pm` + `tools/pm/artefact/pilotage.html` publié (skill `artifact-capabilities` lu d'abord), URL notée dans `FRONTEND.md` | fichiers de `pm-roles` | pm-roles, ou moi après fusion avec `snapshot`/`verify` |
+| 5 | **FAIT le 2026-09-26** : `docs/roadmap/FRONTEND.md` : « Vague K — Pilotage » (état, URL de l'artefact, coût mesuré) | arbre partagé | moi |
 
 Chaque pas : commit path-scopé (`git commit -- <chemins>`), **après accord explicite de robla**, compte d'entité ≥
 avant, aucun backtick dans un message de commit, citation et artefact dans le MÊME commit (règle CLAUDE.md du

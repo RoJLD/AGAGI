@@ -2233,6 +2233,14 @@ suite (un Skipped du filet runtime traverse Starlette et devient « RuntimeError
 de P2.82), verts relancés seuls juste après (2 passés, 0 bail). Le mécanisme n'est PAS établi. Hypothèse : un bail
 « kuzu » transitoire pendant la suite arme le filet runtime, et la fixture `sans_bail_etranger` ne voit plus de
 détenteur au moment du test. À vérifier avec un bail tenu puis relâché pendant une session pytest.
+(e) **Le remède « npm ci » de (a) est impossible en l'état : le verrou committé est DÉSYNCHRONISÉ de `package.json`.**
+Mesuré le 2026-09-26 (session FRONT, worktree propre à `9f293762`) : `npm ci` sort en `EUSAGE` — « lock file's
+@emnapi/wasi-threads@1.2.1 does not satisfy @emnapi/wasi-threads@1.2.3 », trois `@emnapi/*` absents du verrou, et
+chaque `@esbuild/<plateforme>` à 0.28.1 là où `esbuild` exige 0.28.2. La CI installe par `npm install`
+(`.github/workflows/ci.yml`, étapes « Install frontend dependencies » et e2e) : elle RE-RÉSOUT les dépendances à
+chaque run, donc le frontend testé en CI n'est pas celui que décrit le verrou, et la réécriture de 197 lignes vue en
+(a) n'est que ce re-calcul. Ordre imposé : committer d'abord un verrou resynchronisé (produit par `npm install` dans
+un worktree jetable, relu), puis passer CI et test local à `npm ci` — qui échoue au lieu de réécrire.
 *Coût : agent 1-2 h pour (a) avec sa garde, quelques minutes pour (b) et (c), une expérience contrôlée pour (d).*
 <!-- closes_when:grep_absent=tests/test_consolidate_records.py::main\(\[\]\) -->
 
