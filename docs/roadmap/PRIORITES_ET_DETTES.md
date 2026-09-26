@@ -1082,6 +1082,26 @@ réellement (returncode 0, pas de `hook_errors.log`), comme les quatre hooks exi
 <!-- closes_when:grep_present=.claude/settings.json::"matcher": "Bash -->
 
 
+**P2.119 — rang 13 — OUVERTE (2026-09-26, vue en passant en rafraîchissant le tableau PM à la main) — L'alerte A1
+du tableau PM colle `cwd` devant un chemin ABSOLU : un fichier hors de l'arbre (la mémoire de projet de Claude) rend une
+clé mal formée « racine du dépôt + c:/users/… » et un lieu FAUX — et ce même fichier, réellement partagé, n'est apparié
+qu'entre sessions de MÊME cwd.**
+Preuve (sortie de `python -m tools.pm.board` le 2026-09-26, HEAD `7f2a3a8d`) : trois alertes A1 dont deux sur des
+fichiers de la mémoire de projet, clé « A1:<racine>/c:/users/…/MEMORY.md », message « touché par 3 sessions vivantes
+dans <racine> » — le fichier n'est pas dans la racine. Cause : `tools/pm/bulletin.py:99-102` garde le chemin ABSOLU
+quand il ne commence pas par `cwd/` (« valeur honnête, jamais laissé tomber » — juste) ; `tools/pm/board.py:109`
+compose la clé `cwd + "/" + f` et écrit « dans {cwd} » SANS distinguer ce cas ; et la clé d'appariement `(cwd, f)`
+(l. 106) sépare ce qui est le MÊME fichier pour deux sessions de worktrees différents — alors que la mémoire de projet
+est partagée par toutes les sessions ouvertes sur ce dépôt. Le témoin `tests/sandbox/test_pm_board.py:65-75` ne couvre
+que des chemins relatifs. Deux faces : une alerte VRAIE (trois sessions ont bien touché le même fichier) dont la clé et
+le lieu sont faux ; et l'angle mort exactement inverse pour les mêmes fichiers dès que les cwd diffèrent.
+**Forme demandée** : un chemin déjà absolu est une clé À LUI SEUL (`A1:<abs>`, message « hors de l'arbre, partagé par
+toutes les sessions ») et s'apparie SANS le cwd ; un chemin relatif garde `(cwd, f)`. Le contre-exemple gelé porte les
+deux faces : deux sessions de cwd DIFFÉRENTS touchant le même absolu → UNE alerte à clé `A1:<abs>`, sans racine
+devant ; deux sessions de cwd différents touchant `src/paths.py` → toujours aucune (test existant, l. 75).
+<!-- closes_when:grep_present=tools/pm/board.py::hors de l'arbre -->
+
+
 **P4.21 — rang 12 — OUVERTE (2026-09-24, trouvée en amendant ma propre clôture) — Un verdict de SYNTHÈSE qui
 agrège plusieurs POINTS DE FONCTIONNEMENT n'a aucune garde : le pré-vol garde une CELLULE, pas une CONCLUSION.**
 Preuve (E2 occ. 6) : `7fa6b2d8` publiait « invariance au pas RÉFUTÉE » depuis `aide09 = 0/12` à lr 2,0, alors que
