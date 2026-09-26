@@ -215,6 +215,13 @@ PORTES = {
             "apres": "        if False:",
             "motif": ("la confrontation règle scellée -> record : une DV substituée après coup "
                       "(E11 occ. 4) redeviendrait invisible"),
+        }, {
+            # P2.135 (2026-09-26) : la forme exacte d'avant le correctif, en une ligne.
+            "nom": "le lecteur des familles retombe dans un vide SILENCIEUX",
+            "avant": '    _exiger_repertoire(_PREREG, "_familles")',
+            "apres": "    if not os.path.isdir(_PREREG): return fam",
+            "motif": ("le défaut mesuré : sur une racine sans docs/preregistrations, la porte rendait « OK … sur "
+                      "les 0 familles inspectables », sortie 0 — une absence de source convertie en succès"),
         }],
     },
     "6": {
@@ -429,6 +436,13 @@ PORTES = {
             "motif": ("le crochet passe à --only les records supprimés (filtre AMD) : sans cette branche, "
                       "le refus bloquerait toute suppression de record — la garde contre le vert vide "
                       "deviendrait un faux rouge sur un geste légitime"),
+        }, {
+            # P2.129 (2026-09-26) : l'extracteur élargi redevient l'ancien motif, qui exigeait un backtick après .json.
+            "nom": "l'extracteur de citations exige de nouveau un backtick après .json",
+            "avant": r'_RESULTS = re.compile(r"(?<![A-Za-z0-9_])(results/(?:[A-Za-z0-9_./*\-]|\{[A-Za-z0-9_.,*\-]*\})+\.json)"',
+            "apres": r'_RESULTS = re.compile(r"`[^`]*?(results/[A-Za-z0-9_./*{},\-]+\.json)`"',
+            "motif": ("le défaut mesuré par la critique P9.3 : le TEXTE d'une pré-inscription qui cite un JSON "
+                      "entre guillemets rendait « 0 citation », donc OK — une évidence absente passait"),
         }],
     },
     "20": {

@@ -51,7 +51,9 @@ const JUGEMENTS = {
 const VERIFICATION = {
   type: 'object',
   properties: {
-    refus: { type: 'string' },
+    // P2.133 : la DECISION de refus est un BOOLEEN ; raison n'en porte que le motif, lu seulement si refuse.
+    refuse: { type: 'boolean' },
+    raison: { type: 'string' },
     plancher: { type: 'string' },
     plancher_noop: { type: 'string' },
     resultats: { type: 'object', additionalProperties: { type: 'object', properties: {
@@ -59,7 +61,7 @@ const VERIFICATION = {
       fichier_critiques: { type: 'string' }, commande: { type: 'string' } },
       required: ['statut', 'code', 'n_recevables', 'fichier_critiques', 'commande'] } },
   },
-  required: ['resultats', 'plancher', 'plancher_noop'],
+  required: ['refuse', 'resultats', 'plancher', 'plancher_noop'],
 }
 
 function consigne(cible, ids) {
@@ -187,7 +189,7 @@ const verif = await agent(`Tu es le VERIFICATEUR. Tu ne juges RIEN : le bareme v
 ${racine}/tools/refutateur_temoins.py.
 Relectures, une par temoin (JSON) : ${JSON.stringify(relectures)}
 Jugements rendus par le juge, cle = nom de base du fichier relu : ${JSON.stringify(juge && juge.jugements)}
-1. Lis ${racine}/${ROSTER}. REFUSE (champ refus non vide, resultats vide) si les genres ne sont pas EXACTEMENT trois "defaut" et
+1. Lis ${racine}/${ROSTER}. REFUSE (refuse: true, le motif dans raison, resultats vide) si les genres ne sont pas EXACTEMENT trois "defaut" et
    un "noop", si un nom ou un champ fichier est en double, ou si un temoin du roster n'a pas sa relecture ci-dessus.
 2. RE-DERIVE l'aiguillage. Lance: PYTHONIOENCODING=utf-8 python ${racine}/tools/refutateur_temoins.py --questions-du-juge
    et compare la liste de fichiers qu'elle imprime a celle qui a servi a filtrer les relectures du juge :
@@ -214,22 +216,39 @@ Jugements rendus par le juge, cle = nom de base du fichier relu : ${JSON.stringi
 7. Compose \`plancher_noop\` : une ligne de la forme
    "plancher mesure sur <nom du temoin de genre noop> : N critiques recevables (seuil historique S)",
    avec le N et le S que l'etape 5 a imprimes pour ce temoin. Ce nombre voyage AVEC le score, jamais a cote.
-8. Rends {refus, plancher, plancher_noop, resultats: {<nom>: {statut, code, n_recevables, fichier_critiques,
-   commande}}}, ou le champ commande porte la ligne EXACTE de l'etape 5, pour qu'un tiers la relance.`,
+8. Rends {refuse, raison, plancher, plancher_noop, resultats: {<nom>: {statut, code, n_recevables, fichier_critiques,
+   commande}}}, ou le champ commande porte la ligne EXACTE de l'etape 5, pour qu'un tiers la relance.
+   refuse est un BOOLEEN : true si tu as refuse a l'une des etapes 1 a 3, false sinon. raison porte le motif
+   d'un refus et n'est LUE que si refuse vaut true : ne l'emploie jamais pour dire qu'il n'y a pas de refus.`,
   { label: 'verification', phase: 'Verification', schema: VERIFICATION })
 
 const resultats = (verif && verif.resultats) || {}
-// Un refus fait UNIQUEMENT de guillemets ou d'espaces n'est PAS un refus : le verificateur a rendu '""' pour
-// « aucun refus » et la revue est sortie NULLE avec les trois temoins RETROUVES (2026-09-26, agagi-40,
-// wf_d1ad70bd) -- un nul de TRANSPORT deguise en nul de FOND, famille E4. Temoin :
-// tests/sandbox/test_refutateur_workflow_refus.py (extrait cette fonction et l'execute sous node).
-function normaliserRefus(x) {
-  const s = (typeof x === 'string' ? x : '').trim()
-  return /^["'\s]*$/.test(s) ? '' : s
+// P2.133 (2026-09-26) : la decision de refus etait un TEXTE LIBRE, et quatre formes l'ont lue a tort comme un refus
+// le meme soir -- deux guillemets (bfaea9c6, qui normalisait guillemets et espaces), « aucun » (wf_c3134d3f-8dd),
+// « (vide) Pas de refus. Etape 1 : ... » (wf_f2e45bc7-b84), « (aucun refus) Roster conforme : ... »
+// (wf_4c85e158-009). Une liste noire recommence a chaque synonyme : la
+// DECISION est desormais le booleen refuse, le motif un champ separe raison, lu seulement si refuse vaut true. Un
+// refus accompagne de resultats, ou un refuse absent ou non booleen, est un etat INCOHERENT NOMME -- jamais un nul
+// de fond. Temoin : tests/sandbox/test_refutateur_workflow_refus.py (extrait lireRefus, l'execute sous node).
+function lireRefus(v) {
+  const n = Object.keys((v && v.resultats) || {}).length
+  if (v && v.refuse === true) {
+    const motif = typeof v.raison === 'string' ? v.raison.trim() : ''
+    return n ? { etat: 'INCOHERENT', raison: 'refuse vaut true mais ' + n + ' resultat(s) rendus : un refus exige resultats VIDE' }
+             : { etat: 'REFUS', raison: motif || 'refus sans raison donnee' }
+  }
+  if (v && v.refuse === false) return { etat: 'SANS_REFUS', raison: '' }
+  return { etat: 'INCOHERENT', raison: 'champ refuse absent ou non booleen : ' + JSON.stringify(v ? v.refuse : null) }
 }
-const refus = normaliserRefus(verif && verif.refus)
+const lecture = lireRefus(verif)
+const refus = lecture.etat === 'REFUS' ? lecture.raison : ''
 const plancherPublie = ((verif && verif.plancher) || '').trim()
 const plancherNoop = ((verif && verif.plancher_noop) || '').trim()
+if (lecture.etat === 'INCOHERENT') {
+  log(`revue INCOHERENTE : ${lecture.raison}`)
+  return { statut: 'INCOHERENT', raison: lecture.raison, temoins: resultats,
+           plancher: plancherPublie, plancher_noop: plancherNoop, cible: args.target }
+}
 // Seuls les temoins a DEFAUT font barriere. Un statut MESURE est une mesure, pas un echec.
 const rates = Object.entries(resultats)
   .filter(([, v]) => v.statut !== 'RETROUVE' && v.statut !== 'MESURE').map(([n]) => n)
