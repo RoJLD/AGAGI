@@ -514,6 +514,11 @@ explicite, jamais le processus courant ni ses ancêtres, jamais un bail dont le 
   `python -c "from tools.check_staged_authorship import snapshot; snapshot([...], owner='ma-tache')"`
   puis `verify(...)` avant de committer — la garde existe depuis le 2026-09-01, ne pas l'invoquer
   revient à ne pas l'avoir.
+  ⚠️ **Et `verify` inspecte l'INDEX, quand `git commit -- <chemins>` emporte le DISQUE** (P2.122, `9bf30520` : un
+  bloc écrit par une autre session entre l'empreinte et le commit est parti sous un autre message ; `verify` avait
+  rendu 0). Committer par `commit_exact(chemins, message, attendu, owner=...)`, où `attendu` est le contenu que TU
+  as produit, jamais relu sur le disque : il refuse tout bloc étranger, committe, puis confronte le compte du commit
+  au delta attendu.
 - ⚠️ **Sous Git Bash, `set -e` N'ARRÊTE PAS une chaîne quand un `python - <<'EOF'` échoue** (mesuré le 2026-09-06 : un patch a levé, la chaîne a continué, et un commit est parti avec un message annonçant un travail absent — rectifié par `b2a6ce3`). Chaîner par `&&` explicite, et faire échouer la chaîne AVANT `git commit`, jamais après.
 - ⚠️ **Un `&&` placé après un PIPE juge la DERNIÈRE commande du pipe, pas celle qu'on croit tester.** Mesuré le
   2026-09-26 : `git merge --ff-only X | tail -1 && cp tools/hooks/… .git/hooks/…` a recopié les crochets alors que

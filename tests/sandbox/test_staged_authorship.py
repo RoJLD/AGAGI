@@ -35,6 +35,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..",
 from tools.check_staged_authorship import (  # noqa: E402
     snapshot, verify, confirm_commit, detect_preempted, declare_head_commit, _snapshot_path, _cli,
     NoSnapshotError, ForeignHunkDetected, MissingPathsInCommit, WorkPreempted, scan_own_snapshots, retire_snapshots,
+    commit_exact, ExpectedContentMismatch, CommitNotExact, CommitFailed,
 )
 
 from tools._git_env import env_isole  # noqa: E402  (P2.107 b : un dépôt JETABLE isole GIT_*, règle à deux faces)
@@ -792,3 +793,268 @@ def test_P271_a_timely_snapshot_is_NOT_flagged_and_a_real_foreign_hunk_stays_a_p
     _append(repo, "\n\ndef my_own_work():\n    return 'mine'\n")
     _git(["add", _FILE], repo)
     assert verify([_FILE], owner="ma-tache", snapshot_dir=snap_dir, cwd=repo) == {_FILE: 1}
+
+
+# --------------------------------------------------------------------------------------------------
+# P2.122 (2026-09-26) — l'OBJET inspecté et la FENÊTRE entre l'empreinte et le commit. Forme réelle
+# `9bf30520` : un bloc écrit par une AUTRE session APRÈS l'empreinte et AVANT `git commit -- <chemin>` est
+# parti avec le fichier ENTIER ; `verify` avait rendu {ci.yml: 0}. Deux causes, deux gardes : l'objet
+# (verify lisait l'INDEX, le commit prend le DISQUE) et l'indécidabilité sans déclaration (un bloc arrivé
+# après l'empreinte ressemble au mien) — d'où le contenu ATTENDU, déclaré par l'appelant.
+# --------------------------------------------------------------------------------------------------
+
+_MIEN = "\n\ndef my_own_work():\n    return 'mine'\n"
+_ETRANGER = "\n\ndef smoke_docker_d_une_autre_session():\n    return 'foreign'\n"
+_BLOC_ETRANGER = [{"start_line": 7,
+                   "lines": ["", "", "def smoke_docker_d_une_autre_session():", "    return 'foreign'"]}]
+
+
+def _attendu_apres(repo, texte):
+    """Le contenu que J'AI produit : HEAD + mon bloc — calculé HORS du disque, comme un script de patch."""
+    return _git(["show", f"HEAD:{_FILE}"], repo) + texte
+
+
+def test_FORME_P2_122_9bf30520_un_bloc_ecrit_APRES_l_empreinte_est_REFUSE_et_NOMME(tmp_path, capsys):
+    """⚠️ LE CONTRE-EXEMPLE GELÉ de P2.122 — la forme de `9bf30520` : empreinte propre, mon travail écrit,
+    puis le bloc d'une AUTRE session écrit après. (1) NÉCESSITÉ : le mode empreinte rend 0 — rien n'est
+    stagé, il inspecte l'index — et désormais il le DIT ; (2) `verify(attendu=…)` REFUSE et NOMME la ligne."""
+    repo = _init_repo(tmp_path)
+    snap_dir = str(tmp_path / "snaps")
+    snapshot([_FILE], owner="ma-tache", snapshot_dir=snap_dir, cwd=repo)      # T1 : empreinte propre
+    _append(repo, _MIEN)                                                     # mon travail
+    attendu = {_FILE: _attendu_apres(repo, _MIEN)}
+    _append(repo, _ETRANGER)                                                 # l'AUTRE session, après T1
+    capsys.readouterr()
+
+    assert verify([_FILE], owner="ma-tache", snapshot_dir=snap_dir, cwd=repo) == {_FILE: 0}
+    assert "DISQUE_NON_INSPECTE" in capsys.readouterr().err, "le « 0 » vide doit s'AVOUER, plus se taire"
+
+    with pytest.raises(ForeignHunkDetected) as exc:
+        verify([_FILE], cwd=repo, attendu=attendu)
+    assert exc.value.objet == "disque"
+    assert exc.value.report == {_FILE: _BLOC_ETRANGER}                       # la LIGNE est nommée, et elle seule
+    disque = open(os.path.join(repo, _FILE), encoding="utf-8").read().splitlines()
+    assert disque[6:10] == _BLOC_ETRANGER[0]["lines"]                        # lignes 7-10 : sur le disque, là
+    assert "lignes 7-10" in str(exc.value) and "my_own_work" not in str(exc.value)
+
+
+def test_POSITIVE_P2_122_sans_bloc_etranger_verify_attendu_PASSE(tmp_path):
+    """Cas positif apparié : seul MON bloc sur le disque -> `verify(attendu=…)` passe, sans empreinte (ce mode
+    n'en a pas besoin). Sans lui, une garde qui refuse tout passerait la revue."""
+    repo = _init_repo(tmp_path)
+    _append(repo, _MIEN)
+    assert verify([_FILE], cwd=repo, attendu={_FILE: _attendu_apres(repo, _MIEN)}) == {_FILE: 1}
+
+
+def test_NOOP_P2_122_le_mode_empreinte_se_TAIT_quand_le_disque_EST_l_index(tmp_path, capsys):
+    """Spécificité de l'aveu DISQUE_NON_INSPECTE : après `git add`, le disque EST l'index -> aucun cri. Un
+    avertissement qui crierait toujours serait appris par cœur, puis ignoré."""
+    repo = _init_repo(tmp_path)
+    snap_dir = str(tmp_path / "snaps")
+    snapshot([_FILE], owner="ma-tache", snapshot_dir=snap_dir, cwd=repo)
+    _append(repo, _MIEN)
+    _git(["add", _FILE], repo)
+    capsys.readouterr()
+    assert verify([_FILE], owner="ma-tache", snapshot_dir=snap_dir, cwd=repo) == {_FILE: 1}
+    assert "DISQUE_NON_INSPECTE" not in capsys.readouterr().err
+
+
+def test_P2_122_un_attendu_qui_ne_couvre_pas_EXACTEMENT_les_chemins_est_REFUSE_avant_git(tmp_path):
+    """Jamais deviner ce qui est à l'appelant : chemin non déclaré, clé en trop, contenu qui n'est pas un
+    texte, liste VIDE (un commit sans pathspec emporterait l'index entier), message vide — tout est refusé
+    AVANT le moindre appel à git (`tmp_path` n'est même pas un dépôt)."""
+    cwd = str(tmp_path)
+    with pytest.raises(ValueError, match=_OTHER):
+        verify([_FILE, _OTHER], cwd=cwd, attendu={_FILE: "x\n"})
+    with pytest.raises(ValueError, match=_OTHER):
+        verify([_FILE], cwd=cwd, attendu={_FILE: "x\n", _OTHER: "y\n"})
+    with pytest.raises(TypeError):
+        verify([_FILE], cwd=cwd, attendu={_FILE: b"x\n"})
+    with pytest.raises(ValueError, match="aucun chemin"):
+        commit_exact([], "message", {}, cwd=cwd)
+    with pytest.raises(ValueError, match="message"):
+        commit_exact([_FILE], "   ", {_FILE: "x\n"}, cwd=cwd)
+
+
+def test_FORME_P2_122_commit_exact_REFUSE_le_bloc_etranger_et_ne_committe_RIEN(tmp_path):
+    """`commit_exact` enchaîne la vérification et le commit : le bloc étranger le fait REFUSER, rien n'est
+    committé et le disque d'autrui n'est pas touché. NÉCESSITÉ, à la fin : le geste d'avant — le commit par
+    pathspec nu — emporte le bloc étranger sous mon message (c'est `9bf30520`)."""
+    repo = _init_repo(tmp_path)
+    _append(repo, _MIEN)
+    attendu = {_FILE: _attendu_apres(repo, _MIEN)}
+    _append(repo, _ETRANGER)
+    avant, disque_avant = _head_sha(repo), open(os.path.join(repo, _FILE), "rb").read()
+
+    with pytest.raises(ForeignHunkDetected) as exc:
+        commit_exact([_FILE], "mon commit", attendu, cwd=repo)
+    assert exc.value.report == {_FILE: _BLOC_ETRANGER}
+    assert _head_sha(repo) == avant                                          # RIEN n'est committé
+    assert open(os.path.join(repo, _FILE), "rb").read() == disque_avant      # le disque d'autrui intact
+
+    _git(["commit", "-q", "-m", "mon commit", "--", _FILE], repo)
+    assert "smoke_docker_d_une_autre_session" in _git(["show", f"HEAD:{_FILE}"], repo)
+
+
+def test_POSITIVE_P2_122_commit_exact_committe_EXACTEMENT_l_attendu_et_publie_son_compte(tmp_path):
+    """Cas positif apparié : le disque porte exactement l'attendu -> le commit le porte, son compte observé
+    ÉGALE le delta attendu calculé par git AVANT le commit (+4/-0), et l'index n'est pas laissé à rebours."""
+    repo = _init_repo(tmp_path)
+    avant = _head_sha(repo)
+    _append(repo, _MIEN)
+    attendu = {_FILE: _attendu_apres(repo, _MIEN)}
+    res = commit_exact([_FILE], "mon commit", attendu, cwd=repo)
+    assert res["commit"] == _head_sha(repo) and res["parent"] == avant == res["parent_attendu"]
+    assert _git(["show", f"{res['commit']}:{_FILE}"], repo) == attendu[_FILE]
+    assert res["numstat"] == {_FILE: {"attendu": (4, 0), "observe": (4, 0)}}
+    assert _git(["diff", "--cached", "--name-only"], repo).strip() == ""
+
+
+def test_FORME_P2_122_un_disque_qui_ne_porte_pas_TOUT_l_attendu_est_REFUSE(tmp_path):
+    """Exactitude : sans bloc étranger, un disque qui ne porte pas TOUT l'attendu est refusé en nommant les
+    lignes promises et absentes ; un attendu identique à HEAD aussi (rien à committer). Rien n'est committé."""
+    repo = _init_repo(tmp_path)
+    _append(repo, _MIEN)
+    promis = _attendu_apres(repo, _MIEN) + "\n\ndef promis_jamais_ecrit():\n    return 0\n"
+    avant = _head_sha(repo)
+    with pytest.raises(ExpectedContentMismatch) as exc:
+        commit_exact([_FILE], "mon commit", {_FILE: promis}, cwd=repo)
+    assert "promis_jamais_ecrit" in str(exc.value) and "DIFFÈRE" in exc.value.report[_FILE]["raison"]
+    _git(["checkout", "--", _FILE], repo)                                    # disque = HEAD
+    with pytest.raises(ExpectedContentMismatch) as exc:
+        commit_exact([_FILE], "mon commit", {_FILE: _git(["show", f"HEAD:{_FILE}"], repo)}, cwd=repo)
+    assert "IDENTIQUE à HEAD" in exc.value.report[_FILE]["raison"]
+    assert _head_sha(repo) == avant
+
+
+def test_FORME_P2_122_c_une_ecriture_DANS_la_fenetre_est_NOMMEE_par_le_compte(tmp_path, monkeypatch):
+    """(c) calibré par INJECTION à dose connue : le bloc étranger est écrit ENTRE la vérification et la
+    lecture du disque par git — la fenêtre qu'aucune vérification préalable ne voit. Le commit existe : la
+    garde le NOMME, compte observé (+8/-0) contre compte attendu (+4/-0), lignes étrangères comprises."""
+    import tools.check_staged_authorship as csa
+    repo = _init_repo(tmp_path)
+    _append(repo, _MIEN)
+    attendu = {_FILE: _attendu_apres(repo, _MIEN)}
+    vrai = csa._git_commit_pathspec
+
+    def commit_avec_intrusion(chemins, message, *, cwd):
+        _append(repo, _ETRANGER)                                             # l'autre session, DANS la fenêtre
+        return vrai(chemins, message, cwd=cwd)
+
+    monkeypatch.setattr(csa, "_git_commit_pathspec", commit_avec_intrusion)
+    with pytest.raises(CommitNotExact) as exc:
+        commit_exact([_FILE], "mon commit", attendu, cwd=repo)
+    e = exc.value
+    assert e.sha == _head_sha(repo)                                          # le commit EXISTE, il est nommé
+    assert e.report[_FILE]["numstat_attendu"] == (4, 0) and e.report[_FILE]["numstat_observe"] == (8, 0)
+    assert e.report[_FILE]["etrangeres"] == _BLOC_ETRANGER
+    assert "+8/-0" in str(e) and "+4/-0" in str(e)
+
+
+def test_FORME_P2_122_c_un_commit_INTERCALE_sur_le_meme_chemin_est_NOMME_par_le_COMPTE(tmp_path, monkeypatch):
+    """(c), second visage : une AUTRE session committe le MÊME chemin entre ma lecture de HEAD et mon commit.
+    Mon blob est exact — c'est l'attendu —, mais il DÉFAIT sa ligne : seul le COMPTE le voit (+4/-1 observé
+    contre +4/-0 attendu), et le parent n'est plus le HEAD lu. Sans ce témoin, retirer la comparaison des
+    comptes ne rougirait rien : le blob seul ne peut pas voir un commit intercalé."""
+    import tools.check_staged_authorship as csa
+    repo = _init_repo(tmp_path)
+    avant = _head_sha(repo)
+    _append(repo, _MIEN)
+    attendu = {_FILE: _attendu_apres(repo, _MIEN)}
+    vrai = csa._git_commit_pathspec
+
+    def commit_apres_un_intercale(chemins, message, *, cwd):
+        with open(os.path.join(repo, _FILE), "w", encoding="utf-8") as f:   # l'autre session committe
+            f.write(_git(["show", f"HEAD:{_FILE}"], repo) + "# ligne d'une autre session\n")
+        _git(["commit", "-q", "-m", "intercale", "--", _FILE], repo)
+        with open(os.path.join(repo, _FILE), "w", encoding="utf-8") as f:   # mon disque, inchangé pour moi
+            f.write(attendu[_FILE])
+        return vrai(chemins, message, cwd=cwd)
+
+    monkeypatch.setattr(csa, "_git_commit_pathspec", commit_apres_un_intercale)
+    with pytest.raises(CommitNotExact) as exc:
+        commit_exact([_FILE], "mon commit", attendu, cwd=repo)
+    e = exc.value
+    assert e.parent_attendu == avant and e.parent != avant
+    assert _git(["show", f"{e.sha}:{_FILE}"], repo) == attendu[_FILE]       # le blob, lui, est exact
+    assert e.report[_FILE]["numstat_attendu"] == (4, 0) and e.report[_FILE]["numstat_observe"] == (4, 1)
+    assert "intercalé" in str(e)
+
+
+def test_FORME_P2_122_commit_exact_avec_owner_REFUSE_un_attendu_qui_reprend_un_travail_PREEXISTANT(tmp_path):
+    """Forme e21c1f3 dans `commit_exact` : un attendu RELU sur le disque reprend le bloc qu'une autre session
+    y avait laissé AVANT l'empreinte. Avec `owner`, l'empreinte le sait -> refus (objet « attendu »). LIMITE
+    CONNUE, gravée à la fin : sans `owner`, le même attendu passe — disque et attendu coïncident, rien ne
+    distingue ce bloc d'un bloc à moi."""
+    repo = _init_repo(tmp_path)
+    snap_dir = str(tmp_path / "snaps")
+    _append(repo, "\n\ndef parallel_session_uncommitted():\n    return 'foreign'\n")   # AVANT l'empreinte
+    snapshot([_FILE], owner="ma-tache", snapshot_dir=snap_dir, cwd=repo)
+    _append(repo, _MIEN)
+    attendu = {_FILE: open(os.path.join(repo, _FILE), encoding="utf-8").read()}     # relu sur le disque
+    avant = _head_sha(repo)
+    with pytest.raises(ForeignHunkDetected) as exc:
+        commit_exact([_FILE], "mon commit", attendu, owner="ma-tache", snapshot_dir=snap_dir, cwd=repo)
+    assert exc.value.objet == "attendu"
+    etranger = "\n".join(ln for h in exc.value.report[_FILE] for ln in h["lines"])
+    assert "parallel_session_uncommitted" in etranger and "my_own_work" not in etranger
+    assert _head_sha(repo) == avant
+
+    res = commit_exact([_FILE], "mon commit", attendu, cwd=repo)             # LIMITE CONNUE : sans owner
+    assert "parallel_session_uncommitted" in _git(["show", f"{res['commit']}:{_FILE}"], repo)
+
+
+def test_POSITIVE_P2_122_un_fichier_NEUF_est_committe_et_une_porte_ROUGE_ne_laisse_RIEN(tmp_path):
+    """Un chemin NEUF : `git commit -- <chemin>` le refuse tant qu'il n'est pas connu de git (mesuré) ;
+    `commit_exact` l'annonce (`add -N`) puis committe. Et quand une porte du crochet est ROUGE : `CommitFailed`
+    porte la sortie de la porte, l'annonce est retirée de l'index, HEAD n'a pas bougé."""
+    repo = _init_repo(tmp_path)
+    neuf, contenu = "nouveau_module.py", "def neuf():\n    return 3\n"
+    with open(os.path.join(repo, neuf), "w", encoding="utf-8") as f:
+        f.write(contenu)
+    res = commit_exact([neuf], "fichier neuf", {neuf: contenu}, cwd=repo)
+    assert res["numstat"][neuf] == {"attendu": (2, 0), "observe": (2, 0)}
+    assert _git(["show", f"HEAD:{neuf}"], repo) == contenu
+
+    crochet = os.path.join(repo, ".git", "hooks", "pre-commit")
+    with open(crochet, "w", encoding="utf-8", newline="\n") as f:
+        f.write("#!/bin/sh\necho 'PORTE 99 ROUGE : refus de test'\nexit 1\n")
+    os.chmod(crochet, os.stat(crochet).st_mode | stat.S_IEXEC)
+    second = "second_module.py"
+    with open(os.path.join(repo, second), "w", encoding="utf-8") as f:
+        f.write(contenu)
+    avant = _head_sha(repo)
+    with pytest.raises(CommitFailed) as exc:
+        commit_exact([second], "second", {second: contenu}, cwd=repo)
+    assert "PORTE 99 ROUGE" in str(exc.value)
+    assert _head_sha(repo) == avant
+    assert second not in _git(["ls-files"], repo).split()                   # l'annonce ne traîne pas
+
+
+def test_CLI_P2_122_commit_exact_REFUSE_code_1_puis_COMMITTE_code_0(tmp_path, capsys):
+    """La CLI, telle qu'une session l'appelle : contenu attendu et message dans des FICHIERS (aucun texte
+    ne transite par le shell). Bloc étranger -> code 1 et la ligne nommée ; disque ramené à l'attendu -> 0."""
+    depot = tmp_path / "depot"
+    depot.mkdir()
+    repo = _init_repo(depot)
+    _append(repo, _MIEN)
+    attendu = _attendu_apres(repo, _MIEN)
+    f_attendu, f_message = tmp_path / "attendu.py", tmp_path / "message.txt"
+    f_attendu.write_text(attendu, encoding="utf-8")
+    f_message.write_text("mon commit par la CLI\n", encoding="utf-8")
+    _append(repo, _ETRANGER)
+    argv = ["commit-exact", "--attendu", f"{_FILE}={f_attendu}", "-F", str(f_message), "--cwd", repo]
+    capsys.readouterr()
+    assert _cli(argv) == 1
+    assert "lignes 7-10" in capsys.readouterr().err
+    with open(os.path.join(repo, _FILE), "w", encoding="utf-8") as f:
+        f.write(attendu)
+    crochet = os.path.join(repo, ".git", "hooks", "pre-commit")               # une porte qui SIGNALE sans bloquer
+    with open(crochet, "w", encoding="utf-8", newline="\n") as f:
+        f.write("#!/bin/sh\necho 'porte 16 : baisse PARTIELLE signalee'\nexit 0\n")
+    os.chmod(crochet, os.stat(crochet).st_mode | stat.S_IEXEC)
+    assert _cli(argv) == 0
+    sortie = capsys.readouterr()
+    assert "EXACTEMENT" in sortie.out
+    assert "baisse PARTIELLE" in sortie.err, "le chiffre d'une porte qui signale doit rester sous les yeux"
+    assert _git(["log", "-1", "--format=%s"], repo).strip() == "mon commit par la CLI"

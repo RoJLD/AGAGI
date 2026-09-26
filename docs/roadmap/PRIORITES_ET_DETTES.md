@@ -1422,6 +1422,11 @@ message). 0 erreur de collecte : `b895a0a3` a fait son travail. Familles, par ta
    verts, Windows 192 verts**. ⚠️ Pris par la vérification des DEUX côtés : ma première passe avait réécrit la
    définition même de la racine (`_R = _R if …`) — VERTE sous Linux (seule la branche `else` s'évalue), `NameError`
    sous Windows ; un seul côté l'aurait laissée passer. Le compte du run CI qui suit s'écrit ici.
+   📏 **LU sur le run 36238881471 (`eda2870f`, comparé à `c0274ea9` ; relevé par agagi-88 et Master 2)** : **9 → 5
+   rouges**, 3400 → 3404 passés, 343 sautés, 1 xfailed ; 0 nouveau, **4 disparus — exactement les quatre attendus**
+   (test_pm_board A1 et A3, test_pm_bulletin eviction_FIFO et tool_sur_bulletin_vide). Restent 5 rouges, tous P2.113 :
+   (c) grab ×3, (d) flatland ×2. Le critère de dissolution du worker Dette (moins de 10 rouges hors P2.113 sur un run
+   CI) est ATTEINT, avec **0** hors P2.113.
 6. ⚠️ **git env sur Linux — 2** : `tests/sandbox/test_git_env_leak.py::test_un_GIT_DIR_herite_detourne_le_git_init_vers_le_depot_POINTE`
    (« le depot POINTE est passe en bare : son arbre de travail disparait pour toutes les sessions ») et
    `tests/sandbox/test_gate_mutation.py::…[sans_purge_defaut_restaure]`. C'est LA classe de la corruption `core.bare = true`
@@ -1454,7 +1459,7 @@ compte (rouges avant → après) est écrit ICI ; la famille 6 s'instruit avant 
 `closes_when` (déclaré) : la clôture est « 0 rouge hors P2.113 » lu sur un run, ce qu'aucun prédicat de fichier n'exprime.
 
 
-**P2.122 — rang 5 — OUVERTE (2026-09-26, occurrence RÉELLE : mon commit `9bf30520`) — `check_staged_authorship.verify`
+**P2.122 — rang 5 — ✅ CLOSE le 2026-09-26 (ouverte le même jour, occurrence RÉELLE : le commit `9bf30520`) — `check_staged_authorship.verify`
 ne voit pas un hunk écrit par une AUTRE session entre mon snapshot et mon commit, et « git commit -- chemin » l'emporte
 avec le fichier ENTIER.**
 Preuve : `9bf30520` (« ci(garde-methodologique): installer requirements.txt… », `.github/workflows/ci.yml` seul) porte
@@ -1471,6 +1476,27 @@ message, attendu)` qui enchaîne la vérification et `git commit -- paths` dans 
 diff stat comparé au delta attendu dans ce helper. **Contre-exemple gelé** : dépôt jouet, mon contenu écrit, un hunk étranger
 ajouté après, `verify(attendu=…)` REFUSE et nomme la ligne ; sans hunk étranger il passe. Palliatif appliqué à la main
 depuis `faae4909` : un script compare disque et contenu attendu octet pour octet juste avant chaque `git commit --`.
+✅ **FERMÉE le 2026-09-26 (agagi-32, worker Dette)** — `tools/check_staged_authorship.py`. (a) `verify(paths,
+attendu={chemin: contenu})` juge le DISQUE contre HEAD (lu une fois) et contre l'attendu ; tout bloc absent des deux
+lève `ForeignHunkDetected(objet="disque")`, lignes NOMMÉES ; un chemin non déclaré lève `ValueError`. (b)
+`commit_exact(paths, message, attendu, owner=None)` enchaîne dans le MÊME appel : empreinte de `owner` (forme e21c1f3),
+bloc étranger sur le disque (forme 9bf30520), disque EXACTEMENT égal à l'attendu, attendu différent de HEAD, puis
+`git commit -F - -- <chemins>`, crochets compris ; un chemin neuf est annoncé par `add -N`, retiré si une porte
+rougit. (c) Le delta attendu est calculé par GIT AVANT le commit (blob du disque brut, Myers imposé des deux côtés) ;
+après, le blob ET le compte du commit lui sont confrontés — `CommitNotExact` nomme le commit, les deux comptes et les
+lignes étrangères ; la sortie des crochets reste relayée (une porte qui signale sans bloquer garde son chiffre sous
+les yeux). CLI : `commit-exact --attendu CHEMIN=FICHIER -F MSG` (0 exact, 1 refusé, 3 commit inexact) et
+`verify --attendu`. **Trouvé en l'écrivant, et c'est la cause du « 0 »** : `verify` inspectait l'INDEX, or `git commit
+-- <chemins>` emporte le DISQUE (mesuré en dépôt jouet : X stagé, Y sur le disque → le commit porte Y). Rien n'était
+stagé : « 0 hunk » voulait dire « rien d'inspecté » (E4). Le mode empreinte l'avoue désormais sur stderr
+(`DISQUE_NON_INSPECTE`). **Contre-exemple gelé** : `test_FORME_P2_122_9bf30520_un_bloc_ecrit_APRES_l_empreinte_est_REFUSE_et_NOMME`
+(rapport EXACT : lignes 7-10), avec ses positifs appariés — 12 cas. **Calibré par MUTATION** à la main, le module étant
+hors du harnais de la porte 15 (porte 7) : **11/11 tuées**, contrôle intact vert, restauration octet pour octet. La
+mutation « compte non comparé » n'est tuée que par le témoin du commit INTERCALÉ : le blob seul ne voit pas un commit
+d'autrui sur le même chemin que le mien défait (+4/-1 observé contre +4/-0). Windows 71 verts (avec la porte 11) ;
+Linux (WSL, requirements de la CI) 44/44 sur le fichier. **Limites déclarées** : un attendu RELU sur le disque vide
+le mode (gravé : sans `owner`, un bloc étranger pré-existant passe) ; `commit_exact` refuse quand un bloc étranger est
+sur le disque, il ne committe pas autour — le protocole par index temporaire reste la voie.
 <!-- closes_when:grep_present=tools/check_staged_authorship.py::commit_exact -->
 
 
