@@ -1818,6 +1818,20 @@ CALIBRATED = {
     "tools/evo_runs/s2_credit_ablation_2.py::run_arm": ["guard-before-world", "variante:enveloppe-la-phase-1-seule",
                                                         "b_const:reward_const-1.0-b_tdonly:episode-off",
                                                         "gele:ni-variante-ni-phase-1"],
+    # E34 / P2.132 (2026-09-26) -- lecture de la regle scellee E34-IDENTITY-CELL (une cellule = une sonde), branches
+    # dans l'ORDRE impose : INCOMPLET -> TEMOIN_ROMPU -> SANS_OBJET -> INDETERMINE_DOSE -> bande [min, max] de b_full
+    # entre seeds (P4.16) sur la grille 0,5, bords DANS la bande ; FORT descriptif, jamais une seconde voie vers
+    # MATERIEL ; bras allume qui n'a pas tenu l'invariant -> LEVE. Cas : tests/sandbox/test_e34_identity_cell.py
+    # (lignes synthetiques, appels HORS de pytest.raises) ; bande et S_a lus dans le JSON SUIVI de P4.16.
+    "identity_cell_verdict": ["incomplet", "missing:raises", "invariant-non-tenu:raises", "temoin_rompu", "sans_objet",
+                              "dose", "bande:bords-dans-la-bande", "materiel_hausse", "materiel_baisse",
+                              "fort:descriptif", "fausse-alarme-h0-publiee", "part-erosion:None-sans-erosion"],
+    # E34 / P2.132 -- la cellule b_full seed 2026 sous drapeau : garde en tete (aucun monde), drapeau et audit
+    # TRANSMIS a la phase 1 (injection : slot_order_fix = (fix == on), identity_audit toujours vrai), appel REEL
+    # minuscule (monde torch, 2 agents, 3 + 2 ticks) qui publie l'audit de l'invariant ; le no-op EXACT du drapeau
+    # eteint et le contre-exemple (mort en tete) sont dans tests/sandbox/test_e34_slot_identity.py.
+    "run_identity_cell": ["guard-before-world", "drapeau-et-audit-transmis-a-la-phase-1", "appel-reel:audit-publie",
+                          "drapeau-eteint:noop-exact-au-bit", "mort-en-tete:contre-exemple"],
     # P2.110 (2026-09-24) -- nature d'UNE LIGNE coupee par le cliquet de cout, vocabulaire FERME
     # (contention / structure / indeterminee). Cas : tests/sandbox/test_cost_guard.py (reponses connues, appels HORS de
     # pytest.raises). PAR LIGNE et non par mesure : les deux lignes de la passe 1 de TD-STEP-PILOT-R2 ont ete coupees sur

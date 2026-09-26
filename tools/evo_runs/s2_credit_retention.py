@@ -114,16 +114,70 @@ def immortal_refill(e, refill_below=30.0, refill_to=80.0, hp_refill_below=50.0):
     return len(dead)
 
 
+# E34 (P2.132, 2026-09-26) : `immortal_refill` ci-dessus est le harnais PUBLIÉ de P4.4 → P4.16, laissé tel quel
+# (ses lignes 107-113 sont citées par des règles scellées). Il rend la TAILLE de la cohorte mais pas son ORDRE :
+# le mort revient en FIN de `e.agents` alors que la population torch n'est pas reconstruite (même B), donc après
+# une mort en position p les tranches p..B-1 de W pilotent chacune un autre corps (cf. tools/slot_identity.py).
+# `slot_order_fix=True` remet l'ordre de construction après chaque résurrection et VÉRIFIE l'invariant à chaque
+# tick ; `identity_audit=True` le MESURE sans rien changer (lecture seule, aucun tirage RNG). Défauts = chemin
+# publié au bit, aucune clé de sortie nouvelle.
+def _identity_counters():
+    return {"ticks_known": 0, "ticks_unknown": 0, "slot_ticks_total": 0, "slot_ticks_misaligned": 0,
+            "ticks_misaligned": 0, "first_misaligned_tick": None, "max_misaligned_slots": 0,
+            "ticks_reordered": 0, "positions_reordered": 0}
+
+
+def immortal_after_step(e, refill_below=30.0, refill_to=80.0, hp_refill_below=50.0, slot_order_fix=False,
+                        identity=None, tick=None):
+    """Ce qui suit `e.step()` dans une cohorte immortelle : `immortal_refill` (publié), puis, sous drapeau, la
+    remise en ordre (E34) et le relevé de l'invariant dans `identity` (dict de `_identity_counters`, modifié en
+    place). Rend le nombre de résurrections du tick. `slot_order_fix=False` et `identity=None` : exactement
+    `immortal_refill(e, ...)`."""
+    if identity is not None and tick is None:
+        raise ValueError("immortal_after_step : `identity` sans `tick` -- first_misaligned_tick resterait None "
+                         "alors qu'un désalignement a pu avoir lieu (une absence fabriquée) ; refus AVANT la recharge")
+    n = immortal_refill(e, refill_below, refill_to, hp_refill_below)
+    if not slot_order_fix and identity is None:
+        return n
+    from tools.slot_identity import SlotIdentityError, restore_slot_order, slot_identity_violations
+    if slot_order_fix:
+        moved = restore_slot_order(e)
+        if identity is not None and moved:
+            identity["ticks_reordered"] += 1
+            identity["positions_reordered"] += int(moved)
+    v = slot_identity_violations(e)
+    if slot_order_fix and v != []:
+        raise SlotIdentityError(f"tick {tick} : invariant slot W <-> corps NON vérifié après remise en ordre "
+                                f"(violations = {v!r} ; None = appariement non défini)")
+    if identity is not None:
+        if v is None:
+            identity["ticks_unknown"] += 1
+        else:
+            identity["ticks_known"] += 1
+            identity["slot_ticks_total"] += len(e.agents)
+            identity["slot_ticks_misaligned"] += len(v)
+            identity["max_misaligned_slots"] = max(identity["max_misaligned_slots"], len(v))
+            if v:
+                identity["ticks_misaligned"] += 1
+                if identity["first_misaligned_tick"] is None:
+                    identity["first_misaligned_tick"] = tick
+    return n
+
+
 def phase1_learn_immortal(agents, seed, ticks, lr=None, refill_below=30.0, refill_to=80.0,
                           hp_refill_below=50.0, curiosity_scale=None, novelty_scale=None,
-                          reward_scale=1.0, td_enabled=True):
+                          reward_scale=1.0, td_enabled=True, slot_order_fix=False, identity_audit=False):
     """Le crédit publié s'applique à `agents` (objets persistés : genome.W accumule) dans le monde
     cognitif, cohorte IMMORTELLE (même recette que run_learner_probe, prouvée complète 12/12 sur 2000
     ticks par EDR-CALIB-LEARNER). Renvoie la dose (summary de count_learning_events) et `resurrections`.
     `curiosity_scale` / `novelty_scale` : voir `_world` (None = échelle du monde, bit-identique à P4.4).
     `reward_scale` / `td_enabled` / `lr` (P4.9, S2-CREDIT-ABLATION) : variantes de count_learning_events ;
-    les défauts (1.0, True, None) sont le chemin PUBLIÉ, bit-identique à P4.4/P4.8."""
+    les défauts (1.0, True, None) sont le chemin PUBLIÉ, bit-identique à P4.4/P4.8.
+    `slot_order_fix` / `identity_audit` (E34, P2.132) : voir `immortal_after_step` ; l'un ou l'autre vrai
+    publie `slot_identity` (compteurs de l'invariant + le drapeau) ; les défauts (False, False) sont le chemin
+    PUBLIÉ, au bit, sans clé nouvelle."""
     resurrections = 0
+    identity = _identity_counters() if (slot_order_fix or identity_audit) else None
     with _pinned_substrate(), count_learning_events(reward_scale=reward_scale, td_enabled=td_enabled, lr=lr) as ev:
         e = _world(seed, 0, curiosity_scale=curiosity_scale, novelty_scale=novelty_scale)
         for a in agents:
@@ -131,12 +185,15 @@ def phase1_learn_immortal(agents, seed, ticks, lr=None, refill_below=30.0, refil
         t = 0
         while e.agents and t < int(ticks):
             e.step()
-            resurrections += immortal_refill(e, refill_below, refill_to, hp_refill_below)
+            resurrections += immortal_after_step(e, refill_below, refill_to, hp_refill_below,
+                                                 slot_order_fix=slot_order_fix, identity=identity, tick=t)
             t += 1
         if hasattr(e, "memory_retriever"):
             e.memory_retriever.stop()
     out = ev.summary()
     out["resurrections"] = int(resurrections)
+    if identity is not None:
+        out["slot_identity"] = dict(identity, slot_order_fix=bool(slot_order_fix))
     out["ticks"] = int(t)
     return out
 

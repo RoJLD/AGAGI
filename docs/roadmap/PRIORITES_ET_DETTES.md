@@ -1405,6 +1405,33 @@ d'identité slot/corps vérifié à chaque pas, contre-exemple = la mort en têt
 L'effet sur les verdicts publiés est INCONNU : rien n'est retiré. *Rang : devant tout item méthodo sauf ce qui bloque un run
 (Master 2).* *Coût : agent 1-2 h ; calcul : une cellule (≈ 5 min), puis les bras concernés si l'effet est matériel.*
 Dépend de : P4.18 (ne pas changer le harnais sous un run scellé qui le rejoue).
+**Avancement (2026-09-26, session E34, affectée par Master 2) — sous-item « garde + sonde », l'entrée reste OUVERTE.**
+(1) Invariant EXÉCUTABLE `tools/slot_identity.py::slot_identity_violations` : la liste des tranches j dont le prochain
+`forward` apparierait `W[j]` à un autre corps (`pop.agents[j] is not e.agents[j]["model"]`), en lecture seule, sans tirage
+RNG ; `None` quand l'appariement n'est pas défini (pas de population, ou B différent : le monde reconstruira), jamais `[]`
+par défaut. Contre-exemple GELÉ (`tests/sandbox/test_e34_slot_identity.py`, cohorte factice sans torch ET monde réel) :
+une mort en position p désaligne B − p tranches, donc une mort en TÊTE les **B** (la dernière pilote le mort revenu en
+queue) : le « jusqu'à 11 slots » de l'intitulé est CORRIGÉ en 12 (trouvé aussi par la revue v8 de S2-BASSIN-FRAGILITY,
+dont la v9 dit « jusqu'à 12 ») ; une mort en QUEUE n'en désaligne aucune (l'invariant rend les deux issues). (2) Correctif SOUS DRAPEAU :
+`phase1_learn_immortal(slot_order_fix=True)` remet `e.agents` dans l'ordre de construction de la population après chaque
+résurrection (`restore_slot_order`) et VÉRIFIE l'invariant à chaque tick (lève sinon) ; `identity_audit=True` le MESURE
+sans rien changer (`slot_identity` publié : slot-ticks désalignés, premier tick, positions remises). Défauts = chemin
+publié AU BIT, aucune clé de sortie nouvelle : copie VERBATIM de la recette au sha 5d534d44 comme oracle dans le test ;
+trace forcée gelée AVANT édition (digest 94e779e8…, 4 clones, 30 ticks, morts en tête au tick 5 et en position 2 au
+tick 12 : 82 slot-ticks désalignés sur 120) retrouvée après édition, défauts ET audit ; les lignes 1-116 de
+`s2_credit_retention.py` sont inchangées (107-113 sont citées par des règles scellées). Sans mort, le drapeau est un
+no-op au bit ; avec une mort en tête, il change W (contrôle positif). (3)-(4) Sonde `tools/evo_runs/e34_identity_cell.py`
+sous la règle `E34-IDENTITY-CELL` (bande « matériel » = étendue de `b_full` entre seeds publiée par P4.16, [7,0 ; 9,5]) :
+en cours. **La clause ci-dessous reste celle de l'entrée** : elle décrit la vraie clôture (le correctif devenu le
+DÉFAUT, après P4.18 et, si la sonde rend MATERIEL, le plan n = 12) ; la sonde ne ferme qu'un sous-item.
+**Addendum CALIB-LEARNER (2026-09-26, session E34, vu en lisant la recette)** : la MÊME recette vit dans
+`tools/cognitive_demand_inworld.py:575-587` (`run_learner_probe`, contrôle POSITIF de l'apprenant, EDR-CALIB-LEARNER
+12/12) — `e.agents.append(a)` ligne 584, politique torch persistante (`use_torch_inworld = True`), B inchangé : le même
+brassage y a lieu à chaque résurrection, donc ce contrôle positif a été mesuré SOUS le brassage (direction du biais NON
+établie). ⚠️ Et l'argument « clones IDENTIQUES : le brassage ne change pas qui apprend » ne s'y applique PAS : ses cohortes
+sont des `MambaAgent()` FRAIS, des cerveaux DISTINCTS échangés entre corps — de même que le bras `c_cold_credit` de P4.4
+(cohorte fraîche). L'audit (`immortal_after_step(..., identity=...)`) s'y branche sans rien changer pour en mesurer la dose ;
+hors du mandat du correctif.
 <!-- closes_when:grep_absent=tools/evo_runs/s2_credit_retention.py::e\.agents\.append\(a\) -->
 
 **P2.133 — rang 6 — OUVERTE (2026-09-26, vue en passant par la session SCIENCE-HARNAIS pendant la revue v6 de
