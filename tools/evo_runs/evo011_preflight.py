@@ -1039,7 +1039,9 @@ def main(argv=None):
         if out is None:
             out = os.path.join("results", "evo011_preflight%s.json" % ("_smoke" if args.smoke else ""))
         os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
-        with open(out, "w", encoding="utf-8") as fh:
+        # newline="\n" : sans lui, le mode texte écrit CRLF sous Windows et LF sous Linux — le témoin du déport
+        # (P2.126, 2026-09-26) a trouvé 574 lignes sur 574 différentes entre batcave et nexus pour CETTE seule raison.
+        with open(out, "w", encoding="utf-8", newline="\n") as fh:
             from tools.preregister import provenance
             json.dump({
                 "preregistration": PREREG,

@@ -57,6 +57,7 @@ MANIFEST = "MANIFEST.json"
 # Variables qui DÉPLACERAIENT les écritures du runner HORS de l'arbre extrait (src/paths.py) ou qui changent
 # le code exécuté (harnais de mutation, porte 15) : jamais transmises au runner.
 _ENV_INTERDITES = re.compile(r"^(GIT_.*|AGAGI_(\w+_)?ROOT|AGAGI_MUTATION_SPEC)$")
+VARS_THREADS = ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS", "NUMEXPR_NUM_THREADS")
 
 
 class Refus(RuntimeError):
@@ -272,16 +273,25 @@ def env_du_runner(env: dict, src: str, limite: dict) -> tuple[dict, list]:
     """(environnement du runner, variables RETIRÉES). Retirées : `GIT_*` (un GIT_DIR hérité viserait le dépôt
     de la batcave — P2.121 famille 6), les racines `AGAGI_*ROOT` (elles déplaceraient les écritures HORS de
     l'arbre extrait, donc hors du MANIFEST) et le harnais de mutation. Sources en tête de PYTHONPATH, threads
-    calés sur la limite cgroup QUAND elle est connue."""
+    calés sur la limite cgroup QUAND elle est connue — SAUF si une variable de threads est déjà présente (elle
+    ne peut l'être que DÉCLARÉE, --env) : la déclaration prend alors TOUT le contrôle des threads, aucune n'est
+    posée d'office. Utile pour reproduire une arithmétique publiée sous un autre nombre de threads (une
+    réduction parallèle float32 peut dépendre du découpage) ; `threads_source` le dit dans le MANIFEST."""
     retirees = sorted(k for k in env if _ENV_INTERDITES.match(k))
     out = {k: v for k, v in env.items() if k not in retirees}
     out["PYTHONPATH"] = src + (os.pathsep + out["PYTHONPATH"] if out.get("PYTHONPATH") else "")
     out.setdefault("MPLBACKEND", "Agg")
     lim = limite.get("limite_cpu")
-    if lim:
+    if any(v in out for v in VARS_THREADS):
+        out["AGAGI_THREADS_SOURCE"] = "declare"
+    elif lim:
         n = str(max(1, int(lim)))
-        for var in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS", "NUMEXPR_NUM_THREADS"):
+        for var in VARS_THREADS:
             out[var] = n
+        out["AGAGI_THREADS_SOURCE"] = "cgroup"
+    else:
+        out["AGAGI_THREADS_SOURCE"] = "defaut-bibliotheque"
+    if lim:
         out["AGAGI_CPU_LIMIT"] = repr(lim)
     return out, retirees
 
@@ -379,7 +389,8 @@ def principal(a) -> int:
         "sha": a.sha, "sha_verifie": True, "commande": commande, **mesure,
         "fin_utc": _dt.datetime.now(_dt.timezone.utc).isoformat(),
         "cpu": {**limite, "affinite": _affinite(), "os_cpu_count": os.cpu_count(),
-                "threads_poses": env.get("OMP_NUM_THREADS")},
+                "threads_poses": {v: env.get(v) for v in VARS_THREADS},
+                "threads_source": env.get("AGAGI_THREADS_SOURCE")},
         "charge_debut": charge0, "charge_fin": charge1,
         "python": platform.python_version(), "plateforme": platform.platform(),
         "versions": _versions(sys.executable, env), "image": os.environ.get("AGAGI_IMAGE"),

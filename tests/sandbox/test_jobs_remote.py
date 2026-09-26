@@ -585,3 +585,16 @@ def test_job_env_declaree_et_shm_et_attente_minimale():
     assert any(v.get("emptyDir", {}).get("medium") == "Memory" for v in j["spec"]["template"]["spec"]["volumes"])
     with pytest.raises(R.Refus, match="attente"):
         _job(attente_s=0)
+
+
+def test_threads_declares_prennent_TOUT_le_controle():
+    """SCIENCE (P4.18) veut reproduire une arithmétique publiée à 16 threads : une variable de threads DÉCLARÉE
+    l'emporte sur la limite cgroup, et aucune autre n'est posée d'office (pas de mélange 16/2)."""
+    env, _ = E.env_du_runner({"OMP_NUM_THREADS": "16"}, "/src", {"limite_cpu": 2.0})
+    assert env["OMP_NUM_THREADS"] == "16" and "MKL_NUM_THREADS" not in env
+    assert env["AGAGI_THREADS_SOURCE"] == "declare" and env["AGAGI_CPU_LIMIT"] == "2.0"
+    env2, _ = E.env_du_runner({}, "/src", {"limite_cpu": 2.0})
+    assert env2["MKL_NUM_THREADS"] == "2" and env2["AGAGI_THREADS_SOURCE"] == "cgroup"
+    env3, _ = E.env_du_runner({}, "/src", {"limite_cpu": None})
+    assert "OMP_NUM_THREADS" not in env3 and env3["AGAGI_THREADS_SOURCE"] == "defaut-bibliotheque"
+    assert R.valider_env(["OMP_NUM_THREADS=16"]) == {"OMP_NUM_THREADS": "16"}      # déclarable
