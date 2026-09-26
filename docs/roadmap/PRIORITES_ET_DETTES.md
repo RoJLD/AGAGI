@@ -1269,6 +1269,22 @@ par rejeu `--lecture` bit-identique sur les comptes) ; `N` entre dans `regime` ;
 Dépend de : P2.105 (close).
 <!-- closes_when:grep_present=tools/td_step_pilot.py::marge_en_pas -->
 
+**P2.124 — ✅ CLOSE (2026-09-26 ; vue en passant par la session SCIENCE-HARNAIS avant la sonde P4.18, corrigée par
+agagi-32 en `fb88fafd` sur délégation de Master 2 ; entrée écrite après coup pour la trace) — `tools.jobs.doctor` lancé
+depuis un WORKTREE ne voyait pas les runs des worktrees frères ni de l'arbre principal.**
+Mesuré le 2026-09-26 à 12:28 : `python -m tools.jobs.doctor` depuis `.worktrees/science` rendait « processus python du
+projet (hors moi et mes ancêtres) : 0 » pendant qu'un pytest de `.worktrees/p2-105` (pid 73700, `test_instrument_calibration.py`
+et six autres fichiers, `--timeout=900`) tenait 129 % de CPU (psutil, même instant). Cause : `_ROOT` = racine du WORKTREE
+(dossier du fichier) et `_works_in_project` comparait le cwd à cette seule racine, alors que P2.69 (i) avait ancré les
+BAILS au dépôt COMMUN (`tools/jobs/lease.py`, `git rev-parse --git-common-dir`). Les normes de la flotte font travailler
+chaque session dans un worktree et exigent « doctor avant tout run » : chaque doctor était aveugle aux autres. Même
+famille qu'E32 (une garde dégrade son périmètre en silence). **Corrigé** (`fb88fafd`) : racines = arbre principal
+(`lease._repo_root`) + chaque worktree de `git worktree list` (`tools/jobs/doctor.py::_racines_du_depot`), témoin
+`tests/sandbox/test_doctor_visibility.py` rouge sur l'ancien doctor. Reste HORS périmètre, et dit : la charge d'origine
+NON-projet (la synchro du plugin episodic-memory, hook `SessionStart` de chaque session Claude, ~4 cœurs, récurrente,
+relevée à 94-99 % de CPU à 12:36) — doctor ne compte que le projet ; elle se relève par cellule dans les runners.
+<!-- closes_when:path_present=tests/sandbox/test_doctor_visibility.py -->
+
 
 **P2.125 — rang 4 — OUVERTE (2026-09-26, trouvée par la revue opus de P2.121 famille 1, VÉRIFIÉE par agagi-32) —
 Un test de fumée ÉCRASAIT les génomes de calibration WARM-007 dans `results/` : depuis le 2026-09-09, `_GRABBER`
@@ -3197,7 +3213,46 @@ direction tirée d'un rng dédié publié. Règle à sceller `S2-BASSIN-FRAGILIT
 `S_a` (signe 10/12, ±5), et lecture par COMPARAISON appariée niveau-à-bras (bruit − crédit, 10/12, ±5) → FRAGILE /
 DIRECTION / MIXTE. Pourquoi : [[EDR-S2-CREDIT-ABLATION-2]] § Portée. *Coût : agent 2 h ; calcul ~15 min sous bail.*
 Dépend de : rien.
-<!-- closes_when:path_present=docs/preregistrations/S2-BASSIN-FRAGILITY.json -->
+⚠️ **DESIGN AMENDÉ AVANT SCEAU (2026-09-26, session SCIENCE-HARNAIS, validé par Master 2)** — trois écarts, tous nés
+d'une MESURE de conception sur le seed 2026 (sonde hors règle, 12:38-12:58, aucune survie de sham mesurée) :
+(1) **appariement sur le DÉPLACEMENT NET** `‖W_final − W_bassin‖₁` par agent, jamais sur `dW_abs_sum` : ce dernier
+cumule |ΔW| à CHAQUE mise à jour (`tools/learning_events.py:173,187`), c'est une longueur de CHEMIN ; mesuré, net/chemin
+= 0,072 (b_full), 0,081 (tdonly), 0,358 (const), 0,201 (eplr), 0,112 (zero) — apparier sur le chemin aurait surdosé le
+bruit ×14 sur b_full ; aucun W appris n'était persisté (P4.9/P4.16), la phase 1 des cinq bras est donc REJOUÉE,
+bit-identique exigée (vérifiée au seed 2026 sur les cinq : chemin et 12 âges), W persistés ; (2) **sham PRIMAIRE sur le
+SUPPORT** (`s ⊙ |ΔW|`, signes tirés : support, L1, L2, L∞ exacts) : ΔW vit dans les colonnes lues par la perte — 11
+(nœuds 64-71 = logits de déplacement, 88, 89, 92) pour les bras qui portent le TD, 8 (64-71) pour b_eplr, épisodique
+seul (la première rédaction disait « 11 sur les cinq bras » : généralisation non vérifiée, relevée par la revue P1.b) ;
+L1/L2 = 24 (b_full) contre ≈137 pour un gaussien sur 172×172, qui serait ≈5× plus faible en L2 et mettrait 94-95 % de
+sa masse hors de ces colonnes (biais vers DIRECTION) — le gaussien apparié en L1 reste en SECONDAIRE, hors verdict ;
+(3) **coût ≈ 4,7 h CPU** (≈1400 s CPU par seed), et non 15 min, exécuté en 6 processus (le témoin de parallélisme a
+rendu le publié au bit : deux rejeux simultanés, seed 2027) ; (4) un **sixième bras**, b_tdoff (P4.9, épisodique seul
+à 0,04), paire de b_eplr (même voie, pas ×10) pour la garde E19 réellement appelée dans le verdict (`clause_E19`,
+lecture `DIRECTION_DEPEND_DU_REGLAGE`, pas et létalité non séparés) — la porte 23 exigeait une réponse, et le pas est
+la seule dépendance quantitative connue de l'arc ; la garde est CERTAINEMENT illisible ici (b_tdoff saturé sur 12/12
+seeds publiés) : une lecture DIRECTION de la paire sort dite NON DÉFENDUE contre le pas ; (5) après la **revue adversariale du brouillon** (`docs/reviews/2026-09-26-S2-BASSIN-FRAGILITY.md`,
+20 critiques confirmées) : FRAGILE exige désormais que le sham ÉRODE (issue NON_TRANCHE sinon — avant, un sham qui
+n'érodait pas donnait FRAGILE dès que le contraste ratait 11/12), eps devient un sham SUR LE SUPPORT et le contrôle
+positif de DIRECTION (issue CRETE_A_TOUTE_ECHELLE s'il érode), échelle sign ×2/×4 publiée hors verdict, dose et
+résurrections dans la réplication, garde de corps qui peut échouer. Seuil 11/12 (famille de 14 contrastes neufs, E23).
+(6) **trois revues de plus avant sceau** (`docs/reviews/2026-09-26-S2-BASSIN-FRAGILITY.v3.md`, `.v4.md`, `.v5.md` :
+26, 20 et 17 critiques confirmées, chacune avec l'addendum de ses suites) : FRAGILE exige un contraste médian < 5
+(un sham à 29 % de la perte sortait FRAGILE), bande de tirage par BOOTSTRAP calibrée sur un nul connu (celle de
+demi-tirages le laissait dehors 14-31 % du temps), issue MIXTE_AMPLITUDE_OU_LETALITE (la partition prédite par le net
+l'est aussi par les résurrections), contrôle de DIRECTION dit NON ÉPROUVÉ dès 11/12 seeds miroirs, norme d'opérateur
+publiée et croisée à ×2, commande `seed` qui refuse une cellule absente (nexus : cellules en Jobs, phases 2 sur la
+batcave), seuils scellés confrontés au bit au code ; la limite P2.132 (brassage cerveau/corps du harnais immortel,
+E34) est déclarée en tête de la règle et REJOUÉE telle quelle.
+(7) **quatre revues encore, puis SCEAU sous une RÈGLE D'ARRÊT déposée d'avance** (v6 13, v7 15, v8 12, v9 13 critiques confirmées ; v7 à v9 INDISCRIMINANTES, donc chaque critique re-vérifiée par l'auteur) : règle d'arrêt `docs/reviews/2026-09-26-S2-BASSIN-FRAGILITY.regle-d-arret.md` (sha256 599e0074…, stagée 18:16:41 avant tout retour de la revue v8, liste FERMÉE (a)-(g) de ce qui change une branche ou une lecture, conditions de Master 2) ; la v8 en a eu une (P4.4, (g)) -> v9 qui restreint ; la v9 aucune -> **règle SCELLÉE le 2026-09-26, sceau d29d7934…**, reviewed_by `docs/reviews/2026-09-26-S2-BASSIN-FRAGILITY.v9.md` (addendum : corrections de texte hors sceau, dont la provenance de b_full, importée de P4.4 05cf8888 et non de P4.9). En chemin : famille 15 (PROTECTRICE exige le contraste PLUS), 9b non éprouvé par construction, bande de tirage bootstrap ÉCHANGEABLE mesurée sur la bande exécutée (`results/s2_bassin_fragility_calibration_bande.json`), tirage à signes partagés descriptif contre le biais du vote social vers DIRECTION (dit en tête du motif), contrôle des branches 2/4/5/6 à chaque seed.
+Mesures de conception suivies : `results/s2_bassin_fragility_sonde_conception.json`. Au passage :
+la mention « remède d'ANCRAGE (P4.19) » ci-dessus, reprise de [[EDR-S2-CREDIT-ABLATION-2]] (§ Ce que ça change), est
+une COLLISION de numéro — P4.19 est l'entrée `eligibility_trace_credit` ; l'ancre n'a pas de numéro, elle s'en verra
+allouer un à l'écriture si le verdict de P4.18 la désigne (le record P4.16 sera rectifié avec le bandeau d'après-run).
+⚠️ Clause corrigée : `path_present=docs/preregistrations/S2-BASSIN-FRAGILITY.json` était VRAIE dès le SCELLEMENT
+(famille (ii) de P4.20) ; elle vise désormais la SORTIE : le `corrected_by` que le record de ce run posera sur
+[[EDR-S2-CREDIT-ABLATION-2]] (bandeau E8 d'après-run, écrit seulement avec un verdict LU — un run INDÉTERMINÉ laisse
+l'entrée ouverte). Une clause sur le JSON de résultats, encore inexistant, est refusée par la porte 4 (invérifiable).
+<!-- closes_when:grep_present=docs/EDR/S2-CREDIT-ABLATION-2_Each_Credit_Pathway_Alone_Floors_The_Bassin_And_A_Positive_Constant_Return_Erodes_Halfway.md::corrected_by: \[.*EDR-S2-BASSIN-FRAGILITY -->
 
 **P4.17 — rang 4 quinquies — ✅ CLOSE le 2026-09-24 (verdict `AIDE_A_UN_POINT` ; ouverte le 2026-09-22, décision robla déléguée via agagi-52 ; session loop 766eabae) — Balayage
 lr × λ sur le pilote TD PAR PAS : où la trace d'éligibilité vit-elle, et jusqu'où descend-elle en lr ? Le billet à deux issues de
