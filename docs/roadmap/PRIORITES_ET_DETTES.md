@@ -1369,6 +1369,24 @@ freeze de l'image construite (`/opt/agagi/pip-freeze.txt` dans l'image) — puis
 (b) si le digest varie encore, les horodatages de couches en sont la cause probable : essayer l'option `--reproducible`
 de Kaniko. Tant que ce n'est pas fait, deux runs « sur la même image » ne sont comparables que s'ils citent le même
 digest. Sans clause `closes_when` (déclaré) : la clôture est une mesure (deux digests égaux), pas un fichier.
+**Mesuré le 2026-09-26 au soir (session INFRA-NEXUS, builds d'essai sur nexus sous un dépôt d'image à part
+`…-essais`, tags `p2134-*` jamais référencés, IMAGE.json INTOUCHÉ — règle de Master 2 pendant P4.18)** :
+(1) **l'hypothèse (a) est RÉFUTÉE** : les deux images publiées ont exactement les mêmes fichiers (mêmes dist-info, donc
+mêmes versions transitives) ; les couches 0-3 (image de base) sont identiques ; les couches 4-7 diffèrent par des
+fichiers `.pyc` (10 691 : pip compile à l'installation, avec la date de la source), les journaux apt/dpkg et le cache
+ldconfig, les dates de TOUS les fichiers, et la date de la config d'image. (2) **`--reproducible` de Kaniko est
+inutilisable ici** : deux builds OOMKilled (code 137) au plafond de 4 Gi de la LimitRange `standard` — il faudrait le
+palier `ml-heavy`, donc l'accord d'ELYSIUM. (3) **Dockerfile nettoyé** (pip `--no-compile` puis `compileall
+--invalidation-mode unchecked-hash`, journaux et caches retirés, dates remises à l'epoch 0 par chaque RUN) : deux
+builds sans cache rendent des couches au CONTENU IDENTIQUE (0 fichier différent sur 2 471 et 37 756 ; les `.pyc` à
+empreinte de hash sont déterministes) — mais les octets des couches diffèrent encore, par des dates que Kaniko pose
+lui-même (entrées créées par COPY et WORKDIR, à l'heure du build) et par des en-têtes tar de la couche apt ; et la
+config porte toujours la date. **Conclusion opératoire** : sans `--reproducible`, le digest d'image ne peut PAS être
+stable ; le CONTENU peut l'être. Proposition, à appliquer APRÈS les cellules de P4.18 (elle change le contexte haché
+donc l'image) : adopter le Dockerfile nettoyé et publier dans IMAGE.json une EMPREINTE DE CONTENU (hash des couples
+chemin/sha256 des fichiers de l'image) à côté du digest — deux reconstructions se diront alors « même contenu »
+sans prétendre au même digest. Scripts d'essai hors dépôt (scratchpad de la session), images d'essai laissées dans
+le dépôt `…-essais` du registre (à purger avec ELYSIUM si l'espace compte).
 
 **P2.121 — rang 6 — OUVERTE (2026-09-26, mesuré sur le run 36210667429, le PREMIER où `suite-complete` exécute des
 tests) — La suite complète tourne en CI : 2807 passés, 88 rouges, 18 erreurs, 238 sautés, 17 min 38 s — et ses rouges se
