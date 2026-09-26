@@ -2182,8 +2182,8 @@ Réfutateur (motif nommé ou renommage) — 10 déclarations gelées, toutes `MO
 <!-- closes_when:grep_present=tools/check_instrument_calibration.py::parse_\w+\) -->
 
 **P2.84 — ⚠️ OUVERTE (2026-09-24, demande de robla le 2026-09-23) — lot 2 « Science » du dashboard : arbres en temps
-réel, taxonomies, pipeline des runs, « à quoi ça sert / ce qu'on en tire », visuel des avancées — À BRAINSTORMER avant
-toute implémentation, sources déjà MESURÉES.**
+réel, taxonomies, pipeline des runs, « à quoi ça sert / ce qu'on en tire », visuel des avancées — CADRÉE le 2026-09-26
+dans la spec commune avec P2.87 ; plan à écrire une fois P2.87 livrée, sources déjà MESURÉES.**
 Quoi : le lot 1 (`docs/superpowers/specs/2026-09-22-pilotage-dashboard-design.md`) livre Flotte / Roadmap / Portes et
 s'arrête là ; robla a demandé en plus « la visu de nos arbres en temps réel, les taxonomies, nos runs, la
 compréhension, à quoi ils servent, ce qu'on en tire, visuelle de nos avancées », et a tranché le 2026-09-23 : **lot 2
@@ -2285,7 +2285,7 @@ par une forme, pas par une garde. *Coût : agent 30 min ; calcul 0.* Dépend de 
 
 **P2.87 — ⚠️ OUVERTE (2026-09-24, demande de robla) — le dashboard doit s'INDEXER TOUT SEUL à mesure que le projet
 produit : donner un FORMAT déclaré aux résultats et aux artefacts pour qu'un type neuf soit ingéré sans écrire un
-parseur. À BRAINSTORMER (robla demande une session dédiée après redémarrage).**
+parseur. BRAINSTORMÉE le 2026-09-26 (spec et plan approuvés par Master 2), EN COURS d'exécution par la session FRONT.**
 Quoi : le lot 1 du dashboard (`docs/superpowers/specs/2026-09-22-pilotage-dashboard-design.md`) lit des sources
 EXISTANTES une par une, chacune avec son lecteur écrit à la main. La demande est l'inverse : que produire un artefact
 suffise à l'indexer. État mesuré le 2026-09-24, qui dit à la fois ce qui existe et ce qui manque.
@@ -2321,8 +2321,9 @@ Dépend de : rien (mais recoupe P2.84, le lot 2 « Science » du dashboard — �
 Spec écrite le 2026-09-26 : `docs/superpowers/specs/2026-09-26-auto-indexation-artefacts-design.md` (v2 après revue
 adversariale opus, approche A — lecteur tolérant à la lecture, table de familles déclarée — validée par Master 2 avec
 quatre conditions ; P2.84 construit sur cet index). Mesuré en l'écrivant : aucune source publiée ne date un EDR (0/305),
-seul git les date (305/305 par la commande figée de la spec) ; D1-D3 restent à valider. La clause suit le CODE, jamais la spec.
-<!-- closes_when:path_present=tools/pm/index_artefacts.py -->
+seul git les date (305/305 par la commande figée de la spec) ; D1-D3 tranchés le 2026-09-26 (spec §9). Plan :
+`docs/superpowers/plans/2026-09-26-auto-indexation-index.md` (7 tâches, trois commits). La clause suit le CODE, jamais la spec.
+<!-- closes_when:path_present=frontend/src/components/pilotage/IndexView.tsx -->
 
 **P2.135 — ⚠️ OUVERTE (2026-09-26, vue en revue adversariale de la spec P2.87/P2.84) — la porte 3
 (`tools/check_preregistration_applied.py`) rend un VERT sur une racine sans `docs/preregistrations` ni `docs/EDR` :
