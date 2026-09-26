@@ -115,6 +115,11 @@ def test_main_ecrit_tableau_journal_compteurs_et_sort_0(tmp_path, monkeypatch):
     board = json.loads((tmp_path / "pm" / "BOARD.json").read_text(encoding="utf-8"))
     assert [l["cle"] for l in journal] == [a["cle"] for a in board["alertes"]]
     assert all(l["statut"] == "emise" for l in journal) and AL.charger.illisibles == 0
+    # Spec pilotage §3.4 : le MÊME tick écrit le pilotage complet et sa projection, sur le même tableau.
+    complet = json.loads((tmp_path / "pm" / "PILOTAGE.json").read_text(encoding="utf-8"))
+    artefact = json.loads((tmp_path / "pm" / "PILOTAGE_ARTEFACT.json").read_text(encoding="utf-8"))
+    assert complet["flotte"]["generated_at"] == board["generated_at"] == artefact["generated_at"]
+    assert artefact["schema"] == "pilotage_artefact_v1" and complet["schema"] == "pilotage_v1"
 
 
 def test_main_refuse_quand_un_autre_PM_vit_et_n_ecrit_RIEN(tmp_path, monkeypatch):
@@ -124,3 +129,43 @@ def test_main_refuse_quand_un_autre_PM_vit_et_n_ecrit_RIEN(tmp_path, monkeypatch
                     "--registry-dir", str(tmp_path / "aucun"), "--sessions-dir", str(tmp_path / "aucun"),
                     "--leases-dir", str(tmp_path / "leases")])
     assert code == 2 and not (tmp_path / "pm").exists()
+
+
+def _tableau(generated_at=1000.0):
+    return {"generated_at": generated_at, "repo_root": "x", "aveugle": [], "sessions": [], "sessions_mortes": [],
+            "alertes": [], "charge_connue": {"sims_en_vol": 0, "cpu_pct": 1.0, "bails_vivants": []},
+            "worktrees": [], "bails": {"live": [], "dead": []}}
+
+
+def test_ecrire_pilotage_ecrit_le_complet_et_la_projection_avec_le_MEME_tableau_et_les_MEMES_compteurs(tmp_path, monkeypatch):
+    """Le pilotage du tick ne relit NI BOARD.json NI ROLES_COUNTS.json : il prend le tableau et les compteurs que ce
+    tick vient de calculer — un seul instant, jamais deux sources désynchronisées."""
+    monkeypatch.setenv("AGAGI_DATA_ROOT", str(tmp_path).replace("\\", "/"))
+    (tmp_path / "pm").mkdir()
+    compteurs = {"ratio_science_methodo": 0.5, "fichiers_disponibles": True,
+                 "fichiers": {"science": 1, "methodo": 2, "autre": 0}, "fenetre": {"depuis": "2026-08-27", "jours": 30}}
+    ligne = TK.ecrire_pilotage(os.getcwd(), _tableau(1000.0), compteurs, 1060.0)
+    assert ligne == "", ligne                                   # aucune omission, aucun échec : rien à dire
+    complet = json.loads((tmp_path / "pm" / "PILOTAGE.json").read_text(encoding="utf-8"))
+    artefact = json.loads((tmp_path / "pm" / "PILOTAGE_ARTEFACT.json").read_text(encoding="utf-8"))
+    assert complet["flotte"] == _tableau(1000.0)
+    assert complet["charge"]["flotte_age_s"] == 60.0 and complet["charge"]["ratio_science_methodo"] == 0.5
+    assert complet["charge"]["fenetre"] == {"depuis": "2026-08-27", "jours": 30}
+    assert artefact["generated_at"] == 1060.0 and artefact["omis"] == [] and artefact["charge"] == complet["charge"]
+
+
+def test_un_pilotage_qui_LEVE_ne_fait_pas_echouer_le_tick_et_se_DIT(tmp_path, monkeypatch):
+    """BOARD.json, journal et compteurs sont écrits AVANT : une exception du pilotage ne doit ni les faire échouer
+    ni se taire — elle devient une ligne AVEUGLE du digest, et aucun fichier de pilotage n'est écrit (le précédent
+    garde son generated_at : le skill ne republie rien)."""
+    monkeypatch.setenv("AGAGI_DATA_ROOT", str(tmp_path).replace("\\", "/"))
+    (tmp_path / "pm").mkdir()
+    from tools.pm import pilotage as PI
+
+    def _leve(*a, **k):
+        raise ValueError("boum")
+    monkeypatch.setattr(PI, "compute_pilotage", _leve)
+    ligne = TK.ecrire_pilotage(os.getcwd(), _tableau(), {}, 1000.0)
+    assert ligne.startswith("[PM] AVEUGLE SUR pilotage") and "ValueError: boum" in ligne
+    assert not (tmp_path / "pm" / "PILOTAGE.json").exists()
+    assert not (tmp_path / "pm" / "PILOTAGE_ARTEFACT.json").exists()

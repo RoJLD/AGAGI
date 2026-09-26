@@ -102,6 +102,21 @@ def parse_roadmap(txt, repo_root, now, evaluer_clause=None):
     return {"direction": {"rangs": rangs}, "entrees": entrees, "comptes": comptes}
 
 
+# Ponctuation ORPHELINE laissée par le retrait du marqueur, du rang et de la date. Mesuré le 2026-09-26 : 68 titres
+# sur 172 commençaient par « ( , [[EDR-…]]) — — » ou « ( ) — — » quand le statut était daté entre parenthèses
+# (« ✅ CLOSE (2026-09-14) — rang 2 — … »). Une parenthèse n'est un débris qu'en début de mot : `f()` ou `llm_fn()`
+# collés à leur nom restent intacts — le markdown du titre est laissé TEL QUEL.
+_PARENS_VIDES = re.compile(r"(?:(?<=\s)|^)\(\s*[,;:]?\s*\)")
+_PARENS_A_SEPARATEUR = re.compile(r"(?:(?<=\s)|^)\(\s*[,;:]\s*")
+_TIRETS_REPETES = re.compile(r"—(?:\s*—)+")
+
+
+def _sans_debris(titre):
+    t = _PARENS_A_SEPARATEUR.sub("(", _PARENS_VIDES.sub(" ", titre))
+    t = re.sub(r"\s{2,}", " ", t).strip(" -—")
+    return _TIRETS_REPETES.sub("—", t).strip(" -—")
+
+
 def _entrees_du_bloc(b, txt, repo_root, evaluer, _CLAUSE, _HOLDS, _BACKTICK_PATH, _CLOSE_MARQUEURS):
     """Une entrée PAR NUMÉRO de la tête ; toutes partagent `bloc`, `lignes` et le reste."""
     lignes_bloc = b["corps"].split("\n")
@@ -127,7 +142,7 @@ def _entrees_du_bloc(b, txt, repo_root, evaluer, _CLAUSE, _HOLDS, _BACKTICK_PATH
         titre = titre.replace("rang " + rang, " ", 1)
     if date:
         titre = titre.replace(date, " ", 1)
-    titre = re.sub(r"\s{2,}", " ", titre).strip(" -—")
+    titre = _sans_debris(titre)
 
     clauses = _CLAUSE.findall(b["corps"])
     clause = None
@@ -181,10 +196,20 @@ BASELINES = {
     "check_bar_separation": ("bar_separation_baseline.json", None),
     "check_test_census": ("test_census_baseline.json", None),
     "check_data_paths": ("data_paths_baseline.json", "fichiers"),
-    "check_fabricated_defaults": ("fabricated_defaults_baseline.json", None),
+    # Clés de dette déclarées le 2026-09-26 après CONFRONTATION du compte à la sortie de la porte : 89 légataires
+    # (check_fabricated_defaults), 64 (check_regime_claims), 19 gelés (check_e19_optimizer_sweep), 54 sites gelés
+    # (check_grid_threshold). Les quatre dernières lignes manquaient : la vue Portes affichait « aucune baseline »
+    # pour des portes qui en ont une (revue adversariale du pas 3).
+    "check_fabricated_defaults": ("fabricated_defaults_baseline.json", "legataires"),
     "check_control_family": ("control_family_baseline.json", None),
     "check_io_overlap": ("io_overlap_baseline.json", None),
     "check_calibration_reach": ("calibration_reach_baseline.json", None),
+    "check_regime_claims": ("regime_claims_baseline.json", "legataires"),
+    # 17 records dans `legataires` pour 18 chemins publiés par la porte : unité ambiguë, dette NON déclarée
+    "check_evidence_provenance": ("evidence_provenance_baseline.json", None),
+    "check_hook_deployment": ("hook_deployment_baseline.json", None),
+    "check_e19_optimizer_sweep": ("e19_sweep_baseline.json", "legataires"),
+    "check_grid_threshold": ("grid_threshold_baseline.json", "sites"),
 }
 
 
@@ -501,17 +526,137 @@ def compute_pilotage(snap, backlog_txt, records_graph, roles_counts, portes, now
             "aveugle": aveugle, "flotte": flotte, "roadmap": roadmap, "portes": portes, "charge": charge}
 
 
+ARTEFACT_SCHEMA = "pilotage_artefact_v1"
+# Limite du store de la page artefact : 256 KiB par document sérialisé (db.d.ts du contrat 0.2.60). Mesuré le
+# 2026-09-26 : `pilotage_v1` complet = 150 KiB compacts (172 blocs, +45 en deux jours), dont 95 KiB d'entrées —
+# publié tel quel, il aurait dépassé la limite sous deux semaines environ. Marge de 16 KiB sous la limite.
+ARTEFACT_OCTETS_MAX = 240 * 1024
+
+
+def _octets(d):
+    return len(json.dumps(d, ensure_ascii=False, separators=(",", ":"), default=str).encode("utf-8"))
+
+
+def _chaines(v):
+    return [x for x in v if isinstance(x, str)] if isinstance(v, list) else []
+
+
+def _flotte_artefact(f, aveugle):
+    if not isinstance(f, dict):
+        return None
+    sessions = alertes = None
+    illisibles = {"session": 0, "alerte": 0}
+    if isinstance(f.get("sessions"), list):
+        sessions = []
+        for s in f["sessions"]:
+            if not isinstance(s, dict):
+                illisibles["session"] += 1
+                continue
+            bulletin = s["bulletin"] if isinstance(s.get("bulletin"), bool) else None
+            ft = s.get("files_touched")
+            sessions.append({"nom": s.get("name") or s.get("session_id") or "?", "branche": s.get("branch"),
+                             "bulletin": bulletin, "claims": _chaines(s.get("claims")),
+                             "claims_inferes": _chaines(s.get("claims_inferes")),
+                             # sans bulletin, les fichiers en vol sont INCONNUS : jamais le 0 d'une liste vide
+                             "fichiers_en_vol": None if bulletin is False or not isinstance(ft, list) else len(ft),
+                             # P2.118 : écritures Bash possibles, COMPTÉES jamais nommées (None = jamais compté)
+                             "bash_ecritures_possibles": s.get("bash_ecritures_possibles"),
+                             "heartbeat_at": s.get("heartbeat_at")})
+    if isinstance(f.get("alertes"), list):
+        alertes = []
+        for a in f["alertes"]:
+            if not isinstance(a, dict):
+                illisibles["alerte"] += 1
+                continue
+            alertes.append({"id": a.get("id"), "gravite": a.get("gravite"), "message": a.get("message")})
+    for quoi, n in illisibles.items():
+        if n:
+            aveugle.append(f"flotte : {n} entrée(s) de {quoi} illisible(s), non projetée(s)")
+    return {"generated_at": f.get("generated_at"), "sessions": sessions,
+            "sessions_mortes": _chaines(f["sessions_mortes"]) if isinstance(f.get("sessions_mortes"), list) else None,
+            "alertes": alertes}
+
+
+def _roadmap_artefact(rm):
+    if not isinstance(rm, dict):
+        return None
+    pa = rm.get("portes_agi")
+    portes_agi = None
+    if isinstance(pa, dict):
+        portes_agi = {}
+        for k, v in pa.items():
+            v = v if isinstance(v, dict) else {}
+            tb = v.get("tested_by")
+            portes_agi[str(k)] = {"sdr": v.get("sdr"), "status": v.get("status"),
+                                  "records": len(tb) if isinstance(tb, list) else None}
+    entrees = []
+    for e in rm.get("entrees") or []:
+        ch = [c for c in (e.get("chemins") or []) if isinstance(c, dict)]
+        c = e.get("clause")
+        d = {"num": e.get("num"), "priorite": e.get("priorite"), "rang": e.get("rang"), "statut": e.get("statut"),
+             "date": e.get("date"), "titre": e.get("titre"),
+             "clause": {"pred": c.get("pred"), "satisfaite": c.get("satisfaite")} if isinstance(c, dict) else None,
+             "chemins": len(ch), "chemins_absents": sum(1 for x in ch if x.get("existe") is False),
+             "chemins_non_captes": e.get("chemins_non_captes")}
+        if e.get("raison_illisible"):
+            d["raison_illisible"] = e["raison_illisible"]
+        entrees.append(d)
+    return {"direction": rm.get("direction"), "comptes": rm.get("comptes"), "portes_agi": portes_agi,
+            "entrees": entrees}
+
+
+def _portes_artefact(portes):
+    if not isinstance(portes, list):
+        return None
+    return [{"num": p.get("num"), "module": p.get("module"), "titre": p.get("titre"), "mutations": p.get("mutations"),
+             "baseline": bool(p["baseline"].get("existe")) if isinstance(p.get("baseline"), dict) else None,
+             "dette": p["baseline"].get("dette") if isinstance(p.get("baseline"), dict) else None}
+            for p in portes if isinstance(p, dict)]
+
+
+def projection_artefact(p):
+    """Projection PURE de `pilotage_v1` pour la page artefact (spec §3.4), publiée par le skill /pm.
+
+    La page est lue HORS de la machine : un chemin de fichier y serait un lien mort, et une preuve d'alerte y
+    exposerait des chemins locaux. Elle garde donc les COMPTES (chemins cités, absents, non captés ; records d'une
+    porte G) et retire les listes, les preuves et les arguments de clause. Un bloc `None` reste `None`, une entrée
+    illisible de la flotte est DITE (ligne `aveugle`), et si le document dépasse `ARTEFACT_OCTETS_MAX` les entrées
+    du backlog sont retirées et c'est écrit dans `omis` — jamais un document tronqué qui se présenterait comme
+    complet, jamais un `write_db` refusé en silence."""
+    aveugle = list(p.get("aveugle") or [])
+    out = {"schema": ARTEFACT_SCHEMA, "source_schema": p.get("schema"), "generated_at": p.get("generated_at"),
+           "aveugle": aveugle, "omis": [],
+           "flotte": _flotte_artefact(p.get("flotte"), aveugle), "roadmap": _roadmap_artefact(p.get("roadmap")),
+           "portes": _portes_artefact(p.get("portes")), "charge": p.get("charge")}
+    n = _octets(out)
+    if n > ARTEFACT_OCTETS_MAX and out["roadmap"] is not None:
+        k = len(out["roadmap"]["entrees"])
+        out["roadmap"]["entrees"] = None
+        out["omis"].append(f"entrées du backlog retirées ({k}) : document de {n} octets > {ARTEFACT_OCTETS_MAX} "
+                           "octets (limite du store : 256 KiB par document) -- comptes, direction et portes G0-G4 "
+                           "restent publiés")
+        n = _octets(out)
+    if n > ARTEFACT_OCTETS_MAX:
+        out["omis"].append(f"document de {n} octets > {ARTEFACT_OCTETS_MAX} octets même sans les entrées -- le "
+                           "store le refusera")
+    return out
+
+
 def main(argv=None):
-    """`--json` imprime le pilotage. N'ÉCRIT AUCUN FICHIER : le tick PM est le seul writer."""
+    """`--json` imprime le pilotage, `--artefact` sa projection pour la page artefact. N'ÉCRIT AUCUN FICHIER : le
+    tick PM est le seul writer."""
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--repo-root", default=None)
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--artefact", action="store_true")
     args = ap.parse_args(argv)
     racine = args.repo_root or racine_depot()
     out = compute_pilotage(None, read_backlog(racine), read_records_graph(racine),
                            read_roles_counts(racine), read_portes(racine), time.time(),
                            repo_root=racine, board=read_board(racine))
-    if args.json:
+    if args.artefact:
+        print(json.dumps(projection_artefact(out), ensure_ascii=False, indent=1, default=str))
+    elif args.json:
         print(json.dumps(out, ensure_ascii=False, indent=1, default=str))
     else:
         print(f"[pilotage] {out['schema']} — {len(out['aveugle'])} aveuglement(s)")

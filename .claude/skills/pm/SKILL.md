@@ -20,6 +20,18 @@ Tu ne tiens aucun état en contexte — tout est relu par le tick.
    - **investigation** (A3 worktree, A4 commit amputé) : un worker en LECTURE (`Agent`, chemins absolus,
      aucun commit) qui rend la preuve ; puis note dans le digest suivant ;
    - **note** (A7, A8 : informations) : rien à envoyer.
+2 bis. **Publier le pilotage vers la page artefact** (spec `docs/superpowers/specs/2026-09-22-pilotage-dashboard-design.md`
+   §3.4). Le tick a écrit `data/pm/PILOTAGE_ARTEFACT.json` (projection `pilotage_artefact_v1`, ~60 KiB ; ce qu'elle omet
+   est dans le digest, lignes `[PM] artefact : …` ; une ligne `AVEUGLE SUR pilotage` = rien de neuf écrit). URL de la
+   page : `docs/roadmap/FRONTEND.md`, section « Vague K — Pilotage ». Tu es l'UNIQUE writer de sa base (règle du store
+   `write: owner`), avec l'outil `ArtifactData` :
+   - `get` `pilotage/latest` : même `generated_at` que le fichier → rien à publier ;
+   - sinon `set` `pilotage/latest` avec `file_path` = ce fichier ;
+   - une fois par jour : si `pilotage/index` ne liste pas la date du jour (`AAAA-MM-JJ`, heure locale), `set`
+     `pilotage_jours/<date>` depuis le même fichier, puis `set` `pilotage/index` = `{"jours": [<date>, …]}` (la plus
+     récente d'abord, 30 au plus) et `delete` chaque `pilotage_jours/<date>` sorti de la liste ;
+   - un refus du store (taille, quota, accès) : l'écrire au digest suivant, ne pas réessayer en boucle — la page
+     affiche la dernière version reçue avec sa date.
 3. Pour chaque ligne `REPETEE` : inscrire le CLIQUET manquant dans `docs/roadmap/PRIORITES_ET_DETTES.md`
    (prochain numéro libre, clause `closes_when`, preuve = la clé et ses deux dates depuis `alerts.jsonl`),
    après `check_staged_authorship.snapshot` ; commit path-scoped après accord de robla.
