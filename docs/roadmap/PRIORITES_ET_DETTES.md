@@ -1388,6 +1388,75 @@ chemin/sha256 des fichiers de l'image) à côté du digest — deux reconstructi
 sans prétendre au même digest. Scripts d'essai hors dépôt (scratchpad de la session), images d'essai laissées dans
 le dépôt `…-essais` du registre (à purger avec ELYSIUM si l'espace compte).
 
+**P2.132 — rang 4 — OUVERTE (2026-09-26, trouvée par la revue adversariale de la règle S2-BASSIN-FRAGILITY v4,
+critique P7.1, vérifiée à la lecture du code par la session SCIENCE-HARNAIS) — Le harnais IMMORTEL de P4.4 à P4.16
+brasse cerveaux et corps : après chaque résurrection, jusqu'à 11 slots W de la population torch pilotent un AUTRE corps.**
+Mécanisme, lu dans le code : `immortal_refill` remet le mort ressuscité en FIN de `e.agents`
+(`tools/evo_runs/s2_credit_retention.py:107-113`) ; la population torch n'est reconstruite que si B change
+(`src/worlds/world_1_stoneage.py:1060-1066`), or la résurrection intra-tick garde B = 12 — elle n'est donc jamais
+reconstruite, et ses slots W restent dans l'ordre de CONSTRUCTION (`src/agents/backend_torch.py:109`, write-back `:512`)
+pendant que les observations et les logits suivent l'ordre COURANT de `e.agents` (`world_1_stoneage.py:1253`, `:1310`).
+Conséquences : à chaque mort, la transition TD en attente et l'état H d'un slot chevauchent deux corps ; la fenêtre
+épisodique, réalignée par IDENTITÉ sur l'ordre courant (`:1079-1096`), crédite à un slot des actions tirées par un
+autre. Preuve publiée : `td_updates` vaut 1999 sur TOUTES les cellules à TD — 48 dans `results/s2_credit_ablation.json`
+(1 à 380 résurrections), 36 dans `results/s2_credit_ablation_2.json` (2 à 328) — : aucune reconstruction n'a eu lieu (`_prev`
+naît à None, `backend_torch.py:93`, donc chaque reconstruction coûterait une mise à jour TD). Les clones étant IDENTIQUES (même corps,
+même bassin), le brassage ne change pas qui apprend, mais BRUITE le crédit à proportion de la létalité (résurrections
+médianes : b_tdoff 3,5 … b_zero 179 pour 2000 ticks) ; il touche l'interprétation de EDR-S2-CREDIT-RETENTION,
+-REWARD-ABLATION, -CREDIT-ABLATION, -CREDIT-ABLATION-2 et probablement EDR-CALIB-LEARNER (même recette de résurrection).
+P4.18 le REJOUE tel quel (ses W sont ceux qui ont produit les survies publiées : même bruit de crédit, même létalité,
+comparabilité avec P4.9/P4.16) et le déclare en tête de règle et de record. **Forme** : ressusciter EN PLACE (réinsérer
+le corps à son index d'origine) ou ré-indexer / reconstruire la population à chaque résurrection ; témoin : après une
+mort forcée, l'agent du slot i est le même objet qu'avant, et les âges d'un bras sans mort restent bit-identiques. Ne se
+corrige pas en silence : tout run futur à cohorte immortelle dit lequel des deux harnais il utilise.
+**La mesure qui tranche l'effet (décision Master 2, 2026-09-26), APRÈS P4.18** : corriger l'alignement, puis rejouer UNE
+cellule de P4.16 à réplication bit-identique connue (b_full, seed 2026 : chemin 18242,0395, âges publiés) AVEC le
+correctif ; si la survie en phase 2 (ou l'érosion appariée, sur les seeds qu'il faudra alors rejouer) change
+matériellement, bandeaux sur EDR-S2-CREDIT-RETENTION → EDR-S2-CREDIT-ABLATION-2 et EDR-CALIB-LEARNER ; sinon, note de
+robustesse dans chacun. **Sens attendu, écrit d'avance** : le désalignement injecte dans W des mises à jour calculées sur
+les observations d'un AUTRE corps ; une part de l'érosion attribuée au « crédit » peut donc être ce bruit — c'est
+exactement la question de P4.18 (perturbation ≠ crédit), et le record de P4.18 le dira comme LIMITE. **Classe au
+registre** : classe NEUVE **E34** (teneur agagi-32, vérifiée au sha afeb54c0) — l'identité portée par une POSITION qui
+bouge : deux structures alignées par index, l'une réordonnée, l'autre jamais reconstruite (le monde reconstruit quand la
+cohorte RÉTRÉCIT, la recharge rend la TAILLE mais pas l'ORDRE) ; statut `documenté` ; garde à écrire ICI : un invariant
+d'identité slot/corps vérifié à chaque pas, contre-exemple = la mort en tête de liste, et la re-mesure d'une cellule P4.16.
+L'effet sur les verdicts publiés est INCONNU : rien n'est retiré. *Rang : devant tout item méthodo sauf ce qui bloque un run
+(Master 2).* *Coût : agent 1-2 h ; calcul : une cellule (≈ 5 min), puis les bras concernés si l'effet est matériel.*
+Dépend de : P4.18 (ne pas changer le harnais sous un run scellé qui le rejoue).
+<!-- closes_when:grep_absent=tools/evo_runs/s2_credit_retention.py::e\.agents\.append\(a\) -->
+
+**P2.133 — rang 6 — OUVERTE (2026-09-26, vue en passant par la session SCIENCE-HARNAIS pendant la revue v6 de
+S2-BASSIN-FRAGILITY) — Le Refutateur sort encore NUL sur une revue saine : le vérificateur a rendu `refus = "aucun"`, et
+le correctif `bfaea9c6` ne normalisait que des guillemets et des espaces. Récidive d'un nul de TRANSPORT déguisé en nul de
+FOND (E4).**
+Preuve : run `wf_c3134d3f-8dd` (revue de la v6, 2026-09-26 16:45) — trois témoins RETROUVÉ, no-op MESURE à 6 recevables,
+deux planchers publiés, et pourtant `statut NUL, raison "aucun"` ; le journal du vérificateur porte `refus = 'aucun'` ;
+`.claude/workflows/refutateur.js:226-229` (`normaliserRefus`) n'efface que `^["'\s]*$`. La revue précédente
+(`wf_b7cd5fdc-d98`) est sortie NULLE pour une autre raison, légitime (juge INDÉCIDABLE sur un témoin). Contournement pris
+ce jour : copie locale qui tient aussi « aucun / none / null / rien / néant » pour une absence de refus, puis REPRISE du
+même run (les huit agents rejoués depuis le cache, seule la revue tourne). **3ᵉ occurrence le même soir** (revue de la v7, run `wf_f2e45bc7-b84`) : `refus = "(vide) Pas de refus. Étape 1 : …"`, une prose qui DIT « aucun refus » en tête d'un compte rendu des étapes ; même contournement local, et la preuve qu'une liste de mots ne fermera pas la classe. **Forme durable, à trancher** : la prose libre
+ne se normalise pas par liste — le schéma `VERIFICATION` doit porter un booléen `refuse` et une `raison` séparée, le
+champ texte n'étant jamais lu comme décision ; témoin sous node sur « aucun » ET sur un vrai refus (« juge non
+calibré »), comme celui de `bfaea9c6`. *Coût : agent < 1 h ; calcul 0.* Dépend de : rien.
+<!-- closes_when:grep_absent=.claude/workflows/refutateur.js::function normaliserRefus -->
+
+**P2.129 — rang 12 — OUVERTE (2026-09-26, trouvée par la revue adversariale de la règle S2-BASSIN-FRAGILITY v3,
+critique P9.3, inscrite par la session SCIENCE-HARNAIS à la demande d'agagi-32 ; décision de PÉRIMÈTRE, à attribuer
+par Master 2) — L'extracteur de citations des portes 19 et 20 ne voit un chemin `results/…` que suivi d'un backtick :
+toute autre forme de citation rend « 0 citation », donc un OK.**
+Preuve (revue `docs/reviews/2026-09-26-S2-BASSIN-FRAGILITY.v3.md`, P9.3) : `evaluer()` de
+`tools/check_evidence_provenance.py`, appelée directement sur le TEXTE de la pré-inscription, rend `statut OK,
+cites=[]` alors que ce texte cite trois fois un chemin `results/` (deux fois le JSON de sonde de conception, une fois le
+répertoire des génomes) ; cause : l'expression de `tools/check_regime_claims.py:95`, réutilisée par la porte 20, exige
+un backtick juste après `.json`. Le défaut du `--only` des mêmes portes est une AUTRE entrée (P2.128, agagi-32). Ce que
+cette entrée ne tranche pas, et pourquoi elle n'est pas un simple correctif : la porte DÉCLARE l'angle mort pour les
+records (« 0 citation nue dans docs/EDR », mesuré le 2026-09-23) et un test gèle aujourd'hui « rien de cité → OK » ;
+élargir l'extracteur change ce que les portes 19 et 20 lisent dans TOUS les records, avec des baselines à reprendre.
+Deux voies : élargir (citations nues, JSON de pré-inscription) avec rebaselinage déclaré, ou refuser explicitement une
+cible hors périmètre (une pré-inscription n'est pas un record) au lieu de rendre OK. *Coût : agent 1-2 h ; calcul 0.*
+Dépend de : P2.128.
+<!-- closes_when:grep_absent=tools/check_regime_claims.py::_RESULTS = re\.compile\(r"`\[\^`\]\*\?\(results/ -->
+
 **P2.121 — rang 6 — OUVERTE (2026-09-26, mesuré sur le run 36210667429, le PREMIER où `suite-complete` exécute des
 tests) — La suite complète tourne en CI : 2807 passés, 88 rouges, 18 erreurs, 238 sautés, 17 min 38 s — et ses rouges se
 rangent en SEPT familles dont AUCUNE n'est un défaut du monde. Inventaire par cause, recette par famille.**
