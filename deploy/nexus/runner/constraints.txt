@@ -1,0 +1,29 @@
+# deploy/nexus/runner/constraints.txt — versions EXACTES de la batcave (relevé importlib.metadata, 2026-09-26),
+# appliquées par `pip -c` au build de l'image runner. But : que batcave et nexus exécutent la même
+# arithmétique (témoin bit-identique, livrable 4). Changer une version ici change le tag de l'image
+# (le tag est un hash du contexte de build) : aucune image ancienne n'est écrasée.
+numpy==2.4.3
+scipy==1.17.1
+pandas==2.3.3
+matplotlib==3.10.8
+graphviz==0.21
+kuzu==0.11.3
+scikit-learn==1.8.0
+pydantic==2.12.5
+pydantic-core==2.41.5
+fastapi==0.128.8
+uvicorn==0.40.0
+pytest==9.0.2
+langgraph==1.1.6
+langchain==1.2.15
+langchain-core==1.2.31
+PyYAML==6.0.2
+jsonschema==4.23.0
+psutil==7.2.2
+sympy==1.13.1
+networkx==3.6.1
+filelock==3.25.2
+jinja2==3.1.6
+fsspec==2026.2.0
+typing_extensions==4.15.0
+mpmath==1.3.0

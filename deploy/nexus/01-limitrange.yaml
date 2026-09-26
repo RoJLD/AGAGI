@@ -1,0 +1,39 @@
+# deploy/nexus/01-limitrange.yaml — COPIE CONFORME du palier `standard` d'ELYSIUM
+# (gitops/manifests/limitranges/elysium-limitrange-standard.yaml @ 577fc67f7), namespace ajouté.
+#
+# Pourquoi une copie et pas un palier AGAGI sur mesure : la boucle du README ELYSIUM ré-applique à chaque
+# namespace le palier nommé par son label `elysium.io/default-criticality`. Un palier maison serait écrasé
+# (ou, pire, coexisterait : plusieurs LimitRange → le max le plus RESTRICTIF gagne). Copie à l'identique →
+# la boucle est un no-op ici. Ne pas diverger de la source sans passer par les sessions ELYSIUM.
+#
+# Conséquence opératoire pour AGAGI : UN conteneur de run = 2 CPU / 4 Gi au plus. Un run se découpe donc
+# par seed (un Job par seed), pas par pool de processus dans un seul pod.
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: elysium-limitrange-standard
+  namespace: elysium-agagi
+  labels:
+    elysium.io/managed-by: agagi
+    elysium.io/source-repo: RoJLD.AGAGI
+    app.kubernetes.io/name: elysium-limitrange
+    app.kubernetes.io/component: doctrine
+    app.kubernetes.io/part-of: elysium-core
+    elysium.io/sigil: "SIGIL-1627"
+    elysium.io/tier: standard
+    elysium.io/iron_rule: CNCE-2
+spec:
+  limits:
+    - type: Container
+      defaultRequest:
+        cpu: 100m
+        memory: 128Mi
+      default:
+        cpu: 500m
+        memory: 512Mi
+      max:
+        cpu: "2"
+        memory: 4Gi
+      min:
+        cpu: 10m
+        memory: 32Mi

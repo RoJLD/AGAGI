@@ -1,0 +1,25 @@
+# deploy/nexus/03-resourcequota.yaml — plafond d'AGAGI sur le cluster, pour qu'un balayage de seeds ne
+# puisse pas affamer ELYSIUM.
+#
+# Mesuré le 2026-09-26 12:30 (kubectl describe node nexus) : 15 CPU / 64,6 Gi allouables, requests
+# 3375m CPU / 6752 Mi déjà pris (dont nexus-ollama). 8 CPU de requests pour AGAGI laissent ~3,6 CPU de
+# requests libres à ELYSIUM sur nexus. Aucun namespace du cluster ne porte de ResourceQuota aujourd'hui :
+# celle-ci est un geste de voisinage, pas une norme — les sessions ELYSIUM peuvent en ajuster les valeurs.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: agagi-quota
+  namespace: elysium-agagi
+  labels:
+    elysium.io/managed-by: agagi
+    elysium.io/source-repo: RoJLD.AGAGI
+    app.kubernetes.io/part-of: agagi
+spec:
+  hard:
+    requests.cpu: "8"
+    requests.memory: 16Gi
+    limits.cpu: "16"
+    limits.memory: 32Gi
+    pods: "16"
+    count/jobs.batch: "100"
+    configmaps: "20"

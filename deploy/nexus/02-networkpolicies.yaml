@@ -1,0 +1,68 @@
+# deploy/nexus/02-networkpolicies.yaml — CNCE-7 : default-deny + UNE exception, pour le build d'image.
+#
+# Les pods de RUN n'ont besoin d'AUCUN réseau : les sources arrivent par `kubectl exec` (canal API server →
+# kubelet, hors réseau de pods), et le montage NFS d'atlas est fait par le kubelet sur le réseau de l'HÔTE —
+# une NetworkPolicy ne le voit pas. Un run ne peut donc ni télécharger ni exfiltrer quoi que ce soit.
+#
+# Seul le build Kaniko sort : PyPI / download.pytorch.org / Docker Hub / deb.debian.org en 443, et le registre
+# souverain 192.168.1.21:5443 pour pousser. Ciblé par le label app.kubernetes.io/component=image-build.
+# ASSUMÉ : le miroir PyPI SOUVERAIN d'ELYSIUM (gitops/charts/pypi-mirror/, en RFC1918) n'est PAS joignable par
+# cette règle — le build tire le PyPI PUBLIC (et l'index pytorch, que le miroir ne sert pas forcément).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: elysium-agagi
+  labels:
+    elysium.io/managed-by: agagi
+    elysium.io/source-repo: RoJLD.AGAGI
+    app.kubernetes.io/part-of: agagi
+    elysium.io/iron_rule: CNCE-7
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  egress:
+    # DNS seul, comme le default-deny-all d'elysium-workers (gitops/security/network-policies/)
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-image-build-egress
+  namespace: elysium-agagi
+  labels:
+    elysium.io/managed-by: agagi
+    elysium.io/source-repo: RoJLD.AGAGI
+    app.kubernetes.io/part-of: agagi
+    elysium.io/iron_rule: CNCE-7
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: image-build
+  policyTypes:
+    - Egress
+  egress:
+    # registre souverain (push de l'image + cache Kaniko)
+    - to:
+        - ipBlock:
+            cidr: 192.168.1.21/32
+      ports:
+        - port: 5443
+          protocol: TCP
+    # PyPI, download.pytorch.org, Docker Hub (image de base) — HTTPS public uniquement
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - port: 443
+          protocol: TCP

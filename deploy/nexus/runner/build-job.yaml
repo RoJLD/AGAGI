@@ -1,0 +1,93 @@
+# deploy/nexus/runner/build-job.yaml — build Kaniko de l'image runner, DANS elysium-agagi.
+#
+# Gabarit : `python -m tools.jobs.remote image` substitue __JOB__, __TAG__, __CTX_CM__ et crée d'abord la
+# ConfigMap __CTX_CM__ (Dockerfile + requirements.txt + constraints.txt). Ne pas appliquer tel quel.
+#
+# Écarts ASSUMÉS au gabarit ELYSIUM gitops/jobs/image-ci/_template.yaml :
+#   * namespace elysium-agagi et non elysium-brain (Σ-IMAGE-CI-NAMESPACE-FIXED) : le mandat de la session
+#     interdit de rien créer hors du namespace dédié ;
+#   * AUCUN clone ni jeton GitHub : le contexte de build (3 fichiers) arrive par ConfigMap. L'image ne
+#     contient pas le code d'AGAGI, elle n'a donc pas besoin du dépôt.
+#   * l'init `contexte` DÉRÉFÉRENCE les liens symboliques du montage ConfigMap (`cp -L`) : Kaniko copierait
+#     sinon des liens vers `..data/` qui n'existent pas dans l'image.
+#   * `--digest-file=/dev/termination-log` : le digest poussé se lit dans le statut du pod, sans
+#     interroger le registre.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: __JOB__
+  namespace: elysium-agagi
+  labels:
+    app.kubernetes.io/name: agagi-runner-build
+    app.kubernetes.io/component: image-build
+    app.kubernetes.io/part-of: agagi
+    elysium.io/criticality: disposable
+    elysium.io/owner: agagi
+    elysium.io/managed-by: agagi
+    elysium.io/source-repo: RoJLD.AGAGI
+  annotations:
+    elysium.io/ecart-norme: "Sigma-IMAGE-CI-NAMESPACE-FIXED : build dans elysium-agagi et non elysium-brain (mandat : rien hors du namespace dedie)"
+spec:
+  backoffLimit: 0
+  activeDeadlineSeconds: 2400
+  ttlSecondsAfterFinished: 86400
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: agagi-runner-build
+        app.kubernetes.io/component: image-build
+        app.kubernetes.io/part-of: agagi
+        elysium.io/criticality: disposable
+        elysium.io/owner: agagi
+        elysium.io/managed-by: agagi
+        elysium.io/source-repo: RoJLD.AGAGI
+      annotations:
+        linkerd.io/inject: disabled
+        # Kaniko assemble les couches en root (exemption CNCE-5, même justification que le gabarit ELYSIUM).
+        elysium.io/allow-root: "kaniko-image-builder-needs-root"
+    spec:
+      priorityClassName: elysium-disposable
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      nodeSelector:
+        kubernetes.io/hostname: nexus
+      initContainers:
+        - name: contexte
+          image: alpine:3.20
+          command: ["sh", "-c", "cp -L /ctx/Dockerfile /ctx/requirements.txt /ctx/constraints.txt /workspace/ && ls -l /workspace"]
+          resources:
+            requests: {cpu: 50m, memory: 64Mi}
+            limits: {cpu: 200m, memory: 128Mi}
+          volumeMounts:
+            - {name: ctx, mountPath: /ctx, readOnly: true}
+            - {name: workspace, mountPath: /workspace}
+      containers:
+        - name: kaniko
+          image: gcr.io/kaniko-project/executor:v1.23.2
+          args:
+            - --context=dir:///workspace
+            - --dockerfile=/workspace/Dockerfile
+            - --destination=192.168.1.21:5443/elysium/agagi-runner:__TAG__
+            - --cache=true
+            - --cache-repo=192.168.1.21:5443/elysium/_kaniko-cache
+            - --digest-file=/dev/termination-log
+            - --cleanup
+            - --verbosity=info
+          resources:
+            requests: {cpu: "1", memory: 2Gi}
+            limits: {cpu: "2", memory: 4Gi}
+          volumeMounts:
+            - {name: workspace, mountPath: /workspace}
+            - {name: registry-ca, mountPath: /kaniko/ssl/certs/elysium-mkcert-ca.crt, subPath: ca.crt}
+      volumes:
+        - name: ctx
+          configMap:
+            name: __CTX_CM__
+        - name: workspace
+          emptyDir:
+            sizeLimit: 1Gi
+        - name: registry-ca
+          configMap:
+            name: registry-ca-bundle
+            items:
+              - {key: ca.crt, path: ca.crt}

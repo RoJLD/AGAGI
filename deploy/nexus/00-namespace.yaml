@@ -1,0 +1,36 @@
+# deploy/nexus/00-namespace.yaml — namespace dédié aux runs AGAGI déportés sur le cluster ELYSIUM (nœud nexus).
+#
+# Livrable (1) de la session INFRA-NEXUS (2026-09-26). Rien d'AGAGI ne se crée HORS de ce namespace.
+# Normes ELYSIUM appliquées (ELYSIUM gitops/policies/cluster-norms/, relues le 2026-09-26 @ 577fc67f7) :
+#   CNCE-1  (Enforce) priorityClassName explicite     → posé par CHAQUE pod (elysium-disposable), rien au namespace
+#   CNCE-2  (Audit)   requests + limits               → LimitRange du palier `standard` (01-limitrange.yaml)
+#   CNCE-3  (Enforce) pas de :latest                  → images épinglées par tag immuable (remote.py)
+#   CNCE-5  (Audit)   runAsNonRoot                    → runners en 65534 ; seul le build Kaniko est root, annoté
+#   CNCE-7  (Audit)   ≥ 1 NetworkPolicy par namespace → default-deny-all (02-networkpolicies.yaml)
+#   CNCE-8  (Enforce) labels app.kubernetes.io/name + elysium.io/criticality → posés par chaque Job/pod
+#   CNCE-11 (mutate)  TTL des Jobs                    → posé explicitement par chaque Job
+#
+# Criticité du namespace = `standard`, et pas `disposable`, pour une raison de DIMENSION et non de
+# criticité : la boucle du README des LimitRange ELYSIUM applique le palier nommé par ce label, et le palier
+# `disposable` plafonne un conteneur à 1 CPU / 2 Gi — trop bas pour un build Kaniko avec torch comme pour un
+# run. Le palier `standard` (max 2 CPU / 4 Gi) est celui d'elysium-workers et d'elysium-vision. Les PODS, eux,
+# se déclarent disposables (priorityClass elysium-disposable, préemptibles, label elysium.io/criticality).
+#
+# PAS d'injection linkerd (le label n'est pas posé) : un Job n'a pas à attendre un proxy ; chaque pod
+# l'écrit aussi en annotation (linkerd.io/inject: disabled).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: elysium-agagi
+  labels:
+    elysium.io/managed-by: agagi
+    elysium.io/source-repo: RoJLD.AGAGI
+    elysium.io/default-criticality: standard
+    # cnce-12-trust-zone-required (ELYSIUM PR-A secrets-flotte, Audit puis Enforce) : namespace de calcul de
+    # Robin, sans état res publica -> personal (elysium-2d, 2026-09-26 ; inscrit dans config/namespace_zones.yaml)
+    elysium.io/trust-zone: personal
+    elysium.io/owner: agagi
+    app.kubernetes.io/part-of: agagi
+  annotations:
+    elysium.io/purpose: "Runs AGAGI deportes (python -m tools...), un Job par run, sources au sha exact"
+    elysium.io/contact: "session AGAGI INFRA-NEXUS ; docs/REF/REF-DEPORT-NEXUS.md du depot AGAGI"
