@@ -15,9 +15,10 @@ present seulement sur le disque d'une session) ne peut etre confronte par person
 
 Reutilise `cited_results` / `_developper` de la tache 1 (`tools/check_regime_claims.py`) plutot que de
 re-parser les citations -- donc le hook re-tourne cette porte aussi quand CE module change (E4 occ. 5).
-⚠️ Seules les citations ENTRE BACKTICKS sont vues (le motif de `cited_results` l'exige) : une citation
-nue (sans backtick) est invisible. Mesure le 2026-09-23 : 0 citation nue dans docs/EDR -- angle mort
-INACTIF aujourd'hui, pas garanti de le rester.
+Une citation est vue ENTRE BACKTICKS ou NUE (P2.129, 2026-09-26) : le motif de `cited_results` exigeait
+le backtick, et le TEXTE d'une pre-inscription citant `results/x.json` entre guillemets rendait « 0
+citation », donc OK. Mesure le jour meme : 305 records (a 836117ce), ensembles de citations IDENTIQUES a l'ancien motif.
+Limite declaree : un REPERTOIRE `results/.../` n'est pas un `results/*.json`, il reste invisible.
 
 Une absence n'est JAMAIS affirmee sans etre nommee -- QUATRE causes distinctes, jamais fondues sous une
 etiquette unique (lecon de revue de la tache 1, puis de la revue architecte de CETTE porte) :

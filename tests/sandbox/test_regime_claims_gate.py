@@ -2,6 +2,7 @@
 pas un decor recopie de memoire (E8 occ. 4 : forage_payoff = 3.0 alors que le run tournait a 1.0)."""
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -422,3 +423,51 @@ def test_P2_128_un_record_SUPPRIME_par_le_commit_n_est_PAS_refuse_temoin_git_REE
     sortie = capsys.readouterr().out
     assert "SUPPRIME" in sortie and "rien a juger" in sortie and "OK" not in sortie.replace("pas un OK", "")
     assert G.main(["--root", str(tmp_path), "--only", "docs/EDR/X.md", "docs/EDR/JAMAIS.md"]) == 2
+
+
+# --------------------------------------------------------------------------------------------------
+# P2.129 (2026-09-26, revue v3 de S2-BASSIN-FRAGILITY par agagi-40, critique P9.3) — l'extracteur ne voyait un
+# chemin `results/…json` que suivi d'un backtick : une citation nue ou entre guillemets rendait « 0 citation ».
+# --------------------------------------------------------------------------------------------------
+
+# L'ANCIEN motif, gelé ici comme RÉFÉRENCE : le nouveau doit voir tout ce qu'il voyait (élargir sans rien perdre).
+_ANCIEN_MOTIF = re.compile(r"`[^`]*?(results/[A-Za-z0-9_./*{},\-]+\.json)`")
+
+
+def test_P2_129_l_extracteur_voit_une_citation_NUE_entre_GUILLEMETS_ou_suivie_d_un_HASH():
+    """LE CONTRE-EXEMPLE GELÉ : chacune de ces formes rendait « 0 citation » (l'ancien motif, rejoué ici, ne les voit
+    pas — c'est la NÉCESSITÉ) ; le texte JSON d'une pré-inscription surtout."""
+    formes = {
+        "results/a.json": ["results/a.json"],
+        '"results/a.json"': ["results/a.json"],
+        "`results/a.json (sha256 0123456789abcdef)`": ["results/a.json"],
+        "(results/a.json)": ["results/a.json"],
+        "dans results/a.json.": ["results/a.json"],
+        '{"sonde": "results/s2_bassin_design.json", "genomes": "results/genomes/"}': ["results/s2_bassin_design.json"],
+    }
+    for texte, attendu in formes.items():
+        assert _ANCIEN_MOTIF.findall(texte) == [], f"l'ancien motif voyait déjà {texte!r} : le témoin ne prouve rien"
+        assert G.cited_results(texte) == attendu, texte
+
+
+def test_P2_129_ce_qui_n_est_PAS_une_citation_reste_INVISIBLE():
+    """Spécificité : élargir ne doit pas inventer de citations — ni `myresults/`, ni `.json.bak`, ni un JSON hors de
+    results/, ni un RÉPERTOIRE (limite déclarée) ; la virgule ne sépare deux chemins qu'hors des accolades."""
+    for texte in ("myresults/a.json", "results/a.json.bak", "`docs/preregistrations/X.json`", "results/genomes/",
+                  "tools/results_x.json"):
+        assert G.cited_results(texte) == [], texte
+    assert G.cited_results("results/a.json,results/b.json") == ["results/a.json", "results/b.json"]
+    assert G.cited_results("`results/lock_001_pred2_r{2,3,4}.json`") == ["results/lock_001_pred2_r{2,3,4}.json"]
+
+
+def test_P2_129_sur_les_records_REELS_le_nouveau_motif_voit_TOUT_ce_que_voyait_l_ancien():
+    """Élargir sans rien perdre : sur chaque record réel, ancien ⊆ nouveau. Un INVARIANT, pas une valeur gelée (E25) :
+    un record futur qui cite NU n'est vu que du nouveau motif, et c'est voulu. Mesuré à la livraison : égalité
+    record par record sur 305 records (à 836117ce)."""
+    d = os.path.join(G._ROOT, "docs", "EDR")
+    noms = [n for n in os.listdir(d) if n.endswith(".md")]
+    assert len(noms) >= 50, "le périmètre est vide, le test ne prouverait rien"
+    for n in noms:
+        with open(os.path.join(d, n), encoding="utf-8", errors="replace") as fh:
+            t = fh.read()
+        assert set(_ANCIEN_MOTIF.findall(t)) <= set(G.cited_results(t)), n

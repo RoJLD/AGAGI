@@ -1832,6 +1832,52 @@ CALIBRATED = {
     # eteint et le contre-exemple (mort en tete) sont dans tests/sandbox/test_e34_slot_identity.py.
     "run_identity_cell": ["guard-before-world", "drapeau-et-audit-transmis-a-la-phase-1", "appel-reel:audit-publie",
                           "drapeau-eteint:noop-exact-au-bit", "mort-en-tete:contre-exemple"],
+    # P4.18 (2026-09-26) -- lecture de la regle scellee S2-BASSIN-FRAGILITY, branches dans l'ORDRE impose (INCOMPLET ->
+    # NOOP -> HARNAIS -> REPLICATION -> TRANSPLANT -> APPARIEMENT -> INSTRUMENT (controle POSITIF de FRAGILE) ->
+    # PREMISSE -> par bras DIRECTION/PARTIEL/FRAGILE/PROTECTRICE/INOFFENSIF -> global FRAGILE/DIRECTION/
+    # MIXTE_PAR_AMPLITUDE/MIXTE ; le sham iso publie et JAMAIS lu comme verdict). Cas : tests/sandbox/
+    # test_s2_bassin_fragility.py (lignes synthetiques, appels HORS de pytest.raises), dont 11/12 contre 10/12 et +5.
+    "fragility_verdict": ["missing:raises", "vide:raises", "booleen-absent:raises", "incomplet", "noop", "harnais",
+                          "replication", "transplant", "appariement", "instrument:controle-positif", "premisse",
+                          "fragile", "direction", "partiel", "mixte-par-amplitude", "mixte", "protectrice",
+                          "iso-hors-verdict", "sign-11-sur-12-et-5-ticks", "bande-et-saturation-publiees",
+                          "e19:invariant-garde-la-lecture", "e19:fermeture-direction-depend-du-pas",
+                          "e19:silencieuse-sans-ecart", "non-tranche:scenario-P5a-de-la-revue",
+                          "crete-a-toute-echelle:eps-erode", "instrument:controle-positif-de-direction",
+                          "bande:confrontee-au-contraste-et-dite", "echelle:premiere-qui-erode-hors-verdict",
+                          "harnais:S_a-degenere", "famille:seuil-tient-11-12-a-14-15-tombe-a-16",
+                          "iso:lecture-hors-famille", "qualificatifs:saturation-plancher-eps-fraction-requise",
+                          "eps:seeds-egaux-au-noop-comptes", "e19:reglage-chemin-net-letalite-publies",
+                          "fragile:contraste-median-sous-5-sinon-non-tranche-v4-P1.1",
+                          "e19:normalise-lisible-plancher-rien-a-defendre-egalite-deux-tiers",
+                          "bande:demi-tirages-contraste-et-eps", "puissance:moins-max-atteignable",
+                          "controle-direction-non-eprouve", "seuils:scelles-egaux-aux-executes",
+                          # revue v5 : bande bootstrap couvrant un NUL connu (la bande de demi-tirages refusee par le
+                          # meme temoin) et voyant un effet connu ; bandes contre S_a ; controle non eprouve des 11/12 ;
+                          # amplitude ou letalite ; pas non defendu ; norme d'operateur ; contraste degenere
+                          "bande:bootstrap-couvre-un-nul-connu-refuse-les-demi-tirages", "bande:voit-un-effet-connu",
+                          "bande:contre-S_a-shams-et-controles", "controle-direction-non-eprouve:des-11-sur-12-et-dit",
+                          "mixte:amplitude-ou-letalite", "e19:direction-non-defendue-contre-le-pas",
+                          "norme-operateur:publiee-et-croisee-a-x2", "contraste-degenere:signale",
+                          "bande:contre-exemple-nul-connu-dehors-en-v5-couvert-en-v6", "e19:non-defendu-en-tete",
+                          # revue v6 : bande ECHANGEABLE (le bootstrap v6 refuse sous le nul de FRAGILE), eps inerte juge
+                          # par la bande, x2 descriptif, bandes des controles et de 9b dites
+                          "bande:couvre-le-nul-echangeable-refuse-le-bootstrap-v6", "eps:inerte-par-la-bande-pas-par-egalite",
+                          "echelle-x2:descriptive-ne-tranche-rien", "bandes-controles-et-9b:dites-dans-le-motif",
+                          # revue v7 : PROTECTRICE exige le contraste PLUS (famille 15), 9b non eprouve par construction
+                          "protectrice:exige-le-contraste-plus-cas-injecte-de-la-revue",
+                          "9b:non-eprouve-par-construction-et-dit",
+                          # revue v8 : tirage a signes partages publie hors verdict (issue sensible dite), biais du vote
+                          # vers DIRECTION dit en tete du motif
+                          "sign-commun:publie-hors-verdict-issue-sensible-dite", "biais-vote:dit-en-tete-du-motif"],
+    # Cas : tests/sandbox/test_s2_bassin_fragility.py -- garde EN TETE (refus < 0,5 s, aucun monde) et ORCHESTRATION
+    # par injection a DOSE CONNUE (monde factice S = 40 - |W - W0|_1 moyen) : noop = 40, transplant = objets appris au
+    # bit, sham sign = transplant (memes magnitudes), iso = transplant (meme L1 effective), pos = 40 - |W0|_1, ordre des
+    # 10 phases 2 ; appariement lu sur le deplacement EFFECTIF (W arrondi float32).
+    "run_fragility_seed": ["guard-before-world", "injection:dose-connue", "noop:exact", "transplant:bit-exact",
+                           "sign:magnitudes-conservees", "iso:L1-effective-appariee", "pos:dose-connue",
+                           "eps:dose-connue-sur-le-support", "echelle:x2-x4-dose-connue", "ordre-des-phases-2",
+                           "seed:refuse-une-cellule-absente-avant-tout-monde-v5-P10b"],
     # P2.110 (2026-09-24) -- nature d'UNE LIGNE coupee par le cliquet de cout, vocabulaire FERME
     # (contention / structure / indeterminee). Cas : tests/sandbox/test_cost_guard.py (reponses connues, appels HORS de
     # pytest.raises). PAR LIGNE et non par mesure : les deux lignes de la passe 1 de TD-STEP-PILOT-R2 ont ete coupees sur

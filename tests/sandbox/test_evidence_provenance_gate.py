@@ -486,3 +486,12 @@ def test_P2_128_un_record_SUPPRIME_par_le_commit_n_est_PAS_refuse_temoin_git_REE
     sortie = capsys.readouterr().out
     assert "SUPPRIME" in sortie and "rien a juger" in sortie
     assert P.main(["--root", str(tmp_path), "--only", "docs/EDR/X.md", "docs/EDR/JAMAIS.md"]) == 2
+
+
+def test_P2_129_evaluer_sur_le_TEXTE_JSON_d_une_preinscription_voit_ses_citations():
+    """La réponse connue de la critique P9.3 (P2.129) : `evaluer()` sur le texte d'une pré-inscription rendait
+    `statut OK, cites=[]` alors qu'il cite un JSON de sonde. Il le voit désormais — et, absent, ce n'est plus un OK.
+    Le répertoire des génomes reste hors du contrat `results/*.json` (limite déclarée)."""
+    texte = '{"regle": "S2-BASSIN-FRAGILITY", "sonde": "results/s2_bassin_design.json", "genomes": "results/genomes/"}'
+    v = P.evaluer(texte, lambda r: False, lambda r: False, root=".")
+    assert v["cites"] == ["results/s2_bassin_design.json"] and v["statut"] == "ABSENT"

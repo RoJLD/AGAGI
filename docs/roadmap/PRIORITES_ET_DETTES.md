@@ -1269,6 +1269,22 @@ par rejeu `--lecture` bit-identique sur les comptes) ; `N` entre dans `regime` ;
 Dépend de : P2.105 (close).
 <!-- closes_when:grep_present=tools/td_step_pilot.py::marge_en_pas -->
 
+**P2.124 — ✅ CLOSE (2026-09-26 ; vue en passant par la session SCIENCE-HARNAIS avant la sonde P4.18, corrigée par
+agagi-32 en `fb88fafd` sur délégation de Master 2 ; entrée écrite après coup pour la trace) — `tools.jobs.doctor` lancé
+depuis un WORKTREE ne voyait pas les runs des worktrees frères ni de l'arbre principal.**
+Mesuré le 2026-09-26 à 12:28 : `python -m tools.jobs.doctor` depuis `.worktrees/science` rendait « processus python du
+projet (hors moi et mes ancêtres) : 0 » pendant qu'un pytest de `.worktrees/p2-105` (pid 73700, `test_instrument_calibration.py`
+et six autres fichiers, `--timeout=900`) tenait 129 % de CPU (psutil, même instant). Cause : `_ROOT` = racine du WORKTREE
+(dossier du fichier) et `_works_in_project` comparait le cwd à cette seule racine, alors que P2.69 (i) avait ancré les
+BAILS au dépôt COMMUN (`tools/jobs/lease.py`, `git rev-parse --git-common-dir`). Les normes de la flotte font travailler
+chaque session dans un worktree et exigent « doctor avant tout run » : chaque doctor était aveugle aux autres. Même
+famille qu'E32 (une garde dégrade son périmètre en silence). **Corrigé** (`fb88fafd`) : racines = arbre principal
+(`lease._repo_root`) + chaque worktree de `git worktree list` (`tools/jobs/doctor.py::_racines_du_depot`), témoin
+`tests/sandbox/test_doctor_visibility.py` rouge sur l'ancien doctor. Reste HORS périmètre, et dit : la charge d'origine
+NON-projet (la synchro du plugin episodic-memory, hook `SessionStart` de chaque session Claude, ~4 cœurs, récurrente,
+relevée à 94-99 % de CPU à 12:36) — doctor ne compte que le projet ; elle se relève par cellule dans les runners.
+<!-- closes_when:path_present=tests/sandbox/test_doctor_visibility.py -->
+
 
 **P2.125 — rang 4 — OUVERTE (2026-09-26, trouvée par la revue opus de P2.121 famille 1, VÉRIFIÉE par agagi-32) —
 Un test de fumée ÉCRASAIT les génomes de calibration WARM-007 dans `results/` : depuis le 2026-09-09, `_GRABBER`
@@ -1369,6 +1385,30 @@ freeze de l'image construite (`/opt/agagi/pip-freeze.txt` dans l'image) — puis
 (b) si le digest varie encore, les horodatages de couches en sont la cause probable : essayer l'option `--reproducible`
 de Kaniko. Tant que ce n'est pas fait, deux runs « sur la même image » ne sont comparables que s'ils citent le même
 digest. Sans clause `closes_when` (déclaré) : la clôture est une mesure (deux digests égaux), pas un fichier.
+**Mesuré le 2026-09-26 au soir (session INFRA-NEXUS, builds d'essai sur nexus sous un dépôt d'image à part
+`…-essais`, tags `p2134-*` jamais référencés, IMAGE.json INTOUCHÉ — règle de Master 2 pendant P4.18)** :
+(1) **l'hypothèse (a) est RÉFUTÉE** : les deux images publiées ont exactement les mêmes fichiers (mêmes dist-info, donc
+mêmes versions transitives) ; les couches 0-3 (image de base) sont identiques ; les couches 4-7 diffèrent par des
+fichiers `.pyc` (10 691 : pip compile à l'installation, avec la date de la source), les journaux apt/dpkg et le cache
+ldconfig, les dates de TOUS les fichiers, et la date de la config d'image. (2) **`--reproducible` de Kaniko est
+inutilisable ici** : deux builds OOMKilled (code 137) au plafond de 4 Gi de la LimitRange `standard` — il faudrait le
+palier `ml-heavy`, donc l'accord d'ELYSIUM. (3) **Dockerfile nettoyé** (pip `--no-compile` puis `compileall
+--invalidation-mode unchecked-hash`, journaux et caches retirés, dates remises à l'epoch 0 par chaque RUN) : deux
+builds sans cache rendent des couches au CONTENU IDENTIQUE (0 fichier différent sur 2 471 et 37 756 ; les `.pyc` à
+empreinte de hash sont déterministes) — mais les octets des couches diffèrent encore, par des dates que Kaniko pose
+lui-même (entrées créées par COPY et WORKDIR, à l'heure du build) et par des en-têtes tar de la couche apt ; et la
+config porte toujours la date. **Conclusion opératoire** : sans `--reproducible`, le digest d'image ne peut PAS être
+stable ; le CONTENU peut l'être. Proposition, à appliquer APRÈS les cellules de P4.18 (elle change le contexte haché
+donc l'image) : adopter le Dockerfile nettoyé et publier dans IMAGE.json une EMPREINTE DE CONTENU (hash des couples
+chemin/sha256 des fichiers de l'image) à côté du digest — deux reconstructions se diront alors « même contenu »
+sans prétendre au même digest. Scripts d'essai hors dépôt (scratchpad de la session), images d'essai laissées dans
+le dépôt `…-essais` du registre (à purger avec ELYSIUM si l'espace compte). **Proposition validée par Master 2** (pour
+APRÈS P4.18) : les records citeront le digest (l'artefact exécuté) ET l'empreinte de contenu (l'équivalence, établie
+par une mesure, jamais par un tag). **Demande à ELYSIUM, non urgente** : le palier `ml-heavy` (ou un plafond de build
+plus haut) pour que `--reproducible` ne soit plus OOMKilled — seule voie vers un digest stable. **Au passage** : la
+sonde de surveillance a attrapé ces deux OOMKilled d'essai avant qu'on déclare leur motif (contrôle positif
+involontaire) ; l'exclusion est désormais DÉCLARÉE et COMPTÉE (`python -m tools.jobs.remote surveiller --ignorer=…`,
+REF-DEPORT-NEXUS, Surveillance d'un run).
 
 **P2.132 — rang 4 — OUVERTE (2026-09-26, trouvée par la revue adversariale de la règle S2-BASSIN-FRAGILITY v4,
 critique P7.1, vérifiée à la lecture du code par la session SCIENCE-HARNAIS) — Le harnais IMMORTEL de P4.4 à P4.16
@@ -1434,7 +1474,7 @@ sont des `MambaAgent()` FRAIS, des cerveaux DISTINCTS échangés entre corps —
 hors du mandat du correctif.
 <!-- closes_when:grep_absent=tools/evo_runs/s2_credit_retention.py::e\.agents\.append\(a\) -->
 
-**P2.133 — rang 6 — OUVERTE (2026-09-26, vue en passant par la session SCIENCE-HARNAIS pendant la revue v6 de
+**P2.133 — rang 6 — ✅ CLOSE le 2026-09-26 (ouverte le même jour, vue en passant par la session SCIENCE-HARNAIS pendant la revue v6 de
 S2-BASSIN-FRAGILITY) — Le Refutateur sort encore NUL sur une revue saine : le vérificateur a rendu `refus = "aucun"`, et
 le correctif `bfaea9c6` ne normalisait que des guillemets et des espaces. Récidive d'un nul de TRANSPORT déguisé en nul de
 FOND (E4).**
@@ -1447,9 +1487,27 @@ même run (les huit agents rejoués depuis le cache, seule la revue tourne). **3
 ne se normalise pas par liste — le schéma `VERIFICATION` doit porter un booléen `refuse` et une `raison` séparée, le
 champ texte n'étant jamais lu comme décision ; témoin sous node sur « aucun » ET sur un vrai refus (« juge non
 calibré »), comme celui de `bfaea9c6`. *Coût : agent < 1 h ; calcul 0.* Dépend de : rien.
+✅ **FERMÉE le 2026-09-26 (agagi-32, worker Dette ; attribuée par Master 2)** — correctif STRUCTUREL, pas une liste
+noire : le schéma `VERIFICATION` de `.claude/workflows/refutateur.js` EXIGE un booléen `refuse` et porte un motif
+séparé `raison`, lu seulement si `refuse` vaut true (`lireRefus`) ; `normaliserRefus` a disparu (la clause). Un refus
+accompagné de résultats, ou un `refuse` absent ou non booléen — la forme exacte des runs du soir, antérieure au
+champ —, rend `statut INCOHERENT`, nommé avec sa raison, AVANT la branche qui déclare une revue NULLE : jamais un nul
+de fond. **Deux retouches du prompt figé**, qui changent le CONTRAT de sortie et non le jugement : l'étape 1 dit
+« REFUSE (refuse: true, le motif dans raison, resultats vide) », l'étape 8 rend `{refuse, raison, …}` et dit ce qu'ils
+signifient. Le sha du script change : les revues en cours sur une copie restent valables, la prochaine lance le
+fichier du dépôt. Témoin sous node, code réel extrait du script (`tests/sandbox/test_refutateur_workflow_refus.py`) :
+« aucun », « (vide) Pas de refus. Étape 1 : … » et « (aucun refus) Roster conforme : … » — les trois formes
+RÉELLES du soir (runs wf_c3134d3f-8dd, wf_f2e45bc7-b84, wf_4c85e158-009) —, « none », « néant » et la
+forme `""` de `bfaea9c6` rendent SANS_REFUS ; un vrai refus garde son motif ; cinq formes incohérentes sont
+nommées. Vert sur le script patché, ROUGE sur celui de d1 ; **4/4 mutations tuées** (décider sur le texte, refus
+avec résultats, booléen absent, retour INCOHERENT retiré) ; balayeur de backticks et `node --check` verts. ⚠️
+**Trouvé en calibrant le témoin** : ma première assertion d'ordre visait la PREMIÈRE occurrence de « revue NULLE »,
+qui existe déjà sur les branches de démarrage — elle aurait vérifié autre chose que ce qu'elle annonçait ; un motif
+validé sur le mauvais corpus (règle de `CLAUDE.md` §Records). Ancrée sur la branche nulle de la vérification.
+Registre : `bfaea9c6` et P2.133 sous E4 (forme miroir) ; `636c65b1`, `c0274ea9` et `82927108` fondent E35.
 <!-- closes_when:grep_absent=.claude/workflows/refutateur.js::function normaliserRefus -->
 
-**P2.129 — rang 12 — OUVERTE (2026-09-26, trouvée par la revue adversariale de la règle S2-BASSIN-FRAGILITY v3,
+**P2.129 — rang 12 — ✅ CLOSE le 2026-09-26 (ouverte le même jour, trouvée par la revue adversariale de la règle S2-BASSIN-FRAGILITY v3,
 critique P9.3, inscrite par la session SCIENCE-HARNAIS à la demande d'agagi-32 ; décision de PÉRIMÈTRE, à attribuer
 par Master 2) — L'extracteur de citations des portes 19 et 20 ne voit un chemin `results/…` que suivi d'un backtick :
 toute autre forme de citation rend « 0 citation », donc un OK.**
@@ -1464,6 +1522,21 @@ records (« 0 citation nue dans docs/EDR », mesuré le 2026-09-23) et un test g
 Deux voies : élargir (citations nues, JSON de pré-inscription) avec rebaselinage déclaré, ou refuser explicitement une
 cible hors périmètre (une pré-inscription n'est pas un record) au lieu de rendre OK. *Coût : agent 1-2 h ; calcul 0.*
 Dépend de : P2.128.
+✅ **FERMÉE le 2026-09-26 (agagi-32, worker Dette ; attribuée par Master 2)** — voie (a), élargir, SANS rebaselinage.
+Mesuré AVANT d'écrire, sur les 305 records de `836117ce` : aucune citation nue, aucune citation entre backticks ratée ; le nouveau
+motif rend, record par record, EXACTEMENT les mêmes ensembles de citations que l'ancien, et les deux portes rendent
+les mêmes comptes sur le dépôt réel (64 légataires pour la 19, 18 pour la 20). La crainte de l'entrée — des baselines à
+reprendre — ne se réalise pas aujourd'hui. `_RESULTS` (`tools/check_regime_claims.py`) voit un chemin `results/…json`
+entre backticks, nu, entre guillemets (le JSON d'une pré-inscription) ou suivi d'un hash dans le même backtick ; la
+virgule n'y est admise qu'entre accolades ; ni `myresults/`, ni `.json.bak`. Témoins :
+`test_P2_129_l_extracteur_voit_une_citation_NUE_entre_GUILLEMETS_ou_suivie_d_un_HASH` (l'ancien motif, rejoué, ne
+voit aucune de ces formes : c'est la nécessité), la spécificité (rien d'inventé), l'invariant « ancien ⊆ nouveau »
+sur les records réels — un invariant, pas une égalité gelée (E25) : un record futur cité nu est voulu — et, porte
+20, la réponse connue de P9.3 : `evaluer()` sur le texte JSON rend la citation, et ABSENT au lieu de OK. Porte 15 :
+une mutation neuve (l'ancien motif remis), tuée ; **8/8** sur les portes 19 et 20. Windows 66 verts, Linux (WSL)
+66 verts. Le test « rien de cité → OK » reste juste : un record qui ne cite rien n'a pas d'évidence à rouvrir.
+**Limite déclarée** : un RÉPERTOIRE `results/…/` (les génomes que cite la pré-inscription) n'est pas un
+`results/*.json` et reste invisible — hors du contrat de la porte 20.
 <!-- closes_when:grep_absent=tools/check_regime_claims.py::_RESULTS = re\.compile\(r"`\[\^`\]\*\?\(results/ -->
 
 **P2.121 — rang 6 — OUVERTE (2026-09-26, mesuré sur le run 36210667429, le PREMIER où `suite-complete` exécute des
@@ -2191,7 +2264,11 @@ le coût est le cadrage puis le rendu. Note annexe trouvée en passant : `/api/s
 consommateur frontend** (`grep -rln strategy_tree frontend/src/components` vide le 2026-09-22) — à confirmer par la
 porte de parité avant de le brancher ou de le retirer. *Coût : brainstorm 2 h ; implémentation non estimée avant
 cadrage.* Dépend de : lot 1 (pas 1-3 de la spec).
-<!-- closes_when:path_present=docs/superpowers/specs/2026-09-24-pilotage-science-design.md -->
+Cadrage fait le 2026-09-26 avec P2.87, dans UNE spec : `docs/superpowers/specs/2026-09-26-auto-indexation-artefacts-design.md`
+(v2 après revue adversariale opus : 3 bloquants, 14 importants, 7 mineurs intégrés ; approche A validée par Master 2 avec
+quatre conditions). Trois vues : Pipeline, Taxonomie, Trouvailles. Les « fermetures par semaine » de (d) sont HORS
+périmètre (la date d'une tête est celle de son statut). La clause suit le CODE, jamais la spec.
+<!-- closes_when:path_present=tools/pm/science.py -->
 
 **P2.85 — ⚠️ OUVERTE (2026-09-24, mesurée en étant bloquée par elle) — la porte 8 juge le DISQUE et non l'INDEX : le
 travail NON COMMITTÉ d'une session rend un compteur « périmé » et bloque le commit de TOUTES les autres, sur des
@@ -2302,7 +2379,29 @@ records élargi ? (e) ⚠️ un piège nommé d'avance : un index qui rend une l
 forme (c) du registre — un motif qui tronque en silence. Il doit publier ce qu'il n'a pas indexé, comme
 `chemins_non_captes` du lot 1. *Coût : brainstorm 2 h ; implémentation non estimée avant cadrage.*
 Dépend de : rien (mais recoupe P2.84, le lot 2 « Science » du dashboard — à décider s'ils fusionnent).
-<!-- closes_when:path_present=docs/superpowers/specs/2026-09-25-auto-indexation-artefacts-design.md -->
+Spec écrite le 2026-09-26 : `docs/superpowers/specs/2026-09-26-auto-indexation-artefacts-design.md` (v2 après revue
+adversariale opus, approche A — lecteur tolérant à la lecture, table de familles déclarée — validée par Master 2 avec
+quatre conditions ; P2.84 construit sur cet index). Mesuré en l'écrivant : aucune source publiée ne date un EDR (0/305),
+seul git les date (305/305 par la commande figée de la spec) ; D1-D3 restent à valider. La clause suit le CODE, jamais la spec.
+<!-- closes_when:path_present=tools/pm/index_artefacts.py -->
+
+**P2.135 — ⚠️ OUVERTE (2026-09-26, vue en revue adversariale de la spec P2.87/P2.84) — la porte 3
+(`tools/check_preregistration_applied.py`) rend un VERT sur une racine sans `docs/preregistrations` ni `docs/EDR` :
+« OK … sur les 0 familles inspectables », sortie 0 — une absence de source convertie en succès.**
+Preuve, reproduite le 2026-09-26 (module copié SEUL dans un répertoire vide, `python tools/check_preregistration_applied.py`) :
+`couverture : 0/0 FAMILLES … REELLEMENT inspectees (0 sans grandeur nommee, 0 dont aucun record ne se reclame)` puis
+`OK : aucune DV scellee absente de son record (sur les 0 familles inspectables).`, exit 0. Mécanisme : `_edr_texts`
+(`tools/check_preregistration_applied.py:79-80`), `_familles` (`:135-136`) et `nouvelles_sans_grandeur` (`:209-210`)
+rendent un conteneur VIDE quand leur répertoire manque, et `main` (`:274-276`) lit « aucun problème » comme un succès
+quel que soit `total`. C'est la forme (a) du registre (entrée vide → verdict de fond), appliquée à une PORTE. Effet
+hors de la porte : tout appelant dont la racine n'est pas celle attendue (un backend dans une image où `docs/` manque,
+un worktree partiel) reçoit `couverture() == (0, 0, 0, 0)` et `familles_sans_record() == []` — la spec
+`docs/superpowers/specs/2026-09-26-auto-indexation-artefacts-design.md` (§3.2, bloquant B2 de sa revue) doit le
+contourner par un `isdir` AVANT l'appel. À faire : répertoire absent → exception NOMMÉE dans les trois lecteurs,
+`main` qui sort 2 (jamais 0) avec la racine résolue dans le message ; contre-exemple gelé : racine vide → la porte
+ÉCHOUE (témoin dont le nom porte `racine_VIDE`) ; une mutation dans `check_gate_mutation.PORTES` qui rétablit le
+`return fam` silencieux. *Coût : agent 30-60 min ; calcul 0.* Dépend de : rien. Attribution : Master 2.
+<!-- closes_when:grep_present=tests/sandbox/test_preregistration_applied.py::racine_VIDE -->
 
 **P2.113 — ⚠️ OUVERTE (2026-09-26, vue en passant pendant la fusion du chantier Pilotage) — la suite complète ÉCRIT
 deux fichiers SUIVIS de l'arbre où on la lance, et trois de ses tests sont rouges hors de l'arbre principal sans que
@@ -3141,7 +3240,46 @@ direction tirée d'un rng dédié publié. Règle à sceller `S2-BASSIN-FRAGILIT
 `S_a` (signe 10/12, ±5), et lecture par COMPARAISON appariée niveau-à-bras (bruit − crédit, 10/12, ±5) → FRAGILE /
 DIRECTION / MIXTE. Pourquoi : [[EDR-S2-CREDIT-ABLATION-2]] § Portée. *Coût : agent 2 h ; calcul ~15 min sous bail.*
 Dépend de : rien.
-<!-- closes_when:path_present=docs/preregistrations/S2-BASSIN-FRAGILITY.json -->
+⚠️ **DESIGN AMENDÉ AVANT SCEAU (2026-09-26, session SCIENCE-HARNAIS, validé par Master 2)** — trois écarts, tous nés
+d'une MESURE de conception sur le seed 2026 (sonde hors règle, 12:38-12:58, aucune survie de sham mesurée) :
+(1) **appariement sur le DÉPLACEMENT NET** `‖W_final − W_bassin‖₁` par agent, jamais sur `dW_abs_sum` : ce dernier
+cumule |ΔW| à CHAQUE mise à jour (`tools/learning_events.py:173,187`), c'est une longueur de CHEMIN ; mesuré, net/chemin
+= 0,072 (b_full), 0,081 (tdonly), 0,358 (const), 0,201 (eplr), 0,112 (zero) — apparier sur le chemin aurait surdosé le
+bruit ×14 sur b_full ; aucun W appris n'était persisté (P4.9/P4.16), la phase 1 des cinq bras est donc REJOUÉE,
+bit-identique exigée (vérifiée au seed 2026 sur les cinq : chemin et 12 âges), W persistés ; (2) **sham PRIMAIRE sur le
+SUPPORT** (`s ⊙ |ΔW|`, signes tirés : support, L1, L2, L∞ exacts) : ΔW vit dans les colonnes lues par la perte — 11
+(nœuds 64-71 = logits de déplacement, 88, 89, 92) pour les bras qui portent le TD, 8 (64-71) pour b_eplr, épisodique
+seul (la première rédaction disait « 11 sur les cinq bras » : généralisation non vérifiée, relevée par la revue P1.b) ;
+L1/L2 = 24 (b_full) contre ≈137 pour un gaussien sur 172×172, qui serait ≈5× plus faible en L2 et mettrait 94-95 % de
+sa masse hors de ces colonnes (biais vers DIRECTION) — le gaussien apparié en L1 reste en SECONDAIRE, hors verdict ;
+(3) **coût ≈ 4,7 h CPU** (≈1400 s CPU par seed), et non 15 min, exécuté en 6 processus (le témoin de parallélisme a
+rendu le publié au bit : deux rejeux simultanés, seed 2027) ; (4) un **sixième bras**, b_tdoff (P4.9, épisodique seul
+à 0,04), paire de b_eplr (même voie, pas ×10) pour la garde E19 réellement appelée dans le verdict (`clause_E19`,
+lecture `DIRECTION_DEPEND_DU_REGLAGE`, pas et létalité non séparés) — la porte 23 exigeait une réponse, et le pas est
+la seule dépendance quantitative connue de l'arc ; la garde est CERTAINEMENT illisible ici (b_tdoff saturé sur 12/12
+seeds publiés) : une lecture DIRECTION de la paire sort dite NON DÉFENDUE contre le pas ; (5) après la **revue adversariale du brouillon** (`docs/reviews/2026-09-26-S2-BASSIN-FRAGILITY.md`,
+20 critiques confirmées) : FRAGILE exige désormais que le sham ÉRODE (issue NON_TRANCHE sinon — avant, un sham qui
+n'érodait pas donnait FRAGILE dès que le contraste ratait 11/12), eps devient un sham SUR LE SUPPORT et le contrôle
+positif de DIRECTION (issue CRETE_A_TOUTE_ECHELLE s'il érode), échelle sign ×2/×4 publiée hors verdict, dose et
+résurrections dans la réplication, garde de corps qui peut échouer. Seuil 11/12 (famille de 14 contrastes neufs, E23).
+(6) **trois revues de plus avant sceau** (`docs/reviews/2026-09-26-S2-BASSIN-FRAGILITY.v3.md`, `.v4.md`, `.v5.md` :
+26, 20 et 17 critiques confirmées, chacune avec l'addendum de ses suites) : FRAGILE exige un contraste médian < 5
+(un sham à 29 % de la perte sortait FRAGILE), bande de tirage par BOOTSTRAP calibrée sur un nul connu (celle de
+demi-tirages le laissait dehors 14-31 % du temps), issue MIXTE_AMPLITUDE_OU_LETALITE (la partition prédite par le net
+l'est aussi par les résurrections), contrôle de DIRECTION dit NON ÉPROUVÉ dès 11/12 seeds miroirs, norme d'opérateur
+publiée et croisée à ×2, commande `seed` qui refuse une cellule absente (nexus : cellules en Jobs, phases 2 sur la
+batcave), seuils scellés confrontés au bit au code ; la limite P2.132 (brassage cerveau/corps du harnais immortel,
+E34) est déclarée en tête de la règle et REJOUÉE telle quelle.
+(7) **quatre revues encore, puis SCEAU sous une RÈGLE D'ARRÊT déposée d'avance** (v6 13, v7 15, v8 12, v9 13 critiques confirmées ; v7 à v9 INDISCRIMINANTES, donc chaque critique re-vérifiée par l'auteur) : règle d'arrêt `docs/reviews/2026-09-26-S2-BASSIN-FRAGILITY.regle-d-arret.md` (sha256 599e0074…, stagée 18:16:41 avant tout retour de la revue v8, liste FERMÉE (a)-(g) de ce qui change une branche ou une lecture, conditions de Master 2) ; la v8 en a eu une (P4.4, (g)) -> v9 qui restreint ; la v9 aucune -> **règle SCELLÉE le 2026-09-26, sceau d29d7934…**, reviewed_by `docs/reviews/2026-09-26-S2-BASSIN-FRAGILITY.v9.md` (addendum : corrections de texte hors sceau, dont la provenance de b_full, importée de P4.4 05cf8888 et non de P4.9). En chemin : famille 15 (PROTECTRICE exige le contraste PLUS), 9b non éprouvé par construction, bande de tirage bootstrap ÉCHANGEABLE mesurée sur la bande exécutée (`results/s2_bassin_fragility_calibration_bande.json`), tirage à signes partagés descriptif contre le biais du vote social vers DIRECTION (dit en tête du motif), contrôle des branches 2/4/5/6 à chaque seed.
+Mesures de conception suivies : `results/s2_bassin_fragility_sonde_conception.json`. Au passage :
+la mention « remède d'ANCRAGE (P4.19) » ci-dessus, reprise de [[EDR-S2-CREDIT-ABLATION-2]] (§ Ce que ça change), est
+une COLLISION de numéro — P4.19 est l'entrée `eligibility_trace_credit` ; l'ancre n'a pas de numéro, elle s'en verra
+allouer un à l'écriture si le verdict de P4.18 la désigne (le record P4.16 sera rectifié avec le bandeau d'après-run).
+⚠️ Clause corrigée : `path_present=docs/preregistrations/S2-BASSIN-FRAGILITY.json` était VRAIE dès le SCELLEMENT
+(famille (ii) de P4.20) ; elle vise désormais la SORTIE : le `corrected_by` que le record de ce run posera sur
+[[EDR-S2-CREDIT-ABLATION-2]] (bandeau E8 d'après-run, écrit seulement avec un verdict LU — un run INDÉTERMINÉ laisse
+l'entrée ouverte). Une clause sur le JSON de résultats, encore inexistant, est refusée par la porte 4 (invérifiable).
+<!-- closes_when:grep_present=docs/EDR/S2-CREDIT-ABLATION-2_Each_Credit_Pathway_Alone_Floors_The_Bassin_And_A_Positive_Constant_Return_Erodes_Halfway.md::corrected_by: \[.*EDR-S2-BASSIN-FRAGILITY -->
 
 **P4.17 — rang 4 quinquies — ✅ CLOSE le 2026-09-24 (verdict `AIDE_A_UN_POINT` ; ouverte le 2026-09-22, décision robla déléguée via agagi-52 ; session loop 766eabae) — Balayage
 lr × λ sur le pilote TD PAR PAS : où la trace d'éligibilité vit-elle, et jusqu'où descend-elle en lr ? Le billet à deux issues de

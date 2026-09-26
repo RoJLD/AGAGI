@@ -95,7 +95,15 @@ PARAMS = ("forage_payoff", "flip_p", "reward_scale", "lr", "n_agents", "num_agen
 ALIAS = {"n_agents": "num_agents", "ticks": "max_ticks"}
 _NUM = r"([0-9]+(?:[.,][0-9]+)?)"
 _CLAIM = re.compile(r"(?<![\w.])(" + "|".join(PARAMS) + r")\s*=\s*" + _NUM + r"(?!\w)(?!\.[0-9])")
-_RESULTS = re.compile(r"`[^`]*?(results/[A-Za-z0-9_./*{},\-]+\.json)`")
+# P2.129 (2026-09-26, revue v3 de S2-BASSIN-FRAGILITY par agagi-40, critique P9.3) : l'ancien motif exigeait un
+# backtick juste APRÈS `.json`. Une citation nue, entre guillemets (le TEXTE JSON d'une pré-inscription) ou suivie
+# d'un hash dans le même backtick rendait « 0 citation », donc un OK. Il voit désormais un chemin `results/…json`
+# n'importe où ; la virgule n'y est admise qu'entre accolades (`r{2,3,4}`), sinon « a.json,results/b.json » serait
+# UN chemin ; ni lettre avant (`myresults/`), ni mot après (`.json.bak`), un point de fin de phrase admis. Mesuré le
+# jour même sur les 305 records (à 836117ce) : ensembles de citations IDENTIQUES à l'ancien motif, record par record — aucune
+# baseline à reprendre. Limite déclarée : un RÉPERTOIRE `results/…/` (des génomes) reste hors du contrat.
+_RESULTS = re.compile(r"(?<![A-Za-z0-9_])(results/(?:[A-Za-z0-9_./*\-]|\{[A-Za-z0-9_.,*\-]*\})+\.json)"
+                      r"(?![A-Za-z0-9_]|\.[A-Za-z0-9_])")
 _CELL_LR = re.compile(r"(?:^|\|)lr=" + _NUM + r"(?:\||$)")
 # `SANS_VALEUR_LUE` reste HORS de `OK` : un inconnu ne devient pas un vert, il cesse seulement
 # d'AFFIRMER un desaccord qui n'a pas ete mesure.

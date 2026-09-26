@@ -32,6 +32,7 @@ python -m tools.jobs.remote installer runs/deport/<job>/sortie_non_installee --i
 python -m tools.jobs.remote image [--reconstruire]                                    # (re)construire l'image
 python -m tools.jobs.remote namespace [--appliquer]                                   # rendre (et appliquer) les manifestes
 python -m tools.jobs.remote config                                                    # configuration résolue, et sa source
+python -m tools.jobs.remote surveiller [--duree-s S] [--ignorer=MOTIF]               # sonde LECTURE SEULE du namespace
 ```
 
 ## Configuration — hors du dépôt, sans défaut
@@ -146,6 +147,17 @@ minimal ; les deux publient les variables déclarées dans le MANIFEST.
   DIGEST d'`IMAGE.json`, jamais par le tag. Témoin relancé sur cette image : identique (EDR-DEPORT-NEXUS-TEMOIN, tour 4).
 * La ConfigMap `registry-ca-bundle` du namespace est une COPIE de celle d'elysium-brain : si la CA mkcert du
   registre tourne, la re-copier (sinon build et tirage échouent en TLS) — P2.127.
+
+## Surveillance d'un run
+
+`python -m tools.jobs.remote surveiller` sonde le namespace en LECTURE SEULE (toutes les 60 s) et rend 3 à la première
+anomalie : Job échoué, conteneur OOMKilled, pod Pending depuis plus de 10 min ; 4 si le cluster est illisible ; 0 à
+l'échéance. Il ne relance, ne supprime ni ne modifie rien — la relance appartient à qui a scellé le run. Une EXCLUSION
+se DÉCLARE par motif de nom (`--ignorer=-p2134-` pour des builds d'essai) : ses anomalies ne réveillent personne mais
+restent COMPTÉES sur chaque ligne d'état (« anomalies ignorées=N ») — une exclusion commode non comptée serait un angle
+mort silencieux (E32). Contrôle positif réel, involontaire : le 2026-09-26 la sonde a attrapé les deux builds d'essai
+OOMKilled de P2.134 avant qu'on déclare leur motif. Écrire le motif avec `=` (`--ignorer=-p2134-`) : un motif qui
+commence par un tiret serait lu comme une option.
 
 ## Ce que le déport ne fait PAS
 
