@@ -88,6 +88,18 @@ def test_A1_le_MEME_chemin_relatif_dans_DEUX_worktrees_n_est_PAS_une_collision()
     assert len(_ids(ensemble, "A1")) == 1                      # meme cwd : la collision REELLE est toujours vue
 
 
+def test_P2_118_le_tableau_publie_les_ecritures_Bash_COMPTEES_a_cote_des_fichiers_jamais_comme_des_noms():
+    bul = [dict(_bul("s1", files=["a.py"]), bash_ecritures_possibles=3), _bul("s2")]
+    b = B.compute(_snap(bulletins=bul))
+    s = {x["session_id"]: x for x in b["sessions"]}
+    assert s["s1"]["bash_ecritures_possibles"] == 3
+    assert s["s2"]["bash_ecritures_possibles"] is None             # jamais compté : None, jamais un 0 fabriqué
+    assert s["s1"]["files_touched"] == ["a.py"]                  # le compte n'entre JAMAIS dans la liste
+    for rendu in (B.render_md(b), B.summary(b)):
+        assert "+3 écriture(s) Bash non nommée(s)" in rendu
+    assert "COMPTÉ" in B.CECITE_FICHIERS
+
+
 def test_A2_bail_orphelin_ALERTE_et_ttl_expire_detenteur_vivant_INFO():
     morts = [{"resource": "kuzu", "pid": 9, "owner": "o", "created": 0, "expires_at": 1, "ttl_s": 1, "vivant": False,
               "detenteur_vivant": False},

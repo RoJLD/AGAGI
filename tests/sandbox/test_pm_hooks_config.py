@@ -52,10 +52,18 @@ def test_CHAQUE_commande_configuree_S_EXECUTE_REELLEMENT_et_sort_0(tmp_path):
                                    capture_output=True, text=True, timeout=120)
                 assert r.returncode == 0, (ev, x["command"], r.stdout[-2000:], r.stderr[-2000:])
                 lancees.append(x["command"])
-    assert len(lancees) == 4, lancees                    # le test ne doit pas passer sur ZERO commande
+    assert len(lancees) == 5, lancees                    # le test ne doit pas passer sur ZERO commande (P2.118 : +bash)
     log = tmp_path / "pm" / "hook_errors.log"
     assert not log.exists(), log.read_text(encoding="utf-8", errors="replace")[-2000:]
     assert (tmp_path / "sessions" / "test-hook-cmd.json").exists()    # le bulletin a bien ete ecrit
+
+
+def test_PostToolUse_Bash_COMPTE_sans_capturer_par_un_module_LEGER():
+    """P2.118 : le hook Bash est un groupe à part, matcher EXACT « Bash », qui lance le module léger (le cas
+    commun sort sans importer le bulletin) — jamais le bulletin directement."""
+    grp = [g for g in _hooks()["PostToolUse"] if g.get("matcher") == "Bash"]
+    assert len(grp) == 1, _hooks()["PostToolUse"]
+    assert [x["command"] for x in grp[0]["hooks"]] == ["python -m tools.pm.bash_hook"]
 
 
 def test_aucune_commande_de_hook_ne_contient_backtick_dollar_ou_backslash():

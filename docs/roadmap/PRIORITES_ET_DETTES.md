@@ -1122,7 +1122,8 @@ la faute de son propre auteur, dans la passe qui le livrait.
 <!-- closes_when:grep_present=tools/check_synthesis_counts.py::_statut_cellule -->
 
 
-**P2.118 — rang 11 — OUVERTE (2026-09-26 ; cécité DÉCLARÉE au tableau depuis le 2026-09-24, jamais corrigée) — Le
+**P2.118 — rang 11 — ✅ CLOSE le 2026-09-26 (ouverte le même jour ; cécité DÉCLARÉE au tableau depuis le 2026-09-24) —
+Le
 tableau PM ne voit que les écritures des outils d'ÉDITION : il manque un hook PostToolUse `Bash` qui COMPTE (sans
 capturer) les écritures possibles, et `.claude/settings.json` ne le porte pas.**
 Preuve : `.claude/settings.json:7` — `"matcher": "Edit|Write|MultiEdit|NotebookEdit"` est le seul hook `tool` ;
@@ -1141,6 +1142,25 @@ comme un PLANCHER d'incertitude — jamais comme une liste de fichiers. `tests/s
 réellement (returncode 0, pas de `hook_errors.log`), comme les quatre hooks existants.
 **Contre-exemple gelé** : un bulletin après `python x.py` porte `bash_ecritures_possibles >= 1` ; après `ls` il reste à
 0 ; le texte de la commande n'apparaît dans aucun fichier du tableau.
+**✅ CLOSE le 2026-09-26 (agagi-32, `tmp/p2-105`)** : groupe PostToolUse `"matcher": "Bash"` dans
+`.claude/settings.json`, qui lance un module LÉGER, `tools/pm/bash_hook.py`. Il lit la commande EN MÉMOIRE, décide
+par `ecriture_possible` (liste fermée : redirection vers un fichier hors `/dev/null` et hors doublage de
+descripteur, `tee`, `cp`, `mv`, `rm`, `sed -i`, `perl -i`, `git apply/checkout/restore/reset/merge/rebase/…`,
+`npm install/run`, `python <script>`, `sh <script>`, enveloppes `timeout`/`env`/`then` déballées) et, SEULEMENT
+s'il y a un marqueur, passe au bulletin (événement `bash`) qui incrémente `bash_ecritures_possibles` — le texte de la
+commande n'est écrit NULLE PART. Coût mesuré (médiane de 7, machine libre) : sans marqueur **81 ms** contre 71 ms
+pour un Python nu — le bulletin n'est ni importé ni touché ; avec marqueur 125 ms, plus l'ancrage git de la racine
+de données en session réelle. Il tourne après CHAQUE commande Bash de chaque session. ⚠️ **Écart à la forme
+demandée, et pourquoi** : le compteur NAÎT au premier marqueur, il n'a pas de défaut 0 — une session dont le hook
+n'a jamais tourné (démarrée avant le déploiement, worktree antérieur) n'a pas « 0 écriture », elle n'a aucune
+mesure ; le tableau porte `None` et n'affiche le compte que s'il existe (« +k écriture(s) Bash non nommée(s) » à
+côté des fichiers en vol, dans BOARD.md et le résumé), et `CECITE_FICHIERS` dit que les NOMS restent invisibles.
+Contre-exemples gelés : `python x.py` compte 1 et `ls` 0 (`tests/sandbox/test_pm_bulletin.py`), le texte de la
+commande absent du bulletin écrit, 24 cas de la liste fermée, bout en bout en sous-processus (`ls` ne crée aucun
+bulletin, `python x.py` en crée un qui porte 1, aucun `hook_errors.log`), publication au tableau
+(`tests/sandbox/test_pm_board.py`) ; `tests/sandbox/test_pm_hooks_config.py` EXÉCUTE les cinq commandes et
+vérifie le groupe Bash. Le contrat de `.claude/skills/pm/SKILL.md` est mis à jour. Les sessions déjà ouvertes ne
+chargent ce hook qu'à leur prochain démarrage.
 <!-- closes_when:grep_present=.claude/settings.json::"matcher": "Bash -->
 
 

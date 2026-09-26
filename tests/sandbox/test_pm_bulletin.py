@@ -56,6 +56,66 @@ def test_tool_sans_cwd_connu_garde_le_chemin_absolu():
     assert b["files_touched"] == [BU.norm("c:/x/agagi/f0.py")]
 
 
+def test_P2_118_CONTRE_EXEMPLE_python_x_py_compte_UNE_ecriture_possible_et_ls_AUCUNE():
+    b = BU.appliquer("start", _payload("SessionStart"), {}, now=NOW, branche_fn=lambda c: (None, None))
+    assert "bash_ecritures_possibles" not in b                  # jamais compté n'est pas zéro : absent, pas 0
+    b = BU.appliquer("bash", _payload("PostToolUse", tool_name="Bash", tool_input={"command": "python x.py"}), b,
+                     now=NOW + 1, branche_fn=lambda c: (None, None))
+    assert b["bash_ecritures_possibles"] == 1
+    b = BU.appliquer("bash", _payload("PostToolUse", tool_name="Bash", tool_input={"command": "ls -la"}), b,
+                     now=NOW + 2, branche_fn=lambda c: (None, None))
+    assert b["bash_ecritures_possibles"] == 1                    # une lecture ne compte pas
+
+
+def test_P2_118_le_texte_de_la_commande_n_entre_JAMAIS_dans_le_bulletin(tmp_path):
+    jeton = "JETON_P2118_a_ne_jamais_voir"
+    b = BU.appliquer("bash", _payload("PostToolUse", tool_name="Bash",
+                                      tool_input={"command": f"python {jeton}.py > {jeton}.txt"}),
+                     {}, now=NOW, branche_fn=lambda c: (None, None))
+    assert b["bash_ecritures_possibles"] == 1
+    BU.ecrire(b, sessions_dir=str(tmp_path))
+    for f in tmp_path.iterdir():
+        assert jeton not in f.read_text(encoding="utf-8"), f
+    assert jeton not in json.dumps(b)
+
+
+@pytest.mark.parametrize("commande, attendu", [
+    ("python x.py", True), ("python -m pytest -q tests/x.py", True), ("python --version", False),
+    ("PYTHONIOENCODING=utf-8 timeout 1500 python -m tools.jobs.doctor", True),
+    ("ls -la", False), ("git status --short", False), ("git log --oneline -3", False),
+    ("grep -n motif fichier 2>/dev/null", False), ("cmd 2>&1 | tail -3", False), ("echo a >&2", False),
+    ("echo x > out.txt", True), ("echo x >> out.txt", True), ("ls | tee liste.txt", True),
+    ("sed -i s/a/b/ f.txt", True), ("sed -n 1,5p f.txt", False), ("git apply p.diff", True),
+    ("git -C /x merge --ff-only b", True), ("cd /x && cp a b", True), ("if true; then rm f; fi", True),
+    ("npm install", True), ("sh script.sh", True), ("echo a -> b", False), ("", False), (None, False),
+])
+def test_P2_118_la_liste_FERMEE_des_marqueurs_d_ecriture(commande, attendu):
+    from tools.pm.bash_hook import ecriture_possible
+    assert ecriture_possible(commande) is attendu
+
+
+def test_P2_118_le_hook_SANS_marqueur_ne_touche_pas_au_disque_et_AVEC_marqueur_compte(tmp_path):
+    """Bout en bout, en sous-processus (la racine de données s'ancre au démarrage) : `ls` ne crée AUCUN bulletin ;
+    `python x.py` en crée un qui porte 1, sans le texte."""
+    import subprocess
+    racine = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    env = dict(os.environ, AGAGI_DATA_ROOT=str(tmp_path).replace("\\", "/"), PYTHONIOENCODING="utf-8")
+
+    def lancer(cmd):
+        p = json.dumps({"session_id": "s-p2118", "cwd": racine, "tool_name": "Bash",
+                        "tool_input": {"command": cmd}})
+        r = subprocess.run([sys.executable, "-m", "tools.pm.bash_hook"], cwd=racine, input=p, env=env,
+                           capture_output=True, text=True, timeout=120)
+        assert r.returncode == 0, r.stderr[-2000:]
+    bul = tmp_path / "sessions" / "s-p2118.json"
+    lancer("ls -la")
+    assert not bul.exists()
+    lancer("python ecrit_JETON.py")
+    d = json.loads(bul.read_text(encoding="utf-8"))
+    assert d["bash_ecritures_possibles"] == 1 and "JETON" not in bul.read_text(encoding="utf-8")
+    assert not (tmp_path / "pm" / "hook_errors.log").exists()
+
+
 def test_stop_met_le_heartbeat_et_la_branche_et_end_la_fin():
     b = BU.appliquer("start", _payload("SessionStart"), {}, now=NOW, branche_fn=lambda c: ("a", "w"))
     b = BU.appliquer("stop", _payload("Stop"), b, now=NOW + 60, branche_fn=lambda c: ("feat/y", "c:/x/agagi/.worktrees/w"))

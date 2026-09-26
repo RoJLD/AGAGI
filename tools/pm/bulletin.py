@@ -1,6 +1,7 @@
 """Bulletin d'UNE session, écrit par SES hooks — jamais de mémoire (E10 : une règle documentée est violée).
 
     python -m tools.pm.bulletin start|tool|stop|end     # appelé par .claude/settings.json, JSON du hook sur stdin
+    (événement `bash` : appelé par tools/pm/bash_hook.py, SEULEMENT quand la commande porte un marqueur d'écriture)
     python -m tools.pm.bulletin claim P4.9 [--session <id>]   # revendication volontaire d'un P-item
 
 Le bulletin vit dans paths.sessions_dir("<session_id>.json"). Un hook sort TOUJOURS 0 : une erreur s'écrit dans
@@ -21,9 +22,10 @@ import time
 import traceback
 
 from src import paths
+from tools.pm.bash_hook import ecriture_possible
 from tools.pm.snapshot import REGISTRY_DIR_DEFAULT, ancrer_data_root, norm, read_registry
 
-EVENTS = ("start", "tool", "stop", "end")
+EVENTS = ("start", "tool", "stop", "end", "bash")
 PLAFOND_FICHIERS = 200
 REGISTRY_DIR = REGISTRY_DIR_DEFAULT              # monkeypatchable par les tests
 MAX_JOURNAL_O = 1_000_000                        # au-delà : on garde la QUEUE
@@ -44,6 +46,9 @@ def _vide(session_id):
             "noms_precedents": [], "cwd": None, "branch": None, "worktree": None,
             "started_at": None, "heartbeat_at": None, "ended_at": None, "updated_at": None, "claims": [],
             "files_touched": [], "files_touched_at": {}, "last_tool_at": None}
+    # P2.118 : `bash_ecritures_possibles` n'est PAS ici. Il naît au premier marqueur compté (événement `bash`) : une
+    # session dont le hook Bash n'a jamais tourné (démarrée avant son déploiement, worktree antérieur) n'a pas « 0
+    # écriture », elle n'a AUCUNE mesure — un 0 par défaut serait un négatif fabriqué, le biais de ce dépôt.
 
 
 def charger(session_id, sessions_dir=None):
@@ -105,6 +110,13 @@ def appliquer(event, payload, bul, *, now, branche_fn):
             b["files_touched"] = files[-PLAFOND_FICHIERS:]
             at = dict(b.get("files_touched_at") or {}, **{rel: now})
             b["files_touched_at"] = {f: at[f] for f in b["files_touched"] if f in at}     # évincé AVEC la liste
+    elif event == "bash":
+        # P2.118 : on COMPTE, on ne capture RIEN — ni le texte de la commande, ni un diff de l'arbre (sur l'arbre
+        # PARTAGÉ, un diff attribuerait à cette session les écritures d'autrui, pire que la cécité)
+        if b.get("cwd") is None and cwd:
+            b["cwd"] = norm(cwd)
+        if ecriture_possible((payload.get("tool_input") or {}).get("command")):
+            b["bash_ecritures_possibles"] = int(b.get("bash_ecritures_possibles") or 0) + 1
     elif event == "stop":
         b["heartbeat_at"] = now
         br, wt = branche_fn(cwd)
@@ -288,8 +300,9 @@ def _journal(event, exc):
         pass                                            # le journal lui-même est indisponible : rien ne doit remonter
 
 
-def _hook(event):
-    payload = json.loads(sys.stdin.read() or "{}")
+def _hook(event, brut=None):
+    # `brut` : le JSON déjà lu par tools/pm/bash_hook.py (stdin ne se relit pas) ; None = le lire ici
+    payload = json.loads((sys.stdin.read() if brut is None else brut) or "{}")
     sid = payload.get("session_id")
     if not sid:
         raise ValueError("hook sans session_id")
@@ -318,7 +331,7 @@ def _claim(p_item, session):
     print(f"[PM] {bul.get('name') or sid} revendique {', '.join(bul['claims'])}")
 
 
-def main(argv=None):
+def main(argv=None, brut=None):
     ancrer_data_root()                                  # AVANT tout paths.* : sinon un worktree tient SON propre data/
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("event", choices=EVENTS + ("claim",))
@@ -340,7 +353,7 @@ def main(argv=None):
                 raise ValueError("claim exige un P-item (ex. P4.9)")
             _claim(args.p_item, args.session)
         else:
-            _hook(args.event)
+            _hook(args.event, brut)
     except Exception as exc:                            # noqa: BLE001 — un hook ne bloque JAMAIS la session
         _journal(args.event, exc)
     return 0

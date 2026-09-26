@@ -29,7 +29,8 @@ Tu ne tiens aucun état en contexte — tout est relu par le tick.
 
 ## Contrat des hooks (ce que `.claude/settings.json` garantit, et ce qu'il ne garantit pas)
 
-- Les quatre commandes (`python -m tools.pm.bulletin start|tool|stop|end`) tournent avec **cwd = la
+- Les quatre commandes du bulletin (`python -m tools.pm.bulletin start|tool|stop|end`) et celle du hook Bash
+  (`python -m tools.pm.bash_hook`, P2.118) tournent avec **cwd = la
   racine du dépôt OU d'un worktree** — jamais un chemin arbitraire : elles doivent donc être lançables
   depuis n'importe lequel des deux. `tests/sandbox/test_pm_hooks_config.py` les EXÉCUTE réellement
   depuis la racine et exige `returncode == 0` ET l'absence de `hook_errors.log` : vérifier que la
@@ -47,7 +48,13 @@ Tu ne tiens aucun état en contexte — tout est relu par le tick.
   DÉCLARE (`board.CECITE_FICHIERS`, repris dans BOARD.md, le résumé de démarrage et le digest) ; ce n'est PAS
   corrigé. Un diff de `git status` autour de chaque Bash attribuerait à la session les écritures d'autrui sur
   l'arbre partagé — pire que la cécité ; la voie est un hook PostToolUse `Bash` qui COMPTE sans capturer
-  (`.claude/settings.json`, dette à inscrire).
+  (`.claude/settings.json`). **Fait le 2026-09-26 (P2.118)** : le hook `Bash` (`python -m tools.pm.bash_hook`)
+  incrémente `bash_ecritures_possibles` quand la commande porte un marqueur d'écriture (redirection vers un fichier,
+  `tee`, `cp`, `mv`, `rm`, `sed -i`, `git apply/checkout/merge/…`, `npm install/run`, `python <script>`,
+  `sh <script>`…) et n'enregistre JAMAIS le texte de la commande. Le tableau publie ce nombre à côté des fichiers
+  en vol : une incertitude chiffrée, jamais des noms. Le cas commun (aucun marqueur) sort sans importer le
+  bulletin ni toucher au disque — il ne coûte qu'un démarrage de Python, après CHAQUE commande Bash de chaque
+  session.
 
 ## Interdits
 

@@ -30,9 +30,12 @@ PEREMPTION_S = TTL_PM_S
 # script n'apparaissait pas. Une liste qui ne voit qu'une partie des écritures ressemble à une liste complète ;
 # le tableau le DIT partout où il présente ces fichiers (A1 et les P-items inférés en dépendent). Ce n'est PAS une
 # ligne AVEUGLE SUR : une limite déclarée n'est pas une source absente, et y entrer gonflerait le compte à chaque tick.
+# P2.118 (2026-09-26) : un hook PostToolUse `Bash` COMPTE désormais les commandes qui peuvent écrire
+# (`bash_ecritures_possibles`) ; il ne les NOMME pas — la cécité sur les NOMS demeure, elle est chiffrée.
 CECITE_FICHIERS = ("fichiers en vol = vus par les hooks des outils d'édition (Edit/Write/MultiEdit/NotebookEdit) "
-                   "SEULEMENT : un script lancé par Bash qui réécrit un fichier n'y laisse aucune trace — A1 et "
-                   "les P-items inférés ne voient pas ces écritures")
+                   "SEULEMENT : un script lancé par Bash qui réécrit un fichier n'y laisse aucun NOM — il est "
+                   "seulement COMPTÉ (écritures Bash possibles, jamais nommées) ; A1 et les P-items inférés ne "
+                   "voient pas ces écritures")
 
 
 def _h(sec):
@@ -74,6 +77,9 @@ def _sessions(snap):
                     # dernier contact par fichier et dernière écriture du bulletin (défaut 3) : absents d'un
                     # bulletin légataire, ils restent absents — {} et None, jamais une date inventée
                     "files_touched_at": dict(b.get("files_touched_at") or {}), "updated_at": b.get("updated_at"),
+                    # P2.118 : un COMPTE de commandes Bash qui peuvent avoir écrit, jamais leurs textes ni des noms ;
+                    # None = jamais compté (hook absent ou aucun marqueur), jamais un 0 fabriqué
+                    "bash_ecritures_possibles": b.get("bash_ecritures_possibles"),
                     "heartbeat_at": b.get("heartbeat_at"), "bulletin": bool(b)})
     return out, mortes, vies
 
@@ -228,6 +234,12 @@ def compute(snap, now=None):
             "worktrees": snap.get("worktrees"), "bails": leases}
 
 
+def _fichiers_en_vol(s):
+    """« 3 » ou « 3 (+2 écritures Bash non nommées) » : le compte P2.118 voyage à côté de la liste, jamais dedans."""
+    k = int(s.get("bash_ecritures_possibles") or 0)
+    return f"{len(s['files_touched'])}" + (f" (+{k} écriture(s) Bash non nommée(s))" if k else "")
+
+
 def render_md(board):
     L = ["# Tableau PM", f"généré : {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(board['generated_at']))}"]
     for a in board["aveugle"]:
@@ -239,7 +251,7 @@ def render_md(board):
     for s in board["sessions"]:
         hb = f"{_h(board['generated_at'] - s['heartbeat_at']):.1f} h" if s.get("heartbeat_at") else "—"
         L.append(f"| {_nom(s)} | {s.get('branch') or '—'} | {', '.join(s['claims']) or '—'} | "
-                 f"{', '.join(s['claims_inferes']) or '—'} | {len(s['files_touched'])} | {hb} |")
+                 f"{', '.join(s['claims_inferes']) or '—'} | {_fichiers_en_vol(s)} | {hb} |")
     L.append(f"\n{CECITE_FICHIERS}")
     if board.get("sessions_mortes"):
         L.append(f"\nsessions MORTES écartées du tableau (PID disparu, entrée encore au registre) : "
@@ -268,7 +280,7 @@ def summary(board, max_lines=25, age_s=None, source_age=None):
     if board.get("sessions_mortes"):
         L.append(f"[PM] sessions MORTES écartées : {', '.join(board['sessions_mortes'])}")
     for s in board["sessions"]:
-        L.append(f"[PM] {_nom(s)} : {', '.join(s['claims'] or s['claims_inferes']) or 'sans P-item'} — {len(s['files_touched'])} fichiers en vol")
+        L.append(f"[PM] {_nom(s)} : {', '.join(s['claims'] or s['claims_inferes']) or 'sans P-item'} — {_fichiers_en_vol(s)} fichiers en vol")
     L.append(f"[PM] {CECITE_FICHIERS}")
     for a in board["alertes"]:
         L.append(f"[PM] {a['gravite'].upper()} {a['cle']} — {a['message']}")
