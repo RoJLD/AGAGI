@@ -172,6 +172,44 @@ if [ -n "$AGAGI_DIFF_BASE" ]; then
 fi
 # <<< AGAGI:FUSION-SCOPE <<<
 
+# >>> AGAGI:APPELS-ATTENDUS >>>
+# LE COMPTE D'APPELS SE VÉRIFIE À CHAQUE COMMIT (P2.116, 2026-09-26). Le bloc FUSION-SCOPE encadre chaque appel au
+# diff de l'index de ce hook ; ce nombre n'était publié que dans deux COMMENTAIRES (ici et dans commit-msg), recomputés
+# par un seul témoin de la suite complète, que ni le hook, ni la porte 15, ni la CI n'exécutaient. Il était vrai de
+# chaque côté et FAUX à l'union de la fusion pm-portes (17 puis 20), attrapé par une revue et non par un cliquet.
+# Le chiffre vit désormais dans une VARIABLE, et le hook se REFUSE si le recompte diverge, sur DEUX copies :
+#   (a) CELLE QUI TOURNE (« $0 ») — la copie déployée dans .git/hooks, partagée par tous les worktrees ;
+#   (b) celle de l'INDEX (tools/hooks/pre-commit tel qu'il SERA committé : sous un commit par chemins, git show lit
+#       l'index temporaire) — c'est (b) qui empêche de committer un hook incohérent, qui bloquerait ensuite TOUTE la
+#       flotte une fois recopié. Une copie d'index SANS la variable est celle d'une branche antérieure à P2.116 : non
+#       vérifiée, et DIT (même règle que PORTE-ABSENTE : un saut muet serait la classe E32).
+# Le motif s'exclut de lui-même : la ligne qui le porte contient « # » avant le texte cherché, et [^#]* ne le franchit
+# pas. Ajouter une porte au hook = ajouter son appel, incrémenter APPELS_ATTENDUS ET les deux commentaires chiffrés,
+# dans le même commit. Contre-exemples gelés : tests/sandbox/test_hook_appels_attendus.py.
+APPELS_ATTENDUS=21
+_agagi_compte() { grep -c '^[^#]*git diff --cached --name-only'; }
+_agagi_declare() { sed -n 's/^APPELS_ATTENDUS=\([0-9][0-9]*\).*/\1/p' | head -n 1; }
+_agagi_n=$(_agagi_compte < "$0" 2>/dev/null)
+if [ "$_agagi_n" != "$APPELS_ATTENDUS" ]; then
+  echo "[agagi/pre-commit] APPELS : la copie qui tourne ($0) porte ${_agagi_n:-?} appel(s) au diff de l'index, elle en declare $APPELS_ATTENDUS."
+  echo "   Recompter, corriger APPELS_ATTENDUS et les deux commentaires chiffres (pre-commit, commit-msg), puis recopier."
+  fail=1
+fi
+_agagi_idx=$(command git show :tools/hooks/pre-commit 2>/dev/null)
+if [ -z "$_agagi_idx" ]; then
+  echo "[agagi/pre-commit] APPELS : tools/hooks/pre-commit illisible dans l'index : copie de l'index NON verifiee."
+else
+  _agagi_d=$(printf '%s\n' "$_agagi_idx" | _agagi_declare)
+  _agagi_i=$(printf '%s\n' "$_agagi_idx" | _agagi_compte)
+  if [ -z "$_agagi_d" ]; then
+    echo "[agagi/pre-commit] APPELS : tools/hooks/pre-commit de l'index ne declare pas APPELS_ATTENDUS (branche anterieure a P2.116) : non verifie ici."
+  elif [ "$_agagi_i" != "$_agagi_d" ]; then
+    echo "[agagi/pre-commit] APPELS : tools/hooks/pre-commit de l'INDEX (ce qui sera committe) porte $_agagi_i appel(s) au diff de l'index, il en declare $_agagi_d."
+    fail=1
+  fi
+fi
+# <<< AGAGI:APPELS-ATTENDUS <<<
+
 # 1. HYGIÈNE DU GRAPHE DE RECORDS — bloque tout commit qui INTRODUIT un nouvel orphelin (record sans
 # porte ni arête) ou une collision d'id. Dette légataire gelée dans results/record_link_baseline.json.
 # Scopé aux records stagés -> ne bloque jamais sur le travail non-committé d'une autre session.

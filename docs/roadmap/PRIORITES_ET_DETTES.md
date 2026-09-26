@@ -1051,7 +1051,8 @@ calibration : avant le correctif ils rougissaient, après ils passent.
 <!-- closes_when:grep_present=tools/check_gate_mutation.py::INCONNUE -->
 
 
-**P2.116 — rang 7 — OUVERTE (2026-09-26, mesuré sur `352cce44`) — Le bloc `AGAGI:FUSION-SCOPE` du pre-commit publie
+**P2.116 — rang 7 — ✅ CLOSE le 2026-09-26 (ouverte le même jour, mesuré sur `352cce44`) — Le bloc
+`AGAGI:FUSION-SCOPE` du pre-commit publie
 « 20 appels » dans un COMMENTAIRE, et le seul témoin qui recompute ce chiffre vit dans la suite complète — que ni le
 hook, ni la porte 15, ni la CI n'exécutaient.**
 Preuve : `tools/hooks/pre-commit:55` (« rend 20 appels à cette date ») ; recompte du jour
@@ -1068,6 +1069,18 @@ porte ajoutée au hook change ce compte : la prochaine le périme, et le seul t�
 copie DÉPLOYÉE — celle qui tourne) ; le témoin existant reste et entre dans la liste `Gardes-de-gardes` de `ci.yml`.
 **Contre-exemple gelé** : un hook jouet dont la variable dit 20 et qui porte 21 appels est REFUSÉ ; la vraie copie
 passe.
+**✅ CLOSE le 2026-09-26 (agagi-32, `tmp/p2-105`)** : bloc `AGAGI:APPELS-ATTENDUS` dans `tools/hooks/pre-commit`, posé
+juste après FUSION-SCOPE (hors de toute plage que les crochets jouets extraient) : `APPELS_ATTENDUS=21`, recompte à
+CHAQUE commit sur DEUX copies — (a) celle qui tourne (`$0`, la copie déployée, commune à tous les worktrees) et (b)
+celle de l'INDEX (ce qui sera committé : c'est elle qui empêche de committer un hook incohérent, qui bloquerait toute
+la flotte une fois recopié ; la forme demandée ne jugeait que (a), trop tard). Une copie d'index sans déclaration
+(branche antérieure) est DITE non vérifiée, jamais bloquante ; hors dépôt, dit aussi. Le motif s'exclut de lui-même
+(`[^#]*` ne franchit pas le « # » de sa classe). Mesuré : le `sh` de Git pour Windows retire le `\r` d'une
+affectation, et la copie déployée est entièrement en CRLF (747 lignes) — un cas le fige. Contre-exemples gelés
+(`tests/sandbox/test_hook_appels_attendus.py`, 8 cas) : 20 déclarés pour 21 portés → REFUSÉ ; 21/21 passe ; CRLF
+jugé comme LF ; index incohérent refusé même quand la copie qui tourne est cohérente ; index sans déclaration dit et
+non bloquant ; le bloc seul compte 0 appel. Le témoin existant ET le nouveau entrent dans le pas Gardes-de-gardes de
+`ci.yml` (le NŒUD seul pour `test_hook_on_merge.py`, dont les autres cas sont lents).
 <!-- closes_when:grep_present=tools/hooks/pre-commit::APPELS_ATTENDUS -->
 
 

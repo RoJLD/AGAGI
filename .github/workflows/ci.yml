@@ -99,6 +99,8 @@ jobs:
           tests/sandbox/test_agi_taxonomy_gate.py
           tests/sandbox/test_perimeter_widening.py
           tests/sandbox/test_fabricated_defaults.py
+          tests/sandbox/test_hook_appels_attendus.py
+          tests/sandbox/test_hook_on_merge.py::test_le_nombre_d_appels_annonce_dans_les_commentaires_se_RECOMPUTE
 
   # ------------------------------------------------------------------------------------------------
   # LA SUITE COMPLETE, PAR REPERTOIRE (2026-09-09). Tous les autres jobs prennent une LISTE NOMMEE de
