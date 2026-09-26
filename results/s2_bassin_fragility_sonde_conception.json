@@ -1,0 +1,974 @@
+{
+ "_comment": "P4.18 -- mesures de CONCEPTION prises AVANT le sceau de S2-BASSIN-FRAGILITY (2026-09-26, session SCIENCE-HARNAIS, hors regle) : aucune survie de sham (sign/iso/eps/pos) n'y figure. sonde_net_chemin : seed 2026, noop + rejeu de phase 1 des cinq bras (replication vs JSON publies, transplant dans des clones frais, deplacement NET contre chemin, structure de dW) ; temoin_parallelisme : deux rejeux (seed 2027, b_zero et b_const) lances EN MEME TEMPS dans deux processus ouvriers, kuzu neutralise. Les W appris de la sonde ne sont pas suivis (scratchpad) : leur sha256 est publie, et le run scelle les re-mesure et les persiste.",
+ "sonde_net_chemin": {
+  "cells": {
+   "noop": {
+    "arm": "noop",
+    "survival": {
+     "survival_median": 31.5,
+     "ages": [
+      4,
+      10,
+      14,
+      19,
+      20,
+      30,
+      33,
+      40,
+      71,
+      84,
+      86,
+      101
+     ],
+     "censored": 0,
+     "ticks": 101
+    },
+    "ages_identical_to_a_frozen": true,
+    "S_published": 31.5,
+    "wall_s": 7.418826580047607,
+    "cpu_s": 6.09375,
+    "load": {
+     "cpu_percent_1s": 66.2,
+     "python_procs": 9,
+     "t": "2026-09-26T12:38:17"
+    }
+   },
+   "p416:b_full": {
+    "arm": "p416:b_full",
+    "credit": {
+     "reward_scale": 1.0,
+     "td_enabled": true,
+     "lr": null,
+     "episode_enabled": true,
+     "reward_const": null
+    },
+    "seed": 2026,
+    "learning": {
+     "td_calls": 2000,
+     "td_updates": 1999,
+     "episode_calls": 250,
+     "episode_updates": 250,
+     "legacy_calls": 0,
+     "legacy_updates": 0,
+     "compute_spent_total": 0.0,
+     "forward_calls": 2000,
+     "skips": {},
+     "dW_abs_sum": 18242.03954219818,
+     "reward_scale": 1.0,
+     "td_enabled": true,
+     "lr": null,
+     "lr_effective_per_agent": 0.0033333333333333335,
+     "lr_effective_unit": "torch: lr/B (SGD, perte moyennée sur B, W disjoint par agent)",
+     "trace_lambda": null,
+     "trace_bypass_optimizer": false,
+     "trace_updates": 0,
+     "trace_resets": 0,
+     "resurrections": 12,
+     "ticks": 2000
+    },
+    "survival": {
+     "survival_median": 7.0,
+     "ages": [
+      5,
+      6,
+      6,
+      7,
+      7,
+      7,
+      7,
+      8,
+      8,
+      9,
+      9,
+      11
+     ],
+     "censored": 0,
+     "ticks": 11
+    },
+    "structure": {
+     "net_l1_per_agent": [
+      111.09819030761719,
+      158.3042449951172,
+      94.76513671875,
+      102.7104721069336,
+      97.02970123291016,
+      115.7833251953125,
+      98.36410522460938,
+      89.74576568603516,
+      115.69029998779297,
+      96.49352264404297,
+      137.36924743652344,
+      88.65185546875
+     ],
+     "net_l2_per_agent": [
+      4.564816951751709,
+      6.411273002624512,
+      3.822777032852173,
+      4.261778831481934,
+      4.0297040939331055,
+      4.526706218719482,
+      4.425731658935547,
+      4.278995990753174,
+      4.390002727508545,
+      3.931183099746704,
+      5.022571563720703,
+      3.9614343643188477
+     ],
+     "net_l1_total": 1306.005859375,
+     "net_l1_median_agent": 100.53729248046875,
+     "diag_share": 0.009148857556283474,
+     "body_rows_0_10_share": 0.03397142514586449,
+     "top1pct_entries_share_median": 0.5421270132064819,
+     "frac_entries_moved_median": 0.056838155759870196,
+     "cos_pairwise_median": 0.3949013556015177,
+     "cos_pairwise_min": -0.32109125306743347,
+     "cos_pairwise_max": 0.8595932960448356,
+     "row_mass_top10_nodes": [
+      41,
+      36,
+      12,
+      91,
+      13,
+      105,
+      70,
+      93,
+      160,
+      62
+     ],
+     "col_mass_top10_nodes": [
+      67,
+      66,
+      64,
+      65,
+      89,
+      88,
+      70,
+      71,
+      92,
+      69
+     ],
+     "l1_over_l2_median": 24.44179916381836
+    },
+    "path_total": 18242.03954219818,
+    "net_over_path": 0.07159319309411086,
+    "phenotype_unchanged_by_learning": true,
+    "transplant": {
+     "ages": [
+      5,
+      6,
+      6,
+      7,
+      7,
+      7,
+      7,
+      8,
+      8,
+      9,
+      9,
+      11
+     ],
+     "S": 7.0,
+     "ages_identical_to_learned_objects": true,
+     "wall_s": 0.5686063766479492,
+     "cpu_s": 0.234375
+    },
+    "replication": {
+     "path_identical": true,
+     "ages_identical": true,
+     "S_published": 7.0,
+     "S_now": 7.0,
+     "path_published": 18242.03954219818,
+     "imported_from": null
+    },
+    "cost": {
+     "phase1_wall_s": 372.61300230026245,
+     "phase1_cpu_s": 380.78125,
+     "phase2_wall_s": 0.5629301071166992,
+     "cell_wall_s": 373.17593240737915,
+     "cell_cpu_s": 380.9375,
+     "published_elapsed_s": 814.7946770191193,
+     "load_start": {
+      "cpu_percent_1s": 76.1,
+      "python_procs": 9,
+      "t": "2026-09-26T12:38:18"
+     },
+     "load_end": {
+      "cpu_percent_1s": 69.1,
+      "python_procs": 8,
+      "t": "2026-09-26T12:44:33"
+     }
+    }
+   },
+   "p49:b_zero": {
+    "arm": "p49:b_zero",
+    "credit": {
+     "reward_scale": 0.0,
+     "td_enabled": true,
+     "lr": null,
+     "episode_enabled": true,
+     "reward_const": null
+    },
+    "seed": 2026,
+    "learning": {
+     "td_calls": 2000,
+     "td_updates": 1999,
+     "episode_calls": 250,
+     "episode_updates": 250,
+     "legacy_calls": 0,
+     "legacy_updates": 0,
+     "compute_spent_total": 0.0,
+     "forward_calls": 2000,
+     "skips": {},
+     "dW_abs_sum": 361.23349606245756,
+     "reward_scale": 0.0,
+     "td_enabled": true,
+     "lr": null,
+     "lr_effective_per_agent": 0.0033333333333333335,
+     "lr_effective_unit": "torch: lr/B (SGD, perte moyennée sur B, W disjoint par agent)",
+     "trace_lambda": null,
+     "trace_bypass_optimizer": false,
+     "trace_updates": 0,
+     "trace_resets": 0,
+     "resurrections": 201,
+     "ticks": 2000
+    },
+    "survival": {
+     "survival_median": 32.0,
+     "ages": [
+      4,
+      9,
+      10,
+      12,
+      28,
+      31,
+      33,
+      41,
+      51,
+      53,
+      55,
+      60
+     ],
+     "censored": 0,
+     "ticks": 60
+    },
+    "structure": {
+     "net_l1_per_agent": [
+      2.893393039703369,
+      2.982936382293701,
+      3.451813220977783,
+      3.2004013061523438,
+      3.399576187133789,
+      3.6550509929656982,
+      3.7375237941741943,
+      2.977499008178711,
+      3.4204726219177246,
+      3.524472713470459,
+      3.8638358116149902,
+      3.300489902496338
+     ],
+     "net_l2_per_agent": [
+      0.1878039389848709,
+      0.18006600439548492,
+      0.19103996455669403,
+      0.19194813072681427,
+      0.22546248137950897,
+      0.2516964077949524,
+      0.26809871196746826,
+      0.22053664922714233,
+      0.229812353849411,
+      0.2496768981218338,
+      0.28113940358161926,
+      0.23424197733402252
+     ],
+     "net_l1_total": 40.407466888427734,
+     "net_l1_median_agent": 3.410024404525757,
+     "diag_share": 0.0010704864980652928,
+     "body_rows_0_10_share": 0.030817901715636253,
+     "top1pct_entries_share_median": 0.7971000075340271,
+     "frac_entries_moved_median": 0.05622971876690103,
+     "cos_pairwise_median": 0.8050144012459621,
+     "cos_pairwise_min": 0.40189451896299877,
+     "cos_pairwise_max": 0.990812796498093,
+     "row_mass_top10_nodes": [
+      41,
+      36,
+      64,
+      66,
+      13,
+      12,
+      65,
+      168,
+      160,
+      29
+     ],
+     "col_mass_top10_nodes": [
+      92,
+      67,
+      66,
+      88,
+      65,
+      64,
+      70,
+      89,
+      69,
+      71
+     ],
+     "l1_over_l2_median": 14.702714920043945
+    },
+    "path_total": 361.23349606245756,
+    "net_over_path": 0.11185969000350192,
+    "phenotype_unchanged_by_learning": true,
+    "transplant": {
+     "ages": [
+      4,
+      9,
+      10,
+      12,
+      28,
+      31,
+      33,
+      41,
+      51,
+      53,
+      55,
+      60
+     ],
+     "S": 32.0,
+     "ages_identical_to_learned_objects": true,
+     "wall_s": 0.8312797546386719,
+     "cpu_s": 0.796875
+    },
+    "replication": {
+     "path_identical": true,
+     "ages_identical": true,
+     "S_published": 32.0,
+     "S_now": 32.0,
+     "path_published": 361.23349606245756,
+     "imported_from": null
+    },
+    "cost": {
+     "phase1_wall_s": 108.60985660552979,
+     "phase1_cpu_s": 121.0,
+     "phase2_wall_s": 0.826179027557373,
+     "cell_wall_s": 109.43603563308716,
+     "cell_cpu_s": 121.375,
+     "published_elapsed_s": 108.18040013313293,
+     "load_start": {
+      "cpu_percent_1s": 27.5,
+      "python_procs": 8,
+      "t": "2026-09-26T12:45:33"
+     },
+     "load_end": {
+      "cpu_percent_1s": 47.1,
+      "python_procs": 8,
+      "t": "2026-09-26T12:47:24"
+     }
+    }
+   },
+   "p416:b_const": {
+    "arm": "p416:b_const",
+    "credit": {
+     "reward_scale": 1.0,
+     "td_enabled": true,
+     "lr": null,
+     "episode_enabled": true,
+     "reward_const": 1.0
+    },
+    "seed": 2026,
+    "learning": {
+     "td_calls": 2000,
+     "td_updates": 1999,
+     "episode_calls": 250,
+     "episode_updates": 250,
+     "legacy_calls": 0,
+     "legacy_updates": 0,
+     "compute_spent_total": 0.0,
+     "forward_calls": 2000,
+     "skips": {},
+     "dW_abs_sum": 941.5139293726534,
+     "reward_scale": 1.0,
+     "td_enabled": true,
+     "lr": null,
+     "lr_effective_per_agent": 0.0033333333333333335,
+     "lr_effective_unit": "torch: lr/B (SGD, perte moyennée sur B, W disjoint par agent)",
+     "trace_lambda": null,
+     "trace_bypass_optimizer": false,
+     "trace_updates": 0,
+     "trace_resets": 0,
+     "resurrections": 62,
+     "ticks": 2000
+    },
+    "survival": {
+     "survival_median": 21.0,
+     "ages": [
+      7,
+      11,
+      19,
+      19,
+      20,
+      21,
+      21,
+      24,
+      24,
+      38,
+      42,
+      151
+     ],
+     "censored": 0,
+     "ticks": 151
+    },
+    "structure": {
+     "net_l1_per_agent": [
+      23.26778221130371,
+      37.576438903808594,
+      30.84748077392578,
+      31.706645965576172,
+      36.09417724609375,
+      24.07032012939453,
+      27.865802764892578,
+      38.86869812011719,
+      21.450071334838867,
+      20.329038619995117,
+      16.74503517150879,
+      28.064062118530273
+     ],
+     "net_l2_per_agent": [
+      1.2172335386276245,
+      1.5145785808563232,
+      1.4240198135375977,
+      1.432844638824463,
+      1.2421168088912964,
+      1.1600227355957031,
+      1.0612066984176636,
+      1.5412622690200806,
+      1.2542457580566406,
+      0.8387525081634521,
+      0.747093677520752,
+      1.0695774555206299
+     ],
+     "net_l1_total": 336.8855285644531,
+     "net_l1_median_agent": 27.96493148803711,
+     "diag_share": 0.005119224078953266,
+     "body_rows_0_10_share": 0.04824180155992508,
+     "top1pct_entries_share_median": 0.5418721437454224,
+     "frac_entries_moved_median": 0.05688885884261763,
+     "cos_pairwise_median": 0.5683304098717512,
+     "cos_pairwise_min": 0.2970710687449005,
+     "cos_pairwise_max": 0.9659902870943098,
+     "row_mass_top10_nodes": [
+      36,
+      41,
+      12,
+      13,
+      6,
+      7,
+      51,
+      68,
+      170,
+      69
+     ],
+     "col_mass_top10_nodes": [
+      92,
+      67,
+      65,
+      66,
+      88,
+      64,
+      89,
+      71,
+      70,
+      69
+     ],
+     "l1_over_l2_median": 23.325401306152344
+    },
+    "path_total": 941.5139293726534,
+    "net_over_path": 0.35781258041389324,
+    "phenotype_unchanged_by_learning": true,
+    "transplant": {
+     "ages": [
+      7,
+      11,
+      19,
+      19,
+      20,
+      21,
+      21,
+      24,
+      24,
+      38,
+      42,
+      151
+     ],
+     "S": 21.0,
+     "ages_identical_to_learned_objects": true,
+     "wall_s": 0.9405803680419922,
+     "cpu_s": 0.8125
+    },
+    "replication": {
+     "path_identical": true,
+     "ages_identical": true,
+     "S_published": 21.0,
+     "S_now": 21.0,
+     "path_published": 941.5139293726534,
+     "imported_from": null
+    },
+    "cost": {
+     "phase1_wall_s": 112.66695928573608,
+     "phase1_cpu_s": 133.375,
+     "phase2_wall_s": 0.8878993988037109,
+     "cell_wall_s": 113.5548586845398,
+     "cell_cpu_s": 133.984375,
+     "published_elapsed_s": 188.11546754837036,
+     "load_start": {
+      "cpu_percent_1s": 26.7,
+      "python_procs": 8,
+      "t": "2026-09-26T12:47:25"
+     },
+     "load_end": {
+      "cpu_percent_1s": 10.8,
+      "python_procs": 8,
+      "t": "2026-09-26T12:49:21"
+     }
+    }
+   },
+   "p416:b_eplr": {
+    "arm": "p416:b_eplr",
+    "credit": {
+     "reward_scale": 1.0,
+     "td_enabled": false,
+     "lr": 0.004,
+     "episode_enabled": true,
+     "reward_const": null
+    },
+    "seed": 2026,
+    "learning": {
+     "td_calls": 2000,
+     "td_updates": 0,
+     "episode_calls": 250,
+     "episode_updates": 250,
+     "legacy_calls": 0,
+     "legacy_updates": 0,
+     "compute_spent_total": 0.0,
+     "forward_calls": 2000,
+     "skips": {
+      "td_disabled": 2000
+     },
+     "dW_abs_sum": 1168.2166115045547,
+     "reward_scale": 1.0,
+     "td_enabled": false,
+     "lr": 0.004,
+     "lr_effective_per_agent": null,
+     "lr_effective_unit": null,
+     "trace_lambda": null,
+     "trace_bypass_optimizer": false,
+     "trace_updates": 0,
+     "trace_resets": 0,
+     "resurrections": 29,
+     "ticks": 2000
+    },
+    "survival": {
+     "survival_median": 11.5,
+     "ages": [
+      7,
+      8,
+      9,
+      10,
+      11,
+      11,
+      12,
+      17,
+      20,
+      37,
+      84,
+      102
+     ],
+     "censored": 0,
+     "ticks": 102
+    },
+    "structure": {
+     "net_l1_per_agent": [
+      14.699132919311523,
+      16.288066864013672,
+      15.246615409851074,
+      29.43791961669922,
+      19.402469635009766,
+      20.940597534179688,
+      22.281513214111328,
+      14.533184051513672,
+      12.585489273071289,
+      17.807376861572266,
+      20.188919067382812,
+      31.025394439697266
+     ],
+     "net_l2_per_agent": [
+      0.7525243163108826,
+      0.9568737745285034,
+      0.8466154336929321,
+      1.552555799484253,
+      0.8803091049194336,
+      1.1303883790969849,
+      1.1424752473831177,
+      0.7416309118270874,
+      0.7071316242218018,
+      1.1539989709854126,
+      1.143472671508789,
+      2.1224992275238037
+     ],
+     "net_l1_total": 234.43667602539062,
+     "net_l1_median_agent": 18.604923248291016,
+     "diag_share": 0.004433129448443651,
+     "body_rows_0_10_share": 0.057346146553754807,
+     "top1pct_entries_share_median": 0.7093904614448547,
+     "frac_entries_moved_median": 0.041373715521903734,
+     "cos_pairwise_median": 0.5650697015243275,
+     "cos_pairwise_min": 0.02206483508428963,
+     "cos_pairwise_max": 0.8362374586368769,
+     "row_mass_top10_nodes": [
+      36,
+      41,
+      13,
+      12,
+      29,
+      7,
+      6,
+      51,
+      8,
+      31
+     ],
+     "col_mass_top10_nodes": [
+      66,
+      65,
+      67,
+      64,
+      69,
+      71,
+      68,
+      70,
+      0,
+      1
+     ],
+     "l1_over_l2_median": 18.267019271850586
+    },
+    "path_total": 1168.2166115045547,
+    "net_over_path": 0.20067911525710794,
+    "phenotype_unchanged_by_learning": true,
+    "transplant": {
+     "ages": [
+      7,
+      8,
+      9,
+      10,
+      11,
+      11,
+      12,
+      17,
+      20,
+      37,
+      84,
+      102
+     ],
+     "S": 11.5,
+     "ages_identical_to_learned_objects": true,
+     "wall_s": 0.8249011039733887,
+     "cpu_s": 0.96875
+    },
+    "replication": {
+     "path_identical": true,
+     "ages_identical": true,
+     "S_published": 11.5,
+     "S_now": 11.5,
+     "path_published": 1168.2166115045547,
+     "imported_from": null
+    },
+    "cost": {
+     "phase1_wall_s": 260.06732749938965,
+     "phase1_cpu_s": 268.140625,
+     "phase2_wall_s": 0.8120601177215576,
+     "cell_wall_s": 260.8793876171112,
+     "cell_cpu_s": 268.90625,
+     "published_elapsed_s": 434.8055694103241,
+     "load_start": {
+      "cpu_percent_1s": 10.2,
+      "python_procs": 8,
+      "t": "2026-09-26T12:49:22"
+     },
+     "load_end": {
+      "cpu_percent_1s": 5.5,
+      "python_procs": 8,
+      "t": "2026-09-26T12:53:45"
+     }
+    }
+   },
+   "p416:b_tdonly": {
+    "arm": "p416:b_tdonly",
+    "credit": {
+     "reward_scale": 1.0,
+     "td_enabled": true,
+     "lr": null,
+     "episode_enabled": false,
+     "reward_const": null
+    },
+    "seed": 2026,
+    "learning": {
+     "td_calls": 2000,
+     "td_updates": 1999,
+     "episode_calls": 250,
+     "episode_updates": 0,
+     "legacy_calls": 0,
+     "legacy_updates": 0,
+     "compute_spent_total": 0.0,
+     "forward_calls": 2000,
+     "skips": {},
+     "dW_abs_sum": 11742.918721616268,
+     "reward_scale": 1.0,
+     "td_enabled": true,
+     "lr": null,
+     "lr_effective_per_agent": 0.0033333333333333335,
+     "lr_effective_unit": "torch: lr/B (SGD, perte moyennée sur B, W disjoint par agent)",
+     "trace_lambda": null,
+     "trace_bypass_optimizer": false,
+     "trace_updates": 0,
+     "trace_resets": 0,
+     "resurrections": 12,
+     "ticks": 2000
+    },
+    "survival": {
+     "survival_median": 9.0,
+     "ages": [
+      6,
+      7,
+      7,
+      8,
+      8,
+      9,
+      9,
+      9,
+      10,
+      11,
+      18,
+      20
+     ],
+     "censored": 0,
+     "ticks": 20
+    },
+    "structure": {
+     "net_l1_per_agent": [
+      99.93356323242188,
+      102.07478332519531,
+      93.81893157958984,
+      66.2027587890625,
+      69.8523941040039,
+      70.80975341796875,
+      73.72000885009766,
+      70.36027526855469,
+      75.61241912841797,
+      72.33979797363281,
+      97.40296173095703,
+      60.943115234375
+     ],
+     "net_l2_per_agent": [
+      3.428415060043335,
+      3.6251072883605957,
+      3.1093764305114746,
+      2.5827670097351074,
+      2.6734633445739746,
+      2.608368158340454,
+      2.834155321121216,
+      2.5493335723876953,
+      2.861630916595459,
+      2.835176467895508,
+      3.4453470706939697,
+      2.4391329288482666
+     ],
+     "net_l1_total": 953.0707397460938,
+     "net_l1_median_agent": 73.0299072265625,
+     "diag_share": 0.006335667800158262,
+     "body_rows_0_10_share": 0.03512388840317726,
+     "top1pct_entries_share_median": 0.5087038278579712,
+     "frac_entries_moved_median": 0.05688885884261763,
+     "cos_pairwise_median": 0.7830187407081062,
+     "cos_pairwise_min": -0.3055059945827675,
+     "cos_pairwise_max": 0.9441725551251546,
+     "row_mass_top10_nodes": [
+      41,
+      36,
+      6,
+      7,
+      170,
+      82,
+      51,
+      169,
+      13,
+      28
+     ],
+     "col_mass_top10_nodes": [
+      66,
+      65,
+      89,
+      88,
+      67,
+      64,
+      71,
+      68,
+      69,
+      92
+     ],
+     "l1_over_l2_median": 26.78499412536621
+    },
+    "path_total": 11742.918721616268,
+    "net_over_path": 0.08116131622300075,
+    "phenotype_unchanged_by_learning": true,
+    "transplant": {
+     "ages": [
+      6,
+      7,
+      7,
+      8,
+      8,
+      9,
+      9,
+      9,
+      10,
+      11,
+      18,
+      20
+     ],
+     "S": 9.0,
+     "ages_identical_to_learned_objects": true,
+     "wall_s": 0.5931990146636963,
+     "cpu_s": 0.234375
+    },
+    "replication": {
+     "path_identical": true,
+     "ages_identical": true,
+     "S_published": 9.0,
+     "S_now": 9.0,
+     "path_published": 11742.918721616268,
+     "imported_from": null
+    },
+    "cost": {
+     "phase1_wall_s": 299.73575496673584,
+     "phase1_cpu_s": 310.1875,
+     "phase2_wall_s": 0.5708026885986328,
+     "cell_wall_s": 300.3065576553345,
+     "cell_cpu_s": 310.265625,
+     "published_elapsed_s": 645.0775573253632,
+     "load_start": {
+      "cpu_percent_1s": 7.4,
+      "python_procs": 8,
+      "t": "2026-09-26T12:53:46"
+     },
+     "load_end": {
+      "cpu_percent_1s": 6.0,
+      "python_procs": 8,
+      "t": "2026-09-26T12:58:48"
+     }
+    }
+   }
+  }
+ },
+ "temoin_parallelisme": {
+  "cells": [
+   {
+    "seed": 2027,
+    "arm": "b_zero",
+    "pid": 23016,
+    "path": 386.73799787834287,
+    "path_pub": 386.73799787834287,
+    "ages": [
+     10,
+     14,
+     17,
+     19,
+     27,
+     27,
+     34,
+     41,
+     49,
+     63,
+     86,
+     114
+    ],
+    "ages_pub": [
+     10,
+     14,
+     17,
+     19,
+     27,
+     27,
+     34,
+     41,
+     49,
+     63,
+     86,
+     114
+    ],
+    "identical": true,
+    "wall_s": 152.83241534233093,
+    "cpu_s": 150.3125
+   },
+   {
+    "seed": 2027,
+    "arm": "b_const",
+    "pid": 26180,
+    "path": 908.5780415460467,
+    "path_pub": 908.5780415460467,
+    "ages": [
+     6,
+     7,
+     7,
+     9,
+     13,
+     14,
+     17,
+     20,
+     20,
+     42,
+     59,
+     95
+    ],
+    "ages_pub": [
+     6,
+     7,
+     7,
+     9,
+     13,
+     14,
+     17,
+     20,
+     20,
+     42,
+     59,
+     95
+    ],
+    "identical": true,
+    "wall_s": 256.3969101905823,
+    "cpu_s": 250.234375
+   }
+  ],
+  "all_identical": true,
+  "wall_total_s": 259.4301543235779,
+  "load_start": {
+   "cpu_percent_1s": 48.5,
+   "python_procs": 8,
+   "t": "2026-09-26T13:07:03"
+  },
+  "load_end": {
+   "cpu_percent_1s": 55.4,
+   "python_procs": 12,
+   "t": "2026-09-26T13:11:24"
+  },
+  "distinct_pids": true
+ },
+ "sources": {
+  "p418_probe_net_path.py": "\"\"\"Sonde de CONCEPTION P4.18 (avant sceau) : deplacement NET vs longueur de CHEMIN des bras credit.\n\nQuestion : `dW_abs_sum` publie par P4.9/P4.16 cumule |dW| a CHAQUE mise a jour (tools/learning_events.py:173,187).\nCe que la phase 2 voit est W_final - W_bassin. Un bruit tire d'un coup a net == chemin ; un bras credit, non.\nMesure, seed 2026 (replication bit-identique prouvee pour b_full), chaque bras de P4.16 et P4.9 :\n  chemin (dW_abs_sum), net L1/L2 par agent, structure de dW, replication (chemin + ages vs JSON publies),\n  temps mur + CPU + charge. Persiste W appris (npz) dans le scratchpad.\nUsage (depuis la racine du worktree) : python <ce fichier> [bras...]\n\"\"\"\nimport json\nimport os\nimport sys\nimport time\n\nimport numpy as np\n\nROOT = os.getcwd()\nsys.path.insert(0, ROOT)\nOUT_DIR = os.path.dirname(os.path.abspath(__file__))\nOUT = os.path.join(OUT_DIR, \"p418_probe_net_path.json\")\nSEED = 2026\n\nfrom tools.evo_runs.s2_credit_ablation_2 import ARM_CREDIT as C2, credit_variant  # noqa: E402\nfrom tools.evo_runs.s2_credit_ablation import ARM_CREDIT as C1  # noqa: E402\nfrom tools.evo_runs.s2_credit_retention import phase1_learn_immortal, phase2_survive_mortal, load_bassin  # noqa: E402\nfrom tools.evo_runs.s2_reward_ablation import _bassin_cohort  # noqa: E402\n\nARMS = {}\nfor k, v in C2.items():\n    ARMS[\"p416:\" + k] = dict(v)\nfor k, v in C1.items():\n    if k != \"b_full\":\n        ARMS[\"p49:\" + k] = dict(v, episode_enabled=True, reward_const=None)\nORDER = [\"p416:b_full\", \"p49:b_neg\", \"p49:b_tdoff\", \"p49:b_zero\", \"p416:b_const\", \"p49:b_lr\", \"p416:b_eplr\",\n         \"p416:b_tdonly\"]\n\n\ndef published(arm):\n    src, name = arm.split(\":\")\n    path = \"results/s2_credit_ablation_2.json\" if src == \"p416\" else \"results/s2_credit_ablation.json\"\n    d = json.load(open(os.path.join(ROOT, path), encoding=\"utf-8\"))\n    r = d[\"arms\"][name][str(SEED)]\n    return {\"dW_abs_sum\": r[\"learning\"][\"dW_abs_sum\"], \"ages\": r[\"survival\"][\"ages\"],\n            \"S\": r[\"survival\"][\"survival_median\"], \"elapsed_s\": r[\"elapsed_s\"],\n            \"imported_from\": r.get(\"imported_from\")}\n\n\ndef load():\n    import psutil\n    procs = 0\n    for p in psutil.process_iter([\"name\"]):\n        try:\n            if \"python\" in (p.info[\"name\"] or \"\").lower():\n                procs += 1\n        except Exception:\n            pass\n    return {\"cpu_percent_1s\": psutil.cpu_percent(interval=1.0), \"python_procs\": procs,\n            \"t\": time.strftime(\"%Y-%m-%dT%H:%M:%S\")}\n\n\ndef structure(W0, Wf):\n    dW = Wf - W0[None]                                  # (B,N,N)\n    B, N, _ = dW.shape\n    a = np.abs(dW)\n    per_l1 = a.reshape(B, -1).sum(1)\n    per_l2 = np.sqrt((dW.reshape(B, -1) ** 2).sum(1))\n    diag = np.array([np.abs(np.diagonal(dW[i])).sum() for i in range(B)])\n    body = a[:, 0:10, :].reshape(B, -1).sum(1)\n    flat = a.reshape(B, -1)\n    k = max(1, int(0.01 * flat.shape[1]))\n    top1 = np.sort(flat, axis=1)[:, -k:].sum(1) / np.maximum(per_l1, 1e-30)\n    nnz = (flat > 0).mean(1)\n    # coherence de direction entre clones (meme seed) : cosinus moyen des dW deux a deux\n    v = dW.reshape(B, -1).astype(np.float64)\n    nv = v / np.maximum(np.linalg.norm(v, axis=1, keepdims=True), 1e-30)\n    cos = nv @ nv.T\n    iu = np.triu_indices(B, 1)\n    # lignes (noeud cible i) / colonnes : ou va la masse\n    row_mass = a.sum(axis=(0, 2))\n    col_mass = a.sum(axis=(0, 1))\n    return {\"net_l1_per_agent\": per_l1.tolist(), \"net_l2_per_agent\": per_l2.tolist(),\n            \"net_l1_total\": float(per_l1.sum()), \"net_l1_median_agent\": float(np.median(per_l1)),\n            \"diag_share\": float(diag.sum() / max(per_l1.sum(), 1e-30)),\n            \"body_rows_0_10_share\": float(body.sum() / max(per_l1.sum(), 1e-30)),\n            \"top1pct_entries_share_median\": float(np.median(top1)), \"frac_entries_moved_median\": float(np.median(nnz)),\n            \"cos_pairwise_median\": float(np.median(cos[iu])), \"cos_pairwise_min\": float(cos[iu].min()),\n            \"cos_pairwise_max\": float(cos[iu].max()),\n            \"row_mass_top10_nodes\": [int(i) for i in np.argsort(-row_mass)[:10]],\n            \"col_mass_top10_nodes\": [int(i) for i in np.argsort(-col_mass)[:10]],\n            \"l1_over_l2_median\": float(np.median(per_l1 / np.maximum(per_l2, 1e-30)))}\n\n\ndef run_cell(arm):\n    from tools.jobs.run import hold  # noqa: F401  (le bail est tenu par main)\n    cr = ARMS[arm]\n    agents = _bassin_cohort(SEED, 12)\n    W0 = np.asarray(load_bassin().W, dtype=np.float32)\n    assert all(np.array_equal(np.asarray(a.genome.W, dtype=np.float32), W0) for a in agents), \"clones != bassin\"\n    pheno0 = [(a.phenotype_hp_bonus, a.phenotype_inv_capacity, a.phenotype_energy_drain) for a in agents]\n    l0 = load()\n    t0, c0 = time.time(), time.process_time()\n    with credit_variant(episode_enabled=cr[\"episode_enabled\"], reward_const=cr[\"reward_const\"]):\n        learning = phase1_learn_immortal(agents, SEED, 2000, lr=cr[\"lr\"], reward_scale=cr[\"reward_scale\"],\n                                         td_enabled=cr[\"td_enabled\"])\n    t1, c1 = time.time(), time.process_time()\n    Wf = np.stack([np.asarray(a.genome.W, dtype=np.float32) for a in agents])\n    pheno1 = [(a.phenotype_hp_bonus, a.phenotype_inv_capacity, a.phenotype_energy_drain) for a in agents]\n    surv = phase2_survive_mortal(agents, SEED, 200)\n    t2, c2 = time.time(), time.process_time()\n    # TRANSPLANT : W appris greffe dans des clones FRAIS du bassin (phenotype du bassin, jamais recalcule, comme\n    # dans le bras credit). Si la phase 2 ne depend que de W, les ages sont identiques a ceux des objets appris.\n    fresh = _bassin_cohort(SEED, 12)\n    for a, w in zip(fresh, Wf):\n        a.genome.W = np.array(w, dtype=np.float32, copy=True)\n    surv_tr = phase2_survive_mortal(fresh, SEED, 200)\n    t3, c3 = time.time(), time.process_time()\n    l1 = load()\n    np.savez_compressed(os.path.join(OUT_DIR, \"p418_W_%s_%d.npz\" % (arm.replace(\":\", \"_\"), SEED)), W_final=Wf, W0=W0)\n    pub = published(arm)\n    st = structure(W0, Wf)\n    path = float(learning[\"dW_abs_sum\"])\n    return {\"arm\": arm, \"credit\": cr, \"seed\": SEED, \"learning\": learning, \"survival\": surv,\n            \"structure\": st, \"path_total\": path,\n            \"net_over_path\": st[\"net_l1_total\"] / path if path > 0 else None,\n            \"phenotype_unchanged_by_learning\": pheno0 == pheno1,\n            \"transplant\": {\"ages\": surv_tr[\"ages\"], \"S\": surv_tr[\"survival_median\"],\n                           \"ages_identical_to_learned_objects\": surv_tr[\"ages\"] == surv[\"ages\"],\n                           \"wall_s\": t3 - t2, \"cpu_s\": c3 - c2},\n            \"replication\": {\"path_identical\": path == pub[\"dW_abs_sum\"], \"ages_identical\": surv[\"ages\"] == pub[\"ages\"],\n                            \"S_published\": pub[\"S\"], \"S_now\": surv[\"survival_median\"],\n                            \"path_published\": pub[\"dW_abs_sum\"], \"imported_from\": pub[\"imported_from\"]},\n            \"cost\": {\"phase1_wall_s\": t1 - t0, \"phase1_cpu_s\": c1 - c0, \"phase2_wall_s\": t2 - t1,\n                     \"cell_wall_s\": t2 - t0, \"cell_cpu_s\": c2 - c0, \"published_elapsed_s\": pub[\"elapsed_s\"],\n                     \"load_start\": l0, \"load_end\": l1}}\n\n\ndef run_noop():\n    \"\"\"No-op : clones frais, W inchange -> les ages doivent etre ceux de a_frozen publie (P4.16), au bit pres.\"\"\"\n    d = json.load(open(os.path.join(ROOT, \"results/s2_credit_ablation_2.json\"), encoding=\"utf-8\"))\n    pub = d[\"arms\"][\"a_frozen\"][str(SEED)][\"survival\"]\n    t0, c0 = time.time(), time.process_time()\n    surv = phase2_survive_mortal(_bassin_cohort(SEED, 12), SEED, 200)\n    return {\"arm\": \"noop\", \"survival\": surv, \"ages_identical_to_a_frozen\": surv[\"ages\"] == pub[\"ages\"],\n            \"S_published\": pub[\"survival_median\"], \"wall_s\": time.time() - t0, \"cpu_s\": time.process_time() - c0,\n            \"load\": load()}\n\n\ndef main():\n    from tools.jobs.run import hold\n    arms = sys.argv[1:] or ([\"noop\"] + ORDER)\n    data = json.load(open(OUT, encoding=\"utf-8\")) if os.path.exists(OUT) else {\"cells\": {}}\n    with hold(\"kuzu\", owner=\"p418-probe-net-path\", ttl_s=7200):\n        for arm in arms:\n            if arm in data[\"cells\"]:\n                continue\n            if arm == \"noop\":\n                r = run_noop()\n                data[\"cells\"][arm] = r\n                json.dump(data, open(OUT + \".tmp\", \"w\", encoding=\"utf-8\"), indent=1)\n                os.replace(OUT + \".tmp\", OUT)\n                print(f\"[noop] S {r['survival']['survival_median']} (pub {r['S_published']}) identical \"\n                      f\"{r['ages_identical_to_a_frozen']} | {r['wall_s']:.1f}s\", flush=True)\n                continue\n            r = run_cell(arm)\n            data[\"cells\"][arm] = r\n            tmp = OUT + \".tmp\"\n            json.dump(data, open(tmp, \"w\", encoding=\"utf-8\"), indent=1)\n            os.replace(tmp, OUT)\n            s = r[\"structure\"]\n            print(f\"[{arm:14s}] path {r['path_total']:9.1f} net {s['net_l1_total']:9.1f} ratio {r['net_over_path']:.3f} \"\n                  f\"| net/agent med {s['net_l1_median_agent']:7.1f} cos {s['cos_pairwise_median']:+.2f} \"\n                  f\"| repl path {r['replication']['path_identical']} ages {r['replication']['ages_identical']} \"\n                  f\"S {r['survival']['survival_median']} transpl {r['transplant']['ages_identical_to_learned_objects']} | wall {r['cost']['cell_wall_s']:.0f}s cpu {r['cost']['cell_cpu_s']:.0f}s \"\n                  f\"(pub {r['cost']['published_elapsed_s']:.0f}s) cpu% {r['cost']['load_start']['cpu_percent_1s']}\", flush=True)\n\n\nif __name__ == \"__main__\":\n    main()\n",
+  "p418_parallel_witness.py": "\"\"\"Témoin de PARALLÉLISME (P4.18, avant sceau) : deux rejeux de phase 1 lancés EN MÊME TEMPS dans deux processus\nouvriers (kuzu neutralisé par _ouvrier_init, motif de tools/lethality_curriculum.py) doivent rendre le chemin\n`dW_abs_sum` et les 12 âges PUBLIÉS au bit. Bail kuzu tenu par ce processus parent. Usage : depuis la racine du\nworktree, python <ce fichier>.\"\"\"\nimport json\nimport os\nimport sys\nimport time\n\nsys.path.insert(0, os.getcwd())\nOUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), \"p418_parallel_witness.json\")\nCELLS = [(2027, \"b_zero\"), (2027, \"b_const\")]\n\n\ndef _one(seed, arm):\n    from tools.evo_runs import s2_bassin_fragility as R\n    t0, c0 = time.time(), time.process_time()\n    rp = R.replay_arm(seed, arm)\n    pub = R.published(arm, seed)\n    return {\"seed\": seed, \"arm\": arm, \"pid\": os.getpid(),\n            \"path\": rp[\"learning\"][\"dW_abs_sum\"], \"path_pub\": pub[\"dW_abs_sum\"],\n            \"ages\": rp[\"survival\"][\"ages\"], \"ages_pub\": pub[\"ages\"],\n            \"identical\": bool(rp[\"learning\"][\"dW_abs_sum\"] == pub[\"dW_abs_sum\"] and rp[\"survival\"][\"ages\"] == pub[\"ages\"]),\n            \"wall_s\": time.time() - t0, \"cpu_s\": time.process_time() - c0}\n\n\ndef main():\n    from concurrent.futures import ProcessPoolExecutor\n    from tools.evo_runs import s2_bassin_fragility as R\n    from tools.jobs.run import hold\n    with hold(\"kuzu\", owner=\"p418-parallel-witness\", ttl_s=3600):\n        load0 = R._charge()\n        t0 = time.time()\n        with ProcessPoolExecutor(max_workers=2, initializer=R._ouvrier_init) as ex:\n            res = list(ex.map(_one, *zip(*CELLS)))\n        out = {\"cells\": res, \"all_identical\": all(r[\"identical\"] for r in res), \"wall_total_s\": time.time() - t0,\n               \"load_start\": load0, \"load_end\": R._charge(),\n               \"distinct_pids\": len({r[\"pid\"] for r in res}) == len(res)}\n    json.dump(out, open(OUT, \"w\", encoding=\"utf-8\"), indent=1)\n    for r in res:\n        print(f\"[{r['seed']} {r['arm']}] identical {r['identical']} path {r['path']} (pub {r['path_pub']}) \"\n              f\"wall {r['wall_s']:.0f}s cpu {r['cpu_s']:.0f}s pid {r['pid']}\")\n    print(\"ALL IDENTICAL:\", out[\"all_identical\"], \"| distinct pids:\", out[\"distinct_pids\"],\n          \"| wall total %.0fs\" % out[\"wall_total_s\"])\n\n\nif __name__ == \"__main__\":\n    main()\n"
+ },
+ "W_sonde_sha256": {
+  "p418_W_p416_b_const_2026.npz": "747c3364424a0dc13736b116c7a6ea68021e63ebb2d9c4874015e9c5c936a41c",
+  "p418_W_p416_b_eplr_2026.npz": "80628299b0694f638ba9aabd291bfa4cc3e70abbe584ae7ab802d1d5b5536736",
+  "p418_W_p416_b_full_2026.npz": "404b4c0aa806e665dd007f0d12771a18d95308f9cc0798cffafceeb5e83768a5",
+  "p418_W_p416_b_tdonly_2026.npz": "9621ff61a2c688c7567fe5f9b4c6e1b9e0af393224722e0895eae5afd1e3fd17",
+  "p418_W_p49_b_zero_2026.npz": "004f34dd02dc52aae2fc8753652cc049e5b6bde7d9b7e7d9f9ec95746c56f24d"
+ }
+}
