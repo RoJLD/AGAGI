@@ -57,6 +57,16 @@ Même cellule, apprenant ACTIF : dérive max|W−W0| = 15,0 / 10,99 / 15,0 selon
 **0 écart** sous la règle, 2 sans volatils. La mise à jour de W pendant la vie — le chemin numérique le plus sensible
 aux arrondis de ce runner — rend donc les mêmes octets sur les deux machines, pour cette cellule.
 
+## Tour 4 (sha 7481e15e) : identiques sur l'image reconstruite
+
+La sortie de l'adresse du cluster hors du dépôt (7481e15e) a changé le gabarit de build, donc le contexte haché :
+l'image a été reconstruite (digest 7c860b30…). **Elle diffère de la précédente (a1d6e4eb…) pour un Dockerfile, des
+contraintes et des requirements identiques** — une construction n'est pas reproductible bit à bit (dépendances
+transitives non épinglées, ou horodatages de couches) ; c'est le digest d'`IMAGE.json` qui désigne l'image, jamais le
+tag. Même cellule qu'au tour 2 (poids gelés), un côté batcave et deux nexus : **0 écart** sous la règle sur les 3
+paires, contrôle 2 par paire. Le record reste donc vrai sur l'image que cite `IMAGE.json`. Coût : nexus 1,397 et
+1,396 s (runner) ; batcave 2,514 s, à 30,2 % de CPU au départ.
+
 ## Le comparateur et le runner peuvent-ils dire « différent » ?
 
 Oui, mais grossièrement. Trois sorties nexus du même sha (W gelé, W appris, 23 agents au lieu de 24) diffèrent deux à

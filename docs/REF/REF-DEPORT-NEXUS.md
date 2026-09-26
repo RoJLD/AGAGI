@@ -141,6 +141,9 @@ minimal ; les deux publient les variables déclarées dans le MANIFEST.
 * Premier run déporté : `evo011_preflight --smoke` au sha da09f7a1, 64 s de bout en bout (préparation du dépôt au
   sha, 19,6 Mo envoyés, tirage d'image, run, rapatriement vérifié). Dans le pod : `cpu.max` = 2 CPU lus au cgroup,
   `os.cpu_count()` = 16 (l'hôte), threads posés à 2.
+* Image reconstruite après la sortie de l'adresse du dépôt (7481e15e) : digest DIFFÉRENT de la première pour un
+  contexte de build identique — une construction Kaniko n'est pas reproductible bit à bit ; un run se désigne par le
+  DIGEST d'`IMAGE.json`, jamais par le tag. Témoin relancé sur cette image : identique (EDR-DEPORT-NEXUS-TEMOIN, tour 4).
 * La ConfigMap `registry-ca-bundle` du namespace est une COPIE de celle d'elysium-brain : si la CA mkcert du
   registre tourne, la re-copier (sinon build et tirage échouent en TLS) — P2.127.
 

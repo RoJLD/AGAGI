@@ -1,11 +1,11 @@
 {
   "image": "elysium/agagi-runner",
-  "tag": "py3.13.12-39fe2c9bda57",
-  "digest": "sha256:a1d6e4ebe55bbfb14578846360411605e810c24437408eb386dac2af401c214c",
-  "ctx_hash12": "39fe2c9bda57",
+  "tag": "py3.13.12-2bf24b9ccf41",
+  "digest": "sha256:7c860b30fbd45348f937c13af278d57f1bd0a90633866004a01eeafc6d0e3de8",
+  "ctx_hash12": "2bf24b9ccf41",
   "requirements_sha256": "e4fc0a97171a60638bab37ec72cec40fe35cadef908cfb5864dbb27d03e4fa18",
-  "source_sha": "019dc34b0cf87cdda1263055d360dd3a843e5f44",
-  "job": "agagi-build-39fe2c9bda57-ae8b",
-  "construit_utc": "2026-09-26T12:13:38.854724+00:00",
-  "duree_build_s": 85.7
+  "source_sha": "7481e15ebf944ad3fde335730896650da5f5f4d1",
+  "job": "agagi-build-2bf24b9ccf41-245c",
+  "construit_utc": "2026-09-26T14:56:32.715910+00:00",
+  "duree_build_s": 84.2
 }
