@@ -24,7 +24,9 @@ def _env_git_neutralise(monkeypatch):
     pre-commit et, de là, vers TOUS ses sous-processus — donc vers `pytest` quand le hook lance le harnais
     de mutation. Un test qui croit travailler sur un dépôt jetable travaille alors sur le dépôt RÉEL :
     `git init` hérité d'un `GIT_DIR` sans `GIT_WORK_TREE` **réinitialise le dépôt pointé et y pose
-    `core.bare = true`** (mesuré deux fois — le 2026-09-23 vers 20:03 et le 2026-09-24 à 13:30:13 ; dans
+    `core.bare = true`** — quand ce `GIT_DIR` ne finit pas par « /.git », ce qui est le cas du gitdir d'un
+    WORKTREE, la forme que git exporte quand on committe depuis un worktree (depuis l'arbre principal il est
+    absent) ; mesuré sur Linux et Windows le 2026-09-26, P2.121 famille 6 — (mesuré deux fois — le 2026-09-23 vers 20:03 et le 2026-09-24 à 13:30:13 ; dans
     les deux cas `git status` a rendu « must be run in a work tree » pour TOUTES les sessions, et seule la
     plomberie passait encore). Le `git config user.email` qui suit un tel init écrase de plus l'identité du
     dépôt réel : c'est le mécanisme des commits signés `Test <test@example.com>` de P2.86.

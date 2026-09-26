@@ -281,7 +281,9 @@ def _core_bare(depot):
 def test_le_LANCEUR_purge_GIT_un_temoin_qui_fait_git_init_ne_vise_plus_le_depot_du_commit(
         tmp_path, monkeypatch, purge):
     """Contre-exemple gelé, DEUX issues, par le VRAI lanceur `G._pytest`. Un dépôt A (réel, jetable)
-    joue le dépôt du commit : `GIT_DIR` le désigne, comme pendant un hook. Le témoin lancé fait
+    joue le dépôt du commit : `GIT_DIR` désigne le gitdir de son WORKTREE W, la forme exacte qu'un hook reçoit
+    quand on committe depuis un worktree (P2.121 famille 6 : `str(A / ".git")`, qu'un hook ne reçoit jamais, ne
+    faisait basculer A que sous Windows — antislashs — et ce cas rougissait sur POSIX). Le témoin lancé fait
     `git init -q` dans un répertoire B — la forme SANS `-b` du site réel, qui n'imprime RIEN.
     Donc ancrage sur l'ÉTAT, jamais sur la sortie : B a-t-il reçu un `.git`, `core.bare` de A a-t-il
     basculé ? Avec purge : B est un dépôt, A intact. Défaut restauré (`dict(os.environ)`) : B reste
@@ -293,6 +295,10 @@ def test_le_LANCEUR_purge_GIT_un_temoin_qui_fait_git_init_ne_vise_plus_le_depot_
     for k in [k for k in os.environ if k.startswith("GIT_")]:
         monkeypatch.delenv(k)                       # un hook ambiant ne doit rien viser d'autre que A
     subprocess.run(["git", "init", "-q"], cwd=str(A), check=True, env=env_isole())
+    subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty",
+                    "-m", "base"], cwd=str(A), check=True, env=env_isole())
+    subprocess.run(["git", "worktree", "add", "-q", str(tmp_path / "W"), "-b", "w"], cwd=str(A), check=True,
+                   env=env_isole())
     assert _core_bare(A) == "false"
     temoin = tmp_path / "temoin" / "test_temoin_git_init.py"
     temoin.parent.mkdir()
@@ -301,7 +307,9 @@ def test_le_LANCEUR_purge_GIT_un_temoin_qui_fait_git_init_ne_vise_plus_le_depot_
     # chaque niveau : mesuré le 2026-09-24, Temp en porte 30 407 -> collecte > 180 s, le témoin ne
     # tourne JAMAIS. L'ini fixe rootdir/confcutdir ici : collecte en 0,25 s.
     (temoin.parent / "pytest.ini").write_text("[pytest]\n", encoding="utf-8")
-    monkeypatch.setenv("GIT_DIR", str(A / ".git"))  # ce que git exporte à ses hooks
+    # ce que git exporte à un hook quand on committe DEPUIS un worktree (mesuré le 2026-09-26, Linux et Windows) ;
+    # depuis l'arbre principal, GIT_DIR est ABSENT — `A/.git` n'est jamais exporté
+    monkeypatch.setenv("GIT_DIR", (A / ".git" / "worktrees" / "W").as_posix())
     monkeypatch.setenv("AGAGI_TEMOIN_B", str(B))
     if not purge:
         monkeypatch.setattr(G, "env_isole", lambda: dict(os.environ))  # le défaut d'avant, restauré

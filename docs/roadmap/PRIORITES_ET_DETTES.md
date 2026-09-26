@@ -1300,6 +1300,8 @@ message). 0 erreur de collecte : `b895a0a3` a fait son travail. Familles, par ta
    `tools/hooks/commit-msg` (E1, gravé au registre) — son détecteur de portée cherchait le nom nu du bloc, que
    PORTE-ABSENTE cite en commentaire : l'avertissement « NE PORTE PAS » ne pouvait plus se déclencher. Corrigé (marqueur
    d'ouverture) → 22/22 verts sous Windows. POSIX non rejoué ici : le prochain run CI le dira.
+   📏 **LU sur le run 36233401687 (79b24af6, relevé par Master 2)** : suite-complete **68 → 50 rouges**, 0 nouveau,
+   18 disparus, tous dans `tests/sandbox/test_hook_on_merge.py` ; garde-methodologique et test-and-build verts.
 3. **Réfutateur — 22** (18 erreurs + 4 rouges `tests/sandbox/test_refutateur_temoins.py`, 1 test_refutateur_mutation) :
    « témoin EDR-GRAB-COST-1828371 introuvable », « fatal: bad object » — clone à profondeur 1. Traité par `faae4909`
    (`fetch-depth: 0`) ; **CONFIRMÉ** sur le run 36212333576 : 22 → 0, plus aucune erreur.
@@ -1314,6 +1316,20 @@ message). 0 erreur de collecte : `b895a0a3` a fait son travail. Familles, par ta
    `tests/sandbox/test_gate_mutation.py::…[sans_purge_defaut_restaure]`. C'est LA classe de la corruption `core.bare = true`
    des 23-24/09 : deux témoins verts sur Windows, rouges sur POSIX — soit la garde n'y tient pas, soit le témoin suppose
    Windows. **À instruire EN PREMIER** : c'est le seul rouge de la liste qui peut cacher un défaut RÉEL.
+   ✅ **INSTRUITE ET TRAITÉE le 2026-09-26 (agagi-32, worker Dette)** — ce n'était PAS la garde, c'était le TÉMOIN.
+   Reproduit sous Linux AVANT tout correctif (WSL Ubuntu, git 2.43, copie extraite par `git archive`, jamais l'arbre
+   partagé) : exactement les deux rouges de la CI, sur la même assertion (`core.bare` false au lieu de true). Mesures,
+   dépôts jetables, Linux ET Windows (git 2.54) : (i) un hook ne reçoit JAMAIS `GIT_DIR=<dépôt>/.git` — il est ABSENT
+   depuis l'arbre principal et vaut `<dépôt>/.git/worktrees/<nom>` (absolu, barres obliques) depuis un worktree ;
+   (ii) `git init` réinitialisant le dépôt pointé devine sa nature : suffixe « /.git » → non-bare, toute autre forme →
+   BARE. Le témoin injectait `str(A / ".git")` : les antislashs de Windows cachaient le suffixe et la bascule se
+   produisait par accident ; sous POSIX rien ne basculait. Le DANGER, lui, est réel sur les deux plateformes : le
+   gitdir d'un worktree fait passer le dépôt PRINCIPAL en `bare` (mesuré : « must be run in a work tree » sous Linux
+   comme sous Windows) — c'est le commit DEPUIS un worktree qui expose la flotte, et la fixture de `tests/conftest.py`
+   reste nécessaire partout. Correctif : les deux témoins injectent la forme exportée ; un cas de spécificité fige la
+   forme suffixée (détournement oui, bascule non) ; docstring de la fixture précisée ; occurrence **E33** occ. 8 au
+   registre, note de forme dans la garde d'**E5**. Vérifié : **Linux 2 rouges → 8 verts, Windows 8 verts**. Le compte
+   du run CI qui suit s'écrit ici.
 7. **déjà inscrits, P2.113 (b)(c)(d)** : test_perimeter_widening EXPOSURE (traité avec la clôture de P2.49), test_grab_* ×3
    (pkl non versionné), test_backend ×2 (TaskGroup).
 **Forme demandée** : une famille = un commit, vérifié dans les DEUX conditions ; le run qui suit chaque commit est LU et son
