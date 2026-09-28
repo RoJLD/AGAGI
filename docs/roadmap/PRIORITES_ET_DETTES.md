@@ -1526,7 +1526,18 @@ bande, NON_MATERIEL vers le haut seulement ; la v4 a été corrigée à son tour
 CELL.v4.md`, 15 critiques confirmées : un réétiquetage UNIFORME recollait en espérance un cerveau à son corps par
 événement — et à deux lignes déplacées 5 shams sur 12 appliquaient la réindexation entière — ; S_off confronté à la
 bande était un second test, P(issue non nulle | H0) = 25/91) : la v5 tire les réétiquetages en DÉRANGEMENT relatif à la
-réindexation et met S_off DANS la bande (13 valeurs, fausse alarme <= 2/14) ; 15 cellules sur la batcave : en cours. **La clause ci-dessous reste celle de l'entrée** : elle décrit la vraie clôture (le correctif devenu le
+réindexation et met S_off DANS la bande (13 valeurs, fausse alarme <= 2/14) ; la v5 a été réfutée à son tour
+(`docs/reviews/2026-09-28-E34-IDENTITY-CELL.v5.md`, 15 critiques confirmées : le rejet laissait passer l'affectation du
+bras éteint — 12 shams sur 12 la recopient à deux positions déplacées, 6 sur 12 à trois —, donc 2/14 cessait d'être une
+borne (E23 occ. 4) et la formule ex-aequo publiait alors un chiffre PLUS BAS (E18 occ. 3) ; et le bras éteint remet des
+cerveaux sur leur propre corps quand deux morts se composent, ce que le sham interdisait (E8 occ. 7)). La v6 (décision
+Master 2 : une bande de bruit doit ÊTRE la variabilité naturelle du dispositif, pas une construction qui l'imite)
+remplace les réétiquetages par DOUZE RÉPLIQUES du harnais publié réensemencées à la fin du tick t1 (`seed_at(202600 + k)`),
+le correctif et le contrôle positif réensemencés de même (k = 13, 14), le bras éteint intact, et REFUSE toute lecture
+sous treize trajectoires distinctes (BANDE_DEGENEREE). **Règle d'arrêt (Master 2, 2026-09-29, déposée AVANT la revue
+v6)** : si la revue v6 confirme encore un défaut BLOQUANT de dispositif, pas de v7 sans décision de robla — la session
+s'arrête et envoie le défaut à Master 2 avec le coût déjà engagé (six revues d'E34, environ 2,5 M jetons chacune, sur un
+quota commun). 15 cellules sur la batcave : après le sceau v6. **La clause ci-dessous reste celle de l'entrée** : elle décrit la vraie clôture (le correctif devenu le
 DÉFAUT, après P4.18 et, si la sonde rend MATERIEL, le plan n = 12) ; la sonde ne ferme qu'un sous-item.
 **Addendum CALIB-LEARNER (2026-09-26, session E34, vu en lisant la recette)** : la MÊME recette vit dans
 `tools/cognitive_demand_inworld.py:575-587` (`run_learner_probe`, contrôle POSITIF de l'apprenant, EDR-CALIB-LEARNER
@@ -1657,6 +1668,10 @@ Preuve : `tools/check_regime_claims.py` (motif des paramètres suivi de `\s*=\s*
 
 **P2.148 — rang à fixer par Master 2 — OUVERTE (2026-09-28, revue du record [[EDR-S2-BASSIN-FRAGILITY]], P8.b) — La porte 17 (chevauchement entrée/sortie des génomes persistés) ne balaie pas les génomes des runs.**
 Preuve : `tools/check_io_overlap.py` examine `data/genomes/` et les Hall of Fame (358 sujets), jamais `results/*_genomes/` ; les 72 génomes de P4.18 ont été vérifiés À LA MAIN par la revue (chevauchement −5 partout). Une porte dont le périmètre ne contient pas les génomes que les runs persistent ne protège pas les runs (E32). *Coût : agent 30 min.* Sans clause `closes_when` (déclaré).
+*Seconde occurrence du même trou (2026-09-28, revue v5 de la pré-inscription E34-IDENTITY-CELL, P8.1, session E34) :*
+le bassin DAgger lui-même, `results/warm003_dagger_genome.npz` (I = 59, O = 108, N = 172, chevauchement 0), est lui aussi
+hors périmètre ; seule l'assertion de `load_bassin` le garde (`tools/evo_runs/s2_credit_retention.py:61`). Le périmètre à
+ajouter est donc `results/` entier, pas seulement `results/*_genomes/`.
 
 **P2.133 — rang 6 — ✅ CLOSE le 2026-09-26 (ouverte le même jour, vue en passant par la session SCIENCE-HARNAIS pendant la revue v6 de
 S2-BASSIN-FRAGILITY) — Le Refutateur sort encore NUL sur une revue saine : le vérificateur a rendu `refus = "aucun"`, et

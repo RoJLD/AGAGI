@@ -10,6 +10,10 @@ Ce fichier calibre, à réponse CONNUE :
       après une mort en tête ; le drapeau tient l'invariant ; drapeau éteint et audit sont BIT-IDENTIQUES à une
       copie VERBATIM de la recette d'origine (gelée ci-dessous au sha 5d534d44) ; sans mort, le drapeau est un
       no-op au bit. Les tests (3) simulent un monde : sautés par conftest quand un run tient `kuzu`.
+  (4) v6 (revue v5, décision Master 2) : le réensemencement du RNG global à t1 (une fois, numpy seul, no-op EXACT du
+      crochet en monde réel, trois répliques à Σ|ΔW| distinctes), les remises d'un cerveau sur son propre corps quand
+      deux morts se composent (contre-exemple gelé d'E8 occ. 7), la dose TD du contrôle positif égale à t1, le no-op
+      EXACT de la permutation identité et du recensement du RNG, la dose de phase 2 publiée sous drapeau.
 """
 import hashlib
 import json
@@ -364,13 +368,87 @@ def test_positive_control_cuts_the_credit_at_the_first_order_change():
     assert ident["relabel_events"] == 0 and ident["reindex_events"] == 0 and ident["positions_reordered"] == 0
 
 
+def test_the_credit_cut_draws_nothing_from_torch_either():
+    """Revue v5, P10.4 : la règle dit l'absence de tirage VÉRIFIÉE pour la coupe ; le test précédent tourne sans torch.
+    Sur une population à tenseurs torch réels, la coupe ne touche ni le RNG global numpy ni celui de torch."""
+    from tools.evo_runs.s2_credit_retention import _identity_counters, immortal_after_step
+    e, torch = _torch_world(4)
+    ident = _identity_counters()
+    np.random.seed(13)
+    ref_global = np.random.RandomState(13)
+    torch_state = torch.get_rng_state().clone()
+    e.kill(0)
+    immortal_after_step(e, identity=ident, tick=0, cut_credit_at_t1=True)
+    assert ident["credit_cut_tick"] == 0 and e._torch_pop.learn([1.0], [{}]) is None
+    assert np.random.random() == ref_global.random() and torch.equal(torch.get_rng_state(), torch_state)
+
+
+def test_reseed_happens_once_at_t1_after_the_row_treatment_and_seeds_only_numpy():
+    """v6 : le RNG global numpy est réensemencé UNE fois, à la fin du premier tick où la recharge change l'ordre (t1),
+    par `seed_at(s)` — ni avant (mort en queue : aucun changement d'ordre), ni après ; le RNG torch n'est pas touché ;
+    combinable avec la réindexation (qui est faite, et ne tire rien)."""
+    from tools.evo_runs.s2_credit_retention import _identity_counters, immortal_after_step
+    e, torch = _torch_world(4)
+    ident = _identity_counters()
+    np.random.seed(11)
+    ref_avant = np.random.RandomState(11)
+    torch_state = torch.get_rng_state().clone()
+    for t, pos in ((0, 3), (1, None)):
+        if pos is not None:
+            e.kill(pos)
+        immortal_after_step(e, identity=ident, tick=t, slot_reindex=True, reseed_at_t1=424242)
+    assert ident["reseed_tick"] is None and np.random.random() == ref_avant.random()   # rien avant t1
+    for t, pos in ((2, 0), (3, 1), (4, None)):
+        if pos is not None:
+            e.kill(pos)
+        immortal_after_step(e, identity=ident, tick=t, slot_reindex=True, reseed_at_t1=424242)
+        if t == 2:
+            ref_apres = np.random.RandomState(424242)
+            assert np.random.random() == ref_apres.random()          # réensemencé à la FIN du tick t1
+    assert ident["reseed_seed"] == 424242 and ident["reseed_tick"] == 2 == ident["first_order_change_tick"]
+    assert ident["reindex_events"] == 2 and ident["slot_switches"] == 0
+    assert np.random.random() == ref_apres.random()                   # ticks 3-4 : aucun second réensemencement
+    assert torch.equal(torch.get_rng_state(), torch_state)
+
+
+def test_the_off_arm_puts_brains_back_on_their_own_body_when_deaths_compose():
+    """CONTRE-EXEMPLE GELÉ d'E8 (revue v5, P5.3 / P10.1) : la règle v5 affirmait, par raisonnement depuis l'ordre aligné,
+    que le bras éteint ne remet JAMAIS un cerveau déplacé sur son corps. Mesuré : B = 3, a0 meurt (tout tourne), puis
+    a2 meurt — le cerveau de a2, qui pilotait a0, retrouve a2. `repairings` le compte ; la réindexation n'en fait aucun
+    (elle ne déplace jamais un cerveau), et le premier tick ne compte rien (chaque cerveau part de son corps)."""
+    from tools.evo_runs.s2_credit_retention import _identity_counters, immortal_after_step
+    e = _World(3)
+    ident = _identity_counters()
+    e.kill(0)
+    immortal_after_step(e, identity=ident, tick=0)
+    assert ident["repairings"] == 0 and [a["id"] for a in e.agents] == ["a1", "a2", "a0"]
+    e.kill(1)                                                         # a2
+    immortal_after_step(e, identity=ident, tick=1)
+    assert [a["id"] for a in e.agents] == ["a1", "a0", "a2"]
+    assert e._torch_pop.agents[2] is e.agents[2]["model"]             # le cerveau de a2 est de retour sur a2
+    assert ident["repairings"] == 1 and ident["slot_switches"] == 3 + 2
+
+
+def test_the_reindex_fix_never_puts_back_because_it_never_moves_a_brain():
+    from tools.evo_runs.s2_credit_retention import _identity_counters, immortal_after_step
+    e, _ = _torch_world(3)
+    ident = _identity_counters()
+    for t, pos in ((0, 0), (1, 1)):
+        e.kill(pos)
+        immortal_after_step(e, identity=ident, tick=t, slot_reindex=True)
+    assert ident["repairings"] == 0 and ident["slot_switches"] == 0
+
+
 def test_treatments_are_refused_before_the_refill_without_audit_combined_or_negative():
     from tools.evo_runs.s2_credit_retention import _identity_counters, immortal_after_step
     for kw in ({"sham_relabel": 2}, {"slot_reindex": True}, {"cut_credit_at_t1": True},
                {"sham_relabel": -1, "identity": _identity_counters()},
                {"sham_relabel": 2, "slot_reindex": True, "identity": _identity_counters()},
                {"slot_reindex": True, "slot_order_fix": True, "identity": _identity_counters()},
-               {"cut_credit_at_t1": True, "sham_relabel": 3, "identity": _identity_counters()}):
+               {"cut_credit_at_t1": True, "sham_relabel": 3, "identity": _identity_counters()},
+               {"reseed_at_t1": 5}, {"reseed_at_t1": -1, "identity": _identity_counters()},
+               {"reseed_at_t1": True, "identity": _identity_counters()},
+               {"reseed_at_t1": 2.5, "identity": _identity_counters()}):
         e = _World(3)
         e.kill(0)
         with pytest.raises(ValueError):
@@ -423,11 +501,13 @@ def _refill_reference_5d534d44(e, refill_below=30.0, refill_to=80.0, hp_refill_b
     return len(dead)
 
 
-def _trace(after_step, seed=2026, n=3, ticks=16, kills=((2, 0), (6, 1))):
+def _trace(after_step, seed=2026, n=3, ticks=16, kills=((2, 0), (6, 1)), recensement=None):
     """Phase 1 immortelle réduite, morts FORCÉES (hp très négatif avant le pas : la mort est certaine dans le
     tick). `after_step(e, t)` remplace la ligne de résurrection. Rend un digest (W appris par modèle dans l'ordre
-    de construction, âges par modèle, dose) et l'invariant relevé après chaque tick."""
+    de construction, âges par modèle, dose) et l'invariant relevé après chaque tick. `recensement` (v6) : un
+    `RecensementTirages` actif pendant la boucle (le brancher dans `identity["_census"]` pour qu'il soit marqué à t1)."""
     pytest.importorskip("torch")
+    from contextlib import nullcontext
     from tools.cognitive_demand_inworld import _pinned_substrate
     from tools.evo_runs.s2_credit_retention import _world
     from tools.evo_runs.s2_reward_ablation import _bassin_cohort
@@ -439,12 +519,13 @@ def _trace(after_step, seed=2026, n=3, ticks=16, kills=((2, 0), (6, 1))):
         e = _world(seed, 0)
         for a in agents:
             e.add_agent(a, energy=80.0)
-        for t in range(ticks):
-            if t in kills:
-                e.agents[kills[t]]["hp"] = -1e9
-            e.step()
-            res += after_step(e, t)
-            per_tick.append(slot_identity_violations(e))
+        with (recensement if recensement is not None else nullcontext()):
+            for t in range(ticks):
+                if t in kills:
+                    e.agents[kills[t]]["hp"] = -1e9
+                e.step()
+                res += after_step(e, t)
+                per_tick.append(slot_identity_violations(e))
         if hasattr(e, "memory_retriever"):
             e.memory_retriever.stop()
     summ = ev.summary()
@@ -547,6 +628,80 @@ def test_real_world_positive_control_stops_the_credit_at_t1():
     pos = _trace(lambda e, t: immortal_after_step(e, identity=ident, tick=t, cut_credit_at_t1=True))
     assert ident["credit_cut_tick"] == 2
     assert pos["summary"]["td_updates"] < ref["summary"]["td_updates"] and pos["digest"] != ref["digest"]
+    # revue v5, P7.4 : la dose TD du bras coupé est CONNUE exactement -- le premier appel (tick 0) n'a pas de transition
+    # précédente, donc les ticks 1..t1 font t1 mises à jour, puis plus rien
+    assert pos["summary"]["td_updates"] == ident["credit_cut_tick"] == 2
+
+
+def _identity_permutation_after_refill(e, t):
+    """Revue v5, P6.3 : la machinerie de permutation appelée avec l'IDENTITÉ à chaque tick, après la recharge publiée."""
+    from tools.slot_identity import permute_population_rows
+    n = _refill_reference_5d534d44(e)
+    permute_population_rows(e._torch_pop, list(range(len(e._torch_pop.agents))))
+    return n
+
+
+def test_real_world_identity_permutation_is_a_bit_exact_noop():
+    """No-op EXACT de la machinerie de permutation (copie de W sous no_grad, remplacement de H, `_last`, `_prev`,
+    `pop.agents`) : appelée avec l'identité à CHAQUE tick, morts comprises, elle rend le bras éteint au bit."""
+    ref = _trace(lambda e, t: _refill_reference_5d534d44(e))
+    noop = _trace(_identity_permutation_after_refill)
+    assert noop["res"] == ref["res"] == 2 and noop["digest"] == ref["digest"]
+
+
+def test_real_world_reseed_hook_with_a_state_restoring_noop_is_bit_exact(monkeypatch):
+    """No-op EXACT du crochet de réensemencement (condition de Master 2 avant le sceau) : le crochet remplacé par une
+    remise de l'état COURANT (get_state -> set_state) passe par tout le chemin du traitement à t1 et rend le bras éteint
+    au bit ; le vrai crochet, lui, change ce qui est appris."""
+    from tools.evo_runs import s2_credit_retention as H
+    ref = _trace(lambda e, t: _refill_reference_5d534d44(e))
+    appels = []
+
+    def _noop(s):
+        appels.append(int(s))
+        np.random.set_state(np.random.get_state())
+    monkeypatch.setattr(H, "_reseed_global", _noop)
+    ident = H._identity_counters()
+    noop = _trace(lambda e, t: H.immortal_after_step(e, identity=ident, tick=t, reseed_at_t1=202601))
+    assert appels == [202601] and ident["reseed_tick"] == 2 and noop["digest"] == ref["digest"]
+    monkeypatch.undo()
+    ident = H._identity_counters()
+    vrai = _trace(lambda e, t: H.immortal_after_step(e, identity=ident, tick=t, reseed_at_t1=202601))
+    assert ident["reseed_seed"] == 202601 and vrai["digest"] != ref["digest"]
+
+
+def test_real_world_rng_census_is_a_bit_exact_noop_and_measures_the_draws_after_t1():
+    """Le recensement ne change rien au bit (bras éteint) et MESURE ce que le monde tire après t1 : au moins un site et
+    un tirage, aucun réensemencement du monde lui-même (sinon le réensemencement de la bande serait annulé)."""
+    from tools.evo_runs.s2_credit_retention import _identity_counters, immortal_after_step
+    from tools.rng_census import RecensementTirages
+    ref = _trace(lambda e, t: _refill_reference_5d534d44(e))
+    ident = _identity_counters()
+    rec = RecensementTirages()
+    ident["_census"] = rec
+    aud = _trace(lambda e, t: immortal_after_step(e, identity=ident, tick=t), recensement=rec)
+    r = rec.resume()
+    assert aud["digest"] == ref["digest"]
+    assert r["marque"] == "t1=2" and r["tirages_apres"] > 0 and r["n_sites_apres"] >= 1
+    assert r["reensemencements_apres"] == 0
+    assert all(s.startswith("src/") or s.startswith("tools/") for s in r["sites_apres"])
+
+
+def test_real_world_reseeded_replicas_diverge_from_off_and_from_each_other():
+    """Condition de Master 2 avant le sceau : trois répliques réensemencées à t1 (graines distinctes) donnent trois
+    Σ|ΔW| DISTINCTES, toutes différentes du bras éteint -- la garde BANDE_DEGENEREE du verdict peut donc ne pas tirer."""
+    from tools.evo_runs.s2_credit_retention import _identity_counters, immortal_after_step
+    ref = _trace(lambda e, t: _refill_reference_5d534d44(e), n=4)
+    dws, digests = [], []
+    for k in (1, 2, 3):
+        ident = _identity_counters()
+        tr = _trace(lambda e, t, ident=ident, k=k: immortal_after_step(e, identity=ident, tick=t,
+                                                                      reseed_at_t1=202600 + k), n=4)
+        assert ident["reseed_tick"] == 2 and ident["ticks_body_reordered"] == 0 and ident["reindex_events"] == 0
+        dws.append(tr["summary"]["dW_abs_sum"])
+        digests.append(tr["digest"])
+    assert len(set(dws)) == 3 and ref["summary"]["dW_abs_sum"] not in dws
+    assert len(set(digests)) == 3 and ref["digest"] not in digests
 
 
 def test_with_a_head_death_the_fix_changes_what_is_learned():
@@ -569,3 +724,21 @@ def test_phase1_defaults_publish_no_new_key_and_the_flags_publish_slot_identity(
     assert {k: v for k, v in aud.items() if k != "slot_identity"} == base
     assert aud["slot_identity"]["slot_order_fix"] is False and aud["slot_identity"]["ticks_known"] == 3
     assert fix["slot_identity"]["slot_order_fix"] is True and fix["slot_identity"]["slot_ticks_misaligned"] == 0
+    cen = phase1_learn_immortal(_bassin_cohort(2026, 2), 2026, 3, identity_audit=True, rng_census=True)
+    assert {k: v for k, v in cen.items() if k != "slot_identity"} == base               # le recensement ne change rien
+    rc = cen["slot_identity"]["rng_census"]
+    assert rc["tirages_avant"] > 0 and rc["perimetre"]["tirages"]
+    if cen["slot_identity"]["first_order_change_tick"] is None:     # aucun t1 : « après » NON MESURÉ, jamais 0
+        assert rc["marque"] is None and rc["tirages_apres"] is None and rc["n_sites_apres"] is None
+    assert "_census" not in cen["slot_identity"] and "_own" not in cen["slot_identity"]
+
+
+def test_phase2_publishes_its_dose_only_on_request_and_is_otherwise_unchanged():
+    """Revue v5, P7.1 : la dose de la phase 2 (poids gelés) se PUBLIE sous drapeau ; défaut : sortie inchangée."""
+    pytest.importorskip("torch")
+    from tools.evo_runs.s2_credit_retention import phase2_survive_mortal
+    from tools.evo_runs.s2_reward_ablation import _bassin_cohort
+    base = phase2_survive_mortal(_bassin_cohort(2026, 2), 2026, 3)
+    pub = phase2_survive_mortal(_bassin_cohort(2026, 2), 2026, 3, publier_dose=True)
+    assert "dose_phase2" not in base and {k: v for k, v in pub.items() if k != "dose_phase2"} == base
+    assert pub["dose_phase2"]["dW_abs_sum"] == 0.0 and pub["dose_phase2"]["td_updates"] == 0
