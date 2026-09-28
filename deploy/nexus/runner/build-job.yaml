@@ -1,13 +1,19 @@
 # deploy/nexus/runner/build-job.yaml — build Kaniko de l'image runner, DANS elysium-agagi.
 #
 # Gabarit : `python -m tools.jobs.remote image` substitue __JOB__, __TAG__, __CTX_CM__, et depuis la CONFIGURATION
-# (jamais le dépôt) __NAMESPACE__, __NOEUD__, __REGISTRE__, __DEPOT_IMAGE__, __CACHE_KANIKO__ ; il crée d'abord la
-# ConfigMap __CTX_CM__ (Dockerfile + requirements.txt + constraints.txt). Ne pas appliquer tel quel.
+# (jamais le dépôt) __NAMESPACE__, __NOEUD__, __REGISTRE__, __DEPOT_IMAGE__ ; il crée d'abord la ConfigMap __CTX_CM__
+# (Dockerfile, requirements.txt, constraints.txt, empreinte_contenu.py). Ne pas appliquer tel quel.
+#
+# REPRODUCTIBLE (P2.134, mesuré le 2026-09-28) : `--reproducible` (dates des couches et de la config retirées) avec le
+# Dockerfile nettoyé, et SANS cache — deux reconstructions au même contexte doivent rendre le MÊME digest, et c'est la
+# recette qui le garantit, pas un cache qui resservirait des couches d'un autre jour. `--reproducible` demande plus de
+# mémoire : tué à 4 Gi, 8 Gi suffisent (2 builds sur 2 ; pic réel non mesuré). Requête = limite / 4 (réserve
+# d'ELYSIUM : pods BURSTABLE) pour kaniko comme pour l'init. Ce fichier est HACHÉ dans le tag de l'image.
 #
 # Écarts ASSUMÉS au gabarit ELYSIUM gitops/jobs/image-ci/_template.yaml :
 #   * namespace elysium-agagi et non elysium-brain (Σ-IMAGE-CI-NAMESPACE-FIXED) : le mandat de la session
 #     interdit de rien créer hors du namespace dédié ;
-#   * AUCUN clone ni jeton GitHub : le contexte de build (3 fichiers) arrive par ConfigMap. L'image ne
+#   * AUCUN clone ni jeton GitHub : le contexte de build (4 fichiers) arrive par ConfigMap. L'image ne
 #     contient pas le code d'AGAGI, elle n'a donc pas besoin du dépôt.
 #   * l'init `contexte` DÉRÉFÉRENCE les liens symboliques du montage ConfigMap (`cp -L`) : Kaniko copierait
 #     sinon des liens vers `..data/` qui n'existent pas dans l'image.
@@ -55,9 +61,9 @@ spec:
       initContainers:
         - name: contexte
           image: alpine:3.20
-          command: ["sh", "-c", "cp -L /ctx/Dockerfile /ctx/requirements.txt /ctx/constraints.txt /workspace/ && ls -l /workspace"]
+          command: ["sh", "-c", "cp -L /ctx/Dockerfile /ctx/requirements.txt /ctx/constraints.txt /ctx/empreinte_contenu.py /workspace/ && ls -l /workspace"]
           resources:
-            requests: {cpu: 50m, memory: 64Mi}
+            requests: {cpu: 50m, memory: 32Mi}
             limits: {cpu: 200m, memory: 128Mi}
           volumeMounts:
             - {name: ctx, mountPath: /ctx, readOnly: true}
@@ -69,14 +75,14 @@ spec:
             - --context=dir:///workspace
             - --dockerfile=/workspace/Dockerfile
             - --destination=__REGISTRE__/__DEPOT_IMAGE__:__TAG__
-            - --cache=true
-            - --cache-repo=__REGISTRE__/__CACHE_KANIKO__
+            - --cache=false
+            - --reproducible
             - --digest-file=/dev/termination-log
             - --cleanup
             - --verbosity=info
           resources:
             requests: {cpu: "1", memory: 2Gi}
-            limits: {cpu: "2", memory: 4Gi}
+            limits: {cpu: "2", memory: 8Gi}
           volumeMounts:
             - {name: workspace, mountPath: /workspace}
             - {name: registry-ca, mountPath: /kaniko/ssl/certs/elysium-mkcert-ca.crt, subPath: ca.crt}

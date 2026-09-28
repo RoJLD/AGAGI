@@ -287,6 +287,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/pm/index": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Index
+         * @description Index des artefacts (P2.87) : lu des fichiers, jamais daté par git dans la requête (dates lues dans
+         *     DATES_GIT.json, avec leur âge) ; cache 60 s.
+         */
+        get: operations["index_api_pm_index_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/pm/pilotage": {
         parameters: {
             query?: never;
@@ -1158,6 +1179,115 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** IndexArtefact */
+        IndexArtefact: {
+            /** Chemin */
+            chemin: string;
+            /** Date Ajout Git */
+            date_ajout_git?: string | null;
+            /** Date Declaree */
+            date_declaree?: string | null;
+            /** Date Source */
+            date_source?: string | null;
+            /** Etat */
+            etat?: string | null;
+            /** Etat Source */
+            etat_source?: string | null;
+            /** Famille */
+            famille: string;
+            /** Gate */
+            gate?: string | null;
+            /** Liens */
+            liens?: components["schemas"]["IndexLien"][] | null;
+            /** Regime */
+            regime?: boolean | null;
+            /** Scelle */
+            scelle?: boolean | null;
+            /** Titre */
+            titre?: string | null;
+        };
+        /** IndexDates */
+        IndexDates: {
+            /** Age S */
+            age_s: number;
+            /** Generated At */
+            generated_at: number;
+            /** Head */
+            head?: string | null;
+            /** Historique */
+            historique: string;
+        };
+        /** IndexFamille */
+        IndexFamille: {
+            /** Champs Introuvables */
+            champs_introuvables?: {
+                [key: string]: {
+                    [key: string]: number;
+                };
+            } | null;
+            /** Exclus */
+            exclus?: string[] | null;
+            /** Fichiers */
+            fichiers?: number | null;
+            /** Format Declare */
+            format_declare?: {
+                [key: string]: number;
+            } | null;
+            /** Illisibles */
+            illisibles?: components["schemas"]["IndexIllisible"][] | null;
+            /** Indexes */
+            indexes?: number | null;
+            /** Motif */
+            motif: string;
+            /** Nom */
+            nom: string;
+            /** Repertoire */
+            repertoire?: string | null;
+        };
+        /** IndexHorsFamilles */
+        IndexHorsFamilles: {
+            /** N */
+            n: number;
+            /** Repertoires */
+            repertoires: {
+                [key: string]: number;
+            };
+        };
+        /** IndexIllisible */
+        IndexIllisible: {
+            /** Chemin */
+            chemin: string;
+            /** Raison */
+            raison: string;
+        };
+        /** IndexLien */
+        IndexLien: {
+            /** Cible */
+            cible: string;
+            /** Rel */
+            rel: string;
+        };
+        /**
+         * IndexV1
+         * @description Enveloppe de `index_v1` (spec 2026-09-26 §3.1, §9). Chaque bloc est validé par le service DANS son filet :
+         *     un bloc refusé devient `null` plus une ligne `aveugle` qui le nomme, jamais un 500.
+         */
+        IndexV1: {
+            /** Artefacts */
+            artefacts?: components["schemas"]["IndexArtefact"][] | null;
+            /** Aveugle */
+            aveugle: string[];
+            dates?: components["schemas"]["IndexDates"] | null;
+            /** Familles */
+            familles?: components["schemas"]["IndexFamille"][] | null;
+            /** Generated At */
+            generated_at: number;
+            hors_familles?: components["schemas"]["IndexHorsFamilles"] | null;
+            /** Repo Root */
+            repo_root?: string | null;
+            /** Schema */
+            schema: string;
+        };
         /** NoteCreate */
         NoteCreate: {
             /** Text */
@@ -1951,6 +2081,26 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+        };
+    };
+    index_api_pm_index_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IndexV1"];
                 };
             };
         };

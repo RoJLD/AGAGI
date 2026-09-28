@@ -2074,7 +2074,10 @@ CALIBRATED = {
                                              "reel:parite-et-vocabulaire-ferme",
                                              # revue adversariale du pas 1 : chaque défaut devient un cas
                                              "no-op:exclus-null-si-non-lu", "local:json-profond-illisible",
-                                             "non-suivi:jamais-date"],
+                                             "non-suivi:jamais-date",
+                                             # revue adversariale du pas 2
+                                             "no-op:liens-null-si-non-lus", "dates-hostiles:refus-local",
+                                             "futur:age-negatif-dit", "racine-a-crochets:jamais-zero"],
     "tools/pm/index_artefacts.py::calculer_dates_git": ["reel:depot-jetable-dates-utc", "tronque:clone-depth-1",
                                                         "config-heritee:sans-effet", "plus-ancienne:ajout-recree",
                                                         "fuite-git-dir:refusee", "git-dir-du-meme-depot:complet",

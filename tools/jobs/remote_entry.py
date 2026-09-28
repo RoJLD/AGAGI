@@ -124,6 +124,22 @@ def lire_limite_memoire(racine: str = "/sys/fs/cgroup") -> dict:
     return out
 
 
+EMPREINTE_IMAGE = "/opt/agagi/empreinte-contenu.json"
+
+
+def lire_empreinte_image(chemin: str = EMPREINTE_IMAGE) -> dict:
+    """L'empreinte de CONTENU de l'image (P2.134), écrite par la dernière étape du Dockerfile : publiée dans le MANIFEST à
+    côté du digest (l'IDENTITÉ). Hors image (batcave) ou image antérieure : source `absente`, jamais une empreinte
+    inventée ; contenu illisible : dit."""
+    if not os.path.exists(chemin):
+        return {"source": "absente", "empreinte": None, "erreur": None}
+    try:
+        with open(chemin, encoding="utf-8") as f:
+            return {"source": chemin, "empreinte": json.load(f), "erreur": None}
+    except (OSError, ValueError) as err:
+        return {"source": "illisible", "empreinte": None, "erreur": f"{type(err).__name__}: {err}"}
+
+
 def _affinite():
     try:
         return len(os.sched_getaffinity(0))
@@ -410,6 +426,7 @@ def principal(a) -> int:
                 "threads_poses": {v: env.get(v) for v in VARS_THREADS},
                 "threads_source": env.get("AGAGI_THREADS_SOURCE")},
         "memoire": lire_limite_memoire(a.cgroup),
+        "image_empreinte": lire_empreinte_image(),
         "charge_debut": charge0, "charge_fin": charge1,
         "python": platform.python_version(), "plateforme": platform.platform(),
         "versions": _versions(sys.executable, env), "image": os.environ.get("AGAGI_IMAGE"),

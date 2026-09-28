@@ -103,6 +103,15 @@ dans leurs statuts : 27 à 39 s ; source envoyée : 19,6 à 19,7 Mo par Job.
   déclarables par `--env` depuis def16adc — valeurs batcave mesurées et publiées dans l'évidence, bloc
   `mesures_annexes`). **Le témoin suivant est nommé** : la cellule P4.18 (monde + torch) que la session SCIENCE lance
   sur nexus et compare aux valeurs publiées sous Windows.
+  > **Bandeau du 2026-09-28 — ce témoin a été FAIT, et il est NÉGATIF pour la réplication au bit.** Témoin de lieu
+  > d'agagi-40, 2026-09-26, sha afa4dac6, cellule `b_zero` seed 2026 de P4.18, image `sha256:7c860b30…` (Jobs 430f et
+  > a6db sur nexus, `local-fa0a` sur la batcave) : les W appris sont identiques au bit entre nexus à 2 et à 16 threads,
+  > mais DIFFÈRENT au dernier bit de ceux de la batcave (torch 2.6.0+cpu Linux contre 2.6.0+cu124 Windows) ; âges de
+  > survie et dose identiques partout ; `dW_abs_sum` dépend du lieu ET du nombre de threads. D'où la règle de lieu
+  > (REF-DEPORT-NEXUS, « Choisir le lieu ») : P4.18 tourne sur la batcave. Ce record reste vrai tel quel — il n'établit
+  > rien pour torch ; le résultat torch vit dans la REF, pas dans un record, et ce bandeau l'y renvoie. ⚠️ Son
+  > évidence (MANIFEST des trois Jobs, génomes appris) n'est PAS publiée dans le dépôt : elle vit hors suivi, dans le
+  > worktree de la session SCIENCE — un clone ne peut pas la rouvrir (classe E27, dette inscrite au backlog).
 * **Défaut hors de ce runner** : tout runner qui écrit ses résultats en mode texte sans `newline="\n"` rend des octets
   dépendants de la plateforme. git les normalise au commit (`core.autocrlf`), donc le dépôt ne le voit pas ; une
   comparaison d'octets bruts entre deux machines, si.

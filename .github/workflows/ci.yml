@@ -226,6 +226,21 @@ jobs:
           # rend un mode dégradé (ligne « pilotage: ... ») sous un 200. Ce marqueur fait rougir le smoke.
           curl --fail -s http://localhost:8000/api/pm/pilotage -o pilotage_smoke.json || { docker compose logs backend; exit 1; }
           python3 -c "import json, sys; d = json.load(open('pilotage_smoke.json', encoding='utf-8')); av = d.get('aveugle') or []; bad = [a for a in av if a.startswith('pilotage:')]; print('pilotage :', d.get('schema'), '|', len(av), 'ligne(s) aveugle'); [print('  DEGRADE :', a) for a in bad]; sys.exit(1 if bad or d.get('schema') != 'pilotage_v1' else 0)" || { docker compose logs backend; exit 1; }
+          # Index des artefacts (P2.87). Même marqueur de mode dégradé (« index: »), et les familles doivent être SERVIES :
+          # une image sans pyyaml rendrait tous les frontmatters illisibles (« pyyaml_absent »). Les DEUX issues des dates
+          # sont exercées (demande de Master 2, 2026-09-26) : (1) ABSENT — aucun DATES_GIT.json dans le data/ de la CI :
+          # dates null et une ligne « dates : … » qui le dit ; (2) PRÉSENT — l'instantané est écrit sur le runner (clone
+          # superficiel : historique « tronque », ce qui est une issue honnête, pas un échec), le backend est redémarré pour
+          # vider son cache de 60 s, et l'index doit alors publier son bloc dates avec son âge. Revue du pas 2 (I1) : les
+          # deux contrôles rougissent aussi sur une ligne « bloc refusé » et sur des artefacts null ou vides — ils
+          # restaient verts sans eux (E1) ; les deux issues sont confrontées à des réponses connues par
+          # tests/sandbox/test_ci_smoke_index.py, qui EXTRAIT ces lignes du workflow.
+          curl --fail -s http://localhost:8000/api/pm/index -o index_absent.json || { docker compose logs backend; exit 1; }
+          python3 -c "import json, sys; d = json.load(open('index_absent.json', encoding='utf-8')); av = d.get('aveugle') or []; bad = [a for a in av if a.startswith('index:') or ': bloc refusé' in a]; fam = d.get('familles') or []; rec = [f for f in fam if f.get('nom') == 'record']; ill = [i for f in fam for i in (f.get('illisibles') or []) if i.get('raison') == 'pyyaml_absent']; arts = d.get('artefacts'); arts_ok = isinstance(arts, list) and len(arts) > 0; absent = d.get('dates') is None and any(a.startswith('dates : DATES_GIT.json') for a in av); print('index (absent) :', d.get('schema'), '|', rec[0].get('indexes') if rec else None, 'records |', len(arts) if isinstance(arts, list) else None, 'artefacts | dates absentes dites :', absent); [print('  DEGRADE :', a) for a in bad]; sys.exit(1 if bad or d.get('schema') != 'index_v1' or not rec or not rec[0].get('indexes') or ill or not arts_ok or not absent else 0)" || { docker compose logs backend; exit 1; }
+          python3 -m tools.pm.index_artefacts --ecrire-dates || true
+          docker compose restart backend && sleep 10
+          curl --fail -s --retry 10 --retry-connrefused --retry-delay 2 http://localhost:8000/api/pm/index -o index_present.json || { docker compose logs backend; exit 1; }
+          python3 -c "import json, sys; d = json.load(open('index_present.json', encoding='utf-8')); av = d.get('aveugle') or []; bad = [a for a in av if a.startswith('index:') or ': bloc refusé' in a]; dt = d.get('dates') or {}; ok = dt.get('historique') in ('complet', 'tronque') and isinstance(dt.get('age_s'), (int, float)) and dt['age_s'] >= 0; arts = d.get('artefacts'); arts_ok = isinstance(arts, list) and len(arts) > 0; print('index (present) :', dt, '|', len(arts) if isinstance(arts, list) else None, 'artefacts'); [print('  DEGRADE :', a) for a in bad]; sys.exit(1 if bad or not ok or not arts_ok else 0)" || { docker compose logs backend; exit 1; }
           curl --fail http://localhost:4173
           # Install Playwright browsers and run E2E tests against the running services
           npm --prefix frontend install

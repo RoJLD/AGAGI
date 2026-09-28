@@ -1365,6 +1365,23 @@ depuis elysium-brain) : elle ne suit pas une rotation de la CA mkcert — à re-
 aujourd'hui (cnce-12 arrive, PR-A secrets-flotte d'elysium-2d). (5) Verser les manifestes dans le GitOps ELYSIUM ou
 une Application ArgoCD quand ce sera stable (Σ-MANIFEST-MYCORHIZE : l'app est SHADOW tant qu'elle n'est pas déclarée).
 Sans clause `closes_when` (déclaré) : cinq gestes, dont trois se font avec ELYSIUM.
+**Avancement du 2026-09-28 (session INFRA-NEXUS ; accord écrit d'elysium-91 ET d'elysium-8d)** — la prémisse de (1)
+était FAUSSE : la boucle du README des LimitRange ELYSIUM saute elysium-agagi par son NOM (`ML_HEAVY_NS="elysium-ml
+elysium-agagi"`, PR ELYSIUM #1301) et n'applique que ses propres fichiers de palier — rien ne déferait un renommage.
+Aucun lecteur ELYSIUM de `part-of` ni de `sigil` sur une LimitRange (mesuré par les deux sessions ; seul
+`sigma_cluster_events_snapshot` lit un sigil, pour l'attribuer). (1) FAIT dans le dépôt : `part-of: agagi`,
+`owner: agagi`, annotation `elysium.io/derived-from: SIGIL-1627`, label sigil retiré ; `owner: agagi` posé aussi sur la
+ResourceQuota et les deux NetworkPolicy (les cinq objets portent les quatre labels de `LABELS_PROPRIETE`). (2) FAIT dans
+le dépôt : DNS de default-deny-all restreint à kube-dns, bloc d'opa-ingress (UN élément `to:`, namespaceSelector ET
+podSelector) ; témoin `test_P2_127_propriete_AGAGI_et_DNS_vers_kube_dns_SEUL`, dont un assert refuse la forme OU.
+**Reste** : l'APPLICATION par robla (`python -m tools.jobs.remote namespace --appliquer`, après `kubectl diff`), puis la
+validation à DEUX sens — un pod de l'image runner SANS le label de build résout `pypi.org` et `kubernetes.default` et
+ÉCHOUE à ouvrir `pypi.org:443` ; AVEC le label, le 443 passe ; ensuite un vrai build. (3), (4), (5) inchangés.
+(6) NOUVEAU : le palier ml-heavy dépend du NOM `elysium-agagi` (clé `namespace` de la configuration hors dépôt). Un
+namespace renommé ne serait pas sauté : `standard` (4 Gi) y serait reposée, le max le plus restrictif gagnerait, et
+`plafonds_limitrange` ferait REFUSER bruyamment tout palier > 4 Gi (un refus, pas une faute muette). Écrit dans la REF
+(clé `namespace`), dans 00/01 et dans `deploy/deport.example.json` ; option à proposer à ELYSIUM : brancher le saut sur
+le label `elysium.io/limitrange-tier` plutôt que sur une liste de noms.
 
 **P2.131 — rang 22 — OUVERTE (2026-09-26, trouvée en passant par la revue /refutateur d'EDR-DEPORT-NEXUS-TEMOIN, P8.5)
 — Des citations de ligne PÉRIMÉES pour la formule du corps : trois sites renvoient à `src/agents/mamba_agent.py:47-50`,
@@ -1380,7 +1397,7 @@ identiques ont rendu deux digests différents.**
 Preuve : `deploy/nexus/runner/IMAGE.json` au commit 28810f52 (digest a1d6e4eb…) contre le même fichier au commit
 5deed2c6 (digest 7c860b30…) ; même contexte de build hors le gabarit du Job (placeholders), cf. EDR-DEPORT-NEXUS-TEMOIN,
 tour 4. Conséquence déjà appliquée : un record cite le DIGEST exact, jamais le tag seul (`docs/REF/REF-DEPORT-NEXUS.md`,
-État mesuré). Reste la dette : (a) épingler TOUTES les dépendances transitives — contraintes générées depuis le pip
+État mesuré). Reste la dette : (a) [RÉFUTÉE le 2026-09-26 au soir, cf. (1) ci-dessous : mêmes dist-info] épingler TOUTES les dépendances transitives — contraintes générées depuis le pip
 freeze de l'image construite (`/opt/agagi/pip-freeze.txt` dans l'image) — puis reconstruire deux fois et comparer ;
 (b) si le digest varie encore, les horodatages de couches en sont la cause probable : essayer l'option `--reproducible`
 de Kaniko. Tant que ce n'est pas fait, deux runs « sur la même image » ne sont comparables que s'ils citent le même
@@ -1409,6 +1426,35 @@ plus haut) pour que `--reproducible` ne soit plus OOMKilled — seule voie vers 
 sonde de surveillance a attrapé ces deux OOMKilled d'essai avant qu'on déclare leur motif (contrôle positif
 involontaire) ; l'exclusion est désormais DÉCLARÉE et COMPTÉE (`python -m tools.jobs.remote surveiller --ignorer=…`,
 REF-DEPORT-NEXUS, Surveillance d'un run).
+**Mesuré le 2026-09-28 (session INFRA-NEXUS ; la « demande à ELYSIUM » ci-dessus est SATISFAITE : ml-heavy appliqué le
+2026-09-26 à 19:16 UTC)** — évidence `results/deport_p2134_reproductibilite.json`, chaque heure LUE au statut du Job
+(UTC), builds d'essai au sha d4793ec8 sans cache, dépôt `…-essais`, IMAGE.json intouché. (A) Dockerfile nettoyé +
+`--reproducible`, kaniko à 16 Gi (requête 4) : 2 builds, UN digest `sha256:cf08cef4…`, 8 couches sur 8 (12:46:41Z →
+12:48:53Z). (B) même recette à 8 Gi (requête 2), lancée 8 min 09 s plus tard (12:54:50Z) : MÊME digest, aucun OOM.
+(C) ABLATION, Dockerfile PUBLIÉ + `--reproducible` seul : DEUX digests ; couches d'indice 4 (RUN apt : journaux, cache
+ldconfig) et 6 (RUN pip : `.pyc` datés) différentes, COPY et WORKDIR identiques. Avec le nettoyage seul (26 au soir :
+contenu identique, couches différentes), il faut les DEUX. Pic mémoire NON mesuré (kubectl top toutes les 15 s = un
+MINORANT : 5,8 Gi pour un build, 654 Mi pour son jumeau). **Décision de Master 2 (2026-09-28), à appliquer APRÈS
+P4.18** (elle change le contexte haché, donc l'image) : Dockerfile nettoyé ; `--reproducible` dans `deploy/nexus/runner/build-job.yaml` ;
+kaniko à 8 Gi pour une requête de 2 Gi (limite / 4, la réserve d'ELYSIUM, que le gabarit actuel — 2 Gi pour 4 Gi — ne
+tient pas) ; init `contexte` à 32 Mi pour 128 Mi ; le DIGEST devient l'identité citée par un record, une EMPREINTE DE
+CONTENU publiée à côté comme DIAGNOSTIC (quand le digest change : l'environnement Python/torch a-t-il changé, ou la seule
+couche apt ?) — décision transmise par message de Master 2 le 2026-09-28, qui RÉVISE la proposition validée le 26
+(l'empreinte y valait équivalence ; la mesure du 28 rend le digest stable, l'empreinte devient un diagnostic). **Limites nommées** : git vient d'apt SANS version épinglée — une mise à jour de sécurité Debian changera
+la couche apt ; étape suivante : épingler les paquets apt ou tirer d'un instantané daté (snapshot.debian.org). Et la
+stabilité TEMPORELLE n'est établie qu'à 8 min : une reconstruction un AUTRE jour reste à faire avant de clore.
+**ADOPTÉE dans le dépôt le 2026-09-28, après P4.18** (le commit qui porte cette note) : Dockerfile nettoyé ;
+`--reproducible` et `--cache=false` dans `deploy/nexus/runner/build-job.yaml` (un cache resservirait des couches d'un
+autre jour : c'est la recette qui doit garantir le digest) ; kaniko 8 Gi pour 2 Gi, init 32 Mi pour 128 Mi ; empreinte
+de contenu écrite DANS l'image par `deploy/nexus/runner/empreinte_contenu.py` (zones `python` et `systeme`, calibrée sur
+une arborescence connue : `test_empreinte_de_contenu_calibree_sur_une_arborescence_CONNUE`), imprimée dans le journal
+du build et reportée dans IMAGE.json par `tools/jobs/remote.py` (voie de Master 2 : comparer deux images avant tout run),
+et publiée dans chaque MANIFEST ; témoin de recette `test_recette_reproductible_porte_LES_DEUX_ingredients_et_la_reserve_d_ELYSIUM`. **Reste
+pour clore** : (i) FAIT le 2026-09-28 au soir (`results/deport_p2134_adoption.json`) — image construite par le chemin de
+PRODUCTION puis RECONSTRUITE (`--reconstruire`) : MÊME digest `sha256:d5341acf…`, MÊMES empreintes de contenu (lues
+dans le journal de chaque build), `deploy/nexus/runner/IMAGE.json` écrit ; témoin evo011 --smoke sur la nouvelle image :
+un seul écart hors `elapsed_s` contre le tour 4, `git_sha` (attendu) ; (ii) une reconstruction un AUTRE jour, même digest ou écart localisé par
+l'empreinte ; (iii) décider pour apt (épingler ou instantané daté).
 
 **P2.132 — rang 4 — OUVERTE (2026-09-26, trouvée par la revue adversariale de la règle S2-BASSIN-FRAGILITY v4,
 critique P7.1, vérifiée à la lecture du code par la session SCIENCE-HARNAIS) — Le harnais IMMORTEL de P4.4 à P4.16
@@ -1559,6 +1605,7 @@ instrument : no-op exact (machine libre -> calme), et un refus publie la conditi
 l'unité de P4.18 du 2026-09-26. **Ordre** : APRÈS la reprise de P4.18 (2026-09-27, 10 h) — ne pas changer la garde
 sous un run scellé qui la rejoue. À la livraison, E12 passe exécutable. *Coût : agent 1-2 h.* Sans clause
 `closes_when` (déclaré) : le nom de la fonction de calme n'est pas fixé, à poser par l'implémenteur.
+⚠️ **Défaut à NE PAS reporter dans la fonction de calme** (mesuré par Master 2 le 2026-09-28 sur le lanceur de la reprise de P4.18, hors git) : il comptait une synchro pour tout processus dont la ligne de commande CONTIENT le nom du script de synchro — une sonde qui CITE ce nom s'est comptée elle-même (7 annoncées pour 4). Sens conservateur (le départ attend plus, jamais sous charge), mais un grep lancé par une session retarde un run. Exiger un exécutable node dont le chemin de script SE TERMINE par le nom du fichier de synchro. Et le seuil du lanceur (CPU < 15 %) était SOUS le plancher d'une machine au repos (4,9-6,9 cœurs sur 22) : relevé à 30 % en cours de reprise — le seuil de la fonction de calme se dérive de `COEURS_EXTERIEURS_LIBRE_MAX`, pas d'un chiffre rond.
 
 **P2.141 — rang 6 — OUVERTE (2026-09-26, promotion PARTIELLE de la règle du grep DÉCIDÉE par Master 2 ; inscrite par
 agagi-32) — Le Réfutateur n'affirme plus une ABSENCE sans contrôle positif.**
@@ -1592,6 +1639,24 @@ principal ; rien de tel au démontage des tests précédents, et l'entrée n'est
 de calibration sous l'espion), puis une garde de conftest qui REFUSE toute entrée de `sys.path` pointant vers un AUTRE
 arbre du même dépôt (même `git-common-dir`). Le gel méthodo tranche son rang. *Coût : agent 1-2 h (bissection ~6 min par
 pas).*
+
+**P2.143 — rang à fixer par Master 2 — OUVERTE (2026-09-28, extension exécutable d'E8 DÉCIDÉE par Master 2 ; inscrite par la session SCIENCE-HARNAIS) — Un nombre de PROSE qui porte une unité ou un compte, dans un record, DÉCLARE sa source ; une porte la vérifie.**
+Preuve : E8, occurrence du 2026-09-28 — six valeurs recopiées au lieu d'être relues en un jour (0,82 d'un rapport de chemin cité comme un rapport net ; 3 processus pour 6 ; 4e-7 pour 2,1e-5 ; « 24 à 718 », chiffre de conception cité comme mesure ; dose 1,0 pour ≈ 0,66 active ; heures de build estimées), toutes attrapées avant publication par une relecture contre la source — donc par un humain ou une revue, jamais par une porte : la porte 19 ne lit que « nom = valeur » d'un paramètre de régime (revue du record [[EDR-S2-BASSIN-FRAGILITY]], P2.b : elle rend SANS_PARAMETRE sur ce record, qui écrit « phase 2 à 200 ticks »). **Forme** : une balise DÉCLARÉE par l'auteur à côté du nombre — chemin `results/*.json` SUIVI, pointeur JSON, valeur et tolérance — sur le modèle des balises de compte de la porte 8 ; la porte relit le fichier et compare ; une valeur recalculée (médiane, rapport) déclare sa fonction et ses clés d'entrée. Ce qui est porteur est DÉCLARÉ, jamais deviné : la porte ne cherche pas les nombres NON balisés (elle les COMPTE et les rapporte, comme la porte 4 rapporte les entrées sans clause). Contre-exemples gelés : les cinq valeurs de cette occurrence qui ont une source JSON. À la livraison, la forme passe exécutable. *Coût : agent 3-4 h.* Sans clause `closes_when` (déclaré) : le nom de la porte n'est pas fixé.
+
+**P2.144 — rang à fixer par Master 2 — OUVERTE (2026-09-28, mesurée par Master 2 pendant l'attente de la reprise de P4.18) — Un run gouverné sous Windows ne tient aucune requête d'ÉVEIL : la machine s'endort en plein calcul.**
+Preuve : le mode d'alimentation de la batcave met la machine en veille après 3600 s sans activité sur secteur (powercfg, « Veille après » = 0xe10), et un calcul en cours ne l'empêche pas ; la reprise de P4.18 (6470 s de mur) n'a été protégée que par une consigne donnée à robla. **Forme** : `tools/jobs/run.py` (et le parent de tout run gouverné) pose `SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED)` pendant toute la durée du run et le relâche à la fin, publié dans le JSON du run ; no-op hors Windows, dit. Contre-exemple : un run factice qui lit `powercfg /requests` et y voit sa propre requête. *Coût : agent 1 h.* Sans clause `closes_when` (déclaré).
+
+**P2.145 — rang à fixer par Master 2 — OUVERTE (2026-09-28, vue en écrivant [[EDR-S2-BASSIN-FRAGILITY]]) — `provenance()` déclare SALE tout run qui écrit son propre agrégat en cours de route.**
+Preuve : `tools/preregister.py` (fonction `provenance`) pose `dirty` = « `git status --porcelain` non vide », fichiers NON SUIVIS compris ; le JSON de P4.18 publie `dirty = true` alors que l'arbre suivi était propre au départ et l'est resté (`--untracked-files=no` vide) — la saleté venait de `results/s2_bassin_fragility.json`, écrit par le run lui-même après son premier seed. Un tampon qui dit « sale » pour tout run reprenable ne distingue plus un code modifié d'un résultat en cours : c'est un signal mort. **Forme** : publier `dirty_suivi` (modifications de fichiers SUIVIS) et `non_suivis` (liste), jamais un booléen qui fond les deux. *Coût : agent 1 h.* Sans clause `closes_when` (déclaré).
+
+**P2.146 — rang à fixer par Master 2 — OUVERTE (2026-09-28, revue du record [[EDR-S2-BASSIN-FRAGILITY]], P7.c) — Les bras d'apprentissage ÉPISODIQUE seul ne publient pas leur pas effectif par agent.**
+Preuve : dans `results/s2_bassin_fragility.json`, `lr_effective_per_agent` vaut None sur 12/12 seeds pour b_eplr et b_tdoff (voie épisodique seule), alors que la mise à jour épisodique passe par le même SGD à perte moyennée sur B : le pas réel par agent est lr/B (0,00033 et 0,0033). Le compteur de `tools/learning_events.py` ne le calcule que sur la voie TD. **Forme** : le publier pour TOUTE voie qui écrit W, avec son unité. *Coût : agent 30 min.* Sans clause `closes_when` (déclaré).
+
+**P2.147 — rang à fixer par Master 2 — OUVERTE (2026-09-28, revue du record [[EDR-S2-BASSIN-FRAGILITY]], P2.b) — La porte 19 est aveugle aux paramètres écrits « nombre puis nom ».**
+Preuve : `tools/check_regime_claims.py` (motif des paramètres suivi de `\s*=\s*` et d'un nombre) ; ce record écrit « 2000 ticks », « phase 2 mortelle (200 ticks) », « 12 clones » et sort SANS_PARAMETRE — un record sans « = » ne cite, pour la porte, aucun paramètre. Recoupe P2.143 (qui la rend en partie inutile si elle livre des balises déclarées) ; à trancher ensemble. *Coût : agent 1 h.* Sans clause `closes_when` (déclaré).
+
+**P2.148 — rang à fixer par Master 2 — OUVERTE (2026-09-28, revue du record [[EDR-S2-BASSIN-FRAGILITY]], P8.b) — La porte 17 (chevauchement entrée/sortie des génomes persistés) ne balaie pas les génomes des runs.**
+Preuve : `tools/check_io_overlap.py` examine `data/genomes/` et les Hall of Fame (358 sujets), jamais `results/*_genomes/` ; les 72 génomes de P4.18 ont été vérifiés À LA MAIN par la revue (chevauchement −5 partout). Une porte dont le périmètre ne contient pas les génomes que les runs persistent ne protège pas les runs (E32). *Coût : agent 30 min.* Sans clause `closes_when` (déclaré).
 
 **P2.133 — rang 6 — ✅ CLOSE le 2026-09-26 (ouverte le même jour, vue en passant par la session SCIENCE-HARNAIS pendant la revue v6 de
 S2-BASSIN-FRAGILITY) — Le Refutateur sort encore NUL sur une revue saine : le vérificateur a rendu `refus = "aucun"`, et
@@ -2539,6 +2604,52 @@ une remise explicite des répertoires (`_racine_reelle`, 22 tests conservés) ; 
 `tools/_mutation_plugin.py` ; E35 occ. 5 au registre. Windows 22 verts ; Linux (WSL) 22 verts.
 <!-- closes_when:grep_present=tests/sandbox/test_preregistration_applied.py::racine_VIDE -->
 
+**P2.137 — ✅ CLOSE le 2026-09-26 (ouverte et fermée dans la même passe par la session INFRA-NEXUS) — la sonde
+`python -m tools.jobs.remote surveiller` s'ARRÊTAIT sur un seul accroc réseau : une lecture ratée de l'API la faisait
+sortir en 4, et la surveillance d'un run déporté prenait fin en silence pour le reste de la soirée.**
+Preuve (sortie de la sonde lancée vers 19:28 pour 15 000 s) : `[surveiller] 20:25:17 cluster illisible : kubectl get pods
+-o : Unable to connect to the server: dial tcp …:6443 …` puis `exited with code 4` ; à 20:25:56, `kubectl get nodes`
+rendait les trois nœuds `Ready`. Mécanisme : `surveiller` (`tools/jobs/remote.py`) rendait 4 dans le `except Refus`
+de la PREMIÈRE lecture ratée. Corrigé : `echecs_max` lectures ratées CONSÉCUTIVES (défaut 3, `--echecs-max`) avant de
+rendre 4 ; chaque raté est imprimé sur-le-champ et leur total figure sur chaque ligne d'état (« lectures ratées=N ») —
+tolérer sans compter serait un angle mort (E32). Horloge de sommeil injectable (`dormir`) pour tester la boucle
+elle-même, qui n'avait aucun témoin. Contre-exemple gelé :
+`test_surveillance_un_accroc_reseau_ne_l_arrete_pas_mais_se_compte` — des ratés NON consécutifs n'arrêtent jamais la
+sonde, trois consécutifs si, un seul avec `echecs_max=1` aussi (l'ancien comportement reste disponible).
+<!-- closes_when:grep_present=tests/sandbox/test_jobs_remote.py::accroc_reseau -->
+
+**P2.149 — ✅ CLOSE le 2026-09-28 (ouverte et fermée dans la même passe, session INFRA-NEXUS, trouvée par le balayage
+adversarial des artefacts du déport après ml-heavy) — la soumission acceptait un pod JAMAIS admissible par le quota,
+et le câblage « lire les plafonds → juger » de `soumettre` n'avait AUCUN témoin.**
+Preuve : sous ml-heavy (max 12 CPU par conteneur), `valider_ressources` admettait `--req-cpu 10`, que la ResourceQuota
+(requests.cpu 8) refuse même namespace vide ; `_attendre_recevoir` voyait « exceeded quota » et conseillait d'« attendre
+qu'un run finisse » — une attente sans fin, nommée comme passagère. Sous le palier standard (max 2 CPU) le cas était
+impossible : c'est l'élargissement du palier qui l'a ouvert. Et aucun test de `soumettre` n'atteignait la lecture des
+LimitRange (tous refusaient avant), donc la garantie « un palier au-dessus du max LU est refusé » ne reposait que sur un
+défaut de repli à 4 Gi. Corrigé : `quota_du_namespace` + `valider_quota` (un pod qui dépasse À LUI SEUL un `hard` est
+refusé AVANT création et nommé « jamais admissible » ; aucune ResourceQuota = rien à juger, publié) ; `soumettre` lit
+plafonds et quota APRÈS le refus « nœud pas prêt » (la branche de repli morte est retirée) ; `quota_hard` publié dans
+« soumission.json ». Même passe, dans `tools/jobs/remote.py` : cause d'échec d'un build LUE dans ses statuts (`raison_echec_build`,
+OOMKilled nommé) ; heures du build lues au statut du Job, avec leur source (`horodatage_job`, dans IMAGE.json) ; un
+build encore actif après le délai est RETIRÉ et c'est dit ; la sonde publie la mémoire du quota ; `allumage` ne propose
+plus `local` pour un build. Contre-exemples gelés : `test_soumission_juge_contre_plafonds_et_quota_LUS_avant_toute_creation`
+(quatre issues), `test_valider_quota_deux_issues_et_absence_de_quota_DITE`, `test_cause_d_echec_d_un_build_LUE_dans_les_statuts`,
+trois tests de `construire_image` sur un faux cluster.
+<!-- closes_when:grep_present=tests/sandbox/test_jobs_remote.py::juge_contre_plafonds_et_quota -->
+
+**P2.150 — rang 22 — OUVERTE (2026-09-28, trouvée par la revue adversariale du diff « après ml-heavy », session
+INFRA-NEXUS) — Le témoin de LIEU torch (batcave contre nexus), qui décide que P4.18 tourne sur la batcave, n'a AUCUNE
+évidence dans le dépôt (classe E27).**
+Preuve : la REF-DEPORT-NEXUS (« Choisir le lieu ») et le bandeau du 2026-09-28 d'EDR-DEPORT-NEXUS-TEMOIN rapportent le
+résultat d'agagi-40 (sha afa4dac6, cellule `b_zero` seed 2026, Jobs 430f et a6db sur nexus, local-fa0a sur la batcave :
+W identiques au bit entre 2 et 16 threads sur nexus, différents au dernier bit de la batcave) ; `git grep` de
+« afa4dac-430f » et « local-fa0a » sur d1, tmp/science, tmp/science-prep, tmp/e34, tmp/p419 : aucun fichier sous docs/
+ni results/. MANIFEST et génomes vivent hors suivi dans le worktree science-prep (`runs/deport/`, répertoires
+`s2_bassin_fragility_genomes_temoin_*`). À faire, par agagi-40 ou avec son accord, APRÈS P4.18 : publier une évidence
+suivie (les trois MANIFEST et les sha256 des génomes, ou les génomes eux-mêmes) — en RETIRANT l'adresse du registre que
+les MANIFEST portent dans leur champ `image` (dépôt public) — puis faire pointer la REF et le bandeau dessus. Sans
+clause `closes_when` (déclaré) : le chemin de l'évidence n'existe pas encore.
+
 **P2.136 — rang 6 — ✅ CLOSE le 2026-09-28 (ouverte le 2026-09-26 sur arbitrage de Master 2 : la règle du registre
 « pas de troisième fois » l'emporte sur le gel de la méthodo ; garde écrite et vérifiée le 26, committée le
 2026-09-28 — le commit a attendu l'autorisation de robla, puis la fin du gel de la flotte pour la reprise de P4.18) —
@@ -3442,6 +3553,7 @@ allouer un à l'écriture si le verdict de P4.18 la désigne (le record P4.16 se
 (famille (ii) de P4.20) ; elle vise désormais la SORTIE : le `corrected_by` que le record de ce run posera sur
 [[EDR-S2-CREDIT-ABLATION-2]] (bandeau E8 d'après-run, écrit seulement avec un verdict LU — un run INDÉTERMINÉ laisse
 l'entrée ouverte). Une clause sur le JSON de résultats, encore inexistant, est refusée par la porte 4 (invérifiable).
+(8) **RUN FAIT le 2026-09-28, verdict scellé INDETERMINE_INSTRUMENT (branche 7)** — [[EDR-S2-BASSIN-FRAGILITY]] : le contrôle positif `pos` (gaussien diffus à 1,0 × ‖W_bassin‖₁ sur toute la matrice) érode de −8,75 en médiane, hors de sa bande, mais sur 10/12 seeds pour un seuil de 11/12 ; la règle ne rend aucune lecture. La revue du record (`docs/reviews/2026-09-28-S2-BASSIN-FRAGILITY_The_Positive_Control_Of_FRAGILE_Misses_B.md`, 15/38 confirmées, passage INDISCRIMINANT, toutes re-mesurées par l'auteur) a établi que la glose de la branche 7 (« l'instrument ne sait pas voir une érosion ») est démentie par le run : le contrôle positif était hors du RÉGIME du sham qu'il protège, et sa puissance jamais calibrée. **L'entrée reste OUVERTE**, comme sa clause le prévoit pour un run indéterminé ; le bandeau E8 d'après-run sur [[EDR-S2-CREDIT-ABLATION-2]] n'est pas posé. Suite éventuelle : une NOUVELLE règle, contrôle positif dans le régime du sham lu et puissance calibrée par injection AVANT le sceau — **décision de robla**. Coût mesuré : 18 112,6 s CPU (25 % du budget), 6470 s de mur, batcave, 3 processus.
 <!-- closes_when:grep_present=docs/EDR/S2-CREDIT-ABLATION-2_Each_Credit_Pathway_Alone_Floors_The_Bassin_And_A_Positive_Constant_Return_Erodes_Halfway.md::corrected_by: \[.*EDR-S2-BASSIN-FRAGILITY -->
 
 **P4.17 — rang 4 quinquies — ✅ CLOSE le 2026-09-24 (verdict `AIDE_A_UN_POINT` ; ouverte le 2026-09-22, décision robla déléguée via agagi-52 ; session loop 766eabae) — Balayage
