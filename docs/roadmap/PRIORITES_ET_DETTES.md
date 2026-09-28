@@ -1535,6 +1535,43 @@ un bail factice vivant fait refuser, un bail expiré ou le nôtre non ; et le cr
 tué ne laisse pas d'orphelin). Touche `tools/hooks/` : copie déployée et porte 22 à la clé. *Coût : agent 1-2 h.*
 Attribution : Master 2.
 
+**P2.140 — rang 5 — OUVERTE (2026-09-26, promotion d'E12 DÉCIDÉE par Master 2 ; inscrite par agagi-32, teneur du
+registre) — La condition de CALME devient une garde : `project_cost` refuse une unité de coût mesurée hors calme, sauf
+déclaration « unité sous charge » publiée avec la charge.**
+Preuve : E12 (le chiffre pris dans un régime non déclaré) compte sept occurrences inscrites, toutes `documenté`, quand la
+règle du registre en tolère deux — dont, sur le COÛT : la suite chronométrée à 8 h 30 sous seize agents (30 min au
+repos, 2026-09-08) ; la triple du 2026-09-22, que seul CLAUDE.md portait jusqu'ici — b0 (P4.17 : 217 s par cellule au
+lieu de 75-90 s), d7 (P4.16 : 815 s contre 283 s pour la MÊME cellule bit-identique), c9 (abandons sous neuf processus
+python) ; et P4.18, coupé le 2026-09-26 par sa garde de coût, son unité mesurée sous une charge de plusieurs sources
+(2052,6 s, chiffre relayé par Master 2). Les règles de CLAUDE.md §Coût des runs — un seul run lourd à la fois, noter la
+charge au départ de chaque cellule — ne sont appliquées par rien.
+**Forme** (décision Master 2) : la condition de calme écrite par agagi-40 pour la reprise de P4.18 — CPU système sous un
+seuil, aucune synchro du plugin episodic-memory, aucun bail lourd, le tout sur une fenêtre continue — devient une
+fonction de `tools/cost_guard.py` ; `project_cost` REFUSE une unité mesurée hors calme, sauf déclaration explicite
+« unité sous charge », publiée avec la charge mesurée. Briques existantes dans le même module : `LoadWindow` (charge
+extérieure intégrée sur la fenêtre de la cellule, en cœurs) et `COEURS_EXTERIEURS_LIBRE_MAX`, qui aujourd'hui QUALIFIENT
+une coupe après coup (`classify_cut_nature`) ; la promotion les fait REFUSER avant. La fonction de calme est un
+instrument : no-op exact (machine libre -> calme), et un refus publie la condition qui a manqué. Contre-exemple gelé :
+l'unité de P4.18 du 2026-09-26. **Ordre** : APRÈS la reprise de P4.18 (2026-09-27, 10 h) — ne pas changer la garde
+sous un run scellé qui la rejoue. À la livraison, E12 passe exécutable. *Coût : agent 1-2 h.* Sans clause
+`closes_when` (déclaré) : le nom de la fonction de calme n'est pas fixé, à poser par l'implémenteur.
+
+**P2.141 — rang 6 — OUVERTE (2026-09-26, promotion PARTIELLE de la règle du grep DÉCIDÉE par Master 2 ; inscrite par
+agagi-32) — Le Réfutateur n'affirme plus une ABSENCE sans contrôle positif.**
+Preuve : la revue /refutateur de la règle E34-IDENTITY-CELL v1 (critique P8.b) a rendu « 0 ligne au registre et au
+backlog » pour l'aliasing de `TorchPopulationModel.forward`, sur des greps « -= 0.1 » et « shares_memory » jamais
+validés sur un cas positif ; le fait vivait dans [[EDR-INFRA-001]] (2026-07-21), et le backlog l'écrit « pénalité
+anti-répétition » (P1.3, P1.4, P2.64). Relayé tel quel, il allait graver comme neuf un défaut mesuré, décidé et épinglé
+(P2.138 en est la correction différée). La règle du grep de CLAUDE.md comptait déjà ses récidives (2026-09-07,
+2026-09-24 deux fois, E30, E32) : registre, E4.
+**Forme** (décision Master 2) : le schéma du Réfutateur (`.claude/workflows/refutateur.js`) exige, pour toute
+affirmation d'ABSENCE, le motif, le corpus et un contrôle positif — un fichier connu où le motif correspond ; une
+absence sans eux est rendue INCOHERENT et nommée, comme un refus sans booléen depuis P2.133. Retouche du prompt FIGÉ, à
+nommer comme P2.133. Témoins : une absence sans contrôle positif -> INCOHERENT ; une absence dont le contrôle positif
+NE correspond PAS -> INCOHERENT ; spécificité : une absence au contrôle positif valide est lue. **Ordre** : après la
+reprise de P4.18 (2026-09-27, 10 h). *Coût : agent 1 h.*
+<!-- closes_when:grep_present=.claude/workflows/refutateur.js::controle_positif -->
+
 **P2.142 — rang à fixer par Master 2 — OUVERTE (2026-09-28, vue en passant par la session E34 en testant sa v4) — Dans
 un WORKTREE, une session pytest qui lance `tests/sandbox/test_instrument_calibration.py` puis un autre fichier finit avec
 la racine de l'arbre PRINCIPAL en tête de `sys.path` ; `tools` étant un paquet-espace-de-noms (le répertoire des outils n'a pas de fichier d'initialisation de paquet),
@@ -2321,8 +2358,8 @@ Réfutateur (motif nommé ou renommage) — 10 déclarations gelées, toutes `MO
 <!-- closes_when:grep_present=tools/check_instrument_calibration.py::parse_\w+\) -->
 
 **P2.84 — ⚠️ OUVERTE (2026-09-24, demande de robla le 2026-09-23) — lot 2 « Science » du dashboard : arbres en temps
-réel, taxonomies, pipeline des runs, « à quoi ça sert / ce qu'on en tire », visuel des avancées — À BRAINSTORMER avant
-toute implémentation, sources déjà MESURÉES.**
+réel, taxonomies, pipeline des runs, « à quoi ça sert / ce qu'on en tire », visuel des avancées — CADRÉE le 2026-09-26
+dans la spec commune avec P2.87 ; plan à écrire une fois P2.87 livrée, sources déjà MESURÉES.**
 Quoi : le lot 1 (`docs/superpowers/specs/2026-09-22-pilotage-dashboard-design.md`) livre Flotte / Roadmap / Portes et
 s'arrête là ; robla a demandé en plus « la visu de nos arbres en temps réel, les taxonomies, nos runs, la
 compréhension, à quoi ils servent, ce qu'on en tire, visuelle de nos avancées », et a tranché le 2026-09-23 : **lot 2
@@ -2424,7 +2461,7 @@ par une forme, pas par une garde. *Coût : agent 30 min ; calcul 0.* Dépend de 
 
 **P2.87 — ⚠️ OUVERTE (2026-09-24, demande de robla) — le dashboard doit s'INDEXER TOUT SEUL à mesure que le projet
 produit : donner un FORMAT déclaré aux résultats et aux artefacts pour qu'un type neuf soit ingéré sans écrire un
-parseur. À BRAINSTORMER (robla demande une session dédiée après redémarrage).**
+parseur. BRAINSTORMÉE le 2026-09-26 (spec et plan approuvés par Master 2), EN COURS d'exécution par la session FRONT.**
 Quoi : le lot 1 du dashboard (`docs/superpowers/specs/2026-09-22-pilotage-dashboard-design.md`) lit des sources
 EXISTANTES une par une, chacune avec son lecteur écrit à la main. La demande est l'inverse : que produire un artefact
 suffise à l'indexer. État mesuré le 2026-09-24, qui dit à la fois ce qui existe et ce qui manque.
@@ -2460,10 +2497,11 @@ Dépend de : rien (mais recoupe P2.84, le lot 2 « Science » du dashboard — �
 Spec écrite le 2026-09-26 : `docs/superpowers/specs/2026-09-26-auto-indexation-artefacts-design.md` (v2 après revue
 adversariale opus, approche A — lecteur tolérant à la lecture, table de familles déclarée — validée par Master 2 avec
 quatre conditions ; P2.84 construit sur cet index). Mesuré en l'écrivant : aucune source publiée ne date un EDR (0/305),
-seul git les date (305/305 par la commande figée de la spec) ; D1-D3 restent à valider. La clause suit le CODE, jamais la spec.
-<!-- closes_when:path_present=tools/pm/index_artefacts.py -->
+seul git les date (305/305 par la commande figée de la spec) ; D1-D3 tranchés le 2026-09-26 (spec §9). Plan :
+`docs/superpowers/plans/2026-09-26-auto-indexation-index.md` (7 tâches, trois commits). La clause suit le CODE, jamais la spec.
+<!-- closes_when:path_present=frontend/src/components/pilotage/IndexView.tsx -->
 
-**P2.135 — ⚠️ OUVERTE (2026-09-26, vue en revue adversariale de la spec P2.87/P2.84) — la porte 3
+**P2.135 — ✅ CLOSE le 2026-09-26 (ouverte le même jour, vue en revue adversariale de la spec P2.87/P2.84) — la porte 3
 (`tools/check_preregistration_applied.py`) rend un VERT sur une racine sans `docs/preregistrations` ni `docs/EDR` :
 « OK … sur les 0 familles inspectables », sortie 0 — une absence de source convertie en succès.**
 Preuve, reproduite le 2026-09-26 (module copié SEUL dans un répertoire vide, `python tools/check_preregistration_applied.py`) :
@@ -2479,7 +2517,50 @@ contourner par un `isdir` AVANT l'appel. À faire : répertoire absent → excep
 `main` qui sort 2 (jamais 0) avec la racine résolue dans le message ; contre-exemple gelé : racine vide → la porte
 ÉCHOUE (témoin dont le nom porte `racine_VIDE`) ; une mutation dans `check_gate_mutation.PORTES` qui rétablit le
 `return fam` silencieux. *Coût : agent 30-60 min ; calcul 0.* Dépend de : rien. Attribution : Master 2.
+✅ **FERMÉE le 2026-09-26 (agagi-32, worker Dette ; attribuée par Master 2)** — c'est la porte **5** du crochet
+(« fidélité prereg→record »), pas la 3 qu'annonce l'en-tête (la 3 est l'intégrité des gardes du registre).
+`RacineSansSource` (`tools/check_preregistration_applied.py`) : les trois lecteurs — `_edr_texts`, `_familles`,
+`nouvelles_sans_grandeur` — LÈVENT en nommant le lecteur, le répertoire manquant et la racine résolue, au lieu de
+rendre un conteneur vide ; `main` sort **2** avec « REFUS : … », jamais 0 ; `couverture()` et
+`familles_sans_record()` lèvent aussi pour un appelant hors de la porte. Forme de la preuve rejouée : le module
+copié SEUL dans un répertoire vide rend `REFUS : _edr_texts : répertoire introuvable …`, sortie 2 (mesurée sans
+pipe, sous Windows et sous Linux) ; sur le dépôt réel la porte reste verte, 47 familles. Un répertoire PRÉSENT mais
+vide reste un vrai zéro (témoin de spécificité, qui ne gèle pas de verdict sur une source vide). Contre-exemple
+gelé : `test_P2_135_une_racine_VIDE_fait_ECHOUER_la_porte_et_NOMME_la_racine`, avec trois autres cas (chaque
+lecteur lève, un seul répertoire manquant suffit, spécificité). Porte 15 : la mutation demandée — le `return fam`
+silencieux rétabli — est tuée, **2/2** sur la porte 5 (Windows et Linux). ⚠️ **Trouvé en la calibrant** : elle
+sortait d'abord SURVIVANTE alors que deux témoins la tuaient à la main. Deux `importlib.reload(C)` du même fichier
+relisaient le module sur disque et DÉFAISAIENT la mutation en mémoire pour tous les tests suivants. Remplacés par
+une remise explicite des répertoires (`_racine_reelle`, 22 tests conservés) ; la limite est écrite dans
+`tools/_mutation_plugin.py` ; E35 occ. 5 au registre. Windows 22 verts ; Linux (WSL) 22 verts.
 <!-- closes_when:grep_present=tests/sandbox/test_preregistration_applied.py::racine_VIDE -->
+
+**P2.136 — rang 6 — ✅ CLOSE le 2026-09-28 (ouverte le 2026-09-26 sur arbitrage de Master 2 : la règle du registre
+« pas de troisième fois » l'emporte sur le gel de la méthodo ; garde écrite et vérifiée le 26, committée le
+2026-09-28 — le commit a attendu l'autorisation de robla, puis la fin du gel de la flotte pour la reprise de P4.18) —
+Promotion d'E21 : le canal shell transforme le texte qu'on lui confie, et la troisième occurrence documentée impose
+une garde exécutable.**
+Preuve : E21 comptait deux occurrences documentées (2026-09-07 : un fragment backtické d'un `git commit -m` parti
+VIDE ; une pré-inscription scellée MUTILÉE par un `python -c`). Troisième le 2026-09-26 (agagi-32, vérification Linux
+de P2.133) : un script écrit par un heredoc `python - <<'EOF'` a reçu ses continuations de ligne en « \n »
+LITTÉRAUX ; pytest n'a reçu aucun chemin et a lancé ZÉRO test — un vert qui ne mesurait rien, attrapé parce que le
+COMPTE de tests était lu.
+✅ **FERMÉE le 2026-09-28 (agagi-32, worker Dette)** — dans le hook PostToolUse Bash EXISTANT (`tools/pm/bash_hook.py`),
+sans toucher à `.claude/settings.json` (sa configuration relève de robla) : `mutilation_possible(commande)`, fonction
+PURE, rend les raisons — « heredoc » (corps porteur d'échappements ou de backticks), « substitution » (backtick non
+échappé entre guillemets doubles), « message » (`-m` porteur de \n, \t, \r ou \0, que bash laisse tels quels). Le
+hook ne bloque pas — en PostToolUse la mutilation a déjà eu lieu — : il émet la seule forme documentée pour avertir
+l'agent (un JSON `hookSpecificOutput.additionalContext` seul sur stdout, code 0, ASCII échappé), qui dit quoi faire :
+vérifier le RÉSULTAT, lire le COMPTE de tests, écrire le script avec l'outil Write. Contre-exemple gelé :
+`test_P2_136_CONTRE_EXEMPLE_le_heredoc_du_jour_est_SIGNALE` (la forme exacte de la commande du jour), avec la
+substitution du 2026-09-07, le message, la spécificité (heredoc sain, apostrophes, backtick échappé, commandes
+ordinaires : silence) et la sortie de `main`. Calibré à la main (le hook n'est pas une porte du crochet) : **5/5
+mutations tuées**, contrôle intact vert. Contrôle positif sur le VRAI harnais : le hook d'une session tourne depuis son
+worktree, et il a injecté l'avertissement E21 dans le contexte de l'agent sur une commande réelle. ⚠️ **Trouvé en
+l'écrivant** : ma première version signalait un `-m` qui échappait un backtick ; entre guillemets doubles, bash résout
+lui-même \` \" \$ \\ — seuls \n \t \r \0 arrivent littéralement. Face E4 (0 test = vert) : déjà gardée dans le
+dépôt, `tools/check_gate_mutation.py` rend un pytest à code 5 INVALIDE ou témoin intact ROUGE, jamais vert.
+<!-- closes_when:grep_present=tools/pm/bash_hook.py::mutilation_possible -->
 
 **P2.113 — ⚠️ OUVERTE (2026-09-26, vue en passant pendant la fusion du chantier Pilotage) — la suite complète ÉCRIT
 deux fichiers SUIVIS de l'arbre où on la lance, et trois de ses tests sont rouges hors de l'arbre principal sans que

@@ -215,6 +215,13 @@ PORTES = {
             "apres": "        if False:",
             "motif": ("la confrontation règle scellée -> record : une DV substituée après coup "
                       "(E11 occ. 4) redeviendrait invisible"),
+        }, {
+            # P2.135 (2026-09-26) : la forme exacte d'avant le correctif, en une ligne.
+            "nom": "le lecteur des familles retombe dans un vide SILENCIEUX",
+            "avant": '    _exiger_repertoire(_PREREG, "_familles")',
+            "apres": "    if not os.path.isdir(_PREREG): return fam",
+            "motif": ("le défaut mesuré : sur une racine sans docs/preregistrations, la porte rendait « OK … sur "
+                      "les 0 familles inspectables », sortie 0 — une absence de source convertie en succès"),
         }],
     },
     "6": {

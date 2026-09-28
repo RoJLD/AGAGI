@@ -290,9 +290,11 @@ couleur. Une porte qui l'exigerait est une décision future de robla, après mes
 
 Mesuré à la conception : `git log` figé 0,15-0,19 s (3 passes, charge 73,7 %) ; `parse_record` sur 335 records
 0,39 s (relecteur, charge 24 %) — le lecteur brut coûte au plus autant ; `couverture()` 0,22 s et
-`familles_sans_record()` 0,19 s (chacune relit les 305 EDR). **À mesurer au pas 1, machine au repos, charge notée** :
-`indexer` complet, taille de `index_v1` (≈ 770 artefacts), `compute_science`. Si l'index dépasse 2 s à froid, le
-cache passe à 300 s — décidé sur la mesure.
+`familles_sans_record()` 0,19 s (chacune relit les 305 EDR). **Mesuré au pas 1 le 2026-09-26** (worktree `.worktrees/front`,
+charge FORTE notée : 97,3 % de CPU sur 1 s, 4 processus python du projet — donc des MAJORANTS, la mesure au repos reste
+à faire) : `calculer_dates_git` 0,96 / 0,69 / 0,66 s (historique complet, 790 dates, 823 fichiers suivis) ; `indexer`
+0,72 / 0,60 / 0,69 s ; 766 artefacts, `index_v1` de 351 Ko en JSON. Sous 2 s même sous charge : le cache du service
+reste à 60 s. `compute_science` : à mesurer au plan 2.
 
 ---
 
@@ -389,6 +391,35 @@ ce paragraphe fait foi) :
   décalé — contre-exemple du lot 1) ; le tick PM qui écrit `DATES_GIT.json` passe par le même filet que le pilotage
   (une exception devient une ligne de digest, jamais un tick qui échoue).
 - §8 : le pas 1 livre aussi l'écrivain et le patch du tick PM.
+
+**Précisions apportées par le plan 1 et son exécution** (`docs/superpowers/plans/2026-09-26-auto-indexation-index.md`) :
+- le vocabulaire `illisible` gagne `lecture_impossible` : un fichier globbé puis supprimé par une autre session avant sa
+  lecture (l'arbre est partagé) ;
+- `index_v1` porte un bloc `dates` (`generated_at`, `age_s`, `head`, `historique`) : l'âge de l'instantané, `null` sans
+  instantané lisible ;
+- l'extraction partagée vit dans `tools/frontmatter.py` (import PyYAML paresseux) et non dans `consolidate_records`,
+  qui importe PyYAML en tête : sinon un processus sans PyYAML ne saurait plus dire qu'un fichier N'A PAS de
+  frontmatter ;
+- `hors_familles` groupe par RÉPERTOIRE (deux niveaux au plus ; un fichier posé directement sous `docs/` compte sous
+  `docs`) — mesuré sur le dépôt réel, le groupement par deux composants faisait de chaque fichier de `docs/` sa propre
+  clé.
+
+**Précisions apportées par la revue adversariale du pas 1** (opus, sondes propres, 2026-09-26 : 1 bloquant, 6
+importants) :
+- **fuite de `GIT_DIR`** : `--show-toplevel` rend le répertoire courant quand seul `GIT_DIR` est hérité, donc la garde du
+  §5 ne la voyait pas (sondé : instantané `complet` avec le head et les dates d'un AUTRE dépôt). L'écrivain compare
+  `git rev-parse --absolute-git-dir` sous l'environnement retenu et sous un environnement isolé ; un écart rend
+  `indisponible` avec une raison qui nomme les deux. Hériter `GIT_DIR` du dépôt MÊME (un hook) reste `complet` ;
+- **commande figée** : `-c log.showRoot=true` en plus (sondé : `log.showRoot=false` retirait au commit racine ses
+  fichiers) ; `--is-shallow-repository` n'est lu que s'il rend `true` ou `false` (un git antérieur à 2.15 renvoie le
+  drapeau tel quel, code 0) ;
+- **`suivis` = les fichiers de HEAD** (`git ls-tree -r -z --name-only HEAD`), jamais l'index : l'instantané publie
+  `head`, et l'index ambiant d'un arbre partagé porte le travail stagé d'autres sessions ;
+- **une date n'est rendue qu'à un chemin SUIVI dans l'instantané** : un chemin ajouté puis retiré, recréé hors git,
+  sort `absent_des_dates` ;
+- un JSON trop profond (`RecursionError`) est `json_invalide`, jamais une exception qui aveugle l'index ;
+- **`exclus` vaut `null`** tant que le répertoire n'a pas été lu (répertoire absent, parité rompue) : `[]` s'y lisait
+  comme une mesure (§7, no-op exact).
 
 ---
 

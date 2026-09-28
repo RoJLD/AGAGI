@@ -25,6 +25,23 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _PREREG = os.path.join(_ROOT, "docs", "preregistrations")
 _EDR = os.path.join(_ROOT, "docs", "EDR")
 
+
+class RacineSansSource(Exception):
+    """P2.135 (2026-09-26) : un répertoire que la porte doit LIRE manque. Les trois lecteurs rendaient un conteneur
+    VIDE, et `main` concluait « OK … sur les 0 familles inspectables », sortie 0 — une absence de source convertie en
+    succès, la forme (a) du biais du dépôt appliquée à une PORTE (reproduit : module copié seul dans un répertoire
+    vide). Tout appelant dont la racine n'est pas celle attendue (une image sans `docs/`, un worktree partiel)
+    recevait `couverture() == (0, 0, 0, 0)` sans rien savoir. Un répertoire PRÉSENT mais vide reste un vrai zéro."""
+
+
+def _exiger_repertoire(chemin, lecteur):
+    """Lève `RacineSansSource` si `chemin` n'est pas un répertoire — en nommant le lecteur, le répertoire et la
+    racine résolue, pour qu'un appelant sache laquelle il a reçue."""
+    if not os.path.isdir(chemin):
+        raise RacineSansSource(f"{lecteur} : répertoire introuvable {os.path.abspath(chemin)} (racine résolue "
+                               f"{os.path.abspath(os.path.join(chemin, os.pardir, os.pardir))}) -- une absence de "
+                               "source n'est pas « aucun problème » (P2.135)")
+
 # Champs d'une règle qui DÉCRIVENT une mesure à faire (par opposition au contexte narratif).
 # ⚠️ LISTE BLANCHE ELARGIE le 2026-09-02 -- elle SAUTAIT EN SILENCE. Mesure : sur 23 regles scellees,
 # seules 8 etaient REELLEMENT inspectees ; 14 etaient sautees parce qu'aucune grandeur n'en sortait,
@@ -76,8 +93,7 @@ _CITATION = "docs/preregistrations/{name}.json"
 def _edr_texts():
     """{chemin: texte} de tous les records -- lus UNE fois par passe, pas une fois par regle."""
     out = {}
-    if not os.path.isdir(_EDR):
-        return out
+    _exiger_repertoire(_EDR, "_edr_texts")
     for fn in sorted(os.listdir(_EDR)):
         if fn.endswith(".md"):
             p = os.path.join(_EDR, fn)
@@ -132,8 +148,7 @@ def _familles():
     `nouvelles_sans_grandeur`. C'est l'ASYMETRIE entre les portes (famille pour les grandeurs, fichier pour
     le record) qui a ouvert P2.28 : une seule decoupe, partagee, la ferme."""
     fam = {}
-    if not os.path.isdir(_PREREG):
-        return fam
+    _exiger_repertoire(_PREREG, "_familles")
     for fn in sorted(os.listdir(_PREREG)):
         if not fn.endswith(".json"):
             continue
@@ -206,8 +221,7 @@ def nouvelles_sans_grandeur():
     et la voie -bis ne l'aurait pas eteint). L'extractibilite se juge donc sur l'UNION de la famille
     (base + chaine -bis) ; une famille SANS AUCUN backtick echoue toujours -- contre-exemple gele
     dans tests/sandbox/test_preregistration_applied.py."""
-    if not os.path.isdir(_PREREG):
-        return []
+    _exiger_repertoire(_PREREG, "nouvelles_sans_grandeur")
     familles = {}
     for fn in sorted(os.listdir(_PREREG)):
         if not fn.endswith(".json"):
@@ -254,9 +268,13 @@ def scan():
 
 
 def main():
-    problems = scan()
-    insp, sans_qty, sans_rec, total = couverture()
-    orphelines = nouvelles_sans_grandeur()
+    try:
+        problems = scan()
+        insp, sans_qty, sans_rec, total = couverture()
+        orphelines = nouvelles_sans_grandeur()
+    except RacineSansSource as e:                         # P2.135 : jamais un vert sur une source absente
+        print(f"REFUS : {e}")
+        return 2
     # ⚠️ NE PAS SURDECLARER SA PROPRE COUVERTURE. Le message disait « {total} regles scellees, chacune
     # mesuree » alors que 8 sur 23 seulement etaient REELLEMENT inspectees : un cliquet qui annonce
     # 100 % quand il en fait 35 est un faux vert sur lui-meme.

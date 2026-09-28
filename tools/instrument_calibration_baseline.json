@@ -6,6 +6,8 @@
   "declarations_ignorees": [
     "_cause_de_mort",
     "tools/evo_mech_dv.py::logit_median_at_outputs",
+    "tools/pm/index_artefacts.py::calculer_dates_git",
+    "tools/pm/index_artefacts.py::indexer",
     "tools/pm/pilotage.py::compute_pilotage",
     "tools/pm/pilotage.py::parse_roadmap",
     "tools/refutateur_temoins.py::juge_est_calibre",
