@@ -1,0 +1,149 @@
+{
+ "objet": "témoin de LIEU de P4.18 : la cellule b_zero seed 2026 rejouée sur nexus (2 et 16 threads) et en remote local sur batcave, confrontée au publié (chemin, 12 âges, dose) et entre lieux (W au bit)",
+ "sha_code": "afa4dac6f759d55439653573129a896480f4f52c",
+ "date": "2026-09-26",
+ "publie": {
+  "dW_abs_sum": 361.23349606245756,
+  "td_updates": 1999,
+  "episode_updates": 250,
+  "resurrections": 201,
+  "ticks": 2000
+ },
+ "lieux": {
+  "_temoin_nexus2": {
+   "job": "agagi-s2-bassin-fragility-afa4dac-430f",
+   "lieu": "nexus",
+   "plateforme": "Linux-7.0.0-34-generic-x86_64-with-glibc2.36",
+   "python": "3.13.12",
+   "versions": {
+    "numpy": "2.4.3",
+    "scipy": "1.17.1",
+    "torch": "2.6.0+cpu",
+    "kuzu": "0.11.3"
+   },
+   "image_digest": "sha256:7c860b30fbd45348f937c13af278d57f1bd0a90633866004a01eeafc6d0e3de8",
+   "limite_cpu": 2.0,
+   "threads_declares": {},
+   "duree_mur_s": 53.867,
+   "returncode": 0,
+   "sha": "afa4dac6f759d55439653573129a896480f4f52c",
+   "sha_verifie": true,
+   "entry_sha256": "cd5318150b6cf4bc9cf25a94f97f7361b680d09a9fa6b4392b83657aa14611bd",
+   "manifest_sha256": "3b6edba67955c4493aa9b524daa553bc484a5837078200879d97e845feacaaef",
+   "genome_sha256": "4c528a19613c5a989fa1091435952534a64cfc2f81b32c1c48d2997e774c6d03",
+   "cellule_json_sha256": "c614d005e3660eaea2a5a923acfa290855133387210cbc7e12d45098363d4367",
+   "chemin": 361.2334938198328,
+   "ages": [
+    4,
+    9,
+    10,
+    12,
+    28,
+    31,
+    33,
+    41,
+    51,
+    53,
+    55,
+    60
+   ],
+   "chemin_egal_au_publie": false,
+   "ages_egaux_au_publie": true,
+   "dose_egale_au_publie": true
+  },
+  "_temoin_nexus16": {
+   "job": "agagi-s2-bassin-fragility-afa4dac-a6db",
+   "lieu": "nexus",
+   "plateforme": "Linux-7.0.0-34-generic-x86_64-with-glibc2.36",
+   "python": "3.13.12",
+   "versions": {
+    "numpy": "2.4.3",
+    "scipy": "1.17.1",
+    "torch": "2.6.0+cpu",
+    "kuzu": "0.11.3"
+   },
+   "image_digest": "sha256:7c860b30fbd45348f937c13af278d57f1bd0a90633866004a01eeafc6d0e3de8",
+   "limite_cpu": 2.0,
+   "threads_declares": {
+    "OMP_NUM_THREADS": "16"
+   },
+   "duree_mur_s": 253.308,
+   "returncode": 0,
+   "sha": "afa4dac6f759d55439653573129a896480f4f52c",
+   "sha_verifie": true,
+   "entry_sha256": "cd5318150b6cf4bc9cf25a94f97f7361b680d09a9fa6b4392b83657aa14611bd",
+   "manifest_sha256": "822d96350ac84ad439a5250804171dfbdd91d45ed6f929996ae0888b856722bd",
+   "genome_sha256": "4c528a19613c5a989fa1091435952534a64cfc2f81b32c1c48d2997e774c6d03",
+   "cellule_json_sha256": "4f63cdf7794dfbe5c3dc47019ac961decef22b8274c06985b3f3e00ac0c23af8",
+   "chemin": 361.23349292576313,
+   "ages": [
+    4,
+    9,
+    10,
+    12,
+    28,
+    31,
+    33,
+    41,
+    51,
+    53,
+    55,
+    60
+   ],
+   "chemin_egal_au_publie": false,
+   "ages_egaux_au_publie": true,
+   "dose_egale_au_publie": true
+  },
+  "_temoin_local": {
+   "job": "agagi-s2-bassin-fragility-afa4dac-local-fa0a",
+   "lieu": "batcave",
+   "plateforme": "Windows-11-10.0.26200-SP0",
+   "python": "3.13.12",
+   "versions": {
+    "numpy": "2.4.3",
+    "scipy": "1.17.1",
+    "torch": "2.6.0+cu124",
+    "kuzu": "0.11.3"
+   },
+   "image_digest": null,
+   "limite_cpu": null,
+   "threads_declares": {},
+   "duree_mur_s": 190.149,
+   "returncode": 0,
+   "sha": "afa4dac6f759d55439653573129a896480f4f52c",
+   "sha_verifie": true,
+   "entry_sha256": "cd5318150b6cf4bc9cf25a94f97f7361b680d09a9fa6b4392b83657aa14611bd",
+   "manifest_sha256": "afbddb1faeb3c9c0de0dcb344573dba2f74dc31eb4a1d11ca87d5c40da36b993",
+   "genome_sha256": "9f8b0a08cf0a5a561e33473bef4b47d2440696190581b382758e8353cb4c8d6c",
+   "cellule_json_sha256": "734a3f35075f42a0920da18339aa71e352e236c51ea9e560e70bfef007af7ec6",
+   "chemin": 361.23349606245756,
+   "ages": [
+    4,
+    9,
+    10,
+    12,
+    28,
+    31,
+    33,
+    41,
+    51,
+    53,
+    55,
+    60
+   ],
+   "chemin_egal_au_publie": true,
+   "ages_egaux_au_publie": true,
+   "dose_egale_au_publie": true
+  }
+ },
+ "W_entre_lieux_au_bit": {
+  "_temoin_nexus2 vs _temoin_nexus16": true,
+  "_temoin_nexus2 vs _temoin_local": false,
+  "_temoin_nexus16 vs _temoin_local": false
+ },
+ "W_ecart_max_entre_lieux": {
+  "_temoin_nexus2 vs _temoin_nexus16": 0.0,
+  "_temoin_nexus2 vs _temoin_local": 2.384185791015625e-07,
+  "_temoin_nexus16 vs _temoin_local": 2.384185791015625e-07
+ }
+}

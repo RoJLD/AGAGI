@@ -1,0 +1,9164 @@
+{
+ "preregistration": [
+  "S2-BASSIN-FRAGILITY"
+ ],
+ "design": {
+  "question": "EDR-S2-CREDIT-ABLATION-2 § Portée : aucun bras de P4.16 ne fait varier la DIRECTION à amplitude appariée. Le bassin DAgger est-il une CRÊTE fragile à toute perturbation de W de l'amplitude (NETTE) du crédit — le crédit n'est pas spécial — ou est-ce la DIRECTION des pas du crédit qui le détruit ?",
+  "replication_unit": "seed (12 clones du bassin par condition, un monde par seed ; toutes conditions appariées)",
+  "n_independent": 1,
+  "links": {
+   "deplacement_net_credit": "measured",
+   "replication_phase1": "measured",
+   "transplant_W_seul": "measured",
+   "appariement_L1": "measured",
+   "noop_exact": "measured",
+   "controle_positif_fragile": "measured",
+   "bande_de_tirage_bootstrap": "measured",
+   "plancher_eps": "measured",
+   "survie_mortelle_poids_geles": "measured"
+  },
+  "inferred_links": [],
+  "cost_estimate": "Coût : unité = UN SEED COMPLET (rejeu des six bras, puis 167 phases 2 : noop ; par bras transplant + 5 tirages × (sign, iso, sign ×2, sign ×4, sign_commun) ; 5 tirages de eps et de pos). Le premier seed (2026 : ses 6 cellules, puis ses phases 2) tourne AVANT tout autre seed ; son temps CPU (somme des processus qui l'ont calculé) est l'unité projetée par project_cost (marge ×3, 12 seeds) — projection sur l'unité CPU (décision robla via Master 2, 2026-09-26 : la charge de batcave n'est pas maîtrisée) ; temps mur, temps CPU et charge (CPU total, processus python) publiés au début et à la fin de chaque cellule et de chaque seed ; plafond PENDANT le run sur le CPU cumulé, jamais sur le mur. Unité CPU attendue, DÉRIVÉE de la sonde de pré-scellement (seed 2026) : rejeux full 381 s, tdonly 310, eplr 269, const 134, zero 121 ; b_tdoff non sondé (P4.9 : 62 s de mur sous charge) -> ≈ 80 s ; phases 2 0,6-0,9 s -> ≈ 1400 s CPU par seed, ≈ 4,7 h CPU pour 12 (≈ 1 cœur par cellule : CPU/mur = 1,02). Budget 72 000 s : la garde accepte une unité CPU jusqu'à 2000 s (marge pour la contention de 6 processus sur le CPU lui-même) et REFUSE au-delà ; si elle refuse, re-sceller un -bis sur l'unité mesurée sans toucher n, bras, shams, tirages ni seuils. Exécution DÉCOUPÉE en commandes idempotentes : « cellule --bras B --seed S » (rejeu de phase 1 d'un couple, W persisté, relu sans recalcul si son sha256 concorde, refus sinon) ; « seed --seed S » (les phases 2 d'un seed sur ses six cellules, RELUES, jamais rejouées : une cellule absente fait REFUSER la commande avant tout monde — revue v5 P10.b ; un pod nexus ne voit que les fichiers SUIVIS, donc un Job seed n'y verrait aucune cellule) ; « agreger » (lignes et verdict, aucun monde) ; « tout » (batcave : ces tâches dans au plus 6 processus ouvriers (borne APPLIQUÉE : --workers > 6 lève), kuzu neutralisé dans chacun, bail tenu par le processus parent lancé sous tools.jobs.run avec timeout, et VÉRIFIÉ par l'enfant). Sur nexus, UN Job = UNE commande « cellule » (LimitRange 2 CPU, quota 8 cellules en parallèle) ; les W et JSON de cellule sont rapatriés au même chemin, puis les phases 2 des seeds tournent sur la machine qui porte les cellules (batcave, « tout », qui RELIT les 72 cellules — leur CPU mesuré sur nexus entre au cumul — et lance les 12 seeds sous bail). Chaque cellule publie son hôte (`hote`) : le lieu est lu cellule par cellule, jamais supposé. Le lieu est batcave ou nexus — la branche 4 (rejeu BIT-IDENTIQUE au publié sur chaque cellule, dose comprise) et la branche 2 (no-op au bit) couvrent tout effet du lieu ou du parallélisme : un écart rend le run INDÉTERMINÉ, jamais lu. Le mode et le lieu sont publiés. Charge connue non maîtrisée : la synchro du plugin episodic-memory (hook SessionStart de chaque session Claude, ~4 cœurs quelques minutes, récurrente) ; publiée, jamais soustraite. Un seul run lourd sur la machine pendant ce run (Master 2). Reprise par cellule et par seed (chaque JSON écrit dès la tâche finie, l'agrégat AVANT la garde).",
+  "inferred_reason": null,
+  "control_family": {
+   "cells": 15,
+   "alpha_family": 0.05,
+   "alpha_cell": 0.0033333333333333335,
+   "method": "bonferroni",
+   "reason": null,
+   "fwer_bound": 0.05
+  },
+  "warning": null
+ },
+ "provenance_agregation": {
+  "git_sha": "afa4dac6f759d55439653573129a896480f4f52c",
+  "dirty": false,
+  "rule": "S2-BASSIN-FRAGILITY",
+  "seal": "d29d7934b3a252b10c9e3bb4e6b459d538a9fb30440515db4bc092d183ff5bd4"
+ },
+ "regime": {
+  "cognitive_demand": true,
+  "cog_linear": false,
+  "cog_gain": 12.0,
+  "base_metabolism": 0.75,
+  "forage_payoff": 0.0,
+  "benchmark_mode": true,
+  "night_enabled": false,
+  "energy_start": 80.0,
+  "immortal_phase1": true,
+  "refill_below": 30.0,
+  "refill_to": 80.0,
+  "hp_refill_below": 50.0,
+  "frozen_phase2_lr": 0.0,
+  "arms_credit": {
+   "b_full": {
+    "reward_scale": 1.0,
+    "td_enabled": true,
+    "lr": null,
+    "episode_enabled": true,
+    "reward_const": null
+   },
+   "b_tdonly": {
+    "reward_scale": 1.0,
+    "td_enabled": true,
+    "lr": null,
+    "episode_enabled": false,
+    "reward_const": null
+   },
+   "b_const": {
+    "reward_scale": 1.0,
+    "td_enabled": true,
+    "lr": null,
+    "episode_enabled": true,
+    "reward_const": 1.0
+   },
+   "b_eplr": {
+    "reward_scale": 1.0,
+    "td_enabled": false,
+    "lr": 0.004,
+    "episode_enabled": true,
+    "reward_const": null
+   },
+   "b_zero": {
+    "reward_scale": 0.0,
+    "td_enabled": true,
+    "lr": null,
+    "episode_enabled": true,
+    "reward_const": null
+   },
+   "b_tdoff": {
+    "reward_scale": 1.0,
+    "td_enabled": false,
+    "lr": null,
+    "episode_enabled": true,
+    "reward_const": null
+   }
+  },
+  "arm_source": {
+   "b_full": "results\\s2_credit_ablation_2.json",
+   "b_tdonly": "results\\s2_credit_ablation_2.json",
+   "b_const": "results\\s2_credit_ablation_2.json",
+   "b_eplr": "results\\s2_credit_ablation_2.json",
+   "b_zero": "results\\s2_credit_ablation.json",
+   "b_tdoff": "results\\s2_credit_ablation.json"
+  },
+  "shams": [
+   "sign",
+   "iso"
+  ],
+  "controls": {
+   "eps_scale": 0.001,
+   "pos": 1.0
+  },
+  "echelles": [
+   2.0,
+   4.0
+  ],
+  "r_draws": 5,
+  "sham_entropy": 418,
+  "match_tol": 0.01,
+  "lr_low": 0.004,
+  "appariement": "deplacement NET L1 par agent",
+  "bande": {
+   "methode": "bootstrap des tirages dans chaque seed",
+   "b": 2000,
+   "q": 0.975,
+   "entropie": 4181
+  },
+  "sham_primaire": "sign",
+  "sham_secondaire_hors_verdict": "iso"
+ },
+ "seeds_declares": [
+  2026
+ ],
+ "execution": {
+  "mode": "parallele",
+  "workers": 6,
+  "lieu": "batcave",
+  "kuzu": "neutralise dans chaque processus ouvrier",
+  "bail": {
+   "tenu_par": "parent (tools.jobs.run)",
+   "owner": "s2-bassin-fragility",
+   "pid": 39160
+  },
+  "started_at": "2026-09-26T19:55:14"
+ },
+ "preflight": {
+  "sign_identity_returns_dW": true,
+  "sign_norms_exact": true,
+  "iso_l1_matched": true,
+  "apply_delta_bit_exact": true,
+  "global_rng_untouched": true,
+  "stream_reproducible": true,
+  "streams_distinct": true
+ },
+ "cost": {
+  "load_parent_start": {
+   "cpu_percent_1s": 24.4,
+   "python_procs": 16,
+   "t": "2026-09-26T19:55:18"
+  },
+  "unit_cpu_s": 2052.578125,
+  "unit_wall_s_premier_seed": 843.7143898010254,
+  "unit_basis": "temps CPU des 6 cellules + des 167 phases 2 du premier seed, mesuré dans les processus ouvriers (décision robla via Master 2 : projection sur le CPU)",
+  "cells_cpu_s": 1960.875,
+  "seeds_phase2_cpu_s": 91.703125,
+  "cpu_total_s": 2052.578125,
+  "budget_s": 72000.0
+ },
+ "cells": {
+  "2026": {
+   "seed": 2026,
+   "arms": {
+    "b_full": {
+     "learning": {
+      "td_calls": 2000,
+      "td_updates": 1999,
+      "episode_calls": 250,
+      "episode_updates": 250,
+      "legacy_calls": 0,
+      "legacy_updates": 0,
+      "compute_spent_total": 0.0,
+      "forward_calls": 2000,
+      "skips": {},
+      "dW_abs_sum": 18242.03954219818,
+      "reward_scale": 1.0,
+      "td_enabled": true,
+      "lr": null,
+      "lr_effective_per_agent": 0.0033333333333333335,
+      "lr_effective_unit": "torch: lr/B (SGD, perte moyennée sur B, W disjoint par agent)",
+      "trace_lambda": null,
+      "trace_bypass_optimizer": false,
+      "trace_updates": 0,
+      "trace_resets": 0,
+      "resurrections": 12,
+      "ticks": 2000,
+      "pas_optimiseur_mesure": [
+       0.04
+      ]
+     },
+     "learned_objects": {
+      "S": 7.0,
+      "ages": [
+       5,
+       6,
+       6,
+       7,
+       7,
+       7,
+       7,
+       8,
+       8,
+       9,
+       9,
+       11
+      ],
+      "censored": 0,
+      "consensus": null,
+      "reconstructions": null
+     },
+     "replay_wall_s": 746.6117956638336,
+     "replay_cpu_s": 551.28125,
+     "net_l1_per_agent": [
+      111.09818776929569,
+      158.3042367662856,
+      94.76513470684586,
+      102.71047534034005,
+      97.0297001725412,
+      115.78332350597884,
+      98.3641040999064,
+      89.74576736213612,
+      115.69030577891681,
+      96.49352326261942,
+      137.3692483543382,
+      88.65185509826733
+     ],
+     "structure": {
+      "net_l1_total": 1306.0058622174715,
+      "diag_share": 0.009148857734875674,
+      "input_cols_share": 0.0,
+      "body_rows_share": 0.03397142546327258,
+      "td_seul_cols_share": 0.23368359383209847
+     },
+     "net_l1_median_agent": 100.53728972012323,
+     "path_total": 18242.03954219818,
+     "net_over_path": 0.07159319324993069,
+     "genomes": {
+      "path": "results/s2_bassin_fragility_genomes/b_full_2026.npz",
+      "sha256": "e34e52e2efd2821b565f9eda4251d539a6e783add536b6217c89e279d723194a"
+     },
+     "cell_reloaded": true,
+     "cell_load": {
+      "start": {
+       "cpu_percent_1s": 39.4,
+       "python_procs": 22,
+       "t": "2026-09-26T19:55:19"
+      },
+      "end": {
+       "cpu_percent_1s": 58.7,
+       "python_procs": 22,
+       "t": "2026-09-26T20:07:47"
+      }
+     },
+     "transplant": {
+      "S": 7.0,
+      "ages": [
+       5,
+       6,
+       6,
+       7,
+       7,
+       7,
+       7,
+       8,
+       8,
+       9,
+       9,
+       11
+      ],
+      "censored": 0,
+      "consensus": {
+       "ticks_avec_reecriture": 0,
+       "lignes_reecrites": 0
+      },
+      "reconstructions": {
+       "constructions": 6,
+       "reconstructions": 5,
+       "B": [
+        12,
+        11,
+        9,
+        5,
+        3,
+        1
+       ]
+      },
+      "bit_exact_W": true,
+      "ages_identical_to_learned_objects": true
+     },
+     "sign": {
+      "scale": 1.0,
+      "draws": [
+       {
+        "S": 12.0,
+        "ages": [
+         6,
+         8,
+         8,
+         9,
+         10,
+         10,
+         14,
+         14,
+         15,
+         15,
+         20,
+         33
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 8,
+         "reconstructions": 7,
+         "B": [
+          12,
+          11,
+          9,
+          8,
+          6,
+          4,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 2.8494260856665256e-09,
+         "l2_ratio_median": 1.0000000003413376,
+         "op_ratio_median": 0.7544491370676687
+        }
+       },
+       {
+        "S": 11.0,
+        "ages": [
+         6,
+         7,
+         7,
+         9,
+         10,
+         11,
+         11,
+         13,
+         13,
+         14,
+         17,
+         17
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 8,
+         "reconstructions": 7,
+         "B": [
+          12,
+          11,
+          9,
+          8,
+          7,
+          5,
+          3,
+          2
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 2.103232205337437e-09,
+         "l2_ratio_median": 1.0000000012678947,
+         "op_ratio_median": 0.7509690046439288
+        }
+       },
+       {
+        "S": 9.5,
+        "ages": [
+         4,
+         6,
+         7,
+         7,
+         7,
+         9,
+         10,
+         10,
+         10,
+         11,
+         14,
+         41
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 8,
+         "reconstructions": 7,
+         "B": [
+          12,
+          11,
+          10,
+          7,
+          6,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 2.665865915363125e-09,
+         "l2_ratio_median": 1.0000000003736478,
+         "op_ratio_median": 0.7500310564898789
+        }
+       },
+       {
+        "S": 10.5,
+        "ages": [
+         2,
+         7,
+         8,
+         8,
+         10,
+         10,
+         11,
+         13,
+         13,
+         14,
+         24,
+         28
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 9,
+         "reconstructions": 8,
+         "B": [
+          12,
+          11,
+          10,
+          8,
+          6,
+          5,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 1.4720664944143731e-09,
+         "l2_ratio_median": 1.000000000551839,
+         "op_ratio_median": 0.7617772315534076
+        }
+       },
+       {
+        "S": 12.0,
+        "ages": [
+         2,
+         6,
+         9,
+         10,
+         11,
+         11,
+         13,
+         13,
+         14,
+         18,
+         22,
+         26
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 10,
+         "reconstructions": 9,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          6,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 1.6981536152105634e-09,
+         "l2_ratio_median": 1.000000001115627,
+         "op_ratio_median": 0.7533679416795677
+        }
+       }
+      ],
+      "S": 11.0,
+      "l1_rel_err_max": 2.8494260856665256e-09
+     },
+     "iso": {
+      "draws": [
+       {
+        "S": 35.0,
+        "ages": [
+         4,
+         10,
+         14,
+         26,
+         27,
+         33,
+         37,
+         39,
+         48,
+         59,
+         71,
+         88
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 12,
+         "reconstructions": 11,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 1.3806281599388757e-08,
+         "l2_ratio_median": 0.17797516627783933,
+         "op_ratio_median": 0.03509334825373949
+        }
+       },
+       {
+        "S": 41.5,
+        "ages": [
+         4,
+         10,
+         13,
+         35,
+         35,
+         41,
+         42,
+         54,
+         61,
+         68,
+         84,
+         88
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 11,
+         "reconstructions": 10,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 1.319972070508077e-08,
+         "l2_ratio_median": 0.1783683594170264,
+         "op_ratio_median": 0.03503044957193616
+        }
+       },
+       {
+        "S": 38.0,
+        "ages": [
+         4,
+         10,
+         13,
+         27,
+         28,
+         36,
+         40,
+         57,
+         61,
+         72,
+         81,
+         104
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 12,
+         "reconstructions": 11,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 9.105680410583115e-09,
+         "l2_ratio_median": 0.1782797340475885,
+         "op_ratio_median": 0.035132384524382304
+        }
+       },
+       {
+        "S": 37.0,
+        "ages": [
+         4,
+         10,
+         14,
+         20,
+         20,
+         36,
+         38,
+         57,
+         64,
+         74,
+         98,
+         98
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 10,
+         "reconstructions": 9,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 9.011860237715894e-09,
+         "l2_ratio_median": 0.17841541266193678,
+         "op_ratio_median": 0.03501989565316739
+        }
+       },
+       {
+        "S": 37.5,
+        "ages": [
+         4,
+         7,
+         12,
+         15,
+         22,
+         36,
+         39,
+         41,
+         49,
+         57,
+         61,
+         98
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 12,
+         "reconstructions": 11,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 9.956313879241859e-09,
+         "l2_ratio_median": 0.1781541626771314,
+         "op_ratio_median": 0.03480042230809274
+        }
+       }
+      ],
+      "S": 37.5,
+      "l1_rel_err_max": 1.3806281599388757e-08
+     },
+     "sign_x2": {
+      "scale": 2.0,
+      "draws": [
+       {
+        "S": 12.0,
+        "ages": [
+         6,
+         9,
+         10,
+         10,
+         10,
+         12,
+         12,
+         13,
+         14,
+         14,
+         14,
+         41
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 7,
+         "reconstructions": 6,
+         "B": [
+          12,
+          11,
+          10,
+          7,
+          5,
+          4,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 3.4346255425898365e-09,
+         "l2_ratio_median": 0.9999999988928923,
+         "op_ratio_median": 0.7703751193835509
+        }
+       },
+       {
+        "S": 10.0,
+        "ages": [
+         6,
+         6,
+         7,
+         7,
+         7,
+         10,
+         10,
+         10,
+         10,
+         13,
+         18,
+         77
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 6,
+         "reconstructions": 5,
+         "B": [
+          12,
+          10,
+          7,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 2.7469167470495395e-09,
+         "l2_ratio_median": 0.9999999989125932,
+         "op_ratio_median": 0.7885733260335737
+        }
+       },
+       {
+        "S": 9.0,
+        "ages": [
+         2,
+         7,
+         8,
+         8,
+         9,
+         9,
+         9,
+         12,
+         12,
+         13,
+         18,
+         28
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 8,
+         "reconstructions": 7,
+         "B": [
+          12,
+          11,
+          10,
+          8,
+          5,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 2.8520705607571578e-09,
+         "l2_ratio_median": 0.9999999982079069,
+         "op_ratio_median": 0.8130414632178249
+        }
+       },
+       {
+        "S": 11.0,
+        "ages": [
+         8,
+         8,
+         9,
+         10,
+         10,
+         11,
+         11,
+         11,
+         13,
+         13,
+         14,
+         22
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 7,
+         "reconstructions": 6,
+         "B": [
+          12,
+          10,
+          9,
+          7,
+          4,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 2.417074827790663e-09,
+         "l2_ratio_median": 1.0000000004464298,
+         "op_ratio_median": 0.7392588714053672
+        }
+       },
+       {
+        "S": 9.5,
+        "ages": [
+         6,
+         7,
+         7,
+         8,
+         8,
+         9,
+         10,
+         11,
+         11,
+         12,
+         14,
+         14
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 8,
+         "reconstructions": 7,
+         "B": [
+          12,
+          11,
+          9,
+          7,
+          6,
+          5,
+          3,
+          2
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 3.0070434748077035e-09,
+         "l2_ratio_median": 0.9999999994652667,
+         "op_ratio_median": 0.743286992931635
+        }
+       }
+      ],
+      "S": 10.0,
+      "l1_rel_err_max": 3.4346255425898365e-09
+     },
+     "sign_x4": {
+      "scale": 4.0,
+      "draws": [
+       {
+        "S": 9.0,
+        "ages": [
+         2,
+         7,
+         7,
+         7,
+         8,
+         9,
+         9,
+         9,
+         10,
+         10,
+         15,
+         20
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 7,
+         "reconstructions": 6,
+         "B": [
+          12,
+          11,
+          8,
+          7,
+          4,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 3.2623143632605827e-09,
+         "l2_ratio_median": 0.9999999991603867,
+         "op_ratio_median": 0.7420438248130724
+        }
+       },
+       {
+        "S": 12.0,
+        "ages": [
+         3,
+         9,
+         11,
+         11,
+         11,
+         11,
+         13,
+         15,
+         16,
+         16,
+         29,
+         44
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 8,
+         "reconstructions": 7,
+         "B": [
+          12,
+          11,
+          10,
+          6,
+          5,
+          4,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 3.0686177024141566e-09,
+         "l2_ratio_median": 0.9999999995254736,
+         "op_ratio_median": 0.803752084955769
+        }
+       },
+       {
+        "S": 9.5,
+        "ages": [
+         6,
+         6,
+         6,
+         6,
+         7,
+         9,
+         10,
+         11,
+         11,
+         11,
+         12,
+         14
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 7,
+         "reconstructions": 6,
+         "B": [
+          12,
+          8,
+          7,
+          6,
+          5,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 1.1532746527613294e-09,
+         "l2_ratio_median": 0.9999999998489211,
+         "op_ratio_median": 0.7441744466186774
+        }
+       },
+       {
+        "S": 9.0,
+        "ages": [
+         4,
+         8,
+         8,
+         8,
+         8,
+         9,
+         9,
+         9,
+         11,
+         14,
+         15,
+         25
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 7,
+         "reconstructions": 6,
+         "B": [
+          12,
+          11,
+          7,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 2.4280384299911385e-09,
+         "l2_ratio_median": 1.0000000007442558,
+         "op_ratio_median": 0.7513354922716722
+        }
+       },
+       {
+        "S": 11.0,
+        "ages": [
+         6,
+         6,
+         7,
+         8,
+         9,
+         11,
+         11,
+         11,
+         14,
+         15,
+         17,
+         17
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 8,
+         "reconstructions": 7,
+         "B": [
+          12,
+          10,
+          9,
+          8,
+          7,
+          4,
+          3,
+          2
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 2.4608677829973142e-09,
+         "l2_ratio_median": 1.0000000011519206,
+         "op_ratio_median": 0.7910236358675713
+        }
+       }
+      ],
+      "S": 9.5,
+      "l1_rel_err_max": 3.2623143632605827e-09
+     },
+     "sign_commun": {
+      "scale": 1.0,
+      "draws": [
+       {
+        "S": 39.0,
+        "ages": [
+         4,
+         10,
+         14,
+         15,
+         20,
+         38,
+         40,
+         42,
+         68,
+         72,
+         80,
+         141
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 12,
+         "reconstructions": 11,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 2.2058187831656224e-09,
+         "l2_ratio_median": 1.0000000017787354,
+         "op_ratio_median": 0.843166708077451
+        }
+       },
+       {
+        "S": 8.5,
+        "ages": [
+         5,
+         7,
+         8,
+         8,
+         8,
+         8,
+         9,
+         10,
+         11,
+         12,
+         14,
+         16
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 9,
+         "reconstructions": 8,
+         "B": [
+          12,
+          11,
+          10,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 2.0495606324897e-09,
+         "l2_ratio_median": 1.0000000019901178,
+         "op_ratio_median": 0.7856752301139249
+        }
+       },
+       {
+        "S": 14.5,
+        "ages": [
+         6,
+         9,
+         10,
+         10,
+         13,
+         13,
+         16,
+         19,
+         19,
+         23,
+         23,
+         29
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 8,
+         "reconstructions": 7,
+         "B": [
+          12,
+          11,
+          10,
+          8,
+          6,
+          5,
+          3,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 2.7611388148910856e-09,
+         "l2_ratio_median": 1.0000000003422431,
+         "op_ratio_median": 0.7661144993892153
+        }
+       },
+       {
+        "S": 36.0,
+        "ages": [
+         9,
+         10,
+         15,
+         20,
+         21,
+         30,
+         42,
+         47,
+         63,
+         72,
+         82,
+         119
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 12,
+         "reconstructions": 11,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 2.1828065170145973e-09,
+         "l2_ratio_median": 1.0000000016718902,
+         "op_ratio_median": 0.8316395802457401
+        }
+       },
+       {
+        "S": 10.5,
+        "ages": [
+         7,
+         7,
+         8,
+         8,
+         10,
+         10,
+         11,
+         11,
+         12,
+         16,
+         23,
+         54
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 8,
+         "reconstructions": 7,
+         "B": [
+          12,
+          10,
+          8,
+          6,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 1.849448824745767e-09,
+         "l2_ratio_median": 0.9999999998645374,
+         "op_ratio_median": 0.7504503982213127
+        }
+       }
+      ],
+      "S": 14.5,
+      "l1_rel_err_max": 2.7611388148910856e-09
+     }
+    },
+    "b_tdonly": {
+     "learning": {
+      "td_calls": 2000,
+      "td_updates": 1999,
+      "episode_calls": 250,
+      "episode_updates": 0,
+      "legacy_calls": 0,
+      "legacy_updates": 0,
+      "compute_spent_total": 0.0,
+      "forward_calls": 2000,
+      "skips": {},
+      "dW_abs_sum": 11742.918721616268,
+      "reward_scale": 1.0,
+      "td_enabled": true,
+      "lr": null,
+      "lr_effective_per_agent": 0.0033333333333333335,
+      "lr_effective_unit": "torch: lr/B (SGD, perte moyennée sur B, W disjoint par agent)",
+      "trace_lambda": null,
+      "trace_bypass_optimizer": false,
+      "trace_updates": 0,
+      "trace_resets": 0,
+      "resurrections": 12,
+      "ticks": 2000,
+      "pas_optimiseur_mesure": [
+       0.04
+      ]
+     },
+     "learned_objects": {
+      "S": 9.0,
+      "ages": [
+       6,
+       7,
+       7,
+       8,
+       8,
+       9,
+       9,
+       9,
+       10,
+       11,
+       18,
+       20
+      ],
+      "censored": 0,
+      "consensus": null,
+      "reconstructions": null
+     },
+     "replay_wall_s": 722.4681055545807,
+     "replay_cpu_s": 499.0,
+     "net_l1_per_agent": [
+      99.93355767805042,
+      102.07478882665964,
+      93.81892987930223,
+      66.20275012246566,
+      69.8523954886623,
+      70.80975931453031,
+      73.72000969880901,
+      70.36027525009649,
+      75.61242289247457,
+      72.33979841620021,
+      97.4029615686668,
+      60.94311297589593
+     ],
+     "structure": {
+      "net_l1_total": 953.0707621118136,
+      "diag_share": 0.006335667197185118,
+      "input_cols_share": 0.0,
+      "body_rows_share": 0.035123887861515324,
+      "td_seul_cols_share": 0.2879964126150809
+     },
+     "net_l1_median_agent": 73.02990405750461,
+     "path_total": 11742.918721616268,
+     "net_over_path": 0.08116131812761411,
+     "genomes": {
+      "path": "results/s2_bassin_fragility_genomes/b_tdonly_2026.npz",
+      "sha256": "981518cedd1f7cbb4985d1d9ce40464666faabc427fe7fda7af32c1196565377"
+     },
+     "cell_reloaded": true,
+     "cell_load": {
+      "start": {
+       "cpu_percent_1s": 37.1,
+       "python_procs": 22,
+       "t": "2026-09-26T19:55:19"
+      },
+      "end": {
+       "cpu_percent_1s": 91.2,
+       "python_procs": 26,
+       "t": "2026-09-26T20:07:23"
+      }
+     },
+     "transplant": {
+      "S": 9.0,
+      "ages": [
+       6,
+       7,
+       7,
+       8,
+       8,
+       9,
+       9,
+       9,
+       10,
+       11,
+       18,
+       20
+      ],
+      "censored": 0,
+      "consensus": {
+       "ticks_avec_reecriture": 0,
+       "lignes_reecrites": 0
+      },
+      "reconstructions": {
+       "constructions": 8,
+       "reconstructions": 7,
+       "B": [
+        12,
+        11,
+        9,
+        7,
+        4,
+        3,
+        2,
+        1
+       ]
+      },
+      "bit_exact_W": true,
+      "ages_identical_to_learned_objects": true
+     },
+     "sign": {
+      "scale": 1.0,
+      "draws": [
+       {
+        "S": 10.5,
+        "ages": [
+         3,
+         9,
+         9,
+         9,
+         10,
+         10,
+         11,
+         11,
+         13,
+         16,
+         24,
+         34
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 8,
+         "reconstructions": 7,
+         "B": [
+          12,
+          11,
+          8,
+          6,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 1.9020921960460397e-09,
+         "l2_ratio_median": 1.0000000001812785,
+         "op_ratio_median": 0.684003427156531
+        }
+       },
+       {
+        "S": 11.0,
+        "ages": [
+         2,
+         4,
+         8,
+         9,
+         10,
+         11,
+         11,
+         11,
+         15,
+         19,
+         44,
+         73
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 10,
+         "reconstructions": 9,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 1.9954662436397764e-09,
+         "l2_ratio_median": 1.0000000007325376,
+         "op_ratio_median": 0.6584903294549888
+        }
+       },
+       {
+        "S": 13.0,
+        "ages": [
+         6,
+         8,
+         9,
+         10,
+         12,
+         13,
+         13,
+         14,
+         15,
+         17,
+         31,
+         42
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 11,
+         "reconstructions": 10,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 2.745576165390059e-09,
+         "l2_ratio_median": 1.0000000007991408,
+         "op_ratio_median": 0.6738492034961763
+        }
+       },
+       {
+        "S": 11.5,
+        "ages": [
+         3,
+         8,
+         9,
+         10,
+         10,
+         11,
+         12,
+         13,
+         14,
+         17,
+         20,
+         24
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 11,
+         "reconstructions": 10,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 1.7193050049357625e-09,
+         "l2_ratio_median": 1.0000000006712728,
+         "op_ratio_median": 0.6673356325049136
+        }
+       },
+       {
+        "S": 13.5,
+        "ages": [
+         4,
+         9,
+         11,
+         12,
+         12,
+         13,
+         14,
+         14,
+         19,
+         20,
+         23,
+         25
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 10,
+         "reconstructions": 9,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          7,
+          6,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 1.6671526471685574e-09,
+         "l2_ratio_median": 1.0000000003678413,
+         "op_ratio_median": 0.6484518786217353
+        }
+       }
+      ],
+      "S": 11.5,
+      "l1_rel_err_max": 2.745576165390059e-09
+     },
+     "iso": {
+      "draws": [
+       {
+        "S": 34.5,
+        "ages": [
+         4,
+         10,
+         14,
+         19,
+         20,
+         29,
+         40,
+         52,
+         62,
+         86,
+         95,
+         104
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 12,
+         "reconstructions": 11,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 6.765571978677232e-09,
+         "l2_ratio_median": 0.19491967133266708,
+         "op_ratio_median": 0.035250326600750045
+        }
+       },
+       {
+        "S": 33.5,
+        "ages": [
+         4,
+         10,
+         14,
+         19,
+         20,
+         33,
+         34,
+         40,
+         58,
+         63,
+         72,
+         75
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 12,
+         "reconstructions": 11,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 1.707355139625869e-08,
+         "l2_ratio_median": 0.19502569441556783,
+         "op_ratio_median": 0.03476629111379946
+        }
+       },
+       {
+        "S": 31.5,
+        "ages": [
+         4,
+         10,
+         14,
+         19,
+         20,
+         30,
+         33,
+         40,
+         65,
+         82,
+         101,
+         102
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 12,
+         "reconstructions": 11,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 8.312837599351748e-09,
+         "l2_ratio_median": 0.19497285409392762,
+         "op_ratio_median": 0.03549365271694151
+        }
+       },
+       {
+        "S": 31.5,
+        "ages": [
+         4,
+         10,
+         14,
+         19,
+         20,
+         30,
+         33,
+         40,
+         63,
+         69,
+         71,
+         71
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 11,
+         "reconstructions": 10,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 2.0061156700468607e-08,
+         "l2_ratio_median": 0.19496320028066494,
+         "op_ratio_median": 0.035486186533685224
+        }
+       },
+       {
+        "S": 34.5,
+        "ages": [
+         4,
+         10,
+         14,
+         19,
+         20,
+         29,
+         40,
+         54,
+         74,
+         79,
+         92,
+         92
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 11,
+         "reconstructions": 10,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 1.4135017349641019e-08,
+         "l2_ratio_median": 0.19552657319608463,
+         "op_ratio_median": 0.03496936848866628
+        }
+       }
+      ],
+      "S": 33.5,
+      "l1_rel_err_max": 2.0061156700468607e-08
+     },
+     "sign_x2": {
+      "scale": 2.0,
+      "draws": [
+       {
+        "S": 9.5,
+        "ages": [
+         6,
+         6,
+         8,
+         8,
+         9,
+         9,
+         10,
+         10,
+         10,
+         10,
+         11,
+         13
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 6,
+         "reconstructions": 5,
+         "B": [
+          12,
+          10,
+          8,
+          6,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 3.0378815548580896e-09,
+         "l2_ratio_median": 0.9999999990786264,
+         "op_ratio_median": 0.6541249672920021
+        }
+       },
+       {
+        "S": 11.0,
+        "ages": [
+         5,
+         8,
+         8,
+         8,
+         9,
+         10,
+         12,
+         15,
+         16,
+         22,
+         28,
+         59
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 10,
+         "reconstructions": 9,
+         "B": [
+          12,
+          11,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 1.9349954061146426e-09,
+         "l2_ratio_median": 0.9999999996081198,
+         "op_ratio_median": 0.6695697459483421
+        }
+       },
+       {
+        "S": 12.0,
+        "ages": [
+         6,
+         8,
+         9,
+         9,
+         12,
+         12,
+         12,
+         15,
+         15,
+         17,
+         25,
+         50
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 8,
+         "reconstructions": 7,
+         "B": [
+          12,
+          11,
+          10,
+          8,
+          5,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 2.945081635559172e-09,
+         "l2_ratio_median": 0.9999999997026043,
+         "op_ratio_median": 0.6650758672552101
+        }
+       },
+       {
+        "S": 9.0,
+        "ages": [
+         4,
+         6,
+         7,
+         8,
+         8,
+         8,
+         10,
+         10,
+         13,
+         15,
+         16,
+         87
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 9,
+         "reconstructions": 8,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          6,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 1.7308352860538022e-09,
+         "l2_ratio_median": 0.9999999999810391,
+         "op_ratio_median": 0.6505797507998152
+        }
+       },
+       {
+        "S": 13.0,
+        "ages": [
+         5,
+         7,
+         11,
+         12,
+         12,
+         13,
+         13,
+         15,
+         16,
+         18,
+         25,
+         70
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 10,
+         "reconstructions": 9,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          7,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 1.8924242737071445e-09,
+         "l2_ratio_median": 1.0000000001359877,
+         "op_ratio_median": 0.6731143209884225
+        }
+       }
+      ],
+      "S": 11.0,
+      "l1_rel_err_max": 3.0378815548580896e-09
+     },
+     "sign_x4": {
+      "scale": 4.0,
+      "draws": [
+       {
+        "S": 9.5,
+        "ages": [
+         5,
+         7,
+         7,
+         8,
+         8,
+         8,
+         11,
+         12,
+         12,
+         16,
+         25,
+         34
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 8,
+         "reconstructions": 7,
+         "B": [
+          12,
+          11,
+          9,
+          6,
+          5,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 2.277031021086071e-09,
+         "l2_ratio_median": 1.0000000021274968,
+         "op_ratio_median": 0.6654336717945262
+        }
+       },
+       {
+        "S": 9.0,
+        "ages": [
+         6,
+         7,
+         8,
+         8,
+         8,
+         9,
+         9,
+         9,
+         12,
+         17,
+         23,
+         25
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 8,
+         "reconstructions": 7,
+         "B": [
+          12,
+          11,
+          10,
+          7,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 2.389663386839542e-09,
+         "l2_ratio_median": 1.0000000029179246,
+         "op_ratio_median": 0.6843200659950124
+        }
+       },
+       {
+        "S": 8.0,
+        "ages": [
+         7,
+         7,
+         7,
+         8,
+         8,
+         8,
+         8,
+         9,
+         11,
+         12,
+         13,
+         16
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 7,
+         "reconstructions": 6,
+         "B": [
+          12,
+          9,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 2.0284173243103976e-09,
+         "l2_ratio_median": 1.0000000018376842,
+         "op_ratio_median": 0.6604350024433998
+        }
+       },
+       {
+        "S": 10.5,
+        "ages": [
+         2,
+         6,
+         6,
+         7,
+         8,
+         10,
+         11,
+         12,
+         14,
+         14,
+         16,
+         17
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 10,
+         "reconstructions": 9,
+         "B": [
+          12,
+          11,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 2.8561711357787155e-09,
+         "l2_ratio_median": 1.0000000017541313,
+         "op_ratio_median": 0.6618175160818262
+        }
+       },
+       {
+        "S": 9.0,
+        "ages": [
+         6,
+         6,
+         7,
+         8,
+         8,
+         9,
+         9,
+         11,
+         12,
+         16,
+         17,
+         44
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 9,
+         "reconstructions": 8,
+         "B": [
+          12,
+          10,
+          9,
+          7,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 2.2628263284148656e-09,
+         "l2_ratio_median": 1.0000000024950482,
+         "op_ratio_median": 0.6460208924408904
+        }
+       }
+      ],
+      "S": 9.0,
+      "l1_rel_err_max": 2.8561711357787155e-09
+     },
+     "sign_commun": {
+      "scale": 1.0,
+      "draws": [
+       {
+        "S": 15.5,
+        "ages": [
+         7,
+         8,
+         9,
+         12,
+         13,
+         14,
+         17,
+         20,
+         22,
+         23,
+         32,
+         33
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 12,
+         "reconstructions": 11,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 2.074269496090274e-09,
+         "l2_ratio_median": 1.0000000003217204,
+         "op_ratio_median": 0.7063778209562437
+        }
+       },
+       {
+        "S": 10.5,
+        "ages": [
+         6,
+         7,
+         8,
+         10,
+         10,
+         10,
+         11,
+         12,
+         14,
+         15,
+         17,
+         18
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 10,
+         "reconstructions": 9,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 2.4022595509229377e-09,
+         "l2_ratio_median": 1.0000000003550693,
+         "op_ratio_median": 0.6662888012292831
+        }
+       },
+       {
+        "S": 14.5,
+        "ages": [
+         9,
+         9,
+         10,
+         10,
+         12,
+         13,
+         16,
+         17,
+         25,
+         28,
+         32,
+         51
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 10,
+         "reconstructions": 9,
+         "B": [
+          12,
+          10,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 1.2814708183520906e-09,
+         "l2_ratio_median": 1.0000000009988912,
+         "op_ratio_median": 0.6696498298143017
+        }
+       },
+       {
+        "S": 10.5,
+        "ages": [
+         6,
+         8,
+         9,
+         9,
+         9,
+         10,
+         11,
+         12,
+         12,
+         14,
+         15,
+         15
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 8,
+         "reconstructions": 7,
+         "B": [
+          12,
+          11,
+          10,
+          7,
+          6,
+          5,
+          3,
+          2
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 1.460766361231951e-09,
+         "l2_ratio_median": 0.999999999830036,
+         "op_ratio_median": 0.689302566415581
+        }
+       },
+       {
+        "S": 20.5,
+        "ages": [
+         8,
+         8,
+         15,
+         15,
+         15,
+         20,
+         21,
+         22,
+         22,
+         26,
+         36,
+         45
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 8,
+         "reconstructions": 7,
+         "B": [
+          12,
+          10,
+          7,
+          6,
+          5,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 2.2555185633396647e-09,
+         "l2_ratio_median": 1.0000000004350305,
+         "op_ratio_median": 0.6419993917224894
+        }
+       }
+      ],
+      "S": 14.5,
+      "l1_rel_err_max": 2.4022595509229377e-09
+     }
+    },
+    "b_const": {
+     "learning": {
+      "td_calls": 2000,
+      "td_updates": 1999,
+      "episode_calls": 250,
+      "episode_updates": 250,
+      "legacy_calls": 0,
+      "legacy_updates": 0,
+      "compute_spent_total": 0.0,
+      "forward_calls": 2000,
+      "skips": {},
+      "dW_abs_sum": 941.5139293726534,
+      "reward_scale": 1.0,
+      "td_enabled": true,
+      "lr": null,
+      "lr_effective_per_agent": 0.0033333333333333335,
+      "lr_effective_unit": "torch: lr/B (SGD, perte moyennée sur B, W disjoint par agent)",
+      "trace_lambda": null,
+      "trace_bypass_optimizer": false,
+      "trace_updates": 0,
+      "trace_resets": 0,
+      "resurrections": 62,
+      "ticks": 2000,
+      "pas_optimiseur_mesure": [
+       0.04
+      ]
+     },
+     "learned_objects": {
+      "S": 21.0,
+      "ages": [
+       7,
+       11,
+       19,
+       19,
+       20,
+       21,
+       21,
+       24,
+       24,
+       38,
+       42,
+       151
+      ],
+      "censored": 0,
+      "consensus": null,
+      "reconstructions": null
+     },
+     "replay_wall_s": 423.2949457168579,
+     "replay_cpu_s": 216.03125,
+     "net_l1_per_agent": [
+      23.267781641214242,
+      37.57644093793442,
+      30.847480838361662,
+      31.70664619821764,
+      36.0941755261465,
+      24.070321135688573,
+      27.865801018146158,
+      38.86869948460662,
+      21.450071613056934,
+      20.329037830106245,
+      16.74503469846968,
+      28.06406138344755
+     ],
+     "structure": {
+      "net_l1_total": 336.88555230539623,
+      "diag_share": 0.005119223300755848,
+      "input_cols_share": 0.0,
+      "body_rows_share": 0.0482417949583859,
+      "td_seul_cols_share": 0.354345226959292
+     },
+     "net_l1_median_agent": 27.964931200796855,
+     "path_total": 941.5139293726534,
+     "net_over_path": 0.3578126056296042,
+     "genomes": {
+      "path": "results/s2_bassin_fragility_genomes/b_const_2026.npz",
+      "sha256": "be4658e22a9be7c917478e13ac2566863d28941c1590659ff0d754e2aa2346cf"
+     },
+     "cell_reloaded": true,
+     "cell_load": {
+      "start": {
+       "cpu_percent_1s": 37.9,
+       "python_procs": 22,
+       "t": "2026-09-26T19:55:20"
+      },
+      "end": {
+       "cpu_percent_1s": 90.2,
+       "python_procs": 28,
+       "t": "2026-09-26T20:02:24"
+      }
+     },
+     "transplant": {
+      "S": 21.0,
+      "ages": [
+       7,
+       11,
+       19,
+       19,
+       20,
+       21,
+       21,
+       24,
+       24,
+       38,
+       42,
+       151
+      ],
+      "censored": 0,
+      "consensus": {
+       "ticks_avec_reecriture": 0,
+       "lignes_reecrites": 0
+      },
+      "reconstructions": {
+       "constructions": 9,
+       "reconstructions": 8,
+       "B": [
+        12,
+        11,
+        10,
+        8,
+        7,
+        5,
+        3,
+        2,
+        1
+       ]
+      },
+      "bit_exact_W": true,
+      "ages_identical_to_learned_objects": true
+     },
+     "sign": {
+      "scale": 1.0,
+      "draws": [
+       {
+        "S": 22.5,
+        "ages": [
+         4,
+         7,
+         11,
+         19,
+         20,
+         20,
+         25,
+         36,
+         43,
+         49,
+         57,
+         89
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 11,
+         "reconstructions": 10,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 1.0619809812019114e-08,
+         "l2_ratio_median": 0.9999999993343047,
+         "op_ratio_median": 0.7571182181805083
+        }
+       },
+       {
+        "S": 30.5,
+        "ages": [
+         8,
+         11,
+         12,
+         13,
+         16,
+         25,
+         36,
+         37,
+         38,
+         43,
+         56,
+         76
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 12,
+         "reconstructions": 11,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 7.520838863935345e-09,
+         "l2_ratio_median": 0.9999999985225744,
+         "op_ratio_median": 0.7725803543001868
+        }
+       },
+       {
+        "S": 27.0,
+        "ages": [
+         7,
+         8,
+         12,
+         16,
+         17,
+         23,
+         31,
+         42,
+         42,
+         61,
+         68,
+         91
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 11,
+         "reconstructions": 10,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 8.142261234435506e-09,
+         "l2_ratio_median": 0.99999999872408,
+         "op_ratio_median": 0.7873182097382274
+        }
+       },
+       {
+        "S": 37.5,
+        "ages": [
+         4,
+         10,
+         10,
+         15,
+         20,
+         36,
+         39,
+         62,
+         71,
+         101,
+         102,
+         163
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 11,
+         "reconstructions": 10,
+         "B": [
+          12,
+          11,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 6.113274768224016e-09,
+         "l2_ratio_median": 0.999999999421517,
+         "op_ratio_median": 0.7898616535195424
+        }
+       },
+       {
+        "S": 24.5,
+        "ages": [
+         4,
+         10,
+         14,
+         18,
+         20,
+         23,
+         26,
+         38,
+         43,
+         65,
+         81,
+         112
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 12,
+         "reconstructions": 11,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 8.61579050802624e-09,
+         "l2_ratio_median": 0.9999999998652405,
+         "op_ratio_median": 0.7809519428075611
+        }
+       }
+      ],
+      "S": 27.0,
+      "l1_rel_err_max": 1.0619809812019114e-08
+     },
+     "iso": {
+      "draws": [
+       {
+        "S": 36.0,
+        "ages": [
+         4,
+         10,
+         14,
+         20,
+         20,
+         36,
+         36,
+         57,
+         60,
+         61,
+         64,
+         77
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 10,
+         "reconstructions": 9,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          7,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 5.095457270586229e-08,
+         "l2_ratio_median": 0.16991733351972887,
+         "op_ratio_median": 0.032555462494051335
+        }
+       },
+       {
+        "S": 37.5,
+        "ages": [
+         4,
+         10,
+         13,
+         25,
+         28,
+         34,
+         41,
+         57,
+         65,
+         78,
+         79,
+         87
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 12,
+         "reconstructions": 11,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 3.5954434300681355e-08,
+         "l2_ratio_median": 0.1700329026729458,
+         "op_ratio_median": 0.032512326275793396
+        }
+       },
+       {
+        "S": 31.5,
+        "ages": [
+         4,
+         10,
+         14,
+         19,
+         20,
+         30,
+         33,
+         40,
+         71,
+         84,
+         86,
+         119
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 12,
+         "reconstructions": 11,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 3.597294107303426e-08,
+         "l2_ratio_median": 0.17023256947446827,
+         "op_ratio_median": 0.03284110986526756
+        }
+       },
+       {
+        "S": 36.0,
+        "ages": [
+         4,
+         10,
+         14,
+         20,
+         20,
+         36,
+         36,
+         57,
+         60,
+         61,
+         66,
+         88
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 10,
+         "reconstructions": 9,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          7,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 5.3477580191216565e-08,
+         "l2_ratio_median": 0.16983028405719772,
+         "op_ratio_median": 0.033007661736304136
+        }
+       },
+       {
+        "S": 31.5,
+        "ages": [
+         4,
+         10,
+         14,
+         19,
+         20,
+         30,
+         33,
+         40,
+         71,
+         83,
+         85,
+         103
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 12,
+         "reconstructions": 11,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 5.08590881807772e-08,
+         "l2_ratio_median": 0.17005676060519515,
+         "op_ratio_median": 0.03253105337978454
+        }
+       }
+      ],
+      "S": 36.0,
+      "l1_rel_err_max": 5.3477580191216565e-08
+     },
+     "sign_x2": {
+      "scale": 2.0,
+      "draws": [
+       {
+        "S": 28.0,
+        "ages": [
+         4,
+         7,
+         16,
+         16,
+         20,
+         24,
+         32,
+         35,
+         57,
+         66,
+         72,
+         92
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 11,
+         "reconstructions": 10,
+         "B": [
+          12,
+          11,
+          10,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 3.4520826771725605e-09,
+         "l2_ratio_median": 0.9999999994276663,
+         "op_ratio_median": 0.7714013902562475
+        }
+       },
+       {
+        "S": 14.5,
+        "ages": [
+         5,
+         6,
+         9,
+         12,
+         12,
+         13,
+         16,
+         24,
+         25,
+         28,
+         29,
+         51
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 11,
+         "reconstructions": 10,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 3.3231552152793147e-09,
+         "l2_ratio_median": 0.9999999999503129,
+         "op_ratio_median": 0.7855348212910345
+        }
+       },
+       {
+        "S": 17.0,
+        "ages": [
+         8,
+         10,
+         12,
+         12,
+         12,
+         17,
+         17,
+         19,
+         21,
+         23,
+         28,
+         28
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 8,
+         "reconstructions": 7,
+         "B": [
+          12,
+          11,
+          10,
+          7,
+          5,
+          4,
+          3,
+          2
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 3.536883764849984e-09,
+         "l2_ratio_median": 0.999999999314644,
+         "op_ratio_median": 0.792794399329063
+        }
+       },
+       {
+        "S": 16.0,
+        "ages": [
+         4,
+         7,
+         9,
+         10,
+         11,
+         14,
+         18,
+         23,
+         25,
+         38,
+         54,
+         76
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 12,
+         "reconstructions": 11,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 2.9671999750878394e-09,
+         "l2_ratio_median": 1.0000000010992567,
+         "op_ratio_median": 0.7672512929763525
+        }
+       },
+       {
+        "S": 15.5,
+        "ages": [
+         9,
+         13,
+         13,
+         14,
+         14,
+         15,
+         16,
+         19,
+         20,
+         20,
+         22,
+         47
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 9,
+         "reconstructions": 8,
+         "B": [
+          12,
+          11,
+          9,
+          7,
+          6,
+          5,
+          4,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 4.203759518345243e-09,
+         "l2_ratio_median": 1.0000000003325025,
+         "op_ratio_median": 0.7823791046358249
+        }
+       }
+      ],
+      "S": 16.0,
+      "l1_rel_err_max": 4.203759518345243e-09
+     },
+     "sign_x4": {
+      "scale": 4.0,
+      "draws": [
+       {
+        "S": 19.0,
+        "ages": [
+         6,
+         7,
+         8,
+         11,
+         14,
+         15,
+         23,
+         24,
+         33,
+         33,
+         40,
+         49
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 11,
+         "reconstructions": 10,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 1.8260661298866519e-09,
+         "l2_ratio_median": 1.0000000019829014,
+         "op_ratio_median": 0.8094989613938142
+        }
+       },
+       {
+        "S": 17.0,
+        "ages": [
+         4,
+         7,
+         10,
+         10,
+         15,
+         17,
+         17,
+         18,
+         23,
+         26,
+         29,
+         54
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 10,
+         "reconstructions": 9,
+         "B": [
+          12,
+          11,
+          10,
+          8,
+          7,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 1.6224973682464102e-09,
+         "l2_ratio_median": 1.0000000015152908,
+         "op_ratio_median": 0.7781704770471283
+        }
+       },
+       {
+        "S": 12.0,
+        "ages": [
+         8,
+         9,
+         10,
+         10,
+         11,
+         11,
+         13,
+         14,
+         19,
+         22,
+         24,
+         47
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 10,
+         "reconstructions": 9,
+         "B": [
+          12,
+          11,
+          10,
+          8,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 2.177899697820924e-09,
+         "l2_ratio_median": 0.9999999998412746,
+         "op_ratio_median": 0.7441463376587474
+        }
+       },
+       {
+        "S": 13.5,
+        "ages": [
+         8,
+         8,
+         9,
+         10,
+         11,
+         13,
+         14,
+         17,
+         17,
+         21,
+         36,
+         55
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 10,
+         "reconstructions": 9,
+         "B": [
+          12,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 2.4265927863983905e-09,
+         "l2_ratio_median": 1.0000000018904909,
+         "op_ratio_median": 0.7553851855623417
+        }
+       },
+       {
+        "S": 18.5,
+        "ages": [
+         8,
+         12,
+         12,
+         12,
+         12,
+         16,
+         21,
+         22,
+         26,
+         27,
+         29,
+         41
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 9,
+         "reconstructions": 8,
+         "B": [
+          12,
+          11,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 2.172511217067403e-09,
+         "l2_ratio_median": 1.000000002441751,
+         "op_ratio_median": 0.7731281453982843
+        }
+       }
+      ],
+      "S": 17.0,
+      "l1_rel_err_max": 2.4265927863983905e-09
+     },
+     "sign_commun": {
+      "scale": 1.0,
+      "draws": [
+       {
+        "S": 28.5,
+        "ages": [
+         4,
+         9,
+         10,
+         23,
+         23,
+         28,
+         29,
+         33,
+         39,
+         47,
+         63,
+         82
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 11,
+         "reconstructions": 10,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 7.861400032047879e-09,
+         "l2_ratio_median": 0.9999999987709165,
+         "op_ratio_median": 0.7321316291101994
+        }
+       },
+       {
+        "S": 36.0,
+        "ages": [
+         7,
+         12,
+         13,
+         23,
+         23,
+         35,
+         37,
+         51,
+         53,
+         65,
+         89,
+         119
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 11,
+         "reconstructions": 10,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 3.3255594543578444e-09,
+         "l2_ratio_median": 0.9999999978275274,
+         "op_ratio_median": 0.741699627359294
+        }
+       },
+       {
+        "S": 16.0,
+        "ages": [
+         9,
+         10,
+         11,
+         13,
+         14,
+         14,
+         18,
+         21,
+         22,
+         23,
+         28,
+         67
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 11,
+         "reconstructions": 10,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 3.7450705924913804e-09,
+         "l2_ratio_median": 0.9999999983742227,
+         "op_ratio_median": 0.7555259653798988
+        }
+       },
+       {
+        "S": 19.5,
+        "ages": [
+         6,
+         6,
+         12,
+         18,
+         19,
+         19,
+         20,
+         22,
+         27,
+         28,
+         37,
+         72
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 10,
+         "reconstructions": 9,
+         "B": [
+          12,
+          10,
+          9,
+          8,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 6.552071238308458e-09,
+         "l2_ratio_median": 1.0000000006873833,
+         "op_ratio_median": 0.776607524684503
+        }
+       },
+       {
+        "S": 15.5,
+        "ages": [
+         8,
+         8,
+         10,
+         14,
+         14,
+         15,
+         16,
+         25,
+         39,
+         63,
+         63,
+         66
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 9,
+         "reconstructions": 8,
+         "B": [
+          12,
+          10,
+          9,
+          7,
+          6,
+          5,
+          4,
+          3,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 7.42721846313947e-09,
+         "l2_ratio_median": 0.9999999990191979,
+         "op_ratio_median": 0.7867318497998519
+        }
+       }
+      ],
+      "S": 19.5,
+      "l1_rel_err_max": 7.861400032047879e-09
+     }
+    },
+    "b_eplr": {
+     "learning": {
+      "td_calls": 2000,
+      "td_updates": 0,
+      "episode_calls": 250,
+      "episode_updates": 250,
+      "legacy_calls": 0,
+      "legacy_updates": 0,
+      "compute_spent_total": 0.0,
+      "forward_calls": 2000,
+      "skips": {
+       "td_disabled": 2000
+      },
+      "dW_abs_sum": 1168.2166115045547,
+      "reward_scale": 1.0,
+      "td_enabled": false,
+      "lr": 0.004,
+      "lr_effective_per_agent": null,
+      "lr_effective_unit": null,
+      "trace_lambda": null,
+      "trace_bypass_optimizer": false,
+      "trace_updates": 0,
+      "trace_resets": 0,
+      "resurrections": 29,
+      "ticks": 2000,
+      "pas_optimiseur_mesure": [
+       0.004
+      ]
+     },
+     "learned_objects": {
+      "S": 11.5,
+      "ages": [
+       7,
+       8,
+       9,
+       10,
+       11,
+       11,
+       12,
+       17,
+       20,
+       37,
+       84,
+       102
+      ],
+      "censored": 0,
+      "consensus": null,
+      "reconstructions": null
+     },
+     "replay_wall_s": 564.1570560932159,
+     "replay_cpu_s": 418.890625,
+     "net_l1_per_agent": [
+      14.699131810484687,
+      16.28806624712888,
+      15.246615918420503,
+      29.437919947660703,
+      19.402470185406855,
+      20.940597230292042,
+      22.28151385743695,
+      14.533184181622346,
+      12.585488920296484,
+      17.807375742886506,
+      20.188917497289367,
+      31.025394106654858
+     ],
+     "structure": {
+      "net_l1_total": 234.43667564558018,
+      "diag_share": 0.004433129587438395,
+      "input_cols_share": 0.0,
+      "body_rows_share": 0.057346144608335044,
+      "td_seul_cols_share": 0.0
+     },
+     "net_l1_median_agent": 18.60492296414668,
+     "path_total": 1168.2166115045547,
+     "net_over_path": 0.20067911493198806,
+     "genomes": {
+      "path": "results/s2_bassin_fragility_genomes/b_eplr_2026.npz",
+      "sha256": "65c93ed66bead158a3d68c666805161c2074a24c3c4b2cbcc9d797c336ca8a98"
+     },
+     "cell_reloaded": true,
+     "cell_load": {
+      "start": {
+       "cpu_percent_1s": 38.0,
+       "python_procs": 22,
+       "t": "2026-09-26T19:55:20"
+      },
+      "end": {
+       "cpu_percent_1s": 97.1,
+       "python_procs": 21,
+       "t": "2026-09-26T20:04:45"
+      }
+     },
+     "transplant": {
+      "S": 11.5,
+      "ages": [
+       7,
+       8,
+       9,
+       10,
+       11,
+       11,
+       12,
+       17,
+       20,
+       37,
+       84,
+       102
+      ],
+      "censored": 0,
+      "consensus": {
+       "ticks_avec_reecriture": 0,
+       "lignes_reecrites": 0
+      },
+      "reconstructions": {
+       "constructions": 11,
+       "reconstructions": 10,
+       "B": [
+        12,
+        11,
+        10,
+        9,
+        8,
+        6,
+        5,
+        4,
+        3,
+        2,
+        1
+       ]
+      },
+      "bit_exact_W": true,
+      "ages_identical_to_learned_objects": true
+     },
+     "sign": {
+      "scale": 1.0,
+      "draws": [
+       {
+        "S": 13.5,
+        "ages": [
+         8,
+         11,
+         11,
+         11,
+         12,
+         13,
+         14,
+         19,
+         37,
+         64,
+         69,
+         90
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 10,
+         "reconstructions": 9,
+         "B": [
+          12,
+          11,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 9.798602691065716e-09,
+         "l2_ratio_median": 0.9999999998476998,
+         "op_ratio_median": 0.8804729488887955
+        }
+       },
+       {
+        "S": 18.5,
+        "ages": [
+         8,
+         9,
+         9,
+         11,
+         11,
+         13,
+         24,
+         26,
+         31,
+         45,
+         61,
+         78
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 10,
+         "reconstructions": 9,
+         "B": [
+          12,
+          11,
+          9,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 4.1386544645117e-09,
+         "l2_ratio_median": 0.9999999992201254,
+         "op_ratio_median": 0.8765638740460466
+        }
+       },
+       {
+        "S": 19.0,
+        "ages": [
+         4,
+         7,
+         9,
+         11,
+         13,
+         14,
+         24,
+         28,
+         41,
+         52,
+         57,
+         100
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 12,
+         "reconstructions": 11,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 4.1250177421334044e-09,
+         "l2_ratio_median": 0.999999998238756,
+         "op_ratio_median": 0.8890837235876958
+        }
+       },
+       {
+        "S": 20.0,
+        "ages": [
+         9,
+         11,
+         12,
+         13,
+         14,
+         15,
+         25,
+         36,
+         43,
+         66,
+         77,
+         110
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 12,
+         "reconstructions": 11,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 5.255035439725182e-09,
+         "l2_ratio_median": 0.999999999035349,
+         "op_ratio_median": 0.8641306658340904
+        }
+       },
+       {
+        "S": 16.5,
+        "ages": [
+         9,
+         10,
+         10,
+         11,
+         14,
+         16,
+         17,
+         23,
+         33,
+         47,
+         48,
+         49
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 11,
+         "reconstructions": 10,
+         "B": [
+          12,
+          11,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 5.577178876223066e-09,
+         "l2_ratio_median": 1.000000000398118,
+         "op_ratio_median": 0.874926381720087
+        }
+       }
+      ],
+      "S": 18.5,
+      "l1_rel_err_max": 9.798602691065716e-09
+     },
+     "iso": {
+      "draws": [
+       {
+        "S": 31.5,
+        "ages": [
+         4,
+         10,
+         14,
+         19,
+         20,
+         30,
+         33,
+         40,
+         71,
+         87,
+         97,
+         112
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 12,
+         "reconstructions": 11,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 1.1730940967239381e-07,
+         "l2_ratio_median": 0.1329402626051016,
+         "op_ratio_median": 0.023136938042598802
+        }
+       },
+       {
+        "S": 31.5,
+        "ages": [
+         4,
+         10,
+         14,
+         19,
+         20,
+         30,
+         33,
+         40,
+         71,
+         80,
+         83,
+         93
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 12,
+         "reconstructions": 11,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 6.751970837808843e-08,
+         "l2_ratio_median": 0.1330059546193274,
+         "op_ratio_median": 0.023602402965486855
+        }
+       },
+       {
+        "S": 31.5,
+        "ages": [
+         4,
+         10,
+         14,
+         19,
+         20,
+         30,
+         33,
+         40,
+         71,
+         84,
+         86,
+         101
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 12,
+         "reconstructions": 11,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 7.000611374664382e-08,
+         "l2_ratio_median": 0.13334966336166393,
+         "op_ratio_median": 0.023756625215436797
+        }
+       },
+       {
+        "S": 31.5,
+        "ages": [
+         4,
+         10,
+         14,
+         19,
+         20,
+         30,
+         33,
+         40,
+         71,
+         84,
+         89,
+         104
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 12,
+         "reconstructions": 11,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 1.0545786614852808e-07,
+         "l2_ratio_median": 0.13344479833752412,
+         "op_ratio_median": 0.02396339880324077
+        }
+       },
+       {
+        "S": 31.5,
+        "ages": [
+         4,
+         10,
+         14,
+         19,
+         20,
+         30,
+         33,
+         40,
+         64,
+         75,
+         75,
+         97
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 11,
+         "reconstructions": 10,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 4.564020063129298e-08,
+         "l2_ratio_median": 0.13301929461861223,
+         "op_ratio_median": 0.023396321438870195
+        }
+       }
+      ],
+      "S": 31.5,
+      "l1_rel_err_max": 1.1730940967239381e-07
+     },
+     "sign_x2": {
+      "scale": 2.0,
+      "draws": [
+       {
+        "S": 26.5,
+        "ages": [
+         8,
+         10,
+         11,
+         12,
+         13,
+         18,
+         35,
+         36,
+         40,
+         51,
+         53,
+         55
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 12,
+         "reconstructions": 11,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 6.143855479195699e-09,
+         "l2_ratio_median": 0.9999999966582891,
+         "op_ratio_median": 0.8761612157311233
+        }
+       },
+       {
+        "S": 11.0,
+        "ages": [
+         4,
+         7,
+         7,
+         9,
+         9,
+         11,
+         11,
+         16,
+         18,
+         19,
+         28,
+         35
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 9,
+         "reconstructions": 8,
+         "B": [
+          12,
+          11,
+          9,
+          7,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 4.163627808571073e-09,
+         "l2_ratio_median": 1.0000000017554111,
+         "op_ratio_median": 0.8858472842754406
+        }
+       },
+       {
+        "S": 17.5,
+        "ages": [
+         5,
+         6,
+         8,
+         10,
+         11,
+         16,
+         19,
+         20,
+         21,
+         22,
+         25,
+         40
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 12,
+         "reconstructions": 11,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 3.473361232280943e-09,
+         "l2_ratio_median": 0.9999999979779375,
+         "op_ratio_median": 0.8895052804200344
+        }
+       },
+       {
+        "S": 12.0,
+        "ages": [
+         4,
+         10,
+         10,
+         10,
+         11,
+         11,
+         13,
+         19,
+         21,
+         22,
+         36,
+         46
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 9,
+         "reconstructions": 8,
+         "B": [
+          12,
+          11,
+          8,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 5.284588112382467e-09,
+         "l2_ratio_median": 0.9999999982278691,
+         "op_ratio_median": 0.8695931249965614
+        }
+       },
+       {
+        "S": 14.0,
+        "ages": [
+         5,
+         9,
+         10,
+         11,
+         13,
+         14,
+         14,
+         15,
+         22,
+         35,
+         48,
+         78
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 11,
+         "reconstructions": 10,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 5.442219381694571e-09,
+         "l2_ratio_median": 0.999999999442056,
+         "op_ratio_median": 0.8808386440422118
+        }
+       }
+      ],
+      "S": 14.0,
+      "l1_rel_err_max": 6.143855479195699e-09
+     },
+     "sign_x4": {
+      "scale": 4.0,
+      "draws": [
+       {
+        "S": 10.0,
+        "ages": [
+         4,
+         8,
+         9,
+         10,
+         10,
+         10,
+         10,
+         14,
+         14,
+         18,
+         28,
+         46
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 8,
+         "reconstructions": 7,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          5,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 3.435494512458435e-09,
+         "l2_ratio_median": 1.000000000464427,
+         "op_ratio_median": 0.8551008449823606
+        }
+       },
+       {
+        "S": 15.0,
+        "ages": [
+         4,
+         9,
+         11,
+         13,
+         13,
+         13,
+         17,
+         19,
+         21,
+         29,
+         40,
+         47
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 10,
+         "reconstructions": 9,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 4.1737572793763014e-09,
+         "l2_ratio_median": 1.0000000008928038,
+         "op_ratio_median": 0.8915351962090989
+        }
+       },
+       {
+        "S": 15.5,
+        "ages": [
+         7,
+         9,
+         9,
+         11,
+         15,
+         15,
+         16,
+         17,
+         19,
+         23,
+         30,
+         35
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 10,
+         "reconstructions": 9,
+         "B": [
+          12,
+          11,
+          9,
+          8,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 4.597685489188636e-09,
+         "l2_ratio_median": 1.0000000017331918,
+         "op_ratio_median": 0.8801969693046174
+        }
+       },
+       {
+        "S": 11.0,
+        "ages": [
+         4,
+         7,
+         9,
+         9,
+         10,
+         11,
+         11,
+         12,
+         13,
+         15,
+         18,
+         21
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 10,
+         "reconstructions": 9,
+         "B": [
+          12,
+          11,
+          10,
+          8,
+          7,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 4.459989865117846e-09,
+         "l2_ratio_median": 1.0000000011232917,
+         "op_ratio_median": 0.8666434093865578
+        }
+       },
+       {
+        "S": 16.0,
+        "ages": [
+         8,
+         8,
+         10,
+         11,
+         12,
+         16,
+         16,
+         16,
+         18,
+         28,
+         33,
+         47
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 9,
+         "reconstructions": 8,
+         "B": [
+          12,
+          10,
+          9,
+          8,
+          7,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 4.043344908919322e-09,
+         "l2_ratio_median": 1.000000000726665,
+         "op_ratio_median": 0.8635167901330044
+        }
+       }
+      ],
+      "S": 15.0,
+      "l1_rel_err_max": 4.597685489188636e-09
+     },
+     "sign_commun": {
+      "scale": 1.0,
+      "draws": [
+       {
+        "S": 14.5,
+        "ages": [
+         8,
+         8,
+         9,
+         11,
+         11,
+         14,
+         15,
+         36,
+         37,
+         47,
+         68,
+         85
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 10,
+         "reconstructions": 9,
+         "B": [
+          12,
+          10,
+          9,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 9.125089673478155e-09,
+         "l2_ratio_median": 0.9999999978619213,
+         "op_ratio_median": 0.8616593841460647
+        }
+       },
+       {
+        "S": 26.0,
+        "ages": [
+         7,
+         8,
+         13,
+         15,
+         15,
+         21,
+         31,
+         42,
+         70,
+         70,
+         84,
+         95
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 10,
+         "reconstructions": 9,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          7,
+          6,
+          5,
+          4,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 6.190526626103476e-09,
+         "l2_ratio_median": 0.9999999996119806,
+         "op_ratio_median": 0.8616863632830484
+        }
+       },
+       {
+        "S": 12.0,
+        "ages": [
+         7,
+         8,
+         9,
+         9,
+         9,
+         10,
+         14,
+         15,
+         17,
+         28,
+         50,
+         82
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 10,
+         "reconstructions": 9,
+         "B": [
+          12,
+          11,
+          10,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 4.819231343012792e-09,
+         "l2_ratio_median": 0.9999999995886629,
+         "op_ratio_median": 0.8942113844467856
+        }
+       },
+       {
+        "S": 16.0,
+        "ages": [
+         9,
+         10,
+         10,
+         11,
+         11,
+         13,
+         19,
+         35,
+         39,
+         50,
+         56,
+         71
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 10,
+         "reconstructions": 9,
+         "B": [
+          12,
+          11,
+          9,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 5.797993178871796e-09,
+         "l2_ratio_median": 0.9999999973657945,
+         "op_ratio_median": 0.8763015725445551
+        }
+       },
+       {
+        "S": 31.0,
+        "ages": [
+         4,
+         10,
+         13,
+         14,
+         22,
+         28,
+         34,
+         39,
+         44,
+         45,
+         46,
+         59
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 12,
+         "reconstructions": 11,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 5.196167383757075e-09,
+         "l2_ratio_median": 0.9999999991466465,
+         "op_ratio_median": 0.8530930789903343
+        }
+       }
+      ],
+      "S": 16.0,
+      "l1_rel_err_max": 9.125089673478155e-09
+     }
+    },
+    "b_zero": {
+     "learning": {
+      "td_calls": 2000,
+      "td_updates": 1999,
+      "episode_calls": 250,
+      "episode_updates": 250,
+      "legacy_calls": 0,
+      "legacy_updates": 0,
+      "compute_spent_total": 0.0,
+      "forward_calls": 2000,
+      "skips": {},
+      "dW_abs_sum": 361.23349606245756,
+      "reward_scale": 0.0,
+      "td_enabled": true,
+      "lr": null,
+      "lr_effective_per_agent": 0.0033333333333333335,
+      "lr_effective_unit": "torch: lr/B (SGD, perte moyennée sur B, W disjoint par agent)",
+      "trace_lambda": null,
+      "trace_bypass_optimizer": false,
+      "trace_updates": 0,
+      "trace_resets": 0,
+      "resurrections": 201,
+      "ticks": 2000,
+      "pas_optimiseur_mesure": [
+       0.04
+      ]
+     },
+     "learned_objects": {
+      "S": 32.0,
+      "ages": [
+       4,
+       9,
+       10,
+       12,
+       28,
+       31,
+       33,
+       41,
+       51,
+       53,
+       55,
+       60
+      ],
+      "censored": 0,
+      "consensus": null,
+      "reconstructions": null
+     },
+     "replay_wall_s": 279.86922240257263,
+     "replay_cpu_s": 154.5,
+     "net_l1_per_agent": [
+      2.8933928976966854,
+      2.982936459724442,
+      3.451813091725853,
+      3.2004011432038624,
+      3.399576163360507,
+      3.6550509285152657,
+      3.7375238830200033,
+      2.977499072218052,
+      3.4204725639174285,
+      3.5244726888249716,
+      3.863835840318643,
+      3.3004901269450784
+     ],
+     "structure": {
+      "net_l1_total": 40.40746485947079,
+      "diag_share": 0.0010704865959168777,
+      "input_cols_share": 0.0,
+      "body_rows_share": 0.030817904234620313,
+      "td_seul_cols_share": 0.4696694566799513
+     },
+     "net_l1_median_agent": 3.4100243636389678,
+     "path_total": 361.23349606245756,
+     "net_over_path": 0.11185968438675552,
+     "genomes": {
+      "path": "results/s2_bassin_fragility_genomes/b_zero_2026.npz",
+      "sha256": "9f8b0a08cf0a5a561e33473bef4b47d2440696190581b382758e8353cb4c8d6c"
+     },
+     "cell_reloaded": true,
+     "cell_load": {
+      "start": {
+       "cpu_percent_1s": 37.9,
+       "python_procs": 22,
+       "t": "2026-09-26T19:55:20"
+      },
+      "end": {
+       "cpu_percent_1s": 99.1,
+       "python_procs": 33,
+       "t": "2026-09-26T20:00:01"
+      }
+     },
+     "transplant": {
+      "S": 32.0,
+      "ages": [
+       4,
+       9,
+       10,
+       12,
+       28,
+       31,
+       33,
+       41,
+       51,
+       53,
+       55,
+       60
+      ],
+      "censored": 0,
+      "consensus": {
+       "ticks_avec_reecriture": 0,
+       "lignes_reecrites": 0
+      },
+      "reconstructions": {
+       "constructions": 12,
+       "reconstructions": 11,
+       "B": [
+        12,
+        11,
+        10,
+        9,
+        8,
+        7,
+        6,
+        5,
+        4,
+        3,
+        2,
+        1
+       ]
+      },
+      "bit_exact_W": true,
+      "ages_identical_to_learned_objects": true
+     },
+     "sign": {
+      "scale": 1.0,
+      "draws": [
+       {
+        "S": 37.5,
+        "ages": [
+         4,
+         10,
+         14,
+         14,
+         37,
+         37,
+         38,
+         41,
+         57,
+         59,
+         85,
+         101
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 10,
+         "reconstructions": 9,
+         "B": [
+          12,
+          11,
+          10,
+          8,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 9.109252564102623e-09,
+         "l2_ratio_median": 1.000000000186517,
+         "op_ratio_median": 0.9327131804679611
+        }
+       },
+       {
+        "S": 38.5,
+        "ages": [
+         4,
+         10,
+         14,
+         14,
+         35,
+         37,
+         40,
+         49,
+         59,
+         69,
+         78,
+         87
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 11,
+         "reconstructions": 10,
+         "B": [
+          12,
+          11,
+          10,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 1.2525222275641107e-08,
+         "l2_ratio_median": 0.9999999996158225,
+         "op_ratio_median": 0.9431292688502743
+        }
+       },
+       {
+        "S": 31.0,
+        "ages": [
+         4,
+         10,
+         14,
+         15,
+         18,
+         29,
+         33,
+         47,
+         68,
+         87,
+         100,
+         109
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 12,
+         "reconstructions": 11,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 1.1446080173179097e-08,
+         "l2_ratio_median": 0.9999999933731107,
+         "op_ratio_median": 0.931419448373647
+        }
+       },
+       {
+        "S": 34.5,
+        "ages": [
+         4,
+         10,
+         14,
+         15,
+         23,
+         29,
+         40,
+         40,
+         52,
+         60,
+         69,
+         86
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 11,
+         "reconstructions": 10,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 1.0535713975463031e-08,
+         "l2_ratio_median": 1.0000000001608873,
+         "op_ratio_median": 0.9339154028262306
+        }
+       },
+       {
+        "S": 34.5,
+        "ages": [
+         4,
+         10,
+         14,
+         15,
+         20,
+         30,
+         39,
+         48,
+         55,
+         60,
+         88,
+         114
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 12,
+         "reconstructions": 11,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 1.1289727440625129e-08,
+         "l2_ratio_median": 0.9999999996345175,
+         "op_ratio_median": 0.94213033050158
+        }
+       }
+      ],
+      "S": 34.5,
+      "l1_rel_err_max": 1.2525222275641107e-08
+     },
+     "iso": {
+      "draws": [
+       {
+        "S": 31.5,
+        "ages": [
+         4,
+         10,
+         14,
+         19,
+         20,
+         30,
+         33,
+         40,
+         71,
+         84,
+         86,
+         101
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 12,
+         "reconstructions": 11,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 3.8037088988533997e-07,
+         "l2_ratio_median": 0.1069946708685498,
+         "op_ratio_median": 0.019348701978717898
+        }
+       },
+       {
+        "S": 31.5,
+        "ages": [
+         4,
+         10,
+         14,
+         19,
+         20,
+         30,
+         33,
+         40,
+         71,
+         84,
+         86,
+         101
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 12,
+         "reconstructions": 11,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 3.0756833691345197e-07,
+         "l2_ratio_median": 0.10726032424716865,
+         "op_ratio_median": 0.01913543259074282
+        }
+       },
+       {
+        "S": 31.5,
+        "ages": [
+         4,
+         10,
+         14,
+         19,
+         20,
+         30,
+         33,
+         40,
+         71,
+         84,
+         86,
+         101
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 12,
+         "reconstructions": 11,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 3.269527183142156e-07,
+         "l2_ratio_median": 0.10693806401485711,
+         "op_ratio_median": 0.01919366235109174
+        }
+       },
+       {
+        "S": 31.5,
+        "ages": [
+         4,
+         10,
+         14,
+         19,
+         20,
+         30,
+         33,
+         40,
+         71,
+         84,
+         86,
+         101
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 12,
+         "reconstructions": 11,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 2.9299033081308176e-07,
+         "l2_ratio_median": 0.10716221115064581,
+         "op_ratio_median": 0.019196818330239313
+        }
+       },
+       {
+        "S": 31.5,
+        "ages": [
+         4,
+         10,
+         14,
+         19,
+         20,
+         30,
+         33,
+         40,
+         71,
+         83,
+         85,
+         103
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 12,
+         "reconstructions": 11,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 2.895467331273268e-07,
+         "l2_ratio_median": 0.1073035315044682,
+         "op_ratio_median": 0.019104179889115197
+        }
+       }
+      ],
+      "S": 31.5,
+      "l1_rel_err_max": 3.8037088988533997e-07
+     },
+     "sign_x2": {
+      "scale": 2.0,
+      "draws": [
+       {
+        "S": 28.0,
+        "ages": [
+         9,
+         12,
+         13,
+         18,
+         24,
+         25,
+         31,
+         40,
+         48,
+         57,
+         78,
+         96
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 12,
+         "reconstructions": 11,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 1.2391377776703032e-08,
+         "l2_ratio_median": 0.9999999986011043,
+         "op_ratio_median": 0.9353043311274792
+        }
+       },
+       {
+        "S": 39.0,
+        "ages": [
+         4,
+         8,
+         9,
+         14,
+         30,
+         33,
+         45,
+         61,
+         74,
+         81,
+         90,
+         93
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 12,
+         "reconstructions": 11,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 1.0393227193439641e-08,
+         "l2_ratio_median": 0.9999999985951908,
+         "op_ratio_median": 0.940185728374516
+        }
+       },
+       {
+        "S": 38.0,
+        "ages": [
+         4,
+         10,
+         10,
+         15,
+         28,
+         35,
+         41,
+         46,
+         60,
+         81,
+         98,
+         102
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 11,
+         "reconstructions": 10,
+         "B": [
+          12,
+          11,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 8.18280620663132e-09,
+         "l2_ratio_median": 1.0000000000363864,
+         "op_ratio_median": 0.9336603290401893
+        }
+       },
+       {
+        "S": 32.0,
+        "ages": [
+         10,
+         12,
+         13,
+         21,
+         29,
+         30,
+         34,
+         51,
+         56,
+         56,
+         71,
+         91
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 11,
+         "reconstructions": 10,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 8.16730440519453e-09,
+         "l2_ratio_median": 0.9999999985910621,
+         "op_ratio_median": 0.937296906719566
+        }
+       },
+       {
+        "S": 36.0,
+        "ages": [
+         9,
+         12,
+         20,
+         21,
+         22,
+         32,
+         40,
+         46,
+         62,
+         74,
+         93,
+         109
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 12,
+         "reconstructions": 11,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 8.987780012080445e-09,
+         "l2_ratio_median": 0.9999999996769354,
+         "op_ratio_median": 0.9367114083272449
+        }
+       }
+      ],
+      "S": 36.0,
+      "l1_rel_err_max": 1.2391377776703032e-08
+     },
+     "sign_x4": {
+      "scale": 4.0,
+      "draws": [
+       {
+        "S": 20.5,
+        "ages": [
+         4,
+         9,
+         14,
+         18,
+         20,
+         20,
+         21,
+         26,
+         27,
+         50,
+         57,
+         66
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 11,
+         "reconstructions": 10,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 7.189865223702948e-09,
+         "l2_ratio_median": 0.9999999990337431,
+         "op_ratio_median": 0.9317636228836026
+        }
+       },
+       {
+        "S": 25.5,
+        "ages": [
+         4,
+         10,
+         16,
+         20,
+         21,
+         24,
+         27,
+         34,
+         45,
+         63,
+         73,
+         93
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 12,
+         "reconstructions": 11,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 6.6783850932376825e-09,
+         "l2_ratio_median": 0.9999999964572008,
+         "op_ratio_median": 0.9372949987134351
+        }
+       },
+       {
+        "S": 24.5,
+        "ages": [
+         4,
+         6,
+         7,
+         10,
+         14,
+         20,
+         29,
+         34,
+         39,
+         56,
+         75,
+         77
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 12,
+         "reconstructions": 11,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 4.667030858226115e-09,
+         "l2_ratio_median": 1.0000000014352346,
+         "op_ratio_median": 0.9302809841291553
+        }
+       },
+       {
+        "S": 22.5,
+        "ages": [
+         9,
+         10,
+         11,
+         16,
+         19,
+         20,
+         25,
+         28,
+         29,
+         29,
+         43,
+         44
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 11,
+         "reconstructions": 10,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 6.333907650869509e-09,
+         "l2_ratio_median": 1.0000000037910646,
+         "op_ratio_median": 0.934341744788311
+        }
+       },
+       {
+        "S": 18.0,
+        "ages": [
+         4,
+         9,
+         10,
+         11,
+         12,
+         17,
+         19,
+         29,
+         30,
+         30,
+         31,
+         37
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 11,
+         "reconstructions": 10,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 7.95564968539912e-09,
+         "l2_ratio_median": 1.0000000002927103,
+         "op_ratio_median": 0.9321668474363303
+        }
+       }
+      ],
+      "S": 22.5,
+      "l1_rel_err_max": 7.95564968539912e-09
+     },
+     "sign_commun": {
+      "scale": 1.0,
+      "draws": [
+       {
+        "S": 35.5,
+        "ages": [
+         4,
+         10,
+         10,
+         15,
+         20,
+         31,
+         40,
+         42,
+         47,
+         48,
+         53,
+         70
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 11,
+         "reconstructions": 10,
+         "B": [
+          12,
+          11,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 1.2351415355267951e-08,
+         "l2_ratio_median": 0.9999999993591198,
+         "op_ratio_median": 0.9572000283647217
+        }
+       },
+       {
+        "S": 31.5,
+        "ages": [
+         4,
+         10,
+         14,
+         19,
+         20,
+         30,
+         33,
+         40,
+         64,
+         70,
+         81,
+         81
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 11,
+         "reconstructions": 10,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 1.4162049794999209e-08,
+         "l2_ratio_median": 1.00000000189171,
+         "op_ratio_median": 0.9296957935311612
+        }
+       },
+       {
+        "S": 30.5,
+        "ages": [
+         4,
+         10,
+         14,
+         15,
+         19,
+         27,
+         34,
+         44,
+         44,
+         50,
+         65,
+         104
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 11,
+         "reconstructions": 10,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 8.44835399520357e-09,
+         "l2_ratio_median": 1.0000000004289347,
+         "op_ratio_median": 0.9292861355599442
+        }
+       },
+       {
+        "S": 31.5,
+        "ages": [
+         4,
+         10,
+         14,
+         19,
+         20,
+         30,
+         33,
+         40,
+         51,
+         55,
+         76,
+         101
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 12,
+         "reconstructions": 11,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 1.3257784544782226e-08,
+         "l2_ratio_median": 0.9999999967739224,
+         "op_ratio_median": 0.9295549567217716
+        }
+       },
+       {
+        "S": 37.0,
+        "ages": [
+         4,
+         10,
+         10,
+         15,
+         20,
+         33,
+         41,
+         44,
+         54,
+         57,
+         62,
+         69
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 11,
+         "reconstructions": 10,
+         "B": [
+          12,
+          11,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 1.4154827073971632e-08,
+         "l2_ratio_median": 0.9999999974549032,
+         "op_ratio_median": 0.9362004068245455
+        }
+       }
+      ],
+      "S": 31.5,
+      "l1_rel_err_max": 1.4162049794999209e-08
+     }
+    },
+    "b_tdoff": {
+     "learning": {
+      "td_calls": 2000,
+      "td_updates": 0,
+      "episode_calls": 250,
+      "episode_updates": 250,
+      "legacy_calls": 0,
+      "legacy_updates": 0,
+      "compute_spent_total": 0.0,
+      "forward_calls": 2000,
+      "skips": {
+       "td_disabled": 2000
+      },
+      "dW_abs_sum": 1291.2782718539238,
+      "reward_scale": 1.0,
+      "td_enabled": false,
+      "lr": null,
+      "lr_effective_per_agent": null,
+      "lr_effective_unit": null,
+      "trace_lambda": null,
+      "trace_bypass_optimizer": false,
+      "trace_updates": 0,
+      "trace_resets": 0,
+      "resurrections": 25,
+      "ticks": 2000,
+      "pas_optimiseur_mesure": [
+       0.04
+      ]
+     },
+     "learned_objects": {
+      "S": 7.5,
+      "ages": [
+       3,
+       6,
+       6,
+       7,
+       7,
+       7,
+       8,
+       9,
+       9,
+       10,
+       11,
+       11
+      ],
+      "censored": 0,
+      "consensus": null,
+      "reconstructions": null
+     },
+     "replay_wall_s": 192.37667441368103,
+     "replay_cpu_s": 121.171875,
+     "net_l1_per_agent": [
+      97.25935440672038,
+      64.10420381683798,
+      27.731330062932102,
+      36.1702201746084,
+      45.34361706816344,
+      26.383856132873916,
+      81.63150446035252,
+      27.718792935891543,
+      42.87004377137055,
+      77.28423371790268,
+      24.885564439457085,
+      182.5238151816411
+     ],
+     "structure": {
+      "net_l1_total": 733.9065361687517,
+      "diag_share": 0.01544187902814518,
+      "input_cols_share": 0.0,
+      "body_rows_share": 0.0506500246929771,
+      "td_seul_cols_share": 0.0
+     },
+     "net_l1_median_agent": 44.10683041976699,
+     "path_total": 1291.2782718539238,
+     "net_over_path": 0.5683566061365393,
+     "genomes": {
+      "path": "results/s2_bassin_fragility_genomes/b_tdoff_2026.npz",
+      "sha256": "3e6a053ba71da6e4135db216d41456f6fde0b8e1cf54e818ea6b76ce5542e922"
+     },
+     "cell_reloaded": true,
+     "cell_load": {
+      "start": {
+       "cpu_percent_1s": 39.1,
+       "python_procs": 22,
+       "t": "2026-09-26T19:55:20"
+      },
+      "end": {
+       "cpu_percent_1s": 99.8,
+       "python_procs": 19,
+       "t": "2026-09-26T19:58:33"
+      }
+     },
+     "transplant": {
+      "S": 7.5,
+      "ages": [
+       3,
+       6,
+       6,
+       7,
+       7,
+       7,
+       8,
+       9,
+       9,
+       10,
+       11,
+       11
+      ],
+      "censored": 0,
+      "consensus": {
+       "ticks_avec_reecriture": 0,
+       "lignes_reecrites": 0
+      },
+      "reconstructions": {
+       "constructions": 7,
+       "reconstructions": 6,
+       "B": [
+        12,
+        11,
+        9,
+        6,
+        5,
+        3,
+        2
+       ]
+      },
+      "bit_exact_W": true,
+      "ages_identical_to_learned_objects": true
+     },
+     "sign": {
+      "scale": 1.0,
+      "draws": [
+       {
+        "S": 9.5,
+        "ages": [
+         3,
+         6,
+         7,
+         8,
+         8,
+         9,
+         10,
+         11,
+         12,
+         19,
+         22,
+         23
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 11,
+         "reconstructions": 10,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 6.976289106966546e-09,
+         "l2_ratio_median": 0.9999999973480289,
+         "op_ratio_median": 0.8894469895176247
+        }
+       },
+       {
+        "S": 10.5,
+        "ages": [
+         6,
+         6,
+         7,
+         9,
+         10,
+         10,
+         11,
+         11,
+         19,
+         22,
+         26,
+         50
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 9,
+         "reconstructions": 8,
+         "B": [
+          12,
+          10,
+          9,
+          8,
+          6,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 6.678447254103434e-09,
+         "l2_ratio_median": 1.0000000016745014,
+         "op_ratio_median": 0.874798951457044
+        }
+       },
+       {
+        "S": 10.0,
+        "ages": [
+         6,
+         8,
+         8,
+         9,
+         9,
+         9,
+         11,
+         13,
+         13,
+         17,
+         21,
+         23
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 8,
+         "reconstructions": 7,
+         "B": [
+          12,
+          11,
+          9,
+          6,
+          5,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 3.1511856382137483e-09,
+         "l2_ratio_median": 0.9999999997824565,
+         "op_ratio_median": 0.8253867080340251
+        }
+       },
+       {
+        "S": 10.0,
+        "ages": [
+         7,
+         8,
+         8,
+         9,
+         9,
+         10,
+         10,
+         10,
+         10,
+         11,
+         19,
+         24
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 7,
+         "reconstructions": 6,
+         "B": [
+          12,
+          11,
+          9,
+          7,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 3.991185574602558e-09,
+         "l2_ratio_median": 0.9999999984075788,
+         "op_ratio_median": 0.8521098662486416
+        }
+       },
+       {
+        "S": 10.0,
+        "ages": [
+         6,
+         7,
+         7,
+         8,
+         8,
+         9,
+         11,
+         12,
+         15,
+         17,
+         17,
+         18
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 9,
+         "reconstructions": 8,
+         "B": [
+          12,
+          11,
+          9,
+          7,
+          6,
+          5,
+          4,
+          3,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 5.15299240948004e-09,
+         "l2_ratio_median": 0.9999999990614135,
+         "op_ratio_median": 0.8543230120017762
+        }
+       }
+      ],
+      "S": 10.0,
+      "l1_rel_err_max": 6.976289106966546e-09
+     },
+     "iso": {
+      "draws": [
+       {
+        "S": 26.5,
+        "ages": [
+         4,
+         10,
+         14,
+         16,
+         19,
+         26,
+         27,
+         37,
+         42,
+         46,
+         64,
+         93
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 12,
+         "reconstructions": 11,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 3.837916631342805e-08,
+         "l2_ratio_median": 0.0932003924065146,
+         "op_ratio_median": 0.014933712354878271
+        }
+       },
+       {
+        "S": 31.5,
+        "ages": [
+         4,
+         10,
+         14,
+         19,
+         20,
+         30,
+         33,
+         40,
+         51,
+         55,
+         76,
+         101
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 12,
+         "reconstructions": 11,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 2.4644572831385134e-08,
+         "l2_ratio_median": 0.09331059994922064,
+         "op_ratio_median": 0.015022223564837785
+        }
+       },
+       {
+        "S": 36.0,
+        "ages": [
+         4,
+         10,
+         14,
+         20,
+         20,
+         36,
+         36,
+         57,
+         60,
+         69,
+         79,
+         98
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 10,
+         "reconstructions": 9,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          7,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 3.7859730220679535e-08,
+         "l2_ratio_median": 0.09310168324036809,
+         "op_ratio_median": 0.014719143790637433
+        }
+       },
+       {
+        "S": 36.0,
+        "ages": [
+         4,
+         10,
+         14,
+         20,
+         20,
+         36,
+         36,
+         57,
+         60,
+         61,
+         64,
+         81
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 10,
+         "reconstructions": 9,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          7,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 2.2030721526640092e-08,
+         "l2_ratio_median": 0.09318279323306497,
+         "op_ratio_median": 0.014793148511984974
+        }
+       },
+       {
+        "S": 32.5,
+        "ages": [
+         4,
+         10,
+         14,
+         19,
+         20,
+         32,
+         33,
+         40,
+         48,
+         87,
+         94,
+         97
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 12,
+         "reconstructions": 11,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 2.3137617965920297e-08,
+         "l2_ratio_median": 0.09319332188600413,
+         "op_ratio_median": 0.014940199566107037
+        }
+       }
+      ],
+      "S": 32.5,
+      "l1_rel_err_max": 3.837916631342805e-08
+     },
+     "sign_x2": {
+      "scale": 2.0,
+      "draws": [
+       {
+        "S": 9.5,
+        "ages": [
+         4,
+         5,
+         7,
+         7,
+         8,
+         9,
+         10,
+         11,
+         16,
+         20,
+         22,
+         24
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 11,
+         "reconstructions": 10,
+         "B": [
+          12,
+          11,
+          10,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 2.5116985763939725e-09,
+         "l2_ratio_median": 1.0000000055777751,
+         "op_ratio_median": 0.8150939397676407
+        }
+       },
+       {
+        "S": 8.5,
+        "ages": [
+         6,
+         7,
+         7,
+         8,
+         8,
+         8,
+         9,
+         10,
+         10,
+         11,
+         11,
+         19
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 7,
+         "reconstructions": 6,
+         "B": [
+          12,
+          11,
+          9,
+          6,
+          5,
+          3,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 2.919172014974732e-09,
+         "l2_ratio_median": 1.0000000008989853,
+         "op_ratio_median": 0.8056203876623786
+        }
+       },
+       {
+        "S": 8.5,
+        "ages": [
+         2,
+         4,
+         5,
+         6,
+         7,
+         8,
+         9,
+         10,
+         11,
+         12,
+         26,
+         30
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 12,
+         "reconstructions": 11,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 4.193850465869681e-09,
+         "l2_ratio_median": 0.999999999011538,
+         "op_ratio_median": 0.8469186894986417
+        }
+       },
+       {
+        "S": 11.0,
+        "ages": [
+         7,
+         7,
+         8,
+         9,
+         9,
+         11,
+         11,
+         12,
+         13,
+         15,
+         36,
+         40
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 9,
+         "reconstructions": 8,
+         "B": [
+          12,
+          10,
+          9,
+          7,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 5.615573449342964e-09,
+         "l2_ratio_median": 1.0000000033001537,
+         "op_ratio_median": 0.8420891767413123
+        }
+       },
+       {
+        "S": 9.5,
+        "ages": [
+         6,
+         6,
+         6,
+         7,
+         7,
+         9,
+         10,
+         11,
+         11,
+         13,
+         16,
+         18
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 8,
+         "reconstructions": 7,
+         "B": [
+          12,
+          9,
+          7,
+          6,
+          5,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 4.857545429444986e-09,
+         "l2_ratio_median": 1.0000000008819583,
+         "op_ratio_median": 0.8290351666932047
+        }
+       }
+      ],
+      "S": 9.5,
+      "l1_rel_err_max": 5.615573449342964e-09
+     },
+     "sign_x4": {
+      "scale": 4.0,
+      "draws": [
+       {
+        "S": 9.0,
+        "ages": [
+         4,
+         5,
+         6,
+         7,
+         9,
+         9,
+         9,
+         10,
+         11,
+         15,
+         16,
+         18
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 10,
+         "reconstructions": 9,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 2.9806703256909364e-09,
+         "l2_ratio_median": 0.9999999991293778,
+         "op_ratio_median": 0.8665240733519916
+        }
+       },
+       {
+        "S": 12.5,
+        "ages": [
+         6,
+         7,
+         7,
+         9,
+         11,
+         12,
+         13,
+         15,
+         15,
+         16,
+         26,
+         44
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 10,
+         "reconstructions": 9,
+         "B": [
+          12,
+          11,
+          9,
+          8,
+          7,
+          6,
+          5,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 4.529219169022494e-09,
+         "l2_ratio_median": 1.0000000004184069,
+         "op_ratio_median": 0.8906024598846605
+        }
+       },
+       {
+        "S": 8.0,
+        "ages": [
+         6,
+         7,
+         7,
+         7,
+         8,
+         8,
+         8,
+         9,
+         9,
+         9,
+         11,
+         14
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 6,
+         "reconstructions": 5,
+         "B": [
+          12,
+          11,
+          8,
+          5,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 3.4251315302126137e-09,
+         "l2_ratio_median": 1.0000000024490967,
+         "op_ratio_median": 0.8598859497701139
+        }
+       },
+       {
+        "S": 8.0,
+        "ages": [
+         4,
+         6,
+         7,
+         7,
+         7,
+         8,
+         8,
+         11,
+         11,
+         13,
+         13,
+         13
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 6,
+         "reconstructions": 5,
+         "B": [
+          12,
+          11,
+          10,
+          7,
+          5,
+          3
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 2.9225181723549798e-09,
+         "l2_ratio_median": 1.0000000037376713,
+         "op_ratio_median": 0.8505013956888651
+        }
+       },
+       {
+        "S": 8.0,
+        "ages": [
+         6,
+         6,
+         8,
+         8,
+         8,
+         8,
+         8,
+         10,
+         13,
+         13,
+         14,
+         18
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 6,
+         "reconstructions": 5,
+         "B": [
+          12,
+          10,
+          5,
+          4,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 4.283679605800215e-09,
+         "l2_ratio_median": 1.000000003699618,
+         "op_ratio_median": 0.8160908770625191
+        }
+       }
+      ],
+      "S": 8.0,
+      "l1_rel_err_max": 4.529219169022494e-09
+     },
+     "sign_commun": {
+      "scale": 1.0,
+      "draws": [
+       {
+        "S": 11.0,
+        "ages": [
+         7,
+         7,
+         7,
+         8,
+         8,
+         10,
+         12,
+         12,
+         12,
+         13,
+         19,
+         20
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 7,
+         "reconstructions": 6,
+         "B": [
+          12,
+          9,
+          7,
+          6,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 6.4737961635793255e-09,
+         "l2_ratio_median": 1.0000000009096537,
+         "op_ratio_median": 0.8216297191584632
+        }
+       },
+       {
+        "S": 8.5,
+        "ages": [
+         6,
+         6,
+         8,
+         8,
+         8,
+         8,
+         9,
+         9,
+         10,
+         10,
+         18,
+         23
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 6,
+         "reconstructions": 5,
+         "B": [
+          12,
+          10,
+          6,
+          4,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 5.105894223772012e-09,
+         "l2_ratio_median": 0.9999999984168304,
+         "op_ratio_median": 0.8206033542447789
+        }
+       },
+       {
+        "S": 26.0,
+        "ages": [
+         4,
+         9,
+         10,
+         14,
+         17,
+         24,
+         28,
+         41,
+         44,
+         48,
+         74,
+         96
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 12,
+         "reconstructions": 11,
+         "B": [
+          12,
+          11,
+          10,
+          9,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 2.9860115486475967e-09,
+         "l2_ratio_median": 0.9999999989546201,
+         "op_ratio_median": 0.9496088150993636
+        }
+       },
+       {
+        "S": 8.0,
+        "ages": [
+         4,
+         6,
+         6,
+         7,
+         8,
+         8,
+         8,
+         8,
+         10,
+         10,
+         11,
+         11
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 6,
+         "reconstructions": 5,
+         "B": [
+          12,
+          11,
+          9,
+          8,
+          4,
+          2
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 3.8151603118641965e-09,
+         "l2_ratio_median": 0.9999999989618635,
+         "op_ratio_median": 0.8280841369054303
+        }
+       },
+       {
+        "S": 14.5,
+        "ages": [
+         8,
+         9,
+         10,
+         10,
+         12,
+         14,
+         15,
+         16,
+         17,
+         18,
+         23,
+         25
+        ],
+        "censored": 0,
+        "consensus": {
+         "ticks_avec_reecriture": 0,
+         "lignes_reecrites": 0
+        },
+        "reconstructions": {
+         "constructions": 11,
+         "reconstructions": 10,
+         "B": [
+          12,
+          11,
+          10,
+          8,
+          7,
+          6,
+          5,
+          4,
+          3,
+          2,
+          1
+         ]
+        },
+        "matching": {
+         "l1_rel_err_max": 2.8026704474083794e-09,
+         "l2_ratio_median": 0.9999999998301738,
+         "op_ratio_median": 0.838952819541045
+        }
+       }
+      ],
+      "S": 11.0,
+      "l1_rel_err_max": 6.4737961635793255e-09
+     }
+    }
+   },
+   "controls": {
+    "eps": {
+     "scale": 0.001,
+     "draws": [
+      {
+       "S": 31.5,
+       "ages": [
+        4,
+        10,
+        14,
+        19,
+        20,
+        30,
+        33,
+        40,
+        71,
+        84,
+        86,
+        101
+       ],
+       "censored": 0,
+       "consensus": {
+        "ticks_avec_reecriture": 0,
+        "lignes_reecrites": 0
+       },
+       "reconstructions": {
+        "constructions": 12,
+        "reconstructions": 11,
+        "B": [
+         12,
+         11,
+         10,
+         9,
+         8,
+         7,
+         6,
+         5,
+         4,
+         3,
+         2,
+         1
+        ]
+       },
+       "matching": {
+        "l1_rel_err_max": 3.61278352616584e-06,
+        "l2_ratio_median": 0.99999991245226,
+        "op_ratio_median": 0.773873407818813
+       }
+      },
+      {
+       "S": 31.5,
+       "ages": [
+        4,
+        10,
+        14,
+        19,
+        20,
+        30,
+        33,
+        40,
+        71,
+        84,
+        86,
+        101
+       ],
+       "censored": 0,
+       "consensus": {
+        "ticks_avec_reecriture": 0,
+        "lignes_reecrites": 0
+       },
+       "reconstructions": {
+        "constructions": 12,
+        "reconstructions": 11,
+        "B": [
+         12,
+         11,
+         10,
+         9,
+         8,
+         7,
+         6,
+         5,
+         4,
+         3,
+         2,
+         1
+        ]
+       },
+       "matching": {
+        "l1_rel_err_max": 3.5951377489250204e-06,
+        "l2_ratio_median": 0.9999998388010785,
+        "op_ratio_median": 0.7591525221492401
+       }
+      },
+      {
+       "S": 31.5,
+       "ages": [
+        4,
+        10,
+        14,
+        19,
+        20,
+        30,
+        33,
+        40,
+        71,
+        84,
+        86,
+        101
+       ],
+       "censored": 0,
+       "consensus": {
+        "ticks_avec_reecriture": 0,
+        "lignes_reecrites": 0
+       },
+       "reconstructions": {
+        "constructions": 12,
+        "reconstructions": 11,
+        "B": [
+         12,
+         11,
+         10,
+         9,
+         8,
+         7,
+         6,
+         5,
+         4,
+         3,
+         2,
+         1
+        ]
+       },
+       "matching": {
+        "l1_rel_err_max": 3.5955481158375977e-06,
+        "l2_ratio_median": 0.9999998432038157,
+        "op_ratio_median": 0.7672126796330191
+       }
+      },
+      {
+       "S": 31.5,
+       "ages": [
+        4,
+        10,
+        14,
+        19,
+        20,
+        30,
+        33,
+        40,
+        71,
+        84,
+        86,
+        101
+       ],
+       "censored": 0,
+       "consensus": {
+        "ticks_avec_reecriture": 0,
+        "lignes_reecrites": 0
+       },
+       "reconstructions": {
+        "constructions": 12,
+        "reconstructions": 11,
+        "B": [
+         12,
+         11,
+         10,
+         9,
+         8,
+         7,
+         6,
+         5,
+         4,
+         3,
+         2,
+         1
+        ]
+       },
+       "matching": {
+        "l1_rel_err_max": 3.5939887215698044e-06,
+        "l2_ratio_median": 0.9999998386121252,
+        "op_ratio_median": 0.7740008674793418
+       }
+      },
+      {
+       "S": 31.5,
+       "ages": [
+        4,
+        10,
+        14,
+        19,
+        20,
+        30,
+        33,
+        40,
+        71,
+        84,
+        86,
+        101
+       ],
+       "censored": 0,
+       "consensus": {
+        "ticks_avec_reecriture": 0,
+        "lignes_reecrites": 0
+       },
+       "reconstructions": {
+        "constructions": 12,
+        "reconstructions": 11,
+        "B": [
+         12,
+         11,
+         10,
+         9,
+         8,
+         7,
+         6,
+         5,
+         4,
+         3,
+         2,
+         1
+        ]
+       },
+       "matching": {
+        "l1_rel_err_max": 3.61278352616584e-06,
+        "l2_ratio_median": 0.999999847884238,
+        "op_ratio_median": 0.7765929958445741
+       }
+      }
+     ],
+     "S": 31.5,
+     "l1_rel_err_max": 3.61278352616584e-06,
+     "reference": "b_full"
+    },
+    "pos": {
+     "rel_l1": 1.0,
+     "draws": [
+      {
+       "S": 22.5,
+       "ages": [
+        3,
+        8,
+        11,
+        15,
+        16,
+        21,
+        24,
+        29,
+        38,
+        58,
+        63,
+        68
+       ],
+       "censored": 0,
+       "consensus": {
+        "ticks_avec_reecriture": 0,
+        "lignes_reecrites": 0
+       },
+       "reconstructions": {
+        "constructions": 12,
+        "reconstructions": 11,
+        "B": [
+         12,
+         11,
+         10,
+         9,
+         8,
+         7,
+         6,
+         5,
+         4,
+         3,
+         2,
+         1
+        ]
+       },
+       "l1_per_agent_median": 2442.805042670637
+      },
+      {
+       "S": 22.0,
+       "ages": [
+        8,
+        9,
+        15,
+        15,
+        18,
+        20,
+        24,
+        36,
+        38,
+        52,
+        54,
+        179
+       ],
+       "censored": 0,
+       "consensus": {
+        "ticks_avec_reecriture": 0,
+        "lignes_reecrites": 0
+       },
+       "reconstructions": {
+        "constructions": 11,
+        "reconstructions": 10,
+        "B": [
+         12,
+         11,
+         10,
+         8,
+         7,
+         6,
+         5,
+         4,
+         3,
+         2,
+         1
+        ]
+       },
+       "l1_per_agent_median": 2442.805042879467
+      },
+      {
+       "S": 20.5,
+       "ages": [
+        200,
+        10,
+        14,
+        15,
+        16,
+        17,
+        17,
+        24,
+        30,
+        39,
+        41,
+        55
+       ],
+       "censored": 1,
+       "consensus": {
+        "ticks_avec_reecriture": 0,
+        "lignes_reecrites": 0
+       },
+       "reconstructions": {
+        "constructions": 11,
+        "reconstructions": 10,
+        "B": [
+         12,
+         11,
+         10,
+         9,
+         8,
+         6,
+         5,
+         4,
+         3,
+         2,
+         1
+        ]
+       },
+       "l1_per_agent_median": 2442.8050429967448
+      },
+      {
+       "S": 28.0,
+       "ages": [
+        4,
+        10,
+        11,
+        21,
+        25,
+        26,
+        30,
+        37,
+        48,
+        52,
+        53,
+        155
+       ],
+       "censored": 0,
+       "consensus": {
+        "ticks_avec_reecriture": 0,
+        "lignes_reecrites": 0
+       },
+       "reconstructions": {
+        "constructions": 12,
+        "reconstructions": 11,
+        "B": [
+         12,
+         11,
+         10,
+         9,
+         8,
+         7,
+         6,
+         5,
+         4,
+         3,
+         2,
+         1
+        ]
+       },
+       "l1_per_agent_median": 2442.8050429142468
+      },
+      {
+       "S": 22.0,
+       "ages": [
+        4,
+        11,
+        11,
+        14,
+        18,
+        21,
+        23,
+        24,
+        25,
+        32,
+        33,
+        39
+       ],
+       "censored": 0,
+       "consensus": {
+        "ticks_avec_reecriture": 0,
+        "lignes_reecrites": 0
+       },
+       "reconstructions": {
+        "constructions": 11,
+        "reconstructions": 10,
+        "B": [
+         12,
+         11,
+         9,
+         8,
+         7,
+         6,
+         5,
+         4,
+         3,
+         2,
+         1
+        ]
+       },
+       "l1_per_agent_median": 2442.8050430278163
+      }
+     ],
+     "S": 22.0
+    }
+   },
+   "noop": {
+    "S": 31.5,
+    "ages": [
+     4,
+     10,
+     14,
+     19,
+     20,
+     30,
+     33,
+     40,
+     71,
+     84,
+     86,
+     101
+    ],
+    "censored": 0,
+    "consensus": {
+     "ticks_avec_reecriture": 0,
+     "lignes_reecrites": 0
+    },
+    "reconstructions": {
+     "constructions": 12,
+     "reconstructions": 11,
+     "B": [
+      12,
+      11,
+      10,
+      9,
+      8,
+      7,
+      6,
+      5,
+      4,
+      3,
+      2,
+      1
+     ]
+    }
+   },
+   "wall_s": 97.10259413719177,
+   "cpu_s": 91.703125,
+   "cells_cpu_s": 1960.875,
+   "load": {
+    "start": {
+     "cpu_percent_1s": 86.7,
+     "python_procs": 19,
+     "t": "2026-09-26T20:07:48"
+    },
+    "end": {
+     "cpu_percent_1s": 49.3,
+     "python_procs": 25,
+     "t": "2026-09-26T20:09:26"
+    }
+   },
+   "pid": 30980,
+   "verification_en_cours": []
+  }
+ },
+ "rows": [
+  {
+   "seed": 2026,
+   "S_a": 31.5,
+   "noop_identical": true,
+   "S_c": 8.0,
+   "S_eps": 31.5,
+   "S_pos": 22.0,
+   "S_eps_draws": [
+    31.5,
+    31.5,
+    31.5,
+    31.5,
+    31.5
+   ],
+   "S_pos_draws": [
+    22.5,
+    22.0,
+    20.5,
+    28.0,
+    22.0
+   ],
+   "match_eps": 3.61278352616584e-06,
+   "S_tr_full": 7.0,
+   "repl_full": true,
+   "transplant_ok_full": true,
+   "net_full": 100.53728972012323,
+   "net_total_full": 1306.0058622174715,
+   "path_full": 18242.03954219818,
+   "resur_full": 12.0,
+   "S_sign_full": 11.0,
+   "S_sign_full_draws": [
+    12.0,
+    11.0,
+    9.5,
+    10.5,
+    12.0
+   ],
+   "match_sign_full": 2.8494260856665256e-09,
+   "S_iso_full": 37.5,
+   "S_iso_full_draws": [
+    35.0,
+    41.5,
+    38.0,
+    37.0,
+    37.5
+   ],
+   "match_iso_full": 1.3806281599388757e-08,
+   "S_sign_x2_full": 10.0,
+   "S_sign_x2_full_draws": [
+    12.0,
+    10.0,
+    9.0,
+    11.0,
+    9.5
+   ],
+   "match_sign_x2_full": 3.4346255425898365e-09,
+   "S_sign_x4_full": 9.5,
+   "S_sign_x4_full_draws": [
+    9.0,
+    12.0,
+    9.5,
+    9.0,
+    11.0
+   ],
+   "match_sign_x4_full": 3.2623143632605827e-09,
+   "S_sign_commun_full": 14.5,
+   "S_sign_commun_full_draws": [
+    39.0,
+    8.5,
+    14.5,
+    36.0,
+    10.5
+   ],
+   "match_sign_commun_full": 2.7611388148910856e-09,
+   "op_sign_full": 0.7533679416795677,
+   "S_tr_tdonly": 9.0,
+   "repl_tdonly": true,
+   "transplant_ok_tdonly": true,
+   "net_tdonly": 73.02990405750461,
+   "net_total_tdonly": 953.0707621118136,
+   "path_tdonly": 11742.918721616268,
+   "resur_tdonly": 12.0,
+   "S_sign_tdonly": 11.5,
+   "S_sign_tdonly_draws": [
+    10.5,
+    11.0,
+    13.0,
+    11.5,
+    13.5
+   ],
+   "match_sign_tdonly": 2.745576165390059e-09,
+   "S_iso_tdonly": 33.5,
+   "S_iso_tdonly_draws": [
+    34.5,
+    33.5,
+    31.5,
+    31.5,
+    34.5
+   ],
+   "match_iso_tdonly": 2.0061156700468607e-08,
+   "S_sign_x2_tdonly": 11.0,
+   "S_sign_x2_tdonly_draws": [
+    9.5,
+    11.0,
+    12.0,
+    9.0,
+    13.0
+   ],
+   "match_sign_x2_tdonly": 3.0378815548580896e-09,
+   "S_sign_x4_tdonly": 9.0,
+   "S_sign_x4_tdonly_draws": [
+    9.5,
+    9.0,
+    8.0,
+    10.5,
+    9.0
+   ],
+   "match_sign_x4_tdonly": 2.8561711357787155e-09,
+   "S_sign_commun_tdonly": 14.5,
+   "S_sign_commun_tdonly_draws": [
+    15.5,
+    10.5,
+    14.5,
+    10.5,
+    20.5
+   ],
+   "match_sign_commun_tdonly": 2.4022595509229377e-09,
+   "op_sign_tdonly": 0.6673356325049136,
+   "S_tr_const": 21.0,
+   "repl_const": true,
+   "transplant_ok_const": true,
+   "net_const": 27.964931200796855,
+   "net_total_const": 336.88555230539623,
+   "path_const": 941.5139293726534,
+   "resur_const": 62.0,
+   "S_sign_const": 27.0,
+   "S_sign_const_draws": [
+    22.5,
+    30.5,
+    27.0,
+    37.5,
+    24.5
+   ],
+   "match_sign_const": 1.0619809812019114e-08,
+   "S_iso_const": 36.0,
+   "S_iso_const_draws": [
+    36.0,
+    37.5,
+    31.5,
+    36.0,
+    31.5
+   ],
+   "match_iso_const": 5.3477580191216565e-08,
+   "S_sign_x2_const": 16.0,
+   "S_sign_x2_const_draws": [
+    28.0,
+    14.5,
+    17.0,
+    16.0,
+    15.5
+   ],
+   "match_sign_x2_const": 4.203759518345243e-09,
+   "S_sign_x4_const": 17.0,
+   "S_sign_x4_const_draws": [
+    19.0,
+    17.0,
+    12.0,
+    13.5,
+    18.5
+   ],
+   "match_sign_x4_const": 2.4265927863983905e-09,
+   "S_sign_commun_const": 19.5,
+   "S_sign_commun_const_draws": [
+    28.5,
+    36.0,
+    16.0,
+    19.5,
+    15.5
+   ],
+   "match_sign_commun_const": 7.861400032047879e-09,
+   "op_sign_const": 0.7809519428075611,
+   "S_tr_eplr": 11.5,
+   "repl_eplr": true,
+   "transplant_ok_eplr": true,
+   "net_eplr": 18.60492296414668,
+   "net_total_eplr": 234.43667564558018,
+   "path_eplr": 1168.2166115045547,
+   "resur_eplr": 29.0,
+   "S_sign_eplr": 18.5,
+   "S_sign_eplr_draws": [
+    13.5,
+    18.5,
+    19.0,
+    20.0,
+    16.5
+   ],
+   "match_sign_eplr": 9.798602691065716e-09,
+   "S_iso_eplr": 31.5,
+   "S_iso_eplr_draws": [
+    31.5,
+    31.5,
+    31.5,
+    31.5,
+    31.5
+   ],
+   "match_iso_eplr": 1.1730940967239381e-07,
+   "S_sign_x2_eplr": 14.0,
+   "S_sign_x2_eplr_draws": [
+    26.5,
+    11.0,
+    17.5,
+    12.0,
+    14.0
+   ],
+   "match_sign_x2_eplr": 6.143855479195699e-09,
+   "S_sign_x4_eplr": 15.0,
+   "S_sign_x4_eplr_draws": [
+    10.0,
+    15.0,
+    15.5,
+    11.0,
+    16.0
+   ],
+   "match_sign_x4_eplr": 4.597685489188636e-09,
+   "S_sign_commun_eplr": 16.0,
+   "S_sign_commun_eplr_draws": [
+    14.5,
+    26.0,
+    12.0,
+    16.0,
+    31.0
+   ],
+   "match_sign_commun_eplr": 9.125089673478155e-09,
+   "op_sign_eplr": 0.8765638740460466,
+   "S_tr_zero": 32.0,
+   "repl_zero": true,
+   "transplant_ok_zero": true,
+   "net_zero": 3.4100243636389678,
+   "net_total_zero": 40.40746485947079,
+   "path_zero": 361.23349606245756,
+   "resur_zero": 201.0,
+   "S_sign_zero": 34.5,
+   "S_sign_zero_draws": [
+    37.5,
+    38.5,
+    31.0,
+    34.5,
+    34.5
+   ],
+   "match_sign_zero": 1.2525222275641107e-08,
+   "S_iso_zero": 31.5,
+   "S_iso_zero_draws": [
+    31.5,
+    31.5,
+    31.5,
+    31.5,
+    31.5
+   ],
+   "match_iso_zero": 3.8037088988533997e-07,
+   "S_sign_x2_zero": 36.0,
+   "S_sign_x2_zero_draws": [
+    28.0,
+    39.0,
+    38.0,
+    32.0,
+    36.0
+   ],
+   "match_sign_x2_zero": 1.2391377776703032e-08,
+   "S_sign_x4_zero": 22.5,
+   "S_sign_x4_zero_draws": [
+    20.5,
+    25.5,
+    24.5,
+    22.5,
+    18.0
+   ],
+   "match_sign_x4_zero": 7.95564968539912e-09,
+   "S_sign_commun_zero": 31.5,
+   "S_sign_commun_zero_draws": [
+    35.5,
+    31.5,
+    30.5,
+    31.5,
+    37.0
+   ],
+   "match_sign_commun_zero": 1.4162049794999209e-08,
+   "op_sign_zero": 0.9339154028262306,
+   "S_tr_tdoff": 7.5,
+   "repl_tdoff": true,
+   "transplant_ok_tdoff": true,
+   "net_tdoff": 44.10683041976699,
+   "net_total_tdoff": 733.9065361687517,
+   "path_tdoff": 1291.2782718539238,
+   "resur_tdoff": 25.0,
+   "S_sign_tdoff": 10.0,
+   "S_sign_tdoff_draws": [
+    9.5,
+    10.5,
+    10.0,
+    10.0,
+    10.0
+   ],
+   "match_sign_tdoff": 6.976289106966546e-09,
+   "S_iso_tdoff": 32.5,
+   "S_iso_tdoff_draws": [
+    26.5,
+    31.5,
+    36.0,
+    36.0,
+    32.5
+   ],
+   "match_iso_tdoff": 3.837916631342805e-08,
+   "S_sign_x2_tdoff": 9.5,
+   "S_sign_x2_tdoff_draws": [
+    9.5,
+    8.5,
+    8.5,
+    11.0,
+    9.5
+   ],
+   "match_sign_x2_tdoff": 5.615573449342964e-09,
+   "S_sign_x4_tdoff": 8.0,
+   "S_sign_x4_tdoff_draws": [
+    9.0,
+    12.5,
+    8.0,
+    8.0,
+    8.0
+   ],
+   "match_sign_x4_tdoff": 4.529219169022494e-09,
+   "S_sign_commun_tdoff": 11.0,
+   "S_sign_commun_tdoff_draws": [
+    11.0,
+    8.5,
+    26.0,
+    8.0,
+    14.5
+   ],
+   "match_sign_commun_tdoff": 6.4737961635793255e-09,
+   "op_sign_tdoff": 0.8543230120017762
+  }
+ ],
+ "verdict": {
+  "n": 1,
+  "S_a_median": 31.5,
+  "S_c_median": 8.0,
+  "par_bras": {
+   "full": {
+    "net_l1_median_agent": 100.53728972012323,
+    "net_over_path_median": 0.07159319324993069,
+    "saturation_transplant_median": 1.0425531914893618,
+    "resurrections_phase1_median": 12.0,
+    "S_tr_median": 7.0,
+    "transplant": {
+     "classe": "NEUTRE",
+     "mediane": -24.5,
+     "negatifs": "1/1"
+    },
+    "sign": {
+     "S_median": 11.0,
+     "classe_vs_S_a": "NEUTRE",
+     "mediane_vs_S_a": -20.5,
+     "negatifs_vs_S_a": "1/1",
+     "bande_vs_S_a": 21.0,
+     "dans_la_bande_vs_S_a": true,
+     "contraste_degenere": "contraste sign − greffe, full DÉGÉNÉRÉE : étendue 0 sur n=1 (toutes ≈ 4). Plancher ou plafond -> l'effet n'est pas mesurable dans ce régime.",
+     "contraste_vs_transplant_mediane": 4.0,
+     "contraste_positifs": "1/1",
+     "moins_erode_que_le_credit": false,
+     "bande_tirage0_moins_tirage1": {
+      "mediane": 1.0,
+      "abs_mediane": 1.0,
+      "n": 1
+     },
+     "bande_contraste": 5.0,
+     "dans_la_bande": true,
+     "contraste_negatifs": "0/1",
+     "plus_erode_que_le_credit": false,
+     "lecture": "INOFFENSIF",
+     "op_ratio_tirage_sur_credit_median": 0.7533679416795677,
+     "op_ratio_tirage_x2_sur_credit_median": 1.5067358833591353
+    },
+    "echelle_sign": {
+     "sign_x2": {
+      "S_median": 10.0,
+      "classe_vs_S_a": "NEUTRE",
+      "mediane_vs_S_a": -21.5,
+      "contraste_vs_transplant_mediane": 3.0,
+      "contraste_positifs": "1/1",
+      "hors_famille": true,
+      "descriptif_ne_tranche_rien": true
+     },
+     "sign_x4": {
+      "S_median": 9.5,
+      "classe_vs_S_a": "NEUTRE",
+      "mediane_vs_S_a": -22.0,
+      "contraste_vs_transplant_mediane": 2.5,
+      "contraste_positifs": "1/1",
+      "hors_famille": true,
+      "descriptif_ne_tranche_rien": true
+     },
+     "premiere_echelle_qui_erode": null
+    },
+    "qualificatifs": {
+     "moins_max_atteignable": "1/1",
+     "moins_atteignable_avec_marge": false,
+     "ecart_greffe_mediane": 24.5,
+     "fraction_de_perte_requise_pour_FRAGILE": 0.7959183673469388,
+     "sign_moins_eps_mediane": -20.5,
+     "au_dela_du_plancher_eps": true,
+     "suffisance_seulement": false
+    }
+   },
+   "tdonly": {
+    "net_l1_median_agent": 73.02990405750461,
+    "net_over_path_median": 0.08116131812761411,
+    "saturation_transplant_median": 0.9574468085106383,
+    "resurrections_phase1_median": 12.0,
+    "S_tr_median": 9.0,
+    "transplant": {
+     "classe": "NEUTRE",
+     "mediane": -22.5,
+     "negatifs": "1/1"
+    },
+    "sign": {
+     "S_median": 11.5,
+     "classe_vs_S_a": "NEUTRE",
+     "mediane_vs_S_a": -20.0,
+     "negatifs_vs_S_a": "1/1",
+     "bande_vs_S_a": 20.5,
+     "dans_la_bande_vs_S_a": true,
+     "contraste_degenere": "contraste sign − greffe, tdonly DÉGÉNÉRÉE : étendue 0 sur n=1 (toutes ≈ 2.5). Plancher ou plafond -> l'effet n'est pas mesurable dans ce régime.",
+     "contraste_vs_transplant_mediane": 2.5,
+     "contraste_positifs": "1/1",
+     "moins_erode_que_le_credit": false,
+     "bande_tirage0_moins_tirage1": {
+      "mediane": -0.5,
+      "abs_mediane": 0.5,
+      "n": 1
+     },
+     "bande_contraste": 4.0,
+     "dans_la_bande": true,
+     "contraste_negatifs": "0/1",
+     "plus_erode_que_le_credit": false,
+     "lecture": "INOFFENSIF",
+     "op_ratio_tirage_sur_credit_median": 0.6673356325049136,
+     "op_ratio_tirage_x2_sur_credit_median": 1.3346712650098271
+    },
+    "echelle_sign": {
+     "sign_x2": {
+      "S_median": 11.0,
+      "classe_vs_S_a": "NEUTRE",
+      "mediane_vs_S_a": -20.5,
+      "contraste_vs_transplant_mediane": 2.0,
+      "contraste_positifs": "1/1",
+      "hors_famille": true,
+      "descriptif_ne_tranche_rien": true
+     },
+     "sign_x4": {
+      "S_median": 9.0,
+      "classe_vs_S_a": "NEUTRE",
+      "mediane_vs_S_a": -22.5,
+      "contraste_vs_transplant_mediane": 0.0,
+      "contraste_positifs": "0/1",
+      "hors_famille": true,
+      "descriptif_ne_tranche_rien": true
+     },
+     "premiere_echelle_qui_erode": null
+    },
+    "qualificatifs": {
+     "moins_max_atteignable": "1/1",
+     "moins_atteignable_avec_marge": false,
+     "ecart_greffe_mediane": 22.5,
+     "fraction_de_perte_requise_pour_FRAGILE": 0.7777777777777778,
+     "sign_moins_eps_mediane": -20.0,
+     "au_dela_du_plancher_eps": true,
+     "suffisance_seulement": false
+    }
+   },
+   "const": {
+    "net_l1_median_agent": 27.964931200796855,
+    "net_over_path_median": 0.3578126056296042,
+    "saturation_transplant_median": 0.44680851063829785,
+    "resurrections_phase1_median": 62.0,
+    "S_tr_median": 21.0,
+    "transplant": {
+     "classe": "NEUTRE",
+     "mediane": -10.5,
+     "negatifs": "1/1"
+    },
+    "sign": {
+     "S_median": 27.0,
+     "classe_vs_S_a": "NEUTRE",
+     "mediane_vs_S_a": -4.5,
+     "negatifs_vs_S_a": "1/1",
+     "bande_vs_S_a": 13.0,
+     "dans_la_bande_vs_S_a": true,
+     "contraste_degenere": "contraste sign − greffe, const DÉGÉNÉRÉE : étendue 0 sur n=1 (toutes ≈ 6). Plancher ou plafond -> l'effet n'est pas mesurable dans ce régime.",
+     "contraste_vs_transplant_mediane": 6.0,
+     "contraste_positifs": "1/1",
+     "moins_erode_que_le_credit": false,
+     "bande_tirage0_moins_tirage1": {
+      "mediane": -8.0,
+      "abs_mediane": 8.0,
+      "n": 1
+     },
+     "bande_contraste": 15.0,
+     "dans_la_bande": true,
+     "contraste_negatifs": "0/1",
+     "plus_erode_que_le_credit": false,
+     "lecture": "INOFFENSIF",
+     "op_ratio_tirage_sur_credit_median": 0.7809519428075611,
+     "op_ratio_tirage_x2_sur_credit_median": 1.5619038856151222
+    },
+    "echelle_sign": {
+     "sign_x2": {
+      "S_median": 16.0,
+      "classe_vs_S_a": "NEUTRE",
+      "mediane_vs_S_a": -15.5,
+      "contraste_vs_transplant_mediane": -5.0,
+      "contraste_positifs": "0/1",
+      "hors_famille": true,
+      "descriptif_ne_tranche_rien": true
+     },
+     "sign_x4": {
+      "S_median": 17.0,
+      "classe_vs_S_a": "NEUTRE",
+      "mediane_vs_S_a": -14.5,
+      "contraste_vs_transplant_mediane": -4.0,
+      "contraste_positifs": "0/1",
+      "hors_famille": true,
+      "descriptif_ne_tranche_rien": true
+     },
+     "premiere_echelle_qui_erode": null
+    },
+    "qualificatifs": {
+     "moins_max_atteignable": "1/1",
+     "moins_atteignable_avec_marge": false,
+     "ecart_greffe_mediane": 10.5,
+     "fraction_de_perte_requise_pour_FRAGILE": 0.5238095238095238,
+     "sign_moins_eps_mediane": -4.5,
+     "au_dela_du_plancher_eps": false,
+     "suffisance_seulement": false
+    }
+   },
+   "eplr": {
+    "net_l1_median_agent": 18.60492296414668,
+    "net_over_path_median": 0.20067911493198806,
+    "saturation_transplant_median": 0.851063829787234,
+    "resurrections_phase1_median": 29.0,
+    "S_tr_median": 11.5,
+    "transplant": {
+     "classe": "NEUTRE",
+     "mediane": -20.0,
+     "negatifs": "1/1"
+    },
+    "sign": {
+     "S_median": 18.5,
+     "classe_vs_S_a": "NEUTRE",
+     "mediane_vs_S_a": -13.0,
+     "negatifs_vs_S_a": "1/1",
+     "bande_vs_S_a": 15.0,
+     "dans_la_bande_vs_S_a": true,
+     "contraste_degenere": "contraste sign − greffe, eplr DÉGÉNÉRÉE : étendue 0 sur n=1 (toutes ≈ 7). Plancher ou plafond -> l'effet n'est pas mesurable dans ce régime.",
+     "contraste_vs_transplant_mediane": 7.0,
+     "contraste_positifs": "1/1",
+     "moins_erode_que_le_credit": false,
+     "bande_tirage0_moins_tirage1": {
+      "mediane": -5.0,
+      "abs_mediane": 5.0,
+      "n": 1
+     },
+     "bande_contraste": 7.5,
+     "dans_la_bande": true,
+     "contraste_negatifs": "0/1",
+     "plus_erode_que_le_credit": false,
+     "lecture": "INOFFENSIF",
+     "op_ratio_tirage_sur_credit_median": 0.8765638740460466,
+     "op_ratio_tirage_x2_sur_credit_median": 1.7531277480920933,
+     "defendu_contre_le_pas": false
+    },
+    "echelle_sign": {
+     "sign_x2": {
+      "S_median": 14.0,
+      "classe_vs_S_a": "NEUTRE",
+      "mediane_vs_S_a": -17.5,
+      "contraste_vs_transplant_mediane": 2.5,
+      "contraste_positifs": "1/1",
+      "hors_famille": true,
+      "descriptif_ne_tranche_rien": true
+     },
+     "sign_x4": {
+      "S_median": 15.0,
+      "classe_vs_S_a": "NEUTRE",
+      "mediane_vs_S_a": -16.5,
+      "contraste_vs_transplant_mediane": 3.5,
+      "contraste_positifs": "1/1",
+      "hors_famille": true,
+      "descriptif_ne_tranche_rien": true
+     },
+     "premiere_echelle_qui_erode": null
+    },
+    "qualificatifs": {
+     "moins_max_atteignable": "1/1",
+     "moins_atteignable_avec_marge": false,
+     "ecart_greffe_mediane": 20.0,
+     "fraction_de_perte_requise_pour_FRAGILE": 0.75,
+     "sign_moins_eps_mediane": -13.0,
+     "au_dela_du_plancher_eps": true,
+     "suffisance_seulement": false
+    }
+   },
+   "zero": {
+    "net_l1_median_agent": 3.4100243636389678,
+    "net_over_path_median": 0.11185968438675552,
+    "saturation_transplant_median": 0.02127659574468085,
+    "resurrections_phase1_median": 201.0,
+    "S_tr_median": 32.0,
+    "transplant": {
+     "classe": "NEUTRE",
+     "mediane": 0.5,
+     "negatifs": "0/1"
+    },
+    "sign": {
+     "S_median": 34.5,
+     "classe_vs_S_a": "NEUTRE",
+     "mediane_vs_S_a": 3.0,
+     "negatifs_vs_S_a": "0/1",
+     "bande_vs_S_a": 7.0,
+     "dans_la_bande_vs_S_a": true,
+     "contraste_degenere": "contraste sign − greffe, zero DÉGÉNÉRÉE : étendue 0 sur n=1 (toutes ≈ 2.5). Plancher ou plafond -> l'effet n'est pas mesurable dans ce régime.",
+     "contraste_vs_transplant_mediane": 2.5,
+     "contraste_positifs": "1/1",
+     "moins_erode_que_le_credit": false,
+     "bande_tirage0_moins_tirage1": {
+      "mediane": -1.0,
+      "abs_mediane": 1.0,
+      "n": 1
+     },
+     "bande_contraste": 6.5,
+     "dans_la_bande": true,
+     "contraste_negatifs": "0/1",
+     "plus_erode_que_le_credit": false,
+     "lecture": "INOFFENSIF",
+     "op_ratio_tirage_sur_credit_median": 0.9339154028262306,
+     "op_ratio_tirage_x2_sur_credit_median": 1.8678308056524613
+    },
+    "echelle_sign": {
+     "sign_x2": {
+      "S_median": 36.0,
+      "classe_vs_S_a": "NEUTRE",
+      "mediane_vs_S_a": 4.5,
+      "contraste_vs_transplant_mediane": 4.0,
+      "contraste_positifs": "1/1",
+      "hors_famille": true,
+      "descriptif_ne_tranche_rien": true
+     },
+     "sign_x4": {
+      "S_median": 22.5,
+      "classe_vs_S_a": "NEUTRE",
+      "mediane_vs_S_a": -9.0,
+      "contraste_vs_transplant_mediane": -9.5,
+      "contraste_positifs": "0/1",
+      "hors_famille": true,
+      "descriptif_ne_tranche_rien": true
+     },
+     "premiere_echelle_qui_erode": null
+    },
+    "qualificatifs": {
+     "moins_max_atteignable": "0/1",
+     "moins_atteignable_avec_marge": false,
+     "ecart_greffe_mediane": -0.5,
+     "fraction_de_perte_requise_pour_FRAGILE": null,
+     "sign_moins_eps_mediane": 3.0,
+     "au_dela_du_plancher_eps": false,
+     "suffisance_seulement": false
+    }
+   },
+   "tdoff": {
+    "net_l1_median_agent": 44.10683041976699,
+    "net_over_path_median": 0.5683566061365393,
+    "saturation_transplant_median": 1.0212765957446808,
+    "resurrections_phase1_median": 25.0,
+    "S_tr_median": 7.5,
+    "transplant": {
+     "classe": "NEUTRE",
+     "mediane": -24.0,
+     "negatifs": "1/1"
+    },
+    "sign": {
+     "S_median": 10.0,
+     "classe_vs_S_a": "NEUTRE",
+     "mediane_vs_S_a": -21.5,
+     "negatifs_vs_S_a": "1/1",
+     "bande_vs_S_a": 21.5,
+     "dans_la_bande_vs_S_a": true,
+     "contraste_degenere": "contraste sign − greffe, tdoff DÉGÉNÉRÉE : étendue 0 sur n=1 (toutes ≈ 2.5). Plancher ou plafond -> l'effet n'est pas mesurable dans ce régime.",
+     "contraste_vs_transplant_mediane": 2.5,
+     "contraste_positifs": "1/1",
+     "moins_erode_que_le_credit": false,
+     "bande_tirage0_moins_tirage1": {
+      "mediane": -1.0,
+      "abs_mediane": 1.0,
+      "n": 1
+     },
+     "bande_contraste": 2.5,
+     "dans_la_bande": true,
+     "contraste_negatifs": "0/1",
+     "plus_erode_que_le_credit": false,
+     "lecture": "INOFFENSIF",
+     "op_ratio_tirage_sur_credit_median": 0.8543230120017762,
+     "op_ratio_tirage_x2_sur_credit_median": 1.7086460240035524,
+     "defendu_contre_le_pas": false
+    },
+    "echelle_sign": {
+     "sign_x2": {
+      "S_median": 9.5,
+      "classe_vs_S_a": "NEUTRE",
+      "mediane_vs_S_a": -22.0,
+      "contraste_vs_transplant_mediane": 2.0,
+      "contraste_positifs": "1/1",
+      "hors_famille": true,
+      "descriptif_ne_tranche_rien": true
+     },
+     "sign_x4": {
+      "S_median": 8.0,
+      "classe_vs_S_a": "NEUTRE",
+      "mediane_vs_S_a": -23.5,
+      "contraste_vs_transplant_mediane": 0.5,
+      "contraste_positifs": "1/1",
+      "hors_famille": true,
+      "descriptif_ne_tranche_rien": true
+     },
+     "premiere_echelle_qui_erode": null
+    },
+    "qualificatifs": {
+     "moins_max_atteignable": "1/1",
+     "moins_atteignable_avec_marge": false,
+     "ecart_greffe_mediane": 24.0,
+     "fraction_de_perte_requise_pour_FRAGILE": 0.7916666666666666,
+     "sign_moins_eps_mediane": -21.5,
+     "au_dela_du_plancher_eps": true,
+     "suffisance_seulement": false
+    }
+   }
+  },
+  "secondaire_iso": {
+   "full": {
+    "S_median": 37.5,
+    "classe_vs_S_a": "NEUTRE",
+    "mediane_vs_S_a": 6.0,
+    "negatifs_vs_S_a": "0/1",
+    "bande_vs_S_a": 6.5,
+    "dans_la_bande_vs_S_a": true,
+    "contraste_degenere": "contraste iso − greffe, full DÉGÉNÉRÉE : étendue 0 sur n=1 (toutes ≈ 30.5). Plancher ou plafond -> l'effet n'est pas mesurable dans ce régime.",
+    "contraste_vs_transplant_mediane": 30.5,
+    "contraste_positifs": "1/1",
+    "moins_erode_que_le_credit": false,
+    "bande_tirage0_moins_tirage1": {
+     "mediane": -6.5,
+     "abs_mediane": 6.5,
+     "n": 1
+    },
+    "bande_contraste": 31.0,
+    "dans_la_bande": true,
+    "contraste_negatifs": "0/1",
+    "plus_erode_que_le_credit": false,
+    "lecture_hors_famille": "INOFFENSIF",
+    "hors_famille": true
+   },
+   "tdonly": {
+    "S_median": 33.5,
+    "classe_vs_S_a": "NEUTRE",
+    "mediane_vs_S_a": 2.0,
+    "negatifs_vs_S_a": "0/1",
+    "bande_vs_S_a": 3.0,
+    "dans_la_bande_vs_S_a": true,
+    "contraste_degenere": "contraste iso − greffe, tdonly DÉGÉNÉRÉE : étendue 0 sur n=1 (toutes ≈ 24.5). Plancher ou plafond -> l'effet n'est pas mesurable dans ce régime.",
+    "contraste_vs_transplant_mediane": 24.5,
+    "contraste_positifs": "1/1",
+    "moins_erode_que_le_credit": false,
+    "bande_tirage0_moins_tirage1": {
+     "mediane": 1.0,
+     "abs_mediane": 1.0,
+     "n": 1
+    },
+    "bande_contraste": 25.5,
+    "dans_la_bande": true,
+    "contraste_negatifs": "0/1",
+    "plus_erode_que_le_credit": false,
+    "lecture_hors_famille": "INOFFENSIF",
+    "hors_famille": true
+   },
+   "const": {
+    "S_median": 36.0,
+    "classe_vs_S_a": "NEUTRE",
+    "mediane_vs_S_a": 4.5,
+    "negatifs_vs_S_a": "0/1",
+    "bande_vs_S_a": 6.0,
+    "dans_la_bande_vs_S_a": true,
+    "contraste_degenere": "contraste iso − greffe, const DÉGÉNÉRÉE : étendue 0 sur n=1 (toutes ≈ 15). Plancher ou plafond -> l'effet n'est pas mesurable dans ce régime.",
+    "contraste_vs_transplant_mediane": 15.0,
+    "contraste_positifs": "1/1",
+    "moins_erode_que_le_credit": false,
+    "bande_tirage0_moins_tirage1": {
+     "mediane": -1.5,
+     "abs_mediane": 1.5,
+     "n": 1
+    },
+    "bande_contraste": 15.0,
+    "dans_la_bande": true,
+    "contraste_negatifs": "0/1",
+    "plus_erode_que_le_credit": false,
+    "lecture_hors_famille": "INOFFENSIF",
+    "hors_famille": true
+   },
+   "eplr": {
+    "S_median": 31.5,
+    "classe_vs_S_a": "NEUTRE",
+    "mediane_vs_S_a": 0.0,
+    "negatifs_vs_S_a": "0/1",
+    "bande_vs_S_a": 0.0,
+    "dans_la_bande_vs_S_a": true,
+    "contraste_degenere": "contraste iso − greffe, eplr DÉGÉNÉRÉE : étendue 0 sur n=1 (toutes ≈ 20). Plancher ou plafond -> l'effet n'est pas mesurable dans ce régime.",
+    "contraste_vs_transplant_mediane": 20.0,
+    "contraste_positifs": "1/1",
+    "moins_erode_que_le_credit": false,
+    "bande_tirage0_moins_tirage1": {
+     "mediane": 0.0,
+     "abs_mediane": 0.0,
+     "n": 1
+    },
+    "bande_contraste": 20.0,
+    "dans_la_bande": true,
+    "contraste_negatifs": "0/1",
+    "plus_erode_que_le_credit": false,
+    "lecture_hors_famille": "INOFFENSIF",
+    "hors_famille": true
+   },
+   "zero": {
+    "S_median": 31.5,
+    "classe_vs_S_a": "NEUTRE",
+    "mediane_vs_S_a": 0.0,
+    "negatifs_vs_S_a": "0/1",
+    "bande_vs_S_a": 0.0,
+    "dans_la_bande_vs_S_a": true,
+    "contraste_degenere": "contraste iso − greffe, zero DÉGÉNÉRÉE : étendue 0 sur n=1 (toutes ≈ -0.5). Plancher ou plafond -> l'effet n'est pas mesurable dans ce régime.",
+    "contraste_vs_transplant_mediane": -0.5,
+    "contraste_positifs": "0/1",
+    "moins_erode_que_le_credit": false,
+    "bande_tirage0_moins_tirage1": {
+     "mediane": 0.0,
+     "abs_mediane": 0.0,
+     "n": 1
+    },
+    "bande_contraste": 0.5,
+    "dans_la_bande": true,
+    "contraste_negatifs": "1/1",
+    "plus_erode_que_le_credit": false,
+    "lecture_hors_famille": "INOFFENSIF",
+    "hors_famille": true
+   },
+   "tdoff": {
+    "S_median": 32.5,
+    "classe_vs_S_a": "NEUTRE",
+    "mediane_vs_S_a": 1.0,
+    "negatifs_vs_S_a": "0/1",
+    "bande_vs_S_a": 9.5,
+    "dans_la_bande_vs_S_a": true,
+    "contraste_degenere": "contraste iso − greffe, tdoff DÉGÉNÉRÉE : étendue 0 sur n=1 (toutes ≈ 25). Plancher ou plafond -> l'effet n'est pas mesurable dans ce régime.",
+    "contraste_vs_transplant_mediane": 25.0,
+    "contraste_positifs": "1/1",
+    "moins_erode_que_le_credit": false,
+    "bande_tirage0_moins_tirage1": {
+     "mediane": -5.0,
+     "abs_mediane": 5.0,
+     "n": 1
+    },
+    "bande_contraste": 28.5,
+    "dans_la_bande": true,
+    "contraste_negatifs": "0/1",
+    "plus_erode_que_le_credit": false,
+    "lecture_hors_famille": "INOFFENSIF",
+    "hors_famille": true
+   }
+  },
+  "secondaire_commun": {
+   "full": {
+    "S_median": 14.5,
+    "classe_vs_S_a": "NEUTRE",
+    "mediane_vs_S_a": -17.0,
+    "contraste_vs_transplant_mediane": 7.5,
+    "contraste_positifs": "1/1",
+    "moins_erode_que_le_credit": false,
+    "bande_contraste": 30.5,
+    "dans_la_bande": true,
+    "meme_issue_que_sign": true,
+    "hors_famille": true,
+    "descriptif_ne_tranche_rien": true
+   },
+   "tdonly": {
+    "S_median": 14.5,
+    "classe_vs_S_a": "NEUTRE",
+    "mediane_vs_S_a": -17.0,
+    "contraste_vs_transplant_mediane": 5.5,
+    "contraste_positifs": "1/1",
+    "moins_erode_que_le_credit": false,
+    "bande_contraste": 10.0,
+    "dans_la_bande": true,
+    "meme_issue_que_sign": true,
+    "hors_famille": true,
+    "descriptif_ne_tranche_rien": true
+   },
+   "const": {
+    "S_median": 19.5,
+    "classe_vs_S_a": "NEUTRE",
+    "mediane_vs_S_a": -12.0,
+    "contraste_vs_transplant_mediane": -1.5,
+    "contraste_positifs": "0/1",
+    "moins_erode_que_le_credit": false,
+    "bande_contraste": 20.0,
+    "dans_la_bande": true,
+    "meme_issue_que_sign": true,
+    "hors_famille": true,
+    "descriptif_ne_tranche_rien": true
+   },
+   "eplr": {
+    "S_median": 16.0,
+    "classe_vs_S_a": "NEUTRE",
+    "mediane_vs_S_a": -15.5,
+    "contraste_vs_transplant_mediane": 4.5,
+    "contraste_positifs": "1/1",
+    "moins_erode_que_le_credit": false,
+    "bande_contraste": 19.0,
+    "dans_la_bande": true,
+    "meme_issue_que_sign": true,
+    "hors_famille": true,
+    "descriptif_ne_tranche_rien": true
+   },
+   "zero": {
+    "S_median": 31.5,
+    "classe_vs_S_a": "NEUTRE",
+    "mediane_vs_S_a": 0.0,
+    "contraste_vs_transplant_mediane": -0.5,
+    "contraste_positifs": "0/1",
+    "moins_erode_que_le_credit": false,
+    "bande_contraste": 5.5,
+    "dans_la_bande": true,
+    "meme_issue_que_sign": true,
+    "hors_famille": true,
+    "descriptif_ne_tranche_rien": true
+   },
+   "tdoff": {
+    "S_median": 11.0,
+    "classe_vs_S_a": "NEUTRE",
+    "mediane_vs_S_a": -20.5,
+    "contraste_vs_transplant_mediane": 3.5,
+    "contraste_positifs": "1/1",
+    "moins_erode_que_le_credit": false,
+    "bande_contraste": 18.0,
+    "dans_la_bande": true,
+    "meme_issue_que_sign": true,
+    "hors_famille": true,
+    "descriptif_ne_tranche_rien": true
+   }
+  },
+  "controles": {
+   "eps": {
+    "classe": "NEUTRE",
+    "mediane": 0.0,
+    "positifs": "0/1",
+    "negatifs": "0/1",
+    "bande_vs_S_a": 0.0,
+    "dans_la_bande_vs_S_a": true,
+    "moins_erode_que_le_credit_complet": false,
+    "contraste_positifs": "1/1",
+    "contraste_mediane": 24.5,
+    "bande_contraste": 24.5,
+    "dans_la_bande": true,
+    "seeds_eps_egal_noop": "1/1",
+    "eps_inerte_par_la_bande": true,
+    "eps_inerte": true,
+    "controle_direction_non_eprouve": true,
+    "pourquoi_non_eprouve": "par construction : 9b = écart de la branche 8 + écart d'eps au no-op ; aucune issue négative propre (revue v7 P5.1)"
+   },
+   "pos": {
+    "classe": "NEUTRE",
+    "mediane": -9.5,
+    "positifs": "0/1",
+    "negatifs": "1/1",
+    "bande_vs_S_a": 9.5,
+    "dans_la_bande_vs_S_a": true
+   }
+  },
+  "verdict": "INCOMPLET",
+  "lecture_globale": null,
+  "famille": 15,
+  "thresholds": {
+   "sign_min": 11,
+   "delta_min": 5.0,
+   "n_min": 12,
+   "harness_min": 20.0,
+   "match_tol": 0.01,
+   "saturation_high": 0.9,
+   "e19_closure_max": 0.6666666666666666
+  },
+  "e19": {
+   "paire": {
+    "tdoff": 0.04,
+    "eplr": 0.004
+   },
+   "fractions_epargnees": {
+    "0.04": 0.10416666666666667,
+    "0.004": 0.35
+   },
+   "saturations": {
+    "tdoff": 1.0212765957446808,
+    "eplr": 0.851063829787234
+   },
+   "a_defendre": false,
+   "closure_max": 0.6666666666666666,
+   "closure": 0.7023809523809523,
+   "invariant": false,
+   "raison": "P4.18 part de la perte épargnée par le sham, voie épisodique : nul NON robuste au pas -> artefact d'hyperparamètre, PAS un verdict de capacité. L'écart au bras de référence se REFERME de 70.2% sur le balayage (lr=0.004 : écart 0.35 -> lr=0.04 : écart 0.1042 ; seuil 66.7%). Le bras testé REJOINT sa référence quand on change SEULEMENT le réglage : le réglage est un FACTEUR du verdict. Rejouer, ou refuser le verdict.",
+   "lisible": false,
+   "raison_illisible": "plancher : saturation >= 0.9 sur ['tdoff']",
+   "chemin_ratio_median": 1.105341474464121,
+   "net_ratio_median": 2.3707075006311356,
+   "resurrections_medianes": {
+    "tdoff": 25.0,
+    "eplr": 29.0
+   },
+   "pas_effectif_par_agent": {
+    "tdoff": 0.0033333333333333335,
+    "eplr": 0.0003333333333333333
+   },
+   "masse_gradient_ratio_median": 9.046977998222753,
+   "etiquette": "DIRECTION_DEPEND_DU_REGLAGE (pas et létalité de phase 1 non séparés)"
+  },
+  "why": "1 seeds < 12 : reprise, aucune lecture"
+ }
+}
