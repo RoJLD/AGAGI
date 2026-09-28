@@ -421,6 +421,25 @@ importants) :
 - **`exclus` vaut `null`** tant que le répertoire n'a pas été lu (répertoire absent, parité rompue) : `[]` s'y lisait
   comme une mesure (§7, no-op exact).
 
+**Précisions apportées par la revue adversariale du pas 2** (opus, sondes propres, 2026-09-26 : 0 bloquant, 5
+importants, 11 mineurs) :
+- **`liens` vaut `null` quand rien n'a été lu**, compté dans `champs_introuvables.liens` : un record sans frontmatter
+  (`frontmatter_absent`), un md ou un JSON sans clé `liens` (`cle_absente`, format déclaré §3.3). `[]` ne veut plus
+  dire que « frontmatter lu, aucune arête déclarée » ; il était servi pour les 34 records sans frontmatter ;
+- **une chaîne non encodable n'aveugle plus un bloc** : chaque bloc est ÉCHAPPÉ avant validation (surrogate isolé servi
+  visible, G2) et une ligne compte les chaînes échappées — un seul titre porteur d'un surrogate faisait refuser les
+  780 artefacts ;
+- **`DATES_GIT.json` hostile = refus LOCAL** : le service lit les dates hors du filet global (dates null + ligne,
+  familles et artefacts servis) ; la forme refuse un entier géant, un jour non exact ou impossible, un `head` non
+  chaîne ; un instantané daté dans le FUTUR est servi avec son âge négatif ET une ligne ;
+- **git dans la requête** : la seule commande possible est `rev-parse --git-common-dir`, qui situe le data/ du dépôt
+  COMMUN (P2.114) — jamais une commande qui DATE ; la formulation « ne lance JAMAIS git » est corrigée en « ne date
+  jamais par git », tenue par une liste blanche sur `subprocess.Popen` (un `git log` ajouté au service survivait au
+  témoin d'avant) ;
+- **le smoke CI peut échouer** sur un bloc refusé et sur des artefacts null ou vides (E1), et il est confronté à des
+  réponses connues par un témoin qui EXTRAIT ses deux contrôles du workflow ;
+- racine contenant des crochets : `glob.escape` (un « [1] » rendait 0 fichier, sans ligne).
+
 ---
 
 ## 10. Contraintes du dépôt honorées

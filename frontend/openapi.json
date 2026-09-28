@@ -979,6 +979,424 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "IndexArtefact": {
+        "properties": {
+          "chemin": {
+            "title": "Chemin",
+            "type": "string"
+          },
+          "date_ajout_git": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Ajout Git"
+          },
+          "date_declaree": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Declaree"
+          },
+          "date_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Source"
+          },
+          "etat": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Etat"
+          },
+          "etat_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Etat Source"
+          },
+          "famille": {
+            "title": "Famille",
+            "type": "string"
+          },
+          "gate": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gate"
+          },
+          "liens": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/IndexLien"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Liens"
+          },
+          "regime": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Regime"
+          },
+          "scelle": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scelle"
+          },
+          "titre": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Titre"
+          }
+        },
+        "required": [
+          "famille",
+          "chemin"
+        ],
+        "title": "IndexArtefact",
+        "type": "object"
+      },
+      "IndexDates": {
+        "properties": {
+          "age_s": {
+            "title": "Age S",
+            "type": "number"
+          },
+          "generated_at": {
+            "title": "Generated At",
+            "type": "number"
+          },
+          "head": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Head"
+          },
+          "historique": {
+            "title": "Historique",
+            "type": "string"
+          }
+        },
+        "required": [
+          "generated_at",
+          "age_s",
+          "historique"
+        ],
+        "title": "IndexDates",
+        "type": "object"
+      },
+      "IndexFamille": {
+        "properties": {
+          "champs_introuvables": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": {
+                    "type": "integer"
+                  },
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Champs Introuvables"
+          },
+          "exclus": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exclus"
+          },
+          "fichiers": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fichiers"
+          },
+          "format_declare": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "integer"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Format Declare"
+          },
+          "illisibles": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/IndexIllisible"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Illisibles"
+          },
+          "indexes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Indexes"
+          },
+          "motif": {
+            "title": "Motif",
+            "type": "string"
+          },
+          "nom": {
+            "title": "Nom",
+            "type": "string"
+          },
+          "repertoire": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repertoire"
+          }
+        },
+        "required": [
+          "nom",
+          "motif"
+        ],
+        "title": "IndexFamille",
+        "type": "object"
+      },
+      "IndexHorsFamilles": {
+        "properties": {
+          "n": {
+            "title": "N",
+            "type": "integer"
+          },
+          "repertoires": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Repertoires",
+            "type": "object"
+          }
+        },
+        "required": [
+          "n",
+          "repertoires"
+        ],
+        "title": "IndexHorsFamilles",
+        "type": "object"
+      },
+      "IndexIllisible": {
+        "properties": {
+          "chemin": {
+            "title": "Chemin",
+            "type": "string"
+          },
+          "raison": {
+            "title": "Raison",
+            "type": "string"
+          }
+        },
+        "required": [
+          "chemin",
+          "raison"
+        ],
+        "title": "IndexIllisible",
+        "type": "object"
+      },
+      "IndexLien": {
+        "properties": {
+          "cible": {
+            "title": "Cible",
+            "type": "string"
+          },
+          "rel": {
+            "title": "Rel",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rel",
+          "cible"
+        ],
+        "title": "IndexLien",
+        "type": "object"
+      },
+      "IndexV1": {
+        "description": "Enveloppe de `index_v1` (spec 2026-09-26 §3.1, §9). Chaque bloc est validé par le service DANS son filet :\nun bloc refusé devient `null` plus une ligne `aveugle` qui le nomme, jamais un 500.",
+        "properties": {
+          "artefacts": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/IndexArtefact"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Artefacts"
+          },
+          "aveugle": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Aveugle",
+            "type": "array"
+          },
+          "dates": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IndexDates"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "familles": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/IndexFamille"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Familles"
+          },
+          "generated_at": {
+            "title": "Generated At",
+            "type": "number"
+          },
+          "hors_familles": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IndexHorsFamilles"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "repo_root": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Repo Root"
+          },
+          "schema": {
+            "title": "Schema",
+            "type": "string"
+          }
+        },
+        "required": [
+          "schema",
+          "generated_at",
+          "aveugle"
+        ],
+        "title": "IndexV1",
+        "type": "object"
+      },
       "NoteCreate": {
         "properties": {
           "text": {
@@ -2516,6 +2934,28 @@
         "summary": "Observability Logger",
         "tags": [
           "Observability"
+        ]
+      }
+    },
+    "/api/pm/index": {
+      "get": {
+        "description": "Index des artefacts (P2.87) : lu des fichiers, jamais daté par git dans la requête (dates lues dans\nDATES_GIT.json, avec leur âge) ; cache 60 s.",
+        "operationId": "index_api_pm_index_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IndexV1"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Index",
+        "tags": [
+          "pm"
         ]
       }
     },

@@ -46,7 +46,8 @@ def test_record_SANS_frontmatter_ne_FABRIQUE_ni_titre_ni_statut(tmp_path):
     etat, a, manques, _ = _lire(p, "record")
     assert etat == "indexe"
     assert a["titre"] is None and a["etat"] is None and a["etat_source"] is None
-    assert manques == {"titre": "frontmatter_absent", "date_declaree": "frontmatter_absent", "etat": "frontmatter_absent"}
+    assert manques == {"titre": "frontmatter_absent", "date_declaree": "frontmatter_absent", "etat": "frontmatter_absent",
+                       "liens": "frontmatter_absent"} and a["liens"] is None
 
 
 def test_ref_sans_status_n_est_pas_open(tmp_path):
@@ -90,7 +91,7 @@ def test_spec_titre_date_du_nom_et_etat_non_declare(tmp_path):
     p = _ecrire(tmp_path / "2026-09-26-design.md", "```\n# pas un titre\n```\n# Le vrai titre\n")
     etat, a, manques, fmt = _lire(p, "spec")
     assert (a["titre"], a["date_declaree"], a["date_source"]) == ("Le vrai titre", "2026-09-26", "nom")
-    assert manques == {"etat": "frontmatter_absent"} and fmt == set()
+    assert manques == {"etat": "frontmatter_absent", "liens": "frontmatter_absent"} and fmt == set()
 
 
 @pytest.mark.parametrize("nom, raison", [("sans-date.md", "nom_non_date"), ("2026-13-45-x.md", "nom_date_invalide")])
@@ -341,6 +342,66 @@ def test_age_des_dates_jamais_le_mtime(tmp_path, monkeypatch):
     os.utime(p, (NOW, NOW))                                              # mtime FRAIS, contenu d'il y a une heure
     out = IX.indexer(str(tmp_path), IX.read_dates(str(tmp_path)), NOW)
     assert out["dates"]["age_s"] == 3600.0
+
+
+def test_read_dates_HOSTILE_refuse_localement_jamais_leve(tmp_path, monkeypatch):
+    """Revue du pas 2 (I3, M8) : un entier géant faisait lever OverflowError, une imbrication profonde RecursionError
+    — la route entière tombait en mode dégradé ; une date suivie d'un saut de ligne (le motif finissait par un
+    dollar, qui l'accepte), une date impossible et un head non chaîne passaient la forme."""
+    monkeypatch.setenv("AGAGI_DATA_ROOT", str(tmp_path).replace("\\", "/"))
+    (tmp_path / "pm").mkdir()
+    p = tmp_path / "pm" / "DATES_GIT.json"
+    base = {"schema": IX.SCHEMA_DATES, "generated_at": NOW, "head": "h", "historique": "complet", "raison": None,
+            "dates": {"a.md": "2026-09-01"}, "suivis": ["a.md"]}
+    cas = [('{"schema": "dates_git_v1", "generated_at": 1' + "0" * 400 + "}", "de forme inattendue"),
+           ("[" * 200_000 + "]" * 200_000, "illisible"),
+           (json.dumps({**base, "dates": {"a.md": "2026-01-01\n"}}), "de forme inattendue"),
+           (json.dumps({**base, "dates": {"a.md": "2026-99-99"}}), "de forme inattendue"),
+           (json.dumps({**base, "head": 12345}), "de forme inattendue")]
+    for texte, debut in cas:
+        p.write_text(texte, encoding="utf-8")
+        lu = IX.read_dates(str(tmp_path))
+        assert lu["doc"] is None and lu["raison"].startswith(debut), (texte[:60], lu["raison"])
+    p.write_text(json.dumps(base), encoding="utf-8")
+    assert IX.read_dates(str(tmp_path))["raison"] is None                  # contrôle : la forme saine passe
+
+
+def test_instantane_dans_le_FUTUR_est_dit(tmp_path, resultats_dans_le_depot):
+    """Revue du pas 2 (M8) : un écrivain à l'horloge en avance rendait un âge négatif, servi sans un mot."""
+    r = _depot(tmp_path)
+    lecture = _dates({}, [])
+    lecture["doc"]["generated_at"] = NOW + 3600
+    out = IX.indexer(str(r), lecture, NOW)
+    assert out["dates"]["age_s"] == -3600.0
+    assert any(a.startswith("dates : instantané daté dans le FUTUR") for a in out["aveugle"]), out["aveugle"]
+
+
+def test_racine_avec_crochets_jamais_zero_fabrique(tmp_path, resultats_dans_le_depot):
+    """Revue du pas 2 (M9) : glob lisait « [1] » d'un chemin comme une classe de caractères — 0 fichier, sans ligne."""
+    r = _depot(tmp_path / "tmp_crochet[1]")
+    rec = _famille(IX.indexer(str(r), _sans_dates(r), NOW), "record")
+    assert (rec["fichiers"], rec["indexes"]) == (4, 2)
+
+
+def test_liens_NON_LUS_valent_null_et_sont_comptes(tmp_path):
+    """Revue du pas 2 (I5) : `liens: []` était servi pour les 34 records SANS frontmatter et pour tout json ou md —
+    une liste vide présentée comme une mesure. [] = frontmatter lu, aucune arête déclarée ; null = rien n'a été lu
+    ou la forme ne déclare pas de clé `liens` (spec §3.3), compté avec sa raison."""
+    _, a, m, _ = _lire(_ecrire(tmp_path / "011_x.md", "# X\n"), "record")
+    assert a["liens"] is None and m["liens"] == "frontmatter_absent"
+    _, a, m, _ = _lire(_ecrire(tmp_path / "012_y.md", "---\nid: EDR-012\n---\n"), "record")
+    assert a["liens"] == [] and "liens" not in m                          # lu, aucune arête : mesuré
+    _, a, m, _ = _lire(_ecrire(tmp_path / "2026-09-26-s.md", "---\nliens: [EDR-A, EDR-B]\n---\n# S\n"), "spec")
+    assert a["liens"] == [{"rel": "liens", "cible": "EDR-A"}, {"rel": "liens", "cible": "EDR-B"}]
+    assert "liens" not in m
+    _, a, m, _ = _lire(_ecrire(tmp_path / "2026-09-26-t.md", "---\netat: x\n---\n# T\n"), "spec")
+    assert a["liens"] is None and m["liens"] == "cle_absente"
+    _, a, m, _ = _lire(_ecrire(tmp_path / "2026-09-26-u.md", "# U\n"), "spec")
+    assert a["liens"] is None and m["liens"] == "frontmatter_absent"
+    _, a, m, _ = _lire(_ecrire(tmp_path / "r.json", json.dumps({"name": "r"})), "resultat")
+    assert a["liens"] is None and m["liens"] == "cle_absente"
+    _, a, m, _ = _lire(_ecrire(tmp_path / "q.json", json.dumps({"liens": ["EDR-C", 3]})), "resultat")
+    assert a["liens"] == [{"rel": "liens", "cible": "EDR-C"}] and m["liens"] == "type_inattendu"
 
 
 def test_parite_sur_le_depot_REEL():

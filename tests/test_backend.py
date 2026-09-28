@@ -1046,3 +1046,155 @@ def test_le_SCHEMA_recopie_par_le_service_suit_celui_de_tools_pm() -> None:
     from backend.app.services import pilotage_service as ps
     from tools.pm import pilotage as P
     assert ps._SCHEMA == P.SCHEMA
+
+
+def test_index_repond_200_schema_index_v1_et_familles_servies() -> None:
+    from backend.app.services import index_service as ix
+    ix._vider_cache()
+    r = client.get("/api/pm/index")
+    assert r.status_code == 200
+    d = r.json()
+    assert d["schema"] == "index_v1" and isinstance(d["generated_at"], (int, float))
+    assert d["familles"] is not None and d["artefacts"] is not None, d["aveugle"]
+    assert not any(a.startswith("index:") for a in d["aveugle"]), d["aveugle"]
+    rec = next(f for f in d["familles"] if f["nom"] == "record")
+    assert rec["indexes"] > 300
+
+
+@pytest.fixture(autouse=True)
+def _cache_de_l_index_vide_apres_chaque_test():
+    """Revue du pas 2 (M3) : le cache de l'index est un état de PROCESSUS ; un test qui y laissait un mode dégradé
+    le servait au test suivant pendant 60 s."""
+    yield
+    from backend.app.services import index_service
+    index_service._vider_cache()
+
+
+def test_index_ne_DATE_jamais_par_git_seule_la_racine_commune(monkeypatch) -> None:
+    """D1 : git DATE dans l'écrivain de DATES_GIT.json, jamais sur le chemin de la requête. Revue du pas 2 (I4) : le
+    témoin d'avant ne patchait que `_git` et `calculer_dates_git`, alors que la requête lance bien UNE commande git —
+    `rev-parse --git-common-dir`, pour trouver le data/ du dépôt COMMUN (P2.114) — et un `git log` ajouté au service
+    SURVIVAIT. Espion sur `subprocess.Popen` : seule cette commande est admise (le filet avalerait une AssertionError :
+    on compte, on n'assert pas dedans)."""
+    from backend.app.services import index_service as ix
+    vrai, git = subprocess.Popen, []
+
+    class _Espion(vrai):
+        def __init__(self, args, *a, **k):
+            if isinstance(args, (list, tuple)) and args and os.path.basename(str(args[0])).startswith("git"):
+                git.append(list(args))
+            super().__init__(args, *a, **k)
+    monkeypatch.setattr(subprocess, "Popen", _Espion)
+    ix._vider_cache()
+    assert client.get("/api/pm/index").status_code == 200
+    assert all(c == ["git", "rev-parse", "--git-common-dir"] for c in git), git
+
+
+def test_index_surrogate_dans_UN_artefact_echappe_jamais_le_bloc_entier(monkeypatch) -> None:
+    """Revue du pas 2 (I2) : un titre porteur d'un surrogate isolé (PyYAML le lit tel quel) faisait refuser les 780
+    artefacts d'un bloc ; il est servi ÉCHAPPÉ, visible (G2), et la ligne le compte."""
+    from backend.app.services import index_service as ix
+    vrai = ix.index_artefacts.indexer
+
+    def _surrogate(*a, **k):
+        out = vrai(*a, **k)
+        out["artefacts"][0]["titre"] = "\ud800x"
+        return out
+    monkeypatch.setattr(ix.index_artefacts, "indexer", _surrogate)
+    ix._vider_cache()
+    r = client.get("/api/pm/index")
+    assert r.status_code == 200
+    d = r.json()
+    assert d["artefacts"] is not None and d["artefacts"][0]["titre"] == "\\ud800x"
+    assert any(a.startswith("artefacts : 1 chaîne") for a in d["aveugle"]), d["aveugle"]
+
+
+def test_index_DATES_GIT_hostile_n_aveugle_pas_l_index(monkeypatch) -> None:
+    """Revue du pas 2 (I3) : `read_dates` était appelé dans le filet GLOBAL — un DATES_GIT.json hostile mettait les
+    quatre blocs à null. Refus LOCAL : dates null avec sa ligne, familles et artefacts servis."""
+    from backend.app.services import index_service as ix
+
+    def _profond(*a, **k):
+        raise RecursionError("maximum recursion depth exceeded while decoding a JSON array")
+    monkeypatch.setattr(ix.index_artefacts, "read_dates", _profond)
+    ix._vider_cache()
+    d = client.get("/api/pm/index").json()
+    assert d["familles"] is not None and d["artefacts"] is not None and d["dates"] is None
+    assert not any(a.startswith("index:") for a in d["aveugle"]), d["aveugle"]
+    assert any(a.startswith("dates : ") and "RecursionError" in a for a in d["aveugle"]), d["aveugle"]
+
+
+def test_index_enveloppe_refusee_est_NOMMEE(monkeypatch) -> None:
+    """Revue du pas 2 (M4) : le filet d'enveloppe n'avait AUCUN témoin (ses deux mutants survivaient)."""
+    from backend.app.services import index_service as ix
+    vrai = ix.index_artefacts.indexer
+
+    def _ligne_non_chaine(*a, **k):
+        out = vrai(*a, **k)
+        out["aveugle"] = out["aveugle"] + [None]
+        return out
+    monkeypatch.setattr(ix.index_artefacts, "indexer", _ligne_non_chaine)
+    ix._vider_cache()
+    d = client.get("/api/pm/index").json()
+    assert d["aveugle"][0].startswith("index: enveloppe refusée"), d["aveugle"]
+    assert d["familles"] is None and d["artefacts"] is None
+
+
+def test_blocs_servables_sans_adaptateur_LEVE_jamais_deguise_en_refus() -> None:
+    """Revue du pas 2 (M5) : un bloc sans adaptateur (erreur de programmation) sortait « bloc refusé par le modèle de
+    la route (KeyError) » ; il lève, et le filet global le NOMME pour ce qu'il est."""
+    from backend.app.services import index_service as ix
+    with pytest.raises(KeyError):
+        ix._blocs_servables({"aveugle": [], "pipeline": {"x": 1}}, ("pipeline",))
+
+
+def test_index_indexer_qui_leve_devient_une_ligne_index_jamais_un_500(monkeypatch) -> None:
+    from backend.app.services import index_service as ix
+
+    def _boum(*a, **k):
+        raise RuntimeError("indexeur cassé")
+    monkeypatch.setattr(ix.index_artefacts, "indexer", _boum)
+    ix._vider_cache()
+    r = client.get("/api/pm/index")
+    assert r.status_code == 200
+    d = r.json()
+    assert d["aveugle"][0].startswith("index: RuntimeError") and d["familles"] is None and d["artefacts"] is None
+
+
+def test_index_cache_sous_le_TTL(monkeypatch) -> None:
+    from backend.app.services import index_service as ix
+    vrai, appels = ix.index_artefacts.indexer, {"n": 0}
+
+    def _compte(*a, **k):
+        appels["n"] += 1
+        return vrai(*a, **k)
+    monkeypatch.setattr(ix.index_artefacts, "indexer", _compte)
+    ix._vider_cache()
+    client.get("/api/pm/index")
+    client.get("/api/pm/index")
+    assert appels["n"] == 1
+
+
+def test_index_bloc_de_type_etranger_devient_null_sans_500(monkeypatch) -> None:
+    from backend.app.services import index_service as ix
+    vrai = ix.index_artefacts.indexer
+
+    def _etranger(*a, **k):
+        out = vrai(*a, **k)
+        out["hors_familles"] = {"n": "beaucoup", "repertoires": {}}
+        return out
+    monkeypatch.setattr(ix.index_artefacts, "indexer", _etranger)
+    ix._vider_cache()
+    r = client.get("/api/pm/index")
+    assert r.status_code == 200
+    d = r.json()
+    assert d["hors_familles"] is None and d["familles"] is not None
+    assert any(a.startswith("hors_familles : bloc refusé") for a in d["aveugle"]), d["aveugle"]
+
+
+def test_index_import_refuse_est_NOMME(monkeypatch) -> None:
+    from backend.app.services import index_service as ix
+    monkeypatch.setattr(ix, "_IMPORT_REFUSE", ImportError("No module named 'yaml'"))
+    ix._vider_cache()
+    d = client.get("/api/pm/index").json()
+    assert d["aveugle"][0].startswith("index: ImportError") and "yaml" in d["aveugle"][0]

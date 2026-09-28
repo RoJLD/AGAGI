@@ -329,6 +329,70 @@ class PilotageV1(BaseModel):
     charge: Charge | None = None
 
 
+class IndexIllisible(BaseModel):
+    chemin: str
+    raison: str
+
+
+class IndexFamille(BaseModel):
+    nom: str
+    motif: str
+    repertoire: str | None = None
+    exclus: list[str] | None = None        # null tant que le répertoire n'a pas été lu : [] serait une mesure
+    fichiers: int | None = None
+    indexes: int | None = None
+    illisibles: list[IndexIllisible] | None = None
+    champs_introuvables: dict[str, dict[str, int]] | None = None
+    format_declare: dict[str, int] | None = None
+
+
+class IndexLien(BaseModel):
+    rel: str
+    cible: str
+
+
+class IndexArtefact(BaseModel):
+    famille: str
+    chemin: str
+    titre: str | None = None
+    date_declaree: str | None = None
+    date_source: str | None = None
+    date_ajout_git: str | None = None
+    etat: str | None = None
+    etat_source: str | None = None
+    regime: bool | None = None
+    scelle: bool | None = None
+    gate: str | None = None
+    liens: list[IndexLien] | None = None    # null : rien n'a été lu (compté dans champs_introuvables.liens)
+
+
+class IndexDates(BaseModel):
+    generated_at: float
+    age_s: float
+    head: str | None = None
+    historique: str
+
+
+class IndexHorsFamilles(BaseModel):
+    n: int
+    repertoires: dict[str, int]
+
+
+class IndexV1(BaseModel):
+    """Enveloppe de `index_v1` (spec 2026-09-26 §3.1, §9). Chaque bloc est validé par le service DANS son filet :
+    un bloc refusé devient `null` plus une ligne `aveugle` qui le nomme, jamais un 500."""
+    model_config = ConfigDict(populate_by_name=True)
+
+    schema_: str = Field(alias="schema")
+    generated_at: float
+    repo_root: str | None = None
+    aveugle: list[str]
+    dates: IndexDates | None = None
+    familles: list[IndexFamille] | None = None
+    hors_familles: IndexHorsFamilles | None = None
+    artefacts: list[IndexArtefact] | None = None
+
+
 class SweepResult(BaseModel):
     """Un sweep : une métrique tracée le long d'un paramètre balayé (knob).
     x = valeurs du paramètre ; series[<metric>] = série Y de même longueur ;

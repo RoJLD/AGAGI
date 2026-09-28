@@ -190,10 +190,23 @@ def _liens(meta):
     return out, rejets
 
 
+def _liens_declares(v):
+    """`(liens, raison)` de la clé `liens` du format déclaré (spec §3.3) : absente → `(None, "cle_absente")` ; une
+    chaîne ou une liste de chaînes → la liste ; un élément d'un autre type est écarté et compté."""
+    if v is None:
+        return None, "cle_absente"
+    cibles = [v] if isinstance(v, str) else v if isinstance(v, list) else None
+    if cibles is None:
+        return None, "type_inattendu"
+    out = [{"rel": "liens", "cible": c.strip()} for c in cibles if isinstance(c, str) and c.strip()]
+    return out, (None if len(out) == len(cibles) else "type_inattendu")
+
+
 def _artefact(famille, rel):
+    # `liens` vaut None tant que rien n'a été LU (revue du pas 2, I5) : [] se lisait « aucune arête déclarée ».
     return {"famille": famille, "chemin": rel, "titre": None, "date_declaree": None, "date_source": None,
             "date_ajout_git": None, "etat": None, "etat_source": None, "regime": None, "scelle": None,
-            "gate": None, "liens": []}
+            "gate": None, "liens": None}
 
 
 def _poser(art, manques, champ, valeur, raison):
@@ -207,7 +220,7 @@ def _lire_record(texte, art, manques):
     if raison:
         return ("illisible", raison, None, None)
     if meta is None:
-        for champ in ("titre", "date_declaree", "etat"):
+        for champ in ("titre", "date_declaree", "etat", "liens"):
             manques[champ] = "frontmatter_absent"
         return ("indexe", art, manques, set())
     art["titre"], _, r = _premiere_chaine(meta, ("title",))
@@ -241,11 +254,14 @@ def _lire_md(texte, art, manques, nom):
     _poser(art, manques, "date_declaree", d, r)
     art["date_source"] = None if r else src
     if meta is None:
-        manques["etat"] = "frontmatter_absent"
+        manques["etat"] = manques["liens"] = "frontmatter_absent"
     else:
         art["etat"], art["etat_source"], r = _premiere_chaine(meta, ("etat",))
         if r:
             manques["etat"] = r
+        art["liens"], r = _liens_declares(meta.get("liens"))
+        if r:
+            manques["liens"] = r
     return ("indexe", art, manques, {c for c in CLES_FORMAT if meta and c in meta})
 
 
@@ -255,9 +271,12 @@ def _lire_json(texte, art, manques, fam):
     except (ValueError, RecursionError):                 # imbrication profonde : RecursionError, pas ValueError
         return ("illisible", "json_invalide", None, None)
     if not isinstance(d, dict):
-        for champ in ("titre", "date_declaree", "etat"):
+        for champ in ("titre", "date_declaree", "etat", "liens"):
             manques[champ] = "racine_non_objet"
         return ("indexe", art, manques, set())
+    art["liens"], r = _liens_declares(d.get("liens"))
+    if r:
+        manques["liens"] = r
     art["titre"], _, r = _premiere_chaine(d, ("name", "title"))
     if r:
         manques["titre"] = r
@@ -297,21 +316,38 @@ def chemin_dates(racine):
     return (p if os.path.isabs(p) else os.path.join(base_des_donnees(racine), p)).replace("\\", "/")
 
 
+def _jour_valide(v):
+    """Un jour `AAAA-MM-JJ` EXACT et existant : `fullmatch` (un `$` accepte un saut de ligne final) puis le
+    calendrier (revue du pas 2, M8 : « 2026-01-01\\n » et « 2026-99-99 » passaient)."""
+    if not isinstance(v, str) or not _DATE_ISO.fullmatch(v):
+        return False
+    try:
+        datetime.date.fromisoformat(v)
+    except ValueError:
+        return False
+    return True
+
+
 def _forme_dates(doc):
     """`None` si `doc` a la forme `dates_git_v1`, sinon la raison du refus."""
     if not isinstance(doc, dict) or doc.get("schema") != SCHEMA_DATES:
         return "schema différent de dates_git_v1"
     g = doc.get("generated_at")
-    if isinstance(g, bool) or not isinstance(g, (int, float)) or not math.isfinite(g):
+    try:                                                  # un entier géant lève OverflowError (revue du pas 2, I3)
+        fini = not isinstance(g, bool) and isinstance(g, (int, float)) and math.isfinite(float(g))
+    except OverflowError:
+        fini = False
+    if not fini:
         return "generated_at non numérique ou non fini"
+    if doc.get("head") is not None and not isinstance(doc.get("head"), str):
+        return "head n'est ni une chaîne ni null"
     h = doc.get("historique")
     if h not in HISTORIQUES:
         return f"historique inconnu ({h!r})"
     dates, suivis = doc.get("dates"), doc.get("suivis")
     if h != "complet":
         return None if dates is None and suivis is None else "dates/suivis non null hors historique complet"
-    if not isinstance(dates, dict) or not all(isinstance(k, str) and isinstance(v, str) and _DATE_ISO.match(v)
-                                              for k, v in dates.items()):
+    if not isinstance(dates, dict) or not all(isinstance(k, str) and _jour_valide(v) for k, v in dates.items()):
         return "dates n'est pas un dict chemin -> AAAA-MM-JJ"
     if not isinstance(suivis, list) or not all(isinstance(s, str) for s in suivis):
         return "suivis n'est pas une liste de chemins"
@@ -326,8 +362,8 @@ def read_dates(racine):
             doc = json.load(fh)
     except OSError:
         return {"doc": None, "chemin": chemin, "raison": "introuvable"}
-    except ValueError as exc:
-        return {"doc": None, "chemin": chemin, "raison": f"illisible (JSON invalide : {exc})"}
+    except (ValueError, RecursionError) as exc:          # imbrication profonde : RecursionError (revue du pas 2)
+        return {"doc": None, "chemin": chemin, "raison": f"illisible (JSON invalide : {type(exc).__name__}: {exc})"}
     refus = _forme_dates(doc)
     if refus:
         return {"doc": None, "chemin": chemin, "raison": f"de forme inattendue ({refus})"}
@@ -401,7 +437,8 @@ def indexer(racine, lecture_dates, now):
             aveugle.append(f"famille {fam.nom} : répertoire {ligne['repertoire']} absent -- fichiers INCONNUS, jamais 0")
             familles.append(ligne)
             continue
-        chemins = sorted(p for p in glob.glob(os.path.join(rep, fam.motif)) if os.path.isfile(p))
+        # glob.escape : un « [1] » dans la racine se lisait comme une classe de caractères — 0 fichier, sans ligne
+        chemins = sorted(p for p in glob.glob(os.path.join(glob.escape(rep), fam.motif)) if os.path.isfile(p))
         exclus, illisibles, arts = [], [], []
         champs = {c: collections.Counter() for c in ("titre", "date_declaree", "etat", "date_ajout_git", "liens")}
         fmt = collections.Counter()
@@ -438,6 +475,9 @@ def indexer(racine, lecture_dates, now):
         aveugle.append(f"frontmatter : PyYAML absent de ce processus -- {sans_yaml} fichier(s) à frontmatter illisible(s)")
     dates = None if doc is None else {"generated_at": doc["generated_at"], "age_s": now - float(doc["generated_at"]),
                                       "head": doc.get("head"), "historique": doc["historique"]}
+    if dates is not None and dates["age_s"] < 0:
+        aveugle.append(f"dates : instantané daté dans le FUTUR de {-dates['age_s']:.0f} s (horloge de l'écrivain en "
+                       "avance ?) -- servi avec son âge négatif, jamais ramené à 0")
     return {"schema": SCHEMA, "generated_at": now, "repo_root": racine, "aveugle": aveugle, "dates": dates,
             "familles": familles, "hors_familles": _hors_familles(racine, suivis), "artefacts": artefacts}
 
