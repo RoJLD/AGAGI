@@ -1450,8 +1450,10 @@ de contenu écrite DANS l'image par `deploy/nexus/runner/empreinte_contenu.py` (
 une arborescence connue : `test_empreinte_de_contenu_calibree_sur_une_arborescence_CONNUE`), imprimée dans le journal
 du build et reportée dans IMAGE.json par `tools/jobs/remote.py` (voie de Master 2 : comparer deux images avant tout run),
 et publiée dans chaque MANIFEST ; témoin de recette `test_recette_reproductible_porte_LES_DEUX_ingredients_et_la_reserve_d_ELYSIUM`. **Reste
-pour clore** : (i) construire la nouvelle image par le chemin de PRODUCTION et la RECONSTRUIRE (`--reconstruire`) —
-même digest attendu —, écrire `deploy/nexus/runner/IMAGE.json` ; (ii) une reconstruction un AUTRE jour, même digest ou écart localisé par
+pour clore** : (i) FAIT le 2026-09-28 au soir (`results/deport_p2134_adoption.json`) — image construite par le chemin de
+PRODUCTION puis RECONSTRUITE (`--reconstruire`) : MÊME digest `sha256:d5341acf…`, MÊMES empreintes de contenu (lues
+dans le journal de chaque build), `deploy/nexus/runner/IMAGE.json` écrit ; témoin evo011 --smoke sur la nouvelle image :
+un seul écart hors `elapsed_s` contre le tour 4, `git_sha` (attendu) ; (ii) une reconstruction un AUTRE jour, même digest ou écart localisé par
 l'empreinte ; (iii) décider pour apt (épingler ou instantané daté).
 
 **P2.132 — rang 4 — OUVERTE (2026-09-26, trouvée par la revue adversariale de la règle S2-BASSIN-FRAGILITY v4,

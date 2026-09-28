@@ -1,11 +1,51 @@
 {
   "image": "elysium/agagi-runner",
-  "tag": "py3.13.12-2bf24b9ccf41",
-  "digest": "sha256:7c860b30fbd45348f937c13af278d57f1bd0a90633866004a01eeafc6d0e3de8",
-  "ctx_hash12": "2bf24b9ccf41",
+  "tag": "py3.13.12-1c77aaaf3cf1",
+  "digest": "sha256:d5341acf6f9206968c5d9ac4793618a54b1a6734a1c090cfc305cfb62a1e1141",
+  "ctx_hash12": "1c77aaaf3cf1",
   "requirements_sha256": "e4fc0a97171a60638bab37ec72cec40fe35cadef908cfb5864dbb27d03e4fa18",
-  "source_sha": "7481e15ebf944ad3fde335730896650da5f5f4d1",
-  "job": "agagi-build-2bf24b9ccf41-245c",
-  "construit_utc": "2026-09-26T14:56:32.715910+00:00",
-  "duree_build_s": 84.2
+  "source_sha": "ea09dbb9cefa6a28306d76753b74e2b1b7562f7d",
+  "job": "agagi-build-1c77aaaf3cf1-a806",
+  "construit_utc": "2026-09-28T19:49:16.306988+00:00",
+  "construit_utc_source": "horloge de la machine qui soumet (UTC)",
+  "horodatage_job": {
+    "cree_utc": "2026-09-28T19:46:48Z",
+    "debut_utc": "2026-09-28T19:46:48Z",
+    "fin_utc": "2026-09-28T19:48:58Z",
+    "source": "Job Kubernetes : metadata.creationTimestamp, status.startTime et status.completionTime (UTC)"
+  },
+  "empreinte_contenu": {
+    "source": "journal du build agagi-build-1c77aaaf3cf1-a806",
+    "empreinte": {
+      "exclus": [
+        "/proc",
+        "/sys",
+        "/dev",
+        "/run",
+        "/var/run",
+        "/tmp",
+        "/var/tmp",
+        "/kaniko",
+        "/workspace",
+        "/etc/hosts",
+        "/etc/hostname",
+        "/etc/resolv.conf",
+        "/etc/mtab",
+        "/opt/agagi/empreinte-contenu.json"
+      ],
+      "schema": "agagi.empreinte_contenu.v1",
+      "zones": {
+        "python": {
+          "entrees": 39411,
+          "sha256": "3b8aaa2bad4583ede08e7f9dffc69a40bc3ace11c901d2beae46d9ea5960825f"
+        },
+        "systeme": {
+          "entrees": 7194,
+          "sha256": "4baa682b58affa21571f1a148be539b06121bce94a7756835a36604147605aac"
+        }
+      }
+    }
+  },
+  "duree_build_s": 147.1,
+  "duree_build_s_source": "horloge monotone de la machine qui soumet, attente de 10 s par sondage comprise"
 }
