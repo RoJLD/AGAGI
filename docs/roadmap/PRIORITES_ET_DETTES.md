@@ -1468,10 +1468,15 @@ sous la règle `E34-IDENTITY-CELL` : la v1 (S_on contre l'étendue de `b_full` E
 mal définie, SANS_OBJET fabriqué par un audit aveugle, branche de dose morte, témoin et paire de deux exécutions) ; la v2
 (S_on contre {S_off + 11 shams numpy}) a été RÉFUTÉE à son tour (`docs/reviews/2026-09-26-E34-IDENTITY-CELL.v2.md`, 22
 critiques confirmées, dont P5.a : un sham numpy décale tout le flux aléatoire alors que le drapeau ne fait que réordonner
-les corps) ; la v3 lit S_on contre DOUZE shams de PERMUTATION (à chaque tick où la recharge change l'ordre, corps
-permutés par un RNG privé, identité NON réparée : sous H0 le correctif n'est qu'une permutation parmi 13), qualifiée par
-un CONTRÔLE POSITIF (crédit coupé à t1 : sans lui, NON_TRANCHE), dose = COMMUTATIONS, 15 cellules sur la batcave : en
-cours. **La clause ci-dessous reste celle de l'entrée** : elle décrit la vraie clôture (le correctif devenu le
+les corps) ; la v3 (DOUZE shams de PERMUTATION des corps + un CONTRÔLE POSITIF) a été réfutée à son tour
+(`docs/reviews/2026-09-28-E34-IDENTITY-CELL.v3.md`, 14 critiques confirmées : le drapeau remet l'ordre de service d'avant
+t1 quand chaque permutation en déplace 8 à 12, et les permutations reçoivent ~1,5 fois la dose de défaut du bras éteint) ;
+la v4 (décision Master 2) teste l'AUTRE forme de correctif de cette entrée — RÉINDEXER la population
+(`tools/slot_identity.py::permute_population_rows` : les cerveaux suivent leur corps, l'ordre des corps reste celui du
+harnais publié ; périmètre certifié : SGD sans momentum, traces non allouées, pas de bilinéaire — P4.19 hors périmètre)
+— contre DOUZE shams de RÉÉTIQUETAGE (lignes des seules positions déplacées permutées par un RNG privé : même ordre de
+service, même dose que le bras éteint, seule l'identité change), qualifiée par le contrôle positif, S_off exigé dans la
+bande, NON_MATERIEL vers le haut seulement ; 15 cellules sur la batcave : en cours. **La clause ci-dessous reste celle de l'entrée** : elle décrit la vraie clôture (le correctif devenu le
 DÉFAUT, après P4.18 et, si la sonde rend MATERIEL, le plan n = 12) ; la sonde ne ferme qu'un sous-item.
 **Addendum CALIB-LEARNER (2026-09-26, session E34, vu en lisant la recette)** : la MÊME recette vit dans
 `tools/cognitive_demand_inworld.py:575-587` (`run_learner_probe`, contrôle POSITIF de l'apprenant, EDR-CALIB-LEARNER
@@ -1529,6 +1534,23 @@ porte qui lance pytest) REFUSE en nommant le détenteur et la commande à relanc
 un bail factice vivant fait refuser, un bail expiré ou le nôtre non ; et le crochet se termine avec son parent (un git
 tué ne laisse pas d'orphelin). Touche `tools/hooks/` : copie déployée et porte 22 à la clé. *Coût : agent 1-2 h.*
 Attribution : Master 2.
+
+**P2.142 — rang à fixer par Master 2 — OUVERTE (2026-09-28, vue en passant par la session E34 en testant sa v4) — Dans
+un WORKTREE, une session pytest qui lance `tests/sandbox/test_instrument_calibration.py` puis un autre fichier finit avec
+la racine de l'arbre PRINCIPAL en tête de `sys.path` ; `tools` étant un paquet-espace-de-noms (le répertoire des outils n'a pas de fichier d'initialisation de paquet),
+tout import PARESSEUX d'un sous-module `tools.*` y prend alors la version de l'arbre principal — un test de worktree peut
+exercer le code de d1 et passer au VERT (faux vert, E4).**
+Preuve (worktree .worktrees/e34, pointe 5ac488fb + v4 non committée) : `pytest test_instrument_calibration.py
+test_e34_identity_cell.py` -> `ImportError: cannot import name 'permute_population_rows' from 'tools.slot_identity'
+(c:\Users\robla\VScode_Project\AGAGI\tools\slot_identity.py)` ; chaque fichier seul : vert. Plugin de diagnostic
+(scratchpad de la session) : à l'échec, les deux premières entrées de `sys.path` sont la racine de l'arbre principal en
+deux graphies à `c:` minuscule (antislashs, puis barres obliques), puis le worktree ; `tools.__path__` commence par l'arbre
+principal ; rien de tel au démontage des tests précédents, et l'entrée n'est passée par aucun `insert`/`append` de l'objet
+`sys.path` d'origine (espion muet) — l'écrivain n'est PAS identifié. Parade provisoire, bornée à ce fichier :
+`test_e34_identity_cell.py` épingle `tools.slot_identity` à l'import. **Forme** : trouver l'écrivain (bissection des tests
+de calibration sous l'espion), puis une garde de conftest qui REFUSE toute entrée de `sys.path` pointant vers un AUTRE
+arbre du même dépôt (même `git-common-dir`). Le gel méthodo tranche son rang. *Coût : agent 1-2 h (bissection ~6 min par
+pas).*
 
 **P2.133 — rang 6 — ✅ CLOSE le 2026-09-26 (ouverte le même jour, vue en passant par la session SCIENCE-HARNAIS pendant la revue v6 de
 S2-BASSIN-FRAGILITY) — Le Refutateur sort encore NUL sur une revue saine : le vérificateur a rendu `refus = "aucun"`, et

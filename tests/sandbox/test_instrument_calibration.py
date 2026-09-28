@@ -1818,29 +1818,39 @@ CALIBRATED = {
     "tools/evo_runs/s2_credit_ablation_2.py::run_arm": ["guard-before-world", "variante:enveloppe-la-phase-1-seule",
                                                         "b_const:reward_const-1.0-b_tdonly:episode-off",
                                                         "gele:ni-variante-ni-phase-1"],
-    # E34 / P2.132 (2026-09-26) -- lecture de la regle scellee E34-IDENTITY-CELL v3 (une cellule = une sonde), branches
+    # E34 / P2.132 (2026-09-26) -- lecture de la regle scellee E34-IDENTITY-CELL v4 (une cellule = une sonde), branches
     # dans l'ORDRE impose : INCOMPLET (cellule eteinte ou temoin absent) -> temoin d'une autre execution LEVE (v1 P5.b)
     # -> TEMOIN_ROMPU lu AVANT l'absence des autres cellules (v2 P10.d) -> INCOMPLET (cellule absente ; audit AVEUGLE,
-    # v1 P7.a) -> PROVENANCE_MIXTE (v2 P10.e) -> LIEU_MIXTE -> SANS_OBJET (0 COMMUTATION) -> harnais qui ment LEVE ->
-    # BANDE_INERTE (v2 P1.b/P5.b) -> bande = 12 shams de PERMUTATION (v2 P5.a), bords DANS la bande, grille 0,5 ->
-    # MATERIEL / NON_MATERIEL si le CONTROLE POSITIF sort de la bande, sinon NON_TRANCHE (v2 P5.c) ; fausse alarme avec
-    # ex-aequo (v2 P5.d) ; doses par bras (v2 P7.d). Cas : tests/sandbox/test_e34_identity_cell.py (lignes synthetiques,
-    # appels HORS de pytest.raises) ; S_a lu dans le JSON SUIVI de P4.16.
+    # v1 P7.a) -> PROVENANCE_MIXTE (v2 P10.e) -> LIEU_MIXTE -> SANS_OBJET (0 COMMUTATION) -> harnais qui ment LEVE (dont
+    # des CORPS reordonnes, v3 P1.a) -> BANDE_INERTE (v2 P1.b) -> BANDE_DEPLACEE (S_off hors bande, v3 P5.d) -> bande = 12
+    # shams de REETIQUETAGE (meme ordre de service et meme dose que l'eteint), bords DANS la bande, grille 0,5 -> MATERIEL
+    # / NON_MATERIEL (vers le HAUT seulement) si le CONTROLE POSITIF sort au-dessus de la bande ET de S_off (v3 P6.a),
+    # sinon NON_TRANCHE ; fausse alarme avec ex-aequo ; doses par bras (commutations, vote social) ; plafond de famine.
+    # Cas : tests/sandbox/test_e34_identity_cell.py (lignes synthetiques, appels HORS de pytest.raises).
     "identity_cell_verdict": ["incomplet", "temoin-autre-execution:raises", "temoin_rompu:avant-les-absences",
                               "audit-aveugle:incomplet-jamais-sans_objet", "missing:raises", "provenance_mixte",
-                              "lieu_mixte", "sans_objet:zero-commutation", "harnais-qui-ment:raises", "bande_inerte",
-                              "bande:permutations-bords-dans-la-bande", "materiel_hausse", "materiel_baisse",
-                              "non_tranche:controle-positif-non-vu", "non_materiel:borne-cellule-dose-et-drapeau",
-                              "fausse-alarme:ex-aequo-calculee", "doses-par-bras", "plancher-et-levier-publies",
-                              "fort:descriptif-avec-shams", "part-erosion:None-sans-erosion"],
-    # E34 / P2.132 -- une cellule b_full seed 2026 sous le traitement de son bras (off / on / pos / perm_k) : garde en
-    # tete (aucun monde), traitement TRANSMIS a la phase 1 (injection : slot_order_fix, sham_perm, cut_credit_at_t1,
-    # identity_audit toujours vrai), appel REEL minuscule (monde torch) qui publie l'audit ; le no-op EXACT du drapeau
-    # eteint, le contre-exemple (mort en tete), le sham de permutation (RNG PRIVE, aux changements d'ordre, qui DIVERGE
-    # dans le monde reel) et la coupe du credit a t1 sont dans tests/sandbox/test_e34_slot_identity.py.
+                              "lieu_mixte", "sans_objet:zero-commutation", "harnais-qui-ment:raises",
+                              "corps-reordonnes:raises", "bande_inerte", "bande_deplacee",
+                              "bande:reetiquetages-bords-dans-la-bande", "materiel_hausse", "materiel_baisse",
+                              "non_tranche:controle-positif-non-vu-au-dessus-de-S_off",
+                              "non_materiel:vers-le-haut-borne-cellule-et-doses", "fausse-alarme:ex-aequo-calculee",
+                              "doses-par-bras-et-vote-social", "plancher-levier-et-plafond-de-famine-publies",
+                              "part-erosion:None-sans-erosion"],
+    # E34 / P2.132 -- une cellule b_full seed 2026 sous le traitement de son bras (off / on / pos / relab_k) : garde en
+    # tete (aucun monde), traitement TRANSMIS a la phase 1 (injection : slot_reindex, sham_relabel, cut_credit_at_t1,
+    # identity_audit toujours vrai), vote social compte (compter_consensus), plafond de famine publie, appel REEL
+    # minuscule (monde torch) ; la reindexation (permute_population_rows, perimetre certifie), le reetiquetage (RNG PRIVE,
+    # lignes deplacees seules, qui DIVERGE en monde reel), la coupe du credit a t1, le no-op EXACT du drapeau eteint et le
+    # contre-exemple (mort en tete) sont dans tests/sandbox/test_e34_slot_identity.py.
     "run_identity_cell": ["guard-before-world", "traitement-transmis-a-la-phase-1", "appel-reel:audit-publie",
-                          "drapeau-eteint:noop-exact-au-bit", "mort-en-tete:contre-exemple",
-                          "sham-permutation:rng-prive-diverge-en-monde-reel", "controle-positif:credit-coupe-a-t1"],
+                          "vote-social-compte", "plafond-de-famine:reponse-connue", "drapeau-eteint:noop-exact-au-bit",
+                          "mort-en-tete:contre-exemple", "reindexation:invariant-et-ordre-des-corps-inchange",
+                          "reetiquetage:rng-prive-lignes-deplacees-diverge", "controle-positif:credit-coupe-a-t1"],
+    # E34 / P2.132 (revue v3, P8.b) -- plafond de famine d'un corps qui ne mange pas : energie de depart / (metabolisme de
+    # base x drain du phenotype) ; DESCRIPTIF (ne decide rien). Cas : tests/sandbox/test_e34_identity_cell.py -- reponse
+    # connue (80 / (0,75 x 14,888)) et drain illisible (nan) -> None, jamais un nombre fabrique ; appels HORS de
+    # pytest.raises.
+    "starvation_ceiling": ["reponse-connue:80-sur-metabolisme-fois-drain", "drain-illisible:None"],
     # P4.18 (2026-09-26) -- lecture de la regle scellee S2-BASSIN-FRAGILITY, branches dans l'ORDRE impose (INCOMPLET ->
     # NOOP -> HARNAIS -> REPLICATION -> TRANSPLANT -> APPARIEMENT -> INSTRUMENT (controle POSITIF de FRAGILE) ->
     # PREMISSE -> par bras DIRECTION/PARTIEL/FRAGILE/PROTECTRICE/INOFFENSIF -> global FRAGILE/DIRECTION/
