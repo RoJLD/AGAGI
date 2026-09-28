@@ -8,7 +8,7 @@ status: active
 ## Pourquoi
 
 Décision de robla (2026-09-26) : **les runs AGAGI tournent par défaut sur le cluster ELYSIUM, nœud nexus**
-(15 CPU / 64 Gi allouables), et la batcave reste libre — pour les sessions, et pour que l'unité de coût
+(15 CPU / 61,66 Gi allouables, relu le 2026-09-28), et la batcave reste libre — pour les sessions, et pour que l'unité de coût
 d'un run ne soit plus mesurée sous la charge des autres (E12 appliqué au coût, payé trois fois le
 2026-09-22). Seul un Job témoin existait (2026-09-24, mémoire `nexus-cluster-witness-job`).
 
@@ -16,7 +16,7 @@ d'un run ne soit plus mesurée sous la charge des autres (E12 appliqué au coût
 
 | Pièce | Où | Rôle |
 |---|---|---|
-| namespace (nom configuré) | `deploy/nexus/00-03*.yaml` (GABARITS, rendus par `remote.py namespace`) | normes `elysium-*` : palier LimitRange `ml-heavy` (12 CPU / 32 Gi par conteneur, accordé par ELYSIUM le 2026-09-26 ; il REMPLACE `standard`, retiré dans le même geste), default-deny + egress du seul build, ResourceQuota (requests 8 CPU / 24 Gi, limits 16 CPU / 40 Gi, 16 pods) |
+| namespace (nom configuré) | `deploy/nexus/00-03*.yaml` (GABARITS, rendus par `remote.py namespace`) | normes `elysium-*` : palier LimitRange `ml-heavy` (12 CPU / 32 Gi par conteneur, accordé par ELYSIUM le 2026-09-26 ; il REMPLACE `standard`, retiré dans le même geste), default-deny (DNS vers kube-dns seul, P2.127) + egress du seul build, ResourceQuota (requests 8 CPU / 24 Gi, limits 16 CPU / 40 Gi, 16 pods, 100 Jobs, 20 ConfigMaps) |
 | image runner | `deploy/nexus/runner/` | Python 3.13.12, dépendances ÉPINGLÉES sur la batcave (`constraints.txt`) SAUF torch (2.6.0+cpu dans l'image, 2.6.0+cu124 sur la batcave : même version, autre build), git ; construite par Kaniko DANS le namespace ; référence committée dans `IMAGE.json` (tag + digest) |
 | soumission | `tools/jobs/remote.py` | un Job par run : code au sha, attente, rapatriement vérifié |
 | point d'entrée | `tools/jobs/remote_entry.py` | stdlib seule ; tourne dans le pod ET en local, à l'identique |
@@ -48,7 +48,7 @@ tout effet, jamais une valeur devinée. Modèle sans valeur réelle (adresses RF
 | `contexte` | `AGAGI_KUBE_CONTEXT` | contexte kubectl (requis) |
 | `registre` | `AGAGI_REGISTRY` | `hôte:port` du registre ; une IP si on rend la NetworkPolicy (requis) |
 | `noeud` | `AGAGI_DEPORT_NOEUD` | nœud où épingler les Jobs (requis) |
-| `namespace` | `AGAGI_DEPORT_NAMESPACE` | namespace dédié (requis) |
+| `namespace` | `AGAGI_DEPORT_NAMESPACE` | namespace dédié (requis). ⚠️ Nom NON libre vis-à-vis d'ELYSIUM : le palier ml-heavy ne tient que parce que la boucle manuelle du README des LimitRange ELYSIUM saute ce namespace par son NOM (`ML_HEAVY_NS`, PR ELYSIUM #1301) — le label `limitrange-tier` n'y joue aucun rôle. Sous un autre nom, faire d'abord ajouter ce nom côté ELYSIUM ; sinon la boucle y repose `standard` (4 Gi) et la soumission REFUSE bruyamment tout palier > 4 Gi |
 | `depot_image` | `AGAGI_DEPORT_DEPOT_IMAGE` | chemin de l'image dans le registre, sans hôte (requis) |
 | `fenetre` | `AGAGI_DEPORT_FENETRE` | fenêtre d'allumage du nœud, `fuseau,début_h,fin_h,marge_s` ou `aucune` (REQUISE : l'absence se déclare) |
 | `allumage` | `AGAGI_DEPORT_ALLUMAGE` | le geste humain qui allume le nœud, cité dans les refus (facultatif) |
@@ -62,9 +62,13 @@ l'historique déjà poussé (commits du 2026-09-26) : la réécrire serait une d
 pour une adresse privée non routable.
 
 La commande est toujours `-m <module> [args]` (python implicite). Une commande par Job : un balayage de
-seeds se découpe en N Jobs, pas en un pool de processus dans un pod (plafond 2 CPU par conteneur ; quota du
-namespace = 8 CPU de requêtes, soit 8 Jobs à `--req-cpu 1` en parallèle — au-delà, la soumission refuse
-« quota plein » et ne laisse rien derrière elle). Une variable pour le runner passe par `--env CLE=VALEUR`
+seeds se découpe en N Jobs, pas en un pool de processus dans un pod. Parallélisme, borné par TOUS les postes du quota :
+aux défauts (`--cpu 2`, `--req-cpu 1`, `--mem 4Gi`), 8 Jobs (requests.cpu 8) ; dès `--mem 8Gi`, limits.memory 40 Gi lie
+— 5 Jobs à 8 Gi, 2 à 16 ou 20 Gi, UN seul à 24-32 Gi (sérialisation voulue par ELYSIUM) ; au-delà de `--cpu 2`,
+limits.cpu 16 lie ; count/jobs.batch 100 compte aussi les Jobs terminés pendant leur TTL de 24 h ; un build Kaniko
+consomme le même quota. Un pod qui dépasse À LUI SEUL un `hard` (ex. `--req-cpu 10 --cpu 10` sous requests.cpu 8) est REFUSÉ
+avant création : il ne serait jamais admis. Au-delà du quota LIBRE, la soumission refuse « quota plein » et ne laisse
+rien derrière elle. Une variable pour le runner passe par `--env CLE=VALEUR`
 (répétable), et SEULEMENT ainsi : le pod n'a que l'environnement de l'image, `local` un environnement système
 minimal ; les deux publient les variables déclarées dans le MANIFEST.
 
@@ -129,30 +133,62 @@ minimal ; les deux publient les variables déclarées dans le MANIFEST.
 10. **Refus d'admission muets, rendus bruyants.** Un pod refusé par Kyverno laisse un Job `0/1` sans pod et
    sans événement (ELYSIUM image-ci README, Iron Rule 5) : `remote.py` exige un pod dans les 30 s (quota
    plein compris), RETIRE alors le Job (sinon il démarrerait plus tard sans sources), et refuse AVANT
-   soumission des ressources que la LimitRange rejetterait. L'image est gardée sur le CONTEXTE complet du
-   sha (Dockerfile, contraintes, requirements, gabarit de build) ; un sha qui ne porte pas encore
-   `deploy/nexus/runner/` n'est comparé que sur requirements.txt, et la soumission le dit.
+   soumission des ressources que le `max` de la LimitRange rejetterait ou qu'aucun quota vide n'admettrait (plafonds
+   et `hard` LUS sur le cluster, jamais supposés). L'image est gardée sur le CONTEXTE complet du
+   sha (Dockerfile, contraintes, requirements, gabarit de build, script d'empreinte) ; un sha qui ne porte pas TOUS
+   ces fichiers n'est comparé que sur requirements.txt, et la soumission le dit. ⚠️ Le tag hache les OCTETS
+   bruts de ces cinq fichiers : toute retouche, COMMENTAIRE COMPRIS, change le tag, et la garde refuse ensuite toute
+   soumission à un sha ultérieur jusqu'à une reconstruction. Un commentaire à corriger dans l'un d'eux attend donc la
+   prochaine reconstruction PLANIFIÉE de l'image.
 
-## État mesuré (2026-09-26)
+## État mesuré (chaque puce porte sa date)
 
-* Namespace appliqué par robla (`kubectl apply -f deploy/nexus/`, avant que les manifestes deviennent des gabarits ;
-  leur rendu depuis la configuration est identique à l'état du cluster : `kubectl diff` vide) ; image construite par
+* 2026-09-26 : namespace appliqué par robla (`kubectl apply -f deploy/nexus/`, avant que les manifestes deviennent des
+  gabarits ; leur rendu depuis la configuration était alors identique à l'état du cluster : `kubectl diff` vide) ; image construite par
   `python -m tools.jobs.remote image --sha 019dc34b` : Kaniko en 80 s sur nexus, sans OOM, tag
   `py3.13.12-39fe2c9bda57`, digest dans `deploy/nexus/runner/IMAGE.json`.
-* Premier run déporté : `evo011_preflight --smoke` au sha da09f7a1, 64 s de bout en bout (préparation du dépôt au
+* 2026-09-26 : premier run déporté, `evo011_preflight --smoke` au sha da09f7a1, 64 s de bout en bout (préparation du dépôt au
   sha, 19,6 Mo envoyés, tirage d'image, run, rapatriement vérifié). Dans le pod : `cpu.max` = 2 CPU lus au cgroup,
   `os.cpu_count()` = 16 (l'hôte), threads posés à 2.
-* Image reconstruite après la sortie de l'adresse du dépôt (7481e15e) : digest DIFFÉRENT de la première pour un
+* 2026-09-26 : image reconstruite après la sortie de l'adresse du dépôt (7481e15e) : digest DIFFÉRENT de la première pour un
   contexte de build identique — une construction Kaniko n'est pas reproductible bit à bit ; un run se désigne par le
   DIGEST d'`IMAGE.json`, jamais par le tag. Témoin relancé sur cette image : identique (EDR-DEPORT-NEXUS-TEMOIN, tour 4).
-* La ConfigMap `registry-ca-bundle` du namespace est une COPIE de celle d'elysium-brain : si la CA mkcert du
+* 2026-09-26 : la ConfigMap `registry-ca-bundle` du namespace est une COPIE de celle d'elysium-brain : si la CA mkcert du
   registre tourne, la re-copier (sinon build et tirage échouent en TLS) — P2.127.
+* 2026-09-26, 19:16 UTC : palier ml-heavy APPLIQUÉ par robla (`python -m tools.jobs.remote namespace --appliquer`,
+  après `kubectl diff` et un dry-run serveur) ; `elysium-limitrange-standard` supprimée dans le même geste ; une seule
+  LimitRange dans le namespace, quota 24 / 40 Gi, `kubectl diff` vide ensuite.
+* 2026-09-28 : gabarits de P2.127 (labels de propriété AGAGI sur les cinq objets, annotation derived-from, DNS restreint
+  à kube-dns) écrits dans le dépôt et NON appliqués : `kubectl diff` non vide jusqu'au prochain `namespace --appliquer`
+  par robla.
+* 2026-09-28 (P2.134, `results/deport_p2134_reproductibilite.json`, heures lues au statut des Jobs, UTC) : un build
+  Kaniko devient REPRODUCTIBLE au bit avec le Dockerfile NETTOYÉ (journaux apt/dpkg et cache ldconfig retirés ; pip
+  `--no-compile` puis `.pyc` à empreinte de hash) ET `--reproducible` — 4 builds sur 4 au même digest, à deux paliers
+  (16 et 8 Gi) et 8 min 09 s d'écart. Ablation : `--reproducible` seul, Dockerfile publié → deux digests (couches apt et
+  pip) ; le nettoyage seul (2026-09-26) → même contenu, couches différentes. 8 Gi suffisent (2 sur 2) ; le pic réel
+  n'est PAS mesuré (échantillon toutes les 15 s = minorant). Non testé : un autre jour — git vient d'apt sans version
+  épinglée. Adoption décidée par Master 2 (message du 2026-09-28, consigné dans P2.134), APRÈS P4.18 (elle change le
+  contexte haché donc l'image) : le digest devient l'IDENTITÉ citée par un record, une empreinte de contenu publiée à
+  côté comme DIAGNOSTIC — ce qui RÉVISE la proposition validée le 2026-09-26, où l'empreinte valait équivalence.
+* 2026-09-28, après P4.18 : P2.134 ADOPTÉE dans le dépôt — Dockerfile nettoyé, `--reproducible` et `--cache=false`
+  dans le gabarit (le cache resservirait des couches d'un autre jour : c'est la RECETTE qui doit garantir le digest),
+  kaniko à 8 Gi pour 2 Gi, et une dernière étape qui écrit l'empreinte de contenu dans l'image
+  (`deploy/nexus/runner/empreinte_contenu.py` : zones `python` = /usr/local et `systeme`, chemins injectés par le
+  runtime du build exclus), IMPRIMÉE dans le journal du build et reportée par `remote.py` dans `IMAGE.json` (source
+  « journal du build <Job> » : deux images se comparent AVANT tout run) ; `remote_entry` la publie aussi dans chaque
+  MANIFEST (`image_empreinte`, `absente` hors image).
+  La nouvelle image, son digest et la vérification de sa reproductibilité par le chemin de PRODUCTION sont au commit
+  qui écrit `IMAGE.json`.
 
 ## Surveillance d'un run
 
 `python -m tools.jobs.remote surveiller` sonde le namespace en LECTURE SEULE (toutes les 60 s) et rend 3 à la première
-anomalie : Job échoué, conteneur OOMKilled, pod Pending depuis plus de 10 min ; 4 si le cluster est illisible ; 0 à
-l'échéance. Il ne relance, ne supprime ni ne modifie rien — la relance appartient à qui a scellé le run. Une EXCLUSION
+anomalie : Job échoué, conteneur OOMKilled, pod Pending depuis plus de 10 min ; 4 après 3 lectures ratées
+CONSÉCUTIVES (`--echecs-max`) ; 0 à l'échéance. Une lecture ratée isolée ne l'arrête pas — le 2026-09-26 à 20:25, un
+seul délai de connexion à l'API avait mis fin à la surveillance, le cluster répondait 40 s plus tard — mais elle est
+imprimée sur-le-champ et le total figure sur chaque ligne (« lectures ratées=N »). La ligne d'état publie aussi la
+mémoire du quota (`req.mem`, `lim.mem`) et `lim.cpu` : aux défauts, requests.cpu et limits.cpu lient à 8 Jobs ; dès
+`--mem 8Gi`, c'est limits.memory (40 Gi). Il ne relance, ne supprime ni ne modifie rien — la relance appartient à qui a scellé le run. Une EXCLUSION
 se DÉCLARE par motif de nom (`--ignorer=-p2134-` pour des builds d'essai) : ses anomalies ne réveillent personne mais
 restent COMPTÉES sur chaque ligne d'état (« anomalies ignorées=N ») — une exclusion commode non comptée serait un angle
 mort silencieux (E32). Contrôle positif réel, involontaire : le 2026-09-26 la sonde a attrapé les deux builds d'essai
@@ -174,6 +210,13 @@ commence par un tiret serait lu comme une option.
   253,3 s de mur, contre 87,0 s et 53,9 s à 2 threads — ×5,7 et ×4,7, pour des W appris identiques au bit.
 * Issues d'un Job (`attendre`, `lire_fin`) : OOMKilled, Evicted, préemption et perte du nœud sont DISTINCTES et marquées
   `relancable` ; la relance reste un geste déclaré de qui a scellé le run.
+* Le Job de BUILD (`remote.py image`) ne passe ni par les paliers ni par la réserve limite / 4 : ses ressources viennent
+  du gabarit HACHÉ `runner/build-job.yaml` (kaniko : requête 2 Gi pour une limite de 8 Gi, soit limite / 4, depuis
+  l'adoption de P2.134 ; 2 Gi pour 4 Gi avant). Un build échoué dit sa cause LUE dans ses statuts (OOMKilled
+  NOMMÉ, délai du Job, init de contexte). L'attente locale se lit dans le gabarit (son échéance + 120 s) : un build
+  encore actif au-delà est RETIRÉ, après lecture de sa cause et de ses logs, et c'est dit. À chaque (re)construction,
+  `IMAGE.json` publie les heures du build lues sur le Job, avec leur source, à côté de l'heure de la machine qui soumet
+  (l'IMAGE.json du 2026-09-26 n'en porte pas encore).
 
 ## Choisir le lieu : batcave ou nexus
 
@@ -190,7 +233,9 @@ Pourquoi — deux mesures, deux bibliothèques :
   (déclarés), mais DIFFÈRENT au dernier bit de ceux de la batcave — torch 2.6.0+cpu Linux contre 2.6.0+cu124 Windows,
   même version, autre build. Les 12 âges de survie et toute la dose sont identiques partout. Le chemin cumulé
   `dW_abs_sum` diffère selon le lieu ET selon le nombre de threads : une somme de réductions dépend de leur ordre.
-  Conséquence : P4.18, dont la règle exige la réplication au bit, tourne sur la batcave.
+  Conséquence : P4.18, dont la règle exige la réplication au bit, tourne sur la batcave. ⚠️ Évidence NON publiée dans
+  le dépôt : MANIFEST et génomes du témoin vivent hors suivi, dans le worktree de la session SCIENCE (dette inscrite au
+  backlog, classe E27) — le résultat est rapporté ici, pas rouvrable par un clone.
 
 Unité de coût de ce témoin — lire avec sa charge, publiée dans chaque MANIFEST :
 
@@ -216,13 +261,23 @@ pour décider d'un lieu par le coût.
 
 * Build Kaniko DANS `elysium-agagi` et non `elysium-brain` (Σ-IMAGE-CI-NAMESPACE-FIXED) : le mandat
   interdit de rien créer hors du namespace dédié. Dette si la norme se durcit (elysium-8d, 2026-09-26).
-* Criticité du namespace `standard` alors que les pods sont `disposable` : raison de DIMENSION (le palier
-  `disposable` plafonne à 1 CPU / 2 Gi), pas de criticité.
+* Criticité du namespace `standard` alors que les pods sont `disposable` : label gardé, comme le README ELYSIUM le
+  prescrit pour elysium-ml (qui porte en fait `vital` sur le cluster, relu le 2026-09-28), pour les politiques CNCE de
+  priorityClass. La DIMENSION ne vient pas de ce label : la LimitRange effective est ml-heavy, posée
+  hors de la boucle manuelle d'ELYSIUM, qui saute ce namespace par son NOM (cf. la clé `namespace`).
 * Le build tire le PyPI PUBLIC et non le miroir PyPI souverain d'ELYSIUM (en RFC1918, que la NetworkPolicy
   du build n'ouvre pas).
-* Posé par `kubectl apply` hors du GitOps ELYSIUM : chaque objet porte `elysium.io/managed-by: agagi` et
-  `elysium.io/source-repo` pour la carte de propriété (Σ-MANIFEST-MYCORHIZE, SIGIL-1762) ; verser les
+* Posé par `kubectl apply` hors du GitOps ELYSIUM : les gabarits portent les quatre labels de propriété de
+  `LABELS_PROPRIETE` (`elysium.io/managed-by`, `elysium.io/source-repo`, `elysium.io/owner`, `app.kubernetes.io/part-of`)
+  pour la carte de propriété (Σ-MANIFEST-MYCORHIZE, SIGIL-1762) — la copie de LimitRange comprise, qui ne se déclare
+  plus `elysium-core` et dit sa source par l'annotation `elysium.io/derived-from: SIGIL-1627` (P2.127, accord
+  d'elysium-91 et d'elysium-8d le 2026-09-28 : aucun lecteur ELYSIUM de ces labels sur une LimitRange ; posés sur le
+  cluster au prochain `namespace --appliquer`) ; verser les
   manifestes dans `gitops/` d'ELYSIUM (ou une Application ArgoCD) quand ce sera stable.
+* DNS restreint à kube-dns (P2.127, même accord) : bloc repris d'opa-ingress, UN élément `to:` qui porte
+  namespaceSelector ET podSelector. Validation après application : un pod de l'image runner SANS le label de build doit
+  résoudre `pypi.org` et `kubernetes.default` et ÉCHOUER à ouvrir `pypi.org:443` (contrôle négatif du default-deny) ;
+  AVEC le label de build, le 443 doit passer. CoreDNS n'a qu'une réplique : fragilité d'ELYSIUM, hors de notre portée.
 
 ## Coordination
 

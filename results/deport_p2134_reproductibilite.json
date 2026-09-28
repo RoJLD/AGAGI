@@ -1,0 +1,226 @@
+{
+ "schema": "agagi.p2134.reproductibilite.v1",
+ "date": "2026-09-28",
+ "horloge": "horodatages lus dans le statut des Jobs Kubernetes (UTC, suffixe Z) ; heure de Paris = UTC+2",
+ "depot_image": "<depot_image>-essais (tags p2134-*, jamais référencés ; IMAGE.json intouché)",
+ "sha_contexte": "d4793ec83a79df0164704cc93bb954141d3a0761",
+ "series": [
+  {
+   "variante": "r1",
+   "sha": "d4793ec83a79df0164704cc93bb954141d3a0761",
+   "dockerfile_sha256": "c81029d5705f8977f8987867b600c74e27f7b9032fb879ce3ac44211349ddcf6",
+   "mem_limite_gi": 16,
+   "pic_memoire_mi_echantillonne_15s": {
+    "agagi-build-p2134-r1-0-b8bc": 5800,
+    "agagi-build-p2134-r1-1-aac0": 5771,
+    "agagi-build-p2134-r1-0-b8bc:top_erreur": "Error from server (NotFound): pods \"agagi-build-p2134-r1-0-b8bc-q6lt2\" not found",
+    "agagi-build-p2134-r1-1-aac0:top_erreur": "Error from server (NotFound): pods \"agagi-build-p2134-r1-1-aac0-9xfgb\" not found"
+   },
+   "duree_s": 166,
+   "resultats": {
+    "agagi-build-p2134-r1-0-b8bc": {
+     "etat": "ok",
+     "tag": "p2134-r1-0-5966",
+     "digest": "sha256:cf08cef4dd2e4f2429a93d0104573640beb93ca15ecb03620ac04bb22ea468f3",
+     "horodatage_job": {
+      "cree_utc": "2026-09-28T12:46:41Z",
+      "debut_utc": "2026-09-28T12:46:41Z",
+      "fin_utc": "2026-09-28T12:48:52Z"
+     }
+    },
+    "agagi-build-p2134-r1-1-aac0": {
+     "etat": "ok",
+     "tag": "p2134-r1-1-c7f2",
+     "digest": "sha256:cf08cef4dd2e4f2429a93d0104573640beb93ca15ecb03620ac04bb22ea468f3",
+     "horodatage_job": {
+      "cree_utc": "2026-09-28T12:46:42Z",
+      "debut_utc": "2026-09-28T12:46:42Z",
+      "fin_utc": "2026-09-28T12:48:53Z"
+     }
+    }
+   },
+   "couches": {
+    "agagi-build-p2134-r1-0-b8bc": [
+     "sha256:62929eb4221e62f4d573949215297e45d209b609d991b60492efb6eb31d94792",
+     "sha256:c9064e5166b30d6eb0a3496abdd7b3748c0e7c185f3953c14456e6b5be93dc4c",
+     "sha256:19ca5d3fc539cadc6f404dd7a57e0b3f59b08987bd0eae3a961693035d854156",
+     "sha256:973f4d632ca42f7dd851a35ef131b70bfb107a0db8f791cc282f1a05274a17ba",
+     "sha256:8481a85bedf27563453e2a718b77d4b314d7a1a28d18fa111187f72d622f12e7",
+     "sha256:677c77eacd65d34fa911d3fb844318e7e227cc2a415c7f534a3c36fcd8bc04ce",
+     "sha256:ce4c599b3f0a754f9795fbf5c21b2545cb054045fe95460a3ab10e2f7ee02531",
+     "sha256:1c4d75732dc7a8a8f36b2ff04d8a27b76dc689f526c6185646293c75df369431"
+    ],
+    "agagi-build-p2134-r1-1-aac0": [
+     "sha256:62929eb4221e62f4d573949215297e45d209b609d991b60492efb6eb31d94792",
+     "sha256:c9064e5166b30d6eb0a3496abdd7b3748c0e7c185f3953c14456e6b5be93dc4c",
+     "sha256:19ca5d3fc539cadc6f404dd7a57e0b3f59b08987bd0eae3a961693035d854156",
+     "sha256:973f4d632ca42f7dd851a35ef131b70bfb107a0db8f791cc282f1a05274a17ba",
+     "sha256:8481a85bedf27563453e2a718b77d4b314d7a1a28d18fa111187f72d622f12e7",
+     "sha256:677c77eacd65d34fa911d3fb844318e7e227cc2a415c7f534a3c36fcd8bc04ce",
+     "sha256:ce4c599b3f0a754f9795fbf5c21b2545cb054045fe95460a3ab10e2f7ee02531",
+     "sha256:1c4d75732dc7a8a8f36b2ff04d8a27b76dc689f526c6185646293c75df369431"
+    ]
+   },
+   "role": "A : Dockerfile nettoyé + --reproducible, conteneur kaniko 16 Gi (requête 4 Gi)",
+   "digests_distincts": 1,
+   "couches_identiques_par_rang": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "pic_memoire_nature": "MINORANT : kubectl top échantillonné toutes les 15 s, le pic réel peut être manqué (une série montre 654 Mi pour un build dont le jumeau atteint 5 758 Mi)"
+  },
+  {
+   "variante": "r3",
+   "sha": "d4793ec83a79df0164704cc93bb954141d3a0761",
+   "dockerfile_sha256": "df28c04f2446733e52da2f3da7ec00e126e3a0533675a4fa4dec2d712687eb9e",
+   "mem_limite_gi": 16,
+   "pic_memoire_mi_echantillonne_15s": {
+    "agagi-build-p2134-r3-0-b0fc": 1434,
+    "agagi-build-p2134-r3-1-6d9a": 5769,
+    "agagi-build-p2134-r3-0-b0fc:top_erreur": "Error from server (NotFound): pods \"agagi-build-p2134-r3-0-b0fc-bwq97\" not found",
+    "agagi-build-p2134-r3-1-6d9a:top_erreur": "Error from server (NotFound): pods \"agagi-build-p2134-r3-1-6d9a-sdndj\" not found"
+   },
+   "duree_s": 138,
+   "resultats": {
+    "agagi-build-p2134-r3-0-b0fc": {
+     "etat": "ok",
+     "tag": "p2134-r3-0-a787",
+     "digest": "sha256:9f6e2d24eb28e80472a6abce4d6ea55ff6c2bae052ff955c3252e0f82b54f408",
+     "horodatage_job": {
+      "cree_utc": "2026-09-28T12:51:50Z",
+      "debut_utc": "2026-09-28T12:51:50Z",
+      "fin_utc": "2026-09-28T12:53:55Z"
+     }
+    },
+    "agagi-build-p2134-r3-1-6d9a": {
+     "etat": "ok",
+     "tag": "p2134-r3-1-26fa",
+     "digest": "sha256:5caa5ff0a46acdaa0972c238412888cf8d032df08f18086d0d48a44bec4b7c75",
+     "horodatage_job": {
+      "cree_utc": "2026-09-28T12:51:55Z",
+      "debut_utc": "2026-09-28T12:51:55Z",
+      "fin_utc": "2026-09-28T12:54:02Z"
+     }
+    }
+   },
+   "couches": {
+    "agagi-build-p2134-r3-0-b0fc": [
+     "sha256:62929eb4221e62f4d573949215297e45d209b609d991b60492efb6eb31d94792",
+     "sha256:c9064e5166b30d6eb0a3496abdd7b3748c0e7c185f3953c14456e6b5be93dc4c",
+     "sha256:19ca5d3fc539cadc6f404dd7a57e0b3f59b08987bd0eae3a961693035d854156",
+     "sha256:973f4d632ca42f7dd851a35ef131b70bfb107a0db8f791cc282f1a05274a17ba",
+     "sha256:a3035adecc9828a7e905e4042a662f40f1fa170d998b9ec923d3801d338507b7",
+     "sha256:677c77eacd65d34fa911d3fb844318e7e227cc2a415c7f534a3c36fcd8bc04ce",
+     "sha256:163aa7378ac42bdf8ec0516416eab91bdacaee4425e242b29dd2d045010a3e8e",
+     "sha256:1c4d75732dc7a8a8f36b2ff04d8a27b76dc689f526c6185646293c75df369431"
+    ],
+    "agagi-build-p2134-r3-1-6d9a": [
+     "sha256:62929eb4221e62f4d573949215297e45d209b609d991b60492efb6eb31d94792",
+     "sha256:c9064e5166b30d6eb0a3496abdd7b3748c0e7c185f3953c14456e6b5be93dc4c",
+     "sha256:19ca5d3fc539cadc6f404dd7a57e0b3f59b08987bd0eae3a961693035d854156",
+     "sha256:973f4d632ca42f7dd851a35ef131b70bfb107a0db8f791cc282f1a05274a17ba",
+     "sha256:2c2d4acc373df7d3080a480c99f34bee1a0a6405910891ec5888f131c83640cd",
+     "sha256:677c77eacd65d34fa911d3fb844318e7e227cc2a415c7f534a3c36fcd8bc04ce",
+     "sha256:ea8267bfaa44a010988946c948c2e9998ac28b2aedc2fed3a41de1e33f54b44c",
+     "sha256:1c4d75732dc7a8a8f36b2ff04d8a27b76dc689f526c6185646293c75df369431"
+    ]
+   },
+   "role": "C : ABLATION — Dockerfile PUBLIÉ + --reproducible seul, 16 Gi",
+   "digests_distincts": 2,
+   "couches_identiques_par_rang": [
+    true,
+    true,
+    true,
+    true,
+    false,
+    true,
+    false,
+    true
+   ],
+   "pic_memoire_nature": "MINORANT : kubectl top échantillonné toutes les 15 s, le pic réel peut être manqué (une série montre 654 Mi pour un build dont le jumeau atteint 5 758 Mi)"
+  },
+  {
+   "variante": "r1",
+   "sha": "d4793ec83a79df0164704cc93bb954141d3a0761",
+   "dockerfile_sha256": "c81029d5705f8977f8987867b600c74e27f7b9032fb879ce3ac44211349ddcf6",
+   "mem_limite_gi": 8,
+   "pic_memoire_mi_echantillonne_15s": {
+    "agagi-build-p2134-r1-0-1958": 5758,
+    "agagi-build-p2134-r1-1-4d90": 654,
+    "agagi-build-p2134-r1-1-4d90:top_erreur": "Error from server (NotFound): pods \"agagi-build-p2134-r1-1-4d90-5nkmw\" not found",
+    "agagi-build-p2134-r1-0-1958:top_erreur": "Error from server (NotFound): pods \"agagi-build-p2134-r1-0-1958-bzjgj\" not found"
+   },
+   "duree_s": 136,
+   "resultats": {
+    "agagi-build-p2134-r1-1-4d90": {
+     "etat": "ok",
+     "tag": "p2134-r1-1-02ee",
+     "digest": "sha256:cf08cef4dd2e4f2429a93d0104573640beb93ca15ecb03620ac04bb22ea468f3",
+     "horodatage_job": {
+      "cree_utc": "2026-09-28T12:54:53Z",
+      "debut_utc": "2026-09-28T12:54:53Z",
+      "fin_utc": "2026-09-28T12:56:46Z"
+     }
+    },
+    "agagi-build-p2134-r1-0-1958": {
+     "etat": "ok",
+     "tag": "p2134-r1-0-bfe1",
+     "digest": "sha256:cf08cef4dd2e4f2429a93d0104573640beb93ca15ecb03620ac04bb22ea468f3",
+     "horodatage_job": {
+      "cree_utc": "2026-09-28T12:54:50Z",
+      "debut_utc": "2026-09-28T12:54:50Z",
+      "fin_utc": "2026-09-28T12:56:43Z"
+     }
+    }
+   },
+   "couches": {
+    "agagi-build-p2134-r1-1-4d90": [
+     "sha256:62929eb4221e62f4d573949215297e45d209b609d991b60492efb6eb31d94792",
+     "sha256:c9064e5166b30d6eb0a3496abdd7b3748c0e7c185f3953c14456e6b5be93dc4c",
+     "sha256:19ca5d3fc539cadc6f404dd7a57e0b3f59b08987bd0eae3a961693035d854156",
+     "sha256:973f4d632ca42f7dd851a35ef131b70bfb107a0db8f791cc282f1a05274a17ba",
+     "sha256:8481a85bedf27563453e2a718b77d4b314d7a1a28d18fa111187f72d622f12e7",
+     "sha256:677c77eacd65d34fa911d3fb844318e7e227cc2a415c7f534a3c36fcd8bc04ce",
+     "sha256:ce4c599b3f0a754f9795fbf5c21b2545cb054045fe95460a3ab10e2f7ee02531",
+     "sha256:1c4d75732dc7a8a8f36b2ff04d8a27b76dc689f526c6185646293c75df369431"
+    ],
+    "agagi-build-p2134-r1-0-1958": [
+     "sha256:62929eb4221e62f4d573949215297e45d209b609d991b60492efb6eb31d94792",
+     "sha256:c9064e5166b30d6eb0a3496abdd7b3748c0e7c185f3953c14456e6b5be93dc4c",
+     "sha256:19ca5d3fc539cadc6f404dd7a57e0b3f59b08987bd0eae3a961693035d854156",
+     "sha256:973f4d632ca42f7dd851a35ef131b70bfb107a0db8f791cc282f1a05274a17ba",
+     "sha256:8481a85bedf27563453e2a718b77d4b314d7a1a28d18fa111187f72d622f12e7",
+     "sha256:677c77eacd65d34fa911d3fb844318e7e227cc2a415c7f534a3c36fcd8bc04ce",
+     "sha256:ce4c599b3f0a754f9795fbf5c21b2545cb054045fe95460a3ab10e2f7ee02531",
+     "sha256:1c4d75732dc7a8a8f36b2ff04d8a27b76dc689f526c6185646293c75df369431"
+    ]
+   },
+   "role": "B : recette A au palier 8 Gi (requête 2 Gi)",
+   "digests_distincts": 1,
+   "couches_identiques_par_rang": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+   ],
+   "pic_memoire_nature": "MINORANT : kubectl top échantillonné toutes les 15 s, le pic réel peut être manqué (une série montre 654 Mi pour un build dont le jumeau atteint 5 758 Mi)"
+  }
+ ],
+ "lecture": {
+  "nettoyage_et_reproducible": "4 builds / 4 au même digest (A et B), 8 couches / 8, deux paliers, 8 min 09 s d'écart au lancement",
+  "reproducible_seul": "2 digests pour 2 builds (C) : couches d'indice 4 et 6 (base 0 ; 0-3 = image de base) différentes : 4 = RUN apt (journaux, cache ldconfig), 6 = RUN pip (.pyc datés) ; 5 (COPY) et 7 (WORKDIR) identiques",
+  "nettoyage_seul": "mesuré le 2026-09-26 (backlog P2.134) : contenu identique, couches différentes (dates posées par Kaniko)",
+  "memoire": "8 Gi suffit (2/2 sans OOM) ; 4 Gi tuait --reproducible (2026-09-26) ; pic réel NON mesuré",
+  "non_teste": "un autre jour : git vient d'apt sans version épinglée, une mise à jour Debian changerait la couche apt"
+ }
+}

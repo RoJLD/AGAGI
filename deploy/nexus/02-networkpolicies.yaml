@@ -1,8 +1,15 @@
 # deploy/nexus/02-networkpolicies.yaml — CNCE-7 : default-deny + UNE exception, pour le build d'image.
 #
 # Les pods de RUN n'ont besoin d'AUCUN réseau : les sources arrivent par `kubectl exec` (canal API server →
-# kubelet, hors réseau de pods), et le montage NFS d'atlas est fait par le kubelet sur le réseau de l'HÔTE —
-# une NetworkPolicy ne le voit pas. Un run ne peut donc ni télécharger ni exfiltrer quoi que ce soit.
+# kubelet, hors réseau de pods) et les sorties repartent par ce même canal ; aucun pod de run ne monte de volume
+# réseau (NFS d'atlas retiré, P2.126). Un run ne peut donc ni télécharger ni exfiltrer par connexion directe ; reste
+# le seul canal DNS relayé par CoreDNS (résolution de noms externes) — un tunnel DNS n'est pas exclu par construction.
+#
+# DNS restreint à kube-dns (P2.127, accord d'elysium-91 et d'elysium-8d, 2026-09-28) : bloc repris d'opa-ingress
+# (ELYSIUM gitops/charts/policy-engine-opa/templates/networkpolicy.yaml) — UN SEUL élément `to:` qui porte
+# namespaceSelector ET podSelector (un ET ; deux éléments feraient un OU). Mesuré par elysium-91 : CoreDNS = 1 pod
+# k8s-app=kube-dns dans kube-system, Service kube-dns (ClusterIP) → port 53 du pod (la politique voit le port APRÈS DNAT),
+# pods en dnsPolicy=ClusterFirst, pas de NodeLocal DNS. Fragilité hors de notre portée : CoreDNS n'a qu'une réplique.
 #
 # Seul le build Kaniko sort : PyPI / download.pytorch.org / Docker Hub / deb.debian.org en 443, et le registre
 # souverain (adresse et port rendus depuis la configuration) pour pousser. Ciblé par le label app.kubernetes.io/component=image-build.
@@ -16,6 +23,7 @@ metadata:
   labels:
     elysium.io/managed-by: agagi
     elysium.io/source-repo: RoJLD.AGAGI
+    elysium.io/owner: agagi
     app.kubernetes.io/part-of: agagi
     elysium.io/iron_rule: CNCE-7
 spec:
@@ -24,12 +32,19 @@ spec:
     - Ingress
     - Egress
   egress:
-    # DNS seul, comme le default-deny-all d'elysium-workers (gitops/security/network-policies/)
-    - ports:
-        - port: 53
-          protocol: UDP
-        - port: 53
-          protocol: TCP
+    # DNS seul, vers kube-dns seulement
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -39,6 +54,7 @@ metadata:
   labels:
     elysium.io/managed-by: agagi
     elysium.io/source-repo: RoJLD.AGAGI
+    elysium.io/owner: agagi
     app.kubernetes.io/part-of: agagi
     elysium.io/iron_rule: CNCE-7
 spec:

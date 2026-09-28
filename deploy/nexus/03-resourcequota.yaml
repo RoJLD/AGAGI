@@ -1,17 +1,19 @@
 # deploy/nexus/03-resourcequota.yaml — plafond d'AGAGI sur le cluster, pour qu'un balayage de seeds ne
 # puisse pas affamer ELYSIUM.
 #
-# Mesuré le 2026-09-26 12:30 (kubectl describe node nexus) : 15 CPU / 64,6 Gi allouables, requests
+# Mesuré le 2026-09-26 12:30 (kubectl describe node nexus) : 15 CPU / 61,66 Gi allouables (64 653 792 Ki, relu le
+# 2026-09-28 ; « 64,6 Gi » écrit ici d'abord lisait les chiffres des Ki), requests
 # 3375m CPU / 6752 Mi déjà pris (dont nexus-ollama). 8 CPU de requests pour AGAGI laissent ~3,6 CPU de
 # requests libres à ELYSIUM sur nexus. Aucun namespace du cluster ne porte de ResourceQuota aujourd'hui :
 # celle-ci est un geste de voisinage, pas une norme — les sessions ELYSIUM peuvent en ajuster les valeurs.
 # Mémoire fixée par ELYSIUM le 2026-09-26, robla d'accord : requests 24 Gi, limits 40 Gi — un Job à 32 Gi (+ un
-# petit build), JAMAIS deux gros simultanés : sérialisation voulue. 40 Gi AGAGI + 24 Gi de nexus-ollama = 64 Gi,
-# déjà au ras du nœud (elysium-8d) ; elysium-91, qui proposait 48 Gi, s'est aligné sur 40 (2026-09-26). Pire cas
-# mesuré par elysium-91 : nexus-ollama est ÉPINGLÉ sur nexus (limite 24 Gi, vide au moment de la mesure) → ~28 Gi
-# ELYSIUM + 40 Gi AGAGI = 68 Gi pour 61,6 Gi allouables ; le dépassement n'arrive que si les deux gonflent
-# ensemble, et nos pods BURSTABLE à requête basse partent en premier — accepté. Mesures d'ELYSIUM : requests
-# engagées 7,0 Gi, usage réel 5,3 Gi.
+# petit build), JAMAIS deux gros simultanés : sérialisation voulue. 40 Gi AGAGI + 24 Gi de nexus-ollama = 64 Gi de
+# LIMITES, au-delà des 61,66 Gi allouables (surengagement ~2,3 Gi : 64 − 61,66) : les limites ne réservent rien, le garde-fou est
+# dans les REQUESTS (24 Gi AGAGI + ~7 Gi ELYSIUM, loin de l'allouable). Accord final à trois le 2026-09-26 (elysium-8d,
+# elysium-91, INFRA-NEXUS) après un croisement 40/48 ; re-confirmé par elysium-8d le 2026-09-28. Pire cas mesuré par
+# elysium-91 : nexus-ollama ÉPINGLÉ sur nexus (limite 24 Gi) → ~28 Gi ELYSIUM + 40 Gi AGAGI = 68 Gi pour 61,66 Gi ; le
+# dépassement n'arrive que si les deux gonflent ensemble, et nos pods BURSTABLE à requête basse partent en premier —
+# accepté. Mesures d'ELYSIUM : requests engagées 7,0 Gi, usage réel 5,3 Gi.
 apiVersion: v1
 kind: ResourceQuota
 metadata:
@@ -20,6 +22,7 @@ metadata:
   labels:
     elysium.io/managed-by: agagi
     elysium.io/source-repo: RoJLD.AGAGI
+    elysium.io/owner: agagi
     app.kubernetes.io/part-of: agagi
 spec:
   hard:

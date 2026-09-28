@@ -408,12 +408,21 @@ def test_labels_de_propriete_elysium():
         assert meta["labels"]["elysium.io/source-repo"]
 
 
-@pytest.mark.parametrize("kw", [dict(cpu=3.0), dict(mem="8Gi"), dict(mem="3Gi"), dict(mem="12Gi", max_mem_gi=32),
-                                dict(req_cpu=2.0, cpu=1.0),
+# Plafonds EXPLICITES (balayage du 2026-09-28) : les défauts MAX_CPU / MAX_MEM_GI ne sont qu'un repli, l'ancien palier
+# standard ; « hors LimitRange » se juge contre le plafond DONNÉ — standard reposée (2 / 4) ou ml-heavy (12 / 32).
+@pytest.mark.parametrize("kw", [dict(cpu=3.0, max_cpu=2.0), dict(mem="8Gi", max_mem_gi=4), dict(mem="3Gi"),
+                                dict(mem="12Gi", max_mem_gi=32), dict(cpu=13.0, max_cpu=12.0, max_mem_gi=32),
+                                dict(mem="32Gi", max_mem_gi=16), dict(req_cpu=2.0, cpu=1.0),
                                 dict(req_mem="2Gi", mem="1Gi"), dict(mem="4G"), dict(cpu=0.0, req_cpu=0.0)])
 def test_ressources_hors_limitrange_refusees_avant_soumission(kw):
     with pytest.raises(R.Refus):
         _job(**kw)
+
+
+def test_sous_ml_heavy_ce_que_standard_refusait_est_ADMIS():
+    """Contrôle positif du précédent : les mêmes demandes (3 CPU, 8 Gi) passent sous le plafond ml-heavy LU."""
+    res = _job(cpu=3.0, mem="8Gi", max_cpu=12.0, max_mem_gi=32)["spec"]["template"]["spec"]["containers"][0]["resources"]
+    assert res["limits"] == {"cpu": "3.0", "memory": "8Gi"} and res["requests"]["memory"] == "2048Mi"
 
 
 def test_nom_de_job_dns_1123():
@@ -494,6 +503,119 @@ def test_fenetre_de_nexus_minuit_dur():
     assert R.fenetre_restante_s(FEN, _paris(23, 50)) == 0
     assert R.fenetre_restante_s(None, _paris(3, 0)) == float("inf")      # toujours allumé : DÉCLARÉ (null)
     assert R.fenetre_restante_s(dict(FEN, debut_h=9, fin_h=17), _paris(17, 30)) == 0
+
+
+STD = [{"type": "Container", "max": {"cpu": "2", "memory": "4Gi"}}]
+MLH = [{"type": "Container", "max": {"cpu": "12", "memory": "32Gi"}}]
+QUOTA = {"requests.cpu": "8", "limits.cpu": "16", "requests.memory": "24Gi", "limits.memory": "40Gi", "pods": "16"}
+
+
+class KubeCluster:
+    """Nœud prêt ; LimitRange et ResourceQuota LUES ; `creer` enregistre puis lève pour ARRÊTER la soumission (rien
+    ne part au-delà de la création : ni pod, ni transfert)."""
+    def __init__(self, limitranges, quota=None):
+        self.limitranges, self.quota, self.appels = limitranges, quota, []
+
+    def json(self, args, ns=True):
+        self.appels.append(("json", tuple(args)))
+        if args[:2] == ["get", "node"]:
+            return _noeud()
+        if args == ["get", "limitrange"]:
+            return {"items": [{"spec": {"limits": l}} for l in self.limitranges]}
+        if args == ["get", "resourcequota"]:
+            return {"items": [{"spec": {"hard": self.quota}}] if self.quota else []}
+        raise AssertionError(f"appel inattendu {args}")
+
+    def creer(self, objet):
+        self.appels.append(("creer", objet["metadata"]["name"]))
+        raise R.Refus("ARRET-DU-TEMOIN")
+
+
+def _image_coherente(repo, sha):
+    (repo / "deploy" / "nexus" / "runner").mkdir(parents=True, exist_ok=True)
+    req = hashlib.sha256(R.fichier_au_sha(sha, "requirements.txt", repo)).hexdigest()
+    (repo / R.IMAGE_JSON).write_text(json.dumps({"image": "r", "tag": "t", "digest": "sha256:" + "0" * 64,
+                                                 "requirements_sha256": req}))
+
+
+def test_soumission_juge_contre_plafonds_et_quota_LUS_avant_toute_creation(depot):
+    """Le câblage LIT → JUGE de soumettre n'avait AUCUN témoin (balayage du 2026-09-28) : tous les tests de soumettre
+    refusaient avant la lecture des LimitRange. Quatre issues : standard reposée à côté de ml-heavy (namespace renommé,
+    hors ML_HEAVY_NS d'ELYSIUM) → 8 Gi refusé avant création ; ml-heavy seule → création atteinte ; --req-cpu 10 sous
+    requests.cpu = 8 → jamais admissible, refusé avant création ; aucun quota → rien à juger, création atteinte."""
+    repo, sha = depot
+    _image_coherente(repo, sha)
+
+    def soum(kube, **kw):
+        return R.soumettre(["-m", "pkg.runner"], sha=sha, kube=kube, racine=repo, sortie=lambda *_: None,
+                           maintenant=_paris(10, 0), **kw)
+
+    def crees(k):
+        return [a for a in k.appels if a[0] == "creer"]
+
+    k = KubeCluster([STD, MLH], QUOTA)
+    with pytest.raises(R.Refus, match="max de la LimitRange"):
+        soum(k, mem="8Gi")
+    assert not crees(k)
+    assert ("json", ("get", "resourcequota")) not in k.appels        # refusé AVANT la lecture du quota (revue)
+    k = KubeCluster([MLH], QUOTA)
+    with pytest.raises(R.Refus, match="ARRET-DU-TEMOIN"):
+        soum(k, mem="8Gi")
+    assert len(crees(k)) == 1
+    k = KubeCluster([MLH], QUOTA)
+    with pytest.raises(R.Refus, match="JAMAIS admis"):
+        soum(k, req_cpu=10.0, cpu=10.0)
+    assert not crees(k)
+    k = KubeCluster([MLH], None)
+    with pytest.raises(R.Refus, match="ARRET-DU-TEMOIN"):
+        soum(k, req_cpu=10.0, cpu=10.0)
+    assert len(crees(k)) == 1
+
+
+def test_valider_quota_deux_issues_et_absence_de_quota_DITE():
+    hard = {k: [v] for k, v in QUOTA.items()}
+    R.valider_quota(hard, req_cpu=1.0, cpu=2.0, req_mem="1024Mi", mem="4Gi")                 # admis
+    with pytest.raises(R.Refus, match="limits.memory"):
+        R.valider_quota({"limits.memory": ["16Gi"]}, req_cpu=1.0, cpu=2.0, req_mem="8Gi", mem="32Gi")
+    with pytest.raises(R.Refus, match="requests.cpu"):
+        R.valider_quota({"requests.cpu": ["8000m"]}, req_cpu=9.0, cpu=9.0, req_mem="1Gi", mem="4Gi")
+    with pytest.raises(R.Refus, match="requests.cpu"):                                         # DEUX quotas : tous jugés
+        R.valider_quota({"requests.cpu": ["16", "8"]}, req_cpu=9.0, cpu=9.0, req_mem="1Gi", mem="4Gi")
+    R.valider_quota(None, req_cpu=99.0, cpu=99.0, req_mem="1Gi", mem="4Gi")                  # aucun quota : rien à juger
+    assert R.quota_du_namespace(KubeCluster([], None)) is None
+    assert R.quota_du_namespace(KubeCluster([], QUOTA))["requests.cpu"] == ["8"]
+
+
+def test_valider_quota_lit_TOUTES_les_formes_de_quantite_et_le_pod_EFFECTIF():
+    """Revue du 2026-09-28. (a) Une quantité LUE sur le cluster peut être « 48G », des Ki ou des octets : lue juste,
+    et une forme illisible fait refuser en NOMMANT le quota (jamais « votre --mem »). (b) Le quota compte le pod
+    EFFECTIF, max(init, conteneur) : un run minuscule (0,01 CPU) pèse les 50m de l'init `recevoir`."""
+    assert abs(R.quantite_memoire_lue_en_gi("48G") - 48e9 / 2 ** 30) < 1e-9
+    assert R.quantite_memoire_lue_en_gi("41943040Ki") == 40.0 and R.quantite_memoire_lue_en_gi(str(2 ** 30)) == 1.0
+    R.valider_quota({"limits.memory": ["48G"]}, req_cpu=1.0, cpu=2.0, req_mem="8Gi", mem="32Gi")     # 32 <= 44,7
+    with pytest.raises(R.Refus, match="limits.memory"):
+        R.valider_quota({"limits.memory": ["30G"]}, req_cpu=1.0, cpu=2.0, req_mem="8Gi", mem="32Gi")  # 32 > 27,9
+    with pytest.raises(R.Refus, match="illisible"):
+        R.valider_quota({"limits.memory": ["beaucoup"]}, req_cpu=1.0, cpu=2.0, req_mem="1Gi", mem="4Gi")
+    with pytest.raises(R.Refus, match="requests.cpu"):
+        R.valider_quota({"requests.cpu": ["40m"]}, req_cpu=0.01, cpu=0.1, req_mem="1Gi", mem="4Gi")
+
+
+def test_un_quota_A_PORTEE_n_est_pas_juge_et_c_est_publie():
+    class K:
+        def json(self, args, ns=True):
+            return {"items": [{"metadata": {"name": "vital-seul"},
+                               "spec": {"hard": {"requests.cpu": "2"}, "scopeSelector": {"matchExpressions": []}}},
+                              {"metadata": {"name": "agagi-quota"}, "spec": {"hard": {"requests.cpu": "8"}}}]}
+    hard = R.quota_du_namespace(K())
+    assert hard["requests.cpu"] == ["8"] and hard["_quotas_a_portee_non_juges"] == ["vital-seul"]
+    R.valider_quota(hard, req_cpu=3.0, cpu=3.0, req_mem="1Gi", mem="4Gi")          # le quota à portée ne juge rien
+
+
+def test_allumage_d_un_build_ne_propose_pas_local():
+    cfg = R.charger_config()
+    assert "local" in R.allumage(cfg) and "local" not in R.allumage(cfg, local=False)
+    assert "geste-de-test" in R.allumage(cfg, local=False)
 
 
 def test_soumission_refusee_si_le_run_deborde_minuit_RIEN_n_est_cree(depot):
@@ -608,8 +730,9 @@ def test_garde_d_image_compare_le_CONTEXTE_quand_le_sha_le_porte(depot):
     repo, sha = depot
     d = repo / "deploy" / "nexus" / "runner"
     d.mkdir(parents=True)
-    for n in ("Dockerfile", "constraints.txt", "build-job.yaml"):
-        (d / n).write_text(f"{n}\n", encoding="utf-8")
+    for c in R.FICHIERS_CONTEXTE.values():
+        if c.startswith(R.RUNNER_DIR):
+            (repo / c).write_text(f"{c}\n", encoding="utf-8")
     _git(repo, "add", "-A")
     _git(repo, "commit", "-q", "-m", "ctx")
     sha2 = _git(repo, "rev-parse", "HEAD")
@@ -725,7 +848,8 @@ def test_aucune_adresse_privee_ecrite_en_dur_dans_le_deport():
     assert motif.search("registre 10.1.2.3:5000") and motif.search("hote 172.20.0.9")   # contrôle positif du motif
     racine = R.racine_depot()
     fichiers = [racine / "tools" / "jobs" / "remote.py", racine / "tools" / "jobs" / "remote_entry.py",
-                racine / "deploy" / "deport.example.json"] + sorted((racine / "deploy" / "nexus").rglob("*.*"))
+                racine / "deploy" / "deport.example.json"] + sorted(
+        f for f in (racine / "deploy" / "nexus").rglob("*.*") if "__pycache__" not in f.parts and f.suffix != ".pyc")
     fautes = [(str(f.relative_to(racine)), m.group(0)) for f in fichiers
               for m in motif.finditer(f.read_text(encoding="utf-8")) if m.group(0) not in generiques]
     assert fautes == []
@@ -759,6 +883,41 @@ def test_surveillance_deux_issues_et_exclusion_COMPTEE():
     ign = R.lire_anomalies({"items": [_j("agagi-build-p2134-r1-0", "Failed")]},
                            {"items": [_p("agagi-build-p2134-r1-0-x", oom=True)]}, t, ignorer=("-p2134-",))
     assert ign["anomalies"] == [] and len(ign["ignorees"]) == 2 and "motif déclaré" in ign["ignorees"][0]
+
+
+class KubeScenario:
+    """Une lecture par cycle : 'ok', 'echec' (Refus, comme un délai de connexion à l'API) ou 'anomalie'."""
+    def __init__(self, scenario):
+        self.scenario, self.courant = list(scenario), None
+
+    def json(self, args, ns=True):
+        if args == ["get", "jobs"]:
+            if not self.scenario:
+                raise AssertionError("scénario épuisé : la sonde aurait dû s'arrêter")
+            self.courant = self.scenario.pop(0)
+            if self.courant == "echec":
+                raise R.Refus("kubectl get jobs -o : Unable to connect to the server: dial tcp :6443")
+            return {"items": [_j("run-x", "Failed")] if self.courant == "anomalie" else []}
+        if args == ["get", "pods"]:
+            return {"items": []}
+        return {"items": [{"status": {"used": {"pods": "0"}}}]}
+
+
+def test_surveillance_un_accroc_reseau_ne_l_arrete_pas_mais_se_compte():
+    """Mesuré le 2026-09-26 à 20:25:17 : UN délai de connexion à l'API a fait sortir la sonde en 4, le cluster
+    répondait 40 s plus tard. Des ratés NON consécutifs ne l'arrêtent jamais ; `echecs_max` consécutifs, si. Chaque
+    raté est imprimé sur-le-champ et leur total figure sur la ligne d'état : l'aveuglement n'est jamais muet."""
+    dits = []
+    k = KubeScenario(["echec", "echec", "ok", "echec", "echec", "ok", "anomalie"])
+    assert R.surveiller(kube=k, sortie=dits.append, dormir=lambda _: None, echecs_max=3) == 3
+    assert sum("lecture ratée" in m for m in dits) == 4 and not k.scenario
+    assert any("lectures ratées=2" in m for m in dits) and any("lectures ratées=4" in m for m in dits)
+    dits.clear()
+    k = KubeScenario(["ok", "echec", "echec", "echec", "ok"])
+    assert R.surveiller(kube=k, sortie=dits.append, dormir=lambda _: None, echecs_max=3) == 4
+    assert k.scenario == ["ok"] and "3 fois de suite" in dits[-1]
+    k = KubeScenario(["echec"])
+    assert R.surveiller(kube=k, sortie=lambda *_: None, dormir=lambda _: None, echecs_max=1) == 4
 
 
 # ------------------------------------------------------------------------------------------ paliers de mémoire
@@ -825,3 +984,305 @@ def test_manifestes_ml_heavy_et_retrait_de_la_limitrange_standard():
     assert "elysium.io/limitrange-tier: ml-heavy" in rendu
     assert "requests.memory: 24Gi" in rendu and "limits.memory: 40Gi" in rendu
     assert ("limitrange", "elysium-limitrange-standard") in R.OBJETS_RETIRES
+
+
+def test_P2_127_propriete_AGAGI_et_DNS_vers_kube_dns_SEUL():
+    """P2.127, accord d'elysium-91 et d'elysium-8d (2026-09-28). (1) La copie de LimitRange porte la propriété
+    d'AGAGI (aucun lecteur ELYSIUM de part-of / sigil sur une LimitRange) et dit sa source en annotation ; le label
+    owner est sur les CINQ objets. (2) Le DNS ne sort que vers kube-dns : UN élément `to:` qui porte namespaceSelector
+    ET podSelector — la forme « deux éléments » (un OU, qui ouvrirait le 53 vers tout kube-system ET tout pod
+    kube-dns de n'importe quel namespace) est refusée par le second assert."""
+    rendu = R.rendre_manifestes(R.charger_config(), R.racine_depot())
+    # le YAML, pas la prose : un commentaire qui NOMME ce qu'il ne faut plus être ne fait pas tomber le témoin (revue)
+    utile = "\n".join(l for l in rendu.splitlines() if not l.lstrip().startswith("#"))
+    assert "elysium-core" not in utile and "elysium.io/sigil" not in utile
+    assert 'elysium.io/derived-from: "SIGIL-1627' in utile
+    assert utile.count("elysium.io/owner: agagi") == 5
+    bloc = utile.split("name: default-deny-all")[1].split("\n---")[0]
+    assert "k8s-app: kube-dns" in bloc and "kubernetes.io/metadata.name: kube-system" in bloc
+    assert "- namespaceSelector:" in bloc and "- podSelector:" not in bloc
+
+
+# ------------------------------------------------------------------------------------------ build de l'image
+def _pod_build(kaniko=None, contexte=None):
+    st = {"containerStatuses": [{"name": "kaniko", "state": {"terminated": kaniko}}] if kaniko else [],
+          "initContainerStatuses": [{"name": "contexte", "state": {"terminated": contexte}}] if contexte else []}
+    return {"metadata": {"name": "p"}, "status": st}
+
+
+def _job_build(cond=None, raison=None, **statut):
+    conds = [{"type": cond, "status": "True", "reason": raison}] if cond else []
+    return {"metadata": {"creationTimestamp": "2026-09-28T12:46:41Z"}, "status": {"conditions": conds, **statut}}
+
+
+def test_cause_d_echec_d_un_build_LUE_dans_les_statuts():
+    """P2.134 : --reproducible était tué par OOM à 4 Gi, et le build ne sortait qu'un « en échec » générique suivi de
+    logs qu'un OOM laisse muets. La cause se LIT dans les statuts ; rien de lisible = INCONNUE, dite comme telle."""
+    oom = R.raison_echec_build(_job_build("Failed", "BackoffLimitExceeded"),
+                               _pod_build(kaniko={"exitCode": 137, "reason": "OOMKilled"}))
+    assert oom["kaniko_raison"] == "OOMKilled" and "OOMKilled" in oom["resume"] and "HACHÉ" in oom["resume"]
+    assert "délai" in R.raison_echec_build(_job_build("Failed", "DeadlineExceeded"), _pod_build())["resume"]
+    assert "contexte" in R.raison_echec_build(_job_build("Failed"), _pod_build(contexte={"exitCode": 1}))["resume"]
+    assert "INCONNUE" in R.raison_echec_build(_job_build("Failed"), None)["resume"]
+    code = R.raison_echec_build(_job_build("Failed"), _pod_build(kaniko={"exitCode": 1, "reason": "Error"}))
+    assert code["kaniko_code"] == 1 and "OOM" not in code["resume"]
+
+
+def test_horodatage_d_un_build_LU_dans_le_statut_du_Job_source_nommee():
+    """E8 (2026-09-28) : une fin de build ESTIMÉE avait été écrite comme lue. Chaque heure a sa source ; une heure
+    absente reste None, jamais remplacée par l'horloge locale."""
+    h = R.horodatage_job(_job_build("Complete", startTime="2026-09-28T12:46:41Z", completionTime="2026-09-28T12:48:52Z"))
+    assert h == {"cree_utc": "2026-09-28T12:46:41Z", "debut_utc": "2026-09-28T12:46:41Z",
+                 "fin_utc": "2026-09-28T12:48:52Z",
+                 "source": "Job Kubernetes : metadata.creationTimestamp, status.startTime et status.completionTime (UTC)"}
+    assert R.horodatage_job({"metadata": {}, "status": {}})["fin_utc"] is None
+
+
+class KubeBuild:
+    """Juste assez de cluster pour construire_image : nœud prêt, CA et ConfigMap de contexte présentes, un Job de
+    build dont les états successifs sont SCRIPTÉS."""
+    def __init__(self, etats, pod, noeud=None):
+        self.etats, self.pod, self.supprimes, self.crees = list(etats), pod, [], []
+        self.noeud = noeud or _noeud()
+
+    def json(self, args, ns=True):
+        if args[:2] == ["get", "node"]:
+            return self.noeud
+        if args[:2] == ["get", "job"]:
+            return self.etats.pop(0) if len(self.etats) > 1 else self.etats[0]
+        raise AssertionError(f"appel inattendu {args}")
+
+    def brut(self, args, entree=None, ns=True, verifier=True, timeout=600):
+        import types
+        if args[:2] == ["create", "-f"]:
+            self.crees.append(entree)
+        return types.SimpleNamespace(returncode=0, stdout=b"(logs)", stderr=b"")
+
+    def creer(self, objet):
+        raise AssertionError("aucune création d'objet attendue (CA et contexte présents)")
+
+    def pod_du_job(self, job):
+        return self.pod
+
+    def evenements(self, nom):
+        return []
+
+    def supprimer_job(self, job):
+        self.supprimes.append(job)
+
+
+@pytest.fixture()
+def depot_image(tmp_path):
+    """Un dépôt jetable qui porte le CONTEXTE d'image réel (Dockerfile, contraintes, gabarit de build) au sha."""
+    repo = tmp_path / "depot_image"
+    (repo / "deploy" / "nexus" / "runner").mkdir(parents=True)
+    for c in R.FICHIERS_CONTEXTE.values():
+        if c.startswith(R.RUNNER_DIR):
+            (repo / c).write_bytes((R.racine_depot() / c).read_bytes())
+    (repo / "requirements.txt").write_text("numpy\n", encoding="utf-8")
+    _git(repo, "init", "-q", "-b", "main")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "init")
+    return repo, _git(repo, "rev-parse", "HEAD")
+
+
+def _construire(repo, sha, kube, **kw):
+    cfg = dict(R.charger_config(), fenetre=None)          # la fenêtre réelle dépendrait de l'heure du test
+    return R.construire_image(sha=sha, kube=kube, racine=repo, sortie=lambda *_: None, cfg=cfg,
+                              dormir=lambda _: None, **kw)
+
+
+def test_build_OOMKilled_NOMME_dans_le_refus(depot_image):
+    repo, sha = depot_image
+    k = KubeBuild([_job_build(), _job_build("Failed", "BackoffLimitExceeded")],
+                  _pod_build(kaniko={"exitCode": 137, "reason": "OOMKilled"}))
+    with pytest.raises(R.Refus, match="OOMKilled"):
+        _construire(repo, sha, k)
+    assert not (repo / R.IMAGE_JSON).exists()
+
+
+def test_build_reussi_publie_ses_heures_LUES_et_leur_source(depot_image):
+    repo, sha = depot_image
+    fini = _job_build("Complete", startTime="2026-09-28T12:46:41Z", completionTime="2026-09-28T12:48:52Z")
+    k = KubeBuild([_job_build(), fini], _pod_build(kaniko={"exitCode": 0, "message": "sha256:" + "c" * 64}))
+    info = _construire(repo, sha, k)
+    ecrit = json.loads((repo / R.IMAGE_JSON).read_text(encoding="utf-8"))
+    assert ecrit == info and info["digest"] == "sha256:" + "c" * 64
+    assert info["horodatage_job"]["fin_utc"] == "2026-09-28T12:48:52Z" and info["horodatage_job"]["source"]
+    assert info["construit_utc_source"] and info["duree_build_s_source"]
+
+
+def test_build_encore_actif_apres_le_delai_est_RETIRE_et_le_dit(depot_image):
+    repo, sha = depot_image
+    k = KubeBuild([_job_build()], _pod_build())
+    with pytest.raises(R.Refus, match="encore actif") as e:
+        _construire(repo, sha, k, delai_s=-1)
+    assert len(k.supprimes) == 1 and not (repo / R.IMAGE_JSON).exists()
+    assert "(logs)" in str(e.value)                              # ce qu'on sait est lu AVANT de retirer le Job
+
+
+def test_delai_local_du_build_DEPASSE_l_echeance_du_Job():
+    """Revue du 2026-09-28 : 2400 s d'attente locale pour 2400 s d'échéance du Job — le premier sondage après
+    l'échéance lisait « encore actif » un Job en train d'échouer par son délai. L'attente se LIT dans le gabarit."""
+    assert R.delai_build_s(b"spec:\n  activeDeadlineSeconds: 2400\n") == 2520
+    reel = (R.racine_depot() / R.RUNNER_DIR / "build-job.yaml").read_bytes()
+    assert R.delai_build_s(reel) > 2400
+    with pytest.raises(R.Refus, match="activeDeadlineSeconds"):
+        R.delai_build_s(b"spec: {}\n")
+
+
+def test_build_sur_noeud_eteint_ne_propose_pas_local(depot_image):
+    """Le paramètre `local=False` d'allumage n'avait de témoin qu'unitaire : rien ne vérifiait que le BUILD s'en sert."""
+    repo, sha = depot_image
+    k = KubeBuild([_job_build()], _pod_build(), noeud=_noeud(ready="False"))
+    with pytest.raises(R.Refus) as e:
+        _construire(repo, sha, k)
+    assert "geste-de-test" in str(e.value) and "remote local" not in str(e.value) and not k.crees
+
+
+def test_sonde_publie_la_memoire_du_quota():
+    """Dès --mem 8Gi, c'est la mémoire du quota (40 Gi de limites) qui lie avant le CPU : la ligne d'état la montre
+    (aux défauts, 2 CPU / 4 Gi, requests.cpu et limits.cpu lient à 8 Jobs)."""
+    class K(KubeScenario):
+        def json(self, args, ns=True):
+            if args == ["get", "resourcequota"]:
+                return {"items": [{"status": {"used": {"pods": "1", "requests.memory": "8Gi", "limits.memory": "32Gi",
+                                                       "limits.cpu": "2"}}}]}
+            return super().json(args, ns)
+    dits = []
+    assert R.surveiller(kube=K(["ok", "anomalie"]), sortie=dits.append, dormir=lambda _: None) == 3
+    assert any("req.mem=8Gi" in m and "lim.mem=32Gi" in m and "lim.cpu=2" in m for m in dits)
+
+
+# ------------------------------------------------------------------------------------------ P2.134 : reproductibilité
+def _module_empreinte():
+    import importlib.util
+    chemin = R.racine_depot() / R.RUNNER_DIR / "empreinte_contenu.py"
+    spec = importlib.util.spec_from_file_location("empreinte_contenu", chemin)
+    m = importlib.util.module_from_spec(spec)
+    avant, sys.dont_write_bytecode = sys.dont_write_bytecode, True    # aucun __pycache__ écrit dans deploy/
+    try:
+        spec.loader.exec_module(m)
+    finally:
+        sys.dont_write_bytecode = avant
+    return m
+
+
+def test_empreinte_de_contenu_calibree_sur_une_arborescence_CONNUE(tmp_path):
+    """L'empreinte est un DIAGNOSTIC (décision de Master 2, 2026-09-28) : elle doit dire QUELLE zone a changé. Cas
+    connus : rejouée à l'identique → mêmes empreintes ; dates changées → mêmes empreintes (Kaniko pose les dates) ;
+    un octet dans /usr/local → SEULE la zone `python` change ; un octet ailleurs → SEULE `systeme` ; un chemin exclu
+    (injecté par le runtime du build) ou le fichier de sortie lui-même → rien ne change."""
+    M = _module_empreinte()
+    r = tmp_path / "image"
+    for rel, contenu in (("usr/local/lib/site.py", "a"), ("usr/bin/git", "b"), ("etc/os-release", "c"),
+                         ("proc/1/status", "x"), ("etc/resolv.conf", "y")):
+        (r / rel).parent.mkdir(parents=True, exist_ok=True)
+        (r / rel).write_text(contenu, encoding="utf-8")
+    base = M.empreinte(str(r))
+    assert base == M.empreinte(str(r)) and set(base["zones"]) == {"python", "systeme"}
+    os.utime(r / "usr" / "bin" / "git", (0, 0))
+    assert M.empreinte(str(r))["zones"] == base["zones"]                               # les dates ne comptent pas
+    (r / "proc" / "1" / "status").write_text("autre", encoding="utf-8")
+    (r / "etc" / "resolv.conf").write_text("autre", encoding="utf-8")
+    assert M.empreinte(str(r))["zones"] == base["zones"]                               # exclus : sans effet
+    sortie = r / "opt" / "agagi" / "empreinte-contenu.json"
+    sortie.parent.mkdir(parents=True)
+    avec_dossier = M.empreinte(str(r))                                                 # un dossier de plus : systeme
+    sortie.write_text("{}", encoding="utf-8")
+    assert M.empreinte(str(r), sortie=str(sortie))["zones"] == avec_dossier["zones"]  # la sortie ne se compte pas
+    (r / "usr" / "local" / "lib" / "site.py").write_text("A", encoding="utf-8")
+    py = M.empreinte(str(r), sortie=str(sortie))
+    assert py["zones"]["python"] != avec_dossier["zones"]["python"]
+    assert py["zones"]["systeme"] == avec_dossier["zones"]["systeme"]
+    (r / "usr" / "bin" / "git").write_text("B", encoding="utf-8")
+    sy = M.empreinte(str(r), sortie=str(sortie))
+    assert sy["zones"]["python"] == py["zones"]["python"] and sy["zones"]["systeme"] != py["zones"]["systeme"]
+
+
+def test_lecture_de_l_empreinte_par_remote_entry_trois_issues(tmp_path):
+    assert E.lire_empreinte_image(str(tmp_path / "rien"))["source"] == "absente"
+    ok = tmp_path / "e.json"
+    ok.write_text('{"schema": "agagi.empreinte_contenu.v1", "zones": {}}', encoding="utf-8")
+    assert E.lire_empreinte_image(str(ok))["empreinte"]["schema"] == "agagi.empreinte_contenu.v1"
+    casse = tmp_path / "casse.json"
+    casse.write_text("{pas du json", encoding="utf-8")
+    lu = E.lire_empreinte_image(str(casse))
+    assert lu["source"] == "illisible" and lu["empreinte"] is None and lu["erreur"]
+
+
+def test_recette_reproductible_porte_LES_DEUX_ingredients_et_la_reserve_d_ELYSIUM():
+    """P2.134, ablation du 2026-09-28 : `--reproducible` seul → deux digests ; nettoyage seul → deux digests. Retirer
+    l'un des deux ingrédients de la recette doit faire ROUGIR ce témoin. Et le build tient la réserve d'ELYSIUM
+    (requête <= limite / 4) que remote.py ne vérifie pas pour lui."""
+    import re
+    racine = R.racine_depot()
+    df = (racine / R.RUNNER_DIR / "Dockerfile").read_text(encoding="utf-8")
+    bj = (racine / R.RUNNER_DIR / "build-job.yaml").read_text(encoding="utf-8")
+    instructions = "\n".join(l for l in df.splitlines() if not l.lstrip().startswith("#"))
+    assert instructions.count("--no-compile") == 2 and "--invalidation-mode unchecked-hash" in instructions
+    assert "/var/log/apt" in instructions and "/var/log/dpkg.log" in instructions and "aux-cache" in instructions
+    assert "empreinte_contenu.py / /opt/agagi/empreinte-contenu.json" in instructions
+    args = [l.strip() for l in bj.splitlines() if l.strip().startswith("- --")]
+    assert "- --reproducible" in args and "- --cache=false" in args
+    assert not [a for a in args if a.startswith("- --cache-repo") or a == "- --cache=true"]
+    for nom in ("contexte", "kaniko"):
+        bloc = bj.split(f"- name: {nom}")[1]
+        req = re.search(r"requests: \{cpu: [^,]+, memory: (\w+)\}", bloc).group(1)
+        lim = re.search(r"limits: \{cpu: [^,]+, memory: (\w+)\}", bloc).group(1)
+        assert R.mem_en_gi(req) <= R.RAPPORT_REQUETE_MEMOIRE_MAX * R.mem_en_gi(lim), (nom, req, lim)
+    assert "memory: 8Gi" in bj.split("- name: kaniko")[1]
+    for n in R.FICHIERS_BUILD:
+        assert f"/ctx/{n}" in bj, n                                    # l'init copie TOUT le contexte de build
+
+
+def test_le_build_envoie_TOUT_le_contexte_par_ConfigMap(depot_image):
+    """Le contexte haché compte 5 fichiers ; les 4 que le Dockerfile lit doivent partir dans la ConfigMap."""
+    repo, sha = depot_image
+
+    class K(KubeBuild):
+        def brut(self, args, entree=None, ns=True, verifier=True, timeout=600):
+            import types
+            if args[:2] == ["get", "configmap"] and args[2].startswith("agagi-runner-ctx-"):
+                return types.SimpleNamespace(returncode=1, stdout=b"", stderr=b"absente")
+            return super().brut(args, entree, ns, verifier, timeout)
+
+        def creer(self, objet):
+            self.cm = objet
+
+    fini = _job_build("Complete", startTime="2026-09-28T12:46:41Z", completionTime="2026-09-28T12:48:52Z")
+    k = K([_job_build(), fini], _pod_build(kaniko={"exitCode": 0, "message": "sha256:" + "d" * 64}))
+    _construire(repo, sha, k)
+    assert set(k.cm["data"]) == set(R.FICHIERS_BUILD) and "empreinte_contenu.py" in R.FICHIERS_CONTEXTE
+
+
+def test_empreinte_LUE_dans_le_journal_du_build_trois_issues():
+    """Voie de Master 2 : l'empreinte est reportée dans IMAGE.json depuis le journal du build — deux images se
+    comparent AVANT tout run. La balise est la même des deux côtés ; la DERNIÈRE ligne balisée compte."""
+    M = _module_empreinte()
+    assert M.MARQUEUR == R.MARQUEUR_EMPREINTE
+    e = {"schema": "agagi.empreinte_contenu.v1", "zones": {"python": {"entrees": 1, "sha256": "ab"}}}
+    journal = ("INFO[0001] RUN python ...\n" + M.MARQUEUR + " {\"ancienne\":1}\n"
+               + M.MARQUEUR + " " + json.dumps(e) + "\nINFO[0099] Pushing image\n").encode("utf-8")
+    lu = R.empreinte_du_journal(journal, "agagi-build-x")
+    assert lu == {"source": "journal du build agagi-build-x", "empreinte": e}
+    assert R.empreinte_du_journal(b"INFO pas de balise\n", "j")["empreinte"] is None
+    casse = R.empreinte_du_journal((M.MARQUEUR + " {pas du json\n").encode("utf-8"), "j")
+    assert casse["empreinte"] is None and "illisible" in casse["source"]
+
+
+def test_build_reussi_reporte_l_empreinte_du_journal_dans_IMAGE_json(depot_image):
+    repo, sha = depot_image
+    e = {"schema": "agagi.empreinte_contenu.v1", "zones": {"python": {"entrees": 3, "sha256": "cd"}}}
+
+    class K(KubeBuild):
+        def brut(self, args, entree=None, ns=True, verifier=True, timeout=600):
+            import types
+            if args[:1] == ["logs"]:
+                return types.SimpleNamespace(returncode=0, stderr=b"",
+                                             stdout=(R.MARQUEUR_EMPREINTE + " " + json.dumps(e) + "\n").encode())
+            return super().brut(args, entree, ns, verifier, timeout)
+
+    fini = _job_build("Complete", startTime="2026-09-28T12:46:41Z", completionTime="2026-09-28T12:48:52Z")
+    info = _construire(repo, sha, K([_job_build(), fini], _pod_build(kaniko={"exitCode": 0, "message": "sha256:" + "e" * 64})))
+    assert info["empreinte_contenu"]["empreinte"] == e and info["empreinte_contenu"]["source"].startswith("journal du build")

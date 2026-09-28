@@ -74,12 +74,15 @@ def _train_eval_td_step(seed, lam, episodes, n_agents, K, lr, eval_batches=40, t
     from src.agents.mamba_agent import MambaAgent
     from src.agents.backend_torch import TorchPopulationModel as T
     saved = (T.CONDITION_GATE, T.GATE_TARGET, T.BILINEAR, T.BILINEAR_RANK, T.CREDIT_TRACE_LAMBDA,
-             T.CREDIT_TRACE_BYPASS_OPTIMIZER)
+             T.CREDIT_TRACE_BYPASS_OPTIMIZER, T.CREDIT_TRACE_DELTA_SHAM)
     T.CONDITION_GATE, T.GATE_TARGET = False, None
     T.BILINEAR = True                                    # épinglé : substrat du contrôle positif ; W, U, V, W_bl tracés
     T.BILINEAR_RANK = 16
     T.CREDIT_TRACE_LAMBDA = float(lam)
     T.CREDIT_TRACE_BYPASS_OPTIMIZER = False              # SGD pur : rien à contourner
+    T.CREDIT_TRACE_DELTA_SHAM = None                     # P4.19 (a) : épinglé ÉTEINT -- λ > 0 et reset par épisode
+    #                                                      réunissent ici les conditions du sham : un drapeau resté posé
+    #                                                      ailleurs rejouerait R1/R2 SHAMÉS, en silence
     try:
         np.random.seed(seed)
         torch.manual_seed(seed)
@@ -120,7 +123,7 @@ def _train_eval_td_step(seed, lam, episodes, n_agents, K, lr, eval_batches=40, t
         return float(np.mean(np.concatenate(hits))), dose
     finally:
         (T.CONDITION_GATE, T.GATE_TARGET, T.BILINEAR, T.BILINEAR_RANK, T.CREDIT_TRACE_LAMBDA,
-         T.CREDIT_TRACE_BYPASS_OPTIMIZER) = saved
+         T.CREDIT_TRACE_BYPASS_OPTIMIZER, T.CREDIT_TRACE_DELTA_SHAM) = saved
 
 
 def _cell(bras, seed, c, lr_idx):
