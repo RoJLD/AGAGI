@@ -2507,6 +2507,33 @@ une remise explicite des répertoires (`_racine_reelle`, 22 tests conservés) ; 
 `tools/_mutation_plugin.py` ; E35 occ. 5 au registre. Windows 22 verts ; Linux (WSL) 22 verts.
 <!-- closes_when:grep_present=tests/sandbox/test_preregistration_applied.py::racine_VIDE -->
 
+**P2.136 — rang 6 — ✅ CLOSE le 2026-09-28 (ouverte le 2026-09-26 sur arbitrage de Master 2 : la règle du registre
+« pas de troisième fois » l'emporte sur le gel de la méthodo ; garde écrite et vérifiée le 26, committée le
+2026-09-28 — le commit a attendu l'autorisation de robla, puis la fin du gel de la flotte pour la reprise de P4.18) —
+Promotion d'E21 : le canal shell transforme le texte qu'on lui confie, et la troisième occurrence documentée impose
+une garde exécutable.**
+Preuve : E21 comptait deux occurrences documentées (2026-09-07 : un fragment backtické d'un `git commit -m` parti
+VIDE ; une pré-inscription scellée MUTILÉE par un `python -c`). Troisième le 2026-09-26 (agagi-32, vérification Linux
+de P2.133) : un script écrit par un heredoc `python - <<'EOF'` a reçu ses continuations de ligne en « \n »
+LITTÉRAUX ; pytest n'a reçu aucun chemin et a lancé ZÉRO test — un vert qui ne mesurait rien, attrapé parce que le
+COMPTE de tests était lu.
+✅ **FERMÉE le 2026-09-28 (agagi-32, worker Dette)** — dans le hook PostToolUse Bash EXISTANT (`tools/pm/bash_hook.py`),
+sans toucher à `.claude/settings.json` (sa configuration relève de robla) : `mutilation_possible(commande)`, fonction
+PURE, rend les raisons — « heredoc » (corps porteur d'échappements ou de backticks), « substitution » (backtick non
+échappé entre guillemets doubles), « message » (`-m` porteur de \n, \t, \r ou \0, que bash laisse tels quels). Le
+hook ne bloque pas — en PostToolUse la mutilation a déjà eu lieu — : il émet la seule forme documentée pour avertir
+l'agent (un JSON `hookSpecificOutput.additionalContext` seul sur stdout, code 0, ASCII échappé), qui dit quoi faire :
+vérifier le RÉSULTAT, lire le COMPTE de tests, écrire le script avec l'outil Write. Contre-exemple gelé :
+`test_P2_136_CONTRE_EXEMPLE_le_heredoc_du_jour_est_SIGNALE` (la forme exacte de la commande du jour), avec la
+substitution du 2026-09-07, le message, la spécificité (heredoc sain, apostrophes, backtick échappé, commandes
+ordinaires : silence) et la sortie de `main`. Calibré à la main (le hook n'est pas une porte du crochet) : **5/5
+mutations tuées**, contrôle intact vert. Contrôle positif sur le VRAI harnais : le hook d'une session tourne depuis son
+worktree, et il a injecté l'avertissement E21 dans le contexte de l'agent sur une commande réelle. ⚠️ **Trouvé en
+l'écrivant** : ma première version signalait un `-m` qui échappait un backtick ; entre guillemets doubles, bash résout
+lui-même \` \" \$ \\ — seuls \n \t \r \0 arrivent littéralement. Face E4 (0 test = vert) : déjà gardée dans le
+dépôt, `tools/check_gate_mutation.py` rend un pytest à code 5 INVALIDE ou témoin intact ROUGE, jamais vert.
+<!-- closes_when:grep_present=tools/pm/bash_hook.py::mutilation_possible -->
+
 **P2.113 — ⚠️ OUVERTE (2026-09-26, vue en passant pendant la fusion du chantier Pilotage) — la suite complète ÉCRIT
 deux fichiers SUIVIS de l'arbre où on la lance, et trois de ses tests sont rouges hors de l'arbre principal sans que
 le code y soit pour rien.**
