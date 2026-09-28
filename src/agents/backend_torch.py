@@ -81,6 +81,24 @@ class TorchPopulationModel(PopulationModel):
     CREDIT_TRACE_LAMBDA = 0.0
     CREDIT_TRACE_BYPASS_OPTIMIZER = False
 
+    # --- P4.19 (a) (ADR-005, billet de la pièce eligibility_trace : « même trace, δ PERMUTÉ dans le temps ») ---
+    # None (défaut) = le chemin trace de P4.11 tel quel : deux lectures d'attribut, aucune allocation, aucun tirage --
+    # bit-identique PAR CONSTRUCTION. "decale" = SHAM : la mise à jour trace se décompose EXACTEMENT en
+    #   Δθ = lr/B · [ δ_r·(g_a + g_v)  +  δ̃_r·γλ·(e_a,prev + e_v,prev) ]      (coef_v = −δ : la perte critique porte δ)
+    # où le PREMIER terme (TD(0) du pas courant) garde son δ, et le SECOND -- le terme PORTÉ par la trace, le seul qui
+    # transporte du crédit vers les pas antérieurs -- reçoit δ̃_r = le δ du MÊME agent au MÊME rang r de l'épisode
+    # PRÉCÉDENT : un δ de la bonne marge (même critique à un épisode près, même rang), décorrélé de la clé de l'épisode
+    # courant. Si la trace transporte du crédit, le sham le perd ; si elle ne fait qu'un pas plus gros, il le garde.
+    # Déterministe, AUCUN tirage (la bande RNG du pilote n'est pas touchée). "identite" = δ̃ := δ courant (contrôle
+    # positif de l'INSTRUMENT : égal au chemin trace à l'arrondi près -- allclose, pas bit-identique, l'ordre des
+    # opérations change). Au 1er épisode le tampon est vide : le terme porté est OMIS (compté dans `sham_omis`, un
+    # par agent), jamais rempli par 0,0 ni par le δ courant. REFUS explicites : valeur hors vocabulaire, λ = 0 (le
+    # chemin trace ne serait jamais pris : le bras vaudrait TD(0) en silence), reset par masque, mise à jour sans
+    # reset préalable (les rangs n'auraient pas de sens : in-world exclu). Vérifié à la construction ET à chaque
+    # mise à jour (un drapeau de classe reste modifiable après la construction).
+    CREDIT_TRACE_DELTA_SHAM = None
+    _SHAM_VOCAB = (None, "decale", "identite")
+
     def __init__(self, agents, world_model=None, lr=0.04, device="cpu"):
         if torch is None:
             raise NotImplementedError("backend 'torch' : PyTorch non installé (requirements-torch.txt)")
@@ -142,6 +160,13 @@ class TorchPopulationModel(PopulationModel):
         self.e_a = self.e_v = None          # P4.11 : traces d'éligibilité, une par paramètre, allouées au 1er pas tracé
         self.trace_updates = 0
         self.trace_resets = 0
+        self._verifier_sham()                # P4.19 (a) : refus AU CONSTRUCTEUR, avant tout épisode
+        self._rang = None                    # rang de la transition dans l'épisode (None : aucun reset encore)
+        self._delta_cour, self._delta_prec = {}, {}     # rang -> δ (B,) de l'épisode courant / précédent
+        self.sham_omis = 0                   # termes portés OMIS (tampon vide), comptés par agent
+        self.chemin_porte_applique = 0.0     # Σ|Δθ| du terme porté appliqué (δ̃ en sham)
+        self.chemin_porte_contrefactuel = 0.0   # Σ|Δθ| qu'aurait appliqué le δ propre (dose appariée du sham)
+        self.chemin_td0 = 0.0                # Σ|Δθ| du terme TD(0) (identique entre trace et sham)
         # E19 (occ. lr/B, 2026-09-16) : W est DISJOINT par agent mais `_td_update` MOYENNE la perte
         # sur B et l'optimiseur est SGD (le 1/B ne s'annule pas, il s'annulerait sous Adam) — chaque
         # agent reçoit donc lr/B. « 0,04 » à B=12 vaut 0,0033 par agent. Publié, jamais déduit ;
@@ -257,6 +282,8 @@ class TorchPopulationModel(PopulationModel):
         logp = logp - F.binary_cross_entropy_with_logits(out[:, _RUB_NODE], rub, reduction="none")
 
         lam = float(type(self).CREDIT_TRACE_LAMBDA)
+        if type(self).CREDIT_TRACE_DELTA_SHAM is not None:       # P4.19 (a) : garde RE-vérifiée à chaque mise à jour
+            self._verifier_sham()
         if lam > 0.0:                                            # P4.11 : chemin TRACE ; 0.0 = chemin d'origine intact
             return self._td_update_trace(lam, logp, v, target, delta)
         actor_loss = -(delta * logp).mean()                      # ACTOR (avantage = δ)
@@ -311,6 +338,8 @@ class TorchPopulationModel(PopulationModel):
         if self.e_a is None:
             self.e_a, self.e_v = [None] * len(params), [None] * len(params)
         lr = float(self.opt.param_groups[0]["lr"])
+        if type(self).CREDIT_TRACE_DELTA_SHAM is not None:       # P4.19 (a) : le terme PORTÉ reçoit δ̃
+            return self._td_update_trace_sham(params, g_a, g_v, gl, lr, logp, v, target, delta)
         for i, q in enumerate(params):
             ga = torch.zeros_like(q) if g_a[i] is None else g_a[i].detach()   # paramètre hors graphe : gradient nul
             gv = torch.zeros_like(q) if g_v[i] is None else g_v[i].detach()
@@ -326,9 +355,76 @@ class TorchPopulationModel(PopulationModel):
         loss = -(delta * logp).mean() + 0.5 * ((v - target) ** 2).mean()   # même grandeur publiée qu'en TD(0)
         return float(loss.item())
 
+    def _verifier_sham(self):
+        """P4.19 (a) : REFUS explicites du sham (valeur hors vocabulaire ; λ = 0, où le chemin trace n'est jamais pris et
+        le bras vaudrait TD(0) EN SILENCE). Rien à vérifier au défaut (None)."""
+        sham = type(self).CREDIT_TRACE_DELTA_SHAM
+        if sham is None:
+            return
+        if sham not in type(self)._SHAM_VOCAB:
+            raise ValueError(f"CREDIT_TRACE_DELTA_SHAM = {sham!r} hors du vocabulaire fermé {type(self)._SHAM_VOCAB}")
+        if not float(type(self).CREDIT_TRACE_LAMBDA) > 0.0:
+            raise ValueError("CREDIT_TRACE_DELTA_SHAM exige CREDIT_TRACE_LAMBDA > 0 : à λ = 0 le chemin trace n'est "
+                             "jamais pris et le sham vaudrait TD(0) en silence")
+
+    def _td_update_trace_sham(self, params, g_a, g_v, gl, lr, logp, v, target, delta):
+        """P4.19 (a) : la mise à jour trace DÉCOMPOSÉE (TD(0) + porté), le porté recevant δ̃ (voir
+        CREDIT_TRACE_DELTA_SHAM). Les traces avancent EXACTEMENT comme dans `_td_update_trace` (e ← γλ·e + g) ;
+        seul le coefficient du terme porté change. Le δ VRAI est empilé APRÈS l'application : le tampon reste
+        strictement passé. Publie les chemins (appliqué, contrefactuel, TD(0)) : la dose du sham, appariée en chemin."""
+        if self._rang is None:
+            raise RuntimeError("CREDIT_TRACE_DELTA_SHAM : mise à jour sans reset_traces() préalable -- les rangs de "
+                               "l'épisode n'ont pas de sens (le sham exige un reset par épisode ; in-world exclu)")
+        r = int(self._rang)
+        mode = type(self).CREDIT_TRACE_DELTA_SHAM
+        d = delta.detach()
+        if mode == "identite":
+            d_tilde = d
+        else:
+            d_tilde = self._delta_prec.get(r)                    # None : 1er épisode, tampon vide
+        if self.e_a is None:
+            self.e_a, self.e_v = [None] * len(params), [None] * len(params)
+        porte_nul = all(e is None for e in self.e_a)
+        if d_tilde is None and not porte_nul:
+            self.sham_omis += int(self.B)                        # terme porté OMIS, un par agent, jamais rempli
+        for i, q in enumerate(params):
+            ga = torch.zeros_like(q) if g_a[i] is None else g_a[i].detach()
+            gv = torch.zeros_like(q) if g_v[i] is None else g_v[i].detach()
+            pa = None if self.e_a[i] is None else gl * self.e_a[i]           # PORTÉ, lu AVANT l'avance de la trace
+            pv = None if self.e_v[i] is None else gl * self.e_v[i]
+            forme = (-1,) + (1,) * (q.dim() - 1)
+            td0 = lr * d.view(forme) * (ga + gv) / self.B
+            with torch.no_grad():
+                q.add_(td0)
+                self.chemin_td0 += float(td0.abs().sum().item())
+                if pa is not None:
+                    porte = pa + pv
+                    self.chemin_porte_contrefactuel += float((lr * d.view(forme) * porte / self.B).abs().sum().item())
+                    if d_tilde is not None:
+                        app = lr * d_tilde.view(forme) * porte / self.B
+                        q.add_(app)
+                        self.chemin_porte_applique += float(app.abs().sum().item())
+            self.e_a[i] = ga if pa is None else pa + ga
+            self.e_v[i] = gv if pv is None else pv + gv
+        self._delta_cour[r] = d.clone()                         # le δ VRAI, empilé APRÈS l'application
+        self._rang = r + 1
+        self.trace_updates += 1
+        self._write_back()
+        loss = -(delta * logp).mean() + 0.5 * ((v - target) ** 2).mean()   # même grandeur publiée qu'en TD(0)
+        return float(loss.item())
+
     def reset_traces(self, mask=None):
         """Remet les traces à zéro pour les agents de `mask` ((B,) booléen) ou pour tous (None). OPTION
-        d'ablation (P4.11) : le défaut est de ne JAMAIS reset -- compté dans `trace_resets`."""
+        d'ablation (P4.11) : le défaut est de ne JAMAIS reset -- compté dans `trace_resets`. Sous
+        CREDIT_TRACE_DELTA_SHAM (P4.19 a) : un reset = une frontière d'ÉPISODE -- le rang repart à 0 et les δ de
+        l'épisode qui s'achève deviennent le tampon δ̃ du suivant ; un reset par masque est REFUSÉ."""
+        if type(self).CREDIT_TRACE_DELTA_SHAM is not None:
+            if mask is not None:
+                raise ValueError("CREDIT_TRACE_DELTA_SHAM : reset par masque refusé -- le tampon δ̃ est aligné par "
+                                 "épisode sur TOUTE la population")
+            if self._delta_cour:
+                self._delta_prec, self._delta_cour = self._delta_cour, {}
+            self._rang = 0
         self.trace_resets += 1                      # l'APPEL est compté, même sans trace allouée (n = 0)
         if self.e_a is None:
             return 0

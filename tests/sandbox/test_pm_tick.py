@@ -120,6 +120,7 @@ def test_main_ecrit_tableau_journal_compteurs_et_sort_0(tmp_path, monkeypatch):
     artefact = json.loads((tmp_path / "pm" / "PILOTAGE_ARTEFACT.json").read_text(encoding="utf-8"))
     assert complet["flotte"]["generated_at"] == board["generated_at"] == artefact["generated_at"]
     assert artefact["schema"] == "pilotage_artefact_v1" and complet["schema"] == "pilotage_v1"
+    assert (tmp_path / "pm" / "DATES_GIT.json").exists()
 
 
 def test_main_refuse_quand_un_autre_PM_vit_et_n_ecrit_RIEN(tmp_path, monkeypatch):
@@ -169,3 +170,28 @@ def test_un_pilotage_qui_LEVE_ne_fait_pas_echouer_le_tick_et_se_DIT(tmp_path, mo
     assert ligne.startswith("[PM] AVEUGLE SUR pilotage") and "ValueError: boum" in ligne
     assert not (tmp_path / "pm" / "PILOTAGE.json").exists()
     assert not (tmp_path / "pm" / "PILOTAGE_ARTEFACT.json").exists()
+
+
+def test_ecrire_dates_du_tick_ecrit_DATES_GIT_et_se_tait_si_complet(tmp_path, monkeypatch):
+    monkeypatch.setenv("AGAGI_DATA_ROOT", str(tmp_path).replace("\\", "/"))
+    from tools.pm import index_artefacts as IX
+    monkeypatch.setattr(IX, "calculer_dates_git", lambda racine, now: {
+        "schema": IX.SCHEMA_DATES, "generated_at": now, "head": "h", "historique": "complet", "raison": None,
+        "dates": {}, "suivis": []})
+    assert TK.ecrire_dates(os.getcwd(), 1000.0) == ""
+    assert (tmp_path / "pm" / "DATES_GIT.json").exists()
+
+
+def test_ecrire_dates_du_tick_DIT_un_historique_tronque_et_une_exception(tmp_path, monkeypatch):
+    monkeypatch.setenv("AGAGI_DATA_ROOT", str(tmp_path).replace("\\", "/"))
+    from tools.pm import index_artefacts as IX
+    monkeypatch.setattr(IX, "calculer_dates_git", lambda racine, now: {
+        "schema": IX.SCHEMA_DATES, "generated_at": now, "head": None, "historique": "tronque",
+        "raison": "clone superficiel", "dates": None, "suivis": None})
+    assert TK.ecrire_dates(os.getcwd(), 1000.0).startswith("[PM] dates git : historique tronque")
+
+    def _leve(*a, **k):
+        raise OSError("disque plein")
+    monkeypatch.setattr(IX, "ecrire_dates_git", _leve)
+    assert TK.ecrire_dates(os.getcwd(), 1000.0).startswith("[PM] AVEUGLE SUR dates git")
+

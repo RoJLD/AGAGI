@@ -83,6 +83,51 @@ def _segment_ecrit(mots):
     return False
 
 
+# --- P2.136 (2026-09-26, promotion d'E21) : le CANAL SHELL transforme le texte qu'on lui confie --------------------
+# Trois occurrences documentées, la règle du registre impose la garde (« pas de troisième fois ») : un fragment backtické
+# d'un `git commit -m` parti VIDE, une pré-inscription scellée MUTILÉE par un `python -c` (2026-09-07), et un script
+# écrit par heredoc dont les continuations de ligne sont arrivées en « \n » LITTÉRAUX — pytest n'a reçu aucun chemin
+# et a lancé ZÉRO test (2026-09-26, agagi-32 : un vert qui ne mesurait rien). En PostToolUse la mutilation a déjà eu
+# lieu : le hook ne bloque pas, il le DIT à l'agent et dit quoi faire. Signal, pas preuve : il marque les commandes
+# dont le canal a PU transformer le texte.
+_HEREDOC = re.compile(r"<<-?[ \t]*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\1[^\n]*\n(.*?)^[ \t]*\2[ \t]*$", re.S | re.M)
+_ECHAPPEMENT = re.compile(r"\\[nrt0\\'\"`$]")
+# Entre guillemets doubles, bash résout lui-même \` \" \$ \\ (le caractère voulu arrive) ; il laisse en revanche \n \t \r
+# \0 tels quels : git reçoit une barre oblique et une lettre, jamais le saut de ligne qu'on croyait écrire.
+_ECHAPPEMENT_NON_RESOLU = re.compile(r"\\[nrt0]")
+_GUILLEMETS_DOUBLES = re.compile(r'"((?:[^"\\]|\\.)*)"', re.S)
+_BACKTICK_NU = re.compile(r"(?<!\\)`")
+_MESSAGE = re.compile(r"(?:^|\s)(?:-m|--message)(?:\s+|=)\"((?:[^\"\\]|\\.)*)\"", re.S)
+
+
+def mutilation_possible(commande):
+    """P2.136 — les raisons pour lesquelles le canal shell a PU transformer le texte de `commande` ; [] si aucune.
+    « heredoc » : le corps d'un heredoc porte une séquence d'échappement ou un backtick (mesuré : le canal les
+    réinterprète même sous un délimiteur entre apostrophes) ; « substitution » : un backtick NON échappé dans une
+    chaîne entre guillemets DOUBLES, que bash remplace par la sortie d'une commande ; « message » : un `-m`/`--message`
+    entre guillemets doubles qui porte \\n, \\t, \\r ou \\0, que bash laisse tels quels. Fonction PURE."""
+    if not isinstance(commande, str) or not commande:
+        return []
+    raisons = []
+    if any(_ECHAPPEMENT.search(m.group(3)) or "`" in m.group(3) for m in _HEREDOC.finditer(commande)):
+        raisons.append("heredoc")
+    hors_heredoc = _HEREDOC.sub("", commande)
+    if any(_BACKTICK_NU.search(s) for s in _GUILLEMETS_DOUBLES.findall(hors_heredoc)):
+        raisons.append("substitution")
+    if any(_ECHAPPEMENT_NON_RESOLU.search(s) for s in _MESSAGE.findall(hors_heredoc)):
+        raisons.append("message")
+    return raisons
+
+
+def avertissement_mutilation(raisons):
+    """Le texte injecté dans le contexte de l'agent : ce qui a pu se passer, et quoi faire."""
+    return ("[E21] le canal shell a pu TRANSFORMER le texte de cette commande (" + ", ".join(raisons) + ") : "
+            "vérifier le RÉSULTAT, pas la commande — relire le fichier ou le message produit, lire le COMPTE de tests "
+            "exécutés (0 test n'est pas un vert). Pour un contenu qui porte des backslashs ou des backticks : écrire le "
+            "script avec l'outil Write et l'exécuter par son chemin, jamais par heredoc, -c ou -m (CLAUDE.md, "
+            "§Environnement ; P2.136).")
+
+
 def ecriture_possible(commande):
     """Vrai si la commande PEUT écrire dans l'arbre : une redirection vers un fichier, ou un mot de commande de la
     liste fermée (tee, cp, mv, rm, sed -i, perl -i, git apply/checkout/…, npm install/run, python <script>, sh/bash
@@ -102,6 +147,14 @@ def main(stdin=None):
         commande = (payload.get("tool_input") or {}).get("command")
     except (ValueError, AttributeError):
         payload = None
+    raisons = mutilation_possible(commande) if payload is not None else []
+    if raisons:
+        # P2.136 : la SEULE forme documentée par laquelle un hook PostToolUse avertit l'agent sans bloquer — un JSON
+        # hookSpecificOutput.additionalContext, seul sur stdout, code 0. ASCII échappé : une console cp1252 ne doit
+        # jamais faire lever le hook sur un accent.
+        print(json.dumps({"hookSpecificOutput": {"hookEventName": "PostToolUse",
+                                                 "additionalContext": avertissement_mutilation(raisons)}}))
+        sys.stdout.flush()
     if payload is not None and not ecriture_possible(commande):
         return 0                                          # le cas commun : rien à compter, rien à écrire
     from tools.pm import bulletin                         # chemin complet : ancrage, bulletin, journal des erreurs

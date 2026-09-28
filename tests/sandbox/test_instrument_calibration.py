@@ -1703,6 +1703,15 @@ CALIBRATED = {
     "src/agents/backend_torch.py::_td_update_trace": [
         "positive-control:formula-predicts-W", "bilinear:four-traced-params", "lambda->0:allclose-not-bit-identical",
         "decay:(gamma*lambda)^k", "lr0:dW=0-trace-advances", "refusals:explicit"],
+    # P4.19 (a), 2026-09-26 -- le SHAM « delta DECALE d'un episode » de la piece eligibility_trace (drapeau
+    # CREDIT_TRACE_DELTA_SHAM, defaut None = chemin trace intact). Cas dans tests/sandbox/test_credit_trace_delta_sham.py :
+    # la FORMULE sur tenseurs poses (porte recoit le delta de l'episode precedent, TD(0) garde le sien), le mode
+    # identite egal au chemin trace (allclose), l'omission COMPTEE au 1er episode, les refus a leur EMPLACEMENT.
+    "src/agents/backend_torch.py::_td_update_trace_sham": [
+        "formule:porte-delta-tilde-td0-delta-propre", "formule:identite=trace-tampon-vide-omis-compte",
+        "episodes:identite-allclose-trace", "episodes:decale-omet-au-1er-seulement-et-change-W",
+        "defaut-None:compteurs-a-zero", "refus:constructeur-lambda0-vocabulaire", "refus:masque-et-sans-reset",
+        "refus:regarde-a-chaque-mise-a-jour", "pin:pilote-td-step-epingle-eteint-et-restaure-espion"],
     # `_td_update` est une COLLISION (backend_torch.py / torch_batch_model.py) : jusqu'ici UN seul chemin etait
     # declare, donc le nom n'aurait ete couvert qu'a moitie le jour ou le motif le verrait. Le legacy torch
     # (P3.4) : les cas de test_torch_batch_model.py qui l'atteignent via compute_policy_gradient (l'update est
@@ -1818,26 +1827,39 @@ CALIBRATED = {
     "tools/evo_runs/s2_credit_ablation_2.py::run_arm": ["guard-before-world", "variante:enveloppe-la-phase-1-seule",
                                                         "b_const:reward_const-1.0-b_tdonly:episode-off",
                                                         "gele:ni-variante-ni-phase-1"],
-    # E34 / P2.132 (2026-09-26) -- lecture de la regle scellee E34-IDENTITY-CELL v2 (une cellule = une sonde), branches
-    # dans l'ORDRE impose : INCOMPLET (cellule, sham ou temoin absent ; audit AVEUGLE, revue v1 P7.a) -> LIEU_MIXTE ->
-    # temoin d'une autre execution LEVE (P5.b) -> TEMOIN_ROMPU -> SANS_OBJET (0 COMMUTATION, P8.a) -> harnais qui ment
-    # LEVE -> bande = {S_off} + 11 shams du MEME seed sur la grille 0,5, bords DANS la bande, S_off n'en est plus le
-    # bord impose (P1.a/P4.a/P6.a) ; FORT descriptif, jamais une seconde voie. Cas : tests/sandbox/
-    # test_e34_identity_cell.py (lignes synthetiques, appels HORS de pytest.raises) ; S_a lu dans le JSON SUIVI de P4.16.
-    "identity_cell_verdict": ["incomplet", "audit-aveugle:incomplet-jamais-sans_objet", "missing:raises", "lieu_mixte",
-                              "temoin-autre-execution:raises", "temoin_rompu", "sans_objet:zero-commutation",
-                              "harnais-qui-ment:raises", "bande:meme-seed-bords-dans-la-bande", "materiel_hausse",
-                              "materiel_baisse", "fort:descriptif", "dose-en-commutations-publiee",
-                              "fausse-alarme-h0-publiee", "non_materiel:borne-a-la-cellule-et-a-sa-dose",
+    # E34 / P2.132 (2026-09-26) -- lecture de la regle scellee E34-IDENTITY-CELL v4 (une cellule = une sonde), branches
+    # dans l'ORDRE impose : INCOMPLET (cellule eteinte ou temoin absent) -> temoin d'une autre execution LEVE (v1 P5.b)
+    # -> TEMOIN_ROMPU lu AVANT l'absence des autres cellules (v2 P10.d) -> INCOMPLET (cellule absente ; audit AVEUGLE,
+    # v1 P7.a) -> PROVENANCE_MIXTE (v2 P10.e) -> LIEU_MIXTE -> SANS_OBJET (0 COMMUTATION) -> harnais qui ment LEVE (dont
+    # des CORPS reordonnes, v3 P1.a) -> BANDE_INERTE (v2 P1.b) -> BANDE_DEPLACEE (S_off hors bande, v3 P5.d) -> bande = 12
+    # shams de REETIQUETAGE (meme ordre de service et meme dose que l'eteint), bords DANS la bande, grille 0,5 -> MATERIEL
+    # / NON_MATERIEL (vers le HAUT seulement) si le CONTROLE POSITIF sort au-dessus de la bande ET de S_off (v3 P6.a),
+    # sinon NON_TRANCHE ; fausse alarme avec ex-aequo ; doses par bras (commutations, vote social) ; plafond de famine.
+    # Cas : tests/sandbox/test_e34_identity_cell.py (lignes synthetiques, appels HORS de pytest.raises).
+    "identity_cell_verdict": ["incomplet", "temoin-autre-execution:raises", "temoin_rompu:avant-les-absences",
+                              "audit-aveugle:incomplet-jamais-sans_objet", "missing:raises", "provenance_mixte",
+                              "lieu_mixte", "sans_objet:zero-commutation", "harnais-qui-ment:raises",
+                              "corps-reordonnes:raises", "bande_inerte", "bande_deplacee",
+                              "bande:reetiquetages-bords-dans-la-bande", "materiel_hausse", "materiel_baisse",
+                              "non_tranche:controle-positif-non-vu-au-dessus-de-S_off",
+                              "non_materiel:vers-le-haut-borne-cellule-et-doses", "fausse-alarme:ex-aequo-calculee",
+                              "doses-par-bras-et-vote-social", "plancher-levier-et-plafond-de-famine-publies",
                               "part-erosion:None-sans-erosion"],
-    # E34 / P2.132 -- une cellule b_full seed 2026 sous le traitement de son bras (off / on / sham_k) : garde en tete
-    # (aucun monde), traitement TRANSMIS a la phase 1 (injection : slot_order_fix, sham_draws, identity_audit toujours
-    # vrai), appel REEL minuscule (monde torch, 2 agents, 3 + 2 ticks) qui publie l'audit de l'invariant et des
-    # commutations ; le no-op EXACT du drapeau eteint, le contre-exemple (mort en tete) et le sham (numpy seul, une
-    # fois, au tick de divergence, RNG torch intact) sont dans tests/sandbox/test_e34_slot_identity.py.
+    # E34 / P2.132 -- une cellule b_full seed 2026 sous le traitement de son bras (off / on / pos / relab_k) : garde en
+    # tete (aucun monde), traitement TRANSMIS a la phase 1 (injection : slot_reindex, sham_relabel, cut_credit_at_t1,
+    # identity_audit toujours vrai), vote social compte (compter_consensus), plafond de famine publie, appel REEL
+    # minuscule (monde torch) ; la reindexation (permute_population_rows, perimetre certifie), le reetiquetage (RNG PRIVE,
+    # lignes deplacees seules, qui DIVERGE en monde reel), la coupe du credit a t1, le no-op EXACT du drapeau eteint et le
+    # contre-exemple (mort en tete) sont dans tests/sandbox/test_e34_slot_identity.py.
     "run_identity_cell": ["guard-before-world", "traitement-transmis-a-la-phase-1", "appel-reel:audit-publie",
-                          "drapeau-eteint:noop-exact-au-bit", "mort-en-tete:contre-exemple",
-                          "sham:numpy-seul-une-fois-au-tick-de-divergence"],
+                          "vote-social-compte", "plafond-de-famine:reponse-connue", "drapeau-eteint:noop-exact-au-bit",
+                          "mort-en-tete:contre-exemple", "reindexation:invariant-et-ordre-des-corps-inchange",
+                          "reetiquetage:rng-prive-lignes-deplacees-diverge", "controle-positif:credit-coupe-a-t1"],
+    # E34 / P2.132 (revue v3, P8.b) -- plafond de famine d'un corps qui ne mange pas : energie de depart / (metabolisme de
+    # base x drain du phenotype) ; DESCRIPTIF (ne decide rien). Cas : tests/sandbox/test_e34_identity_cell.py -- reponse
+    # connue (80 / (0,75 x 14,888)) et drain illisible (nan) -> None, jamais un nombre fabrique ; appels HORS de
+    # pytest.raises.
+    "starvation_ceiling": ["reponse-connue:80-sur-metabolisme-fois-drain", "drain-illisible:None"],
     # P4.18 (2026-09-26) -- lecture de la regle scellee S2-BASSIN-FRAGILITY, branches dans l'ORDRE impose (INCOMPLET ->
     # NOOP -> HARNAIS -> REPLICATION -> TRANSPLANT -> APPARIEMENT -> INSTRUMENT (controle POSITIF de FRAGILE) ->
     # PREMISSE -> par bras DIRECTION/PARTIEL/FRAGILE/PROTECTRICE/INOFFENSIF -> global FRAGILE/DIRECTION/
@@ -2039,6 +2061,20 @@ CALIBRATED = {
     "tools/pm/pilotage.py::parse_roadmap": ["parite:blocs", "composite:deux-entrees-un-bloc",
                                             "rang:quinquies-non-tronque", "clause:trois-reponses-connues",
                                             "chemins:non-captes-comptes", "illisible:compte-jamais-perdu"],
+    # Index des artefacts (P2.87, 2026-09-26) : `indexer` publie des comptes (fichiers, indexés, champs
+    # introuvables, format déclaré) et `calculer_dates_git` des dates — des instruments. Le cliquet ne capte pas
+    # ces noms (P2.83) : déclarations GELÉES dans `declarations_ignorees`, garantie par les cas qui tournent en CI.
+    "tools/pm/index_artefacts.py::indexer": ["no-op:racine-vide-fichiers-null", "injection:dose-connue",
+                                             "prediction:un-fichier-de-plus", "parite:famille-null-seule",
+                                             "reel:parite-et-vocabulaire-ferme",
+                                             # revue adversariale du pas 1 : chaque défaut devient un cas
+                                             "no-op:exclus-null-si-non-lu", "local:json-profond-illisible",
+                                             "non-suivi:jamais-date"],
+    "tools/pm/index_artefacts.py::calculer_dates_git": ["reel:depot-jetable-dates-utc", "tronque:clone-depth-1",
+                                                        "config-heritee:sans-effet", "plus-ancienne:ajout-recree",
+                                                        "fuite-git-dir:refusee", "git-dir-du-meme-depot:complet",
+                                                        "vieux-git:jamais-complet", "suivis:head-jamais-index",
+                                                        "config-heritee:log-showroot"],
 }
 
 _GENOMES = os.path.join("results", "warm007_genomes")

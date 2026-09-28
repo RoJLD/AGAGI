@@ -109,9 +109,23 @@ def main(argv=None):
     counts = RC.compute_counts(journal + d["lignes"], RC.fichiers_modifies(args.repo_root, now=now), now)
     with open(paths.pm_dir("ROLES_COUNTS.json"), "w", encoding="utf-8") as fh:
         json.dump(counts, fh, ensure_ascii=False, indent=1)
-    pilotage = ecrire_pilotage(args.repo_root, board, counts, now)
-    print(digest(board, d, counts, illisibles=illisibles) + ("\n" + pilotage if pilotage else ""))
+    lignes = [l for l in (ecrire_pilotage(args.repo_root, board, counts, now), ecrire_dates(args.repo_root, now)) if l]
+    print(digest(board, d, counts, illisibles=illisibles) + ("\n" + "\n".join(lignes) if lignes else ""))
     return 0
+
+
+def ecrire_dates(repo_root, now):
+    """Spec P2.87 §9 (D1) : le tick, qui tourne là où l'historique git est complet, écrit `DATES_GIT.json`, que le
+    backend LIT avec son âge. Une ligne de digest si l'historique n'est pas complet ou si l'écriture lève — jamais
+    un tick qui échoue (BOARD.json, journal, compteurs et pilotage sont déjà écrits)."""
+    try:
+        from tools.pm import index_artefacts as IX
+        doc, _ = IX.ecrire_dates_git(str(repo_root).replace("\\", "/"), now)
+    except Exception as exc:                            # noqa: BLE001 — NOMMÉ dans le digest, jamais avalé
+        return f"[PM] AVEUGLE SUR dates git (DATES_GIT.json non écrit : {type(exc).__name__}: {exc})"
+    if doc["historique"] != "complet":
+        return f"[PM] dates git : historique {doc['historique']} ({doc['raison']}) -- aucune date d'ajout publiée"
+    return ""
 
 
 def ecrire_pilotage(repo_root, board, counts, now):
