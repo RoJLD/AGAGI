@@ -13,6 +13,12 @@
 # rendre ininterprétable (on ne saurait pas si l'écart vient de la machine ou de la bibliothèque).
 # Python 3.13.12 = celui de la batcave ; digest amd64 lu sur Docker Hub le 2026-09-26. Seule exception à
 # l'épinglage : torch 2.6.0+cpu ici, 2.6.0+cu124 sur la batcave (même version, autre build).
+#
+# REPRODUCTIBLE AU BIT (P2.134, mesuré le 2026-09-28, results/deport_p2134_reproductibilite.json) : il faut les DEUX
+# ingrédients — ce Dockerfile NETTOYÉ (journaux apt/dpkg et cache ldconfig retirés ; pip `--no-compile` puis `.pyc` à
+# empreinte de HASH, sans date) ET `--reproducible` de Kaniko (build-job.yaml : dates des couches et de la config).
+# L'un sans l'autre rend deux digests. Limite nommée : git vient d'apt SANS version épinglée — une mise à jour Debian
+# changera la couche apt (l'empreinte de contenu le dira : zone `systeme`, pas `python`).
 FROM python:3.13.12-slim-bookworm@sha256:3121f8b0804aa3698ab750d9a39ea4a42657a385c9b133722b915e55c51551a6
 
 ENV PIP_NO_CACHE_DIR=1 \
@@ -27,19 +33,26 @@ ENV PIP_NO_CACHE_DIR=1 \
 RUN sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list.d/debian.sources \
  && apt-get update \
  && apt-get install -y --no-install-recommends git \
- && rm -rf /var/lib/apt/lists/*
+ && rm -rf /var/lib/apt/lists/* /var/log/apt /var/log/dpkg.log /var/cache/ldconfig/aux-cache /var/cache/apt/*.bin
 
-COPY requirements.txt constraints.txt /opt/agagi/
+COPY requirements.txt constraints.txt empreinte_contenu.py /opt/agagi/
 
 # torch CPU d'abord, depuis l'index pytorch : la version locale `+cpu` n'existe QUE là, donc aucune roue
 # CUDA (≈ 2 Go de dépendances nvidia) ne peut être tirée de PyPI par erreur. Le reste depuis PyPI, sous
-# contraintes. La dernière ligne échoue le build si un import majeur casse (une image qui s'importe mal ne
-# doit pas atteindre le registre).
+# contraintes. `--no-compile` puis compileall en `unchecked-hash` : un `.pyc` compilé par pip porte la DATE de sa
+# source, un `.pyc` à empreinte de hash non. La dernière ligne échoue le build si un import majeur casse (une image
+# qui s'importe mal ne doit pas atteindre le registre).
 RUN pip install --index-url https://download.pytorch.org/whl/cpu --extra-index-url https://pypi.org/simple \
-        "torch==2.6.0+cpu" -c /opt/agagi/constraints.txt \
- && pip install -r /opt/agagi/requirements.txt -c /opt/agagi/constraints.txt \
+        --no-compile "torch==2.6.0+cpu" -c /opt/agagi/constraints.txt \
+ && pip install --no-compile -r /opt/agagi/requirements.txt -c /opt/agagi/constraints.txt \
  && pip freeze > /opt/agagi/pip-freeze.txt \
+ && python -m compileall -q --invalidation-mode unchecked-hash /usr/local/lib/python3.13/site-packages \
  && python -c "import numpy, scipy, torch, kuzu, psutil, yaml, jsonschema, pydantic; print('numpy', numpy.__version__, 'torch', torch.__version__)"
+
+# Empreinte de CONTENU (DIAGNOSTIC, décision de Master 2 du 2026-09-28) : zones `python` (/usr/local) et `systeme`,
+# imprimée dans le journal du build (remote.py la reporte dans IMAGE.json) et publiée par remote_entry dans le MANIFEST
+# de chaque run, à côté du digest (qui reste l'IDENTITÉ).
+RUN python /opt/agagi/empreinte_contenu.py / /opt/agagi/empreinte-contenu.json
 
 USER 65534:65534
 WORKDIR /work

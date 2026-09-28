@@ -81,16 +81,26 @@ LABELS_PROPRIETE = {"app.kubernetes.io/part-of": "agagi", "elysium.io/owner": "a
 RUNNER_DIR = "deploy/nexus/runner"
 IMAGE_JSON = RUNNER_DIR + "/IMAGE.json"
 FICHIERS_CONTEXTE = {"Dockerfile": f"{RUNNER_DIR}/Dockerfile", "constraints.txt": f"{RUNNER_DIR}/constraints.txt",
-                     "requirements.txt": "requirements.txt", "build-job.yaml": f"{RUNNER_DIR}/build-job.yaml"}
-# Plafond par conteneur = LimitRange `standard` du namespace (deploy/nexus/01-limitrange.yaml).
+                     "requirements.txt": "requirements.txt", "build-job.yaml": f"{RUNNER_DIR}/build-job.yaml",
+                     "empreinte_contenu.py": f"{RUNNER_DIR}/empreinte_contenu.py"}
+# Fichiers envoyés au build par ConfigMap (le gabarit du Job, lui, est rendu à part).
+FICHIERS_BUILD = ("Dockerfile", "constraints.txt", "requirements.txt", "empreinte_contenu.py")
+# Repli des fonctions PURES seulement (tests, rendu hors cluster) : les valeurs de l'ancien palier `standard`
+# (2 CPU / 4 Gi). À la soumission, le plafond se LIT dans les LimitRange du namespace (plafonds_limitrange) — ml-heavy
+# depuis le 2026-09-26 : 12 CPU / 32 Gi par conteneur (deploy/nexus/01-limitrange.yaml).
 MAX_CPU, MAX_MEM_GI = 2.0, 4.0
-# Paliers de mémoire (décision de robla, 2026-09-26) : une limite de conteneur est TOUJOURS l'un d'eux, déclarée
-# explicitement sur le Job (jamais le défaut de la LimitRange), et ne dépasse jamais le `max` de la LimitRange LUE sur
-# le cluster au moment de la soumission (les constantes ci-dessus ne servent que de repli aux fonctions pures).
+# Paliers de mémoire (décision de robla, 2026-09-26) : la limite du conteneur `run` d'un Job de RUN est TOUJOURS l'un
+# d'eux, déclarée explicitement sur le Job (jamais le défaut de la LimitRange), et ne dépasse jamais le `max` de la
+# LimitRange LUE à la soumission. Hors de cette règle, et dit : l'init `recevoir` (128 Mi) et le Job de BUILD, dont les
+# ressources viennent du gabarit deploy/nexus/runner/build-job.yaml — fichier HACHÉ dans le tag de l'image.
 PALIERS_MEMOIRE_GI = (4, 8, 16, 20, 24, 28, 32)
 # Réserve d'ELYSIUM (elysium-91, 2026-09-26) : pods BURSTABLE, request <= limit / 4 — sous pression mémoire, ce sont nos
 # pods (au-delà de leur request, priorité la plus basse) qui partent, jamais ollama ni la brain. Jamais Guaranteed.
+# Tenue par valider_ressources pour le conteneur `run` ; le Job de BUILD la tient par son gabarit (kaniko : 2 Gi pour
+# une limite de 8 Gi depuis l'adoption de P2.134), vérifié par test.
 RAPPORT_REQUETE_MEMOIRE_MAX = 0.25
+# Ressources de l'init `recevoir` d'un pod de run : le quota compte le pod EFFECTIF, max(init, conteneurs) par poste.
+INIT_RECEVOIR = {"requests": {"cpu": "50m", "memory": "64Mi"}, "limits": {"cpu": "200m", "memory": "128Mi"}}
 # Objets du namespace que « namespace --appliquer » RETIRE après avoir appliqué les gabarits (remplacés par un autre).
 OBJETS_RETIRES = (("limitrange", "elysium-limitrange-standard"),)
 JOURNAL_LOCAL = "runs/deport"          # runs/ est ignoré par git : journaux et MANIFEST des runs
@@ -158,10 +168,12 @@ def charger_config(env=None) -> dict:
     return cfg
 
 
-def allumage(cfg: dict) -> str:
+def allumage(cfg: dict, local: bool = True) -> str:
+    """Message d'un nœud éteint. `local=False` pour un BUILD : `local` exécute un runner sur la batcave, il ne
+    construit pas d'image — le proposer serait une fausse alternative."""
     return (f"nœud {cfg['noeud']} éteint ou indisponible. Voie d'allumage déclarée : "
             f"{cfg.get('allumage') or 'NON DÉCLARÉE (clé allumage)'} — geste humain, que cet outil ne fait JAMAIS "
-            "lui-même. Sinon : `python -m tools.jobs.remote local`.")
+            "lui-même." + (" Sinon : `python -m tools.jobs.remote local`." if local else ""))
 
 
 # ------------------------------------------------------------------------------------------ git (local)
@@ -281,9 +293,11 @@ def mem_en_gi(q: str) -> float:
 
 def valider_ressources(req_cpu: float, cpu: float, req_mem: str, mem: str, max_cpu: float = MAX_CPU,
                        max_mem_gi: float = MAX_MEM_GI) -> None:
-    """Refuse AVANT soumission ce que la LimitRange refuserait APRÈS — un refus d'admission d'un pod de Job
-    est SILENCIEUX (Job `0/1` sans pod : ELYSIUM image-ci README, Iron Rule 5). La limite mémoire doit être un
-    PALIER déclaré (PALIERS_MEMOIRE_GI) : deux cellules ne se comparent qu'à palier connu."""
+    """Refuse AVANT soumission ce que le `max` de la LimitRange refuserait APRÈS — un refus d'admission d'un pod de
+    Job est SILENCIEUX (Job `0/1` sans pod : ELYSIUM image-ci README, Iron Rule 5). La limite mémoire doit être un
+    PALIER déclaré (PALIERS_MEMOIRE_GI) : deux cellules ne se comparent qu'à palier connu. Le `min` de la LimitRange
+    (10m / 32Mi sous ml-heavy) n'est PAS vérifié ici : les requêtes par défaut en sont loin, et une requête plus basse
+    serait refusée à l'admission, ce que _attendre_recevoir rapporte au bout de 30 s avec les événements du Job."""
     if not (0 < req_cpu <= cpu <= max_cpu):
         raise Refus(f"CPU : 0 < requête ({req_cpu}) <= limite ({cpu}) <= {max_cpu} (max de la LimitRange)")
     if mem_en_gi(mem) not in PALIERS_MEMOIRE_GI:
@@ -300,18 +314,83 @@ def requete_memoire_defaut(mem: str) -> str:
     return f"{int(mem_en_gi(mem) * 1024 * RAPPORT_REQUETE_MEMOIRE_MAX)}Mi"
 
 
+def cpu_en_coeurs(q) -> float:
+    """Quantité CPU Kubernetes (« 2 », « 1500m ») en cœurs."""
+    q = str(q)
+    try:
+        return float(q[:-1]) / 1000 if q.endswith("m") else float(q)
+    except ValueError:
+        raise Refus(f"quantité CPU illisible : {q!r}")
+
+
 def plafonds_limitrange(kube) -> tuple:
     """(max CPU, max mémoire en Gi) par conteneur, LUS dans les LimitRange du namespace — le plus restrictif
     l'emporte, comme dans Kubernetes. Aucune LimitRange ou aucun max lisible → Refus (on ne devine pas un plafond)."""
-    def cpu_en(q):
-        return float(q[:-1]) / 1000 if str(q).endswith("m") else float(q)
     maxs = [l.get("max", {}) for lr in kube.json(["get", "limitrange"]).get("items", [])
             for l in lr.get("spec", {}).get("limits", []) if l.get("type") == "Container"]
-    cpus = [cpu_en(m["cpu"]) for m in maxs if "cpu" in m]
+    cpus = [cpu_en_coeurs(m["cpu"]) for m in maxs if "cpu" in m]
     mems = [mem_en_gi(m["memory"]) for m in maxs if "memory" in m]
     if not cpus or not mems:
         raise Refus("aucun max CPU/mémoire lisible dans les LimitRange du namespace : plafond inconnu, refus")
     return min(cpus), min(mems)
+
+
+_FACTEURS_MEMOIRE = {"": 1, "k": 10 ** 3, "M": 10 ** 6, "G": 10 ** 9, "T": 10 ** 12,
+                     "Ki": 2 ** 10, "Mi": 2 ** 20, "Gi": 2 ** 30, "Ti": 2 ** 40}
+
+
+def quantite_memoire_lue_en_gi(q) -> float:
+    """Quantité mémoire LUE sur le cluster (octets nus, k/M/G/T, Ki/Mi/Gi/Ti) en Gi. Les paliers déclarés par
+    l'utilisateur restent en Mi/Gi seulement (mem_en_gi) ; une valeur posée par ELYSIUM peut prendre toute forme légale."""
+    m = re.fullmatch(r"(\d+(?:\.\d+)?)(Ki|Mi|Gi|Ti|k|M|G|T)?", str(q).strip())
+    if not m:
+        raise Refus(f"quantité mémoire lue illisible : {q!r}")
+    return float(m.group(1)) * _FACTEURS_MEMOIRE[m.group(2) or ""] / 2 ** 30
+
+
+def quota_du_namespace(kube) -> dict | None:
+    """Les `hard` des ResourceQuota SANS portée du namespace, par clé (une liste : ils s'appliquent tous). Un quota à
+    PORTÉE (`scopes` / `scopeSelector` : PriorityClass, BestEffort…) ne vise qu'une partie des pods : il n'est PAS jugé
+    ici, et son nom est publié sous `_quotas_a_portee_non_juges` (s'il visait nos pods, le refus d'admission reste
+    rapporté par _attendre_recevoir). None = AUCUNE ResourceQuota — rien à comparer, publié tel quel."""
+    items = kube.json(["get", "resourcequota"]).get("items", [])
+    if not items:
+        return None
+    hard = {}
+    for q in items:
+        spec = q.get("spec") or {}
+        if spec.get("scopes") or spec.get("scopeSelector"):
+            hard.setdefault("_quotas_a_portee_non_juges", []).append(q.get("metadata", {}).get("name", "?"))
+            continue
+        for k, v in spec.get("hard", {}).items():
+            hard.setdefault(k, []).append(str(v))
+    return hard
+
+
+def valider_quota(hard: dict | None, *, req_cpu: float, cpu: float, req_mem: str, mem: str) -> None:
+    """Refuse AVANT création un pod qui dépasse À LUI SEUL un `hard` du quota : il ne serait JAMAIS admis, même
+    namespace vide, et le Job resterait sans pod (« exceeded quota ») pendant qu'on conseillerait d'attendre. Sous
+    le palier standard (max 2 CPU) c'était impossible ; sous ml-heavy, `--req-cpu 10 --cpu 10` passe la LimitRange
+    (max 12) et dépasse requests.cpu = 8. La demande jugée est celle du pod EFFECTIF, max(init `recevoir`, conteneur
+    `run`) par poste, comme le compte le quota. Un `hard` illisible fait refuser en NOMMANT le quota."""
+    if hard is None:
+        return
+    ir, il = INIT_RECEVOIR["requests"], INIT_RECEVOIR["limits"]
+    demande = {"requests.cpu": max(req_cpu, cpu_en_coeurs(ir["cpu"])),
+               "limits.cpu": max(cpu, cpu_en_coeurs(il["cpu"])),
+               "requests.memory": max(mem_en_gi(req_mem), mem_en_gi(ir["memory"])),
+               "limits.memory": max(mem_en_gi(mem), mem_en_gi(il["memory"]))}
+    demande["cpu"], demande["memory"] = demande["requests.cpu"], demande["requests.memory"]
+    for cle, valeur in demande.items():
+        for h in hard.get(cle, []):
+            try:
+                plafond = cpu_en_coeurs(h) if cle.endswith("cpu") else quantite_memoire_lue_en_gi(h)
+            except Refus as e:
+                raise Refus(f"quota du namespace : hard {cle}={h!r} illisible ({e}) — rien n'est deviné")
+            if valeur > plafond:
+                unite = "" if cle.endswith("cpu") else "Gi"
+                raise Refus(f"quota du namespace : {cle} = {valeur:g}{unite} demandé par CE pod > hard {h} — il ne "
+                            "serait JAMAIS admis, même namespace vide. Réduire la demande ou revoir le quota avec ELYSIUM.")
 
 
 def nom_job(commande: list, sha: str, suffixe: str | None = None) -> str:
@@ -408,8 +487,7 @@ def manifeste_job(*, nom, sha, image, commande, namespace, noeud, cpu=2.0, req_c
                                         "fsGroup": 65534, "seccompProfile": {"type": "RuntimeDefault"}},
                     "initContainers": [{
                         "name": "recevoir", "image": image, "command": ["sh", "-c", recevoir],
-                        "resources": {"requests": {"cpu": "50m", "memory": "64Mi"},
-                                      "limits": {"cpu": "200m", "memory": "128Mi"}},
+                        "resources": json.loads(json.dumps(INIT_RECEVOIR)),
                         "securityContext": _secu_conteneur(),
                         "volumeMounts": [{"name": "xfer", "mountPath": "/xfer"}]}],
                     "containers": [{
@@ -622,9 +700,13 @@ def soumettre(commande, *, sha="HEAD", cpu=2.0, req_cpu=1.0, mem="4Gi", req_mem=
     info = lire_image(racine)
     mode_garde = "desactivee (--image-divergente-ok)" if image_divergente_ok else garde_image(info, sha, racine)
     pret, raison = noeud_pret(kube, noeud)
-    max_cpu, max_mem_gi = plafonds_limitrange(kube) if pret else (MAX_CPU, MAX_MEM_GI)
     if not pret:
         raise Refus(f"{raison}. {allumage(cfg)}")
+    # plafonds et quota LUS sur le cluster, jugés AVANT toute création : un refus d'admission est silencieux
+    max_cpu, max_mem_gi = plafonds_limitrange(kube)
+    valider_ressources(req_cpu, cpu, req_mem, mem, max_cpu, max_mem_gi)
+    hard = quota_du_namespace(kube)
+    valider_quota(hard, req_cpu=req_cpu, cpu=cpu, req_mem=req_mem, mem=mem)
     absentes = entrees_non_suivies(racine)
     if absentes:
         sortie(f"[remote] ⚠ {len(absentes)} entrée(s) de data/ NON suivies n'existeront PAS dans le pod "
@@ -656,7 +738,8 @@ def soumettre(commande, *, sha="HEAD", cpu=2.0, req_cpu=1.0, mem="4Gi", req_mem=
          "noeud": noeud,
          "garde_image": mode_garde, "entrees_non_suivies": absentes, "sur_souscription": exces,
          "ressources": {"cpu": cpu, "req_cpu": req_cpu, "mem": mem, "req_mem": req_mem,
-                        "plafonds_limitrange": {"cpu": max_cpu, "mem_gi": max_mem_gi}},
+                        "plafonds_limitrange": {"cpu": max_cpu, "mem_gi": max_mem_gi},
+                        "quota_hard": hard},
          "soumis_utc": _dt.datetime.now(_dt.timezone.utc).isoformat()}, indent=2, ensure_ascii=False),
         encoding="utf-8")
     return nom
@@ -808,7 +891,11 @@ def rapatrier(job, *, into=None, kube=None, racine=None, sortie=print) -> dict:
 
 def executer_local(commande, *, sha="HEAD", into=None, racine=None, sortie=print, bail_dir=None, env=None) -> dict:
     """Le MÊME chemin que le pod (dépôt au sha, remote_entry, empreintes, MANIFEST, installation), sur la
-    batcave. Sert au témoin batcave/nexus et de repli quand nexus dort. Environnement MINIMAL (env_local) :
+    batcave. Sert au témoin batcave/nexus, et c'est le lieu OBLIGATOIRE d'un run qui doit répliquer AU BIT des valeurs
+    publiées sous Windows : torch float32 n'est pas identique au bit entre batcave et nexus (numpy l'est pour UNE
+    cellule, EDR-DEPORT-NEXUS-TEMOIN ; non établi au-delà) —
+    REF-DEPORT-NEXUS, « Choisir le lieu ». Comme repli d'une mesure prévue sur nexus, il CHANGE le lieu (publié dans
+    le MANIFEST) : ne pas mêler les deux lieux dans une même comparaison torch. Environnement MINIMAL (env_local) :
     rien de la session appelante n'atteint le runner, sauf les `--env` déclarés — comme dans le pod.
     La réussite se lit dans le MANIFEST, jamais au code du processus (un runner peut lui-même rendre 86)."""
     from tools.jobs.run import hold
@@ -851,13 +938,79 @@ def contexte_image(sha: str, racine: Path) -> dict:
             "requirements_sha256": hashlib.sha256(fichiers["requirements.txt"]).hexdigest()}
 
 
-def construire_image(*, sha="HEAD", kube=None, racine=None, sortie=print, delai_s=2400, reconstruire=False,
-                     cfg=None) -> dict:
+def raison_echec_build(job_obj: dict, pod: dict | None) -> dict:
+    """Pourquoi un Job de BUILD a échoué, LU dans ses statuts — jamais déduit des logs, qu'un OOM laisse muets.
+    OOMKilled est NOMMÉ : c'était le mode d'échec de --reproducible au plafond de 4 Gi (P2.134). Rien de lisible =
+    cause INCONNUE, dite comme telle."""
+    conds = {c["type"]: c for c in job_obj.get("status", {}).get("conditions", []) if c.get("status") == "True"}
+    st = (pod or {}).get("status", {})
+    term = {c.get("name"): (c.get("state") or {}).get("terminated") or {}
+            for c in st.get("containerStatuses", []) + st.get("initContainerStatuses", [])}
+    kan, ctx = term.get("kaniko", {}), term.get("contexte", {})
+    out = {"job_raison": (conds.get("Failed") or {}).get("reason"), "kaniko_raison": kan.get("reason"),
+           "kaniko_code": kan.get("exitCode"), "contexte_code": ctx.get("exitCode"), "pod_lu": pod is not None}
+    if kan.get("reason") == "OOMKilled":
+        out["resume"] = ("kaniko OOMKilled à la limite mémoire du gabarit build-job.yaml — la relever change un fichier "
+                         "HACHÉ, donc le contexte et l'image")
+    elif out["job_raison"] == "DeadlineExceeded":
+        out["resume"] = "délai du Job dépassé (activeDeadlineSeconds du gabarit)"
+    elif ctx.get("exitCode") not in (None, 0):
+        out["resume"] = f"init « contexte » sorti en {ctx.get('exitCode')} (contexte de build non copié)"
+    elif kan:
+        out["resume"] = f"kaniko sorti en {kan.get('exitCode')} ({kan.get('reason')})"
+    elif pod is None:
+        out["resume"] = "aucun pod lisible : cause INCONNUE"
+    else:
+        out["resume"] = "cause non lisible dans les statuts : cf. logs"
+    return out
+
+
+def horodatage_job(job_obj: dict) -> dict:
+    """Heures d'un Job LUES dans son statut Kubernetes (UTC) — la source est nommée dans le résultat. Une heure
+    absente reste None, jamais remplacée par l'horloge locale (E8, 2026-09-28 : une fin de build ESTIMÉE avait été
+    écrite comme lue)."""
+    return {"cree_utc": job_obj.get("metadata", {}).get("creationTimestamp"),
+            "debut_utc": job_obj.get("status", {}).get("startTime"),
+            "fin_utc": job_obj.get("status", {}).get("completionTime"),
+            "source": "Job Kubernetes : metadata.creationTimestamp, status.startTime et status.completionTime (UTC)"}
+
+
+MARQUEUR_EMPREINTE = "AGAGI-EMPREINTE-CONTENU"      # même balise que deploy/nexus/runner/empreinte_contenu.py
+
+
+def empreinte_du_journal(journal: bytes, job: str) -> dict:
+    """L'empreinte de contenu imprimée par la dernière étape du Dockerfile, LUE dans le journal du build (la DERNIÈRE
+    ligne balisée) — reportée dans IMAGE.json avec sa source. Absente (image d'avant P2.134, journal tronqué) ou
+    illisible : DIT, jamais une empreinte inventée. Le digest reste l'identité ; ceci est un diagnostic."""
+    lignes = [l for l in journal.decode("utf-8", "replace").splitlines() if l.startswith(MARQUEUR_EMPREINTE + " ")]
+    if not lignes:
+        return {"source": f"absente du journal du build {job}", "empreinte": None}
+    try:
+        return {"source": f"journal du build {job}",
+                "empreinte": json.loads(lignes[-1][len(MARQUEUR_EMPREINTE) + 1:])}
+    except ValueError as e:
+        return {"source": f"illisible dans le journal du build {job}", "empreinte": None, "erreur": str(e)}
+
+
+def delai_build_s(gabarit: bytes) -> int:
+    """Attente locale d'un build : l'`activeDeadlineSeconds` du gabarit + 120 s. Égale au délai du Job (2400 s tous
+    deux, revue du 2026-09-28), elle lisait « encore actif » un Job en train d'échouer par SON délai, et le retirait
+    avant que sa cause soit visible. Gabarit sans échéance → Refus (on ne devine pas une durée)."""
+    m = re.search(rb"activeDeadlineSeconds:\s*(\d+)", gabarit)
+    if not m:
+        raise Refus("gabarit de build sans activeDeadlineSeconds : durée d'attente inconnue, refus")
+    return int(m.group(1)) + 120
+
+
+def construire_image(*, sha="HEAD", kube=None, racine=None, sortie=print, delai_s=None, reconstruire=False,
+                     cfg=None, dormir=time.sleep) -> dict:
     cfg = cfg or charger_config()
     racine = racine or racine_depot()
     kube = kube or Kube.depuis(cfg)
     sha = sha_complet(sha, racine)
     ctx = contexte_image(sha, racine)
+    if delai_s is None:
+        delai_s = delai_build_s(ctx["fichiers"]["build-job.yaml"])
     tag = ctx["tag"]
     if (racine / IMAGE_JSON).is_file():
         deja = lire_image(racine)
@@ -872,7 +1025,7 @@ def construire_image(*, sha="HEAD", kube=None, racine=None, sortie=print, delai_
                     "fenêtre déclarée : attendre son ouverture")
     pret, raison = noeud_pret(kube, cfg["noeud"])
     if not pret:
-        raise Refus(f"{raison}. {allumage(cfg)}")
+        raise Refus(f"{raison}. {allumage(cfg, local=False)}")
     if kube.brut(["get", "configmap", "registry-ca-bundle"], verifier=False).returncode != 0:
         if not cfg.get("ca_depuis"):
             raise Refus("ConfigMap registry-ca-bundle absente du namespace et clé ca_depuis (AGAGI_DEPORT_CA_DEPUIS) "
@@ -887,8 +1040,7 @@ def construire_image(*, sha="HEAD", kube=None, racine=None, sortie=print, delai_
     if kube.brut(["get", "configmap", cm], verifier=False).returncode != 0:
         kube.creer({"apiVersion": "v1", "kind": "ConfigMap",
                     "metadata": {"name": cm, "namespace": cfg["namespace"], "labels": LABELS_PROPRIETE},
-                    "data": {n: ctx["fichiers"][n].decode("utf-8")
-                             for n in ("Dockerfile", "constraints.txt", "requirements.txt")}})
+                    "data": {n: ctx["fichiers"][n].decode("utf-8") for n in FICHIERS_BUILD}})
     job = f"agagi-build-{ctx['hash12']}-{secrets.token_hex(2)}"
     gabarit = ctx["fichiers"]["build-job.yaml"].decode("utf-8")
     yaml_job = rendre(gabarit, {"__JOB__": job, "__TAG__": tag, "__CTX_CM__": cm, "__NAMESPACE__": cfg["namespace"],
@@ -899,28 +1051,43 @@ def construire_image(*, sha="HEAD", kube=None, racine=None, sortie=print, delai_
     sortie(f"[remote] build {job} créé -> <registre>/{cfg['depot_image']}:{tag}")
     t0 = time.monotonic()
     while True:
-        time.sleep(10)
+        dormir(10)
         j = kube.json(["get", "job", job])
         conds = {c["type"] for c in j.get("status", {}).get("conditions", []) if c.get("status") == "True"}
         pod = kube.pod_du_job(job)
+        if "Complete" in conds:
+            break
+        if "Failed" in conds:
+            cause = raison_echec_build(j, pod)
+            logs = kube.brut(["logs", f"job/{job}", "-c", "kaniko", "--tail=40"], verifier=False).stdout
+            raise Refus(f"build {job} en échec — {cause['resume']} {json.dumps(cause, ensure_ascii=False)}\n"
+                        f"{logs.decode('utf-8', 'replace')}")
         if pod is None and time.monotonic() - t0 > 30:
             evs = kube.evenements(job)
             kube.supprimer_job(job)
             raise Refus(f"aucun pod pour {job} : refus d'admission ou quota ? {evs[-3:]} (Job retiré)")
-        if "Failed" in conds or time.monotonic() - t0 > delai_s:
+        if time.monotonic() - t0 > delai_s:
+            # ni fini ni échoué APRÈS l'échéance du Job lui-même (+ 120 s) : ce qu'on sait est lu AVANT de le retirer
+            cause = raison_echec_build(j, pod)
             logs = kube.brut(["logs", f"job/{job}", "-c", "kaniko", "--tail=40"], verifier=False).stdout
-            raise Refus(f"build {job} en échec :\n{logs.decode('utf-8', 'replace')}")
-        if "Complete" in conds:
-            break
+            kube.supprimer_job(job)
+            raise Refus(f"build {job} encore actif après {delai_s} s (au-delà de son échéance) : Job RETIRÉ, aucune "
+                        f"image enregistrée — {cause['resume']} {json.dumps(cause, ensure_ascii=False)}\n"
+                        f"{logs.decode('utf-8', 'replace')}")
     st = [c for c in pod["status"]["containerStatuses"] if c["name"] == "kaniko"][0]
     digest = st["state"]["terminated"].get("message", "").strip()
     if not re.fullmatch(r"sha256:[0-9a-f]{64}", digest):
         raise Refus(f"digest illisible dans le statut de {job} : {digest!r}")
+    journal = kube.brut(["logs", f"job/{job}", "-c", "kaniko"], verifier=False).stdout
     kube.brut(["delete", "configmap", cm], verifier=False)      # le quota compte les ConfigMaps
     info = {"image": cfg["depot_image"], "tag": tag, "digest": digest, "ctx_hash12": ctx["hash12"],
             "requirements_sha256": ctx["requirements_sha256"], "source_sha": sha, "job": job,
             "construit_utc": _dt.datetime.now(_dt.timezone.utc).isoformat(),
-            "duree_build_s": round(time.monotonic() - t0, 1)}
+            "construit_utc_source": "horloge de la machine qui soumet (UTC)",
+            "horodatage_job": horodatage_job(j),
+            "empreinte_contenu": empreinte_du_journal(journal, job),
+            "duree_build_s": round(time.monotonic() - t0, 1),
+            "duree_build_s_source": "horloge monotone de la machine qui soumet, attente de 10 s par sondage comprise"}
     E.ecrire_atomique((json.dumps(info, indent=2) + "\n").encode("utf-8"), str(racine / IMAGE_JSON))
     sortie(f"[remote] image {image_ref(info, '<registre>')} ; {IMAGE_JSON} écrit (à committer)")
     return info
@@ -1021,8 +1188,9 @@ def surveiller(*, duree_s=6 * 3600, pas_s=60, ignorer=(), kube=None, sortie=prin
         r = lire_anomalies(jobs, pods, time.time(), ignorer)
         used = quota["items"][0]["status"].get("used", {}) if quota.get("items") else {}
         etat = (f"jobs actifs={r['actifs']} pods={used.get('pods')} req.cpu={used.get('requests.cpu')} "
-                f"jobs={used.get('count/jobs.batch')} anomalies ignorées={len(r['ignorees'])} "
-                f"lectures ratées={ratees}")
+                f"lim.cpu={used.get('limits.cpu')} req.mem={used.get('requests.memory')} "
+                f"lim.mem={used.get('limits.memory')} jobs={used.get('count/jobs.batch')} "
+                f"anomalies ignorées={len(r['ignorees'])} lectures ratées={ratees}")
         if etat != dernier:
             sortie(f"[surveiller] {time.strftime('%H:%M:%S')} {etat}")
             dernier = etat

@@ -1365,6 +1365,23 @@ depuis elysium-brain) : elle ne suit pas une rotation de la CA mkcert — à re-
 aujourd'hui (cnce-12 arrive, PR-A secrets-flotte d'elysium-2d). (5) Verser les manifestes dans le GitOps ELYSIUM ou
 une Application ArgoCD quand ce sera stable (Σ-MANIFEST-MYCORHIZE : l'app est SHADOW tant qu'elle n'est pas déclarée).
 Sans clause `closes_when` (déclaré) : cinq gestes, dont trois se font avec ELYSIUM.
+**Avancement du 2026-09-28 (session INFRA-NEXUS ; accord écrit d'elysium-91 ET d'elysium-8d)** — la prémisse de (1)
+était FAUSSE : la boucle du README des LimitRange ELYSIUM saute elysium-agagi par son NOM (`ML_HEAVY_NS="elysium-ml
+elysium-agagi"`, PR ELYSIUM #1301) et n'applique que ses propres fichiers de palier — rien ne déferait un renommage.
+Aucun lecteur ELYSIUM de `part-of` ni de `sigil` sur une LimitRange (mesuré par les deux sessions ; seul
+`sigma_cluster_events_snapshot` lit un sigil, pour l'attribuer). (1) FAIT dans le dépôt : `part-of: agagi`,
+`owner: agagi`, annotation `elysium.io/derived-from: SIGIL-1627`, label sigil retiré ; `owner: agagi` posé aussi sur la
+ResourceQuota et les deux NetworkPolicy (les cinq objets portent les quatre labels de `LABELS_PROPRIETE`). (2) FAIT dans
+le dépôt : DNS de default-deny-all restreint à kube-dns, bloc d'opa-ingress (UN élément `to:`, namespaceSelector ET
+podSelector) ; témoin `test_P2_127_propriete_AGAGI_et_DNS_vers_kube_dns_SEUL`, dont un assert refuse la forme OU.
+**Reste** : l'APPLICATION par robla (`python -m tools.jobs.remote namespace --appliquer`, après `kubectl diff`), puis la
+validation à DEUX sens — un pod de l'image runner SANS le label de build résout `pypi.org` et `kubernetes.default` et
+ÉCHOUE à ouvrir `pypi.org:443` ; AVEC le label, le 443 passe ; ensuite un vrai build. (3), (4), (5) inchangés.
+(6) NOUVEAU : le palier ml-heavy dépend du NOM `elysium-agagi` (clé `namespace` de la configuration hors dépôt). Un
+namespace renommé ne serait pas sauté : `standard` (4 Gi) y serait reposée, le max le plus restrictif gagnerait, et
+`plafonds_limitrange` ferait REFUSER bruyamment tout palier > 4 Gi (un refus, pas une faute muette). Écrit dans la REF
+(clé `namespace`), dans 00/01 et dans `deploy/deport.example.json` ; option à proposer à ELYSIUM : brancher le saut sur
+le label `elysium.io/limitrange-tier` plutôt que sur une liste de noms.
 
 **P2.131 — rang 22 — OUVERTE (2026-09-26, trouvée en passant par la revue /refutateur d'EDR-DEPORT-NEXUS-TEMOIN, P8.5)
 — Des citations de ligne PÉRIMÉES pour la formule du corps : trois sites renvoient à `src/agents/mamba_agent.py:47-50`,
@@ -1380,7 +1397,7 @@ identiques ont rendu deux digests différents.**
 Preuve : `deploy/nexus/runner/IMAGE.json` au commit 28810f52 (digest a1d6e4eb…) contre le même fichier au commit
 5deed2c6 (digest 7c860b30…) ; même contexte de build hors le gabarit du Job (placeholders), cf. EDR-DEPORT-NEXUS-TEMOIN,
 tour 4. Conséquence déjà appliquée : un record cite le DIGEST exact, jamais le tag seul (`docs/REF/REF-DEPORT-NEXUS.md`,
-État mesuré). Reste la dette : (a) épingler TOUTES les dépendances transitives — contraintes générées depuis le pip
+État mesuré). Reste la dette : (a) [RÉFUTÉE le 2026-09-26 au soir, cf. (1) ci-dessous : mêmes dist-info] épingler TOUTES les dépendances transitives — contraintes générées depuis le pip
 freeze de l'image construite (`/opt/agagi/pip-freeze.txt` dans l'image) — puis reconstruire deux fois et comparer ;
 (b) si le digest varie encore, les horodatages de couches en sont la cause probable : essayer l'option `--reproducible`
 de Kaniko. Tant que ce n'est pas fait, deux runs « sur la même image » ne sont comparables que s'ils citent le même
@@ -1409,6 +1426,33 @@ plus haut) pour que `--reproducible` ne soit plus OOMKilled — seule voie vers 
 sonde de surveillance a attrapé ces deux OOMKilled d'essai avant qu'on déclare leur motif (contrôle positif
 involontaire) ; l'exclusion est désormais DÉCLARÉE et COMPTÉE (`python -m tools.jobs.remote surveiller --ignorer=…`,
 REF-DEPORT-NEXUS, Surveillance d'un run).
+**Mesuré le 2026-09-28 (session INFRA-NEXUS ; la « demande à ELYSIUM » ci-dessus est SATISFAITE : ml-heavy appliqué le
+2026-09-26 à 19:16 UTC)** — évidence `results/deport_p2134_reproductibilite.json`, chaque heure LUE au statut du Job
+(UTC), builds d'essai au sha d4793ec8 sans cache, dépôt `…-essais`, IMAGE.json intouché. (A) Dockerfile nettoyé +
+`--reproducible`, kaniko à 16 Gi (requête 4) : 2 builds, UN digest `sha256:cf08cef4…`, 8 couches sur 8 (12:46:41Z →
+12:48:53Z). (B) même recette à 8 Gi (requête 2), lancée 8 min 09 s plus tard (12:54:50Z) : MÊME digest, aucun OOM.
+(C) ABLATION, Dockerfile PUBLIÉ + `--reproducible` seul : DEUX digests ; couches d'indice 4 (RUN apt : journaux, cache
+ldconfig) et 6 (RUN pip : `.pyc` datés) différentes, COPY et WORKDIR identiques. Avec le nettoyage seul (26 au soir :
+contenu identique, couches différentes), il faut les DEUX. Pic mémoire NON mesuré (kubectl top toutes les 15 s = un
+MINORANT : 5,8 Gi pour un build, 654 Mi pour son jumeau). **Décision de Master 2 (2026-09-28), à appliquer APRÈS
+P4.18** (elle change le contexte haché, donc l'image) : Dockerfile nettoyé ; `--reproducible` dans `deploy/nexus/runner/build-job.yaml` ;
+kaniko à 8 Gi pour une requête de 2 Gi (limite / 4, la réserve d'ELYSIUM, que le gabarit actuel — 2 Gi pour 4 Gi — ne
+tient pas) ; init `contexte` à 32 Mi pour 128 Mi ; le DIGEST devient l'identité citée par un record, une EMPREINTE DE
+CONTENU publiée à côté comme DIAGNOSTIC (quand le digest change : l'environnement Python/torch a-t-il changé, ou la seule
+couche apt ?) — décision transmise par message de Master 2 le 2026-09-28, qui RÉVISE la proposition validée le 26
+(l'empreinte y valait équivalence ; la mesure du 28 rend le digest stable, l'empreinte devient un diagnostic). **Limites nommées** : git vient d'apt SANS version épinglée — une mise à jour de sécurité Debian changera
+la couche apt ; étape suivante : épingler les paquets apt ou tirer d'un instantané daté (snapshot.debian.org). Et la
+stabilité TEMPORELLE n'est établie qu'à 8 min : une reconstruction un AUTRE jour reste à faire avant de clore.
+**ADOPTÉE dans le dépôt le 2026-09-28, après P4.18** (le commit qui porte cette note) : Dockerfile nettoyé ;
+`--reproducible` et `--cache=false` dans `deploy/nexus/runner/build-job.yaml` (un cache resservirait des couches d'un
+autre jour : c'est la recette qui doit garantir le digest) ; kaniko 8 Gi pour 2 Gi, init 32 Mi pour 128 Mi ; empreinte
+de contenu écrite DANS l'image par `deploy/nexus/runner/empreinte_contenu.py` (zones `python` et `systeme`, calibrée sur
+une arborescence connue : `test_empreinte_de_contenu_calibree_sur_une_arborescence_CONNUE`), imprimée dans le journal
+du build et reportée dans IMAGE.json par `tools/jobs/remote.py` (voie de Master 2 : comparer deux images avant tout run),
+et publiée dans chaque MANIFEST ; témoin de recette `test_recette_reproductible_porte_LES_DEUX_ingredients_et_la_reserve_d_ELYSIUM`. **Reste
+pour clore** : (i) construire la nouvelle image par le chemin de PRODUCTION et la RECONSTRUIRE (`--reconstruire`) —
+même digest attendu —, écrire `deploy/nexus/runner/IMAGE.json` ; (ii) une reconstruction un AUTRE jour, même digest ou écart localisé par
+l'empreinte ; (iii) décider pour apt (épingler ou instantané daté).
 
 **P2.132 — rang 4 — OUVERTE (2026-09-26, trouvée par la revue adversariale de la règle S2-BASSIN-FRAGILITY v4,
 critique P7.1, vérifiée à la lecture du code par la session SCIENCE-HARNAIS) — Le harnais IMMORTEL de P4.4 à P4.16
@@ -2567,6 +2611,38 @@ elle-même, qui n'avait aucun témoin. Contre-exemple gelé :
 `test_surveillance_un_accroc_reseau_ne_l_arrete_pas_mais_se_compte` — des ratés NON consécutifs n'arrêtent jamais la
 sonde, trois consécutifs si, un seul avec `echecs_max=1` aussi (l'ancien comportement reste disponible).
 <!-- closes_when:grep_present=tests/sandbox/test_jobs_remote.py::accroc_reseau -->
+
+**P2.149 — ✅ CLOSE le 2026-09-28 (ouverte et fermée dans la même passe, session INFRA-NEXUS, trouvée par le balayage
+adversarial des artefacts du déport après ml-heavy) — la soumission acceptait un pod JAMAIS admissible par le quota,
+et le câblage « lire les plafonds → juger » de `soumettre` n'avait AUCUN témoin.**
+Preuve : sous ml-heavy (max 12 CPU par conteneur), `valider_ressources` admettait `--req-cpu 10`, que la ResourceQuota
+(requests.cpu 8) refuse même namespace vide ; `_attendre_recevoir` voyait « exceeded quota » et conseillait d'« attendre
+qu'un run finisse » — une attente sans fin, nommée comme passagère. Sous le palier standard (max 2 CPU) le cas était
+impossible : c'est l'élargissement du palier qui l'a ouvert. Et aucun test de `soumettre` n'atteignait la lecture des
+LimitRange (tous refusaient avant), donc la garantie « un palier au-dessus du max LU est refusé » ne reposait que sur un
+défaut de repli à 4 Gi. Corrigé : `quota_du_namespace` + `valider_quota` (un pod qui dépasse À LUI SEUL un `hard` est
+refusé AVANT création et nommé « jamais admissible » ; aucune ResourceQuota = rien à juger, publié) ; `soumettre` lit
+plafonds et quota APRÈS le refus « nœud pas prêt » (la branche de repli morte est retirée) ; `quota_hard` publié dans
+« soumission.json ». Même passe, dans `tools/jobs/remote.py` : cause d'échec d'un build LUE dans ses statuts (`raison_echec_build`,
+OOMKilled nommé) ; heures du build lues au statut du Job, avec leur source (`horodatage_job`, dans IMAGE.json) ; un
+build encore actif après le délai est RETIRÉ et c'est dit ; la sonde publie la mémoire du quota ; `allumage` ne propose
+plus `local` pour un build. Contre-exemples gelés : `test_soumission_juge_contre_plafonds_et_quota_LUS_avant_toute_creation`
+(quatre issues), `test_valider_quota_deux_issues_et_absence_de_quota_DITE`, `test_cause_d_echec_d_un_build_LUE_dans_les_statuts`,
+trois tests de `construire_image` sur un faux cluster.
+<!-- closes_when:grep_present=tests/sandbox/test_jobs_remote.py::juge_contre_plafonds_et_quota -->
+
+**P2.150 — rang 22 — OUVERTE (2026-09-28, trouvée par la revue adversariale du diff « après ml-heavy », session
+INFRA-NEXUS) — Le témoin de LIEU torch (batcave contre nexus), qui décide que P4.18 tourne sur la batcave, n'a AUCUNE
+évidence dans le dépôt (classe E27).**
+Preuve : la REF-DEPORT-NEXUS (« Choisir le lieu ») et le bandeau du 2026-09-28 d'EDR-DEPORT-NEXUS-TEMOIN rapportent le
+résultat d'agagi-40 (sha afa4dac6, cellule `b_zero` seed 2026, Jobs 430f et a6db sur nexus, local-fa0a sur la batcave :
+W identiques au bit entre 2 et 16 threads sur nexus, différents au dernier bit de la batcave) ; `git grep` de
+« afa4dac-430f » et « local-fa0a » sur d1, tmp/science, tmp/science-prep, tmp/e34, tmp/p419 : aucun fichier sous docs/
+ni results/. MANIFEST et génomes vivent hors suivi dans le worktree science-prep (`runs/deport/`, répertoires
+`s2_bassin_fragility_genomes_temoin_*`). À faire, par agagi-40 ou avec son accord, APRÈS P4.18 : publier une évidence
+suivie (les trois MANIFEST et les sha256 des génomes, ou les génomes eux-mêmes) — en RETIRANT l'adresse du registre que
+les MANIFEST portent dans leur champ `image` (dépôt public) — puis faire pointer la REF et le bandeau dessus. Sans
+clause `closes_when` (déclaré) : le chemin de l'évidence n'existe pas encore.
 
 **P2.136 — rang 6 — ✅ CLOSE le 2026-09-28 (ouverte le 2026-09-26 sur arbitrage de Master 2 : la règle du registre
 « pas de troisième fois » l'emporte sur le gel de la méthodo ; garde écrite et vérifiée le 26, committée le

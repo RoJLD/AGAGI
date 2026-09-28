@@ -5,14 +5,23 @@
 # selon le besoin — ml-heavy (max 12 CPU / 32 Gi, défauts 1 CPU / 2 Gi) les couvre exactement. Remplace le palier
 # `standard` (max 2 CPU / 4 Gi) : `python -m tools.jobs.remote namespace --appliquer` SUPPRIME
 # `elysium-limitrange-standard` dans le même geste — deux LimitRange dans un namespace, le max le plus RESTRICTIF gagne,
-# on resterait à 4 Gi. Le label `elysium.io/limitrange-tier: ml-heavy` du Namespace fait sauter ce namespace par la
-# boucle MANUELLE du README des LimitRange ELYSIUM (procédure humaine, aucune application automatique).
+# on resterait à 4 Gi. Palier appliqué le 2026-09-26 à 19:16 UTC (robla) ; les labels de propriété du 2026-09-28
+# (ci-dessous) le seront au prochain « namespace --appliquer » (P2.127). La boucle MANUELLE du README des LimitRange ELYSIUM
+# (procédure humaine) saute ce namespace par son NOM (ML_HEAVY_NS="elysium-ml elysium-agagi", PR ELYSIUM #1301) ; le
+# label `elysium.io/limitrange-tier` du Namespace n'est lu par AUCUNE boucle, il documente. Sous un autre nom, la
+# boucle y reposerait `standard` et remote.py REFUSERAIT tout palier > 4 Gi (un refus bruyant, jamais une faute muette).
 #
-# Réserves d'ELYSIUM, tenues par tools/jobs/remote.py : pods BURSTABLE (request <= limit / 4, jamais Guaranteed —
+# Réserves d'ELYSIUM, tenues par tools/jobs/remote.py pour les Jobs de RUN (le build Kaniko, gabarit
+# runner/build-job.yaml, demande encore 2 Gi pour une limite de 4 Gi — rapport ramené à limite / 4, 2 Gi pour 8 Gi,
+# à l'adoption de P2.134) : pods BURSTABLE
+# (request <= limit / 4, jamais Guaranteed —
 # un pod garanti à 32 Gi ferait évincer ollama à sa place), priorité elysium-disposable ; paliers 28 et 32 Gi fiables
 # seulement quand nexus-ollama n'a pas de gros modèle chargé (marge réelle mesurée ~33 Gi) ; OOMKilled et Evicted
 # sont des issues DISTINCTES et RELANÇABLES. Si forge-vllm (limite 32 Gi) est un jour planifié sur nexus, refaire les
 # chiffres avec ELYSIUM.
+# PROPRIÉTÉ (P2.127, accord d'elysium-91 et d'elysium-8d, 2026-09-28 : aucun sélecteur, sentinel ni politique ELYSIUM ne
+# lit part-of ou sigil sur une LimitRange) : cette copie n'EST pas SIGIL-1627 ni un objet du cœur ELYSIUM — elle porte la propriété
+# d'AGAGI et dit sa source par l'annotation derived-from.
 apiVersion: v1
 kind: LimitRange
 metadata:
@@ -21,12 +30,14 @@ metadata:
   labels:
     elysium.io/managed-by: agagi
     elysium.io/source-repo: RoJLD.AGAGI
+    elysium.io/owner: agagi
     app.kubernetes.io/name: elysium-limitrange
     app.kubernetes.io/component: doctrine
-    app.kubernetes.io/part-of: elysium-core
-    elysium.io/sigil: "SIGIL-1627"
+    app.kubernetes.io/part-of: agagi
     elysium.io/tier: ml-heavy
     elysium.io/iron_rule: CNCE-2
+  annotations:
+    elysium.io/derived-from: "SIGIL-1627 (gitops/manifests/limitranges/elysium-limitrange-ml-heavy.yaml @ 577fc67f7)"
 spec:
   limits:
     - type: Container
